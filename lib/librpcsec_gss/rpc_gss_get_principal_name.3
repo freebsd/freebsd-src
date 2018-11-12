@@ -1,6 +1,6 @@
 .\" Copyright (c) 2008 Isilon Inc http://www.isilon.com/
 .\" Authors: Doug Rabson <dfr@rabson.org>
-.\" Developed with Red Inc: Alfred Perlstein <alfred@freebsd.org>
+.\" Developed with Red Inc: Alfred Perlstein <alfred@FreeBSD.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,7 +24,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd July 4, 2008
+.Dd January 26, 2010
 .Dt RPC_GSS_GET_PRINCIPAL_NAME 3
 .Os
 .Sh NAME
@@ -46,7 +46,7 @@
 This function can be used to generate a client principal name from
 various strings.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It principal"
 .It principal
 If the principal is created successfully,
 .Fa *principal
@@ -67,16 +67,16 @@ if the principal was created or
 .Dv FALSE
 otherwise
 .Sh SEE ALSO
-.Xr rpc 3 ,
-.Xr gssapi 3 ,
 .Xr gss_export_name 3 ,
+.Xr gssapi 3 ,
+.Xr rpc 3 ,
 .Xr rpcset_gss 3
 .Sh HISTORY
 The
 .Nm
-manual page example first appeared in
+function first appeared in
 .Fx 8.0 .
 .Sh AUTHORS
 This
 manual page was written by
-.An Doug Rabson Aq dfr@FreeBSD.org .
+.An Doug Rabson Aq Mt dfr@FreeBSD.org .

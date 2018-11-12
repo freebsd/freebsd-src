@@ -1,5 +1,12 @@
 /*-
+ * Copyright 2013 Garrett D'Amore <garrett@damore.org>
+ * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2002-2004 Tim J. Robbins.
+ *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,19 +41,25 @@ __FBSDID("$FreeBSD$");
 #include "mblocal.h"
 
 size_t
+mbsnrtowcs_l(wchar_t * __restrict dst, const char ** __restrict src,
+    size_t nms, size_t len, mbstate_t * __restrict ps, locale_t locale)
+{
+	FIX_LOCALE(locale);
+	if (ps == NULL)
+		ps = &locale->mbsnrtowcs;
+	return (XLOCALE_CTYPE(locale)->__mbsnrtowcs(dst, src, nms, len, ps));
+}
+size_t
 mbsnrtowcs(wchar_t * __restrict dst, const char ** __restrict src,
     size_t nms, size_t len, mbstate_t * __restrict ps)
 {
-	static mbstate_t mbs;
-
-	if (ps == NULL)
-		ps = &mbs;
-	return (__mbsnrtowcs(dst, src, nms, len, ps));
+	return mbsnrtowcs_l(dst, src, nms, len, ps, __get_locale());
 }
 
 size_t
 __mbsnrtowcs_std(wchar_t * __restrict dst, const char ** __restrict src,
-    size_t nms, size_t len, mbstate_t * __restrict ps)
+    size_t nms, size_t len, mbstate_t * __restrict ps,
+    mbrtowc_pfn_t pmbrtowc)
 {
 	const char *s;
 	size_t nchr;
@@ -58,7 +71,7 @@ __mbsnrtowcs_std(wchar_t * __restrict dst, const char ** __restrict src,
 
 	if (dst == NULL) {
 		for (;;) {
-			if ((nb = __mbrtowc(&wc, s, nms, ps)) == (size_t)-1)
+			if ((nb = pmbrtowc(&wc, s, nms, ps)) == (size_t)-1)
 				/* Invalid sequence - mbrtowc() sets errno. */
 				return ((size_t)-1);
 			else if (nb == 0 || nb == (size_t)-2)
@@ -71,7 +84,7 @@ __mbsnrtowcs_std(wchar_t * __restrict dst, const char ** __restrict src,
 	}
 
 	while (len-- > 0) {
-		if ((nb = __mbrtowc(dst, s, nms, ps)) == (size_t)-1) {
+		if ((nb = pmbrtowc(dst, s, nms, ps)) == (size_t)-1) {
 			*src = s;
 			return ((size_t)-1);
 		} else if (nb == (size_t)-2) {

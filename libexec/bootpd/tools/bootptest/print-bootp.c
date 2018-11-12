@@ -1,19 +1,18 @@
 /*
- * Copyright (c) 1988-1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1988-1990
+ *      The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that: (1) source code distributions
- * retain the above copyright notice and this paragraph in its entirety, (2)
- * distributions including binary code include the above copyright notice and
- * this paragraph in its entirety in the documentation or other materials
- * provided with the distribution, and (3) all advertising materials mentioning
- * features or use of this software display the following acknowledgement:
- * ``This product includes software developed by the University of California,
- * Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
- * the University nor the names of its contributors may be used to endorse
- * or promote products derived from this software without specific prior
- * written permission.
+ * modification, are permitted provided that:
+ * 1. Source code distributions retain the above copyright
+ *    notice and this paragraph in its entirety
+ * 2. Distributions including binary code include the above copyright
+ *    notice and this paragraph in its entirety in the documentation
+ *    or other materials provided with the distribution, and 
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
@@ -101,8 +100,8 @@ bootp_print(bp, length, sport, dport)
 
 	/* Client's Hardware address */
 	if (bp->bp_hlen) {
-		register struct ether_header *eh;
-		register char *e;
+		struct ether_header *eh;
+		char *e;
 
 		TCHECK(bp->bp_chaddr[0], 6);
 		eh = (struct ether_header *) packetp;
@@ -111,8 +110,8 @@ bootp_print(bp, length, sport, dport)
 		else if (bp->bp_op == BOOTREPLY)
 			e = (char *) EDST(eh);
 		else
-			e = 0;
-		if (e == 0 || bcmp((char *) bp->bp_chaddr, e, 6))
+			e = NULL;
+		if (e == NULL || bcmp((char *) bp->bp_chaddr, e, 6))
 			dump_hex(bp->bp_chaddr, bp->bp_hlen);
 	}
 	/* Only print interesting fields */
@@ -187,7 +186,7 @@ bootp_print(bp, length, sport, dport)
 
 /*
  * Option description data follows.
- * These are decribed in: RFC-1048, RFC-1395, RFC-1497, RFC-1533
+ * These are described in: RFC-1048, RFC-1395, RFC-1497, RFC-1533
  *
  * The first char of each option string encodes the data format:
  * ?: unknown
@@ -275,12 +274,12 @@ rfc1048_opts[] = {
 
 static void
 rfc1048_print(bp, length)
-	register u_char *bp;
+	u_char *bp;
 	int length;
 {
 	u_char tag;
 	u_char *ep;
-	register int len;
+	int len;
 	u_int32 ul;
 	u_short us;
 	struct in_addr ia;
@@ -310,7 +309,7 @@ rfc1048_print(bp, length)
 		len = *bp++;
 		if (bp + len > ep) {
 			/* truncated option */
-			printf(" |(%d>%d)", len, ep - bp);
+			printf(" |(%d>%td)", len, ep - bp);
 			return;
 		}
 		/* Print the option value(s). */
@@ -377,11 +376,10 @@ rfc1048_print(bp, length)
 
 static void
 cmu_print(bp, length)
-	register u_char *bp;
+	u_char *bp;
 	int length;
 {
 	struct cmu_vend *v;
-	u_char *ep;
 
 	printf("-cmu");
 
@@ -390,8 +388,6 @@ cmu_print(bp, length)
 		printf(" |L=%d", length);
 		return;
 	}
-	/* Setup end pointer */
-	ep = bp + length;
 
 	/* Subnet mask */
 	if (v->v_flags & VF_SMASK) {
@@ -428,7 +424,7 @@ cmu_print(bp, length)
 
 static void
 other_print(bp, length)
-	register u_char *bp;
+	u_char *bp;
 	int length;
 {
 	u_char *ep;					/* end pointer */

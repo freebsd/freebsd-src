@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -106,7 +105,8 @@ static device_method_t ufm_methods[] = {
 	DEVMETHOD(device_probe, ufm_probe),
 	DEVMETHOD(device_attach, ufm_attach),
 	DEVMETHOD(device_detach, ufm_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t ufm_driver = {
@@ -115,22 +115,28 @@ static driver_t ufm_driver = {
 	.size = sizeof(struct ufm_softc),
 };
 
+static const STRUCT_USB_HOST_ID ufm_devs[] = {
+	{USB_VPI(USB_VENDOR_CYPRESS, USB_PRODUCT_CYPRESS_FMRADIO, 0)},
+};
+
 DRIVER_MODULE(ufm, uhub, ufm_driver, ufm_devclass, NULL, 0);
 MODULE_DEPEND(ufm, usb, 1, 1, 1);
+MODULE_VERSION(ufm, 1);
+USB_PNP_HOST_INFO(ufm_devs);
 
 static int
 ufm_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
-	if ((uaa->info.idVendor == USB_VENDOR_CYPRESS) &&
-	    (uaa->info.idProduct == USB_PRODUCT_CYPRESS_FMRADIO)) {
-		return (0);
-	}
-	return (ENXIO);
+	if (uaa->info.bConfigIndex != 0)
+		return (ENXIO);
+	if (uaa->info.bIfaceIndex != 0)
+		return (ENXIO);
+
+	return (usbd_lookup_id_by_uaa(ufm_devs, sizeof(ufm_devs), uaa));
 }
 
 static int
@@ -152,7 +158,7 @@ ufm_attach(device_t dev)
 
 	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &ufm_fifo_methods, &sc->sc_fifo,
-	    device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
+	    device_get_unit(dev), -1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;

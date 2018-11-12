@@ -34,6 +34,7 @@
 #define _NETINET_TCP_H_
 
 #include <sys/cdefs.h>
+#include <sys/types.h>
 
 #if __BSD_VISIBLE
 
@@ -52,11 +53,11 @@ struct tcphdr {
 	tcp_seq	th_seq;			/* sequence number */
 	tcp_seq	th_ack;			/* acknowledgement number */
 #if BYTE_ORDER == LITTLE_ENDIAN
-	u_int	th_x2:4,		/* (unused) */
+	u_char	th_x2:4,		/* (unused) */
 		th_off:4;		/* data offset */
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int	th_off:4,		/* data offset */
+	u_char	th_off:4,		/* data offset */
 		th_x2:4;		/* (unused) */
 #endif
 	u_char	th_flags;
@@ -96,6 +97,10 @@ struct tcphdr {
 #define    TCPOLEN_TSTAMP_APPA		(TCPOLEN_TIMESTAMP+2) /* appendix A */
 #define	TCPOPT_SIGNATURE	19		/* Keyed MD5: RFC 2385 */
 #define	   TCPOLEN_SIGNATURE		18
+#define	TCPOPT_FAST_OPEN	34
+#define	   TCPOLEN_FAST_OPEN_EMPTY	2
+#define	   TCPOLEN_FAST_OPEN_MIN	6
+#define	   TCPOLEN_FAST_OPEN_MAX	18
 
 /* Miscellaneous constants */
 #define	MAX_SACK_BLKS	6	/* Max # SACK blocks stored at receiver side */
@@ -103,29 +108,37 @@ struct tcphdr {
 
 
 /*
- * Default maximum segment size for TCP.
- * With an IP MTU of 576, this is 536,
- * but 512 is probably more convenient.
- * This should be defined as MIN(512, IP_MSS - sizeof (struct tcpiphdr)).
+ * The default maximum segment size (MSS) to be used for new TCP connections
+ * when path MTU discovery is not enabled.
+ *
+ * RFC879 derives the default MSS from the largest datagram size hosts are
+ * minimally required to handle directly or through IP reassembly minus the
+ * size of the IP and TCP header.  With IPv6 the minimum MTU is specified
+ * in RFC2460.
+ *
+ * For IPv4 the MSS is 576 - sizeof(struct tcpiphdr)
+ * For IPv6 the MSS is IPV6_MMTU - sizeof(struct ip6_hdr) - sizeof(struct tcphdr)
+ *
+ * We use explicit numerical definition here to avoid header pollution.
  */
-#define	TCP_MSS	512
-/*
- * TCP_MINMSS is defined to be 216 which is fine for the smallest
- * link MTU (256 bytes, AX.25 packet radio) in the Internet.
- * However it is very unlikely to come across such low MTU interfaces
- * these days (anno dato 2003).
- * See tcp_subr.c tcp_minmss SYSCTL declaration for more comments.
- * Setting this to "0" disables the minmss check.
- */
-#define	TCP_MINMSS 216
+#define	TCP_MSS		536
+#define	TCP6_MSS	1220
 
 /*
- * Default maximum segment size for TCP6.
- * With an IP6 MSS of 1280, this is 1220,
- * but 1024 is probably more convenient. (xxx kazu in doubt)
- * This should be defined as MIN(1024, IP6_MSS - sizeof (struct tcpip6hdr))
+ * Limit the lowest MSS we accept for path MTU discovery and the TCP SYN MSS
+ * option.  Allowing low values of MSS can consume significant resources and
+ * be used to mount a resource exhaustion attack.
+ * Connections requesting lower MSS values will be rounded up to this value
+ * and the IP_DF flag will be cleared to allow fragmentation along the path.
+ *
+ * See tcp_subr.c tcp_minmss SYSCTL declaration for more comments.  Setting
+ * it to "0" disables the minmss check.
+ *
+ * The default value is fine for TCP across the Internet's smallest official
+ * link MTU (256 bytes for AX.25 packet radio).  However, a connection is very
+ * unlikely to come across such low MTU interfaces these days (anno domini 2003).
  */
-#define	TCP6_MSS	1024
+#define	TCP_MINMSS 216
 
 #define	TCP_MAXWIN	65535	/* largest value for (unscaled) window */
 #define	TTCP_CLIENT_SND_WND	4096	/* dflt send window for T/TCP client */
@@ -140,16 +153,29 @@ struct tcphdr {
 #endif /* __BSD_VISIBLE */
 
 /*
- * User-settable options (used with setsockopt).
+ * User-settable options (used with setsockopt).  These are discrete
+ * values and are not masked together.  Some values appear to be
+ * bitmasks for historical reasons.
  */
-#define	TCP_NODELAY	0x01	/* don't delay send to coalesce packets */
+#define	TCP_NODELAY	1	/* don't delay send to coalesce packets */
 #if __BSD_VISIBLE
-#define	TCP_MAXSEG	0x02	/* set maximum segment size */
-#define TCP_NOPUSH	0x04	/* don't push last block of write */
-#define TCP_NOOPT	0x08	/* don't use TCP options */
-#define TCP_MD5SIG	0x10	/* use MD5 digests (RFC2385) */
-#define	TCP_INFO	0x20	/* retrieve tcp_info structure */
-#define	TCP_CONGESTION	0x40	/* get/set congestion control algorithm */
+#define	TCP_MAXSEG	2	/* set maximum segment size */
+#define TCP_NOPUSH	4	/* don't push last block of write */
+#define TCP_NOOPT	8	/* don't use TCP options */
+#define TCP_MD5SIG	16	/* use MD5 digests (RFC2385) */
+#define	TCP_INFO	32	/* retrieve tcp_info structure */
+#define	TCP_CONGESTION	64	/* get/set congestion control algorithm */
+#define	TCP_CCALGOOPT	65	/* get/set cc algorithm specific options */
+#define	TCP_KEEPINIT	128	/* N, time to establish connection */
+#define	TCP_KEEPIDLE	256	/* L,N,X start keeplives after this period */
+#define	TCP_KEEPINTVL	512	/* L,N interval between keepalives */
+#define	TCP_KEEPCNT	1024	/* L,N number of keepalives before close */
+#define	TCP_FASTOPEN	1025	/* enable TFO / was created via TFO */
+#define	TCP_PCAP_OUT	2048	/* number of output packets to keep */
+#define	TCP_PCAP_IN	4096	/* number of input packets to keep */
+#define TCP_FUNCTION_BLK 8192	/* Set the tcp function pointers to the specified stack */
+/* Start of reserved space for third-party user-settable options. */
+#define	TCP_VENDOR	SO_VENDOR
 
 #define	TCP_CA_NAME_MAX	16	/* max congestion control name length */
 
@@ -181,10 +207,10 @@ struct tcp_info {
 	u_int8_t	tcpi_snd_wscale:4,	/* RFC1323 send shift value. */
 			tcpi_rcv_wscale:4;	/* RFC1323 recv shift value. */
 
-	u_int32_t	__tcpi_rto;
+	u_int32_t	tcpi_rto;		/* Retransmission timeout (usec). */
 	u_int32_t	__tcpi_ato;
-	u_int32_t	__tcpi_snd_mss;
-	u_int32_t	__tcpi_rcv_mss;
+	u_int32_t	tcpi_snd_mss;		/* Max segment size for send. */
+	u_int32_t	tcpi_rcv_mss;		/* Max segment size for receive. */
 
 	u_int32_t	__tcpi_unacked;
 	u_int32_t	__tcpi_sacked;
@@ -195,7 +221,7 @@ struct tcp_info {
 	/* Times; measurements in usecs. */
 	u_int32_t	__tcpi_last_data_sent;
 	u_int32_t	__tcpi_last_ack_sent;	/* Also unimpl. on Linux? */
-	u_int32_t	__tcpi_last_data_recv;
+	u_int32_t	tcpi_last_data_recv;	/* Time since last recv data. */
 	u_int32_t	__tcpi_last_ack_recv;
 
 	/* Metrics; variable units. */
@@ -213,14 +239,23 @@ struct tcp_info {
 
 	/* FreeBSD extensions to tcp_info. */
 	u_int32_t	tcpi_snd_wnd;		/* Advertised send window. */
-	u_int32_t	tcpi_snd_bwnd;		/* Bandwidth send window. */
+	u_int32_t	tcpi_snd_bwnd;		/* No longer used. */
 	u_int32_t	tcpi_snd_nxt;		/* Next egress seqno */
 	u_int32_t	tcpi_rcv_nxt;		/* Next ingress seqno */
 	u_int32_t	tcpi_toe_tid;		/* HWTID for TOE endpoints */
+	u_int32_t	tcpi_snd_rexmitpack;	/* Retransmitted packets */
+	u_int32_t	tcpi_rcv_ooopack;	/* Out-of-order packets */
+	u_int32_t	tcpi_snd_zerowin;	/* Zero-sized windows sent */
 	
 	/* Padding to grow without breaking ABI. */
-	u_int32_t	__tcpi_pad[29];		/* Padding. */
+	u_int32_t	__tcpi_pad[26];		/* Padding. */
 };
 #endif
+#define TCP_FUNCTION_NAME_LEN_MAX 32
+
+struct tcp_function_set {
+	char function_set_name[TCP_FUNCTION_NAME_LEN_MAX];
+	uint32_t pcbcnt;
+};
 
 #endif /* !_NETINET_TCP_H_ */

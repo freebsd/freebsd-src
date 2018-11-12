@@ -23,8 +23,10 @@
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -41,12 +43,15 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <signal.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <libgen.h>
-#if defined(sun)
+#ifdef illumos
 #include <libproc.h>
+#endif
+#ifdef __FreeBSD__
+#include <spawn.h>
 #endif
 
 typedef struct dtrace_cmd {
@@ -88,6 +93,9 @@ static int g_flowindent;
 static int g_intr;
 static int g_impatient;
 static int g_newline;
+#ifdef __FreeBSD__
+static int g_siginfo;
+#endif
 static int g_total;
 static int g_cflags;
 static int g_oflags;
@@ -99,7 +107,7 @@ static int g_grabanon = 0;
 static const char *g_ofile = NULL;
 static FILE *g_ofp;
 static dtrace_hdl_t *g_dtp;
-#if defined(sun)
+#ifdef illumos
 static char *g_etcfile = "/etc/system";
 static const char *g_etcbegin = "* vvvv Added by DTrace";
 static const char *g_etcend = "* ^^^^ Added by DTrace";
@@ -195,6 +203,13 @@ fatal(const char *fmt, ...)
 	verror(fmt, ap);
 	va_end(ap);
 
+	/*
+	 * Close the DTrace handle to ensure that any controlled processes are
+	 * correctly restored and continued.
+	 */
+	if (g_dtp)
+		dtrace_close(g_dtp);
+
 	exit(E_ERROR);
 }
 
@@ -202,7 +217,7 @@ fatal(const char *fmt, ...)
 static void
 dfatal(const char *fmt, ...)
 {
-#if !defined(sun) && defined(NEED_ERRLOC)
+#if !defined(illumos) && defined(NEED_ERRLOC)
 	char *p_errfile = NULL;
 	int errline = 0;
 #endif
@@ -223,7 +238,7 @@ dfatal(const char *fmt, ...)
 		(void) fprintf(stderr, "%s\n",
 		    dtrace_errmsg(g_dtp, dtrace_errno(g_dtp)));
 	}
-#if !defined(sun) && defined(NEED_ERRLOC)
+#if !defined(illumos) && defined(NEED_ERRLOC)
 	dt_get_errloc(g_dtp, &p_errfile, &errline);
 	if (p_errfile != NULL)
 		printf("File '%s', line %d\n", p_errfile, errline);
@@ -388,7 +403,41 @@ dof_prune(const char *fname)
 	free(buf);
 }
 
-#if defined(sun)
+#ifdef __FreeBSD__
+/*
+ * Use nextboot(8) to tell the loader to load DTrace kernel modules during
+ * the next boot of the system. The nextboot(8) configuration is removed during
+ * boot, so it will not persist indefinitely.
+ */
+static void
+bootdof_add(void)
+{
+	char * const nbargv[] = {
+		"nextboot", "-a",
+		"-e", "dtraceall_load=\"YES\"",
+		"-e", "dtrace_dof_load=\"YES\"",
+		"-e", "dtrace_dof_name=\"/boot/dtrace.dof\"",
+		"-e", "dtrace_dof_type=\"dtrace_dof\"",
+		NULL,
+	};
+	pid_t child;
+	int err, status;
+
+	err = posix_spawnp(&child, "nextboot", NULL, NULL, nbargv,
+	    NULL);
+	if (err != 0) {
+		error("failed to execute nextboot: %s", strerror(err));
+		exit(E_ERROR);
+	}
+
+	if (waitpid(child, &status, 0) != child)
+		fatal("waiting for nextboot");
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+		error("nextboot returned with status %d", status);
+		exit(E_ERROR);
+	}
+}
+#else
 static void
 etcsystem_prune(void)
 {
@@ -499,12 +548,13 @@ etcsystem_add(void)
 
 	error("added forceload directives to %s\n", g_ofile);
 }
-#endif
+#endif /* !__FreeBSD__ */
 
 static void
 print_probe_info(const dtrace_probeinfo_t *p)
 {
 	char buf[BUFSIZ];
+	char *user;
 	int i;
 
 	oprintf("\n\tProbe Description Attributes\n");
@@ -528,10 +578,14 @@ print_probe_info(const dtrace_probeinfo_t *p)
 	oprintf("\n\tArgument Types\n");
 
 	for (i = 0; i < p->dtp_argc; i++) {
+		if (p->dtp_argv[i].dtt_flags & DTT_FL_USER)
+			user = "userland ";
+		else
+			user = "";
 		if (ctf_type_name(p->dtp_argv[i].dtt_ctfp,
 		    p->dtp_argv[i].dtt_type, buf, sizeof (buf)) == NULL)
 			(void) strlcpy(buf, "(unknown)", sizeof (buf));
-		oprintf("\t\targs[%d]: %s\n", i, buf);
+		oprintf("\t\targs[%d]: %s%s\n", i, user, buf);
 	}
 
 	if (p->dtp_argc == 0)
@@ -629,24 +683,24 @@ anon_prog(const dtrace_cmd_t *dcp, dof_hdr_t *dof, int n)
 	p = (uchar_t *)dof;
 	q = p + dof->dofh_loadsz;
 
-#if defined(sun)
+#ifdef __FreeBSD__
+	/*
+	 * On FreeBSD, the DOF file is read directly during boot - just write
+	 * two hex characters per byte.
+	 */
+	oprintf("dof-data-%d=", n);
+
+	while (p < q)
+		oprintf("%02x", *p++);
+
+	oprintf("\n");
+#else
 	oprintf("dof-data-%d=0x%x", n, *p++);
 
 	while (p < q)
 		oprintf(",0x%x", *p++);
 
 	oprintf(";\n");
-#else
-	/*
-	 * On FreeBSD, the DOF data is handled as a kernel environment (kenv)
-	 * string. We use two hex characters per DOF byte.
-	 */
-	oprintf("dof-data-%d=%02x", n, *p++);
-
-	while (p < q)
-		oprintf("%02x", *p++);
-
-	oprintf("\n");
 #endif
 
 	dtrace_dof_destroy(g_dtp, dof);
@@ -671,9 +725,12 @@ link_prog(dtrace_cmd_t *dcp)
 		p[0] = '\0'; /* strip .d suffix */
 		(void) snprintf(dcp->dc_ofile, sizeof (dcp->dc_ofile),
 		    "%s.o", basename(dcp->dc_arg));
+	} else if (g_cmdc > 1) {
+		(void) snprintf(dcp->dc_ofile, sizeof (dcp->dc_ofile),
+		    "d.out.%td", dcp - g_cmdv);
 	} else {
 		(void) snprintf(dcp->dc_ofile, sizeof (dcp->dc_ofile),
-		    g_cmdc > 1 ?  "%s.%d" : "%s", "d.out", (int)(dcp - g_cmdv));
+		    "d.out");
 	}
 
 	if (dtrace_program_link(g_dtp, dcp->dc_prog, DTRACE_D_PROBES,
@@ -692,6 +749,9 @@ list_probe(dtrace_hdl_t *dtp, const dtrace_probedesc_t *pdp, void *arg)
 
 	if (g_verbose && dtrace_probe_info(dtp, pdp, &p) == 0)
 		print_probe_info(&p);
+
+	if (g_intr != 0)
+		return (1);
 
 	return (0);
 }
@@ -773,19 +833,27 @@ compile_str(dtrace_cmd_t *dcp)
 static void
 prochandler(struct ps_prochandle *P, const char *msg, void *arg)
 {
-fatal("DOODAD in function %s, file %s, line %d\n",__FUNCTION__,__FILE__,__LINE__);
-#ifdef DOODAD
+#ifdef illumos
 	const psinfo_t *prp = Ppsinfo(P);
 	int pid = Pstatus(P)->pr_pid;
 	char name[SIG2STR_MAX];
+#else
+	int wstatus = proc_getwstat(P);
+	int pid = proc_getpid(P);
+#endif
 
 	if (msg != NULL) {
 		notice("pid %d: %s\n", pid, msg);
 		return;
 	}
 
+#ifdef illumos
 	switch (Pstate(P)) {
+#else
+	switch (proc_state(P)) {
+#endif
 	case PS_UNDEAD:
+#ifdef illumos
 		/*
 		 * Ideally we would like to always report pr_wstat here, but it
 		 * isn't possible given current /proc semantics.  If we grabbed
@@ -798,9 +866,20 @@ fatal("DOODAD in function %s, file %s, line %d\n",__FUNCTION__,__FILE__,__LINE__
 			notice("pid %d terminated by %s\n", pid,
 			    proc_signame(WTERMSIG(prp->pr_wstat),
 			    name, sizeof (name)));
+#else
+		if (WIFSIGNALED(wstatus)) {
+			notice("pid %d terminated by %d\n", pid,
+			    WTERMSIG(wstatus));
+#endif
+#ifdef illumos
 		} else if (prp != NULL && WEXITSTATUS(prp->pr_wstat) != 0) {
 			notice("pid %d exited with status %d\n",
 			    pid, WEXITSTATUS(prp->pr_wstat));
+#else
+		} else if (WEXITSTATUS(wstatus) != 0) {
+			notice("pid %d exited with status %d\n",
+			    pid, WEXITSTATUS(wstatus));
+#endif
 		} else {
 			notice("pid %d has exited\n", pid);
 		}
@@ -812,7 +891,6 @@ fatal("DOODAD in function %s, file %s, line %d\n",__FUNCTION__,__FILE__,__LINE__
 		g_pslive--;
 		break;
 	}
-#endif
 }
 
 /*ARGSUSED*/
@@ -1185,11 +1263,48 @@ intr(int signo)
 		g_impatient = 1;
 }
 
+#ifdef __FreeBSD__
+static void
+siginfo(int signo __unused)
+{
+
+	g_siginfo++;
+	g_newline = 1;
+}
+#endif
+
+static void
+installsighands(void)
+{
+	struct sigaction act, oact;
+
+	(void) sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+	act.sa_handler = intr;
+
+	if (sigaction(SIGINT, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
+		(void) sigaction(SIGINT, &act, NULL);
+
+	if (sigaction(SIGTERM, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
+		(void) sigaction(SIGTERM, &act, NULL);
+
+#ifdef __FreeBSD__
+	if (sigaction(SIGPIPE, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
+		(void) sigaction(SIGPIPE, &act, NULL);
+
+	if (sigaction(SIGUSR1, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
+		(void) sigaction(SIGUSR1, &act, NULL);
+
+	act.sa_handler = siginfo;
+	if (sigaction(SIGINFO, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
+		(void) sigaction(SIGINFO, &act, NULL);
+#endif
+}
+
 int
 main(int argc, char *argv[])
 {
 	dtrace_bufdesc_t buf;
-	struct sigaction act, oact;
 	dtrace_status_t status[2];
 	dtrace_optval_t opt;
 	dtrace_cmd_t *dcp;
@@ -1381,6 +1496,7 @@ main(int argc, char *argv[])
 	(void) dtrace_setopt(g_dtp, "bufsize", "4m");
 	(void) dtrace_setopt(g_dtp, "aggsize", "4m");
 #endif
+	(void) dtrace_setopt(g_dtp, "temporal", "yes");
 
 	/*
 	 * If -G is specified, enable -xlink=dynamic and -xunodefs to permit
@@ -1658,19 +1774,18 @@ main(int argc, char *argv[])
 
 	case DMODE_ANON:
 		if (g_ofile == NULL)
-#if defined(sun)
+#ifdef illumos
 			g_ofile = "/kernel/drv/dtrace.conf";
 #else
 			/*
 			 * On FreeBSD, anonymous DOF data is written to
-			 * the DTrace DOF file that the boot loader will
-			 * read if booting with the DTrace option.
+			 * the DTrace DOF file.
 			 */
 			g_ofile = "/boot/dtrace.dof";
 #endif
 
 		dof_prune(g_ofile); /* strip out any old DOF directives */
-#if defined(sun)
+#ifdef illumos
 		etcsystem_prune(); /* string out any forceload directives */
 #endif
 
@@ -1703,7 +1818,10 @@ main(int argc, char *argv[])
 		 * that itself contains a #pragma D option quiet.
 		 */
 		error("saved anonymous enabling in %s\n", g_ofile);
-#if defined(sun)
+
+#ifdef __FreeBSD__
+		bootdof_add();
+#else
 		etcsystem_add();
 		error("run update_drv(1M) or reboot to enable changes\n");
 #endif
@@ -1739,6 +1857,8 @@ main(int argc, char *argv[])
 	case DMODE_LIST:
 		if (g_ofile != NULL && (g_ofp = fopen(g_ofile, "a")) == NULL)
 			fatal("failed to open output file '%s'", g_ofile);
+
+		installsighands();
 
 		oprintf("%5s %10s %17s %33s %s\n",
 		    "ID", "PROVIDER", "MODULE", "FUNCTION", "NAME");
@@ -1825,20 +1945,7 @@ main(int argc, char *argv[])
 	if (opt != DTRACEOPT_UNSET)
 		notice("allowing destructive actions\n");
 
-	(void) sigemptyset(&act.sa_mask);
-	act.sa_flags = 0;
-	act.sa_handler = intr;
-
-	if (sigaction(SIGINT, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
-		(void) sigaction(SIGINT, &act, NULL);
-
-	if (sigaction(SIGTERM, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
-		(void) sigaction(SIGTERM, &act, NULL);
-
-#if !defined(sun)
-	if (sigaction(SIGUSR1, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
-		(void) sigaction(SIGUSR1, &act, NULL);
-#endif
+	installsighands();
 
 	/*
 	 * Now that tracing is active and we are ready to consume trace data,
@@ -1853,6 +1960,13 @@ main(int argc, char *argv[])
 	do {
 		if (!g_intr && !done)
 			dtrace_sleep(g_dtp);
+
+#ifdef __FreeBSD__
+		if (g_siginfo) {
+			(void)dtrace_aggregate_print(g_dtp, g_ofp, NULL);
+			g_siginfo = 0;
+		}
+#endif
 
 		if (g_newline) {
 			/*

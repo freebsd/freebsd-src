@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)getsubopt.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd December 25, 2011
 .Dt GETSUBOPT 3
 .Os
 .Sh NAME
@@ -131,9 +131,11 @@ while ((ch = getopt(argc, argv, "ab:")) != \-1) {
 				else
 					error("missing sub option");
 				break;
+			}
 		}
 		break;
 	}
+}
 .Ed
 .Sh SEE ALSO
 .Xr getopt 3 ,

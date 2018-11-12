@@ -72,7 +72,8 @@
  *
  * XScale core 3 assembly functions for CPU / MMU / TLB specific operations
  */
- 
+
+#include <machine/armreg.h>
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
@@ -80,9 +81,6 @@ __FBSDID("$FreeBSD$");
  * Size of the XScale core D-cache.
  */
 #define	DCACHE_SIZE		0x00008000
-
-.Lblock_userspace_access:
-	.word	_C_LABEL(block_userspace_access)
 
 /*
  * CPWAIT -- Canonical method to wait for CP15 update.
@@ -121,33 +119,25 @@ __FBSDID("$FreeBSD$");
 #ifdef CACHE_CLEAN_BLOCK_INTR
 #define	XSCALE_CACHE_CLEAN_BLOCK					\
 	stmfd	sp!, {r4}					;	\
-	mrs	r4, cpsr_all					;	\
-	orr	r0, r4, #(I32_bit | F32_bit)			;	\
-	msr	cpsr_all, r0
+	mrs	r4, cpsr					;	\
+	orr	r0, r4, #(PSR_I | PSR_F)			;	\
+	msr	cpsr_fsxc, r0
 
 #define	XSCALE_CACHE_CLEAN_UNBLOCK					\
-	msr	cpsr_all, r4					;	\
+	msr	cpsr_fsxc, r4					;	\
 	ldmfd	sp!, {r4}
 #else
-#define	XSCALE_CACHE_CLEAN_BLOCK					\
-	stmfd	sp!, {r4}					;	\
-	ldr	r4, .Lblock_userspace_access			;	\
-	ldr	ip, [r4]					;	\
-	orr	r0, ip, #1					;	\
-	str	r0, [r4]	
-
-#define	XSCALE_CACHE_CLEAN_UNBLOCK					\
-	str	ip, [r3]					;	\
-	ldmfd	sp!, {r4}
+#define	XSCALE_CACHE_CLEAN_BLOCK
+#define	XSCALE_CACHE_CLEAN_UNBLOCK
 #endif /* CACHE_CLEAN_BLOCK_INTR */
 
 
 ENTRY_NP(xscalec3_cache_syncI)
-ENTRY_NP(xscalec3_cache_purgeID)
+EENTRY_NP(xscalec3_cache_purgeID)
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache (D cleaned below) */
-ENTRY_NP(xscalec3_cache_cleanID)
-ENTRY_NP(xscalec3_cache_purgeD)
-ENTRY(xscalec3_cache_cleanD)
+EENTRY_NP(xscalec3_cache_cleanID)
+EENTRY_NP(xscalec3_cache_purgeD)
+EENTRY(xscalec3_cache_cleanD)
 
 	XSCALE_CACHE_CLEAN_BLOCK
 	mov	r0, #0
@@ -168,6 +158,11 @@ ENTRY(xscalec3_cache_cleanD)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	RET
+EEND(xscalec3_cache_purgeID)
+EEND(xscalec3_cache_cleanID)
+EEND(xscalec3_cache_purgeD)
+EEND(xscalec3_cache_cleanD)
+END(xscalec3_cache_syncI)
 
 ENTRY(xscalec3_cache_purgeID_rng)
 
@@ -189,6 +184,7 @@ ENTRY(xscalec3_cache_purgeID_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
+END(xscalec3_cache_purgeID_rng)
 
 ENTRY(xscalec3_cache_syncI_rng)
 	cmp	r1, #0x4000
@@ -209,7 +205,8 @@ ENTRY(xscalec3_cache_syncI_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
-	
+END(xscalec3_cache_syncI_rng)
+
 ENTRY(xscalec3_cache_purgeD_rng)
 
 	cmp	r1, #0x4000
@@ -228,8 +225,10 @@ ENTRY(xscalec3_cache_purgeD_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
+END(xscalec3_cache_purgeD_rng)
+
 ENTRY(xscalec3_cache_cleanID_rng)
-ENTRY(xscalec3_cache_cleanD_rng)
+EENTRY(xscalec3_cache_cleanD_rng)
 
 	cmp	r1, #0x4000
 	bcs	_C_LABEL(xscalec3_cache_cleanID)
@@ -248,7 +247,8 @@ ENTRY(xscalec3_cache_cleanD_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
-
+EEND(xscalec3_cache_cleanD_rng)
+END(xscalec3_cache_cleanID_rng)
 
 ENTRY(xscalec3_l2cache_purge)
 	/* Clean-up the L2 cache */
@@ -271,6 +271,7 @@ ENTRY(xscalec3_l2cache_purge)
 	CPWAIT(r0)
 	mcr	p15, 0, r0, c7, c10, 5	/* Data memory barrier */
 	RET
+END(xscalec3_l2cache_purge)
 
 ENTRY(xscalec3_l2cache_clean_rng)
 	mcr	p15, 0, r0, c7, c10, 5	/* Data memory barrier */
@@ -291,6 +292,7 @@ ENTRY(xscalec3_l2cache_clean_rng)
 	mcr	p15, 0, r0, c7, c10, 5
 
 	CPWAIT_AND_RETURN(r0)
+END(xscalec3_l2cache_clean_rng)
 
 ENTRY(xscalec3_l2cache_purge_rng)
 
@@ -310,6 +312,7 @@ ENTRY(xscalec3_l2cache_purge_rng)
 	mcr	p15, 0, r0, c7, c10, 5
 
 	CPWAIT_AND_RETURN(r0)
+END(xscalec3_l2cache_purge_rng)
 
 ENTRY(xscalec3_l2cache_flush_rng)
 	mcr	p15, 0, r0, c7, c10, 5	/* Data memory barrier */
@@ -325,6 +328,8 @@ ENTRY(xscalec3_l2cache_flush_rng)
 	mcr	p15, 0, r0, c7, c10, 4		@ data write barrier
 	mcr	p15, 0, r0, c7, c10, 5
 	CPWAIT_AND_RETURN(r0)
+END(xscalec3_l2cache_flush_rng)
+
 /*
  * Functions to set the MMU Translation Table Base register
  *
@@ -333,14 +338,9 @@ ENTRY(xscalec3_l2cache_flush_rng)
  */
 ENTRY(xscalec3_setttb)
 #ifdef CACHE_CLEAN_BLOCK_INTR
-	mrs	r3, cpsr_all
-	orr	r1, r3, #(I32_bit | F32_bit)
-	msr	cpsr_all, r1
-#else
-	ldr	r3, .Lblock_userspace_access
-	ldr	r2, [r3]
-	orr	r1, r2, #1 
-	str	r1, [r3]
+	mrs	r3, cpsr
+	orr	r1, r3, #(PSR_I | PSR_F)
+	msr	cpsr_fsxc, r1
 #endif
 	stmfd	sp!, {r0-r3, lr}
 	bl	_C_LABEL(xscalec3_cache_cleanID)
@@ -354,7 +354,7 @@ ENTRY(xscalec3_setttb)
 #ifdef ARM_USE_L2_CACHE
 	orr	r0, r0, #0x18	/* cache the page table in L2 */
 #endif
-	/* Write the TTB */ 
+	/* Write the TTB */
 	mcr	p15, 0, r0, c2, c0, 0
 
 	/* If we have updated the TTB we must flush the TLB */
@@ -363,11 +363,10 @@ ENTRY(xscalec3_setttb)
 	CPWAIT(r0)
 
 #ifdef CACHE_CLEAN_BLOCK_INTR
-	msr	cpsr_all, r3
-#else
-	str	r2, [r3]
+	msr	cpsr_fsxc, r3
 #endif
 	RET
+END(xscalec3_setttb)
 
 /*
  * Context switch.
@@ -395,3 +394,5 @@ ENTRY(xscalec3_context_switch)
 	mcr	p15, 0, r0, c8, c7, 0	/* flush the I+D tlb */
 
 	CPWAIT_AND_RETURN(r0)
+END(xscalec3_context_switch)
+

@@ -32,71 +32,33 @@
 #ifndef _MACHINE_MD_VAR_H_
 #define	_MACHINE_MD_VAR_H_
 
-/*
- * Miscellaneous machine-dependent declarations.
- */
+#include <x86/x86_var.h>
 
-extern	long	Maxmem;
-extern	u_int	basemem;
-extern	int	busdma_swi_pending;
-extern	u_int	cpu_exthigh;
-extern	u_int	cpu_feature;
-extern	u_int	cpu_feature2;
-extern	u_int	amd_feature;
-extern	u_int	amd_feature2;
-extern	u_int	amd_pminfo;
-extern	u_int	via_feature_rng;
-extern	u_int	via_feature_xcrypt;
-extern	u_int	cpu_clflush_line_size;
-extern	u_int	cpu_fxsr;
-extern	u_int	cpu_high;
-extern	u_int	cpu_id;
-extern	u_int	cpu_mxcsr_mask;
-extern	u_int	cpu_procinfo;
-extern	u_int	cpu_procinfo2;
-extern	char	cpu_vendor[];
-extern	u_int	cpu_vendor_id;
-extern	char	kstack[];
-extern	char	sigcode[];
-extern	int	szsigcode;
-extern	uint64_t *vm_page_dump;
-extern	int	vm_page_dump_size;
-extern	int	_udatasel;
-extern	int	_ucodesel;
-extern	int	_ucode32sel;
-extern	int	_ufssel;
-extern	int	_ugssel;
+extern  uint64_t *vm_page_dump;
 
-typedef void alias_for_inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
-struct	thread;
-struct	reg;
-struct	fpreg;
-struct  dbreg;
-struct	dumperinfo;
+struct	savefpu;
 
-void	busdma_swi(void);
-void	cpu_setregs(void);
+void	amd64_db_resume_dbreg(void);
+void	amd64_syscall(struct thread *td, int traced);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault(void) __asm(__STRING(doreti_iret_fault));
 void	ld_ds(void) __asm(__STRING(ld_ds));
 void	ld_es(void) __asm(__STRING(ld_es));
 void	ld_fs(void) __asm(__STRING(ld_fs));
 void	ld_gs(void) __asm(__STRING(ld_gs));
+void	ld_fsbase(void) __asm(__STRING(ld_fsbase));
+void	ld_gsbase(void) __asm(__STRING(ld_gsbase));
 void	ds_load_fault(void) __asm(__STRING(ds_load_fault));
 void	es_load_fault(void) __asm(__STRING(es_load_fault));
 void	fs_load_fault(void) __asm(__STRING(fs_load_fault));
 void	gs_load_fault(void) __asm(__STRING(gs_load_fault));
-void	dump_add_page(vm_paddr_t);
-void	dump_drop_page(vm_paddr_t);
-void	initializecpu(void);
-void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
+void	fsbase_load_fault(void) __asm(__STRING(fsbase_load_fault));
+void	gsbase_load_fault(void) __asm(__STRING(gsbase_load_fault));
 void	fpstate_drop(struct thread *td);
-int	is_physical_memory(vm_paddr_t addr);
-int	isa_nmi(int cd);
-void	pagecopy(void *from, void *to);
 void	pagezero(void *addr);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int ist);
-int	user_dbreg_trap(void);
-void	minidumpsys(struct dumperinfo *);
+void	sse2_pagezero(void *addr);
+struct savefpu *get_pcb_user_save_td(struct thread *td);
+struct savefpu *get_pcb_user_save_pcb(struct pcb *pcb);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

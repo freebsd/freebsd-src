@@ -1,4 +1,4 @@
-# Copyright (c) 2004 - 2008 Søren Schmidt <sos@FreeBSD.org>
+# Copyright (c) 2004 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,35 +39,31 @@
 INTERFACE ata;
 
 CODE {
-	static int ata_null_locking(device_t dev, int mode)
+	static int ata_null_setmode(device_t dev, int target, int mode)
 	{
-	    struct ata_channel *ch = device_get_softc(dev);
-	
-	    return ch->unit;
+
+		if (mode > ATA_PIO_MAX)
+			return (ATA_PIO_MAX);
+		return (mode);
 	}
 };
-METHOD int locking {
-    device_t    channel;
-    int         mode;
-} DEFAULT ata_null_locking;
-HEADER {
-#define         ATA_LF_LOCK             0x0001
-#define         ATA_LF_UNLOCK           0x0002
-#define         ATA_LF_WHICH            0x0004
-};
+METHOD int setmode {
+    device_t    dev;
+    int		target;
+    int		mode;
+}  DEFAULT ata_null_setmode;
 
 CODE {
-	static void ata_null_setmode(device_t parent, device_t dev)
+	static int ata_null_getrev(device_t dev, int target)
 	{
-	    struct ata_device *atadev = device_get_softc(dev);
-
-	    atadev->mode = ata_limit_mode(dev, atadev->mode, ATA_PIO_MAX);
+		return (0);
 	}
 };
-METHOD void setmode {
-    device_t    channel;
+
+METHOD int getrev {
     device_t    dev;
-}  DEFAULT ata_null_setmode;;
+    int		target;
+} DEFAULT ata_null_getrev;
 
 METHOD void reset {
     device_t    channel;

@@ -27,6 +27,8 @@
 
 #include <sys/param.h>
 #include <sys/string.h>
+#include <sys/kmem.h>
+#include <machine/stdarg.h>
 
 #define	IS_DIGIT(c)	((c) >= '0' && (c) <= '9')
 
@@ -70,4 +72,35 @@ strident_canon(char *s, size_t n)
 			*s = '_';
 	}
 	*s = 0;
+}
+
+/*
+ * Do not change the length of the returned string; it must be freed
+ * with strfree().
+ */
+char *
+kmem_asprintf(const char *fmt, ...)
+{
+	int size;
+	va_list adx;
+	char *buf;
+
+	va_start(adx, fmt);
+	size = vsnprintf(NULL, 0, fmt, adx) + 1;
+	va_end(adx);
+
+	buf = kmem_alloc(size, KM_SLEEP);
+
+	va_start(adx, fmt);
+	(void) vsnprintf(buf, size, fmt, adx);
+	va_end(adx);
+
+	return (buf);
+}
+
+void
+strfree(char *str)
+{
+	ASSERT(str != NULL);
+	kmem_free(str, strlen(str) + 1);
 }

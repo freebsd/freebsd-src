@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -68,14 +69,16 @@ struct puc_port {
 devclass_t puc_devclass;
 const char puc_driver_name[] = "puc";
 
-MALLOC_DEFINE(M_PUC, "PUC", "PUC driver");
+static MALLOC_DEFINE(M_PUC, "PUC", "PUC driver");
+
+SYSCTL_NODE(_hw, OID_AUTO, puc, CTLFLAG_RD, 0, "puc(9) driver configuration");
 
 struct puc_bar *
 puc_get_bar(struct puc_softc *sc, int rid)
 {
 	struct puc_bar *bar;
 	struct rman *rm;
-	u_long end, start;
+	rman_res_t end, start;
 	int error, i;
 
 	/* Find the BAR entry with the given RID. */
@@ -129,62 +132,78 @@ puc_intr(void *arg)
 {
 	struct puc_port *port;
 	struct puc_softc *sc = arg;
-	u_long dev, devs;
-	int i, idx, ipend, isrc;
+	u_long ds, dev, devs;
+	int i, idx, ipend, isrc, nints;
 	uint8_t ilr;
 
-	devs = sc->sc_serdevs;
-	if (sc->sc_ilr == PUC_ILR_DIGI) {
-		idx = 0;
-		while (devs & (0xfful << idx)) {
-			ilr = ~bus_read_1(sc->sc_port[idx].p_rres, 7);
-			devs &= ~0ul ^ ((u_long)ilr << idx);
-			idx += 8;
-		}
-	} else if (sc->sc_ilr == PUC_ILR_QUATECH) {
+	nints = 0;
+	while (1) {
 		/*
-		 * Don't trust the value if it's the same as the option
-		 * register. It may mean that the ILR is not active and
-		 * we're reading the option register instead. This may
-		 * lead to false positives on 8-port boards.
+		 * Obtain the set of devices with pending interrupts.
 		 */
-		ilr = bus_read_1(sc->sc_port[0].p_rres, 7);
-		if (ilr != (sc->sc_cfg_data & 0xff))
-			devs &= (u_long)ilr;
-	}
-
-	ipend = 0;
-	idx = 0, dev = 1UL;
-	while (devs != 0UL) {
-		while ((devs & dev) == 0UL)
-			idx++, dev <<= 1;
-		devs &= ~dev;
-		port = &sc->sc_port[idx];
-		port->p_ipend = SERDEV_IPEND(port->p_dev);
-		ipend |= port->p_ipend;
-	}
-
-	i = 0, isrc = SER_INT_OVERRUN;
-	while (ipend) {
-		while (i < PUC_ISRCCNT && !(ipend & isrc))
-			i++, isrc <<= 1;
-		KASSERT(i < PUC_ISRCCNT, ("%s", __func__));
-		ipend &= ~isrc;
-		idx = 0, dev = 1UL;
 		devs = sc->sc_serdevs;
-		while (devs != 0UL) {
-			while ((devs & dev) == 0UL)
-				idx++, dev <<= 1;
-			devs &= ~dev;
-			port = &sc->sc_port[idx];
-			if (!(port->p_ipend & isrc))
-				continue;
-			if (port->p_ihsrc[i] != NULL)
-				(*port->p_ihsrc[i])(port->p_iharg);
+		if (sc->sc_ilr == PUC_ILR_DIGI) {
+			idx = 0;
+			while (devs & (0xfful << idx)) {
+				ilr = ~bus_read_1(sc->sc_port[idx].p_rres, 7);
+				devs &= ~0ul ^ ((u_long)ilr << idx);
+				idx += 8;
+			}
+		} else if (sc->sc_ilr == PUC_ILR_QUATECH) {
+			/*
+			 * Don't trust the value if it's the same as the option
+			 * register. It may mean that the ILR is not active and
+			 * we're reading the option register instead. This may
+			 * lead to false positives on 8-port boards.
+			 */
+			ilr = bus_read_1(sc->sc_port[0].p_rres, 7);
+			if (ilr != (sc->sc_cfg_data & 0xff))
+				devs &= (u_long)ilr;
 		}
-		return (FILTER_HANDLED);
+		if (devs == 0UL)
+			break;
+
+		/*
+		 * Obtain the set of interrupt sources from those devices
+		 * that have pending interrupts.
+		 */
+		ipend = 0;
+		idx = 0, dev = 1UL;
+		ds = devs;
+		while (ds != 0UL) {
+			while ((ds & dev) == 0UL)
+				idx++, dev <<= 1;
+			ds &= ~dev;
+			port = &sc->sc_port[idx];
+			port->p_ipend = SERDEV_IPEND(port->p_dev);
+			ipend |= port->p_ipend;
+		}
+		if (ipend == 0)
+			break;
+
+		i = 0, isrc = SER_INT_OVERRUN;
+		while (ipend) {
+			while (i < PUC_ISRCCNT && !(ipend & isrc))
+				i++, isrc <<= 1;
+			KASSERT(i < PUC_ISRCCNT, ("%s", __func__));
+			ipend &= ~isrc;
+			idx = 0, dev = 1UL;
+			ds = devs;
+			while (ds != 0UL) {
+				while ((ds & dev) == 0UL)
+					idx++, dev <<= 1;
+				ds &= ~dev;
+				port = &sc->sc_port[idx];
+				if (!(port->p_ipend & isrc))
+					continue;
+				if (port->p_ihsrc[i] != NULL)
+					(*port->p_ihsrc[i])(port->p_iharg);
+				nints++;
+			}
+		}
 	}
-	return (FILTER_STRAY);
+
+	return ((nints > 0) ? FILTER_HANDLED : FILTER_STRAY);
 }
 
 int
@@ -308,7 +327,6 @@ puc_bfe_attach(device_t dev)
 	if (bootverbose && sc->sc_ilr != 0)
 		device_printf(dev, "using interrupt latch register\n");
 
-	sc->sc_irid = 0;
 	sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_irid,
 	    RF_ACTIVE|RF_SHAREABLE);
 	if (sc->sc_ires != NULL) {
@@ -456,7 +474,7 @@ puc_bfe_probe(device_t dev, const struct puc_cfg *cfg)
 
 struct resource *
 puc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct puc_port *port;
 	struct resource *res;
@@ -477,7 +495,7 @@ puc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		return (NULL);
 
 	/* We only support default allocations. */
-	if (start != 0UL || end != ~0UL)
+	if (!RMAN_IS_DEFAULT_RANGE(start, end))
 		return (NULL);
 
 	if (type == port->p_bar->b_type)
@@ -549,11 +567,11 @@ puc_bus_release_resource(device_t dev, device_t child, int type, int rid,
 
 int
 puc_bus_get_resource(device_t dev, device_t child, int type, int rid,
-    u_long *startp, u_long *countp)
+    rman_res_t *startp, rman_res_t *countp)
 {
 	struct puc_port *port;
 	struct resource *res;
-	u_long start;
+	rman_res_t start;
 
 	/* Get our immediate child. */
 	while (child != NULL && device_get_parent(child) != dev)
@@ -606,7 +624,7 @@ puc_bus_setup_intr(device_t dev, device_t child, struct resource *res,
 	if (cookiep == NULL || res != port->p_ires)
 		return (EINVAL);
 	/* We demand that serdev devices use filter_only interrupts. */
-	if (ihand != NULL)
+	if (port->p_type == PUC_TYPE_SERIAL && ihand != NULL)
 		return (ENXIO);
 	if (rman_get_device(port->p_ires) != originator)
 		return (ENXIO);
@@ -708,5 +726,43 @@ puc_bus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	default:
 		return (ENOENT);
 	}
+	return (0);
+}
+
+int
+puc_bus_print_child(device_t dev, device_t child)
+{
+	struct puc_port *port;
+	int retval;
+
+	port = device_get_ivars(child);
+	retval = 0;
+
+	retval += bus_print_child_header(dev, child);
+	retval += printf(" at port %d", port->p_nr);
+	retval += bus_print_child_footer(dev, child);
+
+	return (retval);
+}
+
+int
+puc_bus_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+	struct puc_port *port;
+
+	port = device_get_ivars(child);
+	snprintf(buf, buflen, "port=%d", port->p_nr);
+	return (0);
+}
+
+int
+puc_bus_child_pnpinfo_str(device_t dev, device_t child, char *buf,
+    size_t buflen)
+{
+	struct puc_port *port;
+
+	port = device_get_ivars(child);
+	snprintf(buf, buflen, "type=%d", port->p_type);
 	return (0);
 }

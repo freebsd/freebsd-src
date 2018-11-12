@@ -47,49 +47,40 @@
 /*
  * Basic types upon which most other types are built.
  */
-typedef	__signed char		__int8_t;
+typedef	signed char		__int8_t;
 typedef	unsigned char		__uint8_t;
 typedef	short			__int16_t;
 typedef	unsigned short		__uint16_t;
 typedef	int			__int32_t;
 typedef	unsigned int		__uint32_t;
-
 #ifdef __mips_n64
 typedef	long			__int64_t;
 typedef	unsigned long		__uint64_t;
 #else
-#if defined(lint)
-/* LONGLONG */
-typedef	long long		__int64_t;
-/* LONGLONG */
-typedef	unsigned long long	__uint64_t;
-#elif defined(__GNUCLIKE_ATTRIBUTE_MODE_DI)
-typedef	int __attribute__((__mode__(__DI__)))		__int64_t;
-typedef	unsigned int __attribute__((__mode__(__DI__)))	__uint64_t;
-#else
-/* LONGLONG */
-typedef	long long		__int64_t;
-/* LONGLONG */
-typedef	unsigned long long	__uint64_t;
+#ifndef lint
+__extension__
 #endif
+/* LONGLONG */
+typedef	long long		__int64_t;
+#ifndef lint
+__extension__
+#endif
+/* LONGLONG */
+typedef	unsigned long long	__uint64_t;
 #endif
 
 /*
  * Standard type definitions.
  */
 typedef	__int32_t	__clock_t;		/* clock()... */
-typedef	unsigned int	__cpumask_t;
+typedef	double		__double_t;
+typedef	float		__float_t;
 #ifdef __mips_n64
 typedef	__int64_t	__critical_t;
-#else
-typedef	__int32_t	__critical_t;
-#endif
-typedef	double		__double_t;
-typedef	double		__float_t;
-#ifdef __mips_n64
 typedef	__int64_t	__intfptr_t;
 typedef	__int64_t	__intptr_t;
 #else
+typedef	__int32_t	__critical_t;
 typedef	__int32_t	__intfptr_t;
 typedef	__int32_t	__intptr_t;
 #endif
@@ -139,17 +130,25 @@ typedef	__uint64_t	__u_register_t;
 #else
 typedef	__uint32_t	__u_register_t;
 #endif
-#if defined(__mips_n64)
+#ifdef __mips_n64
 typedef	__uint64_t	__vm_offset_t;
-typedef	__uint64_t	__vm_paddr_t;
 typedef	__uint64_t	__vm_size_t;
 #else
 typedef	__uint32_t	__vm_offset_t;
-typedef	__uint32_t	__vm_paddr_t;
 typedef	__uint32_t	__vm_size_t;
 #endif
+#if defined(__mips_n64) || defined(__mips_n32) /* PHYSADDR_64_BIT */
+typedef	__uint64_t	__vm_paddr_t;
+#else
+typedef	__uint32_t	__vm_paddr_t;
+#endif
+
 typedef	__int64_t	__vm_ooffset_t;
 typedef	__uint64_t	__vm_pindex_t;
+typedef	int		___wchar_t;
+
+#define	__WCHAR_MIN	__INT_MIN	/* min value for a wchar_t */
+#define	__WCHAR_MAX	__INT_MAX	/* max value for a wchar_t */
 
 /*
  * Unusual type definitions.

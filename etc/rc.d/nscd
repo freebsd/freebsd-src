@@ -19,7 +19,8 @@
 . /etc/rc.subr
 
 name="nscd"
-rcvar=`set_rcvar`
+desc="Name-service caching daemon"
+rcvar="nscd_enable"
 
 command=/usr/sbin/nscd
 extra_commands="flush"
@@ -34,7 +35,7 @@ _nscd_set_option() {
 
 	_nscd_opt_val=$(eval "echo \$nscd_${_optname}")
 	_cached_opt_val=$(eval "echo \$cached_${_optname}")
-	
+
 	if [ -n "$_cached_opt_val" -a "$_nscd_opt_val" != "$_defoptval" ]; then
 		warn "You should use nscd_${_optname} instead of" \
 		    "cached_${_optname}"

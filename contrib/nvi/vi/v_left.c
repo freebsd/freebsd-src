@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_left.c	10.7 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: v_left.c,v 10.9 2001/06/25 15:19:32 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -28,12 +28,10 @@ static const char sccsid[] = "@(#)v_left.c	10.7 (Berkeley) 3/6/96";
  * v_left -- [count]^H, [count]h
  *	Move left by columns.
  *
- * PUBLIC: int v_left __P((SCR *, VICMD *));
+ * PUBLIC: int v_left(SCR *, VICMD *);
  */
 int
-v_left(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_left(SCR *sp, VICMD *vp)
 {
 	recno_t cnt;
 
@@ -68,12 +66,10 @@ v_left(sp, vp)
  * v_cfirst -- [count]_
  *	Move to the first non-blank character in a line.
  *
- * PUBLIC: int v_cfirst __P((SCR *, VICMD *));
+ * PUBLIC: int v_cfirst(SCR *, VICMD *);
  */
 int
-v_cfirst(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_cfirst(SCR *sp, VICMD *vp)
 {
 	recno_t cnt, lno;
 
@@ -137,12 +133,10 @@ v_cfirst(sp, vp)
  * v_first -- ^
  *	Move to the first non-blank character in this line.
  *
- * PUBLIC: int v_first __P((SCR *, VICMD *));
+ * PUBLIC: int v_first(SCR *, VICMD *);
  */
 int
-v_first(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_first(SCR *sp, VICMD *vp)
 {
 	/*
 	 * !!!
@@ -201,12 +195,10 @@ v_first(sp, vp)
  *	requested column is past EOL, move to EOL.  The nasty part is
  *	that we have to know character column widths to make this work.
  *
- * PUBLIC: int v_ncol __P((SCR *, VICMD *));
+ * PUBLIC: int v_ncol(SCR *, VICMD *);
  */
 int
-v_ncol(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_ncol(SCR *sp, VICMD *vp)
 {
 	if (F_ISSET(vp, VC_C1SET) && vp->count > 1) {
 		--vp->count;
@@ -263,12 +255,10 @@ v_ncol(sp, vp)
  * v_zero -- 0
  *	Move to the first column on this line.
  *
- * PUBLIC: int v_zero __P((SCR *, VICMD *));
+ * PUBLIC: int v_zero(SCR *, VICMD *);
  */
 int
-v_zero(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_zero(SCR *sp, VICMD *vp)
 {
 	/*
 	 * !!!

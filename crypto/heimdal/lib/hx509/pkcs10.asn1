@@ -1,4 +1,4 @@
--- $Id: pkcs10.asn1 16918 2006-04-01 09:46:57Z lha $
+-- $Id$
 PKCS10 DEFINITIONS ::=
 
 BEGIN

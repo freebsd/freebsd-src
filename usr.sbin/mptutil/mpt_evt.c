@@ -94,18 +94,20 @@ show_events(int ac, char **av)
 {
 	CONFIG_PAGE_LOG_0 *log;
 	MPI_LOG_0_ENTRY **entries;
-	int ch, fd, i, num_events, verbose;
+	int ch, error, fd, i, num_events, verbose;
 
 	fd = mpt_open(mpt_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mpt_open");
-		return (errno);
+		return (error);
 	}
 
 	log = mpt_get_events(fd, NULL);
 	if (log == NULL) {
+		error = errno;
 		warn("Failed to get event log info");
-		return (errno);
+		return (error);
 	}
 
 	/* Default settings. */
@@ -128,6 +130,8 @@ show_events(int ac, char **av)
 
 	/* Build a list of valid entries and sort them by sequence. */
 	entries = malloc(sizeof(MPI_LOG_0_ENTRY *) * log->NumLogEntries);
+	if (entries == NULL)
+		return (ENOMEM);
 	num_events = 0;
 	for (i = 0; i < log->NumLogEntries; i++) {
 		if (log->LogEntry[i].LogEntryQualifier ==

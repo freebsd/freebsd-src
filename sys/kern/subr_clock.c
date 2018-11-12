@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -46,23 +46,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
+#include <sys/limits.h>
 #include <sys/sysctl.h>
 #include <sys/timetc.h>
-
-#define ct_debug bootverbose
-static int adjkerntz;		/* local offset from GMT in seconds */
-static int wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
 
 int tz_minuteswest;
 int tz_dsttime;
 
 /*
- * This have traditionally been in machdep, but should probably be moved to
- * kern.
+ * The adjkerntz and wall_cmos_clock sysctls are in the "machdep" sysctl
+ * namespace because they were misplaced there originally.
  */
-SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock,
-	CTLFLAG_RW, &wall_cmos_clock, 0, "");
-
+static int adjkerntz;
 static int
 sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 {
@@ -72,9 +67,17 @@ sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 		resettodr();
 	return (error);
 }
+SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, &adjkerntz, 0, sysctl_machdep_adjkerntz, "I",
+    "Local offset from UTC in seconds");
 
-SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
-	&adjkerntz, 0, sysctl_machdep_adjkerntz, "I", "");
+static int ct_debug;
+SYSCTL_INT(_debug, OID_AUTO, clocktime, CTLFLAG_RW,
+    &ct_debug, 0, "Enable printing of clocktime debugging");
+
+static int wall_cmos_clock;
+SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock, CTLFLAG_RW,
+    &wall_cmos_clock, 0, "Enables application of machdep.adjkerntz");
 
 /*--------------------------------------------------------------------*
  * Generic routines to convert between a POSIX date
@@ -130,7 +133,6 @@ print_ct(struct clocktime *ct)
 int
 clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 {
-	time_t secs;
 	int i, year, days;
 
 	year = ct->year;
@@ -145,7 +147,7 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 	if (ct->mon < 1 || ct->mon > 12 || ct->day < 1 ||
 	    ct->day > days_in_month(year, ct->mon) ||
 	    ct->hour > 23 ||  ct->min > 59 || ct->sec > 59 ||
-	    ct->year > 2037) {		/* time_t overflow */
+	    (sizeof(time_t) == 4 && year > 2037)) {	/* time_t overflow */
 		if (ct_debug)
 			printf(" = EINVAL\n");
 		return (EINVAL);
@@ -164,15 +166,10 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 	  	days += days_in_month(year, i);
 	days += (ct->day - 1);
 
-	/* XXX Dow sanity check. Dow is not used, so should we check it? */
-	if (ct->dow != -1 && ct->dow != day_of_week(days))
-		return (EINVAL);
-
-	/* Add hours, minutes, seconds. */
-	secs = ((days * 24 + ct->hour) * 60 + ct->min) * 60 + ct->sec;
-
-	ts->tv_sec = secs;
+	ts->tv_sec = (((time_t)days * 24 + ct->hour) * 60 + ct->min) * 60 +
+	    ct->sec;
 	ts->tv_nsec = ct->nsec;
+
 	if (ct_debug)
 		printf(" = %ld.%09ld\n", (long)ts->tv_sec, (long)ts->tv_nsec);
 	return (0);

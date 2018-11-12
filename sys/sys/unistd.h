@@ -49,37 +49,37 @@
  * the POSIX standard; however, if the relevant sysconf() function
  * returns -1, the functions may be stubbed out.
  */
-#define	_POSIX_ADVISORY_INFO		-1
-#define	_POSIX_ASYNCHRONOUS_IO		0
+#define	_POSIX_ADVISORY_INFO		200112L
+#define	_POSIX_ASYNCHRONOUS_IO		200112L
 #define	_POSIX_CHOWN_RESTRICTED		1
-#define	_POSIX_CLOCK_SELECTION		-1
-#define	_POSIX_CPUTIME			-1
+#define	_POSIX_CLOCK_SELECTION		(-1)
+#define	_POSIX_CPUTIME			200112L
 #define	_POSIX_FSYNC			200112L
 #define	_POSIX_IPV6			0
 #define	_POSIX_JOB_CONTROL		1
 #define	_POSIX_MAPPED_FILES		200112L
-#define	_POSIX_MEMLOCK			-1
+#define	_POSIX_MEMLOCK			(-1)
 #define	_POSIX_MEMLOCK_RANGE		200112L
 #define	_POSIX_MEMORY_PROTECTION	200112L
 #define	_POSIX_MESSAGE_PASSING		200112L
 #define	_POSIX_MONOTONIC_CLOCK		200112L
 #define	_POSIX_NO_TRUNC			1
-#define	_POSIX_PRIORITIZED_IO		-1
+#define	_POSIX_PRIORITIZED_IO		(-1)
 #define	_POSIX_PRIORITY_SCHEDULING	200112L
 #define	_POSIX_RAW_SOCKETS		200112L
 #define	_POSIX_REALTIME_SIGNALS		200112L
-#define	_POSIX_SEMAPHORES		-1
+#define	_POSIX_SEMAPHORES		200112L
 #define	_POSIX_SHARED_MEMORY_OBJECTS	200112L
-#define	_POSIX_SPORADIC_SERVER		-1
-#define	_POSIX_SYNCHRONIZED_IO		-1
+#define	_POSIX_SPORADIC_SERVER		(-1)
+#define	_POSIX_SYNCHRONIZED_IO		(-1)
 #define	_POSIX_TIMEOUTS			200112L
 #define	_POSIX_TIMERS			200112L
-#define	_POSIX_TYPED_MEMORY_OBJECTS	-1
+#define	_POSIX_TYPED_MEMORY_OBJECTS	(-1)
 #define	_POSIX_VDISABLE			0xff
 
 #if __XSI_VISIBLE
 #define	_XOPEN_SHM			1
-#define	_XOPEN_STREAMS			-1
+#define	_XOPEN_STREAMS			(-1)
 #endif
 
 /*
@@ -180,8 +180,17 @@
 #define	RFLINUXTHPN	(1<<16)	/* do linux clone exit parent notification */
 #define	RFSTOPPED	(1<<17)	/* leave child in a stopped state */
 #define	RFHIGHPID	(1<<18)	/* use a pid higher than 10 (idleproc) */
+#define	RFTSIGZMB	(1<<19)	/* select signal for exit parent notification */
+#define	RFTSIGSHIFT	20	/* selected signal number is in bits 20-27  */
+#define	RFTSIGMASK	0xFF
+#define	RFTSIGNUM(flags)	(((flags) >> RFTSIGSHIFT) & RFTSIGMASK)
+#define	RFTSIGFLAGS(signum)	((signum) << RFTSIGSHIFT)
+#define	RFPROCDESC	(1<<28)	/* return a process descriptor */
 #define	RFPPWAIT	(1<<31)	/* parent sleeps until child exits (vfork) */
-#define	RFKERNELONLY	(RFSTOPPED | RFHIGHPID | RFPPWAIT)
+#define	RFFLAGS		(RFFDG | RFPROC | RFMEM | RFNOWAIT | RFCFDG | \
+    RFTHREAD | RFSIGSHARE | RFLINUXTHPN | RFSTOPPED | RFHIGHPID | RFTSIGZMB | \
+    RFPROCDESC | RFPPWAIT)
+#define	RFKERNELONLY	(RFSTOPPED | RFHIGHPID | RFPPWAIT | RFPROCDESC)
 
 #endif /* __BSD_VISIBLE */
 

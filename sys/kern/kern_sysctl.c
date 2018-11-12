@@ -16,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,11 +38,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_compat.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
+#include <sys/fail.h>
 #include <sys/systm.h>
+#include <sys/capsicum.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
@@ -51,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rmlock.h>
+#include <sys/sbuf.h>
 #include <sys/sx.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
@@ -73,7 +78,7 @@ static MALLOC_DEFINE(M_SYSCTLTMP, "sysctltmp", "sysctl temp output buffer");
  * The sysctllock protects the MIB tree.  It also protects sysctl
  * contexts used with dynamic sysctls.  The sysctl_register_oid() and
  * sysctl_unregister_oid() routines require the sysctllock to already
- * be held, so the sysctl_lock() and sysctl_unlock() routines are
+ * be held, so the sysctl_wlock() and sysctl_wunlock() routines are
  * provided for the few places in the kernel which need to use that
  * API rather than using the dynamic API.  Use of the dynamic API is
  * strongly encouraged for most code.
@@ -82,23 +87,31 @@ static MALLOC_DEFINE(M_SYSCTLTMP, "sysctltmp", "sysctl temp output buffer");
  * sysctl requests.  This is implemented by serializing any userland
  * sysctl requests larger than a single page via an exclusive lock.
  */
-static struct sx sysctllock;
+static struct rmlock sysctllock;
 static struct sx sysctlmemlock;
 
-#define	SYSCTL_SLOCK()		sx_slock(&sysctllock)
-#define	SYSCTL_SUNLOCK()	sx_sunlock(&sysctllock)
-#define	SYSCTL_XLOCK()		sx_xlock(&sysctllock)
-#define	SYSCTL_XUNLOCK()	sx_xunlock(&sysctllock)
-#define	SYSCTL_ASSERT_XLOCKED()	sx_assert(&sysctllock, SA_XLOCKED)
-#define	SYSCTL_ASSERT_LOCKED()	sx_assert(&sysctllock, SA_LOCKED)
-#define	SYSCTL_INIT()		sx_init(&sysctllock, "sysctl lock")
+#define	SYSCTL_WLOCK()		rm_wlock(&sysctllock)
+#define	SYSCTL_WUNLOCK()	rm_wunlock(&sysctllock)
+#define	SYSCTL_RLOCK(tracker)	rm_rlock(&sysctllock, (tracker))
+#define	SYSCTL_RUNLOCK(tracker)	rm_runlock(&sysctllock, (tracker))
+#define	SYSCTL_WLOCKED()	rm_wowned(&sysctllock)
+#define	SYSCTL_ASSERT_LOCKED()	rm_assert(&sysctllock, RA_LOCKED)
+#define	SYSCTL_ASSERT_WLOCKED()	rm_assert(&sysctllock, RA_WLOCKED)
+#define	SYSCTL_ASSERT_RLOCKED()	rm_assert(&sysctllock, RA_RLOCKED)
+#define	SYSCTL_INIT()		rm_init_flags(&sysctllock, "sysctl lock", \
+				    RM_SLEEPABLE)
+#define	SYSCTL_SLEEP(ch, wmesg, timo)					\
+				rm_sleep(ch, &sysctllock, 0, wmesg, timo)
 
 static int sysctl_root(SYSCTL_HANDLER_ARGS);
 
-struct sysctl_oid_list sysctl__children; /* root list */
+/* Root list */
+struct sysctl_oid_list sysctl__children = SLIST_HEAD_INITIALIZER(&sysctl__children);
 
 static int	sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del,
 		    int recurse);
+static int	sysctl_old_kernel(struct sysctl_req *, const void *, size_t);
+static int	sysctl_new_kernel(struct sysctl_req *, void *, size_t);
 
 static struct sysctl_oid *
 sysctl_find_oidname(const char *name, struct sysctl_oid_list *list)
@@ -120,17 +133,194 @@ sysctl_find_oidname(const char *name, struct sysctl_oid_list *list)
  * Order by number in each list.
  */
 void
-sysctl_lock(void)
+sysctl_wlock(void)
 {
 
-	SYSCTL_XLOCK();
+	SYSCTL_WLOCK();
 }
 
 void
-sysctl_unlock(void)
+sysctl_wunlock(void)
 {
 
-	SYSCTL_XUNLOCK();
+	SYSCTL_WUNLOCK();
+}
+
+static int
+sysctl_root_handler_locked(struct sysctl_oid *oid, void *arg1, intmax_t arg2,
+    struct sysctl_req *req, struct rm_priotracker *tracker)
+{
+	int error;
+
+	if (oid->oid_kind & CTLFLAG_DYN)
+		atomic_add_int(&oid->oid_running, 1);
+
+	if (tracker != NULL)
+		SYSCTL_RUNLOCK(tracker);
+	else
+		SYSCTL_WUNLOCK();
+
+	if (!(oid->oid_kind & CTLFLAG_MPSAFE))
+		mtx_lock(&Giant);
+	error = oid->oid_handler(oid, arg1, arg2, req);
+	if (!(oid->oid_kind & CTLFLAG_MPSAFE))
+		mtx_unlock(&Giant);
+
+	KFAIL_POINT_ERROR(_debug_fail_point, sysctl_running, error);
+
+	if (tracker != NULL)
+		SYSCTL_RLOCK(tracker);
+	else
+		SYSCTL_WLOCK();
+
+	if (oid->oid_kind & CTLFLAG_DYN) {
+		if (atomic_fetchadd_int(&oid->oid_running, -1) == 1 &&
+		    (oid->oid_kind & CTLFLAG_DYING) != 0)
+			wakeup(&oid->oid_running);
+	}
+
+	return (error);
+}
+
+static void
+sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
+{
+	struct sysctl_req req;
+	struct sysctl_oid *curr;
+	char *penv = NULL;
+	char path[64];
+	ssize_t rem = sizeof(path);
+	ssize_t len;
+	uint8_t val_8;
+	uint16_t val_16;
+	uint32_t val_32;
+	int val_int;
+	long val_long;
+	int64_t val_64;
+	quad_t val_quad;
+	int error;
+
+	path[--rem] = 0;
+
+	for (curr = oidp; curr != NULL; curr = SYSCTL_PARENT(curr)) {
+		len = strlen(curr->oid_name);
+		rem -= len;
+		if (curr != oidp)
+			rem -= 1;
+		if (rem < 0) {
+			printf("OID path exceeds %d bytes\n", (int)sizeof(path));
+			return;
+		}
+		memcpy(path + rem, curr->oid_name, len);
+		if (curr != oidp)
+			path[rem + len] = '.';
+	}
+
+	memset(&req, 0, sizeof(req));
+
+	req.td = curthread;
+	req.oldfunc = sysctl_old_kernel;
+	req.newfunc = sysctl_new_kernel;
+	req.lock = REQ_UNWIRED;
+
+	switch (oidp->oid_kind & CTLTYPE) {
+	case CTLTYPE_INT:
+		if (getenv_int(path + rem, &val_int) == 0)
+			return;
+		req.newlen = sizeof(val_int);
+		req.newptr = &val_int;
+		break;
+	case CTLTYPE_UINT:
+		if (getenv_uint(path + rem, (unsigned int *)&val_int) == 0)
+			return;
+		req.newlen = sizeof(val_int);
+		req.newptr = &val_int;
+		break;
+	case CTLTYPE_LONG:
+		if (getenv_long(path + rem, &val_long) == 0)
+			return;
+		req.newlen = sizeof(val_long);
+		req.newptr = &val_long;
+		break;
+	case CTLTYPE_ULONG:
+		if (getenv_ulong(path + rem, (unsigned long *)&val_long) == 0)
+			return;
+		req.newlen = sizeof(val_long);
+		req.newptr = &val_long;
+		break;
+	case CTLTYPE_S8:
+		if (getenv_int(path + rem, &val_int) == 0)
+			return;
+		val_8 = val_int;
+		req.newlen = sizeof(val_8);
+		req.newptr = &val_8;
+		break;
+	case CTLTYPE_S16:
+		if (getenv_int(path + rem, &val_int) == 0)
+			return;
+		val_16 = val_int;
+		req.newlen = sizeof(val_16);
+		req.newptr = &val_16;
+		break;
+	case CTLTYPE_S32:
+		if (getenv_long(path + rem, &val_long) == 0)
+			return;
+		val_32 = val_long;
+		req.newlen = sizeof(val_32);
+		req.newptr = &val_32;
+		break;
+	case CTLTYPE_S64:
+		if (getenv_quad(path + rem, &val_quad) == 0)
+			return;
+		val_64 = val_quad;
+		req.newlen = sizeof(val_64);
+		req.newptr = &val_64;
+		break;
+	case CTLTYPE_U8:
+		if (getenv_uint(path + rem, (unsigned int *)&val_int) == 0)
+			return;
+		val_8 = val_int;
+		req.newlen = sizeof(val_8);
+		req.newptr = &val_8;
+		break;
+	case CTLTYPE_U16:
+		if (getenv_uint(path + rem, (unsigned int *)&val_int) == 0)
+			return;
+		val_16 = val_int;
+		req.newlen = sizeof(val_16);
+		req.newptr = &val_16;
+		break;
+	case CTLTYPE_U32:
+		if (getenv_ulong(path + rem, (unsigned long *)&val_long) == 0)
+			return;
+		val_32 = val_long;
+		req.newlen = sizeof(val_32);
+		req.newptr = &val_32;
+		break;
+	case CTLTYPE_U64:
+		/* XXX there is no getenv_uquad() */
+		if (getenv_quad(path + rem, &val_quad) == 0)
+			return;
+		val_64 = val_quad;
+		req.newlen = sizeof(val_64);
+		req.newptr = &val_64;
+		break;
+	case CTLTYPE_STRING:
+		penv = kern_getenv(path + rem);
+		if (penv == NULL)
+			return;
+		req.newlen = strlen(penv);
+		req.newptr = penv;
+		break;
+	default:
+		return;
+	}
+	error = sysctl_root_handler_locked(oidp, oidp->oid_arg1,
+	    oidp->oid_arg2, &req, NULL);
+	if (error != 0)
+		printf("Setting sysctl %s failed: %d\n", path + rem, error);
+	if (penv != NULL)
+		freeenv(penv);
 }
 
 void
@@ -139,12 +329,14 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 	struct sysctl_oid_list *parent = oidp->oid_parent;
 	struct sysctl_oid *p;
 	struct sysctl_oid *q;
+	int oid_number;
+	int timeout = 2;
 
 	/*
 	 * First check if another oid with the same name already
 	 * exists in the parent's list.
 	 */
-	SYSCTL_ASSERT_XLOCKED();
+	SYSCTL_ASSERT_WLOCKED();
 	p = sysctl_find_oidname(oidp->oid_name, parent);
 	if (p != NULL) {
 		if ((p->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
@@ -155,40 +347,81 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 			return;
 		}
 	}
+	/* get current OID number */
+	oid_number = oidp->oid_number;
+
+#if (OID_AUTO >= 0)
+#error "OID_AUTO is expected to be a negative value"
+#endif	
 	/*
-	 * If this oid has a number OID_AUTO, give it a number which
-	 * is greater than any current oid.
+	 * Any negative OID number qualifies as OID_AUTO. Valid OID
+	 * numbers should always be positive.
+	 *
 	 * NOTE: DO NOT change the starting value here, change it in
 	 * <sys/sysctl.h>, and make sure it is at least 256 to
-	 * accomodate e.g. net.inet.raw as a static sysctl node.
+	 * accommodate e.g. net.inet.raw as a static sysctl node.
 	 */
-	if (oidp->oid_number == OID_AUTO) {
-		static int newoid = CTL_AUTO_START;
+	if (oid_number < 0) {
+		static int newoid;
 
-		oidp->oid_number = newoid++;
-		if (newoid == 0x7fffffff)
-			panic("out of oids");
+		/*
+		 * By decrementing the next OID number we spend less
+		 * time inserting the OIDs into a sorted list.
+		 */
+		if (--newoid < CTL_AUTO_START)
+			newoid = 0x7fffffff;
+
+		oid_number = newoid;
 	}
-#if 0
-	else if (oidp->oid_number >= CTL_AUTO_START) {
-		/* do not panic; this happens when unregistering sysctl sets */
-		printf("static sysctl oid too high: %d", oidp->oid_number);
-	}
-#endif
 
 	/*
-	 * Insert the oid into the parent's list in order.
+	 * Insert the OID into the parent's list sorted by OID number.
 	 */
+retry:
 	q = NULL;
 	SLIST_FOREACH(p, parent, oid_link) {
-		if (oidp->oid_number < p->oid_number)
+		/* check if the current OID number is in use */
+		if (oid_number == p->oid_number) {
+			/* get the next valid OID number */
+			if (oid_number < CTL_AUTO_START ||
+			    oid_number == 0x7fffffff) {
+				/* wraparound - restart */
+				oid_number = CTL_AUTO_START;
+				/* don't loop forever */
+				if (!timeout--)
+					panic("sysctl: Out of OID numbers\n");
+				goto retry;
+			} else {
+				oid_number++;
+			}
+		} else if (oid_number < p->oid_number)
 			break;
 		q = p;
 	}
-	if (q)
+	/* check for non-auto OID number collision */
+	if (oidp->oid_number >= 0 && oidp->oid_number < CTL_AUTO_START &&
+	    oid_number >= CTL_AUTO_START) {
+		printf("sysctl: OID number(%d) is already in use for '%s'\n",
+		    oidp->oid_number, oidp->oid_name);
+	}
+	/* update the OID number, if any */
+	oidp->oid_number = oid_number;
+	if (q != NULL)
 		SLIST_INSERT_AFTER(q, oidp, oid_link);
 	else
 		SLIST_INSERT_HEAD(parent, oidp, oid_link);
+
+	if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE &&
+#ifdef VIMAGE
+	    (oidp->oid_kind & CTLFLAG_VNET) == 0 &&
+#endif
+	    (oidp->oid_kind & CTLFLAG_TUN) != 0 &&
+	    (oidp->oid_kind & CTLFLAG_NOFETCH) == 0) {
+		/* only fetch value once */
+		oidp->oid_kind |= CTLFLAG_NOFETCH;
+		/* try to fetch value from kernel environment */
+		sysctl_load_tunable_by_oid_locked(oidp);
+	}
 }
 
 void
@@ -197,7 +430,7 @@ sysctl_unregister_oid(struct sysctl_oid *oidp)
 	struct sysctl_oid *p;
 	int error;
 
-	SYSCTL_ASSERT_XLOCKED();
+	SYSCTL_ASSERT_WLOCKED();
 	error = ENOENT;
 	if (oidp->oid_number == OID_AUTO) {
 		error = EINVAL;
@@ -253,7 +486,7 @@ sysctl_ctx_free(struct sysctl_ctx_list *clist)
 	 * XXX This algorithm is a hack. But I don't know any
 	 * XXX better solution for now...
 	 */
-	SYSCTL_XLOCK();
+	SYSCTL_WLOCK();
 	TAILQ_FOREACH(e, clist, link) {
 		error = sysctl_remove_oid_locked(e->entry, 0, 0);
 		if (error)
@@ -261,7 +494,7 @@ sysctl_ctx_free(struct sysctl_ctx_list *clist)
 	}
 	/*
 	 * Restore deregistered entries, either from the end,
-	 * or from the place where error occured.
+	 * or from the place where error occurred.
 	 * e contains the entry that was not unregistered
 	 */
 	if (error)
@@ -273,7 +506,7 @@ sysctl_ctx_free(struct sysctl_ctx_list *clist)
 		e1 = TAILQ_PREV(e1, sysctl_ctx_list, link);
 	}
 	if (error) {
-		SYSCTL_XUNLOCK();
+		SYSCTL_WUNLOCK();
 		return(EBUSY);
 	}
 	/* Now really delete the entries */
@@ -287,7 +520,7 @@ sysctl_ctx_free(struct sysctl_ctx_list *clist)
 		free(e, M_SYSCTLOID);
 		e = e1;
 	}
-	SYSCTL_XUNLOCK();
+	SYSCTL_WUNLOCK();
 	return (error);
 }
 
@@ -297,7 +530,7 @@ sysctl_ctx_entry_add(struct sysctl_ctx_list *clist, struct sysctl_oid *oidp)
 {
 	struct sysctl_ctx_entry *e;
 
-	SYSCTL_ASSERT_XLOCKED();
+	SYSCTL_ASSERT_WLOCKED();
 	if (clist == NULL || oidp == NULL)
 		return(NULL);
 	e = malloc(sizeof(struct sysctl_ctx_entry), M_SYSCTLOID, M_WAITOK);
@@ -312,7 +545,7 @@ sysctl_ctx_entry_find(struct sysctl_ctx_list *clist, struct sysctl_oid *oidp)
 {
 	struct sysctl_ctx_entry *e;
 
-	SYSCTL_ASSERT_LOCKED();
+	SYSCTL_ASSERT_WLOCKED();
 	if (clist == NULL || oidp == NULL)
 		return(NULL);
 	TAILQ_FOREACH(e, clist, link) {
@@ -334,15 +567,15 @@ sysctl_ctx_entry_del(struct sysctl_ctx_list *clist, struct sysctl_oid *oidp)
 
 	if (clist == NULL || oidp == NULL)
 		return (EINVAL);
-	SYSCTL_XLOCK();
+	SYSCTL_WLOCK();
 	e = sysctl_ctx_entry_find(clist, oidp);
 	if (e != NULL) {
 		TAILQ_REMOVE(clist, e, link);
-		SYSCTL_XUNLOCK();
+		SYSCTL_WUNLOCK();
 		free(e, M_SYSCTLOID);
 		return (0);
 	} else {
-		SYSCTL_XUNLOCK();
+		SYSCTL_WUNLOCK();
 		return (ENOENT);
 	}
 }
@@ -358,19 +591,40 @@ sysctl_remove_oid(struct sysctl_oid *oidp, int del, int recurse)
 {
 	int error;
 
-	SYSCTL_XLOCK();
+	SYSCTL_WLOCK();
 	error = sysctl_remove_oid_locked(oidp, del, recurse);
-	SYSCTL_XUNLOCK();
+	SYSCTL_WUNLOCK();
 	return (error);
 }
+
+int
+sysctl_remove_name(struct sysctl_oid *parent, const char *name,
+    int del, int recurse)
+{
+	struct sysctl_oid *p, *tmp;
+	int error;
+
+	error = ENOENT;
+	SYSCTL_WLOCK();
+	SLIST_FOREACH_SAFE(p, SYSCTL_CHILDREN(parent), oid_link, tmp) {
+		if (strcmp(p->oid_name, name) == 0) {
+			error = sysctl_remove_oid_locked(p, del, recurse);
+			break;
+		}
+	}
+	SYSCTL_WUNLOCK();
+
+	return (error);
+}
+
 
 static int
 sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 {
-	struct sysctl_oid *p;
+	struct sysctl_oid *p, *tmp;
 	int error;
 
-	SYSCTL_ASSERT_XLOCKED();
+	SYSCTL_ASSERT_WLOCKED();
 	if (oidp == NULL)
 		return(EINVAL);
 	if ((oidp->oid_kind & CTLFLAG_DYN) == 0) {
@@ -386,16 +640,19 @@ sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 	 */
 	if ((oidp->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 		if (oidp->oid_refcnt == 1) {
-			SLIST_FOREACH(p, SYSCTL_CHILDREN(oidp), oid_link) {
-				if (!recurse)
+			SLIST_FOREACH_SAFE(p,
+			    SYSCTL_CHILDREN(oidp), oid_link, tmp) {
+				if (!recurse) {
+					printf("Warning: failed attempt to "
+					    "remove oid %s with child %s\n",
+					    oidp->oid_name, p->oid_name);
 					return (ENOTEMPTY);
+				}
 				error = sysctl_remove_oid_locked(p, del,
 				    recurse);
 				if (error)
 					return (error);
 			}
-			if (del)
-				free(SYSCTL_CHILDREN(oidp), M_SYSCTLOID);
 		}
 	}
 	if (oidp->oid_refcnt > 1 ) {
@@ -408,34 +665,41 @@ sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 		}
 		sysctl_unregister_oid(oidp);
 		if (del) {
+			/*
+			 * Wait for all threads running the handler to drain.
+			 * This preserves the previous behavior when the
+			 * sysctl lock was held across a handler invocation,
+			 * and is necessary for module unload correctness.
+			 */
+			while (oidp->oid_running > 0) {
+				oidp->oid_kind |= CTLFLAG_DYING;
+				SYSCTL_SLEEP(&oidp->oid_running, "oidrm", 0);
+			}
 			if (oidp->oid_descr)
-				free((void *)(uintptr_t)(const void *)oidp->oid_descr, M_SYSCTLOID);
-			free((void *)(uintptr_t)(const void *)oidp->oid_name,
-			     M_SYSCTLOID);
+				free(__DECONST(char *, oidp->oid_descr),
+				    M_SYSCTLOID);
+			free(__DECONST(char *, oidp->oid_name), M_SYSCTLOID);
 			free(oidp, M_SYSCTLOID);
 		}
 	}
 	return (0);
 }
-
 /*
  * Create new sysctls at run time.
  * clist may point to a valid context initialized with sysctl_ctx_init().
  */
 struct sysctl_oid *
 sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
-	int number, const char *name, int kind, void *arg1, int arg2,
+	int number, const char *name, int kind, void *arg1, intmax_t arg2,
 	int (*handler)(SYSCTL_HANDLER_ARGS), const char *fmt, const char *descr)
 {
 	struct sysctl_oid *oidp;
-	ssize_t len;
-	char *newname;
 
 	/* You have to hook up somewhere.. */
 	if (parent == NULL)
 		return(NULL);
 	/* Check if the node already exists, otherwise create it */
-	SYSCTL_XLOCK();
+	SYSCTL_WLOCK();
 	oidp = sysctl_find_oidname(name, parent);
 	if (oidp != NULL) {
 		if ((oidp->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
@@ -443,48 +707,33 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 			/* Update the context */
 			if (clist != NULL)
 				sysctl_ctx_entry_add(clist, oidp);
-			SYSCTL_XUNLOCK();
+			SYSCTL_WUNLOCK();
 			return (oidp);
 		} else {
-			SYSCTL_XUNLOCK();
+			SYSCTL_WUNLOCK();
 			printf("can't re-use a leaf (%s)!\n", name);
 			return (NULL);
 		}
 	}
 	oidp = malloc(sizeof(struct sysctl_oid), M_SYSCTLOID, M_WAITOK|M_ZERO);
 	oidp->oid_parent = parent;
-	SLIST_NEXT(oidp, oid_link) = NULL;
+	SLIST_INIT(&oidp->oid_children);
 	oidp->oid_number = number;
 	oidp->oid_refcnt = 1;
-	len = strlen(name);
-	newname = malloc(len + 1, M_SYSCTLOID, M_WAITOK);
-	bcopy(name, newname, len + 1);
-	newname[len] = '\0';
-	oidp->oid_name = newname;
+	oidp->oid_name = strdup(name, M_SYSCTLOID);
 	oidp->oid_handler = handler;
 	oidp->oid_kind = CTLFLAG_DYN | kind;
-	if ((kind & CTLTYPE) == CTLTYPE_NODE) {
-		/* Allocate space for children */
-		SYSCTL_CHILDREN_SET(oidp, malloc(sizeof(struct sysctl_oid_list),
-		    M_SYSCTLOID, M_WAITOK));
-		SLIST_INIT(SYSCTL_CHILDREN(oidp));
-	} else {
-		oidp->oid_arg1 = arg1;
-		oidp->oid_arg2 = arg2;
-	}
+	oidp->oid_arg1 = arg1;
+	oidp->oid_arg2 = arg2;
 	oidp->oid_fmt = fmt;
-	if (descr) {
-		int len = strlen(descr) + 1;
-		oidp->oid_descr = malloc(len, M_SYSCTLOID, M_WAITOK);
-		if (oidp->oid_descr)
-			strcpy((char *)(uintptr_t)(const void *)oidp->oid_descr, descr);
-	}
+	if (descr != NULL)
+		oidp->oid_descr = strdup(descr, M_SYSCTLOID);
 	/* Update the context, if used */
 	if (clist != NULL)
 		sysctl_ctx_entry_add(clist, oidp);
 	/* Register this oid */
 	sysctl_register_oid(oidp);
-	SYSCTL_XUNLOCK();
+	SYSCTL_WUNLOCK();
 	return (oidp);
 }
 
@@ -494,18 +743,14 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 void
 sysctl_rename_oid(struct sysctl_oid *oidp, const char *name)
 {
-	ssize_t len;
 	char *newname;
-	void *oldname;
+	char *oldname;
 
-	len = strlen(name);
-	newname = malloc(len + 1, M_SYSCTLOID, M_WAITOK);
-	bcopy(name, newname, len + 1);
-	newname[len] = '\0';
-	SYSCTL_XLOCK();
-	oldname = (void *)(uintptr_t)(const void *)oidp->oid_name;
+	newname = strdup(name, M_SYSCTLOID);
+	SYSCTL_WLOCK();
+	oldname = __DECONST(char *, oidp->oid_name);
 	oidp->oid_name = newname;
-	SYSCTL_XUNLOCK();
+	SYSCTL_WUNLOCK();
 	free(oldname, M_SYSCTLOID);
 }
 
@@ -517,21 +762,21 @@ sysctl_move_oid(struct sysctl_oid *oid, struct sysctl_oid_list *parent)
 {
 	struct sysctl_oid *oidp;
 
-	SYSCTL_XLOCK();
+	SYSCTL_WLOCK();
 	if (oid->oid_parent == parent) {
-		SYSCTL_XUNLOCK();
+		SYSCTL_WUNLOCK();
 		return (0);
 	}
 	oidp = sysctl_find_oidname(oid->oid_name, parent);
 	if (oidp != NULL) {
-		SYSCTL_XUNLOCK();
+		SYSCTL_WUNLOCK();
 		return (EEXIST);
 	}
 	sysctl_unregister_oid(oid);
 	oid->oid_parent = parent;
 	oid->oid_number = OID_AUTO;
 	sysctl_register_oid(oid);
-	SYSCTL_XUNLOCK();
+	SYSCTL_WUNLOCK();
 	return (0);
 }
 
@@ -547,12 +792,12 @@ sysctl_register_all(void *arg)
 
 	sx_init(&sysctlmemlock, "sysctl mem");
 	SYSCTL_INIT();
-	SYSCTL_XLOCK();
+	SYSCTL_WLOCK();
 	SET_FOREACH(oidp, sysctl_set)
 		sysctl_register_oid(*oidp);
-	SYSCTL_XUNLOCK();
+	SYSCTL_WUNLOCK();
 }
-SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_ANY, sysctl_register_all, 0);
+SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_FIRST, sysctl_register_all, 0);
 
 /*
  * "Staff-functions"
@@ -600,12 +845,22 @@ sysctl_sysctl_debug_dump_node(struct sysctl_oid_list *l, int i)
 				printf(" Node\n");
 				if (!oidp->oid_handler) {
 					sysctl_sysctl_debug_dump_node(
-						oidp->oid_arg1, i+2);
+					    SYSCTL_CHILDREN(oidp), i + 2);
 				}
 				break;
 			case CTLTYPE_INT:    printf(" Int\n"); break;
+			case CTLTYPE_UINT:   printf(" u_int\n"); break;
+			case CTLTYPE_LONG:   printf(" Long\n"); break;
+			case CTLTYPE_ULONG:  printf(" u_long\n"); break;
 			case CTLTYPE_STRING: printf(" String\n"); break;
-			case CTLTYPE_QUAD:   printf(" Quad\n"); break;
+			case CTLTYPE_S8:     printf(" int8_t\n"); break;
+			case CTLTYPE_S16:    printf(" int16_t\n"); break;
+			case CTLTYPE_S32:    printf(" int32_t\n"); break;
+			case CTLTYPE_S64:    printf(" int64_t\n"); break;
+			case CTLTYPE_U8:     printf(" uint8_t\n"); break;
+			case CTLTYPE_U16:    printf(" uint16_t\n"); break;
+			case CTLTYPE_U32:    printf(" uint32_t\n"); break;
+			case CTLTYPE_U64:    printf(" uint64_t\n"); break;
 			case CTLTYPE_OPAQUE: printf(" Opaque/struct\n"); break;
 			default:	     printf("\n");
 		}
@@ -616,16 +871,19 @@ sysctl_sysctl_debug_dump_node(struct sysctl_oid_list *l, int i)
 static int
 sysctl_sysctl_debug(SYSCTL_HANDLER_ARGS)
 {
+	struct rm_priotracker tracker;
 	int error;
 
 	error = priv_check(req->td, PRIV_SYSCTL_DEBUG);
 	if (error)
 		return (error);
+	SYSCTL_RLOCK(&tracker);
 	sysctl_sysctl_debug_dump_node(&sysctl__children, 0);
+	SYSCTL_RUNLOCK(&tracker);
 	return (ENOENT);
 }
 
-SYSCTL_PROC(_sysctl, 0, debug, CTLTYPE_STRING|CTLFLAG_RD,
+SYSCTL_PROC(_sysctl, 0, debug, CTLTYPE_STRING|CTLFLAG_RD|CTLFLAG_MPSAFE,
 	0, 0, sysctl_sysctl_debug, "-", "");
 #endif
 
@@ -637,9 +895,10 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 	int error = 0;
 	struct sysctl_oid *oid;
 	struct sysctl_oid_list *lsp = &sysctl__children, *lsp2;
+	struct rm_priotracker tracker;
 	char buf[10];
 
-	SYSCTL_ASSERT_LOCKED();
+	SYSCTL_RLOCK(&tracker);
 	while (namelen) {
 		if (!lsp) {
 			snprintf(buf,sizeof(buf),"%d",*name);
@@ -648,12 +907,12 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 			if (!error)
 				error = SYSCTL_OUT(req, buf, strlen(buf));
 			if (error)
-				return (error);
+				goto out;
 			namelen--;
 			name++;
 			continue;
 		}
-		lsp2 = 0;
+		lsp2 = NULL;
 		SLIST_FOREACH(oid, lsp, oid_link) {
 			if (oid->oid_number != *name)
 				continue;
@@ -664,7 +923,7 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 				error = SYSCTL_OUT(req, oid->oid_name,
 					strlen(oid->oid_name));
 			if (error)
-				return (error);
+				goto out;
 
 			namelen--;
 			name++;
@@ -675,15 +934,23 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 			if (oid->oid_handler)
 				break;
 
-			lsp2 = (struct sysctl_oid_list *)oid->oid_arg1;
+			lsp2 = SYSCTL_CHILDREN(oid);
 			break;
 		}
 		lsp = lsp2;
 	}
-	return (SYSCTL_OUT(req, "", 1));
+	error = SYSCTL_OUT(req, "", 1);
+ out:
+	SYSCTL_RUNLOCK(&tracker);
+	return (error);
 }
 
-static SYSCTL_NODE(_sysctl, 1, name, CTLFLAG_RD, sysctl_sysctl_name, "");
+/*
+ * XXXRW/JA: Shouldn't return name data for nodes that we don't permit in
+ * capability mode.
+ */
+static SYSCTL_NODE(_sysctl, 1, name, CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_CAPRD,
+    sysctl_sysctl_name, "");
 
 static int
 sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen, 
@@ -706,7 +973,7 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 			if (oidp->oid_handler) 
 				/* We really should call the handler here...*/
 				return (0);
-			lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
+			lsp = SYSCTL_CHILDREN(oidp);
 			if (!sysctl_sysctl_next_ls(lsp, 0, 0, next+1, 
 				len, level+1, oidpp))
 				return (0);
@@ -721,7 +988,7 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 				return (0);
 			if (oidp->oid_handler)
 				return (0);
-			lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
+			lsp = SYSCTL_CHILDREN(oidp);
 			if (!sysctl_sysctl_next_ls(lsp, name+1, namelen-1, 
 				next+1, len, level+1, oidpp))
 				return (0);
@@ -733,7 +1000,7 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 		if (oidp->oid_handler)
 			continue;
 
-		lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
+		lsp = SYSCTL_CHILDREN(oidp);
 		if (!sysctl_sysctl_next_ls(lsp, name+1, namelen-1, next+1, 
 			len, level+1, oidpp))
 			return (0);
@@ -753,53 +1020,48 @@ sysctl_sysctl_next(SYSCTL_HANDLER_ARGS)
 	int i, j, error;
 	struct sysctl_oid *oid;
 	struct sysctl_oid_list *lsp = &sysctl__children;
+	struct rm_priotracker tracker;
 	int newoid[CTL_MAXNAME];
 
+	SYSCTL_RLOCK(&tracker);
 	i = sysctl_sysctl_next_ls(lsp, name, namelen, newoid, &j, 1, &oid);
+	SYSCTL_RUNLOCK(&tracker);
 	if (i)
 		return (ENOENT);
 	error = SYSCTL_OUT(req, newoid, j * sizeof (int));
 	return (error);
 }
 
-static SYSCTL_NODE(_sysctl, 2, next, CTLFLAG_RD, sysctl_sysctl_next, "");
+/*
+ * XXXRW/JA: Shouldn't return next data for nodes that we don't permit in
+ * capability mode.
+ */
+static SYSCTL_NODE(_sysctl, 2, next, CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_CAPRD,
+    sysctl_sysctl_next, "");
 
 static int
 name2oid(char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 {
-	int i;
 	struct sysctl_oid *oidp;
 	struct sysctl_oid_list *lsp = &sysctl__children;
 	char *p;
 
 	SYSCTL_ASSERT_LOCKED();
 
-	if (!*name)
-		return (ENOENT);
+	for (*len = 0; *len < CTL_MAXNAME;) {
+		p = strsep(&name, ".");
 
-	p = name + strlen(name) - 1 ;
-	if (*p == '.')
-		*p = '\0';
-
-	*len = 0;
-
-	for (p = name; *p && *p != '.'; p++) 
-		;
-	i = *p;
-	if (i == '.')
-		*p = '\0';
-
-	oidp = SLIST_FIRST(lsp);
-
-	while (oidp && *len < CTL_MAXNAME) {
-		if (strcmp(name, oidp->oid_name)) {
-			oidp = SLIST_NEXT(oidp, oid_link);
-			continue;
+		oidp = SLIST_FIRST(lsp);
+		for (;; oidp = SLIST_NEXT(oidp, oid_link)) {
+			if (oidp == NULL)
+				return (ENOENT);
+			if (strcmp(p, oidp->oid_name) == 0)
+				break;
 		}
 		*oid++ = oidp->oid_number;
 		(*len)++;
 
-		if (!i) {
+		if (name == NULL || *name == '\0') {
 			if (oidpp)
 				*oidpp = oidp;
 			return (0);
@@ -811,14 +1073,7 @@ name2oid(char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 		if (oidp->oid_handler)
 			break;
 
-		lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
-		oidp = SLIST_FIRST(lsp);
-		name = p+1;
-		for (p = name; *p && *p != '.'; p++) 
-				;
-		i = *p;
-		if (i == '.')
-			*p = '\0';
+		lsp = SYSCTL_CHILDREN(oidp);
 	}
 	return (ENOENT);
 }
@@ -827,10 +1082,9 @@ static int
 sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 {
 	char *p;
-	int error, oid[CTL_MAXNAME], len;
-	struct sysctl_oid *op = 0;
-
-	SYSCTL_ASSERT_LOCKED();
+	int error, oid[CTL_MAXNAME], len = 0;
+	struct sysctl_oid *op = NULL;
+	struct rm_priotracker tracker;
 
 	if (!req->newlen) 
 		return (ENOENT);
@@ -847,7 +1101,9 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 
 	p [req->newlen] = '\0';
 
+	SYSCTL_RLOCK(&tracker);
 	error = name2oid(p, oid, &len, &op);
+	SYSCTL_RUNLOCK(&tracker);
 
 	free(p, M_SYSCTL);
 
@@ -858,53 +1114,202 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_sysctl, 3, name2oid, CTLFLAG_RW|CTLFLAG_ANYBODY|CTLFLAG_MPSAFE,
-    0, 0, sysctl_sysctl_name2oid, "I", "");
+/*
+ * XXXRW/JA: Shouldn't return name2oid data for nodes that we don't permit in
+ * capability mode.
+ */
+SYSCTL_PROC(_sysctl, 3, name2oid,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE
+    | CTLFLAG_CAPRW, 0, 0, sysctl_sysctl_name2oid, "I", "");
 
 static int
 sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
 {
 	struct sysctl_oid *oid;
+	struct rm_priotracker tracker;
 	int error;
 
+	SYSCTL_RLOCK(&tracker);
 	error = sysctl_find_oid(arg1, arg2, &oid, NULL, req);
 	if (error)
-		return (error);
+		goto out;
 
-	if (!oid->oid_fmt)
-		return (ENOENT);
+	if (oid->oid_fmt == NULL) {
+		error = ENOENT;
+		goto out;
+	}
 	error = SYSCTL_OUT(req, &oid->oid_kind, sizeof(oid->oid_kind));
 	if (error)
-		return (error);
+		goto out;
 	error = SYSCTL_OUT(req, oid->oid_fmt, strlen(oid->oid_fmt) + 1);
+ out:
+	SYSCTL_RUNLOCK(&tracker);
 	return (error);
 }
 
 
-static SYSCTL_NODE(_sysctl, 4, oidfmt, CTLFLAG_RD|CTLFLAG_MPSAFE,
+static SYSCTL_NODE(_sysctl, 4, oidfmt, CTLFLAG_RD|CTLFLAG_MPSAFE|CTLFLAG_CAPRD,
     sysctl_sysctl_oidfmt, "");
 
 static int
 sysctl_sysctl_oiddescr(SYSCTL_HANDLER_ARGS)
 {
 	struct sysctl_oid *oid;
+	struct rm_priotracker tracker;
 	int error;
 
+	SYSCTL_RLOCK(&tracker);
 	error = sysctl_find_oid(arg1, arg2, &oid, NULL, req);
 	if (error)
-		return (error);
+		goto out;
 
-	if (!oid->oid_descr)
-		return (ENOENT);
+	if (oid->oid_descr == NULL) {
+		error = ENOENT;
+		goto out;
+	}
 	error = SYSCTL_OUT(req, oid->oid_descr, strlen(oid->oid_descr) + 1);
+ out:
+	SYSCTL_RUNLOCK(&tracker);
 	return (error);
 }
 
-static SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD, sysctl_sysctl_oiddescr, "");
+static SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD|CTLFLAG_MPSAFE|CTLFLAG_CAPRD,
+    sysctl_sysctl_oiddescr, "");
 
 /*
  * Default "handler" functions.
  */
+
+/*
+ * Handle a bool.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
+int
+sysctl_handle_bool(SYSCTL_HANDLER_ARGS)
+{
+	uint8_t temp;
+	int error;
+
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
+	if (arg1)
+		temp = *(bool *)arg1 ? 1 : 0;
+	else
+		temp = arg2 ? 1 : 0;
+
+	error = SYSCTL_OUT(req, &temp, sizeof(temp));
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else {
+		error = SYSCTL_IN(req, &temp, sizeof(temp));
+		if (!error)
+			*(bool *)arg1 = temp ? 1 : 0;
+	}
+	return (error);
+}
+
+/*
+ * Handle an int8_t, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
+int
+sysctl_handle_8(SYSCTL_HANDLER_ARGS)
+{
+	int8_t tmpout;
+	int error = 0;
+
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
+	if (arg1)
+		tmpout = *(int8_t *)arg1;
+	else
+		tmpout = arg2;
+	error = SYSCTL_OUT(req, &tmpout, sizeof(tmpout));
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(tmpout));
+	return (error);
+}
+
+/*
+ * Handle an int16_t, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
+int
+sysctl_handle_16(SYSCTL_HANDLER_ARGS)
+{
+	int16_t tmpout;
+	int error = 0;
+
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
+	if (arg1)
+		tmpout = *(int16_t *)arg1;
+	else
+		tmpout = arg2;
+	error = SYSCTL_OUT(req, &tmpout, sizeof(tmpout));
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(tmpout));
+	return (error);
+}
+
+/*
+ * Handle an int32_t, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
+int
+sysctl_handle_32(SYSCTL_HANDLER_ARGS)
+{
+	int32_t tmpout;
+	int error = 0;
+
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
+	if (arg1)
+		tmpout = *(int32_t *)arg1;
+	else
+		tmpout = arg2;
+	error = SYSCTL_OUT(req, &tmpout, sizeof(tmpout));
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(tmpout));
+	return (error);
+}
 
 /*
  * Handle an int, signed or unsigned.
@@ -964,7 +1369,10 @@ sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
 
 
 /*
- * Handle a long, signed or unsigned.  arg1 points to it.
+ * Handle a long, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
  */
 
 int
@@ -979,9 +1387,10 @@ sysctl_handle_long(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Attempt to get a coherent snapshot by making a copy of the data.
 	 */
-	if (!arg1)
-		return (EINVAL);
-	tmplong = *(long *)arg1;
+	if (arg1)
+		tmplong = *(long *)arg1;
+	else
+		tmplong = arg2;
 #ifdef SCTL_MASK32
 	if (req->flags & SCTL_MASK32) {
 		tmpint = tmplong;
@@ -993,22 +1402,27 @@ sysctl_handle_long(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return (error);
 
+	if (!arg1)
+		error = EPERM;
 #ifdef SCTL_MASK32
-	if (req->flags & SCTL_MASK32) {
+	else if (req->flags & SCTL_MASK32) {
 		error = SYSCTL_IN(req, &tmpint, sizeof(int));
 		*(long *)arg1 = (long)tmpint;
-	} else
+	}
 #endif
+	else
 		error = SYSCTL_IN(req, arg1, sizeof(long));
 	return (error);
 }
 
 /*
- * Handle a 64 bit int, signed or unsigned.  arg1 points to it.
+ * Handle a 64 bit int, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
  */
-
 int
-sysctl_handle_quad(SYSCTL_HANDLER_ARGS)
+sysctl_handle_64(SYSCTL_HANDLER_ARGS)
 {
 	int error = 0;
 	uint64_t tmpout;
@@ -1016,15 +1430,19 @@ sysctl_handle_quad(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Attempt to get a coherent snapshot by making a copy of the data.
 	 */
-	if (!arg1)
-		return (EINVAL);
-	tmpout = *(uint64_t *)arg1;
+	if (arg1)
+		tmpout = *(uint64_t *)arg1;
+	else
+		tmpout = arg2;
 	error = SYSCTL_OUT(req, &tmpout, sizeof(uint64_t));
 
 	if (error || !req->newptr)
 		return (error);
 
-	error = SYSCTL_IN(req, arg1, sizeof(uint64_t));
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(uint64_t));
 	return (error);
 }
 
@@ -1038,26 +1456,38 @@ sysctl_handle_quad(SYSCTL_HANDLER_ARGS)
 int
 sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 {
-	int error=0;
-	char *tmparg;
 	size_t outlen;
+	int error = 0, ro_string = 0;
 
 	/*
-	 * Attempt to get a coherent snapshot by copying to a
-	 * temporary kernel buffer.
+	 * A zero-length buffer indicates a fixed size read-only
+	 * string:
 	 */
-retry:
-	outlen = strlen((char *)arg1)+1;
-	tmparg = malloc(outlen, M_SYSCTLTMP, M_WAITOK);
-
-	if (strlcpy(tmparg, (char *)arg1, outlen) >= outlen) {
-		free(tmparg, M_SYSCTLTMP);
-		goto retry;
+	if (arg2 == 0) {
+		arg2 = strlen((char *)arg1) + 1;
+		ro_string = 1;
 	}
 
-	error = SYSCTL_OUT(req, tmparg, outlen);
-	free(tmparg, M_SYSCTLTMP);
+	if (req->oldptr != NULL) {
+		char *tmparg;
 
+		if (ro_string) {
+			tmparg = arg1;
+		} else {
+			/* try to make a coherent snapshot of the string */
+			tmparg = malloc(arg2, M_SYSCTLTMP, M_WAITOK);
+			memcpy(tmparg, arg1, arg2);
+		}
+
+		outlen = strnlen(tmparg, arg2 - 1) + 1;
+		error = SYSCTL_OUT(req, tmparg, outlen);
+
+		if (!ro_string)
+			free(tmparg, M_SYSCTLTMP);
+	} else {
+		outlen = strnlen((char *)arg1, arg2 - 1) + 1;
+		error = SYSCTL_OUT(req, NULL, outlen);
+	}
 	if (error || !req->newptr)
 		return (error);
 
@@ -1068,7 +1498,6 @@ retry:
 		error = SYSCTL_IN(req, arg1, arg2);
 		((char *)arg1)[arg2] = '\0';
 	}
-
 	return (error);
 }
 
@@ -1174,11 +1603,9 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 	req.oldfunc = sysctl_old_kernel;
 	req.newfunc = sysctl_new_kernel;
-	req.lock = REQ_LOCKED;
+	req.lock = REQ_UNWIRED;
 
-	SYSCTL_SLOCK();
 	error = sysctl_root(0, name, namelen, &req);
-	SYSCTL_SUNLOCK();
 
 	if (req.lock == REQ_WIRED && req.validlen > 0)
 		vsunlock(req.oldptr, req.validlen);
@@ -1223,8 +1650,8 @@ kernel_sysctlbyname(struct thread *td, char *name, void *old, size_t *oldlenp,
 static int
 sysctl_old_user(struct sysctl_req *req, const void *p, size_t l)
 {
-	int error = 0;
 	size_t i, len, origidx;
+	int error;
 
 	origidx = req->oldidx;
 	req->oldidx += l;
@@ -1245,10 +1672,14 @@ sysctl_old_user(struct sysctl_req *req, const void *p, size_t l)
 	else {
 		if (i > len - origidx)
 			i = len - origidx;
-		error = copyout(p, (char *)req->oldptr + origidx, i);
+		if (req->lock == REQ_WIRED) {
+			error = copyout_nofault(p, (char *)req->oldptr +
+			    origidx, i);
+		} else
+			error = copyout(p, (char *)req->oldptr + origidx, i);
+		if (error != 0)
+			return (error);
 	}
-	if (error)
-		return (error);
 	if (i < l)
 		return (ENOMEM);
 	return (0);
@@ -1282,7 +1713,7 @@ sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
 
 	wiredlen = (len > 0 && len < req->oldlen) ? len : req->oldlen;
 	ret = 0;
-	if (req->lock == REQ_LOCKED && req->oldptr &&
+	if (req->lock != REQ_WIRED && req->oldptr &&
 	    req->oldfunc == sysctl_old_user) {
 		if (wiredlen != 0) {
 			ret = vslock(req->oldptr, wiredlen);
@@ -1302,37 +1733,41 @@ int
 sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
     int *nindx, struct sysctl_req *req)
 {
+	struct sysctl_oid_list *lsp;
 	struct sysctl_oid *oid;
 	int indx;
 
 	SYSCTL_ASSERT_LOCKED();
-	oid = SLIST_FIRST(&sysctl__children);
+	lsp = &sysctl__children;
 	indx = 0;
-	while (oid && indx < CTL_MAXNAME) {
-		if (oid->oid_number == name[indx]) {
-			indx++;
-			if (oid->oid_kind & CTLFLAG_NOLOCK)
-				req->lock = REQ_UNLOCKED;
-			if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
-				if (oid->oid_handler != NULL ||
-				    indx == namelen) {
-					*noid = oid;
-					if (nindx != NULL)
-						*nindx = indx;
-					return (0);
-				}
-				oid = SLIST_FIRST(
-				    (struct sysctl_oid_list *)oid->oid_arg1);
-			} else if (indx == namelen) {
+	while (indx < CTL_MAXNAME) {
+		SLIST_FOREACH(oid, lsp, oid_link) {
+			if (oid->oid_number == name[indx])
+				break;
+		}
+		if (oid == NULL)
+			return (ENOENT);
+
+		indx++;
+		if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+			if (oid->oid_handler != NULL || indx == namelen) {
 				*noid = oid;
 				if (nindx != NULL)
 					*nindx = indx;
+				KASSERT((oid->oid_kind & CTLFLAG_DYING) == 0,
+				    ("%s found DYING node %p", __func__, oid));
 				return (0);
-			} else {
-				return (ENOTDIR);
 			}
+			lsp = SYSCTL_CHILDREN(oid);
+		} else if (indx == namelen) {
+			*noid = oid;
+			if (nindx != NULL)
+				*nindx = indx;
+			KASSERT((oid->oid_kind & CTLFLAG_DYING) == 0,
+			    ("%s found DYING node %p", __func__, oid));
+			return (0);
 		} else {
-			oid = SLIST_NEXT(oid, oid_link);
+			return (ENOTDIR);
 		}
 	}
 	return (ENOENT);
@@ -1347,13 +1782,14 @@ static int
 sysctl_root(SYSCTL_HANDLER_ARGS)
 {
 	struct sysctl_oid *oid;
+	struct rm_priotracker tracker;
 	int error, indx, lvl;
 
-	SYSCTL_ASSERT_LOCKED();
+	SYSCTL_RLOCK(&tracker);
 
 	error = sysctl_find_oid(arg1, arg2, &oid, &indx, req);
 	if (error)
-		return (error);
+		goto out;
 
 	if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 		/*
@@ -1361,22 +1797,40 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 		 * no handler.  Inform the user that it's a node.
 		 * The indx may or may not be the same as namelen.
 		 */
-		if (oid->oid_handler == NULL)
-			return (EISDIR);
+		if (oid->oid_handler == NULL) {
+			error = EISDIR;
+			goto out;
+		}
 	}
 
 	/* Is this sysctl writable? */
-	if (req->newptr && !(oid->oid_kind & CTLFLAG_WR))
-		return (EPERM);
+	if (req->newptr && !(oid->oid_kind & CTLFLAG_WR)) {
+		error = EPERM;
+		goto out;
+	}
 
 	KASSERT(req->td != NULL, ("sysctl_root(): req->td == NULL"));
+
+#ifdef CAPABILITY_MODE
+	/*
+	 * If the process is in capability mode, then don't permit reading or
+	 * writing unless specifically granted for the node.
+	 */
+	if (IN_CAPABILITY_MODE(req->td)) {
+		if ((req->oldptr && !(oid->oid_kind & CTLFLAG_CAPRD)) ||
+		    (req->newptr && !(oid->oid_kind & CTLFLAG_CAPWR))) {
+			error = EPERM;
+			goto out;
+		}
+	}
+#endif
 
 	/* Is this sysctl sensitive to securelevels? */
 	if (req->newptr && (oid->oid_kind & CTLFLAG_SECURE)) {
 		lvl = (oid->oid_kind & CTLMASK_SECURE) >> CTLSHIFT_SECURE;
 		error = securelevel_gt(req->td->td_ucred, lvl);
 		if (error)
-			return (error);
+			goto out;
 	}
 
 	/* Is this sysctl writable by only privileged users? */
@@ -1394,11 +1848,13 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 			priv = PRIV_SYSCTL_WRITE;
 		error = priv_check(req->td, priv);
 		if (error)
-			return (error);
+			goto out;
 	}
 
-	if (!oid->oid_handler)
-		return (EINVAL);
+	if (!oid->oid_handler) {
+		error = EINVAL;
+		goto out;
+	}
 
 	if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 		arg1 = (int *)arg1 + indx;
@@ -1411,14 +1867,16 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 	error = mac_system_check_sysctl(req->td->td_ucred, oid, arg1, arg2,
 	    req);
 	if (error != 0)
-		return (error);
+		goto out;
 #endif
-	if (!(oid->oid_kind & CTLFLAG_MPSAFE))
-		mtx_lock(&Giant);
-	error = oid->oid_handler(oid, arg1, arg2, req);
-	if (!(oid->oid_kind & CTLFLAG_MPSAFE))
-		mtx_unlock(&Giant);
+#ifdef VIMAGE
+	if ((oid->oid_kind & CTLFLAG_VNET) && arg1 != NULL)
+		arg1 = (void *)(curvnet->vnet_data_base + (uintptr_t)arg1);
+#endif
+	error = sysctl_root_handler_locked(oid, arg1, arg2, req, &tracker);
 
+out:
+	SYSCTL_RUNLOCK(&tracker);
 	return (error);
 }
 
@@ -1433,7 +1891,7 @@ struct sysctl_args {
 };
 #endif
 int
-__sysctl(struct thread *td, struct sysctl_args *uap)
+sys___sysctl(struct thread *td, struct sysctl_args *uap)
 {
 	int error, i, name[CTL_MAXNAME];
 	size_t j;
@@ -1501,14 +1959,14 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 	req.oldfunc = sysctl_old_user;
 	req.newfunc = sysctl_new_user;
-	req.lock = REQ_LOCKED;
+	req.lock = REQ_UNWIRED;
 
 #ifdef KTRACE
 	if (KTRPOINT(curthread, KTR_SYSCTL))
 		ktrsysctl(name, namelen);
 #endif
 
-	if (req.oldlen > PAGE_SIZE) {
+	if (req.oldptr && req.oldlen > PAGE_SIZE) {
 		memlocked = 1;
 		sx_xlock(&sysctlmemlock);
 	} else
@@ -1518,12 +1976,10 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	for (;;) {
 		req.oldidx = 0;
 		req.newidx = 0;
-		SYSCTL_SLOCK();
 		error = sysctl_root(0, name, namelen, &req);
-		SYSCTL_SUNLOCK();
 		if (error != EAGAIN)
 			break;
-		uio_yield();
+		kern_yield(PRI_USER);
 	}
 
 	CURVNET_RESTORE();
@@ -1543,4 +1999,32 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 			*retval = req.oldidx;
 	}
 	return (error);
+}
+
+/*
+ * Drain into a sysctl struct.  The user buffer should be wired if a page
+ * fault would cause issue.
+ */
+static int
+sbuf_sysctl_drain(void *arg, const char *data, int len)
+{
+	struct sysctl_req *req = arg;
+	int error;
+
+	error = SYSCTL_OUT(req, data, len);
+	KASSERT(error >= 0, ("Got unexpected negative value %d", error));
+	return (error == 0 ? len : -error);
+}
+
+struct sbuf *
+sbuf_new_for_sysctl(struct sbuf *s, char *buf, int length,
+    struct sysctl_req *req)
+{
+
+	/* Supply a default buffer size if none given. */
+	if (buf == NULL && length == 0)
+		length = 64;
+	s = sbuf_new(s, buf, length, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
+	sbuf_set_drain(s, sbuf_sysctl_drain, req);
+	return (s);
 }

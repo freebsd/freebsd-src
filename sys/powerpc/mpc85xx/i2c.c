@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/ocpbus.h>
 #include <sys/rman.h>
 
 #include <sys/lock.h>
@@ -46,7 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/iicbus/iicbus.h>
 #include "iicbus_if.h"
 
-#include <powerpc/mpc85xx/ocpbus.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #define I2C_ADDR_REG		0x00 /* I2C slave address register */
 #define I2C_FDR_REG		0x04 /* I2C frequency divider register */
@@ -71,9 +71,6 @@ __FBSDID("$FreeBSD$");
 #define I2C_BAUD_RATE_FAST	0x31
 #define I2C_BAUD_RATE_DEF	0x3F
 #define I2C_DFSSR_DIV		0x10
-
-#define DEBUG
-#undef DEBUG
 
 #ifdef  DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__); printf(fmt,##args); } while (0)
@@ -100,6 +97,7 @@ static int i2c_stop(device_t dev);
 static int i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr);
 static int i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay);
 static int i2c_write(device_t dev, const char *buf, int len, int *sent, int timeout);
+static phandle_t i2c_get_node(device_t bus, device_t dev);
 
 static device_method_t i2c_methods[] = {
 	DEVMETHOD(device_probe,			i2c_probe),
@@ -113,18 +111,19 @@ static device_method_t i2c_methods[] = {
 	DEVMETHOD(iicbus_read,			i2c_read),
 	DEVMETHOD(iicbus_write,			i2c_write),
 	DEVMETHOD(iicbus_transfer,		iicbus_transfer_gen),
+	DEVMETHOD(ofw_bus_get_node,		i2c_get_node),
 
 	{ 0, 0 }
 };
 
 static driver_t i2c_driver = {
-	"i2c",
+	"iichb",
 	i2c_methods,
 	sizeof(struct i2c_softc),
 };
 static devclass_t  i2c_devclass;
 
-DRIVER_MODULE(i2c, ocpbus, i2c_driver, i2c_devclass, 0, 0);
+DRIVER_MODULE(i2c, simplebus, i2c_driver, i2c_devclass, 0, 0);
 DRIVER_MODULE(iicbus, i2c, iicbus_driver, iicbus_devclass, 0, 0);
 
 static __inline void
@@ -157,7 +156,7 @@ i2c_do_wait(device_t dev, struct i2c_softc *sc, int write, int start)
 	int err;
 	uint8_t status;
 
-	status = i2c_read_reg(sc,I2C_STATUS_REG);
+	status = i2c_read_reg(sc, I2C_STATUS_REG);
 	if (status & I2CSR_MIF) {
 		if (write && start && (status & I2CSR_RXAK)) {
 			debugf("no ack %s", start ?
@@ -188,19 +187,9 @@ error:
 static int
 i2c_probe(device_t dev)
 {
-	device_t parent;
 	struct i2c_softc *sc;
-	uintptr_t devtype;
-	int error;
 
-	parent = device_get_parent(dev);
-
-	error = BUS_READ_IVAR(parent, dev, OCPBUS_IVAR_DEVTYPE, &devtype);
-
-	if (error)
-		return (error);
-
-	if (devtype != OCPBUS_DEVTYPE_I2C)
+	if (!ofw_bus_is_compatible(dev, "fsl-i2c"))
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
@@ -209,7 +198,7 @@ i2c_probe(device_t dev)
 	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->rid,
 	    RF_ACTIVE);
 	if (sc->res == NULL) {
-		device_printf(dev, "could not allocate resources");
+		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
 
@@ -297,7 +286,7 @@ i2c_start(device_t dev, u_char slave, int timeout)
 		debugf("bus busy");
 		mtx_unlock(&sc->mutex);
 		i2c_stop(dev);
-		return (IIC_EBUSBSY);
+		return (IIC_EBUSERR);
 	}
 
 	/* Set start condition */
@@ -437,4 +426,12 @@ i2c_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 	mtx_unlock(&sc->mutex);
 
 	return (IIC_NOERR);
+}
+
+static phandle_t
+i2c_get_node(device_t bus, device_t dev)
+{
+
+	/* Share controller node with iibus device. */
+	return (ofw_bus_get_node(bus));
 }

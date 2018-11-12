@@ -101,7 +101,7 @@ buf_read(int sock, void *buf, size_t nbytes)
 }
 
 void
-dispatch_imsg(int fd)
+dispatch_imsg(struct interface_info *ifi, int fd)
 {
 	struct imsg_hdr		 hdr;
 	char			*medium, *reason, *filename,
@@ -111,6 +111,7 @@ dispatch_imsg(int fd)
 	struct client_lease	 lease;
 	int			 ret, i, optlen;
 	struct buf		*buf;
+	u_int16_t		mtu;
 
 	buf_read(fd, &hdr, sizeof(hdr));
 
@@ -231,6 +232,16 @@ dispatch_imsg(int fd)
 			error("buf_add: %m");
 		if (buf_close(fd, buf) == -1)
 			error("buf_close: %m");
+		break;
+	case IMSG_SEND_PACKET:
+		send_packet_priv(ifi, &hdr, fd);
+		break;
+	case IMSG_SET_INTERFACE_MTU:
+		if (hdr.len < sizeof(hdr) + sizeof(u_int16_t))
+			error("corrupted message received");	
+	
+		buf_read(fd, &mtu, sizeof(u_int16_t));
+		interface_set_mtu_priv(ifi->name, mtu);
 		break;
 	default:
 		error("received unknown message, code %d", hdr.code);

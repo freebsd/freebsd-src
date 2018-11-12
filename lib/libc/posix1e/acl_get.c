@@ -132,30 +132,6 @@ acl_get_fd_np(int fd, acl_type_t type)
 	return (aclp);
 }
 
-int
-acl_get_perm_np(acl_permset_t permset_d, acl_perm_t perm)
-{
-
-	if (permset_d == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
-
-	switch(perm) {
-	case ACL_READ:
-	case ACL_WRITE:
-	case ACL_EXECUTE:
-		if (*permset_d & perm)
-			return (1);
-		break;
-	default:
-		errno = EINVAL;
-		return (-1);
-	}
-
-	return (0);
-}
-
 /*
  * acl_get_permset() (23.4.17): return via permset_p a descriptor to
  * the permission set in the ACL entry entry_d.

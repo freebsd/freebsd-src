@@ -33,7 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_comconsole.h"
 #include "opt_compat.h"
 #include "opt_gdb.h"
 #include "opt_kdb.h"
@@ -228,7 +227,7 @@ struct com_s {
 
 	struct	pps_state pps;
 	int	pps_bit;
-#ifdef ALT_BREAK_TO_DEBUGGER
+#ifdef KDB
 	int	alt_brk_state;
 #endif
 
@@ -279,6 +278,11 @@ static int	sio_inited;
 
 /* table and macro for fast conversion from a unit number to its com struct */
 devclass_t	sio_devclass;
+/*
+ * XXX Assmues that devclass_get_device, devclass_get_softc and
+ * device_get_softc are fast interrupt safe.  The current implementation
+ * of these functions are.
+ */
 #define	com_addr(unit)	((struct com_s *) \
 			 devclass_get_softc(sio_devclass, unit)) /* XXX */
 
@@ -368,7 +372,7 @@ sysctl_machdep_comdefaultrate(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, conspeed, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_machdep, OID_AUTO, conspeed, CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
 	    0, 0, sysctl_machdep_comdefaultrate, "I", "");
 TUNABLE_INT("machdep.conspeed", __DEVOLATILE(int *, &comdefaultrate));
 
@@ -440,8 +444,8 @@ sioprobe(dev, xrid, rclk, noprobe)
 	struct resource *port;
 
 	rid = xrid;
-	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				  0, ~0, IO_COMSIZE, RF_ACTIVE);
+	port = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+					   IO_COMSIZE, RF_ACTIVE);
 	if (!port)
 		return (ENXIO);
 
@@ -880,8 +884,8 @@ sioattach(dev, xrid, rclk)
 	struct tty	*tp;
 
 	rid = xrid;
-	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				  0, ~0, IO_COMSIZE, RF_ACTIVE);
+	port = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+					   IO_COMSIZE, RF_ACTIVE);
 	if (!port)
 		return (ENXIO);
 
@@ -1102,8 +1106,7 @@ determined_type: ;
 		}
 		if (ret)
 			device_printf(dev, "could not activate interrupt\n");
-#if defined(KDB) && (defined(BREAK_TO_DEBUGGER) || \
-    defined(ALT_BREAK_TO_DEBUGGER))
+#if defined(KDB)
 		/*
 		 * Enable interrupts for early break-to-debugger support
 		 * on the console.
@@ -1196,8 +1199,7 @@ comclose(tp)
 	com->poll_output = FALSE;
 	sio_setreg(com, com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
 
-#if defined(KDB) && (defined(BREAK_TO_DEBUGGER) || \
-    defined(ALT_BREAK_TO_DEBUGGER))
+#if defined(KDB)
 	/*
 	 * Leave interrupts enabled and don't clear DTR if this is the
 	 * console. This allows us to detect break-to-debugger events
@@ -1466,7 +1468,6 @@ sysctl_siots(SYSCTL_HANDLER_ARGS)
 		error = SYSCTL_OUT(req, buf, len);
 		if (error != 0)
 			return (error);
-		uio_yield();
 	}
 	return (0);
 }
@@ -1484,9 +1485,8 @@ siointr1(com)
 	u_char	modem_status;
 	u_char	*ioptr;
 	u_char	recv_data;
-#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
-	int	kdb_brk;
 
+#ifdef KDB
 again:
 #endif
 
@@ -1519,27 +1519,9 @@ again:
 			else
 				recv_data = inb(com->data_port);
 #ifdef KDB
-#ifdef ALT_BREAK_TO_DEBUGGER
 			if (com->unit == comconsole &&
-			    (kdb_brk = kdb_alt_break(recv_data,
-					&com->alt_brk_state)) != 0) {
-				mtx_unlock_spin(&sio_lock);
-				switch (kdb_brk) {
-				case KDB_REQ_DEBUGGER:
-					kdb_enter(KDB_WHY_BREAK,
-					    "Break sequence on console");
-					break;
-				case KDB_REQ_PANIC:
-					kdb_panic("panic on console");
-					break;
-				case KDB_REQ_REBOOT:
-					kdb_reboot();
-					break;
-				}
-				mtx_lock_spin(&sio_lock);
+			    kdb_alt_break(recv_data, &com->alt_brk_state) != 0)
 				goto again;
-			}
-#endif /* ALT_BREAK_TO_DEBUGGER */
 #endif /* KDB */
 			if (line_status & (LSR_BI | LSR_FE | LSR_PE)) {
 				/*
@@ -1555,10 +1537,9 @@ again:
 				 * Note: BI together with FE/PE means just BI.
 				 */
 				if (line_status & LSR_BI) {
-#if defined(KDB) && defined(BREAK_TO_DEBUGGER)
+#if defined(KDB)
 					if (com->unit == comconsole) {
-						kdb_enter(KDB_WHY_BREAK,
-						    "Line break on console");
+						kdb_break();
 						goto cont;
 					}
 #endif
@@ -1657,7 +1638,7 @@ txrdy:
 				outb(com->data_port, *ioptr++);
 				++com->bytes_out;
 				if (com->unit == siotsunit
-				    && siotso < sizeof siots / sizeof siots[0])
+				    && siotso < nitems(siots))
 					nanouptime(&siots[siotso++]);
 			}
 			com->obufq.l_head = ioptr;
@@ -2317,6 +2298,8 @@ static cn_init_t sio_cninit;
 static cn_term_t sio_cnterm;
 static cn_getc_t sio_cngetc;
 static cn_putc_t sio_cnputc;
+static cn_grab_t sio_cngrab;
+static cn_ungrab_t sio_cnungrab;
 
 CONSOLE_DRIVER(sio);
 
@@ -2340,7 +2323,7 @@ siocntxwait(iobase)
 /*
  * Read the serial port specified and try to figure out what speed
  * it's currently running at.  We're assuming the serial port has
- * been initialized and is basicly idle.  This routine is only intended
+ * been initialized and is basically idle.  This routine is only intended
  * to be run at system startup.
  *
  * If the value read from the serial port doesn't make sense, return 0.
@@ -2534,6 +2517,16 @@ sio_cnterm(cp)
 	struct consdev	*cp;
 {
 	comconsole = -1;
+}
+
+static void
+sio_cngrab(struct consdev *cp)
+{
+}
+
+static void
+sio_cnungrab(struct consdev *cp)
+{
 }
 
 static int

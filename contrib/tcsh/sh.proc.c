@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.proc.c,v 3.109 2009/06/25 21:15:37 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.proc.c,v 3.121 2012/01/25 15:34:41 christos Exp $ */
 /*
  * sh.proc.c: Job manipulations
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.proc.c,v 3.109 2009/06/25 21:15:37 christos Exp $")
+RCSID("$tcsh: sh.proc.c,v 3.121 2012/01/25 15:34:41 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"
@@ -47,8 +47,10 @@ RCSID("$tcsh: sh.proc.c,v 3.109 2009/06/25 21:15:37 christos Exp $")
 # define HZ 16
 #endif /* aiws */
 
-#if defined(_BSD) || (defined(IRIS4D) && __STDC__) || defined(__lucid) || defined(linux) || defined(__GNU__) || defined(__GLIBC__)
-# define BSDWAIT
+#if defined(_BSD) || (defined(IRIS4D) && __STDC__) || defined(__lucid) || defined(__linux__) || defined(__GNU__) || defined(__GLIBC__)
+# if !defined(__ANDROID__)
+#  define BSDWAIT
+# endif
 #endif /* _BSD || (IRIS4D && __STDC__) || __lucid || glibc */
 #ifndef WTERMSIG
 # define WTERMSIG(w)	(((union wait *) &(w))->w_termsig)
@@ -188,7 +190,7 @@ loop:
         (setintr && (intty || insource) ? WNOHANG | WUNTRACED : WNOHANG), &ru);
 #   else
     /* both a wait3 and rusage */
-#    if !defined(BSDWAIT) || defined(NeXT) || defined(MACH) || defined(linux) || defined(__GNU__) || defined(__GLIBC__) || (defined(IRIS4D) && SYSVREL <= 3) || defined(__lucid) || defined(__osf__)
+#    if !defined(BSDWAIT) || defined(NeXT) || defined(MACH) || defined(__linux__) || defined(__GNU__) || defined(__GLIBC__) || (defined(IRIS4D) && SYSVREL <= 3) || defined(__lucid) || defined(__osf__)
     pid = wait3(&w,
        (setintr && (intty || insource) ? WNOHANG | WUNTRACED : WNOHANG), &ru);
 #    else /* BSDWAIT */
@@ -221,7 +223,11 @@ loop:
 #   ifdef hpux
     pid = wait3(&w.w_status, WNOHANG, 0);
 #   else	/* !hpux */
+#     ifndef BSDWAIT
+    pid = wait3(&w, WNOHANG, &ru);
+#     else
     pid = wait3(&w.w_status, WNOHANG, &ru);
+#     endif /* BSDWAIT */
 #   endif /* !hpux */
 #  else /* !BSDTIMES */
 #   ifdef ODT  /* For Sco Unix 3.2.0 or ODT 1.0 */
@@ -260,7 +266,7 @@ loop:
     jobdebug_flush();
 
     if ((pid == 0) || (pid == -1)) {
-	handle_pending_signals();
+	(void)handle_pending_signals();
 	jobdebug_xprintf(("errno == %d\n", errno));
 	if (errno == EINTR)
 	    goto loop;
@@ -367,6 +373,7 @@ found:
 #ifdef notdef
 		jobflags & PAEXITED ||
 #endif /* notdef */
+		fp->p_cwd == NULL ||
 		!eq(dcwd->di_name, fp->p_cwd->di_name))) {
 	    /* PWP: print a newline after ^C */
 		if (jobflags & PINTERRUPTED) {
@@ -501,7 +508,7 @@ pjwait(struct process *pp)
     pause_mask = oset;
     sigdelset(&pause_mask, SIGCHLD);
     for (;;) {
-	handle_pending_signals();
+	(void)handle_pending_signals();
 	jobflags = 0;
 	do
 	    jobflags |= fp->p_flags;
@@ -551,6 +558,11 @@ pjwait(struct process *pp)
     reason = 0;
     fp = pp;
     do {
+	/* In case of pipelines only the result of the last
+	 * command should be taken in account */
+	if (!anyerror && !(fp->p_flags & PBRACE)
+		&& ((fp->p_flags & PPOU) || (fp->p_flags & PBACKQ)))
+	    continue;
 	if (fp->p_reason)
 	    reason = fp->p_flags & (PSIGNALED | PINTERRUPTED) ?
 		fp->p_reason | META : fp->p_reason;
@@ -562,7 +574,7 @@ pjwait(struct process *pp)
     if ((reason != 0) && (adrof(STRprintexitvalue)) && 
 	(pp->p_flags & PBACKQ) == 0)
 	xprintf(CGETS(17, 2, "Exit %d\n"), reason);
-    reason_str = putn(reason);
+    reason_str = putn((tcsh_number_t)reason);
     cleanup_push(reason_str, xfree);
     setv(STRstatus, reason_str, VAR_READWRITE);
     cleanup_ignore(reason_str);
@@ -582,6 +594,7 @@ dowait(Char **v, struct command *c)
 {
     struct process *pp;
     sigset_t pause_mask;
+    int opintr_disabled, gotsig;
 
     USE(c);
     USE(v);
@@ -594,9 +607,14 @@ loop:
     for (pp = proclist.p_next; pp; pp = pp->p_next)
 	if (pp->p_procid &&	/* pp->p_procid == pp->p_jobid && */
 	    pp->p_flags & PRUNNING) {
-	    handle_pending_signals();
+	    (void)handle_pending_signals();
 	    sigsuspend(&pause_mask);
-	    handle_pending_signals();
+	    opintr_disabled = pintr_disabled;
+	    pintr_disabled = 0;
+	    gotsig = handle_pending_signals();
+	    pintr_disabled = opintr_disabled;
+	    if (gotsig)
+		break;
 	    goto loop;
 	}
     pjobs = 0;
@@ -719,6 +737,7 @@ palloc(pid_t pid, struct command *t)
 
     pp = xcalloc(1, sizeof(struct process));
     pp->p_procid = pid;
+    pp->p_parentid = shpgrp;
     pp->p_flags = ((t->t_dflg & F_AMPERSAND) ? 0 : PFOREGND) | PRUNNING;
     if (t->t_dflg & F_TIME)
 	pp->p_flags |= PPTIME;
@@ -726,6 +745,8 @@ palloc(pid_t pid, struct command *t)
 	pp->p_flags |= PBACKQ;
     if (t->t_dflg & F_HUP)
 	pp->p_flags |= PHUP;
+    if (t->t_dcom && t->t_dcom[0] && (*t->t_dcom[0] == '{'))
+	pp->p_flags |= PBRACE;
     if (cmdmax == 0)
 	morecommand(CMD_INIT);
     cmdp = cmdstr;
@@ -910,6 +931,7 @@ pendjob(void)
 
     if (pcurrjob && (pcurrjob->p_flags & (PFOREGND | PSTOPPED)) == 0) {
 	pp = pcurrjob;
+	pcurrjob = NULL;
 	while (pp->p_procid != pp->p_jobid)
 	    pp = pp->p_friends;
 	xprintf("[%d]", pp->p_index);
@@ -1870,7 +1892,7 @@ pfork(struct command *t, int wanttty)
 	    sigdelset(&pause_mask, SIGCHLD);
 	    sigdelset(&pause_mask, SIGSYNCH);
 	    sigsuspend(&pause_mask);
-	    handle_pending_signals();
+	    (void)handle_pending_signals();
 	    if (sigaction(SIGSYNCH, &osa, NULL))
 		stderror(ERR_SYSTEM, "pfork parent: sigaction restore",
 			 strerror(errno));

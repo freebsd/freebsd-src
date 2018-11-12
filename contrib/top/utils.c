@@ -58,6 +58,7 @@ char *str;
 				 * ever convert will be 2^32-1, which is 10
 				 * digits.
 				 */
+_Static_assert(sizeof(int) <= 4, "buffer too small for this sized int");
 
 char *itoa(val)
 
@@ -476,7 +477,7 @@ int amt;
 
 char *format_k2(amt)
 
-int amt;
+unsigned long long amt;
 
 {
     static char retarray[NUM_STRINGS][16];
@@ -499,7 +500,7 @@ int amt;
 	}
     }
 
-    p = strecpy(p, itoa(amt));
+    p = strecpy(p, itoa((int)amt));
     *p++ = tag;
     *p = '\0';
 

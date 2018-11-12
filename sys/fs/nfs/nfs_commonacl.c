@@ -37,7 +37,6 @@ extern int nfsrv_useacl;
 static int nfsrv_acemasktoperm(u_int32_t acetype, u_int32_t mask, int owner,
     enum vtype type, acl_perm_t *permp);
 
-#if defined(NFS4_ACL_EXTATTR_NAME)
 /*
  * Handle xdr for an ace.
  */
@@ -60,7 +59,8 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 	mask = fxdr_unsigned(u_int32_t, *tl++);
 	len = fxdr_unsigned(int, *tl);
 	if (len < 0) {
-		return (NFSERR_BADXDR);
+		error = NFSERR_BADXDR;
+		goto nfsmout;
 	} else if (len == 0) {
 		/* Netapp filers return a 0 length who for nil users */
 		acep->ae_tag = ACL_UNDEFINED_TAG;
@@ -69,7 +69,8 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 		acep->ae_entry_type = ACL_ENTRY_TYPE_DENY;
 		if (acesizep)
 			*acesizep = 4 * NFSX_UNSIGNED;
-		return (0);
+		error = 0;
+		goto nfsmout;
 	}
 	if (len > NFSV4_SMALLSTR)
 		name = malloc(len + 1, M_NFSSTRING, M_WAITOK);
@@ -79,7 +80,7 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 	if (error) {
 		if (len > NFSV4_SMALLSTR)
 			free(name, M_NFSSTRING);
-		return (error);
+		goto nfsmout;
 	}
 	if (len == 6) {
 		if (!NFSBCMP(name, "OWNER@", 6)) {
@@ -100,12 +101,12 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 	if (gotid == 0) {
 		if (flag & NFSV4ACE_IDENTIFIERGROUP) {
 			acep->ae_tag = ACL_GROUP;
-			aceerr = nfsv4_strtogid(name, len, &gid, p);
+			aceerr = nfsv4_strtogid(nd, name, len, &gid, p);
 			if (aceerr == 0)
 				acep->ae_id = (uid_t)gid;
 		} else {
 			acep->ae_tag = ACL_USER;
-			aceerr = nfsv4_strtouid(name, len, &uid, p);
+			aceerr = nfsv4_strtouid(nd, name, len, &uid, p);
 			if (aceerr == 0)
 				acep->ae_id = uid;
 		}
@@ -172,8 +173,9 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 	*aceerrp = aceerr;
 	if (acesizep)
 		*acesizep = NFSM_RNDUP(len) + (4 * NFSX_UNSIGNED);
-	return (0);
+	error = 0;
 nfsmout:
+	NFSEXITCODE(error);
 	return (error);
 }
 
@@ -185,6 +187,7 @@ nfsrv_acemasktoperm(u_int32_t acetype, u_int32_t mask, int owner,
     enum vtype type, acl_perm_t *permp)
 {
 	acl_perm_t perm = 0x0;
+	int error = 0;
 
 	if (mask & NFSV4ACE_READDATA) {
 		mask &= ~NFSV4ACE_READDATA;
@@ -258,194 +261,17 @@ nfsrv_acemasktoperm(u_int32_t acetype, u_int32_t mask, int owner,
 		mask &= ~NFSV4ACE_SYNCHRONIZE;
 		perm |= ACL_SYNCHRONIZE;
 	}
-	if (mask != 0)
-		return (NFSERR_ATTRNOTSUPP);
+	if (mask != 0) {
+		error = NFSERR_ATTRNOTSUPP;
+		goto out;
+	}
 	*permp = perm;
-	return (0);
-}
-#else
-/*
- * Handle xdr for an ace.
- */
-APPLESTATIC int
-nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
-    int *aceerrp, int *acesizep, NFSPROC_T *p)
-{
-	u_int32_t *tl;
-	int len, gotid = 0, owner = 0, error = 0, aceerr = 0;
-	u_char *name, namestr[NFSV4_SMALLSTR + 1];
-	u_int32_t flag, mask, acetype;
-	gid_t gid;
-	uid_t uid;
 
-	*aceerrp = 0;
-	NFSM_DISSECT(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
-	acetype = fxdr_unsigned(u_int32_t, *tl++);
-	flag = fxdr_unsigned(u_int32_t, *tl++);
-	mask = fxdr_unsigned(u_int32_t, *tl++);
-	len = fxdr_unsigned(int, *tl);
-	if (len < 0) {
-		return (NFSERR_BADXDR);
-	} else if (len == 0) {
-		/* Netapp filers return a 0 length who for nil users */
-		acep->ae_tag = ACL_UNDEFINED_TAG;
-		acep->ae_id = ACL_UNDEFINED_ID;
-		acep->ae_perm = (acl_perm_t)0;
-		if (acesizep)
-			*acesizep = 4 * NFSX_UNSIGNED;
-		return (0);
-	}
-	if (len > NFSV4_SMALLSTR)
-		name = malloc(len + 1, M_NFSSTRING, M_WAITOK);
-	else
-		name = namestr;
-	error = nfsrv_mtostr(nd, name, len);
-	if (error) {
-		if (len > NFSV4_SMALLSTR)
-			free(name, M_NFSSTRING);
-		return (error);
-	}
-	if (len == 6) {
-		if (!NFSBCMP(name, "OWNER@", 6)) {
-			acep->ae_tag = ACL_USER_OBJ;
-			acep->ae_id = ACL_UNDEFINED_ID;
-			owner = 1;
-			gotid = 1;
-		} else if (!NFSBCMP(name, "GROUP@", 6)) {
-			acep->ae_tag = ACL_GROUP_OBJ;
-			acep->ae_id = ACL_UNDEFINED_ID;
-			gotid = 1;
-			flag &= ~NFSV4ACE_IDENTIFIERGROUP;
-		}
-	} else if (len == 9 && !NFSBCMP(name, "EVERYONE@", 9)) {
-		acep->ae_tag = ACL_OTHER;
-		acep->ae_id = ACL_UNDEFINED_ID;
-		gotid = 1;
-	}
-	if (!gotid) {
-		if (flag & NFSV4ACE_IDENTIFIERGROUP) {
-			flag &= ~NFSV4ACE_IDENTIFIERGROUP;
-			acep->ae_tag = ACL_GROUP;
-			aceerr = nfsv4_strtogid(name, len, &gid, p);
-			if (!aceerr)
-				acep->ae_id = (uid_t)gid;
-		} else {
-			acep->ae_tag = ACL_USER;
-			aceerr = nfsv4_strtouid(name, len, &uid, p);
-			if (!aceerr)
-				acep->ae_id = uid;
-		}
-	}
-	if (len > NFSV4_SMALLSTR)
-		free(name, M_NFSSTRING);
-
-	/*
-	 * Now, check for unsupported types or flag bits.
-	 */
-	if (!aceerr && ((acetype != NFSV4ACE_ALLOWEDTYPE &&
-	     acetype != NFSV4ACE_AUDITTYPE && acetype != NFSV4ACE_ALARMTYPE
-	     && acetype != NFSV4ACE_DENIEDTYPE) || flag))
-		aceerr = NFSERR_ATTRNOTSUPP;
-
-	/*
-	 * And turn the mask into perm bits.
-	 */
-	if (!aceerr)
-		aceerr = nfsrv_acemasktoperm(acetype, mask, owner, VREG,
-			&acep->ae_perm);
-	*aceerrp = aceerr;
-	if (acesizep)
-		*acesizep = NFSM_RNDUP(len) + (4 * NFSX_UNSIGNED);
-	return (0);
-nfsmout:
+out:
+	NFSEXITCODE(error);
 	return (error);
 }
 
-/*
- * Turn an NFSv4 ace mask into R/W/X flag bits.
- */
-static int
-nfsrv_acemasktoperm(u_int32_t acetype, u_int32_t mask, int owner,
-    enum vtype type, acl_perm_t *permp)
-{
-	acl_perm_t perm = 0x0;
-
-	if (acetype != NFSV4ACE_ALLOWEDTYPE && acetype != NFSV4ACE_DENIEDTYPE){
-		if (mask & ~NFSV4ACE_AUDITMASK)
-			return (NFSERR_ATTRNOTSUPP);
-	}
-	if (mask & NFSV4ACE_DELETE) {
-		return (NFSERR_ATTRNOTSUPP);
-	}
-	if (acetype == NFSV4ACE_DENIEDTYPE) {
-		if (mask & NFSV4ACE_ALLFILESMASK) {
-			return (NFSERR_ATTRNOTSUPP);
-		}
-		if (owner) {
-			if (mask & NFSV4ACE_OWNERMASK) {
-				return (NFSERR_ATTRNOTSUPP);
-			}
-		} else {
-			if ((mask & NFSV4ACE_OWNERMASK) != NFSV4ACE_OWNERMASK) {
-				return (NFSERR_ATTRNOTSUPP);
-			}
-			mask &= ~NFSV4ACE_OWNERMASK;
-		}
-	} else if (acetype == NFSV4ACE_ALLOWEDTYPE) {
-		if ((mask & NFSV4ACE_ALLFILESMASK) != NFSV4ACE_ALLFILESMASK) {
-			return (NFSERR_ATTRNOTSUPP);
-		}
-		mask &= ~NFSV4ACE_ALLFILESMASK;
-		if (owner) {
-			if ((mask & NFSV4ACE_OWNERMASK) != NFSV4ACE_OWNERMASK) {
-				return (NFSERR_ATTRNOTSUPP);
-			}
-			mask &= ~NFSV4ACE_OWNERMASK;
-		} else if (mask & NFSV4ACE_OWNERMASK) {
-			return (NFSERR_ATTRNOTSUPP);
-		}
-	}
-	if (type == VDIR) {
-		if ((mask & NFSV4ACE_DIRREADMASK) == NFSV4ACE_DIRREADMASK) {
-			perm |= ACL_READ;
-			mask &= ~NFSV4ACE_DIRREADMASK;
-		}
-		if ((mask & NFSV4ACE_DIRWRITEMASK) == NFSV4ACE_DIRWRITEMASK) {
-			perm |= ACL_WRITE;
-			mask &= ~NFSV4ACE_DIRWRITEMASK;
-		}
-		if ((mask & NFSV4ACE_DIREXECUTEMASK)==NFSV4ACE_DIREXECUTEMASK){
-			perm |= ACL_EXECUTE;
-			mask &= ~NFSV4ACE_DIREXECUTEMASK;
-		}
-	} else {
-		if (acetype == NFSV4ACE_DENIEDTYPE &&
-		    (mask & NFSV4ACE_SYNCHRONIZE)) {
-			return (NFSERR_ATTRNOTSUPP);
-		}
-		mask &= ~(NFSV4ACE_SYNCHRONIZE | NFSV4ACE_DELETECHILD);
-		if ((mask & NFSV4ACE_READMASK) == NFSV4ACE_READMASK) {
-			perm |= ACL_READ;
-			mask &= ~NFSV4ACE_READMASK;
-		}
-		if ((mask & NFSV4ACE_WRITEMASK) == NFSV4ACE_WRITEMASK) {
-			perm |= ACL_WRITE;
-			mask &= ~NFSV4ACE_WRITEMASK;
-		}
-		if ((mask & NFSV4ACE_EXECUTEMASK) == NFSV4ACE_EXECUTEMASK) {
-			perm |= ACL_EXECUTE;
-			mask &= ~NFSV4ACE_EXECUTEMASK;
-		}
-	}
-	if (mask) {
-		return (NFSERR_ATTRNOTSUPP);
-	}
-	*permp = perm;
-	return (0);
-}
-#endif	/* !NFS4_ACL_EXTATTR_NAME */
-
-#ifdef NFS4_ACL_EXTATTR_NAME
 /* local functions */
 static int nfsrv_buildace(struct nfsrv_descript *, u_char *, int,
     enum vtype, int, int, struct acl_entry *);
@@ -521,6 +347,8 @@ nfsrv_buildace(struct nfsrv_descript *nd, u_char *name, int namelen,
 			acemask |= NFSV4ACE_WRITEACL;
 		if (ace->ae_perm & ACL_WRITE_OWNER)
 			acemask |= NFSV4ACE_WRITEOWNER;
+		if (ace->ae_perm & ACL_SYNCHRONIZE)
+			acemask |= NFSV4ACE_SYNCHRONIZE;
 	} else {
 		if (ace->ae_perm & ACL_READ_DATA)
 			acemask |= NFSV4ACE_READDATA;
@@ -608,7 +436,7 @@ nfsrv_buildacl(struct nfsrv_descript *nd, NFSACL_T *aclp, enum vtype type,
 			break;
 		default:
 			continue;
-		};
+		}
 		retlen += nfsrv_buildace(nd, name, namelen, type, isgroup,
 		    isowner, &aclp->acl_entry[i]);
 		entrycnt++;
@@ -620,70 +448,6 @@ nfsrv_buildacl(struct nfsrv_descript *nd, NFSACL_T *aclp, enum vtype type,
 }
 
 /*
- * Check access for an NFSv4 acl.
- * The vflags are the basic VREAD, VWRITE, VEXEC. The mask is the NFSV4ACE
- * mask bits for the more detailed check.
- * If the more detailed check fails, due to no acl, do a basic one.
- */
-APPLESTATIC int
-nfsrv_aclaccess(vnode_t vp, accmode_t vflags, u_int32_t mask,
-    struct ucred *cred, NFSPROC_T *p)
-{
-	int error = 0;
-	accmode_t access;
-
-	if (nfsrv_useacl == 0) {
-		error = VOP_ACCESS(vp, vflags, cred, p);
-		return (error);
-	}
-
-	/* Convert NFSV4ACE mask to vaccess_t */
-	access = 0;
-	if (mask & NFSV4ACE_READDATA)
-		access |= VREAD;
-	if (mask & NFSV4ACE_LISTDIRECTORY)
-		access |= VREAD;
-	if (mask & NFSV4ACE_WRITEDATA)
-		access |= VWRITE;
-	if (mask & NFSV4ACE_ADDFILE)
-		access |= VWRITE;
-	if (mask & NFSV4ACE_APPENDDATA)
-		access |= VAPPEND;
-	if (mask & NFSV4ACE_ADDSUBDIRECTORY)
-		access |= VAPPEND;
-	if (mask & NFSV4ACE_READNAMEDATTR)
-		access |= VREAD_NAMED_ATTRS;
-	if (mask & NFSV4ACE_WRITENAMEDATTR)
-		access |= VWRITE_NAMED_ATTRS;
-	if (mask & NFSV4ACE_EXECUTE)
-		access |= VEXEC;
-	if (mask & NFSV4ACE_SEARCH)
-		access |= VEXEC;
-	if (mask & NFSV4ACE_DELETECHILD)
-		access |= VDELETE_CHILD;
-	if (mask & NFSV4ACE_READATTRIBUTES)
-		access |= VREAD_ATTRIBUTES;
-	if (mask & NFSV4ACE_WRITEATTRIBUTES)
-		access |= VWRITE_ATTRIBUTES;
-	if (mask & NFSV4ACE_DELETE)
-		access |= VDELETE;
-	if (mask & NFSV4ACE_READACL)
-		access |= VREAD_ACL;
-	if (mask & NFSV4ACE_WRITEACL)
-		access |= VWRITE_ACL;
-	if (mask & NFSV4ACE_WRITEOWNER)
-		access |= VWRITE_OWNER;
-	if (mask & NFSV4ACE_SYNCHRONIZE)
-		access |= VSYNCHRONIZE;
-
-	if (access != 0)
-		error = VOP_ACCESS(vp, access, cred, p);
-	else
-		error = VOP_ACCESS(vp, vflags, cred, p);
-	return (error);
-}
-
-/*
  * Set an NFSv4 acl.
  */
 APPLESTATIC int
@@ -692,19 +456,24 @@ nfsrv_setacl(vnode_t vp, NFSACL_T *aclp, struct ucred *cred,
 {
 	int error;
 
-	if (nfsrv_useacl == 0 || !NFSHASNFS4ACL(vnode_mount(vp)))
-		return (NFSERR_ATTRNOTSUPP);
+	if (nfsrv_useacl == 0 || nfs_supportsnfsv4acls(vp) == 0) {
+		error = NFSERR_ATTRNOTSUPP;
+		goto out;
+	}
 	/*
 	 * With NFSv4 ACLs, chmod(2) may need to add additional entries.
 	 * Make sure it has enough room for that - splitting every entry
 	 * into two and appending "canonical six" entries at the end.
 	 * Cribbed out of kern/vfs_acl.c - Rick M.
 	 */
-	if (aclp->acl_cnt > (ACL_MAX_ENTRIES - 6) / 2)
-		return (NFSERR_ATTRNOTSUPP);
-	error = VOP_ACLCHECK(vp, ACL_TYPE_NFS4, aclp, cred, p);
-	if (!error)
-		error = VOP_SETACL(vp, ACL_TYPE_NFS4, aclp, cred, p);
+	if (aclp->acl_cnt > (ACL_MAX_ENTRIES - 6) / 2) {
+		error = NFSERR_ATTRNOTSUPP;
+		goto out;
+	}
+	error = VOP_SETACL(vp, ACL_TYPE_NFS4, aclp, cred, p);
+
+out:
+	NFSEXITCODE(error);
 	return (error);
 }
 
@@ -736,11 +505,9 @@ nfsrv_compareacl(NFSACL_T *aclp1, NFSACL_T *aclp2)
 		case ACL_OTHER:
 			if (acep1->ae_perm != acep2->ae_perm)
 				return (1);
-		};
+		}
 		acep1++;
 		acep2++;
 	}
 	return (0);
 }
-
-#endif	/* NFS4_ACL_EXTATTR_NAME */

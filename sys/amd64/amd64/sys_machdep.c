@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,8 +33,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capsicum.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -58,9 +62,23 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
+#define	MAX_LD		8192
+
 int max_ldt_segment = 1024;
-#define LD_PER_PAGE 512
-#define	NULL_LDT_BASE	((caddr_t)NULL)
+SYSCTL_INT(_machdep, OID_AUTO, max_ldt_segment, CTLFLAG_RDTUN,
+    &max_ldt_segment, 0,
+    "Maximum number of allowed LDT segments in the single address space");
+
+static void
+max_ldt_segment_init(void *arg __unused)
+{
+
+	if (max_ldt_segment <= 0)
+		max_ldt_segment = 1;
+	if (max_ldt_segment > MAX_LD)
+		max_ldt_segment = MAX_LD;
+}
+SYSINIT(maxldt, SI_SUB_VM_CONF, SI_ORDER_ANY, max_ldt_segment_init, NULL);
 
 #ifdef notyet
 #ifdef SMP
@@ -95,29 +113,23 @@ sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space)
 		largs = &la;
 	} else
 		largs = (struct i386_ldt_args *)uap->parms;
-	if (largs->num > max_ldt_segment || largs->num <= 0)
-		return (EINVAL);
 
 	switch (uap->op) {
 	case I386_GET_LDT:
 		error = amd64_get_ldt(td, largs);
 		break;
 	case I386_SET_LDT:
-		td->td_pcb->pcb_full_iret = 1;
+		if (largs->descs != NULL && largs->num > max_ldt_segment)
+			return (EINVAL);
+		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 		if (largs->descs != NULL) {
-			lp = (struct user_segment_descriptor *)
-			    kmem_alloc(kernel_map, largs->num *
-			    sizeof(struct user_segment_descriptor));
-			if (lp == NULL) {
-				error = ENOMEM;
-				break;
-			}
+			lp = malloc(largs->num * sizeof(struct
+			    user_segment_descriptor), M_TEMP, M_WAITOK);
 			error = copyin(largs->descs, lp, largs->num *
 			    sizeof(struct user_segment_descriptor));
 			if (error == 0)
 				error = amd64_set_ldt(td, largs, lp);
-			kmem_free(kernel_map, (vm_offset_t)lp, largs->num *
-			    sizeof(struct user_segment_descriptor));
+			free(lp, M_TEMP);
 		} else {
 			error = amd64_set_ldt(td, largs, NULL);
 		}
@@ -133,7 +145,7 @@ update_gdt_gsbase(struct thread *td, uint32_t base)
 
 	if (td != curthread)
 		return;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	critical_enter();
 	sd = PCPU_GET(gs32p);
 	sd->sd_lobase = base & 0xffffff;
@@ -148,7 +160,7 @@ update_gdt_fsbase(struct thread *td, uint32_t base)
 
 	if (td != curthread)
 		return;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	critical_enter();
 	sd = PCPU_GET(fs32p);
 	sd->sd_lobase = base & 0xffffff;
@@ -166,6 +178,42 @@ sysarch(td, uap)
 	uint32_t i386base;
 	uint64_t a64base;
 	struct i386_ioperm_args iargs;
+	struct i386_get_xfpustate i386xfpu;
+	struct amd64_get_xfpustate a64xfpu;
+
+#ifdef CAPABILITY_MODE
+	/*
+	 * When adding new operations, add a new case statement here to
+	 * explicitly indicate whether or not the operation is safe to
+	 * perform in capability mode.
+	 */
+	if (IN_CAPABILITY_MODE(td)) {
+		switch (uap->op) {
+		case I386_GET_LDT:
+		case I386_SET_LDT:
+		case I386_GET_IOPERM:
+		case I386_GET_FSBASE:
+		case I386_SET_FSBASE:
+		case I386_GET_GSBASE:
+		case I386_SET_GSBASE:
+		case I386_GET_XFPUSTATE:
+		case AMD64_GET_FSBASE:
+		case AMD64_SET_FSBASE:
+		case AMD64_GET_GSBASE:
+		case AMD64_SET_GSBASE:
+		case AMD64_GET_XFPUSTATE:
+			break;
+
+		case I386_SET_IOPERM:
+		default:
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_CAPFAIL))
+				ktrcapfail(CAPFAIL_SYSCALL, NULL, NULL);
+#endif
+			return (ECAPMODE);
+		}
+	}
+#endif
 
 	if (uap->op == I386_GET_LDT || uap->op == I386_SET_LDT)
 		return (sysarch_ldt(td, uap, UIO_USERSPACE));
@@ -179,6 +227,18 @@ sysarch(td, uap)
 	case I386_SET_IOPERM:
 		if ((error = copyin(uap->parms, &iargs,
 		    sizeof(struct i386_ioperm_args))) != 0)
+			return (error);
+		break;
+	case I386_GET_XFPUSTATE:
+		if ((error = copyin(uap->parms, &i386xfpu,
+		    sizeof(struct i386_get_xfpustate))) != 0)
+			return (error);
+		a64xfpu.addr = (void *)(uintptr_t)i386xfpu.addr;
+		a64xfpu.len = i386xfpu.len;
+		break;
+	case AMD64_GET_XFPUSTATE:
+		if ((error = copyin(uap->parms, &a64xfpu,
+		    sizeof(struct amd64_get_xfpustate))) != 0)
 			return (error);
 		break;
 	default:
@@ -204,7 +264,6 @@ sysarch(td, uap)
 		if (!error) {
 			pcb->pcb_fsbase = i386base;
 			td->td_frame->tf_fs = _ufssel;
-			pcb->pcb_full_iret = 1;
 			update_gdt_fsbase(td, i386base);
 		}
 		break;
@@ -216,7 +275,6 @@ sysarch(td, uap)
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
 		if (!error) {
 			pcb->pcb_gsbase = i386base;
-			pcb->pcb_full_iret = 1;
 			td->td_frame->tf_gs = _ugssel;
 			update_gdt_gsbase(td, i386base);
 		}
@@ -230,7 +288,7 @@ sysarch(td, uap)
 		if (!error) {
 			if (a64base < VM_MAXUSER_ADDRESS) {
 				pcb->pcb_fsbase = a64base;
-				pcb->pcb_full_iret = 1;
+				set_pcb_flags(pcb, PCB_FULL_IRET);
 				td->td_frame->tf_fs = _ufssel;
 			} else
 				error = EINVAL;
@@ -246,11 +304,21 @@ sysarch(td, uap)
 		if (!error) {
 			if (a64base < VM_MAXUSER_ADDRESS) {
 				pcb->pcb_gsbase = a64base;
-				pcb->pcb_full_iret = 1;
+				set_pcb_flags(pcb, PCB_FULL_IRET);
 				td->td_frame->tf_gs = _ugssel;
 			} else
 				error = EINVAL;
 		}
+		break;
+
+	case I386_GET_XFPUSTATE:
+	case AMD64_GET_XFPUSTATE:
+		if (a64xfpu.len > cpu_max_ext_state_size -
+		    sizeof(struct savefpu))
+			return (EINVAL);
+		fpugetregs(td);
+		error = copyout((char *)(get_pcb_user_save_td(td) + 1),
+		    a64xfpu.addr, a64xfpu.len);
 		break;
 
 	default:
@@ -265,18 +333,19 @@ amd64_set_ioperm(td, uap)
 	struct thread *td;
 	struct i386_ioperm_args *uap;
 {
-	int i, error;
 	char *iomap;
 	struct amd64tss *tssp;
 	struct system_segment_descriptor *tss_sd;
-	u_long *addr;
 	struct pcb *pcb;
+	u_int i;
+	int error;
 
 	if ((error = priv_check(td, PRIV_IO)) != 0)
 		return (error);
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		return (error);
-	if (uap->start + uap->length > IOPAGES * PAGE_SIZE * NBBY)
+	if (uap->start > uap->start + uap->length ||
+	    uap->start + uap->length > IOPAGES * PAGE_SIZE * NBBY)
 		return (EINVAL);
 
 	/*
@@ -287,14 +356,10 @@ amd64_set_ioperm(td, uap)
 	 */
 	pcb = td->td_pcb;
 	if (pcb->pcb_tssp == NULL) {
-		tssp = (struct amd64tss *)kmem_alloc(kernel_map,
-		    ctob(IOPAGES+1));
-		if (tssp == NULL)
-			return (ENOMEM);
+		tssp = (struct amd64tss *)kmem_malloc(kernel_arena,
+		    ctob(IOPAGES+1), M_WAITOK);
 		iomap = (char *)&tssp[1];
-		addr = (u_long *)iomap;
-		for (i = 0; i < (ctob(IOPAGES) + 1) / sizeof(u_long); i++)
-			*addr++ = ~0;
+		memset(iomap, 0xff, IOPERM_BITMAP_SIZE);
 		critical_enter();
 		/* Takes care of tss_rsp0. */
 		memcpy(tssp, &common_tss[PCPU_GET(cpuid)],
@@ -394,13 +459,9 @@ user_ldt_alloc(struct proc *p, int force)
 		return (mdp->md_ldt);
 	mtx_unlock(&dt_lock);
 	new_ldt = malloc(sizeof(struct proc_ldt), M_SUBPROC, M_WAITOK);
-	new_ldt->ldt_base = (caddr_t)kmem_alloc(kernel_map,
-	     max_ldt_segment * sizeof(struct user_segment_descriptor));
-	if (new_ldt->ldt_base == NULL) {
-		FREE(new_ldt, M_SUBPROC);
-		mtx_lock(&dt_lock);
-		return (NULL);
-	}
+	new_ldt->ldt_base = (caddr_t)kmem_malloc(kernel_arena,
+	     max_ldt_segment * sizeof(struct user_segment_descriptor),
+	     M_WAITOK | M_ZERO);
 	new_ldt->ldt_refcnt = 1;
 	sldt.ssd_base = (uint64_t)new_ldt->ldt_base;
 	sldt.ssd_limit = max_ldt_segment *
@@ -414,19 +475,20 @@ user_ldt_alloc(struct proc *p, int force)
 	mtx_lock(&dt_lock);
 	pldt = mdp->md_ldt;
 	if (pldt != NULL && !force) {
-		kmem_free(kernel_map, (vm_offset_t)new_ldt->ldt_base,
+		kmem_free(kernel_arena, (vm_offset_t)new_ldt->ldt_base,
 		    max_ldt_segment * sizeof(struct user_segment_descriptor));
 		free(new_ldt, M_SUBPROC);
 		return (pldt);
 	}
 
-	mdp->md_ldt = new_ldt;
 	if (pldt != NULL) {
 		bcopy(pldt->ldt_base, new_ldt->ldt_base, max_ldt_segment *
 		    sizeof(struct user_segment_descriptor));
 		user_ldt_derefl(pldt);
 	}
 	ssdtosyssd(&sldt, &p->p_md.md_ldt_sd);
+	atomic_store_rel_ptr((volatile uintptr_t *)&mdp->md_ldt,
+	    (uintptr_t)new_ldt);
 	if (p == curproc)
 		set_user_ldt(mdp);
 
@@ -458,7 +520,7 @@ user_ldt_derefl(struct proc_ldt *pldt)
 {
 
 	if (--pldt->ldt_refcnt == 0) {
-		kmem_free(kernel_map, (vm_offset_t)pldt->ldt_base,
+		kmem_free(kernel_arena, (vm_offset_t)pldt->ldt_base,
 		    max_ldt_segment * sizeof(struct user_segment_descriptor));
 		free(pldt, M_SUBPROC);
 	}
@@ -520,8 +582,8 @@ amd64_set_ldt(td, uap, descs)
 	struct i386_ldt_args *uap;
 	struct user_segment_descriptor *descs;
 {
-	int error = 0, i;
-	int largest_ld;
+	int error = 0;
+	unsigned int largest_ld, i;
 	struct mdproc *mdp = &td->td_proc->p_md;
 	struct proc_ldt *pldt;
 	struct user_segment_descriptor *dp;
@@ -532,13 +594,13 @@ amd64_set_ldt(td, uap, descs)
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	p = td->td_proc;
 	if (descs == NULL) {
 		/* Free descriptors */
 		if (uap->start == 0 && uap->num == 0)
 			uap->num = max_ldt_segment;
-		if (uap->num <= 0)
+		if (uap->num == 0)
 			return (EINVAL);
 		if ((pldt = mdp->md_ldt) == NULL ||
 		    uap->start >= max_ldt_segment)
@@ -558,7 +620,7 @@ amd64_set_ldt(td, uap, descs)
 		/* verify range of descriptors to modify */
 		largest_ld = uap->start + uap->num;
 		if (uap->start >= max_ldt_segment ||
-		    uap->num < 0 || largest_ld > max_ldt_segment)
+		    largest_ld > max_ldt_segment)
 			return (EINVAL);
 	}
 

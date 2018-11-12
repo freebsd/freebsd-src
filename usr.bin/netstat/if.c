@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2013 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,10 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -40,47 +37,95 @@ static char sccsid[] = "@(#)if.c	8.3 (Berkeley) 4/28/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/sysctl.h>
 #include <sys/time.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/ethernet.h>
-#include <net/pfvar.h>
-#include <net/if_pfsync.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
 #include <arpa/inet.h>
+#ifdef PF
+#include <net/pfvar.h>
+#include <net/if_pfsync.h>
+#endif
 
 #include <err.h>
 #include <errno.h>
+#include <ifaddrs.h>
 #include <libutil.h>
+#ifdef INET6
+#include <netdb.h>
+#endif
 #include <signal.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
+#include <libxo/xo.h>
 
 #include "netstat.h"
 
-#define	YES	1
-#define	NO	0
+static void sidewaysintpr(void);
 
-static void sidewaysintpr(int, u_long);
-static void catchalarm(int);
+#ifdef PF
+static const char* pfsyncacts[] = {
+	/* PFSYNC_ACT_CLR */		"clear all request",
+	/* PFSYNC_ACT_INS */		"state insert",
+	/* PFSYNC_ACT_INS_ACK */	"state inserted ack",
+	/* PFSYNC_ACT_UPD */		"state update",
+	/* PFSYNC_ACT_UPD_C */		"compressed state update",
+	/* PFSYNC_ACT_UPD_REQ */	"uncompressed state request",
+	/* PFSYNC_ACT_DEL */		"state delete",
+	/* PFSYNC_ACT_DEL_C */		"compressed state delete",
+	/* PFSYNC_ACT_INS_F */		"fragment insert",
+	/* PFSYNC_ACT_DEL_F */		"fragment delete",
+	/* PFSYNC_ACT_BUS */		"bulk update mark",
+	/* PFSYNC_ACT_TDB */		"TDB replay counter update",
+	/* PFSYNC_ACT_EOF */		"end of frame mark",
+};
 
-#ifdef INET6
-static char ntop_buf[INET6_ADDRSTRLEN];		/* for inet_ntop() */
-#endif
+static const char* pfsyncacts_name[] = {
+	/* PFSYNC_ACT_CLR */		"clear-all-request",
+	/* PFSYNC_ACT_INS */		"state-insert",
+	/* PFSYNC_ACT_INS_ACK */	"state-inserted-ack",
+	/* PFSYNC_ACT_UPD */		"state-update",
+	/* PFSYNC_ACT_UPD_C */		"compressed-state-update",
+	/* PFSYNC_ACT_UPD_REQ */	"uncompressed-state-request",
+	/* PFSYNC_ACT_DEL */		"state-delete",
+	/* PFSYNC_ACT_DEL_C */		"compressed-state-delete",
+	/* PFSYNC_ACT_INS_F */		"fragment-insert",
+	/* PFSYNC_ACT_DEL_F */		"fragment-delete",
+	/* PFSYNC_ACT_BUS */		"bulk-update-mark",
+	/* PFSYNC_ACT_TDB */		"TDB-replay-counter-update",
+	/* PFSYNC_ACT_EOF */		"end-of-frame-mark",
+};
+
+static void
+pfsync_acts_stats(const char *list, const char *desc, uint64_t *a)
+{
+	int i;
+
+	xo_open_list(list);
+	for (i = 0; i < PFSYNC_ACT_MAX; i++, a++) {
+		if (*a || sflag <= 1) {
+			xo_open_instance(list);
+			xo_emit("\t\t{e:name}{:count/%ju} {N:/%s%s %s}\n",
+			    pfsyncacts_name[i], (uintmax_t)(*a),
+			    pfsyncacts[i], plural(*a), desc);
+			xo_close_instance(list);
+		}
+	}
+	xo_close_list(list);
+}
 
 /*
  * Dump pfsync statistics structure.
@@ -88,56 +133,68 @@ static char ntop_buf[INET6_ADDRSTRLEN];		/* for inet_ntop() */
 void
 pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct pfsyncstats pfsyncstat, zerostat;
-	size_t len = sizeof(struct pfsyncstats);
+	struct pfsyncstats pfsyncstat;
 
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet.pfsync.stats", &pfsyncstat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			if (errno != ENOENT)
-				warn("sysctl: net.inet.pfsync.stats");
-			return;
-		}
-	} else
-		kread(off, &pfsyncstat, len);
+	if (fetch_stats("net.pfsync.stats", off, &pfsyncstat,
+	    sizeof(pfsyncstat), kread) != 0)
+		return;
 
-	printf("%s:\n", name);
+	xo_emit("{T:/%s}:\n", name);
+	xo_open_container(name);
 
 #define	p(f, m) if (pfsyncstat.f || sflag <= 1) \
-	printf(m, (uintmax_t)pfsyncstat.f, plural(pfsyncstat.f))
-#define	p2(f, m) if (pfsyncstat.f || sflag <= 1) \
-	printf(m, (uintmax_t)pfsyncstat.f)
+	xo_emit(m, (uintmax_t)pfsyncstat.f, plural(pfsyncstat.f))
 
-	p(pfsyncs_ipackets, "\t%ju packet%s received (IPv4)\n");
-	p(pfsyncs_ipackets6, "\t%ju packet%s received (IPv6)\n");
-	p(pfsyncs_badif, "\t\t%ju packet%s discarded for bad interface\n");
-	p(pfsyncs_badttl, "\t\t%ju packet%s discarded for bad ttl\n");
-	p(pfsyncs_hdrops, "\t\t%ju packet%s shorter than header\n");
-	p(pfsyncs_badver, "\t\t%ju packet%s discarded for bad version\n");
-	p(pfsyncs_badauth, "\t\t%ju packet%s discarded for bad HMAC\n");
-	p(pfsyncs_badact,"\t\t%ju packet%s discarded for bad action\n");
-	p(pfsyncs_badlen, "\t\t%ju packet%s discarded for short packet\n");
-	p(pfsyncs_badval, "\t\t%ju state%s discarded for bad values\n");
-	p(pfsyncs_stale, "\t\t%ju stale state%s\n");
-	p(pfsyncs_badstate, "\t\t%ju failed state lookup/insert%s\n");
-	p(pfsyncs_opackets, "\t%ju packet%s sent (IPv4)\n");
-	p(pfsyncs_opackets6, "\t%ju packet%s sent (IPv6)\n");
-	p2(pfsyncs_onomem, "\t\t%ju send failed due to mbuf memory error\n");
-	p2(pfsyncs_oerrors, "\t\t%ju send error\n");
+	p(pfsyncs_ipackets, "\t{:received-inet-packets/%ju} "
+	    "{N:/packet%s received (IPv4)}\n");
+	p(pfsyncs_ipackets6, "\t{:received-inet6-packets/%ju} "
+	    "{N:/packet%s received (IPv6)}\n");
+	pfsync_acts_stats("input-histogram", "received",
+	    &pfsyncstat.pfsyncs_iacts[0]);
+	p(pfsyncs_badif, "\t\t/{:dropped-bad-interface/%ju} "
+	    "{N:/packet%s discarded for bad interface}\n");
+	p(pfsyncs_badttl, "\t\t{:dropped-bad-ttl/%ju} "
+	    "{N:/packet%s discarded for bad ttl}\n");
+	p(pfsyncs_hdrops, "\t\t{:dropped-short-header/%ju} "
+	    "{N:/packet%s shorter than header}\n");
+	p(pfsyncs_badver, "\t\t{:dropped-bad-version/%ju} "
+	    "{N:/packet%s discarded for bad version}\n");
+	p(pfsyncs_badauth, "\t\t{:dropped-bad-auth/%ju} "
+	    "{N:/packet%s discarded for bad HMAC}\n");
+	p(pfsyncs_badact,"\t\t{:dropped-bad-action/%ju} "
+	    "{N:/packet%s discarded for bad action}\n");
+	p(pfsyncs_badlen, "\t\t{:dropped-short/%ju} "
+	    "{N:/packet%s discarded for short packet}\n");
+	p(pfsyncs_badval, "\t\t{:dropped-bad-values/%ju} "
+	    "{N:/state%s discarded for bad values}\n");
+	p(pfsyncs_stale, "\t\t{:dropped-stale-state/%ju} "
+	    "{N:/stale state%s}\n");
+	p(pfsyncs_badstate, "\t\t{:dropped-failed-lookup/%ju} "
+	    "{N:/failed state lookup\\/insert%s}\n");
+	p(pfsyncs_opackets, "\t{:sent-inet-packets/%ju} "
+	    "{N:/packet%s sent (IPv4})\n");
+	p(pfsyncs_opackets6, "\t{:send-inet6-packets/%ju} "
+	    "{N:/packet%s sent (IPv6})\n");
+	pfsync_acts_stats("output-histogram", "sent",
+	    &pfsyncstat.pfsyncs_oacts[0]);
+	p(pfsyncs_onomem, "\t\t{:discarded-no-memory/%ju} "
+	    "{N:/failure%s due to mbuf memory error}\n");
+	p(pfsyncs_oerrors, "\t\t{:send-errors/%ju} "
+	    "{N:/send error%s}\n");
 #undef p
-#undef p2
+	xo_close_container(name);
 }
+#endif /* PF */
 
 /*
  * Display a formatted value, or a '-' in the same space.
  */
 static void
-show_stat(const char *fmt, int width, u_long value, short showvalue)
+show_stat(const char *fmt, int width, const char *name,
+    u_long value, short showvalue, int div1000)
 {
 	const char *lsep, *rsep;
-	char newfmt[32];
+	char newfmt[64];
 
 	lsep = "";
 	if (strncmp(fmt, "LS", 2) == 0) {
@@ -151,551 +208,448 @@ show_stat(const char *fmt, int width, u_long value, short showvalue)
 	}
 	if (showvalue == 0) {
 		/* Print just dash. */
-		sprintf(newfmt, "%s%%%ds%s", lsep, width, rsep);
-		printf(newfmt, "-");
+		xo_emit("{P:/%s}{D:/%*s}{P:/%s}", lsep, width, "-", rsep);
 		return;
 	}
+
+	/*
+	 * XXX: workaround {P:} modifier can't be empty and doesn't seem to
+	 * take args... so we need to conditionally include it in the format.
+	 */
+#define maybe_pad(pad)	do {						    \
+	if (strlen(pad)) {						    \
+		snprintf(newfmt, sizeof(newfmt), "{P:%s}", pad);	    \
+		xo_emit(newfmt);					    \
+	}								    \
+} while (0)
 
 	if (hflag) {
 		char buf[5];
 
 		/* Format in human readable form. */
 		humanize_number(buf, sizeof(buf), (int64_t)value, "",
-		    HN_AUTOSCALE, HN_NOSPACE | HN_DECIMAL);
-		sprintf(newfmt, "%s%%%ds%s", lsep, width, rsep);
-		printf(newfmt, buf);
+		    HN_AUTOSCALE, HN_NOSPACE | HN_DECIMAL | \
+		    ((div1000) ? HN_DIVISOR_1000 : 0));
+		maybe_pad(lsep);
+		snprintf(newfmt, sizeof(newfmt), "{:%s/%%%ds}", name, width);
+		xo_emit(newfmt, buf);
+		maybe_pad(rsep);
 	} else {
 		/* Construct the format string. */
-		sprintf(newfmt, "%s%%%d%s%s", lsep, width, fmt, rsep);
-		printf(newfmt, value);
+		maybe_pad(lsep);
+		snprintf(newfmt, sizeof(newfmt), "{:%s/%%%d%s}",
+		    name, width, fmt);
+		xo_emit(newfmt, value);
+		maybe_pad(rsep);
 	}
+}
+
+/*
+ * Find next multiaddr for a given interface name.
+ */
+static struct ifmaddrs *
+next_ifma(struct ifmaddrs *ifma, const char *name, const sa_family_t family)
+{
+
+	for(; ifma != NULL; ifma = ifma->ifma_next) {
+		struct sockaddr_dl *sdl;
+
+		sdl = (struct sockaddr_dl *)ifma->ifma_name;
+		if (ifma->ifma_addr->sa_family == family &&
+		    strcmp(sdl->sdl_data, name) == 0)
+			break;
+	}
+
+	return (ifma);
 }
 
 /*
  * Print a description of the network interfaces.
  */
 void
-intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
+intpr(void (*pfunc)(char *), int af)
 {
-	struct ifnet ifnet;
-	struct ifnethead ifnethead;
-	union {
-		struct ifaddr ifa;
-		struct in_ifaddr in;
-#ifdef INET6
-		struct in6_ifaddr in6;
-#endif
-		struct ipx_ifaddr ipx;
-	} ifaddr;
-	u_long ifaddraddr;
-	u_long ifaddrfound;
-	u_long ifnetfound;
-	u_long opackets;
-	u_long ipackets;
-	u_long obytes;
-	u_long ibytes;
-	u_long omcasts;
-	u_long imcasts;
-	u_long oerrors;
-	u_long ierrors;
-	u_long collisions;
-	short timer;
-	int drops;
-	struct sockaddr *sa = NULL;
-	char name[IFNAMSIZ];
-	short network_layer;
-	short link_layer;
+	struct ifaddrs *ifap, *ifa;
+	struct ifmaddrs *ifmap, *ifma;
+	u_int ifn_len_max = 5, ifn_len;
+	u_int has_ipv6 = 0, net_len = 13, addr_len = 17;
 
-	if (ifnetaddr == 0) {
-		printf("ifnet: symbol not defined\n");
-		return;
-	}
-	if (interval1) {
-		sidewaysintpr(interval1, ifnetaddr);
-		return;
-	}
-	if (kread(ifnetaddr, (char *)&ifnethead, sizeof ifnethead) != 0)
-		return;
-	ifnetaddr = (u_long)TAILQ_FIRST(&ifnethead);
-	if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet) != 0)
-		return;
+	if (interval)
+		return sidewaysintpr();
 
+	if (getifaddrs(&ifap) != 0)
+		err(EX_OSERR, "getifaddrs");
+	if (aflag && getifmaddrs(&ifmap) != 0)
+		err(EX_OSERR, "getifmaddrs");
+
+	if (Wflag) {
+		for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+			if (interface != NULL &&
+			    strcmp(ifa->ifa_name, interface) != 0)
+				continue;
+			if (af != AF_UNSPEC && ifa->ifa_addr->sa_family != af)
+				continue;
+			ifn_len = strlen(ifa->ifa_name);
+			if ((ifa->ifa_flags & IFF_UP) == 0)
+				++ifn_len;
+			ifn_len_max = MAX(ifn_len_max, ifn_len);
+			if (ifa->ifa_addr->sa_family == AF_INET6)
+				has_ipv6 = 1;
+		}
+		if (has_ipv6) {
+			net_len = 24;
+			addr_len = 39;
+		} else
+			net_len = 18;
+	}
+
+	xo_open_list("interface");
 	if (!pfunc) {
-		if (Wflag)
-			printf("%-7.7s", "Name");
-		else
-			printf("%-5.5s", "Name");
-		printf(" %5.5s %-13.13s %-17.17s %8.8s %5.5s",
-		    "Mtu", "Network", "Address", "Ipkts", "Ierrs");
+		xo_emit("{T:/%-*.*s}", ifn_len_max, ifn_len_max, "Name");
+		xo_emit(" {T:/%5.5s} {T:/%-*.*s} {T:/%-*.*s} {T:/%8.8s} "
+		    "{T:/%5.5s} {T:/%5.5s}",
+		    "Mtu", net_len, net_len, "Network", addr_len, addr_len,
+		    "Address", "Ipkts", "Ierrs", "Idrop");
 		if (bflag)
-			printf(" %10.10s","Ibytes");
-		printf(" %8.8s %5.5s", "Opkts", "Oerrs");
+			xo_emit(" {T:/%10.10s}","Ibytes");
+		xo_emit(" {T:/%8.8s} {T:/%5.5s}", "Opkts", "Oerrs");
 		if (bflag)
-			printf(" %10.10s","Obytes");
-		printf(" %5s", "Coll");
-		if (tflag)
-			printf(" %s", "Time");
+			xo_emit(" {T:/%10.10s}","Obytes");
+		xo_emit(" {T:/%5s}", "Coll");
 		if (dflag)
-			printf(" %s", "Drop");
-		putchar('\n');
+			xo_emit(" {T:/%5.5s}", "Drop");
+		xo_emit("\n");
 	}
-	ifaddraddr = 0;
-	while (ifnetaddr || ifaddraddr) {
-		struct sockaddr_in *sockin;
+
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		bool network = false, link = false;
+		char *name, *xname, buf[IFNAMSIZ+1];
+		const char *nn, *rn;
+
+		if (interface != NULL && strcmp(ifa->ifa_name, interface) != 0)
+			continue;
+
+		name = ifa->ifa_name;
+
+		if (pfunc) {
+
+			(*pfunc)(name);
+
+			/*
+			 * Skip all ifaddrs belonging to same interface.
+			 */
+			while(ifa->ifa_next != NULL &&
+			    (strcmp(ifa->ifa_next->ifa_name, name) == 0)) {
+				ifa = ifa->ifa_next;
+			}
+			continue;
+		}
+
+		if (af != AF_UNSPEC && ifa->ifa_addr->sa_family != af)
+			continue;
+
+		xo_open_instance("interface");
+
+		if ((ifa->ifa_flags & IFF_UP) == 0) {
+			xname = stpcpy(buf, name);
+			*xname++ = '*';
+			*xname = '\0';
+			xname = buf;
+		} else
+			xname = name;
+
+		xo_emit("{d:/%-*.*s}{etk:name}{eq:flags/0x%x}",
+		    ifn_len_max, ifn_len_max, xname, name, ifa->ifa_flags);
+
+#define IFA_MTU(ifa)	(((struct if_data *)(ifa)->ifa_data)->ifi_mtu)
+		show_stat("lu", 6, "mtu", IFA_MTU(ifa), IFA_MTU(ifa), 0);
+#undef IFA_MTU
+
+		switch (ifa->ifa_addr->sa_family) {
+		case AF_UNSPEC:
+			xo_emit("{:network/%-*.*s} ", net_len, net_len,
+			    "none");
+			xo_emit("{:address/%-*.*s} ", addr_len, addr_len,
+			    "none");
+			break;
+		case AF_INET:
 #ifdef INET6
-		struct sockaddr_in6 *sockin6;
-#endif
-		char *cp;
-		int n, m;
-
-		network_layer = 0;
-		link_layer = 0;
-
-		if (ifaddraddr == 0) {
-			ifnetfound = ifnetaddr;
-			if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet) != 0)
-				return;
-			strlcpy(name, ifnet.if_xname, sizeof(name));
-			ifnetaddr = (u_long)TAILQ_NEXT(&ifnet, if_link);
-			if (interface != 0 && strcmp(name, interface) != 0)
-				continue;
-			cp = index(name, '\0');
-
-			if (pfunc) {
-				(*pfunc)(name);
-				continue;
+		case AF_INET6:
+#endif /* INET6 */
+			nn = netname(ifa->ifa_addr, ifa->ifa_netmask);
+			rn = routename(ifa->ifa_addr, numeric_addr);
+			if (Wflag) {
+				xo_emit("{t:network/%-*s} ", net_len, nn);
+				xo_emit("{t:address/%-*s} ", addr_len, rn);
+			} else {
+				xo_emit("{d:network/%-*.*s}{et:network} ",
+				    net_len, net_len, nn, nn);
+				xo_emit("{d:address/%-*.*s}{et:address} ",
+				    addr_len, addr_len, rn, rn);
 			}
 
-			if ((ifnet.if_flags&IFF_UP) == 0)
-				*cp++ = '*';
-			*cp = '\0';
-			ifaddraddr = (u_long)TAILQ_FIRST(&ifnet.if_addrhead);
+			network = true;
+			break;
+		case AF_LINK:
+		    {
+			struct sockaddr_dl *sdl;
+			char linknum[10];
+
+			sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+			sprintf(linknum, "<Link#%d>", sdl->sdl_index);
+			xo_emit("{t:network/%-*.*s} ", net_len, net_len,
+			    linknum);
+			if (sdl->sdl_nlen == 0 &&
+			    sdl->sdl_alen == 0 &&
+			    sdl->sdl_slen == 0)
+				xo_emit("{P:/%*s} ", addr_len, "");
+			else
+				xo_emit("{t:address/%-*.*s} ", addr_len,
+				    addr_len, routename(ifa->ifa_addr, 1));
+			link = true;
+			break;
+		    }
 		}
-		ifaddrfound = ifaddraddr;
+
+#define	IFA_STAT(s)	(((struct if_data *)ifa->ifa_data)->ifi_ ## s)
+		show_stat("lu", 8, "received-packets", IFA_STAT(ipackets),
+		    link|network, 1);
+		show_stat("lu", 5, "received-errors", IFA_STAT(ierrors),
+		    link, 1);
+		show_stat("lu", 5, "dropped-packets", IFA_STAT(iqdrops),
+		    link, 1);
+		if (bflag)
+			show_stat("lu", 10, "received-bytes", IFA_STAT(ibytes),
+			    link|network, 0);
+		show_stat("lu", 8, "sent-packets", IFA_STAT(opackets),
+		    link|network, 1);
+		show_stat("lu", 5, "send-errors", IFA_STAT(oerrors), link, 1);
+		if (bflag)
+			show_stat("lu", 10, "sent-bytes", IFA_STAT(obytes),
+			    link|network, 0);
+		show_stat("NRSlu", 5, "collisions", IFA_STAT(collisions),
+		    link, 1);
+		if (dflag)
+			show_stat("LSlu", 5, "dropped-packets",
+			    IFA_STAT(oqdrops), link, 1);
+		xo_emit("\n");
+
+		if (!aflag) {
+			xo_close_instance("interface");
+			continue;
+		}
 
 		/*
-		 * Get the interface stats.  These may get
-		 * overriden below on a per-interface basis.
+		 * Print family's multicast addresses.
 		 */
-		opackets = ifnet.if_opackets;
-		ipackets = ifnet.if_ipackets;
-		obytes = ifnet.if_obytes;
-		ibytes = ifnet.if_ibytes;
-		omcasts = ifnet.if_omcasts;
-		imcasts = ifnet.if_imcasts;
-		oerrors = ifnet.if_oerrors;
-		ierrors = ifnet.if_ierrors;
-		collisions = ifnet.if_collisions;
-		timer = ifnet.if_timer;
-		drops = ifnet.if_snd.ifq_drops;
+		xo_open_list("multicast-address");
+		for (ifma = next_ifma(ifmap, ifa->ifa_name,
+		    ifa->ifa_addr->sa_family);
+		    ifma != NULL;
+		    ifma = next_ifma(ifma, ifa->ifa_name,
+		    ifa->ifa_addr->sa_family)) {
+			const char *fmt = NULL;
 
-		if (ifaddraddr == 0) {
-			if (Wflag)
-				printf("%-7.7s", name);
-			else
-				printf("%-5.5s", name);
-			printf(" %5lu ", ifnet.if_mtu);
-			printf("%-13.13s ", "none");
-			printf("%-17.17s ", "none");
-		} else {
-			if (kread(ifaddraddr, (char *)&ifaddr, sizeof ifaddr)
-			    != 0) {
-				ifaddraddr = 0;
-				continue;
-			}
-#define	CP(x) ((char *)(x))
-			cp = (CP(ifaddr.ifa.ifa_addr) - CP(ifaddraddr)) +
-				CP(&ifaddr);
-			sa = (struct sockaddr *)cp;
-			if (af != AF_UNSPEC && sa->sa_family != af) {
-				ifaddraddr =
-				    (u_long)TAILQ_NEXT(&ifaddr.ifa, ifa_link);
-				continue;
-			}
-			if (Wflag)
-				printf("%-7.7s", name);
-			else
-				printf("%-5.5s", name);
-			printf(" %5lu ", ifnet.if_mtu);
-			switch (sa->sa_family) {
-			case AF_UNSPEC:
-				printf("%-13.13s ", "none");
-				printf("%-15.15s ", "none");
-				break;
+			xo_open_instance("multicast-address");
+			switch (ifma->ifma_addr->sa_family) {
+			case AF_LINK:
+			    {
+				struct sockaddr_dl *sdl;
+
+				sdl = (struct sockaddr_dl *)ifma->ifma_addr;
+				if (sdl->sdl_type != IFT_ETHER &&
+				    sdl->sdl_type != IFT_FDDI)
+					break;
+			    }
+				/* FALLTHROUGH */
 			case AF_INET:
-				sockin = (struct sockaddr_in *)sa;
-#ifdef notdef
-				/* can't use inet_makeaddr because kernel
-				 * keeps nets unshifted.
-				 */
-				in = inet_makeaddr(ifaddr.in.ia_subnet,
-					INADDR_ANY);
-				printf("%-13.13s ", netname(in.s_addr,
-				    ifaddr.in.ia_subnetmask));
-#else
-				printf("%-13.13s ",
-				    netname(htonl(ifaddr.in.ia_subnet),
-				    ifaddr.in.ia_subnetmask));
-#endif
-				printf("%-17.17s ",
-				    routename(sockin->sin_addr.s_addr));
-
-				network_layer = 1;
-				break;
 #ifdef INET6
 			case AF_INET6:
-				sockin6 = (struct sockaddr_in6 *)sa;
-				printf("%-13.13s ",
-				       netname6(&ifaddr.in6.ia_addr,
-						&ifaddr.in6.ia_prefixmask.sin6_addr));
-				printf("%-17.17s ",
-				    inet_ntop(AF_INET6,
-					&sockin6->sin6_addr,
-					ntop_buf, sizeof(ntop_buf)));
-
-				network_layer = 1;
-				break;
-#endif /*INET6*/
-			case AF_IPX:
-				{
-				struct sockaddr_ipx *sipx =
-					(struct sockaddr_ipx *)sa;
-				u_long net;
-				char netnum[10];
-
-				*(union ipx_net *) &net = sipx->sipx_addr.x_net;
-				sprintf(netnum, "%lx", (u_long)ntohl(net));
-				printf("ipx:%-8s  ", netnum);
-/*				printf("ipx:%-8s ", netname(net, 0L)); */
-				printf("%-17s ",
-				    ipx_phost((struct sockaddr *)sipx));
-				}
-
-				network_layer = 1;
-				break;
-
-			case AF_APPLETALK:
-				printf("atalk:%-12.12s ",atalk_print(sa,0x10) );
-				printf("%-11.11s  ",atalk_print(sa,0x0b) );
-				break;
-			case AF_LINK:
-				{
-				struct sockaddr_dl *sdl =
-					(struct sockaddr_dl *)sa;
-				char linknum[10];
-				cp = (char *)LLADDR(sdl);
-				n = sdl->sdl_alen;
-				sprintf(linknum, "<Link#%d>", sdl->sdl_index);
-				m = printf("%-13.13s ", linknum);
-				}
-				goto hexprint;
-			default:
-				m = printf("(%d)", sa->sa_family);
-				for (cp = sa->sa_len + (char *)sa;
-					--cp > sa->sa_data && (*cp == 0);) {}
-				n = cp - sa->sa_data + 1;
-				cp = sa->sa_data;
-			hexprint:
-				while (--n >= 0)
-					m += printf("%02x%c", *cp++ & 0xff,
-						    n > 0 ? ':' : ' ');
-				m = 32 - m;
-				while (m-- > 0)
-					putchar(' ');
-
-				link_layer = 1;
-				break;
-			}
-
-			/*
-			 * Fixup the statistics for interfaces that
-			 * update stats for their network addresses
-			 */
-			if (network_layer) {
-				opackets = ifaddr.in.ia_ifa.if_opackets;
-				ipackets = ifaddr.in.ia_ifa.if_ipackets;
-				obytes = ifaddr.in.ia_ifa.if_obytes;
-				ibytes = ifaddr.in.ia_ifa.if_ibytes;
-			}
-
-			ifaddraddr = (u_long)TAILQ_NEXT(&ifaddr.ifa, ifa_link);
-		}
-
-		show_stat("lu", 8, ipackets, link_layer|network_layer);
-		show_stat("lu", 5, ierrors, link_layer);
-		if (bflag)
-			show_stat("lu", 10, ibytes, link_layer|network_layer);
-
-		show_stat("lu", 8, opackets, link_layer|network_layer);
-		show_stat("lu", 5, oerrors, link_layer);
-		if (bflag)
-			show_stat("lu", 10, obytes, link_layer|network_layer);
-
-		show_stat("NRSlu", 5, collisions, link_layer);
-		if (tflag)
-			show_stat("LSd", 4, timer, link_layer);
-		if (dflag)
-			show_stat("LSd", 4, drops, link_layer);
-		putchar('\n');
-
-		if (aflag && ifaddrfound) {
-			/*
-			 * Print family's multicast addresses
-			 */
-			struct ifmultiaddr *multiaddr;
-			struct ifmultiaddr ifma;
-			union {
-				struct sockaddr sa;
-				struct sockaddr_in in;
-#ifdef INET6
-				struct sockaddr_in6 in6;
 #endif /* INET6 */
-				struct sockaddr_dl dl;
-			} msa;
-			const char *fmt;
-
-			TAILQ_FOREACH(multiaddr, &ifnet.if_multiaddrs, ifma_link) {
-				if (kread((u_long)multiaddr, (char *)&ifma,
-					  sizeof ifma) != 0)
-					break;
-				multiaddr = &ifma;
-				if (kread((u_long)ifma.ifma_addr, (char *)&msa,
-					  sizeof msa) != 0)
-					break;
-				if (msa.sa.sa_family != sa->sa_family)
-					continue;
-
-				fmt = 0;
-				switch (msa.sa.sa_family) {
-				case AF_INET:
-					fmt = routename(msa.in.sin_addr.s_addr);
-					break;
-#ifdef INET6
-				case AF_INET6:
-					printf("%*s %-19.19s(refs: %d)\n",
-					       Wflag ? 27 : 25, "",
-					       inet_ntop(AF_INET6,
-							 &msa.in6.sin6_addr,
-							 ntop_buf,
-							 sizeof(ntop_buf)),
-					       ifma.ifma_refcount);
-					break;
-#endif /* INET6 */
-				case AF_LINK:
-					switch (msa.dl.sdl_type) {
-					case IFT_ETHER:
-					case IFT_FDDI:
-						fmt = ether_ntoa(
-							(struct ether_addr *)
-							LLADDR(&msa.dl));
-						break;
-					}
-					break;
-				}
-				if (fmt) {
-					printf("%*s %-17.17s",
-					    Wflag ? 27 : 25, "", fmt);
-					if (msa.sa.sa_family == AF_LINK) {
-						printf(" %8lu", imcasts);
-						printf("%*s",
-						    bflag ? 17 : 6, "");
-						printf(" %8lu", omcasts);
-					}
-					putchar('\n');
-				}
+				fmt = routename(ifma->ifma_addr, numeric_addr);
+				break;
 			}
+			if (fmt) {
+				if (Wflag)
+					xo_emit("{P:/%27s }"
+					    "{t:address/%-17s/}", "", fmt);
+				else
+					xo_emit("{P:/%25s }"
+					    "{t:address/%-17.17s/}", "", fmt);
+				if (ifma->ifma_addr->sa_family == AF_LINK) {
+					xo_emit(" {:received-packets/%8lu}",
+					    IFA_STAT(imcasts));
+					xo_emit("{P:/%*s}", bflag? 17 : 6, "");
+					xo_emit(" {:sent-packets/%8lu}",
+					    IFA_STAT(omcasts));
+ 				}
+				xo_emit("\n");
+			}
+			xo_close_instance("multicast-address");
+			ifma = ifma->ifma_next;
 		}
+		xo_close_list("multicast-address");
+		xo_close_instance("interface");
 	}
+	xo_close_list("interface");
+
+	freeifaddrs(ifap);
+	if (aflag)
+		freeifmaddrs(ifmap);
 }
 
-struct	iftot {
-	SLIST_ENTRY(iftot) chain;
-	char	ift_name[IFNAMSIZ];	/* interface name */
+struct iftot {
 	u_long	ift_ip;			/* input packets */
 	u_long	ift_ie;			/* input errors */
+	u_long	ift_id;			/* input drops */
 	u_long	ift_op;			/* output packets */
 	u_long	ift_oe;			/* output errors */
+	u_long	ift_od;			/* output drops */
 	u_long	ift_co;			/* collisions */
-	u_int	ift_dr;			/* drops */
 	u_long	ift_ib;			/* input bytes */
 	u_long	ift_ob;			/* output bytes */
 };
 
-u_char	signalled;			/* set if alarm goes off "early" */
-
 /*
- * Print a running summary of interface statistics.
- * Repeat display every interval1 seconds, showing statistics
- * collected over that interval.  Assumes that interval1 is non-zero.
- * First line printed at top of screen is always cumulative.
- * XXX - should be rewritten to use ifmib(4).
+ * Obtain stats for interface(s).
  */
 static void
-sidewaysintpr(int interval1, u_long off)
+fill_iftot(struct iftot *st)
 {
-	struct ifnet ifnet;
-	u_long firstifnet;
-	struct ifnethead ifnethead;
-	struct itimerval interval_it;
-	struct iftot *iftot, *ip, *ipn, *total, *sum, *interesting;
-	int line;
-	int oldmask, first;
-	u_long interesting_off;
+	struct ifaddrs *ifap, *ifa;
+	bool found = false;
 
-	if (kread(off, (char *)&ifnethead, sizeof ifnethead) != 0)
-		return;
-	firstifnet = (u_long)TAILQ_FIRST(&ifnethead);
+	if (getifaddrs(&ifap) != 0)
+		xo_err(EX_OSERR, "getifaddrs");
 
-	if ((iftot = malloc(sizeof(struct iftot))) == NULL) {
-		printf("malloc failed\n");
-		exit(1);
-	}
-	memset(iftot, 0, sizeof(struct iftot));
+	bzero(st, sizeof(*st));
 
-	interesting = NULL;
-	interesting_off = 0;
-	for (off = firstifnet, ip = iftot; off;) {
-		char name[IFNAMSIZ];
-
-		if (kread(off, (char *)&ifnet, sizeof ifnet) != 0)
-			break;
-		strlcpy(name, ifnet.if_xname, sizeof(name));
-		if (interface && strcmp(name, interface) == 0) {
-			interesting = ip;
-			interesting_off = off;
-		}
-		snprintf(ip->ift_name, sizeof(ip->ift_name), "(%s)", name);;
-		if ((ipn = malloc(sizeof(struct iftot))) == NULL) {
-			printf("malloc failed\n");
-			exit(1);
-		}
-		memset(ipn, 0, sizeof(struct iftot));
-		SLIST_NEXT(ip, chain) = ipn;
-		ip = ipn;
-		off = (u_long)TAILQ_NEXT(&ifnet, if_link);
-	}
-	if (interface && interesting == NULL)
-		errx(1, "%s: unknown interface", interface);
-	if ((total = malloc(sizeof(struct iftot))) == NULL) {
-		printf("malloc failed\n");
-		exit(1);
-	}
-	memset(total, 0, sizeof(struct iftot));
-	if ((sum = malloc(sizeof(struct iftot))) == NULL) {
-		printf("malloc failed\n");
-		exit(1);
-	}
-	memset(sum, 0, sizeof(struct iftot));
-
-	(void)signal(SIGALRM, catchalarm);
-	signalled = NO;
-	interval_it.it_interval.tv_sec = interval1;
-	interval_it.it_interval.tv_usec = 0;
-	interval_it.it_value = interval_it.it_interval;
-	setitimer(ITIMER_REAL, &interval_it, NULL);
-	first = 1;
-banner:
-	printf("%17s %14s %16s", "input",
-	    interesting ? interesting->ift_name : "(Total)", "output");
-	putchar('\n');
-	printf("%10s %5s %10s %10s %5s %10s %5s",
-	    "packets", "errs", "bytes", "packets", "errs", "bytes", "colls");
-	if (dflag)
-		printf(" %5.5s", "drops");
-	putchar('\n');
-	fflush(stdout);
-	line = 0;
-loop:
-	if (interesting != NULL) {
-		ip = interesting;
-		if (kread(interesting_off, (char *)&ifnet, sizeof ifnet) != 0) {
-			printf("???\n");
-			exit(1);
-		};
-		if (!first) {
-			show_stat("lu", 10, ifnet.if_ipackets - ip->ift_ip, 1);
-			show_stat("lu", 5, ifnet.if_ierrors - ip->ift_ie, 1);
-			show_stat("lu", 10, ifnet.if_ibytes - ip->ift_ib, 1);
-			show_stat("lu", 10, ifnet.if_opackets - ip->ift_op, 1);
-			show_stat("lu", 5, ifnet.if_oerrors - ip->ift_oe, 1);
-			show_stat("lu", 10, ifnet.if_obytes - ip->ift_ob, 1);
-			show_stat("NRSlu", 5,
-			    ifnet.if_collisions - ip->ift_co, 1);
-			if (dflag)
-				show_stat("LSu", 5,
-				    ifnet.if_snd.ifq_drops - ip->ift_dr, 1);
-		}
-		ip->ift_ip = ifnet.if_ipackets;
-		ip->ift_ie = ifnet.if_ierrors;
-		ip->ift_ib = ifnet.if_ibytes;
-		ip->ift_op = ifnet.if_opackets;
-		ip->ift_oe = ifnet.if_oerrors;
-		ip->ift_ob = ifnet.if_obytes;
-		ip->ift_co = ifnet.if_collisions;
-		ip->ift_dr = ifnet.if_snd.ifq_drops;
-	} else {
-		sum->ift_ip = 0;
-		sum->ift_ie = 0;
-		sum->ift_ib = 0;
-		sum->ift_op = 0;
-		sum->ift_oe = 0;
-		sum->ift_ob = 0;
-		sum->ift_co = 0;
-		sum->ift_dr = 0;
-		for (off = firstifnet, ip = iftot;
-		     off && SLIST_NEXT(ip, chain) != NULL;
-		     ip = SLIST_NEXT(ip, chain)) {
-			if (kread(off, (char *)&ifnet, sizeof ifnet) != 0) {
-				off = 0;
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		if (ifa->ifa_addr->sa_family != AF_LINK)
+			continue;
+		if (interface) {
+			if (strcmp(ifa->ifa_name, interface) == 0)
+				found = true;
+			else
 				continue;
-			}
-			sum->ift_ip += ifnet.if_ipackets;
-			sum->ift_ie += ifnet.if_ierrors;
-			sum->ift_ib += ifnet.if_ibytes;
-			sum->ift_op += ifnet.if_opackets;
-			sum->ift_oe += ifnet.if_oerrors;
-			sum->ift_ob += ifnet.if_obytes;
-			sum->ift_co += ifnet.if_collisions;
-			sum->ift_dr += ifnet.if_snd.ifq_drops;
-			off = (u_long)TAILQ_NEXT(&ifnet, if_link);
 		}
-		if (!first) {
-			show_stat("lu", 10, sum->ift_ip - total->ift_ip, 1);
-			show_stat("lu", 5, sum->ift_ie - total->ift_ie, 1);
-			show_stat("lu", 10, sum->ift_ib - total->ift_ib, 1);
-			show_stat("lu", 10, sum->ift_op - total->ift_op, 1);
-			show_stat("lu", 5, sum->ift_oe - total->ift_oe, 1);
-			show_stat("lu", 10, sum->ift_ob - total->ift_ob, 1);
-			show_stat("NRSlu", 5, sum->ift_co - total->ift_co, 1);
-			if (dflag)
-				show_stat("LSu", 5,
-				    sum->ift_dr - total->ift_dr, 1);
-		}
-		*total = *sum;
+
+		st->ift_ip += IFA_STAT(ipackets);
+		st->ift_ie += IFA_STAT(ierrors);
+		st->ift_id += IFA_STAT(iqdrops);
+		st->ift_ib += IFA_STAT(ibytes);
+		st->ift_op += IFA_STAT(opackets);
+		st->ift_oe += IFA_STAT(oerrors);
+		st->ift_od += IFA_STAT(oqdrops);
+		st->ift_ob += IFA_STAT(obytes);
+ 		st->ift_co += IFA_STAT(collisions);
 	}
-	if (!first)
-		putchar('\n');
-	fflush(stdout);
-	oldmask = sigblock(sigmask(SIGALRM));
-	while (!signalled)
-		sigpause(0);
-	signalled = NO;
-	sigsetmask(oldmask);
-	line++;
-	first = 0;
-	if (line == 21)
-		goto banner;
-	else
-		goto loop;
-	/*NOTREACHED*/
+
+	if (interface && found == false)
+		xo_err(EX_DATAERR, "interface %s not found", interface);
+
+	freeifaddrs(ifap);
 }
 
 /*
  * Set a flag to indicate that a signal from the periodic itimer has been
  * caught.
  */
+static sig_atomic_t signalled;
 static void
 catchalarm(int signo __unused)
 {
-	signalled = YES;
+	signalled = true;
+}
+
+/*
+ * Print a running summary of interface statistics.
+ * Repeat display every interval seconds, showing statistics
+ * collected over that interval.  Assumes that interval is non-zero.
+ * First line printed at top of screen is always cumulative.
+ */
+static void
+sidewaysintpr(void)
+{
+	struct iftot ift[2], *new, *old;
+	struct itimerval interval_it;
+	int oldmask, line;
+
+	new = &ift[0];
+	old = &ift[1];
+	fill_iftot(old);
+
+	(void)signal(SIGALRM, catchalarm);
+	signalled = false;
+	interval_it.it_interval.tv_sec = interval;
+	interval_it.it_interval.tv_usec = 0;
+	interval_it.it_value = interval_it.it_interval;
+	setitimer(ITIMER_REAL, &interval_it, NULL);
+	xo_open_list("interface-statistics");
+
+banner:
+	xo_emit("{T:/%17s} {T:/%14s} {T:/%16s}\n", "input",
+	    interface != NULL ? interface : "(Total)", "output");
+	xo_emit("{T:/%10s} {T:/%5s} {T:/%5s} {T:/%10s} {T:/%10s} {T:/%5s} "
+	    "{T:/%10s} {T:/%5s}",
+	    "packets", "errs", "idrops", "bytes", "packets", "errs", "bytes",
+	    "colls");
+	if (dflag)
+		xo_emit(" {T:/%5.5s}", "drops");
+	xo_emit("\n");
+	xo_flush();
+	line = 0;
+
+loop:
+	if ((noutputs != 0) && (--noutputs == 0)) {
+		xo_close_list("interface-statistics");
+		return;
+	}
+	oldmask = sigblock(sigmask(SIGALRM));
+	while (!signalled)
+		sigpause(0);
+	signalled = false;
+	sigsetmask(oldmask);
+	line++;
+
+	fill_iftot(new);
+
+	xo_open_instance("stats");
+	show_stat("lu", 10, "received-packets",
+	    new->ift_ip - old->ift_ip, 1, 1);
+	show_stat("lu", 5, "received-errors",
+	    new->ift_ie - old->ift_ie, 1, 1);
+	show_stat("lu", 5, "dropped-packets",
+	    new->ift_id - old->ift_id, 1, 1);
+	show_stat("lu", 10, "received-bytes",
+	    new->ift_ib - old->ift_ib, 1, 0);
+	show_stat("lu", 10, "sent-packets",
+	    new->ift_op - old->ift_op, 1, 1);
+	show_stat("lu", 5, "send-errors",
+	    new->ift_oe - old->ift_oe, 1, 1);
+	show_stat("lu", 10, "sent-bytes",
+	    new->ift_ob - old->ift_ob, 1, 0);
+	show_stat("NRSlu", 5, "collisions",
+	    new->ift_co - old->ift_co, 1, 1);
+	if (dflag)
+		show_stat("LSlu", 5, "dropped-packets",
+		    new->ift_od - old->ift_od, 1, 1);
+	xo_close_instance("stats");
+	xo_emit("\n");
+	xo_flush();
+
+	if (new == &ift[0]) {
+		new = &ift[1];
+		old = &ift[0];
+	} else {
+		new = &ift[0];
+		old = &ift[1];
+	}
+
+	if (line == 21)
+		goto banner;
+	else
+		goto loop;
+
+	/* NOTREACHED */
 }

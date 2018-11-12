@@ -17,10 +17,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -52,13 +48,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
-#include <sys/linker_set.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/sf_buf.h>
+#include <sys/sysent.h>
 #include <sys/sched.h>
+#include <sys/sf_buf.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/vmmeter.h>
@@ -87,24 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/tlb.h>
 #include <machine/tstate.h>
-
-#ifndef NSFBUFS
-#define	NSFBUFS		(512 + maxusers * 16)
-#endif
-
-static void	sf_buf_init(void *arg);
-SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
-
-/*
- * Expanded sf_freelist head.  Really an SLIST_HEAD() in disguise, with the
- * sf_freelist head with the sf_lock mutex.
- */
-static struct {
-	SLIST_HEAD(, sf_buf) sf_head;
-	struct mtx sf_lock;
-} sf_freelist;
-
-static u_int	sf_buf_alloc_want;
 
 PMAP_STATS_VAR(uma_nsmall_alloc);
 PMAP_STATS_VAR(uma_nsmall_alloc_oc);
@@ -166,7 +144,37 @@ cpu_thread_swapout(struct thread *td)
 }
 
 void
-cpu_set_upcall(struct thread *td, struct thread *td0)
+cpu_set_syscall_retval(struct thread *td, int error)
+{
+
+	switch (error) {
+	case 0:
+		td->td_frame->tf_out[0] = td->td_retval[0];
+		td->td_frame->tf_out[1] = td->td_retval[1];
+		td->td_frame->tf_tstate &= ~TSTATE_XCC_C;
+		break;
+
+	case ERESTART:
+		/*
+		 * Undo the tpc advancement we have done on syscall
+		 * enter, we want to reexecute the system call.
+		 */
+		td->td_frame->tf_tpc = td->td_pcb->pcb_tpc;
+		td->td_frame->tf_tnpc -= 4;
+		break;
+
+	case EJUSTRETURN:
+		break;
+
+	default:
+		td->td_frame->tf_out[0] = SV_ABI_ERRNO(td->td_proc, error);
+		td->td_frame->tf_tstate |= TSTATE_XCC_C;
+		break;
+	}
+}
+
+void
+cpu_copy_thread(struct thread *td, struct thread *td0)
 {
 	struct trapframe *tf;
 	struct frame *fr;
@@ -189,8 +197,8 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 }
 
 void
-cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
-	stack_t *stack)
+cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
+    stack_t *stack)
 {
 	struct trapframe *tf;
 	uint64_t sp;
@@ -214,7 +222,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 
 	if (td == curthread)
 		flushw();
-	td->td_frame->tf_global[7] = (uint64_t) tls_base;
+	td->td_frame->tf_global[7] = (uint64_t)tls_base;
 	return (0);
 }
 
@@ -336,7 +344,7 @@ cpu_reset(void)
 		(cell_t)bspec
 	};
 
-	if ((chosen = OF_finddevice("/chosen")) != 0) {
+	if ((chosen = OF_finddevice("/chosen")) != -1) {
 		if (OF_getprop(chosen, "bootpath", bspec, sizeof(bspec)) == -1)
 			bspec[0] = '\0';
 		bspec[sizeof(bspec) - 1] = '\0';
@@ -352,7 +360,7 @@ cpu_reset(void)
  * This is needed to make kernel threads stay in kernel mode.
  */
 void
-cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
+cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 {
 	struct frame *fp;
 	struct pcb *pcb;
@@ -374,97 +382,16 @@ is_physical_memory(vm_paddr_t addr)
 	return (0);
 }
 
-/*
- * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
- */
-static void
-sf_buf_init(void *arg)
-{
-	struct sf_buf *sf_bufs;
-	vm_offset_t sf_base;
-	int i;
-
-	nsfbufs = NSFBUFS;
-	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
-
-	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", NULL, MTX_DEF);
-	SLIST_INIT(&sf_freelist.sf_head);
-	sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
-	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
-	    M_NOWAIT | M_ZERO);
-	for (i = 0; i < nsfbufs; i++) {
-		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
-		SLIST_INSERT_HEAD(&sf_freelist.sf_head, &sf_bufs[i], free_list);
-	}
-	sf_buf_alloc_want = 0;
-}
-
-/*
- * Get an sf_buf from the freelist.  Will block if none are available.
- */
-struct sf_buf *
-sf_buf_alloc(struct vm_page *m, int flags)
-{
-	struct sf_buf *sf;
-	int error;
-
-	mtx_lock(&sf_freelist.sf_lock);
-	while ((sf = SLIST_FIRST(&sf_freelist.sf_head)) == NULL) {
-		if (flags & SFB_NOWAIT)
-			break;
-		sf_buf_alloc_want++;
-		mbstat.sf_allocwait++;
-		error = msleep(&sf_freelist, &sf_freelist.sf_lock,
-		    (flags & SFB_CATCH) ? PCATCH | PVM : PVM, "sfbufa", 0);
-		sf_buf_alloc_want--;
-
-		/*
-		 * If we got a signal, don't risk going back to sleep.
-		 */
-		if (error)
-			break;
-	}
-	if (sf != NULL) {
-		SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
-		sf->m = m;
-		nsfbufsused++;
-		nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
-		pmap_qenter(sf->kva, &sf->m, 1);
-	}
-	mtx_unlock(&sf_freelist.sf_lock);
-	return (sf);
-}
-
-/*
- * Release resources back to the system.
- */
-void
-sf_buf_free(struct sf_buf *sf)
-{
-
-	pmap_qremove(sf->kva, 1);
-	mtx_lock(&sf_freelist.sf_lock);
-	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
-	nsfbufsused--;
-	if (sf_buf_alloc_want > 0)
-		wakeup_one(&sf_freelist);
-	mtx_unlock(&sf_freelist.sf_lock);
-}
-
 void
 swi_vm(void *v)
 {
 
-	/*
-	 * Nothing to do here yet - busdma bounce buffers are not yet
-	 * implemented.
-	 */
+	/* Nothing to do here - busdma bounce buffers are not implemented. */
 }
 
 void *
-uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+uma_small_alloc(uma_zone_t zone, vm_size_t bytes, u_int8_t *flags, int wait)
 {
-	static vm_pindex_t color;
 	vm_paddr_t pa;
 	vm_page_t m;
 	int pflags;
@@ -473,17 +400,10 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	PMAP_STATS_INC(uma_nsmall_alloc);
 
 	*flags = UMA_SLAB_PRIV;
-
-	if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
-	else
-		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED;
-
-	if (wait & M_ZERO)
-		pflags |= VM_ALLOC_ZERO;
+	pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
 
 	for (;;) {
-		m = vm_page_alloc(NULL, color++, pflags | VM_ALLOC_NOOBJ);
+		m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
 		if (m == NULL) {
 			if (wait & M_NOWAIT)
 				return (NULL);
@@ -494,21 +414,21 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	}
 
 	pa = VM_PAGE_TO_PHYS(m);
-	if (m->md.color != DCACHE_COLOR(pa)) {
+	if (dcache_color_ignore == 0 && m->md.color != DCACHE_COLOR(pa)) {
 		KASSERT(m->md.colors[0] == 0 && m->md.colors[1] == 0,
-		    ("uma_small_alloc: free page still has mappings!"));
+		    ("uma_small_alloc: free page %p still has mappings!", m));
 		PMAP_STATS_INC(uma_nsmall_alloc_oc);
 		m->md.color = DCACHE_COLOR(pa);
 		dcache_page_inval(pa);
 	}
 	va = (void *)TLB_PHYS_TO_DIRECT(pa);
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
-		bzero(va, PAGE_SIZE);
+		cpu_block_zero(va, PAGE_SIZE);
 	return (va);
 }
 
 void
-uma_small_free(void *mem, int size, u_int8_t flags)
+uma_small_free(void *mem, vm_size_t size, u_int8_t flags)
 {
 	vm_page_t m;
 
@@ -516,5 +436,20 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS((vm_offset_t)mem));
 	m->wire_count--;
 	vm_page_free(m);
-	atomic_subtract_int(&cnt.v_wire_count, 1);
+	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+}
+
+void
+sf_buf_map(struct sf_buf *sf, int flags)
+{
+
+	pmap_qenter(sf->kva, &sf->m, 1);
+}
+
+int
+sf_buf_unmap(struct sf_buf *sf)
+{
+
+	pmap_qremove(sf->kva, 1);
+	return (1);
 }

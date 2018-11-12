@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -42,11 +42,13 @@
 #include <sys/systm.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
+#include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/vnode.h>
 
@@ -64,7 +66,7 @@ static vfs_root_t	fdesc_root;
  * Compatibility shim for old mount(2) system call.
  */
 int
-fdesc_cmount(struct mntarg *ma, void *data, int flags)
+fdesc_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	return kernel_mount(ma, flags);
 }
@@ -77,7 +79,11 @@ fdesc_mount(struct mount *mp)
 {
 	int error = 0;
 	struct fdescmount *fmp;
+	struct thread *td = curthread;
 	struct vnode *rvp;
+
+	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_FDESCFS))
+		return (EPERM);
 
 	/*
 	 * Update is a no-op
@@ -97,7 +103,7 @@ fdesc_mount(struct mount *mp)
 	error = fdesc_allocvp(Froot, -1, FD_ROOT, mp, &rvp);
 	if (error) {
 		free(fmp, M_FDESCMNT);
-		mp->mnt_data = 0;
+		mp->mnt_data = NULL;
 		return (error);
 	}
 	rvp->v_type = VDIR;
@@ -106,9 +112,6 @@ fdesc_mount(struct mount *mp)
 	VOP_UNLOCK(rvp, 0);
 	/* XXX -- don't mark as local to work around fts() problems */
 	/*mp->mnt_flag |= MNT_LOCAL;*/
-	MNT_ILOCK(mp);
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
-	MNT_IUNLOCK(mp);
 	vfs_getnewfsid(mp);
 
 	vfs_mountedfrom(mp, "fdescfs");
@@ -116,9 +119,7 @@ fdesc_mount(struct mount *mp)
 }
 
 static int
-fdesc_unmount(mp, mntflags)
-	struct mount *mp;
-	int mntflags;
+fdesc_unmount(struct mount *mp, int mntflags)
 {
 	struct fdescmount *fmp;
 	caddr_t data;
@@ -151,7 +152,7 @@ fdesc_unmount(mp, mntflags)
 	 */
 	mtx_lock(&fdesc_hashmtx);
 	data = mp->mnt_data;
-	mp->mnt_data = 0;
+	mp->mnt_data = NULL;
 	mtx_unlock(&fdesc_hashmtx);
 	free(data, M_FDESCMNT);	/* XXX */
 
@@ -159,10 +160,7 @@ fdesc_unmount(mp, mntflags)
 }
 
 static int
-fdesc_root(mp, flags, vpp)
-	struct mount *mp;
-	int flags;
-	struct vnode **vpp;
+fdesc_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	struct vnode *vp;
 
@@ -176,9 +174,7 @@ fdesc_root(mp, flags, vpp)
 }
 
 static int
-fdesc_statfs(mp, sbp)
-	struct mount *mp;
-	struct statfs *sbp;
+fdesc_statfs(struct mount *mp, struct statfs *sbp)
 {
 	struct thread *td;
 	struct filedesc *fdp;
@@ -186,6 +182,7 @@ fdesc_statfs(mp, sbp)
 	int i;
 	int last;
 	int freefd;
+	uint64_t limit;
 
 	td = curthread;
 
@@ -195,15 +192,16 @@ fdesc_statfs(mp, sbp)
 	 * limit is ever reduced below the current number
 	 * of open files... ]
 	 */
-	PROC_LOCK(td->td_proc);
-	lim = lim_cur(td->td_proc, RLIMIT_NOFILE);
-	PROC_UNLOCK(td->td_proc);
+	lim = lim_cur(td, RLIMIT_NOFILE);
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
+	limit = racct_get_limit(td->td_proc, RACCT_NOFILE);
+	if (lim > limit)
+		lim = limit;
 	last = min(fdp->fd_nfiles, lim);
 	freefd = 0;
 	for (i = fdp->fd_freefile; i < last; i++)
-		if (fdp->fd_ofiles[i] == NULL)
+		if (fdp->fd_ofiles[i].fde_file == NULL)
 			freefd++;
 
 	/*
@@ -235,4 +233,4 @@ static struct vfsops fdesc_vfsops = {
 	.vfs_unmount =		fdesc_unmount,
 };
 
-VFS_SET(fdesc_vfsops, fdescfs, VFCF_SYNTHETIC);
+VFS_SET(fdesc_vfsops, fdescfs, VFCF_SYNTHETIC | VFCF_JAIL);

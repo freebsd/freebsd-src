@@ -270,7 +270,6 @@ The
 .Li b
 conversion is provided to decode error registers.
 Its usage is:
-.Pp
 .Bd -ragged -offset indent
 printf(
 .Qq reg=%b\en ,
@@ -285,17 +284,15 @@ Each <arg> is a sequence of characters, the first of
 which gives the bit number to be inspected (origin 1) and the next characters
 (up to a character less than 32) give the text to be displayed if the bit is set.
 Thus
-.Pp
 .Bd -ragged -offset indent
 printf(
 .Qq reg=%b\en ,
 3,
-.Qq \e10\e2BITTWO\e1BITONE\en
+.Qq \e10\e2BITTWO\e1BITONE
 );
 .Ed
 .Pp
 would give the output
-.Pp
 .Bd -ragged -offset indent
 reg=3<BITTWO,BITONE>
 .Ed
@@ -303,7 +300,6 @@ reg=3<BITTWO,BITONE>
 The
 .Li D
 conversion provides a hexdump facility, e.g.
-.Pp
 .Bd -ragged -offset indent
 printf(
 .Qq %6D ,
@@ -669,12 +665,12 @@ from
 .It
 .Nm zalloc
 from
-.An Matthew Dillon Aq dillon@backplane.com
+.An Matthew Dillon Aq Mt dillon@backplane.com
 .El
 .Pp
 The reorganisation and port to
 .Fx 3.0 ,
 the environment functions and this manpage were written by
-.An Mike Smith Aq msmith@FreeBSD.org .
+.An Mike Smith Aq Mt msmith@FreeBSD.org .
 .Sh BUGS
 The lack of detailed memory usage data is unhelpful.

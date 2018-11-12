@@ -140,7 +140,7 @@ struct fpn {
 #define	FTYPE_SNG	INSFP_s
 #define	FTYPE_DBL	INSFP_d
 #define	FTYPE_EXT	INSFP_q
-#define	FTYPE_LNG	-1
+#define	FTYPE_LNG	4
 
 /*
  * Emulator state.
@@ -159,7 +159,8 @@ struct fpemu {
  * Each of these may modify its inputs (f1,f2) and/or the temporary.
  * Each returns a pointer to the result and/or sets exceptions.
  */
-#define	__fpu_sub(fe) ((fe)->fe_f2.fp_sign ^= 1, __fpu_add(fe))
+#define	__fpu_sub(fe)	(ISNAN(&(fe)->fe_f2) ? 0 : ((fe)->fe_f2.fp_sign ^= 1), \
+			    __fpu_add(fe))
 
 #ifdef FPU_DEBUG
 #define	FPE_INSN	0x1

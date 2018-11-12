@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_atm.h>
 #include <net/if_types.h>
@@ -556,7 +557,7 @@ hatm_init_bus_width(struct hatm_softc *sc)
 }
 
 /*
- * 4.6 Set Host Endianess
+ * 4.6 Set Host Endianness
  */
 static void
 hatm_init_endianess(struct hatm_softc *sc)
@@ -607,7 +608,7 @@ hatm_read_prom_byte(struct hatm_softc *sc, u_int addr)
 	BARRIER_W(sc);
 
 	/* send READ */
-	for (i = 0; i < sizeof(readtab) / sizeof(readtab[0]); i++) {
+	for (i = 0; i < nitems(readtab); i++) {
 		WRITE4(sc, HE_REGO_HOST_CNTL, val | readtab[i]);
 		BARRIER_W(sc);
 		DELAY(EEPROM_DELAY);
@@ -787,16 +788,14 @@ hatm_init_cm(struct hatm_softc *sc)
 	rsra = 0;
 	mlbm = ((rsra + IFP2IFATM(sc->ifp)->mib.max_vccs * 8) + 0x7ff) & ~0x7ff;
 	rabr = ((mlbm + numbuffs * 2) + 0x7ff) & ~0x7ff;
-	sc->rsrb = ((rabr + 2048) + (2 * IFP2IFATM(sc->ifp)->mib.max_vccs - 1)) &
-	    ~(2 * IFP2IFATM(sc->ifp)->mib.max_vccs - 1);
+	sc->rsrb = roundup2(rabr + 2048, 2 * IFP2IFATM(sc->ifp)->mib.max_vccs);
 
 	tsra = 0;
 	sc->tsrb = tsra + IFP2IFATM(sc->ifp)->mib.max_vccs * 8;
 	sc->tsrc = sc->tsrb + IFP2IFATM(sc->ifp)->mib.max_vccs * 4;
 	sc->tsrd = sc->tsrc + IFP2IFATM(sc->ifp)->mib.max_vccs * 2;
 	tabr = sc->tsrd + IFP2IFATM(sc->ifp)->mib.max_vccs * 1;
-	mtpd = ((tabr + 1024) + (16 * IFP2IFATM(sc->ifp)->mib.max_vccs - 1)) &
-	    ~(16 * IFP2IFATM(sc->ifp)->mib.max_vccs - 1);
+	mtpd = roundup2(tabr + 1024, 16 * IFP2IFATM(sc->ifp)->mib.max_vccs);
 
 	DBG(sc, ATTACH, ("rsra=%x mlbm=%x rabr=%x rsrb=%x",
 	    rsra, mlbm, rabr, sc->rsrb));
@@ -836,7 +835,7 @@ hatm_init_rx_buffer_pool(struct hatm_softc *sc,
 	uint32_t lbuf_addr;	/* address of current buffer */
 	u_int i;
 
-	row_size = sc->bytes_per_row;;
+	row_size = sc->bytes_per_row;
 	row_addr = start * row_size;
 	lbuf_size = sc->cells_per_lbuf * 48;
 	lbufs_per_row = sc->cells_per_row / sc->cells_per_lbuf;
@@ -889,7 +888,7 @@ hatm_init_tx_buffer_pool(struct hatm_softc *sc,
 	uint32_t lbuf_addr;	/* address of current buffer */
 	u_int i;
 
-	row_size = sc->bytes_per_row;;
+	row_size = sc->bytes_per_row;
 	row_addr = start * row_size;
 	lbuf_size = sc->cells_per_lbuf * 48;
 	lbufs_per_row = sc->cells_per_row / sc->cells_per_lbuf;
@@ -1311,20 +1310,29 @@ kenv_getuint(struct hatm_softc *sc, const char *var,
 
 	*ptr = def;
 
-	if (SYSCTL_ADD_UINT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	    OID_AUTO, var, rw ? CTLFLAG_RW : CTLFLAG_RD, ptr, 0, "") == NULL)
-		return (ENOMEM);
+	if (rw != 0) {
+		if (SYSCTL_ADD_UINT(&sc->sysctl_ctx,
+		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, var,
+		    CTLFLAG_RW, ptr, 0, "") == NULL)
+			return (ENOMEM);
+	} else {
+		if (SYSCTL_ADD_UINT(&sc->sysctl_ctx,
+		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, var,
+		    CTLFLAG_RD, ptr, 0, "") == NULL)
+			return (ENOMEM);
+	}
 
 	snprintf(full, sizeof(full), "hw.%s.%s",
 	    device_get_nameunit(sc->dev), var);
 
-	if ((val = getenv(full)) == NULL)
+	if ((val = kern_getenv(full)) == NULL)
 		return (0);
 	u = strtoul(val, &end, 0);
 	if (end == val || *end != '\0') {
 		freeenv(val);
 		return (EINVAL);
 	}
+	freeenv(val);
 	if (bootverbose)
 		if_printf(sc->ifp, "%s=%u\n", full, u);
 	*ptr = u;
@@ -1685,7 +1693,7 @@ hatm_attach(device_t dev)
 	 * 4.2 BIOS Configuration
 	 */
 	v = pci_read_config(dev, PCIR_COMMAND, 2);
-	v |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
+	v |= PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
 	pci_write_config(dev, PCIR_COMMAND, v, 2);
 
 	/*
@@ -1701,12 +1709,6 @@ hatm_attach(device_t dev)
 	/*
 	 * Map memory
 	 */
-	v = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (!(v & PCIM_CMD_MEMEN)) {
-		device_printf(dev, "failed to enable memory\n");
-		error = ENXIO;
-		goto failed;
-	}
 	sc->memid = PCIR_BAR(0);
 	sc->memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->memid,
 	    RF_ACTIVE);
@@ -1721,7 +1723,7 @@ hatm_attach(device_t dev)
 	/*
 	 * ALlocate a DMA tag for subsequent allocations
 	 */
-	if (bus_dma_tag_create(NULL, 1, 0,
+	if (bus_dma_tag_create(bus_get_dma_tag(sc->dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL,
 	    BUS_SPACE_MAXSIZE_32BIT, 1,
@@ -1750,7 +1752,7 @@ hatm_attach(device_t dev)
 	 * but this would not work. So make the maximum number of TPDs
 	 * occupied by one packet a configuration parameter.
 	 */
-	if (bus_dma_tag_create(NULL, 1, 0,
+	if (bus_dma_tag_create(bus_get_dma_tag(sc->dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    HE_MAX_PDU, 3 * HE_CONFIG_MAX_TPD_PER_PACKET, HE_MAX_PDU, 0,
 	    NULL, NULL, &sc->tx_tag)) {
@@ -1928,7 +1930,6 @@ hatm_attach(device_t dev)
 	ifp->if_flags = IFF_SIMPLEX;
 	ifp->if_ioctl = hatm_ioctl;
 	ifp->if_start = hatm_start;
-	ifp->if_watchdog = NULL;
 	ifp->if_init = hatm_init;
 
 	utopia_attach(&sc->utopia, IFP2IFATM(sc->ifp), &sc->media, &sc->mtx,

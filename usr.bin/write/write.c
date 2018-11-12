@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -63,13 +59,15 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <utmp.h>
+#include <utmpx.h>
+#include <wchar.h>
+#include <wctype.h>
 
 void done(int);
 void do_write(char *, char *, uid_t);
 static void usage(void);
 int term_chk(char *, int *, time_t *, int);
-void wr_fputs(unsigned char *s);
+void wr_fputs(wchar_t *s);
 void search_utmp(char *, char *, char *, uid_t);
 int utmp_chk(char *, char *);
 
@@ -146,20 +144,17 @@ usage(void)
 int
 utmp_chk(char *user, char *tty)
 {
-	struct utmp u;
-	int ufd;
+	struct utmpx lu, *u;
 
-	if ((ufd = open(_PATH_UTMP, O_RDONLY)) < 0)
-		return(0);	/* ignore error, shouldn't happen anyway */
-
-	while (read(ufd, (char *) &u, sizeof(u)) == sizeof(u))
-		if (strncmp(user, u.ut_name, sizeof(u.ut_name)) == 0 &&
-		    strncmp(tty, u.ut_line, sizeof(u.ut_line)) == 0) {
-			(void)close(ufd);
+	strncpy(lu.ut_line, tty, sizeof lu.ut_line);
+	setutxent();
+	while ((u = getutxline(&lu)) != NULL)
+		if (u->ut_type == USER_PROCESS &&
+		    strcmp(user, u->ut_user) == 0) {
+			endutxent();
 			return(0);
 		}
-
-	(void)close(ufd);
+	endutxent();
 	return(1);
 }
 
@@ -177,43 +172,40 @@ utmp_chk(char *user, char *tty)
 void
 search_utmp(char *user, char *tty, char *mytty, uid_t myuid)
 {
-	struct utmp u;
+	struct utmpx *u;
 	time_t bestatime, atime;
-	int ufd, nloggedttys, nttys, msgsok, user_is_me;
-	char atty[UT_LINESIZE + 1];
-
-	if ((ufd = open(_PATH_UTMP, O_RDONLY)) < 0)
-		err(1, "utmp");
+	int nloggedttys, nttys, msgsok, user_is_me;
 
 	nloggedttys = nttys = 0;
 	bestatime = 0;
 	user_is_me = 0;
-	while (read(ufd, (char *) &u, sizeof(u)) == sizeof(u))
-		if (strncmp(user, u.ut_name, sizeof(u.ut_name)) == 0) {
+
+	setutxent();
+	while ((u = getutxent()) != NULL)
+		if (u->ut_type == USER_PROCESS &&
+		    strcmp(user, u->ut_user) == 0) {
 			++nloggedttys;
-			(void)strncpy(atty, u.ut_line, UT_LINESIZE);
-			atty[UT_LINESIZE] = '\0';
-			if (term_chk(atty, &msgsok, &atime, 0))
+			if (term_chk(u->ut_line, &msgsok, &atime, 0))
 				continue;	/* bad term? skip */
 			if (myuid && !msgsok)
 				continue;	/* skip ttys with msgs off */
-			if (strcmp(atty, mytty) == 0) {
+			if (strcmp(u->ut_line, mytty) == 0) {
 				user_is_me = 1;
 				continue;	/* don't write to yourself */
 			}
 			++nttys;
 			if (atime > bestatime) {
 				bestatime = atime;
-				(void)strcpy(tty, atty);
+				(void)strlcpy(tty, u->ut_line, MAXPATHLEN);
 			}
 		}
+	endutxent();
 
-	(void)close(ufd);
 	if (nloggedttys == 0)
 		errx(1, "%s is not logged in", user);
 	if (nttys == 0) {
 		if (user_is_me) {		/* ok, so write to yourself! */
-			(void)strcpy(tty, mytty);
+			(void)strlcpy(tty, mytty, MAXPATHLEN);
 			return;
 		}
 		errx(1, "%s has messages disabled", user);
@@ -253,7 +245,8 @@ do_write(char *tty, char *mytty, uid_t myuid)
 	char *nows;
 	struct passwd *pwd;
 	time_t now;
-	char path[MAXPATHLEN], host[MAXHOSTNAMELEN], line[512];
+	char path[MAXPATHLEN], host[MAXHOSTNAMELEN];
+	wchar_t line[512];
 
 	/* Determine our login name before we reopen() stdout */
 	if ((login = getlogin()) == NULL) {
@@ -279,7 +272,7 @@ do_write(char *tty, char *mytty, uid_t myuid)
 	(void)printf("\r\n\007\007\007Message from %s@%s on %s at %s ...\r\n",
 	    login, host, mytty, nows + 11);
 
-	while (fgets(line, sizeof(line), stdin) != NULL)
+	while (fgetws(line, sizeof(line)/sizeof(wchar_t), stdin) != NULL)
 		wr_fputs(line);
 }
 
@@ -298,30 +291,20 @@ done(int n __unused)
  *     turns \n into \r\n
  */
 void
-wr_fputs(unsigned char *s)
+wr_fputs(wchar_t *s)
 {
 
-#define	PUTC(c)	if (putchar(c) == EOF) err(1, NULL);
+#define	PUTC(c)	if (putwchar(c) == WEOF) err(1, NULL);
 
-	for (; *s != '\0'; ++s) {
-		if (*s == '\n') {
-			PUTC('\r');
-		} else if (((*s & 0x80) && *s < 0xA0) ||
-			   /* disable upper controls */
-			   (!isprint(*s) && !isspace(*s) &&
-			    *s != '\a' && *s != '\b')
-			  ) {
-			if (*s & 0x80) {
-				*s &= ~0x80;
-				PUTC('M');
-				PUTC('-');
-			}
-			if (iscntrl(*s)) {
-				*s ^= 0x40;
-				PUTC('^');
-			}
+	for (; *s != L'\0'; ++s) {
+		if (*s == L'\n') {
+			PUTC(L'\r');
+			PUTC(L'\n');
+		} else if (iswprint(*s) || iswspace(*s)) {
+			PUTC(*s);
+		} else {
+			wprintf(L"<0x%X>", *s);
 		}
-		PUTC(*s);
 	}
 	return;
 #undef PUTC

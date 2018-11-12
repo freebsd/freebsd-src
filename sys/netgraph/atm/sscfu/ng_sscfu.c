@@ -538,8 +538,7 @@ ng_sscfu_constructor(node_p node)
 {
 	struct priv *priv;
 
-	if ((priv = malloc(sizeof(*priv), M_NG_SSCFU, M_NOWAIT|M_ZERO)) == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NG_SSCFU, M_WAITOK | M_ZERO);
 
 	if ((priv->sscf = sscfu_create(node, &sscfu_funcs)) == NULL) {
 		free(priv, M_NG_SSCFU);
@@ -588,10 +587,8 @@ sscfu_verbose(struct sscfu *sscfu, void *arg, const char *fmt, ...)
 static int
 ng_sscfu_mod_event(module_t mod, int event, void *data)
 {
-	int s;
 	int error = 0;
 
-	s = splnet();
 	switch (event) {
 
 	  case MOD_LOAD:
@@ -604,6 +601,5 @@ ng_sscfu_mod_event(module_t mod, int event, void *data)
 		error = EOPNOTSUPP;
 		break;
 	}
-	splx(s);
 	return (error);
 }

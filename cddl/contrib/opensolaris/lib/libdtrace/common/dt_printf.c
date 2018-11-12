@@ -20,13 +20,12 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
-#if defined(sun)
+#ifdef illumos
 #include <sys/sysmacros.h>
 #else
 #define	ABS(a)		((a) < 0 ? -(a) : (a))
@@ -34,13 +33,18 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <arpa/nameser.h>
 
 #include <dt_printf.h>
 #include <dt_string.h>
@@ -158,7 +162,7 @@ static int
 pfcheck_dint(dt_pfargv_t *pfv, dt_pfargd_t *pfd, dt_node_t *dnp)
 {
 	if (dnp->dn_flags & DT_NF_SIGNED)
-		pfd->pfd_flags |= DT_PFCONV_SIGNED;
+		pfd->pfd_fmt[strlen(pfd->pfd_fmt) - 1] = 'i';
 	else
 		pfd->pfd_fmt[strlen(pfd->pfd_fmt) - 1] = 'u';
 
@@ -306,7 +310,8 @@ pfprint_fp(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 	case sizeof (double):
 		return (dt_printf(dtp, fp, format,
 		    *((double *)addr) / n));
-#if !defined(__arm__) && !defined(__powerpc__) && !defined(__mips__)
+#if !defined(__arm__) && !defined(__powerpc__) && \
+    !defined(__mips__) && !defined(__riscv__)
 	case sizeof (long double):
 		return (dt_printf(dtp, fp, format,
 		    *((long double *)addr) / ldn));
@@ -339,7 +344,7 @@ pfprint_addr(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 	do {
 		n = len;
 		s = alloca(n);
-	} while ((len = dtrace_addr2str(dtp, val, s, n)) >= n);
+	} while ((len = dtrace_addr2str(dtp, val, s, n)) > n);
 
 	return (dt_printf(dtp, fp, format, s));
 }
@@ -392,7 +397,7 @@ pfprint_uaddr(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 	do {
 		n = len;
 		s = alloca(n);
-	} while ((len = dtrace_uaddr2str(dtp, pid, val, s, n)) >= n);
+	} while ((len = dtrace_uaddr2str(dtp, pid, val, s, n)) > n);
 
 	return (dt_printf(dtp, fp, format, s));
 }
@@ -463,7 +468,7 @@ pfprint_time(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 	 * Below, we turn this into the canonical adb/mdb /[yY] format,
 	 * "1973 Dec  3 17:20:00".
 	 */
-#if defined(sun)
+#ifdef illumos
 	(void) ctime_r(&sec, src, sizeof (src));
 #else
 	(void) ctime_r(&sec, src);
@@ -503,6 +508,58 @@ pfprint_time822(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 	(void) localtime_r(&sec, &tm);
 	(void) strftime(buf, sizeof (buf), "%a, %d %b %G %T %Z", &tm);
 	return (dt_printf(dtp, fp, format, buf));
+}
+
+/*ARGSUSED*/
+static int
+pfprint_port(dtrace_hdl_t *dtp, FILE *fp, const char *format,
+    const dt_pfargd_t *pfd, const void *addr, size_t size, uint64_t normal)
+{
+	uint16_t port = htons(*((uint16_t *)addr));
+	char buf[256];
+	struct servent *sv, res;
+
+#ifdef illumos
+	if ((sv = getservbyport_r(port, NULL, &res, buf, sizeof (buf))) != NULL)
+#else
+	if (getservbyport_r(port, NULL, &res, buf, sizeof (buf), &sv) > 0)
+#endif
+		return (dt_printf(dtp, fp, format, sv->s_name));
+
+	(void) snprintf(buf, sizeof (buf), "%d", *((uint16_t *)addr));
+	return (dt_printf(dtp, fp, format, buf));
+}
+
+/*ARGSUSED*/
+static int
+pfprint_inetaddr(dtrace_hdl_t *dtp, FILE *fp, const char *format,
+    const dt_pfargd_t *pfd, const void *addr, size_t size, uint64_t normal)
+{
+	char *s = alloca(size + 1);
+	struct hostent *host, res;
+	char inetaddr[NS_IN6ADDRSZ];
+	char buf[1024];
+	int e;
+
+	bcopy(addr, s, size);
+	s[size] = '\0';
+
+	if (strchr(s, ':') == NULL && inet_pton(AF_INET, s, inetaddr) != -1) {
+#ifdef illumos
+		if ((host = gethostbyaddr_r(inetaddr, NS_INADDRSZ,
+		    AF_INET, &res, buf, sizeof (buf), &e)) != NULL)
+#else
+		if (gethostbyaddr_r(inetaddr, NS_INADDRSZ,
+		    AF_INET, &res, buf, sizeof (buf), &host, &e) > 0)
+#endif
+			return (dt_printf(dtp, fp, format, host->h_name));
+	} else if (inet_pton(AF_INET6, s, inetaddr) != -1) {
+		if ((host = getipnodebyaddr(inetaddr, NS_IN6ADDRSZ,
+		    AF_INET6, &e)) != NULL)
+			return (dt_printf(dtp, fp, format, host->h_name));
+	}
+
+	return (dt_printf(dtp, fp, format, s));
 }
 
 /*ARGSUSED*/
@@ -609,7 +666,8 @@ static const dt_pfconv_t _dtrace_conversions[] = {
 { "hu", "u", "unsigned short", pfcheck_type, pfprint_uint },
 { "hx", "x", "short", pfcheck_xshort, pfprint_uint },
 { "hX", "X", "short", pfcheck_xshort, pfprint_uint },
-{ "i", "i", pfproto_xint, pfcheck_dint, pfprint_dint },
+{ "i", "i", pfproto_xint, pfcheck_xint, pfprint_sint },
+{ "I", "s", pfproto_cstr, pfcheck_str, pfprint_inetaddr },
 { "k", "s", "stack", pfcheck_stack, pfprint_stack },
 { "lc", "lc", "int", pfcheck_type, pfprint_sint }, /* a.k.a. wint_t */
 { "ld",	"d", "long", pfcheck_type, pfprint_sint },
@@ -632,12 +690,18 @@ static const dt_pfconv_t _dtrace_conversions[] = {
 { "LG",	"G", "long double", pfcheck_type, pfprint_fp },
 { "o", "o", pfproto_xint, pfcheck_xint, pfprint_uint },
 { "p", "x", pfproto_addr, pfcheck_addr, pfprint_uint },
+{ "P", "s", "uint16_t", pfcheck_type, pfprint_port },
 { "s", "s", "char [] or string (or use stringof)", pfcheck_str, pfprint_cstr },
 { "S", "s", pfproto_cstr, pfcheck_str, pfprint_estr },
 { "T", "s", "int64_t", pfcheck_time, pfprint_time822 },
 { "u", "u", pfproto_xint, pfcheck_xint, pfprint_uint },
+#ifdef illumos
 { "wc",	"wc", "int", pfcheck_type, pfprint_sint }, /* a.k.a. wchar_t */
 { "ws", "ws", pfproto_wstr, pfcheck_wstr, pfprint_wstr },
+#else
+{ "wc", "lc", "int", pfcheck_type, pfprint_sint }, /* a.k.a. wchar_t */
+{ "ws", "ls", pfproto_wstr, pfcheck_wstr, pfprint_wstr },
+#endif
 { "x", "x", pfproto_xint, pfcheck_xint, pfprint_uint },
 { "X", "X", pfproto_xint, pfcheck_xint, pfprint_uint },
 { "Y", "s", "int64_t", pfcheck_time, pfprint_time },
@@ -1012,7 +1076,7 @@ dt_printf_validate(dt_pfargv_t *pfv, uint_t flags,
 		xyerror(D_TYPE_ERR, "failed to lookup agg type %s\n", aggtype);
 
 	bzero(&aggnode, sizeof (aggnode));
-	dt_node_type_assign(&aggnode, dtt.dtt_ctfp, dtt.dtt_type);
+	dt_node_type_assign(&aggnode, dtt.dtt_ctfp, dtt.dtt_type, B_FALSE);
 
 	for (i = 0, j = 0; i < pfv->pfv_argc; i++, pfd = pfd->pfd_next) {
 		const dt_pfconv_t *pfc = pfd->pfd_conv;
@@ -1238,6 +1302,20 @@ pfprint_average(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 
 /*ARGSUSED*/
 static int
+pfprint_stddev(dtrace_hdl_t *dtp, FILE *fp, const char *format,
+    const dt_pfargd_t *pfd, const void *addr, size_t size, uint64_t normal)
+{
+	const uint64_t *data = addr;
+
+	if (size != sizeof (uint64_t) * 4)
+		return (dt_set_errno(dtp, EDT_DMISMATCH));
+
+	return (dt_printf(dtp, fp, format,
+	    dt_stddev((uint64_t *)data, normal)));
+}
+
+/*ARGSUSED*/
+static int
 pfprint_quantize(dtrace_hdl_t *dtp, FILE *fp, const char *format,
     const dt_pfargd_t *pfd, const void *addr, size_t size, uint64_t normal)
 {
@@ -1252,6 +1330,14 @@ pfprint_lquantize(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 	return (dt_print_lquantize(dtp, fp, addr, size, normal));
 }
 
+/*ARGSUSED*/
+static int
+pfprint_llquantize(dtrace_hdl_t *dtp, FILE *fp, const char *format,
+    const dt_pfargd_t *pfd, const void *addr, size_t size, uint64_t normal)
+{
+	return (dt_print_llquantize(dtp, fp, addr, size, normal));
+}
+
 static int
 dt_printf_format(dtrace_hdl_t *dtp, FILE *fp, const dt_pfargv_t *pfv,
     const dtrace_recdesc_t *recs, uint_t nrecs, const void *buf,
@@ -1263,6 +1349,7 @@ dt_printf_format(dtrace_hdl_t *dtp, FILE *fp, const dt_pfargv_t *pfv,
 	dtrace_aggdesc_t *agg;
 	caddr_t lim = (caddr_t)buf + len, limit;
 	char format[64] = "%";
+	size_t ret;
 	int i, aggrec, curagg = -1;
 	uint64_t normal;
 
@@ -1294,7 +1381,9 @@ dt_printf_format(dtrace_hdl_t *dtp, FILE *fp, const dt_pfargv_t *pfv,
 		int prec = pfd->pfd_prec;
 		int rval;
 
+		const char *start;
 		char *f = format + 1; /* skip initial '%' */
+		size_t fmtsz = sizeof(format) - 1;
 		const dtrace_recdesc_t *rec;
 		dt_pfprint_f *func;
 		caddr_t addr;
@@ -1428,11 +1517,17 @@ dt_printf_format(dtrace_hdl_t *dtp, FILE *fp, const dt_pfargv_t *pfv,
 		case DTRACEAGG_AVG:
 			func = pfprint_average;
 			break;
+		case DTRACEAGG_STDDEV:
+			func = pfprint_stddev;
+			break;
 		case DTRACEAGG_QUANTIZE:
 			func = pfprint_quantize;
 			break;
 		case DTRACEAGG_LQUANTIZE:
 			func = pfprint_lquantize;
+			break;
+		case DTRACEAGG_LLQUANTIZE:
+			func = pfprint_llquantize;
 			break;
 		case DTRACEACT_MOD:
 			func = pfprint_mod;
@@ -1445,6 +1540,7 @@ dt_printf_format(dtrace_hdl_t *dtp, FILE *fp, const dt_pfargv_t *pfv,
 			break;
 		}
 
+		start = f;
 		if (pfd->pfd_flags & DT_PFCONV_ALT)
 			*f++ = '#';
 		if (pfd->pfd_flags & DT_PFCONV_ZPAD)
@@ -1457,6 +1553,7 @@ dt_printf_format(dtrace_hdl_t *dtp, FILE *fp, const dt_pfargv_t *pfv,
 			*f++ = '\'';
 		if (pfd->pfd_flags & DT_PFCONV_SPACE)
 			*f++ = ' ';
+		fmtsz -= f - start;
 
 		/*
 		 * If we're printing a stack and DT_PFCONV_LEFT is set, we
@@ -1467,13 +1564,20 @@ dt_printf_format(dtrace_hdl_t *dtp, FILE *fp, const dt_pfargv_t *pfv,
 		if (func == pfprint_stack && (pfd->pfd_flags & DT_PFCONV_LEFT))
 			width = 0;
 
-		if (width != 0)
-			f += snprintf(f, sizeof (format), "%d", ABS(width));
+		if (width != 0) {
+			ret = snprintf(f, fmtsz, "%d", ABS(width));
+			f += ret;
+			fmtsz = MAX(0, fmtsz - ret);
+		}
 
-		if (prec > 0)
-			f += snprintf(f, sizeof (format), ".%d", prec);
+		if (prec > 0) {
+			ret = snprintf(f, fmtsz, ".%d", prec);
+			f += ret;
+			fmtsz = MAX(0, fmtsz - ret);
+		}
 
-		(void) strcpy(f, pfd->pfd_fmt);
+		if (strlcpy(f, pfd->pfd_fmt, fmtsz) >= fmtsz)
+			return (dt_set_errno(dtp, EDT_COMPILER));
 		pfd->pfd_rec = rec;
 
 		if (func(dtp, fp, format, pfd, addr, size, normal) < 0)
@@ -1566,7 +1670,7 @@ dtrace_freopen(dtrace_hdl_t *dtp, FILE *fp, void *fmtdata,
 	if (rval == -1 || fp == NULL)
 		return (rval);
 
-#if defined(sun)
+#ifdef illumos
 	if (pfd->pfd_preflen != 0 &&
 	    strcmp(pfd->pfd_prefix, DT_FREOPEN_RESTORE) == 0) {
 		/*
@@ -1648,7 +1752,7 @@ dtrace_freopen(dtrace_hdl_t *dtp, FILE *fp, void *fmtdata,
 	}
 
 	(void) fclose(nfp);
-#else
+#else	/* !illumos */
 	/*
 	 * The 'standard output' (which is not necessarily stdout)
 	 * treatment on FreeBSD is implemented differently than on
@@ -1723,7 +1827,7 @@ dtrace_freopen(dtrace_hdl_t *dtp, FILE *fp, void *fmtdata,
 
 	/* Remember that the output has been redirected to the new file. */
 	dtp->dt_freopen_fp = nfp;
-#endif
+#endif	/* illumos */
 
 	return (rval);
 }

@@ -57,7 +57,7 @@ static void diag_phy_print(int, char *[]);
 static void diag_phy_stats(int, char *[]);
 static void diag_stats(int, char *[]);
 
-const struct cmdtab diag_phy_tab[] = {
+static const struct cmdtab diag_phy_tab[] = {
 	{ "show",	NULL, 		diag_phy_show },
 	{ "set",	NULL, 		diag_phy_set },
 	{ "stats",	NULL,		diag_phy_stats },
@@ -426,7 +426,7 @@ diag_loop(int argc, char *argv[], const char *text,
 		for (i = 0; i < argc; i++) {
 			TAILQ_FOREACH(aif, &diagif_list, link) {
 				if (strcmp(argv[i], aif->ifname) == 0) {
-					heading(text);
+					heading("%s", text);
 					(*func)(aif);
 					break;
 				}
@@ -436,7 +436,7 @@ diag_loop(int argc, char *argv[], const char *text,
 		}
 	} else {
 		TAILQ_FOREACH(aif, &diagif_list, link) {
-			heading(text);
+			heading("%s", text);
 			(*func)(aif);
 		}
 	}
@@ -992,7 +992,7 @@ diag_vcc_loop(void (*func)(const struct diagif *), const char *text,
 		TAILQ_FOREACH(aif, &diagif_list, link) {
 			diagif_fetch_vcc(aif, fd);
 			if (aif->vtab->count != 0) {
-				heading(text);
+				heading("%s", text);
 				(*func)(aif);
 			}
 		}
@@ -1003,7 +1003,7 @@ diag_vcc_loop(void (*func)(const struct diagif *), const char *text,
 				if (strcmp(aif->ifname, argv[optind]) == 0) {
 					diagif_fetch_vcc(aif, fd);
 					if (aif->vtab->count != 0) {
-						heading(text);
+						heading("%s", text);
 						(*func)(aif);
 					}
 					break;

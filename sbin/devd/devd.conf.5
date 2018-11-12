@@ -41,7 +41,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd March 8, 2009
+.Dd April 14, 2016
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -94,7 +94,6 @@ In this way generic statements can be overridden for devices or
 notifications that require special attention.
 .Pp
 The general syntax of a statement is:
-.Pp
 .Bd -literal -offset indent
 statement priority {
 	substatement "value";
@@ -122,6 +121,10 @@ Creates a regular expression and assigns it to the variable
 .Ar regexp-name .
 The variable is available throughout the rest of
 the configuration file.
+If the string begins with
+.Ql \&! ,
+it matches if the regular expression formed by the rest of the string
+does not match.
 All regular expressions have an implicit
 .Ql ^$
 around them.
@@ -178,9 +181,8 @@ Valid media types are:
 .Dq Li Tokenring ,
 .Dq Li FDDI ,
 .Dq Li 802.11 ,
-.Dq Li ATM ,
 and
-.Dq Li CARP .
+.Dq Li ATM .
 .It Ic subdevice Qq Ar string ;
 This is shorthand for
 .Dq Ic match Qo Li subdevice Qc Qq Ar string .
@@ -232,10 +234,19 @@ A partial list of variables and their possible values that can be used together
 with the
 .Ic match
 statement.
+The variables are published by the bus based on characteristics of the device
+that generated the event (for device events).
+Variables for other classes of events are dependent on those events.
 .Pp
 .Bl -tag -width ".Li manufacturer" -compact
 .It Ic Variable
 .Ic Description
+.It Li *
+The entire message from the current event
+.It Li _
+The entire message from the current event, after the initial type character
+.It Li timestamp
+The time this event was processed, in seconds since 1970 dot fraction
 .It Li bus
 Device name of parent bus.
 .It Li cdev
@@ -250,19 +261,49 @@ CIS-vendor.
 Device class.
 .It Li device
 Device ID.
+.It Li devclass
+Device Class (USB)
+.It Li devsubclass
+Device Sub-class (USB)
 .It Li device-name
 Name of attached/detached device.
+.It Li endpoints
+Endpoint count (USB)
 .It Li function
 Card functions.
+.It Li interface
+Interface ID (USB)
+.It Li intclass
+Interface Class (USB)
+.It Li intprotocol
+Interface Protocol  (USB)
+.It Li intsubclass
+Interface Sub-class (USB)
+.It Li jail
+Jail name for the process triggering the rule (RCTL)
 .It Li manufacturer
 Manufacturer ID (pccard).
+.It Li mode
+Peripheral mode (USB)
 .It Li notify
 Match the value of the
 .Dq Li notify
 variable.
+.It Li parent
+Parent device
+.It Li pid
+PID of the process triggering the rule (RCTL)
+.It Li port
+Hub port number (USB)
 .It Li product
-Product ID (pccard).
-.It Li serial
+Product ID (pccard/USB).
+.It Li release
+Hardware revision (USB)
+.It Li ruid
+Real UID of the process triggering the rule (RCTL)
+.It Li rule
+Rule (RCTL)
+.It Li sernum
 Serial Number (USB).
 .It Li slot
 Card slot.
@@ -298,8 +339,34 @@ Button state ($notify=0x00 is power, 0x01 is sleep).
 Battery events.
 .It Li Lid
 Lid state ($notify=0x00 is closed, 0x01 is open).
+.It Li PROCESSOR
+Processor state/configuration ($notify=0x81 is a change in available Cx states).
+.It Li Resume
+Resume notification.
+.It Li Suspend
+Suspend notification.
 .It Li Thermal
 Thermal zone events.
+.El
+.Pp
+.It Li CARP
+Events related to the
+.Xr carp 4
+protocol.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Ar vhid@interface
+The
+.Dq subsystem
+contains the actual CARP vhid and the name of the network interface
+on which the event took place.
+.Bl -tag -width ".Li MASTER" -compact
+.It Sy Type
+.It Li MASTER
+Node become the master for a virtual host.
+.It Li BACKUP
+Node become the backup for a virtual host.
+.El
 .El
 .Pp
 .It Li IFNET
@@ -323,6 +390,7 @@ The network interface is attached to the system.
 The network interface is detached from the system.
 .El
 .El
+.Pp
 .It Li DEVFS
 Events related to the
 .Xr devfs 5
@@ -342,6 +410,72 @@ The
 node is destroyed.
 .El
 .El
+.Pp
+.It Li GEOM
+Events related to the
+.Xr geom 4
+framework.
+The difference compared to
+.Li DEVFS
+is that
+.Li GEOM
+only includes disk-like devices.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li DEV
+.Bl -tag -width ".Li MEDIACHANGE" -compact
+.It Sy Type
+.It Li CREATE
+A
+.Xr geom 4
+device node is created.
+.It Li DESTROY
+A
+.Xr geom 4
+device node is destroyed.
+.It Li GEOM::physpath
+The physical path of a device has changed.
+.It Li MEDIACHANGE
+Physical media has changed.
+.El
+.El
+.Pp
+.It Li RCTL
+Events related to the
+.Xr rctl 8
+framework.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li rule
+.Bl -tag -width ".Li matched" -compact
+.It Sy Type
+.It Li matched
+A rule with action specified as "devctl" was triggered.
+.El
+.El
+.Pp
+.It Li USB
+Events related to the USB subsystem.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li DEVICE
+.Bl -tag -width ".Li DETACH" -compact
+.It Sy Type
+.It Li ATTACH
+USB device is attached to the system.
+.It Li DETACH
+USB device is detached from the system.
+.El
+.It Li INTERFACE
+.Bl -tag -width ".Li DETACH" -compact
+.It Sy Type
+.It Li ATTACH
+USB interface is attached to a device.
+.It Li DETACH
+USB interface is detached from a device.
+.El
+.El
+.Pp
 .It Li coretemp
 Events related to the
 .Xr coretemp 4
@@ -356,6 +490,7 @@ Notification that the CPU core has reached critical temperature.
 String containing the temperature of the core that has become too hot.
 .El
 .El
+.Pp
 .It Li kern
 Events related to the kernel.
 .Bl -tag -width ".Sy Subsystem" -compact
@@ -366,6 +501,23 @@ Information about the state of the system.
 .It Sy Type
 .It Li resume
 Notification that the system has woken from the suspended state.
+.El
+.El
+.Pp
+.It Li CAM
+Events related to the
+.Xr cam 4
+system.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li periph
+Events related to peripheral devices.
+.Bl -tag -width ".li timeout" -compact
+.It Sy Type
+.It Li error
+Generic errors.
+.It Li timeout
+Command timeouts.
 .El
 .El
 .El
@@ -461,6 +613,17 @@ notify 0 {
 };
 
 #
+# Match a USB device type
+#
+notify 0 {
+	match "system"			"USB";
+	match "subsystem"		"INTERFACE";
+	match "type"			"ATTACH";
+	match "intclass"		"0x0e";
+	action "logger USB video device attached";
+};
+
+#
 # Try to configure ath and wi devices with pccard_ether
 # as they are attached.
 #
@@ -485,4 +648,6 @@ has many additional examples.
 .Sh SEE ALSO
 .Xr coretemp 4 ,
 .Xr devfs 5 ,
-.Xr devd 8
+.Xr re_format 7 ,
+.Xr devd 8 ,
+.Xr cam 4

@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2008
+.Dd October 3, 2016
 .Dt MOUNT_MSDOSFS 8
 .Os
 .Sh NAME
@@ -142,15 +142,8 @@ If neither
 nor
 .Fl l
 are given,
-.Nm
-searches the root directory of the file system to
-be mounted for any existing Win'95 long filenames.
-If no such entries are found, but short DOS filenames are found,
-.Fl s
-is the default.
-Otherwise
 .Fl l
-is assumed.
+is the default.
 .It Fl 9
 Ignore the special Win'95 directory entries even
 if deleting or renaming a file.
@@ -182,14 +175,14 @@ Specify text file name with conversion table:
 .El
 .Sh EXAMPLES
 To mount a Russian MS-DOS file system located in
-.Pa /dev/ad1s1 :
+.Pa /dev/ada1s1 :
 .Pp
-.Dl "mount_msdosfs -L ru_RU.KOI8-R -D CP866 /dev/ad1s1 /mnt"
+.Dl "mount_msdosfs -L ru_RU.KOI8-R -D CP866 /dev/ada1s1 /mnt"
 .Pp
 To mount a Japanese MS-DOS file system located in
-.Pa /dev/ad1s1 :
+.Pa /dev/ada1s1 :
 .Pp
-.Dl "mount_msdosfs -L ja_JP.eucJP -D CP932 /dev/ad1s1 /mnt"
+.Dl "mount_msdosfs -L ja_JP.eucJP -D CP932 /dev/ada1s1 /mnt"
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr unmount 2 ,
@@ -199,33 +192,36 @@ To mount a Japanese MS-DOS file system located in
 .Pp
 List of Localized MS Operating Systems:
 .Pa http://www.microsoft.com/globaldev/reference/oslocversion.mspx .
+.Sh HISTORY
+The predecessor to
+.Nm mount_msdos
+utility named
+.Nm mount_pcfs
+appeared in
+.Bx 386 .
+It was rewritten in
+.Nx 1.0
+and first appeared in
+.Fx 2.0 .
+.Nm mount_msdos
+was renamed to the more aptly-named
+.Nm
+in
+.Fx 5.0.
+The character code conversion routine was added in 2003.
+.Sh AUTHORS
+Initial implementation as
+.Nm mount_pcfs
+was written by
+.An -nosplit
+.An Paul Popelka Aq Mt paulp@uts.amdahl.com .
+It was rewritten by
+.An Christopher G. Demetriou Aq Mt cgd@NetBSD.org .
+The character code conversion routine was added by
+.An Ryuichiro Imura Aq Mt imura@ryu16.org .
 .Sh CAVEATS
 The use of the
 .Fl 9
 flag could result in damaged file systems,
 albeit the damage is in part taken care of by
 procedures similar to the ones used in Win'95.
-.Pp
-.Fx 2.1
-and earlier versions could not handle cluster sizes larger than 16K.
-Just mounting an MS-DOS file system could cause corruption to any
-mounted file system.
-Cluster sizes larger than 16K are unavoidable for file system sizes
-larger than 1G, and also occur when file systems larger than 1G are
-shrunk to smaller than 1G using FIPS.
-.Sh HISTORY
-The
-.Nm
-utility first appeared in
-.Fx 2.0 .
-Its predecessor, the
-.Nm mount_pcfs
-utility appeared in
-.Fx 1.0 ,
-and was abandoned in favor
-of the more aptly-named
-.Nm .
-.Pp
-The character code conversion routine was added by
-.An Ryuichiro Imura Aq imura@ryu16.org
-at 2003.

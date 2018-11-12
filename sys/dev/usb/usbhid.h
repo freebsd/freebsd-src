@@ -29,7 +29,9 @@
 #ifndef _USB_HID_H_
 #define	_USB_HID_H_
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <dev/usb/usb_endian.h>
+#endif
 
 #define	UR_GET_HID_DESCRIPTOR	0x06
 #define	UDESC_HID		0x21
@@ -156,6 +158,9 @@ struct usb_hid_descriptor {
 #define	HUD_ERASER		0x0045
 #define	HUD_TABLET_PICK		0x0046
 
+/* Usages, Consumer */
+#define	HUC_AC_PAN		0x0238
+
 #define	HID_USAGE2(p,u) (((p) << 16) | (u))
 
 #define	UHID_INPUT_REPORT 0x01
@@ -223,17 +228,23 @@ void	hid_end_parse(struct hid_data *s);
 int	hid_get_item(struct hid_data *s, struct hid_item *h);
 int	hid_report_size(const void *buf, usb_size_t len, enum hid_kind k,
 	    uint8_t *id);
-int	hid_locate(const void *desc, usb_size_t size, uint32_t usage,
+int	hid_locate(const void *desc, usb_size_t size, int32_t usage,
 	    enum hid_kind kind, uint8_t index, struct hid_location *loc,
 	    uint32_t *flags, uint8_t *id);
-uint32_t hid_get_data(const uint8_t *buf, usb_size_t len,
+int32_t hid_get_data(const uint8_t *buf, usb_size_t len,
 	    struct hid_location *loc);
-int	hid_is_collection(const void *desc, usb_size_t size, uint32_t usage);
+uint32_t hid_get_data_unsigned(const uint8_t *buf, usb_size_t len,
+	    struct hid_location *loc);
+void hid_put_data_unsigned(uint8_t *buf, usb_size_t len,
+	    struct hid_location *loc, unsigned int value);
+int	hid_is_collection(const void *desc, usb_size_t size, int32_t usage);
 struct usb_hid_descriptor *hid_get_descriptor_from_usb(
 	    struct usb_config_descriptor *cd,
 	    struct usb_interface_descriptor *id);
 usb_error_t usbd_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
 	    void **descp, uint16_t *sizep, struct malloc_type *mem,
 	    uint8_t iface_index);
+int	hid_is_mouse(const void *d_ptr, uint16_t d_len);
+int	hid_is_keyboard(const void *d_ptr, uint16_t d_len);
 #endif					/* _KERNEL */
 #endif					/* _USB_HID_H_ */

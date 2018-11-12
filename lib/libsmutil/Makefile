@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/libsmutil
 
@@ -9,6 +10,8 @@ CFLAGS+=-DNEWDB -DNIS -DMAP_REGEX -DNOT_SENDMAIL
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}
 
+WARNS?=	2
+
 LIB=	smutil
 
 SRCS+=	sm_os.h
@@ -17,7 +20,7 @@ CLEANFILES+=sm_os.h
 
 INTERNALLIB=
 
-sm_os.h:
-	ln -sf ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h sm_os.h
+sm_os.h: ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 .include <bsd.lib.mk>

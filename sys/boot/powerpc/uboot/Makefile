@@ -1,16 +1,23 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PROG=		ubldr
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
-NO_MAN=
+MAN=
 
 # Architecture-specific loader code
 SRCS=		start.S conf.c vers.c
+SRCS+=		ucmpdi2.c
 
-LOADER_DISK_SUPPORT?=	no
-LOADER_UFS_SUPPORT?=	no
+.if !defined(LOADER_NO_DISK_SUPPORT)
+LOADER_DISK_SUPPORT?=	yes
+.else
+LOADER_DISK_SUPPORT=	no
+.endif
+LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	no
 LOADER_NET_SUPPORT?=	yes
@@ -18,6 +25,11 @@ LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	no
 LOADER_GZIP_SUPPORT?=	no
 LOADER_BZIP2_SUPPORT?=	no
+.if ${MK_FDT} != "no"
+LOADER_FDT_SUPPORT=	yes
+.else
+LOADER_FDT_SUPPORT=	no
+.endif
 
 .if ${LOADER_DISK_SUPPORT} == "yes"
 CFLAGS+=	-DLOADER_DISK_SUPPORT
@@ -46,8 +58,15 @@ CFLAGS+=	-DLOADER_NFS_SUPPORT
 .if ${LOADER_TFTP_SUPPORT} == "yes"
 CFLAGS+=	-DLOADER_TFTP_SUPPORT
 .endif
+.if ${LOADER_FDT_SUPPORT} == "yes"
+CFLAGS+=	-I${.CURDIR}/../../fdt
+CFLAGS+=	-I${.OBJDIR}/../../fdt
+CFLAGS+=	-DLOADER_FDT_SUPPORT
+LIBUBOOT_FDT=	${.OBJDIR}/../../uboot/fdt/libuboot_fdt.a
+LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
+.endif
 
-.if !defined(NO_FORTH)
+.if ${MK_FORTH} != "no"
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/powerpc
@@ -55,9 +74,9 @@ LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .endif
 
 # Always add MI sources
-.PATH:		${.CURDIR}/../../common
+.PATH:		${.CURDIR}/../../common ${.CURDIR}/../../../libkern
 .include	"${.CURDIR}/../../common/Makefile.inc"
-CFLAGS+=	-I${.CURDIR}/../../common
+CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../..
 CFLAGS+=	-I.
 
 CLEANFILES+=	vers.c ${PROG}.help
@@ -77,19 +96,20 @@ CFLAGS+=	-I${.CURDIR}/../../uboot/lib
 CFLAGS+=	-I${.OBJDIR}/../../uboot/lib
 
 # where to get libstand from
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
-DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBUBOOT} -lstand
+DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSTAND}
+LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSTAND}
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
-${PROG}.help: help.common help.uboot
+loader.help: help.common help.uboot ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
 	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../forth
-FILES=	${PROG}.help
+FILES=	loader.help
 
 .include <bsd.prog.mk>

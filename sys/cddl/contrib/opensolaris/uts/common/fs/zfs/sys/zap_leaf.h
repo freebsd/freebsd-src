@@ -19,20 +19,22 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
 
 #ifndef	_SYS_ZAP_LEAF_H
 #define	_SYS_ZAP_LEAF_H
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+#include <sys/zap.h>
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
 struct zap;
+struct zap_name;
+struct zap_stats;
 
 #define	ZAP_LEAF_MAGIC 0x2AB1EAF
 
@@ -82,7 +84,7 @@ struct zap;
  */
 #define	ZAP_LEAF_CHUNK(l, idx) \
 	((zap_leaf_chunk_t *) \
-	((l)->l_phys->l_hash + ZAP_LEAF_HASH_NUMENTRIES(l)))[idx]
+	(zap_leaf_phys(l)->l_hash + ZAP_LEAF_HASH_NUMENTRIES(l)))[idx]
 #define	ZAP_LEAF_ENTRY(l, idx) (&ZAP_LEAF_CHUNK(l, idx).l_entry)
 
 typedef enum zap_chunk_type {
@@ -100,6 +102,7 @@ typedef enum zap_chunk_type {
  */
 typedef struct zap_leaf_phys {
 	struct zap_leaf_header {
+		/* Public to ZAP */
 		uint64_t lh_block_type;		/* ZBT_LEAF */
 		uint64_t lh_pad1;
 		uint64_t lh_prefix;		/* hash prefix of this leaf */
@@ -108,8 +111,7 @@ typedef struct zap_leaf_phys {
 		uint16_t lh_nentries;		/* number of entries */
 		uint16_t lh_prefix_len;		/* num bits used to id this */
 
-/* above is accessable to zap, below is zap_leaf private */
-
+		/* Private to zap_leaf */
 		uint16_t lh_freelist;		/* chunk head of free list */
 		uint8_t lh_flags;		/* ZLF_* flags */
 		uint8_t lh_pad2[11];
@@ -129,12 +131,12 @@ typedef struct zap_leaf_phys {
 typedef union zap_leaf_chunk {
 	struct zap_leaf_entry {
 		uint8_t le_type; 		/* always ZAP_CHUNK_ENTRY */
-		uint8_t le_int_size;		/* size of ints */
+		uint8_t le_value_intlen;	/* size of value's ints */
 		uint16_t le_next;		/* next entry in hash chain */
 		uint16_t le_name_chunk;		/* first chunk of the name */
-		uint16_t le_name_length;	/* bytes in name, incl null */
+		uint16_t le_name_numints;	/* ints in name (incl null) */
 		uint16_t le_value_chunk;	/* first chunk of the value */
-		uint16_t le_value_length;	/* value length in ints */
+		uint16_t le_value_numints;	/* value length in ints */
 		uint32_t le_cd;			/* collision differentiator */
 		uint64_t le_hash;		/* hash value of the name */
 	} l_entry;
@@ -151,22 +153,27 @@ typedef union zap_leaf_chunk {
 } zap_leaf_chunk_t;
 
 typedef struct zap_leaf {
+	dmu_buf_user_t l_dbu;
 	krwlock_t l_rwlock;
 	uint64_t l_blkid;		/* 1<<ZAP_BLOCK_SHIFT byte block off */
 	int l_bs;			/* block size shift */
 	dmu_buf_t *l_dbuf;
-	zap_leaf_phys_t *l_phys;
 } zap_leaf_t;
 
+inline zap_leaf_phys_t *
+zap_leaf_phys(zap_leaf_t *l)
+{
+	return (l->l_dbuf->db_data);
+}
 
 typedef struct zap_entry_handle {
-	/* below is set by zap_leaf.c and is public to zap.c */
+	/* Set by zap_leaf and public to ZAP */
 	uint64_t zeh_num_integers;
 	uint64_t zeh_hash;
 	uint32_t zeh_cd;
 	uint8_t zeh_integer_size;
 
-	/* below is private to zap_leaf.c */
+	/* Private to zap_leaf */
 	uint16_t zeh_fakechunk;
 	uint16_t *zeh_chunkp;
 	zap_leaf_t *zeh_leaf;
@@ -177,7 +184,7 @@ typedef struct zap_entry_handle {
  * value must equal zap_hash(name).
  */
 extern int zap_leaf_lookup(zap_leaf_t *l,
-    zap_name_t *zn, zap_entry_handle_t *zeh);
+    struct zap_name *zn, zap_entry_handle_t *zeh);
 
 /*
  * Return a handle to the entry with this hash+cd, or the entry with the
@@ -193,18 +200,18 @@ extern int zap_leaf_lookup_closest(zap_leaf_t *l,
  * num_integers in the attribute.
  */
 extern int zap_entry_read(const zap_entry_handle_t *zeh,
-	uint8_t integer_size, uint64_t num_integers, void *buf);
+    uint8_t integer_size, uint64_t num_integers, void *buf);
 
-extern int zap_entry_read_name(const zap_entry_handle_t *zeh,
-	uint16_t buflen, char *buf);
+extern int zap_entry_read_name(struct zap *zap, const zap_entry_handle_t *zeh,
+    uint16_t buflen, char *buf);
 
 /*
  * Replace the value of an existing entry.
  *
- * zap_entry_update may fail if it runs out of space (ENOSPC).
+ * May fail if it runs out of space (ENOSPC).
  */
 extern int zap_entry_update(zap_entry_handle_t *zeh,
-	uint8_t integer_size, uint64_t num_integers, const void *buf);
+    uint8_t integer_size, uint64_t num_integers, const void *buf);
 
 /*
  * Remove an entry.
@@ -216,17 +223,13 @@ extern void zap_entry_remove(zap_entry_handle_t *zeh);
  * belong in this leaf (according to its hash value).  Fills in the
  * entry handle on success.  Returns 0 on success or ENOSPC on failure.
  */
-extern int zap_entry_create(zap_leaf_t *l,
-	const char *name, uint64_t h, uint32_t cd,
-	uint8_t integer_size, uint64_t num_integers, const void *buf,
-	zap_entry_handle_t *zeh);
+extern int zap_entry_create(zap_leaf_t *l, struct zap_name *zn, uint32_t cd,
+    uint8_t integer_size, uint64_t num_integers, const void *buf,
+    zap_entry_handle_t *zeh);
 
-/*
- * Return true if there are additional entries with the same normalized
- * form.
- */
+/* Determine whether there is another entry with the same normalized form. */
 extern boolean_t zap_entry_normalization_conflict(zap_entry_handle_t *zeh,
-    zap_name_t *zn, const char *name, zap_t *zap);
+    struct zap_name *zn, const char *name, struct zap *zap);
 
 /*
  * Other stuff.
@@ -235,7 +238,8 @@ extern boolean_t zap_entry_normalization_conflict(zap_entry_handle_t *zeh,
 extern void zap_leaf_init(zap_leaf_t *l, boolean_t sort);
 extern void zap_leaf_byteswap(zap_leaf_phys_t *buf, int len);
 extern void zap_leaf_split(zap_leaf_t *l, zap_leaf_t *nl, boolean_t sort);
-extern void zap_leaf_stats(zap_t *zap, zap_leaf_t *l, zap_stats_t *zs);
+extern void zap_leaf_stats(struct zap *zap, zap_leaf_t *l,
+    struct zap_stats *zs);
 
 #ifdef	__cplusplus
 }

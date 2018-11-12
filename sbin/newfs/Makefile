@@ -4,11 +4,10 @@
 .PATH: ${.CURDIR}/../../sys/geom
 
 PROG=	newfs
-DPADD=	${LIBUFS}
-LDADD=	-lufs
+LIBADD=	ufs util
 SRCS=	newfs.c mkfs.c geom_bsd_enc.c
 
-WARNS?=	2
+WARNS?=	3
 MAN=	newfs.8
 
 .include <bsd.prog.mk>

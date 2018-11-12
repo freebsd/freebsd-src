@@ -43,12 +43,6 @@
 #include <machine/frame.h>
 #include <machine/segments.h>
 
-/*
- * definitions of cpu-dependent requirements
- * referenced in generic code
- */
-#undef	COPY_SIGCODE		/* don't copy sigcode above user stack in exec */
-
 #define	cpu_exec(p)	/* nothing */
 #define	cpu_swapin(p)	/* nothing */
 #define	cpu_getstack(td)		((td)->td_frame->tf_rsp)
@@ -60,8 +54,23 @@
 #define	TRAPF_PC(framep)	((framep)->tf_rip)
 
 #ifdef _KERNEL
+/*
+ * Struct containing pointers to CPU management functions whose
+ * implementation is run time selectable.  Selection can be made,
+ * for example, based on detection of a particular CPU variant or
+ * hypervisor environment.
+ */
+struct cpu_ops {
+	void (*cpu_init)(void);
+	void (*cpu_resume)(void);
+};
+
+extern struct	cpu_ops cpu_ops;
 extern char	btext[];
 extern char	etext[];
+
+/* Resume hook for VMM. */
+extern	void (*vmm_resume_p)(void);
 
 void	cpu_halt(void);
 void	cpu_reset(void);

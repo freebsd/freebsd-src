@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-glob.c,v 1.22 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: sftp-glob.c,v 1.27 2015/01/14 13:54:13 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -23,11 +23,12 @@
 #endif
 
 #include <dirent.h>
+#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "xmalloc.h"
 #include "sftp.h"
-#include "buffer.h"
 #include "sftp-common.h"
 #include "sftp-client.h"
 
@@ -48,10 +49,10 @@ fudge_opendir(const char *path)
 {
 	struct SFTP_OPENDIR *r;
 
-	r = xmalloc(sizeof(*r));
+	r = xcalloc(1, sizeof(*r));
 
 	if (do_readdir(cur.conn, (char *)path, &r->dir)) {
-		xfree(r);
+		free(r);
 		return(NULL);
 	}
 
@@ -103,7 +104,7 @@ static void
 fudge_closedir(struct SFTP_OPENDIR *od)
 {
 	free_sftp_dirents(od->dir);
-	xfree(od);
+	free(od);
 }
 
 static int
@@ -111,7 +112,7 @@ fudge_lstat(const char *path, struct stat *st)
 {
 	Attrib *a;
 
-	if (!(a = do_lstat(cur.conn, (char *)path, 0)))
+	if (!(a = do_lstat(cur.conn, (char *)path, 1)))
 		return(-1);
 
 	attrib_to_stat(a, st);
@@ -124,7 +125,7 @@ fudge_stat(const char *path, struct stat *st)
 {
 	Attrib *a;
 
-	if (!(a = do_stat(cur.conn, (char *)path, 0)))
+	if (!(a = do_stat(cur.conn, (char *)path, 1)))
 		return(-1);
 
 	attrib_to_stat(a, st);

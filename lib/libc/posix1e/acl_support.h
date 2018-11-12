@@ -45,12 +45,14 @@ int	_acl_brand_may_be(const acl_t acl, int brand);
 int	_entry_brand_may_be(const acl_entry_t entry, int brand);
 void	_acl_brand_as(acl_t acl, int brand);
 void	_entry_brand_as(const acl_entry_t entry, int brand);
+int	_nfs4_acl_entry_from_text(acl_t, char *);
+char	*_nfs4_acl_to_text_np(const acl_t, ssize_t *, int);
 int	_nfs4_format_flags(char *str, size_t size, acl_flag_t var, int verbose);
 int	_nfs4_format_access_mask(char *str, size_t size, acl_perm_t var, int verbose);
 int	_nfs4_parse_flags(const char *str, acl_flag_t *var);
 int	_nfs4_parse_access_mask(const char *str, acl_perm_t *var);
 int	_posix1e_acl_check(acl_t acl);
-int	_posix1e_acl_sort(acl_t acl);
+void	_posix1e_acl_sort(acl_t acl);
 int	_posix1e_acl(acl_t acl, acl_type_t type);
 int	_posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len,
 	    char *buf, int flags);
@@ -61,5 +63,6 @@ int	_posix1e_acl_add_entry(acl_t acl, acl_tag_t tag, uid_t id,
 	    acl_perm_t perm);
 char	*string_skip_whitespace(char *string);
 void	string_trim_trailing_whitespace(char *string);
+int	_acl_name_to_id(acl_tag_t tag, char *name, uid_t *id);
 
 #endif

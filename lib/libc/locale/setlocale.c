@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Category names for getenv()
  */
-static char *categories[_LC_LAST] = {
+static const char categories[_LC_LAST][12] = {
     "LC_ALL",
     "LC_COLLATE",
     "LC_CTYPE",
@@ -95,12 +95,10 @@ static char current_locale_string[_LC_LAST * (ENCODING_LEN + 1/*"/"*/ + 1)];
 
 static char	*currentlocale(void);
 static char	*loadlocale(int);
-static const char *__get_locale_env(int);
+const char *__get_locale_env(int);
 
 char *
-setlocale(category, locale)
-	int category;
-	const char *locale;
+setlocale(int category, const char *locale)
 {
 	int i, j, len, saverr;
         const char *env, *r;
@@ -209,7 +207,7 @@ setlocale(category, locale)
 }
 
 static char *
-currentlocale()
+currentlocale(void)
 {
 	int i;
 
@@ -228,8 +226,7 @@ currentlocale()
 }
 
 static char *
-loadlocale(category)
-	int category;
+loadlocale(int category)
 {
 	char *new = new_categories[category];
 	char *old = current_categories[category];
@@ -278,15 +275,15 @@ loadlocale(category)
 
 	if (func(new) != _LDP_ERROR) {
 		(void)strcpy(old, new);
+		(void)strcpy(__xlocale_global_locale.components[category-1]->locale, new);
 		return (old);
 	}
 
 	return (NULL);
 }
 
-static const char *
-__get_locale_env(category)
-        int category;
+const char *
+__get_locale_env(int category)
 {
         const char *env;
 

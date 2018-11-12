@@ -6,8 +6,7 @@
 PROG=	genrtab
 INTERNALPROG=
 WARNS?=	5
-NO_MAN=
-DPADD=	${LIBM}
-LDADD=	-lm
+MAN=
+LIBADD=	m
 
 .include <bsd.prog.mk>

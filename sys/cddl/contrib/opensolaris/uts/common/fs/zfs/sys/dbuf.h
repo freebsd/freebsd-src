@@ -19,14 +19,14 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+ * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
 
 #ifndef	_SYS_DBUF_H
 #define	_SYS_DBUF_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/dmu.h>
 #include <sys/spa.h>
@@ -35,12 +35,13 @@
 #include <sys/arc.h>
 #include <sys/zfs_context.h>
 #include <sys/refcount.h>
+#include <sys/zrlock.h>
+#include <sys/multilist.h>
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-#define	DB_BONUS_BLKID (-1ULL)
 #define	IN_DMU_SYNC 2
 
 /*
@@ -55,25 +56,33 @@ extern "C" {
 #define	DB_RF_CACHED		(1 << 5)
 
 /*
- * The state transition diagram for dbufs looks like:
+ * The simplified state transition diagram for dbufs looks like:
  *
  *		+----> READ ----+
  *		|		|
  *		|		V
  *  (alloc)-->UNCACHED	     CACHED-->EVICTING-->(free)
- *		|		^
- *		|		|
- *		+----> FILL ----+
+ *		|		^	 ^
+ *		|		|	 |
+ *		+----> FILL ----+	 |
+ *		|			 |
+ *		|			 |
+ *		+--------> NOFILL -------+
+ *
+ * DB_SEARCH is an invalid state for a dbuf. It is used by dbuf_free_range
+ * to find all dbufs in a range of a dnode and must be less than any other
+ * dbuf_states_t (see comment on dn_dbufs in dnode.h).
  */
 typedef enum dbuf_states {
+	DB_SEARCH = -1,
 	DB_UNCACHED,
 	DB_FILL,
+	DB_NOFILL,
 	DB_READ,
 	DB_CACHED,
 	DB_EVICTING
 } dbuf_states_t;
 
-struct objset_impl;
 struct dnode;
 struct dmu_tx;
 
@@ -82,9 +91,6 @@ struct dmu_tx;
  * level = 1 means the single indirect block
  * etc.
  */
-
-#define	LIST_LINK_INACTIVE(link) \
-	((link)->list_next == NULL && (link)->list_prev == NULL)
 
 struct dmu_buf_impl;
 
@@ -113,6 +119,12 @@ typedef struct dbuf_dirty_record {
 	/* pointer to parent dirty record */
 	struct dbuf_dirty_record *dr_parent;
 
+	/* How much space was changed to dsl_pool_dirty_space() for this? */
+	unsigned int dr_accounted;
+
+	/* A copy of the bp that points to us */
+	blkptr_t dr_bp_copy;
+
 	union dirty_types {
 		struct dirty_indirect {
 
@@ -132,6 +144,8 @@ typedef struct dbuf_dirty_record {
 			arc_buf_t *dr_data;
 			blkptr_t dr_overridden_by;
 			override_states_t dr_override_state;
+			uint8_t dr_copies;
+			boolean_t dr_nopwrite;
 		} dl;
 	} dt;
 } dbuf_dirty_record_t;
@@ -146,18 +160,20 @@ typedef struct dmu_buf_impl {
 	dmu_buf_t db;
 
 	/* the objset we belong to */
-	struct objset_impl *db_objset;
+	struct objset *db_objset;
 
 	/*
-	 * the dnode we belong to (NULL when evicted)
+	 * handle to safely access the dnode we belong to (NULL when evicted)
 	 */
-	struct dnode *db_dnode;
+	struct dnode_handle *db_dnode_handle;
 
 	/*
 	 * our parent buffer; if the dnode points to us directly,
-	 * db_parent == db_dnode->dn_dbuf
+	 * db_parent == db_dnode_handle->dnh_dnode->dn_dbuf
 	 * only accessed by sync thread ???
 	 * (NULL when evicted)
+	 * May change from NULL to non-NULL under the protection of db_mtx
+	 * (see dbuf_check_blkptr())
 	 */
 	struct dmu_buf_impl *db_parent;
 
@@ -211,17 +227,36 @@ typedef struct dmu_buf_impl {
 	 * Our link on the owner dnodes's dn_dbufs list.
 	 * Protected by its dn_dbufs_mtx.
 	 */
-	list_node_t db_link;
+	avl_node_t db_link;
+
+	/*
+	 * Link in dbuf_cache.
+	 */
+	multilist_node_t db_cache_link;
 
 	/* Data which is unique to data (leaf) blocks: */
 
-	/* stuff we store for the user (see dmu_buf_set_user) */
-	void *db_user_ptr;
-	void **db_user_data_ptr_ptr;
-	dmu_buf_evict_func_t *db_evict_func;
+	/* User callback information. */
+	dmu_buf_user_t *db_user;
 
-	uint8_t db_immediate_evict;
+	/*
+	 * Evict user data as soon as the dirty and reference
+	 * counts are equal.
+	 */
+	uint8_t db_user_immediate_evict;
+
+	/*
+	 * This block was freed while a read or write was
+	 * active.
+	 */
 	uint8_t db_freed_in_flight;
+
+	/*
+	 * dnode_evict_dbufs() or dnode_evict_bonus() tried to
+	 * evict this dbuf, but couldn't due to outstanding
+	 * references.  Evict once the refcount drops to 0.
+	 */
+	uint8_t db_pending_evict;
 
 	uint8_t db_dirtycnt;
 } dmu_buf_impl_t;
@@ -235,65 +270,82 @@ typedef struct dbuf_hash_table {
 	kmutex_t hash_mutexes[DBUF_MUTEXES];
 } dbuf_hash_table_t;
 
-
-uint64_t dbuf_whichblock(struct dnode *di, uint64_t offset);
+uint64_t dbuf_whichblock(struct dnode *di, int64_t level, uint64_t offset);
 
 dmu_buf_impl_t *dbuf_create_tlib(struct dnode *dn, char *data);
 void dbuf_create_bonus(struct dnode *dn);
+int dbuf_spill_set_blksz(dmu_buf_t *db, uint64_t blksz, dmu_tx_t *tx);
+void dbuf_spill_hold(struct dnode *dn, dmu_buf_impl_t **dbp, void *tag);
+
+void dbuf_rm_spill(struct dnode *dn, dmu_tx_t *tx);
 
 dmu_buf_impl_t *dbuf_hold(struct dnode *dn, uint64_t blkid, void *tag);
 dmu_buf_impl_t *dbuf_hold_level(struct dnode *dn, int level, uint64_t blkid,
     void *tag);
-int dbuf_hold_impl(struct dnode *dn, uint8_t level, uint64_t blkid, int create,
+int dbuf_hold_impl(struct dnode *dn, uint8_t level, uint64_t blkid,
+    boolean_t fail_sparse, boolean_t fail_uncached,
     void *tag, dmu_buf_impl_t **dbp);
 
-void dbuf_prefetch(struct dnode *dn, uint64_t blkid);
+void dbuf_prefetch(struct dnode *dn, int64_t level, uint64_t blkid,
+    zio_priority_t prio, arc_flags_t aflags);
 
 void dbuf_add_ref(dmu_buf_impl_t *db, void *tag);
+boolean_t dbuf_try_add_ref(dmu_buf_t *db, objset_t *os, uint64_t obj,
+    uint64_t blkid, void *tag);
 uint64_t dbuf_refcount(dmu_buf_impl_t *db);
 
 void dbuf_rele(dmu_buf_impl_t *db, void *tag);
+void dbuf_rele_and_unlock(dmu_buf_impl_t *db, void *tag);
 
-dmu_buf_impl_t *dbuf_find(struct dnode *dn, uint8_t level, uint64_t blkid);
+dmu_buf_impl_t *dbuf_find(struct objset *os, uint64_t object, uint8_t level,
+    uint64_t blkid);
 
 int dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags);
-void dbuf_will_dirty(dmu_buf_impl_t *db, dmu_tx_t *tx);
-void dmu_buf_will_fill(dmu_buf_t *db, dmu_tx_t *tx);
-void dbuf_fill_done(dmu_buf_impl_t *db, dmu_tx_t *tx);
+void dmu_buf_will_not_fill(dmu_buf_t *db, dmu_tx_t *tx);
 void dmu_buf_will_fill(dmu_buf_t *db, dmu_tx_t *tx);
 void dmu_buf_fill_done(dmu_buf_t *db, dmu_tx_t *tx);
+void dbuf_assign_arcbuf(dmu_buf_impl_t *db, arc_buf_t *buf, dmu_tx_t *tx);
 dbuf_dirty_record_t *dbuf_dirty(dmu_buf_impl_t *db, dmu_tx_t *tx);
+arc_buf_t *dbuf_loan_arcbuf(dmu_buf_impl_t *db);
+void dmu_buf_write_embedded(dmu_buf_t *dbuf, void *data,
+    bp_embedded_type_t etype, enum zio_compress comp,
+    int uncompressed_size, int compressed_size, int byteorder, dmu_tx_t *tx);
 
-void dbuf_clear(dmu_buf_impl_t *db);
-void dbuf_evict(dmu_buf_impl_t *db);
+void dbuf_destroy(dmu_buf_impl_t *db);
 
 void dbuf_setdirty(dmu_buf_impl_t *db, dmu_tx_t *tx);
 void dbuf_unoverride(dbuf_dirty_record_t *dr);
-void dbuf_sync_list(list_t *list, dmu_tx_t *tx);
+void dbuf_sync_list(list_t *list, int level, dmu_tx_t *tx);
+void dbuf_release_bp(dmu_buf_impl_t *db);
 
 void dbuf_free_range(struct dnode *dn, uint64_t start, uint64_t end,
     struct dmu_tx *);
 
 void dbuf_new_size(dmu_buf_impl_t *db, int size, dmu_tx_t *tx);
 
+#define	DB_DNODE(_db)		((_db)->db_dnode_handle->dnh_dnode)
+#define	DB_DNODE_LOCK(_db)	((_db)->db_dnode_handle->dnh_zrlock)
+#define	DB_DNODE_ENTER(_db)	(zrl_add(&DB_DNODE_LOCK(_db)))
+#define	DB_DNODE_EXIT(_db)	(zrl_remove(&DB_DNODE_LOCK(_db)))
+#define	DB_DNODE_HELD(_db)	(!zrl_is_zero(&DB_DNODE_LOCK(_db)))
+
 void dbuf_init(void);
 void dbuf_fini(void);
 
-#define	DBUF_IS_METADATA(db)	\
-	((db)->db_level > 0 || dmu_ot[(db)->db_dnode->dn_type].ot_metadata)
+boolean_t dbuf_is_metadata(dmu_buf_impl_t *db);
 
-#define	DBUF_GET_BUFC_TYPE(db)	\
-	(DBUF_IS_METADATA(db) ? ARC_BUFC_METADATA : ARC_BUFC_DATA)
+#define	DBUF_GET_BUFC_TYPE(_db)	\
+	(dbuf_is_metadata(_db) ? ARC_BUFC_METADATA : ARC_BUFC_DATA)
 
-#define	DBUF_IS_CACHEABLE(db)						\
-	((db)->db_objset->os_primary_cache == ZFS_CACHE_ALL ||		\
-	(DBUF_IS_METADATA(db) &&					\
-	((db)->db_objset->os_primary_cache == ZFS_CACHE_METADATA)))
+#define	DBUF_IS_CACHEABLE(_db)						\
+	((_db)->db_objset->os_primary_cache == ZFS_CACHE_ALL ||		\
+	(dbuf_is_metadata(_db) &&					\
+	((_db)->db_objset->os_primary_cache == ZFS_CACHE_METADATA)))
 
-#define	DBUF_IS_L2CACHEABLE(db)						\
-	((db)->db_objset->os_secondary_cache == ZFS_CACHE_ALL ||	\
-	(DBUF_IS_METADATA(db) &&					\
-	((db)->db_objset->os_secondary_cache == ZFS_CACHE_METADATA)))
+#define	DBUF_IS_L2CACHEABLE(_db)					\
+	((_db)->db_objset->os_secondary_cache == ZFS_CACHE_ALL ||	\
+	(dbuf_is_metadata(_db) &&					\
+	((_db)->db_objset->os_secondary_cache == ZFS_CACHE_METADATA)))
 
 #ifdef ZFS_DEBUG
 
@@ -321,10 +373,10 @@ _NOTE(CONSTCOND) } while (0)
 #define	dprintf_dbuf_bp(db, bp, fmt, ...) do {			\
 	if (zfs_flags & ZFS_DEBUG_DPRINTF) {			\
 	char *__blkbuf = kmem_alloc(BP_SPRINTF_LEN, KM_SLEEP);	\
-	sprintf_blkptr(__blkbuf, BP_SPRINTF_LEN, bp);		\
+	snprintf_blkptr(__blkbuf, BP_SPRINTF_LEN, bp);		\
 	dprintf_dbuf(db, fmt " %s\n", __VA_ARGS__, __blkbuf);	\
 	kmem_free(__blkbuf, BP_SPRINTF_LEN);			\
-	} 							\
+	}							\
 _NOTE(CONSTCOND) } while (0)
 
 #define	DBUF_VERIFY(db)	dbuf_verify(db)

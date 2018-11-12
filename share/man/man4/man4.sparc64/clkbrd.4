@@ -62,8 +62,6 @@ driver also prints out the number of board slots the chassis provides.
 .It Pa /dev/led/clockboard
 clock board LED device node
 .El
-.Sh CAVEATS
-Hardware management functionality is not implemented.
 .Sh SEE ALSO
 .Xr fhc 4 ,
 .Xr led 4
@@ -81,8 +79,10 @@ version to include it was
 The
 .Nm
 driver was written by
-.An "Jason L. Wright"
+.An Jason L. Wright
 and ported to
 .Fx
 by
-.An "Marius Strobl" Aq marius@FreeBSD.org .
+.An Marius Strobl Aq Mt marius@FreeBSD.org .
+.Sh CAVEATS
+Hardware management functionality is not implemented.

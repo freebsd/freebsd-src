@@ -713,6 +713,7 @@ const struct mips_cpu_info mips_cpu_info_table[] = {
   { "mips32", PROCESSOR_4KC, 32 },
   { "mips32r2", PROCESSOR_M4K, 33 },
   { "mips64", PROCESSOR_5KC, 64 },
+  { "mips64r2", PROCESSOR_5KC, 65 },
 
   /* MIPS I */
   { "r3000", PROCESSOR_R3000, 1 },
@@ -761,6 +762,9 @@ const struct mips_cpu_info mips_cpu_info_table[] = {
   { "sb1", PROCESSOR_SB1, 64 },
   { "sb1a", PROCESSOR_SB1A, 64 },
   { "sr71000", PROCESSOR_SR71000, 64 },
+
+  /* MIPS64R2 */
+  { "octeon", PROCESSOR_OCTEON, 65 },
 
   /* End marker */
   { 0, 0, 0 }
@@ -1293,6 +1297,20 @@ mips_split_const (rtx x, rtx *base, HOST_WIDE_INT *offset)
   *base = x;
 }
 
+/* Classify symbolic expression X, given that it appears in context
+   CONTEXT.  */
+
+static enum mips_symbol_type
+mips_classify_symbolic_expression (rtx x)
+{
+  HOST_WIDE_INT offset;
+
+  mips_split_const (x, &x, &offset);
+  if (UNSPEC_ADDRESS_P (x))
+    return UNSPEC_ADDRESS_TYPE (x);
+
+  return mips_classify_symbol (x);
+}
 
 /* Return true if SYMBOL is a SYMBOL_REF and OFFSET + SYMBOL points
    to the same object as SYMBOL, or to the same object_block.  */
@@ -1530,8 +1548,17 @@ mips_classify_address (struct mips_address_info *info, rtx x,
       info->type = ADDRESS_LO_SUM;
       info->reg = XEXP (x, 0);
       info->offset = XEXP (x, 1);
+      /* We have to trust the creator of the LO_SUM to do something vaguely
+	 sane.  Target-independent code that creates a LO_SUM should also
+	 create and verify the matching HIGH.  Target-independent code that
+	 adds an offset to a LO_SUM must prove that the offset will not
+	 induce a carry.  Failure to do either of these things would be
+	 a bug, and we are not required to check for it here.  The MIPS
+	 backend itself should only create LO_SUMs for valid symbolic
+	 constants, with the high part being either a HIGH or a copy
+	 of _gp. */
+      info->symbol_type = mips_classify_symbolic_expression (info->offset);
       return (mips_valid_base_register_p (info->reg, mode, strict)
-	      && mips_symbolic_constant_p (info->offset, &info->symbol_type)
 	      && mips_symbolic_address_p (info->symbol_type, mode)
 	      && mips_lo_relocs[info->symbol_type] != 0);
 
@@ -4829,7 +4856,7 @@ override_options (void)
 	 issue those instructions unless instructed to do so by
 	 -mbranch-likely.  */
       if (ISA_HAS_BRANCHLIKELY
-	  && !(ISA_MIPS32 || ISA_MIPS32R2 || ISA_MIPS64)
+	  && !(ISA_MIPS32 || ISA_MIPS32R2 || ISA_MIPS64 || ISA_MIPS64R2)
 	  && !(TUNE_MIPS5500 || TUNE_SB1))
 	target_flags |= MASK_BRANCHLIKELY;
       else
@@ -5667,7 +5694,8 @@ print_operand_reloc (FILE *file, rtx op, const char **relocs)
   rtx base;
   HOST_WIDE_INT offset;
 
-  if (!mips_symbolic_constant_p (op, &symbol_type) || relocs[symbol_type] == 0)
+  symbol_type = mips_classify_symbolic_expression (op);
+  if (relocs[symbol_type] == 0)
     fatal_insn ("PRINT_OPERAND, invalid operand for relocation", op);
 
   /* If OP uses an UNSPEC address, we want to print the inner symbol.  */
@@ -9943,6 +9971,7 @@ mips_issue_rate (void)
     case PROCESSOR_R5500:
     case PROCESSOR_R7000:
     case PROCESSOR_R9000:
+    case PROCESSOR_OCTEON:
       return 2;
 
     case PROCESSOR_SB1:

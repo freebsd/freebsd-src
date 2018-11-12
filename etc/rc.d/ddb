@@ -5,13 +5,14 @@
 
 # PROVIDE: ddb
 # REQUIRE: dumpon
-# BEFORE: disks savecore initrandom
+# BEFORE: disks
 # KEYWORD: nojail
 
 . /etc/rc.subr
 
 name="ddb"
-rcvar=`set_rcvar`
+desc="DDB kernel debugger"
+rcvar="ddb_enable"
 command="/sbin/${name}"
 start_precmd="ddb_prestart"
 stop_cmd=":"

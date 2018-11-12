@@ -1,4 +1,4 @@
-/* $OpenBSD: log.c,v 1.41 2008/06/10 04:50:25 dtucker Exp $ */
+/* $OpenBSD: log.c,v 1.46 2015/07/08 19:04:21 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -38,6 +38,7 @@
 
 #include <sys/types.h>
 
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,17 +46,19 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <errno.h>
-#if defined(HAVE_STRNVIS) && defined(HAVE_VIS_H)
+#if defined(HAVE_STRNVIS) && defined(HAVE_VIS_H) && !defined(BROKEN_STRNVIS)
 # include <vis.h>
 #endif
 
-#include "xmalloc.h"
 #include "log.h"
 
 static LogLevel log_level = SYSLOG_LEVEL_INFO;
 static int log_on_stderr = 1;
+static int log_stderr_fd = STDERR_FILENO;
 static int log_facility = LOG_AUTH;
 static char *argv0;
+static log_handler_fn *log_handler;
+static void *log_handler_ctx;
 
 extern char *__progname;
 
@@ -260,6 +263,9 @@ log_init(char *av0, LogLevel level, SyslogFacility facility, int on_stderr)
 		exit(1);
 	}
 
+	log_handler = NULL;
+	log_handler_ctx = NULL;
+
 	log_on_stderr = on_stderr;
 	if (on_stderr)
 		return;
@@ -324,7 +330,53 @@ log_init(char *av0, LogLevel level, SyslogFacility facility, int on_stderr)
 #endif
 }
 
+void
+log_change_level(LogLevel new_log_level)
+{
+	/* no-op if log_init has not been called */
+	if (argv0 == NULL)
+		return;
+	log_init(argv0, new_log_level, log_facility, log_on_stderr);
+}
+
+int
+log_is_on_stderr(void)
+{
+	return log_on_stderr;
+}
+
+/* redirect what would usually get written to stderr to specified file */
+void
+log_redirect_stderr_to(const char *logfile)
+{
+	int fd;
+
+	if ((fd = open(logfile, O_WRONLY|O_CREAT|O_APPEND, 0600)) == -1) {
+		fprintf(stderr, "Couldn't open logfile %s: %s\n", logfile,
+		     strerror(errno));
+		exit(1);
+	}
+	log_stderr_fd = fd;
+}
+
 #define MSGBUFSIZ 1024
+
+void
+set_log_handler(log_handler_fn *handler, void *ctx)
+{
+	log_handler = handler;
+	log_handler_ctx = ctx;
+}
+
+void
+do_log2(LogLevel level, const char *fmt,...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	do_log(level, fmt, args);
+	va_end(args);
+}
 
 void
 do_log(LogLevel level, const char *fmt, va_list args)
@@ -337,6 +389,7 @@ do_log(LogLevel level, const char *fmt, va_list args)
 	char *txt = NULL;
 	int pri = LOG_INFO;
 	int saved_errno = errno;
+	log_handler_fn *tmp_handler;
 
 	if (level > log_level)
 		return;
@@ -375,7 +428,7 @@ do_log(LogLevel level, const char *fmt, va_list args)
 		pri = LOG_ERR;
 		break;
 	}
-	if (txt != NULL) {
+	if (txt != NULL && log_handler == NULL) {
 		snprintf(fmtbuf, sizeof(fmtbuf), "%s: %s", txt, fmt);
 		vsnprintf(msgbuf, sizeof(msgbuf), fmtbuf, args);
 	} else {
@@ -383,9 +436,15 @@ do_log(LogLevel level, const char *fmt, va_list args)
 	}
 	strnvis(fmtbuf, msgbuf, sizeof(fmtbuf),
 	    log_on_stderr ? LOG_STDERR_VIS : LOG_SYSLOG_VIS);
-	if (log_on_stderr) {
+	if (log_handler != NULL) {
+		/* Avoid recursion */
+		tmp_handler = log_handler;
+		log_handler = NULL;
+		tmp_handler(level, fmtbuf, log_handler_ctx);
+		log_handler = tmp_handler;
+	} else if (log_on_stderr) {
 		snprintf(msgbuf, sizeof msgbuf, "%s\r\n", fmtbuf);
-		write(STDERR_FILENO, msgbuf, strlen(msgbuf));
+		(void)write(log_stderr_fd, msgbuf, strlen(msgbuf));
 	} else {
 #if defined(HAVE_OPENLOG_R) && defined(SYSLOG_DATA_INIT)
 		openlog_r(argv0 ? argv0 : __progname, LOG_PID, log_facility, &sdata);

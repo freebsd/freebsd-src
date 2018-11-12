@@ -18,11 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -63,6 +59,7 @@
 #define	_CTYPE_I	0x00080000L		/* Ideogram */
 #define	_CTYPE_T	0x00100000L		/* Special */
 #define	_CTYPE_Q	0x00200000L		/* Phonogram */
+#define	_CTYPE_N 	0x00400000L		/* Number (superset of digit) */
 #define	_CTYPE_SW0	0x20000000L		/* 0 width character */
 #define	_CTYPE_SW1	0x40000000L		/* 1 width character */
 #define	_CTYPE_SW2	0x80000000L		/* 2 width character */

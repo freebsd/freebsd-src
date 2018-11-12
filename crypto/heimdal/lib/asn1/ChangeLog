@@ -1,43 +1,59 @@
-2008-01-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-04-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* pkinit.asn1: add id-pkinit-kdf
+
+	* pkinit.asn1: add PkinitSP80056AOtherInfo
+
+2008-04-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* gen.c: Use unsigned where appropriate.
+
+2008-03-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* k5.asn1: Match name in ClientCanonicalizedNames with -10
+
+	* k5.asn1: add referral-valid-until
+
+2008-01-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* asn1-common.h gen.c der.c gen_encode.c: add and use der_{malloc,free}
 
-2007-12-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* libasn1.h: remove, not used.
 
-2007-12-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-12-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add DigestTypes, add --seq to antoher type.
 
 	* digest.asn1: Add supportedMechs request.
-	
-2007-10-18  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2007-10-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* k5.asn1: Some "old" windows enctypes. From Andy Polyakov.
-	
-2007-07-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2007-07-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Fold in pk-init-alg-agilty.
 
 	* pkinit.asn1: Fold in pk-init-alg-agilty.
 
-2007-07-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* parse.y: Passe object id is its part of the module defintion
 	statement.
 
-2007-07-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-gen.c: test SEQ OF SIZE (...)
 
 	* Makefile.am: Include more sizeof tests.
 
-2007-07-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* try to avoid aliasing of pointers enum {} vs int
 
-2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test.asn1: Test SIZE attribute for SEQ and OCTET STRING
 
@@ -45,10 +61,10 @@
 
 	* Makefile.am: New library version.
 
-2007-07-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
-	* rfc2459.asn1: Re-add size limits. 
-	
+	* rfc2459.asn1: Re-add size limits.
+
 	* k5.asn1: Add size limits from RFC 4120.
 
 	* gen_decode.c: Check range on SEQ OF and OCTET STRING.
@@ -57,17 +73,17 @@
 
 	* parse.y: Parse size limitations to SEQ OF.
 
-2007-06-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add AuthorityInfoAccessSyntax.
 
 	* rfc2459.asn1: Add AuthorityInfoAccessSyntax.
 
 	* rfc2459.asn1: Add authorityInfoAccess, rename proxyCertInfo.
-	
+
 	* Makefile.am: Add authorityInfoAccess, rename proxyCertInfo.
 
-2007-06-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* der_get.c (der_get_time): avoid using wrapping of octet_string
 	and realloc.
@@ -95,20 +111,20 @@
 
 	* check-der.c: Test zero length integer.
 
-2007-06-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-der.c: Init data to something.
 
-2007-06-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* k5.asn1: Add KRB5-AUTHDATA-INITIAL-VERIFIED-CAS.
 
-2007-06-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* pkinit.asn1: Make the pkinit nonce signed (like the kerberos
 	nonce).
 
-2007-06-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-der.c: Free more memory.
 
@@ -122,10 +138,10 @@
 
 	* der_format.c (der_parse_hex_heim_integer): check length before
 	reading data.
-	
+
 	* check-gen.c (test_authenticator): free memory
-	
-2007-05-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2007-05-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: add MS-UPN-SAN
 
@@ -133,13 +149,13 @@
 
 	* rfc2459.asn1: Do evil things to handle IMPLICIT encoded
 	structures.  Add id-ms-client-authentication.
-	
-2007-05-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2007-05-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add asn1_id_ms_cert_enroll_domaincontroller.x
-	
-2007-05-10  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2007-05-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* gen.c: Add struct units; as a forward declaration. Pointed out
 	by Marcus Watts.
 
@@ -148,65 +164,65 @@
 	* Makefile.am: add U.S. Federal PKI Common Policy Framework
 
 	* rfc2459.asn1: add U.S. Federal PKI Common Policy Framework
-	
-2007-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2007-04-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_seq.c: Handle the case of resize to 0 and realloc that
 	returns NULL.
 
 	* check-gen.c (check_seq): free seq.
-	
-2007-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2007-04-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-der.c (test_heim_oid_format_same): avoid leaking memory in
 	the non failure case too
-	
-2007-04-16  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2007-04-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* Makefile.am: remove extra ^Q
-	
-2007-04-11  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2007-04-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* der_get.c: Allow trailing NULs. We allow this since MIT Kerberos
 	sends an strings in the NEED_PREAUTH case that includes a trailing
 	NUL.
-	
-2007-02-17  Love Hörnquist Åstrand  <lha@it.su.se>
-	
-	
+
+2007-02-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+
 	* Makefile.am: Add PA-ClientCanonicalized and friends.
 
 	* k5.asn1: Add PA-ClientCanonicalized and friends.
-	
-2007-02-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2007-02-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-der.c: Drop one over INT_MAX test-case.
-	
-2007-02-05  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2007-02-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* pkinit.asn1: add id-pkinit-ms-eku
-	
+
 	* pkinit.asn1: fill in more bits of id-pkinit-ms-san
-	
-2007-02-02  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2007-02-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* digest.asn1: rename hash-a1 to session key
-	
-2007-02-01  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2007-02-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* digest.asn1: Add elements to send in requestResponse to KDC and
 	get status of the request.
-	
-2007-01-31  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2007-01-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* Makefile.am: seq rules for CRLDistributionPoints
-	
-2007-01-30  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2007-01-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* Makefile.am: add CRLDistributionPoints and friends
-	
-2007-01-20  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2007-01-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* check-der.c: check BMPstring oddlength more
 
 	* check-der.c: Test for NUL char in string in GENERAL STRING.
@@ -215,24 +231,24 @@
 	ASN1_BAD_CHARACTER error-code if we find them.
 
 	* asn1_err.et: Add BAD_CHARACTER error.
-	
-2007-01-16  Love Hörnquist Åstrand <lha@it.su.se>
-	
+
+2007-01-16  Love HÃ¶rnquist Ã…strand <lha@it.su.se>
+
 	* Makefile.am: Add id-at-streetAddress.
 
 	* rfc2459.asn1: Add id-at-streetAddress.
-	
-2007-01-12  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2007-01-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* rfc2459.asn1: Add PKIXXmppAddr and id-pkix-on-xmppAddr.
-	
-2006-12-30  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2006-12-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* Makefile.am: Add id-pkix-kp oids.
 
 	* rfc2459.asn1: Add id-pkix-kp oids.
-	
-2006-12-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-12-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_encode.c: Named bit strings have this horrible, disgusting,
 	compress bits until they are no longer really there but stuff in
@@ -242,56 +258,56 @@
 	* check-gen.c: Check all other silly bitstring combinations.
 
 	* Makefile.am: Add --sequence=Extensions to rfc2459.
-	
-2006-12-28  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2006-12-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* kx509.asn1: Add kx509.
 
 	* Makefile.am: Add kx509.
 
 	* Add VisibleString parsing
 
-2006-12-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add ntlm files.
 
 	* digest.asn1: Add bits for handling NTLM.
-	
-2006-12-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-12-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: add pkix proxy cert policy lang oids
 
 	* rfc2459.asn1: add pkix proxy cert policy lang oids
-	
-2006-12-07  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2006-12-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* rfc2459.asn1: unbreak id-pe-proxyCertInfo
 
 	* rfc2459.asn1: Add id-pkix-on-dnsSRV and related oids
 
-2006-11-28  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+2006-11-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* Makefile.am: Add explicit depenency to LIB_roken for libasn1.la,
 	make AIX happy.
-	
-2006-11-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-11-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* der_format.c (der_print_heim_oid): oid with zero length is
 	invalid, fail to print.
-	
-2006-11-24  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2006-11-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* der_format.c (der_print_heim_oid): use delim when printing.
-	
-2006-11-21  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2006-11-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* k5.asn1: Make KRB5-PADATA-S4U2SELF pa type 129.
-	
-2006-10-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-10-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* asn1_err.et: add EXTRA_DATA
-	
-2006-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-10-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-gen.c: avoid leaking memory
 
@@ -305,18 +321,18 @@
 	unaligned.
 
 	* lex.l: add missing */
-	
+
 	* lex.c: need %e for hpux lex
 
-2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+2006-10-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* Makefile.am: remove dups from gen_files_test, add check-timegm.
-	
+
 	* Makefile.am: include more test.asn1 built files
 
 	* Makefile.am: More files, now for make check.
-	
-2006-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-10-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add missing files
 
@@ -329,17 +345,17 @@
 	* timegm.c: make more strict
 
 	* der_locl.h: Rename timegm to _der_timegm.
-	
-2006-10-17  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2006-10-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* timegm.c: vJust fail if tm_mon is out of range for now XXXX this
 	is wrong.
-	
-2006-10-16  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2006-10-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* Makefile.am: extra depencies on der-protos.h
-	
-2006-10-14 Love Hörnquist Åstrand <lha@it.su.se>
+
+2006-10-14 Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 
 	* check-der.c: Prefix primitive types with der_.
 
@@ -348,7 +364,7 @@
 	* heim_asn1.h: move prototype away from here.
 
 	* der_format.c: Add der_parse_heim_oid
-	
+
 	* gen_free.c: prefix primitive types with der_
 
 	* der_copy.c: prefix primitive types with der_
@@ -368,7 +384,7 @@
 	* der_copy.c: rename copy_ to der_copy_
 
 	* Makefile.am: Add der-protos.h to nodist_include_HEADERS.
-	
+
 	* der.h: use newly built <der-protos.h>
 
 	* Makefile.am: Generate der prototypes.
@@ -384,29 +400,29 @@
 
 	* check-der.c: New der_print_heim_oid signature.  Test
 	der_parse_heim_oid
-	
-2006-10-07  Love Hörnquist Åstrand <lha@it.su.se>
-	
+
+2006-10-07  Love HÃ¶rnquist Ã…strand <lha@it.su.se>
+
 	* lex.l: Grow an even larger output table size.
 
 	* Makefile.am: split build files into dist_ and noinst_ SOURCES
-	
-2006-10-04  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-10-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_seq.c: In generation of remove_TYPE: if you just removed the
 	last element, you must not memmove memory beyond the array.  From
 	Andrew Bartlett
-	
-2006-10-01  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-10-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* lex.l: Grow (%p, %a, %n) tables for Solaris 10 lex. From Harald
 	Barth.
-	
-2006-09-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-09-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_decode.c (decode_type): drop unused variable realtype.
-	
-2006-09-11  Love Hörnquist Åstrand <lha@it.su.se>
+
+2006-09-11  Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 
 	* Makefile.am: Add KRB5SignedPath and friends.
 
@@ -414,12 +430,12 @@
 
 	* Makefile.am: Add new sequence generation for GeneralNames.
 
-2006-09-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* CMS.asn1 (CMSVersion): rename versions from v0 to CMSVersion_v0,
 	...
-	
-2006-09-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-09-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add TESTSeqOf for testing sequence generation code.
 
@@ -446,23 +462,23 @@
 	TType". I'm tried of writing realloc(foo->data,
 	sizeof(foo->data[0]) + (foo->len + 1)); Only generated for those
 	type that is enabled by the command flag --sequence.
-	
-2006-08-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-08-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* digest.asn1 (DigestRequest): add authid
 
 	* digest.asn1: Comment describing on how to communicate the sasl
 	int/conf mode.
-	
-2006-08-23  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-08-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* digest.asn1: Add some missing fields needed for digest.
-	
-2006-08-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-08-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* digest.asn1: Tweak to make consisten and more easier to use.
-	
-2006-07-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-07-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Remove CMS symmetric encryption support.  Add
 	DigestProtocol.
@@ -470,9 +486,9 @@
 	* digest.asn1: DigestProtocol
 
 	* k5.asn1: Remove CMS symmetric encryption support.
-	
-2006-06-22  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2006-06-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* check-der.c (check_fail_heim_integer): disable test
 
 	* der_get.c (der_get_heim_integer): revert part of previous
@@ -485,58 +501,58 @@
 
 	* check-der.c: Add one check for heim_int, add checking for oid
 	printing
-	
-2006-06-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-06-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Impersonation support bits (and sort)
 
 	* k5.asn1: Impersonation support bits.
-	
-2006-05-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-05-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* der_format.c (der_parse_hex_heim_integer): avoid shadowing.
-	
-2006-04-29  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2006-04-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* Makefile.am: Add ExternalPrincipalIdentifiers, shared between
 	several elements.
 
 	* pkinit.asn1: Add ExternalPrincipalIdentifiers, shared between
 	several elements.
-	
-2006-04-28  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-04-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* parse.y: Add missing ;'s, found by bison on a SuSE 8.2 machine.
-	
-2006-04-26  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-04-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add definitions from RFC 3820, Proxy Certificate
 	Profile.
 
 	* rfc2459.asn1: Add definitions from RFC 3820, Proxy Certificate
 	Profile.
-	
-2006-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-04-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rfc2459.asn1: Add id-Userid
 
 	* Makefile.am: Add UID and email
 
 	* pkcs9.asn1: Add id-pkcs9-emailAddress
-	
+
 	* Makefile.am: Add attribute type oids from X520 and RFC 2247 DC
 	oid
 
 	* rfc2459.asn1: Add attribute type oids from X520 and RFC 2247 DC
 	oid
-	
-2006-04-21  Love Hörnquist Åstrand <lha@it.su.se>
+
+2006-04-21  Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 
 	* Makefile.am: add sha-1 and sha-2
 
 	* rfc2459.asn1: add sha-1 and sha-2
-	
-2006-04-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-04-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add id-pkcs1-sha256WithRSAEncryption and friends
 
@@ -544,50 +560,50 @@
 
 	* CMS.asn1: Turn CMSRC2CBCParameter.rc2ParameterVersion into a
 	constrained integer
-	
-2006-04-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-04-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hash.c (hashtabnew): check for NULL before setting structure.
 	Coverity, NetBSD CID#4
-	
-2006-03-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-03-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: gen_files_rfc2459 += asn1_ExtKeyUsage.x
-	
+
 	* rfc2459.asn1: Add ExtKeyUsage.
 
 	* gen.c (generate_header_of_codefile): remove unused variable.
-	
-2006-03-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-03-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen.c: Put all the IMPORTed headers into the headerfile to avoid
 	hidden depencies.
-	
-2006-03-27  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-03-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add id-pkinit-ms-san.
 
 	* pkinit.asn1: Add id-pkinit-ms-san.
 
 	* k5.asn1 (PADATA-TYPE): Add KRB5-PADATA-PA-PK-OCSP-RESPONSE
-	
-2006-03-26  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-03-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add pkinit-san.
 
 	* pkinit.asn1: Rename id-pksan to id-pkinit-san
-	
-2006-03-08  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-03-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen.c (init_generate): Nothing in the generated files needs
 	timegm(), so no need to provide a prototype for it.
-	
-2006-02-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-02-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* pkinit.asn1: paChecksum is now OPTIONAL so it can be upgraded to
 	something better then SHA1
-	
-2006-01-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-01-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* extra.c: Stub-generator now generates alloc statements for
 	tagless ANY OPTIONAL, remove workaround.
@@ -595,25 +611,25 @@
 	* check-gen.c: check for "tagless ANY OPTIONAL"
 
 	* test.asn1: check for "tagless ANY OPTIONAL"
-	
-2006-01-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-01-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* der.h: UniversalString and BMPString are both implemented.
 
 	* der.h: Remove , after the last element of enum.
 
 	* asn1_gen.c: Spelling.
-	
-2006-01-20  Love Hörnquist Åstrand <lha@it.su.se>
-	
+
+2006-01-20  Love HÃ¶rnquist Ã…strand <lha@it.su.se>
+
 	* der_length.c (length_heim_integer): Try handle negative length
 	of integers better.
 
 	* der_get.c (der_get_heim_integer): handle negative integers.
-	
+
 	* check-der.c: check heim_integer.
-	
-2006-01-18  Love Hörnquist Åstrand <lha@it.su.se>
+
+2006-01-18  Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 
 	* Makefile.am: Its cRLReason, not cRLReasons
 
@@ -630,8 +646,8 @@
 
 	* der_cmp.c (heim_integer_cmp): make it work with negative
 	numbers.
-	
-2006-01-17  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2006-01-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-der.c: check that der_parse_hex_heim_integer() handles odd
 	length numbers.
@@ -639,21 +655,21 @@
 	* der_format.c (der_parse_hex_heim_integer): make more resiliant
 	to errors, handle odd length numbers.
 
-2006-01-13  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+2006-01-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* Makefile.am: Add RSAPrivateKey
-	
+
 	* rfc2459.asn1: Add RSAPrivateKey.
-	
-2006-01-05  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2006-01-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* der_copy.c (copy_heim_integer): copy the negative flag
-	
-2005-12-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2005-12-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* parse.y: Drop ExceptionSpec for now, its not used.
-	
-2005-12-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2005-12-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test.asn1: Add test string for constraints.
 
@@ -663,71 +679,71 @@
 	constructed types.
 
 	* parse.y: Add support for parsing part of the Constraint-s
-	
-2005-10-29  Love Hörnquist Åstrand  <lha@it.su.se>
-	
+
+2005-10-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
 	* Makefile.am: Add some X9.57 (DSA) oids, sort lines
 
 	* rfc2459.asn1: Add some X9.57 (DSA) oids.
-	
-2005-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2005-10-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Remove pk-init-19 support.
-	
+
 	* pkinit.asn1: Fix comment
-	
+
 	* check-der.c: Add tests for parse and print functions for
 	heim_integer.
 
 	* Makefile.am: Add parse and print functions for heim_integer.
-	
+
 	* der_format.c: Add parse and print functions for heim_integer.
 
 	* der.h: Add parse and print functions for heim_integer.
-	
-2005-09-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2005-09-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am (gen_files_rfc2459) += asn1_DHPublicKey.x
-	
+
 	* rfc2459.asn1: Add DHPublicKey, and INTEGER to for storing the DH
 	public key in the SubjectPublicKeyInfo.subjectPublicKey BIT
 	STRING.
-	
-2005-09-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2005-09-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_decode.c: TSequenceOf/TSetOf: Increase the length of the
 	array after successful decoding the next element, so that the
 	array don't contain heap-data.
-	
-2005-09-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2005-09-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-der.c: Avoid empty array initiators.
-	
+
 	* pkcs8.asn1 (PKCS8PrivateKeyInfo): Inline SET OF to avoid
 	compiler "feature"
-	
+
 	* check-common.c: Avoid signedness warnings.
-	
+
 	* check-common.h: Makes bytes native platform signed to avoid
 	casting everywhere
-	
+
 	* check-der.c: Don't depend on malloc(very-very-larger-value) will
 	fail.  Cast to unsigned long before printing size_t.
-	
+
 	* check-gen.c: Don't depend on malloc(very-very-larger-value) will
 	fail.
-	
+
 	* check-gen.c: Fix signedness warnings.
-	
+
 	* lex.l: unput() have to hanppen in actions for flex 2.5.31, can
 	do them in user code sesction, so move up handle_comment and
 	handle_string into action, not much sharing was done anyway.
-	
-2005-09-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2005-09-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-der.c (test_one_int): len and len_len is size_t
 
-2005-08-23  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-08-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_encode.c: Change name of oldret for each instance its used
 	to avoid shadow warning. From: Stefan Metzmacher
@@ -740,61 +756,61 @@
 	* gen_decode.c: Change name of oldret for each instance its used
 	to avoid shadow warning. From: Stefan Metzmacher
 	<metze@samba.org>.
-	
+
 	* parse.y: Const poision yyerror.
 
 	* gen.c: Const poision.
-	
-2005-08-22 Love Hörnquist Åstrand  <lha@it.su.se>
+
+2005-08-22 Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* k5.asn1: Add KRB5-PADATA-PK-AS-09-BINDING, client send
 	this (with an empty pa-data.padata-value) to tell the KDC that the
 	client support the binding the PA-REP to the AS-REQ packet. This
 	is to fix the problem lack of binding the AS-REQ to the PK-AS-REP
 	in pre PK-INIT-27. The nonce is replaced with a asCheckSum.
-	
-2005-08-11 Love Hörnquist Åstrand  <lha@it.su.se>
+
+2005-08-11 Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* canthandle.asn1: Allocation is done on CONTEXT tags.
 
 	* asn1_gen.c: rename optind to optidx to avoid shadow warnings
 
-2005-07-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rfc2459.asn1: add id-rsadsi-rc2-cbc
 
 	* Makefile.am: add another oid for rc2
 
-2005-07-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-der.c: Make variable initiation constant by moving them to
 	global context
 
 	* check-gen.c: change to c89 comment
 
-2005-07-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: remove duplicate asn1_CMSAttributes.x
 
-2005-07-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* asn1_print.c: rename optind to optidx
 
 	* Makefile.am: Update to pkinit-27
 
 	* pkinit.asn1: Update to pkinit-27
-	
-2005-07-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+2005-07-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-der.c: make it work for non c99 compilers too
-	
+
 	* check-der.c: start testing BIT STRING
 
 	* der_cmp.c (heim_bit_string_cmp): try handle corner cases better
-	
+
 	* gen_free.c (free_type): free bignum integers
 
-2005-07-23   Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-23   Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: add PKCS12-OctetString
 
@@ -807,24 +823,24 @@
 
 	* CMS.asn1: handle IMPLICIT and share some common structures
 
-2005-07-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rfc2459.asn1: Include enough workarounds that this even might
 	work.
 
 	* check-gen.c: Two implicit tests, one with all structures inlined
-	
+
 	* test.asn1: fix workaround for IMPLICIT CONS case
-	
+
 	* canthandle.asn1: fix workaround for IMPLICIT CONS case
-	
+
 	* asn1_print.c: hint that there are IMPLICIT content when we find
 	it
 
 	* check-gen.c: Added #ifdef out test for IMPLICIT tagging.
 
 	* Makefile.am: test several IMPLICIT tag level deep
-	
+
 	* test.asn1: test several IMPLICIT tag level deep
 
 	* test.asn1: tests for IMPLICIT
@@ -837,7 +853,7 @@
 	* rfc2459.asn1: some of the structure are in the IMPLICIT TAGS
 	module
 
-2005-07-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* asn1_print.c: print size_t by casting to unsigned long and use
 	right printf format tags are unsigned integers
@@ -869,7 +885,7 @@
 
 	* gen_decode.c (find_tag): Fix return in TType case.
 
-2005-07-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_encode.c (TChoice): add () to make sure variable expression
 	is evaluated correctly
@@ -880,7 +896,7 @@
 	* k5.asn1: reapply 1.43 that got lost in the merge: rename pvno to
 	krb5-pvno
 
-2005-07-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_decode.c (decode_type): TChoice: set the label
 
@@ -931,7 +947,7 @@
 	Make sure that malloc(0) returning NULL is not treated as an
 	error.
 
-2005-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-gen.c: test cases for CHOICE, its too liberal right now,
 	it don't fail hard on failure on after it successfully decoded the
@@ -958,7 +974,7 @@
 	* der.h: Add class/type/tag string<->num converter.
 	Prototypes/structures for new time bits.
 
-2005-07-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* der_get.c (der_get_unsigned) check for length overflow
 	(der_get_integer) ditto
@@ -979,13 +995,13 @@
 	* check-common.c (map_alloc): make input buffer const
 	(generic_decode_fail): verify decoding failures
 
-2005-07-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_encode.c: split up the printf for SET OF, also use the
 	generate name for the symbol in the SET OF, if not, the name might
 	contain non valid variable name characters (like -)
 
-2005-07-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: move pkcs12 defines into their own namespace
 
@@ -1004,7 +1020,7 @@
 	* gen_decode.c: use less context so lower indentention level, add
 	missing {} where needed
 
-2005-07-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_copy.c: Use a global variable to keep track of if the 'goto
 	fail' was used, and use that to only generate the label if needed.
@@ -1017,7 +1033,7 @@
 	(missing EndOfContent tag) add (negative) indent flag to speed up
 	testing
 
-2005-07-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* canthandle.asn1: Can't handle primitives in CHOICE
 
@@ -1028,12 +1044,12 @@
 	* gen_decode.c: Check if malloc failes, rename "reallen" to
 	tagdatalen since that is what it is.
 
-2005-05-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* prefix Der_class with ASN1_C_ to avoid problems with system
 	headerfiles that pollute the name space
 
-2005-05-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* pkcs12.asn1: add PKCS12CertBag
 
@@ -1047,16 +1063,16 @@
 
 	* Makefile.am: add PKCS12Attributes
 
-2005-05-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* canthandle.asn1: fix tags in example
 
-2005-05-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* pkinit.asn1: Let the Windows nonce be an int32 (signed), if not
 	it will fail when using Windows PK-INIT.
 
-2005-05-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: add pkcs12-PBEParams
 
@@ -1064,14 +1080,14 @@
 
 	* parse.y: objid_element: exit when the condition fails
 
-2005-04-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_glue.c: 1.8: switch the units variable to a
 	function. gcc-4.1 needs the size of the structure if its defined
 	as extern struct units foo_units[] an we don't want to include
 	<parse_units.h> in the generate headerfile
 
-2005-03-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: add the des-ede3-cbc oid that ansi x9.52 uses
 
@@ -1081,23 +1097,23 @@
 
 	* rfc2459.asn1: add oids now when the compiler can handle them
 
-2005-03-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: add pkcs9 files
 
 	* pkcs9.asn1: add small number of oids from pkcs9
 
-2005-03-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: add a bunch of pkcs1/pkcs2/pkcs3/aes oids
 
 	* rfc2459.asn1: add a bunch of pkcs1/pkcs2/pkcs3/aes oids
 
-2005-03-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* k5.asn1: merge pa-numbers
 
-2005-03-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: add oid's
 
@@ -1109,7 +1125,7 @@
 
 	* CMS.asn1: add pkcs7 oids
 
-2005-03-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen.c (generate_header_of_codefile): break out the header
 	section generation
@@ -1120,12 +1136,12 @@
 
 	* parse.y: handle OBJECT IDENTIFIER as value construct
 
-2005-02-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-02-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Preserve content of CHOICE element that is unknown if ellipsis
 	was used when defining the structure
 
-2005-02-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-02-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* parse.y: use ANS1_TAILQ macros
 
@@ -1134,43 +1150,43 @@
 	* asn1_queue.h: inline bsd sys/queue.h and rename TAILQ to
 	ASN1_TAILQ to avoid problems with name polluting headerfiles
 
-2005-01-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-01-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen.c: pull in <krb5-types.h>
 
-2005-01-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-01-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Add BMPString and UniversalString
 
 	* k5.asn1 (EtypeList): make INTEGER constrained (use krb5int32)
 
-2005-01-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-01-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rfc2459.asn1: add GeneralNames
 
-2004-11-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-11-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen.c: use unsigned integer for len of SequenceOf/SetOf and
 	bitstring names
 
-2004-11-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-11-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: switch to krb5int32 and krb5uint32
 
 	* Unify that three integer types TInteger TUInteger and TBigInteger.
 	Start to use constrained integers where appropriate.
 
-2004-10-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-10-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* CMS.asn1: remove no longer used commented out elements
 
 	* gen_glue.c: make units structures const
 
-2004-10-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-10-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* lex.l: handle hex number with [a-fA-F] in them
 
-2004-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-10-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_free.c: free _save for CHOICE too
 
@@ -1187,7 +1203,7 @@
 	name is CMSIdentifier and add glue for that so we can share code
 	use Name and not heim_any
 
-2004-10-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-10-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: drop AlgorithmIdentifierNonOpt add
 	{RC2CBC,}CBCParameter here where they belong
@@ -1199,7 +1215,7 @@
 	* rfc2459.asn1: stop using AlgorithmIdentifierNonOpt hint that we
 	really want to use Name and some MS stuff
 
-2004-09-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-09-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* asn1_print.c: handle end of content, this is part BER support,
 	however, OCTET STRING need some tweeking too.
@@ -1244,7 +1260,7 @@
 
 	* CMS.asn1: add EncryptedData
 
-2004-08-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-08-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_decode.c (decode_type): if the entry is already optional
 	when parsing a tag and we allocate the structure, not pass down
@@ -1252,12 +1268,12 @@
 	allocate an entry. and we'll leak an entry. Bug from Luke Howard
 	<lukeh@padl.com>. While here, use calloc.
 
-2004-04-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-04-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* k5.asn1: shift the last added etypes one step so rc2 doesn't
 	stomp on cram-md5
 
-2004-04-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-04-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* k5.asn1: add ETYPE_AESNNN_CBC_NONE
 
@@ -1266,17 +1282,17 @@
 	* k5.asn1: add CMS symmetrical parameters here, more nametypes
 	enctype rc2-cbc
 
-2004-04-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-04-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_decode.c: free data on decode failure
 
-2004-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-04-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: add CBCParameter and RC2CBCParameter
 
 	* CMS.asn1: add CBCParameter and RC2CBCParameter
 
-2004-04-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-04-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* check-der.c: add simple test for oid's, used to trigger malloc
 	bugs in you have picky malloc (like valgrind/purify/third)
@@ -1285,7 +1301,7 @@
 	then 127 and allocate one extra element since first byte is split
 	to to elements.
 
-2004-04-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-04-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* canthandle.asn1: one thing handled
 
@@ -1295,7 +1311,7 @@
 	an unsigned, do the length counting here. ("unsigned" is zero
 	padded when most significate bit is set, length is not)
 
-2004-04-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-04-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* canthandle.asn1: document by example what the encoder can't
 	handle right now
@@ -1344,7 +1360,7 @@
 
 	* der.h: hide away more symbols, add more _cmp functions
 
-2004-03-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-03-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: add more pkix types make k5 use rfc150 bitstrings,
 	everything else use der bitstrings
@@ -1365,7 +1381,7 @@
 
 	* rfc2459.asn1: add Certificates and KeyUsage
 
-2004-02-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-02-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* pkinit.asn1: use Name from PKIX
 
@@ -1398,7 +1414,7 @@
 	* gen_length.c: 1.14: (length_type): TSequenceOf: add up the size
 	of all the elements, don't use just the size of the last element.
 
-2004-02-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-02-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rfc2459.asn1: include defintion of Name
 
@@ -1410,7 +1426,7 @@
 
 	* Makefile.am: align with pk-init-18, move contentinfo to cms
 
-2004-02-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-02-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* der_get.c: rewrite previous commit
 
@@ -1461,17 +1477,17 @@
 	* asn1-common.h: add signedness flag to heim_integer, add
 	ia5string and printablestring
 
-2004-02-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-02-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rfc2459.asn1: use BIGINTEGER where appropriate
 
 	* setchgpw2.asn1: spelling and add op-req again
 
-2004-02-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-02-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: clean up better
 
-2004-02-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-02-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_decode.c (decode_type): TTag, don't overshare the reallen
 	variable
@@ -1480,7 +1496,7 @@
 
 	* gen.c: genereate log file name based on base name
 
-2003-11-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-11-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: += asn1_AlgorithmIdentifierNonOpt.x
 
@@ -1491,7 +1507,7 @@
 
 	* pkinit.asn1: don't import AlgorithmIdentifier
 
-2003-11-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-11-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* der_put.c (der_put_bit_string): make it work somewhat better
 	(should really prune off all trailing zeros)
@@ -1501,7 +1517,7 @@
 	* der_length.c (length_bit_string): calculate right length for
 	bitstrings
 
-2003-11-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-11-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* der_cmp.c (oid_cmp): compare the whole array, not just
 	length/sizeof(component)
@@ -1524,11 +1540,11 @@
 
 	* asn1_print.c: check end of tag_names loop into APPL class tags
 
-2003-11-23  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-11-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* der_put.c (der_put_generalized_time): check size, not *size
 
-2003-11-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-11-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_decode.c (decode_type/TBitString): skip over
 	skipped-bits-in-last-octet octet
@@ -1536,7 +1552,7 @@
 	* gen_glue.c (generate_units): generate units in reverse order to
 	keep unparse_units happy
 
-2003-11-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-11-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: generate all silly pkinit files
 
@@ -1592,7 +1608,7 @@
 
 	* pkinit.asn1: add KdcDHKeyInfo-Win2k
 
-2003-11-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-11-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* der_copy.c (copy_oid): copy all components
 
@@ -1612,29 +1628,29 @@
 	steping out in the void, parse SET, only go down CONTEXT of type
 	CONS (not PRIM)
 
-2003-09-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-09-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_encode.c (TChoice, TSequence): code element in reverse
 	order...
 
-2003-09-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-09-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen.c: store NULL's as int's for now
 
 	* parse.y: remove dup of type def of UsefulType
 
-2003-09-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-09-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_decode.c (decode_type): if malloc failes, return ENOMEM
 
-2003-09-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-09-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* parse.y: kw_UTF8String is a token put tag around the OID
 
 	* asn1_print.c (UT_Integer): when the integer is larger then int
 	can handle, just print BIG INT and its size
 
-2003-09-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-09-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gen_decode.c (decode_type): TTag, try to generate prettier code
 	in the non optional case, also remember to update length

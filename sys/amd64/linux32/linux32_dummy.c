@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1995 Søren Schmidt
+ * Copyright (c) 1994-1995 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,13 +29,21 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
+#include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_util.h>
+
+/* DTrace init */
+LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
 DUMMY(stime);
 DUMMY(olduname);
@@ -53,28 +61,14 @@ DUMMY(bdflush);
 DUMMY(sysfs);
 DUMMY(query_module);
 DUMMY(nfsservctl);
-DUMMY(rt_sigqueueinfo);
-DUMMY(capget);
-DUMMY(capset);
 DUMMY(sendfile);
 DUMMY(setfsuid);
 DUMMY(setfsgid);
 DUMMY(pivot_root);
 DUMMY(mincore);
-DUMMY(fadvise64);
 DUMMY(ptrace);
 DUMMY(lookup_dcookie);
-DUMMY(epoll_create);
-DUMMY(epoll_ctl);
-DUMMY(epoll_wait);
 DUMMY(remap_file_pages);
-DUMMY(timer_create);
-DUMMY(timer_settime);
-DUMMY(timer_gettime);
-DUMMY(timer_getoverrun);
-DUMMY(timer_delete);
-DUMMY(fstatfs64);
-DUMMY(fadvise64_64);
 DUMMY(mbind);
 DUMMY(get_mempolicy);
 DUMMY(set_mempolicy);
@@ -85,23 +79,53 @@ DUMMY(mq_timedreceive);
 DUMMY(mq_notify);
 DUMMY(mq_getsetattr);
 DUMMY(kexec_load);
-DUMMY(waitid);
+/* linux 2.6.11: */
 DUMMY(add_key);
 DUMMY(request_key);
 DUMMY(keyctl);
+/* linux 2.6.13: */
 DUMMY(ioprio_set);
 DUMMY(ioprio_get);
 DUMMY(inotify_init);
 DUMMY(inotify_add_watch);
 DUMMY(inotify_rm_watch);
+/* linux 2.6.16: */
 DUMMY(migrate_pages);
-DUMMY(pselect6);
-DUMMY(ppoll);
 DUMMY(unshare);
+/* linux 2.6.17: */
 DUMMY(splice);
 DUMMY(sync_file_range);
 DUMMY(tee);
 DUMMY(vmsplice);
+/* linux 2.6.18: */
+DUMMY(move_pages);
+/* linux 2.6.19: */
+DUMMY(getcpu);
+/* linux 2.6.22: */
+DUMMY(signalfd);
+DUMMY(timerfd_create);
+/* linux 2.6.25: */
+DUMMY(timerfd_settime);
+DUMMY(timerfd_gettime);
+/* linux 2.6.27: */
+DUMMY(signalfd4);
+DUMMY(inotify_init1);
+/* linux 2.6.30: */
+DUMMY(preadv);
+DUMMY(pwritev);
+/* linux 2.6.31: */
+DUMMY(rt_tsigqueueinfo);
+DUMMY(perf_event_open);
+/* linux 2.6.33: */
+DUMMY(fanotify_init);
+DUMMY(fanotify_mark);
+/* later: */
+DUMMY(name_to_handle_at);
+DUMMY(open_by_handle_at);
+DUMMY(clock_adjtime);
+DUMMY(setns);
+DUMMY(process_vm_readv);
+DUMMY(process_vm_writev);
 
 #define DUMMY_XATTR(s)						\
 int								\

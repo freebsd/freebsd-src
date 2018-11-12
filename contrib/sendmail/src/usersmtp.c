@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006, 2008 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008-2010, 2014 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.472 2008/01/31 18:48:29 ca Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.488 2013-11-22 20:51:57 ca Exp $")
 
 #include <sysexits.h>
 
@@ -33,7 +33,6 @@ extern void	sm_sasl_free __P((void *));
 **	This protocol is described in RFC821.
 */
 
-#define REPLYCLASS(r)	(((r) / 10) % 10)	/* second digit of reply code */
 #define SMTPCLOSING	421			/* "Service Shutting Down" */
 
 #define ENHSCN(e, d)	((e) == NULL ? (d) : (e))
@@ -93,6 +92,11 @@ smtpinit(m, mci, e, onlyhelo)
 		CurHostName = MyHostName;
 	SmtpNeedIntro = true;
 	state = mci->mci_state;
+#if _FFR_ERRCODE
+	e->e_rcode = 0;
+	e->e_renhsc[0] = '\0';
+	e->e_text = NULL;
+#endif /* _FFR_ERRCODE */
 	switch (state)
 	{
 	  case MCIS_MAIL:
@@ -136,8 +140,7 @@ smtpinit(m, mci, e, onlyhelo)
 	SmtpPhase = mci->mci_phase = "client greeting";
 	sm_setproctitle(true, e, "%s %s: %s",
 			qid_printname(e), CurHostName, mci->mci_phase);
-	r = reply(m, mci, e, TimeOuts.to_initial, esmtp_check, NULL,
-		XS_DEFAULT);
+	r = reply(m, mci, e, TimeOuts.to_initial, esmtp_check, NULL, XS_GREET);
 	if (r < 0)
 		goto tempfail1;
 	if (REPLYTYPE(r) == 4)
@@ -183,7 +186,7 @@ tryhelo:
 	r = reply(m, mci, e,
 		  bitnset(M_LMTP, m->m_flags) ? TimeOuts.to_lhlo
 					      : TimeOuts.to_helo,
-		  helo_options, NULL, XS_DEFAULT);
+		  helo_options, NULL, XS_EHLO);
 	if (r < 0)
 		goto tempfail1;
 	else if (REPLYTYPE(r) == 5)
@@ -229,10 +232,7 @@ tryhelo:
 	*/
 
 	if ((UseMSP && Verbose && bitset(MCIF_VERB, mci->mci_flags))
-# if !_FFR_DEPRECATE_MAILER_FLAG_I
-	    || bitnset(M_INTERNAL, m->m_flags)
-# endif /* !_FFR_DEPRECATE_MAILER_FLAG_I */
-	   )
+	    || bitnset(M_INTERNAL, m->m_flags))
 	{
 		/* tell it to be verbose */
 		smtpmessage("VERB", m, mci);
@@ -336,7 +336,15 @@ str_union(s1, s2, rpool)
 	l1 = strlen(s1);
 	l2 = strlen(s2);
 	rl = l1 + l2;
-	res = (char *) sm_rpool_malloc(rpool, rl + 2);
+	if (rl <= 0)
+	{
+		sm_syslog(LOG_WARNING, NOQID,
+			  "str_union: stringlen1=%d, stringlen2=%d, sum=%d, status=overflow",
+			  l1, l2, rl);
+		res = NULL;
+	}
+	else
+		res = (char *) sm_rpool_malloc(rpool, rl + 2);
 	if (res == NULL)
 	{
 		if (l1 > l2)
@@ -409,9 +417,7 @@ helo_options(line, firstline, m, mci, e)
 
 	if (firstline)
 	{
-#if SASL
-		mci->mci_saslcap = NULL;
-#endif /* SASL */
+		mci_clr_extensions(mci);
 #if _FFR_IGNORE_EXT_ON_HELO
 		logged = false;
 #endif /* _FFR_IGNORE_EXT_ON_HELO */
@@ -472,7 +478,8 @@ helo_options(line, firstline, m, mci, e)
 #if SASL
 	else if (sm_strcasecmp(line, "auth") == 0)
 	{
-		if (p != NULL && *p != '\0')
+		if (p != NULL && *p != '\0' &&
+		    !bitset(MCIF_AUTH2, mci->mci_flags))
 		{
 			if (mci->mci_saslcap != NULL)
 			{
@@ -484,7 +491,7 @@ helo_options(line, firstline, m, mci, e)
 
 				mci->mci_saslcap = str_union(mci->mci_saslcap,
 							     p, mci->mci_rpool);
-				mci->mci_flags |= MCIF_AUTH;
+				mci->mci_flags |= MCIF_AUTH2;
 			}
 			else
 			{
@@ -501,6 +508,9 @@ helo_options(line, firstline, m, mci, e)
 				}
 			}
 		}
+		if (tTd(95, 5))
+			sm_syslog(LOG_DEBUG, NOQID, "AUTH flags=%lx, mechs=%s",
+				mci->mci_flags, mci->mci_saslcap);
 	}
 #endif /* SASL */
 }
@@ -516,15 +526,15 @@ static int attemptauth	__P((MAILER *, MCI *, ENVELOPE *, SASL_AI_T *));
 
 static sasl_callback_t callbacks[] =
 {
-	{	SASL_CB_GETREALM,	&saslgetrealm,	NULL	},
+	{	SASL_CB_GETREALM,	(sasl_callback_ft)&saslgetrealm,	NULL	},
 #define CB_GETREALM_IDX	0
-	{	SASL_CB_PASS,		&getsecret,	NULL	},
+	{	SASL_CB_PASS,		(sasl_callback_ft)&getsecret,	NULL	},
 #define CB_PASS_IDX	1
-	{	SASL_CB_USER,		&getsimple,	NULL	},
+	{	SASL_CB_USER,		(sasl_callback_ft)&getsimple,	NULL	},
 #define CB_USER_IDX	2
-	{	SASL_CB_AUTHNAME,	&getsimple,	NULL	},
+	{	SASL_CB_AUTHNAME,	(sasl_callback_ft)&getsimple,	NULL	},
 #define CB_AUTHNAME_IDX	3
-	{	SASL_CB_VERIFYFILE,	&safesaslfile,	NULL	},
+	{	SASL_CB_VERIFYFILE,	(sasl_callback_ft)&safesaslfile,	NULL	},
 #define CB_SAFESASL_IDX	4
 	{	SASL_CB_LIST_END,	NULL,		NULL	}
 };
@@ -760,9 +770,7 @@ readauth(filename, safe, sai, rpool)
 		pid = -1;
 		sff = SFF_REGONLY|SFF_SAFEDIRPATH|SFF_NOWLINK
 		      |SFF_NOGWFILES|SFF_NOWWFILES|SFF_NOWRFILES;
-# if _FFR_GROUPREADABLEAUTHINFOFILE
 		if (!bitnset(DBS_GROUPREADABLEAUTHINFOFILE, DontBlameSendmail))
-# endif /* _FFR_GROUPREADABLEAUTHINFOFILE */
 			sff |= SFF_NOGRFILES;
 		if (DontLockReadFiles)
 			sff |= SFF_NOLOCK;
@@ -793,7 +801,7 @@ readauth(filename, safe, sai, rpool)
 
 	lc = 0;
 	while (lc <= SASL_MECHLIST &&
-		sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+		sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 		if (buf[0] != '#')
 		{
@@ -1568,7 +1576,9 @@ attemptauth(m, mci, e, sai)
 	sasl_interact_t *client_interact = NULL;
 	char *mechusing;
 	sasl_security_properties_t ssp;
-	char in64[MAXOUTLEN];
+
+	/* MUST NOT be a multiple of 4: bug in some sasl_encode64() versions */
+	char in64[MAXOUTLEN + 1];
 #if NETINET || (NETINET6 && SASL >= 20000)
 	extern SOCKADDR CurHostAddr;
 #endif /* NETINET || (NETINET6 && SASL >= 20000) */
@@ -1604,13 +1614,11 @@ attemptauth(m, mci, e, sai)
 	(void) memset(&ssp, '\0', sizeof(ssp));
 
 	/* XXX should these be options settable via .cf ? */
-	{
-		ssp.max_ssf = MaxSLBits;
-		ssp.maxbufsize = MAXOUTLEN;
+	ssp.max_ssf = MaxSLBits;
+	ssp.maxbufsize = MAXOUTLEN;
 #  if 0
-		ssp.security_flags = SASL_SEC_NOPLAINTEXT;
+	ssp.security_flags = SASL_SEC_NOPLAINTEXT;
 #  endif /* 0 */
-	}
 	saslresult = sasl_setprop(mci->mci_conn, SASL_SEC_PROPS, &ssp);
 	if (saslresult != SASL_OK)
 		return EX_TEMPFAIL;
@@ -1770,7 +1778,8 @@ attemptauth(m, mci, e, sai)
 	}
 	else
 	{
-		saslresult = sasl_encode64(out, outlen, in64, MAXOUTLEN, NULL);
+		saslresult = sasl_encode64(out, outlen, in64, sizeof(in64),
+					   NULL);
 		if (saslresult != SASL_OK) /* internal error */
 		{
 			if (LogLevel > 8)
@@ -1837,7 +1846,7 @@ attemptauth(m, mci, e, sai)
 		if (outlen > 0)
 		{
 			saslresult = sasl_encode64(out, outlen, in64,
-						   MAXOUTLEN, NULL);
+						   sizeof(in64), NULL);
 			if (saslresult != SASL_OK)
 			{
 				/* give an error reply to the other side! */
@@ -2172,7 +2181,7 @@ smtpmailfrom(m, mci, e)
 	SmtpPhase = mci->mci_phase = "client MAIL";
 	sm_setproctitle(true, e, "%s %s: %s", qid_printname(e),
 			CurHostName, mci->mci_phase);
-	r = reply(m, mci, e, TimeOuts.to_mail, NULL, &enhsc, XS_DEFAULT);
+	r = reply(m, mci, e, TimeOuts.to_mail, NULL, &enhsc, XS_MAIL);
 	if (r < 0)
 	{
 		/* communications failure */
@@ -2424,7 +2433,7 @@ smtprcptstat(to, m, mci, e)
 	}
 
 	enhsc = NULL;
-	r = reply(m, mci, e, TimeOuts.to_rcpt, NULL, &enhsc, XS_DEFAULT);
+	r = reply(m, mci, e, TimeOuts.to_rcpt, NULL, &enhsc, XS_RCPT);
 	save_errno = errno;
 	to->q_rstatus = sm_rpool_strdup_x(e->e_rpool, SmtpReplyBuffer);
 	to->q_status = ENHSCN_RPOOL(enhsc, smtptodsn(r), e->e_rpool);
@@ -2585,7 +2594,7 @@ smtpdata(m, mci, e, ctladdr, xstart)
 	mci->mci_state = MCIS_DATA;
 	sm_setproctitle(true, e, "%s %s: %s",
 			qid_printname(e), CurHostName, mci->mci_phase);
-	r = reply(m, mci, e, TimeOuts.to_datainit, NULL, &enhsc, XS_DEFAULT);
+	r = reply(m, mci, e, TimeOuts.to_datainit, NULL, &enhsc, XS_DATA);
 	if (r < 0 || REPLYTYPE(r) == 4)
 	{
 		if (r >= 0)
@@ -2719,7 +2728,7 @@ smtpdata(m, mci, e, ctladdr, xstart)
 			CurHostName, mci->mci_phase);
 	if (bitnset(M_LMTP, m->m_flags))
 		return EX_OK;
-	r = reply(m, mci, e, TimeOuts.to_datafinal, NULL, &enhsc, XS_DEFAULT);
+	r = reply(m, mci, e, TimeOuts.to_datafinal, NULL, &enhsc, XS_EOM);
 	if (r < 0)
 		return EX_TEMPFAIL;
 	if (mci->mci_state == MCIS_DATA)
@@ -2761,7 +2770,10 @@ smtpdata(m, mci, e, ctladdr, xstart)
   writeerr:
 	mci->mci_errno = errno;
 	mci->mci_state = MCIS_ERROR;
-	mci_setstat(mci, EX_TEMPFAIL, "4.4.2", NULL);
+	mci_setstat(mci, bitset(MCIF_NOTSTICKY, mci->mci_flags)
+			 ? EX_NOTSTICKY: EX_TEMPFAIL,
+		    "4.4.2", NULL);
+	mci->mci_flags &= ~MCIF_NOTSTICKY;
 
 	/*
 	**  If putbody() couldn't finish due to a timeout,
@@ -2773,7 +2785,7 @@ smtpdata(m, mci, e, ctladdr, xstart)
 		(void) bfrewind(e->e_dfp);
 
 	errno = mci->mci_errno;
-	syserr("451 4.4.1 timeout writing message to %s", CurHostName);
+	syserr("+451 4.4.1 timeout writing message to %s", CurHostName);
 	smtpquit(m, mci, e);
 	return EX_TEMPFAIL;
 }
@@ -2804,7 +2816,7 @@ smtpgetstat(m, mci, e)
 	enhsc = NULL;
 
 	/* check for the results of the transaction */
-	r = reply(m, mci, e, TimeOuts.to_datafinal, NULL, &enhsc, XS_DEFAULT);
+	r = reply(m, mci, e, TimeOuts.to_datafinal, NULL, &enhsc, XS_DATA2);
 	if (r < 0)
 		return EX_TEMPFAIL;
 	xstat = EX_NOTSTICKY;
@@ -2890,8 +2902,7 @@ smtpquit(m, mci, e)
 		SmtpPhase = "client QUIT";
 		mci->mci_state = MCIS_QUITING;
 		smtpmessage("QUIT", m, mci);
-		(void) reply(m, mci, e, TimeOuts.to_quit, NULL, NULL,
-				XS_DEFAULT);
+		(void) reply(m, mci, e, TimeOuts.to_quit, NULL, NULL, XS_QUIT);
 		SuprErrs = oldSuprErrs;
 		if (mci->mci_state == MCIS_CLOSED)
 			goto end;
@@ -3077,7 +3088,7 @@ reply(m, mci, e, timeout, pfunc, enhstat, rtype)
 	*/
 
 	bufp = SmtpReplyBuffer;
-	set_tls_rd_tmo(timeout);
+	(void) set_tls_rd_tmo(timeout);
 	for (;;)
 	{
 		register char *p;
@@ -3230,14 +3241,59 @@ reply(m, mci, e, timeout, pfunc, enhstat, rtype)
 		if (pfunc != NULL)
 			(*pfunc)(bufp, firstline, m, mci, e);
 
-		firstline = false;
-
 		/* decode the reply code */
 		r = atoi(bufp);
 
 		/* extra semantics: 0xx codes are "informational" */
 		if (r < 100)
+		{
+			firstline = false;
 			continue;
+		}
+#if _FFR_ERRCODE
+# if _FFR_PROXY
+		if ((e->e_rcode == 0 || REPLYTYPE(e->e_rcode) < 5)
+		    && REPLYTYPE(r) > 3 && firstline)
+# endif
+# if _FFR_LOGREPLY
+		if (REPLYTYPE(r) > 3 && firstline)
+# endif
+		{
+			int o = -1;
+# if PIPELINING
+			/*
+			**  ignore error iff: DATA, 5xy error, but we had
+			**  "retryable" recipients. XREF: smtpdata()
+			*/
+
+			if (!(rtype == XS_DATA && REPLYTYPE(r) == 5 &&
+			      mci->mci_okrcpts <= 0 && mci->mci_retryrcpt))
+# endif /* PIPELINING */
+			{
+				o = extenhsc(bufp + 4, ' ', enhstatcode);
+				if (o > 0)
+				{
+					sm_strlcpy(e->e_renhsc, enhstatcode,
+						sizeof(e->e_renhsc));
+
+					/* skip SMTP reply code, delimiters */
+					o += 5;
+				}
+				else
+					o = 4;
+				e->e_rcode = r;
+				e->e_text = sm_rpool_strdup_x(e->e_rpool,
+							      bufp + o);
+			}
+			if (tTd(87, 2))
+			{
+				sm_dprintf("user: offset=%d, bufp=%s, rcode=%d, enhstat=%s, text=%s\n",
+					o, bufp, r, e->e_renhsc, e->e_text);
+			}
+		}
+#endif /* _FFR_ERRCODE */
+
+		firstline = false;
 
 		/* if no continuation lines, return this line */
 		if (bufp[3] != '-')

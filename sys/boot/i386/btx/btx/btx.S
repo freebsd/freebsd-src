@@ -15,6 +15,8 @@
  * $FreeBSD$
  */
 
+#include <bootargs.h>
+
 /*
  * Memory layout.
  */
@@ -39,6 +41,8 @@
 		.set PSL_RESERVED_DEFAULT,0x00000002
 		.set PSL_T,0x00000100		# Trap flag
 		.set PSL_I,0x00000200		# Interrupt enable flag
+		.set PSL_D,0x00000400		# String instruction direction
+		.set PSL_NT,0x00004000		# Nested task flag
 		.set PSL_VM,0x00020000		# Virtual 8086 mode flag
 		.set PSL_AC,0x00040000		# Alignment check flag
 /*
@@ -205,7 +209,7 @@ init.8: 	xorl %ecx,%ecx			# Zero
 		movl $MEM_USR,%edx		# User base address
 		movzwl %ss:BDA_MEM,%eax 	# Get free memory
 		shll $0xa,%eax			# To bytes
-		subl $0x1000,%eax		# Less arg space
+		subl $ARGSPACE,%eax		# Less arg space
 		subl %edx,%eax			# Less base
 		movb $SEL_UDATA,%cl		# User data selector
 		pushl %ecx			# Set SS
@@ -246,7 +250,7 @@ exit:		cli				# Disable interrupts
 /*
  * Restore the GDT in case we caught a kernel trap.
  */
-		lgdt gdtdesc	 		# Set GDT
+		lgdt %cs:gdtdesc		# Set GDT
 /*
  * To 16 bits.
  */
@@ -609,8 +613,8 @@ rret_tramp:	movw $MEM_ESPR-0x08,%sp		# Reset stack pointer
 		pushl %ds			#  regs
 		pushl %es
 		pushfl				# Save %eflags
-		cli				# Disable interrupts
-		std				# String ops dec
+		pushl $PSL_RESERVED_DEFAULT|PSL_D # Use clean %eflags with
+		popfl				#  string ops dec
 		xorw %ax,%ax			# Reset seg 
 		movw %ax,%ds			#  regs
 		movw %ax,%es			#  (%ss is already 0)
@@ -673,6 +677,7 @@ rret_tramp.1:	xorl %ecx,%ecx			# Zero
 		testl $V86F_FLAGS,%edx		# User wants flags?
 		jz rret_tramp.3			# No
 		movl MEM_ESPR-0x3c,%eax		# Read real mode flags
+		andl $~(PSL_T|PSL_NT),%eax	# Clear unsafe flags
 		movw %ax,-0x08(%esi)		# Update user flags (low 16)
 /*
  * Return to the user task
@@ -810,7 +815,7 @@ putstr: 	lodsb				# Load char
 		.set SIO_DIV,(115200/SIOSPD)	# 115200 / SPD
 
 /*
- * void sio_init(void)
+ * int sio_init(void)
  */
 sio_init:	movw $SIO_PRT+0x3,%dx		# Data format reg
 		movb $SIO_FMT|0x80,%al		# Set format
@@ -826,14 +831,19 @@ sio_init:	movw $SIO_PRT+0x3,%dx		# Data format reg
 		movb $0x3,%al			# Set RTS,
 		outb %al,(%dx)			#  DTR
 		incl %edx			# Line status reg
+		call sio_getc.1 		# Get character
 
 /*
- * void sio_flush(void)
+ * int sio_flush(void)
  */
-sio_flush.0:	call sio_getc.1 		# Get character
-sio_flush:	call sio_ischar 		# Check for character
-		jnz sio_flush.0 		# Till none
-		ret				# To caller
+sio_flush:	xorl %eax,%eax			# Return value
+		xorl %ecx,%ecx			# Timeout
+		movb $0x80,%ch			#  counter
+sio_flush.1:	call sio_ischar 		# Check for character
+		jz sio_flush.2			# Till none
+		loop sio_flush.1		#  or counter is zero
+		movb $1, %al			# Exhausted all tries
+sio_flush.2:	ret				# To caller
 
 /*
  * void sio_putc(int c)

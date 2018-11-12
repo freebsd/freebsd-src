@@ -136,6 +136,7 @@ static int frame_debug;
 static int backtrace_past_main;
 static unsigned int backtrace_limit = UINT_MAX;
 
+int (*frame_tdep_pc_fixup)(CORE_ADDR *pc);
 
 void
 fprint_frame_id (struct ui_file *file, struct frame_id id)
@@ -1846,6 +1847,23 @@ get_prev_frame (struct frame_info *this_frame)
       return NULL;
     }
 
+  /* Assume that the only way to get a zero PC is through something
+     like a SIGSEGV or a dummy frame, and hence that NORMAL frames
+     will never unwind a zero PC.  */
+  if (this_frame->level > 0
+      && get_frame_type (this_frame) == NORMAL_FRAME
+      && get_frame_type (get_next_frame (this_frame)) == NORMAL_FRAME
+      && get_frame_pc (this_frame) == 0)
+    {
+      if (frame_debug)
+	{
+	  fprintf_unfiltered (gdb_stdlog, "-> ");
+	  fprint_frame (gdb_stdlog, this_frame->prev);
+	  fprintf_unfiltered (gdb_stdlog, " // zero PC \n");
+	}
+      return NULL;
+    }
+
   /* Only try to do the unwind once.  */
   if (this_frame->prev_p)
     {
@@ -1992,6 +2010,9 @@ frame_unwind_address_in_block (struct frame_info *next_frame)
 {
   /* A draft address.  */
   CORE_ADDR pc = frame_pc_unwind (next_frame);
+
+  if ((frame_tdep_pc_fixup != NULL) && (frame_tdep_pc_fixup(&pc) == 0))
+  	return pc;
 
   /* If THIS frame is not inner most (i.e., NEXT isn't the sentinel),
      and NEXT is `normal' (i.e., not a sigtramp, dummy, ....) THIS

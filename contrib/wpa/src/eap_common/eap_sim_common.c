@@ -2,25 +2,20 @@
  * EAP peer/server: EAP-SIM/AKA/AKA' shared routines
  * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
 
 #include "common.h"
-#include "eap_common/eap_defs.h"
-#include "sha1.h"
-#include "sha256.h"
-#include "crypto.h"
-#include "aes_wrap.h"
 #include "wpabuf.h"
+#include "crypto/aes_wrap.h"
+#include "crypto/crypto.h"
+#include "crypto/sha1.h"
+#include "crypto/sha256.h"
+#include "crypto/random.h"
+#include "eap_common/eap_defs.h"
 #include "eap_common/eap_sim_common.h"
 
 
@@ -203,7 +198,7 @@ int eap_sim_verify_mac(const u8 *k_aut, const struct wpabuf *req,
 		    hmac, EAP_SIM_MAC_LEN);
 	os_free(tmp);
 
-	return (os_memcmp(hmac, mac, EAP_SIM_MAC_LEN) == 0) ? 0 : 1;
+	return (os_memcmp_const(hmac, mac, EAP_SIM_MAC_LEN) == 0) ? 0 : 1;
 }
 
 
@@ -233,7 +228,7 @@ void eap_sim_add_mac(const u8 *k_aut, const u8 *msg, size_t msg_len, u8 *mac,
 }
 
 
-#ifdef EAP_AKA_PRIME
+#if defined(EAP_AKA_PRIME) || defined(EAP_SERVER_AKA_PRIME)
 static void prf_prime(const u8 *k, const char *seed1,
 		      const u8 *seed2, size_t seed2_len,
 		      const u8 *seed3, size_t seed3_len,
@@ -398,7 +393,7 @@ int eap_sim_verify_mac_sha256(const u8 *k_aut, const struct wpabuf *req,
 		    hmac, EAP_SIM_MAC_LEN);
 	os_free(tmp);
 
-	return (os_memcmp(hmac, mac, EAP_SIM_MAC_LEN) == 0) ? 0 : 1;
+	return (os_memcmp_const(hmac, mac, EAP_SIM_MAC_LEN) == 0) ? 0 : 1;
 }
 
 
@@ -496,7 +491,7 @@ void eap_aka_prime_derive_ck_ik_prime(u8 *ck, u8 *ik, const u8 *sqn_ak,
 	wpa_hexdump_key(MSG_DEBUG, "EAP-AKA': CK'", ck, EAP_AKA_CK_LEN);
 	wpa_hexdump_key(MSG_DEBUG, "EAP-AKA': IK'", ik, EAP_AKA_IK_LEN);
 }
-#endif /* EAP_AKA_PRIME */
+#endif /* EAP_AKA_PRIME || EAP_SERVER_AKA_PRIME */
 
 
 int eap_sim_parse_attr(const u8 *start, const u8 *end,
@@ -858,7 +853,7 @@ int eap_sim_parse_attr(const u8 *start, const u8 *end,
 			wpa_printf(MSG_DEBUG, "EAP-SIM: AT_RESULT_IND");
 			attr->result_ind = 1;
 			break;
-#ifdef EAP_AKA_PRIME
+#if defined(EAP_AKA_PRIME) || defined(EAP_SERVER_AKA_PRIME)
 		case EAP_SIM_AT_KDF_INPUT:
 			if (aka != 2) {
 				wpa_printf(MSG_INFO, "EAP-AKA: Unexpected "
@@ -898,7 +893,7 @@ int eap_sim_parse_attr(const u8 *start, const u8 *end,
 			if (attr->kdf_count == EAP_AKA_PRIME_KDF_MAX) {
 				wpa_printf(MSG_DEBUG, "EAP-AKA': Too many "
 					   "AT_KDF attributes - ignore this");
-				continue;
+				break;
 			}
 			attr->kdf[attr->kdf_count] = WPA_GET_BE16(apos);
 			attr->kdf_count++;
@@ -913,7 +908,7 @@ int eap_sim_parse_attr(const u8 *start, const u8 *end,
 			}
 			attr->bidding = apos;
 			break;
-#endif /* EAP_AKA_PRIME */
+#endif /* EAP_AKA_PRIME || EAP_SERVER_AKA_PRIME */
 		default:
 			if (pos[0] < 128) {
 				wpa_printf(MSG_INFO, "EAP-SIM: Unrecognized "
@@ -977,7 +972,6 @@ u8 * eap_sim_parse_encr(const u8 *k_encr, const u8 *encr_data,
 struct eap_sim_msg {
 	struct wpabuf *buf;
 	size_t mac, iv, encr; /* index from buf */
-	int type;
 };
 
 
@@ -991,7 +985,6 @@ struct eap_sim_msg * eap_sim_msg_init(int code, int id, int type, int subtype)
 	if (msg == NULL)
 		return NULL;
 
-	msg->type = type;
 	msg->buf = wpabuf_alloc(EAP_SIM_INIT_LEN);
 	if (msg->buf == NULL) {
 		os_free(msg);
@@ -1011,7 +1004,8 @@ struct eap_sim_msg * eap_sim_msg_init(int code, int id, int type, int subtype)
 }
 
 
-struct wpabuf * eap_sim_msg_finish(struct eap_sim_msg *msg, const u8 *k_aut,
+struct wpabuf * eap_sim_msg_finish(struct eap_sim_msg *msg, int type,
+				   const u8 *k_aut,
 				   const u8 *extra, size_t extra_len)
 {
 	struct eap_hdr *eap;
@@ -1023,14 +1017,14 @@ struct wpabuf * eap_sim_msg_finish(struct eap_sim_msg *msg, const u8 *k_aut,
 	eap = wpabuf_mhead(msg->buf);
 	eap->length = host_to_be16(wpabuf_len(msg->buf));
 
-#ifdef EAP_AKA_PRIME
-	if (k_aut && msg->mac && msg->type == EAP_TYPE_AKA_PRIME) {
+#if defined(EAP_AKA_PRIME) || defined(EAP_SERVER_AKA_PRIME)
+	if (k_aut && msg->mac && type == EAP_TYPE_AKA_PRIME) {
 		eap_sim_add_mac_sha256(k_aut, (u8 *) wpabuf_head(msg->buf),
 				       wpabuf_len(msg->buf),
 				       (u8 *) wpabuf_mhead(msg->buf) +
 				       msg->mac, extra, extra_len);
 	} else
-#endif /* EAP_AKA_PRIME */
+#endif /* EAP_AKA_PRIME || EAP_SERVER_AKA_PRIME */
 	if (k_aut && msg->mac) {
 		eap_sim_add_mac(k_aut, (u8 *) wpabuf_head(msg->buf),
 				wpabuf_len(msg->buf),
@@ -1121,8 +1115,8 @@ int eap_sim_msg_add_encr_start(struct eap_sim_msg *msg, u8 attr_iv,
 	if (pos == NULL)
 		return -1;
 	msg->iv = (pos - wpabuf_head_u8(msg->buf)) + 4;
-	if (os_get_random(wpabuf_mhead_u8(msg->buf) + msg->iv,
-			  EAP_SIM_IV_LEN)) {
+	if (random_get_bytes(wpabuf_mhead_u8(msg->buf) + msg->iv,
+			     EAP_SIM_IV_LEN)) {
 		msg->iv = 0;
 		return -1;
 	}

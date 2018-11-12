@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1995 Søren Schmidt
+ * Copyright (c) 1994-1995 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,11 @@
 %{
 
 #include "lex.h"
-#define YY_NO_UNPUT
 
 %}
+
+%option nounput
+%option noinput
 
 D	[0-9]
 X	[0-9a-fA-F]

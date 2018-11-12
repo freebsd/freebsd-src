@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004, 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004, 2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: control.c,v 8.128 2006/08/15 23:24:56 ca Exp $")
+SM_RCSID("@(#)$Id: control.c,v 8.130 2013-11-22 20:51:55 ca Exp $")
 
 #include <sm/fdset.h>
 
@@ -301,7 +301,7 @@ control_command(sock, e)
 	(void) sm_io_setvbuf(s, SM_TIME_DEFAULT, NULL,
 			     SM_IO_NBF, SM_IO_BUFSIZ);
 
-	if (sm_io_fgets(s, SM_TIME_DEFAULT, inp, sizeof(inp)) == NULL)
+	if (sm_io_fgets(s, SM_TIME_DEFAULT, inp, sizeof(inp)) < 0)
 	{
 		(void) sm_io_close(s, SM_TIME_DEFAULT);
 		exit(EX_IOERR);

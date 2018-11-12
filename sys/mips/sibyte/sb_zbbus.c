@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -31,21 +34,29 @@
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <machine/resource.h>
 #include <machine/intr_machdep.h>
 
 #include "sb_scd.h"
 
-__FBSDID("$FreeBSD$");
-
 static MALLOC_DEFINE(M_INTMAP, "sb1250 intmap", "Sibyte 1250 Interrupt Mapper");
 
-#define	NUM_HARD_IRQS	6
+static struct mtx zbbus_intr_mtx;
+MTX_SYSINIT(zbbus_intr_mtx, &zbbus_intr_mtx, "zbbus_intr_mask/unmask lock",
+	    MTX_SPIN);
+
+/*
+ * This array holds the mapping between a MIPS hard interrupt and the
+ * interrupt sources that feed into that it.
+ */
+static uint64_t hardint_to_intsrc_mask[NHARD_IRQS];
 
 struct sb_intmap {
 	int intsrc;		/* interrupt mapper register number (0 - 63) */
-	int active;		/* Does this source generate interrupts? */
+	int hardint;		/* cpu interrupt from 0 to NHARD_IRQS - 1 */
 
 	/*
 	 * The device that the interrupt belongs to. Note that multiple
@@ -60,36 +71,23 @@ struct sb_intmap {
 	SLIST_ENTRY(sb_intmap) next;
 };
 
-/*
- * We register 'sb_intsrc.isrc' using cpu_register_hard_intsrc() for each
- * hard interrupt source [0-5].
- *
- * The mask/unmask callbacks use the information in 'sb_intmap' to figure
- * out the corresponding interrupt sources to mask/unmask.
- */
-struct sb_intsrc {
-	struct intsrc isrc;
-	SLIST_HEAD(, sb_intmap) sb_intmap_head;
-};
-
-static struct sb_intsrc sb_intsrc[NUM_HARD_IRQS];
+static SLIST_HEAD(, sb_intmap) sb_intmap_head;
 
 static struct sb_intmap *
 sb_intmap_lookup(int intrnum, device_t dev, int rid)
 {
-	struct sb_intsrc *isrc;
 	struct sb_intmap *map;
 
-	isrc = &sb_intsrc[intrnum];
-	SLIST_FOREACH(map, &isrc->sb_intmap_head, next) {
-		if (dev == map->dev && rid == map->rid)
+	SLIST_FOREACH(map, &sb_intmap_head, next) {
+		if (dev == map->dev && rid == map->rid &&
+		    intrnum == map->hardint)
 			break;
 	}
 	return (map);
 }
 
 /*
- * Keep track of which (dev,rid) tuple is using the interrupt source.
+ * Keep track of which (dev,rid,hardint) tuple is using the interrupt source.
  *
  * We don't actually unmask the interrupt source until the device calls
  * a bus_setup_intr() on the resource.
@@ -97,14 +95,11 @@ sb_intmap_lookup(int intrnum, device_t dev, int rid)
 static void
 sb_intmap_add(int intrnum, device_t dev, int rid, int intsrc)
 {
-	struct sb_intsrc *isrc;
 	struct sb_intmap *map;
-	register_t sr;
 	
-	KASSERT(intrnum >= 0 && intrnum < NUM_HARD_IRQS,
+	KASSERT(intrnum >= 0 && intrnum < NHARD_IRQS,
 		("intrnum is out of range: %d", intrnum));
 
-	isrc = &sb_intsrc[intrnum];
 	map = sb_intmap_lookup(intrnum, dev, rid);
 	if (map) {
 		KASSERT(intsrc == map->intsrc,
@@ -117,32 +112,30 @@ sb_intmap_add(int intrnum, device_t dev, int rid, int intsrc)
 
 	map = malloc(sizeof(*map), M_INTMAP, M_WAITOK | M_ZERO);
 	map->intsrc = intsrc;
+	map->hardint = intrnum;
 	map->dev = dev;
 	map->rid = rid;
 
-	sr = intr_disable();
-	SLIST_INSERT_HEAD(&isrc->sb_intmap_head, map, next);
-	intr_restore(sr);
+	SLIST_INSERT_HEAD(&sb_intmap_head, map, next);
 }
 
 static void
 sb_intmap_activate(int intrnum, device_t dev, int rid)
 {
 	struct sb_intmap *map;
-	register_t sr;
 	
-	KASSERT(intrnum >= 0 && intrnum < NUM_HARD_IRQS,
+	KASSERT(intrnum >= 0 && intrnum < NHARD_IRQS,
 		("intrnum is out of range: %d", intrnum));
 
 	map = sb_intmap_lookup(intrnum, dev, rid);
 	if (map) {
 		/*
-		 * See comments in sb_unmask_func() about disabling cpu intr
+		 * Deliver all interrupts to CPU0.
 		 */
-		sr = intr_disable();
-		map->active = 1;
-		sb_enable_intsrc(map->intsrc);
-		intr_restore(sr);
+		mtx_lock_spin(&zbbus_intr_mtx);
+		hardint_to_intsrc_mask[intrnum] |= 1ULL << map->intsrc;
+		sb_enable_intsrc(0, map->intsrc);
+		mtx_unlock_spin(&zbbus_intr_mtx);
 	} else {
 		/*
 		 * In zbbus_setup_intr() we blindly call sb_intmap_activate()
@@ -157,73 +150,50 @@ sb_intmap_activate(int intrnum, device_t dev, int rid)
 	}
 }
 
+/*
+ * Replace the default interrupt mask and unmask routines in intr_machdep.c
+ * with routines that are SMP-friendly. In contrast to the default mask/unmask
+ * routines in intr_machdep.c these routines do not change the SR.int_mask bits.
+ *
+ * Instead they use the interrupt mapper to either mask or unmask all
+ * interrupt sources feeding into a particular interrupt line of the processor.
+ *
+ * This means that these routines have an identical effect irrespective of
+ * which cpu is executing them. This is important because the ithread may
+ * be scheduled to run on either of the cpus.
+ */
 static void
-sb_mask_func(struct intsrc *arg)
+zbbus_intr_mask(void *arg)
 {
-	struct sb_intmap *map;
-	struct sb_intsrc *isrc;
-	uint64_t isrc_bitmap;
+	uint64_t mask;
+	int irq;
+	
+	irq = (uintptr_t)arg;
 
-	isrc_bitmap = 0;
-	isrc = (struct sb_intsrc *)arg;
-	SLIST_FOREACH(map, &isrc->sb_intmap_head, next) {
-		if (map->active == 0)
-			continue;
-		/*
-		 * If we have already disabled this interrupt source then don't
-		 * do it again. This can happen when multiple devices share
-		 * an interrupt source (e.g. PCI_INT_x).
-		 */
-		if (isrc_bitmap & (1ULL << map->intsrc))
-			continue;
-		sb_disable_intsrc(map->intsrc);
-		isrc_bitmap |= 1ULL << map->intsrc;
-	}
+	mtx_lock_spin(&zbbus_intr_mtx);
+
+	mask = sb_read_intsrc_mask(0);
+	mask |= hardint_to_intsrc_mask[irq];
+	sb_write_intsrc_mask(0, mask);
+
+	mtx_unlock_spin(&zbbus_intr_mtx);
 }
 
 static void
-sb_unmask_func(struct intsrc *arg)
+zbbus_intr_unmask(void *arg)
 {
-	struct sb_intmap *map;
-	struct sb_intsrc *sb_isrc;
-	uint64_t isrc_bitmap;
-	register_t sr;
+	uint64_t mask;
+	int irq;
 	
-	isrc_bitmap = 0;
-	sb_isrc = (struct sb_intsrc *)arg;
+	irq = (uintptr_t)arg;
 
-	/*
-	 * Make sure we disable the cpu interrupts when enabling the
-	 * interrupt sources.
-	 *
-	 * This is to prevent a condition where some interrupt sources have
-	 * been enabled (but not all) and one of those interrupt sources
-	 * triggers an interrupt.
-	 *
-	 * If any of the interrupt handlers executes in an ithread then
-	 * cpu_intr() will return with all interrupt sources feeding into
-	 * that cpu irq masked. But when the loop below picks up where it
-	 * left off it will enable the remaining interrupt sources!!!
-	 *
-	 * If the disable the cpu interrupts then this race does not happen.
-	 */
-	sr = intr_disable();
+	mtx_lock_spin(&zbbus_intr_mtx);
 
-	SLIST_FOREACH(map, &sb_isrc->sb_intmap_head, next) {
-		if (map->active == 0)
-			continue;
-		/*
-		 * If we have already enabled this interrupt source then don't
-		 * do it again. This can happen when multiple devices share
-		 * an interrupt source (e.g. PCI_INT_x).
-		 */
-		if (isrc_bitmap & (1ULL << map->intsrc))
-			continue;
-		sb_enable_intsrc(map->intsrc);
-		isrc_bitmap |= 1ULL << map->intsrc;
-	}
+	mask = sb_read_intsrc_mask(0);
+	mask &= ~hardint_to_intsrc_mask[irq];
+	sb_write_intsrc_mask(0, mask);
 
-	intr_restore(sr);
+	mtx_unlock_spin(&zbbus_intr_mtx);
 }
 
 struct zbbus_devinfo {
@@ -237,29 +207,20 @@ zbbus_probe(device_t dev)
 {
 
 	device_set_desc(dev, "Broadcom/Sibyte ZBbus");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
 zbbus_attach(device_t dev)
 {
-	int i, error;
-	struct intsrc *isrc;
 
 	if (bootverbose) {
 		device_printf(dev, "attached.\n");
 	}
 
-	for (i = 0; i < NUM_HARD_IRQS; ++i) {
-		isrc = &sb_intsrc[i].isrc;
-		isrc->intrnum = i;
-		isrc->mask_func = sb_mask_func;
-		isrc->unmask_func = sb_unmask_func;
-		error = cpu_register_hard_intsrc(isrc);
-		if (error)
-			panic("Error %d registering intsrc %d", error, i);
-	}
-	
+	cpu_set_hardintr_mask_func(zbbus_intr_mask);
+	cpu_set_hardintr_unmask_func(zbbus_intr_unmask);
+
 	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
 	bus_generic_attach(dev);
@@ -319,7 +280,7 @@ zbbus_hinted_child(device_t bus, const char *dname, int dunit)
 
 static struct resource *
 zbbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		     u_long start, u_long end, u_long count, u_int flags)
+		     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res;
 	int intrnum, intsrc, isdefault;
@@ -327,7 +288,7 @@ zbbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource_list_entry *rle;
 	struct zbbus_devinfo *dinfo;
 
-	isdefault = (start == 0UL && end == ~0UL && count == 1);
+	isdefault = (RMAN_IS_DEFAULT_RANGE(start, end) && count == 1);
 
 	/*
 	 * Our direct child is asking for a default resource allocation.
@@ -441,7 +402,7 @@ zbbus_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 }
 
 static device_t
-zbbus_add_child(device_t bus, int order, const char *name, int unit)
+zbbus_add_child(device_t bus, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct zbbus_devinfo *dinfo;

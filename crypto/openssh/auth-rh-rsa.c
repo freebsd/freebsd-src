@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-rh-rsa.c,v 1.42 2006/08/03 03:34:41 deraadt Exp $ */
+/* $OpenBSD: auth-rh-rsa.c,v 1.44 2014/07/15 15:54:14 millert Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -15,6 +15,8 @@
 
 #include "includes.h"
 
+#ifdef WITH_SSH1
+
 #include <sys/types.h>
 
 #include <pwd.h>
@@ -24,6 +26,7 @@
 #include "uidswap.h"
 #include "log.h"
 #include "buffer.h"
+#include "misc.h"
 #include "servconf.h"
 #include "key.h"
 #include "hostfile.h"
@@ -43,6 +46,9 @@ auth_rhosts_rsa_key_allowed(struct passwd *pw, char *cuser, char *chost,
     Key *client_host_key)
 {
 	HostStatus host_status;
+
+	if (auth_key_is_revoked(client_host_key))
+		return 0;
 
 	/* Check if we would accept it using rhosts authentication. */
 	if (!auth_rhosts(pw, cuser))
@@ -98,3 +104,5 @@ auth_rhosts_rsa(Authctxt *authctxt, char *cuser, Key *client_host_key)
 	packet_send_debug("Rhosts with RSA host authentication accepted.");
 	return 1;
 }
+
+#endif /* WITH_SSH1 */

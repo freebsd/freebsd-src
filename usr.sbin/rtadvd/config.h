@@ -4,7 +4,7 @@
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -16,7 +16,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,7 +30,12 @@
  * SUCH DAMAGE.
  */
 
-extern void getconfig(char *);
+extern struct ifinfo *getconfig(struct ifinfo *);
+extern int rm_ifinfo(struct ifinfo *);
+extern int rm_ifinfo_index(int);
+extern int rm_rainfo(struct rainfo *);
+extern int loadconfig_ifname(char *);
+extern int loadconfig_index(int);
 extern void delete_prefix(struct prefix *);
 extern void invalidate_prefix(struct prefix *);
 extern void update_prefix(struct prefix *);
@@ -38,10 +43,11 @@ extern void make_prefix(struct rainfo *, int, struct in6_addr *, int);
 extern void make_packet(struct rainfo *);
 extern void get_prefix(struct rainfo *);
 
-
 /*
  * it is highly unlikely to have 100 prefix information options,
  * so it should be okay to limit it
  */
 #define MAXPREFIX	100
 #define MAXROUTE	100
+#define MAXRDNSSENT	100
+#define MAXDNSSLENT	100

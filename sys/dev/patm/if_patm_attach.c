@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_atm.h>
@@ -188,7 +189,7 @@ patm_attach(device_t dev)
 	IFP2IFATM(sc->ifp)->mib.hw_version = 0;
 	IFP2IFATM(sc->ifp)->mib.sw_version = 0;
 	IFP2IFATM(sc->ifp)->mib.vpi_bits = PATM_VPI_BITS;
-	IFP2IFATM(sc->ifp)->mib.vci_bits = 0;	/* set below */;
+	IFP2IFATM(sc->ifp)->mib.vci_bits = 0;	/* set below */
 	IFP2IFATM(sc->ifp)->mib.max_vpcs = 0;
 	IFP2IFATM(sc->ifp)->mib.max_vccs = 0;	/* set below */
 	IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_UNKNOWN;
@@ -197,11 +198,9 @@ patm_attach(device_t dev)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_SIMPLEX;
-	ifp->if_watchdog = NULL;
 	ifp->if_init = patm_init;
 	ifp->if_ioctl = patm_ioctl;
 	ifp->if_start = patm_start;
-	ifp->if_watchdog = NULL;
 
 	/* do this early so we can destroy unconditionally */
 	mtx_init(&sc->mtx, device_get_nameunit(dev),
@@ -209,7 +208,7 @@ patm_attach(device_t dev)
 	mtx_init(&sc->tst_lock, "tst lock", NULL, MTX_DEF);
 	cv_init(&sc->vcc_cv, "vcc_close");
 
-	callout_init(&sc->tst_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->tst_callout, 1);
 
 	sysctl_ctx_init(&sc->sysctl_ctx);
 
@@ -256,13 +255,13 @@ patm_attach(device_t dev)
 		goto fail;
 
 	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	    OID_AUTO, "istats", CTLFLAG_RD, sc, 0, patm_sysctl_istats,
-	    "S", "internal statistics") == NULL)
+	    OID_AUTO, "istats", CTLTYPE_OPAQUE | CTLFLAG_RD, sc, 0,
+	    patm_sysctl_istats, "S", "internal statistics") == NULL)
 		goto fail;
 
 	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	    OID_AUTO, "eeprom", CTLFLAG_RD, sc, 0, patm_sysctl_eeprom,
-	    "S", "EEPROM contents") == NULL)
+	    OID_AUTO, "eeprom", CTLTYPE_OPAQUE | CTLFLAG_RD, sc, 0,
+	    patm_sysctl_eeprom, "S", "EEPROM contents") == NULL)
 		goto fail;
 
 	if (SYSCTL_ADD_UINT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
@@ -286,13 +285,13 @@ patm_attach(device_t dev)
 	patm_env_getuint(sc, &sc->debug, "debug");
 
 	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	    OID_AUTO, "regs", CTLFLAG_RD, sc, 0, patm_sysctl_regs,
-	    "S", "registers") == NULL)
+	    OID_AUTO, "regs", CTLTYPE_OPAQUE | CTLFLAG_RD, sc, 0,
+	    patm_sysctl_regs, "S", "registers") == NULL)
 		goto fail;
 
 	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	    OID_AUTO, "tsq", CTLFLAG_RD, sc, 0, patm_sysctl_tsq,
-	    "S", "TSQ") == NULL)
+	    OID_AUTO, "tsq", CTLTYPE_OPAQUE | CTLFLAG_RD, sc, 0,
+	    patm_sysctl_tsq, "S", "TSQ") == NULL)
 		goto fail;
 #endif
 
@@ -406,7 +405,7 @@ patm_attach(device_t dev)
 	 * Don't use BUS_DMA_ALLOCNOW, because we never need bouncing with
 	 * bus_dmamem_alloc()
 	 */
-	error = bus_dma_tag_create(NULL, PAGE_SIZE, 0,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), PAGE_SIZE, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, sizeof(struct patm_scd), 1,
 	    sizeof(struct patm_scd), 0, NULL, NULL, &sc->scd_tag);
@@ -580,7 +579,7 @@ patm_env_getuint(struct patm_softc *sc, u_int *var, const char *name)
 	snprintf(full, sizeof(full), "hw.%s.%s",
 	    device_get_nameunit(sc->dev), name);
 
-	if ((val = getenv(full)) != NULL) {
+	if ((val = kern_getenv(full)) != NULL) {
 		u = strtoul(val, &end, 0);
 		if (end > val && *end == '\0') {
 			if (bootverbose)
@@ -676,7 +675,7 @@ patm_read_eeprom(struct patm_softc *sc)
 	gp = patm_nor_read(sc, IDT_NOR_GP);
 	gp &= ~(IDT_GP_EESCLK | IDT_GP_EECS | IDT_GP_EEDO);
 
-	for (i = 0; i < sizeof(tab) / sizeof(tab[0]); i++) {
+	for (i = 0; i < nitems(tab); i++) {
 		patm_nor_write(sc, IDT_NOR_GP, gp | tab[i]);
 		DELAY(40);
 	}
@@ -776,7 +775,8 @@ patm_sq_init(struct patm_softc *sc)
 	 * Don't use BUS_DMA_ALLOCNOW, because we never need bouncing with
 	 * bus_dmamem_alloc()
 	 */
-	error = bus_dma_tag_create(NULL, PATM_SQ_ALIGNMENT, 0,
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->dev),
+	    PATM_SQ_ALIGNMENT, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, sc->sq_size, 1, sc->sq_size,
 	    0, NULL, NULL, &sc->sq_tag);
@@ -829,7 +829,7 @@ patm_rbuf_init(struct patm_softc *sc)
 	 * Don't use BUS_DMA_ALLOCNOW, because we never need bouncing with
 	 * bus_dmamem_alloc()
 	 */
-	if ((error = bus_dma_tag_create(NULL, PAGE_SIZE, 0,
+	if ((error = bus_dma_tag_create(bus_get_dma_tag(sc->dev), PAGE_SIZE, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    SMBUF_PAGE_SIZE, 1, SMBUF_PAGE_SIZE, 0,
 	    NULL, NULL, &sc->sbuf_tag)) != 0) {
@@ -857,7 +857,7 @@ patm_rbuf_init(struct patm_softc *sc)
 	 * maps using one tag. Rather use BUS_DMA_NOWAIT when loading the map
 	 * to prevent EINPROGRESS.
 	 */
-	if ((error = bus_dma_tag_create(NULL, 4, 0,
+	if ((error = bus_dma_tag_create(bus_get_dma_tag(sc->dev), 4, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    MCLBYTES, 1, MCLBYTES, 0, 
 	    NULL, NULL, &sc->lbuf_tag)) != 0) {
@@ -902,7 +902,7 @@ patm_txmap_init(struct patm_softc *sc)
 	struct patm_txmap *map;
 
 	/* get transmission tag */
-	error = bus_dma_tag_create(NULL, 1, 0,
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, 65536, IDT_SCQ_SIZE - 1, 65536,
 	    0, NULL, NULL, &sc->tx_tag);

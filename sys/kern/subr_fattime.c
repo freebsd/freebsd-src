@@ -45,13 +45,13 @@
  * Later on again, in Windows NT, timestamps were defined relative to GMT.
  *
  * Purists will point out that UTC replaced GMT for such uses around
- * a century ago, already then.  Ironically "NT" was an abbreviation of 
+ * half a century ago, already then.  Ironically "NT" was an abbreviation of 
  * "New Technology".  Anyway...
  *
  * The 'utc' argument determines if the resulting FATTIME timestamp
- * should b on the UTC or local timezone calendar.
+ * should be on the UTC or local timezone calendar.
  *
- * The conversion functions below cut time into four-year leap-second
+ * The conversion functions below cut time into four-year leap-year
  * cycles rather than single years and uses table lookups inside those
  * cycles to get the months and years sorted out.
  *
@@ -135,7 +135,7 @@ static const struct {
 
 
 void
-timespec2fattime(struct timespec *tsp, int utc, u_int16_t *ddp, u_int16_t *dtp, u_int8_t *dhp)
+timespec2fattime(struct timespec *tsp, int utc, uint16_t *ddp, uint16_t *dtp, uint8_t *dhp)
 {
 	time_t t1;
 	unsigned t2, l, m;
@@ -263,8 +263,8 @@ main(int argc __unused, char **argv __unused)
 	struct timespec ts;
 	struct tm tm;
 	double a;
-	u_int16_t d, t;
-	u_int8_t p;
+	uint16_t d, t;
+	uint8_t p;
 	char buf[100];
 
 	for (i = 0; i < 10000; i++) {

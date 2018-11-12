@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 2009 Sam Leffler, Errno Consulting
+ * Copyright (c) 2012-2013, SRI International
  * All rights reserved.
+ *
+ * Portions of this software were developed by SRI International and the
+ * University of Cambridge Computer Laboratory under DARPA/AFRL contract
+ * (FA8750-10-C-0237) ("CTSRD"), as part of the DARPA CRASH research
+ * programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/cfi/cfi_var.h>
 
+#include <geom/geom.h>
 #include <geom/geom_disk.h>
 
 struct cfi_disk_softc {
@@ -64,6 +71,7 @@ static int cfi_disk_detach(device_t);
 static int cfi_disk_open(struct disk *);
 static int cfi_disk_close(struct disk *);
 static void cfi_io_proc(void *, int);
+static int cfi_disk_getattr(struct bio *);
 static void cfi_disk_strategy(struct bio *);
 static int cfi_disk_ioctl(struct disk *, u_long, void *, int, struct thread *);
 
@@ -95,6 +103,7 @@ cfi_disk_attach(device_t dev)
 	sc->disk->d_strategy = cfi_disk_strategy;
 	sc->disk->d_ioctl = cfi_disk_ioctl;
 	sc->disk->d_dump = NULL;		/* NB: no dumps */
+	sc->disk->d_getattr = cfi_disk_getattr;
 	sc->disk->d_sectorsize = CFI_DISK_SECSIZE;
 	sc->disk->d_mediasize = sc->parent->sc_size;
 	sc->disk->d_maxsize = CFI_DISK_MAXIOSIZE;
@@ -182,19 +191,19 @@ cfi_disk_read(struct cfi_softc *sc, struct bio *bp)
 	if (sc->sc_width == 1) {
 		uint8_t *dp = (uint8_t *)bp->bio_data;
 		while (resid > 0 && bp->bio_offset < sc->sc_size) {
-			*dp++ = cfi_read(sc, bp->bio_offset);
+			*dp++ = cfi_read_raw(sc, bp->bio_offset);
 			bp->bio_offset += 1, resid -= 1;
 		}
 	} else if (sc->sc_width == 2) {
 		uint16_t *dp = (uint16_t *)bp->bio_data;
 		while (resid > 0 && bp->bio_offset < sc->sc_size) {
-			*dp++ = cfi_read(sc, bp->bio_offset);
+			*dp++ = cfi_read_raw(sc, bp->bio_offset);
 			bp->bio_offset += 2, resid -= 2;
 		}
 	} else {
 		uint32_t *dp = (uint32_t *)bp->bio_data;
 		while (resid > 0 && bp->bio_offset < sc->sc_size) {
-			*dp++ = cfi_read(sc, bp->bio_offset);
+			*dp++ = cfi_read_raw(sc, bp->bio_offset);
 			bp->bio_offset += 4, resid -= 4;
 		}
 	}
@@ -274,6 +283,30 @@ cfi_io_proc(void *arg, int pending)
 		}
 	}
 }
+
+static int
+cfi_disk_getattr(struct bio *bp)
+{
+	struct cfi_disk_softc *dsc;
+	struct cfi_softc *sc;
+	device_t dev;
+
+	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1 == NULL)
+		return (ENXIO);
+
+	dsc = bp->bio_disk->d_drv1;
+	sc = dsc->parent;
+	dev = sc->sc_dev;
+
+	if (strcmp(bp->bio_attribute, "CFI::device") == 0) {
+		if (bp->bio_length != sizeof(dev))
+			return (EFAULT);
+		bcopy(&dev, bp->bio_data, sizeof(dev));
+	} else
+		return (-1);
+	return (0);
+}
+
 
 static void
 cfi_disk_strategy(struct bio *bp)

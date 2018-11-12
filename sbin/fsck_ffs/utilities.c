@@ -68,7 +68,7 @@ blockcheck(char *origname)
 	newname = origname;
 	if (stat(newname, &stblock) < 0) {
 		cp = strrchr(newname, '/');
-		if (cp == 0) {
+		if (cp == NULL) {
 			(void)snprintf(device, sizeof(device), "%s%s",
 				_PATH_DEV, newname);
 			newname = device;
@@ -86,7 +86,7 @@ retry:
 	case S_IFDIR:
 		if (retried)
 			break;
-		
+
 		len = strlen(origname) - 1;
 		if (len > 0 && origname[len] == '/')
 			/* remove trailing slash */
@@ -108,14 +108,3 @@ retry:
 	return (origname);
 }
 
-void
-infohandler(int sig __unused)
-{
-	got_siginfo = 1;
-}
-
-void
-alarmhandler(int sig __unused)
-{
-	got_sigalarm = 1;
-}

@@ -13,6 +13,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <math.h>
+#include <ctype.h>
 #include <err.h>
 #include <string.h>
 #include <stdlib.h>
@@ -23,8 +24,8 @@ __FBSDID("$FreeBSD$");
 
 #define NSTUDENT 100
 #define NCONF 6
-double const studentpct[] = { 80, 90, 95, 98, 99, 99.5 };
-double student [NSTUDENT + 1][NCONF] = {
+static double const studentpct[] = { 80, 90, 95, 98, 99, 99.5 };
+static double student[NSTUDENT + 1][NCONF] = {
 /* inf */	{	1.282,	1.645,	1.960,	2.326,	2.576,	3.090  },
 /* 1. */	{	3.078,	6.314,	12.706,	31.821,	63.657,	318.313  },
 /* 2. */	{	1.886,	2.920,	4.303,	6.965,	9.925,	22.327  },
@@ -191,8 +192,10 @@ Avg(struct dataset *ds)
 static double
 Median(struct dataset *ds)
 {
-
-	return (ds->points[ds->n / 2]);
+	if ((ds->n % 2) == 0)
+		return ((ds->points[ds->n / 2] + (ds->points[(ds->n / 2) - 1])) / 2);
+    	else
+		return (ds->points[ds->n / 2]);
 }
 
 static double
@@ -328,10 +331,8 @@ PlotSet(struct dataset *ds, int val)
 	else
 		bar = 0;
 
-	if (pl->bar == NULL) {
-		pl->bar = malloc(sizeof(char *) * pl->num_datasets);
-		memset(pl->bar, 0, sizeof(char*) * pl->num_datasets);
-	}
+	if (pl->bar == NULL)
+		pl->bar = calloc(sizeof(char *), pl->num_datasets);
 	if (pl->bar[bar] == NULL) {
 		pl->bar[bar] = malloc(pl->width);
 		memset(pl->bar[bar], 0, pl->width);
@@ -475,8 +476,8 @@ ReadSet(const char *n, int column, const char *delim)
 		line++;
 
 		i = strlen(buf);
-		if (buf[i-1] == '\n')
-			buf[i-1] = '\0';
+		while (i > 0 && isspace(buf[i - 1]))
+			buf[--i] = '\0';
 		for (i = 1, t = strtok(buf, delim);
 		     t != NULL && *t != '#';
 		     i++, t = strtok(NULL, delim)) {
@@ -488,7 +489,7 @@ ReadSet(const char *n, int column, const char *delim)
 
 		d = strtod(t, &p);
 		if (p != NULL && *p != '\0')
-			err(2, "Invalid data on line %d in %s\n", line, n);
+			errx(2, "Invalid data on line %d in %s", line, n);
 		if (*buf != '\0')
 			AddPoint(s, d);
 	}
@@ -509,7 +510,7 @@ usage(char const *whine)
 
 	fprintf(stderr, "%s\n", whine);
 	fprintf(stderr,
-	    "Usage: ministat [-C column] [-c confidence] [-d delimiter(s)] [-ns] [-w width] [file [file ...]]\n");
+	    "Usage: ministat [-C column] [-c confidence] [-d delimiter(s)] [-Ans] [-w width] [file [file ...]]\n");
 	fprintf(stderr, "\tconfidence = {");
 	for (i = 0; i < NCONF; i++) {
 		fprintf(stderr, "%s%g%%",
@@ -517,6 +518,7 @@ usage(char const *whine)
 		    studentpct[i]);
 	}
 	fprintf(stderr, "}\n");
+	fprintf(stderr, "\t-A : print statistics only. suppress the graph.\n");
 	fprintf(stderr, "\t-C : column number to extract (starts and defaults to 1)\n");
 	fprintf(stderr, "\t-d : delimiter(s) string, default to \" \\t\"\n");
 	fprintf(stderr, "\t-n : print summary statistics only, no graph/test\n");
@@ -538,6 +540,7 @@ main(int argc, char **argv)
 	int flag_s = 0;
 	int flag_n = 0;
 	int termwidth = 74;
+	int suppress_plot = 0;
 
 	if (isatty(STDOUT_FILENO)) {
 		struct winsize wsz;
@@ -550,8 +553,11 @@ main(int argc, char **argv)
 	}
 
 	ci = -1;
-	while ((c = getopt(argc, argv, "C:c:d:snw:")) != -1)
+	while ((c = getopt(argc, argv, "AC:c:d:snw:")) != -1)
 		switch (c) {
+		case 'A':
+			suppress_plot = 1;
+			break;
 		case 'C':
 			column = strtol(optarg, &p, 10);
 			if (p != NULL && *p != '\0')
@@ -610,7 +616,7 @@ main(int argc, char **argv)
 	for (i = 0; i < nds; i++) 
 		printf("%c %s\n", symbol[i+1], ds[i]->name);
 
-	if (!flag_n) {
+	if (!flag_n && !suppress_plot) {
 		SetupPlot(termwidth, flag_s, nds);
 		for (i = 0; i < nds; i++)
 			DimPlot(ds[i]);

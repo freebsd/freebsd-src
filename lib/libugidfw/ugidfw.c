@@ -64,11 +64,10 @@ bsde_rule_to_string(struct mac_bsdextended_rule *rule, char *buf, size_t buflen)
 	struct statfs *mntbuf;
 	char *cur, type[sizeof(rule->mbr_object.mbo_type) * CHAR_BIT + 1];
 	size_t left, len;
-	int anymode, unknownmode, truncated, numfs, i, notdone;
+	int anymode, unknownmode, numfs, i, notdone;
 
 	cur = buf;
 	left = buflen;
-	truncated = 0;
 
 	len = snprintf(cur, left, "subject ");
 	if (len < 0 || len > left)
@@ -506,7 +505,7 @@ truncated:
 	return (-1);
 }
 
-int
+static int
 bsde_parse_uidrange(char *spec, uid_t *min, uid_t *max,
     size_t buflen, char *errstr){
 	struct passwd *pwd;
@@ -555,7 +554,7 @@ bsde_parse_uidrange(char *spec, uid_t *min, uid_t *max,
 	return (0);
 }
 
-int
+static int
 bsde_parse_gidrange(char *spec, gid_t *min, gid_t *max,
     size_t buflen, char *errstr){
 	struct group *grp;
@@ -604,7 +603,7 @@ bsde_parse_gidrange(char *spec, gid_t *min, gid_t *max,
 	return (0);
 }
 
-int
+static int
 bsde_parse_subject(int argc, char *argv[],
     struct mac_bsdextended_subject *subject, size_t buflen, char *errstr)
 {
@@ -613,7 +612,7 @@ bsde_parse_subject(int argc, char *argv[],
 	char *endp;
 	uid_t uid_min, uid_max;
 	gid_t gid_min, gid_max;
-	int jid;
+	int jid = 0;
 	size_t len;
 	long value;
 
@@ -721,7 +720,7 @@ bsde_parse_subject(int argc, char *argv[],
 	return (0);
 }
 
-int
+static int
 bsde_parse_type(char *spec, int *type, size_t buflen, char *errstr)
 {
 	size_t len;
@@ -765,12 +764,11 @@ bsde_parse_type(char *spec, int *type, size_t buflen, char *errstr)
 	return (0);
 }
 
-int
+static int
 bsde_parse_fsid(char *spec, struct fsid *fsid, size_t buflen, char *errstr)
 {
 	size_t len;
 	struct statfs buf;
-	int i;
 
 	if (statfs(spec, &buf) < 0) {
 		len = snprintf(errstr, buflen, "Unable to get id for %s: %s",
@@ -783,15 +781,15 @@ bsde_parse_fsid(char *spec, struct fsid *fsid, size_t buflen, char *errstr)
 	return (0);
 }
 
-int
+static int
 bsde_parse_object(int argc, char *argv[],
     struct mac_bsdextended_object *object, size_t buflen, char *errstr)
 {
 	int not_seen, flags;
 	int current, neg, nextnot;
+	int type;
 	uid_t uid_min, uid_max;
 	gid_t gid_min, gid_max;
-	int type;
 	struct fsid fsid;
 	size_t len;
 
@@ -799,6 +797,7 @@ bsde_parse_object(int argc, char *argv[],
 	flags = 0;
 	neg = 0;
 	nextnot = 0;
+	type = 0;
 
 	if (strcmp("not", argv[current]) == 0) {
 		not_seen = 1;
@@ -1103,7 +1102,7 @@ bsde_get_mib(const char *string, int *name, size_t *namelen)
 	return (0);
 }
 
-int
+static int
 bsde_check_version(size_t buflen, char *errstr)
 {
 	size_t len;
@@ -1135,7 +1134,7 @@ bsde_get_rule_count(size_t buflen, char *errstr)
 	len = sizeof(rule_count);
 	error = sysctlbyname(MIB ".rule_count", &rule_count, &len, NULL, 0);
 	if (error) {
-		len = snprintf(errstr, buflen, strerror(errno));
+		len = snprintf(errstr, buflen, "%s", strerror(errno));
 		return (-1);
 	}
 	if (len != sizeof(rule_count)) {
@@ -1157,7 +1156,7 @@ bsde_get_rule_slots(size_t buflen, char *errstr)
 	len = sizeof(rule_slots);
 	error = sysctlbyname(MIB ".rule_slots", &rule_slots, &len, NULL, 0);
 	if (error) {
-		len = snprintf(errstr, buflen, strerror(errno));
+		len = snprintf(errstr, buflen, "%s", strerror(errno));
 		return (-1);
 	}
 	if (len != sizeof(rule_slots)) {
@@ -1217,7 +1216,7 @@ bsde_delete_rule(int rulenum, size_t buflen, char *errstr)
 {
 	struct mac_bsdextended_rule rule;
 	int name[10];
-	size_t len, size;
+	size_t len;
 	int error;
 
 	if (bsde_check_version(buflen, errstr) != 0)
@@ -1234,7 +1233,6 @@ bsde_delete_rule(int rulenum, size_t buflen, char *errstr)
 	name[len] = rulenum;
 	len++;
 
-	size = sizeof(rule);
 	error = sysctl(name, len, NULL, NULL, &rule, 0);
 	if (error) {
 		len = snprintf(errstr, buflen, "%s.%d: %s", MIB ".rules",
@@ -1250,7 +1248,7 @@ bsde_set_rule(int rulenum, struct mac_bsdextended_rule *rule, size_t buflen,
     char *errstr)
 {
 	int name[10];
-	size_t len, size;
+	size_t len;
 	int error;
 
 	if (bsde_check_version(buflen, errstr) != 0)
@@ -1267,8 +1265,7 @@ bsde_set_rule(int rulenum, struct mac_bsdextended_rule *rule, size_t buflen,
 	name[len] = rulenum;
 	len++;
 
-	size = sizeof(*rule);
-	error = sysctl(name, len, NULL, NULL, rule, size);
+	error = sysctl(name, len, NULL, NULL, rule, sizeof(*rule));
 	if (error) {
 		len = snprintf(errstr, buflen, "%s.%d: %s", MIB ".rules",
 		    rulenum, strerror(errno));
@@ -1284,7 +1281,7 @@ bsde_add_rule(int *rulenum, struct mac_bsdextended_rule *rule, size_t buflen,
 {
 	char charstr[BUFSIZ];
 	int name[10];
-	size_t len, size;
+	size_t len;
 	int error, rule_slots;
 
 	if (bsde_check_version(buflen, errstr) != 0)
@@ -1308,8 +1305,7 @@ bsde_add_rule(int *rulenum, struct mac_bsdextended_rule *rule, size_t buflen,
 	name[len] = rule_slots;
 	len++;
 
-	size = sizeof(*rule);
-	error = sysctl(name, len, NULL, NULL, rule, size);
+	error = sysctl(name, len, NULL, NULL, rule, sizeof(*rule));
 	if (error) {
 		len = snprintf(errstr, buflen, "%s.%d: %s", MIB ".rules",
 		    rule_slots, strerror(errno));

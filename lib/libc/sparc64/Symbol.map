@@ -6,7 +6,7 @@
  * This only needs to contain symbols that are not listed in
  * symbol maps from other parts of libc (i.e., not found in
  * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
- */ 
+ */
 FBSD_1.0 {
 	/* PSEUDO syscalls */
 	_exit;
@@ -24,7 +24,6 @@ FBSD_1.0 {
 	__infinity;
 	__nan;
 	makecontext;
-	modf;
 	setjmp;
 	longjmp;
 	sigsetjmp;
@@ -81,11 +80,8 @@ FBSDprivate_1.0 {
 	signalcontext;
 	__signalcontext;
 	__siglongjmp;
-	.curbrk;
-	.minbrk;
 	__sys_brk;
 	_brk;
-	.cerror;
 	__sys_exect;
 	_exect;
 	_end;

@@ -16,7 +16,7 @@ B<openssl ecparam>
 [B<-C>]
 [B<-check>]
 [B<-name arg>]
-[B<-list_curve>]
+[B<-list_curves>]
 [B<-conv_form arg>]
 [B<-param_enc arg>]
 [B<-no_seed>]
@@ -121,7 +121,7 @@ all others.
 
 =item B<-engine id>
 
-specifying an engine (by it's unique B<id> string) will cause B<req>
+specifying an engine (by its unique B<id> string) will cause B<ecparam>
 to attempt to obtain a functional reference to the specified engine,
 thus initialising it if needed. The engine will then be set as the default
 for all available algorithms.

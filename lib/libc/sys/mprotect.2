@@ -28,7 +28,7 @@
 .\"	@(#)mprotect.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd August 3, 2016
 .Dt MPROTECT 2
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .In sys/mman.h
 .Ft int
-.Fn mprotect "const void *addr" "size_t len" "int prot"
+.Fn mprotect "void *addr" "size_t len" "int prot"
 .Sh DESCRIPTION
 The
 .Fn mprotect

@@ -1,10 +1,15 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
+PACKAGE=runtime
 PROG=		mdconfig
 MAN=		mdconfig.8
-MLINKS=		mdconfig.8 vnconfig.8
 
-DPADD=	${LIBUTIL} ${LIBGEOM} ${LIBBSDXML} ${LIBSBUF} 
-LDADD=	-lutil -lgeom -lbsdxml -lsbuf
+LIBADD=		util geom
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=    tests
+.endif
 
 .include <bsd.prog.mk>

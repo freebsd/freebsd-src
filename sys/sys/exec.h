@@ -39,12 +39,17 @@
 #define _SYS_EXEC_H_
 
 /*
- * The following structure is found at the top of the user stack of each
- * user process. The ps program uses it to locate argv and environment
- * strings. Programs that wish ps to display other information may modify
- * it; normally ps_argvstr points to the argv vector, and ps_nargvstr
- * is the same as the program's argc. The fields ps_envstr and ps_nenvstr
- * are the equivalent for the environment.
+ * Before ps_args existed, the following structure, found at the top of
+ * the user stack of each user process, was used by ps(1) to locate
+ * environment and argv strings.  Normally ps_argvstr points to the
+ * argv vector, and ps_nargvstr is the same as the program's argc. The
+ * fields ps_envstr and ps_nenvstr are the equivalent for the environment.
+ *
+ * Programs should now use setproctitle(3) to change ps output.
+ * setproctitle() always informs the kernel with sysctl and sets the
+ * pointers in ps_strings.  The kern.proc.args sysctl first tries p_args.
+ * If p_args is NULL, it then falls back to reading ps_strings and following
+ * the pointers.
  */
 struct ps_strings {
 	char	**ps_argvstr;	/* first of 0 or more argument strings */
@@ -52,12 +57,6 @@ struct ps_strings {
 	char	**ps_envstr;	/* first of 0 or more environment strings */
 	unsigned int ps_nenvstr; /* the number of environment strings */
 };
-
-/*
- * Address of ps_strings structure (in user space).
- */
-#define	PS_STRINGS	(USRSTACK - sizeof(struct ps_strings))
-#define SPARE_USRSPACE	4096
 
 struct image_params;
 
@@ -71,11 +70,21 @@ struct execsw {
 #ifdef _KERNEL
 #include <sys/cdefs.h>
 
+/*
+ * Address of ps_strings structure (in user space).
+ * Prefer the kern.ps_strings or kern.proc.ps_strings sysctls to this constant.
+ */
+#define	PS_STRINGS	(USRSTACK - sizeof(struct ps_strings))
+#define	SPARE_USRSPACE	4096
+
 int exec_map_first_page(struct image_params *);        
 void exec_unmap_first_page(struct image_params *);       
 
 int exec_register(const struct execsw *);
 int exec_unregister(const struct execsw *);
+
+extern int coredump_pack_fileinfo;
+extern int coredump_pack_vmmapinfo;
 
 /*
  * note: name##_mod cannot be const storage because the
@@ -115,7 +124,8 @@ int exec_unregister(const struct execsw *);
 		__CONCAT(name,_modevent), \
 		(void *)& execsw_arg \
 	}; \
-	DECLARE_MODULE(name, __CONCAT(name,_mod), SI_SUB_EXEC, SI_ORDER_ANY)
+	DECLARE_MODULE_TIED(name, __CONCAT(name,_mod), SI_SUB_EXEC, \
+	    SI_ORDER_ANY)
 #endif
 
 #endif

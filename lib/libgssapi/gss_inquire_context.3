@@ -27,9 +27,9 @@
 .\"	$FreeBSD$
 .\"
 .\" The following commands are required for all man pages.
-.Dd October 30, 2007
-.Os
+.Dd January 26, 2010
 .Dt GSS_INQUIRE_CONTEXT 3 PRM
+.Os
 .Sh NAME
 .Nm gss_inquire_context
 .Nd Obtain information about a security context
@@ -55,7 +55,7 @@ The caller must already have obtained a handle that refers to the
 context,
 although the context need not be fully established.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It locally_initiated"
 .It minor_status
 Mechanism specific status code.
 .It context_handle
@@ -229,20 +229,20 @@ Specify
 if not required.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_NO_CONTEXT"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_NO_CONTEXT
 The referenced context could not be accessed
 .El
 .Sh SEE ALSO
-.Xr gss_release_name 3 ,
-.Xr gss_init_sec_context 3 ,
-.Xr gss_wrap 3 ,
+.Xr gss_export_sec_context 3 ,
 .Xr gss_get_mic 3 ,
-.Xr gss_export_sec_context 3
+.Xr gss_init_sec_context 3 ,
+.Xr gss_release_name 3 ,
+.Xr gss_wrap 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744
@@ -251,7 +251,7 @@ Generic Security Service API Version 2 : C-bindings
 .Sh HISTORY
 The
 .Nm
-manual page example first appeared in
+function first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
 John Wray, Iris Associates

@@ -53,6 +53,12 @@ static db_varfcn_t db_frame;
 
 #define DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
 
+#ifdef __powerpc64__
+#define	CALLOFFSET	8	/* Include TOC reload slot */
+#else
+#define	CALLOFFSET	4
+#endif
+
 struct db_variable db_regs[] = {
 	{ "r0",	 DB_OFFSET(fixreg[0]),	db_frame },
 	{ "r1",	 DB_OFFSET(fixreg[1]),	db_frame },
@@ -92,16 +98,15 @@ struct db_variable db_regs[] = {
 	{ "ctr", DB_OFFSET(ctr),	db_frame },
 	{ "cr",	 DB_OFFSET(cr),		db_frame },
 	{ "xer", DB_OFFSET(xer),	db_frame },
+	{ "dar", DB_OFFSET(dar),	db_frame },
 #ifdef AIM
-	{ "dar", DB_OFFSET(cpu.aim.dar),	db_frame },
 	{ "dsisr", DB_OFFSET(cpu.aim.dsisr),	db_frame },
 #endif
-#ifdef E500
-	{ "dear", DB_OFFSET(cpu.booke.dear),	db_frame },
+#if defined(BOOKE)
 	{ "esr", DB_OFFSET(cpu.booke.esr),	db_frame },
 #endif
 };
-struct db_variable *db_eregs = db_regs + sizeof (db_regs)/sizeof (db_regs[0]);
+struct db_variable *db_eregs = db_regs + nitems(db_regs);
 
 /*
  * register variable handling
@@ -109,11 +114,11 @@ struct db_variable *db_eregs = db_regs + sizeof (db_regs)/sizeof (db_regs[0]);
 static int
 db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 {
-	uint32_t *reg;
+	register_t *reg;
 
 	if (kdb_frame == NULL)
 		return (0);
-        reg = (uint32_t*)((uintptr_t)kdb_frame + (uintptr_t)vp->valuep);
+        reg = (register_t*)((uintptr_t)kdb_frame + (uintptr_t)vp->valuep);
         if (op == DB_VAR_GET)
                 *valuep = *reg;
         else
@@ -129,9 +134,6 @@ static int
 db_backtrace(struct thread *td, db_addr_t fp, int count)
 {
 	db_addr_t stackframe, lr, *args;
-	db_expr_t diff;
-	c_db_sym_t sym;
-	const char *symname;
 	boolean_t kernel_only = TRUE;
 	boolean_t full = FALSE;
 
@@ -164,8 +166,13 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 		stackframe = *(db_addr_t *)stackframe;
 
 	next_frame:
+	    #ifdef __powerpc64__
+		/* The saved arg values start at frame[6] */
+		args = (db_addr_t *)(stackframe + 48);
+	    #else
 		/* The saved arg values start at frame[2] */
 		args = (db_addr_t *)(stackframe + 8);
+	    #endif
 
 		if (stackframe < PAGE_SIZE)
 			break;
@@ -178,13 +185,21 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 		 * 4 to convert into calling address (as opposed to
 		 * return address)
 		 */
+	    #ifdef __powerpc64__
+		lr = *(db_addr_t *)(stackframe + 16) - 4;
+	    #else
 		lr = *(db_addr_t *)(stackframe + 4) - 4;
+	    #endif
 		if ((lr & 3) || (lr < 0x100)) {
-			db_printf("saved LR(0x%x) is invalid.", lr);
+			db_printf("saved LR(0x%zx) is invalid.", lr);
 			break;
 		}
 
+		#ifdef __powerpc64__
+		db_printf("0x%016lx: ", stackframe);
+		#else
 		db_printf("0x%08x: ", stackframe);
+		#endif
 
 		/*
 		 * The trap code labels the return addresses from the
@@ -192,30 +207,37 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 		 * to determine if the callframe has to traverse a saved
 		 * trap context
 		 */
-		if ((lr + 4 == (db_addr_t) &trapexit) ||
-		    (lr + 4 == (db_addr_t) &asttrapexit)) {
+		if ((lr + CALLOFFSET == (db_addr_t) &trapexit) ||
+		    (lr + CALLOFFSET == (db_addr_t) &asttrapexit)) {
 			const char *trapstr;
-			struct trapframe *tf = (struct trapframe *)
-				(stackframe+8);
+			struct trapframe *tf = (struct trapframe *)(args);
 			db_printf("%s ", tf->srr1 & PSL_PR ? "user" : "kernel");
 			switch (tf->exc) {
 			case EXC_DSI:
 				/* XXX take advantage of the union. */
-				db_printf("DSI %s trap @ %#x by ",
+				db_printf("DSI %s trap @ %#zx by ",
 				    (tf->cpu.aim.dsisr & DSISR_STORE) ? "write"
-				    : "read", tf->cpu.aim.dar);
+				    : "read", tf->dar);
 				goto print_trap;
 			case EXC_ALI:
 				/* XXX take advantage of the union. */
-				db_printf("ALI trap @ %#x (xSR %#x) ",
-				    tf->cpu.aim.dar, tf->cpu.aim.dsisr);
+				db_printf("ALI trap @ %#zx (xSR %#x) ",
+				    tf->dar, (uint32_t)tf->cpu.aim.dsisr);
 				goto print_trap;
+#ifdef __powerpc64__
+			case EXC_DSE:
+				db_printf("DSE trap @ %#zx by ", tf->dar);
+				goto print_trap;
+			case EXC_ISE:
+				db_printf("ISE trap @ %#zx by ", tf->srr0);
+				goto print_trap;
+#endif
 			case EXC_ISI: trapstr = "ISI"; break;
 			case EXC_PGM: trapstr = "PGM"; break;
 			case EXC_SC: trapstr = "SC"; break;
 			case EXC_EXI: trapstr = "EXI"; break;
 			case EXC_MCHK: trapstr = "MCHK"; break;
-#ifndef E500
+#if !defined(BOOKE)
 			case EXC_VEC: trapstr = "VEC"; break;
 			case EXC_FPA: trapstr = "FPA"; break;
 			case EXC_BPT: trapstr = "BPT"; break;
@@ -227,30 +249,28 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 			case EXC_FPU: trapstr = "FPU"; break;
 			case EXC_DECR: trapstr = "DECR"; break;
 			case EXC_PERF: trapstr = "PERF"; break;
+			case EXC_VSX: trapstr = "VSX"; break;
 			default: trapstr = NULL; break;
 			}
 			if (trapstr != NULL) {
 				db_printf("%s trap by ", trapstr);
 			} else {
-				db_printf("trap %#x by ", tf->exc);
+				db_printf("trap %#zx by ", tf->exc);
 			}
 
 		   print_trap:
 			lr = (db_addr_t) tf->srr0;
-			diff = 0;
-			symname = NULL;
-			sym = db_search_symbol(lr, DB_STGY_ANY, &diff);
-			db_symbol_values(sym, &symname, 0);
-			if (symname == NULL || !strcmp(symname, "end")) {
-				db_printf("%#x: srr1=%#x\n", lr, tf->srr1);
-			} else {
-				db_printf("%s+%#x: srr1=%#x\n", symname, diff,
-				    tf->srr1);
-			}
-			db_printf("%-10s  r1=%#x cr=%#x xer=%#x ctr=%#x",
-			    "", tf->fixreg[1], tf->cr, tf->xer, tf->ctr);
+			db_printsym(lr, DB_STGY_ANY);
+			db_printf(": srr1=%#zx\n", tf->srr1);
+			db_printf("%-10s  r1=%#zx cr=%#x xer=%#x ctr=%#zx",
+			    "", tf->fixreg[1], (uint32_t)tf->cr,
+			    (uint32_t)tf->xer, tf->ctr);
+#ifdef __powerpc64__
+			db_printf(" r2=%#zx", tf->fixreg[2]);
+#endif
 			if (tf->exc == EXC_DSI)
-				db_printf(" sr=%#x", tf->cpu.aim.dsisr);
+				db_printf(" sr=%#x",
+				    (uint32_t)tf->cpu.aim.dsisr);
 			db_printf("\n");
 			stackframe = (db_addr_t) tf->fixreg[1];
 			if (kernel_only && (tf->srr1 & PSL_PR))
@@ -258,17 +278,11 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 			goto next_frame;
 		}
 
-		diff = 0;
-		symname = NULL;
-		sym = db_search_symbol(lr, DB_STGY_ANY, &diff);
-		db_symbol_values(sym, &symname, 0);
-		if (symname == NULL || !strcmp(symname, "end"))
-			db_printf("at %x", lr);
-		else
-			db_printf("at %s+%#x", symname, diff);
+		db_printf("at ");
+		db_printsym(lr, DB_STGY_PROC);
 		if (full)
 			/* Print all the args stored in that stackframe. */
-			db_printf("(%x, %x, %x, %x, %x, %x, %x, %x)",
+			db_printf("(%zx, %zx, %zx, %zx, %zx, %zx, %zx, %zx)",
 				args[0], args[1], args[2], args[3],
 				args[4], args[5], args[6], args[7]);
 		db_printf("\n");

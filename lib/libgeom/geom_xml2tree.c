@@ -56,6 +56,8 @@ struct mystate {
 	struct sbuf		*sbuf[20];
 	struct gconf		*config;
 	int			nident;
+	XML_Parser		parser;
+	int			error;
 };
 
 static void
@@ -85,6 +87,8 @@ StartElement(void *userData, const char *name, const char **attr)
 	if (!strcmp(name, "class") && mt->class == NULL) {
 		mt->class = calloc(1, sizeof *mt->class);
 		if (mt->class == NULL) {
+			mt->error = errno;
+			XML_StopParser(mt->parser, 0);
 			warn("Cannot allocate memory during processing of '%s' "
 			    "element", name);
 			return;
@@ -98,6 +102,8 @@ StartElement(void *userData, const char *name, const char **attr)
 	if (!strcmp(name, "geom") && mt->geom == NULL) {
 		mt->geom = calloc(1, sizeof *mt->geom);
 		if (mt->geom == NULL) {
+			mt->error = errno;
+			XML_StopParser(mt->parser, 0);
 			warn("Cannot allocate memory during processing of '%s' "
 			    "element", name);
 			return;
@@ -116,6 +122,8 @@ StartElement(void *userData, const char *name, const char **attr)
 	if (!strcmp(name, "consumer") && mt->consumer == NULL) {
 		mt->consumer = calloc(1, sizeof *mt->consumer);
 		if (mt->consumer == NULL) {
+			mt->error = errno;
+			XML_StopParser(mt->parser, 0);
 			warn("Cannot allocate memory during processing of '%s' "
 			    "element", name);
 			return;
@@ -137,6 +145,8 @@ StartElement(void *userData, const char *name, const char **attr)
 	if (!strcmp(name, "provider") && mt->provider == NULL) {
 		mt->provider = calloc(1, sizeof *mt->provider);
 		if (mt->provider == NULL) {
+			mt->error = errno;
+			XML_StopParser(mt->parser, 0);
 			warn("Cannot allocate memory during processing of '%s' "
 			    "element", name);
 			return;
@@ -176,20 +186,24 @@ static void
 EndElement(void *userData, const char *name)
 {
 	struct mystate *mt;
+	struct gconf *c;
 	struct gconfig *gc;
 	char *p;
 
 	mt = userData;
-	sbuf_finish(mt->sbuf[mt->level]);
-	p = strdup(sbuf_data(mt->sbuf[mt->level]));
+	p = NULL;
+	if (sbuf_finish(mt->sbuf[mt->level]) == 0)
+		p = strdup(sbuf_data(mt->sbuf[mt->level]));
+	sbuf_delete(mt->sbuf[mt->level]);
+	mt->sbuf[mt->level] = NULL;
+	mt->level--;
 	if (p == NULL) {
+		mt->error = errno;
+		XML_StopParser(mt->parser, 0);
 		warn("Cannot allocate memory during processing of '%s' "
 		    "element", name);
 		return;
 	}
-	sbuf_delete(mt->sbuf[mt->level]);
-	mt->sbuf[mt->level] = NULL;
-	mt->level--;
 	if (strlen(p) == 0) {
 		free(p);
 		p = NULL;
@@ -230,32 +244,59 @@ EndElement(void *userData, const char *name)
 		free(p);
 		return;
 	}
-
-	if (!strcmp(name, "config")) {
-		mt->config = NULL;
+	if (!strcmp(name, "stripesize") && mt->provider != NULL) {
+		mt->provider->lg_stripesize = strtoumax(p, NULL, 0);
+		free(p);
+		return;
+	}
+	if (!strcmp(name, "stripeoffset") && mt->provider != NULL) {
+		mt->provider->lg_stripeoffset = strtoumax(p, NULL, 0);
+		free(p);
 		return;
 	}
 
-	if (mt->config != NULL) {
+	if (!strcmp(name, "config")) {
+		mt->config = NULL;
+		free(p);
+		return;
+	}
+
+	if (mt->config != NULL || (!strcmp(name, "wither") &&
+	    (mt->provider != NULL || mt->geom != NULL))) {
+		if (mt->config != NULL)
+			c = mt->config;
+		else if (mt->provider != NULL)
+			c = &mt->provider->lg_config;
+		else
+			c = &mt->geom->lg_config;
 		gc = calloc(1, sizeof *gc);
 		if (gc == NULL) {
+			mt->error = errno;
+			XML_StopParser(mt->parser, 0);
 			warn("Cannot allocate memory during processing of '%s' "
 			    "element", name);
+			free(p);
 			return;
 		}
 		gc->lg_name = strdup(name);
 		if (gc->lg_name == NULL) {
+			mt->error = errno;
+			XML_StopParser(mt->parser, 0);
 			warn("Cannot allocate memory during processing of '%s' "
 			    "element", name);
+			free(gc);
+			free(p);
 			return;
 		}
 		gc->lg_val = p;
-		LIST_INSERT_HEAD(mt->config, gc, lg_config);
+		LIST_INSERT_HEAD(c, gc, lg_config);
 		return;
 	}
 
 	if (p != NULL) {
+#if DEBUG_LIBGEOM > 0
 		printf("Unexpected XML: name=%s data=\"%s\"\n", name, p);
+#endif
 		free(p);
 	}
 
@@ -324,26 +365,40 @@ geom_xml2tree(struct gmesh *gmp, char *p)
 	struct ggeom *ge;
 	struct gprovider *pr;
 	struct gconsumer *co;
-	int i;
+	int error, i;
 
 	memset(gmp, 0, sizeof *gmp);
 	LIST_INIT(&gmp->lg_class);
 	parser = XML_ParserCreate(NULL);
-	mt = calloc(1, sizeof *mt);
-	if (mt == NULL)
+	if (parser == NULL)
 		return (ENOMEM);
+	mt = calloc(1, sizeof *mt);
+	if (mt == NULL) {
+		XML_ParserFree(parser);
+		return (ENOMEM);
+	}
 	mt->mesh = gmp;
+	mt->parser = parser;
+	error = 0;
 	XML_SetUserData(parser, mt);
 	XML_SetElementHandler(parser, StartElement, EndElement);
 	XML_SetCharacterDataHandler(parser, CharData);
 	i = XML_Parse(parser, p, strlen(p), 1);
-	if (i != 1)
-		return (-1);
+	if (mt->error != 0)
+		error = mt->error;
+	else if (i != 1) {
+		error = XML_GetErrorCode(parser) == XML_ERROR_NO_MEMORY ?
+		    ENOMEM : EILSEQ;
+	}
 	XML_ParserFree(parser);
+	if (error != 0) {
+		free(mt);
+		return (error);
+	}
 	gmp->lg_ident = calloc(sizeof *gmp->lg_ident, mt->nident + 1);
+	free(mt);
 	if (gmp->lg_ident == NULL)
 		return (ENOMEM);
-	free(mt);
 	i = 0;
 	/* Collect all identifiers */
 	LIST_FOREACH(cl, &gmp->lg_class, lg_class) {

@@ -1,10 +1,18 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PROG=	jls
 MAN=	jls.8
-DPADD=	${LIBJAIL}
-LDADD=	-ljail
+LIBADD=	jail xo
 
-WARNS?=	6
+PACKAGE=jail
+
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+= -DINET6
+.endif
+.if ${MK_INET_SUPPORT} != "no"
+CFLAGS+= -DINET
+.endif
 
 .include <bsd.prog.mk>

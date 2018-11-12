@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
-#include <machine/pmap.h>
 
 #include <arm/xscale/i8134x/i81342reg.h>
 #include <arm/xscale/i8134x/i81342var.h>
@@ -122,8 +121,8 @@ i81342_pci_attach(device_t dev)
 	    memstart | PCI_MAPREG_MEM_PREFETCHABLE_MASK |
 	    PCI_MAPREG_MEM_TYPE_64BIT);
 	bus_space_write_4(sc->sc_st, sc->sc_atu_sh, ATU_IAUBAR1, 0);
-	bus_space_write_4(sc->sc_st, sc->sc_atu_sh, ATU_IALR1, ~(memsize - 1)
-	     &~(0xfff));
+	bus_space_write_4(sc->sc_st, sc->sc_atu_sh, ATU_IALR1,
+	    rounddown2(~(0xfff), memsize));
 	bus_space_write_4(sc->sc_st, sc->sc_atu_sh, ATU_IATVR1, memstart);
 	bus_space_write_4(sc->sc_st, sc->sc_atu_sh, ATU_IAUTVR1, 0);
 
@@ -180,7 +179,7 @@ i81342_pci_attach(device_t dev)
 	sc->sc_io_rman.rm_type = RMAN_ARRAY;
 	sc->sc_io_rman.rm_descr = "I81342 PCI I/O Ports";
 	if (rman_init(&sc->sc_io_rman) != 0 ||
-		rman_manage_region(&sc->sc_io_rman, 
+		rman_manage_region(&sc->sc_io_rman,
 		sc->sc_is_atux ? IOP34X_PCIX_OIOBAR_VADDR :
 		IOP34X_PCIE_OIOBAR_VADDR,
 		(sc->sc_is_atux ? IOP34X_PCIX_OIOBAR_VADDR :
@@ -190,7 +189,7 @@ i81342_pci_attach(device_t dev)
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "I81342 PCI Memory";
 	if (rman_init(&sc->sc_mem_rman) != 0 ||
-	    rman_manage_region(&sc->sc_mem_rman, 
+	    rman_manage_region(&sc->sc_mem_rman,
 	    0, 0xffffffff) != 0) {
 		panic("i81342_pci_attach: failed to set up memory rman");
 	}
@@ -198,19 +197,19 @@ i81342_pci_attach(device_t dev)
 	sc->sc_irq_rman.rm_descr = "i81342 PCI IRQs";
 	if (sc->sc_is_atux) {
 		if (rman_init(&sc->sc_irq_rman) != 0 ||
-		    rman_manage_region(&sc->sc_irq_rman, ICU_INT_XINT0, 
+		    rman_manage_region(&sc->sc_irq_rman, ICU_INT_XINT0,
 		    ICU_INT_XINT3) != 0)
 			panic("i83142_pci_attach: failed to set up IRQ rman");
 	} else {
 		if (rman_init(&sc->sc_irq_rman) != 0 ||
-		    rman_manage_region(&sc->sc_irq_rman, ICU_INT_ATUE_MA, 
+		    rman_manage_region(&sc->sc_irq_rman, ICU_INT_ATUE_MA,
 		    ICU_INT_ATUE_MD) != 0)
 			panic("i81342_pci_attach: failed to set up IRQ rman");
 
 	}
 	bus_space_write_4(sc->sc_st, sc->sc_atu_sh, ATU_ISR,
 	    bus_space_read_4(sc->sc_st, sc->sc_atu_sh, ATU_ISR) & ATUX_ISR_ERRMSK);
-	device_add_child(dev, "pci", busno);
+	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 
@@ -242,7 +241,7 @@ i81342_pci_conf_setup(struct i81342_pci_softc *sc, int bus, int slot, int func,
 			*addr = (1 << (slot + 16)) | (slot << 11) |
 			    (func << 8) | reg;
 		else
-			*addr = (bus << 16) | (slot << 11) | (func << 11) | 
+			*addr = (bus << 16) | (slot << 11) | (func << 11) |
 			    reg | 1;
 	} else {
 		*addr = (bus << 24) | (slot << 19) | (func << 16) | reg;
@@ -297,7 +296,7 @@ i81342_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 }
 
 static void
-i81342_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, 
+i81342_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, u_int32_t data, int bytes)
 {
 	struct i81342_pci_softc *sc = device_get_softc(dev);
@@ -329,7 +328,7 @@ i81342_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 
 static struct resource *
 i81342_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-   u_long start, u_long end, u_long count, u_int flags)
+   rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct i81342_pci_softc *sc = device_get_softc(bus);	
 	struct resource *rv;
@@ -372,7 +371,7 @@ i81342_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 				rman_release_resource(rv);
 				return (NULL);
 			}
-		} 
+		}
 	}
 	return (rv);
 
@@ -384,7 +383,7 @@ static int
 i81342_pci_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
-	u_long p;
+	bus_space_handle_t p;
 	int error;
 	
 	if (type == SYS_RES_MEMORY) {
@@ -516,7 +515,6 @@ static device_method_t i81342_pci_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	i81342_read_ivar),
 	DEVMETHOD(bus_write_ivar,	i81342_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	i81342_pci_alloc_resource),
@@ -532,7 +530,7 @@ static device_method_t i81342_pci_methods[] = {
 	DEVMETHOD(pcib_write_config,	i81342_pci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	i81342_pci_route_interrupt),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t i81342_pci_driver = {

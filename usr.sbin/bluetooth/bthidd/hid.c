@@ -35,6 +35,7 @@
 #include <sys/mouse.h>
 #include <sys/queue.h>
 #include <assert.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
@@ -47,12 +48,6 @@
 #include "bthid_config.h"
 #include "bthidd.h"
 #include "kbd.h"
-
-#undef	min
-#define	min(x, y)	(((x) < (y))? (x) : (y))
-
-#undef	ASIZE
-#define	ASIZE(a)	(sizeof(a)/sizeof(a[0]))
 
 /*
  * Process data from control channel
@@ -130,7 +125,7 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 	hid_item_t	h;
 	int32_t		report_id, usage, page, val,
 			mouse_x, mouse_y, mouse_z, mouse_butt,
-			mevents, kevents;
+			mevents, kevents, i;
 
 	assert(s != NULL);
 	assert(s->srv != NULL);
@@ -150,8 +145,8 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 	}
 
 	report_id = data[1];
-	data += 2;
-	len -= 2;
+	data ++;
+	len --;
 
 	hid_device = get_hid_device(&s->bdaddr);
 	assert(hid_device != NULL);
@@ -160,12 +155,25 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 
 	for (d = hid_start_parse(hid_device->desc, 1 << hid_input, -1);
 	     hid_get_item(d, &h) > 0; ) {
-		if ((h.flags & HIO_CONST) || (h.report_ID != report_id))
+		if ((h.flags & HIO_CONST) || (h.report_ID != report_id) ||
+		    (h.kind != hid_input))
 			continue;
 
 		page = HID_PAGE(h.usage);
-		usage = HID_USAGE(h.usage);
 		val = hid_get_data(data, &h);
+
+		/*
+		 * When the input field is an array and the usage is specified
+		 * with a range instead of an ID, we have to derive the actual
+		 * usage by using the item value as an index in the usage range
+		 * list.
+		 */
+		if ((h.flags & HIO_VARIABLE)) {
+			usage = HID_USAGE(h.usage);
+		} else {
+			const uint32_t usage_offset = val - h.logical_minimum;
+			usage = HID_USAGE(h.usage_minimum + usage_offset);
+		}
 
 		switch (page) {
 		case HUP_GENERIC_DESKTOP:
@@ -202,17 +210,11 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 				if (val && val < kbd_maxkey())
 					bit_set(s->keys1, val);
 
-				data ++;
-				len --;
-
-				len = min(len, h.report_size);
-				while (len > 0) {
+				for (i = 1; i < h.report_count; i++) {
+					h.pos += h.report_size;
 					val = hid_get_data(data, &h);
 					if (val && val < kbd_maxkey())
 						bit_set(s->keys1, val);
-
-					data ++;
-					len --;
 				}
 			}
 			break;
@@ -234,6 +236,17 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 				break;
 
 			switch (usage) {
+			case HUC_AC_PAN:
+				/* Horizontal scroll */
+				if (val < 0)
+					mouse_butt |= (1 << 5);
+				else
+					mouse_butt |= (1 << 6);
+
+				mevents ++;
+				val = 0;
+				break;
+
 			case 0xb5: /* Scan Next Track */
 				val = 0x19;
 				break;

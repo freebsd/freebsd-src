@@ -7,6 +7,8 @@
 #
 #	picobsd [options] image_type [site_name]
 #
+# CWARNFLAGS can be used to pass -Wall or similar options
+#
 # Where image_type is a directory with the picobsd config info,
 # and ${image_type}/floppy.tree.${site_name} contains
 # optional site-specific configuration.
@@ -67,7 +69,7 @@
 # SRC points to your FreeBSD source tree.
 # l_usrtree points to the /usr subdir for the source tree.
 #     Normally /usr or ${SRC}/../usr
-# l_objtree points to the obj tree. Normally ${l_usrtree}/obj-pico
+# l_objtree points to the obj tree. Normally ${l_usrtree}/obj-pico-${o_arch}
 # c_label is either bsdlabel or disklabel
 # PICO_TREE is where standard picobsd stuff resides.
 #     Normally ${SRC}/release/picobsd
@@ -89,7 +91,7 @@ log() {	#	message
 # unconditionally log and wait for input
 logverbose() {	# message
     local foo
-    printf "\n*** %s\n" "$*"
+    printf "\n*** %s\n" "$*" >&2
     read -p "=== Press enter to continue" foo
     return 0
 }
@@ -105,11 +107,6 @@ set_defaults() {	# no arguments
     EDITOR=${EDITOR:-vi}
     fd_size=${fd_size:-1440}
 
-    o_use_loader="yes"		# use /boot/loader
-	# You should not change it unless you are really short
-	# of space, and your kernel is small enough that the
-	# bootblocks manage to load it.
-
     o_all_in_mfs="yes"		# put all files in mfs so you can boot
 				# and run the image via diskless boot.
     o_clean=""			# set if you want to clean prev.builds.
@@ -121,6 +118,7 @@ set_defaults() {	# no arguments
     o_no_devfs=			# default is use devfs.
 	# You should only set it when building 4.x images
     o_do_modules=""		# do not build modules
+    o_arch=`uname -m`		# default to amd64 or i386 ...
 
     SRC="/usr/src"		# default location for sources
     c_startdir=`pwd`		# directory where we start
@@ -165,66 +163,28 @@ set_defaults() {	# no arguments
 # and also to build a specific target
 create_includes_and_libraries2() { # opt_dir opt_target
     local no
-    log "create_includes_and_libraries2() for ${SRC}"
-    if [ ${OSVERSION} -ge 600000 ] ; then
-	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R"
-    else
-	no="-DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R"
-    fi
-    MAKEOBJDIRPREFIX=${l_objtree}
-    export MAKEOBJDIRPREFIX
+    log "create_includes_and_libraries2() for ${SRC} $1"
+
+    no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
+    no="$no -DWITHOUT_CASPER"
+    no="$no -DMALLOC_PRODUCTION"
+
     ( cd ${SRC};
     # make -DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R -DPICOBSD buildworld
     if [ -d "$1" ] ; then
-	cd $1 ; make $2	# specific target, e.g. ld-elf.so
+	cd $1 ; ${BINMAKE} ${o_par} $2	# specific target, e.g. ld-elf.so
     else
-	make _+_= $no toolchain _includes _libraries
+	export MAKEOBJDIRPREFIX=${l_objtree}
+	make ${o_par} $no toolchain
+
+	# XXX do we need any of these ?
+        eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
+	[ ${o_arch} != `uname -m` ] && \
+	    (cd ${l_objtree}; ln -s . ${o_arch}.${o_arch} || true )
     fi
     )
 }
 
-# entry for 4.x and earlier trees
-create_includes_and_libraries() {
-    local e i
-
-    log "create_includes_and_libraries() for ${SRC}"
-    # Optionally creates include directory and libraries.
-    mkdir -p ${l_usrtree}/include	# the include directory...
-    mkdir -p ${l_usrtree}/share/misc	# a few things go here
-    mkdir -p ${l_usrtree}/lib		# libraries
-    mkdir -p ${l_usrtree}/sbin		# some binaries
-    # override variables for ownershiip and destinations
-    # BINOWN:BINGRP are also used for include files
-    (cd ${SRC}; \
-	BINOWN=`id -un` BINGRP=`id -gn` \
-	DESTDIR=${l_usrtree}/.. \
-	make -m ${SRC}/share/mk includes ) || fail $? includes
-    # Pick up the correct headers for libraries.
-    CFLAGS="-nostdinc -I${l_usrtree}/include" ; export CFLAGS
-
-    (cd ${SRC}
-	# $e is the invocation of make with correct environment
-	# XXX check the NO* options below, maybe system dependent.
-	e="MAKEOBJDIRPREFIX=${l_objtree}/picobsd/libraries \
-	    BINOWN=`id -un` BINGRP=`id -gn` \
-	    DESTDIR=${l_usrtree}/.. \
-	    make -m ${SRC}/share/mk \
-		-DNOHTML -DNOINFO -DNOMAN -DNOSHARE -DNOFSCHG "
-	log "do a 'make obj' in a few places."
-	# This is very version-specific... The following works for 5.0
-	for i in lib secure/lib gnu/lib \
-		gnu/usr.bin/perl usr.bin/lex usr.sbin/config ; do
-	    (cd ${i}; eval $e obj)
-	done
-	log "now make the static libraries"
-	eval $e -DNOPROFILE -DNOPIC libraries
-	(cd ${SRC}/usr.sbin/config
-	eval $e		# build binary
-	eval $e	install	# install it
-	)
-    ) || fail $? "libraries"
-    log "Libraries done"
-}
 
 # set_type <the_type> [the_site] looks in user or system directories
 # for the directory named as the first argument, reads the configuration
@@ -241,16 +201,19 @@ set_type() {	# the_type the_site
     name=""	# clear in case of errors
     for i in ${c_startdir}/${a} ${PICO_TREE}/${a} ; do
 	log "set_type: checking $i"
-	[ -d $i -a -f $i/PICOBSD -a -f $i/crunch.conf ] || continue
-	set -- `cat $i/PICOBSD | \
+	[ -d $i -a -f $i/crunch.conf ] || continue
+	# look for a kernel config file, privilege arch-specific
+	l_kernconf=$i/PICOBSD.${o_arch}
+	[ -f $l_kernconf ] || l_kernconf=$i/PICOBSD
+	[ -f $l_kernconf ] || continue
+	set -- `cat $l_kernconf | \
 	    awk '/^#PicoBSD/ {print $2, $3, $4, $5, $6}'`
 	[ x"$1" != "x" ] || continue
-	MFS_SIZE=$1 ; init_name=$2
-	mfs_inodes=$3 ; fd_inodes=$4
+	MFS_SIZE=$1
 	name=`(cd $i ; pwd) `
 	name=`basename $name`
 	MY_TREE=$i
-	BUILDDIR=${c_startdir}/build_dir-${name}
+	BUILDDIR=${c_startdir}/build_dir-${name}-${o_arch}
 	log "Matching file $name in $i"
 	return ;
     done
@@ -297,11 +260,6 @@ build_image() {
     PICO_OBJ=${l_objtree}/picobsd/${THETYPE}
     log "PICO_OBJ is ${PICO_OBJ}"
 
-    if [ ${OSVERSION} -ge 500035 ] ; then
-	export MAKEOBJDIRPREFIX=${l_objtree}
-	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
-	eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
-    fi
     # create build directory and subtree
     mkdir -p ${BUILDDIR}/crunch
     # remove any old stuff
@@ -332,10 +290,7 @@ main_dialog() {
 	K "edit Kernel config file" \
 	E "Edit crunch.conf file" \
 	S "MFS Size: ${MFS_SIZE}kB" \
-	I "Init type: ${init_name}" \
 	F "Floppy size: ${fd_size}kB" \
-	M "MFS bytes per inode: ${mfs_inodes}" \
-	U "UFS bytes per inode: ${fd_inodes}" \
 	$ "Site-info: ${SITE}" \
 	Q "Quit" \
 	2> ${c_reply}
@@ -352,12 +307,6 @@ main_dialog() {
 	log $l
 	{ dialog --menu "Setup the type of configuration" 12 70 5 $l \
 		2> ${c_reply} && set_type "`cat ${c_reply}`" ${SITE} ; } || true
-	;;
-    I)
-	{ dialog --menu "Choose your init(8) program" \
-	10 70 2 init "Standard init (requires getty)" \
-	oinit "small init from TinyWare" 2> ${c_reply} \
-		&& init_name=`cat ${c_reply}` ; } || true
 	;;
 
     K) ${EDITOR} ${MY_TREE}/PICOBSD ;;
@@ -390,20 +339,6 @@ this as small as possible. " 10 70 2> ${c_reply} \
 		 2> ${c_reply} && fd_size=`cat ${c_reply}` ; } || true
 	;;
 
-    M)
-	{ dialog --title "MFS bytes per inode:" --inputbox \
-	"Enter MFS bytes per inode (typically 4096..65536). \
-	A larger value means fewer inodes but more space on MFS" \
-	10 70 2> ${c_reply} && mfs_inodes=`cat ${c_reply}`  ; } || true
-	;;
-
-    U)
-	{ dialog --title "Floppy bytes per inode:" --inputbox \
-	"Enter floppy bytes per inode (typically 3072..65536). \
-	A larger value means fewer inodes but more space on the floppy." \
-	10 70 2> ${c_reply} && fd_inodes=`cat ${c_reply}` ; } || true
-	;;
-
     N) break 2
 	;;
 
@@ -428,7 +363,7 @@ do_install() {
 	return
     fi
     dialog --title "Build ${THETYPE} completed" --inputbox \
-"\nThe build process was completed successfuly.\n\
+"\nThe build process was completed successfully.\n\
 `cat .build.reply` \n\n\
 Now we are going to install the image on the floppy.\n\
 Please insert a blank floppy in /dev/fd0.\\n
@@ -456,9 +391,12 @@ do_kernel() {		# OK
     log "do_kernel() Preparing kernel \"$name\" in $MY_TREE"
     (cd $MY_TREE; export name SRC BUILDDIR # used in this makefile ;
 	# export CONFIG
+	export WARNS CWARNFLAGS
 	[ "${o_do_modules}" = "yes" ] && export MODULES=""
-	${BINMAKE} -v -f ${PICO_TREE}/build/Makefile.conf ) || \
-	fail $? missing_kernel
+	# kernel build not parallelizable yet
+	${BINMAKE} KERNCONF=${l_kernconf}	\
+		-f ${PICO_TREE}/build/Makefile.conf ) || \
+	    fail $? missing_kernel
 }
 
 # Populate the variable part of the floppy filesystem. Must be done before
@@ -494,7 +432,7 @@ populate_floppy_fs() {		# OK
     for FLOPPY_TREE in ${PICO_TREE}/floppy.tree ${MY_TREE}/floppy.tree \
 		${MY_TREE}/floppy.tree.${SITE} ; do
 	if [ -d ${FLOPPY_TREE} ] ; then
-	    (cd ${FLOPPY_TREE} ; tar -cf - --exclude CVS \
+	    (cd ${FLOPPY_TREE} ; tar -cf - \
 		    --exclude .svn ${excl} . ) | \
 		(cd ${dst} ; tar x${o_tarv}f - )
 	    log "Copied from ${FLOPPY_TREE}"
@@ -568,10 +506,17 @@ do_links() {	# rootdir varname
 # find_progs is a helper function to locate the named programs
 # or libraries in ${o_objdir} or ${_SHLIBDIRPREFIX},
 # and return the full pathnames.
-# Sets ${u_progs} to the list of programs, and ${u_libs}
+# Called as "find_progs [[-L libpath] [-P binpath]] prog1 prog2 ... "
+# On return it sets ${u_progs} to the list of programs, and ${u_libs}
 # to the list of shared libraries used.
+# 
+# '-L path' can be used to specify a search path for libraries
+#    (which searches in $path/lib:$path/usr/lib:$path/usr/local/lib
+# '-P binpath' can be used to specify a search path for programs
+#    (which searches in a lot of places in the subtree)
+# -L must be the first, followed by -P
 #
-# You can use it e.g. in a local configuration file by writing
+# You can use it e.g. in a local confign file by writing
 #
 #  do_copyfiles_user() {
 #	local dst=$1
@@ -580,40 +525,96 @@ do_links() {	# rootdir varname
 #	cp -p ${u_libs} ${dst}/lib
 #	mkdir -p ${dst}/libexec
 #	find_progs ld-elf.so.1
-#	cp -p ${u_progs} ${dst}/libexec
+#	cp -p ${u_progs} ${dst}/libexec # ignore errors
 #  }
 
+# find programs and required libraries. Accept -L libs -P path <progs>
+# if no argument default to objdir/SHLIBDIRPREFIX for both
 find_progs() {	# programs
-	local i
-	u_progs="`find_progs_helper $*`"
-	local o=${o_objdir:-${_SHLIBDIRPREFIX}}
+	# logverbose "find_progs: called with $*"
+	# rev.284898 removed _SHLIBDIRPREFIX so we need to reconstruct
+	# its value in i1
+	local i1=${_SHLIBDIRPREFIX:-${l_objtree}/${SRC}/tmp}
+	local i=`realpath ${o_objdir:-${i1}/..}`
+
+	# default values for -L and -P
+	local dir="-P $i"
+	local ldir="-L $i"
+
+	while [ "$1" != "" ] ; do
+		if [ x"$1" = "x-L" -a -d "$2" ] ; then # set lib search path
+			ldir="-L $2"; shift; shift
+		elif [ x"$1" = "x-P" -a -d "$2" ] ; then # set prog search path
+			dir="-P $2"; shift; shift
+		else
+			break
+		fi
+	done
+
+	# Results are returned in global variables
+	u_libs=""
+	u_progs="`find_progs_helper $dir $*`"
 	[ -z "${u_progs}" ] && return 1	# not found, error
-	i="`ldd ${u_progs} | grep -v '^/' | awk '{print $1}' | sort | uniq`"
-	u_libs="`find_progs_helper $i`"
-	return 0
+
+	# use objdump to find libraries.
+	# Iterate to fetch recursive dependencies.
+	local tmp="${u_progs}"
+	local old_libs=""
+	local pass=1
+	while [ $pass -lt 10 ] ; do
+		pass=$(($pass + 1))
+		i="`objdump -x ${tmp} | \
+			awk '$1 == "NEEDED" { print $2 }' | sort | uniq | tr '\n' ' '`"
+		if [ "$old_libs" = "$i" ] ; then
+			# logverbose "find_progs: have `echo ${u_libs} | wc -w`/`echo ${i} | wc -w` libraries for: $my_progs ($u_progs)"
+			# logverbose "they are ($i) $u_libs"
+			return 0
+		else
+			# logverbose "old--- $old_libs --- new +++ $i +++"
+		fi
+		u_libs="`find_progs_helper $ldir $i`"
+		old_libs="$i"
+		tmp="$tmp $u_libs"
+	done
+	log "WARNING: Too many passes, giving up"
 }
 
-find_progs_helper() {	# programs
-	local progs="$*"
-	local i o places names
-	local subdirs="bin sbin usr.bin usr.sbin libexec lib \
-		gnu/usr.bin gnu/lib \
-		secure/usr.bin secure/usr.sbin secure/libexec secure/lib"
-	names=""	# files to search
-	o=""
+# prints to stdout files and libs in the search paths
+find_progs_helper() {	# first arg is either -P or -L
+	local ty=$1 dir=$2 ; shift; shift
+	local progs="`echo $* | tr ' ' '\n' | sort -u | tr '\n' ' '`"
+	# first, extract absolute pathnames or files in this directory
+
+	# accumulate others in $names
+	local names=""
+	local i
 	for i in $progs ; do
-		# plain programs come out verbatim
-		[ -f "$i" ] && echo $i && continue
-		names="${names} ${o} -name $i"
-		o="-o"
+		[ -f "$i" ] && echo `realpath $i` && continue
+		names="${names} $i"
 	done
+	# if nothing left, we are done
 	[ -z "${names}" ] && return 0
-	places=""				# places to search
-	o=${o_objdir:-${_SHLIBDIRPREFIX}/..}
-	for i in $subdirs ; do
-		[ -d "${o}/${i}" ] && places="${places} ${o}/${i}"
+
+	local depth p
+	local places=""			# places to search
+	if [ x-P = "x$ty" ] ; then # search programs
+		depth=2
+		p=". local/bin local/sbin local/libexec \
+		    bin sbin usr/bin usr/sbin libexec gnu/usr.bin \
+		    secure/usr.bin secure/usr.sbin secure/libexec "
+	else
+		depth=3
+		p="lib usr/lib gnu/lib secure/lib"
+	fi
+	for i in $p ; do
+		i="${dir}/${i}"
+		[ -d "${i}" ] && places="${places} `realpath ${i}`"
 	done
-	find ${places} -type f \( ${names} \)
+	# logverbose "--- looking into $places"
+	places=`echo ${places} | tr ' ' '\n' | sort -u`
+	for i in $names ; do
+	    find ${places} -maxdepth $depth -type f -name ${i} | head -1
+	done
 }
 
 # Populate the memory filesystem with binaries and non-variable
@@ -656,7 +657,7 @@ populate_mfs_tree() {
     a=${BUILDDIR}/crunch1.conf
     ( export BUILDDIR SRC MY_TREE PICO_OBJ ;
 	${BINMAKE} \
-		-v -f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
+		-f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
     log "Libs are ${LIBS} "
     export SRC # used by crunch.mk
     # export LIBS CFLAGS
@@ -672,23 +673,28 @@ populate_mfs_tree() {
     # rm $a # do not remove!
     ) || fail $? crunch
 
-    if [ -f ${dst}/stand/sshd ] ; then
-	log "Setting up host key for sshd:"
-	if [ -f ${BUILDDIR}/floppy.tree/etc/ssh_host_key.gz ] ; then
-	    log "Using existing host key"
+    log "Setting up host key for sshd:"
+    for K in rsa1 rsa dsa ; do
+	if [ $K = rsa1 ] ; then
+	    i=ssh_host_key
 	else
-	    log "Generating new host key" 
-	    ssh-keygen -t rsa1 -f ${BUILDDIR}/floppy.tree/etc/ssh_host_key \
-		 -N "" -C "root@picobsd"
-	    gzip -9 ${BUILDDIR}/floppy.tree/etc/ssh_host_key* || true
+	    i=ssh_host_${K}_key
 	fi
-    fi
+	if [ -f ${BUILDDIR}/floppy.tree/etc/$i.gz ] ; then
+	    log "Using existing host key $i"
+	else
+	    log "Generating new host key $i" 
+	    ssh-keygen -t $K -f ${BUILDDIR}/floppy.tree/etc/$i \
+		     -N "" -C "root@picobsd"
+	    gzip -9 ${BUILDDIR}/floppy.tree/etc/${i}* || true
+	fi
+    done
 
     log "Copy generic and site-specific MFS tree..."
     for MFS_TREE in ${PICO_TREE}/mfs_tree ${MY_TREE}/mfs_tree ; do
 	if [ -d ${MFS_TREE} ] ; then
 	    log "Copy ${MFS_TREE} ..."
-	    (cd ${MFS_TREE} ; tar -cf - --exclude CVS --exclude .svn . ) | \
+	    (cd ${MFS_TREE} ; tar -cf - --exclude .svn . ) | \
 		    (cd ${dst} ; tar x${o_tarv}f - )
 	fi
     done
@@ -719,21 +725,21 @@ populate_mfs_tree() {
 	(cd ${dst}; chown -R root . )
     fi
 
-    # If we are building a shared 'crunch', take the libraries
-    # and the dynamic loader as well
+    log "for a shared 'crunch' take libraries and dynamic loader as well"
+    # /stand/crunch is our main binary, we extract its libs
     find_progs ${dst}/stand/crunch
     if [ -n "${u_libs}" ] ; then
-	mkdir -p ${dst}/lib && cp -p ${u_libs} ${dst}/lib
+	mkdir -p ${dst}/lib && (cp -p ${u_libs} ${dst}/lib || log "copy libs ${u_libs} failed" )
 	mkdir -p ${dst}/libexec
         create_includes_and_libraries2 libexec/rtld-elf
-        find_progs ld-elf.so.1 && cp -p ${u_progs} ${dst}/libexec
+        find_progs ld-elf.so.1 && ( cp -p ${u_progs} ${dst}/libexec || log "copy ${u_progs} failed" )
     fi
 
     [ -n "${copy_files}" ] && do_copyfiles ${dst} copy_files
     do_copyfiles_user ${dst} || true
     [ -n "${links}" ] && do_links ${dst} links
-    strip ${dst}/libexec/* ${dst}/lib/* ${dst}/stand/* 2> /dev/null || true
-
+    strip ${dst}/libexec/* ${dst}/lib/* 2> /dev/null || true
+    # strip ${dst}/stand/* 2> /dev/null || true
     # The 'import_files' mechanism is deprecated, as it requires
     # root permissions to follow the symlinks, and also does
     # not let you rename the entries.
@@ -754,7 +760,7 @@ populate_mfs_tree() {
 	# override the owner
 	echo "/set uid=0 gid=0" > mtree.out
 	mtree -ic -p ${dst} -k "" >> mtree.out
-	log "mtre.out at ${BUILDDIR}/mtree.out"
+	log "mtree.out at ${BUILDDIR}/mtree.out size  ${MFS_SIZE}k"
 	makefs -t ffs -o bsize=4096 -o fsize=512 \
 		-s ${MFS_SIZE}k -f 1000 -F mtree.out ${c_fs} ${dst}
 	ls -l ${c_fs} )
@@ -764,7 +770,6 @@ populate_mfs_tree() {
 final_cleanup() {
     log "final_cleanup()"
     rm -rf ${c_mnt} ${c_reply} 2> /dev/null || true
-    rm -f ${c_reply}
 }
 
 # fail errno errcode
@@ -833,17 +838,6 @@ fill_floppy_image() {
     fi
 
     log "Labeling floppy image"
-    b2=${BUILDDIR}/boot2 # modified boot2
-    cp -f ${c_boot2} ${b2}
-    chmod 0644 ${b2}
-
-    if [ ${o_use_loader} = "no" ] ; then
-	log "patch ${c_boot2} to boot /kernel right away"
-	set `strings -at d ${b2} | grep "/boot/loader"`
-	echo -e "/kernel\0\0\0\0\0" | \
-	    dd of=${b2} obs=$1 oseek=1 conv=notrunc 2>/dev/null
-    fi
-    chmod 0444 ${b2}
 
     dst=${BUILDDIR}/image.tree
     rm -rf ${dst}
@@ -862,24 +856,22 @@ fill_floppy_image() {
     if [ ${mfs_start} -gt 0 -a ${mfs_size} -ge ${imgsize} ] ; then
 	mfs_ofs=$((${mfs_start} + 8192))
 	log "Preload kernel with file ${c_fs} at ${mfs_ofs}"
-	logverbose "`ls -l ${c_fs}` to fit in ${mfs_size}"
+	log "`ls -l ${c_fs}` to fit in ${mfs_size}"
 	dd if=${c_fs} ibs=8192 iseek=1 of=kernel obs=${mfs_ofs} \
 	    oseek=1 conv=notrunc # 2> /dev/null
     else
     	log "not loading mfs, size ${mfs_size} img ${imgsize}"
     fi
-    log "Compress with kgzip and copy to floppy image"
-    if [ ${o_use_loader} = "no" ] ; then
-	kgzip -o kernel.gz kernel
-	cp -p kernel.gz ${dst}/kernel || fail $? no_space "copying kernel"
-    else
-        gzip kernel
-	mkdir -p  ${dst}/boot/kernel
-	echo "hint.acpi.0.disabled=\"1\"" > ${dst}/boot/loader.conf
-	echo "console=\"comconsole\"" >> ${dst}/boot/loader.conf
-	cp -p /boot/loader ${dst}/boot/loader || fail $? no_space "copying bootloader"
-	cp -p kernel.gz ${dst}/boot/kernel/kernel.gz || fail $? no_space "copying kernel"
-    fi
+    log "Compress with gzip and copy to floppy image"
+
+    mkdir -p  ${dst}/boot/kernel
+    # XXX loader.conf does not work unless we also load the .4th files
+    # echo "hint.acpi.0.disabled=\"1\"" > ${dst}/boot/loader.conf
+    # echo "console=\"comconsole\"" >> ${dst}/boot/loader.conf
+    local blf="loader* *.4th" # loader.rc loader.4th support.4th"
+    (cd /boot; cp -p loader ${dst}/boot) || fail $? no_space "copying bootloader"
+    cp ${MY_TREE}/floppy.tree/boot/loader.conf ${dst}/boot || true
+    gzip -c kernel > ${dst}/boot/kernel/kernel.gz || fail $? no_space "copying kernel"
 
     # now transfer the floppy tree. If it is already in mfs, dont bother.
     if [ "${o_all_in_mfs}" != "yes" ] ; then
@@ -917,7 +909,7 @@ fill_floppy_image() {
 
     ls -l ${c_img}
     ${c_label} -f `pwd`/${c_img}
-    logverbose "after disklabel"
+    log "after disklabel"
     )
 
     echo "BUILDDIR ${BUILDDIR}"
@@ -929,12 +921,15 @@ fill_floppy_image() {
     # so we skip 276 from the source, and 276+512=788 from dst
     # the old style blocks used 512 and 1024 respectively
 
-    dd if=${b2} iseek=1 ibs=276 2> /dev/null | \
+    dd if=${c_boot2} iseek=1 ibs=276 2> /dev/null | \
 	dd of=${BUILDDIR}/${c_img} oseek=1 obs=788 conv=notrunc 2>/dev/null
-    logverbose "done floppy image"
+    log "done disk image"
     # XXX (log "Fixing permissions"; cd ${dst}; chown -R root *)
+    df -ik ${dst} | colrm 70 > .build.reply
+    # leave build stuff if verbose
+    [ ${o_verbose} -gt 0 ] && return
+
     rm -rf ${BUILDDIR}/floppy.tree || true # cleanup
-    # df -ik ${dst} | colrm 70 > .build.reply
     rm -rf ${dst}
     rm ${BUILDDIR}/${c_fs}
     # rm ${BUILDDIR}/kernel.gz
@@ -951,26 +946,37 @@ set_build_parameters() {
     else
 	l_usrtree=${USR:-${SRC}/../usr}
     fi
-    l_objtree=${l_usrtree}/obj-pico
+    l_objtree=${l_usrtree}/obj-pico-${o_arch}
+
     PICO_TREE=${PICO_TREE:-${SRC}/release/picobsd}
     set `grep "#define[\t ]__FreeBSD_version" ${SRC}/sys/sys/param.h`
     OSVERSION=$3
     log "OSVERSION is ${OSVERSION}"
+
+	export MAKEOBJDIRPREFIX=${l_objtree}
+	export TARGET_ARCH=${o_arch} TARGET=${o_arch}
+	# XXX 20131001 see if CLANG fixes the build
+	export WITHOUT_CLANG_IS_CC=yes
+	export WITHOUT_CLANG_BOOTSTRAP=yes
+	export WITH_GCC=yes
+	export WITH_GCC_BOOTSTRAP=yes
+	export WITH_GNUCXX=yes
+	export WITHOUT_CLANG=yes
+	export WITHOUT_ICONV=yes
+	export WITHOUT_TESTS=yes
+
+	# XXX why change machine_arch ?
+	#-- export MACHINE_ARCH=`uname -m` MACHINE=`uname -m`
+	# export CWARNFLAGS="-Wextra -Wno-sign-compare -Wno-missing-field-initializers"
+	# XXX BINMAKE does not really exist anymore
+	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
+	[ "$BINMAKE" = "" ] && \
+	   eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V SUB_MAKE`\""
+
     if [ "${o_init_src}" != "" ] ; then
-	if [ ${OSVERSION} -lt 500035 ] ; then
-	    create_includes_and_libraries
-	else
-	    create_includes_and_libraries2
-	fi
-    fi
-    if [ ${OSVERSION} -lt 500035 ] ; then
-	# Create the right LIBS and CFLAGS for further builds.
-	# and build the config program
-	LIBS="-L${l_usrtree}/lib"
-	CFLAGS="-nostdinc -I${l_usrtree}/include"
-	export LIBS CFLAGS
-	CONFIG=${l_usrtree}/sbin/config
-	export CONFIG
+	create_includes_and_libraries2
+    else
+	eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
     fi
 
     # if we have o_objdir, find where bin/ is
@@ -991,26 +997,37 @@ set_build_parameters() {
 # Main entry of the script. Initialize variables, parse command line
 # arguments.
 
+
 set_defaults
 while [ true ]; do
     log "Parsing $1"
     case $1 in
+    -j)
+	o_par="-j $2"
+	shift
+	;;
+
+    --par)
+	o_par="-j 8"	# watch out, this might be too large
+	;;
+
     --src)	# set the source path instead of /usr/src
 	SRC=`realpath $2`
 	shift
 	;;
-    --init)
+
+    --init)	# run a partial buildworld on the source tree
 	o_init_src="YES"
 	;;
 
-    --floppy_size)
-	fd_size=$2
+    --arch)	# override the target architecture
+	o_arch=$2
 	shift
 	;;
 
-    --no_loader)	# omit /boot/loader, just rely on boot2
-			# (it may have problems with kernels > 4MB)
-	o_use_loader="no"
+    --floppy_size)	# image size
+	fd_size=$2
+	shift
 	;;
 
     --all_in_mfs)
@@ -1024,6 +1041,7 @@ while [ true ]; do
     --modules)	# also build kernel modules
 	o_do_modules="yes"
 	;;
+
     -n)
 	o_interactive="NO"
 	;;

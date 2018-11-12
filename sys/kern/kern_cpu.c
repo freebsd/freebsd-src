@@ -76,6 +76,7 @@ struct cpufreq_softc {
 	device_t			dev;
 	struct sysctl_ctx_list		sysctl_ctx;
 	struct task			startup_task;
+	struct cf_level			*levels_buf;
 };
 
 struct cf_setting_array {
@@ -132,12 +133,11 @@ DRIVER_MODULE(cpufreq, cpu, cpufreq_driver, cpufreq_dc, 0, 0);
 
 static int		cf_lowest_freq;
 static int		cf_verbose;
-TUNABLE_INT("debug.cpufreq.lowest", &cf_lowest_freq);
-TUNABLE_INT("debug.cpufreq.verbose", &cf_verbose);
-SYSCTL_NODE(_debug, OID_AUTO, cpufreq, CTLFLAG_RD, NULL, "cpufreq debugging");
-SYSCTL_INT(_debug_cpufreq, OID_AUTO, lowest, CTLFLAG_RW, &cf_lowest_freq, 1,
+static SYSCTL_NODE(_debug, OID_AUTO, cpufreq, CTLFLAG_RD, NULL,
+    "cpufreq debugging");
+SYSCTL_INT(_debug_cpufreq, OID_AUTO, lowest, CTLFLAG_RWTUN, &cf_lowest_freq, 1,
     "Don't provide levels below this frequency.");
-SYSCTL_INT(_debug_cpufreq, OID_AUTO, verbose, CTLFLAG_RW, &cf_verbose, 1,
+SYSCTL_INT(_debug_cpufreq, OID_AUTO, verbose, CTLFLAG_RWTUN, &cf_verbose, 1,
     "Print verbose debugging messages");
 
 static int
@@ -180,6 +180,8 @@ cpufreq_attach(device_t dev)
 
 	CF_DEBUG("initializing one-time data for %s\n",
 	    device_get_nameunit(dev));
+	sc->levels_buf = malloc(CF_MAX_LEVELS * sizeof(*sc->levels_buf),
+	    M_DEVBUF, M_WAITOK);
 	SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(parent)),
 	    OID_AUTO, "freq", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
@@ -227,6 +229,7 @@ cpufreq_detach(device_t dev)
 	numdevs = devclass_get_count(cpufreq_dc);
 	if (numdevs == 1) {
 		CF_DEBUG("final shutdown for %s\n", device_get_nameunit(dev));
+		free(sc->levels_buf, M_DEVBUF);
 	}
 
 	return (0);
@@ -256,6 +259,9 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	CF_MTX_LOCK(&sc->lock);
 
 #ifdef SMP
+#ifdef EARLY_AP_STARTUP
+	MPASS(mp_ncpus == 1 || smp_started);
+#else
 	/*
 	 * If still booting and secondary CPUs not started yet, don't allow
 	 * changing the frequency until they're online.  This is because we
@@ -263,11 +269,12 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	 * switching the main CPU.  XXXTODO: Need to think more about how to
 	 * handle having different CPUs at different frequencies.  
 	 */
-	if (mp_ncpus > 1 && !smp_active) {
+	if (mp_ncpus > 1 && !smp_started) {
 		device_printf(dev, "rejecting change, SMP not started yet\n");
 		error = ENXIO;
 		goto out;
 	}
+#endif
 #endif /* SMP */
 
 	/*
@@ -307,7 +314,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	}
 
 	/* If already at this level, just return. */
-	if (CPUFREQ_CMP(sc->curr_level.total_set.freq, level->total_set.freq)) {
+	if (sc->curr_level.total_set.freq == level->total_set.freq) {
 		CF_DEBUG("skipping freq %d, same as current level %d\n",
 		    level->total_set.freq, sc->curr_level.total_set.freq);
 		goto skip;
@@ -413,7 +420,7 @@ cf_get_method(device_t dev, struct cf_level *level)
 	struct cf_setting *curr_set, set;
 	struct pcpu *pc;
 	device_t *devs;
-	int count, error, i, n, numdevs;
+	int bdiff, count, diff, error, i, n, numdevs;
 	uint64_t rate;
 
 	sc = device_get_softc(dev);
@@ -466,7 +473,7 @@ cf_get_method(device_t dev, struct cf_level *level)
 		if (CPUFREQ_DRV_GET(devs[n], &set) != 0)
 			continue;
 		for (i = 0; i < count; i++) {
-			if (CPUFREQ_CMP(set.freq, levels[i].total_set.freq)) {
+			if (set.freq == levels[i].total_set.freq) {
 				sc->curr_level = levels[i];
 				break;
 			}
@@ -489,14 +496,15 @@ cf_get_method(device_t dev, struct cf_level *level)
 	}
 	cpu_est_clockrate(pc->pc_cpuid, &rate);
 	rate /= 1000000;
+	bdiff = 1 << 30;
 	for (i = 0; i < count; i++) {
-		if (CPUFREQ_CMP(rate, levels[i].total_set.freq)) {
+		diff = abs(levels[i].total_set.freq - rate);
+		if (diff < bdiff) {
+			bdiff = diff;
 			sc->curr_level = levels[i];
-			CF_DEBUG("get estimated freq %d\n", curr_set->freq);
-			goto out;
 		}
 	}
-	error = ENXIO;
+	CF_DEBUG("get estimated freq %d\n", curr_set->freq);
 
 out:
 	if (error == 0)
@@ -622,16 +630,6 @@ cf_levels_method(device_t dev, struct cf_level *levels, int *count)
 	/* Finally, output the list of levels. */
 	i = 0;
 	TAILQ_FOREACH(lev, &sc->all_levels, link) {
-		/*
-		 * Skip levels that are too close in frequency to the
-		 * previous levels.  Some systems report bogus duplicate
-		 * settings (i.e., for acpi_perf).
-		 */
-		if (i > 0 && CPUFREQ_CMP(lev->total_set.freq,
-		    levels[i - 1].total_set.freq)) {
-			sc->all_count--;
-			continue;
-		}
 
 		/* Skip levels that have a frequency that is too low. */
 		if (lev->total_set.freq < cf_lowest_freq) {
@@ -865,14 +863,12 @@ cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct cpufreq_softc *sc;
 	struct cf_level *levels;
-	int count, devcount, error, freq, i, n;
+	int best, count, diff, bdiff, devcount, error, freq, i, n;
 	device_t *devs;
 
 	devs = NULL;
 	sc = oidp->oid_arg1;
-	levels = malloc(CF_MAX_LEVELS * sizeof(*levels), M_TEMP, M_NOWAIT);
-	if (levels == NULL)
-		return (ENOMEM);
+	levels = sc->levels_buf;
 
 	error = CPUFREQ_GET(sc->dev, &levels[0]);
 	if (error)
@@ -899,24 +895,21 @@ cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS)
 			"cpufreq: need to increase CF_MAX_LEVELS\n");
 			break;
 		}
+		best = 0;
+		bdiff = 1 << 30;
 		for (i = 0; i < count; i++) {
-			if (CPUFREQ_CMP(levels[i].total_set.freq, freq)) {
-				error = CPUFREQ_SET(devs[n], &levels[i],
-				    CPUFREQ_PRIO_USER);
-				break;
+			diff = abs(levels[i].total_set.freq - freq);
+			if (diff < bdiff) {
+				bdiff = diff;
+				best = i;
 			}
 		}
-		if (i == count) {
-			error = EINVAL;
-			break;
-		}
+		error = CPUFREQ_SET(devs[n], &levels[best], CPUFREQ_PRIO_USER);
 	}
 
 out:
 	if (devs)
 		free(devs, M_TEMP);
-	if (levels)
-		free(levels, M_TEMP);
 	return (error);
 }
 
@@ -934,9 +927,11 @@ cpufreq_levels_sysctl(SYSCTL_HANDLER_ARGS)
 
 	/* Get settings from the device and generate the output string. */
 	count = CF_MAX_LEVELS;
-	levels = malloc(count * sizeof(*levels), M_TEMP, M_NOWAIT);
-	if (levels == NULL)
+	levels = sc->levels_buf;
+	if (levels == NULL) {
+		sbuf_delete(&sb);
 		return (ENOMEM);
+	}
 	error = CPUFREQ_LEVELS(sc->dev, levels, &count);
 	if (error) {
 		if (error == E2BIG)
@@ -955,7 +950,6 @@ cpufreq_levels_sysctl(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
 
 out:
-	free(levels, M_TEMP);
 	sbuf_delete(&sb);
 	return (error);
 }
@@ -974,8 +968,10 @@ cpufreq_settings_sysctl(SYSCTL_HANDLER_ARGS)
 	/* Get settings from the device and generate the output string. */
 	set_count = MAX_SETTINGS;
 	sets = malloc(set_count * sizeof(*sets), M_TEMP, M_NOWAIT);
-	if (sets == NULL)
+	if (sets == NULL) {
+		sbuf_delete(&sb);
 		return (ENOMEM);
+	}
 	error = CPUFREQ_DRV_SETTINGS(dev, sets, &set_count);
 	if (error)
 		goto out;
@@ -1044,6 +1040,7 @@ cpufreq_unregister(device_t dev)
 	if (cf_dev == NULL) {
 		device_printf(dev,
 	"warning: cpufreq_unregister called with no cpufreq device active\n");
+		free(devs, M_TEMP);
 		return (0);
 	}
 	cfcount = 0;

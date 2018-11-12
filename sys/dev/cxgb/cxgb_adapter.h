@@ -41,11 +41,15 @@ $FreeBSD$
 #include <sys/sockio.h>
 #include <sys/condvar.h>
 #include <sys/buf_ring.h>
+#include <sys/taskqueue.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_dl.h>
+#include <netinet/in.h>
+#include <netinet/tcp_lro.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -55,12 +59,6 @@ $FreeBSD$
 #include <dev/pci/pcivar.h>
 
 #include <cxgb_osdep.h>
-#include <t3cdev.h>
-#include <sys/mbufq.h>
-
-#ifdef LRO_SUPPORTED
-#include <netinet/tcp_lro.h>
-#endif
 
 struct adapter;
 struct sge_qset;
@@ -98,6 +96,7 @@ struct port_info {
 	const struct port_type_info *port_type;
 	struct cphy	phy;
 	struct cmac	mac;
+	struct timeval	last_refreshed;
 	struct link_config link_config;
 	struct ifmedia	media;
 	struct mtx	lock;
@@ -109,6 +108,8 @@ struct port_info {
 	int		link_fault;
 
 	uint8_t		hw_addr[ETHER_ADDR_LEN];
+	struct callout	link_check_ch;
+	struct task	link_check_task;
 	struct task	timer_reclaim_task;
 	struct cdev     *port_cdev;
 
@@ -130,21 +131,23 @@ enum {
 	CXGB_OFLD_INIT	= (1 << 7),
 	TP_PARITY_INIT	= (1 << 8),
 	CXGB_BUSY	= (1 << 9),
+	TOM_INIT_DONE	= (1 << 10),
 
 	/* port flags */
 	DOOMED		= (1 << 0),
 };
 #define IS_DOOMED(p)	(p->flags & DOOMED)
 #define SET_DOOMED(p)	do {p->flags |= DOOMED;} while (0)
-#define DOOMED(p)	(p->flags & DOOMED)
 #define IS_BUSY(sc)	(sc->flags & CXGB_BUSY)
 #define SET_BUSY(sc)	do {sc->flags |= CXGB_BUSY;} while (0)
 #define CLR_BUSY(sc)	do {sc->flags &= ~CXGB_BUSY;} while (0)
 
 #define FL_Q_SIZE	4096
 #define JUMBO_Q_SIZE	1024
-#define RSPQ_Q_SIZE	1024
+#define RSPQ_Q_SIZE	2048
 #define TX_ETH_Q_SIZE	1024
+#define TX_OFLD_Q_SIZE	1024
+#define TX_CTRL_Q_SIZE	256
 
 enum { TXQ_ETH = 0,
        TXQ_OFLD = 1,
@@ -157,12 +160,10 @@ enum { TXQ_ETH = 0,
 #define WR_LEN (WR_FLITS * 8)
 #define PIO_LEN (WR_LEN - sizeof(struct cpl_tx_pkt_lso))
 
-#ifdef LRO_SUPPORTED
 struct lro_state {
 	unsigned short enabled;
 	struct lro_ctrl ctrl;
 };
-#endif
 
 #define RX_BUNDLE_SIZE 8
 
@@ -180,9 +181,9 @@ struct sge_rspq {
 	uint32_t        async_notif;
 	uint32_t	cntxt_id;
 	uint32_t        offload_pkts;
-	uint32_t        offload_bundles;
 	uint32_t        pure_rsps;
 	uint32_t        unhandled_irqs;
+	uint32_t        starved;
 
 	bus_addr_t	phys_addr;
 	bus_dma_tag_t	desc_tag;
@@ -207,6 +208,7 @@ struct sge_fl {
 	uint32_t	cidx;
 	uint32_t	pidx;
 	uint32_t	gen;
+	uint32_t	db_pending;
 	bus_addr_t	phys_addr;
 	uint32_t	cntxt_id;
 	uint32_t	empty;
@@ -235,6 +237,7 @@ struct sge_txq {
 	uint32_t	pidx;
 	uint32_t	gen;
 	uint32_t	unacked;
+	uint32_t	db_pending;
 	struct tx_desc	*desc;
 	struct tx_sw_desc *sdesc;
 	uint32_t	token;
@@ -247,14 +250,13 @@ struct sge_txq {
 	bus_dma_tag_t	desc_tag;
 	bus_dmamap_t	desc_map;
 	bus_dma_tag_t   entry_tag;
-	struct mbuf_head sendq;
+	struct mbufq	sendq;
 
 	struct buf_ring *txq_mr;
 	struct ifaltq	*txq_ifq;
 	struct callout	txq_timer;
 	struct callout	txq_watchdog;
 	uint64_t        txq_coalesced;
-	uint32_t        txq_drops;
 	uint32_t        txq_skipped;
 	uint32_t        txq_enqueued;
 	uint32_t	txq_dump_start;
@@ -265,15 +267,6 @@ struct sge_txq {
 	struct sg_ent  txq_sgl[TX_MAX_SEGS / 2 + 1];
 };
      	
-
-enum {
-	SGE_PSTAT_TSO,              /* # of TSO requests */
-	SGE_PSTAT_RX_CSUM_GOOD,     /* # of successful RX csum offloads */
-	SGE_PSTAT_TX_CSUM,          /* # of TX checksum offloads */
-	SGE_PSTAT_VLANEX,           /* # of VLAN tag extractions */
-	SGE_PSTAT_VLANINS,          /* # of VLAN tag insertions */
-};
-
 #define SGE_PSTAT_MAX (SGE_PSTAT_VLANINS+1)
 
 #define QS_EXITING              0x1
@@ -285,13 +278,11 @@ enum {
 struct sge_qset {
 	struct sge_rspq		rspq;
 	struct sge_fl		fl[SGE_RXQ_PER_SET];
-#ifdef LRO_SUPPORTED
 	struct lro_state        lro;
-#endif
 	struct sge_txq		txq[SGE_TXQ_PER_SET];
 	uint32_t                txq_stopped;       /* which Tx queues are stopped */
-	uint64_t                port_stats[SGE_PSTAT_MAX];
 	struct port_info        *port;
+	struct adapter          *adap;
 	int                     idx; /* qset # */
 	int                     qs_flags;
 	int			coalescing;
@@ -308,10 +299,13 @@ struct sge {
 
 struct filter_info;
 
+typedef int (*cpl_handler_t)(struct sge_qset *, struct rsp_desc *,
+    struct mbuf *);
+
 struct adapter {
+	SLIST_ENTRY(adapter)	link;
 	device_t		dev;
 	int			flags;
-	TAILQ_ENTRY(adapter)    adapter_entry;
 
 	/* PCI register resources */
 	int			regs_rid;
@@ -354,14 +348,11 @@ struct adapter {
 	struct filter_info      *filters;
 	
 	/* Tasks */
-	struct task		ext_intr_task;
 	struct task		slow_intr_task;
 	struct task		tick_task;
 	struct taskqueue	*tq;
 	struct callout		cxgb_tick_ch;
 	struct callout		sge_timer_ch;
-
-	unsigned int		check_task_cnt;
 
 	/* Register lock for use by the hardware layer */
 	struct mtx		mdio_lock;
@@ -380,11 +371,16 @@ struct adapter {
 
 	struct port_info	port[MAX_NPORTS];
 	device_t		portdev[MAX_NPORTS];
-	struct t3cdev           tdev;
+#ifdef TCP_OFFLOAD
+	void 			*tom_softc;
+	void 			*iwarp_softc;
+#endif
 	char                    fw_version[64];
 	char                    port_types[MAX_NPORTS + 1];
 	uint32_t                open_device_map;
-	uint32_t                registered_device_map;
+#ifdef TCP_OFFLOAD
+	int			offload_map;
+#endif
 	struct mtx              lock;
 	driver_intr_t           *cxgb_intr;
 	int                     msi_count;
@@ -394,6 +390,13 @@ struct adapter {
 	char                    reglockbuf[ADAPTER_LOCK_NAME_LEN];
 	char                    mdiolockbuf[ADAPTER_LOCK_NAME_LEN];
 	char                    elmerlockbuf[ADAPTER_LOCK_NAME_LEN];
+
+	int			timestamp;
+
+#ifdef TCP_OFFLOAD
+#define NUM_CPL_HANDLERS	0xa7
+	cpl_handler_t cpl_handler[NUM_CPL_HANDLERS] __aligned(CACHE_LINE_SIZE);
+#endif
 };
 
 struct t3_rx_mode {
@@ -499,21 +502,23 @@ adap2pinfo(struct adapter *adap, int idx)
 int t3_os_find_pci_capability(adapter_t *adapter, int cap);
 int t3_os_pci_save_state(struct adapter *adapter);
 int t3_os_pci_restore_state(struct adapter *adapter);
+void t3_os_link_intr(struct port_info *);
 void t3_os_link_changed(adapter_t *adapter, int port_id, int link_status,
-			int speed, int duplex, int fc);
+			int speed, int duplex, int fc, int mac_was_reset);
 void t3_os_phymod_changed(struct adapter *adap, int port_id);
 void t3_sge_err_intr_handler(adapter_t *adapter);
-int t3_offload_tx(struct t3cdev *, struct mbuf *);
-void t3_os_ext_intr_handler(adapter_t *adapter);
+#ifdef TCP_OFFLOAD
+int t3_offload_tx(struct adapter *, struct mbuf *);
+#endif
 void t3_os_set_hw_addr(adapter_t *adapter, int port_idx, u8 hw_addr[]);
 int t3_mgmt_tx(adapter_t *adap, struct mbuf *m);
-
+int t3_register_cpl_handler(struct adapter *, int, cpl_handler_t);
 
 int t3_sge_alloc(struct adapter *);
 int t3_sge_free(struct adapter *);
 int t3_sge_alloc_qset(adapter_t *, uint32_t, int, int, const struct qset_params *,
     int, struct port_info *);
-void t3_free_sge_resources(adapter_t *);
+void t3_free_sge_resources(adapter_t *, int);
 void t3_sge_start(adapter_t *);
 void t3_sge_stop(adapter_t *);
 void t3b_intr(void *data);
@@ -525,17 +530,13 @@ int t3_sge_reset_adapter(adapter_t *);
 int t3_sge_init_port(struct port_info *);
 void t3_free_tx_desc(struct sge_qset *qs, int n, int qid);
 
-void t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad);
+void t3_rx_eth(struct adapter *adap, struct mbuf *m, int ethpad);
 
 void t3_add_attach_sysctls(adapter_t *sc);
 void t3_add_configured_sysctls(adapter_t *sc);
 int t3_get_desc(const struct sge_qset *qs, unsigned int qnum, unsigned int idx,
     unsigned char *data);
 void t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p);
-
-#define CXGB_TICKS(a) ((a)->params.linkpoll_period ? \
-    (hz * (a)->params.linkpoll_period) / 10 : \
-    (a)->params.stats_update_period * hz)
 
 /*
  * XXX figure out how we can return this to being private to sge
@@ -562,15 +563,9 @@ txq_to_qset(struct sge_txq *q, int qidx)
 	return container_of(q, struct sge_qset, txq[qidx]);
 }
 
-static __inline struct adapter *
-tdev2adap(struct t3cdev *d)
-{
-	return container_of(d, struct adapter, tdev);
-}
-
 #undef container_of
 
-#define OFFLOAD_DEVMAP_BIT 15
+#define OFFLOAD_DEVMAP_BIT (1 << MAX_NPORTS)
 static inline int offload_running(adapter_t *adapter)
 {
         return isset(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT);
@@ -579,5 +574,6 @@ static inline int offload_running(adapter_t *adapter)
 void cxgb_tx_watchdog(void *arg);
 int cxgb_transmit(struct ifnet *ifp, struct mbuf *m);
 void cxgb_qflush(struct ifnet *ifp);
-void cxgb_start(struct ifnet *ifp);
+void t3_iterate(void (*)(struct adapter *, void *), void *);
+void cxgb_refresh_stats(struct port_info *);
 #endif

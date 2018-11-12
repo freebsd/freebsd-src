@@ -36,14 +36,14 @@
 #define	PMC_PCER	0x10		/* Peripheral Clock Enable Register */
 #define	PMC_PCDR	0x14		/* Peripheral Clock Disable Register */
 #define	PMC_PCSR	0x18		/* Peripheral Clock Status Register */
-		/*	0x1c		   reserved */
+#define	CKGR_UCKR	0x1c		/* UTMI Clock Configuration Register */
 #define CKGR_MOR	0x20		/* Main Oscillator Register */
 #define CKGR_MCFR	0x24		/* Main Clock Frequency Register */
 #define CKGR_PLLAR	0x28		/* PLL A Register */
 #define CKGR_PLLBR	0x2c		/* PLL B Register */
 #define PMC_MCKR	0x30		/* Master Clock Register */
 		/*	0x34		   reserved */
-		/*	0x38		   reserved */
+#define	PMC_USB		0x38		/* USB Clock Register */
 		/*	0x3c		   reserved */
 #define PMC_PCK0	0x40		/* Programmable Clock 0 Register */
 #define PMC_PCK1	0x44		/* Programmable Clock 1 Register */
@@ -57,6 +57,11 @@
 #define PMC_IDR		0x64		/* Interrupt Disable Register */
 #define PMC_SR		0x68		/* Status Register */
 #define PMC_IMR		0x6c		/* Interrupt Mask Register */
+		/*	0x70		   reserved */
+		/*	0x74		   reserved */
+		/*	0x78		   reserved */
+		/*	0x7c		   reserved */
+#define	PMC_PLLICPR	0x80		/* PLL Charge Pump Current Register */
 
 /* PMC System Clock Enable Register */
 /* PMC System Clock Disable Register */
@@ -66,14 +71,20 @@
 #define PMC_SCER_MCKUDP	(1UL << 2)	/* MCKUDP: Master disable susp/res */
 #define PMC_SCER_UHP	(1UL << 4)	/* UHP: USB Host Port Clock Enable */
 #define PMC_SCER_PCK0	(1UL << 8)	/* PCK0: Programmable Clock out en */
-#define PMC_SCER_PCK1	(1UL << 10)	/* PCK1: Programmable Clock out en */
-#define PMC_SCER_PCK2	(1UL << 11)	/* PCK2: Programmable Clock out en */
-#define PMC_SCER_PCK3	(1UL << 12)	/* PCK3: Programmable Clock out en */
+#define PMC_SCER_PCK1	(1UL << 9)	/* PCK1: Programmable Clock out en */
+#define PMC_SCER_PCK2	(1UL << 10)	/* PCK2: Programmable Clock out en */
+#define PMC_SCER_PCK3	(1UL << 11)	/* PCK3: Programmable Clock out en */
+#define PMC_SCER_UHP_SAM9 (1UL << 6)	/* UHP: USB Host Port Clock Enable */
+#define PMC_SCER_UDP_SAM9 (1UL << 7)	/* UDP: USB Device Port Clock Enable */
 
 /* PMC Peripheral Clock Enable Register */
 /* PMC Peripheral Clock Disable Register */
 /* PMC Peripheral Clock Status Register */
 /* Each bit here is 1 << peripheral number  to enable/disable/status */
+
+/* PMC UTMI Clock Configuration Register */
+#define	CKGR_UCKR_BIASEN	(1UL << 24)
+#define	CKGR_UCKR_UPLLEN	(1UL << 16)
 
 /* PMC Clock Generator Main Oscillator Register */
 #define CKGR_MOR_MOSCEN	(1UL << 0)	/* MOSCEN: Main Oscillator Enable */
@@ -84,6 +95,17 @@
 #define CKGR_MCFR_MAINRDY	(1UL << 16)	/* Main Clock Ready */
 #define CKGR_MCFR_MAINF_MASK	0xfffful	/* Main Clock Frequency */
 
+/* PMC Clock Generator Master Clock Register */
+#define PMC_MCKR_PDIV      (1 << 12)			/* SAM9G20 Only */
+#define PMC_MCKR_PLLADIV2  (1 << 12)			/* SAM9G45 Only */
+#define PMC_MCKR_CSS_MASK  (3 << 0)		
+#define PMC_MCKR_MDIV_MASK (3 << 8)		
+#define PMC_MCKR_PRES_MASK (7 << 2)		
+
+/* PMC USB Clock Register */
+#define	PMC_USB_USBDIV(n) (((n) & 0x0F) << 8)
+#define	PMC_USB_USBS (1 << 0)
+
 /* PMC Interrupt Enable Register */
 /* PMC Interrupt Disable Register */
 /* PMC Status Register */
@@ -92,6 +114,7 @@
 #define PMC_IER_LOCKA	(1UL << 1)	/* PLL A Locked */
 #define PMC_IER_LOCKB	(1UL << 2)	/* PLL B Locked */
 #define PMC_IER_MCKRDY	(1UL << 3)	/* Master Clock Status */
+#define	PMC_IER_LOCKU	(1UL << 6)	/* UPLL Locked */
 #define PMC_IER_PCK0RDY	(1UL << 8)	/* Programmable Clock 0 Ready */
 #define PMC_IER_PCK1RDY	(1UL << 9)	/* Programmable Clock 1 Ready */
 #define PMC_IER_PCK2RDY	(1UL << 10)	/* Programmable Clock 2 Ready */

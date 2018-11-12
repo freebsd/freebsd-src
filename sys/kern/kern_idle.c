@@ -60,7 +60,7 @@ idle_setup(void *dummy)
 
 	p = NULL; /* start with no idle process */
 #ifdef SMP
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 #endif
 #ifdef SMP
 		error = kproc_kthread_add(sched_idletd, NULL, &p, &td,
@@ -74,10 +74,9 @@ idle_setup(void *dummy)
 		if (error)
 			panic("idle_setup: kproc_create error %d\n", error);
 
-		p->p_flag |= P_NOLOAD;
 		thread_lock(td);
 		TD_SET_CAN_RUN(td);
-		td->td_flags |= TDF_IDLETD;
+		td->td_flags |= TDF_IDLETD | TDF_NOLOAD;
 		sched_class(td, PRI_IDLE);
 		sched_prio(td, PRI_MAX_IDLE);
 		thread_unlock(td);

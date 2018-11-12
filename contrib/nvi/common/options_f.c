@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)options_f.c	10.25 (Berkeley) 7/12/96";
+static const char sccsid[] = "$Id: options_f.c,v 10.34 04/07/11 16:06:29 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -29,29 +29,29 @@ static const char sccsid[] = "@(#)options_f.c	10.25 (Berkeley) 7/12/96";
 #include "common.h"
 
 /*
- * PUBLIC: int f_altwerase __P((SCR *, OPTION *, char *, u_long *));
+ * PUBLIC: int f_altwerase(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_altwerase(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
+f_altwerase(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
 {
-	if (!*valp)
+	if (*valp)
 		O_CLR(sp, O_TTYWERASE);
 	return (0);
 }
 
 /*
- * PUBLIC: int f_columns __P((SCR *, OPTION *, char *, u_long *));
+ * PUBLIC: int f_columns(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_columns(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
+f_columns(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
 {
 	/* Validate the number. */
 	if (*valp < MINIMUM_SCREEN_COLS) {
@@ -78,14 +78,14 @@ f_columns(sp, op, str, valp)
 }
 
 /*
- * PUBLIC: int f_lines __P((SCR *, OPTION *, char *, u_long *));
+ * PUBLIC: int f_lines(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_lines(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
+f_lines(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
 {
 	/* Validate the number. */
 	if (*valp < MINIMUM_SCREEN_ROWS) {
@@ -135,61 +135,54 @@ f_lines(sp, op, str, valp)
 }
 
 /*
- * PUBLIC: int f_lisp __P((SCR *, OPTION *, char *, u_long *));
+ * PUBLIC: int f_lisp(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_lisp(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
+f_lisp(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
 {
 	msgq(sp, M_ERR, "044|The lisp option is not implemented");
 	return (0);
 }
 
 /*
- * PUBLIC: int f_msgcat __P((SCR *, OPTION *, char *, u_long *));
+ * PUBLIC: int f_msgcat(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_msgcat(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
+f_msgcat(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
 {
 	(void)msg_open(sp, str);
 	return (0);
 }
 
 /*
- * PUBLIC: int f_paragraph __P((SCR *, OPTION *, char *, u_long *));
+ * PUBLIC: int f_print(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_paragraph(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
+f_print(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
 {
-	if (strlen(str) & 1) {
-		msgq(sp, M_ERR,
-		    "048|The paragraph option must be in two character groups");
-		return (1);
-	}
-	return (0);
-}
+	int offset = op - sp->opts;
 
-/*
- * PUBLIC: int f_print __P((SCR *, OPTION *, char *, u_long *));
- */
-int
-f_print(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
-{
+	/* Preset the value, needed for reinitialization of lookup table. */
+	if (offset == O_OCTAL) {
+		if (*valp)
+			O_SET(sp, offset);
+		else
+			O_CLR(sp, offset);
+	} else if (o_set(sp, offset, OS_STRDUP, str, 0))
+		return(1);
+
 	/* Reinitialize the key fast lookup table. */
 	v_key_ilookup(sp);
 
@@ -199,35 +192,35 @@ f_print(sp, op, str, valp)
 }
 
 /*
- * PUBLIC: int f_readonly __P((SCR *, OPTION *, char *, u_long *));
+ * PUBLIC: int f_readonly(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_readonly(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
+f_readonly(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
 {
 	/*
 	 * !!!
 	 * See the comment in exf.c.
 	 */
 	if (*valp)
-		F_CLR(sp, SC_READONLY);
-	else
 		F_SET(sp, SC_READONLY);
+	else
+		F_CLR(sp, SC_READONLY);
 	return (0);
 }
 
 /*
- * PUBLIC: int f_recompile __P((SCR *, OPTION *, char *, u_long *));
+ * PUBLIC: int f_recompile(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_recompile(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
+f_recompile(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
 {
 	if (F_ISSET(sp, SC_RE_SEARCH)) {
 		regfree(&sp->re_c);
@@ -241,61 +234,43 @@ f_recompile(sp, op, str, valp)
 }
 
 /*
- * PUBLIC: int f_reformat __P((SCR *, OPTION *, char *, u_long *));
+ * PUBLIC: int f_reformat(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_reformat(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
+f_reformat(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
 {
 	F_SET(sp, SC_SCR_REFORMAT);
 	return (0);
 }
 
 /*
- * PUBLIC: int f_section __P((SCR *, OPTION *, char *, u_long *));
+ * PUBLIC: int f_ttywerase(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_section(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
+f_ttywerase(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
 {
-	if (strlen(str) & 1) {
-		msgq(sp, M_ERR,
-		    "049|The section option must be in two character groups");
-		return (1);
-	}
-	return (0);
-}
-
-/*
- * PUBLIC: int f_ttywerase __P((SCR *, OPTION *, char *, u_long *));
- */
-int
-f_ttywerase(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
-{
-	if (!*valp)
+	if (*valp)
 		O_CLR(sp, O_ALTWERASE);
 	return (0);
 }
 
 /*
- * PUBLIC: int f_w300 __P((SCR *, OPTION *, char *, u_long *));
+ * PUBLIC: int f_w300(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_w300(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
+f_w300(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
 {
 	u_long v;
 
@@ -309,14 +284,14 @@ f_w300(sp, op, str, valp)
 }
 
 /*
- * PUBLIC: int f_w1200 __P((SCR *, OPTION *, char *, u_long *));
+ * PUBLIC: int f_w1200(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_w1200(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
+f_w1200(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
 {
 	u_long v;
 
@@ -330,14 +305,14 @@ f_w1200(sp, op, str, valp)
 }
 
 /*
- * PUBLIC: int f_w9600 __P((SCR *, OPTION *, char *, u_long *));
+ * PUBLIC: int f_w9600(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_w9600(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
+f_w9600(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
 {
 	u_long v;
 
@@ -351,17 +326,32 @@ f_w9600(sp, op, str, valp)
 }
 
 /*
- * PUBLIC: int f_window __P((SCR *, OPTION *, char *, u_long *));
+ * PUBLIC: int f_window(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_window(sp, op, str, valp)
-	SCR *sp;
-	OPTION *op;
-	char *str;
-	u_long *valp;
+f_window(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
 {
 	if (*valp >= O_VAL(sp, O_LINES) - 1 &&
 	    (*valp = O_VAL(sp, O_LINES) - 1) == 0)
 		*valp = 1;
 	return (0);
+}
+
+/*
+ * PUBLIC: int f_encoding(SCR *, OPTION *, char *, u_long *);
+ */
+int
+f_encoding(
+	SCR *sp,
+	OPTION *op,
+	char *str,
+	u_long *valp)
+{
+	int offset = op - sp->opts;
+
+	return conv_enc(sp, offset, str);
 }

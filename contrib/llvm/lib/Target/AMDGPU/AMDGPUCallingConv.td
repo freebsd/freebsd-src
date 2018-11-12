@@ -1,0 +1,137 @@
+//===---- AMDCallingConv.td - Calling Conventions for Radeon GPUs ---------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// This describes the calling conventions for the AMD Radeon GPUs.
+//
+//===----------------------------------------------------------------------===//
+
+// Inversion of CCIfInReg
+class CCIfNotInReg<CCAction A> : CCIf<"!ArgFlags.isInReg()", A> {}
+
+// Calling convention for SI
+def CC_SI : CallingConv<[
+
+  CCIfInReg<CCIfType<[f32, i32] , CCAssignToReg<[
+    SGPR0, SGPR1, SGPR2, SGPR3, SGPR4, SGPR5, SGPR6, SGPR7,
+    SGPR8, SGPR9, SGPR10, SGPR11, SGPR12, SGPR13, SGPR14, SGPR15,
+    SGPR16, SGPR17, SGPR18, SGPR19, SGPR20, SGPR21, SGPR22, SGPR23,
+    SGPR24, SGPR25, SGPR26, SGPR27, SGPR28, SGPR29, SGPR30, SGPR31,
+    SGPR32, SGPR33, SGPR34, SGPR35, SGPR36, SGPR37, SGPR38, SGPR39
+  ]>>>,
+
+  CCIfInReg<CCIfType<[i64] , CCAssignToRegWithShadow<
+    [ SGPR0, SGPR2, SGPR4, SGPR6, SGPR8, SGPR10, SGPR12, SGPR14,
+      SGPR16, SGPR18, SGPR20, SGPR22, SGPR24, SGPR26, SGPR28, SGPR30,
+      SGPR32, SGPR34, SGPR36, SGPR38 ],
+    [ SGPR1, SGPR3, SGPR5, SGPR7, SGPR9, SGPR11, SGPR13, SGPR15,
+      SGPR17, SGPR19, SGPR21, SGPR23, SGPR25, SGPR27, SGPR29, SGPR31,
+      SGPR33, SGPR35, SGPR37, SGPR39 ]
+  >>>,
+
+  // 32*4 + 4 is the minimum for a fetch shader consumer with 32 inputs.
+  CCIfNotInReg<CCIfType<[f32, i32] , CCAssignToReg<[
+    VGPR0, VGPR1, VGPR2, VGPR3, VGPR4, VGPR5, VGPR6, VGPR7,
+    VGPR8, VGPR9, VGPR10, VGPR11, VGPR12, VGPR13, VGPR14, VGPR15,
+    VGPR16, VGPR17, VGPR18, VGPR19, VGPR20, VGPR21, VGPR22, VGPR23,
+    VGPR24, VGPR25, VGPR26, VGPR27, VGPR28, VGPR29, VGPR30, VGPR31,
+    VGPR32, VGPR33, VGPR34, VGPR35, VGPR36, VGPR37, VGPR38, VGPR39,
+    VGPR40, VGPR41, VGPR42, VGPR43, VGPR44, VGPR45, VGPR46, VGPR47,
+    VGPR48, VGPR49, VGPR50, VGPR51, VGPR52, VGPR53, VGPR54, VGPR55,
+    VGPR56, VGPR57, VGPR58, VGPR59, VGPR60, VGPR61, VGPR62, VGPR63,
+    VGPR64, VGPR65, VGPR66, VGPR67, VGPR68, VGPR69, VGPR70, VGPR71,
+    VGPR72, VGPR73, VGPR74, VGPR75, VGPR76, VGPR77, VGPR78, VGPR79,
+    VGPR80, VGPR81, VGPR82, VGPR83, VGPR84, VGPR85, VGPR86, VGPR87,
+    VGPR88, VGPR89, VGPR90, VGPR91, VGPR92, VGPR93, VGPR94, VGPR95,
+    VGPR96, VGPR97, VGPR98, VGPR99, VGPR100, VGPR101, VGPR102, VGPR103,
+    VGPR104, VGPR105, VGPR106, VGPR107, VGPR108, VGPR109, VGPR110, VGPR111,
+    VGPR112, VGPR113, VGPR114, VGPR115, VGPR116, VGPR117, VGPR118, VGPR119,
+    VGPR120, VGPR121, VGPR122, VGPR123, VGPR124, VGPR125, VGPR126, VGPR127,
+    VGPR128, VGPR129, VGPR130, VGPR131, VGPR132, VGPR133, VGPR134, VGPR135
+  ]>>>,
+
+  CCIfByVal<CCIfType<[i64] , CCAssignToRegWithShadow<
+    [ SGPR0, SGPR2, SGPR4, SGPR6, SGPR8, SGPR10, SGPR12, SGPR14,
+      SGPR16, SGPR18, SGPR20, SGPR22, SGPR24, SGPR26, SGPR28, SGPR30,
+      SGPR32, SGPR34, SGPR36, SGPR38 ],
+    [ SGPR1, SGPR3, SGPR5, SGPR7, SGPR9, SGPR11, SGPR13, SGPR15,
+      SGPR17, SGPR19, SGPR21, SGPR23, SGPR25, SGPR27, SGPR29, SGPR31,
+      SGPR33, SGPR35, SGPR37, SGPR39 ]
+  >>>
+
+]>;
+
+def RetCC_SI : CallingConv<[
+  CCIfType<[i32] , CCAssignToReg<[
+    SGPR0, SGPR1, SGPR2, SGPR3, SGPR4, SGPR5, SGPR6, SGPR7,
+    SGPR8, SGPR9, SGPR10, SGPR11, SGPR12, SGPR13, SGPR14, SGPR15,
+    SGPR16, SGPR17, SGPR18, SGPR19, SGPR20, SGPR21, SGPR22, SGPR23,
+    SGPR24, SGPR25, SGPR26, SGPR27, SGPR28, SGPR29, SGPR30, SGPR31,
+    SGPR32, SGPR33, SGPR34, SGPR35, SGPR36, SGPR37, SGPR38, SGPR39
+  ]>>,
+
+  // 32*4 + 4 is the minimum for a fetch shader with 32 outputs.
+  CCIfType<[f32] , CCAssignToReg<[
+    VGPR0, VGPR1, VGPR2, VGPR3, VGPR4, VGPR5, VGPR6, VGPR7,
+    VGPR8, VGPR9, VGPR10, VGPR11, VGPR12, VGPR13, VGPR14, VGPR15,
+    VGPR16, VGPR17, VGPR18, VGPR19, VGPR20, VGPR21, VGPR22, VGPR23,
+    VGPR24, VGPR25, VGPR26, VGPR27, VGPR28, VGPR29, VGPR30, VGPR31,
+    VGPR32, VGPR33, VGPR34, VGPR35, VGPR36, VGPR37, VGPR38, VGPR39,
+    VGPR40, VGPR41, VGPR42, VGPR43, VGPR44, VGPR45, VGPR46, VGPR47,
+    VGPR48, VGPR49, VGPR50, VGPR51, VGPR52, VGPR53, VGPR54, VGPR55,
+    VGPR56, VGPR57, VGPR58, VGPR59, VGPR60, VGPR61, VGPR62, VGPR63,
+    VGPR64, VGPR65, VGPR66, VGPR67, VGPR68, VGPR69, VGPR70, VGPR71,
+    VGPR72, VGPR73, VGPR74, VGPR75, VGPR76, VGPR77, VGPR78, VGPR79,
+    VGPR80, VGPR81, VGPR82, VGPR83, VGPR84, VGPR85, VGPR86, VGPR87,
+    VGPR88, VGPR89, VGPR90, VGPR91, VGPR92, VGPR93, VGPR94, VGPR95,
+    VGPR96, VGPR97, VGPR98, VGPR99, VGPR100, VGPR101, VGPR102, VGPR103,
+    VGPR104, VGPR105, VGPR106, VGPR107, VGPR108, VGPR109, VGPR110, VGPR111,
+    VGPR112, VGPR113, VGPR114, VGPR115, VGPR116, VGPR117, VGPR118, VGPR119,
+    VGPR120, VGPR121, VGPR122, VGPR123, VGPR124, VGPR125, VGPR126, VGPR127,
+    VGPR128, VGPR129, VGPR130, VGPR131, VGPR132, VGPR133, VGPR134, VGPR135
+  ]>>
+]>;
+
+// Calling convention for R600
+def CC_R600 : CallingConv<[
+  CCIfInReg<CCIfType<[v4f32, v4i32] , CCAssignToReg<[
+    T0_XYZW, T1_XYZW, T2_XYZW, T3_XYZW, T4_XYZW, T5_XYZW, T6_XYZW, T7_XYZW,
+    T8_XYZW, T9_XYZW, T10_XYZW, T11_XYZW, T12_XYZW, T13_XYZW, T14_XYZW, T15_XYZW,
+    T16_XYZW, T17_XYZW, T18_XYZW, T19_XYZW, T20_XYZW, T21_XYZW, T22_XYZW,
+    T23_XYZW, T24_XYZW, T25_XYZW, T26_XYZW, T27_XYZW, T28_XYZW, T29_XYZW,
+    T30_XYZW, T31_XYZW, T32_XYZW
+  ]>>>
+]>;
+
+// Calling convention for compute kernels
+def CC_AMDGPU_Kernel : CallingConv<[
+  CCCustom<"allocateStack">
+]>;
+
+def CC_AMDGPU : CallingConv<[
+  CCIf<"static_cast<const AMDGPUSubtarget&>"
+        "(State.getMachineFunction().getSubtarget()).getGeneration() >="
+          "AMDGPUSubtarget::SOUTHERN_ISLANDS && "
+        "State.getMachineFunction().getInfo<SIMachineFunctionInfo>()"
+         "->getShaderType() == ShaderType::COMPUTE",
+       CCDelegateTo<CC_AMDGPU_Kernel>>,
+  CCIf<"static_cast<const AMDGPUSubtarget&>"
+        "(State.getMachineFunction().getSubtarget()).getGeneration() < "
+          "AMDGPUSubtarget::SOUTHERN_ISLANDS && "
+         "State.getMachineFunction().getInfo<R600MachineFunctionInfo>()"
+          "->getShaderType() == ShaderType::COMPUTE",
+        CCDelegateTo<CC_AMDGPU_Kernel>>,
+   CCIf<"static_cast<const AMDGPUSubtarget&>"
+         "(State.getMachineFunction().getSubtarget()).getGeneration() >= "
+           "AMDGPUSubtarget::SOUTHERN_ISLANDS",
+        CCDelegateTo<CC_SI>>,
+   CCIf<"static_cast<const AMDGPUSubtarget&>"
+          "(State.getMachineFunction().getSubtarget()).getGeneration() < "
+            "AMDGPUSubtarget::SOUTHERN_ISLANDS",
+        CCDelegateTo<CC_R600>>
+]>;

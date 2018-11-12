@@ -94,7 +94,7 @@ Practically any users can send to the master TSP messages and this
 	way corrupt the reliability of the system.  Authentication
 	of messages should be provided.  Unfortunately, that would
 	require changing the protocol with all of the implied
-	compatiblity problems.  Fortunately, the new -F and -G args
+	compatibility problems.  Fortunately, the new -F and -G args
 	can be used to cause the daemon to ignore time changes from
 	untrusted machines.
 

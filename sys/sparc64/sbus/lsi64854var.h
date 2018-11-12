@@ -1,4 +1,4 @@
-/*	$NetBSD: lsi64854var.h,v 1.6 2005/02/04 02:10:36 perry Exp $ */
+/*	$NetBSD: lsi64854var.h,v 1.12 2008/04/28 20:23:50 martin Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -56,14 +49,15 @@ struct lsi64854_softc {
 
 	bus_dma_tag_t		sc_parent_dmat;
 	bus_dma_tag_t		sc_buffer_dmat;
+	bus_size_t		sc_maxdmasize;
 	int			sc_datain;
 	size_t			sc_dmasize;
-	caddr_t			*sc_dmaaddr;
+	void			**sc_dmaaddr;
 	size_t			*sc_dmalen;
 
 	void	(*reset)(struct lsi64854_softc *);/* reset routine */
-	int	(*setup)(struct lsi64854_softc *, caddr_t *, size_t *,
-			 int, size_t *);	/* DMA setup */
+	int	(*setup)(struct lsi64854_softc *, void **, size_t *,
+		    int, size_t *);		/* DMA setup */
 	int	(*intr)(void *);		/* interrupt handler */
 
 	u_int 			sc_dmactl;
@@ -85,7 +79,7 @@ struct lsi64854_softc {
 	uint32_t csr = L64854_GCSR(sc);		\
 	csr |= L64854_INT_EN;			\
 	L64854_SCSR(sc, csr);			\
-} while (0)
+} while (/* CONSTCOND */0)
 
 #define DMA_ISINTR(sc)	(L64854_GCSR(sc) & (D_INT_PEND|D_ERR_PEND))
 
@@ -94,7 +88,7 @@ struct lsi64854_softc {
 	csr |= D_EN_DMA;			\
 	L64854_SCSR(sc, csr);			\
 	sc->sc_active = 1;			\
-} while (0)
+} while (/* CONSTCOND */0)
 
 int	lsi64854_attach(struct lsi64854_softc *);
 int	lsi64854_detach(struct lsi64854_softc *);

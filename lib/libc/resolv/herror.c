@@ -46,7 +46,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)herror.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: herror.c,v 1.3.18.1 2005/04/27 05:01:09 sra Exp $";
+static const char rcsid[] = "$Id: herror.c,v 1.4 2005/04/27 04:56:41 sra Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include "port_before.h"
 
 #include "namespace.h"
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/uio.h>
 
@@ -76,7 +75,7 @@ const char *h_errlist[] = {
 	"Unknown server error",			/*%< 3 NO_RECOVERY */
 	"No address associated with name",	/*%< 4 NO_ADDRESS */
 };
-const int h_nerr = { sizeof h_errlist / sizeof h_errlist[0] };
+const int h_nerr = { nitems(h_errlist) };
 
 #undef	h_errno
 int	h_errno;

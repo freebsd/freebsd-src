@@ -40,23 +40,23 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 #include <errno.h>
+#include <string.h>
+#define	TTYDEFCHARS
 #include <termios.h>
 #include <unistd.h>
 #include "un-namespace.h"
 
+#include "libc_private.h"
+
 int
-tcgetattr(fd, t)
-	int fd;
-	struct termios *t;
+tcgetattr(int fd, struct termios *t)
 {
 
 	return (_ioctl(fd, TIOCGETA, t));
 }
 
 int
-tcsetattr(fd, opt, t)
-	int fd, opt;
-	const struct termios *t;
+tcsetattr(int fd, int opt, const struct termios *t)
 {
 	struct termios localterm;
 
@@ -88,8 +88,7 @@ tcsetpgrp(int fd, pid_t pgrp)
 }
 
 pid_t
-tcgetpgrp(fd)
-	int fd;
+tcgetpgrp(int fd)
 {
 	int s;
 
@@ -123,25 +122,21 @@ tcsetsid(int fd, pid_t pid)
 }
 
 speed_t
-cfgetospeed(t)
-	const struct termios *t;
+cfgetospeed(const struct termios *t)
 {
 
 	return (t->c_ospeed);
 }
 
 speed_t
-cfgetispeed(t)
-	const struct termios *t;
+cfgetispeed(const struct termios *t)
 {
 
 	return (t->c_ispeed);
 }
 
 int
-cfsetospeed(t, speed)
-	struct termios *t;
-	speed_t speed;
+cfsetospeed(struct termios *t, speed_t speed)
 {
 
 	t->c_ospeed = speed;
@@ -149,9 +144,7 @@ cfsetospeed(t, speed)
 }
 
 int
-cfsetispeed(t, speed)
-	struct termios *t;
-	speed_t speed;
+cfsetispeed(struct termios *t, speed_t speed)
 {
 
 	t->c_ispeed = speed;
@@ -159,9 +152,7 @@ cfsetispeed(t, speed)
 }
 
 int
-cfsetspeed(t, speed)
-	struct termios *t;
-	speed_t speed;
+cfsetspeed(struct termios *t, speed_t speed)
 {
 
 	t->c_ispeed = t->c_ospeed = speed;
@@ -173,8 +164,7 @@ cfsetspeed(t, speed)
  * mode with no characters interpreted, 8-bit data path.
  */
 void
-cfmakeraw(t)
-	struct termios *t;
+cfmakeraw(struct termios *t)
 {
 
 	t->c_iflag &= ~(IMAXBEL|IXOFF|INPCK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON|IGNPAR);
@@ -187,9 +177,25 @@ cfmakeraw(t)
 	t->c_cc[VTIME] = 0;
 }
 
+/*
+ * Obtain a termios structure which is similar to the one provided by
+ * the kernel.
+ */
+void
+cfmakesane(struct termios *t)
+{
+
+	t->c_cflag = TTYDEF_CFLAG;
+	t->c_iflag = TTYDEF_IFLAG;
+	t->c_lflag = TTYDEF_LFLAG;
+	t->c_oflag = TTYDEF_OFLAG;
+	t->c_ispeed = TTYDEF_SPEED;
+	t->c_ospeed = TTYDEF_SPEED;
+	memcpy(&t->c_cc, ttydefchars, sizeof ttydefchars);
+}
+
 int
-tcsendbreak(fd, len)
-	int fd, len;
+tcsendbreak(int fd, int len __unused)
 {
 	struct timeval sleepytime;
 
@@ -204,18 +210,26 @@ tcsendbreak(fd, len)
 }
 
 int
-__tcdrain(fd)
-	int fd;
+__libc_tcdrain(int fd)
 {
+
 	return (_ioctl(fd, TIOCDRAIN, 0));
 }
 
-__weak_reference(__tcdrain, tcdrain);
-__weak_reference(__tcdrain, _tcdrain);
+#pragma weak tcdrain
+int
+tcdrain(int fd)
+{
+
+	return (((int (*)(int))
+	    __libc_interposing[INTERPOS_tcdrain])(fd));
+}
+
+__weak_reference(__libc_tcdrain, __tcdrain);
+__weak_reference(__libc_tcdrain, _tcdrain);
 
 int
-tcflush(fd, which)
-	int fd, which;
+tcflush(int fd, int which)
 {
 	int com;
 
@@ -237,8 +251,7 @@ tcflush(fd, which)
 }
 
 int
-tcflow(fd, action)
-	int fd, action;
+tcflow(int fd, int action)
 {
 	struct termios term;
 	u_char c;

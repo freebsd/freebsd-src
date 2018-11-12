@@ -15,7 +15,7 @@ It is a complete, kernel side implementation of SMB requester and filesystem.
 
 	Darwin			maintained in the Darwin's  tree.
 
-    I'm would be very grateful for any feedback, bug reports etc.
+    I would be very grateful for any feedback, bug reports etc.
 
     Supported SMB servers:
 	Samba
@@ -23,14 +23,14 @@ It is a complete, kernel side implementation of SMB requester and filesystem.
 	IBM LanManager
 	NetApp
 
-    An updated versions of this package can be retrieved from ftp server:
+    An updated version of this package can be retrieved from ftp server:
 
     ftp://ftp.butya.kz/pub/smbfs/smbfs.tar.gz
 
-    Perfomance
+    Performance
     ==========
     
-    There is some perfomance benchmarks over 10Mbit network:
+    These are some performance benchmarks over a 10Mbit network:
     
     Win95 machine as server:
 IOZONE: auto-test mode

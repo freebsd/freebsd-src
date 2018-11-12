@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stdint.h>
 #include <sys/mount.h>
 #include <sys/disklabel.h>
-#include <sys/time.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 
@@ -49,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 /* some flags of what to do: */
@@ -142,7 +142,7 @@ get_inode(int fd, struct fs *super, ino_t ino)
 		if (!ipbuf
 		    && !(ipbuf = malloc(INOSZ(super))))
 			errx(1, "allocate inodes");
-		last = (ino / INOCNT(super)) * INOCNT(super);
+		last = rounddown(ino, INOCNT(super));
 		if (lseek(fd, (off_t)ino_to_fsba(super, last) << super->fs_fshift, 0) < (off_t)0
 		    || read(fd, ipbuf, INOSZ(super)) != (ssize_t)INOSZ(super))
 			err(1, "read inodes");
@@ -414,7 +414,7 @@ dofsizes(int fd, struct fs *super, char *name)
 					errx(1, "allocate fsize structure");
 				fp->fsz_next = *fsp;
 				*fsp = fp;
-				fp->fsz_first = (ksz / FSZCNT) * FSZCNT;
+				fp->fsz_first = rounddown(ksz, FSZCNT);
 				fp->fsz_last = fp->fsz_first + FSZCNT;
 				for (i = FSZCNT; --i >= 0;) {
 					fp->fsz_count[i] = 0;
@@ -484,8 +484,8 @@ static void
 donames(int fd, struct fs *super, char *name)
 {
 	int c;
-	ino_t inode;
 	ino_t maxino;
+	uintmax_t inode;
 	union dinode *dp;
 
 	maxino = super->fs_ncg * super->fs_ipg - 1;
@@ -493,9 +493,9 @@ donames(int fd, struct fs *super, char *name)
 	while ((c = getchar()) != EOF && (c < '0' || c > '9'))
 		while ((c = getchar()) != EOF && c != '\n');
 	ungetc(c,stdin);
-	while (scanf("%u",&inode) == 1) {
+	while (scanf("%ju", &inode) == 1) {
 		if (inode > maxino) {
-			warnx("illegal inode %d",inode);
+			warnx("illegal inode %ju", inode);
 			return;
 		}
 		errno = 0;

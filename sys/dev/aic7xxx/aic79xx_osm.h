@@ -51,6 +51,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 
 #define AIC_PCI_CONFIG 1
 #include <machine/bus.h>
@@ -102,7 +103,7 @@
  * The number of dma segments supported.  The sequencer can handle any number
  * of physically contiguous S/G entrys.  To reduce the driver's memory
  * consumption, we limit the number supported to be sufficient to handle
- * the largest mapping supported by the the legacy kernel MAXPHYS setting of
+ * the largest mapping supported by the legacy kernel MAXPHYS setting of
  * 128K.  This can be increased once some testing is done.  Assuming the
  * transfer is as fragmented as possible and unaligned, this turns out to
  * be the number of paged sized transfers in MAXPHYS plus an extra element
@@ -259,6 +260,7 @@ void	  ahd_platform_free(struct ahd_softc *ahd);
 int	  ahd_map_int(struct ahd_softc *ahd);
 int	  ahd_attach(struct ahd_softc *);
 int	  ahd_softc_comp(struct ahd_softc *lahd, struct ahd_softc *rahd);
+void	  ahd_sysctl(struct ahd_softc *ahd);
 int	  ahd_detach(device_t);
 #define	ahd_platform_init(arg)
 

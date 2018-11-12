@@ -37,33 +37,28 @@
 #error "no assembler-serviceable parts inside"
 #endif
 
+#include <sys/_cpuset.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+#include <sys/_sx.h>
 #include <sys/queue.h>
+#include <sys/_rmlock.h>
 #include <sys/vmmeter.h>
 #include <sys/resource.h>
 #include <machine/pcpu.h>
 
-struct pcb;
-struct thread;
+#define	DPCPU_SETNAME		"set_pcpu"
+#define	DPCPU_SYMPREFIX		"pcpu_entry_"
+
+#ifdef _KERNEL
 
 /*
  * Define a set for pcpu data.
- * 
- * We don't use SET_DECLARE because it defines the set as 'a' when we
- * want 'aw'.  GCC considers uninitialized data in a seperate section
- * writable and there is no generic zero initializer that works for
- * structs and scalars.
  */
 extern uintptr_t *__start_set_pcpu;
+__GLOBL(__start_set_pcpu);
 extern uintptr_t *__stop_set_pcpu;
-
-__asm__(
-#if defined(__arm__)
-	".section set_pcpu, \"aw\", %progbits\n"
-#else
-	".section set_pcpu, \"aw\", @progbits\n"
-#endif
-	"\t.p2align " __XSTRING(CACHE_LINE_SHIFT) "\n"
-	"\t.previous");
+__GLOBL(__stop_set_pcpu);
 
 /*
  * Array of dynamic pcpu base offsets.  Indexed by id.
@@ -73,8 +68,8 @@ extern uintptr_t dpcpu_off[];
 /*
  * Convenience defines.
  */
-#define	DPCPU_START		(uintptr_t)&__start_set_pcpu
-#define	DPCPU_STOP		(uintptr_t)&__stop_set_pcpu
+#define	DPCPU_START		((uintptr_t)&__start_set_pcpu)
+#define	DPCPU_STOP		((uintptr_t)&__stop_set_pcpu)
 #define	DPCPU_BYTES		(DPCPU_STOP - DPCPU_START)
 #define	DPCPU_MODMIN		2048
 #define	DPCPU_SIZE		roundup2(DPCPU_BYTES, PAGE_SIZE)
@@ -85,7 +80,7 @@ extern uintptr_t dpcpu_off[];
  */
 #define	DPCPU_NAME(n)		pcpu_entry_##n
 #define	DPCPU_DECLARE(t, n)	extern t DPCPU_NAME(n)
-#define	DPCPU_DEFINE(t, n)	t DPCPU_NAME(n) __section("set_pcpu") __used
+#define	DPCPU_DEFINE(t, n)	t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
 
 /*
  * Accessors with a given base.
@@ -109,17 +104,42 @@ extern uintptr_t dpcpu_off[];
 #define	DPCPU_ID_GET(i, n)	(*DPCPU_ID_PTR(i, n))
 #define	DPCPU_ID_SET(i, n, v)	(*DPCPU_ID_PTR(i, n) = v)
 
-/* 
- * XXXUPS remove as soon as we have per cpu variable
- * linker sets and  can define rm_queue in _rm_lock.h
-*/
-struct rm_queue {
-	struct rm_queue* volatile rmq_next;
-	struct rm_queue* volatile rmq_prev;
-};
+/*
+ * Utility macros.
+ */
+#define	DPCPU_SUM(n) __extension__					\
+({									\
+	u_int _i;							\
+	__typeof(*DPCPU_PTR(n)) sum;					\
+									\
+	sum = 0;							\
+	CPU_FOREACH(_i) {						\
+		sum += *DPCPU_ID_PTR(_i, n);				\
+	}								\
+	sum;								\
+})
 
-#define	PCPU_NAME_LEN (sizeof("CPU ") + sizeof(__XSTRING(MAXCPU) + 1))
+#define	DPCPU_VARSUM(n, var) __extension__				\
+({									\
+	u_int _i;							\
+	__typeof((DPCPU_PTR(n))->var) sum;				\
+									\
+	sum = 0;							\
+	CPU_FOREACH(_i) {						\
+		sum += (DPCPU_ID_PTR(_i, n))->var;			\
+	}								\
+	sum;								\
+})
 
+#define	DPCPU_ZERO(n) do {						\
+	u_int _i;							\
+									\
+	CPU_FOREACH(_i) {						\
+		bzero(DPCPU_ID_PTR(_i, n), sizeof(*DPCPU_PTR(n)));	\
+	}								\
+} while(0)
+
+#endif /* _KERNEL */
 
 /*
  * This structure maps out the global data that needs to be kept on a
@@ -133,52 +153,47 @@ struct pcpu {
 	struct thread	*pc_fpcurthread;	/* Fp state owner */
 	struct thread	*pc_deadthread;		/* Zombie thread or NULL */
 	struct pcb	*pc_curpcb;		/* Current pcb */
-	uint64_t	pc_switchtime;
-	int		pc_switchticks;
+	uint64_t	pc_switchtime;		/* cpu_ticks() at last csw */
+	int		pc_switchticks;		/* `ticks' at last csw */
 	u_int		pc_cpuid;		/* This cpu number */
-	cpumask_t	pc_cpumask;		/* This cpu mask */
-	cpumask_t	pc_other_cpus;		/* Mask of all other cpus */
-	SLIST_ENTRY(pcpu) pc_allcpu;
+	STAILQ_ENTRY(pcpu) pc_allcpu;
 	struct lock_list_entry *pc_spinlocks;
-#ifdef KTR
-	char		pc_name[PCPU_NAME_LEN];	/* String name for KTR. */
-#endif
 	struct vmmeter	pc_cnt;			/* VM stats counters */
 	long		pc_cp_time[CPUSTATES];	/* statclock ticks */
 	struct device	*pc_device;
-	void		*pc_netisr;		/* netisr SWI cookie. */
-
-	/* 
-	 * Stuff for read mostly lock
-	 * 
-	 * XXXUPS remove as soon as we have per cpu variable
-	 * linker sets.
-	 */
-	struct rm_queue  pc_rm_queue; 
-
-	/*
-	 * Dynamic per-cpu data area.
-	 */
-	uintptr_t	pc_dynamic;
+	void		*pc_netisr;		/* netisr SWI cookie */
+	int		pc_unused1;		/* unused field */
+	int		pc_domain;		/* Memory domain. */
+	struct rm_queue	pc_rm_queue;		/* rmlock list of trackers */
+	uintptr_t	pc_dynamic;		/* Dynamic per-cpu data area */
 
 	/*
 	 * Keep MD fields last, so that CPU-specific variations on a
 	 * single architecture don't result in offset variations of
-	 * the machine-independent fields of the pcpu. Even though
+	 * the machine-independent fields of the pcpu.  Even though
 	 * the pcpu structure is private to the kernel, some ports
-	 * (e.g. lsof, part of gtop) define _KERNEL and include this
-	 * header. While strictly speaking this is wrong, there's no
-	 * reason not to keep the offsets of the MI fields contants.
-	 * If only to make kernel debugging easier...
+	 * (e.g., lsof, part of gtop) define _KERNEL and include this
+	 * header.  While strictly speaking this is wrong, there's no
+	 * reason not to keep the offsets of the MI fields constant
+	 * if only to make kernel debugging easier.
 	 */
 	PCPU_MD_FIELDS;
-} __aligned(128);
+} __aligned(CACHE_LINE_SIZE);
+
+#ifdef CTASSERT
+/*
+ * To minimize memory waste in per-cpu UMA zones, size of struct pcpu
+ * should be denominator of PAGE_SIZE.
+ */
+CTASSERT((PAGE_SIZE / sizeof(struct pcpu)) * sizeof(struct pcpu) == PAGE_SIZE);
+#endif
 
 #ifdef _KERNEL
 
-SLIST_HEAD(cpuhead, pcpu);
+STAILQ_HEAD(cpuhead, pcpu);
 
 extern struct cpuhead cpuhead;
+extern struct pcpu *cpuid_to_pcpu[];
 
 #define	curcpu		PCPU_GET(cpuid)
 #define	curproc		(curthread->td_proc)
@@ -187,27 +202,38 @@ extern struct cpuhead cpuhead;
 #endif
 #define	curvidata	PCPU_GET(vidata)
 
+/* Accessor to elements allocated via UMA_ZONE_PCPU zone. */
+static inline void *
+zpcpu_get(void *base)
+{
+
+	return ((char *)(base) + sizeof(struct pcpu) * curcpu);
+}
+
+static inline void *
+zpcpu_get_cpu(void *base, int cpu)
+{
+
+	return ((char *)(base) + sizeof(struct pcpu) * cpu);
+}
+
 /*
  * Machine dependent callouts.  cpu_pcpu_init() is responsible for
  * initializing machine dependent fields of struct pcpu, and
  * db_show_mdpcpu() is responsible for handling machine dependent
  * fields for the DDB 'show pcpu' command.
  */
-
-extern struct pcpu *cpuid_to_pcpu[MAXCPU];
-
-
 void	cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size);
 void	db_show_mdpcpu(struct pcpu *pcpu);
 
-void	pcpu_destroy(struct pcpu *pcpu);
-struct	pcpu *pcpu_find(u_int cpuid);
-void	pcpu_init(struct pcpu *pcpu, int cpuid, size_t size);
 void	*dpcpu_alloc(int size);
 void	dpcpu_copy(void *s, int size);
 void	dpcpu_free(void *s, int size);
 void	dpcpu_init(void *dpcpu, int cpuid);
+void	pcpu_destroy(struct pcpu *pcpu);
+struct	pcpu *pcpu_find(u_int cpuid);
+void	pcpu_init(struct pcpu *pcpu, int cpuid, size_t size);
 
-#endif	/* _KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_PCPU_H_ */

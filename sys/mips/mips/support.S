@@ -51,8 +51,39 @@
  */
 
 /*
- *	Contains code that is the first executed at boot time plus
- *	assembly language support routines.
+ * Copyright (c) 1997 Jonathan Stone (hereinafter referred to as the author)
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by Jonathan R. Stone for
+ *      the NetBSD Project.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+/*
+ *	Contains assembly language support routines.
  */
 
 #include "opt_ddb.h"
@@ -60,6 +91,8 @@
 #include <machine/asm.h>
 #include <machine/cpu.h>
 #include <machine/regnum.h>
+#include <machine/cpuregs.h>
+#include <machine/pcb.h>
 
 #include "assym.s"
 
@@ -69,47 +102,22 @@
  * Primitives
  */
 
-/*
- * This table is indexed by u.u_pcb.pcb_onfault in trap().
- * The reason for using this table rather than storing an address in
- * u.u_pcb.pcb_onfault is simply to make the code faster.
- */
-	.globl	onfault_table
-	.data
-	.align	3
-onfault_table:
-	.word	0			# invalid index number
-#define	BADERR		1
-	.word	baderr
-#define	COPYERR		2
-	.word	copyerr
-#define	FSWBERR		3
-	.word	fswberr
-#define	FSWINTRBERR	4
-	.word	fswintrberr
-#if defined(DDB) || defined(DEBUG)
-#define	DDBERR	5
-	.word	ddberr
-#else
-	.word	0
-#endif
-
 	.text
 
 /*
  * See if access to addr with a len type instruction causes a machine check.
- * len is length of access (1=byte, 2=short, 4=long)
+ * len is length of access (1=byte, 2=short, 4=int)
  *
  * badaddr(addr, len)
  *	char *addr;
  *	int len;
  */
 LEAF(badaddr)
-	li	v0, BADERR
+	PTR_LA	v0, baderr
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
+	PTR_L	v1, PC_CURPCB(v1)
 	bne	a1, 1, 2f
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	b	5f
 	lbu	v0, (a0)
 2:
@@ -120,7 +128,7 @@ LEAF(badaddr)
 4:
 	lw	v0, (a0)
 5:
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
 	move	v0, zero		# made it w/o errors
 baderr:
@@ -135,169 +143,27 @@ END(badaddr)
  * string is too long, return ENAMETOOLONG; else return 0.
  */
 LEAF(copystr)
-	move	t0, a2
-	beq	a2, zero, 4f
+	move		t0, a2
+	beq		a2, zero, 4f
 1:
-	lbu	v0, 0(a0)
-	subu	a2, a2, 1
-	beq	v0, zero, 2f
-	sb	v0, 0(a1)		# each byte until NIL
-	addu	a0, a0, 1
-	bne	a2, zero, 1b		# less than maxlen
-	addu	a1, a1, 1
+	lbu		v0, 0(a0)
+	PTR_SUBU	a2, a2, 1
+	beq		v0, zero, 2f
+	sb		v0, 0(a1)		# each byte until NIL
+	PTR_ADDU	a0, a0, 1
+	bne		a2, zero, 1b		# less than maxlen
+	PTR_ADDU	a1, a1, 1
 4:
-	li	v0, ENAMETOOLONG	# run out of space
+	li		v0, ENAMETOOLONG	# run out of space
 2:
-	beq	a3, zero, 3f		# return num. of copied bytes
-	subu	a2, t0, a2		# if the 4th arg was non-NULL
-	sw	a2, 0(a3)
+	beq		a3, zero, 3f		# return num. of copied bytes
+	PTR_SUBU	a2, t0, a2		# if the 4th arg was non-NULL
+	PTR_S		a2, 0(a3)
 3:
-	j	ra			# v0 is 0 or ENAMETOOLONG
+	j		ra			# v0 is 0 or ENAMETOOLONG
 	nop
 END(copystr)
 
-
-/*
- * fillw(pat, addr, count)
- */
-LEAF(fillw)
-1:
-	addiu	a2, a2, -1
-	sh	a0, 0(a1)
-	bne	a2,zero, 1b
-	addiu	a1, a1, 2
-
-	jr	ra
-	nop
-END(fillw)
-
-/*
- * Optimized memory zero code.
- * mem_zero_page(addr);
- */
-LEAF(mem_zero_page)
-	li	v0, NBPG
-1:
-	subu	v0, 8
-	sd	zero, 0(a0)
-	bne	zero, v0, 1b
-	addu	a0, 8
-	jr	ra
-	nop
-END(mem_zero_page)
-
-/*
- *	Block I/O routines mainly used by I/O drivers.
- *
- *	Args as:	a0 = port
- *			a1 = memory address
- *			a2 = count
- */
-LEAF(insb)
-	beq	a2, zero, 2f
-	addu	a2, a1
-1:
-	lbu	v0, 0(a0)
-	addiu	a1, 1
-	bne	a1, a2, 1b
-	sb	v0, -1(a1)
-2:
-	jr	ra
-	nop
-END(insb)
-
-LEAF(insw)
-	beq	a2, zero, 2f
-	addu	a2, a2
-	addu	a2, a1
-1:
-	lhu	v0, 0(a0)
-	addiu	a1, 2
-	bne	a1, a2, 1b
-	sh	v0, -2(a1)
-2:
-	jr	ra
-	nop
-END(insw)
-
-LEAF(insl)
-	beq	a2, zero, 2f
-	sll	a2, 2
-	addu	a2, a1
-1:
-	lw	v0, 0(a0)
-	addiu	a1, 4
-	bne	a1, a2, 1b
-	sw	v0, -4(a1)
-2:
-	jr	ra
-	nop
-END(insl)
-
-LEAF(outsb)
-	beq	a2, zero, 2f
-	addu	a2, a1
-1:
-	lbu	v0, 0(a1)
-	addiu	a1, 1
-	bne	a1, a2, 1b
-	sb	v0, 0(a0)
-2:
-	jr	ra
-	nop
-END(outsb)
-
-LEAF(outsw)
-	beq	a2, zero, 2f
-	addu	a2, a2
-	li	v0, 1
-	and	v0, a1
-	bne	v0, zero, 3f		# arghh, unaligned.
-	addu	a2, a1
-1:
-	lhu	v0, 0(a1)
-	addiu	a1, 2
-	bne	a1, a2, 1b
-	sh	v0, 0(a0)
-2:
-	jr	ra
-	nop
-3:
-	LWHI	v0, 0(a1)
-	LWLO	v0, 3(a1)
-	addiu	a1, 2
-	bne	a1, a2, 3b
-	sh	v0, 0(a0)
-
-	jr	ra
-	nop
-END(outsw)
-
-LEAF(outsl)
-	beq	a2, zero, 2f
-	sll	a2, 2
-	li	v0, 3
-	and	v0, a1
-	bne	v0, zero, 3f		# arghh, unaligned.
-	addu	a2, a1
-1:
-	lw	v0, 0(a1)
-	addiu	a1, 4
-	bne	a1, a2, 1b
-	sw	v0, 0(a0)
-2:
-	jr	ra
-	nop
-3:
-	LWHI	v0, 0(a1)
-	LWLO	v0, 3(a1)
-	addiu	a1, 4
-	bne	a1, a2, 3b
-	sw	v0, 0(a0)
-
-	jr	ra
-	nop
-END(outsl)
 
 /*
  * Copy a null terminated string from the user address space into
@@ -309,22 +175,22 @@ END(outsl)
  *		u_int maxlength;
  *		u_int *lencopied;
  */
-NON_LEAF(copyinstr, STAND_FRAME_SIZE, ra)
-	subu	sp, sp, STAND_FRAME_SIZE
-	.mask	0x80000000, (STAND_RA_OFFSET - STAND_FRAME_SIZE)
-	sw	ra, STAND_RA_OFFSET(sp)
+NESTED(copyinstr, CALLFRAME_SIZ, ra)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	PTR_LA	v0, copyerr
 	blt	a0, zero, _C_LABEL(copyerr)  # make sure address is in user space
-	li	v0, COPYERR
+	REG_S	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
+	PTR_L	v1, PC_CURPCB(v1)
 	jal	_C_LABEL(copystr)
-	sw	v0, U_PCB_ONFAULT(v1)
-	lw	ra, STAND_RA_OFFSET(sp)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
+	REG_L	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
-	addu	sp, sp, STAND_FRAME_SIZE
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
 END(copyinstr)
 
 /*
@@ -337,22 +203,22 @@ END(copyinstr)
  *		u_int maxlength;
  *		u_int *lencopied;
  */
-NON_LEAF(copyoutstr, STAND_FRAME_SIZE, ra)
-	subu	sp, sp, STAND_FRAME_SIZE
-	.mask	0x80000000, (STAND_RA_OFFSET - STAND_FRAME_SIZE)
-	sw	ra, STAND_RA_OFFSET(sp)
+NESTED(copyoutstr, CALLFRAME_SIZ, ra)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	PTR_LA	v0, copyerr
 	blt	a1, zero, _C_LABEL(copyerr)  # make sure address is in user space
-	li	v0, COPYERR
+	REG_S	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
+	PTR_L	v1, PC_CURPCB(v1)
 	jal	_C_LABEL(copystr)
-	sw	v0, U_PCB_ONFAULT(v1)
-	lw	ra, STAND_RA_OFFSET(sp)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
+	REG_L	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
-	addu	sp, sp, STAND_FRAME_SIZE
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
 END(copyoutstr)
 
 /*
@@ -362,21 +228,21 @@ END(copyoutstr)
  *		caddr_t *to;	(kernel destination address)
  *		unsigned len;
  */
-NON_LEAF(copyin, STAND_FRAME_SIZE, ra)
-	subu	sp, sp, STAND_FRAME_SIZE
-	.mask	0x80000000, (STAND_RA_OFFSET - STAND_FRAME_SIZE)
-	sw	ra, STAND_RA_OFFSET(sp)
+NESTED(copyin, CALLFRAME_SIZ, ra)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	PTR_LA	v0, copyerr
 	blt	a0, zero, _C_LABEL(copyerr)  # make sure address is in user space
-	li	v0, COPYERR
+	REG_S	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
+	PTR_L	v1, PC_CURPCB(v1)
 	jal	_C_LABEL(bcopy)
-	sw	v0, U_PCB_ONFAULT(v1)
-	lw	ra, STAND_RA_OFFSET(sp)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
+	REG_L	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)	 	# bcopy modified v1, so reload
-	sw	zero, U_PCB_ONFAULT(v1)
-	addu	sp, sp, STAND_FRAME_SIZE
+	PTR_L	v1, PC_CURPCB(v1)	 	# bcopy modified v1, so reload
+	PTR_S	zero, U_PCB_ONFAULT(v1)
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
 	j	ra
 	move	v0, zero
 END(copyin)
@@ -388,31 +254,28 @@ END(copyin)
  *		caddr_t *to;	(user destination address)
  *		unsigned len;
  */
-NON_LEAF(copyout, STAND_FRAME_SIZE, ra)
-	subu	sp, sp, STAND_FRAME_SIZE
-	.mask	0x80000000, (STAND_RA_OFFSET - STAND_FRAME_SIZE)
-	sw	ra, STAND_RA_OFFSET(sp)
+NESTED(copyout, CALLFRAME_SIZ, ra)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	PTR_LA	v0, copyerr
 	blt	a1, zero, _C_LABEL(copyerr) # make sure address is in user space
-	li	v0, COPYERR
+	REG_S	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
+	PTR_L	v1, PC_CURPCB(v1)
 	jal	_C_LABEL(bcopy)
-	sw	v0, U_PCB_ONFAULT(v1)
-	lw	ra, STAND_RA_OFFSET(sp)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
+	REG_L	ra, CALLFRAME_RA(sp)
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)		# bcopy modified v1, so reload
-	sw	zero, U_PCB_ONFAULT(v1)
-	addu	sp, sp, STAND_FRAME_SIZE
+	PTR_L	v1, PC_CURPCB(v1)	 	# bcopy modified v1, so reload
+	PTR_S	zero, U_PCB_ONFAULT(v1)
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
 	j	ra
 	move	v0, zero
 END(copyout)
 
 LEAF(copyerr)
-	lw	ra, STAND_RA_OFFSET(sp)
-	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	zero, U_PCB_ONFAULT(v1)
-	addu	sp, sp, STAND_FRAME_SIZE
+	REG_L	ra, CALLFRAME_RA(sp)
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
 	j	ra
 	li	v0, EFAULT			# return error
 END(copyerr)
@@ -423,54 +286,72 @@ END(copyerr)
  * {fu,su},{byte,sword,word}, fetch or store a byte, short or word to
  * user data space.
  */
-LEAF(fuword)
-ALEAF(fuword32)
-ALEAF(fuiword)
+#ifdef __mips_n64
+LEAF(fuword64)
+XLEAF(fuword)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
+	ld	v0, 0(a0)		# fetch word
+	j	ra
+	PTR_S	zero, U_PCB_ONFAULT(v1)
+END(fuword64)
+#endif
+
+LEAF(fuword32)
+#ifndef __mips_n64
+XLEAF(fuword)
+#endif
+	PTR_LA	v0, fswberr
+	blt	a0, zero, fswberr	# make sure address is in user space
+	nop
+	GET_CPU_PCPU(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	lw	v0, 0(a0)		# fetch word
 	j	ra
-	sw	zero, U_PCB_ONFAULT(v1)
-END(fuword)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
+END(fuword32)
 
 LEAF(fusword)
-ALEAF(fuisword)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	lhu	v0, 0(a0)		# fetch short
 	j	ra
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 END(fusword)
 
 LEAF(fubyte)
-ALEAF(fuibyte)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	lbu	v0, 0(a0)		# fetch byte
 	j	ra
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 END(fubyte)
 
 LEAF(suword32)
 #ifndef __mips_n64
 XLEAF(suword)
 #endif
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	sw	a1, 0(a0)		# store word
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
 	move	v0, zero
 END(suword32)
@@ -478,13 +359,14 @@ END(suword32)
 #ifdef __mips_n64
 LEAF(suword64)
 XLEAF(suword)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	sd	a1, 0(a0)		# store word
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
 	move	v0, zero
 END(suword64)
@@ -503,11 +385,12 @@ LEAF(casuword32)
 #ifndef __mips_n64
 XLEAF(casuword)
 #endif
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 1:
 	move	t0, a2
 	ll	v0, 0(a0)
@@ -521,7 +404,7 @@ XLEAF(casuword)
 2:
 	li	v0, -1
 3:
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	jr	ra
 	nop
 END(casuword32)
@@ -529,11 +412,12 @@ END(casuword32)
 #ifdef __mips_n64
 LEAF(casuword64)
 XLEAF(casuword)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 1:
 	move	t0, a2
 	lld	v0, 0(a0)
@@ -547,55 +431,37 @@ XLEAF(casuword)
 2:
 	li	v0, -1
 3:
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	jr	ra
 	nop
 END(casuword64)
-#endif
-
-#if 0
-	/* unused in FreeBSD */
-/*
- * Have to flush instruction cache afterwards.
- */
-LEAF(suiword)
-	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
-	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
-	sw	a1, 0(a0)		# store word
-	sw	zero, U_PCB_ONFAULT(v1)
-	j	_C_LABEL(Mips_SyncICache)  # FlushICache sets v0 = 0. (Ugly)
-	li	a1, 4			# size of word
-END(suiword)
 #endif
 
 /*
  * Will have to flush the instruction cache if byte merging is done in hardware.
  */
 LEAF(susword)
-ALEAF(suisword)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	sh	a1, 0(a0)		# store short
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
 	move	v0, zero
 END(susword)
 
 LEAF(subyte)
-ALEAF(suibyte)
+	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
-	li	v0, FSWBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	sb	a1, 0(a0)		# store byte
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
 	move	v0, zero
 END(subyte)
@@ -611,24 +477,26 @@ END(fswberr)
  * The important thing is to prevent sleep() and switch().
  */
 LEAF(fuswintr)
+	PTR_LA	v0, fswintrberr
 	blt	a0, zero, fswintrberr	# make sure address is in user space
-	li	v0, FSWINTRBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	lhu	v0, 0(a0)		# fetch short
 	j	ra
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 END(fuswintr)
 
 LEAF(suswintr)
+	PTR_LA	v0, fswintrberr
 	blt	a0, zero, fswintrberr	# make sure address is in user space
-	li	v0, FSWINTRBERR
+	nop
 	GET_CPU_PCPU(v1)
-	lw	v1, PC_CURPCB(v1)
-	sw	v0, U_PCB_ONFAULT(v1)
+	PTR_L	v1, PC_CURPCB(v1)
+	PTR_S	v0, U_PCB_ONFAULT(v1)
 	sh	a1, 0(a0)		# store short
-	sw	zero, U_PCB_ONFAULT(v1)
+	PTR_S	zero, U_PCB_ONFAULT(v1)
 	j	ra
 	move	v0, zero
 END(suswintr)
@@ -637,203 +505,6 @@ LEAF(fswintrberr)
 	j	ra
 	li	v0, -1
 END(fswintrberr)
-
-/*
- * Insert 'p' after 'q'.
- *	_insque(p, q)
- *		caddr_t p, q;
- */
-LEAF(_insque)
-	lw	v0, 0(a1)		# v0 = q->next
-	sw	a1, 4(a0)		# p->prev = q
-	sw	v0, 0(a0)		# p->next = q->next
-	sw	a0, 4(v0)		# q->next->prev = p
-	j	ra
-	sw	a0, 0(a1)		# q->next = p
-END(_insque)
-
-/*
- * Remove item 'p' from queue.
- *	_remque(p)
- *		caddr_t p;
- */
-LEAF(_remque)
-	lw	v0, 0(a0)		# v0 = p->next
-	lw	v1, 4(a0)		# v1 = p->prev
-	nop
-	sw	v0, 0(v1)		# p->prev->next = p->next
-	j	ra
-	sw	v1, 4(v0)		# p->next->prev = p->prev
-END(_remque)
-
-/*--------------------------------------------------------------------------
- *
- * Mips_GetCOUNT --
- *
- *	Mips_GetCOUNT()
- *
- * Results:
- *	Returns the current COUNT reg.
- *
- * Side effects:
- *	None.
- *
- *--------------------------------------------------------------------------
- */
-LEAF(Mips_GetCOUNT)
-	mfc0	v0, COP_0_COUNT
-	nop	#???
-	nop	#???
-	j	ra
-	nop
-END(Mips_GetCOUNT)
-
-/*--------------------------------------------------------------------------
- *
- * Mips_SetCOMPARE --
- *
- *	Mips_SetCOMPARE()
- *
- * Results:
- *	Sets a new value to the COMPARE register.
- *
- * Side effects:
- *	The COMPARE equal interrupt is acknowledged.
- *
- *--------------------------------------------------------------------------
- */
-LEAF(Mips_SetCOMPARE)
-	mtc0	a0, COP_0_COMPARE
-	j	ra
-	nop
-END(Mips_SetCOMPARE)
-
-LEAF(Mips_GetCOMPARE)
-	mfc0	v0, COP_0_COMPARE
-	j	ra
-	nop
-END(Mips_GetCOMPARE)
-
-/*
- * u_int32_t mips_cp0_status_read(void)
- *
- *	Return the current value of the CP0 Status register.
- */
-LEAF(mips_cp0_status_read)
-	mfc0	v0, COP_0_STATUS_REG
-	j	ra
-	nop
-END(mips_cp0_status_read)
-
-/*
- * void mips_cp0_status_write(u_int32_t)
- *
- *	Set the value of the CP0 Status register.
- *
- *	Note: This is almost certainly not the way you want to write a
- *	"permanent" value to to the CP0 Status register, since it gets
- *	saved in trap frames and restores.
- */
-LEAF(mips_cp0_status_write)
-	mtc0	a0, COP_0_STATUS_REG
-	nop
-	nop
-	j	ra
-	nop
-END(mips_cp0_status_write)
-
-
-/*
- * memcpy(to, from, len)
- * {ov}bcopy(from, to, len)
- */
-LEAF(memcpy)
-	.set	noreorder
-	move	v0, a0			# swap from and to
-	move	a0, a1
-	move	a1, v0
-ALEAF(bcopy)
-ALEAF(ovbcopy)
-	.set	noreorder
-	addu	t0, a0, a2		# t0 = end of s1 region
-	sltu	t1, a1, t0
-	sltu	t2, a0, a1
-	and	t1, t1, t2		# t1 = true if from < to < (from+len)
-	beq	t1, zero, forward	# non overlapping, do forward copy
-	slt	t2, a2, 12		# check for small copy
-
-	ble	a2, zero, 2f
-	addu	t1, a1, a2		# t1 = end of to region
-1:
-	lb	v1, -1(t0)		# copy bytes backwards,
-	subu	t0, t0, 1		#   doesnt happen often so do slow way
-	subu	t1, t1, 1
-	bne	t0, a0, 1b
-	sb	v1, 0(t1)
-2:
-	j	ra
-	nop
-forward:
-	bne	t2, zero, smallcpy	# do a small bcopy
-	xor	v1, a0, a1		# compare low two bits of addresses
-	and	v1, v1, 3
-	subu	a3, zero, a1		# compute # bytes to word align address
-	beq	v1, zero, aligned	# addresses can be word aligned
-	and	a3, a3, 3
-
-	beq	a3, zero, 1f
-	subu	a2, a2, a3		# subtract from remaining count
-	LWHI	v1, 0(a0)		# get next 4 bytes (unaligned)
-	LWLO	v1, 3(a0)
-	addu	a0, a0, a3
-	SWHI	v1, 0(a1)		# store 1, 2, or 3 bytes to align a1
-	addu	a1, a1, a3
-1:
-	and	v1, a2, 3		# compute number of words left
-	subu	a3, a2, v1
-	move	a2, v1
-	addu	a3, a3, a0		# compute ending address
-2:
-	LWHI	v1, 0(a0)		# copy words a0 unaligned, a1 aligned
-	LWLO	v1, 3(a0)
-	addu	a0, a0, 4
-	sw	v1, 0(a1)
-	addu	a1, a1, 4
-	bne	a0, a3, 2b
-	nop				# We have to do this mmu-bug.
-	b	smallcpy
-	nop
-aligned:
-	beq	a3, zero, 1f
-	subu	a2, a2, a3		# subtract from remaining count
-	LWHI	v1, 0(a0)		# copy 1, 2, or 3 bytes to align
-	addu	a0, a0, a3
-	SWHI	v1, 0(a1)
-	addu	a1, a1, a3
-1:
-	and	v1, a2, 3		# compute number of whole words left
-	subu	a3, a2, v1
-	move	a2, v1
-	addu	a3, a3, a0		# compute ending address
-2:
-	lw	v1, 0(a0)		# copy words
-	addu	a0, a0, 4
-	sw	v1, 0(a1)
-	bne	a0, a3, 2b
-	addu	a1, a1, 4
-smallcpy:
-	ble	a2, zero, 2f
-	addu	a3, a2, a0		# compute ending address
-1:
-	lbu	v1, 0(a0)		# copy bytes
-	addu	a0, a0, 1
-	sb	v1, 0(a1)
-	bne	a0, a3, 1b
-	addu	a1, a1, 1	   # MMU BUG ? can not do -1(a1) at 0x80000000!!
-2:
-	j	ra
-	nop
-END(memcpy)
 
 /*
  * memset(void *s1, int c, int len)
@@ -849,39 +520,27 @@ LEAF(memset)
 	sll	t2, t1, 16		# shift that left 16
 	or	t1, t2, t1		# or together
 
-	subu	t0, zero, a0		# compute # bytes to word align address
+	PTR_SUBU	t0, zero, a0		# compute # bytes to word align address
 	and	t0, t0, 3
 	beq	t0, zero, 1f		# skip if word aligned
-	subu	a2, a2, t0		# subtract from remaining count
+	PTR_SUBU	a2, a2, t0		# subtract from remaining count
 	SWHI	t1, 0(a0)		# store 1, 2, or 3 bytes to align
-	addu	a0, a0, t0
+	PTR_ADDU	a0, a0, t0
 1:
 	and	v1, a2, 3		# compute number of whole words left
-	subu	t0, a2, v1
-	subu	a2, a2, t0
-	addu	t0, t0, a0		# compute ending address
+	PTR_SUBU	t0, a2, v1
+	PTR_SUBU	a2, a2, t0
+	PTR_ADDU	t0, t0, a0		# compute ending address
 2:
-	addu	a0, a0, 4		# clear words
-#ifdef MIPS3_5900
-	nop
-	nop
-	nop
-	nop
-#endif
+	PTR_ADDU	a0, a0, 4		# clear words
 	bne	a0, t0, 2b		#  unrolling loop does not help
 	sw	t1, -4(a0)		#  since we are limited by memory speed
 
 memsetsmallclr:
 	ble	a2, zero, 2f
-	addu	t0, a2, a0		# compute ending address
+	PTR_ADDU	t0, a2, a0		# compute ending address
 1:
-	addu	a0, a0, 1		# clear bytes
-#ifdef MIPS3_5900
-	nop
-	nop
-	nop
-	nop
-#endif
+	PTR_ADDU	a0, a0, 1		# clear bytes
 	bne	a0, t0, 1b
 	sb	a1, -1(a0)
 2:
@@ -894,29 +553,29 @@ END(memset)
  * bzero(s1, n)
  */
 LEAF(bzero)
-ALEAF(blkclr)
+XLEAF(blkclr)
 	.set	noreorder
 	blt	a1, 12, smallclr	# small amount to clear?
-	subu	a3, zero, a0		# compute # bytes to word align address
+	PTR_SUBU	a3, zero, a0		# compute # bytes to word align address
 	and	a3, a3, 3
 	beq	a3, zero, 1f		# skip if word aligned
-	subu	a1, a1, a3		# subtract from remaining count
+	PTR_SUBU	a1, a1, a3		# subtract from remaining count
 	SWHI	zero, 0(a0)		# clear 1, 2, or 3 bytes to align
-	addu	a0, a0, a3
+	PTR_ADDU	a0, a0, a3
 1:
 	and	v0, a1, 3		# compute number of words left
-	subu	a3, a1, v0
+	PTR_SUBU	a3, a1, v0
 	move	a1, v0
-	addu	a3, a3, a0		# compute ending address
+	PTR_ADDU	a3, a3, a0		# compute ending address
 2:
-	addu	a0, a0, 4		# clear words
+	PTR_ADDU	a0, a0, 4		# clear words
 	bne	a0, a3, 2b		#  unrolling loop does not help
 	sw	zero, -4(a0)		#  since we are limited by memory speed
 smallclr:
 	ble	a1, zero, 2f
-	addu	a3, a1, a0		# compute ending address
+	PTR_ADDU	a3, a1, a0		# compute ending address
 1:
-	addu	a0, a0, 1		# clear bytes
+	PTR_ADDU	a0, a0, 1		# clear bytes
 	bne	a0, a3, 1b
 	sb	zero, -1(a0)
 2:
@@ -933,66 +592,66 @@ LEAF(bcmp)
 	blt	a2, 16, smallcmp	# is it worth any trouble?
 	xor	v0, a0, a1		# compare low two bits of addresses
 	and	v0, v0, 3
-	subu	a3, zero, a1		# compute # bytes to word align address
+	PTR_SUBU	a3, zero, a1		# compute # bytes to word align address
 	bne	v0, zero, unalignedcmp	# not possible to align addresses
 	and	a3, a3, 3
 
 	beq	a3, zero, 1f
-	subu	a2, a2, a3		# subtract from remaining count
+	PTR_SUBU	a2, a2, a3		# subtract from remaining count
 	move	v0, v1			# init v0,v1 so unmodified bytes match
 	LWHI	v0, 0(a0)		# read 1, 2, or 3 bytes
 	LWHI	v1, 0(a1)
-	addu	a1, a1, a3
+	PTR_ADDU	a1, a1, a3
 	bne	v0, v1, nomatch
-	addu	a0, a0, a3
+	PTR_ADDU	a0, a0, a3
 1:
 	and	a3, a2, ~3		# compute number of whole words left
-	subu	a2, a2, a3		#   which has to be >= (16-3) & ~3
-	addu	a3, a3, a0		# compute ending address
+	PTR_SUBU	a2, a2, a3		#   which has to be >= (16-3) & ~3
+	PTR_ADDU	a3, a3, a0		# compute ending address
 2:
 	lw	v0, 0(a0)		# compare words
 	lw	v1, 0(a1)
-	addu	a0, a0, 4
+	PTR_ADDU	a0, a0, 4
 	bne	v0, v1, nomatch
-	addu	a1, a1, 4
+	PTR_ADDU	a1, a1, 4
 	bne	a0, a3, 2b
 	nop
 	b	smallcmp		# finish remainder
 	nop
 unalignedcmp:
 	beq	a3, zero, 2f
-	subu	a2, a2, a3		# subtract from remaining count
-	addu	a3, a3, a0		# compute ending address
+	PTR_SUBU	a2, a2, a3		# subtract from remaining count
+	PTR_ADDU	a3, a3, a0		# compute ending address
 1:
 	lbu	v0, 0(a0)		# compare bytes until a1 word aligned
 	lbu	v1, 0(a1)
-	addu	a0, a0, 1
+	PTR_ADDU	a0, a0, 1
 	bne	v0, v1, nomatch
-	addu	a1, a1, 1
+	PTR_ADDU	a1, a1, 1
 	bne	a0, a3, 1b
 	nop
 2:
 	and	a3, a2, ~3		# compute number of whole words left
-	subu	a2, a2, a3		#   which has to be >= (16-3) & ~3
-	addu	a3, a3, a0		# compute ending address
+	PTR_SUBU	a2, a2, a3		#   which has to be >= (16-3) & ~3
+	PTR_ADDU	a3, a3, a0		# compute ending address
 3:
 	LWHI	v0, 0(a0)		# compare words a0 unaligned, a1 aligned
 	LWLO	v0, 3(a0)
 	lw	v1, 0(a1)
-	addu	a0, a0, 4
+	PTR_ADDU	a0, a0, 4
 	bne	v0, v1, nomatch
-	addu	a1, a1, 4
+	PTR_ADDU	a1, a1, 4
 	bne	a0, a3, 3b
 	nop
 smallcmp:
 	ble	a2, zero, match
-	addu	a3, a2, a0		# compute ending address
+	PTR_ADDU	a3, a2, a0		# compute ending address
 1:
 	lbu	v0, 0(a0)
 	lbu	v1, 0(a1)
-	addu	a0, a0, 1
+	PTR_ADDU	a0, a0, 1
 	bne	v0, v1, nomatch
-	addu	a1, a1, 1
+	PTR_ADDU	a1, a1, 1
 	bne	a0, a3, 1b
 	nop
 match:
@@ -1020,154 +679,6 @@ LEAF(ffs)
 	j	ra
 	nop
 END(ffs)
-
-LEAF(get_current_fp)
-	j	ra
-	move	v0, s8
-END(get_current_fp)
-
-LEAF(loadandclear)
-	.set	noreorder
-1:
-	ll	v0, 0(a0)
-	move	t0, zero
-	sc	t0, 0(a0)
-	beq	t0, zero, 1b
-	nop
-	j	ra
-	nop
-END(loadandclear)
-
-#if 0
-/*
- * u_int32_t atomic_cmpset_32(u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
- * Atomically compare the value stored at p with cmpval
- * and if the two values are equal, update value *p with
- * newval. Return zero if compare failed, non-zero otherwise
- *
- */
-
-LEAF(atomic_cmpset_32)
-	.set	noreorder
-1:
-	ll	t0, 0(a0)
-	move	v0, zero
-	bne	t0, a1, 2f
-	move	t1, a2
-	sc	t1, 0(a0)
-	beq	t1, zero, 1b
-	or	v0, v0, 1
-2:
-	j	ra
-	nop
-END(atomic_cmpset_32)
-
-/**
- * u_int32_t
- * atomic_readandclear_32(u_int32_t *a)
- * {
- *	u_int32_t retval;
- *	retval = *a;
- *	*a = 0;
- * }
- */
-LEAF(atomic_readandclear_32)
-	.set	noreorder
-1:
-	ll	t0, 0(a0)
-	move	t1, zero
-	move	v0, t0
-	sc	t1, 0(a0)
-	beq	t1, zero, 1b
-	nop
-	j	ra
-	nop
-END(atomic_readandclear_32)
-
-/**
- * void
- * atomic_set_32(u_int32_t *a, u_int32_t b)
- * {
- *	*a |= b;
- * }
- */
-LEAF(atomic_set_32)
-	.set	noreorder
-1:
-	ll	t0, 0(a0)
-	or	t0, t0, a1
-	sc	t0, 0(a0)
-	beq	t0, zero, 1b
-	nop
-	j	ra
-	nop
-END(atomic_set_32)
-
-/**
- * void
- * atomic_add_32(uint32_t *a, uint32_t b)
- * {
- *	*a += b;
- * }
- */
-LEAF(atomic_add_32)
-	.set	noreorder
-	srl	a0, a0, 2	# round down address to be 32-bit aligned
-	sll	a0, a0, 2
-1:
-	ll	t0, 0(a0)
-	addu	t0, t0, a1
-	sc	t0, 0(a0)
-	beq	t0, zero, 1b
-	nop
-	j	ra
-	nop
-END(atomic_add_32)
-
-/**
- * void
- * atomic_clear_32(u_int32_t *a, u_int32_t b)
- * {
- *	*a &= ~b;
- * }
- */
-LEAF(atomic_clear_32)
-	.set	noreorder
-	srl	a0, a0, 2	# round down address to be 32-bit aligned
-	sll	a0, a0, 2
-	nor	a1, zero, a1
-1:
-	ll	t0, 0(a0)
-	and	t0, t0, a1	# t1 has the new lower 16 bits
-	sc	t0, 0(a0)
-	beq	t0, zero, 1b
-	nop
-	j	ra
-	nop
-END(atomic_clear_32)
-
-/**
- * void
- * atomic_subtract_32(uint16_t *a, uint16_t b)
- * {
- *	*a -= b;
- * }
- */
-LEAF(atomic_subtract_32)
-	.set	noreorder
-	srl	a0, a0, 2	# round down address to be 32-bit aligned
-	sll	a0, a0, 2
-1:
-	ll	t0, 0(a0)
-	subu	t0, t0, a1
-	sc	t0, 0(a0)
-	beq	t0, zero, 1b
-	nop
-	j	ra
-	nop
-END(atomic_subtract_32)
-
-#endif
 
 /**
  * void
@@ -1333,19 +844,27 @@ END(atomic_subtract_8)
  */
 
 	.set	noreorder		# Noreorder is default style!
-#ifndef _MIPS_ARCH_XLR
-	.set	mips3
-#endif
 
 #if !defined(__mips_n64) && !defined(__mips_n32)	
 	/*
 	 * I don't know if these routines have the right number of
 	 * NOPs in it for all processors.  XXX
+	 *
+	 * Maybe it would be better to just leave this undefined in that case.
+	 *
+	 * XXX These routines are not safe in the case of a TLB miss on a1 or
+	 *     a0 unless the trapframe is 64-bit, which it just isn't with O32.
+	 *     If we take any exception, not just an interrupt, the upper
+	 *     32-bits will be clobbered.  Use only N32 and N64 kernels if you
+	 *     want to use 64-bit registers while interrupts are enabled or
+	 *     with memory operations.  Since this isn't even using load-linked
+	 *     and store-conditional, perhaps it should just use two registers
+	 *     instead, as is right and good with the O32 ABI.
 	 */
 LEAF(atomic_store_64)
-	mfc0	t1, COP_0_STATUS_REG
-	and	t2, t1, ~SR_INT_ENAB
-	mtc0	t2, COP_0_STATUS_REG
+	mfc0	t1, MIPS_COP_0_STATUS
+	and	t2, t1, ~MIPS_SR_INT_IE
+	mtc0	t2, MIPS_COP_0_STATUS
 	nop
 	nop
 	nop
@@ -1356,7 +875,7 @@ LEAF(atomic_store_64)
 	sd	t0, (a0)
 	nop
 	nop
-	mtc0	t1,COP_0_STATUS_REG
+	mtc0	t1,MIPS_COP_0_STATUS
 	nop
 	nop
 	nop
@@ -1366,9 +885,9 @@ LEAF(atomic_store_64)
 END(atomic_store_64)
 
 LEAF(atomic_load_64)
-	mfc0	t1, COP_0_STATUS_REG
-	and	t2, t1, ~SR_INT_ENAB
-	mtc0	t2, COP_0_STATUS_REG
+	mfc0	t1, MIPS_COP_0_STATUS
+	and	t2, t1, ~MIPS_SR_INT_IE
+	mtc0	t2, MIPS_COP_0_STATUS
 	nop
 	nop
 	nop
@@ -1379,7 +898,7 @@ LEAF(atomic_load_64)
 	sd	t0, (a1)
 	nop
 	nop
-	mtc0	t1,COP_0_STATUS_REG
+	mtc0	t1,MIPS_COP_0_STATUS
 	nop
 	nop
 	nop
@@ -1392,23 +911,42 @@ END(atomic_load_64)
 #if defined(DDB) || defined(DEBUG)
 
 LEAF(kdbpeek)
-	li	v1, DDBERR
+	PTR_LA	v1, ddberr
 	and	v0, a0, 3			# unaligned ?
 	GET_CPU_PCPU(t1)
-	lw	t1, PC_CURPCB(t1)
+	PTR_L	t1, PC_CURPCB(t1)
 	bne	v0, zero, 1f
-	sw	v1, U_PCB_ONFAULT(t1)
+	PTR_S	v1, U_PCB_ONFAULT(t1)
 
 	lw	v0, (a0)
 	jr	ra
-	sw	zero, U_PCB_ONFAULT(t1)
+	PTR_S	zero, U_PCB_ONFAULT(t1)
 
 1:
 	LWHI	v0, 0(a0)
 	LWLO	v0, 3(a0)
 	jr	ra
-	sw	zero, U_PCB_ONFAULT(t1)
+	PTR_S	zero, U_PCB_ONFAULT(t1)
 END(kdbpeek)
+
+LEAF(kdbpeekd)
+	PTR_LA	v1, ddberr
+	and	v0, a0, 3			# unaligned ?
+	GET_CPU_PCPU(t1)
+	PTR_L	t1, PC_CURPCB(t1)
+	bne	v0, zero, 1f
+	PTR_S	v1, U_PCB_ONFAULT(t1)
+
+	ld	v0, (a0)
+	jr	ra
+	PTR_S	zero, U_PCB_ONFAULT(t1)
+
+1:
+	REG_LHI	v0, 0(a0)
+	REG_LLO	v0, 7(a0)
+	jr	ra
+	PTR_S	zero, U_PCB_ONFAULT(t1)
+END(kdbpeekd)
 
 ddberr:
 	jr	ra
@@ -1416,172 +954,146 @@ ddberr:
 
 #if defined(DDB)
 LEAF(kdbpoke)
-	li	v1, DDBERR
+	PTR_LA	v1, ddberr
 	and	v0, a0, 3			# unaligned ?
 	GET_CPU_PCPU(t1)
-	lw	t1, PC_CURPCB(t1)
+	PTR_L	t1, PC_CURPCB(t1)
 	bne	v0, zero, 1f
-	sw	v1, U_PCB_ONFAULT(t1)
+	PTR_S	v1, U_PCB_ONFAULT(t1)
 
 	sw	a1, (a0)
 	jr	ra
-	sw	zero, U_PCB_ONFAULT(t1)
+	PTR_S	zero, U_PCB_ONFAULT(t1)
 
 1:
 	SWHI	a1, 0(a0)
 	SWLO	a1, 3(a0)
 	jr	ra
-	sw	zero, U_PCB_ONFAULT(t1)
+	PTR_S	zero, U_PCB_ONFAULT(t1)
 END(kdbpoke)
 
 	.data
 	.globl	esym
 esym:	.word	0
 
-#ifndef _MIPS_ARCH_XLR
-	.set	mips2
-#endif
 #endif /* DDB */
 #endif /* DDB || DEBUG */
 
-#ifndef MIPS_ISAIII
-#define	STORE	sw	/* 32 bit mode regsave instruction */
-#define	LOAD	lw	/* 32 bit mode regload instruction */
-#define	RSIZE	4	/* 32 bit mode register size */
-#else
-#define	STORE	sd	/* 64 bit mode regsave instruction */
-#define	LOAD	ld	/* 64 bit mode regload instruction */
-#define	RSIZE	8	/* 64 bit mode register size */
-#endif
-
-#define	ITLBNOPFIX	nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;
-
 	.text
 LEAF(breakpoint)
-	break	BREAK_SOVER_VAL
+	break	MIPS_BREAK_SOVER_VAL
 	jr	ra
 	nop
-	END(breakpoint)
+END(breakpoint)
 
 LEAF(setjmp)
-	mfc0	v0, COP_0_STATUS_REG	# Later the "real" spl value!
-	STORE	s0, (RSIZE * PREG_S0)(a0)
-	STORE	s1, (RSIZE * PREG_S1)(a0)
-	STORE	s2, (RSIZE * PREG_S2)(a0)
-	STORE	s3, (RSIZE * PREG_S3)(a0)
-	STORE	s4, (RSIZE * PREG_S4)(a0)
-	STORE	s5, (RSIZE * PREG_S5)(a0)
-	STORE	s6, (RSIZE * PREG_S6)(a0)
-	STORE	s7, (RSIZE * PREG_S7)(a0)
-	STORE	s8, (RSIZE * PREG_SP)(a0)
-	STORE	sp, (RSIZE * PREG_S8)(a0)
-	STORE	ra, (RSIZE * PREG_RA)(a0)
-	STORE	v0, (RSIZE * PREG_SR)(a0)
+	mfc0	v0, MIPS_COP_0_STATUS	# Later the "real" spl value!
+	REG_S	s0, (SZREG * PCB_REG_S0)(a0)
+	REG_S	s1, (SZREG * PCB_REG_S1)(a0)
+	REG_S	s2, (SZREG * PCB_REG_S2)(a0)
+	REG_S	s3, (SZREG * PCB_REG_S3)(a0)
+	REG_S	s4, (SZREG * PCB_REG_S4)(a0)
+	REG_S	s5, (SZREG * PCB_REG_S5)(a0)
+	REG_S	s6, (SZREG * PCB_REG_S6)(a0)
+	REG_S	s7, (SZREG * PCB_REG_S7)(a0)
+	REG_S	s8, (SZREG * PCB_REG_S8)(a0)
+	REG_S	sp, (SZREG * PCB_REG_SP)(a0)
+	REG_S	ra, (SZREG * PCB_REG_RA)(a0)
+	REG_S	v0, (SZREG * PCB_REG_SR)(a0)
 	jr	ra
 	li	v0, 0			# setjmp return
 END(setjmp)
 
 LEAF(longjmp)
-	LOAD	v0, (RSIZE * PREG_SR)(a0)
-	LOAD	ra, (RSIZE * PREG_RA)(a0)
-	LOAD	s0, (RSIZE * PREG_S0)(a0)
-	LOAD	s1, (RSIZE * PREG_S1)(a0)
-	LOAD	s2, (RSIZE * PREG_S2)(a0)
-	LOAD	s3, (RSIZE * PREG_S3)(a0)
-	LOAD	s4, (RSIZE * PREG_S4)(a0)
-	LOAD	s5, (RSIZE * PREG_S5)(a0)
-	LOAD	s6, (RSIZE * PREG_S6)(a0)
-	LOAD	s7, (RSIZE * PREG_S7)(a0)
-	LOAD	s8, (RSIZE * PREG_S8)(a0)
-	LOAD	sp, (RSIZE * PREG_SP)(a0)
-	mtc0	v0, COP_0_STATUS_REG	# Later the "real" spl value!
+	REG_L	v0, (SZREG * PCB_REG_SR)(a0)
+	REG_L	ra, (SZREG * PCB_REG_RA)(a0)
+	REG_L	s0, (SZREG * PCB_REG_S0)(a0)
+	REG_L	s1, (SZREG * PCB_REG_S1)(a0)
+	REG_L	s2, (SZREG * PCB_REG_S2)(a0)
+	REG_L	s3, (SZREG * PCB_REG_S3)(a0)
+	REG_L	s4, (SZREG * PCB_REG_S4)(a0)
+	REG_L	s5, (SZREG * PCB_REG_S5)(a0)
+	REG_L	s6, (SZREG * PCB_REG_S6)(a0)
+	REG_L	s7, (SZREG * PCB_REG_S7)(a0)
+	REG_L	s8, (SZREG * PCB_REG_S8)(a0)
+	REG_L	sp, (SZREG * PCB_REG_SP)(a0)
+	mtc0	v0, MIPS_COP_0_STATUS	# Later the "real" spl value!
 	ITLBNOPFIX
 	jr	ra
 	li	v0, 1			# longjmp return
 END(longjmp)
 
-LEAF(fusufault)
-	GET_CPU_PCPU(t0)
-	lw	t0, PC_CURTHREAD(t0)
-	lw	t0, TD_PCB(t0)
-	sw	zero, U_PCB_ONFAULT(t0)
-	li	v0, -1
-	j	ra
-END(fusufault)
-
-    /* Define a new md function 'casuptr'.  This atomically compares and sets
-       a pointer that is in user space.	 It will be used as the basic primitive
-       for a kernel supported user space lock implementation. */
-LEAF(casuptr)
-
-	li	t0, VM_MAXUSER_ADDRESS /* verify address validity */
-	blt	a0, t0, fusufault		/* trap faults */
+LEAF(mips3_ld)
+	.set push
+	.set noreorder
+	.set mips64
+#if defined(__mips_o32)
+	mfc0	t0, MIPS_COP_0_STATUS		# turn off interrupts
+	and	t1, t0, ~(MIPS_SR_INT_IE)
+	mtc0	t1, MIPS_COP_0_STATUS
+	COP0_SYNC
+	nop
+	nop
 	nop
 
-	GET_CPU_PCPU(t1)
-	lw	t1, PC_CURTHREAD(t1)
-	lw	t1, TD_PCB(t1)
-
-	lw	t2, fusufault
-	sw	t2, U_PCB_ONFAULT(t1)
-1:
-	ll	v0, 0(a0)		/* try to load the old value */
-	beq	v0, a1, 2f		/* compare */
-	move	t0, a2			/* setup value to write */
-	sc	t0, 0(a0)		/* write if address still locked */
-	beq	t0, zero, 1b			/* if it failed, spin */
-2:
-	sw	zero, U_PCB_ONFAULT(t1) /* clean up */
-	j	ra
-END(casuptr)
-
-
-#ifdef TARGET_OCTEON
-/* 
- * void octeon_enable_shadow(void)
- *	turns on access to CC and CCRes
- */	
-LEAF(octeon_enable_shadow)
-	li      t1, 0x0000000f
-	mtc0	t1, COP_0_INFO
-	jr	ra
-	nop
-END(octeon_enable_shadow)
-
-	
-LEAF(octeon_get_shadow)
-	mfc0	v0, COP_0_INFO
-	jr	ra
-	nop
-END(octeon_get_shadow)
-
-/*
- * octeon_set_control(addr, uint32_t val)
- */
-LEAF(octeon_set_control)
-	.set mips64r2
-	or      t1, a1, zero
-/*	dmfc0   a1, 9, 7*/
-	.word 0x40254807
-	sd	a1, 0(a0)
-	or      a1, t1, zero
-/*	dmtc0   a1, 9, 7*/
-	.word 0x40a54807
-	jr	ra
-	nop
-        .set	mips0
-END(octeon_set_control)
-
-/*
- * octeon_get_control(addr)
- */
-LEAF(octeon_get_control)
-	.set mips64r2
-/*	dmfc0   a1, 9, 7 */
-	.word 0x40254807
-	sd	a1, 0(a0)
-	jr	ra
-	nop
-        .set	mips0
-END(octeon_get_control)
+	ld	v0, 0(a0)
+#if _BYTE_ORDER == _BIG_ENDIAN
+	dsll	v1, v0, 32
+	dsra	v1, v1, 32			# low word in v1
+	dsra	v0, v0, 32			# high word in v0
+#else
+	dsra	v1, v0, 32			# high word in v1
+	dsll	v0, v0, 32
+	dsra	v0, v0, 32			# low word in v0
 #endif
+
+	mtc0	t0, MIPS_COP_0_STATUS		# restore intr status.
+	COP0_SYNC
+	nop
+#else /* !__mips_o32 */
+	ld	v0, 0(a0)
+#endif /* !__mips_o32 */
+
+	jr	ra
+	nop
+	.set pop
+END(mips3_ld)
+
+LEAF(mips3_sd)
+	.set push
+	.set mips64
+	.set noreorder
+#if defined(__mips_o32)
+	mfc0	t0, MIPS_COP_0_STATUS		# turn off interrupts
+	and	t1, t0, ~(MIPS_SR_INT_IE)
+	mtc0	t1, MIPS_COP_0_STATUS
+	COP0_SYNC
+	nop
+	nop
+	nop
+
+	# NOTE: a1 is padding!
+
+#if _BYTE_ORDER == _BIG_ENDIAN
+	dsll	a2, a2, 32			# high word in a2
+	dsll	a3, a3, 32			# low word in a3
+	dsrl	a3, a3, 32
+#else
+	dsll	a2, a2, 32			# low word in a2
+	dsrl	a2, a2, 32
+	dsll	a3, a3, 32			# high word in a3
+#endif
+	or	a1, a2, a3
+	sd	a1, 0(a0)
+
+	mtc0	t0, MIPS_COP_0_STATUS		# restore intr status.
+	COP0_SYNC
+	nop
+#else /* !__mips_o32 */
+	sd	a1, 0(a0)
+#endif /* !__mips_o32 */
+
+	jr	ra
+	nop
+	.set pop
+END(mips3_sd)

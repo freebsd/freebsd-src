@@ -41,7 +41,7 @@ if [ $# != 1 ]; then
 fi
 
 dtrace=$1
-bname=`/bin/basename $0`
+bname=`basename $0`
 dfilename=/var/tmp/$bname.$$.d
 
 ## Create .d file
@@ -74,5 +74,5 @@ if [ "$output" != "this is test" ]; then
 	exit 1
 fi
 
-/usr/bin/rm -f $dfilename
+/bin/rm -f $dfilename
 exit 0

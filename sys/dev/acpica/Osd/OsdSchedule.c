@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2000 BSDi
- * Copyright (c) 2007-2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2007-2012 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,16 +56,25 @@ ACPI_MODULE_NAME("SCHEDULE")
  * Allow the user to tune the maximum number of tasks we may enqueue.
  */
 static int acpi_max_tasks = ACPI_MAX_TASKS;
-TUNABLE_INT("debug.acpi.max_tasks", &acpi_max_tasks);
+SYSCTL_INT(_debug_acpi, OID_AUTO, max_tasks, CTLFLAG_RDTUN, &acpi_max_tasks,
+    0, "Maximum acpi tasks");
+
+/*
+ * Track and report the system's demand for task slots.
+ */
+static int acpi_tasks_hiwater;
+SYSCTL_INT(_debug_acpi, OID_AUTO, tasks_hiwater, CTLFLAG_RD,
+    &acpi_tasks_hiwater, 1, "Peak demand for ACPI event task slots.");
 
 /*
  * Allow the user to tune the number of task threads we start.  It seems
  * some systems have problems with increased parallelism.
  */
 static int acpi_max_threads = ACPI_MAX_THREADS;
-TUNABLE_INT("debug.acpi.max_threads", &acpi_max_threads);
+SYSCTL_INT(_debug_acpi, OID_AUTO, max_threads, CTLFLAG_RDTUN, &acpi_max_threads,
+    0, "Maximum acpi threads");
 
-MALLOC_DEFINE(M_ACPITASK, "acpitask", "ACPI deferred task");
+static MALLOC_DEFINE(M_ACPITASK, "acpitask", "ACPI deferred task");
 
 struct acpi_task_ctx {
     struct task			at_task;
@@ -149,6 +158,10 @@ acpi_task_enqueue(int priority, ACPI_OSD_EXEC_CALLBACK Function, void *Context)
 	    acpi_task_count++;
 	    break;
 	}
+
+    if (i > acpi_tasks_hiwater)
+	atomic_cmpset_int(&acpi_tasks_hiwater, acpi_tasks_hiwater, i);
+
     if (at == NULL) {
 	printf("AcpiOsExecute: failed to enqueue task, consider increasing "
 	    "the debug.acpi.max_tasks tunable\n");
@@ -181,12 +194,13 @@ ACPI_STATUS
 AcpiOsExecute(ACPI_EXECUTE_TYPE Type, ACPI_OSD_EXEC_CALLBACK Function,
     void *Context)
 {
+    ACPI_STATUS status;
     int pri;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     if (Function == NULL)
-	return_ACPI_STATUS (AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
 
     switch (Type) {
     case OSL_GPE_HANDLER:
@@ -204,18 +218,34 @@ AcpiOsExecute(ACPI_EXECUTE_TYPE Type, ACPI_OSD_EXEC_CALLBACK Function,
     case OSL_EC_BURST_HANDLER:
 	pri = 5;
 	break;
-    case OSL_DEBUGGER_THREAD:
+    case OSL_DEBUGGER_MAIN_THREAD:
+    case OSL_DEBUGGER_EXEC_THREAD:
 	pri = 0;
 	break;
     default:
-	return_ACPI_STATUS (AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
     }
 
-    return_ACPI_STATUS (acpi_task_enqueue(pri, Function, Context));
+    status = acpi_task_enqueue(pri, Function, Context);
+    return_ACPI_STATUS(status);
 }
 
 void
-AcpiOsSleep(ACPI_INTEGER Milliseconds)
+AcpiOsWaitEventsComplete(void)
+{
+	int i;
+
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+	for (i = 0; i < acpi_max_tasks; i++)
+		if ((atomic_load_acq_int(&acpi_tasks[i].at_flag) &
+		    ACPI_TASK_ENQUEUED) != 0)
+			taskqueue_drain(acpi_taskq, &acpi_tasks[i].at_task);
+	return_VOID;
+}
+
+void
+AcpiOsSleep(UINT64 Milliseconds)
 {
     int		timo;
 
@@ -245,12 +275,11 @@ AcpiOsGetTimer(void)
     UINT64 t;
 
     /* XXX During early boot there is no (decent) timer available yet. */
-    if (cold)
-	panic("acpi: timer op not yet supported during boot");
+    KASSERT(cold == 0, ("acpi: timer op not yet supported during boot"));
 
     binuptime(&bt);
-    t = ((UINT64)10000000 * (uint32_t)(bt.frac >> 32)) >> 32;
-    t += bt.sec * 10000000;
+    t = (uint64_t)bt.sec * 10000000;
+    t += ((uint64_t)10000000 * (uint32_t)(bt.frac >> 32)) >> 32;
 
     return (t);
 }

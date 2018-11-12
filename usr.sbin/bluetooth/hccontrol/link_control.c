@@ -29,6 +29,7 @@
  * $FreeBSD$
  */
 
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <errno.h>
 #include <stdio.h>
@@ -357,7 +358,7 @@ again:
 		goto again;
 
 	return (OK);
-} /* hci_diconnect */
+} /* hci_disconnect */
 
 /* Send Add_SCO_Connection command to the unit */
 static int

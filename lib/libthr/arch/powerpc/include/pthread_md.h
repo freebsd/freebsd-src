@@ -39,34 +39,43 @@
 #define	CPU_SPINWAIT
 
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
+#ifdef __powerpc64__
+#define	TP_OFFSET		0x7010
+#else
 #define	TP_OFFSET		0x7008
+#endif
 
 /*
  * Variant I tcb. The structure layout is fixed, don't blindly
  * change it.
- * %r2 points to end of the structure.
+ * %r2 (32-bit) or %r13 (64-bit) points to end of the structure.
  */
 struct tcb {
 	void			*tcb_dtv;
 	struct pthread		*tcb_thread;
 };
 
-struct tcb	*_tcb_ctor(struct pthread *, int);
-void		_tcb_dtor(struct tcb *);
-
 static __inline void
 _tcb_set(struct tcb *tcb)
 {
-	register uint8_t *_tp __asm__("%r2");
-
-	__asm __volatile("mr %0,%1" : "=r"(_tp) :
+#ifdef __powerpc64__
+	__asm __volatile("mr 13,%0" ::
 	    "r"((uint8_t *)tcb + TP_OFFSET));
+#else
+	__asm __volatile("mr 2,%0" ::
+	    "r"((uint8_t *)tcb + TP_OFFSET));
+#endif
 }
 
 static __inline struct tcb *
 _tcb_get(void)
 {
-	register uint8_t *_tp __asm__("%r2");
+	register uint8_t *_tp;
+#ifdef __powerpc64__
+	__asm __volatile("mr %0,13" : "=r"(_tp));
+#else
+	__asm __volatile("mr %0,2" : "=r"(_tp));
+#endif
 
 	return ((struct tcb *)(_tp - TP_OFFSET));
 }

@@ -56,8 +56,17 @@ __FBSDID("$FreeBSD$");
 
 #define MAXNBUF (sizeof(intmax_t) * CHAR_BIT + 1)
 
+typedef void (kvprintf_fn_t)(int, void *);
+
 static char	*ksprintn (char *buf, uintmax_t num, int base, int *len, int upper);
-static int	kvprintf(char const *fmt, void (*func)(int), void *arg, int radix, va_list ap);
+static int	kvprintf(char const *fmt, kvprintf_fn_t *func, void *arg, int radix, va_list ap);
+
+static void
+putchar_wrapper(int cc, void *arg)
+{
+
+	putchar(cc);
+}
 
 int
 printf(const char *fmt, ...)
@@ -66,7 +75,7 @@ printf(const char *fmt, ...)
 	int retval;
 
 	va_start(ap, fmt);
-	retval = kvprintf(fmt, putchar, NULL, 10, ap);
+	retval = kvprintf(fmt, putchar_wrapper, NULL, 10, ap);
 	va_end(ap);
 	return retval;
 }
@@ -75,7 +84,7 @@ void
 vprintf(const char *fmt, va_list ap)
 {
 
-	kvprintf(fmt, putchar, NULL, 10, ap);
+	kvprintf(fmt, putchar_wrapper, NULL, 10, ap);
 }
 
 int
@@ -88,6 +97,46 @@ sprintf(char *buf, const char *cfmt, ...)
 	retval = kvprintf(cfmt, NULL, (void *)buf, 10, ap);
 	buf[retval] = '\0';
 	va_end(ap);
+	return retval;
+}
+
+struct print_buf {
+	char *buf;
+	size_t size;
+};
+
+static void
+snprint_func(int ch, void *arg)
+{
+	struct print_buf *pbuf = arg;
+
+	if (pbuf->size < 2) {
+		/*
+		 * Reserve last buffer position for the terminating
+		 * character:
+		 */
+		return;
+	}
+	*(pbuf->buf)++ = ch;
+	pbuf->size--;
+}
+
+int
+snprintf(char *buf, size_t size, const char *cfmt, ...)
+{
+	int retval;
+	va_list ap;
+	struct print_buf arg;
+
+	arg.buf = buf;
+	arg.size = size;
+
+	va_start(ap, cfmt);
+	retval = kvprintf(cfmt, &snprint_func, &arg, 10, ap);
+	va_end(ap);
+
+	if (arg.size >= 1)
+		*(arg.buf)++ = 0;
 	return retval;
 }
 
@@ -138,7 +187,7 @@ ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
  * the next characters (up to a control character, i.e. a character <= 32),
  * give the name of the register.  Thus:
  *
- *	kvprintf("reg=%b\n", 3, "\10\2BITTWO\1BITONE\n");
+ *	kvprintf("reg=%b\n", 3, "\10\2BITTWO\1BITONE");
  *
  * would produce output:
  *
@@ -149,20 +198,21 @@ ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
  *		("%*D", len, ptr, " " -> XX XX XX XX ...
  */
 static int
-kvprintf(char const *fmt, void (*func)(int), void *arg, int radix, va_list ap)
+kvprintf(char const *fmt, kvprintf_fn_t *func, void *arg, int radix, va_list ap)
 {
-#define PCHAR(c) {int cc=(c); if (func) (*func)(cc); else *d++ = cc; retval++; }
+#define PCHAR(c) {int cc=(c); if (func) (*func)(cc, arg); else *d++ = cc; retval++; }
 	char nbuf[MAXNBUF];
 	char *d;
 	const char *p, *percent, *q;
+	uint16_t *S;
 	u_char *up;
 	int ch, n;
 	uintmax_t num;
 	int base, lflag, qflag, tmp, width, ladjust, sharpflag, neg, sign, dot;
-	int jflag, tflag, zflag;
+	int cflag, hflag, jflag, tflag, zflag;
 	int dwidth, upper;
 	char padc;
-	int retval = 0;
+	int stop = 0, retval = 0;
 
 	num = 0;
 	if (!func)
@@ -179,7 +229,7 @@ kvprintf(char const *fmt, void (*func)(int), void *arg, int radix, va_list ap)
 	for (;;) {
 		padc = ' ';
 		width = 0;
-		while ((ch = (u_char)*fmt++) != '%') {
+		while ((ch = (u_char)*fmt++) != '%' || stop) {
 			if (ch == '\0')
 				return (retval);
 			PCHAR(ch);
@@ -187,7 +237,7 @@ kvprintf(char const *fmt, void (*func)(int), void *arg, int radix, va_list ap)
 		percent = fmt - 1;
 		qflag = 0; lflag = 0; ladjust = 0; sharpflag = 0; neg = 0;
 		sign = 0; dot = 0; dwidth = 0; upper = 0;
-		jflag = 0; tflag = 0; zflag = 0;
+		cflag = 0; hflag = 0; jflag = 0; tflag = 0; zflag = 0;
 reswitch:	switch (ch = (u_char)*fmt++) {
 		case '.':
 			dot = 1;
@@ -234,7 +284,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				width = n;
 			goto reswitch;
 		case 'b':
-			num = va_arg(ap, int);
+			num = (u_int)va_arg(ap, int);
 			p = va_arg(ap, char *);
 			for (q = ksprintn(nbuf, num, *p++, NULL, 0); *q;)
 				PCHAR(*q--);
@@ -278,6 +328,13 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			base = 10;
 			sign = 1;
 			goto handle_sign;
+		case 'h':
+			if (hflag) {
+				hflag = 0;
+				cflag = 1;
+			} else
+				hflag = 1;
+			goto reswitch;
 		case 'j':
 			jflag = 1;
 			goto reswitch;
@@ -297,6 +354,10 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				*(va_arg(ap, long *)) = retval;
 			else if (zflag)
 				*(va_arg(ap, size_t *)) = retval;
+			else if (hflag)
+				*(va_arg(ap, short *)) = retval;
+			else if (cflag)
+				*(va_arg(ap, char *)) = retval;
 			else
 				*(va_arg(ap, int *)) = retval;
 			break;
@@ -338,6 +399,10 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				while (width--)
 					PCHAR(padc);
 			break;
+		case 'S':	/* Assume console can cope with wide chars */
+			for (S = va_arg(ap, uint16_t *); *S != 0; S++)
+				PCHAR(*S);
+ 			break;
 		case 't':
 			tflag = 1;
 			goto reswitch;
@@ -368,6 +433,10 @@ handle_nosign:
 				num = va_arg(ap, u_long);
 			else if (zflag)
 				num = va_arg(ap, size_t);
+			else if (hflag)
+				num = (u_short)va_arg(ap, int);
+			else if (cflag)
+				num = (u_char)va_arg(ap, int);
 			else
 				num = va_arg(ap, u_int);
 			goto number;
@@ -382,6 +451,10 @@ handle_sign:
 				num = va_arg(ap, long);
 			else if (zflag)
 				num = va_arg(ap, ssize_t);
+			else if (hflag)
+				num = (short)va_arg(ap, int);
+			else if (cflag)
+				num = (char)va_arg(ap, int);
 			else
 				num = va_arg(ap, int);
 number:
@@ -389,7 +462,8 @@ number:
 				neg = 1;
 				num = -(intmax_t)num;
 			}
-			p = ksprintn(nbuf, num, base, &tmp, upper);
+			p = ksprintn(nbuf, num, base, &n, upper);
+			tmp = 0;
 			if (sharpflag && num != 0) {
 				if (base == 8)
 					tmp++;
@@ -399,9 +473,13 @@ number:
 			if (neg)
 				tmp++;
 
-			if (!ladjust && width && (width -= tmp) > 0)
-				while (width--)
-					PCHAR(padc);
+			if (!ladjust && padc == '0')
+				dwidth = width - tmp;
+			width -= tmp + imax(dwidth, n);
+			dwidth -= n;
+			if (!ladjust)
+				while (width-- > 0)
+					PCHAR(' ');
 			if (neg)
 				PCHAR('-');
 			if (sharpflag && num != 0) {
@@ -412,18 +490,27 @@ number:
 					PCHAR('x');
 				}
 			}
+			while (dwidth-- > 0)
+				PCHAR('0');
 
 			while (*p)
 				PCHAR(*p--);
 
-			if (ladjust && width && (width -= tmp) > 0)
-				while (width--)
-					PCHAR(padc);
+			if (ladjust)
+				while (width-- > 0)
+					PCHAR(' ');
 
 			break;
 		default:
 			while (percent < fmt)
 				PCHAR(*percent++);
+			/*
+			 * Since we ignore a formatting argument it is no
+			 * longer safe to obey the remaining formatting
+			 * arguments as the arguments will no longer match
+			 * the format specs.
+			 */
+			stop = 1;
 			break;
 		}
 	}

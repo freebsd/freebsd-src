@@ -1,13 +1,12 @@
 #	$FreeBSD$
 
+PACKAGE=	ipf
 PROG=		ippool
 SRCS=		${GENHDRS} ippool_y.c ippool_l.c kmem.c ippool.c
 MAN=		ippool.5 ippool.8
 CFLAGS+=	-I.
 
 GENHDRS=	ippool_l.h ippool_y.h
-DPSRCS+=	${GENHDRS}
-
 CLEANFILES+=	${GENHDRS} ippool_y.c ippool_l.c
 
 ippool_y.c: ippool_y.y

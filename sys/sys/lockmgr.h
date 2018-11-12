@@ -69,18 +69,22 @@ struct thread;
 int	 __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	    const char *wmesg, int prio, int timo, const char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
-void	 _lockmgr_assert(struct lock *lk, int what, const char *file, int line);
+void	 _lockmgr_assert(const struct lock *lk, int what, const char *file, int line);
 #endif
 void	 _lockmgr_disown(struct lock *lk, const char *file, int line);
 
+void	 lockallowrecurse(struct lock *lk);
+void	 lockallowshare(struct lock *lk);
 void	 lockdestroy(struct lock *lk);
+void	 lockdisablerecurse(struct lock *lk);
+void	 lockdisableshare(struct lock *lk);
 void	 lockinit(struct lock *lk, int prio, const char *wmesg, int timo,
 	    int flags);
 #ifdef DDB
 int	 lockmgr_chain(struct thread *td, struct thread **ownerp);
 #endif
-void	 lockmgr_printinfo(struct lock *lk);
-int	 lockstatus(struct lock *lk);
+void	 lockmgr_printinfo(const struct lock *lk);
+int	 lockstatus(const struct lock *lk);
 
 /*
  * As far as the ilk can be a static NULL pointer these functions need a
@@ -123,8 +127,6 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 #define	lockmgr_rw(lk, flags, ilk)					\
 	_lockmgr_args_rw((lk), (flags), (ilk), LK_WMESG_DEFAULT,	\
 	    LK_PRIO_DEFAULT, LK_TIMO_DEFAULT, LOCK_FILE, LOCK_LINE)
-#define	lockmgr_waiters(lk)						\
-	((lk)->lk_lock & LK_ALL_WAITERS)
 #ifdef INVARIANTS
 #define	lockmgr_assert(lk, what)					\
 	_lockmgr_assert((lk), (what), LOCK_FILE, LOCK_LINE)
@@ -143,6 +145,7 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 #define	LK_NOWITNESS	0x000010
 #define	LK_QUIET	0x000020
 #define	LK_ADAPTIVE	0x000040
+#define	LK_IS_VNODE	0x000080	/* Tell WITNESS about a VNODE lock */
 
 /*
  * Additional attributes to be used in lockmgr().
@@ -153,6 +156,8 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 #define	LK_RETRY	0x000400
 #define	LK_SLEEPFAIL	0x000800
 #define	LK_TIMELOCK	0x001000
+#define	LK_NODDLKTREAT	0x002000
+#define	LK_VNHELD	0x004000
 
 /*
  * Operations for lockmgr().
@@ -165,6 +170,7 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 #define	LK_RELEASE	0x100000
 #define	LK_SHARED	0x200000
 #define	LK_UPGRADE	0x400000
+#define	LK_TRYUPGRADE	0x800000
 
 #define	LK_TOTAL_MASK	(LK_INIT_MASK | LK_EATTR_MASK | LK_TYPE_MASK)
 

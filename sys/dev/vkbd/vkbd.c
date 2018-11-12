@@ -158,7 +158,7 @@ static int		vkbd_data_read(vkbd_state_t *, int);
 
 static struct cdevsw	vkbd_dev_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_PSEUDO | D_NEEDGIANT | D_NEEDMINOR,
+	.d_flags =	D_NEEDGIANT | D_NEEDMINOR,
 	.d_open =	vkbd_dev_open,
 	.d_close =	vkbd_dev_close,
 	.d_read =	vkbd_dev_read,
@@ -186,14 +186,10 @@ vkbd_dev_clone(void *arg, struct ucred *cred, char *name, int namelen,
 		return; /* don't recognize the name */
 
 	/* find any existing device, or allocate new unit number */
-	if (clone_create(&vkbd_dev_clones, &vkbd_dev_cdevsw, &unit, dev, 0)) {
-		*dev = make_dev(&vkbd_dev_cdevsw, unit,
-			UID_ROOT, GID_WHEEL, 0600, DEVICE_NAME "%d", unit);
-		if (*dev != NULL) {
-			dev_ref(*dev);
-			(*dev)->si_flags |= SI_CHEAPCLONE;
-		}
-	}
+	if (clone_create(&vkbd_dev_clones, &vkbd_dev_cdevsw, &unit, dev, 0))
+		*dev = make_dev_credf(MAKEDEV_REF, &vkbd_dev_cdevsw, unit,
+			cred, UID_ROOT, GID_WHEEL, 0600, DEVICE_NAME "%d",
+			unit);
 }
 
 /* Open device */
@@ -384,11 +380,11 @@ vkbd_dev_write(struct cdev *dev, struct uio *uio, int flag)
 	while (uio->uio_resid >= sizeof(q->q[0])) {
 		if (q->head == q->tail) {
 			if (q->cc == 0)
-				avail = sizeof(q->q)/sizeof(q->q[0]) - q->head;
+				avail = nitems(q->q) - q->head;
 			else
 				avail = 0; /* queue must be full */
 		} else if (q->head < q->tail)
-			avail = sizeof(q->q)/sizeof(q->q[0]) - q->tail;
+			avail = nitems(q->q) - q->tail;
 		else
 			avail = q->head - q->tail;
 
@@ -414,7 +410,7 @@ vkbd_dev_write(struct cdev *dev, struct uio *uio, int flag)
 
 			q->cc += avail;
 			q->tail += avail;
-			if (q->tail == sizeof(q->q)/sizeof(q->q[0]))
+			if (q->tail == nitems(q->q))
 				q->tail = 0;
 
 			/* queue interrupt task if needed */
@@ -463,7 +459,7 @@ vkbd_dev_poll(struct cdev *dev, int events, struct thread *td)
 	}
 
 	if (events & (POLLOUT | POLLWRNORM)) {
-		if (q->cc < sizeof(q->q)/sizeof(q->q[0]))
+		if (q->cc < nitems(q->q))
 			revents |= events & (POLLOUT | POLLWRNORM);
 		else
 			selrecord(td, &state->ks_wsel);
@@ -528,7 +524,7 @@ vkbd_data_read(vkbd_state_t *state, int wait)
 	/* get first code from the queue */
 	q->cc --;
 	c = q->q[q->head ++];
-	if (q->head == sizeof(q->q)/sizeof(q->q[0]))
+	if (q->head == nitems(q->q))
 		q->head = 0;
 
 	/* wakeup ks_inq writers/poll()ers */
@@ -1208,6 +1204,7 @@ vkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		break;
 
 	case PIO_KEYMAP:	/* set keyboard translation table */
+	case OPIO_KEYMAP:	/* set keyboard translation table (compat) */
 	case PIO_KEYMAPENT:	/* set keyboard translation table entry */
 	case PIO_DEADKEYMAP:	/* set accent key translation table */
 		state->ks_accents = 0;
@@ -1329,12 +1326,12 @@ typematic(int delay, int rate)
 	int value;
 	int i;
 
-	for (i = sizeof(delays)/sizeof(delays[0]) - 1; i > 0; i --) {
+	for (i = nitems(delays) - 1; i > 0; i --) {
 		if (delay >= delays[i])
 			break;
 	}
 	value = i << 5;
-	for (i = sizeof(rates)/sizeof(rates[0]) - 1; i > 0; i --) {
+	for (i = nitems(rates) - 1; i > 0; i --) {
 		if (rate >= rates[i])
 			break;
 	}

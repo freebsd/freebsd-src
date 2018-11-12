@@ -110,6 +110,7 @@ static int
 procfs_control(struct thread *td, struct proc *p, int op)
 {
 	int error = 0;
+	struct thread *temp;
 
 	/*
 	 * Attach - attaches the target process for debugging
@@ -141,12 +142,12 @@ procfs_control(struct thread *td, struct proc *p, int op)
 		 */
 		p->p_flag |= P_TRACED;
 		faultin(p);
-		p->p_xstat = 0;		/* XXX ? */
+		p->p_xsig = 0;		/* XXX ? */
+		p->p_oppid = p->p_pptr->p_pid;
 		if (p->p_pptr != td->td_proc) {
-			p->p_oppid = p->p_pptr->p_pid;
 			proc_reparent(p, td->td_proc);
 		}
-		psignal(p, SIGSTOP);
+		kern_psignal(p, SIGSTOP);
 out:
 		PROC_UNLOCK(p);
 		sx_xunlock(&proctree_lock);
@@ -197,7 +198,7 @@ out:
 	 * To continue with a signal, just send
 	 * the signal name to the ctl file
 	 */
-	p->p_xstat = 0;
+	p->p_xsig = 0;
 
 	switch (op) {
 	/*
@@ -212,10 +213,12 @@ out:
 		}
 
 		/* not being traced any more */
-		p->p_flag &= ~P_TRACED;
+		p->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
 
 		/* remove pending SIGTRAP, else the process will die */
 		sigqueue_delete_proc(p, SIGTRAP);
+		FOREACH_THREAD_IN_PROC(p, temp)
+			temp->td_dbgflags &= ~TDB_SUSPEND;
 		PROC_UNLOCK(p);
 
 		/* give process back to original parent */
@@ -232,8 +235,8 @@ out:
 		} else
 			PROC_LOCK(p);
 		p->p_oppid = 0;
+		p->p_stops = 0;
 		p->p_flag &= ~P_WAITED;	/* XXX ? */
-		PROC_UNLOCK(p);
 		sx_xunlock(&proctree_lock);
 
 		wakeup(td->td_proc);	/* XXX for CTL_WAIT below ? */
@@ -246,9 +249,10 @@ out:
 	 */
 	case PROCFS_CTL_STEP:
 		error = proc_sstep(FIRST_THREAD_IN_PROC(p));
-		PROC_UNLOCK(p);
-		if (error)
+		if (error) {
+			PROC_UNLOCK(p);
 			return (error);
+		}
 		break;
 
 	/*
@@ -257,7 +261,6 @@ out:
 	 */
 	case PROCFS_CTL_RUN:
 		p->p_flag &= ~P_STOPPED_SIG;	/* this uses SIGSTOP */
-		PROC_UNLOCK(p);
 		break;
 
 	/*
@@ -289,6 +292,7 @@ out:
 	PROC_SLOCK(p);
 	thread_unsuspend(p); /* If it can run, let it do so. */
 	PROC_SUNLOCK(p);
+	PROC_UNLOCK(p);
 	return (0);
 }
 
@@ -336,7 +340,7 @@ procfs_doprocctl(PFS_FILL_ARGS)
 			PROC_LOCK(p);
 
 			if (TRACE_WAIT_P(td->td_proc, p)) {
-				p->p_xstat = nm->nm_val;
+				p->p_xsig = nm->nm_val;
 #ifdef FIX_SSTEP
 				FIX_SSTEP(FIRST_THREAD_IN_PROC(p));
 #endif
@@ -345,7 +349,7 @@ procfs_doprocctl(PFS_FILL_ARGS)
 				thread_unsuspend(p);
 				PROC_SUNLOCK(p);
 			} else
-				psignal(p, nm->nm_val);
+				kern_psignal(p, nm->nm_val);
 			PROC_UNLOCK(p);
 			error = 0;
 		}

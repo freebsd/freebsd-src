@@ -46,21 +46,23 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <string.h>
 
-int cflag;
-int gflag;
-int iflag;
-int jflag;
-int lflag;
-int pflag;
-int rflag;
-int sflag;
-int tflag;
-int xflag;
-id_t id;
-cpulevel_t level;
-cpuwhich_t which;
+static int Cflag;
+static int cflag;
+static int dflag;
+static int gflag;
+static int iflag;
+static int jflag;
+static int lflag;
+static int pflag;
+static int rflag;
+static int sflag;
+static int tflag;
+static int xflag;
+static id_t id;
+static cpulevel_t level;
+static cpuwhich_t which;
 
-void usage(void);
+static void usage(void);
 
 static void printset(cpuset_t *mask);
 
@@ -72,6 +74,12 @@ parselist(char *list, cpuset_t *mask)
 	int curnum;
 	char *l;
 
+	if (strcasecmp(list, "all") == 0) {
+		if (cpuset_getaffinity(CPU_LEVEL_ROOT, CPU_WHICH_PID, -1,
+		    sizeof(*mask), mask) != 0)
+			err(EXIT_FAILURE, "getaffinity");
+		return;
+	}
 	state = NONE;
 	curnum = lastnum = 0;
 	for (l = list; *l != '\0';) {
@@ -154,8 +162,9 @@ printset(cpuset_t *mask)
 	printf("\n");
 }
 
-const char *whichnames[] = { NULL, "tid", "pid", "cpuset", "irq", "jail" };
-const char *levelnames[] = { NULL, " root", " cpuset", "" };
+static const char *whichnames[] = { NULL, "tid", "pid", "cpuset", "irq", "jail",
+				    "domain" };
+static const char *levelnames[] = { NULL, " root", " cpuset", "" };
 
 static void
 printaffinity(void)
@@ -199,13 +208,19 @@ main(int argc, char *argv[])
 	level = CPU_LEVEL_WHICH;
 	which = CPU_WHICH_PID;
 	id = pid = tid = setid = -1;
-	while ((ch = getopt(argc, argv, "cgij:l:p:rs:t:x:")) != -1) {
+	while ((ch = getopt(argc, argv, "Ccd:gij:l:p:rs:t:x:")) != -1) {
 		switch (ch) {
+		case 'C':
+			Cflag = 1;
+			break;
 		case 'c':
-			if (rflag)
-				usage();
 			cflag = 1;
 			level = CPU_LEVEL_CPUSET;
+			break;
+		case 'd':
+			dflag = 1;
+			which = CPU_WHICH_DOMAIN;
+			id = atoi(optarg);
 			break;
 		case 'g':
 			gflag = 1;
@@ -228,8 +243,6 @@ main(int argc, char *argv[])
 			id = pid = atoi(optarg);
 			break;
 		case 'r':
-			if (cflag)
-				usage();
 			level = CPU_LEVEL_ROOT;
 			rflag = 1;
 			break;
@@ -255,10 +268,10 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 	if (gflag) {
-		if (argc || lflag)
+		if (argc || Cflag || lflag)
 			usage();
 		/* Only one identity specifier. */
-		if (jflag + xflag + sflag + pflag + tflag > 1)
+		if (dflag + jflag + xflag + sflag + pflag + tflag > 1)
 			usage();
 		if (iflag)
 			printsetid();
@@ -266,13 +279,13 @@ main(int argc, char *argv[])
 			printaffinity();
 		exit(EXIT_SUCCESS);
 	}
-	if (iflag)
+	if (dflag || iflag || rflag)
 		usage();
 	/*
 	 * The user wants to run a command with a set and possibly cpumask.
 	 */
 	if (argc) {
-		if (pflag | rflag | tflag | xflag | jflag)
+		if (Cflag || pflag || tflag || xflag || jflag)
 			usage();
 		if (sflag) {
 			if (cpuset_setid(CPU_WHICH_PID, -1, setid))
@@ -293,9 +306,11 @@ main(int argc, char *argv[])
 	/*
 	 * We're modifying something that presently exists.
 	 */
-	if (!lflag && (cflag || rflag))
+	if (Cflag && (jflag || !pflag || sflag || tflag || xflag))
 		usage();
-	if (!lflag && !sflag)
+	if (!lflag && cflag)
+		usage();
+	if (!lflag && !(Cflag || sflag))
 		usage();
 	/* You can only set a mask on a thread. */
 	if (tflag && (sflag | pflag | xflag | jflag))
@@ -303,6 +318,15 @@ main(int argc, char *argv[])
 	/* You can only set a mask on an irq. */
 	if (xflag && (jflag | pflag | sflag | tflag))
 		usage();
+	if (Cflag) {
+		/*
+		 * Create a new cpuset and move the specified process
+		 * into the set.
+		 */
+		if (cpuset(&setid) < 0)
+			err(EXIT_FAILURE, "newid");
+		sflag = 1;
+	}
 	if (pflag && sflag) {
 		if (cpuset_setid(CPU_WHICH_PID, pid, setid))
 			err(EXIT_FAILURE, "setid");
@@ -322,7 +346,7 @@ main(int argc, char *argv[])
 	exit(EXIT_SUCCESS);
 }
 
-void
+static void
 usage(void)
 {
 
@@ -331,8 +355,11 @@ usage(void)
 	fprintf(stderr,
 	    "       cpuset [-l cpu-list] [-s setid] -p pid\n");
 	fprintf(stderr,
-	    "       cpuset [-cr] [-l cpu-list] [-j jailid | -p pid | -t tid | -s setid | -x irq]\n");
+	    "       cpuset [-c] [-l cpu-list] -C -p pid\n");
 	fprintf(stderr,
-	    "       cpuset [-cgir] [-j jailid | -p pid | -t tid | -s setid | -x irq]\n");
+	    "       cpuset [-c] [-l cpu-list] [-j jailid | -p pid | -t tid | -s setid | -x irq]\n");
+	fprintf(stderr,
+	    "       cpuset -g [-cir] [-d domain | -j jailid | -p pid | -t tid | -s setid |\n"
+	    "              -x irq]\n");
 	exit(1);
 }

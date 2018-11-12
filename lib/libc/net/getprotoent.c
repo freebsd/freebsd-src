@@ -34,7 +34,6 @@ static char sccsid[] = "@(#)getprotoent.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <errno.h>
 #include <limits.h>
@@ -342,7 +341,7 @@ void
 __setprotoent_p(int f, struct protoent_data *ped)
 {
 	if (ped->fp == NULL)
-		ped->fp = fopen(_PATH_PROTOCOLS, "r");
+		ped->fp = fopen(_PATH_PROTOCOLS, "re");
 	else
 		rewind(ped->fp);
 	ped->stayopen |= f;
@@ -365,7 +364,7 @@ __getprotoent_p(struct protoent *pe, struct protoent_data *ped)
 	char *cp, **q, *endp;
 	long l;
 
-	if (ped->fp == NULL && (ped->fp = fopen(_PATH_PROTOCOLS, "r")) == NULL)
+	if (ped->fp == NULL && (ped->fp = fopen(_PATH_PROTOCOLS, "re")) == NULL)
 		return (-1);
 again:
 	if ((p = fgets(ped->line, sizeof ped->line, ped->fp)) == NULL)
@@ -424,8 +423,10 @@ files_getprotoent_r(void *retval, void *mdata, va_list ap)
 	buflen = va_arg(ap, size_t);
 	errnop = va_arg(ap, int *);
 
-	if ((ped = __protoent_data_init()) == NULL)
-		return (-1);
+	if ((ped = __protoent_data_init()) == NULL) {
+		*errnop = errno;
+		return (NS_NOTFOUND);
+	}
 
 	if (__getprotoent_p(&pe, ped) != 0) {
 		*errnop = errno;
@@ -434,7 +435,7 @@ files_getprotoent_r(void *retval, void *mdata, va_list ap)
 
 	if (__copy_protoent(&pe, pptr, buffer, buflen) != 0) {
 		*errnop = errno;
-		return (NS_NOTFOUND);
+		return (NS_RETURN);
 	}
 
 	*((struct protoent **)retval) = pptr;
@@ -490,10 +491,11 @@ getprotoent_r(struct protoent *pptr, char *buffer, size_t buflen,
 	rv = nsdispatch(result, dtab, NSDB_PROTOCOLS, "getprotoent_r",
 	    defaultsrc, pptr, buffer, buflen, &ret_errno);
 
-	if (rv == NS_SUCCESS)
-		return (0);
-	else
+	if (rv != NS_SUCCESS) {
+		errno = ret_errno;
 		return (ret_errno);
+	}
+	return (0);
 }
 
 void

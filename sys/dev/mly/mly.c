@@ -88,7 +88,8 @@ static void	mly_periodic(void *data);
 static int	mly_immediate_command(struct mly_command *mc);
 static int	mly_start(struct mly_command *mc);
 static void	mly_done(struct mly_softc *sc);
-static void	mly_complete(void *context, int pending);
+static void	mly_complete(struct mly_softc *sc);
+static void	mly_complete_handler(void *context, int pending);
 
 static int	mly_alloc_command(struct mly_softc *sc, struct mly_command **mcp);
 static void	mly_release_command(struct mly_command *mc);
@@ -101,7 +102,6 @@ static void	mly_unmap_command(struct mly_command *mc);
 static int	mly_cam_attach(struct mly_softc *sc);
 static void	mly_cam_detach(struct mly_softc *sc);
 static void	mly_cam_rescan_btl(struct mly_softc *sc, int bus, int target);
-static void	mly_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb);
 static void	mly_cam_action(struct cam_sim *sim, union ccb *ccb);
 static int	mly_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio);
 static void	mly_cam_poll(struct cam_sim *sim);
@@ -117,9 +117,9 @@ static void	mly_printstate(struct mly_softc *sc);
 static void	mly_print_command(struct mly_command *mc);
 static void	mly_print_packet(struct mly_command *mc);
 static void	mly_panic(struct mly_softc *sc, char *reason);
+static void	mly_timeout(void *arg);
 #endif
 void		mly_print_controller(int controller);
-static int	mly_timeout(struct mly_softc *sc);
 
 
 static d_open_t		mly_user_open;
@@ -152,7 +152,6 @@ MODULE_DEPEND(mly, cam, 1, 1, 1);
 
 static struct cdevsw mly_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	mly_user_open,
 	.d_close =	mly_user_close,
 	.d_ioctl =	mly_user_ioctl,
@@ -217,8 +216,11 @@ mly_attach(device_t dev)
     debug_called(1);
 
     sc->mly_dev = dev;
+    mtx_init(&sc->mly_lock, "mly", NULL, MTX_DEF);
+    callout_init_mtx(&sc->mly_periodic, &sc->mly_lock, 0);
 
 #ifdef MLY_DEBUG
+    callout_init_mtx(&sc->mly_timeout, &sc->mly_lock, 0);
     if (device_get_unit(sc->mly_dev) == 0)
 	mly_softc0 = sc;
 #endif    
@@ -239,7 +241,7 @@ mly_attach(device_t dev)
     /*
      * Initialise command-completion task.
      */
-    TASK_INIT(&sc->mly_task_complete, 0, mly_complete, sc);
+    TASK_INIT(&sc->mly_task_complete, 0, mly_complete_handler, sc);
 
     /* disable interrupts before we start talking to the controller */
     MLY_MASK_INTERRUPTS(sc);
@@ -261,7 +263,10 @@ mly_attach(device_t dev)
     /* 
      * Obtain controller feature information
      */
-    if ((error = mly_get_controllerinfo(sc)))
+    MLY_LOCK(sc);
+    error = mly_get_controllerinfo(sc);
+    MLY_UNLOCK(sc);
+    if (error)
 	goto out;
 
     /*
@@ -275,13 +280,16 @@ mly_attach(device_t dev)
      * Get the current event counter for health purposes, populate the initial
      * health status buffer.
      */
-    if ((error = mly_get_eventstatus(sc)))
-	goto out;
+    MLY_LOCK(sc);
+    error = mly_get_eventstatus(sc);
 
     /*
      * Enable memory-mailbox mode.
      */
-    if ((error = mly_enable_mmbox(sc)))
+    if (error == 0)
+	error = mly_enable_mmbox(sc);
+    MLY_UNLOCK(sc);
+    if (error)
 	goto out;
 
     /*
@@ -298,6 +306,7 @@ mly_attach(device_t dev)
     /*
      * Mark all attached devices for rescan.
      */
+    MLY_LOCK(sc);
     mly_scan_devices(sc);
 
     /*
@@ -306,6 +315,7 @@ mly_attach(device_t dev)
      * the SCSI subsystem gets to us, courtesy of the "SCSI settling delay".
      */
     mly_periodic((void *)sc);
+    MLY_UNLOCK(sc);
 
     /*
      * Create the control device.
@@ -318,7 +328,7 @@ mly_attach(device_t dev)
     MLY_UNMASK_INTERRUPTS(sc);
 
 #ifdef MLY_DEBUG
-    timeout((timeout_t *)mly_timeout, sc, MLY_CMD_TIMEOUT * hz);
+    callout_reset(&sc->mly_timeout, MLY_CMD_TIMEOUT * hz, mly_timeout, sc);
 #endif
 
  out:
@@ -334,7 +344,6 @@ static int
 mly_pci_attach(struct mly_softc *sc)
 {
     int			i, error;
-    u_int32_t		command;
 
     debug_called(1);
 
@@ -343,21 +352,8 @@ mly_pci_attach(struct mly_softc *sc)
 
     /* 
      * Verify that the adapter is correctly set up in PCI space.
-     * 
-     * XXX we shouldn't do this; the PCI code should.
      */
-    command = pci_read_config(sc->mly_dev, PCIR_COMMAND, 2);
-    command |= PCIM_CMD_BUSMASTEREN;
-    pci_write_config(sc->mly_dev, PCIR_COMMAND, command, 2);
-    command = pci_read_config(sc->mly_dev, PCIR_COMMAND, 2);
-    if (!(command & PCIM_CMD_BUSMASTEREN)) {
-	mly_printf(sc, "can't enable busmaster feature\n");
-	goto fail;
-    }
-    if ((command & PCIM_CMD_MEMEN) == 0) {
-	mly_printf(sc, "memory window not available\n");
-	goto fail;
-    }
+    pci_enable_busmaster(sc->mly_dev);
 
     /*
      * Allocate the PCI register window.
@@ -368,8 +364,6 @@ mly_pci_attach(struct mly_softc *sc)
 	mly_printf(sc, "can't allocate register window\n");
 	goto fail;
     }
-    sc->mly_btag = rman_get_bustag(sc->mly_regs_resource);
-    sc->mly_bhandle = rman_get_bushandle(sc->mly_regs_resource);
 
     /* 
      * Allocate and connect our interrupt.
@@ -380,7 +374,7 @@ mly_pci_attach(struct mly_softc *sc)
 	mly_printf(sc, "can't allocate interrupt\n");
 	goto fail;
     }
-    if (bus_setup_intr(sc->mly_dev, sc->mly_irq, INTR_TYPE_CAM | INTR_ENTROPY, NULL, mly_intr, sc, &sc->mly_intr)) {
+    if (bus_setup_intr(sc->mly_dev, sc->mly_irq, INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE, NULL, mly_intr, sc, &sc->mly_intr)) {
 	mly_printf(sc, "can't set up interrupt\n");
 	goto fail;
     }
@@ -393,12 +387,13 @@ mly_pci_attach(struct mly_softc *sc)
      * 
      * Note that all of these controllers are 64-bit capable.
      */
-    if (bus_dma_tag_create(NULL, 			/* parent */
+    if (bus_dma_tag_create(bus_get_dma_tag(sc->mly_dev),/* PCI parent */
 			   1, 0, 			/* alignment, boundary */
 			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, MLY_MAX_SGENTRIES,	/* maxsize, nsegments */
+			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
+			   BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
 			   NULL,			/* lockfunc */
@@ -416,11 +411,12 @@ mly_pci_attach(struct mly_softc *sc)
 			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, MLY_MAX_SGENTRIES,	/* maxsize, nsegments */
+			   DFLTPHYS,			/* maxsize */
+			   MLY_MAX_SGENTRIES,		/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
 			   busdma_lock_mutex,		/* lockfunc */
-			   &Giant,			/* lockarg */
+			   &sc->mly_lock,		/* lockarg */
 			   &sc->mly_buffer_dmat)) {
 	mly_printf(sc, "can't allocate buffer DMA tag\n");
 	goto fail;
@@ -526,18 +522,25 @@ mly_shutdown(device_t dev)
     struct mly_softc	*sc = device_get_softc(dev);
 
     debug_called(1);
-    
-    if (sc->mly_state & MLY_STATE_OPEN)
+
+    MLY_LOCK(sc);
+    if (sc->mly_state & MLY_STATE_OPEN) {
+	MLY_UNLOCK(sc);
 	return(EBUSY);
+    }
 
     /* kill the periodic event */
-    untimeout(mly_periodic, sc, sc->mly_periodic);
+    callout_stop(&sc->mly_periodic);
+#ifdef MLY_DEBUG
+    callout_stop(&sc->mly_timeout);
+#endif
 
     /* flush controller */
     mly_printf(sc, "flushing cache...");
     printf("%s\n", mly_flush(sc) ? "failed" : "done");
 
     MLY_MASK_INTERRUPTS(sc);
+    MLY_UNLOCK(sc);
 
     return(0);
 }
@@ -553,7 +556,9 @@ mly_intr(void *arg)
 
     debug_called(2);
 
+    MLY_LOCK(sc);
     mly_done(sc);
+    MLY_UNLOCK(sc);
 };
 
 /********************************************************************************
@@ -691,6 +696,13 @@ mly_free(struct mly_softc *sc)
     /* Remove the management device */
     destroy_dev(sc->mly_dev_t);
 
+    if (sc->mly_intr)
+	bus_teardown_intr(sc->mly_dev, sc->mly_irq, sc->mly_intr);
+    callout_drain(&sc->mly_periodic);
+#ifdef MLY_DEBUG
+    callout_drain(&sc->mly_timeout);
+#endif
+
     /* detach from CAM */
     mly_cam_detach(sc);
 
@@ -726,8 +738,6 @@ mly_free(struct mly_softc *sc)
 	bus_dma_tag_destroy(sc->mly_mmbox_dmat);
 
     /* disconnect the interrupt handler */
-    if (sc->mly_intr)
-	bus_teardown_intr(sc->mly_dev, sc->mly_irq, sc->mly_intr);
     if (sc->mly_irq != NULL)
 	bus_release_resource(sc->mly_dev, SYS_RES_IRQ, sc->mly_irq_rid, sc->mly_irq);
 
@@ -738,6 +748,8 @@ mly_free(struct mly_softc *sc)
     /* release the register window mapping */
     if (sc->mly_regs_resource != NULL)
 	bus_release_resource(sc->mly_dev, SYS_RES_MEMORY, sc->mly_regs_rid, sc->mly_regs_resource);
+
+    mtx_destroy(&sc->mly_lock);
 }
 
 /********************************************************************************
@@ -1101,6 +1113,7 @@ mly_ioctl(struct mly_softc *sc, struct mly_command_ioctl *ioctl, void **data, si
     int				error;
 
     debug_called(1);
+    MLY_ASSERT_LOCKED(sc);
 
     mc = NULL;
     if (mly_alloc_command(sc, &mc)) {
@@ -1295,9 +1308,11 @@ mly_complete_event(struct mly_command *mc)
 static void
 mly_process_event(struct mly_softc *sc, struct mly_event *me)
 {
-    struct scsi_sense_data	*ssd = (struct scsi_sense_data *)&me->sense[0];
-    char			*fp, *tp;
-    int				bus, target, event, class, action;
+    struct scsi_sense_data_fixed *ssd;
+    char			 *fp, *tp;
+    int				 bus, target, event, class, action;
+
+    ssd = (struct scsi_sense_data_fixed *)&me->sense[0];
 
     /* 
      * Errors can be reported using vendor-unique sense data.  In this case, the
@@ -1349,7 +1364,6 @@ mly_process_event(struct mly_softc *sc, struct mly_event *me)
 	if (action == 'r')
 	    sc->mly_btl[bus][target].mb_flags |= MLY_BTL_RESCAN;
 	break;
-      break;
     case 's':		/* report of sense data */
 	if (((ssd->flags & SSD_KEY) == SSD_KEY_NO_SENSE) ||
 	    (((ssd->flags & SSD_KEY) == SSD_KEY_NOT_READY) && 
@@ -1389,6 +1403,7 @@ mly_periodic(void *data)
     int			bus, target;
 
     debug_called(2);
+    MLY_ASSERT_LOCKED(sc);
 
     /*
      * Scan devices.
@@ -1412,7 +1427,7 @@ mly_periodic(void *data)
     mly_check_event(sc);
 
     /* reschedule ourselves */
-    sc->mly_periodic = timeout(mly_periodic, sc, MLY_PERIODIC_INTERVAL * hz);
+    callout_schedule(&sc->mly_periodic, MLY_PERIODIC_INTERVAL * hz);
 }
 
 /********************************************************************************
@@ -1429,21 +1444,19 @@ static int
 mly_immediate_command(struct mly_command *mc)
 {
     struct mly_softc	*sc = mc->mc_sc;
-    int			error, s;
+    int			error;
 
     debug_called(1);
 
-    /* spinning at splcam is ugly, but we're only used during controller init */
-    s = splcam();
+    MLY_ASSERT_LOCKED(sc);
     if ((error = mly_start(mc))) {
-	splx(s);
 	return(error);
     }
 
     if (sc->mly_state & MLY_STATE_INTERRUPTS_ON) {
 	/* sleep on the command */
 	while(!(mc->mc_flags & MLY_CMD_COMPLETE)) {
-	    tsleep(mc, PRIBIO, "mlywait", 0);
+	    mtx_sleep(mc, &sc->mly_lock, PRIBIO, "mlywait", 0);
 	}
     } else {
 	/* spin and collect status while we do */
@@ -1451,7 +1464,6 @@ mly_immediate_command(struct mly_command *mc)
 	    mly_done(mc->mc_sc);
 	}
     }
-    splx(s);
     return(0);
 }
 
@@ -1467,9 +1479,9 @@ mly_start(struct mly_command *mc)
 {
     struct mly_softc		*sc = mc->mc_sc;
     union mly_command_packet	*pkt;
-    int				s;
 
     debug_called(2);
+    MLY_ASSERT_LOCKED(sc);
 
     /* 
      * Set the command up for delivery to the controller. 
@@ -1481,8 +1493,6 @@ mly_start(struct mly_command *mc)
     mc->mc_timestamp = time_second;
 #endif
 
-    s = splcam();
-
     /*
      * Do we have to use the hardware mailbox?
      */
@@ -1491,7 +1501,6 @@ mly_start(struct mly_command *mc)
 	 * Check to see if the controller is ready for us.
 	 */
 	if (MLY_IDBR_TRUE(sc, MLY_HM_CMDSENT)) {
-	    splx(s);
 	    return(EBUSY);
 	}
 	mc->mc_flags |= MLY_CMD_BUSY;
@@ -1508,7 +1517,6 @@ mly_start(struct mly_command *mc)
 
 	/* check to see if the next index is free yet */
 	if (pkt->mmbox.flag != 0) {
-	    splx(s);
 	    return(EBUSY);
 	}
 	mc->mc_flags |= MLY_CMD_BUSY;
@@ -1516,13 +1524,11 @@ mly_start(struct mly_command *mc)
 	/* copy in new command */
 	bcopy(mc->mc_packet->mmbox.data, pkt->mmbox.data, sizeof(pkt->mmbox.data));
 	/* barrier to ensure completion of previous write before we write the flag */
-	bus_space_barrier(sc->mly_btag, sc->mly_bhandle, 0, 0,
-	    BUS_SPACE_BARRIER_WRITE);
+	bus_barrier(sc->mly_regs_resource, 0, 0, BUS_SPACE_BARRIER_WRITE);
 	/* copy flag last */
 	pkt->mmbox.flag = mc->mc_packet->mmbox.flag;
 	/* barrier to ensure completion of previous write before we notify the controller */
-	bus_space_barrier(sc->mly_btag, sc->mly_bhandle, 0, 0,
-	    BUS_SPACE_BARRIER_WRITE);
+	bus_barrier(sc->mly_regs_resource, 0, 0, BUS_SPACE_BARRIER_WRITE);
 
 	/* signal controller, update index */
 	MLY_SET_REG(sc, sc->mly_idbr, MLY_AM_CMDSENT);
@@ -1530,7 +1536,6 @@ mly_start(struct mly_command *mc)
     }
 
     mly_enqueue_busy(mc);
-    splx(s);
     return(0);
 }
 
@@ -1543,9 +1548,9 @@ mly_done(struct mly_softc *sc)
     struct mly_command		*mc;
     union mly_status_packet	*sp;
     u_int16_t			slot;
-    int				s, worked;
+    int				worked;
 
-    s = splcam();
+    MLY_ASSERT_LOCKED(sc);
     worked = 0;
 
     /* pick up hardware-mailbox commands */
@@ -1603,12 +1608,11 @@ mly_done(struct mly_softc *sc)
 	MLY_SET_REG(sc, sc->mly_odbr, MLY_AM_STSREADY);
     }
 
-    splx(s);
     if (worked) {
 	if (sc->mly_state & MLY_STATE_INTERRUPTS_ON)
-	    taskqueue_enqueue(taskqueue_swi_giant, &sc->mly_task_complete);
+	    taskqueue_enqueue(taskqueue_thread, &sc->mly_task_complete);
 	else
-	    mly_complete(sc, 0);
+	    mly_complete(sc);
     }
 }
 
@@ -1616,12 +1620,20 @@ mly_done(struct mly_softc *sc)
  * Process completed commands
  */
 static void
-mly_complete(void *context, int pending)
+mly_complete_handler(void *context, int pending)
 {
     struct mly_softc	*sc = (struct mly_softc *)context;
+
+    MLY_LOCK(sc);
+    mly_complete(sc);
+    MLY_UNLOCK(sc);
+}
+
+static void
+mly_complete(struct mly_softc *sc)
+{
     struct mly_command	*mc;
     void	        (* mc_complete)(struct mly_command *mc);
-
 
     debug_called(2);
 
@@ -1864,9 +1876,13 @@ mly_map_command(struct mly_command *mc)
 
     /* does the command have a data buffer? */
     if (mc->mc_data != NULL) {
-	bus_dmamap_load(sc->mly_buffer_dmat, mc->mc_datamap, mc->mc_data, mc->mc_length, 
-			mly_map_command_sg, mc, 0);
-	
+	if (mc->mc_flags & MLY_CMD_CCB)
+		bus_dmamap_load_ccb(sc->mly_buffer_dmat, mc->mc_datamap,
+				mc->mc_data, mly_map_command_sg, mc, 0);
+	else 
+		bus_dmamap_load(sc->mly_buffer_dmat, mc->mc_datamap,
+				mc->mc_data, mc->mc_length, 
+				mly_map_command_sg, mc, 0);
 	if (mc->mc_flags & MLY_CMD_DATAIN)
 	    bus_dmamap_sync(sc->mly_buffer_dmat, mc->mc_datamap, BUS_DMASYNC_PREREAD);
 	if (mc->mc_flags & MLY_CMD_DATAOUT)
@@ -1915,7 +1931,7 @@ mly_unmap_command(struct mly_command *mc)
  * the kernel environment variable "hw.mly.register_physical_channels" is set.
  *
  * When we refer to a "bus", we are referring to the bus number registered with
- * the SIM, wheras a "channel" is a channel number given to the adapter.  In order
+ * the SIM, whereas a "channel" is a channel number given to the adapter.  In order
  * to keep things simple, we map these 1:1, so "bus" and "channel" may be used
  * interchangeably.
  */
@@ -1945,15 +1961,18 @@ mly_cam_attach(struct mly_softc *sc)
 
 	    if ((sc->mly_cam_sim[chn] = cam_sim_alloc(mly_cam_action, mly_cam_poll, "mly", sc,
 						      device_get_unit(sc->mly_dev),
-						      &Giant,
+						      &sc->mly_lock,
 						      sc->mly_controllerinfo->maximum_parallel_commands,
 						      1, devq)) == NULL) {
 		return(ENOMEM);
 	    }
+	    MLY_LOCK(sc);
 	    if (xpt_bus_register(sc->mly_cam_sim[chn], sc->mly_dev, chn)) {
+		MLY_UNLOCK(sc);
 		mly_printf(sc, "CAM XPT phsyical channel registration failed\n");
 		return(ENXIO);
 	    }
+	    MLY_UNLOCK(sc);
 	    debug(1, "registered physical channel %d", chn);
 	}
     }
@@ -1965,15 +1984,18 @@ mly_cam_attach(struct mly_softc *sc)
     for (i = 0; i < sc->mly_controllerinfo->virtual_channels_present; i++, chn++) {
 	if ((sc->mly_cam_sim[chn] = cam_sim_alloc(mly_cam_action, mly_cam_poll, "mly", sc,
 						  device_get_unit(sc->mly_dev),
-						  &Giant,
+						  &sc->mly_lock,
 						  sc->mly_controllerinfo->maximum_parallel_commands,
 						  0, devq)) == NULL) {
 	    return(ENOMEM);
 	}
+	MLY_LOCK(sc);
 	if (xpt_bus_register(sc->mly_cam_sim[chn], sc->mly_dev, chn)) {
+	    MLY_UNLOCK(sc);
 	    mly_printf(sc, "CAM XPT virtual channel registration failed\n");
 	    return(ENXIO);
 	}
+	MLY_UNLOCK(sc);
 	debug(1, "registered virtual channel %d", chn);
     }
 
@@ -1997,12 +2019,14 @@ mly_cam_detach(struct mly_softc *sc)
     
     debug_called(1);
 
+    MLY_LOCK(sc);
     for (i = 0; i < sc->mly_cam_channels; i++) {
 	if (sc->mly_cam_sim[i] != NULL) {
 	    xpt_bus_deregister(cam_sim_path(sc->mly_cam_sim[i]));
 	    cam_sim_free(sc->mly_cam_sim[i], 0);
 	}
     }
+    MLY_UNLOCK(sc);
     if (sc->mly_cam_devq != NULL)
 	cam_simq_free(sc->mly_cam_devq);
 }
@@ -2017,29 +2041,18 @@ mly_cam_rescan_btl(struct mly_softc *sc, int bus, int target)
 
     debug_called(1);
 
-    if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO)) == NULL) {
+    if ((ccb = xpt_alloc_ccb()) == NULL) {
 	mly_printf(sc, "rescan failed (can't allocate CCB)\n");
 	return;
     }
-    
-    if (xpt_create_path(&sc->mly_cam_path, xpt_periph, 
-			cam_sim_path(sc->mly_cam_sim[bus]), target, 0) != CAM_REQ_CMP) {
+    if (xpt_create_path(&ccb->ccb_h.path, NULL,
+	    cam_sim_path(sc->mly_cam_sim[bus]), target, 0) != CAM_REQ_CMP) {
 	mly_printf(sc, "rescan failed (can't create path)\n");
-	free(ccb, M_TEMP);
+	xpt_free_ccb(ccb);
 	return;
     }
-    xpt_setup_ccb(&ccb->ccb_h, sc->mly_cam_path, 5/*priority (low)*/);
-    ccb->ccb_h.func_code = XPT_SCAN_LUN;
-    ccb->ccb_h.cbfcnp = mly_cam_rescan_callback;
-    ccb->crcn.flags = CAM_FLAG_NONE;
     debug(1, "rescan target %d:%d", bus, target);
-    xpt_action(ccb);
-}
-
-static void
-mly_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
-{
-    free(ccb, M_TEMP);
+    xpt_rescan(ccb);
 }
 
 /********************************************************************************
@@ -2051,6 +2064,7 @@ mly_cam_action(struct cam_sim *sim, union ccb *ccb)
     struct mly_softc	*sc = cam_sim_softc(sim);
 
     debug_called(2);
+    MLY_ASSERT_LOCKED(sc);
 
     switch (ccb->ccb_h.func_code) {
 
@@ -2194,7 +2208,6 @@ mly_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
     struct mly_command_scsi_small	*ss;
     int					bus, target;
     int					error;
-    int					s;
 
     bus = cam_sim_bus(sim);
     target = csio->ccb_h.target_id;
@@ -2231,18 +2244,6 @@ mly_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
 	csio->ccb_h.status = CAM_REQ_CMP_ERR;
     }
 
-    /* if there is data transfer, it must be to/from a virtual address */
-    if ((csio->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-	if (csio->ccb_h.flags & CAM_DATA_PHYS) {		/* we can't map it */
-	    debug(0, "  data pointer is to physical address");
-	    csio->ccb_h.status = CAM_REQ_CMP_ERR;
-	}
-	if (csio->ccb_h.flags & CAM_SCATTER_VALID) {	/* we want to do the s/g setup */
-	    debug(0, "  data has premature s/g setup");
-	    csio->ccb_h.status = CAM_REQ_CMP_ERR;
-	}
-    }
-
     /* abandon aborted ccbs or those that have failed validation */
     if ((csio->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
 	debug(2, "abandoning CCB due to abort/validation failure");
@@ -2253,19 +2254,19 @@ mly_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
      * Get a command, or push the ccb back to CAM and freeze the queue.
      */
     if ((error = mly_alloc_command(sc, &mc))) {
-	s = splcam();
 	xpt_freeze_simq(sim, 1);
 	csio->ccb_h.status |= CAM_REQUEUE_REQ;
 	sc->mly_qfrzn_cnt++;
-	splx(s);
 	return(error);
     }
     
     /* build the command */
-    mc->mc_data = csio->data_ptr;
+    mc->mc_data = csio;
     mc->mc_length = csio->dxfer_len;
     mc->mc_complete = mly_cam_complete;
     mc->mc_private = csio;
+    mc->mc_flags |= MLY_CMD_CCB;
+    /* XXX This code doesn't set the data direction in mc_flags. */
 
     /* save the bus number in the ccb for later recovery XXX should be a better way */
      csio->ccb_h.sim_priv.entries[0].field = bus;
@@ -2301,11 +2302,9 @@ mly_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
 
     /* give the command to the controller */
     if ((error = mly_start(mc))) {
-	s = splcam();
 	xpt_freeze_simq(sim, 1);
 	csio->ccb_h.status |= CAM_REQUEUE_REQ;
 	sc->mly_qfrzn_cnt++;
-	splx(s);
 	return(error);
     }
 
@@ -2337,7 +2336,6 @@ mly_cam_complete(struct mly_command *mc)
     struct mly_btl		*btl;
     u_int8_t			cmd;
     int				bus, target;
-    int				s;
 
     debug_called(2);
 
@@ -2390,12 +2388,10 @@ mly_cam_complete(struct mly_command *mc)
 	break;
     }
 
-    s = splcam();
     if (sc->mly_qfrzn_cnt) {
 	csio->ccb_h.status |= CAM_RELEASE_SIMQ;
 	sc->mly_qfrzn_cnt--;
     }
-    splx(s);
 
     xpt_done((union ccb *)csio);
     mly_release_command(mc);
@@ -2528,7 +2524,7 @@ mly_describe_controller(struct mly_softc *sc)
 		   mly_describe_code(mly_table_memorytype, mi->memory_type),
 		   mi->memory_parity ? "+parity": "",mi->memory_ecc ? "+ECC": "",
 		   mi->cache_size);
-	mly_printf(sc, "CPU: %s @ %dMHZ\n", 
+	mly_printf(sc, "CPU: %s @ %dMHz\n", 
 		   mly_describe_code(mly_table_cputype, mi->cpu[0].type), mi->cpu[0].speed);
 	if (mi->l2cache_size != 0)
 	    mly_printf(sc, "%dKB L2 cache\n", mi->l2cache_size);
@@ -2836,7 +2832,9 @@ mly_user_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
     struct mly_softc	*sc = dev->si_drv1;
 
+    MLY_LOCK(sc);
     sc->mly_state |= MLY_STATE_OPEN;
+    MLY_UNLOCK(sc);
     return(0);
 }
 
@@ -2848,7 +2846,9 @@ mly_user_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
     struct mly_softc	*sc = dev->si_drv1;
 
+    MLY_LOCK(sc);
     sc->mly_state &= ~MLY_STATE_OPEN;
+    MLY_UNLOCK(sc);
     return (0);
 }
 
@@ -2886,13 +2886,16 @@ static int
 mly_user_command(struct mly_softc *sc, struct mly_user_command *uc)
 {
     struct mly_command	*mc;
-    int			error, s;
+    int			error;
 
     /* allocate a command */
+    MLY_LOCK(sc);
     if (mly_alloc_command(sc, &mc)) {
+	MLY_UNLOCK(sc);
 	error = ENOMEM;
 	goto out;		/* XXX Linux version will wait for a command */
     }
+    MLY_UNLOCK(sc);
 
     /* handle data size/direction */
     mc->mc_length = (uc->DataTransferLength >= 0) ? uc->DataTransferLength : -uc->DataTransferLength;
@@ -2919,12 +2922,14 @@ mly_user_command(struct mly_softc *sc, struct mly_user_command *uc)
     mc->mc_complete = NULL;
 
     /* execute the command */
-    if ((error = mly_start(mc)) != 0)
+    MLY_LOCK(sc);
+    if ((error = mly_start(mc)) != 0) {
+	MLY_UNLOCK(sc);
 	goto out;
-    s = splcam();
+    }
     while (!(mc->mc_flags & MLY_CMD_COMPLETE))
-	tsleep(mc, PRIBIO, "mlyioctl", 0);
-    splx(s);
+	mtx_sleep(mc, &sc->mly_lock, PRIBIO, "mlyioctl", 0);
+    MLY_UNLOCK(sc);
 
     /* return the data to userspace */
     if (uc->DataTransferLength > 0)
@@ -2947,8 +2952,11 @@ mly_user_command(struct mly_softc *sc, struct mly_user_command *uc)
  out:
     if (mc->mc_data != NULL)
 	free(mc->mc_data, M_DEVBUF);
-    if (mc != NULL)
+    if (mc != NULL) {
+	MLY_LOCK(sc);
 	mly_release_command(mc);
+	MLY_UNLOCK(sc);
+    }
     return(error);
 }
 
@@ -2962,31 +2970,36 @@ static int
 mly_user_health(struct mly_softc *sc, struct mly_user_health *uh)
 {
     struct mly_health_status		mh;
-    int					error, s;
+    int					error;
     
     /* fetch the current health status from userspace */
     if ((error = copyin(uh->HealthStatusBuffer, &mh, sizeof(mh))) != 0)
 	return(error);
 
     /* spin waiting for a status update */
-    s = splcam();
+    MLY_LOCK(sc);
     error = EWOULDBLOCK;
     while ((error != 0) && (sc->mly_event_change == mh.change_counter))
-	error = tsleep(&sc->mly_event_change, PRIBIO | PCATCH, "mlyhealth", 0);
-    splx(s);
+	error = mtx_sleep(&sc->mly_event_change, &sc->mly_lock, PRIBIO | PCATCH,
+	    "mlyhealth", 0);
+    mh = sc->mly_mmbox->mmm_health.status;
+    MLY_UNLOCK(sc);
     
-    /* copy the controller's health status buffer out (there is a race here if it changes again) */
-    error = copyout(&sc->mly_mmbox->mmm_health.status, uh->HealthStatusBuffer, 
-		    sizeof(uh->HealthStatusBuffer));
+    /* copy the controller's health status buffer out */
+    error = copyout(&mh, uh->HealthStatusBuffer, sizeof(mh));
     return(error);
 }
 
-static int
-mly_timeout(struct mly_softc *sc)
+#ifdef MLY_DEBUG
+static void
+mly_timeout(void *arg)
 {
+	struct mly_softc *sc;
 	struct mly_command *mc;
 	int deadline;
 
+	sc = arg;
+	MLY_ASSERT_LOCKED(sc);
 	deadline = time_second - MLY_CMD_TIMEOUT;
 	TAILQ_FOREACH(mc, &sc->mly_busy, mc_link) {
 		if ((mc->mc_timestamp < deadline)) {
@@ -2996,7 +3009,6 @@ mly_timeout(struct mly_softc *sc)
 		}
 	}
 
-	timeout((timeout_t *)mly_timeout, sc, MLY_CMD_TIMEOUT * hz);
-
-	return (0);
+	callout_reset(&sc->mly_timeout, MLY_CMD_TIMEOUT * hz, mly_timeout, sc);
 }
+#endif

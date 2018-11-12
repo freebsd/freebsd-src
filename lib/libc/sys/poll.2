@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 8, 2002
+.Dd November 13, 2014
 .Dt POLL 2
 .Os
 .Sh NAME
@@ -40,6 +40,13 @@
 .In poll.h
 .Ft int
 .Fn poll "struct pollfd fds[]" "nfds_t nfds" "int timeout"
+.Ft int
+.Fo ppoll
+.Fa "struct pollfd fds[]"
+.Fa "nfds_t nfds"
+.Fa "const struct timespec * restrict timeout"
+.Fa "const sigset_t * restrict newsigmask"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn poll
@@ -139,6 +146,46 @@ If
 is zero, then
 .Fn poll
 will return without blocking.
+.Pp
+The
+.Fn ppoll
+system call, unlike
+.Fn poll ,
+is used to safely wait until either a set of file descriptors becomes
+ready or until a signal is caught.
+The
+.Fa fds
+and
+.Fa nfds
+arguments are identical to the analogous arguments of
+.Fn poll .
+The
+.Fa timeout
+argument in
+.Fn ppoll
+points to a
+.Vt "const struct timespec"
+which is defined in
+.In sys/timespec.h
+(shown below) rather than the
+.Vt "int timeout"
+used by
+.Fn poll .
+A null pointer may be passed to indicate that
+.Fn ppoll
+should wait indefinitely.
+Finally,
+.Fa newsigmask
+specifies a signal mask which is set while waiting for input.
+When
+.Fn ppoll
+returns, the original signal mask is restored.
+.Bd -literal
+struct timespec {
+	time_t  tv_sec;         /* seconds */
+	long    tv_nsec;        /* and nanoseconds */
+};
+.Ed
 .Sh RETURN VALUES
 The
 .Fn poll
@@ -185,17 +232,26 @@ points outside the process's allocated address space.
 A signal was delivered before the time limit expired and
 before any of the selected events occurred.
 .It Bq Er EINVAL
-The specified time limit is negative.
+The specified time limit is invalid. One of its components is negative or too large.
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,
 .Xr connect 2 ,
 .Xr kqueue 2 ,
+.Xr pselect 2 ,
 .Xr read 2 ,
 .Xr recv 2 ,
 .Xr select 2 ,
 .Xr send 2 ,
 .Xr write 2
+.Sh STANDARDS
+The
+.Fn poll
+function conforms to
+.St -p1003.1-2001 .
+The
+.Fn ppoll
+is not specified by POSIX.
 .Sh HISTORY
 The
 .Fn poll
@@ -203,6 +259,10 @@ function appeared in
 .At V .
 This manual page and the core of the implementation was taken from
 .Nx .
+The
+.Fn ppoll
+function first appeared in
+.Fx 11.0
 .Sh BUGS
 The distinction between some of the fields in the
 .Fa events

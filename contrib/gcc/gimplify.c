@@ -1600,9 +1600,7 @@ canonicalize_addr_expr (tree *expr_p)
   /* All checks succeeded.  Build a new node to merge the cast.  */
   *expr_p = build4 (ARRAY_REF, dctype, obj_expr,
 		    TYPE_MIN_VALUE (TYPE_DOMAIN (datype)),
-		    TYPE_MIN_VALUE (TYPE_DOMAIN (datype)),
-		    size_binop (EXACT_DIV_EXPR, TYPE_SIZE_UNIT (dctype),
-				size_int (TYPE_ALIGN_UNIT (dctype))));
+		    NULL_TREE, NULL_TREE);
   *expr_p = build1 (ADDR_EXPR, ctype, *expr_p);
 }
 
@@ -3532,8 +3530,16 @@ gimplify_modify_expr (tree *expr_p, tree *pre_p, tree *post_p, bool want_value)
   gcc_assert (TREE_CODE (*expr_p) == MODIFY_EXPR
 	      || TREE_CODE (*expr_p) == INIT_EXPR);
 
-  /* For zero sized types only gimplify the left hand side and right hand side
-     as statements and throw away the assignment.  */
+  /* See if any simplifications can be done based on what the RHS is.  */
+  ret = gimplify_modify_expr_rhs (expr_p, from_p, to_p, pre_p, post_p,
+				  want_value);
+  if (ret != GS_UNHANDLED)
+    return ret;
+
+  /* For zero sized types only gimplify the left hand side and right hand
+     side as statements and throw away the assignment.  Do this after
+     gimplify_modify_expr_rhs so we handle TARGET_EXPRs of addressable
+     types properly.  */
   if (zero_sized_type (TREE_TYPE (*from_p)))
     {
       gimplify_stmt (from_p);
@@ -3543,12 +3549,6 @@ gimplify_modify_expr (tree *expr_p, tree *pre_p, tree *post_p, bool want_value)
       *expr_p = NULL_TREE;
       return GS_ALL_DONE;
     }
-
-  /* See if any simplifications can be done based on what the RHS is.  */
-  ret = gimplify_modify_expr_rhs (expr_p, from_p, to_p, pre_p, post_p,
-				  want_value);
-  if (ret != GS_UNHANDLED)
-    return ret;
 
   /* If the value being copied is of variable width, compute the length
      of the copy into a WITH_SIZE_EXPR.   Note that we need to do this
@@ -6397,7 +6397,8 @@ gimplify_function_tree (tree fndecl)
      catch the exit hook.  */
   /* ??? Add some way to ignore exceptions for this TFE.  */
   if (flag_instrument_function_entry_exit
-      && ! DECL_NO_INSTRUMENT_FUNCTION_ENTRY_EXIT (fndecl))
+      && !DECL_NO_INSTRUMENT_FUNCTION_ENTRY_EXIT (fndecl)
+      && !flag_instrument_functions_exclude_p (fndecl))
     {
       tree tf, x, bind;
 

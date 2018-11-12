@@ -26,6 +26,9 @@
  * $FreeBSD$
  */
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -39,13 +42,18 @@
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
+#include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ip.h>
-#include <netinet/ip_var.h>
+#include <netinet/ip6.h>
+#include <netinet6/ip6_var.h>
+
+#include <netpfil/ipfw/ip_fw_private.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
@@ -82,7 +90,7 @@ static struct ng_type ng_ipfw_typestruct = {
 	.disconnect =	ng_ipfw_disconnect,
 };
 NETGRAPH_INIT(ipfw, &ng_ipfw_typestruct);
-MODULE_DEPEND(ng_ipfw, ipfw, 2, 2, 2);
+MODULE_DEPEND(ng_ipfw, ipfw, 3, 3, 3);
 
 /* Information we store for each hook */
 struct ng_ipfw_hook_priv {
@@ -109,7 +117,7 @@ ng_ipfw_mod_event(module_t mod, int event, void *data)
 		    != 0) {
 			log(LOG_ERR, "%s: can't create ng_ipfw node", __func__);
                 	break;
-		};
+		}
 
 		/* Try to name node */
 		if (ng_name_node(fw_node, "ipfw") != 0)
@@ -188,7 +196,7 @@ ng_ipfw_connect(hook_p hook)
 }
 
 /* Look up hook by name */
-hook_p
+static hook_p
 ng_ipfw_findhook(node_p node, const char *name)
 {
 	u_int16_t n;	/* numeric representation of hook */
@@ -220,50 +228,64 @@ ng_ipfw_findhook1(node_p node, u_int16_t rulenum)
 static int
 ng_ipfw_rcvdata(hook_p hook, item_p item)
 {
-	struct ng_ipfw_tag	*ngit;
+	struct m_tag *tag;
+	struct ipfw_rule_ref *r;
 	struct mbuf *m;
+	struct ip *ip;
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
 
-	if ((ngit = (struct ng_ipfw_tag *)m_tag_locate(m, NGM_IPFW_COOKIE, 0,
-	    NULL)) == NULL) {
+	tag = m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL);
+	if (tag == NULL) {
 		NG_FREE_M(m);
 		return (EINVAL);	/* XXX: find smth better */
-	};
+	}
 
-	switch (ngit->dir) {
-	case NG_IPFW_OUT:
-	    {
-		struct ip *ip;
+	if (m->m_len < sizeof(struct ip) &&
+	    (m = m_pullup(m, sizeof(struct ip))) == NULL)
+		return (ENOBUFS);
 
-		if (m->m_len < sizeof(struct ip) &&
-		    (m = m_pullup(m, sizeof(struct ip))) == NULL)
-			return (EINVAL);
+	ip = mtod(m, struct ip *);
 
-		ip = mtod(m, struct ip *);
+	r = (struct ipfw_rule_ref *)(tag + 1);
+	if (r->info & IPFW_INFO_IN) {
+		switch (ip->ip_v) {
+#ifdef INET
+		case IPVERSION:
+			ip_input(m);
+			return (0);
+#endif
+#ifdef INET6
+		case IPV6_VERSION >> 4:
+			ip6_input(m);
+			return (0);
+#endif
+		}
+	} else {
+		switch (ip->ip_v) {
+#ifdef INET
+		case IPVERSION:
+			return (ip_output(m, NULL, NULL, IP_FORWARDING,
+			    NULL, NULL));
+#endif
+#ifdef INET6
+		case IPV6_VERSION >> 4:
+			return (ip6_output(m, NULL, NULL, 0, NULL,
+			    NULL, NULL));
+#endif
+		}
+	}
 
-		ip->ip_len = ntohs(ip->ip_len);
-		ip->ip_off = ntohs(ip->ip_off);
-
-		return ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
-	    }
-	case NG_IPFW_IN:
-		ip_input(m);
-		return (0);
-	default:
-		panic("ng_ipfw_rcvdata: bad dir %u", ngit->dir);
-	}	
-
-	/* not reached */
-	return (0);
+	/* unknown IP protocol version */
+	NG_FREE_M(m);
+	return (EPROTONOSUPPORT);
 }
 
 static int
 ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 {
 	struct mbuf *m;
-	struct ng_ipfw_tag *ngit;
 	struct ip *ip;
 	hook_p	hook;
 	int error = 0;
@@ -272,11 +294,8 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 	 * Node must be loaded and corresponding hook must be present.
 	 */
 	if (fw_node == NULL || 
-	   (hook = ng_ipfw_findhook1(fw_node, fwa->cookie)) == NULL) {
-		if (tee == 0)
-			m_freem(*m0);
+	   (hook = ng_ipfw_findhook1(fw_node, fwa->rule.info)) == NULL)
 		return (ESRCH);		/* no hook associated with this rule */
-	}
 
 	/*
 	 * We have two modes: in normal mode we add a tag to packet, which is
@@ -284,23 +303,25 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 	 * a copy of a packet and forward it into netgraph without a tag.
 	 */
 	if (tee == 0) {
+		struct m_tag *tag;
+		struct ipfw_rule_ref *r;
 		m = *m0;
 		*m0 = NULL;	/* it belongs now to netgraph */
 
-		if ((ngit = (struct ng_ipfw_tag *)m_tag_alloc(NGM_IPFW_COOKIE,
-		    0, TAGSIZ, M_NOWAIT|M_ZERO)) == NULL) {
+		tag = m_tag_alloc(MTAG_IPFW_RULE, 0, sizeof(*r),
+			M_NOWAIT|M_ZERO);
+		if (tag == NULL) {
 			m_freem(m);
 			return (ENOMEM);
 		}
-		ngit->rule = fwa->rule;
-		ngit->rule_id = fwa->rule_id;
-		ngit->chain_id = fwa->chain_id;
-		ngit->dir = dir;
-		ngit->ifp = fwa->oif;
-		m_tag_prepend(m, &ngit->mt);
+		r = (struct ipfw_rule_ref *)(tag + 1);
+		*r = fwa->rule;
+		r->info &= IPFW_ONEPASS;  /* keep this info */
+		r->info |= dir ? IPFW_INFO_IN : IPFW_INFO_OUT;
+		m_tag_prepend(m, tag);
 
 	} else
-		if ((m = m_dup(*m0, M_DONTWAIT)) == NULL)
+		if ((m = m_dup(*m0, M_NOWAIT)) == NULL)
 			return (ENOMEM);	/* which is ignored */
 
 	if (m->m_len < sizeof(struct ip) &&
@@ -308,8 +329,6 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 		return (EINVAL);
 
 	ip = mtod(m, struct ip *);
-	ip->ip_len = htons(ip->ip_len);
-	ip->ip_off = htons(ip->ip_off);
 
 	NG_SEND_DATA_ONLY(error, hook, m);
 

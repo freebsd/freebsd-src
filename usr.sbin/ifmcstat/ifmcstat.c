@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/tree.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/route.h>
@@ -51,20 +50,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/igmp.h>
-#define KERNEL
-# include <netinet/if_ether.h>
-#undef KERNEL
-#define _KERNEL
-#define SYSCTL_DECL(x)
-# include <netinet/igmp_var.h>
-#undef SYSCTL_DECL
-#undef _KERNEL
+#include <netinet/if_ether.h>
+#include <netinet/igmp_var.h>
 
 #ifdef INET6
 #include <netinet/icmp6.h>
-#define _KERNEL
-# include <netinet6/mld6_var.h>
-#undef _KERNEL
+#include <netinet6/mld6_var.h>
 #endif /* INET6 */
 
 #include <arpa/inet.h>
@@ -72,7 +63,6 @@ __FBSDID("$FreeBSD$");
 
 #include <stddef.h>
 #include <stdarg.h>
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -82,14 +72,23 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <kvm.h>
 #include <limits.h>
 #include <ifaddrs.h>
-#include <nlist.h>
 #include <sysexits.h>
 #include <unistd.h>
 
-/* XXX: This file currently assumes INET and KVM support in the base system. */
+#ifdef KVM
+/*
+ * Currently the KVM build is broken. To be fixed it requires uncovering
+ * large amount of _KERNEL code in include files, and it is also very
+ * tentative to internal kernel ABI changes. If anyone wishes to restore
+ * it, please move it out of src/usr.sbin to src/tools/tools.
+ */
+#include <kvm.h>
+#include <nlist.h>
+#endif
+
+/* XXX: This file currently assumes INET support in the base system. */
 #ifndef INET
 #define INET
 #endif
@@ -115,9 +114,6 @@ int		af = AF_UNSPEC;
 int		Kflag = 0;
 #endif
 int		vflag = 0;
-
-#define	sa_equal(a1, a2)	\
-	(bcmp((a1), (a2), ((a1))->sa_len) == 0)
 
 #define	sa_dl_equal(a1, a2)	\
 	((((struct sockaddr_dl *)(a1))->sdl_len ==			\
@@ -168,7 +164,7 @@ static const char *	inm_mode(u_int mode);
 #endif
 #ifdef INET6
 static void		in6_ifinfo(struct mld_ifinfo *);
-static const char *	inet6_n2a(struct in6_addr *);
+static const char *	inet6_n2a(struct in6_addr *, uint32_t);
 #endif
 int			main(int, char **);
 
@@ -297,7 +293,8 @@ in_ifinfo(struct igmp_ifinfo *igi)
 		printf("igmpv?(%d)", igi->igi_version);
 		break;
 	}
-	printb(" flags", igi->igi_flags, "\020\1SILENT\2LOOPBACK");
+	if (igi->igi_flags)
+		printb(" flags", igi->igi_flags, "\020\1SILENT\2LOOPBACK");
 	if (igi->igi_version == IGMP_VERSION_3) {
 		printf(" rv %u qi %u qri %u uri %u",
 		    igi->igi_rv, igi->igi_qi, igi->igi_qri, igi->igi_uri);
@@ -388,7 +385,6 @@ ll_addrlist(struct ifaddr *ifap)
 	struct sockaddr sa;
 	struct sockaddr_dl sdl;
 	struct ifaddr *ifap0;
-	int error;
 
 	if (af && af != AF_LINK)
 		return;
@@ -405,7 +401,7 @@ ll_addrlist(struct ifaddr *ifap)
 		if (sdl.sdl_alen == 0)
 			goto nextifap;
 		addrbuf[0] = '\0';
-		error = getnameinfo((struct sockaddr *)&sdl, sdl.sdl_len,
+		getnameinfo((struct sockaddr *)&sdl, sdl.sdl_len,
 		    addrbuf, sizeof(addrbuf), NULL, 0, NI_NUMERICHOST);
 		printf("\tlink %s\n", addrbuf);
 	nextifap:
@@ -428,7 +424,7 @@ ll_addrlist(struct ifaddr *ifap)
 				goto nextmulti;
 			KREAD(ifm.ifma_addr, &sdl, struct sockaddr_dl);
 			addrbuf[0] = '\0';
-			error = getnameinfo((struct sockaddr *)&sdl,
+			getnameinfo((struct sockaddr *)&sdl,
 			    sdl.sdl_len, addrbuf, sizeof(addrbuf),
 			    NULL, 0, NI_NUMERICHOST);
 			printf("\t\tgroup %s refcnt %d\n",
@@ -440,32 +436,6 @@ ll_addrlist(struct ifaddr *ifap)
 }
 
 #ifdef INET6
-
-static void
-in6_ifinfo(struct mld_ifinfo *mli)
-{
-
-	printf("\t");
-	switch (mli->mli_version) {
-	case MLD_VERSION_1:
-	case MLD_VERSION_2:
-		printf("mldv%d", mli->mli_version);
-		break;
-	default:
-		printf("mldv?(%d)", mli->mli_version);
-		break;
-	}
-	printb(" flags", mli->mli_flags, "\020\1SILENT");
-	if (mli->mli_version == MLD_VERSION_2) {
-		printf(" rv %u qi %u qri %u uri %u",
-		    mli->mli_rv, mli->mli_qi, mli->mli_qri, mli->mli_uri);
-	}
-	if (vflag >= 2) {
-		printf(" v1timer %u v2timer %u", mli->mli_v1_timer,
-		   mli->mli_v2_timer);
-	}
-	printf("\n");
-}
 
 static void
 if6_addrlist(struct ifaddr *ifap)
@@ -487,7 +457,8 @@ if6_addrlist(struct ifaddr *ifap)
 		if (sa.sa_family != PF_INET6)
 			goto nextifap;
 		KREAD(ifap, &if6a, struct in6_ifaddr);
-		printf("\tinet6 %s\n", inet6_n2a(&if6a.ia_addr.sin6_addr));
+		printf("\tinet6 %s\n", inet6_n2a(&if6a.ia_addr.sin6_addr,
+		    if6a.ia_addr.sin6_scope_id));
 		/*
 		 * Print per-link MLD information, if available.
 		 */
@@ -542,7 +513,7 @@ in6_multientry(struct in6_multi *mc)
 	struct in6_multi multi;
 
 	KREAD(mc, &multi, struct in6_multi);
-	printf("\t\tgroup %s", inet6_n2a(&multi.in6m_addr));
+	printf("\t\tgroup %s", inet6_n2a(&multi.in6m_addr, 0));
 	printf(" refcnt %u\n", multi.in6m_refcount);
 
 	return (multi.in6m_entry.le_next);
@@ -764,27 +735,46 @@ in_multientry(struct in_multi *pinm)
 #endif /* WITH_KVM */
 
 #ifdef INET6
+
+static void
+in6_ifinfo(struct mld_ifinfo *mli)
+{
+
+	printf("\t");
+	switch (mli->mli_version) {
+	case MLD_VERSION_1:
+	case MLD_VERSION_2:
+		printf("mldv%d", mli->mli_version);
+		break;
+	default:
+		printf("mldv?(%d)", mli->mli_version);
+		break;
+	}
+	if (mli->mli_flags)
+		printb(" flags", mli->mli_flags, "\020\1SILENT\2USEALLOW");
+	if (mli->mli_version == MLD_VERSION_2) {
+		printf(" rv %u qi %u qri %u uri %u",
+		    mli->mli_rv, mli->mli_qi, mli->mli_qri, mli->mli_uri);
+	}
+	if (vflag >= 2) {
+		printf(" v1timer %u v2timer %u", mli->mli_v1_timer,
+		   mli->mli_v2_timer);
+	}
+	printf("\n");
+}
+
 static const char *
-inet6_n2a(struct in6_addr *p)
+inet6_n2a(struct in6_addr *p, uint32_t scope_id)
 {
 	static char buf[NI_MAXHOST];
 	struct sockaddr_in6 sin6;
-	u_int32_t scopeid;
 	const int niflags = NI_NUMERICHOST;
 
 	memset(&sin6, 0, sizeof(sin6));
 	sin6.sin6_family = AF_INET6;
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
 	sin6.sin6_addr = *p;
-	if (IN6_IS_ADDR_LINKLOCAL(p) || IN6_IS_ADDR_MC_LINKLOCAL(p) ||
-	    IN6_IS_ADDR_MC_NODELOCAL(p)) {
-		scopeid = ntohs(*(u_int16_t *)&sin6.sin6_addr.s6_addr[2]);
-		if (scopeid) {
-			sin6.sin6_scope_id = scopeid;
-			sin6.sin6_addr.s6_addr[2] = 0;
-			sin6.sin6_addr.s6_addr[3] = 0;
-		}
-	}
+	sin6.sin6_scope_id = scope_id;
 	if (getnameinfo((struct sockaddr *)&sin6, sin6.sin6_len,
 	    buf, sizeof(buf), NULL, 0, niflags) == 0) {
 		return (buf);
@@ -889,7 +879,7 @@ out_free:
 /*
  * Retrieve MLD per-group source filter mode and lists via sysctl.
  *
- * Note: The 128-bit IPv6 group addres needs to be segmented into
+ * Note: The 128-bit IPv6 group address needs to be segmented into
  * 32-bit pieces for marshaling to sysctl. So the MIB name ends
  * up looking like this:
  *  a.b.c.d.e.ifindex.g[0].g[1].g[2].g[3]
@@ -1116,7 +1106,8 @@ ifmcstat_getifmaddrs(void)
 #ifdef INET6
 			{
 				const char *p =
-				    inet6_n2a(&pifasa->sin6.sin6_addr);
+				    inet6_n2a(&pifasa->sin6.sin6_addr,
+					pifasa->sin6.sin6_scope_id);
 				strlcpy(addrbuf, p, sizeof(addrbuf));
 				break;
 			}
@@ -1137,7 +1128,14 @@ ifmcstat_getifmaddrs(void)
 				break;
 			}
 
-			fprintf(stdout, "\t%s %s\n", pafname, addrbuf);
+			fprintf(stdout, "\t%s %s", pafname, addrbuf);
+#ifdef INET6
+			if (pifasa->sa.sa_family == AF_INET6 &&
+			    pifasa->sin6.sin6_scope_id)
+				fprintf(stdout, " scopeid 0x%x",
+				    pifasa->sin6.sin6_scope_id);
+#endif
+			fprintf(stdout, "\n");
 #ifdef INET
 			/*
 			 * Print per-link IGMP information, if available.
@@ -1197,7 +1195,8 @@ next_ifnet:
 		/* Print this group address. */
 #ifdef INET6
 		if (pgsa->sa.sa_family == AF_INET6) {
-			const char *p = inet6_n2a(&pgsa->sin6.sin6_addr);
+			const char *p = inet6_n2a(&pgsa->sin6.sin6_addr,
+			    pgsa->sin6.sin6_scope_id);
 			strlcpy(addrbuf, p, sizeof(addrbuf));
 		} else
 #endif
@@ -1209,6 +1208,12 @@ next_ifnet:
 		}
 
 		fprintf(stdout, "\t\tgroup %s", addrbuf);
+#ifdef INET6
+		if (pgsa->sa.sa_family == AF_INET6 &&
+		    pgsa->sin6.sin6_scope_id)
+			fprintf(stdout, " scopeid 0x%x",
+			    pgsa->sin6.sin6_scope_id);
+#endif
 #ifdef INET
 		if (pgsa->sa.sa_family == AF_INET) {
 			inm_print_sources_sysctl(thisifindex,

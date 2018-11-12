@@ -1,5 +1,5 @@
 /* sb.c - string buffer manipulation routines
-   Copyright 1994, 1995, 2000 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 2000, 2003, 2006 Free Software Foundation, Inc.
 
    Written by Steve and Judy Chamberlain of Cygnus Support,
       sac@cygnus.com
@@ -18,20 +18,10 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
-#include "config.h"
-#include <stdio.h>
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-#ifdef HAVE_STRING_H
-#include <string.h>
-#else
-#include <strings.h>
-#endif
-#include "libiberty.h"
+#include "as.h"
 #include "sb.h"
 
 /* These routines are about manipulating strings.
@@ -46,37 +36,34 @@
    sb_new (&foo);
    sb_grow... (&foo,...);
    use foo->ptr[*];
-   sb_kill (&foo);
+   sb_kill (&foo);  */
 
-*/
-
-#define dsize 5
-
+static int dsize = 5;
 static void sb_check (sb *, int);
 
 /* Statistics of sb structures.  */
-
-int string_count[sb_max_power_two];
+static int string_count[sb_max_power_two];
 
 /* Free list of sb structures.  */
+static struct
+{
+  sb_element *size[sb_max_power_two];
+} free_list;
 
-static sb_list_vector free_list;
+/* Initializes an sb.  */
 
-/* initializes an sb.  */
-
-void
+static void
 sb_build (sb *ptr, int size)
 {
-  /* see if we can find one to allocate */
+  /* See if we can find one to allocate.  */
   sb_element *e;
 
-  if (size > sb_max_power_two)
-    abort ();
+  assert (size < sb_max_power_two);
 
   e = free_list.size[size];
   if (!e)
     {
-      /* nothing there, allocate one and stick into the free list */
+      /* Nothing there, allocate one and stick into the free list.  */
       e = (sb_element *) xmalloc (sizeof (sb_element) + (1 << size));
       e->next = free_list.size[size];
       e->size = 1 << size;
@@ -84,11 +71,10 @@ sb_build (sb *ptr, int size)
       string_count[size]++;
     }
 
-  /* remove from free list */
-
+  /* Remove from free list.  */
   free_list.size[size] = e->next;
 
-  /* copy into callers world */
+  /* Copy into callers world.  */
   ptr->ptr = e->data;
   ptr->pot = size;
   ptr->len = 0;
@@ -101,17 +87,17 @@ sb_new (sb *ptr)
   sb_build (ptr, dsize);
 }
 
-/* deallocate the sb at ptr */
+/* Deallocate the sb at ptr.  */
 
 void
 sb_kill (sb *ptr)
 {
-  /* return item to free list */
+  /* Return item to free list.  */
   ptr->item->next = free_list.size[ptr->pot];
   free_list.size[ptr->pot] = ptr->item;
 }
 
-/* add the sb at s to the end of the sb at ptr */
+/* Add the sb at s to the end of the sb at ptr.  */
 
 void
 sb_add_sb (sb *ptr, sb *s)
@@ -121,7 +107,39 @@ sb_add_sb (sb *ptr, sb *s)
   ptr->len += s->len;
 }
 
-/* make sure that the sb at ptr has room for another len characters,
+/* Helper for sb_scrub_and_add_sb.  */
+
+static sb *sb_to_scrub;
+static char *scrub_position;
+static int
+scrub_from_sb (char *buf, int buflen)
+{
+  int copy;
+  copy = sb_to_scrub->len - (scrub_position - sb_to_scrub->ptr);
+  if (copy > buflen)
+    copy = buflen;
+  memcpy (buf, scrub_position, copy);
+  scrub_position += copy;
+  return copy;
+}
+
+/* Run the sb at s through do_scrub_chars and add the result to the sb
+   at ptr.  */
+
+void
+sb_scrub_and_add_sb (sb *ptr, sb *s)
+{
+  sb_to_scrub = s;
+  scrub_position = s->ptr;
+  
+  sb_check (ptr, s->len);
+  ptr->len += do_scrub_chars (scrub_from_sb, ptr->ptr + ptr->len, s->len);
+
+  sb_to_scrub = 0;
+  scrub_position = 0;
+}
+
+/* Make sure that the sb at ptr has room for another len characters,
    and grow it if it doesn't.  */
 
 static void
@@ -131,6 +149,7 @@ sb_check (sb *ptr, int len)
     {
       sb tmp;
       int pot = ptr->pot;
+
       while (ptr->len + len >= 1 << pot)
 	pot++;
       sb_build (&tmp, pot);
@@ -140,7 +159,7 @@ sb_check (sb *ptr, int len)
     }
 }
 
-/* make the sb at ptr point back to the beginning.  */
+/* Make the sb at ptr point back to the beginning.  */
 
 void
 sb_reset (sb *ptr)
@@ -148,7 +167,7 @@ sb_reset (sb *ptr)
   ptr->len = 0;
 }
 
-/* add character c to the end of the sb at ptr.  */
+/* Add character c to the end of the sb at ptr.  */
 
 void
 sb_add_char (sb *ptr, int c)
@@ -157,7 +176,7 @@ sb_add_char (sb *ptr, int c)
   ptr->ptr[ptr->len++] = c;
 }
 
-/* add null terminated string s to the end of sb at ptr.  */
+/* Add null terminated string s to the end of sb at ptr.  */
 
 void
 sb_add_string (sb *ptr, const char *s)
@@ -168,7 +187,7 @@ sb_add_string (sb *ptr, const char *s)
   ptr->len += len;
 }
 
-/* add string at s of length len to sb at ptr */
+/* Add string at s of length len to sb at ptr */
 
 void
 sb_add_buffer (sb *ptr, const char *s, int len)
@@ -178,45 +197,7 @@ sb_add_buffer (sb *ptr, const char *s, int len)
   ptr->len += len;
 }
 
-/* print the sb at ptr to the output file */
-
-void
-sb_print (FILE *outfile, sb *ptr)
-{
-  int i;
-  int nc = 0;
-
-  for (i = 0; i < ptr->len; i++)
-    {
-      if (nc)
-	{
-	  fprintf (outfile, ",");
-	}
-      fprintf (outfile, "%d", ptr->ptr[i]);
-      nc = 1;
-    }
-}
-
-void
-sb_print_at (FILE *outfile, int idx, sb *ptr)
-{
-  int i;
-  for (i = idx; i < ptr->len; i++)
-    putc (ptr->ptr[i], outfile);
-}
-
-/* put a null at the end of the sb at in and return the start of the
-   string, so that it can be used as an arg to printf %s.  */
-
-char *
-sb_name (sb *in)
-{
-  /* stick a null on the end of the string */
-  sb_add_char (in, 0);
-  return in->ptr;
-}
-
-/* like sb_name, but don't include the null byte in the string.  */
+/* Like sb_name, but don't include the null byte in the string.  */
 
 char *
 sb_terminate (sb *in)
@@ -226,8 +207,8 @@ sb_terminate (sb *in)
   return in->ptr;
 }
 
-/* start at the index idx into the string in sb at ptr and skip
-   whitespace. return the index of the first non whitespace character */
+/* Start at the index idx into the string in sb at ptr and skip
+   whitespace. return the index of the first non whitespace character.  */
 
 int
 sb_skip_white (int idx, sb *ptr)
@@ -239,7 +220,7 @@ sb_skip_white (int idx, sb *ptr)
   return idx;
 }
 
-/* start at the index idx into the sb at ptr. skips whitespace,
+/* Start at the index idx into the sb at ptr. skips whitespace,
    a comma and any following whitespace. returns the index of the
    next character.  */
 

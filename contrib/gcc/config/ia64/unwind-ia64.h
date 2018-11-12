@@ -19,6 +19,13 @@
    the Free Software Foundation, 51 Franklin Street, Fifth Floor,
    Boston, MA 02110-1301, USA.  */
 
+#ifdef __FreeBSD__
+/* On FreeBSD, _Unwind_FindTableEntry is in libc, and must not be hidden here. */
+#define ATTRIBUTE_HIDDEN
+#else
+#define ATTRIBUTE_HIDDEN  __attribute__ ((__visibility__ ("hidden")))
+#endif
+
 struct unw_table_entry
 {
   unsigned long start_offset;
@@ -29,4 +36,4 @@ struct unw_table_entry
 extern struct unw_table_entry *
 _Unwind_FindTableEntry (void *pc, unsigned long *segment_base,
 			unsigned long *gp)
-			__attribute__ ((__visibility__ ("hidden")));
+			ATTRIBUTE_HIDDEN;

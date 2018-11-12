@@ -75,7 +75,6 @@ MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
 static struct sx memsxlock;
 SX_SYSINIT(memsxlockinit, &memsxlock, "/dev/mem lock");
 
-
 /* ARGSUSED */
 int
 memrw(struct cdev *dev, struct uio *uio, int flags)
@@ -86,10 +85,6 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	struct iovec *iov;
 	int error = 0;
 	vm_offset_t addr;
-
-	/* XXX UPS Why ? */
-	GIANT_REQUIRED;
-
 
 	if (dev2unit(dev) != CDEV_MINOR_MEM && dev2unit(dev) != CDEV_MINOR_KMEM)
 		return EIO;
@@ -163,8 +158,8 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
  */
 /* ARGSUSED */
 int
-memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
-    int prot __unused)
+memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot __unused, vm_memattr_t *memattr __unused)
 {
 	if (dev2unit(dev) == CDEV_MINOR_MEM)
 		*paddr = offset;
@@ -232,11 +227,4 @@ memioctl(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
 		break;
 	}
 	return (error);
-}
-
-void
-dev_mem_md_init(void)
-{
-	if (mem_range_softc.mr_op != NULL)
-		mem_range_softc.mr_op->init(&mem_range_softc);
 }

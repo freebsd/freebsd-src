@@ -2,6 +2,8 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 
+.include <src.opts.mk>
+
 CONTRIB=${.CURDIR}/../../../contrib/bsnmp
 .PATH: ${CONTRIB}/snmpd
 
@@ -11,11 +13,9 @@ SRCS+=	oid.h tree.c tree.h
 XSYM=	snmpMIB begemotSnmpdModuleTable begemotSnmpd begemotTrapSinkTable \
 	sysUpTime snmpTrapOID coldStart authenticationFailure \
 	begemotSnmpdTransUdp begemotSnmpdTransLsock begemotSnmpdLocalPortTable \
-	freeBSDVersion
+	freeBSD freeBSDVersion
 CLEANFILES= oid.h tree.c tree.h
 MAN=	bsnmpd.1 snmpmod.3
-WARNS?=	6
-NO_WERROR=
 
 FILESGROUPS= BMIBS DEFS
 
@@ -24,23 +24,31 @@ BMIBSDIR= ${SHAREDIR}/snmp/mibs
 DEFS=	tree.def
 DEFSDIR= ${SHAREDIR}/snmp/defs
 
+CFLAGS+= -DSNMPTREE_TYPES
 CFLAGS+= -I${CONTRIB}/lib -I${CONTRIB}/snmpd -I. -DUSE_LIBBEGEMOT
-CFLAGS+= -DUSE_TCPWRAPPERS -DQUADFMT='"llu"' -DQUADXFMT='"llx"'
+CFLAGS+= -DUSE_TCPWRAPPERS
 CFLAGS+= -DHAVE_STDINT_H -DHAVE_INTTYPES_H -DHAVE_ERR_H -DHAVE_STRLCPY
-DPADD=	${LIBBEGEMOT} ${LIBBSNMP} ${LIBWRAP}
-LDADD=	-lbegemot -lbsnmp -lwrap
+LIBADD=	begemot bsnmp wrap
 
-LDFLAGS= -export-dynamic
+LDFLAGS= -Wl,-export-dynamic
+
+.if ${MK_OPENSSL} != "no"
+CFLAGS+= -DHAVE_LIBCRYPTO
+.endif
 
 oid.h: tree.def Makefile
 	gensnmptree -e ${XSYM} < ${.ALLSRC:M*.def} > ${.TARGET}
 
 .ORDER: tree.c tree.h
+tree.h: .NOMETA
 tree.c tree.h: tree.def
 	gensnmptree -l < ${.ALLSRC}
 
 MANFILTER=	sed -e 's%@MODPATH@%${LIBDIR}/%g'		\
 		    -e 's%@DEFPATH@%${DEFSDIR}/%g'		\
 		    -e 's%@MIBSPATH@%${BMIBSDIR}/%g'
+
+NO_WCAST_ALIGN=	yes
+WARNS?=		6
 
 .include <bsd.prog.mk>

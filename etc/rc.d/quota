@@ -13,7 +13,9 @@
 . /etc/rc.subr
 
 name="quota"
-rcvar=`set_rcvar`
+desc="Enable/check the quotas"
+rcvar="quota_enable"
+load_rc_config $name
 start_cmd="quota_start"
 stop_cmd="/usr/sbin/quotaoff ${quotaoff_flags}"
 
@@ -30,5 +32,4 @@ quota_start()
 	echo ' done.'
 }
 
-load_rc_config $name
 run_rc_command "$1"

@@ -58,6 +58,7 @@ static struct isa_pnp_id ed_ids[] = {
 	{ 0x0131d805,	NULL },		/* ANX3101 */
 	{ 0x4cf48906,	NULL },		/* ATIf44c */
 	{ 0x01200507,	NULL },		/* AXE2001 */
+	{ 0x0115180e,	NULL },		/* CPX1501 */
 	{ 0x0090252a,	NULL },		/* JQE9000 */
 	{ 0x0020832e,	NULL },		/* KTC2000 */
 	{ 0xd680d041,	NULL },		/* PNP80d6 */
@@ -200,3 +201,6 @@ static driver_t ed_isa_driver = {
 DRIVER_MODULE(ed, isa, ed_isa_driver, ed_devclass, 0, 0);
 MODULE_DEPEND(ed, isa, 1, 1, 1);
 MODULE_DEPEND(ed, ether, 1, 1, 1);
+MODULE_PNP_INFO("E:pnpid;", isa, ed, ed_ids, sizeof(ed_ids[0]),
+    nitems(ed_ids) - 1);
+

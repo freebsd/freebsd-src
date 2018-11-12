@@ -115,7 +115,24 @@ struct mfiutil_command {
 	}								\
 	MFI_COMMAND(set, name, mfiutil_ ## name ## _table_handler)
 
+/* Drive name printing options */
+#define	MFI_DNAME_ES		0x0001	/* E%u:S%u */
+#define	MFI_DNAME_DEVICE_ID	0x0002	/* %u */
+#define	MFI_DNAME_HONOR_OPTS	0x8000	/* Allow cmd line to override default */
+
 extern int mfi_unit;
+
+extern u_int mfi_opts;
+
+/* We currently don't know the full details of the following struct */
+struct mfi_foreign_scan_cfg {
+        char data[24];
+};
+
+struct mfi_foreign_scan_info {
+        uint32_t count; /* Number of foreign configs found */
+        struct mfi_foreign_scan_cfg cfgs[8];
+};
 
 void	mbox_store_ldref(uint8_t *mbox, union mfi_ld_ref *ref);
 void	mbox_store_pdref(uint8_t *mbox, union mfi_pd_ref *ref);
@@ -129,11 +146,13 @@ const char *mfi_pd_inq_string(struct mfi_pd_info *info);
 const char *mfi_volume_name(int fd, uint8_t target_id);
 int	mfi_volume_busy(int fd, uint8_t target_id);
 int	mfi_config_read(int fd, struct mfi_config_data **configp);
+int	mfi_config_read_opcode(int fd, uint32_t opcode,
+    struct mfi_config_data **configp, uint8_t *mbox, size_t mboxlen);
 int	mfi_lookup_drive(int fd, char *drive, uint16_t *device_id);
 int	mfi_lookup_volume(int fd, const char *name, uint8_t *target_id);
 int	mfi_dcmd_command(int fd, uint32_t opcode, void *buf, size_t bufsize,
     uint8_t *mbox, size_t mboxlen, uint8_t *statusp);
-int	mfi_open(int unit);
+int	mfi_open(int unit, int acs);
 int	mfi_ctrl_get_info(int fd, struct mfi_ctrl_info *info, uint8_t *statusp);
 int	mfi_ld_get_info(int fd, uint8_t target_id, struct mfi_ld_info *info,
     uint8_t *statusp);
@@ -143,5 +162,22 @@ int	mfi_pd_get_info(int fd, uint16_t device_id, struct mfi_pd_info *info,
 int	mfi_pd_get_list(int fd, struct mfi_pd_list **listp, uint8_t *statusp);
 int	mfi_reconfig_supported(void);
 const char *mfi_status(u_int status_code);
+const char *mfi_drive_name(struct mfi_pd_info *pinfo, uint16_t device_id,
+    uint32_t def);
+void	format_stripe(char *buf, size_t buflen, uint8_t stripe);
+void	print_ld(struct mfi_ld_info *info, int state_len);
+void	print_pd(struct mfi_pd_info *info, int state_len);
+void	dump_config(int fd, struct mfi_config_data *config, const char *msg_prefix);
+int	mfi_bbu_get_props(int fd, struct mfi_bbu_properties *props,
+	    uint8_t *statusp);
+int	mfi_bbu_set_props(int fd, struct mfi_bbu_properties *props,
+	    uint8_t *statusp);
+void	mfi_autolearn_period(uint32_t, char *, size_t);
+void	mfi_next_learn_time(uint32_t, char *, size_t);
+void	mfi_autolearn_mode(uint8_t, char *, size_t);
 
+void	scan_firmware(struct mfi_info_component *comp);
+void	display_firmware(struct mfi_info_component *comp, const char *tag);
+
+int	display_format(int ac, char **av, int diagnostic, mfi_dcmd_t display_cmd);
 #endif /* !__MFIUTIL_H__ */

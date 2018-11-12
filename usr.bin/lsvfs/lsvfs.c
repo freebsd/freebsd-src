@@ -17,9 +17,24 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-#define FMT "%-32.32s %5d %s\n"
-#define HDRFMT "%-32.32s %5.5s %s\n"
-#define DASHES "-------------------------------- ----- ---------------\n"
+#define FMT	"%-32.32s 0x%08x %5d  %s\n"
+#define HDRFMT	"%-32.32s %10s %5.5s  %s\n"
+#define DASHES	"-------------------------------- "	\
+		"---------- -----  ---------------\n"
+
+static struct flaglist {
+	int		flag;
+	const char	str[32]; /* must be longer than the longest one. */
+} fl[] = {
+	{ .flag = VFCF_STATIC, .str = "static", },
+	{ .flag = VFCF_NETWORK, .str = "network", },
+	{ .flag = VFCF_READONLY, .str = "read-only", },
+	{ .flag = VFCF_SYNTHETIC, .str = "synthetic", },
+	{ .flag = VFCF_LOOPBACK, .str = "loopback", },
+	{ .flag = VFCF_UNICODE, .str = "unicode", },
+	{ .flag = VFCF_JAIL, .str = "jail", },
+	{ .flag = VFCF_DELEGADMIN, .str = "delegated-administration", },
+};
 
 static const char *fmt_flags(int);
 
@@ -31,13 +46,14 @@ main(int argc, char **argv)
   size_t buflen;
   argc--, argv++;
 
-  printf(HDRFMT, "Filesystem", "Refs", "Flags");
+  printf(HDRFMT, "Filesystem", "Num", "Refs", "Flags");
   fputs(DASHES, stdout);
 
   if(argc) {
     for(; argc; argc--, argv++) {
       if (getvfsbyname(*argv, &vfc) == 0) {
-        printf(FMT, vfc.vfc_name, vfc.vfc_refcount, fmt_flags(vfc.vfc_flags));
+        printf(FMT, vfc.vfc_name, vfc.vfc_typenum, vfc.vfc_refcount,
+	    fmt_flags(vfc.vfc_flags));
       } else {
 	warnx("VFS %s unknown or not loaded", *argv);
         rv++;
@@ -54,8 +70,8 @@ main(int argc, char **argv)
     cnt = buflen / sizeof(struct xvfsconf);
 
     for (i = 0; i < cnt; i++) {
-      printf(FMT, xvfsp[i].vfc_name, xvfsp[i].vfc_refcount,
-             fmt_flags(xvfsp[i].vfc_flags));
+      printf(FMT, xvfsp[i].vfc_name, xvfsp[i].vfc_typenum,
+	    xvfsp[i].vfc_refcount, fmt_flags(xvfsp[i].vfc_flags));
     }
     free(xvfsp);
   }
@@ -66,34 +82,16 @@ main(int argc, char **argv)
 static const char *
 fmt_flags(int flags)
 {
-  /*
-   * NB: if you add new flags, don't forget to add them here vvvvvv too.
-   */
-  static char buf[sizeof
-    "static, network, read-only, synthetic, loopback, unicode, jail"];
-  size_t len;
+	static char buf[sizeof(struct flaglist) * sizeof(fl)];
+	int i;
 
-  buf[0] = '\0';
-
-  if(flags & VFCF_STATIC)
-    strlcat(buf, "static, ", sizeof(buf));
-  if(flags & VFCF_NETWORK)
-    strlcat(buf, "network, ", sizeof(buf));
-  if(flags & VFCF_READONLY)
-    strlcat(buf, "read-only, ", sizeof(buf));
-  if(flags & VFCF_SYNTHETIC)
-    strlcat(buf, "synthetic, ", sizeof(buf));
-  if(flags & VFCF_LOOPBACK)
-    strlcat(buf, "loopback, ", sizeof(buf));
-  if(flags & VFCF_UNICODE)
-    strlcat(buf, "unicode, ", sizeof(buf));
-  if(flags & VFCF_JAIL)
-    strlcat(buf, "jail, ", sizeof(buf));
-  if(flags & VFCF_DELEGADMIN)
-    strlcat(buf, "delegated-administration, ", sizeof(buf));
-  len = strlen(buf);
-  if (len > 2 && buf[len - 2] == ',')
-    buf[len - 2] = '\0';
-
-  return buf;
+	buf[0] = '\0';
+	for (i = 0; i < (int)nitems(fl); i++)
+		if (flags & fl[i].flag) {
+			strlcat(buf, fl[i].str, sizeof(buf));
+			strlcat(buf, ", ", sizeof(buf));
+		}
+	if (buf[0] != '\0')
+		buf[strlen(buf) - 2] = '\0';
+	return (buf);
 }

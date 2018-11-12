@@ -22,134 +22,30 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #include <machine/asm.h>
-
-/*
- * We compile a 32-bit kernel to run on the SB-1 processor which is a 64-bit
- * processor. It has some registers that must be accessed using 64-bit load
- * and store instructions.
- *
- * So we have to resort to assembly because the compiler does not emit the
- * 'ld' and 'sd' instructions since it thinks that it is compiling for a
- * 32-bit mips processor.
- */
+#include <machine/cpuregs.h>
 
 .set	mips64
 .set	noat
 .set	noreorder
 
+#ifdef SMP
 /*
- * return (MIPS_PHYS_TO_KSEG1(0x10020008))
- * Parameters: none
- */
-LEAF(sb_read_syscfg)
-	lui     v0, 0xb002
-	ori     v0, v0, 0x8
-	ld      v1, 0(v0)	/* syscfg = MIPS_PHYS_TO_KSEG1(0x10020008) */
-	move	v0, v1
-	dsll32	v0, v0, 0
-	dsrl32	v0, v0, 0	/* v0 = lower_uint32(mask) */
-	jr	ra
-	dsrl32	v1, v1, 0	/* v1 = upper_uint32(mask) */
-END(sb_read_syscfg)
-
-/*
- * MIPS_PHYS_TO_KSEG1(0x10020008) = (uint64_t)val
- * Parameters:
- * - lower_uint32(val): a0
- * - upper_uint32(val): a1
- */
-LEAF(sb_write_syscfg)
-	lui     v0, 0xb002
-	ori     v0, v0, 0x8
-	dsll32	a1, a1, 0	/* clear lower 32 bits of a1 */
-	dsll32	a0, a0, 0
-	dsrl32	a0, a0, 0	/* clear upper 32 bits of a0 */
-	or	a1, a1, a0
-	sd	a1, 0(v0)	/* MIPS_PHYS_TO_KSEG1(0x10020008) = val */
-	jr	ra
-	nop
-	nop
-END(sb_write_syscfg)
-
-/*
- * MIPS_PHYS_TO_KSEG1(0x10020028) |= (1 << intsrc)
+ * This function must be implemented in assembly because it is called early
+ * in AP boot without a valid stack.
  *
- * Parameters:
- * - intsrc (a0)
+ * This cpu number is available in bits 25 to 27 of the coprocessor 0 PRID
+ * register. This is not documented in the BCM1250 user manual but can be
+ * gleaned from the CFE source code - see sb1250_altcpu.S
  */
-LEAF(sb_disable_intsrc)
-	lui     v0, 0xb002
-	ori     v0, v0, 0x28
-	ld      v1, 0(v0)	/* mask = MIPS_PHYS_TO_KSEG1(0x10020028) */
-	li      a1, 1
-	dsllv   a1, a1, a0
-	or      a1, a1, v1	/* mask |= (1 << intsrc) */
+LEAF(platform_processor_id)
+	mfc0	v0, MIPS_COP_0_PRID
+	srl	v0, v0, 25
 	jr	ra
-	sd      a1, 0(v0)	/* MIPS_PHYS_TO_KSEG1(0x10020028) = mask */
-END(sb_disable_intsrc)
-
-/*
- * MIPS_PHYS_TO_KSEG1(0x10020028) &= ~(1 << intsrc)
- *
- * Parameters:
- * - intsrc (a0)
- */
-LEAF(sb_enable_intsrc)
-	lui     v0, 0xb002
-	ori     v0, v0, 0x28
-	ld      v1, 0(v0)	/* mask = MIPS_PHYS_TO_KSEG1(0x10020028) */
-	li      a2, 1
-	dsllv   a2, a2, a0
-	nor     a2, zero, a2
-	and     a2, a2, v1	/* mask &= ~(1 << intsrc) */
-	sd      a2, 0(v0)	/* MIPS_PHYS_TO_KSEG1(0x10020028) = mask */
-	jr      ra
-	nop
-END(sb_enable_intsrc)
-
-/*
- * return ((uint64_t)MIPS_PHYS_TO_KSEG1(0x10020028))
- * Parameters: none
- */
-LEAF(sb_read_intsrc_mask)
-	lui     v0, 0xb002
-	ori     v0, v0, 0x28
-	ld      v1, 0(v0)	/* mask = MIPS_PHYS_TO_KSEG1(0x10020028) */
-	move	v0, v1
-	dsll32	v0, v0, 0
-	dsrl32	v0, v0, 0	/* v0 = lower_uint32(mask) */
-	jr	ra
-	dsrl32	v1, v1, 0	/* v1 = upper_uint32(mask) */
-END(sb_read_intsrc_mask)
-
-/*
- * return ((uint64_t *)MIPS_PHYS_TO_KSEG1(0x10020200) + intsrc)
- * Parameters:
- * - intsrc (a0)
- */
-LEAF(sb_read_intmap)
-	sll	a0, a0, 3	/* compute the offset of the intmap register */
-	lui     v0, 0xb002
-	addu    a0, a0, v0
-	ld      v0, 512(a0)	/* v0 = MIPS_PHYS_TO_KSEG1(0x10020200) + off */
-	jr      ra
-	nop
-END(sb_read_intmap)
-
-/*
- * (uint64_t *)MIPS_PHYS_TO_KSEG1(0x10020200) + intsrc = irq
- * Parameters:
- * - intsrc (a0)
- * - irq    (a1)
- */
-LEAF(sb_write_intmap)
-	sll     a0, a0, 0x3 /* compute the offset of the intmap register */
-	lui     v0, 0xb002
-	addu    a0, a0, v0
-	sd      a1, 512(a0) /* MIPS_PHYS_TO_KSEG1(0x10020200) + off = irq */
-	jr      ra
-	nop
-END(sb_write_intmap)
+	and	v0, v0, 7
+END(platform_processor_id)
+#endif	/* SMP */

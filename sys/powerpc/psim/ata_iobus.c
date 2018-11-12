@@ -23,14 +23,14 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * PSIM local bus ATA controller
  */
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -59,7 +59,8 @@ static  int  ata_iobus_attach(device_t dev);
 static  int  ata_iobus_probe(device_t dev);
 static  int  ata_iobus_print_child(device_t dev, device_t child);
 struct resource *ata_iobus_alloc_resource(device_t, device_t, int, int *,
-					  u_long, u_long, u_long, u_int);
+					  rman_res_t, rman_res_t, rman_res_t,
+					  u_int);
 static int ata_iobus_release_resource(device_t, device_t, int, int,
 				      struct resource *);
 
@@ -80,7 +81,7 @@ static device_method_t ata_iobus_methods[] = {
 	DEVMETHOD(bus_setup_intr,           bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,        bus_generic_teardown_intr),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ata_iobus_driver = {
@@ -91,7 +92,8 @@ static driver_t ata_iobus_driver = {
 
 static devclass_t ata_iobus_devclass;
 
-DRIVER_MODULE(ataiobus, iobus, ata_iobus_driver, ata_iobus_devclass, 0, 0);
+DRIVER_MODULE(ataiobus, iobus, ata_iobus_driver, ata_iobus_devclass, NULL,
+    NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
 
 static int
@@ -134,7 +136,8 @@ ata_iobus_print_child(device_t dev, device_t child)
 
 struct resource *
 ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
-			 u_long start, u_long end, u_long count, u_int flags)
+			 rman_res_t start, rman_res_t end, rman_res_t count,
+			 u_int flags)
 {
 	struct resource *res = NULL;
 	int myrid;
@@ -210,7 +213,7 @@ ata_iobus_release_resource(device_t dev, device_t child, int type, int rid,
  */
 
 static  int  ata_iobus_sub_probe(device_t dev);
-static  void ata_iobus_sub_setmode(device_t parent, device_t dev);
+static  int  ata_iobus_sub_setmode(device_t dev, int target, int mode);
 
 static device_method_t ata_iobus_sub_methods[] = {
 	/* Device interface */
@@ -221,7 +224,7 @@ static device_method_t ata_iobus_sub_methods[] = {
 
 	/* ATA interface */
 	DEVMETHOD(ata_setmode,	    ata_iobus_sub_setmode),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ata_iobus_sub_driver = {
@@ -230,7 +233,7 @@ static driver_t ata_iobus_sub_driver = {
 	sizeof(struct ata_channel),
 };
 
-DRIVER_MODULE(ata, ataiobus, ata_iobus_sub_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(ata, ataiobus, ata_iobus_sub_driver, ata_devclass, NULL, NULL);
 
 static int
 ata_iobus_sub_probe(device_t dev)
@@ -245,11 +248,9 @@ ata_iobus_sub_probe(device_t dev)
 	return ata_probe(dev);
 }
 
-static void
-ata_iobus_sub_setmode(device_t parent, device_t dev)
+static int
+ata_iobus_sub_setmode(device_t parent, int target, int mode)
 {
-	struct ata_device *atadev = device_get_softc(dev);
-
 	/* Only ever PIO mode here... */
-	atadev->mode = ATA_PIO;
+	return (ATA_PIO);
 }

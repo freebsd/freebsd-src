@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2007-2008 Dag-Erling Coïdan Smørgrav
+.\" Copyright (c) 2007-2008 Dag-Erling SmÃ¸rgrav
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 7, 2009
+.Dd December 12, 2015
 .Dt UNZIP 1
 .Os
 .Sh NAME
@@ -33,12 +33,11 @@
 .Nd extract files from a ZIP archive
 .Sh SYNOPSIS
 .Nm
-.Op Fl aCcfjLlnopqtuv
+.Op Fl aCcfjLlnopqtuvy
 .Op Fl d Ar dir
 .Ar zipfile
 .Sh DESCRIPTION
 .\" ...
-.Pp
 The following options are available:
 .Bl -tag -width Fl
 .It Fl a
@@ -51,7 +50,7 @@ Extract to stdout/screen.
 When extracting files from the zipfile, they are written to stdout.
 This is similar to
 .Fl p ,
-but doesn't suppress normal output.
+but does not suppress normal output.
 .It Fl d Ar dir
 Extract files into the specified directory rather than the current
 directory.
@@ -103,6 +102,18 @@ content of the archive.
 .It Fl x Ar pattern
 Exclude files matching the pattern
 .Ar pattern .
+.It Fl y
+Print four digit years in listings instead of two.
+.It Fl Z Ar mode
+Emulate
+.Xr zipinfo 1L
+mode.
+Enabling
+.Xr zipinfo 1L
+mode changes the way in which additional arguments are parsed.
+Currently only
+.Xr zipinfo 1L
+mode 1 is supported, which lists the file names one per line.
 .El
 .Pp
 Note that only one of
@@ -111,6 +122,10 @@ Note that only one of
 and
 .Fl u
 may be specified.
+If specified filename is
+.Qq - ,
+then data is read from
+.Va stdin .
 .Sh ENVIRONMENT
 If the
 .Ev UNZIP_DEBUG
@@ -139,8 +154,8 @@ option should only affect files which are marked as text files in the
 zipfile's central directory.
 Since the
 .Xr archive 3
-library reads zipfiles sequentially, and does not use the central
-directory, that information is not available to the
+library does not provide access to that information, it is not available
+to the
 .Nm
 utility.
 Instead, the
@@ -158,17 +173,6 @@ utility is only able to process ZIP archives handled by
 Depending on the installed version of
 .Xr libarchive ,
 this may or may not include self-extracting archives.
-.Sh BUGS
-The
-.Nm
-utility currently does not support asking the user whether to
-overwrite or skip a file that already exists on disk.
-To be on the safe side, it will fail if it encounters a file that
-already exists and neither the
-.Fl n
-nor the
-.Fl o
-command line option was specified.
 .Sh SEE ALSO
 .Xr libarchive 3
 .Sh HISTORY
@@ -180,8 +184,8 @@ utility appeared in
 The
 .Nm
 utility and this manual page were written by
-.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .
 It uses the
 .Xr archive 3
 library developed by
-.An Tim Kientzle Aq kientzle@FreeBSD.org .
+.An Tim Kientzle Aq Mt kientzle@FreeBSD.org .

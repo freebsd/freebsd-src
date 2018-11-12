@@ -69,12 +69,11 @@ MAN=	snmp_hostres.3
 DEFS=	${MOD}_tree.def
 BMIBS=	BEGEMOT-HOSTRES-MIB.txt
 
-DPADD=	${LIBKVM} ${LIBDEVINFO} ${LIBM} ${LIBGEOM} ${LIBMEMSTAT}
-LDADD=	-lkvm -ldevinfo -lm -lgeom -lmemstat
+LIBADD=	kvm devinfo m geom memstat
 
 .include <bsd.snmpmod.mk>
 
-printcap.So: printcap.c
+printcap.pico: printcap.c
 	${CC} ${PICFLAG} -DPIC ${CFLAGS:C/^-W.*//} -c ${.IMPSRC} -o ${.TARGET}
 
 smilint:

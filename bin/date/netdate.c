@@ -55,8 +55,6 @@ __FBSDID("$FreeBSD$");
 #define	WAITACK		2	/* seconds */
 #define	WAITDATEACK	5	/* seconds */
 
-extern int retval;
-
 /*
  * Set the date in the machines controlled by timedaemons by communicating the
  * new date to the local timedaemon.  If the timedaemon is in the master state,
@@ -87,7 +85,7 @@ netsettime(time_t tval)
 	dest.sin_addr.s_addr = htonl((u_long)INADDR_ANY);
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	if (s < 0) {
-		if (errno != EPROTONOSUPPORT)
+		if (errno != EAFNOSUPPORT)
 			warn("timed");
 		return (retval = 2);
 	}

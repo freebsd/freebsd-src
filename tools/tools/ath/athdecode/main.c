@@ -37,6 +37,8 @@
 #include "dumpregs.h"
 
 #include <stdlib.h>
+#include <string.h>
+#include <err.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -67,7 +69,7 @@ main(int argc, char *argv[])
 		filename = argv[1];
 	fd = open(filename, O_RDONLY);
 	if (fd < 0)
-		err(1, filename);
+		err(1, "open: %s", filename);
 	if (fstat(fd, &sb) < 0)
 		err(1, "fstat");
 	addr = mmap(0, sb.st_size, PROT_READ, MAP_PRIVATE|MAP_NOCORE, fd, 0);
@@ -125,13 +127,13 @@ opmark(FILE *fd, int i, const struct athregrec *r)
 			fprintf(fd, "ar%uReset (done), OK", state.chipnum);
 		break;
 	case AH_MARK_CHIPRESET:
-		fprintf(fd, "ar%uChipReset, channel %u Mhz", state.chipnum, r->val);
+		fprintf(fd, "ar%uChipReset, channel %u MHz", state.chipnum, r->val);
 		break;
 	case AH_MARK_PERCAL:
-		fprintf(fd, "ar%uPerCalibration, channel %u Mhz", state.chipnum, r->val);
+		fprintf(fd, "ar%uPerCalibration, channel %u MHz", state.chipnum, r->val);
 		break;
 	case AH_MARK_SETCHANNEL:
-		fprintf(fd, "ar%uSetChannel, channel %u Mhz", state.chipnum, r->val);
+		fprintf(fd, "ar%uSetChannel, channel %u MHz", state.chipnum, r->val);
 		break;
 	case AH_MARK_ANI_RESET:
 		switch (r->val) {
@@ -190,6 +192,7 @@ opmark(FILE *fd, int i, const struct athregrec *r)
 		fprintf(fd, "mark #%u value %u/0x%x", r->reg, r->val, r->val);
 		break;
 	}
+	return (NULL);
 }
 
 #include "ah_devid.h"
@@ -257,6 +260,9 @@ opdevice(const struct athregrec *r)
 	case AR9280_DEVID_PCI:
 	case AR9280_DEVID_PCIE:
 	case AR9285_DEVID_PCIE:
+	case AR9287_DEVID_PCI:
+	case AR9287_DEVID_PCIE:
+	case AR9300_DEVID_AR9330:
 		state.chipnum = 5416;
 		state.revs.ah_macVersion = 13;
 		state.revs.ah_macRev = 8;
@@ -300,8 +306,8 @@ register_regs(struct dumpreg *chipregs, u_int nchipregs,
 			 */
 			if (nr->addr == r->addr &&
 			    (nr->name == r->name ||
-			     nr->name != NULL && r->name != NULL &&
-			     strcmp(nr->name, r->name) == 0)) {
+			     (nr->name != NULL && r->name != NULL &&
+			     strcmp(nr->name, r->name) == 0))) {
 				if (nr->srevMin < r->srevMin &&
 				    (r->srevMin <= nr->srevMax &&
 				     nr->srevMax+1 <= r->srevMax)) {
@@ -373,7 +379,7 @@ oprw(FILE *fd, int recnum, struct athregrec *r)
 	const char* bits;
 	int i;
 
-	fprintf(fd, "\n%05d: ", recnum);
+	fprintf(fd, "\n%05d: [%d] ", recnum, r->threadid);
 	dr = findreg(r->reg);
 	if (dr != NULL && dr->name != NULL) {
 		snprintf(buf, sizeof (buf), "AR_%s (0x%x)", dr->name, r->reg);

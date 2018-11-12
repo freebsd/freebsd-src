@@ -35,9 +35,11 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/fcntl.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -65,17 +67,21 @@ struct pci_vendor_info
     char				*desc;
 };
 
-TAILQ_HEAD(,pci_vendor_info)	pci_vendors;
+static TAILQ_HEAD(,pci_vendor_info)	pci_vendors;
 
+static struct pcisel getsel(const char *str);
+static void list_bridge(int fd, struct pci_conf *p);
 static void list_bars(int fd, struct pci_conf *p);
-static void list_devs(int verbose, int bars, int caps);
+static void list_devs(const char *name, int verbose, int bars, int bridge,
+    int caps, int errors, int vpd);
 static void list_verbose(struct pci_conf *p);
+static void list_vpd(int fd, struct pci_conf *p);
 static const char *guess_class(struct pci_conf *p);
 static const char *guess_subclass(struct pci_conf *p);
 static int load_vendors(void);
 static void readit(const char *, const char *, int);
 static void writeit(const char *, const char *, const char *, int);
-static void chkattached(const char *, int);
+static void chkattached(const char *);
 
 static int exitstatus = 0;
 
@@ -83,10 +89,10 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: pciconf -l [-bcv]",
-		"       pciconf -a selector",
-		"       pciconf -r [-b | -h] selector addr[:addr2]",
-		"       pciconf -w [-b | -h] selector addr value");
+		"usage: pciconf -l [-BbcevV] [device]",
+		"       pciconf -a device",
+		"       pciconf -r [-b | -h] device addr[:addr2]",
+		"       pciconf -w [-b | -h] device addr value");
 	exit (1);
 }
 
@@ -94,15 +100,21 @@ int
 main(int argc, char **argv)
 {
 	int c;
-	int listmode, readmode, writemode, attachedmode, bars, caps, verbose;
+	int listmode, readmode, writemode, attachedmode;
+	int bars, bridge, caps, errors, verbose, vpd;
 	int byte, isshort;
 
-	listmode = readmode = writemode = attachedmode = bars = caps = verbose = byte = isshort = 0;
+	listmode = readmode = writemode = attachedmode = 0;
+	bars = bridge = caps = errors = verbose = vpd = byte = isshort = 0;
 
-	while ((c = getopt(argc, argv, "abchlrwv")) != -1) {
+	while ((c = getopt(argc, argv, "aBbcehlrwVv")) != -1) {
 		switch(c) {
 		case 'a':
 			attachedmode = 1;
+			break;
+
+		case 'B':
+			bridge = 1;
 			break;
 
 		case 'b':
@@ -112,6 +124,10 @@ main(int argc, char **argv)
 
 		case 'c':
 			caps = 1;
+			break;
+
+		case 'e':
+			errors = 1;
 			break;
 
 		case 'h':
@@ -134,22 +150,26 @@ main(int argc, char **argv)
 			verbose = 1;
 			break;
 
+		case 'V':
+			vpd = 1;
+			break;
+
 		default:
 			usage();
 		}
 	}
 
-	if ((listmode && optind != argc)
+	if ((listmode && optind >= argc + 1)
 	    || (writemode && optind + 3 != argc)
 	    || (readmode && optind + 2 != argc)
 	    || (attachedmode && optind + 1 != argc))
 		usage();
 
 	if (listmode) {
-		list_devs(verbose, bars, caps);
+		list_devs(optind + 1 == argc ? argv[optind] : NULL, verbose,
+		    bars, bridge, caps, errors, vpd);
 	} else if (attachedmode) {
-		chkattached(argv[optind],
-		    byte ? 1 : isshort ? 2 : 4);
+		chkattached(argv[optind]);
 	} else if (readmode) {
 		readit(argv[optind], argv[optind + 1],
 		    byte ? 1 : isshort ? 2 : 4);
@@ -164,23 +184,36 @@ main(int argc, char **argv)
 }
 
 static void
-list_devs(int verbose, int bars, int caps)
+list_devs(const char *name, int verbose, int bars, int bridge, int caps,
+    int errors, int vpd)
 {
 	int fd;
 	struct pci_conf_io pc;
 	struct pci_conf conf[255], *p;
+	struct pci_match_conf patterns[1];
 	int none_count = 0;
 
 	if (verbose)
 		load_vendors();
 
-	fd = open(_PATH_DEVPCI, caps ? O_RDWR : O_RDONLY, 0);
+	fd = open(_PATH_DEVPCI, (bridge || caps || errors) ? O_RDWR : O_RDONLY,
+	    0);
 	if (fd < 0)
 		err(1, "%s", _PATH_DEVPCI);
 
 	bzero(&pc, sizeof(struct pci_conf_io));
 	pc.match_buf_len = sizeof(conf);
 	pc.matches = conf;
+	if (name != NULL) {
+		bzero(&patterns, sizeof(patterns));
+		patterns[0].pc_sel = getsel(name);
+		patterns[0].flags = PCI_GETCONF_MATCH_DOMAIN |
+		    PCI_GETCONF_MATCH_BUS | PCI_GETCONF_MATCH_DEV |
+		    PCI_GETCONF_MATCH_FUNC;
+		pc.num_patterns = 1;
+		pc.pat_buf_len = sizeof(patterns);
+		pc.patterns = patterns;
+	}
 
 	do {
 		if (ioctl(fd, PCIOCGETCONF, &pc) == -1)
@@ -189,10 +222,10 @@ list_devs(int verbose, int bars, int caps)
 		/*
 		 * 255 entries should be more than enough for most people,
 		 * but if someone has more devices, and then changes things
-		 * around between ioctls, we'll do the cheezy thing and
+		 * around between ioctls, we'll do the cheesy thing and
 		 * just bail.  The alternative would be to go back to the
 		 * beginning of the list, and print things twice, which may
-		 * not be desireable.
+		 * not be desirable.
 		 */
 		if (pc.status == PCI_GETCONF_LIST_CHANGED) {
 			warnx("PCI device list changed, please try again");
@@ -208,9 +241,9 @@ list_devs(int verbose, int bars, int caps)
 		for (p = conf; p < &conf[pc.num_matches]; p++) {
 			printf("%s%d@pci%d:%d:%d:%d:\tclass=0x%06x card=0x%08x "
 			    "chip=0x%08x rev=0x%02x hdr=0x%02x\n",
-			    (p->pd_name && *p->pd_name) ? p->pd_name :
+			    *p->pd_name ? p->pd_name :
 			    "none",
-			    (p->pd_name && *p->pd_name) ? (int)p->pd_unit :
+			    *p->pd_name ? (int)p->pd_unit :
 			    none_count++, p->pc_sel.pc_domain,
 			    p->pc_sel.pc_bus, p->pc_sel.pc_dev,
 			    p->pc_sel.pc_func, (p->pc_class << 16) |
@@ -222,8 +255,14 @@ list_devs(int verbose, int bars, int caps)
 				list_verbose(p);
 			if (bars)
 				list_bars(fd, p);
+			if (bridge)
+				list_bridge(fd, p);
 			if (caps)
 				list_caps(fd, p);
+			if (errors)
+				list_errors(fd, p);
+			if (vpd)
+				list_vpd(fd, p);
 		}
 	} while (pc.status == PCI_GETCONF_MORE_DEVS);
 
@@ -231,12 +270,192 @@ list_devs(int verbose, int bars, int caps)
 }
 
 static void
+print_bus_range(int fd, struct pci_conf *p, int secreg, int subreg)
+{
+	uint8_t secbus, subbus;
+
+	secbus = read_config(fd, &p->pc_sel, secreg, 1);
+	subbus = read_config(fd, &p->pc_sel, subreg, 1);
+	printf("    bus range  = %u-%u\n", secbus, subbus);
+}
+
+static void
+print_window(int reg, const char *type, int range, uint64_t base,
+    uint64_t limit)
+{
+
+	printf("    window[%02x] = type %s, range %2d, addr %#jx-%#jx, %s\n",
+	    reg, type, range, (uintmax_t)base, (uintmax_t)limit,
+	    base < limit ? "enabled" : "disabled");
+}
+
+static void
+print_special_decode(bool isa, bool vga, bool subtractive)
+{
+	bool comma;
+
+	if (isa || vga || subtractive) {
+		comma = false;
+		printf("    decode     = ");
+		if (isa) {
+			printf("ISA");
+			comma = true;
+		}
+		if (vga) {
+			printf("%sVGA", comma ? ", " : "");
+			comma = true;
+		}
+		if (subtractive)
+			printf("%ssubtractive", comma ? ", " : "");
+		printf("\n");
+	}
+}
+
+static void
+print_bridge_windows(int fd, struct pci_conf *p)
+{
+	uint64_t base, limit;
+	uint32_t val;
+	uint16_t bctl;
+	bool subtractive;
+	int range;
+
+	/*
+	 * XXX: This assumes that a window with a base and limit of 0
+	 * is not implemented.  In theory a window might be programmed
+	 * at the smallest size with a base of 0, but those do not seem
+	 * common in practice.
+	 */
+	val = read_config(fd, &p->pc_sel, PCIR_IOBASEL_1, 1);
+	if (val != 0 || read_config(fd, &p->pc_sel, PCIR_IOLIMITL_1, 1) != 0) {
+		if ((val & PCIM_BRIO_MASK) == PCIM_BRIO_32) {
+			base = PCI_PPBIOBASE(
+			    read_config(fd, &p->pc_sel, PCIR_IOBASEH_1, 2),
+			    val);
+			limit = PCI_PPBIOLIMIT(
+			    read_config(fd, &p->pc_sel, PCIR_IOLIMITH_1, 2),
+			    read_config(fd, &p->pc_sel, PCIR_IOLIMITL_1, 1));
+			range = 32;
+		} else {
+			base = PCI_PPBIOBASE(0, val);
+			limit = PCI_PPBIOLIMIT(0,
+			    read_config(fd, &p->pc_sel, PCIR_IOLIMITL_1, 1));
+			range = 16;
+		}
+		print_window(PCIR_IOBASEL_1, "I/O Port", range, base, limit);
+	}
+
+	base = PCI_PPBMEMBASE(0,
+	    read_config(fd, &p->pc_sel, PCIR_MEMBASE_1, 2));
+	limit = PCI_PPBMEMLIMIT(0,
+	    read_config(fd, &p->pc_sel, PCIR_MEMLIMIT_1, 2));
+	print_window(PCIR_MEMBASE_1, "Memory", 32, base, limit);
+
+	val = read_config(fd, &p->pc_sel, PCIR_PMBASEL_1, 2);
+	if (val != 0 || read_config(fd, &p->pc_sel, PCIR_PMLIMITL_1, 2) != 0) {
+		if ((val & PCIM_BRPM_MASK) == PCIM_BRPM_64) {
+			base = PCI_PPBMEMBASE(
+			    read_config(fd, &p->pc_sel, PCIR_PMBASEH_1, 4),
+			    val);
+			limit = PCI_PPBMEMLIMIT(
+			    read_config(fd, &p->pc_sel, PCIR_PMLIMITH_1, 4),
+			    read_config(fd, &p->pc_sel, PCIR_PMLIMITL_1, 2));
+			range = 64;
+		} else {
+			base = PCI_PPBMEMBASE(0, val);
+			limit = PCI_PPBMEMLIMIT(0,
+			    read_config(fd, &p->pc_sel, PCIR_PMLIMITL_1, 2));
+			range = 32;
+		}
+		print_window(PCIR_PMBASEL_1, "Prefetchable Memory", range, base,
+		    limit);
+	}
+
+	/*
+	 * XXX: This list of bridges that are subtractive but do not set
+	 * progif to indicate it is copied from pci_pci.c.
+	 */
+	subtractive = p->pc_progif == PCIP_BRIDGE_PCI_SUBTRACTIVE;
+	switch (p->pc_device << 16 | p->pc_vendor) {
+	case 0xa002177d:		/* Cavium ThunderX */
+	case 0x124b8086:		/* Intel 82380FB Mobile */
+	case 0x060513d7:		/* Toshiba ???? */
+		subtractive = true;
+	}
+	if (p->pc_vendor == 0x8086 && (p->pc_device & 0xff00) == 0x2400)
+		subtractive = true;
+		
+	bctl = read_config(fd, &p->pc_sel, PCIR_BRIDGECTL_1, 2);
+	print_special_decode(bctl & PCIB_BCR_ISA_ENABLE,
+	    bctl & PCIB_BCR_VGA_ENABLE, subtractive);
+}
+
+static void
+print_cardbus_mem_window(int fd, struct pci_conf *p, int basereg, int limitreg,
+    bool prefetch)
+{
+
+	print_window(basereg, prefetch ? "Prefetchable Memory" : "Memory", 32,
+	    PCI_CBBMEMBASE(read_config(fd, &p->pc_sel, basereg, 4)),
+	    PCI_CBBMEMLIMIT(read_config(fd, &p->pc_sel, limitreg, 4)));
+}
+
+static void
+print_cardbus_io_window(int fd, struct pci_conf *p, int basereg, int limitreg)
+{
+	uint32_t base, limit;
+	uint32_t val;
+	int range;
+
+	val = read_config(fd, &p->pc_sel, basereg, 2);
+	if ((val & PCIM_CBBIO_MASK) == PCIM_CBBIO_32) {
+		base = PCI_CBBIOBASE(read_config(fd, &p->pc_sel, basereg, 4));
+		limit = PCI_CBBIOBASE(read_config(fd, &p->pc_sel, limitreg, 4));
+		range = 32;
+	} else {
+		base = PCI_CBBIOBASE(val);
+		limit = PCI_CBBIOBASE(read_config(fd, &p->pc_sel, limitreg, 2));
+		range = 16;
+	}
+	print_window(basereg, "I/O Port", range, base, limit);
+}
+
+static void
+print_cardbus_windows(int fd, struct pci_conf *p)
+{
+	uint16_t bctl;
+
+	bctl = read_config(fd, &p->pc_sel, PCIR_BRIDGECTL_2, 2);
+	print_cardbus_mem_window(fd, p, PCIR_MEMBASE0_2, PCIR_MEMLIMIT0_2,
+	    bctl & CBB_BCR_PREFETCH_0_ENABLE);
+	print_cardbus_mem_window(fd, p, PCIR_MEMBASE1_2, PCIR_MEMLIMIT1_2,
+	    bctl & CBB_BCR_PREFETCH_1_ENABLE);
+	print_cardbus_io_window(fd, p, PCIR_IOBASE0_2, PCIR_IOLIMIT0_2);
+	print_cardbus_io_window(fd, p, PCIR_IOBASE1_2, PCIR_IOLIMIT1_2);
+	print_special_decode(bctl & CBB_BCR_ISA_ENABLE,
+	    bctl & CBB_BCR_VGA_ENABLE, false);
+}
+
+static void
+list_bridge(int fd, struct pci_conf *p)
+{
+
+	switch (p->pc_hdr & PCIM_HDRTYPE) {
+	case PCIM_HDRTYPE_BRIDGE:
+		print_bus_range(fd, p, PCIR_SECBUS_1, PCIR_SUBBUS_1);
+		print_bridge_windows(fd, p);
+		break;
+	case PCIM_HDRTYPE_CARDBUS:
+		print_bus_range(fd, p, PCIR_SECBUS_2, PCIR_SUBBUS_2);
+		print_cardbus_windows(fd, p);
+		break;
+	}
+}
+
+static void
 list_bars(int fd, struct pci_conf *p)
 {
-	struct pci_bar_io bar;
-	uint64_t base;
-	const char *type;
-	int i, range, max;
+	int i, max;
 
 	switch (p->pc_hdr & PCIM_HDRTYPE) {
 	case PCIM_HDRTYPE_NORMAL:
@@ -252,40 +471,50 @@ list_bars(int fd, struct pci_conf *p)
 		return;
 	}
 
-	for (i = 0; i <= max; i++) {
-		bar.pbi_sel = p->pc_sel;
-		bar.pbi_reg = PCIR_BAR(i);
-		if (ioctl(fd, PCIOCGETBAR, &bar) < 0)
-			continue;
-		if (PCI_BAR_IO(bar.pbi_base)) {
-			type = "I/O Port";
+	for (i = 0; i <= max; i++)
+		print_bar(fd, p, "bar   ", PCIR_BAR(i));
+}
+
+void
+print_bar(int fd, struct pci_conf *p, const char *label, uint16_t bar_offset)
+{
+	uint64_t base;
+	const char *type;
+	struct pci_bar_io bar;
+	int range;
+
+	bar.pbi_sel = p->pc_sel;
+	bar.pbi_reg = bar_offset;
+	if (ioctl(fd, PCIOCGETBAR, &bar) < 0)
+		return;
+	if (PCI_BAR_IO(bar.pbi_base)) {
+		type = "I/O Port";
+		range = 32;
+		base = bar.pbi_base & PCIM_BAR_IO_BASE;
+	} else {
+		if (bar.pbi_base & PCIM_BAR_MEM_PREFETCH)
+			type = "Prefetchable Memory";
+		else
+			type = "Memory";
+		switch (bar.pbi_base & PCIM_BAR_MEM_TYPE) {
+		case PCIM_BAR_MEM_32:
 			range = 32;
-			base = bar.pbi_base & PCIM_BAR_IO_BASE;
-		} else {
-			if (bar.pbi_base & PCIM_BAR_MEM_PREFETCH)
-				type = "Prefetchable Memory";
-			else
-				type = "Memory";
-			switch (bar.pbi_base & PCIM_BAR_MEM_TYPE) {
-			case PCIM_BAR_MEM_32:
-				range = 32;
-				break;
-			case PCIM_BAR_MEM_1MB:
-				range = 20;
-				break;
-			case PCIM_BAR_MEM_64:
-				range = 64;
-				break;
-			default:
-				range = -1;
-			}
-			base = bar.pbi_base & ~((uint64_t)0xf);
+			break;
+		case PCIM_BAR_MEM_1MB:
+			range = 20;
+			break;
+		case PCIM_BAR_MEM_64:
+			range = 64;
+			break;
+		default:
+			range = -1;
 		}
-		printf("    bar   [%02x] = type %s, range %2d, base %#jx, ",
-		    PCIR_BAR(i), type, range, (uintmax_t)base);
-		printf("size %2d, %s\n", (int)bar.pbi_length,
-		    bar.pbi_enabled ? "enabled" : "disabled");
+		base = bar.pbi_base & ~((uint64_t)0xf);
 	}
+	printf("    %s[%02x] = type %s, range %2d, base %#jx, ",
+	    label, bar_offset, type, range, (uintmax_t)base);
+	printf("size %ju, %s\n", (uintmax_t)bar.pbi_length,
+	    bar.pbi_enabled ? "enabled" : "disabled");
 }
 
 static void
@@ -317,6 +546,63 @@ list_verbose(struct pci_conf *p)
 		printf("    subclass   = %s\n", dp);
 }
 
+static void
+list_vpd(int fd, struct pci_conf *p)
+{
+	struct pci_list_vpd_io list;
+	struct pci_vpd_element *vpd, *end;
+
+	list.plvi_sel = p->pc_sel;
+	list.plvi_len = 0;
+	list.plvi_data = NULL;
+	if (ioctl(fd, PCIOCLISTVPD, &list) < 0 || list.plvi_len == 0)
+		return;
+
+	list.plvi_data = malloc(list.plvi_len);
+	if (ioctl(fd, PCIOCLISTVPD, &list) < 0) {
+		free(list.plvi_data);
+		return;
+	}
+
+	vpd = list.plvi_data;
+	end = (struct pci_vpd_element *)((char *)vpd + list.plvi_len);
+	for (; vpd < end; vpd = PVE_NEXT(vpd)) {
+		if (vpd->pve_flags == PVE_FLAG_IDENT) {
+			printf("    VPD ident  = '%.*s'\n",
+			    (int)vpd->pve_datalen, vpd->pve_data);
+			continue;
+		}
+
+		/* Ignore the checksum keyword. */
+		if (!(vpd->pve_flags & PVE_FLAG_RW) &&
+		    memcmp(vpd->pve_keyword, "RV", 2) == 0)
+			continue;
+
+		/* Ignore remaining read-write space. */
+		if (vpd->pve_flags & PVE_FLAG_RW &&
+		    memcmp(vpd->pve_keyword, "RW", 2) == 0)
+			continue;
+
+		/* Handle extended capability keyword. */
+		if (!(vpd->pve_flags & PVE_FLAG_RW) &&
+		    memcmp(vpd->pve_keyword, "CP", 2) == 0) {
+			printf("    VPD ro CP  = ID %02x in map 0x%x[0x%x]\n",
+			    (unsigned int)vpd->pve_data[0],
+			    PCIR_BAR((unsigned int)vpd->pve_data[1]),
+			    (unsigned int)vpd->pve_data[3] << 8 |
+			    (unsigned int)vpd->pve_data[2]);
+			continue;
+		}
+
+		/* Remaining keywords should all have ASCII values. */
+		printf("    VPD %s %c%c  = '%.*s'\n",
+		    vpd->pve_flags & PVE_FLAG_RW ? "rw" : "ro",
+		    vpd->pve_keyword[0], vpd->pve_keyword[1],
+		    (int)vpd->pve_datalen, vpd->pve_data);
+	}
+	free(list.plvi_data);
+}
+
 /*
  * This is a direct cut-and-paste from the table in sys/dev/pci/pci.c.
  */
@@ -338,6 +624,7 @@ static struct
 	{PCIC_STORAGE,		PCIS_STORAGE_ATA_ADMA,	"ATA (ADMA)"},
 	{PCIC_STORAGE,		PCIS_STORAGE_SATA,	"SATA"},
 	{PCIC_STORAGE,		PCIS_STORAGE_SAS,	"SAS"},
+	{PCIC_STORAGE,		PCIS_STORAGE_NVM,	"NVM"},
 	{PCIC_NETWORK,		-1,			"network"},
 	{PCIC_NETWORK,		PCIS_NETWORK_ETHERNET,	"ethernet"},
 	{PCIC_NETWORK,		PCIS_NETWORK_TOKENRING,	"token ring"},
@@ -378,6 +665,7 @@ static struct
 	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_RTC,	"realtime clock"},
 	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_PCIHOT,	"PCI hot-plug controller"},
 	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_SDHC,	"SD host controller"},
+	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_IOMMU,	"IOMMU"},
 	{PCIC_INPUTDEV,		-1,			"input device"},
 	{PCIC_INPUTDEV,		PCIS_INPUTDEV_KEYBOARD,	"keyboard"},
 	{PCIC_INPUTDEV,		PCIS_INPUTDEV_DIGITIZER,"digitizer"},
@@ -453,9 +741,12 @@ load_vendors(void)
 	 */
 	TAILQ_INIT(&pci_vendors);
 	if ((dbf = getenv("PCICONF_VENDOR_DATABASE")) == NULL)
+		dbf = _PATH_LPCIVDB;
+	if ((db = fopen(dbf, "r")) == NULL) {
 		dbf = _PATH_PCIVDB;
-	if ((db = fopen(dbf, "r")) == NULL)
-		return(1);
+		if ((db = fopen(dbf, "r")) == NULL)
+			return(1);
+	}
 	cv = NULL;
 	cd = NULL;
 	error = 0;
@@ -549,42 +840,109 @@ read_config(int fd, struct pcisel *sel, long reg, int width)
 }
 
 static struct pcisel
-getsel(const char *str)
+getdevice(const char *name)
 {
-	char *ep = strchr(str, '@');
-	char *epbase;
+	struct pci_conf_io pc;
+	struct pci_conf conf[1];
+	struct pci_match_conf patterns[1];
+	char *cp;
+	int fd;	
+
+	fd = open(_PATH_DEVPCI, O_RDONLY, 0);
+	if (fd < 0)
+		err(1, "%s", _PATH_DEVPCI);
+
+	bzero(&pc, sizeof(struct pci_conf_io));
+	pc.match_buf_len = sizeof(conf);
+	pc.matches = conf;
+
+	bzero(&patterns, sizeof(patterns));
+
+	/*
+	 * The pattern structure requires the unit to be split out from
+	 * the driver name.  Walk backwards from the end of the name to
+	 * find the start of the unit.
+	 */
+	if (name[0] == '\0')
+		errx(1, "Empty device name");
+	cp = strchr(name, '\0');
+	assert(cp != NULL && cp != name);
+	cp--;
+	while (cp != name && isdigit(cp[-1]))
+		cp--;
+	if (cp == name || !isdigit(*cp))
+		errx(1, "Invalid device name");
+	if ((size_t)(cp - name) + 1 > sizeof(patterns[0].pd_name))
+		errx(1, "Device name is too long");
+	memcpy(patterns[0].pd_name, name, cp - name);
+	patterns[0].pd_unit = strtol(cp, &cp, 10);
+	assert(*cp == '\0');
+	patterns[0].flags = PCI_GETCONF_MATCH_NAME | PCI_GETCONF_MATCH_UNIT;
+	pc.num_patterns = 1;
+	pc.pat_buf_len = sizeof(patterns);
+	pc.patterns = patterns;
+
+	if (ioctl(fd, PCIOCGETCONF, &pc) == -1)
+		err(1, "ioctl(PCIOCGETCONF)");
+	if (pc.status != PCI_GETCONF_LAST_DEVICE &&
+	    pc.status != PCI_GETCONF_MORE_DEVS)
+		errx(1, "error returned from PCIOCGETCONF ioctl");
+	close(fd);
+	if (pc.num_matches == 0)
+		errx(1, "Device not found");
+	return (conf[0].pc_sel);
+}
+
+static struct pcisel
+parsesel(const char *str)
+{
+	const char *ep;
+	char *eppos;
 	struct pcisel sel;
 	unsigned long selarr[4];
 	int i;
 
-	if (ep == NULL)
-		ep = (char *)str;
-	else
+	ep = strchr(str, '@');
+	if (ep != NULL)
 		ep++;
-
-	epbase = ep;
+	else
+		ep = str;
 
 	if (strncmp(ep, "pci", 3) == 0) {
 		ep += 3;
 		i = 0;
-		do {
-			selarr[i++] = strtoul(ep, &ep, 10);
-		} while ((*ep == ':' || *ep == '.') && *++ep != '\0' && i < 4);
-
-		if (i > 2)
-			sel.pc_func = selarr[--i];
-		else
-			sel.pc_func = 0;
-		sel.pc_dev = selarr[--i];
-		sel.pc_bus = selarr[--i];
-		if (i > 0)
-			sel.pc_domain = selarr[--i];
-		else
-			sel.pc_domain = 0;
+		while (isdigit(*ep) && i < 4) {
+			selarr[i++] = strtoul(ep, &eppos, 10);
+			ep = eppos;
+			if (*ep == ':') {
+				ep++;
+				if (*ep  == '\0')
+					i = 0;
+			}
+		}
+		if (i > 0 && *ep == '\0') {
+			sel.pc_func = (i > 2) ? selarr[--i] : 0;
+			sel.pc_dev = (i > 0) ? selarr[--i] : 0;
+			sel.pc_bus = (i > 0) ? selarr[--i] : 0;
+			sel.pc_domain = (i > 0) ? selarr[--i] : 0;
+			return (sel);
+		}
 	}
-	if (*ep != '\x0' || ep == epbase)
-		errx(1, "cannot parse selector %s", str);
-	return sel;
+	errx(1, "cannot parse selector %s", str);
+}
+
+static struct pcisel
+getsel(const char *str)
+{
+
+	/*
+	 * No device names contain colons and selectors always contain
+	 * at least one colon.
+	 */
+	if (strchr(str, ':') == NULL)
+		return (getdevice(str));
+	else
+		return (parsesel(str));
 }
 
 static void
@@ -646,15 +1004,12 @@ writeit(const char *name, const char *reg, const char *data, int width)
 }
 
 static void
-chkattached(const char *name, int width)
+chkattached(const char *name)
 {
 	int fd;
 	struct pci_io pi;
 
 	pi.pi_sel = getsel(name);
-	pi.pi_reg = 0;
-	pi.pi_width = width;
-	pi.pi_data = 0;
 
 	fd = open(_PATH_DEVPCI, O_RDWR, 0);
 	if (fd < 0)

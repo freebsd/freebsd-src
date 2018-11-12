@@ -2,14 +2,8 @@
  * WPA Supplicant - Windows/NDIS driver interface
  * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef DRIVER_NDIS_H
@@ -52,6 +46,7 @@ struct wpa_driver_ndis_data {
 	struct ndis_pmkid_entry *pmkid;
 	char *adapter_desc;
 	int wired;
+	int native80211;
 	int mode;
 	int wzc_disabled;
 	int oid_bssid_set;

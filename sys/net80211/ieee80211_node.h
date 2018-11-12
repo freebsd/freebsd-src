@@ -65,6 +65,7 @@
 struct ieee80211_node_table;
 struct ieee80211com;
 struct ieee80211vap;
+struct ieee80211_scanparams;
 
 /*
  * Information element ``blob''.  We use this structure
@@ -115,7 +116,6 @@ struct ieee80211_node {
 	TAILQ_ENTRY(ieee80211_node) ni_list;	/* list of all nodes */
 	LIST_ENTRY(ieee80211_node) ni_hash;	/* hash collision list */
 	u_int			ni_refcnt;	/* count of held references */
-	u_int			ni_scangen;	/* gen# for timeout scan */
 	u_int			ni_flags;
 #define	IEEE80211_NODE_AUTH	0x000001	/* authorized for data */
 #define	IEEE80211_NODE_QOS	0x000002	/* QoS enabled */
@@ -166,6 +166,13 @@ struct ieee80211_node {
 	uint32_t		ni_avgrssi;	/* recv ssi state */
 	int8_t			ni_noise;	/* noise floor */
 
+	/* mimo statistics */
+	uint32_t		ni_mimo_rssi_ctl[IEEE80211_MAX_CHAINS];
+	uint32_t		ni_mimo_rssi_ext[IEEE80211_MAX_CHAINS];
+	uint8_t			ni_mimo_noise_ctl[IEEE80211_MAX_CHAINS];
+	uint8_t			ni_mimo_noise_ext[IEEE80211_MAX_CHAINS];
+	uint8_t			ni_mimo_chains;
+
 	/* header */
 	uint8_t			ni_macaddr[IEEE80211_ADDR_LEN];
 	uint8_t			ni_bssid[IEEE80211_ADDR_LEN];
@@ -197,6 +204,8 @@ struct ieee80211_node {
 	struct callout		ni_mltimer;	/* link mesh timer */
 	uint8_t			ni_mlrcnt;	/* link mesh retry counter */
 	uint8_t			ni_mltval;	/* link mesh timer value */
+	struct callout		ni_mlhtimer;	/* link mesh backoff timer */
+	uint8_t			ni_mlhcnt;	/* link mesh holding counter */
 
 	/* 11n state */
 	uint16_t		ni_htcap;	/* HT capabilities */
@@ -207,8 +216,11 @@ struct ieee80211_node {
 	uint8_t			ni_htstbc;	/* HT */
 	uint8_t			ni_chw;		/* negotiated channel width */
 	struct ieee80211_htrateset ni_htrates;	/* negotiated ht rate set */
-	struct ieee80211_tx_ampdu ni_tx_ampdu[WME_NUM_AC];
+	struct ieee80211_tx_ampdu ni_tx_ampdu[WME_NUM_TID];
 	struct ieee80211_rx_ampdu ni_rx_ampdu[WME_NUM_TID];
+
+	/* fast-frames state */
+	struct mbuf *		ni_tx_superg[WME_NUM_TID];
 
 	/* others */
 	short			ni_inact;	/* inactivity mark count */
@@ -218,7 +230,8 @@ struct ieee80211_node {
 	struct ieee80211_nodestats ni_stats;	/* per-node statistics */
 
 	struct ieee80211vap	*ni_wdsvap;	/* associated WDS vap */
-	uint64_t		ni_spare[4];
+	void			*ni_rctls;	/* private ratectl state */
+	uint64_t		ni_spare[3];
 };
 MALLOC_DECLARE(M_80211_NODE);
 MALLOC_DECLARE(M_80211_NODE_IE);
@@ -291,8 +304,6 @@ ieee80211_unref_node(struct ieee80211_node **ni)
 	*ni = NULL;			/* guard against use */
 }
 
-struct ieee80211com;
-
 void	ieee80211_node_attach(struct ieee80211com *);
 void	ieee80211_node_lateattach(struct ieee80211com *);
 void	ieee80211_node_detach(struct ieee80211com *);
@@ -318,6 +329,10 @@ void	ieee80211_sync_curchan(struct ieee80211com *);
 void	ieee80211_setupcurchan(struct ieee80211com *,
 	    struct ieee80211_channel *);
 void	ieee80211_setcurchan(struct ieee80211com *, struct ieee80211_channel *);
+void	ieee80211_update_chw(struct ieee80211com *);
+int	ieee80211_ibss_merge_check(struct ieee80211_node *);
+int	ieee80211_ibss_node_check_new(struct ieee80211_node *ni,
+	    const struct ieee80211_scanparams *);
 int	ieee80211_ibss_merge(struct ieee80211_node *);
 struct ieee80211_scan_entry;
 int	ieee80211_sta_join(struct ieee80211vap *, struct ieee80211_channel *,
@@ -344,11 +359,10 @@ struct ieee80211_node_table {
 	ieee80211_node_lock_t	nt_nodelock;	/* on node table */
 	TAILQ_HEAD(, ieee80211_node) nt_node;	/* information of all nodes */
 	LIST_HEAD(, ieee80211_node) nt_hash[IEEE80211_NODE_HASHSIZE];
+	int			nt_count;	/* number of nodes */
 	struct ieee80211_node	**nt_keyixmap;	/* key ix -> node map */
 	int			nt_keyixmax;	/* keyixmap size */
 	const char		*nt_name;	/* table name for debug msgs */
-	ieee80211_scan_lock_t	nt_scanlock;	/* on nt_scangen */
-	u_int			nt_scangen;	/* gen# for iterators */
 	int			nt_inact_init;	/* initial node inact setting */
 };
 
@@ -431,6 +445,8 @@ int	ieee80211_node_delucastkey(struct ieee80211_node *);
 void	ieee80211_node_timeout(void *arg);
 
 typedef void ieee80211_iter_func(void *, struct ieee80211_node *);
+int	ieee80211_iterate_nodes_vap(struct ieee80211_node_table *,
+		struct ieee80211vap *, ieee80211_iter_func *, void *);
 void	ieee80211_iterate_nodes(struct ieee80211_node_table *,
 		ieee80211_iter_func *, void *);
 

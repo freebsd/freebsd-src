@@ -68,6 +68,7 @@ int	ridhosts;			/* 1=reduce host routes */
 int	mhome;				/* 1=want multi-homed host route */
 int	advertise_mhome;		/* 1=must continue advertising it */
 int	auth_ok = 1;			/* 1=ignore auth if we do not care */
+int	insecure;			/* Reply to special queries or not */
 
 struct timeval epoch;			/* when started */
 struct timeval clk;
@@ -136,8 +137,11 @@ main(int argc,
 	(void)gethostname(myname, sizeof(myname)-1);
 	(void)gethost(myname, &myaddr);
 
-	while ((n = getopt(argc, argv, "sqdghmAtvT:F:P:")) != -1) {
+	while ((n = getopt(argc, argv, "isqdghmAtvT:F:P:")) != -1) {
 		switch (n) {
+		case 'i':
+			insecure++;
+			break;
 		case 's':
 			supplier = 1;
 			supplier_set = 1;
@@ -299,11 +303,6 @@ usage:
 	pidfile(0);
 #endif
 	mypid = getpid();
-#ifdef __FreeBSD__
-	srandomdev();
-#else
-	srandom((int)(clk.tv_sec ^ clk.tv_usec ^ mypid));
-#endif
 
 	/* prepare socket connected to the kernel.
 	 */
@@ -414,7 +413,7 @@ usage:
 			continue;
 		}
 
-		/* Check the kernel table occassionally for mysteriously
+		/* Check the kernel table occasionally for mysteriously
 		 * evaporated routes
 		 */
 		timevalsub(&t2, &flush_kern_timer, &now);
@@ -446,7 +445,7 @@ usage:
 				 * the previous update was finished.
 				 * Even if we just started after discovering
 				 * a 2nd interface or were otherwise delayed,
-				 * pick a 30-second aniversary of the
+				 * pick a 30-second anniversary of the
 				 * original broadcast time.
 				 */
 				n = 1 + (0-t2.tv_sec)/SUPPLY_INTERVAL;
@@ -748,7 +747,7 @@ rip_on(struct interface *ifp)
 	 * multicasts for this interface.
 	 */
 	if (rip_sock >= 0) {
-		if (ifp != 0)
+		if (ifp != NULL)
 			rip_mcast_on(ifp);
 		return;
 	}
@@ -774,7 +773,7 @@ rip_on(struct interface *ifp)
 		}
 
 		rip_sock = get_rip_sock(INADDR_ANY, 1);
-		rip_sock_mcast = 0;
+		rip_sock_mcast = NULL;
 
 		/* Do not advertise anything until we have heard something
 		 */
@@ -787,7 +786,7 @@ rip_on(struct interface *ifp)
 		}
 		ifinit_timer.tv_sec = now.tv_sec;
 
-	} else if (ifp != 0
+	} else if (ifp != NULL
 		   && !(ifp->int_state & IS_REMOTE)
 		   && ifp->int_rip_sock < 0) {
 		/* RIP is off, so ensure there are sockets on which
@@ -807,7 +806,7 @@ rtmalloc(size_t size,
 	 const char *msg)
 {
 	void *p = malloc(size);
-	if (p == 0)
+	if (p == NULL)
 		logbad(1,"malloc(%lu) failed in %s", (u_long)size, msg);
 	return p;
 }
@@ -822,8 +821,8 @@ intvl_random(struct timeval *tp,	/* put value here */
 {
 	tp->tv_sec = (time_t)(hi == lo
 			      ? lo
-			      : (lo + random() % ((hi - lo))));
-	tp->tv_usec = random() % 1000000;
+			      : (lo + arc4random_uniform(1 + hi - lo)));
+	tp->tv_usec = arc4random_uniform(1000000);
 }
 
 
@@ -867,7 +866,7 @@ msglog(const char *p, ...)
 	va_start(args, p);
 	vsyslog(LOG_ERR, p, args);
 	va_end(args);
-	if (ftrace != 0) {
+	if (ftrace != NULL) {
 		if (ftrace == stdout)
 			(void)fputs("routed: ", ftrace);
 		va_start(args, p);
@@ -902,7 +901,7 @@ msglim(struct msg_limit *lim, naddr addr, const char *p, ...)
 			/* Reuse a slot at most once every 10 minutes.
 			 */
 			if (lim->reuse > now.tv_sec) {
-				ms = 0;
+				ms = NULL;
 			} else {
 				ms = ms1;
 				lim->reuse = now.tv_sec + 10*60;
@@ -914,13 +913,13 @@ msglim(struct msg_limit *lim, naddr addr, const char *p, ...)
 			 * most once an hour.
 			 */
 			if (ms->until > now.tv_sec)
-				ms = 0;
+				ms = NULL;
 			break;
 		}
 		if (ms->until < ms1->until)
 			ms = ms1;
 	}
-	if (ms != 0) {
+	if (ms != NULL) {
 		ms->addr = addr;
 		ms->until = now.tv_sec + 60*60;	/* 60 minutes */
 
@@ -933,7 +932,7 @@ msglim(struct msg_limit *lim, naddr addr, const char *p, ...)
 	}
 
 	/* always display the message if tracing */
-	if (ftrace != 0) {
+	if (ftrace != NULL) {
 		va_start(args, p);
 		(void)vfprintf(ftrace, p, args);
 		va_end(args);

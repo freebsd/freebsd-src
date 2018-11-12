@@ -3,4 +3,4 @@
  */
 /* $FreeBSD$ */
 
-#include <i386/endian.h>
+#include <x86/endian.h>

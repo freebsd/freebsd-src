@@ -1,13 +1,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdio.h>
-#include <string.h>
 #include <sys/types.h>
-#include <regex.h>
 #include <assert.h>
+#include <regex.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
+#include "debug.ih"
 #include "main.ih"
+#include "split.ih"
 
 char *progname;
 int debug = 0;
@@ -20,15 +24,11 @@ regoff_t startoff = 0;
 regoff_t endoff = 0;
 
 
-extern int split();
-extern void regprint();
-
 /*
  - main - do the simple case, hand off to regress() for regression
  */
-main(argc, argv)
-int argc;
-char *argv[];
+int
+main(int argc, char **argv)
 {
 	regex_t re;
 #	define	NS	10
@@ -80,43 +80,43 @@ char *argv[];
 	err = regcomp(&re, argv[optind++], copts);
 	if (err) {
 		len = regerror(err, &re, erbuf, sizeof(erbuf));
-		fprintf(stderr, "error %s, %d/%d `%s'\n",
-			eprint(err), len, sizeof(erbuf), erbuf);
+		fprintf(stderr, "error %s, %zu/%zu `%s'\n",
+		    eprint(err), len, sizeof(erbuf), erbuf);
 		exit(status);
 	}
-	regprint(&re, stdout);	
+	regprint(&re, stdout);
 
 	if (optind >= argc) {
 		regfree(&re);
 		exit(status);
 	}
 
-	if (eopts&REG_STARTEND) {
+	if ((eopts & REG_STARTEND) != 0) {
 		subs[0].rm_so = startoff;
 		subs[0].rm_eo = strlen(argv[optind]) - endoff;
 	}
 	err = regexec(&re, argv[optind], (size_t)NS, subs, eopts);
 	if (err) {
 		len = regerror(err, &re, erbuf, sizeof(erbuf));
-		fprintf(stderr, "error %s, %d/%d `%s'\n",
-			eprint(err), len, sizeof(erbuf), erbuf);
+		fprintf(stderr, "error %s, %zu/%zu `%s'\n",
+		    eprint(err), len, sizeof(erbuf), erbuf);
 		exit(status);
 	}
-	if (!(copts&REG_NOSUB)) {
+	if ((copts & REG_NOSUB) == 0) {
 		len = (int)(subs[0].rm_eo - subs[0].rm_so);
 		if (subs[0].rm_so != -1) {
 			if (len != 0)
-				printf("match `%.*s'\n", len,
-					argv[optind] + subs[0].rm_so);
+				printf("match `%.*s'\n", (int)len,
+				    argv[optind] + subs[0].rm_so);
 			else
 				printf("match `'@%.1s\n",
-					argv[optind] + subs[0].rm_so);
+				    argv[optind] + subs[0].rm_so);
 		}
 		for (i = 1; i < NS; i++)
 			if (subs[i].rm_so != -1)
 				printf("(%d) `%.*s'\n", i,
-					(int)(subs[i].rm_eo - subs[i].rm_so),
-					argv[optind] + subs[i].rm_so);
+				    (int)(subs[i].rm_eo - subs[i].rm_so),
+				    argv[optind] + subs[i].rm_so);
 	}
 	exit(status);
 }
@@ -126,8 +126,7 @@ char *argv[];
  == void regress(FILE *in);
  */
 void
-regress(in)
-FILE *in;
+regress(FILE *in)
 {
 	char inbuf[1000];
 #	define	MAXF	10
@@ -174,13 +173,13 @@ FILE *in;
 	}
 	ne = regerror(REG_BADPAT, (regex_t *)NULL, erbuf, (size_t)SHORT);
 	if (strncmp(erbuf, badpat, SHORT-1) != 0 || erbuf[SHORT-1] != '\0' ||
-						ne != strlen(badpat)+1) {
+	    ne != strlen(badpat)+1) {
 		fprintf(stderr, "end: regerror() short test gave `%s' not `%.*s'\n",
 						erbuf, SHORT-1, badpat);
 		status = 1;
 	}
 	ne = regerror(REG_ITOA|REG_BADPAT, (regex_t *)NULL, erbuf, sizeof(erbuf));
-	if (strcmp(erbuf, bpname) != 0 || ne != strlen(bpname)+1) {
+	if (strcmp(erbuf, bpname) != 0 || ne != strlen(bpname) + 1) {
 		fprintf(stderr, "end: regerror() ITOA test gave `%s' not `%s'\n",
 						erbuf, bpname);
 		status = 1;
@@ -191,7 +190,7 @@ FILE *in;
 		fprintf(stderr, "end: regerror() ATOI test gave `%s' not `%ld'\n",
 						erbuf, (long)REG_BADPAT);
 		status = 1;
-	} else if (ne != strlen(erbuf)+1) {
+	} else if (ne != strlen(erbuf) + 1) {
 		fprintf(stderr, "end: regerror() ATOI test len(`%s') = %ld\n",
 						erbuf, (long)REG_BADPAT);
 		status = 1;
@@ -201,28 +200,21 @@ FILE *in;
 /*
  - try - try it, and report on problems
  == void try(char *f0, char *f1, char *f2, char *f3, char *f4, int opts);
+ - opts: may not match f1
  */
 void
-try(f0, f1, f2, f3, f4, opts)
-char *f0;
-char *f1;
-char *f2;
-char *f3;
-char *f4;
-int opts;			/* may not match f1 */
+try(char *f0, char *f1, char *f2, char *f3, char *f4, int opts)
 {
 	regex_t re;
 #	define	NSUBS	10
 	regmatch_t subs[NSUBS];
 #	define	NSHOULD	15
 	char *should[NSHOULD];
-	int nshould;
 	char erbuf[100];
-	int err;
-	int len;
-	char *type = (opts & REG_EXTENDED) ? "ERE" : "BRE";
-	int i;
+	size_t len;
+	int err, i, nshould;
 	char *grump;
+	char *type = (opts & REG_EXTENDED) ? "ERE" : "BRE";
 	char f0copy[1000];
 	char f2copy[1000];
 
@@ -233,9 +225,8 @@ int opts;			/* may not match f1 */
 	if (err != 0 && (!opt('C', f1) || err != efind(f2))) {
 		/* unexpected error or wrong error */
 		len = regerror(err, &re, erbuf, sizeof(erbuf));
-		fprintf(stderr, "%d: %s error %s, %d/%d `%s'\n",
-					line, type, eprint(err), len,
-					sizeof(erbuf), erbuf);
+		fprintf(stderr, "%d: %s error %s, %zu/%zu `%s'\n",
+		    line, type, eprint(err), len, sizeof(erbuf), erbuf);
 		status = 1;
 	} else if (err == 0 && opt('C', f1)) {
 		/* unexpected success */
@@ -264,16 +255,15 @@ int opts;			/* may not match f1 */
 	if (err != 0 && (f3 != NULL || err != REG_NOMATCH)) {
 		/* unexpected error or wrong error */
 		len = regerror(err, &re, erbuf, sizeof(erbuf));
-		fprintf(stderr, "%d: %s exec error %s, %d/%d `%s'\n",
-					line, type, eprint(err), len,
-					sizeof(erbuf), erbuf);
+		fprintf(stderr, "%d: %s exec error %s, %zu/%zu `%s'\n",
+		    line, type, eprint(err), len, sizeof(erbuf), erbuf);
 		status = 1;
 	} else if (err != 0) {
 		/* nothing more to check */
 	} else if (f3 == NULL) {
 		/* unexpected success */
 		fprintf(stderr, "%d: %s exec should have failed\n",
-						line, type);
+		    line, type);
 		status = 1;
 		err = 1;		/* just on principle */
 	} else if (opts&REG_NOSUB) {
@@ -300,7 +290,7 @@ int opts;			/* may not match f1 */
 		grump = check(f2, subs[i], should[i]);
 		if (grump != NULL) {
 			fprintf(stderr, "%d: %s $%d %s\n", line,
-							type, i, grump);
+			    type, i, grump);
 			status = 1;
 			err = 1;
 		}
@@ -311,12 +301,11 @@ int opts;			/* may not match f1 */
 
 /*
  - options - pick options out of a regression-test string
+ - type: 'c' - compile, 'e' - exec
  == int options(int type, char *s);
  */
 int
-options(type, s)
-int type;			/* 'c' compile, 'e' exec */
-char *s;
+options(int type, char *s)
 {
 	char *p;
 	int o = (type == 'c') ? copts : eopts;
@@ -371,9 +360,7 @@ char *s;
  == int opt(int c, char *s);
  */
 int				/* predicate */
-opt(c, s)
-int c;
-char *s;
+opt(int c, char *s)
 {
 	return(strchr(s, c) != NULL);
 }
@@ -383,8 +370,7 @@ char *s;
  == void fixstr(char *p);
  */
 void
-fixstr(p)
-char *p;
+fixstr(char *p)
 {
 	if (p == NULL)
 		return;
@@ -405,10 +391,7 @@ char *p;
  == char *check(char *str, regmatch_t sub, char *should);
  */
 char *				/* NULL or complaint */
-check(str, sub, should)
-char *str;
-regmatch_t sub;
-char *should;
+check(char *str, regmatch_t sub, char *should)
 {
 	int len;
 	int shlen;
@@ -442,7 +425,7 @@ char *should;
 	/* check for in range */
 	if (sub.rm_eo > strlen(str)) {
 		sprintf(grump, "start %ld end %ld, past end of string",
-					(long)sub.rm_so, (long)sub.rm_eo);
+		    (long)sub.rm_so, (long)sub.rm_eo);
 		return(grump);
 	}
 
@@ -482,8 +465,7 @@ char *should;
  == static char *eprint(int err);
  */
 static char *
-eprint(err)
-int err;
+eprint(int err)
 {
 	static char epbuf[100];
 	size_t len;
@@ -498,8 +480,7 @@ int err;
  == static int efind(char *name);
  */
 static int
-efind(name)
-char *name;
+efind(char *name)
 {
 	static char efbuf[100];
 	size_t n;

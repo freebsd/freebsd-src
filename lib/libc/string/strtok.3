@@ -22,7 +22,7 @@
 .\"    disclaimer in the documentation and/or other materials provided
 .\"    with the distribution.
 .\"
-.\" 4. Neither the name of Softweyr LLC, the University nor the names
+.\" 3. Neither the name of Softweyr LLC, the University nor the names
 .\"    of its contributors may be used to endorse or promote products
 .\"    derived from this software without specific prior written
 .\"    permission.
@@ -44,7 +44,7 @@
 .\"     @(#)strtok.3	8.2 (Berkeley) 2/3/94
 .\" $FreeBSD$
 .\"
-.Dd November 27, 1998
+.Dd January 22, 2016
 .Dt STRTOK 3
 .Os
 .Sh NAME
@@ -149,10 +149,14 @@ The
 function
 conforms to
 .St -isoC .
+The
+.Fn strtok_r
+function
+conforms to
+.St -p1003.1-2001 .
 .Sh AUTHORS
-.An Wes Peters ,
-Softweyr LLC:
-.Aq wes@softweyr.com
+.An Wes Peters Aq Mt wes@softweyr.com ,
+Softweyr LLC
 .Pp
 Based on the
 .Fx 3.0

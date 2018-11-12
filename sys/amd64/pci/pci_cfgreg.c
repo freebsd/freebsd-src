@@ -65,7 +65,6 @@ static int pcie_minbus, pcie_maxbus;
 static uint32_t pcie_badslots;
 static struct mtx pcicfg_mtx;
 static int mcfg_enable = 1;
-TUNABLE_INT("hw.pci.mcfg", &mcfg_enable);
 SYSCTL_INT(_hw_pci, OID_AUTO, mcfg, CTLFLAG_RDTUN, &mcfg_enable, 0,
     "Enable support for PCI-e memory mapped config access");
 
@@ -184,7 +183,7 @@ pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 	if (bus <= PCI_BUSMAX && slot <= PCI_SLOTMAX && func <= PCI_FUNCMAX &&
 	    (unsigned)reg <= PCI_REGMAX && bytes != 3 &&
 	    (unsigned)bytes <= 4 && (reg & (bytes - 1)) == 0) {
-		outl(CONF1_ADDR_PORT, (1 << 31) | (bus << 16) | (slot << 11) 
+		outl(CONF1_ADDR_PORT, (1U << 31) | (bus << 16) | (slot << 11) 
 		    | (func << 8) | (reg & ~0x03));
 		dataport = CONF1_DATA_PORT + (reg & 0x03);
 	}
@@ -302,11 +301,19 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 	(((func) & 0x7) << 12)		|	\
 	((reg) & 0xfff)))
 
+/*
+ * AMD BIOS And Kernel Developer's Guides for CPU families starting with 10h
+ * have a requirement that all accesses to the memory mapped PCI configuration
+ * space are done using AX class of registers.
+ * Since other vendors do not currently have any contradicting requirements
+ * the AMD access pattern is applied universally.
+ */
+
 static int
 pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
     unsigned bytes)
 {
-	volatile vm_offset_t va;
+	vm_offset_t va;
 	int data = -1;
 
 	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
@@ -317,13 +324,16 @@ pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
 
 	switch (bytes) {
 	case 4:
-		data = *(volatile uint32_t *)(va);
+		__asm("movl %1, %0" : "=a" (data)
+		    : "m" (*(volatile uint32_t *)va));
 		break;
 	case 2:
-		data = *(volatile uint16_t *)(va);
+		__asm("movzwl %1, %0" : "=a" (data)
+		    : "m" (*(volatile uint16_t *)va));
 		break;
 	case 1:
-		data = *(volatile uint8_t *)(va);
+		__asm("movzbl %1, %0" : "=a" (data)
+		    : "m" (*(volatile uint8_t *)va));
 		break;
 	}
 
@@ -334,7 +344,7 @@ static void
 pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
     unsigned bytes)
 {
-	volatile vm_offset_t va;
+	vm_offset_t va;
 
 	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
 	    func > PCI_FUNCMAX || reg > PCIE_REGMAX)
@@ -344,13 +354,16 @@ pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
 
 	switch (bytes) {
 	case 4:
-		*(volatile uint32_t *)(va) = data;
+		__asm("movl %1, %0" : "=m" (*(volatile uint32_t *)va)
+		    : "a" (data));
 		break;
 	case 2:
-		*(volatile uint16_t *)(va) = data;
+		__asm("movw %1, %0" : "=m" (*(volatile uint16_t *)va)
+		    : "a" ((uint16_t)data));
 		break;
 	case 1:
-		*(volatile uint8_t *)(va) = data;
+		__asm("movb %1, %0" : "=m" (*(volatile uint8_t *)va)
+		    : "a" ((uint8_t)data));
 		break;
 	}
 }

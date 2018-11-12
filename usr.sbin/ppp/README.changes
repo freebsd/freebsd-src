@@ -53,7 +53,7 @@ o Errors in `add' and `delete' are logged as warnings rather than being
   written to the TCP/IP log.
 o Any number of diagnostic prompts are allowed, and they are allowed in
   interactive mode.
-o The default `device' is cuad1, then cuad0
+o The default `device' is cuau1, then cuau0
 o A password of "*" in ppp.secret causes a passwd database lookup in
   pap mode.
 o The value of the CONNECT environment variable is logged in the

@@ -76,7 +76,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ipfw.h"
 #include "opt_ipstealth.h"
 
 #include <sys/param.h>
@@ -85,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -105,12 +106,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_options.h>
 
 #include <machine/in_cksum.h>
-
-static VNET_DEFINE(int, ipfastforward_active);
-#define	V_ipfastforward_active		VNET(ipfastforward_active)
-
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, fastforwarding, CTLFLAG_RW,
-    &VNET_NAME(ipfastforward_active), 0, "Enable fast IP forwarding");
 
 static struct sockaddr_in *
 ip_findroute(struct route *ro, struct in_addr dest, struct mbuf *m)
@@ -156,7 +151,7 @@ ip_findroute(struct route *ro, struct in_addr dest, struct mbuf *m)
  * to ip_input for full processing.
  */
 struct mbuf *
-ip_fastforward(struct mbuf *m)
+ip_tryforward(struct mbuf *m)
 {
 	struct ip *ip;
 	struct mbuf *m0 = NULL;
@@ -164,121 +159,20 @@ ip_fastforward(struct mbuf *m)
 	struct sockaddr_in *dst = NULL;
 	struct ifnet *ifp;
 	struct in_addr odest, dest;
-	u_short sum, ip_len;
+	uint16_t ip_len, ip_off;
 	int error = 0;
-	int hlen, mtu;
-#ifdef IPFIREWALL_FORWARD
-	struct m_tag *fwd_tag;
-#endif
+	int mtu;
+	struct m_tag *fwd_tag = NULL;
 
 	/*
 	 * Are we active and forwarding packets?
 	 */
-	if (!V_ipfastforward_active || !V_ipforwarding)
-		return m;
 
 	M_ASSERTVALID(m);
 	M_ASSERTPKTHDR(m);
 
 	bzero(&ro, sizeof(ro));
 
-	/*
-	 * Step 1: check for packet drop conditions (and sanity checks)
-	 */
-
-	/*
-	 * Is entire packet big enough?
-	 */
-	if (m->m_pkthdr.len < sizeof(struct ip)) {
-		IPSTAT_INC(ips_tooshort);
-		goto drop;
-	}
-
-	/*
-	 * Is first mbuf large enough for ip header and is header present?
-	 */
-	if (m->m_len < sizeof (struct ip) &&
-	   (m = m_pullup(m, sizeof (struct ip))) == NULL) {
-		IPSTAT_INC(ips_toosmall);
-		return NULL;	/* mbuf already free'd */
-	}
-
-	ip = mtod(m, struct ip *);
-
-	/*
-	 * Is it IPv4?
-	 */
-	if (ip->ip_v != IPVERSION) {
-		IPSTAT_INC(ips_badvers);
-		goto drop;
-	}
-
-	/*
-	 * Is IP header length correct and is it in first mbuf?
-	 */
-	hlen = ip->ip_hl << 2;
-	if (hlen < sizeof(struct ip)) {	/* minimum header length */
-		IPSTAT_INC(ips_badlen);
-		goto drop;
-	}
-	if (hlen > m->m_len) {
-		if ((m = m_pullup(m, hlen)) == NULL) {
-			IPSTAT_INC(ips_badhlen);
-			return NULL;	/* mbuf already free'd */
-		}
-		ip = mtod(m, struct ip *);
-	}
-
-	/*
-	 * Checksum correct?
-	 */
-	if (m->m_pkthdr.csum_flags & CSUM_IP_CHECKED)
-		sum = !(m->m_pkthdr.csum_flags & CSUM_IP_VALID);
-	else {
-		if (hlen == sizeof(struct ip))
-			sum = in_cksum_hdr(ip);
-		else
-			sum = in_cksum(m, hlen);
-	}
-	if (sum) {
-		IPSTAT_INC(ips_badsum);
-		goto drop;
-	}
-
-	/*
-	 * Remember that we have checked the IP header and found it valid.
-	 */
-	m->m_pkthdr.csum_flags |= (CSUM_IP_CHECKED | CSUM_IP_VALID);
-
-	ip_len = ntohs(ip->ip_len);
-
-	/*
-	 * Is IP length longer than packet we have got?
-	 */
-	if (m->m_pkthdr.len < ip_len) {
-		IPSTAT_INC(ips_tooshort);
-		goto drop;
-	}
-
-	/*
-	 * Is packet longer than IP header tells us? If yes, truncate packet.
-	 */
-	if (m->m_pkthdr.len > ip_len) {
-		if (m->m_len == m->m_pkthdr.len) {
-			m->m_len = ip_len;
-			m->m_pkthdr.len = ip_len;
-		} else
-			m_adj(m, ip_len - m->m_pkthdr.len);
-	}
-
-	/*
-	 * Is packet from or to 127/8?
-	 */
-	if ((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
-	    (ntohl(ip->ip_src.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET) {
-		IPSTAT_INC(ips_badaddr);
-		goto drop;
-	}
 
 #ifdef ALTQ
 	/*
@@ -289,16 +183,14 @@ ip_fastforward(struct mbuf *m)
 #endif
 
 	/*
-	 * Step 2: fallback conditions to normal ip_input path processing
-	 */
-
-	/*
 	 * Only IP packets without options
 	 */
+	ip = mtod(m, struct ip *);
+
 	if (ip->ip_hl != (sizeof(struct ip) >> 2)) {
-		if (ip_doopts == 1)
+		if (V_ip_doopts == 1)
 			return m;
-		else if (ip_doopts == 2) {
+		else if (V_ip_doopts == 2) {
 			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_FILTER_PROHIB,
 				0, 0);
 			return NULL;	/* mbuf already free'd */
@@ -312,7 +204,7 @@ ip_fastforward(struct mbuf *m)
 	 *
 	 * XXX: Probably some of these checks could be direct drop
 	 * conditions.  However it is not clear whether there are some
-	 * hacks or obscure behaviours which make it neccessary to
+	 * hacks or obscure behaviours which make it necessary to
 	 * let ip_input handle it.  We play safe here and let ip_input
 	 * deal with it until it is proven that we can directly drop it.
 	 */
@@ -340,21 +232,16 @@ ip_fastforward(struct mbuf *m)
 	 * Step 3: incoming packet firewall processing
 	 */
 
-	/*
-	 * Convert to host representation
-	 */
-	ip->ip_len = ntohs(ip->ip_len);
-	ip->ip_off = ntohs(ip->ip_off);
-
 	odest.s_addr = dest.s_addr = ip->ip_dst.s_addr;
 
 	/*
 	 * Run through list of ipfilter hooks for input packets
 	 */
-	if (!PFIL_HOOKED(&inet_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet_pfil_hook))
 		goto passin;
 
-	if (pfil_run_hooks(&inet_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN, NULL) ||
+	if (pfil_run_hooks(
+	    &V_inet_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN, NULL) ||
 	    m == NULL)
 		goto drop;
 
@@ -377,14 +264,13 @@ ip_fastforward(struct mbuf *m)
 		 * Go on with new destination address
 		 */
 	}
-#ifdef IPFIREWALL_FORWARD
+
 	if (m->m_flags & M_FASTFWD_OURS) {
 		/*
 		 * ipfw changed it for a local address on this host.
 		 */
 		goto forwardlocal;
 	}
-#endif /* IPFIREWALL_FORWARD */
 
 passin:
 	/*
@@ -438,10 +324,10 @@ passin:
 	/*
 	 * Run through list of hooks for output packets.
 	 */
-	if (!PFIL_HOOKED(&inet_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet_pfil_hook))
 		goto passout;
 
-	if (pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_OUT, NULL) || m == NULL) {
+	if (pfil_run_hooks(&V_inet_pfil_hook, &m, ifp, PFIL_OUT, NULL) || m == NULL) {
 		goto drop;
 	}
 
@@ -454,25 +340,16 @@ passin:
 	/*
 	 * Destination address changed?
 	 */
-#ifndef IPFIREWALL_FORWARD
-	if (odest.s_addr != dest.s_addr) {
-#else
-	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
+	if (m->m_flags & M_IP_NEXTHOP)
+		fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
 	if (odest.s_addr != dest.s_addr || fwd_tag != NULL) {
-#endif /* IPFIREWALL_FORWARD */
 		/*
 		 * Is it now for a local address on this host?
 		 */
-#ifndef IPFIREWALL_FORWARD
-		if (in_localip(dest)) {
-#else
 		if (m->m_flags & M_FASTFWD_OURS || in_localip(dest)) {
-#endif /* IPFIREWALL_FORWARD */
 forwardlocal:
 			/*
 			 * Return packet for processing by ip_input().
-			 * Keep host byte order as expected at ip_input's
-			 * "ours"-label.
 			 */
 			m->m_flags |= M_FASTFWD_OURS;
 			if (ro.ro_rt)
@@ -482,13 +359,12 @@ forwardlocal:
 		/*
 		 * Redo route lookup with new destination address
 		 */
-#ifdef IPFIREWALL_FORWARD
 		if (fwd_tag) {
 			dest.s_addr = ((struct sockaddr_in *)
 				    (fwd_tag + 1))->sin_addr.s_addr;
 			m_tag_delete(m, fwd_tag);
+			m->m_flags &= ~M_IP_NEXTHOP;
 		}
-#endif /* IPFIREWALL_FORWARD */
 		RTFREE(ro.ro_rt);
 		if ((dst = ip_findroute(&ro, dest, m)) == NULL)
 			return NULL;	/* icmp unreach already sent */
@@ -499,28 +375,17 @@ passout:
 	/*
 	 * Step 6: send off the packet
 	 */
+	ip_len = ntohs(ip->ip_len);
+	ip_off = ntohs(ip->ip_off);
 
 	/*
 	 * Check if route is dampned (when ARP is unable to resolve)
 	 */
 	if ((ro.ro_rt->rt_flags & RTF_REJECT) &&
-	    (ro.ro_rt->rt_rmx.rmx_expire == 0 ||
-	    time_uptime < ro.ro_rt->rt_rmx.rmx_expire)) {
+	    (ro.ro_rt->rt_expire == 0 || time_uptime < ro.ro_rt->rt_expire)) {
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		goto consumed;
 	}
-
-#ifndef ALTQ
-	/*
-	 * Check if there is enough space in the interface queue
-	 */
-	if ((ifp->if_snd.ifq_len + ip->ip_len / ifp->if_mtu + 1) >=
-	    ifp->if_snd.ifq_maxlen) {
-		IPSTAT_INC(ips_odropped);
-		/* would send source quench here but that is depreciated */
-		goto drop;
-	}
-#endif
 
 	/*
 	 * Check if media link state of interface is not down
@@ -533,28 +398,27 @@ passout:
 	/*
 	 * Check if packet fits MTU or if hardware will fragment for us
 	 */
-	if (ro.ro_rt->rt_rmx.rmx_mtu)
-		mtu = min(ro.ro_rt->rt_rmx.rmx_mtu, ifp->if_mtu);
+	if (ro.ro_rt->rt_mtu)
+		mtu = min(ro.ro_rt->rt_mtu, ifp->if_mtu);
 	else
 		mtu = ifp->if_mtu;
 
-	if (ip->ip_len <= mtu ||
-	    (ifp->if_hwassist & CSUM_FRAGMENT && (ip->ip_off & IP_DF) == 0)) {
+	if (ip_len <= mtu) {
 		/*
-		 * Restore packet header fields to original values
+		 * Avoid confusing lower layers.
 		 */
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
+		m_clrprotoflags(m);
 		/*
 		 * Send off the packet via outgoing interface
 		 */
+		IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
 		error = (*ifp->if_output)(ifp, m,
 				(struct sockaddr *)dst, &ro);
 	} else {
 		/*
 		 * Handle EMSGSIZE with icmp reply needfrag for TCP MTU discovery
 		 */
-		if (ip->ip_off & IP_DF) {
+		if (ip_off & IP_DF) {
 			IPSTAT_INC(ips_cantfrag);
 			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG,
 				0, mtu);
@@ -564,14 +428,8 @@ passout:
 			 * We have to fragment the packet
 			 */
 			m->m_pkthdr.csum_flags |= CSUM_IP;
-			/*
-			 * ip_fragment expects ip_len and ip_off in host byte
-			 * order but returns all packets in network byte order
-			 */
-			if (ip_fragment(ip, &m, mtu, ifp->if_hwassist,
-					(~ifp->if_hwassist & CSUM_DELAY_IP))) {
+			if (ip_fragment(ip, &m, mtu, ifp->if_hwassist))
 				goto drop;
-			}
 			KASSERT(m != NULL, ("null mbuf and no error"));
 			/*
 			 * Send off the fragments via outgoing interface
@@ -580,7 +438,12 @@ passout:
 			do {
 				m0 = m->m_nextpkt;
 				m->m_nextpkt = NULL;
+				/*
+				 * Avoid confusing lower layers.
+				 */
+				m_clrprotoflags(m);
 
+				IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
 				error = (*ifp->if_output)(ifp, m,
 					(struct sockaddr *)dst, &ro);
 				if (error)
@@ -600,7 +463,7 @@ passout:
 	if (error != 0)
 		IPSTAT_INC(ips_odropped);
 	else {
-		ro.ro_rt->rt_rmx.rmx_pksent++;
+		counter_u64_add(ro.ro_rt->rt_pksent, 1);
 		IPSTAT_INC(ips_forward);
 		IPSTAT_INC(ips_fastforward);
 	}

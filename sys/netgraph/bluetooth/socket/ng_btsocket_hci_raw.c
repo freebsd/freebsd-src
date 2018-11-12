@@ -51,6 +51,9 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+
+#include <net/vnet.h>
+
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/bluetooth/include/ng_bluetooth.h>
@@ -61,7 +64,7 @@
 
 /* MALLOC define */
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_HCI_RAW, "netgraph_btsocks_hci_raw",
+static MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_HCI_RAW, "netgraph_btsocks_hci_raw",
 	"Netgraph Bluetooth raw HCI sockets");
 #else
 #define M_NETGRAPH_BTSOCKET_HCI_RAW M_NETGRAPH
@@ -123,21 +126,21 @@ static int					ng_btsocket_hci_raw_curpps;
  
 /* Sysctl tree */
 SYSCTL_DECL(_net_bluetooth_hci_sockets);
-SYSCTL_NODE(_net_bluetooth_hci_sockets, OID_AUTO, raw, CTLFLAG_RW,
+static SYSCTL_NODE(_net_bluetooth_hci_sockets, OID_AUTO, raw, CTLFLAG_RW,
         0, "Bluetooth raw HCI sockets family");
-SYSCTL_INT(_net_bluetooth_hci_sockets_raw, OID_AUTO, debug_level, CTLFLAG_RW,
+SYSCTL_UINT(_net_bluetooth_hci_sockets_raw, OID_AUTO, debug_level, CTLFLAG_RW,
         &ng_btsocket_hci_raw_debug_level, NG_BTSOCKET_WARN_LEVEL,
 	"Bluetooth raw HCI sockets debug level");
-SYSCTL_INT(_net_bluetooth_hci_sockets_raw, OID_AUTO, ioctl_timeout, CTLFLAG_RW,
+SYSCTL_UINT(_net_bluetooth_hci_sockets_raw, OID_AUTO, ioctl_timeout, CTLFLAG_RW,
         &ng_btsocket_hci_raw_ioctl_timeout, 5,
 	"Bluetooth raw HCI sockets ioctl timeout");
-SYSCTL_INT(_net_bluetooth_hci_sockets_raw, OID_AUTO, queue_len, CTLFLAG_RD,
+SYSCTL_UINT(_net_bluetooth_hci_sockets_raw, OID_AUTO, queue_len, CTLFLAG_RD,
         &ng_btsocket_hci_raw_queue.len, 0,
         "Bluetooth raw HCI sockets input queue length");
-SYSCTL_INT(_net_bluetooth_hci_sockets_raw, OID_AUTO, queue_maxlen, CTLFLAG_RD,
+SYSCTL_UINT(_net_bluetooth_hci_sockets_raw, OID_AUTO, queue_maxlen, CTLFLAG_RD,
         &ng_btsocket_hci_raw_queue.maxlen, 0,
         "Bluetooth raw HCI sockets input queue max. length");
-SYSCTL_INT(_net_bluetooth_hci_sockets_raw, OID_AUTO, queue_drops, CTLFLAG_RD,
+SYSCTL_UINT(_net_bluetooth_hci_sockets_raw, OID_AUTO, queue_drops, CTLFLAG_RD,
         &ng_btsocket_hci_raw_queue.drops, 0,
         "Bluetooth raw HCI sockets input queue drops");
 
@@ -310,7 +313,7 @@ ng_btsocket_hci_raw_node_rcvdata(hook_p hook, item_p item)
 	 * for now
 	 */
 
-	MGET(nam, M_DONTWAIT, MT_SONAME);
+	MGET(nam, M_NOWAIT, MT_SONAME);
 	if (nam != NULL) {
 		struct sockaddr_hci	*sa = mtod(nam, struct sockaddr_hci *);
 
@@ -519,7 +522,7 @@ ng_btsocket_hci_raw_data_input(struct mbuf *nam)
 		 * will check if socket has enough buffer space.
 		 */
 
-		m = m_dup(m0, M_DONTWAIT);
+		m = m_dup(m0, M_NOWAIT);
 		if (m != NULL) {
 			struct mbuf	*ctl = NULL;
 
@@ -728,6 +731,10 @@ ng_btsocket_hci_raw_init(void)
 	bitstr_t	*f = NULL;
 	int		 error = 0;
 
+	/* Skip initialization of globals for non-default instances. */
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+
 	ng_btsocket_hci_raw_node = NULL;
 	ng_btsocket_hci_raw_debug_level = NG_BTSOCKET_WARN_LEVEL;
 	ng_btsocket_hci_raw_ioctl_timeout = 5;
@@ -869,6 +876,9 @@ ng_btsocket_hci_raw_init(void)
 	/* Commands - Testing */
 	f = ng_btsocket_hci_raw_sec_filter->commands[NG_HCI_OGF_TESTING - 1];
 	bit_set(f, NG_HCI_OCF_READ_LOOPBACK_MODE - 1);
+	/*Commands - LE*/
+	f = ng_btsocket_hci_raw_sec_filter->commands[NG_HCI_OGF_LE -1];
+
 } /* ng_btsocket_hci_raw_init */
 
 /*
@@ -1585,7 +1595,7 @@ ng_btsocket_hci_raw_send(struct socket *so, int flags, struct mbuf *m,
 		sa = (struct sockaddr *) &pcb->addr;
 	}
 
-	MGET(nam, M_DONTWAIT, MT_SONAME);
+	MGET(nam, M_NOWAIT, MT_SONAME);
 	if (nam == NULL) {
 		mtx_unlock(&pcb->pcb_mtx);
 		error = ENOBUFS;

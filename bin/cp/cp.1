@@ -32,7 +32,7 @@
 .\"	@(#)cp.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd October 27, 2006
+.Dd June 6, 2015
 .Dt CP 1
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@
 .Op Fl H | Fl L | Fl P
 .Oc
 .Op Fl f | i | n
-.Op Fl alpv
+.Op Fl alpsvx
 .Ar source_file target_file
 .Nm
 .Oo
@@ -53,7 +53,7 @@
 .Op Fl H | Fl L | Fl P
 .Oc
 .Op Fl f | i | n
-.Op Fl alpv
+.Op Fl alpsvx
 .Ar source_file ... target_directory
 .Sh DESCRIPTION
 In the first synopsis form, the
@@ -164,7 +164,7 @@ Cause
 .Nm
 to preserve the following attributes of each source
 file in the copy: modification time, access time,
-file flags, file mode, user ID, and group ID, as allowed by permissions.
+file flags, file mode, ACL, user ID, and group ID, as allowed by permissions.
 .Pp
 If the user ID and group ID cannot be preserved, no error message
 is displayed and the exit value is not altered.
@@ -179,10 +179,14 @@ If the source file has both its set-user-ID and set-group-ID bits on,
 and either the user ID or group ID cannot be preserved, neither
 the set-user-ID nor set-group-ID bits are preserved in the copy's
 permissions.
+.It Fl s
+Create symbolic links to regular files in a hierarchy instead of copying.
 .It Fl v
 Cause
 .Nm
 to be verbose, showing files as they are copied.
+.It Fl x
+File system mount points are not traversed.
 .El
 .Pp
 For each destination file that already exists, its contents are
@@ -249,6 +253,27 @@ signal, the current input and output file and the percentage complete
 will be written to the standard output.
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Make a copy of file
+.Pa foo
+named
+.Pa bar :
+.Pp
+.Dl $ cp foo bar
+.Pp
+Copy a group of files to the
+.Pa /tmp
+directory:
+.Pp
+.Dl $ cp *.txt /tmp
+.Pp
+Copy the directory
+.Pa junk
+and all of its contents (including any subdirectories) to the
+.Pa /tmp
+directory:
+.Pp
+.Dl $ cp -R junk /tmp
 .Sh COMPATIBILITY
 Historic versions of the
 .Nm
@@ -275,7 +300,10 @@ differ as they copy special files as normal
 files while recreating a hierarchy.
 .Pp
 The
-.Fl v
+.Fl l,
+.Fl s,
+.Fl v,
+.Fl x
 and
 .Fl n
 options are non-standard and their use in scripts is not recommended.

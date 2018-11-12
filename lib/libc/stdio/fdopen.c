@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -47,9 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 FILE *
-fdopen(fd, mode)
-	int fd;
-	const char *mode;
+fdopen(int fd, const char *mode)
 {
 	FILE *fp;
 	int flags, oflags, fdflags, tmp;
@@ -72,7 +70,8 @@ fdopen(fd, mode)
 	/* Make sure the mode the user wants is a subset of the actual mode. */
 	if ((fdflags = _fcntl(fd, F_GETFL, 0)) < 0)
 		return (NULL);
-	tmp = fdflags & O_ACCMODE;
+	/* Work around incorrect O_ACCMODE. */
+	tmp = fdflags & (O_ACCMODE | O_EXEC);
 	if (tmp != O_RDWR && (tmp != (oflags & O_ACCMODE))) {
 		errno = EINVAL;
 		return (NULL);
@@ -80,13 +79,21 @@ fdopen(fd, mode)
 
 	if ((fp = __sfp()) == NULL)
 		return (NULL);
+
+	if ((oflags & O_CLOEXEC) && _fcntl(fd, F_SETFD, FD_CLOEXEC) == -1) {
+		fp->_flags = 0;
+		return (NULL);
+	}
+
 	fp->_flags = flags;
 	/*
 	 * If opened for appending, but underlying descriptor does not have
 	 * O_APPEND bit set, assert __SAPP so that __swrite() caller
 	 * will _sseek() to the end before write.
 	 */
-	if ((oflags & O_APPEND) && !(fdflags & O_APPEND))
+	if (fdflags & O_APPEND)
+		fp->_flags2 |= __S2OAP;
+	else if (oflags & O_APPEND)
 		fp->_flags |= __SAPP;
 	fp->_file = fd;
 	fp->_cookie = fp;

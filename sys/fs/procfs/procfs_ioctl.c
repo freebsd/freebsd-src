@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2001 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 struct procfs_status32 {
 	int	state;	/* Running, stopped, something else? */
 	int	flags;	/* Any flags */
@@ -62,7 +62,7 @@ int
 procfs_ioctl(PFS_IOCTL_ARGS)
 {
 	struct procfs_status *ps;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	struct procfs_status32 *ps32;
 #endif
 	int error, flags, sig;
@@ -140,9 +140,9 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		ps->flags = 0; /* nope */
 		ps->events = p->p_stops;
 		ps->why = p->p_step ? p->p_stype : 0;
-		ps->val = p->p_step ? p->p_xstat : 0;
+		ps->val = p->p_step ? p->p_xsig : 0;
 		break;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	case PIOCWAIT32:
 		while (p->p_step == 0 && (p->p_flag & P_WEXIT) == 0) {
 			/* sleep until p stops */
@@ -160,7 +160,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		ps32->flags = 0; /* nope */
 		ps32->events = p->p_stops;
 		ps32->why = p->p_step ? p->p_stype : 0;
-		ps32->val = p->p_step ? p->p_xstat : 0;
+		ps32->val = p->p_step ? p->p_xsig : 0;
 		break;
 #endif
 #if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
@@ -182,16 +182,16 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 #if 0
 		p->p_step = 0;
 		if (P_SHOULDSTOP(p)) {
-			p->p_xstat = sig;
+			p->p_xsig = sig;
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG);
 			PROC_SLOCK(p);
 			thread_unsuspend(p);
 			PROC_SUNLOCK(p);
 		} else if (sig)
-			psignal(p, sig);
+			kern_psignal(p, sig);
 #else
 		if (sig)
-			psignal(p, sig);
+			kern_psignal(p, sig);
 		p->p_step = 0;
 		wakeup(&p->p_step);
 #endif

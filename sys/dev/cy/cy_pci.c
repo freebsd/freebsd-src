@@ -114,8 +114,8 @@ cy_pci_attach(dev)
 	mem_res = NULL;
 
 	ioport_rid = CY_PCI_BASE_ADDR1;
-	ioport_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &ioport_rid,
-	    0ul, ~0ul, 0ul, RF_ACTIVE);
+	ioport_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &ioport_rid,
+	    RF_ACTIVE);
 	if (ioport_res == NULL) {
 		device_printf(dev, "ioport resource allocation failed\n");
 		goto fail;
@@ -123,8 +123,8 @@ cy_pci_attach(dev)
 	ioport = rman_get_start(ioport_res);
 
 	mem_rid = CY_PCI_BASE_ADDR2;
-	mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &mem_rid,
-	    0ul, ~0ul, 0ul, RF_ACTIVE);
+	mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &mem_rid,
+	    RF_ACTIVE);
 	if (mem_res == NULL) {
 		device_printf(dev, "memory resource allocation failed\n");
 		goto fail;
@@ -138,7 +138,7 @@ cy_pci_attach(dev)
 	}
 
 	irq_rid = 0;
-	irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &irq_rid, 0ul, ~0ul, 0ul,
+	irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &irq_rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (irq_res == NULL) {
 		device_printf(dev, "interrupt resource allocation failed\n");

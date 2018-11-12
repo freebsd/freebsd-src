@@ -71,19 +71,22 @@
 #include <sys/ctype.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#if 0	/* not used yet */
 #include <netinet/ip_fw.h>
-
+#endif
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_bridge.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BRIDGE, "netgraph_bridge", "netgraph bridge node ");
+static MALLOC_DEFINE(M_NETGRAPH_BRIDGE, "netgraph_bridge",
+    "netgraph bridge node");
 #else
 #define M_NETGRAPH_BRIDGE M_NETGRAPH
 #endif
@@ -105,6 +108,7 @@ struct ng_bridge_private {
 	u_int			numBuckets;	/* num buckets in table */
 	u_int			hashMask;	/* numBuckets - 1 */
 	int			numLinks;	/* num connected links */
+	int			persistent;	/* can exist w/o hooks */
 	struct callout		timer;		/* one second periodic timer */
 };
 typedef struct ng_bridge_private *priv_p;
@@ -270,6 +274,13 @@ static const struct ng_cmdlist ng_bridge_cmdlist[] = {
 	  NULL,
 	  &ng_bridge_host_ary_type
 	},
+	{
+	  NGM_BRIDGE_COOKIE,
+	  NGM_BRIDGE_SET_PERSISTENT,
+	  "setpersistent",
+	  NULL,
+	  NULL
+	},
 	{ 0 }
 };
 
@@ -300,18 +311,12 @@ ng_bridge_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate and initialize private info */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_BRIDGE, M_WAITOK | M_ZERO);
 	ng_callout_init(&priv->timer);
 
 	/* Allocate and initialize hash table, etc. */
 	priv->tab = malloc(MIN_BUCKETS * sizeof(*priv->tab),
-	    M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
-	if (priv->tab == NULL) {
-		free(priv, M_NETGRAPH_BRIDGE);
-		return (ENOMEM);
-	}
+	    M_NETGRAPH_BRIDGE, M_WAITOK | M_ZERO);
 	priv->numBuckets = MIN_BUCKETS;
 	priv->hashMask = MIN_BUCKETS - 1;
 	priv->conf.debugLevel = 1;
@@ -322,7 +327,7 @@ ng_bridge_constructor(node_p node)
 	/*
 	 * This node has all kinds of stuff that could be screwed by SMP.
 	 * Until it gets it's own internal protection, we go through in 
-	 * single file. This could hurt a machine bridging beteen two 
+	 * single file. This could hurt a machine bridging between two 
 	 * GB ethernets so it should be fixed. 
 	 * When it's fixed the process SHOULD NOT SLEEP, spinlocks please!
 	 * (and atomic ops )
@@ -494,6 +499,11 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			break;
 		    }
+		case NGM_BRIDGE_SET_PERSISTENT:
+		    {
+			priv->persistent = 1;
+			break;
+		    }
 		default:
 			error = EINVAL;
 			break;
@@ -634,7 +644,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 
 	/* Run packet through ipfw processing, if enabled */
 #if 0
-	if (priv->conf.ipfw[linkNum] && V_fw_enable && ip_fw_chk_ptr != NULL) {
+	if (priv->conf.ipfw[linkNum] && V_fw_enable && V_ip_fw_chk_ptr != NULL) {
 		/* XXX not implemented yet */
 	}
 #endif
@@ -710,7 +720,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 			 * It's usable link but not the reserved (first) one.
 			 * Copy mbuf info for sending.
 			 */
-			m2 = m_dup(m, M_DONTWAIT);	/* XXX m_copypacket() */
+			m2 = m_dup(m, M_NOWAIT);	/* XXX m_copypacket() */
 			if (m2 == NULL) {
 				link->stats.memoryFailures++;
 				NG_FREE_ITEM(item);
@@ -799,7 +809,8 @@ ng_bridge_disconnect(hook_p hook)
 
 	/* If no more hooks, go away */
 	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
+	    && (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))
+	    && !priv->persistent) {
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	}
 	return (0);
@@ -1035,7 +1046,7 @@ ng_bridge_nodename(node_p node)
 {
 	static char name[NG_NODESIZ];
 
-	if (NG_NODE_NAME(node) != NULL)
+	if (NG_NODE_HAS_NAME(node))
 		snprintf(name, sizeof(name), "%s", NG_NODE_NAME(node));
 	else
 		snprintf(name, sizeof(name), "[%x]", ng_node2ID(node));

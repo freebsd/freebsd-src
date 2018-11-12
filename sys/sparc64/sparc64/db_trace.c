@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kdb.h>
-#include <sys/linker_set.h>
 #include <sys/proc.h>
 #include <sys/stack.h>
 #include <sys/sysent.h>
@@ -75,7 +74,7 @@ struct	db_variable db_regs[] = {
 	{ "tpc",	DB_OFFSET(tf_tpc),		db_frame },
 	{ "tstate",	DB_OFFSET(tf_tstate),		db_frame },
 };
-struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
+struct db_variable *db_eregs = db_regs + nitems(db_regs);
 
 static int
 db_frame(struct db_variable *vp, db_expr_t *valuep, int op)

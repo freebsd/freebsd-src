@@ -64,6 +64,8 @@ struct zfs2bsd flags[] = {{ACE_FILE_INHERIT_ACE,
 			    ACL_ENTRY_NO_PROPAGATE_INHERIT},
 			{ACE_INHERIT_ONLY_ACE,
 			    ACL_ENTRY_INHERIT_ONLY},
+			{ACE_INHERITED_ACE,
+			    ACL_ENTRY_INHERITED},
 			{ACE_SUCCESSFUL_ACCESS_ACE_FLAG,
 			    ACL_ENTRY_SUCCESSFUL_ACCESS},
 			{ACE_FAILED_ACCESS_ACE_FLAG,
@@ -105,7 +107,10 @@ acl_from_aces(struct acl *aclp, const ace_t *aces, int nentries)
 	struct acl_entry *entry;
 	const ace_t *ace;
 
-	KASSERT(nentries >= 1, ("empty ZFS ACL"));
+	if (nentries < 1) {
+		printf("acl_from_aces: empty ZFS ACL; returning EINVAL.\n");
+		return (EINVAL);
+	}
 
 	if (nentries > ACL_MAX_ENTRIES) {
 		/*

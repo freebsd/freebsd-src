@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /usr/bin/env bash
 
 #   EXPAT TEST SCRIPT FOR W3C XML TEST SUITE
 
@@ -6,7 +6,7 @@
 # w3c.org xml test suite, available from
 # http://www.w3.org/XML/Test/xmlts20020606.zip.
 
-# To run this script, first set XMLWF so that xmlwf can be
+# To run this script, first set XMLWF below so that xmlwf can be
 # found, then set the output directory with OUTPUT.
 
 # The script lists all test cases where Expat shows a discrepancy
@@ -20,12 +20,14 @@
 # produced by xmlwf conforms to an older definition of canonical XML
 # and does not generate notation declarations.
 
+shopt -s nullglob
+
 MYDIR="`dirname \"$0\"`"
 cd "$MYDIR"
 MYDIR="`pwd`"
 XMLWF="`dirname \"$MYDIR\"`/xmlwf/xmlwf"
 # XMLWF=/usr/local/bin/xmlwf
-TS="$MYDIR/XML-Test-Suite"
+TS="$MYDIR"
 # OUTPUT must terminate with the directory separator.
 OUTPUT="$TS/out/"
 # OUTPUT=/home/tmp/xml-testsuite-out/
@@ -39,7 +41,7 @@ RunXmlwfNotWF() {
   $XMLWF -p "$file" > outfile || return $?
   read outdata < outfile
   if test "$outdata" = "" ; then
-      echo "Expected well-formed: $reldir$file"
+      echo "Expected not well-formed: $reldir$file"
       return 1
   else
       return 0
@@ -55,7 +57,7 @@ RunXmlwfWF() {
   read outdata < outfile 
   if test "$outdata" = "" ; then 
       if [ -f "out/$file" ] ; then 
-          diff "$OUTPUT$reldir$file" "out/$file" > outfile 
+          diff -u "$OUTPUT$reldir$file" "out/$file" > outfile 
           if [ -s outfile ] ; then 
               cp outfile "$OUTPUT$reldir$file.diff"
               echo "Output differs: $reldir$file"
@@ -100,7 +102,7 @@ for xmldir in ibm/valid/P* \
       RunXmlwfWF "$xmlfile" "$xmldir/"
       UpdateStatus $?
   done
-  rm outfile
+  rm -f outfile
 done
 
 cd "$TS/xmlconf/oasis"
@@ -117,6 +119,7 @@ rm outfile
 
 cd "$TS/xmlconf"
 for xmldir in ibm/not-wf/P* \
+              ibm/not-wf/p28a \
               ibm/not-wf/misc \
               xmltest/not-wf/ext-sa \
               xmltest/not-wf/not-sa \

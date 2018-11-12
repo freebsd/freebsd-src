@@ -69,6 +69,7 @@ static bus_print_child_t fhc_print_child;
 static bus_probe_nomatch_t fhc_probe_nomatch;
 static bus_setup_intr_t fhc_setup_intr;
 static bus_alloc_resource_t fhc_alloc_resource;
+static bus_adjust_resource_t fhc_adjust_resource;
 static bus_get_resource_list_t fhc_get_resource_list;
 static ofw_bus_get_devinfo_t fhc_get_devinfo;
 
@@ -93,6 +94,7 @@ static device_method_t fhc_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	fhc_alloc_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	fhc_adjust_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
 	DEVMETHOD(bus_setup_intr,	fhc_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -108,7 +110,7 @@ static device_method_t fhc_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t fhc_driver = {
@@ -119,9 +121,12 @@ static driver_t fhc_driver = {
 
 static devclass_t fhc_devclass;
 
-DRIVER_MODULE(fhc, central, fhc_driver, fhc_devclass, 0, 0);
-DRIVER_MODULE(fhc, nexus, fhc_driver, fhc_devclass, 0, 0);
+EARLY_DRIVER_MODULE(fhc, central, fhc_driver, fhc_devclass, 0, 0,
+    BUS_PASS_BUS);
 MODULE_DEPEND(fhc, central, 1, 1, 1);
+EARLY_DRIVER_MODULE(fhc, nexus, fhc_driver, fhc_devclass, 0, 0,
+    BUS_PASS_BUS);
+MODULE_DEPEND(fhc, nexus, 1, 1, 1);
 MODULE_VERSION(fhc, 1);
 
 static const struct intr_controller fhc_ic = {
@@ -200,12 +205,12 @@ fhc_attach(device_t dev)
 	device_printf(dev, "board %d, ", board);
 	if (OF_getprop_alloc(node, "board-model", 1, (void **)&name) != -1) {
 		printf("model %s\n", name);
-		free(name, M_OFWPROP);
+		OF_prop_free(name);
 	} else
 		printf("model unknown\n");
 
 	for (i = FHC_FANFAIL; i <= FHC_TOD; i++) {
-		bus_write_4(sc->sc_memres[i], FHC_ICLR, 0x0);
+		bus_write_4(sc->sc_memres[i], FHC_ICLR, INTCLR_IDLE);
 		(void)bus_read_4(sc->sc_memres[i], FHC_ICLR);
 	}
 
@@ -292,7 +297,7 @@ fhc_attach(device_t dev)
 			resource_list_add(&fdi->fdi_rl, SYS_RES_MEMORY, j,
 			    reg[j].sbr_offset, reg[j].sbr_offset +
 			    reg[j].sbr_size, reg[j].sbr_size);
-		free(reg, M_OFWPROP);
+		OF_prop_free(reg);
 		if (central == 1) {
 			i = OF_getprop_alloc(child, "interrupts",
 			    sizeof(*intr), (void **)&intr);
@@ -302,7 +307,7 @@ fhc_attach(device_t dev)
 					resource_list_add(&fdi->fdi_rl,
 					    SYS_RES_IRQ, j, iv, iv, 1);
 				}
-				free(intr, M_OFWPROP);
+				OF_prop_free(intr);
 			}
 		}
 		cdev = device_add_child(dev, NULL, -1);
@@ -388,7 +393,7 @@ fhc_intr_clear(void *arg)
 	struct intr_vector *iv = arg;
 	struct fhc_icarg *fica = iv->iv_icarg;
 
-	bus_write_4(fica->fica_memres, FHC_ICLR, 0x0);
+	bus_write_4(fica->fica_memres, FHC_ICLR, INTCLR_IDLE);
 	(void)bus_read_4(fica->fica_memres, FHC_ICLR);
 }
 
@@ -415,7 +420,7 @@ fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 
 static struct resource *
 fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
@@ -428,7 +433,7 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	int passthrough;
 	int i;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	res = NULL;
 	rle = NULL;
@@ -470,6 +475,15 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 	}
 	return (res);
+}
+
+static int
+fhc_adjust_resource(device_t bus __unused, device_t child __unused,
+    int type __unused, struct resource *r __unused, rman_res_t start __unused,
+    rman_res_t end __unused)
+{
+
+	return (ENXIO);
 }
 
 static struct resource_list *
@@ -515,7 +529,7 @@ fhc_print_res(struct fhc_devinfo *fdi)
 
 	rv = 0;
 	rv += resource_list_print_type(&fdi->fdi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
-	rv += resource_list_print_type(&fdi->fdi_rl, "irq", SYS_RES_IRQ, "%ld");
+	    "%#jx");
+	rv += resource_list_print_type(&fdi->fdi_rl, "irq", SYS_RES_IRQ, "%jd");
 	return (rv);
 }

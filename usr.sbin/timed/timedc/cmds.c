@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -36,7 +32,6 @@
 static char sccsid[] = "@(#)cmds.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 #endif
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -82,8 +77,7 @@ void bytehostorder(struct tsp *);
 /* compute the difference between our date and another machine
  */
 static int				/* difference in days from our time */
-daydiff(hostname)
-	char *hostname;
+daydiff(char *hostname)
 {
 	int i;
 	int trials;
@@ -135,7 +129,7 @@ daydiff(hostname)
 			}
 			sec -= BU;
 
-			(void)gettimeofday(&now, (struct timezone*)0);
+			(void)gettimeofday(&now, NULL);
 			return (sec - now.tv_sec);
 		}
 	}
@@ -168,9 +162,7 @@ daydiff(hostname)
  * measurement.
  */
 void
-clockdiff(argc, argv)
-	int argc;
-	char *argv[];
+clockdiff(int argc, char *argv[])
 {
 	int measure_status;
 	extern int measure(u_long, u_long, char *, struct sockaddr_in*, int);
@@ -267,11 +259,9 @@ clockdiff(argc, argv)
  * finds location of master timedaemon
  */
 void
-msite(argc, argv)
-	int argc;
-	char *argv[];
+msite(int argc, char *argv[])
 {
-	int cc;
+	ssize_t cc;
 	fd_set ready;
 	struct sockaddr_in dest;
 	int i, length;
@@ -287,7 +277,7 @@ msite(argc, argv)
 	}
 
 	srvp = getservbyname("timed", "udp");
-	if (srvp == 0) {
+	if (srvp == NULL) {
 		warnx("timed/udp: unknown service");
 		return;
 	}
@@ -300,7 +290,7 @@ msite(argc, argv)
 	do {
 		tgtname = (i >= argc) ? myname : argv[i];
 		hp = gethostbyname(tgtname);
-		if (hp == 0) {
+		if (hp == NULL) {
 			warnx("%s: %s", tgtname, hstrerror(h_errno));
 			continue;
 		}
@@ -337,7 +327,7 @@ msite(argc, argv)
 			 */
 			if (cc < (sizeof(struct tsp) - MAXHOSTNAMELEN + 32)) {
 				fprintf(stderr, 
-				   "short packet (%u/%u bytes) from %s\n",
+				   "short packet (%zd/%zu bytes) from %s\n",
 				   cc, sizeof(struct tsp) - MAXHOSTNAMELEN + 32,
 				   inet_ntoa(from.sin_addr));
 				continue;
@@ -364,7 +354,7 @@ msite(argc, argv)
  * quits timedc
  */
 void
-quit()
+quit(void)
 {
 	exit(0);
 }
@@ -376,9 +366,7 @@ quit()
  * reliability of communication channel.
  */
 void
-testing(argc, argv)
-	int argc;
-	char *argv[];
+testing(int argc, char *argv[])
 {
 	struct servent *srvp;
 	struct sockaddr_in sin;
@@ -390,7 +378,7 @@ testing(argc, argv)
 	}
 
 	srvp = getservbyname("timed", "udp");
-	if (srvp == 0) {
+	if (srvp == NULL) {
 		warnx("timed/udp: unknown service");
 		return;
 	}
@@ -426,13 +414,11 @@ testing(argc, argv)
  * Enables or disables tracing on local timedaemon
  */
 void
-tracing(argc, argv)
-	int argc;
-	char *argv[];
+tracing(int argc, char *argv[])
 {
 	int onflag;
 	int length;
-	int cc;
+	ssize_t cc;
 	fd_set ready;
 	struct sockaddr_in dest;
 	struct sockaddr_in from;
@@ -446,7 +432,7 @@ tracing(argc, argv)
 	}
 
 	srvp = getservbyname("timed", "udp");
-	if (srvp == 0) {
+	if (srvp == NULL) {
 		warnx("timed/udp: unknown service");
 		return;
 	}
@@ -493,7 +479,7 @@ tracing(argc, argv)
 		 * least long enough to hold a 4.3BSD packet.
 		 */
 		if (cc < (sizeof(struct tsp) - MAXHOSTNAMELEN + 32)) {
-			fprintf(stderr, "short packet (%u/%u bytes) from %s\n",
+			fprintf(stderr, "short packet (%zd/%zu bytes) from %s\n",
 			    cc, sizeof(struct tsp) - MAXHOSTNAMELEN + 32,
 			    inet_ntoa(from.sin_addr));
 			return;
@@ -517,7 +503,7 @@ tracing(argc, argv)
 }
 
 int
-priv_resources()
+priv_resources(void)
 {
 	int port;
 	struct sockaddr_in sin;

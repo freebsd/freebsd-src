@@ -23,8 +23,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 /*
  * Routines for preparing tdata trees for conversion into CTF data, and
  * for placing the resulting data into an output file.
@@ -363,6 +361,7 @@ sort_iidescs(Elf *elf, const char *file, tdata_t *td, int fuzzymatch,
 
 	for (i = 0; i < nent; i++) {
 		GElf_Sym sym;
+		char *bname;
 		iidesc_t **tolist;
 		GElf_Sym ssym;
 		iidesc_match_t smatch;
@@ -377,7 +376,8 @@ sort_iidescs(Elf *elf, const char *file, tdata_t *td, int fuzzymatch,
 
 		switch (GELF_ST_TYPE(sym.st_info)) {
 		case STT_FILE:
-			match.iim_file = match.iim_name;
+			bname = strrchr(match.iim_name, '/');
+			match.iim_file = bname == NULL ? match.iim_name : bname + 1;
 			continue;
 		case STT_OBJECT:
 			tolist = iiburst->iib_objts;
@@ -574,7 +574,7 @@ write_file(Elf *src, const char *srcname, Elf *dst, const char *dstname,
 			    shdr.sh_name);
 		}
 
-#if !defined(sun)
+#ifndef illumos
 		if (gelf_update_shdr(dscn, &shdr) == 0)
 			elfterminate(dstname, "Cannot update sect %s", sname);
 #endif
@@ -583,7 +583,7 @@ write_file(Elf *src, const char *srcname, Elf *dst, const char *dstname,
 			elfterminate(srcname, "Cannot get sect %s data", sname);
 		if ((ddata = elf_newdata(dscn)) == NULL)
 			elfterminate(dstname, "Can't make sect %s data", sname);
-#if defined(sun)
+#ifdef illumos
 		bcopy(sdata, ddata, sizeof (Elf_Data));
 #else
 		/*
@@ -643,8 +643,8 @@ write_file(Elf *src, const char *srcname, Elf *dst, const char *dstname,
 			}
 		}
 
-#if !defined(sun)
-		if (ddata->d_buf == NULL) {
+#ifndef illumos
+		if (ddata->d_buf == NULL && sdata->d_buf != NULL) {
 			ddata->d_buf = xmalloc(shdr.sh_size);
 			bcopy(sdata->d_buf, ddata->d_buf, shdr.sh_size);
 		}
@@ -717,7 +717,7 @@ make_ctf_data(tdata_t *td, Elf *elf, const char *file, size_t *lenp, int flags)
 
 	iiburst = sort_iidescs(elf, file, td, flags & CTF_FUZZY_MATCH,
 	    flags & CTF_USE_DYNSYM);
-	data = ctf_gen(iiburst, lenp, flags & CTF_COMPRESS);
+	data = ctf_gen(iiburst, lenp, flags & (CTF_COMPRESS |  CTF_SWAP_BYTES));
 
 	iiburst_free(iiburst);
 
@@ -730,10 +730,12 @@ write_ctf(tdata_t *td, const char *curname, const char *newname, int flags)
 	struct stat st;
 	Elf *elf = NULL;
 	Elf *telf = NULL;
+	GElf_Ehdr ehdr;
 	caddr_t data;
 	size_t len;
 	int fd = -1;
 	int tfd = -1;
+	int byteorder;
 
 	(void) elf_version(EV_CURRENT);
 	if ((fd = open(curname, O_RDONLY)) < 0 || fstat(fd, &st) < 0)
@@ -745,6 +747,22 @@ write_ctf(tdata_t *td, const char *curname, const char *newname, int flags)
 		terminate("Cannot open temp file %s for writing", newname);
 	if ((telf = elf_begin(tfd, ELF_C_WRITE, NULL)) == NULL)
 		elfterminate(curname, "Cannot write");
+
+	if (gelf_getehdr(elf, &ehdr)) {
+#if BYTE_ORDER == _BIG_ENDIAN
+		byteorder = ELFDATA2MSB;
+#else
+		byteorder = ELFDATA2LSB;
+#endif
+		/*
+		 * If target and host has the same byte order
+		 * clear byte swapping request
+		 */
+		if  (ehdr.e_ident[EI_DATA] == byteorder)
+			flags &= ~CTF_SWAP_BYTES;
+	}
+	else 
+		elfterminate(curname, "Failed to get EHDR");
 
 	data = make_ctf_data(td, elf, curname, &len, flags);
 	write_file(elf, curname, telf, newname, data, len, flags);

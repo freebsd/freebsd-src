@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2001 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ static struct pfs_vdata *pfs_vncache;
 static eventhandler_tag pfs_exit_tag;
 static void pfs_exit(void *arg, struct proc *p);
 
-SYSCTL_NODE(_vfs_pfs, OID_AUTO, vncache, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_vfs_pfs, OID_AUTO, vncache, CTLFLAG_RW, 0,
     "pseudofs vnode cache");
 
 static int pfs_vncache_entries;
@@ -84,7 +84,6 @@ void
 pfs_vncache_load(void)
 {
 
-	mtx_assert(&Giant, MA_OWNED);
 	mtx_init(&pfs_vncache_mutex, "pfs_vncache", NULL, MTX_DEF);
 	pfs_exit_tag = EVENTHANDLER_REGISTER(process_exit, pfs_exit, NULL,
 	    EVENTHANDLER_PRI_ANY);
@@ -97,7 +96,6 @@ void
 pfs_vncache_unload(void)
 {
 
-	mtx_assert(&Giant, MA_OWNED);
 	EVENTHANDLER_DEREGISTER(process_exit, pfs_exit_tag);
 	KASSERT(pfs_vncache_entries == 0,
 	    ("%d vncache entries remaining", pfs_vncache_entries));
@@ -189,8 +187,8 @@ retry:
 	if ((pn->pn_flags & PFS_PROCDEP) != 0)
 		(*vpp)->v_vflag |= VV_PROCDEP;
 	pvd->pvd_vnode = *vpp;
-	VN_LOCK_AREC(*vpp);
 	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+	VN_LOCK_AREC(*vpp);
 	error = insmntque(*vpp, mp);
 	if (error != 0) {
 		free(pvd, M_PFSVNCACHE);

@@ -46,6 +46,7 @@
 #include <opencrypto/xform.h>
 
 #define	AH_HMAC_HASHLEN		12	/* 96 bits of authenticator */
+#define	AH_HMAC_MAXHASHLEN	(SHA2_512_HASH_LEN/2)	/* Keep this updated */
 #define	AH_HMAC_INITIAL_RPL	1	/* replay counter initial value */
 
 /*
@@ -74,6 +75,7 @@ struct tdb_crypto {
 	int			tc_protoff;	/* current protocol offset */
 	int			tc_skip;	/* data offset */
 	caddr_t			tc_ptr;		/* associated crypto data */
+	struct secasvar 	*tc_sav;	/* related SA */
 };
 
 struct secasvar;
@@ -81,7 +83,7 @@ struct ipescrequest;
 
 struct xformsw {
 	u_short	xf_type;		/* xform ID */
-#define	XF_IP4		1	/* IP inside IP */
+#define	XF_IP4		1	/* unused */
 #define	XF_AH		2	/* AH */
 #define	XF_ESP		3	/* ESP */
 #define	XF_TCPSIGNATURE	5	/* TCP MD5 Signature option, RFC 2358 */
@@ -103,14 +105,9 @@ struct xformsw {
 #ifdef _KERNEL
 extern void xform_register(struct xformsw*);
 extern int xform_init(struct secasvar *sav, int xftype);
+extern int xform_ah_authsize(struct auth_hash *esph);
 
 struct cryptoini;
-
-/* XF_IP4 */
-extern	int ip4_input6(struct mbuf **m, int *offp, int proto);
-extern	void ip4_input(struct mbuf *m, int);
-extern	int ipip_output(struct mbuf *, struct ipsecrequest *,
-			struct mbuf **, int, int);
 
 /* XF_AH */
 extern int ah_init0(struct secasvar *, struct xformsw *, struct cryptoini *);

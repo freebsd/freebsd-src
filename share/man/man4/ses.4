@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 29, 2000
+.Dd September 05, 2015
 .Dt SES 4
 .Os
 .Sh NAME
@@ -79,7 +79,6 @@ devices.
 They are defined in the header file
 .In cam/scsi/scsi_ses.h
 (\fIq.v.\fR).
-.Pp
 .Bl -tag -width SESIOC_GETENCSTAT
 .It Dv SESIOC_GETNOBJ
 Used to find out how many
@@ -102,7 +101,7 @@ Set the status of a particular object.
 Get the associated help text for an object (not yet implemented).
 .Nm
 devices often have descriptive text for an object which can tell
-you things like location (e.g, "left power supply").
+you things like location (e.g., "left power supply").
 .It Dv SESIOC_INIT
 Initialize the enclosure.
 .El
@@ -124,6 +123,8 @@ When the kernel is configured with
 .Tn DEBUG
 enabled, the first open to an SES device will spit out overall enclosure
 parameters to the console.
+.Sh SEE ALSO
+.Xr sesutil 8
 .Sh HISTORY
 The
 .Nm

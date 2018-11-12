@@ -30,9 +30,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2002
-.Os
+.Dd July 25, 2015
 .Dt MAC_IFOFF 4
+.Os
 .Sh NAME
 .Nm mac_ifoff
 .Nd "interface silencing policy"
@@ -118,14 +118,6 @@ under DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
 .Sh BUGS
-See
-.Xr mac 9
-concerning appropriateness for production use.
-The
-.Tn TrustedBSD
-MAC Framework is considered experimental in
-.Fx .
-.Pp
 While the MAC Framework design is intended to support the containment of
 the root user, not all attack channels are currently protected by entry
 point checks.

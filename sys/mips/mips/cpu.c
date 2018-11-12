@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/stdint.h>
 
 #include <sys/bus.h>
@@ -47,16 +48,88 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/locore.h>
 #include <machine/pte.h>
+#include <machine/tlb.h>
+#include <machine/hwfunc.h>
+#include <machine/mips_opcode.h>
+#include <machine/regnum.h>
+#include <machine/tls.h>
 
-static struct mips_cpuinfo cpuinfo;
+#if defined(CPU_CNMIPS)
+#include <contrib/octeon-sdk/cvmx.h>
+#include <contrib/octeon-sdk/octeon-model.h>
+#endif
 
-union	cpuprid cpu_id;
-union	cpuprid fpu_id;
+static void cpu_identify(void);
+
+struct mips_cpuinfo cpuinfo;
+
+#define _ENCODE_INSN(a,b,c,d,e) \
+    ((uint32_t)(((a) << 26)|((b) << 21)|((c) << 16)|((d) << 11)|(e)))
+
+#if defined(__mips_n64)
+
+#   define	_LOAD_T0_MDTLS_A1 \
+    _ENCODE_INSN(OP_LD, A1, T0, 0, offsetof(struct thread, td_md.md_tls))
+
+#   define	_LOAD_T0_MDTLS_TCV_OFFSET_A1 \
+    _ENCODE_INSN(OP_LD, A1, T1, 0, \
+    offsetof(struct thread, td_md.md_tls_tcb_offset))
+
+#   define	_ADDU_V0_T0_T1 \
+    _ENCODE_INSN(0, T0, T1, V0, OP_DADDU)
+
+#   define _MTC0_V0_USERLOCAL \
+    _ENCODE_INSN(OP_COP0, OP_DMT, V0, 4, 2)
+
+#else /* mips 32 */
+
+#   define	_LOAD_T0_MDTLS_A1 \
+    _ENCODE_INSN(OP_LW, A1, T0, 0, offsetof(struct thread, td_md.md_tls))
+
+#   define	_LOAD_T0_MDTLS_TCV_OFFSET_A1 \
+    _ENCODE_INSN(OP_LW, A1, T1, 0, \
+    offsetof(struct thread, td_md.md_tls_tcb_offset))
+
+#   define	_ADDU_V0_T0_T1 \
+    _ENCODE_INSN(0, T0, T1, V0, OP_ADDU)
+
+#   define _MTC0_V0_USERLOCAL \
+    _ENCODE_INSN(OP_COP0, OP_MT, V0, 4, 2)
+
+#endif /* ! __mips_n64 */
+
+#define	_JR_RA	_ENCODE_INSN(OP_SPECIAL, RA, 0, 0, OP_JR)
+#define	_NOP	0
+
+/*
+ * Patch cpu_switch() by removing the UserLocal register code at the end.
+ * For MIPS hardware that don't support UserLocal Register Implementation
+ * we remove the instructions that update this register which may cause a
+ * reserved instruction exception in the kernel.
+ */
+static void
+remove_userlocal_code(uint32_t *cpu_switch_code)
+{
+	uint32_t *instructp;
+
+	for (instructp = cpu_switch_code;; instructp++) {
+		if (instructp[0] == _JR_RA)
+			panic("%s: Unable to patch cpu_switch().", __func__);
+		if (instructp[0] == _LOAD_T0_MDTLS_A1 &&
+		    instructp[1] == _LOAD_T0_MDTLS_TCV_OFFSET_A1 &&
+		    instructp[2] == _ADDU_V0_T0_T1 &&
+		    instructp[3] == _MTC0_V0_USERLOCAL) {
+			instructp[0] = _JR_RA;
+			instructp[1] = _NOP;
+			break;
+		}
+	}
+}
 
 /*
  * Attempt to identify the MIPS CPU as much as possible.
  *
- * XXX: Assumes the CPU is MIPS32 compliant.
+ * XXX: Assumes the CPU is MIPS{32,64}{,r2} compliant.
  * XXX: For now, skip config register selections 2 and 3
  * as we don't currently use L2/L3 cache or additional
  * MIPS32 processor features.
@@ -67,6 +140,11 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	u_int32_t prid;
 	u_int32_t cfg0;
 	u_int32_t cfg1;
+	u_int32_t cfg2;
+	u_int32_t cfg3;
+#if defined(CPU_CNMIPS)
+	u_int32_t cfg4;
+#endif
 	u_int32_t tmp;
 
 	memset(cpuinfo, 0, sizeof(struct mips_cpuinfo));
@@ -84,56 +162,168 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	    ((cfg0 & MIPS_CONFIG0_MT_MASK) >> MIPS_CONFIG0_MT_SHIFT);
 	cpuinfo->icache_virtual = cfg0 & MIPS_CONFIG0_VI;
 
-	/* If config register selection 1 does not exist, exit. */
-	if (!(cfg0 & MIPS3_CONFIG_CM))
+	/* If config register selection 1 does not exist, return. */
+	if (!(cfg0 & MIPS_CONFIG0_M))
 		return;
 
 	/* Learn TLB size and L1 cache geometry. */
 	cfg1 = mips_rd_config1();
+
+	/* Get the Config2 and Config3 registers as well. */
+	cfg2 = 0;
+	cfg3 = 0;
+	if (cfg1 & MIPS_CONFIG1_M) {
+		cfg2 = mips_rd_config2();
+		if (cfg2 & MIPS_CONFIG2_M)
+			cfg3 = mips_rd_config3();
+	}
+
+	/* Check to see if UserLocal register is implemented. */
+	if (cfg3 & MIPS_CONFIG3_ULR) {
+		/* UserLocal register is implemented, enable it. */
+		cpuinfo->userlocal_reg = true;
+		tmp = mips_rd_hwrena();
+		mips_wr_hwrena(tmp | MIPS_HWRENA_UL);
+	} else {
+		/*
+		 * UserLocal register is not implemented. Patch
+		 * cpu_switch() and remove unsupported code.
+		 */
+		cpuinfo->userlocal_reg = false;
+		remove_userlocal_code((uint32_t *)cpu_switch);
+	}
+
+
+#if defined(CPU_NLM)
+	/* Account for Extended TLB entries in XLP */
+	tmp = mips_rd_config6();
+	cpuinfo->tlb_nentries = ((tmp >> 16) & 0xffff) + 1;
+#elif defined(BERI_LARGE_TLB)
+	/* Check if we support extended TLB entries and if so activate. */
+	tmp = mips_rd_config5();
+#define	BERI_CP5_LTLB_SUPPORTED	0x1
+	if (tmp & BERI_CP5_LTLB_SUPPORTED) {
+		/* See how many extra TLB entries we have. */
+		tmp = mips_rd_config6();
+		cpuinfo->tlb_nentries = (tmp >> 16) + 1;
+		/* Activate the extended entries. */
+		mips_wr_config6(tmp|0x4);
+	} else
+#endif
+#if !defined(CPU_NLM)
 	cpuinfo->tlb_nentries = 
 	    ((cfg1 & MIPS_CONFIG1_TLBSZ_MASK) >> MIPS_CONFIG1_TLBSZ_SHIFT) + 1;
+#endif
+#if defined(CPU_CNMIPS)
+	/* Add extended TLB size information from config4.  */
+	cfg4 = mips_rd_config4();
+	if ((cfg4 & MIPS_CONFIG4_MMUEXTDEF) == MIPS_CONFIG4_MMUEXTDEF_MMUSIZEEXT)
+		cpuinfo->tlb_nentries += (cfg4 & MIPS_CONFIG4_MMUSIZEEXT) * 0x40;
+#endif
 
 	/* L1 instruction cache. */
-	tmp = 1 << (((cfg1 & MIPS_CONFIG1_IL_MASK) >> MIPS_CONFIG1_IL_SHIFT) + 1);
+#ifdef MIPS_DISABLE_L1_CACHE
+	cpuinfo->l1.ic_linesize = 0;
+#else
+	tmp = (cfg1 & MIPS_CONFIG1_IL_MASK) >> MIPS_CONFIG1_IL_SHIFT;
 	if (tmp != 0) {
-		cpuinfo->l1.ic_linesize = tmp;
+		cpuinfo->l1.ic_linesize = 1 << (tmp + 1);
 		cpuinfo->l1.ic_nways = (((cfg1 & MIPS_CONFIG1_IA_MASK) >> MIPS_CONFIG1_IA_SHIFT)) + 1;
 		cpuinfo->l1.ic_nsets = 
 	    		1 << (((cfg1 & MIPS_CONFIG1_IS_MASK) >> MIPS_CONFIG1_IS_SHIFT) + 6);
-		cpuinfo->l1.ic_size = 
-		    cpuinfo->l1.ic_linesize * cpuinfo->l1.ic_nsets * cpuinfo->l1.ic_nways;
 	}
+#endif
 
 	/* L1 data cache. */
-	tmp = 1 << (((cfg1 & MIPS_CONFIG1_DL_MASK) >> MIPS_CONFIG1_DL_SHIFT) + 1);
+#ifdef MIPS_DISABLE_L1_CACHE
+	cpuinfo->l1.dc_linesize = 0;
+#else
+#ifndef CPU_CNMIPS
+	tmp = (cfg1 & MIPS_CONFIG1_DL_MASK) >> MIPS_CONFIG1_DL_SHIFT;
 	if (tmp != 0) {
-		cpuinfo->l1.dc_linesize = tmp;
+		cpuinfo->l1.dc_linesize = 1 << (tmp + 1);
 		cpuinfo->l1.dc_nways = 
 		    (((cfg1 & MIPS_CONFIG1_DA_MASK) >> MIPS_CONFIG1_DA_SHIFT)) + 1;
 		cpuinfo->l1.dc_nsets = 
 		    1 << (((cfg1 & MIPS_CONFIG1_DS_MASK) >> MIPS_CONFIG1_DS_SHIFT) + 6);
-#ifdef TARGET_OCTEON
-		/*
-		 * Octeon does 128 byte line-size. But Config-Sel1 doesn't show
-		 * 128 line-size, 1 Set, 64 ways.
-		 */
-		cpuinfo->l1.dc_linesize = 128;
+	}
+#else
+	/*
+	 * Some Octeon cache configuration parameters are by model family, not
+	 * config1.
+	 */
+	if (OCTEON_IS_MODEL(OCTEON_CN3XXX)) {
+		/* Octeon and Octeon XL.  */
 		cpuinfo->l1.dc_nsets = 1;
 		cpuinfo->l1.dc_nways = 64;
-#endif
-		cpuinfo->l1.dc_size = cpuinfo->l1.dc_linesize 
-		    * cpuinfo->l1.dc_nsets * cpuinfo->l1.dc_nways;
+	} else if (OCTEON_IS_MODEL(OCTEON_CN5XXX)) {
+		/* Octeon Plus.  */
+		cpuinfo->l1.dc_nsets = 2;
+		cpuinfo->l1.dc_nways = 64;
+	} else if (OCTEON_IS_MODEL(OCTEON_CN6XXX)) {
+		/* Octeon II.  */
+		cpuinfo->l1.dc_nsets = 8;
+		cpuinfo->l1.dc_nways = 32;
+
+		cpuinfo->l1.ic_nsets = 8;
+		cpuinfo->l1.ic_nways = 37;
+	} else {
+		panic("%s: unsupported Cavium Networks CPU.", __func__);
 	}
+
+	/* All Octeon models use 128 byte line size.  */
+	cpuinfo->l1.dc_linesize = 128;
+#endif
+#endif
+
+	cpuinfo->l1.ic_size = cpuinfo->l1.ic_linesize
+	    * cpuinfo->l1.ic_nsets * cpuinfo->l1.ic_nways;
+	cpuinfo->l1.dc_size = cpuinfo->l1.dc_linesize 
+	    * cpuinfo->l1.dc_nsets * cpuinfo->l1.dc_nways;
+
+	/*
+	 * Probe PageMask register to see what sizes of pages are supported
+	 * by writing all one's and then reading it back.
+	 */
+	mips_wr_pagemask(~0);
+	cpuinfo->tlb_pgmask = mips_rd_pagemask();
+	mips_wr_pagemask(MIPS3_PGMASK_4K);
+
+#ifndef CPU_CNMIPS
+	/* L2 cache */
+	if (!(cfg1 & MIPS_CONFIG_CM)) {
+		/* We don't have valid cfg2 register */
+		return;
+	}
+
+	cfg2 = mips_rd_config2();
+
+	tmp = (cfg2 >> MIPS_CONFIG2_SL_SHIFT) & MIPS_CONFIG2_SL_MASK;
+	if (0 < tmp && tmp <= 7)
+		cpuinfo->l2.dc_linesize = 2 << tmp;
+
+	tmp = (cfg2 >> MIPS_CONFIG2_SS_SHIFT) & MIPS_CONFIG2_SS_MASK;
+	if (0 <= tmp && tmp <= 7)
+		cpuinfo->l2.dc_nsets = 64 << tmp;
+
+	tmp = (cfg2 >> MIPS_CONFIG2_SA_SHIFT) & MIPS_CONFIG2_SA_MASK;
+	if (0 <= tmp && tmp <= 7)
+		cpuinfo->l2.dc_nways = tmp + 1;
+
+	cpuinfo->l2.dc_size = cpuinfo->l2.dc_linesize
+	    * cpuinfo->l2.dc_nsets * cpuinfo->l2.dc_nways;
+#endif
 }
 
 void
 mips_cpu_init(void)
 {
+	platform_cpu_init();
 	mips_get_identity(&cpuinfo);
 	num_tlbentries = cpuinfo.tlb_nentries;
-	Mips_SetWIRED(0);
-	Mips_TLBFlush(num_tlbentries);
-	Mips_SetWIRED(VMWIRED_ENTRIES);
+	mips_wr_wired(0);
+	tlb_invalidate_all();
+	mips_wr_wired(VMWIRED_ENTRIES);
 	mips_config_cache(&cpuinfo);
 	mips_vector_init();
 
@@ -143,7 +333,7 @@ mips_cpu_init(void)
 	cpu_identify();
 }
 
-void
+static void
 cpu_identify(void)
 {
 	uint32_t cfg0, cfg1, cfg2, cfg3;
@@ -174,9 +364,15 @@ cpu_identify(void)
 	case MIPS_PRID_CID_LEXRA:
 		printf("Lexra");
 		break;
+	case MIPS_PRID_CID_RMI:
+		printf("RMI");
+		break;
+	case MIPS_PRID_CID_CAVIUM:
+		printf("Cavium");
+		break;
 	case MIPS_PRID_CID_PREHISTORIC:
 	default:
-		printf("Unknown");
+		printf("Unknown cid %#x", cpuinfo.cpu_vendor);
 		break;
 	}
 	printf(" processor v%d.%d\n", cpuinfo.cpu_rev, cpuinfo.cpu_impl);
@@ -192,8 +388,31 @@ cpu_identify(void)
 		} else if (cpuinfo.tlb_type == MIPS_MMU_FIXED) {
 			printf("Fixed mapping");
 		}
-		printf(", %d entries\n", cpuinfo.tlb_nentries);
+		printf(", %d entries ", cpuinfo.tlb_nentries);
 	}
+
+	if (cpuinfo.tlb_pgmask) {
+		printf("(");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_MASKX)
+			printf("1K ");
+		printf("4K ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_16K)
+			printf("16K ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_64K)
+			printf("64K ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_256K)
+			printf("256K ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_1M)
+			printf("1M ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_16M)
+			printf("16M ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_64M)
+			printf("64M ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_256M)
+			printf("256M ");
+		printf("pg sizes)");
+	}
+	printf("\n");
 
 	printf("  L1 i-cache: ");
 	if (cpuinfo.l1.ic_linesize == 0) {
@@ -221,9 +440,21 @@ cpu_identify(void)
 		    cpuinfo.l1.dc_nsets, cpuinfo.l1.dc_linesize);
 	}
 
+	printf("  L2 cache: ");
+	if (cpuinfo.l2.dc_linesize == 0) {
+		printf("disabled\n");
+	} else {
+		printf("%d ways of %d sets, %d bytes per line, "
+		    "%d KiB total size\n",
+		    cpuinfo.l2.dc_nways,
+		    cpuinfo.l2.dc_nsets,
+		    cpuinfo.l2.dc_linesize,
+		    cpuinfo.l2.dc_size / 1024);
+	}
+
 	cfg0 = mips_rd_config();
 	/* If config register selection 1 does not exist, exit. */
-	if (!(cfg0 & MIPS3_CONFIG_CM))
+	if (!(cfg0 & MIPS_CONFIG_CM))
 		return;
 
 	cfg1 = mips_rd_config1();
@@ -231,22 +462,23 @@ cpu_identify(void)
 	    "\20\7COP2\6MDMX\5PerfCount\4WatchRegs\3MIPS16\2EJTAG\1FPU");
 
 	/* If config register selection 2 does not exist, exit. */
-	if (!(cfg1 & MIPS3_CONFIG_CM))
+	if (!(cfg1 & MIPS_CONFIG_CM))
 		return;
 	cfg2 = mips_rd_config2();
 	/* 
 	 * Config2 contains no useful information other then Config3 
 	 * existence flag
 	 */
+	printf("  Config2=0x%08x\n", cfg2);
 
 	/* If config register selection 3 does not exist, exit. */
-	if (!(cfg2 & MIPS3_CONFIG_CM))
+	if (!(cfg2 & MIPS_CONFIG_CM))
 		return;
 	cfg3 = mips_rd_config3();
 
 	/* Print Config3 if it contains any useful info */
 	if (cfg3 & ~(0x80000000))
-		printf("  Config3=0x%b\n", cfg3, "\20\2SmartMIPS\1TraceLogic");
+		printf("  Config3=0x%b\n", cfg3, "\20\14ULRI\2SmartMIPS\1TraceLogic");
 }
 
 static struct rman cpu_hardirq_rman;
@@ -259,7 +491,8 @@ static devclass_t cpu_devclass;
 static int cpu_probe(device_t);
 static int cpu_attach(device_t);
 static struct resource *cpu_alloc_resource(device_t, device_t, int, int *,
-					   u_long, u_long, u_long, u_int);
+					   rman_res_t, rman_res_t, rman_res_t,
+					   u_int);
 static int cpu_setup_intr(device_t, device_t, struct resource *, int,
 			  driver_filter_t *f, driver_intr_t *, void *, 
 			  void **);
@@ -286,6 +519,7 @@ static driver_t cpu_driver = {
 static int
 cpu_probe(device_t dev)
 {
+
 	return (0);
 }
 
@@ -331,7 +565,7 @@ cpu_attach(device_t dev)
 
 static struct resource *
 cpu_alloc_resource(device_t dev, device_t child, int type, int *rid,
-		   u_long start, u_long end, u_long count, u_int flags)
+		   rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res;
 

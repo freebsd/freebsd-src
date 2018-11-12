@@ -2,29 +2,19 @@
  * Test program for combined WPA authenticator/supplicant
  * Copyright (c) 2006-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
 
 #include "common.h"
 #include "eloop.h"
-#include "ieee802_11_defs.h"
-#include "config.h"
-#include "wpa.h"
-#include "wpa_ie.h"
-#include "../hostapd/wpa.h"
-
-
-extern int wpa_debug_level;
-extern int wpa_debug_show_keys;
+#include "common/ieee802_11_defs.h"
+#include "../config.h"
+#include "rsn_supp/wpa.h"
+#include "rsn_supp/wpa_ie.h"
+#include "ap/wpa_auth.h"
 
 
 struct wpa {
@@ -51,14 +41,6 @@ struct wpa {
 };
 
 
-static struct wpa_ssid * supp_get_ssid(void *ctx)
-{
-	struct wpa *wpa = ctx;
-	wpa_printf(MSG_DEBUG, "SUPP: %s", __func__);
-	return &wpa->ssid;
-}
-
-
 static int supp_get_bssid(void *ctx, u8 *bssid)
 {
 	struct wpa *wpa = ctx;
@@ -68,7 +50,7 @@ static int supp_get_bssid(void *ctx, u8 *bssid)
 }
 
 
-static void supp_set_state(void *ctx, wpa_states state)
+static void supp_set_state(void *ctx, enum wpa_states state)
 {
 	wpa_printf(MSG_DEBUG, "SUPP: %s(state=%d)", __func__, state);
 }
@@ -151,7 +133,7 @@ static int supp_get_beacon_ie(void *ctx)
 }
 
 
-static int supp_set_key(void *ctx, wpa_alg alg,
+static int supp_set_key(void *ctx, enum wpa_alg alg,
 			const u8 *addr, int key_idx, int set_tx,
 			const u8 *seq, size_t seq_len,
 			const u8 *key, size_t key_len)
@@ -175,12 +157,6 @@ static int supp_mlme_setprotection(void *ctx, const u8 *addr,
 }
 
 
-static void supp_cancel_scan(void *ctx)
-{
-	wpa_printf(MSG_DEBUG, "SUPP: %s", __func__);
-}
-
-
 static void supp_cancel_auth_timeout(void *ctx)
 {
 	wpa_printf(MSG_DEBUG, "SUPP: %s", __func__);
@@ -194,15 +170,14 @@ static int supp_init(struct wpa *wpa)
 		return -1;
 
 	ctx->ctx = wpa;
+	ctx->msg_ctx = wpa;
 	ctx->set_state = supp_set_state;
-	ctx->get_ssid = supp_get_ssid;
 	ctx->get_bssid = supp_get_bssid;
 	ctx->ether_send = supp_ether_send;
 	ctx->get_beacon_ie = supp_get_beacon_ie;
 	ctx->alloc_eapol = supp_alloc_eapol;
 	ctx->set_key = supp_set_key;
 	ctx->mlme_setprotection = supp_mlme_setprotection;
-	ctx->cancel_scan = supp_cancel_scan;
 	ctx->cancel_auth_timeout = supp_cancel_auth_timeout;
 	wpa->supp = wpa_sm_init(ctx);
 	if (wpa->supp == NULL) {
@@ -319,7 +294,7 @@ static int auth_init_group(struct wpa *wpa)
 
 static int auth_init(struct wpa *wpa)
 {
-	wpa->auth = wpa_auth_sta_init(wpa->auth_group, wpa->supp_addr);
+	wpa->auth = wpa_auth_sta_init(wpa->auth_group, wpa->supp_addr, NULL);
 	if (wpa->auth == NULL) {
 		wpa_printf(MSG_DEBUG, "AUTH: wpa_auth_sta_init() failed");
 		return -1;
@@ -366,7 +341,7 @@ int main(int argc, char *argv[])
 	wpa_debug_level = 0;
 	wpa_debug_show_keys = 1;
 
-	if (eloop_init(&wpa)) {
+	if (eloop_init()) {
 		wpa_printf(MSG_ERROR, "Failed to initialize event loop");
 		return -1;
 	}

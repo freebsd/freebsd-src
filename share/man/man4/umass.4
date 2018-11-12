@@ -9,25 +9,22 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. Neither the name of the author nor the names of any co-contributors
-.\"    may be used to endorse or promote products derived from this software
-.\"   without specific prior written permission.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY NICK HIBMA AND CONTRIBUTORS ``AS IS'' AND
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL NICK HIBMA OR THE VOICES IN HIS HEAD
-.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
-.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2006
+.Dd April 19, 2014
 .Dt UMASS 4
 .Os
 .Sh NAME
@@ -38,6 +35,8 @@ To compile this driver into the kernel,
 place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device usb"
 .Cd "device umass"
 .Ed
 .Pp
@@ -61,6 +60,10 @@ and one of
 .Xr uhci 4
 or
 .Xr ohci 4
+or
+.Xr ehci 4
+or
+.Xr xhci 4
 must be configured in the kernel.
 Additionally, since
 .Nm
@@ -232,7 +235,7 @@ based file systems when storing information such as images and
 videos.
 These file systems can be accessed by specifying the file system
 type as
-.Cm msdos
+.Cm msdosfs
 when using
 .Xr mount 8 .
 .Sh SEE ALSO
@@ -241,6 +244,7 @@ when using
 .Xr uhci 4 ,
 .Xr usb 4 ,
 .Xr vpo 4 ,
+.Xr xhci 4 ,
 .Xr disktab 5 ,
 .Xr bsdlabel 8 ,
 .Xr camcontrol 8
@@ -250,9 +254,9 @@ when using
 The
 .Nm
 driver was written by
-.An MAEKAWA Masahide Aq bishop@rr.iij4u.or.jp
+.An MAEKAWA Masahide Aq Mt bishop@rr.iij4u.or.jp
 and
-.An Nick Hibma Aq n_hibma@FreeBSD.org .
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org .
 .Pp
 This manual page was written by
-.An Nick Hibma Aq n_hibma@FreeBSD.org .
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org .

@@ -663,7 +663,7 @@ ignoring request for server %s from client at %s address %s",
 	bp->bp_op = BOOTREPLY;
 	if (bp->bp_ciaddr.s_addr == 0) {
 		/*
-		 * client doesnt know his IP address,
+		 * client doesn't know his IP address,
 		 * search by hardware address.
 		 */
 		if (debug > 1) {
@@ -1119,7 +1119,7 @@ sendreply(forward, dst_override)
 
 /*
  * This call checks read access to a file.  It returns 0 if the file given
- * by "path" exists and is publically readable.  A value of -1 is returned if
+ * by "path" exists and is publicly readable.  A value of -1 is returned if
  * access is not permitted or an error occurs.  Successful calls also
  * return the file size in bytes using the long pointer "filesize".
  *

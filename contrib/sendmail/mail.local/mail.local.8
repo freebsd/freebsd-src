@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2001, 2003 Sendmail, Inc. and its suppliers.
+.\" Copyright (c) 1998-2001, 2003 Proofpoint, Inc. and its suppliers.
 .\"	 All rights reserved.
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -8,9 +8,9 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: mail.local.8,v 8.25 2003/10/20 20:26:51 ca Exp $
+.\"	$Id: mail.local.8,v 8.26 2013-11-22 20:51:51 ca Exp $
 .\"
-.TH MAIL.LOCAL 8 "$Date: 2003/10/20 20:26:51 $"
+.TH MAIL.LOCAL 8 "$Date: 2013-11-22 20:51:51 $"
 .SH NAME
 mail.local
 \- store mail in a mailbox
@@ -39,9 +39,7 @@ The options are as follows:
 Do not advertise 8BITMIME support in LMTP mode.
 .TP 
 .B \-B
-Turn off the attempts to notify the
-.Dq biff
-service.
+Turn off the attempts to notify the ``biff'' service.
 .TP 
 .B \-b
 Return a permanent error instead of a temporary error
@@ -63,11 +61,8 @@ Specify the sender's name.
 Turn on LMTP mode.
 .TP
 .B \-s
-Turn off the
-.Xr fsync 2
-call that forces the mailbox to be committed to disk before returning a
-.Dq success
-status.
+Turn off the fsync(2) call that forces the mailbox to be committed
+to disk before returning a "success" status.
 .TP 
 .BI \-r " from"
 Specify the sender's name (for backward compatibility).

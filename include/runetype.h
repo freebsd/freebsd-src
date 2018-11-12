@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -87,8 +83,24 @@ typedef struct {
 } _RuneLocale;
 
 #define	_RUNE_MAGIC_1	"RuneMagi"	/* Indicates version 0 of RuneLocale */
+__BEGIN_DECLS
+extern const _RuneLocale _DefaultRuneLocale;
+extern const _RuneLocale *_CurrentRuneLocale;
+#if defined(__NO_TLS) || defined(__RUNETYPE_INTERNAL)
+extern const _RuneLocale *__getCurrentRuneLocale(void);
+#else
+extern _Thread_local const _RuneLocale *_ThreadRuneLocale;
+static __inline const _RuneLocale *__getCurrentRuneLocale(void)
+{
 
-extern _RuneLocale _DefaultRuneLocale;
-extern _RuneLocale *_CurrentRuneLocale;
+	if (_ThreadRuneLocale) 
+		return _ThreadRuneLocale;
+	if (_CurrentRuneLocale) 
+		return _CurrentRuneLocale;
+	return &_DefaultRuneLocale;
+}
+#endif /* __NO_TLS || __RUNETYPE_INTERNAL */
+#define _CurrentRuneLocale (__getCurrentRuneLocale())
+__END_DECLS
 
 #endif	/* !_RUNETYPE_H_ */

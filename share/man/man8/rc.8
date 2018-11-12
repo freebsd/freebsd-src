@@ -12,11 +12,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -35,7 +31,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2007
+.Dd April 23, 2016
 .Dt RC 8
 .Os
 .Sh NAME
@@ -124,6 +120,15 @@ Load the configuration files.
 Determine if booting in a jail,
 and add
 .Dq Li nojail
+(no jails allowed) or
+.Dq Li nojailvnet
+(only allow vnet-enabled jails) to the list of KEYWORDS to skip in
+.Xr rcorder 8 .
+.It
+If the file
+.Va ${firstboot_sentinel}
+does not exist, add
+.Dq Li firstboot
 to the list of KEYWORDS to skip in
 .Xr rcorder 8 .
 .It
@@ -154,6 +159,11 @@ Stop processing when the script that is the value of the
 .Va $early_late_divider
 has been run.
 .It
+Check again to see if the file
+.Va ${firstboot_sentinel}
+exists (in case it is located on a newly mounted file system)
+and adjust the list of KEYWORDs to skip appropriately.
+.It
 Re-run
 .Xr rcorder 8 ,
 this time including the scripts in the
@@ -162,6 +172,13 @@ directories.
 Ignore everything up to the
 .Va $early_late_divider ,
 then start executing the scripts as described above.
+.It
+If the file
+.Va ${firstboot_sentinel}
+exists, delete it.
+If the file
+.Va ${firstboot_sentinel}-reboot
+also exists (because it was created by a script), then delete it and reboot.
 .El
 .Ss Operation of Nm rc.shutdown
 .Bl -enum
@@ -221,7 +238,7 @@ network configuration.
 .It Pa SERVERS
 Ensure basic services
 exist for services that start early (such as
-.Pa named ) ,
+.Pa nisdomain ) ,
 because they are required by
 .Pa DAEMON
 below.
@@ -253,7 +270,7 @@ The boot does not stop if such a script terminates with a non-zero status,
 but a script can stop the boot if necessary by invoking the
 .Fn stop_boot
 function (from
-.Xr rc.subr 8 ).
+.Xr rc.subr 8 ) .
 .El
 .Pp
 Each script should contain
@@ -306,10 +323,17 @@ If the script starts a process (rather than performing a one-off
 operation), show the status of the process.
 Otherwise it is not necessary to support this argument.
 Defaults to displaying the process ID of the program (if running).
+.It Cm describe
+Print a short description of what the script does.
+.It Cm extracommands
+Print the script's non-standard commands.
 .It Cm poll
 If the script starts a process (rather than performing a one-off
 operation), wait for the command to exit.
 Otherwise it is not necessary to support this argument.
+.It Cm enabled
+Return 0 if the service is enabled and 1 if it is not.
+This command does not print anything.
 .It Cm rcvar
 Display which
 .Xr rc.conf 5
@@ -326,7 +350,6 @@ section).
 .Pp
 The following key points apply to old-style scripts in
 .Pa /usr/local/etc/rc.d/ :
-.Pp
 .Bl -bullet
 .It
 Scripts are only executed if their
@@ -394,20 +417,6 @@ is not set, when going from single-user to multi-user mode for example,
 the script does not do anything.
 .Pp
 The
-.Nm rc.early
-script is run very early in the startup process, immediately before the
-file system check.
-The
-.Nm rc.early
-script is deprecated.
-Any commands in this
-file should be separated out into
-.Nm rc.d/
-style scripts and integrated into the
-.Nm
-system.
-.Pp
-The
 .Pa /etc/rc.d/local
 script can execute scripts from multiple
 .Nm rc.d/
@@ -467,7 +476,7 @@ before starting the daemon.
 Following tradition, all startup files reside in
 .Pa /etc .
 .Sh FILES
-.Bl -tag -compact
+.Bl -tag -compact -width Pa
 .It Pa /etc/rc
 .It Pa /etc/rc.conf
 .It Pa /etc/rc.conf.local
@@ -500,7 +509,7 @@ Most scripts require little more than the following.
 \&. /etc/rc.subr
 
 name="foo"
-rcvar=`set_rcvar`
+rcvar=foo_enable
 command="/usr/local/bin/foo"
 
 load_rc_config $name
@@ -521,7 +530,7 @@ The script may list and define as many commands at it needs.
 \&. /etc/rc.subr
 
 name="foo"
-rcvar=`set_rcvar`
+rcvar=foo_enable
 command="/usr/local/bin/foo"
 extra_commands="nop hello"
 hello_cmd="echo Hello World."
@@ -545,8 +554,8 @@ is unnecessary, but is often included.
 .Xr kill 1 ,
 .Xr rc.conf 5 ,
 .Xr init 8 ,
-.Xr rcorder 8 ,
 .Xr rc.subr 8 ,
+.Xr rcorder 8 ,
 .Xr reboot 8 ,
 .Xr savecore 8
 .Sh HISTORY

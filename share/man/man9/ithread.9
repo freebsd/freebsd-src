@@ -180,15 +180,6 @@ The
 flag specifies that this handler cannot share an interrupt thread with
 another handler.
 The
-.Dv INTR_FAST
-flag specifies that when this handler is executed, it should be run immediately
-rather than being run asynchronously when its interrupt thread is scheduled to
-run.
-The
-.Dv INTR_FAST
-flag implies
-.Dv INTR_EXCL .
-The
 .Dv INTR_MPSAFE
 flag specifies that this handler is MP safe in that it does not need the
 Giant mutex to be held while it is executed.
@@ -198,10 +189,8 @@ flag specifies that the interrupt source this handler is tied to is a good
 source of entropy, and thus that entropy should be gathered when an interrupt
 from the handler's source triggers.
 Presently, the
-.Dv INTR_FAST
-and
 .Dv INTR_ENTROPY
-flags are not valid for software interrupt handlers.
+flag is not valid for software interrupt handlers.
 .Pp
 It is not permitted to sleep in an interrupt thread; hence, any memory
 or zone allocations in an interrupt thread should be specified with the
@@ -237,7 +226,7 @@ swi_add(struct ithd **ithdp, const char *name, driver_intr_t handler,
 	struct ithd *ithd;
 	int error;
 
-	if (flags & (INTR_FAST | INTR_ENTROPY))
+	if (flags & INTR_ENTROPY)
 		return (EINVAL);
 
 	ithd = (ithdp != NULL) ? *ithdp : NULL;

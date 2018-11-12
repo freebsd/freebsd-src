@@ -60,7 +60,12 @@ CODE {
 
 	static int null_quiesce(device_t dev)
 	{
-	    return EOPNOTSUPP;
+	    return 0;
+	}
+
+	static void * null_register(device_t dev)
+	{
+		return NULL;
 	}
 };
 	
@@ -89,28 +94,29 @@ CODE {
  * the probe before returning. The return value of DEVICE_PROBE()
  * is used to elect which driver is used - the driver which returns
  * the largest non-error value wins the election and attaches to
- * the device.
+ * the device. Common non-error values are described in the
+ * DEVICE_PROBE(9) manual page.
  *
  * If a driver matches the hardware, it should set the device
  * description string using device_set_desc() or
- * device_set_desc_copy(). This string is
- * used to generate an informative message when DEVICE_ATTACH()
- * is called.
+ * device_set_desc_copy(). This string is used to generate an
+ * informative message when DEVICE_ATTACH() is called.
  * 
  * As a special case, if a driver returns zero, the driver election
  * is cut short and that driver will attach to the device
- * immediately.
+ * immediately. This should rarely be used.
  *
- * For example, a probe method for a pci device driver might look
+ * For example, a probe method for a PCI device driver might look
  * like this:
  *
  * @code
- * int foo_probe(device_t dev)
+ * int
+ * foo_probe(device_t dev)
  * {
  *         if (pci_get_vendor(dev) == FOOVENDOR &&
  *             pci_get_device(dev) == FOODEVICE) {
  *                 device_set_desc(dev, "Foo device");
- *                 return (0);
+ *                 return (BUS_PROBE_DEFAULT);
  *         }
  *         return (ENXIO);
  * }
@@ -125,7 +131,8 @@ CODE {
  *
  * @param dev		the device to probe
  *
- * @retval 0		if the driver strongly matches this device
+ * @retval 0		if this is the only possible driver for this
+ *			device
  * @retval negative	if the driver can match this device - the
  *			least negative value is used to select the
  *			driver
@@ -314,3 +321,24 @@ METHOD int resume {
 METHOD int quiesce {
 	device_t dev;
 } DEFAULT null_quiesce;
+
+/**
+ * @brief This is called when the driver is asked to register handlers.
+ *
+ *
+ * To include this method in a device driver, use a line like this
+ * in the driver's method list:
+ *
+ * @code
+ * 	KOBJMETHOD(device_register, foo_register)
+ * @endcode
+ *
+ * @param dev		the device for which handlers are being registered
+ *
+ * @retval NULL     method not implemented
+ * @retval non-NULL	a pointer to implementation specific static driver state
+ *
+ */
+METHOD void * register {
+	device_t dev;
+} DEFAULT null_register;

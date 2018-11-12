@@ -24,26 +24,16 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-#ifndef __GNUC__
-#error "GCC is needed to compile this file"
-#endif
-#endif /* lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 
 #include "libc_private.h"
 #include "crtbrand.c"
-
-extern int _DYNAMIC;
-#pragma weak _DYNAMIC
+#include "ignore_init.c"
 
 typedef void (*fptr)(void);
-
-extern void _fini(void);
-extern void _init(void);
-extern int main(int, char **, char **);
-extern void _start(char **, void (*)(void));
 
 #ifdef GCRT
 extern void _mcleanup(void);
@@ -52,8 +42,7 @@ extern int eprol;
 extern int etext;
 #endif
 
-char **environ;
-const char *__progname = "";
+void _start(char **, void (*)(void));
 
 /* The entry function. */
 void
@@ -62,18 +51,11 @@ _start(char **ap, void (*cleanup)(void))
 	int argc;
 	char **argv;
 	char **env;
-	const char *s;
 
 	argc = *(long *)(void *)ap;
 	argv = ap + 1;
 	env = ap + 2 + argc;
-	environ = env;
-	if (argc > 0 && argv[0] != NULL) {
-		__progname = argv[0];
-		for (s = __progname; *s != '\0'; s++)
-			if (*s == '/')
-				__progname = s + 1;
-	}
+	handle_argv(argc, argv, env);
 
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
@@ -82,14 +64,10 @@ _start(char **ap, void (*cleanup)(void))
 
 #ifdef GCRT
 	atexit(_mcleanup);
-#endif
-	atexit(_fini);
-#ifdef GCRT
 	monstartup(&eprol, &etext);
 __asm__("eprol:");
 #endif
-	_init();
-	exit( main(argc, argv, env) );
-}
 
-__asm__(".ident\t\"$FreeBSD$\"");
+	handle_static_init(argc, argv, env);
+	exit(main(argc, argv, env));
+}

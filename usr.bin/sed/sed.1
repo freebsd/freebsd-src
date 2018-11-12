@@ -31,7 +31,7 @@
 .\"	@(#)sed.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2009
+.Dd May 10, 2016
 .Dt SED 1
 .Os
 .Sh NAME
@@ -39,11 +39,11 @@
 .Nd stream editor
 .Sh SYNOPSIS
 .Nm
-.Op Fl Ealn
+.Op Fl Ealnru
 .Ar command
 .Op Ar
 .Nm
-.Op Fl Ealn
+.Op Fl Ealnr
 .Op Fl e Ar command
 .Op Fl f Ar command_file
 .Op Fl I Ar extension
@@ -144,6 +144,12 @@ all of the commands have been applied to it.
 The
 .Fl n
 option suppresses this behavior.
+.It Fl r
+Same as
+.Fl E
+for compatibility with GNU sed.
+.It Fl u
+Make output unbuffered.
 .El
 .Pp
 The form of a
@@ -191,7 +197,7 @@ option was specified);
 .It
 a context address
 that consists of a regular expression preceded and followed by a
-delimiter. The closing delimiter can also optionally be followed by the 
+delimiter. The closing delimiter can also optionally be followed by the
 .Dq I
 character, to indicate that the regular expression is to be matched
 in a case-insensitive way.
@@ -339,7 +345,7 @@ can be preceded by white space and can be followed by white space.
 The function can be preceded by white space.
 The terminating
 .Dq }
-must be preceded by a newline or optional white space.
+must be preceded by a newline, and may also be preceded by white space.
 .Pp
 .Bl -tag -width "XXXXXX" -compact
 .It [2addr] function-list
@@ -503,7 +509,7 @@ Append the pattern space to
 if a replacement was made.
 If the replacement string is identical to that which it replaces, it
 is still considered to have been a replacement.
-.It I
+.It i or I
 Match the regular expression in a case-insensitive way.
 .El
 .Pp
@@ -614,7 +620,7 @@ command, written by
 appeared in
 .At v7 .
 .Sh AUTHORS
-.An "Diomidis D. Spinellis" Aq dds@FreeBSD.org
+.An Diomidis D. Spinellis Aq Mt dds@FreeBSD.org
 .Sh BUGS
 Multibyte characters containing a byte with value 0x5C
 .Tn ( ASCII

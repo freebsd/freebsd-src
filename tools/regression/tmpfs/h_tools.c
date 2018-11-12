@@ -16,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -50,6 +43,7 @@
 #include <sys/event.h>
 #include <sys/mount.h>
 #include <sys/statvfs.h>
+#include <sys/stdint.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/un.h>
@@ -250,10 +244,10 @@ statvfs_main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	(void)printf("f_bsize=%llu\n", buf.f_bsize);
-	(void)printf("f_blocks=%llu\n", buf.f_blocks);
-	(void)printf("f_bfree=%llu\n", buf.f_bfree);
-	(void)printf("f_files=%llu\n", buf.f_files);
+	(void)printf("f_bsize=%ju\n", (uintmax_t)buf.f_bsize);
+	(void)printf("f_blocks=%ju\n", (uintmax_t)buf.f_blocks);
+	(void)printf("f_bfree=%ju\n", (uintmax_t)buf.f_bfree);
+	(void)printf("f_files=%ju\n", (uintmax_t)buf.f_files);
 
 	return EXIT_SUCCESS;
 }

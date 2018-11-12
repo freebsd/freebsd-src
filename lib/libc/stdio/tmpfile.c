@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -46,9 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <paths.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 FILE *
-tmpfile()
+tmpfile(void)
 {
 	sigset_t set, oset;
 	FILE *fp;
@@ -69,7 +70,7 @@ tmpfile()
 		return (NULL);
 
 	sigfillset(&set);
-	(void)_sigprocmask(SIG_BLOCK, &set, &oset);
+	(void)__libc_sigprocmask(SIG_BLOCK, &set, &oset);
 
 	fd = mkstemp(buf);
 	if (fd != -1)
@@ -77,7 +78,7 @@ tmpfile()
 
 	free(buf);
 
-	(void)_sigprocmask(SIG_SETMASK, &oset, NULL);
+	(void)__libc_sigprocmask(SIG_SETMASK, &oset, NULL);
 
 	if (fd == -1)
 		return (NULL);

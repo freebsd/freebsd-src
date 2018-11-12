@@ -1,53 +1,75 @@
-.\" $FreeBSD$ 
+.\" $FreeBSD$
 .SH "FreeBSD NOTES"
 
-.SH DISPLAY OF THREADS
-The '-H' option will toggle the display of kernel visible thread contexts.
-At runtime the 'H' key will toggle this mode. The default is OFF.
-
-.SH DESCRIPTION OF MEMORY 
-Mem: 9220K Active, 1032K Inact, 3284K Wired, 1MB Cache, 2M Buf, 1320K Free
-Swap:   91M Total, 79M Free, 13% Inuse, 80K In, 104 K Out
-
+.SH DESCRIPTION OF MEMORY
+Mem: 9220K Active, 1M Inact, 3284K Wired, 1M Cache, 2M Buf, 1320K Free
+ARC: 2048K Total, 342K MRU, 760K MFU, 272K Anon, 232K Header, 442K Other
+Swap: 91M Total, 79M Free, 13% Inuse, 80K In, 104K Out
+.TP
 .B K:
 Kilobyte
 .TP
 .B M:
 Megabyte
 .TP
+.B G:
+Gigabyte
+.TP
 .B %:
 1/100
+.SS Physical Memory Stats
 .TP
 .B Active:
-number of pages active
+number of bytes active
 .TP
 .B Inact:
-number of pages inactive
+number of bytes inactive
 .TP
 .B Wired:
-number of pages wired down, including cached file data pages
+number of bytes wired down, including BIO-level cached file data pages
 .TP
 .B Cache:
-number of clean pages caching data that are available for
+number of clean bytes caching data that are available for
 immediate reallocation
 .TP
 .B Buf:
-number of pages used for BIO-level disk caching
+number of bytes used for BIO-level disk caching
 .TP
-.B Free: 
-number of pages free
+.B Free:
+number of bytes free
+.SS ZFS ARC Stats
+These stats are only displayed when the ARC is in use.
 .TP
-.B Total: 
+.B Total:
+number of wired bytes used for the ZFS ARC
+.TP
+.B MRU:
+number of ARC bytes holding most recently used data
+.TP
+.B MFU:
+number of ARC bytes holding most frequently used data
+.TP
+.B Anon:
+number of ARC bytes holding in flight data
+.TP
+.B Header:
+number of ARC bytes holding headers
+.TP
+.B Other
+miscellaneous ARC bytes
+.SS Swap Stats
+.TP
+.B Total:
 total available swap usage
-.TP 
-.B Free: 
-total free swap usage
-.TP 
-.B Inuse: 
-swap usage
-.TP 
-.B In: 
-pages paged in from swap devices (last interval)
 .TP
-.B Out: 
-pages paged out to swap devices (last interval)
+.B Free:
+total free swap usage
+.TP
+.B Inuse:
+swap usage
+.TP
+.B In:
+bytes paged in from swap devices (last interval)
+.TP
+.B Out:
+bytes paged out to swap devices (last interval)

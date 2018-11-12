@@ -80,6 +80,7 @@
 #define		listen				_listen
 #define		nanosleep			_nanosleep
 #define		open				_open
+#define		openat				_openat
 #define		poll				_poll
 #define		pthread_atfork			_pthread_atfork
 #define		pthread_attr_destroy		_pthread_attr_destroy
@@ -136,6 +137,7 @@
 #define		pthread_getprio			_pthread_getprio
 #define		pthread_getschedparam		_pthread_getschedparam
 #define		pthread_getspecific		_pthread_getspecific
+#define		pthread_getthreadid_np		_pthread_getthreadid_np
 #define		pthread_join			_pthread_join
 #define		pthread_key_create		_pthread_key_create
 #define		pthread_key_delete		_pthread_key_delete
@@ -206,6 +208,7 @@
 #define		readv				_readv
 #define		recvfrom			_recvfrom
 #define		recvmsg				_recvmsg
+#define		recvmmsg			_recvmmsg
 #define		select				_select
 #define		sem_close			_sem_close
 #define		sem_destroy			_sem_destroy
@@ -218,6 +221,7 @@
 #define		sem_unlink			_sem_unlink
 #define		sem_wait			_sem_wait
 #define		sendmsg				_sendmsg
+#define		sendmmsg			_sendmmsg
 #define		sendto				_sendto
 #define		setsockopt			_setsockopt
 /*#define		sigaction			_sigaction*/
@@ -227,6 +231,7 @@
 #define		socketpair			_socketpair
 #define		usleep				_usleep
 #define		wait4				_wait4
+#define		wait6				_wait6
 #define		waitpid				_waitpid
 #define		write				_write
 #define		writev				_writev

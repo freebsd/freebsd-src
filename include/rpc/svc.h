@@ -1,32 +1,31 @@
 /*	$NetBSD: svc.h,v 1.17 2000/06/02 22:57:56 fvdl Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
  *
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice,
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
+ *   from this software without specific prior written permission.
  *
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- *
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- *
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- *
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: @(#)svc.h 1.35 88/12/17 SMI
  *	from: @(#)svc.h      1.27    94/04/25 SMI
@@ -90,6 +89,7 @@ enum xprt_stat {
  */
 typedef struct __rpc_svcxprt {
 	int		xp_fd;
+#define	xp_sock		xp_fd
 	u_short		xp_port;	 /* associated port number */
 	const struct xp_ops {
 	    /* receive incoming requests */
@@ -226,7 +226,7 @@ struct svc_req {
  *	const SVCXPRT *xprt;
  *	const rpcprog_t prog;
  *	const rpcvers_t vers;
- *	const void (*dispatch)();
+ *	const void (*dispatch)(struct svc_req *, SVCXPRT *);
  *	const struct netconfig *nconf;
  */
 
@@ -314,7 +314,7 @@ __END_DECLS
  * Somebody has to wait for incoming requests and then call the correct
  * service routine.  The routine svc_run does infinite waiting; i.e.,
  * svc_run never returns.
- * Since another (co-existant) package may wish to selectively wait for
+ * Since another (co-existent) package may wish to selectively wait for
  * incoming calls or other events outside of the rpc architecture, the
  * routine svc_getreq is provided.  It must be passed readfds, the
  * "in-place" results of a select system call (see select, section 2).
@@ -376,7 +376,7 @@ __BEGIN_DECLS
 extern int svc_create(void (*)(struct svc_req *, SVCXPRT *),
 			   const rpcprog_t, const rpcvers_t, const char *);
 /*
- *      void (*dispatch)();             -- dispatch routine
+ *      void (*dispatch)(struct svc_req *, SVCXPRT *);
  *      const rpcprog_t prognum;        -- program number
  *      const rpcvers_t versnum;        -- version number
  *      const char *nettype;            -- network type
@@ -392,7 +392,7 @@ extern SVCXPRT *svc_tp_create(void (*)(struct svc_req *, SVCXPRT *),
 				   const rpcprog_t, const rpcvers_t,
 				   const struct netconfig *);
         /*
-         * void (*dispatch)();            -- dispatch routine
+         * void (*dispatch)(struct svc_req *, SVCXPRT *);
          * const rpcprog_t prognum;       -- program number
          * const rpcvers_t versnum;       -- version number
          * const struct netconfig *nconf; -- netconfig structure

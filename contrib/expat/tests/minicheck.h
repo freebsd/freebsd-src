@@ -18,11 +18,17 @@ extern "C" {
 #define CK_NORMAL  1
 #define CK_VERBOSE 2
 
-/* Workaround for Tru64 Unix systems where the C compiler has a working
-   __func__, but the C++ compiler only has a working __FUNCTION__.  This
-   could be fixed in configure.in, but it's not worth it right now. */
-#if defined(__osf__) && defined(__cplusplus)
+/* Workaround for Microsoft's compiler and Tru64 Unix systems where the
+   C compiler has a working __func__, but the C++ compiler only has a 
+   working __FUNCTION__.  This could be fixed in configure.in, but it's
+   not worth it right now. */
+#if defined (_MSC_VER) || (defined(__osf__) && defined(__cplusplus))
 #define __func__ __FUNCTION__
+#endif
+
+/* ISO C90 does not support '__func__' predefined identifier */
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ < 199901)
+# define __func__ "(unknown)"
 #endif
 
 #define START_TEST(testname) static void testname(void) { \
@@ -47,12 +53,12 @@ struct SRunner {
 };
 
 struct Suite {
-    char *name;
+    const char *name;
     TCase *tests;
 };
 
 struct TCase {
-    char *name;
+    const char *name;
     tcase_setup_function setup;
     tcase_teardown_function teardown;
     tcase_test_function *tests;
@@ -71,9 +77,9 @@ void _check_set_test_info(char const *function,
  * Prototypes for the actual implementation.
  */
 
-void _fail_unless(int condition, const char *file, int line, char *msg);
-Suite *suite_create(char *name);
-TCase *tcase_create(char *name);
+void _fail_unless(int condition, const char *file, int line, const char *msg);
+Suite *suite_create(const char *name);
+TCase *tcase_create(const char *name);
 void suite_add_tcase(Suite *suite, TCase *tc);
 void tcase_add_checked_fixture(TCase *,
                                tcase_setup_function,

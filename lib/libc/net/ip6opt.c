@@ -33,7 +33,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 
 #include <netinet/in.h>
@@ -45,6 +44,18 @@ __FBSDID("$FreeBSD$");
 static int ip6optlen(u_int8_t *opt, u_int8_t *lim);
 static void inet6_insert_padopt(u_char *p, int len);
 
+#ifndef IPV6_2292HOPOPTS
+#define	IPV6_2292HOPOPTS	22
+#endif
+#ifndef IPV6_2292DSTOPTS
+#define	IPV6_2292DSTOPTS	23
+#endif
+
+#define	is_ipv6_hopopts(x)	\
+	((x) == IPV6_HOPOPTS || (x) == IPV6_2292HOPOPTS)
+#define	is_ipv6_dstopts(x)	\
+	((x) == IPV6_DSTOPTS || (x) == IPV6_2292DSTOPTS)
+
 /*
  * This function returns the number of bytes required to hold an option
  * when it is stored as ancillary data, including the cmsghdr structure
@@ -55,8 +66,7 @@ static void inet6_insert_padopt(u_char *p, int len);
  * byte, the length byte, and the option data.
  */
 int
-inet6_option_space(nbytes)
-	int nbytes;
+inet6_option_space(int nbytes)
 {
 	nbytes += 2;	/* we need space for nxt-hdr and length fields */
 	return(CMSG_SPACE((nbytes + 7) & ~7));
@@ -68,17 +78,14 @@ inet6_option_space(nbytes)
  * success or -1 on an error.
  */
 int
-inet6_option_init(bp, cmsgp, type)
-	void *bp;
-	struct cmsghdr **cmsgp;
-	int type;
+inet6_option_init(void *bp, struct cmsghdr **cmsgp, int type)
 {
 	struct cmsghdr *ch = (struct cmsghdr *)bp;
 
 	/* argument validation */
-	if (type != IPV6_HOPOPTS && type != IPV6_DSTOPTS)
+	if (!is_ipv6_hopopts(type) && !is_ipv6_dstopts(type))
 		return(-1);
-	
+
 	ch->cmsg_level = IPPROTO_IPV6;
 	ch->cmsg_type = type;
 	ch->cmsg_len = CMSG_LEN(0);
@@ -98,11 +105,8 @@ inet6_option_init(bp, cmsgp, type)
  * earlier.  It must have a value between 0 and 7, inclusive.
  */
 int
-inet6_option_append(cmsg, typep, multx, plusy)
-	struct cmsghdr *cmsg;
-	const u_int8_t *typep;
-	int multx;
-	int plusy;
+inet6_option_append(struct cmsghdr *cmsg, const u_int8_t *typep, int multx,
+    int plusy)
 {
 	int padlen, optlen, off;
 	u_char *bp = (u_char *)cmsg + cmsg->cmsg_len;
@@ -126,8 +130,7 @@ inet6_option_append(cmsg, typep, multx, plusy)
 
 	/* calculate pad length before the option. */
 	off = bp - (u_char *)eh;
-	padlen = (((off % multx) + (multx - 1)) & ~(multx - 1)) -
-		(off % multx);
+	padlen = roundup2(off % multx, multx) - (off % multx);
 	padlen += plusy;
 	padlen %= multx;	/* keep the pad as short as possible */
 	/* insert padding */
@@ -171,11 +174,7 @@ inet6_option_append(cmsg, typep, multx, plusy)
  * 
  */
 u_int8_t *
-inet6_option_alloc(cmsg, datalen, multx, plusy)
-	struct cmsghdr *cmsg;
-	int datalen;
-	int multx;
-	int plusy;
+inet6_option_alloc(struct cmsghdr *cmsg, int datalen, int multx, int plusy)
 {
 	int padlen, off;
 	u_int8_t *bp = (u_char *)cmsg + cmsg->cmsg_len;
@@ -200,8 +199,7 @@ inet6_option_alloc(cmsg, datalen, multx, plusy)
 
 	/* calculate pad length before the option. */
 	off = bp - (u_char *)eh;
-	padlen = (((off % multx) + (multx - 1)) & ~(multx - 1)) -
-		(off % multx);
+	padlen = roundup2(off % multx, multx) - (off % multx);
 	padlen += plusy;
 	padlen %= multx;	/* keep the pad as short as possible */
 	/* insert padding */
@@ -238,17 +236,15 @@ inet6_option_alloc(cmsg, datalen, multx, plusy)
  * (RFC 2292, 6.3.5)
  */
 int
-inet6_option_next(cmsg, tptrp)
-	const struct cmsghdr *cmsg;
-	u_int8_t **tptrp;
+inet6_option_next(const struct cmsghdr *cmsg, u_int8_t **tptrp)
 {
 	struct ip6_ext *ip6e;
 	int hdrlen, optlen;
 	u_int8_t *lim;
 
 	if (cmsg->cmsg_level != IPPROTO_IPV6 ||
-	    (cmsg->cmsg_type != IPV6_HOPOPTS &&
-	     cmsg->cmsg_type != IPV6_DSTOPTS))
+	    (!is_ipv6_hopopts(cmsg->cmsg_type) &&
+	     !is_ipv6_dstopts(cmsg->cmsg_type)))
 		return(-1);
 
 	/* message length validation */
@@ -296,18 +292,15 @@ inet6_option_next(cmsg, tptrp)
  *       it's a typo. The variable should be type of u_int8_t **.
  */
 int
-inet6_option_find(cmsg, tptrp, type)
-	const struct cmsghdr *cmsg;
-	u_int8_t **tptrp;
-	int type;
+inet6_option_find(const struct cmsghdr *cmsg, u_int8_t **tptrp, int type)
 {
 	struct ip6_ext *ip6e;
 	int hdrlen, optlen;
 	u_int8_t *optp, *lim;
 
 	if (cmsg->cmsg_level != IPPROTO_IPV6 ||
-	    (cmsg->cmsg_type != IPV6_HOPOPTS &&
-	     cmsg->cmsg_type != IPV6_DSTOPTS))
+	    (!is_ipv6_hopopts(cmsg->cmsg_type) &&
+	     !is_ipv6_dstopts(cmsg->cmsg_type)))
 		return(-1);
 
 	/* message length validation */
@@ -352,8 +345,7 @@ inet6_option_find(cmsg, tptrp, type)
  * calculated length and the limitation of the buffer.
  */
 static int
-ip6optlen(opt, lim)
-	u_int8_t *opt, *lim;
+ip6optlen(u_int8_t *opt, u_int8_t *lim)
 {
 	int optlen;
 
@@ -398,11 +390,8 @@ inet6_opt_init(void *extbuf, socklen_t extlen)
 {
 	struct ip6_ext *ext = (struct ip6_ext *)extbuf;
 
-	if (extlen < 0 || (extlen % 8))
-		return(-1);
-
 	if (ext) {
-		if (extlen == 0)
+		if (extlen <= 0 || (extlen % 8))
 			return(-1);
 		ext->ip6e_len = (extlen >> 3) - 1;
 	}
@@ -427,7 +416,7 @@ inet6_opt_append(void *extbuf, socklen_t extlen, int offset, u_int8_t type,
 	 * The option data length must have a value between 0 and 255,
 	 * inclusive, and is the length of the option data that follows.
 	 */
-	if (len < 0 || len > 255)
+	if (len > 255 || len < 0 )
 		return(-1);
 
 	/*
@@ -478,7 +467,7 @@ inet6_opt_append(void *extbuf, socklen_t extlen, int offset, u_int8_t type,
 int
 inet6_opt_finish(void *extbuf, socklen_t extlen, int offset)
 {
-	int updatelen = offset > 0 ? (1 + ((offset - 1) | 7)) : 0;;
+	int updatelen = offset > 0 ? (1 + ((offset - 1) | 7)) : 0;
 
 	if (extbuf) {
 		u_int8_t *padp;

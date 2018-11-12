@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2008
+.Dd December 1, 2015
 .Dt LS 1
 .Os
 .Sh NAME
@@ -40,7 +40,8 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
-.Op Fl ABCFGHILPRSTUWZabcdfghiklmnopqrstuwx1
+.Op Fl -libxo
+.Op Fl ABCFGHILPRSTUWZabcdfghiklmnopqrstuwxy1,
 .Op Fl D Ar format
 .Op Ar
 .Sh DESCRIPTION
@@ -68,6 +69,13 @@ lexicographical order.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl A
 Include directory entries whose names begin with a
 dot
@@ -87,6 +95,8 @@ and current locale settings) in file names as
 where
 .Va xxx
 is the numeric value of the character in octal.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl C
 Force multi-column output; this is the default when output is to a terminal.
 .It Fl D Ar format
@@ -104,6 +114,8 @@ different number of columns in the output.
 This option overrides the
 .Fl T
 option.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl F
 Display a slash
 .Pq Ql /
@@ -130,6 +142,10 @@ This option is equivalent to defining
 .Ev CLICOLOR
 in the environment.
 (See below.)
+This functionality can be compiled out by removing the definition of
+.Ev COLORLS .
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl H
 Symbolic links on the command line are followed.
 This option is assumed if
@@ -142,6 +158,8 @@ options are specified.
 Prevent
 .Fl A
 from being automatically set for the super-user.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl L
 If argument is a symbolic link, list the file or directory the link references
 rather than the link itself.
@@ -169,13 +187,21 @@ month, day, hour, minute, second, and year.
 The
 .Fl D
 option gives even more control over the output format.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl U
 Use time when file was created for sorting or printing.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl W
 Display whiteouts when scanning directories.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl Z
 Display each file's MAC label; see
 .Xr maclabel 7 .
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl a
 Include directory entries whose names begin with a
 dot
@@ -186,25 +212,48 @@ As
 but use
 .Tn C
 escape codes whenever possible.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl c
 Use time when file status was last changed for sorting or printing.
 .It Fl d
 Directories are listed as plain files (not searched recursively).
 .It Fl f
 Output is not sorted.
+This option turns on
+.Fl a .
+It also negates the effect of the
+.Fl r ,
+.Fl S
+and
+.Fl t
+options.
+As allowed by
+.St -p1003.1-2001 ,
+this option has no effect on the
+.Fl d ,
+.Fl l ,
+.Fl R
+and
+.Fl s
+options.
 .It Fl g
-This option is deprecated and is only available for compatibility
-with
-.Bx 4.3 ;
-it was used to display the group name in the long
+This option has no effect.
+It is only available for compatibility with
+.Bx 4.3 ,
+where it was used to display the group name in the long
 .Pq Fl l
 format output.
+This option is incompatible with
+.St -p1003.1-2001 .
 .It Fl h
 When used with the
 .Fl l
 option, use unit suffixes: Byte, Kilobyte, Megabyte, Gigabyte, Terabyte
 and Petabyte in order to reduce the number of digits to four or fewer
 using base 2 for sizes.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl i
 For each file, print the file's file serial number (inode number).
 .It Fl k
@@ -230,6 +279,11 @@ output.
 Include the file flags in a long
 .Pq Fl l
 output.
+This option is incompatible with
+.St -p1003.1-2001 .
+See
+.Xr chflags 1
+for a list of file flags and their meanings.
 .It Fl p
 Write a slash
 .Pq Ql /
@@ -249,12 +303,35 @@ subsection below, except (if the long format is not also requested)
 the directory totals are not output when the output is in a
 single column, even if multi-column output is requested.
 .It Fl t
-Sort by time modified (most recently modified
-first) before sorting the operands in lexicographical
-order.
+Sort by descending time modified (most recently modified first).
+If two files have the same modification timestamp, sort their names
+in ascending lexicographical order.
+The
+.Fl r
+option reverses both of these sort orders.
+.Pp
+Note that these sort orders are contradictory: the time sequence is in
+descending order, the lexicographical sort is in ascending order.
+This behavior is mandated by
+.St -p1003.2 .
+This feature can cause problems listing files stored with sequential names on
+FAT file systems, such as from digital cameras, where it is possible to have
+more than one image with the same timestamp.
+In such a case, the photos cannot be listed in the sequence in which
+they were taken.
+To ensure the same sort order for time and for lexicographical sorting, set the
+environment variable
+.Ev LS_SAMESORT
+or use the
+.Fl y
+option.
+This causes
+.Nm
+to reverse the lexicographical sort order when sorting files with the
+same modification timestamp.
 .It Fl u
 Use time of last access,
-instead of last modification
+instead of time of last modification
 of the file for sorting
 .Pq Fl t
 or printing
@@ -263,11 +340,24 @@ or printing
 Force raw printing of non-printable characters.
 This is the default
 when output is not to a terminal.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl x
 The same as
 .Fl C ,
 except that the multi-column output is produced with entries sorted
 across, rather than down, the columns.
+.It Fl y
+When the
+.Fl t
+option is set, sort the alphabetical output in the same order as the time output.
+This has the same effect as setting
+.Ev LS_SAMESORT .
+See the description of the
+.Fl t
+option for more details.
+This option is not defined in
+.St -p1003.1-2001 .
 .It Fl 1
 (The numeric digit
 .Dq one . )
@@ -275,6 +365,17 @@ Force output to be
 one entry per line.
 This is the default when
 output is not to a terminal.
+.It Fl ,
+(Comma) When the
+.Fl l
+option is set, print file sizes grouped and separated by thousands using the
+non-monetary separator returned by
+.Xr localeconv 3 ,
+typically a comma or period.
+If no locale is set, or the locale does not have a non-monetary separator, this
+option has no effect.
+This option is not defined in
+.St -p1003.1-2001 .
 .El
 .Pp
 The
@@ -357,8 +458,7 @@ option is given,
 the numeric ID's are displayed.
 .Pp
 If the file is a character special or block special file,
-the major and minor device numbers for the file are displayed
-in the size field.
+the device number for the file is displayed in the size field.
 If the file is a symbolic link the pathname of the
 linked-to file is preceded by
 .Dq Li -> .
@@ -459,7 +559,7 @@ but not execute or search permission.
 (See
 .Xr chmod 1
 or
-.Xr sticky 8 . )
+.Xr sticky 7 . )
 .It Sy t
 The sticky bit is set (mode
 .Li 1000 ) ,
@@ -467,7 +567,7 @@ and is searchable or executable.
 (See
 .Xr chmod 1
 or
-.Xr sticky 8 . )
+.Xr sticky 7 . )
 .El
 .El
 .Pp
@@ -530,7 +630,7 @@ variable is defined.
 .It Ev CLICOLOR_FORCE
 Color sequences are normally disabled if the output is not directed to
 a terminal.
-This can be overridden by setting this flag.
+This can be overridden by setting this variable.
 The
 .Ev TERM
 variable still needs to reference a color capable terminal however
@@ -656,6 +756,14 @@ Not all columns have changeable widths.
 The fields are,
 in order: inode, block count, number of links, user name,
 group name, flags, file size, file name.
+.It Ev LS_SAMESORT
+If this variable is set, the
+.Fl t
+option sorts the names of files with the same modification timestamp in the same
+sense as the time sort.
+See the description of the
+.Fl t
+option for more details.
 .It Ev TERM
 The
 .Ev CLICOLOR
@@ -668,6 +776,24 @@ for more information.
 .El
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+List the contents of the current working directory in long format:
+.Pp
+.Dl $ ls -l
+.Pp
+In addition to listing the contents of the current working directory in
+long format, show inode numbers, file flags (see
+.Xr chflags 1 ) ,
+and suffix each filename with a symbol representing its file type:
+.Pp
+.Dl $ ls -lioF
+.Pp
+List the files in
+.Pa /var/log ,
+sorting the output such that the mostly recently modified entries are
+printed first:
+.Pp
+.Dl $ ls -lt /var/log
 .Sh COMPATIBILITY
 The group field is now automatically included in the long listing for
 files in order to be compatible with the
@@ -679,21 +805,30 @@ specification.
 .Xr getfacl 1 ,
 .Xr sort 1 ,
 .Xr xterm 1 ,
+.Xr libxo 3 ,
+.Xr localeconv 3 ,
 .Xr strftime 3 ,
 .Xr strmode 3 ,
+.Xr xo_parse_args 3 ,
 .Xr termcap 5 ,
 .Xr maclabel 7 ,
+.Xr sticky 7 ,
 .Xr symlink 7 ,
-.Xr getfmac 8 ,
-.Xr sticky 8
+.Xr getfmac 8
 .Sh STANDARDS
 With the exception of options
-.Fl I , g , n
+.Fl g , n
 and
 .Fl o ,
 the
 .Nm
 utility conforms to
+.St -p1003.1-2001 .
+The options
+.Fl B , D , G , I , T , U , W , Z , b , h , w , y
+and
+.Fl ,
+are compatible extensions not defined in
 .St -p1003.1-2001 .
 .Pp
 The ACL support is compatible with
@@ -717,3 +852,9 @@ option description might be a feature that was
 based on the fact that single-column output
 usually goes to something other than a terminal.
 It is debatable whether this is a design bug.
+.Pp
+.St -p1003.2
+mandates opposite sort orders for files with the same timestamp when
+sorting with the
+.Fl t
+option.

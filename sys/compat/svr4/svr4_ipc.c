@@ -13,13 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -93,14 +86,10 @@ __FBSDID("$FreeBSD$");
 #include <compat/svr4/svr4_util.h>
 #include <compat/svr4/svr4_ipc.h>
 
-#if defined(SYSVMSG) || defined(SYSVSHM) || defined(SYSVSEM)
 static void svr4_to_bsd_ipc_perm(const struct svr4_ipc_perm *,
 				      struct ipc_perm *);
 static void bsd_to_svr4_ipc_perm(const struct ipc_perm *,
 				      struct svr4_ipc_perm *);
-#endif
-
-#ifdef SYSVSEM
 static void bsd_to_svr4_semid_ds(const struct semid_ds *,
 				      struct svr4_semid_ds *);
 static void svr4_to_bsd_semid_ds(const struct svr4_semid_ds *,
@@ -108,9 +97,6 @@ static void svr4_to_bsd_semid_ds(const struct svr4_semid_ds *,
 static int svr4_semop(struct thread *, void *);
 static int svr4_semget(struct thread *, void *);
 static int svr4_semctl(struct thread *, void *);
-#endif
-
-#ifdef SYSVMSG
 static void bsd_to_svr4_msqid_ds(const struct msqid_ds *,
 				      struct svr4_msqid_ds *);
 static void svr4_to_bsd_msqid_ds(const struct svr4_msqid_ds *,
@@ -119,9 +105,6 @@ static int svr4_msgsnd(struct thread *, void *);
 static int svr4_msgrcv(struct thread *, void *);
 static int svr4_msgget(struct thread *, void *);
 static int svr4_msgctl(struct thread *, void *);
-#endif
-
-#ifdef SYSVSHM
 static void bsd_to_svr4_shmid_ds(const struct shmid_ds *,
 				      struct svr4_shmid_ds *);
 static void svr4_to_bsd_shmid_ds(const struct svr4_shmid_ds *,
@@ -130,9 +113,6 @@ static int svr4_shmat(struct thread *, void *);
 static int svr4_shmdt(struct thread *, void *);
 static int svr4_shmget(struct thread *, void *);
 static int svr4_shmctl(struct thread *, void *);
-#endif
-
-#if defined(SYSVMSG) || defined(SYSVSHM) || defined(SYSVSEM)
 
 static void
 svr4_to_bsd_ipc_perm(spp, bpp)
@@ -161,9 +141,7 @@ bsd_to_svr4_ipc_perm(bpp, spp)
 	spp->mode = bpp->mode;
 	spp->seq = bpp->seq;
 }
-#endif
 
-#ifdef SYSVSEM
 static void
 bsd_to_svr4_semid_ds(bds, sds)
 	const struct semid_ds *bds;
@@ -292,7 +270,7 @@ svr4_semget(td, v)
 	ap.nsems = uap->nsems;
 	ap.semflg = uap->semflg;
 
-	return semget(td, &ap);
+	return sys_semget(td, &ap);
 }
 
 struct svr4_sys_semop_args {
@@ -315,7 +293,7 @@ svr4_semop(td, v)
 	ap.sops = (struct sembuf *) uap->sops;
 	ap.nsops = uap->nsops;
 
-	return semop(td, &ap);
+	return sys_semop(td, &ap);
 }
 
 int
@@ -338,10 +316,7 @@ svr4_sys_semsys(td, uap)
 	}
 }
 
-MODULE_DEPEND(svr4elf, sysvsem, 1, 1, 1);
-#endif
 
-#ifdef SYSVMSG
 static void
 bsd_to_svr4_msqid_ds(bds, sds)
 	const struct msqid_ds *bds;
@@ -400,7 +375,7 @@ svr4_msgsnd(td, v)
 	ap.msgsz = uap->msgsz;
 	ap.msgflg = uap->msgflg;
 
-	return msgsnd(td, &ap);
+	return sys_msgsnd(td, &ap);
 }
 
 struct svr4_sys_msgrcv_args {
@@ -426,9 +401,9 @@ svr4_msgrcv(td, v)
 	ap.msgtyp = uap->msgtyp;
 	ap.msgflg = uap->msgflg;
 
-	return msgrcv(td, &ap);
+	return sys_msgrcv(td, &ap);
 }
-	
+
 struct svr4_sys_msgget_args {
 	int what;
 	svr4_key_t key;
@@ -446,7 +421,7 @@ svr4_msgget(td, v)
 	ap.key = uap->key;
 	ap.msgflg = uap->msgflg;
 
-	return msgget(td, &ap);
+	return sys_msgget(td, &ap);
 }
 
 struct svr4_sys_msgctl_args {
@@ -511,10 +486,6 @@ svr4_sys_msgsys(td, uap)
 	}
 }
 
-MODULE_DEPEND(svr4elf, sysvmsg, 1, 1, 1);
-#endif
-
-#ifdef SYSVSHM
 
 static void
 bsd_to_svr4_shmid_ds(bds, sds)
@@ -569,7 +540,7 @@ svr4_shmat(td, v)
 	ap.shmaddr = uap->shmaddr;
 	ap.shmflg = uap->shmflg;
 
-	return shmat(td, &ap);
+	return sys_shmat(td, &ap);
 }
 
 struct svr4_sys_shmdt_args {
@@ -587,7 +558,7 @@ svr4_shmdt(td, v)
 
 	ap.shmaddr = uap->shmaddr;
 
-	return shmdt(td, &ap);
+	return sys_shmdt(td, &ap);
 }
 
 struct svr4_sys_shmget_args {
@@ -609,7 +580,7 @@ svr4_shmget(td, v)
 	ap.size = uap->size;
 	ap.shmflg = uap->shmflg;
 
-	return shmget(td, &ap);
+	return sys_shmget(td, &ap);
 }
 
 struct svr4_sys_shmctl_args {
@@ -664,7 +635,7 @@ svr4_shmctl(td, v)
 	default:
 		return (EINVAL);
 	}
-		
+
 	error = kern_shmctl(td, uap->shmid, cmd, &bs, &bufsize);
 	if (error)
 		return (error);
@@ -704,4 +675,5 @@ svr4_sys_shmsys(td, uap)
 }
 
 MODULE_DEPEND(svr4elf, sysvshm, 1, 1, 1);
-#endif /* SYSVSHM */
+MODULE_DEPEND(svr4elf, sysvmsg, 1, 1, 1);
+MODULE_DEPEND(svr4elf, sysvsem, 1, 1, 1);

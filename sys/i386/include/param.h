@@ -33,29 +33,19 @@
  * $FreeBSD$
  */
 
-#include <machine/_align.h>
 
 #ifndef _I386_INCLUDE_PARAM_H_
 #define	_I386_INCLUDE_PARAM_H_
+
+#include <machine/_align.h>
 
 /*
  * Machine dependent constants for Intel 386.
  */
 
-/*
- * Round p (pointer or byte index) up to a correctly-aligned value
- * for all data types (int, long, ...).   The result is unsigned int
- * and must be cast to any desired pointer type.
- */
-#ifndef _ALIGNBYTES
-#define _ALIGNBYTES	(sizeof(int) - 1)
-#endif
-#ifndef _ALIGN
-#define _ALIGN(p)	(((unsigned)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
-#endif
-
 
 #define __HAVE_ACPI
+#define	__HAVE_PIR
 #define __PCI_REROUTE_INTERRUPT
 
 #ifndef MACHINE
@@ -67,10 +57,16 @@
 #define MID_MACHINE	MID_I386
 
 #if defined(SMP) || defined(KLD_MODULE)
+#ifndef MAXCPU
 #define MAXCPU		32
+#endif
 #else
 #define MAXCPU		1
 #endif /* SMP || KLD_MODULE */
+
+#ifndef MAXMEMDOM
+#define	MAXMEMDOM	1
+#endif
 
 #define ALIGNBYTES	_ALIGNBYTES
 #define ALIGN(p)	_ALIGN(p)
@@ -94,7 +90,7 @@
 #define PAGE_MASK	(PAGE_SIZE-1)
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 #define NPGPTD		4
 #define PDRSHIFT	21		/* LOG2(NBPDR) */
 #define NPGPTD_SHIFT	9
@@ -118,22 +114,36 @@
 #define KSTACK_PAGES 2		/* Includes pcb! */
 #endif
 #define KSTACK_GUARD_PAGES 1	/* pages of kstack guard; 0 disables */
+#if KSTACK_PAGES < 4
+#define	TD0_KSTACK_PAGES 4
+#else
+#define	TD0_KSTACK_PAGES KSTACK_PAGES
+#endif
 
 /*
  * Ceiling on amount of swblock kva space, can be changed via
  * the kern.maxswzone /boot/loader.conf variable.
+ *
+ * 276 is sizeof(struct swblock), but we do not always have a definition
+ * in scope for struct swblock, so we have to hardcode it.  Each struct
+ * swblock holds metadata for 32 pages, so in theory, this is enough for
+ * 16 GB of swap.  In practice, however, the usable amount is considerably
+ * lower due to fragmentation.
  */
 #ifndef VM_SWZONE_SIZE_MAX
-#define VM_SWZONE_SIZE_MAX	(32 * 1024 * 1024)
+#define VM_SWZONE_SIZE_MAX	(276 * 128 * 1024)
 #endif
 
 /*
  * Ceiling on size of buffer cache (really only effects write queueing,
  * the VM page cache is not effected), can be changed via
  * the kern.maxbcache /boot/loader.conf variable.
+ *
+ * The value is equal to the size of the auto-tuned buffer map for
+ * the machine with 4GB of RAM, see vfs_bio.c:kern_vfs_bio_buffer_alloc().
  */
 #ifndef VM_BCACHE_SIZE_MAX
-#define VM_BCACHE_SIZE_MAX	(200 * 1024 * 1024)
+#define VM_BCACHE_SIZE_MAX	(7224 * 16 * 1024)
 #endif
 
 /*
@@ -151,5 +161,8 @@
 #define i386_ptob(x)		((x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
+
+#define INKERNEL(va)	(((vm_offset_t)(va)) >= VM_MAXUSER_ADDRESS && \
+    ((vm_offset_t)(va)) < VM_MAX_KERNEL_ADDRESS)
 
 #endif /* !_I386_INCLUDE_PARAM_H_ */

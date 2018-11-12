@@ -35,7 +35,7 @@
 /*
  * Standard type definitions.
  */
-typedef	__uint32_t	__blksize_t;	/* file block size */
+typedef	__int32_t	__blksize_t;	/* file block size */
 typedef	__int64_t	__blkcnt_t;	/* file block count */
 typedef	__int32_t	__clockid_t;	/* clock_gettime()... */
 typedef	__uint32_t	__fflags_t;	/* file flags */
@@ -51,6 +51,7 @@ typedef	int		__accmode_t;	/* access permissions */
 typedef	int		__nl_item;
 typedef	__uint16_t	__nlink_t;	/* link count */
 typedef	__int64_t	__off_t;	/* file offset */
+typedef	__int64_t	__off64_t;	/* file offset (alias) */
 typedef	__int32_t	__pid_t;	/* process [group] */
 typedef	__int64_t	__rlim_t;	/* resource limit - intentionally */
 					/* signed, because of legacy code */
@@ -79,15 +80,25 @@ typedef int		__cpusetid_t;	/* cpuset identifier. */
  * ANSI C), but they use __ct_rune_t instead of int.
  *
  * NOTE: rune_t is not covered by ANSI nor other standards, and should not
- * be instantiated outside of lib/libc/locale.  Use wchar_t.  wchar_t and
- * rune_t must be the same type.  Also, wint_t must be no narrower than
- * wchar_t, and should be able to hold all members of the largest
- * character set plus one extra value (WEOF), and must be at least 16 bits.
+ * be instantiated outside of lib/libc/locale.  Use wchar_t.  wint_t and
+ * rune_t must be the same type.  Also, wint_t should be able to hold all
+ * members of the largest character set plus one extra value (WEOF), and
+ * must be at least 16 bits.
  */
 typedef	int		__ct_rune_t;	/* arg type for ctype funcs */
 typedef	__ct_rune_t	__rune_t;	/* rune_t (see above) */
-typedef	__ct_rune_t	__wchar_t;	/* wchar_t (see above) */
 typedef	__ct_rune_t	__wint_t;	/* wint_t (see above) */
+
+/* Clang already provides these types as built-ins, but only in C++ mode. */
+#if !defined(__clang__) || !defined(__cplusplus)
+typedef	__uint_least16_t __char16_t;
+typedef	__uint_least32_t __char32_t;
+#endif
+/* In C++11, char16_t and char32_t are built-in types. */
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define	_CHAR16_T_DECLARED
+#define	_CHAR32_T_DECLARED
+#endif
 
 typedef	__uint32_t	__dev_t;	/* device number */
 
@@ -101,5 +112,7 @@ typedef union {
 	char		__mbstate8[128];
 	__int64_t	_mbstateL;	/* for alignment */
 } __mbstate_t;
+
+typedef __uintmax_t     __rman_res_t;
 
 #endif /* !_SYS__TYPES_H_ */

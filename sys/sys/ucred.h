@@ -35,6 +35,10 @@
 
 #include <bsm/audit.h>
 
+struct loginclass;
+
+#define	XU_NGROUPS	16
+
 /*
  * Credentials.
  *
@@ -54,7 +58,7 @@ struct ucred {
 	struct uidinfo	*cr_uidinfo;	/* per euid resource consumption */
 	struct uidinfo	*cr_ruidinfo;	/* per ruid resource consumption */
 	struct prison	*cr_prison;	/* jail(2) */
-	void		*cr_pspare;	/* general use */
+	struct loginclass	*cr_loginclass; /* login class */
 	u_int		cr_flags;	/* credential flags */
 	void 		*cr_pspare2[2];	/* general use 2 */
 #define	cr_endcopy	cr_label
@@ -62,12 +66,16 @@ struct ucred {
 	struct auditinfo_addr	cr_audit;	/* Audit properties. */
 	gid_t	*cr_groups;		/* groups */
 	int	cr_agroups;		/* Available groups */
+	gid_t   cr_smallgroups[XU_NGROUPS];	/* storage for small groups */
 };
 #define	NOCRED	((struct ucred *)0)	/* no credential available */
 #define	FSCRED	((struct ucred *)-1)	/* filesystem credential */
 #endif /* _KERNEL || _WANT_UCRED */
 
-#define	XU_NGROUPS	16
+/*
+ * Flags for cr_flags.
+ */
+#define	CRED_FLAG_CAPMODE	0x00000001	/* In capability mode. */
 
 /*
  * This is the external representation of struct ucred.
@@ -97,11 +105,12 @@ void	change_svuid(struct ucred *newcred, uid_t svuid);
 void	crcopy(struct ucred *dest, struct ucred *src);
 struct ucred	*crcopysafe(struct proc *p, struct ucred *cr);
 struct ucred	*crdup(struct ucred *cr);
-void	cred_update_thread(struct thread *td);
+void	crextend(struct ucred *cr, int n);
+void	proc_set_cred_init(struct proc *p, struct ucred *cr);
+struct ucred	*proc_set_cred(struct proc *p, struct ucred *cr);
 void	crfree(struct ucred *cr);
 struct ucred	*crget(void);
 struct ucred	*crhold(struct ucred *cr);
-int	crshared(struct ucred *cr);
 void	cru2x(struct ucred *cr, struct xucred *xcr);
 void	crsetgroups(struct ucred *cr, int n, gid_t *groups);
 int	groupmember(gid_t gid, struct ucred *cred);

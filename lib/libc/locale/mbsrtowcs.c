@@ -2,6 +2,11 @@
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -34,12 +39,17 @@ __FBSDID("$FreeBSD$");
 #include "mblocal.h"
 
 size_t
+mbsrtowcs_l(wchar_t * __restrict dst, const char ** __restrict src, size_t len,
+    mbstate_t * __restrict ps, locale_t locale)
+{
+	FIX_LOCALE(locale);
+	if (ps == NULL)
+		ps = &locale->mbsrtowcs;
+	return (XLOCALE_CTYPE(locale)->__mbsnrtowcs(dst, src, SIZE_T_MAX, len, ps));
+}
+size_t
 mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src, size_t len,
     mbstate_t * __restrict ps)
 {
-	static mbstate_t mbs;
-
-	if (ps == NULL)
-		ps = &mbs;
-	return (__mbsnrtowcs(dst, src, SIZE_T_MAX, len, ps));
+	return mbsrtowcs_l(dst, src, len, ps, __get_locale());
 }

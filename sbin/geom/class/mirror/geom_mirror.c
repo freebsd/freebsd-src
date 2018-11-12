@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <err.h>
 #include <errno.h>
 #include <paths.h>
 #include <stdio.h>
@@ -44,80 +45,95 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_MIRROR_VERSION;
 
-static char label_balance[] = "split", configure_balance[] = "none";
-static intmax_t label_slice = 4096, configure_slice = -1;
-static intmax_t insert_priority = 0, configure_priority = -1;
+#define	GMIRROR_BALANCE		"load"
+#define	GMIRROR_SLICE		"4096"
+#define	GMIRROR_PRIORITY	"0"
 
 static void mirror_main(struct gctl_req *req, unsigned flags);
 static void mirror_activate(struct gctl_req *req);
 static void mirror_clear(struct gctl_req *req);
 static void mirror_dump(struct gctl_req *req);
 static void mirror_label(struct gctl_req *req);
+static void mirror_resize(struct gctl_req *req, unsigned flags);
 
 struct g_command class_commands[] = {
-	{ "activate", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS, NULL,
+	{ "activate", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS,
 	    "[-v] name prov ..."
 	},
-	{ "clear", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS, NULL,
+	{ "clear", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'a', "autosync", NULL, G_TYPE_BOOL },
-		{ 'b', "balance", configure_balance, G_TYPE_STRING },
+		{ 'b', "balance", "", G_TYPE_STRING },
 		{ 'd', "dynamic", NULL, G_TYPE_BOOL },
 		{ 'f', "failsync", NULL, G_TYPE_BOOL },
 		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
-		{ 'p', "priority", &configure_priority, G_TYPE_NUMBER },
-		{ 's', "slice", &configure_slice, G_TYPE_NUMBER },
+		{ 'p', "priority", "-1", G_TYPE_NUMBER },
+		{ 's', "slice", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-adfFhnv] [-b balance] [-s slice] name\n"
-		  "[-v] -p priority name prov"
+	    "[-adfFhnv] [-b balance] [-s slice] name\n"
+	    "[-v] -p priority name prov"
 	},
-	{ "deactivate", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	{ "deactivate", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] name prov ..."
 	},
-	{ "dump", 0, mirror_main, G_NULL_OPTS, NULL,
+	{ "destroy", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'f', "force", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL
+	    },
+	    "[-fv] name ..."
+	},
+	{ "dump", 0, mirror_main, G_NULL_OPTS,
 	    "prov ..."
 	},
-	{ "forget", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	{ "forget", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "name ..."
 	},
 	{ "label", G_FLAG_VERBOSE, mirror_main,
 	    {
-		{ 'b', "balance", label_balance, G_TYPE_STRING },
+		{ 'b', "balance", GMIRROR_BALANCE, G_TYPE_STRING },
 		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
-		{ 's', "slice", &label_slice, G_TYPE_NUMBER },
+		{ 's', "slice", GMIRROR_SLICE, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-Fhnv] [-b balance] [-s slice] name prov ..."
+	    "[-Fhnv] [-b balance] [-s slice] name prov ..."
 	},
 	{ "insert", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		{ 'i', "inactive", NULL, G_TYPE_BOOL },
-		{ 'p', "priority", &insert_priority, G_TYPE_NUMBER },
+		{ 'p', "priority", GMIRROR_PRIORITY, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-hiv] [-p priority] name prov ..."
+	    "[-hiv] [-p priority] name prov ..."
 	},
-	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] name prov ..."
 	},
-	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] name prov ..."
+	},
+	{ "resize", G_FLAG_VERBOSE, mirror_resize,
+	    {
+		{ 's', "size", "*", G_TYPE_STRING },
+		G_OPT_SENTINEL
+	    },
+	    "[-s size] [-v] name"
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fv] name ..."
+	    "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };
@@ -247,8 +263,8 @@ mirror_label(struct gctl_req *req)
 		if (!hardcode)
 			bzero(md.md_provider, sizeof(md.md_provider));
 		else {
-			if (strncmp(str, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-				str += strlen(_PATH_DEV);
+			if (strncmp(str, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+				str += sizeof(_PATH_DEV) - 1;
 			strlcpy(md.md_provider, str, sizeof(md.md_provider));
 		}
 		mirror_metadata_encode(&md, sector);
@@ -375,4 +391,97 @@ mirror_activate(struct gctl_req *req)
 		if (verbose)
 			printf("Provider %s activated.\n", path);
 	}
+}
+
+static struct gclass *
+find_class(struct gmesh *mesh, const char *name)
+{
+	struct gclass *classp;
+
+	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
+		if (strcmp(classp->lg_name, name) == 0)
+			return (classp);
+	}
+	return (NULL);
+}
+
+static struct ggeom *
+find_geom(struct gclass *classp, const char *name)
+{
+	struct ggeom *gp;
+
+	LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
+		if (strcmp(gp->lg_name, name) == 0)
+			return (gp);
+	}
+	return (NULL);
+}
+
+static void
+mirror_resize(struct gctl_req *req, unsigned flags __unused)
+{
+	struct gmesh mesh;
+	struct gclass *classp;
+	struct ggeom *gp;
+	struct gprovider *pp;
+	struct gconsumer *cp;
+	off_t size;
+	int error, nargs;
+	const char *name;
+	char ssize[30];
+
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1) {
+		gctl_error(req, "Too few arguments.");
+		return;
+	}
+	error = geom_gettree(&mesh);
+	if (error)
+		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
+	name = gctl_get_ascii(req, "class");
+	if (name == NULL)
+		abort();
+	classp = find_class(&mesh, name);
+	if (classp == NULL)
+		errx(EXIT_FAILURE, "Class %s not found.", name);
+	name = gctl_get_ascii(req, "arg0");
+	if (name == NULL)
+		abort();
+	gp = find_geom(classp, name);
+	if (gp == NULL)
+		errx(EXIT_FAILURE, "No such geom: %s.", name);
+	pp = LIST_FIRST(&gp->lg_provider);
+	if (pp == NULL)
+		errx(EXIT_FAILURE, "Provider of geom %s not found.", name);
+	size = pp->lg_mediasize;
+	name = gctl_get_ascii(req, "size");
+	if (name == NULL)
+		errx(EXIT_FAILURE, "The size is not specified.");
+	if (*name == '*') {
+#define	CSZ(c)	((c)->lg_provider->lg_mediasize - \
+    (c)->lg_provider->lg_sectorsize)
+		/* Find the maximum possible size */
+		LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
+			if (CSZ(cp) > size)
+				size = CSZ(cp);
+		}
+		LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
+			if (CSZ(cp) < size)
+				size = CSZ(cp);
+		}
+#undef CSZ
+		if (size == pp->lg_mediasize)
+			errx(EXIT_FAILURE,
+			    "Cannot expand provider %s\n",
+			    pp->lg_name);
+	} else {
+		error = g_parse_lba(name, pp->lg_sectorsize, &size);
+		if (error)
+			errc(EXIT_FAILURE, error, "Invalid size param");
+		size *= pp->lg_sectorsize;
+	}
+	snprintf(ssize, sizeof(ssize), "%ju", (uintmax_t)size);
+	gctl_change_param(req, "size", -1, ssize);
+	geom_deletetree(&mesh);
+	gctl_issue(req);
 }

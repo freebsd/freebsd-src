@@ -62,6 +62,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 
 #include <netinet/in.h>
@@ -123,7 +124,7 @@ typedef u_int64_t		pptptime_t;
 #define PPTP_MIN_TIMEOUT	(PPTP_TIME_SCALE / 83)	/* 12 milliseconds */
 #define PPTP_MAX_TIMEOUT	(3 * PPTP_TIME_SCALE)	/* 3 seconds */
 
-/* When we recieve a packet, we wait to see if there's an outgoing packet
+/* When we receive a packet, we wait to see if there's an outgoing packet
    we can piggy-back the ACK off of. These parameters determine the mimimum
    and maxmimum length of time we're willing to wait in order to do that.
    These have no effect unless "enableDelayedAck" is turned on. */
@@ -280,9 +281,7 @@ ng_pptpgre_constructor(node_p node)
 	int i;
 
 	/* Allocate private structure */
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	NG_NODE_SET_PRIVATE(node, priv);
 
@@ -563,7 +562,7 @@ ng_pptpgre_xmit(hpriv_p hpriv, item_p item)
 		}
 
 		/* Sanity check frame length */
-		if (m != NULL && m->m_pkthdr.len > PPTP_MAX_PAYLOAD) {
+		if (m->m_pkthdr.len > PPTP_MAX_PAYLOAD) {
 			priv->stats.xmitTooBig++;
 			ERROUT(EMSGSIZE);
 		}
@@ -572,9 +571,9 @@ ng_pptpgre_xmit(hpriv_p hpriv, item_p item)
 	}
 
 	/* Build GRE header */
-	((u_int32_t *)gre)[0] = htonl(PPTP_INIT_VALUE);
-	gre->length = (m != NULL) ? htons((u_short)m->m_pkthdr.len) : 0;
-	gre->cid = htons(hpriv->conf.peerCid);
+	be32enc(gre, PPTP_INIT_VALUE);
+	be16enc(&gre->length, (m != NULL) ? m->m_pkthdr.len : 0);
+	be16enc(&gre->cid, hpriv->conf.peerCid);
 
 	/* Include sequence number if packet contains any data */
 	if (m != NULL) {
@@ -584,13 +583,13 @@ ng_pptpgre_xmit(hpriv_p hpriv, item_p item)
 			    = ng_pptpgre_time();
 		}
 		hpriv->xmitSeq++;
-		gre->data[0] = htonl(hpriv->xmitSeq);
+		be32enc(&gre->data[0], hpriv->xmitSeq);
 	}
 
 	/* Include acknowledgement (and stop send ack timer) if needed */
 	if (hpriv->conf.enableAlwaysAck || hpriv->xmitAck != hpriv->recvSeq) {
 		gre->hasAck = 1;
-		gre->data[gre->hasSeq] = htonl(hpriv->recvSeq);
+		be32enc(&gre->data[gre->hasSeq], hpriv->recvSeq);
 		hpriv->xmitAck = hpriv->recvSeq;
 		if (hpriv->conf.enableDelayedAck)
 			ng_uncallout(&hpriv->sackTimer, hpriv->node);
@@ -599,7 +598,7 @@ ng_pptpgre_xmit(hpriv_p hpriv, item_p item)
 	/* Prepend GRE header to outgoing frame */
 	grelen = sizeof(*gre) + sizeof(u_int32_t) * (gre->hasSeq + gre->hasAck);
 	if (m == NULL) {
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			priv->stats.memoryFailures++;
 			ERROUT(ENOBUFS);
@@ -607,7 +606,7 @@ ng_pptpgre_xmit(hpriv_p hpriv, item_p item)
 		m->m_len = m->m_pkthdr.len = grelen;
 		m->m_pkthdr.rcvif = NULL;
 	} else {
-		M_PREPEND(m, grelen, M_DONTWAIT);
+		M_PREPEND(m, grelen, M_NOWAIT);
 		if (m == NULL || (m->m_len < grelen
 		    && (m = m_pullup(m, grelen)) == NULL)) {
 			priv->stats.memoryFailures++;
@@ -705,18 +704,17 @@ ng_pptpgre_rcvdata_lower(hook_p hook, item_p item)
 
 	/* Sanity check packet length and GRE header bits */
 	extralen = m->m_pkthdr.len
-	    - (iphlen + grelen + gre->hasSeq * (u_int16_t)ntohs(gre->length));
+	    - (iphlen + grelen + gre->hasSeq * be16dec(&gre->length));
 	if (extralen < 0) {
 		priv->stats.recvBadGRE++;
 		ERROUT(EINVAL);
 	}
-	if ((ntohl(*((const u_int32_t *)gre)) & PPTP_INIT_MASK)
-	    != PPTP_INIT_VALUE) {
+	if ((be32dec(gre) & PPTP_INIT_MASK) != PPTP_INIT_VALUE) {
 		priv->stats.recvBadGRE++;
 		ERROUT(EINVAL);
 	}
 
-	hpriv = ng_pptpgre_find_session(priv, ntohs(gre->cid));
+	hpriv = ng_pptpgre_find_session(priv, be16dec(&gre->cid));
 	if (hpriv == NULL || hpriv->hook == NULL || !hpriv->conf.enabled) {
 		priv->stats.recvBadCID++;
 		ERROUT(EINVAL);
@@ -725,7 +723,7 @@ ng_pptpgre_rcvdata_lower(hook_p hook, item_p item)
 
 	/* Look for peer ack */
 	if (gre->hasAck) {
-		const u_int32_t	ack = ntohl(gre->data[gre->hasSeq]);
+		const u_int32_t	ack = be32dec(&gre->data[gre->hasSeq]);
 		const int index = ack - hpriv->recvAck - 1;
 		long sample;
 		long diff;
@@ -776,7 +774,7 @@ badAck:
 
 	/* See if frame contains any data */
 	if (gre->hasSeq) {
-		const u_int32_t seq = ntohl(gre->data[0]);
+		const u_int32_t seq = be32dec(&gre->data[0]);
 
 		/* Sanity check sequence number */
 		if (PPTP_SEQ_DIFF(seq, hpriv->recvSeq) <= 0) {
@@ -848,7 +846,7 @@ ng_pptpgre_start_recv_ack_timer(hpriv_p hpriv)
 		remain = 0;
 
 	/* Be conservative: timeout can happen up to 1 tick early */
-	ticks = (((remain * hz) + PPTP_TIME_SCALE - 1) / PPTP_TIME_SCALE) + 1;
+	ticks = howmany(remain * hz, PPTP_TIME_SCALE) + 1;
 	ng_callout(&hpriv->rackTimer, hpriv->node, hpriv->hook,
 	    ticks, ng_pptpgre_recv_ack_timeout, hpriv, 0);
 }
@@ -896,7 +894,7 @@ ng_pptpgre_start_send_ack_timer(hpriv_p hpriv)
 		ackTimeout = PPTP_MAX_ACK_DELAY;
 
 	/* Be conservative: timeout can happen up to 1 tick early */
-	ticks = (((ackTimeout * hz) + PPTP_TIME_SCALE - 1) / PPTP_TIME_SCALE);
+	ticks = howmany(ackTimeout * hz, PPTP_TIME_SCALE);
 	ng_callout(&hpriv->sackTimer, hpriv->node, hpriv->hook,
 	    ticks, ng_pptpgre_send_ack_timeout, hpriv, 0);
 }

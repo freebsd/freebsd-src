@@ -25,11 +25,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2009
-.Dt NET80211 9
+.Dd April 28, 2010
+.Dt IEEE80211 9
 .Os
 .Sh NAME
-.Nm net80211
+.Nm IEEE80211
 .Nd 802.11 network layer
 .Sh SYNOPSIS
 .In net80211/ieee80211_var.h
@@ -164,7 +164,7 @@ Table of channels the device is capable of operating on.
 This is initially provided by the driver but may be changed
 through calls that change the regulatory state.
 .It Dv ic_nchan
-Number of entries in 
+Number of entries in
 .Dv ic_channels .
 .El
 .Pp
@@ -205,11 +205,11 @@ method.
 Transmit a raw 802.11 frame.
 The default method drops the frame and generates a message on the console.
 .It Dv ic_updateslot
-Update hardware state after an 802.11 IFS slot time change,
+Update hardware state after an 802.11 IFS slot time change.
 There is no default method; the pointer may be NULL in which case
 it will not be used.
 .It Dv ic_update_mcast
-Update hardware for a change in the multicast packet filter,
+Update hardware for a change in the multicast packet filter.
 The default method prints a console message.
 .It Dv ic_update_promisc
 Update hardware for a change in the promiscuous mode setting.
@@ -221,7 +221,7 @@ There is no default method; the pointer may be NULL in which case
 it will not be used.
 .It Dv ic_node_alloc
 Allocate and initialize a
-.Vt ieee80211_node 
+.Vt ieee80211_node
 structure.
 This method cannot sleep.
 The default method allocates zero'd memory using
@@ -232,7 +232,7 @@ Memory allocated by the driver must be tagged with
 .Dv M_80211_NODE
 to balance the memory allocation statistics.
 .It Dv ic_node_free
-Reclaim storage of a node allocated by 
+Reclaim storage of a node allocated by
 .Dv ic_node_alloc  .
 Drivers are expected to
 .Em interpose
@@ -261,13 +261,13 @@ The default method ages frames on the power-save queue (in AP mode)
 and pending frames in the receive reorder queues (for stations using A-MPDU).
 .It Dv ic_node_drain
 Reclaim all optional resources associated with a node.
-This call is used to free up resources when they are in short supply,
+This call is used to free up resources when they are in short supply.
 .It Dv ic_node_getrssi
 Return the Receive Signal Strength Indication (RSSI) in .5 dBm units for
 the specified node.
 This interface returns a subset of the information
 returned by
-.Dv ic_node_getsignal ,
+.Dv ic_node_getsignal .
 The default method calculates a filtered average over the last ten
 samples passed in to
 .Xr ieee80211_input 9
@@ -302,7 +302,7 @@ and must initiate the work to scan a channel and schedule a timer
 to advance to the next channel in the scan list.
 This callback is done in a sleepable context.
 The default method handles active scan work (e.g. sending ProbeRequest
-frames), and schedules a call to 
+frames), and schedules a call to
 .Xr ieee80211_scan_next 9
 according to the maximum dwell time for the channel.
 Drivers that off-load scan work to firmware typically use this method
@@ -341,7 +341,7 @@ Drivers may interpose this method if they need to setup private state
 for handling transmit A-MPDU.
 .It Dv ic_addb_response
 Process a received ADDBA Response Action frame and setup resources as
-needed for doing transmit A-MPDU,
+needed for doing transmit A-MPDU.
 .It Dv ic_addb_stop
 Shutdown an A-MPDU transmit stream for the specified station and AC.
 The default method reclaims local state after sending a DelBA Action frame.
@@ -354,7 +354,7 @@ Terminate receipt of A-MPDU data from the specified station for the TID.
 .El
 .Pp
 Once the
-.Nm 
+.Nm
 layer is attached to a driver there are two more steps typically done
 to complete the work:
 .Bl -enum
@@ -405,7 +405,7 @@ The following general capabilities are defined:
 Device is capable of operating in station (aka Infrastructure) mode.
 .It Dv IEEE80211_C_8023ENCAP
 Device requires 802.3-encapsulated frames be passed for transmit.
-By default 
+By default
 .Nm
 will encapsulate all outbound frames as 802.11 frames (without a PLCP header).
 .It Dv IEEE80211_C_FF
@@ -490,7 +490,7 @@ Devices supports hardware CKIP cipher.
 The follow general 802.11n capabilities are defined.
 The first capabilities are defined exactly as they appear in the
 802.11n specification.
-Capabilities beginning with IEEE80211_HTC_AMPDU are used soley by the
+Capabilities beginning with IEEE80211_HTC_AMPDU are used solely by the
 .Nm
 layer.
 .Bl -tag -width IEEE80211_C_8023ENCAP
@@ -529,16 +529,16 @@ Device supports L-SIG TXOP protection.
 .It Dv IEEE80211_HTC_AMPDU
 Device supports A-MPDU aggregation.
 Note that any 802.11n compliant device must support A-MPDU receive
-so this implicitly means support for 
+so this implicitly means support for
 .Em transmit
 of A-MPDU frames.
 .It Dv IEEE80211_HTC_AMSDU
 Device supports A-MSDU aggregation.
 Note that any 802.11n compliant device must support A-MSDU receive
-so this implicitly means support for 
+so this implicitly means support for
 .Em transmit
 of A-MSDU frames.
-.It Dv IEEE80211_HTC_HT 
+.It Dv IEEE80211_HTC_HT
 Device supports High Throughput (HT) operation.
 This capability must be set to enable 802.11n functionality
 in
@@ -551,11 +551,18 @@ Device supports Reduced Inter Frame Spacing (RIFS).
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr ndis 4 ,
+.Xr ieee80211_amrr 9 ,
+.Xr ieee80211_beacon 9 ,
+.Xr ieee80211_bmiss 9 ,
+.Xr ieee80211_crypto 9 ,
+.Xr ieee80211_ddb 9 ,
 .Xr ieee80211_input 9 ,
-.Xr ieee80211_input_all 9 ,
-.Xr ieee80211_scan_next 9 ,
-.Xr ieee80211_recv_action 9 ,
-.Xr ieee80211_send_action 9 ,
-.Xr ieee80211_radiotap_attach 9 ,
+.Xr ieee80211_node 9 ,
+.Xr ieee80211_output 9 ,
+.Xr ieee80211_proto 9 ,
+.Xr ieee80211_radiotap 9 ,
+.Xr ieee80211_regdomain 9 ,
+.Xr ieee80211_scan 9 ,
+.Xr ieee80211_vap 9 ,
 .Xr ifnet 9 ,
 .Xr malloc 9

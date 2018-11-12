@@ -176,7 +176,7 @@ main(int argc,
 			rflag = getnet(optarg, &OMSG.rip_nets[0]);
 			if (!rflag) {
 				struct hostent *hp = gethostbyname(optarg);
-				if (hp == 0) {
+				if (hp == NULL) {
 					fprintf(stderr, "%s: %s:",
 						pgmname, optarg);
 					herror(0);
@@ -353,7 +353,7 @@ trace_loop(char *argv[])
 	}
 
 	res = 1;
-	while (*argv != 0) {
+	while (*argv != NULL) {
 		if (out(*argv++) <= 0)
 			res = 0;
 	}
@@ -417,9 +417,9 @@ query_loop(char *argv[], int argc)
 	}
 
 	/* ask the first (valid) host */
-	seen = 0;
+	seen = NULL;
 	while (0 > out(*argv++)) {
-		if (*argv == 0)
+		if (*argv == NULL)
 			exit(1);
 		answered++;
 	}
@@ -445,13 +445,13 @@ query_loop(char *argv[], int argc)
 			 * because a router might respond with a
 			 * different source address.
 			 */
-			for (sp = seen; sp != 0; sp = sp->next) {
+			for (sp = seen; sp != NULL; sp = sp->next) {
 				if (sp->addr.s_addr == from.sin_addr.s_addr)
 					break;
 			}
-			if (sp == 0) {
+			if (sp == NULL) {
 				sp = malloc(sizeof(*sp));
-				if (sp == 0) {
+				if (sp == NULL) {
 					fprintf(stderr,
 						"rtquery: malloc failed\n");
 					exit(1);
@@ -476,7 +476,7 @@ query_loop(char *argv[], int argc)
 		/* After a pause in responses, probe another host.
 		 * This reduces the intermingling of answers.
 		 */
-		while (*argv != 0 && 0 > out(*argv++))
+		while (*argv != NULL && out(*argv++) < 0)
 			answered++;
 
 		/* continue until no more packets arrive
@@ -520,7 +520,7 @@ out(const char *host)
 #endif
 	if (!inet_aton(host, &router.sin_addr)) {
 		hp = gethostbyname(host);
-		if (hp == 0) {
+		if (hp == NULL) {
 			herror(host);
 			return -1;
 		}
@@ -619,7 +619,7 @@ rip_input(struct sockaddr_in *from,
 	} else {
 		hp = gethostbyaddr((char*)&from->sin_addr,
 				   sizeof(struct in_addr), AF_INET);
-		if (hp == 0) {
+		if (hp == NULL) {
 			printf("%s:",
 			       inet_ntoa(from->sin_addr));
 		} else {
@@ -691,7 +691,7 @@ rip_input(struct sockaddr_in *from,
 				if ((in.s_addr & ~mask) == 0) {
 					np = getnetbyaddr((long)in.s_addr,
 							  AF_INET);
-					if (np != 0)
+					if (np != NULL)
 						name = np->n_name;
 					else if (in.s_addr == 0)
 						name = "default";
@@ -702,7 +702,7 @@ rip_input(struct sockaddr_in *from,
 					hp = gethostbyaddr((char*)&in,
 							   sizeof(in),
 							   AF_INET);
-					if (hp != 0)
+					if (hp != NULL)
 						name = hp->h_name;
 				}
 			}
@@ -770,12 +770,12 @@ rip_input(struct sockaddr_in *from,
 		if (n->n_nhop != 0) {
 			in.s_addr = n->n_nhop;
 			if (nflag)
-				hp = 0;
+				hp = NULL;
 			else
 				hp = gethostbyaddr((char*)&in, sizeof(in),
 						   AF_INET);
 			(void)printf(" nhop=%-15s%s",
-				     (hp != 0) ? hp->h_name : inet_ntoa(in),
+				     (hp != NULL) ? hp->h_name : inet_ntoa(in),
 				     (IMSG.rip_vers == RIPv1) ? " ?" : "");
 		}
 		if (n->n_tag != 0)
@@ -820,7 +820,7 @@ getnet(char *name,
 
 	/* Detect and separate "1.2.3.4/24"
 	 */
-	if (0 != (mname = strrchr(name,'/'))) {
+	if (NULL != (mname = strrchr(name,'/'))) {
 		i = (int)(mname - name);
 		if (i > (int)sizeof(hname)-1)	/* name too long */
 			return 0;
@@ -831,7 +831,7 @@ getnet(char *name,
 	}
 
 	nentp = getnetbyname(name);
-	if (nentp != 0) {
+	if (nentp != NULL) {
 		in.s_addr = nentp->n_net;
 	} else if (inet_aton(name, &in) == 1) {
 		in.s_addr = ntohl(in.s_addr);
@@ -839,7 +839,7 @@ getnet(char *name,
 		return 0;
 	}
 
-	if (mname == 0) {
+	if (mname == NULL) {
 		mask = std_mask(in.s_addr);
 		if ((~mask & in.s_addr) != 0)
 			mask = 0xffffffff;
@@ -910,7 +910,7 @@ parse_quote(char **linep,
 		--lim;
 	}
 exit:
-	if (delimp != 0)
+	if (delimp != NULL)
 		*delimp = c;
 	*linep = pc-1;
 	if (lim != 0)

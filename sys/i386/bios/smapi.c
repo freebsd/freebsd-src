@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -79,7 +80,7 @@ static struct cdevsw smapi_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_ioctl =	smapi_ioctl,
 	.d_name =	"smapi",
-	.d_flags =	D_MEM | D_NEEDGIANT,
+	.d_flags =	D_NEEDGIANT,
 };
 
 static void	smapi_identify(driver_t *, device_t);
@@ -292,6 +293,7 @@ smapi_modevent (module_t mod, int what, void *arg)
 		for (i = 0; i < count; i++) {
 			device_delete_child(device_get_parent(devs[i]), devs[i]);
 		}
+		free(devs, M_TEMP);
 		break;
 	default:
 		break;

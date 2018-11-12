@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/mac.h>
@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <termcap.h>
 #include <signal.h>
 #endif
+#include <libxo/xo.h>
 
 #include "ls.h"
 #include "extern.h"
@@ -109,31 +110,35 @@ int termwidth = 80;		/* default terminal width */
        int f_humanval;		/* show human-readable file sizes */
        int f_inode;		/* print inode */
 static int f_kblocks;		/* print size in kilobytes */
+       int f_label;		/* show MAC label */
 static int f_listdir;		/* list actual directory, not contents */
 static int f_listdot;		/* list files beginning with . */
-static int f_noautodot;		/* do not automatically enable -A for root */
        int f_longform;		/* long listing format */
+static int f_noautodot;		/* do not automatically enable -A for root */
+static int f_nofollow;		/* don't follow symbolic link arguments */
        int f_nonprint;		/* show unprintables as ? */
 static int f_nosort;		/* don't sort output */
        int f_notabs;		/* don't use tab-separated multi-col output */
-static int f_numericonly;	/* don't convert uid/gid to name */
+       int f_numericonly;	/* don't convert uid/gid to name */
        int f_octal;		/* show unprintables as \xxx */
        int f_octal_escape;	/* like f_octal but use C escapes if possible */
 static int f_recursive;		/* ls subdirectories also */
 static int f_reversesort;	/* reverse whatever sort is used */
-       int f_sectime;		/* print the real time for all files */
+       int f_samesort;		/* sort time and name in same direction */
+       int f_sectime;		/* print full time information */
 static int f_singlecol;		/* use single column output */
        int f_size;		/* list size in short listing */
+static int f_sizesort;
        int f_slash;		/* similar to f_type, but only for dirs */
        int f_sortacross;	/* sort across rows, not down columns */
        int f_statustime;	/* use time of last mode change */
 static int f_stream;		/* stream the output, separate with commas */
+       int f_thousands;		/* show file sizes with thousands separators */
+       char *f_timeformat;	/* user-specified time format */
 static int f_timesort;		/* sort by time vice name */
-       char *f_timeformat;      /* user-specified time format */
-static int f_sizesort;
        int f_type;		/* add type character for non-regular files */
 static int f_whiteout;		/* show whiteout entries */
-       int f_label;		/* show MAC label */
+
 #ifdef COLORLS
        int f_color;		/* add type in color for non-regular files */
 
@@ -153,6 +158,7 @@ main(int argc, char *argv[])
 	struct winsize win;
 	int ch, fts_options, notused;
 	char *p;
+	const char *errstr = NULL;
 #ifdef COLORLS
 	char termcapbuf[1024];	/* termcap definition buffer */
 	char tcapbuf[512];	/* capability buffer */
@@ -165,7 +171,7 @@ main(int argc, char *argv[])
 	if (isatty(STDOUT_FILENO)) {
 		termwidth = 80;
 		if ((p = getenv("COLUMNS")) != NULL && *p != '\0')
-			termwidth = atoi(p);
+			termwidth = strtonum(p, 0, INT_MAX, &errstr);
 		else if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &win) != -1 &&
 		    win.ws_col > 0)
 			termwidth = win.ws_col;
@@ -175,12 +181,24 @@ main(int argc, char *argv[])
 		/* retrieve environment variable, in case of explicit -C */
 		p = getenv("COLUMNS");
 		if (p)
-			termwidth = atoi(p);
+			termwidth = strtonum(p, 0, INT_MAX, &errstr);
 	}
 
+	if (errstr)
+		termwidth = 80;
+
 	fts_options = FTS_PHYSICAL;
- 	while ((ch = getopt(argc, argv,
-	    "1ABCD:FGHILPRSTUWZabcdfghiklmnopqrstuwx")) != -1) {
+	if (getenv("LS_SAMESORT"))
+		f_samesort = 1;
+
+	argc = xo_parse_args(argc, argv);
+	if (argc < 0)
+		return (1);
+	xo_set_flags(NULL, XOF_COLUMNS);
+	xo_set_version(LS_XO_VERSION);
+
+	while ((ch = getopt(argc, argv,
+	    "1ABCD:FGHILPRSTUWXZabcdfghiklmnopqrstuwxy,")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C, -x and -l options all override each other so
@@ -191,17 +209,9 @@ main(int argc, char *argv[])
 			f_longform = 0;
 			f_stream = 0;
 			break;
-		case 'B':
-			f_nonprint = 0;
-			f_octal = 1;
-			f_octal_escape = 0;
-			break;
 		case 'C':
 			f_sortacross = f_longform = f_singlecol = 0;
 			break;
-                case 'D':
-                        f_timeformat = optarg;
-                        break;
 		case 'l':
 			f_longform = 1;
 			f_singlecol = 0;
@@ -228,44 +238,82 @@ main(int argc, char *argv[])
 			f_accesstime = 0;
 			f_statustime = 0;
 			break;
-		case 'F':
-			f_type = 1;
-			f_slash = 0;
-			break;
-		case 'H':
-			fts_options |= FTS_COMFOLLOW;
-			break;
-		case 'G':
-			setenv("CLICOLOR", "", 1);
-			break;
-		case 'L':
-			fts_options &= ~FTS_PHYSICAL;
-			fts_options |= FTS_LOGICAL;
-			break;
-		case 'P':
-			fts_options &= ~FTS_COMFOLLOW;
-			fts_options &= ~FTS_LOGICAL;
-			fts_options |= FTS_PHYSICAL;
-			break;
-		case 'R':
-			f_recursive = 1;
-			break;
+		case 'f':
+			f_nosort = 1;
+		       /* FALLTHROUGH */
 		case 'a':
 			fts_options |= FTS_SEEDOT;
 			/* FALLTHROUGH */
 		case 'A':
 			f_listdot = 1;
 			break;
+		/* The -t and -S options override each other. */
+		case 'S':
+			f_sizesort = 1;
+			f_timesort = 0;
+			break;
+		case 't':
+			f_timesort = 1;
+			f_sizesort = 0;
+			break;
+		/* Other flags.  Please keep alphabetic. */
+		case ',':
+			f_thousands = 1;
+			break;
+		case 'B':
+			f_nonprint = 0;
+			f_octal = 1;
+			f_octal_escape = 0;
+			break;
+		case 'D':
+			f_timeformat = optarg;
+			break;
+		case 'F':
+			f_type = 1;
+			f_slash = 0;
+			break;
+		case 'G':
+			setenv("CLICOLOR", "", 1);
+			break;
+		case 'H':
+			fts_options |= FTS_COMFOLLOW;
+			f_nofollow = 0;
+			break;
 		case 'I':
 			f_noautodot = 1;
+			break;
+		case 'L':
+			fts_options &= ~FTS_PHYSICAL;
+			fts_options |= FTS_LOGICAL;
+			f_nofollow = 0;
+			break;
+		case 'P':
+			fts_options &= ~FTS_COMFOLLOW;
+			fts_options &= ~FTS_LOGICAL;
+			fts_options |= FTS_PHYSICAL;
+			f_nofollow = 1;
+			break;
+		case 'R':
+			f_recursive = 1;
+			break;
+		case 'T':
+			f_sectime = 1;
+			break;
+		case 'W':
+			f_whiteout = 1;
+			break;
+		case 'Z':
+			f_label = 1;
+			break;
+		case 'b':
+			f_nonprint = 0;
+			f_octal = 0;
+			f_octal_escape = 1;
 			break;
 		/* The -d option turns off the -R option. */
 		case 'd':
 			f_listdir = 1;
 			f_recursive = 0;
-			break;
-		case 'f':
-			f_nosort = 1;
 			break;
 		case 'g':	/* Compatibility with 4.3BSD. */
 			break;
@@ -305,33 +353,13 @@ main(int argc, char *argv[])
 		case 's':
 			f_size = 1;
 			break;
-		case 'T':
-			f_sectime = 1;
-			break;
-		/* The -t and -S options override each other. */
-		case 't':
-			f_timesort = 1;
-			f_sizesort = 0;
-			break;
-		case 'S':
-			f_sizesort = 1;
-			f_timesort = 0;
-			break;
-		case 'W':
-			f_whiteout = 1;
-			break;
-		case 'b':
-			f_nonprint = 0;
-			f_octal = 0;
-			f_octal_escape = 1;
-			break;
 		case 'w':
 			f_nonprint = 0;
 			f_octal = 0;
 			f_octal_escape = 0;
 			break;
-		case 'Z':
-			f_label = 1;
+		case 'y':
+			f_samesort = 1;
 			break;
 		default:
 		case '?':
@@ -365,7 +393,7 @@ main(int argc, char *argv[])
 				f_color = 1;
 		}
 #else
-		warnx("color support not compiled in");
+		xo_warnx("color support not compiled in");
 #endif /*COLORLS*/
 
 #ifdef COLORLS
@@ -396,10 +424,15 @@ main(int argc, char *argv[])
 		fts_options |= FTS_NOSTAT;
 
 	/*
-	 * If not -F, -d or -l options, follow any symbolic links listed on
-	 * the command line.
+	 * If not -F, -P, -d or -l options, follow any symbolic links listed on
+	 * the command line, unless in color mode in which case we need to
+	 * distinguish file type for a symbolic link itself and its target.
 	 */
-	if (!f_longform && !f_listdir && !f_type)
+	if (!f_nofollow && !f_longform && !f_listdir && (!f_type || f_slash)
+#ifdef COLORLS
+	    && !f_color
+#endif
+	    )
 		fts_options |= FTS_COMFOLLOW;
 
 	/*
@@ -410,8 +443,8 @@ main(int argc, char *argv[])
 		fts_options |= FTS_WHITEOUT;
 #endif
 
-	/* If -l or -s, figure out block size. */
-	if (f_longform || f_size) {
+	/* If -i, -l or -s, figure out block size. */
+	if (f_inode || f_longform || f_size) {
 		if (f_kblocks)
 			blocksize = 2;
 		else {
@@ -458,10 +491,13 @@ main(int argc, char *argv[])
 	else
 		printfcn = printcol;
 
+	xo_open_container("file-information");
 	if (argc)
 		traverse(argc, argv, fts_options);
 	else
 		traverse(1, dotav, fts_options);
+	xo_close_container("file-information");
+	xo_finish();
 	exit(rval);
 }
 
@@ -479,10 +515,11 @@ traverse(int argc, char *argv[], int options)
 	FTS *ftsp;
 	FTSENT *p, *chp;
 	int ch_options;
+	int first = 1;
 
 	if ((ftsp =
 	    fts_open(argv, options, f_nosort ? NULL : mastercmp)) == NULL)
-		err(1, "fts_open");
+		xo_err(1, "fts_open");
 
 	/*
 	 * We ignore errors from fts_children here since they will be
@@ -504,11 +541,11 @@ traverse(int argc, char *argv[], int options)
 	while ((p = fts_read(ftsp)) != NULL)
 		switch (p->fts_info) {
 		case FTS_DC:
-			warnx("%s: directory causes a cycle", p->fts_name);
+			xo_warnx("%s: directory causes a cycle", p->fts_name);
 			break;
 		case FTS_DNR:
 		case FTS_ERR:
-			warnx("%s: %s", p->fts_name, strerror(p->fts_errno));
+			xo_warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			break;
 		case FTS_D:
@@ -516,31 +553,40 @@ traverse(int argc, char *argv[], int options)
 			    p->fts_name[0] == '.' && !f_listdot)
 				break;
 
+			if (first) {
+				first = 0;
+				xo_open_list("directory");
+			}
+			xo_open_instance("directory");
+
 			/*
 			 * If already output something, put out a newline as
 			 * a separator.  If multiple arguments, precede each
 			 * directory with its name.
 			 */
 			if (output) {
-				putchar('\n');
-				(void)printname(p->fts_path);
-				puts(":");
+				xo_emit("\n");
+				(void)printname("path", p->fts_path);
+				xo_emit(":\n");
 			} else if (argc > 1) {
-				(void)printname(p->fts_path);
-				puts(":");
+				(void)printname("path", p->fts_path);
+				xo_emit(":\n");
 				output = 1;
 			}
 			chp = fts_children(ftsp, ch_options);
 			display(p, chp, options);
 
+			xo_close_instance("directory");
 			if (!f_recursive && chp != NULL)
 				(void)fts_set(ftsp, p, FTS_SKIP);
 			break;
 		default:
 			break;
 		}
+	if (!first)
+		xo_close_list("directory");
 	if (errno)
-		err(1, "fts_read");
+		xo_err(1, "fts_read");
 }
 
 /*
@@ -557,9 +603,11 @@ display(const FTSENT *p, FTSENT *list, int options)
 	NAMES *np;
 	off_t maxsize;
 	long maxblock;
-	u_long btotal, labelstrlen, maxinode, maxlen, maxnlink;
+	uintmax_t maxinode;
+	u_long btotal, labelstrlen, maxlen, maxnlink;
 	u_long maxlabelstr;
-	int bcfile, maxflags;
+	u_int sizelen;
+	int maxflags;
 	gid_t maxgroup;
 	uid_t maxuser;
 	size_t flen, ulen, glen;
@@ -567,7 +615,6 @@ display(const FTSENT *p, FTSENT *list, int options)
 	int entries, needstats;
 	const char *user, *group;
 	char *flags, *labelstr = NULL;
-	char buf[STRBUF_SIZEOF(u_quad_t) + 1];
 	char ngroup[STRBUF_SIZEOF(uid_t) + 1];
 	char nuser[STRBUF_SIZEOF(gid_t) + 1];
 
@@ -576,8 +623,9 @@ display(const FTSENT *p, FTSENT *list, int options)
 	btotal = 0;
 	initmax = getenv("LS_COLWIDTHS");
 	/* Fields match -lios order.  New ones should be added at the end. */
-	maxlabelstr = maxblock = maxinode = maxlen = maxnlink =
-	    maxuser = maxgroup = maxflags = maxsize = 0;
+	maxlabelstr = maxblock = maxlen = maxnlink = 0;
+	maxuser = maxgroup = maxflags = maxsize = 0;
+	maxinode = 0;
 	if (initmax != NULL && *initmax != '\0') {
 		char *initmax2, *jinitmax;
 		int ninitmax;
@@ -585,7 +633,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 		/* Fill-in "::" as "0:0:0" for the sake of scanf. */
 		jinitmax = malloc(strlen(initmax) * 2 + 2);
 		if (jinitmax == NULL)
-			err(1, "malloc");
+			xo_err(1, "malloc");
 		initmax2 = jinitmax;
 		if (*initmax == ':')
 			strcpy(initmax2, "0:"), initmax2 += 2;
@@ -605,7 +653,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 			strcpy(initmax2, "0");
 
 		ninitmax = sscanf(jinitmax,
-		    " %lu : %ld : %lu : %u : %u : %i : %jd : %lu : %lu ",
+		    " %ju : %ld : %lu : %u : %u : %i : %jd : %lu : %lu ",
 		    &maxinode, &maxblock, &maxnlink, &maxuser,
 		    &maxgroup, &maxflags, &maxsize, &maxlen, &maxlabelstr);
 		f_notabs = 1;
@@ -651,11 +699,12 @@ display(const FTSENT *p, FTSENT *list, int options)
 		MAKENINES(maxsize);
 		free(jinitmax);
 	}
-	bcfile = 0;
+	d.s_size = 0;
+	sizelen = 0;
 	flags = NULL;
 	for (cur = list, entries = 0; cur; cur = cur->fts_link) {
 		if (cur->fts_info == FTS_ERR || cur->fts_info == FTS_NS) {
-			warnx("%s: %s",
+			xo_warnx("%s: %s",
 			    cur->fts_name, strerror(cur->fts_errno));
 			cur->fts_number = NO_PRINT;
 			rval = 1;
@@ -721,7 +770,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 						flags = strdup("-");
 					}
 					if (flags == NULL)
-						err(1, "fflagstostr");
+						xo_err(1, "fflagstostr");
 					flen = strlen(flags);
 					if (flen > (size_t)maxflags)
 						maxflags = flen;
@@ -735,7 +784,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 
 					error = mac_prepare_file_label(&label);
 					if (error == -1) {
-						warn("MAC label for %s/%s",
+						xo_warn("MAC label for %s/%s",
 						    cur->fts_parent->fts_path,
 						    cur->fts_name);
 						goto label_out;
@@ -756,7 +805,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 						error = mac_get_link(name,
 						    label);
 					if (error == -1) {
-						warn("MAC label for %s/%s",
+						xo_warn("MAC label for %s/%s",
 						    cur->fts_parent->fts_path,
 						    cur->fts_name);
 						mac_free(label);
@@ -766,7 +815,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 					error = mac_to_text(label,
 					    &labelstr);
 					if (error == -1) {
-						warn("MAC label for %s/%s",
+						xo_warn("MAC label for %s/%s",
 						    cur->fts_parent->fts_path,
 						    cur->fts_name);
 						mac_free(label);
@@ -784,7 +833,7 @@ label_out:
 
 				if ((np = malloc(sizeof(NAMES) + labelstrlen +
 				    ulen + glen + flen + 4)) == NULL)
-					err(1, "malloc");
+					xo_err(1, "malloc");
 
 				np->user = &np->data[0];
 				(void)strcpy(np->user, user);
@@ -792,8 +841,12 @@ label_out:
 				(void)strcpy(np->group, group);
 
 				if (S_ISCHR(sp->st_mode) ||
-				    S_ISBLK(sp->st_mode))
-					bcfile = 1;
+				    S_ISBLK(sp->st_mode)) {
+					sizelen = snprintf(NULL, 0,
+					    "%#jx", (uintmax_t)sp->st_rdev);
+					if (d.s_size < sizelen)
+						d.s_size = sizelen;
+				}
 
 				if (f_flags) {
 					np->flags = &np->data[ulen + glen + 2];
@@ -825,21 +878,21 @@ label_out:
 	d.entries = entries;
 	d.maxlen = maxlen;
 	if (needstats) {
-		d.bcfile = bcfile;
 		d.btotal = btotal;
-		(void)snprintf(buf, sizeof(buf), "%lu", maxblock);
-		d.s_block = strlen(buf);
+		d.s_block = snprintf(NULL, 0, "%lu", howmany(maxblock, blocksize));
 		d.s_flags = maxflags;
 		d.s_label = maxlabelstr;
 		d.s_group = maxgroup;
-		(void)snprintf(buf, sizeof(buf), "%lu", maxinode);
-		d.s_inode = strlen(buf);
-		(void)snprintf(buf, sizeof(buf), "%lu", maxnlink);
-		d.s_nlink = strlen(buf);
-		(void)snprintf(buf, sizeof(buf), "%ju", maxsize);
-		d.s_size = strlen(buf);
+		d.s_inode = snprintf(NULL, 0, "%ju", maxinode);
+		d.s_nlink = snprintf(NULL, 0, "%lu", maxnlink);
+		sizelen = f_humanval ? HUMANVALSTR_LEN :
+		    snprintf(NULL, 0, "%ju", maxsize);
+		if (d.s_size < sizelen)
+			d.s_size = sizelen;
 		d.s_user = maxuser;
 	}
+	if (f_thousands)			/* make space for commas */
+		d.s_size += (d.s_size - 1) / 3;
 	printfcn(&d);
 	output = 1;
 

@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2009
+.Dd July 27, 2013
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -111,7 +111,7 @@ by-default.
 A bridge can be used to provide several services, such as a simple
 802.11-to-Ethernet bridge for wireless hosts, and traffic isolation.
 .Pp
-A bridge works like a hub, forwarding traffic from one interface
+A bridge works like a switch, forwarding traffic from one interface
 to another.
 Multicast and broadcast packets are always forwarded to all
 interfaces that are part of the bridge.
@@ -142,6 +142,78 @@ This can be used to multiplex the input of two or more interfaces into a single
 stream.
 This is useful for reconstructing the traffic for network taps
 that transmit the RX/TX signals out through two separate interfaces.
+.Sh IPV6 SUPPORT
+.Nm
+supports the
+.Li AF_INET6
+address family on bridge interfaces.
+The following
+.Xr rc.conf 5
+variable configures an IPv6 link-local address on
+.Li bridge0
+interface:
+.Bd -literal -offset indent
+ifconfig_bridge0_ipv6="up"
+.Ed
+.Pp
+or in a more explicit manner:
+.Bd -literal -offset indent
+ifconfig_bridge0_ipv6="inet6 auto_linklocal"
+.Ed
+.Pp
+However, the
+.Li AF_INET6
+address family has a concept of scope zone.
+Bridging multiple interfaces change the zone configuration because
+multiple links are merged to each other and form a new single link
+while the member interfaces still work individually.
+This means each member interface still has a separate link-local scope
+zone and the
+.Nm
+interface has another single,
+aggregated link-local scope zone at the same time.
+This situation is clearly against the description
+.Qq zones of the same scope cannot overlap
+in Section 5,
+RFC 4007.
+Although it works in most cases,
+it can cause some conterintuitive or undesirable behavior in some
+edge cases when both of the
+.Nm
+interface and one of the member interface have an IPv6 address
+and applications use both of them.
+.Pp
+To prevent this situation,
+.Nm
+checks whether a link-local scoped IPv6 address is configured on
+a member interface to be added and the
+.Nm
+interface.
+When the
+.Nm
+interface has IPv6 addresses,
+IPv6 addresses on the member interface will be automatically removed
+before the interface is added.
+.Pp
+This behavior can be disabled by setting
+.Xr sysctl 8
+variable
+.Va net.link.bridge.allow_llz_overlap
+to
+.Li 1 .
+.Pp
+Note that
+.Li ACCEPT_RTADV
+and
+.Li AUTO_LINKLOCAL
+interface flag are not enabled by default on
+.Nm
+interface even when
+.Va net.inet6.ip6.accept_rtadv
+and/or
+.Va net.inet6.ip6.auto_linklocal
+is set to
+.Li 1 .
 .Sh SPANNING TREE
 The
 .Nm
@@ -167,7 +239,6 @@ by enabling the
 .Va net.link.bridge.log_stp
 variable using
 .Xr sysctl 8 .
-.Pp
 .Sh PACKET FILTERING
 Packet filtering can be used with any firewall package that hooks in via the
 .Xr pfil 9
@@ -259,7 +330,7 @@ MAC.
 There are situations when some of the bridge members are sharing
 the same MAC address (for example the
 .Xr vlan 4
-interfaces: they are currenly sharing the
+interfaces: they are currently sharing the
 MAC address of the parent physical interface).
 It is not possible to distinguish between these interfaces using
 their MAC address, excluding the case when the packet's destination
@@ -354,8 +425,8 @@ cloned_interfaces="bridge0"
 ifconfig_bridge0="addm wlan0 addm fxp0 up"
 .Ed
 .Pp
-For the bridge to forward packets all member interfaces and the bridge need
-to be up.
+For the bridge to forward packets,
+all member interfaces and the bridge need to be up.
 The above example would also require:
 .Bd -literal -offset indent
 create_args_wlan0="wlanmode hostap"
@@ -411,7 +482,8 @@ Note that
 .Fx
 6.1, 6.2, 6.3, 7.0, 7.1, and 7.2 have a bug in the EtherIP protocol.
 For more details and workaround, see
-.Xr gif 4 manual page.
+.Xr gif 4
+manual page.
 .Sh SEE ALSO
 .Xr gif 4 ,
 .Xr ipf 4 ,
@@ -428,20 +500,17 @@ driver first appeared in
 The
 .Nm bridge
 driver was originally written by
-.An Jason L. Wright
-.Aq jason@thought.net
+.An Jason L. Wright Aq Mt jason@thought.net
 as part of an undergraduate independent study at the University of
 North Carolina at Greensboro.
 .Pp
 This version of the
 .Nm
 driver has been heavily modified from the original version by
-.An Jason R. Thorpe
-.Aq thorpej@wasabisystems.com .
+.An Jason R. Thorpe Aq Mt thorpej@wasabisystems.com .
 .Pp
 Rapid Spanning Tree Protocol (RSTP) support was added by
-.An Andrew Thompson
-.Aq thompsa@FreeBSD.org .
+.An Andrew Thompson Aq Mt thompsa@FreeBSD.org .
 .Sh BUGS
 The
 .Nm

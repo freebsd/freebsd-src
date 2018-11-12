@@ -34,15 +34,27 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 
 #include <sys/types.h>
+#include <sys/ctype.h>
+#include <sys/param.h>
+#include <sys/malloc.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #ifdef	HWPMC_HOOKS
+FEATURE(hwpmc_hooks, "Kernel support for HW PMC");
 #define	PMC_KERNEL_VERSION	PMC_VERSION
 #else
 #define	PMC_KERNEL_VERSION	0
 #endif
+
+MALLOC_DECLARE(M_PMCHOOKS);
+MALLOC_DEFINE(M_PMCHOOKS, "pmchooks", "Memory space for PMC hooks");
 
 const int pmc_kernel_version = PMC_KERNEL_VERSION;
 
@@ -53,7 +65,7 @@ int (*pmc_hook)(struct thread *td, int function, void *arg) = NULL;
 int (*pmc_intr)(int cpu, struct trapframe *tf) = NULL;
 
 /* Bitmask of CPUs requiring servicing at hardclock time */
-volatile cpumask_t pmc_cpumask;
+volatile cpuset_t pmc_cpumask;
 
 /*
  * A global count of SS mode PMCs.  When non-zero, this means that
@@ -71,6 +83,27 @@ volatile int pmc_ss_count;
  * somewhat more expensive than a simple 'if' check and indirect call.
  */
 struct sx pmc_sx;
+
+/*
+ * PMC Soft per cpu trapframe.
+ */
+struct trapframe pmc_tf[MAXCPU];
+
+/*
+ * PMC Soft use a global table to store registered events.
+ */
+
+SYSCTL_NODE(_kern, OID_AUTO, hwpmc, CTLFLAG_RW, 0, "HWPMC parameters");
+
+static int pmc_softevents = 16;
+SYSCTL_INT(_kern_hwpmc, OID_AUTO, softevents, CTLFLAG_RDTUN,
+    &pmc_softevents, 0, "maximum number of soft events");
+
+struct mtx pmc_softs_mtx;
+int pmc_softs_count;
+struct pmc_soft **pmc_softs;
+
+MTX_SYSINIT(pmc_soft_mtx, &pmc_softs_mtx, "pmc-softs", MTX_SPIN);
 
 static void
 pmc_init_sx(void)
@@ -110,7 +143,7 @@ pmc_cpu_is_active(int cpu)
 {
 #ifdef	SMP
 	return (pmc_cpu_is_present(cpu) &&
-	    (hlt_cpus_mask & (1 << cpu)) == 0);
+	    !CPU_ISSET(cpu, &hlt_cpus_mask));
 #else
 	return (1);
 #endif
@@ -137,7 +170,7 @@ int
 pmc_cpu_is_primary(int cpu)
 {
 #ifdef	SMP
-	return ((logical_cpus_mask & (1 << cpu)) == 0);
+	return (!CPU_ISSET(cpu, &logical_cpus_mask));
 #else
 	return (1);
 #endif
@@ -180,3 +213,132 @@ pmc_cpu_max_active(void)
 }
 
 #endif
+
+/*
+ * Cleanup event name:
+ * - remove duplicate '_'
+ * - all uppercase
+ */
+static void
+pmc_soft_namecleanup(char *name)
+{
+	char *p, *q;
+
+	p = q = name;
+
+	for ( ; *p == '_' ; p++)
+		;
+	for ( ; *p ; p++) {
+		if (*p == '_' && (*(p + 1) == '_' || *(p + 1) == '\0'))
+			continue;
+		else
+			*q++ = toupper(*p);
+	}
+	*q = '\0';
+}
+
+void
+pmc_soft_ev_register(struct pmc_soft *ps)
+{
+	static int warned = 0;
+	int n;
+
+	ps->ps_running  = 0;
+	ps->ps_ev.pm_ev_code = 0; /* invalid */
+	pmc_soft_namecleanup(ps->ps_ev.pm_ev_name);
+
+	mtx_lock_spin(&pmc_softs_mtx);
+
+	if (pmc_softs_count >= pmc_softevents) {
+		/*
+		 * XXX Reusing events can enter a race condition where
+		 * new allocated event will be used as an old one.
+		 */
+		for (n = 0; n < pmc_softevents; n++)
+			if (pmc_softs[n] == NULL)
+				break;
+		if (n == pmc_softevents) {
+			mtx_unlock_spin(&pmc_softs_mtx);
+			if (!warned) {
+				printf("hwpmc: too many soft events, "
+				    "increase kern.hwpmc.softevents tunable\n");
+				warned = 1;
+			}
+			return;
+		}
+
+		ps->ps_ev.pm_ev_code = PMC_EV_SOFT_FIRST + n;
+		pmc_softs[n] = ps;
+	} else {
+		ps->ps_ev.pm_ev_code = PMC_EV_SOFT_FIRST + pmc_softs_count;
+		pmc_softs[pmc_softs_count++] = ps;
+	}
+
+	mtx_unlock_spin(&pmc_softs_mtx);
+}
+
+void
+pmc_soft_ev_deregister(struct pmc_soft *ps)
+{
+
+	KASSERT(ps != NULL, ("pmc_soft_deregister: called with NULL"));
+
+	mtx_lock_spin(&pmc_softs_mtx);
+
+	if (ps->ps_ev.pm_ev_code != 0 &&
+	    (ps->ps_ev.pm_ev_code - PMC_EV_SOFT_FIRST) < pmc_softevents) {
+		KASSERT(ps->ps_ev.pm_ev_code >= PMC_EV_SOFT_FIRST &&
+		    ps->ps_ev.pm_ev_code <= PMC_EV_SOFT_LAST,
+		    ("pmc_soft_deregister: invalid event value"));
+		pmc_softs[ps->ps_ev.pm_ev_code - PMC_EV_SOFT_FIRST] = NULL;
+	}
+
+	mtx_unlock_spin(&pmc_softs_mtx);
+}
+
+struct pmc_soft *
+pmc_soft_ev_acquire(enum pmc_event ev)
+{
+	struct pmc_soft *ps;
+
+	if (ev == 0 || (ev - PMC_EV_SOFT_FIRST) >= pmc_softevents)
+		return NULL;
+
+	KASSERT(ev >= PMC_EV_SOFT_FIRST &&
+	    ev <= PMC_EV_SOFT_LAST,
+	    ("event out of range"));
+
+	mtx_lock_spin(&pmc_softs_mtx);
+
+	ps = pmc_softs[ev - PMC_EV_SOFT_FIRST];
+	if (ps == NULL)
+		mtx_unlock_spin(&pmc_softs_mtx);
+
+	return ps;
+}
+
+void
+pmc_soft_ev_release(struct pmc_soft *ps)
+{
+
+	mtx_unlock_spin(&pmc_softs_mtx);
+}
+
+/*
+ *  Initialise hwpmc.
+ */
+static void
+init_hwpmc(void *dummy __unused)
+{
+	if (pmc_softevents <= 0 ||
+	    pmc_softevents > PMC_EV_DYN_COUNT) {
+		(void) printf("hwpmc: tunable \"softevents\"=%d out of "
+		    "range.\n", pmc_softevents);
+		pmc_softevents = PMC_EV_DYN_COUNT;
+	}
+	pmc_softs = malloc(pmc_softevents * sizeof(struct pmc_soft *), M_PMCHOOKS, M_NOWAIT|M_ZERO);
+	KASSERT(pmc_softs != NULL, ("cannot allocate soft events table"));
+}
+
+SYSINIT(hwpmc, SI_SUB_KDTRACE, SI_ORDER_FIRST, init_hwpmc, NULL);
+

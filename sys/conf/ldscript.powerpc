@@ -1,17 +1,17 @@
 /* $FreeBSD$ */
 
-OUTPUT_FORMAT("elf32-powerpc", "elf32-powerpc", "elf32-powerpc")
+OUTPUT_FORMAT("elf32-powerpc-freebsd", "elf32-powerpc-freebsd",
+	      "elf32-powerpc-freebsd")
 OUTPUT_ARCH(powerpc)
 ENTRY(__start)
 SEARCH_DIR(/usr/lib);
-/* Do we need any of these for elf?
-   __DYNAMIC = 0;    */
 PROVIDE (__stack = 0);
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
 
   . = kernbase + SIZEOF_HEADERS;
+  PROVIDE (begin = . - SIZEOF_HEADERS);
 
   .text      :
   {
@@ -63,7 +63,6 @@ SECTIONS
   {
     *(.data)
     *(.gnu.linkonce.d*)
-    CONSTRUCTORS
   }
   .data1   : { *(.data1) }
   .got1           : { *(.got1) }

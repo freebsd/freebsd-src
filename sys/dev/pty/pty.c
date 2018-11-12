@@ -52,10 +52,10 @@ __FBSDID("$FreeBSD$");
  * binary emulation.
  */
 
-static unsigned int pty_warningcnt = 1;
+static unsigned pty_warningcnt = 1;
 SYSCTL_UINT(_kern, OID_AUTO, tty_pty_warningcnt, CTLFLAG_RW,
-	&pty_warningcnt, 0,
-	"Warnings that will be triggered upon legacy PTY allocation");
+    &pty_warningcnt, 0,
+    "Warnings that will be triggered upon legacy PTY allocation");
 
 static int
 ptydev_fdopen(struct cdev *dev, int fflags, struct thread *td, struct file *fp)
@@ -67,7 +67,7 @@ ptydev_fdopen(struct cdev *dev, int fflags, struct thread *td, struct file *fp)
 		return (EBUSY);
 
 	/* Generate device name and create PTY. */
-	strcpy(name, devtoname(dev));
+	strlcpy(name, devtoname(dev), sizeof(name));
 	name[0] = 't';
 
 	error = pts_alloc_external(fflags & (FREAD|FWRITE), td, fp, dev, name);
@@ -77,12 +77,7 @@ ptydev_fdopen(struct cdev *dev, int fflags, struct thread *td, struct file *fp)
 	}
 
 	/* Raise a warning when a legacy PTY has been allocated. */
-	if (pty_warningcnt > 0) {
-		pty_warningcnt--;
-		log(LOG_INFO, "pid %d (%s) is using legacy pty devices%s\n", 
-		    td->td_proc->p_pid, td->td_name,
-		    pty_warningcnt ? "" : " - not logging anymore");
-	}
+	counted_warning(&pty_warningcnt, "is using legacy pty devices");
 
 	return (0);
 }
@@ -97,6 +92,8 @@ static void
 pty_clone(void *arg, struct ucred *cr, char *name, int namelen,
     struct cdev **dev)
 {
+	struct make_dev_args mda;
+	int error;
 
 	/* Cloning is already satisfied. */
 	if (*dev != NULL)
@@ -117,8 +114,15 @@ pty_clone(void *arg, struct ucred *cr, char *name, int namelen,
 		return;
 
 	/* Create the controller device node. */
-	*dev = make_dev_credf(MAKEDEV_REF, &ptydev_cdevsw, 0,
-	    NULL, UID_ROOT, GID_WHEEL, 0666, "%s", name);
+	make_dev_args_init(&mda);
+	mda.mda_flags =  MAKEDEV_CHECKNAME | MAKEDEV_REF;
+	mda.mda_devsw = &ptydev_cdevsw;
+	mda.mda_uid = UID_ROOT;
+	mda.mda_gid = GID_WHEEL;
+	mda.mda_mode = 0666;
+	error = make_dev_s(&mda, dev, "%s", name);
+	if (error != 0)
+		*dev = NULL;
 }
 
 static int
@@ -139,10 +143,11 @@ static int
 pty_modevent(module_t mod, int type, void *data)
 {
 
-        switch(type) {
-        case MOD_LOAD: 
+	switch(type) {
+	case MOD_LOAD:
 		EVENTHANDLER_REGISTER(dev_clone, pty_clone, 0, 1000);
-		make_dev(&ptmx_cdevsw, 0, UID_ROOT, GID_WHEEL, 0666, "ptmx");
+		make_dev_credf(MAKEDEV_ETERNAL_KLD, &ptmx_cdevsw, 0, NULL,
+		    UID_ROOT, GID_WHEEL, 0666, "ptmx");
 		break;
 	case MOD_SHUTDOWN:
 		break;

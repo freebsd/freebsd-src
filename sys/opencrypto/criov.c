@@ -99,35 +99,31 @@ cuio_copyback(struct uio* uio, int off, int len, caddr_t cp)
 }
 
 /*
- * Return a pointer to iov/offset of location in iovec list.
+ * Return the index and offset of location in iovec list.
  */
-struct iovec *
+int
 cuio_getptr(struct uio *uio, int loc, int *off)
 {
-	struct iovec *iov = uio->uio_iov;
-	int iol = uio->uio_iovcnt;
+	int ind, len;
 
-	while (loc >= 0) {
-		/* Normal end of search */
-		if (loc < iov->iov_len) {
+	ind = 0;
+	while (loc >= 0 && ind < uio->uio_iovcnt) {
+		len = uio->uio_iov[ind].iov_len;
+		if (len > loc) {
 	    		*off = loc;
-	    		return (iov);
+	    		return (ind);
 		}
+		loc -= len;
+		ind++;
+	}
 
-		loc -= iov->iov_len;
-		if (iol == 0) {
-			if (loc == 0) {
-				/* Point at the end of valid data */
-				*off = iov->iov_len;
-				return (iov);
-			} else
-				return (NULL);
-		} else {
-			iov++, iol--;
-		}
-    	}
+	if (ind > 0 && loc == 0) {
+		ind--;
+		*off = uio->uio_iov[ind].iov_len;
+		return (ind);
+	}
 
-	return (NULL);
+	return (-1);
 }
 
 /*
@@ -195,4 +191,51 @@ crypto_apply(int flags, caddr_t buf, int off, int len,
 	else
 		error = (*f)(arg, buf + off, len);
 	return (error);
+}
+
+int
+crypto_mbuftoiov(struct mbuf *mbuf, struct iovec **iovptr, int *cnt,
+    int *allocated)
+{
+	struct iovec *iov;
+	struct mbuf *m, *mtmp;
+	int i, j;
+
+	*allocated = 0;
+	iov = *iovptr;
+	if (iov == NULL)
+		*cnt = 0;
+
+	m = mbuf;
+	i = 0;
+	while (m != NULL) {
+		if (i == *cnt) {
+			/* we need to allocate a larger array */
+			j = 1;
+			mtmp = m;
+			while ((mtmp = mtmp->m_next) != NULL)
+				j++;
+			iov = malloc(sizeof *iov * (i + j), M_CRYPTO_DATA,
+			    M_NOWAIT);
+			if (iov == NULL)
+				return ENOMEM;
+			*allocated = 1;
+			*cnt = i + j;
+			memcpy(iov, *iovptr, sizeof *iov * i);
+		}
+
+		iov[i].iov_base = m->m_data;
+		iov[i].iov_len = m->m_len;
+
+		i++;
+		m = m->m_next;
+	}
+
+	if (*allocated)
+		KASSERT(*cnt == i, ("did not allocate correct amount: %d != %d",
+		    *cnt, i));
+
+	*iovptr = iov;
+	*cnt = i;
+	return 0;
 }

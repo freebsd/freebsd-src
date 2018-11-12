@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <libutil.h>
 #include <limits.h>
 #include <netdb.h>
 #include <paths.h>
@@ -71,19 +70,19 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <string.h>
 #include <unistd.h>
 
 #include "extern.h"
 
 #define	OPTIONS "46dfprt"
 
-struct passwd *pwd;
-u_short	port;
-uid_t	userid;
-int errs, rem;
-int pflag, iamremote, iamrecursive, targetshouldbedirectory;
-int family = PF_UNSPEC;
+static struct passwd *pwd;
+static u_short	port;
+static uid_t	userid;
+static int errs, rem;
+int iamremote;
+static int pflag, iamrecursive, targetshouldbedirectory;
+static int family = PF_UNSPEC;
 
 static int argc_copy;
 static const char **argv_copy;
@@ -91,7 +90,7 @@ static const char **argv_copy;
 static char period[] = ".";
 
 #define	CMDNEEDS	64
-char cmd[CMDNEEDS];		/* must hold "rcp -r -p -d\0" */
+static char cmd[CMDNEEDS];	/* must hold "rcp -r -p -d\0" */
 
 int	 response(void);
 void	 rsource(char *, struct stat *);
@@ -390,8 +389,8 @@ syserr:			run_err("%s: %s", name, strerror(errno));
 			 * versions expecting microseconds.
 			 */
 			(void)snprintf(buf, sizeof(buf), "T%ld 0 %ld 0\n",
-			    (long)stb.st_mtimespec.tv_sec,
-			    (long)stb.st_atimespec.tv_sec);
+			    (long)stb.st_mtim.tv_sec,
+			    (long)stb.st_atim.tv_sec);
 			(void)write(rem, buf, strlen(buf));
 			if (response() < 0)
 				goto next;
@@ -448,14 +447,14 @@ rsource(char *name, struct stat *statp)
 		return;
 	}
 	last = strrchr(name, '/');
-	if (last == 0)
+	if (last == NULL)
 		last = name;
 	else
 		last++;
 	if (pflag) {
 		(void)snprintf(path, sizeof(path), "T%ld 0 %ld 0\n",
-		    (long)statp->st_mtimespec.tv_sec,
-		    (long)statp->st_atimespec.tv_sec);
+		    (long)statp->st_mtim.tv_sec,
+		    (long)statp->st_atim.tv_sec);
 		(void)write(rem, path, strlen(path));
 		if (response() < 0) {
 			closedir(dirp);

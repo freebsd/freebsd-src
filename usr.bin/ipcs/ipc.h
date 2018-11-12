@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * The split of ipcs.c into ipcs.c and ipc.c to accomodate the
+ * The split of ipcs.c into ipcs.c and ipc.c to accommodate the
  * changes in ipcrm.c was done by Edwin Groothuis <edwin@FreeBSD.org>
  *
  * $FreeBSD$
@@ -52,7 +52,7 @@
 /* SysCtlGatherStruct structure. */
 struct scgs_vector {
 	const char *sysctl;
-	off_t offset;
+	size_t offset;
 	size_t size;
 };
 
@@ -64,8 +64,5 @@ extern struct nlist symbols[];
 extern kvm_t *kd;
 
 extern struct semid_kernel	*sema;
-extern struct seminfo		seminfo;
-extern struct msginfo		msginfo;
 extern struct msqid_kernel	*msqids;
-extern struct shminfo		shminfo;
 extern struct shmid_kernel	*shmsegs;

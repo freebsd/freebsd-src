@@ -49,6 +49,7 @@ Boston, MA 02110-1301, USA.  */
 	%{rdynamic: -export-dynamic} \
 	%{!dynamic-linker:-dynamic-linker %(fbsd_dynamic_linker) }} \
       %{static:-Bstatic}} \
+    %{!static:--hash-style=both --enable-new-dtags} \
     %{symbolic:-Bsymbolic}"
 
 /* Reset our STARTFILE_SPEC which was properly set in config/freebsd.h
@@ -239,3 +240,6 @@ Boston, MA 02110-1301, USA.  */
 		 XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));	\
     fprintf (asm_out_file, "\n");					\
   } while (0)
+
+#undef NEED_INDICATE_EXEC_STACK
+#define NEED_INDICATE_EXEC_STACK 1

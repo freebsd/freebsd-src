@@ -40,7 +40,8 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open STDOUT,"| $^X $xlate $flavour $output";
+open OUT,"| \"$^X\" $xlate $flavour $output";
+*STDOUT=*OUT;
 
 sub hi() { my $r=shift; $r =~ s/%[er]([a-d])x/%\1h/;    $r; }
 sub lo() { my $r=shift; $r =~ s/%[er]([a-d])x/%\1l/;
@@ -71,7 +72,7 @@ my $i=@_[0];
 my $seed=defined(@_[1])?@_[1]:0;
 my $scale=$seed<0?-8:8;
 my $j=($i&1)*2;
-my $s0=@S[($j)%4],$s1=@S[($j+1)%4],$s2=@S[($j+2)%4],$s3=@S[($j+3)%4];
+my ($s0,$s1,$s2,$s3)=(@S[($j)%4],@S[($j+1)%4],@S[($j+2)%4],@S[($j+3)%4]);
 
 $code.=<<___;
 	xor	$s0,$t0				# t0^=key[0]
@@ -408,7 +409,7 @@ Camellia_Ekeygen:
 	push	%r15
 .Lkey_prologue:
 
-	mov	%rdi,$keyend		# put away arguments, keyBitLength
+	mov	%edi,${keyend}d		# put away arguments, keyBitLength
 	mov	%rdx,$out		# keyTable
 
 	mov	0(%rsi),@S[0]		# load 0-127 bits
@@ -656,7 +657,7 @@ Camellia_cbc_encrypt:
 	mov	%rsi,$out		# out argument
 	mov	%r8,%rbx		# ivp argument
 	mov	%rcx,$key		# key argument
-	mov	272(%rcx),$keyend	# grandRounds
+	mov	272(%rcx),${keyend}d	# grandRounds
 
 	mov	%r8,$_ivp
 	mov	%rbp,$_rsp
@@ -859,7 +860,7 @@ Camellia_cbc_encrypt:
 	ret
 .size	Camellia_cbc_encrypt,.-Camellia_cbc_encrypt
 
-.asciz	"Camellia for x86_64 by <appro@openssl.org>"
+.asciz	"Camellia for x86_64 by <appro\@openssl.org>"
 ___
 }
 

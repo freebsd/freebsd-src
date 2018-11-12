@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 1999 Dag-Erling Coïdan Smørgrav
+.\" Copyright (c) 1999 Dag-Erling CoÃ¯dan SmÃ¸rgrav
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2009
+.Dd August 27, 2015
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -35,7 +35,8 @@
 .Nd list open sockets
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46cLlu
+.Op Fl 46cLlsu
+.Op Fl j Ar jid
 .Op Fl p Ar ports
 .Op Fl P Ar protocols
 .Sh DESCRIPTION
@@ -57,8 +58,10 @@ Show
 (IPv6) sockets.
 .It Fl c
 Show connected sockets.
+.It Fl j Ar jid
+Show only sockets belonging to the specified jail ID.
 .It Fl L
-Only show Internet sockets if the local or foreign addresses are not
+Only show Internet sockets if the local and foreign addresses are not
 in the loopback network prefix
 .Li 127.0.0.0/8 ,
 or do not contain the IPv6 loopback address
@@ -66,7 +69,7 @@ or do not contain the IPv6 loopback address
 .It Fl l
 Show listening sockets.
 .It Fl p Ar ports
-Only show Internet sockets if either the local or foreign port number
+Only show Internet sockets if the local or foreign port number
 is on the specified list.
 The
 .Ar ports
@@ -80,6 +83,9 @@ The
 argument is a comma-separated list of protocol names,
 as they are defined in
 .Xr protocols 5 .
+.It Fl s
+Display the protocol state, if applicable.
+This is currently only implemented for SCTP and TCP.
 .It Fl u
 Show
 .Dv AF_LOCAL
@@ -116,7 +122,9 @@ The process ID of the command which holds the socket.
 The file descriptor number of the socket.
 .It Li PROTO
 The transport protocol associated with the socket for Internet
-sockets, or the type of socket (stream or datagram) for
+sockets, or the type of socket
+.Pq stream, datagram, or seqpacket
+for
 .Ux
 sockets.
 .It Li LOCAL ADDRESS
@@ -137,19 +145,10 @@ The address the foreign end of the socket is bound to (see
 .Xr getpeername 2 ) .
 .El
 .Pp
-Note that TCP sockets in the
-.Dv AF_INET
-or
-.Dv AF_INET6
-domains that are not in one of the
-.Dv LISTEN , SYN_SENT ,
-or
-.Dv ESTABLISHED
-states may not be shown by
-.Nm ;
-use
-.Xr netstat 1
-to examine them instead.
+If a socket is associated with more than one file descriptor,
+it is shown multiple times.
+If a socket is not associated with any file descriptor,
+the first four columns have no meaning.
 .Sh SEE ALSO
 .Xr fstat 1 ,
 .Xr netstat 1 ,
@@ -166,4 +165,4 @@ command appeared in
 The
 .Nm
 command and this manual page were written by
-.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

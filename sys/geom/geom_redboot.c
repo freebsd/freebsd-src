@@ -252,7 +252,8 @@ g_redboot_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	if (!strcmp(pp->geom->class->name, REDBOOT_CLASS_NAME))
 		return (NULL);
 	/* XXX only taste flash providers */
-	if (strncmp(pp->name, "cfi", 3))
+	if (strncmp(pp->name, "cfi", 3) && 
+	    strncmp(pp->name, "flash/spi", 9))
 		return (NULL);
 	gp = g_slice_new(mp, REDBOOT_MAXSLICE, pp, &cp, &sc, sizeof(*sc),
 	    g_redboot_start);

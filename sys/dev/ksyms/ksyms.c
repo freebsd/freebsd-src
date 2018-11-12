@@ -74,7 +74,7 @@ static	d_mmap_t	ksyms_mmap;
 
 static struct cdevsw ksyms_cdevsw = {
     .d_version	=	D_VERSION,
-    .d_flags	=	D_PSEUDO | D_TRACKCLOSE,
+    .d_flags	=	D_TRACKCLOSE,
     .d_open	=	ksyms_open,
     .d_close	=	ksyms_close,
     .d_read	=	ksyms_read,
@@ -94,7 +94,7 @@ struct ksyms_softc {
 static struct mtx 		 ksyms_mtx;
 static struct cdev 		*ksyms_dev;
 static LIST_HEAD(, ksyms_softc)	 ksyms_list = 
-	LIST_HEAD_INITIALIZER(&ksyms_list);
+	LIST_HEAD_INITIALIZER(ksyms_list);
 
 static const char 	ksyms_shstrtab[] = 
 	"\0" STR_SYMTAB "\0" STR_STRTAB "\0" STR_SHSTRTAB "\0";
@@ -360,53 +360,6 @@ ksyms_snapshot(struct tsizes *ts, vm_offset_t uaddr, size_t resid)
 	return (error);
 }
 
-/*
- * Map some anonymous memory in user space of size sz, rounded up to the page
- * boundary.
- */
-static int
-ksyms_map(struct thread *td, vm_offset_t *addr, size_t sz)
-{
-	struct vmspace *vms = td->td_proc->p_vmspace;
-	int error;
-	vm_size_t size;
-
-	
-	/* 
-	 * Map somewhere after heap in process memory.
-	 */
-	PROC_LOCK(td->td_proc);
-	*addr = round_page((vm_offset_t)vms->vm_daddr + 
-	    lim_max(td->td_proc, RLIMIT_DATA));
-	PROC_UNLOCK(td->td_proc);
-
-	/* round size up to page boundry */
-	size = (vm_size_t) round_page(sz);
-    
-	error = vm_mmap(&vms->vm_map, addr, size, PROT_READ | PROT_WRITE, 
-	    VM_PROT_ALL, MAP_PRIVATE | MAP_ANON, OBJT_DEFAULT, NULL, 0);
-	
-	return (error);
-}
-
-/*
- * Unmap memory in user space.
- */
-static int
-ksyms_unmap(struct thread *td, vm_offset_t addr, size_t sz)
-{
-	vm_map_t map;
-	vm_size_t size;
-    
-	map = &td->td_proc->p_vmspace->vm_map;
-	size = (vm_size_t) round_page(sz);	
-
-	if (!vm_map_remove(map, addr, addr + size))
-		return (EINVAL);
-
-	return (0);
-}
-
 static void
 ksyms_cdevpriv_dtr(void *data)
 {
@@ -475,7 +428,7 @@ ksyms_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 		total_elf_sz = sizeof(struct ksyms_hdr) + ts.ts_symsz + 
 			ts.ts_strsz; 
 
-		error = ksyms_map(td, &(sc->sc_uaddr), 
+		error = copyout_map(td, &(sc->sc_uaddr), 
 				(vm_size_t) total_elf_sz);
 		if (error)
 			break;
@@ -488,7 +441,7 @@ ksyms_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 		}
 		
 		/* Snapshot failed, unmap the memory and try again */ 
-		(void) ksyms_unmap(td, sc->sc_uaddr, sc->sc_usize);
+		(void) copyout_unmap(td, sc->sc_uaddr, sc->sc_usize);
 	}
 
 failed:
@@ -589,8 +542,8 @@ ksyms_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int32_t flag __unused,
 
 /* ARGUSED */
 static int
-ksyms_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
-		int prot __unused)
+ksyms_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+		int prot __unused, vm_memattr_t *memattr __unused)
 {
     	struct ksyms_softc *sc;
 	int error;
@@ -624,9 +577,7 @@ ksyms_close(struct cdev *dev, int flags __unused, int fmt __unused,
 		return (error);
 
 	/* Unmap the buffer from the process address space. */
-	error = ksyms_unmap(td, sc->sc_uaddr, sc->sc_usize);
-
-	devfs_clear_cdevpriv();
+	error = copyout_unmap(td, sc->sc_uaddr, sc->sc_usize);
 
 	return (error);
 }

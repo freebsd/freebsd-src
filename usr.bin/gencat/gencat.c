@@ -18,13 +18,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD 
- *	  Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its 
- *    contributors may be used to endorse or promote products derived 
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -94,16 +87,16 @@ __FBSDID("$FreeBSD$");
 struct _msgT {
 	long    msgId;
 	char   *str;
-        LIST_ENTRY(_msgT) entries;
+	LIST_ENTRY(_msgT) entries;
 };
 
 struct _setT {
 	long    setId;
-        LIST_HEAD(msghead, _msgT) msghead;
-        LIST_ENTRY(_setT) entries;
+	LIST_HEAD(msghead, _msgT) msghead;
+	LIST_ENTRY(_setT) entries;
 };
 
-LIST_HEAD(sethead, _setT) sethead;
+static LIST_HEAD(sethead, _setT) sethead;
 static struct _setT *curSet;
 
 static char *curline = NULL;
@@ -111,7 +104,7 @@ static long lineno = 0;
 
 static	char   *cskip(char *);
 static	void	error(const char *);
-static	char   *getline(int);
+static	char   *get_line(int);
 static	char   *getmsg(int, char *, char);
 static	void	warning(const char *, const char *);
 static	char   *wskip(char *);
@@ -130,17 +123,17 @@ void	usage(void);
 int	main(int, char **);
 
 void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: %s catfile msgfile ...\n", getprogname());
-    exit(1);
+	exit(1);
 }
 
 int
 main(int argc, char **argv)
 {
 	int     ofd, ifd;
-    char	*catfile = NULL;
+	char	*catfile = NULL;
 	int     c;
 
 #define DEPRECATEDMSG	1
@@ -238,7 +231,7 @@ xstrdup(const char *str)
 }
 
 static char *
-getline(int fd)
+get_line(int fd)
 {
 	static long curlen = BUFSIZ;
 	static char buf[BUFSIZ], *bptr = buf, *bend = buf;
@@ -341,7 +334,7 @@ getmsg(int fd, char *cptr, char quote)
 				++cptr;
 				switch (*cptr) {
 				case '\0':
-					cptr = getline(fd);
+					cptr = get_line(fd);
 					if (!cptr)
 						error("premature end of file");
 					msglen += strlen(cptr);
@@ -401,7 +394,7 @@ MCParse(int fd)
 
 	/* XXX: init sethead? */
 
-	while ((cptr = getline(fd))) {
+	while ((cptr = get_line(fd))) {
 		if (*cptr == '$') {
 			++cptr;
 			if (strncmp(cptr, "set", 3) == 0) {
@@ -419,23 +412,23 @@ MCParse(int fd)
 				cptr += 5;
 				if (!*cptr)
 					quote = 0;
-		else {
+				else {
 					cptr = wskip(cptr);
 					if (!*cptr)
 						quote = 0;
 					else
 						quote = *cptr;
-		}
+				}
 			} else if (isspace((unsigned char) *cptr)) {
 				;
-	    } else {
+			} else {
 				if (*cptr) {
 					cptr = wskip(cptr);
 					if (*cptr)
 						warning(cptr, "unrecognized line");
 				}
-	    }
-        } else {
+			}
+		} else {
 			/*
 			 * First check for (and eat) empty lines....
 			 */
@@ -453,7 +446,7 @@ MCParse(int fd)
 			} else {
 				warning(cptr, "neither blank line nor start of a message id");
 				continue;
-		}
+			}
 			/*
 			 * If we have a message ID, but no message,
 			 * then this means "delete this message id
@@ -461,95 +454,12 @@ MCParse(int fd)
 			 */
 			if (!*cptr) {
 				MCDelMsg(msgid);
-	    } else {
+			} else {
 				str = getmsg(fd, cptr, quote);
 				MCAddMsg(msgid, str);
-	    }
-	}
-    }
-}
-
-void
-MCReadCat(int fd)
-{
-	fd = 0;
-#if 0
-	MCHeaderT mcHead;
-	MCMsgT  mcMsg;
-	MCSetT  mcSet;
-	msgT   *msg;
-	setT   *set;
-	int     i;
-	char   *data;
-
-	/* XXX init sethead? */
-
-	if (read(fd, &mcHead, sizeof(mcHead)) != sizeof(mcHead))
-		CORRUPT();
-	if (strncmp(mcHead.magic, MCMagic, MCMagicLen) != 0)
-		CORRUPT();
-	if (mcHead.majorVer != MCMajorVer)
-		error("unrecognized catalog version");
-	if ((mcHead.flags & MCGetByteOrder()) == 0)
-		error("wrong byte order");
-
-	if (lseek(fd, mcHead.firstSet, SEEK_SET) == -1)
-		CORRUPT();
-
-	for (;;) {
-		if (read(fd, &mcSet, sizeof(mcSet)) != sizeof(mcSet))
-			CORRUPT();
-		if (mcSet.invalid)
-			continue;
-
-		set = xmalloc(sizeof(setT));
-		memset(set, '\0', sizeof(*set));
-		if (cat->first) {
-			cat->last->next = set;
-			set->prev = cat->last;
-			cat->last = set;
-		} else
-			cat->first = cat->last = set;
-
-		set->setId = mcSet.setId;
-
-		/* Get the data */
-		if (mcSet.dataLen) {
-			data = xmalloc(mcSet.dataLen);
-			if (lseek(fd, mcSet.data.off, SEEK_SET) == -1)
-				CORRUPT();
-			if (read(fd, data, mcSet.dataLen) != mcSet.dataLen)
-				CORRUPT();
-			if (lseek(fd, mcSet.u.firstMsg, SEEK_SET) == -1)
-				CORRUPT();
-
-			for (i = 0; i < mcSet.numMsgs; ++i) {
-				if (read(fd, &mcMsg, sizeof(mcMsg)) != sizeof(mcMsg))
-					CORRUPT();
-				if (mcMsg.invalid) {
-					--i;
-					continue;
-				}
-				msg = xmalloc(sizeof(msgT));
-				memset(msg, '\0', sizeof(*msg));
-				if (set->first) {
-					set->last->next = msg;
-					msg->prev = set->last;
-					set->last = msg;
-				} else
-					set->first = set->last = msg;
-
-				msg->msgId = mcMsg.msgId;
-				msg->str = xstrdup((char *) (data + mcMsg.msg.off));
 			}
-			free(data);
 		}
-		if (!mcSet.nextSet)
-			break;
-		if (lseek(fd, mcSet.nextSet, SEEK_SET) == -1)
-			CORRUPT();
 	}
-#endif
 }
 
 /*
@@ -686,7 +596,7 @@ MCAddSet(int setId)
 
 	if (p && p->setId == setId) {
 		;
-    } else {
+	} else {
 		p = xmalloc(sizeof(struct _setT));
 		memset(p, '\0', sizeof(struct _setT));
 		LIST_INIT(&p->msghead);
@@ -697,8 +607,8 @@ MCAddSet(int setId)
 			LIST_INSERT_HEAD(&sethead, p, entries);
 		} else {
 			LIST_INSERT_AFTER(q, p, entries);
-    }
-}
+		}
+	}
 
 	curSet = p;
 }
@@ -718,7 +628,7 @@ MCAddMsg(int msgId, const char *str)
 	if (msgId > NL_MSGMAX) {
 		error("msgID exceeds limit");
 		/* NOTREACHED */
-    }
+	}
 
 	p = curSet->msghead.lh_first;
 	q = NULL;
@@ -739,7 +649,7 @@ MCAddMsg(int msgId, const char *str)
 
 	p->msgId = msgId;
 	p->str = xstrdup(str);
-	    }
+}
 
 void
 MCDelSet(int setId)
@@ -756,13 +666,13 @@ MCDelSet(int setId)
 		while (msg) {
 			free(msg->str);
 			LIST_REMOVE(msg, entries);
-	}
+		}
 
 		LIST_REMOVE(set, entries);
 		return;
-    }
-	warning(NULL, "specified set doesn't exist");
 	}
+	warning(NULL, "specified set doesn't exist");
+}
 
 void
 MCDelMsg(int msgId)
@@ -779,6 +689,6 @@ MCDelMsg(int msgId)
 		free(msg->str);
 		LIST_REMOVE(msg, entries);
 		return;
-    }
+	}
 	warning(NULL, "specified msg doesn't exist");
 }

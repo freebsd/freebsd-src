@@ -38,15 +38,19 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+	.syntax	unified
 	.text
-	.align	0
+	.align	2
 
-#ifdef MULTIPROCESSOR
-.Lcpu_info:
-	.word	_C_LABEL(cpu_info)
+#if __ARM_ARCH >= 6
+#define GET_PCB(tmp) \
+	mrc p15, 0, tmp, c13, c0, 4; \
+	add	tmp, tmp, #(TD_PCB)
 #else
 .Lcurpcb:
 	.word	_C_LABEL(__pcpu) + PC_CURPCB
+#define GET_PCB(tmp) \
+	ldr	tmp, .Lcurpcb
 #endif
 
 /*
@@ -60,6 +64,15 @@ ENTRY(copyin)
 	cmp	r2, #0x00
 	movle	r0, #0x00
 	movle	pc, lr			/* Bail early if length is <= 0 */
+
+	adds	r3, r0, r2
+	movcs	r0, #EFAULT
+	RETc(cs)
+
+	ldr	r12, =(VM_MAXUSER_ADDRESS + 1)
+	cmp	r3, r12
+	movcs	r0, #EFAULT
+	RETc(cs)
 
 	ldr	r3, .L_arm_memcpy
 	ldr	r3, [r3]
@@ -81,22 +94,12 @@ ENTRY(copyin)
 	ldmfd   sp!, {r0-r2, r4, lr}
 	moveq	r0, #0
 	RETeq
-					
+
 .Lnormal:
 	stmfd	sp!, {r10-r11, lr}
 
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0-r2}
-	bl	_C_LABEL(cpu_number)
-	ldr	r10, .Lcpu_info
-	ldmfd	sp!, {r0-r2}
-	ldr	r10, [r10, r0, lsl #2]
-	ldr	r10, [r10, #CI_CURPCB]
-#else
-	ldr	r10, .Lcurpcb
+	GET_PCB(r10)
 	ldr	r10, [r10]
-#endif
 
 	mov	r3, #0x00
 	adr	ip, .Lcopyin_fault
@@ -108,10 +111,11 @@ ENTRY(copyin)
 	ldmfd	sp!, {r10-r11, pc}
 
 .Lcopyin_fault:
+	ldr	r0, =EFAULT
 	str	r11, [r10, #PCB_ONFAULT]
 	cmp	r3, #0x00
-	ldmgtfd	sp!, {r4-r7}		/* r3 > 0 Restore r4-r7 */
-	ldmltfd	sp!, {r4-r9}		/* r3 < 0 Restore r4-r9 */
+	ldmfdgt	sp!, {r4-r7}		/* r3 > 0 Restore r4-r7 */
+	ldmfdlt	sp!, {r4-r9}		/* r3 < 0 Restore r4-r9 */
 	ldmfd	sp!, {r10-r11, pc}
 
 .Lcopyin_guts:
@@ -144,7 +148,7 @@ ENTRY(copyin)
 
 	/* Quad-align the destination buffer */
 	tst	r1, #0x07		/* Already quad aligned? */
-	ldrnet	ip, [r0], #0x04
+	ldrtne	ip, [r0], #0x04
 	strne	ip, [r1], #0x04
 	subne	r2, r2, #0x04
 	stmfd	sp!, {r4-r9}		/* Free up some registers */
@@ -213,7 +217,7 @@ ENTRY(copyin)
 
 .Lcopyin_w_lessthan128:
 	adds	r2, r2, #0x80		/* Adjust for extra sub */
-	ldmeqfd	sp!, {r4-r9}
+	ldmfdeq	sp!, {r4-r9}
 	RETeq
 	subs	r2, r2, #0x20
 	blt	.Lcopyin_w_lessthan32
@@ -238,7 +242,7 @@ ENTRY(copyin)
 
 .Lcopyin_w_lessthan32:
 	adds	r2, r2, #0x20		/* Adjust for extra sub */
-	ldmeqfd	sp!, {r4-r9}
+	ldmfdeq	sp!, {r4-r9}
 	RETeq				/* Return now if done */
 
 	and	r4, r2, #0x18
@@ -272,17 +276,17 @@ ENTRY(copyin)
 
 .Lcopyin_w_less_than8:
 	subs	r2, r2, #0x04
-	ldrget	ip, [r0], #0x04
+	ldrtge	ip, [r0], #0x04
 	strge	ip, [r1], #0x04
 	RETeq				/* Return now if done */
 	addlt	r2, r2, #0x04
 	ldrbt	ip, [r0], #0x01
 	cmp	r2, #0x02
-	ldrgebt	r2, [r0], #0x01
+	ldrbtge	r2, [r0], #0x01
 	strb	ip, [r1], #0x01
-	ldrgtbt	ip, [r0]
-	strgeb	r2, [r1], #0x01
-	strgtb	ip, [r1]
+	ldrbtgt	ip, [r0]
+	strbge	r2, [r1], #0x01
+	strbgt	ip, [r1]
 	RET
 
 /*
@@ -333,11 +337,11 @@ ENTRY(copyin)
 	str	r6, [r1], #0x04
 	str	r7, [r1], #0x04
 .Lcopyin_bad1:
-	subs	r2, r2, #0x10         
+	subs	r2, r2, #0x10
 	bge	.Lcopyin_bad1_loop16
 
-	adds	r2, r2, #0x10         
-	ldmeqfd	sp!, {r4-r7}
+	adds	r2, r2, #0x10
+	ldmfdeq	sp!, {r4-r7}
 	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x03
@@ -394,11 +398,11 @@ ENTRY(copyin)
 	str	r6, [r1], #0x04
 	str	r7, [r1], #0x04
 .Lcopyin_bad2:
-	subs	r2, r2, #0x10         
+	subs	r2, r2, #0x10
 	bge	.Lcopyin_bad2_loop16
 
-	adds	r2, r2, #0x10         
-	ldmeqfd	sp!, {r4-r7}
+	adds	r2, r2, #0x10
+	ldmfdeq	sp!, {r4-r7}
 	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x02
@@ -455,11 +459,11 @@ ENTRY(copyin)
 	str	r6, [r1], #0x04
 	str	r7, [r1], #0x04
 .Lcopyin_bad3:
-	subs	r2, r2, #0x10         
+	subs	r2, r2, #0x10
 	bge	.Lcopyin_bad3_loop16
 
-	adds	r2, r2, #0x10         
-	ldmeqfd	sp!, {r4-r7}
+	adds	r2, r2, #0x10
+	ldmfdeq	sp!, {r4-r7}
 	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x01
@@ -498,7 +502,7 @@ ENTRY(copyin)
 	ldrbt	ip, [r0]
 	strb	ip, [r1]
 	RET
-
+END(copyin)
 
 /*
  * r0 = kernel space address
@@ -511,6 +515,15 @@ ENTRY(copyout)
 	cmp	r2, #0x00
 	movle	r0, #0x00
 	movle	pc, lr			/* Bail early if length is <= 0 */
+
+	adds	r3, r1, r2
+	movcs	r0, #EFAULT
+	RETc(cs)
+
+	ldr	r12, =(VM_MAXUSER_ADDRESS + 1)
+	cmp	r3, r12
+	movcs	r0, #EFAULT
+	RETc(cs)
 
 	ldr	r3, .L_arm_memcpy
 	ldr	r3, [r3]
@@ -532,22 +545,12 @@ ENTRY(copyout)
 	ldmfd   sp!, {r0-r2, r4, lr}
 	moveq	r0, #0
 	RETeq
-	
-.Lnormale:									
+
+.Lnormale:
 	stmfd	sp!, {r10-r11, lr}
 
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0-r2}
-	bl	_C_LABEL(cpu_number)
-	ldr	r10, .Lcpu_info
-	ldmfd	sp!, {r0-r2}
-	ldr	r10, [r10, r0, lsl #2]
-	ldr	r10, [r10, #CI_CURPCB]
-#else
-	ldr	r10, .Lcurpcb
+	GET_PCB(r10)
 	ldr	r10, [r10]
-#endif
 
 	mov	r3, #0x00
 	adr	ip, .Lcopyout_fault
@@ -559,10 +562,11 @@ ENTRY(copyout)
 	ldmfd	sp!, {r10-r11, pc}
 
 .Lcopyout_fault:
+	ldr	r0, =EFAULT
 	str	r11, [r10, #PCB_ONFAULT]
 	cmp	r3, #0x00
-	ldmgtfd	sp!, {r4-r7}		/* r3 > 0 Restore r4-r7 */
-	ldmltfd	sp!, {r4-r9}		/* r3 < 0 Restore r4-r9 */
+	ldmfdgt	sp!, {r4-r7}		/* r3 > 0 Restore r4-r7 */
+	ldmfdlt	sp!, {r4-r9}		/* r3 < 0 Restore r4-r9 */
 	ldmfd	sp!, {r10-r11, pc}
 
 .Lcopyout_guts:
@@ -597,8 +601,8 @@ ENTRY(copyout)
 	tst	r0, #0x07		/* Already quad aligned? */
 	ldrne	ip, [r0], #0x04
 	subne	r2, r2, #0x04
-	strnet	ip, [r1], #0x04
-	
+	strtne	ip, [r1], #0x04
+
 	stmfd	sp!, {r4-r9}		/* Free up some registers */
 	mov	r3, #-1			/* Signal restore r4-r9 */
 
@@ -665,7 +669,7 @@ ENTRY(copyout)
 
 .Lcopyout_w_lessthan128:
 	adds	r2, r2, #0x80		/* Adjust for extra sub */
-	ldmeqfd	sp!, {r4-r9}
+	ldmfdeq	sp!, {r4-r9}
 	RETeq				/* Return now if done */
 	subs	r2, r2, #0x20
 	blt	.Lcopyout_w_lessthan32
@@ -690,7 +694,7 @@ ENTRY(copyout)
 
 .Lcopyout_w_lessthan32:
 	adds	r2, r2, #0x20		/* Adjust for extra sub */
-	ldmeqfd	sp!, {r4-r9}
+	ldmfdeq	sp!, {r4-r9}
 	RETeq				/* Return now if done */
 
 	and	r4, r2, #0x18
@@ -725,16 +729,16 @@ ENTRY(copyout)
 .Lcopyout_w_less_than8:
 	subs	r2, r2, #0x04
 	ldrge	ip, [r0], #0x04
-	strget	ip, [r1], #0x04
+	strtge	ip, [r1], #0x04
 	RETeq				/* Return now if done */
 	addlt	r2, r2, #0x04
 	ldrb	ip, [r0], #0x01
 	cmp	r2, #0x02
-	ldrgeb	r2, [r0], #0x01
+	ldrbge	r2, [r0], #0x01
 	strbt	ip, [r1], #0x01
-	ldrgtb	ip, [r0]
-	strgebt	r2, [r1], #0x01
-	strgtbt	ip, [r1]
+	ldrbgt	ip, [r0]
+	strbtge	r2, [r1], #0x01
+	strbtgt	ip, [r1]
 	RET
 
 /*
@@ -785,11 +789,11 @@ ENTRY(copyout)
 	strt	r6, [r1], #0x04
 	strt	r7, [r1], #0x04
 .Lcopyout_bad1:
-	subs	r2, r2, #0x10         
+	subs	r2, r2, #0x10
 	bge	.Lcopyout_bad1_loop16
 
-	adds	r2, r2, #0x10         
-	ldmeqfd	sp!, {r4-r7}
+	adds	r2, r2, #0x10
+	ldmfdeq	sp!, {r4-r7}
 	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x03
@@ -846,11 +850,11 @@ ENTRY(copyout)
 	strt	r6, [r1], #0x04
 	strt	r7, [r1], #0x04
 .Lcopyout_bad2:
-	subs	r2, r2, #0x10         
+	subs	r2, r2, #0x10
 	bge	.Lcopyout_bad2_loop16
 
-	adds	r2, r2, #0x10         
-	ldmeqfd	sp!, {r4-r7}
+	adds	r2, r2, #0x10
+	ldmfdeq	sp!, {r4-r7}
 	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x02
@@ -907,11 +911,11 @@ ENTRY(copyout)
 	strt	r6, [r1], #0x04
 	strt	r7, [r1], #0x04
 .Lcopyout_bad3:
-	subs	r2, r2, #0x10         
+	subs	r2, r2, #0x10
 	bge	.Lcopyout_bad3_loop16
 
-	adds	r2, r2, #0x10         
-	ldmeqfd	sp!, {r4-r7}
+	adds	r2, r2, #0x10
+	ldmfdeq	sp!, {r4-r7}
 	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x01
@@ -950,3 +954,5 @@ ENTRY(copyout)
 	ldrb	ip, [r0]
 	strbt	ip, [r1]
 	RET
+END(copyout)
+

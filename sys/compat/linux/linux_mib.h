@@ -31,22 +31,34 @@
 #ifndef _LINUX_MIB_H_
 #define _LINUX_MIB_H_
 
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_compat_linux);
+#endif
+
 void	linux_osd_jail_register(void);
 void	linux_osd_jail_deregister(void);
 
 void	linux_get_osname(struct thread *td, char *dst);
-int	linux_set_osname(struct thread *td, char *osname);
 
 void	linux_get_osrelease(struct thread *td, char *dst);
-int	linux_set_osrelease(struct thread *td, char *osrelease);
 
 int	linux_get_oss_version(struct thread *td);
-int	linux_set_oss_version(struct thread *td, int oss_version);
 
 int	linux_kernver(struct thread *td);
 
-#define	LINUX_KERNVER_2004000		2004000
-#define	LINUX_KERNVER_2006000		2006000
+#define	LINUX_KVERSION		2
+#define	LINUX_KPATCHLEVEL	6
+#define	LINUX_KSUBLEVEL		32
+
+#define	LINUX_KERNVER(a,b,c)	(((a) << 16) + ((b) << 8) + (c))
+#define	LINUX_VERSION_CODE	LINUX_KERNVER(LINUX_KVERSION,		\
+				    LINUX_KPATCHLEVEL, LINUX_KSUBLEVEL)
+#define	LINUX_KERNVERSTR(x)	#x
+#define	LINUX_XKERNVERSTR(x)	LINUX_KERNVERSTR(x)
+#define	LINUX_VERSION_STR	LINUX_XKERNVERSTR(LINUX_KVERSION.LINUX_KPATCHLEVEL.LINUX_KSUBLEVEL)
+
+#define	LINUX_KERNVER_2004000	LINUX_KERNVER(2,4,0)
+#define	LINUX_KERNVER_2006000	LINUX_KERNVER(2,6,0)
 
 #define	linux_use26(t)		(linux_kernver(t) >= LINUX_KERNVER_2006000)
 

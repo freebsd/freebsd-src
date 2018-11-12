@@ -49,6 +49,8 @@ struct pmc_mdep;
  * PENTIUM	Intel Pentium MMX.
  * IAP		Intel Core/Core2/Atom programmable PMCs.
  * IAF		Intel fixed-function PMCs.
+ * UCP		Intel Uncore programmable PMCs.
+ * UCF		Intel Uncore fixed-function PMCs.
  */
 
 #include <dev/hwpmc/hwpmc_amd.h> /* K7 and K8 */
@@ -57,20 +59,23 @@ struct pmc_mdep;
 #include <dev/hwpmc/hwpmc_ppro.h>
 #include <dev/hwpmc/hwpmc_pentium.h>
 #include <dev/hwpmc/hwpmc_tsc.h>
+#include <dev/hwpmc/hwpmc_uncore.h>
 
 /*
  * Intel processors implementing V2 and later of the Intel performance
  * measurement architecture have PMCs of the following classes: TSC,
- * IAF and IAP.
+ * IAF, IAP, UCF and UCP.
  */
-#define	PMC_MDEP_CLASS_INDEX_TSC	0
-#define	PMC_MDEP_CLASS_INDEX_K7		1
-#define	PMC_MDEP_CLASS_INDEX_K8		1
-#define	PMC_MDEP_CLASS_INDEX_P4		1
-#define	PMC_MDEP_CLASS_INDEX_P5		1
-#define	PMC_MDEP_CLASS_INDEX_P6		1
-#define	PMC_MDEP_CLASS_INDEX_IAP	1
-#define	PMC_MDEP_CLASS_INDEX_IAF	2
+#define	PMC_MDEP_CLASS_INDEX_TSC	1
+#define	PMC_MDEP_CLASS_INDEX_K7		2
+#define	PMC_MDEP_CLASS_INDEX_K8		2
+#define	PMC_MDEP_CLASS_INDEX_P4		2
+#define	PMC_MDEP_CLASS_INDEX_P5		2
+#define	PMC_MDEP_CLASS_INDEX_P6		2
+#define	PMC_MDEP_CLASS_INDEX_IAP	2
+#define	PMC_MDEP_CLASS_INDEX_IAF	3
+#define	PMC_MDEP_CLASS_INDEX_UCP	4
+#define	PMC_MDEP_CLASS_INDEX_UCF	5
 
 /*
  * Architecture specific extensions to <sys/pmc.h> structures.
@@ -80,6 +85,8 @@ union pmc_md_op_pmcallocate  {
 	struct pmc_md_amd_op_pmcallocate	pm_amd;
 	struct pmc_md_iaf_op_pmcallocate	pm_iaf;
 	struct pmc_md_iap_op_pmcallocate	pm_iap;
+	struct pmc_md_ucf_op_pmcallocate	pm_ucf;
+	struct pmc_md_ucp_op_pmcallocate	pm_ucp;
 	struct pmc_md_p4_op_pmcallocate		pm_p4;
 	struct pmc_md_pentium_op_pmcallocate	pm_pentium;
 	struct pmc_md_ppro_op_pmcallocate	pm_ppro;
@@ -97,6 +104,8 @@ union pmc_md_pmc  {
 	struct pmc_md_amd_pmc	pm_amd;
 	struct pmc_md_iaf_pmc	pm_iaf;
 	struct pmc_md_iap_pmc	pm_iap;
+	struct pmc_md_ucf_pmc	pm_ucf;
+	struct pmc_md_ucp_pmc	pm_ucp;
 	struct pmc_md_p4_pmc	pm_p4;
 	struct pmc_md_pentium_pmc pm_pentium;
 	struct pmc_md_ppro_pmc	pm_ppro;
@@ -129,8 +138,7 @@ struct pmc_mdep;
 
 #define	PMC_IN_KERNEL_STACK(S,START,END)		\
 	((S) >= (START) && (S) < (END))
-#define	PMC_IN_KERNEL(va) (((va) >= USRSTACK) &&	\
-	((va) < VM_MAX_KERNEL_ADDRESS))
+#define	PMC_IN_KERNEL(va)	INKERNEL(va)
 
 #define	PMC_IN_USERSPACE(va) ((va) <= VM_MAXUSER_ADDRESS)
 
@@ -144,6 +152,15 @@ struct pmc_mdep;
 	(((I) & 0x0000ffff) == 0xe589)	/* movl %esp,%ebp */
 #define	PMC_AT_FUNCTION_EPILOGUE_RET(I)			\
 	(((I) & 0xFF) == 0xC3)		   /* ret */
+
+/* Build a fake kernel trapframe from current instruction pointer. */
+#define PMC_FAKE_TRAPFRAME(TF)						\
+	do {								\
+	(TF)->tf_cs = 0; (TF)->tf_eflags = 0;				\
+	__asm __volatile("movl %%ebp,%0" : "=r" ((TF)->tf_ebp));	\
+	__asm __volatile("movl %%esp,%0" : "=r" ((TF)->tf_esp));	\
+	__asm __volatile("call 1f \n\t1: pop %0" : "=r"((TF)->tf_eip));	\
+	} while (0)
 
 /*
  * Prototypes

@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -65,13 +61,15 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vis.h>
 
 /* Constant defs */
 #define	ALL	1
 #define	DIRS	2
 
-#define	DODUMP		0x1
-#define	DOEXPORTS	0x2
+#define	DODUMP			0x1
+#define	DOEXPORTS		0x2
+#define	DOPARSABLEEXPORTS	0x4
 
 struct mountlist {
 	struct mountlist *ml_left;
@@ -110,17 +108,16 @@ int tcp_callrpc(const char *host, int prognum, int versnum, int procnum,
  * for detailed information on the protocol.
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
+	char strvised[MNTPATHLEN * 4 + 1];
 	register struct exportslist *exp;
 	register struct grouplist *grp;
-	register int rpcs = 0, mntvers = 1;
+	register int rpcs = 0, mntvers = 3;
 	const char *host;
-	int ch, estat;
+	int ch, estat, nbytes;
 
-	while ((ch = getopt(argc, argv, "ade3")) != -1)
+	while ((ch = getopt(argc, argv, "adEe13")) != -1)
 		switch (ch) {
 		case 'a':
 			if (type == 0) {
@@ -136,8 +133,14 @@ main(argc, argv)
 			} else
 				usage();
 			break;
+		case 'E':
+			rpcs |= DOPARSABLEEXPORTS;
+			break;
 		case 'e':
 			rpcs |= DOEXPORTS;
+			break;
+		case '1':
+			mntvers = 1;
 			break;
 		case '3':
 			mntvers = 3;
@@ -148,6 +151,13 @@ main(argc, argv)
 		}
 	argc -= optind;
 	argv += optind;
+
+	if ((rpcs & DOPARSABLEEXPORTS) != 0) {
+		if ((rpcs & DOEXPORTS) != 0)
+			errx(1, "-E cannot be used with -e");
+		if ((rpcs & DODUMP) != 0)
+			errx(1, "-E cannot be used with -a or -d");
+	}
 
 	if (argc > 0)
 		host = *argv;
@@ -164,7 +174,7 @@ main(argc, argv)
 			clnt_perrno(estat);
 			errx(1, "can't do mountdump rpc");
 		}
-	if (rpcs & DOEXPORTS)
+	if (rpcs & (DOEXPORTS | DOPARSABLEEXPORTS))
 		if ((estat = tcp_callrpc(host, MOUNTPROG, mntvers,
 			MOUNTPROC_EXPORT, (xdrproc_t)xdr_void, (char *)0,
 			(xdrproc_t)xdr_exportslist, (char *)&exportslist)) != 0) {
@@ -184,14 +194,14 @@ main(argc, argv)
 		default:
 			printf("Hosts on %s:\n", host);
 			break;
-		};
+		}
 		print_dump(mntdump);
 	}
 	if (rpcs & DOEXPORTS) {
 		printf("Exports list on %s:\n", host);
 		exp = exportslist;
 		while (exp) {
-			printf("%-35s", exp->ex_dirp);
+			printf("%-34s ", exp->ex_dirp);
 			grp = exp->ex_groups;
 			if (grp == NULL) {
 				printf("Everyone\n");
@@ -205,6 +215,17 @@ main(argc, argv)
 			exp = exp->ex_next;
 		}
 	}
+	if (rpcs & DOPARSABLEEXPORTS) {
+		exp = exportslist;
+		while (exp) {
+			nbytes = strsnvis(strvised, sizeof(strvised),
+			    exp->ex_dirp, VIS_GLOB | VIS_NL, "\"'$");
+			if (nbytes == -1)
+				err(1, "strsnvis");
+			printf("%s\n", strvised);
+			exp = exp->ex_next;
+		}
+	}
 	exit(0);
 }
 
@@ -213,15 +234,8 @@ main(argc, argv)
  * use tcp as transport method in order to handle large replies.
  */
 int 
-tcp_callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
-	const char *host;
-	int prognum;
-	int versnum;
-	int procnum;
-	xdrproc_t inproc;
-	char *in;
-	xdrproc_t outproc;
-	char *out;
+tcp_callrpc(const char *host, int prognum, int versnum, int procnum,
+    xdrproc_t inproc, char *in, xdrproc_t outproc, char *out)
 {
 	CLIENT *client;
 	struct timeval timeout;
@@ -245,9 +259,7 @@ tcp_callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
  * Xdr routine for retrieving the mount dump list
  */
 int
-xdr_mntdump(xdrsp, mlp)
-	XDR *xdrsp;
-	struct mountlist **mlp;
+xdr_mntdump(XDR *xdrsp, struct mountlist **mlp)
 {
 	register struct mountlist *mp;
 	register struct mountlist *tp;
@@ -305,7 +317,7 @@ xdr_mntdump(xdrsp, mlp)
 						goto next;
 					}
 					break;
-				};
+				}
 				if (val < 0) {
 					otp = &tp->ml_left;
 					tp = tp->ml_left;
@@ -327,9 +339,7 @@ next:
  * Xdr routine to retrieve exports list
  */
 int
-xdr_exportslist(xdrsp, exp)
-	XDR *xdrsp;
-	struct exportslist **exp;
+xdr_exportslist(XDR *xdrsp, struct exportslist **exp)
 {
 	register struct exportslist *ep;
 	register struct grouplist *gp;
@@ -370,7 +380,7 @@ xdr_exportslist(xdrsp, exp)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: showmount [-a | -d] [-e3] [host]\n");
 	exit(1);
@@ -380,8 +390,7 @@ usage()
  * Print the binary tree in inorder so that output is sorted.
  */
 void
-print_dump(mp)
-	struct mountlist *mp;
+print_dump(struct mountlist *mp)
 {
 
 	if (mp == NULL)
@@ -398,7 +407,7 @@ print_dump(mp)
 	default:
 		printf("%s\n", mp->ml_host);
 		break;
-	};
+	}
 	if (mp->ml_right)
 		print_dump(mp->ml_right);
 }

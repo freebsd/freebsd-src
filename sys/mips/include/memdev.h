@@ -27,12 +27,15 @@
  * $FreeBSD$
  */
 
+#ifndef _MACHINE_MEMDEV_H_
+#define	_MACHINE_MEMDEV_H_
+
 #define	CDEV_MINOR_MEM	0
-#define	CDEV_MINOR_KMEM 1
+#define	CDEV_MINOR_KMEM	1
 
 d_open_t	memopen;
 d_read_t	memrw;
 #define		memioctl	(d_ioctl_t *)NULL
 d_mmap_t	memmmap;
 
-void		dev_mem_md_init(void);
+#endif /* _MACHINE_MEMDEV_H_ */

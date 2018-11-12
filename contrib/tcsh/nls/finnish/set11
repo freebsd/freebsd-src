@@ -1,10 +1,10 @@
-$ $tcsh: set11,v 1.2 2006/03/02 18:46:46 christos Exp $
+$ $tcsh: set11,v 1.3 2011/02/04 18:19:34 christos Exp $
 $ sh.c
 $set 11 
-1 Varoitus: ei yhteytt‰ p‰‰tteeseen (%s).\n
-2 Niinp‰ t‰ss‰ komentotulkissa ei ole tˆiden hallintaa.\n
-3 Sinulla on %d s‰hkˆpostiviesti‰.\n
-4 Sinulla on %d viesti‰ tiedostossa %s.\n
+1 Varoitus: ei yhteytt√§ p√§√§tteeseen (%s).\n
+2 Niinp√§ t√§ss√§ komentotulkissa ei ole t√∂iden hallintaa.\n
+3 Sinulla on %d s√§hk√∂postiviesti√§.\n
+4 Sinulla on %d viesti√§ tiedostossa %s.\n
 5 Sinulla on %spostia.\n
 6 uutta 
 7 Sinulla on %spostia tiedostossa %s.\n

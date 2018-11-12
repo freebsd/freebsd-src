@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2002
+.Dd November 1, 2013
 .Dt LIMITS 1
 .Os
 .Sh NAME
@@ -27,14 +27,14 @@
 .Nd set or display process resource limits
 .Sh SYNOPSIS
 .Nm
-.Op Fl C Ar class | Fl U Ar user
+.Op Fl C Ar class | Fl P Ar pid | Fl U Ar user
 .Op Fl SHB
 .Op Fl ea
-.Op Fl bcdflmnstuvp Op Ar val
+.Op Fl bcdfklmnopstuvw Op Ar val
 .Nm
 .Op Fl C Ar class | Fl U Ar user
 .Op Fl SHB
-.Op Fl bcdflmnstuvp Op Ar val
+.Op Fl bcdfklmnopstuvw Op Ar val
 .Op Fl E
 .Oo
 .Op Ar name Ns = Ns Ar value ...
@@ -87,9 +87,6 @@ Like the previous usage, it outputs these values to standard
 output, except that it will emit them in
 .Ic eval
 format, suitable for the calling shell.
-The calling shell is determined by examining the entries in the
-.Pa /proc
-file system for the parent process.
 If the shell is known (i.e., it is one of
 .Nm sh , csh , bash , tcsh , ksh , pdksh
 or
@@ -143,6 +140,9 @@ for the
 class are used, if it exists, or the
 .Dq Li root
 class if the user is a superuser account.
+.It Fl P Ar pid
+Select or set limits for the process identified by the
+.Ar pid .
 .It Fl S
 Select display or setting of
 .Dq soft
@@ -176,7 +176,7 @@ limits are affected until overridden later with either the
 or
 .Fl H
 options.
-.Fl e
+.It Fl e
 Select
 .Dq "eval mode"
 formatting for output.
@@ -207,6 +207,10 @@ resource limit.
 Select or set the
 .Va filesize
 resource limit.
+.It Fl k Op Ar val
+Select or set the
+.Va kqueues
+resource limit.
 .It Fl l Op Ar val
 Select or set the
 .Va memorylocked
@@ -229,6 +233,18 @@ system is limited to the value displayed by the
 .Va kern.maxfiles
 .Xr sysctl 8
 variable.
+.It Fl o Op Ar val
+Select or set the
+.Va umtxp
+resource limit.
+The limit determines the maximal number of the process-shared locks
+which may be simultaneously created by the processes owned by the
+user, see
+.Xr pthread 3 .
+.It Fl p Op Ar val
+Select or set the
+.Va pseudoterminals
+resource limit.
 .It Fl s Op Ar val
 Select or set the
 .Va stacksize
@@ -262,9 +278,9 @@ and is inclusive of text, data, bss, stack,
 and
 .Xr mmap 2 Ns 'd
 space.
-.It Fl p Op Ar val
+.It Fl w Op Ar val
 Select or set the
-.Va pseudoterminals
+.Va swapuse
 resource limit.
 .El
 .Pp
@@ -369,6 +385,7 @@ will be whatever the executed program returns.
 .Xr setrlimit 2 ,
 .Xr login_cap 3 ,
 .Xr login.conf 5 ,
+.Xr rctl 8 ,
 .Xr sysctl 8
 .Sh BUGS
 The
@@ -377,21 +394,6 @@ utility does not handle commands with equal
 .Pq Ql =
 signs in their
 names, for obvious reasons.
-.Pp
-When eval output is selected, the
-.Pa /proc
-file system must be installed
-and mounted for the shell to be correctly determined, and therefore
-output syntax correct for the running shell.
-The default output is valid for
-.Xr sh 1 ,
-so this means that any
-usage of
-.Nm
-in eval mode prior mounting
-.Pa /proc
-may only occur in standard bourne
-shell scripts.
 .Pp
 The
 .Nm

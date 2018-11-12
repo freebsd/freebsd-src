@@ -33,9 +33,4 @@
  */
 long at91_ramsize(void);
 
-/*
- * These routines are expected to be provided by the board files.
- */
-long board_init(void);
-
 #endif /* _ARM_AT91_AT91BOARD_H_ */

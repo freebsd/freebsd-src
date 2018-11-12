@@ -37,12 +37,13 @@ script()
 	$dtrace -s /dev/stdin <<EOF
 	proc:::signal-send
 	/execname == "kill" && curpsinfo->pr_ppid == $child &&
-	    args[1]->pr_psargs == "$longsleep" && args[2] == SIGUSR1/
+	    xlate<psinfo_t *>(args[1])->pr_psargs == "$longsleep" &&
+	    args[2] == SIGUSR1/
 	{
 		/*
 		 * This is guaranteed to not race with signal-handle.
 		 */
-		target = args[1]->pr_pid;
+		target = args[1]->p_pid;
 	}
 
 	proc:::signal-handle
@@ -58,7 +59,7 @@ sleeper()
 	while true; do
 		$longsleep &
 		sleep 1
-		/usr/bin/kill -USR1 $!
+		kill -USR1 $!
 	done
 }
 
@@ -68,7 +69,7 @@ if [ $# != 1 ]; then
 fi
 
 dtrace=$1
-longsleep="/usr/bin/sleep 10000"
+longsleep="/bin/sleep 10000"
 
 sleeper &
 child=$!
@@ -76,9 +77,9 @@ child=$!
 script
 status=$?
 
-pstop $child
+kill -STOP $child
 pkill -P $child
 kill $child
-prun $child
+kill -CONT $child
 
 exit $status

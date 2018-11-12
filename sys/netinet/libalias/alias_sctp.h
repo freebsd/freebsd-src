@@ -1,9 +1,7 @@
-/**
- * @file alias_sctp.h
- * Copyright (c) 2008, Centre for Advanced Internet Architectures
- * Swinburne University of Technology, Melbourne, Australia
- * (CRICOS number 00111D).
- * 
+/*-
+ * Copyright (c) 2008
+ * 	Swinburne University of Technology, Melbourne, Australia.
+ *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
@@ -12,11 +10,7 @@
  *  2. Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *  3. The names of the authors, the "Centre for Advanced Internet Architectures"
- *     and "Swinburne University of Technology" may not be used to endorse
- *     or promote products derived from this software without specific
- *     prior written permission.
- * 
+ *
  *  THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS "AS IS" AND
  *  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  *  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -28,7 +22,9 @@
  *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  *  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *  SUCH DAMAGE.
- *
+ */
+
+/*
  * Alias_sctp forms part of the libalias kernel module to handle 
  * Network Address Translation (NAT) for the SCTP protocol.
  *
@@ -80,7 +76,6 @@
  * 
  */
 #include <machine/cpufunc.h>
-#include <machine/cpu.h>
 /* The packed define for 64 bit platforms */
 #ifndef SCTP_PACKED
 #define SCTP_PACKED __attribute__((packed))
@@ -97,7 +92,6 @@
 #ifndef _KERNEL
 #include <stdlib.h>
 #include <stdio.h>
-#include <curses.h>
 #endif //#ifdef _KERNEL
 
 
@@ -140,13 +134,13 @@ struct sctp_nat_assoc {
 	struct in_addr a_addr;	/**< alias ip address */
 	int state;			/**< current state of NAT association */
 	int TableRegister;		/**< stores which look up tables association is registered in */
-	int	exp;			/**< timer expiration in seconds from uptime */
+	int exp;			/**< timer expiration in seconds from uptime */
 	int exp_loc;			/**< current location in timer_Q */
 	int num_Gaddr;		/**< number of global IP addresses in the list */
 	LIST_HEAD(sctpGlobalAddresshead,sctp_GlobalAddress) Gaddr; /**< List of global addresses */
-							    LIST_ENTRY (sctp_nat_assoc) list_L; /**< Linked list of pointers for Local table*/
-											LIST_ENTRY (sctp_nat_assoc) list_G; /**< Linked list of pointers for Global table */
-														    LIST_ENTRY (sctp_nat_assoc) timer_Q; /**< Linked list of pointers for timer Q */
+	LIST_ENTRY (sctp_nat_assoc) list_L; /**< Linked list of pointers for Local table*/
+	LIST_ENTRY (sctp_nat_assoc) list_G; /**< Linked list of pointers for Global table */
+	LIST_ENTRY (sctp_nat_assoc) timer_Q; /**< Linked list of pointers for timer Q */
 //Using libalias locking
 };
 

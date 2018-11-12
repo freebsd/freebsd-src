@@ -67,7 +67,7 @@ struct ichss_softc {
 #define PCI_DEV_82801BA		0x244c /* ICH2M */
 #define PCI_DEV_82801CA		0x248c /* ICH3M */
 #define PCI_DEV_82801DB		0x24cc /* ICH4M */
-#define PCI_DEV_82815BA		0x1130 /* Unsupported/buggy part */
+#define PCI_DEV_82815_MC	0x1130 /* Unsupported/buggy part */
 
 /* PCI config registers for finding PMBASE and enabling SpeedStep. */
 #define ICHSS_PMBASE_OFFSET	0x40
@@ -113,7 +113,7 @@ static device_method_t ichss_methods[] = {
 	DEVMETHOD(cpufreq_drv_get,	ichss_get),
 	DEVMETHOD(cpufreq_drv_type,	ichss_type),
 	DEVMETHOD(cpufreq_drv_settings,	ichss_settings),
-	{0, 0}
+	DEVMETHOD_END
 };
 static driver_t ichss_driver = {
 	"ichss", ichss_methods, sizeof(struct ichss_softc)
@@ -155,9 +155,6 @@ ichss_identify(driver_t *driver, device_t parent)
 	 * E.g. see Section 6.1 "PCI Devices and Functions" and table 6.1 of
 	 * Intel(r) 82801BA I/O Controller Hub 2 (ICH2) and Intel(r) 82801BAM
 	 * I/O Controller Hub 2 Mobile (ICH2-M).
-	 *
-	 * TODO: add a quirk to disable if we see the 82815_MC along
-	 * with the 82801BA and revision < 5.
 	 */
 	ich_device = pci_find_bsf(0, 0x1f, 0);
 	if (ich_device == NULL ||
@@ -166,6 +163,22 @@ ichss_identify(driver_t *driver, device_t parent)
 	    pci_get_device(ich_device) != PCI_DEV_82801CA &&
 	    pci_get_device(ich_device) != PCI_DEV_82801DB))
 		return;
+
+	/*
+	 * Certain systems with ICH2 and an Intel 82815_MC host bridge
+	 * where the host bridge's revision is < 5 lockup if SpeedStep
+	 * is used.
+	 */
+	if (pci_get_device(ich_device) == PCI_DEV_82801BA) {
+		device_t hostb;
+
+		hostb = pci_find_bsf(0, 0, 0);
+		if (hostb != NULL &&
+		    pci_get_vendor(hostb) == PCI_VENDOR_INTEL &&
+		    pci_get_device(hostb) == PCI_DEV_82815_MC &&
+		    pci_get_revid(hostb) < 5)
+			return;
+	}
 
 	/* Find the PMBASE register from our PCI config header. */
 	pmbase = pci_read_config(ich_device, ICHSS_PMBASE_OFFSET,

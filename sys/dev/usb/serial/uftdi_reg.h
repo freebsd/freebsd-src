@@ -28,6 +28,13 @@
 					 * reg */
 #define	FTDI_SIO_SET_EVENT_CHAR	6	/* Set the event character */
 #define	FTDI_SIO_SET_ERROR_CHAR	7	/* Set the error character */
+#define	FTDI_SIO_SET_LATENCY	9	/* Set the latency timer */
+#define	FTDI_SIO_GET_LATENCY	10	/* Read the latency timer */
+#define	FTDI_SIO_SET_BITMODE	11	/* Set the bit bang I/O mode */
+#define	FTDI_SIO_GET_BITMODE	12	/* Read pin states from any mode */
+#define	FTDI_SIO_READ_EEPROM	144	/* Read eeprom word */
+#define	FTDI_SIO_WRITE_EEPROM	145	/* Write eeprom word */
+#define	FTDI_SIO_ERASE_EEPROM	146	/* Erase entire eeprom */
 
 /* Port Identifier Table */
 #define	FTDI_PIT_DEFAULT 	0	/* SIOA */
@@ -35,10 +42,11 @@
 #define	FTDI_PIT_SIOB		2	/* SIOB */
 #define	FTDI_PIT_PARALLEL	3	/* Parallel */
 
-enum uftdi_type {
-	UFTDI_TYPE_SIO,
-	UFTDI_TYPE_8U232AM
-};
+/* Values for driver_info */
+#define	UFTDI_JTAG_IFACE(i)	(1 << i)	/* Flag interface as jtag */
+#define	UFTDI_JTAG_IFACES_MAX	8		/* Allow up to 8 jtag intfs */
+#define	UFTDI_JTAG_CHECK_STRING	0xff		/* Check product names table */
+#define	UFTDI_JTAG_MASK		0xff
 
 /*
  * BmRequestType:  0100 0000B
@@ -63,41 +71,21 @@ enum uftdi_type {
  *    baud and data format not reset
  *
  * The Purge RX and TX buffer commands affect nothing except the buffers
- *
  */
 /* FTDI_SIO_RESET */
 #define	FTDI_SIO_RESET_SIO 0
 #define	FTDI_SIO_RESET_PURGE_RX 1
 #define	FTDI_SIO_RESET_PURGE_TX 2
 
-
 /*
  * BmRequestType:  0100 0000B
  * bRequest:       FTDI_SIO_SET_BAUDRATE
- * wValue:         BaudRate value - see below
- * wIndex:         Port
+ * wValue:         BaudRate low bits
+ * wIndex:         Port and BaudRate high bits 
  * wLength:        0
  * Data:           None
  */
 /* FTDI_SIO_SET_BAUDRATE */
-enum {
-	ftdi_sio_b300 = 0,
-	ftdi_sio_b600 = 1,
-	ftdi_sio_b1200 = 2,
-	ftdi_sio_b2400 = 3,
-	ftdi_sio_b4800 = 4,
-	ftdi_sio_b9600 = 5,
-	ftdi_sio_b19200 = 6,
-	ftdi_sio_b38400 = 7,
-	ftdi_sio_b57600 = 8,
-	ftdi_sio_b115200 = 9
-};
-
-#define	FTDI_8U232AM_FREQ 3000000
-
-/* Bounds for normal divisors as 4-bit fixed precision ints. */
-#define	FTDI_8U232AM_MIN_DIV 0x20
-#define	FTDI_8U232AM_MAX_DIV 0x3fff8
 
 /*
  * BmRequestType:  0100 0000B
@@ -135,7 +123,6 @@ enum {
 #define	FTDI_SIO_SET_DATA_STOP_BITS_2 (0x2 << 11)
 #define	FTDI_SIO_SET_BREAK (0x1 << 14)
 
-
 /*
  * BmRequestType:   0100 0000B
  * bRequest:        FTDI_SIO_MODEM_CTRL
@@ -172,12 +159,11 @@ enum {
 #define	FTDI_SIO_SET_RTS_HIGH (2 | ( FTDI_SIO_SET_RTS_MASK << 8))
 #define	FTDI_SIO_SET_RTS_LOW (0 | ( FTDI_SIO_SET_RTS_MASK << 8))
 
-
 /*
  *   BmRequestType:  0100 0000b
  *   bRequest:       FTDI_SIO_SET_FLOW_CTRL
  *   wValue:         Xoff/Xon
- *   wIndex:         Protocol/Port - hIndex is protocl / lIndex is port
+ *   wIndex:         Protocol/Port - hIndex is protocol / lIndex is port
  *   wLength:        0
  *   Data:           None
  *
@@ -203,7 +189,6 @@ enum {
 #define	FTDI_SIO_DTR_DSR_HS 0x2
 #define	FTDI_SIO_XON_XOFF_HS 0x4
 
-
 /*
  *  BmRequestType:   0100 0000b
  *  bRequest:        FTDI_SIO_SET_EVENT_CHAR
@@ -227,8 +212,6 @@ enum {
  * which is what normally happens.
  */
 
-
-
 /*
  *  BmRequestType:  0100 0000b
  *  bRequest:       FTDI_SIO_SET_ERROR_CHAR
@@ -243,13 +226,10 @@ enum {
  *           0 = disabled
  *           1 = enabled
  *  B9..15 Reserved
- *
- *
  * FTDI_SIO_SET_ERROR_CHAR
  * Set the parity error replacement character for the specified communications
  * port.
  */
-
 
 /*
  *   BmRequestType:   1100 0000b
@@ -282,10 +262,7 @@ enum {
 #define	FTDI_SIO_RI_MASK  0x40
 #define	FTDI_SIO_RLSD_MASK 0x80
 
-
-
 /*
- *
  * DATA FORMAT
  *
  * IN Endpoint
@@ -317,8 +294,6 @@ enum {
  * B5	Transmitter Holding Register (THRE)
  * B6	Transmitter Empty (TEMT)
  * B7	Error in RCVR FIFO
- *
- *
  * OUT Endpoint
  *
  * This device reserves the first bytes of data on this endpoint contain the
@@ -330,7 +305,6 @@ enum {
  * Offset	Description
  * B0..1	Port
  * B2..7	Length of message - (not including Byte 0)
- *
  */
 #define	FTDI_PORT_MASK 0x0f
 #define	FTDI_MSR_MASK 0xf0

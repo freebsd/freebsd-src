@@ -18,7 +18,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	600004
+%VERSREQ=	600012
 
 STD8X16FONT?=	iso
 
@@ -31,14 +31,14 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-DDB_ENABLED!=	grep DDB opt_ddb.h || true
-DTR_ENABLED!=	grep KDTRACE_FRAME opt_kdtrace.h || true
-HWPMC_ENABLED!=	grep HWPMC opt_hwpmc_hooks.h || true
+INCLUDES+= -I$S/contrib/libfdt
+
 .if !empty(DDB_ENABLED) || !empty(DTR_ENABLED) || !empty(HWPMC_ENABLED)
-CFLAGS+=	-fno-omit-frame-pointer
+CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
-MKMODULESENV+= MACHINE=amd64
+ASM_CFLAGS.acpi_wakecode.S=	${CLANG_NO_IAS34}
+ASM_CFLAGS.mpboot.S=		${CLANG_NO_IAS34}
 
 %BEFORE_DEPEND
 

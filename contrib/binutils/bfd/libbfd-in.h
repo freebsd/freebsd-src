@@ -2,7 +2,8 @@
    (This include file is not for users of the library.)
 
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
+   Free Software Foundation, Inc.
 
    Written by Cygnus Support.
 
@@ -20,7 +21,9 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+
+#include "hashtab.h"
 
 /* Align an address upward to a boundary, expressed as a number of bytes.
    E.g. align to an 8-byte boundary with argument of 8.  Take care never
@@ -50,17 +53,24 @@ struct bfd_in_memory
   bfd_byte *buffer;
 };
 
+struct section_hash_entry
+{
+  struct bfd_hash_entry root;
+  asection section;
+};
+
 /* tdata for an archive.  For an input archive, cache
    needs to be free()'d.  For an output archive, symdefs do.  */
 
 struct artdata {
   file_ptr first_file_filepos;
   /* Speed up searching the armap */
-  struct ar_cache *cache;
+  htab_t cache;
   bfd *archive_head;		/* Only interesting in output routines */
   carsym *symdefs;		/* the symdef entries */
   symindex symdef_count;	/* how many there are */
   char *extended_names;		/* clever intel extension */
+  bfd_size_type extended_names_size; /* Size of extended names */
   /* when more compilers are standard C, this can be a time_t */
   long  armap_timestamp;	/* Timestamp value written into armap.
 				   This is used for BSD archives to check
@@ -90,7 +100,14 @@ extern void *bfd_realloc
   (void *, bfd_size_type);
 extern void *bfd_zmalloc
   (bfd_size_type);
+extern void *bfd_malloc2
+  (bfd_size_type, bfd_size_type);
+extern void *bfd_realloc2
+  (void *, bfd_size_type, bfd_size_type);
+extern void *bfd_zmalloc2
+  (bfd_size_type, bfd_size_type);
 
+extern void _bfd_default_error_handler (const char *s, ...);
 extern bfd_error_handler_type _bfd_error_handler;
 
 /* These routines allocate and free things on the BFD's objalloc.  */
@@ -99,6 +116,10 @@ extern void *bfd_alloc
   (bfd *, bfd_size_type);
 extern void *bfd_zalloc
   (bfd *, bfd_size_type);
+extern void *bfd_alloc2
+  (bfd *, bfd_size_type, bfd_size_type);
+extern void *bfd_zalloc2
+  (bfd *, bfd_size_type, bfd_size_type);
 extern void bfd_release
   (bfd *, void *);
 
@@ -133,6 +154,8 @@ extern bfd *_bfd_generic_get_elt_at_index
 bfd * _bfd_new_bfd
   (void);
 void _bfd_delete_bfd
+  (bfd *);
+bfd_boolean _bfd_free_cached_info
   (bfd *);
 
 bfd_boolean bfd_false
@@ -174,6 +197,8 @@ bfd_boolean coff_write_armap
 
 extern void *_bfd_generic_read_ar_hdr
   (bfd *);
+extern void _bfd_ar_spacepad
+  (char *, size_t, const char *, long);
 
 extern void *_bfd_generic_read_ar_hdr_mag
   (bfd *, const char *);
@@ -192,8 +217,8 @@ int bfd_generic_stat_arch_elt
 
 #define _bfd_generic_close_and_cleanup bfd_true
 #define _bfd_generic_bfd_free_cached_info bfd_true
-#define _bfd_generic_new_section_hook \
-  ((bfd_boolean (*) (bfd *, asection *)) bfd_true)
+extern bfd_boolean _bfd_generic_new_section_hook
+  (bfd *, asection *);
 extern bfd_boolean _bfd_generic_get_section_contents
   (bfd *, asection *, void *, file_ptr, bfd_size_type);
 extern bfd_boolean _bfd_generic_get_section_contents_in_window
@@ -212,8 +237,13 @@ extern bfd_boolean _bfd_generic_get_section_contents_in_window
   ((bfd_boolean (*) (bfd *, asection *, bfd *, asection *)) bfd_true)
 #define _bfd_generic_bfd_copy_private_symbol_data \
   ((bfd_boolean (*) (bfd *, asymbol *, bfd *, asymbol *)) bfd_true)
+#define _bfd_generic_bfd_copy_private_header_data \
+  ((bfd_boolean (*) (bfd *, bfd *)) bfd_true)
 #define _bfd_generic_bfd_print_private_bfd_data \
   ((bfd_boolean (*) (bfd *, void *)) bfd_true)
+
+extern bfd_boolean _bfd_generic_init_private_section_data
+  (bfd *, asection *, bfd *, asection *, struct bfd_link_info *);
 
 /* Routines to use for BFD_JUMP_TABLE_CORE when there is no core file
    support.  Use BFD_JUMP_TABLE_CORE (_bfd_nocore).  */
@@ -296,11 +326,16 @@ extern bfd_boolean _bfd_archive_coff_construct_extended_name_table
   ((void (*) (bfd *, asymbol *, symbol_info *)) bfd_void)
 #define _bfd_nosymbols_bfd_is_local_label_name \
   ((bfd_boolean (*) (bfd *, const char *)) bfd_false)
+#define _bfd_nosymbols_bfd_is_target_special_symbol \
+  ((bfd_boolean (*) (bfd *, asymbol *)) bfd_false)
 #define _bfd_nosymbols_get_lineno \
   ((alent *(*) (bfd *, asymbol *)) bfd_nullvoidptr)
 #define _bfd_nosymbols_find_nearest_line \
   ((bfd_boolean (*) (bfd *, asection *, asymbol **, bfd_vma, const char **, \
 		     const char **, unsigned int *)) \
+   bfd_false)
+#define _bfd_nosymbols_find_inliner_info \
+  ((bfd_boolean (*) (bfd *, const char **, const char **, unsigned int *)) \
    bfd_false)
 #define _bfd_nosymbols_bfd_make_debug_symbol \
   ((asymbol *(*) (bfd *, void *, unsigned long)) bfd_nullvoidptr)
@@ -313,12 +348,13 @@ extern bfd_boolean _bfd_archive_coff_construct_extended_name_table
 /* Routines to use for BFD_JUMP_TABLE_RELOCS when there is no reloc
    support.  Use BFD_JUMP_TABLE_RELOCS (_bfd_norelocs).  */
 
-#define _bfd_norelocs_get_reloc_upper_bound \
-  ((long (*) (bfd *, asection *)) _bfd_n1)
-#define _bfd_norelocs_canonicalize_reloc \
-  ((long (*) (bfd *, asection *, arelent **, asymbol **)) _bfd_n1)
+extern long _bfd_norelocs_get_reloc_upper_bound (bfd *, asection *);
+extern long _bfd_norelocs_canonicalize_reloc (bfd *, asection *,
+					      arelent **, asymbol **);
 #define _bfd_norelocs_bfd_reloc_type_lookup \
   ((reloc_howto_type *(*) (bfd *, bfd_reloc_code_real_type)) bfd_nullvoidptr)
+#define _bfd_norelocs_bfd_reloc_name_lookup \
+  ((reloc_howto_type *(*) (bfd *, const char *)) bfd_nullvoidptr)
 
 /* Routines to use for BFD_JUMP_TABLE_WRITE for targets which may not
    be written.  Use BFD_JUMP_TABLE_WRITE (_bfd_nowrite).  */
@@ -340,7 +376,8 @@ extern bfd_boolean _bfd_generic_set_section_contents
 /* Routines to use for BFD_JUMP_TABLE_LINK for targets which do not
    support linking.  Use BFD_JUMP_TABLE_LINK (_bfd_nolink).  */
 
-#define _bfd_nolink_sizeof_headers ((int (*) (bfd *, bfd_boolean)) bfd_0)
+#define _bfd_nolink_sizeof_headers \
+  ((int (*) (bfd *, struct bfd_link_info *)) bfd_0)
 #define _bfd_nolink_bfd_get_relocated_section_contents \
   ((bfd_byte *(*) (bfd *, struct bfd_link_info *, struct bfd_link_order *, \
 		   bfd_byte *, bfd_boolean, asymbol **)) \
@@ -354,6 +391,9 @@ extern bfd_boolean _bfd_generic_set_section_contents
    bfd_false)
 #define _bfd_nolink_bfd_merge_sections \
   ((bfd_boolean (*) (bfd *, struct bfd_link_info *)) \
+   bfd_false)
+#define _bfd_nolink_bfd_is_group_section \
+  ((bfd_boolean (*) (bfd *, const struct bfd_section *)) \
    bfd_false)
 #define _bfd_nolink_bfd_discard_group \
   ((bfd_boolean (*) (bfd *, struct bfd_section *)) \
@@ -370,6 +410,8 @@ extern bfd_boolean _bfd_generic_set_section_contents
   ((bfd_boolean (*) (bfd *, struct bfd_link_info *)) bfd_false)
 #define _bfd_nolink_bfd_link_split_section \
   ((bfd_boolean (*) (bfd *, struct bfd_section *)) bfd_false)
+#define _bfd_nolink_section_already_linked \
+  ((void (*) (bfd *, struct bfd_section *, struct bfd_link_info *)) bfd_void)
 
 /* Routines to use for BFD_JUMP_TABLE_DYNAMIC for targets which do not
    have dynamic symbols or relocs.  Use BFD_JUMP_TABLE_DYNAMIC
@@ -378,6 +420,8 @@ extern bfd_boolean _bfd_generic_set_section_contents
 #define _bfd_nodynamic_get_dynamic_symtab_upper_bound _bfd_n1
 #define _bfd_nodynamic_canonicalize_dynamic_symtab \
   ((long (*) (bfd *, asymbol **)) _bfd_n1)
+#define _bfd_nodynamic_get_synthetic_symtab \
+  ((long (*) (bfd *, long, asymbol **, long, asymbol **, asymbol **)) _bfd_n1)
 #define _bfd_nodynamic_get_dynamic_reloc_upper_bound _bfd_n1
 #define _bfd_nodynamic_canonicalize_dynamic_reloc \
   ((long (*) (bfd *, arelent **, asymbol **)) _bfd_n1)
@@ -398,7 +442,7 @@ extern bfd_boolean _bfd_stab_section_find_nearest_line
   (bfd *, asymbol **, asection *, bfd_vma, bfd_boolean *,
    const char **, const char **, unsigned int *, void **);
 
-/* Find the neaderst line using DWARF 1 debugging information.  */
+/* Find the nearest line using DWARF 1 debugging information.  */
 extern bfd_boolean _bfd_dwarf1_find_nearest_line
   (bfd *, asection *, asymbol **, bfd_vma, const char **,
    const char **, unsigned int *);
@@ -408,6 +452,18 @@ extern bfd_boolean _bfd_dwarf2_find_nearest_line
   (bfd *, asection *, asymbol **, bfd_vma, const char **, const char **,
    unsigned int *, unsigned int, void **);
 
+/* Find the line using DWARF 2 debugging information.  */
+extern bfd_boolean _bfd_dwarf2_find_line
+  (bfd *, asymbol **, asymbol *, const char **,
+   unsigned int *, unsigned int, void **);
+
+bfd_boolean _bfd_generic_find_line
+  (bfd *, asymbol **, asymbol *, const char **, unsigned int *);
+
+/* Find inliner info after calling bfd_find_nearest_line. */
+extern bfd_boolean _bfd_dwarf2_find_inliner_info
+  (bfd *, const char **, const char **, unsigned int *, void **);
+  
 /* Create a new section entry.  */
 extern struct bfd_hash_entry *bfd_section_hash_newfunc
   (struct bfd_hash_entry *, struct bfd_hash_table *, const char *);
@@ -422,7 +478,8 @@ extern bfd_boolean _bfd_link_hash_table_init
   (struct bfd_link_hash_table *, bfd *,
    struct bfd_hash_entry *(*) (struct bfd_hash_entry *,
 			       struct bfd_hash_table *,
-			       const char *));
+			       const char *),
+   unsigned int);
 
 /* Generic link hash table creation routine.  */
 extern struct bfd_link_hash_table *_bfd_generic_link_hash_table_create
@@ -467,6 +524,9 @@ extern bfd_boolean _bfd_generic_final_link
 extern bfd_boolean _bfd_generic_link_split_section
   (bfd *, struct bfd_section *);
 
+extern void _bfd_generic_section_already_linked
+  (bfd *, struct bfd_section *, struct bfd_link_info *);
+
 /* Generic reloc_link_order processing routine.  */
 extern bfd_boolean _bfd_generic_reloc_link_order
   (bfd *, struct bfd_link_info *, asection *, struct bfd_link_order *);
@@ -488,10 +548,15 @@ extern bfd_reloc_status_type _bfd_final_link_relocate
 extern bfd_reloc_status_type _bfd_relocate_contents
   (reloc_howto_type *, bfd *, bfd_vma, bfd_byte *);
 
+/* Clear a given location using a given howto.  */
+extern void _bfd_clear_contents (reloc_howto_type *howto, bfd *input_bfd,
+				 bfd_byte *location);
+
 /* Link stabs in sections in the first pass.  */
 
 extern bfd_boolean _bfd_link_section_stabs
-  (bfd *, void **, asection *, asection *, void **, bfd_size_type *);
+  (bfd *, struct stab_info *, asection *, asection *, void **,
+   bfd_size_type *);
 
 /* Eliminate stabs for discarded functions and symbols.  */
 extern bfd_boolean _bfd_discard_section_stabs
@@ -500,28 +565,28 @@ extern bfd_boolean _bfd_discard_section_stabs
 /* Write out the .stab section when linking stabs in sections.  */
 
 extern bfd_boolean _bfd_write_section_stabs
-  (bfd *, void **, asection *, void **, bfd_byte *);
+  (bfd *, struct stab_info *, asection *, void **, bfd_byte *);
 
 /* Write out the .stabstr string table when linking stabs in sections.  */
 
 extern bfd_boolean _bfd_write_stab_strings
-  (bfd *, void **);
+  (bfd *, struct stab_info *);
 
 /* Find an offset within a .stab section when linking stabs in
    sections.  */
 
 extern bfd_vma _bfd_stab_section_offset
-  (bfd *, void **, asection *, void **, bfd_vma);
+  (asection *, void *, bfd_vma);
 
-/* Attempt to merge a SEC_MERGE section.  */
+/* Register a SEC_MERGE section as a candidate for merging.  */
 
-extern bfd_boolean _bfd_merge_section
+extern bfd_boolean _bfd_add_merge_section
   (bfd *, void **, asection *, void **);
 
 /* Attempt to merge SEC_MERGE sections.  */
 
 extern bfd_boolean _bfd_merge_sections
-  (bfd *, void *, void (*) (bfd *, asection *));
+  (bfd *, struct bfd_link_info *, void *, void (*) (bfd *, asection *));
 
 /* Write out a merged section.  */
 
@@ -531,7 +596,7 @@ extern bfd_boolean _bfd_write_merged_section
 /* Find an offset within a modified SEC_MERGE section.  */
 
 extern bfd_vma _bfd_merged_section_offset
-  (bfd *, asection **, void *, bfd_vma, bfd_vma);
+  (bfd *, asection **, void *, bfd_vma);
 
 /* Create a string table.  */
 extern struct bfd_strtab_hash *_bfd_stringtab_init
@@ -579,10 +644,10 @@ void bfd_assert
   (const char*,int);
 
 #define BFD_ASSERT(x) \
-  { if (!(x)) bfd_assert(__FILE__,__LINE__); }
+  do { if (!(x)) bfd_assert(__FILE__,__LINE__); } while (0)
 
 #define BFD_FAIL() \
-  { bfd_assert(__FILE__,__LINE__); }
+  do { bfd_assert(__FILE__,__LINE__); } while (0)
 
 extern void _bfd_abort
   (const char *, int, const char *) ATTRIBUTE_NORETURN;
@@ -599,11 +664,7 @@ extern void _bfd_abort
    the system "off_t" or "off64_t", as the offset.  */
 extern file_ptr real_ftell (FILE *file);
 extern int real_fseek (FILE *file, file_ptr offset, int whence);
-
-FILE *	bfd_cache_lookup_worker
-  (bfd *);
-
-extern bfd *bfd_last_cache;
+extern FILE *real_fopen (const char *filename, const char *modes);
 
 /* List of supported target vectors, and the default vector (if
    bfd_default_vector[0] is NULL, there is no default).  */
@@ -645,3 +706,31 @@ extern bfd_boolean _bfd_sh_align_load_span
    bfd_boolean (*) (bfd *, asection *, void *, bfd_byte *, bfd_vma),
    void *, bfd_vma **, bfd_vma *, bfd_vma, bfd_vma, bfd_boolean *);
 #endif
+
+/* This is the shape of the elements inside the already_linked hash
+   table. It maps a name onto a list of already_linked elements with
+   the same name.  */
+
+struct bfd_section_already_linked_hash_entry
+{
+  struct bfd_hash_entry root;
+  struct bfd_section_already_linked *entry;
+};
+
+struct bfd_section_already_linked
+{
+  struct bfd_section_already_linked *next;
+  asection *sec;
+};
+
+extern struct bfd_section_already_linked_hash_entry *
+  bfd_section_already_linked_table_lookup (const char *);
+extern void bfd_section_already_linked_table_insert
+  (struct bfd_section_already_linked_hash_entry *, asection *);
+extern void bfd_section_already_linked_table_traverse
+  (bfd_boolean (*) (struct bfd_section_already_linked_hash_entry *,
+		    void *), void *);
+
+extern bfd_vma read_unsigned_leb128 (bfd *, bfd_byte *, unsigned int *);
+extern bfd_signed_vma read_signed_leb128 (bfd *, bfd_byte *, unsigned int *);
+

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2008 The FreeBSD Project.
+ * Copyright (c) 2001-2011 The FreeBSD Project.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,26 +29,61 @@
 #ifndef _COMPLEX_H
 #define	_COMPLEX_H
 
+#include <sys/cdefs.h>
+
 #ifdef __GNUC__
 #if __STDC_VERSION__ < 199901
 #define	_Complex	__complex__
 #endif
-#define	_Complex_I	1.0fi
+#define	_Complex_I	((float _Complex)1.0i)
+#endif
+
+#ifdef __generic
+_Static_assert(__generic(_Complex_I, float _Complex, 1, 0),
+    "_Complex_I must be of type float _Complex");
 #endif
 
 #define	complex		_Complex
 #define	I		_Complex_I
 
-#include <sys/cdefs.h>
+#if __ISO_C_VISIBLE >= 2011
+#ifdef __clang__
+#define	CMPLX(x, y)	((double complex){ x, y })
+#define	CMPLXF(x, y)	((float complex){ x, y })
+#define	CMPLXL(x, y)	((long double complex){ x, y })
+#elif __GNUC_PREREQ__(4, 7)
+#define	CMPLX(x, y)	__builtin_complex((double)(x), (double)(y))
+#define	CMPLXF(x, y)	__builtin_complex((float)(x), (float)(y))
+#define	CMPLXL(x, y)	__builtin_complex((long double)(x), (long double)(y))
+#endif
+#endif /* __ISO_C_VISIBLE >= 2011 */
 
 __BEGIN_DECLS
 
 double		cabs(double complex);
 float		cabsf(float complex);
 long double	cabsl(long double complex);
+double complex	cacos(double complex);
+float complex	cacosf(float complex);
+double complex	cacosh(double complex);
+float complex	cacoshf(float complex);
 double		carg(double complex);
 float		cargf(float complex);
 long double	cargl(long double complex);
+double complex	casin(double complex);
+float complex	casinf(float complex);
+double complex	casinh(double complex);
+float complex	casinhf(float complex);
+double complex	catan(double complex);
+float complex	catanf(float complex);
+double complex	catanh(double complex);
+float complex	catanhf(float complex);
+double complex	ccos(double complex);
+float complex	ccosf(float complex);
+double complex	ccosh(double complex);
+float complex	ccoshf(float complex);
+double complex	cexp(double complex);
+float complex	cexpf(float complex);
 double		cimag(double complex) __pure2;
 float		cimagf(float complex) __pure2;
 long double	cimagl(long double complex) __pure2;
@@ -63,10 +98,18 @@ long double complex
 double		creal(double complex) __pure2;
 float		crealf(float complex) __pure2;
 long double	creall(long double complex) __pure2;
+double complex	csin(double complex);
+float complex	csinf(float complex);
+double complex	csinh(double complex);
+float complex	csinhf(float complex);
 double complex	csqrt(double complex);
 float complex	csqrtf(float complex);
 long double complex
 		csqrtl(long double complex);
+double complex	ctan(double complex);
+float complex	ctanf(float complex);
+double complex	ctanh(double complex);
+float complex	ctanhf(float complex);
 
 __END_DECLS
 

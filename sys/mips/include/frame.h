@@ -37,6 +37,8 @@
 #ifndef _MACHINE_FRAME_H_
 #define	_MACHINE_FRAME_H_
 
+/* Note: This must also match regnum.h and regdef.h */
+
 struct trapframe {
 	register_t	zero;
 	register_t	ast;
@@ -46,6 +48,16 @@ struct trapframe {
 	register_t	a1;
 	register_t	a2;
 	register_t	a3;
+#if defined(__mips_n32) || defined(__mips_n64)
+	register_t	a4;
+	register_t	a5;
+	register_t	a6;
+	register_t	a7;
+	register_t	t0;
+	register_t	t1;
+	register_t	t2;
+	register_t	t3;
+#else
 	register_t	t0;
 	register_t	t1;
 	register_t	t2;
@@ -54,6 +66,7 @@ struct trapframe {
 	register_t	t5;
 	register_t	t6;
 	register_t	t7;
+#endif
 	register_t	s0;
 	register_t	s1;
 	register_t	s2;
@@ -122,17 +135,6 @@ struct trapframe {
 	f_register_t	f31;
 	register_t	fsr;
         register_t   fdummy;
-	/*
-	 * COP2 registers may need to be saved here based on the CPU, and those
-	 * might need to be per process, or even for the kernel, so we need
-	 * some thought here.
-	 */
 };
-
-/* REVISIT */
-struct	frame *get_current_fp(void);
-#define	get_next_fp(fp)		(0)
-#define	get_return_ptr(fp)	(0)
-void	get_stack_trace(u_int32_t depth, u_int32_t *trace);
 
 #endif	/* !_MACHINE_FRAME_H_ */

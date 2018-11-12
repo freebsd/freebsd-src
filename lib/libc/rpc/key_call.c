@@ -1,30 +1,29 @@
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice, 
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, 
+ *   this list of conditions and the following disclaimer in the documentation 
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its 
+ *   contributors may be used to endorse or promote products derived 
+ *   from this software without specific prior written permission.
  * 
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- * 
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- * 
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- * 
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
@@ -82,15 +81,14 @@ __FBSDID("$FreeBSD$");
  * implementations of these functions, and to call those in key_call().
  */
 
-cryptkeyres *(*__key_encryptsession_pk_LOCAL)() = 0;
-cryptkeyres *(*__key_decryptsession_pk_LOCAL)() = 0;
-des_block *(*__key_gendes_LOCAL)() = 0;
+cryptkeyres *(*__key_encryptsession_pk_LOCAL)(uid_t, void *arg) = 0;
+cryptkeyres *(*__key_decryptsession_pk_LOCAL)(uid_t, void *arg) = 0;
+des_block *(*__key_gendes_LOCAL)(uid_t, void *) = 0;
 
 static int key_call( u_long, xdrproc_t, void *, xdrproc_t, void *);
 
 int
-key_setsecret(secretkey)
-	const char *secretkey;
+key_setsecret(const char *secretkey)
 {
 	keystatus status;
 
@@ -132,10 +130,7 @@ key_secretkey_is_set(void)
 }
 
 int
-key_encryptsession_pk(remotename, remotekey, deskey)
-	char *remotename;
-	netobj *remotekey;
-	des_block *deskey;
+key_encryptsession_pk(char *remotename, netobj *remotekey, des_block *deskey)
 {
 	cryptkeyarg2 arg;
 	cryptkeyres res;
@@ -156,10 +151,7 @@ key_encryptsession_pk(remotename, remotekey, deskey)
 }
 
 int
-key_decryptsession_pk(remotename, remotekey, deskey)
-	char *remotename;
-	netobj *remotekey;
-	des_block *deskey;
+key_decryptsession_pk(char *remotename, netobj *remotekey, des_block *deskey)
 {
 	cryptkeyarg2 arg;
 	cryptkeyres res;
@@ -180,9 +172,7 @@ key_decryptsession_pk(remotename, remotekey, deskey)
 }
 
 int
-key_encryptsession(remotename, deskey)
-	const char *remotename;
-	des_block *deskey;
+key_encryptsession(const char *remotename, des_block *deskey)
 {
 	cryptkeyarg arg;
 	cryptkeyres res;
@@ -202,9 +192,7 @@ key_encryptsession(remotename, deskey)
 }
 
 int
-key_decryptsession(remotename, deskey)
-	const char *remotename;
-	des_block *deskey;
+key_decryptsession(const char *remotename, des_block *deskey)
 {
 	cryptkeyarg arg;
 	cryptkeyres res;
@@ -224,8 +212,7 @@ key_decryptsession(remotename, deskey)
 }
 
 int
-key_gendes(key)
-	des_block *key;
+key_gendes(des_block *key)
 {
 	if (!key_call((u_long)KEY_GEN, (xdrproc_t)xdr_void, NULL,
 			(xdrproc_t)xdr_des_block, key)) {
@@ -235,8 +222,7 @@ key_gendes(key)
 }
 
 int
-key_setnet(arg)
-struct key_netstarg *arg;
+key_setnet(struct key_netstarg *arg)
 {
 	keystatus status;
 
@@ -255,9 +241,7 @@ struct key_netstarg *arg;
 
 
 int
-key_get_conv(pkey, deskey)
-	char *pkey;
-	des_block *deskey;
+key_get_conv(char *pkey, des_block *deskey)
 {
 	cryptkeyres res;
 
@@ -279,6 +263,9 @@ struct  key_call_private {
 	uid_t	uid;		/* user-id at last authorization */
 };
 static struct key_call_private *key_call_private_main = NULL;
+static thread_key_t key_call_key;
+static once_t key_call_once = ONCE_INITIALIZER;
+static int key_call_key_error;
 
 static void
 key_call_destroy(void *vp)
@@ -292,22 +279,27 @@ key_call_destroy(void *vp)
 	}
 }
 
+static void
+key_call_init(void)
+{
+
+	key_call_key_error = thr_keycreate(&key_call_key, key_call_destroy);
+}
+
 /*
  * Keep the handle cached.  This call may be made quite often.
  */
 static CLIENT *
-getkeyserv_handle(vers)
-int	vers;
+getkeyserv_handle(int vers)
 {
 	void *localhandle;
 	struct netconfig *nconf;
 	struct netconfig *tpconf;
-	struct key_call_private *kcp = key_call_private_main;
+	struct key_call_private *kcp;
 	struct timeval wait_time;
 	struct utsname u;
 	int main_thread;
 	int fd;
-	static thread_key_t key_call_key;
 
 #define	TOTAL_TIMEOUT	30	/* total timeout talking to keyserver */
 #define	TOTAL_TRIES	5	/* Number of tries */
@@ -315,12 +307,9 @@ int	vers;
 	if ((main_thread = thr_main())) {
 		kcp = key_call_private_main;
 	} else {
-		if (key_call_key == 0) {
-			mutex_lock(&tsd_lock);
-			if (key_call_key == 0)
-				thr_keycreate(&key_call_key, key_call_destroy);
-			mutex_unlock(&tsd_lock);
-		}
+		if (thr_once(&key_call_once, key_call_init) != 0 ||
+		    key_call_key_error != 0)
+			return ((CLIENT *) NULL);
 		kcp = (struct key_call_private *)thr_getspecific(key_call_key);
 	}	
 	if (kcp == (struct key_call_private *)NULL) {
@@ -424,12 +413,8 @@ int	vers;
 /* returns  0 on failure, 1 on success */
 
 static int
-key_call(proc, xdr_arg, arg, xdr_rslt, rslt)
-	u_long proc;
-	xdrproc_t xdr_arg;
-	void *arg;
-	xdrproc_t xdr_rslt;
-	void *rslt;
+key_call(u_long proc, xdrproc_t xdr_arg, void *arg, xdrproc_t xdr_rslt,
+    void *rslt)
 {
 	CLIENT *clnt;
 	struct timeval wait_time;

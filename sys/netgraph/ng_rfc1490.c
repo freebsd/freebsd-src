@@ -165,9 +165,7 @@ ng_rfc1490_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate private structure */
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	/* Initialize to default encapsulation method - ietf-ip */
 	priv->enc = ng_rfc1490_encaps;
@@ -387,7 +385,7 @@ switch_on_etype:		etype = ntohs(*((const u_int16_t *)ptr));
 			break;
 		}
 	} else if (hook == priv->ppp) {
-		M_PREPEND(m, 2, M_DONTWAIT);	/* Prepend PPP NLPID */
+		M_PREPEND(m, 2, M_NOWAIT);	/* Prepend PPP NLPID */
 		if (!m)
 			ERROUT(ENOBUFS);
 		mtod(m, u_char *)[0] = HDLC_UI;
@@ -396,7 +394,7 @@ switch_on_etype:		etype = ntohs(*((const u_int16_t *)ptr));
 	} else if (hook == priv->inet) {
 		switch (priv->enc->method) {
 		case NG_RFC1490_ENCAP_IETF_IP:
-			M_PREPEND(m, 2, M_DONTWAIT);	/* Prepend IP NLPID */
+			M_PREPEND(m, 2, M_NOWAIT);	/* Prepend IP NLPID */
 			if (!m)
 				ERROUT(ENOBUFS);
 			mtod(m, u_char *)[0] = HDLC_UI;
@@ -408,7 +406,7 @@ switch_on_etype:		etype = ntohs(*((const u_int16_t *)ptr));
 			 *  HDLC_UI  PAD  NLIPID  OUI      PID
 			 *  03      00   80      00 00 00  08 00
 			 */
-			M_PREPEND(m, 8, M_DONTWAIT);
+			M_PREPEND(m, 8, M_NOWAIT);
 			if (!m)
 				ERROUT(ENOBUFS);
 			mtod(m, u_char *)[0] = HDLC_UI;
@@ -419,7 +417,7 @@ switch_on_etype:		etype = ntohs(*((const u_int16_t *)ptr));
 			    = htons(ETHERTYPE_IP);  /* PID */
 			break;
 		case NG_RFC1490_ENCAP_CISCO:
-			M_PREPEND(m, 2, M_DONTWAIT);	/* Prepend IP ethertype */
+			M_PREPEND(m, 2, M_NOWAIT);	/* Prepend IP ethertype */
 			if (!m)
 				ERROUT(ENOBUFS);
 			*((u_int16_t *)mtod(m, u_int16_t *)) = htons(ETHERTYPE_IP);
@@ -427,7 +425,7 @@ switch_on_etype:		etype = ntohs(*((const u_int16_t *)ptr));
 		}
 		NG_FWD_NEW_DATA(error, item, priv->downlink, m);
 	} else if (hook == priv->ethernet) {
-		M_PREPEND(m, 8, M_DONTWAIT);	/* Prepend NLPID, OUI, PID */
+		M_PREPEND(m, 8, M_NOWAIT);	/* Prepend NLPID, OUI, PID */
 		if (!m)
 			ERROUT(ENOBUFS);
 		mtod(m, u_char *)[0] = HDLC_UI;
@@ -440,7 +438,7 @@ switch_on_etype:		etype = ntohs(*((const u_int16_t *)ptr));
 		mtod(m, u_char *)[7] = 0x07;
 		NG_FWD_NEW_DATA(error, item, priv->downlink, m);
 	} else
-		panic(__func__);
+		panic("%s", __func__);
 
 done:
 	if (item)
@@ -485,7 +483,7 @@ ng_rfc1490_disconnect(hook_p hook)
 	else if (hook == priv->ethernet)
 		priv->ethernet = NULL;
 	else
-		panic(__func__);
+		panic("%s", __func__);
 	return (0);
 }
 

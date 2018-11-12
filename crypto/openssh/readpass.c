@@ -1,4 +1,4 @@
-/* $OpenBSD: readpass.c,v 1.47 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: readpass.c,v 1.51 2015/12/11 00:20:04 mmcc Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -33,6 +33,7 @@
 #ifdef HAVE_PATHS_H
 # include <paths.h>
 #endif
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,11 +50,12 @@
 static char *
 ssh_askpass(char *askpass, const char *msg)
 {
-	pid_t pid;
+	pid_t pid, ret;
 	size_t len;
 	char *pass;
-	int p[2], status, ret;
+	int p[2], status;
 	char buf[1024];
+	void (*osigchld)(int);
 
 	if (fflush(stdout) != 0)
 		error("ssh_askpass: fflush: %s", strerror(errno));
@@ -63,8 +65,10 @@ ssh_askpass(char *askpass, const char *msg)
 		error("ssh_askpass: pipe: %s", strerror(errno));
 		return NULL;
 	}
+	osigchld = signal(SIGCHLD, SIG_DFL);
 	if ((pid = fork()) < 0) {
 		error("ssh_askpass: fork: %s", strerror(errno));
+		signal(SIGCHLD, osigchld);
 		return NULL;
 	}
 	if (pid == 0) {
@@ -72,35 +76,36 @@ ssh_askpass(char *askpass, const char *msg)
 		close(p[0]);
 		if (dup2(p[1], STDOUT_FILENO) < 0)
 			fatal("ssh_askpass: dup2: %s", strerror(errno));
-		execlp(askpass, askpass, msg, (char *) 0);
+		execlp(askpass, askpass, msg, (char *)NULL);
 		fatal("ssh_askpass: exec(%s): %s", askpass, strerror(errno));
 	}
 	close(p[1]);
 
-	len = ret = 0;
+	len = 0;
 	do {
-		ret = read(p[0], buf + len, sizeof(buf) - 1 - len);
-		if (ret == -1 && errno == EINTR)
+		ssize_t r = read(p[0], buf + len, sizeof(buf) - 1 - len);
+
+		if (r == -1 && errno == EINTR)
 			continue;
-		if (ret <= 0)
+		if (r <= 0)
 			break;
-		len += ret;
+		len += r;
 	} while (sizeof(buf) - 1 - len > 0);
 	buf[len] = '\0';
 
 	close(p[0]);
-	while (waitpid(pid, &status, 0) < 0)
+	while ((ret = waitpid(pid, &status, 0)) < 0)
 		if (errno != EINTR)
 			break;
-
-	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-		memset(buf, 0, sizeof(buf));
+	signal(SIGCHLD, osigchld);
+	if (ret == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+		explicit_bzero(buf, sizeof(buf));
 		return NULL;
 	}
 
 	buf[strcspn(buf, "\r\n")] = '\0';
 	pass = xstrdup(buf);
-	memset(buf, 0, sizeof(buf));
+	explicit_bzero(buf, sizeof(buf));
 	return pass;
 }
 
@@ -157,7 +162,7 @@ read_passphrase(const char *prompt, int flags)
 	}
 
 	ret = xstrdup(buf);
-	memset(buf, 'x', sizeof buf);
+	explicit_bzero(buf, sizeof(buf));
 	return ret;
 }
 
@@ -181,7 +186,7 @@ ask_permission(const char *fmt, ...)
 		if (*p == '\0' || *p == '\n' ||
 		    strcasecmp(p, "yes") == 0)
 			allowed = 1;
-		xfree(p);
+		free(p);
 	}
 
 	return (allowed);

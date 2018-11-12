@@ -1,6 +1,10 @@
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+ * Copyright (c) 2010-2011 Juniper Networks, Inc.
  * All rights reserved.
+ *
+ * Portions of this software were developed by Robert N. M. Watson under
+ * contract to Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -66,6 +70,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_pcbgroup.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -85,6 +91,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_llatbl.h>
 #include <net/if_types.h>
 #include <net/route.h>
 
@@ -101,9 +109,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #include <netinet6/scope6_var.h>
 
-#include <security/mac/mac_framework.h>
-
-struct	in6_addr zeroin6_addr;
+static struct inpcb *in6_pcblookup_hash_locked(struct inpcbinfo *,
+    struct in6_addr *, u_int, struct in6_addr *, u_int, int, struct ifnet *);
 
 int
 in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
@@ -113,17 +120,18 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)NULL;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	u_short	lport = 0;
-	int error, wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
+	int error, lookupflags = 0;
+	int reuseport = (so->so_options & SO_REUSEPORT);
 
-	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
 	if (TAILQ_EMPTY(&V_in6_ifaddrhead))	/* XXX broken! */
 		return (EADDRNOTAVAIL);
 	if (inp->inp_lport || !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		return (EINVAL);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
-		wild = INPLOOKUP_WILDCARD;
+		lookupflags = INPLOOKUP_WILDCARD;
 	if (nam == NULL) {
 		if ((error = prison_local_ip6(cred, &inp->in6p_laddr,
 		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
@@ -154,7 +162,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			 * and a multicast address is bound on both
 			 * new and duplicated sockets.
 			 */
-			if (so->so_options & SO_REUSEADDR)
+			if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) != 0)
 				reuseport = SO_REUSEADDR|SO_REUSEPORT;
 		} else if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 			struct ifaddr *ifa;
@@ -183,6 +191,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 		}
 		if (lport) {
 			struct inpcb *t;
+			struct tcptw *tw;
 
 			/* GROSS */
 			if (ntohs(lport) <= V_ipport_reservedhigh &&
@@ -197,15 +206,27 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 				    &sin6->sin6_addr, lport,
 				    INPLOOKUP_WILDCARD, cred);
 				if (t &&
+				    ((inp->inp_flags2 & INP_BINDMULTI) == 0) &&
 				    ((t->inp_flags & INP_TIMEWAIT) == 0) &&
 				    (so->so_type != SOCK_STREAM ||
 				     IN6_IS_ADDR_UNSPECIFIED(&t->in6p_faddr)) &&
 				    (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
 				     !IN6_IS_ADDR_UNSPECIFIED(&t->in6p_laddr) ||
-				     (t->inp_socket->so_options & SO_REUSEPORT)
-				      == 0) && (inp->inp_cred->cr_uid !=
+				     (t->inp_flags2 & INP_REUSEPORT) == 0) &&
+				    (inp->inp_cred->cr_uid !=
 				     t->inp_cred->cr_uid))
 					return (EADDRINUSE);
+
+				/*
+				 * If the socket is a BINDMULTI socket, then
+				 * the credentials need to match and the
+				 * original socket also has to have been bound
+				 * with BINDMULTI.
+				 */
+				if (t && (! in_pcbbind_check_bindmulti(inp, t)))
+					return (EADDRINUSE);
+
+#ifdef INET
 				if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0 &&
 				    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 					struct sockaddr_in sin;
@@ -215,6 +236,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 					    sin.sin_addr, lport,
 					    INPLOOKUP_WILDCARD, cred);
 					if (t &&
+					    ((inp->inp_flags2 & INP_BINDMULTI) == 0) &&
 					    ((t->inp_flags &
 					      INP_TIMEWAIT) == 0) &&
 					    (so->so_type != SOCK_STREAM ||
@@ -223,43 +245,62 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 					    (inp->inp_cred->cr_uid !=
 					     t->inp_cred->cr_uid))
 						return (EADDRINUSE);
+
+					if (t && (! in_pcbbind_check_bindmulti(inp, t)))
+						return (EADDRINUSE);
 				}
+#endif
 			}
 			t = in6_pcblookup_local(pcbinfo, &sin6->sin6_addr,
-			    lport, wild, cred);
-			if (t && (reuseport & ((t->inp_flags & INP_TIMEWAIT) ?
-			    intotw(t)->tw_so_options :
-			    t->inp_socket->so_options)) == 0)
+			    lport, lookupflags, cred);
+			if (t && (t->inp_flags & INP_TIMEWAIT)) {
+				/*
+				 * XXXRW: If an incpb has had its timewait
+				 * state recycled, we treat the address as
+				 * being in use (for now).  This is better
+				 * than a panic, but not desirable.
+				 */
+				tw = intotw(t);
+				if (tw == NULL ||
+				    (reuseport & tw->tw_so_options) == 0)
+					return (EADDRINUSE);
+			} else if (t && (reuseport & inp_so_options(t)) == 0) {
 				return (EADDRINUSE);
+			}
+#ifdef INET
 			if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0 &&
 			    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 				struct sockaddr_in sin;
 
 				in6_sin6_2_sin(&sin, sin6);
 				t = in_pcblookup_local(pcbinfo, sin.sin_addr,
-				    lport, wild, cred);
+				    lport, lookupflags, cred);
 				if (t && t->inp_flags & INP_TIMEWAIT) {
-					if ((reuseport &
-					    intotw(t)->tw_so_options) == 0 &&
-					    (ntohl(t->inp_laddr.s_addr) !=
+					tw = intotw(t);
+					if (tw == NULL)
+						return (EADDRINUSE);
+					if ((reuseport & tw->tw_so_options) == 0
+					    && (ntohl(t->inp_laddr.s_addr) !=
 					     INADDR_ANY || ((inp->inp_vflag &
 					     INP_IPV6PROTO) ==
 					     (t->inp_vflag & INP_IPV6PROTO))))
 						return (EADDRINUSE);
-				}
-				else if (t &&
-				    (reuseport & t->inp_socket->so_options)
-				    == 0 && (ntohl(t->inp_laddr.s_addr) !=
-				    INADDR_ANY || INP_SOCKAF(so) ==
-				     INP_SOCKAF(t->inp_socket)))
+				} else if (t &&
+				    (reuseport & inp_so_options(t)) == 0 &&
+				    (ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
+				    (t->inp_vflag & INP_IPV6PROTO) != 0))
 					return (EADDRINUSE);
 			}
+#endif
 		}
 		inp->in6p_laddr = sin6->sin6_addr;
 	}
 	if (lport == 0) {
-		if ((error = in6_pcbsetport(&inp->in6p_laddr, inp, cred)) != 0)
+		if ((error = in6_pcbsetport(&inp->in6p_laddr, inp, cred)) != 0) {
+			/* Undo an address bind that may have occurred. */
+			inp->in6p_laddr = in6addr_any;
 			return (error);
+		}
 	} else {
 		inp->inp_lport = lport;
 		if (in_pcbinshash(inp) != 0) {
@@ -282,18 +323,17 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
  *   a bit of a kludge, but cleaning up the internal interfaces would
  *   have forced minor changes in every protocol).
  */
-int
+static int
 in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
     struct in6_addr *plocal_addr6)
 {
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	int error = 0;
-	struct ifnet *ifp = NULL;
 	int scope_ambiguous = 0;
 	struct in6_addr in6a;
 
-	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);	/* XXXRW: why? */
 
 	if (nam->sa_len != sizeof (*sin6))
 		return (EINVAL);
@@ -318,21 +358,16 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 	if ((error = prison_remote_ip6(inp->inp_cred, &sin6->sin6_addr)) != 0)
 		return (error);
 
-	error = in6_selectsrc(sin6, inp->in6p_outputopts,
-	    inp, NULL, inp->inp_cred, &ifp, &in6a);
+	error = in6_selectsrc_socket(sin6, inp->in6p_outputopts,
+	    inp, inp->inp_cred, scope_ambiguous, &in6a, NULL);
 	if (error)
 		return (error);
-
-	if (ifp && scope_ambiguous &&
-	    (error = in6_setscope(&sin6->sin6_addr, ifp, NULL)) != 0) {
-		return(error);
-	}
 
 	/*
 	 * Do not update this earlier, in case we return with an error.
 	 *
-	 * XXX: this in6_selectsrc result might replace the bound local
-	 * aaddress with the address specified by setsockopt(IPV6_PKTINFO).
+	 * XXX: this in6_selectsrc_socket result might replace the bound local
+	 * address with the address specified by setsockopt(IPV6_PKTINFO).
 	 * Is it the intended behavior?
 	 */
 	*plocal_addr6 = in6a;
@@ -354,15 +389,16 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
  * then pick one.
  */
 int
-in6_pcbconnect(register struct inpcb *inp, struct sockaddr *nam,
-    struct ucred *cred)
+in6_pcbconnect_mbuf(register struct inpcb *inp, struct sockaddr *nam,
+    struct ucred *cred, struct mbuf *m)
 {
+	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	struct in6_addr addr6;
 	int error;
 
-	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
 	/*
 	 * Call inner routine, to assign local interface address.
@@ -371,7 +407,7 @@ in6_pcbconnect(register struct inpcb *inp, struct sockaddr *nam,
 	if ((error = in6_pcbladdr(inp, nam, &addr6)) != 0)
 		return (error);
 
-	if (in6_pcblookup_hash(inp->inp_pcbinfo, &sin6->sin6_addr,
+	if (in6_pcblookup_hash_locked(pcbinfo, &sin6->sin6_addr,
 			       sin6->sin6_port,
 			      IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)
 			      ? &addr6 : &inp->in6p_laddr,
@@ -394,17 +430,24 @@ in6_pcbconnect(register struct inpcb *inp, struct sockaddr *nam,
 		inp->inp_flow |=
 		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
 
-	in_pcbrehash(inp);
+	in_pcbrehash_mbuf(inp, m);
 
 	return (0);
+}
+
+int
+in6_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
+{
+
+	return (in6_pcbconnect_mbuf(inp, nam, cred, NULL));
 }
 
 void
 in6_pcbdisconnect(struct inpcb *inp)
 {
 
-	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 
 	bzero((caddr_t)&inp->in6p_faddr, sizeof(inp->in6p_faddr));
 	inp->inp_fport = 0;
@@ -495,11 +538,14 @@ in6_mapped_sockaddr(struct socket *so, struct sockaddr **nam)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in6_mapped_sockaddr: inp == NULL"));
 
+#ifdef INET
 	if ((inp->inp_vflag & (INP_IPV4 | INP_IPV6)) == INP_IPV4) {
 		error = in_getsockaddr(so, nam);
 		if (error == 0)
 			in6_sin_2_v4mapsin6_in_sock(nam);
-	} else {
+	} else
+#endif
+	{
 		/* scope issues will be handled in in6_getsockaddr(). */
 		error = in6_getsockaddr(so, nam);
 	}
@@ -516,11 +562,13 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("in6_mapped_peeraddr: inp == NULL"));
 
+#ifdef INET
 	if ((inp->inp_vflag & (INP_IPV4 | INP_IPV6)) == INP_IPV4) {
 		error = in_getpeeraddr(so, nam);
 		if (error == 0)
 			in6_sin_2_v4mapsin6_in_sock(nam);
 	} else
+#endif
 	/* scope issues will be handled in in6_getpeeraddr(). */
 	error = in6_getpeeraddr(so, nam);
 
@@ -589,18 +637,12 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 		/*
 		 * If the error designates a new path MTU for a destination
 		 * and the application (associated with this socket) wanted to
-		 * know the value, notify. Note that we notify for all
-		 * disconnected sockets if the corresponding application
-		 * wanted. This is because some UDP applications keep sending
-		 * sockets disconnected.
+		 * know the value, notify.
 		 * XXX: should we avoid to notify the value to TCP sockets?
 		 */
-		if (cmd == PRC_MSGSIZE && (inp->inp_flags & IN6P_MTU) != 0 &&
-		    (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) ||
-		     IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, &sa6_dst->sin6_addr))) {
+		if (cmd == PRC_MSGSIZE && cmdarg != NULL)
 			ip6_notify_pmtu(inp, (struct sockaddr_in6 *)dst,
-					(u_int32_t *)cmdarg);
-		}
+					*(u_int32_t *)cmdarg);
 
 		/*
 		 * Detect if we should notify the error. If no source and
@@ -638,25 +680,30 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 }
 
 /*
- * Lookup a PCB based on the local address and port.
+ * Lookup a PCB based on the local address and port.  Caller must hold the
+ * hash lock.  No inpcb locks or references are acquired.
  */
 struct inpcb *
 in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
-    u_short lport, int wild_okay, struct ucred *cred)
+    u_short lport, int lookupflags, struct ucred *cred)
 {
 	register struct inpcb *inp;
 	int matchwild = 3, wildcard;
 
-	INP_INFO_WLOCK_ASSERT(pcbinfo);
+	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,
+	    ("%s: invalid lookup flags %d", __func__, lookupflags));
 
-	if (!wild_okay) {
+	INP_HASH_WLOCK_ASSERT(pcbinfo);
+
+	if ((lookupflags & INPLOOKUP_WILDCARD) == 0) {
 		struct inpcbhead *head;
 		/*
 		 * Look for an unconnected (wildcard foreign addr) PCB that
 		 * matches the local address and port we're looking for.
 		 */
-		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(INADDR_ANY, lport,
-		    0, pcbinfo->ipi_hashmask)];
+		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(
+		    INP6_PCBHASHKEY(&in6addr_any), lport, 0,
+		    pcbinfo->ipi_hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
 			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV6) == 0)
@@ -737,7 +784,7 @@ in6_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 	struct ip6_moptions *im6o;
 	int i, gap;
 
-	INP_INFO_RLOCK(pcbinfo);
+	INP_INFO_WLOCK(pcbinfo);
 	LIST_FOREACH(in6p, pcbinfo->ipi_listhead, inp_list) {
 		INP_WLOCK(in6p);
 		im6o = in6p->in6p_moptions;
@@ -768,7 +815,7 @@ in6_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 		}
 		INP_WUNLOCK(in6p);
 	}
-	INP_INFO_RUNLOCK(pcbinfo);
+	INP_INFO_WUNLOCK(pcbinfo);
 }
 
 /*
@@ -781,9 +828,12 @@ void
 in6_losing(struct inpcb *in6p)
 {
 
-	/*
-	 * We don't store route pointers in the routing table anymore
-	 */
+	if (in6p->inp_route6.ro_rt) {
+		RTFREE(in6p->inp_route6.ro_rt);
+		in6p->inp_route6.ro_rt = (struct rtentry *)NULL;
+	}
+	if (in6p->inp_route.ro_lle)
+		LLE_FREE(in6p->inp_route.ro_lle);	/* zeros ro_lle */
 	return;
 }
 
@@ -794,39 +844,225 @@ in6_losing(struct inpcb *in6p)
 struct inpcb *
 in6_rtchange(struct inpcb *inp, int errno)
 {
-	/*
-	 * We don't store route pointers in the routing table anymore
-	 */
+
+	if (inp->inp_route6.ro_rt) {
+		RTFREE(inp->inp_route6.ro_rt);
+		inp->inp_route6.ro_rt = (struct rtentry *)NULL;
+	}
+	if (inp->inp_route.ro_lle)
+		LLE_FREE(inp->inp_route.ro_lle);	/* zeros ro_lle */
 	return inp;
 }
 
+#ifdef PCBGROUP
 /*
- * Lookup PCB in hash list.
+ * Lookup PCB in hash list, using pcbgroup tables.
  */
-struct inpcb *
-in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
-    u_int fport_arg, struct in6_addr *laddr, u_int lport_arg, int wildcard,
-    struct ifnet *ifp)
+static struct inpcb *
+in6_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
+    struct in6_addr *faddr, u_int fport_arg, struct in6_addr *laddr,
+    u_int lport_arg, int lookupflags, struct ifnet *ifp)
 {
 	struct inpcbhead *head;
 	struct inpcb *inp, *tmpinp;
 	u_short fport = fport_arg, lport = lport_arg;
-	int faith;
-
-	INP_INFO_LOCK_ASSERT(pcbinfo);
-
-	if (faithprefix_p != NULL)
-		faith = (*faithprefix_p)(laddr);
-	else
-		faith = 0;
 
 	/*
 	 * First look for an exact match.
 	 */
 	tmpinp = NULL;
-	head = &pcbinfo->ipi_hashbase[
-	    INP_PCBHASH(faddr->s6_addr32[3] /* XXX */, lport, fport,
-	    pcbinfo->ipi_hashmask)];
+	INP_GROUP_LOCK(pcbgroup);
+	head = &pcbgroup->ipg_hashbase[INP_PCBHASH(
+	    INP6_PCBHASHKEY(faddr), lport, fport, pcbgroup->ipg_hashmask)];
+	LIST_FOREACH(inp, head, inp_pcbgrouphash) {
+		/* XXX inp locking */
+		if ((inp->inp_vflag & INP_IPV6) == 0)
+			continue;
+		if (IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, faddr) &&
+		    IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr) &&
+		    inp->inp_fport == fport &&
+		    inp->inp_lport == lport) {
+			/*
+			 * XXX We should be able to directly return
+			 * the inp here, without any checks.
+			 * Well unless both bound with SO_REUSEPORT?
+			 */
+			if (prison_flag(inp->inp_cred, PR_IP6))
+				goto found;
+			if (tmpinp == NULL)
+				tmpinp = inp;
+		}
+	}
+	if (tmpinp != NULL) {
+		inp = tmpinp;
+		goto found;
+	}
+
+	/*
+	 * Then look for a wildcard match in the pcbgroup.
+	 */
+	if ((lookupflags & INPLOOKUP_WILDCARD) != 0) {
+		struct inpcb *local_wild = NULL, *local_exact = NULL;
+		struct inpcb *jail_wild = NULL;
+		int injail;
+
+		/*
+		 * Order of socket selection - we always prefer jails.
+		 *      1. jailed, non-wild.
+		 *      2. jailed, wild.
+		 *      3. non-jailed, non-wild.
+		 *      4. non-jailed, wild.
+		 */
+		head = &pcbgroup->ipg_hashbase[
+		    INP_PCBHASH(INADDR_ANY, lport, 0, pcbgroup->ipg_hashmask)];
+		LIST_FOREACH(inp, head, inp_pcbgrouphash) {
+			/* XXX inp locking */
+			if ((inp->inp_vflag & INP_IPV6) == 0)
+				continue;
+
+			if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) ||
+			    inp->inp_lport != lport) {
+				continue;
+			}
+
+			injail = prison_flag(inp->inp_cred, PR_IP6);
+			if (injail) {
+				if (prison_check_ip6(inp->inp_cred,
+				    laddr) != 0)
+					continue;
+			} else {
+				if (local_exact != NULL)
+					continue;
+			}
+
+			if (IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr)) {
+				if (injail)
+					goto found;
+				else
+					local_exact = inp;
+			} else if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
+				if (injail)
+					jail_wild = inp;
+				else
+					local_wild = inp;
+			}
+		} /* LIST_FOREACH */
+
+		inp = jail_wild;
+		if (inp == NULL)
+			inp = jail_wild;
+		if (inp == NULL)
+			inp = local_exact;
+		if (inp == NULL)
+			inp = local_wild;
+		if (inp != NULL)
+			goto found;
+	}
+
+	/*
+	 * Then look for a wildcard match, if requested.
+	 */
+	if ((lookupflags & INPLOOKUP_WILDCARD) != 0) {
+		struct inpcb *local_wild = NULL, *local_exact = NULL;
+		struct inpcb *jail_wild = NULL;
+		int injail;
+
+		/*
+		 * Order of socket selection - we always prefer jails.
+		 *      1. jailed, non-wild.
+		 *      2. jailed, wild.
+		 *      3. non-jailed, non-wild.
+		 *      4. non-jailed, wild.
+		 */
+		head = &pcbinfo->ipi_wildbase[INP_PCBHASH(
+		    INP6_PCBHASHKEY(&in6addr_any), lport, 0,
+		    pcbinfo->ipi_wildmask)];
+		LIST_FOREACH(inp, head, inp_pcbgroup_wild) {
+			/* XXX inp locking */
+			if ((inp->inp_vflag & INP_IPV6) == 0)
+				continue;
+
+			if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) ||
+			    inp->inp_lport != lport) {
+				continue;
+			}
+
+			injail = prison_flag(inp->inp_cred, PR_IP6);
+			if (injail) {
+				if (prison_check_ip6(inp->inp_cred,
+				    laddr) != 0)
+					continue;
+			} else {
+				if (local_exact != NULL)
+					continue;
+			}
+
+			if (IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr)) {
+				if (injail)
+					goto found;
+				else
+					local_exact = inp;
+			} else if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
+				if (injail)
+					jail_wild = inp;
+				else
+					local_wild = inp;
+			}
+		} /* LIST_FOREACH */
+
+		inp = jail_wild;
+		if (inp == NULL)
+			inp = jail_wild;
+		if (inp == NULL)
+			inp = local_exact;
+		if (inp == NULL)
+			inp = local_wild;
+		if (inp != NULL)
+			goto found;
+	} /* if ((lookupflags & INPLOOKUP_WILDCARD) != 0) */
+	INP_GROUP_UNLOCK(pcbgroup);
+	return (NULL);
+
+found:
+	in_pcbref(inp);
+	INP_GROUP_UNLOCK(pcbgroup);
+	if (lookupflags & INPLOOKUP_WLOCKPCB) {
+		INP_WLOCK(inp);
+		if (in_pcbrele_wlocked(inp))
+			return (NULL);
+	} else if (lookupflags & INPLOOKUP_RLOCKPCB) {
+		INP_RLOCK(inp);
+		if (in_pcbrele_rlocked(inp))
+			return (NULL);
+	} else
+		panic("%s: locking buf", __func__);
+	return (inp);
+}
+#endif /* PCBGROUP */
+
+/*
+ * Lookup PCB in hash list.
+ */
+static struct inpcb *
+in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
+    u_int fport_arg, struct in6_addr *laddr, u_int lport_arg,
+    int lookupflags, struct ifnet *ifp)
+{
+	struct inpcbhead *head;
+	struct inpcb *inp, *tmpinp;
+	u_short fport = fport_arg, lport = lport_arg;
+
+	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,
+	    ("%s: invalid lookup flags %d", __func__, lookupflags));
+
+	INP_HASH_LOCK_ASSERT(pcbinfo);
+
+	/*
+	 * First look for an exact match.
+	 */
+	tmpinp = NULL;
+	head = &pcbinfo->ipi_hashbase[INP_PCBHASH(
+	    INP6_PCBHASHKEY(faddr), lport, fport, pcbinfo->ipi_hashmask)];
 	LIST_FOREACH(inp, head, inp_hash) {
 		/* XXX inp locking */
 		if ((inp->inp_vflag & INP_IPV6) == 0)
@@ -852,7 +1088,7 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 	/*
 	 * Then look for a wildcard match, if requested.
 	 */
-	if (wildcard == INPLOOKUP_WILDCARD) {
+	if ((lookupflags & INPLOOKUP_WILDCARD) != 0) {
 		struct inpcb *local_wild = NULL, *local_exact = NULL;
 		struct inpcb *jail_wild = NULL;
 		int injail;
@@ -864,8 +1100,9 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 		 *      3. non-jailed, non-wild.
 		 *      4. non-jailed, wild.
 		 */
-		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(INADDR_ANY, lport,
-		    0, pcbinfo->ipi_hashmask)];
+		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(
+		    INP6_PCBHASHKEY(&in6addr_any), lport, 0,
+		    pcbinfo->ipi_hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
 			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV6) == 0)
@@ -875,10 +1112,6 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 			    inp->inp_lport != lport) {
 				continue;
 			}
-
-			/* XXX inp locking */
-			if (faith && (inp->inp_flags & INP_FAITH) == 0)
-				continue;
 
 			injail = prison_flag(inp->inp_cred, PR_IP6);
 			if (injail) {
@@ -909,12 +1142,128 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 			return (local_exact);
 		if (local_wild != NULL)
 			return (local_wild);
-	} /* if (wildcard == INPLOOKUP_WILDCARD) */
+	} /* if ((lookupflags & INPLOOKUP_WILDCARD) != 0) */
 
 	/*
 	 * Not found.
 	 */
 	return (NULL);
+}
+
+/*
+ * Lookup PCB in hash list, using pcbinfo tables.  This variation locks the
+ * hash list lock, and will return the inpcb locked (i.e., requires
+ * INPLOOKUP_LOCKPCB).
+ */
+static struct inpcb *
+in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
+    u_int fport, struct in6_addr *laddr, u_int lport, int lookupflags,
+    struct ifnet *ifp)
+{
+	struct inpcb *inp;
+
+	INP_HASH_RLOCK(pcbinfo);
+	inp = in6_pcblookup_hash_locked(pcbinfo, faddr, fport, laddr, lport,
+	    (lookupflags & ~(INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)), ifp);
+	if (inp != NULL) {
+		in_pcbref(inp);
+		INP_HASH_RUNLOCK(pcbinfo);
+		if (lookupflags & INPLOOKUP_WLOCKPCB) {
+			INP_WLOCK(inp);
+			if (in_pcbrele_wlocked(inp))
+				return (NULL);
+		} else if (lookupflags & INPLOOKUP_RLOCKPCB) {
+			INP_RLOCK(inp);
+			if (in_pcbrele_rlocked(inp))
+				return (NULL);
+		} else
+			panic("%s: locking bug", __func__);
+	} else
+		INP_HASH_RUNLOCK(pcbinfo);
+	return (inp);
+}
+
+/*
+ * Public inpcb lookup routines, accepting a 4-tuple, and optionally, an mbuf
+ * from which a pre-calculated hash value may be extracted.
+ *
+ * Possibly more of this logic should be in in6_pcbgroup.c.
+ */
+struct inpcb *
+in6_pcblookup(struct inpcbinfo *pcbinfo, struct in6_addr *faddr, u_int fport,
+    struct in6_addr *laddr, u_int lport, int lookupflags, struct ifnet *ifp)
+{
+#if defined(PCBGROUP) && !defined(RSS)
+	struct inpcbgroup *pcbgroup;
+#endif
+
+	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
+	    ("%s: invalid lookup flags %d", __func__, lookupflags));
+	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
+	    ("%s: LOCKPCB not set", __func__));
+
+	/*
+	 * When not using RSS, use connection groups in preference to the
+	 * reservation table when looking up 4-tuples.  When using RSS, just
+	 * use the reservation table, due to the cost of the Toeplitz hash
+	 * in software.
+	 *
+	 * XXXRW: This policy belongs in the pcbgroup code, as in principle
+	 * we could be doing RSS with a non-Toeplitz hash that is affordable
+	 * in software.
+	 */
+#if defined(PCBGROUP) && !defined(RSS)
+	if (in_pcbgroup_enabled(pcbinfo)) {
+		pcbgroup = in6_pcbgroup_bytuple(pcbinfo, laddr, lport, faddr,
+		    fport);
+		return (in6_pcblookup_group(pcbinfo, pcbgroup, faddr, fport,
+		    laddr, lport, lookupflags, ifp));
+	}
+#endif
+	return (in6_pcblookup_hash(pcbinfo, faddr, fport, laddr, lport,
+	    lookupflags, ifp));
+}
+
+struct inpcb *
+in6_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
+    u_int fport, struct in6_addr *laddr, u_int lport, int lookupflags,
+    struct ifnet *ifp, struct mbuf *m)
+{
+#ifdef PCBGROUP
+	struct inpcbgroup *pcbgroup;
+#endif
+
+	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
+	    ("%s: invalid lookup flags %d", __func__, lookupflags));
+	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
+	    ("%s: LOCKPCB not set", __func__));
+
+#ifdef PCBGROUP
+	/*
+	 * If we can use a hardware-generated hash to look up the connection
+	 * group, use that connection group to find the inpcb.  Otherwise
+	 * fall back on a software hash -- or the reservation table if we're
+	 * using RSS.
+	 *
+	 * XXXRW: As above, that policy belongs in the pcbgroup code.
+	 */
+	if (in_pcbgroup_enabled(pcbinfo) &&
+	    M_HASHTYPE_TEST(m, M_HASHTYPE_NONE) == 0) {
+		pcbgroup = in6_pcbgroup_byhash(pcbinfo, M_HASHTYPE_GET(m),
+		    m->m_pkthdr.flowid);
+		if (pcbgroup != NULL)
+			return (in6_pcblookup_group(pcbinfo, pcbgroup, faddr,
+			    fport, laddr, lport, lookupflags, ifp));
+#ifndef RSS
+		pcbgroup = in6_pcbgroup_bytuple(pcbinfo, laddr, lport, faddr,
+		    fport);
+		return (in6_pcblookup_group(pcbinfo, pcbgroup, faddr, fport,
+		    laddr, lport, lookupflags, ifp));
+#endif
+	}
+#endif
+	return (in6_pcblookup_hash(pcbinfo, faddr, fport, laddr, lport,
+	    lookupflags, ifp));
 }
 
 void

@@ -41,7 +41,7 @@ script()
 		self->exec = 1;
 	}
 
-	proc:::exec_success
+	proc:::exec-success
 	/self->exec/
 	{
 		exit(0);

@@ -15,7 +15,7 @@
 HFS_SIZE=1600 			#Size in 512-byte blocks of the produced image
 
 CHRPBOOT_SIZE=2k
-BOOT1_SIZE=30k
+BOOT1_SIZE=64k
 
 # Generate 800K HFS image
 OUTPUT_FILE=hfs.tmpl
@@ -29,7 +29,7 @@ hmkdir ppc
 hattrib -b ppc
 hcd ppc
 
-# Make two dummy files for the the CHRP boot script and boot1
+# Make two dummy files for the CHRP boot script and boot1
 echo 'Bootinfo START' | dd of=bootinfo.txt.tmp cbs=$CHRPBOOT_SIZE count=1 conv=block
 echo 'Boot1 START' | dd of=boot1.elf.tmp cbs=$BOOT1_SIZE count=1 conv=block
 

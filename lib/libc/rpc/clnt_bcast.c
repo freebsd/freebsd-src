@@ -1,32 +1,31 @@
 /*	$NetBSD: clnt_bcast.c,v 1.3 2000/07/06 03:05:20 christos Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice, 
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, 
+ *   this list of conditions and the following disclaimer in the documentation 
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its 
+ *   contributors may be used to endorse or promote products derived 
+ *   from this software without specific prior written permission.
  * 
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- * 
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- * 
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- * 
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
@@ -226,21 +225,26 @@ __rpc_broadenable(int af, int s, struct broadif *bip)
 	return 0;
 }
 
-
+/*
+ * rpc_broadcast_exp()
+ *
+ * prog      - program number
+ * vers      - version number
+ * proc      - procedure number
+ * xargs     - xdr routine for args
+ * argsp     - pointer to args
+ * xresults  - xdr routine for results
+ * resultsp  - pointer to results
+ * eachresult - call with each result obtained
+ * inittime  - how long to wait initially
+ * waittime  - maximum time to wait
+ * nettype   - transport type
+ */
 enum clnt_stat
-rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
-	eachresult, inittime, waittime, nettype)
-	rpcprog_t	prog;		/* program number */
-	rpcvers_t	vers;		/* version number */
-	rpcproc_t	proc;		/* procedure number */
-	xdrproc_t	xargs;		/* xdr routine for args */
-	caddr_t		argsp;		/* pointer to args */
-	xdrproc_t	xresults;	/* xdr routine for results */
-	caddr_t		resultsp;	/* pointer to results */
-	resultproc_t	eachresult;	/* call with each result obtained */
-	int 		inittime;	/* how long to wait initially */
-	int 		waittime;	/* maximum time to wait */
-	const char		*nettype;	/* transport type */
+rpc_broadcast_exp(rpcprog_t prog, rpcvers_t vers, rpcproc_t proc,
+    xdrproc_t xargs, caddr_t argsp, xdrproc_t xresults, caddr_t resultsp,
+    resultproc_t eachresult, int inittime, int waittime,
+    const char *nettype)
 {
 	enum clnt_stat	stat = RPC_SUCCESS; /* Return status */
 	XDR 		xdr_stream; /* XDR stream */
@@ -252,7 +256,7 @@ rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
 	int		inlen;
 	u_int 		maxbufsize = 0;
 	AUTH 		*sys_auth = authunix_create_default();
-	int		i;
+	u_int		i;
 	void		*handle;
 	char		uaddress[1024];	/* A self imposed limit */
 	char		*uaddrp = uaddress;
@@ -342,7 +346,8 @@ rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
 #ifdef PORTMAP
 		if (si.si_af == AF_INET && si.si_proto == IPPROTO_UDP) {
 			udpbufsz = fdlist[fdlistno].dsize;
-			if ((outbuf_pmap = malloc(udpbufsz)) == NULL) {
+			outbuf_pmap = reallocf(outbuf_pmap, udpbufsz);
+			if (outbuf_pmap == NULL) {
 				_close(fd);
 				stat = RPC_SYSTEMERROR;
 				goto done_broad;
@@ -465,7 +470,7 @@ rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
 						      "broadcast packet");
 						stat = RPC_CANTSEND;
 						continue;
-					};
+					}
 #ifdef RPC_DEBUG
 				if (!__rpc_lowvers)
 					fprintf(stderr, "Broadcast packet sent "
@@ -632,13 +637,10 @@ rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
 	}			/* The giant for loop */
 
 done_broad:
-	if (inbuf)
-		(void) free(inbuf);
-	if (outbuf)
-		(void) free(outbuf);
+	free(inbuf);
+	free(outbuf);
 #ifdef PORTMAP
-	if (outbuf_pmap)
-		(void) free(outbuf_pmap);
+	free(outbuf_pmap);
 #endif				/* PORTMAP */
 	for (i = 0; i < fdlistno; i++) {
 		(void)_close(fdlist[i].fd);
@@ -650,19 +652,23 @@ done_broad:
 	return (stat);
 }
 
-
+/*
+ * rpc_broadcast()
+ *
+ * prog       - program number 
+ * vers       - version number 
+ * proc       - procedure number 
+ * xargs      - xdr routine for args 
+ * argsp      - pointer to args 
+ * xresults   - xdr routine for results 
+ * resultsp   - pointer to results 
+ * eachresult - call with each result obtained 
+ * nettype    - transport type 
+ */
 enum clnt_stat
-rpc_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp,
-			eachresult, nettype)
-	rpcprog_t	prog;		/* program number */
-	rpcvers_t	vers;		/* version number */
-	rpcproc_t	proc;		/* procedure number */
-	xdrproc_t	xargs;		/* xdr routine for args */
-	caddr_t		argsp;		/* pointer to args */
-	xdrproc_t	xresults;	/* xdr routine for results */
-	caddr_t		resultsp;	/* pointer to results */
-	resultproc_t	eachresult;	/* call with each result obtained */
-	const char		*nettype;	/* transport type */
+rpc_broadcast(rpcprog_t prog, rpcvers_t vers, rpcproc_t proc, xdrproc_t xargs,
+    caddr_t argsp, xdrproc_t xresults, caddr_t resultsp,
+    resultproc_t eachresult, const char *nettype)
 {
 	enum clnt_stat	dummy;
 

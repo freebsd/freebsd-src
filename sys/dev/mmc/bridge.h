@@ -54,6 +54,8 @@
 #ifndef DEV_MMC_BRIDGE_H
 #define DEV_MMC_BRIDGE_H
 
+#include <sys/bus.h>
+
 /*
  * This file defines interfaces for the mmc bridge.  The names chosen
  * are similar to or the same as the names used in Linux to allow for
@@ -134,5 +136,8 @@ struct mmc_host {
 	enum mmc_card_mode mode;
 	struct mmc_ios ios;	/* Current state of the host */
 };
+
+extern driver_t   mmc_driver;
+extern devclass_t mmc_devclass;
 
 #endif /* DEV_MMC_BRIDGE_H */

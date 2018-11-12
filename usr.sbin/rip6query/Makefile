@@ -4,7 +4,6 @@
 PROG=	rip6query
 MAN=	rip6query.8
 
-WARNS?=	2
 CFLAGS+= -I${.CURDIR}/../route6d
 
 .include <bsd.prog.mk>

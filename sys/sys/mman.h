@@ -69,8 +69,8 @@
 #define	MAP_FIXED	 0x0010	/* map addr must be exactly as requested */
 
 #if __BSD_VISIBLE
-#define	MAP_RENAME	 0x0020	/* Sun: rename private pages to file */
-#define	MAP_NORESERVE	 0x0040	/* Sun: don't reserve needed swap area */
+#define	MAP_RESERVED0020 0x0020	/* previously unimplemented MAP_RENAME */
+#define	MAP_RESERVED0040 0x0040	/* previously unimplemented MAP_NORESERVE */
 #define	MAP_RESERVED0080 0x0080	/* previously misimplemented MAP_INHERIT */
 #define	MAP_RESERVED0100 0x0100	/* previously unimplemented MAP_NOEXTEND */
 #define	MAP_HASSEMAPHORE 0x0200	/* region may contain semaphores */
@@ -82,11 +82,30 @@
  */
 #define	MAP_FILE	 0x0000	/* map from file (default) */
 #define	MAP_ANON	 0x1000	/* allocated from memory, swap space */
+#ifndef _KERNEL
+#define	MAP_ANONYMOUS	 MAP_ANON /* For compatibility. */
+#endif /* !_KERNEL */
 
 /*
  * Extended flags
  */
+#define	MAP_EXCL	 0x00004000 /* for MAP_FIXED, fail if address is used */
 #define	MAP_NOCORE	 0x00020000 /* dont include these pages in a coredump */
+#define	MAP_PREFAULT_READ 0x00040000 /* prefault mapping for reading */
+#ifdef __LP64__
+#define	MAP_32BIT	 0x00080000 /* map in the low 2GB of address space */
+#endif
+
+/*
+ * Request specific alignment (n == log2 of the desired alignment).
+ *
+ * MAP_ALIGNED_SUPER requests optimal superpage alignment, but does
+ * not enforce a specific alignment.
+ */
+#define	MAP_ALIGNED(n)	 ((n) << MAP_ALIGNMENT_SHIFT)
+#define	MAP_ALIGNMENT_SHIFT	24
+#define	MAP_ALIGNMENT_MASK	MAP_ALIGNED(0xff)
+#define	MAP_ALIGNED_SUPER	MAP_ALIGNED(1) /* align on a superpage */
 #endif /* __BSD_VISIBLE */
 
 #if __POSIX_VISIBLE >= 199309
@@ -174,8 +193,14 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_WANT_FILE)
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
+#include <sys/rangelock.h>
 #include <vm/vm.h>
+
+struct file;
 
 struct shmfd {
 	size_t		shm_size;
@@ -184,6 +209,7 @@ struct shmfd {
 	uid_t		shm_uid;
 	gid_t		shm_gid;
 	mode_t		shm_mode;
+	int		shm_kmappings;
 
 	/*
 	 * Values maintained solely to make this a better-behaved file
@@ -193,13 +219,27 @@ struct shmfd {
 	struct timespec	shm_mtime;
 	struct timespec	shm_ctime;
 	struct timespec	shm_birthtime;
+	ino_t		shm_ino;
 
 	struct label	*shm_label;		/* MAC label */
+	const char	*shm_path;
+
+	struct rangelock shm_rl;
+	struct mtx	shm_mtx;
 };
+#endif
 
-int	shm_mmap(struct shmfd *shmfd, vm_size_t objsize, vm_ooffset_t foff,
-	    vm_object_t *obj);
+#ifdef _KERNEL
+int	shm_map(struct file *fp, size_t size, off_t offset, void **memp);
+int	shm_unmap(struct file *fp, void *mem, size_t size);
 
+int	shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags);
+struct shmfd *shm_alloc(struct ucred *ucred, mode_t mode);
+struct shmfd *shm_hold(struct shmfd *shmfd);
+void	shm_drop(struct shmfd *shmfd);
+int	shm_dotruncate(struct shmfd *shmfd, off_t length);
+
+extern struct fileops shm_ops;
 #else /* !_KERNEL */
 
 __BEGIN_DECLS
@@ -218,7 +258,7 @@ int	mlock(const void *, size_t);
 #define	_MMAP_DECLARED
 void *	mmap(void *, size_t, int, int, int, off_t);
 #endif
-int	mprotect(const void *, size_t, int);
+int	mprotect(void *, size_t, int);
 int	msync(void *, size_t, int);
 int	munlock(const void *, size_t);
 int	munmap(void *, size_t);

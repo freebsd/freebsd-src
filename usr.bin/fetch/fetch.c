@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2000-2004 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2000-2014 Dag-Erling Smørgrav
+ * Copyright (c) 2013 Michael Gmelin <freebsd@grem.de>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <getopt.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -47,52 +49,122 @@ __FBSDID("$FreeBSD$");
 
 #include <fetch.h>
 
-#define MINBUFSIZE	4096
+#define MINBUFSIZE	16384
 #define TIMEOUT		120
 
 /* Option flags */
-int	 A_flag;	/*    -A: do not follow 302 redirects */
-int	 a_flag;	/*    -a: auto retry */
-off_t	 B_size;	/*    -B: buffer size */
-int	 b_flag;	/*!   -b: workaround TCP bug */
-char    *c_dirname;	/*    -c: remote directory */
-int	 d_flag;	/*    -d: direct connection */
-int	 F_flag;	/*    -F: restart without checking mtime  */
-char	*f_filename;	/*    -f: file to fetch */
-char	*h_hostname;	/*    -h: host to fetch from */
-int	 i_flag;	/*    -i: specify input file for mtime comparison */
-char	*i_filename;	/*        name of input file */
-int	 l_flag;	/*    -l: link rather than copy file: URLs */
-int	 m_flag;	/* -[Mm]: mirror mode */
-char	*N_filename;	/*    -N: netrc file name */
-int	 n_flag;	/*    -n: do not preserve modification time */
-int	 o_flag;	/*    -o: specify output file */
-int	 o_directory;	/*        output file is a directory */
-char	*o_filename;	/*        name of output file */
-int	 o_stdout;	/*        output file is stdout */
-int	 once_flag;	/*    -1: stop at first successful file */
-int	 p_flag;	/* -[Pp]: use passive FTP */
-int	 R_flag;	/*    -R: don't delete partially transferred files */
-int	 r_flag;	/*    -r: restart previously interrupted transfer */
-off_t	 S_size;        /*    -S: require size to match */
-int	 s_flag;        /*    -s: show size, don't fetch */
-long	 T_secs;	/*    -T: transfer timeout in seconds */
-int	 t_flag;	/*!   -t: workaround TCP bug */
-int	 U_flag;	/*    -U: do not use high ports */
-int	 v_level = 1;	/*    -v: verbosity level */
-int	 v_tty;		/*        stdout is a tty */
-pid_t	 pgrp;		/*        our process group */
-long	 w_secs;	/*    -w: retry delay */
-int	 family = PF_UNSPEC;	/* -[46]: address family to use */
+static int	 A_flag;	/*    -A: do not follow 302 redirects */
+static int	 a_flag;	/*    -a: auto retry */
+static off_t	 B_size;	/*    -B: buffer size */
+static int	 b_flag;	/*!   -b: workaround TCP bug */
+static char    *c_dirname;	/*    -c: remote directory */
+static int	 d_flag;	/*    -d: direct connection */
+static int	 F_flag;	/*    -F: restart without checking mtime  */
+static char	*f_filename;	/*    -f: file to fetch */
+static char	*h_hostname;	/*    -h: host to fetch from */
+static int	 i_flag;	/*    -i: specify file for mtime comparison */
+static char	*i_filename;	/*        name of input file */
+static int	 l_flag;	/*    -l: link rather than copy file: URLs */
+static int	 m_flag;	/* -[Mm]: mirror mode */
+static char	*N_filename;	/*    -N: netrc file name */
+static int	 n_flag;	/*    -n: do not preserve modification time */
+static int	 o_flag;	/*    -o: specify output file */
+static int	 o_directory;	/*        output file is a directory */
+static char	*o_filename;	/*        name of output file */
+static int	 o_stdout;	/*        output file is stdout */
+static int	 once_flag;	/*    -1: stop at first successful file */
+static int	 p_flag;	/* -[Pp]: use passive FTP */
+static int	 R_flag;	/*    -R: don't delete partial files */
+static int	 r_flag;	/*    -r: restart previous transfer */
+static off_t	 S_size;        /*    -S: require size to match */
+static int	 s_flag;        /*    -s: show size, don't fetch */
+static long	 T_secs;	/*    -T: transfer timeout in seconds */
+static int	 t_flag;	/*!   -t: workaround TCP bug */
+static int	 U_flag;	/*    -U: do not use high ports */
+static int	 v_level = 1;	/*    -v: verbosity level */
+static int	 v_tty;		/*        stdout is a tty */
+static pid_t	 pgrp;		/*        our process group */
+static long	 w_secs;	/*    -w: retry delay */
+static int	 family = PF_UNSPEC;	/* -[46]: address family to use */
 
-int	 sigalrm;	/* SIGALRM received */
-int	 siginfo;	/* SIGINFO received */
-int	 sigint;	/* SIGINT received */
+static int	 sigalrm;	/* SIGALRM received */
+static int	 siginfo;	/* SIGINFO received */
+static int	 sigint;	/* SIGINT received */
 
-long	 ftp_timeout = TIMEOUT;		/* default timeout for FTP transfers */
-long	 http_timeout = TIMEOUT;	/* default timeout for HTTP transfers */
-char	*buf;		/* transfer buffer */
+static long	 ftp_timeout = TIMEOUT;	/* default timeout for FTP transfers */
+static long	 http_timeout = TIMEOUT;/* default timeout for HTTP transfers */
+static char	*buf;		/* transfer buffer */
 
+enum options
+{
+	OPTION_BIND_ADDRESS,
+	OPTION_NO_FTP_PASSIVE_MODE,
+	OPTION_HTTP_REFERER,
+	OPTION_HTTP_USER_AGENT,
+	OPTION_NO_PROXY,
+	OPTION_SSL_CA_CERT_FILE,
+	OPTION_SSL_CA_CERT_PATH,
+	OPTION_SSL_CLIENT_CERT_FILE,
+	OPTION_SSL_CLIENT_KEY_FILE,
+	OPTION_SSL_CRL_FILE,
+	OPTION_SSL_NO_SSL3,
+	OPTION_SSL_NO_TLS1,
+	OPTION_SSL_NO_VERIFY_HOSTNAME,
+	OPTION_SSL_NO_VERIFY_PEER
+};
+
+
+static struct option longopts[] =
+{
+	/* mapping to single character argument */
+	{ "one-file", no_argument, NULL, '1' },
+	{ "ipv4-only", no_argument, NULL, '4' },
+	{ "ipv6-only", no_argument, NULL, '6' },
+	{ "no-redirect", no_argument, NULL, 'A' },
+	{ "retry", no_argument, NULL, 'a' },
+	{ "buffer-size", required_argument, NULL, 'B' },
+	/* -c not mapped, since it's deprecated */
+	{ "direct", no_argument, NULL, 'd' },
+	{ "force-restart", no_argument, NULL, 'F' },
+	/* -f not mapped, since it's deprecated */
+	/* -h not mapped, since it's deprecated */
+	{ "if-modified-since", required_argument, NULL, 'i' },
+	{ "symlink", no_argument, NULL, 'l' },
+	/* -M not mapped since it's the same as -m */
+	{ "mirror", no_argument, NULL, 'm' },
+	{ "netrc", required_argument, NULL, 'N' },
+	{ "no-mtime", no_argument, NULL, 'n' },
+	{ "output", required_argument, NULL, 'o' },
+	/* -P not mapped since it's the same as -p */
+	{ "passive", no_argument, NULL, 'p' },
+	{ "quiet", no_argument, NULL, 'q' },
+	{ "keep-output", no_argument, NULL, 'R' },
+	{ "restart", no_argument, NULL, 'r' },
+	{ "require-size", required_argument, NULL, 'S' },
+	{ "print-size", no_argument, NULL, 's' },
+	{ "timeout", required_argument, NULL, 'T' },
+	{ "passive-portrange-default", no_argument, NULL, 'T' },
+	{ "verbose", no_argument, NULL, 'v' },
+	{ "retry-delay", required_argument, NULL, 'w' },
+
+	/* options without a single character equivalent */
+	{ "bind-address", required_argument, NULL, OPTION_BIND_ADDRESS },
+	{ "no-passive", no_argument, NULL, OPTION_NO_FTP_PASSIVE_MODE },
+	{ "referer", required_argument, NULL, OPTION_HTTP_REFERER },
+	{ "user-agent", required_argument, NULL, OPTION_HTTP_USER_AGENT },
+	{ "no-proxy", required_argument, NULL, OPTION_NO_PROXY },
+	{ "ca-cert", required_argument, NULL, OPTION_SSL_CA_CERT_FILE },
+	{ "ca-path", required_argument, NULL, OPTION_SSL_CA_CERT_PATH },
+	{ "cert", required_argument, NULL, OPTION_SSL_CLIENT_CERT_FILE },
+	{ "key", required_argument, NULL, OPTION_SSL_CLIENT_KEY_FILE },
+	{ "crl", required_argument, NULL, OPTION_SSL_CRL_FILE },
+	{ "no-sslv3", no_argument, NULL, OPTION_SSL_NO_SSL3 },
+	{ "no-tlsv1", no_argument, NULL, OPTION_SSL_NO_TLS1 },
+	{ "no-verify-hostname", no_argument, NULL, OPTION_SSL_NO_VERIFY_HOSTNAME },
+	{ "no-verify-peer", no_argument, NULL, OPTION_SSL_NO_VERIFY_PEER },
+
+	{ NULL, 0, NULL, 0 }
+};
 
 /*
  * Signal handler
@@ -115,11 +187,13 @@ sig_handler(int sig)
 
 struct xferstat {
 	char		 name[64];
-	struct timeval	 start;
-	struct timeval	 last;
-	off_t		 size;
-	off_t		 offset;
-	off_t		 rcvd;
+	struct timeval	 start;		/* start of transfer */
+	struct timeval	 last;		/* time of last update */
+	struct timeval	 last2;		/* time of previous last update */
+	off_t		 size;		/* size of file per HTTP hdr */
+	off_t		 offset;	/* starting offset in file */
+	off_t		 rcvd;		/* bytes already received */
+	off_t		 lastrcvd;	/* bytes received since last update */
 };
 
 /*
@@ -139,9 +213,12 @@ stat_eta(struct xferstat *xs)
 	if (eta > 3600)
 		snprintf(str, sizeof str, "%02ldh%02ldm",
 		    eta / 3600, (eta % 3600) / 60);
-	else
+	else if (eta > 0)
 		snprintf(str, sizeof str, "%02ldm%02lds",
 		    eta / 60, eta % 60);
+	else
+		snprintf(str, sizeof str, "%02ldm%02lds",
+		    elapsed / 60, elapsed % 60);
 	return (str);
 }
 
@@ -173,11 +250,12 @@ stat_bps(struct xferstat *xs)
 	double delta, bps;
 
 	delta = (xs->last.tv_sec + (xs->last.tv_usec / 1.e6))
-	    - (xs->start.tv_sec + (xs->start.tv_usec / 1.e6));
+	    - (xs->last2.tv_sec + (xs->last2.tv_usec / 1.e6));
+
 	if (delta == 0.0) {
 		snprintf(str, sizeof str, "?? Bps");
 	} else {
-		bps = (xs->rcvd - xs->offset) / delta;
+		bps = (xs->rcvd - xs->lastrcvd) / delta;
 		snprintf(str, sizeof str, "%sps", stat_bytes((off_t)bps));
 	}
 	return (str);
@@ -200,6 +278,7 @@ stat_display(struct xferstat *xs, int force)
 	gettimeofday(&now, NULL);
 	if (!force && now.tv_sec <= xs->last.tv_sec)
 		return;
+	xs->last2 = xs->last;
 	xs->last = now;
 
 	fprintf(stderr, "\r%-46.46s", xs->name);
@@ -214,10 +293,16 @@ stat_display(struct xferstat *xs, int force)
 		    (int)((100.0 * xs->rcvd) / xs->size),
 		    stat_bytes(xs->size));
 	}
+	if (force == 2) {
+		xs->lastrcvd = xs->offset;
+		xs->last2 = xs->start;
+	}
 	fprintf(stderr, " %s", stat_bps(xs));
-	if (xs->size > 0 && xs->rcvd > 0 &&
-	    xs->last.tv_sec >= xs->start.tv_sec + 10)
+	if ((xs->size > 0 && xs->rcvd > 0 &&
+	     xs->last.tv_sec >= xs->start.tv_sec + 3) ||
+	    force == 2)
 		fprintf(stderr, " %s", stat_eta(xs));
+	xs->lastrcvd = xs->rcvd;
 }
 
 /*
@@ -232,6 +317,7 @@ stat_start(struct xferstat *xs, const char *name, off_t size, off_t offset)
 	xs->size = size;
 	xs->offset = offset;
 	xs->rcvd = offset;
+	xs->lastrcvd = offset;
 	if (v_tty && v_level > 0)
 		stat_display(xs, 1);
 	else if (v_level > 0)
@@ -257,7 +343,7 @@ stat_end(struct xferstat *xs)
 {
 	gettimeofday(&xs->last, NULL);
 	if (v_tty && v_level > 0) {
-		stat_display(xs, 1);
+		stat_display(xs, 2);
 		putc('\n', stderr);
 	} else if (v_level > 0) {
 		fprintf(stderr, "        %s %s\n",
@@ -317,7 +403,7 @@ fetch(char *URL, const char *path)
 	struct stat sb, nsb;
 	struct xferstat xs;
 	FILE *f, *of;
-	size_t size, wr;
+	size_t size, readcnt, wr;
 	off_t count;
 	char flags[8];
 	const char *slash;
@@ -340,6 +426,11 @@ fetch(char *URL, const char *path)
 		fetchDebug = 1;
 
 	/* parse URL */
+	url = NULL;
+	if (*URL == '\0') {
+		warnx("empty URL");
+		goto failure;
+	}
 	if ((url = fetchParseURL(URL)) == NULL) {
 		warnx("%s: parse error", URL);
 		goto failure;
@@ -517,6 +608,12 @@ fetch(char *URL, const char *path)
 				    "does not match remote", path);
 				goto failure_keep;
 			}
+		} else if (url->offset > sb.st_size) {
+			/* gap between what we asked for and what we got */
+			warnx("%s: gap in resume mode", URL);
+			fclose(of);
+			of = NULL;
+			/* picked up again later */
 		} else if (us.size != -1) {
 			if (us.size == sb.st_size)
 				/* nothing to do */
@@ -529,7 +626,7 @@ fetch(char *URL, const char *path)
 				goto failure;
 			}
 			/* we got it, open local file */
-			if ((of = fopen(path, "a")) == NULL) {
+			if ((of = fopen(path, "r+")) == NULL) {
 				warn("%s: fopen()", path);
 				goto failure;
 			}
@@ -540,13 +637,21 @@ fetch(char *URL, const char *path)
 				goto failure;
 			}
 			if (nsb.st_dev != sb.st_dev ||
-			    nsb.st_ino != nsb.st_ino ||
+			    nsb.st_ino != sb.st_ino ||
 			    nsb.st_size != sb.st_size) {
 				warnx("%s: file has changed", URL);
 				fclose(of);
 				of = NULL;
 				sb = nsb;
+				/* picked up again later */
 			}
+		}
+		/* seek to where we left off */
+		if (of != NULL && fseeko(of, url->offset, SEEK_SET) != 0) {
+			warn("%s: fseeko()", path);
+			fclose(of);
+			of = NULL;
+			/* picked up again later */
 		}
 	} else if (m_flag && sb.st_size != -1) {
 		/* mirror mode, local file exists */
@@ -585,7 +690,10 @@ fetch(char *URL, const char *path)
 			asprintf(&tmppath, "%.*s.fetch.XXXXXX.%s",
 			    (int)(slash - path), path, slash);
 			if (tmppath != NULL) {
-				mkstemps(tmppath, strlen(slash) + 1);
+				if (mkstemps(tmppath, strlen(slash) + 1) == -1) {
+					warn("%s: mkstemps()", path);
+					goto failure;
+				}
 				of = fopen(tmppath, "w");
 				chown(tmppath, sb.st_uid, sb.st_gid);
 				chmod(tmppath, sb.st_mode & ALLPERMS);
@@ -606,6 +714,7 @@ fetch(char *URL, const char *path)
 	sigalrm = siginfo = sigint = 0;
 
 	/* suck in the data */
+	setvbuf(f, NULL, _IOFBF, B_size);
 	signal(SIGINFO, sig_handler);
 	while (!sigint) {
 		if (us.size != -1 && us.size - count < B_size &&
@@ -617,21 +726,26 @@ fetch(char *URL, const char *path)
 			stat_end(&xs);
 			siginfo = 0;
 		}
-		if ((size = fread(buf, 1, size, f)) == 0) {
+
+		if (size == 0)
+			break;
+
+		if ((readcnt = fread(buf, 1, size, f)) < size) {
 			if (ferror(f) && errno == EINTR && !sigint)
 				clearerr(f);
-			else
+			else if (readcnt == 0)
 				break;
 		}
-		stat_update(&xs, count += size);
-		for (ptr = buf; size > 0; ptr += wr, size -= wr)
-			if ((wr = fwrite(ptr, 1, size, of)) < size) {
+
+		stat_update(&xs, count += readcnt);
+		for (ptr = buf; readcnt > 0; ptr += wr, readcnt -= wr)
+			if ((wr = fwrite(ptr, 1, readcnt, of)) < readcnt) {
 				if (ferror(of) && errno == EINTR && !sigint)
 					clearerr(of);
 				else
 					break;
 			}
-		if (size != 0)
+		if (readcnt != 0)
 			break;
 	}
 	if (!sigalrm)
@@ -728,11 +842,19 @@ fetch(char *URL, const char *path)
 static void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-"usage: fetch [-146AadFlMmnPpqRrsUv] [-B bytes] [-N file] [-o file] [-S bytes]",
-"       [-T seconds] [-w seconds] [-i file] URL ...",
-"       fetch [-146AadFlMmnPpqRrsUv] [-B bytes] [-N file] [-o file] [-S bytes]",
-"       [-T seconds] [-w seconds] [-i file] -h host -f file [-c dir]");
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+"usage: fetch [-146AadFlMmnPpqRrsUv] [-B bytes] [--bind-address=host]",
+"       [--ca-cert=file] [--ca-path=dir] [--cert=file] [--crl=file]",
+"       [-i file] [--key=file] [-N file] [--no-passive] [--no-proxy=list]",
+"       [--no-sslv3] [--no-tlsv1] [--no-verify-hostname] [--no-verify-peer]",
+"       [-o file] [--referer=URL] [-S bytes] [-T seconds]",
+"       [--user-agent=agent-string] [-w seconds] URL ...",
+"       fetch [-146AadFlMmnPpqRrsUv] [-B bytes] [--bind-address=host]",
+"       [--ca-cert=file] [--ca-path=dir] [--cert=file] [--crl=file]",
+"       [-i file] [--key=file] [-N file] [--no-passive] [--no-proxy=list]",
+"       [--no-sslv3] [--no-tlsv1] [--no-verify-hostname] [--no-verify-peer]",
+"       [-o file] [--referer=URL] [-S bytes] [-T seconds]",
+"       [--user-agent=agent-string] [-w seconds] -h host -f file [-c dir]");
 }
 
 
@@ -748,8 +870,10 @@ main(int argc, char *argv[])
 	char *end, *q;
 	int c, e, r;
 
-	while ((c = getopt(argc, argv,
-	    "146AaB:bc:dFf:Hh:i:lMmN:nPpo:qRrS:sT:tUvw:")) != -1)
+
+	while ((c = getopt_long(argc, argv,
+	    "146AaB:bc:dFf:Hh:i:lMmN:nPpo:qRrS:sT:tUvw:",
+	    longopts, NULL)) != -1)
 		switch (c) {
 		case '1':
 			once_flag = 1;
@@ -863,6 +987,48 @@ main(int argc, char *argv[])
 			if (*optarg == '\0' || *end != '\0')
 				errx(1, "invalid delay (%s)", optarg);
 			break;
+		case OPTION_BIND_ADDRESS:
+			setenv("FETCH_BIND_ADDRESS", optarg, 1);
+			break;
+		case OPTION_NO_FTP_PASSIVE_MODE:
+			setenv("FTP_PASSIVE_MODE", "no", 1);
+			break;
+		case OPTION_HTTP_REFERER:
+			setenv("HTTP_REFERER", optarg, 1);
+			break;
+		case OPTION_HTTP_USER_AGENT:
+			setenv("HTTP_USER_AGENT", optarg, 1);
+			break;
+		case OPTION_NO_PROXY:
+			setenv("NO_PROXY", optarg, 1);
+			break;
+		case OPTION_SSL_CA_CERT_FILE:
+			setenv("SSL_CA_CERT_FILE", optarg, 1);
+			break;
+		case OPTION_SSL_CA_CERT_PATH:
+			setenv("SSL_CA_CERT_PATH", optarg, 1);
+			break;
+		case OPTION_SSL_CLIENT_CERT_FILE:
+			setenv("SSL_CLIENT_CERT_FILE", optarg, 1);
+			break;
+		case OPTION_SSL_CLIENT_KEY_FILE:
+			setenv("SSL_CLIENT_KEY_FILE", optarg, 1);
+			break;
+		case OPTION_SSL_CRL_FILE:
+			setenv("SSL_CLIENT_CRL_FILE", optarg, 1);
+			break;
+		case OPTION_SSL_NO_SSL3:
+			setenv("SSL_NO_SSL3", "", 1);
+			break;
+		case OPTION_SSL_NO_TLS1:
+			setenv("SSL_NO_TLS1", "", 1);
+			break;
+		case OPTION_SSL_NO_VERIFY_HOSTNAME:
+			setenv("SSL_NO_VERIFY_HOSTNAME", "", 1);
+			break;
+		case OPTION_SSL_NO_VERIFY_PEER:
+			setenv("SSL_NO_VERIFY_PEER", "", 1);
+			break;
 		default:
 			usage();
 			exit(1);
@@ -950,7 +1116,8 @@ main(int argc, char *argv[])
 	if (v_tty)
 		fetchAuthMethod = query_auth;
 	if (N_filename != NULL)
-		setenv("NETRC", N_filename, 1);
+		if (setenv("NETRC", N_filename, 1) == -1)
+			err(1, "setenv: cannot set NETRC=%s", N_filename);
 
 	while (argc) {
 		if ((p = strrchr(*argv, '/')) == NULL)

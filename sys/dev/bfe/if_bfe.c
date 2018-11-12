@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -137,16 +138,12 @@ static device_method_t bfe_methods[] = {
 	DEVMETHOD(device_suspend,	bfe_suspend),
 	DEVMETHOD(device_resume,	bfe_resume),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	bfe_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	bfe_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	bfe_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t bfe_driver = {
@@ -367,12 +364,12 @@ bfe_dma_free(struct bfe_softc *sc)
 
 	/* Tx ring. */
 	if (sc->bfe_tx_tag != NULL) {
-		if (sc->bfe_tx_map != NULL)
+		if (sc->bfe_tx_dma != 0)
 			bus_dmamap_unload(sc->bfe_tx_tag, sc->bfe_tx_map);
-		if (sc->bfe_tx_map != NULL && sc->bfe_tx_list != NULL)
+		if (sc->bfe_tx_list != NULL)
 			bus_dmamem_free(sc->bfe_tx_tag, sc->bfe_tx_list,
 			    sc->bfe_tx_map);
-		sc->bfe_tx_map = NULL;
+		sc->bfe_tx_dma = 0;
 		sc->bfe_tx_list = NULL;
 		bus_dma_tag_destroy(sc->bfe_tx_tag);
 		sc->bfe_tx_tag = NULL;
@@ -380,12 +377,12 @@ bfe_dma_free(struct bfe_softc *sc)
 
 	/* Rx ring. */
 	if (sc->bfe_rx_tag != NULL) {
-		if (sc->bfe_rx_map != NULL)
+		if (sc->bfe_rx_dma != 0)
 			bus_dmamap_unload(sc->bfe_rx_tag, sc->bfe_rx_map);
-		if (sc->bfe_rx_map != NULL && sc->bfe_rx_list != NULL)
+		if (sc->bfe_rx_list != NULL)
 			bus_dmamem_free(sc->bfe_rx_tag, sc->bfe_rx_list,
 			    sc->bfe_rx_map);
-		sc->bfe_rx_map = NULL;
+		sc->bfe_rx_dma = 0;
 		sc->bfe_rx_list = NULL;
 		bus_dma_tag_destroy(sc->bfe_rx_tag);
 		sc->bfe_rx_tag = NULL;
@@ -493,7 +490,6 @@ bfe_attach(device_t dev)
 	ifp->if_ioctl = bfe_ioctl;
 	ifp->if_start = bfe_start;
 	ifp->if_init = bfe_init;
-	ifp->if_mtu = ETHERMTU;
 	IFQ_SET_MAXLEN(&ifp->if_snd, BFE_TX_QLEN);
 	ifp->if_snd.ifq_drv_maxlen = BFE_TX_QLEN;
 	IFQ_SET_READY(&ifp->if_snd);
@@ -505,10 +501,11 @@ bfe_attach(device_t dev)
 	bfe_chip_reset(sc);
 	BFE_UNLOCK(sc);
 
-	if (mii_phy_probe(dev, &sc->bfe_miibus,
-				bfe_ifmedia_upd, bfe_ifmedia_sts)) {
-		device_printf(dev, "MII without any PHY!\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->bfe_miibus, ifp, bfe_ifmedia_upd,
+	    bfe_ifmedia_sts, BMSR_DEFCAPMASK, sc->bfe_phyaddr, MII_OFFSET_ANY,
+	    0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -517,7 +514,7 @@ bfe_attach(device_t dev)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;
 
@@ -631,8 +628,6 @@ bfe_miibus_readreg(device_t dev, int phy, int reg)
 	u_int32_t ret;
 
 	sc = device_get_softc(dev);
-	if (phy != sc->bfe_phyaddr)
-		return (0);
 	bfe_readphy(sc, reg, &ret);
 
 	return (ret);
@@ -644,8 +639,6 @@ bfe_miibus_writereg(device_t dev, int phy, int reg, int val)
 	struct bfe_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (phy != sc->bfe_phyaddr)
-		return (0);
 	bfe_writephy(sc, reg, val);
 
 	return (0);
@@ -799,7 +792,7 @@ bfe_list_newbuf(struct bfe_softc *sc, int c)
 	u_int32_t ctrl;
 	int nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
 
 	if (bus_dmamap_load_mbuf_sg(sc->bfe_rxmbuf_tag, sc->bfe_rx_sparemap,
@@ -1317,22 +1310,22 @@ bfe_stats_update(struct bfe_softc *sc)
 	stats->rx_control_frames += mib[MIB_RX_NPAUSE];
 
 	/* Update counters in ifnet. */
-	ifp->if_opackets += (u_long)mib[MIB_TX_GOOD_P];
-	ifp->if_collisions += (u_long)mib[MIB_TX_TCOLS];
-	ifp->if_oerrors += (u_long)mib[MIB_TX_URUNS] +
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, (u_long)mib[MIB_TX_GOOD_P]);
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, (u_long)mib[MIB_TX_TCOLS]);
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, (u_long)mib[MIB_TX_URUNS] +
 	    (u_long)mib[MIB_TX_ECOLS] +
 	    (u_long)mib[MIB_TX_DEFERED] +
-	    (u_long)mib[MIB_TX_CLOST];
+	    (u_long)mib[MIB_TX_CLOST]);
 
-	ifp->if_ipackets += (u_long)mib[MIB_RX_GOOD_P];
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, (u_long)mib[MIB_RX_GOOD_P]);
 
-	ifp->if_ierrors += mib[MIB_RX_JABBER] +
+	if_inc_counter(ifp, IFCOUNTER_IERRORS, mib[MIB_RX_JABBER] +
 	    mib[MIB_RX_MISS] +
 	    mib[MIB_RX_CRCA] +
 	    mib[MIB_RX_USIZE] +
 	    mib[MIB_RX_CRC] +
 	    mib[MIB_RX_ALIGN] +
-	    mib[MIB_RX_SYM];
+	    mib[MIB_RX_SYM]);
 }
 
 static void
@@ -1410,7 +1403,7 @@ bfe_rxeof(struct bfe_softc *sc)
 		 * reuse mapped buffer from errored frame. 
 		 */
 		if (bfe_list_newbuf(sc, cons) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			bfe_discard_buf(sc, cons);
 			continue;
 		}
@@ -1527,7 +1520,7 @@ bfe_encap(struct bfe_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->bfe_txmbuf_tag, r->bfe_map, *m_head,
 	    txsegs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, BFE_MAXTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, BFE_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -1739,18 +1732,15 @@ bfe_ifmedia_upd(struct ifnet *ifp)
 {
 	struct bfe_softc *sc;
 	struct mii_data *mii;
+	struct mii_softc *miisc;
 	int error;
 
 	sc = ifp->if_softc;
 	BFE_LOCK(sc);
 
 	mii = device_get_softc(sc->bfe_miibus);
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-				miisc = LIST_NEXT(miisc, mii_list))
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	BFE_UNLOCK(sc);
 
@@ -1828,7 +1818,7 @@ bfe_watchdog(struct bfe_softc *sc)
 
 	device_printf(sc->bfe_dev, "watchdog timeout -- resetting\n");
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	bfe_init_locked(sc);
 

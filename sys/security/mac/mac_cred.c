@@ -46,7 +46,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -175,7 +174,7 @@ mac_cred_internalize_label(struct label *label, char *string)
 
 /*
  * When a new process is created, its label must be initialized.  Generally,
- * this involves inheritence from the parent process, modulo possible deltas.
+ * this involves inheritance from the parent process, modulo possible deltas.
  * This function allows that processing to take place.
  */
 void

@@ -3,10 +3,8 @@
 PROG=	watchdogd
 LINKS=	${BINDIR}/watchdogd ${BINDIR}/watchdog
 MAN=	watchdogd.8 watchdog.8
-WARNS?=	6
 
-LDADD=	-lm -lutil
-DPADD=	${LIBM} ${LIBUTIL}
+LIBADD=	util
 
 .include <bsd.prog.mk>
 

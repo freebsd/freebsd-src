@@ -84,7 +84,7 @@ The range is expected to be
 .Dv DEV_BSIZE
 aligned and no larger than
 .Dv PAGE_SIZE .
-If it is not properly aligned, any unaligned chucks of the
+If it is not properly aligned, any unaligned chunks of the
 .Dv DEV_BSIZE
 blocks at the beginning and end of the range will be zeroed.
 .Pp
@@ -94,7 +94,7 @@ is zero and
 .Fa size
 is one page, the modified bit in the page map is cleared; as well,
 the
-.Dv PG_NOSYNC
+.Dv VPO_NOSYNC
 flag is cleared.
 .Pp
 .Fn vm_page_clear_dirty
@@ -164,4 +164,4 @@ clears all of the dirty bits in a page.
 None of these functions are allowed to block.
 .Sh AUTHORS
 This manual page was written by
-.An Chad David Aq davidc@acns.ab.ca .
+.An Chad David Aq Mt davidc@acns.ab.ca .

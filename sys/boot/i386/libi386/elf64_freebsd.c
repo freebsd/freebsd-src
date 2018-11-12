@@ -78,10 +78,10 @@ elf64_exec(struct preloaded_file *fp)
     int				i;
 
     if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
-	return(EFTYPE);			/* XXX actually EFUCKUP */
+	return(EFTYPE);
     ehdr = (Elf_Ehdr *)&(md->md_data);
 
-    err = bi_load64(fp->f_args, &modulep, &kernend);
+    err = bi_load64(fp->f_args, 0, &modulep, &kernend, 1);
     if (err != 0)
 	return(err);
 

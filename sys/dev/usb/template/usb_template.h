@@ -30,8 +30,12 @@
 #ifndef _USB_TEMPLATE_H_
 #define	_USB_TEMPLATE_H_
 
+#ifndef USB_TEMPLATE_VENDOR
+#define	USB_TEMPLATE_VENDOR	0x0001
+#endif
+
 typedef const void *(usb_temp_get_string_desc_t)(uint16_t lang_id, uint8_t string_index);
-typedef const void *(usb_temp_get_vendor_desc_t)(const struct usb_device_request *req);
+typedef const void *(usb_temp_get_vendor_desc_t)(const struct usb_device_request *req, uint16_t *plen);
 
 struct usb_temp_packet_size {
 	uint16_t mps[USB_SPEED_MAX];
@@ -94,9 +98,19 @@ struct usb_temp_data {
 
 /* prototypes */
 
+extern const struct usb_temp_device_desc usb_template_audio;
 extern const struct usb_temp_device_desc usb_template_cdce;
-extern const struct usb_temp_device_desc usb_template_msc;	/* Mass Storage Class */
-extern const struct usb_temp_device_desc usb_template_mtp;	/* Message Transfer
-								 * Protocol */
+extern const struct usb_temp_device_desc usb_template_kbd;
+extern const struct usb_temp_device_desc usb_template_modem;
+extern const struct usb_temp_device_desc usb_template_mouse;
+extern const struct usb_temp_device_desc usb_template_msc;
+extern const struct usb_temp_device_desc usb_template_mtp;
+extern const struct usb_temp_device_desc usb_template_phone;
+extern const struct usb_temp_device_desc usb_template_serialnet;
+extern const struct usb_temp_device_desc usb_template_midi;
+
+usb_error_t	usb_temp_setup(struct usb_device *,
+		    const struct usb_temp_device_desc *);
+void	usb_temp_unsetup(struct usb_device *);
 
 #endif					/* _USB_TEMPLATE_H_ */

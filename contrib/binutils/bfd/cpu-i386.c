@@ -1,5 +1,5 @@
 /* BFD support for the Intel 386 architecture.
-   Copyright 1992, 1994, 1995, 1996, 1998, 2000, 2001, 2002
+   Copyright 1992, 1994, 1995, 1996, 1998, 2000, 2001, 2002, 2004, 2007
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -16,11 +16,27 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
+
+const bfd_arch_info_type bfd_x86_64_arch_intel_syntax =
+{
+  64, /* 64 bits in a word */
+  64, /* 64 bits in an address */
+  8,  /* 8 bits in a byte */
+  bfd_arch_i386,
+  bfd_mach_x86_64_intel_syntax,
+  "i386:intel",
+  "i386:x86-64:intel",
+  3,
+  FALSE,
+  bfd_default_compatible,
+  bfd_default_scan,
+  0
+};
 
 const bfd_arch_info_type bfd_i386_arch_intel_syntax =
 {
@@ -34,25 +50,11 @@ const bfd_arch_info_type bfd_i386_arch_intel_syntax =
   3,
   TRUE,
   bfd_default_compatible,
-  bfd_default_scan ,
-  0,
+  bfd_default_scan,
+  &bfd_x86_64_arch_intel_syntax
 };
-const bfd_arch_info_type bfd_x86_64_arch_intel_syntax =
-{
-  64, /* 64 bits in a word */
-  64, /* 64 bits in an address */
-  8,  /* 8 bits in a byte */
-  bfd_arch_i386,
-  bfd_mach_x86_64_intel_syntax,
-  "i386:intel",
-  "i386:x86-64:intel",
-  3,
-  TRUE,
-  bfd_default_compatible,
-  bfd_default_scan ,
-  &bfd_i386_arch_intel_syntax,
-};
-static const bfd_arch_info_type i8086_arch =
+
+const bfd_arch_info_type i8086_arch =
 {
   32,	/* 32 bits in a word */
   32,	/* 32 bits in an address (well, not really) */
@@ -64,8 +66,8 @@ static const bfd_arch_info_type i8086_arch =
   3,
   FALSE,
   bfd_default_compatible,
-  bfd_default_scan ,
-  &bfd_x86_64_arch_intel_syntax,
+  bfd_default_scan,
+  &bfd_i386_arch_intel_syntax
 };
 
 const bfd_arch_info_type bfd_x86_64_arch =
@@ -78,10 +80,10 @@ const bfd_arch_info_type bfd_x86_64_arch =
   "i386",
   "i386:x86-64",
   3,
-  TRUE,
+  FALSE,
   bfd_default_compatible,
-  bfd_default_scan ,
-  &i8086_arch,
+  bfd_default_scan,
+  &i8086_arch
 };
 
 const bfd_arch_info_type bfd_i386_arch =
@@ -96,6 +98,6 @@ const bfd_arch_info_type bfd_i386_arch =
   3,
   TRUE,
   bfd_default_compatible,
-  bfd_default_scan ,
+  bfd_default_scan,
   &bfd_x86_64_arch
 };

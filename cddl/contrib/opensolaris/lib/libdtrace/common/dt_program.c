@@ -20,11 +20,9 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <unistd.h>
 #include <strings.h>
@@ -32,7 +30,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <ctype.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 
@@ -46,10 +44,12 @@ dt_program_create(dtrace_hdl_t *dtp)
 {
 	dtrace_prog_t *pgp = dt_zalloc(dtp, sizeof (dtrace_prog_t));
 
-	if (pgp != NULL)
+	if (pgp != NULL) {
 		dt_list_append(&dtp->dt_programs, pgp);
-	else
+	} else {
 		(void) dt_set_errno(dtp, EDT_NOMEM);
+		return (NULL);
+	}
 
 	/*
 	 * By default, programs start with DOF version 1 so that output files
@@ -177,6 +177,9 @@ dtrace_program_exec(dtrace_hdl_t *dtp, dtrace_prog_t *pgp,
 			break;
 		case E2BIG:
 			err = EDT_DIFSIZE;
+			break;
+		case EBUSY:
+			err = EDT_ENABLING_ERR;
 			break;
 		default:
 			err = errno;
@@ -350,6 +353,7 @@ dtrace_stmt_destroy(dtrace_hdl_t *dtp, dtrace_stmtdesc_t *sdp)
 
 	if (sdp->dtsd_fmtdata != NULL)
 		dt_printf_destroy(sdp->dtsd_fmtdata);
+	dt_free(dtp, sdp->dtsd_strdata);
 
 	dt_ecbdesc_release(dtp, sdp->dtsd_ecbdesc);
 	dt_free(dtp, sdp);
@@ -555,6 +559,10 @@ dt_header_provider(dtrace_hdl_t *dtp, dt_provider_t *pvp, FILE *out)
 	info.dthi_pfname = alloca(strlen(pvp->pv_desc.dtvd_name) + 1 + i);
 	dt_header_fmt_func(info.dthi_pfname, pvp->pv_desc.dtvd_name);
 
+#ifdef __FreeBSD__
+	if (fprintf(out, "#include <sys/sdt.h>\n\n") < 0)
+		return (dt_set_errno(dtp, errno));
+#endif
 	if (fprintf(out, "#if _DTRACE_VERSION\n\n") < 0)
 		return (dt_set_errno(dtp, errno));
 

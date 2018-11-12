@@ -1,21 +1,15 @@
 /*
  * EAP peer state machine functions (RFC 4137)
- * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef EAP_H
 #define EAP_H
 
-#include "defs.h"
+#include "common/defs.h"
 #include "eap_common/eap_defs.h"
 #include "eap_peer/eap_methods.h"
 
@@ -100,7 +94,14 @@ enum eapol_bool_var {
 	 *
 	 * EAP state machines reads this value.
 	 */
-	EAPOL_altReject
+	EAPOL_altReject,
+
+	/**
+	 * EAPOL_eapTriggerStart - EAP-based trigger to send EAPOL-Start
+	 *
+	 * EAP state machine writes this value.
+	 */
+	EAPOL_eapTriggerStart
 };
 
 /**
@@ -216,11 +217,50 @@ struct eapol_callbacks {
 	/**
 	 * eap_param_needed - Notify that EAP parameter is needed
 	 * @ctx: eapol_ctx from eap_peer_sm_init() call
-	 * @field: Field name (e.g., "IDENTITY")
+	 * @field: Field indicator (e.g., WPA_CTRL_REQ_EAP_IDENTITY)
 	 * @txt: User readable text describing the required parameter
 	 */
-	void (*eap_param_needed)(void *ctx, const char *field,
+	void (*eap_param_needed)(void *ctx, enum wpa_ctrl_req_type field,
 				 const char *txt);
+
+	/**
+	 * notify_cert - Notification of a peer certificate
+	 * @ctx: eapol_ctx from eap_peer_sm_init() call
+	 * @depth: Depth in certificate chain (0 = server)
+	 * @subject: Subject of the peer certificate
+	 * @altsubject: Select fields from AltSubject of the peer certificate
+	 * @num_altsubject: Number of altsubject values
+	 * @cert_hash: SHA-256 hash of the certificate
+	 * @cert: Peer certificate
+	 */
+	void (*notify_cert)(void *ctx, int depth, const char *subject,
+			    const char *altsubject[], int num_altsubject,
+			    const char *cert_hash, const struct wpabuf *cert);
+
+	/**
+	 * notify_status - Notification of the current EAP state
+	 * @ctx: eapol_ctx from eap_peer_sm_init() call
+	 * @status: Step in the process of EAP authentication
+	 * @parameter: Step-specific parameter, e.g., EAP method name
+	 */
+	void (*notify_status)(void *ctx, const char *status,
+			      const char *parameter);
+
+#ifdef CONFIG_EAP_PROXY
+	/**
+	 * eap_proxy_cb - Callback signifying any updates from eap_proxy
+	 * @ctx: eapol_ctx from eap_peer_sm_init() call
+	 */
+	void (*eap_proxy_cb)(void *ctx);
+#endif /* CONFIG_EAP_PROXY */
+
+	/**
+	 * set_anon_id - Set or add anonymous identity
+	 * @ctx: eapol_ctx from eap_peer_sm_init() call
+	 * @id: Anonymous identity (e.g., EAP-SIM pseudonym) or %NULL to clear
+	 * @len: Length of anonymous identity in octets
+	 */
+	void (*set_anon_id)(void *ctx, const u8 *id, size_t len);
 };
 
 /**
@@ -246,21 +286,35 @@ struct eap_config {
 	 */
 	const char *pkcs11_module_path;
 	/**
+	 * openssl_ciphers - OpenSSL cipher string
+	 *
+	 * This is an OpenSSL specific configuration option for configuring the
+	 * default ciphers. If not set, "DEFAULT:!EXP:!LOW" is used as the
+	 * default.
+	 */
+	const char *openssl_ciphers;
+	/**
 	 * wps - WPS context data
 	 *
 	 * This is only used by EAP-WSC and can be left %NULL if not available.
 	 */
 	struct wps_context *wps;
+
+	/**
+	 * cert_in_cb - Include server certificates in callback
+	 */
+	int cert_in_cb;
 };
 
 struct eap_sm * eap_peer_sm_init(void *eapol_ctx,
-				 struct eapol_callbacks *eapol_cb,
+				 const struct eapol_callbacks *eapol_cb,
 				 void *msg_ctx, struct eap_config *conf);
 void eap_peer_sm_deinit(struct eap_sm *sm);
 int eap_peer_sm_step(struct eap_sm *sm);
 void eap_sm_abort(struct eap_sm *sm);
 int eap_sm_get_status(struct eap_sm *sm, char *buf, size_t buflen,
 		      int verbose);
+const char * eap_sm_get_method_name(struct eap_sm *sm);
 struct wpabuf * eap_sm_buildIdentity(struct eap_sm *sm, int id, int encrypted);
 void eap_sm_request_identity(struct eap_sm *sm);
 void eap_sm_request_password(struct eap_sm *sm);
@@ -268,6 +322,7 @@ void eap_sm_request_new_password(struct eap_sm *sm);
 void eap_sm_request_pin(struct eap_sm *sm);
 void eap_sm_request_otp(struct eap_sm *sm, const char *msg, size_t msg_len);
 void eap_sm_request_passphrase(struct eap_sm *sm);
+void eap_sm_request_sim(struct eap_sm *sm, const char *req);
 void eap_sm_notify_ctrl_attached(struct eap_sm *sm);
 u32 eap_get_phase2_type(const char *name, int *vendor);
 struct eap_method_type * eap_get_phase2_types(struct eap_peer_config *config,
@@ -275,9 +330,11 @@ struct eap_method_type * eap_get_phase2_types(struct eap_peer_config *config,
 void eap_set_fast_reauth(struct eap_sm *sm, int enabled);
 void eap_set_workaround(struct eap_sm *sm, unsigned int workaround);
 void eap_set_force_disabled(struct eap_sm *sm, int disabled);
+void eap_set_external_sim(struct eap_sm *sm, int external_sim);
 int eap_key_available(struct eap_sm *sm);
 void eap_notify_success(struct eap_sm *sm);
 void eap_notify_lower_layer_success(struct eap_sm *sm);
+const u8 * eap_get_eapSessionId(struct eap_sm *sm, size_t *len);
 const u8 * eap_get_eapKeyData(struct eap_sm *sm, size_t *len);
 struct wpabuf * eap_get_eapRespData(struct eap_sm *sm);
 void eap_register_scard_ctx(struct eap_sm *sm, void *ctx);
@@ -285,6 +342,12 @@ void eap_invalidate_cached_session(struct eap_sm *sm);
 
 int eap_is_wps_pbc_enrollee(struct eap_peer_config *conf);
 int eap_is_wps_pin_enrollee(struct eap_peer_config *conf);
+
+struct ext_password_data;
+void eap_sm_set_ext_pw_ctx(struct eap_sm *sm, struct ext_password_data *ext);
+void eap_set_anon_id(struct eap_sm *sm, const u8 *id, size_t len);
+int eap_peer_was_failure_expected(struct eap_sm *sm);
+void eap_peer_erp_free_keys(struct eap_sm *sm);
 
 #endif /* IEEE8021X_EAPOL */
 

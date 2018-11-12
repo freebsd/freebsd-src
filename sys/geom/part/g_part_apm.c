@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/apm.h>
 #include <sys/bio.h>
-#include <sys/diskmbr.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
@@ -41,10 +40,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
+
+FEATURE(geom_part_apm, "GEOM partitioning class for Apple-style partitions");
 
 struct g_part_apm_table {
 	struct g_part_table	base;
@@ -74,6 +77,8 @@ static int g_part_apm_read(struct g_part_table *, struct g_consumer *);
 static const char *g_part_apm_type(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_apm_write(struct g_part_table *, struct g_consumer *);
+static int g_part_apm_resize(struct g_part_table *, struct g_part_entry *,
+    struct g_part_parms *);
 
 static kobj_method_t g_part_apm_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_apm_add),
@@ -82,6 +87,7 @@ static kobj_method_t g_part_apm_methods[] = {
 	KOBJMETHOD(g_part_dumpconf,	g_part_apm_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_apm_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_apm_modify),
+	KOBJMETHOD(g_part_resize,	g_part_apm_resize),
 	KOBJMETHOD(g_part_name,		g_part_apm_name),
 	KOBJMETHOD(g_part_probe,	g_part_apm_probe),
 	KOBJMETHOD(g_part_read,		g_part_apm_read),
@@ -96,7 +102,7 @@ static struct g_part_scheme g_part_apm_scheme = {
 	sizeof(struct g_part_apm_table),
 	.gps_entrysz = sizeof(struct g_part_apm_entry),
 	.gps_minent = 16,
-	.gps_maxent = INT_MAX,
+	.gps_maxent = 4096,
 };
 G_PART_SCHEME_DECLARE(g_part_apm);
 
@@ -128,9 +134,29 @@ apm_parse_type(const char *type, char *buf, size_t bufsz)
 		strncpy(buf, type, bufsz);
 		return (0);
 	}
+	alias = g_part_alias_name(G_PART_ALIAS_APPLE_BOOT);
+	if (!strcasecmp(type, alias)) {
+		strcpy(buf, APM_ENT_TYPE_APPLE_BOOT);
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_APPLE_HFS);
+	if (!strcasecmp(type, alias)) {
+		strcpy(buf, APM_ENT_TYPE_APPLE_HFS);
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_APPLE_UFS);
+	if (!strcasecmp(type, alias)) {
+		strcpy(buf, APM_ENT_TYPE_APPLE_UFS);
+		return (0);
+	}
 	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
 	if (!strcasecmp(type, alias)) {
 		strcpy(buf, APM_ENT_TYPE_FREEBSD);
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_NANDFS);
+	if (!strcasecmp(type, alias)) {
+		strcpy(buf, APM_ENT_TYPE_FREEBSD_NANDFS);
 		return (0);
 	}
 	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP);
@@ -208,6 +234,12 @@ g_part_apm_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 		strncpy(entry->ent.ent_name, gpp->gpp_label,
 		    sizeof(entry->ent.ent_name));
 	}
+	if (baseentry->gpe_index >= table->self.ent_pmblkcnt)
+		table->self.ent_pmblkcnt = baseentry->gpe_index + 1;
+	KASSERT(table->self.ent_size >= table->self.ent_pmblkcnt,
+	    ("%s", __func__));
+	KASSERT(table->self.ent_size > baseentry->gpe_index,
+	    ("%s", __func__));
 	return (0);
 }
 
@@ -229,7 +261,7 @@ g_part_apm_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 		return (ENOSPC);
 
 	/* APM uses 32-bit LBAs. */
-	last = MIN(pp->mediasize / pp->sectorsize, 0xffffffff) - 1;
+	last = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX) - 1;
 
 	basetable->gpt_first = 2 + basetable->gpt_entries;
 	basetable->gpt_last = last;
@@ -274,10 +306,14 @@ g_part_apm_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 		/* confxml: partition entry information */
 		strncpy(u.name, entry->ent.ent_name, APM_ENT_NAMELEN);
 		u.name[APM_ENT_NAMELEN] = '\0';
-		sbuf_printf(sb, "%s<label>%s</label>\n", indent, u.name);
+		sbuf_printf(sb, "%s<label>", indent);
+		g_conf_printf_escaped(sb, "%s", u.name);
+		sbuf_printf(sb, "</label>\n");
 		strncpy(u.type, entry->ent.ent_type, APM_ENT_TYPELEN);
 		u.type[APM_ENT_TYPELEN] = '\0';
-		sbuf_printf(sb, "%s<rawtype>%s</rawtype>\n", indent, u.type);
+		sbuf_printf(sb, "%s<rawtype>", indent);
+		g_conf_printf_escaped(sb, "%s", u.type);
+		sbuf_printf(sb, "</rawtype>\n");
 	} else {
 		/* confxml: scheme information */
 	}
@@ -318,6 +354,27 @@ g_part_apm_modify(struct g_part_table *basetable,
 	return (0);
 }
 
+static int
+g_part_apm_resize(struct g_part_table *basetable,
+    struct g_part_entry *baseentry, struct g_part_parms *gpp)
+{
+	struct g_part_apm_entry *entry;
+	struct g_provider *pp;
+
+	if (baseentry == NULL) {
+		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+		basetable->gpt_last = MIN(pp->mediasize / pp->sectorsize,
+		    UINT32_MAX) - 1;
+		return (0);
+	}
+
+	entry = (struct g_part_apm_entry *)baseentry;
+	baseentry->gpe_end = baseentry->gpe_start + gpp->gpp_size - 1;
+	entry->ent.ent_size = gpp->gpp_size;
+
+	return (0);
+}
+
 static const char *
 g_part_apm_name(struct g_part_table *table, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
@@ -351,13 +408,15 @@ g_part_apm_probe(struct g_part_table *basetable, struct g_consumer *cp)
 	buf = g_read_data(cp, 0L, pp->sectorsize, &error);
 	if (buf == NULL)
 		return (error);
-	if (be16dec(buf) == be16toh(APM_DDR_SIG)) {
+	if (be16dec(buf) == APM_DDR_SIG) {
 		/* Normal Apple DDR */
 		table->ddr.ddr_sig = be16dec(buf);
 		table->ddr.ddr_blksize = be16dec(buf + 2);
 		table->ddr.ddr_blkcount = be32dec(buf + 4);
 		g_free(buf);
 		if (table->ddr.ddr_blksize != pp->sectorsize)
+			return (ENXIO);
+		if (table->ddr.ddr_blkcount > pp->mediasize / pp->sectorsize)
 			return (ENXIO);
 	} else {
 		/*
@@ -373,7 +432,8 @@ g_part_apm_probe(struct g_part_table *basetable, struct g_consumer *cp)
 		}
 		table->ddr.ddr_sig = APM_DDR_SIG;		/* XXX */
 		table->ddr.ddr_blksize = pp->sectorsize;	/* XXX */
-		table->ddr.ddr_blkcount = pp->mediasize / pp->sectorsize;/* XXX */
+		table->ddr.ddr_blkcount =
+		    MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 		table->tivo_series1 = 1;
 		g_free(buf);
 	}
@@ -401,9 +461,9 @@ g_part_apm_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	table = (struct g_part_apm_table *)basetable;
 
-	basetable->gpt_first = table->self.ent_pmblkcnt + 1;
+	basetable->gpt_first = table->self.ent_size + 1;
 	basetable->gpt_last = table->ddr.ddr_blkcount - 1;
-	basetable->gpt_entries = table->self.ent_pmblkcnt - 1;
+	basetable->gpt_entries = table->self.ent_size - 1;
 
 	for (index = table->self.ent_pmblkcnt - 1; index > 0; index--) {
 		error = apm_read_ent(cp, index + 1, &ent, table->tivo_series1);
@@ -429,8 +489,16 @@ g_part_apm_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 
 	entry = (struct g_part_apm_entry *)baseentry;
 	type = entry->ent.ent_type;
+	if (!strcmp(type, APM_ENT_TYPE_APPLE_BOOT))
+		return (g_part_alias_name(G_PART_ALIAS_APPLE_BOOT));
+	if (!strcmp(type, APM_ENT_TYPE_APPLE_HFS))
+		return (g_part_alias_name(G_PART_ALIAS_APPLE_HFS));
+	if (!strcmp(type, APM_ENT_TYPE_APPLE_UFS))
+		return (g_part_alias_name(G_PART_ALIAS_APPLE_UFS));
 	if (!strcmp(type, APM_ENT_TYPE_FREEBSD))
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD));
+	if (!strcmp(type, APM_ENT_TYPE_FREEBSD_NANDFS))
+		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_NANDFS));
 	if (!strcmp(type, APM_ENT_TYPE_FREEBSD_SWAP))
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP));
 	if (!strcmp(type, APM_ENT_TYPE_FREEBSD_UFS))
@@ -449,67 +517,78 @@ g_part_apm_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 static int
 g_part_apm_write(struct g_part_table *basetable, struct g_consumer *cp)
 {
-	char buf[512];
+	struct g_provider *pp;
 	struct g_part_entry *baseentry;
 	struct g_part_apm_entry *entry;
 	struct g_part_apm_table *table;
-	int error, index;
+	char *buf, *ptr;
+	uint32_t index;
+	int error;
+	size_t tblsz;
 
+	pp = cp->provider;
 	table = (struct g_part_apm_table *)basetable;
 	/*
 	 * Tivo Series 1 disk partitions are currently read-only.
 	 */
 	if (table->tivo_series1)
 		return (EOPNOTSUPP);
-	bzero(buf, sizeof(buf));
 
-	/* Write the DDR and 'self' entry only when we're newly created. */
+	/* Write the DDR only when we're newly created. */
 	if (basetable->gpt_created) {
+		buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
 		be16enc(buf, table->ddr.ddr_sig);
 		be16enc(buf + 2, table->ddr.ddr_blksize);
 		be32enc(buf + 4, table->ddr.ddr_blkcount);
-		error = g_write_data(cp, 0, buf, sizeof(buf));
+		error = g_write_data(cp, 0, buf, pp->sectorsize);
+		g_free(buf);
 		if (error)
 			return (error);
 	}
 
-	be16enc(buf, table->self.ent_sig);
-	be16enc(buf + 2, 0);
+	/* Allocate the buffer for all entries */
+	tblsz = table->self.ent_pmblkcnt;
+	buf = g_malloc(tblsz * pp->sectorsize, M_WAITOK | M_ZERO);
+
+	/* Fill the self entry */
+	be16enc(buf, APM_ENT_SIG);
 	be32enc(buf + 4, table->self.ent_pmblkcnt);
-
-	if (basetable->gpt_created) {
-		be32enc(buf + 8, table->self.ent_start);
-		be32enc(buf + 12, table->self.ent_size);
-		bcopy(table->self.ent_name, buf + 16,
-		    sizeof(table->self.ent_name));
-		bcopy(table->self.ent_type, buf + 48,
-		    sizeof(table->self.ent_type));
-		error = g_write_data(cp, 512, buf, sizeof(buf));
-		if (error)
-			return (error);
-	}
+	be32enc(buf + 8, table->self.ent_start);
+	be32enc(buf + 12, table->self.ent_size);
+	bcopy(table->self.ent_name, buf + 16, sizeof(table->self.ent_name));
+	bcopy(table->self.ent_type, buf + 48, sizeof(table->self.ent_type));
 
 	baseentry = LIST_FIRST(&basetable->gpt_entry);
-	for (index = 1; index <= basetable->gpt_entries; index++) {
+	for (index = 1; index < tblsz; index++) {
 		entry = (baseentry != NULL && index == baseentry->gpe_index)
 		    ? (struct g_part_apm_entry *)baseentry : NULL;
+		ptr = buf + index * pp->sectorsize;
+		be16enc(ptr, APM_ENT_SIG);
+		be32enc(ptr + 4, table->self.ent_pmblkcnt);
 		if (entry != NULL && !baseentry->gpe_deleted) {
-			be32enc(buf + 8, entry->ent.ent_start);
-			be32enc(buf + 12, entry->ent.ent_size);
-			bcopy(entry->ent.ent_name, buf + 16,
+			be32enc(ptr + 8, entry->ent.ent_start);
+			be32enc(ptr + 12, entry->ent.ent_size);
+			bcopy(entry->ent.ent_name, ptr + 16,
 			    sizeof(entry->ent.ent_name));
-			bcopy(entry->ent.ent_type, buf + 48,
+			bcopy(entry->ent.ent_type, ptr + 48,
 			    sizeof(entry->ent.ent_type));
 		} else {
-			bzero(buf + 8, 4 + 4 + 32 + 32);
-			strcpy(buf + 48, APM_ENT_TYPE_UNUSED);
+			strcpy(ptr + 48, APM_ENT_TYPE_UNUSED);
 		}
-		error = g_write_data(cp, (index + 1) * 512, buf, sizeof(buf));
-		if (error)
-			return (error);
 		if (entry != NULL)
 			baseentry = LIST_NEXT(baseentry, gpe_entry);
 	}
 
+	for (index = 0; index < tblsz; index += MAXPHYS / pp->sectorsize) {
+		error = g_write_data(cp, (1 + index) * pp->sectorsize,
+		    buf + index * pp->sectorsize,
+		    (tblsz - index > MAXPHYS / pp->sectorsize) ? MAXPHYS:
+		    (tblsz - index) * pp->sectorsize);
+		if (error) {
+			g_free(buf);
+			return (error);
+		}
+	}
+	g_free(buf);
 	return (0);
 }

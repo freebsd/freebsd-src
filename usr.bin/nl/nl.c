@@ -13,13 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -42,7 +35,6 @@ __COPYRIGHT(
 __RCSID("$FreeBSD$");
 #endif    
 
-#define	_WITH_GETLINE
 #include <sys/types.h>
 
 #include <err.h>
@@ -80,9 +72,9 @@ struct numbering_property {
 #define NP_LAST		HEADER
 
 static struct numbering_property numbering_properties[NP_LAST + 1] = {
-	{ "footer",	number_none	},
-	{ "body",	number_nonempty	},
-	{ "header",	number_none	}
+	{ .name = "footer", .type = number_none },
+	{ .name = "body", .type = number_nonempty },
+	{ .name = "header", .type = number_none }
 };
 
 #define max(a, b)	((a) > (b) ? (a) : (b))
@@ -135,9 +127,7 @@ static int width = 6;
 
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int c;
 	long val;
@@ -251,7 +241,8 @@ main(argc, argv)
 	case 0:
 		break;
 	case 1:
-		if (freopen(argv[0], "r", stdin) == NULL)
+		if (strcmp(argv[0], "-") != 0 &&
+		    freopen(argv[0], "r", stdin) == NULL)
 			err(EXIT_FAILURE, "%s", argv[0]);
 		break;
 	default:
@@ -265,7 +256,7 @@ main(argc, argv)
 	delimlen = delim1len + delim2len;
 
 	/* Allocate a buffer suitable for preformatting line number. */
-	intbuffersize = max(INT_STRLEN_MAXIMUM, width) + 1;	/* NUL */
+	intbuffersize = max((int)INT_STRLEN_MAXIMUM, width) + 1; /* NUL */
 	if ((intbuffer = malloc(intbuffersize)) == NULL)
 		err(EXIT_FAILURE, "cannot allocate preformatting buffer");
 
@@ -277,7 +268,7 @@ main(argc, argv)
 }
 
 static void
-filter()
+filter(void)
 {
 	char *buffer;
 	size_t buffersize;
@@ -366,9 +357,7 @@ nextline:
  */
 
 static void
-parse_numbering(argstr, section)
-	const char *argstr;
-	int section;
+parse_numbering(const char *argstr, int section)
 {
 	int error;
 	char errorbuf[NL_TEXTMAX];
@@ -410,7 +399,7 @@ parse_numbering(argstr, section)
 }
 
 static void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr,

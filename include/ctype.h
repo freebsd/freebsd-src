@@ -18,11 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -82,21 +78,27 @@ int	isphonogram(int);
 int	isrune(int);
 int	isspecial(int);
 #endif
+
+#if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)
+#include <xlocale/_ctype.h>
+#endif
 __END_DECLS
 
-#define	isalnum(c)	__sbistype((c), _CTYPE_A|_CTYPE_D)
+#ifndef __cplusplus
+#define	isalnum(c)	__sbistype((c), _CTYPE_A|_CTYPE_D|_CTYPE_N)
 #define	isalpha(c)	__sbistype((c), _CTYPE_A)
 #define	iscntrl(c)	__sbistype((c), _CTYPE_C)
-#define	isdigit(c)	__isctype((c), _CTYPE_D) /* ANSI -- locale independent */
+#define	isdigit(c)	__sbistype((c), _CTYPE_D)
 #define	isgraph(c)	__sbistype((c), _CTYPE_G)
 #define	islower(c)	__sbistype((c), _CTYPE_L)
 #define	isprint(c)	__sbistype((c), _CTYPE_R)
 #define	ispunct(c)	__sbistype((c), _CTYPE_P)
 #define	isspace(c)	__sbistype((c), _CTYPE_S)
 #define	isupper(c)	__sbistype((c), _CTYPE_U)
-#define	isxdigit(c)	__isctype((c), _CTYPE_X) /* ANSI -- locale independent */
+#define	isxdigit(c)	__sbistype((c), _CTYPE_X)
 #define	tolower(c)	__sbtolower(c)
 #define	toupper(c)	__sbtoupper(c)
+#endif /* !__cplusplus */
 
 #if __XSI_VISIBLE
 /*
@@ -116,7 +118,7 @@ __END_DECLS
 #define	toascii(c)	((c) & 0x7F)
 #endif
 
-#if __ISO_C_VISIBLE >= 1999
+#if __ISO_C_VISIBLE >= 1999 && !defined(__cplusplus)
 #define	isblank(c)	__sbistype((c), _CTYPE_B)
 #endif
 
@@ -124,7 +126,7 @@ __END_DECLS
 #define	digittoint(c)	__sbmaskrune((c), 0xFF)
 #define	ishexnumber(c)	__sbistype((c), _CTYPE_X)
 #define	isideogram(c)	__sbistype((c), _CTYPE_I)
-#define	isnumber(c)	__sbistype((c), _CTYPE_D)
+#define	isnumber(c)	__sbistype((c), _CTYPE_D|_CTYPE_N)
 #define	isphonogram(c)	__sbistype((c), _CTYPE_Q)
 #define	isrune(c)	__sbistype((c), 0xFFFFFF00L)
 #define	isspecial(c)	__sbistype((c), _CTYPE_T)

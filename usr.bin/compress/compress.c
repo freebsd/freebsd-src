@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -52,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,15 +57,15 @@ __FBSDID("$FreeBSD$");
 
 #include "zopen.h"
 
-void	compress(const char *, const char *, int);
-void	cwarn(const char *, ...) __printflike(1, 2);
-void	cwarnx(const char *, ...) __printflike(1, 2);
-void	decompress(const char *, const char *, int);
-int	permission(const char *);
-void	setfile(const char *, struct stat *);
-void	usage(int);
+static void	compress(const char *, const char *, int);
+static void	cwarn(const char *, ...) __printflike(1, 2);
+static void	cwarnx(const char *, ...) __printflike(1, 2);
+static void	decompress(const char *, const char *, int);
+static int	permission(const char *);
+static void	setfile(const char *, struct stat *);
+static void	usage(int);
 
-int eval, force, verbose;
+static int eval, force, verbose;
 
 int
 main(int argc, char *argv[])
@@ -79,7 +76,7 @@ main(int argc, char *argv[])
 	char *p, newname[MAXPATHLEN];
 
 	cat = 0;
-	if ((p = rindex(argv[0], '/')) == NULL)
+	if ((p = strrchr(argv[0], '/')) == NULL)
 		p = argv[0];
 	else
 		++p;
@@ -145,7 +142,7 @@ main(int argc, char *argv[])
 				compress(*argv, "/dev/stdout", bits);
 				break;
 			}
-			if ((p = rindex(*argv, '.')) != NULL &&
+			if ((p = strrchr(*argv, '.')) != NULL &&
 			    !strcmp(p, ".Z")) {
 				cwarnx("%s: name already has trailing .Z",
 				    *argv);
@@ -168,7 +165,7 @@ main(int argc, char *argv[])
 				break;
 			}
 			len = strlen(*argv);
-			if ((p = rindex(*argv, '.')) == NULL ||
+			if ((p = strrchr(*argv, '.')) == NULL ||
 			    strcmp(p, ".Z")) {
 				if (len > sizeof(newname) - 3) {
 					cwarnx("%s: name too long", *argv);
@@ -195,7 +192,7 @@ main(int argc, char *argv[])
 	exit (eval);
 }
 
-void
+static void
 compress(const char *in, const char *out, int bits)
 {
 	size_t nr;
@@ -285,7 +282,7 @@ err:	if (ofp) {
 		(void)fclose(ifp);
 }
 
-void
+static void
 decompress(const char *in, const char *out, int bits)
 {
 	size_t nr;
@@ -361,17 +358,17 @@ err:	if (ofp) {
 		(void)fclose(ifp);
 }
 
-void
+static void
 setfile(const char *name, struct stat *fs)
 {
-	static struct timeval tv[2];
+	static struct timespec tspec[2];
 
 	fs->st_mode &= S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO;
 
-	TIMESPEC_TO_TIMEVAL(&tv[0], &fs->st_atimespec);
-	TIMESPEC_TO_TIMEVAL(&tv[1], &fs->st_mtimespec);
-	if (utimes(name, tv))
-		cwarn("utimes: %s", name);
+	tspec[0] = fs->st_atim;
+	tspec[1] = fs->st_mtim;
+	if (utimensat(AT_FDCWD, name, tspec, 0))
+		cwarn("utimensat: %s", name);
 
 	/*
 	 * Changing the ownership probably won't succeed, unless we're root
@@ -391,7 +388,7 @@ setfile(const char *name, struct stat *fs)
 		cwarn("chflags: %s", name);
 }
 
-int
+static int
 permission(const char *fname)
 {
 	int ch, first;
@@ -405,7 +402,7 @@ permission(const char *fname)
 	return (first == 'y');
 }
 
-void
+static void
 usage(int iscompress)
 {
 	if (iscompress)
@@ -417,7 +414,7 @@ usage(int iscompress)
 	exit(1);
 }
 
-void
+static void
 cwarnx(const char *fmt, ...)
 {
 	va_list ap;
@@ -428,7 +425,7 @@ cwarnx(const char *fmt, ...)
 	eval = 1;
 }
 
-void
+static void
 cwarn(const char *fmt, ...)
 {
 	va_list ap;

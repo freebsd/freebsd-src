@@ -43,10 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 int
-_des_crypt_call(buf, len, dparms)
-	char *buf;
-	int len;
-	struct desparams *dparms;
+_des_crypt_call(char *buf, int len, struct desparams *dparms)
 {
 	CLIENT *clnt;
 	desresp  *result_1;
@@ -64,6 +61,7 @@ _des_crypt_call(buf, len, dparms)
 	}
 	if (nconf == NULL) {
 		warnx("getnetconfig: %s", nc_sperror());
+		endnetconfig(localhandle);
 		return(DESERR_HWERROR);
 	}
 	clnt = clnt_tp_create(NULL, CRYPT_PROG, CRYPT_VERS, nconf);
@@ -75,8 +73,8 @@ _des_crypt_call(buf, len, dparms)
 
 	des_crypt_1_arg.desbuf.desbuf_len = len;
 	des_crypt_1_arg.desbuf.desbuf_val = buf;
-	des_crypt_1_arg.des_dir = dparms->des_dir;
-	des_crypt_1_arg.des_mode = dparms->des_mode;
+	des_crypt_1_arg.des_dir = (dparms->des_dir == ENCRYPT) ? ENCRYPT_DES : DECRYPT_DES;
+	des_crypt_1_arg.des_mode = (dparms->des_mode == CBC) ? CBC_DES : ECB_DES;
 	bcopy(dparms->des_ivec, des_crypt_1_arg.des_ivec, 8);
 	bcopy(dparms->des_key, des_crypt_1_arg.des_key, 8);
 

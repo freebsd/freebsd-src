@@ -110,8 +110,8 @@ struct devinfo_dev {
 
 struct devinfo_rman {
     devinfo_handle_t	dm_handle;	/* resource manager handle */
-    u_long		dm_start;	/* resource start */
-    u_long		dm_size;	/* resource size */
+    rman_res_t		dm_start;	/* resource start */
+    rman_res_t		dm_size;	/* resource size */
     char		*dm_desc;	/* resource description */
 };
 
@@ -119,8 +119,8 @@ struct devinfo_res {
     devinfo_handle_t	dr_handle;	/* resource handle */
     devinfo_handle_t	dr_rman;	/* resource manager handle */
     devinfo_handle_t	dr_device;	/* owning device */
-    u_long		dr_start;	/* region start */
-    u_long		dr_size;	/* region size */
+    rman_res_t		dr_start;	/* region start */
+    rman_res_t		dr_size;	/* region size */
 };
 .Ed
 .Pp
@@ -238,7 +238,7 @@ The
 library first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
-.An Michael Smith Aq msmith@FreeBSD.org
+.An Michael Smith Aq Mt msmith@FreeBSD.org
 .Sh BUGS
 This is the first implementation of the library,
 and the interface is still subject to refinement.

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -39,6 +39,8 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -57,32 +59,38 @@
 
 #define ASSERT(x) if(!(x)) panic("EM: x")
 
-/* The happy-fun DELAY macro is defined in /usr/src/sys/i386/include/clock.h */
 #define usec_delay(x) DELAY(x)
+#define usec_delay_irq(x) usec_delay(x)
 #define msec_delay(x) DELAY(1000*(x))
-/* TODO: Should we be paranoid about delaying in interrupt context? */
 #define msec_delay_irq(x) DELAY(1000*(x))
 
-#define MSGOUT(S, A, B)     printf(S "\n", A, B)
-#define DEBUGFUNC(F)        DEBUGOUT(F);
-	#define DEBUGOUT(S)
-	#define DEBUGOUT1(S,A)
-	#define DEBUGOUT2(S,A,B)
-	#define DEBUGOUT3(S,A,B,C)
-	#define DEBUGOUT7(S,A,B,C,D,E,F,G)
+/* Enable/disable debugging statements in shared code */
+#define DBG		0
+
+#define DEBUGOUT(...) \
+    do { if (DBG) printf(__VA_ARGS__); } while (0)
+#define DEBUGOUT1(...)			DEBUGOUT(__VA_ARGS__)
+#define DEBUGOUT2(...)			DEBUGOUT(__VA_ARGS__)
+#define DEBUGOUT3(...)			DEBUGOUT(__VA_ARGS__)
+#define DEBUGOUT7(...)			DEBUGOUT(__VA_ARGS__)
+#define DEBUGFUNC(F)			DEBUGOUT(F "\n")
 
 #define STATIC			static
 #define FALSE			0
-#define false			FALSE /* shared code stupidity */
 #define TRUE			1
-#define true			TRUE
 #define CMD_MEM_WRT_INVALIDATE	0x0010  /* BIT_4 */
 #define PCI_COMMAND_REGISTER	PCIR_COMMAND
 
-/*
-** These typedefs are necessary due to the new
-** shared code, they are native to Linux.
-*/
+/* Mutex used in the shared code */
+#define E1000_MUTEX                     struct mtx
+#define E1000_MUTEX_INIT(mutex)         mtx_init((mutex), #mutex, \
+                                            MTX_NETWORK_LOCK, \
+					    MTX_DEF | MTX_DUPOK)
+#define E1000_MUTEX_DESTROY(mutex)      mtx_destroy(mutex)
+#define E1000_MUTEX_LOCK(mutex)         mtx_lock(mutex)
+#define E1000_MUTEX_TRYLOCK(mutex)      mtx_trylock(mutex)
+#define E1000_MUTEX_UNLOCK(mutex)       mtx_unlock(mutex)
+
 typedef uint64_t	u64;
 typedef uint32_t	u32;
 typedef uint16_t	u16;
@@ -91,11 +99,32 @@ typedef int64_t		s64;
 typedef int32_t		s32;
 typedef int16_t		s16;
 typedef int8_t		s8;
-typedef boolean_t	bool;
 
 #define __le16		u16
 #define __le32		u32
 #define __le64		u64
+
+#if __FreeBSD_version < 800000
+#if defined(__i386__) || defined(__amd64__)
+#define mb()	__asm volatile("mfence" ::: "memory")
+#define wmb()	__asm volatile("sfence" ::: "memory")
+#define rmb()	__asm volatile("lfence" ::: "memory")
+#else
+#define mb()
+#define rmb()
+#define wmb()
+#endif
+#endif /*__FreeBSD_version < 800000 */
+
+#if defined(__i386__) || defined(__amd64__)
+static __inline
+void prefetch(void *x)
+{
+	__asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
+}
+#else
+#define prefetch(x)
+#endif
 
 struct e1000_osdep
 {
@@ -105,7 +134,7 @@ struct e1000_osdep
 	bus_space_handle_t io_bus_space_handle;
 	bus_space_tag_t    flash_bus_space_tag;
 	bus_space_handle_t flash_bus_space_handle;
-	struct device     *dev;
+	device_t	   dev;
 };
 
 #define E1000_REGISTER(hw, reg) (((hw)->mac.type >= e1000_82543) \

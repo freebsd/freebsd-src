@@ -71,7 +71,7 @@
  *
  * XScale assembly functions for CPU / MMU / TLB specific operations
  */
- 
+#include <machine/armreg.h>
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
@@ -79,9 +79,6 @@ __FBSDID("$FreeBSD$");
  * Size of the XScale core D-cache.
  */
 #define	DCACHE_SIZE		0x00008000
-
-.Lblock_userspace_access:
-	.word	_C_LABEL(block_userspace_access)
 
 /*
  * CPWAIT -- Canonical method to wait for CP15 update.
@@ -106,6 +103,7 @@ __FBSDID("$FreeBSD$");
 
 ENTRY(xscale_cpwait)
 	CPWAIT_AND_RETURN(r0)
+END(xscale_cpwait)
 
 /*
  * We need a separate cpu_control() entry point, since we have to
@@ -113,16 +111,17 @@ ENTRY(xscale_cpwait)
  * changes in the control register.
  */
 ENTRY(xscale_control)
-	mrc	p15, 0, r3, c1, c0, 0	/* Read the control register */
+	mrc	CP15_SCTLR(r3)		/* Read the control register */
 	bic	r2, r3, r0		/* Clear bits */
 	eor	r2, r2, r1		/* XOR bits */
 
 	teq	r2, r3			/* Only write if there was a change */
 	mcrne	p15, 0, r0, c7, c5, 6	/* Invalidate the BTB */
-	mcrne	p15, 0, r2, c1, c0, 0	/* Write new control register */
+	mcrne	CP15_SCTLR(r2)		/* Write new control register */
 	mov	r0, r3			/* Return old value */
 
 	CPWAIT_AND_RETURN(r1)
+END(xscale_control)
 
 /*
  * Functions to set the MMU Translation Table Base register
@@ -132,14 +131,9 @@ ENTRY(xscale_control)
  */
 ENTRY(xscale_setttb)
 #ifdef CACHE_CLEAN_BLOCK_INTR
-	mrs	r3, cpsr_all
-	orr	r1, r3, #(I32_bit | F32_bit)
-	msr	cpsr_all, r1
-#else
-	ldr	r3, .Lblock_userspace_access
-	ldr	r2, [r3]
-	orr	r1, r2, #1 
-	str	r1, [r3]
+	mrs	r3, cpsr
+	orr	r1, r3, #(PSR_I | PSR_F)
+	msr	cpsr_fsxc, r1
 #endif
 	stmfd	sp!, {r0-r3, lr}
 	bl	_C_LABEL(xscale_cache_cleanID)
@@ -150,7 +144,7 @@ ENTRY(xscale_setttb)
 
 	ldmfd	sp!, {r0-r3, lr}
 
-	/* Write the TTB */ 
+	/* Write the TTB */
 	mcr	p15, 0, r0, c2, c0, 0
 
 	/* If we have updated the TTB we must flush the TLB */
@@ -162,11 +156,10 @@ ENTRY(xscale_setttb)
 	CPWAIT(r0)
 
 #ifdef CACHE_CLEAN_BLOCK_INTR
-	msr	cpsr_all, r3
-#else
-	str	r2, [r3]
+	msr	cpsr_fsxc, r3
 #endif
 	RET
+END(xscale_setttb)
 
 /*
  * TLB functions
@@ -176,6 +169,7 @@ ENTRY(xscale_tlb_flushID_SE)
 	mcr	p15, 0, r0, c8, c6, 1	/* flush D tlb single entry */
 	mcr	p15, 0, r0, c8, c5, 1	/* flush I tlb single entry */
 	CPWAIT_AND_RETURN(r0)
+END(xscale_tlb_flushID_SE)
 
 /*
  * Cache functions
@@ -183,18 +177,22 @@ ENTRY(xscale_tlb_flushID_SE)
 ENTRY(xscale_cache_flushID)
 	mcr	p15, 0, r0, c7, c7, 0	/* flush I+D cache */
 	CPWAIT_AND_RETURN(r0)
+END(xscale_cache_flushID)
 
 ENTRY(xscale_cache_flushI)
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache */
 	CPWAIT_AND_RETURN(r0)
+END(xscale_cache_flushI)
 
 ENTRY(xscale_cache_flushD)
 	mcr	p15, 0, r0, c7, c6, 0	/* flush D cache */
 	CPWAIT_AND_RETURN(r0)
+END(xscale_cache_flushD)
 
 ENTRY(xscale_cache_flushI_SE)
 	mcr	p15, 0, r0, c7, c5, 1	/* flush I cache single entry */
 	CPWAIT_AND_RETURN(r0)
+END(xscale_cache_flushI_SE)
 
 ENTRY(xscale_cache_flushD_SE)
 	/*
@@ -205,10 +203,12 @@ ENTRY(xscale_cache_flushD_SE)
 	mcr	p15, 0, r0, c7, c10, 1
 	mcr	p15, 0, r0, c7, c6, 1	/* flush D cache single entry */
 	CPWAIT_AND_RETURN(r0)
+END(xscale_cache_flushD_SE)
 
 ENTRY(xscale_cache_cleanD_E)
 	mcr	p15, 0, r0, c7, c10, 1	/* clean D cache entry */
 	CPWAIT_AND_RETURN(r0)
+END(xscale_cache_cleanD_E)
 
 /*
  * Information for the XScale cache clean/purge functions:
@@ -256,21 +256,16 @@ _C_LABEL(xscale_minidata_clean_size):
 
 #ifdef CACHE_CLEAN_BLOCK_INTR
 #define	XSCALE_CACHE_CLEAN_BLOCK					\
-	mrs	r3, cpsr_all					;	\
-	orr	r0, r3, #(I32_bit | F32_bit)			;	\
-	msr	cpsr_all, r0
+	mrs	r3, cpsr					;	\
+	orr	r0, r3, #(PSR_I | PSR_F)			;	\
+	msr	cpsr_fsxc, r0
 
 #define	XSCALE_CACHE_CLEAN_UNBLOCK					\
-	msr	cpsr_all, r3
+	msr	cpsr_fsxc, r3
 #else
-#define	XSCALE_CACHE_CLEAN_BLOCK					\
-	ldr	r3, .Lblock_userspace_access			;	\
-	ldr	ip, [r3]					;	\
-	orr	r0, ip, #1					;	\
-	str	r0, [r3]
+#define	XSCALE_CACHE_CLEAN_BLOCK
 
-#define	XSCALE_CACHE_CLEAN_UNBLOCK					\
-	str	ip, [r3]
+#define	XSCALE_CACHE_CLEAN_UNBLOCK
 #endif /* CACHE_CLEAN_BLOCK_INTR */
 
 #define	XSCALE_CACHE_CLEAN_PROLOGUE					\
@@ -296,11 +291,12 @@ _C_LABEL(xscale_minidata_clean_size):
 	XSCALE_CACHE_CLEAN_UNBLOCK
 
 ENTRY_NP(xscale_cache_syncI)
-ENTRY_NP(xscale_cache_purgeID)
+
+EENTRY_NP(xscale_cache_purgeID)
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache (D cleaned below) */
-ENTRY_NP(xscale_cache_cleanID)
-ENTRY_NP(xscale_cache_purgeD)
-ENTRY(xscale_cache_cleanD)
+EENTRY_NP(xscale_cache_cleanID)
+EENTRY_NP(xscale_cache_purgeD)
+EENTRY(xscale_cache_cleanD)
 	XSCALE_CACHE_CLEAN_PROLOGUE
 
 1:	subs	r0, r0, #32
@@ -316,6 +312,11 @@ ENTRY(xscale_cache_cleanD)
 
 	XSCALE_CACHE_CLEAN_EPILOGUE
 	RET
+EEND(xscale_cache_cleanD)
+EEND(xscale_cache_purgeD)
+EEND(xscale_cache_cleanID)
+EEND(xscale_cache_purgeID)
+END(xscale_cache_syncI)
 
 /*
  * Clean the mini-data cache.
@@ -335,6 +336,7 @@ ENTRY(xscale_cache_clean_minidata)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r1)
+END(xscale_cache_clean_minidata)
 
 ENTRY(xscale_cache_purgeID_E)
 	mcr	p15, 0, r0, c7, c10, 1	/* clean D cache entry */
@@ -343,6 +345,7 @@ ENTRY(xscale_cache_purgeID_E)
 	mcr	p15, 0, r0, c7, c5, 1	/* flush I cache single entry */
 	mcr	p15, 0, r0, c7, c6, 1	/* flush D cache single entry */
 	CPWAIT_AND_RETURN(r1)
+END(xscale_cache_purgeID_E)
 
 ENTRY(xscale_cache_purgeD_E)
 	mcr	p15, 0, r0, c7, c10, 1	/* clean D cache entry */
@@ -350,13 +353,14 @@ ENTRY(xscale_cache_purgeD_E)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	mcr	p15, 0, r0, c7, c6, 1	/* flush D cache single entry */
 	CPWAIT_AND_RETURN(r1)
+END(xscale_cache_purgeD_E)
 
 /*
  * Soft functions
  */
 /* xscale_cache_syncI is identical to xscale_cache_purgeID */
 
-ENTRY(xscale_cache_cleanID_rng)
+EENTRY(xscale_cache_cleanID_rng)
 ENTRY(xscale_cache_cleanD_rng)
 	cmp	r1, #0x4000
 	bcs	_C_LABEL(xscale_cache_cleanID)
@@ -375,6 +379,8 @@ ENTRY(xscale_cache_cleanD_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
+/*END(xscale_cache_cleanID_rng)*/
+END(xscale_cache_cleanD_rng)
 
 ENTRY(xscale_cache_purgeID_rng)
 	cmp	r1, #0x4000
@@ -396,6 +402,7 @@ ENTRY(xscale_cache_purgeID_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
+END(xscale_cache_purgeID_rng)
 
 ENTRY(xscale_cache_purgeD_rng)
 	cmp	r1, #0x4000
@@ -416,6 +423,7 @@ ENTRY(xscale_cache_purgeD_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
+END(xscale_cache_purgeD_rng)
 
 ENTRY(xscale_cache_syncI_rng)
 	cmp	r1, #0x4000
@@ -436,6 +444,7 @@ ENTRY(xscale_cache_syncI_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
+END(xscale_cache_syncI_rng)
 
 ENTRY(xscale_cache_flushD_rng)
 	and	r2, r0, #0x1f
@@ -450,6 +459,7 @@ ENTRY(xscale_cache_flushD_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
+END(xscale_cache_flushD_rng)
 
 /*
  * Context switch.
@@ -475,6 +485,7 @@ ENTRY(xscale_context_switch)
 	mcr	p15, 0, r0, c8, c7, 0	/* flush the I+D tlb */
 
 	CPWAIT_AND_RETURN(r0)
+END(xscale_context_switch)
 
 /*
  * xscale_cpu_sleep
@@ -493,3 +504,5 @@ ENTRY(xscale_cpu_sleep)
 
 1:
 	RET
+END(xscale_cpu_sleep)
+

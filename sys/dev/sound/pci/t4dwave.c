@@ -822,15 +822,15 @@ tr_pci_probe(device_t dev)
 static int
 tr_pci_attach(device_t dev)
 {
-	u_int32_t	data;
 	struct tr_info *tr;
-	struct ac97_info *codec = 0;
+	struct ac97_info *codec = NULL;
 	bus_addr_t	lowaddr;
 	int		i, dacn;
 	char 		status[SND_STATUSLEN];
 #ifdef __sparc64__
 	device_t	*children;
 	int		nchildren;
+	u_int32_t	data;
 #endif
 
 	tr = malloc(sizeof(*tr), M_DEVBUF, M_WAITOK | M_ZERO);
@@ -857,10 +857,7 @@ tr_pci_attach(device_t dev)
 		}
 	}
 
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
+	pci_enable_busmaster(dev);
 
 	tr->regid = PCIR_BAR(0);
 	tr->regtype = SYS_RES_IOPORT;
@@ -951,7 +948,7 @@ tr_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	snprintf(status, 64, "at io 0x%lx irq %ld %s",
+	snprintf(status, 64, "at io 0x%jx irq %jd %s",
 		 rman_get_start(tr->reg), rman_get_start(tr->irq),PCM_KLDSTRING(snd_t4dwave));
 
 	if (pcm_register(dev, tr, dacn, 1))

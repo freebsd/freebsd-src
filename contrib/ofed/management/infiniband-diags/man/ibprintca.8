@@ -1,0 +1,44 @@
+.TH IBPRINTCA 8 "May 31, 2007" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+ibprintca.pl \- print either the ca specified or the list of cas from the ibnetdiscover output
+
+.SH SYNOPSIS
+.B ibprintca.pl
+[-R -l -C <ca_name> -P <ca_port>] [<ca_guid|node_name>]
+
+.SH DESCRIPTION
+.PP
+Faster than greping/viewing with an editor the output of ibnetdiscover,
+ibprintca.pl will parse out and print either the CA information for the
+specified CA or a list of all the CAs in the subnet.
+
+Finally, ibprintca.pl will also reuse the cached ibnetdiscover output from
+some of the other diag tools which makes it a bit faster than running
+ibnetdiscover from scratch.
+
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-l\fR
+List the CAs (simply a wrapper for ibhosts).
+.TP
+\fB\-R\fR
+Recalculate the ibnetdiscover information, ie do not use the cached
+information.  This option is slower but should be used if the diag tools have
+not been used for some time or if there are other reasons to believe that
+the fabric has changed.
+.TP
+\fB\-C <ca_name>\fR    use the specified ca_name for the search.
+.TP
+\fB\-P <ca_port>\fR    use the specified ca_port for the search.
+
+.SH AUTHORS
+.TP
+Ira Weiny
+.RI < weiny2@llnl.gov >
+.TP
+Hal Rosenstock
+.RI < halr@voltaire.com >

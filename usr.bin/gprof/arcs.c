@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -50,14 +46,13 @@ int newcycle;
 int oldcycle;
 #endif /* DEBUG */
 
+int topcmp(const void *, const void *);
+
     /*
      *	add (or just increment) an arc
      */
 void
-addarc( parentp , childp , count )
-    nltype	*parentp;
-    nltype	*childp;
-    long	count;
+addarc(nltype *parentp, nltype *childp, long count)
 {
     arctype		*arcp;
 
@@ -110,15 +105,16 @@ addarc( parentp , childp , count )
 nltype	**topsortnlp;
 
 int
-topcmp( npp1 , npp2 )
-    nltype	**npp1;
-    nltype	**npp2;
+topcmp(const void *v1, const void *v2)
 {
+    const nltype **npp1 = (const nltype **)v1;
+    const nltype **npp2 = (const nltype **)v2;
+
     return (*npp1) -> toporder - (*npp2) -> toporder;
 }
 
 nltype **
-doarcs()
+doarcs(void)
 {
     nltype	*parentp, **timesortnlp;
     arctype	*arcp;
@@ -256,7 +252,7 @@ doarcs()
 }
 
 void
-dotime()
+dotime(void)
 {
     int	index;
 
@@ -267,8 +263,7 @@ dotime()
 }
 
 void
-timepropagate( parentp )
-    nltype	*parentp;
+timepropagate(nltype *parentp)
 {
     arctype	*arcp;
     nltype	*childp;
@@ -356,7 +351,7 @@ timepropagate( parentp )
 }
 
 void
-cyclelink()
+cyclelink(void)
 {
     register nltype	*nlp;
     register nltype	*cyclenlp;
@@ -381,8 +376,8 @@ cyclelink()
 	 *	i.e. it is origin 1, not origin 0.
 	 */
     cyclenl = (nltype *) calloc( ncycle + 1 , sizeof( nltype ) );
-    if ( cyclenl == 0 )
-	errx( 1 , "no room for %d bytes of cycle headers" ,
+    if ( cyclenl == NULL )
+	errx( 1 , "no room for %zu bytes of cycle headers" ,
 		   ( ncycle + 1 ) * sizeof( nltype ) );
 	/*
 	 *	now link cycles to true cycleheads,
@@ -449,7 +444,7 @@ cyclelink()
      *	analyze cycles to determine breakup
      */
 bool
-cycleanalyze()
+cycleanalyze(void)
 {
     arctype	**cyclestack;
     arctype	**stkp;
@@ -484,8 +479,8 @@ cycleanalyze()
 	    continue;
 	done = FALSE;
         cyclestack = (arctype **) calloc( size + 1 , sizeof( arctype *) );
-	if ( cyclestack == 0 )
-	    errx( 1, "no room for %d bytes of cycle stack" ,
+	if ( cyclestack == NULL )
+	    errx( 1, "no room for %zu bytes of cycle stack" ,
 			   ( size + 1 ) * sizeof( arctype * ) );
 #	ifdef DEBUG
 	    if ( debug & BREAKCYCLE ) {
@@ -525,10 +520,7 @@ cycleanalyze()
 }
 
 bool
-descend( node , stkstart , stkp )
-    nltype	*node;
-    arctype	**stkstart;
-    arctype	**stkp;
+descend(nltype *node, arctype **stkstart, arctype **stkp)
 {
     arctype	*arcp;
     bool	ret;
@@ -560,9 +552,7 @@ descend( node , stkstart , stkp )
 }
 
 bool
-addcycle( stkstart , stkend )
-    arctype	**stkstart;
-    arctype	**stkend;
+addcycle(arctype **stkstart, arctype **stkend)
 {
     arctype	**arcpp;
     arctype	**stkloc;
@@ -602,8 +592,8 @@ addcycle( stkstart , stkend )
     }
     clp = (cltype *)
 	calloc( 1 , sizeof ( cltype ) + ( size - 1 ) * sizeof( arctype * ) );
-    if ( clp == 0 ) {
-	warnx( "no room for %d bytes of subcycle storage" ,
+    if ( clp == NULL ) {
+	warnx( "no room for %zu bytes of subcycle storage" ,
 	    sizeof ( cltype ) + ( size - 1 ) * sizeof( arctype * ) );
 	return( FALSE );
     }
@@ -636,7 +626,7 @@ addcycle( stkstart , stkend )
 }
 
 void
-compresslist()
+compresslist(void)
 {
     cltype	*clp;
     cltype	**prev;
@@ -752,8 +742,7 @@ compresslist()
 
 #ifdef DEBUG
 void
-printsubcycle( clp )
-    cltype	*clp;
+printsubcycle(cltype *clp)
 {
     arctype	**arcpp;
     arctype	**endlist;
@@ -768,7 +757,7 @@ printsubcycle( clp )
 #endif /* DEBUG */
 
 void
-cycletime()
+cycletime(void)
 {
     int			cycle;
     nltype		*cyclenlp;
@@ -798,7 +787,7 @@ cycletime()
      *	and while we're here, sum time for functions.
      */
 void
-doflags()
+doflags(void)
 {
     int		index;
     nltype	*childp;
@@ -893,8 +882,7 @@ doflags()
      *	similarly, deal with propagation fractions from parents.
      */
 void
-inheritflags( childp )
-    nltype	*childp;
+inheritflags(nltype *childp)
 {
     nltype	*headp;
     arctype	*arcp;

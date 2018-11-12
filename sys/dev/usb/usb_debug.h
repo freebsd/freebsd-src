@@ -34,12 +34,12 @@ extern int usb_debug;
 
 /* Check if USB debugging is enabled. */
 #ifdef USB_DEBUG_VAR
-#if (USB_DEBUG != 0)
-#define	DPRINTFN(n,fmt,...) do {				\
-  if ((USB_DEBUG_VAR) >= (n)) {				\
-    printf("%s:%u: " fmt,				\
-	   __FUNCTION__, __LINE__,## __VA_ARGS__);	\
-  }							\
+#ifdef USB_DEBUG
+#define	DPRINTFN(n,fmt,...) do {		\
+  if ((USB_DEBUG_VAR) >= (n)) {			\
+    printf("%s: " fmt,				\
+	   __FUNCTION__ ,##__VA_ARGS__);	\
+  }						\
 } while (0)
 #define	DPRINTF(...)	DPRINTFN(1, __VA_ARGS__)
 #else
@@ -58,5 +58,29 @@ void	usb_dump_device(struct usb_device *udev);
 void	usb_dump_queue(struct usb_endpoint *ep);
 void	usb_dump_endpoint(struct usb_endpoint *ep);
 void	usb_dump_xfer(struct usb_xfer *xfer);
+
+#ifdef USB_DEBUG
+extern unsigned int usb_port_reset_delay;
+extern unsigned int usb_port_root_reset_delay;
+extern unsigned int usb_port_reset_recovery;
+extern unsigned int usb_port_powerup_delay;
+extern unsigned int usb_port_resume_delay;
+extern unsigned int usb_set_address_settle;
+extern unsigned int usb_resume_delay;
+extern unsigned int usb_resume_wait;
+extern unsigned int usb_resume_recovery;
+extern unsigned int usb_extra_power_up_time;
+#else
+#define usb_port_reset_delay		USB_PORT_RESET_DELAY
+#define usb_port_root_reset_delay	USB_PORT_ROOT_RESET_DELAY
+#define usb_port_reset_recovery		USB_PORT_RESET_RECOVERY
+#define usb_port_powerup_delay		USB_PORT_POWERUP_DELAY
+#define usb_port_resume_delay		USB_PORT_RESUME_DELAY
+#define usb_set_address_settle		USB_SET_ADDRESS_SETTLE
+#define usb_resume_delay		USB_RESUME_DELAY
+#define usb_resume_wait			USB_RESUME_WAIT
+#define usb_resume_recovery		USB_RESUME_RECOVERY
+#define usb_extra_power_up_time		USB_EXTRA_POWER_UP_TIME
+#endif
 
 #endif					/* _USB_DEBUG_H_ */

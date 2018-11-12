@@ -1,33 +1,31 @@
 /*	$NetBSD: getnetpath.c,v 1.3 2000/07/06 03:10:34 christos Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user or with the express written consent of
- * Sun Microsystems, Inc.
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
  *
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- *
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- *
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- *
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- *
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice, 
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, 
+ *   this list of conditions and the following disclaimer in the documentation 
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its 
+ *   contributors may be used to endorse or promote products derived 
+ *   from this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -84,7 +82,7 @@ char *_get_next_token(char *, int);
  */
 
 void *
-setnetpath()
+setnetpath(void)
 {
 
     struct netpath_vars *np_sessionp;   /* this session's variables */
@@ -99,7 +97,6 @@ setnetpath()
 	return (NULL);
     }
     if ((np_sessionp->nc_handlep = setnetconfig()) == NULL) {
-	free(np_sessionp);
 	syslog (LOG_ERR, "rpc: failed to open " NETCONFIG);
 	goto failed;
     }
@@ -144,8 +141,7 @@ failed:
  */
 
 struct netconfig *
-getnetpath(handlep)
-    void *handlep;
+getnetpath(void *handlep)
 {
     struct netpath_vars *np_sessionp = (struct netpath_vars *)handlep;
     struct netconfig *ncp = NULL;   /* temp. holds a netconfig session */
@@ -200,8 +196,7 @@ getnetpath(handlep)
  * (e.g. if setnetpath() was not called previously.
  */
 int
-endnetpath(handlep)
-    void *handlep;
+endnetpath(void *handlep)
 {
     struct netpath_vars *np_sessionp = (struct netpath_vars *)handlep;
     struct netpath_chain *chainp, *lastp;
@@ -234,12 +229,12 @@ endnetpath(handlep)
  * Returns pointer to the rest-of-the-string after the current token.
  * The token itself starts at arg, and we null terminate it.  We return NULL
  * if either the arg is empty, or if this is the last token.
+ *
+ * npp   - string
+ * token - char to parse string for
  */
-
 char *
-_get_next_token(npp, token)
-char *npp;		/* string */
-int token;		/* char to parse string for */
+_get_next_token(char *npp, int token)
 {
     char  *cp;		/* char pointer */
     char  *np;		/* netpath pointer */
@@ -267,7 +262,7 @@ int token;		/* char to parse string for */
     *cp++ = '\0';		/* null-terminate token */
     /* get rid of any backslash escapes */
     ep = npp;
-    while ((np = strchr(ep, '\\')) != 0) {
+    while ((np = strchr(ep, '\\')) != NULL) {
 	if (np[1] == '\\')
 	    np++;
 	strcpy(np, (ep = &np[1]));  /* XXX: overlapping string copy */

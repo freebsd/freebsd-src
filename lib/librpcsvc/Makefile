@@ -1,10 +1,11 @@
 #	from: @(#)Makefile    5.10 (Berkeley) 6/24/90
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${.CURDIR}/../../include/rpcsvc
 
+PACKAGE=lib${LIB}
 LIB=    rpcsvc
 
 RPCSRCS= klm_prot.x mount.x nfs_prot.x nlm_prot.x rex.x rnusers.x \
@@ -18,7 +19,7 @@ SECRPCSRCS= secretkey.c xcrypt.c
 OTHERSRCS+= yp_passwd.c yp_update.c
 .endif
 
-RPCCOM = rpcgen -C
+RPCCOM=	RPCGEN_CPP=${CPP:Q} rpcgen -C
 
 INCDIRS= -I${DESTDIR}/usr/include/rpcsvc
 

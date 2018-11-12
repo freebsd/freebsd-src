@@ -965,13 +965,13 @@ mp_SetEnddisc(struct cmdargs const *arg)
     case PHASE_ESTABLISH:
       /* Make sure none of our links are DATALINK_LCP or greater */
       if (bundle_HighestState(arg->bundle) >= DATALINK_LCP) {
-        log_Printf(LogWARN, "enddisc: Only changable before"
+        log_Printf(LogWARN, "enddisc: Only changeable before"
                    " LCP negotiations\n");
         return 1;
       }
       break;
     default:
-      log_Printf(LogWARN, "enddisc: Only changable at phase DEAD/ESTABLISH\n");
+      log_Printf(LogWARN, "enddisc: Only changeable at phase DEAD/ESTABLISH\n");
       return 1;
   }
 

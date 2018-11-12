@@ -65,11 +65,11 @@ dump_speed(uint8_t value)
 	case LIBUSB20_SPEED_VARIABLE:
 		return ("VARIABLE (52-480Mbps)");
 	case LIBUSB20_SPEED_SUPER:
-		return ("SUPER (4.8Gbps)");
+		return ("SUPER (5.0Gbps)");
 	default:
 		break;
 	}
-	return ("unknown");
+	return ("UNKNOWN ()");
 }
 
 const char *
@@ -100,21 +100,141 @@ dump_field(struct libusb20_device *pdev, const char *plevel,
 
 	printf("%s%s = 0x%04x ", plevel, field, value);
 
-	if ((field[0] != 'i') || (field[1] == 'd')) {
-		printf("\n");
+	if (strlen(plevel) == 8) {
+		/* Endpoint Descriptor */
+
+		if (strcmp(field, "bEndpointAddress") == 0) {
+			if (value & 0x80)
+				printf(" <IN>\n");
+			else
+				printf(" <OUT>\n");
+			return;
+		}
+		if (strcmp(field, "bmAttributes") == 0) {
+			switch (value & 0x03) {
+			case 0:
+				printf(" <CONTROL>\n");
+				break;
+			case 1:
+				switch (value & 0x0C) {
+				case 0x00:
+					printf(" <ISOCHRONOUS>\n");
+					break;
+				case 0x04:
+					printf(" <ASYNC-ISOCHRONOUS>\n");
+					break;
+				case 0x08:
+					printf(" <ADAPT-ISOCHRONOUS>\n");
+					break;
+				default:
+					printf(" <SYNC-ISOCHRONOUS>\n");
+					break;
+				}
+				break;
+			case 2:
+				printf(" <BULK>\n");
+				break;
+			default:
+				printf(" <INTERRUPT>\n");
+				break;
+			}
+			return;
+		}
+	}
+	if ((field[0] == 'i') && (field[1] != 'd')) {
+		/* Indirect String Descriptor */
+		if (value == 0) {
+			printf(" <no string>\n");
+			return;
+		}
+		if (libusb20_dev_req_string_simple_sync(pdev, value,
+		    temp_string, sizeof(temp_string))) {
+			printf(" <retrieving string failed>\n");
+			return;
+		}
+		printf(" <%s>\n", temp_string);
 		return;
 	}
-	if (value == 0) {
-		printf(" <no string>\n");
-		return;
+	if (strlen(plevel) == 2 || strlen(plevel) == 6) {
+
+		/* Device and Interface Descriptor class codes */
+
+		if (strcmp(field, "bInterfaceClass") == 0 ||
+		    strcmp(field, "bDeviceClass") == 0) {
+
+			switch (value) {
+			case 0x00:
+				printf(" <Probed by interface class>\n");
+				break;
+			case 0x01:
+				printf(" <Audio device>\n");
+				break;
+			case 0x02:
+				printf(" <Communication device>\n");
+				break;
+			case 0x03:
+				printf(" <HID device>\n");
+				break;
+			case 0x05:
+				printf(" <Physical device>\n");
+				break;
+			case 0x06:
+				printf(" <Still imaging>\n");
+				break;
+			case 0x07:
+				printf(" <Printer device>\n");
+				break;
+			case 0x08:
+				printf(" <Mass storage>\n");
+				break;
+			case 0x09:
+				printf(" <HUB>\n");
+				break;
+			case 0x0A:
+				printf(" <CDC-data>\n");
+				break;
+			case 0x0B:
+				printf(" <Smart card>\n");
+				break;
+			case 0x0D:
+				printf(" <Content security>\n");
+				break;
+			case 0x0E:
+				printf(" <Video device>\n");
+				break;
+			case 0x0F:
+				printf(" <Personal healthcare>\n");
+				break;
+			case 0x10:
+				printf(" <Audio and video device>\n");
+				break;
+			case 0x11:
+				printf(" <Billboard device>\n");
+				break;
+			case 0xDC:
+				printf(" <Diagnostic device>\n");
+				break;
+			case 0xE0:
+				printf(" <Wireless controller>\n");
+				break;
+			case 0xEF:
+				printf(" <Miscellaneous device>\n");
+				break;
+			case 0xFE:
+				printf(" <Application specific>\n");
+				break;
+			case 0xFF:
+				printf(" <Vendor specific>\n");
+				break;
+			default:
+				printf(" <Unknown>\n");
+				break;
+			}
+			return;
+		}
 	}
-	if (libusb20_dev_req_string_simple_sync(pdev, value,
-	    temp_string, sizeof(temp_string))) {
-		printf(" <retrieving string failed>\n");
-		return;
-	}
-	printf(" <%s>\n", temp_string);
-	return;
+	/* No additional information */
+	printf("\n");
 }
 
 static void
@@ -180,13 +300,17 @@ dump_device_info(struct libusb20_device *pdev, uint8_t show_ifdrv)
 {
 	char buf[128];
 	uint8_t n;
+	unsigned int usage;
 
-	printf("%s, cfg=%u md=%s spd=%s pwr=%s\n",
+	usage = libusb20_dev_get_power_usage(pdev);
+
+	printf("%s, cfg=%u md=%s spd=%s pwr=%s (%umA)\n",
 	    libusb20_dev_get_desc(pdev),
 	    libusb20_dev_get_config_index(pdev),
 	    dump_mode(libusb20_dev_get_mode(pdev)),
 	    dump_speed(libusb20_dev_get_speed(pdev)),
-	    dump_power_mode(libusb20_dev_get_power_mode(pdev)));
+	    dump_power_mode(libusb20_dev_get_power_mode(pdev)),
+	    usage);
 
 	if (!show_ifdrv)
 		return;
@@ -319,4 +443,41 @@ dump_config(struct libusb20_device *pdev, uint8_t all_cfg)
 		free(pcfg);
 	}
 	return;
+}
+
+void
+dump_string_by_index(struct libusb20_device *pdev, uint8_t str_index)
+{
+	char *pbuf;
+	uint8_t n;
+	uint8_t len;
+
+	pbuf = malloc(256);
+	if (pbuf == NULL)
+		err(1, "out of memory");
+
+	if (str_index == 0) {
+		/* language table */
+		if (libusb20_dev_req_string_sync(pdev,
+		    str_index, 0, pbuf, 256)) {
+			printf("STRING_0x%02x = <read error>\n", str_index);
+		} else {
+			printf("STRING_0x%02x = ", str_index);
+			len = (uint8_t)pbuf[0];
+			for (n = 0; n != len; n++) {
+				printf("0x%02x%s", (uint8_t)pbuf[n],
+				    (n != (len - 1)) ? ", " : "");
+			}
+			printf("\n");
+		}
+	} else {
+		/* ordinary string */
+		if (libusb20_dev_req_string_simple_sync(pdev,
+		    str_index, pbuf, 256)) {
+			printf("STRING_0x%02x = <read error>\n", str_index);
+		} else {
+			printf("STRING_0x%02x = <%s>\n", str_index, pbuf);
+		}
+	}
+	free(pbuf);
 }

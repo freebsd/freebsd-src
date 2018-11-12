@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -57,10 +53,10 @@ extern int wait_status;
  * If given as first command with no arguments, print first message.
  */
 int
-next(msgvec)
-	int *msgvec;
+next(void *v)
 {
 	struct message *mp;
+	int *msgvec = v;
 	int *ip, *ip2, list[2], mdot;
 
 	if (*msgvec != 0) {
@@ -135,9 +131,9 @@ hitit:
  * so we can discard when the user quits.
  */
 int
-save(str)
-	char str[];
+save(void *v)
 {
+	char *str = v;
 
 	return (save1(str, 1, "save", saveignore));
 }
@@ -146,9 +142,9 @@ save(str)
  * Copy a message to a file without affected its saved-ness
  */
 int
-copycmd(str)
-	char str[];
+copycmd(void *v)
 {
+	char *str = v;
 
 	return (save1(str, 0, "copy", saveignore));
 }
@@ -158,11 +154,7 @@ copycmd(str)
  * If mark is true, mark the message "saved."
  */
 int
-save1(str, mark, cmd, ignore)
-	char str[];
-	int mark;
-	const char *cmd;
-	struct ignoretab *ignore;
+save1(char str[], int mark, const char *cmd, struct ignoretab *ignore)
 {
 	struct message *mp;
 	char *file;
@@ -219,9 +211,9 @@ save1(str, mark, cmd, ignore)
  * file name, minus header and trailing blank line.
  */
 int
-swrite(str)
-	char str[];
+swrite(void *v)
 {
+	char *str = v;
 
 	return (save1(str, 1, "write", ignoreall));
 }
@@ -236,9 +228,7 @@ swrite(str)
  */
 
 char *
-snarf(linebuf, flag)
-	char linebuf[];
-	int *flag;
+snarf(char *linebuf, int *flag)
 {
 	char *cp;
 
@@ -274,9 +264,9 @@ snarf(linebuf, flag)
  * Delete messages.
  */
 int
-delete(msgvec)
-	int msgvec[];
+deletecmd(void *v)
 {
+	int *msgvec = v;
 
 	delm(msgvec);
 	return (0);
@@ -286,9 +276,9 @@ delete(msgvec)
  * Delete messages, then type the new dot.
  */
 int
-deltype(msgvec)
-	int msgvec[];
+deltype(void *v)
 {
+	int *msgvec = v;
 	int list[2];
 	int lastdot;
 
@@ -312,8 +302,7 @@ deltype(msgvec)
  * Internal interface.
  */
 int
-delm(msgvec)
-	int *msgvec;
+delm(int *msgvec)
 {
 	struct message *mp;
 	int *ip, last;
@@ -350,11 +339,11 @@ delm(msgvec)
  * Undelete the indicated messages.
  */
 int
-undelete_messages(msgvec)
-	int *msgvec;
+undeletecmd(void *v)
 {
-	struct message *mp;
+	int *msgvec = v;
 	int *ip;
+	struct message *mp;
 
 	for (ip = msgvec; *ip && ip-msgvec < msgCount; ip++) {
 		mp = &message[*ip - 1];
@@ -369,7 +358,7 @@ undelete_messages(msgvec)
  * Interactively dump core on "core"
  */
 int
-core()
+core(void)
 {
 	int pid;
 
@@ -395,8 +384,7 @@ core()
  * Clobber as many bytes of stack as the user requests.
  */
 int
-clobber(argv)
-	char **argv;
+clobber(char **argv)
 {
 	int times;
 
@@ -412,8 +400,7 @@ clobber(argv)
  * Clobber the stack.
  */
 void
-clob1(n)
-	int n;
+clob1(int n)
 {
 	char buf[512];
 	char *cp;
@@ -430,9 +417,9 @@ clob1(n)
  * If no arguments, print the current list of retained fields.
  */
 int
-retfield(list)
-	char *list[];
+retfield(void *v)
 {
+	char **list = v;
 
 	return (ignore1(list, ignore + 1, "retained"));
 }
@@ -442,39 +429,36 @@ retfield(list)
  * If no arguments, print the current list of ignored fields.
  */
 int
-igfield(list)
-	char *list[];
+igfield(void *v)
 {
+	char **list = v;
 
 	return (ignore1(list, ignore, "ignored"));
 }
 
 int
-saveretfield(list)
-	char *list[];
+saveretfield(void *v)
 {
+	char **list = v;
 
 	return (ignore1(list, saveignore + 1, "retained"));
 }
 
 int
-saveigfield(list)
-	char *list[];
+saveigfield(void *v)
 {
+	char **list = v;
 
 	return (ignore1(list, saveignore, "ignored"));
 }
 
 int
-ignore1(list, tab, which)
-	char *list[];
-	struct ignoretab *tab;
-	const char *which;
+ignore1(char **list, struct ignoretab *tab, const char *which)
 {
 	char field[LINESIZE];
-	int h;
-	struct ignore *igp;
 	char **ap;
+	struct ignore *igp;
+	int h;
 
 	if (*list == NULL)
 		return (igshow(tab, which));
@@ -498,9 +482,7 @@ ignore1(list, tab, which)
  * Print out all currently retained fields.
  */
 int
-igshow(tab, which)
-	struct ignoretab *tab;
-	const char *which;
+igshow(struct ignoretab *tab, const char *which)
 {
 	int h;
 	struct ignore *igp;
@@ -526,8 +508,7 @@ igshow(tab, which)
  * Compare two names for sorting ignored field list.
  */
 int
-igcomp(l, r)
-	const void *l, *r;
+igcomp(const void *l, const void *r)
 {
 
 	return (strcmp(*(const char **)l, *(const char **)r));

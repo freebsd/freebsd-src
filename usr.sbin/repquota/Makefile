@@ -3,7 +3,6 @@
 
 PROG=	repquota
 MAN=	repquota.8
-
-WARNS?=	4
+LIBADD=	util
 
 .include <bsd.prog.mk>

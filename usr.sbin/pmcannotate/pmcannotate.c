@@ -41,8 +41,9 @@ __FBSDID("$FreeBSD$");
 
 #include <unistd.h>
 
-#define	FNBUFF	161
-#define	LNBUFF	161
+/* NB: Make sure FNBUFF is as large as LNBUFF, otherwise it could overflow */
+#define	FNBUFF	512
+#define	LNBUFF	512
 
 #define	TMPPATH	"/tmp/pmcannotate.XXXXXX"
 
@@ -118,8 +119,6 @@ isasminline(const char *str)
 	void *ptr;
 	int nbytes;
 
-	if (isxdigit(str[1]) == 0)
-		return (0);
 	if (sscanf(str, " %p%n", &ptr, &nbytes) != 1)
 		return (0);
 	if (str[nbytes] != ':' || isspace(str[nbytes + 1]) == 0)
@@ -325,7 +324,7 @@ fqueue_compact(float th)
  * Flush the first-level aggregates queue.
  */
 static void
-fqueue_deleteall()
+fqueue_deleteall(void)
 {
 	struct aggent *agg;
 
@@ -356,7 +355,7 @@ fqueue_insertent(struct entry *entry)
 		}
 
 	/*
-	 * If the firt-level aggregation object alredy exist,
+	 * If the first-level aggregation object already exists,
 	 * just aggregate the samples and, if needed, resort
 	 * it.
 	 */
@@ -472,7 +471,7 @@ fqueue_insertgen(void)
  * Flush the raw entries general queue.
  */
 static void
-general_deleteall()
+general_deleteall(void)
 {
 	struct entry *obj;
 

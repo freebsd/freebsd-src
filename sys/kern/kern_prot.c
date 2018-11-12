@@ -18,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/loginclass.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/refcount.h>
@@ -63,15 +64,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/jail.h>
 #include <sys/pioctl.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 
-#if defined(INET) || defined(INET6)
-#include <netinet/in.h>
-#include <netinet/in_pcb.h>
+#ifdef REGRESSION
+FEATURE(regression,
+    "Kernel support for interfaces necessary for regression testing (SECURITY RISK!)");
 #endif
 
 #include <security/audit/audit.h>
@@ -81,7 +83,6 @@ static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
 SYSCTL_NODE(_security, OID_AUTO, bsd, CTLFLAG_RW, 0, "BSD security policy");
 
-static void crextend(struct ucred *cr, int n);
 static void crsetgroups_locked(struct ucred *cr, int ngrp,
     gid_t *groups);
 
@@ -92,15 +93,13 @@ struct getpid_args {
 #endif
 /* ARGSUSED */
 int
-getpid(struct thread *td, struct getpid_args *uap)
+sys_getpid(struct thread *td, struct getpid_args *uap)
 {
 	struct proc *p = td->td_proc;
 
 	td->td_retval[0] = p->p_pid;
 #if defined(COMPAT_43)
-	PROC_LOCK(p);
-	td->td_retval[1] = p->p_pptr->p_pid;
-	PROC_UNLOCK(p);
+	td->td_retval[1] = kern_getppid(td);
 #endif
 	return (0);
 }
@@ -112,14 +111,33 @@ struct getppid_args {
 #endif
 /* ARGSUSED */
 int
-getppid(struct thread *td, struct getppid_args *uap)
+sys_getppid(struct thread *td, struct getppid_args *uap)
+{
+
+	td->td_retval[0] = kern_getppid(td);
+	return (0);
+}
+
+int
+kern_getppid(struct thread *td)
 {
 	struct proc *p = td->td_proc;
+	struct proc *pp;
+	int ppid;
 
 	PROC_LOCK(p);
-	td->td_retval[0] = p->p_pptr->p_pid;
-	PROC_UNLOCK(p);
-	return (0);
+	if (!(p->p_flag & P_TRACED)) {
+		ppid = p->p_pptr->p_pid;
+		PROC_UNLOCK(p);
+	} else {
+		PROC_UNLOCK(p);
+		sx_slock(&proctree_lock);
+		pp = proc_realparent(p);
+		ppid = pp->p_pid;
+		sx_sunlock(&proctree_lock);
+	}
+
+	return (ppid);
 }
 
 /*
@@ -131,7 +149,7 @@ struct getpgrp_args {
 };
 #endif
 int
-getpgrp(struct thread *td, struct getpgrp_args *uap)
+sys_getpgrp(struct thread *td, struct getpgrp_args *uap)
 {
 	struct proc *p = td->td_proc;
 
@@ -141,14 +159,14 @@ getpgrp(struct thread *td, struct getpgrp_args *uap)
 	return (0);
 }
 
-/* Get an arbitary pid's process group id */
+/* Get an arbitrary pid's process group id */
 #ifndef _SYS_SYSPROTO_H_
 struct getpgid_args {
 	pid_t	pid;
 };
 #endif
 int
-getpgid(struct thread *td, struct getpgid_args *uap)
+sys_getpgid(struct thread *td, struct getpgid_args *uap)
 {
 	struct proc *p;
 	int error;
@@ -172,7 +190,7 @@ getpgid(struct thread *td, struct getpgid_args *uap)
 }
 
 /*
- * Get an arbitary pid's session id.
+ * Get an arbitrary pid's session id.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct getsid_args {
@@ -180,7 +198,7 @@ struct getsid_args {
 };
 #endif
 int
-getsid(struct thread *td, struct getsid_args *uap)
+sys_getsid(struct thread *td, struct getsid_args *uap)
 {
 	struct proc *p;
 	int error;
@@ -210,7 +228,7 @@ struct getuid_args {
 #endif
 /* ARGSUSED */
 int
-getuid(struct thread *td, struct getuid_args *uap)
+sys_getuid(struct thread *td, struct getuid_args *uap)
 {
 
 	td->td_retval[0] = td->td_ucred->cr_ruid;
@@ -227,7 +245,7 @@ struct geteuid_args {
 #endif
 /* ARGSUSED */
 int
-geteuid(struct thread *td, struct geteuid_args *uap)
+sys_geteuid(struct thread *td, struct geteuid_args *uap)
 {
 
 	td->td_retval[0] = td->td_ucred->cr_uid;
@@ -241,7 +259,7 @@ struct getgid_args {
 #endif
 /* ARGSUSED */
 int
-getgid(struct thread *td, struct getgid_args *uap)
+sys_getgid(struct thread *td, struct getgid_args *uap)
 {
 
 	td->td_retval[0] = td->td_ucred->cr_rgid;
@@ -263,7 +281,7 @@ struct getegid_args {
 #endif
 /* ARGSUSED */
 int
-getegid(struct thread *td, struct getegid_args *uap)
+sys_getegid(struct thread *td, struct getegid_args *uap)
 {
 
 	td->td_retval[0] = td->td_ucred->cr_groups[0];
@@ -277,41 +295,26 @@ struct getgroups_args {
 };
 #endif
 int
-getgroups(struct thread *td, register struct getgroups_args *uap)
+sys_getgroups(struct thread *td, register struct getgroups_args *uap)
 {
-	gid_t *groups;
+	struct ucred *cred;
 	u_int ngrp;
 	int error;
 
-	ngrp = MIN(uap->gidsetsize, NGROUPS);
-	groups = malloc(ngrp * sizeof(*groups), M_TEMP, M_WAITOK);
-	error = kern_getgroups(td, &ngrp, groups);
-	if (error)
-		goto out;
-	if (uap->gidsetsize > 0)
-		error = copyout(groups, uap->gidset, ngrp * sizeof(gid_t));
-	if (error == 0)
-		td->td_retval[0] = ngrp;
-out:
-	free(groups, M_TEMP);
-	return (error);
-}
-
-int
-kern_getgroups(struct thread *td, u_int *ngrp, gid_t *groups)
-{
-	struct ucred *cred;
-
 	cred = td->td_ucred;
-	if (*ngrp == 0) {
-		*ngrp = cred->cr_ngroups;
-		return (0);
+	ngrp = cred->cr_ngroups;
+
+	if (uap->gidsetsize == 0) {
+		error = 0;
+		goto out;
 	}
-	if (*ngrp < cred->cr_ngroups)
+	if (uap->gidsetsize < ngrp)
 		return (EINVAL);
-	*ngrp = cred->cr_ngroups;
-	bcopy(cred->cr_groups, groups, *ngrp * sizeof(gid_t));
-	return (0);
+
+	error = copyout(cred->cr_groups, uap->gidset, ngrp * sizeof(gid_t));
+out:
+	td->td_retval[0] = ngrp;
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -321,7 +324,7 @@ struct setsid_args {
 #endif
 /* ARGSUSED */
 int
-setsid(register struct thread *td, struct setsid_args *uap)
+sys_setsid(register struct thread *td, struct setsid_args *uap)
 {
 	struct pgrp *pgrp;
 	int error;
@@ -379,7 +382,7 @@ struct setpgid_args {
 #endif
 /* ARGSUSED */
 int
-setpgid(struct thread *td, register struct setpgid_args *uap)
+sys_setpgid(struct thread *td, register struct setpgid_args *uap)
 {
 	struct proc *curp = td->td_proc;
 	register struct proc *targp;	/* target process */
@@ -479,7 +482,7 @@ struct setuid_args {
 #endif
 /* ARGSUSED */
 int
-setuid(struct thread *td, struct setuid_args *uap)
+sys_setuid(struct thread *td, struct setuid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -570,8 +573,11 @@ setuid(struct thread *td, struct setuid_args *uap)
 		change_euid(newcred, uip);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
+#ifdef RACCT
+	racct_proc_ucred_changed(p, oldcred, newcred);
+#endif
 	uifree(uip);
 	crfree(oldcred);
 	return (0);
@@ -590,7 +596,7 @@ struct seteuid_args {
 #endif
 /* ARGSUSED */
 int
-seteuid(struct thread *td, struct seteuid_args *uap)
+sys_seteuid(struct thread *td, struct seteuid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -626,7 +632,7 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 		change_euid(newcred, euip);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	uifree(euip);
 	crfree(oldcred);
@@ -646,7 +652,7 @@ struct setgid_args {
 #endif
 /* ARGSUSED */
 int
-setgid(struct thread *td, struct setgid_args *uap)
+sys_setgid(struct thread *td, struct setgid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -726,7 +732,7 @@ setgid(struct thread *td, struct setgid_args *uap)
 		change_egid(newcred, gid);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
@@ -744,7 +750,7 @@ struct setegid_args {
 #endif
 /* ARGSUSED */
 int
-setegid(struct thread *td, struct setegid_args *uap)
+sys_setegid(struct thread *td, struct setegid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -772,7 +778,7 @@ setegid(struct thread *td, struct setegid_args *uap)
 		change_egid(newcred, egid);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
@@ -791,20 +797,28 @@ struct setgroups_args {
 #endif
 /* ARGSUSED */
 int
-setgroups(struct thread *td, struct setgroups_args *uap)
+sys_setgroups(struct thread *td, struct setgroups_args *uap)
 {
-	gid_t *groups = NULL;
+	gid_t smallgroups[XU_NGROUPS];
+	gid_t *groups;
+	u_int gidsetsize;
 	int error;
 
-	if (uap->gidsetsize > NGROUPS)
+	gidsetsize = uap->gidsetsize;
+	if (gidsetsize > ngroups_max + 1)
 		return (EINVAL);
-	groups = malloc(uap->gidsetsize * sizeof(gid_t), M_TEMP, M_WAITOK);
-	error = copyin(uap->gidset, groups, uap->gidsetsize * sizeof(gid_t));
-	if (error)
-		goto out;
-	error = kern_setgroups(td, uap->gidsetsize, groups);
-out:
-	free(groups, M_TEMP);
+
+	if (gidsetsize > XU_NGROUPS)
+		groups = malloc(gidsetsize * sizeof(gid_t), M_TEMP, M_WAITOK);
+	else
+		groups = smallgroups;
+
+	error = copyin(uap->gidset, groups, gidsetsize * sizeof(gid_t));
+	if (error == 0)
+		error = kern_setgroups(td, gidsetsize, groups);
+
+	if (gidsetsize > XU_NGROUPS)
+		free(groups, M_TEMP);
 	return (error);
 }
 
@@ -815,8 +829,7 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 	struct ucred *newcred, *oldcred;
 	int error;
 
-	if (ngrp > NGROUPS)
-		return (EINVAL);
+	MPASS(ngrp <= ngroups_max + 1);
 	AUDIT_ARG_GROUPSET(groups, ngrp);
 	newcred = crget();
 	crextend(newcred, ngrp);
@@ -833,7 +846,7 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 	if (error)
 		goto fail;
 
-	if (ngrp < 1) {
+	if (ngrp == 0) {
 		/*
 		 * setgroups(0, NULL) is a legitimate way of clearing the
 		 * groups vector on non-BSD systems (which generally do not
@@ -845,7 +858,7 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 		crsetgroups_locked(newcred, ngrp, groups);
 	}
 	setsugid(p);
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
@@ -864,7 +877,7 @@ struct setreuid_args {
 #endif
 /* ARGSUSED */
 int
-setreuid(register struct thread *td, struct setreuid_args *uap)
+sys_setreuid(register struct thread *td, struct setreuid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -908,8 +921,11 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 		change_svuid(newcred, newcred->cr_uid);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
+#ifdef RACCT
+	racct_proc_ucred_changed(p, oldcred, newcred);
+#endif
 	uifree(ruip);
 	uifree(euip);
 	crfree(oldcred);
@@ -931,7 +947,7 @@ struct setregid_args {
 #endif
 /* ARGSUSED */
 int
-setregid(register struct thread *td, struct setregid_args *uap)
+sys_setregid(register struct thread *td, struct setregid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -972,7 +988,7 @@ setregid(register struct thread *td, struct setregid_args *uap)
 		change_svgid(newcred, newcred->cr_groups[0]);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
@@ -996,7 +1012,7 @@ struct setresuid_args {
 #endif
 /* ARGSUSED */
 int
-setresuid(register struct thread *td, struct setresuid_args *uap)
+sys_setresuid(register struct thread *td, struct setresuid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -1046,8 +1062,11 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 		change_svuid(newcred, suid);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
+#ifdef RACCT
+	racct_proc_ucred_changed(p, oldcred, newcred);
+#endif
 	uifree(ruip);
 	uifree(euip);
 	crfree(oldcred);
@@ -1075,7 +1094,7 @@ struct setresgid_args {
 #endif
 /* ARGSUSED */
 int
-setresgid(register struct thread *td, struct setresgid_args *uap)
+sys_setresgid(register struct thread *td, struct setresgid_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
@@ -1122,7 +1141,7 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 		change_svgid(newcred, sgid);
 		setsugid(p);
 	}
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);
@@ -1142,7 +1161,7 @@ struct getresuid_args {
 #endif
 /* ARGSUSED */
 int
-getresuid(register struct thread *td, struct getresuid_args *uap)
+sys_getresuid(register struct thread *td, struct getresuid_args *uap)
 {
 	struct ucred *cred;
 	int error1 = 0, error2 = 0, error3 = 0;
@@ -1169,7 +1188,7 @@ struct getresgid_args {
 #endif
 /* ARGSUSED */
 int
-getresgid(register struct thread *td, struct getresgid_args *uap)
+sys_getresgid(register struct thread *td, struct getresgid_args *uap)
 {
 	struct ucred *cred;
 	int error1 = 0, error2 = 0, error3 = 0;
@@ -1194,7 +1213,7 @@ struct issetugid_args {
 #endif
 /* ARGSUSED */
 int
-issetugid(register struct thread *td, struct issetugid_args *uap)
+sys_issetugid(register struct thread *td, struct issetugid_args *uap)
 {
 	struct proc *p = td->td_proc;
 
@@ -1213,7 +1232,7 @@ issetugid(register struct thread *td, struct issetugid_args *uap)
 }
 
 int
-__setugid(struct thread *td, struct __setugid_args *uap)
+sys___setugid(struct thread *td, struct __setugid_args *uap)
 {
 #ifdef REGRESSION
 	struct proc *p;
@@ -1318,8 +1337,8 @@ SYSCTL_INT(_security_bsd, OID_AUTO, see_other_uids, CTLFLAG_RW,
  * References: *u1 and *u2 must not change during the call
  *             u1 may equal u2, in which case only one reference is required
  */
-static int
-cr_seeotheruids(struct ucred *u1, struct ucred *u2)
+int
+cr_canseeotheruids(struct ucred *u1, struct ucred *u2)
 {
 
 	if (!see_other_uids && u1->cr_ruid != u2->cr_ruid) {
@@ -1348,8 +1367,8 @@ SYSCTL_INT(_security_bsd, OID_AUTO, see_other_gids, CTLFLAG_RW,
  * References: *u1 and *u2 must not change during the call
  *             u1 may equal u2, in which case only one reference is required
  */
-static int
-cr_seeothergids(struct ucred *u1, struct ucred *u2)
+int
+cr_canseeothergids(struct ucred *u1, struct ucred *u2)
 {
 	int i, match;
 	
@@ -1387,9 +1406,9 @@ cr_cansee(struct ucred *u1, struct ucred *u2)
 	if ((error = mac_cred_check_visible(u1, u2)))
 		return (error);
 #endif
-	if ((error = cr_seeotheruids(u1, u2)))
+	if ((error = cr_canseeotheruids(u1, u2)))
 		return (error);
-	if ((error = cr_seeothergids(u1, u2)))
+	if ((error = cr_canseeothergids(u1, u2)))
 		return (error);
 	return (0);
 }
@@ -1448,9 +1467,9 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 	if ((error = mac_proc_check_signal(cred, proc, signum)))
 		return (error);
 #endif
-	if ((error = cr_seeotheruids(cred, proc->p_ucred)))
+	if ((error = cr_canseeotheruids(cred, proc->p_ucred)))
 		return (error);
-	if ((error = cr_seeothergids(cred, proc->p_ucred)))
+	if ((error = cr_canseeothergids(cred, proc->p_ucred)))
 		return (error);
 
 	/*
@@ -1565,9 +1584,9 @@ p_cansched(struct thread *td, struct proc *p)
 	if ((error = mac_proc_check_sched(td->td_ucred, p)))
 		return (error);
 #endif
-	if ((error = cr_seeotheruids(td->td_ucred, p->p_ucred)))
+	if ((error = cr_canseeotheruids(td->td_ucred, p->p_ucred)))
 		return (error);
-	if ((error = cr_seeothergids(td->td_ucred, p->p_ucred)))
+	if ((error = cr_canseeothergids(td->td_ucred, p->p_ucred)))
 		return (error);
 	if (td->td_ucred->cr_ruid != p->p_ucred->cr_ruid &&
 	    td->td_ucred->cr_uid != p->p_ucred->cr_ruid) {
@@ -1622,9 +1641,9 @@ p_candebug(struct thread *td, struct proc *p)
 	if ((error = mac_proc_check_debug(td->td_ucred, p)))
 		return (error);
 #endif
-	if ((error = cr_seeotheruids(td->td_ucred, p->p_ucred)))
+	if ((error = cr_canseeotheruids(td->td_ucred, p->p_ucred)))
 		return (error);
-	if ((error = cr_seeothergids(td->td_ucred, p->p_ucred)))
+	if ((error = cr_canseeothergids(td->td_ucred, p->p_ucred)))
 		return (error);
 
 	/*
@@ -1689,6 +1708,13 @@ p_candebug(struct thread *td, struct proc *p)
 	if ((p->p_flag & P_INEXEC) != 0)
 		return (EBUSY);
 
+	/* Denied explicitely */
+	if ((p->p_flag2 & P2_NOTRACE) != 0) {
+		error = priv_check(td, PRIV_DEBUG_DENIED);
+		if (error != 0)
+			return (error);
+	}
+
 	return (0);
 }
 
@@ -1709,41 +1735,13 @@ cr_canseesocket(struct ucred *cred, struct socket *so)
 	if (error)
 		return (error);
 #endif
-	if (cr_seeotheruids(cred, so->so_cred))
+	if (cr_canseeotheruids(cred, so->so_cred))
 		return (ENOENT);
-	if (cr_seeothergids(cred, so->so_cred))
-		return (ENOENT);
-
-	return (0);
-}
-
-#if defined(INET) || defined(INET6)
-/*-
- * Determine whether the subject represented by cred can "see" a socket.
- * Returns: 0 for permitted, ENOENT otherwise.
- */
-int
-cr_canseeinpcb(struct ucred *cred, struct inpcb *inp)
-{
-	int error;
-
-	error = prison_check(cred, inp->inp_cred);
-	if (error)
-		return (ENOENT);
-#ifdef MAC
-	INP_LOCK_ASSERT(inp);
-	error = mac_inpcb_check_visible(cred, inp);
-	if (error)
-		return (error);
-#endif
-	if (cr_seeotheruids(cred, inp->inp_cred))
-		return (ENOENT);
-	if (cr_seeothergids(cred, inp->inp_cred))
+	if (cr_canseeothergids(cred, so->so_cred))
 		return (ENOENT);
 
 	return (0);
 }
-#endif
 
 /*-
  * Determine whether td can wait for the exit of p.
@@ -1769,7 +1767,7 @@ p_canwait(struct thread *td, struct proc *p)
 #endif
 #if 0
 	/* XXXMAC: This could have odd effects on some shells. */
-	if ((error = cr_seeotheruids(td->td_ucred, p->p_ucred)))
+	if ((error = cr_canseeotheruids(td->td_ucred, p->p_ucred)))
 		return (error);
 #endif
 
@@ -1792,7 +1790,9 @@ crget(void)
 #ifdef MAC
 	mac_cred_init(cr);
 #endif
-	crextend(cr, XU_NGROUPS);
+	cr->cr_groups = cr->cr_smallgroups;
+	cr->cr_agroups =
+	    sizeof(cr->cr_smallgroups) / sizeof(cr->cr_smallgroups[0]);
 	return (cr);
 }
 
@@ -1831,25 +1831,18 @@ crfree(struct ucred *cr)
 		 */
 		if (cr->cr_prison != NULL)
 			prison_free(cr->cr_prison);
+		if (cr->cr_loginclass != NULL)
+			loginclass_free(cr->cr_loginclass);
 #ifdef AUDIT
 		audit_cred_destroy(cr);
 #endif
 #ifdef MAC
 		mac_cred_destroy(cr);
 #endif
-		free(cr->cr_groups, M_CRED);
+		if (cr->cr_groups != cr->cr_smallgroups)
+			free(cr->cr_groups, M_CRED);
 		free(cr, M_CRED);
 	}
-}
-
-/*
- * Check to see if this ucred is shared.
- */
-int
-crshared(struct ucred *cr)
-{
-
-	return (cr->cr_ref > 1);
 }
 
 /*
@@ -1859,7 +1852,7 @@ void
 crcopy(struct ucred *dest, struct ucred *src)
 {
 
-	KASSERT(crshared(dest) == 0, ("crcopy of shared ucred"));
+	KASSERT(dest->cr_ref == 1, ("crcopy of shared ucred"));
 	bcopy(&src->cr_startcopy, &dest->cr_startcopy,
 	    (unsigned)((caddr_t)&src->cr_endcopy -
 		(caddr_t)&src->cr_startcopy));
@@ -1867,6 +1860,7 @@ crcopy(struct ucred *dest, struct ucred *src)
 	uihold(dest->cr_uidinfo);
 	uihold(dest->cr_ruidinfo);
 	prison_hold(dest->cr_prison);
+	loginclass_hold(dest->cr_loginclass);
 #ifdef AUDIT
 	audit_cred_copy(src, dest);
 #endif
@@ -1907,22 +1901,42 @@ cru2x(struct ucred *cr, struct xucred *xcr)
 }
 
 /*
- * small routine to swap a thread's current ucred for the correct one taken
- * from the process.
+ * Set initial process credentials.
+ * Callers are responsible for providing the reference for provided credentials.
  */
 void
-cred_update_thread(struct thread *td)
+proc_set_cred_init(struct proc *p, struct ucred *newcred)
 {
-	struct proc *p;
-	struct ucred *cred;
 
-	p = td->td_proc;
-	cred = td->td_ucred;
-	PROC_LOCK(p);
-	td->td_ucred = crhold(p->p_ucred);
-	PROC_UNLOCK(p);
-	if (cred != NULL)
-		crfree(cred);
+	p->p_ucred = newcred;
+}
+
+/*
+ * Change process credentials.
+ * Callers are responsible for providing the reference for passed credentials
+ * and for freeing old ones.
+ *
+ * Process has to be locked except when it does not have credentials (as it
+ * should not be visible just yet) or when newcred is NULL (as this can be
+ * only used when the process is about to be freed, at which point it should
+ * not be visible anymore).
+ */
+struct ucred *
+proc_set_cred(struct proc *p, struct ucred *newcred)
+{
+	struct ucred *oldcred;
+
+	MPASS(p->p_ucred != NULL);
+	if (newcred == NULL)
+		MPASS(p->p_state == PRS_ZOMBIE);
+	else
+		PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	oldcred = p->p_ucred;
+	p->p_ucred = newcred;
+	if (newcred != NULL)
+		PROC_UPDATE_COW(p);
+	return (oldcred);
 }
 
 struct ucred *
@@ -1949,7 +1963,7 @@ crcopysafe(struct proc *p, struct ucred *cr)
 /*
  * Extend the passed in credential to hold n items.
  */
-static void
+void
 crextend(struct ucred *cr, int n)
 {
 	int cnt;
@@ -1979,7 +1993,7 @@ crextend(struct ucred *cr, int n)
 		cnt = roundup2(n, PAGE_SIZE / sizeof(gid_t));
 
 	/* Free the old array. */
-	if (cr->cr_groups)
+	if (cr->cr_groups != cr->cr_smallgroups)
 		free(cr->cr_groups, M_CRED);
 
 	cr->cr_groups = malloc(cnt * sizeof(gid_t), M_CRED, M_WAITOK | M_ZERO);
@@ -2022,14 +2036,14 @@ crsetgroups_locked(struct ucred *cr, int ngrp, gid_t *groups)
 
 /*
  * Copy groups in to a credential after expanding it if required.
- * Truncate the list to NGROUPS if it is too large.
+ * Truncate the list to (ngroups_max + 1) if it is too large.
  */
 void
 crsetgroups(struct ucred *cr, int ngrp, gid_t *groups)
 {
 
-	if (ngrp > NGROUPS)
-		ngrp = NGROUPS;
+	if (ngrp > ngroups_max + 1)
+		ngrp = ngroups_max + 1;
 
 	crextend(cr, ngrp);
 	crsetgroups_locked(cr, ngrp, groups);
@@ -2046,21 +2060,22 @@ struct getlogin_args {
 #endif
 /* ARGSUSED */
 int
-getlogin(struct thread *td, struct getlogin_args *uap)
+sys_getlogin(struct thread *td, struct getlogin_args *uap)
 {
-	int error;
 	char login[MAXLOGNAME];
 	struct proc *p = td->td_proc;
+	size_t len;
 
 	if (uap->namelen > MAXLOGNAME)
 		uap->namelen = MAXLOGNAME;
 	PROC_LOCK(p);
 	SESS_LOCK(p->p_session);
-	bcopy(p->p_session->s_login, login, uap->namelen);
+	len = strlcpy(login, p->p_session->s_login, uap->namelen) + 1;
 	SESS_UNLOCK(p->p_session);
 	PROC_UNLOCK(p);
-	error = copyout(login, uap->namebuf, uap->namelen);
-	return(error);
+	if (len > uap->namelen)
+		return (ERANGE);
+	return (copyout(login, uap->namebuf, len));
 }
 
 /*
@@ -2073,27 +2088,30 @@ struct setlogin_args {
 #endif
 /* ARGSUSED */
 int
-setlogin(struct thread *td, struct setlogin_args *uap)
+sys_setlogin(struct thread *td, struct setlogin_args *uap)
 {
 	struct proc *p = td->td_proc;
 	int error;
 	char logintmp[MAXLOGNAME];
 
+	CTASSERT(sizeof(p->p_session->s_login) >= sizeof(logintmp));
+
 	error = priv_check(td, PRIV_PROC_SETLOGIN);
 	if (error)
 		return (error);
 	error = copyinstr(uap->namebuf, logintmp, sizeof(logintmp), NULL);
-	if (error == ENAMETOOLONG)
-		error = EINVAL;
-	else if (!error) {
-		PROC_LOCK(p);
-		SESS_LOCK(p->p_session);
-		(void) memcpy(p->p_session->s_login, logintmp,
-		    sizeof(logintmp));
-		SESS_UNLOCK(p->p_session);
-		PROC_UNLOCK(p);
+	if (error != 0) {
+		if (error == ENAMETOOLONG)
+			error = EINVAL;
+		return (error);
 	}
-	return (error);
+	AUDIT_ARG_LOGIN(logintmp);
+	PROC_LOCK(p);
+	SESS_LOCK(p->p_session);
+	strcpy(p->p_session->s_login, logintmp);
+	SESS_UNLOCK(p->p_session);
+	PROC_UNLOCK(p);
+	return (0);
 }
 
 void

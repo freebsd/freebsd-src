@@ -28,30 +28,33 @@
 .\"     @(#)recv.2	8.3 (Berkeley) 2/21/94
 .\" $FreeBSD$
 .\"
-.Dd December 28, 2006
+.Dd August 18, 2016
 .Dt RECV 2
 .Os
 .Sh NAME
 .Nm recv ,
 .Nm recvfrom ,
-.Nm recvmsg
-.Nd receive a message from a socket
+.Nm recvmsg ,
+.Nm recvmmsg
+.Nd receive message(s) from a socket
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
 .In sys/socket.h
 .Ft ssize_t
 .Fn recv "int s" "void *buf" "size_t len" "int flags"
 .Ft ssize_t
-.Fn recvfrom "int s" "void * restrict buf" "size_t len" "int flags" "struct sockaddr * restrict from" "socklen_t * restrict fromlen"
+.Fn recvfrom "int s" "void *buf" "size_t len" "int flags" "struct sockaddr * restrict from" "socklen_t * restrict fromlen"
 .Ft ssize_t
 .Fn recvmsg "int s" "struct msghdr *msg" "int flags"
+.Ft ssize_t
+.Fn recvmmsg "int s" "struct mmsghdr * restrict msgvec" "size_t vlen" "int flags" "const struct timespec * restrict timeout"
 .Sh DESCRIPTION
 The
-.Fn recvfrom
+.Fn recvfrom ,
+.Fn recvmsg ,
 and
-.Fn recvmsg
+.Fn recvmmsg
 system calls
 are used to receive messages from a socket,
 and may be used to receive data on a socket whether or not
@@ -84,8 +87,39 @@ null pointer passed as its
 .Fa from
 argument.
 .Pp
-All three routines return the length of the message on successful
-completion.
+The
+.Fn recvmmsg
+function is used to receive multiple
+messages at a call.
+Their number is supplied by
+.Fa vlen .
+The messages are placed in the buffers described by
+.Fa msgvec
+vector, after reception.
+The size of each received message is placed in the
+.Fa msg_len
+field of each element of the vector.
+If
+.Fa timeout
+is NULL the call blocks until the data is available for each
+supplied message buffer.
+Otherwise it waits for data for the specified amount of time.
+If the timeout expired and there is no data received,
+a value 0 is returned.
+The
+.Xr ppoll 2
+system call is used to implement the timeout mechanism,
+before first receive is performed.
+.Pp
+The
+.Fn recv ,
+.Fn recvfrom
+and
+.Fn recvmsg
+return the length of the message on successful
+completion, whereas
+.Fn recvmmsg
+returns the number of received messages.
 If a message is too long to fit in the supplied buffer,
 excess bytes may be discarded depending on the type of socket
 the message is received from (see
@@ -100,7 +134,9 @@ in which case the value
 .Va errno
 is set to
 .Er EAGAIN .
-The receive calls normally return any data available,
+The receive calls except
+.Fn recvmmsg
+normally return any data available,
 up to the requested amount,
 rather than waiting for receipt of the full amount requested;
 this behavior is affected by the socket-level options
@@ -109,6 +145,9 @@ and
 .Dv SO_RCVTIMEO
 described in
 .Xr getsockopt 2 .
+The
+.Fn recvmmsg
+function implements this behaviour for each message in the vector.
 .Pp
 The
 .Xr select 2
@@ -121,11 +160,16 @@ argument to a
 function is formed by
 .Em or Ap ing
 one or more of the values:
-.Bl -column ".Dv MSG_DONTWAIT" -offset indent
+.Bl -column ".Dv MSG_CMSG_CLOEXEC" -offset indent
 .It Dv MSG_OOB Ta process out-of-band data
 .It Dv MSG_PEEK Ta peek at incoming message
 .It Dv MSG_WAITALL Ta wait for full request or error
 .It Dv MSG_DONTWAIT Ta do not block
+.It Dv MSG_CMSG_CLOEXEC Ta set received fds close-on-exec
+.It Dv MSG_WAITFORONE Ta do not block after receiving the first message
+(only for
+.Fn recvmmsg
+)
 .El
 .Pp
 The
@@ -157,6 +201,11 @@ is set to
 This flag is not available in strict
 .Tn ANSI
 or C99 compilation mode.
+The
+.Dv MSG_WAITFORONE
+flag sets MSG_DONTWAIT after the first message has been received.
+This flag is only relevant for
+.Fn recvmmsg .
 .Pp
 The
 .Fn recvmsg
@@ -165,7 +214,6 @@ system call uses a
 structure to minimize the number of directly supplied arguments.
 This structure has the following form, as defined in
 .In sys/socket.h :
-.Pp
 .Bd -literal
 struct msghdr {
 	void		*msg_name;	/* optional address */
@@ -228,6 +276,10 @@ and
 .Fa cmsg_type
 set to
 .Dv SCM_RIGHTS .
+The close-on-exec flag on received descriptors is set according to the
+.Dv MSG_CMSG_CLOEXEC
+flag passed to
+.Fn recvmsg .
 .Pp
 Process credentials can also be passed as ancillary data for
 .Dv AF_UNIX
@@ -242,7 +294,6 @@ should be a structure of type
 which is defined in
 .In sys/socket.h
 as follows:
-.Pp
 .Bd -literal
 struct cmsgcred {
 	pid_t	cmcred_pid;		/* PID of sending process */
@@ -254,8 +305,21 @@ struct cmsgcred {
 };
 .Ed
 .Pp
-The kernel will fill in the credential information of the sending process
-and deliver it to the receiver.
+If a sender supplies ancillary data with enough space for the above struct
+tagged as
+.Dv SCM_CREDS
+control message type to the
+.Fn sendmsg
+system call, then kernel will fill in the credential information of the
+sending process and deliver it to the receiver.
+Since receiver usually has no control over a sender, this method of retrieving
+credential information isn't reliable.
+For reliable retrieval of remote side credentials it is advised to use the
+.Dv LOCAL_CREDS
+socket option on the receiving socket.
+See
+.Xr unix 4
+for details.
 .Pp
 The
 .Fa msg_flags
@@ -274,9 +338,31 @@ control data were discarded due to lack of space in the buffer
 for ancillary data.
 .Dv MSG_OOB
 is returned to indicate that expedited or out-of-band data were received.
+.Pp
+The
+.Fn recvmmsg
+system call uses the
+.Fa mmsghdr
+structure, defined as follows in the
+.In sys/socket.h
+header :
+.Bd -literal
+struct mmsghdr {
+	struct msghdr	 msg_hdr;	/* message header */
+	ssize_t		 msg_len;	/* message length */
+};
+.Ed
+.Pp
+On data reception the
+.Fa msg_len
+field is updated to the length of the received message.
 .Sh RETURN VALUES
-These calls return the number of bytes received, or -1
-if an error occurred.
+These calls except
+.Fn recvmmsg
+return the number of bytes received.
+.Fn recvmmsg
+returns the number of messages received.
+A value of -1 is returned if an error occurred.
 .Sh ERRORS
 The calls fail if:
 .Bl -tag -width Er
@@ -308,9 +394,9 @@ In this case the descriptors are
 closed, any pending data can be returned by another call to
 .Fn recvmsg .
 .It Bq Er EAGAIN
-The socket is marked non-blocking, and the receive operation
+The socket is marked non-blocking and the receive operation
 would block, or
-a receive timeout had been set,
+a receive timeout had been set
 and the timeout expired before data were received.
 .It Bq Er EINTR
 The receive was interrupted by delivery of a signal before
@@ -324,9 +410,14 @@ address space.
 .Xr getsockopt 2 ,
 .Xr read 2 ,
 .Xr select 2 ,
-.Xr socket 2
+.Xr socket 2 ,
+.Xr unix 4
 .Sh HISTORY
 The
 .Fn recv
 function appeared in
 .Bx 4.2 .
+The
+.Fn recvmmsg
+function appeared in
+.Fx 11.0 .

@@ -31,7 +31,7 @@
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2005
+.Dd October 3, 2016
 .Dt INIT 8
 .Os
 .Sh NAME
@@ -146,17 +146,7 @@ executes a shell for that user.
 When this shell
 dies, either because the user logged out
 or an abnormal termination occurred (a signal),
-the
-.Nm
-utility wakes up, deletes the user
-from the
-.Xr utmp 5
-file of current users and records the logout in the
-.Xr wtmp 5
-file.
-The cycle is
-then restarted by
-.Nm
+the cycle is restarted by
 executing a new
 .Nm getty
 for the line.
@@ -207,13 +197,6 @@ If a line is commented out or deleted from
 .Xr ttys 5 ,
 .Nm
 will not do anything at all to that line.
-However, it will complain that the relationship between lines
-in the
-.Xr ttys 5
-file and records in the
-.Xr utmp 5
-file is out of sync,
-so this practice is not recommended.
 .Pp
 The
 .Nm
@@ -300,7 +283,8 @@ will signal the original
 .Nm
 as follows:
 .Bl -column Run-level SIGTERM
-.It Sy "Run-level	Signal	Action
+.It Sy "Run-level	Signal	Action"
+.It Cm 0 Ta Dv SIGUSR1 Ta "Halt"
 .It Cm 0 Ta Dv SIGUSR2 Ta "Halt and turn the power off"
 .It Cm 1 Ta Dv SIGTERM Ta "Go to single-user mode"
 .It Cm 6 Ta Dv SIGINT Ta "Reboot the machine"
@@ -310,22 +294,22 @@ as follows:
 file
 .El
 .Sh FILES
-.Bl -tag -width /etc/rc.shutdown -compact
+.Bl -tag -width /var/log/init.log -compact
 .It Pa /dev/console
 system console device
 .It Pa /dev/tty*
 terminal ports found in
 .Xr ttys 5
-.It Pa /var/run/utmp
-record of current users on the system
-.It Pa /var/log/wtmp
-record of all logins and logouts
 .It Pa /etc/ttys
 the terminal initialization information file
 .It Pa /etc/rc
 system startup commands
 .It Pa /etc/rc.shutdown
 system shutdown commands
+.It Pa /var/log/init.log
+log of
+.Xr rc 8
+output if the system console device is not available
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -361,7 +345,7 @@ a persistent device error condition.
 An
 .Nm
 utility appeared in
-.At v6 .
+.At v1 .
 .Sh CAVEATS
 Systems without
 .Xr sysctl 8

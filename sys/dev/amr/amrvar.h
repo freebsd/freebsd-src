@@ -66,8 +66,8 @@
 # define debug(level, fmt, args...)	do {if (level <= AMR_DEBUG) printf("%s: " fmt "\n", __func__ , ##args);} while(0)
 # define debug_called(level)		do {if (level <= AMR_DEBUG) printf("%s: called\n", __func__);} while(0)
 #else
-# define debug(level, fmt, args...)
-# define debug_called(level)
+# define debug(level, fmt, args...)	do {} while (0)
+# define debug_called(level)		do {} while (0)
 #endif
 #define xdebug(fmt, args...)	printf("%s: " fmt "\n", __func__ , ##args)
 
@@ -256,7 +256,6 @@ struct amr_softc
     device_t			amr_pass;
     int				(*amr_cam_command)(struct amr_softc *sc, struct amr_command **acp);
     struct intr_config_hook	amr_ich;		/* wait-for-interrupts probe hook */
-    struct callout_handle	amr_timeout;		/* periodic status check */
     int				amr_allow_vol_config;
     int				amr_linux_no_adapters;
     int				amr_ld_del_supported;

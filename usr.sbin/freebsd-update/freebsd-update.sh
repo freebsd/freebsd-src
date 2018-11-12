@@ -43,12 +43,17 @@ Options:
                   (default: /var/db/freebsd-update/)
   -f conffile  -- Read configuration options from conffile
                   (default: /etc/freebsd-update.conf)
+  -F           -- Force a fetch operation to proceed
   -k KEY       -- Trust an RSA key with SHA256 hash of KEY
-  -r release   -- Target for upgrade (e.g., 6.2-RELEASE)
+  -r release   -- Target for upgrade (e.g., 11.1-RELEASE)
   -s server    -- Server from which to fetch updates
                   (default: update.FreeBSD.org)
   -t address   -- Mail output of cron command, if any, to address
                   (default: root)
+  --not-running-from-cron
+               -- Run without a tty, for use by automated tools
+  --currently-running release
+               -- Update as if currently running this release
 Commands:
   fetch        -- Fetch updates from server
   cron         -- Sleep rand(3600) seconds, fetch updates, and send an
@@ -213,7 +218,15 @@ config_KeepModifiedMetadata () {
 # Add to the list of components which should be kept updated.
 config_Components () {
 	for C in $@; do
-		COMPONENTS="${COMPONENTS} ${C}"
+		if [ "$C" = "src" ]; then
+			if [ -e /usr/src/COPYRIGHT ]; then
+				COMPONENTS="${COMPONENTS} ${C}"
+			else
+				echo "src component not installed, skipped"
+			fi
+		else
+			COMPONENTS="${COMPONENTS} ${C}"
+		fi
 	done
 }
 
@@ -399,6 +412,12 @@ init_params () {
 
 	# No commands specified yet
 	COMMANDS=""
+
+	# Force fetch to proceed
+	FORCEFETCH=0
+
+	# Run without a TTY
+	NOTTYOK=0
 }
 
 # Parse the command line
@@ -410,6 +429,15 @@ parse_cmdline () {
 			if [ $# -eq 1 ]; then usage; fi
 			if [ ! -z "${CONFFILE}" ]; then usage; fi
 			shift; CONFFILE="$1"
+			;;
+		-F)
+			FORCEFETCH=1
+			;;
+		--not-running-from-cron)
+			NOTTYOK=1
+			;;
+		--currently-running)
+			shift; export UNAME_r="$1"
 			;;
 
 		# Configuration file equivalents
@@ -572,7 +600,7 @@ fetch_setup_verboselevel () {
 # running *-p[0-9]+, strip off the last part; if the
 # user is running -SECURITY, call it -RELEASE.  Chdir
 # into the working directory.
-fetch_check_params () {
+fetchupgrade_check_params () {
 	export HTTP_USER_AGENT="freebsd-update (${COMMAND}, `uname -r`)"
 
 	_SERVERNAME_z=\
@@ -580,6 +608,7 @@ fetch_check_params () {
 	_KEYPRINT_z="Key must be given via -k option or configuration file."
 	_KEYPRINT_bad="Invalid key fingerprint: "
 	_WORKDIR_bad="Directory does not exist or is not writable: "
+	_WORKDIR_bad2="Directory is not on a persistent filesystem: "
 
 	if [ -z "${SERVERNAME}" ]; then
 		echo -n "`basename $0`: "
@@ -603,6 +632,14 @@ fetch_check_params () {
 		echo ${WORKDIR}
 		exit 1
 	fi
+	case `df -T ${WORKDIR}` in */dev/md[0-9]* | *tmpfs*)
+		echo -n "`basename $0`: "
+		echo -n "${_WORKDIR_bad2}"
+		echo ${WORKDIR}
+		exit 1
+		;;
+	esac
+	chmod 700 ${WORKDIR}
 	cd ${WORKDIR} || exit 1
 
 	# Generate release number.  The s/SECURITY/RELEASE/ bit exists
@@ -654,9 +691,29 @@ fetch_check_params () {
 	BDHASH=`echo ${BASEDIR} | sha256 -q`
 }
 
+# Perform sanity checks etc. before fetching updates.
+fetch_check_params () {
+	fetchupgrade_check_params
+
+	if ! [ -z "${TARGETRELEASE}" ]; then
+		echo -n "`basename $0`: "
+		echo -n "-r option is meaningless with 'fetch' command.  "
+		echo "(Did you mean 'upgrade' instead?)"
+		exit 1
+	fi
+
+	# Check that we have updates ready to install
+	if [ -f ${BDHASH}-install/kerneldone -a $FORCEFETCH -eq 0 ]; then
+		echo "You have a partially completed upgrade pending"
+		echo "Run '$0 install' first."
+		echo "Run '$0 fetch -F' to proceed anyway."
+		exit 1
+	fi
+}
+
 # Perform sanity checks etc. before fetching upgrades.
 upgrade_check_params () {
-	fetch_check_params
+	fetchupgrade_check_params
 
 	# Unless set otherwise, we're upgrading to the same kernel config.
 	NKERNCONF=${KERNCONF}
@@ -1187,13 +1244,13 @@ fetch_metadata_sanity () {
 	# Some aliases to save space later: ${P} is a character which can
 	# appear in a path; ${M} is the four numeric metadata fields; and
 	# ${H} is a sha256 hash.
-	P="[-+./:=_[[:alnum:]]"
+	P="[-+./:=,%@_[~[:alnum:]]"
 	M="[0-9]+\|[0-9]+\|[0-9]+\|[0-9]+"
 	H="[0-9a-f]{64}"
 
 	# Check that the first four fields make sense.
 	if gunzip -c < files/$1.gz |
-	    grep -qvE "^[a-z]+\|[0-9a-z]+\|${P}+\|[fdL-]\|"; then
+	    grep -qvE "^[a-z]+\|[0-9a-z-]+\|${P}+\|[fdL-]\|"; then
 		fetch_metadata_bogus ""
 		return 1
 	fi
@@ -1374,6 +1431,7 @@ fetch_filter_metadata () {
 	# matter, since we add a leading "/" when we use paths later.
 	cut -f 3- -d '|' $1 |
 	    sed -e 's,/|d|,|d|,' |
+	    sed -e 's,/|-|,|-|,' |
 	    sort -u > $1.tmp
 
 	# Figure out which lines to ignore and remove them.
@@ -1457,7 +1515,7 @@ fetch_inspect_system () {
 	    sort -k 3,3 -t '|' > $2.tmp
 	rm filelist
 
-	# Check if an error occured during system inspection
+	# Check if an error occurred during system inspection
 	if [ -f .err ]; then
 		return 1
 	fi
@@ -1862,7 +1920,7 @@ fetch_create_manifest () {
 		echo -n "been downloaded because the files have been "
 		echo "modified locally:"
 		cat modifiedfiles
-	fi | more
+	fi | $PAGER
 	rm modifiedfiles
 
 	# If no files will be updated, tell the user and exit
@@ -1892,7 +1950,7 @@ fetch_create_manifest () {
 		echo -n "The following files will be removed "
 		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
 		cat files.removed
-	fi | more
+	fi | $PAGER
 	rm files.removed
 
 	# Report added files, if any
@@ -1901,7 +1959,7 @@ fetch_create_manifest () {
 		echo -n "The following files will be added "
 		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
 		cat files.added
-	fi | more
+	fi | $PAGER
 	rm files.added
 
 	# Report updated files, if any
@@ -1911,7 +1969,7 @@ fetch_create_manifest () {
 		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
 
 		cat files.updated
-	fi | more
+	fi | $PAGER
 	rm files.updated
 
 	# Create a directory for the install manifest.
@@ -2241,6 +2299,19 @@ upgrade_oldall_to_oldnew () {
 	mv $2 $3
 }
 
+# Helper for upgrade_merge: Return zero true iff the two files differ only
+# in the contents of their RCS tags.
+samef () {
+	X=`sed -E 's/\\$FreeBSD.*\\$/\$FreeBSD\$/' < $1 | ${SHA256}`
+	Y=`sed -E 's/\\$FreeBSD.*\\$/\$FreeBSD\$/' < $2 | ${SHA256}`
+
+	if [ $X = $Y ]; then
+		return 0;
+	else
+		return 1;
+	fi
+}
+
 # From the list of "old" files in $1, merge changes in $2 with those in $3,
 # and update $3 to reflect the hashes of merged files.
 upgrade_merge () {
@@ -2309,7 +2380,7 @@ upgrade_merge () {
 				cp merge/old/${F} merge/new/${F}
 				;;
 			*)
-				if ! merge -p -L "current version"	\
+				if ! diff3 -E -m -L "current version"	\
 				    -L "${OLDRELNUM}" -L "${RELNUM}"	\
 				    merge/old/${F}			\
 				    merge/${OLDRELNUM}/${F}		\
@@ -2324,6 +2395,14 @@ upgrade_merge () {
 
 		# Ask the user to handle any files which didn't merge.
 		while read F; do
+			# If the installed file differs from the version in
+			# the old release only due to RCS tag expansion
+			# then just use the version in the new release.
+			if samef merge/old/${F} merge/${OLDRELNUM}/${F}; then
+				cp merge/${RELNUM}/${F} merge/new/${F}
+				continue
+			fi
+
 			cat <<-EOF
 
 The following file could not be merged automatically: ${F}
@@ -2338,9 +2417,18 @@ manually...
 		# Ask the user to confirm that he likes how the result
 		# of merging files.
 		while read F; do
-			# Skip files which haven't changed.
-			if [ -f merge/new/${F} ] &&
-			    cmp -s merge/old/${F} merge/new/${F}; then
+			# Skip files which haven't changed except possibly
+			# in their RCS tags.
+			if [ -f merge/old/${F} ] && [ -f merge/new/${F} ] &&
+			    samef merge/old/${F} merge/new/${F}; then
+				continue
+			fi
+
+			# Skip files where the installed file differs from
+			# the old file only due to RCS tags.
+			if [ -f merge/old/${F} ] &&
+			    [ -f merge/${OLDRELNUM}/${F} ] &&
+			    samef merge/old/${F} merge/${OLDRELNUM}/${F}; then
 				continue
 			fi
 
@@ -2527,6 +2615,10 @@ upgrade_run () {
 	# Leave a note behind to tell the "install" command that the kernel
 	# needs to be installed before the world.
 	touch ${BDHASH}-install/kernelfirst
+
+	# Remind the user that they need to run "freebsd-update install"
+	# to install the downloaded bits, in case they didn't RTFM.
+	echo "To install the downloaded upgrades, run \"$0 install\"."
 }
 
 # Make sure that all the file hashes mentioned in $@ have corresponding
@@ -2563,10 +2655,10 @@ install_unschg () {
 	while read F; do
 		if ! [ -e ${BASEDIR}/${F} ]; then
 			continue
+		else
+			echo ${BASEDIR}/${F}
 		fi
-
-		chflags noschg ${BASEDIR}/${F} || return 1
-	done < filelist
+	done < filelist | xargs chflags noschg || return 1
 
 	# Clean up
 	rm filelist
@@ -2578,14 +2670,14 @@ backup_kernel_finddir () {
 	while true ; do
 		# Pathname does not exist, so it is OK use that name
 		# for backup directory.
-		if [ ! -e $BACKUPKERNELDIR ]; then
+		if [ ! -e $BASEDIR/$BACKUPKERNELDIR ]; then
 			return 0
 		fi
 
 		# If directory do exist, we only use if it has our
 		# marker file.
-		if [ -d $BACKUPKERNELDIR -a \
-			-e $BACKUPKERNELDIR/.freebsd-update ]; then
+		if [ -d $BASEDIR/$BACKUPKERNELDIR -a \
+			-e $BASEDIR/$BACKUPKERNELDIR/.freebsd-update ]; then
 			return 0
 		fi
 
@@ -2593,7 +2685,7 @@ backup_kernel_finddir () {
 		# the end and try again.
 		CNT=$((CNT + 1))
 		if [ $CNT -gt 9 ]; then
-			echo "Could not find valid backup dir ($BACKUPKERNELDIR)"
+			echo "Could not find valid backup dir ($BASEDIR/$BACKUPKERNELDIR)"
 			exit 1
 		fi
 		BACKUPKERNELDIR="`echo $BACKUPKERNELDIR | sed -Ee 's/[0-9]\$//'`"
@@ -2620,15 +2712,17 @@ backup_kernel () {
 	# Remove old kernel backup files.  If $BACKUPKERNELDIR was
 	# "not ours", backup_kernel_finddir would have exited, so
 	# deleting the directory content is as safe as we can make it.
-	if [ -d $BACKUPKERNELDIR ]; then
-		rm -f $BACKUPKERNELDIR/*
+	if [ -d $BASEDIR/$BACKUPKERNELDIR ]; then
+		rm -fr $BASEDIR/$BACKUPKERNELDIR
 	fi
 
-	# Create directory for backup if it doesn't exist.
-	mkdir -p $BACKUPKERNELDIR
+	# Create directories for backup.
+	mkdir -p $BASEDIR/$BACKUPKERNELDIR
+	mtree -cdn -p "${BASEDIR}/${KERNELDIR}" | \
+	    mtree -Ue -p "${BASEDIR}/${BACKUPKERNELDIR}" > /dev/null
 
 	# Mark the directory as having been created by freebsd-update.
-	touch $BACKUPKERNELDIR/.freebsd-update
+	touch $BASEDIR/$BACKUPKERNELDIR/.freebsd-update
 	if [ $? -ne 0 ]; then
 		echo "Could not create kernel backup directory"
 		exit 1
@@ -2642,13 +2736,12 @@ backup_kernel () {
 	if [ $BACKUPKERNELSYMBOLFILES = yes ]; then
 		FINDFILTER=""
 	else
-		FINDFILTER=-"a ! -name *.symbols"
+		FINDFILTER="-a ! -name *.debug -a ! -name *.symbols"
 	fi
 
 	# Backup all the kernel files using hardlinks.
-	find $KERNELDIR -type f $FINDFILTER | \
-		sed -Ee "s,($KERNELDIR)/?(.*),\1/\2 ${BACKUPKERNELDIR}/\2," | \
-		xargs -n 2 cp -pl
+	(cd ${BASEDIR}/${KERNELDIR} && find . -type f $FINDFILTER -exec \
+	    cp -pl '{}' ${BASEDIR}/${BACKUPKERNELDIR}/'{}' \;)
 
 	# Re-enable patchname expansion.
 	set +f
@@ -2746,7 +2839,7 @@ install_files () {
 
 		# Update linker.hints if necessary
 		if [ -s INDEX-OLD -o -s INDEX-NEW ]; then
-			kldxref -R /boot/ 2>/dev/null
+			kldxref -R ${BASEDIR}/boot/ 2>/dev/null
 		fi
 
 		# We've finished updating the kernel.
@@ -2766,28 +2859,45 @@ Kernel updates have been installed.  Please reboot and run
 
 	# If we haven't already dealt with the world, deal with it.
 	if ! [ -f $1/worlddone ]; then
+		# Create any necessary directories first
+		grep -vE '^/boot/' $1/INDEX-NEW |
+		    grep -E '^[^|]+\|d\|' > INDEX-NEW
+		install_from_index INDEX-NEW || return 1
+
+		# Install new runtime linker
+		grep -vE '^/boot/' $1/INDEX-NEW |
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -E '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' > INDEX-NEW
+		install_from_index INDEX-NEW || return 1
+
 		# Install new shared libraries next
 		grep -vE '^/boot/' $1/INDEX-NEW |
-		    grep -E '/lib/.*\.so\.[0-9]+\|' > INDEX-NEW
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' |
+		    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 
 		# Deal with everything else
 		grep -vE '^/boot/' $1/INDEX-OLD |
-		    grep -vE '/lib/.*\.so\.[0-9]+\|' > INDEX-OLD
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' |
+		    grep -vE '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-OLD
 		grep -vE '^/boot/' $1/INDEX-NEW |
-		    grep -vE '/lib/.*\.so\.[0-9]+\|' > INDEX-NEW
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^/libexec/ld-elf[^|]*\.so\.[0-9]+\|' |
+		    grep -vE '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 		install_delete INDEX-OLD INDEX-NEW || return 1
 
 		# Rebuild /etc/spwd.db and /etc/pwd.db if necessary.
-		if [ /etc/master.passwd -nt /etc/spwd.db ] ||
-		    [ /etc/master.passwd -nt /etc/pwd.db ]; then
-			pwd_mkdb /etc/master.passwd
+		if [ ${BASEDIR}/etc/master.passwd -nt ${BASEDIR}/etc/spwd.db ] ||
+		    [ ${BASEDIR}/etc/master.passwd -nt ${BASEDIR}/etc/pwd.db ]; then
+			pwd_mkdb -d ${BASEDIR}/etc ${BASEDIR}/etc/master.passwd
 		fi
 
 		# Rebuild /etc/login.conf.db if necessary.
-		if [ /etc/login.conf -nt /etc/login.conf.db ]; then
-			cap_mkdb /etc/login.conf
+		if [ ${BASEDIR}/etc/login.conf -nt ${BASEDIR}/etc/login.conf.db ]; then
+			cap_mkdb ${BASEDIR}/etc/login.conf
 		fi
 
 		# We've finished installing the world and deleting old files
@@ -2796,11 +2906,11 @@ Kernel updates have been installed.  Please reboot and run
 
 		# Do we need to ask the user to portupgrade now?
 		grep -vE '^/boot/' $1/INDEX-NEW |
-		    grep -E '/lib/.*\.so\.[0-9]+\|' |
+		    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' |
 		    cut -f 1 -d '|' |
 		    sort > newfiles
 		if grep -vE '^/boot/' $1/INDEX-OLD |
-		    grep -E '/lib/.*\.so\.[0-9]+\|' |
+		    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' |
 		    cut -f 1 -d '|' |
 		    sort |
 		    join -v 1 - newfiles |
@@ -2820,9 +2930,18 @@ again to finish installing updates.
 
 	# Remove old shared libraries
 	grep -vE '^/boot/' $1/INDEX-NEW |
-	    grep -E '/lib/.*\.so\.[0-9]+\|' > INDEX-NEW
+	    grep -vE '^[^|]+\|d\|' |
+	    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 	grep -vE '^/boot/' $1/INDEX-OLD |
-	    grep -E '/lib/.*\.so\.[0-9]+\|' > INDEX-OLD
+	    grep -vE '^[^|]+\|d\|' |
+	    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-OLD
+	install_delete INDEX-OLD INDEX-NEW || return 1
+
+	# Remove old directories
+	grep -vE '^/boot/' $1/INDEX-NEW |
+	    grep -E '^[^|]+\|d\|' > INDEX-NEW
+	grep -vE '^/boot/' $1/INDEX-OLD |
+	    grep -E '^[^|]+\|d\|' > INDEX-OLD
 	install_delete INDEX-OLD INDEX-NEW || return 1
 
 	# Remove temporary files
@@ -2985,21 +3104,8 @@ IDS_compare () {
 	mv INDEX-NOTMATCHING.tmp INDEX-NOTMATCHING
 
 	# Go through the lines and print warnings.
-	while read LINE; do
-		FPATH=`echo "${LINE}" | cut -f 1 -d '|'`
-		TYPE=`echo "${LINE}" | cut -f 2 -d '|'`
-		OWNER=`echo "${LINE}" | cut -f 3 -d '|'`
-		GROUP=`echo "${LINE}" | cut -f 4 -d '|'`
-		PERM=`echo "${LINE}" | cut -f 5 -d '|'`
-		HASH=`echo "${LINE}" | cut -f 6 -d '|'`
-		LINK=`echo "${LINE}" | cut -f 7 -d '|'`
-		P_TYPE=`echo "${LINE}" | cut -f 8 -d '|'`
-		P_OWNER=`echo "${LINE}" | cut -f 9 -d '|'`
-		P_GROUP=`echo "${LINE}" | cut -f 10 -d '|'`
-		P_PERM=`echo "${LINE}" | cut -f 11 -d '|'`
-		P_HASH=`echo "${LINE}" | cut -f 12 -d '|'`
-		P_LINK=`echo "${LINE}" | cut -f 13 -d '|'`
-
+	local IFS='|'
+	while read FPATH TYPE OWNER GROUP PERM HASH LINK P_TYPE P_OWNER P_GROUP P_PERM P_HASH P_LINK; do
 		# Warn about different object types.
 		if ! [ "${TYPE}" = "${P_TYPE}" ]; then
 			echo -n "${FPATH} is a "
@@ -3127,7 +3233,7 @@ get_params () {
 # Fetch command.  Make sure that we're being called
 # interactively, then run fetch_check_params and fetch_run
 cmd_fetch () {
-	if [ ! -t 0 ]; then
+	if [ ! -t 0 -a $NOTTYOK -eq 0 ]; then
 		echo -n "`basename $0` fetch should not "
 		echo "be run non-interactively."
 		echo "Run `basename $0` cron instead."
@@ -3183,6 +3289,11 @@ cmd_IDS () {
 
 # Make sure we find utilities from the base system
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin:${PATH}
+
+# Set a pager if the user doesn't
+if [ -z "$PAGER" ]; then
+	PAGER=/usr/bin/more
+fi
 
 # Set LC_ALL in order to avoid problems with character ranges like [A-Z].
 export LC_ALL=C

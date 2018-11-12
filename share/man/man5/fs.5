@@ -9,11 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +28,7 @@
 .\"     @(#)fs.5	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2006
+.Dd April 23, 2016
 .Dt FS 5
 .Os
 .Sh NAME
@@ -145,12 +141,12 @@ struct fs {
 	int8_t   fs_old_flags;     /* old FS_ flags */
 	u_char	 fs_fsmnt[MAXMNTLEN]; /* name mounted on */
 	u_char	 fs_volname[MAXVOLLEN]; /* volume name */
-	u_int64_t fs_swuid;        /* system-wide uid */
+	uint64_t fs_swuid;         /* system-wide uid */
 	int32_t  fs_pad;           /* due to alignment of fs_swuid */
 /* these fields retain the current block allocation info */
 	int32_t	 fs_cgrotor;       /* last cg searched */
 	void 	*fs_ocsp[NOCSPTRS]; /* padding; was list of fs_cs buffers */
-	u_int8_t *fs_contigdirs;   /* # of contiguously allocated dirs */
+	uint8_t *fs_contigdirs;    /* # of contiguously allocated dirs */
 	struct	csum *fs_csp;      /* cg summary info buffer for fs_cs */
 	int32_t	*fs_maxcluster;    /* max cluster in each cyl group */
 	u_int	*fs_active;        /* used by snapshots to track fs */
@@ -175,7 +171,7 @@ struct fs {
 	int32_t	 fs_contigsumsize; /* size of cluster summary array */
 	int32_t	 fs_maxsymlinklen; /* max length of an internal symlink */
 	int32_t	 fs_old_inodefmt;  /* format of on-disk inodes */
-	u_int64_t fs_maxfilesize;  /* maximum representable file size */
+	uint64_t fs_maxfilesize;   /* maximum representable file size */
 	int64_t	 fs_qbmask;        /* ~fs_bmask for use with 64-bit size */
 	int64_t	 fs_qfmask;        /* ~fs_fmask for use with 64-bit size */
 	int32_t	 fs_state;         /* validate fs_clean field */
@@ -266,7 +262,7 @@ however severe performance degradations will be observed if the
 file system is run at greater than 90% full; thus the default
 value of
 .Fa fs_minfree
-is 10%.
+is 8%.
 .Pp
 Empirically the best trade-off between block fragmentation and
 overall disk utilization at a loading of 90% comes with a
@@ -278,10 +274,10 @@ The element
 specifies whether the file system should try to minimize the time spent
 allocating blocks, or if it should attempt to minimize the space
 fragmentation on the disk.
-If the value of fs_minfree (see above) is less than 10%,
+If the value of fs_minfree (see above) is less than 8%,
 then the file system defaults to optimizing for space to avoid
 running out of full sized blocks.
-If the value of minfree is greater than or equal to 10%,
+If the value of minfree is greater than or equal to 8%,
 fragmentation is unlikely to be problematical, and
 the file system defaults to optimizing for time.
 .Pp
@@ -408,10 +404,10 @@ Each macro takes a pointer to an extattr structure.
 Returns a pointer to the next extended attribute following
 .Fa eap .
 .It Dv EXTATTR_CONTENT(eap)
-Returns a pointer to the extended attribute content referenced by 
+Returns a pointer to the extended attribute content referenced by
 .Fa eap .
 .It Dv EXTATTR_CONTENT_SIZE(eap)
-Returns the size of the extended attribute content referenced by 
+Returns the size of the extended attribute content referenced by
 .Fa eap .
 .It Dv EXTATTR_SET_LENGTHS(eap, size)
 Called with the size of the attribute content after initializing

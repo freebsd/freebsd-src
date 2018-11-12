@@ -9,11 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,14 +28,19 @@
 .\"	@(#)queue.3	8.2 (Berkeley) 1/24/94
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2006
+.Dd September 8, 2016
 .Dt QUEUE 3
 .Os
 .Sh NAME
+.Nm SLIST_CLASS_ENTRY ,
+.Nm SLIST_CLASS_HEAD ,
+.Nm SLIST_CONCAT ,
 .Nm SLIST_EMPTY ,
 .Nm SLIST_ENTRY ,
 .Nm SLIST_FIRST ,
 .Nm SLIST_FOREACH ,
+.Nm SLIST_FOREACH_FROM ,
+.Nm SLIST_FOREACH_FROM_SAFE ,
 .Nm SLIST_FOREACH_SAFE ,
 .Nm SLIST_HEAD ,
 .Nm SLIST_HEAD_INITIALIZER ,
@@ -47,14 +48,19 @@
 .Nm SLIST_INSERT_AFTER ,
 .Nm SLIST_INSERT_HEAD ,
 .Nm SLIST_NEXT ,
+.Nm SLIST_REMOVE ,
 .Nm SLIST_REMOVE_AFTER ,
 .Nm SLIST_REMOVE_HEAD ,
-.Nm SLIST_REMOVE ,
+.Nm SLIST_SWAP ,
+.Nm STAILQ_CLASS_ENTRY ,
+.Nm STAILQ_CLASS_HEAD ,
 .Nm STAILQ_CONCAT ,
 .Nm STAILQ_EMPTY ,
 .Nm STAILQ_ENTRY ,
 .Nm STAILQ_FIRST ,
 .Nm STAILQ_FOREACH ,
+.Nm STAILQ_FOREACH_FROM ,
+.Nm STAILQ_FOREACH_FROM_SAFE ,
 .Nm STAILQ_FOREACH_SAFE ,
 .Nm STAILQ_HEAD ,
 .Nm STAILQ_HEAD_INITIALIZER ,
@@ -64,13 +70,19 @@
 .Nm STAILQ_INSERT_TAIL ,
 .Nm STAILQ_LAST ,
 .Nm STAILQ_NEXT ,
+.Nm STAILQ_REMOVE ,
 .Nm STAILQ_REMOVE_AFTER ,
 .Nm STAILQ_REMOVE_HEAD ,
-.Nm STAILQ_REMOVE ,
+.Nm STAILQ_SWAP ,
+.Nm LIST_CLASS_ENTRY ,
+.Nm LIST_CLASS_HEAD ,
+.Nm LIST_CONCAT ,
 .Nm LIST_EMPTY ,
 .Nm LIST_ENTRY ,
 .Nm LIST_FIRST ,
 .Nm LIST_FOREACH ,
+.Nm LIST_FOREACH_FROM ,
+.Nm LIST_FOREACH_FROM_SAFE ,
 .Nm LIST_FOREACH_SAFE ,
 .Nm LIST_HEAD ,
 .Nm LIST_HEAD_INITIALIZER ,
@@ -79,15 +91,23 @@
 .Nm LIST_INSERT_BEFORE ,
 .Nm LIST_INSERT_HEAD ,
 .Nm LIST_NEXT ,
+.Nm LIST_PREV ,
 .Nm LIST_REMOVE ,
+.Nm LIST_SWAP ,
+.Nm TAILQ_CLASS_ENTRY ,
+.Nm TAILQ_CLASS_HEAD ,
 .Nm TAILQ_CONCAT ,
 .Nm TAILQ_EMPTY ,
 .Nm TAILQ_ENTRY ,
 .Nm TAILQ_FIRST ,
 .Nm TAILQ_FOREACH ,
-.Nm TAILQ_FOREACH_SAFE ,
+.Nm TAILQ_FOREACH_FROM ,
+.Nm TAILQ_FOREACH_FROM_SAFE ,
 .Nm TAILQ_FOREACH_REVERSE ,
+.Nm TAILQ_FOREACH_REVERSE_FROM ,
+.Nm TAILQ_FOREACH_REVERSE_FROM_SAFE ,
 .Nm TAILQ_FOREACH_REVERSE_SAFE ,
+.Nm TAILQ_FOREACH_SAFE ,
 .Nm TAILQ_HEAD ,
 .Nm TAILQ_HEAD_INITIALIZER ,
 .Nm TAILQ_INIT ,
@@ -98,16 +118,22 @@
 .Nm TAILQ_LAST ,
 .Nm TAILQ_NEXT ,
 .Nm TAILQ_PREV ,
-.Nm TAILQ_REMOVE
+.Nm TAILQ_REMOVE ,
+.Nm TAILQ_SWAP
 .Nd implementations of singly-linked lists, singly-linked tail queues,
 lists and tail queues
 .Sh SYNOPSIS
 .In sys/queue.h
 .\"
+.Fn SLIST_CLASS_ENTRY "CLASSTYPE"
+.Fn SLIST_CLASS_HEAD "HEADNAME" "CLASSTYPE"
+.Fn SLIST_CONCAT "SLIST_HEAD *head1" "SLIST_HEAD *head2" "TYPE" "SLIST_ENTRY NAME"
 .Fn SLIST_EMPTY "SLIST_HEAD *head"
 .Fn SLIST_ENTRY "TYPE"
 .Fn SLIST_FIRST "SLIST_HEAD *head"
 .Fn SLIST_FOREACH "TYPE *var" "SLIST_HEAD *head" "SLIST_ENTRY NAME"
+.Fn SLIST_FOREACH_FROM "TYPE *var" "SLIST_HEAD *head" "SLIST_ENTRY NAME"
+.Fn SLIST_FOREACH_FROM_SAFE "TYPE *var" "SLIST_HEAD *head" "SLIST_ENTRY NAME" "TYPE *temp_var"
 .Fn SLIST_FOREACH_SAFE "TYPE *var" "SLIST_HEAD *head" "SLIST_ENTRY NAME" "TYPE *temp_var"
 .Fn SLIST_HEAD "HEADNAME" "TYPE"
 .Fn SLIST_HEAD_INITIALIZER "SLIST_HEAD head"
@@ -115,15 +141,20 @@ lists and tail queues
 .Fn SLIST_INSERT_AFTER "TYPE *listelm" "TYPE *elm" "SLIST_ENTRY NAME"
 .Fn SLIST_INSERT_HEAD "SLIST_HEAD *head" "TYPE *elm" "SLIST_ENTRY NAME"
 .Fn SLIST_NEXT "TYPE *elm" "SLIST_ENTRY NAME"
+.Fn SLIST_REMOVE "SLIST_HEAD *head" "TYPE *elm" "TYPE" "SLIST_ENTRY NAME"
 .Fn SLIST_REMOVE_AFTER "TYPE *elm" "SLIST_ENTRY NAME"
 .Fn SLIST_REMOVE_HEAD "SLIST_HEAD *head" "SLIST_ENTRY NAME"
-.Fn SLIST_REMOVE "SLIST_HEAD *head" "TYPE *elm" "TYPE" "SLIST_ENTRY NAME"
+.Fn SLIST_SWAP "SLIST_HEAD *head1" "SLIST_HEAD *head2" "TYPE"
 .\"
+.Fn STAILQ_CLASS_ENTRY "CLASSTYPE"
+.Fn STAILQ_CLASS_HEAD "HEADNAME" "CLASSTYPE"
 .Fn STAILQ_CONCAT "STAILQ_HEAD *head1" "STAILQ_HEAD *head2"
 .Fn STAILQ_EMPTY "STAILQ_HEAD *head"
 .Fn STAILQ_ENTRY "TYPE"
 .Fn STAILQ_FIRST "STAILQ_HEAD *head"
 .Fn STAILQ_FOREACH "TYPE *var" "STAILQ_HEAD *head" "STAILQ_ENTRY NAME"
+.Fn STAILQ_FOREACH_FROM "TYPE *var" "STAILQ_HEAD *head" "STAILQ_ENTRY NAME"
+.Fn STAILQ_FOREACH_FROM_SAFE "TYPE *var" "STAILQ_HEAD *head" "STAILQ_ENTRY NAME" "TYPE *temp_var"
 .Fn STAILQ_FOREACH_SAFE "TYPE *var" "STAILQ_HEAD *head" "STAILQ_ENTRY NAME" "TYPE *temp_var"
 .Fn STAILQ_HEAD "HEADNAME" "TYPE"
 .Fn STAILQ_HEAD_INITIALIZER "STAILQ_HEAD head"
@@ -131,16 +162,22 @@ lists and tail queues
 .Fn STAILQ_INSERT_AFTER "STAILQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_INSERT_HEAD "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_INSERT_TAIL "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
-.Fn STAILQ_LAST "STAILQ_HEAD *head" "TYPE" "STAILQ_ENTRY NAME"
+.Fn STAILQ_LAST "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_NEXT "TYPE *elm" "STAILQ_ENTRY NAME"
+.Fn STAILQ_REMOVE "STAILQ_HEAD *head" "TYPE *elm" "TYPE" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE_AFTER "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE_HEAD "STAILQ_HEAD *head" "STAILQ_ENTRY NAME"
-.Fn STAILQ_REMOVE "STAILQ_HEAD *head" "TYPE *elm" "TYPE" "STAILQ_ENTRY NAME"
+.Fn STAILQ_SWAP "STAILQ_HEAD *head1" "STAILQ_HEAD *head2" "TYPE"
 .\"
+.Fn LIST_CLASS_ENTRY "CLASSTYPE"
+.Fn LIST_CLASS_HEAD "HEADNAME" "CLASSTYPE"
+.Fn LIST_CONCAT "LIST_HEAD *head1" "LIST_HEAD *head2" "TYPE" "LIST_ENTRY NAME"
 .Fn LIST_EMPTY "LIST_HEAD *head"
 .Fn LIST_ENTRY "TYPE"
 .Fn LIST_FIRST "LIST_HEAD *head"
 .Fn LIST_FOREACH "TYPE *var" "LIST_HEAD *head" "LIST_ENTRY NAME"
+.Fn LIST_FOREACH_FROM "TYPE *var" "LIST_HEAD *head" "LIST_ENTRY NAME"
+.Fn LIST_FOREACH_FROM_SAFE "TYPE *var" "LIST_HEAD *head" "LIST_ENTRY NAME" "TYPE *temp_var"
 .Fn LIST_FOREACH_SAFE "TYPE *var" "LIST_HEAD *head" "LIST_ENTRY NAME" "TYPE *temp_var"
 .Fn LIST_HEAD "HEADNAME" "TYPE"
 .Fn LIST_HEAD_INITIALIZER "LIST_HEAD head"
@@ -149,16 +186,24 @@ lists and tail queues
 .Fn LIST_INSERT_BEFORE "TYPE *listelm" "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_INSERT_HEAD "LIST_HEAD *head" "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_NEXT "TYPE *elm" "LIST_ENTRY NAME"
+.Fn LIST_PREV "TYPE *elm" "LIST_HEAD *head" "TYPE" "LIST_ENTRY NAME"
 .Fn LIST_REMOVE "TYPE *elm" "LIST_ENTRY NAME"
+.Fn LIST_SWAP "LIST_HEAD *head1" "LIST_HEAD *head2" "TYPE" "LIST_ENTRY NAME"
 .\"
+.Fn TAILQ_CLASS_ENTRY "CLASSTYPE"
+.Fn TAILQ_CLASS_HEAD "HEADNAME" "CLASSTYPE"
 .Fn TAILQ_CONCAT "TAILQ_HEAD *head1" "TAILQ_HEAD *head2" "TAILQ_ENTRY NAME"
 .Fn TAILQ_EMPTY "TAILQ_HEAD *head"
 .Fn TAILQ_ENTRY "TYPE"
 .Fn TAILQ_FIRST "TAILQ_HEAD *head"
 .Fn TAILQ_FOREACH "TYPE *var" "TAILQ_HEAD *head" "TAILQ_ENTRY NAME"
-.Fn TAILQ_FOREACH_SAFE "TYPE *var" "TAILQ_HEAD *head" "TAILQ_ENTRY NAME" "TYPE *temp_var"
+.Fn TAILQ_FOREACH_FROM "TYPE *var" "TAILQ_HEAD *head" "TAILQ_ENTRY NAME"
+.Fn TAILQ_FOREACH_FROM_SAFE "TYPE *var" "TAILQ_HEAD *head" "TAILQ_ENTRY NAME" "TYPE *temp_var"
 .Fn TAILQ_FOREACH_REVERSE "TYPE *var" "TAILQ_HEAD *head" "HEADNAME" "TAILQ_ENTRY NAME"
+.Fn TAILQ_FOREACH_REVERSE_FROM "TYPE *var" "TAILQ_HEAD *head" "HEADNAME" "TAILQ_ENTRY NAME"
+.Fn TAILQ_FOREACH_REVERSE_FROM_SAFE "TYPE *var" "TAILQ_HEAD *head" "HEADNAME" "TAILQ_ENTRY NAME" "TYPE *temp_var"
 .Fn TAILQ_FOREACH_REVERSE_SAFE "TYPE *var" "TAILQ_HEAD *head" "HEADNAME" "TAILQ_ENTRY NAME" "TYPE *temp_var"
+.Fn TAILQ_FOREACH_SAFE "TYPE *var" "TAILQ_HEAD *head" "TAILQ_ENTRY NAME" "TYPE *temp_var"
 .Fn TAILQ_HEAD "HEADNAME" "TYPE"
 .Fn TAILQ_HEAD_INITIALIZER "TAILQ_HEAD head"
 .Fn TAILQ_INIT "TAILQ_HEAD *head"
@@ -170,10 +215,21 @@ lists and tail queues
 .Fn TAILQ_NEXT "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_PREV "TYPE *elm" "HEADNAME" "TAILQ_ENTRY NAME"
 .Fn TAILQ_REMOVE "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
+.Fn TAILQ_SWAP "TAILQ_HEAD *head1" "TAILQ_HEAD *head2" "TYPE" "TAILQ_ENTRY NAME"
 .\"
 .Sh DESCRIPTION
-These macros define and operate on four types of data structures:
-singly-linked lists, singly-linked tail queues, lists, and tail queues.
+These macros define and operate on four types of data structures which
+can be used in both C and C++ source code:
+.Bl -enum -compact -offset indent
+.It
+Lists
+.It
+Singly-linked lists
+.It
+Singly-linked tail queues
+.It
+Tail queues
+.El
 All four structures support the following functionality:
 .Bl -enum -compact -offset indent
 .It
@@ -184,9 +240,10 @@ Insertion of a new entry after any element in the list.
 O(1) removal of an entry from the head of the list.
 .It
 Forward traversal through the list.
+.It
+Swapping the contents of two lists.
 .El
 .Pp
-O(n) removal of any entry in the list.
 Singly-linked lists are the simplest of the four data structures
 and support only the above functionality.
 Singly-linked lists are ideal for applications with large datasets
@@ -196,6 +253,8 @@ Singly-linked lists add the following functionality:
 .Bl -enum -compact -offset indent
 .It
 O(n) removal of any entry in the list.
+.It
+O(n) concatenation of two lists.
 .El
 .Pp
 Singly-linked tail queues add the following functionality:
@@ -218,7 +277,7 @@ Code size is about 15% greater and operations run about 20% slower
 than singly-linked lists.
 .El
 .Pp
-Singly-linked tailqs are ideal for applications with large datasets and
+Singly-linked tail queues are ideal for applications with large datasets and
 few or no removals,
 or for implementing a FIFO queue.
 .Pp
@@ -233,14 +292,26 @@ O(1) removal of any entry in the list.
 However:
 .Bl -enum -compact -offset indent
 .It
-Each elements requires two pointers rather than one.
+Each element requires two pointers rather than one.
 .It
 Code size and execution time of operations (except for removal) is about
 twice that of the singly-linked data-structures.
 .El
 .Pp
-Linked lists are the simplest of the doubly linked data structures and support
-only the above functionality over singly-linked lists.
+Linked lists are the simplest of the doubly linked data structures.
+They add the following functionality over the above:
+.Bl -enum -compact -offset indent
+.It
+O(n) concatenation of two lists.
+.It
+They may be traversed backwards.
+.El
+However:
+.Bl -enum -compact -offset indent
+.It
+To traverse backwards, an entry to begin the traversal and the list in
+which it is contained must be specified.
+.El
 .Pp
 Tail queues add the following functionality:
 .Bl -enum -compact -offset indent
@@ -264,24 +335,39 @@ than singly-linked lists.
 .Pp
 In the macro definitions,
 .Fa TYPE
-is the name of a user defined structure,
-that must contain a field of type
+is the name of a user defined structure.
+The structure must contain a field called
+.Fa NAME
+which is of type
 .Li SLIST_ENTRY ,
 .Li STAILQ_ENTRY ,
 .Li LIST_ENTRY ,
 or
-.Li TAILQ_ENTRY ,
-named
-.Fa NAME .
+.Li TAILQ_ENTRY .
+In the macro definitions,
+.Fa CLASSTYPE
+is the name of a user defined class.
+The class must contain a field called
+.Fa NAME
+which is of type
+.Li SLIST_CLASS_ENTRY ,
+.Li STAILQ_CLASS_ENTRY ,
+.Li LIST_CLASS_ENTRY ,
+or
+.Li TAILQ_CLASS_ENTRY .
 The argument
 .Fa HEADNAME
 is the name of a user defined structure that must be declared
 using the macros
 .Li SLIST_HEAD ,
+.Li SLIST_CLASS_HEAD ,
 .Li STAILQ_HEAD ,
+.Li STAILQ_CLASS_HEAD ,
 .Li LIST_HEAD ,
+.Li LIST_CLASS_HEAD ,
+.Li TAILQ_HEAD ,
 or
-.Li TAILQ_HEAD .
+.Li TAILQ_CLASS_HEAD .
 See the examples below for further explanation of how these
 macros are used.
 .Sh SINGLY-LINKED LISTS
@@ -323,6 +409,19 @@ evaluates to an initializer for the list
 .Fa head .
 .Pp
 The macro
+.Nm SLIST_CONCAT
+concatenates the list headed by
+.Fa head2
+onto the end of the one headed by
+.Fa head1
+removing all entries from the former.
+Use of this macro should be avoided as it traverses the entirety of the
+.Fa head1
+list.
+A singly-linked tail queue should be used if this macro is needed in
+high-usage code paths or to operate on long lists.
+.Pp
+The macro
 .Nm SLIST_EMPTY
 evaluates to true if there are no elements in the list.
 .Pp
@@ -344,6 +443,19 @@ turn to
 .Fa var .
 .Pp
 The macro
+.Nm SLIST_FOREACH_FROM
+behaves identically to
+.Nm SLIST_FOREACH
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found SLIST element and begins the loop at
+.Fa var
+instead of the first element in the SLIST referenced by
+.Fa head .
+.Pp
+The macro
 .Nm SLIST_FOREACH_SAFE
 traverses the list referenced by
 .Fa head
@@ -356,6 +468,19 @@ here it is permitted to both remove
 .Fa var
 as well as free it from within the loop safely without interfering with the
 traversal.
+.Pp
+The macro
+.Nm SLIST_FOREACH_FROM_SAFE
+behaves identically to
+.Nm SLIST_FOREACH_SAFE
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found SLIST element and begins the loop at
+.Fa var
+instead of the first element in the SLIST referenced by
+.Fa head .
 .Pp
 The macro
 .Nm SLIST_INIT
@@ -383,7 +508,8 @@ The macro
 .Nm SLIST_REMOVE_AFTER
 removes the element after
 .Fa elm
-from the list. Unlike
+from the list.
+Unlike
 .Fa SLIST_REMOVE ,
 this macro does not traverse the entire list.
 .Pp
@@ -403,6 +529,16 @@ The macro
 removes the element
 .Fa elm
 from the list.
+Use of this macro should be avoided as it traverses the entire list.
+A doubly-linked list should be used if this macro is needed in
+high-usage code paths or to operate on long lists.
+.Pp
+The macro
+.Nm SLIST_SWAP
+swaps the contents of
+.Fa head1
+and
+.Fa head2 .
 .Sh SINGLY-LINKED LIST EXAMPLE
 .Bd -literal
 SLIST_HEAD(slisthead, entry) head =
@@ -516,6 +652,19 @@ in turn to
 .Fa var .
 .Pp
 The macro
+.Nm STAILQ_FOREACH_FROM
+behaves identically to
+.Nm STAILQ_FOREACH
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found STAILQ element and begins the loop at
+.Fa var
+instead of the first element in the STAILQ referenced by
+.Fa head .
+.Pp
+The macro
 .Nm STAILQ_FOREACH_SAFE
 traverses the tail queue referenced by
 .Fa head
@@ -528,6 +677,19 @@ here it is permitted to both remove
 .Fa var
 as well as free it from within the loop safely without interfering with the
 traversal.
+.Pp
+The macro
+.Nm STAILQ_FOREACH_FROM_SAFE
+behaves identically to
+.Nm STAILQ_FOREACH_SAFE
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found STAILQ element and begins the loop at
+.Fa var
+instead of the first element in the STAILQ referenced by
+.Fa head .
 .Pp
 The macro
 .Nm STAILQ_INIT
@@ -567,7 +729,8 @@ The macro
 .Nm STAILQ_REMOVE_AFTER
 removes the element after
 .Fa elm
-from the tail queue. Unlike
+from the tail queue.
+Unlike
 .Fa STAILQ_REMOVE ,
 this macro does not traverse the entire tail queue.
 .Pp
@@ -585,6 +748,16 @@ The macro
 removes the element
 .Fa elm
 from the tail queue.
+Use of this macro should be avoided as it traverses the entire list.
+A doubly-linked tail queue should be used if this macro is needed in
+high-usage code paths or to operate on long tail queues.
+.Pp
+The macro
+.Nm STAILQ_SWAP
+swaps the contents of
+.Fa head1
+and
+.Fa head2 .
 .Sh SINGLY-LINKED TAIL QUEUE EXAMPLE
 .Bd -literal
 STAILQ_HEAD(stailhead, entry) head =
@@ -677,6 +850,19 @@ evaluates to an initializer for the list
 .Fa head .
 .Pp
 The macro
+.Nm LIST_CONCAT
+concatenates the list headed by
+.Fa head2
+onto the end of the one headed by
+.Fa head1
+removing all entries from the former.
+Use of this macro should be avoided as it traverses the entirety of the
+.Fa head1
+list.
+A tail queue should be used if this macro is needed in
+high-usage code paths or to operate on long lists.
+.Pp
+The macro
 .Nm LIST_EMPTY
 evaluates to true if there are no elements in the list.
 .Pp
@@ -698,6 +884,19 @@ in the forward direction, assigning each element in turn to
 .Fa var .
 .Pp
 The macro
+.Nm LIST_FOREACH_FROM
+behaves identically to
+.Nm LIST_FOREACH
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found LIST element and begins the loop at
+.Fa var
+instead of the first element in the LIST referenced by
+.Fa head .
+.Pp
+The macro
 .Nm LIST_FOREACH_SAFE
 traverses the list referenced by
 .Fa head
@@ -709,6 +908,19 @@ here it is permitted to both remove
 .Fa var
 as well as free it from within the loop safely without interfering with the
 traversal.
+.Pp
+The macro
+.Nm LIST_FOREACH_FROM_SAFE
+behaves identically to
+.Nm LIST_FOREACH_SAFE
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found LIST element and begins the loop at
+.Fa var
+instead of the first element in the LIST referenced by
+.Fa head .
 .Pp
 The macro
 .Nm LIST_INIT
@@ -740,10 +952,25 @@ The macro
 returns the next element in the list, or NULL if this is the last.
 .Pp
 The macro
+.Nm LIST_PREV
+returns the previous element in the list, or NULL if this is the first.
+List
+.Fa head
+must contain element
+.Fa elm .
+.Pp
+The macro
 .Nm LIST_REMOVE
 removes the element
 .Fa elm
 from the list.
+.Pp
+The macro
+.Nm LIST_SWAP
+swaps the contents of
+.Fa head1
+and
+.Fa head2 .
 .Sh LIST EXAMPLE
 .Bd -literal
 LIST_HEAD(listhead, entry) head =
@@ -868,11 +1095,37 @@ is set to
 if the loop completes normally, or if there were no elements.
 .Pp
 The macro
+.Nm TAILQ_FOREACH_FROM
+behaves identically to
+.Nm TAILQ_FOREACH
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found TAILQ element and begins the loop at
+.Fa var
+instead of the first element in the TAILQ referenced by
+.Fa head .
+.Pp
+The macro
 .Nm TAILQ_FOREACH_REVERSE
 traverses the tail queue referenced by
 .Fa head
 in the reverse direction, assigning each element in turn to
 .Fa var .
+.Pp
+The macro
+.Nm TAILQ_FOREACH_REVERSE_FROM
+behaves identically to
+.Nm TAILQ_FOREACH_REVERSE
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found TAILQ element and begins the reverse loop at
+.Fa var
+instead of the last element in the TAILQ referenced by
+.Fa head .
 .Pp
 The macros
 .Nm TAILQ_FOREACH_SAFE
@@ -891,6 +1144,32 @@ permit to both remove
 .Fa var
 as well as free it from within the loop safely without interfering with the
 traversal.
+.Pp
+The macro
+.Nm TAILQ_FOREACH_FROM_SAFE
+behaves identically to
+.Nm TAILQ_FOREACH_SAFE
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found TAILQ element and begins the loop at
+.Fa var
+instead of the first element in the TAILQ referenced by
+.Fa head .
+.Pp
+The macro
+.Nm TAILQ_FOREACH_REVERSE_FROM_SAFE
+behaves identically to
+.Nm TAILQ_FOREACH_REVERSE_SAFE
+when
+.Fa var
+is NULL, else it treats
+.Fa var
+as a previously found TAILQ element and begins the reverse loop at
+.Fa var
+instead of the last element in the TAILQ referenced by
+.Fa head .
 .Pp
 The macro
 .Nm TAILQ_INIT
@@ -943,6 +1222,13 @@ The macro
 removes the element
 .Fa elm
 from the tail queue.
+.Pp
+The macro
+.Nm TAILQ_SWAP
+swaps the contents of
+.Fa head1
+and
+.Fa head2 .
 .Sh TAIL QUEUE EXAMPLE
 .Bd -literal
 TAILQ_HEAD(tailhead, entry) head =
@@ -998,6 +1284,52 @@ while (n1 != NULL) {
 }
 TAILQ_INIT(&head);
 .Ed
+.Sh DIAGNOSTICS
+When debugging
+.Nm queue(3) ,
+it can be useful to trace queue changes.
+To enable tracing, define the macro
+.Va QUEUE_MACRO_DEBUG_TRACE
+at compile time.
+.Pp
+It can also be useful to trash pointers that have been unlinked from a queue,
+to detect use after removal.
+To enable pointer trashing, define the macro
+.Va QUEUE_MACRO_DEBUG_TRASH
+at compile time.
+The macro
+.Fn QMD_IS_TRASHED "void *ptr"
+returns true if
+.Fa ptr
+has been trashed by the
+.Va QUEUE_MACRO_DEBUG_TRASH
+option.
+.Pp
+In the kernel (with
+.Va INVARIANTS
+enabled), the
+.Fn SLIST_REMOVE_PREVPTR
+macro is available to aid debugging:
+.Bl -hang -offset indent
+.It Fn SLIST_REMOVE_PREVPTR "TYPE **prev" "TYPE *elm" "SLIST_ENTRY NAME"
+.Pp
+Removes
+.Fa elm ,
+which must directly follow the element whose
+.Va &SLIST_NEXT()
+is
+.Fa prev ,
+from the SLIST.
+This macro validates that
+.Fa elm
+follows
+.Fa prev
+in
+.Va INVARIANTS
+mode.
+.El
+.Sh SEE ALSO
+.Xr tree 3
 .Sh HISTORY
 The
 .Nm queue

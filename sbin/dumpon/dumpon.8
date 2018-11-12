@@ -28,7 +28,7 @@
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd May 12, 1995
+.Dd October 3, 2016
 .Dt DUMPON 8
 .Os
 .Sh NAME
@@ -41,6 +41,9 @@
 .Nm
 .Op Fl v
 .Cm off
+.Nm
+.Op Fl v
+.Fl l
 .Sh DESCRIPTION
 The
 .Nm
@@ -56,20 +59,34 @@ controlled by the
 variable in the boot time configuration file
 .Pa /etc/rc.conf .
 .Pp
-For most systems the size of the specified dump device must be at
+The default type of kernel crash dump is the mini crash dump.
+Mini crash dumps hold only memory pages in use by the kernel.
+Alternatively, full memory dumps can be enabled by setting the
+.Va debug.minidump
+.Xr sysctl 8
+variable to 0.
+.Pp
+For systems using full memory dumps, the size of the specified dump
+device must be at
 least the size of physical memory.
 Even though an additional 64 kB header is added to the dump, the BIOS for a
 platform typically holds back some memory, so it is not usually
 necessary to size the dump device larger than the actual amount of RAM
 available in the machine.
-.Pp
-The
+Also, when using full memory dumps, the
 .Nm
 utility will refuse to enable a dump device which is smaller than the
 total amount of physical memory as reported by the
 .Va hw.physmem
 .Xr sysctl 8
 variable.
+.Pp
+The
+.Fl l
+flag causes
+.Nm
+to print the current dump device or _PATH_DEVNULL ("/dev/null") if no device is
+configured.
 .Pp
 The
 .Fl v
@@ -107,9 +124,18 @@ performs a
 on
 .Pa /dev/null
 and thus instructs the kernel not to save crash dumps.
+.Pp
+Since
+.Nm
+cannot be used during kernel initialization, the
+.Va dumpdev
+variable of
+.Xr loader 8
+must be used to enable dumps for system panics which occur
+during kernel initialization.
 .Sh FILES
-.Bl -tag -width "/dev/{ad,da}?s?b" -compact
-.It Pa /dev/{ad,da}?s?b
+.Bl -tag -width "/dev/{ada,da}?s?b" -compact
+.It Pa /dev/{ada,da}?s?b
 standard swap areas
 .It Pa /etc/rc.conf
 boot-time system configuration
@@ -119,6 +145,7 @@ boot-time system configuration
 .Xr rc.conf 5 ,
 .Xr config 8 ,
 .Xr init 8 ,
+.Xr loader 8 ,
 .Xr rc 8 ,
 .Xr savecore 8 ,
 .Xr swapon 8 ,
@@ -127,7 +154,7 @@ boot-time system configuration
 The
 .Nm
 utility appeared in
-.Fx 2.1 .
+.Fx 2.0.5 .
 .Sh BUGS
 Because the file system layer is already dead by the time a crash dump
 is taken, it is not possible to send crash dumps directly to a file.

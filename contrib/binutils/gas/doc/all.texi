@@ -1,4 +1,5 @@
-@c Copyright 1992, 1993, 1994, 1996, 1997, 1999, 2000, 2001, 2002
+@c Copyright 1992, 1993, 1994, 1996, 1997, 1999, 2000, 2001, 2002,
+@c 2003, 2005
 @c Free Software Foundation, Inc.
 @c This file is part of the documentation for the GAS manual
 
@@ -19,35 +20,38 @@
 @c Object formats of interest
 @c ==========================
 @set AOUT
-@set BOUT
 @set COFF
 @set ELF
 @set SOM
 
 @c CPUs of interest
 @c ================
-@set A29K
 @set ALPHA
 @set ARC
 @set ARM
+@set AVR
+@set BFIN
+@set CR16
 @set CRIS
 @set D10V
 @set D30V
 @set H8/300
-@set H8/500
 @set HPPA
 @set I370
 @set I80386
 @set I860
 @set I960
+@set IA64
 @set IP2K
+@set M32C
 @set M32R
+@set xc16x
 @set M68HC11
 @set M680X0
-@set M880X0
 @set MCORE
 @set MIPS
 @set MMIX
+@set MS1
 @set MSP430
 @set PDP11
 @set PJ
@@ -57,11 +61,11 @@
 @set TIC54X
 @set V850
 @set VAX
-@set VXWORKS
 @set XTENSA
+@set Z80
 @set Z8000
 
-@c Does this version of the assembler use the difference-table kluge?
+@c Does this version of the assembler use the difference-table kludge?
 @set DIFF-TBL-KLUGE
 
 @c Do all machines described use IEEE floating point?

@@ -96,7 +96,12 @@ THIS SOFTWARE.
  * #define RND_PRODQUOT to use rnd_prod and rnd_quot (assembly routines
  *	that use extended-precision instructions to compute rounded
  *	products and quotients) with IBM.
- * #define ROUND_BIASED for IEEE-format with biased rounding.
+ * #define ROUND_BIASED for IEEE-format with biased rounding and arithmetic
+ *	that rounds toward +Infinity.
+ * #define ROUND_BIASED_without_Round_Up for IEEE-format with biased
+ *	rounding when the underlying floating-point arithmetic uses
+ *	unbiased rounding.  This prevent using ordinary floating-point
+ *	arithmetic when the result could be computed with one rounding error.
  * #define Inaccurate_Divide for IEEE-format with correctly rounded
  *	products but inaccurate quotients, e.g., for Intel i860.
  * #define NO_LONG_LONG on machines that do not have a "long long"
@@ -115,7 +120,12 @@ THIS SOFTWARE.
  * #define MALLOC your_malloc, where your_malloc(n) acts like malloc(n)
  *	if memory is available and otherwise does something you deem
  *	appropriate.  If MALLOC is undefined, malloc will be invoked
- *	directly -- and assumed always to succeed.
+ *	directly -- and assumed always to succeed.  Similarly, if you
+ *	want something other than the system's free() to be called to
+ *	recycle memory acquired from MALLOC, #define FREE to be the
+ *	name of the alternate routine.  (FREE or free is only called in
+ *	pathological cases, e.g., in a gdtoa call after a gdtoa return in
+ *	mode 3 with thousands of digits requested.)
  * #define Omit_Private_Memory to omit logic (added Jan. 1998) for making
  *	memory allocations from a private pool of memory when possible.
  *	When used, the private pool is PRIVATE_MEM bytes long:  2304 bytes,
@@ -164,11 +174,6 @@ THIS SOFTWARE.
  * #define NO_STRING_H to use private versions of memcpy.
  *	On some K&R systems, it may also be necessary to
  *	#define DECLARE_SIZE_T in this case.
- * #define YES_ALIAS to permit aliasing certain double values with
- *	arrays of ULongs.  This leads to slightly better code with
- *	some compilers and was always used prior to 19990916, but it
- *	is not strictly legal and can cause trouble with aggressively
- *	optimizing compilers (e.g., gcc 2.95.1 under -O2).
  * #define USE_LOCALE to use the current locale's decimal_point value.
  */
 
@@ -196,6 +201,7 @@ THIS SOFTWARE.
 #include "namespace.h"
 #include <pthread.h>
 #include "un-namespace.h"
+#include "xlocale_private.h"
 
 #ifdef KR_headers
 #define Char char
@@ -287,25 +293,14 @@ Exactly one of IEEE_8087, IEEE_MC68k, VAX, or IBM should be defined.
 
 typedef union { double d; ULong L[2]; } U;
 
-#ifdef YES_ALIAS
-#define dval(x) x
 #ifdef IEEE_8087
-#define word0(x) ((ULong *)&x)[1]
-#define word1(x) ((ULong *)&x)[0]
+#define word0(x) (x)->L[1]
+#define word1(x) (x)->L[0]
 #else
-#define word0(x) ((ULong *)&x)[0]
-#define word1(x) ((ULong *)&x)[1]
+#define word0(x) (x)->L[0]
+#define word1(x) (x)->L[1]
 #endif
-#else /* !YES_ALIAS */
-#ifdef IEEE_8087
-#define word0(x) ((U*)&x)->L[1]
-#define word1(x) ((U*)&x)->L[0]
-#else
-#define word0(x) ((U*)&x)->L[0]
-#define word1(x) ((U*)&x)->L[1]
-#endif
-#define dval(x) ((U*)&x)->d
-#endif /* YES_ALIAS */
+#define dval(x) (x)->d
 
 /* The following definition of Storeinc is appropriate for MIPS processors.
  * An alternative that might be better on some machines is
@@ -419,6 +414,11 @@ typedef union { double d; ULong L[2]; } U;
 
 #ifndef IEEE_Arith
 #define ROUND_BIASED
+#else
+#ifdef ROUND_BIASED_without_Round_Up
+#undef  ROUND_BIASED
+#define ROUND_BIASED
+#endif
 #endif
 
 #ifdef RND_PRODQUOT
@@ -526,11 +526,11 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
 #define	strtoIQ		__strtoIQ
 #define	strtoIx		__strtoIx
 #define	strtoIxL	__strtoIxL
-#define	strtord		__strtord
+#define	strtord_l		__strtord_l
 #define	strtordd	__strtordd
 #define	strtorf		__strtorf
-#define	strtorQ		__strtorQ
-#define	strtorx		__strtorx
+#define	strtorQ_l		__strtorQ_l
+#define	strtorx_l		__strtorx_l
 #define	strtorxL	__strtorxL
 #define	strtodI		__strtodI
 #define	strtopd		__strtopd
@@ -635,7 +635,7 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
  extern Bigint *s2b ANSI((CONST char*, int, int, ULong, int));
  extern Bigint *set_ones ANSI((Bigint*, int));
  extern char *strcp ANSI((char*, const char*));
- extern int strtodg ANSI((CONST char*, char**, FPI*, Long*, ULong*));
+ extern int strtodg_l ANSI((CONST char*, char**, FPI*, Long*, ULong*, locale_t));
 
  extern int strtoId ANSI((CONST char *, char **, double *, double *));
  extern int strtoIdd ANSI((CONST char *, char **, double *, double *));
@@ -645,21 +645,22 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
  extern int strtoIx ANSI((CONST char *, char **, void *, void *));
  extern int strtoIxL ANSI((CONST char *, char **, void *, void *));
  extern double strtod ANSI((const char *s00, char **se));
+ extern double strtod_l ANSI((const char *s00, char **se, locale_t));
  extern int strtopQ ANSI((CONST char *, char **, Void *));
  extern int strtopf ANSI((CONST char *, char **, float *));
  extern int strtopd ANSI((CONST char *, char **, double *));
  extern int strtopdd ANSI((CONST char *, char **, double *));
  extern int strtopx ANSI((CONST char *, char **, Void *));
  extern int strtopxL ANSI((CONST char *, char **, Void *));
- extern int strtord ANSI((CONST char *, char **, int, double *));
+ extern int strtord_l ANSI((CONST char *, char **, int, double *, locale_t));
  extern int strtordd ANSI((CONST char *, char **, int, double *));
  extern int strtorf ANSI((CONST char *, char **, int, float *));
- extern int strtorQ ANSI((CONST char *, char **, int, void *));
- extern int strtorx ANSI((CONST char *, char **, int, void *));
+ extern int strtorQ_l ANSI((CONST char *, char **, int, void *, locale_t));
+ extern int strtorx_l ANSI((CONST char *, char **, int, void *, locale_t));
  extern int strtorxL ANSI((CONST char *, char **, int, void *));
  extern Bigint *sum ANSI((Bigint*, Bigint*));
  extern int trailz ANSI((Bigint*));
- extern double ulp ANSI((double));
+ extern double ulp ANSI((U*));
 
 #ifdef __cplusplus
 }

@@ -52,7 +52,7 @@ static const char rcsid[] =
 #include "fsck.h"
 
 static int charsperline(void);
-static int printindir(ufs2_daddr_t blk, int level, char *bufp);
+static void printindir(ufs2_daddr_t blk, int level, char *bufp);
 static void printblocks(ino_t inum, union dinode *dp);
 
 char **
@@ -126,12 +126,10 @@ printstat(const char *cp, ino_t inum, union dinode *dp)
 	puts("regular file");
 	break;
     case IFBLK:
-	printf("block special (%d,%d)",
-	       major(DIP(dp, di_rdev)), minor(DIP(dp, di_rdev)));
+	printf("block special (%#jx)", (uintmax_t)DIP(dp, di_rdev));
 	break;
     case IFCHR:
-	printf("character special (%d,%d)",
-	       major(DIP(dp, di_rdev)), minor(DIP(dp, di_rdev)));
+	printf("character special (%#jx)", DIP(dp, di_rdev));
 	break;
     case IFLNK:
 	fputs("symlink",stdout);
@@ -154,7 +152,7 @@ printstat(const char *cp, ino_t inum, union dinode *dp)
 	puts("fifo");
 	break;
     }
-    printf("I=%lu MODE=%o SIZE=%ju", (u_long)inum, DIP(dp, di_mode),
+    printf("I=%ju MODE=%o SIZE=%ju", (uintmax_t)inum, DIP(dp, di_mode),
 	(uintmax_t)DIP(dp, di_size));
     if (sblock.fs_magic != FS_UFS1_MAGIC) {
 	t = _time64_to_time(dp->dp2.di_birthtime);
@@ -195,7 +193,7 @@ printstat(const char *cp, ino_t inum, union dinode *dp)
 
     blocks = DIP(dp, di_blocks);
     gen = DIP(dp, di_gen);
-    printf("LINKCNT=%hd FLAGS=%#x BLKCNT=%jx GEN=%jx\n", DIP(dp, di_nlink),
+    printf("LINKCNT=%d FLAGS=%#x BLKCNT=%jx GEN=%jx\n", DIP(dp, di_nlink),
 	DIP(dp, di_flags), (intmax_t)blocks, (intmax_t)gen);
 }
 
@@ -226,7 +224,7 @@ charsperline(void)
 /*
  * Recursively print a list of indirect blocks.
  */
-static int
+static void
 printindir(ufs2_daddr_t blk, int level, char *bufp)
 {
     struct bufarea buf, *bp;
@@ -234,16 +232,18 @@ printindir(ufs2_daddr_t blk, int level, char *bufp)
     int i, j, cpl, charssofar;
     ufs2_daddr_t blkno;
 
+    if (blk == 0)
+	return;
+    printf("%jd (%d) =>\n", (intmax_t)blk, level);
     if (level == 0) {
 	/* for the final indirect level, don't use the cache */
 	bp = &buf;
 	bp->b_un.b_buf = bufp;
-	bp->b_prev = bp->b_next = bp;
-	initbarea(bp);
+	initbarea(bp, BT_UNKNOWN);
 
 	getblk(bp, blk, sblock.fs_bsize);
     } else
-	bp = getdatablk(blk, sblock.fs_bsize);
+	bp = getdatablk(blk, sblock.fs_bsize, BT_UNKNOWN);
 
     cpl = charsperline();
     for (i = charssofar = 0; i < NINDIR(&sblock); i++) {
@@ -251,11 +251,8 @@ printindir(ufs2_daddr_t blk, int level, char *bufp)
 		blkno = bp->b_un.b_indir1[i];
 	else
 		blkno = bp->b_un.b_indir2[i];
-	if (blkno == 0) {
-	    if (level == 0)
-		putchar('\n');
-	    return 0;
-	}
+	if (blkno == 0)
+	    continue;
 	j = sprintf(tempbuf, "%jd", (intmax_t)blkno);
 	if (level == 0) {
 	    charssofar += j;
@@ -270,13 +267,14 @@ printindir(ufs2_daddr_t blk, int level, char *bufp)
 	    charssofar += 2;
 	} else {
 	    printf(" =>\n");
-	    if (printindir(blkno, level - 1, bufp) == 0)
-		return 0;
+	    printindir(blkno, level - 1, bufp);
+	    printf("\n");
+	    charssofar = 0;
 	}
     }
     if (level == 0)
 	putchar('\n');
-    return 1;
+    return;
 }
 
 
@@ -291,34 +289,32 @@ printblocks(ino_t inum, union dinode *dp)
     long ndb, offset;
     ufs2_daddr_t blkno;
 
-    printf("Blocks for inode %d:\n", inum);
+    printf("Blocks for inode %ju:\n", (uintmax_t)inum);
     printf("Direct blocks:\n");
     ndb = howmany(DIP(dp, di_size), sblock.fs_bsize);
-    for (i = 0; i < NDADDR; i++) {
-	if (DIP(dp, di_db[i]) == 0) {
-	    putchar('\n');
-	    return;
-	}
+    for (i = 0; i < NDADDR && i < ndb; i++) {
 	if (i > 0)
 	    printf(", ");
 	blkno = DIP(dp, di_db[i]);
 	printf("%jd", (intmax_t)blkno);
-	if (--ndb == 0 && (offset = blkoff(&sblock, DIP(dp, di_size))) != 0) {
+    }
+    if (ndb <= NDADDR) {
+	offset = blkoff(&sblock, DIP(dp, di_size));
+	if (offset != 0) {
 	    nfrags = numfrags(&sblock, fragroundup(&sblock, offset));
 	    printf(" (%d frag%s)", nfrags, nfrags > 1? "s": "");
 	}
     }
     putchar('\n');
-    if (DIP(dp, di_ib[0]) == 0)
+    if (ndb <= NDADDR)
 	return;
 
     bufp = malloc((unsigned int)sblock.fs_bsize);
-    if (bufp == 0)
+    if (bufp == NULL)
 	errx(EEXIT, "cannot allocate indirect block buffer");
     printf("Indirect blocks:\n");
     for (i = 0; i < NIADDR; i++)
-	if (printindir(DIP(dp, di_ib[i]), i, bufp) == 0)
-	    break;
+	printindir(DIP(dp, di_ib[i]), i, bufp);
     free(bufp);
 }
 
@@ -341,7 +337,7 @@ checkactivedir(void)
 	return 0;
     }
     if ((DIP(curinode, di_mode) & IFMT) != IFDIR) {
-	warnx("inode %d not a directory", curinum);
+	warnx("inode %ju not a directory", (uintmax_t)curinum);
 	return 0;
     }
     return 1;
@@ -366,11 +362,12 @@ printactive(int doblocks)
 	    printstat("current inode", curinum, curinode);
 	break;
     case 0:
-	printf("current inode %d: unallocated inode\n", curinum);
+	printf("current inode %ju: unallocated inode\n", (uintmax_t)curinum);
 	break;
     default:
-	printf("current inode %d: screwy itype 0%o (mode 0%o)?\n",
-	       curinum, DIP(curinode, di_mode) & IFMT, DIP(curinode, di_mode));
+	printf("current inode %ju: screwy itype 0%o (mode 0%o)?\n",
+	    (uintmax_t)curinum, DIP(curinode, di_mode) & IFMT,
+	    DIP(curinode, di_mode));
 	break;
     }
     return 0;

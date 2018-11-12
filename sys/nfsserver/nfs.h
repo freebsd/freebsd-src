@@ -82,14 +82,13 @@
 #define IO_METASYNC	0
 #endif
 
-
 /* NFS state flags XXX -Wunused */
 #define	NFSRV_SNDLOCK		0x01000000  /* Send socket lock */
 #define	NFSRV_WANTSND		0x02000000  /* Want above */
 
 /*
- * Structures for the nfssvc(2) syscall. Not that anyone but nfsd and mount_nfs
- * should ever try and use it.
+ * Structures for the nfssvc(2) syscall.  Not that anyone but nfsd and
+ * mount_nfs should ever try and use it.
  */
 
 /*
@@ -240,6 +239,12 @@ extern int nfs_debug;
 
 #endif
 
+/*
+ * The following flags can be passed to nfsrv_fhtovp() function.
+ */
+/* Leave file system busy on success. */
+#define	NFSRV_FLAG_BUSY		0x01
+
 struct mbuf *nfs_rephead(int, struct nfsrv_descript *, int, struct mbuf **,
 	    caddr_t *);
 void	nfsm_srvfattr(struct nfsrv_descript *, struct vattr *,
@@ -263,9 +268,9 @@ int	nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    struct mbuf **mrq);
 int	nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    struct mbuf **mrq);
-int	nfsrv_fhtovp(fhandle_t *, int, struct vnode **, int *,
+int	nfsrv_fhtovp(fhandle_t *, int, struct vnode **,
 	    struct nfsrv_descript *, struct nfssvc_sock *, struct sockaddr *,
-	    int *, int);
+	    int *);
 int	nfsrv_setpublicfs(struct mount *, struct netexport *,
 	    struct export_args *);
 int	nfs_ispublicfh(fhandle_t *);

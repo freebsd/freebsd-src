@@ -38,6 +38,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <assert.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <errno.h>
 #include <pwd.h>
@@ -73,7 +74,7 @@ server_init(server_p srv, char const *control)
 	assert(srv != NULL);
 	assert(control != NULL);
 
-	memset(srv, 0, sizeof(srv));
+	memset(srv, 0, sizeof(*srv));
 
 	/* Open control socket */
 	if (unlink(control) < 0 && errno != ENOENT) {
@@ -334,7 +335,7 @@ server_accept_client(server_p srv, int32_t fd)
 		 * The minimum L2CAP MTU is 43 bytes. That means we need
 		 * 65536 / 43 = ~1524 chunks to transfer maximum packet
 		 * size with minimum MTU. The "rsp_cs" field in fd_idx_t
-		 * is 11 bit wide that gives us upto 2048 chunks.
+		 * is 11 bits wide, which gives us up to 2048 chunks.
 		 */
 
 		if (omtu < NG_L2CAP_MTU_MINIMUM) {

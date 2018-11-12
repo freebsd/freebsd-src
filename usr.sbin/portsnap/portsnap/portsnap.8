@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2008
+.Dd March 1, 2016
 .Dt PORTSNAP 8
 .Os FreeBSD
 .Sh NAME
@@ -55,10 +55,6 @@ In a normal update operation,
 .Nm
 will routinely restore modified files to their unmodified state and
 delete unrecognized local files.
-This behavior is different to
-.Xr cvs 1
-and
-.Xr cvsup 1 .
 .Sh OPTIONS
 The following options are supported:
 .Bl -tag -width "-f conffile"
@@ -97,7 +93,7 @@ operate on the directory
 or as given in the configuration file.)
 .It Fl s Ar server
 Fetch files from the specified server or server pool.
-(default: portsnap.FreeBSD.org , or as given in the
+(default: portsnap.FreeBSD.org, or as given in the
 configuration file.)
 .It path
 For
@@ -110,12 +106,17 @@ command only, operate only on parts of the ports tree starting with
 .Ar sysutils/port
 would extract sysutils/portsman, sysutils/portsnap,
 sysutils/portupgrade, etc.)
+.It Fl Fl interactive
+override auto-detection of calling process.
+Only use this when calling portsnap from an
+.Sy interactive, non-terminal application.
+(Cron jobs are particularly bad since they cause
+load spikes on the Portsnap mirrors.)
 .El
 .Sh COMMANDS
 The
 .Cm command
 can be any one of the following:
-.Pp
 .Bl -tag -width "-f conffile"
 .It fetch
 Fetch a compressed snapshot of the ports tree, or update
@@ -160,6 +161,18 @@ or
 commands.
 Again, note that in the parts of the ports tree which are being
 updated, any local changes or additions will be removed.
+.It auto
+Run
+.Cm fetch
+or
+.Cm cron
+depending on whether stdin is a terminal; then run
+.Cm update
+or
+.Cm extract
+depending on whether
+.Ar portsdir
+exists.
 .El
 .Sh TIPS
 .Bl -bullet
@@ -168,13 +181,32 @@ If your clock is set to local time, adding the line
 .Pp
 .Dl 0 3 * * * root /usr/sbin/portsnap cron
 .Pp
-to /etc/crontab is a good way to make sure you always have
+to
+.Pa /etc/crontab
+is a good way to make sure you always have
 an up-to-date snapshot of the ports tree available which
 can quickly be extracted into
 .Pa /usr/ports .
 If your clock is set to UTC, please pick a random time other
 than 3AM, to avoid overly imposing an uneven load on the
 server(s) hosting the snapshots.
+.Pp
+Note that running
+.Nm
+.Cm cron
+or
+.Nm
+.Cm fetch
+does not apply the changes that were received: they only download
+them.
+To apply the changes, you must follow these commands with
+.Nm
+.Cm update .
+The
+.Nm
+.Cm update
+command is normally run by hand at a time when you are sure that
+no one is manually working in the ports tree.
 .It
 Running
 .Nm
@@ -192,7 +224,7 @@ However, running
 .Fl I
 .Cm update
 is probably safe, and can be used together with
-.Xr portversion 1
+.Xr pkg-version 8
 to identify installed software which is out of date.
 .It
 If you wish to use
@@ -229,17 +261,19 @@ may be published, but only in aggregate and after anonymizing the
 individual systems.
 .Sh FILES
 .Bl -tag -width "/etc/portsnap.conf"
-.It /etc/portsnap.conf
+.It Pa /etc/portsnap.conf
 Default location of the portsnap configuration file.
-.It /var/db/portsnap
+.It Pa /var/db/portsnap
 Default location where compressed snapshots are stored.
-.It /usr/ports
+.It Pa /usr/ports
 Default location where the ports tree is extracted.
 .El
 .Sh SEE ALSO
 .Xr fetch 1 ,
 .Xr sha256 1 ,
 .Xr fetch 3 ,
-.Xr portsnap.conf 5
+.Xr portsnap.conf 5 ,
+.Xr pkg 7 ,
+.Xr pkg-version 8
 .Sh AUTHORS
-.An Colin Percival Aq cperciva@FreeBSD.org
+.An Colin Percival Aq Mt cperciva@FreeBSD.org

@@ -1,5 +1,6 @@
 /* messages.c - error reporter -
-   Copyright 1987, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001, 2003
+   Copyright 1987, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001,
+   2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    This file is part of GAS, the GNU Assembler.
 
@@ -15,32 +16,10 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "as.h"
-
-#include <stdio.h>
-#ifdef HAVE_ERRNO_H
-#include <errno.h>
-#endif
-
-#ifdef USE_STDARG
-#include <stdarg.h>
-#endif
-
-#ifdef USE_VARARGS
-#include <varargs.h>
-#endif
-
-#if !defined (USE_STDARG) && !defined (USE_VARARGS)
-/* Roll our own.  */
-#define va_alist REST
-#define va_dcl
-typedef int * va_list;
-#define va_start(ARGS)	ARGS = &REST
-#define va_end(ARGS)
-#endif
 
 static void identify (char *);
 static void as_show_where (void);
@@ -137,30 +116,6 @@ as_show_where (void)
     fprintf (stderr, "%s:%u: ", file, line);
 }
 
-/* Like perror(3), but with more info.  */
-
-void
-as_perror (const char *gripe,		/* Unpunctuated error theme.  */
-	   const char *filename)
-{
-  const char *errtxt;
-  int saved_errno = errno;
-
-  as_show_where ();
-  fprintf (stderr, gripe, filename);
-  errno = saved_errno;
-#ifdef BFD_ASSEMBLER
-  errtxt = bfd_errmsg (bfd_get_error ());
-#else
-  errtxt = xstrerror (errno);
-#endif
-  fprintf (stderr, ": %s\n", errtxt);
-  errno = 0;
-#ifdef BFD_ASSEMBLER
-  bfd_set_error (bfd_error_no_error);
-#endif
-}
-
 /* Send to stderr a string as a warning, and locate warning
    in input file(s).
    Please only use this for when we have some recovery action.
@@ -232,7 +187,7 @@ as_warn (const char *format, ...)
   if (!flag_no_warnings)
     {
       va_start (args, format);
-      vsprintf (buffer, format, args);
+      vsnprintf (buffer, sizeof (buffer), format, args);
       va_end (args);
       as_warn_internal ((char *) NULL, 0, buffer);
     }
@@ -249,7 +204,7 @@ as_warn (format, va_alist)
   if (!flag_no_warnings)
     {
       va_start (args);
-      vsprintf (buffer, format, args);
+      vsnprintf (buffer, sizeof (buffer), format, args);
       va_end (args);
       as_warn_internal ((char *) NULL, 0, buffer);
     }
@@ -270,7 +225,7 @@ as_warn_where (char *file, unsigned int line, const char *format, ...)
   if (!flag_no_warnings)
     {
       va_start (args, format);
-      vsprintf (buffer, format, args);
+      vsnprintf (buffer, sizeof (buffer), format, args);
       va_end (args);
       as_warn_internal (file, line, buffer);
     }
@@ -289,7 +244,7 @@ as_warn_where (file, line, format, va_alist)
   if (!flag_no_warnings)
     {
       va_start (args);
-      vsprintf (buffer, format, args);
+      vsnprintf (buffer, sizeof (buffer), format, args);
       va_end (args);
       as_warn_internal (file, line, buffer);
     }
@@ -331,7 +286,7 @@ as_bad (const char *format, ...)
   char buffer[2000];
 
   va_start (args, format);
-  vsprintf (buffer, format, args);
+  vsnprintf (buffer, sizeof (buffer), format, args);
   va_end (args);
 
   as_bad_internal ((char *) NULL, 0, buffer);
@@ -347,7 +302,7 @@ as_bad (format, va_alist)
   char buffer[2000];
 
   va_start (args);
-  vsprintf (buffer, format, args);
+  vsnprintf (buffer, sizeof (buffer), format, args);
   va_end (args);
 
   as_bad_internal ((char *) NULL, 0, buffer);
@@ -366,7 +321,7 @@ as_bad_where (char *file, unsigned int line, const char *format, ...)
   char buffer[2000];
 
   va_start (args, format);
-  vsprintf (buffer, format, args);
+  vsnprintf (buffer, sizeof (buffer), format, args);
   va_end (args);
 
   as_bad_internal (file, line, buffer);
@@ -384,7 +339,7 @@ as_bad_where (file, line, format, va_alist)
   char buffer[2000];
 
   va_start (args);
-  vsprintf (buffer, format, args);
+  vsnprintf (buffer, sizeof (buffer), format, args);
   va_end (args);
 
   as_bad_internal (file, line, buffer);
@@ -411,7 +366,7 @@ as_fatal (const char *format, ...)
   /* Delete the output file, if it exists.  This will prevent make from
      thinking that a file was created and hence does not need rebuilding.  */
   if (out_file_name != NULL)
-    unlink (out_file_name);
+    unlink_if_ordinary (out_file_name);
   xexit (EXIT_FAILURE);
 }
 #else
@@ -469,24 +424,6 @@ as_abort (const char *file, int line, const char *fn)
 /* Support routines.  */
 
 void
-fprint_value (FILE *file, valueT val)
-{
-  if (sizeof (val) <= sizeof (long))
-    {
-      fprintf (file, "%ld", (long) val);
-      return;
-    }
-#ifdef BFD_ASSEMBLER
-  if (sizeof (val) <= sizeof (bfd_vma))
-    {
-      fprintf_vma (file, val);
-      return;
-    }
-#endif
-  abort ();
-}
-
-void
 sprint_value (char *buf, valueT val)
 {
   if (sizeof (val) <= sizeof (long))
@@ -494,12 +431,107 @@ sprint_value (char *buf, valueT val)
       sprintf (buf, "%ld", (long) val);
       return;
     }
-#ifdef BFD_ASSEMBLER
   if (sizeof (val) <= sizeof (bfd_vma))
     {
       sprintf_vma (buf, val);
       return;
     }
-#endif
   abort ();
+}
+
+#define HEX_MAX_THRESHOLD	1024
+#define HEX_MIN_THRESHOLD	-(HEX_MAX_THRESHOLD)
+
+static void
+as_internal_value_out_of_range (char *    prefix,
+				offsetT   val,
+				offsetT   min,
+				offsetT   max,
+				char *    file,
+				unsigned  line,
+				int       bad)
+{
+  const char * err;
+
+  if (prefix == NULL)
+    prefix = "";
+
+  if (val >= min && val <= max)
+    {
+      addressT right = max & -max;
+
+      if (max <= 1)
+	abort ();
+
+      /* xgettext:c-format  */
+      err = _("%s out of domain (%d is not a multiple of %d)");
+      if (bad)
+	as_bad_where (file, line, err,
+		      prefix, (int) val, (int) right);
+      else
+	as_warn_where (file, line, err,
+		       prefix, (int) val, (int) right);
+      return;
+    }
+
+  if (   val < HEX_MAX_THRESHOLD
+      && min < HEX_MAX_THRESHOLD
+      && max < HEX_MAX_THRESHOLD
+      && val > HEX_MIN_THRESHOLD
+      && min > HEX_MIN_THRESHOLD
+      && max > HEX_MIN_THRESHOLD)
+    {
+      /* xgettext:c-format  */
+      err = _("%s out of range (%d is not between %d and %d)");
+
+      if (bad)
+	as_bad_where (file, line, err,
+		      prefix, (int) val, (int) min, (int) max);
+      else
+	as_warn_where (file, line, err,
+		       prefix, (int) val, (int) min, (int) max);
+    }
+  else
+    {
+      char val_buf [sizeof (val) * 3 + 2];
+      char min_buf [sizeof (val) * 3 + 2];
+      char max_buf [sizeof (val) * 3 + 2];
+
+      if (sizeof (val) > sizeof (bfd_vma))
+	abort ();
+
+      sprintf_vma (val_buf, val);
+      sprintf_vma (min_buf, min);
+      sprintf_vma (max_buf, max);
+
+      /* xgettext:c-format.  */
+      err = _("%s out of range (0x%s is not between 0x%s and 0x%s)");
+
+      if (bad)
+	as_bad_where (file, line, err, prefix, val_buf, min_buf, max_buf);
+      else
+	as_warn_where (file, line, err, prefix, val_buf, min_buf, max_buf);
+    }
+}
+
+void
+as_warn_value_out_of_range (char *   prefix,
+			   offsetT  value,
+			   offsetT  min,
+			   offsetT  max,
+			   char *   file,
+			   unsigned line)
+{
+  as_internal_value_out_of_range (prefix, value, min, max, file, line, 0);
+}
+
+void
+as_bad_value_out_of_range (char *   prefix,
+			   offsetT  value,
+			   offsetT  min,
+			   offsetT  max,
+			   char *   file,
+			   unsigned line)
+{
+  as_internal_value_out_of_range (prefix, value, min, max, file, line, 1);
 }

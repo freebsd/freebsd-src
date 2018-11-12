@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -32,7 +35,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -43,9 +45,12 @@
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+#include <sys/limits.h>
+#include <sys/endian.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 /*------------------------------------------------------------------------*
  *	usbd_lookup_id_by_info
@@ -106,13 +111,6 @@ usbd_lookup_id_by_info(const struct usb_device_id *id, usb_size_t sizeof_id,
 		    (id->bDeviceProtocol != info->bDeviceProtocol)) {
 			continue;
 		}
-		if ((info->bDeviceClass == 0xFF) &&
-		    (!(id->match_flag_vendor)) &&
-		    ((id->match_flag_int_class) ||
-		    (id->match_flag_int_subclass) ||
-		    (id->match_flag_int_protocol))) {
-			continue;
-		}
 		if ((id->match_flag_int_class) &&
 		    (id->bInterfaceClass != info->bInterfaceClass)) {
 			continue;
@@ -152,3 +150,71 @@ usbd_lookup_id_by_uaa(const struct usb_device_id *id, usb_size_t sizeof_id,
 	}
 	return (ENXIO);
 }
+
+/*------------------------------------------------------------------------*
+ *	Export the USB device ID format we use to userspace tools.
+ *------------------------------------------------------------------------*/
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define	U16_XOR "0"
+#else
+#define	U16_XOR "8"
+#endif
+
+#if defined(KLD_MODULE) && (USB_HAVE_ID_SECTION != 0)
+static const char __section("bus_autoconf_format") __used usb_id_format[] = {
+
+	/* Declare that three different sections use the same format */
+
+	"usb_host_id{256,:}"
+	"usb_device_id{256,:}"
+	"usb_dual_id{256,:}"
+
+	/* List size of fields in the usb_device_id structure */
+
+	"mf_vendor{" U16_XOR ",1}"
+	"mf_product{" U16_XOR ",1}"
+	"mf_dev_lo{" U16_XOR ",1}"
+	"mf_dev_hi{" U16_XOR ",1}"
+
+	"mf_dev_class{" U16_XOR ",1}"
+	"mf_dev_subclass{" U16_XOR ",1}"
+	"mf_dev_protocol{" U16_XOR ",1}"
+	"mf_int_class{" U16_XOR ",1}"
+
+	"mf_int_subclass{" U16_XOR ",1}"
+	"mf_int_protocol{" U16_XOR ",1}"
+	"unused{" U16_XOR ",6}"
+
+	"idVendor[0]{" U16_XOR ",8}"
+	"idVendor[1]{" U16_XOR ",8}"
+	"idProduct[0]{" U16_XOR ",8}"
+	"idProduct[1]{" U16_XOR ",8}"
+	"bcdDevice_lo[0]{" U16_XOR ",8}"
+	"bcdDevice_lo[1]{" U16_XOR ",8}"
+	"bcdDevice_hi[0]{" U16_XOR ",8}"
+	"bcdDevice_hi[1]{" U16_XOR ",8}"
+
+	"bDeviceClass{0,8}"
+	"bDeviceSubClass{0,8}"
+	"bDeviceProtocol{0,8}"
+	"bInterfaceClass{0,8}"
+	"bInterfaceSubClass{0,8}"
+	"bInterfaceProtocol{0,8}"
+
+#if USB_HAVE_COMPAT_LINUX
+	"mfl_vendor{" U16_XOR ",1}"
+	"mfl_product{" U16_XOR ",1}"
+	"mfl_dev_lo{" U16_XOR ",1}"
+	"mfl_dev_hi{" U16_XOR ",1}"
+
+	"mfl_dev_class{" U16_XOR ",1}"
+	"mfl_dev_subclass{" U16_XOR ",1}"
+	"mfl_dev_protocol{" U16_XOR ",1}"
+	"mfl_int_class{" U16_XOR ",1}"
+
+	"mfl_int_subclass{" U16_XOR ",1}"
+	"mfl_int_protocol{" U16_XOR ",1}"
+	"unused{" U16_XOR ",6}"
+#endif
+};
+#endif

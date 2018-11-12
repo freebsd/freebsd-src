@@ -2,14 +2,8 @@
  * WPA Supplicant - test code for pre-authentication
  * Copyright (c) 2003-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  *
  * IEEE 802.1X Supplicant test code (to be used in place of wpa_supplicant.c.
  * Not used in production version.
@@ -22,31 +16,23 @@
 #include "config.h"
 #include "eapol_supp/eapol_supp_sm.h"
 #include "eloop.h"
-#include "wpa.h"
+#include "rsn_supp/wpa.h"
 #include "eap_peer/eap.h"
 #include "wpa_supplicant_i.h"
 #include "l2_packet/l2_packet.h"
 #include "ctrl_iface.h"
 #include "pcsc_funcs.h"
-#include "preauth.h"
-#include "pmksa_cache.h"
+#include "rsn_supp/preauth.h"
+#include "rsn_supp/pmksa_cache.h"
+#include "drivers/driver.h"
 
 
-extern int wpa_debug_level;
-extern int wpa_debug_show_keys;
-
-struct wpa_driver_ops *wpa_supplicant_drivers[] = { NULL };
+const struct wpa_driver_ops *const wpa_drivers[] = { NULL };
 
 
 struct preauth_test_data {
 	int auth_timed_out;
 };
-
-
-static void _wpa_supplicant_disassociate(void *wpa_s, int reason_code)
-{
-	wpa_supplicant_disassociate(wpa_s, reason_code);
-}
 
 
 static void _wpa_supplicant_deauthenticate(void *wpa_s, int reason_code)
@@ -90,14 +76,14 @@ static u8 * _wpa_alloc_eapol(void *wpa_s, u8 type,
 }
 
 
-static void _wpa_supplicant_set_state(void *ctx, wpa_states state)
+static void _wpa_supplicant_set_state(void *ctx, enum wpa_states state)
 {
 	struct wpa_supplicant *wpa_s = ctx;
 	wpa_s->wpa_state = state;
 }
 
 
-static wpa_states _wpa_supplicant_get_state(void *ctx)
+static enum wpa_states _wpa_supplicant_get_state(void *ctx)
 {
 	struct wpa_supplicant *wpa_s = ctx;
 	return wpa_s->wpa_state;
@@ -138,7 +124,7 @@ static int wpa_supplicant_get_bssid(void *wpa_s, u8 *bssid)
 }
 
 
-static int wpa_supplicant_set_key(void *wpa_s, wpa_alg alg,
+static int wpa_supplicant_set_key(void *wpa_s, enum wpa_alg alg,
 				  const u8 *addr, int key_idx, int set_tx,
 				  const u8 *seq, size_t seq_len,
 				  const u8 *key, size_t key_len)
@@ -239,10 +225,10 @@ static void wpa_init_conf(struct wpa_supplicant *wpa_s, const char *ifname)
 	assert(ctx != NULL);
 
 	ctx->ctx = wpa_s;
+	ctx->msg_ctx = wpa_s;
 	ctx->set_state = _wpa_supplicant_set_state;
 	ctx->get_state = _wpa_supplicant_get_state;
 	ctx->deauthenticate = _wpa_supplicant_deauthenticate;
-	ctx->disassociate = _wpa_supplicant_disassociate;
 	ctx->set_key = wpa_supplicant_set_key;
 	ctx->get_network_ctx = wpa_supplicant_get_network_ctx;
 	ctx->get_bssid = wpa_supplicant_get_bssid;
@@ -275,10 +261,9 @@ static void wpa_init_conf(struct wpa_supplicant *wpa_s, const char *ifname)
 }
 
 
-static void eapol_test_terminate(int sig, void *eloop_ctx,
-				 void *signal_ctx)
+static void eapol_test_terminate(int sig, void *signal_ctx)
 {
-	struct wpa_supplicant *wpa_s = eloop_ctx;
+	struct wpa_supplicant *wpa_s = signal_ctx;
 	wpa_msg(wpa_s, MSG_INFO, "Signal %d received - terminating", sig);
 	eloop_terminate();
 }
@@ -310,18 +295,18 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	if (eap_peer_register_methods()) {
+	if (eap_register_methods()) {
 		wpa_printf(MSG_ERROR, "Failed to register EAP methods");
 		return -1;
 	}
 
-	if (eloop_init(&wpa_s)) {
+	if (eloop_init()) {
 		wpa_printf(MSG_ERROR, "Failed to initialize event loop");
 		return -1;
 	}
 
 	os_memset(&wpa_s, 0, sizeof(wpa_s));
-	wpa_s.conf = wpa_config_read(argv[1]);
+	wpa_s.conf = wpa_config_read(argv[1], NULL);
 	if (wpa_s.conf == NULL) {
 		printf("Failed to parse configuration file '%s'.\n", argv[1]);
 		return -1;
@@ -352,8 +337,8 @@ int main(int argc, char *argv[])
 
 	eloop_register_timeout(30, 0, eapol_test_timeout, &preauth_test, NULL);
 	eloop_register_timeout(0, 100000, eapol_test_poll, &wpa_s, NULL);
-	eloop_register_signal_terminate(eapol_test_terminate, NULL);
-	eloop_register_signal_reconfig(eapol_test_terminate, NULL);
+	eloop_register_signal_terminate(eapol_test_terminate, &wpa_s);
+	eloop_register_signal_reconfig(eapol_test_terminate, &wpa_s);
 	eloop_run();
 
 	if (preauth_test.auth_timed_out)

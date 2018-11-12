@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Mac 'Kauai' PCI ATA controller
  */
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -85,7 +84,7 @@ __FBSDID("$FreeBSD$");
  */
 static  int  ata_kauai_probe(device_t dev);
 static  int  ata_kauai_attach(device_t dev);
-static  void ata_kauai_setmode(device_t parent, device_t dev);
+static  int  ata_kauai_setmode(device_t dev, int target, int mode);
 static  int  ata_kauai_begin_transaction(struct ata_request *request);
 
 static device_method_t ata_kauai_methods[] = {
@@ -99,7 +98,7 @@ static device_method_t ata_kauai_methods[] = {
 
 	/* ATA interface */
 	DEVMETHOD(ata_setmode,		ata_kauai_setmode),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 struct ata_kauai_softc {
@@ -120,15 +119,15 @@ static driver_t ata_kauai_driver = {
 	sizeof(struct ata_kauai_softc),
 };
 
-DRIVER_MODULE(ata, pci, ata_kauai_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(ata, pci, ata_kauai_driver, ata_devclass, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
 
 /*
  * PCI ID search table
  */
-static struct kauai_pci_dev {
-        u_int32_t  kpd_devid;
-        char    *kpd_desc;
+static const struct kauai_pci_dev {
+        u_int32_t	kpd_devid;
+        const char	*kpd_desc;
 } kauai_pci_devlist[] = {
         { 0x0033106b, "Uninorth2 Kauai ATA Controller" },
         { 0x003b106b, "Intrepid Kauai ATA Controller" },
@@ -152,6 +151,7 @@ static const u_int pio_timing_kauai[] = {
 	0x05000249,	/* PIO3 */
 	0x04000148	/* PIO4 */
 };
+
 static const u_int pio_timing_shasta[] = {
 	0x0a000c97,	/* PIO0 */
 	0x07000712,	/* PIO1 */
@@ -165,6 +165,7 @@ static const u_int dma_timing_kauai[] = {
         0x00209000,	/* WDMA1 */
         0x00148000	/* WDMA2 */
 };
+
 static const u_int dma_timing_shasta[] = {
         0x00820800,	/* WDMA0 */
         0x0028b000,	/* WDMA1 */
@@ -179,6 +180,7 @@ static const u_int udma_timing_kauai[] = {
         0x00002a31,	/* UDMA4 */
         0x00002921	/* UDMA5 */
 };
+
 static const u_int udma_timing_shasta[] = {
         0x00035901,	/* UDMA0 */
         0x000348b1,	/* UDMA1 */
@@ -192,12 +194,11 @@ static const u_int udma_timing_shasta[] = {
 static int
 ata_kauai_probe(device_t dev)
 {
-	struct ata_channel *ch;
 	struct ata_kauai_softc *sc;
 	u_int32_t devid;
 	phandle_t node;
 	const char *compatstring = NULL;
-	int i, found, rid;
+	int i, found;
 
 	found = 0;
 	devid = pci_get_devid(dev);
@@ -214,38 +215,15 @@ ata_kauai_probe(device_t dev)
 	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(struct ata_kauai_softc));
-	ch = &sc->sc_ch.sc_ch;
 
 	compatstring = ofw_bus_get_compat(dev);
 	if (compatstring != NULL && strcmp(compatstring,"shasta-ata") == 0)
 		sc->shasta = 1;
 
-	/* Regular Kauai controllers apparently need this hack */
-	if (!sc->shasta)
+	/* Pre-K2 controllers apparently need this hack */
+	if (!sc->shasta &&
+	    (compatstring == NULL || strcmp(compatstring, "K2-UATA") != 0))
 		bus_set_resource(dev, SYS_RES_IRQ, 0, 39, 1);
-
-        rid = PCIR_BARS;
-	sc->sc_memr = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
-	    RF_ACTIVE);
-        if (sc->sc_memr == NULL) {
-                device_printf(dev, "could not allocate memory\n");
-                return (ENXIO);
-        }
-
-	/*
-	 * Set up the resource vectors
-	 */
-        for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
-                ch->r_io[i].res = sc->sc_memr;
-                ch->r_io[i].offset = i*ATA_KAUAI_REGGAP + ATA_KAUAI_REGOFFSET;
-        }
-        ch->r_io[ATA_CONTROL].res = sc->sc_memr;
-        ch->r_io[ATA_CONTROL].offset = ATA_KAUAI_ALTOFFSET;
-	ata_default_registers(dev);
-
-        ch->unit = 0;
-        ch->flags |= ATA_USE_16BIT;
-	ata_generic_hw(dev);
 
         return (ata_probe(dev));
 }
@@ -266,11 +244,41 @@ static int
 ata_kauai_attach(device_t dev)
 {
 	struct ata_kauai_softc *sc = device_get_softc(dev);
+	struct ata_channel *ch;
+	int i, rid;
 #if USE_DBDMA_IRQ
 	int dbdma_irq_rid = 1;
 	struct resource *dbdma_irq;
 	void *cookie;
 #endif
+
+	ch = &sc->sc_ch.sc_ch;
+
+        rid = PCIR_BARS;
+	sc->sc_memr = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
+	    RF_ACTIVE);
+        if (sc->sc_memr == NULL) {
+                device_printf(dev, "could not allocate memory\n");
+                return (ENXIO);
+        }
+
+	/*
+	 * Set up the resource vectors
+	 */
+        for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
+                ch->r_io[i].res = sc->sc_memr;
+                ch->r_io[i].offset = i*ATA_KAUAI_REGGAP + ATA_KAUAI_REGOFFSET;
+        }
+        ch->r_io[ATA_CONTROL].res = sc->sc_memr;
+        ch->r_io[ATA_CONTROL].offset = ATA_KAUAI_ALTOFFSET;
+	ata_default_registers(dev);
+
+	ch->unit = 0;
+	ch->flags |= ATA_USE_16BIT;
+
+	/* XXX: ATAPI DMA is unreliable. We should find out why. */
+	ch->flags |= ATA_NO_ATAPI_DMA;
+	ata_generic_hw(dev);
 
 	pci_enable_busmaster(dev);
 
@@ -307,34 +315,26 @@ ata_kauai_attach(device_t dev)
 	return ata_attach(dev);
 }
 
-static void
-ata_kauai_setmode(device_t parent, device_t dev)
+static int
+ata_kauai_setmode(device_t dev, int target, int mode)
 {
-	struct ata_device *atadev = device_get_softc(dev);
-	struct ata_kauai_softc *sc = device_get_softc(parent);
-	uint32_t mode;
+	struct ata_kauai_softc *sc = device_get_softc(dev);
 
-	mode = ata_limit_mode(dev,atadev->mode, 
-	    (sc->shasta) ? ATA_UDMA6 : ATA_UDMA5);
-
-	if (ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
-		return;
-
-	atadev->mode = mode;
+	mode = min(mode,sc->shasta ? ATA_UDMA6 : ATA_UDMA5);
 
 	if (sc->shasta) {
 		switch (mode & ATA_DMA_MASK) {
 		    case ATA_UDMA0:
-			sc->udmaconf[atadev->unit] 
+			sc->udmaconf[target] 
 			    = udma_timing_shasta[mode & ATA_MODE_MASK];
 			break;
 		    case ATA_WDMA0:
-			sc->udmaconf[atadev->unit] = 0;
-			sc->wdmaconf[atadev->unit] 
+			sc->udmaconf[target] = 0;
+			sc->wdmaconf[target] 
 			    = dma_timing_shasta[mode & ATA_MODE_MASK];
 			break;
 		    default:
-			sc->pioconf[atadev->unit] 
+			sc->pioconf[target] 
 			    = pio_timing_shasta[(mode & ATA_MODE_MASK) - 
 			    ATA_PIO0];
 			break;
@@ -342,33 +342,33 @@ ata_kauai_setmode(device_t parent, device_t dev)
 	} else {
 		switch (mode & ATA_DMA_MASK) {
 		    case ATA_UDMA0:
-			sc->udmaconf[atadev->unit] 
+			sc->udmaconf[target] 
 			    = udma_timing_kauai[mode & ATA_MODE_MASK];
 			break;
 		    case ATA_WDMA0:
-			sc->udmaconf[atadev->unit] = 0;
-			sc->wdmaconf[atadev->unit]
+			sc->udmaconf[target] = 0;
+			sc->wdmaconf[target]
 			    = dma_timing_kauai[mode & ATA_MODE_MASK];
 			break;
 		    default:
-			sc->pioconf[atadev->unit] 
+			sc->pioconf[target] 
 			    = pio_timing_kauai[(mode & ATA_MODE_MASK)
 			    - ATA_PIO0];
 			break;
 		}
 	}
+
+	return (mode);
 }
 
 static int
 ata_kauai_begin_transaction(struct ata_request *request)
 {
-	struct ata_device *atadev = device_get_softc(request->dev);
 	struct ata_kauai_softc *sc = device_get_softc(request->parent);
 
-	bus_write_4(sc->sc_memr, UDMA_CONFIG_REG, sc->udmaconf[atadev->unit]);
+	bus_write_4(sc->sc_memr, UDMA_CONFIG_REG, sc->udmaconf[request->unit]);
 	bus_write_4(sc->sc_memr, PIO_CONFIG_REG, 
-	    sc->wdmaconf[atadev->unit] | sc->pioconf[atadev->unit]);
+	    sc->wdmaconf[request->unit] | sc->pioconf[request->unit]);
 
 	return ata_begin_transaction(request);
 }
-

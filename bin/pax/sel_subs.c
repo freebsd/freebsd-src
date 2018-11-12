@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include "pax.h"
 #include "sel_subs.h"
@@ -376,7 +375,7 @@ trng_add(char *str)
 	}
 
 	/*
-	 * by default we only will check file mtime, but usee can specify
+	 * by default we only will check file mtime, but the user can specify
 	 * mtime, ctime (inode change time) or both.
 	 */
 	if ((flgpt == NULL) || (*flgpt == '\0'))
@@ -396,6 +395,7 @@ trng_add(char *str)
 			default:
 				paxwarn(1, "Bad option %c with time range %s",
 				    *flgpt, str);
+				free(pt);
 				goto out;
 			}
 			++flgpt;

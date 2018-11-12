@@ -10,12 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Boris Popov.
- * 4. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -52,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -85,13 +80,17 @@ static int
 nb_setsockopt_int(struct socket *so, int level, int name, int val)
 {
 	struct sockopt sopt;
+	int error;
 
 	bzero(&sopt, sizeof(sopt));
 	sopt.sopt_level = level;
 	sopt.sopt_name = name;
 	sopt.sopt_val = &val;
 	sopt.sopt_valsize = sizeof(val);
-	return sosetopt(so, &sopt);
+	CURVNET_SET(so->so_vnet);
+	error = sosetopt(so, &sopt);
+	CURVNET_RESTORE();
+	return error;
 }
 
 static int
@@ -156,8 +155,8 @@ nb_connect_in(struct nbpcb *nbp, struct sockaddr_in *to, struct thread *td)
 	SOCKBUF_LOCK(&so->so_rcv);
 	soupcall_set(so, SO_RCV, nb_upcall, nbp);
 	SOCKBUF_UNLOCK(&so->so_rcv);
-	so->so_rcv.sb_timeo = (5 * hz);
-	so->so_snd.sb_timeo = (5 * hz);
+	so->so_rcv.sb_timeo = (5 * SBT_1S);
+	so->so_snd.sb_timeo = (5 * SBT_1S);
 	error = soreserve(so, nbp->nbp_sndbuf, nbp->nbp_rcvbuf);
 	if (error)
 		goto bad;
@@ -198,8 +197,8 @@ bad:
 static int
 nbssn_rq_request(struct nbpcb *nbp, struct thread *td)
 {
-	struct mbchain mb, *mbp = &mb;
-	struct mdchain md, *mdp = &md;
+	struct mbchain *mbp;
+	struct mdchain *mdp;
 	struct mbuf *m0;
 	struct timeval tv;
 	struct sockaddr_in sin;
@@ -207,9 +206,14 @@ nbssn_rq_request(struct nbpcb *nbp, struct thread *td)
 	u_int8_t rpcode;
 	int error, rplen;
 
+	mbp = malloc(sizeof(struct mbchain), M_NBDATA, M_WAITOK);
+	mdp = malloc(sizeof(struct mbchain), M_NBDATA, M_WAITOK);
 	error = mb_init(mbp);
-	if (error)
+	if (error) {
+		free(mbp, M_NBDATA);
+		free(mdp, M_NBDATA);
 		return error;
+	}
 	mb_put_uint32le(mbp, 0);
 	nb_put_name(mbp, nbp->nbp_paddr);
 	nb_put_name(mbp, nbp->nbp_laddr);
@@ -220,19 +224,26 @@ nbssn_rq_request(struct nbpcb *nbp, struct thread *td)
 	}
 	mb_detach(mbp);
 	mb_done(mbp);
-	if (error)
+	free(mbp, M_NBDATA);
+	if (error) {
+		free(mdp, M_NBDATA);
 		return error;
+	}
 	TIMESPEC_TO_TIMEVAL(&tv, &nbp->nbp_timo);
 	error = selsocket(nbp->nbp_tso, POLLIN, &tv, td);
 	if (error == EWOULDBLOCK) {	/* Timeout */
 		NBDEBUG("initial request timeout\n");
+		free(mdp, M_NBDATA);
 		return ETIMEDOUT;
 	}
-	if (error)			/* restart or interrupt */
+	if (error) {			/* restart or interrupt */
+		free(mdp, M_NBDATA);
 		return error;
+	}
 	error = nbssn_recv(nbp, &m0, &rplen, &rpcode, td);
 	if (error) {
 		NBDEBUG("recv() error %d\n", error);
+		free(mdp, M_NBDATA);
 		return error;
 	}
 	/*
@@ -270,6 +281,7 @@ nbssn_rq_request(struct nbpcb *nbp, struct thread *td)
 	} while(0);
 	if (m0)
 		md_done(mdp);
+	free(mdp, M_NBDATA);
 	return error;
 }
 
@@ -292,8 +304,10 @@ nbssn_recvhdr(struct nbpcb *nbp, int *lenp,
 	auio.uio_offset = 0;
 	auio.uio_resid = sizeof(len);
 	auio.uio_td = td;
+	CURVNET_SET(so->so_vnet);
 	error = soreceive(so, (struct sockaddr **)NULL, &auio,
 	    (struct mbuf **)NULL, (struct mbuf **)NULL, &flags);
+	CURVNET_RESTORE();
 	if (error)
 		return error;
 	if (auio.uio_resid > 0) {
@@ -377,8 +391,10 @@ nbssn_recv(struct nbpcb *nbp, struct mbuf **mpp, int *lenp,
 			 */
 			do {
 				rcvflg = MSG_WAITALL;
+				CURVNET_SET(so->so_vnet);
 				error = soreceive(so, (struct sockaddr **)NULL,
 				    &auio, &tm, (struct mbuf **)NULL, &rcvflg);
+				CURVNET_RESTORE();
 			} while (error == EWOULDBLOCK || error == EINTR ||
 				 error == ERESTART);
 			if (error)
@@ -529,8 +545,10 @@ smb_nbst_connect(struct smb_vc *vcp, struct sockaddr *sap, struct thread *td)
 		return error;
 	getnanotime(&ts2);
 	timespecsub(&ts2, &ts1);
-	if (ts2.tv_sec == 0 && ts2.tv_sec == 0)
+	if (ts2.tv_sec == 0) {
 		ts2.tv_sec = 1;
+		ts2.tv_nsec = 0;
+	}
 	nbp->nbp_timo = ts2;
 	timespecadd(&nbp->nbp_timo, &ts2);
 	timespecadd(&nbp->nbp_timo, &ts2);
@@ -571,7 +589,7 @@ smb_nbst_send(struct smb_vc *vcp, struct mbuf *m0, struct thread *td)
 		error = ENOTCONN;
 		goto abort;
 	}
-	M_PREPEND(m0, 4, M_WAIT);
+	M_PREPEND(m0, 4, M_WAITOK);
 	nb_sethdr(m0, NB_SSN_MESSAGE, m_fixhdr(m0) - 4);
 	error = nb_sosend(nbp->nbp_tso, m0, 0, td);
 	return error;

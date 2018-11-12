@@ -165,7 +165,7 @@ __END_DECLS
 #define	EILSEQ		86		/* Illegal byte sequence */
 #define	ENOATTR		87		/* Attribute not found */
 
-#define EDOOFUS		88		/* Programming error */
+#define	EDOOFUS		88		/* Programming error */
 #endif /* _POSIX_SOURCE */
 
 #define	EBADMSG		89		/* Bad message */
@@ -174,15 +174,23 @@ __END_DECLS
 #define	EPROTO		92		/* Protocol error */
 
 #ifndef _POSIX_SOURCE
-#define	ELAST		92		/* Must be equal largest errno */
+#define	ENOTCAPABLE	93		/* Capabilities insufficient */
+#define	ECAPMODE	94		/* Not permitted in capability mode */
+#define	ENOTRECOVERABLE	95		/* State not recoverable */
+#define	EOWNERDEAD	96		/* Previous owner died */
 #endif /* _POSIX_SOURCE */
 
-#ifdef _KERNEL
+#ifndef _POSIX_SOURCE
+#define	ELAST		96		/* Must be equal largest errno */
+#endif /* _POSIX_SOURCE */
+
+#if defined(_KERNEL) || defined(_WANT_KERNEL_ERRNO)
 /* pseudo-errors returned inside kernel to modify return to process */
 #define	ERESTART	(-1)		/* restart syscall */
 #define	EJUSTRETURN	(-2)		/* don't modify regs, just return */
 #define	ENOIOCTL	(-3)		/* ioctl not handled by this layer */
 #define	EDIRIOCTL	(-4)		/* do direct ioctl in GEOM */
+#define	ERELOOKUP	(-5)		/* retry the directory lookup */
 #endif
 
 #endif

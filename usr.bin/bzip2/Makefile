@@ -6,8 +6,9 @@ BZ2DIR=	${.CURDIR}/../../contrib/bzip2
 PROG=	bzip2
 CFLAGS+= -D_FILE_OFFSET_BITS=64
 
-DPADD=	${LIBBZ2}
-LDADD=	-lbz2
+WARNS?=	3
+
+LIBADD=	bz2
 
 LINKS=	${BINDIR}/bzip2 ${BINDIR}/bunzip2
 LINKS+=	${BINDIR}/bzip2 ${BINDIR}/bzcat

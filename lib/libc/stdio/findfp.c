@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #include <spinlock.h>
@@ -61,6 +62,7 @@ int	__sdidinit;
 	._read = __sread,		\
 	._seek = __sseek,		\
 	._write = __swrite,		\
+	._fl_mutex = PTHREAD_MUTEX_INITIALIZER, \
 }
 				/* the usual - (stdin + stdout + stderr) */
 static FILE usual[FOPEN_MAX - 3];
@@ -81,9 +83,7 @@ static struct glue *lastglue = &uglue;
 
 static struct glue *	moreglue(int);
 
-static spinlock_t thread_lock = _SPINLOCK_INITIALIZER;
-#define THREAD_LOCK()	if (__isthreaded) _SPINLOCK(&thread_lock)
-#define THREAD_UNLOCK()	if (__isthreaded) _SPINUNLOCK(&thread_lock)
+spinlock_t __stdio_thread_lock = _SPINLOCK_INITIALIZER;
 
 #if NOT_YET
 #define	SET_GLUE_PTR(ptr, val)	atomic_set_rel_ptr(&(ptr), (uintptr_t)(val))
@@ -92,17 +92,18 @@ static spinlock_t thread_lock = _SPINLOCK_INITIALIZER;
 #endif
 
 static struct glue *
-moreglue(n)
-	int n;
+moreglue(int n)
 {
 	struct glue *g;
-	static FILE empty;
+	static FILE empty = { ._fl_mutex = PTHREAD_MUTEX_INITIALIZER };
 	FILE *p;
+	size_t align;
 
-	g = (struct glue *)malloc(sizeof(*g) + ALIGNBYTES + n * sizeof(FILE));
+	align = __alignof__(FILE);
+	g = (struct glue *)malloc(sizeof(*g) + align + n * sizeof(FILE));
 	if (g == NULL)
 		return (NULL);
-	p = (FILE *)ALIGN(g + 1);
+	p = (FILE *)roundup((uintptr_t)(g + 1), align);
 	g->next = NULL;
 	g->niobs = n;
 	g->iobs = p;
@@ -115,7 +116,7 @@ moreglue(n)
  * Find a free FILE for fopen et al.
  */
 FILE *
-__sfp()
+__sfp(void)
 {
 	FILE	*fp;
 	int	n;
@@ -126,22 +127,22 @@ __sfp()
 	/*
 	 * The list must be locked because a FILE may be updated.
 	 */
-	THREAD_LOCK();
+	STDIO_THREAD_LOCK();
 	for (g = &__sglue; g != NULL; g = g->next) {
 		for (fp = g->iobs, n = g->niobs; --n >= 0; fp++)
 			if (fp->_flags == 0)
 				goto found;
 	}
-	THREAD_UNLOCK();	/* don't hold lock while malloc()ing. */
+	STDIO_THREAD_UNLOCK();	/* don't hold lock while malloc()ing. */
 	if ((g = moreglue(NDYNAMIC)) == NULL)
 		return (NULL);
-	THREAD_LOCK();		/* reacquire the lock */
+	STDIO_THREAD_LOCK();	/* reacquire the lock */
 	SET_GLUE_PTR(lastglue->next, g); /* atomically append glue to list */
 	lastglue = g;		/* not atomic; only accessed when locked */
 	fp = g->iobs;
 found:
 	fp->_flags = 1;		/* reserve this slot; caller sets real flags */
-	THREAD_UNLOCK();
+	STDIO_THREAD_UNLOCK();
 	fp->_p = NULL;		/* no current pointer */
 	fp->_w = 0;		/* nothing to read or write */
 	fp->_r = 0;
@@ -154,9 +155,10 @@ found:
 	fp->_ub._size = 0;
 	fp->_lb._base = NULL;	/* no line buffer */
 	fp->_lb._size = 0;
-/*	fp->_lock = NULL; */	/* once set always set (reused) */
+/*	fp->_fl_mutex = NULL; */ /* once set always set (reused) */
 	fp->_orientation = 0;
 	memset(&fp->_mbstate, 0, sizeof(mbstate_t));
+	fp->_flags2 = 0;
 	return (fp);
 }
 
@@ -166,9 +168,10 @@ found:
  */
 __warn_references(f_prealloc, 
 	"warning: this program uses f_prealloc(), which is not recommended.");
+void f_prealloc(void);
 
 void
-f_prealloc()
+f_prealloc(void)
 {
 	struct glue *g;
 	int n;
@@ -182,10 +185,10 @@ f_prealloc()
 	for (g = &__sglue; (n -= g->niobs) > 0 && g->next; g = g->next)
 		/* void */;
 	if ((n > 0) && ((g = moreglue(n)) != NULL)) {
-		THREAD_LOCK();
+		STDIO_THREAD_LOCK();
 		SET_GLUE_PTR(lastglue->next, g);
 		lastglue = g;
-		THREAD_UNLOCK();
+		STDIO_THREAD_UNLOCK();
 	}
 }
 
@@ -197,7 +200,7 @@ f_prealloc()
  * The name `_cleanup' is, alas, fairly well known outside stdio.
  */
 void
-_cleanup()
+_cleanup(void)
 {
 	/* (void) _fwalk(fclose); */
 	(void) _fwalk(__sflush);		/* `cheating' */
@@ -207,7 +210,7 @@ _cleanup()
  * __sinit() is called whenever stdio's internal variables must be set up.
  */
 void
-__sinit()
+__sinit(void)
 {
 
 	/* Make sure we clean up on exit. */

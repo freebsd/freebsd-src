@@ -58,25 +58,27 @@ static void
 ctty_clone(void *arg, struct ucred *cred, char *name, int namelen,
     struct cdev **dev)
 {
+	struct proc *p;
 
 	if (*dev != NULL)
 		return;
 	if (strcmp(name, "tty"))
 		return;
+	p = curproc;
 	sx_sunlock(&clone_drain_lock);
 	sx_slock(&proctree_lock);
 	sx_slock(&clone_drain_lock);
 	dev_lock();
-	if (!(curthread->td_proc->p_flag & P_CONTROLT))
+	if (!(p->p_flag & P_CONTROLT))
 		*dev = ctty;
-	else if (curthread->td_proc->p_session->s_ttyvp == NULL)
+	else if (p->p_session->s_ttyvp == NULL)
 		*dev = ctty;
-	else if (curthread->td_proc->p_session->s_ttyvp->v_type == VBAD ||
-	    curthread->td_proc->p_session->s_ttyvp->v_rdev == NULL) {
+	else if (p->p_session->s_ttyvp->v_type == VBAD ||
+	    p->p_session->s_ttyvp->v_rdev == NULL) {
 		/* e.g. s_ttyvp was revoked */
 		*dev = ctty;
 	} else
-		*dev = curthread->td_proc->p_session->s_ttyvp->v_rdev;
+		*dev = p->p_session->s_ttyvp->v_rdev;
 	dev_refl(*dev);
 	dev_unlock();
 	sx_sunlock(&proctree_lock);
@@ -87,7 +89,8 @@ ctty_drvinit(void *unused)
 {
 
 	EVENTHANDLER_REGISTER(dev_clone, ctty_clone, 0, 1000);
-	ctty = make_dev(&ctty_cdevsw, 0, 0, 0, 0666, "ctty");
+	ctty = make_dev_credf(MAKEDEV_ETERNAL, &ctty_cdevsw, 0, NULL, UID_ROOT,
+	    GID_WHEEL, 0666, "ctty");
 }
 
 SYSINIT(cttydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,ctty_drvinit,NULL);

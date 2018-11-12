@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah_decode.h,v 1.4 2008/11/10 04:08:00 sam Exp $
+ * $FreeBSD$
  */
 #ifndef _ATH_AH_DECODE_H_
 #define _ATH_AH_DECODE_H_
@@ -29,6 +29,7 @@
  * existing file.
  */
 struct athregrec {
+	uint32_t	threadid;
 	uint32_t	op	: 8,
 			reg	: 24;
 	uint32_t	val;
@@ -51,5 +52,18 @@ enum {
 	AH_MARK_ANI_RESET,		/* ar*AniReset, opmode */
 	AH_MARK_ANI_POLL,		/* ar*AniReset, listen time */
 	AH_MARK_ANI_CONTROL,		/* ar*AniReset, cmd */
+	AH_MARK_RX_CTL,			/* RX DMA control */
+	AH_MARK_CHIP_POWER,		/* chip power control, mode */
+	AH_MARK_CHIP_POWER_DONE,	/* chip power control done, status */
 };
+
+enum {
+	AH_MARK_RX_CTL_PCU_START,
+	AH_MARK_RX_CTL_PCU_STOP,
+	AH_MARK_RX_CTL_DMA_START,
+	AH_MARK_RX_CTL_DMA_STOP,
+	AH_MARK_RX_CTL_DMA_STOP_ERR,
+	AH_MARK_RX_CTL_DMA_STOP_OK,
+};
+
 #endif /* _ATH_AH_DECODE_H_ */

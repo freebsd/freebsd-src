@@ -41,10 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <unistd.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 int
-daemon(nochdir, noclose)
-	int nochdir, noclose;
+daemon(int nochdir, int noclose)
 {
 	struct sigaction osa, sa;
 	int fd;
@@ -56,7 +56,7 @@ daemon(nochdir, noclose)
 	sigemptyset(&sa.sa_mask);
 	sa.sa_handler = SIG_IGN;
 	sa.sa_flags = 0;
-	osa_ok = _sigaction(SIGHUP, &sa, &osa);
+	osa_ok = __libc_sigaction(SIGHUP, &sa, &osa);
 
 	switch (fork()) {
 	case -1:
@@ -64,13 +64,17 @@ daemon(nochdir, noclose)
 	case 0:
 		break;
 	default:
+		/*
+		 * A fine point:  _exit(0), not exit(0), to avoid triggering
+		 * atexit(3) processing
+		 */
 		_exit(0);
 	}
 
 	newgrp = setsid();
 	oerrno = errno;
 	if (osa_ok != -1)
-		_sigaction(SIGHUP, &osa, NULL);
+		__libc_sigaction(SIGHUP, &osa, NULL);
 
 	if (newgrp == -1) {
 		errno = oerrno;

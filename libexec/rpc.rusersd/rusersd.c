@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -41,50 +37,48 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <signal.h>
 #include <syslog.h>
-#define utmp rutmp
 #include <rpcsvc/rnusers.h>
-#undef utmp
 
-extern void rusers_service(struct svc_req *, SVCXPRT *);
+#include "extern.h"
 
 int from_inetd = 1;
 
-void
+static void
 cleanup(int sig __unused)
 {
-        (void) rpcb_unset(RUSERSPROG, RUSERSVERS_IDLE, NULL);
-        (void) rpcb_unset(RUSERSPROG, RUSERSVERS_ORIG, NULL);
-        exit(0);
+	(void) rpcb_unset(RUSERSPROG, RUSERSVERS_IDLE, NULL);
+	(void) rpcb_unset(RUSERSPROG, RUSERSVERS_ORIG, NULL);
+	exit(0);
 }
 
 int
-main(int argc, char *argv[])
+main(int argc __unused, char *argv[] __unused)
 {
-	SVCXPRT *transp;
+	SVCXPRT *transp = NULL; /* Keep compiler happy. */
 	int ok;
 	struct sockaddr_storage from;
 	socklen_t fromlen;
 
-        /*
-         * See if inetd started us
-         */
+	/*
+	 * See if inetd started us
+	 */
 	fromlen = sizeof(from);
-        if (getsockname(0, (struct sockaddr *)&from, &fromlen) < 0) {
-                from_inetd = 0;
-        }
+	if (getsockname(0, (struct sockaddr *)&from, &fromlen) < 0) {
+		from_inetd = 0;
+	}
 
-        if (!from_inetd) {
-                daemon(0, 0);
+	if (!from_inetd) {
+		daemon(0, 0);
 
-                (void) rpcb_unset(RUSERSPROG, RUSERSVERS_IDLE, NULL);
-                (void) rpcb_unset(RUSERSPROG, RUSERSVERS_ORIG, NULL);
+		(void) rpcb_unset(RUSERSPROG, RUSERSVERS_IDLE, NULL);
+		(void) rpcb_unset(RUSERSPROG, RUSERSVERS_ORIG, NULL);
 
 		(void) signal(SIGINT, cleanup);
 		(void) signal(SIGTERM, cleanup);
 		(void) signal(SIGHUP, cleanup);
-        }
+	}
 
-        openlog("rpc.rusersd", LOG_CONS|LOG_PID, LOG_DAEMON);
+	openlog("rpc.rusersd", LOG_CONS|LOG_PID, LOG_DAEMON);
 
 	if (from_inetd) {
 		transp = svc_tli_create(0, NULL, NULL, 0, 0);
@@ -112,7 +106,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-        svc_run();
+	svc_run();
 	syslog(LOG_ERR, "svc_run returned");
 	exit(1);
 }

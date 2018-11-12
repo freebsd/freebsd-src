@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2007, 2009, 2010 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include "map.h"
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.680 2008/02/14 00:20:26 ca Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.698 2013-11-22 20:51:55 ca Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -32,7 +32,7 @@ SM_RCSID("@(#)$Id: daemon.c,v 8.680 2008/02/14 00:20:26 ca Exp $")
 #endif /* defined(USE_SOCK_STREAM) */
 
 #if STARTTLS
-#  include <openssl/rand.h>
+# include <openssl/rand.h>
 #endif /* STARTTLS */
 
 #include <sm/time.h>
@@ -199,7 +199,7 @@ getrequests(e)
 	if (tTd(15, 1))
 	{
 		for (idx = 0; idx < NDaemons; idx++)
-			sm_dprintf("getrequests: daemon %s: %d\n",
+			sm_dprintf("getrequests: daemon %s: socket %d\n",
 				Daemons[idx].d_name,
 				Daemons[idx].d_socket);
 	}
@@ -517,14 +517,12 @@ getrequests(e)
 				macdefine(&BlankEnvelope.e_macro, A_PERM,
 					macid("{daemon_family}"), "unspec");
 				break;
-#if _FFR_DAEMON_NETUNIX
-# if NETUNIX
+#if NETUNIX
 			  case AF_UNIX:
 				macdefine(&BlankEnvelope.e_macro, A_PERM,
 					macid("{daemon_family}"), "local");
 				break;
-# endif /* NETUNIX */
-#endif /* _FFR_DAEMON_NETUNIX */
+#endif /* NETUNIX */
 #if NETINET
 			  case AF_INET:
 				macdefine(&BlankEnvelope.e_macro, A_PERM,
@@ -827,6 +825,18 @@ getrequests(e)
 			OutChannel = outchannel;
 			DisConnected = false;
 
+#if _FFR_XCNCT
+			t = xconnect(inchannel);
+			if (t <= 0)
+			{
+				clrbitn(D_XCNCT, Daemons[curdaemon].d_flags);
+				clrbitn(D_XCNCT_M, Daemons[curdaemon].d_flags);
+			}
+			else
+				setbitn(t, Daemons[curdaemon].d_flags);
+
+#endif /* _FFR_XCNCT */
+
 #if XLA
 			if (!xla_host_ok(RealHostName))
 			{
@@ -1059,8 +1069,7 @@ opendaemonsocket(d, firsttime)
 			(void) sleep(5);
 		if (firsttime || d->d_socket < 0)
 		{
-#if _FFR_DAEMON_NETUNIX
-# if NETUNIX
+#if NETUNIX
 			if (d->d_addr.sa.sa_family == AF_UNIX)
 			{
 				int rval;
@@ -1083,8 +1092,7 @@ opendaemonsocket(d, firsttime)
 				/* Don't try to overtake an existing socket */
 				(void) unlink(d->d_addr.sunix.sun_path);
 			}
-# endif /* NETUNIX */
-#endif /* _FFR_DOMAIN_NETUNIX */
+#endif /* NETUNIX */
 			d->d_socket = socket(d->d_addr.sa.sa_family,
 					     SOCK_STREAM, 0);
 			if (d->d_socket < 0)
@@ -1112,7 +1120,7 @@ opendaemonsocket(d, firsttime)
 				continue;
 			}
 
-			if (SM_FD_SETSIZE > 0 && d->d_socket >= SM_FD_SETSIZE)
+			if (!SM_FD_OK_SELECT(d->d_socket))
 			{
 				save_errno = EINVAL;
 				syserr("opendaemonsocket: daemon %s: server SMTP socket (%d) too large",
@@ -1167,13 +1175,11 @@ opendaemonsocket(d, firsttime)
 
 			switch (d->d_addr.sa.sa_family)
 			{
-#if _FFR_DAEMON_NETUNIX
-# ifdef NETUNIX
+#ifdef NETUNIX
 			  case AF_UNIX:
 				socksize = sizeof(d->d_addr.sunix);
 				break;
-# endif /* NETUNIX */
-#endif /* _FFR_DAEMON_NETUNIX */
+#endif /* NETUNIX */
 #if NETINET
 			  case AF_INET:
 				socksize = sizeof(d->d_addr.sin);
@@ -1267,7 +1273,8 @@ setupdaemon(daemonaddr)
 	  case AF_INET6:
 		if (IN6_IS_ADDR_UNSPECIFIED(&daemonaddr->sin6.sin6_addr))
 			daemonaddr->sin6.sin6_addr =
-			    LocalDaemon ? in6addr_loopback : in6addr_any;
+			    (LocalDaemon && V6LoopbackAddrFound) ?
+			    in6addr_loopback : in6addr_any;
 		port = daemonaddr->sin6.sin6_port;
 		break;
 #endif /* NETINET6 */
@@ -1491,6 +1498,9 @@ setsockaddroptions(p, d)
 			  case SM_DEFER:
 			  case SM_DELIVER:
 			  case SM_FORK:
+#if _FFR_PROXY
+			  case SM_PROXY_REQ:
+#endif /* _FFR_PROXY */
 				d->d_dm = *v;
 				break;
 			  default:
@@ -1510,13 +1520,11 @@ setsockaddroptions(p, d)
 #endif /* !_FFR_DPO_CS */
 			if (isascii(*v) && isdigit(*v))
 				d->d_addr.sa.sa_family = atoi(v);
-#if _FFR_DAEMON_NETUNIX
-# ifdef NETUNIX
+#ifdef NETUNIX
 			else if (sm_strcasecmp(v, "unix") == 0 ||
 				 sm_strcasecmp(v, "local") == 0)
 				d->d_addr.sa.sa_family = AF_UNIX;
-# endif /* NETUNIX */
-#endif /* _FFR_DAEMON_NETUNIX */
+#endif /* NETUNIX */
 #if NETINET
 			else if (sm_strcasecmp(v, "inet") == 0)
 				d->d_addr.sa.sa_family = AF_INET;
@@ -1626,14 +1634,14 @@ setsockaddroptions(p, d)
 	{
 		switch (d->d_addr.sa.sa_family)
 		{
-#if _FFR_DAEMON_NETUNIX
-# if NETUNIX
+#if NETUNIX
 		  case AF_UNIX:
 			if (strlen(addr) >= sizeof(d->d_addr.sunix.sun_path))
 			{
 				errno = ENAMETOOLONG;
-				syserr("setsockaddroptions: domain socket name too long: %s > %d",
-				       addr, sizeof(d->d_addr.sunix.sun_path));
+				syserr("setsockaddroptions: domain socket name too long: %s > %ld",
+				       addr,
+				       (long) sizeof(d->d_addr.sunix.sun_path));
 				break;
 			}
 
@@ -1644,8 +1652,7 @@ setsockaddroptions(p, d)
 					  addr,
 					  sizeof(d->d_addr.sunix.sun_path));
 			break;
-# endif /* NETUNIX */
-#endif	/* _FFR_DAEMON_NETUNIX */
+#endif /* NETUNIX */
 #if NETINET
 		  case AF_INET:
 			if (!isascii(*addr) || !isdigit(*addr) ||
@@ -1996,16 +2003,14 @@ addr_family(addr)
 		return AF_INET6;
 	}
 #endif /* NETINET6 */
-#if _FFR_DAEMON_NETUNIX
-# if NETUNIX
+#if NETUNIX
 	if (*addr == '/')
 	{
 		if (tTd(16, 9))
 			sm_dprintf("addr_family(%s): LOCAL\n", addr);
 		return AF_UNIX;
 	}
-# endif /* NETUNIX */
-#endif	/* _FFR_DAEMON_NETUNIX */
+#endif /* NETUNIX */
 	if (tTd(16, 9))
 		sm_dprintf("addr_family(%s): UNSPEC\n", addr);
 	return AF_UNSPEC;
@@ -2043,7 +2048,7 @@ chkclientmodifiers(flag)
 
 #if MILTER
 /*
-**  SETUP_DAEMON_FILTERS -- Parse per-socket filters
+**  SETUP_DAEMON_MILTERS -- Parse per-socket filters
 **
 **	Parameters:
 **		none
@@ -2161,7 +2166,8 @@ makeconnection(host, port, mci, e, enough)
 		  case AF_INET:
 			clt_addr.sin.sin_addr.s_addr = inet_addr(p);
 			if (clt_addr.sin.sin_addr.s_addr != INADDR_NONE &&
-			    clt_addr.sin.sin_addr.s_addr != INADDR_LOOPBACK)
+			    clt_addr.sin.sin_addr.s_addr !=
+				htonl(INADDR_LOOPBACK))
 			{
 				clt_bind = true;
 				socksize = sizeof(struct sockaddr_in);
@@ -2218,7 +2224,8 @@ makeconnection(host, port, mci, e, enough)
 #if NETINET6
 		  case AF_INET6:
 			if (IN6_IS_ADDR_UNSPECIFIED(&clt_addr.sin6.sin6_addr))
-				clt_addr.sin6.sin6_addr = LocalDaemon ?
+				clt_addr.sin6.sin6_addr =
+					(LocalDaemon && V6LoopbackAddrFound) ?
 					in6addr_loopback : in6addr_any;
 			else
 				clt_bind = true;
@@ -2342,17 +2349,17 @@ makeconnection(host, port, mci, e, enough)
 			}
 		}
 gothostent:
-		if (hp == NULL)
+		if (hp == NULL || hp->h_addr == NULL)
 		{
 #if NAMED_BIND
 			/* check for name server timeouts */
 # if NETINET6
 			if (WorkAroundBrokenAAAA && family == AF_INET6 &&
-			    errno == ETIMEDOUT)
+			    (h_errno == TRY_AGAIN || errno == ETIMEDOUT))
 			{
 				/*
 				**  An attempt with family AF_INET may
-				**  succeed By skipping the next section
+				**  succeed. By skipping the next section
 				**  of code, we will try AF_INET before
 				**  failing.
 				*/
@@ -2664,6 +2671,7 @@ gothostent:
 #if NETINET
 			  case AF_INET:
 				addr.sin.sin_addr.s_addr = ConnectOnlyTo.sin.sin_addr.s_addr;
+				addr.sa.sa_family = ConnectOnlyTo.sa.sa_family;
 				break;
 #endif /* NETINET */
 
@@ -2871,7 +2879,10 @@ nextaddr:
 
 	/* Use the configured HeloName as appropriate */
 	if (HeloName != NULL && HeloName[0] != '\0')
+	{
+		SM_FREE_CLR(mci->mci_heloname);
 		mci->mci_heloname = newstr(HeloName);
+	}
 
 	mci_setstat(mci, EX_OK, NULL, NULL);
 	return EX_OK;
@@ -3039,8 +3050,7 @@ shutdown_daemon()
 			(void) close(Daemons[i].d_socket);
 			Daemons[i].d_socket = -1;
 
-#if _FFR_DAEMON_NETUNIX
-# if NETUNIX
+#if NETUNIX
 			/* Remove named sockets */
 			if (Daemons[i].d_addr.sa.sa_family == AF_UNIX)
 			{
@@ -3062,8 +3072,7 @@ shutdown_daemon()
 						  sm_errstring(errno));
 				}
 			}
-# endif /* NETUNIX */
-#endif	/* _FFR_DAEMON_NETUNIX */
+#endif /* NETUNIX */
 		}
 	}
 
@@ -3405,7 +3414,7 @@ getauthinfo(fd, may_be_forged)
 	char ibuf[MAXNAME + 1];
 	static char hbuf[MAXNAME + MAXAUTHINFO + 11];
 
-	*may_be_forged = false;
+	*may_be_forged = true;
 	falen = sizeof(RealHostAddr);
 	if (isatty(fd) || (i = getpeername(fd, &RealHostAddr.sa, &falen)) < 0 ||
 	    falen <= 0 || RealHostAddr.sa.sa_family == 0)
@@ -3422,6 +3431,8 @@ getauthinfo(fd, may_be_forged)
 				return NULL;
 			errno = 0;
 		}
+
+		*may_be_forged = false;
 		(void) sm_strlcpyn(hbuf, sizeof(hbuf), 2, RealUserName,
 				   "@localhost");
 		if (tTd(9, 1))
@@ -3438,8 +3449,10 @@ getauthinfo(fd, may_be_forged)
 	}
 
 	/* cross check RealHostName with forward DNS lookup */
-	if (anynet_ntoa(&RealHostAddr)[0] != '[' &&
-	    RealHostName[0] != '[')
+	if (anynet_ntoa(&RealHostAddr)[0] == '[' ||
+	    RealHostName[0] == '[')
+		*may_be_forged = false;
+	else
 	{
 		int family;
 
@@ -3465,19 +3478,16 @@ getauthinfo(fd, may_be_forged)
 
 		/* try to match the reverse against the forward lookup */
 		hp = sm_gethostbyname(RealHostName, family);
-		if (hp == NULL)
-		{
-			/* XXX: Could be a temporary error on forward lookup */
-			*may_be_forged = true;
-		}
-		else
+		if (hp != NULL)
 		{
 			for (ha = hp->h_addr_list; *ha != NULL; ha++)
 			{
 				if (addrcmp(hp, *ha, &RealHostAddr) == 0)
+				{
+					*may_be_forged = false;
 					break;
+				}
 			}
-			*may_be_forged = *ha == NULL;
 #if NETINET6
 			freehostent(hp);
 			hp = NULL;
@@ -4251,8 +4261,10 @@ anynet_ntop(s6a, dst, dst_len)
 			return NULL;
 		dst += sz;
 		dst_len -= sz;
-		ap = (char *) inet_ntop(AF_INET6, s6a, dst, dst_len);
-
+		if (UseCompressedIPv6Addresses)
+			ap = (char *) inet_ntop(AF_INET6, s6a, dst, dst_len);
+		else
+			ap = sm_inet6_ntop(s6a, dst, dst_len);
 		/* Restore pointer to beginning of string */
 		if (ap != NULL)
 			ap = d;
@@ -4398,6 +4410,8 @@ hostnamebyanyaddr(sap)
 	saveretry = _res.retry;
 	if (_res.retry * _res.retrans > 20)
 		_res.retry = 20 / _res.retrans;
+	if (_res.retry == 0)
+		_res.retry = 1;
 # endif /* NAMED_BIND */
 
 	switch (sap->sa.sa_family)

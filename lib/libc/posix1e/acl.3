@@ -27,12 +27,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 25, 2009
+.Dd October 30, 2014
 .Dt ACL 3
 .Os
 .Sh NAME
 .Nm acl
-.Nd introduction to the POSIX.1e ACL security API
+.Nd introduction to the POSIX.1e/NFSv4 ACL security API
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -42,13 +42,15 @@
 .Fx
 permits file systems to export Access Control Lists via the VFS, and
 provides a library for userland access to and manipulation of these ACLs.
-Not all file systems provide support for ACLs, and some may require that
+.Fx
+supports POSIX.1e and NFSv4 ACLs, but
+not all file systems provide support for ACLs, and some may require that
 ACL support be explicitly enabled by the administrator.
 The library calls include routines to allocate, duplicate, retrieve, set,
 and validate ACLs associated with file objects.
 As well as the POSIX.1e routines, there are a number of non-portable
-extensions defined that allow for alternative ACL semantics than the
-POSIX.1e semantics, such as NFSv4, AFS, NTFS, Coda, and NWFS semantics.
+extensions defined that allow for ACL semantics alternative to
+POSIX.1e, such as NFSv4.
 Where routines are non-standard, they are suffixed with _np to indicate that
 they are not portable.
 .Pp
@@ -131,6 +133,10 @@ This function is described in
 .Xr acl_from_text 3 ,
 and may be used to convert a text-form ACL into working ACL state, if
 the ACL has POSIX.1e or NFSv4 semantics.
+.It Fn acl_get_brand_np
+This function is described in
+.Xr acl_get_brand_np 3
+and may be used to determine whether the ACL has POSIX.1e or NFSv4 semantics.
 .It Fn acl_get_entry
 This function is described in
 .Xr acl_get_entry 3 ,
@@ -202,8 +208,8 @@ This function is described in
 .Xr acl_set_tag_type 3 ,
 and may be used to set the tag type of an ACL.
 .It Fn acl_strip_np
-This function is describe din
-.Xr acl-strip_np 3 ,
+This function is described in
+.Xr acl_strip_np 3 ,
 and may be used to remove extended entries from an ACL.
 .It Xo
 .Fn acl_to_text ,
@@ -248,6 +254,7 @@ library.
 .Xr acl_free 3 ,
 .Xr acl_from_text 3 ,
 .Xr acl_get 3 ,
+.Xr acl_get_brand_np 3 ,
 .Xr acl_get_entry_type_np 3 ,
 .Xr acl_get_flagset_np 3 ,
 .Xr acl_get_permset 3 ,
@@ -287,6 +294,8 @@ POSIX.1e support was introduced in
 .Fx 5.0
 was the first version to include a complete ACL implementation based
 on extended attributes for the UFS and UFS2 file systems.
+NFSv4 ACL support was introduced in
+.Fx 8.0 .
 .Pp
 The
 .Xr getfacl 1

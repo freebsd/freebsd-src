@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
  * resource, and only deactivate it when there are no powered devices.
  *
  * Note that this only manages resources for known devices.  There is an
- * ugly case where we may turn of power to a device which is in use because
+ * ugly case where we may turn off power to a device which is in use because
  * we don't know that it depends on a given resource.  We should perhaps
  * try to be smarter about this, but a more complete solution would involve
  * scanning all of the ACPI namespace to find devices we're not currently
@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
  * on, turned off, etc.
  */
 
-MALLOC_DEFINE(M_ACPIPWR, "acpipwr", "ACPI power resources");
+static MALLOC_DEFINE(M_ACPIPWR, "acpipwr", "ACPI power resources");
 
 /* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_POWERRES
@@ -64,7 +64,6 @@ ACPI_MODULE_NAME("POWERRES")
 /* Return values from _STA on a power resource */
 #define ACPI_PWR_OFF	0
 #define ACPI_PWR_ON	1
-#define ACPI_PWR_UNK	(-1)
 
 /* A relationship between a power resource and a consumer. */
 struct acpi_powerreference {
@@ -88,15 +87,14 @@ struct acpi_powerresource {
     TAILQ_ENTRY(acpi_powerresource)	ap_link;
     TAILQ_HEAD(,acpi_powerreference)	ap_references;
     ACPI_HANDLE				ap_resource;
-    ACPI_INTEGER			ap_systemlevel;
-    ACPI_INTEGER			ap_order;
-    int					ap_state;
+    UINT64				ap_systemlevel;
+    UINT64				ap_order;
 };
 
 static TAILQ_HEAD(acpi_powerresource_list, acpi_powerresource)
-	acpi_powerresources;
+    acpi_powerresources = TAILQ_HEAD_INITIALIZER(acpi_powerresources);
 static TAILQ_HEAD(acpi_powerconsumer_list, acpi_powerconsumer)
-	acpi_powerconsumers;
+    acpi_powerconsumers = TAILQ_HEAD_INITIALIZER(acpi_powerconsumers);
 ACPI_SERIAL_DECL(powerres, "ACPI power resources");
 
 static ACPI_STATUS	acpi_pwr_register_consumer(ACPI_HANDLE consumer);
@@ -116,15 +114,6 @@ static struct acpi_powerresource
 			*acpi_pwr_find_resource(ACPI_HANDLE res);
 static struct acpi_powerconsumer
 			*acpi_pwr_find_consumer(ACPI_HANDLE consumer);
-
-/* Initialise our lists. */    
-static void
-acpi_pwr_init(void *junk)
-{
-    TAILQ_INIT(&acpi_powerresources);
-    TAILQ_INIT(&acpi_powerconsumers);
-}
-SYSINIT(acpi_powerresource, SI_SUB_TUNABLES, SI_ORDER_ANY, acpi_pwr_init, NULL);
 
 /*
  * Register a power resource.
@@ -173,7 +162,6 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
     }
     rp->ap_systemlevel = obj->PowerResource.SystemLevel;
     rp->ap_order = obj->PowerResource.ResourceOrder;
-    rp->ap_state = ACPI_PWR_UNK;
     
     /* Sort the resource into the list */
     status = AE_OK;
@@ -314,7 +302,6 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
     ACPI_OBJECT			*reslist_object;
     ACPI_STATUS			status;
     char			*method_name, *reslist_name;
-    int				res_changed;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -445,7 +432,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      * Now we are ready to switch, so kill off any current power
      * resource references.
      */
-    res_changed = acpi_pwr_dereference_resource(pc);
+    acpi_pwr_dereference_resource(pc);
 
     /*
      * Add new power resource references, if we have any.  Traverse the
@@ -457,7 +444,6 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 			  reslist_object->Package.Count));
 	acpi_ForeachPackageObject(reslist_object, acpi_pwr_reference_resource,
 				  pc);
-	res_changed = 1;
     }
 
     /*
@@ -640,22 +626,20 @@ acpi_pwr_switch_power(void)
 	    continue;
 	}
 
-	/* We could cache this if we trusted it not to change under us */
 	status = acpi_GetInteger(rp->ap_resource, "_STA", &cur);
 	if (ACPI_FAILURE(status)) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "can't get status of %s - %d\n",
 			      acpi_name(rp->ap_resource), status));
 	    /* XXX is this correct?  Always switch if in doubt? */
 	    continue;
-	} else if (rp->ap_state == ACPI_PWR_UNK)
-	    rp->ap_state = cur;
+	}
 
 	/*
 	 * Switch if required.  Note that we ignore the result of the switch
 	 * effort; we don't know what to do if it fails, so checking wouldn't
 	 * help much.
 	 */
-	if (rp->ap_state != ACPI_PWR_ON) {
+	if (cur != ACPI_PWR_ON) {
 	    status = AcpiEvaluateObject(rp->ap_resource, "_ON", NULL, NULL);
 	    if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS,
@@ -663,7 +647,6 @@ acpi_pwr_switch_power(void)
 				 acpi_name(rp->ap_resource),
 				 AcpiFormatException(status)));
 	    } else {
-		rp->ap_state = ACPI_PWR_ON;
 		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "switched %s on\n",
 				 acpi_name(rp->ap_resource)));
 	    }
@@ -684,22 +667,20 @@ acpi_pwr_switch_power(void)
 	    continue;
 	}
 
-	/* We could cache this if we trusted it not to change under us */
 	status = acpi_GetInteger(rp->ap_resource, "_STA", &cur);
 	if (ACPI_FAILURE(status)) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "can't get status of %s - %d\n",
 			      acpi_name(rp->ap_resource), status));
 	    /* XXX is this correct?  Always switch if in doubt? */
 	    continue;
-	} else if (rp->ap_state == ACPI_PWR_UNK)
-	    rp->ap_state = cur;
+	}
 
 	/*
 	 * Switch if required.  Note that we ignore the result of the switch
 	 * effort; we don't know what to do if it fails, so checking wouldn't
 	 * help much.
 	 */
-	if (rp->ap_state != ACPI_PWR_OFF) {
+	if (cur != ACPI_PWR_OFF) {
 	    status = AcpiEvaluateObject(rp->ap_resource, "_OFF", NULL, NULL);
 	    if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS,
@@ -707,7 +688,6 @@ acpi_pwr_switch_power(void)
 				 acpi_name(rp->ap_resource),
 				 AcpiFormatException(status)));
 	    } else {
-		rp->ap_state = ACPI_PWR_OFF;
 		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "switched %s off\n",
 				 acpi_name(rp->ap_resource)));
 	    }

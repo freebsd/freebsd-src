@@ -14,13 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -65,7 +58,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * 	from: NetBSD: bus.h,v 1.28 2001/07/19 15:32:19 thorpej Exp
+ *	from: NetBSD: bus.h,v 1.58 2008/04/28 20:23:36 martin Exp
  *	and
  *	from: FreeBSD: src/sys/alpha/include/bus.h,v 1.9 2001/01/09
  *
@@ -105,17 +98,13 @@ extern const int bus_stream_asi[];
 #define	BUS_SPACE_MAXSIZE	0xFFFFFFFFFFFFFFFF
 #define	BUS_SPACE_MAXADDR_24BIT	0xFFFFFF
 #define	BUS_SPACE_MAXADDR_32BIT 0xFFFFFFFF
-#define	BUS_SPACE_MAXADDR	0xFFFFFFFF
+#define	BUS_SPACE_MAXADDR	0xFFFFFFFFFFFFFFFF
 
 #define	BUS_SPACE_UNRESTRICTED	(~0)
 
 struct bus_space_tag {
 	void		*bst_cookie;
-	bus_space_tag_t	bst_parent;
 	int		bst_type;
-
-	void		(*bst_bus_barrier)(bus_space_tag_t, bus_space_handle_t,
-			    bus_size_t, bus_size_t, int);
 };
 
 /*
@@ -129,49 +118,32 @@ static int bus_space_subregion(bus_space_tag_t, bus_space_handle_t,
 /*
  * Map a region of device bus space into CPU virtual address space.
  */
-
-static __inline int bus_space_map(bus_space_tag_t t, bus_addr_t addr,
-    bus_size_t size, int flags, bus_space_handle_t *bshp);
-
-static __inline int
-bus_space_map(bus_space_tag_t t __unused, bus_addr_t addr,
-    bus_size_t size __unused, int flags __unused, bus_space_handle_t *bshp)
-{
-
-	*bshp = addr;
-	return (0);
-}
+int bus_space_map(bus_space_tag_t tag, bus_addr_t address, bus_size_t size,
+    int flags, bus_space_handle_t *handlep);
 
 /*
  * Unmap a region of device bus space.
  */
-static __inline void bus_space_unmap(bus_space_tag_t t, bus_space_handle_t bsh,
+void bus_space_unmap(bus_space_tag_t tag, bus_space_handle_t handle,
     bus_size_t size);
 
 static __inline void
-bus_space_unmap(bus_space_tag_t t __unused, bus_space_handle_t bsh __unused,
-    bus_size_t size __unused)
+bus_space_barrier(bus_space_tag_t t __unused, bus_space_handle_t h __unused,
+    bus_size_t o __unused, bus_size_t s __unused, int f __unused)
 {
 
-}
-
-/* This macro finds the first "upstream" implementation of method `f' */
-#define	_BS_CALL(t,f)							\
-	while (t->f == NULL)						\
-		t = t->bst_parent;					\
-	return (*(t)->f)
-
-static __inline void
-bus_space_barrier(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
-    bus_size_t s, int f)
-{
-
-	_BS_CALL(t, bst_bus_barrier)(t, h, o, s, f);
+	/*
+	 * We have lots of alternatives depending on whether we're
+	 * synchronizing loads with loads, loads with stores, stores
+	 * with loads, or stores with stores.  The only ones that seem
+	 * generic are #Sync and #MemIssue.  We use #Sync for safety.
+	 */
+	membar(Sync);
 }
 
 static __inline int
-bus_space_subregion(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
-    bus_size_t s, bus_space_handle_t *hp)
+bus_space_subregion(bus_space_tag_t t __unused, bus_space_handle_t h,
+    bus_size_t o __unused, bus_size_t s __unused, bus_space_handle_t *hp)
 {
 
 	*hp = h + o;
@@ -194,7 +166,7 @@ bus_space_subregion(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
 #define	BUS_SPACE_BARRIER_WRITE		0x02	/* force write barrier */
 
 #ifdef BUS_SPACE_DEBUG
-#define	KTR_BUS				KTR_CT2
+#define	KTR_BUS				KTR_SPARE2
 #define	__BUS_DEBUG_ACCESS(h, o, desc, sz) do {				\
 	CTR4(KTR_BUS, "bus space: %s %d: handle %#lx, offset %#lx",	\
 	    (desc), (sz), (h), (o));					\

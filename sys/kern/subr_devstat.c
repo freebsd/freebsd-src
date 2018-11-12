@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/devicestat.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
@@ -44,17 +45,34 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/atomic.h>
 
+SDT_PROVIDER_DEFINE(io);
+
+SDT_PROBE_DEFINE2(io, , , start, "struct bio *", "struct devstat *");
+SDT_PROBE_DEFINE2(io, , , done, "struct bio *", "struct devstat *");
+SDT_PROBE_DEFINE2(io, , , wait__start, "struct bio *",
+    "struct devstat *");
+SDT_PROBE_DEFINE2(io, , , wait__done, "struct bio *",
+    "struct devstat *");
+
+#define	DTRACE_DEVSTAT_START()		SDT_PROBE2(io, , , start, NULL, ds)
+#define	DTRACE_DEVSTAT_BIO_START()	SDT_PROBE2(io, , , start, bp, ds)
+#define	DTRACE_DEVSTAT_DONE()		SDT_PROBE2(io, , , done, NULL, ds)
+#define	DTRACE_DEVSTAT_BIO_DONE()	SDT_PROBE2(io, , , done, bp, ds)
+#define	DTRACE_DEVSTAT_WAIT_START()	SDT_PROBE2(io, , , wait__start, NULL, ds)
+#define	DTRACE_DEVSTAT_WAIT_DONE()	SDT_PROBE2(io, , , wait__done, NULL, ds)
+
 static int devstat_num_devs;
 static long devstat_generation = 1;
 static int devstat_version = DEVSTAT_VERSION;
 static int devstat_current_devnumber;
 static struct mtx devstat_mutex;
+MTX_SYSINIT(devstat_mutex, &devstat_mutex, "devstat", MTX_DEF);
 
-static struct devstatlist device_statq;
+static struct devstatlist device_statq = STAILQ_HEAD_INITIALIZER(device_statq);
 static struct devstat *devstat_alloc(void);
 static void devstat_free(struct devstat *);
 static void devstat_add_entry(struct devstat *ds, const void *dev_name, 
-		       int unit_number, u_int32_t block_size,
+		       int unit_number, uint32_t block_size,
 		       devstat_support_flags flags,
 		       devstat_type_flags device_type,
 		       devstat_priority priority);
@@ -64,24 +82,19 @@ static void devstat_add_entry(struct devstat *ds, const void *dev_name,
  */
 struct devstat *
 devstat_new_entry(const void *dev_name,
-		  int unit_number, u_int32_t block_size,
+		  int unit_number, uint32_t block_size,
 		  devstat_support_flags flags,
 		  devstat_type_flags device_type,
 		  devstat_priority priority)
 {
 	struct devstat *ds;
-	static int once;
 
-	if (!once) {
-		STAILQ_INIT(&device_statq);
-		mtx_init(&devstat_mutex, "devstat", NULL, MTX_DEF);
-		once = 1;
-	}
 	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 
 	ds = devstat_alloc();
 	mtx_lock(&devstat_mutex);
 	if (unit_number == -1) {
+		ds->unit_number = unit_number;
 		ds->id = dev_name;
 		binuptime(&ds->creation_time);
 		devstat_generation++;
@@ -99,7 +112,7 @@ devstat_new_entry(const void *dev_name,
  */
 static void
 devstat_add_entry(struct devstat *ds, const void *dev_name, 
-		  int unit_number, u_int32_t block_size,
+		  int unit_number, uint32_t block_size,
 		  devstat_support_flags flags,
 		  devstat_type_flags device_type,
 		  devstat_priority priority)
@@ -193,7 +206,7 @@ devstat_remove_entry(struct devstat *ds)
 
 	/* Remove this entry from the devstat queue */
 	atomic_add_acq_int(&ds->sequence1, 1);
-	if (ds->id == NULL) {
+	if (ds->unit_number != -1) {
 		devstat_num_devs--;
 		STAILQ_REMOVE(devstat_head, ds, devstat, dev_links);
 	}
@@ -232,6 +245,7 @@ devstat_start_transaction(struct devstat *ds, struct bintime *now)
 	}
 	ds->start_count++;
 	atomic_add_rel_int(&ds->sequence0, 1);
+	DTRACE_DEVSTAT_START();
 }
 
 void
@@ -246,6 +260,7 @@ devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
 
 	binuptime(&bp->bio_t0);
 	devstat_start_transaction(ds, &bp->bio_t0);
+	DTRACE_DEVSTAT_BIO_START();
 }
 
 /*
@@ -275,7 +290,7 @@ devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
  * atomic instructions using appropriate memory barriers.
  */
 void
-devstat_end_transaction(struct devstat *ds, u_int32_t bytes, 
+devstat_end_transaction(struct devstat *ds, uint32_t bytes, 
 			devstat_tag_type tag_type, devstat_trans_flags flags,
 			struct bintime *now, struct bintime *then)
 {
@@ -317,10 +332,19 @@ devstat_end_transaction(struct devstat *ds, u_int32_t bytes,
 
 	ds->end_count++;
 	atomic_add_rel_int(&ds->sequence0, 1);
+	DTRACE_DEVSTAT_DONE();
 }
 
 void
 devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
+{
+
+	devstat_end_transaction_bio_bt(ds, bp, NULL);
+}
+
+void
+devstat_end_transaction_bio_bt(struct devstat *ds, struct bio *bp,
+    struct bintime *now)
 {
 	devstat_trans_flags flg;
 
@@ -330,7 +354,9 @@ devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
 
 	if (bp->bio_cmd == BIO_DELETE)
 		flg = DEVSTAT_FREE;
-	else if (bp->bio_cmd == BIO_READ)
+	else if ((bp->bio_cmd == BIO_READ)
+	      || ((bp->bio_cmd == BIO_ZONE)
+	       && (bp->bio_zone.zone_cmd == DISK_ZONE_REPORT_ZONES)))
 		flg = DEVSTAT_READ;
 	else if (bp->bio_cmd == BIO_WRITE)
 		flg = DEVSTAT_WRITE;
@@ -338,7 +364,8 @@ devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
 		flg = DEVSTAT_NO_DATA;
 
 	devstat_end_transaction(ds, bp->bio_bcount - bp->bio_resid,
-				DEVSTAT_TAG_SIMPLE, flg, NULL, &bp->bio_t0);
+				DEVSTAT_TAG_SIMPLE, flg, now, &bp->bio_t0);
+	DTRACE_DEVSTAT_BIO_DONE();
 }
 
 /*
@@ -364,7 +391,7 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
 	 * XXX devstat_generation should really be "volatile" but that
 	 * XXX freaks out the sysctl macro below.  The places where we
 	 * XXX change it and inspect it are bracketed in the mutex which
-	 * XXX guarantees us proper write barriers.  I don't belive the
+	 * XXX guarantees us proper write barriers.  I don't believe the
 	 * XXX compiler is allowed to optimize mygen away across calls
 	 * XXX to other functions, so the following is belived to be safe.
 	 */
@@ -407,7 +434,8 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
  * Sysctl entries for devstat.  The first one is a node that all the rest
  * hang off of. 
  */
-SYSCTL_NODE(_kern, OID_AUTO, devstat, CTLFLAG_RD, NULL, "Device Statistics");
+static SYSCTL_NODE(_kern, OID_AUTO, devstat, CTLFLAG_RD, NULL,
+    "Device Statistics");
 
 SYSCTL_PROC(_kern_devstat, OID_AUTO, all, CTLFLAG_RD|CTLTYPE_OPAQUE,
     NULL, 0, sysctl_devstat, "S,devstat", "All devices in the devstat list");
@@ -434,7 +462,6 @@ static d_mmap_t devstat_mmap;
 
 static struct cdevsw devstat_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_mmap =	devstat_mmap,
 	.d_name =	"devstat",
 };
@@ -449,19 +476,23 @@ static TAILQ_HEAD(, statspage)	pagelist = TAILQ_HEAD_INITIALIZER(pagelist);
 static MALLOC_DEFINE(M_DEVSTAT, "devstat", "Device statistics");
 
 static int
-devstat_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+devstat_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
 {
 	struct statspage *spp;
 
 	if (nprot != VM_PROT_READ)
 		return (-1);
+	mtx_lock(&devstat_mutex);
 	TAILQ_FOREACH(spp, &pagelist, list) {
 		if (offset == 0) {
 			*paddr = vtophys(spp->stat);
+			mtx_unlock(&devstat_mutex);
 			return (0);
 		}
 		offset -= PAGE_SIZE;
 	}
+	mtx_unlock(&devstat_mutex);
 	return (-1);
 }
 
@@ -475,8 +506,9 @@ devstat_alloc(void)
 
 	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 	if (!once) {
-		make_dev(&devstat_cdevsw, 0,
-		    UID_ROOT, GID_WHEEL, 0400, DEVSTAT_DEVICE_NAME);
+		make_dev_credf(MAKEDEV_ETERNAL | MAKEDEV_CHECKNAME,
+		    &devstat_cdevsw, 0, NULL, UID_ROOT, GID_WHEEL, 0444,
+		    DEVSTAT_DEVICE_NAME);
 		once = 1;
 	}
 	spp2 = NULL;
@@ -545,4 +577,4 @@ devstat_free(struct devstat *dsp)
 }
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, devstat, CTLFLAG_RD,
-    NULL, sizeof(struct devstat), "sizeof(struct devstat)");
+    SYSCTL_NULL_INT_PTR, sizeof(struct devstat), "sizeof(struct devstat)");

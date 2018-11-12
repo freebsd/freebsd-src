@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2006 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- * $Id: example.c,v 8.3 2006/12/20 21:22:34 ca Exp $
+ * $Id: example.c,v 8.5 2013-11-22 20:51:36 ca Exp $
  */
 
 /*
@@ -252,7 +252,7 @@ struct smfiDesc smfilter =
 	mlfi_close,	/* connection cleanup */
 	mlfi_unknown,	/* unknown/unimplemented SMTP commands */
 	mlfi_data,	/* DATA command filter */
-	mlfi_negotiate	/* option negotation at connection startup */
+	mlfi_negotiate	/* option negotiation at connection startup */
 };
 
 int

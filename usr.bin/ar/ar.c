@@ -100,24 +100,34 @@ main(int argc, char **argv)
 	struct bsdar	*bsdar, bsdar_storage;
 	char		*p;
 	size_t		 len;
-	int		 i, opt;
+	int		 i, opt, Dflag, Uflag;
 
 	bsdar = &bsdar_storage;
 	memset(bsdar, 0, sizeof(*bsdar));
+	Dflag = 0;
+	Uflag = 0;
 
 	if ((bsdar->progname = getprogname()) == NULL)
 		bsdar->progname = "ar";
 
 	/* Act like ranlib if our name ends in "ranlib"; this
-	 * accomodates arm-freebsd7.1-ranlib, bsdranlib, etc. */
+	 * accommodates arm-freebsd7.1-ranlib, bsdranlib, etc. */
 	len = strlen(bsdar->progname);
 	if (len >= strlen("ranlib") &&
 	    strcmp(bsdar->progname + len - strlen("ranlib"), "ranlib") == 0) {
-		while ((opt = getopt_long(argc, argv, "tV", longopts,
+		while ((opt = getopt_long(argc, argv, "tDUV", longopts,
 		    NULL)) != -1) {
 			switch(opt) {
 			case 't':
 				/* Ignored. */
+				break;
+			case 'D':
+				Dflag = 1;
+				Uflag = 0;
+				break;
+			case 'U':
+				Uflag = 1;
+				Dflag = 0;
 				break;
 			case 'V':
 				ranlib_version();
@@ -134,8 +144,11 @@ main(int argc, char **argv)
 		if (*argv == NULL)
 			ranlib_usage();
 
+		/* Enable determinstic mode unless -U is set. */
+		if (Uflag == 0)
+			bsdar->options |= AR_D;
 		bsdar->options |= AR_S;
-		for (;(bsdar->filename = *argv++) != NULL;)
+		while ((bsdar->filename = *argv++) != NULL)
 			ar_mode_s(bsdar);
 
 		exit(EX_OK);
@@ -154,7 +167,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	while ((opt = getopt_long(argc, argv, "abCcdfijlMmopqrSsTtuVvxz",
+	while ((opt = getopt_long(argc, argv, "abCcdDfijlMmopqrSsTtUuVvxz",
 	    longopts, NULL)) != -1) {
 		switch(opt) {
 		case 'a':
@@ -173,12 +186,16 @@ main(int argc, char **argv)
 		case 'd':
 			set_mode(bsdar, opt);
 			break;
+		case 'D':
+			Dflag = 1;
+			Uflag = 0;
+			break;
 		case 'f':
 		case 'T':
 			bsdar->options |= AR_TR;
 			break;
 		case 'j':
-			bsdar->options |= AR_J;
+			/* ignored */
 			break;
 		case 'l':
 			/* ignored, for GNU ar comptibility */
@@ -210,6 +227,10 @@ main(int argc, char **argv)
 		case 't':
 			set_mode(bsdar, opt);
 			break;
+		case 'U':
+			Uflag = 1;
+			Dflag = 0;
+			break;
 		case 'u':
 			bsdar->options |= AR_U;
 			break;
@@ -223,7 +244,7 @@ main(int argc, char **argv)
 			set_mode(bsdar, opt);
 			break;
 		case 'z':
-			bsdar->options |= AR_Z;
+			/* ignored */
 			break;
 		case OPTION_HELP:
 			bsdar_usage();
@@ -251,15 +272,20 @@ main(int argc, char **argv)
 		    "only one of -s and -S options allowed");
 
 	if (bsdar->options & (AR_A | AR_B)) {
-		if ((bsdar->posarg = *argv) == NULL)
+		if (*argv == NULL)
 			bsdar_errc(bsdar, EX_USAGE, 0,
 			    "no position operand specified");
-		if ((bsdar->posarg = basename(bsdar->posarg)) == NULL)
+		if ((bsdar->posarg = basename(*argv)) == NULL)
 			bsdar_errc(bsdar, EX_SOFTWARE, errno,
 			    "basename failed");
 		argc--;
 		argv++;
 	}
+
+	/* Set determinstic mode for -D, and by default without -U. */
+	if (Dflag || (Uflag == 0 && (bsdar->mode == 'q' || bsdar->mode == 'r' ||
+	    (bsdar->mode == '\0' && bsdar->options & AR_S))))
+		bsdar->options |= AR_D;
 
 	if (bsdar->options & AR_A)
 		only_mode(bsdar, "-a", "mqr");
@@ -269,6 +295,10 @@ main(int argc, char **argv)
 		only_mode(bsdar, "-c", "qr");
 	if (bsdar->options & AR_CC)
 		only_mode(bsdar, "-C", "x");
+	if (Dflag)
+		only_mode(bsdar, "-D", "qr");
+	if (Uflag)
+		only_mode(bsdar, "-U", "qr");
 	if (bsdar->options & AR_O)
 		only_mode(bsdar, "-o", "x");
 	if (bsdar->options & AR_SS)
@@ -349,16 +379,16 @@ only_mode(struct bsdar *bsdar, const char *opt, const char *valid_modes)
 }
 
 static void
-bsdar_usage()
+bsdar_usage(void)
 {
 
 	(void)fprintf(stderr, "usage:  ar -d [-Tjsvz] archive file ...\n");
 	(void)fprintf(stderr, "\tar -m [-Tjsvz] archive file ...\n");
 	(void)fprintf(stderr, "\tar -m [-Tabijsvz] position archive file ...\n");
 	(void)fprintf(stderr, "\tar -p [-Tv] archive [file ...]\n");
-	(void)fprintf(stderr, "\tar -q [-Tcjsvz] archive file ...\n");
-	(void)fprintf(stderr, "\tar -r [-Tcjsuvz] archive file ...\n");
-	(void)fprintf(stderr, "\tar -r [-Tabcijsuvz] position archive file ...\n");
+	(void)fprintf(stderr, "\tar -q [-TcDjsUvz] archive file ...\n");
+	(void)fprintf(stderr, "\tar -r [-TcDjsUuvz] archive file ...\n");
+	(void)fprintf(stderr, "\tar -r [-TabcDijsUuvz] position archive file ...\n");
 	(void)fprintf(stderr, "\tar -s [-jz] archive\n");
 	(void)fprintf(stderr, "\tar -t [-Tv] archive [file ...]\n");
 	(void)fprintf(stderr, "\tar -x [-CTouv] archive [file ...]\n");
@@ -367,24 +397,24 @@ bsdar_usage()
 }
 
 static void
-ranlib_usage()
+ranlib_usage(void)
 {
 
-	(void)fprintf(stderr, "usage:	ranlib [-t] archive ...\n");
+	(void)fprintf(stderr, "usage:	ranlib [-DtU] archive ...\n");
 	(void)fprintf(stderr, "\tranlib -V\n");
 	exit(EX_USAGE);
 }
 
 static void
-bsdar_version()
+bsdar_version(void)
 {
-	(void)printf("BSD ar %s - %s\n", BSDAR_VERSION, archive_version());
+	(void)printf("BSD ar %s - %s\n", BSDAR_VERSION, archive_version_string());
 	exit(EX_OK);
 }
 
 static void
-ranlib_version()
+ranlib_version(void)
 {
-	(void)printf("ranlib %s - %s\n", BSDAR_VERSION, archive_version());
+	(void)printf("ranlib %s - %s\n", BSDAR_VERSION, archive_version_string());
 	exit(EX_OK);
 }

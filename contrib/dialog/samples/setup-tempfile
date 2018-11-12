@@ -1,0 +1,6 @@
+#!/bin/sh
+# $Id: setup-tempfile,v 1.3 2012/07/06 17:51:56 tom Exp $
+# vile:shmode
+
+tempfile=`(tempfile) 2>/dev/null` || tempfile=/tmp/test$$
+trap "rm -f $tempfile" 0 $SIG_NONE $SIG_HUP $SIG_INT $SIG_TRAP $SIG_TERM

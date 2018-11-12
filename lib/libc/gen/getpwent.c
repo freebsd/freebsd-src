@@ -748,7 +748,7 @@ pwdbopen(int *version)
 	else
 		*version = 3;
 	if (*version < 3 ||
-	    *version >= sizeof(pwdb_versions)/sizeof(pwdb_versions[0])) {
+	    *version >= nitems(pwdb_versions)) {
 		syslog(LOG_CRIT, "Unsupported password database version %d",
 		    *version);
 		res->close(res);
@@ -815,7 +815,7 @@ files_passwd(void *retval, void *mdata, va_list ap)
 	size_t			 bufsize, namesize;
 	uid_t			 uid;
 	uint32_t		 store;
-	int			 rv, stayopen, *errnop;
+	int			 rv, stayopen = 0, *errnop;
 
 	name = NULL;
 	uid = (uid_t)-1;
@@ -921,7 +921,7 @@ files_passwd(void *retval, void *mdata, va_list ap)
 		    errnop);
 	} while (how == nss_lt_all && !(rv & NS_TERMINATE));
 fin:
-	if (!stayopen && st->db != NULL) {
+	if (st->db != NULL && !stayopen) {
 		(void)st->db->close(st->db);
 		st->db = NULL;
 	}
@@ -1392,8 +1392,10 @@ nis_passwd(void *retval, void *mdata, va_list ap)
 				continue;
 			}
 		}
-		if (resultlen >= bufsize)
+		if (resultlen >= bufsize) {
+			free(result);
 			goto erange;
+		}
 		memcpy(buffer, result, resultlen);
 		buffer[resultlen] = '\0';
 		free(result);
@@ -1605,9 +1607,9 @@ compat_redispatch(struct compat_state *st, enum nss_lookup_type how,
 		{ NULL, NULL, NULL }
 	};
 	void		*discard;
-	int		 rv, e, i;
+	int		 e, i, rv;
 
-	for (i = 0; i < sizeof(dtab)/sizeof(dtab[0]) - 1; i++)
+	for (i = 0; i < (int)(nitems(dtab) - 1); i++)
 		dtab[i].mdata = (void *)lookup_how;
 more:
 	pwd_init(pwd);
@@ -1701,8 +1703,7 @@ compat_setpwent(void *retval, void *mdata, va_list ap)
 
 #define set_setent(x, y) do {	 				\
 	int i;							\
-								\
-	for (i = 0; i < (sizeof(x)/sizeof(x[0])) - 1; i++)	\
+	for (i = 0; i < (int)(nitems(x) - 1); i++)		\
 		x[i].mdata = (void *)y;				\
 } while (0)
 
@@ -1940,7 +1941,7 @@ docompat:
 			break;
 	}
 fin:
-	if (!stayopen && st->db != NULL) {
+	if (st->db != NULL && !stayopen) {
 		(void)st->db->close(st->db);
 		st->db = NULL;
 	}

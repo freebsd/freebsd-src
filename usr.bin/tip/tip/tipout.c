@@ -148,11 +148,12 @@ tipout(void)
 		scnt = read(FD, buf, BUFSIZ);
 		if (scnt <= 0) {
 			/* lost carrier */
-			if (scnt == 0 || (scnt < 0 && errno == EIO)) {
+			if (scnt == 0 ||
+			    (scnt < 0 && (errno == EIO || errno == ENXIO))) {
 				sigemptyset(&mask);
 				sigaddset(&mask, SIGTERM);
 				sigprocmask(SIG_BLOCK, &mask, NULL);
-				intTERM(0);
+				intTERM(SIGHUP);
 				/*NOTREACHED*/
 			}
 			continue;
@@ -170,12 +171,18 @@ tipout(void)
 		if (boolean(value(SCRIPT)) && fscript != NULL) {
 			if (!boolean(value(BEAUTIFY))) {
 				fwrite(buf, 1, cnt, fscript);
-				continue;
+			} else {
+				for (cp = buf; cp < buf + cnt; cp++)
+					if ((*cp >= ' ' && *cp <= '~') ||
+					    any(*cp, value(EXCEPTIONS)))
+						putc(*cp, fscript);
 			}
-			for (cp = buf; cp < buf + cnt; cp++)
-				if ((*cp >= ' ' && *cp <= '~') ||
-				    any(*cp, value(EXCEPTIONS)))
-					putc(*cp, fscript);
+			for (cp = buf; cp < buf + cnt; cp++) {
+				if (!isgraph(*cp)) {
+					fflush(fscript);
+					break;
+				}
+			}
 		}
 	}
 }

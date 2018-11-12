@@ -188,7 +188,7 @@ main(argc, argv)
 
         /* no (valid) database as argument */
         if (dbv == NULL || *dbv == NULL) {
-                /* try to read database from enviroment */
+                /* try to read database from environment */
                 if ((path_fcodes = getenv("LOCATE_PATH")) == NULL ||
 		     *path_fcodes == '\0')
                         /* use default database */
@@ -292,7 +292,9 @@ search_mmap(db, s)
 		err(1, "`%s'", db);
 	len = sb.st_size;
 	if (len < (2*NBG))
-		errx(1, "database too small: %s", db);
+		errx(1,
+		    "database too small: %s\nRun /usr/libexec/locate.updatedb",
+		    db);
 
 	if ((p = mmap((caddr_t)0, (size_t)len,
 		      PROT_READ, MAP_SHARED,

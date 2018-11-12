@@ -14,13 +14,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"        This product includes software developed by the NetBSD
-.\"        Foundation, Inc. and its contributors.
-.\" 4. Neither the name of The NetBSD Foundation nor the names of its
-.\"    contributors may be used to endorse or promote products derived
-.\"    from this software without specific prior written permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
 .\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -36,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2006
+.Dd November 23, 2010
 .Dt STGE 4
 .Os
 .Sh NAME
@@ -136,27 +129,6 @@ Force full duplex operation.
 Force half duplex operation.
 .El
 .Pp
-The
-.Nm
-driver also supports one special link option for 1000baseTX cards:
-.Bl -tag -width ".Cm link0"
-.It Cm link0
-With 1000baseTX cards, establishing a link between two ports requires
-that one port is configured as master and the other one as slave.
-With autonegotiation,
-the master/slave settings will be chosen automatically.
-However when manually selecting the link state, it is necessary to
-force one side of the link to be a master and the other a slave.
-The
-.Nm
-driver configures the ports as slaves by default.
-Setting the
-.Cm link0
-flag with
-.Xr ifconfig 8
-will set a port as a master instead.
-.El
-.Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Sh HARDWARE
@@ -220,11 +192,9 @@ and first appeared in
 The
 .Nx
 version was written by
-.An Jason R. Thorpe
-.Aq thorpej@NetBSD.org .
+.An Jason R. Thorpe Aq Mt thorpej@NetBSD.org .
 .Sh AUTHORS
 The
 .Nm
 driver was ported by
-.An Pyun YongHyeon
-.Aq yongari@FreeBSD.org .
+.An Pyun YongHyeon Aq Mt yongari@FreeBSD.org .

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001, 2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001, 2004 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -9,7 +9,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: clock.h,v 1.12 2004/08/03 19:57:21 ca Exp $
+ *	$Id: clock.h,v 1.14 2013-11-22 20:51:31 ca Exp $
  */
 
 /*
@@ -59,7 +59,7 @@ extern SIGFUNC_DECL	sm_tick __P((int));
 /*
 **  SM_SETEVENT -- set an event to happen at a specific time in seconds.
 **
-**	Translates the seconds into millseconds and calls sm_seteventm()
+**	Translates the seconds into milliseconds and calls sm_seteventm()
 **	to get a specific event to happen in the future at a specific time.
 **
 **	Parameters:

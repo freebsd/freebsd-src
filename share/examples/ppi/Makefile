@@ -2,7 +2,9 @@
 #
 # $FreeBSD$
 
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/ppi
 PROG=	ppilcd
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

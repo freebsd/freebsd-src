@@ -5,6 +5,11 @@
  * This code is derived from software contributed to Berkeley by
  * Donn Seeley at UUNET Technologies, Inc.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -41,16 +46,21 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 #include "local.h"
+#include "xlocale_private.h"
 
 int
-vscanf(fmt, ap)
-	const char * __restrict fmt;
-	__va_list ap;
+vscanf_l(locale_t locale, const char * __restrict fmt, __va_list ap)
 {
 	int retval;
+	FIX_LOCALE(locale);
 
 	FLOCKFILE(stdin);
-	retval = __svfscanf(stdin, fmt, ap);
+	retval = __svfscanf(stdin, locale, fmt, ap);
 	FUNLOCKFILE(stdin);
 	return (retval);
+}
+int
+vscanf(const char * __restrict fmt, __va_list ap)
+{
+	return vscanf_l(__get_locale(), fmt, ap);
 }

@@ -38,19 +38,11 @@
 #define DMALLOCDEBUG		/* add debugging code to gather stats */
 #define ZALLOCDEBUG
 
-#include <string.h>
+#include <sys/stdint.h>
 #include "stand.h"
-
-typedef uintptr_t iaddr_t;	/* unsigned int same size as pointer	*/
-typedef intptr_t saddr_t;	/* signed int same size as pointer	*/
 #include "zalloc_mem.h"
 
-#define Prototype extern
 #define Library extern
-
-#ifndef NULL
-#define NULL	((void *)0)
-#endif
 
 /*
  * block extension for sbrk()
@@ -60,22 +52,27 @@ typedef intptr_t saddr_t;	/* signed int same size as pointer	*/
 #define BLKEXTENDMASK	(BLKEXTEND - 1)
 
 /*
- * required malloc alignment.  Use sizeof(long double) for architecture
- * independance.
+ * Required malloc alignment.
  *
- * Note: if we implement a more sophisticated realloc, we should ensure that
- * MALLOCALIGN is at least as large as MemNode.
+ * Embedded platforms using the u-boot API drivers require that all I/O buffers
+ * be on a cache line sized boundary.  The worst case size for that is 64 bytes.
+ * For other platforms, 16 bytes works fine.  The alignment also must be at
+ * least sizeof(struct MemNode); this is asserted in zalloc.c.
  */
+
+#if defined(__arm__) || defined(__mips__) || defined(__powerpc__)
+#define	MALLOCALIGN		64
+#else
+#define	MALLOCALIGN		16
+#endif
+#define	MALLOCALIGN_MASK	(MALLOCALIGN - 1)
 
 typedef struct Guard {
     size_t	ga_Bytes;
     size_t	ga_Magic;	/* must be at least 32 bits */
 } Guard;
 
-#define MATYPE		long double
-#define MALLOCALIGN	((sizeof(MATYPE) > sizeof(Guard)) ? sizeof(MATYPE) : sizeof(Guard))
 #define GAMAGIC		0x55FF44FD
 #define GAFREE		0x5F54F4DF
 
 #include "zalloc_protos.h"
-

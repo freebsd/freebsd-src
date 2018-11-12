@@ -122,6 +122,7 @@ int			 gv_detach_sd(struct gv_sd *, int);
 void	gv_worker(void *);
 void	gv_post_event(struct gv_softc *, int, void *, void *, intmax_t,
 	    intmax_t);
+void	gv_worker_exit(struct gv_softc *);
 struct gv_event *gv_get_event(struct gv_softc *);
 void	gv_remove_event(struct gv_softc *, struct gv_event *);
 void	gv_drive_tasted(struct gv_softc *, struct g_provider *);

@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
+** Copyright (c) 1999-2002 Proofpoint, Inc. and its suppliers.
 **	All rights reserved.
 **
 ** By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smndbm.c,v 8.52 2002/05/21 22:30:30 gshapiro Exp $")
+SM_RCSID("@(#)$Id: smndbm.c,v 8.55 2013-11-22 20:51:49 ca Exp $")
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -438,13 +438,18 @@ smdbm_cursor(database, cursor, flags)
 
 	db->smndbm_cursor_in_use = true;
 	dbm_cursor = (SMDB_DBM_CURSOR *) malloc(sizeof(SMDB_DBM_CURSOR));
+	if (dbm_cursor == NULL)
+		return SMDBE_MALLOC;
 	dbm_cursor->smndbmc_db = db;
 	dbm_cursor->smndbmc_current_key.dptr = NULL;
 	dbm_cursor->smndbmc_current_key.dsize = 0;
 
 	cur = (SMDB_CURSOR*) malloc(sizeof(SMDB_CURSOR));
 	if (cur == NULL)
+	{
+		free(dbm_cursor);
 		return SMDBE_MALLOC;
+	}
 
 	cur->smdbc_impl = dbm_cursor;
 	cur->smdbc_close = smdbm_cursor_close;

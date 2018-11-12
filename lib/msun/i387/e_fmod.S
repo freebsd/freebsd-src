@@ -34,8 +34,7 @@
  */
 
 #include <machine/asm.h>
-
-RCSID("$FreeBSD$")
+__FBSDID("$FreeBSD$")
 
 ENTRY(fmod)
 	fldl	12(%esp)
@@ -47,3 +46,5 @@ ENTRY(fmod)
 	fstp	%st(1)
 	ret
 END(fmod)
+
+	.section .note.GNU-stack,"",%progbits

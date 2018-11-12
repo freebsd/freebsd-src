@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 18, 2001
+.Dd November 18, 2015
 .Dt WITNESS 4
 .Os
 .Sh NAME
@@ -32,7 +32,9 @@
 .Nd lock validation facility
 .Sh SYNOPSIS
 .Cd options WITNESS
+.Cd options WITNESS_COUNT
 .Cd options WITNESS_KDB
+.Cd options WITNESS_NO_VNODE
 .Cd options WITNESS_SKIPSPIN
 .Sh DESCRIPTION
 The
@@ -45,19 +47,39 @@ Each time a lock is acquired,
 uses these two lists to verify that a lock is not being acquired in the
 wrong order.
 If a lock order violation is detected, then a message is output to the
-kernel console detailing the locks involved and the locations in question.
+kernel console or log detailing the locks involved and the locations in
+question.
 Witness can also be configured to drop into the kernel debugger when an order
 violation occurs.
 .Pp
 The
 .Nm
 code also checks various other conditions such as verifying that one
-does not recurse on a non-recursive lock.
-For sleep locks,
-.Nm
-verifies that a new process would not be switched to when a lock is released
-or a lock is blocked on during an acquire while any spin locks are held.
+does not recurse on a non-recursive lock,
+or attempt an upgrade on a shared lock held by another thread.
 If any of these checks fail, then the kernel will panic.
+.Pp
+The
+.Dv WITNESS_COUNT
+kernel option controls the maximum number of
+.Nm
+entries that are tracked in the kernel.
+The maximum number of entries can be queried via the
+.Va debug.witness.count
+sysctl.
+It can also be set from the
+.Xr loader 8
+via the
+.Va debug.witness.count
+environment variable.
+.Pp
+The
+.Dv WITNESS_NO_VNODE
+kernel option tells
+.Nm
+to ignore locking issues between
+.Xr vnode 9
+objects.
 .Pp
 The flag that controls whether or not the kernel debugger is entered when a
 lock order violation is detected can be set in a variety of ways.
@@ -96,17 +118,33 @@ The sysctl
 specifies the level of witness involvement in the system.
 A value of 1 specifies that witness is enabled.
 A value of 0 specifies that witness is disabled, but that can be enabled
-again.  This will maintain a small amount of overhead in the system.
-A value of -1 specifies that witness is disabled permanently and that
+again.
+This will maintain a small amount of overhead in the system.
+A value of -1 specifies that witness is disabled permanently and
 cannot be enabled again.
 The sysctl
 .Va debug.witness.watch
 can be set via
 .Xr loader 8 .
 .Pp
+The sysctl
+.Va debug.witness.output_channel
+specifies the output channel used to display warnings emitted by
+.Nm .
+The possible values are
+.Ql console ,
+indicating that warnings are to be printed to the system console,
+.Ql log ,
+indicating that warnings are to be logged via
+.Xr log 9 ,
+and
+.Ql none .
+This sysctl can be set via
+.Xr loader 8 .
+.Pp
 The
 .Nm
-code also provides two extra
+code also provides three extra
 .Xr ddb 4
 commands if both
 .Nm
@@ -114,10 +152,22 @@ and
 .Xr ddb 4
 are compiled into the kernel:
 .Bl -ohang
-.It Ic show locks
-Outputs the list of locks held by the current thread to the kernel console
+.It Ic show locks Op thread
+Outputs the list of locks held by a thread to the kernel console
 along with the filename and line number at which each lock was last acquired
-by this thread.
+by the thread.
+The optional
+.Ar thread
+argument may be either a TID,
+PID,
+or pointer to a thread structure.
+If
+.Ar thread
+is not specified,
+then the locks held by the current thread are displayed.
+.It Ic show all locks
+Outputs the list of locks held by all threads in the system to the
+kernel console.
 .It Ic show witness
 Dump the current order list to the kernel console.
 The code first displays the lock order tree for all of the sleep locks.
@@ -136,9 +186,3 @@ code first appeared in
 .Bsx 5.0
 and was imported from there into
 .Fx 5.0 .
-.Sh BUGS
-The
-.Nm
-code currently does not handle recursion of shared
-.Xr sx 9
-locks properly.

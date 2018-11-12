@@ -1,0 +1,42 @@
+.TH IBPRINTRT 8 "May 31, 2007" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+ibprintrt.pl \- print either only the router specified or a list of routers from the ibnetdiscover output
+
+.SH SYNOPSIS
+.B ibprintrt.pl
+[-R -l -C <ca_name> -P <ca_port>] [<rt_guid|node_name>]
+
+.SH DESCRIPTION
+.PP
+Faster than greping/viewing with an editor the output of ibnetdiscover,
+ibprintrt.pl will parse out and print either the router information for the
+specified IB router or a list of all IB routers in the subnet.
+
+Finally, ibprintrt.pl will also reuse the cached ibnetdiscover output from
+some of the other diag tools which makes it a bit faster than running
+ibnetdiscover from scratch.
+
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-l\fR
+List the Rts (simply a wrapper for ibrouters).
+.TP
+\fB\-R\fR
+Recalculate the ibnetdiscover information, ie do not use the cached
+information.  This option is slower but should be used if the diag tools have
+not been used for some time or if there are other reasons to believe that
+the fabric has changed.
+.TP
+\fB\-C <ca_name>\fR    use the specified ca_name for the search.
+.TP
+\fB\-P <ca_port>\fR    use the specified ca_port for the search.
+
+
+.SH AUTHOR
+.TP
+Hal Rosenstock
+.RI < halr@voltaire.com >

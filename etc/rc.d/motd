@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="motd"
+desc="Update /etc/motd"
 rcvar="update_motd"
 start_cmd="motd_start"
 stop_cmd=":"
@@ -22,7 +23,7 @@ motd_start()
 	#	Must be done *before* interactive logins are possible
 	#	to prevent possible race conditions.
 	#
-	[ -z "${rc_quiet}" ] && echo -n 'Updating motd:'
+	check_startmsgs && echo -n 'Updating motd:'
 	if [ ! -f /etc/motd ]; then
 		install -c -o root -g wheel -m ${PERMS} /dev/null /etc/motd
 	fi
@@ -42,7 +43,7 @@ motd_start()
 	}
 	rm -f $T
 
-	[ -z "${rc_quiet}" ] && echo .
+	check_startmsgs && echo '.'
 }
 
 load_rc_config $name

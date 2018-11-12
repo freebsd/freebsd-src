@@ -1,6 +1,7 @@
-/* ssl/kssl.h -*- mode: C; c-file-style: "eay" -*- */
-/* Written by Vern Staats <staatsvr@asc.hpc.mil> for the OpenSSL project 2000.
- * project 2000.
+/* ssl/kssl.h */
+/*
+ * Written by Vern Staats <staatsvr@asc.hpc.mil> for the OpenSSL project
+ * 2000. project 2000.
  */
 /* ====================================================================
  * Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -56,12 +57,12 @@
  *
  */
 
-#ifndef	KSSL_LCL_H
-#define	KSSL_LCL_H
+#ifndef KSSL_LCL_H
+# define KSSL_LCL_H
 
-#include <openssl/kssl.h>
+# include <openssl/kssl.h>
 
-#ifndef OPENSSL_NO_KRB5
+# ifndef OPENSSL_NO_KRB5
 
 #ifdef  __cplusplus
 extern "C" {
@@ -75,7 +76,7 @@ void print_krb5_keyblock(char *label, krb5_keyblock *keyblk);
 char *kstring(char *string);
 char *knumber(int len, krb5_octet *contents);
 
-EVP_CIPHER *kssl_map_enc(krb5_enctype enctype);
+const EVP_CIPHER *kssl_map_enc(krb5_enctype enctype);
 
 int kssl_keytab_is_available(KSSL_CTX *kssl_ctx);
 int kssl_tgt_is_available(KSSL_CTX *kssl_ctx);
@@ -83,5 +84,5 @@ int kssl_tgt_is_available(KSSL_CTX *kssl_ctx);
 #ifdef  __cplusplus
 }
 #endif
-#endif	/* OPENSSL_NO_KRB5	*/
-#endif	/* KSSL_LCL_H 	*/
+# endif                         /* OPENSSL_NO_KRB5 */
+#endif                          /* KSSL_LCL_H */

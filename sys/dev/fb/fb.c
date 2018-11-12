@@ -86,7 +86,7 @@ vid_realloc_array(void)
 		return ENOMEM;
 
 	s = spltty();
-	newsize = ((adapters + ARRAY_DELTA)/ARRAY_DELTA)*ARRAY_DELTA;
+	newsize = rounddown(adapters + ARRAY_DELTA, ARRAY_DELTA);
 	new_adp = malloc(sizeof(*new_adp)*newsize, M_DEVBUF, M_WAITOK | M_ZERO);
 	new_vidsw = malloc(sizeof(*new_vidsw)*newsize, M_DEVBUF,
 	    M_WAITOK | M_ZERO);
@@ -315,8 +315,7 @@ static device_method_t fb_methods[] = {
 	DEVMETHOD(device_probe,		fbprobe),
 	DEVMETHOD(device_attach,	fbattach),
 
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t fb_driver = {
@@ -511,10 +510,10 @@ int genfbioctl(genfb_softc_t *sc, video_adapter_t *adp, u_long cmd,
 	return error;
 }
 
-int genfbmmap(genfb_softc_t *sc, video_adapter_t *adp, vm_offset_t offset,
-	      vm_offset_t *paddr, int prot)
+int genfbmmap(genfb_softc_t *sc, video_adapter_t *adp, vm_ooffset_t offset,
+	      vm_offset_t *paddr, int prot, vm_memattr_t *memattr)
 {
-	return vidd_mmap(adp, offset, paddr, prot);
+	return vidd_mmap(adp, offset, paddr, prot, memattr);
 }
 
 #endif /* FB_INSTALL_CDEV */
@@ -611,7 +610,7 @@ fb_type(int adp_type)
 	};
 	int i;
 
-	for (i = 0; i < sizeof(types)/sizeof(types[0]); ++i) {
+	for (i = 0; i < nitems(types); ++i) {
 		if (types[i].va_type == adp_type)
 			return types[i].fb_type;
 	}
@@ -653,7 +652,7 @@ fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 		((video_adapter_info_t *)arg)->va_mem_base = adp->va_mem_base;
 		((video_adapter_info_t *)arg)->va_mem_size = adp->va_mem_size;
 		((video_adapter_info_t *)arg)->va_window
-#ifdef __i386__
+#if defined(__amd64__) || defined(__i386__)
 			= vtophys(adp->va_window);
 #else
 			= adp->va_window;
@@ -665,8 +664,8 @@ fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 		((video_adapter_info_t *)arg)->va_window_orig
 			= adp->va_window_orig;
 		((video_adapter_info_t *)arg)->va_unused0
-#ifdef __i386__
-			= (adp->va_buffer) ? vtophys(adp->va_buffer) : 0;
+#if defined(__amd64__) || defined(__i386__)
+			= adp->va_buffer != 0 ? vtophys(adp->va_buffer) : 0;
 #else
 			= adp->va_buffer;
 #endif

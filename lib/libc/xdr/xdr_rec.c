@@ -1,32 +1,34 @@
 /*	$NetBSD: xdr_rec.c,v 1.18 2000/07/06 03:10:35 christos Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2010, Oracle America, Inc.
  *
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials
+ *       provided with the distribution.
+ *     * Neither the name of the "Oracle America, Inc." nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
  *
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- *
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- *
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *   FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *   COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ *   INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *   WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #if defined(LIBC_SCCS) && !defined(lint) 
@@ -39,8 +41,6 @@ __FBSDID("$FreeBSD$");
 /*
  * xdr_rec.c, Implements TCP/IP based XDR streams with a "record marking"
  * layer above tcp (for rpc's use).
- *
- * Copyright (C) 1984, Sun Microsystems, Inc.
  *
  * These routines interface XDRSTREAMS to a tcp/ip connection.
  * There is a record marking layer between the xdr stream
@@ -106,7 +106,7 @@ static const struct  xdr_ops xdrrec_ops = {
  * meet the needs of xdr and rpc based on tcp.
  */
 
-#define LAST_FRAG ((u_int32_t)(1 << 31))
+#define LAST_FRAG ((u_int32_t)(1U << 31))
 
 typedef struct rec_strm {
 	char *tcp_handle;
@@ -161,15 +161,18 @@ static bool_t	realloc_stream(RECSTREAM *, int);
  * calls expect that they take an opaque handle rather than an fd.
  */
 void
-xdrrec_create(xdrs, sendsize, recvsize, tcp_handle, readit, writeit)
-	XDR *xdrs;
-	u_int sendsize;
-	u_int recvsize;
-	void *tcp_handle;
-	/* like read, but pass it a tcp_handle, not sock */
-	int (*readit)(void *, void *, int);
-	/* like write, but pass it a tcp_handle, not sock */
-	int (*writeit)(void *, void *, int);
+xdrrec_create(XDR *xdrs, u_int sendsize, u_int recvsize, void *tcp_handle,
+    int (*readit)(void *, void *, int), int (*writeit)(void *, void *, int))
+/*
+ *	XDR *xdrs;
+ *	u_int sendsize;
+ *	u_int recvsize;
+ *	void *tcp_handle;
+ *	// like read, but pass it a tcp_handle, not sock
+ *	int (*readit)(void *, void *, int);
+ *	// like write, but pass it a tcp_handle, not sock
+ *	int (*writeit)(void *, void *, int);
+ */
 {
 	RECSTREAM *rstrm = mem_alloc(sizeof(RECSTREAM));
 
@@ -229,9 +232,7 @@ xdrrec_create(xdrs, sendsize, recvsize, tcp_handle, readit, writeit)
  */
 
 static bool_t
-xdrrec_getlong(xdrs, lp)
-	XDR *xdrs;
-	long *lp;
+xdrrec_getlong(XDR *xdrs, long *lp)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
 	int32_t *buflp = (int32_t *)(void *)(rstrm->in_finger);
@@ -253,9 +254,7 @@ xdrrec_getlong(xdrs, lp)
 }
 
 static bool_t
-xdrrec_putlong(xdrs, lp)
-	XDR *xdrs;
-	const long *lp;
+xdrrec_putlong(XDR *xdrs, const long *lp)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
 	int32_t *dest_lp = ((int32_t *)(void *)(rstrm->out_finger));
@@ -277,10 +276,7 @@ xdrrec_putlong(xdrs, lp)
 }
 
 static bool_t  /* must manage buffers, fragments, and records */
-xdrrec_getbytes(xdrs, addr, len)
-	XDR *xdrs;
-	char *addr;
-	u_int len;
+xdrrec_getbytes(XDR *xdrs, char *addr, u_int len)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
 	int current;
@@ -305,10 +301,7 @@ xdrrec_getbytes(xdrs, addr, len)
 }
 
 static bool_t
-xdrrec_putbytes(xdrs, addr, len)
-	XDR *xdrs;
-	const char *addr;
-	u_int len;
+xdrrec_putbytes(XDR *xdrs, const char *addr, u_int len)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
 	size_t current;
@@ -331,8 +324,7 @@ xdrrec_putbytes(xdrs, addr, len)
 }
 
 static u_int
-xdrrec_getpos(xdrs)
-	XDR *xdrs;
+xdrrec_getpos(XDR *xdrs)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)xdrs->x_private;
 	off_t pos;
@@ -358,9 +350,7 @@ xdrrec_getpos(xdrs)
 }
 
 static bool_t
-xdrrec_setpos(xdrs, pos)
-	XDR *xdrs;
-	u_int pos;
+xdrrec_setpos(XDR *xdrs, u_int pos)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)xdrs->x_private;
 	u_int currpos = xdrrec_getpos(xdrs);
@@ -397,9 +387,7 @@ xdrrec_setpos(xdrs, pos)
 }
 
 static int32_t *
-xdrrec_inline(xdrs, len)
-	XDR *xdrs;
-	u_int len;
+xdrrec_inline(XDR *xdrs, u_int len)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)xdrs->x_private;
 	int32_t *buf = NULL;
@@ -429,8 +417,7 @@ xdrrec_inline(xdrs, len)
 }
 
 static void
-xdrrec_destroy(xdrs)
-	XDR *xdrs;
+xdrrec_destroy(XDR *xdrs)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)xdrs->x_private;
 
@@ -449,8 +436,7 @@ xdrrec_destroy(xdrs)
  * this procedure to guarantee proper record alignment.
  */
 bool_t
-xdrrec_skiprecord(xdrs)
-	XDR *xdrs;
+xdrrec_skiprecord(XDR *xdrs)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
 	enum xprt_stat xstat;
@@ -485,8 +471,7 @@ xdrrec_skiprecord(xdrs)
  * after consuming the rest of the current record.
  */
 bool_t
-xdrrec_eof(xdrs)
-	XDR *xdrs;
+xdrrec_eof(XDR *xdrs)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
 
@@ -509,9 +494,7 @@ xdrrec_eof(xdrs)
  * pipelined procedure calls.)  TRUE => immmediate flush to tcp connection.
  */
 bool_t
-xdrrec_endofrecord(xdrs, sendnow)
-	XDR *xdrs;
-	bool_t sendnow;
+xdrrec_endofrecord(XDR *xdrs, bool_t sendnow)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
 	u_long len;  /* fragment length */
@@ -535,10 +518,7 @@ xdrrec_endofrecord(xdrs, sendnow)
  * Return true if a record is available in the buffer, false if not.
  */
 bool_t
-__xdrrec_getrec(xdrs, statp, expectdata)
-	XDR *xdrs;
-	enum xprt_stat *statp;
-	bool_t expectdata;
+__xdrrec_getrec(XDR *xdrs, enum xprt_stat *statp, bool_t expectdata)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
 	ssize_t n;
@@ -618,9 +598,7 @@ __xdrrec_getrec(xdrs, statp, expectdata)
 }
 
 bool_t
-__xdrrec_setnonblock(xdrs, maxrec)
-	XDR *xdrs;
-	int maxrec;
+__xdrrec_setnonblock(XDR *xdrs, int maxrec)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)(xdrs->x_private);
 
@@ -635,9 +613,7 @@ __xdrrec_setnonblock(xdrs, maxrec)
  * Internal useful routines
  */
 static bool_t
-flush_out(rstrm, eor)
-	RECSTREAM *rstrm;
-	bool_t eor;
+flush_out(RECSTREAM *rstrm, bool_t eor)
 {
 	u_int32_t eormask = (eor == TRUE) ? LAST_FRAG : 0;
 	u_int32_t len = (u_int32_t)((u_long)(rstrm->out_finger) - 
@@ -655,8 +631,7 @@ flush_out(rstrm, eor)
 }
 
 static bool_t  /* knows nothing about records!  Only about input buffers */
-fill_input_buf(rstrm)
-	RECSTREAM *rstrm;
+fill_input_buf(RECSTREAM *rstrm)
 {
 	char *where;
 	u_int32_t i;
@@ -678,10 +653,7 @@ fill_input_buf(rstrm)
 }
 
 static bool_t  /* knows nothing about records!  Only about input buffers */
-get_input_bytes(rstrm, addr, len)
-	RECSTREAM *rstrm;
-	char *addr;
-	int len;
+get_input_bytes(RECSTREAM *rstrm, char *addr, int len)
 {
 	size_t current;
 
@@ -711,8 +683,7 @@ get_input_bytes(rstrm, addr, len)
 }
 
 static bool_t  /* next two bytes of the input stream are treated as a header */
-set_input_fragment(rstrm)
-	RECSTREAM *rstrm;
+set_input_fragment(RECSTREAM *rstrm)
 {
 	u_int32_t header;
 
@@ -737,9 +708,7 @@ set_input_fragment(rstrm)
 }
 
 static bool_t  /* consumes input bytes; knows nothing about records! */
-skip_input_bytes(rstrm, cnt)
-	RECSTREAM *rstrm;
-	long cnt;
+skip_input_bytes(RECSTREAM *rstrm, long cnt)
 {
 	u_int32_t current;
 
@@ -759,8 +728,7 @@ skip_input_bytes(rstrm, cnt)
 }
 
 static u_int
-fix_buf_size(s)
-	u_int s;
+fix_buf_size(u_int s)
 {
 
 	if (s < 100)
@@ -772,9 +740,7 @@ fix_buf_size(s)
  * Reallocate the input buffer for a non-block stream.
  */
 static bool_t
-realloc_stream(rstrm, size)
-	RECSTREAM *rstrm;
-	int size;
+realloc_stream(RECSTREAM *rstrm, int size)
 {
 	ptrdiff_t diff;
 	char *buf;

@@ -1,4 +1,3 @@
-'\" t
 .\" Copyright (c) 2004 Joerg Wunsch
 .\" All rights reserved.
 .\"
@@ -60,7 +59,7 @@ The first form shown in the synopsis can be used to
 the devices on the SMBus.
 This is done by sending each valid device address one
 receive byte, and one quick read message, respectively.
-Devices that respond to these requests will by displayed
+Devices that respond to these requests will be displayed
 by their device address, followed by the strings
 .Ql r ,
 .Ql w ,
@@ -71,7 +70,7 @@ and writeable, respectively.
 The only valid additional option for this modus of operation (besides
 the
 .Fl p
-option that choses the modus) is
+option that chooses the modus) is
 .Fl f Ar dev .
 See below for a description.
 .Pp
@@ -273,7 +272,7 @@ Diagnostic messages issued are supposed to be self-explanatory.
 .Xr smbus 4
 .Rs
 .%T "The SMBus specification"
-.%O http://www.smbus.org/specs/
+.%U http://www.smbus.org/specs/
 .Re
 .Sh HISTORY
 The

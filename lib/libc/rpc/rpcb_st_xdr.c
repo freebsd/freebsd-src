@@ -1,32 +1,31 @@
 /*	$NetBSD: rpcb_st_xdr.c,v 1.3 2000/07/14 08:40:42 fvdl Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice, 
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, 
+ *   this list of conditions and the following disclaimer in the documentation 
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its 
+ *   contributors may be used to endorse or promote products derived 
+ *   from this software without specific prior written permission.
  * 
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- * 
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- * 
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- * 
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  * Copyright 1991 Sun Microsystems, Inc.
@@ -48,16 +47,14 @@ __FBSDID("$FreeBSD$");
 /* Link list of all the stats about getport and getaddr */
 
 bool_t
-xdr_rpcbs_addrlist(xdrs, objp)
-	XDR *xdrs;
-	rpcbs_addrlist *objp;
+xdr_rpcbs_addrlist(XDR *xdrs, rpcbs_addrlist *objp)
 {
 	struct rpcbs_addrlist **pnext;
 
-	    if (!xdr_u_int32_t(xdrs, &objp->prog)) {
+	    if (!xdr_rpcprog(xdrs, &objp->prog)) {
 		return (FALSE);
 	    }
-	    if (!xdr_u_int32_t(xdrs, &objp->vers)) {
+	    if (!xdr_rpcvers(xdrs, &objp->vers)) {
 		return (FALSE);
 	    }
 	    if (!xdr_int(xdrs, &objp->success)) {
@@ -84,9 +81,7 @@ xdr_rpcbs_addrlist(xdrs, objp)
 /* Link list of all the stats about rmtcall */
 
 bool_t
-xdr_rpcbs_rmtcalllist(xdrs, objp)
-	XDR *xdrs;
-	rpcbs_rmtcalllist *objp;
+xdr_rpcbs_rmtcalllist(XDR *xdrs, rpcbs_rmtcalllist *objp)
 {
 	int32_t *buf;
 	struct rpcbs_rmtcalllist **pnext;
@@ -94,13 +89,13 @@ xdr_rpcbs_rmtcalllist(xdrs, objp)
 	if (xdrs->x_op == XDR_ENCODE) {
 	buf = XDR_INLINE(xdrs, 6 * BYTES_PER_XDR_UNIT);
 	if (buf == NULL) {
-		if (!xdr_u_int32_t(xdrs, &objp->prog)) {
+		if (!xdr_rpcprog(xdrs, &objp->prog)) {
 			return (FALSE);
 		}
-		if (!xdr_u_int32_t(xdrs, &objp->vers)) {
+		if (!xdr_rpcvers(xdrs, &objp->vers)) {
 			return (FALSE);
 		}
-		if (!xdr_u_int32_t(xdrs, &objp->proc)) {
+		if (!xdr_rpcproc(xdrs, &objp->proc)) {
 			return (FALSE);
 		}
 		if (!xdr_int(xdrs, &objp->success)) {
@@ -133,13 +128,13 @@ xdr_rpcbs_rmtcalllist(xdrs, objp)
 	} else if (xdrs->x_op == XDR_DECODE) {
 	buf = XDR_INLINE(xdrs, 6 * BYTES_PER_XDR_UNIT);
 	if (buf == NULL) {
-		if (!xdr_u_int32_t(xdrs, &objp->prog)) {
+		if (!xdr_rpcprog(xdrs, &objp->prog)) {
 			return (FALSE);
 		}
-		if (!xdr_u_int32_t(xdrs, &objp->vers)) {
+		if (!xdr_rpcvers(xdrs, &objp->vers)) {
 			return (FALSE);
 		}
-		if (!xdr_u_int32_t(xdrs, &objp->proc)) {
+		if (!xdr_rpcproc(xdrs, &objp->proc)) {
 			return (FALSE);
 		}
 		if (!xdr_int(xdrs, &objp->success)) {
@@ -169,13 +164,13 @@ xdr_rpcbs_rmtcalllist(xdrs, objp)
 	}
 	return (TRUE);
 	}
-	if (!xdr_u_int32_t(xdrs, &objp->prog)) {
+	if (!xdr_rpcprog(xdrs, &objp->prog)) {
 		return (FALSE);
 	}
-	if (!xdr_u_int32_t(xdrs, &objp->vers)) {
+	if (!xdr_rpcvers(xdrs, &objp->vers)) {
 		return (FALSE);
 	}
-	if (!xdr_u_int32_t(xdrs, &objp->proc)) {
+	if (!xdr_rpcproc(xdrs, &objp->proc)) {
 		return (FALSE);
 	}
 	if (!xdr_int(xdrs, &objp->success)) {
@@ -199,9 +194,7 @@ xdr_rpcbs_rmtcalllist(xdrs, objp)
 }
 
 bool_t
-xdr_rpcbs_proc(xdrs, objp)
-	XDR *xdrs;
-	rpcbs_proc objp;
+xdr_rpcbs_proc(XDR *xdrs, rpcbs_proc objp)
 {
 	if (!xdr_vector(xdrs, (char *)(void *)objp, RPCBSTAT_HIGHPROC,
 	    sizeof (int), (xdrproc_t)xdr_int)) {
@@ -211,9 +204,7 @@ xdr_rpcbs_proc(xdrs, objp)
 }
 
 bool_t
-xdr_rpcbs_addrlist_ptr(xdrs, objp)
-	XDR *xdrs;
-	rpcbs_addrlist_ptr *objp;
+xdr_rpcbs_addrlist_ptr(XDR *xdrs, rpcbs_addrlist_ptr *objp)
 {
 	if (!xdr_pointer(xdrs, (char **)objp, sizeof (rpcbs_addrlist),
 			(xdrproc_t)xdr_rpcbs_addrlist)) {
@@ -223,9 +214,7 @@ xdr_rpcbs_addrlist_ptr(xdrs, objp)
 }
 
 bool_t
-xdr_rpcbs_rmtcalllist_ptr(xdrs, objp)
-	XDR *xdrs;
-	rpcbs_rmtcalllist_ptr *objp;
+xdr_rpcbs_rmtcalllist_ptr(XDR *xdrs, rpcbs_rmtcalllist_ptr *objp)
 {
 	if (!xdr_pointer(xdrs, (char **)objp, sizeof (rpcbs_rmtcalllist),
 			(xdrproc_t)xdr_rpcbs_rmtcalllist)) {
@@ -235,9 +224,7 @@ xdr_rpcbs_rmtcalllist_ptr(xdrs, objp)
 }
 
 bool_t
-xdr_rpcb_stat(xdrs, objp)
-	XDR *xdrs;
-	rpcb_stat *objp;
+xdr_rpcb_stat(XDR *xdrs, rpcb_stat *objp)
 {
 
 	if (!xdr_rpcbs_proc(xdrs, objp->info)) {
@@ -263,9 +250,7 @@ xdr_rpcb_stat(xdrs, objp)
  * being monitored.
  */
 bool_t
-xdr_rpcb_stat_byvers(xdrs, objp)
-    XDR *xdrs;
-    rpcb_stat_byvers objp;
+xdr_rpcb_stat_byvers(XDR *xdrs, rpcb_stat_byvers objp)
 {
 	if (!xdr_vector(xdrs, (char *)(void *)objp, RPCBVERS_STAT,
 	    sizeof (rpcb_stat), (xdrproc_t)xdr_rpcb_stat)) {

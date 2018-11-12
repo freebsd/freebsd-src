@@ -11,4 +11,6 @@ CFLAGS+= -I${.CURDIR}/../../sys
 CFLAGS+= -DPC98
 .endif
 
+WARNS?=	2
+
 .include <bsd.prog.mk>

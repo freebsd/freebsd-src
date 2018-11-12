@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -59,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #define	MAXOFILES	20
 #define	BIGBUFSIZ	5 * BUFSIZ
 
-struct	openfile {		/* open file structure */
+static struct openfile {	/* open file structure */
 	FILE	*fp;		/* file pointer */
 	short	eof;		/* eof flag */
 	short	pad;		/* pad flag for missing columns */
@@ -68,10 +64,10 @@ struct	openfile {		/* open file structure */
 	const char *format;	/* printf(3) style string spec. */
 }	input[MAXOFILES];
 
-int	morefiles;		/* set by getargs(), changed by gatherline() */
-int	nofinalnl;		/* normally append \n to each output line */
-char	line[BIGBUFSIZ];
-char	*linep;
+static int	morefiles;	/* set by getargs(), changed by gatherline() */
+static int	nofinalnl;	/* normally append \n to each output line */
+static char	line[BIGBUFSIZ];
+static char	*linep;
 
 static char    *gatherline(struct openfile *);
 static void	getargs(char *[]);
@@ -221,7 +217,7 @@ gatherline(struct openfile *ip)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
 "usage: lam [ -f min.max ] [ -s sepstring ] [ -t c ] file ...",

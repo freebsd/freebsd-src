@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -53,6 +52,7 @@ public int use_lessopen;	/* Use the LESSOPEN filter */
 public int quit_on_intr;	/* Quit on interrupt */
 public int follow_mode;		/* F cmd Follows file desc or file name? */
 public int oldbot;		/* Old bottom of screen behavior {{REMOVE}} */
+public int opt_use_backslash;	/* Use backslash escaping in option parsing */
 #if HILITE_SEARCH
 public int hilite_search;	/* Highlight matched search patterns? */
 #endif
@@ -116,6 +116,7 @@ static struct optname pound_optname  = { "shift",                NULL };
 static struct optname keypad_optname = { "no-keypad",            NULL };
 static struct optname oldbot_optname = { "old-bot",              NULL };
 static struct optname follow_optname = { "follow-name",          NULL };
+static struct optname use_backslash_optname = { "use-backslash", NULL };
 
 
 /*
@@ -133,11 +134,11 @@ static struct optname follow_optname = { "follow-name",          NULL };
 static struct loption option[] =
 {
 	{ 'a', &a_optname,
-		BOOL, OPT_OFF, &how_search, NULL,
+		TRIPLE, OPT_ONPLUS, &how_search, NULL,
 		{
 			"Search includes displayed screen",
 			"Search skips displayed screen",
-			NULL
+			"Search includes all of displayed screen"
 		}
 	},
 
@@ -237,7 +238,7 @@ static struct loption option[] =
 		STRING, 0, NULL, opt_j,
 		{
 			"Target line: ",
-			"0123456789.",
+			"0123456789.-",
 			NULL
 		}
 	},
@@ -262,10 +263,6 @@ static struct loption option[] =
 			"Interrupt (ctrl-C) exits less",
 			NULL
 		}
-	},
-	{ 'l', NULL,
-		STRING|NO_TOGGLE|NO_QUERY, 0, NULL, opt_l,
-		{ NULL, NULL, NULL }
 	},
 	{ 'L', &L__optname,
 		BOOL, OPT_ON, &use_lessopen, NULL,
@@ -427,7 +424,7 @@ static struct loption option[] =
 			NULL
 		}
 	},
-	{ '.', &keypad_optname,
+	{ OLETTER_NONE, &keypad_optname,
 		BOOL|NO_TOGGLE, OPT_OFF, &no_keypad, NULL,
 		{
 			"Use keypad mode",
@@ -435,7 +432,7 @@ static struct loption option[] =
 			NULL
 		}
 	},
-	{ '.', &oldbot_optname,
+	{ OLETTER_NONE, &oldbot_optname,
 		BOOL, OPT_OFF, &oldbot, NULL,
 		{
 			"Use new bottom of screen behavior",
@@ -443,11 +440,19 @@ static struct loption option[] =
 			NULL
 		}
 	},
-	{ '.', &follow_optname,
+	{ OLETTER_NONE, &follow_optname,
 		BOOL, FOLLOW_DESC, &follow_mode, NULL,
 		{
-			"F command Follows file descriptor",
-			"F command Follows file name",
+			"F command follows file descriptor",
+			"F command follows file name",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &use_backslash_optname,
+		BOOL, OPT_OFF, &opt_use_backslash, NULL,
+		{
+			"Use backslash escaping in command line parameters",
+			"Don't use backslash escaping in command line parameters",
 			NULL
 		}
 	},

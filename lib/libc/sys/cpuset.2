@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2008
+.Dd October 20, 2015
 .Dt CPUSET 2
 .Os
 .Sh NAME
@@ -77,7 +77,7 @@ while application developers will manipulate anonymous sets using
 To select the correct set a value of type
 .Ft cpulevel_t
 is used.
-The following values for 
+The following values for
 .Fa level
 are supported:
 .Bl -column CPU_LEVEL_CPUSET -offset indent
@@ -96,10 +96,12 @@ The
 .Fa which
 argument may have the following values:
 .Bl -column CPU_WHICH_CPUSET -offset indent
-.It Dv CPU_WHICH_TID Ta "id is lpwid_t (thread id)"
+.It Dv CPU_WHICH_TID Ta "id is lwpid_t (thread id)"
 .It Dv CPU_WHICH_PID Ta "id is pid_t (process id)"
+.It Dv CPU_WHICH_JAIL Ta "id is jid (jail id)"
 .It Dv CPU_WHICH_CPUSET Ta "id is a cpusetid_t (cpuset id)"
 .It Dv CPU_WHICH_IRQ Ta "id is an irq number"
+.It Dv CPU_WHICH_DOMAIN Ta "id is a NUMA domain"
 .El
 .Pp
 An
@@ -137,7 +139,7 @@ Children inherit this set after a call to
 .Xr fork 2 .
 .Pp
 .Fn cpuset_setid
-attempts to set the id of the object specified by the 
+attempts to set the id of the object specified by the
 .Fa which
 argument.
 Currently
@@ -149,12 +151,12 @@ Upon successful completion all of the threads in the target process will
 be running on CPUs permitted by the set.
 .Pp
 .Fn cpuset_getid
-retrieves a set id from the object indicated by 
+retrieves a set id from the object indicated by
 .Fa which
 and stores it in the space pointed to by
 .Fa setid .
 The retrieved id may be that of either the root or assigned set
-depending on the value of 
+depending on the value of
 .Fa level .
 .Fa level
 should be
@@ -209,18 +211,20 @@ The calling process did not have the credentials required to complete the
 operation.
 .It Bq Er ENFILE
 There was no free
-.Fn cpusetid_t
+.Ft cpusetid_t
 for allocation.
 .El
 .Sh SEE ALSO
 .Xr cpuset 1 ,
 .Xr cpuset_getaffinity 2 ,
 .Xr cpuset_setaffinity 2 ,
-.Xr CPU_SET 3
+.Xr pthread_affinity_np 3 ,
+.Xr pthread_attr_affinity_np 3 ,
+.Xr cpuset 9
 .Sh HISTORY
 The
 .Nm
 family of system calls first appeared in
 .Fx 7.1 .
-.Sh AUTHOR
-.An Jeffrey Roberson Aq jeff@FreeBSD.org
+.Sh AUTHORS
+.An Jeffrey Roberson Aq Mt jeff@FreeBSD.org

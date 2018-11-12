@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2004
+.Dd September 8, 2016
 .Dt GGATEC 8
 .Os
 .Sh NAME
@@ -67,29 +67,29 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is a network client for GEOM Gate class.
-It is responsible for creation of
+utility is a network client for the GEOM Gate class.
+It is responsible for the creation of
 .Nm ggate
-devices and forwarding I/O requests between
-.Nm geom_gate.ko
-kernel module and
+devices and forwarding I/O requests between the
+.Nm GEOM Gate
+kernel subsystem and the
 .Xr ggated 8
 network daemon.
 Available commands:
 .Bl -tag -width ".Cm destroy"
 .It Cm create
-Connect to given
+Connect to a
 .Xr ggated 8
-daemon and create a
+daemon on the specified host and create a
 .Nm ggate
-provider related to the given remote file or device.
+provider for the specified remote file or device.
 .It Cm rescue
-If
+Create a new connection after the
 .Nm
-process died/has been killed, you can save situation with this
-command, which creates new connection to the
+process has died or been killed.
+The new connection to the
 .Xr ggated 8
-daemon and will handle pending and future requests.
+daemon handles pending and future requests.
 .It Cm destroy
 Destroy the given
 .Nm ggate
@@ -111,7 +111,7 @@ Do not use
 .Dv TCP_NODELAY
 option on TCP sockets.
 .It Fl o Cm ro | wo | rw
-Specify permission to use when opening the file or device: read-only
+Specify permissions to use when opening the file or device: read-only
 .Pq Cm ro ,
 write-only
 .Pq Cm wo ,
@@ -136,15 +136,14 @@ Default is 131072 (128kB).
 Sector size for
 .Nm ggate
 provider.
-If not specified, it is taken from device, or set to 512 bytes for files.
+If not specified, it is taken from the device, or set to 512 bytes for files.
 .It Fl t Ar timeout
 Number of seconds to wait before an I/O request will be canceled.
-0 means no timeout.
-Default is 0.
+Default is 0, which means no timeout.
 .It Fl u Ar unit
 Unit number to use.
 .It Fl v
-Do not fork, run in foreground and print debug informations on standard
+Do not fork, run in foreground and print debug information on standard
 output.
 .It Ar host
 Remote host to connect to.
@@ -159,13 +158,13 @@ should be called with the
 .Fl v
 option.
 .Sh EXAMPLES
-Make use of CD-ROM device from remote host.
+Use a CD-ROM device on a remote host.
 .Bd -literal -offset indent
 server# cat /etc/gg.exports
-client RO /dev/acd0
+client RO /dev/cd0
 server# ggated
 
-client# ggatec create -o ro server /dev/acd0
+client# ggatec create -o ro server /dev/cd0
 ggate0
 client# mount_cd9660 /dev/ggate0 /cdrom
 .Ed
@@ -174,8 +173,13 @@ client# mount_cd9660 /dev/ggate0 /cdrom
 .Xr ggated 8 ,
 .Xr ggatel 8 ,
 .Xr mount_cd9660 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.3 .
 .Sh AUTHORS
 The
 .Nm
 utility as well as this manual page was written by
-.An Pawel Jakub Dawidek Aq pjd@FreeBSD.org .
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

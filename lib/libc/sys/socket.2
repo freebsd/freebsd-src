@@ -28,7 +28,7 @@
 .\"     From: @(#)socket.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2009
+.Dd August 18, 2016
 .Dt SOCKET 2
 .Os
 .Sh NAME
@@ -37,7 +37,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
 .In sys/socket.h
 .Ft int
 .Fn socket "int domain" "int type" "int protocol"
@@ -57,23 +56,29 @@ These families are defined in the include file
 The currently understood formats are:
 .Pp
 .Bd -literal -offset indent -compact
-PF_LOCAL	Host-internal protocols, formerly called PF_UNIX,
-PF_UNIX		Host-internal protocols, deprecated, use PF_LOCAL,
+PF_LOCAL	Host-internal protocols (alias for PF_UNIX),
+PF_UNIX		Host-internal protocols,
 PF_INET		Internet version 4 protocols,
-PF_PUP		PUP protocols, like BSP,
-PF_APPLETALK	AppleTalk protocols,
-PF_ROUTE	Internal Routing protocol,
-PF_LINK		Link layer interface,
-PF_IPX		Novell Internet Packet eXchange protocol,
-PF_RTIP		Help Identify RTIP packets,
-PF_PIP		Help Identify PIP packets,
-PF_ISDN		Integrated Services Digital Network,
-PF_KEY		Internal key-management function,
 PF_INET6	Internet version 6 protocols,
-PF_NATM		Native ATM access,
-PF_ATM		ATM,
-PF_NETGRAPH	Netgraph sockets
+PF_ROUTE	Internal routing protocol,
+PF_LINK		Link layer interface,
+PF_KEY		Internal key-management function,
+PF_NATM		Asynchronous transfer mode protocols,
+PF_NETGRAPH	Netgraph sockets,
+PF_IEEE80211	IEEE 802.11 wireless link-layer protocols (WiFi),
+PF_BLUETOOTH	Bluetooth protocols,
+PF_INET_SDP	OFED socket direct protocol (IPv4),
+PF_INET6_SDP	OFED socket direct protocol (IPv6)
 .Ed
+.Pp
+Each protocol family is connected to an address family, which has the
+same name except that the prefix is
+.Dq Dv AF_
+in place of
+.Dq Dv PF_ .
+Other protocol families may be also defined, beginning with
+.Dq Dv PF_ ,
+with corresponding address families.
 .Pp
 The socket has the indicated
 .Fa type ,
@@ -114,6 +119,15 @@ which is available only to the super-user, and
 .Dv SOCK_RDM ,
 which is planned,
 but not yet implemented, are not described here.
+.Pp
+Additionally, the following flags are allowed in the
+.Fa type
+argument:
+.Pp
+.Bd -literal -offset indent -compact
+SOCK_CLOEXEC	Set close-on-exec on the new descriptor,
+SOCK_NONBLOCK	Set non-blocking mode on the new socket
+.Ed
 .Pp
 The
 .Fa protocol
@@ -248,21 +262,26 @@ The
 .Fn socket
 system call fails if:
 .Bl -tag -width Er
-.It Bq Er EPROTONOSUPPORT
-The protocol type or the specified protocol is not supported
-within this domain.
+.It Bq Er EACCES
+Permission to create a socket of the specified type and/or protocol
+is denied.
+.It Bq Er EAFNOSUPPORT
+The address family (domain) is not supported or the
+specified domain is not supported by this protocol family.
 .It Bq Er EMFILE
 The per-process descriptor table is full.
 .It Bq Er ENFILE
 The system file table is full.
-.It Bq Er EACCES
-Permission to create a socket of the specified type and/or protocol
-is denied.
 .It Bq Er ENOBUFS
 Insufficient buffer space is available.
 The socket cannot be created until sufficient resources are freed.
 .It Bq Er EPERM
 User has insufficient privileges to carry out the requested operation.
+.It Bq Er EPROTONOSUPPORT
+The protocol type or the specified protocol is not supported
+within this domain.
+.It Bq Er EPROTOTYPE
+The socket type is not supported by the protocol.
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,
@@ -293,6 +312,37 @@ User has insufficient privileges to carry out the requested operation.
 .%B PS1
 .%N 8
 .Re
+.Sh STANDARDS
+The
+.Fn socket
+function conforms to
+.St -p1003.1-2008 .
+The
+.Tn POSIX
+standard specifies only the
+.Dv AF_INET ,
+.Dv AF_INET6 ,
+and
+.Dv AF_UNIX
+constants for address families, and requires the use of
+.Dv AF_*
+constants for the
+.Fa domain
+argument of
+.Fn socket .
+The
+.Dv SOCK_CLOEXEC
+flag is expected to conform to the next revision of the
+.Tn POSIX
+standard.
+The
+.Dv SOCK_RDM
+.Fa type ,
+the
+.Dv PF_*
+constants, and other address families are
+.Fx
+extensions.
 .Sh HISTORY
 The
 .Fn socket

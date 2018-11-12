@@ -80,9 +80,9 @@ write(fd, dest, bcount)
 		return (-1);
 	}
 	if (f->f_flags & F_RAW) {
-		twiddle();
+		twiddle(4);
 		errno = (f->f_dev->dv_strategy)(f->f_devdata, F_WRITE,
-			btodb(f->f_offset), bcount, dest, &resid);
+			btodb(f->f_offset), 0, bcount, dest, &resid);
 		if (errno)
 			return (-1);
 		f->f_offset += resid;

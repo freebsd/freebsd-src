@@ -33,7 +33,7 @@
 struct mntopt {
 	const char *m_option;	/* option name */
 	int m_inverse;		/* if a negative option, e.g. "atime" */
-	int m_flag;		/* bit to set, e.g. MNT_RDONLY */
+	long long m_flag;	/* bit to set, e.g. MNT_RDONLY */
 	int m_altloc;		/* 1 => set bit in altflags */
 };
 
@@ -54,6 +54,8 @@ struct mntopt {
 #define MOPT_SNAPSHOT		{ "snapshot",	0, MNT_SNAPSHOT, 0 }
 #define MOPT_MULTILABEL		{ "multilabel",	0, MNT_MULTILABEL, 0 }
 #define MOPT_ACLS		{ "acls",	0, MNT_ACLS, 0 }
+#define MOPT_NFS4ACLS		{ "nfsv4acls",	0, MNT_NFS4ACLS, 0 }
+#define MOPT_AUTOMOUNTED	{ "automounted",0, MNT_AUTOMOUNTED, 0 }
 
 /* Control flags. */
 #define MOPT_FORCE		{ "force",	0, MNT_FORCE, 0 }
@@ -87,11 +89,13 @@ struct mntopt {
 	MOPT_NOCLUSTERR,						\
 	MOPT_NOCLUSTERW,						\
 	MOPT_MULTILABEL,						\
-	MOPT_ACLS
+	MOPT_ACLS,							\
+	MOPT_NFS4ACLS,							\
+	MOPT_AUTOMOUNTED
 
 void getmntopts(const char *, const struct mntopt *, int *, int *);
 void rmslashes(char *, char *);
-void checkpath(const char *, char resolved_path[]);
+int checkpath(const char *, char resolved_path[]);
 extern int getmnt_silent;
 void build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val, size_t len);
 void build_iovec_argf(struct iovec **iov, int *iovlen, const char *name, const char *fmt, ...);

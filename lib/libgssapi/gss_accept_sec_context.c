@@ -135,7 +135,7 @@ choose_mech(const gss_buffer_t input, gss_OID mech_oid)
 		return (GSS_S_COMPLETE);
 	} else if (input->length == 0) {
 		/* 
-		 * There is the a wierd mode of SPNEGO (in CIFS and
+		 * There is the a weird mode of SPNEGO (in CIFS and
 		 * SASL GSS-SPENGO where the first token is zero
 		 * length and the acceptor returns a mech_list, lets
 		 * hope that is what is happening now.
@@ -165,7 +165,6 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 	struct _gss_mechanism_cred *mc;
 	gss_cred_id_t acceptor_mc, delegated_mc;
 	gss_name_t src_mn;
-	int allocated_ctx;
 
 	*minor_status = 0;
 	if (src_name)
@@ -206,11 +205,8 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 			free(ctx);
 			return (GSS_S_BAD_MECH);
 		}
-		allocated_ctx = 1;
-	} else {
+	} else
 		m = ctx->gc_mech;
-		allocated_ctx = 0;
-	}
 
 	if (cred) {
 		SLIST_FOREACH(mc, &cred->gc_mc, gmc_link)

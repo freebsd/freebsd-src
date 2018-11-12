@@ -95,7 +95,7 @@ prt_attach_devices(ACPI_PCI_ROUTING_TABLE *entry, void *arg)
     int error;
 
     /* We only care about entries that reference a link device. */
-    if (entry->Source == NULL || entry->Source[0] == '\0')
+    if (entry->Source[0] == '\0')
 	return;
 
     /*
@@ -126,21 +126,12 @@ prt_attach_devices(ACPI_PCI_ROUTING_TABLE *entry, void *arg)
 	ACPI_ADR_PCI_SLOT(entry->Address), entry->Pin);
 }
 
-int
-acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
+void
+acpi_pcib_fetch_prt(device_t dev, ACPI_BUFFER *prt)
 {
-    ACPI_STATUS			status;
+    ACPI_STATUS status;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
-
-    /*
-     * Don't attach if we're not really there.
-     *
-     * XXX: This isn't entirely correct since we may be a PCI bus
-     * on a hot-plug docking station, etc.
-     */
-    if (!acpi_DeviceIsPresent(dev))
-	return_VALUE(ENXIO);
 
     /*
      * Get the PCI interrupt routing table for this bus.  If we can't
@@ -156,26 +147,9 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
 	    acpi_name(acpi_get_handle(dev)), AcpiFormatException(status));
 
     /*
-     * Attach the PCI bus proper.
-     */
-    if (device_add_child(dev, "pci", busno) == NULL) {
-	device_printf(device_get_parent(dev), "couldn't attach pci bus\n");
-	return_VALUE(ENXIO);
-    }
-
-    /*
-     * Now go scan the bus.
+     * Ensure all the link devices are attached.
      */
     prt_walk_table(prt, prt_attach_devices, dev);
-
-    return_VALUE (bus_generic_attach(dev));
-}
-
-int
-acpi_pcib_resume(device_t dev)
-{
-
-    return (bus_generic_resume(dev));
 }
 
 static void
@@ -236,7 +210,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     if (bootverbose) {
 	device_printf(pcib, "matched entry for %d.%d.INT%c",
 	    pci_get_bus(dev), pci_get_slot(dev), 'A' + pin);
-	if (prt->Source != NULL && prt->Source[0] != '\0')
+	if (prt->Source[0] != '\0')
 		printf(" (src %s:%u)", prt->Source, prt->SourceIndex);
 	printf("\n");
     }
@@ -248,8 +222,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
      * XXX: If the source index is non-zero, ignore the source device and
      * assume that this is a hard-wired entry.
      */
-    if (prt->Source == NULL || prt->Source[0] == '\0' ||
-	prt->SourceIndex != 0) {
+    if (prt->Source[0] == '\0' || prt->SourceIndex != 0) {
 	if (bootverbose)
 	    device_printf(pcib, "slot %d INT%c hardwired to IRQ %d\n",
 		pci_get_slot(dev), 'A' + pin, prt->SourceIndex);
@@ -280,5 +253,23 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 out:
     ACPI_SERIAL_END(pcib);
 
-    return_VALUE (interrupt);
+    return_VALUE(interrupt);
+}
+
+int
+acpi_pcib_power_for_sleep(device_t pcib, device_t dev, int *pstate)
+{
+    device_t acpi_dev;
+
+    acpi_dev = devclass_get_device(devclass_find("acpi"), 0);
+    acpi_device_pwr_for_sleep(acpi_dev, dev, pstate);
+    return (0);
+}
+
+int
+acpi_pcib_get_cpus(device_t pcib, device_t dev, enum cpu_sets op,
+    size_t setsize, cpuset_t *cpuset)
+{
+
+	return (bus_get_cpus(pcib, op, setsize, cpuset));
 }

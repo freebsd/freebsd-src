@@ -39,11 +39,12 @@ $FreeBSD$
 #include <sys/param.h>
 #include <unistd.h>
 
-#include <utmp.h>
 #if DOUTMPX
 #include <utmpx.h>
 #define utmp utmpx
 #define endutent endutxent
+#else
+#include <utmp.h>
 #endif	/* DOUTMPX */
 
 #if HAVE_SYS_UTSNAME_H

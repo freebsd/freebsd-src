@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd July 8, 2009
+.Dd April 14, 2014
 .Dt ATH 4
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@ place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device ath"
+.Cd "device ath_pci"
 .Cd "device ath_hal"
 .Cd "options AH_SUPPORT_AR5416"
 .Cd "device ath_rate_sample"
@@ -51,18 +52,32 @@ module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_ath_load="YES"
+if_ath_pci_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for wireless network adapters based on
-the Atheros AR5210, AR5211, AR5212, and AR5416 programming APIs.
+the Atheros AR5210, AR5211, AR5212, AR5416 and AR9300 programming APIs.
 These APIs are used by a wide variety of chips; most all chips with
 a PCI and/or CardBus interface are supported.
 .Pp
 Supported features include 802.11 and 802.3 frames, power management, BSS,
 IBSS, MBSS, TDMA, and host-based access point operation modes.
 All host/device interaction is via DMA.
+.Pp
+Please note that from FreeBSD-9.0, the
+.Nm
+driver does not include the PCI/PCIe bus glue.
+The same driver supports multiple underlying bus types, including PCI/PCIe,
+but also embedded (AHB) and USB in the future.
+.Pp
+To enable use for PCI/PCIe systems, see the
+.Xr ath_pci 4
+driver.
+For embedded systems which use the AHB to connect the wireless MAC, see the
+.Xr ath_ahb 4
+driver.
 .Pp
 The
 .Nm
@@ -77,20 +92,19 @@ speeds as above for 802.11a operation and
 1Mbps, 2Mbps, 5.5 Mbps and 11Mbps for 802.11b operation.
 AR5212-based devices support 802.11a, 802.11b, and 802.11g operation
 with transmit speeds appropriate to each.
-AR5416-class devices are capable of 802.11n operation
-but are supported only in legacy modes (802.11a, 11b, 11g).
+AR5416 and later class devices are capable of 802.11n operation.
 Most chips also support an Atheros Turbo Mode (TM) that operates in
-the 5Ghz frequency range with 2x the transmit speeds.
-Some chips also support Turbo mode in the 2.4Ghz range with 802.11g
+the 5GHz frequency range with 2x the transmit speeds.
+Some chips also support Turbo mode in the 2.4GHz range with 802.11g
 though this support is not presently available due to regulatory requirements.
 (Note that Turbo modes are, however,
 only interoperable with other Atheros-based devices.)
-AR5212-based devices also support half- (10MHz) and quarter-width (5MHz) channels.
+AR5212-based and AR5416-based devices also support half- (10MHz) and quarter-width (5MHz) channels.
 The actual transmit speed used is dependent on signal quality and the
 .Dq "rate control"
 algorithm employed by the driver.
 All chips support WEP encryption.
-AR5212 and AR5416 parts have hardware support for the
+AR5212, AR5416 and later parts have hardware support for the
 AES-CCM, TKIP, and Michael cryptographic
 operations required for WPA.
 To enable encryption, use
@@ -110,18 +124,18 @@ mode operation.
 Multiple
 .Cm hostap
 virtual interfaces may be configured for simultaneous
-use on cards that use a 5212 part.
+use on cards that use a 5212 or later part.
 When multiple interfaces are configured each may have a separate
 mac address that is formed by setting the U/L bits in the mac
 address assigned to the underlying device.
-Any number of 
+Any number of
 .Cm wds
 virtual interfaces may be configured together with
 .Cm hostap
 interfaces.
 Multiple
 .Cm station
-interfaces may be operated together with 
+interfaces may be operated together with
 .Cm hostap
 interfaces to construct a wireless repeater device.
 The driver also support
@@ -141,19 +155,7 @@ The
 .Nm
 driver supports all Atheros Cardbus and PCI cards,
 except those that are based on the AR5005VL chipset.
-.Pp
-A list of cards that are supported can be found at
-.Pa http://customerproducts.atheros.com/customerproducts/default.asp .
 .Sh EXAMPLES
-Join an existing BSS network (ie: connect to an access point):
-.Pp
-.Dl "ifconfig ath0 inet 192.168.0.20 netmask 0xffffff00"
-.Pp
-Join a specific BSS network with network name
-.Dq Li my_net :
-.Pp
-.Dl "ifconfig ath0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
-.Pp
 Join a specific BSS network with WEP encryption:
 .Bd -literal -offset indent
 ifconfig wlan0 create wlandev ath0
@@ -183,12 +185,12 @@ ifconfig wlan0 meshid my_mesh mode 11a inet 192.168.0.10/24
 .Ed
 .Pp
 Create two virtual 802.11a host-based access points, one with
-with WEP enabled and one with no security, and bridge them to
+WEP enabled and one with no security, and bridge them to
 the fxp0 (wired) device:
 .Bd -literal -offset indent
 ifconfig wlan0 create wlandev ath0 wlanmode hostap \e
 	ssid paying-customers wepmode on wepkey 0x1234567890 \e
-	mode 11a up 
+	mode 11a up
 ifconfig wlan1 create wlandev ath0 wlanmode hostap bssid \e
 	ssid freeloaders up
 ifconfig bridge0 create addm wlan0 addm wlan1 addm fxp0 up
@@ -199,7 +201,7 @@ Create a master node in a two slot TDMA BSS configured to use
 .Bd -literal -offset indent
 ifconfig wlan0 create wlandev ath0 wlanmode tdma \e
 	ssid tdma-test tmdaslot 0 tdmaslotlen 2500 \e
-	channel 36 up 
+	channel 36 up
 .Ed
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -207,7 +209,7 @@ ifconfig wlan0 create wlandev ath0 wlanmode tdma \e
 The Atheros Hardware Access Layer was unable to configure the hardware
 as requested.
 The status code is explained in the HAL include file
-.Pa sys/contrib/dev/ath/ah.h .
+.Pa sys/dev/ath/ath_hal/ah.h .
 .It "ath%d: failed to allocate descriptors: %d"
 The driver was unable to allocate contiguous memory for the transmit
 and receive descriptors.
@@ -218,7 +220,7 @@ data frames failed.
 This should not happen.
 .It "ath%d: unable to setup a beacon xmit queue!"
 The request to the HAL to set up the transmit queue for 802.11 beacon frames
-frames failed.
+failed.
 This should not happen.
 .It "ath%d: 802.11 address: %s"
 The MAC address programmed in the EEPROM is displayed.
@@ -236,7 +238,7 @@ The driver will reset the hardware and continue.
 The Atheros Hardware Access Layer was unable to reset the hardware
 as requested.
 The status code is explained in the HAL include file
-.Pa sys/contrib/dev/ath/ah.h .
+.Pa sys/dev/ath/ath_hal/ah.h .
 This should not happen.
 .It "ath%d: unable to start recv logic"
 The driver was unable to restart frame reception.
@@ -249,7 +251,7 @@ This should not happen.
 An invalid transmit rate was specified for an outgoing frame.
 The frame is discarded.
 This should not happen.
-.It "ath%d: ath_chan_set: unable to reset channel %u (%u Mhz)"
+.It "ath%d: ath_chan_set: unable to reset channel %u (%u MHz)"
 The Atheros Hardware Access Layer was unable to reset the hardware
 when switching channels during scanning.
 This should not happen.
@@ -291,9 +293,10 @@ device driver first appeared in
 Revision A1 of the D-LINK DWL-G520 and DWL-G650 are based on an
 Intersil PrismGT chip and are not supported by this driver.
 .Sh BUGS
-There is no software retransmit; only hardware retransmit is used.
-.Pp
 The driver does not fully enable power-save operation of the chip
 in station mode; consequently power use is suboptimal (e.g. on a laptop).
 .Pp
-WPA is not supported for 5210 parts.
+The AR5210 can only do WEP in hardware; consequently hardware assisted WEP
+is disabled in order to allow software implementations of TKIP and CCMP to
+function.
+Hardware WEP can be re-enabled by modifying the driver.

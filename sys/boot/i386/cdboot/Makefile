@@ -3,11 +3,16 @@
 PROG=	cdboot
 STRIP=
 BINMODE=${NOBINMODE}
-NO_MAN=
-SRCS=	${PROG}.s
+MAN=
+SRCS=	${PROG}.S
+
+CFLAGS+=-I${.CURDIR}/../common
 
 ORG=	0x7c00
 
-LDFLAGS=-N -e start -Ttext ${ORG} -Wl,-S,--oformat,binary
+LDFLAGS=${LDFLAGS_BIN}
 
 .include <bsd.prog.mk>
+
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS.cdboot.S=	${CLANG_NO_IAS}

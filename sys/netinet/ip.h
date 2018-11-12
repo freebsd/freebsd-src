@@ -48,11 +48,11 @@
  */
 struct ip {
 #if BYTE_ORDER == LITTLE_ENDIAN
-	u_int	ip_hl:4,		/* header length */
+	u_char	ip_hl:4,		/* header length */
 		ip_v:4;			/* version */
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int	ip_v:4,			/* version */
+	u_char	ip_v:4,			/* version */
 		ip_hl:4;		/* header length */
 #endif
 	u_char	ip_tos;			/* type of service */
@@ -67,7 +67,7 @@ struct ip {
 	u_char	ip_p;			/* protocol */
 	u_short	ip_sum;			/* checksum */
 	struct	in_addr ip_src,ip_dst;	/* source and dest address */
-} __packed __aligned(4);
+} __packed __aligned(2);
 
 #define	IP_MAXPACKET	65535		/* maximum packet size */
 
@@ -80,16 +80,42 @@ struct ip {
 #define	IPTOS_MINCOST		0x02
 
 /*
- * Definitions for IP precedence (also in ip_tos) (hopefully unused).
+ * Definitions for IP precedence (also in ip_tos) (deprecated).
  */
-#define	IPTOS_PREC_NETCONTROL		0xe0
-#define	IPTOS_PREC_INTERNETCONTROL	0xc0
-#define	IPTOS_PREC_CRITIC_ECP		0xa0
-#define	IPTOS_PREC_FLASHOVERRIDE	0x80
-#define	IPTOS_PREC_FLASH		0x60
-#define	IPTOS_PREC_IMMEDIATE		0x40
-#define	IPTOS_PREC_PRIORITY		0x20
-#define	IPTOS_PREC_ROUTINE		0x00
+#define	IPTOS_PREC_NETCONTROL		IPTOS_DSCP_CS7
+#define	IPTOS_PREC_INTERNETCONTROL	IPTOS_DSCP_CS6
+#define	IPTOS_PREC_CRITIC_ECP		IPTOS_DSCP_CS5
+#define	IPTOS_PREC_FLASHOVERRIDE	IPTOS_DSCP_CS4
+#define	IPTOS_PREC_FLASH		IPTOS_DSCP_CS3
+#define	IPTOS_PREC_IMMEDIATE		IPTOS_DSCP_CS2
+#define	IPTOS_PREC_PRIORITY		IPTOS_DSCP_CS1
+#define	IPTOS_PREC_ROUTINE		IPTOS_DSCP_CS0
+
+/*
+ * Definitions for DiffServ Codepoints as per RFC2474 and RFC5865.
+ */
+#define	IPTOS_DSCP_CS0		0x00
+#define	IPTOS_DSCP_CS1		0x20
+#define	IPTOS_DSCP_AF11		0x28
+#define	IPTOS_DSCP_AF12		0x30
+#define	IPTOS_DSCP_AF13		0x38
+#define	IPTOS_DSCP_CS2		0x40
+#define	IPTOS_DSCP_AF21		0x48
+#define	IPTOS_DSCP_AF22		0x50
+#define	IPTOS_DSCP_AF23		0x58
+#define	IPTOS_DSCP_CS3		0x60
+#define	IPTOS_DSCP_AF31		0x68
+#define	IPTOS_DSCP_AF32		0x70
+#define	IPTOS_DSCP_AF33		0x78
+#define	IPTOS_DSCP_CS4		0x80
+#define	IPTOS_DSCP_AF41		0x88
+#define	IPTOS_DSCP_AF42		0x90
+#define	IPTOS_DSCP_AF43		0x98
+#define	IPTOS_DSCP_CS5		0xa0
+#define	IPTOS_DSCP_VA		0xb0
+#define	IPTOS_DSCP_EF		0xb8
+#define	IPTOS_DSCP_CS6		0xc0
+#define	IPTOS_DSCP_CS7		0xe0
 
 /*
  * ECN (Explicit Congestion Notification) codepoints in RFC3168 mapped to the
@@ -121,7 +147,7 @@ struct ip {
 #define	IPOPT_SECURITY		130		/* provide s,c,h,tcc */
 #define	IPOPT_LSRR		131		/* loose source route */
 #define	IPOPT_ESO		133		/* extended security */
-#define	IPOPT_CIPSO		134		/* commerical security */
+#define	IPOPT_CIPSO		134		/* commercial security */
 #define	IPOPT_SATID		136		/* satnet id */
 #define	IPOPT_SSRR		137		/* strict source route */
 #define	IPOPT_RA		148		/* router alert */
@@ -142,11 +168,11 @@ struct	ip_timestamp {
 	u_char	ipt_len;		/* size of structure (variable) */
 	u_char	ipt_ptr;		/* index of current entry */
 #if BYTE_ORDER == LITTLE_ENDIAN
-	u_int	ipt_flg:4,		/* flags, see below */
+	u_char	ipt_flg:4,		/* flags, see below */
 		ipt_oflw:4;		/* overflow counter */
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int	ipt_oflw:4,		/* overflow counter */
+	u_char	ipt_oflw:4,		/* overflow counter */
 		ipt_flg:4;		/* flags, see below */
 #endif
 	union ipt_timestamp {

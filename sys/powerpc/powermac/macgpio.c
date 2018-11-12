@@ -35,15 +35,15 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
 
-#include <machine/vmparam.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 
+#include <machine/bus.h>
+#include <machine/intr_machdep.h>
 #include <machine/resource.h>
+#include <machine/vmparam.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -58,6 +58,9 @@ struct macgpio_softc {
 	phandle_t	sc_node;
 	struct resource	*sc_gpios;
 	int		sc_gpios_rid;
+	uint32_t	sc_saved_gpio_levels[2];
+	uint32_t	sc_saved_gpios[GPIO_COUNT];
+	uint32_t	sc_saved_extint_gpios[GPIO_EXTINT_COUNT];
 };
 
 static MALLOC_DEFINE(M_MACGPIO, "macgpio", "macgpio device information");
@@ -67,12 +70,14 @@ static int	macgpio_attach(device_t);
 static int	macgpio_print_child(device_t dev, device_t child);
 static void	macgpio_probe_nomatch(device_t, device_t);
 static struct resource *macgpio_alloc_resource(device_t, device_t, int, int *,
-		    u_long, u_long, u_long, u_int);
+		    rman_res_t, rman_res_t, rman_res_t, u_int);
 static int	macgpio_activate_resource(device_t, device_t, int, int,
 		    struct resource *);
 static int	macgpio_deactivate_resource(device_t, device_t, int, int,
 		    struct resource *);
 static ofw_bus_get_devinfo_t macgpio_get_devinfo;
+static int	macgpio_suspend(device_t dev);
+static int	macgpio_resume(device_t dev);
 
 /*
  * Bus interface definition
@@ -83,8 +88,8 @@ static device_method_t macgpio_methods[] = {
 	DEVMETHOD(device_attach,        macgpio_attach),
 	DEVMETHOD(device_detach,        bus_generic_detach),
 	DEVMETHOD(device_shutdown,      bus_generic_shutdown),
-	DEVMETHOD(device_suspend,       bus_generic_suspend),
-	DEVMETHOD(device_resume,        bus_generic_resume),
+	DEVMETHOD(device_suspend,       macgpio_suspend),
+	DEVMETHOD(device_resume,        macgpio_resume),
 	
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,      macgpio_print_child),
@@ -96,6 +101,8 @@ static device_method_t macgpio_methods[] = {
         DEVMETHOD(bus_activate_resource, macgpio_activate_resource),
         DEVMETHOD(bus_deactivate_resource, macgpio_deactivate_resource),
         DEVMETHOD(bus_release_resource, bus_generic_release_resource),
+
+	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	macgpio_get_devinfo),
@@ -148,8 +155,7 @@ macgpio_attach(device_t dev)
 {
 	struct macgpio_softc *sc;
         struct macgpio_devinfo *dinfo;
-        phandle_t root;
-	phandle_t child;
+        phandle_t root, child, iparent;
         device_t cdev;
 	uint32_t irq;
 
@@ -170,7 +176,7 @@ macgpio_attach(device_t dev)
 			continue;
 		}
 
-		if (OF_getprop(child,"reg",&dinfo->gpio_num,
+		if (OF_getencprop(child, "reg", &dinfo->gpio_num,
 		    sizeof(dinfo->gpio_num)) != sizeof(dinfo->gpio_num)) {
 			/*
 			 * Some early GPIO controllers don't provide GPIO
@@ -184,10 +190,13 @@ macgpio_attach(device_t dev)
 
 		resource_list_init(&dinfo->mdi_resources);
 
-		if (OF_getprop(child,"interrupts",&irq, sizeof(irq)) == 
+		if (OF_getencprop(child, "interrupts", &irq, sizeof(irq)) == 
 		    sizeof(irq)) {
+			OF_searchencprop(child, "interrupt-parent", &iparent,
+			    sizeof(iparent));
 			resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
-			    0, irq, irq, 1);
+			    0, MAP_IRQ(iparent, irq), MAP_IRQ(iparent, irq),
+			    1);
 		}
 
 		/* Fix messed-up offsets */
@@ -227,7 +236,7 @@ macgpio_print_child(device_t dev, device_t child)
 		printf(" addr 0x%02x", dinfo->gpio_num); /* should not happen */
 
 	resource_list_print_type(&dinfo->mdi_resources, "irq", SYS_RES_IRQ, 
-	    "%ld");
+	    "%jd");
         retval += bus_print_child_footer(dev, child);
 
         return (retval);
@@ -249,7 +258,7 @@ macgpio_probe_nomatch(device_t dev, device_t child)
 		if (dinfo->gpio_num >= 0)
 			printf(" gpio %d",dinfo->gpio_num);
 		resource_list_print_type(&dinfo->mdi_resources, "irq", 
-		    SYS_RES_IRQ, "%ld");
+		    SYS_RES_IRQ, "%jd");
 		printf(" (no driver attached)\n");
 	}
 }
@@ -257,12 +266,11 @@ macgpio_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 macgpio_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		     u_long start, u_long end, u_long count, u_int flags)
+		     rman_res_t start, rman_res_t end, rman_res_t count,
+		     u_int flags)
 {
-	struct macgpio_softc *sc;
 	struct macgpio_devinfo *dinfo;
 
-	sc = device_get_softc(bus);
 	dinfo = device_get_ivars(child);
 
 	if (type != SYS_RES_IRQ)
@@ -358,3 +366,38 @@ macgpio_get_devinfo(device_t dev, device_t child)
 	return (&dinfo->mdi_obdinfo);
 }
 
+static int
+macgpio_suspend(device_t dev)
+{
+	struct macgpio_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+	sc->sc_saved_gpio_levels[0] = bus_read_4(sc->sc_gpios, GPIO_LEVELS_0);
+	sc->sc_saved_gpio_levels[1] = bus_read_4(sc->sc_gpios, GPIO_LEVELS_1);
+
+	for (i = 0; i < GPIO_COUNT; i++)
+		sc->sc_saved_gpios[i] = bus_read_1(sc->sc_gpios, GPIO_BASE + i);
+	for (i = 0; i < GPIO_EXTINT_COUNT; i++)
+		sc->sc_saved_extint_gpios[i] = bus_read_1(sc->sc_gpios, GPIO_EXTINT_BASE + i);
+
+	return (0);
+}
+
+static int
+macgpio_resume(device_t dev)
+{
+	struct macgpio_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+	bus_write_4(sc->sc_gpios, GPIO_LEVELS_0, sc->sc_saved_gpio_levels[0]);
+	bus_write_4(sc->sc_gpios, GPIO_LEVELS_1, sc->sc_saved_gpio_levels[1]);
+
+	for (i = 0; i < GPIO_COUNT; i++)
+		bus_write_1(sc->sc_gpios, GPIO_BASE + i, sc->sc_saved_gpios[i]);
+	for (i = 0; i < GPIO_EXTINT_COUNT; i++)
+		bus_write_1(sc->sc_gpios, GPIO_EXTINT_BASE + i, sc->sc_saved_extint_gpios[i]);
+
+	return (0);
+}

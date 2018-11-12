@@ -10,13 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Martin Husemann
- *	and Wolfgang Solfrank.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -33,14 +26,13 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: check.c,v 1.10 2000/04/25 23:02:51 jdolecek Exp $");
+__RCSID("$NetBSD: check.c,v 1.14 2006/06/05 16:51:18 christos Exp $");
 static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -54,7 +46,8 @@ checkfilesys(const char *fname)
 	int dosfs;
 	struct bootblock boot;
 	struct fatEntry *fat = NULL;
-	int i, finish_dosdirsection=0;
+	int finish_dosdirsection=0;
+	u_int i;
 	int mod = 0;
 	int ret = 8;
 
@@ -74,7 +67,8 @@ checkfilesys(const char *fname)
 		printf("\n");
 
 	if (dosfs < 0) {
-		perror("Can't open");
+		perr("Can't open `%s'", fname);
+		printf("\n");
 		return 8;
 	}
 
@@ -105,7 +99,7 @@ checkfilesys(const char *fname)
 	}
 
 	if (boot.ValidFat < 0)
-		for (i = 1; i < (int)boot.FATs; i++) {
+		for (i = 1; i < boot.bpbFATs; i++) {
 			struct fatEntry *currentFat;
 
 			mod |= readfat(dosfs, &boot, i, &currentFat);
@@ -148,7 +142,7 @@ checkfilesys(const char *fname)
 		goto out;
 
 	/* now write the FATs */
-	if (mod & FSFATMOD) {
+	if (mod & (FSFATMOD|FSFIXFAT)) {
 		if (ask(1, "Update FATs")) {
 			mod |= writefat(dosfs, &boot, fat, mod & FSFIXFAT);
 			if (mod & FSFATAL)

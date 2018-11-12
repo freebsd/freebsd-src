@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2001 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,8 @@
 
 #ifndef _PSEUDOFS_H_INCLUDED
 #define _PSEUDOFS_H_INCLUDED
+
+#include <sys/jail.h>
 
 /*
  * Opaque structures
@@ -187,16 +189,16 @@ typedef int (*pfs_destroy_t)(PFS_DESTROY_ARGS);
 /*
  * pfs_info: describes a pseudofs instance
  *
- * The pi_mutex is only used to avoid using the global subr_unit lock for
- * unrhdr.  The rest of struct pfs_info is only modified while Giant is
- * held (during vfs_init() and vfs_uninit()).
+ * The pi_mutex is only used to avoid using the global subr_unit lock
+ * for unrhdr.  The rest of struct pfs_info is only modified during
+ * vfs_init() and vfs_uninit() of the consumer filesystem.
  */
 struct pfs_info {
 	char			 pi_name[PFS_FSNAMELEN];
 	pfs_init_t		 pi_init;
 	pfs_init_t		 pi_uninit;
 
-	/* members below this line are initialized at run time*/
+	/* members below this line are initialized at run time */
 	struct pfs_node		*pi_root;
 	struct mtx		 pi_mutex;
 	struct unrhdr		*pi_unrhdr;
@@ -242,7 +244,7 @@ struct pfs_node {
  * VFS interface
  */
 int		 pfs_mount	(struct pfs_info *pi, struct mount *mp);
-int		 pfs_cmount	(struct mntarg *ma, void *data, int flags);
+int		 pfs_cmount	(struct mntarg *ma, void *data, uint64_t flags);
 int		 pfs_unmount	(struct mount *mp, int mntflags);
 int		 pfs_root	(struct mount *mp, int flags,
 				 struct vnode **vpp);
@@ -271,7 +273,7 @@ int		 pfs_destroy	(struct pfs_node *pn);
 /*
  * Now for some initialization magic...
  */
-#define PSEUDOFS(name, version)						\
+#define PSEUDOFS(name, version, jflag)					\
 									\
 static struct pfs_info name##_info = {					\
 	#name,								\
@@ -281,17 +283,19 @@ static struct pfs_info name##_info = {					\
 									\
 static int								\
 _##name##_mount(struct mount *mp) {					\
-	return pfs_mount(&name##_info, mp);				\
+        if (jflag && !prison_allow(curthread->td_ucred, jflag))		\
+                return (EPERM);						\
+	return (pfs_mount(&name##_info, mp));				\
 }									\
 									\
 static int								\
 _##name##_init(struct vfsconf *vfc) {					\
-	return pfs_init(&name##_info, vfc);				\
+	return (pfs_init(&name##_info, vfc));				\
 }									\
 									\
 static int								\
 _##name##_uninit(struct vfsconf *vfc) {					\
-	return pfs_uninit(&name##_info, vfc);				\
+	return (pfs_uninit(&name##_info, vfc));				\
 }									\
 									\
 static struct vfsops name##_vfsops = {					\
@@ -303,7 +307,7 @@ static struct vfsops name##_vfsops = {					\
 	.vfs_uninit =		_##name##_uninit,			\
 	.vfs_unmount =		pfs_unmount,				\
 };									\
-VFS_SET(name##_vfsops, name, VFCF_SYNTHETIC);				\
+VFS_SET(name##_vfsops, name, VFCF_SYNTHETIC | (jflag ? VFCF_JAIL : 0));	\
 MODULE_VERSION(name, version);						\
 MODULE_DEPEND(name, pseudofs, 1, 1, 1);
 

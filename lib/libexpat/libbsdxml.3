@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd May 5, 2008
+.Dd February 26, 2013
 .Dt LIBBSDXML 3
 .Os
 .Sh NAME
@@ -36,7 +36,16 @@
 .Sh DESCRIPTION
 The
 .Nm
-library is a verbatim copy of the eXpat XML library version 2.0.1.
+library is a verbatim copy of the eXpat XML library version 2.1.0.
+.Pp
+The
+.Nm
+library is intended to be used within the
+.Fx
+base system only.
+Use of the
+.Nm
+library for other purposes is not supported and discouraged.
 .Pp
 To avoid version and autoconfiguration issues, the library has been
 renamed to
@@ -50,11 +59,11 @@ For full documentation, please see the eXpat webpage at
 .Sh AUTHORS
 .An -nosplit
 The original eXpat was written by
-.An James Clark Aq jjc@jclark.com .
+.An James Clark Aq Mt jjc@jclark.com .
 .Pp
 Subsequently eXpat maintenance and development been taken up by a group
 of people under the leadership of
-.An Fred Drake Aq fdrake@acm.com ,
+.An Fred Drake Aq Mt fdrake@acm.com ,
 .An Paul Prescod ,
 and
 .An Clark Cooper .

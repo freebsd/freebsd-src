@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -99,7 +98,7 @@ flush()
 	register int n;
 	register int fd;
 
-	n = ob - obuf;
+	n = (int) (ob - obuf);
 	if (n == 0)
 		return;
 
@@ -174,6 +173,7 @@ flush()
 						 */
 						p++;
 						anchor = p_next = p;
+						at = 0;
 						WIN32setcolors(nm_fg_color, nm_bg_color);
 						continue;
 					}
@@ -197,7 +197,7 @@ flush()
 							 * Leave it unprocessed
 							 * in the buffer.
 							 */
-							int slop = q - anchor;
+							int slop = (int) (q - anchor);
 							/* {{ strcpy args overlap! }} */
 							strcpy(obuf, anchor);
 							ob = &obuf[slop];
@@ -272,20 +272,33 @@ flush()
 						break;
 					if (at & 1)
 					{
+						/*
+						 * If \e[1m use defined bold
+						 * color, else set intensity.
+						 */
+						if (p[-2] == '[')
+						{
+#if MSDOS_COMPILER==WIN32C
+							fg |= FOREGROUND_INTENSITY;
+							bg |= BACKGROUND_INTENSITY;
+#else
 							fg = bo_fg_color;
 							bg = bo_bg_color;
+#endif
+						} else
+							fg |= 8;
 					} else if (at & 2)
 					{
-							fg = so_fg_color;
-							bg = so_bg_color;
+						fg = so_fg_color;
+						bg = so_bg_color;
 					} else if (at & 4)
 					{
-							fg = ul_fg_color;
-							bg = ul_bg_color;
+						fg = ul_fg_color;
+						bg = ul_bg_color;
 					} else if (at & 8)
 					{
-							fg = bl_fg_color;
-							bg = bl_bg_color;
+						fg = bl_fg_color;
+						bg = bl_bg_color;
 					}
 					fg &= 0xf;
 					bg &= 0xf;
@@ -410,7 +423,7 @@ iprint_int(num)
 
 	inttoa(num, buf);
 	putstr(buf);
-	return (strlen(buf));
+	return ((int) strlen(buf));
 }
 
 /*
@@ -424,7 +437,7 @@ iprint_linenum(num)
 
 	linenumtoa(num, buf);
 	putstr(buf);
-	return (strlen(buf));
+	return ((int) strlen(buf));
 }
 
 /*
@@ -532,6 +545,7 @@ error(fmt, parg)
 
 	get_return();
 	lower_left();
+    clear_eol();
 
 	if (col >= sc_width)
 		/*

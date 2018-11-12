@@ -77,8 +77,8 @@ A new family of
 .Fn kthread_* 9
 functions was added to produce
 .Em real
-kernel 
-.Em threads . 
+kernel
+.Em threads .
 See the
 .Xr kthread 9
 man page for more information on those calls.
@@ -227,7 +227,7 @@ The actual suspension of the kernel process is done with
 .Pp
 The
 .Fn kproc_kthread_add
-function is much like the 
+function is much like the
 .Fn kproc_create
 function above except that if the kproc already exists,
 then only a new thread (see
@@ -244,18 +244,18 @@ when it is called by the new process.
 The
 .Fa procptr
 pointer points to a
-.Vt "struct proc "
+.Vt "struct proc"
 pointer that is the location to be updated with the new proc pointer
 if a new process is created, or if not
 .Dv NULL ,
-must contain the process pointer for the already exisiting process.
+must contain the process pointer for the already existing process.
 If this argument points to
 .Dv NULL ,
 then a new process is created and the field updated.
 If not NULL, the
 .Fa tdptr
 pointer points to a
-.Vt "struct thread "
+.Vt "struct thread"
 pointer that is the location to be updated with the new thread pointer.
 The
 .Fa flags

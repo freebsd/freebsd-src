@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 /* Exit code for a failed exec. */
 #define EXEC_FAILED 127
 
-int fflg, iflg, nflg, vflg;
+static int	fflg, hflg, iflg, nflg, vflg;
 
 static int	copy(const char *, const char *);
 static int	do_move(const char *, const char *);
@@ -87,8 +87,11 @@ main(int argc, char *argv[])
 	int ch;
 	char path[PATH_MAX];
 
-	while ((ch = getopt(argc, argv, "finv")) != -1)
+	while ((ch = getopt(argc, argv, "fhinv")) != -1)
 		switch (ch) {
+		case 'h':
+			hflg = 1;
+			break;
 		case 'i':
 			iflg = 1;
 			fflg = nflg = 0;
@@ -119,8 +122,19 @@ main(int argc, char *argv[])
 	 */
 	if (stat(argv[argc - 1], &sb) || !S_ISDIR(sb.st_mode)) {
 		if (argc > 2)
-			usage();
+			errx(1, "%s is not a directory", argv[argc - 1]);
 		exit(do_move(argv[0], argv[1]));
+	}
+
+	/*
+	 * If -h was specified, treat the target as a symlink instead of
+	 * directory.
+	 */
+	if (hflg) {
+		if (argc > 2)
+			usage();
+		if (lstat(argv[1], &sb) == 0 && S_ISLNK(sb.st_mode))
+			exit(do_move(argv[0], argv[1]));
 	}
 
 	/* It's a directory, move each file into it. */
@@ -185,7 +199,7 @@ do_move(const char *from, const char *to)
 		} else if (iflg) {
 			(void)fprintf(stderr, "overwrite %s? %s", to, YESNO);
 			ask = 1;
-		} else if (access(to, W_OK) && !stat(to, &sb)) {
+		} else if (access(to, W_OK) && !stat(to, &sb) && isatty(STDIN_FILENO)) {
 			strmode(sb.st_mode, modep);
 			(void)fprintf(stderr, "override %s%s%s/%s for %s? %s",
 			    modep + 1, modep[9] == ' ' ? "" : " ",
@@ -259,41 +273,37 @@ do_move(const char *from, const char *to)
 static int
 fastcopy(const char *from, const char *to, struct stat *sbp)
 {
-	struct timeval tval[2];
-	static u_int blen;
-	static char *bp;
+	struct timespec ts[2];
+	static u_int blen = MAXPHYS;
+	static char *bp = NULL;
 	mode_t oldmode;
 	int nread, from_fd, to_fd;
+	struct stat tsb;
 
 	if ((from_fd = open(from, O_RDONLY, 0)) < 0) {
-		warn("%s", from);
+		warn("fastcopy: open() failed (from): %s", from);
 		return (1);
 	}
-	if (blen < sbp->st_blksize) {
-		if (bp != NULL)
-			free(bp);
-		if ((bp = malloc((size_t)sbp->st_blksize)) == NULL) {
-			blen = 0;
-			warnx("malloc failed");
-			return (1);
-		}
-		blen = sbp->st_blksize;
+	if (bp == NULL && (bp = malloc((size_t)blen)) == NULL) {
+		warnx("malloc(%u) failed", blen);
+		(void)close(from_fd);
+		return (1);
 	}
 	while ((to_fd =
 	    open(to, O_CREAT | O_EXCL | O_TRUNC | O_WRONLY, 0)) < 0) {
 		if (errno == EEXIST && unlink(to) == 0)
 			continue;
-		warn("%s", to);
+		warn("fastcopy: open() failed (to): %s", to);
 		(void)close(from_fd);
 		return (1);
 	}
 	while ((nread = read(from_fd, bp, (size_t)blen)) > 0)
 		if (write(to_fd, bp, (size_t)nread) != nread) {
-			warn("%s", to);
+			warn("fastcopy: write() failed: %s", to);
 			goto err;
 		}
 	if (nread < 0) {
-		warn("%s", from);
+		warn("fastcopy: read() failed: %s", from);
 err:		if (unlink(to))
 			warn("%s: remove", to);
 		(void)close(from_fd);
@@ -328,15 +338,22 @@ err:		if (unlink(to))
 	 * if the server supports flags and we were trying to *remove* flags
 	 * on a file that we copied, i.e., that we didn't create.)
 	 */
-	errno = 0;
-	if (fchflags(to_fd, (u_long)sbp->st_flags))
-		if (errno != EOPNOTSUPP || sbp->st_flags != 0)
-			warn("%s: set flags (was: 0%07o)", to, sbp->st_flags);
+	if (fstat(to_fd, &tsb) == 0) {
+		if ((sbp->st_flags  & ~UF_ARCHIVE) !=
+		    (tsb.st_flags & ~UF_ARCHIVE)) {
+			if (fchflags(to_fd,
+			    sbp->st_flags | (tsb.st_flags & UF_ARCHIVE)))
+				if (errno != EOPNOTSUPP ||
+				    ((sbp->st_flags & ~UF_ARCHIVE) != 0))
+					warn("%s: set flags (was: 0%07o)",
+					    to, sbp->st_flags);
+		}
+	} else
+		warn("%s: cannot stat", to);
 
-	tval[0].tv_sec = sbp->st_atime;
-	tval[1].tv_sec = sbp->st_mtime;
-	tval[0].tv_usec = tval[1].tv_usec = 0;
-	if (utimes(to, tval))
+	ts[0] = sbp->st_atim;
+	ts[1] = sbp->st_mtim;
+	if (futimens(to_fd, ts))
 		warn("%s: set times", to);
 
 	if (close(to_fd)) {
@@ -489,7 +506,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-		      "usage: mv [-f | -i | -n] [-v] source target",
+		      "usage: mv [-f | -i | -n] [-hv] source target",
 		      "       mv [-f | -i | -n] [-v] source ... directory");
 	exit(EX_USAGE);
 }

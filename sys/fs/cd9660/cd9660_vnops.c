@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
-#include <fs/fifofs/fifo.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <sys/unistd.h>
@@ -318,8 +317,7 @@ cd9660_read(ap)
 	do {
 		lbn = lblkno(imp, uio->uio_offset);
 		on = blkoff(imp, uio->uio_offset);
-		n = min((u_int)(imp->logical_block_size - on),
-			uio->uio_resid);
+		n = MIN(imp->logical_block_size - on, uio->uio_resid);
 		diff = (off_t)ip->i_size - uio->uio_offset;
 		if (diff <= 0)
 			return (0);
@@ -331,7 +329,7 @@ cd9660_read(ap)
 			if (lblktosize(imp, rablock) < ip->i_size)
 				error = cluster_read(vp, (off_t)ip->i_size,
 					 lbn, size, NOCRED, uio->uio_resid,
-					 (ap->a_ioflag >> 16), &bp);
+					 (ap->a_ioflag >> 16), 0, &bp);
 			else
 				error = bread(vp, lbn, size, NOCRED, &bp);
 		} else {
@@ -343,11 +341,9 @@ cd9660_read(ap)
 			} else
 				error = bread(vp, lbn, size, NOCRED, &bp);
 		}
-		n = min(n, size - bp->b_resid);
-		if (error) {
-			brelse(bp);
+		if (error != 0)
 			return (error);
-		}
+		n = MIN(n, size - bp->b_resid);
 
 		error = uiomove(bp->b_data + on, (int)n, uio);
 		brelse(bp);
@@ -819,20 +815,25 @@ cd9660_vptofh(ap)
 		struct fid *a_fhp;
 	} */ *ap;
 {
+	struct ifid ifh;
 	struct iso_node *ip = VTOI(ap->a_vp);
-	struct ifid *ifhp;
 
-	ifhp = (struct ifid *)ap->a_fhp;
-	ifhp->ifid_len = sizeof(struct ifid);
+	ifh.ifid_len = sizeof(struct ifid);
 
-	ifhp->ifid_ino = ip->i_number;
-	ifhp->ifid_start = ip->iso_start;
+	ifh.ifid_ino = ip->i_number;
+	ifh.ifid_start = ip->iso_start;
+	/*
+	 * This intentionally uses sizeof(ifh) in order to not copy stack
+	 * garbage on ILP32.
+	 */
+	memcpy(ap->a_fhp, &ifh, sizeof(ifh));
 
 #ifdef	ISOFS_DBG
 	printf("vptofh: ino %d, start %ld\n",
-	       ifhp->ifid_ino,ifhp->ifid_start);
+	    ifh.ifid_ino, ifh.ifid_start);
 #endif
-	return 0;
+
+	return (0);
 }
 
 /*

@@ -228,19 +228,18 @@ elan_poll_pps(struct timecounter *tc)
 	static int state;
 	int i;
 	uint16_t u, x, y, z;
-	u_long eflags;
+	register_t saveintr;
 
 	/*
 	 * Grab the HW state as quickly and compactly as we can.  Disable
 	 * interrupts to avoid measuring our interrupt service time on
 	 * hw with quality clock sources.
 	 */
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 	x = *pps_ap[0];	/* state, must be first, see below */
 	y = *pps_ap[1]; /* timer2 */
 	z = *pps_ap[2]; /* timer1 */
-	write_eflags(eflags);
+	intr_restore(saveintr);
 
 	/*
 	 * Order is important here.  We need to check the state of the GPIO
@@ -416,7 +415,8 @@ elan_watchdog(void *foo __unused, u_int spec, int *error)
 }
 
 static int
-elan_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+elan_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
 {
 
 	if (offset >= 0x1000) 

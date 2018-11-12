@@ -46,13 +46,6 @@ __FBSDID("$FreeBSD$");
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -90,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -196,7 +188,6 @@ struct ufoma_softc {
 	uint8_t	sc_msr;
 	uint8_t	sc_modetoactivate;
 	uint8_t	sc_currentmode;
-	uint8_t	sc_name[16];
 };
 
 /* prototypes */
@@ -204,6 +195,7 @@ struct ufoma_softc {
 static device_probe_t ufoma_probe;
 static device_attach_t ufoma_attach;
 static device_detach_t ufoma_detach;
+static void ufoma_free_softc(struct ufoma_softc *);
 
 static usb_callback_t ufoma_ctrl_read_callback;
 static usb_callback_t ufoma_ctrl_write_callback;
@@ -215,6 +207,7 @@ static void	*ufoma_get_intconf(struct usb_config_descriptor *,
 		    struct usb_interface_descriptor *, uint8_t, uint8_t);
 static void	ufoma_cfg_link_state(struct ufoma_softc *);
 static void	ufoma_cfg_activate_state(struct ufoma_softc *, uint16_t);
+static void	ufoma_free(struct ucom_softc *);
 static void	ufoma_cfg_open(struct ucom_softc *);
 static void	ufoma_cfg_close(struct ucom_softc *);
 static void	ufoma_cfg_set_break(struct ucom_softc *, uint8_t);
@@ -305,6 +298,7 @@ static const struct ucom_callback ufoma_callback = {
 	.ucom_start_write = &ufoma_start_write,
 	.ucom_stop_write = &ufoma_stop_write,
 	.ucom_poll = &ufoma_poll,
+	.ucom_free = &ufoma_free,
 };
 
 static device_method_t ufoma_methods[] = {
@@ -312,7 +306,7 @@ static device_method_t ufoma_methods[] = {
 	DEVMETHOD(device_probe, ufoma_probe),
 	DEVMETHOD(device_attach, ufoma_attach),
 	DEVMETHOD(device_detach, ufoma_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t ufoma_devclass;
@@ -323,9 +317,16 @@ static driver_t ufoma_driver = {
 	.size = sizeof(struct ufoma_softc),
 };
 
+static const STRUCT_USB_HOST_ID ufoma_devs[] = {
+	{USB_IFACE_CLASS(UICLASS_CDC),
+	 USB_IFACE_SUBCLASS(UISUBCLASS_MCPC),},
+};
+
 DRIVER_MODULE(ufoma, uhub, ufoma_driver, ufoma_devclass, NULL, 0);
 MODULE_DEPEND(ufoma, ucom, 1, 1, 1);
 MODULE_DEPEND(ufoma, usb, 1, 1, 1);
+MODULE_VERSION(ufoma, 1);
+USB_PNP_HOST_INFO(ufoma_devs);
 
 static int
 ufoma_probe(device_t dev)
@@ -334,30 +335,31 @@ ufoma_probe(device_t dev)
 	struct usb_interface_descriptor *id;
 	struct usb_config_descriptor *cd;
 	usb_mcpc_acm_descriptor *mad;
+	int error;
 
-	if (uaa->usb_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
+
+	error = usbd_lookup_id_by_uaa(ufoma_devs, sizeof(ufoma_devs), uaa);
+	if (error)
+		return (error);
+
 	id = usbd_get_interface_descriptor(uaa->iface);
 	cd = usbd_get_config_descriptor(uaa->device);
 
-	if ((id == NULL) ||
-	    (cd == NULL) ||
-	    (id->bInterfaceClass != UICLASS_CDC) ||
-	    (id->bInterfaceSubClass != UISUBCLASS_MCPC)) {
+	if (id == NULL || cd == NULL)
 		return (ENXIO);
-	}
+
 	mad = ufoma_get_intconf(cd, id, UDESC_VS_INTERFACE, UDESCSUB_MCPC_ACM);
-	if (mad == NULL) {
+	if (mad == NULL)
 		return (ENXIO);
-	}
+
 #ifndef UFOMA_HANDSFREE
 	if ((mad->bType == UMCPC_ACM_TYPE_AB5) ||
-	    (mad->bType == UMCPC_ACM_TYPE_AB6)) {
+	    (mad->bType == UMCPC_ACM_TYPE_AB6))
 		return (ENXIO);
-	}
 #endif
-	return (0);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
@@ -379,12 +381,10 @@ ufoma_attach(device_t dev)
 	sc->sc_unit = device_get_unit(dev);
 
 	mtx_init(&sc->sc_mtx, "ufoma", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 	cv_init(&sc->sc_cv, "CWAIT");
 
 	device_set_usb_desc(dev);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name),
-	    "%s", device_get_nameunit(dev));
 
 	DPRINTF("\n");
 
@@ -401,7 +401,7 @@ ufoma_attach(device_t dev)
 
 	if (error) {
 		device_printf(dev, "allocating control USB "
-		    "transfers failed!\n");
+		    "transfers failed\n");
 		goto detach;
 	}
 	mad = ufoma_get_intconf(cd, id, UDESC_VS_INTERFACE, UDESCSUB_MCPC_ACM);
@@ -432,7 +432,7 @@ ufoma_attach(device_t dev)
 		goto detach;
 	}
 	sc->sc_modetable[0] = (elements + 1);
-	bcopy(mad->bMode, &sc->sc_modetable[1], elements);
+	memcpy(&sc->sc_modetable[1], mad->bMode, elements);
 
 	sc->sc_currentmode = UMCPC_ACM_MODE_UNLINKED;
 	sc->sc_modetoactivate = mad->bMode[0];
@@ -449,6 +449,8 @@ ufoma_attach(device_t dev)
 		DPRINTF("ucom_attach failed\n");
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	/*Sysctls*/
 	sctx = device_get_sysctl_ctx(dev);
 	soid = device_get_sysctl_tree(dev);
@@ -465,7 +467,7 @@ ufoma_attach(device_t dev)
 			CTLFLAG_RW|CTLTYPE_STRING, sc, 0, ufoma_sysctl_open,
 			"A", "Mode to transit when port is opened");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "comunit",
-			CTLFLAG_RD, &(sc->sc_ucom.sc_unit), 0, 
+			CTLFLAG_RD, &(sc->sc_super_ucom.sc_unit), 0, 
 			"Unit number as USB serial");
 
 	return (0);			/* success */
@@ -480,17 +482,37 @@ ufoma_detach(device_t dev)
 {
 	struct ufoma_softc *sc = device_get_softc(dev);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_ctrl_xfer, UFOMA_CTRL_ENDPT_MAX);
 	usbd_transfer_unsetup(sc->sc_bulk_xfer, UFOMA_BULK_ENDPT_MAX);
 
 	if (sc->sc_modetable) {
 		free(sc->sc_modetable, M_USBDEV);
 	}
-	mtx_destroy(&sc->sc_mtx);
 	cv_destroy(&sc->sc_cv);
 
+	device_claim_softc(dev);
+
+	ufoma_free_softc(sc);
+
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(ufoma);
+
+static void
+ufoma_free_softc(struct ufoma_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+ufoma_free(struct ucom_softc *ucom)
+{
+	ufoma_free_softc(ucom->sc_parent);
 }
 
 static void *
@@ -603,10 +625,7 @@ tr_setup:
 
 		if (error == USB_ERR_CANCELLED) {
 			return;
-		} else {
-			goto tr_setup;
 		}
-
 		goto tr_transferred;
 	}
 }
@@ -623,7 +642,6 @@ ufoma_ctrl_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 tr_transferred:
 	case USB_ST_SETUP:
-tr_setup:
 		pc = usbd_xfer_get_frame(xfer, 1);
 		if (ucom_get_data(&sc->sc_ucom, pc, 0, 1, &actlen)) {
 
@@ -649,10 +667,7 @@ tr_setup:
 
 		if (error == USB_ERR_CANCELLED) {
 			return;
-		} else {
-			goto tr_setup;
 		}
-
 		goto tr_transferred;
 	}
 }
@@ -676,7 +691,7 @@ ufoma_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			DPRINTF("too short message\n");
 			goto tr_setup;
 		}
-		if (actlen > sizeof(pkt)) {
+		if (actlen > (int)sizeof(pkt)) {
 			DPRINTF("truncating message\n");
 			actlen = sizeof(pkt);
 		}
@@ -885,6 +900,7 @@ ufoma_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct ufoma_softc *sc = ucom->sc_parent;
 
+	/* XXX Note: sc_lsr is always zero */
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
 }
@@ -960,7 +976,7 @@ ufoma_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	}
 	DPRINTF("\n");
 
-	bzero(&ls, sizeof(ls));
+	memset(&ls, 0, sizeof(ls));
 
 	USETDW(ls.dwDTERate, t->c_ospeed);
 
@@ -1060,7 +1076,7 @@ ufoma_modem_setup(device_t dev, struct ufoma_softc *sc,
 				break;
 			}
 		} else {
-			device_printf(dev, "no data interface!\n");
+			device_printf(dev, "no data interface\n");
 			return (EINVAL);
 		}
 	}
@@ -1071,7 +1087,7 @@ ufoma_modem_setup(device_t dev, struct ufoma_softc *sc,
 
 	if (error) {
 		device_printf(dev, "allocating BULK USB "
-		    "transfers failed!\n");
+		    "transfers failed\n");
 		return (EINVAL);
 	}
 	return (0);

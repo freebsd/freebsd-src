@@ -1,6 +1,6 @@
 /*-
- * Copyright (C) 2007-2008 Semihalf, Rafal Jaworowski <raj@semihalf.com>
- * Copyright (C) 2006-2007 Semihalf, Piotr Kruszynski <ppk@semihalf.com>
+ * Copyright (C) 2007-2008 Semihalf, Rafal Jaworowski
+ * Copyright (C) 2006-2007 Semihalf, Piotr Kruszynski
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -106,12 +107,12 @@ static void	tsec_offload_process_frame(struct tsec_softc *sc,
 static void	tsec_setup_multicast(struct tsec_softc *sc);
 static int	tsec_set_mtu(struct tsec_softc *sc, unsigned int mtu);
 
-struct tsec_softc *tsec0_sc = NULL; /* XXX ugly hack! */
-
 devclass_t tsec_devclass;
 DRIVER_MODULE(miibus, tsec, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(tsec, ether, 1, 1, 1);
 MODULE_DEPEND(tsec, miibus, 1, 1, 1);
+
+struct mtx tsec_phy_mtx;
 
 int
 tsec_attach(struct tsec_softc *sc)
@@ -122,6 +123,10 @@ tsec_attach(struct tsec_softc *sc)
 	bus_dmamap_t **map_pptr;
 	int error = 0;
 	int i;
+
+	/* Initialize global (because potentially shared) MII lock */
+	if (!mtx_initialized(&tsec_phy_mtx))
+		mtx_init(&tsec_phy_mtx, "tsec mii", NULL, MTX_DEF);
 
 	/* Reset all TSEC counters */
 	TSEC_TX_RX_COUNTERS_INIT(sc);
@@ -247,7 +252,6 @@ tsec_attach(struct tsec_softc *sc)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_SIMPLEX | IFF_MULTICAST | IFF_BROADCAST;
 	ifp->if_init = tsec_init;
 	ifp->if_start = tsec_start;
@@ -268,11 +272,12 @@ tsec_attach(struct tsec_softc *sc)
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
 	
-	/* Probe PHY(s) */
-	error = mii_phy_probe(sc->dev, &sc->tsec_miibus, tsec_ifmedia_upd,
-	    tsec_ifmedia_sts);
+	/* Attach PHY(s) */
+	error = mii_attach(sc->dev, &sc->tsec_miibus, ifp, tsec_ifmedia_upd,
+	    tsec_ifmedia_sts, BMSR_DEFCAPMASK, sc->phyaddr, MII_OFFSET_ANY,
+	    0);
 	if (error) {
-		device_printf(sc->dev, "MII failed to find PHY!\n");
+		device_printf(sc->dev, "attaching PHYs failed\n");
 		if_free(ifp);
 		sc->tsec_ifp = NULL;
 		tsec_detach(sc);
@@ -291,17 +296,17 @@ int
 tsec_detach(struct tsec_softc *sc)
 {
 
+	if (sc->tsec_ifp != NULL) {
 #ifdef DEVICE_POLLING
-	if (sc->tsec_ifp->if_capenable & IFCAP_POLLING)
-		ether_poll_deregister(sc->tsec_ifp);
+		if (sc->tsec_ifp->if_capenable & IFCAP_POLLING)
+			ether_poll_deregister(sc->tsec_ifp);
 #endif
 
-	/* Stop TSEC controller and free TX queue */
-	if (sc->sc_rres && sc->tsec_ifp)
-		tsec_shutdown(sc->dev);
+		/* Stop TSEC controller and free TX queue */
+		if (sc->sc_rres)
+			tsec_shutdown(sc->dev);
 
-	/* Detach network interface */
-	if (sc->tsec_ifp) {
+		/* Detach network interface */
 		ether_ifdetach(sc->tsec_ifp);
 		if_free(sc->tsec_ifp);
 		sc->tsec_ifp = NULL;
@@ -360,6 +365,9 @@ tsec_init_locked(struct tsec_softc *sc)
 	struct ifnet *ifp = sc->tsec_ifp;
 	uint32_t timeout, val, i;
 
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		return;
+
 	TSEC_GLOBAL_LOCK_ASSERT(sc);
 	tsec_stop(sc);
 
@@ -405,21 +413,24 @@ tsec_init_locked(struct tsec_softc *sc)
 	 */
 	TSEC_WRITE(sc, TSEC_REG_TBIPA, 5);
 
+	TSEC_PHY_LOCK(sc);
+
 	/* Step 6: Reset the management interface */
-	TSEC_WRITE(tsec0_sc, TSEC_REG_MIIMCFG, TSEC_MIIMCFG_RESETMGMT);
+	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMCFG, TSEC_MIIMCFG_RESETMGMT);
 
 	/* Step 7: Setup the MII Mgmt clock speed */
-	TSEC_WRITE(tsec0_sc, TSEC_REG_MIIMCFG, TSEC_MIIMCFG_CLKDIV28);
+	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMCFG, TSEC_MIIMCFG_CLKDIV28);
 
 	/* Step 8: Read MII Mgmt indicator register and check for Busy = 0 */
 	timeout = TSEC_READ_RETRY;
-	while (--timeout && (TSEC_READ(tsec0_sc, TSEC_REG_MIIMIND) &
+	while (--timeout && (TSEC_PHY_READ(sc, TSEC_REG_MIIMIND) &
 	    TSEC_MIIMIND_BUSY))
 		DELAY(TSEC_READ_DELAY);
 	if (timeout == 0) {
 		if_printf(ifp, "tsec_init_locked(): Mgmt busy timeout\n");
 		return;
 	}
+	TSEC_PHY_UNLOCK(sc);
 
 	/* Step 9: Setup the MII Mgmt */
 	mii_mediachg(sc->tsec_mii);
@@ -550,7 +561,7 @@ tsec_set_mac_address(struct tsec_softc *sc)
 	TSEC_GLOBAL_LOCK_ASSERT(sc);
 
 	KASSERT((ETHER_ADDR_LEN <= sizeof(macbuf)),
-	    ("tsec_set_mac_address: (%d <= %d", ETHER_ADDR_LEN,
+	    ("tsec_set_mac_address: (%d <= %zd", ETHER_ADDR_LEN,
 	    sizeof(macbuf)));
 
 	macbufp = (char *)macbuf;
@@ -676,7 +687,7 @@ tsec_watchdog(struct tsec_softc *sc)
 		return;
 
 	ifp = sc->tsec_ifp;
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if_printf(ifp, "watchdog timeout\n");
 
 	tsec_stop(sc);
@@ -716,9 +727,9 @@ tsec_start_locked(struct ifnet *ifp)
 	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	for (;;) {
+	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 		/* Get packet from the queue */
-		IF_DEQUEUE(&ifp->if_snd, m0);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m0);
 		if (m0 == NULL)
 			break;
 
@@ -726,7 +737,7 @@ tsec_start_locked(struct ifnet *ifp)
 		csum_flags = m0->m_pkthdr.csum_flags;
 		if (csum_flags) {
 
-			M_PREPEND(m0, sizeof(struct tsec_tx_fcb), M_DONTWAIT);
+			M_PREPEND(m0, sizeof(struct tsec_tx_fcb), M_NOWAIT);
 			if (m0 == NULL)
 				break;
 
@@ -750,12 +761,12 @@ tsec_start_locked(struct ifnet *ifp)
 			fcb_inserted = 1;
 		}
 
-		mtmp = m_defrag(m0, M_DONTWAIT);
+		mtmp = m_defrag(m0, M_NOWAIT);
 		if (mtmp)
 			m0 = mtmp;
 
 		if (tsec_encap(sc, m0, fcb_inserted)) {
-			IF_PREPEND(&ifp->if_snd, m0);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m0);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
@@ -1028,7 +1039,7 @@ tsec_new_rxbuf(bus_dma_tag_t tag, bus_dmamap_t map, struct mbuf **mbufp,
 
 	KASSERT(mbufp != NULL, ("NULL mbuf pointer!"));
 
-	new_mbuf = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MCLBYTES);
+	new_mbuf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MCLBYTES);
 	if (new_mbuf == NULL)
 		return (ENOBUFS);
 	new_mbuf->m_len = new_mbuf->m_pkthdr.len = new_mbuf->m_ext.ext_size;
@@ -1338,7 +1349,7 @@ tsec_receive_intr_locked(struct tsec_softc *sc, int count)
 
 		if (tsec_new_rxbuf(sc->tsec_rx_mtag, rx_data[i].map,
 		    &rx_data[i].mbuf, &rx_data[i].paddr)) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			/*
 			 * We ran out of mbufs; didn't consume current
 			 * descriptor and have to return it to the queue.
@@ -1419,7 +1430,7 @@ tsec_transmit_intr_locked(struct tsec_softc *sc)
 	ifp = sc->tsec_ifp;
 
 	/* Update collision statistics */
-	ifp->if_collisions += TSEC_READ(sc, TSEC_REG_MON_TNCL);
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, TSEC_READ(sc, TSEC_REG_MON_TNCL));
 
 	/* Reset collision counters in hardware */
 	TSEC_WRITE(sc, TSEC_REG_MON_TSCL, 0);
@@ -1454,7 +1465,7 @@ tsec_transmit_intr_locked(struct tsec_softc *sc)
 		TSEC_FREE_TX_MAP(sc, mapp);
 		m_freem(m0);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		send = 1;
 	}
 	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
@@ -1511,18 +1522,18 @@ tsec_error_intr_locked(struct tsec_softc *sc, int count)
 
 	/* Check transmitter errors */
 	if (eflags & TSEC_IEVENT_TXE) {
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (eflags & TSEC_IEVENT_LC)
-			ifp->if_collisions++;
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 
 		TSEC_WRITE(sc, TSEC_REG_TSTAT, TSEC_TSTAT_THLT);
 	}
 
 	/* Check receiver errors */
 	if (eflags & TSEC_IEVENT_BSY) {
-		ifp->if_ierrors++;
-		ifp->if_iqdrops++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 
 		/* Get data from RX buffers */
 		tsec_receive_intr_locked(sc, count);
@@ -1539,10 +1550,10 @@ tsec_error_intr_locked(struct tsec_softc *sc, int count)
 	}
 
 	if (eflags & TSEC_IEVENT_BABT)
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	if (eflags & TSEC_IEVENT_BABR)
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 }
 
 void
@@ -1560,27 +1571,27 @@ tsec_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct tsec_softc *sc;
 	uint32_t timeout;
+	int rv;
 
 	sc = device_get_softc(dev);
 
-	if (device_get_unit(dev) != phy)
-		return (0);
-
-	sc = tsec0_sc;
-
-	TSEC_WRITE(sc, TSEC_REG_MIIMADD, (phy << 8) | reg);
-	TSEC_WRITE(sc, TSEC_REG_MIIMCOM, 0);
-	TSEC_WRITE(sc, TSEC_REG_MIIMCOM, TSEC_MIIMCOM_READCYCLE);
+	TSEC_PHY_LOCK();
+	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMADD, (phy << 8) | reg);
+	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMCOM, 0);
+	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMCOM, TSEC_MIIMCOM_READCYCLE);
 
 	timeout = TSEC_READ_RETRY;
-	while (--timeout && TSEC_READ(sc, TSEC_REG_MIIMIND) &
+	while (--timeout && TSEC_PHY_READ(sc, TSEC_REG_MIIMIND) &
 	    (TSEC_MIIMIND_NOTVALID | TSEC_MIIMIND_BUSY))
 		DELAY(TSEC_READ_DELAY);
 
 	if (timeout == 0)
 		device_printf(dev, "Timeout while reading from PHY!\n");
 
-	return (TSEC_READ(sc, TSEC_REG_MIIMSTAT));
+	rv = TSEC_PHY_READ(sc, TSEC_REG_MIIMSTAT);
+	TSEC_PHY_UNLOCK();
+
+	return (rv);
 }
 
 int
@@ -1591,19 +1602,15 @@ tsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 
 	sc = device_get_softc(dev);
 
-	if (device_get_unit(dev) != phy)
-		device_printf(dev, "Trying to write to an alien PHY(%d)\n",
-		    phy);
-
-	sc = tsec0_sc;
-
-	TSEC_WRITE(sc, TSEC_REG_MIIMADD, (phy << 8) | reg);
-	TSEC_WRITE(sc, TSEC_REG_MIIMCON, value);
+	TSEC_PHY_LOCK();
+	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMADD, (phy << 8) | reg);
+	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMCON, value);
 
 	timeout = TSEC_READ_RETRY;
 	while (--timeout && (TSEC_READ(sc, TSEC_REG_MIIMIND) &
 	    TSEC_MIIMIND_BUSY))
 		DELAY(TSEC_READ_DELAY);
+	TSEC_PHY_UNLOCK();
 
 	if (timeout == 0)
 		device_printf(dev, "Timeout while writing to PHY!\n");

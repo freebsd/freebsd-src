@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2010 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -144,7 +144,6 @@ int	addText(pdu_t *pp, char *fmt, ...);
 void	freePDU(pdu_t *pp);
 int	xmitpdu(isess_t *sess, pdu_t *pp);
 int	recvpdu(isess_t *sess, pdu_t *pp);
-void	pukeText(char *it, pdu_t *pp);
 
 int	lookup(token_t *tbl, char *m);
 
@@ -155,7 +154,7 @@ void	parseArgs(int nargs, char **args, isc_opt_t *op);
 void	parseConfig(FILE *fd, char *key, isc_opt_t *op);
 
 char	*chapDigest(char *ap, char id, char *cp, char *chapSecret);
-char	*genChapChallenge(char *encoding, int len);
+char	*genChapChallenge(char *encoding, uint len);
 
 int	str2bin(char *str, char **rsp);
 char	*bin2str(char *fmt, unsigned char *md, int blen);

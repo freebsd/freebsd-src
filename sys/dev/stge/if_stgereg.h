@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -105,6 +98,9 @@
 	bus_read_2((_sc)->sc_res[0], (reg))
 #define CSR_READ_1(_sc, reg)		\
 	bus_read_1((_sc)->sc_res[0], (reg))
+
+#define	CSR_BARRIER(_sc, reg, length, flags)				\
+	bus_barrier((_sc)->sc_res[0], reg, length, flags)
 
 /*
  * TC9021 buffer fragment descriptor.
@@ -683,23 +679,6 @@ do {									\
 } while (/*CONSTCOND*/0)
 
 #define STGE_TIMEOUT 1000
-
-struct stge_mii_frame {
-	uint8_t	mii_stdelim;
-	uint8_t	mii_opcode;
-	uint8_t	mii_phyaddr;
-	uint8_t	mii_regaddr;
-	uint8_t	mii_turnaround;
-	uint16_t mii_data;
-};
-
-/*
- * MII constants
- */
-#define STGE_MII_STARTDELIM	0x01
-#define STGE_MII_READOP		0x02
-#define STGE_MII_WRITEOP	0x01
-#define STGE_MII_TURNAROUND	0x02
 
 #define	STGE_RESET_NONE	0x00
 #define	STGE_RESET_TX	0x01

@@ -62,8 +62,8 @@
 .\"
 .\"
 .Dd October 13, 1998
-.Os
 .Dt CAM_CDBPARSE 3
+.Os
 .Sh NAME
 .Nm csio_build ,
 .Nm csio_build_visit ,
@@ -83,9 +83,9 @@
 .Ft int
 .Fo csio_build
 .Fa "struct ccb_scsiio *csio"
-.Fa "u_int8_t *data_ptr"
-.Fa "u_int32_t dxfer_len"
-.Fa "u_int32_t flags"
+.Fa "uint8_t *data_ptr"
+.Fa "uint32_t dxfer_len"
+.Fa "uint32_t flags"
 .Fa "int retry_count"
 .Fa "int timeout"
 .Fa "const char *cmd_spec"
@@ -94,9 +94,9 @@
 .Ft int
 .Fo csio_build_visit
 .Fa "struct ccb_scsiio *csio"
-.Fa "u_int8_t *data_ptr"
-.Fa "u_int32_t dxfer_len"
-.Fa "u_int32_t flags"
+.Fa "uint8_t *data_ptr"
+.Fa "uint32_t dxfer_len"
+.Fa "uint32_t flags"
 .Fa "int retry_count"
 .Fa "int timeout"
 .Fa "const char *cmd_spec"
@@ -122,14 +122,14 @@
 .Fc
 .Ft int
 .Fo buff_decode
-.Fa "u_int8_t *buff"
+.Fa "uint8_t *buff"
 .Fa "size_t len"
 .Fa "const char *fmt"
 .Fa "..."
 .Fc
 .Ft int
 .Fo buff_decode_visit
-.Fa "u_int8_t *buff"
+.Fa "uint8_t *buff"
 .Fa "size_t len"
 .Fa "const char *fmt"
 .Fa "void (*arg_put)(void *, int, void *, int, char *)"
@@ -150,7 +150,7 @@
 .Fc
 .Ft int
 .Fo buff_encode_visit
-.Fa "u_int8_t *buff"
+.Fa "uint8_t *buff"
 .Fa "size_t len"
 .Fa "const char *fmt"
 .Fa "int (*arg_get)(void *hook, char *field_name)"
@@ -258,7 +258,6 @@ typedef enum {
 Multiple flags should be ORed together.
 Any of the CCB flags may be used,
 although it is worth noting several important ones here:
-.Pp
 .Bl -tag -width CAM_PASS_ERR_RECOVER
 .It Dv CAM_DIR_IN
 This indicates that the operation in question is a read operation.

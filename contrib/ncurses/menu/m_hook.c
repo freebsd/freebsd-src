@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,13 +37,13 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_hook.c,v 1.14 2004/12/25 21:39:52 tom Exp $")
+MODULE_ID("$Id: m_hook.c,v 1.16 2012/03/10 23:43:41 tom Exp $")
 
 /* "Template" macro to generate function to set application specific hook */
 #define GEN_HOOK_SET_FUNCTION( typ, name ) \
 NCURSES_IMPEXP int NCURSES_API set_ ## typ ## _ ## name (MENU *menu, Menu_Hook func )\
 {\
-   T((T_CALLED("set_" #typ "_" #name "(%p,%p)"), menu, func));\
+   T((T_CALLED("set_" #typ "_" #name "(%p,%p)"), (void *) menu, func));\
    (Normalize_Menu(menu) -> typ ## name = func );\
    RETURN(E_OK);\
 }
@@ -52,7 +52,7 @@ NCURSES_IMPEXP int NCURSES_API set_ ## typ ## _ ## name (MENU *menu, Menu_Hook f
 #define GEN_HOOK_GET_FUNCTION( typ, name ) \
 NCURSES_IMPEXP Menu_Hook NCURSES_API typ ## _ ## name ( const MENU *menu )\
 {\
-   T((T_CALLED(#typ "_" #name "(%p)"), menu));\
+   T((T_CALLED(#typ "_" #name "(%p)"), (const void *) menu));\
    returnMenuHook(Normalize_Menu(menu) -> typ ## name);\
 }
 

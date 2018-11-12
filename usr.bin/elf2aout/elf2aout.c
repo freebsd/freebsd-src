@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -155,5 +157,6 @@ static void
 usage(void)
 {
 
-	errx(1, "usage: elf2aout [-o outfile] infile");
+	fprintf(stderr, "usage: elf2aout [-o outfile] infile\n");
+	exit(1);
 }

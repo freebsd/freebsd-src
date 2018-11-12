@@ -1293,7 +1293,7 @@ static void ifCoIm(FICL_VM *pVM)
 ** compiles an "else"...
 ** 1) Compile a branch and a patch address; the address gets patched
 **    by "endif" to point past the "else" code.
-** 2) Pop the the "if" patch address
+** 2) Pop the "if" patch address
 ** 3) Patch the "if" branch to point to the current compile address.
 ** 4) Push the "else" patch address. ("endif" patches this to jump past 
 **    the "else" code.
@@ -2567,7 +2567,7 @@ static void setObjectFlag(FICL_VM *pVM)
 
 static void isObject(FICL_VM *pVM)
 {
-    int flag;
+    FICL_INT flag;
     FICL_WORD *pFW = (FICL_WORD *)stackPopPtr(pVM->pStack);
     
     flag = ((pFW != NULL) && (pFW->flags & FW_ISOBJECT)) ? FICL_TRUE : FICL_FALSE;
@@ -4822,7 +4822,7 @@ WORDKIND ficlWordClassify(FICL_WORD *pFW)
 **************************************************************************/
 static void ficlRandom(FICL_VM *pVM)
 {
-    PUSHINT(rand());
+    PUSHUNS(random());
 }
 
 
@@ -4832,7 +4832,7 @@ static void ficlRandom(FICL_VM *pVM)
 **************************************************************************/
 static void ficlSeedRandom(FICL_VM *pVM)
 {
-    srand(POPINT());
+    srandom(POPUNS());
 }
 #endif
 
@@ -5198,12 +5198,11 @@ void ficlCompileCore(FICL_SYSTEM *pSys)
     /*
     ** Set up system's outer interpreter loop - maybe this should be in initSystem?
     */
-	pSys->pInterp[0] = pSys->pInterpret;
-	pSys->pInterp[1] = pSys->pBranchParen;
-	pSys->pInterp[2] = (FICL_WORD *)(void *)(-2);
+    pSys->pInterp[0] = pSys->pInterpret;
+    pSys->pInterp[1] = pSys->pBranchParen;
+    pSys->pInterp[2] = (FICL_WORD *)(void *)(-2);
 
     assert(dictCellsAvail(dp) > 0);
 
     return;
 }
-

@@ -117,6 +117,15 @@ u_int mibif_hc_update_interval;
 /* HC update timer handle */
 static void *hc_update_timer;
 
+/* Idle poll timer */
+static void *mibII_poll_timer;
+
+/* interfaces' data poll interval */
+u_int mibII_poll_ticks;
+
+/* Idle poll hook */
+static void mibII_idle(void *arg __unused);
+
 /*****************************/
 
 static const struct asn_oid oid_ifMIB = OIDX_ifMIB;
@@ -410,6 +419,20 @@ mibif_reset_hc_timer(void)
 	mibif_hc_update_interval = ticks;
 }
 
+/**
+ * Restart the idle poll timer.
+ */
+void
+mibif_restart_mibII_poll_timer(void)
+{
+	if (mibII_poll_timer != NULL)
+		timer_stop(mibII_poll_timer);
+
+	if ((mibII_poll_timer = timer_start_repeat(mibII_poll_ticks * 10,
+	    mibII_poll_ticks * 10, mibII_idle, NULL, module)) == NULL)
+		syslog(LOG_ERR, "timer_start(%u): %m", mibII_poll_ticks);
+}
+
 /*
  * Fetch new MIB data.
  */
@@ -420,6 +443,7 @@ mib_fetch_ifmib(struct mibif *ifp)
 	size_t len;
 	void *newmib;
 	struct ifmibdata oldmib = ifp->mib;
+	struct ifreq irr;
 
 	if (fetch_generic_mib(ifp, &oldmib) == -1)
 		return (-1);
@@ -491,6 +515,18 @@ mib_fetch_ifmib(struct mibif *ifp)
 	}
 
   out:
+	strncpy(irr.ifr_name, ifp->name, sizeof(irr.ifr_name));
+	irr.ifr_buffer.buffer = MIBIF_PRIV(ifp)->alias;
+	irr.ifr_buffer.length = sizeof(MIBIF_PRIV(ifp)->alias);
+	if (ioctl(mib_netsock, SIOCGIFDESCR, &irr) == -1) {
+		MIBIF_PRIV(ifp)->alias[0] = 0;
+		if (errno != ENOMSG)
+			syslog(LOG_WARNING, "SIOCGIFDESCR (%s): %m", ifp->name);
+	} else if (irr.ifr_buffer.buffer == NULL) {
+		MIBIF_PRIV(ifp)->alias[0] = 0;
+		syslog(LOG_WARNING, "SIOCGIFDESCR (%s): too long (%zu)",
+		    ifp->name, irr.ifr_buffer.length);
+	}
 	ifp->mibtick = get_ticks();
 	return (0);
 }
@@ -820,6 +856,7 @@ check_llbcast(struct mibif *ifp)
 	  case IFT_ETHER:
 	  case IFT_FDDI:
 	  case IFT_ISO88025:
+	  case IFT_L2VLAN:
 		if (mib_find_rcvaddr(ifp->index, ether_bcast, 6) == NULL &&
 		    (rcv = mib_rcvaddr_create(ifp, ether_bcast, 6)) != NULL)
 			rcv->flags |= MIBRCVADDR_BCAST;
@@ -910,6 +947,34 @@ mib_find_ifa(struct in_addr addr)
 }
 
 /*
+ * Process a new ARP entry
+ */
+static void
+process_arp(const struct rt_msghdr *rtm, const struct sockaddr_dl *sdl,
+    const struct sockaddr_in *sa)
+{
+	struct mibif *ifp;
+	struct mibarp *at;
+
+	/* IP arp table entry */
+	if (sdl->sdl_alen == 0)
+		return;
+	if ((ifp = mib_find_if_sys(sdl->sdl_index)) == NULL)
+		return;
+	/* have a valid entry */
+	if ((at = mib_find_arp(ifp, sa->sin_addr)) == NULL &&
+	    (at = mib_arp_create(ifp, sa->sin_addr,
+	    sdl->sdl_data + sdl->sdl_nlen, sdl->sdl_alen)) == NULL)
+		return;
+
+	if (rtm->rtm_rmx.rmx_expire == 0)
+		at->flags |= MIBARP_PERM;
+	else
+		at->flags &= ~MIBARP_PERM;
+	at->flags |= MIBARP_FOUND;
+}
+
+/*
  * Handle a routing socket message.
  */
 static void
@@ -917,7 +982,7 @@ handle_rtmsg(struct rt_msghdr *rtm)
 {
 	struct sockaddr *addrs[RTAX_MAX];
 	struct if_msghdr *ifm;
-	struct ifa_msghdr *ifam;
+	struct ifa_msghdr ifam, *ifamp;
 	struct ifma_msghdr *ifmam;
 #ifdef RTM_IFANNOUNCE
 	struct if_announcemsghdr *ifan;
@@ -937,17 +1002,18 @@ handle_rtmsg(struct rt_msghdr *rtm)
 	switch (rtm->rtm_type) {
 
 	  case RTM_NEWADDR:
-		ifam = (struct ifa_msghdr *)rtm;
-		mib_extract_addrs(ifam->ifam_addrs, (u_char *)(ifam + 1), addrs);
+		ifamp = (struct ifa_msghdr *)rtm;
+		memcpy(&ifam, ifamp, sizeof(ifam));
+		mib_extract_addrs(ifam.ifam_addrs, (u_char *)(ifamp + 1), addrs);
 		if (addrs[RTAX_IFA] == NULL || addrs[RTAX_NETMASK] == NULL)
 			break;
 
 		sa = (struct sockaddr_in *)(void *)addrs[RTAX_IFA];
 		if ((ifa = mib_find_ifa(sa->sin_addr)) == NULL) {
 			/* unknown address */
-		    	if ((ifp = mib_find_if_sys(ifam->ifam_index)) == NULL) {
+		    	if ((ifp = mib_find_if_sys(ifam.ifam_index)) == NULL) {
 				syslog(LOG_WARNING, "RTM_NEWADDR for unknown "
-				    "interface %u", ifam->ifam_index);
+				    "interface %u", ifam.ifam_index);
 				break;
 			}
 		     	if ((ifa = alloc_ifa(ifp->index, sa->sin_addr)) == NULL)
@@ -964,8 +1030,9 @@ handle_rtmsg(struct rt_msghdr *rtm)
 		break;
 
 	  case RTM_DELADDR:
-		ifam = (struct ifa_msghdr *)rtm;
-		mib_extract_addrs(ifam->ifam_addrs, (u_char *)(ifam + 1), addrs);
+		ifamp = (struct ifa_msghdr *)rtm;
+		memcpy(&ifam, ifamp, sizeof(ifam));
+		mib_extract_addrs(ifam.ifam_addrs, (u_char *)(ifamp + 1), addrs);
 		if (addrs[RTAX_IFA] == NULL)
 			break;
 
@@ -1051,6 +1118,23 @@ handle_rtmsg(struct rt_msghdr *rtm)
 #endif
 	  case RTM_GET:
 	  case RTM_ADD:
+		mib_extract_addrs(rtm->rtm_addrs, (u_char *)(rtm + 1), addrs);
+		if (rtm->rtm_flags & RTF_LLINFO) {
+			if (addrs[RTAX_DST] == NULL ||
+			    addrs[RTAX_GATEWAY] == NULL ||
+			    addrs[RTAX_DST]->sa_family != AF_INET ||
+			    addrs[RTAX_GATEWAY]->sa_family != AF_LINK)
+				break;
+			process_arp(rtm,
+			    (struct sockaddr_dl *)(void *)addrs[RTAX_GATEWAY],
+			    (struct sockaddr_in *)(void *)addrs[RTAX_DST]);
+		} else {
+			if (rtm->rtm_errno == 0 && (rtm->rtm_flags & RTF_UP))
+				mib_sroute_process(rtm, addrs[RTAX_GATEWAY],
+				    addrs[RTAX_DST], addrs[RTAX_NETMASK]);
+		}
+		break;
+
 	  case RTM_DELETE:
 		mib_extract_addrs(rtm->rtm_addrs, (u_char *)(rtm + 1), addrs);
 
@@ -1553,7 +1637,7 @@ get_cloners(void)
  * Idle function
  */
 static void
-mibII_idle(void)
+mibII_idle(void *arg __unused)
 {
 	struct mibifa *ifa;
 
@@ -1608,6 +1692,10 @@ mibII_start(void)
 	ipForward_reg = or_register(&oid_ipForward,
 	   "The MIB module for the display of CIDR multipath IP Routes.",
 	   module);
+
+	mibII_poll_timer = NULL;
+	mibII_poll_ticks = MIBII_POLL_TICKS;
+	mibif_restart_mibII_poll_timer();
 }
 
 /*
@@ -1651,6 +1739,11 @@ mibII_init(struct lmodule *mod, int argc __unused, char *argv[] __unused)
 static int
 mibII_fini(void)
 {
+	if (mibII_poll_timer != NULL ) {
+		timer_stop(mibII_poll_timer);
+		mibII_poll_timer = NULL;
+	}
+
 	if (route_fd != NULL)
 		fd_deselect(route_fd);
 	if (route != -1)
@@ -1690,7 +1783,7 @@ const struct snmp_module config = {
 	"This module implements the interface and ip groups.",
 	mibII_init,
 	mibII_fini,
-	mibII_idle,	/* idle */
+	NULL,		/* idle */
 	NULL,		/* dump */
 	NULL,		/* config */
 	mibII_start,

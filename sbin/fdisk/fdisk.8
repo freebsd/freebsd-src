@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2009
+.Dd October 1, 2013
 .Dt FDISK 8
 .Os
 .Sh NAME
@@ -39,6 +39,13 @@ The
 utility can be used to divide space on the disk into slices and set one
 active.
 .Sh DESCRIPTION
+.Bf -symbolic
+This command is obsolete.
+Users are advised to use
+.Xr gpart 8
+instead.
+.Ef
+.Pp
 The
 .Fx
 utility,
@@ -159,7 +166,7 @@ mounted root device.
 When called with no arguments, it prints the sector 0 slice table.
 An example follows:
 .Bd -literal
-	******* Working on device /dev/ad0 *******
+	******* Working on device /dev/ada0 *******
 	parameters extracted from in-core disklabel are:
 	cylinders=769 heads=15 sectors/track=33 (495 blks/cyl)
 
@@ -476,6 +483,7 @@ The default boot code.
 .Sh SEE ALSO
 .Xr boot0cfg 8 ,
 .Xr bsdlabel 8 ,
+.Xr gpart 8 ,
 .Xr newfs 8
 .Sh BUGS
 The default boot code will not necessarily handle all slice types

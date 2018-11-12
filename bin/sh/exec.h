@@ -57,20 +57,21 @@ struct cmdentry {
 };
 
 
-extern char *pathopt;		/* set by padvance */
+/* action to find_command() */
+#define DO_ERR		0x01	/* prints errors */
+#define DO_NOFUNC	0x02	/* don't return shell functions, for command */
+
+extern const char *pathopt;	/* set by padvance */
 extern int exerrno;		/* last exec error */
 
-void shellexec(char **, char **, char *, int);
-char *padvance(char **, char *);
-int hashcmd(int, char **);
-void find_command(char *, struct cmdentry *, int, char *);
-int find_builtin(char *, int *);
+void shellexec(char **, char **, const char *, int) __dead2;
+char *padvance(const char **, const char *);
+void find_command(const char *, struct cmdentry *, int, const char *);
+int find_builtin(const char *, int *);
 void hashcd(void);
 void changepath(const char *);
-void deletefuncs(void);
-void addcmdentry(char *, struct cmdentry *);
-void defun(char *, union node *);
-int unsetfunc(char *);
-int typecmd_impl(int, char **, int);
-int typecmd(int, char **);
-void clearcmdentry(int);
+void defun(const char *, union node *);
+int unsetfunc(const char *);
+int isfunc(const char *);
+int typecmd_impl(int, char **, int, const char *);
+void clearcmdentry(void);

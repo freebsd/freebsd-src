@@ -32,12 +32,6 @@
  * $FreeBSD$
  */
 
-struct quotaname {
-	long	flags;
-	char	grpqfname[PATH_MAX];
-	char	usrqfname[PATH_MAX];
-};
-
-extern int checkfstab();
-extern int chkquota(char *, char *, struct quotaname *);
-extern struct quotaname *needchk(struct fstab *);
+extern char *blockcheck(char *);
+extern int checkfstab(int, int);
+extern int chkquota(char *, struct quotafile *, struct quotafile *);

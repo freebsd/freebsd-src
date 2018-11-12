@@ -1,4 +1,4 @@
-/* $NetBSD: softfloat-macros,v 1.1 2002/05/21 23:51:08 bjh21 Exp $ */
+/* $NetBSD: softfloat-macros,v 1.2 2009/02/16 10:23:35 tron Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -387,7 +387,7 @@ INLINE void
     carry0 = ( z1 < a1 );
     z0 = a0 + b0;
     z1 += carry1;
-    z0 += ( z1 < carry1 );
+    z0 += ( z1 < (bits64)carry1 );
     z0 += carry0;
     *z2Ptr = z2;
     *z1Ptr = z1;
@@ -444,7 +444,7 @@ INLINE void
     z1 = a1 - b1;
     borrow0 = ( a1 < b1 );
     z0 = a0 - b0;
-    z0 -= ( z1 < borrow1 );
+    z0 -= ( z1 < (bits64)borrow1 );
     z1 -= borrow1;
     z0 -= borrow0;
     *z2Ptr = z2;

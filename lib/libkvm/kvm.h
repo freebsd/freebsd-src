@@ -34,7 +34,7 @@
 #define	_KVM_H_
 
 #include <sys/cdefs.h>
-#include <sys/_types.h>
+#include <sys/types.h>
 #include <nlist.h>
 
 /* Default version symbol. */
@@ -50,6 +50,14 @@ typedef	__size_t	size_t;
 typedef	__ssize_t	ssize_t;
 #define	_SSIZE_T_DECLARED
 #endif
+
+typedef	uint64_t kvaddr_t;		/* An address in a target image. */
+
+struct kvm_nlist {
+	const char *n_name;
+	unsigned char n_type;
+	kvaddr_t n_value;
+};
 
 typedef struct __kvm kvm_t;
 
@@ -69,25 +77,32 @@ struct kvm_swap {
 
 __BEGIN_DECLS
 int	  kvm_close(kvm_t *);
+int	  kvm_dpcpu_setcpu(kvm_t *, unsigned int);
 char	**kvm_getargv(kvm_t *, const struct kinfo_proc *, int);
 int	  kvm_getcptime(kvm_t *, long *);
 char	**kvm_getenvv(kvm_t *, const struct kinfo_proc *, int);
 char	 *kvm_geterr(kvm_t *);
-char	 *kvm_getfiles(kvm_t *, int, int, int *);
 int	  kvm_getloadavg(kvm_t *, double [], int);
 int	  kvm_getmaxcpu(kvm_t *);
+int	  kvm_getncpus(kvm_t *);
 void	 *kvm_getpcpu(kvm_t *, int);
+uint64_t  kvm_counter_u64_fetch(kvm_t *, u_long);
 struct kinfo_proc *
 	  kvm_getprocs(kvm_t *, int, int, int *);
 int	  kvm_getswapinfo(kvm_t *, struct kvm_swap *, int, int);
+int	  kvm_native(kvm_t *);
 int	  kvm_nlist(kvm_t *, struct nlist *);
+int	  kvm_nlist2(kvm_t *, struct kvm_nlist *);
 kvm_t	 *kvm_open
 	    (const char *, const char *, const char *, int, const char *);
 kvm_t	 *kvm_openfiles
 	    (const char *, const char *, const char *, int, char *);
+kvm_t	 *kvm_open2
+	    (const char *, const char *, int, char *,
+	    int (*)(const char *, kvaddr_t *));
 ssize_t	  kvm_read(kvm_t *, unsigned long, void *, size_t);
-ssize_t	  kvm_uread
-	    (kvm_t *, struct kinfo_proc *, unsigned long, char *, size_t);
+ssize_t	  kvm_read_zpcpu(kvm_t *, unsigned long, void *, size_t, int);
+ssize_t	  kvm_read2(kvm_t *, kvaddr_t, void *, size_t);
 ssize_t	  kvm_write(kvm_t *, unsigned long, const void *, size_t);
 __END_DECLS
 

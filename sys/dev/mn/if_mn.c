@@ -617,7 +617,7 @@ ngmn_rcvdata(hook_p hook, item_p item)
 				mn_free_desc(dp);
 				dp = dp2;
 			}
-			sc->ch[chan]->xl->vnext = 0;
+			sc->ch[chan]->xl->vnext = NULL;
 			break;
 		}
 		dp->data = vtophys(m2->m_data);
@@ -625,7 +625,7 @@ ngmn_rcvdata(hook_p hook, item_p item)
 		dp->flags += 1;
 		len -= m2->m_len;
 		dp->next = vtophys(dp);
-		dp->vnext = 0;
+		dp->vnext = NULL;
 		sc->ch[chan]->xl->next = vtophys(dp);
 		sc->ch[chan]->xl->vnext = dp;
 		sc->ch[chan]->xl = dp;
@@ -634,7 +634,7 @@ ngmn_rcvdata(hook_p hook, item_p item)
 			dp->flags |= 0xc0000000;
 			dp2->flags &= ~0x40000000;
 		} else {
-			dp->m = 0;
+			dp->m = NULL;
 			m2 = m2->m_next;
 		}
 	} 
@@ -693,12 +693,12 @@ ngmn_connect(hook_p hook)
 	/* Setup a transmit chain with one descriptor */
 	/* XXX: we actually send a 1 byte packet */
 	dp = mn_alloc_desc();
-	MGETHDR(m, M_WAIT, MT_DATA);
+	MGETHDR(m, M_WAITOK, MT_DATA);
 	m->m_pkthdr.len = 0;
 	dp->m = m;
 	dp->flags = 0xc0000000 + (1 << 16);
 	dp->next = vtophys(dp);
-	dp->vnext = 0;
+	dp->vnext = NULL;
 	dp->data = vtophys(sc->name);
 	sc->m32_mem.cs[chan].tdesc = vtophys(dp);
 	sc->ch[chan]->x1 = dp;
@@ -708,22 +708,22 @@ ngmn_connect(hook_p hook)
 
 	dp = mn_alloc_desc();
 	m = NULL;
-	MGETHDR(m, M_WAIT, MT_DATA);
-	MCLGET(m, M_WAIT);
+	MGETHDR(m, M_WAITOK, MT_DATA);
+	MCLGET(m, M_WAITOK);
 	dp->m = m;
 	dp->data = vtophys(m->m_data);
 	dp->flags = 0x40000000;
 	dp->flags += 1600 << 16;
 	dp->next = vtophys(dp);
-	dp->vnext = 0;
+	dp->vnext = NULL;
 	sc->ch[chan]->rl = dp;
 
 	for (i = 0; i < (nts + 10); i++) {
 		dp2 = dp;
 		dp = mn_alloc_desc();
 		m = NULL;
-		MGETHDR(m, M_WAIT, MT_DATA);
-		MCLGET(m, M_WAIT);
+		MGETHDR(m, M_WAITOK, MT_DATA);
+		MCLGET(m, M_WAITOK);
 		dp->m = m;
 		dp->data = vtophys(m->m_data);
 		dp->flags = 0x00000000;
@@ -1127,7 +1127,7 @@ mn_rx_intr(struct mn_softc *sc, u_int32_t vector)
 		if (vtophys(dp) == sc->m32_mem.crxd[chan]) 
 			return;
 		m = dp->m;
-		dp->m = 0;
+		dp->m = NULL;
 		m->m_pkthdr.len = m->m_len = (dp->status >> 16) & 0x1fff;
 		err = (dp->status >> 8) & 0xff;
 		if (!err) {
@@ -1160,13 +1160,12 @@ mn_rx_intr(struct mn_softc *sc, u_int32_t vector)
 
 		/* Replenish desc + mbuf supplies */
 		if (!m) {
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m == NULL) {
 				mn_free_desc(dp);
 				return; /* ENOBUFS */
 			}
-			MCLGET(m, M_DONTWAIT);
-			if((m->m_flags & M_EXT) == 0) {
+			if (!(MCLGET(m, M_NOWAIT))) {
 				mn_free_desc(dp);
 				m_freem(m);
 				return; /* ENOBUFS */
@@ -1177,7 +1176,7 @@ mn_rx_intr(struct mn_softc *sc, u_int32_t vector)
 		dp->flags = 0x40000000;
 		dp->flags += 1600 << 16;
 		dp->next = vtophys(dp);
-		dp->vnext = 0;
+		dp->vnext = NULL;
 		sc->ch[chan]->rl->next = vtophys(dp);
 		sc->ch[chan]->rl->vnext = dp;
 		sc->ch[chan]->rl->flags &= ~0x40000000;
@@ -1187,7 +1186,7 @@ mn_rx_intr(struct mn_softc *sc, u_int32_t vector)
 
 
 /*
- * Interupt handler
+ * Interrupt handler
  */
 
 static void
@@ -1252,24 +1251,6 @@ mn_intr(void *xsc)
 	if (j)
 		printf("\n");
 	sc->m32x->stat = stat;
-}
-
-static void
-mn_timeout(void *xsc)
-{
-	static int round = 0;
-	struct mn_softc *sc;
-
-	mn_intr(xsc);
-	sc = xsc;
-	timeout(mn_timeout, xsc, 10 * hz);
-	round++;
-	if (round == 2) {
-		sc->m32_mem.ccb = 0x00008004;
-		sc->m32x->cmd = 0x1;
-	} else if (round > 2) {
-		printf("%s: timeout\n", sc->name);
-	}
 }
 
 /*
@@ -1364,9 +1345,9 @@ mn_attach (device_t self)
 		return(ENXIO);
 	}
 
-	u = pci_read_config(self, PCIR_COMMAND, 1);
+	u = pci_read_config(self, PCIR_COMMAND, 2);
 	printf("%x\n", u);
-	pci_write_config(self, PCIR_COMMAND, u | PCIM_CMD_PERRESPEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN, 1);
+	pci_write_config(self, PCIR_COMMAND, u | PCIM_CMD_PERRESPEN | PCIM_CMD_BUSMASTEREN, 2);
 #if 0
 	pci_write_config(self, PCIR_COMMAND, 0x02800046, 4);
 #endif
@@ -1436,7 +1417,7 @@ static device_method_t mn_methods[] = {
         DEVMETHOD(device_resume,        bus_generic_resume),
         DEVMETHOD(device_shutdown,      bus_generic_shutdown),
 
-        {0, 0}
+	DEVMETHOD_END
 };
  
 static driver_t mn_driver = {

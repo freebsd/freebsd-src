@@ -38,20 +38,29 @@
 #define _SYS_PMCKERN_H_
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/sx.h>
+#include <sys/pmc.h>
+
+#include <machine/cpufunc.h>
 
 #define	PMC_FN_PROCESS_EXEC		1
 #define	PMC_FN_CSW_IN			2
 #define	PMC_FN_CSW_OUT			3
 #define	PMC_FN_DO_SAMPLES		4
-#define	PMC_FN_KLD_LOAD			5
-#define	PMC_FN_KLD_UNLOAD		6
+#define	PMC_FN_UNUSED1			5
+#define	PMC_FN_UNUSED2			6
 #define	PMC_FN_MMAP			7
 #define	PMC_FN_MUNMAP			8
 #define	PMC_FN_USER_CALLCHAIN		9
+#define	PMC_FN_USER_CALLCHAIN_SOFT	10
+#define	PMC_FN_SOFT_SAMPLING		11
+
+#define	PMC_HR	0	/* Hardware ring buffer */
+#define	PMC_SR	1	/* Software ring buffer */
 
 struct pmckern_procexec {
 	int		pm_credentialschanged;
@@ -68,6 +77,84 @@ struct pmckern_map_out {
 	size_t		pm_size;	/* size of unmapped region */
 };
 
+struct pmckern_soft {
+	enum pmc_event		pm_ev;
+	int			pm_cpu;
+	struct trapframe 	*pm_tf;
+};
+
+/*
+ * Soft PMC.
+ */
+
+#define PMC_SOFT_DEFINE_EX(prov, mod, func, name, alloc, release)		\
+	struct pmc_soft pmc_##prov##_##mod##_##func##_##name =			\
+	    { 0, alloc, release, { #prov "_" #mod "_" #func "." #name, 0 } };	\
+	SYSINIT(pmc_##prov##_##mod##_##func##_##name##_init, SI_SUB_KDTRACE, 	\
+	    SI_ORDER_SECOND + 1, pmc_soft_ev_register, 				\
+	    &pmc_##prov##_##mod##_##func##_##name );				\
+	SYSUNINIT(pmc_##prov##_##mod##_##func##_##name##_uninit, 		\
+	    SI_SUB_KDTRACE, SI_ORDER_SECOND + 1, pmc_soft_ev_deregister,	\
+	    &pmc_##prov##_##mod##_##func##_##name )
+
+#define PMC_SOFT_DEFINE(prov, mod, func, name)					\
+	PMC_SOFT_DEFINE_EX(prov, mod, func, name, NULL, NULL)
+
+#define PMC_SOFT_DECLARE(prov, mod, func, name)					\
+	extern struct pmc_soft pmc_##prov##_##mod##_##func##_##name
+
+/*
+ * PMC_SOFT_CALL can be used anywhere in the kernel.
+ * Require md defined PMC_FAKE_TRAPFRAME.
+ */
+#ifdef PMC_FAKE_TRAPFRAME
+#define PMC_SOFT_CALL(pr, mo, fu, na)						\
+do {										\
+	if (__predict_false(pmc_##pr##_##mo##_##fu##_##na.ps_running)) {	\
+		struct pmckern_soft ks;						\
+		register_t intr;						\
+		intr = intr_disable();						\
+		PMC_FAKE_TRAPFRAME(&pmc_tf[curcpu]);				\
+		ks.pm_ev = pmc_##pr##_##mo##_##fu##_##na.ps_ev.pm_ev_code;	\
+		ks.pm_cpu = PCPU_GET(cpuid);					\
+		ks.pm_tf = &pmc_tf[curcpu];					\
+		PMC_CALL_HOOK_UNLOCKED(curthread,				\
+		    PMC_FN_SOFT_SAMPLING, (void *) &ks);			\
+		intr_restore(intr);						\
+	}									\
+} while (0)
+#else
+#define PMC_SOFT_CALL(pr, mo, fu, na)						\
+do {										\
+} while (0)
+#endif
+
+/*
+ * PMC_SOFT_CALL_TF need to be used carefully.
+ * Userland capture will be done during AST processing.
+ */
+#define PMC_SOFT_CALL_TF(pr, mo, fu, na, tf)					\
+do {										\
+	if (__predict_false(pmc_##pr##_##mo##_##fu##_##na.ps_running)) {	\
+		struct pmckern_soft ks;						\
+		register_t intr;						\
+		intr = intr_disable();						\
+		ks.pm_ev = pmc_##pr##_##mo##_##fu##_##na.ps_ev.pm_ev_code;	\
+		ks.pm_cpu = PCPU_GET(cpuid);					\
+		ks.pm_tf = tf;							\
+		PMC_CALL_HOOK_UNLOCKED(curthread,				\
+		    PMC_FN_SOFT_SAMPLING, (void *) &ks);			\
+		intr_restore(intr);						\
+	}									\
+} while (0)
+
+struct pmc_soft {
+	int				ps_running;
+	void				(*ps_alloc)(void);
+	void				(*ps_release)(void);
+	struct pmc_dyn_event_descr	ps_ev;
+};
+
 /* hook */
 extern int (*pmc_hook)(struct thread *_td, int _function, void *_arg);
 extern int (*pmc_intr)(int _cpu, struct trapframe *_frame);
@@ -76,13 +163,16 @@ extern int (*pmc_intr)(int _cpu, struct trapframe *_frame);
 extern struct sx pmc_sx;
 
 /* Per-cpu flags indicating availability of sampling data */
-extern volatile cpumask_t pmc_cpumask;
+extern volatile cpuset_t pmc_cpumask;
 
 /* Count of system-wide sampling PMCs in existence */
 extern volatile int pmc_ss_count;
 
 /* kernel version number */
 extern const int pmc_kernel_version;
+
+/* PMC soft per cpu trapframe */
+extern struct trapframe pmc_tf[MAXCPU];
 
 /* Hook invocation; for use within the kernel */
 #define	PMC_CALL_HOOK(t, cmd, arg)		\
@@ -116,13 +206,16 @@ do {						\
 
 /* Check if a process is using HWPMCs.*/
 #define PMC_PROC_IS_USING_PMCS(p)				\
-	(__predict_false(atomic_load_acq_int(&(p)->p_flag) &	\
-	    P_HWPMC))
+	(__predict_false(p->p_flag & P_HWPMC))
+
+/* Check if a thread have pending user capture. */
+#define PMC_IS_PENDING_CALLCHAIN(p)				\
+	(__predict_false((p)->td_pflags & TDP_CALLCHAIN))
 
 #define	PMC_SYSTEM_SAMPLING_ACTIVE()		(pmc_ss_count > 0)
 
 /* Check if a CPU has recorded samples. */
-#define	PMC_CPU_HAS_SAMPLES(C)	(__predict_false(pmc_cpumask & (1 << (C))))
+#define	PMC_CPU_HAS_SAMPLES(C)	(__predict_false(CPU_ISSET(C, &pmc_cpumask)))
 
 /*
  * Helper functions.
@@ -136,5 +229,13 @@ unsigned int	pmc_cpu_max(void);
 #ifdef	INVARIANTS
 int		pmc_cpu_max_active(void);
 #endif
+
+/*
+ * Soft events functions.
+ */
+void pmc_soft_ev_register(struct pmc_soft *ps);
+void pmc_soft_ev_deregister(struct pmc_soft *ps);
+struct pmc_soft *pmc_soft_ev_acquire(enum pmc_event ev);
+void pmc_soft_ev_release(struct pmc_soft *ps);
 
 #endif /* _SYS_PMCKERN_H_ */

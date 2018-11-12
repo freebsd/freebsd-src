@@ -40,7 +40,6 @@
  */
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -57,6 +56,7 @@
 #include <machine/cpu.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/if_dl.h>
@@ -76,11 +76,6 @@
 #include <netinet6/nd6.h>
 #endif
 
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
 #define ARCNET_ALLOW_BROKEN_ARP
 
 static struct mbuf *arc_defrag(struct ifnet *, struct mbuf *);
@@ -92,8 +87,7 @@ u_int8_t  arcbroadcastaddr = 0;
 #define ARC_LLADDR(ifp)	(*(u_int8_t *)IF_LLADDR(ifp))
 
 #define senderr(e) { error = (e); goto bad;}
-#define SIN(s)	((struct sockaddr_in *)s)
-#define SIPX(s)	((struct sockaddr_ipx *)s)
+#define SIN(s)	((const struct sockaddr_in *)(s))
 
 /*
  * ARCnet output routine.
@@ -101,7 +95,7 @@ u_int8_t  arcbroadcastaddr = 0;
  * Assumes that ifp is actually pointer to arccom structure.
  */
 int
-arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
 	struct arc_header	*ah;
@@ -110,7 +104,7 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	int			loop_copy = 0;
 	int			isphds;
 #if defined(INET) || defined(INET6)
-	struct llentry		*lle;
+	int			is_gw = 0;
 #endif
 
 	if (!((ifp->if_flags & IFF_UP) &&
@@ -118,6 +112,10 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		return(ENETDOWN); /* m, m1 aren't initialized yet */
 
 	error = 0;
+#if defined(INET) || defined(INET6)
+	if (ro != NULL)
+		is_gw = (ro->ro_flags & RT_HAS_GW) != 0;
+#endif
 
 	switch (dst->sa_family) {
 #ifdef INET
@@ -131,8 +129,8 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		else if (ifp->if_flags & IFF_NOARP)
 			adst = ntohl(SIN(dst)->sin_addr.s_addr) & 0xFF;
 		else {
-			error = arpresolve(ifp, ro ? ro->ro_rt : NULL,
-			                   m, dst, &adst, &lle);
+			error = arpresolve(ifp, is_gw, m, dst, &adst, NULL,
+			    NULL);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}
@@ -170,24 +168,23 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, m, dst, (u_char *)&adst, &lle);
-		if (error)
-			return (error);
+		if ((m->m_flags & M_MCAST) != 0)
+			adst = arcbroadcastaddr; /* ARCnet broadcast address */
+		else {
+			error = nd6_resolve(ifp, is_gw, m, dst, &adst, NULL,
+			    NULL);
+			if (error != 0)
+				return (error == EWOULDBLOCK ? 0 : error);
+		}
 		atype = ARCTYPE_INET6;
 		break;
 #endif
-#ifdef IPX
-	case AF_IPX:
-		adst = SIPX(dst)->sipx_addr.x_host.c_host[5];
-		atype = ARCTYPE_IPX;
-		if (adst == 0xff)
-			adst = arcbroadcastaddr;
-		break;
-#endif
-
 	case AF_UNSPEC:
+	    {
+		const struct arc_header *ah;
+
 		loop_copy = -1;
-		ah = (struct arc_header *)dst->sa_data;
+		ah = (const struct arc_header *)dst->sa_data;
 		adst = ah->arc_dhost;
 		atype = ah->arc_type;
 
@@ -207,15 +204,15 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 #endif
 		}
 		break;
-
+	    }
 	default:
 		if_printf(ifp, "can't handle af%d\n", dst->sa_family);
 		senderr(EAFNOSUPPORT);
 	}
 
 	isphds = arc_isphds(atype);
-	M_PREPEND(m, isphds ? ARC_HDRNEWLEN : ARC_HDRLEN, M_DONTWAIT);
-	if (m == 0)
+	M_PREPEND(m, isphds ? ARC_HDRNEWLEN : ARC_HDRLEN, M_NOWAIT);
+	if (m == NULL)
 		senderr(ENOBUFS);
 	ah = mtod(m, struct arc_header *);
 	ah->arc_type = atype;
@@ -228,7 +225,7 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	if ((ifp->if_flags & IFF_SIMPLEX) && (loop_copy != -1)) {
 		if ((m->m_flags & M_BCAST) || (loop_copy > 0)) {
-			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
+			struct mbuf *n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 
 			(void) if_simloop(ifp, n, dst->sa_family, ARC_HDRLEN);
 		} else if (ah->arc_dhost == ah->arc_shost) {
@@ -266,12 +263,12 @@ arc_frag_next(struct ifnet *ifp)
 	struct arc_header *ah;
 
 	ac = (struct arccom *)ifp->if_l2com;
-	if ((m = ac->curr_frag) == 0) {
+	if ((m = ac->curr_frag) == NULL) {
 		int tfrags;
 
 		/* dequeue new packet */
 		IF_DEQUEUE(&ifp->if_snd, m);
-		if (m == 0)
+		if (m == NULL)
 			return 0;
 
 		ah = mtod(m, struct arc_header *);
@@ -279,7 +276,7 @@ arc_frag_next(struct ifnet *ifp)
 			return m;
 
 		++ac->ac_seqid;		/* make the seqid unique */
-		tfrags = (m->m_pkthdr.len + ARC_MAX_DATA - 1) / ARC_MAX_DATA;
+		tfrags = howmany(m->m_pkthdr.len, ARC_MAX_DATA);
 		ac->fsflag = 2 * tfrags - 3;
 		ac->sflag = 0;
 		ac->rsflag = ac->fsflag;
@@ -294,14 +291,14 @@ arc_frag_next(struct ifnet *ifp)
 	/* split out next fragment and return it */
 	if (ac->sflag < ac->fsflag) {
 		/* we CAN'T have short packets here */
-		ac->curr_frag = m_split(m, ARC_MAX_DATA, M_DONTWAIT);
+		ac->curr_frag = m_split(m, ARC_MAX_DATA, M_NOWAIT);
 		if (ac->curr_frag == 0) {
 			m_freem(m);
 			return 0;
 		}
 
-		M_PREPEND(m, ARC_HDRNEWLEN, M_DONTWAIT);
-		if (m == 0) {
+		M_PREPEND(m, ARC_HDRNEWLEN, M_NOWAIT);
+		if (m == NULL) {
 			m_freem(ac->curr_frag);
 			ac->curr_frag = 0;
 			return 0;
@@ -319,8 +316,8 @@ arc_frag_next(struct ifnet *ifp)
 	    ARC_MAX_FORBID_LEN - ARC_HDRNEWLEN + 2)) {
 		ac->curr_frag = 0;
 
-		M_PREPEND(m, ARC_HDRNEWLEN_EXC, M_DONTWAIT);
-		if (m == 0)
+		M_PREPEND(m, ARC_HDRNEWLEN_EXC, M_NOWAIT);
+		if (m == NULL)
 			return 0;
 
 		ah = mtod(m, struct arc_header *);
@@ -332,8 +329,8 @@ arc_frag_next(struct ifnet *ifp)
 	} else {
 		ac->curr_frag = 0;
 
-		M_PREPEND(m, ARC_HDRNEWLEN, M_DONTWAIT);
-		if (m == 0)
+		M_PREPEND(m, ARC_HDRNEWLEN, M_NOWAIT);
+		if (m == NULL)
 			return 0;
 
 		ah = mtod(m, struct arc_header *);
@@ -350,7 +347,7 @@ arc_frag_next(struct ifnet *ifp)
 
 /*
  * Defragmenter. Returns mbuf if last packet found, else
- * NULL. frees imcoming mbuf as necessary.
+ * NULL. frees incoming mbuf as necessary.
  */
 
 static __inline struct mbuf *
@@ -369,7 +366,7 @@ arc_defrag(struct ifnet *ifp, struct mbuf *m)
 	if (m->m_len < ARC_HDRNEWLEN) {
 		m = m_pullup(m, ARC_HDRNEWLEN);
 		if (m == NULL) {
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			return NULL;
 		}
 	}
@@ -389,7 +386,7 @@ arc_defrag(struct ifnet *ifp, struct mbuf *m)
 		if (m->m_len < ARC_HDRNEWLEN) {
 			m = m_pullup(m, ARC_HDRNEWLEN);
 			if (m == NULL) {
-				++ifp->if_ierrors;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return NULL;
 			}
 		}
@@ -542,11 +539,11 @@ arc_input(struct ifnet *ifp, struct mbuf *m)
 		return;
 	}
 
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	if (ah->arc_dhost == arcbroadcastaddr) {
 		m->m_flags |= M_BCAST|M_MCAST;
-		ifp->if_imcasts++;
+		if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
 	}
 
 	atype = ah->arc_type;
@@ -554,15 +551,11 @@ arc_input(struct ifnet *ifp, struct mbuf *m)
 #ifdef INET
 	case ARCTYPE_IP:
 		m_adj(m, ARC_HDRNEWLEN);
-		if ((m = ip_fastforward(m)) == NULL)
-			return;
 		isr = NETISR_IP;
 		break;
 
 	case ARCTYPE_IP_OLD:
 		m_adj(m, ARC_HDRLEN);
-		if ((m = ip_fastforward(m)) == NULL)
-			return;
 		isr = NETISR_IP;
 		break;
 
@@ -598,16 +591,11 @@ arc_input(struct ifnet *ifp, struct mbuf *m)
 		isr = NETISR_IPV6;
 		break;
 #endif
-#ifdef IPX
-	case ARCTYPE_IPX:
-		m_adj(m, ARC_HDRNEWLEN);
-		isr = NETISR_IPX;
-		break;
-#endif
 	default:
 		m_freem(m);
 		return;
 	}
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 }
 
@@ -637,11 +625,7 @@ arc_ifattach(struct ifnet *ifp, u_int8_t lla)
 	ifp->if_resolvemulti = arc_resolvemulti;
 	if (ifp->if_baudrate == 0)
 		ifp->if_baudrate = 2500000;
-#if __FreeBSD_version < 500000
-	ifa = ifnet_addrs[ifp->if_index - 1];
-#else
 	ifa = ifp->if_addr;
-#endif
 	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __func__));
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_ARCNET;
@@ -687,26 +671,6 @@ arc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_init(ifp->if_softc);	/* before arpwhohas */
 			arp_ifinit(ifp, ifa);
 			break;
-#endif
-#ifdef IPX
-		/*
-		 * XXX This code is probably wrong
-		 */
-		case AF_IPX:
-		{
-			struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-
-			if (ipx_nullhost(*ina))
-				ina->x_host.c_host[5] = ARC_LLADDR(ifp);
-			else
-				arc_storelladdr(ifp, ina->x_host.c_host[5]);
-
-			/*
-			 * Set new address
-			 */
-			ifp->if_init(ifp->if_softc);
-			break;
-		}
 #endif
 		default:
 			ifp->if_init(ifp->if_softc);
@@ -778,21 +742,14 @@ arc_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		sdl = (struct sockaddr_dl *)sa;
 		if (*LLADDR(sdl) != arcbroadcastaddr)
 			return EADDRNOTAVAIL;
-		*llsa = 0;
+		*llsa = NULL;
 		return 0;
 #ifdef INET
 	case AF_INET:
 		sin = (struct sockaddr_in *)sa;
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			return EADDRNOTAVAIL;
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT | M_ZERO);
-		if (sdl == NULL)
-			return ENOMEM;
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_ARCNET;
+		sdl = link_init_sdl(ifp, *llsa, IFT_ETHER);
 		sdl->sdl_alen = ARC_ADDR_LEN;
 		*LLADDR(sdl) = 0;
 		*llsa = (struct sockaddr *)sdl;
@@ -808,19 +765,12 @@ arc_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 			 * (This is used for multicast routers.)
 			 */
 			ifp->if_flags |= IFF_ALLMULTI;
-			*llsa = 0;
+			*llsa = NULL;
 			return 0;
 		}
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return EADDRNOTAVAIL;
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT | M_ZERO);
-		if (sdl == NULL)
-			return ENOMEM;
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_ARCNET;
+		sdl = link_init_sdl(ifp, *llsa, IFT_ETHER);
 		sdl->sdl_alen = ARC_ADDR_LEN;
 		*LLADDR(sdl) = 0;
 		*llsa = (struct sockaddr *)sdl;
@@ -836,7 +786,7 @@ arc_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 	}
 }
 
-MALLOC_DEFINE(M_ARCCOM, "arccom", "ARCNET interface internals");
+static MALLOC_DEFINE(M_ARCCOM, "arccom", "ARCNET interface internals");
 
 static void*
 arc_alloc(u_char type, struct ifnet *ifp)

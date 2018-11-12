@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 static void usage(void);
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 	"usage: comcontrol <filename> [dtrwait <n>] [drainwait <n>]\n");

@@ -38,7 +38,6 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
-#include <sys/time.h>
 
 #include <ufs/ufs/dinode.h>
 
@@ -51,6 +50,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <stdarg.h>
 #include <signal.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "dump.h"
@@ -403,7 +403,7 @@ lastdump(int arg)	/* w ==> just what to do; W ==> most recent dumps */
 		    dumpme = tnow > (dtwalk->dd_ddate - (tlast->tm_hour * 3600)
 				     - (tlast->tm_min * 60) - tlast->tm_sec
 				     + (dt->fs_freq * 86400));
-		};
+		}
 		if (arg != 'w' || dumpme)
 			(void) printf(
 			    "%c %8s\t(%6s) Last dump: Level %d, Date %s\n",

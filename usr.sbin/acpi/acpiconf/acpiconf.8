@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2000 Dag-Erling Coïdan Smørgrav
+.\" Copyright (c) 2000 Dag-Erling CoÃ¯dan SmÃ¸rgrav
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2004
+.Dd September 22, 2015
 .Dt ACPICONF 8
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nm
 .Op Fl h
 .Op Fl i Ar batt
+.Op Fl k Ar ack
 .Op Fl s Ar type
 .Sh DESCRIPTION
 The
@@ -49,6 +50,9 @@ The following command-line options are recognized:
 Displays a summary of available options.
 .It Fl i Ar batt
 Get design information about the specified battery.
+.It Fl k Ar ack
+Ack or abort a pending suspend request using the argument provided.
+.Sy Most users should not use this option directly.
 .It Fl s Ar type
 Enters the specified sleep mode.
 Recognized types are
@@ -58,11 +62,9 @@ Recognized types are
 (not implemented on most systems but similar to S1),
 .Cm 3
 (the CPU context is lost and memory context is preserved),
-.Cm 4
-(the CPU context is lost and memory context is stored to disk)
 and
-.Cm 5
-(soft off).
+.Cm 4
+(the CPU context is lost and memory context is stored to disk).
 Sleep states may also be given as S1, S2, etc.
 The supported states depend on BIOS implementation, including ACPI
 byte code (AML).
@@ -87,6 +89,6 @@ utility appeared in
 The
 .Nm
 utility was written by
-.An Mitsuru Iwasaki Aq iwasaki@FreeBSD.org .
+.An Mitsuru Iwasaki Aq Mt iwasaki@FreeBSD.org .
 This manual page was written by
-.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

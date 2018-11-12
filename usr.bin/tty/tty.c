@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -67,17 +63,18 @@ main(int argc, char *argv[])
 		case '?':
 		default:
 			usage();
+			/* NOTREACHED */
 		}
 
-	t = ttyname(0);
+	t = ttyname(STDIN_FILENO);
 	if (!sflag)
 		puts(t ? t : "not a tty");
-	exit(t ? 0 : 1);
+	exit(t ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: tty [-s]\n");
+	fprintf(stderr, "usage: %s [-s]\n", getprogname());
 	exit(2);
 }

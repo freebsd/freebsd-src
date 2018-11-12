@@ -35,66 +35,59 @@ __FBSDID("$FreeBSD$");
 #include <libutil.h>
 #include <stdint.h>
 
-/*
- * Convert an expression of the following forms to a int64_t.
- * 	1) A positive decimal number.
- *	2) A positive decimal number followed by a 'b' or 'B' (mult by 1).
- *	3) A positive decimal number followed by a 'k' or 'K' (mult by 1 << 10).
- *	4) A positive decimal number followed by a 'm' or 'M' (mult by 1 << 20).
- *	5) A positive decimal number followed by a 'g' or 'G' (mult by 1 << 30).
- *	6) A positive decimal number followed by a 't' or 'T' (mult by 1 << 40).
- *	7) A positive decimal number followed by a 'p' or 'P' (mult by 1 << 50).
- *	8) A positive decimal number followed by a 'e' or 'E' (mult by 1 << 60).
- */
 int
-expand_number(const char *buf, int64_t *num)
+expand_number(const char *buf, uint64_t *num)
 {
-	static const char unit[] = "bkmgtpe";
-	char *endptr, s;
-	int64_t number;
-	int i;
+	char *endptr;
+	uintmax_t umaxval;
+	uint64_t number;
+	unsigned shift;
+	int serrno;
 
-	number = strtoimax(buf, &endptr, 0);
-
-	if (endptr == buf) {
-		/* No valid digits. */
-		errno = EINVAL;
+	serrno = errno;
+	errno = 0;
+	umaxval = strtoumax(buf, &endptr, 0);
+	if (umaxval > UINT64_MAX)
+		errno = ERANGE;
+	if (errno != 0)
 		return (-1);
-	}
+	errno = serrno;
+	number = umaxval;
 
-	if (*endptr == '\0') {
-		/* No unit. */
+	switch (tolower((unsigned char)*endptr)) {
+	case 'e':
+		shift = 60;
+		break;
+	case 'p':
+		shift = 50;
+		break;
+	case 't':
+		shift = 40;
+		break;
+	case 'g':
+		shift = 30;
+		break;
+	case 'm':
+		shift = 20;
+		break;
+	case 'k':
+		shift = 10;
+		break;
+	case 'b':
+	case '\0': /* No unit. */
 		*num = number;
 		return (0);
-	}
-
-	s = tolower(*endptr);
-	switch (s) {
-	case 'b':
-	case 'k':
-	case 'm':
-	case 'g':
-	case 't':
-	case 'p':
-	case 'e':
-		break;
 	default:
 		/* Unrecognized unit. */
 		errno = EINVAL;
 		return (-1);
 	}
 
-	for (i = 0; unit[i] != '\0'; i++) {
-		if (s == unit[i])
-			break;
-		if ((number < 0 && (number << 10) > number) ||
-		    (number >= 0 && (number << 10) < number)) {
-			errno = ERANGE;
-			return (-1);
-		}
-		number <<= 10;
+	if ((number << shift) >> shift != number) {
+		/* Overflow */
+		errno = ERANGE;
+		return (-1);
 	}
-
-	*num = number;
+	*num = number << shift;
 	return (0);
 }

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd January 4, 2003
+.Dd October 2, 2014
 .Dt STRPTIME 3
 .Os
 .Sh NAME
@@ -41,6 +41,10 @@
 .Fa "const char * restrict format"
 .Fa "struct tm * restrict timeptr"
 .Fc
+.In time.h
+.In xlocale.h
+.Ft char *
+.Fn strptime_l "const char * restrict buf" "const char * restrict format" "struct tm * restrict timeptr" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn strptime
@@ -53,6 +57,11 @@ and fills in the elements of the structure pointed to by
 The resulting values will be relative to the local time zone.
 Thus, it can be considered the reverse operation of
 .Xr strftime 3 .
+The
+.Fn strptime_l
+function does the same as
+.Fn strptime ,
+but takes an explicit locale rather than using the current locale.
 .Pp
 The
 .Fa format
@@ -71,6 +80,11 @@ and
 are now interpreted as beginning at 1969 per POSIX requirements.
 Years 69-00 are interpreted in the 20th century (1969-2000), years
 01-68 in the 21st century (2001-2068).
+The
+.Fa \&%U
+and
+.Fa %W
+format specifiers accept any value within the range 00 to 53.
 .Pp
 If the
 .Fa format
@@ -104,6 +118,9 @@ that has not been required to satisfy the specified conversions in
 It returns
 .Dv NULL
 if one of the conversions failed.
+.Fn strptime_l
+returns the same values as
+.Fn strptime .
 .Sh SEE ALSO
 .Xr date 1 ,
 .Xr scanf 3 ,
@@ -147,14 +164,6 @@ is taken as midnight
 and 12PM
 (post meridiem)
 is taken as noon.
-.Pp
-The
-.Fa %U
-and
-.Fa %W
-format specifiers accept any value within the range 00 to 53
-without validating against other values supplied (like month
-or day of the year, for example).
 .Pp
 The
 .Fa %Z

@@ -45,22 +45,26 @@
 #include <sys/queue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/pfil.h>
 
 static struct mtx pfil_global_lock;
 
-MTX_SYSINIT(pfil_heads_lock, &pfil_global_lock, "pfil_head_list lock", MTX_DEF);
+MTX_SYSINIT(pfil_heads_lock, &pfil_global_lock, "pfil_head_list lock",
+  MTX_DEF);
 
-static int pfil_list_add(pfil_list_t *, struct packet_filter_hook *, int);
+static struct packet_filter_hook *pfil_chain_get(int, struct pfil_head *);
+static int pfil_chain_add(pfil_chain_t *, struct packet_filter_hook *, int);
+static int pfil_chain_remove(pfil_chain_t *, pfil_func_t, void *);
 
-static int pfil_list_remove(pfil_list_t *,
-    int (*)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *), void *);
-
-LIST_HEAD(, pfil_head) pfil_head_list =
-    LIST_HEAD_INITIALIZER(&pfil_head_list);
+LIST_HEAD(pfilheadhead, pfil_head);
+VNET_DEFINE(struct pfilheadhead, pfil_head_list);
+#define	V_pfil_head_list	VNET(pfil_head_list)
+VNET_DEFINE(struct rmlock, pfil_lock);
+#define	V_pfil_lock	VNET(pfil_lock)
 
 /*
- * pfil_run_hooks() runs the specified packet filter hooks.
+ * pfil_run_hooks() runs the specified packet filter hook chain.
  */
 int
 pfil_run_hooks(struct pfil_head *ph, struct mbuf **mp, struct ifnet *ifp,
@@ -73,43 +77,117 @@ pfil_run_hooks(struct pfil_head *ph, struct mbuf **mp, struct ifnet *ifp,
 
 	PFIL_RLOCK(ph, &rmpt);
 	KASSERT(ph->ph_nhooks >= 0, ("Pfil hook count dropped < 0"));
-	for (pfh = pfil_hook_get(dir, ph); pfh != NULL;
-	     pfh = TAILQ_NEXT(pfh, pfil_link)) {
+	for (pfh = pfil_chain_get(dir, ph); pfh != NULL;
+	     pfh = TAILQ_NEXT(pfh, pfil_chain)) {
 		if (pfh->pfil_func != NULL) {
-			rv = (*pfh->pfil_func)(pfh->pfil_arg, &m, ifp, dir, inp);
+			rv = (*pfh->pfil_func)(pfh->pfil_arg, &m, ifp, dir,
+			    inp);
 			if (rv != 0 || m == NULL)
 				break;
 		}
 	}
 	PFIL_RUNLOCK(ph, &rmpt);
-	
 	*mp = m;
 	return (rv);
 }
 
+static struct packet_filter_hook *
+pfil_chain_get(int dir, struct pfil_head *ph)
+{
+
+	if (dir == PFIL_IN)
+		return (TAILQ_FIRST(&ph->ph_in));
+	else if (dir == PFIL_OUT)
+		return (TAILQ_FIRST(&ph->ph_out));
+	else
+		return (NULL);
+}
+
 /*
- * pfil_head_register() registers a pfil_head with the packet filter
- * hook mechanism.
+ * pfil_try_rlock() acquires rm reader lock for specified head
+ * if this is immediately possible.
+ */
+int
+pfil_try_rlock(struct pfil_head *ph, struct rm_priotracker *tracker)
+{
+
+	return (PFIL_TRY_RLOCK(ph, tracker));
+}
+
+/*
+ * pfil_rlock() acquires rm reader lock for specified head.
+ */
+void
+pfil_rlock(struct pfil_head *ph, struct rm_priotracker *tracker)
+{
+
+	PFIL_RLOCK(ph, tracker);
+}
+
+/*
+ * pfil_runlock() releases reader lock for specified head.
+ */
+void
+pfil_runlock(struct pfil_head *ph, struct rm_priotracker *tracker)
+{
+
+	PFIL_RUNLOCK(ph, tracker);
+}
+
+/*
+ * pfil_wlock() acquires writer lock for specified head.
+ */
+void
+pfil_wlock(struct pfil_head *ph)
+{
+
+	PFIL_WLOCK(ph);
+}
+
+/*
+ * pfil_wunlock() releases writer lock for specified head.
+ */
+void
+pfil_wunlock(struct pfil_head *ph)
+{
+
+	PFIL_WUNLOCK(ph);
+}
+
+/*
+ * pfil_wowned() returns a non-zero value if the current thread owns
+ * an exclusive lock.
+ */
+int
+pfil_wowned(struct pfil_head *ph)
+{
+
+	return (PFIL_WOWNED(ph));
+}
+
+/*
+ * pfil_head_register() registers a pfil_head with the packet filter hook
+ * mechanism.
  */
 int
 pfil_head_register(struct pfil_head *ph)
 {
 	struct pfil_head *lph;
 
-	PFIL_LIST_LOCK();
-	LIST_FOREACH(lph, &pfil_head_list, ph_list) {
+	PFIL_HEADLIST_LOCK();
+	LIST_FOREACH(lph, &V_pfil_head_list, ph_list) {
 		if (ph->ph_type == lph->ph_type &&
 		    ph->ph_un.phu_val == lph->ph_un.phu_val) {
-			PFIL_LIST_UNLOCK();
-			return EEXIST;
+			PFIL_HEADLIST_UNLOCK();
+			return (EEXIST);
 		}
 	}
 	PFIL_LOCK_INIT(ph);
 	ph->ph_nhooks = 0;
 	TAILQ_INIT(&ph->ph_in);
 	TAILQ_INIT(&ph->ph_out);
-	LIST_INSERT_HEAD(&pfil_head_list, ph, ph_list);
-	PFIL_LIST_UNLOCK();
+	LIST_INSERT_HEAD(&V_pfil_head_list, ph, ph_list);
+	PFIL_HEADLIST_UNLOCK();
 	return (0);
 }
 
@@ -123,12 +201,12 @@ pfil_head_unregister(struct pfil_head *ph)
 {
 	struct packet_filter_hook *pfh, *pfnext;
 		
-	PFIL_LIST_LOCK();
+	PFIL_HEADLIST_LOCK();
 	LIST_REMOVE(ph, ph_list);
-	PFIL_LIST_UNLOCK();
-	TAILQ_FOREACH_SAFE(pfh, &ph->ph_in, pfil_link, pfnext)
+	PFIL_HEADLIST_UNLOCK();
+	TAILQ_FOREACH_SAFE(pfh, &ph->ph_in, pfil_chain, pfnext)
 		free(pfh, M_IFADDR);
-	TAILQ_FOREACH_SAFE(pfh, &ph->ph_out, pfil_link, pfnext)
+	TAILQ_FOREACH_SAFE(pfh, &ph->ph_out, pfil_chain, pfnext)
 		free(pfh, M_IFADDR);
 	PFIL_LOCK_DESTROY(ph);
 	return (0);
@@ -142,12 +220,11 @@ pfil_head_get(int type, u_long val)
 {
 	struct pfil_head *ph;
 
-	PFIL_LIST_LOCK();
-	LIST_FOREACH(ph, &pfil_head_list, ph_list)
+	PFIL_HEADLIST_LOCK();
+	LIST_FOREACH(ph, &V_pfil_head_list, ph_list)
 		if (ph->ph_type == type && ph->ph_un.phu_val == val)
 			break;
-	PFIL_LIST_UNLOCK();
-	
+	PFIL_HEADLIST_UNLOCK();
 	return (ph);
 }
 
@@ -160,8 +237,7 @@ pfil_head_get(int type, u_long val)
  *	PFIL_WAITOK	OK to call malloc with M_WAITOK.
  */
 int
-pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int,
-  struct inpcb *), void *arg, int flags, struct pfil_head *ph)
+pfil_add_hook(pfil_func_t func, void *arg, int flags, struct pfil_head *ph)
 {
 	struct packet_filter_hook *pfh1 = NULL;
 	struct packet_filter_hook *pfh2 = NULL;
@@ -187,7 +263,7 @@ pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int,
 	if (flags & PFIL_IN) {
 		pfh1->pfil_func = func;
 		pfh1->pfil_arg = arg;
-		err = pfil_list_add(&ph->ph_in, pfh1, flags & ~PFIL_OUT);
+		err = pfil_chain_add(&ph->ph_in, pfh1, flags & ~PFIL_OUT);
 		if (err)
 			goto locked_error;
 		ph->ph_nhooks++;
@@ -195,16 +271,16 @@ pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int,
 	if (flags & PFIL_OUT) {
 		pfh2->pfil_func = func;
 		pfh2->pfil_arg = arg;
-		err = pfil_list_add(&ph->ph_out, pfh2, flags & ~PFIL_IN);
+		err = pfil_chain_add(&ph->ph_out, pfh2, flags & ~PFIL_IN);
 		if (err) {
 			if (flags & PFIL_IN)
-				pfil_list_remove(&ph->ph_in, func, arg);
+				pfil_chain_remove(&ph->ph_in, func, arg);
 			goto locked_error;
 		}
 		ph->ph_nhooks++;
 	}
 	PFIL_WUNLOCK(ph);
-	return 0;
+	return (0);
 locked_error:
 	PFIL_WUNLOCK(ph);
 error:
@@ -212,75 +288,115 @@ error:
 		free(pfh1, M_IFADDR);
 	if (pfh2 != NULL)
 		free(pfh2, M_IFADDR);
-	return err;
+	return (err);
 }
 
 /*
- * pfil_remove_hook removes a specific function from the packet filter
- * hook list.
+ * pfil_remove_hook removes a specific function from the packet filter hook
+ * chain.
  */
 int
-pfil_remove_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *),
-    void *arg, int flags, struct pfil_head *ph)
+pfil_remove_hook(pfil_func_t func, void *arg, int flags, struct pfil_head *ph)
 {
 	int err = 0;
 
 	PFIL_WLOCK(ph);
-
 	if (flags & PFIL_IN) {
-		err = pfil_list_remove(&ph->ph_in, func, arg);
+		err = pfil_chain_remove(&ph->ph_in, func, arg);
 		if (err == 0)
 			ph->ph_nhooks--;
 	}
 	if ((err == 0) && (flags & PFIL_OUT)) {
-		err = pfil_list_remove(&ph->ph_out, func, arg);
+		err = pfil_chain_remove(&ph->ph_out, func, arg);
 		if (err == 0)
 			ph->ph_nhooks--;
 	}
 	PFIL_WUNLOCK(ph);
-	
-	return err;
+	return (err);
 }
 
+/*
+ * Internal: Add a new pfil hook into a hook chain.
+ */
 static int
-pfil_list_add(pfil_list_t *list, struct packet_filter_hook *pfh1, int flags)
+pfil_chain_add(pfil_chain_t *chain, struct packet_filter_hook *pfh1, int flags)
 {
 	struct packet_filter_hook *pfh;
 
 	/*
 	 * First make sure the hook is not already there.
 	 */
-	TAILQ_FOREACH(pfh, list, pfil_link)
+	TAILQ_FOREACH(pfh, chain, pfil_chain)
 		if (pfh->pfil_func == pfh1->pfil_func &&
 		    pfh->pfil_arg == pfh1->pfil_arg)
-			return EEXIST;
+			return (EEXIST);
+
 	/*
-	 * insert the input list in reverse order of the output list
-	 * so that the same path is followed in or out of the kernel.
+	 * Insert the input list in reverse order of the output list so that
+	 * the same path is followed in or out of the kernel.
 	 */
 	if (flags & PFIL_IN)
-		TAILQ_INSERT_HEAD(list, pfh1, pfil_link);
+		TAILQ_INSERT_HEAD(chain, pfh1, pfil_chain);
 	else
-		TAILQ_INSERT_TAIL(list, pfh1, pfil_link);
-
-	return 0;
+		TAILQ_INSERT_TAIL(chain, pfh1, pfil_chain);
+	return (0);
 }
 
 /*
- * pfil_list_remove is an internal function that takes a function off the
- * specified list.
+ * Internal: Remove a pfil hook from a hook chain.
  */
 static int
-pfil_list_remove(pfil_list_t *list,
-    int (*func)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *), void *arg)
+pfil_chain_remove(pfil_chain_t *chain, pfil_func_t func, void *arg)
 {
 	struct packet_filter_hook *pfh;
 
-	TAILQ_FOREACH(pfh, list, pfil_link)
+	TAILQ_FOREACH(pfh, chain, pfil_chain)
 		if (pfh->pfil_func == func && pfh->pfil_arg == arg) {
-			TAILQ_REMOVE(list, pfh, pfil_link);
+			TAILQ_REMOVE(chain, pfh, pfil_chain);
 			free(pfh, M_IFADDR);
-			return 0;
+			return (0);
 		}
-	return ENOENT;
+	return (ENOENT);
 }
+
+/*
+ * Stuff that must be initialized for every instance (including the first of
+ * course).
+ */
+static void
+vnet_pfil_init(const void *unused __unused)
+{
+
+	LIST_INIT(&V_pfil_head_list);
+	PFIL_LOCK_INIT_REAL(&V_pfil_lock, "shared");
+}
+
+/*
+ * Called for the removal of each instance.
+ */
+static void
+vnet_pfil_uninit(const void *unused __unused)
+{
+
+	KASSERT(LIST_EMPTY(&V_pfil_head_list),
+	    ("%s: pfil_head_list %p not empty", __func__, &V_pfil_head_list));
+	PFIL_LOCK_DESTROY_REAL(&V_pfil_lock);
+}
+
+/*
+ * Starting up.
+ *
+ * VNET_SYSINIT is called for each existing vnet and each new vnet.
+ * Make sure the pfil bits are first before any possible subsystem which
+ * might piggyback on the SI_SUB_PROTO_PFIL.
+ */
+VNET_SYSINIT(vnet_pfil_init, SI_SUB_PROTO_PFIL, SI_ORDER_FIRST,
+    vnet_pfil_init, NULL);
+ 
+/*
+ * Closing up shop.  These are done in REVERSE ORDER.  Not called on reboot.
+ *
+ * VNET_SYSUNINIT is called for each exiting vnet as it exits.
+ */
+VNET_SYSUNINIT(vnet_pfil_uninit, SI_SUB_PROTO_PFIL, SI_ORDER_FIRST,
+    vnet_pfil_uninit, NULL);

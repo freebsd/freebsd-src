@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002, 2004-2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002, 2004-2006 Proofpoint, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,7 +11,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: local.h,v 1.58 2006/12/19 19:44:23 ca Exp $
+ *	$Id: local.h,v 1.59 2013-11-22 20:51:43 ca Exp $
  */
 
 /*
@@ -20,6 +20,7 @@
 */
 
 #include <sm/time.h>
+#include <sm/fdset.h>
 #if !SM_CONF_MEMCHR
 # include <memory.h>
 #endif /* !SM_CONF_MEMCHR */
@@ -244,7 +245,7 @@ int sm_flags __P((int));
 		sm_io_to.tv_sec = (to) / 1000; \
 		sm_io_to.tv_usec = ((to) - (sm_io_to.tv_sec * 1000)) * 1000; \
 	} \
-	if (FD_SETSIZE > 0 && (fd) >= FD_SETSIZE) \
+	if (!SM_FD_OK_SELECT(fd)) \
 	{ \
 		errno = EINVAL; \
 		return SM_IO_EOF; \

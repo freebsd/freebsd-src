@@ -103,10 +103,7 @@ ng_UI_constructor(node_p node)
 	priv_p  priv;
 
 	/* Allocate private structure */
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (priv == NULL) {
-		return (ENOMEM);
-	}
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 	NG_NODE_SET_PRIVATE(node, priv);
 	return (0);
 }
@@ -191,13 +188,13 @@ ng_UI_rcvdata(hook_p hook, item_p item)
 		m_adj(m, ptr - start);
 		NG_FWD_NEW_DATA(error, item, priv->uplink, m);	/* m -> NULL */
 	} else if (hook == priv->uplink) {
-		M_PREPEND(m, 1, M_DONTWAIT);	/* Prepend IP NLPID */
+		M_PREPEND(m, 1, M_NOWAIT);	/* Prepend IP NLPID */
 		if (!m)
 			ERROUT(ENOBUFS);
 		mtod(m, u_char *)[0] = HDLC_UI;
 		NG_FWD_NEW_DATA(error, item, priv->downlink, m);	/* m -> NULL */
 	} else
-		panic(__func__);
+		panic("%s", __func__);
 
 done:
 	NG_FREE_M(m);	/* does nothing if m == NULL */
@@ -234,7 +231,7 @@ ng_UI_disconnect(hook_p hook)
 	else if (hook == priv->uplink)
 		priv->uplink = NULL;
 	else
-		panic(__func__);
+		panic("%s", __func__);
 	/*
 	 * If we are not already shutting down,
 	 * and we have no more hooks, then DO shut down.

@@ -43,7 +43,7 @@
 #ifndef _SYS_MDIOCTL_H_
 #define _SYS_MDIOCTL_H_
 
-enum md_types {MD_MALLOC, MD_PRELOAD, MD_VNODE, MD_SWAP};
+enum md_types {MD_MALLOC, MD_PRELOAD, MD_VNODE, MD_SWAP, MD_NULL};
 
 /*
  * Ioctl definitions for memory disk pseudo-device.
@@ -79,6 +79,7 @@ struct md_ioctl {
 #define MDIOCDETACH	_IOWR('m', 1, struct md_ioctl)	/* detach disk */
 #define MDIOCQUERY	_IOWR('m', 2, struct md_ioctl)	/* query status */
 #define MDIOCLIST	_IOWR('m', 3, struct md_ioctl)	/* query status */
+#define MDIOCRESIZE	_IOWR('m', 4, struct md_ioctl)	/* resize disk */
 
 #define MD_CLUSTER	0x01	/* Don't cluster */
 #define MD_RESERVE	0x02	/* Pre-reserve swap */
@@ -86,6 +87,6 @@ struct md_ioctl {
 #define MD_READONLY	0x08	/* Readonly mode */
 #define MD_COMPRESS	0x10	/* Compression mode */
 #define MD_FORCE	0x20	/* Don't try to prevent foot-shooting */
-#define MD_ASYNC	0x40	/* Don't try to prevent foot-shooting */
+#define MD_ASYNC	0x40	/* Asynchronous mode */
 
 #endif	/* _SYS_MDIOCTL_H_*/

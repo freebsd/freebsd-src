@@ -37,68 +37,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <machine/bus.h>
+#include <machine/fdt.h>
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 #include <arm/mv/mvwin.h>
 
+#if 0
 extern const struct obio_pci_irq_map pci_irq_map[];
-
-struct obio_device obio_devices[] = {
-	{ "ic", MV_IC_BASE, MV_IC_SIZE,
-		{ -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "timer", MV_TIMERS_BASE, MV_TIMERS_SIZE,
-		{ MV_INT_BRIDGE, -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "gpio", MV_GPIO_BASE, MV_GPIO_SIZE,
-		{ MV_INT_GPIO7_0, MV_INT_GPIO15_8,
-		  MV_INT_GPIO23_16, MV_INT_GPIO31_24, -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "uart", MV_UART0_BASE, MV_UART_SIZE,
-		{ MV_INT_UART0, -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "uart", MV_UART1_BASE, MV_UART_SIZE,
-		{ MV_INT_UART1, -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "idma", MV_IDMA_BASE, MV_IDMA_SIZE,
-		{ MV_INT_IDMA_ERR, MV_INT_IDMA0, MV_INT_IDMA1,
-		  MV_INT_IDMA2, MV_INT_IDMA3, -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "ehci", MV_USB0_BASE, MV_USB_SIZE,
-		{ MV_INT_USB_BERR, MV_INT_USB_CI, -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "mge", MV_ETH0_BASE, MV_ETH_SIZE,
-		{ MV_INT_GBERX, MV_INT_GBETX, MV_INT_GBEMISC,
-		  MV_INT_GBESUM, MV_INT_GBEERR, -1 },
-		{ -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "twsi", MV_TWSI0_BASE, MV_TWSI_SIZE,
-		{ -1 }, { -1 },
-		CPU_PM_CTRL_NONE
-	},
-	{ "sata", MV_SATAHC_BASE, MV_SATAHC_SIZE,
-	        { MV_INT_SATA, -1 }, { -1 },
-	        CPU_PM_CTRL_NONE
- 	},
-	{ NULL, 0, 0, { 0 } }
-};
-
 const struct obio_pci mv_pci_info[] = {
 	{ MV_TYPE_PCIE,
 		MV_PCIE_BASE,	MV_PCIE_SIZE,
@@ -116,6 +62,7 @@ const struct obio_pci mv_pci_info[] = {
 
 	{ 0, 0, 0 }
 };
+#endif
 
 struct resource_spec mv_gpio_res[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
@@ -126,52 +73,11 @@ struct resource_spec mv_gpio_res[] = {
 	{ -1, 0 }
 };
 
-const struct decode_win cpu_win_tbl[] = {
-	/* Device bus BOOT */
-	{ 1, 0x0f, MV_DEV_BOOT_PHYS_BASE, MV_DEV_BOOT_SIZE, -1 },
-
-	/* Device bus CS0 */
-	{ 1, 0x1e, MV_DEV_CS0_PHYS_BASE, MV_DEV_CS0_SIZE, -1 },
-
-	/* Device bus CS1 */
-	{ 1, 0x1d, MV_DEV_CS1_PHYS_BASE, MV_DEV_CS1_SIZE, -1 },
-
-	/* Device bus CS2 */
-	{ 1, 0x1b, MV_DEV_CS2_PHYS_BASE, MV_DEV_CS2_SIZE, -1 },
-};
-const struct decode_win *cpu_wins = cpu_win_tbl;
-int cpu_wins_no = sizeof(cpu_win_tbl) / sizeof(struct decode_win);
-
-/*
- * Note: the decode windows table for IDMA does not explicitly have DRAM
- * entries, which are not statically defined: active DDR banks (== windows)
- * are established in run time from actual DDR windows settings. All active
- * DDR banks are mapped into IDMA decode windows, so at least one IDMA decode
- * window is occupied by the DDR bank; in case when all (MV_WIN_DDR_MAX)
- * DDR banks are active, the remaining available IDMA decode windows for other
- * targets is only MV_WIN_IDMA_MAX - MV_WIN_DDR_MAX.
- */
 const struct decode_win idma_win_tbl[] = {
-	/* PCIE MEM */
-	{ 4, 0x59, MV_PCIE_MEM_PHYS_BASE, MV_PCIE_MEM_SIZE, -1 },
-
-	/* PCI MEM */
-	{ 3, 0x59, MV_PCI_MEM_PHYS_BASE, MV_PCI_MEM_SIZE, -1 },
-
-	/* Device bus BOOT */
-	{ 1, 0x0f, MV_DEV_BOOT_PHYS_BASE, MV_DEV_BOOT_SIZE, -1 },
-
-	/* Device bus CS0 */
-	{ 1, 0x1e, MV_DEV_CS0_PHYS_BASE, MV_DEV_CS0_SIZE, -1 },
-
-	/* Device bus CS1 */
-	{ 1, 0x1d, MV_DEV_CS1_PHYS_BASE, MV_DEV_CS1_SIZE, -1 },
-
-	/* Device bus CS2 */
-	{ 1, 0x1b, MV_DEV_CS2_PHYS_BASE, MV_DEV_CS2_SIZE, -1 },
+	{ 0 },
 };
 const struct decode_win *idma_wins = idma_win_tbl;
-int idma_wins_no = sizeof(idma_win_tbl) / sizeof(struct decode_win);
+int idma_wins_no = 0;
 
 uint32_t
 get_tclk(void)
@@ -182,7 +88,8 @@ get_tclk(void)
 	 * On Orion TCLK is can be configured to 150 MHz or 166 MHz.
 	 * Current setting is read from Sample At Reset register.
 	 */
-	sar = bus_space_read_4(obio_tag, MV_MPP_BASE, SAMPLE_AT_RESET);
+	/* XXX MPP addr should be retrieved from the DT */
+	sar = bus_space_read_4(fdtbus_bs_tag, MV_MPP_BASE, SAMPLE_AT_RESET);
 	sar = (sar & TCLK_MASK) >> TCLK_SHIFT;
 	switch (sar) {
 	case 1:

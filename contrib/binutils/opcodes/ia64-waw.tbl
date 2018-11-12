@@ -6,10 +6,10 @@ AR[CCV];	IC:mov-to-AR-CCV;	IC:mov-to-AR-CCV;	impliedF
 AR[CFLG];	IC:mov-to-AR-CFLG;	IC:mov-to-AR-CFLG;	impliedF
 AR[CSD];	ld16, IC:mov-to-AR-CSD;	ld16, IC:mov-to-AR-CSD;	impliedF
 AR[EC];	br.ret, IC:mod-sched-brs, IC:mov-to-AR-EC;	br.ret, IC:mod-sched-brs, IC:mov-to-AR-EC;	impliedF
-AR[EFLAG];	mov-to-AR-EFLAG;	mov-to-AR-EFLAG;	impliedF
-AR[FCR];	mov-to-AR-FCR;	mov-to-AR-FCR;	impliedF
-AR[FDR];	mov-to-AR-FDR;	mov-to-AR-FDR;	impliedF
-AR[FIR];	mov-to-AR-FIR;	mov-to-AR-FIR;	impliedF
+AR[EFLAG];	IC:mov-to-AR-EFLAG;	IC:mov-to-AR-EFLAG;	impliedF
+AR[FCR];	IC:mov-to-AR-FCR;	IC:mov-to-AR-FCR;	impliedF
+AR[FDR];	IC:mov-to-AR-FDR;	IC:mov-to-AR-FDR;	impliedF
+AR[FIR];	IC:mov-to-AR-FIR;	IC:mov-to-AR-FIR;	impliedF
 AR[FPSR].sf0.controls;	IC:mov-to-AR-FPSR, fsetc.s0;	IC:mov-to-AR-FPSR, fsetc.s0;	impliedF
 AR[FPSR].sf1.controls;	IC:mov-to-AR-FPSR, fsetc.s1;	IC:mov-to-AR-FPSR, fsetc.s1;	impliedF
 AR[FPSR].sf2.controls;	IC:mov-to-AR-FPSR, fsetc.s2;	IC:mov-to-AR-FPSR, fsetc.s2;	impliedF
@@ -32,6 +32,7 @@ AR[PFS];	br.call, brl.call;	br.call, brl.call;	none
 AR[PFS];	br.call, brl.call;	IC:mov-to-AR-PFS;	impliedF
 AR[RNAT];	alloc, flushrs, loadrs, IC:mov-to-AR-RNAT, IC:mov-to-AR-BSPSTORE;	alloc, flushrs, loadrs, IC:mov-to-AR-RNAT, IC:mov-to-AR-BSPSTORE;	impliedF
 AR[RSC];	IC:mov-to-AR-RSC;	IC:mov-to-AR-RSC;	impliedF
+AR[SSD];	IC:mov-to-AR-SSD;	IC:mov-to-AR-SSD;	impliedF
 AR[UNAT]{%}, % in 0 - 63;	IC:mov-to-AR-UNAT, st8.spill;	IC:mov-to-AR-UNAT, st8.spill;	impliedF
 AR%, % in 8-15, 20, 22-23, 31, 33-35, 37-39, 41-43, 45-47, 67-111;	IC:none;	IC:none;	none
 AR%, % in 48 - 63, 112-127;	IC:mov-to-AR-ig+1;	IC:mov-to-AR-ig+1;	impliedF
@@ -42,7 +43,7 @@ CFM;	IC:mod-sched-brs, br.call, brl.call, br.ret, alloc, clrrrb, cover, rfi;	IC:
 CPUID#;	IC:none;	IC:none;	none
 CR[CMCV];	IC:mov-to-CR-CMCV;	IC:mov-to-CR-CMCV;	impliedF
 CR[DCR];	IC:mov-to-CR-DCR;	IC:mov-to-CR-DCR;	impliedF
-CR[EOI];	IC:mov-to-CR-EOI;	IC:mov-to-CR-EOI;	SC Section 10.8.3.4
+CR[EOI];	IC:mov-to-CR-EOI;	IC:mov-to-CR-EOI;	SC Section 5.8.3.4, "End of External Interrupt Register (EOI Ð CR67)" on page 2:119
 CR[GPTA];	IC:mov-to-CR-GPTA;	IC:mov-to-CR-GPTA;	impliedF
 CR[IFA];	IC:mov-to-CR-IFA;	IC:mov-to-CR-IFA;	impliedF
 CR[IFS];	IC:mov-to-CR-IFS, cover;	IC:mov-to-CR-IFS, cover;	impliedF
@@ -131,5 +132,6 @@ PSR.sp;	IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:sys-mask-writers
 PSR.ss;	rfi;	rfi;	impliedF
 PSR.tb;	IC:mov-to-PSR-l, rfi;	IC:mov-to-PSR-l, rfi;	impliedF
 PSR.up;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	IC:user-mask-writers-partial+7, IC:mov-to-PSR-um, IC:sys-mask-writers-partial+7, IC:mov-to-PSR-l, rfi;	impliedF
+PSR.vm;	rfi, vmsw;	rfi, vmsw;	impliedF
 RR#;	IC:mov-to-IND-RR+6;	IC:mov-to-IND-RR+6;	impliedF
 RSE;	IC:rse-writers+14;	IC:rse-writers+14;	impliedF

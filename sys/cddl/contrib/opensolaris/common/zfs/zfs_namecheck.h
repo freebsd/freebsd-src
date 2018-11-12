@@ -19,14 +19,15 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ */
+/*
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #ifndef	_ZFS_NAMECHECK_H
 #define	_ZFS_NAMECHECK_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -50,8 +51,7 @@ typedef enum {
 int pool_namecheck(const char *, namecheck_err_t *, char *);
 int dataset_namecheck(const char *, namecheck_err_t *, char *);
 int mountpoint_namecheck(const char *, namecheck_err_t *);
-int dataset_name_hidden(const char *);
-int snapshot_namecheck(const char *, namecheck_err_t *, char *);
+int zfs_component_namecheck(const char *, namecheck_err_t *, char *);
 int permset_namecheck(const char *, namecheck_err_t *, char *);
 
 #ifdef	__cplusplus

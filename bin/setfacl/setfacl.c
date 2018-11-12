@@ -14,14 +14,14 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR THE VOICES IN HIS HEAD BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -41,6 +41,35 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "setfacl.h"
+
+/* file operations */
+#define	OP_MERGE_ACL		0x00	/* merge acl's (-mM) */
+#define	OP_REMOVE_DEF		0x01	/* remove default acl's (-k) */
+#define	OP_REMOVE_EXT		0x02	/* remove extended acl's (-b) */
+#define	OP_REMOVE_ACL		0x03	/* remove acl's (-xX) */
+#define	OP_REMOVE_BY_NUMBER	0x04	/* remove acl's (-xX) by acl entry number */
+#define	OP_ADD_ACL		0x05	/* add acls entries at a given position */
+
+/* TAILQ entry for acl operations */
+struct sf_entry {
+	uint	op;
+	acl_t	acl;
+	uint	entry_number;
+	TAILQ_ENTRY(sf_entry) next;
+};
+static TAILQ_HEAD(, sf_entry) entrylist;
+
+/* TAILQ entry for files */
+struct sf_file {
+	const char *filename;
+	TAILQ_ENTRY(sf_file) next;
+};
+static TAILQ_HEAD(, sf_file) filelist;
+
+uint have_mask;
+uint need_mask;
+uint have_stdin;
+uint n_flag;
 
 static void	add_filename(const char *filename);
 static void	usage(void);
@@ -73,6 +102,7 @@ main(int argc, char *argv[])
 {
 	acl_t acl;
 	acl_type_t acl_type;
+	acl_entry_t unused_entry;
 	char filename[PATH_MAX];
 	int local_error, carried_error, ch, i, entry_number, ret;
 	int h_flag;
@@ -201,12 +231,14 @@ main(int argc, char *argv[])
 
 		if (stat(file->filename, &sb) == -1) {
 			warn("%s: stat() failed", file->filename);
+			carried_error++;
 			continue;
 		}
 
 		if (acl_type == ACL_TYPE_DEFAULT && S_ISDIR(sb.st_mode) == 0) {
 			warnx("%s: default ACL may only be set on a directory",
 			    file->filename);
+			carried_error++;
 			continue;
 		}
 
@@ -218,6 +250,7 @@ main(int argc, char *argv[])
 			if (acl_type == ACL_TYPE_DEFAULT) {
 				warnx("%s: there are no default entries "
 			           "in NFSv4 ACLs", file->filename);
+				carried_error++;
 				continue;
 			}
 			acl_type = ACL_TYPE_NFS4;
@@ -240,6 +273,7 @@ main(int argc, char *argv[])
 			else
 				warn("%s: acl_get_file() failed",
 				    file->filename);
+			carried_error++;
 			continue;
 		}
 
@@ -259,6 +293,17 @@ main(int argc, char *argv[])
 				need_mask = 1;
 				break;
 			case OP_REMOVE_EXT:
+				/*
+				 * Don't try to call remove_ext() for empty
+				 * default ACL.
+				 */
+				if (acl_type == ACL_TYPE_DEFAULT &&
+				    acl_get_entry(acl, ACL_FIRST_ENTRY,
+				    &unused_entry) == 0) {
+					local_error += remove_default(&acl,
+					    file->filename);
+					break;
+				}
 				remove_ext(&acl, file->filename);
 				need_mask = 0;
 				break;
@@ -290,6 +335,20 @@ main(int argc, char *argv[])
 				need_mask = 1;
 				break;
 			}
+		}
+
+		/*
+		 * Don't try to set an empty default ACL; it will always fail.
+		 * Use acl_delete_def_file(3) instead.
+		 */
+		if (acl_type == ACL_TYPE_DEFAULT &&
+		    acl_get_entry(acl, ACL_FIRST_ENTRY, &unused_entry) == 0) {
+			if (acl_delete_def_file(file->filename) == -1) {
+				warn("%s: acl_delete_def_file() failed",
+				    file->filename);
+				carried_error++;
+			}
+			continue;
 		}
 
 		/* don't bother setting the ACL if something is broken */

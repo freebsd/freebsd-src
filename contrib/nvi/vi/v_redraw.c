@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_redraw.c	10.6 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: v_redraw.c,v 10.7 2001/06/25 15:19:34 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -28,12 +28,10 @@ static const char sccsid[] = "@(#)v_redraw.c	10.6 (Berkeley) 3/6/96";
  * v_redraw -- ^L, ^R
  *	Redraw the screen.
  *
- * PUBLIC: int v_redraw __P((SCR *, VICMD *));
+ * PUBLIC: int v_redraw(SCR *, VICMD *);
  */
 int
-v_redraw(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_redraw(SCR *sp, VICMD *vp)
 {
 	return (sp->gp->scr_refresh(sp, 1));
 }

@@ -8,7 +8,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -29,7 +29,7 @@
  *
  *	This module implements a general bitmap allocator/deallocator.  The
  *	allocator eats around 2 bits per 'block'.  The module does not 
- *	try to interpret the meaning of a 'block' other then to return 
+ *	try to interpret the meaning of a 'block' other than to return 
  *	SWAPBLK_NONE on an allocation failure.
  *
  *	A radix tree is used to maintain the bitmap.  Two radix constants are
@@ -52,17 +52,13 @@
  *	radix tree should be able to operate well no matter how much 
  *	fragmentation there is and no matter how large a bitmap is used.
  *
- *	Unlike the rlist code, the blist code wires all necessary memory at
- *	creation time.  Neither allocations nor frees require interaction with
- *	the memory subsystem.  In contrast, the rlist code may allocate memory 
- *	on an rlist_free() call.  The non-blocking features of the blist code
- *	are used to great advantage in the swap code (vm/nswap_pager.c).  The
- *	rlist code uses a little less overall memory then the blist code (but
- *	due to swap interleaving not all that much less), but the blist code 
- *	scales much, much better.
+ *	The blist code wires all necessary memory at creation time.  Neither
+ *	allocations nor frees require interaction with the memory subsystem.
+ *	The non-blocking features of the blist code are used in the swap code
+ *	(vm/swap_pager.c).
  *
- *	LAYOUT: The radix tree is layed out recursively using a
- *	linear array.  Each meta node is immediately followed (layed out
+ *	LAYOUT: The radix tree is laid out recursively using a
+ *	linear array.  Each meta node is immediately followed (laid out
  *	sequentially in memory) by BLIST_META_RADIX lower level nodes.  This
  *	is a recursive structure but one that can be easily scanned through
  *	a very simple 'skip' calculation.  In order to support large radixes, 
@@ -72,7 +68,7 @@
  *	to cover the number of blocks requested at creation time even if it
  *	must be encompassed in larger root-node radix.
  *
- *	NOTE: the allocator cannot currently allocate more then 
+ *	NOTE: the allocator cannot currently allocate more than 
  *	BLIST_BMAP_RADIX blocks per call.  It will panic with 'allocation too 
  *	large' if you try.  This is an area that could use improvement.  The 
  *	radix is large enough that this restriction does not effect the swap 
@@ -152,7 +148,7 @@ static MALLOC_DEFINE(M_SWAP, "SWAP", "Swap space");
  * blist_create() - create a blist capable of handling up to the specified
  *		    number of blocks
  *
- *	blocks - must be greater then 0
+ *	blocks - must be greater than 0
  * 	flags  - malloc flags
  *
  *	The smallest blist consists of a single leaf node capable of 
@@ -841,7 +837,7 @@ blst_meta_fill(
  *
  *	Initialize our meta structures and bitmaps and calculate the exact
  *	amount of space required to manage 'count' blocks - this space may
- *	be considerably less then the calculated radix due to the large
+ *	be considerably less than the calculated radix due to the large
  *	RADIX values we use.
  */
 

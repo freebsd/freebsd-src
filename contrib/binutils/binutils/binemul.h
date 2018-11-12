@@ -1,6 +1,6 @@
 /* Binutils emulation layer.
-   Copyright 2002, 2003 Free Software Foundation, Inc.
-   Written by Tom Rix, Redhat.
+   Copyright 2002, 2003, 2007 Free Software Foundation, Inc.
+   Written by Tom Rix, Red Hat Inc.
 
    This file is part of GNU Binutils.
 
@@ -16,11 +16,12 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef BINEMUL_H
 #define BINEMUL_H
 
+#include "sysdep.h"
 #include "bfd.h"
 #include "bucomm.h"
 
@@ -30,8 +31,6 @@ extern bfd_boolean ar_emul_append (bfd **, char *, bfd_boolean);
 extern bfd_boolean ar_emul_default_append (bfd **, char *, bfd_boolean);
 extern bfd_boolean ar_emul_replace (bfd **, char *, bfd_boolean);
 extern bfd_boolean ar_emul_default_replace (bfd **, char *, bfd_boolean);
-extern bfd_boolean ar_emul_create (bfd **, char *, char *);
-extern bfd_boolean ar_emul_default_create (bfd **, char *, char *);
 extern bfd_boolean ar_emul_parse_arg (char *);
 extern bfd_boolean ar_emul_default_parse_arg (char *);
 
@@ -42,7 +41,7 @@ extern bfd_boolean ar_emul_default_parse_arg (char *);
   fprintf (fp, _(" emulation options: \n"))
 
 #define AR_EMUL_ELEMENT_CHECK(abfd, file_name) \
-  do { if ((abfd) == (bfd *) NULL) bfd_fatal (file_name); } while (0)
+  do { if ((abfd) == NULL) bfd_fatal (file_name); } while (0)
 
 #define AR_EMUL_APPEND_PRINT_VERBOSE(verbose, file_name) \
   do { if (verbose) printf ("a - %s\n", file_name); } while (0)
@@ -56,7 +55,6 @@ typedef struct bin_emulation_xfer_struct
   void (* ar_usage) (FILE *fp);
   bfd_boolean (* ar_append) (bfd **, char *, bfd_boolean);
   bfd_boolean (* ar_replace) (bfd **, char *, bfd_boolean);
-  bfd_boolean (* ar_create) (bfd **, char *, char *);
   bfd_boolean (* ar_parse_arg) (char *);
 }
 bin_emulation_xfer_type;

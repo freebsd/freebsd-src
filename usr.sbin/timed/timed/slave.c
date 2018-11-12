@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -41,6 +37,7 @@ static const char rcsid[] =
 
 #include "globals.h"
 #include <setjmp.h>
+#include <utmpx.h>
 #include "pathnames.h"
 
 extern jmp_buf jmpenv;
@@ -57,10 +54,8 @@ static void schgdate(struct tsp *, char *);
 static void setmaster(struct tsp *);
 static void answerdelay(void);
 
-extern void logwtmp(char *, char *, char *);
-
 int
-slave()
+slave(void)
 {
 	int tries;
 	long electiontime, refusetime, looktime, looptime, adjtime;
@@ -80,14 +75,15 @@ slave()
 	char newdate[32];
 	struct netinfo *ntp;
 	struct hosttbl *htp;
+	struct utmpx utx;
 
 
-	old_slavenet = 0;
+	old_slavenet = NULL;
 	seq = 0;
 	refusetime = 0;
 	adjtime = 0;
 
-	(void)gettimeofday(&ntime, 0);
+	(void)gettimeofday(&ntime, NULL);
 	electiontime = ntime.tv_sec + delay2;
 	fastelection = ntime.tv_sec + FASTTOUT;
 	if (justquit)
@@ -107,7 +103,7 @@ slave()
 
 loop:
 	get_goodgroup(0);
-	(void)gettimeofday(&ntime, (struct timezone *)0);
+	(void)gettimeofday(&ntime, NULL);
 	if (ntime.tv_sec > electiontime) {
 		if (trace)
 			fprintf(fd, "election timer expired\n");
@@ -136,7 +132,7 @@ loop:
 			makeslave(slavenet);	/* prune extras */
 			setstatus();
 		}
-		(void)gettimeofday(&ntime, 0);
+		(void)gettimeofday(&ntime, NULL);
 		looktime = ntime.tv_sec + delay2;
 	}
 	if (ntime.tv_sec >= looptime) {
@@ -157,7 +153,7 @@ loop:
 			}
 		    }
 		}
-		(void)gettimeofday(&ntime, 0);
+		(void)gettimeofday(&ntime, NULL);
 		looptime = ntime.tv_sec + delay2;
 	}
 
@@ -229,7 +225,7 @@ loop:
 			 * Otherwise the clocks can race until the loop
 			 * is found.
 			 */
-			(void)gettimeofday(&otime, 0);
+			(void)gettimeofday(&otime, NULL);
 			if (adjtime < otime.tv_sec)
 				looptime -= (looptime-otime.tv_sec)/2 + 1;
 
@@ -238,7 +234,7 @@ loop:
 				seq = msg->tsp_seq;
 				synch(tvtomsround(msg->tsp_time));
 			}
-			(void)gettimeofday(&ntime, 0);
+			(void)gettimeofday(&ntime, NULL);
 			electiontime = ntime.tv_sec + delay2;
 			fastelection = ntime.tv_sec + FASTTOUT;
 			adjtime = ntime.tv_sec + SAMPLEINTVL*2;
@@ -252,15 +248,16 @@ loop:
 			seq = msg->tsp_seq;
 
 			/* adjust time for residence on the queue */
-			(void)gettimeofday(&otime, 0);
+			(void)gettimeofday(&otime, NULL);
 			adj_msg_time(msg,&otime);
 			/*
 			 * the following line is necessary due to syslog
 			 * calling ctime() which clobbers the static buffer
 			 */
-			(void)strcpy(olddate, date());
+			(void)strlcpy(olddate, date(), sizeof(olddate));
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 
 			if (!good_host_name(msg->tsp_name)) {
 				syslog(LOG_NOTICE,
@@ -280,16 +277,20 @@ loop:
 				 */
 				synch(tvtomsround(ntime));
 			} else {
-				logwtmp("|", "date", "");
- 				(void)settimeofday(&tmptv, 0);
-				logwtmp("{", "date", "");
+				utx.ut_type = OLD_TIME;
+				gettimeofday(&utx.ut_tv, NULL);
+				pututxline(&utx);
+				(void)settimeofday(&tmptv, 0);
+				utx.ut_type = NEW_TIME;
+				gettimeofday(&utx.ut_tv, NULL);
+				pututxline(&utx);
 				syslog(LOG_NOTICE,
 				       "date changed by %s from %s",
 					msg->tsp_name, olddate);
 				if (status & MASTER)
 					spreadtime();
 			}
-			(void)gettimeofday(&ntime, 0);
+			(void)gettimeofday(&ntime, NULL);
 			electiontime = ntime.tv_sec + delay2;
 			fastelection = ntime.tv_sec + FASTTOUT;
 
@@ -327,7 +328,7 @@ loop:
 			setstatus();
 			answerdelay();
 			xmit(TSP_SLAVEUP, 0, &from);
-			(void)gettimeofday(&ntime, 0);
+			(void)gettimeofday(&ntime, NULL);
 			electiontime = ntime.tv_sec + delay2;
 			fastelection = ntime.tv_sec + FASTTOUT;
 			refusetime = 0;
@@ -336,13 +337,14 @@ loop:
 		case TSP_MASTERREQ:
 			if (fromnet->status != SLAVE)
 				break;
-			(void)gettimeofday(&ntime, 0);
+			(void)gettimeofday(&ntime, NULL);
 			electiontime = ntime.tv_sec + delay2;
 			break;
 
 		case TSP_SETDATE:
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 			schgdate(msg, newdate);
 			break;
 
@@ -350,9 +352,10 @@ loop:
 			if (fromnet->status != MASTER)
 				break;
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 			htp = findhost(msg->tsp_name);
-			if (0 == htp) {
+			if (htp == NULL) {
 				syslog(LOG_WARNING,
 				       "DATEREQ from uncontrolled machine");
 				break;
@@ -381,7 +384,7 @@ loop:
 
 		case TSP_ELECTION:
 			if (fromnet->status == SLAVE) {
-				(void)gettimeofday(&ntime, 0);
+				(void)gettimeofday(&ntime, NULL);
 				electiontime = ntime.tv_sec + delay2;
 				fastelection = ntime.tv_sec + FASTTOUT;
 				seq = 0;
@@ -538,13 +541,13 @@ loop:
 					electiontime = 0;
 				    }
 				}
-				(void)gettimeofday(&ntime, 0);
+				(void)gettimeofday(&ntime, NULL);
 				looptime = ntime.tv_sec + FASTTOUT;
 			    } else {
 				if (msg->tsp_hopcnt-- < 1)
 				    break;
 				bytenetorder(msg);
-				for (ntp = nettab; ntp != 0; ntp = ntp->next) {
+				for (ntp = nettab; ntp != NULL; ntp = ntp->next) {
 				    if (ntp->status == MASTER
 					&& 0 > sendto(sock, (char *)msg,
 						      sizeof(struct tsp), 0,
@@ -590,7 +593,7 @@ loop:
 					(void)remmach(htp);
 				}
 			    }
-			    (void)gettimeofday(&ntime, 0);
+			    (void)gettimeofday(&ntime, NULL);
 			    looptime = ntime.tv_sec + FASTTOUT;
 			}
 			break;
@@ -610,8 +613,7 @@ loop:
  * tell the world who our master is
  */
 static void
-setmaster(msg)
-	struct tsp *msg;
+setmaster(struct tsp *msg)
 {
 	if (slavenet
 	    && (slavenet != old_slavenet
@@ -640,9 +642,7 @@ setmaster(msg)
  * handle date change request on a slave
  */
 static void
-schgdate(msg, newdate)
-	struct tsp *msg;
-	char *newdate;
+schgdate(struct tsp *msg, char *newdate)
 {
 	struct tsp to;
 	u_short seq;
@@ -660,7 +660,7 @@ schgdate(msg, newdate)
 	       msg->tsp_name, newdate);
 
 	/* adjust time for residence on the queue */
-	(void)gettimeofday(&otime, 0);
+	(void)gettimeofday(&otime, NULL);
 	adj_msg_time(msg, &otime);
 
 	to.tsp_type = TSP_SETDATEREQ;
@@ -680,7 +680,7 @@ schgdate(msg, newdate)
  * contention and likely collisions.
  */
 static void
-answerdelay()
+answerdelay(void)
 {
 	struct timeval timeout;
 

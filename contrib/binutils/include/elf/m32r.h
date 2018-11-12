@@ -1,5 +1,5 @@
 /* M32R ELF support for BFD.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2003 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2003, 2004 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation, Inc.,
-   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef _ELF_M32R_H
 #define _ELF_M32R_H
@@ -52,6 +52,8 @@ START_RELOC_NUMBERS (elf_m32r_reloc_type)
   RELOC_NUMBER (R_M32R_SDA16_RELA, 42)
   RELOC_NUMBER (R_M32R_RELA_GNU_VTINHERIT, 43)
   RELOC_NUMBER (R_M32R_RELA_GNU_VTENTRY, 44)
+
+  RELOC_NUMBER (R_M32R_REL32, 45)
                                                                                 
   RELOC_NUMBER (R_M32R_GOT24, 48)
   RELOC_NUMBER (R_M32R_26_PLTREL, 49)
@@ -67,6 +69,10 @@ START_RELOC_NUMBERS (elf_m32r_reloc_type)
   RELOC_NUMBER (R_M32R_GOTPC_HI_ULO, 59)
   RELOC_NUMBER (R_M32R_GOTPC_HI_SLO, 60)
   RELOC_NUMBER (R_M32R_GOTPC_LO, 61)
+  RELOC_NUMBER (R_M32R_GOTOFF_HI_ULO, 62)
+  RELOC_NUMBER (R_M32R_GOTOFF_HI_SLO, 63)
+  RELOC_NUMBER (R_M32R_GOTOFF_LO, 64)
+
 END_RELOC_NUMBERS (R_M32R_max)
 
 /* Processor specific section indices.  These sections do not actually

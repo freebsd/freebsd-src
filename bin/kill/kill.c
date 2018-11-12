@@ -26,6 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/*
+ * Important: This file is used both as a standalone program /bin/kill and
+ * as a builtin for /bin/sh (#define SHELL).
+ */
 
 #if 0
 #ifndef lint
@@ -49,6 +53,11 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef SHELL
+#define main killcmd
+#include "bltin/bltin.h"
+#endif
+
 static void nosig(const char *);
 static void printsignals(FILE *);
 static int signame_to_signum(const char *);
@@ -57,7 +66,7 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-	int errors, numsig, pid;
+	int errors, numsig, pid, ret;
 	char *ep;
 
 	if (argc < 2)
@@ -75,16 +84,16 @@ main(int argc, char *argv[])
 				usage();
 			numsig = strtol(*argv, &ep, 10);
 			if (!**argv || *ep)
-				errx(1, "illegal signal number: %s", *argv);
+				errx(2, "illegal signal number: %s", *argv);
 			if (numsig >= 128)
 				numsig -= 128;
 			if (numsig <= 0 || numsig >= sys_nsig)
 				nosig(*argv);
 			printf("%s\n", sys_signame[numsig]);
-			exit(0);
+			return (0);
 		}
 		printsignals(stdout);
-		exit(0);
+		return (0);
 	}
 
 	if (!strcmp(*argv, "-s")) {
@@ -107,8 +116,8 @@ main(int argc, char *argv[])
 		} else if (isdigit(**argv)) {
 			numsig = strtol(*argv, &ep, 10);
 			if (!**argv || *ep)
-				errx(1, "illegal signal number: %s", *argv);
-			if (numsig < 0 || numsig >= sys_nsig)
+				errx(2, "illegal signal number: %s", *argv);
+			if (numsig < 0)
 				nosig(*argv);
 		} else
 			nosig(*argv);
@@ -122,17 +131,24 @@ main(int argc, char *argv[])
 		usage();
 
 	for (errors = 0; argc; argc--, argv++) {
-		pid = strtol(*argv, &ep, 10);
-		if (!**argv || *ep) {
-			warnx("illegal process id: %s", *argv);
-			errors = 1;
-		} else if (kill(pid, numsig) == -1) {
+#ifdef SHELL
+		if (**argv == '%')
+			ret = killjob(*argv, numsig);
+		else
+#endif
+		{
+			pid = strtol(*argv, &ep, 10);
+			if (!**argv || *ep)
+				errx(2, "illegal process id: %s", *argv);
+			ret = kill(pid, numsig);
+		}
+		if (ret == -1) {
 			warn("%s", *argv);
 			errors = 1;
 		}
 	}
 
-	exit(errors);
+	return (errors);
 }
 
 static int
@@ -140,7 +156,7 @@ signame_to_signum(const char *sig)
 {
 	int n;
 
-	if (!strncasecmp(sig, "sig", (size_t)3))
+	if (strncasecmp(sig, "SIG", 3) == 0)
 		sig += 3;
 	for (n = 1; n < sys_nsig; n++) {
 		if (!strcasecmp(sys_signame[n], sig))
@@ -155,7 +171,11 @@ nosig(const char *name)
 
 	warnx("unknown signal %s; valid signals:", name);
 	printsignals(stderr);
-	exit(1);
+#ifdef SHELL
+	error(NULL);
+#else
+	exit(2);
+#endif
 }
 
 static void
@@ -181,5 +201,9 @@ usage(void)
 		"       kill -l [exit_status]",
 		"       kill -signal_name pid ...",
 		"       kill -signal_number pid ...");
-	exit(1);
+#ifdef SHELL
+	error(NULL);
+#else
+	exit(2);
+#endif
 }

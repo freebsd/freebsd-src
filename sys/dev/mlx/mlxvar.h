@@ -47,7 +47,7 @@
  * making that fit cleanly without crossing page boundaries requires rounding up
  * to the next power of two.
  */
-#define MLX_MAXPHYS	(128 * 124)
+#define MLX_MAXPHYS	(128 * 1024)
 #define MLX_NSEG	64
 
 #define MLX_NSLOTS	256		/* max number of command slots */
@@ -113,8 +113,6 @@ struct mlx_softc
     struct resource	*mlx_mem;	/* mailbox interface window */
     int			mlx_mem_rid;
     int			mlx_mem_type;
-    bus_space_handle_t	mlx_bhandle;	/* bus space handle */
-    bus_space_tag_t	mlx_btag;	/* bus space tag */
     bus_dma_tag_t	mlx_parent_dmat;/* parent DMA tag */
     bus_dma_tag_t	mlx_buffer_dmat;/* data buffer DMA tag */
     struct resource	*mlx_irq;	/* interrupt */
@@ -137,7 +135,7 @@ struct mlx_softc
     struct mlx_command	*mlx_busycmd[MLX_NSLOTS];	/* busy commands */
     int			mlx_busycmds;			/* count of busy commands */
     struct mlx_sysdrive	mlx_sysdrive[MLX_MAXDRIVES];	/* system drives */
-    mlx_bioq		mlx_bioq;			/* outstanding I/O operations */
+    struct bio_queue_head mlx_bioq;			/* outstanding I/O operations */
     int			mlx_waitbufs;			/* number of bufs awaiting commands */
 
     /* controller status */
@@ -149,7 +147,10 @@ struct mlx_softc
 #define MLX_STATE_SHUTDOWN	(1<<1)	/* controller is shut down */
 #define MLX_STATE_OPEN		(1<<2)	/* control device is open */
 #define MLX_STATE_SUSPEND	(1<<3)	/* controller is suspended */
-    struct callout_handle mlx_timeout;	/* periodic status monitor */
+#define	MLX_STATE_QFROZEN	(1<<4)  /* bio queue frozen */
+    struct mtx		mlx_io_lock;
+    struct sx		mlx_config_lock;
+    struct callout	mlx_timeout;	/* periodic status monitor */
     time_t		mlx_lastpoll;	/* last time_second we polled for status */
     u_int16_t		mlx_lastevent;	/* sequence number of the last event we recorded */
     int			mlx_currevent;	/* sequence number last time we looked */
@@ -160,7 +161,6 @@ struct mlx_softc
     struct mlx_rebuild_status mlx_rebuildstat;	/* last rebuild status */
     struct mlx_pause	mlx_pause;	/* pending pause operation details */
 
-    int			mlx_locks;	/* reentrancy avoidance */
     int			mlx_flags;
 #define MLX_SPINUP_REPORTED	(1<<0)	/* "spinning up drives" message displayed */
 #define MLX_EVENTLOG_BUSY	(1<<1)	/* currently reading event log */
@@ -174,34 +174,17 @@ struct mlx_softc
     int			(* mlx_tryqueue)(struct mlx_softc *sc, struct mlx_command *mc);
     int			(* mlx_findcomplete)(struct mlx_softc *sc, u_int8_t *slot, u_int16_t *status);
     void		(* mlx_intaction)(struct mlx_softc *sc, int action);
-    int			(* mlx_fw_handshake)(struct mlx_softc *sc, int *error, int *param1, int *param2);
+    int			(* mlx_fw_handshake)(struct mlx_softc *sc, int *error, int *param1, int *param2, int first);
 #define MLX_INTACTION_DISABLE		0
 #define MLX_INTACTION_ENABLE		1
 };
 
-/*
- * Simple (stupid) locks.
- *
- * Note that these are designed to avoid reentrancy, not concurrency, and will
- * need to be replaced with something better.
- */
-#define MLX_LOCK_COMPLETING	(1<<0)
-#define MLX_LOCK_STARTING	(1<<1)
-
-static __inline int
-mlx_lock_tas(struct mlx_softc *sc, int lock)
-{
-    if ((sc)->mlx_locks & (lock))
-	return(1);
-    atomic_set_int(&sc->mlx_locks, lock);
-    return(0);
-}
-
-static __inline void
-mlx_lock_clr(struct mlx_softc *sc, int lock)
-{
-    atomic_clear_int(&sc->mlx_locks, lock);
-}
+#define	MLX_IO_LOCK(sc)			mtx_lock(&(sc)->mlx_io_lock)
+#define	MLX_IO_UNLOCK(sc)		mtx_unlock(&(sc)->mlx_io_lock)
+#define	MLX_IO_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->mlx_io_lock, MA_OWNED)
+#define	MLX_CONFIG_LOCK(sc)		sx_xlock(&(sc)->mlx_config_lock)
+#define	MLX_CONFIG_UNLOCK(sc)		sx_xunlock(&(sc)->mlx_config_lock)
+#define	MLX_CONFIG_ASSERT_LOCKED(sc)	sx_assert(&(sc)->mlx_config_lock, SA_XLOCKED)
 
 /*
  * Interface between bus connections and driver core.
@@ -238,10 +221,10 @@ struct mlxd_softc
 /*
  * Interface between driver core and disk driver (should be using a bus?)
  */
-extern int	mlx_submit_buf(struct mlx_softc *sc, mlx_bio *bp);
+extern int	mlx_submit_buf(struct mlx_softc *sc, struct bio *bp);
 extern int	mlx_submit_ioctl(struct mlx_softc *sc,
 			struct mlx_sysdrive *drive, u_long cmd, 
 			caddr_t addr, int32_t flag, struct thread *td);
-extern void	mlxd_intr(void *data);
+extern void	mlxd_intr(struct bio *bp);
 
 

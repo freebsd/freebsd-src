@@ -26,10 +26,12 @@ postmaster: root
 # General redirections for pseudo accounts
 _dhcp:	root
 _pflogd: root
+auditdistd:	root
 bin:	root
 bind:	root
 daemon:	root
 games:	root
+hast:	root
 kmem:	root
 mailnull: postmaster
 man:	root

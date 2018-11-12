@@ -94,6 +94,9 @@ main(int argc, char **argv)
 #ifdef YP
 	char *master;
 #endif
+#ifdef YPPASSWD
+	char *cryptpw;
+#endif
 
 	while ((ch = getopt(argc, argv, "f")) != -1)
 		switch(ch) {
@@ -149,7 +152,8 @@ main(int argc, char **argv)
 	pass = getpass("Password:");
 #ifdef YPPASSWD
 	if (!force) {
-		if (strcmp(crypt(pass, pw->pw_passwd), pw->pw_passwd) != 0)
+		cryptpw = crypt(pass, pw->pw_passwd);
+		if (cryptpw == NULL || strcmp(cryptpw, pw->pw_passwd) != 0)
 			errx(1, "invalid password");
 	}
 #else
@@ -203,6 +207,7 @@ main(int argc, char **argv)
 			    write(fd, &newline, sizeof(newline)) < 0)
 				warn("%s: write", ROOTKEY);
 		}
+		close(fd);
 	}
 
 	if (key_setsecret(secret) < 0)

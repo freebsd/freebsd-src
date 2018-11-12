@@ -34,7 +34,7 @@
  */
 typedef struct kobj		*kobj_t;
 typedef struct kobj_class	*kobj_class_t;
-typedef struct kobj_method	kobj_method_t;
+typedef const struct kobj_method kobj_method_t;
 typedef int			(*kobjop_t)(void);
 typedef struct kobj_ops		*kobj_ops_t;
 typedef struct kobjop_desc	*kobjop_desc_t;
@@ -86,7 +86,7 @@ struct kobj_ops {
 
 struct kobjop_desc {
 	unsigned int	id;		/* unique ID */
-	kobj_method_t	*deflt;		/* default implementation */
+	kobj_method_t	deflt;		/* default implementation */
 };
 
 /*
@@ -146,13 +146,13 @@ struct kobj_class classvar = {				\
  * DEFINE_CLASS_2(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar, baz);
  */
-#define DEFINE_CLASS_2(name, methods, size,		\
+#define DEFINE_CLASS_2(name, classvar, methods, size,	\
 	               base1, base2)			\
 							\
 static kobj_class_t name ## _baseclasses[] =		\
 	{ &base1,					\
 	  &base2, NULL };				\
-struct kobj_class name ## _class = {			\
+struct kobj_class classvar = {				\
 	#name, methods, size, name ## _baseclasses	\
 }
 
@@ -162,14 +162,14 @@ struct kobj_class name ## _class = {			\
  * DEFINE_CLASS_3(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar, baz, foobar);
  */
-#define DEFINE_CLASS_3(name, methods, size,		\
+#define DEFINE_CLASS_3(name, classvar, methods, size,	\
 		       base1, base2, base3)		\
 							\
 static kobj_class_t name ## _baseclasses[] =		\
 	{ &base1,					\
 	  &base2,					\
 	  &base3, NULL };				\
-struct kobj_class name ## _class = {			\
+struct kobj_class classvar = {				\
 	#name, methods, size, name ## _baseclasses	\
 }
 
@@ -201,6 +201,7 @@ kobj_t		kobj_create(kobj_class_t cls,
  * Initialise a pre-allocated object.
  */
 void		kobj_init(kobj_t obj, kobj_class_t cls);
+void		kobj_init_static(kobj_t obj, kobj_class_t cls);
 
 /*
  * Delete an object. If mtype is non-zero, free the memory.

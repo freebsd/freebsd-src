@@ -28,6 +28,7 @@
 
 export PATH=/bin:/usr/bin
 
+LC_ALL=C			# make sort deterministic
 FS=': '				# internal field separator
 LIBDEPENDS=./_libdeps		# intermediate output file
 USRSRC=${1:-/usr/src}		# source root
@@ -47,9 +48,12 @@ sed -E
     -e's; ;! ;g'
     -e's;$;!;'
     -e's;-lbsdxml!;lib/libexpat;g'
+    -e's;-lpthread!;lib/libthr;g'
     -e's;-lm!;lib/msun;g'
-    -e's;-l(supc\+\+)!;gnu/lib/lib\1;g'
-    -e's;-l(asn1|krb5|roken)!;kerberos5/lib/lib\1;g'
+    -e's;-l(ncurses|termcap)!;lib/ncurses/ncurses;g'
+    -e's;-l(gcc)!;gnu/lib/lib\1;g'
+    -e's;-lssp_nonshared!;gnu/lib/libssp/libssp_nonshared;g'
+    -e's;-l(asn1|hdb|kdc|heimbase|heimntlm|heimsqlite|hx509|krb5|roken|wind)!;kerberos5/lib/lib\1;g'
     -e's;-l(crypto|ssh|ssl)!;secure/lib/lib\1;g'
     -e's;-l([^!]+)!;lib/lib\1;g'
 "
@@ -60,7 +64,7 @@ genlibdepends()
 {
 	(
 		cd ${USRSRC}
-		find ${LIBS} -mindepth 1 -name Makefile |
+		find -s ${LIBS} -mindepth 1 -name Makefile |
 		xargs grep -l 'bsd\.lib\.mk' |
 		while read makefile; do
 			libdir=$(dirname ${makefile})
@@ -85,12 +89,12 @@ main()
 	fi
 
 	prebuild_libs=$(
-		awk -F"${FS}" '{ print $2 }' ${LIBDEPENDS} |rs 0 1 |sort -u
+		awk -F"${FS}" '{ print $2 }' ${LIBDEPENDS} | tr ' ' '\n' |
+		    sort -u
 	)
 	echo "Libraries with dependents:"
 	echo
-	echo ${prebuild_libs} |
-	rs 0 1
+	echo ${prebuild_libs} | tr ' ' '\n'
 	echo
 
 	echo "List of interdependencies:"

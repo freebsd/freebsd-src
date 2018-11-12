@@ -120,6 +120,20 @@ struct keymap {
 };
 typedef struct keymap keymap_t;
 
+#ifdef _KERNEL
+struct okeyent_t {
+	u_char		map[NUM_STATES];
+	u_char		spcl;
+	u_char		flgs;
+};
+
+struct okeymap {
+	u_short		n_keys;
+	struct okeyent_t key[NUM_KEYS];
+};
+typedef struct okeymap okeymap_t;
+#endif /* _KERNEL */
+
 #endif /* !_KEYMAP_DECLARED */
 
 /* defines for "special" keys (spcl bit set in keymap) */
@@ -223,6 +237,10 @@ typedef struct fkeyarg	fkeyarg_t;
 /* XXX: Should have keymap_t as an argument, but that's too big for ioctl()! */
 #define GIO_KEYMAP 	 _IO('k', 6)
 #define PIO_KEYMAP 	 _IO('k', 7)
+#ifdef _KERNEL
+#define OGIO_KEYMAP 	_IOR('k', 6, okeymap_t)
+#define OPIO_KEYMAP 	_IOW('k', 7, okeymap_t)
+#endif /* _KERNEL */
 #define GIO_DEADKEYMAP 	_IOR('k', 8, accentmap_t)
 #define PIO_DEADKEYMAP 	_IOW('k', 9, accentmap_t)
 #define GIO_KEYMAPENT 	_IOWR('k', 10, keyarg_t)

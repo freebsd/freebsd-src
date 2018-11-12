@@ -43,7 +43,6 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <sys/mount.h>
 #include <sys/disklabel.h>
 
@@ -64,6 +63,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <timeconv.h>
 #include <unistd.h>
 
@@ -267,7 +267,7 @@ main(int argc, char *argv[])
 	}
 
 	if (blocksperfile)
-		blocksperfile = blocksperfile / ntrec * ntrec; /* round down */
+		blocksperfile = rounddown(blocksperfile, ntrec);
 	else if (!unlimited) {
 		/*
 		 * Determine how to default tape size and density
@@ -290,7 +290,7 @@ main(int argc, char *argv[])
 		tape = strchr(host, ':');
 		*tape++ = '\0';
 #ifdef RDUMP
-		if (index(tape, '\n')) {
+		if (strchr(tape, '\n')) {
 		    (void)fprintf(stderr, "invalid characters in tape\n");
 		    exit(X_STARTUP);
 		}
@@ -340,7 +340,7 @@ main(int argc, char *argv[])
 	spcl.c_dev[NAMELEN-1]='\0';
 	spcl.c_filesys[NAMELEN-1]='\0';
 
-	if ((mntpt = getmntpt(disk, &mntflags)) != 0) {
+	if ((mntpt = getmntpt(disk, &mntflags)) != NULL) {
 		if (mntflags & MNT_RDONLY) {
 			if (snapdump != 0) {
 				msg("WARNING: %s\n",
@@ -767,7 +767,8 @@ obsolete(int *argcp, char **argvp[])
 	if (flags) {
 		*p = '\0';
 		*nargv++ = flagsp;
-	}
+	} else
+		free(flagsp);
 
 	/* Copy remaining arguments. */
 	while ((*nargv++ = *argv++));

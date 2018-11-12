@@ -40,9 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 int
-gethostname(name, namelen)
-	char *name;
-	size_t namelen;
+gethostname(char *name, size_t namelen)
 {
 	int mib[2];
 

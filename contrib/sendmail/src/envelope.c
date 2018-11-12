@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003, 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003, 2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: envelope.c,v 8.305 2008/03/31 16:32:13 ca Exp $")
+SM_RCSID("@(#)$Id: envelope.c,v 8.313 2013-11-22 20:51:55 ca Exp $")
 
 /*
 **  CLRSESSENVELOPE -- clear session oriented data in an envelope
@@ -42,11 +42,9 @@ clrsessenvelope(e)
 	macdefine(&e->e_macro, A_PERM, macid("{cipher}"), "");
 	macdefine(&e->e_macro, A_PERM, macid("{tls_version}"), "");
 	macdefine(&e->e_macro, A_PERM, macid("{verify}"), "");
-# if _FFR_TLS_1
 	macdefine(&e->e_macro, A_PERM, macid("{alg_bits}"), "");
 	macdefine(&e->e_macro, A_PERM, macid("{cn_issuer}"), "");
 	macdefine(&e->e_macro, A_PERM, macid("{cn_subject}"), "");
-# endif /* _FFR_TLS_1 */
 #endif /* STARTTLS */
 }
 
@@ -163,14 +161,14 @@ newenvelope(e, parent, rpool)
 **		split -- if true, split by recipient if message is queued up
 **
 **	Returns:
-**		none.
+**		EX_* status (currently: 0: success, EX_IOERR on panic)
 **
 **	Side Effects:
 **		housekeeping necessary to dispose of an envelope.
 **		Unlocks this queue file.
 */
 
-void
+int
 dropenvelope(e, fulldrop, split)
 	register ENVELOPE *e;
 	bool fulldrop;
@@ -209,12 +207,15 @@ dropenvelope(e, fulldrop, split)
 
 	/* we must have an id to remove disk files */
 	if (id == NULL)
-		return;
+		return EX_OK;
 
 	/* if verify-only mode, we can skip most of this */
 	if (OpMode == MD_VERIFY)
 		goto simpledrop;
 
+	if (tTd(92, 2))
+		sm_dprintf("dropenvelope: e_id=%s, EF_LOGSENDER=%d, LogLevel=%d\n",
+			e->e_id, bitset(EF_LOGSENDER, e->e_flags), LogLevel);
 	if (LogLevel > 4 && bitset(EF_LOGSENDER, e->e_flags))
 		logsender(e, NULL);
 	e->e_flags &= ~EF_LOGSENDER;
@@ -243,11 +244,27 @@ dropenvelope(e, fulldrop, split)
 		e->e_flags |= EF_FATALERRS|EF_CLRQUEUE;
 	}
 
+#if _FFR_PROXY
+	if (tTd(87, 2))
+	{
+		q = e->e_sendqueue;
+		sm_dprintf("dropenvelope: mode=%c, e=%p, sibling=%p, nrcpts=%d, sendqueue=%p, next=%p, state=%d\n",
+			e->e_sendmode, e, e->e_sibling, e->e_nrcpts, q,
+			(q == NULL) ? (void *)0 : q->q_next,
+			(q == NULL) ? -1 : q->q_state);
+	}
+#endif /* _FFR_PROXY */
+
 	e->e_flags &= ~EF_QUEUERUN;
 	for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 	{
 		if (QS_IS_UNDELIVERED(q->q_state))
 			queueit = true;
+
+#if _FFR_PROXY
+		if (queueit && e->e_sendmode == SM_PROXY)
+			queueit = false;
+#endif /* _FFR_PROXY */
 
 		/* see if a notification is needed */
 		if (bitset(QPINGONFAILURE, q->q_flags) &&
@@ -572,9 +589,9 @@ simpledrop:
 			if (!split_by_recipient(e) &&
 			    bitset(EF_FATALERRS, e->e_flags))
 			{
-				syserr("!dropenvelope(%s): cannot commit data file %s, uid=%d",
+				syserr("!dropenvelope(%s): cannot commit data file %s, uid=%ld",
 					e->e_id, queuename(e, DATAFL_LETTER),
-					(int) geteuid());
+					(long) geteuid());
 			}
 			for (ee = e->e_sibling; ee != NULL; ee = ee->e_sibling)
 				queueup(ee, false, true);
@@ -618,7 +635,11 @@ simpledrop:
 	}
 	e->e_id = NULL;
 	e->e_flags &= ~EF_HAS_DF;
+	if (panic)
+		return EX_IOERR;
+	return EX_OK;
 }
+
 /*
 **  CLEARENVELOPE -- clear an envelope without unlocking
 **
@@ -714,6 +735,9 @@ clearenvelope(e, fullclear, rpool)
 		bh = bh->h_link;
 		nhp = &(*nhp)->h_link;
 	}
+#if _FFR_MILTER_ENHSC
+	e->e_enhsc[0] = '\0';
+#endif /* _FFR_MILTER_ENHSC */
 }
 /*
 **  INITSYS -- initialize instantiation of system

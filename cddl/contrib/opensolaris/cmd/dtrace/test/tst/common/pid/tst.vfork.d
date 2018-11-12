@@ -44,7 +44,7 @@ pid$1:a.out:waiting:entry
 proc:::create
 /pid == $1/
 {
-	child = args[0]->pr_pid;
+	child = args[0]->p_pid;
 }
 
 pid$1:a.out:go:
@@ -54,7 +54,7 @@ pid$1:a.out:go:
 	exit(1);
 }
 
-syscall::rexit:entry
+syscall::exit:entry
 /pid == $1/
 {
 	exit(0);

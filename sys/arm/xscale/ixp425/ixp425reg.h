@@ -65,7 +65,7 @@
  * 4000 0000 ---------------------------
  *           SDRAM
  * 0000 0000 ---------------------------
- */           
+ */
 
 /*
  * Virtual memory map for the Intel IXP425/IXP435 integrated devices
@@ -323,6 +323,8 @@
 #define	GPIO_TYPE(b,v)		((v) << (((b) & 0x7) * 3))
 #define	GPIO_TYPE_REG(b)	(((b)&8)?IXP425_GPIO_GPIT2R:IXP425_GPIO_GPIT1R)
 
+#define	IXP4XX_GPIO_PINS	16
+
 /*
  * Expansion Bus Configuration Space.
  */
@@ -398,7 +400,7 @@
 #define EXP_CNFG0_PCI_HOST         (1 << 1)
 #define EXP_CNFG0_PCI_ARB          (1 << 2)
 #define EXP_CNFG0_PCI_66MHZ        (1 << 4)
-#define EXP_CNFG0_MEM_MAP          (1 << 31)
+#define EXP_CNFG0_MEM_MAP          (1U << 31)
 
 /* EXP_CNFG1 bits */
 #define EXP_CNFG1_SW_INT0          (1 << 0)
@@ -611,7 +613,7 @@
 #define PMNC_EVCNT2_SHIFT 16
 #define PMNC_EVCNT3_SHIFT 24
 
-/* 
+/*
  * Queue Manager
  */
 #define	IXP425_QMGR_HWBASE	0x60000000UL

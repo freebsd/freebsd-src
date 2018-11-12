@@ -224,7 +224,7 @@ struct g_journal_entry {
 #define	GJ_VALIDATE_OFFSET(offset, sc)	do {				\
 	if ((offset) + GJ_RECORD_MAX_SIZE(sc) >= (sc)->sc_jend) {	\
 		(offset) = (sc)->sc_jstart;				\
-		GJ_DEBUG(2, "Starting from the begining (%s).",		\
+		GJ_DEBUG(2, "Starting from the beginning (%s).",		\
 		    (sc)->sc_name);					\
 	}								\
 } while (0)

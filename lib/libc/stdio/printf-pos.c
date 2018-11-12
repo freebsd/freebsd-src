@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -248,7 +248,6 @@ __find_arguments (const char *fmt0, va_list ap, union arg **argtable)
 	int n;			/* handy integer (short term usage) */
 	int error;
 	int flags;		/* flags as above */
-	int width;		/* width from format (%8d), or 0 */
 	struct typetable types;	/* table of types */
 
 	fmt = (char *)fmt0;
@@ -266,7 +265,6 @@ __find_arguments (const char *fmt0, va_list ap, union arg **argtable)
 		fmt++;		/* skip over '%' */
 
 		flags = 0;
-		width = 0;
 
 rflag:		ch = *fmt++;
 reswitch:	switch (ch) {
@@ -304,7 +302,6 @@ reswitch:	switch (ch) {
 				types.nextarg = n;
 				goto rflag;
 			}
-			width = n;
 			goto reswitch;
 #ifndef NO_FLOATING_POINT
 		case 'L':
@@ -439,7 +436,6 @@ __find_warguments (const wchar_t *fmt0, va_list ap, union arg **argtable)
 	int n;			/* handy integer (short term usage) */
 	int error;
 	int flags;		/* flags as above */
-	int width;		/* width from format (%8d), or 0 */
 	struct typetable types;	/* table of types */
 
 	fmt = (wchar_t *)fmt0;
@@ -457,7 +453,6 @@ __find_warguments (const wchar_t *fmt0, va_list ap, union arg **argtable)
 		fmt++;		/* skip over '%' */
 
 		flags = 0;
-		width = 0;
 
 rflag:		ch = *fmt++;
 reswitch:	switch (ch) {
@@ -495,7 +490,6 @@ reswitch:	switch (ch) {
 				types.nextarg = n;
 				goto rflag;
 			}
-			width = n;
 			goto reswitch;
 #ifndef NO_FLOATING_POINT
 		case 'L':

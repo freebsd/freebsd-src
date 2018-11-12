@@ -51,7 +51,7 @@ int
 atkbdc_print_child(device_t bus, device_t dev)
 {
 	atkbdc_device_t *kbdcdev;
-	u_long irq;
+	rman_res_t irq;
 	int flags;
 	int retval = 0;
 
@@ -63,7 +63,7 @@ atkbdc_print_child(device_t bus, device_t dev)
 		retval += printf(" flags 0x%x", flags);
 	irq = bus_get_resource_start(dev, SYS_RES_IRQ, kbdcdev->rid);
 	if (irq != 0)
-		retval += printf(" irq %ld", irq);
+		retval += printf(" irq %jd", irq);
 	retval += bus_print_child_footer(bus, dev);
 
 	return (retval);

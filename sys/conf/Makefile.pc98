@@ -19,7 +19,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	600004
+%VERSREQ=	600012
 
 .if !defined(S)
 .if exists(./@/.)
@@ -28,11 +28,12 @@ S=	./@
 S=	../../..
 .endif
 .endif
+
+LDSCRIPT_NAME?= ldscript.${MACHINE_ARCH}
+
 .include "$S/conf/kern.pre.mk"
 
-MACHINE=pc98
-
-MKMODULESENV+=	MACHINE=${MACHINE}
+ASM_CFLAGS.mpboot.s=		${CLANG_NO_IAS34}
 
 %BEFORE_DEPEND
 

@@ -3,8 +3,9 @@
 
 PROG=	rlogin
 
+PACKAGE=rcmds
+
 BINOWN=	root
 BINMODE=4555
-PRECIOUSPROG=
 
 .include <bsd.prog.mk>

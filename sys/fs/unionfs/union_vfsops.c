@@ -1,8 +1,8 @@
 /*-
  * Copyright (c) 1994, 1995 The Regents of the University of California.
  * Copyright (c) 1994, 1995 Jan-Simon Pendry.
- * Copyright (c) 2005, 2006 Masanori Ozawa <ozawa@ongs.co.jp>, ONGS Inc.
- * Copyright (c) 2006 Daichi Goto <daichi@freebsd.org>
+ * Copyright (c) 2005, 2006, 2012 Masanori Ozawa <ozawa@ongs.co.jp>, ONGS Inc.
+ * Copyright (c) 2006, 2012 Daichi Goto <daichi@freebsd.org>
  * All rights reserved.
  *
  * This code is derived from software donated to Berkeley by
@@ -89,7 +89,6 @@ unionfs_domount(struct mount *mp)
 	u_short		ufile;
 	unionfs_copymode copymode;
 	unionfs_whitemode whitemode;
-	struct componentname fakecn;
 	struct nameidata nd, *ndp;
 	struct vattr	va;
 
@@ -166,7 +165,7 @@ unionfs_domount(struct mount *mp)
 		uid = va.va_uid;
 		gid = va.va_gid;
 	}
-	VOP_UNLOCK(mp->mnt_vnodecovered, 0);
+	VOP_UNLOCK(mp->mnt_vnodecovered, LK_RELEASE);
 	if (error)
 		return (error);
 
@@ -251,7 +250,7 @@ unionfs_domount(struct mount *mp)
 	 * Save reference
 	 */
 	if (below) {
-		VOP_UNLOCK(upperrootvp, 0);
+		VOP_UNLOCK(upperrootvp, LK_RELEASE);
 		vn_lock(lowerrootvp, LK_EXCLUSIVE | LK_RETRY);
 		ump->um_lowervp = upperrootvp;
 		ump->um_uppervp = lowerrootvp;
@@ -267,11 +266,6 @@ unionfs_domount(struct mount *mp)
 	ump->um_copymode = copymode;
 	ump->um_whitemode = whitemode;
 
-	MNT_ILOCK(mp);
-	if ((lowerrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE) &&
-	    (upperrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE))
-		mp->mnt_kern_flag |= MNTK_MPSAFE;
-	MNT_IUNLOCK(mp);
 	mp->mnt_data = ump;
 
 	/*
@@ -280,29 +274,9 @@ unionfs_domount(struct mount *mp)
 	mp->mnt_flag |= ump->um_uppervp->v_mount->mnt_flag & MNT_RDONLY;
 
 	/*
-	 * Check whiteout
-	 */
-	if ((mp->mnt_flag & MNT_RDONLY) == 0) {
-		memset(&fakecn, 0, sizeof(fakecn));
-		fakecn.cn_nameiop = LOOKUP;
-		fakecn.cn_thread = td;
-		error = VOP_WHITEOUT(ump->um_uppervp, &fakecn, LOOKUP);
-		if (error) {
-			if (below) {
-				VOP_UNLOCK(ump->um_uppervp, 0);
-				vrele(upperrootvp);
-			} else
-				vput(ump->um_uppervp);
-			free(ump, M_UNIONFSMNT);
-			mp->mnt_data = NULL;
-			return (error);
-		}
-	}
-
-	/*
 	 * Unlock the node
 	 */
-	VOP_UNLOCK(ump->um_uppervp, 0);
+	VOP_UNLOCK(ump->um_uppervp, LK_RELEASE);
 
 	/*
 	 * Get the unionfs root vnode.
@@ -316,12 +290,11 @@ unionfs_domount(struct mount *mp)
 		return (error);
 	}
 
-	/*
-	 * Check mnt_flag
-	 */
+	MNT_ILOCK(mp);
 	if ((ump->um_lowervp->v_mount->mnt_flag & MNT_LOCAL) &&
 	    (ump->um_uppervp->v_mount->mnt_flag & MNT_LOCAL))
 		mp->mnt_flag |= MNT_LOCAL;
+	MNT_IUNLOCK(mp);
 
 	/*
 	 * Get new fsid
@@ -373,7 +346,7 @@ unionfs_unmount(struct mount *mp, int mntflags)
 		return (error);
 
 	free(ump, M_UNIONFSMNT);
-	mp->mnt_data = 0;
+	mp->mnt_data = NULL;
 
 	return (0);
 }
@@ -475,7 +448,8 @@ unionfs_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 }
 
 static int
-unionfs_fhtovp(struct mount *mp, struct fid *fidp, struct vnode **vpp)
+unionfs_fhtovp(struct mount *mp, struct fid *fidp, int flags,
+    struct vnode **vpp)
 {
 	return (EOPNOTSUPP);
 }

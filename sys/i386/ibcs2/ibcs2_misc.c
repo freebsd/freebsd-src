@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
  */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capsicum.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
@@ -97,40 +98,30 @@ ibcs2_ulimit(td, uap)
 	struct ibcs2_ulimit_args *uap;
 {
 	struct rlimit rl;
-	struct proc *p;
 	int error;
 #define IBCS2_GETFSIZE		1
 #define IBCS2_SETFSIZE		2
 #define IBCS2_GETPSIZE		3
 #define IBCS2_GETDTABLESIZE	4
 
-	p = td->td_proc;
 	switch (uap->cmd) {
 	case IBCS2_GETFSIZE:
-		PROC_LOCK(p);
-		td->td_retval[0] = lim_cur(p, RLIMIT_FSIZE);
-		PROC_UNLOCK(p);
+		td->td_retval[0] = lim_cur(td, RLIMIT_FSIZE);
 		if (td->td_retval[0] == -1)
 			td->td_retval[0] = 0x7fffffff;
 		return 0;
 	case IBCS2_SETFSIZE:
-		PROC_LOCK(p);
-		rl.rlim_max = lim_max(p, RLIMIT_FSIZE);
-		PROC_UNLOCK(p);
+		rl.rlim_max = lim_max(td, RLIMIT_FSIZE);
 		rl.rlim_cur = uap->newlimit;
 		error = kern_setrlimit(td, RLIMIT_FSIZE, &rl);
 		if (!error) {
-			PROC_LOCK(p);
-			td->td_retval[0] = lim_cur(p, RLIMIT_FSIZE);
-			PROC_UNLOCK(p);
+			td->td_retval[0] = lim_cur(td, RLIMIT_FSIZE);
 		} else {
 			DPRINTF(("failed "));
 		}
 		return error;
 	case IBCS2_GETPSIZE:
-		PROC_LOCK(p);
-		td->td_retval[0] = lim_cur(p, RLIMIT_RSS); /* XXX */
-		PROC_UNLOCK(p);
+		td->td_retval[0] = lim_cur(td, RLIMIT_RSS); /* XXX */
 		return 0;
 	case IBCS2_GETDTABLESIZE:
 		uap->cmd = IBCS2_SC_OPEN_MAX;
@@ -199,15 +190,22 @@ ibcs2_execv(td, uap)
 	struct ibcs2_execv_args *uap;
 {
 	struct image_args eargs;
+	struct vmspace *oldvmspace;
 	char *path;
 	int error;
 
         CHECKALTEXIST(td, uap->path, &path);
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0) {
+		free(path, M_TEMP);
+		return (error);
+	}
 	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp, NULL);
 	free(path, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
@@ -217,16 +215,23 @@ ibcs2_execve(td, uap)
         struct ibcs2_execve_args *uap;
 {
 	struct image_args eargs;
+	struct vmspace *oldvmspace;
 	char *path;
 	int error;
 
         CHECKALTEXIST(td, uap->path, &path);
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0) {
+		free(path, M_TEMP);
+		return (error);
+	}
 	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp,
 	    uap->envp);
 	free(path, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
@@ -239,7 +244,7 @@ ibcs2_umount(td, uap)
 
 	um.path = uap->name;
 	um.flags = 0;
-	return unmount(td, &um);
+	return sys_unmount(td, &um);
 }
 
 int
@@ -325,27 +330,27 @@ ibcs2_getdents(td, uap)
 	register int len, reclen;	/* BSD-format */
 	register caddr_t outp;		/* iBCS2-format */
 	register int resid;		/* iBCS2-format */
+	cap_rights_t rights;
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
 	struct ibcs2_dirent idb;
 	off_t off;			/* true file offset */
-	int buflen, error, eofflag, vfslocked;
+	int buflen, error, eofflag;
 	u_long *cookies = NULL, *cookiep;
 	int ncookies;
 #define	BSD_DIRENT(cp)		((struct dirent *)(cp))
 #define	IBCS2_RECLEN(reclen)	(reclen + sizeof(u_short))
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_READ), &fp);
+	if (error != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
 		fdrop(fp, td);
 		return (EBADF);
 	}
 	vp = fp->f_vnode;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {	/* XXX  vnode readdir op should do this */
-		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
 		return (EINVAL);
 	}
@@ -462,7 +467,6 @@ eof:
 	td->td_retval[0] = uap->nbytes - resid;
 out:
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	if (cookies)
 		free(cookies, M_TEMP);
@@ -480,6 +484,7 @@ ibcs2_read(td, uap)
 	register int len, reclen;	/* BSD-format */
 	register caddr_t outp;		/* iBCS2-format */
 	register int resid;		/* iBCS2-format */
+	cap_rights_t rights;
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
@@ -488,13 +493,14 @@ ibcs2_read(td, uap)
 		char name[14];
 	} idb;
 	off_t off;			/* true file offset */
-	int buflen, error, eofflag, size, vfslocked;
+	int buflen, error, eofflag, size;
 	u_long *cookies = NULL, *cookiep;
 	int ncookies;
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0) {
+	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_READ), &fp);
+	if (error != 0) {
 		if (error == EINVAL)
-			return read(td, (struct read_args *)uap);
+			return sys_read(td, (struct read_args *)uap);
 		else
 			return error;
 	}
@@ -503,11 +509,9 @@ ibcs2_read(td, uap)
 		return (EBADF);
 	}
 	vp = fp->f_vnode;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {
-		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
-		return read(td, (struct read_args *)uap);
+		return sys_read(td, (struct read_args *)uap);
 	}
 
 	off = fp->f_offset;
@@ -628,7 +632,6 @@ eof:
 	td->td_retval[0] = uap->nbytes - resid;
 out:
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	if (cookies)
 		free(cookies, M_TEMP);
@@ -645,10 +648,13 @@ ibcs2_mknod(td, uap)
 	int error;
 
         CHECKALTCREAT(td, uap->path, &path);
-	if (S_ISFIFO(uap->mode))
-		error = kern_mkfifo(td, path, UIO_SYSSPACE, uap->mode);
-	else
-		error = kern_mknod(td, path, UIO_SYSSPACE, uap->mode, uap->dev);
+	if (S_ISFIFO(uap->mode)) {
+		error = kern_mkfifoat(td, AT_FDCWD, path,
+		    UIO_SYSSPACE, uap->mode);
+	} else {
+		error = kern_mknodat(td, AT_FDCWD, path, UIO_SYSSPACE,
+		    uap->mode, uap->dev);
+	}
 	free(path, M_TEMP);
 	return (error);
 }
@@ -658,29 +664,28 @@ ibcs2_getgroups(td, uap)
 	struct thread *td;
 	struct ibcs2_getgroups_args *uap;
 {
+	struct ucred *cred;
 	ibcs2_gid_t *iset;
-	gid_t *gp;
 	u_int i, ngrp;
 	int error;
 
-	if (uap->gidsetsize < 0)
-		return (EINVAL);
-	ngrp = MIN(uap->gidsetsize, NGROUPS);
-	gp = malloc(ngrp * sizeof(*gp), M_TEMP, M_WAITOK);
-	error = kern_getgroups(td, &ngrp, gp);
-	if (error)
+	cred = td->td_ucred;
+	ngrp = cred->cr_ngroups;
+
+	if (uap->gidsetsize == 0) {
+		error = 0;
 		goto out;
-	if (uap->gidsetsize > 0) {
-		iset = malloc(ngrp * sizeof(*iset), M_TEMP, M_WAITOK);
-		for (i = 0; i < ngrp; i++)
-			iset[i] = (ibcs2_gid_t)gp[i];
-		error = copyout(iset, uap->gidset, ngrp * sizeof(ibcs2_gid_t));
-		free(iset, M_TEMP);
 	}
-	if (error == 0)
-		td->td_retval[0] = ngrp;
+	if (uap->gidsetsize < ngrp)
+		return (EINVAL);
+
+	iset = malloc(ngrp * sizeof(*iset), M_TEMP, M_WAITOK);
+	for (i = 0; i < ngrp; i++)
+		iset[i] = (ibcs2_gid_t)cred->cr_groups[i];
+	error = copyout(iset, uap->gidset, ngrp * sizeof(ibcs2_gid_t));
+	free(iset, M_TEMP);
 out:
-	free(gp, M_TEMP);
+	td->td_retval[0] = ngrp;
 	return (error);
 }
 
@@ -693,7 +698,7 @@ ibcs2_setgroups(td, uap)
 	gid_t *gp;
 	int error, i;
 
-	if (uap->gidsetsize < 0 || uap->gidsetsize > NGROUPS)
+	if (uap->gidsetsize < 0 || uap->gidsetsize > ngroups_max + 1)
 		return (EINVAL);
 	if (uap->gidsetsize && uap->gidset == NULL)
 		return (EINVAL);
@@ -724,7 +729,7 @@ ibcs2_setuid(td, uap)
 	struct setuid_args sa;
 
 	sa.uid = (uid_t)uap->uid;
-	return setuid(td, &sa);
+	return sys_setuid(td, &sa);
 }
 
 int
@@ -735,7 +740,7 @@ ibcs2_setgid(td, uap)
 	struct setgid_args sa;
 
 	sa.gid = (gid_t)uap->gid;
-	return setgid(td, &sa);
+	return sys_setgid(td, &sa);
 }
 
 int
@@ -775,7 +780,7 @@ ibcs2_fpathconf(td, uap)
 	struct ibcs2_fpathconf_args *uap;
 {
 	uap->name++;	/* iBCS2 _PC_* defines are offset by one */
-        return fpathconf(td, (struct fpathconf_args *)uap);
+        return sys_fpathconf(td, (struct fpathconf_args *)uap);
 }
 
 int
@@ -784,18 +789,14 @@ ibcs2_sysconf(td, uap)
 	struct ibcs2_sysconf_args *uap;
 {
 	int mib[2], value, len, error;
-	struct proc *p;
 
-	p = td->td_proc;
 	switch(uap->name) {
 	case IBCS2_SC_ARG_MAX:
 		mib[1] = KERN_ARGMAX;
 		break;
 
 	case IBCS2_SC_CHILD_MAX:
-		PROC_LOCK(p);
-		td->td_retval[0] = lim_cur(td->td_proc, RLIMIT_NPROC);
-		PROC_UNLOCK(p);
+		td->td_retval[0] = lim_cur(td, RLIMIT_NPROC);
 		return 0;
 
 	case IBCS2_SC_CLK_TCK:
@@ -807,9 +808,7 @@ ibcs2_sysconf(td, uap)
 		break;
 
 	case IBCS2_SC_OPEN_MAX:
-		PROC_LOCK(p);
-		td->td_retval[0] = lim_cur(td->td_proc, RLIMIT_NOFILE);
-		PROC_UNLOCK(p);
+		td->td_retval[0] = lim_cur(td, RLIMIT_NOFILE);
 		return 0;
 		
 	case IBCS2_SC_JOB_CONTROL:
@@ -938,7 +937,8 @@ ibcs2_utime(td, uap)
 		tp = NULL;
 
         CHECKALTEXIST(td, uap->path, &path);
-	error = kern_utimes(td, path, UIO_SYSSPACE, tp, UIO_SYSSPACE);
+	error = kern_utimesat(td, AT_FDCWD, path, UIO_SYSSPACE,
+	    tp, UIO_SYSSPACE);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -954,7 +954,7 @@ ibcs2_nice(td, uap)
 	sa.which = PRIO_PROCESS;
 	sa.who = 0;
 	sa.prio = td->td_proc->p_nice + uap->incr;
-	if ((error = setpriority(td, &sa)) != 0)
+	if ((error = sys_setpriority(td, &sa)) != 0)
 		return EPERM;
 	td->td_retval[0] = td->td_proc->p_nice;
 	return 0;
@@ -983,7 +983,7 @@ ibcs2_pgrpsys(td, uap)
 
 		sa.pid = 0;
 		sa.pgid = 0;
-		setpgid(td, &sa);
+		sys_setpgid(td, &sa);
 		PROC_LOCK(p);
 		td->td_retval[0] = p->p_pgrp->pg_id;
 		PROC_UNLOCK(p);
@@ -996,11 +996,11 @@ ibcs2_pgrpsys(td, uap)
 
 		sa.pid = uap->pid;
 		sa.pgid = uap->pgid;
-		return setpgid(td, &sa);
+		return sys_setpgid(td, &sa);
 	    }
 
 	case 3:			/* setsid */
-		return setsid(td, NULL);
+		return sys_setsid(td, NULL);
 
 	default:
 		return EINVAL;
@@ -1075,11 +1075,11 @@ ibcs2_uadmin(td, uap)
 		case SCO_AD_PWRDOWN:
 		case SCO_AD_PWRNAP:
 			r.opt = RB_HALT;
-			return (reboot(td, &r));
+			return (sys_reboot(td, &r));
 		case SCO_AD_BOOT:
 		case SCO_AD_IBOOT:
 			r.opt = RB_AUTOBOOT;
-			return (reboot(td, &r));
+			return (sys_reboot(td, &r));
 		}
 		return EINVAL;
 	case SCO_A_REMOUNT:
@@ -1119,7 +1119,7 @@ ibcs2_unlink(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_unlink(td, path, UIO_SYSSPACE);
+	error = kern_unlinkat(td, AT_FDCWD, path, UIO_SYSSPACE, 0);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -1147,7 +1147,7 @@ ibcs2_chmod(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_chmod(td, path, UIO_SYSSPACE, uap->mode);
+	error = kern_fchmodat(td, AT_FDCWD, path, UIO_SYSSPACE, uap->mode, 0);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -1161,7 +1161,8 @@ ibcs2_chown(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_chown(td, path, UIO_SYSSPACE, uap->uid, uap->gid);
+	error = kern_fchownat(td, AT_FDCWD, path, UIO_SYSSPACE, uap->uid,
+	    uap->gid, 0);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -1175,7 +1176,7 @@ ibcs2_rmdir(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_rmdir(td, path, UIO_SYSSPACE);
+	error = kern_rmdirat(td, AT_FDCWD, path, UIO_SYSSPACE);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -1189,7 +1190,7 @@ ibcs2_mkdir(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_mkdir(td, path, UIO_SYSSPACE, uap->mode);
+	error = kern_mkdirat(td, AT_FDCWD, path, UIO_SYSSPACE, uap->mode);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -1213,7 +1214,7 @@ ibcs2_symlink(td, uap)
 		free(path, M_TEMP);
 		return (error);
 	}
-	error = kern_symlink(td, path, link, UIO_SYSSPACE);
+	error = kern_symlinkat(td, path, AT_FDCWD, link, UIO_SYSSPACE);
 	free(path, M_TEMP);
 	free(link, M_TEMP);
 	return (error);
@@ -1238,7 +1239,7 @@ ibcs2_rename(td, uap)
 		free(from, M_TEMP);
 		return (error);
 	}
-	error = kern_rename(td, from, to, UIO_SYSSPACE);
+	error = kern_renameat(td, AT_FDCWD, from, AT_FDCWD, to, UIO_SYSSPACE);
 	free(from, M_TEMP);
 	free(to, M_TEMP);
 	return (error);
@@ -1253,8 +1254,8 @@ ibcs2_readlink(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_readlink(td, path, UIO_SYSSPACE, uap->buf, UIO_USERSPACE,
-		uap->count);
+	error = kern_readlinkat(td, AT_FDCWD, path, UIO_SYSSPACE,
+	    uap->buf, UIO_USERSPACE, uap->count);
 	free(path, M_TEMP);
 	return (error);
 }

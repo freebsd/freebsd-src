@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -69,6 +65,7 @@ static void showtime(FILE *, struct timeval *, struct timeval *,
 static void siginfo(int);
 static void usage(void);
 
+static sig_atomic_t siginfo_recvd;
 static char decimal_point;
 static struct timeval before_tv;
 static int hflag, pflag;
@@ -116,19 +113,17 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (ofn) {
-	        if ((out = fopen(ofn, aflag ? "a" : "w")) == NULL)
+	        if ((out = fopen(ofn, aflag ? "ae" : "we")) == NULL)
 		        err(1, "%s", ofn);
 		setvbuf(out, (char *)NULL, _IONBF, (size_t)0);
 	}
 
-	gettimeofday(&before_tv, (struct timezone *)NULL);
+	(void)gettimeofday(&before_tv, NULL);
 	switch(pid = fork()) {
 	case -1:			/* error */
 		err(1, "time");
 		/* NOTREACHED */
 	case 0:				/* child */
-		if (ofn)
-			fclose(out);
 		execvp(*argv, argv);
 		err(errno == ENOENT ? 127 : 126, "%s", *argv);
 		/* NOTREACHED */
@@ -136,9 +131,18 @@ main(int argc, char **argv)
 	/* parent */
 	(void)signal(SIGINT, SIG_IGN);
 	(void)signal(SIGQUIT, SIG_IGN);
+	siginfo_recvd = 0;
 	(void)signal(SIGINFO, siginfo);
-	while (wait4(pid, &status, 0, &ru) != pid);
-	gettimeofday(&after, (struct timezone *)NULL);
+	(void)siginterrupt(SIGINFO, 1);
+	while (wait4(pid, &status, 0, &ru) != pid) {
+		if (siginfo_recvd) {
+			siginfo_recvd = 0;
+			(void)gettimeofday(&after, NULL);
+			getrusage(RUSAGE_CHILDREN, &ru);
+			showtime(stdout, &before_tv, &after, &ru);
+		}
+	}
+	(void)gettimeofday(&after, NULL);
 	if ( ! WIFEXITED(status))
 		warnx("command terminated abnormally");
 	exitonsig = WIFSIGNALED(status) ? WTERMSIG(status) : 0;
@@ -298,10 +302,6 @@ showtime(FILE *out, struct timeval *before, struct timeval *after,
 static void
 siginfo(int sig __unused)
 {
-	struct timeval after;
-	struct rusage ru;
 
-	gettimeofday(&after, (struct timezone *)NULL);
-	getrusage(RUSAGE_CHILDREN, &ru);
-	showtime(stdout, &before_tv, &after, &ru);
+	siginfo_recvd = 1;
 }

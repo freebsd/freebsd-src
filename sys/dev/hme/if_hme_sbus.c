@@ -13,13 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -46,8 +39,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
 
@@ -59,11 +54,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/rman.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_arp.h>
-#include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/ethernet.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -102,16 +95,12 @@ static device_method_t hme_sbus_methods[] = {
 	/* Can just use the suspend method here. */
 	DEVMETHOD(device_shutdown,	hme_sbus_suspend),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	hme_mii_readreg),
 	DEVMETHOD(miibus_writereg,	hme_mii_writereg),
 	DEVMETHOD(miibus_statchg,	hme_mii_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t hme_sbus_driver = {

@@ -65,7 +65,6 @@ static char *mem_owner_bios = "BIOS";
 	(((curr) & ~MDF_ATTRMASK) | ((new) & MDF_ATTRMASK))
 
 static int mtrrs_disabled;
-TUNABLE_INT("machdep.disable_mtrrs", &mtrrs_disabled);
 SYSCTL_INT(_machdep, OID_AUTO, disable_mtrrs, CTLFLAG_RDTUN,
     &mtrrs_disabled, 0, "Disable i686 MTRRs.");
 
@@ -114,7 +113,7 @@ static int i686_mtrrtomrt[] = {
 	MDF_WRITEBACK
 };
 
-#define	MTRRTOMRTLEN (sizeof(i686_mtrrtomrt) / sizeof(i686_mtrrtomrt[0]))
+#define	MTRRTOMRTLEN nitems(i686_mtrrtomrt)
 
 static int
 i686_mtrr2mrt(int val)
@@ -301,20 +300,23 @@ i686_mrstoreone(void *arg)
 	struct mem_range_desc *mrd;
 	u_int64_t omsrv, msrv;
 	int i, j, msr;
-	u_int cr4save;
+	u_long cr0, cr4;
 
 	mrd = sc->mr_desc;
 
+	critical_enter();
+
 	/* Disable PGE. */
-	cr4save = rcr4();
-	if (cr4save & CR4_PGE)
-		load_cr4(cr4save & ~CR4_PGE);
+	cr4 = rcr4();
+	load_cr4(cr4 & ~CR4_PGE);
 
 	/* Disable caches (CD = 1, NW = 0). */
-	load_cr0((rcr0() & ~CR0_NW) | CR0_CD);
+	cr0 = rcr0();
+	load_cr0((cr0 & ~CR0_NW) | CR0_CD);
 
 	/* Flushes caches and TLBs. */
 	wbinvd();
+	invltlb();
 
 	/* Disable MTRRs (E = 0). */
 	wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) & ~MTRR_DEF_ENABLE);
@@ -375,24 +377,25 @@ i686_mrstoreone(void *arg)
 		/* mask/active register */
 		if (mrd->mr_flags & MDF_ACTIVE) {
 			msrv = MTRR_PHYSMASK_VALID |
-			    (~(mrd->mr_len - 1) & mtrr_physmask);
+			    rounddown2(mtrr_physmask, mrd->mr_len);
 		} else {
 			msrv = 0;
 		}
 		wrmsr(msr + 1, msrv);
 	}
 
-	/* Flush caches, TLBs. */
+	/* Flush caches and TLBs. */
 	wbinvd();
+	invltlb();
 
 	/* Enable MTRRs. */
 	wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) | MTRR_DEF_ENABLE);
 
-	/* Enable caches (CD = 0, NW = 0). */
-	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));
+	/* Restore caches and PGE. */
+	load_cr0(cr0);
+	load_cr4(cr4);
 
-	/* Restore PGE. */
-	load_cr4(cr4save);
+	critical_exit();
 }
 
 /*
@@ -707,11 +710,8 @@ i686_mem_drvinit(void *unused)
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_INTEL:
 	case CPU_VENDOR_AMD:
-		break;
 	case CPU_VENDOR_CENTAUR:
-		if (cpu_exthigh >= 0x80000008)
-			break;
-		/* FALLTHROUGH */
+		break;
 	default:
 		return;
 	}

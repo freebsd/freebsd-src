@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/bus.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
@@ -54,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #define _COMPONENT	ACPI_THERMAL
 ACPI_MODULE_NAME("THERMAL")
 
-#define TZ_ZEROC	2732
+#define TZ_ZEROC	2731
 #define TZ_KELVTOC(x)	(((x) - TZ_ZEROC) / 10), abs(((x) - TZ_ZEROC) % 10)
 
 #define TZ_NOTIFY_TEMPERATURE	0x80 /* Temperature changed. */
@@ -112,6 +111,7 @@ struct acpi_tz_softc {
 
     struct acpi_tz_zone 	tz_zone;	/*Thermal zone parameters*/
     int				tz_validchecks;
+    int				tz_insane_tmp_notified;
 
     /* passive cooling */
     struct proc			*tz_cooling_proc;
@@ -121,6 +121,8 @@ struct acpi_tz_softc {
     int				tz_cooling_updated;
     int				tz_cooling_saved_freq;
 };
+
+#define	TZ_ACTIVE_LEVEL(act)	((act) >= 0 ? (act) : TZ_NUMLEVELS)
 
 #define CPUFREQ_MAX_LEVELS	64 /* XXX cpufreq should export this */
 
@@ -151,7 +153,7 @@ static device_method_t acpi_tz_methods[] = {
     DEVMETHOD(device_probe,	acpi_tz_probe),
     DEVMETHOD(device_attach,	acpi_tz_attach),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_tz_driver = {
@@ -159,6 +161,8 @@ static driver_t acpi_tz_driver = {
     acpi_tz_methods,
     sizeof(struct acpi_tz_softc),
 };
+
+static char *acpi_tz_tmp_name = "_TMP";
 
 static devclass_t acpi_tz_devclass;
 DRIVER_MODULE(acpi_tz, acpi, acpi_tz_driver, acpi_tz_devclass, 0, 0);
@@ -246,7 +250,7 @@ acpi_tz_attach(device_t dev)
 	SYSCTL_ADD_INT(&acpi_tz_sysctl_ctx,
 		       SYSCTL_CHILDREN(acpi_tz_sysctl_tree),
 		       OID_AUTO, "polling_rate", CTLFLAG_RW,
-		       &acpi_tz_polling_rate, 0, "monitor polling rate");
+		       &acpi_tz_polling_rate, 0, "monitor polling interval in seconds");
 	SYSCTL_ADD_INT(&acpi_tz_sysctl_ctx,
 		       SYSCTL_CHILDREN(acpi_tz_sysctl_tree), OID_AUTO,
 		       "user_override", CTLFLAG_RW, &acpi_tz_override, 0,
@@ -257,10 +261,10 @@ acpi_tz_attach(device_t dev)
     sc->tz_sysctl_tree = SYSCTL_ADD_NODE(&sc->tz_sysctl_ctx,
 					 SYSCTL_CHILDREN(acpi_tz_sysctl_tree),
 					 OID_AUTO, oidname, CTLFLAG_RD, 0, "");
-    SYSCTL_ADD_OPAQUE(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-		      OID_AUTO, "temperature", CTLFLAG_RD, &sc->tz_temperature,
-		      sizeof(sc->tz_temperature), "IK",
-		      "current thermal zone temperature");
+    SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD,
+		    &sc->tz_temperature, 0, sysctl_handle_int,
+		    "IK", "current thermal zone temperature");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		    OID_AUTO, "active", CTLTYPE_INT | CTLFLAG_RW,
 		    sc, 0, acpi_tz_active_sysctl, "I", "cooling is active");
@@ -286,9 +290,10 @@ acpi_tz_attach(device_t dev)
 		    sc, offsetof(struct acpi_tz_softc, tz_zone.crt),
 		    acpi_tz_temp_sysctl, "IK",
 		    "critical temp setpoint (shutdown now)");
-    SYSCTL_ADD_OPAQUE(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-		      OID_AUTO, "_ACx", CTLFLAG_RD, &sc->tz_zone.ac,
-		      sizeof(sc->tz_zone.ac), "IK", "");
+    SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		    OID_AUTO, "_ACx", CTLTYPE_INT | CTLFLAG_RD,
+		    &sc->tz_zone.ac, sizeof(sc->tz_zone.ac),
+		    sysctl_handle_opaque, "IK", "");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		    OID_AUTO, "_TC1", CTLTYPE_INT | CTLFLAG_RW,
 		    sc, offsetof(struct acpi_tz_softc, tz_zone.tc1),
@@ -306,19 +311,42 @@ acpi_tz_attach(device_t dev)
 		    "thermal sampling period for passive cooling");
 
     /*
-     * Create thread to service all of the thermal zones.  Register
-     * our power profile event handler.
+     * Register our power profile event handler.
      */
     sc->tz_event = EVENTHANDLER_REGISTER(power_profile_change,
 	acpi_tz_power_profile, sc, 0);
-    if (acpi_tz_proc == NULL) {
-	error = kproc_create(acpi_tz_thread, NULL, &acpi_tz_proc,
-	    RFHIGHPID, 0, "acpi_thermal");
-	if (error != 0) {
-	    device_printf(sc->tz_dev, "could not create thread - %d", error);
-	    goto out;
-	}
+
+    /*
+     * Flag the event handler for a manual invocation by our timeout.
+     * We defer it like this so that the rest of the subsystem has time
+     * to come up.  Don't bother evaluating/printing the temperature at
+     * this point; on many systems it'll be bogus until the EC is running.
+     */
+    sc->tz_flags |= TZ_FLAG_GETPROFILE;
+
+    return_VALUE (0);
+}
+
+static void
+acpi_tz_startup(void *arg __unused)
+{
+    struct acpi_tz_softc *sc;
+    device_t *devs;
+    int devcount, error, i;
+
+    devclass_get_devices(acpi_tz_devclass, &devs, &devcount);
+    if (devcount == 0) {
+	free(devs, M_TEMP);
+	return;
     }
+
+    /*
+     * Create thread to service all of the thermal zones.
+     */
+    error = kproc_create(acpi_tz_thread, NULL, &acpi_tz_proc, RFHIGHPID, 0,
+	"acpi_thermal");
+    if (error != 0)
+	printf("acpi_tz: could not create thread - %d", error);
 
     /*
      * Create a thread to handle passive cooling for 1st zone which
@@ -330,34 +358,22 @@ acpi_tz_attach(device_t dev)
      * given frequency whereas it's possible for different thermal
      * zones to specify independent settings for multiple CPUs.
      */
-    if (acpi_tz_cooling_unit < 0 && acpi_tz_cooling_is_available(sc))
-	sc->tz_cooling_enabled = TRUE;
-    if (sc->tz_cooling_enabled) {
-	error = acpi_tz_cooling_thread_start(sc);
-	if (error != 0) {
-	    sc->tz_cooling_enabled = FALSE;
-	    goto out;
+    for (i = 0; i < devcount; i++) {
+	sc = device_get_softc(devs[i]);
+	if (acpi_tz_cooling_is_available(sc)) {
+	    sc->tz_cooling_enabled = TRUE;
+	    error = acpi_tz_cooling_thread_start(sc);
+	    if (error != 0) {
+		sc->tz_cooling_enabled = FALSE;
+		break;
+	    }
+	    acpi_tz_cooling_unit = device_get_unit(devs[i]);
+	    break;
 	}
-	acpi_tz_cooling_unit = device_get_unit(dev);
     }
-
-    /*
-     * Flag the event handler for a manual invocation by our timeout.
-     * We defer it like this so that the rest of the subsystem has time
-     * to come up.  Don't bother evaluating/printing the temperature at
-     * this point; on many systems it'll be bogus until the EC is running.
-     */
-    sc->tz_flags |= TZ_FLAG_GETPROFILE;
-
-out:
-    if (error != 0) {
-	EVENTHANDLER_DEREGISTER(power_profile_change, sc->tz_event);
-	AcpiRemoveNotifyHandler(sc->tz_handle, ACPI_DEVICE_NOTIFY,
-	    acpi_tz_notify_handler);
-	sysctl_ctx_free(&sc->tz_sysctl_ctx);
-    }
-    return_VALUE (error);
+    free(devs, M_TEMP);
 }
+SYSINIT(acpi_tz, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, acpi_tz_startup, NULL);
 
 /*
  * Parse the current state of this thermal zone and set up to use it.
@@ -454,12 +470,11 @@ acpi_tz_get_temperature(struct acpi_tz_softc *sc)
 {
     int		temp;
     ACPI_STATUS	status;
-    static char	*tmp_name = "_TMP";
 
     ACPI_FUNCTION_NAME ("acpi_tz_get_temperature");
 
     /* Evaluate the thermal zone's _TMP method. */
-    status = acpi_GetInteger(sc->tz_handle, tmp_name, &temp);
+    status = acpi_GetInteger(sc->tz_handle, acpi_tz_tmp_name, &temp);
     if (ACPI_FAILURE(status)) {
 	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
 	    "error fetching current temperature -- %s\n",
@@ -468,7 +483,7 @@ acpi_tz_get_temperature(struct acpi_tz_softc *sc)
     }
 
     /* Check it for validity. */
-    acpi_tz_sanity(sc, &temp, tmp_name);
+    acpi_tz_sanity(sc, &temp, acpi_tz_tmp_name);
     if (temp == -1)
 	return (FALSE);
 
@@ -507,15 +522,8 @@ acpi_tz_monitor(void *Context)
      */
     newactive = TZ_ACTIVE_NONE;
     for (i = TZ_NUMLEVELS - 1; i >= 0; i--) {
-	if (sc->tz_zone.ac[i] != -1 && temp >= sc->tz_zone.ac[i]) {
+	if (sc->tz_zone.ac[i] != -1 && temp >= sc->tz_zone.ac[i])
 	    newactive = i;
-	    if (sc->tz_active != newactive) {
-		ACPI_VPRINT(sc->tz_dev,
-			    acpi_device_get_parent_softc(sc->tz_dev),
-			    "_AC%d: temperature %d.%d >= setpoint %d.%d\n", i,
-			    TZ_KELVTOC(temp), TZ_KELVTOC(sc->tz_zone.ac[i]));
-	    }
-	}
     }
 
     /*
@@ -565,18 +573,21 @@ acpi_tz_monitor(void *Context)
     }
 
     if (newactive != sc->tz_active) {
-	/* Turn off the cooling devices that are on, if any are */
-	if (sc->tz_active != TZ_ACTIVE_NONE)
+	/* Turn off unneeded cooling devices that are on, if any are */
+	for (i = TZ_ACTIVE_LEVEL(sc->tz_active);
+	     i < TZ_ACTIVE_LEVEL(newactive); i++) {
 	    acpi_ForeachPackageObject(
-		(ACPI_OBJECT *)sc->tz_zone.al[sc->tz_active].Pointer,
+		(ACPI_OBJECT *)sc->tz_zone.al[i].Pointer,
 		acpi_tz_switch_cooler_off, sc);
-
+	}
 	/* Turn on cooling devices that are required, if any are */
-	if (newactive != TZ_ACTIVE_NONE) {
+	for (i = TZ_ACTIVE_LEVEL(sc->tz_active) - 1;
+	     i >= TZ_ACTIVE_LEVEL(newactive); i--) {
 	    acpi_ForeachPackageObject(
-		(ACPI_OBJECT *)sc->tz_zone.al[newactive].Pointer,
+		(ACPI_OBJECT *)sc->tz_zone.al[i].Pointer,
 		acpi_tz_switch_cooler_on, sc);
 	}
+
 	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
 		    "switched from %s to %s: %d.%dC\n",
 		    acpi_tz_aclevel_string(sc->tz_active),
@@ -698,10 +709,29 @@ static void
 acpi_tz_sanity(struct acpi_tz_softc *sc, int *val, char *what)
 {
     if (*val != -1 && (*val < TZ_ZEROC || *val > TZ_ZEROC + 2000)) {
-	device_printf(sc->tz_dev, "%s value is absurd, ignored (%d.%dC)\n",
-		      what, TZ_KELVTOC(*val));
+	/*
+	 * If the value we are checking is _TMP, warn the user only
+	 * once. This avoids spamming messages if, for instance, the
+	 * sensor is broken and always returns an invalid temperature.
+	 *
+	 * This is only done for _TMP; other values always emit a
+	 * warning.
+	 */
+	if (what != acpi_tz_tmp_name || !sc->tz_insane_tmp_notified) {
+	    device_printf(sc->tz_dev, "%s value is absurd, ignored (%d.%dC)\n",
+			  what, TZ_KELVTOC(*val));
+
+	    /* Don't warn the user again if the read value doesn't improve. */
+	    if (what == acpi_tz_tmp_name)
+		sc->tz_insane_tmp_notified = 1;
+	}
 	*val = -1;
+	return;
     }
+
+    /* This value is correct. Warn if it's incorrect again. */
+    if (what == acpi_tz_tmp_name)
+	sc->tz_insane_tmp_notified = 0;
 }
 
 /*
@@ -766,7 +796,7 @@ acpi_tz_temp_sysctl(SYSCTL_HANDLER_ARGS)
     int		 		error;
 
     sc = oidp->oid_arg1;
-    temp_ptr = (int *)((uintptr_t)sc + oidp->oid_arg2);
+    temp_ptr = (int *)(void *)(uintptr_t)((uintptr_t)sc + oidp->oid_arg2);
     temp = *temp_ptr;
     error = sysctl_handle_int(oidp, &temp, 0, req);
 
@@ -795,7 +825,7 @@ acpi_tz_passive_sysctl(SYSCTL_HANDLER_ARGS)
     int				error;
 
     sc = oidp->oid_arg1;
-    val_ptr = (int *)((uintptr_t)sc + oidp->oid_arg2);
+    val_ptr = (int *)(void *)(uintptr_t)((uintptr_t)sc + oidp->oid_arg2);
     val = *val_ptr;
     error = sysctl_handle_int(oidp, &val, 0, req);
 
@@ -1171,7 +1201,6 @@ static int
 acpi_tz_cooling_thread_start(struct acpi_tz_softc *sc)
 {
     int error;
-    char name[16];
 
     ACPI_LOCK(thermal);
     if (sc->tz_cooling_proc_running) {
@@ -1182,10 +1211,9 @@ acpi_tz_cooling_thread_start(struct acpi_tz_softc *sc)
     ACPI_UNLOCK(thermal);
     error = 0;
     if (sc->tz_cooling_proc == NULL) {
-	snprintf(name, sizeof(name), "acpi_cooling%d",
-	    device_get_unit(sc->tz_dev));
 	error = kproc_create(acpi_tz_cooling_thread, sc,
-	    &sc->tz_cooling_proc, RFHIGHPID, 0, name);
+	    &sc->tz_cooling_proc, RFHIGHPID, 0, "acpi_cooling%d",
+	    device_get_unit(sc->tz_dev));
 	if (error != 0) {
 	    device_printf(sc->tz_dev, "could not create thread - %d", error);
 	    ACPI_LOCK(thermal);

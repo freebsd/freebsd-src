@@ -6,7 +6,6 @@
 
 PROG=	objcopy
 SRCS=	objcopy.c not-strip.c
-WARNS?=	2
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+= -I${SRCDIR}/binutils -I${SRCDIR}/bfd

@@ -1,4 +1,4 @@
-/*	$NetBSD: func.c,v 1.16 2002/01/03 04:25:15 thorpej Exp $	*/
+/*	$NetBSD: func.c,v 1.22 2005/09/24 15:30:35 perry Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
@@ -59,15 +59,15 @@ int	reached = 1;
 int	rchflg;
 
 /*
- * In conjunction with reached ontrols printing of "fallthrough on ..."
+ * In conjunction with reached controls printing of "fallthrough on ..."
  * warnings.
  * Reset by each statement and set by FALLTHROUGH, switch (switch1())
  * and case (label()).
  *
  * Control statements if, for, while and switch do not reset ftflg because
- * this must be done by the controled statement. At least for if this is
+ * this must be done by the controlled statement. At least for if this is
  * important because ** FALLTHROUGH ** after "if (expr) stmnt" is evaluated
- * befor the following token, wich causes reduction of above, is read.
+ * before the following token, which causes reduction of above, is read.
  * This means that ** FALLTHROUGH ** after "if ..." would always be ignored.
  */
 int	ftflg;
@@ -107,13 +107,13 @@ pos_t	prflpos;
 pos_t	scflpos;
 
 /*
- * Are both plibflg and llibflg set, prototypes are writen as function
+ * Are both plibflg and llibflg set, prototypes are written as function
  * definitions to the output file.
  */
 int	plibflg;
 
 /*
- * Nonzero means that no warnings about constands in conditional
+ * Nonzero means that no warnings about constants in conditional
  * context are printed.
  */
 int	ccflg;
@@ -167,7 +167,7 @@ popctrl(int env)
 	clst_t	*cl;
 
 	if (cstk == NULL || cstk->c_env != env)
-		lerror("popctrl() 1");
+		LERROR("popctrl()");
 
 	cstk = (ci = cstk)->c_nxt;
 
@@ -220,7 +220,7 @@ funcdef(sym_t *fsym)
 	for (sym = dcs->d_fpsyms; sym != NULL; sym = sym->s_dlnxt) {
 		if (sym->s_blklev != -1) {
 			if (sym->s_blklev != 1)
-				lerror("funcdef() 1");
+				LERROR("funcdef()");
 			inssym(1, sym);
 		}
 	}
@@ -264,12 +264,12 @@ funcdef(sym_t *fsym)
 	for (arg = fsym->s_type->t_args; arg != NULL; arg = arg->s_nxt) {
 		if (arg->s_scl == ABSTRACT) {
 			if (arg->s_name != unnamed)
-				lerror("funcdef() 2");
+				LERROR("funcdef()");
 			/* formal parameter lacks name: param #%d */
 			error(59, n);
 		} else {
 			if (arg->s_name == unnamed)
-				lerror("funcdef() 3");
+				LERROR("funcdef()");
 		}
 		n++;
 	}
@@ -323,7 +323,7 @@ funcdef(sym_t *fsym)
 
 	if (fsym->s_osdef && !fsym->s_type->t_proto) {
 		if (sflag && hflag && strcmp(fsym->s_name, "main") != 0)
-			/* function definition is not a prototyp */
+			/* function definition is not a prototype */
 			warning(286);
 	}
 
@@ -353,7 +353,7 @@ funcend(void)
 	}
 
 	/*
-	 * This warning is printed only if the return value was implizitly
+	 * This warning is printed only if the return value was implicitly
 	 * declared to be int. Otherwise the wrong return statement
 	 * has already printed a warning.
 	 */
@@ -389,7 +389,7 @@ funcend(void)
 	 * the symbol table
 	 */
 	if (dcs->d_nxt != NULL || dcs->d_ctx != EXTERN)
-		lerror("funcend() 1");
+		LERROR("funcend()");
 	rmsyms(dcs->d_fpsyms);
 
 	/* must be set on level 0 */
@@ -446,7 +446,7 @@ label(int typ, sym_t *sym, tnode_t *tn)
 		if (tn != NULL) {
 
 			if (ci->c_swtype == NULL)
-				lerror("label() 1");
+				LERROR("label()");
 
 			if (reached && !ftflg) {
 				if (hflag)
@@ -466,7 +466,7 @@ label(int typ, sym_t *sym, tnode_t *tn)
 			 * get the value of the expression and convert it
 			 * to the type of the switch expression
 			 */
-			v = constant(tn);
+			v = constant(tn, 1);
 			(void) memset(&nv, 0, sizeof nv);
 			cvtcon(CASE, 0, ci->c_swtype, &nv, v);
 			free(v);
@@ -517,7 +517,7 @@ label(int typ, sym_t *sym, tnode_t *tn)
 			ci->c_default = 1;
 		}
 		break;
-	};
+	}
 	reached = 1;
 }
 
@@ -532,7 +532,7 @@ if1(tnode_t *tn)
 		tn = cconv(tn);
 	if (tn != NULL)
 		tn = promote(NOOP, 0, tn);
-	expr(tn, 0, 1);
+	expr(tn, 0, 1, 1);
 	pushctrl(T_IF);
 }
 
@@ -606,7 +606,7 @@ switch1(tnode_t *tn)
 		tp->t_tspec = INT;
 	}
 
-	expr(tn, 1, 0);
+	expr(tn, 1, 0, 1);
 
 	pushctrl(T_SWITCH);
 	cstk->c_switch = 1;
@@ -627,7 +627,7 @@ switch2(void)
 	clst_t	*cl;
 
 	if (cstk->c_swtype == NULL)
-		lerror("switch2() 1");
+		LERROR("switch2()");
 
 	/*
 	 * If the switch expression was of type enumeration, count the case
@@ -637,7 +637,7 @@ switch2(void)
 	if (cstk->c_swtype->t_isenum) {
 		nenum = nclab = 0;
 		if (cstk->c_swtype->t_enum == NULL)
-			lerror("switch2() 2");
+			LERROR("switch2()");
 		for (esym = cstk->c_swtype->t_enum->elem;
 		     esym != NULL; esym = esym->s_nxt) {
 			nenum++;
@@ -652,7 +652,7 @@ switch2(void)
 
 	if (cstk->c_break) {
 		/*
-		 * end of switch alway reached (c_break is only set if the
+		 * end of switch always reached (c_break is only set if the
 		 * break statement can be reached).
 		 */
 		reached = 1;
@@ -704,7 +704,7 @@ while1(tnode_t *tn)
 		}
 	}
 
-	expr(tn, 0, 1);
+	expr(tn, 0, 1, 1);
 }
 
 /*
@@ -775,7 +775,7 @@ do2(tnode_t *tn)
 		}
 	}
 
-	expr(tn, 0, 1);
+	expr(tn, 0, 1, 1);
 
 	/*
 	 * The end of the loop is only reached if it is no endless loop
@@ -818,7 +818,7 @@ for1(tnode_t *tn1, tnode_t *tn2, tnode_t *tn3)
 	STRUCT_ASSIGN(cstk->c_cfpos, csrc_pos);
 
 	if (tn1 != NULL)
-		expr(tn1, 0, 0);
+		expr(tn1, 0, 0, 1);
 
 	if (tn2 != NULL)
 		tn2 = cconv(tn2);
@@ -830,7 +830,7 @@ for1(tnode_t *tn1, tnode_t *tn2, tnode_t *tn3)
 		tn2 = NULL;
 	}
 	if (tn2 != NULL)
-		expr(tn2, 0, 1);
+		expr(tn2, 0, 1, 1);
 
 	if (tn2 == NULL) {
 		cstk->c_infinite = 1;
@@ -877,7 +877,7 @@ for2(void)
 	}
 
 	if (tn3 != NULL) {
-		expr(tn3, 0, 0);
+		expr(tn3, 0, 0, 1);
 	} else {
 		tfreeblk();
 	}
@@ -1014,7 +1014,7 @@ doreturn(tnode_t *tn)
 			}
 		}
 
-		expr(tn, 1, 0);
+		expr(tn, 1, 0, 1);
 
 	} else {
 

@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1990, 1993 The Regents of the University of California.
+ * Copyright (c) 2013 Mariusz Zaborski <oshogbo@FreeBSD.org>
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * Chris Torek.
@@ -13,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,11 +39,86 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "un-namespace.h"
+#include <spinlock.h>
 #include "libc_private.h"
 #include "local.h"
+
+static int
+cleanfile(FILE *fp, bool c)
+{
+	int r;
+
+	r = fp->_flags & __SWR ? __sflush(fp) : 0;
+	if (c) {
+		if (fp->_close != NULL && (*fp->_close)(fp->_cookie) < 0)
+			r = EOF;
+	}
+
+	if (fp->_flags & __SMBF)
+		free((char *)fp->_bf._base);
+	if (HASUB(fp))
+		FREEUB(fp);
+	if (HASLB(fp))
+		FREELB(fp);
+	fp->_file = -1;
+	fp->_r = fp->_w = 0;	/* Mess up if reaccessed. */
+
+	/*
+	 * Lock the spinlock used to protect __sglue list walk in
+	 * __sfp().  The __sfp() uses fp->_flags == 0 test as an
+	 * indication of the unused FILE.
+	 *
+	 * Taking the lock prevents possible compiler or processor
+	 * reordering of the writes performed before the final _flags
+	 * cleanup, making sure that we are done with the FILE before
+	 * it is considered available.
+	 */
+	STDIO_THREAD_LOCK();
+	fp->_flags = 0;		/* Release this FILE for reuse. */
+	STDIO_THREAD_UNLOCK();
+
+	return (r);
+}
+
+int
+fdclose(FILE *fp, int *fdp)
+{
+	int r, err;
+
+	if (fdp != NULL)
+		*fdp = -1;
+
+	if (fp->_flags == 0) {	/* not open! */
+		errno = EBADF;
+		return (EOF);
+	}
+
+	FLOCKFILE(fp);
+	r = 0;
+	if (fp->_close != __sclose) {
+		r = EOF;
+		errno = EOPNOTSUPP;
+	} else if (fp->_file < 0) {
+		r = EOF;
+		errno = EBADF;
+	}
+	if (r == EOF) {
+		err = errno;
+		(void)cleanfile(fp, true);
+		errno = err;
+	} else {
+		if (fdp != NULL)
+			*fdp = fp->_file;
+		r = cleanfile(fp, false);
+	}
+	FUNLOCKFILE(fp);
+
+	return (r);
+}
 
 int
 fclose(FILE *fp)
@@ -53,19 +129,10 @@ fclose(FILE *fp)
 		errno = EBADF;
 		return (EOF);
 	}
+
 	FLOCKFILE(fp);
-	r = fp->_flags & __SWR ? __sflush(fp) : 0;
-	if (fp->_close != NULL && (*fp->_close)(fp->_cookie) < 0)
-		r = EOF;
-	if (fp->_flags & __SMBF)
-		free((char *)fp->_bf._base);
-	if (HASUB(fp))
-		FREEUB(fp);
-	if (HASLB(fp))
-		FREELB(fp);
-	fp->_file = -1;
-	fp->_r = fp->_w = 0;	/* Mess up if reaccessed. */
-	fp->_flags = 0;		/* Release this FILE for reuse. */
+	r = cleanfile(fp, true);
 	FUNLOCKFILE(fp);
+
 	return (r);
 }

@@ -109,10 +109,7 @@ ng_hci_constructor(node_p node)
 {
 	ng_hci_unit_p	unit = NULL;
 
-	unit = malloc(sizeof(*unit), M_NETGRAPH_HCI,
-		M_NOWAIT | M_ZERO);
-	if (unit == NULL)
-		return (ENOMEM);
+	unit = malloc(sizeof(*unit), M_NETGRAPH_HCI, M_WAITOK | M_ZERO);
 
 	unit->node = node;
 	unit->debug = NG_HCI_WARN_LEVEL;
@@ -778,7 +775,6 @@ ng_hci_acl_rcvdata(hook_p hook, item_p item)
 	int			 size, error = 0;
 
 	NG_HCI_BUFF_ACL_SIZE(unit->buffer, size);
-
 	/* Check packet */
 	NGI_GET_M(item, m);
 
@@ -791,7 +787,6 @@ ng_hci_acl_rcvdata(hook_p hook, item_p item)
 		error = EINVAL;
 		goto drop;
 	}
-
 	if (m->m_pkthdr.len < sizeof(ng_hci_acldata_pkt_t) ||
 	    m->m_pkthdr.len > sizeof(ng_hci_acldata_pkt_t) + size) {
 		NG_HCI_ALERT(
@@ -834,7 +829,7 @@ ng_hci_acl_rcvdata(hook_p hook, item_p item)
 		goto drop;
 	}
 
-	if (con->link_type != NG_HCI_LINK_ACL) {
+	if (con->link_type == NG_HCI_LINK_SCO) {
 		NG_HCI_ERR(
 "%s: %s - unexpected HCI ACL data packet. Not ACL link, con_handle=%d, " \
 "link_type=%d\n",	__func__, NG_NODE_NAME(unit->node), 

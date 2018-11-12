@@ -687,7 +687,7 @@ ich_setstatus(struct sc_info *sc)
 	char status[SND_STATUSLEN];
 
 	snprintf(status, SND_STATUSLEN,
-	    "at io 0x%lx, 0x%lx irq %ld bufsz %u %s",
+	    "at io 0x%jx, 0x%jx irq %jd bufsz %u %s",
 	    rman_get_start(sc->nambar), rman_get_start(sc->nabmbar),
 	    rman_get_start(sc->irq), sc->bufsz,PCM_KLDSTRING(snd_ich));
 
@@ -1191,12 +1191,6 @@ ich_pci_resume(device_t dev)
 	int i;
 
 	sc = pcm_getdevinfo(dev);
-
-	if (sc->regtype == SYS_RES_IOPORT)
-		pci_enable_io(dev, SYS_RES_IOPORT);
-	else
-		pci_enable_io(dev, SYS_RES_MEMORY);
-	pci_enable_busmaster(dev);
 
 	ICH_LOCK(sc);
 	/* Reinit audio device */

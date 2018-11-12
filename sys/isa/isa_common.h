@@ -65,19 +65,14 @@ struct isa_device {
 #define DEVTOISA(dev)	((struct isa_device *) device_get_ivars(dev))
 
 /*
- * These functions are architecture dependant.
+ * These functions are architecture dependent.
  */
 extern void isa_init(device_t dev);
 extern struct resource *isa_alloc_resource(device_t bus, device_t child,
-    int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
+    int type, int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
+    u_int flags);
 extern int isa_release_resource(device_t bus, device_t child,
     int type, int rid, struct resource *r);
-
-extern int isa_setup_intr(device_t bus, device_t child, struct resource *r,
-    int flags, driver_filter_t *filter, void (*ihand)(void *), void *arg, 
-    void **cookiep);
-extern int isa_teardown_intr(device_t bus, device_t child, struct resource *r,
-    void *cookie);
 
 extern driver_t isa_driver;
 extern devclass_t isa_devclass;

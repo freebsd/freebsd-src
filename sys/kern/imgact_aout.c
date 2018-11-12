@@ -32,10 +32,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/syscall.h>
@@ -52,15 +54,22 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_param.h>
 
+#ifdef __amd64__
+#include <compat/freebsd32/freebsd32_signal.h>
+#include <compat/freebsd32/freebsd32_util.h>
+#include <compat/freebsd32/freebsd32_proto.h>
+#include <compat/freebsd32/freebsd32_syscall.h>
+#include <compat/ia32/ia32_signal.h>
+#endif
+
 static int	exec_aout_imgact(struct image_params *imgp);
 static int	aout_fixup(register_t **stack_base, struct image_params *imgp);
 
+#if defined(__i386__)
 struct sysentvec aout_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= sysent,
 	.sv_mask	= 0,
-	.sv_sigsize	= 0,
-	.sv_sigtbl	= NULL,
 	.sv_errsize	= 0,
 	.sv_errtbl	= NULL,
 	.sv_transtrap	= NULL,
@@ -68,7 +77,6 @@ struct sysentvec aout_sysvec = {
 	.sv_sendsig	= sendsig,
 	.sv_sigcode	= sigcode,
 	.sv_szsigcode	= &szsigcode,
-	.sv_prepsyscall	= NULL,
 	.sv_name	= "FreeBSD a.out",
 	.sv_coredump	= NULL,
 	.sv_imgact_try	= NULL,
@@ -83,26 +91,69 @@ struct sysentvec aout_sysvec = {
 	.sv_setregs	= exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_AOUT |
-#if defined(__i386__)
-	SV_IA32 | SV_ILP32
-#else
-#error Choose SV_XXX flags for the platform
-#endif
+	.sv_flags	= SV_ABI_FREEBSD | SV_AOUT | SV_IA32 | SV_ILP32,
+	.sv_set_syscall_retval = cpu_set_syscall_retval,
+	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
+	.sv_syscallnames = syscallnames,
+	.sv_schedtail	= NULL,
+	.sv_thread_detach = NULL,
+	.sv_trap	= NULL,
 };
 
+#elif defined(__amd64__)
+
+#define	AOUT32_USRSTACK	0xbfc00000
+#define	AOUT32_PS_STRINGS \
+    (AOUT32_USRSTACK - sizeof(struct freebsd32_ps_strings))
+#define	AOUT32_MINUSER	FREEBSD32_MINUSER
+
+extern const char *freebsd32_syscallnames[];
+extern u_long ia32_maxssiz;
+
+struct sysentvec aout_sysvec = {
+	.sv_size	= FREEBSD32_SYS_MAXSYSCALL,
+	.sv_table	= freebsd32_sysent,
+	.sv_mask	= 0,
+	.sv_errsize	= 0,
+	.sv_errtbl	= NULL,
+	.sv_transtrap	= NULL,
+	.sv_fixup	= aout_fixup,
+	.sv_sendsig	= ia32_sendsig,
+	.sv_sigcode	= ia32_sigcode,
+	.sv_szsigcode	= &sz_ia32_sigcode,
+	.sv_name	= "FreeBSD a.out",
+	.sv_coredump	= NULL,
+	.sv_imgact_try	= NULL,
+	.sv_minsigstksz	= MINSIGSTKSZ,
+	.sv_pagesize	= IA32_PAGE_SIZE,
+	.sv_minuser	= AOUT32_MINUSER,
+	.sv_maxuser	= AOUT32_USRSTACK,
+	.sv_usrstack	= AOUT32_USRSTACK,
+	.sv_psstrings	= AOUT32_PS_STRINGS,
+	.sv_stackprot	= VM_PROT_ALL,
+	.sv_copyout_strings	= freebsd32_copyout_strings,
+	.sv_setregs	= ia32_setregs,
+	.sv_fixlimit	= ia32_fixlimit,
+	.sv_maxssiz	= &ia32_maxssiz,
+	.sv_flags	= SV_ABI_FREEBSD | SV_AOUT | SV_IA32 | SV_ILP32,
+	.sv_set_syscall_retval = ia32_set_syscall_retval,
+	.sv_fetch_syscall_args = ia32_fetch_syscall_args,
+	.sv_syscallnames = freebsd32_syscallnames,
+};
+#else
+#error "Port me"
+#endif
+
 static int
-aout_fixup(stack_base, imgp)
-	register_t **stack_base;
-	struct image_params *imgp;
+aout_fixup(register_t **stack_base, struct image_params *imgp)
 {
 
-	return (suword(--(*stack_base), imgp->args->argc));
+	*(char **)stack_base -= sizeof(uint32_t);
+	return (suword32(*stack_base, imgp->args->argc));
 }
 
 static int
-exec_aout_imgact(imgp)
-	struct image_params *imgp;
+exec_aout_imgact(struct image_params *imgp)
 {
 	const struct exec *a_out = (const struct exec *) imgp->image_header;
 	struct vmspace *vmspace;
@@ -120,9 +171,9 @@ exec_aout_imgact(imgp)
 	 * 0x64 for Linux, 0x86 for *BSD, 0x00 for BSDI.
 	 * NetBSD is in network byte order.. ugh.
 	 */
-	if (((a_out->a_magic >> 16) & 0xff) != 0x86 &&
-	    ((a_out->a_magic >> 16) & 0xff) != 0 &&
-	    ((((int)ntohl(a_out->a_magic)) >> 16) & 0xff) != 0x86)
+	if (((a_out->a_midmag >> 16) & 0xff) != 0x86 &&
+	    ((a_out->a_midmag >> 16) & 0xff) != 0 &&
+	    ((((int)ntohl(a_out->a_midmag)) >> 16) & 0xff) != 0x86)
                 return -1;
 
 	/*
@@ -130,7 +181,7 @@ exec_aout_imgact(imgp)
 	 *	We do two cases: host byte order and network byte order
 	 *	(for NetBSD compatibility)
 	 */
-	switch ((int)(a_out->a_magic & 0xffff)) {
+	switch ((int)(a_out->a_midmag & 0xffff)) {
 	case ZMAGIC:
 		virtual_offset = 0;
 		if (a_out->a_text) {
@@ -149,7 +200,7 @@ exec_aout_imgact(imgp)
 		break;
 	default:
 		/* NetBSD compatibility */
-		switch ((int)(ntohl(a_out->a_magic) & 0xffff)) {
+		switch ((int)(ntohl(a_out->a_midmag) & 0xffff)) {
 		case ZMAGIC:
 		case QMAGIC:
 			virtual_offset = PAGE_SIZE;
@@ -170,7 +221,14 @@ exec_aout_imgact(imgp)
 	    a_out->a_entry >= virtual_offset + a_out->a_text ||
 
 	    /* text and data size must each be page rounded */
-	    a_out->a_text & PAGE_MASK || a_out->a_data & PAGE_MASK)
+	    a_out->a_text & PAGE_MASK || a_out->a_data & PAGE_MASK
+
+#ifdef __amd64__
+	    ||
+	    /* overflows */
+	    virtual_offset + a_out->a_text + a_out->a_data + bss_size > UINT_MAX
+#endif
+	    )
 		return (-1);
 
 	/* text + data can't exceed file size */
@@ -185,7 +243,8 @@ exec_aout_imgact(imgp)
 	    a_out->a_text > maxtsiz ||
 
 	    /* data + bss can't exceed rlimit */
-	    a_out->a_data + bss_size > lim_cur(imgp->proc, RLIMIT_DATA)) {
+	    a_out->a_data + bss_size > lim_cur_proc(imgp->proc, RLIMIT_DATA) ||
+	    racct_set(imgp->proc, RACCT_DATA, a_out->a_data + bss_size) != 0) {
 			PROC_UNLOCK(imgp->proc);
 			return (ENOMEM);
 	}

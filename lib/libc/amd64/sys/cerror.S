@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "SYS.h"
 
 	.globl HIDENAME(cerror)
+	.hidden HIDENAME(cerror)
 
 	/*
 	 * The __error() function is thread aware. For non-threaded
@@ -56,3 +57,4 @@ HIDENAME(cerror):
 	movq	$-1,%rdx
 	ret
 
+	.section .note.GNU-stack,"",%progbits

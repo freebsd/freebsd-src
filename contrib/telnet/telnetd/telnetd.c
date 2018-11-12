@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <libutil.h>
 #include <paths.h>
 #include <termcap.h>
-#include <utmp.h>
 
 #include <arpa/inet.h>
 
@@ -693,7 +692,6 @@ doit(struct sockaddr *who)
 	Please contact your net administrator");
 	remote_hostname[sizeof(remote_hostname) - 1] = '\0';
 
-	trimdomain(remote_hostname, UT_HOSTSIZE);
 	if (!isdigit(remote_hostname[0]) && strlen(remote_hostname) > utmp_len)
 		err_ = getnameinfo(who, who->sa_len, remote_hostname,
 				  sizeof(remote_hostname), NULL, 0,
@@ -742,6 +740,10 @@ telnet(int f, int p, char *host)
 	char *HE;
 	char *HN;
 	char *IM;
+	char *IF;
+	char *if_buf;
+	int if_fd = -1;
+	struct stat statbuf;
 	int nfd;
 
 	/*
@@ -907,8 +909,13 @@ telnet(int f, int p, char *host)
 		HE = Getstr("he", &cp);
 		HN = Getstr("hn", &cp);
 		IM = Getstr("im", &cp);
+		IF = Getstr("if", &cp);
 		if (HN && *HN)
 			(void) strlcpy(host_name, HN, sizeof(host_name));
+		if (IF) {
+		    if_fd = open(IF, O_RDONLY, 000);
+		    IM = 0;
+		}
 		if (IM == 0)
 			IM = strdup("");
 	} else {
@@ -918,6 +925,17 @@ telnet(int f, int p, char *host)
 	edithost(HE, host_name);
 	if (hostinfo && *IM)
 		putf(IM, ptyibuf2);
+	if (IF && if_fd != -1) {
+		if (fstat(if_fd, &statbuf) != -1 && statbuf.st_size > 0) {
+			if_buf = (char *) mmap (0, statbuf.st_size,
+			    PROT_READ, 0, if_fd, 0);
+			if (if_buf != MAP_FAILED) {
+				putf(if_buf, ptyibuf2);
+				munmap(if_buf, statbuf.st_size);
+			}
+		}
+		close (if_fd);
+	}
 
 	if (pcc)
 		(void) strncat(ptyibuf2, ptyip, pcc+1);

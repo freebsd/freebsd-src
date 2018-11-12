@@ -24,11 +24,15 @@
  * SUCH DAMAGE.
  */
 
+#ifdef LIBUSB_GLOBAL_INCLUDE_FILE
+#include LIBUSB_GLOBAL_INCLUDE_FILE
+#else
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <poll.h>
+#include <time.h>
 #include <sys/queue.h>
+#endif
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
@@ -41,6 +45,10 @@ LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_ENDPOINT_DESC);
 LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_INTERFACE_DESC);
 LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_CONFIG_DESC);
 LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_CONTROL_SETUP);
+LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_SS_ENDPT_COMP_DESC);
+LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_USB_20_DEVCAP_DESC);
+LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_SS_USB_DEVCAP_DESC);
+LIBUSB20_MAKE_STRUCT_FORMAT(LIBUSB20_BOS_DESCRIPTOR);
 
 /*------------------------------------------------------------------------*
  *	libusb20_parse_config_desc
@@ -65,7 +73,7 @@ libusb20_parse_config_desc(const void *config_desc)
 	uint16_t niface_no_alt;
 	uint16_t niface;
 	uint16_t nendpoint;
-	uint8_t iface_no;
+	uint16_t iface_no;
 
 	ptr = config_desc;
 	if (ptr[1] != LIBUSB20_DT_CONFIG) {
@@ -78,7 +86,7 @@ libusb20_parse_config_desc(const void *config_desc)
 	niface_no_alt = 0;
 	nendpoint = 0;
 	niface = 0;
-	iface_no = 0 - 1;
+	iface_no = 0xFFFF;
 	ptr = NULL;
 
 	/* get "wTotalLength" and setup "pcdesc" */
@@ -118,22 +126,23 @@ libusb20_parse_config_desc(const void *config_desc)
 	if (lub_config == NULL) {
 		return (NULL);		/* out of memory */
 	}
+	/* make sure memory is initialised */
+	memset(lub_config, 0, size);
+
 	lub_interface = (void *)(lub_config + 1);
 	lub_alt_interface = (void *)(lub_interface + niface_no_alt);
 	lub_endpoint = (void *)(lub_interface + niface);
 
 	/*
 	 * Make a copy of the config descriptor, so that the caller can free
-	 * the inital config descriptor pointer!
+	 * the initial config descriptor pointer!
 	 */
-	ptr = (void *)(lub_endpoint + nendpoint);
-	memcpy(LIBUSB20_ADD_BYTES(ptr, 0), config_desc, pcdesc.len);
+	memcpy((void *)(lub_endpoint + nendpoint), config_desc, pcdesc.len);
+
+	ptr = (const void *)(lub_endpoint + nendpoint);
 	pcdesc.ptr = LIBUSB20_ADD_BYTES(ptr, 0);
-	config_desc = LIBUSB20_ADD_BYTES(ptr, 0);
 
 	/* init config structure */
-
-	ptr = config_desc;
 
 	LIBUSB20_INIT(LIBUSB20_CONFIG_DESC, &lub_config->desc);
 
@@ -148,7 +157,7 @@ libusb20_parse_config_desc(const void *config_desc)
 
 	/* reset states */
 	niface = 0;
-	iface_no = 0 - 1;
+	iface_no = 0xFFFF;
 	ptr = NULL;
 	lub_interface--;
 	lub_endpoint--;
@@ -443,7 +452,7 @@ libusb20_me_encode(void *ptr, uint16_t len, const void *pd)
 						 * and should be
 						 * correct:
 						 */
-						ps->len = 0 - 1;
+						ps->len = 0xFFFF;
 					}
 					src_len = libusb20_me_get_1(pd, 0);
 					src_ptr = LIBUSB20_ADD_BYTES(ps->ptr, 1);
@@ -458,7 +467,7 @@ libusb20_me_encode(void *ptr, uint16_t len, const void *pd)
 				case LIBUSB20_ME_IS_DECODED:
 					/* reserve 3 length bytes */
 					src_len = libusb20_me_encode(NULL,
-					    0 - 1 - 3, ps->ptr);
+					    0xFFFF - 3, ps->ptr);
 					src_ptr = NULL;
 					break;
 
@@ -469,7 +478,7 @@ libusb20_me_encode(void *ptr, uint16_t len, const void *pd)
 				}
 
 				if (src_len > 0xFE) {
-					if (src_len > (uint16_t)(0 - 1 - 3))
+					if (src_len > (0xFFFF - 3))
 						/* overflow */
 						goto done;
 
@@ -506,10 +515,8 @@ libusb20_me_encode(void *ptr, uint16_t len, const void *pd)
 						 * room for the
 						 * complete structure:
 						 */
-						uint16_t dummy;
-
-						dummy = libusb20_me_encode(buf,
-						    0 - 1 - 3, ps->ptr);
+						(void) libusb20_me_encode(buf,
+						    0xFFFF - 3, ps->ptr);
 					} else {
 						bcopy(src_ptr, buf, src_len);
 					}
@@ -662,7 +669,6 @@ libusb20_me_decode(const void *ptr, uint16_t len, void *pd)
 			    ~(LIBUSB20_ME_STRUCT_ALIGN - 1));	/* align */
 			while (pd_count--) {
 				uint16_t temp;
-				uint16_t dummy;
 				struct libusb20_me_struct *ps;
 
 				ps = LIBUSB20_ADD_BYTES(pd, pd_offset);
@@ -752,7 +758,7 @@ libusb20_me_decode(const void *ptr, uint16_t len, void *pd)
 						 * Recursivly decode
 						 * the next structure
 						 */
-						dummy = libusb20_me_decode(buf,
+						(void) libusb20_me_decode(buf,
 						    temp, ps->ptr);
 					} else {
 						/* update type */

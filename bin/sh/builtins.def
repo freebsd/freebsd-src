@@ -60,18 +60,20 @@ echocmd		echo
 evalcmd		-s eval
 execcmd		-s exec
 exitcmd		-s exit
-expcmd		exp let
+letcmd		let
 exportcmd	-s export -s readonly
 #exprcmd		expr
 falsecmd	false
 fgcmd -j	fg
+freebsd_wordexpcmd	freebsd_wordexp
 getoptscmd	getopts
 hashcmd		hash
 histcmd -h	fc
 jobidcmd	jobid
 jobscmd		jobs
+killcmd		kill
 localcmd	local
-#printfcmd	printf
+printfcmd	printf
 pwdcmd		pwd
 readcmd		read
 returncmd	-s return

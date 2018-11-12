@@ -110,7 +110,7 @@ Free(void *ptr, const char *file, int line)
 	    return;
 	}
 	if (*((signed char *)res + res->ga_Bytes - 1) != -2)
-	    panic("free: guard2 fail @ %p + %d from %s:%d", ptr, res->ga_Bytes - MALLOCALIGN, file, line);
+	    panic("free: guard2 fail @ %p + %zu from %s:%d", ptr, res->ga_Bytes - MALLOCALIGN, file, line);
 	*((signed char *)res + res->ga_Bytes - 1) = -1;
 #endif
 
@@ -126,7 +126,7 @@ Free(void *ptr, const char *file, int line)
 void *
 Calloc(size_t n1, size_t n2, const char *file, int line)
 {
-    iaddr_t bytes = (iaddr_t)n1 * (iaddr_t)n2;
+    uintptr_t bytes = (uintptr_t)n1 * (uintptr_t)n2;
     void *res;
 
     if ((res = Malloc(bytes, file, line)) != NULL) {

@@ -24,8 +24,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2009
-.Dt ACPI_HP 4 i386
+.Dd June 19, 2015
+.Dt ACPI_HP 4
 .Os
 .Sh NAME
 .Nm acpi_hp
@@ -48,7 +48,7 @@ acpi_hp_load="YES"
 The
 .Nm
 driver provides support for ACPI-controlled features found on HP laptops
-that use a WMI enabled BIOS (e.g. HP Compaq 8510p and 6510p).
+that use a WMI enabled BIOS (e.g., HP Compaq 8510p and 6510p).
 .Pp
 The main purpose of this driver is to provide an interface,
 accessible via
@@ -58,7 +58,7 @@ accessible via
 through which applications can determine and change the status of
 various laptop components and BIOS settings.
 .Pp
-.Ss Xr devd 8 Ss Events
+.Ss Xr devd 8 Events
 Devd events received by
 .Xr devd 8
 provide the following information:
@@ -91,9 +91,9 @@ WWAN on air status changed to 0 (not on air)
 .It Li 0xe1
 WWAN on air status changed to 1 (on air)
 .El
-.Ss Xr devfs 8 Ss Device
+.Ss Xr devfs 8 Device
 You can read /dev/hpcmi to see your current BIOS settings.
-The detail level can be adjusted by setting the sysctl 
+The detail level can be adjusted by setting the sysctl
 .Va cmi_detail
 as described below.
 .Sh SYSCTL VARIABLES
@@ -101,7 +101,7 @@ The following sysctls are currently implemented:
 .Ss WLAN:
 .Bl -tag -width indent
 .It Va dev.acpi_hp.0.wlan_enabled
-Toggle WLAN chip activity. 
+Toggle WLAN chip activity.
 .It Va dev.acpi_hp.0.wlan_radio
 (read-only)
 WLAN radio status (controlled by hardware switch)
@@ -116,7 +116,7 @@ If set to 1, the WLAN chip will be disabled if the radio is turned off
 .Ss Bluetooth:
 .Bl -tag -width indent
 .It Va dev.acpi_hp.0.bt_enabled
-Toggle Bluetooth chip activity. 
+Toggle Bluetooth chip activity.
 .It Va dev.acpi_hp.0.bt_radio
 (read-only)
 Bluetooth radio status (controlled by hardware switch)
@@ -131,7 +131,7 @@ If set to 1, the Bluetooth chip will be disabled if the radio is turned off
 .Ss WWAN:
 .Bl -tag -width indent
 .It Va dev.acpi_hp.0.wwan_enabled
-Toggle WWAN chip activity. 
+Toggle WWAN chip activity.
 .It Va dev.acpi_hp.0.wwan_radio
 (read-only)
 WWAN radio status (controlled by hardware switch)
@@ -197,8 +197,7 @@ Interface to read BIOS settings
 .Sh EXAMPLES
 The following can be added to
 .Xr devd.conf 5
-in order disable the LAN interface when WLAN on air and reenable if it's
-not:
+in order disable the LAN interface when WLAN on air and reenable if it is not:
 .Bd -literal -offset indent
 notify 0 {
 	match "system"          "ACPI";
@@ -229,14 +228,14 @@ Get BIOS settings:
 .Bd -literal -offset indent
 cat /dev/hpcmi
 
-Serial Port                                Disable              
-Infrared Port                              Enable               
-Parallel Port                              Disable              
-Flash Media Reader                         Disable              
-USB Ports including Express Card slot      Enable               
-1394 Port                                  Enable               
-Cardbus Slot                               Disable              
-Express Card Slot                          Disable   
+Serial Port                                Disable
+Infrared Port                              Enable
+Parallel Port                              Disable
+Flash Media Reader                         Disable
+USB Ports including Express Card slot      Enable
+1394 Port                                  Enable
+Cardbus Slot                               Disable
+Express Card Slot                          Disable
 (...)
 .Ed
 .Pp
@@ -244,7 +243,6 @@ Set maximum detail level for /dev/hpcmi output:
 .Bd -literal -offset indent
 sysctl dev.acpi_hp.0.cmi_detail=7
 .Ed
-.Pp
 .Sh SEE ALSO
 .Xr acpi 4 ,
 .Xr acpi_wmi 4 ,
@@ -256,17 +254,16 @@ sysctl dev.acpi_hp.0.cmi_detail=7
 The
 .Nm
 device driver first appeared in
-.Fx CURRENT .
+.Fx 8.0 .
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
 driver was written by
-.An Michael Gmelin Aq freebsd@grem.de
+.An Michael Gmelin Aq Mt freebsd@grem.de .
 .Pp
 It has been inspired by hp-wmi driver, which implements a subset of these
 features (hotkeys) on Linux.
-.Pp
 .Bl -tag -width indent
 .It HP CMI whitepaper:
 http://h20331.www2.hp.com/Hpsub/downloads/cmi_whitepaper.pdf
@@ -277,13 +274,16 @@ http://www.microsoft.com/whdc/system/pnppwr/wmi/wmi-acpi.mspx
 .El
 .Pp
 This manual page was written by
-.An Michael Gmelin Aq freebsd@grem.de
+.An Michael Gmelin Aq Mt freebsd@grem.de .
 .Sh BUGS
-This driver is experimental and has only been tested on CURRENT i386 on an
+This driver is experimental and has only been tested on i386 on an
 HP Compaq 8510p which featured all supported wireless devices (WWAN/BT/WLAN).
 Expect undefined results when operating on different hardware.
 .Pp
-Loading the driver is slow. Reading from /dev/hpcmi is even slower.
+Loading the driver is slow.
+Reading from
+.Pa /dev/hpcmi
+is even slower.
 .Pp
 Additional features like HP specific sensor readings or writing BIOS
 settings are not supported.

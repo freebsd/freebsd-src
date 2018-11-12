@@ -47,40 +47,70 @@ enum ieee80211_state {
 #define	IEEE80211_SEND_MGMT(_ni,_type,_arg) \
 	((*(_ni)->ni_ic->ic_send_mgmt)(_ni, _type, _arg))
 
-extern	const char *ieee80211_mgt_subtype_name[];
+extern	const char *mgt_subtype_name[];
+extern	const char *ctl_subtype_name[];
 extern	const char *ieee80211_phymode_name[IEEE80211_MODE_MAX];
 extern	const int ieee80211_opcap[IEEE80211_OPMODE_MAX];
+
+static __inline const char *
+ieee80211_mgt_subtype_name(uint8_t subtype)
+{
+	return mgt_subtype_name[(subtype & IEEE80211_FC0_SUBTYPE_MASK) >>
+		   IEEE80211_FC0_SUBTYPE_SHIFT];
+}
+
+static __inline const char *
+ieee80211_ctl_subtype_name(uint8_t subtype)
+{
+	return ctl_subtype_name[(subtype & IEEE80211_FC0_SUBTYPE_MASK) >>
+		   IEEE80211_FC0_SUBTYPE_SHIFT];
+}
+
+const char *ieee80211_reason_to_string(uint16_t);
 
 void	ieee80211_proto_attach(struct ieee80211com *);
 void	ieee80211_proto_detach(struct ieee80211com *);
 void	ieee80211_proto_vattach(struct ieee80211vap *);
 void	ieee80211_proto_vdetach(struct ieee80211vap *);
 
-void	ieee80211_syncifflag_locked(struct ieee80211com *, int flag);
+void	ieee80211_promisc(struct ieee80211vap *, bool);
+void	ieee80211_allmulti(struct ieee80211vap *, bool);
 void	ieee80211_syncflag(struct ieee80211vap *, int flag);
 void	ieee80211_syncflag_ht(struct ieee80211vap *, int flag);
 void	ieee80211_syncflag_ext(struct ieee80211vap *, int flag);
 
 #define	ieee80211_input(ni, m, rssi, nf) \
-	((ni)->ni_vap->iv_input(ni, m, rssi, nf))
+	((ni)->ni_vap->iv_input(ni, m, NULL, rssi, nf))
 int	ieee80211_input_all(struct ieee80211com *, struct mbuf *, int, int);
+
+int	ieee80211_input_mimo(struct ieee80211_node *, struct mbuf *,
+	    struct ieee80211_rx_stats *);
+int	ieee80211_input_mimo_all(struct ieee80211com *, struct mbuf *,
+	    struct ieee80211_rx_stats *);
+
 struct ieee80211_bpf_params;
 int	ieee80211_mgmt_output(struct ieee80211_node *, struct mbuf *, int,
 		struct ieee80211_bpf_params *);
 int	ieee80211_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		const struct ieee80211_bpf_params *);
 int	ieee80211_output(struct ifnet *, struct mbuf *,
-               struct sockaddr *, struct route *ro);
+               const struct sockaddr *, struct route *ro);
+int	ieee80211_vap_pkt_send_dest(struct ieee80211vap *, struct mbuf *,
+		struct ieee80211_node *);
+int	ieee80211_raw_output(struct ieee80211vap *, struct ieee80211_node *,
+		struct mbuf *, const struct ieee80211_bpf_params *);
 void	ieee80211_send_setup(struct ieee80211_node *, struct mbuf *, int, int,
         const uint8_t [IEEE80211_ADDR_LEN], const uint8_t [IEEE80211_ADDR_LEN],
         const uint8_t [IEEE80211_ADDR_LEN]);
-void	ieee80211_start(struct ifnet *);
+int	ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m);
+void	ieee80211_vap_qflush(struct ifnet *ifp);
 int	ieee80211_send_nulldata(struct ieee80211_node *);
 int	ieee80211_classify(struct ieee80211_node *, struct mbuf *m);
 struct mbuf *ieee80211_mbuf_adjust(struct ieee80211vap *, int,
 		struct ieee80211_key *, struct mbuf *);
 struct mbuf *ieee80211_encap(struct ieee80211vap *, struct ieee80211_node *,
 		struct mbuf *);
+void	ieee80211_free_mbuf(struct mbuf *);
 int	ieee80211_send_mgmt(struct ieee80211_node *, int, int);
 struct ieee80211_appie;
 int	ieee80211_send_probereq(struct ieee80211_node *ni,
@@ -88,6 +118,11 @@ int	ieee80211_send_probereq(struct ieee80211_node *ni,
 		const uint8_t da[IEEE80211_ADDR_LEN],
 		const uint8_t bssid[IEEE80211_ADDR_LEN],
 		const uint8_t *ssid, size_t ssidlen);
+struct mbuf *	ieee80211_ff_encap1(struct ieee80211vap *, struct mbuf *,
+		const struct ether_header *);
+void	ieee80211_tx_complete(struct ieee80211_node *,
+		struct mbuf *, int);
+
 /*
  * The formation of ProbeResponse frames requires guidance to
  * deal with legacy clients.  When the client is identified as
@@ -107,8 +142,14 @@ struct mbuf *ieee80211_alloc_cts(struct ieee80211com *,
 
 uint8_t *ieee80211_add_rates(uint8_t *, const struct ieee80211_rateset *);
 uint8_t *ieee80211_add_xrates(uint8_t *, const struct ieee80211_rateset *);
+uint8_t *ieee80211_add_ssid(uint8_t *, const uint8_t *, u_int);
+uint8_t *ieee80211_add_wpa(uint8_t *, const struct ieee80211vap *);
+uint8_t *ieee80211_add_rsn(uint8_t *, const struct ieee80211vap *);
+uint8_t *ieee80211_add_qos(uint8_t *, const struct ieee80211_node *);
 uint16_t ieee80211_getcapinfo(struct ieee80211vap *,
 		struct ieee80211_channel *);
+struct ieee80211_wme_state;
+uint8_t * ieee80211_add_wme_info(uint8_t *frm, struct ieee80211_wme_state *wme);
 
 void	ieee80211_reset_erp(struct ieee80211com *);
 void	ieee80211_set_shortslottime(struct ieee80211com *, int onoff);
@@ -188,7 +229,7 @@ struct ieee80211_aclator {
 	int	(*iac_attach)(struct ieee80211vap *);
 	void	(*iac_detach)(struct ieee80211vap *);
 	int	(*iac_check)(struct ieee80211vap *,
-			const uint8_t mac[IEEE80211_ADDR_LEN]);
+			const struct ieee80211_frame *wh);
 	int	(*iac_add)(struct ieee80211vap *,
 			const uint8_t mac[IEEE80211_ADDR_LEN]);
 	int	(*iac_remove)(struct ieee80211vap *,
@@ -235,10 +276,10 @@ struct chanAccParams {
 
 struct ieee80211_wme_state {
 	u_int	wme_flags;
-#define	WME_F_AGGRMODE	0x00000001	/* STATUS: WME agressive mode */
+#define	WME_F_AGGRMODE	0x00000001	/* STATUS: WME aggressive mode */
 	u_int	wme_hipri_traffic;	/* VI/VO frames in beacon interval */
-	u_int	wme_hipri_switch_thresh;/* agressive mode switch thresh */
-	u_int	wme_hipri_switch_hysteresis;/* agressive mode switch hysteresis */
+	u_int	wme_hipri_switch_thresh;/* aggressive mode switch thresh */
+	u_int	wme_hipri_switch_hysteresis;/* aggressive mode switch hysteresis */
 
 	struct wmeParams wme_params[4];		/* from assoc resp for each AC*/
 	struct chanAccParams wme_wmeChanParams;	/* WME params applied to self */
@@ -283,10 +324,13 @@ void	ieee80211_stop(struct ieee80211vap *);
 void	ieee80211_stop_all(struct ieee80211com *);
 void	ieee80211_suspend_all(struct ieee80211com *);
 void	ieee80211_resume_all(struct ieee80211com *);
+void	ieee80211_restart_all(struct ieee80211com *);
 void	ieee80211_dturbo_switch(struct ieee80211vap *, int newflags);
 void	ieee80211_swbmiss(void *arg);
 void	ieee80211_beacon_miss(struct ieee80211com *);
 int	ieee80211_new_state(struct ieee80211vap *, enum ieee80211_state, int);
+int	ieee80211_new_state_locked(struct ieee80211vap *, enum ieee80211_state,
+		int);
 void	ieee80211_print_essid(const uint8_t *, int);
 void	ieee80211_dump_pkt(struct ieee80211com *,
 		const uint8_t *, int, int, int);
@@ -315,12 +359,13 @@ struct ieee80211_beacon_offsets {
 	uint8_t		*bo_ath;	/* start of ATH parameters */
 	uint8_t		*bo_appie;	/* start of AppIE element */
 	uint16_t	bo_appie_len;	/* AppIE length in bytes */
-	uint16_t	bo_csa_trailer_len;;
+	uint16_t	bo_csa_trailer_len;
 	uint8_t		*bo_csa;	/* start of CSA element */
-	uint8_t		*bo_spare[4];
+	uint8_t		*bo_quiet;	/* start of Quiet element */
+	uint8_t		*bo_meshconf;	/* start of MESHCONF element */
+	uint8_t		*bo_spare[3];
 };
-struct mbuf *ieee80211_beacon_alloc(struct ieee80211_node *,
-		struct ieee80211_beacon_offsets *);
+struct mbuf *ieee80211_beacon_alloc(struct ieee80211_node *);
 
 /*
  * Beacon frame updates are signaled through calls to iv_update_beacon
@@ -345,9 +390,10 @@ enum {
 	IEEE80211_BEACON_CSA	= 7,	/* Channel Switch Announcement */
 	IEEE80211_BEACON_TDMA	= 9,	/* TDMA Info */
 	IEEE80211_BEACON_ATH	= 10,	/* ATH parameters */
+	IEEE80211_BEACON_MESHCONF = 11,	/* Mesh Configuration */
 };
 int	ieee80211_beacon_update(struct ieee80211_node *,
-		struct ieee80211_beacon_offsets *, struct mbuf *, int mcast);
+		struct mbuf *, int mcast);
 
 void	ieee80211_csa_startswitch(struct ieee80211com *,
 		struct ieee80211_channel *, int mode, int count);

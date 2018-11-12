@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_cpu.h>
 
 #include <mips/atheros/ar71xxreg.h>
+#include <mips/atheros/ar71xx_cpudef.h>
 #include <mips/atheros/ar71xx_bus_space_reversed.h>
 
 bus_space_tag_t uart_bus_space_io;
@@ -55,7 +56,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
 	uint64_t freq;
 
-	freq = ar71xx_ahb_freq();
+	freq = ar71xx_uart_freq();
 
 	di->ops = uart_getops(&uart_ns8250_class);
 	di->bas.chan = 0;

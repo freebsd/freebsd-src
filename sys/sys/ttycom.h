@@ -105,7 +105,7 @@ struct winsize {
 #define		TIOCM_SR	0020		/* secondary receive */
 #define		TIOCM_CTS	0040		/* clear to send */
 #define		TIOCM_DCD	0100		/* data carrier detect */
-#define		TIOCM_RI 	0200		/* ring indicate */
+#define		TIOCM_RI	0200		/* ring indicate */
 #define		TIOCM_DSR	0400		/* data set ready */
 #define		TIOCM_CD	TIOCM_DCD
 #define		TIOCM_CAR	TIOCM_DCD

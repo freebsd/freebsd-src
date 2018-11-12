@@ -525,7 +525,7 @@ ng_h4_input(int c, struct tty *tp)
 		if (sc->hook != NULL && NG_HOOK_IS_VALID(sc->hook)) {
 			struct mbuf	*m = NULL;
 
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m != NULL) {
 				m->m_pkthdr.len = 0;
 
@@ -798,7 +798,6 @@ ng_h4_rcvdata(hook_p hook, item_p item)
 			NG_NODE_NAME(sc->node), m->m_pkthdr.len);
 
 		NG_H4_STAT_OERROR(sc->stat);
-		_IF_DROP(&sc->outq);
 
 		NG_H4_UNLOCK(sc);
 

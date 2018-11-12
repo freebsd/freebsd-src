@@ -25,8 +25,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2006
-.Dt ACPI_IBM 4 i386
+.Dd June 19, 2015
+.Dt ACPI_IBM 4
 .Os
 .Sh NAME
 .Nm acpi_ibm
@@ -74,7 +74,7 @@ sysctl, is set to
 .Va availmask
 by default, a value representing all possible keypress events on the specific
 ThinkPad model.
-.Ss Xr devd 8 Ss Events
+.Ss Xr devd 8 Events
 Hotkey events received by
 .Xr devd 8
 provide the following information:
@@ -144,7 +144,7 @@ Mute
 .It Li 0x18
 Access IBM Button
 .El
-.Ss Xr led 4 Ss Interface
+.Ss Xr led 4 Interface
 The
 .Nm
 driver provides a
@@ -335,6 +335,17 @@ Built-in battery
 .It
 UltraBay battery
 .El
+.It Va dev.acpi_ibm.0.handlerevents
+.Xr devd 8
+events handled by
+.Nm
+when
+.Va events
+is set to 1.
+Events are specified as a whitespace-separated list of event code in
+hexadecimal or decimal form.
+Note that the event maybe handled twice (e.g., Brightness up/down) if ACPI BIOS
+already handled the event.
 .El
 .Pp
 Defaults for these sysctls can be set in
@@ -436,6 +447,19 @@ then
 fi
 exit 0
 .Ed
+.Pp
+The following example specify that event code 0x04 (Suspend to RAM),
+0x10 (Brightness up) and 0x11 (Brightness down) are handled by
+.Nm .
+.Bd -literal -offset indent
+sysctl dev.acpi_ibm.0.handlerevents='0x04 0x10 0x11'
+.Ed
+.Pp
+in
+.Xr sysctl.conf 5 :
+.Bd -literal -offset indent
+dev.acpi_ibm.0.handlerevents=0x04\\ 0x10\\ 0x11
+.Ed
 .Sh SEE ALSO
 .Xr acpi 4 ,
 .Xr led 4 ,
@@ -452,10 +476,10 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An Takanori Watanabe Aq takawata@FreeBSD.org
+.An Takanori Watanabe Aq Mt takawata@FreeBSD.org
 and later mostly rewritten by
-.An Markus Brueffer Aq markus@FreeBSD.org .
+.An Markus Brueffer Aq Mt markus@FreeBSD.org .
 This manual page was written by
-.An Christian Brueffer Aq brueffer@FreeBSD.org
+.An Christian Brueffer Aq Mt brueffer@FreeBSD.org
 and
-.An Markus Brueffer Aq markus@FreeBSD.org .
+.An Markus Brueffer Aq Mt markus@FreeBSD.org .

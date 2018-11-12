@@ -1,19 +1,16 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	ed
 SRCS=	buf.c cbc.c glbl.c io.c main.c re.c sub.c undo.c
-WARNS?=	2
 LINKS=	${BINDIR}/ed ${BINDIR}/red
 MLINKS=	ed.1 red.1
 
-.if !defined(RELEASE_CRUNCH)
-.if ${MK_OPENSSL} != "no"
+.if ${MK_OPENSSL} != "no" && ${MK_ED_CRYPTO} != "no"
 CFLAGS+=-DDES
-DPADD=	${LIBCRYPTO}
-LDADD=	-lcrypto
-.endif
+LIBADD=	crypto
 .endif
 
 .include <bsd.prog.mk>

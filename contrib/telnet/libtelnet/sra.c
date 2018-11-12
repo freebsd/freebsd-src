@@ -303,7 +303,7 @@ sra_reply(Authenticator *ap, unsigned char *data, int cnt)
 			goto enc_user;
 		}
 		/* encode password */
-		memset(pass,0,sizeof(pass));
+		memset(pass,0,256);
 		telnet_gets("Password: ",pass,255,0);
 		pk_encode(pass,xpass,&ck);
 		/* send it off */

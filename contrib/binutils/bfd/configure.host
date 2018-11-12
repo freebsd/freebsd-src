@@ -19,16 +19,20 @@ HOST_U_64BIT_TYPE=
 
 case "${host}" in
 
-hppa*-*-hpux*)		# HP/UX's ftello64 et.al. declarations are only
+hppa*64*-*-hpux*)	# HP/UX's ftello64 et.al. declarations are only
 			# visible when _LARGEFILE64_SOURCE is defined.
 			# Without those declarations, real_ftell et.al.
 			# get mis-compiled.
-			HDEFINES="-DHOST_HPPAHPUX -D_LARGEFILE64_SOURCE" ;;
+			HDEFINES="-DHOST_HPPAHPUX -D_LARGEFILE64_SOURCE"
+			host64=true;;
+hppa*-*-hpux*)		HDEFINES="-DHOST_HPPAHPUX -D_LARGEFILE64_SOURCE" ;;
 hppa*-*-hiux*)		HDEFINES=-DHOST_HPPAHPUX ;;
 hppa*-*-mpeix*)		HDEFINES=-DHOST_HPPAMPEIX ;;
 hppa*-*-bsd*)		HDEFINES=-DHOST_HPPABSD ;;
 hppa*-*-osf*)		HDEFINES=-DHOST_HPPAOSF ;;
 
+ia64-*-hpux*)		HDEFINES=-D_LARGEFILE64_SOURCE
+			host64=true;;
 ia64-*-*)		host64=true;;
 
 # Workaround for limitations on win9x where file contents are

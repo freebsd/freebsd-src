@@ -54,15 +54,14 @@ MTX_SYSINIT(accept_filter, &accept_filter_mtx, "accept_filter_mtx",
 #define	ACCEPT_FILTER_UNLOCK()	mtx_unlock(&accept_filter_mtx)
 
 static SLIST_HEAD(, accept_filter) accept_filtlsthd =
-	SLIST_HEAD_INITIALIZER(&accept_filtlsthd);
+	SLIST_HEAD_INITIALIZER(accept_filtlsthd);
 
 MALLOC_DEFINE(M_ACCF, "accf", "accept filter data");
 
 static int unloadable = 0;
 
-SYSCTL_DECL(_net_inet);	/* XXX: some header should do this for me */
-SYSCTL_NODE(_net_inet, OID_AUTO, accf, CTLFLAG_RW, 0, "Accept filters");
-SYSCTL_INT(_net_inet_accf, OID_AUTO, unloadable, CTLFLAG_RW, &unloadable, 0,
+SYSCTL_NODE(_net, OID_AUTO, accf, CTLFLAG_RW, 0, "Accept filters");
+SYSCTL_INT(_net_accf, OID_AUTO, unloadable, CTLFLAG_RW, &unloadable, 0,
 	"Allow unload of accept filters (not recommended)");
 
 /*

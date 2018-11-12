@@ -184,7 +184,7 @@ Revision History:
         /kernel text=0x24f1db data=0x3007ec+0x2062c -
         
         Hit [Enter] to boot immediagely, or any other key for command prompt.
-        Booting [kernel] in 9 seconds¡­
+        Booting [kernel] in 9 seconds
         
          <-- press SPACE key here 
         Type '?' for a list of commands, 'help' for more detailed help.

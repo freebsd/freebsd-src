@@ -71,7 +71,6 @@ for the station address and a 64-bit multicast hash table.
 The
 .Nm
 driver supports the following media types:
-.Pp
 .Bl -tag -width 10baseTXUTP
 .It autoselect
 Enable autoselection of the media type and options.
@@ -103,10 +102,9 @@ modes.
 The
 .Nm
 driver supports the following media options:
-.Pp
 .Bl -tag -width full-duplex
 .It full-duplex
-Force full duplex operation
+Force full duplex operation.
 .It half-duplex
 Force half duplex operation.
 .El
@@ -179,7 +177,7 @@ the card should be configured correctly.
 .Xr ifconfig 8
 .Rs
 .%T AMD PCnet/FAST, PCnet/FAST+ and PCnet/Home datasheets
-.%O http://www.amd.com
+.%U http://www.amd.com
 .Re
 .Sh HISTORY
 The
@@ -190,4 +188,4 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An Bill Paul Aq wpaul@osd.bsdi.com .
+.An Bill Paul Aq Mt wpaul@osd.bsdi.com .

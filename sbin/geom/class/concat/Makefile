@@ -1,7 +1,8 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 .PATH: ${.CURDIR}/../../misc
 
-CLASS=	concat
+GEOM_CLASS=	concat
 
 .include <bsd.lib.mk>

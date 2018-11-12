@@ -27,9 +27,9 @@
 .\"	$FreeBSD$
 .\"
 .\" The following commands are required for all man pages.
-.Dd October 30, 2007
-.Os
+.Dd January 26, 2010
 .Dt GSS_DELETE_SEC_CONTEXT 3 PRM
+.Os
 .Sh NAME
 .Nm gss_delete_sec_context
 .Nd Discard a security context
@@ -88,7 +88,7 @@ mechanisms are encouraged to return a zero-length token,
 indicating that no peer action is necessary,
 and that no token should be transferred by the application.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It context_handle"
 .It minor_status
 Mechanism specific status code.
 .It context_handle
@@ -110,18 +110,18 @@ field of this token to zero to indicate to the application that no
 token is to be sent to the peer.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It context_handle"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_NO_CONTEXT
 No valid context was supplied
 .El
 .Sh SEE ALSO
-.Xr gss_process_context_token 3 ,
+.Xr gss_accept_sec_context 3 ,
 .Xr gss_init_sec_context 3 ,
-.Xr gss_accept_sec_context 3
+.Xr gss_process_context_token 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744
@@ -130,7 +130,7 @@ Generic Security Service API Version 2 : C-bindings
 .Sh HISTORY
 The
 .Nm
-manual page example first appeared in
+function first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
 John Wray, Iris Associates

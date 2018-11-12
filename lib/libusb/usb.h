@@ -27,10 +27,11 @@
 #ifndef _LIBUSB20_COMPAT_01_H_
 #define	_LIBUSB20_COMPAT_01_H_
 
-#include <sys/stdint.h>
-#include <sys/endian.h>
-#include <sys/types.h>
+#ifndef LIBUSB_GLOBAL_INCLUDE_FILE
+#include <stdint.h>
 #include <sys/param.h>
+#include <sys/endian.h>
+#endif
 
 /* USB interface class codes */
 
@@ -291,6 +292,7 @@ int	usb_set_altinterface(usb_dev_handle * dev, int alternate);
 int	usb_resetep(usb_dev_handle * dev, unsigned int ep);
 int	usb_clear_halt(usb_dev_handle * dev, unsigned int ep);
 int	usb_reset(usb_dev_handle * dev);
+int	usb_check_connected(usb_dev_handle * dev);
 const char *usb_strerror(void);
 void	usb_init(void);
 void	usb_set_debug(int level);
@@ -298,6 +300,8 @@ int	usb_find_busses(void);
 int	usb_find_devices(void);
 struct usb_device *usb_device(usb_dev_handle * dev);
 struct usb_bus *usb_get_busses(void);
+int	usb_get_driver_np(usb_dev_handle * dev, int interface, char *name, int namelen);
+int	usb_detach_kernel_driver_np(usb_dev_handle * dev, int interface);
 
 #if 0
 {					/* style */

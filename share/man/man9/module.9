@@ -99,7 +99,7 @@ static int foo_handler(module_t mod, int /*modeventtype_t*/ what,
 static moduledata_t mod_data= {
         "foo",
         foo_handler,
-        0
+	NULL
 };
 
 MODULE_VERSION(foo, 1);
@@ -118,4 +118,4 @@ DECLARE_MODULE(foo, mod_data, SI_SUB_EXEC, SI_ORDER_ANY);
 .Pa /usr/share/examples/kld
 .Sh AUTHORS
 This manual page was written by
-.An Alexander Langer Aq alex@FreeBSD.org .
+.An Alexander Langer Aq Mt alex@FreeBSD.org .

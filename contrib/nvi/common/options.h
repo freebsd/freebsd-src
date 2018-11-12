@@ -6,7 +6,7 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	@(#)options.h	10.19 (Berkeley) 10/10/96
+ *	$Id: options.h,v 10.21 2012/02/10 20:24:58 zy Exp $
  */
 
 /*
@@ -76,9 +76,9 @@ struct _option {
 
 /* List of option names, associated update functions and information. */
 struct _optlist {
-	char	*name;			/* Name. */
+	CHAR_T	*name;			/* Name. */
 					/* Change function. */
-	int	(*func) __P((SCR *, OPTION *, char *, u_long *));
+	int	(*func)(SCR *, OPTION *, char *, u_long *);
 					/* Type of object. */
 	enum { OPT_0BOOL, OPT_1BOOL, OPT_NUM, OPT_STR } type;
 
@@ -89,6 +89,7 @@ struct _optlist {
 #define	OPT_NOSET	0x010		/* Option may not be set. */
 #define	OPT_NOUNSET	0x020		/* Option may not be unset. */
 #define	OPT_NOZERO	0x040		/* Option may not be set to 0. */
+#define	OPT_PAIRS	0x080		/* String with even length. */
 	u_int8_t flags;
 };
 

@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_iface.8,v 1.5 1999/01/25 23:46:26 archie Exp $
 .\"
-.Dd October 28, 2005
+.Dd January 12, 2015
 .Dt NG_IFACE 4
 .Os
 .Sh NAME
@@ -70,8 +70,7 @@ Packets transmitted via the interface flow out the corresponding
 protocol-specific hook.
 Similarly, packets received on a hook appear on the interface as
 packets received into the corresponding protocol stack.
-The currently supported protocols are IP, IPv6, AppleTalk, IPX, ATM,
-NATM, and NS.
+The currently supported protocols are IP, IPv6, ATM, NATM, and NS.
 .Pp
 An
 .Nm iface
@@ -83,46 +82,35 @@ The default mode is point-to-point.
 nodes support the Berkeley Packet Filter (BPF).
 .Sh HOOKS
 This node type supports the following hooks:
-.Pp
-.Bl -tag -width foobar
-.It Dv inet
+.Bl -tag -width ".Va inet6"
+.It Va inet
 Transmission and reception of IP packets.
-.It Dv inet6
+.It Va inet6
 Transmission and reception of IPv6 packets.
-.It Dv atalk
-Transmission and reception of AppleTalk packets.
-.It Dv ipx
-Transmission and reception of IPX packets.
-.It Dv atm
+.It Va atm
 Transmission and reception of ATM packets.
-.It Dv natm
+.It Va natm
 Transmission and reception of NATM packets.
-.It Dv ns
+.It Va ns
 Transmission and reception of NS packets.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
-.It Dv NGM_IFACE_GET_IFNAME
+.It Dv NGM_IFACE_GET_IFNAME Pq Ic getifname
 Returns the name of the associated interface as a
 .Dv NUL Ns -terminated
 .Tn ASCII
 string.
 Normally this is the same as the name of the node.
-.It Dv NGM_IFACE_GET_IFINDEX
+.It Dv NGM_IFACE_GET_IFINDEX Pq Ic getifindex
 Returns the global index of the associated interface as a 32 bit integer.
-.It Dv NGM_IFACE_POINT2POINT
+.It Dv NGM_IFACE_POINT2POINT Pq Ic point2point
 Set the interface to point-to-point mode.
 The interface must not currently be up.
-.It Dv NGM_IFACE_BROADCAST
+.It Dv NGM_IFACE_BROADCAST Pq Ic broadcast
 Set the interface to broadcast mode.
 The interface must not currently be up.
-.It Dv NGM_CISCO_GET_IPADDR
-This message is defined by the
-.Xr ng_cisco 4
-node type; see
-.Xr ng_cisco 4
-for a description.
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
@@ -169,4 +157,4 @@ The
 node type was implemented in
 .Fx 4.0 .
 .Sh AUTHORS
-.An Archie Cobbs Aq archie@FreeBSD.org
+.An Archie Cobbs Aq Mt archie@FreeBSD.org

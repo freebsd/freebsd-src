@@ -35,7 +35,7 @@
 /* register definitions for Apple GMAC, Sun ERI and Sun GEM */
 
 /*
- * First bank: this registers live at the start of the PCI
+ * First bank: these registers live at the start of the PCI
  * mapping, and at the start of the second bank of the SBus
  * version.
  */
@@ -93,7 +93,7 @@
 			"b\x10MAC_CONTROL\0b\x11MIF\0b\x12IBERR\0\0"
 
 /*
- * Second bank: this registers live at offset 0x1000 of the PCI
+ * Second bank: these registers live at offset 0x1000 of the PCI
  * mapping, and at the start of the first bank of the SBus
  * version.
  */
@@ -128,7 +128,7 @@
 
 /* GEM_PCI_BIF_DIAG register bits */
 #define	GEN_PCI_BIF_DIAG_BC_SM	0x007f0000	/* burst ctrl. state machine */
-#define GEN_PCI_BIF_DIAG_SM	0xff000000	/* BIF state machine */
+#define	GEN_PCI_BIF_DIAG_SM	0xff000000	/* BIF state machine */
 
 /* Bits in GEM_SBUS_CONFIG register */
 #define	GEM_SBUS_CFG_BURST_32	0x00000001	/* 32 byte bursts */
@@ -147,6 +147,8 @@
 #define	GEM_RESET_TX		0x00000001	/* Reset TX half. */
 #define	GEM_RESET_RX		0x00000002	/* Reset RX half. */
 #define	GEM_RESET_PCI_RSTOUT	0x00000004	/* Force PCI RSTOUT#. */
+#define	GEM_RESET_CLSZ_MASK	0x00ff0000	/* ERI cache line size */
+#define	GEM_RESET_CLSZ_SHFT	16
 
 /* The rest of the registers live in the first bank again. */
 
@@ -586,6 +588,10 @@
 #define	GEM_PHYAD_INTERNAL	1
 #define	GEM_PHYAD_EXTERNAL	0
 
+/* Miscellaneous */
+#define	GEM_ERI_CACHE_LINE_SIZE	16
+#define	GEM_ERI_LATENCY_TIMER	64
+
 /*
  * descriptor table structures
  */
@@ -594,7 +600,11 @@ struct gem_desc {
 	uint64_t	gd_addr;
 };
 
-/* Transmit flags */
+/*
+ * Transmit flags
+ * GEM_TD_CXSUM_ENABLE, GEM_TD_CXSUM_START, GEM_TD_CXSUM_STUFF and
+ * GEM_TD_INTERRUPT_ME only need to be set in the first descriptor of a group.
+ */
 #define	GEM_TD_BUFSIZE		0x0000000000007fffULL
 #define	GEM_TD_CXSUM_START	0x00000000001f8000ULL	/* Cxsum start offset */
 #define	GEM_TD_CXSUM_STARTSHFT	15
@@ -605,10 +615,6 @@ struct gem_desc {
 #define	GEM_TD_START_OF_PACKET	0x0000000080000000ULL
 #define	GEM_TD_INTERRUPT_ME	0x0000000100000000ULL	/* Interrupt me now */
 #define	GEM_TD_NO_CRC		0x0000000200000000ULL	/* do not insert crc */
-/*
- * Only need to set GEM_TD_CXSUM_ENABLE, GEM_TD_CXSUM_STUFF,
- * GEM_TD_CXSUM_START, and GEM_TD_INTERRUPT_ME in 1st descriptor of a group.
- */
 
 /* Receive flags */
 #define	GEM_RD_CHECKSUM		0x000000000000ffffULL	/* is the complement */
@@ -618,7 +624,6 @@ struct gem_desc {
 #define	GEM_RD_HASH_PASS	0x1000000000000000ULL	/* passed hash filter */
 #define	GEM_RD_ALTERNATE_MAC	0x2000000000000000ULL	/* Alternate MAC adrs */
 #define	GEM_RD_BAD_CRC		0x4000000000000000ULL
-
 #define	GEM_RD_BUFSHIFT		16
 #define	GEM_RD_BUFLEN(x)	(((x) & GEM_RD_BUFSIZE) >> GEM_RD_BUFSHIFT)
 

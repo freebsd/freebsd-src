@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -40,15 +36,19 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 #include <sys/signal.h>
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#include <machine/ucontext.h>
+#include <sys/_ucontext.h>
+#endif
 
 #if __BSD_VISIBLE
 /*
  * XXX should enlarge these, if only to give empty names instead of bounds
  * errors for large signal numbers.
  */
-extern __const char *__const sys_signame[NSIG];
-extern __const char *__const sys_siglist[NSIG];
-extern __const int sys_nsig;
+extern const char * const sys_signame[NSIG];
+extern const char * const sys_siglist[NSIG];
+extern const int sys_nsig;
 #endif
 
 #if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
@@ -73,7 +73,8 @@ int	raise(int);
 #if __POSIX_VISIBLE || __XSI_VISIBLE
 int	kill(__pid_t, int);
 int	pthread_kill(__pthread_t, int);
-int	pthread_sigmask(int, const __sigset_t *, __sigset_t *);
+int	pthread_sigmask(int, const __sigset_t * __restrict,
+	    __sigset_t * __restrict);
 int	sigaction(int, const struct sigaction * __restrict,
 	    struct sigaction * __restrict);
 int	sigaddset(sigset_t *, int);
@@ -81,10 +82,10 @@ int	sigdelset(sigset_t *, int);
 int	sigemptyset(sigset_t *);
 int	sigfillset(sigset_t *);
 int	sigismember(const sigset_t *, int);
-int	sigpending(sigset_t *);
+int	sigpending(sigset_t *) __nonnull(1);
 int	sigprocmask(int, const sigset_t * __restrict, sigset_t * __restrict);
-int	sigsuspend(const sigset_t *);
-int	sigwait(const sigset_t * __restrict, int * __restrict);
+int	sigsuspend(const sigset_t *) __nonnull(1);
+int	sigwait(const sigset_t * __restrict, int * __restrict) __nonnull_all;
 #endif
 
 #if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 600
@@ -99,20 +100,24 @@ int	sigwaitinfo(const sigset_t * __restrict, siginfo_t * __restrict);
 #if __XSI_VISIBLE
 int	killpg(__pid_t, int);
 int	sigaltstack(const stack_t * __restrict, stack_t * __restrict); 
+int	sighold(int);
+int	sigignore(int);
 int	sigpause(int);
+int	sigrelse(int);
+void	(*sigset(int, void (*)(int)))(int);
+int	xsi_sigpause(int);
 #endif
 
 #if __XSI_VISIBLE >= 600
 int	siginterrupt(int, int);
 #endif
 
-#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
-void	psignal(unsigned int, const char *);
+#if __POSIX_VISIBLE >= 200809
+void	psignal(int, const char *);
 #endif
 
 #if __BSD_VISIBLE
 int	sigblock(int);
-struct __ucontext;		/* XXX spec requires a complete declaration. */
 int	sigreturn(const struct __ucontext *);
 int	sigsetmask(int);
 int	sigstack(const struct sigstack *, struct sigstack *);

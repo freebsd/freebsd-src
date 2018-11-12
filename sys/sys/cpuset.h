@@ -32,97 +32,40 @@
 #ifndef _SYS_CPUSET_H_
 #define	_SYS_CPUSET_H_
 
-#ifdef _KERNEL
-#define	CPU_SETSIZE	MAXCPU
-#endif
+#include <sys/_cpuset.h>
 
-#define	CPU_MAXSIZE	128
+#include <sys/bitset.h>
 
-#ifndef	CPU_SETSIZE
-#define	CPU_SETSIZE	CPU_MAXSIZE
-#endif
+#define	_NCPUBITS	_BITSET_BITS
+#define	_NCPUWORDS	__bitset_words(CPU_SETSIZE)
 
-#define	_NCPUBITS	(sizeof(long) * NBBY)	/* bits per mask */
-#define	_NCPUWORDS	howmany(CPU_SETSIZE, _NCPUBITS)
+#define	CPUSETBUFSIZ	((2 + sizeof(long) * 2) * _NCPUWORDS)
 
-typedef	struct _cpuset {
-	long	__bits[howmany(CPU_SETSIZE, _NCPUBITS)];
-} cpuset_t;
-
-#define	__cpuset_mask(n)	((long)1 << ((n) % _NCPUBITS))
-#define	CPU_CLR(n, p)	((p)->__bits[(n)/_NCPUBITS] &= ~__cpuset_mask(n))
-#define	CPU_COPY(f, t)	(void)(*(t) = *(f))
-#define	CPU_ISSET(n, p)	(((p)->__bits[(n)/_NCPUBITS] & __cpuset_mask(n)) != 0)
-#define	CPU_SET(n, p)	((p)->__bits[(n)/_NCPUBITS] |= __cpuset_mask(n))
-#define	CPU_ZERO(p) do {				\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		(p)->__bits[__i] = 0;			\
-} while (0)
-
-#define	CPU_FILL(p) do {				\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		(p)->__bits[__i] = -1;			\
-} while (0)
-
-/* Is p empty. */
-#define	CPU_EMPTY(p) __extension__ ({			\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		if ((p)->__bits[__i])			\
-			break;				\
-	__i == _NCPUWORDS;				\
-})
-
-/* Is c a subset of p. */
-#define	CPU_SUBSET(p, c) __extension__ ({		\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		if (((c)->__bits[__i] &			\
-		    (p)->__bits[__i]) !=		\
-		    (c)->__bits[__i])			\
-			break;				\
-	__i == _NCPUWORDS;				\
-})
-
-/* Are there any common bits between b & c? */
-#define	CPU_OVERLAP(p, c) __extension__ ({		\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		if (((c)->__bits[__i] &			\
-		    (p)->__bits[__i]) != 0)		\
-			break;				\
-	__i != _NCPUWORDS;				\
-})
-
-/* Compare two sets, returns 0 if equal 1 otherwise. */
-#define	CPU_CMP(p, c) __extension__ ({			\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		if (((c)->__bits[__i] !=		\
-		    (p)->__bits[__i]))			\
-			break;				\
-	__i != _NCPUWORDS;				\
-})
-
-#define	CPU_OR(d, s) do {				\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		(d)->__bits[__i] |= (s)->__bits[__i];	\
-} while (0)
-
-#define	CPU_AND(d, s) do {				\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		(d)->__bits[__i] &= (s)->__bits[__i];	\
-} while (0)
-
-#define	CPU_NAND(d, s) do {				\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		(d)->__bits[__i] &= ~(s)->__bits[__i];	\
-} while (0)
+#define	CPU_CLR(n, p)			BIT_CLR(CPU_SETSIZE, n, p)
+#define	CPU_COPY(f, t)			BIT_COPY(CPU_SETSIZE, f, t)
+#define	CPU_ISSET(n, p)			BIT_ISSET(CPU_SETSIZE, n, p)
+#define	CPU_SET(n, p)			BIT_SET(CPU_SETSIZE, n, p)
+#define	CPU_ZERO(p) 			BIT_ZERO(CPU_SETSIZE, p)
+#define	CPU_FILL(p) 			BIT_FILL(CPU_SETSIZE, p)
+#define	CPU_SETOF(n, p)			BIT_SETOF(CPU_SETSIZE, n, p)
+#define	CPU_EMPTY(p)			BIT_EMPTY(CPU_SETSIZE, p)
+#define	CPU_ISFULLSET(p)		BIT_ISFULLSET(CPU_SETSIZE, p)
+#define	CPU_SUBSET(p, c)		BIT_SUBSET(CPU_SETSIZE, p, c)
+#define	CPU_OVERLAP(p, c)		BIT_OVERLAP(CPU_SETSIZE, p, c)
+#define	CPU_CMP(p, c)			BIT_CMP(CPU_SETSIZE, p, c)
+#define	CPU_OR(d, s)			BIT_OR(CPU_SETSIZE, d, s)
+#define	CPU_AND(d, s)			BIT_AND(CPU_SETSIZE, d, s)
+#define	CPU_NAND(d, s)			BIT_NAND(CPU_SETSIZE, d, s)
+#define	CPU_CLR_ATOMIC(n, p)		BIT_CLR_ATOMIC(CPU_SETSIZE, n, p)
+#define	CPU_SET_ATOMIC(n, p)		BIT_SET_ATOMIC(CPU_SETSIZE, n, p)
+#define	CPU_SET_ATOMIC_ACQ(n, p)	BIT_SET_ATOMIC_ACQ(CPU_SETSIZE, n, p)
+#define	CPU_AND_ATOMIC(n, p)		BIT_AND_ATOMIC(CPU_SETSIZE, n, p)
+#define	CPU_OR_ATOMIC(d, s)		BIT_OR_ATOMIC(CPU_SETSIZE, d, s)
+#define	CPU_COPY_STORE_REL(f, t)	BIT_COPY_STORE_REL(CPU_SETSIZE, f, t)
+#define	CPU_FFS(p)			BIT_FFS(CPU_SETSIZE, p)
+#define	CPU_COUNT(p)			BIT_COUNT(CPU_SETSIZE, p)
+#define	CPUSET_FSET			BITSET_FSET(_NCPUWORDS)
+#define	CPUSET_T_INITIALIZER		BITSET_T_INITIALIZER
 
 /*
  * Valid cpulevel_t values.
@@ -139,6 +82,7 @@ typedef	struct _cpuset {
 #define	CPU_WHICH_CPUSET	3	/* Specifies a set id. */
 #define	CPU_WHICH_IRQ		4	/* Specifies an irq #. */
 #define	CPU_WHICH_JAIL		5	/* Specifies a jail id. */
+#define	CPU_WHICH_DOMAIN	6	/* Specifies a NUMA domain id. */
 
 /*
  * Reserved cpuset identifiers.
@@ -147,6 +91,8 @@ typedef	struct _cpuset {
 #define	CPUSET_DEFAULT	0
 
 #ifdef _KERNEL
+#include <sys/queue.h>
+
 LIST_HEAD(setlist, cpuset);
 
 /*
@@ -177,13 +123,23 @@ struct cpuset {
 extern cpuset_t *cpuset_root;
 struct prison;
 struct proc;
+struct thread;
 
 struct cpuset *cpuset_thread0(void);
 struct cpuset *cpuset_ref(struct cpuset *);
 void	cpuset_rel(struct cpuset *);
 int	cpuset_setthread(lwpid_t id, cpuset_t *);
+int	cpuset_setithread(lwpid_t id, int cpu);
 int	cpuset_create_root(struct prison *, struct cpuset **);
 int	cpuset_setproc_update_set(struct proc *, struct cpuset *);
+int	cpuset_which(cpuwhich_t, id_t, struct proc **,
+	    struct thread **, struct cpuset **);
+
+char	*cpusetobj_strprint(char *, const cpuset_t *);
+int	cpusetobj_strscan(cpuset_t *, const char *);
+#ifdef DDB
+void	ddb_display_cpuset(const cpuset_t *);
+#endif
 
 #else
 __BEGIN_DECLS

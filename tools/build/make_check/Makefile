@@ -1,5 +1,10 @@
 # $FreeBSD$
 
+.MAKE.MODE=	normal
+
+# Failure is handled by the invoker, don't kill other legs of a parallel build.
+MAKE_JOB_ERROR_TOKEN=no
+
 # Test for broken LHS expansion.
 # This *must* cause make(1) to detect a recursive variable, and fail as such.
 .if make(lhs_expn)
@@ -21,8 +26,8 @@ NIL=
 SMAKE=	MAKEFLAGS= ${MAKE} -C ${.CURDIR}
 
 all:
-	@echo '1..17'
-	@${SMAKE} C_check || { cd ${.CURDIR} ; ${MAKE} failure ; }
+	@echo '1..16'
+	@${SMAKE} C_check || { ${MAKE} -C ${.CURDIR} failure ; }
 	@echo "ok 1 - C_check # Test of -C flag existence detected no regression."
 	@echo 1:${DATA1} 2:${DATA2} 3:${DATA3} 4:${DATA4} 5:${DATA5} | \
 		diff -u ${.CURDIR}/regress.variables.out - || \
@@ -38,26 +43,26 @@ all:
 	@echo "ok 6 - notdef # Test notdef detected no regression."
 	@${SMAKE} modifiers || ${SMAKE} failure
 	@echo "ok 7 - modifiers # Test modifiers detected no regression."
-	@${SMAKE} funny_targets || ${SMAKE} failure
-	@echo "ok 8 funny_targets # Test funny_targets detected no regression."
 	@${SMAKE} arith_expr || ${SMAKE} failure
-	@echo "ok 9 arith_expr # Test arith_expr detected no regression."
+	@echo "ok 8 arith_expr # Test arith_expr detected no regression."
 	@${SMAKE} PATH_exists || ${SMAKE} failure
-	@echo "ok 10 PATH_exists # Test PATH_exists detected no regression."
+	@echo "ok 9 PATH_exists # Test PATH_exists detected no regression."
 	@${SMAKE} double_quotes || ${SMAKE} failure
-	@echo "ok 11 double_quotes # Test double_quotes detected no regression."
+	@echo "ok 10 double_quotes # Test double_quotes detected no regression."
 	@! ${SMAKE} double_quotes2 >/dev/null 2>&1 && true || ${SMAKE} failure
-	@echo "ok 12 double_quotes2 # Test double_quotes2 detected no regression."
+	@echo "ok 11 double_quotes2 # Test double_quotes2 detected no regression."
 	@${SMAKE} pass_cmd_vars || ${SMAKE} failure
-	@echo "ok 13 pass_cmd_vars # Test pass_cmd_vars detected no regression."
+	@echo "ok 12 pass_cmd_vars # Test pass_cmd_vars detected no regression."
 	@${SMAKE} plus_flag || ${SMAKE} failure
-	@echo "ok 14 plus_flag # Test plus_flag detected no regression."
+	@echo "ok 13 plus_flag # Test plus_flag detected no regression."
 	@! ${SMAKE} shell >/dev/null 2>&1 && true || ${SMAKE} failure
-	@echo "ok 15 shell # Test shell detected no regression."
+	@echo "ok 14 shell # Test shell detected no regression."
 	@${SMAKE} shell_1 || ${SMAKE} failure
-	@echo "ok 16 shell_1 # Test shell_1 detected no regression."
+	@echo "ok 15 shell_1 # Test shell_1 detected no regression."
+.if !defined(.PARSEDIR)
 	@${SMAKE} shell_2 || ${SMAKE} failure
-	@echo "ok 17 shell_2 # Test shell_2 detected no regression."
+	@echo "ok 16 shell_2 # Test shell_2 detected no regression."
+.endif
 
 .if make(C_check)
 C_check:
@@ -92,23 +97,34 @@ lhs_expn:
 # to determine its value; that was not always the case.
 .undef notdef
 notdef:
-.if defined(notdef) && ${notdef:U}
+.if defined(notdef) && ${notdef:M/}
 .endif
 .endif
 
 .if make(modifiers)
-# See if make(1) supports the C modifier.
+.if defined(.PARSEDIR)
+# check if bmake can expand plain variables
+.MAKE.EXPAND_VARIABLES= yes
+x!= ${SMAKE} -V .CURDIR:H
 modifiers:
+.if ${.CURDIR:H} != "$x"
+	@false
+.endif
+.else
+# See if make(1) supports the C modifier.
+modifiers: dollarV
 	@if ${SMAKE} -V .CURDIR:C/.// 2>&1 >/dev/null | \
 	    grep -q "Unknown modifier 'C'"; then \
 		false; \
 	fi
-.endif
 
-.if make(funny_targets)
-funny_targets: colons::target exclamation!target
-colons::target:
-exclamation!target: 
+# check that make -V '${VAR}' works
+V_expn != V_OK=ok ${SMAKE} -r -f /dev/null -V '$${V_OK}'
+dollarV:
+.if ${V_expn} == ""
+	@false
+.endif
+.endif
 .endif
 
 .if make(arith_expr)
@@ -152,23 +168,18 @@ pass_cmd_vars:
 	@${SMAKE} CMD1=cmd1 CMD2=cmd2 pass_cmd_vars_4
 .endif
 
-.if make(pass_cmd_vars_1)
+#
 # Check that the variable definition arrived from the calling make
+#
+.if make(pass_cmd_vars_1)
+# These values should get overridden by the commandline
+CMD1=oops1
+CMD2=oops2
 pass_cmd_vars_1:
 	@:
 
 .if ${CMD1} != cmd1 || ${CMD2} != cmd2
 .error variables not passed through MAKEFLAGS
-.endif
-
-# Check that the variable definition is in MAKEFLAGS
-.if ${.MAKEFLAGS:MCMD1=*} != "CMD1=cmd1" || ${.MAKEFLAGS:MCMD2=*} != "CMD2=cmd2"
-.error variable assignment not found in $${MAKEFLAGS}
-.endif
-
-# Check that the variable definition is not in MFLAGS
-.if ${MFLAGS:MCMD1=*} != "" || ${MFLAGS:MCMD2=*} != ""
-.error variable assignment found in $${MFLAGS}
 .endif
 .endif
 
@@ -228,7 +239,7 @@ pass_cmd_vars_4_1:
 #
 .if make(plus_flag)
 OUT != ${SMAKE} -n plus_flag_1
-.if ${OUT} != "/tmp"
+.if ${OUT:M/tmp} != "/tmp"
 .error make doesn't handle + flag
 .endif
 plus_flag:

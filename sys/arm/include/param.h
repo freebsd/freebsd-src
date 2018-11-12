@@ -52,19 +52,36 @@
 
 #define __PCI_REROUTE_INTERRUPT
 
+#if __ARM_ARCH >= 6
+#define	_V6_SUFFIX "v6"
+#else
+#define	_V6_SUFFIX ""
+#endif
+
+#ifdef __ARM_BIG_ENDIAN
+#define	_EB_SUFFIX "eb"
+#else
+#define	_EB_SUFFIX ""
+#endif
+
 #ifndef MACHINE
 #define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
-#define	MACHINE_ARCH	"arm"
+#define	MACHINE_ARCH	"arm" _V6_SUFFIX _EB_SUFFIX
 #endif
-#define	MID_MACHINE	MID_ARM6 
 
 #if defined(SMP) || defined(KLD_MODULE)
-#define	MAXCPU		2
+#ifndef MAXCPU
+#define	MAXCPU		4
+#endif
 #else
 #define	MAXCPU		1
 #endif /* SMP || KLD_MODULE */
+
+#ifndef MAXMEMDOM
+#define	MAXMEMDOM	1
+#endif
 
 #define	ALIGNBYTES	_ALIGNBYTES
 #define	ALIGN(p)	_ALIGN(p)
@@ -72,7 +89,15 @@
  * ALIGNED_POINTER is a boolean macro that checks whether an address
  * is valid to fetch data elements of type t from on this architecture.
  * This does not reflect the optimal alignment, just the possibility
- * (within reasonable limits). 
+ * (within reasonable limits).
+ *
+ * armv4 and v5 require alignment to the type's size.  armv6 requires 8-byte
+ * alignment for the ldrd/strd instructions, but otherwise follows armv7 rules.
+ * armv7 requires that an 8-byte type be aligned to at least a 4-byte boundary;
+ * access to smaller types can be unaligned, except that the compiler may
+ * optimize access to adjacent uint32_t values into a single load/store-multiple
+ * instruction which requires 4-byte alignment, so we must provide the most-
+ * pessimistic answer possible even on armv7.
  */
 #define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof(t)-1)) == 0)
 
@@ -86,13 +111,13 @@
 #define	PAGE_SHIFT	12
 #define	PAGE_SIZE	(1 << PAGE_SHIFT)	/* Page size */
 #define	PAGE_MASK	(PAGE_SIZE - 1)
-#define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
 #define PDR_SHIFT	20 /* log2(NBPDR) */
 #define NBPDR		(1 << PDR_SHIFT)
+#define PDRMASK		(NBPDR - 1)
 #define NPDEPG          (1 << (32 - PDR_SHIFT))
 
-#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
+#define	MAXPAGESIZES	2		/* maximum number of supported page sizes */
 
 #ifndef KSTACK_PAGES
 #define KSTACK_PAGES    2
@@ -106,17 +131,15 @@
 #define KSTACK_GUARD_PAGES	1
 #endif /* !KSTACK_GUARD_PAGES */
 
-#define USPACE_SVC_STACK_TOP		KSTACK_PAGES * PAGE_SIZE
-#define USPACE_SVC_STACK_BOTTOM		(USPACE_SVC_STACK_TOP - 0x1000)
-#define USPACE_UNDEF_STACK_TOP		(USPACE_SVC_STACK_BOTTOM - 0x10)
-#define USPACE_UNDEF_STACK_BOTTOM	(FPCONTEXTSIZE + 10)
+#define USPACE_SVC_STACK_TOP		(kstack_pages * PAGE_SIZE)
+
 /*
  * Mach derived conversion macros
  */
 #define	trunc_page(x)		((x) & ~PAGE_MASK)
 #define	round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
-#define	trunc_4mpage(x)		((unsigned)(x) & ~PDRMASK)
-#define	round_4mpage(x)		((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
+#define	trunc_1mpage(x)		((unsigned)(x) & ~PDRMASK)
+#define	round_1mpage(x)		((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
 
 #define	atop(x)			((unsigned)(x) >> PAGE_SHIFT)
 #define	ptoa(x)			((unsigned)(x) << PAGE_SHIFT)

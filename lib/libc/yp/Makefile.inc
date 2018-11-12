@@ -2,15 +2,15 @@
 # $FreeBSD$
 
 # yp sources
-.PATH: ${.CURDIR}/yp
+.PATH: ${LIBC_SRCTOP}/yp
 
 SRCS+=	xdryp.c yp.h yp_xdr.c yplib.c
 CLEANFILES+=	yp.h yp_xdr.c
 
-SYM_MAPS+=	${.CURDIR}/yp/Symbol.map
+SYM_MAPS+=	${LIBC_SRCTOP}/yp/Symbol.map
 
-RPCSRC=	${DESTDIR}/usr/include/rpcsvc/yp.x
-RPCGEN=	rpcgen -C
+RPCSRC=	${SRCTOP}/include/rpcsvc/yp.x
+RPCGEN=	RPCGEN_CPP=${CPP:Q} rpcgen -C
 
 yp_xdr.c: ${RPCSRC}
 	${RPCGEN} -c -o ${.TARGET} ${RPCSRC}

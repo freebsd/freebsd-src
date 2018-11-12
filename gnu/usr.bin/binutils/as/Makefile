@@ -3,36 +3,72 @@
 
 # BINDIR
 .include "${.CURDIR}/../../Makefile.inc"
-WARNS?=	2
-NO_WERROR=
 .include "${.CURDIR}/../Makefile.inc0"
+.include <src.opts.mk>
 
 .PATH: ${SRCDIR}/gas ${SRCDIR}/gas/config
 
+.if ${TARGET_ARCH:Marm*} || ${TARGET_ARCH} == "powerpc64"
+NO_WERROR.clang=
+.endif
+
 PROG=	as
-MAN=	doc/as.1
-SRCS+=	app.c as.c atof-generic.c atof-ieee.c bignum-copy.c \
-	cond.c dwarf2dbg.c ecoff.c expr.c flonum-copy.c flonum-konst.c \
-	flonum-mult.c frags.c hash.c input-file.c \
-	input-scrub.c listing.c literal.c macro.c messages.c \
-	obj-elf.c output-file.c read.c sb.c stabs.c \
-	subsegs.c symbols.c write.c depend.c ehopt.c dw2gencfi.c
+SRCS+=	app.c \
+	as.c \
+	atof-generic.c \
+	atof-ieee.c \
+	cond.c \
+	depend.c \
+	dw2gencfi.c \
+	dwarf2dbg.c \
+	ecoff.c \
+	ehopt.c \
+	expr.c \
+	flonum-copy.c \
+	flonum-konst.c \
+	flonum-mult.c \
+	frags.c \
+	hash.c \
+	input-file.c \
+	input-scrub.c \
+	listing.c \
+	literal.c \
+	macro.c \
+	messages.c \
+	obj-elf.c \
+	output-file.c \
+	read.c \
+	sb.c \
+	stabs.c \
+	subsegs.c \
+	symbols.c \
+	write.c
 # DEO: why not used?
 #SRCS+=	itbl-ops.c
 
-.if ${TARGET_ARCH} == "mips"
+.if ${TARGET_ARCH} == "armv6" || ${TARGET_ARCH} == "armv6eb"
+CFLAGS+=	-DCPU_DEFAULT=ARM_ARCH_V6K
+.endif
+
+.if ${TARGET_CPUARCH} == "mips"
 SRCS+=	itbl-ops.c itbl-parse.y itbl-lex.l
+.if ${TARGET_ARCH:Mmips64*} != ""
+CFLAGS+=	-DMIPS_DEFAULT_ABI=N64_ABI -DMIPS_DEFAULT_64BIT=1
+.elif ${TARGET_ARCH:Mmipsn32*} != ""
+CFLAGS+=	-DMIPS_DEFAULT_ABI=N32_ABI
+.else
+MIPS_ABI_DEFAULT=ABI_32
+.endif
 .endif
 
 .if ${TARGET_ARCH} == "amd64"
 SRCS+=	tc-i386.c
-.elif ${TARGET_ARCH} == "powerpc"
+.elif ${TARGET_CPUARCH} == "powerpc"
 SRCS+=	tc-ppc.c
 .elif ${TARGET_ARCH} == "sparc64"
-# change back to tc-sparc.c when new binutils is imported
-SRCS+=	tc-sparc-fixed.c
+SRCS+=	tc-sparc.c
 .else
-SRCS+=	tc-${TARGET_ARCH}.c
+SRCS+=	tc-${TARGET_CPUARCH}.c
 .endif
 
 .if ${TARGET_ARCH} == "sparc64"
@@ -44,14 +80,17 @@ CFLAGS+= -DDEFAULT_ARCH=\"${BINUTILS_ARCH}\"
 CFLAGS+= -DTARGET_BYTES_BIG_ENDIAN=1
 .endif
 CFLAGS+= -DTARGET_CPU=\"${BINUTILS_ARCH}\"
+CFLAGS+= -DTARGET_OS=\"${TARGET_OS}\"
 CFLAGS+= -DTARGET_CANONICAL=\"${TARGET_TUPLE}\"
 CFLAGS+= -DTARGET_ALIAS=\"${TARGET_TUPLE}\"
 CFLAGS+= -DVERSION=\"${VERSION}\"
 CFLAGS+= -D_GNU_SOURCE
-CFLAGS+= -I${SRCDIR}/gas -I${SRCDIR}/gas/config -I${SRCDIR}
-CFLAGS+= -I${.CURDIR} -I${.CURDIR}/${TARGET_ARCH}-freebsd
+CFLAGS+= -I${SRCDIR}/gas -I${SRCDIR}/bfd -I${SRCDIR}/gas/config -I${SRCDIR}
+CFLAGS+= -I${.CURDIR} -I${.CURDIR}/${TARGET_CPUARCH}-freebsd
 
+.if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?=	yes
+.endif
 
 DPADD=	${RELTOP}/libbfd/libbfd.a
 DPADD+=	${RELTOP}/libiberty/libiberty.a

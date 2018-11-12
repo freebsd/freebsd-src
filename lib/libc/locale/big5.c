@@ -1,10 +1,17 @@
 /*-
+ * Copyright 2013 Garrett D'Amore <garrett@damore.org>
+ * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2002-2004 Tim J. Robbins. All rights reserved.
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * Paul Borman at Krystal Technologies.
+ *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,11 +21,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -56,21 +59,29 @@ static size_t	_BIG5_mbrtowc(wchar_t * __restrict, const char * __restrict,
 static int	_BIG5_mbsinit(const mbstate_t *);
 static size_t	_BIG5_wcrtomb(char * __restrict, wchar_t,
 		    mbstate_t * __restrict);
+static size_t	_BIG5_mbsnrtowcs(wchar_t * __restrict,
+		    const char ** __restrict, size_t, size_t,
+		    mbstate_t * __restrict);
+static size_t	_BIG5_wcsnrtombs(char * __restrict,
+		    const wchar_t ** __restrict, size_t, size_t,
+		    mbstate_t * __restrict);
 
 typedef struct {
 	wchar_t	ch;
 } _BIG5State;
 
 int
-_BIG5_init(_RuneLocale *rl)
+_BIG5_init(struct xlocale_ctype *l, _RuneLocale *rl)
 {
 
-	__mbrtowc = _BIG5_mbrtowc;
-	__wcrtomb = _BIG5_wcrtomb;
-	__mbsinit = _BIG5_mbsinit;
-	_CurrentRuneLocale = rl;
-	__mb_cur_max = 2;
-	__mb_sb_limit = 128;
+	l->__mbrtowc = _BIG5_mbrtowc;
+	l->__wcrtomb = _BIG5_wcrtomb;
+	l->__mbsnrtowcs = _BIG5_mbsnrtowcs;
+	l->__wcsnrtombs = _BIG5_wcsnrtombs;
+	l->__mbsinit = _BIG5_mbsinit;
+	l->runes = rl;
+	l->__mb_cur_max = 2;
+	l->__mb_sb_limit = 128;
 	return (0);
 }
 
@@ -142,7 +153,7 @@ _BIG5_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		wc = (wc << 8) | (*s++ & 0xff);
 		if (pwc != NULL)
 			*pwc = wc;
-                return (2);
+		return (2);
 	} else {
 		if (pwc != NULL)
 			*pwc = wc;
@@ -172,4 +183,18 @@ _BIG5_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 	}
 	*s = wc & 0xff;
 	return (1);
+}
+
+static size_t
+_BIG5_mbsnrtowcs(wchar_t * __restrict dst, const char ** __restrict src,
+    size_t nms, size_t len, mbstate_t * __restrict ps)
+{
+	return (__mbsnrtowcs_std(dst, src, nms, len, ps, _BIG5_mbrtowc));
+}
+
+static size_t
+_BIG5_wcsnrtombs(char * __restrict dst, const wchar_t ** __restrict src,
+    size_t nwc, size_t len, mbstate_t * __restrict ps)
+{
+	return (__wcsnrtombs_std(dst, src, nwc, len, ps, _BIG5_wcrtomb));
 }

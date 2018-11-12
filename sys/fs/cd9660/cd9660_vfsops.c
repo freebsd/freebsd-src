@@ -95,17 +95,19 @@ static int iso_mountfs(struct vnode *devvp, struct mount *mp);
  */
 
 static int
-cd9660_cmount(struct mntarg *ma, void *data, int flags)
+cd9660_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	struct iso_args args;
+	struct export_args exp;
 	int error;
 
 	error = copyin(data, &args, sizeof args);
 	if (error)
 		return (error);
+	vfs_oexport_conv(&args.export, &exp);
 
 	ma = mount_argsu(ma, "from", args.fspec, MAXPATHLEN);
-	ma = mount_arg(ma, "export", &args.export, sizeof args.export);
+	ma = mount_arg(ma, "export", &exp, sizeof(exp));
 	ma = mount_argsu(ma, "cs_disk", args.cs_disk, 64);
 	ma = mount_argsu(ma, "cs_local", args.cs_local, 64);
 	ma = mount_argf(ma, "ssector", "%u", args.ssector);
@@ -131,7 +133,7 @@ cd9660_mount(struct mount *mp)
 	int error;
 	accmode_t accmode;
 	struct nameidata ndp;
-	struct iso_mnt *imp = 0;
+	struct iso_mnt *imp = NULL;
 
 	td = curthread;
 
@@ -203,7 +205,7 @@ iso_mountfs(devvp, mp)
 	struct vnode *devvp;
 	struct mount *mp;
 {
-	struct iso_mnt *isomp = (struct iso_mnt *)0;
+	struct iso_mnt *isomp = NULL;
 	struct buf *bp = NULL;
 	struct buf *pribp = NULL, *supbp = NULL;
 	struct cdev *dev;
@@ -212,7 +214,7 @@ iso_mountfs(devvp, mp)
 	int iso_bsize;
 	int iso_blknum;
 	int joliet_level;
-	struct iso_volume_descriptor *vdp = 0;
+	struct iso_volume_descriptor *vdp = NULL;
 	struct iso_primary_descriptor *pri = NULL;
 	struct iso_sierra_primary_descriptor *pri_sierra = NULL;
 	struct iso_supplementary_descriptor *sup = NULL;
@@ -224,11 +226,9 @@ iso_mountfs(devvp, mp)
 
 	dev = devvp->v_rdev;
 	dev_ref(dev);
-	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "cd9660", 0);
 	g_topology_unlock();
-	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0);
 	if (error)
 		goto out;
@@ -307,13 +307,13 @@ iso_mountfs(devvp, mp)
 		default:
 			break;
 		}
-		if (bp) {
+		if (bp != NULL) {
 			brelse(bp);
 			bp = NULL;
 		}
 	}
  vd_end:
-	if (bp) {
+	if (bp != NULL) {
 		brelse(bp);
 		bp = NULL;
 	}
@@ -367,6 +367,9 @@ iso_mountfs(devvp, mp)
 	pribp->b_flags |= B_AGE;
 	brelse(pribp);
 	pribp = NULL;
+	rootp = NULL;
+	pri = NULL;
+	pri_sierra = NULL;
 
 	mp->mnt_data = isomp;
 	mp->mnt_stat.f_fsid.val[0] = dev2udev(dev);
@@ -374,8 +377,7 @@ iso_mountfs(devvp, mp)
 	mp->mnt_maxsymlinklen = 0;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED |
-	    MNTK_EXTENDED_SHARED;
+	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED;
 	MNT_IUNLOCK(mp);
 	isomp->im_mountp = mp;
 	isomp->im_dev = dev;
@@ -389,11 +391,11 @@ iso_mountfs(devvp, mp)
 
 	/* Check the Rock Ridge Extension support */
 	if (!(isomp->im_flags & ISOFSMNT_NORRIP)) {
-		if ((error = bread(isomp->im_devvp,
-				  (isomp->root_extent + isonum_711(rootp->ext_attr_length)) <<
-				  (isomp->im_bshift - DEV_BSHIFT),
-				  isomp->logical_block_size, NOCRED, &bp)) != 0)
-		    goto out;
+		if ((error = bread(isomp->im_devvp, (isomp->root_extent +
+		    isonum_711(((struct iso_directory_record *)isomp->root)->
+		    ext_attr_length)) << (isomp->im_bshift - DEV_BSHIFT),
+		    isomp->logical_block_size, NOCRED, &bp)) != 0)
+			goto out;
 
 		rootp = (struct iso_directory_record *)bp->b_data;
 
@@ -410,6 +412,7 @@ iso_mountfs(devvp, mp)
 		bp->b_flags |= B_AGE;
 		brelse(bp);
 		bp = NULL;
+		rootp = NULL;
 	}
 
 	if (isomp->im_flags & ISOFSMNT_KICONV && cd9660_iconv) {
@@ -464,25 +467,24 @@ iso_mountfs(devvp, mp)
 	if (supbp) {
 		brelse(supbp);
 		supbp = NULL;
+		sup = NULL;
 	}
 
 	return 0;
 out:
-	if (bp)
+	if (bp != NULL)
 		brelse(bp);
-	if (pribp)
+	if (pribp != NULL)
 		brelse(pribp);
-	if (supbp)
+	if (supbp != NULL)
 		brelse(supbp);
 	if (cp != NULL) {
-		DROP_GIANT();
 		g_topology_lock();
 		g_vfs_close(cp);
 		g_topology_unlock();
-		PICKUP_GIANT();
 	}
 	if (isomp) {
-		free((caddr_t)isomp, M_ISOFSMNT);
+		free(isomp, M_ISOFSMNT);
 		mp->mnt_data = NULL;
 	}
 	dev_rel(dev);
@@ -513,14 +515,12 @@ cd9660_unmount(mp, mntflags)
 		if (isomp->im_l2d)
 			cd9660_iconv->close(isomp->im_l2d);
 	}
-	DROP_GIANT();
 	g_topology_lock();
 	g_vfs_close(isomp->im_cp);
 	g_topology_unlock();
-	PICKUP_GIANT();
 	vrele(isomp->im_devvp);
 	dev_rel(isomp->im_dev);
-	free((caddr_t)isomp, M_ISOFSMNT);
+	free(isomp, M_ISOFSMNT);
 	mp->mnt_data = NULL;
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
@@ -584,22 +584,25 @@ cd9660_statfs(mp, sbp)
 
 /* ARGSUSED */
 static int
-cd9660_fhtovp(mp, fhp, vpp)
+cd9660_fhtovp(mp, fhp, flags, vpp)
 	struct mount *mp;
 	struct fid *fhp;
+	int flags;
 	struct vnode **vpp;
 {
-	struct ifid *ifhp = (struct ifid *)fhp;
+	struct ifid ifh;
 	struct iso_node *ip;
 	struct vnode *nvp;
 	int error;
 
+	memcpy(&ifh, fhp, sizeof(ifh));
+
 #ifdef	ISOFS_DBG
 	printf("fhtovp: ino %d, start %ld\n",
-	       ifhp->ifid_ino, ifhp->ifid_start);
+	    ifh.ifid_ino, ifh.ifid_start);
 #endif
 
-	if ((error = VFS_VGET(mp, ifhp->ifid_ino, LK_EXCLUSIVE, &nvp)) != 0) {
+	if ((error = VFS_VGET(mp, ifh.ifid_ino, LK_EXCLUSIVE, &nvp)) != 0) {
 		*vpp = NULLVP;
 		return (error);
 	}
@@ -700,7 +703,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	if (error || *vpp != NULL)
 		return (error);
 
-	if (isodir == 0) {
+	if (isodir == NULL) {
 		int lbn, off;
 
 		lbn = lblkno(imp, ino);
@@ -732,8 +735,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		if (off + isonum_711(isodir->length) >
 		    imp->logical_block_size) {
 			vput(vp);
-			if (bp != 0)
-				brelse(bp);
+			brelse(bp);
 			printf("fhtovp: directory crosses block boundary %d[off=%d/len=%d]\n",
 			       off +isonum_711(isodir->length), off,
 			       isonum_711(isodir->length));
@@ -743,8 +745,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 #if 0
 		if (isonum_733(isodir->extent) +
 		    isonum_711(isodir->ext_attr_length) != ifhp->ifid_start) {
-			if (bp != 0)
-				brelse(bp);
+			brelse(bp);
 			printf("fhtovp: file start miss %d vs %d\n",
 			       isonum_733(isodir->extent) + isonum_711(isodir->ext_attr_length),
 			       ifhp->ifid_start);
@@ -752,7 +753,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		}
 #endif
 	} else
-		bp = 0;
+		bp = NULL;
 
 	ip->i_mnt = imp;
 
@@ -762,7 +763,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		 * read the `.' entry out of a dir.
 		 */
 		ip->iso_start = ino >> imp->im_bshift;
-		if (bp != 0)
+		if (bp != NULL)
 			brelse(bp);
 		if ((error = cd9660_blkatoff(vp, (off_t)0, NULL, &bp)) != 0) {
 			vput(vp);
@@ -801,8 +802,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		break;
 	}
 
-	if (bp != 0)
-		brelse(bp);
+	brelse(bp);
 
 	/*
 	 * Initialize the associated vnode

@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "error.h"
 #include "eval.h"
 #include "memalloc.h"
+#include "builtins.h"
 
 #define MAXHISTLOOPS	4	/* max recursions through fc */
 #define DEFEDITOR	"ed"	/* default editor *should* be $EDITOR */
@@ -68,7 +69,9 @@ EditLine *el;	/* editline cookie */
 int displayhist;
 static FILE *el_in, *el_out, *el_err;
 
-STATIC char *fc_replace(const char *, char *, char *);
+static char *fc_replace(const char *, char *, char *);
+static int not_fcnumber(const char *);
+static int str_to_event(const char *, int);
 
 /*
  * Set history and editing status.  Called whenever the status may
@@ -92,12 +95,14 @@ histedit(void)
 			if (hist != NULL)
 				sethistsize(histsizeval());
 			else
-				out2str("sh: can't initialize history\n");
+				out2fmt_flush("sh: can't initialize history\n");
 		}
 		if (editing && !el && isatty(0)) { /* && isatty(2) ??? */
 			/*
 			 * turn editing on
 			 */
+			char *term;
+
 			INTOFF;
 			if (el_in == NULL)
 				el_in = fdopen(0, "r");
@@ -107,14 +112,22 @@ histedit(void)
 				el_out = fdopen(2, "w");
 			if (el_in == NULL || el_err == NULL || el_out == NULL)
 				goto bad;
+			term = lookupvar("TERM");
+			if (term)
+				setenv("TERM", term, 1);
+			else
+				unsetenv("TERM");
 			el = el_init(arg0, el_in, el_out, el_err);
 			if (el != NULL) {
 				if (hist)
 					el_set(el, EL_HIST, history, hist);
 				el_set(el, EL_PROMPT, getprompt);
+				el_set(el, EL_ADDFN, "sh-complete",
+				    "Filename completion",
+				    _el_fn_sh_complete);
 			} else {
 bad:
-				out2str("sh: can't initialize editing\n");
+				out2fmt_flush("sh: can't initialize editing\n");
 			}
 			INTON;
 		} else if (!editing && el) {
@@ -128,6 +141,7 @@ bad:
 				el_set(el, EL_EDITOR, "vi");
 			else if (Eflag)
 				el_set(el, EL_EDITOR, "emacs");
+			el_set(el, EL_BIND, "^I", "sh-complete", NULL);
 			el_source(el, NULL);
 		}
 	} else {
@@ -146,37 +160,45 @@ bad:
 
 
 void
-sethistsize(hs)
-	const char *hs;
+sethistsize(const char *hs)
 {
 	int histsize;
 	HistEvent he;
 
 	if (hist != NULL) {
-		if (hs == NULL || *hs == '\0' ||
-		   (histsize = atoi(hs)) < 0)
+		if (hs == NULL || !is_number(hs))
 			histsize = 100;
+		else
+			histsize = atoi(hs);
 		history(hist, &he, H_SETSIZE, histsize);
+		history(hist, &he, H_SETUNIQUE, 1);
 	}
 }
 
+void
+setterm(const char *term)
+{
+	if (rootshell && el != NULL && term != NULL)
+		el_set(el, EL_TERMINAL, term);
+}
+
 int
-histcmd(int argc, char **argv)
+histcmd(int argc, char **argv __unused)
 {
 	int ch;
-	char *editor = NULL;
+	const char *editor = NULL;
 	HistEvent he;
 	int lflg = 0, nflg = 0, rflg = 0, sflg = 0;
 	int i, retval;
-	char *firststr, *laststr;
+	const char *firststr, *laststr;
 	int first, last, direction;
-	char *pat = NULL, *repl;
+	char *pat = NULL, *repl = NULL;
 	static int active = 0;
 	struct jmploc jmploc;
 	struct jmploc *savehandler;
 	char editfilestr[PATH_MAX];
 	char *volatile editfile;
-	FILE *efp;
+	FILE *efp = NULL;
 	int oldhistnum;
 
 	if (hist == NULL)
@@ -185,13 +207,10 @@ histcmd(int argc, char **argv)
 	if (argc == 1)
 		error("missing history argument");
 
-	optreset = 1; optind = 1; /* initialize getopt */
-	opterr = 0;
-	while (not_fcnumber(argv[optind]) &&
-	      (ch = getopt(argc, argv, ":e:lnrs")) != -1)
+	while (not_fcnumber(*argptr) && (ch = nextopt("e:lnrs")) != '\0')
 		switch ((char)ch) {
 		case 'e':
-			editor = optarg;
+			editor = shoptarg;
 			break;
 		case 'l':
 			lflg = 1;
@@ -205,14 +224,9 @@ histcmd(int argc, char **argv)
 		case 's':
 			sflg = 1;
 			break;
-		case ':':
-			error("option -%c expects argument", optopt);
-		case '?':
-		default:
-			error("unknown option: -%c", optopt);
 		}
-	argc -= optind, argv += optind;
 
+	savehandler = handler;
 	/*
 	 * If executing...
 	 */
@@ -223,7 +237,6 @@ histcmd(int argc, char **argv)
 		 * Catch interrupts to reset active counter and
 		 * cleanup temp files.
 		 */
-		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
 			active = 0;
 			if (editfile)
@@ -255,31 +268,26 @@ histcmd(int argc, char **argv)
 	/*
 	 * If executing, parse [old=new] now
 	 */
-	if (lflg == 0 && argc > 0 &&
-	     ((repl = strchr(argv[0], '=')) != NULL)) {
-		pat = argv[0];
+	if (lflg == 0 && *argptr != NULL &&
+	     ((repl = strchr(*argptr, '=')) != NULL)) {
+		pat = *argptr;
 		*repl++ = '\0';
-		argc--, argv++;
+		argptr++;
 	}
 	/*
 	 * determine [first] and [last]
 	 */
-	switch (argc) {
-	case 0:
+	if (*argptr == NULL) {
 		firststr = lflg ? "-16" : "-1";
 		laststr = "-1";
-		break;
-	case 1:
-		firststr = argv[0];
-		laststr = lflg ? "-1" : argv[0];
-		break;
-	case 2:
-		firststr = argv[0];
-		laststr = argv[1];
-		break;
-	default:
-		error("too many args");
-	}
+	} else if (argptr[1] == NULL) {
+		firststr = argptr[0];
+		laststr = lflg ? "-1" : argptr[0];
+	} else if (argptr[2] == NULL) {
+		firststr = argptr[0];
+		laststr = argptr[1];
+	} else
+		error("too many arguments");
 	/*
 	 * Turn into event numbers.
 	 */
@@ -310,7 +318,7 @@ histcmd(int argc, char **argv)
 		editfile = editfilestr;
 		if ((efp = fdopen(fd, "w")) == NULL) {
 			close(fd);
-			error("can't allocate stdio buffer for temp");
+			error("Out of space");
 		}
 	}
 
@@ -330,12 +338,13 @@ histcmd(int argc, char **argv)
 				out1fmt("%5d ", he.num);
 			out1str(he.str);
 		} else {
-			char *s = pat ?
-			   fc_replace(he.str, pat, repl) : (char *)he.str;
+			const char *s = pat ?
+			   fc_replace(he.str, pat, repl) : he.str;
 
 			if (sflg) {
 				if (displayhist) {
 					out2str(s);
+					flushout(out2);
 				}
 				evalstring(s, 0);
 				if (displayhist && hist) {
@@ -350,7 +359,7 @@ histcmd(int argc, char **argv)
 					 * cursor, set it back to the current
 					 * entry.
 					 */
-					retval = history(hist, &he,
+					history(hist, &he,
 					    H_NEXT_EVENT, oldhistnum);
 				}
 			} else
@@ -379,10 +388,11 @@ histcmd(int argc, char **argv)
 		--active;
 	if (displayhist)
 		displayhist = 0;
+	handler = savehandler;
 	return 0;
 }
 
-STATIC char *
+static char *
 fc_replace(const char *s, char *p, char *r)
 {
 	char *dest;
@@ -391,21 +401,20 @@ fc_replace(const char *s, char *p, char *r)
 	STARTSTACKSTR(dest);
 	while (*s) {
 		if (*s == *p && strncmp(s, p, plen) == 0) {
-			while (*r)
-				STPUTC(*r++, dest);
+			STPUTS(r, dest);
 			s += plen;
 			*p = '\0';	/* so no more matches */
 		} else
 			STPUTC(*s++, dest);
 	}
-	STACKSTRNUL(dest);
+	STPUTC('\0', dest);
 	dest = grabstackstr(dest);
 
 	return (dest);
 }
 
-int
-not_fcnumber(char *s)
+static int
+not_fcnumber(const char *s)
 {
 	if (s == NULL)
 		return (0);
@@ -414,11 +423,11 @@ not_fcnumber(char *s)
 	return (!is_number(s));
 }
 
-int
-str_to_event(char *str, int last)
+static int
+str_to_event(const char *str, int last)
 {
 	HistEvent he;
-	char *s = str;
+	const char *s = str;
 	int relative = 0;
 	int i, retval;
 
@@ -468,7 +477,7 @@ bindcmd(int argc, char **argv)
 
 	if (el == NULL)
 		error("line editing is disabled");
-	return (el_parse(el, argc, (const char **)argv));
+	return (el_parse(el, argc, __DECONST(const char **, argv)));
 }
 
 #else

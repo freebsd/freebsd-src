@@ -57,7 +57,7 @@ and frames received on
 .Dv hook
 are transmitted out on the tty device.
 No modification to the data is performed in either direction.
-While the hook is installed on a tty, the normal read and write 
+While the hook is installed on a tty, the normal read and write
 operations are unavailable, returning
 .Er EIO .
 .Pp
@@ -80,9 +80,8 @@ type node.
 The hot character has no effect on the transmission of data.
 .Sh HOOKS
 This node type supports the following hooks:
-.Pp
-.Bl -tag -width foobar
-.It Dv hook
+.Bl -tag -width ".Va hook"
+.It Va hook
 .Xr tty 4
 serial data contained in
 .Dv mbuf
@@ -117,8 +116,8 @@ The
 node type was implemented in
 .Fx 4.0 .
 .Sh AUTHORS
-.An Archie Cobbs Aq archie@FreeBSD.org
-.An Andrew Thompson Aq thompsa@FreeBSD.org
+.An Archie Cobbs Aq Mt archie@FreeBSD.org
+.An Andrew Thompson Aq Mt thompsa@FreeBSD.org
 .Sh BUGS
 The serial driver code also has a notion of a
 .Dq hot character .

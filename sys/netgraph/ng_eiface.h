@@ -46,7 +46,7 @@
 
 /* MTU bounds */
 #define NG_EIFACE_MTU_MIN		72
-#define NG_EIFACE_MTU_MAX		2312
+#define NG_EIFACE_MTU_MAX		ETHER_MAX_LEN_JUMBO
 #define NG_EIFACE_MTU_DEFAULT		1500
 
 /* Netgraph commands */

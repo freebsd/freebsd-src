@@ -7,8 +7,130 @@
       http://www.greenwoodsoftware.com/less
   You can also download the latest version of less from there.
 
-  To report bugs, suggestions or comments, send email to 
-  bug-less@gnu.org or markn@greenwoodsoftware.com.
+  To report bugs, suggestions or comments, send email to bug-less@gnu.org
+
+======================================================================
+
+	Major changes between "less" versions 458 and 481
+
+* Don't overwrite history file; just append to it.
+
+* New command ESC-G goes to end of currently buffered data in a pipe.
+
+* Disable history feature when compiled with LESSHISTFILE set to "-".
+
+* In more-compatible mode, make the -p option apply to every file opened,
+  not just the first one.
+
+* In more-compatible mode, change the -e option to work like -E, not -EF.
+
+* Treat multiple CRs before LF are like one CR (all the CRs are hidden).
+
+* Allow "extra" string in lesskey file to append to a multi-char command
+  (like a search pattern), without executing the command.
+
+* Ignore -u/-U setting while viewing help file, so that 
+  underline and bold chars are displayed correctly.
+
+* Improve detection of "binary" files in UTF-8 mode.
+
+* Fix bug with ++ commands.
+
+* Fix bug where prompt was sometimes not displayed with +G.
+
+* Fix possible memory corruption 
+
+* Fix bugs and improve performance in ampersand filtering.
+
+* Automate construction of Unicode tables from Unicode database.
+
+* Allow %% escape sequence in LESSOPEN variable.
+
+======================================================================
+
+	Major changes between "less" versions 451 and 458
+
+* Allow backslash escaping of metacharacters in LESS environment variable
+  after the --use-backslash option.
+
+* Don't quit if syntax errors are found in command line options.
+
+* Increase sizes of some internal buffers.
+
+* Fix configure bug with --with-regex=none.
+
+* Fix crash with "stty rows 0".
+
+* Fix Win32 attribute display bug.
+
+* Fix display bug when using up/down arrow on the command line.
+
+======================================================================
+
+	Major changes between "less" versions 444 and 451
+
+* Add ESC-F command to keep reading data until a pattern is found.
+
+* Use exit code of LESSOPEN script if LESSOPEN starts with "||".
+
+* When up/down arrow is used on the command line immediately after
+  typing text, the next command starting with that text is found.
+
+* Add support for GNU regex.
+
+* Add configure option --with-regex=none and fix compile errors
+  when compiling with no regex library.
+
+* Fix bugs handling SGR sequences in Win32.
+
+* Fix possible crashes caused by malformed LESSOPEN or 
+  LESSCLOSE variables.
+
+* Fix bug highlighting text which is discontiguous in the file 
+  due to backspace processing.
+
+* Fix bug in displaying status column when scrolling backwards 
+  with -J and -S in effect.
+
+======================================================================
+
+	Major changes between "less" versions 443 and 444
+
+* Fix bug in unget handling that can cause strange effects on the
+  command line.
+
+* Remove vestiges of obsolete -l option that can cause a crash.
+
+======================================================================
+
+	Major changes between "less" versions 436 and 443
+
+* Change search behavior such that when a search is given an explicit 
+  pattern, the entire displayed screen is included in the search and 
+  not just the portion after the target line.
+
+* Add -A option to change search behavior to the old way: only
+  the portion of the screen after the target line is searched.
+
+* Add %F formatting to prompt strings, replaced by the last component
+  of the input file.
+
+* Control-G while editing a command exits the command.
+
+* Less now exits with status 2 if control-C is pressed and -K is in effect.
+
+* Fix "ungetc overflow" when passing long commands via the -p option.
+
+* Fix bug in using line filtering via the & command 
+  in combination with -i and -I.
+
+* Fix bug in handling negative arguments to the -j option.
+
+* Fix bug in handling %t in prompt strings.
+
+* Improve handling of long option names.
+
+* Improve percentage calculation for very large files.
 
 ======================================================================
 

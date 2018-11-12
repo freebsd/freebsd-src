@@ -63,27 +63,31 @@ __FBSDID("$FreeBSD$");
 
 
 #define EMPTY -2		/* marks an unused slot in redirtab */
-#define PIPESIZE 4096		/* amount of buffering in a pipe */
+#define CLOSED -1		/* fd was not open before redir */
 
 
-MKINIT
 struct redirtab {
 	struct redirtab *next;
 	int renamed[10];
+	int fd0_redirected;
+	unsigned int empty_redirs;
 };
 
 
-MKINIT struct redirtab *redirlist;
+static struct redirtab *redirlist;
 
 /*
  * We keep track of whether or not fd0 has been redirected.  This is for
  * background commands, where we want to redirect fd0 to /dev/null only
  * if it hasn't already been redirected.
 */
-STATIC int fd0_redirected = 0;
+static int fd0_redirected = 0;
 
-STATIC void openredirect(union node *, char[10 ]);
-STATIC int openhere(union node *);
+/* Number of redirtabs that have not been allocated. */
+static unsigned int empty_redirs = 0;
+
+static void openredirect(union node *, char[10 ]);
+static int openhere(union node *);
 
 
 /*
@@ -92,6 +96,13 @@ STATIC int openhere(union node *);
  * undone by calling popredir.  If the REDIR_BACKQ flag is set, then the
  * standard output, and the standard error if it becomes a duplicate of
  * stdout, is saved in memory.
+*
+ * We suppress interrupts so that we won't leave open file
+ * descriptors around.  Because the signal handler remains
+ * installed and we do not use system call restart, interrupts
+ * will still abort blocking opens such as fifos (they will fail
+ * with EINTR). There is, however, a race condition if an interrupt
+ * arrives after INTOFF and before open blocks.
  */
 
 void
@@ -101,92 +112,82 @@ redirect(union node *redir, int flags)
 	struct redirtab *sv = NULL;
 	int i;
 	int fd;
-	int try;
 	char memory[10];	/* file descriptors to write to memory */
 
+	INTOFF;
 	for (i = 10 ; --i >= 0 ; )
 		memory[i] = 0;
 	memory[1] = flags & REDIR_BACKQ;
 	if (flags & REDIR_PUSH) {
-		sv = ckmalloc(sizeof (struct redirtab));
-		for (i = 0 ; i < 10 ; i++)
-			sv->renamed[i] = EMPTY;
-		sv->next = redirlist;
-		redirlist = sv;
+		empty_redirs++;
+		if (redir != NULL) {
+			sv = ckmalloc(sizeof (struct redirtab));
+			for (i = 0 ; i < 10 ; i++)
+				sv->renamed[i] = EMPTY;
+			sv->fd0_redirected = fd0_redirected;
+			sv->empty_redirs = empty_redirs - 1;
+			sv->next = redirlist;
+			redirlist = sv;
+			empty_redirs = 0;
+		}
 	}
 	for (n = redir ; n ; n = n->nfile.next) {
 		fd = n->nfile.fd;
-		try = 0;
+		if (fd == 0)
+			fd0_redirected = 1;
 		if ((n->nfile.type == NTOFD || n->nfile.type == NFROMFD) &&
 		    n->ndup.dupfd == fd)
 			continue; /* redirect from/to same file descriptor */
 
 		if ((flags & REDIR_PUSH) && sv->renamed[fd] == EMPTY) {
 			INTOFF;
-again:
-			if ((i = fcntl(fd, F_DUPFD, 10)) == -1) {
+			if ((i = fcntl(fd, F_DUPFD_CLOEXEC, 10)) == -1) {
 				switch (errno) {
 				case EBADF:
-					if (!try) {
-						openredirect(n, memory);
-						try++;
-						goto again;
-					}
-					/* FALLTHROUGH*/
+					i = CLOSED;
+					break;
 				default:
 					INTON;
 					error("%d: %s", fd, strerror(errno));
 					break;
 				}
 			}
-			if (!try) {
-				sv->renamed[fd] = i;
-			}
+			sv->renamed[fd] = i;
 			INTON;
 		}
-		if (fd == 0)
-			fd0_redirected++;
-		if (!try)
-			openredirect(n, memory);
+		openredirect(n, memory);
+		INTON;
+		INTOFF;
 	}
 	if (memory[1])
 		out1 = &memout;
 	if (memory[2])
 		out2 = &memout;
+	INTON;
 }
 
 
-STATIC void
+static void
 openredirect(union node *redir, char memory[10])
 {
 	struct stat sb;
 	int fd = redir->nfile.fd;
-	char *fname;
+	const char *fname;
 	int f;
+	int e;
 
-	/*
-	 * We suppress interrupts so that we won't leave open file
-	 * descriptors around.  This may not be such a good idea because
-	 * an open of a device or a fifo can block indefinitely.
-	 */
-	INTOFF;
 	memory[fd] = 0;
 	switch (redir->nfile.type) {
 	case NFROM:
 		fname = redir->nfile.expfname;
 		if ((f = open(fname, O_RDONLY)) < 0)
 			error("cannot open %s: %s", fname, strerror(errno));
-movefd:
-		if (f != fd) {
-			dup2(f, fd);
-			close(f);
-		}
 		break;
 	case NFROMTO:
 		fname = redir->nfile.expfname;
 		if ((f = open(fname, O_RDWR|O_CREAT, 0666)) < 0)
 			error("cannot create %s: %s", fname, strerror(errno));
-		goto movefd;
+		break;
 	case NTO:
 		if (Cflag) {
 			fname = redir->nfile.expfname;
@@ -204,38 +205,48 @@ movefd:
 			} else
 				error("cannot create %s: %s", fname,
 				    strerror(EEXIST));
-			goto movefd;
+			break;
 		}
 		/* FALLTHROUGH */
 	case NCLOBBER:
 		fname = redir->nfile.expfname;
 		if ((f = open(fname, O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0)
 			error("cannot create %s: %s", fname, strerror(errno));
-		goto movefd;
+		break;
 	case NAPPEND:
 		fname = redir->nfile.expfname;
 		if ((f = open(fname, O_WRONLY|O_CREAT|O_APPEND, 0666)) < 0)
 			error("cannot create %s: %s", fname, strerror(errno));
-		goto movefd;
+		break;
 	case NTOFD:
 	case NFROMFD:
 		if (redir->ndup.dupfd >= 0) {	/* if not ">&-" */
 			if (memory[redir->ndup.dupfd])
 				memory[fd] = 1;
-			else
-				dup2(redir->ndup.dupfd, fd);
+			else {
+				if (dup2(redir->ndup.dupfd, fd) < 0)
+					error("%d: %s", redir->ndup.dupfd,
+							strerror(errno));
+			}
 		} else {
 			close(fd);
 		}
-		break;
+		return;
 	case NHERE:
 	case NXHERE:
 		f = openhere(redir);
-		goto movefd;
+		break;
 	default:
 		abort();
 	}
-	INTON;
+	if (f != fd) {
+		if (dup2(f, fd) == -1) {
+			e = errno;
+			close(f);
+			error("%d: %s", fd, strerror(e));
+		}
+		close(f);
+	}
 }
 
 
@@ -245,21 +256,35 @@ movefd:
  * the pipe without forking.
  */
 
-STATIC int
+static int
 openhere(union node *redir)
 {
+	const char *p;
 	int pip[2];
-	int len = 0;
+	size_t len = 0;
+	int flags;
+	ssize_t written = 0;
 
 	if (pipe(pip) < 0)
 		error("Pipe call failed: %s", strerror(errno));
-	if (redir->type == NHERE) {
-		len = strlen(redir->nhere.doc->narg.text);
-		if (len <= PIPESIZE) {
-			xwrite(pip[1], redir->nhere.doc->narg.text, len);
+
+	if (redir->type == NXHERE)
+		p = redir->nhere.expdoc;
+	else
+		p = redir->nhere.doc->narg.text;
+	len = strlen(p);
+	if (len == 0)
+		goto out;
+	flags = fcntl(pip[1], F_GETFL, 0);
+	if (flags != -1 && fcntl(pip[1], F_SETFL, flags | O_NONBLOCK) != -1) {
+		written = write(pip[1], p, len);
+		if (written < 0)
+			written = 0;
+		if ((size_t)written == len)
 			goto out;
-		}
+		fcntl(pip[1], F_SETFL, flags);
 	}
+
 	if (forkshell((struct job *)NULL, (union node *)NULL, FORK_NOJOB) == 0) {
 		close(pip[0]);
 		signal(SIGINT, SIG_IGN);
@@ -267,10 +292,7 @@ openhere(union node *redir)
 		signal(SIGHUP, SIG_IGN);
 		signal(SIGTSTP, SIG_IGN);
 		signal(SIGPIPE, SIG_DFL);
-		if (redir->type == NHERE)
-			xwrite(pip[1], redir->nhere.doc->narg.text, len);
-		else
-			expandhere(redir->nhere.doc, pip[1]);
+		xwrite(pip[1], p + written, len - written);
 		_exit(0);
 	}
 out:
@@ -290,10 +312,14 @@ popredir(void)
 	struct redirtab *rp = redirlist;
 	int i;
 
+	INTOFF;
+	if (empty_redirs > 0) {
+		empty_redirs--;
+		INTON;
+		return;
+	}
 	for (i = 0 ; i < 10 ; i++) {
 		if (rp->renamed[i] != EMPTY) {
-                        if (i == 0)
-                                fd0_redirected--;
 			if (rp->renamed[i] >= 0) {
 				dup2(rp->renamed[i], i);
 				close(rp->renamed[i]);
@@ -302,30 +328,12 @@ popredir(void)
 			}
 		}
 	}
-	INTOFF;
+	fd0_redirected = rp->fd0_redirected;
+	empty_redirs = rp->empty_redirs;
 	redirlist = rp->next;
 	ckfree(rp);
 	INTON;
 }
-
-/*
- * Undo all redirections.  Called on error or interrupt.
- */
-
-#ifdef mkinit
-
-INCLUDE "redir.h"
-
-RESET {
-	while (redirlist)
-		popredir();
-}
-
-SHELLPROC {
-	clearredir();
-}
-
-#endif
 
 /* Return true if fd 0 has already been redirected at least once.  */
 int

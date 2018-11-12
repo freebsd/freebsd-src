@@ -1,5 +1,6 @@
 /* ia64-opc-i.c -- IA-64 `I' opcode table.
-   Copyright 1998, 1999, 2000, 2002 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2002, 2005, 2006
+   Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GDB, GAS, and the GNU binutils.
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this file; see the file COPYING.  If not, write to the
-   Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "ia64-opc.h"
 
@@ -36,6 +37,7 @@
 #define bWh(x)		(((ia64_insn) ((x) & 0x3)) << 20)
 #define bX(x)		(((ia64_insn) ((x) & 0x1)) << 33)
 #define bXb(x)		(((ia64_insn) ((x) & 0x1)) << 22)
+#define bXc(x)		(((ia64_insn) ((x) & 0x1)) << 19)
 #define bX2(x)		(((ia64_insn) ((x) & 0x3)) << 34)
 #define bX2a(x)		(((ia64_insn) ((x) & 0x3)) << 34)
 #define bX2b(x)		(((ia64_insn) ((x) & 0x3)) << 28)
@@ -58,6 +60,7 @@
 #define mWh	bWh (-1)
 #define mX	bX (-1)
 #define mXb	bXb (-1)
+#define mXc	bXc (-1)
 #define mX2	bX2 (-1)
 #define mX2a	bX2a (-1)
 #define mX2b	bX2b (-1)
@@ -83,6 +86,9 @@
 #define OpX2TaTbYaC(a,b,c,d,e,f) \
 	(bOp (a) | bX2 (b) | bTa (c) | bTb (d) | bYa (e) | bC (f)), \
 	(mOp | mX2 | mTa | mTb | mYa | mC)
+#define OpX2TaTbYaXcC(a,b,c,d,e,f,g) \
+	(bOp (a) | bX2 (b) | bTa (c) | bTb (d) | bYa (e) | bXc (f) | bC (g)), \
+	(mOp | mX2 | mTa | mTb | mYa | mXc | mC)
 #define OpX3(a,b)		(bOp (a) | bX3 (b)), (mOp | mX3)
 #define OpX3X6(a,b,c)		(bOp (a) | bX3 (b) | bX6(c)), \
 				(mOp | mX3 | mX6)
@@ -94,6 +100,8 @@
 #define OpX3XbIhWhTag13(a,b,c,d,e,f) \
      (bOp (a) | bX3 (b) | bXb (c) | bIh (d) | bWh (e) | bTag13 (f)), \
      (mOp | mX3 | mXb | mIh | mWh | mTag13)
+
+#define FULL17 ((ia64_insn)0x10ff001fc0LL)
 
 /* Used to initialise unused fields in ia64_opcode struct,
    in order to stop gcc from complaining.  */
@@ -126,6 +134,8 @@ struct ia64_opcode ia64_opcodes_i[] =
 #undef MOV
     {"mov",	I, OpX3X6 (0, 0, 0x31), {R1, B2}, EMPTY},
     {"mov",	I, OpX3 (0, 3), {PR, R2, IMM17}, EMPTY},
+    /* Don't remove one of the seemingly redundant FULL17-s.  */
+    {"mov",	I, FULL17 | OpX3 (0, 3) | FULL17, {PR, R2}, PSEUDO, 0, NULL},
     {"mov",	I, OpX3 (0, 2), {PR_ROT, IMM44}, EMPTY},
     {"mov",	I, OpX3X6 (0, 0, 0x30), {R1, IP}, EMPTY},
     {"mov",	I, OpX3X6 (0, 0, 0x33), {R1, PR}, EMPTY},
@@ -160,6 +170,28 @@ struct ia64_opcode ia64_opcodes_i[] =
     {"dep.z",	I, OpX2XYb (5, 1, 1, 0), {R1, R2, CPOS6a, LEN6}, EMPTY},
     {"dep.z",	I, OpX2XYb (5, 1, 1, 1), {R1, IMM8, CPOS6a, LEN6}, EMPTY},
     {"dep",	I, OpX2X (5, 3, 1), {R1, IMM1, R3, CPOS6b, LEN6}, EMPTY},
+#define TF(a,b,c) \
+	I2, OpX2TaTbYaXcC (5, 0, a, b, 1, 1, c), {P1, P2, IMMU5b}, EMPTY
+#define TFCM(a,b,c) \
+	I2, OpX2TaTbYaXcC (5, 0, a, b, 1, 1, c), {P2, P1, IMMU5b}, PSEUDO, 0, NULL
+    {"tf.z",		 TF   (0, 0, 0)},
+    {"tf.nz",		 TFCM (0, 0, 0)},
+    {"tf.z.unc",	 TF   (0, 0, 1)},
+    {"tf.nz.unc",	 TFCM (0, 0, 1)},
+    {"tf.z.and",	 TF   (0, 1, 0)},
+    {"tf.nz.andcm",	 TFCM (0, 1, 0)},
+    {"tf.nz.and",	 TF   (0, 1, 1)},
+    {"tf.z.andcm",	 TFCM (0, 1, 1)},
+    {"tf.z.or",		 TF   (1, 0, 0)},
+    {"tf.nz.orcm",	 TFCM (1, 0, 0)},
+    {"tf.nz.or",	 TF   (1, 0, 1)},
+    {"tf.z.orcm",	 TFCM (1, 0, 1)},
+    {"tf.z.or.andcm",	 TF   (1, 1, 0)},
+    {"tf.nz.and.orcm",	 TFCM (1, 1, 0)},
+    {"tf.nz.or.andcm",	 TF   (1, 1, 1)},
+    {"tf.z.and.orcm",	 TFCM (1, 1, 1)},
+#undef TF
+#undef TFCM
 #define TBIT(a,b,c,d) \
         I2, OpX2TaTbYaC (5, 0, a, b, c, d), {P1, P2, R3, POS6}, EMPTY
 #define TBITCM(a,b,c,d)	\
@@ -181,6 +213,7 @@ struct ia64_opcode ia64_opcodes_i[] =
     {"tbit.nz.or.andcm", TBIT   (1, 1, 0, 1)},
     {"tbit.z.and.orcm",  TBITCM (1, 1, 0, 1)},
 #undef TBIT
+#undef TBITCM
 #define TNAT(a,b,c,d) \
 	I2, OpX2TaTbYaC (5, 0, a, b, c, d), {P1, P2, R3}, EMPTY
 #define TNATCM(a,b,c,d) \
@@ -202,6 +235,7 @@ struct ia64_opcode ia64_opcodes_i[] =
     {"tnat.nz.or.andcm", TNAT   (1, 1, 1, 1)},
     {"tnat.z.and.orcm",  TNATCM (1, 1, 1, 1)},
 #undef TNAT
+#undef TNATCM
 
     {"pmpyshr2",   I, OpZaZbVeX2aX2b (7, 0, 1, 0, 0, 3), {R1, R2, R3, CNT2c}, EMPTY},
     {"pmpyshr2.u", I, OpZaZbVeX2aX2b (7, 0, 1, 0, 0, 1), {R1, R2, R3, CNT2c}, EMPTY},

@@ -42,6 +42,7 @@
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -62,10 +63,13 @@
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_dl.h>
-#include <net/route.h>
+#include <net/if_media.h>
 #include <net/if_types.h>
+#include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 
@@ -76,8 +80,8 @@
 #define CDEV_NAME	"tap"
 #define TAPDEBUG	if (tapdebug) printf
 
-#define TAP		"tap"
-#define VMNET		"vmnet"
+static const char tapname[] = "tap";
+static const char vmnetname[] = "vmnet";
 #define TAPMAXUNIT	0x7fff
 #define VMNET_DEV_MASK	CLONE_FLAG0
 
@@ -96,11 +100,10 @@ static void		tapifinit(void *);
 
 static int		tap_clone_create(struct if_clone *, int, caddr_t);
 static void		tap_clone_destroy(struct ifnet *);
+static struct if_clone *tap_cloner;
 static int		vmnet_clone_create(struct if_clone *, int, caddr_t);
 static void		vmnet_clone_destroy(struct ifnet *);
-
-IFC_SIMPLE_DECLARE(tap, 0);
-IFC_SIMPLE_DECLARE(vmnet, 0);
+static struct if_clone *vmnet_cloner;
 
 /* character device */
 static d_open_t		tapopen;
@@ -132,7 +135,7 @@ static struct filterops	tap_write_filterops = {
 
 static struct cdevsw	tap_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_PSEUDO | D_NEEDGIANT | D_NEEDMINOR,
+	.d_flags =	D_NEEDMINOR,
 	.d_open =	tapopen,
 	.d_close =	tapclose,
 	.d_read =	tapread,
@@ -161,17 +164,15 @@ MALLOC_DEFINE(M_TAP, CDEV_NAME, "Ethernet tunnel interface");
 SYSCTL_INT(_debug, OID_AUTO, if_tap_debug, CTLFLAG_RW, &tapdebug, 0, "");
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, OID_AUTO, tap, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_link, OID_AUTO, tap, CTLFLAG_RW, 0,
     "Ethernet tunnel software network interface");
 SYSCTL_INT(_net_link_tap, OID_AUTO, user_open, CTLFLAG_RW, &tapuopen, 0,
 	"Allow user to open /dev/tap (based on node permissions)");
 SYSCTL_INT(_net_link_tap, OID_AUTO, up_on_open, CTLFLAG_RW, &tapuponopen, 0,
 	"Bring interface up when /dev/tap is opened");
-SYSCTL_INT(_net_link_tap, OID_AUTO, devfs_cloning, CTLFLAG_RW, &tapdclone, 0,
-	"Enably legacy devfs interface creation");
+SYSCTL_INT(_net_link_tap, OID_AUTO, devfs_cloning, CTLFLAG_RWTUN, &tapdclone, 0,
+	"Enable legacy devfs interface creation");
 SYSCTL_INT(_net_link_tap, OID_AUTO, debug, CTLFLAG_RW, &tapdebug, 0, "");
-
-TUNABLE_INT("net.link.tap.devfs_cloning", &tapdclone);
 
 DEV_MODULE(if_tap, tapmodevent, NULL);
 
@@ -180,22 +181,12 @@ tap_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
 	struct cdev *dev;
 	int i;
-	int extra;
 
-	if (strcmp(ifc->ifc_name, VMNET) == 0)
-		extra = VMNET_DEV_MASK;
-	else
-		extra = 0;
-
-	/* find any existing device, or allocate new unit number */
-	i = clone_create(&tapclones, &tap_cdevsw, &unit, &dev, extra);
+	/* Find any existing device, or allocate new unit number. */
+	i = clone_create(&tapclones, &tap_cdevsw, &unit, &dev, 0);
 	if (i) {
-		dev = make_dev(&tap_cdevsw, unit | extra,
-		     UID_ROOT, GID_WHEEL, 0600, "%s%d", ifc->ifc_name, unit);
-		if (dev != NULL) {
-			dev_ref(dev);
-			dev->si_flags |= SI_CHEAPCLONE;
-		}
+		dev = make_dev(&tap_cdevsw, unit, UID_ROOT, GID_WHEEL, 0600,
+		    "%s%d", tapname, unit);
 	}
 
 	tapcreate(dev);
@@ -206,28 +197,36 @@ tap_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 static int
 vmnet_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
-	return tap_clone_create(ifc, unit, params);
+	struct cdev *dev;
+	int i;
+
+	/* Find any existing device, or allocate new unit number. */
+	i = clone_create(&tapclones, &tap_cdevsw, &unit, &dev, VMNET_DEV_MASK);
+	if (i) {
+		dev = make_dev(&tap_cdevsw, unit | VMNET_DEV_MASK, UID_ROOT,
+		    GID_WHEEL, 0600, "%s%d", vmnetname, unit);
+	}
+
+	tapcreate(dev);
+	return (0);
 }
 
 static void
 tap_destroy(struct tap_softc *tp)
 {
 	struct ifnet *ifp = tp->tap_ifp;
-	int s;
 
-	/* Unlocked read. */
-	KASSERT(!(tp->tap_flags & TAP_OPEN),
-		("%s flags is out of sync", ifp->if_xname));
-
-	knlist_destroy(&tp->tap_rsel.si_note);
+	CURVNET_SET(ifp->if_vnet);
 	destroy_dev(tp->tap_dev);
-	s = splimp();
+	seldrain(&tp->tap_rsel);
+	knlist_clear(&tp->tap_rsel.si_note, 0);
+	knlist_destroy(&tp->tap_rsel.si_note);
 	ether_ifdetach(ifp);
-	if_free_type(ifp, IFT_ETHER);
-	splx(s);
+	if_free(ifp);
 
 	mtx_destroy(&tp->tap_mtx);
 	free(tp, M_TAP);
+	CURVNET_RESTORE();
 }
 
 static void
@@ -275,8 +274,10 @@ tapmodevent(module_t mod, int type, void *data)
 			mtx_destroy(&tapmtx);
 			return (ENOMEM);
 		}
-		if_clone_attach(&tap_cloner);
-		if_clone_attach(&vmnet_cloner);
+		tap_cloner = if_clone_simple(tapname, tap_clone_create,
+		    tap_clone_destroy, 0);
+		vmnet_cloner = if_clone_simple(vmnetname, vmnet_clone_create,
+		    vmnet_clone_destroy, 0);
 		return (0);
 
 	case MOD_UNLOAD:
@@ -298,8 +299,9 @@ tapmodevent(module_t mod, int type, void *data)
 		mtx_unlock(&tapmtx);
 
 		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
-		if_clone_detach(&tap_cloner);
-		if_clone_detach(&vmnet_cloner);
+		if_clone_detach(tap_cloner);
+		if_clone_detach(vmnet_cloner);
+		drain_dev_clone_events();
 
 		mtx_lock(&tapmtx);
 		while ((tp = SLIST_FIRST(&taphead)) != NULL) {
@@ -352,13 +354,13 @@ tapclone(void *arg, struct ucred *cred, char *name, int namelen, struct cdev **d
 	extra = 0;
 
 	/* We're interested in only tap/vmnet devices. */
-	if (strcmp(name, TAP) == 0) {
+	if (strcmp(name, tapname) == 0) {
 		unit = -1;
-	} else if (strcmp(name, VMNET) == 0) {
+	} else if (strcmp(name, vmnetname) == 0) {
 		unit = -1;
 		extra = VMNET_DEV_MASK;
-	} else if (dev_stdclone(name, NULL, TAP, &unit) != 1) {
-		if (dev_stdclone(name, NULL, VMNET, &unit) != 1) {
+	} else if (dev_stdclone(name, NULL, tapname, &unit) != 1) {
+		if (dev_stdclone(name, NULL, vmnetname, &unit) != 1) {
 			return;
 		} else {
 			extra = VMNET_DEV_MASK;
@@ -368,6 +370,7 @@ tapclone(void *arg, struct ucred *cred, char *name, int namelen, struct cdev **d
 	if (unit == -1)
 		append_unit = 1;
 
+	CURVNET_SET(CRED_TO_VNET(cred));
 	/* find any existing device, or allocate new unit number */
 	i = clone_create(&tapclones, &tap_cdevsw, &unit, dev, extra);
 	if (i) {
@@ -381,15 +384,12 @@ tapclone(void *arg, struct ucred *cred, char *name, int namelen, struct cdev **d
 			name = devname;
 		}
 
-		*dev = make_dev(&tap_cdevsw, unit | extra,
-		     UID_ROOT, GID_WHEEL, 0600, "%s", name);
-		if (*dev != NULL) {
-			dev_ref(*dev);
-			(*dev)->si_flags |= SI_CHEAPCLONE;
-		}
+		*dev = make_dev_credf(MAKEDEV_REF, &tap_cdevsw, unit | extra,
+		     cred, UID_ROOT, GID_WHEEL, 0600, "%s", name);
 	}
 
 	if_clone_create(name, namelen, NULL);
+	CURVNET_RESTORE();
 } /* tapclone */
 
 
@@ -405,11 +405,9 @@ tapcreate(struct cdev *dev)
 	struct tap_softc	*tp = NULL;
 	unsigned short		 macaddr_hi;
 	uint32_t		 macaddr_mid;
-	int			 unit, s;
-	char			*name = NULL;
+	int			 unit;
+	const char		*name = NULL;
 	u_char			eaddr[6];
-
-	dev->si_flags &= ~SI_CHEAPCLONE;
 
 	/* allocate driver storage and create device */
 	tp = malloc(sizeof(*tp), M_TAP, M_WAITOK | M_ZERO);
@@ -422,10 +420,10 @@ tapcreate(struct cdev *dev)
 
 	/* select device: tap or vmnet */
 	if (unit & VMNET_DEV_MASK) {
-		name = VMNET;
+		name = vmnetname;
 		tp->tap_flags |= TAP_VMNET;
 	} else
-		name = TAP;
+		name = tapname;
 
 	unit &= TAPMAXUNIT;
 
@@ -449,20 +447,20 @@ tapcreate(struct cdev *dev)
 	ifp->if_ioctl = tapifioctl;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST);
-	ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_capabilities |= IFCAP_LINKSTATE;
+	ifp->if_capenable |= IFCAP_LINKSTATE;
 
 	dev->si_drv1 = tp;
 	tp->tap_dev = dev;
 
-	s = splimp();
 	ether_ifattach(ifp, eaddr);
-	splx(s);
 
 	mtx_lock(&tp->tap_mtx);
 	tp->tap_flags |= TAP_INITED;
 	mtx_unlock(&tp->tap_mtx);
 
-	knlist_init_mtx(&tp->tap_rsel.si_note, NULL);
+	knlist_init_mtx(&tp->tap_rsel.si_note, &tp->tap_mtx);
 
 	TAPDEBUG("interface %s is created. minor = %#x\n", 
 		ifp->if_xname, dev2unit(dev));
@@ -479,7 +477,7 @@ tapopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct tap_softc	*tp = NULL;
 	struct ifnet		*ifp = NULL;
-	int			 error, s;
+	int			 error;
 
 	if (tapuopen == 0) {
 		error = priv_check(td, PRIV_NET_TAP);
@@ -502,14 +500,13 @@ tapopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	tp->tap_pid = td->td_proc->p_pid;
 	tp->tap_flags |= TAP_OPEN;
 	ifp = tp->tap_ifp;
-	mtx_unlock(&tp->tap_mtx);
 
-	s = splimp();
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	if (tapuponopen)
 		ifp->if_flags |= IFF_UP;
-	splx(s);
+	if_link_state_change(ifp, LINK_STATE_UP);
+	mtx_unlock(&tp->tap_mtx);
 
 	TAPDEBUG("%s is open. minor = %#x\n", ifp->if_xname, dev2unit(dev));
 
@@ -528,37 +525,39 @@ tapclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	struct ifaddr		*ifa;
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = tp->tap_ifp;
-	int			s;
 
 	/* junk all pending output */
+	mtx_lock(&tp->tap_mtx);
+	CURVNET_SET(ifp->if_vnet);
 	IF_DRAIN(&ifp->if_snd);
 
 	/*
-	 * do not bring the interface down, and do not anything with
-	 * interface, if we are in VMnet mode. just close the device.
+	 * Do not bring the interface down, and do not anything with
+	 * interface, if we are in VMnet mode. Just close the device.
 	 */
-
-	mtx_lock(&tp->tap_mtx);
-	if (((tp->tap_flags & TAP_VMNET) == 0) && (ifp->if_flags & IFF_UP)) {
+	if (((tp->tap_flags & TAP_VMNET) == 0) &&
+	    (ifp->if_flags & (IFF_UP | IFF_LINK0)) == IFF_UP) {
 		mtx_unlock(&tp->tap_mtx);
-		s = splimp();
 		if_down(ifp);
+		mtx_lock(&tp->tap_mtx);
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			mtx_unlock(&tp->tap_mtx);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				rtinit(ifa, (int)RTM_DELETE, 0);
 			}
 			if_purgeaddrs(ifp);
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			mtx_lock(&tp->tap_mtx);
 		}
-		splx(s);
-	} else
-		mtx_unlock(&tp->tap_mtx);
+	}
+
+	if_link_state_change(ifp, LINK_STATE_DOWN);
+	CURVNET_RESTORE();
 
 	funsetown(&tp->tap_sigio);
 	selwakeuppri(&tp->tap_rsel, PZERO+1);
-	KNOTE_UNLOCKED(&tp->tap_rsel.si_note, 0);
+	KNOTE_LOCKED(&tp->tap_rsel.si_note, 0);
 
-	mtx_lock(&tp->tap_mtx);
 	tp->tap_flags &= ~TAP_OPEN;
 	tp->tap_pid = 0;
 	mtx_unlock(&tp->tap_mtx);
@@ -583,8 +582,10 @@ tapifinit(void *xtp)
 
 	TAPDEBUG("initializing %s\n", ifp->if_xname);
 
+	mtx_lock(&tp->tap_mtx);
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	mtx_unlock(&tp->tap_mtx);
 
 	/* attempt to start output */
 	tapifstart(ifp);
@@ -602,7 +603,8 @@ tapifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct tap_softc	*tp = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *)data;
 	struct ifstat		*ifs = NULL;
-	int			 s, dummy;
+	struct ifmediareq	*ifmr = NULL;
+	int			 dummy, error = 0;
 
 	switch (cmd) {
 		case SIOCSIFFLAGS: /* XXX -- just like vmnet does */
@@ -610,32 +612,43 @@ tapifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case SIOCDELMULTI:
 			break;
 
+		case SIOCGIFMEDIA:
+			ifmr = (struct ifmediareq *)data;
+			dummy = ifmr->ifm_count;
+			ifmr->ifm_count = 1;
+			ifmr->ifm_status = IFM_AVALID;
+			ifmr->ifm_active = IFM_ETHER;
+			if (tp->tap_flags & TAP_OPEN)
+				ifmr->ifm_status |= IFM_ACTIVE;
+			ifmr->ifm_current = ifmr->ifm_active;
+			if (dummy >= 1) {
+				int media = IFM_ETHER;
+				error = copyout(&media, ifmr->ifm_ulist,
+				    sizeof(int));
+			}
+			break;
+
 		case SIOCSIFMTU:
 			ifp->if_mtu = ifr->ifr_mtu;
 			break;
 
 		case SIOCGIFSTATUS:
-			s = splimp();
 			ifs = (struct ifstat *)data;
-			dummy = strlen(ifs->ascii);
 			mtx_lock(&tp->tap_mtx);
-			if (tp->tap_pid != 0 && dummy < sizeof(ifs->ascii))
-				snprintf(ifs->ascii + dummy,
-					sizeof(ifs->ascii) - dummy,
+			if (tp->tap_pid != 0)
+				snprintf(ifs->ascii, sizeof(ifs->ascii),
 					"\tOpened by PID %d\n", tp->tap_pid);
+			else
+				ifs->ascii[0] = '\0';
 			mtx_unlock(&tp->tap_mtx);
-			splx(s);
 			break;
 
 		default:
-			s = splimp();
-			dummy = ether_ioctl(ifp, cmd, data);
-			splx(s);
-			return (dummy);
-			/* NOT REACHED */
+			error = ether_ioctl(ifp, cmd, data);
+			break;
 	}
 
-	return (0);
+	return (error);
 } /* tapifioctl */
 
 
@@ -648,7 +661,6 @@ static void
 tapifstart(struct ifnet *ifp)
 {
 	struct tap_softc	*tp = ifp->if_softc;
-	int			 s;
 
 	TAPDEBUG("%s starting\n", ifp->if_xname);
 
@@ -660,32 +672,28 @@ tapifstart(struct ifnet *ifp)
 	mtx_lock(&tp->tap_mtx);
 	if (((tp->tap_flags & TAP_VMNET) == 0) &&
 	    ((tp->tap_flags & TAP_READY) != TAP_READY)) {
-		struct mbuf	*m = NULL;
-
-		mtx_unlock(&tp->tap_mtx);
+		struct mbuf *m;
 
 		/* Unlocked read. */
 		TAPDEBUG("%s not ready, tap_flags = 0x%x\n", ifp->if_xname, 
 		    tp->tap_flags);
 
-		s = splimp();
-		do {
+		for (;;) {
 			IF_DEQUEUE(&ifp->if_snd, m);
-			if (m != NULL)
+			if (m != NULL) {
 				m_freem(m);
-			ifp->if_oerrors ++;
-		} while (m != NULL);
-		splx(s);
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			} else
+				break;
+		}
+		mtx_unlock(&tp->tap_mtx);
 
 		return;
 	}
-	mtx_unlock(&tp->tap_mtx);
 
-	s = splimp();
 	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
-	if (ifp->if_snd.ifq_len != 0) {
-		mtx_lock(&tp->tap_mtx);
+	if (!IFQ_IS_EMPTY(&ifp->if_snd)) {
 		if (tp->tap_flags & TAP_RWAIT) {
 			tp->tap_flags &= ~TAP_RWAIT;
 			wakeup(tp);
@@ -694,16 +702,16 @@ tapifstart(struct ifnet *ifp)
 		if ((tp->tap_flags & TAP_ASYNC) && (tp->tap_sigio != NULL)) {
 			mtx_unlock(&tp->tap_mtx);
 			pgsigio(&tp->tap_sigio, SIGIO, 0);
-		} else
-			mtx_unlock(&tp->tap_mtx);
+			mtx_lock(&tp->tap_mtx);
+		}
 
 		selwakeuppri(&tp->tap_rsel, PZERO+1);
-		KNOTE_UNLOCKED(&tp->tap_rsel.si_note, 0);
-		ifp->if_opackets ++; /* obytes are counted in ether_output */
+		KNOTE_LOCKED(&tp->tap_rsel.si_note, 0);
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1); /* obytes are counted in ether_output */
 	}
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	splx(s);
+	mtx_unlock(&tp->tap_mtx);
 } /* tapifstart */
 
 
@@ -718,7 +726,6 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = tp->tap_ifp;
 	struct tapinfo		*tapp = NULL;
-	int			 s;
 	int			 f;
 #if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD4)
@@ -727,19 +734,21 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 
 	switch (cmd) {
 		case TAPSIFINFO:
-			s = splimp();
 			tapp = (struct tapinfo *)data;
+			mtx_lock(&tp->tap_mtx);
 			ifp->if_mtu = tapp->mtu;
 			ifp->if_type = tapp->type;
 			ifp->if_baudrate = tapp->baudrate;
-			splx(s);
+			mtx_unlock(&tp->tap_mtx);
 			break;
 
 		case TAPGIFINFO:
 			tapp = (struct tapinfo *)data;
+			mtx_lock(&tp->tap_mtx);
 			tapp->mtu = ifp->if_mtu;
 			tapp->type = ifp->if_type;
 			tapp->baudrate = ifp->if_baudrate;
+			mtx_unlock(&tp->tap_mtx);
 			break;
 
 		case TAPSDEBUG:
@@ -760,26 +769,26 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 			break;
 
 		case FIOASYNC:
-			s = splimp();
 			mtx_lock(&tp->tap_mtx);
 			if (*(int *)data)
 				tp->tap_flags |= TAP_ASYNC;
 			else
 				tp->tap_flags &= ~TAP_ASYNC;
 			mtx_unlock(&tp->tap_mtx);
-			splx(s);
 			break;
 
 		case FIONREAD:
-			s = splimp();
-			if (ifp->if_snd.ifq_head) {
-				struct mbuf	*mb = ifp->if_snd.ifq_head;
+			if (!IFQ_IS_EMPTY(&ifp->if_snd)) {
+				struct mbuf *mb;
 
-				for(*(int *)data = 0;mb != NULL;mb = mb->m_next)
+				IFQ_LOCK(&ifp->if_snd);
+				IFQ_POLL_NOLOCK(&ifp->if_snd, mb);
+				for (*(int *)data = 0; mb != NULL;
+				     mb = mb->m_next)
 					*(int *)data += mb->m_len;
+				IFQ_UNLOCK(&ifp->if_snd);
 			} else
 				*(int *)data = 0;
-			splx(s);
 			break;
 
 		case FIOSETOWN:
@@ -800,10 +809,6 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 
 		/* VMware/VMnet port ioctl's */
 
-		case SIOCGIFFLAGS:	/* get ifnet flags */
-			bcopy(&ifp->if_flags, data, sizeof(ifp->if_flags));
-			break;
-
 #if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD4)
 		case _IO('V', 0):
@@ -817,13 +822,12 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 			f &= ~IFF_CANTCHANGE;
 			f |= IFF_UP;
 
-			s = splimp();
+			mtx_lock(&tp->tap_mtx);
 			ifp->if_flags = f | (ifp->if_flags & IFF_CANTCHANGE);
-			splx(s);
+			mtx_unlock(&tp->tap_mtx);
 			break;
 
-		case OSIOCGIFADDR:	/* get MAC address of the remote side */
-		case SIOCGIFADDR:
+		case SIOCGIFADDR:	/* get MAC address of the remote side */
 			mtx_lock(&tp->tap_mtx);
 			bcopy(tp->ether_addr, data, sizeof(tp->ether_addr));
 			mtx_unlock(&tp->tap_mtx);
@@ -854,7 +858,7 @@ tapread(struct cdev *dev, struct uio *uio, int flag)
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = tp->tap_ifp;
 	struct mbuf		*m = NULL;
-	int			 error = 0, len, s;
+	int			 error = 0, len;
 
 	TAPDEBUG("%s reading, minor = %#x\n", ifp->if_xname, dev2unit(dev));
 
@@ -870,26 +874,27 @@ tapread(struct cdev *dev, struct uio *uio, int flag)
 	}
 
 	tp->tap_flags &= ~TAP_RWAIT;
-	mtx_unlock(&tp->tap_mtx);
 
 	/* sleep until we get a packet */
 	do {
-		s = splimp();
 		IF_DEQUEUE(&ifp->if_snd, m);
-		splx(s);
 
 		if (m == NULL) {
-			if (flag & O_NONBLOCK)
+			if (flag & O_NONBLOCK) {
+				mtx_unlock(&tp->tap_mtx);
 				return (EWOULDBLOCK);
+			}
 
-			mtx_lock(&tp->tap_mtx);
 			tp->tap_flags |= TAP_RWAIT;
-			mtx_unlock(&tp->tap_mtx);
-			error = tsleep(tp,PCATCH|(PZERO+1),"taprd",0);
-			if (error)
+			error = mtx_sleep(tp, &tp->tap_mtx, PCATCH | (PZERO + 1),
+			    "taprd", 0);
+			if (error) {
+				mtx_unlock(&tp->tap_mtx);
 				return (error);
+			}
 		}
 	} while (m == NULL);
+	mtx_unlock(&tp->tap_mtx);
 
 	/* feed packet to bpf */
 	BPF_MTAP(ifp, m);
@@ -927,7 +932,7 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 	struct ifnet		*ifp = tp->tap_ifp;
 	struct mbuf		*m;
 
-	TAPDEBUG("%s writting, minor = %#x\n", 
+	TAPDEBUG("%s writing, minor = %#x\n", 
 		ifp->if_xname, dev2unit(dev));
 
 	if (uio->uio_resid == 0)
@@ -940,9 +945,9 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 		return (EIO);
 	}
 
-	if ((m = m_uiotombuf(uio, M_DONTWAIT, 0, ETHER_ALIGN,
+	if ((m = m_uiotombuf(uio, M_NOWAIT, 0, ETHER_ALIGN,
 	    M_PKTHDR)) == NULL) {
-		ifp->if_ierrors ++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (ENOBUFS);
 	}
 
@@ -966,8 +971,10 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 	}
 
 	/* Pass packet up to parent. */
+	CURVNET_SET(ifp->if_vnet);
 	(*ifp->if_input)(ifp, m);
-	ifp->if_ipackets ++; /* ibytes are counted in parent */
+	CURVNET_RESTORE();
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1); /* ibytes are counted in parent */
 
 	return (0);
 } /* tapwrite */
@@ -985,14 +992,14 @@ tappoll(struct cdev *dev, int events, struct thread *td)
 {
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = tp->tap_ifp;
-	int			 s, revents = 0;
+	int			 revents = 0;
 
 	TAPDEBUG("%s polling, minor = %#x\n", 
 		ifp->if_xname, dev2unit(dev));
 
-	s = splimp();
 	if (events & (POLLIN | POLLRDNORM)) {
-		if (ifp->if_snd.ifq_len > 0) {
+		IFQ_LOCK(&ifp->if_snd);
+		if (!IFQ_IS_EMPTY(&ifp->if_snd)) {
 			TAPDEBUG("%s have data in queue. len = %d, " \
 				"minor = %#x\n", ifp->if_xname,
 				ifp->if_snd.ifq_len, dev2unit(dev));
@@ -1004,12 +1011,12 @@ tappoll(struct cdev *dev, int events, struct thread *td)
 
 			selrecord(td, &tp->tap_rsel);
 		}
+		IFQ_UNLOCK(&ifp->if_snd);
 	}
 
 	if (events & (POLLOUT | POLLWRNORM))
 		revents |= (events & (POLLOUT | POLLWRNORM));
 
-	splx(s);
 	return (revents);
 } /* tappoll */
 
@@ -1022,11 +1029,9 @@ tappoll(struct cdev *dev, int events, struct thread *td)
 static int
 tapkqfilter(struct cdev *dev, struct knote *kn)
 {
-    	int			 s;
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = tp->tap_ifp;
 
-	s = splimp();
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
 		TAPDEBUG("%s kqfilter: EVFILT_READ, minor = %#x\n",
@@ -1043,13 +1048,11 @@ tapkqfilter(struct cdev *dev, struct knote *kn)
 	default:
 		TAPDEBUG("%s kqfilter: invalid filter, minor = %#x\n",
 			ifp->if_xname, dev2unit(dev));
-		splx(s);
 		return (EINVAL);
 		/* NOT REACHED */
 	}
-	splx(s);
 
-	kn->kn_hook = (caddr_t) dev;
+	kn->kn_hook = tp;
 	knlist_add(&tp->tap_rsel.si_note, kn, 0);
 
 	return (0);
@@ -1064,12 +1067,11 @@ tapkqfilter(struct cdev *dev, struct knote *kn)
 static int
 tapkqread(struct knote *kn, long hint)
 {
-	int			 ret, s;
-	struct cdev		*dev = (struct cdev *)(kn->kn_hook);
-	struct tap_softc	*tp = dev->si_drv1;
+	int			 ret;
+	struct tap_softc	*tp = kn->kn_hook;
+	struct cdev		*dev = tp->tap_dev;
 	struct ifnet		*ifp = tp->tap_ifp;
 
-	s = splimp();
 	if ((kn->kn_data = ifp->if_snd.ifq_len) > 0) {
 		TAPDEBUG("%s have data in queue. len = %d, minor = %#x\n",
 			ifp->if_xname, ifp->if_snd.ifq_len, dev2unit(dev));
@@ -1079,7 +1081,6 @@ tapkqread(struct knote *kn, long hint)
 			ifp->if_xname, dev2unit(dev));
 		ret = 0;
 	}
-	splx(s);
 
 	return (ret);
 } /* tapkqread */
@@ -1093,13 +1094,10 @@ tapkqread(struct knote *kn, long hint)
 static int
 tapkqwrite(struct knote *kn, long hint)
 {
-	int			 s;
-	struct tap_softc	*tp = ((struct cdev *) kn->kn_hook)->si_drv1;
+	struct tap_softc	*tp = kn->kn_hook;
 	struct ifnet		*ifp = tp->tap_ifp;
 
-	s = splimp();
 	kn->kn_data = ifp->if_mtu;
-	splx(s);
 
 	return (1);
 } /* tapkqwrite */
@@ -1108,7 +1106,7 @@ tapkqwrite(struct knote *kn, long hint)
 static void
 tapkqdetach(struct knote *kn)
 {
-	struct tap_softc	*tp = ((struct cdev *) kn->kn_hook)->si_drv1;
+	struct tap_softc	*tp = kn->kn_hook;
 
 	knlist_remove(&tp->tap_rsel.si_note, kn, 0);
 } /* tapkqdetach */

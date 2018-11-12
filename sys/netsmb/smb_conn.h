@@ -10,12 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Boris Popov.
- * 4. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -164,9 +158,11 @@ struct smb_share_info {
 
 #ifdef _KERNEL
 
-#include <sys/lock.h>
-#include <sys/lockmgr.h>
 #include <netsmb/smb_subr.h>
+#include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/condvar.h>
+#include <sys/sx.h>
 
 #define CONNADDREQ(a1,a2)	((a1)->sa_len == (a2)->sa_len && \
 				 bcmp(a1, a2, (a1)->sa_len) == 0)
@@ -196,14 +192,13 @@ struct smb_connobj;
 typedef void smb_co_gone_t (struct smb_connobj *cp, struct smb_cred *scred);
 typedef void smb_co_free_t (struct smb_connobj *cp);
 
-#define	SMB_CO_LOCK(cp)		smb_sl_lock(&(cp)->co_interlock)
-#define	SMB_CO_UNLOCK(cp)	smb_sl_unlock(&(cp)->co_interlock)
-
 struct smb_connobj {
+	struct cv		co_lock;
+	struct thread		*co_locker;
+	struct sx		co_interlock;
+	int			co_lockcnt;
 	int			co_level;	/* SMBL_ */
 	int			co_flags;
-	struct lock		co_lock;
-	struct smb_slock	co_interlock;
 	int			co_usecount;
 	struct smb_connobj *	co_parent;
 	SLIST_HEAD(,smb_connobj)co_children;
@@ -231,7 +226,6 @@ struct smb_connobj {
 #define	SMBC_ST_LOCK(vcp)	smb_sl_lock(&(vcp)->vc_stlock)
 #define	SMBC_ST_UNLOCK(vcp)	smb_sl_unlock(&(vcp)->vc_stlock)
 
-
 struct smb_vc {
 	struct smb_connobj obj;
 	char *		vc_srvname;
@@ -248,6 +242,10 @@ struct smb_vc {
 	void *		vc_toupper;	/* local charset */
 	void *		vc_toserver;	/* local charset to server one */
 	void *		vc_tolocal;	/* server charset to local one */
+	void *		vc_cp_toserver;	/* local charset to server one (using CodePage) */
+	void *		vc_cp_tolocal;	/* server charset to local one (using CodePage) */
+	void *		vc_ucs_toserver; /* local charset to server one (using UCS-2) */
+	void *		vc_ucs_tolocal;	/* server charset to local one (using UCS-2) */
 	int		vc_number;	/* number of this VC from the client side */
 	int		vc_genid;
 	uid_t		vc_uid;		/* user id of connection */
@@ -277,6 +275,8 @@ struct smb_vc {
 #define	vc_flags	obj.co_flags
 
 #define SMB_UNICODE_STRINGS(vcp)	((vcp)->vc_hflags2 & SMB_FLAGS2_UNICODE)
+
+#define	SMB_UNICODE_NAME	"UCS-2LE"
 
 /*
  * smb_share structure describes connection to the given SMB share (tree).
@@ -361,10 +361,10 @@ int  smb_sm_lookup(struct smb_vcspec *vcspec,
  */
 void smb_co_ref(struct smb_connobj *cp);
 void smb_co_rele(struct smb_connobj *cp, struct smb_cred *scred);
-int  smb_co_get(struct smb_connobj *cp, int flags, struct smb_cred *scred);
+int  smb_co_get(struct smb_connobj *cp, struct smb_cred *scred);
 void smb_co_put(struct smb_connobj *cp, struct smb_cred *scred);
-int  smb_co_lock(struct smb_connobj *cp, int flags);
-void smb_co_unlock(struct smb_connobj *cp, int flags);
+int  smb_co_lock(struct smb_connobj *cp);
+void smb_co_unlock(struct smb_connobj *cp);
 
 /*
  * session level functions
@@ -373,12 +373,12 @@ int  smb_vc_create(struct smb_vcspec *vcspec,
 	struct smb_cred *scred, struct smb_vc **vcpp);
 int  smb_vc_connect(struct smb_vc *vcp, struct smb_cred *scred);
 int  smb_vc_access(struct smb_vc *vcp, struct smb_cred *scred, mode_t mode);
-int  smb_vc_get(struct smb_vc *vcp, int flags, struct smb_cred *scred);
+int  smb_vc_get(struct smb_vc *vcp, struct smb_cred *scred);
 void smb_vc_put(struct smb_vc *vcp, struct smb_cred *scred);
 void smb_vc_ref(struct smb_vc *vcp);
 void smb_vc_rele(struct smb_vc *vcp, struct smb_cred *scred);
-int  smb_vc_lock(struct smb_vc *vcp, int flags);
-void smb_vc_unlock(struct smb_vc *vcp, int flags);
+int  smb_vc_lock(struct smb_vc *vcp);
+void smb_vc_unlock(struct smb_vc *vcp);
 int  smb_vc_lookupshare(struct smb_vc *vcp, struct smb_sharespec *shspec,
 	struct smb_cred *scred, struct smb_share **sspp);
 const char * smb_vc_getpass(struct smb_vc *vcp);
@@ -392,10 +392,10 @@ int  smb_share_create(struct smb_vc *vcp, struct smb_sharespec *shspec,
 int  smb_share_access(struct smb_share *ssp, struct smb_cred *scred, mode_t mode);
 void smb_share_ref(struct smb_share *ssp);
 void smb_share_rele(struct smb_share *ssp, struct smb_cred *scred);
-int  smb_share_get(struct smb_share *ssp, int flags, struct smb_cred *scred);
+int  smb_share_get(struct smb_share *ssp, struct smb_cred *scred);
 void smb_share_put(struct smb_share *ssp, struct smb_cred *scred);
-int  smb_share_lock(struct smb_share *ssp, int flags);
-void smb_share_unlock(struct smb_share *ssp, int flags);
+int  smb_share_lock(struct smb_share *ssp);
+void smb_share_unlock(struct smb_share *ssp);
 void smb_share_invalidate(struct smb_share *ssp);
 int  smb_share_valid(struct smb_share *ssp);
 const char * smb_share_getpass(struct smb_share *ssp);

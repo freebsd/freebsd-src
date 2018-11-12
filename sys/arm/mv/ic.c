@@ -35,10 +35,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
@@ -76,6 +80,12 @@ static int
 mv_ic_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (!ofw_bus_is_compatible(dev, "mrvl,pic"))
+		return (ENXIO);
+
 	device_set_desc(dev, "Marvell Integrated Interrupt Controller");
 	return (0);
 }
@@ -98,7 +108,9 @@ mv_ic_attach(device_t dev)
 	sc->ic_high_regs = 0;
 	sc->ic_error_regs = 0;
 
-	if (dev_id == MV_DEV_88F6281 || dev_id == MV_DEV_MV78100 ||
+	if (dev_id == MV_DEV_88F6281 ||
+	    dev_id == MV_DEV_88F6282 ||
+	    dev_id == MV_DEV_MV78100 ||
 	    dev_id == MV_DEV_MV78100_Z0)
 		sc->ic_high_regs = 1;
 
@@ -134,30 +146,41 @@ static driver_t mv_ic_driver = {
 
 static devclass_t mv_ic_devclass;
 
-DRIVER_MODULE(ic, mbus, mv_ic_driver, mv_ic_devclass, 0, 0);
+DRIVER_MODULE(ic, simplebus, mv_ic_driver, mv_ic_devclass, 0, 0);
 
 int
-arm_get_next_irq(int last __unused)
+arm_get_next_irq(int last)
 {
-	int irq;
+	u_int filt, irq;
+	int next;
 
+	filt = ~((last >= 0) ? (2 << last) - 1 : 0);
 	irq = mv_ic_get_cause() & mv_ic_get_mask();
-	if (irq)
-		return (ffs(irq) - 1);
-
+	if (irq & filt) {
+		next = ffs(irq & filt) - 1;
+		goto out;
+	}
 	if (mv_ic_sc->ic_high_regs) {
+		filt = ~((last >= 32) ? (2 << (last - 32)) - 1 : 0);
 		irq = mv_ic_get_cause_hi() & mv_ic_get_mask_hi();
-		if (irq)
-			return (ffs(irq) + 31);
+		if (irq & filt) {
+			next = ffs(irq & filt) + 31;
+			goto out;
+		}
 	}
-
 	if (mv_ic_sc->ic_error_regs) {
+		filt = ~((last >= 64) ? (2 << (last - 64)) - 1 : 0);
 		irq = mv_ic_get_cause_error() & mv_ic_get_mask_error();
-		if (irq)
-			return (ffs(irq) + 63);
+		if (irq & filt) {
+			next = ffs(irq & filt) + 63;
+			goto out;
+		}
 	}
+	next = -1;
 
-	return (-1);
+ out:
+	CTR3(KTR_INTR, "%s: last=%d, next=%d", __func__, last, next);
+	return (next);
 }
 
 static void

@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -41,24 +37,35 @@
 
 #if __POSIX_VISIBLE
 #define	_POSIX_ARG_MAX		4096
-#define	_POSIX_CHILD_MAX	25
 #define	_POSIX_LINK_MAX		8
 #define	_POSIX_MAX_CANON	255
 #define	_POSIX_MAX_INPUT	255
 #define	_POSIX_NAME_MAX		14
-#define	_POSIX_NGROUPS_MAX	8
-#define	_POSIX_OPEN_MAX		20
-#define	_POSIX_PATH_MAX		256
 #define	_POSIX_PIPE_BUF		512
 #define	_POSIX_SSIZE_MAX	32767
 #define	_POSIX_STREAM_MAX	8
-#define	_POSIX_TZNAME_MAX	6
 
+#if __POSIX_VISIBLE >= 200112
+#define	_POSIX_CHILD_MAX	25
+#define	_POSIX_NGROUPS_MAX	8
+#define	_POSIX_OPEN_MAX		20
+#define	_POSIX_PATH_MAX		256
+#define	_POSIX_TZNAME_MAX	6
+#else
+#define	_POSIX_CHILD_MAX	6
+#define	_POSIX_NGROUPS_MAX	0
+#define	_POSIX_OPEN_MAX		16
+#define	_POSIX_PATH_MAX		255
+#define	_POSIX_TZNAME_MAX	3
+#endif
+
+#if __POSIX_VISIBLE >= 200112
 #define	BC_BASE_MAX		   99	/* max ibase/obase values in bc(1) */
 #define	BC_DIM_MAX		 2048	/* max array elements in bc(1) */
 #define	BC_SCALE_MAX		   99	/* max scale value in bc(1) */
 #define	BC_STRING_MAX		 1000	/* max const string length in bc(1) */
-#define	COLL_WEIGHTS_MAX	    0	/* max weights for order keyword */
+#define	CHARCLASS_NAME_MAX	   14	/* max character class name size */
+#define	COLL_WEIGHTS_MAX	   10	/* max weights for order keyword */
 #define	EXPR_NEST_MAX		   32	/* max expressions nested in expr(1) */
 #define	LINE_MAX		 2048	/* max bytes in an input line */
 #define	RE_DUP_MAX		  255	/* max RE's in interval notation */
@@ -67,14 +74,17 @@
 #define	_POSIX2_BC_DIM_MAX	2048
 #define	_POSIX2_BC_SCALE_MAX	99
 #define	_POSIX2_BC_STRING_MAX	1000
+#define	_POSIX2_CHARCLASS_NAME_MAX 14
+#define	_POSIX2_COLL_WEIGHTS_MAX 2
 #define	_POSIX2_EQUIV_CLASS_MAX	2
 #define	_POSIX2_EXPR_NEST_MAX	32
 #define	_POSIX2_LINE_MAX	2048
 #define	_POSIX2_RE_DUP_MAX	255
 #endif
+#endif
 
 #if __POSIX_VISIBLE >= 199309
-#define	_POSIX_AIO_LISTIO_MAX	16
+#define	_POSIX_AIO_LISTIO_MAX	2
 #define	_POSIX_AIO_MAX		1
 #define	_POSIX_DELAYTIMER_MAX	32
 #define	_POSIX_MQ_OPEN_MAX	8
@@ -84,6 +94,8 @@
 #define	_POSIX_SEM_VALUE_MAX	32767
 #define	_POSIX_SIGQUEUE_MAX	32
 #define	_POSIX_TIMER_MAX	32
+
+#define	_POSIX_CLOCKRES_MIN	20000000
 #endif
 
 #if __POSIX_VISIBLE >= 199506
@@ -103,10 +115,15 @@
 #define	_POSIX_TRACE_SYS_MAX	8
 #define	_POSIX_TRACE_USER_EVENT_MAX 32
 #define	_POSIX_TTY_NAME_MAX	9
-#define	_POSIX2_CHARCLASS_NAME_MAX 14
-#define	_POSIX2_COLL_WEIGHTS_MAX 2
 
 #define	_POSIX_RE_DUP_MAX	_POSIX2_RE_DUP_MAX
+#endif
+
+#if __XSI_VISIBLE || __POSIX_VISIBLE >= 200809
+#define	NL_ARGMAX		99	/* max # of position args for printf */
+#define	NL_MSGMAX		32767
+#define	NL_SETMAX		255
+#define	NL_TEXTMAX		2048
 #endif
 
 #if __XSI_VISIBLE
@@ -115,12 +132,8 @@
 #define	_XOPEN_PATH_MAX		1024
 #define	PASS_MAX		128	/* _PASSWORD_LEN from <pwd.h> */
 
-#define	NL_ARGMAX		99	/* max # of position args for printf */
 #define	NL_LANGMAX		31	/* max LANG name length */
-#define	NL_MSGMAX		32767
 #define	NL_NMAX			1
-#define	NL_SETMAX		255
-#define	NL_TEXTMAX		2048
 #endif
 
 #define	MB_LEN_MAX		6	/* 31-bit UTF-8 */

@@ -40,7 +40,7 @@
 
 #define	EV_READ         0x02
 #define	EV_WRITE        0x04
-#define	EV_PERSIST      0x10		/* Persistant event */
+#define	EV_PERSIST      0x10		/* Persistent event */
 #define	EV_PENDING	(1 << 13)	/* internal use only! */
 #define	EV_HAS_TIMEOUT	(1 << 14)	/* internal use only! */
 #define	EV_CURRENT	(1 << 15)	/* internal use only! */

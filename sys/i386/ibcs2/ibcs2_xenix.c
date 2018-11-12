@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1994 Sean Eric Fagan
- * Copyright (c) 1994 Søren Schmidt
+ * Copyright (c) 1994 SÃ¸ren Schmidt
  * Copyright (c) 1995 Steven Wallace
  * All rights reserved.
  *
@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/fcntl.h>
 #include <sys/namei.h> 
 #include <sys/sysproto.h>
 #include <sys/clock.h>
@@ -103,7 +104,7 @@ xenix_chsize(td, uap)
 	DPRINTF(("IBCS2: 'xenix chsize'\n"));
 	sa.fd = uap->fd;
 	sa.length = uap->size;
-	return ftruncate(td, &sa);
+	return sys_ftruncate(td, &sa);
 }
 
 
@@ -209,7 +210,8 @@ xenix_eaccess(struct thread *td, struct xenix_eaccess_args *uap)
 		bsd_flags |= X_OK;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_eaccess(td, path, UIO_SYSSPACE, bsd_flags);
+	error = kern_accessat(td, AT_FDCWD, path, UIO_SYSSPACE,
+	    AT_EACCESS, bsd_flags);
 	free(path, M_TEMP);
         return (error);
 }

@@ -1,119 +1,45 @@
-
 /******************************************************************************
  *
  * Module Name: asloperands - AML operand processing
  *
  *****************************************************************************/
 
-/******************************************************************************
- *
- * 1. Copyright Notice
- *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+/*
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
- * 2. License
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
- * 2.1. This is your license from Intel Corp. under its intellectual property
- * rights.  You may have additional license terms from the party that provided
- * you this software, covering your right to use that party's intellectual
- * property rights.
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
  *
- * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
- * copy of the source code appearing in this file ("Covered Code") an
- * irrevocable, perpetual, worldwide license under Intel's copyrights in the
- * base code distributed originally by Intel ("Original Intel Code") to copy,
- * make derivatives, distribute, use and display any portion of the Covered
- * Code in any form, with the right to sublicense such rights; and
- *
- * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
- * license (with the right to sublicense), under only those claims of Intel
- * patents that are infringed by the Original Intel Code, to make, use, sell,
- * offer to sell, and import the Covered Code and derivative works thereof
- * solely to the minimum extent necessary to exercise the above copyright
- * license, and in no event shall the patent license extend to any additions
- * to or modifications of the Original Intel Code.  No other license or right
- * is granted directly or by implication, estoppel or otherwise;
- *
- * The above copyright and patent license is granted only if the following
- * conditions are met:
- *
- * 3. Conditions
- *
- * 3.1. Redistribution of Source with Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification with rights to further distribute source must include
- * the above Copyright Notice, the above License, this list of Conditions,
- * and the following Disclaimer and Export Compliance provision.  In addition,
- * Licensee must cause all Covered Code to which Licensee contributes to
- * contain a file documenting the changes Licensee made to create that Covered
- * Code and the date of any change.  Licensee must include in that file the
- * documentation of any changes made by any predecessor Licensee.  Licensee
- * must include a prominent statement that the modification is derived,
- * directly or indirectly, from Original Intel Code.
- *
- * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification without rights to further distribute source must
- * include the following Disclaimer and Export Compliance provision in the
- * documentation and/or other materials provided with distribution.  In
- * addition, Licensee may not authorize further sublicense of source of any
- * portion of the Covered Code, and must include terms to the effect that the
- * license from Licensee to its licensee is limited to the intellectual
- * property embodied in the software Licensee provides to its licensee, and
- * not to intellectual property embodied in modifications its licensee may
- * make.
- *
- * 3.3. Redistribution of Executable. Redistribution in executable form of any
- * substantial portion of the Covered Code or modification must reproduce the
- * above Copyright Notice, and the following Disclaimer and Export Compliance
- * provision in the documentation and/or other materials provided with the
- * distribution.
- *
- * 3.4. Intel retains all right, title, and interest in and to the Original
- * Intel Code.
- *
- * 3.5. Neither the name Intel nor any other trademark owned or controlled by
- * Intel shall be used in advertising or otherwise to promote the sale, use or
- * other dealings in products derived from or relating to the Covered Code
- * without prior written authorization from Intel.
- *
- * 4. Disclaimer and Export Compliance
- *
- * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
- * HERE.  ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
- * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT,  ASSISTANCE,
- * INSTALLATION, TRAINING OR OTHER SERVICES.  INTEL WILL NOT PROVIDE ANY
- * UPDATES, ENHANCEMENTS OR EXTENSIONS.  INTEL SPECIFICALLY DISCLAIMS ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
- * PARTICULAR PURPOSE.
- *
- * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
- * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
- * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
- * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
- * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
- * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.  THESE LIMITATIONS
- * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
- * LIMITED REMEDY.
- *
- * 4.3. Licensee shall not export, either directly or indirectly, any of this
- * software or system incorporating such software without first obtaining any
- * required license or other approval from the U. S. Department of Commerce or
- * any other agency or department of the United States Government.  In the
- * event Licensee exports any such software from the United States or
- * re-exports any such software from a foreign destination, Licensee shall
- * ensure that the distribution and export/re-export of the software is in
- * compliance with all laws, regulations, orders, or other restrictions of the
- * U.S. Export Administration Regulations. Licensee agrees that neither it nor
- * any of its subsidiaries will export/re-export any technical data, process,
- * software, or service, directly or indirectly, to any country for which the
- * United States government or any agency thereof requires an export license,
- * other governmental approval, or letter of assurance, without first obtaining
- * such license, approval or letter.
- *
- *****************************************************************************/
-
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ */
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -254,18 +180,24 @@ OpnDoMethod (
     Next = Next->Asl.Next;
     if (Next->Asl.ParseOpcode != PARSEOP_DEFAULT_ARG)
     {
+        /* This is a ByteConstExpr, so eval the constant now */
+
+        OpcAmlConstantWalk (Next, 0, NULL);
+
         if (Next->Asl.Value.Integer > 15)
         {
             AslError (ASL_ERROR, ASL_MSG_SYNC_LEVEL, Next, NULL);
         }
+
         Concurrency = (UINT8) Next->Asl.Value.Integer;
     }
 
     /* Put the bits in their proper places */
 
-    MethodFlags = (UINT8) ((NumArgs & 0x7) |
-                          ((Serialized & 0x1) << 3) |
-                          ((Concurrency & 0xF) << 4));
+    MethodFlags = (UINT8)
+        ((NumArgs & 0x7) |
+        ((Serialized & 0x1) << 3) |
+        ((Concurrency & 0xF) << 4));
 
     /* Use the last node for the combined flags byte */
 
@@ -331,7 +263,7 @@ OpnDoFieldCommon (
     UpdateRule = (UINT8) Next->Asl.Value.Integer;
 
     /*
-     * Generate the flags byte.  The various fields are already
+     * Generate the flags byte. The various fields are already
      * in the right bit position via translation from the
      * keywords by the parser.
      */
@@ -342,9 +274,9 @@ OpnDoFieldCommon (
     /* Set the node to RAW_DATA */
 
     Next->Asl.Value.Integer = FieldFlags;
-    Next->Asl.AmlOpcode     = AML_RAW_DATA_BYTE;
-    Next->Asl.AmlLength     = 1;
-    Next->Asl.ParseOpcode   = PARSEOP_RAW_DATA;
+    Next->Asl.AmlOpcode = AML_RAW_DATA_BYTE;
+    Next->Asl.AmlLength = 1;
+    Next->Asl.ParseOpcode = PARSEOP_RAW_DATA;
 
     /* Process the FieldUnitList */
 
@@ -366,7 +298,6 @@ OpnDoFieldCommon (
 
             /* Nothing additional to do */
             break;
-
 
         case PARSEOP_OFFSET:
 
@@ -394,7 +325,7 @@ OpnDoFieldCommon (
             {
                 /*
                  * Offset is redundant; we don't need to output an
-                 * offset opcode.  Just set these nodes to default
+                 * offset opcode. Just set these nodes to default
                  */
                 Next->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
                 PkgLengthNode->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
@@ -411,14 +342,13 @@ OpnDoFieldCommon (
             }
             break;
 
-
         case PARSEOP_NAMESEG:
         case PARSEOP_RESERVED_BYTES:
 
             /* Named or reserved field entry */
 
-            PkgLengthNode     = Next->Asl.Child;
-            NewBitOffset      = (UINT32) PkgLengthNode->Asl.Value.Integer;
+            PkgLengthNode = Next->Asl.Child;
+            NewBitOffset = (UINT32) PkgLengthNode->Asl.Value.Integer;
             CurrentBitOffset += NewBitOffset;
 
             /* Save the current AccessAs value for error checking later */
@@ -429,6 +359,7 @@ OpnDoFieldCommon (
                 case AML_FIELD_ACCESS_BYTE:
                 case AML_FIELD_ACCESS_BUFFER:
                 default:
+
                     MinimumLength = 8;
                     break;
 
@@ -449,7 +380,9 @@ OpnDoFieldCommon (
             break;
 
         default:
+
             /* All supported field opcodes must appear above */
+
             break;
         }
 
@@ -570,7 +503,7 @@ OpnDoBankField (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Tries to get the length of the region.  Can only do this at
+ * DESCRIPTION: Tries to get the length of the region. Can only do this at
  *              compile time if the length is a constant.
  *
  ******************************************************************************/
@@ -604,7 +537,7 @@ OpnDoRegion (
     }
     else
     {
-        Op->Asl.Value.Integer = ACPI_INTEGER_MAX;
+        Op->Asl.Value.Integer = ACPI_UINT64_MAX;
     }
 }
 
@@ -617,7 +550,7 @@ OpnDoRegion (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Construct the AML operands for the BUFFER ASL keyword.  We
+ * DESCRIPTION: Construct the AML operands for the BUFFER ASL keyword. We
  *              build a single raw byte buffer from the initialization nodes,
  *              each parse node contains a buffer byte.
  *
@@ -670,45 +603,42 @@ OpnDoBuffer (
         {
             /* For buffers, this is a list of raw bytes */
 
-            InitializerOp->Asl.AmlOpcode      = AML_RAW_DATA_BYTE;
-            InitializerOp->Asl.AmlLength      = 1;
-            InitializerOp->Asl.ParseOpcode    = PARSEOP_RAW_DATA;
+            InitializerOp->Asl.AmlOpcode = AML_RAW_DATA_BYTE;
+            InitializerOp->Asl.AmlLength = 1;
+            InitializerOp->Asl.ParseOpcode = PARSEOP_RAW_DATA;
 
             BufferLength++;
             InitializerOp = ASL_GET_PEER_NODE (InitializerOp);
         }
         break;
 
-
     case PARSEOP_STRING_LITERAL:
 
         /*
-         * Only one initializer, the string.  Buffer must be big enough to hold
+         * Only one initializer, the string. Buffer must be big enough to hold
          * the string plus the null termination byte
          */
         BufferLength = strlen (InitializerOp->Asl.Value.String) + 1;
 
-        InitializerOp->Asl.AmlOpcode      = AML_RAW_DATA_BUFFER;
-        InitializerOp->Asl.AmlLength      = BufferLength;
-        InitializerOp->Asl.ParseOpcode    = PARSEOP_RAW_DATA;
+        InitializerOp->Asl.AmlOpcode = AML_RAW_DATA_BUFFER;
+        InitializerOp->Asl.AmlLength = BufferLength;
+        InitializerOp->Asl.ParseOpcode = PARSEOP_RAW_DATA;
         break;
-
 
     case PARSEOP_RAW_DATA:
 
         /* Buffer nodes are already initialized (e.g. Unicode operator) */
         return;
 
-
     case PARSEOP_DEFAULT_ARG:
         break;
 
-
     default:
+
         AslError (ASL_ERROR, ASL_MSG_INVALID_OPERAND, InitializerOp,
             "Unknown buffer initializer opcode");
         printf ("Unknown buffer initializer opcode [%s]\n",
-                        UtGetOpName (InitializerOp->Asl.ParseOpcode));
+            UtGetOpName (InitializerOp->Asl.ParseOpcode));
         return;
     }
 
@@ -732,8 +662,8 @@ OpnDoBuffer (
      * Just set the buffer size node to be the buffer length, regardless
      * of whether it was previously an integer or a default_arg placeholder
      */
-    BufferLengthOp->Asl.ParseOpcode   = PARSEOP_INTEGER;
-    BufferLengthOp->Asl.AmlOpcode     = AML_DWORD_OP;
+    BufferLengthOp->Asl.ParseOpcode = PARSEOP_INTEGER;
+    BufferLengthOp->Asl.AmlOpcode = AML_DWORD_OP;
     BufferLengthOp->Asl.Value.Integer = BufferLength;
 
     (void) OpcSetOptimalIntegerSize (BufferLengthOp);
@@ -750,7 +680,7 @@ OpnDoBuffer (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Construct the AML operands for the PACKAGE ASL keyword.  NOTE:
+ * DESCRIPTION: Construct the AML operands for the PACKAGE ASL keyword. NOTE:
  *              can only be called after constants have been folded, to ensure
  *              that the PackageLength operand has been fully reduced.
  *
@@ -788,20 +718,30 @@ OpnDoPackage (
     if ((PackageLengthOp->Asl.ParseOpcode == PARSEOP_INTEGER)      ||
         (PackageLengthOp->Asl.ParseOpcode == PARSEOP_QWORDCONST))
     {
-        if (PackageLengthOp->Asl.Value.Integer >= PackageLength)
+        if (PackageLengthOp->Asl.Value.Integer > PackageLength)
         {
-            /* Allow package to be longer than the initializer list */
+            /*
+             * Allow package length to be longer than the initializer
+             * list -- but if the length of initializer list is nonzero,
+             * issue a message since this is probably a coding error,
+             * even though technically legal.
+             */
+            if (PackageLength > 0)
+            {
+                AslError (ASL_REMARK, ASL_MSG_LIST_LENGTH_SHORT,
+                    PackageLengthOp, NULL);
+            }
 
             PackageLength = (UINT32) PackageLengthOp->Asl.Value.Integer;
         }
-        else
+        else if (PackageLengthOp->Asl.Value.Integer < PackageLength)
         {
             /*
-             * Initializer list is longer than the package length. This
-             * is an error as per the ACPI spec.
+             * The package length is smaller than the length of the
+             * initializer list. This is an error as per the ACPI spec.
              */
-            AslError (ASL_ERROR, ASL_MSG_LIST_LENGTH,
-                PackageLengthOp->Asl.Next, NULL);
+            AslError (ASL_ERROR, ASL_MSG_LIST_LENGTH_LONG,
+                PackageLengthOp, NULL);
         }
     }
 
@@ -823,6 +763,7 @@ OpnDoPackage (
 
     if ((PackageLengthOp->Asl.ParseOpcode == PARSEOP_INTEGER)      ||
         (PackageLengthOp->Asl.ParseOpcode == PARSEOP_QWORDCONST)   ||
+        (PackageLengthOp->Asl.ParseOpcode == PARSEOP_ZERO)         ||
         (PackageLengthOp->Asl.ParseOpcode == PARSEOP_DEFAULT_ARG))
     {
         if (!PackageLength)
@@ -840,8 +781,11 @@ OpnDoPackage (
      * If the PackageLength is a constant <= 255, we can change the
      * AML opcode from VarPackage to a simple (ACPI 1.0) Package opcode.
      */
-    if ((Op->Asl.Child->Asl.ParseOpcode == PARSEOP_INTEGER) &&
-        (Op->Asl.Child->Asl.Value.Integer <= 255))
+    if (((Op->Asl.Child->Asl.ParseOpcode == PARSEOP_INTEGER) &&
+            (Op->Asl.Child->Asl.Value.Integer <= 255))  ||
+        (Op->Asl.Child->Asl.ParseOpcode == PARSEOP_ONE) ||
+        (Op->Asl.Child->Asl.ParseOpcode == PARSEOP_ONES)||
+        (Op->Asl.Child->Asl.ParseOpcode == PARSEOP_ZERO))
     {
         Op->Asl.AmlOpcode = AML_PACKAGE_OP;
         Op->Asl.ParseOpcode = PARSEOP_PACKAGE;
@@ -897,9 +841,9 @@ OpnDoLoadTable (
     Next = Next->Asl.Next;
     if (Next->Asl.ParseOpcode == PARSEOP_ZERO)
     {
-        Next->Asl.ParseOpcode    = PARSEOP_STRING_LITERAL;
-        Next->Asl.Value.String   = "\\";
-        Next->Asl.AmlLength      = 2;
+        Next->Asl.ParseOpcode = PARSEOP_STRING_LITERAL;
+        Next->Asl.Value.String = "\\";
+        Next->Asl.AmlLength = 2;
         OpcGenerateAmlOpcode (Next);
     }
 
@@ -952,7 +896,7 @@ OpnDoDefinitionBlock (
 
 
     /*
-     * These nodes get stuffed into the table header.  They are special
+     * These nodes get stuffed into the table header. They are special
      * cased when the table is written to the output file.
      *
      * Mark all of these nodes as non-usable so they won't get output
@@ -970,8 +914,8 @@ OpnDoDefinitionBlock (
          * We will use the AML filename that is embedded in the source file
          * for the output filename.
          */
-        Filename = ACPI_ALLOCATE (strlen (Gbl_DirectoryPath) +
-                    strlen ((char *) Child->Asl.Value.Buffer) + 1);
+        Filename = UtStringCacheCalloc (strlen (Gbl_DirectoryPath) +
+            strlen ((char *) Child->Asl.Value.Buffer) + 1);
 
         /* Prepend the current directory path */
 
@@ -979,7 +923,9 @@ OpnDoDefinitionBlock (
         strcat (Filename, (char *) Child->Asl.Value.Buffer);
 
         Gbl_OutputFilenamePrefix = Filename;
+        UtConvertBackslashes (Gbl_OutputFilenamePrefix);
     }
+
     Child->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
 
     /* Signature */
@@ -989,15 +935,15 @@ OpnDoDefinitionBlock (
     if (Child->Asl.Value.String)
     {
         Gbl_TableSignature = Child->Asl.Value.String;
-        if (ACPI_STRLEN (Gbl_TableSignature) != 4)
+        if (strlen (Gbl_TableSignature) != ACPI_NAME_SIZE)
         {
             AslError (ASL_ERROR, ASL_MSG_TABLE_SIGNATURE, Child,
-                "Length not exactly 4");
+                "Length is not exactly 4");
         }
 
-        for (i = 0; i < 4; i++)
+        for (i = 0; i < ACPI_NAME_SIZE; i++)
         {
-            if (!isalnum (Gbl_TableSignature[i]))
+            if (!isalnum ((int) Gbl_TableSignature[i]))
             {
                 AslError (ASL_ERROR, ASL_MSG_TABLE_SIGNATURE, Child,
                     "Contains non-alphanumeric characters");
@@ -1024,16 +970,19 @@ OpnDoDefinitionBlock (
     Child->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
     if (Child->Asl.Value.String)
     {
-        Length = ACPI_STRLEN (Child->Asl.Value.String);
-        Gbl_TableId = AcpiOsAllocate (Length + 1);
-        ACPI_STRCPY (Gbl_TableId, Child->Asl.Value.String);
+        Length = strlen (Child->Asl.Value.String);
+        Gbl_TableId = UtStringCacheCalloc (Length + 1);
+        strcpy (Gbl_TableId, Child->Asl.Value.String);
 
+        /*
+         * Convert anything non-alphanumeric to an underscore. This
+         * allows us to use the TableID to generate unique C symbols.
+         */
         for (i = 0; i < Length; i++)
         {
-            if (Gbl_TableId[i] == ' ')
+            if (!isalnum ((int) Gbl_TableId[i]))
             {
-                Gbl_TableId[i] = 0;
-                break;
+                Gbl_TableId[i] = '_';
             }
         }
     }
@@ -1052,7 +1001,7 @@ OpnDoDefinitionBlock (
  * PARAMETERS:  Op              - Get an argument for this op
  *              Argn            - Nth argument to get
  *
- * RETURN:      The argument (as an Op object).  NULL if argument does not exist
+ * RETURN:      The argument (as an Op object). NULL if argument does not exist
  *
  * DESCRIPTION: Get the specified op's argument (peer)
  *
@@ -1100,15 +1049,12 @@ OpnAttachNameToNode (
     ACPI_PARSE_OBJECT       *Child = NULL;
 
 
-    if (Op->Asl.ParseOpcode == PARSEOP_EXTERNAL)
-    {
-        Child = UtGetArg (Op, 0);
-    }
-    else switch (Op->Asl.AmlOpcode)
+    switch (Op->Asl.AmlOpcode)
     {
     case AML_DATA_REGION_OP:
     case AML_DEVICE_OP:
     case AML_EVENT_OP:
+    case AML_EXTERNAL_OP:
     case AML_METHOD_OP:
     case AML_MUTEX_OP:
     case AML_REGION_OP:
@@ -1147,6 +1093,7 @@ OpnAttachNameToNode (
         return;
 
     default:
+
         return;
     }
 
@@ -1165,7 +1112,7 @@ OpnAttachNameToNode (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Prepare nodes to be output as AML data and operands.  The more
+ * DESCRIPTION: Prepare nodes to be output as AML data and operands. The more
  *              complex AML opcodes require processing of the child nodes
  *              (arguments/operands).
  *
@@ -1184,43 +1131,53 @@ OpnGenerateAmlOperands (
 
     switch (Op->Asl.ParseOpcode)
     {
-    case PARSEOP_DEFINITIONBLOCK:
+    case PARSEOP_DEFINITION_BLOCK:
+
         OpnDoDefinitionBlock (Op);
         break;
 
     case PARSEOP_METHOD:
+
         OpnDoMethod (Op);
         break;
 
     case PARSEOP_MUTEX:
+
         OpnDoMutex (Op);
         break;
 
     case PARSEOP_FIELD:
+
         OpnDoField (Op);
         break;
 
     case PARSEOP_INDEXFIELD:
+
         OpnDoIndexField (Op);
         break;
 
     case PARSEOP_BANKFIELD:
+
         OpnDoBankField (Op);
         break;
 
     case PARSEOP_BUFFER:
+
         OpnDoBuffer (Op);
         break;
 
     case PARSEOP_LOADTABLE:
+
         OpnDoLoadTable (Op);
         break;
 
     case PARSEOP_OPERATIONREGION:
+
         OpnDoRegion (Op);
         break;
 
     case PARSEOP_RESOURCETEMPLATE:
+
         RsDoResourceTemplate (Op);
         break;
 
@@ -1228,9 +1185,8 @@ OpnGenerateAmlOperands (
     case PARSEOP_NAMESTRING:
     case PARSEOP_METHODCALL:
     case PARSEOP_STRING_LITERAL:
-        break;
-
     default:
+
         break;
     }
 
@@ -1238,5 +1194,3 @@ OpnGenerateAmlOperands (
 
     OpnAttachNameToNode (Op);
 }
-
-

@@ -1,10 +1,17 @@
 /*-
+ * Copyright 2013 Garrett D'Amore <garrett@damore.org>
+ * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2002-2004 Tim J. Robbins. All rights reserved.
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * Paul Borman at Krystal Technologies.
+ *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,21 +56,29 @@ static size_t	_GBK_mbrtowc(wchar_t * __restrict, const char * __restrict,
 static int	_GBK_mbsinit(const mbstate_t *);
 static size_t	_GBK_wcrtomb(char * __restrict, wchar_t,
 		    mbstate_t * __restrict);
+static size_t	_GBK_mbsnrtowcs(wchar_t * __restrict,
+		    const char ** __restrict, size_t, size_t,
+		    mbstate_t * __restrict);
+static size_t	_GBK_wcsnrtombs(char * __restrict,
+		    const wchar_t ** __restrict, size_t, size_t,
+		    mbstate_t * __restrict);
 
 typedef struct {
 	wchar_t	ch;
 } _GBKState;
 
 int
-_GBK_init(_RuneLocale *rl)
+_GBK_init(struct xlocale_ctype *l, _RuneLocale *rl)
 {
 
-	__mbrtowc = _GBK_mbrtowc;
-	__wcrtomb = _GBK_wcrtomb;
-	__mbsinit = _GBK_mbsinit;
-	_CurrentRuneLocale = rl;
-	__mb_cur_max = 2;
-	__mb_sb_limit = 128;
+	l->__mbrtowc = _GBK_mbrtowc;
+	l->__wcrtomb = _GBK_wcrtomb;
+	l->__mbsinit = _GBK_mbsinit;
+	l->__mbsnrtowcs = _GBK_mbsnrtowcs;
+	l->__wcsnrtombs = _GBK_wcsnrtombs;
+	l->runes = rl;
+	l->__mb_cur_max = 2;
+	l->__mb_sb_limit = 128;
 	return (0);
 }
 
@@ -74,7 +89,7 @@ _GBK_mbsinit(const mbstate_t *ps)
 	return (ps == NULL || ((const _GBKState *)ps)->ch == 0);
 }
 
-static __inline int
+static int
 _gbk_check(u_int c)
 {
 
@@ -135,7 +150,7 @@ _GBK_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		wc = (wc << 8) | (*s++ & 0xff);
 		if (pwc != NULL)
 			*pwc = wc;
-                return (2);
+		return (2);
 	} else {
 		if (pwc != NULL)
 			*pwc = wc;
@@ -165,4 +180,18 @@ _GBK_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 	}
 	*s = wc & 0xff;
 	return (1);
+}
+
+static size_t
+_GBK_mbsnrtowcs(wchar_t * __restrict dst, const char ** __restrict src,
+    size_t nms, size_t len, mbstate_t * __restrict ps)
+{
+	return (__mbsnrtowcs_std(dst, src, nms, len, ps, _GBK_mbrtowc));
+}
+
+static size_t
+_GBK_wcsnrtombs(char * __restrict dst, const wchar_t ** __restrict src,
+    size_t nwc, size_t len, mbstate_t * __restrict ps)
+{
+	return (__wcsnrtombs_std(dst, src, nwc, len, ps, _GBK_wcrtomb));
 }

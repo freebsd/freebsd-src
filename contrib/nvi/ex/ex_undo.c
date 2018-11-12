@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_undo.c	10.6 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: ex_undo.c,v 10.7 2001/06/25 15:19:21 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <limits.h>
@@ -27,12 +28,10 @@ static const char sccsid[] = "@(#)ex_undo.c	10.6 (Berkeley) 3/6/96";
  * ex_undo -- u
  *	Undo the last change.
  *
- * PUBLIC: int ex_undo __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_undo(SCR *, EXCMD *);
  */
 int
-ex_undo(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_undo(SCR *sp, EXCMD *cmdp)
 {
 	EXF *ep;
 	MARK m;

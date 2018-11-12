@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 
 #ifdef XBOX
 #include <machine/xbox.h>
@@ -86,7 +85,6 @@ static int cfgmech;
 static int devmax;
 static struct mtx pcicfg_mtx;
 static int mcfg_enable = 1;
-TUNABLE_INT("hw.pci.mcfg", &mcfg_enable);
 SYSCTL_INT(_hw_pci, OID_AUTO, mcfg, CTLFLAG_RDTUN, &mcfg_enable, 0,
     "Enable support for PCI-e memory mapped config access");
 
@@ -94,9 +92,7 @@ static uint32_t	pci_docfgregread(int bus, int slot, int func, int reg,
 		    int bytes);
 static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
-#ifndef XEN
 static int	pcireg_cfgopen(void);
-#endif
 static int	pciereg_cfgread(int bus, unsigned slot, unsigned func,
 		    unsigned reg, unsigned bytes);
 static void	pciereg_cfgwrite(int bus, unsigned slot, unsigned func,
@@ -117,7 +113,6 @@ pci_i386_map_intline(int line)
 	return (line);
 }
 
-#ifndef XEN
 static u_int16_t
 pcibios_get_version(void)
 {
@@ -138,7 +133,6 @@ pcibios_get_version(void)
 	}
 	return (args.ebx & 0xffff);
 }
-#endif
 
 /* 
  * Initialise access to PCI configuration space 
@@ -146,9 +140,6 @@ pcibios_get_version(void)
 int
 pci_cfgregopen(void)
 {
-#ifdef XEN
-	return (0);
-#else
 	static int		opened = 0;
 	uint64_t		pciebar;
 	u_int16_t		vid, did;
@@ -203,7 +194,6 @@ pci_cfgregopen(void)
 	}
 
 	return(1);
-#endif
 }
 
 static uint32_t
@@ -306,7 +296,7 @@ pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 		switch (cfgmech) {
 		case CFGMECH_PCIE:
 		case CFGMECH_1:
-			outl(CONF1_ADDR_PORT, (1 << 31)
+			outl(CONF1_ADDR_PORT, (1U << 31)
 			    | (bus << 16) | (slot << 11) 
 			    | (func << 8) | (reg & ~0x03));
 			dataport = CONF1_DATA_PORT + (reg & 0x03);
@@ -391,7 +381,6 @@ pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 	mtx_unlock_spin(&pcicfg_mtx);
 }
 
-#ifndef XEN
 /* check whether the configuration mechanism has been correctly identified */
 static int
 pci_cfgcheck(int maxdev)
@@ -553,7 +542,7 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 		    (uintmax_t)base);
 
 #ifdef SMP
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu)
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu)
 #endif
 	{
 
@@ -562,7 +551,7 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 		if (pcie_array == NULL)
 			return (0);
 
-		va = kmem_alloc_nofault(kernel_map, PCIE_CACHE * PAGE_SIZE);
+		va = kva_alloc(PCIE_CACHE * PAGE_SIZE);
 		if (va == 0) {
 			free(pcie_array, M_DEVBUF);
 			return (0);
@@ -608,27 +597,30 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 
 	return (1);
 }
-#endif /* !XEN */
 
-#define PCIE_PADDR(bar, reg, bus, slot, func)	\
-	((bar)				|	\
-	(((bus) & 0xff) << 20)		|	\
+#define PCIE_PADDR(base, reg, bus, slot, func)	\
+	((base)				+	\
+	((((bus) & 0xff) << 20)		|	\
 	(((slot) & 0x1f) << 15)		|	\
 	(((func) & 0x7) << 12)		|	\
-	((reg) & 0xfff))
+	((reg) & 0xfff)))
 
-/*
- * Find an element in the cache that matches the physical page desired, or
- * create a new mapping from the least recently used element.
- * A very simple LRU algorithm is used here, does it need to be more
- * efficient?
- */
-static __inline struct pcie_cfg_elem *
-pciereg_findelem(vm_paddr_t papage)
+static __inline vm_offset_t
+pciereg_findaddr(int bus, unsigned slot, unsigned func, unsigned reg)
 {
 	struct pcie_cfg_list *pcielist;
 	struct pcie_cfg_elem *elem;
+	vm_paddr_t pa, papage;
 
+	pa = PCIE_PADDR(pcie_base, reg, bus, slot, func);
+	papage = pa & ~PAGE_MASK;
+
+	/*
+	 * Find an element in the cache that matches the physical page desired,
+	 * or create a new mapping from the least recently used element.
+	 * A very simple LRU algorithm is used here, does it need to be more
+	 * efficient?
+	 */
 	pcielist = &pcie_list[PCPU_GET(cpuid)];
 	TAILQ_FOREACH(elem, pcielist, elem) {
 		if (elem->papage == papage)
@@ -649,16 +641,22 @@ pciereg_findelem(vm_paddr_t papage)
 		TAILQ_REMOVE(pcielist, elem, elem);
 		TAILQ_INSERT_HEAD(pcielist, elem, elem);
 	}
-	return (elem);
+	return (elem->vapage | (pa & PAGE_MASK));
 }
+
+/*
+ * AMD BIOS And Kernel Developer's Guides for CPU families starting with 10h
+ * have a requirement that all accesses to the memory mapped PCI configuration
+ * space are done using AX class of registers.
+ * Since other vendors do not currently have any contradicting requirements
+ * the AMD access pattern is applied universally.
+ */
 
 static int
 pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
     unsigned bytes)
 {
-	struct pcie_cfg_elem *elem;
-	volatile vm_offset_t va;
-	vm_paddr_t pa, papage;
+	vm_offset_t va;
 	int data = -1;
 
 	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
@@ -666,20 +664,20 @@ pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
 		return (-1);
 
 	critical_enter();
-	pa = PCIE_PADDR(pcie_base, reg, bus, slot, func);
-	papage = pa & ~PAGE_MASK;
-	elem = pciereg_findelem(papage);
-	va = elem->vapage | (pa & PAGE_MASK);
+	va = pciereg_findaddr(bus, slot, func, reg);
 
 	switch (bytes) {
 	case 4:
-		data = *(volatile uint32_t *)(va);
+		__asm("movl %1, %0" : "=a" (data)
+		    : "m" (*(volatile uint32_t *)va));
 		break;
 	case 2:
-		data = *(volatile uint16_t *)(va);
+		__asm("movzwl %1, %0" : "=a" (data)
+		    : "m" (*(volatile uint16_t *)va));
 		break;
 	case 1:
-		data = *(volatile uint8_t *)(va);
+		__asm("movzbl %1, %0" : "=a" (data)
+		    : "m" (*(volatile uint8_t *)va));
 		break;
 	}
 
@@ -691,29 +689,27 @@ static void
 pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
     unsigned bytes)
 {
-	struct pcie_cfg_elem *elem;
-	volatile vm_offset_t va;
-	vm_paddr_t pa, papage;
+	vm_offset_t va;
 
 	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
 	    func > PCI_FUNCMAX || reg > PCIE_REGMAX)
 		return;
 
 	critical_enter();
-	pa = PCIE_PADDR(pcie_base, reg, bus, slot, func);
-	papage = pa & ~PAGE_MASK;
-	elem = pciereg_findelem(papage);
-	va = elem->vapage | (pa & PAGE_MASK);
+	va = pciereg_findaddr(bus, slot, func, reg);
 
 	switch (bytes) {
 	case 4:
-		*(volatile uint32_t *)(va) = data;
+		__asm("movl %1, %0" : "=m" (*(volatile uint32_t *)va)
+		    : "a" (data));
 		break;
 	case 2:
-		*(volatile uint16_t *)(va) = data;
+		__asm("movw %1, %0" : "=m" (*(volatile uint16_t *)va)
+		    : "a" ((uint16_t)data));
 		break;
 	case 1:
-		*(volatile uint8_t *)(va) = data;
+		__asm("movb %1, %0" : "=m" (*(volatile uint8_t *)va)
+		    : "a" ((uint8_t)data));
 		break;
 	}
 

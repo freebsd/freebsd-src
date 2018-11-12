@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	unix_gc
-WARNS=	3
-NO_MAN=
+MAN=
+WARNS?=	6
 
 .include <bsd.prog.mk>

@@ -1,15 +1,9 @@
 /*
  * EAP common peer/server definitions
- * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2014, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -17,6 +11,41 @@
 #include "common.h"
 #include "eap_defs.h"
 #include "eap_common.h"
+
+/**
+ * eap_hdr_len_valid - Validate EAP header length field
+ * @msg: EAP frame (starting with EAP header)
+ * @min_payload: Minimum payload length needed
+ * Returns: 1 for valid header, 0 for invalid
+ *
+ * This is a helper function that does minimal validation of EAP messages. The
+ * length field is verified to be large enough to include the header and not
+ * too large to go beyond the end of the buffer.
+ */
+int eap_hdr_len_valid(const struct wpabuf *msg, size_t min_payload)
+{
+	const struct eap_hdr *hdr;
+	size_t len;
+
+	if (msg == NULL)
+		return 0;
+
+	hdr = wpabuf_head(msg);
+
+	if (wpabuf_len(msg) < sizeof(*hdr)) {
+		wpa_printf(MSG_INFO, "EAP: Too short EAP frame");
+		return 0;
+	}
+
+	len = be_to_host16(hdr->length);
+	if (len < sizeof(*hdr) + min_payload || len > wpabuf_len(msg)) {
+		wpa_printf(MSG_INFO, "EAP: Invalid EAP length");
+		return 0;
+	}
+
+	return 1;
+}
+
 
 /**
  * eap_hdr_validate - Validate EAP header
@@ -41,19 +70,11 @@ const u8 * eap_hdr_validate(int vendor, EapType eap_type,
 	const u8 *pos;
 	size_t len;
 
+	if (!eap_hdr_len_valid(msg, 1))
+		return NULL;
+
 	hdr = wpabuf_head(msg);
-
-	if (wpabuf_len(msg) < sizeof(*hdr)) {
-		wpa_printf(MSG_INFO, "EAP: Too short EAP frame");
-		return NULL;
-	}
-
 	len = be_to_host16(hdr->length);
-	if (len < sizeof(*hdr) + 1 || len > wpabuf_len(msg)) {
-		wpa_printf(MSG_INFO, "EAP: Invalid EAP length");
-		return NULL;
-	}
-
 	pos = (const u8 *) (hdr + 1);
 
 	if (*pos == EAP_TYPE_EXPANDED) {
@@ -171,7 +192,7 @@ u8 eap_get_id(const struct wpabuf *msg)
 
 
 /**
- * eap_get_id - Get EAP Type from wpabuf
+ * eap_get_type - Get EAP Type from wpabuf
  * @msg: Buffer starting with an EAP header
  * Returns: The EAP Type after the EAP header
  */
@@ -182,3 +203,86 @@ EapType eap_get_type(const struct wpabuf *msg)
 
 	return ((const u8 *) wpabuf_head(msg))[sizeof(struct eap_hdr)];
 }
+
+
+#ifdef CONFIG_ERP
+int erp_parse_tlvs(const u8 *pos, const u8 *end, struct erp_tlvs *tlvs,
+		   int stop_at_keyname)
+{
+	os_memset(tlvs, 0, sizeof(*tlvs));
+
+	while (pos < end) {
+		u8 tlv_type, tlv_len;
+
+		tlv_type = *pos++;
+		switch (tlv_type) {
+		case EAP_ERP_TV_RRK_LIFETIME:
+		case EAP_ERP_TV_RMSK_LIFETIME:
+			/* 4-octet TV */
+			if (pos + 4 > end) {
+				wpa_printf(MSG_DEBUG, "EAP: Too short TV");
+				return -1;
+			}
+			pos += 4;
+			break;
+		case EAP_ERP_TLV_DOMAIN_NAME:
+		case EAP_ERP_TLV_KEYNAME_NAI:
+		case EAP_ERP_TLV_CRYPTOSUITES:
+		case EAP_ERP_TLV_AUTHORIZATION_INDICATION:
+		case EAP_ERP_TLV_CALLED_STATION_ID:
+		case EAP_ERP_TLV_CALLING_STATION_ID:
+		case EAP_ERP_TLV_NAS_IDENTIFIER:
+		case EAP_ERP_TLV_NAS_IP_ADDRESS:
+		case EAP_ERP_TLV_NAS_IPV6_ADDRESS:
+			if (pos >= end) {
+				wpa_printf(MSG_DEBUG, "EAP: Too short TLV");
+				return -1;
+			}
+			tlv_len = *pos++;
+			if (tlv_len > (unsigned) (end - pos)) {
+				wpa_printf(MSG_DEBUG, "EAP: Truncated TLV");
+				return -1;
+			}
+			if (tlv_type == EAP_ERP_TLV_KEYNAME_NAI) {
+				if (tlvs->keyname) {
+					wpa_printf(MSG_DEBUG,
+						   "EAP: More than one keyName-NAI");
+					return -1;
+				}
+				tlvs->keyname = pos;
+				tlvs->keyname_len = tlv_len;
+				if (stop_at_keyname)
+					return 0;
+			} else if (tlv_type == EAP_ERP_TLV_DOMAIN_NAME) {
+				tlvs->domain = pos;
+				tlvs->domain_len = tlv_len;
+			}
+			pos += tlv_len;
+			break;
+		default:
+			if (tlv_type >= 128 && tlv_type <= 191) {
+				/* Undefined TLV */
+				if (pos >= end) {
+					wpa_printf(MSG_DEBUG,
+						   "EAP: Too short TLV");
+					return -1;
+				}
+				tlv_len = *pos++;
+				if (tlv_len > (unsigned) (end - pos)) {
+					wpa_printf(MSG_DEBUG,
+						   "EAP: Truncated TLV");
+					return -1;
+				}
+				pos += tlv_len;
+				break;
+			}
+			wpa_printf(MSG_DEBUG, "EAP: Unknown TV/TLV type %u",
+				   tlv_type);
+			pos = end;
+			break;
+		}
+	}
+
+	return 0;
+}
+#endif /* CONFIG_ERP */

@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
  *			z    = (z-x[i])*2**24
  *
  *
- *	y[]	ouput result in an array of double precision numbers.
+ *	y[]	output result in an array of double precision numbers.
  *		The dimension of y[] is:
  *			24-bit  precision	1
  *			53-bit  precision	2
@@ -83,7 +83,7 @@ __FBSDID("$FreeBSD$");
  *		jk+1 must be 2 larger than you might expect so that our
  *		recomputation test works. (Up to 24 bits in the integer
  *		part (the 24 bits of it that we compute) and 23 bits in
- *		the fraction part may be lost to cancelation before we
+ *		the fraction part may be lost to cancellation before we
  *		recompute.)
  *
  * 	jz	local integer variable indicating the number of 

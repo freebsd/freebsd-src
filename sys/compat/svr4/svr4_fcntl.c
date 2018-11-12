@@ -33,6 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/systm.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -258,10 +259,22 @@ fd_revoke(td, fd)
 	struct vnode *vp;
 	struct mount *mp;
 	struct vattr vattr;
+	cap_rights_t rights;
 	int error, *retval;
 
 	retval = td->td_retval;
-	if ((error = fgetvp(td, fd, &vp)) != 0)
+	/*
+	 * If we ever want to support Capsicum on SVR4 processes (unlikely)
+	 * or FreeBSD grows a native frevoke() (more likely), we will need a
+	 * CAP_FREVOKE here.
+	 *
+	 * In the meantime, use CAP_ALL(): if a SVR4 process wants to
+	 * do an frevoke(), it needs to do it on either a regular file
+	 * descriptor or a fully-privileged capability (which is effectively
+	 * the same as a non-capability-restricted file descriptor).
+	 */
+	CAP_ALL(&rights);
+	if ((error = fgetvp(td, fd, &rights, &vp)) != 0)
 		return (error);
 
 	if (vp->v_type != VCHR && vp->v_type != VBLK) {
@@ -307,13 +320,15 @@ fd_truncate(td, fd, flp)
 	struct vattr vattr;
 	int error, *retval;
 	struct ftruncate_args ft;
+	cap_rights_t rights;
 
 	retval = td->td_retval;
 
 	/*
 	 * We only support truncating the file.
 	 */
-	if ((error = fget(td, fd, &fp)) != 0)
+	error = fget(td, fd, cap_rights_init(&rights, CAP_FTRUNCATE), &fp);
+	if (error != 0)
 		return (error);
 
 	vp = fp->f_vnode;
@@ -357,7 +372,7 @@ fd_truncate(td, fd, flp)
 	ft.fd = fd;
 	ft.length = start;
 
-	error = ftruncate(td, &ft);
+	error = sys_ftruncate(td, &ft);
 
 	fdrop(fp, td);
 	return (error);
@@ -375,7 +390,8 @@ svr4_sys_open(td, uap)
 	CHECKALTEXIST(td, uap->path, &newpath);
 
 	bsd_flags = svr4_to_bsd_flags(uap->flags);
-	error = kern_open(td, newpath, UIO_SYSSPACE, bsd_flags, uap->mode);
+	error = kern_openat(td, AT_FDCWD, newpath, UIO_SYSSPACE, bsd_flags,
+	    uap->mode);
 	free(newpath, M_TEMP);
 
 	if (error) {
@@ -390,9 +406,11 @@ svr4_sys_open(td, uap)
 	if (!(bsd_flags & O_NOCTTY) && SESS_LEADER(p) &&
 	    !(p->p_flag & P_CONTROLT)) {
 #if defined(NOTYET)
-		struct file	*fp;
+		cap_rights_t rights;
+		struct file *fp;
 
-		error = fget(td, retval, &fp);
+		error = fget(td, retval,
+		    cap_rights_init(&rights, CAP_IOCTL), &fp);
 		PROC_UNLOCK(p);
 		/*
 		 * we may have lost a race the above open() and
@@ -433,8 +451,8 @@ svr4_sys_creat(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &newpath);
 
-	error = kern_open(td, newpath, UIO_SYSSPACE, O_WRONLY | O_CREAT |
-	    O_TRUNC, uap->mode);
+	error = kern_openat(td, AT_FDCWD, newpath, UIO_SYSSPACE,
+	    O_WRONLY | O_CREAT | O_TRUNC, uap->mode);
 	free(newpath, M_TEMP);
 	return (error);
 }
@@ -465,7 +483,7 @@ svr4_sys_llseek(td, uap)
 #endif
 	ap.whence = uap->whence;
 
-	return lseek(td, &ap);
+	return sys_lseek(td, &ap);
 }
 
 int
@@ -477,7 +495,8 @@ svr4_sys_access(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &newpath);
-	error = kern_access(td, newpath, UIO_SYSSPACE, uap->flags);
+	error = kern_accessat(td, AT_FDCWD, newpath, UIO_SYSSPACE,
+	    0, uap->amode);
 	free(newpath, M_TEMP);
 	return (error);
 }

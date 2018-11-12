@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "shell.h"
+#include "eval.h"
 #include "main.h"
 #include "options.h"
 #include "output.h"
@@ -64,20 +65,23 @@ struct jmploc *handler;
 volatile sig_atomic_t exception;
 volatile sig_atomic_t suppressint;
 volatile sig_atomic_t intpending;
-char *commandname;
 
 
-static void exverror(int, const char *, va_list) __printf0like(2, 0);
+static void exverror(int, const char *, va_list) __printf0like(2, 0) __dead2;
 
 /*
  * Called to raise an exception.  Since C doesn't include exceptions, we
  * just do a longjmp to the exception handler.  The type of exception is
  * stored in the global variable "exception".
+ *
+ * Interrupts are disabled; they should be reenabled when the exception is
+ * caught.
  */
 
 void
 exraise(int e)
 {
+	INTOFF;
 	if (handler == NULL)
 		abort();
 	exception = e;
@@ -86,33 +90,24 @@ exraise(int e)
 
 
 /*
- * Called from trap.c when a SIGINT is received.  (If the user specifies
- * that SIGINT is to be trapped or ignored using the trap builtin, then
- * this routine is not called.)  Suppressint is nonzero when interrupts
- * are held using the INTOFF macro.  If SIGINTs are not suppressed and
- * the shell is not a root shell, then we want to be terminated if we
- * get here, as if we were terminated directly by a SIGINT.  Arrange for
- * this here.
+ * Called from trap.c when a SIGINT is received and not suppressed, or when
+ * an interrupt is pending and interrupts are re-enabled using INTON.
+ * (If the user specifies that SIGINT is to be trapped or ignored using the
+ * trap builtin, then this routine is not called.)  Suppressint is nonzero
+ * when interrupts are held using the INTOFF macro.  If SIGINTs are not
+ * suppressed and the shell is not a root shell, then we want to be
+ * terminated if we get here, as if we were terminated directly by a SIGINT.
+ * Arrange for this here.
  */
 
 void
 onint(void)
 {
-	sigset_t sigset;
+	sigset_t sigs;
 
-	/*
-	 * The !in_dotrap here is safe.  The only way we can arrive here
-	 * with in_dotrap set is that a trap handler set SIGINT to SIG_DFL
-	 * and killed itself.
-	 */
-
-	if (suppressint && !in_dotrap) {
-		intpending++;
-		return;
-	}
 	intpending = 0;
-	sigemptyset(&sigset);
-	sigprocmask(SIG_SETMASK, &sigset, NULL);
+	sigemptyset(&sigs);
+	sigprocmask(SIG_SETMASK, &sigs, NULL);
 
 	/*
 	 * This doesn't seem to be needed, since main() emits a newline.
@@ -126,7 +121,30 @@ onint(void)
 	else {
 		signal(SIGINT, SIG_DFL);
 		kill(getpid(), SIGINT);
+		_exit(128 + SIGINT);
 	}
+}
+
+
+static void
+vwarning(const char *msg, va_list ap)
+{
+	if (commandname)
+		outfmt(out2, "%s: ", commandname);
+	else if (arg0)
+		outfmt(out2, "%s: ", arg0);
+	doformat(out2, msg, ap);
+	out2fmt_flush("\n");
+}
+
+
+void
+warning(const char *msg, ...)
+{
+	va_list ap;
+	va_start(ap, msg);
+	vwarning(msg, ap);
+	va_end(ap);
 }
 
 
@@ -138,8 +156,15 @@ onint(void)
 static void
 exverror(int cond, const char *msg, va_list ap)
 {
-	CLEAR_PENDING_INT;
-	INTOFF;
+	/*
+	 * An interrupt trumps an error.  Certain places catch error
+	 * exceptions or transform them to a plain nonzero exit code
+	 * in child processes, and if an error exception can be handled,
+	 * an interrupt can be handled as well.
+	 *
+	 * exraise() will disable interrupts for the exception handler.
+	 */
+	FORCEINTON;
 
 #ifdef DEBUG
 	if (msg)
@@ -147,12 +172,8 @@ exverror(int cond, const char *msg, va_list ap)
 	else
 		TRACE(("exverror(%d, NULL) pid=%d\n", cond, getpid()));
 #endif
-	if (msg) {
-		if (commandname)
-			outfmt(&errout, "%s: ", commandname);
-		doformat(&errout, msg, ap);
-		out2c('\n');
-	}
+	if (msg)
+		vwarning(msg, ap);
 	flushall();
 	exraise(cond);
 }

@@ -18,11 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -54,9 +50,9 @@ static const char copyright[] =
 #if 0
 static const char sccsid[] = "@(#)rbootd.c	8.1 (Berkeley) 6/4/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/time.h>
@@ -231,7 +227,7 @@ main(int argc, char *argv[])
 
 		r = rset;
 
-		if (RmpConns == NULL) {		/* timeout isnt necessary */
+		if (RmpConns == NULL) {		/* timeout isn't necessary */
 			nsel = select(maxfds, &r, NULL, NULL, NULL);
 		} else {
 			timeout.tv_sec = RMP_TIMEOUT;
@@ -310,16 +306,15 @@ void
 DoTimeout(void)
 {
 	RMPCONN *rtmp;
-	struct timeval now;
-
-	(void) gettimeofday(&now, (struct timezone *)0);
+	time_t now;
 
 	/*
 	 *  For each active connection, if RMP_TIMEOUT seconds have passed
 	 *  since the last packet was sent, delete the connection.
 	 */
+	now = time(NULL);
 	for (rtmp = RmpConns; rtmp != NULL; rtmp = rtmp->next)
-		if ((rtmp->tstamp.tv_sec + RMP_TIMEOUT) < now.tv_sec) {
+		if ((rtmp->tstamp.tv_sec + RMP_TIMEOUT) < now) {
 			syslog(LOG_WARNING, "%s: connection timed out (%u)",
 			       EnetStr(rtmp), rtmp->rmp.r_type);
 			RemoveConn(rtmp);
@@ -397,7 +392,7 @@ Exit(int sig)
 **		- This routine must be called with SIGHUP blocked.
 */
 void
-ReConfig(int signo)
+ReConfig(int signo __unused)
 {
 	syslog(LOG_NOTICE, "reconfiguring boot server");
 
@@ -423,7 +418,7 @@ ReConfig(int signo)
 **		- Debug file is closed.
 */
 void
-DebugOff(int signo)
+DebugOff(int signo __unused)
 {
 	if (DbgFp != NULL)
 		(void) fclose(DbgFp);
@@ -445,7 +440,7 @@ DebugOff(int signo)
 **		  otherwise do nothing.
 */
 void
-DebugOn(int signo)
+DebugOn(int signo __unused)
 {
 	if (DbgFp == NULL) {
 		if ((DbgFp = fopen(DbgFile, "w")) == NULL)

@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -143,7 +144,7 @@ static int pcn_ioctl(struct ifnet *, u_long, caddr_t);
 static void pcn_init(void *);
 static void pcn_init_locked(struct pcn_softc *);
 static void pcn_stop(struct pcn_softc *);
-static void pcn_watchdog(struct ifnet *);
+static void pcn_watchdog(struct pcn_softc *);
 static int pcn_shutdown(device_t);
 static int pcn_ifmedia_upd(struct ifnet *);
 static void pcn_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -173,16 +174,12 @@ static device_method_t pcn_methods[] = {
 	DEVMETHOD(device_detach,	pcn_detach),
 	DEVMETHOD(device_shutdown,	pcn_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	pcn_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	pcn_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	pcn_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t pcn_driver = {
@@ -630,18 +627,19 @@ pcn_attach(dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = pcn_ioctl;
 	ifp->if_start = pcn_start;
-	ifp->if_watchdog = pcn_watchdog;
 	ifp->if_init = pcn_init;
 	ifp->if_snd.ifq_maxlen = PCN_TX_LIST_CNT - 1;
 
 	/*
 	 * Do MII setup.
+	 * See the comment in pcn_miibus_readreg() for why we can't
+	 * universally pass MIIF_NOISOLATE here.
 	 */
 	sc->pcn_extphyaddr = -1;
-	if (mii_phy_probe(dev, &sc->pcn_miibus,
-	    pcn_ifmedia_upd, pcn_ifmedia_sts)) {
-		device_printf(dev, "MII without any PHY!\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->pcn_miibus, ifp, pcn_ifmedia_upd,
+	   pcn_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 	/*
@@ -801,12 +799,11 @@ pcn_newbuf(sc, idx, m)
 	c = &sc->pcn_ldata->pcn_rx_list[idx];
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		if (m_new == NULL)
 			return(ENOBUFS);
 
-		MCLGET(m_new, M_DONTWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
+		if (!(MCLGET(m_new, M_NOWAIT))) {
 			m_freem(m_new);
 			return(ENOBUFS);
 		}
@@ -858,7 +855,7 @@ pcn_rxeof(sc)
 	 	 * comes up in the ring.
 		 */
 		if (cur_rx->pcn_rxstat & PCN_RXSTAT_ERR) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			pcn_newbuf(sc, i, m);
 			PCN_INC(i, PCN_RX_LIST_CNT);
 			continue;
@@ -867,7 +864,7 @@ pcn_rxeof(sc)
 		if (pcn_newbuf(sc, i, NULL)) {
 			/* Ran out of mbufs; recycle this one. */
 			pcn_newbuf(sc, i, m);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			PCN_INC(i, PCN_RX_LIST_CNT);
 			continue;
 		}
@@ -875,7 +872,7 @@ pcn_rxeof(sc)
 		PCN_INC(i, PCN_RX_LIST_CNT);
 
 		/* No errors; receive the packet. */
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		m->m_len = m->m_pkthdr.len =
 		    cur_rx->pcn_rxlen - ETHER_CRC_LEN;
 		m->m_pkthdr.rcvif = ifp;
@@ -923,17 +920,17 @@ pcn_txeof(sc)
 		}
 
 		if (cur_tx->pcn_txctl & PCN_TXCTL_ERR) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			if (cur_tx->pcn_txstat & PCN_TXSTAT_EXDEF)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			if (cur_tx->pcn_txstat & PCN_TXSTAT_RTRY)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 		}
 
-		ifp->if_collisions +=
-		    cur_tx->pcn_txstat & PCN_TXSTAT_TRC;
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+		    cur_tx->pcn_txstat & PCN_TXSTAT_TRC);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		if (sc->pcn_cdata.pcn_tx_chain[idx] != NULL) {
 			m_freem(sc->pcn_cdata.pcn_tx_chain[idx]);
 			sc->pcn_cdata.pcn_tx_chain[idx] = NULL;
@@ -948,7 +945,7 @@ pcn_txeof(sc)
 		sc->pcn_cdata.pcn_tx_cons = idx;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
-	ifp->if_timer = (sc->pcn_cdata.pcn_tx_cnt == 0) ? 0 : 5;
+	sc->pcn_timer = (sc->pcn_cdata.pcn_tx_cnt == 0) ? 0 : 5;
 
 	return;
 }
@@ -969,7 +966,7 @@ pcn_tick(xsc)
 	mii_tick(mii);
 
 	/* link just died */
-	if (sc->pcn_link & !(mii->mii_media_status & IFM_ACTIVE))
+	if (sc->pcn_link && !(mii->mii_media_status & IFM_ACTIVE))
 		sc->pcn_link = 0;
 
 	/* link just came up, restart */
@@ -980,6 +977,8 @@ pcn_tick(xsc)
 			pcn_start_locked(ifp);
 	}
 
+	if (sc->pcn_timer > 0 && --sc->pcn_timer == 0)
+		pcn_watchdog(sc);
 	callout_reset(&sc->pcn_stat_callout, hz, pcn_tick, sc);
 
 	return;
@@ -1147,7 +1146,7 @@ pcn_start_locked(ifp)
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
-	ifp->if_timer = 5;
+	sc->pcn_timer = 5;
 
 	return;
 }
@@ -1429,16 +1428,14 @@ pcn_ioctl(ifp, command, data)
 }
 
 static void
-pcn_watchdog(ifp)
-	struct ifnet		*ifp;
+pcn_watchdog(struct pcn_softc *sc)
 {
-	struct pcn_softc	*sc;
+	struct ifnet		*ifp;
 
-	sc = ifp->if_softc;
+	PCN_LOCK_ASSERT(sc);
+	ifp = sc->pcn_ifp;
 
-	PCN_LOCK(sc);
-
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if_printf(ifp, "watchdog timeout\n");
 
 	pcn_stop(sc);
@@ -1447,10 +1444,6 @@ pcn_watchdog(ifp)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		pcn_start_locked(ifp);
-
-	PCN_UNLOCK(sc);
-
-	return;
 }
 
 /*
@@ -1465,7 +1458,7 @@ pcn_stop(struct pcn_softc *sc)
 
 	PCN_LOCK_ASSERT(sc);
 	ifp = sc->pcn_ifp;
-	ifp->if_timer = 0;
+	sc->pcn_timer = 0;
 
 	callout_stop(&sc->pcn_stat_callout);
 

@@ -32,7 +32,7 @@
 # Output and errors are directed to console by init, and the
 # console is the controlling terminal.
 
-stty status '^T'
+stty status '^T' 2> /dev/null
 
 # Set shell to ignore SIGINT (2), but not children;
 # shell catches SIGQUIT (3) and returns to single user after fsck.
@@ -45,7 +45,7 @@ export HOME PATH
 
 . /etc/rc.subr
 
-load_rc_config 'XXX'
+load_rc_config
 
 # reverse_list list
 #	print the list in reverse order
@@ -81,7 +81,12 @@ fi
 # and perform the operation
 #
 rcorder_opts="-k shutdown"
-[ `/sbin/sysctl -n security.jail.jailed` -eq 1 ] && rcorder_opts="$rcorder_opts -s nojail"
+if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
+	rcorder_opts="$rcorder_opts -s nojail"
+	if [ `/sbin/sysctl -n security.jail.vnet` -ne 1 ]; then
+		rcorder_opts="$rcorder_opts -s nojailvnet"
+	fi
+fi
 
 case ${local_startup} in
 [Nn][Oo] | '') ;;

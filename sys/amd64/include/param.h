@@ -59,11 +59,20 @@
 #ifndef MACHINE_ARCH
 #define	MACHINE_ARCH	"amd64"
 #endif
+#ifndef MACHINE_ARCH32
+#define	MACHINE_ARCH32	"i386"
+#endif
 
 #if defined(SMP) || defined(KLD_MODULE)
-#define MAXCPU		32
+#ifndef MAXCPU
+#define MAXCPU		256
+#endif
 #else
 #define MAXCPU		1
+#endif
+
+#ifndef MAXMEMDOM
+#define	MAXMEMDOM	8
 #endif
 
 #define	ALIGNBYTES		_ALIGNBYTES
@@ -105,25 +114,23 @@
 #define	NPML4EPG	(PAGE_SIZE/(sizeof (pml4_entry_t)))
 #define	NPML4EPGSHIFT	9		/* LOG2(NPML4EPG) */
 #define	PML4SHIFT	39		/* LOG2(NBPML4) */
-#define	NBPML4		(1ul<<PML4SHIFT)/* bytes/page map lev4 table */
+#define	NBPML4		(1UL<<PML4SHIFT)/* bytes/page map lev4 table */
 #define	PML4MASK	(NBPML4-1)
 
 #define	MAXPAGESIZES	3	/* maximum number of supported page sizes */
 
 #define IOPAGES	2		/* pages of i/o permission bitmap */
+/*
+ * I/O permission bitmap has a bit for each I/O port plus an additional
+ * byte at the end with all bits set. See section "I/O Permission Bit Map"
+ * in the Intel SDM for more details.
+ */
+#define	IOPERM_BITMAP_SIZE	(IOPAGES * PAGE_SIZE + 1)
 
 #ifndef	KSTACK_PAGES
 #define	KSTACK_PAGES	4	/* pages of kstack (with pcb) */
 #endif
 #define	KSTACK_GUARD_PAGES 1	/* pages of kstack guard; 0 disables */
-
-/*
- * Ceiling on amount of swblock kva space, can be changed via
- * the kern.maxswzone /boot/loader.conf variable.
- */
-#ifndef VM_SWZONE_SIZE_MAX
-#define	VM_SWZONE_SIZE_MAX	(32 * 1024 * 1024)
-#endif
 
 /*
  * Mach derived conversion macros
@@ -141,5 +148,8 @@
 #define	amd64_ptob(x)	((unsigned long)(x) << PAGE_SHIFT)
 
 #define	pgtok(x)	((unsigned long)(x) * (PAGE_SIZE / 1024)) 
+
+#define	INKERNEL(va) (((va) >= DMAP_MIN_ADDRESS && (va) < DMAP_MAX_ADDRESS) \
+    || ((va) >= VM_MIN_KERNEL_ADDRESS && (va) < VM_MAX_KERNEL_ADDRESS))
 
 #endif /* !_AMD64_INCLUDE_PARAM_H_ */

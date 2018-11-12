@@ -312,13 +312,13 @@ typedef struct sdp_attr *	sdp_attr_p;
 
 /* Inline versions of get/put byte/short/long. Pointer is advanced */
 #define SDP_GET8(b, cp) { \
-	register uint8_t *t_cp = (uint8_t *)(cp); \
+	const uint8_t *t_cp = (const uint8_t *)(cp); \
 	(b) = *t_cp; \
 	(cp) ++; \
 }
 
 #define SDP_GET16(s, cp) { \
-	register uint8_t *t_cp = (uint8_t *)(cp); \
+	const uint8_t *t_cp = (const uint8_t *)(cp); \
 	(s) = ((uint16_t)t_cp[0] << 8) \
 	    | ((uint16_t)t_cp[1]) \
 	    ; \
@@ -326,7 +326,7 @@ typedef struct sdp_attr *	sdp_attr_p;
 }
 
 #define SDP_GET32(l, cp) { \
-	register uint8_t *t_cp = (uint8_t *)(cp); \
+	const uint8_t *t_cp = (const uint8_t *)(cp); \
 	(l) = ((uint32_t)t_cp[0] << 24) \
 	    | ((uint32_t)t_cp[1] << 16) \
 	    | ((uint32_t)t_cp[2] << 8) \
@@ -561,7 +561,7 @@ void               sdp_print      (uint32_t level, uint8_t const *start,
  *	bdaddr_t	bdaddr;	local BD_ADDR (or ANY)
  *	profile data[pdu->len - sizeof(uuid) - sizeof(bdaddr)]
  *
- * in successful reponse additional data will contain 4 bytes record handle
+ * in successful response additional data will contain 4 bytes record handle
  *
  *
  * SDP_PDU_SERVICE_UNREGISTER_REQUEST

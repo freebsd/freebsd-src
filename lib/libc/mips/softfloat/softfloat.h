@@ -45,7 +45,7 @@ the `FLOAT128' macro and the quadruple-precision format `float128'.
 /* #define FLOATX80 */
 /* #define FLOAT128 */
 
-#include <machine/ieeefp.h>
+#include <fenv.h>
 
 /*
 -------------------------------------------------------------------------------
@@ -84,12 +84,12 @@ enum {
 Software IEC/IEEE floating-point rounding mode.
 -------------------------------------------------------------------------------
 */
-extern fp_rnd_t float_rounding_mode;
+extern int float_rounding_mode;
 enum {
-    float_round_nearest_even = FP_RN,
-    float_round_to_zero      = FP_RZ,
-    float_round_down         = FP_RM,
-    float_round_up           = FP_RP
+    float_round_nearest_even = FE_TONEAREST,
+    float_round_to_zero      = FE_TOWARDZERO,
+    float_round_down         = FE_DOWNWARD,
+    float_round_up           = FE_UPWARD
 };
 
 /*
@@ -97,14 +97,14 @@ enum {
 Software IEC/IEEE floating-point exception flags.
 -------------------------------------------------------------------------------
 */
-extern fp_except float_exception_flags;
-extern fp_except float_exception_mask;
+extern int float_exception_flags;
+extern int float_exception_mask;
 enum {
-    float_flag_inexact   = FP_X_IMP,
-    float_flag_underflow = FP_X_UFL,
-    float_flag_overflow  = FP_X_OFL,
-    float_flag_divbyzero = FP_X_DZ,
-    float_flag_invalid   = FP_X_INV
+    float_flag_inexact   = FE_INEXACT,
+    float_flag_underflow = FE_UNDERFLOW,
+    float_flag_overflow  = FE_OVERFLOW,
+    float_flag_divbyzero = FE_DIVBYZERO,
+    float_flag_invalid   = FE_INVALID
 };
 
 /*
@@ -113,7 +113,7 @@ Routine to raise any or all of the software IEC/IEEE floating-point
 exception flags.
 -------------------------------------------------------------------------------
 */
-void float_raise( fp_except );
+void float_raise( int );
 
 /*
 -------------------------------------------------------------------------------

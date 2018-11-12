@@ -58,7 +58,6 @@ static const char rcsid[] =
 #include <err.h>
 #include <fcntl.h>
 #include <inttypes.h>
-#include <libgen.h>
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
@@ -67,7 +66,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include <libutil.h>
+#include "libutil.h"
 
 static pid_t editpid = -1;
 static int lockfd = -1;
@@ -179,11 +178,8 @@ pw_lock(void)
 	for (;;) {
 		struct stat st;
 
-		lockfd = open(masterpasswd, O_RDONLY, 0);
-		if (lockfd < 0 || fcntl(lockfd, F_SETFD, 1) == -1)
-			err(1, "%s", masterpasswd);
-		/* XXX vulnerable to race conditions */
-		if (flock(lockfd, LOCK_EX|LOCK_NB) == -1) {
+		lockfd = flopen(masterpasswd, O_RDONLY|O_NONBLOCK|O_CLOEXEC, 0);
+		if (lockfd == -1) {
 			if (errno == EWOULDBLOCK) {
 				errx(1, "the password db file is busy");
 			} else {
@@ -229,7 +225,7 @@ pw_tmp(int mfd)
 		errno = ENAMETOOLONG;
 		return (-1);
 	}
-	if ((tfd = mkstemp(tempname)) == -1)
+	if ((tfd = mkostemp(tempname, O_SYNC)) == -1)
 		return (-1);
 	if (mfd != -1) {
 		while ((nr = read(mfd, buf, sizeof(buf))) > 0)
@@ -289,7 +285,7 @@ int
 pw_edit(int notsetuid)
 {
 	struct sigaction sa, sa_int, sa_quit;
-	sigset_t oldsigset, sigset;
+	sigset_t oldsigset, nsigset;
 	struct stat st1, st2;
 	const char *editor;
 	int pstat;
@@ -303,9 +299,9 @@ pw_edit(int notsetuid)
 	sa.sa_flags = 0;
 	sigaction(SIGINT, &sa, &sa_int);
 	sigaction(SIGQUIT, &sa, &sa_quit);
-	sigemptyset(&sigset);
-	sigaddset(&sigset, SIGCHLD);
-	sigprocmask(SIG_BLOCK, &sigset, &oldsigset);
+	sigemptyset(&nsigset);
+	sigaddset(&nsigset, SIGCHLD);
+	sigprocmask(SIG_BLOCK, &nsigset, &oldsigset);
 	switch ((editpid = fork())) {
 	case -1:
 		return (-1);
@@ -318,7 +314,7 @@ pw_edit(int notsetuid)
 			(void)setuid(getuid());
 		}
 		errno = 0;
-		execlp(editor, basename(editor), tempname, (char *)NULL);
+		execlp(editor, editor, tempname, (char *)NULL);
 		_exit(errno);
 	default:
 		/* parent */
@@ -347,7 +343,8 @@ pw_edit(int notsetuid)
 	sigprocmask(SIG_SETMASK, &oldsigset, NULL);
 	if (stat(tempname, &st2) == -1)
 		return (-1);
-	return (st1.st_mtime != st2.st_mtime);
+	return (st1.st_mtim.tv_sec != st2.st_mtim.tv_sec ||
+	    st1.st_mtim.tv_nsec != st2.st_mtim.tv_nsec);
 }
 
 /*
@@ -406,23 +403,51 @@ pw_make(const struct passwd *pw)
 	    pw->pw_passwd, (uintmax_t)pw->pw_uid, (uintmax_t)pw->pw_gid,
 	    pw->pw_class, (uintmax_t)pw->pw_change, (uintmax_t)pw->pw_expire,
 	    pw->pw_gecos, pw->pw_dir, pw->pw_shell);
-	return line;
+	return (line);
 }
 
 /*
- * Copy password file from one descriptor to another, replacing or adding
- * a single record on the way.
+ * Make a passwd line (in v7 format) out of a struct passwd
+ */
+char *
+pw_make_v7(const struct passwd *pw)
+{
+	char *line;
+
+	asprintf(&line, "%s:*:%ju:%ju:%s:%s:%s", pw->pw_name,
+	    (uintmax_t)pw->pw_uid, (uintmax_t)pw->pw_gid,
+	    pw->pw_gecos, pw->pw_dir, pw->pw_shell);
+	return (line);
+}
+
+/*
+ * Copy password file from one descriptor to another, replacing, deleting
+ * or adding a single record on the way.
  */
 int
 pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 {
 	char buf[8192], *end, *line, *p, *q, *r, t;
 	struct passwd *fpw;
+	const struct passwd *spw;
 	size_t len;
 	int eof, readlen;
 
-	if ((line = pw_make(pw)) == NULL)
-		return (-1);
+	if (old_pw == NULL && pw == NULL)
+			return (-1);
+
+	spw = old_pw;
+	/* deleting a user */
+	if (pw == NULL) {
+		line = NULL;
+	} else {
+		if ((line = pw_make(pw)) == NULL)
+			return (-1);
+	}
+
+	/* adding a user */
+	if (spw == NULL)
+		spw = pw;
 
 	eof = 0;
 	len = 0;
@@ -489,7 +514,7 @@ pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 		 */
 
 		*q = t;
-		if (fpw == NULL || strcmp(fpw->pw_name, pw->pw_name) != 0) {
+		if (fpw == NULL || strcmp(fpw->pw_name, spw->pw_name) != 0) {
 			/* nope */
 			if (fpw != NULL)
 				free(fpw);
@@ -506,11 +531,15 @@ pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 		}
 		free(fpw);
 
-		/* it is, replace it */
-		len = strlen(line);
-		if (write(tfd, line, len) != (int)len)
-			goto err;
-
+		/* it is, replace or remove it */
+		if (line != NULL) {
+			len = strlen(line);
+			if (write(tfd, line, len) != (int)len)
+				goto err;
+		} else {
+			/* when removed, avoid the \n */
+			q++;
+		}
 		/* we're done, just copy the rest over */
 		for (;;) {
 			if (write(tfd, q, end - q) != end - q)
@@ -528,16 +557,22 @@ pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 		goto done;
 	}
 
-	/* if we got here, we have a new entry */
+	/* if we got here, we didn't find the old entry */
+	if (line == NULL) {
+		errno = ENOENT;
+		goto err;
+	}
 	len = strlen(line);
 	if ((size_t)write(tfd, line, len) != len ||
 	    write(tfd, "\n", 1) != 1)
 		goto err;
  done:
-	free(line);
+	if (line != NULL)
+		free(line);
 	return (0);
  err:
-	free(line);
+	if (line != NULL)
+		free(line);
 	return (-1);
 }
 
@@ -557,43 +592,50 @@ pw_tempname(void)
 struct passwd *
 pw_dup(const struct passwd *pw)
 {
+	char *dst;
 	struct passwd *npw;
 	ssize_t len;
 
-	len = sizeof(*npw) +
-	    (pw->pw_name ? strlen(pw->pw_name) + 1 : 0) +
-	    (pw->pw_passwd ? strlen(pw->pw_passwd) + 1 : 0) +
-	    (pw->pw_class ? strlen(pw->pw_class) + 1 : 0) +
-	    (pw->pw_gecos ? strlen(pw->pw_gecos) + 1 : 0) +
-	    (pw->pw_dir ? strlen(pw->pw_dir) + 1 : 0) +
-	    (pw->pw_shell ? strlen(pw->pw_shell) + 1 : 0);
+	len = sizeof(*npw);
+	if (pw->pw_name != NULL)
+		len += strlen(pw->pw_name) + 1;
+	if (pw->pw_passwd != NULL)
+		len += strlen(pw->pw_passwd) + 1;
+	if (pw->pw_class != NULL)
+		len += strlen(pw->pw_class) + 1;
+	if (pw->pw_gecos != NULL)
+		len += strlen(pw->pw_gecos) + 1;
+	if (pw->pw_dir != NULL)
+		len += strlen(pw->pw_dir) + 1;
+	if (pw->pw_shell != NULL)
+		len += strlen(pw->pw_shell) + 1;
 	if ((npw = malloc((size_t)len)) == NULL)
 		return (NULL);
 	memcpy(npw, pw, sizeof(*npw));
-	len = sizeof(*npw);
-	if (pw->pw_name) {
-		npw->pw_name = ((char *)npw) + len;
-		len += sprintf(npw->pw_name, "%s", pw->pw_name) + 1;
+	dst = (char *)npw + sizeof(*npw);
+	if (pw->pw_name != NULL) {
+		npw->pw_name = dst;
+		dst = stpcpy(npw->pw_name, pw->pw_name) + 1;
 	}
-	if (pw->pw_passwd) {
-		npw->pw_passwd = ((char *)npw) + len;
-		len += sprintf(npw->pw_passwd, "%s", pw->pw_passwd) + 1;
+	if (pw->pw_passwd != NULL) {
+		npw->pw_passwd = dst;
+		dst = stpcpy(npw->pw_passwd, pw->pw_passwd) + 1;
 	}
-	if (pw->pw_class) {
-		npw->pw_class = ((char *)npw) + len;
-		len += sprintf(npw->pw_class, "%s", pw->pw_class) + 1;
+	if (pw->pw_class != NULL) {
+		npw->pw_class = dst;
+		dst = stpcpy(npw->pw_class, pw->pw_class) + 1;
 	}
-	if (pw->pw_gecos) {
-		npw->pw_gecos = ((char *)npw) + len;
-		len += sprintf(npw->pw_gecos, "%s", pw->pw_gecos) + 1;
+	if (pw->pw_gecos != NULL) {
+		npw->pw_gecos = dst;
+		dst = stpcpy(npw->pw_gecos, pw->pw_gecos) + 1;
 	}
-	if (pw->pw_dir) {
-		npw->pw_dir = ((char *)npw) + len;
-		len += sprintf(npw->pw_dir, "%s", pw->pw_dir) + 1;
+	if (pw->pw_dir != NULL) {
+		npw->pw_dir = dst;
+		dst = stpcpy(npw->pw_dir, pw->pw_dir) + 1;
 	}
-	if (pw->pw_shell) {
-		npw->pw_shell = ((char *)npw) + len;
-		len += sprintf(npw->pw_shell, "%s", pw->pw_shell) + 1;
+	if (pw->pw_shell != NULL) {
+		npw->pw_shell = dst;
+		dst = stpcpy(npw->pw_shell, pw->pw_shell) + 1;
 	}
 	return (npw);
 }

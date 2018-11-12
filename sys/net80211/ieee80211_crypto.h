@@ -78,6 +78,7 @@ struct ieee80211_key {
 #define	IEEE80211_KEY_XMIT	0x0001	/* key used for xmit */
 #define	IEEE80211_KEY_RECV	0x0002	/* key used for recv */
 #define	IEEE80211_KEY_GROUP	0x0004	/* key used for WPA group operation */
+#define	IEEE80211_KEY_NOREPLAY	0x0008	/* ignore replay failures */
 #define	IEEE80211_KEY_SWENCRYPT	0x0010	/* host-based encrypt */
 #define	IEEE80211_KEY_SWDECRYPT	0x0020	/* host-based decrypt */
 #define	IEEE80211_KEY_SWENMIC	0x0040	/* host-based enmic */
@@ -98,13 +99,16 @@ struct ieee80211_key {
 	uint8_t		wk_macaddr[IEEE80211_ADDR_LEN];
 };
 #define	IEEE80211_KEY_COMMON 		/* common flags passed in by apps */\
-	(IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV | IEEE80211_KEY_GROUP)
-#define	IEEE80211_KEY_DEVICE		/* flags owned by device driver */\
-	(IEEE80211_KEY_DEVKEY|IEEE80211_KEY_CIPHER0|IEEE80211_KEY_CIPHER1)
+	(IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV | IEEE80211_KEY_GROUP | \
+	 IEEE80211_KEY_NOREPLAY)
 
 #define	IEEE80211_KEY_SWCRYPT \
 	(IEEE80211_KEY_SWENCRYPT | IEEE80211_KEY_SWDECRYPT)
 #define	IEEE80211_KEY_SWMIC	(IEEE80211_KEY_SWENMIC | IEEE80211_KEY_SWDEMIC)
+
+#define IEEE80211_KEY_DEVICE		/* flags owned by device driver */\
+	(IEEE80211_KEY_DEVKEY|IEEE80211_KEY_CIPHER0|IEEE80211_KEY_CIPHER1| \
+	 IEEE80211_KEY_SWCRYPT|IEEE80211_KEY_SWMIC)
 
 #define	IEEE80211_KEY_BITS \
 	"\20\1XMIT\2RECV\3GROUP\4SWENCRYPT\5SWDECRYPT\6SWENMIC\7SWDEMIC" \
@@ -176,8 +180,8 @@ struct ieee80211_cipher {
 	void*	(*ic_attach)(struct ieee80211vap *, struct ieee80211_key *);
 	void	(*ic_detach)(struct ieee80211_key *);
 	int	(*ic_setkey)(struct ieee80211_key *);
-	int	(*ic_encap)(struct ieee80211_key *, struct mbuf *,
-			uint8_t keyid);
+	void	(*ic_setiv)(struct ieee80211_key *, uint8_t *);
+	int	(*ic_encap)(struct ieee80211_key *, struct mbuf *);
 	int	(*ic_decap)(struct ieee80211_key *, struct mbuf *, int);
 	int	(*ic_enmic)(struct ieee80211_key *, struct mbuf *, int);
 	int	(*ic_demic)(struct ieee80211_key *, struct mbuf *, int);
@@ -191,6 +195,10 @@ void	ieee80211_crypto_register(const struct ieee80211_cipher *);
 void	ieee80211_crypto_unregister(const struct ieee80211_cipher *);
 int	ieee80211_crypto_available(u_int cipher);
 
+uint8_t	ieee80211_crypto_get_keyid(struct ieee80211vap *vap,
+		struct ieee80211_key *k);
+struct ieee80211_key *ieee80211_crypto_get_txkey(struct ieee80211_node *,
+		struct mbuf *);
 struct ieee80211_key *ieee80211_crypto_encap(struct ieee80211_node *,
 		struct mbuf *);
 struct ieee80211_key *ieee80211_crypto_decap(struct ieee80211_node *,

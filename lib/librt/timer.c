@@ -102,12 +102,14 @@ __timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 	}
 
 	if (__sigev_check_init()) {
+		free(timer);
 		errno = EINVAL;
 		return (-1);
 	}
 
 	sn = __sigev_alloc(SI_TIMER, evp, NULL, 0);
 	if (sn == NULL) {
+		free(timer);
 		errno = EAGAIN;
 		return (-1);
 	}
@@ -173,8 +175,9 @@ __timer_settime(timer_t timerid, int flags,
 		flags, value, ovalue);
 }
 
+#pragma weak timer_oshandle_np
 int
-__timer_oshandle(timer_t timerid)
+timer_oshandle_np(timer_t timerid)
 {
 
 	return (timerid->oshandle);

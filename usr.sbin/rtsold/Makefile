@@ -19,9 +19,6 @@ MAN=	rtsold.8
 MLINKS=	rtsold.8 rtsol.8
 SRCS=	rtsold.c rtsol.c if.c probe.c dump.c rtsock.c
 
-CFLAGS+= -DHAVE_ARC4RANDOM -DHAVE_POLL_H
-
-DPADD=	${LIBKVM}
-LDADD=	-lkvm
+WARNS?=	3
 
 .include <bsd.prog.mk>

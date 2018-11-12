@@ -2,9 +2,8 @@
 
 PROG=	stumbler
 BINDIR=	/usr/local/bin
-DPADD=	${LIBPCAP}
-LDADD=	-lpcap -lncurses
+LIBADD=	pcap ncursesw
 CFLAGS=-g
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

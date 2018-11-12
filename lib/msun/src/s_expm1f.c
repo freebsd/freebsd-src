@@ -16,12 +16,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
 static const float
 one		= 1.0,
-huge		= 1.0e+30,
 tiny		= 1.0e-30,
 o_threshold	= 8.8721679688e+01,/* 0x42b17180 */
 ln2_hi		= 6.9313812256e-01,/* 0x3f317180 */
@@ -35,6 +36,8 @@ invln2		= 1.4426950216e+00,/* 0x3fb8aa3b */
 Q1 = -3.3333212137e-2,		/* -0x888868.0p-28 */
 Q2 =  1.5807170421e-3;		/*  0xcf3010.0p-33 */
 
+static volatile float huge = 1.0e+30;
+
 float
 expm1f(float x)
 {
@@ -44,7 +47,6 @@ expm1f(float x)
 
 	GET_FLOAT_WORD(hx,x);
 	xsb = hx&0x80000000;		/* sign bit of x */
-	if(xsb==0) y=x; else y= -x;	/* y = |x| */
 	hx &= 0x7fffffff;		/* high word of |x| */
 
     /* filter out huge and non-finite argument */
@@ -75,7 +77,7 @@ expm1f(float x)
 		hi = x - t*ln2_hi;	/* t*ln2_hi is exact here */
 		lo = t*ln2_lo;
 	    }
-	    x  = hi - lo;
+	    STRICT_ASSIGN(float, x, hi - lo);
 	    c  = (hi-x)-lo;
 	}
 	else if(hx < 0x33000000) {  	/* when |x|<2**-25, return x */

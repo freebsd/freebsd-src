@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -58,8 +51,10 @@ __FBSDID("$FreeBSD$");
 #define	MAX_EARLYBOOT_MAPPINGS	6
 
 static struct {
+	vm_offset_t virt;
 	bus_addr_t addr;
 	bus_size_t size;
+	int flags;
 } earlyboot_mappings[MAX_EARLYBOOT_MAPPINGS];
 static int earlyboot_map_idx = 0;
 
@@ -72,9 +67,11 @@ __ppc_ba(bus_space_handle_t bsh, bus_size_t ofs)
 }
 
 static int
-bs_gen_map(bus_addr_t addr, bus_size_t size __unused, int flags __unused,
+bs_gen_map(bus_addr_t addr, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
 {
+	vm_memattr_t ma;
+
 	/*
 	 * Record what we did if we haven't enabled the MMU yet. We
 	 * will need to remap it as soon as the MMU comes up.
@@ -83,11 +80,23 @@ bs_gen_map(bus_addr_t addr, bus_size_t size __unused, int flags __unused,
 		KASSERT(earlyboot_map_idx < MAX_EARLYBOOT_MAPPINGS,
 		    ("%s: too many early boot mapping requests", __func__));
 		earlyboot_mappings[earlyboot_map_idx].addr = addr;
+		earlyboot_mappings[earlyboot_map_idx].virt =
+		    pmap_early_io_map(addr, size);
 		earlyboot_mappings[earlyboot_map_idx].size = size;
+		earlyboot_mappings[earlyboot_map_idx].flags = flags;
+		*bshp = earlyboot_mappings[earlyboot_map_idx].virt;
 		earlyboot_map_idx++;
-		*bshp = addr;
 	} else {
-		*bshp = (bus_space_handle_t)pmap_mapdev(addr,size);
+		ma = VM_MEMATTR_DEFAULT;
+		switch (flags) {
+			case BUS_SPACE_MAP_CACHEABLE:
+				ma = VM_MEMATTR_CACHEABLE;
+				break;
+			case BUS_SPACE_MAP_PREFETCHABLE:
+				ma = VM_MEMATTR_PREFETCHABLE;
+				break;
+		}
+		*bshp = (bus_space_handle_t)pmap_mapdev_attr(addr, size, ma);
 	}
 
 	return (0);
@@ -97,17 +106,30 @@ void
 bs_remap_earlyboot(void)
 {
 	int i;
-	vm_offset_t pa, spa;
-
-	if (hw_direct_map)
-		return;
+	vm_offset_t pa, spa, va;
+	vm_memattr_t ma;
 
 	for (i = 0; i < earlyboot_map_idx; i++) {
 		spa = earlyboot_mappings[i].addr;
+		if (spa == earlyboot_mappings[i].virt &&
+		   pmap_dev_direct_mapped(spa, earlyboot_mappings[i].size) == 0)
+			continue;
+
+		ma = VM_MEMATTR_DEFAULT;
+		switch (earlyboot_mappings[i].flags) {
+			case BUS_SPACE_MAP_CACHEABLE:
+				ma = VM_MEMATTR_CACHEABLE;
+				break;
+			case BUS_SPACE_MAP_PREFETCHABLE:
+				ma = VM_MEMATTR_PREFETCHABLE;
+				break;
+		}
 
 		pa = trunc_page(spa);
+		va = trunc_page(earlyboot_mappings[i].virt);
 		while (pa < spa + earlyboot_mappings[i].size) {
-			pmap_kenter(pa,pa);
+			pmap_kenter_attr(va, pa, ma);
+			va += PAGE_SIZE;
 			pa += PAGE_SIZE;
 		}
 	}
@@ -145,7 +167,8 @@ static void
 bs_gen_barrier(bus_space_handle_t bsh __unused, bus_size_t ofs __unused,
     bus_size_t size __unused, int flags __unused)
 {
-	__asm __volatile("eieio; sync" : : : "memory");
+
+	powerpc_iomb();
 }
 
 /*
@@ -159,6 +182,7 @@ bs_be_rs_1(bus_space_handle_t bsh, bus_size_t ofs)
 
 	addr = __ppc_ba(bsh, ofs);
 	res = *addr;
+	powerpc_iomb();
 	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
 	return (res);
 }
@@ -171,6 +195,7 @@ bs_be_rs_2(bus_space_handle_t bsh, bus_size_t ofs)
 
 	addr = __ppc_ba(bsh, ofs);
 	res = *addr;
+	powerpc_iomb();
 	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
 	return (res);
 }
@@ -183,6 +208,7 @@ bs_be_rs_4(bus_space_handle_t bsh, bus_size_t ofs)
 
 	addr = __ppc_ba(bsh, ofs);
 	res = *addr;
+	powerpc_iomb();
 	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
 	return (res);
 }
@@ -195,6 +221,7 @@ bs_be_rs_8(bus_space_handle_t bsh, bus_size_t ofs)
 
 	addr = __ppc_ba(bsh, ofs);
 	res = *addr;
+	powerpc_iomb();
 	return (res);
 }
 
@@ -229,7 +256,7 @@ bs_be_rr_1(bus_space_handle_t bsh, bus_size_t ofs, uint8_t *addr, size_t cnt)
 
 	while (cnt--)
 		*addr++ = *s++;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -239,7 +266,7 @@ bs_be_rr_2(bus_space_handle_t bsh, bus_size_t ofs, uint16_t *addr, size_t cnt)
 
 	while (cnt--)
 		*addr++ = *s++;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -249,7 +276,7 @@ bs_be_rr_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t *addr, size_t cnt)
 
 	while (cnt--)
 		*addr++ = *s++;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -259,7 +286,7 @@ bs_be_rr_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t *addr, size_t cnt)
 
 	while (cnt--)
 		*addr++ = *s++;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -269,6 +296,7 @@ bs_be_ws_1(bus_space_handle_t bsh, bus_size_t ofs, uint8_t val)
 
 	addr = __ppc_ba(bsh, ofs);
 	*addr = val;
+	powerpc_iomb();
 	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
@@ -279,6 +307,7 @@ bs_be_ws_2(bus_space_handle_t bsh, bus_size_t ofs, uint16_t val)
 
 	addr = __ppc_ba(bsh, ofs);
 	*addr = val;
+	powerpc_iomb();
 	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
@@ -289,6 +318,7 @@ bs_be_ws_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t val)
 
 	addr = __ppc_ba(bsh, ofs);
 	*addr = val;
+	powerpc_iomb();
 	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
@@ -299,6 +329,7 @@ bs_be_ws_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t val)
 
 	addr = __ppc_ba(bsh, ofs);
 	*addr = val;
+	powerpc_iomb();
 }
 
 static void
@@ -337,7 +368,7 @@ bs_be_wr_1(bus_space_handle_t bsh, bus_size_t ofs, const uint8_t *addr,
 
 	while (cnt--)
 		*d++ = *addr++;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -348,7 +379,7 @@ bs_be_wr_2(bus_space_handle_t bsh, bus_size_t ofs, const uint16_t *addr,
 
 	while (cnt--)
 		*d++ = *addr++;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -359,7 +390,7 @@ bs_be_wr_4(bus_space_handle_t bsh, bus_size_t ofs, const uint32_t *addr,
 
 	while (cnt--)
 		*d++ = *addr++;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -370,7 +401,7 @@ bs_be_wr_8(bus_space_handle_t bsh, bus_size_t ofs, const uint64_t *addr,
 
 	while (cnt--)
 		*d++ = *addr++;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -380,7 +411,7 @@ bs_be_sm_1(bus_space_handle_t bsh, bus_size_t ofs, uint8_t val, size_t cnt)
 
 	while (cnt--)
 		*d = val;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -390,7 +421,7 @@ bs_be_sm_2(bus_space_handle_t bsh, bus_size_t ofs, uint16_t val, size_t cnt)
 
 	while (cnt--)
 		*d = val;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -400,7 +431,7 @@ bs_be_sm_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t val, size_t cnt)
 
 	while (cnt--)
 		*d = val;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -410,7 +441,7 @@ bs_be_sm_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t val, size_t cnt)
 
 	while (cnt--)
 		*d = val;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -420,7 +451,7 @@ bs_be_sr_1(bus_space_handle_t bsh, bus_size_t ofs, uint8_t val, size_t cnt)
 
 	while (cnt--)
 		*d++ = val;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -430,7 +461,7 @@ bs_be_sr_2(bus_space_handle_t bsh, bus_size_t ofs, uint16_t val, size_t cnt)
 
 	while (cnt--)
 		*d++ = val;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -440,7 +471,7 @@ bs_be_sr_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t val, size_t cnt)
 
 	while (cnt--)
 		*d++ = val;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -450,7 +481,7 @@ bs_be_sr_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t val, size_t cnt)
 
 	while (cnt--)
 		*d++ = val;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 /*
@@ -464,6 +495,7 @@ bs_le_rs_1(bus_space_handle_t bsh, bus_size_t ofs)
 
 	addr = __ppc_ba(bsh, ofs);
 	res = *addr;
+	powerpc_iomb();
 	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
 	return (res);
 }
@@ -476,6 +508,7 @@ bs_le_rs_2(bus_space_handle_t bsh, bus_size_t ofs)
 
 	addr = __ppc_ba(bsh, ofs);
 	__asm __volatile("lhbrx %0, 0, %1" : "=r"(res) : "r"(addr));
+	powerpc_iomb();
 	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
 	return (res);
 }
@@ -488,6 +521,7 @@ bs_le_rs_4(bus_space_handle_t bsh, bus_size_t ofs)
 
 	addr = __ppc_ba(bsh, ofs);
 	__asm __volatile("lwbrx %0, 0, %1" : "=r"(res) : "r"(addr));
+	powerpc_iomb();
 	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
 	return (res);
 }
@@ -529,7 +563,7 @@ bs_le_rr_1(bus_space_handle_t bsh, bus_size_t ofs, uint8_t *addr, size_t cnt)
 
 	while (cnt--)
 		*addr++ = *s++;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -539,7 +573,7 @@ bs_le_rr_2(bus_space_handle_t bsh, bus_size_t ofs, uint16_t *addr, size_t cnt)
 
 	while (cnt--)
 		*addr++ = in16rb(s++);
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -549,7 +583,7 @@ bs_le_rr_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t *addr, size_t cnt)
 
 	while (cnt--)
 		*addr++ = in32rb(s++);
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -565,6 +599,7 @@ bs_le_ws_1(bus_space_handle_t bsh, bus_size_t ofs, uint8_t val)
 
 	addr = __ppc_ba(bsh, ofs);
 	*addr = val;
+	powerpc_iomb();
 	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
@@ -575,6 +610,7 @@ bs_le_ws_2(bus_space_handle_t bsh, bus_size_t ofs, uint16_t val)
  
 	addr = __ppc_ba(bsh, ofs);
 	__asm __volatile("sthbrx %0, 0, %1" :: "r"(val), "r"(addr));
+	powerpc_iomb();
 	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
@@ -585,6 +621,7 @@ bs_le_ws_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t val)
 
 	addr = __ppc_ba(bsh, ofs);
 	__asm __volatile("stwbrx %0, 0, %1" :: "r"(val), "r"(addr));
+	powerpc_iomb();
 	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
@@ -630,7 +667,7 @@ bs_le_wr_1(bus_space_handle_t bsh, bus_size_t ofs, const uint8_t *addr,
 
 	while (cnt--)
 		*d++ = *addr++;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -641,7 +678,7 @@ bs_le_wr_2(bus_space_handle_t bsh, bus_size_t ofs, const uint16_t *addr,
 
 	while (cnt--)
 		out16rb(d++, *addr++);
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -652,7 +689,7 @@ bs_le_wr_4(bus_space_handle_t bsh, bus_size_t ofs, const uint32_t *addr,
 
 	while (cnt--)
 		out32rb(d++, *addr++);
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -669,7 +706,7 @@ bs_le_sm_1(bus_space_handle_t bsh, bus_size_t ofs, uint8_t val, size_t cnt)
 
 	while (cnt--)
 		*d = val;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -679,7 +716,7 @@ bs_le_sm_2(bus_space_handle_t bsh, bus_size_t ofs, uint16_t val, size_t cnt)
 
 	while (cnt--)
 		out16rb(d, val);
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -689,7 +726,7 @@ bs_le_sm_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t val, size_t cnt)
 
 	while (cnt--)
 		out32rb(d, val);
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -705,7 +742,7 @@ bs_le_sr_1(bus_space_handle_t bsh, bus_size_t ofs, uint8_t val, size_t cnt)
 
 	while (cnt--)
 		*d++ = val;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -715,7 +752,7 @@ bs_le_sr_2(bus_space_handle_t bsh, bus_size_t ofs, uint16_t val, size_t cnt)
 
 	while (cnt--)
 		out16rb(d++, val);
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void
@@ -725,7 +762,7 @@ bs_le_sr_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t val, size_t cnt)
 
 	while (cnt--)
 		out32rb(d++, val);
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static void

@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 
 #define INVALID_GRANT_REF (0)
 #define INVALID_EVTCHN    (-1)
-#define virt_to_mfn(x) (vtomach(x) >> PAGE_SHIFT)
+#define virt_to_mfn(x) (vtophys(x) >> PAGE_SHIFT)
 
 struct pcifront_device {
 	STAILQ_ENTRY(pcifront_device) next;
@@ -441,7 +441,7 @@ xpcife_probe(device_t dev)
 	struct pcifront_device *pdev = (struct pcifront_device *)device_get_ivars(dev);
 	DPRINTF("xpcife probe (unit=%d)\n", pdev->unit);
 #endif
-	return 0;
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 /* Newbus xpcife device driver attach */
@@ -516,14 +516,14 @@ static device_method_t xpcife_methods[] = {
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
     /* Bus interface */
-    DEVMETHOD(bus_print_child,		bus_generic_print_child),
     DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
     DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
     DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t xpcife_driver = {
@@ -559,7 +559,7 @@ xpcib_attach(device_t dev)
 
 	DPRINTF("xpcib attach (bus=%d)\n", sc->bus);
 
-	device_add_child(dev, "pci", sc->bus);
+	device_add_child(dev, "pci", -1);
 	return bus_generic_attach(dev);
 }
 
@@ -647,7 +647,7 @@ xpcib_route_interrupt(device_t pcib, device_t dev, int pin)
 
 static device_method_t xpcib_methods[] = {
     /* Device interface */
-    DEVMETHOD(device_probe,			xpcib_probe),
+    DEVMETHOD(device_probe,		xpcib_probe),
     DEVMETHOD(device_attach,		xpcib_attach),
     DEVMETHOD(device_detach,		bus_generic_detach),
     DEVMETHOD(device_shutdown,		bus_generic_shutdown),
@@ -655,7 +655,6 @@ static device_method_t xpcib_methods[] = {
     DEVMETHOD(device_resume,		bus_generic_resume),
 
     /* Bus interface */
-    DEVMETHOD(bus_print_child,		bus_generic_print_child),
     DEVMETHOD(bus_read_ivar,		xpcib_read_ivar),
     DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
     DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
@@ -669,7 +668,8 @@ static device_method_t xpcib_methods[] = {
     DEVMETHOD(pcib_read_config,		xpcib_read_config),
     DEVMETHOD(pcib_write_config,	xpcib_write_config),
     DEVMETHOD(pcib_route_interrupt,	xpcib_route_interrupt),
-    { 0, 0 }
+
+    DEVMETHOD_END
 };
 
 static devclass_t xpcib_devclass;

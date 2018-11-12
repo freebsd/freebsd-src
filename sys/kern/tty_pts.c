@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/serial.h>
 #include <sys/stat.h>
@@ -61,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/tty.h>
 #include <sys/ttycom.h>
+#include <sys/user.h>
 
 #include <machine/stdarg.h>
 
@@ -71,9 +73,6 @@ __FBSDID("$FreeBSD$");
  * UT_LINESIZE.
  */
 static struct unrhdr *pts_pool;
-static unsigned int pts_maxdev = 999;
-SYSCTL_UINT(_kern, OID_AUTO, pts_maxdev, CTLFLAG_RW, &pts_maxdev, 0,
-    "Maximum amount of pts(4) pseudo-terminals");
 
 static MALLOC_DEFINE(M_PTS, "pts", "pseudo tty device");
 
@@ -100,7 +99,7 @@ struct pts_softc {
 	struct cdev	*pts_cdev;	/* (c) Master device node. */
 #endif /* PTS_EXTERNAL */
 
-	struct uidinfo	*pts_uidinfo;	/* (c) Resource limit. */
+	struct ucred	*pts_cred;	/* (c) Resource limit. */
 };
 
 /*
@@ -125,7 +124,7 @@ ptsdev_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		/*
 		 * Implement packet mode. When packet mode is turned on,
 		 * the first byte contains a bitmask of events that
-		 * occured (start, stop, flush, window size, etc).
+		 * occurred (start, stop, flush, window size, etc).
 		 */
 		if (psc->pts_flags & PTS_PKT && psc->pts_pkt) {
 			pkt = psc->pts_pkt;
@@ -255,14 +254,6 @@ done:	ttydisc_rint_done(tp);
 }
 
 static int
-ptsdev_truncate(struct file *fp, off_t length, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EINVAL);
-}
-
-static int
 ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
     struct ucred *active_cred, struct thread *td)
 {
@@ -271,6 +262,9 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 	int error = 0, sig;
 
 	switch (cmd) {
+	case FIODTYPE:
+		*(int *)data = D_TTY;
+		return (0);
 	case FIONBIO:
 		/* This device supports non-blocking operation. */
 		return (0);
@@ -297,7 +291,7 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 			return (EINVAL);
 		return copyout(p, fgn->buf, i);
 	}
-	
+
 	/*
 	 * We need to implement TIOCGPGRP and TIOCGSID here again. When
 	 * called on the pseudo-terminal master, it should not check if
@@ -379,7 +373,7 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 
 	/* Just redirect this ioctl to the slave device. */
 	tty_lock(tp);
-	error = tty_ioctl(tp, cmd, data, td);
+	error = tty_ioctl(tp, cmd, data, fp->f_flag, td);
 	tty_unlock(tp);
 	if (error == ENOIOCTL)
 		error = ENOTTY;
@@ -559,13 +553,13 @@ ptsdev_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 #endif /* PTS_EXTERNAL */
 		sb->st_ino = sb->st_rdev = tty_udev(tp);
 
-	sb->st_atimespec = dev->si_atime;
-	sb->st_ctimespec = dev->si_ctime;
-	sb->st_mtimespec = dev->si_mtime;
+	sb->st_atim = dev->si_atime;
+	sb->st_ctim = dev->si_ctime;
+	sb->st_mtim = dev->si_mtime;
 	sb->st_uid = dev->si_uid;
 	sb->st_gid = dev->si_gid;
 	sb->st_mode = dev->si_mode | S_IFCHR;
-	
+
 	return (0);
 }
 
@@ -578,18 +572,43 @@ ptsdev_close(struct file *fp, struct thread *td)
 	tty_lock(tp);
 	tty_rel_gone(tp);
 
+	/*
+	 * Open of /dev/ptmx or /dev/ptyXX changes the type of file
+	 * from DTYPE_VNODE to DTYPE_PTS. vn_open() increases vnode
+	 * use count, we need to decrement it, and possibly do other
+	 * required cleanup.
+	 */
+	if (fp->f_vnode != NULL)
+		return (vnops.fo_close(fp, td));
+
+	return (0);
+}
+
+static int
+ptsdev_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+	struct tty *tp;
+
+	kif->kf_type = KF_TYPE_PTS;
+	tp = fp->f_data;
+	kif->kf_un.kf_pts.kf_pts_dev = tty_udev(tp);
+	strlcpy(kif->kf_path, tty_devname(tp), sizeof(kif->kf_path));
 	return (0);
 }
 
 static struct fileops ptsdev_ops = {
 	.fo_read	= ptsdev_read,
 	.fo_write	= ptsdev_write,
-	.fo_truncate	= ptsdev_truncate,
+	.fo_truncate	= invfo_truncate,
 	.fo_ioctl	= ptsdev_ioctl,
 	.fo_poll	= ptsdev_poll,
 	.fo_kqfilter	= ptsdev_kqfilter,
 	.fo_stat	= ptsdev_stat,
 	.fo_close	= ptsdev_close,
+	.fo_chmod	= invfo_chmod,
+	.fo_chown	= invfo_chown,
+	.fo_sendfile	= invfo_sendfile,
+	.fo_fill_kinfo	= ptsdev_fill_kinfo,
 	.fo_flags	= DFLAG_PASSABLE,
 };
 
@@ -675,9 +694,12 @@ ptsdrv_free(void *softc)
 	if (psc->pts_unit >= 0)
 		free_unr(pts_pool, psc->pts_unit);
 
-	chgptscnt(psc->pts_uidinfo, -1, 0);
-	uifree(psc->pts_uidinfo);
+	chgptscnt(psc->pts_cred->cr_ruidinfo, -1, 0);
+	racct_sub_cred(psc->pts_cred, RACCT_NPTS, 1);
+	crfree(psc->pts_cred);
 
+	seldrain(&psc->pts_inpoll);
+	seldrain(&psc->pts_outpoll);
 	knlist_destroy(&psc->pts_inpoll.si_note);
 	knlist_destroy(&psc->pts_outpoll.si_note);
 
@@ -706,39 +728,42 @@ static
 int
 pts_alloc(int fflags, struct thread *td, struct file *fp)
 {
-	int unit, ok;
+	int unit, ok, error;
 	struct tty *tp;
 	struct pts_softc *psc;
 	struct proc *p = td->td_proc;
-	struct uidinfo *uid = td->td_ucred->cr_ruidinfo;
+	struct ucred *cred = td->td_ucred;
 
 	/* Resource limiting. */
 	PROC_LOCK(p);
-	ok = chgptscnt(uid, 1, lim_cur(p, RLIMIT_NPTS));
-	PROC_UNLOCK(p);
-	if (!ok)
+	error = racct_add(p, RACCT_NPTS, 1);
+	if (error != 0) {
+		PROC_UNLOCK(p);
 		return (EAGAIN);
+	}
+	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(td, RLIMIT_NPTS));
+	if (!ok) {
+		racct_sub(p, RACCT_NPTS, 1);
+		PROC_UNLOCK(p);
+		return (EAGAIN);
+	}
+	PROC_UNLOCK(p);
 
 	/* Try to allocate a new pts unit number. */
 	unit = alloc_unr(pts_pool);
 	if (unit < 0) {
-		chgptscnt(uid, -1, 0);
-		return (EAGAIN);
-	}
-	if (unit > pts_maxdev) {
-		free_unr(pts_pool, unit);
-		chgptscnt(uid, -1, 0);
+		racct_sub(p, RACCT_NPTS, 1);
+		chgptscnt(cred->cr_ruidinfo, -1, 0);
 		return (EAGAIN);
 	}
 
 	/* Allocate TTY and softc. */
 	psc = malloc(sizeof(struct pts_softc), M_PTS, M_WAITOK|M_ZERO);
-	cv_init(&psc->pts_inwait, "pts inwait");
-	cv_init(&psc->pts_outwait, "pts outwait");
+	cv_init(&psc->pts_inwait, "ptsin");
+	cv_init(&psc->pts_outwait, "ptsout");
 
 	psc->pts_unit = unit;
-	psc->pts_uidinfo = uid;
-	uihold(uid);
+	psc->pts_cred = crhold(cred);
 
 	tp = tty_alloc(&pts_class, psc);
 	knlist_init_mtx(&psc->pts_inpoll.si_note, tp->t_mtx);
@@ -757,28 +782,35 @@ int
 pts_alloc_external(int fflags, struct thread *td, struct file *fp,
     struct cdev *dev, const char *name)
 {
-	int ok;
+	int ok, error;
 	struct tty *tp;
 	struct pts_softc *psc;
 	struct proc *p = td->td_proc;
-	struct uidinfo *uid = td->td_ucred->cr_ruidinfo;
+	struct ucred *cred = td->td_ucred;
 
 	/* Resource limiting. */
 	PROC_LOCK(p);
-	ok = chgptscnt(uid, 1, lim_cur(p, RLIMIT_NPTS));
-	PROC_UNLOCK(p);
-	if (!ok)
+	error = racct_add(p, RACCT_NPTS, 1);
+	if (error != 0) {
+		PROC_UNLOCK(p);
 		return (EAGAIN);
+	}
+	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(td, RLIMIT_NPTS));
+	if (!ok) {
+		racct_sub(p, RACCT_NPTS, 1);
+		PROC_UNLOCK(p);
+		return (EAGAIN);
+	}
+	PROC_UNLOCK(p);
 
 	/* Allocate TTY and softc. */
 	psc = malloc(sizeof(struct pts_softc), M_PTS, M_WAITOK|M_ZERO);
-	cv_init(&psc->pts_inwait, "pts inwait");
-	cv_init(&psc->pts_outwait, "pts outwait");
+	cv_init(&psc->pts_inwait, "ptsin");
+	cv_init(&psc->pts_outwait, "ptsout");
 
 	psc->pts_unit = -1;
 	psc->pts_cdev = dev;
-	psc->pts_uidinfo = uid;
-	uihold(uid);
+	psc->pts_cred = crhold(cred);
 
 	tp = tty_alloc(&pts_class, psc);
 	knlist_init_mtx(&psc->pts_inpoll.si_note, tp->t_mtx);
@@ -794,7 +826,7 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 #endif /* PTS_EXTERNAL */
 
 int
-posix_openpt(struct thread *td, struct posix_openpt_args *uap)
+sys_posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 {
 	int error, fd;
 	struct file *fp;
@@ -803,17 +835,18 @@ posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 	 * POSIX states it's unspecified when other flags are passed. We
 	 * don't allow this.
 	 */
-	if (uap->flags & ~(O_RDWR|O_NOCTTY))
+	if (uap->flags & ~(O_RDWR|O_NOCTTY|O_CLOEXEC))
 		return (EINVAL);
-	
-	error = falloc(td, &fp, &fd);
+
+	error = falloc(td, &fp, &fd, uap->flags);
 	if (error)
 		return (error);
 
 	/* Allocate the actual pseudo-TTY. */
 	error = pts_alloc(FFLAGS(uap->flags & O_ACCMODE), td, fp);
 	if (error != 0) {
-		fdclose(td->td_proc->p_fd, fp, fd, td);
+		fdclose(td, fp, fd);
+		fdrop(fp, td);
 		return (error);
 	}
 

@@ -36,33 +36,104 @@
  * Soft interrupt and other generic interrupt functions.
  */
 
+#include "opt_platform.h"
+#include "opt_hwpmc_hooks.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/syslog.h> 
+#include <sys/syslog.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/conf.h>
+#include <sys/pmc.h>
+#include <sys/pmckern.h>
+
 #include <machine/atomic.h>
+#include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/cpu.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <machine/fdt.h>
+#endif
+
+#define	INTRNAME_LEN	(MAXCOMLEN + 1)
 
 typedef void (*mask_fn)(void *);
 
 static struct intr_event *intr_events[NIRQ];
-static int intrcnt_tab[NIRQ];
-static int intrcnt_index = 0;
-static int last_printed = 0;
 
-void	arm_handler_execute(struct trapframe *, int);
+void	intr_irq_handler(struct trapframe *);
 
 void (*arm_post_filter)(void *) = NULL;
+int (*arm_config_irq)(int irq, enum intr_trigger trig,
+    enum intr_polarity pol) = NULL;
+
+/* Data for statistics reporting. */
+u_long intrcnt[NIRQ];
+char intrnames[(NIRQ * INTRNAME_LEN) + 1];
+size_t sintrcnt = sizeof(intrcnt);
+size_t sintrnames = sizeof(intrnames);
+
+/*
+ * Pre-format intrnames into an array of fixed-size strings containing spaces.
+ * This allows us to avoid the need for an intermediate table of indices into
+ * the names and counts arrays, while still meeting the requirements and
+ * assumptions of vmstat(8) and the kdb "show intrcnt" command, the two
+ * consumers of this data.
+ */
+static void
+intr_init(void *unused)
+{
+	int i;
+
+	for (i = 0; i < NIRQ; ++i) {
+		snprintf(&intrnames[i * INTRNAME_LEN], INTRNAME_LEN, "%-*s",
+		    INTRNAME_LEN - 1, "");
+	}
+}
+
+SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
+
+#ifdef FDT
+int
+intr_fdt_map_irq(phandle_t iparent, pcell_t *intr, int icells)
+{
+	fdt_pic_decode_t intr_decode;
+	phandle_t intr_parent;
+	int i, rv, interrupt, trig, pol;
+
+	intr_parent = OF_node_from_xref(iparent);
+	for (i = 0; i < icells; i++)
+		intr[i] = cpu_to_fdt32(intr[i]);
+
+	for (i = 0; fdt_pic_table[i] != NULL; i++) {
+		intr_decode = fdt_pic_table[i];
+		rv = intr_decode(intr_parent, intr, &interrupt, &trig, &pol);
+
+		if (rv == 0) {
+			/* This was recognized as our PIC and decoded. */
+			interrupt = FDT_MAP_IRQ(intr_parent, interrupt);
+			return (interrupt);
+		}
+	}
+
+	/* Not in table, so guess */
+	interrupt = FDT_MAP_IRQ(intr_parent, fdt32_to_cpu(intr[0]));
+
+	return (interrupt);
+}
+#endif
 
 void
-arm_setup_irqhandler(const char *name, driver_filter_t *filt, 
+arm_setup_irqhandler(const char *name, driver_filter_t *filt,
     void (*hand)(void*), void *arg, int irq, int flags, void **cookiep)
 {
 	struct intr_event *event;
@@ -78,14 +149,8 @@ arm_setup_irqhandler(const char *name, driver_filter_t *filt,
 		if (error)
 			return;
 		intr_events[irq] = event;
-		last_printed += 
-		    snprintf(intrnames + last_printed,
-		    MAXCOMLEN + 1,
-		    "irq%d: %s", irq, name);
-		last_printed++;
-		intrcnt_tab[irq] = intrcnt_index;
-		intrcnt_index++;
-		
+		snprintf(&intrnames[irq * INTRNAME_LEN], INTRNAME_LEN,
+		    "irq%d: %-*s", irq, INTRNAME_LEN - 1, name);
 	}
 	intr_event_add_handler(event, name, filt, hand, arg,
 	    intr_priority(flags), flags, cookiep);
@@ -99,7 +164,7 @@ arm_remove_irqhandler(int irq, void *cookie)
 
 	event = intr_events[irq];
 	arm_mask_irq(irq);
-	
+
 	error = intr_event_remove_handler(cookie);
 
 	if (!TAILQ_EMPTY(&event->ie_handlers))
@@ -114,7 +179,7 @@ dosoftints(void)
 }
 
 void
-arm_handler_execute(struct trapframe *frame, int irqnb)
+intr_irq_handler(struct trapframe *frame)
 {
 	struct intr_event *event;
 	int i;
@@ -122,11 +187,15 @@ arm_handler_execute(struct trapframe *frame, int irqnb)
 	PCPU_INC(cnt.v_intr);
 	i = -1;
 	while ((i = arm_get_next_irq(i)) != -1) {
-		intrcnt[intrcnt_tab[i]]++;
+		intrcnt[i]++;
 		event = intr_events[i];
 		if (intr_event_handle(event, frame) != 0) {
 			/* XXX: Log stray IRQs */
 			arm_mask_irq(i);
 		}
 	}
+#ifdef HWPMC_HOOKS
+	if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
+		pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, frame);
+#endif
 }

@@ -31,9 +31,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/event.h>
 #include <sys/param.h>
+#include <sys/cpuset.h>
+#include <sys/event.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 
 #include <assert.h>
+#include <curses.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -97,88 +98,30 @@ __FBSDID("$FreeBSD$");
  *    and starts them. Sets up
  *    monitoring for the child.
  *  - Signals child to start.
- *					- Recieves signal, attempts exec().
+ *					- Receives signal, attempts exec().
  *
  * After this point normal processing can happen.
  */
 
 /* Globals */
 
-int	pmcstat_interrupt = 0;
-int	pmcstat_displayheight = DEFAULT_DISPLAY_HEIGHT;
-int	pmcstat_sockpair[NSOCKPAIRFD];
-int	pmcstat_kq;
-kvm_t	*pmcstat_kvm;
-struct kinfo_proc *pmcstat_plist;
+int		pmcstat_displayheight = DEFAULT_DISPLAY_HEIGHT;
+int		pmcstat_displaywidth  = DEFAULT_DISPLAY_WIDTH;
+static int	pmcstat_sockpair[NSOCKPAIRFD];
+static int	pmcstat_kq;
+static kvm_t	*pmcstat_kvm;
+static struct kinfo_proc *pmcstat_plist;
+struct pmcstat_args args;
 
-void
-pmcstat_attach_pmcs(struct pmcstat_args *a)
-{
-	struct pmcstat_ev *ev;
-	struct pmcstat_target *pt;
-	int count;
-
-	/* Attach all process PMCs to target processes. */
-	count = 0;
-	STAILQ_FOREACH(ev, &a->pa_events, ev_next) {
-		if (PMC_IS_SYSTEM_MODE(ev->ev_mode))
-			continue;
-		SLIST_FOREACH(pt, &a->pa_targets, pt_next)
-			if (pmc_attach(ev->ev_pmcid, pt->pt_pid) == 0)
-				count++;
-			else if (errno != ESRCH)
-				err(EX_OSERR, "ERROR: cannot attach pmc "
-				    "\"%s\" to process %d", ev->ev_name,
-				    (int) pt->pt_pid);
-	}
-
-	if (count == 0)
-		errx(EX_DATAERR, "ERROR: No processes were attached to.");
-}
-
-
-void
-pmcstat_cleanup(struct pmcstat_args *a)
-{
-	struct pmcstat_ev *ev, *tmp;
-
-	/* release allocated PMCs. */
-	STAILQ_FOREACH_SAFE(ev, &a->pa_events, ev_next, tmp)
-	    if (ev->ev_pmcid != PMC_ID_INVALID) {
-		if (pmc_stop(ev->ev_pmcid) < 0)
-			err(EX_OSERR, "ERROR: cannot stop pmc 0x%x "
-			    "\"%s\"", ev->ev_pmcid, ev->ev_name);
-		if (pmc_release(ev->ev_pmcid) < 0)
-			err(EX_OSERR, "ERROR: cannot release pmc "
-			    "0x%x \"%s\"", ev->ev_pmcid, ev->ev_name);
-		free(ev->ev_name);
-		free(ev->ev_spec);
-		STAILQ_REMOVE(&a->pa_events, ev, pmcstat_ev, ev_next);
-		free(ev);
-	    }
-
-	/* de-configure the log file if present. */
-	if (a->pa_flags & (FLAG_HAS_PIPE | FLAG_HAS_OUTPUT_LOGFILE))
-		(void) pmc_configure_logfile(-1);
-
-	if (a->pa_logparser) {
-		pmclog_close(a->pa_logparser);
-		a->pa_logparser = NULL;
-	}
-
-	if (a->pa_flags & (FLAG_HAS_PIPE | FLAG_HAS_OUTPUT_LOGFILE))
-		pmcstat_shutdown_logging(a);
-}
-
-void
-pmcstat_clone_event_descriptor(struct pmcstat_args *a, struct pmcstat_ev *ev,
-    uint32_t cpumask)
+static void
+pmcstat_clone_event_descriptor(struct pmcstat_ev *ev, const cpuset_t *cpumask)
 {
 	int cpu;
 	struct pmcstat_ev *ev_clone;
 
-	while ((cpu = ffs(cpumask)) > 0) {
-		cpu--;
+	for (cpu = 0; cpu < CPU_SETSIZE; cpu++) {
+		if (!CPU_ISSET(cpu, cpumask))
+			continue;
 
 		if ((ev_clone = malloc(sizeof(*ev_clone))) == NULL)
 			errx(EX_SOFTWARE, "ERROR: Out of memory");
@@ -194,14 +137,92 @@ pmcstat_clone_event_descriptor(struct pmcstat_args *a, struct pmcstat_ev *ev,
 		ev_clone->ev_saved = ev->ev_saved;
 		ev_clone->ev_spec  = strdup(ev->ev_spec);
 
-		STAILQ_INSERT_TAIL(&a->pa_events, ev_clone, ev_next);
-
-		cpumask &= ~(1 << cpu);
+		STAILQ_INSERT_TAIL(&args.pa_events, ev_clone, ev_next);
 	}
 }
 
+static void
+pmcstat_get_cpumask(const char *cpuspec, cpuset_t *cpumask)
+{
+	int cpu;
+	const char *s;
+	char *end;
+
+	CPU_ZERO(cpumask);
+	s = cpuspec;
+
+	do {
+		cpu = strtol(s, &end, 0);
+		if (cpu < 0 || end == s)
+			errx(EX_USAGE,
+			    "ERROR: Illegal CPU specification \"%s\".",
+			    cpuspec);
+		CPU_SET(cpu, cpumask);
+		s = end + strspn(end, ", \t");
+	} while (*s);
+	assert(!CPU_EMPTY(cpumask));
+}
+
 void
-pmcstat_create_process(struct pmcstat_args *a)
+pmcstat_attach_pmcs(void)
+{
+	struct pmcstat_ev *ev;
+	struct pmcstat_target *pt;
+	int count;
+
+	/* Attach all process PMCs to target processes. */
+	count = 0;
+	STAILQ_FOREACH(ev, &args.pa_events, ev_next) {
+		if (PMC_IS_SYSTEM_MODE(ev->ev_mode))
+			continue;
+		SLIST_FOREACH(pt, &args.pa_targets, pt_next)
+			if (pmc_attach(ev->ev_pmcid, pt->pt_pid) == 0)
+				count++;
+			else if (errno != ESRCH)
+				err(EX_OSERR,
+"ERROR: cannot attach pmc \"%s\" to process %d",
+				    ev->ev_name, (int)pt->pt_pid);
+	}
+
+	if (count == 0)
+		errx(EX_DATAERR, "ERROR: No processes were attached to.");
+}
+
+
+void
+pmcstat_cleanup(void)
+{
+	struct pmcstat_ev *ev, *tmp;
+
+	/* release allocated PMCs. */
+	STAILQ_FOREACH_SAFE(ev, &args.pa_events, ev_next, tmp)
+	    if (ev->ev_pmcid != PMC_ID_INVALID) {
+		if (pmc_stop(ev->ev_pmcid) < 0)
+			err(EX_OSERR, "ERROR: cannot stop pmc 0x%x \"%s\"",
+			    ev->ev_pmcid, ev->ev_name);
+		if (pmc_release(ev->ev_pmcid) < 0)
+			err(EX_OSERR, "ERROR: cannot release pmc 0x%x \"%s\"",
+			    ev->ev_pmcid, ev->ev_name);
+		free(ev->ev_name);
+		free(ev->ev_spec);
+		STAILQ_REMOVE(&args.pa_events, ev, pmcstat_ev, ev_next);
+		free(ev);
+	    }
+
+	/* de-configure the log file if present. */
+	if (args.pa_flags & (FLAG_HAS_PIPE | FLAG_HAS_OUTPUT_LOGFILE))
+		(void) pmc_configure_logfile(-1);
+
+	if (args.pa_logparser) {
+		pmclog_close(args.pa_logparser);
+		args.pa_logparser = NULL;
+	}
+
+	pmcstat_shutdown_logging();
+}
+
+void
+pmcstat_create_process(void)
 {
 	char token;
 	pid_t pid;
@@ -229,10 +250,10 @@ pmcstat_create_process(struct pmcstat_args *a)
 		(void) close(pmcstat_sockpair[CHILDSOCKET]);
 
 		/* exec() the program requested */
-		execvp(*a->pa_argv, a->pa_argv);
+		execvp(*args.pa_argv, args.pa_argv);
 		/* and if that fails, notify the parent */
 		kill(getppid(), SIGCHLD);
-		err(EX_OSERR, "ERROR: execvp \"%s\" failed", *a->pa_argv);
+		err(EX_OSERR, "ERROR: execvp \"%s\" failed", *args.pa_argv);
 		/*NOTREACHED*/
 
 	default:	/* parent */
@@ -250,7 +271,7 @@ pmcstat_create_process(struct pmcstat_args *a)
 		errx(EX_SOFTWARE, "ERROR: Out of memory.");
 
 	pt->pt_pid = pid;
-	SLIST_INSERT_HEAD(&a->pa_targets, pt, pt_next);
+	SLIST_INSERT_HEAD(&args.pa_targets, pt, pt_next);
 
 	/* Wait for the child to signal that its ready to go. */
 	if (read(pmcstat_sockpair[PARENTSOCKET], &token, 1) < 0)
@@ -260,7 +281,7 @@ pmcstat_create_process(struct pmcstat_args *a)
 }
 
 void
-pmcstat_find_targets(struct pmcstat_args *a, const char *spec)
+pmcstat_find_targets(const char *spec)
 {
 	int n, nproc, pid, rv;
 	struct pmcstat_target *pt;
@@ -275,7 +296,7 @@ pmcstat_find_targets(struct pmcstat_args *a, const char *spec)
 		if ((pt = malloc(sizeof(*pt))) == NULL)
 			goto outofmemory;
 		pt->pt_pid = pid;
-		SLIST_INSERT_HEAD(&a->pa_targets, pt, pt_next);
+		SLIST_INSERT_HEAD(&args.pa_targets, pt, pt_next);
 		return;
 	}
 
@@ -289,7 +310,8 @@ pmcstat_find_targets(struct pmcstat_args *a, const char *spec)
 		    0, &nproc)) == NULL)
 			err(EX_OSERR, "ERROR: Cannot get process list: %s",
 			    kvm_geterr(pmcstat_kvm));
-	}
+	} else
+		nproc = 0;
 
 	if ((rv = regcomp(&reg, spec, REG_EXTENDED|REG_NOSUB)) != 0) {
 		regerror(rv, &reg, errbuf, sizeof(errbuf));
@@ -302,7 +324,7 @@ pmcstat_find_targets(struct pmcstat_args *a, const char *spec)
 			if ((pt = malloc(sizeof(*pt))) == NULL)
 				goto outofmemory;
 			pt->pt_pid = kp->ki_pid;
-			SLIST_INSERT_HEAD(&a->pa_targets, pt, pt_next);
+			SLIST_INSERT_HEAD(&args.pa_targets, pt, pt_next);
 		} else if (rv != REG_NOMATCH) {
 			regerror(rv, &reg, errbuf, sizeof(errbuf));
 			errx(EX_SOFTWARE, "ERROR: Regex evalation failed: %s",
@@ -319,41 +341,18 @@ pmcstat_find_targets(struct pmcstat_args *a, const char *spec)
 	/*NOTREACHED*/
 }
 
-uint32_t
-pmcstat_get_cpumask(const char *cpuspec)
-{
-	uint32_t cpumask;
-	int cpu;
-	const char *s;
-	char *end;
-
-	s = cpuspec;
-	cpumask = 0ULL;
-
-	do {
-		cpu = strtol(s, &end, 0);
-		if (cpu < 0 || end == s)
-			errx(EX_USAGE, "ERROR: Illegal CPU specification "
-			    "\"%s\".", cpuspec);
-		cpumask |= (1 << cpu);
-		s = end + strspn(end, ", \t");
-	} while (*s);
-
-	return (cpumask);
-}
-
 void
-pmcstat_kill_process(struct pmcstat_args *a)
+pmcstat_kill_process(void)
 {
 	struct pmcstat_target *pt;
 
-	assert(a->pa_flags & FLAG_HAS_COMMANDLINE);
+	assert(args.pa_flags & FLAG_HAS_COMMANDLINE);
 
 	/*
 	 * If a command line was specified, it would be the very first
 	 * in the list, before any other processes specified by -t.
 	 */
-	pt = SLIST_FIRST(&a->pa_targets);
+	pt = SLIST_FIRST(&args.pa_targets);
 	assert(pt != NULL);
 
 	if (kill(pt->pt_pid, SIGINT) != 0)
@@ -361,7 +360,7 @@ pmcstat_kill_process(struct pmcstat_args *a)
 }
 
 void
-pmcstat_start_pmcs(struct pmcstat_args *a)
+pmcstat_start_pmcs(void)
 {
 	struct pmcstat_ev *ev;
 
@@ -372,7 +371,7 @@ pmcstat_start_pmcs(struct pmcstat_args *a)
 	    if (pmc_start(ev->ev_pmcid) < 0) {
 	        warn("ERROR: Cannot start pmc 0x%x \"%s\"",
 		    ev->ev_pmcid, ev->ev_name);
-		pmcstat_cleanup(a);
+		pmcstat_cleanup();
 		exit(EX_OSERR);
 	    }
 	}
@@ -380,37 +379,37 @@ pmcstat_start_pmcs(struct pmcstat_args *a)
 }
 
 void
-pmcstat_print_headers(struct pmcstat_args *a)
+pmcstat_print_headers(void)
 {
 	struct pmcstat_ev *ev;
 	int c, w;
 
-	(void) fprintf(a->pa_printfile, PRINT_HEADER_PREFIX);
+	(void) fprintf(args.pa_printfile, PRINT_HEADER_PREFIX);
 
-	STAILQ_FOREACH(ev, &a->pa_events, ev_next) {
+	STAILQ_FOREACH(ev, &args.pa_events, ev_next) {
 		if (PMC_IS_SAMPLING_MODE(ev->ev_mode))
 			continue;
 
 		c = PMC_IS_SYSTEM_MODE(ev->ev_mode) ? 's' : 'p';
 
 		if (ev->ev_fieldskip != 0)
-			(void) fprintf(a->pa_printfile, "%*s",
+			(void) fprintf(args.pa_printfile, "%*s",
 			    ev->ev_fieldskip, "");
 		w = ev->ev_fieldwidth - ev->ev_fieldskip - 2;
 
 		if (c == 's')
-			(void) fprintf(a->pa_printfile, "s/%02d/%-*s ",
+			(void) fprintf(args.pa_printfile, "s/%02d/%-*s ",
 			    ev->ev_cpu, w-3, ev->ev_name);
 		else
-			(void) fprintf(a->pa_printfile, "p/%*s ", w,
+			(void) fprintf(args.pa_printfile, "p/%*s ", w,
 			    ev->ev_name);
 	}
 
-	(void) fflush(a->pa_printfile);
+	(void) fflush(args.pa_printfile);
 }
 
 void
-pmcstat_print_counters(struct pmcstat_args *a)
+pmcstat_print_counters(void)
 {
 	int extra_width;
 	struct pmcstat_ev *ev;
@@ -418,17 +417,17 @@ pmcstat_print_counters(struct pmcstat_args *a)
 
 	extra_width = sizeof(PRINT_HEADER_PREFIX) - 1;
 
-	STAILQ_FOREACH(ev, &a->pa_events, ev_next) {
+	STAILQ_FOREACH(ev, &args.pa_events, ev_next) {
 
 		/* skip sampling mode counters */
 		if (PMC_IS_SAMPLING_MODE(ev->ev_mode))
 			continue;
 
 		if (pmc_read(ev->ev_pmcid, &value) < 0)
-			err(EX_OSERR, "ERROR: Cannot read pmc "
-			    "\"%s\"", ev->ev_name);
+			err(EX_OSERR, "ERROR: Cannot read pmc \"%s\"",
+			    ev->ev_name);
 
-		(void) fprintf(a->pa_printfile, "%*ju ",
+		(void) fprintf(args.pa_printfile, "%*ju ",
 		    ev->ev_fieldwidth + extra_width,
 		    (uintmax_t) ev->ev_cumulative ? value :
 		    (value - ev->ev_saved));
@@ -438,7 +437,7 @@ pmcstat_print_counters(struct pmcstat_args *a)
 		extra_width = 0;
 	}
 
-	(void) fflush(a->pa_printfile);
+	(void) fflush(args.pa_printfile);
 }
 
 /*
@@ -446,20 +445,20 @@ pmcstat_print_counters(struct pmcstat_args *a)
  */
 
 void
-pmcstat_print_pmcs(struct pmcstat_args *a)
+pmcstat_print_pmcs(void)
 {
 	static int linecount = 0;
 
 	/* check if we need to print a header line */
 	if (++linecount > pmcstat_displayheight) {
-		(void) fprintf(a->pa_printfile, "\n");
+		(void) fprintf(args.pa_printfile, "\n");
 		linecount = 1;
 	}
 	if (linecount == 1)
-		pmcstat_print_headers(a);
-	(void) fprintf(a->pa_printfile, "\n");
+		pmcstat_print_headers();
+	(void) fprintf(args.pa_printfile, "\n");
 
-	pmcstat_print_counters(a);
+	pmcstat_print_counters();
 
 	return;
 }
@@ -493,6 +492,8 @@ pmcstat_show_usage(void)
 	    "\t -C\t\t (toggle) show cumulative counts\n"
 	    "\t -D path\t create profiles in directory \"path\"\n"
 	    "\t -E\t\t (toggle) show counts at process exit\n"
+	    "\t -F file\t write a system-wide callgraph (Kcachegrind format)"
+		" to \"file\"\n"
 	    "\t -G file\t write a system-wide callgraph to \"file\"\n"
 	    "\t -M file\t print executable/gmon file map to \"file\"\n"
 	    "\t -N\t\t (toggle) capture callchains\n"
@@ -500,11 +501,17 @@ pmcstat_show_usage(void)
 	    "\t -P spec\t allocate a process-private sampling PMC\n"
 	    "\t -R file\t read events from \"file\"\n"
 	    "\t -S spec\t allocate a system-wide sampling PMC\n"
+	    "\t -T\t\t start in top mode\n"
 	    "\t -W\t\t (toggle) show counts per context switch\n"
+	    "\t -a file\t print sampled PCs and callgraph to \"file\"\n"
 	    "\t -c cpu-list\t set cpus for subsequent system-wide PMCs\n"
 	    "\t -d\t\t (toggle) track descendants\n"
+	    "\t -e\t\t use wide history counter for gprof(1) output\n"
+	    "\t -f spec\t pass \"spec\" to as plugin option\n"
 	    "\t -g\t\t produce gprof(1) compatible profiles\n"
 	    "\t -k dir\t\t set the path to the kernel\n"
+	    "\t -l secs\t set duration time\n"
+	    "\t -m file\t print sampled PCs to \"file\"\n"
 	    "\t -n rate\t set sampling rate\n"
 	    "\t -o file\t send print output to \"file\"\n"
 	    "\t -p spec\t allocate a process-private counting PMC\n"
@@ -520,22 +527,42 @@ pmcstat_show_usage(void)
 }
 
 /*
+ * At exit handler for top mode
+ */
+
+void
+pmcstat_topexit(void)
+{
+	if (!args.pa_toptty)
+		return;
+
+	/*
+	 * Shutdown ncurses.
+	 */
+	clrtoeol();
+	refresh();
+	endwin();
+}
+
+/*
  * Main
  */
 
 int
 main(int argc, char **argv)
 {
+	cpuset_t cpumask, rootmask;
 	double interval;
-	int option, npmc, ncpu, haltedcpus;
-	int c, check_driver_stats, current_cpu, current_sampling_count;
+	double duration;
+	int option, npmc;
+	int c, check_driver_stats, current_sampling_count;
 	int do_callchain, do_descendants, do_logproccsw, do_logprocexit;
-	int do_print;
-	size_t dummy;
+	int do_print, do_read;
+	size_t len;
 	int graphdepth;
-	int pipefd[2];
+	int pipefd[2], rfd;
 	int use_cumulative_counts;
-	uint32_t cpumask;
+	short cf, cb;
 	char *end, *tmp;
 	const char *errmsg, *graphfilename;
 	enum pmcstat_state runstate;
@@ -548,7 +575,6 @@ main(int argc, char **argv)
 	char buffer[PATH_MAX];
 
 	check_driver_stats      = 0;
-	current_cpu 		= 0;
 	current_sampling_count  = DEFAULT_SAMPLE_COUNT;
 	do_callchain		= 1;
 	do_descendants          = 0;
@@ -561,7 +587,6 @@ main(int argc, char **argv)
 	args.pa_verbosity	= 1;
 	args.pa_logfd		= -1;
 	args.pa_fsroot		= "";
-	args.pa_kernel		= strdup("/boot/kernel");
 	args.pa_samplesdir	= ".";
 	args.pa_printfile	= stderr;
 	args.pa_graphdepth	= DEFAULT_CALLGRAPH_DEPTH;
@@ -570,44 +595,59 @@ main(int argc, char **argv)
 	args.pa_mapfilename	= NULL;
 	args.pa_inputpath	= NULL;
 	args.pa_outputpath	= NULL;
+	args.pa_pplugin		= PMCSTAT_PL_NONE;
+	args.pa_plugin		= PMCSTAT_PL_NONE;
+	args.pa_ctdumpinstr	= 1;
+	args.pa_topmode		= PMCSTAT_TOP_DELTA;
+	args.pa_toptty		= 0;
+	args.pa_topcolor	= 0;
+	args.pa_mergepmc	= 0;
+	args.pa_duration	= 0.0;
 	STAILQ_INIT(&args.pa_events);
 	SLIST_INIT(&args.pa_targets);
 	bzero(&ds_start, sizeof(ds_start));
 	bzero(&ds_end, sizeof(ds_end));
 	ev = NULL;
+	CPU_ZERO(&cpumask);
+
+	/* Default to using the running system kernel. */
+	len = 0;
+	if (sysctlbyname("kern.bootfile", NULL, &len, NULL, 0) == -1)
+		err(EX_OSERR, "ERROR: Cannot determine path of running kernel");
+	args.pa_kernel = malloc(len + 1);
+	if (sysctlbyname("kern.bootfile", args.pa_kernel, &len, NULL, 0) == -1)
+		err(EX_OSERR, "ERROR: Cannot determine path of running kernel");
 
 	/*
-	 * The initial CPU mask specifies all non-halted CPUS in the
-	 * system.
+	 * The initial CPU mask specifies the root mask of this process
+	 * which is usually all CPUs in the system.
 	 */
-	dummy = sizeof(int);
-	if (sysctlbyname("hw.ncpu", &ncpu, &dummy, NULL, 0) < 0)
-		err(EX_OSERR, "ERROR: Cannot determine the number of CPUs");
-	cpumask = (1 << ncpu) - 1;
-	haltedcpus = 0;
-	if (ncpu > 1) {
-		if (sysctlbyname("machdep.hlt_cpus", &haltedcpus, &dummy,
-		    NULL, 0) < 0)
-			err(EX_OSERR, "ERROR: Cannot determine which CPUs are "
-			    "halted");
-		cpumask &= ~haltedcpus;
-	}
+	if (cpuset_getaffinity(CPU_LEVEL_ROOT, CPU_WHICH_PID, -1,
+	    sizeof(rootmask), &rootmask) == -1)
+		err(EX_OSERR, "ERROR: Cannot determine the root set of CPUs");
+	CPU_COPY(&rootmask, &cpumask);
 
 	while ((option = getopt(argc, argv,
-	    "CD:EG:M:NO:P:R:S:Wc:dgk:m:n:o:p:qr:s:t:vw:z:")) != -1)
+	    "CD:EF:G:M:NO:P:R:S:TWa:c:def:gk:l:m:n:o:p:qr:s:t:vw:z:")) != -1)
 		switch (option) {
+		case 'a':	/* Annotate + callgraph */
+			args.pa_flags |= FLAG_DO_ANNOTATE;
+			args.pa_plugin = PMCSTAT_PL_ANNOTATE_CG;
+			graphfilename  = optarg;
+			break;
+
 		case 'C':	/* cumulative values */
 			use_cumulative_counts = !use_cumulative_counts;
 			args.pa_required |= FLAG_HAS_COUNTING_PMCS;
 			break;
 
 		case 'c':	/* CPU */
-
 			if (optarg[0] == '*' && optarg[1] == '\0')
-				cpumask = ((1 << ncpu) - 1) & ~haltedcpus;
+				CPU_COPY(&rootmask, &cpumask);
 			else
-				cpumask = pmcstat_get_cpumask(optarg);
+				pmcstat_get_cpumask(optarg, &cpumask);
 
+			args.pa_flags	 |= FLAGS_HAS_CPUMASK;
 			args.pa_required |= FLAG_HAS_SYSTEM_PMCS;
 			break;
 
@@ -616,8 +656,9 @@ main(int argc, char **argv)
 				err(EX_OSERR, "ERROR: Cannot stat \"%s\"",
 				    optarg);
 			if (!S_ISDIR(sb.st_mode))
-				errx(EX_USAGE, "ERROR: \"%s\" is not a "
-				    "directory.", optarg);
+				errx(EX_USAGE,
+				    "ERROR: \"%s\" is not a directory.",
+				    optarg);
 			args.pa_samplesdir = optarg;
 			args.pa_flags     |= FLAG_HAS_SAMPLESDIR;
 			args.pa_required  |= FLAG_DO_GPROF;
@@ -628,13 +669,32 @@ main(int argc, char **argv)
 			args.pa_required |= FLAG_HAS_PROCESS_PMCS;
 			break;
 
+		case 'e':	/* wide gprof metrics */
+			args.pa_flags |= FLAG_DO_WIDE_GPROF_HC;
+			break;
+
+		case 'F':	/* produce a system-wide calltree */
+			args.pa_flags |= FLAG_DO_CALLGRAPHS;
+			args.pa_plugin = PMCSTAT_PL_CALLTREE;
+			graphfilename = optarg;
+			break;
+
+		case 'f':	/* plugins options */
+			if (args.pa_plugin == PMCSTAT_PL_NONE)
+				err(EX_USAGE, "ERROR: Need -g/-G/-m/-T.");
+			pmcstat_pluginconfigure_log(optarg);
+			break;
+
 		case 'G':	/* produce a system-wide callgraph */
 			args.pa_flags |= FLAG_DO_CALLGRAPHS;
+			args.pa_plugin = PMCSTAT_PL_CALLGRAPH;
 			graphfilename = optarg;
 			break;
 
 		case 'g':	/* produce gprof compatible profiles */
 			args.pa_flags |= FLAG_DO_GPROF;
+			args.pa_pplugin = PMCSTAT_PL_CALLGRAPH;
+			args.pa_plugin	= PMCSTAT_PL_GPROF;
 			break;
 
 		case 'k':	/* pathname to the kernel */
@@ -644,9 +704,19 @@ main(int argc, char **argv)
 			args.pa_flags    |= FLAG_HAS_KERNELPATH;
 			break;
 
+		case 'l':	/* time duration in seconds */
+			duration = strtod(optarg, &end);
+			if (*end != '\0' || duration <= 0)
+				errx(EX_USAGE, "ERROR: Illegal duration time "
+				    "value \"%s\".", optarg);
+			args.pa_flags |= FLAG_HAS_DURATION;
+			args.pa_duration = duration;
+			break;
+
 		case 'm':
-			args.pa_flags |= FLAG_WANTS_MAPPINGS;
-			graphfilename = optarg;
+			args.pa_flags |= FLAG_DO_ANNOTATE;
+			args.pa_plugin = PMCSTAT_PL_ANNOTATE;
+			graphfilename  = optarg;
 			break;
 
 		case 'E':	/* log process exit */
@@ -704,7 +774,7 @@ main(int argc, char **argv)
 				ev->ev_count = -1;
 
 			if (option == 'S' || option == 's')
-				ev->ev_cpu = ffs(cpumask) - 1;
+				ev->ev_cpu = CPU_FFS(&cpumask) - 1;
 			else
 				ev->ev_cpu = PMC_CPU_ANY;
 
@@ -731,9 +801,11 @@ main(int argc, char **argv)
 
 			STAILQ_INSERT_TAIL(&args.pa_events, ev, ev_next);
 
-			if (option == 's' || option == 'S')
-				pmcstat_clone_event_descriptor(&args, ev,
-				    cpumask & ~(1 << ev->ev_cpu));
+			if (option == 's' || option == 'S') {
+				CPU_CLR(ev->ev_cpu, &cpumask);
+				pmcstat_clone_event_descriptor(ev, &cpumask);
+				CPU_SET(ev->ev_cpu, &cpumask);
+			}
 
 			break;
 
@@ -747,18 +819,21 @@ main(int argc, char **argv)
 			break;
 
 		case 'o':	/* outputfile */
-			if (args.pa_printfile != NULL)
+			if (args.pa_printfile != NULL &&
+			    args.pa_printfile != stdout &&
+			    args.pa_printfile != stderr)
 				(void) fclose(args.pa_printfile);
 			if ((args.pa_printfile = fopen(optarg, "w")) == NULL)
-				errx(EX_OSERR, "ERROR: cannot open \"%s\" for "
-				    "writing.", optarg);
+				errx(EX_OSERR,
+				    "ERROR: cannot open \"%s\" for writing.",
+				    optarg);
 			args.pa_flags |= FLAG_DO_PRINT;
 			break;
 
 		case 'O':	/* sampling output */
 			if (args.pa_outputpath)
-				errx(EX_USAGE, "ERROR: option -O may only be "
-				    "specified once.");
+				errx(EX_USAGE,
+"ERROR: option -O may only be specified once.");
 			args.pa_outputpath = optarg;
 			args.pa_flags |= FLAG_HAS_OUTPUT_LOGFILE;
 			break;
@@ -773,8 +848,8 @@ main(int argc, char **argv)
 
 		case 'R':	/* read an existing log file */
 			if (args.pa_inputpath != NULL)
-				errx(EX_USAGE, "ERROR: option -R may only be "
-				    "specified once.");
+				errx(EX_USAGE,
+"ERROR: option -R may only be specified once.");
 			args.pa_inputpath = optarg;
 			if (args.pa_printfile == stderr)
 				args.pa_printfile = stdout;
@@ -782,10 +857,19 @@ main(int argc, char **argv)
 			break;
 
 		case 't':	/* target pid or process name */
-			pmcstat_find_targets(&args, optarg);
+			pmcstat_find_targets(optarg);
 
 			args.pa_flags |= FLAG_HAS_TARGET;
 			args.pa_required |= FLAG_HAS_PROCESS_PMCS;
+			break;
+
+		case 'T':	/* top mode */
+			args.pa_flags |= FLAG_DO_TOP;
+			args.pa_plugin = PMCSTAT_PL_CALLGRAPH;
+			args.pa_ctdumpinstr = 0;
+			args.pa_mergepmc = 1;
+			if (args.pa_printfile == stderr)
+				args.pa_printfile = stdout;
 			break;
 
 		case 'v':	/* verbose */
@@ -795,10 +879,10 @@ main(int argc, char **argv)
 		case 'w':	/* wait interval */
 			interval = strtod(optarg, &end);
 			if (*end != '\0' || interval <= 0)
-				errx(EX_USAGE, "ERROR: Illegal wait interval "
-				    "value \"%s\".", optarg);
+				errx(EX_USAGE,
+"ERROR: Illegal wait interval value \"%s\".",
+				    optarg);
 			args.pa_flags |= FLAG_HAS_WAIT_INTERVAL;
-			args.pa_required |= FLAG_HAS_COUNTING_PMCS;
 			args.pa_interval = interval;
 			break;
 
@@ -811,8 +895,9 @@ main(int argc, char **argv)
 		case 'z':
 			graphdepth = strtod(optarg, &end);
 			if (*end != '\0' || graphdepth <= 0)
-				errx(EX_USAGE, "ERROR: Illegal callchain "
-				    "depth \"%s\".", optarg);
+				errx(EX_USAGE,
+				    "ERROR: Illegal callchain depth \"%s\".",
+				    optarg);
 			args.pa_graphdepth = graphdepth;
 			args.pa_required |= FLAG_DO_CALLGRAPHS;
 			break;
@@ -827,13 +912,20 @@ main(int argc, char **argv)
 	args.pa_argc = (argc -= optind);
 	args.pa_argv = (argv += optind);
 
+	/* If we read from logfile and no specified CPU mask use
+	 * the maximum CPU count.
+	 */
+	if ((args.pa_flags & FLAG_READ_LOGFILE) &&
+	    (args.pa_flags & FLAGS_HAS_CPUMASK) == 0)
+		CPU_FILL(&cpumask);
+
 	args.pa_cpumask = cpumask; /* For selecting CPUs using -R. */
 
 	if (argc)	/* command line present */
 		args.pa_flags |= FLAG_HAS_COMMANDLINE;
 
 	if (args.pa_flags & (FLAG_DO_GPROF | FLAG_DO_CALLGRAPHS |
-	    FLAG_WANTS_MAPPINGS))
+	    FLAG_DO_ANNOTATE | FLAG_DO_TOP))
 		args.pa_flags |= FLAG_DO_ANALYSIS;
 
 	/*
@@ -842,18 +934,25 @@ main(int argc, char **argv)
 
 	/* disallow -O and -R together */
 	if (args.pa_outputpath && args.pa_inputpath)
-		errx(EX_USAGE, "ERROR: options -O and -R are mutually "
+		errx(EX_USAGE,
+		    "ERROR: options -O and -R are mutually exclusive.");
+
+	/* disallow -T and -l together */
+	if ((args.pa_flags & FLAG_HAS_DURATION) &&
+	    (args.pa_flags & FLAG_DO_TOP))
+		errx(EX_USAGE, "ERROR: options -T and -l are mutually "
 		    "exclusive.");
 
-	/* -m option is allowed with -R only. */
-	if (args.pa_flags & FLAG_WANTS_MAPPINGS && args.pa_inputpath == NULL)
-		errx(EX_USAGE, "ERROR: option -m requires an input file");
+	/* -a and -m require -R */
+	if (args.pa_flags & FLAG_DO_ANNOTATE && args.pa_inputpath == NULL)
+		errx(EX_USAGE, "ERROR: option %s requires an input file",
+		    args.pa_plugin == PMCSTAT_PL_ANNOTATE ? "-m" : "-a");
 
 	/* -m option is not allowed combined with -g or -G. */
-	if (args.pa_flags & FLAG_WANTS_MAPPINGS &&
+	if (args.pa_flags & FLAG_DO_ANNOTATE &&
 	    args.pa_flags & (FLAG_DO_GPROF | FLAG_DO_CALLGRAPHS))
-		errx(EX_USAGE, "ERROR: option -m and -g | -G are mutually "
-		    "exclusive");
+		errx(EX_USAGE,
+		    "ERROR: option -m and -g | -G are mutually exclusive");
 
 	if (args.pa_flags & FLAG_READ_LOGFILE) {
 		errmsg = NULL;
@@ -864,8 +963,9 @@ main(int argc, char **argv)
 		else if (!STAILQ_EMPTY(&args.pa_events))
 			errmsg = "a PMC event specification";
 		if (errmsg)
-			errx(EX_USAGE, "ERROR: option -R may not be used with "
-			    "%s.", errmsg);
+			errx(EX_USAGE,
+			    "ERROR: option -R may not be used with %s.",
+			    errmsg);
 	} else if (STAILQ_EMPTY(&args.pa_events))
 		/* All other uses require a PMC spec. */
 		pmcstat_show_usage();
@@ -873,64 +973,79 @@ main(int argc, char **argv)
 	/* check for -t pid without a process PMC spec */
 	if ((args.pa_required & FLAG_HAS_TARGET) &&
 	    (args.pa_flags & FLAG_HAS_PROCESS_PMCS) == 0)
-		errx(EX_USAGE, "ERROR: option -t requires a process mode PMC "
-		    "to be specified.");
+		errx(EX_USAGE,
+"ERROR: option -t requires a process mode PMC to be specified."
+		    );
 
 	/* check for process-mode options without a command or -t pid */
 	if ((args.pa_required & FLAG_HAS_PROCESS_PMCS) &&
 	    (args.pa_flags & (FLAG_HAS_COMMANDLINE | FLAG_HAS_TARGET)) == 0)
-		errx(EX_USAGE, "ERROR: options -d, -E, -p, -P, and -W require "
-		    "a command line or target process.");
+		errx(EX_USAGE,
+"ERROR: options -d, -E, -p, -P, and -W require a command line or target process."
+		    );
 
 	/* check for -p | -P without a target process of some sort */
 	if ((args.pa_required & (FLAG_HAS_COMMANDLINE | FLAG_HAS_TARGET)) &&
 	    (args.pa_flags & (FLAG_HAS_COMMANDLINE | FLAG_HAS_TARGET)) == 0)
-		errx(EX_USAGE, "ERROR: options -P and -p require a "
-		    "target process or a command line.");
+		errx(EX_USAGE,
+"ERROR: options -P and -p require a target process or a command line."
+		    );
 
 	/* check for process-mode options without a process-mode PMC */
 	if ((args.pa_required & FLAG_HAS_PROCESS_PMCS) &&
 	    (args.pa_flags & FLAG_HAS_PROCESS_PMCS) == 0)
-		errx(EX_USAGE, "ERROR: options -d, -E, and -W require a "
-		    "process mode PMC to be specified.");
+		errx(EX_USAGE,
+"ERROR: options -d, -E, and -W require a process mode PMC to be specified."
+		    );
 
 	/* check for -c cpu with no system mode PMCs or logfile. */
 	if ((args.pa_required & FLAG_HAS_SYSTEM_PMCS) &&
 	    (args.pa_flags & FLAG_HAS_SYSTEM_PMCS) == 0 &&
 	    (args.pa_flags & FLAG_READ_LOGFILE) == 0)
-		errx(EX_USAGE, "ERROR: option -c requires at least one "
-		    "system mode PMC to be specified.");
+		errx(EX_USAGE,
+"ERROR: option -c requires at least one system mode PMC to be specified."
+		    );
 
 	/* check for counting mode options without a counting PMC */
 	if ((args.pa_required & FLAG_HAS_COUNTING_PMCS) &&
 	    (args.pa_flags & FLAG_HAS_COUNTING_PMCS) == 0)
-		errx(EX_USAGE, "ERROR: options -C, -W, -o and -w require at "
-		    "least one counting mode PMC to be specified.");
+		errx(EX_USAGE,
+"ERROR: options -C, -W and -o require at least one counting mode PMC to be specified."
+		    );
 
 	/* check for sampling mode options without a sampling PMC spec */
 	if ((args.pa_required & FLAG_HAS_SAMPLING_PMCS) &&
 	    (args.pa_flags & FLAG_HAS_SAMPLING_PMCS) == 0)
-		errx(EX_USAGE, "ERROR: options -N, -n and -O require at "
-		    "least one sampling mode PMC to be specified.");
+		errx(EX_USAGE,
+"ERROR: options -N, -n and -O require at least one sampling mode PMC to be specified."
+		    );
 
-	/* check if -g/-G are being used correctly */
+	/* check if -g/-G/-m/-T are being used correctly */
 	if ((args.pa_flags & FLAG_DO_ANALYSIS) &&
 	    !(args.pa_flags & (FLAG_HAS_SAMPLING_PMCS|FLAG_READ_LOGFILE)))
-		errx(EX_USAGE, "ERROR: options -g/-G require sampling PMCs "
-		    "or -R to be specified.");
+		errx(EX_USAGE,
+"ERROR: options -g/-G/-m/-T require sampling PMCs or -R to be specified."
+		    );
+
+	/* check if -e was specified without -g */
+	if ((args.pa_flags & FLAG_DO_WIDE_GPROF_HC) &&
+	    !(args.pa_flags & FLAG_DO_GPROF))
+		errx(EX_USAGE,
+"ERROR: option -e requires gprof mode to be specified."
+		    );
 
 	/* check if -O was spuriously specified */
 	if ((args.pa_flags & FLAG_HAS_OUTPUT_LOGFILE) &&
 	    (args.pa_required & FLAG_HAS_OUTPUT_LOGFILE) == 0)
 		errx(EX_USAGE,
-		    "ERROR: option -O is used only with options "
-		    "-E, -P, -S and -W.");
+"ERROR: option -O is used only with options -E, -P, -S and -W."
+		    );
 
-	/* -k kernel path require -g/-G or -R */
+	/* -k kernel path require -g/-G/-m/-T or -R */
 	if ((args.pa_flags & FLAG_HAS_KERNELPATH) &&
 	    (args.pa_flags & FLAG_DO_ANALYSIS) == 0 &&
 	    (args.pa_flags & FLAG_READ_LOGFILE) == 0)
-	    errx(EX_USAGE, "ERROR: option -k is only used with -g/-R.");
+	    errx(EX_USAGE, "ERROR: option -k is only used with -g/-R/-m/-T.");
 
 	/* -D only applies to gprof output mode (-g) */
 	if ((args.pa_flags & FLAG_HAS_SAMPLESDIR) &&
@@ -951,36 +1066,36 @@ main(int argc, char **argv)
 	if ((args.pa_flags & FLAG_HAS_COUNTING_PMCS) &&
 	    (args.pa_flags & FLAG_HAS_SAMPLING_PMCS) &&
 	    ((args.pa_flags & FLAG_HAS_OUTPUT_LOGFILE) == 0))
-		errx(EX_USAGE, "ERROR: option -O is required if counting and "
-		    "sampling PMCs are specified together.");
+		errx(EX_USAGE,
+"ERROR: option -O is required if counting and sampling PMCs are specified together."
+		    );
 
 	/*
-	 * Check if "-k kerneldir" was specified, and if whether
-	 * 'kerneldir' actually refers to a a file.  If so, use
-	 * `dirname path` to determine the kernel directory.
+	 * Check if 'kerneldir' refers to a file rather than a
+	 * directory.  If so, use `dirname path` to determine the
+	 * kernel directory.
 	 */
-	if (args.pa_flags & FLAG_HAS_KERNELPATH) {
-		(void) snprintf(buffer, sizeof(buffer), "%s%s", args.pa_fsroot,
-		    args.pa_kernel);
+	(void) snprintf(buffer, sizeof(buffer), "%s%s", args.pa_fsroot,
+	    args.pa_kernel);
+	if (stat(buffer, &sb) < 0)
+		err(EX_OSERR, "ERROR: Cannot locate kernel \"%s\"",
+		    buffer);
+	if (!S_ISREG(sb.st_mode) && !S_ISDIR(sb.st_mode))
+		errx(EX_USAGE, "ERROR: \"%s\": Unsupported file type.",
+		    buffer);
+	if (!S_ISDIR(sb.st_mode)) {
+		tmp = args.pa_kernel;
+		args.pa_kernel = strdup(dirname(args.pa_kernel));
+		free(tmp);
+		(void) snprintf(buffer, sizeof(buffer), "%s%s",
+		    args.pa_fsroot, args.pa_kernel);
 		if (stat(buffer, &sb) < 0)
-			err(EX_OSERR, "ERROR: Cannot locate kernel \"%s\"",
+			err(EX_OSERR, "ERROR: Cannot stat \"%s\"",
 			    buffer);
-		if (!S_ISREG(sb.st_mode) && !S_ISDIR(sb.st_mode))
-			errx(EX_USAGE, "ERROR: \"%s\": Unsupported file type.",
+		if (!S_ISDIR(sb.st_mode))
+			errx(EX_USAGE,
+			    "ERROR: \"%s\" is not a directory.",
 			    buffer);
-		if (!S_ISDIR(sb.st_mode)) {
-			tmp = args.pa_kernel;
-			args.pa_kernel = strdup(dirname(args.pa_kernel));
-			free(tmp);
-			(void) snprintf(buffer, sizeof(buffer), "%s%s",
-			    args.pa_fsroot, args.pa_kernel);
-			if (stat(buffer, &sb) < 0)
-				err(EX_OSERR, "ERROR: Cannot stat \"%s\"",
-				    buffer);
-			if (!S_ISDIR(sb.st_mode))
-				errx(EX_USAGE, "ERROR: \"%s\" is not a "
-				    "directory.", buffer);
-		}
 	}
 
 	/*
@@ -992,18 +1107,36 @@ main(int argc, char **argv)
 		else {
 			args.pa_graphfile = fopen(graphfilename, "w");
 			if (args.pa_graphfile == NULL)
-				err(EX_OSERR, "ERROR: cannot open \"%s\" "
-				    "for writing", graphfilename);
+				err(EX_OSERR,
+				    "ERROR: cannot open \"%s\" for writing",
+				    graphfilename);
 		}
 	}
-	if (args.pa_flags & FLAG_WANTS_MAPPINGS) {
+	if (args.pa_flags & FLAG_DO_ANNOTATE) {
 		args.pa_graphfile = fopen(graphfilename, "w");
 		if (args.pa_graphfile == NULL)
 			err(EX_OSERR, "ERROR: cannot open \"%s\" for writing",
 			    graphfilename);
 	}
 
-	/* if we've been asked to process a log file, do that and exit */
+	/* if we've been asked to process a log file, skip init */
+	if ((args.pa_flags & FLAG_READ_LOGFILE) == 0) {
+		if (pmc_init() < 0)
+			err(EX_UNAVAILABLE,
+			    "ERROR: Initialization of the pmc(3) library failed"
+			    );
+
+		if ((npmc = pmc_npmc(0)) < 0) /* assume all CPUs are identical */
+			err(EX_OSERR,
+"ERROR: Cannot determine the number of PMCs on CPU %d",
+			    0);
+	}
+
+	/* Allocate a kqueue */
+	if ((pmcstat_kq = kqueue()) < 0)
+		err(EX_OSERR, "ERROR: Cannot allocate kqueue");
+
+	/* Setup the logfile as the source. */
 	if (args.pa_flags & FLAG_READ_LOGFILE) {
 		/*
 		 * Print the log in textual form if we haven't been
@@ -1012,29 +1145,18 @@ main(int argc, char **argv)
 		if ((args.pa_flags & FLAG_DO_ANALYSIS) == 0)
 			args.pa_flags |= FLAG_DO_PRINT;
 
-		pmcstat_initialize_logging(&args);
-		args.pa_logfd = pmcstat_open_log(args.pa_inputpath,
+		pmcstat_initialize_logging();
+		rfd = pmcstat_open_log(args.pa_inputpath,
 		    PMCSTAT_OPEN_FOR_READ);
-		if ((args.pa_logparser = pmclog_open(args.pa_logfd)) == NULL)
+		if ((args.pa_logparser = pmclog_open(rfd)) == NULL)
 			err(EX_OSERR, "ERROR: Cannot create parser");
-		pmcstat_process_log(&args);
-		pmcstat_shutdown_logging(&args);
-		exit(EX_OK);
+		if (fcntl(rfd, F_SETFL, O_NONBLOCK) < 0)
+			err(EX_OSERR, "ERROR: fcntl(2) failed");
+		EV_SET(&kev, rfd, EVFILT_READ, EV_ADD,
+		    0, 0, NULL);
+		if (kevent(pmcstat_kq, &kev, 1, NULL, 0, NULL) < 0)
+			err(EX_OSERR, "ERROR: Cannot register kevent");
 	}
-
-	/* otherwise, we've been asked to collect data */
-	if (pmc_init() < 0)
-		err(EX_UNAVAILABLE,
-		    "ERROR: Initialization of the pmc(3) library failed");
-
-	if ((npmc = pmc_npmc(0)) < 0) /* assume all CPUs are identical */
-		err(EX_OSERR, "ERROR: Cannot determine the number of PMCs "
-		    "on CPU %d", 0);
-
-	/* Allocate a kqueue */
-	if ((pmcstat_kq = kqueue()) < 0)
-		err(EX_OSERR, "ERROR: Cannot allocate kqueue");
-
 	/*
 	 * Configure the specified log file or setup a default log
 	 * consumer via a pipe.
@@ -1062,7 +1184,9 @@ main(int argc, char **argv)
 
 			args.pa_logfd = pipefd[WRITEPIPEFD];
 
-			args.pa_flags |= (FLAG_HAS_PIPE | FLAG_DO_PRINT);
+			args.pa_flags |= FLAG_HAS_PIPE;
+			if ((args.pa_flags & FLAG_DO_TOP) == 0)
+				args.pa_flags |= FLAG_DO_PRINT;
 			args.pa_logparser = pmclog_open(pipefd[READPIPEFD]);
 		}
 
@@ -1075,21 +1199,23 @@ main(int argc, char **argv)
 	    (args.pa_flags & FLAG_HAS_OUTPUT_LOGFILE);
 
 	/*
+	if (args.pa_flags & FLAG_READ_LOGFILE) {
 	 * Allocate PMCs.
 	 */
 
 	STAILQ_FOREACH(ev, &args.pa_events, ev_next) {
-	    if (pmc_allocate(ev->ev_spec, ev->ev_mode,
+		if (pmc_allocate(ev->ev_spec, ev->ev_mode,
 		    ev->ev_flags, ev->ev_cpu, &ev->ev_pmcid) < 0)
-		    err(EX_OSERR, "ERROR: Cannot allocate %s-mode pmc with "
-			"specification \"%s\"",
-			PMC_IS_SYSTEM_MODE(ev->ev_mode) ? "system" : "process",
-			ev->ev_spec);
+			err(EX_OSERR,
+"ERROR: Cannot allocate %s-mode pmc with specification \"%s\"",
+			    PMC_IS_SYSTEM_MODE(ev->ev_mode) ?
+			    "system" : "process", ev->ev_spec);
 
-	    if (PMC_IS_SAMPLING_MODE(ev->ev_mode) &&
-		pmc_set(ev->ev_pmcid, ev->ev_count) < 0)
-		    err(EX_OSERR, "ERROR: Cannot set sampling count "
-			"for PMC \"%s\"", ev->ev_name);
+		if (PMC_IS_SAMPLING_MODE(ev->ev_mode) &&
+		    pmc_set(ev->ev_pmcid, ev->ev_count) < 0)
+			err(EX_OSERR,
+			    "ERROR: Cannot set sampling count for PMC \"%s\"",
+			    ev->ev_name);
 	}
 
 	/* compute printout widths */
@@ -1126,12 +1252,24 @@ main(int argc, char **argv)
 			err(EX_OSERR, "ERROR: Cannot determine window size");
 
 		pmcstat_displayheight = ws.ws_row - 1;
+		pmcstat_displaywidth  = ws.ws_col - 1;
 
 		EV_SET(&kev, SIGWINCH, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
 
 		if (kevent(pmcstat_kq, &kev, 1, NULL, 0, NULL) < 0)
-			err(EX_OSERR, "ERROR: Cannot register kevent for "
-			    "SIGWINCH");
+			err(EX_OSERR,
+			    "ERROR: Cannot register kevent for SIGWINCH");
+
+		args.pa_toptty = 1;
+	}
+
+	/*
+	 * Listen to key input in top mode.
+	 */
+	if (args.pa_flags & FLAG_DO_TOP) {
+		EV_SET(&kev, fileno(stdin), EVFILT_READ, EV_ADD, 0, 0, NULL);
+		if (kevent(pmcstat_kq, &kev, 1, NULL, 0, NULL) < 0)
+			err(EX_OSERR, "ERROR: Cannot register kevent");
 	}
 
 	EV_SET(&kev, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
@@ -1152,20 +1290,38 @@ main(int argc, char **argv)
 	if (kevent(pmcstat_kq, &kev, 1, NULL, 0, NULL) < 0)
 		err(EX_OSERR, "ERROR: Cannot register kevent for SIGCHLD");
 
-	/* setup a timer if we have counting mode PMCs needing to be printed */
-	if ((args.pa_flags & FLAG_HAS_COUNTING_PMCS) &&
-	    (args.pa_required & FLAG_HAS_OUTPUT_LOGFILE) == 0) {
+	/* 
+	 * Setup a timer if we have counting mode PMCs needing to be printed or
+	 * top mode plugin is active.
+	 */
+	if (((args.pa_flags & FLAG_HAS_COUNTING_PMCS) &&
+	     (args.pa_required & FLAG_HAS_OUTPUT_LOGFILE) == 0) ||
+	    (args.pa_flags & FLAG_DO_TOP)) {
 		EV_SET(&kev, 0, EVFILT_TIMER, EV_ADD, 0,
 		    args.pa_interval * 1000, NULL);
 
 		if (kevent(pmcstat_kq, &kev, 1, NULL, 0, NULL) < 0)
+			err(EX_OSERR,
+			    "ERROR: Cannot register kevent for timer");
+	}
+
+	/*
+	 * Setup a duration timer if we have sampling mode PMCs and
+	 * a duration time is set
+	 */
+	if ((args.pa_flags & FLAG_HAS_SAMPLING_PMCS) &&
+	    (args.pa_flags & FLAG_HAS_DURATION)) {
+		EV_SET(&kev, 0, EVFILT_TIMER, EV_ADD, 0,
+		    args.pa_duration * 1000, NULL);
+
+		if (kevent(pmcstat_kq, &kev, 1, NULL, 0, NULL) < 0)
 			err(EX_OSERR, "ERROR: Cannot register kevent for "
-			    "timer");
+			    "time duration");
 	}
 
 	/* attach PMCs to the target process, starting it if specified */
 	if (args.pa_flags & FLAG_HAS_COMMANDLINE)
-		pmcstat_create_process(&args);
+		pmcstat_create_process();
 
 	if (check_driver_stats && pmc_get_driver_stats(&ds_start) < 0)
 		err(EX_OSERR, "ERROR: Cannot retrieve driver statistics");
@@ -1173,10 +1329,10 @@ main(int argc, char **argv)
 	/* Attach process pmcs to the target process. */
 	if (args.pa_flags & (FLAG_HAS_TARGET | FLAG_HAS_COMMANDLINE)) {
 		if (SLIST_EMPTY(&args.pa_targets))
-			errx(EX_DATAERR, "ERROR: No matching target "
-			    "processes.");
+			errx(EX_DATAERR,
+			    "ERROR: No matching target processes.");
 		if (args.pa_flags & FLAG_HAS_PROCESS_PMCS)
-			pmcstat_attach_pmcs(&args);
+			pmcstat_attach_pmcs();
 
 		if (pmcstat_kvm) {
 			kvm_close(pmcstat_kvm);
@@ -1185,16 +1341,14 @@ main(int argc, char **argv)
 	}
 
 	/* start the pmcs */
-	pmcstat_start_pmcs(&args);
+	pmcstat_start_pmcs();
 
 	/* start the (commandline) process if needed */
 	if (args.pa_flags & FLAG_HAS_COMMANDLINE)
 		pmcstat_start_process();
 
-	/* initialize logging if printing the configured log */
-	if ((args.pa_flags & FLAG_DO_PRINT) &&
-	    (args.pa_flags & (FLAG_HAS_PIPE | FLAG_HAS_OUTPUT_LOGFILE)))
-		pmcstat_initialize_logging(&args);
+	/* initialize logging */
+	pmcstat_initialize_logging();
 
 	/* Handle SIGINT using the kqueue loop */
 	sa.sa_handler = SIG_IGN;
@@ -1205,11 +1359,46 @@ main(int argc, char **argv)
 		err(EX_OSERR, "ERROR: Cannot install signal handler");
 
 	/*
+	 * Setup the top mode display.
+	 */
+	if (args.pa_flags & FLAG_DO_TOP) {
+		args.pa_flags &= ~FLAG_DO_PRINT;
+
+		if (args.pa_toptty) {
+			/*
+			 * Init ncurses.
+			 */
+			initscr();
+			if(has_colors() == TRUE) {
+				args.pa_topcolor = 1;
+				start_color();
+				use_default_colors();
+				pair_content(0, &cf, &cb);
+				init_pair(1, COLOR_RED, cb);
+				init_pair(2, COLOR_YELLOW, cb);
+				init_pair(3, COLOR_GREEN, cb);
+			}
+			cbreak();
+			noecho();
+			nonl();
+			nodelay(stdscr, 1);
+			intrflush(stdscr, FALSE);
+			keypad(stdscr, TRUE);
+			clear();
+			/* Get terminal width / height with ncurses. */
+			getmaxyx(stdscr,
+			    pmcstat_displayheight, pmcstat_displaywidth);
+			pmcstat_displayheight--; pmcstat_displaywidth--;
+			atexit(pmcstat_topexit);
+		}
+	}
+
+	/*
 	 * loop till either the target process (if any) exits, or we
-	 * are killed by a SIGINT.
+	 * are killed by a SIGINT or we reached the time duration.
 	 */
 	runstate = PMCSTAT_RUNNING;
-	do_print = 0;
+	do_print = do_read = 0;
 	do {
 		if ((c = kevent(pmcstat_kq, NULL, 0, &kev, 1, NULL)) <= 0) {
 			if (errno != EINTR)
@@ -1223,16 +1412,19 @@ main(int argc, char **argv)
 
 		switch (kev.filter) {
 		case EVFILT_PROC:  /* target has exited */
-			if (args.pa_flags & (FLAG_HAS_OUTPUT_LOGFILE |
-				FLAG_HAS_PIPE))
-				runstate = pmcstat_close_log(&args);
-			else
-				runstate = PMCSTAT_FINISHED;
+			runstate = pmcstat_close_log();
 			do_print = 1;
 			break;
 
 		case EVFILT_READ:  /* log file data is present */
-			runstate = pmcstat_process_log(&args);
+			if (kev.ident == (unsigned)fileno(stdin) &&
+			    (args.pa_flags & FLAG_DO_TOP)) {
+				if (pmcstat_keypress_log())
+					runstate = pmcstat_close_log();
+			} else {
+				do_read = 0;
+				runstate = pmcstat_process_log();
+			}
 			break;
 
 		case EVFILT_SIGNAL:
@@ -1251,75 +1443,94 @@ main(int argc, char **argv)
 				 * of its targets, or if logfile
 				 * writes encounter an error.
 				 */
-				if (args.pa_flags & (FLAG_HAS_OUTPUT_LOGFILE |
-				    FLAG_HAS_PIPE)) {
-					runstate = pmcstat_close_log(&args);
-					if (args.pa_flags &
-					    (FLAG_DO_PRINT|FLAG_DO_ANALYSIS))
-						pmcstat_process_log(&args);
-				}
+				runstate = pmcstat_close_log();
 				do_print = 1; /* print PMCs at exit */
-				runstate = PMCSTAT_FINISHED;
 			} else if (kev.ident == SIGINT) {
 				/* Kill the child process if we started it */
 				if (args.pa_flags & FLAG_HAS_COMMANDLINE)
-					pmcstat_kill_process(&args);
-				/* Close the pipe to self, if present. */
-				if (args.pa_flags & FLAG_HAS_PIPE)
-					(void) close(pipefd[READPIPEFD]);
-				runstate = PMCSTAT_FINISHED;
+					pmcstat_kill_process();
+				runstate = pmcstat_close_log();
 			} else if (kev.ident == SIGWINCH) {
 				if (ioctl(fileno(args.pa_printfile),
 					TIOCGWINSZ, &ws) < 0)
-				    err(EX_OSERR, "ERROR: Cannot determine "
-					"window size");
+				    err(EX_OSERR,
+				        "ERROR: Cannot determine window size");
 				pmcstat_displayheight = ws.ws_row - 1;
+				pmcstat_displaywidth  = ws.ws_col - 1;
 			} else
 				assert(0);
 
 			break;
 
-		case EVFILT_TIMER: /* print out counting PMCs */
+		case EVFILT_TIMER:
+			/* time duration reached, exit */
+			if (args.pa_flags & FLAG_HAS_DURATION) {
+				runstate = PMCSTAT_FINISHED;
+				break;
+			}
+			/* print out counting PMCs */
+			if ((args.pa_flags & FLAG_DO_TOP) &&
+			     pmc_flush_logfile() == 0)
+				do_read = 1;
 			do_print = 1;
 			break;
 
 		}
 
-		if (do_print &&
-		    (args.pa_required & FLAG_HAS_OUTPUT_LOGFILE) == 0) {
-			pmcstat_print_pmcs(&args);
-			if (runstate == PMCSTAT_FINISHED && /* final newline */
-			    (args.pa_flags & FLAG_DO_PRINT) == 0)
-				(void) fprintf(args.pa_printfile, "\n");
+		if (do_print && !do_read) {
+			if ((args.pa_required & FLAG_HAS_OUTPUT_LOGFILE) == 0) {
+				pmcstat_print_pmcs();
+				if (runstate == PMCSTAT_FINISHED &&
+				    /* final newline */
+				    (args.pa_flags & FLAG_DO_PRINT) == 0)
+					(void) fprintf(args.pa_printfile, "\n");
+			}
+			if (args.pa_flags & FLAG_DO_TOP)
+				pmcstat_display_log();
 			do_print = 0;
 		}
 
 	} while (runstate != PMCSTAT_FINISHED);
 
+	if ((args.pa_flags & FLAG_DO_TOP) && args.pa_toptty) {
+		pmcstat_topexit();
+		args.pa_toptty = 0;
+	}
+
 	/* flush any pending log entries */
 	if (args.pa_flags & (FLAG_HAS_OUTPUT_LOGFILE | FLAG_HAS_PIPE))
-		pmc_flush_logfile();
+		pmc_close_logfile();
 
-	pmcstat_cleanup(&args);
+	pmcstat_cleanup();
 
 	free(args.pa_kernel);
 
 	/* check if the driver lost any samples or events */
 	if (check_driver_stats) {
 		if (pmc_get_driver_stats(&ds_end) < 0)
-			err(EX_OSERR, "ERROR: Cannot retrieve driver "
-			    "statistics");
+			err(EX_OSERR,
+			    "ERROR: Cannot retrieve driver statistics");
 		if (ds_start.pm_intr_bufferfull != ds_end.pm_intr_bufferfull &&
 		    args.pa_verbosity > 0)
-			warnx("WARNING: some samples were dropped.  Please "
-			    "consider tuning the \"kern.hwpmc.nsamples\" "
-			    "tunable.");
+			warnx(
+"WARNING: sampling was paused at least %u time%s.\n"
+"Please consider tuning the \"kern.hwpmc.nsamples\" tunable.",
+			    ds_end.pm_intr_bufferfull -
+			    ds_start.pm_intr_bufferfull,
+			    ((ds_end.pm_intr_bufferfull -
+			    ds_start.pm_intr_bufferfull) != 1) ? "s" : ""
+			    );
 		if (ds_start.pm_buffer_requests_failed !=
 		    ds_end.pm_buffer_requests_failed &&
 		    args.pa_verbosity > 0)
-			warnx("WARNING: some events were discarded.  Please "
-			    "consider tuning the \"kern.hwpmc.nbuffers\" "
-			    "tunable.");
+			warnx(
+"WARNING: at least %u event%s were discarded while running.\n"
+"Please consider tuning the \"kern.hwpmc.nbuffers\" tunable.",
+	 		    ds_end.pm_buffer_requests_failed -
+			    ds_start.pm_buffer_requests_failed,
+			    ((ds_end.pm_buffer_requests_failed -
+			    ds_start.pm_buffer_requests_failed) != 1) ? "s" : ""
+			    );
 	}
 
 	exit(EX_OK);

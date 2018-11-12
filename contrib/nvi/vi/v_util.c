@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_util.c	10.11 (Berkeley) 6/30/96";
+static const char sccsid[] = "$Id: v_util.c,v 10.14 2001/06/25 15:19:36 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -32,12 +32,10 @@ static const char sccsid[] = "@(#)v_util.c	10.11 (Berkeley) 6/30/96";
  * v_eof --
  *	Vi end-of-file error.
  *
- * PUBLIC: void v_eof __P((SCR *, MARK *));
+ * PUBLIC: void v_eof(SCR *, MARK *);
  */
 void
-v_eof(sp, mp)
-	SCR *sp;
-	MARK *mp;
+v_eof(SCR *sp, MARK *mp)
 {
 	recno_t lno;
 
@@ -57,12 +55,10 @@ v_eof(sp, mp)
  * v_eol --
  *	Vi end-of-line error.
  *
- * PUBLIC: void v_eol __P((SCR *, MARK *));
+ * PUBLIC: void v_eol(SCR *, MARK *);
  */
 void
-v_eol(sp, mp)
-	SCR *sp;
-	MARK *mp;
+v_eol(SCR *sp, MARK *mp)
 {
 	size_t len;
 
@@ -82,11 +78,10 @@ v_eol(sp, mp)
  * v_nomove --
  *	Vi no cursor movement error.
  *
- * PUBLIC: void v_nomove __P((SCR *));
+ * PUBLIC: void v_nomove(SCR *);
  */
 void
-v_nomove(sp)
-	SCR *sp;
+v_nomove(SCR *sp)
 {
 	msgq(sp, M_BERR, "197|No cursor movement made");
 }
@@ -95,12 +90,10 @@ v_nomove(sp)
  * v_sof --
  *	Vi start-of-file error.
  *
- * PUBLIC: void v_sof __P((SCR *, MARK *));
+ * PUBLIC: void v_sof(SCR *, MARK *);
  */
 void
-v_sof(sp, mp)
-	SCR *sp;
-	MARK *mp;
+v_sof(SCR *sp, MARK *mp)
 {
 	if (mp == NULL || mp->lno == 1)
 		msgq(sp, M_BERR, "198|Already at the beginning of the file");
@@ -112,11 +105,10 @@ v_sof(sp, mp)
  * v_sol --
  *	Vi start-of-line error.
  *
- * PUBLIC: void v_sol __P((SCR *));
+ * PUBLIC: void v_sol(SCR *);
  */
 void
-v_sol(sp)
-	SCR *sp;
+v_sol(SCR *sp)
 {
 	msgq(sp, M_BERR, "200|Already in the first column");
 }
@@ -125,12 +117,10 @@ v_sol(sp)
  * v_isempty --
  *	Return if the line contains nothing but white-space characters.
  *
- * PUBLIC: int v_isempty __P((char *, size_t));
+ * PUBLIC: int v_isempty(CHAR_T *, size_t);
  */
 int
-v_isempty(p, len)
-	char *p;
-	size_t len;
+v_isempty(CHAR_T *p, size_t len)
 {
 	for (; len--; ++p)
 		if (!isblank(*p))
@@ -142,13 +132,10 @@ v_isempty(p, len)
  * v_emsg --
  *	Display a few common vi messages.
  *
- * PUBLIC: void v_emsg __P((SCR *, char *, vim_t));
+ * PUBLIC: void v_emsg(SCR *, char *, vim_t);
  */
 void
-v_emsg(sp, p, which)
-	SCR *sp;
-	char *p;
-	vim_t which;
+v_emsg(SCR *sp, char *p, vim_t which)
 {
 	switch (which) {
 	case VIM_COMBUF:

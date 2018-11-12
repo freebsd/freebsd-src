@@ -29,11 +29,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2009
+.Dd November 29, 2009
 .Dt IPSEC 4
 .Os
 .Sh NAME
-.Nm IPsec
+.Nm ipsec
 .Nd Internet Protocol Security protocol
 .Sh SYNOPSIS
 .Cd "options IPSEC"
@@ -90,8 +90,8 @@ To properly filter on the inner packets of an
 tunnel with firewalls, you can change the values of the following sysctls
 .Bl -column net.inet6.ipsec6.filtertunnel default enable
 .It Sy "Name	Default	Enable"
-.It net.inet.ipsec.filtertunnel	0	1
-.It net.inet6.ipsec6.filtertunnel	0	1
+.It "net.inet.ipsec.filtertunnel	0	1"
+.It "net.inet6.ipsec6.filtertunnel	0	1"
 .El
 .\"
 .Ss Kernel interface
@@ -215,7 +215,7 @@ To selectively enable/disable protocols, use
 .It Sy "Name	Default"
 .It "net.inet.esp.esp_enable	On"
 .It "net.inet.ah.ah_enable	On"
-.It "net.inet.ipcomp.ipcomp_enable	Off"
+.It "net.inet.ipcomp.ipcomp_enable	On"
 .El
 .Pp
 In addition the following variables are accessible via
@@ -408,6 +408,8 @@ size may alleviate this problem.
 .Pp
 The
 .Tn IPcomp
-protocol support is currently broken.
+protocol may occasionally error because of
+.Xr zlib 3
+problems.
 .Pp
 This documentation needs more review.

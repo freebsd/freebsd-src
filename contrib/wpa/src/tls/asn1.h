@@ -2,14 +2,8 @@
  * ASN.1 DER parsing
  * Copyright (c) 2006, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef ASN1_H
@@ -63,9 +57,14 @@ struct asn1_oid {
 
 
 int asn1_get_next(const u8 *buf, size_t len, struct asn1_hdr *hdr);
+int asn1_parse_oid(const u8 *buf, size_t len, struct asn1_oid *oid);
 int asn1_get_oid(const u8 *buf, size_t len, struct asn1_oid *oid,
 		 const u8 **next);
-void asn1_oid_to_str(struct asn1_oid *oid, char *buf, size_t len);
+void asn1_oid_to_str(const struct asn1_oid *oid, char *buf, size_t len);
 unsigned long asn1_bit_string_to_long(const u8 *buf, size_t len);
+int asn1_oid_equal(const struct asn1_oid *a, const struct asn1_oid *b);
+
+extern struct asn1_oid asn1_sha1_oid;
+extern struct asn1_oid asn1_sha256_oid;
 
 #endif /* ASN1_H */

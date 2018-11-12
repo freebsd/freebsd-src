@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_bus.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -103,7 +101,7 @@ agp_sis_match(device_t dev)
 		return ("SiS 745 host to AGP bridge");
 	case 0x07461039:
 		return ("SiS 746 host to AGP bridge");
-	};
+	}
 
 	return NULL;
 }

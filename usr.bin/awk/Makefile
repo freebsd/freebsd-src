@@ -8,27 +8,24 @@ SRCS=	awkgram.y b.c lex.c lib.c main.c parse.c proctab.c run.c tran.c ytab.h
 
 CFLAGS+= -DHAS_ISBLANK -I. -I${AWKSRC} -DFOPEN_MAX=64
 
-DPADD=	${LIBM}
-LDADD=	-lm
+WARNS?=	1
+
+LIBADD=	m
 
 LINKS=	${BINDIR}/awk ${BINDIR}/nawk
 MLINKS=	awk.1 nawk.1
 
 CLEANFILES= maketab proctab.c ytab.h
 
-ytab.h: awkgram.h
-	ln -sf ${.ALLSRC} ${.TARGET}
+# XXX: awkgram.c isn't really needed here but it is added to keep
+# awkgram.h: .NOMETA respected.
+ytab.h: awkgram.c awkgram.h .NOMETA
+	ln -sf ${.ALLSRC:M*.h} ${.TARGET}
 
 proctab.c: maketab
-	./maketab > proctab.c
+	${BTOOLSPATH:U.}/maketab > proctab.c
 
 build-tools: maketab
-maketab: ytab.h ${AWKSRC}/maketab.c
-
-.for f in b.c main.c run.c
-${f}: ${AWKSRC}/${f} ${.CURDIR}/${f}.diff
-	patch -s -b .orig -o ${.TARGET} < ${.CURDIR}/${f}.diff ${AWKSRC}/${f}
-CLEANFILES+= ${f}
-.endfor
+maketab: ytab.h ${AWKSRC}/maketab.c ${BUILD_TOOLS_META}
 
 .include <bsd.prog.mk>

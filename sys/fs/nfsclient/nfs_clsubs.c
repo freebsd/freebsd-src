@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/syscall.h>
 #include <sys/sysproto.h>
+#include <sys/taskqueue.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -67,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfsnode.h>
 #include <fs/nfsclient/nfsmount.h>
 #include <fs/nfsclient/nfs.h>
-#include <fs/nfsclient/nfs_lock.h>
+#include <fs/nfsclient/nfs_kdtrace.h>
 
 #include <netinet/in.h>
 
@@ -78,15 +79,21 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 extern struct mtx ncl_iod_mutex;
-extern struct proc *ncl_iodwant[NFS_MAXRAHEAD];
-extern struct nfsmount *ncl_iodmount[NFS_MAXRAHEAD];
+extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
+extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern int ncl_numasync;
 extern unsigned int ncl_iodmax;
-extern struct nfsstats newnfsstats;
+extern struct nfsstatsv1 nfsstatsv1;
+
+struct task	ncl_nfsiodnew_task;
 
 int
 ncl_uninit(struct vfsconf *vfsp)
 {
+	/*
+	 * XXX: Unloading of nfscl module is unsupported.
+	 */
+#if 0
 	int i;
 
 	/*
@@ -96,7 +103,7 @@ ncl_uninit(struct vfsconf *vfsp)
 	mtx_lock(&ncl_iod_mutex);
 	ncl_iodmax = 0;
 	for (i = 0; i < ncl_numasync; i++)
-		if (ncl_iodwant[i])
+		if (ncl_iodwant[i] == NFSIOD_AVAILABLE)
 			wakeup(&ncl_iodwant[i]);
 	/* The last nfsiod to exit will wake us up when ncl_numasync hits 0 */
 	while (ncl_numasync)
@@ -104,6 +111,9 @@ ncl_uninit(struct vfsconf *vfsp)
 	mtx_unlock(&ncl_iod_mutex);
 	ncl_nhuninit();
 	return (0);
+#else
+	return (EOPNOTSUPP);
+#endif
 }
 
 void 
@@ -131,12 +141,12 @@ ncl_upgrade_vnlock(struct vnode *vp)
 	int old_lock;
 
 	ASSERT_VOP_LOCKED(vp, "ncl_upgrade_vnlock");
-	old_lock = VOP_ISLOCKED(vp);
+	old_lock = NFSVOPISLOCKED(vp);
 	if (old_lock != LK_EXCLUSIVE) {
 		KASSERT(old_lock == LK_SHARED,
 		    ("ncl_upgrade_vnlock: wrong old_lock %d", old_lock));
 		/* Upgrade to exclusive lock, this might block */
-		vn_lock(vp, LK_UPGRADE | LK_RETRY);
+		NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
   	}
 	return (old_lock);
 }
@@ -147,27 +157,15 @@ ncl_downgrade_vnlock(struct vnode *vp, int old_lock)
 	if (old_lock != LK_EXCLUSIVE) {
 		KASSERT(old_lock == LK_SHARED, ("wrong old_lock %d", old_lock));
 		/* Downgrade from exclusive lock. */
-		vn_lock(vp, LK_DOWNGRADE | LK_RETRY);
+		NFSVOPLOCK(vp, LK_DOWNGRADE | LK_RETRY);
   	}
-}
-
-void
-ncl_printf(const char *fmt, ...)
-{
-	va_list ap;
-
-	mtx_lock(&Giant);
-	va_start(ap, fmt);
-	printf(fmt, ap);
-	va_end(ap);
-	mtx_unlock(&Giant);
 }
 
 #ifdef NFS_ACDEBUG
 #include <sys/sysctl.h>
-SYSCTL_DECL(_vfs_newnfs);
+SYSCTL_DECL(_vfs_nfs);
 static int nfs_acdebug;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, acdebug, CTLFLAG_RW, &nfs_acdebug, 0, "");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, acdebug, CTLFLAG_RW, &nfs_acdebug, 0, "");
 #endif
 
 /*
@@ -181,21 +179,19 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 	struct nfsnode *np;
 	struct vattr *vap;
 	struct nfsmount *nmp;
-	int timeo;
+	int timeo, mustflush;
 	
 	np = VTONFS(vp);
 	vap = &np->n_vattr.na_vattr;
 	nmp = VFSTONFS(vp->v_mount);
-#ifdef NFS_ACDEBUG
-	mtx_lock(&Giant);	/* ncl_printf() */
-#endif
+	mustflush = nfscl_mustflush(vp);	/* must be before mtx_lock() */
 	mtx_lock(&np->n_mtx);
 	/* XXX n_mtime doesn't seem to be updated on a miss-and-reload */
 	timeo = (time_second - np->n_mtime.tv_sec) / 10;
 
 #ifdef NFS_ACDEBUG
 	if (nfs_acdebug>1)
-		ncl_printf("nfs_getattrcache: initial timeo = %d\n", timeo);
+		printf("ncl_getattrcache: initial timeo = %d\n", timeo);
 #endif
 
 	if (vap->va_type == VDIR) {
@@ -212,21 +208,23 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 
 #ifdef NFS_ACDEBUG
 	if (nfs_acdebug > 2)
-		ncl_printf("acregmin %d; acregmax %d; acdirmin %d; acdirmax %d\n",
-			   nmp->nm_acregmin, nmp->nm_acregmax,
-			   nmp->nm_acdirmin, nmp->nm_acdirmax);
+		printf("acregmin %d; acregmax %d; acdirmin %d; acdirmax %d\n",
+		    nmp->nm_acregmin, nmp->nm_acregmax,
+		    nmp->nm_acdirmin, nmp->nm_acdirmax);
 
 	if (nfs_acdebug)
-		ncl_printf("nfs_getattrcache: age = %d; final timeo = %d\n",
-			   (time_second - np->n_attrstamp), timeo);
+		printf("ncl_getattrcache: age = %d; final timeo = %d\n",
+		    (time_second - np->n_attrstamp), timeo);
 #endif
 
-	if ((time_second - np->n_attrstamp) >= timeo) {
-		newnfsstats.attrcache_misses++;
+	if ((time_second - np->n_attrstamp) >= timeo &&
+	    (mustflush != 0 || np->n_attrstamp == 0)) {
+		nfsstatsv1.attrcache_misses++;
 		mtx_unlock(&np->n_mtx);
+		KDTRACE_NFS_ATTRCACHE_GET_MISS(vp);
 		return( ENOENT);
 	}
-	newnfsstats.attrcache_hits++;
+	nfsstatsv1.attrcache_hits++;
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
 			if (np->n_flag & NMODIFIED) {
@@ -250,9 +248,7 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 			vaper->va_mtime = np->n_mtim;
 	}
 	mtx_unlock(&np->n_mtx);
-#ifdef NFS_ACDEBUG
-	mtx_unlock(&Giant);	/* ncl_printf() */
-#endif
+	KDTRACE_NFS_ATTRCACHE_GET_HIT(vp, vap);
 	return (0);
 }
 
@@ -270,10 +266,7 @@ ncl_getcookie(struct nfsnode *np, off_t off, int add)
 	
 	pos = (uoff_t)off / NFS_DIRBLKSIZ;
 	if (pos == 0 || off < 0) {
-#ifdef DIAGNOSTIC
-		if (add)
-			panic("nfs getcookie add at <= 0");
-#endif
+		KASSERT(!add, ("nfs getcookie add at <= 0"));
 		return (&nfs_nullcookie);
 	}
 	pos--;
@@ -324,10 +317,7 @@ ncl_invaldir(struct vnode *vp)
 {
 	struct nfsnode *np = VTONFS(vp);
 
-#ifdef DIAGNOSTIC
-	if (vp->v_type != VDIR)
-		panic("nfs: invaldir not dir");
-#endif
+	KASSERT(vp->v_type == VDIR, ("nfs: invaldir not dir"));
 	ncl_dircookie_lock(np);
 	np->n_direofoffset = 0;
 	np->n_cookieverf.nfsuquad[0] = 0;
@@ -354,17 +344,10 @@ ncl_clearcommit(struct mount *mp)
 	struct buf *bp, *nbp;
 	struct bufobj *bo;
 
-	MNT_ILOCK(mp);
-	MNT_VNODE_FOREACH(vp, mp, nvp) {
+	MNT_VNODE_FOREACH_ALL(vp, mp, nvp) {
 		bo = &vp->v_bufobj;
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_DOOMED) {
-			VI_UNLOCK(vp);
-			continue;
-		}
 		vholdl(vp);
 		VI_UNLOCK(vp);
-		MNT_IUNLOCK(mp);
 		BO_LOCK(bo);
 		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 			if (!BUF_ISLOCKED(bp) &&
@@ -374,9 +357,7 @@ ncl_clearcommit(struct mount *mp)
 		}
 		BO_UNLOCK(bo);
 		vdrop(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 }
 
 /*
@@ -388,10 +369,11 @@ ncl_init(struct vfsconf *vfsp)
 	int i;
 
 	/* Ensure async daemons disabled */
-	for (i = 0; i < NFS_MAXRAHEAD; i++) {
-		ncl_iodwant[i] = NULL;
+	for (i = 0; i < NFS_MAXASYNCDAEMON; i++) {
+		ncl_iodwant[i] = NFSIOD_NOT_AVAILABLE;
 		ncl_iodmount[i] = NULL;
 	}
+	TASK_INIT(&ncl_nfsiodnew_task, 0, ncl_nfsiodnew_tq, NULL);
 	ncl_nhinit();			/* Init the nfsnode table */
 
 	return (0);

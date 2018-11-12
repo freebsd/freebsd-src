@@ -26,7 +26,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2008
+.Dd December 5, 2015
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -118,17 +118,21 @@ Leave another blank line before the header files.
 .Pp
 Kernel include files (i.e.\&
 .Pa sys/*.h )
-come first; normally, include
+come first sorted alphabetically where possible.
+Include
 .In sys/types.h
 OR
 .In sys/param.h ,
-but not both.
+but not both and include it first.
 .In sys/types.h
 includes
 .In sys/cdefs.h ,
 and it is okay to depend on that.
 .Bd -literal
 #include <sys/types.h>	/* Non-local includes in angle brackets. */
+#include <sys/endian.h>
+#include <sys/lock.h>
+#include <sys/queue.h>
 .Ed
 .Pp
 For a network program, put the network include files next.
@@ -288,10 +292,37 @@ Like white-space commits, care should be taken in making
 .Vt uintXX_t
 only commits.
 .Pp
+Similarly, the project is slowly moving to use the
+.St -isoC-99
+.Vt bool
+in preference to the older
+.Vt int
+or
+.Vt boolean_t .
+New code should use
+.Vt bool ,
+and old code may be converted if it is
+reasonable to do so.
+Literal values are named
+.Dv true
+and
+.Dv false .
+These are preferred to the old spellings
+.Dv TRUE
+and
+.Dv FALSE .
+Userspace code should include
+.In stdbool.h ,
+while kernel code should include
+.In sys/types.h .
+.Pp
 Enumeration values are all uppercase.
 .Bd -literal
 enum enumtype { ONE, TWO } et;
 .Ed
+.Pp
+The use of internal_underscores in identifiers is preferred over
+camelCase or TitleCase.
 .Pp
 In declarations, do not put any whitespace between asterisks and
 adjacent tokens, except for tokens that are identifiers related to
@@ -467,9 +498,9 @@ statement that cascade should have a
 .Li FALLTHROUGH
 comment.
 Numerical arguments should be checked for accuracy.
-Code that cannot be reached should have a
+Code which is unreachable for non-obvious reasons may be marked /*
 .Li NOTREACHED
-comment.
+*/.
 .Bd -literal
 	while ((ch = getopt(argc, argv, "abNn:")) != -1)
 		switch (ch) {		/* Indent the switch. */
@@ -493,7 +524,6 @@ comment.
 		case '?':
 		default:
 			usage();
-			/* NOTREACHED */
 		}
 	argc -= optind;
 	argv += optind;
@@ -501,13 +531,14 @@ comment.
 .Pp
 Space after keywords
 .Pq Ic if , while , for , return , switch .
-No braces
+Two styles of braces
 .Ql ( \&{
 and
 .Ql \&} )
-are
-used for control statements with zero or only a single statement unless that
-statement is more than a single line in which case they are permitted.
+are allowed for single line statements.
+Either they are used for all single statements, or
+they are used only where needed for clarity.
+Usage within a function should be consistent.
 Forever loops are done with
 .Ic for Ns 's ,
 not
@@ -676,7 +707,6 @@ might not be in scope.)
 Test pointers against
 .Dv NULL ,
 e.g., use:
-.Pp
 .Bd -literal
 (p = f()) == NULL
 .Ed
@@ -832,7 +862,7 @@ Whenever possible, code should be run through a code checker
 (e.g.,
 .Xr lint 1
 or
-.Nm gcc Fl Wall )
+.Nm cc Fl Wall )
 and produce minimal warnings.
 .Sh SEE ALSO
 .Xr indent 1 ,

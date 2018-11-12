@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -56,7 +52,7 @@ int	dfn_depth;
 int	dfn_counter;
 
 void
-dfn_init()
+dfn_init(void)
 {
 
     dfn_depth = 0;
@@ -67,8 +63,7 @@ dfn_init()
      *	given this parent, depth first number its children.
      */
 void
-dfn( parentp )
-    nltype	*parentp;
+dfn(nltype *parentp)
 {
     arctype	*arcp;
 
@@ -114,8 +109,7 @@ dfn( parentp )
      *	push a parent onto the stack and mark it busy
      */
 void
-dfn_pre_visit( parentp )
-    nltype	*parentp;
+dfn_pre_visit(nltype *parentp)
 {
 
     dfn_depth += 1;
@@ -137,8 +131,7 @@ dfn_pre_visit( parentp )
      *	are we already numbered?
      */
 bool
-dfn_numbered( childp )
-    nltype	*childp;
+dfn_numbered(nltype *childp)
 {
 
     return ( childp -> toporder != DFN_NAN && childp -> toporder != DFN_BUSY );
@@ -148,8 +141,7 @@ dfn_numbered( childp )
      *	are we already busy?
      */
 bool
-dfn_busy( childp )
-    nltype	*childp;
+dfn_busy(nltype *childp)
 {
 
     if ( childp -> toporder == DFN_NAN ) {
@@ -162,8 +154,7 @@ dfn_busy( childp )
      *	MISSING: an explanation
      */
 void
-dfn_findcycle( childp )
-    nltype	*childp;
+dfn_findcycle(nltype *childp)
 {
     int		cycletop;
     nltype	*cycleheadp;
@@ -271,8 +262,7 @@ dfn_findcycle( childp )
      *	for lint: ARGSUSED
      */
 void
-dfn_self_cycle( parentp )
-    nltype	*parentp;
+dfn_self_cycle(nltype *parentp)
 {
 	/*
 	 *	since we are taking out self-cycles elsewhere
@@ -293,8 +283,7 @@ dfn_self_cycle( parentp )
      *	and pop it off the stack
      */
 void
-dfn_post_visit( parentp )
-    nltype	*parentp;
+dfn_post_visit(nltype *parentp)
 {
     nltype	*memberp;
 

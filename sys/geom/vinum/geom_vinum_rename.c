@@ -173,7 +173,7 @@ gv_rename_plex(struct gv_softc *sc, struct gv_plex *p, char *newname, int flags)
 	/* Fix up references and potentially rename subdisks. */
 	LIST_FOREACH(s, &p->subdisks, in_plex) {
 		strlcpy(s->plex, p->name, sizeof(s->plex));
-		if (flags && GV_FLAG_R) {
+		if (flags & GV_FLAG_R) {
 			/*
 			 * Look for the two last dots in the string, and assume
 			 * that the old value was ok.
@@ -243,7 +243,7 @@ gv_rename_vol(struct gv_softc *sc, struct gv_volume *v, char *newname,
 	/* Fix up references and potentially rename plexes. */
 	LIST_FOREACH(p, &v->plexes, in_volume) {
 		strlcpy(p->volume, v->name, sizeof(p->volume));
-		if (flags && GV_FLAG_R) {
+		if (flags & GV_FLAG_R) {
 			/*
 			 * Look for the last dot in the string, and assume that
 			 * the old value was ok.

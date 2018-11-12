@@ -55,6 +55,37 @@
 #define	NFS_ISV34(v) \
 	(VFSTONFS((v)->v_mount)->nm_flag & (NFSMNT_NFSV3 | NFSMNT_NFSV4))
 
+#ifdef NFS_DEBUG
+
+extern int nfs_debug;
+#define	NFS_DEBUG_ASYNCIO	1 /* asynchronous i/o */
+#define	NFS_DEBUG_WG		2 /* server write gathering */
+#define	NFS_DEBUG_RC		4 /* server request caching */
+
+#define	NFS_DPF(cat, args)					\
+	do {							\
+		if (nfs_debug & NFS_DEBUG_##cat) printf args;	\
+	} while (0)
+
+#else
+
+#define	NFS_DPF(cat, args)
+
+#endif
+
+/*
+ * NFS iod threads can be in one of these three states once spawned.
+ * NFSIOD_NOT_AVAILABLE - Cannot be assigned an I/O operation at this time.
+ * NFSIOD_AVAILABLE - Available to be assigned an I/O operation.
+ * NFSIOD_CREATED_FOR_NFS_ASYNCIO - Newly created for nfs_asyncio() and
+ *	will be used by the thread that called nfs_asyncio().
+ */
+enum nfsiod_state {
+	NFSIOD_NOT_AVAILABLE = 0,
+	NFSIOD_AVAILABLE = 1,
+	NFSIOD_CREATED_FOR_NFS_ASYNCIO = 2,
+};
+
 /*
  * Function prototypes.
  */
@@ -66,15 +97,16 @@ int ncl_biowrite(struct vnode *, struct uio *, int, struct ucred *);
 int ncl_vinvalbuf(struct vnode *, int, struct thread *, int);
 int ncl_asyncio(struct nfsmount *, struct buf *, struct ucred *,
     struct thread *);
-int ncl_doio(struct vnode *, struct buf *, struct ucred *, struct thread *);
-int ncl_msleep(struct thread *, void *, struct mtx *, int, char *, int);
+int ncl_doio(struct vnode *, struct buf *, struct ucred *, struct thread *,
+    int);
 void ncl_nhinit(void);
 void ncl_nhuninit(void);
 void ncl_nodelock(struct nfsnode *);
 void ncl_nodeunlock(struct nfsnode *);
 int ncl_getattrcache(struct vnode *, struct vattr *);
 int ncl_readrpc(struct vnode *, struct uio *, struct ucred *);
-int ncl_writerpc(struct vnode *, struct uio *, struct ucred *, int *, int *);
+int ncl_writerpc(struct vnode *, struct uio *, struct ucred *, int *, int *,
+    int);
 int ncl_readlinkrpc(struct vnode *, struct uio *, struct ucred *);
 int ncl_readdirrpc(struct vnode *, struct uio *, struct ucred *,
     struct thread *);
@@ -87,8 +119,8 @@ int ncl_fsinfo(struct nfsmount *, struct vnode *, struct ucred *,
     struct thread *);
 int ncl_init(struct vfsconf *);
 int ncl_uninit(struct vfsconf *);
-int ncl_mountroot(struct mount *);
-int ncl_nfsiodnew(void);
+void	ncl_nfsiodnew(void);
+void	ncl_nfsiodnew_tq(__unused void *, int);
 
 #endif	/* _KERNEL */
 

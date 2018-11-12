@@ -2,8 +2,6 @@
 
 PROG=	clear_locks
 MAN=	clear_locks.8
-DPADD=	${LIBRPCSVC}
-LDADD=	-lrpcsvc
-WARNS=	6
+LIBADD=	rpcsvc
 
 .include <bsd.prog.mk>

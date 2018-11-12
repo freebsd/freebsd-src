@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2004, 2006-2008 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2004, 2006-2008 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: engine.c,v 8.162 2008/02/27 01:34:14 ca Exp $")
+SM_RCSID("@(#)$Id: engine.c,v 8.168 2013-11-22 20:51:36 ca Exp $")
 
 #include "libmilter.h"
 
@@ -42,13 +42,8 @@ struct cmdfct_t
 typedef struct cmdfct_t cmdfct;
 
 /* possible values for cm_argt */
-#define	CM_ARG0	0	/* no args */
-#define	CM_ARG1	1	/* one arg (string) */
-#define	CM_ARG2	2	/* two args (strings) */
-#define	CM_ARGA	4	/* one string and _SOCK_ADDR */
-#define	CM_ARGO	5	/* two integers */
-#define	CM_ARGV	8	/* \0 separated list of args, NULL-terminated */
-#define	CM_ARGN	9	/* \0 separated list of args (strings) */
+#define	CM_BUF	0
+#define	CM_NULLOK 1
 
 /* possible values for cm_todo */
 #define	CT_CONT		0x0000	/* continue reading commands */
@@ -113,6 +108,7 @@ static void	fix_stm __P((SMFICTX_PTR));
 static bool	trans_ok __P((int, int));
 static char	**dec_argv __P((char *, size_t));
 static int	dec_arg2 __P((char *, size_t, char **, char **));
+static void	mi_clr_symlist __P((SMFICTX_PTR));
 
 #if _FFR_WORKERS_POOL
 static bool     mi_rd_socket_ready __P((int));
@@ -199,21 +195,21 @@ static int next_states[] =
 /* commands received by milter */
 static cmdfct cmds[] =
 {
-  {SMFIC_ABORT,	CM_ARG0, ST_ABRT,  CT_CONT,	CI_NONE, st_abortfct	}
-, {SMFIC_MACRO,	CM_ARGV, ST_NONE,  CT_KEEP,	CI_NONE, st_macros	}
-, {SMFIC_BODY,	CM_ARG1, ST_BODY,  CT_CONT,	CI_NONE, st_bodychunk	}
-, {SMFIC_CONNECT, CM_ARG2, ST_CONN,  CT_CONT,	CI_CONN, st_connectinfo	}
-, {SMFIC_BODYEOB, CM_ARG1, ST_ENDM,  CT_CONT,	CI_EOM,  st_bodyend	}
-, {SMFIC_HELO,	CM_ARG1, ST_HELO,  CT_CONT,	CI_HELO, st_helo	}
-, {SMFIC_HEADER, CM_ARG2, ST_HDRS,  CT_CONT,	CI_NONE, st_header	}
-, {SMFIC_MAIL,	CM_ARGV, ST_MAIL,  CT_CONT,	CI_MAIL, st_sender	}
-, {SMFIC_OPTNEG, CM_ARGO, ST_OPTS,  CT_CONT,	CI_NONE, st_optionneg	}
-, {SMFIC_EOH,	CM_ARG0, ST_EOHS,  CT_CONT,	CI_EOH,  st_eoh		}
-, {SMFIC_QUIT,	CM_ARG0, ST_QUIT,  CT_END,	CI_NONE, st_quit	}
-, {SMFIC_DATA,	CM_ARG0, ST_DATA,  CT_CONT,	CI_DATA, st_data	}
-, {SMFIC_RCPT,	CM_ARGV, ST_RCPT,  CT_IGNO,	CI_RCPT, st_rcpt	}
-, {SMFIC_UNKNOWN, CM_ARG1, ST_UNKN,  CT_IGNO,	CI_NONE, st_unknown	}
-, {SMFIC_QUIT_NC, CM_ARG0, ST_Q_NC,  CT_CONT,	CI_NONE, st_quit	}
+  {SMFIC_ABORT,		CM_NULLOK,	ST_ABRT,  CT_CONT,  CI_NONE, st_abortfct}
+, {SMFIC_MACRO,		CM_BUF,		ST_NONE,  CT_KEEP,  CI_NONE, st_macros	}
+, {SMFIC_BODY,		CM_BUF,		ST_BODY,  CT_CONT,  CI_NONE, st_bodychunk}
+, {SMFIC_CONNECT,	CM_BUF,		ST_CONN,  CT_CONT,  CI_CONN, st_connectinfo}
+, {SMFIC_BODYEOB,	CM_NULLOK,	ST_ENDM,  CT_CONT,  CI_EOM,  st_bodyend	}
+, {SMFIC_HELO,		CM_BUF,		ST_HELO,  CT_CONT,  CI_HELO, st_helo	}
+, {SMFIC_HEADER,	CM_BUF,		ST_HDRS,  CT_CONT,  CI_NONE, st_header	}
+, {SMFIC_MAIL,		CM_BUF,		ST_MAIL,  CT_CONT,  CI_MAIL, st_sender	}
+, {SMFIC_OPTNEG,	CM_BUF,		ST_OPTS,  CT_CONT,  CI_NONE, st_optionneg}
+, {SMFIC_EOH,		CM_NULLOK,	ST_EOHS,  CT_CONT,  CI_EOH,  st_eoh	}
+, {SMFIC_QUIT,		CM_NULLOK,	ST_QUIT,  CT_END,   CI_NONE, st_quit	}
+, {SMFIC_DATA,		CM_NULLOK,	ST_DATA,  CT_CONT,  CI_DATA, st_data	}
+, {SMFIC_RCPT,		CM_BUF,		ST_RCPT,  CT_IGNO,  CI_RCPT, st_rcpt	}
+, {SMFIC_UNKNOWN,	CM_BUF,		ST_UNKN,  CT_IGNO,  CI_NONE, st_unknown	}
+, {SMFIC_QUIT_NC,	CM_NULLOK,	ST_Q_NC,  CT_CONT,  CI_NONE, st_quit	}
 };
 
 /*
@@ -283,7 +279,7 @@ mi_engine(ctx)
 		if (mi_stop() == MILTER_ABRT)
 		{
 			if (ctx->ctx_dbg > 3)
-				sm_dprintf("[%ld] milter_abort\n",
+				sm_dprintf("[%lu] milter_abort\n",
 					(long) ctx->ctx_id);
 			ret = MI_FAILURE;
 			break;
@@ -314,7 +310,7 @@ mi_engine(ctx)
 		    cmd < SMFIC_VALIDCMD)
 		{
 			if (ctx->ctx_dbg > 5)
-				sm_dprintf("[%ld] mi_engine: mi_rd_cmd error (%x)\n",
+				sm_dprintf("[%lu] mi_engine: mi_rd_cmd error (%x)\n",
 					(long) ctx->ctx_id, (int) cmd);
 
 			/*
@@ -327,7 +323,7 @@ mi_engine(ctx)
 			break;
 		}
 		if (ctx->ctx_dbg > 4)
-			sm_dprintf("[%ld] got cmd '%c' len %d\n",
+			sm_dprintf("[%lu] got cmd '%c' len %d\n",
 				(long) ctx->ctx_id, cmd, (int) len);
 		for (i = 0; i < ncmds; i++)
 		{
@@ -338,7 +334,7 @@ mi_engine(ctx)
 		{
 			/* unknown command */
 			if (ctx->ctx_dbg > 1)
-				sm_dprintf("[%ld] cmd '%c' unknown\n",
+				sm_dprintf("[%lu] cmd '%c' unknown\n",
 					(long) ctx->ctx_id, cmd);
 			ret = MI_FAILURE;
 			break;
@@ -347,7 +343,7 @@ mi_engine(ctx)
 		{
 			/* stop for now */
 			if (ctx->ctx_dbg > 1)
-				sm_dprintf("[%ld] cmd '%c' not impl\n",
+				sm_dprintf("[%lu] cmd '%c' not impl\n",
 					(long) ctx->ctx_id, cmd);
 			ret = MI_FAILURE;
 			break;
@@ -356,14 +352,14 @@ mi_engine(ctx)
 		/* is new state ok? */
 		newstate = cmds[i].cm_next;
 		if (ctx->ctx_dbg > 5)
-			sm_dprintf("[%ld] cur %x new %x nextmask %x\n",
+			sm_dprintf("[%lu] cur %x new %x nextmask %x\n",
 				(long) ctx->ctx_id,
 				curstate, newstate, next_states[curstate]);
 
 		if (newstate != ST_NONE && !trans_ok(curstate, newstate))
 		{
 			if (ctx->ctx_dbg > 1)
-				sm_dprintf("[%ld] abort: cur %d (%x) new %d (%x) next %x\n",
+				sm_dprintf("[%lu] abort: cur %d (%x) new %d (%x) next %x\n",
 					(long) ctx->ctx_id,
 					curstate, MI_MASK(curstate),
 					newstate, MI_MASK(newstate),
@@ -388,6 +384,15 @@ mi_engine(ctx)
 				}
 				continue;
 			}
+		}
+		if (cmds[i].cm_argt != CM_NULLOK && buf == NULL)
+		{
+			/* stop for now */
+			if (ctx->ctx_dbg > 1)
+				sm_dprintf("[%lu] cmd='%c', buf=NULL\n",
+					(long) ctx->ctx_id, cmd);
+			ret = MI_FAILURE;
+			break;
 		}
 		arg.a_len = len;
 		arg.a_buf = buf;
@@ -433,7 +438,7 @@ mi_engine(ctx)
 		else if (r == _SMFIS_ABORT)
 		{
 			if (ctx->ctx_dbg > 5)
-				sm_dprintf("[%ld] function returned abort\n",
+				sm_dprintf("[%lu] function returned abort\n",
 					(long) ctx->ctx_id);
 			ret = MI_FAILURE;
 			break;
@@ -725,7 +730,7 @@ sendreply(r, sd, timeout_ptr, ctx)
 }
 
 /*
-**  CLR_MACROS -- clear set of macros starting from a given index
+**  MI_CLR_MACROS -- clear set of macros starting from a given index
 **
 **	Parameters:
 **		ctx -- context structure
@@ -758,6 +763,69 @@ mi_clr_macros(ctx, m)
 }
 
 /*
+**  MI_CLR_SYMLIST -- clear list of macros
+**
+**	Parameters:
+**		ctx -- context structure
+**
+**	Returns:
+**		None.
+*/
+
+static void
+mi_clr_symlist(ctx)
+	SMFICTX *ctx;
+{
+	int i;
+
+	SM_ASSERT(ctx != NULL);
+	for (i = SMFIM_FIRST; i <= SMFIM_LAST; i++)
+	{
+		if (ctx->ctx_mac_list[i] != NULL)
+		{
+			free(ctx->ctx_mac_list[i]);
+			ctx->ctx_mac_list[i] = NULL;
+		}
+	}
+}
+
+/*
+**  MI_CLR_CTX -- clear context
+**
+**	Parameters:
+**		ctx -- context structure
+**
+**	Returns:
+**		None.
+*/
+
+void
+mi_clr_ctx(ctx)
+	SMFICTX *ctx;
+{
+	SM_ASSERT(ctx != NULL);
+	if (ValidSocket(ctx->ctx_sd))
+	{
+		(void) closesocket(ctx->ctx_sd);
+		ctx->ctx_sd = INVALID_SOCKET;
+	}
+	if (ctx->ctx_reply != NULL)
+	{
+		free(ctx->ctx_reply);
+		ctx->ctx_reply = NULL;
+	}
+	if (ctx->ctx_privdata != NULL)
+	{
+		smi_log(SMI_LOG_WARN,
+			"%s: private data not NULL",
+			ctx->ctx_smfi->xxfi_name);
+	}
+	mi_clr_macros(ctx, 0);
+	mi_clr_symlist(ctx);
+	free(ctx);
+}
+
+/*
 **  ST_OPTIONNEG -- negotiate options
 **
 **	Parameters:
@@ -771,8 +839,11 @@ static int
 st_optionneg(g)
 	genarg *g;
 {
-	mi_int32 i, v, fake_pflags;
+	mi_int32 i, v, fake_pflags, internal_pflags;
 	SMFICTX_PTR ctx;
+#if _FFR_MILTER_CHECK
+	bool testmode = false;
+#endif /* _FFR_MILTER_CHECK */
 	int (*fi_negotiate) __P((SMFICTX *,
 					unsigned long, unsigned long,
 					unsigned long, unsigned long,
@@ -826,6 +897,7 @@ st_optionneg(g)
 		v = SMFI_V1_ACTS;
 	ctx->ctx_mta_aflags = v;	/* MTA action flags */
 
+	internal_pflags = 0;
 	(void) memcpy((void *) &i, (void *) &(g->a_buf[MILTER_LEN_BYTES * 2]),
 		      MILTER_LEN_BYTES);
 	v = ntohl(i);
@@ -833,7 +905,51 @@ st_optionneg(g)
 	/* no flags? set to default value for V1 protocol */
 	if (v == 0)
 		v = SMFI_V1_PROT;
-	ctx->ctx_mta_pflags = v;	/* MTA protocol flags */
+#if _FFR_MDS_NEGOTIATE
+	else if (ctx->ctx_smfi->xxfi_version >= SMFI_VERSION_MDS)
+	{
+		/*
+		**  Allow changing the size only if milter is compiled
+		**  against a version that supports this.
+		**  If a milter is dynamically linked against a newer
+		**  libmilter version, we don't want to "surprise"
+		**  it with a larger buffer as it may rely on it
+		**  even though it is not documented as a limit.
+		*/
+
+		if (bitset(SMFIP_MDS_1M, v))
+		{
+			internal_pflags |= SMFIP_MDS_1M;
+			(void) smfi_setmaxdatasize(MILTER_MDS_1M);
+		}
+		else if (bitset(SMFIP_MDS_256K, v))
+		{
+			internal_pflags |= SMFIP_MDS_256K;
+			(void) smfi_setmaxdatasize(MILTER_MDS_256K);
+		}
+	}
+# if 0
+	/* don't log this for now... */
+	else if (ctx->ctx_smfi->xxfi_version < SMFI_VERSION_MDS &&
+		 bitset(SMFIP_MDS_1M|SMFIP_MDS_256K, v))
+	{
+		smi_log(SMI_LOG_WARN,
+			"%s: st_optionneg[%ld]: milter version=%X, trying flags=%X",
+			ctx->ctx_smfi->xxfi_name,
+			(long) ctx->ctx_id, ctx->ctx_smfi->xxfi_version, v);
+	}
+# endif /* 0 */
+#endif /* _FFR_MDS_NEGOTIATE */
+
+	/*
+	**  MTA protocol flags.
+	**  We pass the internal flags to the milter as "read only",
+	**  i.e., a milter can read them so it knows which size
+	**  will be used, but any changes by a milter will be ignored
+	**  (see below, search for SMFI_INTERNAL).
+	*/
+
+	ctx->ctx_mta_pflags = (v & ~SMFI_INTERNAL) | internal_pflags;
 
 	/*
 	**  Copy flags from milter struct into libmilter context;
@@ -879,6 +995,12 @@ st_optionneg(g)
 				ctx->ctx_mta_pflags|fake_pflags,
 				0, 0,
 				&m_aflags, &m_pflags, &m_f2, &m_f3);
+
+#if _FFR_MILTER_CHECK
+		testmode = bitset(SMFIP_TEST, m_pflags);
+		if (testmode)
+			m_pflags &= ~SMFIP_TEST;
+#endif /* _FFR_MILTER_CHECK */
 
 		/*
 		**  Types of protocol flags (pflags):
@@ -1004,13 +1126,32 @@ st_optionneg(g)
 	fix_stm(ctx);
 
 	if (ctx->ctx_dbg > 3)
-		sm_dprintf("[%ld] milter_negotiate:"
+		sm_dprintf("[%lu] milter_negotiate:"
 			" mta_actions=0x%lx, mta_flags=0x%lx"
 			" actions=0x%lx, flags=0x%lx\n"
 			, (long) ctx->ctx_id
 			, ctx->ctx_mta_aflags, ctx->ctx_mta_pflags
 			, ctx->ctx_aflags, ctx->ctx_pflags);
 
+#if _FFR_MILTER_CHECK
+	if (ctx->ctx_dbg > 3)
+		sm_dprintf("[%lu] milter_negotiate:"
+			" testmode=%d, pflags2mta=%X, internal_pflags=%X\n"
+			, (long) ctx->ctx_id, testmode
+			, ctx->ctx_pflags2mta, internal_pflags);
+
+	/* in test mode: take flags without further modifications */
+	if (!testmode)
+		/* Warning: check statement below! */
+#endif /* _FFR_MILTER_CHECK */
+
+	/*
+	**  Remove the internal flags that might have been set by a milter
+	**  and set only those determined above.
+	*/
+
+	ctx->ctx_pflags2mta = (ctx->ctx_pflags2mta & ~SMFI_INTERNAL)
+			      | internal_pflags;
 	return _SMFIS_OPTIONS;
 }
 
@@ -1679,7 +1820,7 @@ dec_arg2(buf, len, s1, s2)
 }
 
 /*
-**  SENDOK -- is it ok for the filter to send stuff to the MTA?
+**  MI_SENDOK -- is it ok for the filter to send stuff to the MTA?
 **
 **	Parameters:
 **		ctx -- context structure

@@ -34,43 +34,22 @@
 #define V_MAX_ADAPTERS		8		/* XXX */
 
 /* some macros */
-#ifdef __i386__
-#define bcopy_io(s, d, c)	generic_bcopy((void *)(s), (void *)(d), (c))
-#define bcopy_toio(s, d, c)	generic_bcopy((void *)(s), (void *)(d), (c))
-#define bcopy_fromio(s, d, c)	generic_bcopy((void *)(s), (void *)(d), (c))
-#define bzero_io(d, c)		generic_bzero((void *)(d), (c))
-#define fill_io(p, d, c)	fill((p), (void *)(d), (c))
-#define fillw_io(p, d, c)	fillw((p), (void *)(d), (c))
-void generic_bcopy(const void *s, void *d, size_t c);
-void generic_bzero(void *d, size_t c);
-#elif defined(__amd64__)
-#define bcopy_io(s, d, c)	bcopy((void *)(s), (void *)(d), (c))
-#define bcopy_toio(s, d, c)	bcopy((void *)(s), (void *)(d), (c))
-#define bcopy_fromio(s, d, c)	bcopy((void *)(s), (void *)(d), (c))
+#if defined(__amd64__) || defined(__i386__)
+
+static __inline void
+copyw(uint16_t *src, uint16_t *dst, size_t size)
+{
+	size >>= 1;
+	while (size--)
+		*dst++ = *src++;
+}
+#define bcopy_io(s, d, c)	copyw((void*)(s), (void*)(d), (c))
+#define bcopy_toio(s, d, c)	copyw((void*)(s), (void*)(d), (c))
+#define bcopy_fromio(s, d, c)	copyw((void*)(s), (void*)(d), (c))
 #define bzero_io(d, c)		bzero((void *)(d), (c))
 #define fill_io(p, d, c)	fill((p), (void *)(d), (c))
 #define fillw_io(p, d, c)	fillw((p), (void *)(d), (c))
-#elif defined(__ia64__) || defined(__sparc64__)
-#if defined(__ia64__)
-#include <machine/bus.h>
-#define	bcopy_fromio(s, d, c)	\
-	bus_space_read_region_1(IA64_BUS_SPACE_MEM, s, 0, (void*)(d), c)
-#define	bcopy_io(s, d, c)	\
-	bus_space_copy_region_1(IA64_BUS_SPACE_MEM, s, 0, d, 0, c)
-#define	bcopy_toio(s, d, c)	\
-	bus_space_write_region_1(IA64_BUS_SPACE_MEM, d, 0, (void*)(s), c)
-#define	bzero_io(d, c)		\
-	bus_space_set_region_1(IA64_BUS_SPACE_MEM, (intptr_t)(d), 0, 0, c)
-#define	fill_io(p, d, c)	\
-	bus_space_set_region_1(IA64_BUS_SPACE_MEM, (intptr_t)(d), 0, p, c)
-#define	fillw_io(p, d, c)	\
-	bus_space_set_region_2(IA64_BUS_SPACE_MEM, (intptr_t)(d), 0, p, c)
-#define	readb(a)		bus_space_read_1(IA64_BUS_SPACE_MEM, a, 0)
-#define	readw(a)		bus_space_read_2(IA64_BUS_SPACE_MEM, a, 0)
-#define	writeb(a, v)		bus_space_write_1(IA64_BUS_SPACE_MEM, a, 0, v)
-#define	writew(a, v)		bus_space_write_2(IA64_BUS_SPACE_MEM, a, 0, v)
-#define	writel(a, v)		bus_space_write_4(IA64_BUS_SPACE_MEM, a, 0, v)
-#endif /* __ia64__ */
+#elif defined(__sparc64__)
 static __inline void
 fillw(int val, uint16_t *buf, size_t size)
 {
@@ -93,7 +72,35 @@ void ofwfb_fillw(int pat, void *base, size_t cnt);
 u_int16_t ofwfb_readw(u_int16_t *addr);
 void ofwfb_writew(u_int16_t *addr, u_int16_t val);
 
-#else /* !__i386__ && !__amd64__ && !__ia64__ && !__sparc64__ && !__powerpc__ */
+#elif defined(__mips__) || defined(__arm__)
+
+/*
+ * Use amd64/i386-like settings under the assumption that MIPS-based display
+ * drivers will have to add a level of indirection between a syscons-managed
+ * frame buffer and the actual video hardware.  We are forced to do this
+ * because syscons doesn't carry around required busspace handles and tags to
+ * use here.  This is only really a problem for true VGA devices hooked up to
+ * MIPS, as others will be performing a translation anyway.
+ */
+#define bcopy_io(s, d, c)	memcpy((void *)(d), (void *)(s), (c))
+#define bcopy_toio(s, d, c)	memcpy((void *)(d), (void *)(s), (c))
+#define bcopy_fromio(s, d, c)	memcpy((void *)(d), (void *)(s), (c))
+#define bzero_io(d, c)		memset((void *)(d), 0, (c))
+#define fill_io(p, d, c)	memset((void *)(d), (p), (c))
+static __inline void
+fillw(int val, uint16_t *buf, size_t size)
+{
+	while (size--)
+		*buf++ = val;
+}
+#define fillw_io(p, d, c)	fillw((p), (void *)(d), (c))
+
+#if defined(__arm__)
+#define	readw(a)		(*(uint16_t*)(a))
+#define	writew(a, v)		(*(uint16_t*)(a) = (v))
+#endif
+
+#else /* !__i386__ && !__amd64__ && !__sparc64__ && !__powerpc__ */
 #define bcopy_io(s, d, c)	memcpy_io((d), (s), (c))
 #define bcopy_toio(s, d, c)	memcpy_toio((d), (void *)(s), (c))
 #define bcopy_fromio(s, d, c)	memcpy_fromio((void *)(d), (s), (c))
@@ -131,8 +138,8 @@ typedef int vi_blank_display_t(video_adapter_t *adp, int mode);
 #define V_DISPLAY_STAND_BY	2
 #define V_DISPLAY_SUSPEND	3
 */
-typedef int vi_mmap_t(video_adapter_t *adp, vm_offset_t offset,
-		      vm_paddr_t *paddr, int prot);
+typedef int vi_mmap_t(video_adapter_t *adp, vm_ooffset_t offset,
+		      vm_paddr_t *paddr, int prot, vm_memattr_t *memattr);
 typedef int vi_ioctl_t(video_adapter_t *adp, u_long cmd, caddr_t data);
 typedef int vi_clear_t(video_adapter_t *adp);
 typedef int vi_fill_rect_t(video_adapter_t *adp, int val, int x, int y,
@@ -228,8 +235,9 @@ typedef struct video_switch {
 	    (height), (celsize), (blink))
 #define vidd_blank_display(adp, mode)					\
 	(*vidsw[(adp)->va_index]->blank_display)((adp), (mode))
-#define vidd_mmap(adp, offset, paddr, prot)				\
-	(*vidsw[(adp)->va_index]->mmap)((adp), (offset), (paddr), (prot))
+#define vidd_mmap(adp, offset, paddr, prot, memattr)			\
+	(*vidsw[(adp)->va_index]->mmap)((adp), (offset), (paddr),	\
+	    (prot), (memattr))
 #define vidd_ioctl(adp, cmd, data)					\
 	(*vidsw[(adp)->va_index]->ioctl)((adp), (cmd), (data))
 #define vidd_clear(adp)							\
@@ -317,7 +325,8 @@ int		genfbwrite(genfb_softc_t *sc, video_adapter_t *adp,
 int		genfbioctl(genfb_softc_t *sc, video_adapter_t *adp,
 			   u_long cmd, caddr_t arg, int flag, struct thread *td);
 int		genfbmmap(genfb_softc_t *sc, video_adapter_t *adp,
-			  vm_offset_t offset, vm_offset_t *paddr, int prot);
+			  vm_ooffset_t offset, vm_offset_t *paddr,
+			  int prot, vm_memattr_t *memattr);
 
 #endif /* FB_INSTALL_CDEV */
 

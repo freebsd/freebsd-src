@@ -43,12 +43,14 @@
  *
  * Created      : 08/10/94
  * Modified	: 22/01/99  -- R.Earnshaw
- *			       Faster, and small tweaks for StrongARM 	
+ *			       Faster, and small tweaks for StrongARM
  */
 
 #include <machine/asm.h>
 
 __FBSDID("$FreeBSD$");
+
+	.syntax	unified
 
 /*
  * Read bytes from an I/O address into a block of memory
@@ -71,10 +73,10 @@ ENTRY(read_multi_1)
 	cmp	r12, #2
 	ldrb	r3, [r0]
 	strb	r3, [r1], #1
-	ldrgeb	r3, [r0]
-	strgeb	r3, [r1], #1
-	ldrgtb	r3, [r0]
-	strgtb	r3, [r1], #1
+	ldrbge	r3, [r0]
+	strbge	r3, [r1], #1
+	ldrbgt	r3, [r0]
+	strbgt	r3, [r1], #1
 	subs	r2, r2, r12
 	blt	.Lrm1_l4
 .Lrm1_main:
@@ -91,16 +93,17 @@ ENTRY(read_multi_1)
 	bge	.Lrm1loop
 .Lrm1_l4:
 	adds	r2, r2, #4			/* r2 = length again */
-	ldmeqdb	fp, {fp, sp, pc}
+	ldmdbeq	fp, {fp, sp, pc}
 	RETeq
 	cmp	r2, #2
 	ldrb	r3, [r0]
 	strb	r3, [r1], #1
-	ldrgeb	r3, [r0]
-	strgeb	r3, [r1], #1
-	ldrgtb	r3, [r0]
-	strgtb	r3, [r1], #1
+	ldrbge	r3, [r0]
+	strbge	r3, [r1], #1
+	ldrbgt	r3, [r0]
+	strbgt	r3, [r1], #1
 	ldmdb	fp, {fp, sp, pc}
+END(read_multi_1)
 
 /*
  * Write bytes to an I/O address from a block of memory
@@ -123,10 +126,10 @@ ENTRY(write_multi_1)
 	cmp	r12, #2
 	ldrb	r3, [r1], #1
 	strb	r3, [r0]
-	ldrgeb	r3, [r1], #1
-	strgeb	r3, [r0]
-	ldrgtb	r3, [r1], #1
-	strgtb	r3, [r0]
+	ldrbge	r3, [r1], #1
+	strbge	r3, [r0]
+	ldrbgt	r3, [r1], #1
+	strbgt	r3, [r0]
 	subs	r2, r2, r12
 	blt	.Lwm1_l4
 .Lwm1_main:
@@ -143,15 +146,16 @@ ENTRY(write_multi_1)
 	bge	.Lwm1loop
 .Lwm1_l4:
 	adds	r2, r2, #4			/* r2 = length again */
-	ldmeqdb	fp, {fp, sp, pc}
+	ldmdbeq	fp, {fp, sp, pc}
 	cmp	r2, #2
 	ldrb	r3, [r1], #1
 	strb	r3, [r0]
-	ldrgeb	r3, [r1], #1
-	strgeb	r3, [r0]
-	ldrgtb	r3, [r1], #1
-	strgtb	r3, [r0]
+	ldrbge	r3, [r1], #1
+	strbge	r3, [r0]
+	ldrbgt	r3, [r1], #1
+	strbgt	r3, [r0]
 	ldmdb	fp, {fp, sp, pc}
+END(write_multi_1)
 
 /*
  * Reads short ints (16 bits) from an I/O address into a block of memory
@@ -199,7 +203,7 @@ ENTRY(insw)
 	bgt	.Lfastinswloop
 
 	RET
-
+END(insw)
 
 /*
  * Writes short ints (16 bits) from a block of memory to an I/O address
@@ -247,7 +251,7 @@ ENTRY(outsw)
 
 	str	r3, [r0]
 	str	ip, [r0]
-	
+
 /*	mov	ip, r3, lsl #16
  *	orr	ip, ip, ip, lsr #16
  *	str	ip, [r0]
@@ -260,6 +264,7 @@ ENTRY(outsw)
 	bgt	.Lfastoutswloop
 
 	RET
+END(outsw)
 
 /*
  * reads short ints (16 bits) from an I/O address into a block of memory
@@ -318,7 +323,7 @@ ENTRY(insw16)
 	bgt	.Linsw16loop
 
 	ldmfd	sp!, {r4,r5,pc}		/* Restore regs and go home */
-
+END(insw16)
 
 /*
  * Writes short ints (16 bits) from a block of memory to an I/O address
@@ -353,7 +358,7 @@ ENTRY(outsw16)
 	eor	r3, r3, r4, lsl #16	/* r3 = (A^B^A)(B) = (B)(B) */
 	str	r3, [r0]
 	str	r4, [r0]
-	
+
 /*	mov	r3, r4, lsl #16
  *	orr	r3, r3, r3, lsr #16
  *	str	r3, [r0]
@@ -385,6 +390,7 @@ ENTRY(outsw16)
 	bgt	.Loutsw16loop
 
 	ldmfd	sp!, {r4,r5,pc}		/* and go home */
+END(outsw16)
 
 /*
  * reads short ints (16 bits) from an I/O address into a block of memory
@@ -481,6 +487,7 @@ ENTRY(inswm8)
 
 .Linswm8_l1:
 	ldmfd	sp!, {r4-r9,pc}		/* And go home */
+END(inswm8)
 
 /*
  * write short ints (16 bits) to an I/O address from a block of memory
@@ -585,3 +592,5 @@ ENTRY(outswm8)
 
 .Loutswm8_l1:
 	ldmfd	sp!, {r4-r8,pc}		/* And go home */
+END(outswm8)
+

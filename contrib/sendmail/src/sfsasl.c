@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2006, 2008 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2006, 2008 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,10 +9,11 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sfsasl.c,v 8.117 2008/01/31 18:48:29 ca Exp $")
+SM_RCSID("@(#)$Id: sfsasl.c,v 8.121 2013-11-22 20:51:56 ca Exp $")
 #include <stdlib.h>
 #include <sendmail.h>
 #include <sm/time.h>
+#include <sm/fdset.h>
 #include <errno.h>
 
 /* allow to disable error handling code just in case... */
@@ -296,7 +297,7 @@ sasl_write(fp, buf, size)
 	/*
 	**  Fetch the maximum input buffer size for sasl_encode().
 	**  This can be less than the size set in attemptauth()
-	**  due to a negotation with the other side, e.g.,
+	**  due to a negotiation with the other side, e.g.,
 	**  Cyrus IMAP lmtp program sets maxbuf=4096,
 	**  digestmd5 substracts 25 and hence we'll get 4071
 	**  instead of 8192 (MAXOUTLEN).
@@ -415,7 +416,7 @@ sfdcsasl(fin, fout, conn, tmo)
 
 #if STARTTLS
 # include "sfsasl.h"
-#  include <openssl/err.h>
+# include <openssl/err.h>
 
 /* Structure used by the "tls" file type */
 struct tls_obj
@@ -618,23 +619,23 @@ tls_retry(ssl, rfd, wfd, tlsstart, timeout, err, where)
 			  where, rfd, wfd, err);
 	}
 
-	if (FD_SETSIZE > 0 &&
-	    ((err == SSL_ERROR_WANT_READ && rfd >= FD_SETSIZE) ||
-	     (err == SSL_ERROR_WANT_WRITE && wfd >= FD_SETSIZE)))
+	if ((err == SSL_ERROR_WANT_READ && !SM_FD_OK_SELECT(rfd)) ||
+	    (err == SSL_ERROR_WANT_WRITE && !SM_FD_OK_SELECT(wfd)))
 	{
 		if (LogLevel > 5)
 		{
 			sm_syslog(LOG_ERR, NOQID,
 				  "STARTTLS=%s, error: fd %d/%d too large",
 				  where, rfd, wfd);
-		if (LogLevel > 8)
-			tlslogerr(where);
+			if (LogLevel > 8)
+				tlslogerr(LOG_WARNING, where);
 		}
 		errno = EINVAL;
 	}
 	else if (err == SSL_ERROR_WANT_READ)
 	{
 		fd_set ssl_maskr, ssl_maskx;
+		int save_errno = errno;
 
 		FD_ZERO(&ssl_maskr);
 		FD_SET(rfd, &ssl_maskr);
@@ -647,10 +648,12 @@ tls_retry(ssl, rfd, wfd, tlsstart, timeout, err, where)
 		} while (ret < 0 && errno == EINTR);
 		if (ret < 0 && errno > 0)
 			ret = -errno;
+		errno = save_errno;
 	}
 	else if (err == SSL_ERROR_WANT_WRITE)
 	{
 		fd_set ssl_maskw, ssl_maskx;
+		int save_errno = errno;
 
 		FD_ZERO(&ssl_maskw);
 		FD_SET(wfd, &ssl_maskw);
@@ -663,6 +666,7 @@ tls_retry(ssl, rfd, wfd, tlsstart, timeout, err, where)
 		} while (ret < 0 && errno == EINTR);
 		if (ret < 0 && errno > 0)
 			ret = -errno;
+		errno = save_errno;
 	}
 	return ret;
 }
@@ -681,17 +685,21 @@ tls_retry(ssl, rfd, wfd, tlsstart, timeout, err, where)
 **		rd_tmo -- read timeout
 **
 **	Results:
-**		none
+**		previous read timeout
 **	This is a hack: there is no way to pass it in
 */
 
 static int tls_rd_tmo = -1;
 
-void
+int
 set_tls_rd_tmo(rd_tmo)
 	int rd_tmo;
 {
+	int old_rd_tmo;
+
+	old_rd_tmo = tls_rd_tmo;
 	tls_rd_tmo = rd_tmo;
+	return old_rd_tmo;
 }
 
 /*
@@ -770,8 +778,17 @@ tls_read(fp, buf, size)
 			break;
 #endif /* DEAL_WITH_ERROR_SSL */
 		err = "generic SSL error";
+
 		if (LogLevel > 9)
-			tlslogerr("read");
+		{
+			int pri;
+
+			if (errno == EAGAIN && try > 0)
+				pri = LOG_DEBUG;
+			else
+				pri = LOG_WARNING;
+			tlslogerr(pri, "read");
+		}
 
 #if DEAL_WITH_ERROR_SSL
 		/* avoid repeated calls? */
@@ -792,14 +809,22 @@ tls_read(fp, buf, size)
 					  "STARTTLS: read error=timeout");
 		}
 		else if (LogLevel > 8)
-			sm_syslog(LOG_WARNING, NOQID,
+		{
+			int pri;
+
+			if (save_errno == EAGAIN && try > 0)
+				pri = LOG_DEBUG;
+			else
+				pri = LOG_WARNING;
+			sm_syslog(pri, NOQID,
 				  "STARTTLS: read error=%s (%d), errno=%d, get_error=%s, retry=%d, ssl_err=%d",
 				  err, r, errno,
 				  ERR_error_string(ERR_get_error(), NULL), try,
 				  ssl_err);
+		}
 		else if (LogLevel > 7)
 			sm_syslog(LOG_WARNING, NOQID,
-				  "STARTTLS: read error=%s (%d), retry=%d, ssl_err=%d",
+				  "STARTTLS: read error=%s (%d), errno=%d, retry=%d, ssl_err=%d",
 				  err, r, errno, try, ssl_err);
 		errno = save_errno;
 	}
@@ -878,7 +903,7 @@ tls_write(fp, buf, size)
 		ERR_GET_REASON(ERR_peek_error()));
 */
 		if (LogLevel > 9)
-			tlslogerr("write");
+			tlslogerr(LOG_WARNING, "write");
 
 #if DEAL_WITH_ERROR_SSL
 		/* avoid repeated calls? */

@@ -40,6 +40,10 @@
 
 #ifndef _KERNEL
 #include <sys/types.h>
+#else
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/eventhandler.h>
 #endif
 #include <sys/ioccom.h>
 
@@ -100,6 +104,71 @@ struct fbtype {
 	int	fb_size;	/* total size in bytes */
 };
 #define	FBIOGTYPE	_IOR('F', 0, struct fbtype)
+
+#define	FBTYPE_GET_STRIDE(_fb)	((_fb)->fb_size / (_fb)->fb_height)
+#define	FBTYPE_GET_BPP(_fb)	((_fb)->fb_bpp)
+#define	FBTYPE_GET_BYTESPP(_fb)	((_fb)->fb_bpp / 8)
+
+#ifdef	_KERNEL
+
+struct fb_info;
+
+typedef int fb_enter_t(void *priv);
+typedef int fb_leave_t(void *priv);
+typedef int fb_setblankmode_t(void *priv, int mode);
+
+struct fb_info {
+	/* Raw copy of fbtype. Do not change. */
+	int		fb_type;	/* as defined above */
+	int		fb_height;	/* in pixels */
+	int		fb_width;	/* in pixels */
+	int		fb_depth;	/* bits to define color */
+	int		fb_cmsize;	/* size of color map (entries) */
+	int		fb_size;	/* total size in bytes */
+
+	struct cdev 	*fb_cdev;
+
+	device_t	 fb_fbd_dev;	/* "fbd" device. */
+	device_t	 fb_video_dev;	/* Video adapter. */
+
+	fb_enter_t	*enter;
+	fb_leave_t	*leave;
+	fb_setblankmode_t *setblankmode;
+
+	intptr_t	fb_pbase;	/* For FB mmap. */
+	intptr_t	fb_vbase;	/* if NULL, use fb_write/fb_read. */
+	void		*fb_priv;	/* First argument for read/write. */
+	const char	*fb_name;
+	uint32_t	fb_flags;
+#define	FB_FLAG_NOMMAP		1	/* mmap unsupported. */
+#define	FB_FLAG_NOWRITE		2	/* disable writes for the time being */
+#define	FB_FLAG_MEMATTR		4	/* override memattr for mmap */
+	vm_memattr_t	fb_memattr;
+	int		fb_stride;
+	int		fb_bpp;		/* bits per pixel */
+	uint32_t	fb_cmap[16];
+};
+
+int fbd_list(void);
+int fbd_register(struct fb_info *);
+int fbd_unregister(struct fb_info *);
+
+static inline int
+register_framebuffer(struct fb_info *info)
+{
+
+	EVENTHANDLER_INVOKE(register_framebuffer, info);
+	return (0);
+}
+
+static inline int
+unregister_framebuffer(struct fb_info *info)
+{
+
+	EVENTHANDLER_INVOKE(unregister_framebuffer, info);
+	return (0);
+}
+#endif
 
 #ifdef notdef
 /*
@@ -269,6 +338,7 @@ struct video_info {
 #define V_INFO_GRAPHICS	(1 << 1)
 #define V_INFO_LINEAR	(1 << 2)
 #define V_INFO_VESA	(1 << 3)
+#define	V_INFO_NONVGA	(1 << 4)
     int			vi_width;
     int			vi_height;
     int			vi_cwidth;
@@ -331,6 +401,7 @@ struct video_adapter {
 #define V_ADP_INITIALIZED (1 << 17)
 #define V_ADP_REGISTERED (1 << 18)
 #define V_ADP_ATTACHED	(1 << 19)
+#define	V_ADP_DAC8	(1 << 20)
     vm_offset_t		va_io_base;
     int			va_io_size;
     vm_offset_t		va_crtc_addr;

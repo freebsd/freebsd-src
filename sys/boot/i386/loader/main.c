@@ -33,34 +33,30 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <stand.h>
+#include <stddef.h>
 #include <string.h>
 #include <machine/bootinfo.h>
+#include <machine/cpufunc.h>
 #include <machine/psl.h>
 #include <sys/reboot.h>
 
 #include "bootstrap.h"
+#include "common/bootargs.h"
 #include "libi386/libi386.h"
+#include "libi386/smbios.h"
 #include "btxv86.h"
 
-#define	KARGS_FLAGS_CD		0x1
-#define	KARGS_FLAGS_PXE		0x2
-#define	KARGS_FLAGS_ZFS		0x4
+#ifdef LOADER_ZFS_SUPPORT
+#include "../zfs/libzfs.h"
+#endif
+
+CTASSERT(sizeof(struct bootargs) == BOOTARGS_SIZE);
+CTASSERT(offsetof(struct bootargs, bootinfo) == BA_BOOTINFO);
+CTASSERT(offsetof(struct bootargs, bootflags) == BA_BOOTFLAGS);
+CTASSERT(offsetof(struct bootinfo, bi_size) == BI_SIZE);
 
 /* Arguments passed in from the boot1/boot2 loader */
-static struct 
-{
-    u_int32_t	howto;
-    u_int32_t	bootdev;
-    u_int32_t	bootflags;
-    union {
-	struct {
-	    u_int32_t	pxeinfo;
-	    u_int32_t	res2;
-	};
-	uint64_t	zfspool;
-    };
-    u_int32_t	bootinfo;
-} *kargs;
+static struct bootargs *kargs;
 
 static u_int32_t	initial_howto;
 static u_int32_t	initial_bootdev;
@@ -72,6 +68,13 @@ static void		extract_currdev(void);
 static int		isa_inb(int port);
 static void		isa_outb(int port, int value);
 void			exit(int code);
+#ifdef LOADER_GELI_SUPPORT
+struct geli_boot_args	*gargs;
+#endif
+#ifdef LOADER_ZFS_SUPPORT
+struct zfs_boot_args	*zargs;
+static void		i386_zfs_probe(void);
+#endif
 
 /* from vers.c */
 extern	char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
@@ -102,17 +105,22 @@ main(void)
      */
     bios_getmem();
 
-#if defined(LOADER_BZIP2_SUPPORT) || defined(LOADER_FIREWIRE_SUPPORT) || defined(LOADER_GPT_SUPPORT) || defined(LOADER_ZFS_SUPPORT)
-    heap_top = PTOV(memtop_copyin);
-    memtop_copyin -= 0x300000;
-    heap_bottom = PTOV(memtop_copyin);
-#else
-    heap_top = (void *)bios_basemem;
-    heap_bottom = (void *)end;
+#if defined(LOADER_BZIP2_SUPPORT) || defined(LOADER_FIREWIRE_SUPPORT) || \
+    defined(LOADER_GPT_SUPPORT) || defined(LOADER_ZFS_SUPPORT)
+    if (high_heap_size > 0) {
+	heap_top = PTOV(high_heap_base + high_heap_size);
+	heap_bottom = PTOV(high_heap_base);
+	if (high_heap_base < memtop_copyin)
+	    memtop_copyin = high_heap_base;
+    } else
 #endif
+    {
+	heap_top = (void *)PTOV(bios_basemem);
+	heap_bottom = (void *)end;
+    }
     setheap(heap_bottom, heap_top);
 
-    /* 
+    /*
      * XXX Chicken-and-egg problem; we want to have console output early, but some
      * console attributes may depend on reading from eg. the boot device, which we
      * can't do yet.
@@ -133,9 +141,9 @@ main(void)
     cons_probe();
 
     /*
-     * Initialise the block cache
+     * Initialise the block cache. Set the upper limit.
      */
-    bcache_init(32, 512);	/* 16k cache XXX tune this */
+    bcache_init(32768, 512);
 
     /*
      * Special handling for PXE and CD booting.
@@ -158,6 +166,33 @@ main(void)
     archsw.arch_readin = i386_readin;
     archsw.arch_isainb = isa_inb;
     archsw.arch_isaoutb = isa_outb;
+#ifdef LOADER_ZFS_SUPPORT
+    archsw.arch_zfs_probe = i386_zfs_probe;
+
+#ifdef LOADER_GELI_SUPPORT
+    if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0) {
+	zargs = (struct zfs_boot_args *)(kargs + 1);
+	if (zargs != NULL && zargs->size >= offsetof(struct zfs_boot_args, gelipw)) {
+	    if (zargs->gelipw[0] != '\0') {
+		setenv("kern.geom.eli.passphrase", zargs->gelipw, 1);
+		bzero(zargs->gelipw, sizeof(zargs->gelipw));
+	    }
+	}
+    }
+#endif /* LOADER_GELI_SUPPORT */
+#else /* !LOADER_ZFS_SUPPORT */
+#ifdef LOADER_GELI_SUPPORT
+    if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0) {
+	gargs = (struct geli_boot_args *)(kargs + 1);
+	if (gargs != NULL && gargs->size >= offsetof(struct geli_boot_args, gelipw)) {
+	    if (gargs->gelipw[0] != '\0') {
+		setenv("kern.geom.eli.passphrase", gargs->gelipw, 1);
+		bzero(gargs->gelipw, sizeof(gargs->gelipw));
+	    }
+	}
+    }
+#endif /* LOADER_GELI_SUPPORT */
+#endif /* LOADER_ZFS_SUPPORT */
 
     /*
      * March through the device switch probing for things.
@@ -175,7 +210,10 @@ main(void)
     biosacpi_detect();
 
     /* detect SMBIOS for future reference */
-    smbios_detect();
+    smbios_detect(NULL);
+
+    /* detect PCI BIOS for future reference */
+    biospci_detect();
 
     printf("\n");
     printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
@@ -186,7 +224,7 @@ main(void)
     
     bios_getsmap();
 
-    interact();			/* doesn't return */
+    interact(NULL);
 
     /* if we ever get here, it is an error */
     return (1);
@@ -201,8 +239,11 @@ main(void)
 static void
 extract_currdev(void)
 {
-    struct i386_devdesc	new_currdev;
-    int			biosdev = -1;
+    struct i386_devdesc		new_currdev;
+#ifdef LOADER_ZFS_SUPPORT
+    char			buf[20];
+#endif
+    int				biosdev = -1;
 
     /* Assume we are booting from a BIOS disk by default */
     new_currdev.d_dev = &biosdisk;
@@ -223,6 +264,31 @@ extract_currdev(void)
 	    new_currdev.d_kind.biosdisk.partition = 0;
 	    biosdev = -1;
 	}
+#ifdef LOADER_ZFS_SUPPORT
+    } else if ((kargs->bootflags & KARGS_FLAGS_ZFS) != 0) {
+	zargs = NULL;
+	/* check for new style extended argument */
+	if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0)
+	    zargs = (struct zfs_boot_args *)(kargs + 1);
+
+	if (zargs != NULL &&
+	    zargs->size >= offsetof(struct zfs_boot_args, primary_pool)) {
+	    /* sufficient data is provided */
+	    new_currdev.d_kind.zfs.pool_guid = zargs->pool;
+	    new_currdev.d_kind.zfs.root_guid = zargs->root;
+	    if (zargs->size >= sizeof(*zargs) && zargs->primary_vdev != 0) {
+		sprintf(buf, "%llu", zargs->primary_pool);
+		setenv("vfs.zfs.boot.primary_pool", buf, 1);
+		sprintf(buf, "%llu", zargs->primary_vdev);
+		setenv("vfs.zfs.boot.primary_vdev", buf, 1);
+	    }
+	} else {
+	    /* old style zfsboot block */
+	    new_currdev.d_kind.zfs.pool_guid = kargs->zfspool;
+	    new_currdev.d_kind.zfs.root_guid = 0;
+	}
+	new_currdev.d_dev = &zfs_dev;
+#endif
     } else if ((initial_bootdev & B_MAGICMASK) != B_DEVMAGIC) {
 	/* The passed-in boot device is bad */
 	new_currdev.d_kind.biosdisk.slice = -1;
@@ -243,7 +309,7 @@ extract_currdev(void)
 	    biosdev = 0x80 + B_UNIT(initial_bootdev);		/* assume harddisk */
     }
     new_currdev.d_type = new_currdev.d_dev->dv_type;
-    
+
     /*
      * If we are booting off of a BIOS disk and we didn't succeed in determining
      * which one we booted off of, just use disk0: as a reasonable default.
@@ -254,33 +320,16 @@ extract_currdev(void)
 	       "Guessed BIOS device 0x%x not found by probes, defaulting to disk0:\n", biosdev);
 	new_currdev.d_unit = 0;
     }
+
+#ifdef LOADER_ZFS_SUPPORT
+    if (new_currdev.d_type == DEVT_ZFS)
+	init_zfs_bootenv(zfs_fmtdev(&new_currdev));
+#endif
+
     env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&new_currdev),
 	       i386_setcurrdev, env_nounset);
     env_setenv("loaddev", EV_VOLATILE, i386_fmtdev(&new_currdev), env_noset,
 	       env_nounset);
-
-#ifdef LOADER_ZFS_SUPPORT
-    /*
-     * If we were started from a ZFS-aware boot2, we can work out
-     * which ZFS pool we are booting from.
-     */
-    if (kargs->bootflags & KARGS_FLAGS_ZFS) {
-	/*
-	 * Dig out the pool guid and convert it to a 'unit number'
-	 */
-	uint64_t guid;
-	int unit;
-	char devname[32];
-	extern int zfs_guid_to_unit(uint64_t);
-
-	guid = kargs->zfspool;
-	unit = zfs_guid_to_unit(guid);
-	if (unit >= 0) {
-	    sprintf(devname, "zfs%d", unit);
-	    setenv("currdev", devname, 1);
-	}
-    }
-#endif
 }
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
@@ -317,33 +366,94 @@ command_heap(int argc, char *argv[])
     return(CMD_OK);
 }
 
-/* ISA bus access functions for PnP, derived from <machine/cpufunc.h> */
-static int		
+#ifdef LOADER_ZFS_SUPPORT
+COMMAND_SET(lszfs, "lszfs", "list child datasets of a zfs dataset",
+    command_lszfs);
+
+static int
+command_lszfs(int argc, char *argv[])
+{
+    int err;
+
+    if (argc != 2) {
+	command_errmsg = "wrong number of arguments";
+	return (CMD_ERROR);
+    }
+
+    err = zfs_list(argv[1]);
+    if (err != 0) {
+	command_errmsg = strerror(err);
+	return (CMD_ERROR);
+    }
+
+    return (CMD_OK);
+}
+
+COMMAND_SET(reloadbe, "reloadbe", "refresh the list of ZFS Boot Environments",
+    command_reloadbe);
+
+static int
+command_reloadbe(int argc, char *argv[])
+{
+    int err;
+    char *root;
+
+    if (argc > 2) {
+	command_errmsg = "wrong number of arguments";
+	return (CMD_ERROR);
+    }
+
+    if (argc == 2) {
+	err = zfs_bootenv(argv[1]);
+    } else {
+	root = getenv("zfs_be_root");
+	if (root == NULL) {
+	    /* There does not appear to be a ZFS pool here, exit without error */
+	    return (CMD_OK);
+	}
+	err = zfs_bootenv(getenv("zfs_be_root"));
+    }
+
+    if (err != 0) {
+	command_errmsg = strerror(err);
+	return (CMD_ERROR);
+    }
+
+    return (CMD_OK);
+}
+#endif
+
+/* ISA bus access functions for PnP. */
+static int
 isa_inb(int port)
 {
-    u_char	data;
-    
-    if (__builtin_constant_p(port) && 
-	(((port) & 0xffff) < 0x100) && 
-	((port) < 0x10000)) {
-	__asm __volatile("inb %1,%0" : "=a" (data) : "id" ((u_short)(port)));
-    } else {
-	__asm __volatile("inb %%dx,%0" : "=a" (data) : "d" (port));
-    }
-    return(data);
+
+    return (inb(port));
 }
 
 static void
 isa_outb(int port, int value)
 {
-    u_char	al = value;
-    
-    if (__builtin_constant_p(port) && 
-	(((port) & 0xffff) < 0x100) && 
-	((port) < 0x10000)) {
-	__asm __volatile("outb %0,%1" : : "a" (al), "id" ((u_short)(port)));
-    } else {
-        __asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
-    }
+
+    outb(port, value);
 }
 
+#ifdef LOADER_ZFS_SUPPORT
+static void
+i386_zfs_probe(void)
+{
+    char devname[32];
+    int unit;
+
+    /*
+     * Open all the disks we can find and see if we can reconstruct
+     * ZFS pools from them.
+     */
+    for (unit = 0; unit < MAXBDDEV; unit++) {
+	if (bd_unit2bios(unit) == -1)
+	    break;
+	sprintf(devname, "disk%d:", unit);
+	zfs_probe_dev(devname, NULL);
+    }
+}
+#endif

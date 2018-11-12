@@ -33,11 +33,11 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <err.h>
+#include <stdlib.h>
 #include <string.h>
 #include "y.tab.h"
 #include "config.h"
-
-#define YY_NO_UNPUT
 
 /*
  * Data for returning to previous files from include files.
@@ -94,7 +94,12 @@ unsigned int octal(const char *);
 unsigned int hex(const char *);
 int yyerror(const char *);
 
+#define YY_DECL int yylex(void)
 %}
+
+%option nounput
+%option noinput
+
 ID	[A-Za-z_][-A-Za-z_0-9]*
 PATH	[./][-/.%^A-Za-z_0-9]+
 %START TOEOL
@@ -220,6 +225,8 @@ cfgfile_add(const char *fname)
 	struct cfgfile *cf;
 
 	cf = calloc(1, sizeof(*cf));
+	if (cf == NULL)
+		err(EXIT_FAILURE, "calloc");
 	assert(cf != NULL);
 	asprintf(&cf->cfg_path, "%s", fname);
 	STAILQ_INSERT_TAIL(&cfgfiles, cf, cfg_next);
@@ -251,6 +258,7 @@ include(const char *fname, int ateof)
 {
 	FILE *fp;
 	struct incl *in;
+	struct includepath* ipath;
 	char *fnamebuf;
 
 	fnamebuf = NULL;
@@ -259,6 +267,18 @@ include(const char *fname, int ateof)
 		asprintf(&fnamebuf, "../../conf/%s", fname);
 		if (fnamebuf != NULL) {
 			fp = fopen(fnamebuf, "r");
+			if (fp == NULL)
+				free(fnamebuf);
+		}
+	}
+	if (fp == NULL) {
+		SLIST_FOREACH(ipath, &includepath, path_next) {
+			asprintf(&fnamebuf, "%s/%s", ipath->path, fname);
+			if (fnamebuf != NULL) {
+				fp = fopen(fnamebuf, "r");
+			}
+			if (fp != NULL)
+				break;
 			free(fnamebuf);
 		}
 	}
@@ -285,7 +305,7 @@ include(const char *fname, int ateof)
  * Terminate the most recent inclusion.
  */
 static int
-endinclude()
+endinclude(void)
 {
 	struct incl *in;
 	int ateof;

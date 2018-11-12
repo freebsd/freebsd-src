@@ -1,5 +1,5 @@
 /* sb.h - header file for string buffer manipulation routines
-   Copyright 1994, 1995, 2000 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 2000, 2003, 2006 Free Software Foundation, Inc.
 
    Written by Steve and Judy Chamberlain of Cygnus Support,
       sac@cygnus.com
@@ -18,17 +18,14 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef SB_H
 
 #define SB_H
 
-#include <stdio.h>
-#include "ansidecl.h"
-
-/* string blocks
+/* String blocks
 
    I had a couple of choices when deciding upon this data structure.
    gas uses null terminated strings for all its internal work.  This
@@ -46,49 +43,38 @@
 
    An sb is allocated by the caller, and is initialized to point to an
    sb_element.  sb_elements are kept on a free lists, and used when
-   needed, replaced onto the free list when unused.
- */
+   needed, replaced onto the free list when unused.  */
 
-#define sb_max_power_two    30	/* don't allow strings more than
-			           2^sb_max_power_two long */
-/* structure of an sb */
+#define sb_max_power_two    30	/* Don't allow strings more than
+			           2^sb_max_power_two long.  */
+
 typedef struct sb
-  {
-    char *ptr;			/* points to the current block.  */
-    int len;			/* how much is used.  */
-    int pot;			/* the maximum length is 1<<pot */
-    struct le *item;
-  }
+{
+  char *ptr;			/* Points to the current block.  */
+  int len;			/* How much is used.  */
+  int pot;			/* The maximum length is 1<<pot.  */
+  struct le *item;
+}
 sb;
 
-/* Structure of the free list object of an sb */
+/* Structure of the free list object of a string block.  */
+
 typedef struct le
-  {
-    struct le *next;
-    int size;
-    char data[1];
-  }
+{
+  struct le *next;
+  int size;
+  char data[1];
+}
 sb_element;
 
-/* The free list */
-typedef struct
-  {
-    sb_element *size[sb_max_power_two];
-  } sb_list_vector;
-
-extern int string_count[sb_max_power_two];
-
-extern void sb_build (sb *, int);
 extern void sb_new (sb *);
 extern void sb_kill (sb *);
 extern void sb_add_sb (sb *, sb *);
+extern void sb_scrub_and_add_sb (sb *, sb *);
 extern void sb_reset (sb *);
 extern void sb_add_char (sb *, int);
 extern void sb_add_string (sb *, const char *);
 extern void sb_add_buffer (sb *, const char *, int);
-extern void sb_print (FILE *, sb *);
-extern void sb_print_at (FILE *, int, sb *);
-extern char *sb_name (sb *);
 extern char *sb_terminate (sb *);
 extern int sb_skip_white (int, sb *);
 extern int sb_skip_comma (int, sb *);

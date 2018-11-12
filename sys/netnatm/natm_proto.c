@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/protosw.h>
 #include <sys/domain.h>
@@ -85,7 +87,7 @@ static struct domain natmdomain = {
 	.dom_name =		"natm",
 	.dom_init =		natm_init,
 	.dom_protosw =		natmsw,
-	.dom_protoswNPROTOSW =	&natmsw[sizeof(natmsw)/sizeof(natmsw[0])],
+	.dom_protoswNPROTOSW =	&natmsw[nitems(natmsw)],
 };
 
 static struct netisr_handler natm_nh = {

@@ -52,7 +52,7 @@ struct uath_rx_radiotap_header {
 	int8_t		wr_antsignal;
 	int8_t		wr_antnoise;
 	u_int8_t	wr_antenna;
-} __packed;
+} __packed __aligned(8);
 
 #define UATH_RX_RADIOTAP_PRESENT (		\
 	(1 << IEEE80211_RADIOTAP_TSFT)		| \
@@ -69,7 +69,7 @@ struct uath_tx_radiotap_header {
 	uint8_t		wt_flags;
 	uint16_t	wt_chan_freq;
 	uint16_t	wt_chan_flags;
-} __packed;
+} __packed __aligned(8);
 
 #define	UATH_TX_RADIOTAP_PRESENT					\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
@@ -102,7 +102,6 @@ struct uath_wme_settings {
 	uint8_t				logcwmin;
 	uint8_t				logcwmax;
 	uint16_t			txop;
-#define	UATH_TXOP_TO_US(txop)		((txop) << 5)
 	uint8_t				acm;
 };
 
@@ -183,9 +182,12 @@ struct uath_vap {
 #define	UATH_VAP(vap)			((struct uath_vap *)(vap))
 
 struct uath_softc {
-	struct ifnet			*sc_ifp;
+	struct ieee80211com		sc_ic;
+	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
+	void				*sc_cmd_dma_buf;
+	void				*sc_tx_dma_buf;
 	struct mtx			sc_mtx;
 	uint32_t			sc_debug;
 
@@ -228,9 +230,7 @@ struct uath_softc {
 #define	UATH_FLAG_INITDONE		(1 << 2)
 
 	struct	uath_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
 	struct	uath_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
 };
 
 #define	UATH_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)

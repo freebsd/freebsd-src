@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
  * chipset.
  * Copyright Roger Hardiman and Amancio Hasty.
  *
- * bktr_os : This has all the Operating System dependant code,
+ * bktr_os : This has all the Operating System dependent code,
  *             probe/attach and open/close/ioctl/read/mmap
  *             memory allocation
  *             PCI bus interfacing
@@ -108,7 +108,7 @@ int bt848_amsound = 0;		/* hard-wire AM sound at 6.5 Hz (france),
 int bt848_dolby = 0;
 #endif
 
-SYSCTL_NODE(_hw, OID_AUTO, bt848, CTLFLAG_RW, 0, "Bt848 Driver mgmt");
+static SYSCTL_NODE(_hw, OID_AUTO, bt848, CTLFLAG_RW, 0, "Bt848 Driver mgmt");
 SYSCTL_INT(_hw_bt848, OID_AUTO, card, CTLFLAG_RW, &bt848_card, -1, "");
 SYSCTL_INT(_hw_bt848, OID_AUTO, tuner, CTLFLAG_RW, &bt848_tuner, -1, "");
 SYSCTL_INT(_hw_bt848, OID_AUTO, reverse_mute, CTLFLAG_RW, &bt848_reverse_mute, -1, "");
@@ -304,7 +304,7 @@ bktr_probe( device_t dev )
 			device_set_desc(dev, "BrookTree 879");
 			return BUS_PROBE_DEFAULT;
 		}
-	};
+	}
 
         return ENXIO;
 }
@@ -318,7 +318,6 @@ bktr_attach( device_t dev )
 {
 	u_long		latency;
 	u_long		fun;
-	u_long		val;
 	unsigned int	rev;
 	unsigned int	unit;
 	int		error = 0;
@@ -336,9 +335,7 @@ bktr_attach( device_t dev )
 	/*
 	 * Enable bus mastering and Memory Mapped device
 	 */
-	val = pci_read_config(dev, PCIR_COMMAND, 4);
-	val |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, val, 4);
+	pci_enable_busmaster(dev);
 
 	/*
 	 * Map control/status registers.
@@ -398,13 +395,13 @@ bktr_attach( device_t dev )
         fun = fun | 1;	/* Enable writes to the sub-system vendor ID */
 
 #if defined( BKTR_430_FX_MODE )
-	if (bootverbose) printf("Using 430 FX chipset compatibilty mode\n");
+	if (bootverbose) printf("Using 430 FX chipset compatibility mode\n");
         fun = fun | 2;	/* Enable Intel 430 FX compatibility mode */
 #endif
 
 #if defined( BKTR_SIS_VIA_MODE )
-	if (bootverbose) printf("Using SiS/VIA chipset compatibilty mode\n");
-        fun = fun | 4;	/* Enable SiS/VIA compatibility mode (usefull for
+	if (bootverbose) printf("Using SiS/VIA chipset compatibility mode\n");
+        fun = fun | 4;	/* Enable SiS/VIA compatibility mode (useful for
                            OPTi chipset motherboards too */
 #endif
 	pci_write_config(dev, 0x40, fun, 2);
@@ -794,7 +791,8 @@ bktr_ioctl( struct cdev *dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct thr
  * 
  */
 static int
-bktr_mmap( struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot )
+bktr_mmap( struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr )
 {
 	int		unit;
 	bktr_ptr_t	bktr;
@@ -891,10 +889,11 @@ vm_offset_t vm_page_alloc_contig(vm_offset_t, vm_offset_t,
 
 #if defined(__OpenBSD__)
 static int      bktr_probe(struct device *, void *, void *);
-#else
-static int      bktr_probe(struct device *, struct cfdata *, void *);
-#endif
 static void     bktr_attach(struct device *, struct device *, void *);
+#else
+static int      bktr_probe(device_t, struct cfdata *, void *);
+static void     bktr_attach(device_t, device_t, void *);
+#endif
 
 struct cfattach bktr_ca = {
         sizeof(struct bktr_softc), bktr_probe, bktr_attach
@@ -910,10 +909,11 @@ struct cfdriver bktr_cd = {
 
 int
 bktr_probe(parent, match, aux)
-	struct device *parent;
 #if defined(__OpenBSD__)
+        struct device *parent;
         void *match;
 #else
+        device_t parent;
         struct cfdata *match;
 #endif
         void *aux;
@@ -935,7 +935,15 @@ bktr_probe(parent, match, aux)
  * the attach routine.
  */
 static void
-bktr_attach(struct device *parent, struct device *self, void *aux)
+bktr_attach(parent, self, aux)
+#if defined(__OpenBSD__)
+	struct device *parent;
+	struct device *self;
+#else
+	device_t parent;
+	device_t self;
+#endif
+	void *aux;
 {
 	bktr_ptr_t	bktr;
 	u_long		latency;

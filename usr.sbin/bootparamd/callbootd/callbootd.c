@@ -81,7 +81,6 @@ char **argv;
 
   long the_inet_addr;
   CLIENT *clnt;
-  enum clnt_stat clnt_stat;
 
   stat_whoami_res.client_name = cln;
   stat_whoami_res.domain_name = dmn;
@@ -105,7 +104,7 @@ char **argv;
   case 3:
     whoami_arg.client_address.address_type = IP_ADDR_TYPE;
     the_inet_addr = inet_addr(argv[2]);
-    if ( the_inet_addr == -1)
+    if ( the_inet_addr == INADDR_NONE)
       errx(2, "bogus addr %s", argv[2]);
     bcopy(&the_inet_addr,&whoami_arg.client_address.bp_address_u.ip_addr,4);
 
@@ -117,7 +116,7 @@ char **argv;
       } else
 	exit(0);
      } else {
-       clnt_stat=clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS,
+       (void)clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS,
 			       BOOTPARAMPROC_WHOAMI,
 			       (xdrproc_t)xdr_bp_whoami_arg,
 			       (char *)&whoami_arg,
@@ -140,7 +139,7 @@ char **argv;
       } else
 	exit(0);
     } else {
-      clnt_stat=clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS,
+      (void)clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS,
 			       BOOTPARAMPROC_GETFILE,
 			       (xdrproc_t)xdr_bp_getfile_arg,
 			       (char *)&getfile_arg,

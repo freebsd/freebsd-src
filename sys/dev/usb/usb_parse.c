@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -32,7 +35,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -48,6 +50,11 @@
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 
+#define	USB_DEBUG_VAR usb_debug
+
+#include <dev/usb/usb_core.h>
+#include <dev/usb/usb_debug.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 /*------------------------------------------------------------------------*
  *	usb_desc_foreach
@@ -140,7 +147,7 @@ usb_idesc_foreach(struct usb_config_descriptor *cd,
 	}
 
 	if (ps->desc == NULL) {
-		/* first time */
+		/* first time or zero descriptors */
 	} else if (new_iface) {
 		/* new interface */
 		ps->iface_index ++;
@@ -148,6 +155,14 @@ usb_idesc_foreach(struct usb_config_descriptor *cd,
 	} else {
 		/* new alternate interface */
 		ps->iface_index_alt ++;
+	}
+#if (USB_IFACE_MAX <= 0)
+#error "USB_IFACE_MAX must be defined greater than zero"
+#endif
+	/* check for too many interfaces */
+	if (ps->iface_index >= USB_IFACE_MAX) {
+		DPRINTF("Interface limit reached\n");
+		id = NULL;
 	}
 
 	/* store and return current descriptor */
@@ -180,10 +195,46 @@ usb_edesc_foreach(struct usb_config_descriptor *cd,
 		}
 		if (desc->bDescriptorType == UDESC_ENDPOINT) {
 			if (desc->bLength < sizeof(*ped)) {
-				/* endpoint index is invalid */
+				/* endpoint descriptor is invalid */
 				break;
 			}
 			return ((struct usb_endpoint_descriptor *)desc);
+		}
+	}
+	return (NULL);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_ed_comp_foreach
+ *
+ * This function will iterate all the endpoint companion descriptors
+ * within an endpoint descriptor in an interface descriptor. Starting
+ * value for the "ped" argument should be a valid endpoint companion
+ * descriptor.
+ *
+ * Return values:
+ *   NULL: End of descriptors
+ *   Else: A valid endpoint companion descriptor
+ *------------------------------------------------------------------------*/
+struct usb_endpoint_ss_comp_descriptor *
+usb_ed_comp_foreach(struct usb_config_descriptor *cd,
+    struct usb_endpoint_ss_comp_descriptor *ped)
+{
+	struct usb_descriptor *desc;
+
+	desc = ((struct usb_descriptor *)ped);
+
+	while ((desc = usb_desc_foreach(cd, desc))) {
+		if (desc->bDescriptorType == UDESC_INTERFACE)
+			break;
+		if (desc->bDescriptorType == UDESC_ENDPOINT)
+			break;
+		if (desc->bDescriptorType == UDESC_ENDPOINT_SS_COMP) {
+			if (desc->bLength < sizeof(*ped)) {
+				/* endpoint companion descriptor is invalid */
+				break;
+			}
+			return ((struct usb_endpoint_ss_comp_descriptor *)desc);
 		}
 	}
 	return (NULL);

@@ -25,27 +25,78 @@
 # SUCH DAMAGE.
 #
 
+SYSDIR?=${.CURDIR}/../..
+.include "${SYSDIR}/conf/kern.opts.mk"
+
+#
+# Check for common USB debug flags to pass when building the USB
+# modules in this directory:
+#
+.if defined(USB_DEBUG)
+MAKE+=" DEBUG_FLAGS+=-DUSB_DEBUG"
+.endif
+
+.if defined(USB_DEBUG) && defined(USB_REQ_DEBUG)
+MAKE+=" DEBUG_FLAGS+=-DUSB_REQ_DEBUG"
+.endif
+
+# Modules that include binary-only blobs of microcode should be selectable by
+# MK_SOURCELESS_UCODE option (see below).
+
 SUBDIR = usb
-SUBDIR += ehci musb ohci uhci uss820dci ${_at91dci} ${_atmegadci}
-SUBDIR += rum uath upgt ural zyd ${_urtw}
-SUBDIR += uhid ukbd ums udbp ufm
-SUBDIR += ucom u3g uark ubsa ubser uch341 uchcom ucycom ufoma uftdi ugensa \
-	  uipaq ulpt umct umodem umoscom uplcom uslcom uvisor uvscom
-SUBDIR += uether aue axe cdce cue kue rue udav
+SUBDIR += ${_dwc_otg} ehci ${_musb} ohci uhci xhci ${_uss820dci} ${_at91dci} \
+	  ${_atmegadci} ${_avr32dci} ${_rsu} ${_rsufw} ${_saf1761otg}
+SUBDIR += ${_rum} ${_run} ${_runfw} ${_uath} upgt usie ural ${_zyd} ${_urtw} 
+SUBDIR += atp uhid ukbd ums udbp ufm uep wsp ugold uled
+SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
+	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
+SUBDIR += udl
+SUBDIR += uether aue axe axge cdce cue ${_kue} mos rue smsc udav uhso ipheth
+SUBDIR += ure urndis
 SUBDIR += usfs umass urio
 SUBDIR += quirk template
+SUBDIR += ${_g_audio} ${_g_keyboard} ${_g_modem} ${_g_mouse}
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MK_USB_GADGET_EXAMPLES} == "yes"
+_g_audio=	g_audio
+_g_keyboard=	g_keyboard
+_g_modem=	g_modem
+_g_mouse=	g_mouse
+.endif
+
+.if ${MK_SOURCELESS_UCODE} != "no"
+_rum=		rum
+_uath=		uath
+_zyd=		zyd
+_kue=		kue
+_run=		run
+_runfw=		runfw
+_rsu=		rsu
+_rsufw=		rsufw
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64"
 _urtw=		urtw
 .endif
 
-.if ${MACHINE_ARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "arm"
 _at91dci=	at91dci
 _atmegadci=	atmegadci
+_dwc_otg=	dwc_otg
+_musb=		musb
+_uss820dci=	uss820dci
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 _urtw=		urtw
+.endif
+
+.if ${MACHINE_CPUARCH} == "avr32"
+_avr32dci=	avr32dci
+.endif
+
+.if ${MACHINE_CPUARCH} == "mips"
+_saf1761otg=	saf1761otg
 .endif
 
 .include <bsd.subdir.mk>

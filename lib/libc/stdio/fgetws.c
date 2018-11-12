@@ -2,6 +2,11 @@
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -38,34 +43,45 @@ __FBSDID("$FreeBSD$");
 #include "mblocal.h"
 
 wchar_t *
-fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
+fgetws_l(wchar_t * __restrict ws, int n, FILE * __restrict fp, locale_t locale)
 {
+	int sret;
 	wchar_t *wsp;
 	size_t nconv;
 	const char *src;
 	unsigned char *nl;
+	FIX_LOCALE(locale);
+	struct xlocale_ctype *l = XLOCALE_CTYPE(locale);
 
 	FLOCKFILE(fp);
 	ORIENT(fp, 1);
 
 	if (n <= 0) {
+		fp->_flags |= __SERR;
 		errno = EINVAL;
 		goto error;
 	}
 
-	if (fp->_r <= 0 && __srefill(fp))
-		/* EOF */
-		goto error;
 	wsp = ws;
+	if (n == 1)
+		goto ok;
+
+	if (fp->_r <= 0 && __srefill(fp))
+		/* EOF or ferror */
+		goto error;
+
+	sret = 0;
 	do {
 		src = fp->_p;
 		nl = memchr(fp->_p, '\n', fp->_r);
-		nconv = __mbsnrtowcs(wsp, &src,
+		nconv = l->__mbsnrtowcs(wsp, &src,
 		    nl != NULL ? (nl - fp->_p + 1) : fp->_r,
 		    n - 1, &fp->_mbstate);
-		if (nconv == (size_t)-1)
+		if (nconv == (size_t)-1) {
 			/* Conversion error */
+			fp->_flags |= __SERR;
 			goto error;
+		}
 		if (src == NULL) {
 			/*
 			 * We hit a null byte. Increment the character count,
@@ -81,20 +97,32 @@ fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
 		fp->_p = (unsigned char *)src;
 		n -= nconv;
 		wsp += nconv;
-	} while (wsp[-1] != L'\n' && n > 1 && (fp->_r > 0 ||
-	    __srefill(fp) == 0));
+	} while ((wsp == ws || wsp[-1] != L'\n') && n > 1 && (fp->_r > 0 ||
+	    (sret = __srefill(fp)) == 0));
+	if (sret && !__sfeof(fp))
+		/* ferror */
+		goto error;
+	if (!l->__mbsinit(&fp->_mbstate)) {
+		/* Incomplete character */
+		fp->_flags |= __SERR;
+		errno = EILSEQ;
+		goto error;
+	}
 	if (wsp == ws)
 		/* EOF */
 		goto error;
-	if (!__mbsinit(&fp->_mbstate))
-		/* Incomplete character */
-		goto error;
-	*wsp++ = L'\0';
+ok:
+	*wsp = L'\0';
 	FUNLOCKFILE(fp);
-
 	return (ws);
 
 error:
 	FUNLOCKFILE(fp);
 	return (NULL);
+}
+
+wchar_t *
+fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
+{
+	return fgetws_l(ws, n, fp, __get_locale());
 }

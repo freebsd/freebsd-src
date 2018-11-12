@@ -38,16 +38,13 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 
 #include <fs/nullfs/null.h>
-
-#define LOG2_SIZEVNODE 8		/* log2(sizeof struct vnode) */
-#define	NNULLNODECACHE 16
 
 /*
  * Null layer cache:
@@ -57,17 +54,15 @@
  * alias is removed the lower vnode is vrele'd.
  */
 
-#define	NULL_NHASH(vp) \
-	(&null_node_hashtbl[(((uintptr_t)vp)>>LOG2_SIZEVNODE) & null_node_hash])
+#define	NULL_NHASH(vp) (&null_node_hashtbl[vfs_hash_index(vp) & null_hash_mask])
 
 static LIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
-static u_long null_node_hash;
-struct mtx null_hashmtx;
+static struct rwlock null_hash_lock;
+static u_long null_hash_mask;
 
 static MALLOC_DEFINE(M_NULLFSHASH, "nullfs_hash", "NULLFS hash table");
 MALLOC_DEFINE(M_NULLFSNODE, "nullfs_node", "NULLFS vnode private part");
 
-static struct vnode * null_hashget(struct mount *, struct vnode *);
 static struct vnode * null_hashins(struct mount *, struct null_node *);
 
 /*
@@ -78,9 +73,9 @@ nullfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
 
-	NULLFSDEBUG("nullfs_init\n");		/* printed during system boot */
-	null_node_hashtbl = hashinit(NNULLNODECACHE, M_NULLFSHASH, &null_node_hash);
-	mtx_init(&null_hashmtx, "nullhs", NULL, MTX_DEF);
+	null_node_hashtbl = hashinit(desiredvnodes, M_NULLFSHASH,
+	    &null_hash_mask);
+	rw_init(&null_hash_lock, "nullhs");
 	return (0);
 }
 
@@ -89,8 +84,8 @@ nullfs_uninit(vfsp)
 	struct vfsconf *vfsp;
 {
 
-	mtx_destroy(&null_hashmtx);
-	free(null_node_hashtbl, M_NULLFSHASH);
+	rw_destroy(&null_hash_lock);
+	hashdestroy(null_node_hashtbl, M_NULLFSHASH, null_hash_mask);
 	return (0);
 }
 
@@ -98,7 +93,7 @@ nullfs_uninit(vfsp)
  * Return a VREF'ed alias for lower vnode if already exists, else 0.
  * Lower vnode should be locked on entry and will be left locked on exit.
  */
-static struct vnode *
+struct vnode *
 null_hashget(mp, lowervp)
 	struct mount *mp;
 	struct vnode *lowervp;
@@ -116,7 +111,7 @@ null_hashget(mp, lowervp)
 	 * reference count (but NOT the lower vnode's VREF counter).
 	 */
 	hd = NULL_NHASH(lowervp);
-	mtx_lock(&null_hashmtx);
+	rw_rlock(&null_hash_lock);
 	LIST_FOREACH(a, hd, null_hash) {
 		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
 			/*
@@ -127,11 +122,11 @@ null_hashget(mp, lowervp)
 			 */
 			vp = NULLTOV(a);
 			vref(vp);
-			mtx_unlock(&null_hashmtx);
+			rw_runlock(&null_hash_lock);
 			return (vp);
 		}
 	}
-	mtx_unlock(&null_hashmtx);
+	rw_runlock(&null_hash_lock);
 	return (NULLVP);
 }
 
@@ -149,7 +144,7 @@ null_hashins(mp, xp)
 	struct vnode *ovp;
 
 	hd = NULL_NHASH(xp->null_lowervp);
-	mtx_lock(&null_hashmtx);
+	rw_wlock(&null_hash_lock);
 	LIST_FOREACH(oxp, hd, null_hash) {
 		if (oxp->null_lowervp == xp->null_lowervp &&
 		    NULLTOV(oxp)->v_mount == mp) {
@@ -159,25 +154,36 @@ null_hashins(mp, xp)
 			 */
 			ovp = NULLTOV(oxp);
 			vref(ovp);
-			mtx_unlock(&null_hashmtx);
+			rw_wunlock(&null_hash_lock);
 			return (ovp);
 		}
 	}
 	LIST_INSERT_HEAD(hd, xp, null_hash);
-	mtx_unlock(&null_hashmtx);
+	rw_wunlock(&null_hash_lock);
 	return (NULLVP);
+}
+
+static void
+null_destroy_proto(struct vnode *vp, void *xp)
+{
+
+	lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
+	VI_LOCK(vp);
+	vp->v_data = NULL;
+	vp->v_vnlock = &vp->v_lock;
+	vp->v_op = &dead_vnodeops;
+	VI_UNLOCK(vp);
+	vgone(vp);
+	vput(vp);
+	free(xp, M_NULLFSNODE);
 }
 
 static void
 null_insmntque_dtr(struct vnode *vp, void *xp)
 {
-	vp->v_data = NULL;
-	vp->v_vnlock = &vp->v_lock;
-	free(xp, M_NULLFSNODE);
-	vp->v_op = &dead_vnodeops;
-	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	vgone(vp);
-	vput(vp);
+
+	vput(((struct null_node *)xp)->null_lowervp);
+	null_destroy_proto(vp, xp);
 }
 
 /*
@@ -198,7 +204,10 @@ null_nodeget(mp, lowervp, vpp)
 	struct vnode *vp;
 	int error;
 
-	/* Lookup the hash firstly */
+	ASSERT_VOP_LOCKED(lowervp, "lowervp");
+	KASSERT(lowervp->v_usecount >= 1, ("Unreferenced vnode %p", lowervp));
+
+	/* Lookup the hash firstly. */
 	*vpp = null_hashget(mp, lowervp);
 	if (*vpp != NULL) {
 		vrele(lowervp);
@@ -206,34 +215,42 @@ null_nodeget(mp, lowervp, vpp)
 	}
 
 	/*
+	 * The insmntque1() call below requires the exclusive lock on
+	 * the nullfs vnode.  Upgrade the lock now if hash failed to
+	 * provide ready to use vnode.
+	 */
+	if (VOP_ISLOCKED(lowervp) != LK_EXCLUSIVE) {
+		KASSERT((MOUNTTONULLMOUNT(mp)->nullm_flags & NULLM_CACHE) != 0,
+		    ("lowervp %p is not excl locked and cache is disabled",
+		    lowervp));
+		vn_lock(lowervp, LK_UPGRADE | LK_RETRY);
+		if ((lowervp->v_iflag & VI_DOOMED) != 0) {
+			vput(lowervp);
+			return (ENOENT);
+		}
+	}
+
+	/*
 	 * We do not serialize vnode creation, instead we will check for
 	 * duplicates later, when adding new vnode to hash.
-	 *
 	 * Note that duplicate can only appear in hash if the lowervp is
 	 * locked LK_SHARED.
 	 */
+	xp = malloc(sizeof(struct null_node), M_NULLFSNODE, M_WAITOK);
 
-	/*
-	 * Do the MALLOC before the getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if MALLOC should block.
-	 */
-	xp = malloc(sizeof(struct null_node),
-	    M_NULLFSNODE, M_WAITOK);
-
-	error = getnewvnode("null", mp, &null_vnodeops, &vp);
+	error = getnewvnode("nullfs", mp, &null_vnodeops, &vp);
 	if (error) {
+		vput(lowervp);
 		free(xp, M_NULLFSNODE);
 		return (error);
 	}
 
 	xp->null_vnode = vp;
 	xp->null_lowervp = lowervp;
+	xp->null_flags = 0;
 	vp->v_type = lowervp->v_type;
 	vp->v_data = xp;
 	vp->v_vnlock = lowervp->v_vnlock;
-	if (vp->v_vnlock == NULL)
-		panic("null_nodeget: Passed a NULL vnlock.\n");
 	error = insmntque1(vp, mp, null_insmntque_dtr, xp);
 	if (error != 0)
 		return (error);
@@ -244,9 +261,7 @@ null_nodeget(mp, lowervp, vpp)
 	*vpp = null_hashins(mp, xp);
 	if (*vpp != NULL) {
 		vrele(lowervp);
-		vp->v_vnlock = &vp->v_lock;
-		xp->null_lowervp = NULL;
-		vrele(vp);
+		null_destroy_proto(vp, xp);
 		return (0);
 	}
 	*vpp = vp;
@@ -262,9 +277,9 @@ null_hashrem(xp)
 	struct null_node *xp;
 {
 
-	mtx_lock(&null_hashmtx);
+	rw_wlock(&null_hash_lock);
 	LIST_REMOVE(xp, null_hash);
-	mtx_unlock(&null_hashmtx);
+	rw_wunlock(&null_hash_lock);
 }
 
 #ifdef DIAGNOSTIC
@@ -289,22 +304,12 @@ null_checkvp(vp, fil, lno)
 #endif
 	if (a->null_lowervp == NULLVP) {
 		/* Should never happen */
-		int i; u_long *p;
-		printf("vp = %p, ZERO ptr\n", (void *)vp);
-		for (p = (u_long *) a, i = 0; i < 8; i++)
-			printf(" %lx", p[i]);
-		printf("\n");
-		panic("null_checkvp");
+		panic("null_checkvp %p", vp);
 	}
 	VI_LOCK_FLAGS(a->null_lowervp, MTX_DUPOK);
-	if (a->null_lowervp->v_usecount < 1) {
-		int i; u_long *p;
-		printf("vp = %p, unref'ed lowervp\n", (void *)vp);
-		for (p = (u_long *) a, i = 0; i < 8; i++)
-			printf(" %lx", p[i]);
-		printf("\n");
-		panic ("null with unref'ed lowervp");
-	}
+	if (a->null_lowervp->v_usecount < 1)
+		panic ("null with unref'ed lowervp, vp %p lvp %p",
+		    vp, a->null_lowervp);
 	VI_UNLOCK(a->null_lowervp);
 #ifdef notyet
 	printf("null %x/%d -> %x/%d [%s, %d]\n",

@@ -74,7 +74,7 @@ struct ref {
 	char			*k2;
 };
 
-LIST_HEAD(, ref)		refs = LIST_HEAD_INITIALIZER(&refs);
+LIST_HEAD(, ref)		refs = LIST_HEAD_INITIALIZER(refs);
 
 static struct node *
 new_node(void)

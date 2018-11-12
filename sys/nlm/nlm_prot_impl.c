@@ -26,12 +26,12 @@
  */
 
 #include "opt_inet6.h"
-#include "opt_nfs.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/fail.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -55,8 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <nfs/nfsproto.h>
-#include <nfsclient/nfs.h>
-#include <nfsclient/nfsnode.h>
+#include <nfs/nfs_lock.h>
 
 #include <nlm/nlm_prot.h>
 #include <nlm/sm_inter.h>
@@ -78,10 +77,16 @@ MALLOC_DEFINE(M_NLM, "NLM", "Network Lock Manager");
 #define NLM_IDLE_PERIOD		5
 
 /*
+ * We only look for GRANTED_RES messages for a little while.
+ */
+#define NLM_EXPIRE_TIMEOUT	10
+
+/*
  * Support for sysctl vfs.nlm.sysid
  */
-SYSCTL_NODE(_vfs, OID_AUTO, nlm, CTLFLAG_RW, NULL, "Network Lock Manager");
-SYSCTL_NODE(_vfs_nlm, OID_AUTO, sysid, CTLFLAG_RW, NULL, "");
+static SYSCTL_NODE(_vfs, OID_AUTO, nlm, CTLFLAG_RW, NULL,
+    "Network Lock Manager");
+static SYSCTL_NODE(_vfs_nlm, OID_AUTO, sysid, CTLFLAG_RW, NULL, "");
 
 /*
  * Syscall hooks
@@ -126,6 +131,11 @@ static time_t nlm_grace_threshold;
  * nlm_next_idle_check,
  */
 static time_t nlm_next_idle_check;
+
+/*
+ * A flag to indicate the server is already running.
+ */
+static int nlm_is_running;
 
 /*
  * A socket to use for RPC - shared by all IPv4 RPC clients.
@@ -205,6 +215,7 @@ struct nlm_async_lock {
 	struct nlm_host *af_host;	/* (c) host which is locking */
 	CLIENT		*af_rpc;	/* (c) rpc client to send message */
 	nlm4_testargs	af_granted;	/* (c) notification details */
+	time_t		af_expiretime;	/* (c) notification time */
 };
 TAILQ_HEAD(nlm_async_lock_list, nlm_async_lock);
 
@@ -238,7 +249,9 @@ struct nlm_host {
 	enum nlm_host_state nh_monstate; /* (l) local NSM monitoring state */
 	time_t		nh_idle_timeout; /* (s) Time at which host is idle */
 	struct sysctl_ctx_list nh_sysctl; /* (c) vfs.nlm.sysid nodes */
+	uint32_t	nh_grantcookie;  /* (l) grant cookie counter */
 	struct nlm_async_lock_list nh_pending; /* (l) pending async locks */
+	struct nlm_async_lock_list nh_granted; /* (l) granted locks */
 	struct nlm_async_lock_list nh_finished; /* (l) finished async locks */
 };
 TAILQ_HEAD(nlm_host_list, nlm_host);
@@ -247,6 +260,25 @@ static struct nlm_host_list nlm_hosts; /* (g) */
 static uint32_t nlm_next_sysid = 1;    /* (g) */
 
 static void	nlm_host_unmonitor(struct nlm_host *);
+
+struct nlm_grantcookie {
+	uint32_t	ng_sysid;
+	uint32_t	ng_cookie;
+};
+
+static inline uint32_t
+ng_sysid(struct netobj *src)
+{
+
+	return ((struct nlm_grantcookie *)src->n_bytes)->ng_sysid;
+}
+
+static inline uint32_t
+ng_cookie(struct netobj *src)
+{
+
+	return ((struct nlm_grantcookie *)src->n_bytes)->ng_cookie;
+}
 
 /**********************************************************************/
 
@@ -263,7 +295,7 @@ nlm_init(void *dummy)
 	TAILQ_INIT(&nlm_hosts);
 
 	error = syscall_register(&nlm_syscall_offset, &nlm_syscall_sysent,
-	    &nlm_syscall_prev_sysent);
+	    &nlm_syscall_prev_sysent, SY_THR_STATIC_KLD);
 	if (error)
 		NLM_ERR("Can't register NLM syscall\n");
 	else
@@ -282,6 +314,19 @@ nlm_uninit(void *dummy)
 SYSUNINIT(nlm_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, nlm_uninit, NULL);
 
 /*
+ * Create a netobj from an arbitrary source.
+ */
+void
+nlm_make_netobj(struct netobj *dst, caddr_t src, size_t srcsize,
+    struct malloc_type *type)
+{
+
+	dst->n_len = srcsize;
+	dst->n_bytes = malloc(srcsize, type, M_WAITOK);
+	memcpy(dst->n_bytes, src, srcsize);
+}
+
+/*
  * Copy a struct netobj.
  */ 
 void
@@ -289,10 +334,9 @@ nlm_copy_netobj(struct netobj *dst, struct netobj *src,
     struct malloc_type *type)
 {
 
-	dst->n_len = src->n_len;
-	dst->n_bytes = malloc(src->n_len, type, M_WAITOK);
-	memcpy(dst->n_bytes, src->n_bytes, src->n_len);
+	nlm_make_netobj(dst, src->n_bytes, src->n_len, type);
 }
+
 
 /*
  * Create an RPC client handle for the given (address,prog,vers)
@@ -519,8 +563,10 @@ nlm_lock_callback(void *arg, int pending)
 	struct nlm_async_lock *af = (struct nlm_async_lock *) arg;
 	struct rpc_callextra ext;
 
-	NLM_DEBUG(2, "NLM: async lock %p for %s (sysid %d) granted\n",
-	    af, af->af_host->nh_caller_name, af->af_host->nh_sysid);
+	NLM_DEBUG(2, "NLM: async lock %p for %s (sysid %d) granted,"
+	    " cookie %d:%d\n", af, af->af_host->nh_caller_name,
+	    af->af_host->nh_sysid, ng_sysid(&af->af_granted.cookie),
+	    ng_cookie(&af->af_granted.cookie));
 
 	/*
 	 * Send the results back to the host.
@@ -557,16 +603,12 @@ nlm_lock_callback(void *arg, int pending)
 	}
 
 	/*
-	 * Move this entry to the nh_finished list. Someone else will
-	 * free it later - its too hard to do it here safely without
-	 * racing with cancel.
-	 *
-	 * XXX possibly we should have a third "granted sent but not
-	 * ack'ed" list so that we can re-send the granted message.
+	 * Move this entry to the nh_granted list.
 	 */
+	af->af_expiretime = time_uptime + NLM_EXPIRE_TIMEOUT;
 	mtx_lock(&af->af_host->nh_lock);
 	TAILQ_REMOVE(&af->af_host->nh_pending, af, af_link);
-	TAILQ_INSERT_TAIL(&af->af_host->nh_finished, af, af_link);
+	TAILQ_INSERT_TAIL(&af->af_host->nh_granted, af, af_link);
 	mtx_unlock(&af->af_host->nh_lock);
 }
 
@@ -636,11 +678,23 @@ nlm_cancel_async_lock(struct nlm_async_lock *af)
 }
 
 static void
-nlm_free_finished_locks(struct nlm_host *host)
+nlm_check_expired_locks(struct nlm_host *host)
 {
 	struct nlm_async_lock *af;
+	time_t uptime = time_uptime;
 
 	mtx_lock(&host->nh_lock);
+	while ((af = TAILQ_FIRST(&host->nh_granted)) != NULL
+	    && uptime >= af->af_expiretime) {
+		NLM_DEBUG(2, "NLM: async lock %p for %s (sysid %d) expired,"
+		    " cookie %d:%d\n", af, af->af_host->nh_caller_name,
+		    af->af_host->nh_sysid, ng_sysid(&af->af_granted.cookie),
+		    ng_cookie(&af->af_granted.cookie));
+		TAILQ_REMOVE(&host->nh_granted, af, af_link);
+		mtx_unlock(&host->nh_lock);
+		nlm_free_async_lock(af);
+		mtx_lock(&host->nh_lock);
+	}
 	while ((af = TAILQ_FIRST(&host->nh_finished)) != NULL) {
 		TAILQ_REMOVE(&host->nh_finished, af, af_link);
 		mtx_unlock(&host->nh_lock);
@@ -671,8 +725,6 @@ nlm_host_destroy(struct nlm_host *host)
 	free(host, M_NLM);
 }
 
-#ifdef NFSCLIENT
-
 /*
  * Thread start callback for client lock recovery
  */
@@ -694,8 +746,6 @@ nlm_client_recovery_start(void *arg)
 
 	kthread_exit();
 }
-
-#endif
 
 /*
  * This is called when we receive a host state change notification. We
@@ -727,7 +777,7 @@ nlm_host_notify(struct nlm_host *host, int newstate)
 		nlm_cancel_async_lock(af);
 	}
 	mtx_unlock(&host->nh_lock);
-	nlm_free_finished_locks(host);
+	nlm_check_expired_locks(host);
 
 	/*
 	 * The host just rebooted - trash its locks.
@@ -735,7 +785,6 @@ nlm_host_notify(struct nlm_host *host, int newstate)
 	lf_clearremotesys(host->nh_sysid);
 	host->nh_state = newstate;
 
-#ifdef NFSCLIENT
 	/*
 	 * If we have any remote locks for this host (i.e. it
 	 * represents a remote NFS server that our local NFS client
@@ -750,7 +799,6 @@ nlm_host_notify(struct nlm_host *host, int newstate)
 		kthread_add(nlm_client_recovery_start, host, curproc, &td, 0, 0,
 		    "NFS lock recovery for %s", host->nh_caller_name);
 	}
-#endif
 }
 
 /*
@@ -806,7 +854,9 @@ nlm_create_host(const char* caller_name)
 	host->nh_vers = 0;
 	host->nh_state = 0;
 	host->nh_monstate = NLM_UNMONITORED;
+	host->nh_grantcookie = 1;
 	TAILQ_INIT(&host->nh_pending);
+	TAILQ_INIT(&host->nh_granted);
 	TAILQ_INIT(&host->nh_finished);
 	TAILQ_INSERT_TAIL(&nlm_hosts, host, nh_link);
 
@@ -818,9 +868,9 @@ nlm_create_host(const char* caller_name)
 	    OID_AUTO, host->nh_sysid_string, CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_STRING(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "hostname", CTLFLAG_RD, host->nh_caller_name, 0, "");
-	SYSCTL_ADD_INT(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
+	SYSCTL_ADD_UINT(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "version", CTLFLAG_RD, &host->nh_vers, 0, "");
-	SYSCTL_ADD_INT(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
+	SYSCTL_ADD_UINT(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "monitored", CTLFLAG_RD, &host->nh_monstate, 0, "");
 	SYSCTL_ADD_PROC(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "lock_count", CTLTYPE_INT | CTLFLAG_RD, host, 0,
@@ -1010,19 +1060,19 @@ nlm_find_host_by_addr(const struct sockaddr *addr, int vers)
 
 	switch (addr->sa_family) {
 	case AF_INET:
-		__rpc_inet_ntop(AF_INET,
+		inet_ntop(AF_INET,
 		    &((const struct sockaddr_in *) addr)->sin_addr,
 		    tmp, sizeof tmp);
 		break;
 #ifdef INET6
 	case AF_INET6:
-		__rpc_inet_ntop(AF_INET6,
+		inet_ntop(AF_INET6,
 		    &((const struct sockaddr_in6 *) addr)->sin6_addr,
 		    tmp, sizeof tmp);
 		break;
 #endif
 	default:
-		strcmp(tmp, "<unknown>");
+		strlcpy(tmp, "<unknown>", sizeof(tmp));
 	}
 
 
@@ -1306,7 +1356,7 @@ int
 nlm_wait_lock(void *handle, int timo)
 {
 	struct nlm_waiting_lock *nw = handle;
-	int error;
+	int error, stops_deferred;
 
 	/*
 	 * If the granted message arrived before we got here,
@@ -1314,8 +1364,11 @@ nlm_wait_lock(void *handle, int timo)
 	 */
 	mtx_lock(&nlm_global_lock);
 	error = 0;
-	if (nw->nw_waiting)
+	if (nw->nw_waiting) {
+		stops_deferred = sigdeferstop(SIGDEFERSTOP_ERESTART);
 		error = msleep(nw, &nlm_global_lock, PCATCH, "nlmlock", timo);
+		sigallowstop(stops_deferred);
+	}
 	TAILQ_REMOVE(&nlm_waiting_locks, nw, nw_link);
 	if (error) {
 		/*
@@ -1376,7 +1429,6 @@ nlm_register_services(SVCPOOL *pool, int addr_count, char **addrs)
 	static void (*dispatchers[])(struct svc_req *, SVCXPRT *) = {
 		nlm_prog_0, nlm_prog_1, nlm_prog_3, nlm_prog_4
 	};
-	static const int version_count = sizeof(versions) / sizeof(versions[0]);
 
 	SVCXPRT **xprts;
 	char netid[16];
@@ -1389,8 +1441,14 @@ nlm_register_services(SVCPOOL *pool, int addr_count, char **addrs)
 		return (EINVAL);
 	}
 
+	if (addr_count < 0 || addr_count > 256 ) {
+		NLM_ERR("NLM:  too many service addresses (%d) given, "
+		    "max 256 - can't start server\n", addr_count);
+		return (EINVAL);
+	}
+
 	xprts = malloc(addr_count * sizeof(SVCXPRT *), M_NLM, M_WAITOK|M_ZERO);
-	for (i = 0; i < version_count; i++) {
+	for (i = 0; i < nitems(versions); i++) {
 		for (j = 0; j < addr_count; j++) {
 			/*
 			 * Create transports for the first version and
@@ -1479,55 +1537,53 @@ nlm_server_main(int addr_count, char **addrs)
 	enum clnt_stat stat;
 	struct nlm_host *host, *nhost;
 	struct nlm_waiting_lock *nw;
-#ifdef NFSCLIENT
 	vop_advlock_t *old_nfs_advlock;
 	vop_reclaim_t *old_nfs_reclaim;
-#endif
-	int v4_used;
-#ifdef INET6
-	int v6_used;
-#endif
 
-	if (nlm_socket) {
+	if (nlm_is_running != 0) {
 		NLM_ERR("NLM: can't start server - "
 		    "it appears to be running already\n");
 		return (EPERM);
 	}
 
-	memset(&opt, 0, sizeof(opt));
+	if (nlm_socket == NULL) {
+		memset(&opt, 0, sizeof(opt));
 
-	nlm_socket = NULL;
-	error = socreate(AF_INET, &nlm_socket, SOCK_DGRAM, 0,
-	    td->td_ucred, td);
-	if (error) {
-		NLM_ERR("NLM: can't create IPv4 socket - error %d\n", error);
-		return (error);
-	}
-	opt.sopt_dir = SOPT_SET;
-	opt.sopt_level = IPPROTO_IP;
-	opt.sopt_name = IP_PORTRANGE;
-	portlow = IP_PORTRANGE_LOW;
-	opt.sopt_val = &portlow;
-	opt.sopt_valsize = sizeof(portlow);
-	sosetopt(nlm_socket, &opt);
+		error = socreate(AF_INET, &nlm_socket, SOCK_DGRAM, 0,
+		    td->td_ucred, td);
+		if (error) {
+			NLM_ERR("NLM: can't create IPv4 socket - error %d\n",
+			    error);
+			return (error);
+		}
+		opt.sopt_dir = SOPT_SET;
+		opt.sopt_level = IPPROTO_IP;
+		opt.sopt_name = IP_PORTRANGE;
+		portlow = IP_PORTRANGE_LOW;
+		opt.sopt_val = &portlow;
+		opt.sopt_valsize = sizeof(portlow);
+		sosetopt(nlm_socket, &opt);
 
 #ifdef INET6
-	nlm_socket6 = NULL;
-	error = socreate(AF_INET6, &nlm_socket6, SOCK_DGRAM, 0,
-	    td->td_ucred, td);
-	if (error) {
-		NLM_ERR("NLM: can't create IPv6 socket - error %d\n", error);
-		goto out;
-		return (error);
-	}
-	opt.sopt_dir = SOPT_SET;
-	opt.sopt_level = IPPROTO_IPV6;
-	opt.sopt_name = IPV6_PORTRANGE;
-	portlow = IPV6_PORTRANGE_LOW;
-	opt.sopt_val = &portlow;
-	opt.sopt_valsize = sizeof(portlow);
-	sosetopt(nlm_socket6, &opt);
+		nlm_socket6 = NULL;
+		error = socreate(AF_INET6, &nlm_socket6, SOCK_DGRAM, 0,
+		    td->td_ucred, td);
+		if (error) {
+			NLM_ERR("NLM: can't create IPv6 socket - error %d\n",
+			    error);
+			soclose(nlm_socket);
+			nlm_socket = NULL;
+			return (error);
+		}
+		opt.sopt_dir = SOPT_SET;
+		opt.sopt_level = IPPROTO_IPV6;
+		opt.sopt_name = IPV6_PORTRANGE;
+		portlow = IPV6_PORTRANGE_LOW;
+		opt.sopt_val = &portlow;
+		opt.sopt_valsize = sizeof(portlow);
+		sosetopt(nlm_socket6, &opt);
 #endif
+	}
 
 	nlm_auth = authunix_create(curthread->td_ucred);
 
@@ -1579,26 +1635,24 @@ nlm_server_main(int addr_count, char **addrs)
 		error = EINVAL;
 		goto out;
 	}
+	nlm_is_running = 1;
 
 	NLM_DEBUG(1, "NLM: local NSM state is %d\n", smstat.state);
 	nlm_nsm_state = smstat.state;
 
-#ifdef NFSCLIENT
 	old_nfs_advlock = nfs_advlock_p;
 	nfs_advlock_p = nlm_advlock;
 	old_nfs_reclaim = nfs_reclaim_p;
 	nfs_reclaim_p = nlm_reclaim;
-#endif
 
 	svc_run(pool);
 	error = 0;
 
-#ifdef NFSCLIENT
 	nfs_advlock_p = old_nfs_advlock;
 	nfs_reclaim_p = old_nfs_reclaim;
-#endif
 
 out:
+	nlm_is_running = 0;
 	if (pool)
 		svcpool_destroy(pool);
 
@@ -1622,13 +1676,8 @@ out:
 	 * nlm_hosts to the host (which may remove it from the list
 	 * and free it). After this phase, the only entries in the
 	 * nlm_host list should be from other threads performing
-	 * client lock requests. We arrange to defer closing the
-	 * sockets until the last RPC client handle is released.
+	 * client lock requests.
 	 */
-	v4_used = 0;
-#ifdef INET6
-	v6_used = 0;
-#endif
 	mtx_lock(&nlm_global_lock);
 	TAILQ_FOREACH(nw, &nlm_waiting_locks, nw_link) {
 		wakeup(nw);
@@ -1639,48 +1688,15 @@ out:
 		nlm_host_release(host);
 		mtx_lock(&nlm_global_lock);
 	}
-	TAILQ_FOREACH_SAFE(host, &nlm_hosts, nh_link, nhost) {
-		mtx_lock(&host->nh_lock);
-		if (host->nh_srvrpc.nr_client
-		    || host->nh_clntrpc.nr_client) {
-			if (host->nh_addr.ss_family == AF_INET)
-				v4_used++;
-#ifdef INET6
-			if (host->nh_addr.ss_family == AF_INET6)
-				v6_used++;
-#endif
-			/*
-			 * Note that the rpc over udp code copes
-			 * correctly with the fact that a socket may
-			 * be used by many rpc handles.
-			 */
-			if (host->nh_srvrpc.nr_client)
-				CLNT_CONTROL(host->nh_srvrpc.nr_client,
-				    CLSET_FD_CLOSE, 0);
-			if (host->nh_clntrpc.nr_client)
-				CLNT_CONTROL(host->nh_clntrpc.nr_client,
-				    CLSET_FD_CLOSE, 0);
-		}
-		mtx_unlock(&host->nh_lock);
-	}
 	mtx_unlock(&nlm_global_lock);
 
 	AUTH_DESTROY(nlm_auth);
-
-	if (!v4_used)
-		soclose(nlm_socket);
-	nlm_socket = NULL;
-#ifdef INET6
-	if (!v6_used)
-		soclose(nlm_socket6);
-	nlm_socket6 = NULL;
-#endif
 
 	return (error);
 }
 
 int
-nlm_syscall(struct thread *td, struct nlm_syscall_args *uap)
+sys_nlm_syscall(struct thread *td, struct nlm_syscall_args *uap)
 {
 	int error;
 
@@ -1730,16 +1746,15 @@ nlm_convert_to_fhandle_t(fhandle_t *fhp, struct netobj *p)
 struct vfs_state {
 	struct mount	*vs_mp;
 	struct vnode	*vs_vp;
-	int		vs_vfslocked;
 	int		vs_vnlocked;
 };
 
 static int
 nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
-    fhandle_t *fhp, struct vfs_state *vs)
+    fhandle_t *fhp, struct vfs_state *vs, accmode_t accmode)
 {
 	int error, exflags;
-	struct ucred *cred = NULL, *credanon;
+	struct ucred *cred = NULL, *credanon = NULL;
 	
 	memset(vs, 0, sizeof(*vs));
 
@@ -1747,39 +1762,52 @@ nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
 	if (!vs->vs_mp) {
 		return (ESTALE);
 	}
-	vs->vs_vfslocked = VFS_LOCK_GIANT(vs->vs_mp);
 
-	error = VFS_CHECKEXP(vs->vs_mp, (struct sockaddr *)&host->nh_addr,
-	    &exflags, &credanon, NULL, NULL);
-	if (error)
-		goto out;
+	/* accmode == 0 means don't check, since it is an unlock. */
+	if (accmode != 0) {
+		error = VFS_CHECKEXP(vs->vs_mp,
+		    (struct sockaddr *)&host->nh_addr, &exflags, &credanon,
+		    NULL, NULL);
+		if (error)
+			goto out;
 
-	if (exflags & MNT_EXRDONLY || (vs->vs_mp->mnt_flag & MNT_RDONLY)) {
-		error = EROFS;
-		goto out;
+		if (exflags & MNT_EXRDONLY ||
+		    (vs->vs_mp->mnt_flag & MNT_RDONLY)) {
+			error = EROFS;
+			goto out;
+		}
 	}
 
-	error = VFS_FHTOVP(vs->vs_mp, &fhp->fh_fid, &vs->vs_vp);
+	error = VFS_FHTOVP(vs->vs_mp, &fhp->fh_fid, LK_EXCLUSIVE, &vs->vs_vp);
 	if (error)
 		goto out;
 	vs->vs_vnlocked = TRUE;
 
-	if (!svc_getcred(rqstp, &cred, NULL)) {
-		error = EINVAL;
-		goto out;
-	}
-	if (cred->cr_uid == 0 || (exflags & MNT_EXPORTANON)) {
-		crfree(cred);
-		cred = credanon;
-		credanon = NULL;
-	}
+	if (accmode != 0) {
+		if (!svc_getcred(rqstp, &cred, NULL)) {
+			error = EINVAL;
+			goto out;
+		}
+		if (cred->cr_uid == 0 || (exflags & MNT_EXPORTANON)) {
+			crfree(cred);
+			cred = credanon;
+			credanon = NULL;
+		}
 
-	/*
-	 * Check cred.
-	 */
-	error = VOP_ACCESS(vs->vs_vp, VWRITE, cred, curthread);
-	if (error)
-		goto out;
+		/*
+		 * Check cred.
+		 */
+		error = VOP_ACCESS(vs->vs_vp, accmode, cred, curthread);
+		/*
+		 * If this failed and accmode != VWRITE, try again with
+		 * VWRITE to maintain backwards compatibility with the
+		 * old code that always used VWRITE.
+		 */
+		if (error != 0 && accmode != VWRITE)
+			error = VOP_ACCESS(vs->vs_vp, VWRITE, cred, curthread);
+		if (error)
+			goto out;
+	}
 
 #if __FreeBSD_version < 800011
 	VOP_UNLOCK(vs->vs_vp, 0, curthread);
@@ -1809,7 +1837,6 @@ nlm_release_vfs_state(struct vfs_state *vs)
 	}
 	if (vs->vs_mp)
 		vfs_rel(vs->vs_mp);
-	VFS_UNLOCK_GIANT(vs->vs_vfslocked);
 }
 
 static nlm4_stats
@@ -1833,6 +1860,7 @@ nlm_do_test(nlm4_testargs *argp, nlm4_testres *result, struct svc_req *rqstp,
 	struct nlm_host *host, *bhost;
 	int error, sysid;
 	struct flock fl;
+	accmode_t accmode;
 	
 	memset(result, 0, sizeof(*result));
 	memset(&vs, 0, sizeof(vs));
@@ -1847,7 +1875,7 @@ nlm_do_test(nlm4_testargs *argp, nlm4_testres *result, struct svc_req *rqstp,
 	NLM_DEBUG(3, "nlm_do_test(): caller_name = %s (sysid = %d)\n",
 	    host->nh_caller_name, host->nh_sysid);
 
-	nlm_free_finished_locks(host);
+	nlm_check_expired_locks(host);
 	sysid = host->nh_sysid;
 
 	nlm_convert_to_fhandle_t(&fh, &argp->alock.fh);
@@ -1858,7 +1886,8 @@ nlm_do_test(nlm4_testargs *argp, nlm4_testres *result, struct svc_req *rqstp,
 		goto out;
 	}
 
-	error = nlm_get_vfs_state(host, rqstp, &fh, &vs);
+	accmode = argp->exclusive ? VWRITE : VREAD;
+	error = nlm_get_vfs_state(host, rqstp, &fh, &vs, accmode);
 	if (error) {
 		result->stat.stat = nlm_convert_error(error);
 		goto out;
@@ -1929,6 +1958,7 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 	struct nlm_host *host;
 	int error, sysid;
 	struct flock fl;
+	accmode_t accmode;
 	
 	memset(result, 0, sizeof(*result));
 	memset(&vs, 0, sizeof(vs));
@@ -1952,7 +1982,7 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		nlm_host_notify(host, argp->state);
 	}
 
-	nlm_free_finished_locks(host);
+	nlm_check_expired_locks(host);
 	sysid = host->nh_sysid;
 
 	nlm_convert_to_fhandle_t(&fh, &argp->alock.fh);
@@ -1963,7 +1993,8 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		goto out;
 	}
 
-	error = nlm_get_vfs_state(host, rqstp, &fh, &vs);
+	accmode = argp->exclusive ? VWRITE : VREAD;
+	error = nlm_get_vfs_state(host, rqstp, &fh, &vs, accmode);
 	if (error) {
 		result->stat.stat = nlm_convert_error(error);
 		goto out;
@@ -1981,6 +2012,7 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 	if (argp->block) {
 		struct nlm_async_lock *af;
 		CLIENT *client;
+		struct nlm_grantcookie cookie;
 
 		/*
 		 * First, make sure we can contact the host's NLM.
@@ -2006,6 +2038,10 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 				break;
 			}
 		}
+		if (!af) {
+			cookie.ng_sysid = host->nh_sysid;
+			cookie.ng_cookie = host->nh_grantcookie++;
+		}
 		mtx_unlock(&host->nh_lock);
 		if (af) {
 			CLNT_RELEASE(client);
@@ -2024,6 +2060,8 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		 * We use M_RPC here so that we can xdr_free the thing
 		 * later.
 		 */
+		nlm_make_netobj(&af->af_granted.cookie,
+		    (caddr_t)&cookie, sizeof(cookie), M_RPC);
 		af->af_granted.exclusive = argp->exclusive;
 		af->af_granted.alock.caller_name =
 			strdup(argp->alock.caller_name, M_RPC);
@@ -2124,7 +2162,7 @@ nlm_do_cancel(nlm4_cancargs *argp, nlm4_res *result, struct svc_req *rqstp,
 	NLM_DEBUG(3, "nlm_do_cancel(): caller_name = %s (sysid = %d)\n",
 	    host->nh_caller_name, host->nh_sysid);
 
-	nlm_free_finished_locks(host);
+	nlm_check_expired_locks(host);
 	sysid = host->nh_sysid;
 
 	nlm_convert_to_fhandle_t(&fh, &argp->alock.fh);
@@ -2135,7 +2173,7 @@ nlm_do_cancel(nlm4_cancargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		goto out;
 	}
 
-	error = nlm_get_vfs_state(host, rqstp, &fh, &vs);
+	error = nlm_get_vfs_state(host, rqstp, &fh, &vs, (accmode_t)0);
 	if (error) {
 		result->stat.stat = nlm_convert_error(error);
 		goto out;
@@ -2213,7 +2251,7 @@ nlm_do_unlock(nlm4_unlockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 	NLM_DEBUG(3, "nlm_do_unlock(): caller_name = %s (sysid = %d)\n",
 	    host->nh_caller_name, host->nh_sysid);
 
-	nlm_free_finished_locks(host);
+	nlm_check_expired_locks(host);
 	sysid = host->nh_sysid;
 
 	nlm_convert_to_fhandle_t(&fh, &argp->alock.fh);
@@ -2224,7 +2262,7 @@ nlm_do_unlock(nlm4_unlockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		goto out;
 	}
 
-	error = nlm_get_vfs_state(host, rqstp, &fh, &vs);
+	error = nlm_get_vfs_state(host, rqstp, &fh, &vs, (accmode_t)0);
 	if (error) {
 		result->stat.stat = nlm_convert_error(error);
 		goto out;
@@ -2270,6 +2308,7 @@ nlm_do_granted(nlm4_testargs *argp, nlm4_res *result, struct svc_req *rqstp,
 
 	nlm_copy_netobj(&result->cookie, &argp->cookie, M_RPC);
 	result->stat.stat = nlm4_denied;
+	KFAIL_POINT_CODE(DEBUG_FP, nlm_deny_grant, goto out);
 
 	mtx_lock(&nlm_global_lock);
 	TAILQ_FOREACH(nw, &nlm_waiting_locks, nw_link) {
@@ -2288,10 +2327,71 @@ nlm_do_granted(nlm4_testargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		}
 	}
 	mtx_unlock(&nlm_global_lock);
+
+out:
 	if (rpcp)
 		*rpcp = nlm_host_get_rpc(host, TRUE);
 	nlm_host_release(host);
 	return (0);
+}
+
+void
+nlm_do_granted_res(nlm4_res *argp, struct svc_req *rqstp)
+{
+	struct nlm_host *host = NULL;
+	struct nlm_async_lock *af = NULL;
+	int error;
+
+	if (argp->cookie.n_len != sizeof(struct nlm_grantcookie)) {
+		NLM_DEBUG(1, "NLM: bogus grant cookie");
+		goto out;
+	}
+
+	host = nlm_find_host_by_sysid(ng_sysid(&argp->cookie));
+	if (!host) {
+		NLM_DEBUG(1, "NLM: Unknown host rejected our grant");
+		goto out;
+	}
+
+	mtx_lock(&host->nh_lock);
+	TAILQ_FOREACH(af, &host->nh_granted, af_link)
+	    if (ng_cookie(&argp->cookie) ==
+		ng_cookie(&af->af_granted.cookie))
+		    break;
+	if (af)
+		TAILQ_REMOVE(&host->nh_granted, af, af_link);
+	mtx_unlock(&host->nh_lock);
+
+	if (!af) {
+		NLM_DEBUG(1, "NLM: host %s (sysid %d) replied to our grant "
+		    "with unrecognized cookie %d:%d", host->nh_caller_name,
+		    host->nh_sysid, ng_sysid(&argp->cookie),
+		    ng_cookie(&argp->cookie));
+		goto out;
+	}
+
+	if (argp->stat.stat != nlm4_granted) {
+		af->af_fl.l_type = F_UNLCK;
+		error = VOP_ADVLOCK(af->af_vp, NULL, F_UNLCK, &af->af_fl, F_REMOTE);
+		if (error) {
+			NLM_DEBUG(1, "NLM: host %s (sysid %d) rejected our grant "
+			    "and we failed to unlock (%d)", host->nh_caller_name,
+			    host->nh_sysid, error);
+			goto out;
+		}
+
+		NLM_DEBUG(5, "NLM: async lock %p rejected by host %s (sysid %d)",
+		    af, host->nh_caller_name, host->nh_sysid);
+	} else {
+		NLM_DEBUG(5, "NLM: async lock %p accepted by host %s (sysid %d)",
+		    af, host->nh_caller_name, host->nh_sysid);
+	}
+
+ out:
+	if (af)
+		nlm_free_async_lock(af);
+	if (host)
+		nlm_host_release(host);
 }
 
 void
@@ -2312,7 +2412,15 @@ static int
 nfslockd_modevent(module_t mod, int type, void *data)
 {
 
-	return (0);
+	switch (type) {
+	case MOD_LOAD:
+		return (0);
+	case MOD_UNLOAD:
+		/* The NLM module cannot be safely unloaded. */
+		/* FALLTHROUGH */
+	default:
+		return (EOPNOTSUPP);
+	}
 }
 static moduledata_t nfslockd_mod = {
 	"nfslockd",
@@ -2323,5 +2431,5 @@ DECLARE_MODULE(nfslockd, nfslockd_mod, SI_SUB_VFS, SI_ORDER_ANY);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_DEPEND(nfslockd, krpc, 1, 1, 1);
-MODULE_DEPEND(nfslockd, nfs, 1, 1, 1);
+MODULE_DEPEND(nfslockd, nfslock, 1, 1, 1);
 MODULE_VERSION(nfslockd, 1);

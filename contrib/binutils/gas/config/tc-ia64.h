@@ -1,5 +1,6 @@
 /* tc-ia64.h -- Header file for tc-ia64.c.
-   Copyright 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007
+   Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 #include "opcode/ia64.h"
 #include "elf/ia64.h"
@@ -74,9 +75,12 @@ extern const char *ia64_target_format PARAMS ((void));
 #define NEED_INDEX_OPERATOR		/* [ ] is index operator */
 
 #define QUOTES_IN_INSN			/* allow `string "foo;bar"' */
-#define LEX_AT		LEX_NAME	/* allow `@' inside name */
-#define LEX_QM		LEX_NAME	/* allow `?' inside name */
+#define LEX_AT		(LEX_NAME|LEX_BEGIN_NAME) /* allow `@' inside name */
+#define LEX_QM		(LEX_NAME|LEX_BEGIN_NAME) /* allow `?' inside name */
 #define LEX_HASH	LEX_END_NAME	/* allow `#' ending a name */
+
+extern const char ia64_symbol_chars[];
+#define tc_symbol_chars ia64_symbol_chars
 
 #define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 0
 
@@ -94,7 +98,7 @@ extern void ia64_frob_label PARAMS((struct symbol *sym));
 extern int ia64_frob_symbol PARAMS((struct symbol *sym));
 #endif
 extern void ia64_flush_pending_output PARAMS((void));
-extern int ia64_parse_name (char *name, expressionS *e);
+extern int ia64_parse_name PARAMS((char *name, expressionS *e, char *nextP));
 extern int ia64_optimize_expr PARAMS((expressionS *l, operatorT op,
 				      expressionS *r));
 extern void ia64_cons_align PARAMS((int));
@@ -125,7 +129,7 @@ extern void ia64_convert_frag (fragS *);
 #define tc_frob_symbol(s,p)		p |= ia64_frob_symbol (s)
 #endif /* TE_HPUX */
 #define md_flush_pending_output()	ia64_flush_pending_output ()
-#define md_parse_name(s,e,c)		ia64_parse_name (s, e)
+#define md_parse_name(s,e,m,c)		ia64_parse_name (s, e, c)
 #define tc_canonicalize_symbol_name(s)	ia64_canonicalize_symbol_name (s)
 #define tc_canonicalize_section_name(s)	ia64_canonicalize_symbol_name (s)
 #define md_optimize_expr(l,o,r)		ia64_optimize_expr (l, o, r)
@@ -157,6 +161,14 @@ extern void ia64_convert_frag (fragS *);
 /* Record if an alignment frag should end with a stop bit.  */
 #define TC_FRAG_TYPE			int
 #define TC_FRAG_INIT(FRAGP)		do {(FRAGP)->tc_frag_data = 0;}while (0)
+
+/* Give an error if a frag containing code is not aligned to a 16 byte
+   boundary.  */
+#define md_frag_check(FRAGP) \
+  if ((FRAGP)->has_code							\
+      && (((FRAGP)->fr_address + (FRAGP)->insn_addr) & 15) != 0)	\
+     as_bad_where ((FRAGP)->fr_file, (FRAGP)->fr_line,			\
+		   _("instruction address is not a multiple of 16"));
 
 #define MAX_MEM_FOR_RS_ALIGN_CODE  (15 + 16)
 
@@ -229,7 +241,7 @@ typedef struct unw_r_record
   struct
   {
     unsigned char *i;
-    unsigned long fr_mem;
+    unsigned int fr_mem;
     unsigned char gr_mem;
     unsigned char br_mem;
   } mask;
@@ -237,17 +249,22 @@ typedef struct unw_r_record
 
 typedef struct unw_p_record
 {
-  void *imask;
+  struct unw_rec_list *next;
   unsigned long t;
   unsigned long size;
-  unsigned long spoff;
-  unsigned long br;
-  unsigned long pspoff;
-  unsigned short gr;
-  unsigned short rmask;
-  unsigned short grmask;
-  unsigned long frmask;
-  unsigned short brmask;
+  union
+  {
+    unsigned long sp;
+    unsigned long psp;
+  } off;
+  union
+  {
+    unsigned short gr;
+    unsigned short br;
+  } r;
+  unsigned char grmask;
+  unsigned char brmask;
+  unsigned int frmask;
   unsigned char abi;
   unsigned char context;
 } unw_p_record;
@@ -262,10 +279,13 @@ typedef struct unw_b_record
 typedef struct unw_x_record
 {
   unsigned long t;
-  unsigned long spoff;
-  unsigned long pspoff;
+  union
+  {
+    unsigned long spoff;
+    unsigned long pspoff;
+    unsigned int reg;
+  } where;
   unsigned short reg;
-  unsigned short treg;
   unsigned short qp;
   unsigned short ab;	/* Value of the AB field..  */
   unsigned short xy;	/* Value of the XY field..  */
@@ -295,5 +315,5 @@ typedef struct unwind_record
 #define TC_FORCE_RELOCATION_LOCAL(FIX)			\
   ((FIX)->fx_r_type != BFD_RELOC_UNUSED			\
    && (!(FIX)->fx_pcrel					\
-       || (FIX)->fx_plt					\
+       || (FIX)->fx_r_type == BFD_RELOC_IA64_PLTOFF22	\
        || TC_FORCE_RELOCATION (FIX)))

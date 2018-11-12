@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -50,14 +46,18 @@ static const char sccsid[] = "@(#)io.c	8.1 (Berkeley) 6/6/93";
 #include <errno.h>
 #include <signal.h>
 #include <netdb.h>
+#include <poll.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#define _XOPEN_SOURCE_EXTENDED
+#include <curses.h>
 
 #include "talk.h"
 #include "talk_ctl.h"
 
-#define A_LONG_TIME 10000000
+extern void	display(xwin_t *, wchar_t *);
 
 volatile sig_atomic_t gotwinch = 0;
 
@@ -68,10 +68,11 @@ void
 talk(void)
 {
 	struct hostent *hp, *hp2;
+	struct pollfd fds[2];
 	int nb;
-	fd_set read_set, read_template;
-	char buf[BUFSIZ], **addr, *his_machine_name;
-	struct timeval wait;
+	wchar_t buf[BUFSIZ];
+	char **addr, *his_machine_name;
+	FILE *sockfp;
 
 	his_machine_name = NULL;
 	hp = gethostbyaddr((const char *)&his_machine_addr.s_addr,
@@ -89,64 +90,59 @@ talk(void)
 	}
 	if (his_machine_name == NULL)
 		his_machine_name = strdup(inet_ntoa(his_machine_addr));
-	snprintf(buf, sizeof(buf), "Connection established with %s@%s.",
+	snprintf((char *)buf, sizeof(buf), "Connection established with %s@%s.",
 	    msg.r_name, his_machine_name);
 	free(his_machine_name);
-	message(buf);
+	message((char *)buf);
 	write(STDOUT_FILENO, "\007\007\007", 3);
 	
 	current_line = 0;
 
+	if ((sockfp = fdopen(sockt, "w+")) == NULL)
+		p_error("fdopen");
+
+	setvbuf(sockfp, NULL, _IONBF, 0);
+	setvbuf(stdin, NULL, _IONBF, 0);
+
 	/*
-	 * Wait on both the other process (sockt_mask) and
-	 * standard input ( STDIN_MASK )
+	 * Wait on both the other process (sockt) and standard input.
 	 */
-	FD_ZERO(&read_template);
-	FD_SET(sockt, &read_template);
-	FD_SET(fileno(stdin), &read_template);
 	for (;;) {
-		read_set = read_template;
-		wait.tv_sec = A_LONG_TIME;
-		wait.tv_usec = 0;
-		nb = select(32, &read_set, 0, 0, &wait);
+		fds[0].fd = fileno(stdin);
+		fds[0].events = POLLIN;
+		fds[1].fd = sockt;
+		fds[1].events = POLLIN;
+		nb = poll(fds, 2, INFTIM);
 		if (gotwinch) {
 			resize_display();
 			gotwinch = 0;
 		}
 		if (nb <= 0) {
-			if (errno == EINTR) {
-				read_set = read_template;
+			if (errno == EINTR)
 				continue;
-			}
-			/* panic, we don't know what happened */
-			p_error("Unexpected error from select");
+			/* Panic, we don't know what happened. */
+			p_error("Unexpected error from poll");
 			quit();
 		}
-		if (FD_ISSET(sockt, &read_set)) {
-			/* There is data on sockt */
-			nb = read(sockt, buf, sizeof buf);
-			if (nb <= 0) {
+		if (fds[1].revents & POLLIN) {
+			wint_t w;
+
+			/* There is data on sockt. */
+			w = fgetwc(sockfp);
+			if (w == WEOF) {
 				message("Connection closed. Exiting");
 				quit();
 			}
-			display(&his_win, buf, nb);
+			display(&his_win, &w);
 		}
-		if (FD_ISSET(fileno(stdin), &read_set)) {
-			/*
-			 * We can't make the tty non_blocking, because
-			 * curses's output routines would screw up
-			 */
-			int i;
-			ioctl(0, FIONREAD, (void *) &nb);
-			if (nb > (ssize_t)(sizeof buf))
-				nb = sizeof buf;
-			nb = read(STDIN_FILENO, buf, nb);
-			display(&my_win, buf, nb);
-			/* might lose data here because sockt is non-blocking */
-			for (i = 0; i < nb; ++i)
-				if (buf[i] == '\r')
-					buf[i] = '\n';
-			write(sockt, buf, nb);
+		if (fds[0].revents & POLLIN) {
+			wint_t w;
+
+			if ((w = getwchar()) != WEOF) {
+				display(&my_win, &w);
+				(void )fputwc(w, sockfp);
+				(void )fflush(sockfp);
+			}
 		}
 	}
 }

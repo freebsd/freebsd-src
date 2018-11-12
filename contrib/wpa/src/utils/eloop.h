@@ -2,14 +2,8 @@
  * Event loop
  * Copyright (c) 2002-2006, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  *
  * This file defines an event loop interface that supports processing events
  * from registered timeouts (i.e., do something after N seconds), sockets
@@ -65,25 +59,19 @@ typedef void (*eloop_timeout_handler)(void *eloop_data, void *user_ctx);
 /**
  * eloop_signal_handler - eloop signal event callback type
  * @sig: Signal number
- * @eloop_ctx: Registered callback context data (global user_data from
- * eloop_init() call)
  * @signal_ctx: Registered callback context data (user_data from
  * eloop_register_signal(), eloop_register_signal_terminate(), or
  * eloop_register_signal_reconfig() call)
  */
-typedef void (*eloop_signal_handler)(int sig, void *eloop_ctx,
-				     void *signal_ctx);
+typedef void (*eloop_signal_handler)(int sig, void *signal_ctx);
 
 /**
  * eloop_init() - Initialize global event loop data
- * @user_data: Pointer to global data passed as eloop_ctx to signal handlers
  * Returns: 0 on success, -1 on failure
  *
- * This function must be called before any other eloop_* function. user_data
- * can be used to configure a global (to the process) pointer that will be
- * passed as eloop_ctx parameter to signal handlers.
+ * This function must be called before any other eloop_* function.
  */
-int eloop_init(void *user_data);
+int eloop_init(void);
 
 /**
  * eloop_register_read_sock - Register handler for read events
@@ -150,7 +138,7 @@ void eloop_unregister_sock(int sock, eloop_event_type type);
  * Returns: 0 on success, -1 on failure
  *
  * Register an event handler for the given event. This function is used to
- * register eloop implementation specific events which are mainly targetted for
+ * register eloop implementation specific events which are mainly targeted for
  * operating system specific code (driver interface and l2_packet) since the
  * portable code will not be able to use such an OS-specific call. The handler
  * function will be called whenever the event is triggered. The handler
@@ -207,6 +195,21 @@ int eloop_cancel_timeout(eloop_timeout_handler handler,
 			 void *eloop_data, void *user_data);
 
 /**
+ * eloop_cancel_timeout_one - Cancel a single timeout
+ * @handler: Matching callback function
+ * @eloop_data: Matching eloop_data
+ * @user_data: Matching user_data
+ * @remaining: Time left on the cancelled timer
+ * Returns: Number of cancelled timeouts
+ *
+ * Cancel matching <handler,eloop_data,user_data> timeout registered with
+ * eloop_register_timeout() and return the remaining time left.
+ */
+int eloop_cancel_timeout_one(eloop_timeout_handler handler,
+			     void *eloop_data, void *user_data,
+			     struct os_reltime *remaining);
+
+/**
  * eloop_is_timeout_registered - Check if a timeout is already registered
  * @handler: Matching callback function
  * @eloop_data: Matching eloop_data
@@ -220,6 +223,40 @@ int eloop_is_timeout_registered(eloop_timeout_handler handler,
 				void *eloop_data, void *user_data);
 
 /**
+ * eloop_deplete_timeout - Deplete a timeout that is already registered
+ * @req_secs: Requested number of seconds to the timeout
+ * @req_usecs: Requested number of microseconds to the timeout
+ * @handler: Matching callback function
+ * @eloop_data: Matching eloop_data
+ * @user_data: Matching user_data
+ * Returns: 1 if the timeout is depleted, 0 if no change is made, -1 if no
+ * timeout matched
+ *
+ * Find a registered matching <handler,eloop_data,user_data> timeout. If found,
+ * deplete the timeout if remaining time is more than the requested time.
+ */
+int eloop_deplete_timeout(unsigned int req_secs, unsigned int req_usecs,
+			  eloop_timeout_handler handler, void *eloop_data,
+			  void *user_data);
+
+/**
+ * eloop_replenish_timeout - Replenish a timeout that is already registered
+ * @req_secs: Requested number of seconds to the timeout
+ * @req_usecs: Requested number of microseconds to the timeout
+ * @handler: Matching callback function
+ * @eloop_data: Matching eloop_data
+ * @user_data: Matching user_data
+ * Returns: 1 if the timeout is replenished, 0 if no change is made, -1 if no
+ * timeout matched
+ *
+ * Find a registered matching <handler,eloop_data,user_data> timeout. If found,
+ * replenish the timeout if remaining time is less than the requested time.
+ */
+int eloop_replenish_timeout(unsigned int req_secs, unsigned int req_usecs,
+			    eloop_timeout_handler handler, void *eloop_data,
+			    void *user_data);
+
+/**
  * eloop_register_signal - Register handler for signals
  * @sig: Signal number (e.g., SIGHUP)
  * @handler: Callback function to be called when the signal is received
@@ -231,10 +268,6 @@ int eloop_is_timeout_registered(eloop_timeout_handler handler,
  * handler has returned. This means that the normal limits for sighandlers
  * (i.e., only "safe functions" allowed) do not apply for the registered
  * callback.
- *
- * Signals are 'global' events and there is no local eloop_data pointer like
- * with other handlers. The global user_data pointer registered with
- * eloop_init() will be used as eloop_ctx for signal handlers.
  */
 int eloop_register_signal(int sig, eloop_signal_handler handler,
 			  void *user_data);
@@ -250,10 +283,6 @@ int eloop_register_signal(int sig, eloop_signal_handler handler,
  * system signal handler has returned. This means that the normal limits for
  * sighandlers (i.e., only "safe functions" allowed) do not apply for the
  * registered callback.
- *
- * Signals are 'global' events and there is no local eloop_data pointer like
- * with other handlers. The global user_data pointer registered with
- * eloop_init() will be used as eloop_ctx for signal handlers.
  *
  * This function is a more portable version of eloop_register_signal() since
  * the knowledge of exact details of the signals is hidden in eloop
@@ -274,10 +303,6 @@ int eloop_register_signal_terminate(eloop_signal_handler handler,
  * after the system signal handler has returned. This means that the normal
  * limits for sighandlers (i.e., only "safe functions" allowed) do not apply
  * for the registered callback.
- *
- * Signals are 'global' events and there is no local eloop_data pointer like
- * with other handlers. The global user_data pointer registered with
- * eloop_init() will be used as eloop_ctx for signal handlers.
  *
  * This function is a more portable version of eloop_register_signal() since
  * the knowledge of exact details of the signals is hidden in eloop
@@ -330,11 +355,5 @@ int eloop_terminated(void);
  * Do a blocking wait for a single read socket.
  */
 void eloop_wait_for_read_sock(int sock);
-
-/**
- * eloop_get_user_data - Get global user data
- * Returns: user_data pointer that was registered with eloop_init()
- */
-void * eloop_get_user_data(void);
 
 #endif /* ELOOP_H */

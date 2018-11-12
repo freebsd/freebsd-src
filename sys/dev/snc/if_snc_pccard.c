@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -90,6 +92,7 @@ static driver_t snc_pccard_driver = {
 
 DRIVER_MODULE(snc, pccard, snc_pccard_driver, snc_devclass, 0, 0);
 MODULE_DEPEND(snc, ether, 1, 1, 1);
+PCCARD_PNP_INFO(snc_pccard_products);
 
 /*
  *      snc_pccard_detach - detach this instance from the device.

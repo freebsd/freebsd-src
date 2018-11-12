@@ -64,3 +64,5 @@ ENTRY(remquof)
 	movss	-4(%rsp),%xmm0
 	ret
 END(remquof)
+
+	.section .note.GNU-stack,"",%progbits

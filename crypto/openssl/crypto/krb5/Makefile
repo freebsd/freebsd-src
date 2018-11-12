@@ -34,7 +34,7 @@ top:
 all:	lib
 
 lib:	$(LIBOBJ)
-	$(ARX) $(LIB) $(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
@@ -61,6 +61,8 @@ tests:
 
 lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
+
+update: depend
 
 depend:
 	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...

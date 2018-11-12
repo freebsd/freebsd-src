@@ -220,7 +220,7 @@ getprintcap_int(char *bp, struct printer *pp)
 	char *rp_name;
 	int error;
 
-	if ((pp->printer = capdb_canonical_name(bp)) == 0)
+	if ((pp->printer = capdb_canonical_name(bp)) == NULL)
 		return PCAPERR_OSERR;
 
 #define CHK(x) do {if ((x) == PCAPERR_OSERR) return PCAPERR_OSERR;}while(0)
@@ -386,7 +386,7 @@ capdb_getaltstr(char *bp, const char *shrt, const char *lng,
 		return status;
 	if (dflt) {
 		*result = strdup(dflt);
-		if (*result == 0)
+		if (*result == NULL)
 			return PCAPERR_OSERR;
 		return strlen(*result);
 	}
@@ -439,9 +439,9 @@ capdb_canonical_name(const char *bp)
 	const char *nameend;
 
 	nameend = strpbrk(bp, "|:");
-	if (nameend == 0)
+	if (nameend == NULL)
 		nameend = bp + 1;
-	if ((retval = malloc(nameend - bp + 1)) != 0) {
+	if ((retval = malloc(nameend - bp + 1)) != NULL) {
 		retval[0] = '\0';
 		strncat(retval, bp, nameend - bp);
 	}

@@ -1,0 +1,35 @@
+.TH IBSWPORTWATCH 8 "September 27, 2006" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+ibswportwatch.pl \- poll the counters on the specified switch/port and report rate
+of change information.
+
+.SH SYNOPSIS
+.B ibswportwatch.pl
+[-p <pause_time> -v -n <cycles> -G] <guid|lid> <port>
+
+.SH DESCRIPTION
+.PP
+ibswportwatch.pl polls the port counters of the specified port and calculates rate
+of change information.
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-p <pause_time>\fR
+Specify a pause time (polling interval) other than the default.
+.TP
+\fB\-v\fR
+Be verbose.
+.TP
+\fB\-n <cycles>\fR
+Run for a set number of poll intervals and stop.  (Default == -1 == forever)
+.TP
+\fB\-G\fR
+The address provided is a GUID rather than LID.
+
+.SH AUTHOR
+.TP
+Ira Weiny
+.RI < weiny2@llnl.gov >

@@ -35,6 +35,7 @@
 #define	MDT_DEPEND	1		/* argument is a module name */
 #define	MDT_MODULE	2		/* module declaration */
 #define	MDT_VERSION	3		/* module version(s) */
+#define	MDT_PNP_INFO	4		/* Plug and play hints record */
 
 #define	MDT_STRUCT_VERSION	1	/* version of metadata structure */
 #define	MDT_SETNAME	"modmetadata_set"
@@ -70,7 +71,7 @@ typedef union modspecific {
 } modspecific_t;
 
 /*
- * Module dependency declarartion
+ * Module dependency declaration
  */
 struct mod_depend {
 	int	md_ver_minimum;
@@ -88,10 +89,19 @@ struct mod_version {
 struct mod_metadata {
 	int		md_version;	/* structure version MDTV_* */
 	int		md_type;	/* type of entry MDT_* */
-	void		*md_data;	/* specific data */
+	const void	*md_data;	/* specific data */
 	const char	*md_cval;	/* common string label */
 };
 
+struct mod_pnp_match_info 
+{
+	const char *descr;	/* Description of the table */
+	const char *bus;	/* Name of the bus for this table */
+	const void *table;	/* Pointer to pnp table */
+	int entry_len;		/* Length of each entry in the table (may be */
+				/*   longer than descr describes). */
+	int num_entry;		/* Number of entries in the table */
+};
 #ifdef	_KERNEL
 
 #include <sys/linker_set.h>
@@ -106,7 +116,8 @@ struct mod_metadata {
 	DATA_SET(modmetadata_set, _mod_metadata##uniquifier)
 
 #define	MODULE_DEPEND(module, mdepend, vmin, vpref, vmax)		\
-	static struct mod_depend _##module##_depend_on_##mdepend = {	\
+	static struct mod_depend _##module##_depend_on_##mdepend	\
+	    __section(".data") = {					\
 		vmin,							\
 		vpref,							\
 		vmax							\
@@ -125,19 +136,71 @@ struct mod_metadata {
  */
 #define	MODULE_KERNEL_MAXVER	(roundup(__FreeBSD_version, 100000) - 1)
 
-#define	DECLARE_MODULE(name, data, sub, order)				\
+#define	DECLARE_MODULE_WITH_MAXVER(name, data, sub, order, maxver)	\
 	MODULE_DEPEND(name, kernel, __FreeBSD_version,			\
-	    __FreeBSD_version, MODULE_KERNEL_MAXVER);			\
+	    __FreeBSD_version, maxver);			\
 	MODULE_METADATA(_md_##name, MDT_MODULE, &data, #name);		\
 	SYSINIT(name##module, sub, order, module_register_init, &data);	\
 	struct __hack
 
+#define	DECLARE_MODULE(name, data, sub, order)				\
+	DECLARE_MODULE_WITH_MAXVER(name, data, sub, order, MODULE_KERNEL_MAXVER)
+
+/*
+ * The module declared with DECLARE_MODULE_TIED can only be loaded
+ * into the kernel with exactly the same __FreeBSD_version.
+ *
+ * Use it for modules that use kernel interfaces that are not stable
+ * even on STABLE/X branches.
+ */
+#define	DECLARE_MODULE_TIED(name, data, sub, order)				\
+	DECLARE_MODULE_WITH_MAXVER(name, data, sub, order, __FreeBSD_version)
+
 #define	MODULE_VERSION(module, version)					\
-	static struct mod_version _##module##_version = {		\
+	static struct mod_version _##module##_version			\
+	    __section(".data") = {					\
 		version							\
 	};								\
 	MODULE_METADATA(_##module##_version, MDT_VERSION,		\
 	    &_##module##_version, #module)
+
+/**
+ * Generic macros to create pnp info hints that modules may export
+ * to allow external tools to parse their internal device tables
+ * to make an informed guess about what driver(s) to load.
+ */
+#define	MODULE_PNP_INFO(d, b, unique, t, l, n)				\
+	static const struct mod_pnp_match_info _module_pnp_##b##_##unique = {	\
+		.descr = d,						\
+		.bus = #b,						\
+		.table = t,						\
+		.entry_len = l,						\
+		.num_entry = n						\
+	};								\
+	MODULE_METADATA(_md_##b##_pnpinfo_##unique, MDT_PNP_INFO,	\
+	    &_module_pnp_##b##_##unique, #b);
+/**
+ * descr is a string that describes each entry in the table. The general
+ * form is (TYPE:pnp_name[/pnp_name];)*
+ * where TYPE is one of the following:
+ *	U8	uint8_t element
+ *	V8	like U8 and 0xff means match any
+ *	G16	uint16_t element, any value >= matches
+ *	L16	uint16_t element, any value <= matches
+ *	M16	uint16_t element, mask of which of the following fields to use.
+ *	U16	uint16_t element
+ *	V16	like U16 and 0xffff means match any
+ *	U32	uint32_t element
+ *	V32	like U32 and 0xffffffff means match any
+ *	W32	Two 16-bit values with first pnp_name in LSW and second in MSW.
+ *	Z	pointer to a string to match exactly
+ *	D	like Z, but is the string passed to device_set_descr()
+ *	P	A pointer that should be ignored
+ *	E	EISA PNP Identifier (in binary, but bus publishes string)
+ *	K	Key for whole table. pnp_name=value. must be last, if present.
+ *
+ * The pnp_name "#" is reserved for other fields that should be ignored.
+ */
 
 extern struct sx modules_sx;
 

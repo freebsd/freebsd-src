@@ -30,12 +30,6 @@
 #define	_MEMSTAT_H_
 
 /*
- * Number of CPU slots in library-internal data structures.  This should be
- * at least the value of MAXCPU from param.h.
- */
-#define	MEMSTAT_MAXCPU	32
-
-/*
  * Amount of caller data to maintain for each caller data slot.  Applications
  * must not request more than this number of caller save data, or risk
  * corrupting internal libmemstat(3) data structures.  A compile time check
@@ -70,7 +64,6 @@
 #define	MEMSTAT_ERROR_NOMEMORY		1	/* Out of memory. */
 #define	MEMSTAT_ERROR_VERSION		2	/* Unsupported version. */
 #define	MEMSTAT_ERROR_PERMISSION	3	/* Permission denied. */
-#define	MEMSTAT_ERROR_TOOMANYCPUS	4	/* Too many CPUs. */
 #define	MEMSTAT_ERROR_DATAERROR		5	/* Error in stat data. */
 #define	MEMSTAT_ERROR_KVM		6	/* See kvm_geterr() for err. */
 #define	MEMSTAT_ERROR_KVM_NOSYMBOL	7	/* Symbol not available. */
@@ -131,6 +124,7 @@ uint64_t	 memstat_get_countlimit(const struct memory_type *mtp);
 uint64_t	 memstat_get_byteslimit(const struct memory_type *mtp);
 uint64_t	 memstat_get_sizemask(const struct memory_type *mtp);
 uint64_t	 memstat_get_size(const struct memory_type *mtp);
+uint64_t	 memstat_get_rsize(const struct memory_type *mtp);
 uint64_t	 memstat_get_memalloced(const struct memory_type *mtp);
 uint64_t	 memstat_get_memfreed(const struct memory_type *mtp);
 uint64_t	 memstat_get_numallocs(const struct memory_type *mtp);
@@ -139,6 +133,7 @@ uint64_t	 memstat_get_bytes(const struct memory_type *mtp);
 uint64_t	 memstat_get_count(const struct memory_type *mtp);
 uint64_t	 memstat_get_free(const struct memory_type *mtp);
 uint64_t	 memstat_get_failures(const struct memory_type *mtp);
+uint64_t	 memstat_get_sleeps(const struct memory_type *mtp);
 void		*memstat_get_caller_pointer(const struct memory_type *mtp,
 		    int index);
 void		 memstat_set_caller_pointer(struct memory_type *mtp,

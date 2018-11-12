@@ -16,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -39,11 +39,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
 #include <sys/sf_buf.h>
 
@@ -97,8 +97,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 
 		switch (uio->uio_segflg) {
 			case UIO_USERSPACE:
-				if (ticks - PCPU_GET(switchticks) >= hogticks)
-					uio_yield();
+				maybe_yield();
 				if (uio->uio_rw == UIO_READ)
 					error = copyout(cp, iov->iov_base, cnt);
 				else
@@ -107,9 +106,6 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 					sf_buf_free(sf);
 					goto out;
 				}
-				if (uio->uio_rw == UIO_WRITE &&
-				    pmap_page_executable(m))
-					__syncicache(cp, cnt);
 				break;
 			case UIO_SYSSPACE:
 				if (uio->uio_rw == UIO_READ)

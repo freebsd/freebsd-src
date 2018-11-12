@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 17, 1995
+.Dd October 3, 2016
 .Dt CCDCONFIG 8
 .Os
 .Sh NAME
@@ -159,9 +159,8 @@ It reads as a two disk stripe of da4 and da5 which is mirrored
 to a two disk stripe of da6 and da7.
 The last example is a simple
 mirror.
-The 2nd slice of /dev/da8 is mirrored with the 3rd slice of /dev/da9
+The second slice of /dev/da8 is mirrored with the third slice of /dev/da9
 and assigned to ccd0.
-.Pp
 .Bd -literal
 # ccdconfig ccd0 64 none /dev/da0s1 /dev/da1s1 /dev/da2s1 /dev/da3s1
 # ccdconfig ccd0 128 CCDF_MIRROR /dev/da4 /dev/da5 /dev/da6 /dev/da7
@@ -181,7 +180,7 @@ and read it from
 mdadm --create --chunk=32 --level=0 --raid-devices=2 /dev/md0 \\
    /dev/hda1 /dev/hdb1
 # Make the RAID-0 just created available on FreeBSD:
-ccdconfig -c /dev/ccd0 32 linux /dev/ad0s1 /dev/ad0s2
+ccdconfig -c /dev/ccd0 32 linux /dev/ada0s1 /dev/ada0s2
 .Ed
 .Pp
 When you create a new ccd disk you generally want to
@@ -203,7 +202,6 @@ partition such that it does not overlap the label area.
 For example, if
 you have A ccd disk with 10000 sectors you might create a 'd' partition
 with offset 16 and size 9984.
-.Pp
 .Bd -literal
 # disklabel ccd0 > /tmp/disklabel.ccd0
 # disklabel -Rr ccd0 /tmp/disklabel.ccd0
@@ -236,19 +234,19 @@ RAID controllers (see GENERIC),
 or software RAID systems such as
 .Xr geom 8
 and
-.Xr vinum 8 .
+.Xr gvinum 8 .
 .Sh SEE ALSO
 .Xr dd 1 ,
 .Xr ccd 4 ,
 .Xr disklabel 8 ,
 .Xr fdisk 8 ,
-.Xr rc 8 ,
-.Xr vinum 8
+.Xr gvinum 8 ,
+.Xr rc 8
 .Sh HISTORY
 The
 .Nm
 utility first appeared in
-.Nx 1.0a .
+.Nx 1.1 .
 .Sh BUGS
 The initial disklabel returned by
 .Xr ccd 4

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2001-2003, 2005-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2003, 2005-2007 Proofpoint, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: ldap.h,v 1.33 2007/10/10 00:06:44 ca Exp $
+ *	$Id: ldap.h,v 1.35 2013-11-22 20:51:31 ca Exp $
  */
 
 #ifndef	SM_LDAP_H
@@ -92,7 +92,7 @@ struct sm_ldap_struct
 	char		ldap_attrsep;
 
 # if _FFR_LDAP_NETWORK_TIMEOUT
-	struct timeval	ldap_networktmo;
+	int		ldap_networktmo;
 # endif /* _FFR_LDAP_NETWORK_TIMEOUT */
 
 	/* Linked list of maps sharing the same LDAP binding */

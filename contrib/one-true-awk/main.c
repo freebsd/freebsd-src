@@ -22,7 +22,10 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
-const char	*version = "version 20070501";
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+const char	*version = "version 20121220 (FreeBSD)";
 
 #define DEBUG
 #include <stdio.h>
@@ -38,6 +41,7 @@ extern	char	**environ;
 extern	int	nfields;
 
 int	dbg	= 0;
+Awkfloat	srand_seed = 1;
 char	*cmdname;	/* gets argv[0] for error messages */
 extern	FILE	*yyin;	/* lex input file */
 char	*lexprog;	/* points to program argument if it exists */
@@ -58,6 +62,7 @@ int main(int argc, char *argv[])
 	const char *fs = NULL;
 
 	setlocale(LC_CTYPE, "");
+	setlocale(LC_COLLATE, "");
 	setlocale(LC_NUMERIC, "C"); /* for parsing cmdline & prog */
 	cmdname = argv[0];
 	if (argc == 1) {
@@ -67,6 +72,10 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	signal(SIGFPE, fpecatch);
+
+	srand_seed = 1;
+	srandom((unsigned long) srand_seed);
+
 	yyin = NULL;
 	symtab = makesymtab(NSYMTAB/NSYMTAB);
 	while (argc > 1 && argv[1][0] == '-' && argv[1][1] != '\0') {
@@ -86,13 +95,18 @@ int main(int argc, char *argv[])
 				safe = 1;
 			break;
 		case 'f':	/* next argument is program filename */
-			argc--;
-			argv++;
-			if (argc <= 1)
-				FATAL("no program filename");
-			if (npfile >= MAX_PFILE - 1)
-				FATAL("too many -f options"); 
-			pfile[npfile++] = argv[1];
+			if (argv[1][2] != 0) {  /* arg is -fsomething */
+				if (npfile >= MAX_PFILE - 1)
+					FATAL("too many -f options"); 
+				pfile[npfile++] = &argv[1][2];
+			} else {		/* arg is -f something */
+				argc--; argv++;
+				if (argc <= 1)
+					FATAL("no program filename");
+				if (npfile >= MAX_PFILE - 1)
+					FATAL("too many -f options"); 
+				pfile[npfile++] = argv[1];
+			}
 			break;
 		case 'F':	/* set field separator */
 			if (argv[1][2] != 0) {	/* arg is -Fsomething */
@@ -111,8 +125,20 @@ int main(int argc, char *argv[])
 				WARNING("field separator FS is empty");
 			break;
 		case 'v':	/* -v a=1 to be done NOW.  one -v for each */
-			if (argv[1][2] == '\0' && --argc > 1 && isclvar((++argv)[1]))
-				setclvar(argv[1]);
+			if (argv[1][2] != 0) {  /* arg is -vsomething */
+				if (isclvar(&argv[1][2]))
+					setclvar(&argv[1][2]);
+				else
+					FATAL("invalid -v option argument: %s", &argv[1][2]);
+			} else {		/* arg is -v something */
+				argc--; argv++;
+				if (argc <= 1)
+					FATAL("no variable name");
+				if (isclvar(argv[1]))
+					setclvar(argv[1]);
+				else
+					FATAL("invalid -v option argument: %s", argv[1]);
+			}
 			break;
 		case 'd':
 			dbg = atoi(&argv[1][2]);

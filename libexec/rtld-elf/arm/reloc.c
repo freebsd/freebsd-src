@@ -3,6 +3,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/mman.h>
 
 #include <errno.h>
@@ -10,8 +11,55 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "machine/sysarch.h"
+
 #include "debug.h"
 #include "rtld.h"
+#include "paths.h"
+
+void
+arm_abi_variant_hook(Elf_Auxinfo **aux_info)
+{
+	Elf_Word ehdr;
+	struct stat sb;
+
+	/*
+	 * If we're running an old kernel that doesn't provide any data fail
+	 * safe by doing nothing.
+	 */
+	if (aux_info[AT_EHDRFLAGS] == NULL)
+		return;
+	ehdr = aux_info[AT_EHDRFLAGS]->a_un.a_val;
+
+	/*
+	 * Hard float ABI binaries are the default, and use the default paths
+	 * and such.
+	 */
+	if ((ehdr & EF_ARM_VFP_FLOAT) != 0)
+		return;
+
+	/*
+	 * If there's no /usr/libsoft, then we don't have a system with both
+	 * hard and soft float. In that case, hope for the best and just
+	 * return. Such systems are required to have all soft or all hard
+	 * float ABI binaries and libraries. This is, at best, a transition
+	 * compatibility hack. Once we're fully hard-float, this should
+	 * be removed.
+	 */
+	if (stat("/usr/libsoft", &sb) != 0 || !S_ISDIR(sb.st_mode))
+		return;
+
+	/*
+	 * This is a soft float ABI binary. We need to use the soft float
+	 * settings.
+	 */
+	ld_elf_hints_default = _PATH_SOFT_ELF_HINTS;
+	ld_path_libmap_conf = _PATH_SOFT_LIBMAP_CONF;
+	ld_path_rtld = _PATH_SOFT_RTLD;
+	ld_standard_library_path = SOFT_STANDARD_LIBRARY_PATH;
+	ld_env_prefix = LD_SOFT_;
+}
 
 void
 init_pltgot(Obj_Entry *obj)
@@ -36,31 +84,41 @@ do_copy_relocations(Obj_Entry *dstobj)
 	    		void *dstaddr;
 			const Elf_Sym *dstsym;
 			const char *name;
-			unsigned long hash;
 			size_t size;
 			const void *srcaddr;
 			const Elf_Sym *srcsym;
-			Obj_Entry *srcobj;
-			const Ver_Entry *ve;
+			const Obj_Entry *srcobj, *defobj;
+			SymLook req;
+			int res;
 			
 			dstaddr = (void *) (dstobj->relocbase + rel->r_offset);
 			dstsym = dstobj->symtab + ELF_R_SYM(rel->r_info);
 			name = dstobj->strtab + dstsym->st_name;
-			hash = elf_hash(name);
 			size = dstsym->st_size;
-			ve = fetch_ventry(dstobj, ELF_R_SYM(rel->r_info));
-			
-			for (srcobj = dstobj->next;  srcobj != NULL;  srcobj = srcobj->next)
-				if ((srcsym = symlook_obj(name, hash, srcobj, ve, 0)) != NULL)
+
+			symlook_init(&req, name);
+			req.ventry = fetch_ventry(dstobj,
+			    ELF_R_SYM(rel->r_info));
+			req.flags = SYMLOOK_EARLY;
+
+			for (srcobj = globallist_next(dstobj); srcobj != NULL;
+			    srcobj = globallist_next(srcobj)) {
+				res = symlook_obj(&req, srcobj);
+				if (res == 0) {
+					srcsym = req.sym_out;
+					defobj = req.defobj_out;
 					break;
-			
+				}
+			}			
 			if (srcobj == NULL) {
-				_rtld_error("Undefined symbol \"%s\" referenced from COPY"
-				    " relocation in %s", name, dstobj->path);
-				return -1;
+				_rtld_error(
+"Undefined symbol \"%s\" referenced from COPY relocation in %s",
+				    name, dstobj->path);
+				return (-1);
 			}
 			
-			srcaddr = (const void *) (srcobj->relocbase + srcsym->st_value);
+			srcaddr = (const void *)(defobj->relocbase +
+			    srcsym->st_value);
 			memcpy(dstaddr, srcaddr, size);
 		}
 	}
@@ -75,7 +133,7 @@ int _open();
 void
 _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 {
-	const Elf_Rel *rel = 0, *rellim;
+	const Elf_Rel *rel = NULL, *rellim;
 	Elf_Addr relsz = 0;
 	Elf_Addr *where;
 	uint32_t size;
@@ -123,7 +181,8 @@ store_ptr(void *where, Elf_Addr val)
 }
 
 static int
-reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache)
+reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache,
+    int flags, RtldLockState *lockstate)
 {
 	Elf_Addr        *where;
 	const Elf_Sym   *def;
@@ -149,7 +208,8 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache)
 		if (addend & 0x00800000)
 			addend |= 0xff000000;
 		
-		def = find_symdef(symnum, obj, &defobj, false, cache);
+		def = find_symdef(symnum, obj, &defobj, flags, cache,
+		    lockstate);
 		if (def == NULL)
 				return -1;
 			tmp = (Elf_Addr)obj->relocbase + def->st_value
@@ -175,7 +235,8 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache)
 
 		case R_ARM_ABS32:	/* word32 B + S + A */
 		case R_ARM_GLOB_DAT:	/* word32 B + S */
-			def = find_symdef(symnum, obj, &defobj, false, cache);
+			def = find_symdef(symnum, obj, &defobj, flags, cache,
+			    lockstate);
 			if (def == NULL)
 				return -1;
 			if (__predict_true(RELOC_ALIGNED_P(where))) {
@@ -222,6 +283,63 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache)
 			dbg("COPY (avoid in main)");
 			break;
 
+		case R_ARM_TLS_DTPOFF32:
+			def = find_symdef(symnum, obj, &defobj, flags, cache,
+			    lockstate);
+			if (def == NULL)
+				return -1;
+
+			tmp = (Elf_Addr)(def->st_value);
+			if (__predict_true(RELOC_ALIGNED_P(where)))
+				*where = tmp;
+			else
+				store_ptr(where, tmp);
+
+			dbg("TLS_DTPOFF32 %s in %s --> %p",
+			    obj->strtab + obj->symtab[symnum].st_name,
+			    obj->path, (void *)tmp);
+
+			break;
+		case R_ARM_TLS_DTPMOD32:
+			def = find_symdef(symnum, obj, &defobj, flags, cache,
+			    lockstate);
+			if (def == NULL)
+				return -1;
+
+			tmp = (Elf_Addr)(defobj->tlsindex);
+			if (__predict_true(RELOC_ALIGNED_P(where)))
+				*where = tmp;
+			else
+				store_ptr(where, tmp);
+
+			dbg("TLS_DTPMOD32 %s in %s --> %p",
+			    obj->strtab + obj->symtab[symnum].st_name,
+			    obj->path, (void *)tmp);
+
+			break;
+
+		case R_ARM_TLS_TPOFF32:
+			def = find_symdef(symnum, obj, &defobj, flags, cache,
+			    lockstate);
+			if (def == NULL)
+				return -1;
+
+			if (!defobj->tls_done && allocate_tls_offset(obj))
+				return -1;
+
+			/* XXX: FIXME */
+			tmp = (Elf_Addr)def->st_value + defobj->tlsoffset +
+			    TLS_TCB_SIZE;
+			if (__predict_true(RELOC_ALIGNED_P(where)))
+				*where = tmp;
+			else
+				store_ptr(where, tmp);
+			dbg("TLS_TPOFF32 %s in %s --> %p",
+			    obj->strtab + obj->symtab[symnum].st_name,
+			    obj->path, (void *)tmp);
+			break;
+
+
 		default:
 			dbg("sym = %lu, type = %lu, offset = %p, "
 			    "contents = %p, symbol = %s",
@@ -240,35 +358,37 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache)
  *  * Process non-PLT relocations
  *   */
 int
-reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
+reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
+    RtldLockState *lockstate)
 {
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
 	SymCache *cache;
-	int bytes = obj->nchains * sizeof(SymCache);
 	int r = -1;
 	
 	/* The relocation for the dynamic loader has already been done. */
 	if (obj == obj_rtld)
 		return (0);
+	if ((flags & SYMLOOK_IFUNC) != 0)
+		/* XXX not implemented */
+		return (0);
+
 	/*
  	 * The dynamic loader may be called from a thread, we have
 	 * limited amounts of stack available so we cannot use alloca().
 	 */
-	cache = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_ANON, -1, 0);
-	if (cache == MAP_FAILED)
-		cache = NULL;
-	
+	cache = calloc(obj->dynsymcount, sizeof(SymCache));
+	/* No need to check for NULL here */
+
 	rellim = (const Elf_Rel *)((caddr_t)obj->rel + obj->relsize);
 	for (rel = obj->rel; rel < rellim; rel++) {
-		if (reloc_nonplt_object(obj, rel, cache) < 0)
+		if (reloc_nonplt_object(obj, rel, cache, flags, lockstate) < 0)
 			goto done;
 	}
 	r = 0;
 done:
-	if (cache) {
-		munmap(cache, bytes);
-	}
+	if (cache != NULL)
+		free(cache);
 	return (r);
 }
 
@@ -299,7 +419,7 @@ reloc_plt(Obj_Entry *obj)
  *  * LD_BIND_NOW was set - force relocation for all jump slots
  *   */
 int
-reloc_jmpslots(Obj_Entry *obj)
+reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 {
 	const Obj_Entry *defobj;
 	const Elf_Rel *rellim;
@@ -313,7 +433,7 @@ reloc_jmpslots(Obj_Entry *obj)
 		assert(ELF_R_TYPE(rel->r_info) == R_ARM_JUMP_SLOT);
 		where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
 		def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
-		    true, NULL);
+		    SYMLOOK_IN_PLT | flags, NULL, lockstate);
 		if (def == NULL) {
 			dbg("reloc_jmpslots: sym not found");
 			return (-1);
@@ -326,6 +446,23 @@ reloc_jmpslots(Obj_Entry *obj)
 	
 	obj->jmpslots_done = true;
 	
+	return (0);
+}
+
+int
+reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
+	return (0);
+}
+
+int
+reloc_gnu_ifunc(Obj_Entry *obj, int flags,
+    struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
 	return (0);
 }
 
@@ -345,11 +482,39 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
 void
 allocate_initial_tls(Obj_Entry *objs)
 {
-	
+#ifdef ARM_TP_ADDRESS
+	void **_tp = (void **)ARM_TP_ADDRESS;
+#endif
+
+	/*
+	* Fix the size of the static TLS block by using the maximum
+	* offset allocated so far and adding a bit for dynamic modules to
+	* use.
+	*/
+
+	tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
+
+#ifdef ARM_TP_ADDRESS
+	(*_tp) = (void *) allocate_tls(objs, NULL, TLS_TCB_SIZE, 8);
+#else
+	sysarch(ARM_SET_TP, allocate_tls(objs, NULL, TLS_TCB_SIZE, 8));
+#endif
 }
 
 void *
 __tls_get_addr(tls_index* ti)
 {
-	return (NULL);
+	char *p;
+#ifdef ARM_TP_ADDRESS
+	void **_tp = (void **)ARM_TP_ADDRESS;
+
+	p = tls_get_addr_common((Elf_Addr **)(*_tp), ti->ti_module, ti->ti_offset);
+#else
+	void *_tp;
+	__asm __volatile("mrc  p15, 0, %0, c13, c0, 3"		\
+	    : "=r" (_tp));
+	p = tls_get_addr_common((Elf_Addr **)(_tp), ti->ti_module, ti->ti_offset);
+#endif
+
+	return (p);
 }

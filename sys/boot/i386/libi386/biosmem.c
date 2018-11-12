@@ -32,17 +32,68 @@ __FBSDID("$FreeBSD$");
  */
 #include <stand.h>
 #include <machine/pc/bios.h>
+#include "bootstrap.h"
 #include "libi386.h"
 #include "btxv86.h"
+#include "smbios.h"
 
-vm_offset_t	memtop, memtop_copyin;
-u_int32_t	bios_basemem, bios_extmem;
+vm_offset_t	memtop, memtop_copyin, high_heap_base;
+uint32_t	bios_basemem, bios_extmem, high_heap_size;
 
-static struct bios_smap smap;
+static struct bios_smap_xattr smap;
+
+/*
+ * Used to track which method was used to set BIOS memory
+ * regions.
+ */
+static uint8_t b_bios_probed;
+#define	B_BASEMEM_E820	0x1
+#define	B_BASEMEM_12	0x2
+#define	B_EXTMEM_E820	0x4
+#define	B_EXTMEM_E801	0x8
+#define	B_EXTMEM_8800	0x10
+
+/*
+ * The minimum amount of memory to reserve in bios_extmem for the heap.
+ */
+#define	HEAP_MIN	(64 * 1024 * 1024)
+
+/*
+ * Products in this list need quirks to detect
+ * memory correctly. You need both maker and product as
+ * reported by smbios.
+ */
+#define BQ_DISTRUST_E820_EXTMEM	0x1	/* e820 might not return useful
+					   extended memory */
+struct bios_getmem_quirks {
+    const char* bios_vendor;
+    const char*	maker;
+    const char*	product;
+    int		quirk;
+};
+
+static struct bios_getmem_quirks quirks[] = {
+    {"coreboot", "Acer", "Peppy", BQ_DISTRUST_E820_EXTMEM},
+    {NULL, NULL, NULL, 0}
+};
+
+static int
+bios_getquirks(void)
+{
+    int i;
+
+    for (i=0; quirks[i].quirk != 0; ++i)
+	if (smbios_match(quirks[i].bios_vendor, quirks[i].maker,
+	    quirks[i].product))
+	    return (quirks[i].quirk);
+
+    return (0);
+}
 
 void
 bios_getmem(void)
 {
+    uint64_t size;
 
     /* Parse system memory map */
     v86.ebx = 0;
@@ -50,20 +101,45 @@ bios_getmem(void)
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x15;		/* int 0x15 function 0xe820*/
 	v86.eax = 0xe820;
-	v86.ecx = sizeof(struct bios_smap);
+	v86.ecx = sizeof(struct bios_smap_xattr);
 	v86.edx = SMAP_SIG;
 	v86.es = VTOPSEG(&smap);
 	v86.edi = VTOPOFF(&smap);
 	v86int();
-	if ((v86.efl & 1) || (v86.eax != SMAP_SIG))
+	if ((V86_CY(v86.efl)) || (v86.eax != SMAP_SIG))
 	    break;
 	/* look for a low-memory segment that's large enough */
 	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base == 0) &&
-	    (smap.length >= (512 * 1024)))
+	    (smap.length >= (512 * 1024))) {
 	    bios_basemem = smap.length;
+	    b_bios_probed |= B_BASEMEM_E820;
+	}
+
 	/* look for the first segment in 'extended' memory */
-	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base == 0x100000)) {
+	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base == 0x100000) &&
+	    !(bios_getquirks() & BQ_DISTRUST_E820_EXTMEM)) {
 	    bios_extmem = smap.length;
+	    b_bios_probed |= B_EXTMEM_E820;
+	}
+
+	/*
+	 * Look for the largest segment in 'extended' memory beyond
+	 * 1MB but below 4GB.
+	 */
+	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base > 0x100000) &&
+	    (smap.base < 0x100000000ull)) {
+	    size = smap.length;
+
+	    /*
+	     * If this segment crosses the 4GB boundary, truncate it.
+	     */
+	    if (smap.base + size > 0x100000000ull)
+		size = 0x100000000ull - smap.base;
+
+	    if (size > high_heap_size) {
+		high_heap_size = size;
+		high_heap_base = smap.base;
+	    }
 	}
     } while (v86.ebx != 0);
 
@@ -74,6 +150,7 @@ bios_getmem(void)
 	v86int();
 	
 	bios_basemem = (v86.eax & 0xffff) * 1024;
+	b_bios_probed |= B_BASEMEM_12;
     }
 
     /* Fall back through several compatibility functions for extended memory */
@@ -82,8 +159,31 @@ bios_getmem(void)
 	v86.addr = 0x15;		/* int 0x15 function 0xe801*/
 	v86.eax = 0xe801;
 	v86int();
-	if (!(v86.efl & 1)) {
-	    bios_extmem = ((v86.ecx & 0xffff) + ((v86.edx & 0xffff) * 64)) * 1024;
+	if (!(V86_CY(v86.efl))) {
+	    /*
+	     * Clear high_heap; it may end up overlapping
+	     * with the segment we're determining here.
+	     * Let the default "steal stuff from top of
+	     * bios_extmem" code below pick up on it.
+	     */
+	    high_heap_size = 0;
+	    high_heap_base = 0;
+
+	    /*
+	     * %cx is the number of 1KiB blocks between 1..16MiB.
+	     * It can only be up to 0x3c00; if it's smaller then
+	     * there's a PC AT memory hole so we can't treat
+	     * it as contiguous.
+	     */
+	    bios_extmem = (v86.ecx & 0xffff) * 1024;
+	    if (bios_extmem == (1024 * 0x3c00))
+		bios_extmem += (v86.edx & 0xffff) * 64 * 1024;
+
+	    /* truncate bios_extmem */
+	    if (bios_extmem > 0x3ff00000)
+		bios_extmem = 0x3ff00000;
+
+	    b_bios_probed |= B_EXTMEM_E801;
 	}
     }
     if (bios_extmem == 0) {
@@ -92,10 +192,51 @@ bios_getmem(void)
 	v86.eax = 0x8800;
 	v86int();
 	bios_extmem = (v86.eax & 0xffff) * 1024;
+	b_bios_probed |= B_EXTMEM_8800;
     }
 
     /* Set memtop to actual top of memory */
     memtop = memtop_copyin = 0x100000 + bios_extmem;
 
-}    
+    /*
+     * If we have extended memory and did not find a suitable heap
+     * region in the SMAP, use the last 3MB of 'extended' memory as a
+     * high heap candidate.
+     */
+    if (bios_extmem >= HEAP_MIN && high_heap_size < HEAP_MIN) {
+	high_heap_size = HEAP_MIN;
+	high_heap_base = memtop - HEAP_MIN;
+    }
+}
 
+static int
+command_biosmem(int argc, char *argv[])
+{
+	int bq = bios_getquirks();
+
+	printf("bios_basemem: 0x%llx\n", (unsigned long long) bios_basemem);
+	printf("bios_extmem: 0x%llx\n", (unsigned long long) bios_extmem);
+	printf("memtop: 0x%llx\n", (unsigned long long) memtop);
+	printf("high_heap_base: 0x%llx\n", (unsigned long long) high_heap_base);
+	printf("high_heap_size: 0x%llx\n", (unsigned long long) high_heap_size);
+	printf("bios_quirks: 0x%02x", bq);
+	if (bq & BQ_DISTRUST_E820_EXTMEM)
+		printf(" BQ_DISTRUST_E820_EXTMEM");
+	printf("\n");
+	printf("b_bios_probed: 0x%02x", (int) b_bios_probed);
+	if (b_bios_probed & B_BASEMEM_E820)
+		printf(" B_BASEMEM_E820");
+	if (b_bios_probed & B_BASEMEM_12)
+		printf(" B_BASEMEM_12");
+	if (b_bios_probed & B_EXTMEM_E820)
+		printf(" B_EXTMEM_E820");
+	if (b_bios_probed & B_EXTMEM_E801)
+		printf(" B_EXTMEM_E801");
+	if (b_bios_probed & B_EXTMEM_8800)
+		printf(" B_EXTMEM_8800");
+	printf("\n");
+
+	return (CMD_OK);
+}
+
+COMMAND_SET(biosmem, "biosmem", "show BIOS memory setup", command_biosmem);

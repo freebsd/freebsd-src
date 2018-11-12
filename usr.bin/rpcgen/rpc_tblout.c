@@ -103,7 +103,7 @@ write_table(definition *def)
 			expected = 0;
 		} else {
 			expected = 1;
-			f_print(fout, null_entry);
+			fputs(null_entry, fout);
 		}
 		for (proc = vp->procs; proc != NULL; proc = proc->next) {
 			current = atoi(proc->proc_num);
@@ -141,7 +141,7 @@ write_table(definition *def)
 		}
 
 		/* print the table trailer */
-		f_print(fout, tbl_end);
+		fputs(tbl_end, fout);
 		f_print(fout, tbl_nproc, progvers, progvers, progvers);
 	}
 }

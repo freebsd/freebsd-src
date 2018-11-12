@@ -750,7 +750,7 @@ check_for_nested_with_variably_modified (tree fndecl, tree orig_fndecl)
   for (cgn = cgn->nested; cgn ; cgn = cgn->next_nested)
     {
       for (arg = DECL_ARGUMENTS (cgn->decl); arg; arg = TREE_CHAIN (arg))
-	if (variably_modified_type_p (TREE_TYPE (arg), 0), orig_fndecl)
+	if (variably_modified_type_p (TREE_TYPE (arg), orig_fndecl))
 	  return true;
 
       if (check_for_nested_with_variably_modified (cgn->decl, orig_fndecl))
@@ -1621,6 +1621,10 @@ convert_tramp_reference (tree *tp, int *walk_subtrees, void *data)
 	 it doesn't need a trampoline.  */
       if (DECL_NO_STATIC_CHAIN (decl))
 	break;
+      if (warn_trampolines)
+	{
+	warning(0, "local function address taken needing trampoline generation");
+	}
 
       /* Lookup the immediate parent of the callee, as that's where
 	 we need to insert the trampoline.  */
@@ -1966,7 +1970,8 @@ static GTY(()) struct nesting_info *root;
    subroutines and turn them into something less tightly bound.  */
 
 void
-lower_nested_functions (tree fndecl)
+/* APPLE LOCAL radar 6305545 */
+lower_nested_functions (tree fndecl, bool skip_outermost_fndecl)
 {
   struct cgraph_node *cgn;
 
@@ -1976,6 +1981,13 @@ lower_nested_functions (tree fndecl)
     return;
 
   root = create_nesting_tree (cgn);
+  /* APPLE LOCAL begin radar 6305545 */
+  /* If skip_outermost_fndecl is true, we are lowering nested functions of
+     a constructor/destructor which are cloned and thrown away. But we
+     still have to lower their nested functions, but not the outermost function. */
+  if (skip_outermost_fndecl)
+    root = root->inner;
+  /* APPLE LOCAL end radar 6305545 */
   walk_all_functions (convert_nonlocal_reference, root);
   walk_all_functions (convert_local_reference, root);
   walk_all_functions (convert_nl_goto_reference, root);

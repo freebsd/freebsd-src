@@ -3,4 +3,4 @@
  */
 /* $FreeBSD$ */
 
-#include <i386/_types.h>
+#include <x86/_types.h>

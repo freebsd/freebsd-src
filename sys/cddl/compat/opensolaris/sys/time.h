@@ -35,34 +35,48 @@
 #define MILLISEC	1000
 #define MICROSEC	1000000
 #define NANOSEC		1000000000
+#define TIME_MAX	LLONG_MAX
+
+#define	MSEC2NSEC(m)	((hrtime_t)(m) * (NANOSEC / MILLISEC))
+#define	NSEC2MSEC(n)	((n) / (NANOSEC / MILLISEC))
+
+#define	NSEC2SEC(n)	((n) / (NANOSEC / SEC))
+#define	SEC2NSEC(m)	((hrtime_t)(m) * (NANOSEC / SEC))
 
 typedef longlong_t	hrtime_t;
 
-#define	LBOLT	((gethrtime() * hz) / NANOSEC)
-
+#if defined(__i386__) || defined(__powerpc__)
 #define	TIMESPEC_OVERFLOW(ts)						\
 	((ts)->tv_sec < INT32_MIN || (ts)->tv_sec > INT32_MAX)
+#else
+#define	TIMESPEC_OVERFLOW(ts)						\
+	((ts)->tv_sec < INT64_MIN || (ts)->tv_sec > INT64_MAX)
+#endif
+
+#define	SEC_TO_TICK(sec)	((sec) * hz)
+#define	NSEC_TO_TICK(nsec)	((nsec) / (NANOSEC / hz))
 
 #ifdef _KERNEL
-#define	lbolt64	(int64_t)(LBOLT)
-
 static __inline hrtime_t
 gethrtime(void) {
 
 	struct timespec ts;
 	hrtime_t nsec;
 
-#if 1
 	getnanouptime(&ts);
-#else
-	nanouptime(&ts);
-#endif
 	nsec = (hrtime_t)ts.tv_sec * NANOSEC + ts.tv_nsec;
 	return (nsec);
 }
 
 #define	gethrestime_sec()	(time_second)
 #define	gethrestime(ts)		getnanotime(ts)
+#define	gethrtime_waitfree()	gethrtime()
+
+extern int nsec_per_tick;	/* nanoseconds per clock tick */
+
+#define ddi_get_lbolt64()				\
+    (int64_t)(((getsbinuptime() >> 16) * hz) >> 16)
+#define ddi_get_lbolt()		(clock_t)ddi_get_lbolt64()
 
 #else
 
@@ -71,7 +85,6 @@ static __inline hrtime_t gethrtime(void) {
 	clock_gettime(CLOCK_UPTIME,&ts);
 	return (((u_int64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
 }
-
 
 #endif	/* _KERNEL */
 

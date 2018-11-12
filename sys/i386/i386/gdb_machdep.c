@@ -45,14 +45,22 @@ __FBSDID("$FreeBSD$");
 void *
 gdb_cpu_getreg(int regnum, size_t *regsz)
 {
+	static uint32_t _kcodesel = GSEL(GCODE_SEL, SEL_KPL);
+	static uint32_t _kdatasel = GSEL(GDATA_SEL, SEL_KPL);
+	static uint32_t _kprivsel = GSEL(GPRIV_SEL, SEL_KPL);
 
 	*regsz = gdb_cpu_regsz(regnum);
 
-	if (kdb_thread  == curthread) {
+	if (kdb_thread == curthread) {
 		switch (regnum) {
 		case 0:	return (&kdb_frame->tf_eax);
 		case 1:	return (&kdb_frame->tf_ecx);
 		case 2:	return (&kdb_frame->tf_edx);
+		case 9: return (&kdb_frame->tf_eflags);
+		case 10: return (&kdb_frame->tf_cs);
+		case 12: return (&kdb_frame->tf_ds);
+		case 13: return (&kdb_frame->tf_es);
+		case 14: return (&kdb_frame->tf_fs);
 		}
 	}
 	switch (regnum) {
@@ -62,6 +70,12 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 	case 6:  return (&kdb_thrctx->pcb_esi);
 	case 7:  return (&kdb_thrctx->pcb_edi);
 	case 8:  return (&kdb_thrctx->pcb_eip);
+	case 10: return (&_kcodesel);
+	case 11: return (&_kdatasel);
+	case 12: return (&_kdatasel);
+	case 13: return (&_kdatasel);
+	case 14: return (&_kprivsel);
+	case 15: return (&kdb_thrctx->pcb_gs);
 	}
 	return (NULL);
 }

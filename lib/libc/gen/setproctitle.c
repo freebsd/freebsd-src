@@ -19,7 +19,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/sysctl.h>
@@ -42,9 +41,10 @@ __FBSDID("$FreeBSD$");
  * 1: old_ps_strings at the very top of the stack.
  * 2: old_ps_strings at SPARE_USRSPACE below the top of the stack.
  * 3: ps_strings at the very top of the stack.
- * This attempts to support a kernel built in the #2 and #3 era.
- */
-
+ * We only support a kernel providing #3 style ps_strings.
+ *
+ * For historical purposes, a definition of the old ps_strings structure
+ * and location is preserved below:
 struct old_ps_strings {
 	char	*old_ps_argvstr;
 	int	old_ps_nargvstr;
@@ -53,6 +53,7 @@ struct old_ps_strings {
 };
 #define	OLD_PS_STRINGS ((struct old_ps_strings *) \
 	(USRSTACK - SPARE_USRSPACE - sizeof(struct old_ps_strings)))
+ */
 
 #include <stdarg.h>
 
@@ -132,45 +133,42 @@ setproctitle(const char *fmt, ...)
 		len = sizeof(ul_ps_strings);
 		if (sysctlbyname("kern.ps_strings", &ul_ps_strings, &len, NULL,
 		    0) == -1)
-			ul_ps_strings = PS_STRINGS;
+			return;
 		ps_strings = (struct ps_strings *)ul_ps_strings;
 	}
 
-	/* PS_STRINGS points to zeroed memory on a style #2 kernel */
-	if (ps_strings->ps_argvstr) {
-		/* style #3 */
-		if (oargc == -1) {
-			/* Record our original args */
-			oargc = ps_strings->ps_nargvstr;
-			oargv = ps_strings->ps_argvstr;
-			for (i = len = 0; i < oargc; i++) {
-				/*
-				 * The program may have scribbled into its
-				 * argv array, e.g., to remove some arguments.
-				 * If that has happened, break out before
-				 * trying to call strlen on a NULL pointer.
-				 */
-				if (oargv[i] == NULL) {
-					oargc = i;
-					break;
-				}
-				snprintf(obuf + len, SPT_BUFSIZE - len, "%s%s",
-				    len ? " " : "", oargv[i]);
-				if (len)
-					len++;
-				len += strlen(oargv[i]);
-				if (len >= SPT_BUFSIZE)
-					break;
+	/*
+	 * PS_STRINGS points to zeroed memory on a style #2 kernel.
+	 * Should not happen.
+	 */
+	if (ps_strings->ps_argvstr == NULL)
+		return;
+
+	/* style #3 */
+	if (oargc == -1) {
+		/* Record our original args */
+		oargc = ps_strings->ps_nargvstr;
+		oargv = ps_strings->ps_argvstr;
+		for (i = len = 0; i < oargc; i++) {
+			/*
+			 * The program may have scribbled into its
+			 * argv array, e.g., to remove some arguments.
+			 * If that has happened, break out before
+			 * trying to call strlen on a NULL pointer.
+			 */
+			if (oargv[i] == NULL) {
+				oargc = i;
+				break;
 			}
+			snprintf(obuf + len, SPT_BUFSIZE - len, "%s%s",
+			    len != 0 ? " " : "", oargv[i]);
+			if (len != 0)
+				len++;
+			len += strlen(oargv[i]);
+			if (len >= SPT_BUFSIZE)
+				break;
 		}
-		ps_strings->ps_nargvstr = nargc;
-		ps_strings->ps_argvstr = nargvp;
-	} else {
-		/* style #2 - we can only restore our first arg :-( */
-		if (*obuf == '\0')
-			strncpy(obuf, OLD_PS_STRINGS->old_ps_argvstr,
-			    SPT_BUFSIZE - 1);
-		OLD_PS_STRINGS->old_ps_nargvstr = 1;
-		OLD_PS_STRINGS->old_ps_argvstr = nargvp[0];
 	}
+	ps_strings->ps_nargvstr = nargc;
+	ps_strings->ps_argvstr = nargvp;
 }

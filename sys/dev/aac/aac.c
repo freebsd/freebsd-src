@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Driver for the Adaptec 'FSA' family of PCI/SCSI RAID adapters.
  */
-#define AAC_DRIVER_VERSION		0x02000000
 #define AAC_DRIVERNAME			"aac"
 
 #include "opt_aac.h"
@@ -107,28 +106,6 @@ static int	aac_dequeue_fib(struct aac_softc *sc, int queue,
 static int	aac_enqueue_response(struct aac_softc *sc, int queue,
 				     struct aac_fib *fib);
 
-/* Falcon/PPC interface */
-static int	aac_fa_get_fwstatus(struct aac_softc *sc);
-static void	aac_fa_qnotify(struct aac_softc *sc, int qbit);
-static int	aac_fa_get_istatus(struct aac_softc *sc);
-static void	aac_fa_clear_istatus(struct aac_softc *sc, int mask);
-static void	aac_fa_set_mailbox(struct aac_softc *sc, u_int32_t command,
-				   u_int32_t arg0, u_int32_t arg1,
-				   u_int32_t arg2, u_int32_t arg3);
-static int	aac_fa_get_mailbox(struct aac_softc *sc, int mb);
-static void	aac_fa_set_interrupts(struct aac_softc *sc, int enable);
-
-struct aac_interface aac_fa_interface = {
-	aac_fa_get_fwstatus,
-	aac_fa_qnotify,
-	aac_fa_get_istatus,
-	aac_fa_clear_istatus,
-	aac_fa_set_mailbox,
-	aac_fa_get_mailbox,
-	aac_fa_set_interrupts,
-	NULL, NULL, NULL
-};
-
 /* StrongARM interface */
 static int	aac_sa_get_fwstatus(struct aac_softc *sc);
 static void	aac_sa_qnotify(struct aac_softc *sc, int qbit);
@@ -140,7 +117,7 @@ static void	aac_sa_set_mailbox(struct aac_softc *sc, u_int32_t command,
 static int	aac_sa_get_mailbox(struct aac_softc *sc, int mb);
 static void	aac_sa_set_interrupts(struct aac_softc *sc, int enable);
 
-struct aac_interface aac_sa_interface = {
+const struct aac_interface aac_sa_interface = {
 	aac_sa_get_fwstatus,
 	aac_sa_qnotify,
 	aac_sa_get_istatus,
@@ -165,7 +142,7 @@ static int aac_rx_send_command(struct aac_softc *sc, struct aac_command *cm);
 static int aac_rx_get_outb_queue(struct aac_softc *sc);
 static void aac_rx_set_outb_queue(struct aac_softc *sc, int index);
 
-struct aac_interface aac_rx_interface = {
+const struct aac_interface aac_rx_interface = {
 	aac_rx_get_fwstatus,
 	aac_rx_qnotify,
 	aac_rx_get_istatus,
@@ -192,7 +169,7 @@ static int aac_rkt_send_command(struct aac_softc *sc, struct aac_command *cm);
 static int aac_rkt_get_outb_queue(struct aac_softc *sc);
 static void aac_rkt_set_outb_queue(struct aac_softc *sc, int index);
 
-struct aac_interface aac_rkt_interface = {
+const struct aac_interface aac_rkt_interface = {
 	aac_rkt_get_fwstatus,
 	aac_rkt_qnotify,
 	aac_rkt_get_istatus,
@@ -206,15 +183,15 @@ struct aac_interface aac_rkt_interface = {
 };
 
 /* Debugging and Diagnostics */
-static void	aac_describe_controller(struct aac_softc *sc);
-static char	*aac_describe_code(struct aac_code_lookup *table,
+static void		aac_describe_controller(struct aac_softc *sc);
+static const char	*aac_describe_code(const struct aac_code_lookup *table,
 				   u_int32_t code);
 
 /* Management Interface */
 static d_open_t		aac_open;
-static d_close_t	aac_close;
 static d_ioctl_t	aac_ioctl;
 static d_poll_t		aac_poll;
+static void		aac_cdevpriv_dtor(void *arg);
 static int		aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib);
 static int		aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg);
 static void		aac_handle_aif(struct aac_softc *sc,
@@ -229,7 +206,7 @@ static int		aac_query_disk(struct aac_softc *sc, caddr_t uptr);
 static int		aac_get_pci_info(struct aac_softc *sc, caddr_t uptr);
 static int		aac_supported_features(struct aac_softc *sc, caddr_t uptr);
 static void		aac_ioctl_event(struct aac_softc *sc,
-				        struct aac_event *event, void *arg);
+					struct aac_event *event, void *arg);
 static struct aac_mntinforesp *
 	aac_get_container_info(struct aac_softc *sc, struct aac_fib *fib, int cid);
 
@@ -237,13 +214,12 @@ static struct cdevsw aac_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
 	.d_open =	aac_open,
-	.d_close =	aac_close,
 	.d_ioctl =	aac_ioctl,
 	.d_poll =	aac_poll,
 	.d_name =	"aac",
 };
 
-MALLOC_DEFINE(M_AACBUF, "aacbuf", "Buffers for the AAC driver");
+static MALLOC_DEFINE(M_AACBUF, "aacbuf", "Buffers for the AAC driver");
 
 /* sysctl node */
 SYSCTL_NODE(_hw, OID_AUTO, aac, CTLFLAG_RD, 0, "AAC driver parameters");
@@ -316,6 +292,15 @@ aac_attach(struct aac_softc *sc)
 	aac_describe_controller(sc);
 
 	/*
+	 * Add sysctls.
+	 */
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->aac_dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->aac_dev)),
+	    OID_AUTO, "firmware_build", CTLFLAG_RD,
+	    &sc->aac_revision.buildNumber, 0,
+	    "firmware build number");
+
+	/*
 	 * Register to probe our containers later.
 	 */
 	sc->aac_ich.ich_func = aac_startup;
@@ -354,7 +339,7 @@ aac_attach(struct aac_softc *sc)
 	}
 
 	mtx_lock(&sc->aac_io_lock);
-	callout_reset(&sc->aac_daemontime, 30 * 60 * hz, aac_daemon, sc);
+	callout_reset(&sc->aac_daemontime, 60 * hz, aac_daemon, sc);
 	mtx_unlock(&sc->aac_io_lock);
 
 	return(0);
@@ -394,8 +379,6 @@ aac_add_event(struct aac_softc *sc, struct aac_event *event)
 		    event->ev_type);
 		break;
 	}
-
-	return;
 }
 
 /*
@@ -415,7 +398,7 @@ aac_get_container_info(struct aac_softc *sc, struct aac_fib *fib, int cid)
 
 	if (aac_sync_fib(sc, ContainerCommand, 0, fib,
 			 sizeof(struct aac_mntinfo))) {
-		printf("Error probing container %d\n", cid);
+		device_printf(sc->aac_dev, "Error probing container %d\n", cid);
 		return (NULL);
 	}
 
@@ -524,9 +507,9 @@ aac_alloc(struct aac_softc *sc)
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
-			       MAXBSIZE,		/* maxsize */
+			       sc->aac_max_sectors << 9, /* maxsize */
 			       sc->aac_sg_tablesize,	/* nsegments */
-			       MAXBSIZE,		/* maxsegsize */
+			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
 			       busdma_lock_mutex,	/* lockfunc */
 			       &sc->aac_io_lock,	/* lockfuncarg */
@@ -553,7 +536,7 @@ aac_alloc(struct aac_softc *sc)
 			       0,			/* flags */
 			       NULL, NULL,		/* No locking needed */
 			       &sc->aac_fib_dmat)) {
-		device_printf(sc->aac_dev, "can't allocate FIB DMA tag\n");;
+		device_printf(sc->aac_dev, "can't allocate FIB DMA tag\n");
 		return (ENOMEM);
 	}
 
@@ -604,7 +587,7 @@ aac_alloc(struct aac_softc *sc)
 	TAILQ_INIT(&sc->aac_fibmap_tqh);
 	sc->aac_commands = malloc(sc->aac_max_fibs * sizeof(struct aac_command),
 				  M_AACBUF, M_WAITOK|M_ZERO);
-	while (sc->total_fibs < AAC_PREALLOCATE_FIBS) {
+	while (sc->total_fibs < sc->aac_max_fibs) {
 		if (aac_alloc_commands(sc) != 0)
 			break;
 	}
@@ -648,9 +631,11 @@ aac_free(struct aac_softc *sc)
 	/* disconnect the interrupt handler */
 	if (sc->aac_intr)
 		bus_teardown_intr(sc->aac_dev, sc->aac_irq, sc->aac_intr);
-	if (sc->aac_irq != NULL)
-		bus_release_resource(sc->aac_dev, SYS_RES_IRQ, sc->aac_irq_rid,
-				     sc->aac_irq);
+	if (sc->aac_irq != NULL) {
+		bus_release_resource(sc->aac_dev, SYS_RES_IRQ,
+		    rman_get_rid(sc->aac_irq), sc->aac_irq);
+		pci_release_msi(sc->aac_dev);
+	}
 
 	/* destroy data-transfer DMA tag */
 	if (sc->aac_buffer_dmat)
@@ -663,10 +648,10 @@ aac_free(struct aac_softc *sc)
 	/* release the register window mapping */
 	if (sc->aac_regs_res0 != NULL)
 		bus_release_resource(sc->aac_dev, SYS_RES_MEMORY,
-				     sc->aac_regs_rid0, sc->aac_regs_res0);
+		    rman_get_rid(sc->aac_regs_res0), sc->aac_regs_res0);
 	if (sc->aac_hwif == AAC_HWIF_NARK && sc->aac_regs_res1 != NULL)
 		bus_release_resource(sc->aac_dev, SYS_RES_MEMORY,
-				     sc->aac_regs_rid1, sc->aac_regs_res1);
+		    rman_get_rid(sc->aac_regs_res1), sc->aac_regs_res1);
 }
 
 /*
@@ -683,10 +668,17 @@ aac_detach(device_t dev)
 	sc = device_get_softc(dev);
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	if (sc->aac_state & AAC_STATE_OPEN)
-		return(EBUSY);
-
 	callout_drain(&sc->aac_daemontime);
+
+	mtx_lock(&sc->aac_io_lock);
+	while (sc->aifflags & AAC_AIFFLAGS_RUNNING) {
+		sc->aifflags |= AAC_AIFFLAGS_EXIT;
+		wakeup(sc->aifthread);
+		msleep(sc->aac_dev, &sc->aac_io_lock, PUSER, "aacdch", 0);
+	}
+	mtx_unlock(&sc->aac_io_lock);
+	KASSERT((sc->aifflags & AAC_AIFFLAGS_RUNNING) == 0,
+	    ("%s: invalid detach state", __func__));
 
 	/* Remove the child containers */
 	while ((co = TAILQ_FIRST(&sc->aac_container_tqh)) != NULL) {
@@ -705,15 +697,6 @@ aac_detach(device_t dev)
 			return (error);
 		free(sim, M_AACBUF);
 	}
-
-	if (sc->aifflags & AAC_AIFFLAGS_RUNNING) {
-		sc->aifflags |= AAC_AIFFLAGS_EXIT;
-		wakeup(sc->aifthread);
-		tsleep(sc->aac_dev, PUSER | PCATCH, "aacdch", 30 * hz);
-	}
-
-	if (sc->aifflags & AAC_AIFFLAGS_RUNNING)
-		panic("Cannot shutdown AIF thread");
 
 	if ((error = aac_shutdown(dev)))
 		return(error);
@@ -909,8 +892,11 @@ aac_new_intr(void *arg)
 	mtx_unlock(&sc->aac_io_lock);
 }
 
+/*
+ * Interrupt filter for !NEW_COMM interface.
+ */
 int
-aac_fast_intr(void *arg)
+aac_filter(void *arg)
 {
 	struct aac_softc *sc;
 	u_int16_t reason;
@@ -929,7 +915,7 @@ aac_fast_intr(void *arg)
 
 	/* handle completion processing */
 	if (reason & AAC_DB_RESPONSE_READY)
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->aac_task_complete);
+		taskqueue_enqueue(taskqueue_fast, &sc->aac_task_complete);
 
 	/* controller wants to talk to us */
 	if (reason & (AAC_DB_PRINTF | AAC_DB_COMMAND_READY)) {
@@ -1003,14 +989,18 @@ aac_startio(struct aac_softc *sc)
 		 * busdma.
 		 */
 		if (cm->cm_datalen != 0) {
-			error = bus_dmamap_load(sc->aac_buffer_dmat,
-						cm->cm_datamap, cm->cm_data,
-						cm->cm_datalen,
-						aac_map_command_sg, cm, 0);
+			if (cm->cm_flags & AAC_REQ_BIO)
+				error = bus_dmamap_load_bio(
+				    sc->aac_buffer_dmat, cm->cm_datamap,
+				    (struct bio *)cm->cm_private,
+				    aac_map_command_sg, cm, 0);
+			else
+				error = bus_dmamap_load(sc->aac_buffer_dmat,
+				    cm->cm_datamap, cm->cm_data,
+				    cm->cm_datalen, aac_map_command_sg, cm, 0);
 			if (error == EINPROGRESS) {
 				fwprintf(sc, HBA_FLAGS_DBG_COMM_B, "freezing queue\n");
 				sc->flags |= AAC_QUEUE_FRZN;
-				error = 0;
 			} else if (error != 0)
 				panic("aac_startio: unexpected error %d from "
 				      "busdma", error);
@@ -1044,7 +1034,7 @@ aac_command_thread(struct aac_softc *sc)
 		/*
 		 * First see if any FIBs need to be allocated.  This needs
 		 * to be called without the driver lock because contigmalloc
-		 * will grab Giant, and would result in an LOR.
+		 * can sleep.
 		 */
 		if ((sc->aifflags & AAC_AIFFLAGS_ALLOCFIBS) != 0) {
 			mtx_unlock(&sc->aac_io_lock);
@@ -1149,6 +1139,11 @@ aac_complete(void *context, int pending)
 			AAC_PRINT_FIB(sc, fib);
 			break;
 		}
+		if ((cm->cm_flags & AAC_CMD_TIMEDOUT) != 0)
+			device_printf(sc->aac_dev,
+			    "COMMAND %p COMPLETED AFTER %d SECONDS\n",
+			    cm, (int)(time_uptime-cm->cm_timestamp));
+
 		aac_remove_busy(cm);
 
  		aac_unmap_command(cm);
@@ -1210,12 +1205,11 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 		goto fail;
 
 	/* fill out the command */
-	cm->cm_data = (void *)bp->bio_data;
 	cm->cm_datalen = bp->bio_bcount;
 	cm->cm_complete = aac_bio_complete;
+	cm->cm_flags = AAC_REQ_BIO;
 	cm->cm_private = bp;
 	cm->cm_timestamp = time_uptime;
-	cm->cm_queue = AAC_ADAP_NORM_CMD_QUEUE;
 
 	/* build the FIB */
 	fib = cm->cm_fib;
@@ -1343,9 +1337,6 @@ aac_bio_complete(struct aac_command *cm)
 	} else {
 		bp->bio_error = EIO;
 		bp->bio_flags |= BIO_ERROR;
-		/* pass an error string out to the disk layer */
-		bp->bio_driver1 = aac_describe_code(aac_command_status_table,
-						    status);
 	}
 	aac_biodone(bp);
 }
@@ -1370,7 +1361,6 @@ aac_wait_command(struct aac_command *cm)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	/* Put the command on the ready queue and get things going */
-	cm->cm_queue = AAC_ADAP_NORM_CMD_QUEUE;
 	aac_enqueue_ready(cm);
 	aac_startio(sc);
 	error = msleep(cm, &sc->aac_io_lock, PRIBIO, "aacwait", 0);
@@ -1393,7 +1383,9 @@ aac_alloc_command(struct aac_softc *sc, struct aac_command **cmp)
 
 	if ((cm = aac_dequeue_free(sc)) == NULL) {
 		if (sc->total_fibs < sc->aac_max_fibs) {
+			mtx_lock(&sc->aac_io_lock);
 			sc->aifflags |= AAC_AIFFLAGS_ALLOCFIBS;
+			mtx_unlock(&sc->aac_io_lock);
 			wakeup(sc->aifthread);
 		}
 		return (EBUSY);
@@ -1416,10 +1408,12 @@ aac_release_command(struct aac_command *cm)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	/* (re)initialize the command/FIB */
+	cm->cm_datalen = 0;
 	cm->cm_sgtable = NULL;
 	cm->cm_flags = 0;
 	cm->cm_complete = NULL;
 	cm->cm_private = NULL;
+	cm->cm_queue = AAC_ADAP_NORM_CMD_QUEUE;
 	cm->cm_fib->Header.XferState = AAC_FIBSTATE_EMPTY;
 	cm->cm_fib->Header.StructType = AAC_FIBTYPE_TFIB;
 	cm->cm_fib->Header.Flags = 0;
@@ -1435,11 +1429,7 @@ aac_release_command(struct aac_command *cm)
 
 	aac_enqueue_free(cm);
 
-	/*
-	 * Dequeue all events so that there's no risk of events getting
-	 * stranded.
-	 */
-	while ((event = TAILQ_FIRST(&sc->aac_ev_cmfree)) != NULL) {
+	if ((event = TAILQ_FIRST(&sc->aac_ev_cmfree)) != NULL) {
 		TAILQ_REMOVE(&sc->aac_ev_cmfree, event, ev_links);
 		event->ev_callback(sc, event, event->ev_arg);
 	}
@@ -1646,8 +1636,6 @@ aac_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			aac_requeue_ready(cm);
 		}
 	}
-
-	return;
 }
 
 /*
@@ -1699,7 +1687,7 @@ static int
 aac_check_firmware(struct aac_softc *sc)
 {
 	u_int32_t code, major, minor, options = 0, atu_size = 0;
-	int status;
+	int rid, status;
 	time_t then;
 
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
@@ -1777,7 +1765,7 @@ aac_check_firmware(struct aac_softc *sc)
 			sc->flags |= AAC_FLAGS_SG_64BIT;
 		}
 		if ((options & AAC_SUPPORTED_NEW_COMM)
-		 && sc->aac_if.aif_send_command)
+		 && sc->aac_if->aif_send_command)
 			sc->flags |= AAC_FLAGS_NEW_COMM;
 		if (options & AAC_SUPPORTED_64BIT_ARRAYSIZE)
 			sc->flags |= AAC_FLAGS_ARRAY_64BIT;
@@ -1788,17 +1776,15 @@ aac_check_firmware(struct aac_softc *sc)
 
 	/* Remap mem. resource, if required */
 	if ((sc->flags & AAC_FLAGS_NEW_COMM) &&
-		atu_size > rman_get_size(sc->aac_regs_res1)) {
-		bus_release_resource(
-			sc->aac_dev, SYS_RES_MEMORY,
-			sc->aac_regs_rid1, sc->aac_regs_res1);
-		sc->aac_regs_res1 = bus_alloc_resource(
-			sc->aac_dev, SYS_RES_MEMORY, &sc->aac_regs_rid1,
-			0ul, ~0ul, atu_size, RF_ACTIVE);
+	    atu_size > rman_get_size(sc->aac_regs_res1)) {
+		rid = rman_get_rid(sc->aac_regs_res1);
+		bus_release_resource(sc->aac_dev, SYS_RES_MEMORY, rid,
+		    sc->aac_regs_res1);
+		sc->aac_regs_res1 = bus_alloc_resource_anywhere(sc->aac_dev,
+		    SYS_RES_MEMORY, &rid, atu_size, RF_ACTIVE);
 		if (sc->aac_regs_res1 == NULL) {
 			sc->aac_regs_res1 = bus_alloc_resource_any(
-				sc->aac_dev, SYS_RES_MEMORY,
-				&sc->aac_regs_rid1, RF_ACTIVE);
+			    sc->aac_dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 			if (sc->aac_regs_res1 == NULL) {
 				device_printf(sc->aac_dev,
 				    "couldn't allocate register window\n");
@@ -1811,7 +1797,6 @@ aac_check_firmware(struct aac_softc *sc)
 
 		if (sc->aac_hwif == AAC_HWIF_NARK) {
 			sc->aac_regs_res0 = sc->aac_regs_res1;
-			sc->aac_regs_rid0 = sc->aac_regs_rid1;
 			sc->aac_btag0 = sc->aac_btag1;
 			sc->aac_bhandle0 = sc->aac_bhandle1;
 		}
@@ -1901,7 +1886,7 @@ aac_init(struct aac_softc *sc)
 
 	ip->InitFlags = 0;
 	if (sc->flags & AAC_FLAGS_NEW_COMM) {
-		ip->InitFlags = INITFLAGS_NEW_COMM_SUPPORTED;
+		ip->InitFlags |= AAC_INITFLAGS_NEW_COMM_SUPPORTED;
 		device_printf(sc->aac_dev, "New comm. interface enabled\n");
 	}
 
@@ -2015,35 +2000,21 @@ out:
 static int
 aac_setup_intr(struct aac_softc *sc)
 {
-	sc->aac_irq_rid = 0;
-	if ((sc->aac_irq = bus_alloc_resource_any(sc->aac_dev, SYS_RES_IRQ,
-			   			  &sc->aac_irq_rid,
-			   			  RF_SHAREABLE |
-						  RF_ACTIVE)) == NULL) {
-		device_printf(sc->aac_dev, "can't allocate interrupt\n");
-		return (EINVAL);
-	}
+
 	if (sc->flags & AAC_FLAGS_NEW_COMM) {
 		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-				   INTR_MPSAFE|INTR_TYPE_BIO, NULL, 
+				   INTR_MPSAFE|INTR_TYPE_BIO, NULL,
 				   aac_new_intr, sc, &sc->aac_intr)) {
 			device_printf(sc->aac_dev, "can't set up interrupt\n");
 			return (EINVAL);
 		}
 	} else {
 		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-				   INTR_TYPE_BIO, aac_fast_intr, NULL,
+				   INTR_TYPE_BIO, aac_filter, NULL,
 				   sc, &sc->aac_intr)) {
 			device_printf(sc->aac_dev,
-				      "can't set up FAST interrupt\n");
-			if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-					   INTR_MPSAFE|INTR_TYPE_BIO,
-					   NULL, (driver_intr_t *)aac_fast_intr,
-					   sc, &sc->aac_intr)) {
-				device_printf(sc->aac_dev,
-					     "can't set up MPSAFE interrupt\n");
-				return (EINVAL);
-			}
+				      "can't set up interrupt filter\n");
+			return (EINVAL);
 		}
 	}
 	return (0);
@@ -2138,7 +2109,7 @@ aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate,
  * Note that the queue implementation here is a little funky; neither the PI or
  * CI will ever be zero.  This behaviour is a controller feature.
  */
-static struct {
+static const struct {
 	int		size;
 	int		notify;
 } aac_qinfo[] = {
@@ -2376,11 +2347,12 @@ aac_timeout(struct aac_softc *sc)
 	deadline = time_uptime - AAC_CMD_TIMEOUT;
 	TAILQ_FOREACH(cm, &sc->aac_busy, cm_link) {
 		if ((cm->cm_timestamp  < deadline)
-			/* && !(cm->cm_flags & AAC_CMD_TIMEDOUT) */) {
+		    && !(cm->cm_flags & AAC_CMD_TIMEDOUT)) {
 			cm->cm_flags |= AAC_CMD_TIMEDOUT;
 			device_printf(sc->aac_dev,
-				      "COMMAND %p TIMEOUT AFTER %d SECONDS\n",
-				      cm, (int)(time_uptime-cm->cm_timestamp));
+			    "COMMAND %p (TYPE %d) TIMEOUT AFTER %d SECONDS\n",
+			    cm, cm->cm_fib->Header.Command,
+			    (int)(time_uptime-cm->cm_timestamp));
 			AAC_PRINT_FIB(sc, cm->cm_fib);
 			timedout++;
 		}
@@ -2393,7 +2365,6 @@ aac_timeout(struct aac_softc *sc)
 				      "longer running! code= 0x%x\n", code);
 		}
 	}
-	return;
 }
 
 /*
@@ -2418,17 +2389,6 @@ aac_rx_get_fwstatus(struct aac_softc *sc)
 
 	return(AAC_MEM0_GETREG4(sc, sc->flags & AAC_FLAGS_NEW_COMM ?
 	    AAC_RX_OMR0 : AAC_RX_FWSTATUS));
-}
-
-static int
-aac_fa_get_fwstatus(struct aac_softc *sc)
-{
-	int val;
-
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-
-	val = AAC_MEM0_GETREG4(sc, AAC_FA_FWSTATUS);
-	return (val);
 }
 
 static int
@@ -2461,15 +2421,6 @@ aac_rx_qnotify(struct aac_softc *sc, int qbit)
 }
 
 static void
-aac_fa_qnotify(struct aac_softc *sc, int qbit)
-{
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-
-	AAC_MEM0_SETREG2(sc, AAC_FA_DOORBELL1, qbit);
-	AAC_FA_HACK(sc);
-}
-
-static void
 aac_rkt_qnotify(struct aac_softc *sc, int qbit)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
@@ -2497,17 +2448,6 @@ aac_rx_get_istatus(struct aac_softc *sc)
 }
 
 static int
-aac_fa_get_istatus(struct aac_softc *sc)
-{
-	int val;
-
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-
-	val = AAC_MEM0_GETREG2(sc, AAC_FA_DOORBELL0);
-	return (val);
-}
-
-static int
 aac_rkt_get_istatus(struct aac_softc *sc)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
@@ -2532,15 +2472,6 @@ aac_rx_clear_istatus(struct aac_softc *sc, int mask)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	AAC_MEM0_SETREG4(sc, AAC_RX_ODBR, mask);
-}
-
-static void
-aac_fa_clear_istatus(struct aac_softc *sc, int mask)
-{
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-
-	AAC_MEM0_SETREG2(sc, AAC_FA_DOORBELL0_CLEAR, mask);
-	AAC_FA_HACK(sc);
 }
 
 static void
@@ -2581,24 +2512,6 @@ aac_rx_set_mailbox(struct aac_softc *sc, u_int32_t command,
 }
 
 static void
-aac_fa_set_mailbox(struct aac_softc *sc, u_int32_t command,
-		u_int32_t arg0, u_int32_t arg1, u_int32_t arg2, u_int32_t arg3)
-{
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-
-	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX, command);
-	AAC_FA_HACK(sc);
-	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX + 4, arg0);
-	AAC_FA_HACK(sc);
-	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX + 8, arg1);
-	AAC_FA_HACK(sc);
-	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX + 12, arg2);
-	AAC_FA_HACK(sc);
-	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX + 16, arg3);
-	AAC_FA_HACK(sc);
-}
-
-static void
 aac_rkt_set_mailbox(struct aac_softc *sc, u_int32_t command, u_int32_t arg0,
 		    u_int32_t arg1, u_int32_t arg2, u_int32_t arg3)
 {
@@ -2628,17 +2541,6 @@ aac_rx_get_mailbox(struct aac_softc *sc, int mb)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	return(AAC_MEM1_GETREG4(sc, AAC_RX_MAILBOX + (mb * 4)));
-}
-
-static int
-aac_fa_get_mailbox(struct aac_softc *sc, int mb)
-{
-	int val;
-
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-
-	val = AAC_MEM1_GETREG4(sc, AAC_FA_MAILBOX + (mb * 4));
-	return (val);
 }
 
 static int
@@ -2676,20 +2578,6 @@ aac_rx_set_interrupts(struct aac_softc *sc, int enable)
 			AAC_MEM0_SETREG4(sc, AAC_RX_OIMR, ~AAC_DB_INTERRUPTS);
 	} else {
 		AAC_MEM0_SETREG4(sc, AAC_RX_OIMR, ~0);
-	}
-}
-
-static void
-aac_fa_set_interrupts(struct aac_softc *sc, int enable)
-{
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "%sable interrupts", enable ? "en" : "dis");
-
-	if (enable) {
-		AAC_MEM0_SETREG2((sc), AAC_FA_MASK0_CLEAR, AAC_DB_INTERRUPTS);
-		AAC_FA_HACK(sc);
-	} else {
-		AAC_MEM0_SETREG2((sc), AAC_FA_MASK0, ~0);
-		AAC_FA_HACK(sc);
 	}
 }
 
@@ -2876,10 +2764,8 @@ aac_describe_controller(struct aac_softc *sc)
 	}
 	device_printf(sc->aac_dev, "%s, aac driver %d.%d.%d-%d\n",
 		adapter_type,
-		AAC_DRIVER_VERSION >> 24,
-		(AAC_DRIVER_VERSION >> 16) & 0xFF,
-		AAC_DRIVER_VERSION & 0xFF,
-		AAC_DRIVER_BUILD);
+		AAC_DRIVER_MAJOR_VERSION, AAC_DRIVER_MINOR_VERSION,
+		AAC_DRIVER_BUGFIX_LEVEL, AAC_DRIVER_BUILD);
 
 	aac_release_sync_fib(sc);
 	mtx_unlock(&sc->aac_io_lock);
@@ -2889,8 +2775,8 @@ aac_describe_controller(struct aac_softc *sc)
  * Look up a text description of a numeric error code and return a pointer to
  * same.
  */
-static char *
-aac_describe_code(struct aac_code_lookup *table, u_int32_t code)
+static const char *
+aac_describe_code(const struct aac_code_lookup *table, u_int32_t code)
 {
 	int i;
 
@@ -2911,23 +2797,8 @@ aac_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	sc = dev->si_drv1;
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-	sc->aac_open_cnt++;
-	sc->aac_state |= AAC_STATE_OPEN;
-
-	return 0;
-}
-
-static int
-aac_close(struct cdev *dev, int flags, int fmt, struct thread *td)
-{
-	struct aac_softc *sc;
-
-	sc = dev->si_drv1;
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
-	sc->aac_open_cnt--;
-	/* Mark this unit as no longer open  */
-	if (sc->aac_open_cnt == 0)
-		sc->aac_state &= ~AAC_STATE_OPEN;
+	device_busy(sc->aac_dev);
+	devfs_set_cdevpriv(sc, aac_cdevpriv_dtor);
 
 	return 0;
 }
@@ -3175,7 +3046,170 @@ out:
 static int
 aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 {
-	return (EINVAL);
+	struct aac_command *cm;
+	struct aac_event *event;
+	struct aac_fib *fib;
+	struct aac_srb *srbcmd, *user_srb;
+	struct aac_sg_entry *sge;
+	struct aac_sg_entry64 *sge64;
+	void *srb_sg_address, *ureply;
+	uint32_t fibsize, srb_sg_bytecount;
+	int error, transfer_data;
+
+	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
+
+	cm = NULL;
+	transfer_data = 0;
+	fibsize = 0;
+	user_srb = (struct aac_srb *)arg;
+
+	mtx_lock(&sc->aac_io_lock);
+	if (aac_alloc_command(sc, &cm)) {
+		 event = malloc(sizeof(struct aac_event), M_AACBUF,
+		    M_NOWAIT | M_ZERO);
+		if (event == NULL) {
+			error = EBUSY;
+			mtx_unlock(&sc->aac_io_lock);
+			goto out;
+		}
+		event->ev_type = AAC_EVENT_CMFREE;
+		event->ev_callback = aac_ioctl_event;
+		event->ev_arg = &cm;
+		aac_add_event(sc, event);
+		msleep(cm, &sc->aac_io_lock, 0, "aacraw", 0);
+	}
+	mtx_unlock(&sc->aac_io_lock);
+
+	cm->cm_data = NULL;
+	fib = cm->cm_fib;
+	srbcmd = (struct aac_srb *)fib->data;
+	error = copyin(&user_srb->data_len, &fibsize, sizeof(uint32_t));
+	if (error != 0)
+		goto out;
+	if (fibsize > (sc->aac_max_fib_size - sizeof(struct aac_fib_header))) {
+		error = EINVAL;
+		goto out;
+	}
+	error = copyin(user_srb, srbcmd, fibsize);
+	if (error != 0)
+		goto out;
+	srbcmd->function = 0;
+	srbcmd->retry_limit = 0;
+	if (srbcmd->sg_map.SgCount > 1) {
+		error = EINVAL;
+		goto out;
+	}
+
+	/* Retrieve correct SG entries. */
+	if (fibsize == (sizeof(struct aac_srb) +
+	    srbcmd->sg_map.SgCount * sizeof(struct aac_sg_entry))) {
+		struct aac_sg_entry sg;
+
+		sge = srbcmd->sg_map.SgEntry;
+		sge64 = NULL;
+
+		if ((error = copyin(sge, &sg, sizeof(sg))) != 0)
+			goto out;
+
+		srb_sg_bytecount = sg.SgByteCount;
+		srb_sg_address = (void *)(uintptr_t)sg.SgAddress;
+	}
+#ifdef __amd64__
+	else if (fibsize == (sizeof(struct aac_srb) +
+	    srbcmd->sg_map.SgCount * sizeof(struct aac_sg_entry64))) {
+		struct aac_sg_entry64 sg;
+
+		sge = NULL;
+		sge64 = (struct aac_sg_entry64 *)srbcmd->sg_map.SgEntry;
+
+		if ((error = copyin(sge64, &sg, sizeof(sg))) != 0)
+			goto out;
+
+		srb_sg_bytecount = sg.SgByteCount;
+		srb_sg_address = (void *)sg.SgAddress;
+		if (sge64->SgAddress > 0xffffffffull &&
+		    (sc->flags & AAC_FLAGS_SG_64BIT) == 0) {
+			error = EINVAL;
+			goto out;
+		}
+	}
+#endif
+	else {
+		error = EINVAL;
+		goto out;
+	}
+	ureply = (char *)arg + fibsize;
+	srbcmd->data_len = srb_sg_bytecount;
+	if (srbcmd->sg_map.SgCount == 1)
+		transfer_data = 1;
+
+	cm->cm_sgtable = (struct aac_sg_table *)&srbcmd->sg_map;
+	if (transfer_data) {
+		cm->cm_datalen = srb_sg_bytecount;
+		cm->cm_data = malloc(cm->cm_datalen, M_AACBUF, M_NOWAIT);
+		if (cm->cm_data == NULL) {
+			error = ENOMEM;
+			goto out;
+		}
+		if (srbcmd->flags & AAC_SRB_FLAGS_DATA_IN)
+			cm->cm_flags |= AAC_CMD_DATAIN;
+		if (srbcmd->flags & AAC_SRB_FLAGS_DATA_OUT) {
+			cm->cm_flags |= AAC_CMD_DATAOUT;
+			error = copyin(srb_sg_address, cm->cm_data,
+			    cm->cm_datalen);
+			if (error != 0)
+				goto out;
+		}
+	}
+
+	fib->Header.Size = sizeof(struct aac_fib_header) +
+	    sizeof(struct aac_srb);
+	fib->Header.XferState =
+	    AAC_FIBSTATE_HOSTOWNED   |
+	    AAC_FIBSTATE_INITIALISED |
+	    AAC_FIBSTATE_EMPTY       |
+	    AAC_FIBSTATE_FROMHOST    |
+	    AAC_FIBSTATE_REXPECTED   |
+	    AAC_FIBSTATE_NORM        |
+	    AAC_FIBSTATE_ASYNC       |
+	    AAC_FIBSTATE_FAST_RESPONSE;
+	fib->Header.Command = (sc->flags & AAC_FLAGS_SG_64BIT) != 0 ?
+	    ScsiPortCommandU64 : ScsiPortCommand;
+
+	mtx_lock(&sc->aac_io_lock);
+	aac_wait_command(cm);
+	mtx_unlock(&sc->aac_io_lock);
+
+	if (transfer_data && (srbcmd->flags & AAC_SRB_FLAGS_DATA_IN) != 0) {
+		error = copyout(cm->cm_data, srb_sg_address, cm->cm_datalen);
+		if (error != 0)
+			goto out;
+	}
+	error = copyout(fib->data, ureply, sizeof(struct aac_srb_response));
+out:
+	if (cm != NULL) {
+		if (cm->cm_data != NULL)
+			free(cm->cm_data, M_AACBUF);
+		mtx_lock(&sc->aac_io_lock);
+		aac_release_command(cm);
+		mtx_unlock(&sc->aac_io_lock);
+	}
+	return(error);
+}
+
+/*
+ * cdevpriv interface private destructor.
+ */
+static void
+aac_cdevpriv_dtor(void *arg)
+{
+	struct aac_softc *sc;
+
+	sc = arg;
+	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
+	mtx_lock(&Giant);
+	device_unbusy(sc->aac_dev);
+	mtx_unlock(&Giant);
 }
 
 /*
@@ -3191,6 +3225,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 	struct aac_mntinforesp *mir;
 	int next, current, found;
 	int count = 0, added = 0, i = 0;
+	uint32_t channel;
 
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
@@ -3299,6 +3334,27 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 
 			break;
 
+		case AifEnEnclosureManagement:
+			switch (aif->data.EN.data.EEE.eventType) {
+			case AIF_EM_DRIVE_INSERTION:
+			case AIF_EM_DRIVE_REMOVAL:
+				channel = aif->data.EN.data.EEE.unitID;
+				if (sc->cam_rescan_cb != NULL)
+					sc->cam_rescan_cb(sc,
+					    (channel >> 24) & 0xF,
+					    (channel & 0xFFFF));
+				break;
+			}
+			break;
+
+		case AifEnAddJBOD:
+		case AifEnDeleteJBOD:
+			channel = aif->data.EN.data.ECE.container;
+			if (sc->cam_rescan_cb != NULL)
+				sc->cam_rescan_cb(sc, (channel >> 24) & 0xF,
+				    AAC_CAM_TARGET_WILDCARD);
+			break;
+
 		default:
 			break;
 		}
@@ -3330,8 +3386,6 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 	/* Wakeup any poll()ers */
 	selwakeuppri(&sc->rcv_select, PRIBIO);
 	mtx_unlock(&sc->aac_aifq_lock);
-
-	return;
 }
 
 /*
@@ -3364,10 +3418,16 @@ aac_rev_check(struct aac_softc *sc, caddr_t udata)
 	 * Doctor up the response struct.
 	 */
 	rev_check_resp.possiblyCompatible = 1;
-	rev_check_resp.adapterSWRevision.external.ul =
-	    sc->aac_revision.external.ul;
+	rev_check_resp.adapterSWRevision.external.comp.major =
+	    AAC_DRIVER_MAJOR_VERSION;
+	rev_check_resp.adapterSWRevision.external.comp.minor =
+	    AAC_DRIVER_MINOR_VERSION;
+	rev_check_resp.adapterSWRevision.external.comp.type =
+	    AAC_DRIVER_TYPE;
+	rev_check_resp.adapterSWRevision.external.comp.dash =
+	    AAC_DRIVER_BUGFIX_LEVEL;
 	rev_check_resp.adapterSWRevision.buildNumber =
-	    sc->aac_revision.buildNumber;
+	    AAC_DRIVER_BUILD;
 
 	return(copyout((caddr_t)&rev_check_resp, udata,
 			sizeof(struct aac_rev_check_resp)));
@@ -3618,7 +3678,7 @@ aac_query_disk(struct aac_softc *sc, caddr_t uptr)
 		query_disk.Lun = 0;
 		query_disk.UnMapped = 0;
 		sprintf(&query_disk.diskDeviceName[0], "%s%d",
-		        disk->ad_disk->d_name, disk->ad_disk->d_unit);
+			disk->ad_disk->d_name, disk->ad_disk->d_unit);
 	}
 	mtx_unlock(&sc->aac_container_lock);
 
@@ -3714,7 +3774,7 @@ aac_get_bus_info(struct aac_softc *sc)
 			device_printf(sc->aac_dev,
 			    "No memory to add passthrough bus %d\n", i);
 			break;
-		};
+		}
 
 		child = device_add_child(sc->aac_dev, "aacp", -1);
 		if (child == NULL) {
@@ -3740,6 +3800,4 @@ aac_get_bus_info(struct aac_softc *sc)
 
 	if (found)
 		bus_generic_attach(sc->aac_dev);
-
-	return;
 }

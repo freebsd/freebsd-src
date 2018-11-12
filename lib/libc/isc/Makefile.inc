@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 # isc sources
-.PATH: ${.CURDIR}/isc
+.PATH: ${LIBC_SRCTOP}/isc
 
 SRCS+=	ev_streams.c ev_timers.c

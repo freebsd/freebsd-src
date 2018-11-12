@@ -14,13 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -60,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -84,6 +76,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/usb_pci.h>
 #include <dev/usb/controller/ehci.h>
+#include <dev/usb/controller/ehcireg.h>
+#include "usb_if.h"
 
 #define	PCI_EHCI_VENDORID_ACERLABS	0x10b9
 #define	PCI_EHCI_VENDORID_AMD		0x1022
@@ -99,56 +93,10 @@ __FBSDID("$FreeBSD$");
 #define	PCI_EHCI_VENDORID_NVIDIA2	0x10DE
 #define	PCI_EHCI_VENDORID_VIA		0x1106
 
-#define	PCI_EHCI_BASE_REG	0x10
-
-static void ehci_pci_takecontroller(device_t self);
-
 static device_probe_t ehci_pci_probe;
 static device_attach_t ehci_pci_attach;
 static device_detach_t ehci_pci_detach;
-static device_suspend_t ehci_pci_suspend;
-static device_resume_t ehci_pci_resume;
-static device_shutdown_t ehci_pci_shutdown;
-
-static int
-ehci_pci_suspend(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_suspend(self);
-	if (err)
-		return (err);
-	ehci_suspend(sc);
-	return (0);
-}
-
-static int
-ehci_pci_resume(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-
-	ehci_pci_takecontroller(self);
-	ehci_resume(sc);
-
-	bus_generic_resume(self);
-
-	return (0);
-}
-
-static int
-ehci_pci_shutdown(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_shutdown(self);
-	if (err)
-		return (err);
-	ehci_shutdown(sc);
-
-	return (0);
-}
+static usb_take_controller_t ehci_pci_take_controller;
 
 static const char *
 ehci_pci_match(device_t self)
@@ -156,9 +104,6 @@ ehci_pci_match(device_t self)
 	uint32_t device_id = pci_get_devid(self);
 
 	switch (device_id) {
-	case 0x268c8086:
-		return ("Intel 63XXESB USB 2.0 controller");
-
 	case 0x523910b9:
 		return "ALi M5239 USB 2.0 controller";
 
@@ -167,12 +112,28 @@ ehci_pci_match(device_t self)
 
 	case 0x20951022:
 		return ("AMD CS5536 (Geode) USB 2.0 controller");
+	case 0x78081022:
+		return ("AMD FCH USB 2.0 controller");
 
 	case 0x43451002:
 		return "ATI SB200 USB 2.0 controller";
 	case 0x43731002:
 		return "ATI SB400 USB 2.0 controller";
+	case 0x43961002:
+		return ("AMD SB7x0/SB8x0/SB9x0 USB 2.0 controller");
 
+	case 0x0f348086:
+		return ("Intel BayTrail USB 2.0 controller");
+	case 0x1d268086:
+		return ("Intel Patsburg USB 2.0 controller");
+	case 0x1d2d8086:
+		return ("Intel Patsburg USB 2.0 controller");
+	case 0x1e268086:
+		return ("Intel Panther Point USB 2.0 controller");
+	case 0x1e2d8086:
+		return ("Intel Panther Point USB 2.0 controller");
+	case 0x1f2c8086:
+		return ("Intel Avoton USB 2.0 controller");
 	case 0x25ad8086:
 		return "Intel 6300ESB USB 2.0 controller";
 	case 0x24cd8086:
@@ -181,9 +142,10 @@ ehci_pci_match(device_t self)
 		return "Intel 82801EB/R (ICH5) USB 2.0 controller";
 	case 0x265c8086:
 		return "Intel 82801FB (ICH6) USB 2.0 controller";
+	case 0x268c8086:
+		return ("Intel 63XXESB USB 2.0 controller");
 	case 0x27cc8086:
 		return "Intel 82801GB/R (ICH7) USB 2.0 controller";
-
 	case 0x28368086:
 		return "Intel 82801H (ICH8) USB 2.0 controller USB2-A";
 	case 0x283a8086:
@@ -192,9 +154,31 @@ ehci_pci_match(device_t self)
 		return "Intel 82801I (ICH9) USB 2.0 controller";
 	case 0x293c8086:
 		return "Intel 82801I (ICH9) USB 2.0 controller";
+	case 0x3a3a8086:
+		return "Intel 82801JI (ICH10) USB 2.0 controller USB-A";
+	case 0x3a3c8086:
+		return "Intel 82801JI (ICH10) USB 2.0 controller USB-B";
+	case 0x3b348086:
+		return ("Intel PCH USB 2.0 controller USB-A");
+	case 0x3b3c8086:
+		return ("Intel PCH USB 2.0 controller USB-B");
+	case 0x8c268086:
+		return ("Intel Lynx Point USB 2.0 controller USB-A");
+	case 0x8c2d8086:
+		return ("Intel Lynx Point USB 2.0 controller USB-B");
+	case 0x8ca68086:
+		return ("Intel Wildcat Point USB 2.0 controller USB-A");
+	case 0x8cad8086:
+		return ("Intel Wildcat Point USB 2.0 controller USB-B");
+	case 0x8d268086:
+		return ("Intel Wellsburg USB 2.0 controller");
+	case 0x8d2d8086:
+		return ("Intel Wellsburg USB 2.0 controller");
+	case 0x9c268086:
+		return ("Intel Lynx Point LP USB 2.0 controller USB");
 
 	case 0x00e01033:
-		return ("NEC uPD 720100 USB 2.0 controller");
+		return ("NEC uPD 72010x USB 2.0 controller");
 
 	case 0x006810de:
 		return "NVIDIA nForce2 USB 2.0 controller";
@@ -205,9 +189,17 @@ ehci_pci_match(device_t self)
 	case 0x00e810de:
 		return "NVIDIA nForce3 250 USB 2.0 controller";
 	case 0x005b10de:
-		return "NVIDIA nForce4 USB 2.0 controller";
+		return "NVIDIA nForce CK804 USB 2.0 controller";
+	case 0x036d10de:
+		return "NVIDIA nForce MCP55 USB 2.0 controller";
 	case 0x03f210de:
 		return "NVIDIA nForce MCP61 USB 2.0 controller";
+	case 0x0aa610de:
+		return "NVIDIA nForce MCP79 USB 2.0 controller";
+	case 0x0aa910de:
+		return "NVIDIA nForce MCP79 USB 2.0 controller";
+	case 0x0aaa10de:
+		return "NVIDIA nForce MCP79 USB 2.0 controller";
 
 	case 0x15621131:
 		return "Philips ISP156x USB 2.0 controller";
@@ -234,7 +226,7 @@ ehci_pci_probe(device_t self)
 
 	if (desc) {
 		device_set_desc(self, desc);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	} else {
 		return (ENXIO);
 	}
@@ -279,6 +271,7 @@ ehci_pci_via_quirk(device_t self)
 		val = pci_read_config(self, 0x4b, 1);
 		if (val & 0x20)
 			return;
+		val |= 0x20;
 		pci_write_config(self, 0x4b, val, 1);
 		device_printf(self, "VIA-quirk applied\n");
 	}
@@ -295,6 +288,7 @@ ehci_pci_attach(device_t self)
 	sc->sc_bus.parent = self;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus,
@@ -317,13 +311,11 @@ ehci_pci_attach(device_t self)
 		device_printf(self, "pre-2.0 USB revision (ignored)\n");
 		/* fallthrough */
 	case PCI_USB_REV_2_0:
-		sc->sc_bus.usbrev = USB_REV_2_0;
 		break;
 	default:
 		/* Quirk for Parallels Desktop 4.0 */
 		device_printf(self, "USB revision is unknown. Assuming v2.0.\n");
-		sc->sc_bus.usbrev = USB_REV_2_0;
-                break;
+		break;
 	}
 
 	rid = PCI_CBMEM;
@@ -413,7 +405,7 @@ ehci_pci_attach(device_t self)
 		sc->sc_intr_hdl = NULL;
 		goto error;
 	}
-	ehci_pci_takecontroller(self);
+	ehci_pci_take_controller(self);
 
 	/* Undocumented quirks taken from Linux */
 
@@ -436,6 +428,32 @@ ehci_pci_attach(device_t self)
 		ehci_pci_via_quirk(self);
 		break;
 
+	default:
+		break;
+	}
+
+	/* Dropped interrupts workaround */
+	switch (pci_get_vendor(self)) {
+	case PCI_EHCI_VENDORID_ATI:
+	case PCI_EHCI_VENDORID_VIA:
+		sc->sc_flags |= EHCI_SCFLG_LOSTINTRBUG;
+		if (bootverbose)
+			device_printf(self,
+			    "Dropped interrupts workaround enabled\n");
+		break;
+	default:
+		break;
+	}
+
+	/* Doorbell feature workaround */
+	switch (pci_get_vendor(self)) {
+	case PCI_EHCI_VENDORID_NVIDIA:
+	case PCI_EHCI_VENDORID_NVIDIA2:
+		sc->sc_flags |= EHCI_SCFLG_IAADBUG;
+		if (bootverbose)
+			device_printf(self,
+			    "Doorbell workaround enabled\n");
+		break;
 	default:
 		break;
 	}
@@ -467,16 +485,10 @@ ehci_pci_detach(device_t self)
 		device_delete_child(self, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(self);
+	device_delete_children(self);
 
 	pci_disable_busmaster(self);
 
-	/*
-	 * disable interrupts that might have been switched on in ehci_init
-	 */
-	if (sc->sc_io_res) {
-		EWRITE4(sc, EHCI_USBINTR, 0);
-	}
 	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/*
 		 * only call ehci_detach() after ehci_init()
@@ -505,8 +517,8 @@ ehci_pci_detach(device_t self)
 	return (0);
 }
 
-static void
-ehci_pci_takecontroller(device_t self)
+static int
+ehci_pci_take_controller(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
 	uint32_t cparams;
@@ -548,24 +560,25 @@ ehci_pci_takecontroller(device_t self)
 			usb_pause_mtx(NULL, hz / 100);	/* wait 10ms */
 		}
 	}
+	return (0);
 }
 
-static driver_t ehci_driver =
-{
-	.name = "ehci",
-	.methods = (device_method_t[]){
-		/* device interface */
-		DEVMETHOD(device_probe, ehci_pci_probe),
-		DEVMETHOD(device_attach, ehci_pci_attach),
-		DEVMETHOD(device_detach, ehci_pci_detach),
-		DEVMETHOD(device_suspend, ehci_pci_suspend),
-		DEVMETHOD(device_resume, ehci_pci_resume),
-		DEVMETHOD(device_shutdown, ehci_pci_shutdown),
-		/* bus interface */
-		DEVMETHOD(bus_print_child, bus_generic_print_child),
+static device_method_t ehci_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe, ehci_pci_probe),
+	DEVMETHOD(device_attach, ehci_pci_attach),
+	DEVMETHOD(device_detach, ehci_pci_detach),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(usb_take_controller, ehci_pci_take_controller),
 
-		{0, 0}
-	},
+	DEVMETHOD_END
+};
+
+static driver_t ehci_driver = {
+	.name = "ehci",
+	.methods = ehci_pci_methods,
 	.size = sizeof(struct ehci_softc),
 };
 

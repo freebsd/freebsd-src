@@ -71,7 +71,7 @@ uart_cpu_channel(char *dev)
 	if ((aliases = OF_finddevice("/aliases")) != -1)
 		(void)OF_getprop(aliases, dev, alias, sizeof(alias));
 	len = strlen(alias);
-	if ((p = rindex(alias, ':')) == NULL)
+	if ((p = strrchr(alias, ':')) == NULL)
 		return (0);
 	p++;
 	if (p - alias == len - 1 && (*p == 'a' || *p == 'b'))
@@ -133,6 +133,14 @@ uart_cpu_getdev_console(phandle_t options, char *dev, size_t devsz)
 		return (-1);
 	if (strcmp(buf, "serial") != 0)
 		return (-1);
+	/* For a Serengeti console device point to the bootbus controller. */
+	if (OF_getprop(input, "name", buf, sizeof(buf)) > 0 &&
+	    !strcmp(buf, "sgcn")) {
+		if ((chosen = OF_finddevice("/chosen")) == -1)
+			return (-1);
+		if (OF_getprop(chosen, "iosram", &input, sizeof(input)) == -1)
+			return (-1);
+	}
 	return (input);
 }
 
@@ -230,7 +238,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->bas.regshft = 0;
 	di->bas.rclk = 0;
 	class = NULL;
-	if (!strcmp(buf, "se") || !strcmp(compat, "sab82532")) {
+	if (!strcmp(buf, "se") || !strcmp(buf, "FJSV,se") ||
+	    !strcmp(compat, "sab82532")) {
 		class = &uart_sab82532_class;
 		/* SAB82532 are only known to be used for TTYs. */
 		if ((di->bas.chan = uart_cpu_channel(dev)) == 0)
@@ -254,8 +263,12 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		addr += range - range * (di->bas.chan - 1);
 	} else if (!strcmp(buf, "lom-console") || !strcmp(buf, "su") ||
 	    !strcmp(buf, "su_pnp") || !strcmp(compat, "rsc-console") ||
-	    !strcmp(compat, "su") || !strcmp(compat, "su16550")) {
+	    !strcmp(compat, "su") || !strcmp(compat, "su16550") ||
+	    !strcmp(compat, "su16552")) {
 		class = &uart_ns8250_class;
+		di->bas.chan = 0;
+	} else if (!strcmp(compat, "sgsbbc")) {
+		class = &uart_sbbc_class;
 		di->bas.chan = 0;
 	}
 	if (class == NULL)

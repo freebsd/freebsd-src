@@ -30,6 +30,7 @@
  */
 
 #include <assert.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <err.h>
 #include <errno.h>
@@ -207,7 +208,14 @@ print_l2cap_command(struct l2cap_command *category)
 static void
 usage(void)
 {
-	fprintf(stdout, "Usage: l2control -a BD_ADDR [-n] [-h] cmd [p1] [..]]\n");
+	fprintf(stderr, "Usage: l2control [-hn] -a local cmd [params ..]\n");
+	fprintf(stderr, "Where:\n");
+	fprintf(stderr, "  -a local   Specify local device to connect to\n");
+	fprintf(stderr, "  -h         Display this message\n");
+	fprintf(stderr, "  -n         Show addresses as numbers\n");
+	fprintf(stderr, "  cmd        Supported command " \
+		"(see l2control help)\n");
+	fprintf(stderr, "  params     Optional command parameters\n");
 	exit(255);
 } /* usage */
 

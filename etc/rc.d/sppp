@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="sppp"
+desc="Point to point protocol network layer for synchronous lines"
 start_cmd="sppp_start"
 stop_cmd=":"
 

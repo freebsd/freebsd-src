@@ -678,6 +678,9 @@ arm_scan_prologue (struct frame_info *next_frame, struct arm_prologue_cache *cac
   cache->framesize = 0;
   cache->frameoffset = 0;
 
+  if (frame_tdep_pc_fixup)
+  	frame_tdep_pc_fixup(&prev_pc);
+
   /* Check for Thumb prologue.  */
   if (arm_pc_is_thumb (prev_pc))
     {
@@ -914,7 +917,6 @@ arm_make_prologue_cache (struct frame_info *next_frame)
   cache->saved_regs = trad_frame_alloc_saved_regs (next_frame);
 
   arm_scan_prologue (next_frame, cache);
-
   unwound_fp = frame_unwind_register_unsigned (next_frame, cache->framereg);
   if (unwound_fp == 0)
     return cache;
@@ -2578,6 +2580,21 @@ arm_elf_osabi_sniffer (bfd *abfd)
 
 	    case EF_ARM_EABI_VER2:
 	      osabi = GDB_OSABI_ARM_EABI_V2;
+	      break;
+
+	    case EF_ARM_EABI_VER3:
+	    case EF_ARM_EABI_VER4:
+	    case EF_ARM_EABI_VER5:
+	      /*
+	       * GDB does not support these EABI versions. Fallback
+	       * to the highest known to make the KGDB working with
+	       * kernel ELF image.
+	       */
+	      osabi = GDB_OSABI_ARM_EABI_V2;
+	      printf ("\n%s:%d "
+	              "arm_elf_osabi_sniffer: Unsupported ARM EABI "
+	              "version 0x%x, falling back to 0x%x\n",
+	              __FILE__, __LINE__, eflags, EF_ARM_EABI_VER2);
 	      break;
 
 	    case EF_ARM_EABI_UNKNOWN:

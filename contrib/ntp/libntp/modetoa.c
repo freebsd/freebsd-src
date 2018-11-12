@@ -1,6 +1,7 @@
 /*
  * modetoa - return an asciized mode
  */
+#include <config.h>
 #include <stdio.h>
 
 #include "lib_strbuf.h"
@@ -8,11 +9,11 @@
 
 const char *
 modetoa(
-	int mode
+	size_t mode
 	)
 {
 	char *bp;
-	static const char *modestrings[] = {
+	static const char * const modestrings[] = {
 		"unspec",
 		"sym_active",
 		"sym_passive",
@@ -24,9 +25,9 @@ modetoa(
 		"bclient",
 	};
 
-	if (mode < 0 || mode >= (sizeof modestrings)/sizeof(char *)) {
+	if (mode >= COUNTOF(modestrings)) {
 		LIB_GETBUF(bp);
-		(void)sprintf(bp, "mode#%d", mode);
+		snprintf(bp, LIB_BUFLENGTH, "mode#%zu", mode);
 		return bp;
 	}
 

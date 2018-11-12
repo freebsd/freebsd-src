@@ -30,7 +30,7 @@
 .\"     @(#)glob.3	8.3 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2004
+.Dd December 20, 2011
 .Dt GLOB 3
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Sh SYNOPSIS
 .In glob.h
 .Ft int
-.Fn glob "const char *pattern" "int flags" "int (*errfunc)(const char *, int)" "glob_t *pglob"
+.Fn glob "const char * restrict pattern" "int flags" "int (*errfunc)(const char *, int)" "glob_t * restrict pglob"
 .Ft void
 .Fn globfree "glob_t *pglob"
 .Sh DESCRIPTION
@@ -194,7 +194,7 @@ If
 is set, backslash escaping is disabled.
 .It Dv GLOB_NOSORT
 By default, the pathnames are sorted in ascending
-.Tn ASCII
+collation
 order;
 this flag prevents that sorting (speeding up
 .Fn glob ) .
@@ -275,24 +275,10 @@ is
 .Pf non- Dv NULL ,
 .Fn glob
 calls
-.Fa \*(lp*errfunc\*(rp Ns ( Fa path , errno ) .
-This may be unintuitive: a pattern like
-.Ql */Makefile
-will try to
-.Xr stat 2
-.Ql foo/Makefile
-even if
-.Ql foo
-is not a directory, resulting in a
-call to
-.Fa errfunc .
-The error routine can suppress this action by testing for
-.Er ENOENT
-and
-.Er ENOTDIR ;
+.Fa \*(lp*errfunc\*(rp Ns ( Fa path , errno ) ,
 however, the
 .Dv GLOB_ERR
-flag will still cause an immediate
+flag will cause an immediate
 return when this happens.
 .Pp
 If
@@ -377,7 +363,7 @@ file
 .It Dv GLOB_NOSPACE
 An attempt to allocate memory failed, or if
 .Fa errno
-was 0
+was E2BIG,
 .Dv GLOB_LIMIT
 was specified in the flags and
 .Fa pglob\->gl_matchc
@@ -417,7 +403,7 @@ execvp("ls", g.gl_pathv);
 .Sh SEE ALSO
 .Xr sh 1 ,
 .Xr fnmatch 3 ,
-.Xr regexp 3
+.Xr regex 3
 .Sh STANDARDS
 The current implementation of the
 .Fn glob

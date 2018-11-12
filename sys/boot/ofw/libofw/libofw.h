@@ -33,7 +33,13 @@ struct ofw_devdesc {
 	int		d_type;
 	int		d_unit;
 	ihandle_t	d_handle;
-	char		d_path[256];
+	union {
+		char			d_path[256];
+		struct {
+			uint64_t	pool_guid;
+			uint64_t	root_guid;
+		};
+	};
 };
 
 extern int	ofw_getdev(void **vdev, const char *devspec, const char **path);
@@ -62,6 +68,9 @@ int	ofw_elf_loadfile(char *, vm_offset_t, struct preloaded_file **);
 int	ofw_elf_exec(struct preloaded_file *);
 
 extern struct file_format	ofw_elf;
+#ifdef __powerpc__
+extern struct file_format	ofw_elf64;
+#endif
 
 extern void	reboot(void);
 

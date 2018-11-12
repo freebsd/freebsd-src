@@ -30,14 +30,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2002
-.Os
+.Dd July 25, 2015
 .Dt MAC_STUB 4
+.Os
 .Sh NAME
 .Nm mac_stub
 .Nd "MAC policy stub module"
 .Sh SYNOPSIS
-To compile the sample policy
+To compile the stub policy
 into your kernel, place the following lines in your kernel
 configuration file:
 .Bd -ragged -offset indent
@@ -45,7 +45,7 @@ configuration file:
 .Cd "options MAC_STUB"
 .Ed
 .Pp
-Alternately, to load the sample module at boot time, place the following line
+Alternately, to load the stub module at boot time, place the following line
 in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options MAC"
@@ -59,7 +59,7 @@ mac_stub_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-policy module implements a sample MAC policy that has no effect on
+policy module implements a stub MAC policy that has no effect on
 access control in the system.
 Unlike
 .Xr mac_none 4 ,
@@ -101,14 +101,6 @@ under DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
 .Sh BUGS
-See
-.Xr mac 9
-concerning appropriateness for production use.
-The
-.Tn TrustedBSD
-MAC Framework is considered experimental in
-.Fx .
-.Pp
 While the MAC Framework design is intended to support the containment of
 the root user, not all attack channels are currently protected by entry
 point checks.

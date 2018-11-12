@@ -58,6 +58,27 @@ CODE {
 	{
 		return (0);
 	}
+
+	static int
+	default_resize(struct g_part_table *t __unused,
+	    struct g_part_entry *e __unused, struct g_part_parms *p __unused)
+	{
+		return (ENOSYS);
+	}
+
+	static int
+	default_recover(struct g_part_table *t __unused)
+	{
+		return (ENOSYS);
+	}
+
+	static int
+	default_ioctl(struct g_part_table *table __unused, struct g_provider *pp __unused,
+	    u_long cmd __unused, void *data __unused, int fflag __unused,
+	    struct thread *td __unused)
+	{
+		return (ENOIOCTL);
+	}
 };
 
 # add() - scheme specific processing for the add verb.
@@ -107,12 +128,29 @@ METHOD void fullname {
 	const char *pfx;
 } DEFAULT default_fullname;
 
+# ioctl() - implement historic ioctls, perhaps.
+METHOD int ioctl {
+	struct g_part_table *table;
+	struct g_provider *pp;
+	u_long cmd;
+	void *data;
+	int fflag;
+	struct thread *td;
+} DEFAULT default_ioctl;
+
 # modify() - scheme specific processing for the modify verb.
 METHOD int modify {
 	struct g_part_table *table;
 	struct g_part_entry *entry;
 	struct g_part_parms *gpp;
 };
+
+# resize() - scheme specific processing for the resize verb.
+METHOD int resize {
+	struct g_part_table *table;
+	struct g_part_entry *entry;
+	struct g_part_parms *gpp;
+} DEFAULT default_resize;
 
 # name() - return the name of the given partition entry.
 # Typical names are "p1", "s0" or "c".
@@ -149,6 +187,11 @@ METHOD int read {
 	struct g_consumer *cp;
 };
 
+# recover() - scheme specific processing for the recover verb.
+METHOD int recover {
+	struct g_part_table *table;
+} DEFAULT default_recover;
+
 # setunset() - set or unset partition entry attributes.
 METHOD int setunset {
 	struct g_part_table *table;
@@ -158,7 +201,7 @@ METHOD int setunset {
 };
 
 # type() - return a string representation of the partition type.
-# Preferrably, the alias names.
+# Preferably, the alias names.
 METHOD const char * type {
         struct g_part_table *table;
         struct g_part_entry *entry;

@@ -1,4 +1,4 @@
-/* 
+/*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code
  * distributions retain the above copyright notice and this paragraph
@@ -13,11 +13,7 @@
  * Original code by Hannes Gredler (hannes@juniper.net)
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/oui.c,v 1.8.2.1 2008-01-09 09:44:39 hannes Exp $ (LBL)";
-#endif
-
+#define NETDISSECT_REWORKED
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -28,7 +24,7 @@ static const char rcsid[] _U_ =
 
 /* FIXME complete OUI list using a script */
 
-struct tok oui_values[] = {
+const struct tok oui_values[] = {
     { OUI_ENCAP_ETHER, "Ethernet" },
     { OUI_CISCO, "Cisco" },
     { OUI_NORTEL, "Nortel Networks SONMP" },
@@ -42,6 +38,16 @@ struct tok oui_values[] = {
     { OUI_IEEE_8021_PRIVATE, "IEEE 802.1 Private"},
     { OUI_IEEE_8023_PRIVATE, "IEEE 802.3 Private"},
     { OUI_TIA, "ANSI/TIA"},
+    { OUI_DCBX, "DCBX"},
+    { OUI_NICIRA, "Nicira Networks" },
+    { OUI_BSN, "Big Switch Networks" },
+    { OUI_VELLO, "Vello Systems" },
+    { OUI_HP2, "HP" },
+    { OUI_HPLABS, "HP-Labs" },
+    { OUI_INFOBLOX, "Infoblox Inc" },
+    { OUI_ONLAB, "Open Networking Lab" },
+    { OUI_FREESCALE, "Freescale" },
+    { OUI_NETRONOME, "Netronome" },
     { 0, NULL }
 };
 
@@ -55,7 +61,7 @@ struct tok oui_values[] = {
  *
  * List taken from Ethereal's epan/sminmpec.c.
  */
-struct tok smi_values[] = {
+const struct tok smi_values[] = {
     { SMI_IETF,                 "IETF (reserved)"},
     { SMI_ACC,                  "ACC"},
     { SMI_CISCO,                "Cisco"},

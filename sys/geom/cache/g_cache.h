@@ -139,7 +139,7 @@ cache_metadata_decode(const u_char *data, struct g_cache_metadata *md)
 	md->md_version = le32dec(data + 16);
 	bcopy(data + 20, md->md_name, sizeof(md->md_name));
 	md->md_bsize = le32dec(data + 36);
-	md->md_size = le16dec(data + 40);
+	md->md_size = le32dec(data + 40);
 	md->md_provsize = le64dec(data + 44);
 }
 

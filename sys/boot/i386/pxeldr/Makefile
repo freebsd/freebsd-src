@@ -23,16 +23,18 @@ CFLAGS+=-DPROBE_KEYBOARD
 CFLAGS+=-DALWAYS_SERIAL
 .endif
 
+CFLAGS+=-I${.CURDIR}/../common
+
 LOADERBIN= ${.OBJDIR}/../loader/loader.bin
 
 CLEANFILES+= ${BOOT}.tmp
 
 ${BOOT}: ${LDR} ${LOADER}
 	cat ${LDR} ${LOADER} > ${.TARGET}.tmp
-	dd if=${.TARGET}.tmp of=${.TARGET} obs=2k conv=osync
+	dd if=${.TARGET}.tmp of=${.TARGET} obs=2k conv=osync status=none
 	rm ${.TARGET}.tmp
 
-LDFLAGS+= -N -e start -Ttext ${ORG} -Wl,-S,--oformat,binary
+LDFLAGS+=${LDFLAGS_BIN}
 
 CLEANFILES+= ${LOADER}
 
@@ -41,3 +43,6 @@ ${LOADER}: ${LOADERBIN} ${BTXLDR} ${BTXKERN}
 	    -b ${BTXKERN} ${LOADERBIN}
 
 .include <bsd.prog.mk>
+
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS.pxeldr.S=	${CLANG_NO_IAS}

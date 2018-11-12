@@ -205,7 +205,7 @@ decode_tuple_funcid(device_t cbdev, device_t child, int id,
     struct tuple_callbacks *info, void *argp)
 {
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
-	int numnames = sizeof(funcnames) / sizeof(funcnames[0]);
+	int numnames = nitems(funcnames);
 	int i;
 
 	if (cardbus_cis_debug) {
@@ -324,7 +324,7 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 		 * hint when the cardbus bridge is a child of pci0 (the main
 		 * bus).  The PC Card spec seems to indicate that this should
 		 * only be done on x86 based machines, which suggests that on
-		 * non-x86 machines the adddresses can be anywhere.  Since the
+		 * non-x86 machines the addresses can be anywhere.  Since the
 		 * hardware can do it on non-x86 machines, it should be able
 		 * to do it on x86 machines too.  Therefore, we can and should
 		 * ignore this hint.  Furthermore, the PC Card spec recommends
@@ -369,6 +369,14 @@ decode_tuple_end(device_t cbdev, device_t child, int id,
  * Functions to read the a tuple from the card
  */
 
+/*
+ * Read CIS bytes out of the config space.  We have to read it 4 bytes at a
+ * time and do the usual mask and shift to return the bytes.  The standard
+ * defines the byte order to be little endian.  pci_read_config converts it to
+ * host byte order.  This is why we have no endian conversion functions: the
+ * shifts wind up being endian neutral.  This is also why we avoid the obvious
+ * memcpy optimization.
+ */
 static int
 cardbus_read_tuple_conf(device_t cbdev, device_t child, uint32_t start,
     uint32_t *off, int *tupleid, int *len, uint8_t *tupledata)
@@ -379,12 +387,11 @@ cardbus_read_tuple_conf(device_t cbdev, device_t child, uint32_t start,
 
 	loc = start + *off;
 
-	e = pci_read_config(child, loc - loc % 4, 4);
-	for (j = loc % 4; j > 0; j--)
-		e >>= 8;
+	e = pci_read_config(child, loc & ~0x3, 4);
+	e >>= 8 * (loc & 0x3);
 	*len = 0;
 	for (i = loc, j = -2; j < *len; j++, i++) {
-		if (i % 4 == 0)
+		if ((i & 0x3) == 0)
 			e = pci_read_config(child, i, 4);
 		if (j == -2)
 			*tupleid = 0xff & e;
@@ -398,20 +405,19 @@ cardbus_read_tuple_conf(device_t cbdev, device_t child, uint32_t start,
 	return (0);
 }
 
+/*
+ * Read the CIS data out of memory.  We indirect through the bus space
+ * routines to ensure proper byte ordering conversions when necessary.
+ */
 static int
 cardbus_read_tuple_mem(device_t cbdev, struct resource *res, uint32_t start,
     uint32_t *off, int *tupleid, int *len, uint8_t *tupledata)
 {
-	bus_space_tag_t bt;
-	bus_space_handle_t bh;
 	int ret;
 
-	bt = rman_get_bustag(res);
-	bh = rman_get_bushandle(res);
-
-	*tupleid = bus_space_read_1(bt, bh, start + *off);
-	*len = bus_space_read_1(bt, bh, start + *off + 1);
-	bus_space_read_region_1(bt, bh, *off + start + 2, tupledata, *len);
+	*tupleid = bus_read_1(res, start + *off);
+	*len = bus_read_1(res, start + *off + 1);
+	bus_read_region_1(res, *off + start + 2, tupledata, *len);
 	ret = 0;
 	*off += *len + 2;
 	return (ret);
@@ -435,9 +441,7 @@ cardbus_read_tuple_finish(device_t cbdev, device_t child, int rid,
 {
 	if (res != CIS_CONFIG_SPACE) {
 		bus_release_resource(child, SYS_RES_MEMORY, rid, res);
-		if (rid == PCIM_CIS_ASI_ROM)
-			pci_write_config(child, rid, pci_read_config(child,
-			    rid, 4) & ~PCIR_BIOS, 4);
+		bus_delete_resource(child, SYS_RES_MEMORY, rid);
 	}
 }
 
@@ -474,22 +478,18 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 	}
 
 	/* allocate the memory space to read CIS */
-	res = bus_alloc_resource(child, SYS_RES_MEMORY, rid, 0, ~0, 1,
+	res = bus_alloc_resource_any(child, SYS_RES_MEMORY, rid,
 	    rman_make_alignment_flags(4096) | RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(cbdev, "Unable to allocate resource "
 		    "to read CIS.\n");
 		return (NULL);
 	}
-	DEVPRINTF((cbdev, "CIS Mapped to %#lx\n", rman_get_start(res)));
-	if (*rid == PCIR_BIOS)
-		pci_write_config(child, *rid,
-		    rman_get_start(res) | PCIM_BIOS_ENABLE, 4);
+	DEVPRINTF((cbdev, "CIS Mapped to %#jx\n",
+	    rman_get_start(res)));
 
 	/* Flip to the right ROM image if CIS is in ROM */
 	if (space == PCIM_CIS_ASI_ROM) {
-		bus_space_tag_t bt;
-		bus_space_handle_t bh;
 		uint32_t imagesize;
 		uint32_t imagebase = 0;
 		uint32_t pcidata;
@@ -497,19 +497,16 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 		int romnum = 0;
 		int imagenum;
 
-		bt = rman_get_bustag(res);
-		bh = rman_get_bushandle(res);
-
 		imagenum = (*start & PCIM_CIS_ROM_MASK) >> 28;
 		for (romnum = 0;; romnum++) {
-			romsig = bus_space_read_2(bt, bh,
+			romsig = bus_read_2(res,
 			    imagebase + CARDBUS_EXROM_SIGNATURE);
 			if (romsig != 0xaa55) {
 				device_printf(cbdev, "Bad header in rom %d: "
 				    "[%x] %04x\n", romnum, imagebase +
 				    CARDBUS_EXROM_SIGNATURE, romsig);
-				bus_release_resource(child, SYS_RES_MEMORY,
-				    *rid, res);
+				cardbus_read_tuple_finish(cbdev, child, *rid,
+				    res);
 				*rid = 0;
 				return (NULL);
 			}
@@ -522,9 +519,9 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 				break;
 
 			/* Find out where the next Option ROM image is */
-			pcidata = imagebase + bus_space_read_2(bt, bh,
+			pcidata = imagebase + bus_read_2(res,
 			    imagebase + CARDBUS_EXROM_DATA_PTR);
-			imagesize = bus_space_read_2(bt, bh,
+			imagesize = bus_read_2(res,
 			    pcidata + CARDBUS_EXROM_DATA_IMAGE_LENGTH);
 
 			if (imagesize == 0) {
@@ -541,12 +538,12 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 			/* Image size is in 512 byte units */
 			imagesize <<= 9;
 
-			if ((bus_space_read_1(bt, bh, pcidata +
+			if ((bus_read_1(res, pcidata +
 			    CARDBUS_EXROM_DATA_INDICATOR) & 0x80) != 0) {
 				device_printf(cbdev, "Cannot find CIS in "
 				    "Option ROM\n");
-				bus_release_resource(child, SYS_RES_MEMORY,
-				    *rid, res);
+				cardbus_read_tuple_finish(cbdev, child, *rid,
+				    res);
 				*rid = 0;
 				return (NULL);
 			}
@@ -596,7 +593,7 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 	expect_linktarget = TRUE;
 	if ((start = pci_read_config(child, PCIR_CIS, 4)) == 0) {
 		DEVPRINTF((cbdev, "Warning: CIS pointer is 0: (no CIS)\n"));
-		return (ENXIO);
+		return (0);
 	}
 	DEVPRINTF((cbdev, "CIS pointer is %#x\n", start));
 	off = 0;

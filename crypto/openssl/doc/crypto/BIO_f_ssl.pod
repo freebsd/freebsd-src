@@ -108,7 +108,7 @@ SSL BIOs are exceptional in that if the underlying transport
 is non blocking they can still request a retry in exceptional
 circumstances. Specifically this will happen if a session
 renegotiation takes place during a BIO_read() operation, one
-case where this happens is when SGC or step up occurs.
+case where this happens is when step up occurs.
 
 In OpenSSL 0.9.6 and later the SSL flag SSL_AUTO_RETRY can be
 set to disable this behaviour. That is when this flag is set
@@ -307,6 +307,15 @@ a client and also echoes the request to standard output.
  BIO_flush(sbio);
 
  BIO_free_all(sbio);
+
+=head1 BUGS
+
+In OpenSSL versions before 1.0.0 the BIO_pop() call was handled incorrectly,
+the I/O BIO reference count was incorrectly incremented (instead of
+decremented) and dissociated with the SSL BIO even if the SSL BIO was not
+explicitly being popped (e.g. a pop higher up the chain). Applications which
+included workarounds for this bug (e.g. freeing BIOs more than once) should
+be modified to handle this fix or they may free up an already freed BIO.
 
 =head1 SEE ALSO
 

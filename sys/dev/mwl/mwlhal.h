@@ -71,15 +71,13 @@ enum {
 	MWL_WME_AC_VO	= 3,		/* voice access category */
 };
 
-struct device;
-
 struct mwl_hal {
 	bus_space_handle_t mh_ioh;	/* BAR 1 copied from softc */
 	bus_space_tag_t	mh_iot;
 	uint32_t	mh_imask;	/* interrupt mask */
 	/* remainder is opaque to driver */
 };
-struct mwl_hal *mwl_hal_attach(struct device *dev, uint16_t devid,
+struct mwl_hal *mwl_hal_attach(device_t dev, uint16_t devid,
     bus_space_handle_t ioh, bus_space_tag_t iot, bus_dma_tag_t tag);
 void	mwl_hal_detach(struct mwl_hal *);
 
@@ -291,7 +289,7 @@ int	mwl_hal_setradio(struct mwl_hal *mh, int onoff, MWL_HAL_PREAMBLE preamble);
 /*
  * Set Antenna Configuration (legacy operation).
  *
- * The RX antenna can be selected using the the bitmask
+ * The RX antenna can be selected using the bitmask
  * ant (bit 0 = antenna 1, bit 1 = antenna 2, etc.)
  * (diversity?XXX)
  */

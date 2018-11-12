@@ -126,8 +126,6 @@ struct gem_softc {
 	bus_dma_tag_t	sc_cdmatag;	/* control data bus DMA tag */
 	bus_dmamap_t	sc_dmamap;	/* bus DMA handle */
 
-	int		sc_phyad;	/* PHY to use or -1 for any */
-
 	u_int		sc_variant;
 #define	GEM_UNKNOWN		0	/* don't know */
 #define	GEM_SUN_GEM		1	/* Sun GEM */
@@ -174,6 +172,8 @@ struct gem_softc {
 
 	u_int		sc_rxptr;	/* next ready RX descriptor/state */
 	u_int		sc_rxfifosize;	/* RX FIFO size (bytes) */
+
+	uint32_t	sc_mac_rxcfg;	/* RX MAC conf. % GEM_MAC_RX_ENABLE */
 
 	int		sc_ifflags;
 	u_long		sc_csum_features;

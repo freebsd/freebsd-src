@@ -67,3 +67,5 @@ found1:	incl	%eax
 found0:	popl	%ebx
 	ret
 END(wcslen)
+
+	.section .note.GNU-stack,"",%progbits

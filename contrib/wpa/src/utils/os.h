@@ -1,15 +1,9 @@
 /*
- * wpa_supplicant/hostapd / OS specific functions
- * Copyright (c) 2005-2006, Jouni Malinen <j@w1.fi>
+ * OS specific functions
+ * Copyright (c) 2005-2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef OS_H
@@ -29,6 +23,11 @@ struct os_time {
 	os_time_t usec;
 };
 
+struct os_reltime {
+	os_time_t sec;
+	os_time_t usec;
+};
+
 /**
  * os_get_time - Get current time (sec, usec)
  * @t: Pointer to buffer for the time
@@ -36,21 +35,84 @@ struct os_time {
  */
 int os_get_time(struct os_time *t);
 
+/**
+ * os_get_reltime - Get relative time (sec, usec)
+ * @t: Pointer to buffer for the time
+ * Returns: 0 on success, -1 on failure
+ */
+int os_get_reltime(struct os_reltime *t);
 
-/* Helper macros for handling struct os_time */
 
-#define os_time_before(a, b) \
-	((a)->sec < (b)->sec || \
-	 ((a)->sec == (b)->sec && (a)->usec < (b)->usec))
+/* Helpers for handling struct os_time */
 
-#define os_time_sub(a, b, res) do { \
-	(res)->sec = (a)->sec - (b)->sec; \
-	(res)->usec = (a)->usec - (b)->usec; \
-	if ((res)->usec < 0) { \
-		(res)->sec--; \
-		(res)->usec += 1000000; \
-	} \
-} while (0)
+static inline int os_time_before(struct os_time *a, struct os_time *b)
+{
+	return (a->sec < b->sec) ||
+	       (a->sec == b->sec && a->usec < b->usec);
+}
+
+
+static inline void os_time_sub(struct os_time *a, struct os_time *b,
+			       struct os_time *res)
+{
+	res->sec = a->sec - b->sec;
+	res->usec = a->usec - b->usec;
+	if (res->usec < 0) {
+		res->sec--;
+		res->usec += 1000000;
+	}
+}
+
+
+/* Helpers for handling struct os_reltime */
+
+static inline int os_reltime_before(struct os_reltime *a,
+				    struct os_reltime *b)
+{
+	return (a->sec < b->sec) ||
+	       (a->sec == b->sec && a->usec < b->usec);
+}
+
+
+static inline void os_reltime_sub(struct os_reltime *a, struct os_reltime *b,
+				  struct os_reltime *res)
+{
+	res->sec = a->sec - b->sec;
+	res->usec = a->usec - b->usec;
+	if (res->usec < 0) {
+		res->sec--;
+		res->usec += 1000000;
+	}
+}
+
+
+static inline void os_reltime_age(struct os_reltime *start,
+				  struct os_reltime *age)
+{
+	struct os_reltime now;
+
+	os_get_reltime(&now);
+	os_reltime_sub(&now, start, age);
+}
+
+
+static inline int os_reltime_expired(struct os_reltime *now,
+				     struct os_reltime *ts,
+				     os_time_t timeout_secs)
+{
+	struct os_reltime age;
+
+	os_reltime_sub(now, ts, &age);
+	return (age.sec > timeout_secs) ||
+	       (age.sec == timeout_secs && age.usec > 0);
+}
+
+
+static inline int os_reltime_initialized(struct os_reltime *t)
+{
+	return t->sec != 0 || t->usec != 0;
+}
+
 
 /**
  * os_mktime - Convert broken-down time into seconds since 1970-01-01
@@ -70,6 +132,16 @@ int os_get_time(struct os_time *t);
 int os_mktime(int year, int month, int day, int hour, int min, int sec,
 	      os_time_t *t);
 
+struct os_tm {
+	int sec; /* 0..59 or 60 for leap seconds */
+	int min; /* 0..59 */
+	int hour; /* 0..23 */
+	int day; /* 1..31 */
+	int month; /* 1..12 */
+	int year; /* Four digit year */
+};
+
+int os_gmtime(os_time_t t, struct os_tm *tm);
 
 /**
  * os_daemonize - Run in the background (detach from the controlling terminal)
@@ -168,6 +240,20 @@ int os_unsetenv(const char *name);
 char * os_readfile(const char *name, size_t *len);
 
 /**
+ * os_file_exists - Check whether the specified file exists
+ * @fname: Path and name of the file
+ * Returns: 1 if the file exists or 0 if not
+ */
+int os_file_exists(const char *fname);
+
+/**
+ * os_fdatasync - Sync a file's (for a given stream) state with storage device
+ * @stream: the stream to be flushed
+ * Returns: 0 if the operation succeeded or -1 on failure
+ */
+int os_fdatasync(FILE *stream);
+
+/**
  * os_zalloc - Allocate and zero memory
  * @size: Number of bytes to allocate
  * Returns: Pointer to allocated and zeroed memory or %NULL on failure
@@ -175,6 +261,25 @@ char * os_readfile(const char *name, size_t *len);
  * Caller is responsible for freeing the returned buffer with os_free().
  */
 void * os_zalloc(size_t size);
+
+/**
+ * os_calloc - Allocate and zero memory for an array
+ * @nmemb: Number of members in the array
+ * @size: Number of bytes in each member
+ * Returns: Pointer to allocated and zeroed memory or %NULL on failure
+ *
+ * This function can be used as a wrapper for os_zalloc(nmemb * size) when an
+ * allocation is used for an array. The main benefit over os_zalloc() is in
+ * having an extra check to catch integer overflows in multiplication.
+ *
+ * Caller is responsible for freeing the returned buffer with os_free().
+ */
+static inline void * os_calloc(size_t nmemb, size_t size)
+{
+	if (size && nmemb > (~(size_t) 0) / size)
+		return NULL;
+	return os_zalloc(nmemb * size);
+}
 
 
 /*
@@ -338,15 +443,6 @@ int os_strcmp(const char *s1, const char *s2);
 int os_strncmp(const char *s1, const char *s2, size_t n);
 
 /**
- * os_strncpy - Copy a string
- * @dest: Destination
- * @src: Source
- * @n: Maximum number of characters to copy
- * Returns: dest
- */
-char * os_strncpy(char *dest, const char *src, size_t n);
-
-/**
  * os_strstr - Locate a substring
  * @haystack: String (haystack) to search from
  * @needle: Needle to search from haystack
@@ -379,6 +475,12 @@ int os_snprintf(char *str, size_t size, const char *format, ...);
 
 #else /* OS_NO_C_LIB_DEFINES */
 
+#ifdef WPA_TRACE
+void * os_malloc(size_t size);
+void * os_realloc(void *ptr, size_t size);
+void os_free(void *ptr);
+char * os_strdup(const char *s);
+#else /* WPA_TRACE */
 #ifndef os_malloc
 #define os_malloc(s) malloc((s))
 #endif
@@ -388,6 +490,14 @@ int os_snprintf(char *str, size_t size, const char *format, ...);
 #ifndef os_free
 #define os_free(p) free((p))
 #endif
+#ifndef os_strdup
+#ifdef _MSC_VER
+#define os_strdup(s) _strdup(s)
+#else
+#define os_strdup(s) strdup(s)
+#endif
+#endif
+#endif /* WPA_TRACE */
 
 #ifndef os_memcpy
 #define os_memcpy(d, s, n) memcpy((d), (s), (n))
@@ -402,13 +512,6 @@ int os_snprintf(char *str, size_t size, const char *format, ...);
 #define os_memcmp(s1, s2, n) memcmp((s1), (s2), (n))
 #endif
 
-#ifndef os_strdup
-#ifdef _MSC_VER
-#define os_strdup(s) _strdup(s)
-#else
-#define os_strdup(s) strdup(s)
-#endif
-#endif
 #ifndef os_strlen
 #define os_strlen(s) strlen(s)
 #endif
@@ -435,9 +538,6 @@ int os_snprintf(char *str, size_t size, const char *format, ...);
 #ifndef os_strncmp
 #define os_strncmp(s1, s2, n) strncmp((s1), (s2), (n))
 #endif
-#ifndef os_strncpy
-#define os_strncpy(d, s, n) strncpy((d), (s), (n))
-#endif
 #ifndef os_strrchr
 #define os_strrchr(s, c) strrchr((s), (c))
 #endif
@@ -456,6 +556,35 @@ int os_snprintf(char *str, size_t size, const char *format, ...);
 #endif /* OS_NO_C_LIB_DEFINES */
 
 
+static inline int os_snprintf_error(size_t size, int res)
+{
+	return res < 0 || (unsigned int) res >= size;
+}
+
+
+static inline void * os_realloc_array(void *ptr, size_t nmemb, size_t size)
+{
+	if (size && nmemb > (~(size_t) 0) / size)
+		return NULL;
+	return os_realloc(ptr, nmemb * size);
+}
+
+/**
+ * os_remove_in_array - Remove a member from an array by index
+ * @ptr: Pointer to the array
+ * @nmemb: Current member count of the array
+ * @size: The size per member of the array
+ * @idx: Index of the member to be removed
+ */
+static inline void os_remove_in_array(void *ptr, size_t nmemb, size_t size,
+				      size_t idx)
+{
+	if (idx < nmemb - 1)
+		os_memmove(((unsigned char *) ptr) + idx * size,
+			   ((unsigned char *) ptr) + (idx + 1) * size,
+			   (nmemb - idx - 1) * size);
+}
+
 /**
  * os_strlcpy - Copy a string with size bound and NUL-termination
  * @dest: Destination
@@ -467,6 +596,32 @@ int os_snprintf(char *str, size_t size, const char *format, ...);
  * This function matches in behavior with the strlcpy(3) function in OpenBSD.
  */
 size_t os_strlcpy(char *dest, const char *src, size_t siz);
+
+/**
+ * os_memcmp_const - Constant time memory comparison
+ * @a: First buffer to compare
+ * @b: Second buffer to compare
+ * @len: Number of octets to compare
+ * Returns: 0 if buffers are equal, non-zero if not
+ *
+ * This function is meant for comparing passwords or hash values where
+ * difference in execution time could provide external observer information
+ * about the location of the difference in the memory buffers. The return value
+ * does not behave like os_memcmp(), i.e., os_memcmp_const() cannot be used to
+ * sort items into a defined order. Unlike os_memcmp(), execution time of
+ * os_memcmp_const() does not depend on the contents of the compared memory
+ * buffers, but only on the total compared length.
+ */
+int os_memcmp_const(const void *a, const void *b, size_t len);
+
+/**
+ * os_exec - Execute an external program
+ * @program: Path to the program
+ * @arg: Command line argument string
+ * @wait_completion: Whether to wait until the program execution completes
+ * Returns: 0 on success, -1 on error
+ */
+int os_exec(const char *program, const char *arg, int wait_completion);
 
 
 #ifdef OS_REJECT_C_LIB_FUNCTIONS
@@ -497,5 +652,13 @@ size_t os_strlcpy(char *dest, const char *src, size_t siz);
 
 #define strcpy OS_DO_NOT_USE_strcpy
 #endif /* OS_REJECT_C_LIB_FUNCTIONS */
+
+
+#if defined(WPA_TRACE_BFD) && defined(CONFIG_TESTING_OPTIONS)
+#define TEST_FAIL() testing_test_fail()
+int testing_test_fail(void);
+#else
+#define TEST_FAIL() 0
+#endif
 
 #endif /* OS_H */

@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
+#include <compat/linux/linux_signal.h>
 
 #if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
 #define CPU_ENABLE_SSE
@@ -68,7 +69,7 @@ __FBSDID("$FreeBSD$");
 #define PTRACE_ATTACH		16
 #define PTRACE_DETACH		17
 
-#define	PTRACE_SYSCALL		24
+#define	LINUX_PTRACE_SYSCALL	24
 
 #define PTRACE_GETREGS		12
 #define PTRACE_SETREGS		13
@@ -90,8 +91,7 @@ static __inline int
 map_signum(int signum)
 {
 
-	if (signum > 0 && signum <= LINUX_SIGTBLSZ)
-		signum = linux_to_bsd_signal[_SIG_IDX(signum)];
+	signum = linux_to_bsd_signal(signum);
 	return ((signum == SIGSTOP)? 0 : signum);
 }
 
@@ -224,7 +224,7 @@ linux_proc_read_fpxregs(struct thread *td, struct linux_pt_fpxreg *fpxregs)
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 	if (cpu_fxsr == 0 || (td->td_proc->p_flag & P_INMEM) == 0)
 		return (EIO);
-	bcopy(&td->td_pcb->pcb_save.sv_xmm, fpxregs, sizeof(*fpxregs));
+	bcopy(&get_pcb_user_save_td(td)->sv_xmm, fpxregs, sizeof(*fpxregs));
 	return (0);
 }
 
@@ -235,7 +235,7 @@ linux_proc_write_fpxregs(struct thread *td, struct linux_pt_fpxreg *fpxregs)
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 	if (cpu_fxsr == 0 || (td->td_proc->p_flag & P_INMEM) == 0)
 		return (EIO);
-	bcopy(fpxregs, &td->td_pcb->pcb_save.sv_xmm, sizeof(*fpxregs));
+	bcopy(fpxregs, &get_pcb_user_save_td(td)->sv_xmm, sizeof(*fpxregs));
 	return (0);
 }
 #endif
@@ -473,7 +473,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 
 		break;
 	}
-	case PTRACE_SYSCALL:
+	case LINUX_PTRACE_SYSCALL:
 		/* fall through */
 	default:
 		printf("linux: ptrace(%u, ...) not implemented\n",

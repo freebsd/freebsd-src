@@ -50,7 +50,7 @@ static u_int db_disasm_read_word(u_int);
 static void db_disasm_printaddr(u_int);
 
 static const disasm_interface_t db_disasm_interface = {
-	db_disasm_read_word, 
+	db_disasm_read_word,
 	db_disasm_printaddr,
        	db_printf
 };
@@ -70,7 +70,7 @@ db_disasm_printaddr(u_int address)
 }
 
 vm_offset_t
-db_disasm(vm_offset_t loc, boolean_t altfmt)
+db_disasm(vm_offset_t loc, bool altfmt)
 {
 
 	return disasm(&db_disasm_interface, loc, altfmt);

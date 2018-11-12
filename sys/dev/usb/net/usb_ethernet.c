@@ -24,25 +24,33 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/stdint.h>
-#include <sys/stddef.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
-#include <sys/queue.h>
-#include <sys/types.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
-#include <sys/unistd.h>
-#include <sys/callout.h>
-#include <sys/malloc.h>
-#include <sys/priv.h>
+
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/ethernet.h>
+#include <net/if_types.h>
+#include <net/if_media.h>
+#include <net/if_vlan_var.h>
+
+#include <dev/mii/mii.h>
+#include <dev/mii/miivar.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -50,7 +58,8 @@
 #include <dev/usb/usb_process.h>
 #include <dev/usb/net/usb_ethernet.h>
 
-SYSCTL_NODE(_net, OID_AUTO, ue, CTLFLAG_RD, 0, "USB Ethernet parameters");
+static SYSCTL_NODE(_net, OID_AUTO, ue, CTLFLAG_RD, 0,
+    "USB Ethernet parameters");
 
 #define	UE_LOCK(_ue)		mtx_lock((_ue)->ue_mtx)
 #define	UE_UNLOCK(_ue)		mtx_unlock((_ue)->ue_mtx)
@@ -146,7 +155,7 @@ ue_sysctl_parent(SYSCTL_HANDLER_ARGS)
 	const char *name;
 
 	name = device_get_nameunit(ue->ue_dev);
-	return SYSCTL_OUT(req, name, strlen(name));
+	return SYSCTL_OUT_STR(req, name);
 }
 
 int
@@ -198,41 +207,55 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 	usb_callout_init_mtx(&ue->ue_watchdog, ue->ue_mtx, 0);
 	sysctl_ctx_init(&ue->ue_sysctl_ctx);
 
+	error = 0;
+	CURVNET_SET_QUIET(vnet0);
 	ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(ue->ue_dev, "could not allocate ifnet\n");
-		goto error;
+		goto fail;
 	}
 
 	ifp->if_softc = ue;
 	if_initname(ifp, "ue", ue->ue_unit);
-	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	if (ue->ue_methods->ue_ioctl != NULL)
-		ifp->if_ioctl = ue->ue_methods->ue_ioctl;
-	else
-		ifp->if_ioctl = uether_ioctl;
-	ifp->if_start = ue_start;
-	ifp->if_init = ue_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
-	IFQ_SET_READY(&ifp->if_snd);
-	ue->ue_ifp = ifp;
+	if (ue->ue_methods->ue_attach_post_sub != NULL) {
+		ue->ue_ifp = ifp;
+		error = ue->ue_methods->ue_attach_post_sub(ue);
+	} else {
+		ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+		if (ue->ue_methods->ue_ioctl != NULL)
+			ifp->if_ioctl = ue->ue_methods->ue_ioctl;
+		else
+			ifp->if_ioctl = uether_ioctl;
+		ifp->if_start = ue_start;
+		ifp->if_init = ue_init;
+		IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+		ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
+		IFQ_SET_READY(&ifp->if_snd);
+		ue->ue_ifp = ifp;
 
-	if (ue->ue_methods->ue_mii_upd != NULL && 
-	    ue->ue_methods->ue_mii_sts != NULL) {
-		mtx_lock(&Giant);	/* device_xxx() depends on this */
-		error = mii_phy_probe(ue->ue_dev, &ue->ue_miibus,
-		    ue_ifmedia_upd, ue->ue_methods->ue_mii_sts);
-		mtx_unlock(&Giant);
-		if (error) {
-			device_printf(ue->ue_dev, "MII without any PHY\n");
-			goto error;
+		if (ue->ue_methods->ue_mii_upd != NULL &&
+		    ue->ue_methods->ue_mii_sts != NULL) {
+			/* device_xxx() depends on this */
+			mtx_lock(&Giant);
+			error = mii_attach(ue->ue_dev, &ue->ue_miibus, ifp,
+			    ue_ifmedia_upd, ue->ue_methods->ue_mii_sts,
+			    BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+			mtx_unlock(&Giant);
 		}
+	}
+
+	if (error) {
+		device_printf(ue->ue_dev, "attaching PHYs failed\n");
+		goto fail;
 	}
 
 	if_printf(ifp, "<USB Ethernet> on %s\n", device_get_nameunit(ue->ue_dev));
 	ether_ifattach(ifp, ue->ue_eaddr);
+	/* Tell upper layer we support VLAN oversized frames. */
+	if (ifp->if_capabilities & IFCAP_VLAN_MTU)
+		ifp->if_hdrlen = sizeof(struct ether_vlan_header);
+
+	CURVNET_RESTORE();
 
 	snprintf(num, sizeof(num), "%u", ue->ue_unit);
 	ue->ue_sysctl_oid = SYSCTL_ADD_NODE(&ue->ue_sysctl_ctx,
@@ -240,13 +263,14 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 	    OID_AUTO, num, CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_PROC(&ue->ue_sysctl_ctx,
 	    SYSCTL_CHILDREN(ue->ue_sysctl_oid), OID_AUTO,
-	    "%parent", CTLFLAG_RD, ue, 0,
+	    "%parent", CTLTYPE_STRING | CTLFLAG_RD, ue, 0,
 	    ue_sysctl_parent, "A", "parent device");
 
 	UE_LOCK(ue);
 	return;
 
-error:
+fail:
+	CURVNET_RESTORE();
 	free_unr(ueunit, ue->ue_unit);
 	if (ue->ue_ifp != NULL) {
 		if_free(ue->ue_ifp);
@@ -307,6 +331,13 @@ uether_is_gone(struct usb_ether *ue)
 	return (usb_proc_is_gone(&ue->ue_tq));
 }
 
+void
+uether_init(void *arg)
+{
+
+	ue_init(arg);
+}
+
 static void
 ue_init(void *arg)
 {
@@ -352,6 +383,13 @@ ue_stop_task(struct usb_proc_msg *_task)
 	ue->ue_methods->ue_stop(ue);
 }
 
+void
+uether_start(struct ifnet *ifp)
+{
+
+	ue_start(ifp);
+}
+
 static void
 ue_start(struct ifnet *ifp)
 {
@@ -383,6 +421,13 @@ ue_setmulti_task(struct usb_proc_msg *_task)
 	struct usb_ether *ue = task->ue;
 
 	ue->ue_methods->ue_setmulti(ue);
+}
+
+int
+uether_ifmedia_upd(struct ifnet *ifp)
+{
+
+	return (ue_ifmedia_upd(ifp));
 }
 
 static int
@@ -517,7 +562,7 @@ uether_newbuf(void)
 {
 	struct mbuf *m_new;
 
-	m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m_new = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m_new == NULL)
 		return (NULL);
 	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
@@ -535,7 +580,7 @@ uether_rxmbuf(struct usb_ether *ue, struct mbuf *m,
 	UE_LOCK_ASSERT(ue, MA_OWNED);
 
 	/* finalize mbuf */
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = len;
 
@@ -558,14 +603,14 @@ uether_rxbuf(struct usb_ether *ue, struct usb_page_cache *pc,
 
 	m = uether_newbuf();
 	if (m == NULL) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 		return (ENOMEM);
 	}
 
 	usbd_copy_out(pc, offset, mtod(m, uint8_t *), len);
 
 	/* finalize mbuf */
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = len;
 
@@ -596,5 +641,9 @@ uether_rxflush(struct usb_ether *ue)
 	}
 }
 
-DECLARE_MODULE(uether, uether_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+/*
+ * USB net drivers are run by DRIVER_MODULE() thus SI_SUB_DRIVERS,
+ * SI_ORDER_MIDDLE.  Run uether after that.
+ */
+DECLARE_MODULE(uether, uether_mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
 MODULE_VERSION(uether, 1);

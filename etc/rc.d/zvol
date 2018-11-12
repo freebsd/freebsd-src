@@ -5,12 +5,13 @@
 
 # PROVIDE: zvol
 # REQUIRE: hostid
-# BEFORE: fsck
+# BEFORE: dumpon
 # KEYWORD: nojail
 
 . /etc/rc.subr
 
 name="zvol"
+desc="Activate swap on ZVOLs"
 rcvar="zfs_enable"
 start_cmd="zvol_start"
 stop_cmd="zvol_stop"
@@ -18,12 +19,11 @@ required_modules="zfs"
 
 zvol_start()
 {
-	zfs volinit
 	# Enable swap on ZVOLs with property org.freebsd:swap=on.
-	zfs list -H -o org.freebsd:swap,name -t volume | \
+	zfs list -H -o org.freebsd:swap,name -t volume |
 	while read state name; do
 		case "${state}" in
-		[oO][nN])
+		([oO][nN])
 			swapon /dev/zvol/${name}
 			;;
 		esac
@@ -33,15 +33,14 @@ zvol_start()
 zvol_stop()
 {
 	# Disable swap on ZVOLs with property org.freebsd:swap=on.
-	zfs list -H -o org.freebsd:swap,name -t volume | \
+	zfs list -H -o org.freebsd:swap,name -t volume |
 	while read state name; do
 		case "${state}" in
-		[oO][nN])
+		([oO][nN])
 			swapoff /dev/zvol/${name}
 			;;
 		esac
 	done
-	zfs volfini
 }
 
 load_rc_config $name

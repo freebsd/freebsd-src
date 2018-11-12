@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
+#include "dev/drm/drm_mm.h"
 #include "dev/drm/i915_drm.h"
 #include "dev/drm/i915_drv.h"
 #include "dev/drm/drm_pciids.h"
@@ -146,19 +147,11 @@ static device_method_t i915_methods[] = {
 };
 
 static driver_t i915_driver = {
-#if __FreeBSD_version >= 700010
 	"drm",
-#else
-	"drmsub",
-#endif
 	i915_methods,
 	sizeof(struct drm_device)
 };
 
 extern devclass_t drm_devclass;
-#if __FreeBSD_version >= 700010
 DRIVER_MODULE(i915, vgapci, i915_driver, drm_devclass, 0, 0);
-#else
-DRIVER_MODULE(i915, agp, i915_driver, drm_devclass, 0, 0);
-#endif
 MODULE_DEPEND(i915, drm, 1, 1, 1);

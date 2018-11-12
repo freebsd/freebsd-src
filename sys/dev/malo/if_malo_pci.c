@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
@@ -49,7 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
  
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
+#include <net/ethernet.h>
 
 #include <net80211/ieee80211_var.h>
 
@@ -79,13 +82,12 @@ struct malo_pci_softc {
  * Tunable variables.
  */
 SYSCTL_DECL(_hw_malo);
-SYSCTL_NODE(_hw_malo, OID_AUTO, pci, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw_malo, OID_AUTO, pci, CTLFLAG_RD, 0,
     "Marvell 88W8335 driver PCI parameters");
 
 static int msi_disable = 0;				/* MSI disabled  */
-SYSCTL_INT(_hw_malo_pci, OID_AUTO, msi_disable, CTLFLAG_RW, &msi_disable,
+SYSCTL_INT(_hw_malo_pci, OID_AUTO, msi_disable, CTLFLAG_RWTUN, &msi_disable,
 	    0, "MSI disabled");
-TUNABLE_INT("hw.malo.pci.msi_disable", &msi_disable);
 
 /*
  * Devices supported by this driver.
@@ -129,7 +131,6 @@ static int	malo_pci_detach(device_t);
 static int
 malo_pci_probe(device_t dev)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
 	struct malo_product *mp;
 	uint16_t vendor, devid;
 	int i;
@@ -138,7 +139,7 @@ malo_pci_probe(device_t dev)
 	devid = pci_get_device(dev);
 	mp = malo_products;
 
-	for (i = 0; i < N(malo_products); i++, mp++) {
+	for (i = 0; i < nitems(malo_products); i++, mp++) {
 		if (vendor == mp->mp_vendorid && devid == mp->mp_deviceid) {
 			device_set_desc(dev, mp->mp_name);
 			return (BUS_PROBE_DEFAULT);
@@ -146,22 +147,6 @@ malo_pci_probe(device_t dev)
 	}
 
 	return (ENXIO);
-#undef N
-}
-
-static int
-malo_pci_setup(device_t dev)
-{
-
-	/*
-	 * Enable memory mapping and bus mastering.
-	 */
-	if (pci_enable_busmaster(dev) != 0)
-		return -1;
-	if (pci_enable_io(dev, SYS_RES_MEMORY) != 0)
-		return -1;
-
-	return 0;
 }
 
 static int
@@ -173,11 +158,7 @@ malo_pci_attach(device_t dev)
 
 	sc->malo_dev = dev;
 	
-	/*
-	 * Enable memory mapping and bus mastering.
-	 */
-	if (malo_pci_setup(dev))
-		return (ENXIO);
+	pci_enable_busmaster(dev);
 
 	/* 
 	 * Setup memory-mapping of PCI registers.
@@ -194,7 +175,7 @@ malo_pci_attach(device_t dev)
 	 */
 	sc->malo_invalid = 1;
 
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		msic = pci_msi_count(dev);
 		if (bootverbose)
 			device_printf(dev, "MSI count : %d\n", msic);
@@ -242,9 +223,9 @@ malo_pci_attach(device_t dev)
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
-			       BUS_SPACE_MAXADDR,	/* maxsize */
+			       BUS_SPACE_MAXSIZE,	/* maxsize */
 			       0,			/* nsegments */
-			       BUS_SPACE_MAXADDR,	/* maxsegsize */
+			       BUS_SPACE_MAXSIZE,	/* maxsegsize */
 			       0,			/* flags */
 			       NULL,			/* lockfunc */
 			       NULL,			/* lockarg */
@@ -342,9 +323,6 @@ malo_pci_resume(device_t dev)
 {
 	struct malo_pci_softc *psc = device_get_softc(dev);
 
-	if (!malo_pci_setup(dev))
-		return ENXIO;
-
 	malo_resume(&psc->malo_sc);
 
 	return (0);
@@ -371,4 +349,4 @@ static	devclass_t malo_devclass;
 DRIVER_MODULE(malo, pci, malo_pci_driver, malo_devclass, 0, 0);
 MODULE_VERSION(malo, 1);
 MODULE_DEPEND(malo, wlan, 1, 1, 1);		/* 802.11 media layer */
-MODULE_DEPEND(malo, malofw_fw, 1, 1, 1);
+MODULE_DEPEND(malo, firmware, 1, 1, 1);

@@ -9,10 +9,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -76,7 +72,7 @@ Refer to
 .Xr termcap 5
 for a description of the file layout.
 .Bl -column Namexxx Typexx "/var/spool/lpdxxxxx"
-.Sy "Name	Type	Default	Description
+.Sy "Name	Type	Default	Description"
 .It "af	str" Ta Dv NULL Ta No "name of accounting file"
 .It "br	num	none	if lp is a tty, set the baud rate"
 .Xr ( ioctl 2
@@ -86,6 +82,7 @@ call)
 .It "df	str" Ta Dv NULL Ta No "tex data filter"
 .Tn ( DVI
 format)
+.It "du	num	1	UID to run daemon as"
 .It "ff	str" Ta So Li \ef Sc Ta No "string to send for a form feed"
 .It "fo	bool	false	print a form feed when device is opened"
 .It "gf	str" Ta Dv NULL Ta No "graph data filter"
@@ -367,7 +364,7 @@ is not in use), print data will be sent directly to the given
 on the given
 .Em machine .
 .Sh TRANSFER STATISTICS
-When a print job is transfered to a remote machine (which might be
+When a print job is transferred to a remote machine (which might be
 another unix box, or may be a network printer), it may be useful
 to keep statistics on each transfer.
 The

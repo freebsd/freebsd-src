@@ -7,13 +7,16 @@ dnl You'll also need a version of config.guess from a gnu package
 dnl
 dnl Written by Kaveh Ghazi (ghazi@caip.rutgers.edu) 5/11/96.
 dnl
+dnl $tcsh: configure.in,v 3.99 2012/02/13 16:33:50 christos Exp $
 
 AC_PREREQ([2.59])dnl Minimum Autoconf version required.
-AC_INIT([tcsh], [6.17.00], [http://bugs.gw.com/])
+AC_INIT([tcsh], [6.18.01], [http://bugs.gw.com/])
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([tc.vers.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_TESTDIR([.], [.])
 
+AC_PROG_INSTALL
 AC_CANONICAL_HOST
 
 AC_MSG_CHECKING([cached host tuple])
@@ -76,6 +79,11 @@ case "${host}" in
   *-ibm-os390*)
     CC='c89'
     tcsh_config_file=os390
+  ;;
+
+  ## Android
+  *-*-android*)
+    tcsh_config_file=android
   ;;
 
   ## Linux
@@ -178,8 +186,11 @@ case "${host}" in
   *-*-solaris2.[45] ) # Should handle sparc, x86 and powerpc
     tcsh_config_file=sol24
   ;;
-  *-*-solaris2.* ) # Should handle sparc, x86 and powerpc
+  *-*-solaris2.[678] ) # Should handle sparc, x86 and powerpc
     tcsh_config_file=sol26
+  ;;
+  *-*-solaris2.* ) # Should handle sparc, x86 and powerpc
+    tcsh_config_file=sol29
   ;;
 
   ## Dell SVR4
@@ -230,7 +241,7 @@ case "${host}" in
 
   ## Red Hat Cygwin
   *-cygwin)
-    tcsh_config_file=cygwin32
+    tcsh_config_file=cygwin
   ;;
 
   ## mips-compaq-nonstopux
@@ -270,6 +281,16 @@ AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_GCC_TRADITIONAL
 
+AC_PATH_PROG([GENCAT], [gencat]) 
+
+dnl Require build CC to create gethost helper when cross building
+if test "x${cross_compiling}" = xyes ; then
+  CC_FOR_GETHOST="cc"
+else
+  CC_FOR_GETHOST="\$(CC)"
+fi
+AC_SUBST(CC_FOR_GETHOST)
+
 if test "x$GCC" != xyes ; then
   DFLAGS="$DFLAGS $NON_GNU_DFLAGS"
   CFLAGS="$CFLAGS $NON_GNU_CFLAGS"
@@ -281,10 +302,12 @@ AC_SEARCH_LIBS(getspnam, sec)
 AC_SEARCH_LIBS(tgetent, termlib termcap curses ncurses)
 AC_SEARCH_LIBS(gethostbyname, nsl)
 AC_SEARCH_LIBS(connect, socket)
+AC_SEARCH_LIBS(catgets, catgets)
 AM_ICONV
 
 dnl Checks for header files
-AC_CHECK_HEADERS([auth.h crypt.h inttypes.h shadow.h stdint.h utmp.h utmpx.h])
+AC_CHECK_HEADERS([auth.h crypt.h features.h inttypes.h paths.h] dnl
+		 [shadow.h stdint.h utmp.h utmpx.h])
 AC_CHECK_HEADERS([wchar.h],
 	[AC_CHECK_SIZEOF([wchar_t], [], [dnl
 #include <stdio.h>
@@ -300,6 +323,7 @@ AC_TYPE_GETGROUPS
 AC_TYPE_MODE_T
 AC_TYPE_SIZE_T
 AC_TYPE_UID_T
+AC_TYPE_UINT32_T
 
 AC_DEFUN([AC_TYPE_SSIZE_T], [
 AC_CHECK_TYPE(ssize_t,,
@@ -334,7 +358,9 @@ AC_CHECK_MEMBERS([struct dirent.d_ino], , ,
 # define dirent direct
 #endif])
 AC_CHECK_MEMBERS([struct utmp.ut_host, struct utmp.ut_user, struct utmp.ut_tv,
-		  struct utmp.ut_xtime], , ,
+		  struct utmp.ut_xtime, struct utmpx.ut_host,
+		  struct utmpx.ut_user, struct utmpx.ut_tv,
+		  struct utmpx.ut_xtime], , ,
 [#include <sys/types.h>
 #ifdef HAVE_UTMPX_H
 #include <utmpx.h>
@@ -359,12 +385,17 @@ AC_INCLUDES_DEFAULT([])
 #endif
 ])
 AC_CHECK_FUNC([setlocale], [have_setlocale=yes], [have_setlocale=no])
-AC_CHECK_FUNCS([catgets dup2 getauthid getcwd gethostname getpwent] dnl
-	[getutent memmove memset nice nl_langinfo sbrk setpgid setpriority] dnl
-	[strerror strstr sysconf wcwidth])
+AC_CHECK_FUNC([catgets], [have_catgets=yes], [have_catgets=no])
+AC_CHECK_FUNCS([dup2 getauthid getcwd gethostname getpwent] dnl
+	[getutent getutxent mallinfo memmove memset mkstemp nice] dnl
+	[nl_langinfo sbrk setpgid setpriority strerror strstr sysconf wcwidth])
 AC_FUNC_GETPGRP
 AC_FUNC_MBRTOWC
-AC_FUNC_SETPGRP
+if test "x${cross_compiling}" != xyes ; then
+  AC_FUNC_SETPGRP
+else
+  ac_cv_func_setpgrp_void=yes
+fi
 AC_FUNC_STRCOLL
 
 dnl This is not good enough; we need sockaddr_storage too.
@@ -424,6 +455,15 @@ if test "$have_setlocale" != no; then
   fi
 fi
 
+if test "x$enable_nls" != xno -a "$have_catgets" != no -a -n "$GENCAT" ; then
+  AC_ARG_ENABLE([nls-catalogs], AS_HELP_STRING([--disable-nls-catalogs], [Disable NLS catalog support]),
+	        [], [enable_nls_catalogs=yes])
+  if test "x$enable_nls_catalogs" != xno; then
+    BUILD_CATALOGS="yes"
+    AC_DEFINE([NLS_CATALOGS], [1], [Support NLS catalogs.])
+  fi
+fi
+
 AC_ARG_WITH(hesiod,
   [  --with-hesiod=PREFIX    Use Hesiod lookup for ~ expansion],
   [hesiod="$withval"], [hesiod=no])
@@ -439,6 +479,7 @@ if test "$hesiod" != no; then
 fi
 AC_SUBST(HESDEF)
 AC_SUBST(HESLIB)
+AC_SUBST(BUILD_CATALOGS)
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile nls/Makefile])
 AC_OUTPUT

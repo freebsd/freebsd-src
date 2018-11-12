@@ -34,7 +34,7 @@
 /*
  * DM9601(DAVICOM USB to Ethernet MAC Controller with Integrated 10/100 PHY)
  * The spec can be found at the following url.
- *   http://www.davicom.com.tw/big5/download/Data%20Sheet/DM9601-DS-P01-930914.pdf
+ *   http://ptm2.cc.utu.fi/ftp/network/cards/DM9601/From_NET/DM9601-DS-P01-930914.pdf
  */
 
 /*
@@ -52,9 +52,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/systm.h>
+#include <sys/socket.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -65,6 +65,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+
+#include <net/if.h>
+#include <net/if_var.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -146,16 +149,12 @@ static device_method_t udav_methods[] = {
 	DEVMETHOD(device_attach, udav_attach),
 	DEVMETHOD(device_detach, udav_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, udav_miibus_readreg),
 	DEVMETHOD(miibus_writereg, udav_miibus_writereg),
 	DEVMETHOD(miibus_statchg, udav_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t udav_driver = {
@@ -166,12 +165,29 @@ static driver_t udav_driver = {
 
 static devclass_t udav_devclass;
 
+static const STRUCT_USB_HOST_ID udav_devs[] = {
+	/* ShanTou DM9601 USB NIC */
+	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_DM9601, 0)},
+	/* ShanTou ST268 USB NIC */
+	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ST268, 0)},
+	/* Corega USB-TXC */
+	{USB_VPI(USB_VENDOR_COREGA, USB_PRODUCT_COREGA_FETHER_USB_TXC, 0)},
+	/* ShanTou AMD8515 USB NIC */
+	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ADM8515, 0)},
+	/* Kontron AG USB Ethernet */
+	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_DM9601, 0)},
+	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_JP1082,
+	    UDAV_FLAG_NO_PHY)},
+};
+
 DRIVER_MODULE(udav, uhub, udav_driver, udav_devclass, NULL, 0);
 DRIVER_MODULE(miibus, udav, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(udav, uether, 1, 1, 1);
 MODULE_DEPEND(udav, usb, 1, 1, 1);
 MODULE_DEPEND(udav, ether, 1, 1, 1);
 MODULE_DEPEND(udav, miibus, 1, 1, 1);
+MODULE_VERSION(udav, 1);
+USB_PNP_HOST_INFO(udav_devs);
 
 static const struct usb_ether_methods udav_ue_methods = {
 	.ue_attach_post = udav_attach_post,
@@ -185,11 +201,20 @@ static const struct usb_ether_methods udav_ue_methods = {
 	.ue_mii_sts = udav_ifmedia_status,
 };
 
-#if USB_DEBUG
+static const struct usb_ether_methods udav_ue_methods_nophy = {
+	.ue_attach_post = udav_attach_post,
+	.ue_start = udav_start,
+	.ue_init = udav_init,
+	.ue_stop = udav_stop,
+	.ue_setmulti = udav_setmulti,
+	.ue_setpromisc = udav_setpromisc,
+};
+
+#ifdef USB_DEBUG
 static int udav_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
-SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
+SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RWTUN, &udav_debug, 0,
     "Debug level");
 #endif
 
@@ -198,15 +223,6 @@ SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
 
 #define	UDAV_CLRBIT(sc, reg, x)	\
 	udav_csr_write1(sc, reg, udav_csr_read1(sc, reg) & ~(x))
-
-static const struct usb_device_id udav_devs[] = {
-	/* ShanTou DM9601 USB NIC */
-	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_DM9601, 0)},
-	/* ShanTou ST268 USB NIC */
-	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ST268, 0)},
-	/* Corega USB-TXC */
-	{USB_VPI(USB_VENDOR_COREGA, USB_PRODUCT_COREGA_FETHER_USB_TXC, 0)},
-};
 
 static void
 udav_attach_post(struct usb_ether *ue)
@@ -254,15 +270,24 @@ udav_attach(device_t dev)
 	error = usbd_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, udav_config, UDAV_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
-		device_printf(dev, "allocating USB transfers failed!\n");
+		device_printf(dev, "allocating USB transfers failed\n");
 		goto detach;
+	}
+
+	/*
+	 * The JP1082 has an unusable PHY and provides no link information.
+	 */
+	if (sc->sc_flags & UDAV_FLAG_NO_PHY) {
+		ue->ue_methods = &udav_ue_methods_nophy;
+		sc->sc_flags |= UDAV_FLAG_LINK;
+	} else {
+		ue->ue_methods = &udav_ue_methods;
 	}
 
 	ue->ue_sc = sc;
 	ue->ue_dev = dev;
 	ue->ue_udev = uaa->device;
 	ue->ue_mtx = &sc->sc_mtx;
-	ue->ue_methods = &udav_ue_methods;
 
 	error = uether_ifattach(ue);
 	if (error) {
@@ -558,7 +583,7 @@ udav_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete\n");
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -614,7 +639,7 @@ tr_setup:
 		DPRINTFN(11, "transfer error, %s\n",
 		    usbd_errstr(error));
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
@@ -641,8 +666,8 @@ udav_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		if (actlen < sizeof(stat) + ETHER_CRC_LEN) {
-			ifp->if_ierrors++;
+		if (actlen < (int)(sizeof(stat) + ETHER_CRC_LEN)) {
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		pc = usbd_xfer_get_frame(xfer, 0);
@@ -652,11 +677,11 @@ udav_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		len -= ETHER_CRC_LEN;
 
 		if (stat.rxstat & UDAV_RSR_LCS) {
-			ifp->if_collisions++;
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			goto tr_setup;
 		}
 		if (stat.rxstat & UDAV_RSR_ERR) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		uether_rxbuf(ue, pc, sizeof(stat), len);
@@ -711,7 +736,8 @@ udav_stop(struct usb_ether *ue)
 	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	sc->sc_flags &= ~UDAV_FLAG_LINK;
+	if (!(sc->sc_flags & UDAV_FLAG_NO_PHY))
+		sc->sc_flags &= ~UDAV_FLAG_LINK;
 
 	/*
 	 * stop all the transfers, if not already stopped:
@@ -728,18 +754,16 @@ udav_ifmedia_upd(struct ifnet *ifp)
 {
 	struct udav_softc *sc = ifp->if_softc;
 	struct mii_data *mii = GET_MII(sc);
+	struct mii_softc *miisc;
+	int error;
 
 	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
         sc->sc_flags &= ~UDAV_FLAG_LINK;
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
-	mii_mediachg(mii);
-	return (0);
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
+	error = mii_mediachg(mii);
+	return (error);
 }
 
 static void
@@ -750,9 +774,9 @@ udav_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	UDAV_LOCK(sc);
 	mii_pollstat(mii);
-	UDAV_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	UDAV_UNLOCK(sc);
 }
 
 static void

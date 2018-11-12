@@ -2,20 +2,140 @@
  * Wi-Fi Protected Setup - attribute parsing
  * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
 
 #include "common.h"
-#include "wps_i.h"
+#include "wps_defs.h"
+#include "wps_attr_parse.h"
+
+#ifndef CONFIG_WPS_STRICT
+#define WPS_WORKAROUNDS
+#endif /* CONFIG_WPS_STRICT */
+
+
+static int wps_set_vendor_ext_wfa_subelem(struct wps_parse_attr *attr,
+					  u8 id, u8 len, const u8 *pos)
+{
+	wpa_printf(MSG_EXCESSIVE, "WPS: WFA subelement id=%u len=%u",
+		   id, len);
+	switch (id) {
+	case WFA_ELEM_VERSION2:
+		if (len != 1) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid Version2 length "
+				   "%u", len);
+			return -1;
+		}
+		attr->version2 = pos;
+		break;
+	case WFA_ELEM_AUTHORIZEDMACS:
+		attr->authorized_macs = pos;
+		attr->authorized_macs_len = len;
+		break;
+	case WFA_ELEM_NETWORK_KEY_SHAREABLE:
+		if (len != 1) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid Network Key "
+				   "Shareable length %u", len);
+			return -1;
+		}
+		attr->network_key_shareable = pos;
+		break;
+	case WFA_ELEM_REQUEST_TO_ENROLL:
+		if (len != 1) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid Request to Enroll "
+				   "length %u", len);
+			return -1;
+		}
+		attr->request_to_enroll = pos;
+		break;
+	case WFA_ELEM_SETTINGS_DELAY_TIME:
+		if (len != 1) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid Settings Delay "
+				   "Time length %u", len);
+			return -1;
+		}
+		attr->settings_delay_time = pos;
+		break;
+	case WFA_ELEM_REGISTRAR_CONFIGURATION_METHODS:
+		if (len != 2) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid Registrar Configuration Methods length %u",
+				   len);
+			return -1;
+		}
+		attr->registrar_configuration_methods = pos;
+		break;
+	default:
+		wpa_printf(MSG_MSGDUMP, "WPS: Skipped unknown WFA Vendor "
+			   "Extension subelement %u", id);
+		break;
+	}
+
+	return 0;
+}
+
+
+static int wps_parse_vendor_ext_wfa(struct wps_parse_attr *attr, const u8 *pos,
+				    u16 len)
+{
+	const u8 *end = pos + len;
+	u8 id, elen;
+
+	while (pos + 2 <= end) {
+		id = *pos++;
+		elen = *pos++;
+		if (pos + elen > end)
+			break;
+		if (wps_set_vendor_ext_wfa_subelem(attr, id, elen, pos) < 0)
+			return -1;
+		pos += elen;
+	}
+
+	return 0;
+}
+
+
+static int wps_parse_vendor_ext(struct wps_parse_attr *attr, const u8 *pos,
+				u16 len)
+{
+	u32 vendor_id;
+
+	if (len < 3) {
+		wpa_printf(MSG_DEBUG, "WPS: Skip invalid Vendor Extension");
+		return 0;
+	}
+
+	vendor_id = WPA_GET_BE24(pos);
+	switch (vendor_id) {
+	case WPS_VENDOR_ID_WFA:
+		return wps_parse_vendor_ext_wfa(attr, pos + 3, len - 3);
+	}
+
+	/* Handle unknown vendor extensions */
+
+	wpa_printf(MSG_MSGDUMP, "WPS: Unknown Vendor Extension (Vendor ID %u)",
+		   vendor_id);
+
+	if (len > WPS_MAX_VENDOR_EXT_LEN) {
+		wpa_printf(MSG_DEBUG, "WPS: Too long Vendor Extension (%u)",
+			   len);
+		return -1;
+	}
+
+	if (attr->num_vendor_ext >= MAX_WPS_PARSE_VENDOR_EXT) {
+		wpa_printf(MSG_DEBUG, "WPS: Skipped Vendor Extension "
+			   "attribute (max %d vendor extensions)",
+			   MAX_WPS_PARSE_VENDOR_EXT);
+		return -1;
+	}
+	attr->vendor_ext[attr->num_vendor_ext] = pos;
+	attr->vendor_ext_len[attr->num_vendor_ext] = len;
+	attr->num_vendor_ext++;
+
+	return 0;
+}
 
 
 static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
@@ -111,7 +231,7 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		attr->sel_reg_config_methods = pos;
 		break;
 	case ATTR_PRIMARY_DEV_TYPE:
-		if (len != sizeof(struct wps_dev_type)) {
+		if (len != WPS_DEV_TYPE_LEN) {
 			wpa_printf(MSG_DEBUG, "WPS: Invalid Primary Device "
 				   "Type length %u", len);
 			return -1;
@@ -149,6 +269,21 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 			return -1;
 		}
 		attr->dev_password_id = pos;
+		break;
+	case ATTR_OOB_DEVICE_PASSWORD:
+		if (len < WPS_OOB_PUBKEY_HASH_LEN + 2 ||
+		    len > WPS_OOB_PUBKEY_HASH_LEN + 2 +
+		    WPS_OOB_DEVICE_PASSWORD_LEN ||
+		    (len < WPS_OOB_PUBKEY_HASH_LEN + 2 +
+		     WPS_OOB_DEVICE_PASSWORD_MIN_LEN &&
+		     WPA_GET_BE16(pos + WPS_OOB_PUBKEY_HASH_LEN) !=
+		     DEV_PW_NFC_CONNECTION_HANDOVER)) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid OOB Device "
+				   "Password length %u", len);
+			return -1;
+		}
+		attr->oob_dev_password = pos;
+		attr->oob_dev_password_len = len;
 		break;
 	case ATTR_OS_VERSION:
 		if (len != 4) {
@@ -286,22 +421,6 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		}
 		attr->mac_addr = pos;
 		break;
-	case ATTR_KEY_PROVIDED_AUTO:
-		if (len != 1) {
-			wpa_printf(MSG_DEBUG, "WPS: Invalid Key Provided "
-				   "Automatically length %u", len);
-			return -1;
-		}
-		attr->key_prov_auto = pos;
-		break;
-	case ATTR_802_1X_ENABLED:
-		if (len != 1) {
-			wpa_printf(MSG_DEBUG, "WPS: Invalid 802.1X Enabled "
-				   "length %u", len);
-			return -1;
-		}
-		attr->dot1x_enabled = pos;
-		break;
 	case ATTR_SELECTED_REGISTRAR:
 		if (len != 1) {
 			wpa_printf(MSG_DEBUG, "WPS: Invalid Selected Registrar"
@@ -324,29 +443,59 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 				   "length %u", len);
 			return -1;
 		}
-		attr->request_type = pos;
+		attr->response_type = pos;
 		break;
 	case ATTR_MANUFACTURER:
 		attr->manufacturer = pos;
-		attr->manufacturer_len = len;
+		if (len > WPS_MANUFACTURER_MAX_LEN)
+			attr->manufacturer_len = WPS_MANUFACTURER_MAX_LEN;
+		else
+			attr->manufacturer_len = len;
 		break;
 	case ATTR_MODEL_NAME:
 		attr->model_name = pos;
-		attr->model_name_len = len;
+		if (len > WPS_MODEL_NAME_MAX_LEN)
+			attr->model_name_len = WPS_MODEL_NAME_MAX_LEN;
+		else
+			attr->model_name_len = len;
 		break;
 	case ATTR_MODEL_NUMBER:
 		attr->model_number = pos;
-		attr->model_number_len = len;
+		if (len > WPS_MODEL_NUMBER_MAX_LEN)
+			attr->model_number_len = WPS_MODEL_NUMBER_MAX_LEN;
+		else
+			attr->model_number_len = len;
 		break;
 	case ATTR_SERIAL_NUMBER:
 		attr->serial_number = pos;
-		attr->serial_number_len = len;
+		if (len > WPS_SERIAL_NUMBER_MAX_LEN)
+			attr->serial_number_len = WPS_SERIAL_NUMBER_MAX_LEN;
+		else
+			attr->serial_number_len = len;
 		break;
 	case ATTR_DEV_NAME:
+		if (len > WPS_DEV_NAME_MAX_LEN) {
+			wpa_printf(MSG_DEBUG,
+				   "WPS: Ignore too long Device Name (len=%u)",
+				   len);
+			break;
+		}
 		attr->dev_name = pos;
 		attr->dev_name_len = len;
 		break;
 	case ATTR_PUBLIC_KEY:
+		/*
+		 * The Public Key attribute is supposed to be exactly 192 bytes
+		 * in length. Allow couple of bytes shorter one to try to
+		 * interoperate with implementations that do not use proper
+		 * zero-padding.
+		 */
+		if (len < 190 || len > 192) {
+			wpa_printf(MSG_DEBUG,
+				   "WPS: Ignore Public Key with unexpected length %u",
+				   len);
+			break;
+		}
 		attr->public_key = pos;
 		attr->public_key_len = len;
 		break;
@@ -366,6 +515,11 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		attr->num_cred++;
 		break;
 	case ATTR_SSID:
+		if (len > SSID_MAX_LEN) {
+			wpa_printf(MSG_DEBUG,
+				   "WPS: Ignore too long SSID (len=%u)", len);
+			break;
+		}
 		attr->ssid = pos;
 		attr->ssid_len = len;
 		break;
@@ -373,13 +527,50 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		attr->network_key = pos;
 		attr->network_key_len = len;
 		break;
-	case ATTR_EAP_TYPE:
-		attr->eap_type = pos;
-		attr->eap_type_len = len;
+	case ATTR_AP_SETUP_LOCKED:
+		if (len != 1) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid AP Setup Locked "
+				   "length %u", len);
+			return -1;
+		}
+		attr->ap_setup_locked = pos;
 		break;
-	case ATTR_EAP_IDENTITY:
-		attr->eap_identity = pos;
-		attr->eap_identity_len = len;
+	case ATTR_REQUESTED_DEV_TYPE:
+		if (len != WPS_DEV_TYPE_LEN) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid Requested Device "
+				   "Type length %u", len);
+			return -1;
+		}
+		if (attr->num_req_dev_type >= MAX_REQ_DEV_TYPE_COUNT) {
+			wpa_printf(MSG_DEBUG, "WPS: Skipped Requested Device "
+				   "Type attribute (max %u types)",
+				   MAX_REQ_DEV_TYPE_COUNT);
+			break;
+		}
+		attr->req_dev_type[attr->num_req_dev_type] = pos;
+		attr->num_req_dev_type++;
+		break;
+	case ATTR_SECONDARY_DEV_TYPE_LIST:
+		if (len > WPS_SEC_DEV_TYPE_MAX_LEN ||
+		    (len % WPS_DEV_TYPE_LEN) > 0) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid Secondary Device "
+				   "Type length %u", len);
+			return -1;
+		}
+		attr->sec_dev_type_list = pos;
+		attr->sec_dev_type_list_len = len;
+		break;
+	case ATTR_VENDOR_EXT:
+		if (wps_parse_vendor_ext(attr, pos, len) < 0)
+			return -1;
+		break;
+	case ATTR_AP_CHANNEL:
+		if (len != 2) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid AP Channel "
+				   "length %u", len);
+			return -1;
+		}
+		attr->ap_channel = pos;
 		break;
 	default:
 		wpa_printf(MSG_DEBUG, "WPS: Unsupported attribute type 0x%x "
@@ -395,6 +586,9 @@ int wps_parse_msg(const struct wpabuf *msg, struct wps_parse_attr *attr)
 {
 	const u8 *pos, *end;
 	u16 type, len;
+#ifdef WPS_WORKAROUNDS
+	u16 prev_type = 0;
+#endif /* WPS_WORKAROUNDS */
 
 	os_memset(attr, 0, sizeof(*attr));
 	pos = wpabuf_head(msg);
@@ -412,16 +606,56 @@ int wps_parse_msg(const struct wpabuf *msg, struct wps_parse_attr *attr)
 		pos += 2;
 		len = WPA_GET_BE16(pos);
 		pos += 2;
-		wpa_printf(MSG_MSGDUMP, "WPS: attr type=0x%x len=%u",
+		wpa_printf(MSG_EXCESSIVE, "WPS: attr type=0x%x len=%u",
 			   type, len);
 		if (len > end - pos) {
 			wpa_printf(MSG_DEBUG, "WPS: Attribute overflow");
+			wpa_hexdump_buf(MSG_MSGDUMP, "WPS: Message data", msg);
+#ifdef WPS_WORKAROUNDS
+			/*
+			 * Some deployed APs seem to have a bug in encoding of
+			 * Network Key attribute in the Credential attribute
+			 * where they add an extra octet after the Network Key
+			 * attribute at least when open network is being
+			 * provisioned.
+			 */
+			if ((type & 0xff00) != 0x1000 &&
+			    prev_type == ATTR_NETWORK_KEY) {
+				wpa_printf(MSG_DEBUG, "WPS: Workaround - try "
+					   "to skip unexpected octet after "
+					   "Network Key");
+				pos -= 3;
+				continue;
+			}
+#endif /* WPS_WORKAROUNDS */
 			return -1;
 		}
+
+#ifdef WPS_WORKAROUNDS
+		if (type == 0 && len == 0) {
+			/*
+			 * Mac OS X 10.6 seems to be adding 0x00 padding to the
+			 * end of M1. Skip those to avoid interop issues.
+			 */
+			int i;
+			for (i = 0; i < end - pos; i++) {
+				if (pos[i])
+					break;
+			}
+			if (i == end - pos) {
+				wpa_printf(MSG_DEBUG, "WPS: Workaround - skip "
+					   "unexpected message padding");
+				break;
+			}
+		}
+#endif /* WPS_WORKAROUNDS */
 
 		if (wps_set_attr(attr, type, pos, len) < 0)
 			return -1;
 
+#ifdef WPS_WORKAROUNDS
+		prev_type = type;
+#endif /* WPS_WORKAROUNDS */
 		pos += len;
 	}
 

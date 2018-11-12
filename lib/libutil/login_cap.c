@@ -239,7 +239,7 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 		break;	/* Don't retry default on 'me' */
 	    if (i == 0)
 	        r = -1;
-	    else if ((r = open(login_dbarray[0], O_RDONLY)) >= 0)
+	    else if ((r = open(login_dbarray[0], O_RDONLY | O_CLOEXEC)) >= 0)
 	        close(r);
 	    /*
 	     * If there's at least one login class database,
@@ -742,7 +742,7 @@ login_getcapsize(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
 
 /*
  * login_getcapbool()
- * From the login_cap_t <lc>, check for the existance of the capability
+ * From the login_cap_t <lc>, check for the existence of the capability
  * of <cap>.  Return <def> if <lc>->lc_cap is NULL, otherwise return
  * the whether or not <cap> exists there.
  */

@@ -32,16 +32,35 @@
 
 #define OPENPIC_IRQMAX	256	/* h/w allows more */
 
+/* Names match the macros in openpicreg.h. */
+struct openpic_timer {
+    	uint32_t	tcnt;
+    	uint32_t	tbase;
+    	uint32_t	tvec;
+    	uint32_t	tdst;
+};
+
 struct openpic_softc {
 	device_t	sc_dev;
 	struct resource	*sc_memr;
+	struct resource	*sc_intr;
 	bus_space_tag_t sc_bt;
 	bus_space_handle_t sc_bh;
 	char		*sc_version;
 	int		sc_rid;
+	int		sc_irq;
+	void		*sc_icookie;
 	u_int		sc_ncpu;
 	u_int		sc_nirq;
 	int		sc_psim;
+
+	/* Saved states. */
+	uint32_t		sc_saved_config;
+	uint32_t		sc_saved_ipis[4];
+	uint32_t		sc_saved_prios[4];
+	struct openpic_timer	sc_saved_timers[OPENPIC_TIMERS];
+	uint32_t		sc_saved_vectors[OPENPIC_SRC_VECTOR_COUNT];
+	
 };
 
 extern devclass_t openpic_devclass;
@@ -49,11 +68,12 @@ extern devclass_t openpic_devclass;
 /*
  * Bus-independent attach i/f
  */
-int	openpic_attach(device_t);
+int	openpic_common_attach(device_t, uint32_t);
 
 /*
  * PIC interface.
  */
+void	openpic_bind(device_t dev, u_int irq, cpuset_t cpumask);
 void	openpic_config(device_t, u_int, enum intr_trigger, enum intr_polarity);
 void	openpic_dispatch(device_t, struct trapframe *);
 void	openpic_enable(device_t, u_int, u_int);
@@ -61,5 +81,8 @@ void	openpic_eoi(device_t, u_int);
 void	openpic_ipi(device_t, u_int);
 void	openpic_mask(device_t, u_int);
 void	openpic_unmask(device_t, u_int);
+
+int	openpic_suspend(device_t dev);
+int	openpic_resume(device_t dev);
 
 #endif /* _POWERPC_OPENPICVAR_H_ */

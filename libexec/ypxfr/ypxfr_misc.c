@@ -130,14 +130,14 @@ ypxfr_get_master(char *domain, char *map, char *source, const int yplib)
 		if ((res = yp_master(domain, map, &master))) {
 			switch (res) {
 			case YPERR_DOMAIN:
-				yp_errno = YPXFR_NODOM;
+				yp_errno = (enum ypstat)YPXFR_NODOM;
 				break;
 			case YPERR_MAP:
-				yp_errno = YPXFR_NOMAP;
+				yp_errno = (enum ypstat)YPXFR_NOMAP;
 				break;
 			case YPERR_YPERR:
 			default:
-				yp_errno = YPXFR_YPERR;
+				yp_errno = (enum ypstat)YPXFR_YPERR;
 				break;
 			}
 			return(NULL);
@@ -154,7 +154,7 @@ ypxfr_get_master(char *domain, char *map, char *source, const int yplib)
 		if ((clnt = clnt_create(source,YPPROG,YPVERS,"udp")) == NULL) {
 			yp_error("%s",clnt_spcreateerror("failed to \
 create udp handle to ypserv"));
-			yp_errno = YPXFR_RPC;
+			yp_errno = (enum ypstat)YPXFR_RPC;
 			return(NULL);
 		}
 
@@ -164,21 +164,21 @@ create udp handle to ypserv"));
 			yp_error("%s",clnt_sperror(clnt,"YPPROC_MASTER \
 failed"));
 			clnt_destroy(clnt);
-			yp_errno = YPXFR_RPC;
+			yp_errno = (enum ypstat)YPXFR_RPC;
 			return(NULL);
 		}
 		clnt_destroy(clnt);
 		if (resp->stat != YP_TRUE) {
 			switch (resp->stat) {
 			case YP_NODOM:
-				yp_errno = YPXFR_NODOM;
+				yp_errno = (enum ypstat)YPXFR_NODOM;
 				break;
 			case YP_NOMAP:
-				yp_errno = YPXFR_NOMAP;
+				yp_errno = (enum ypstat)YPXFR_NOMAP;
 				break;
 			case YP_YPERR:
 			default:
-				yp_errno = YPXFR_YPERR;
+				yp_errno = (enum ypstat)YPXFR_YPERR;
 				break;
 			}
 			return(NULL);
@@ -198,14 +198,14 @@ ypxfr_get_order(char *domain, char *map, char *source, const int yplib)
 		if ((res = yp_order(domain, map, &order))) {
 			switch (res) {
 			case YPERR_DOMAIN:
-				yp_errno = YPXFR_NODOM;
+				yp_errno = (enum ypstat)YPXFR_NODOM;
 				break;
 			case YPERR_MAP:
-				yp_errno = YPXFR_NOMAP;
+				yp_errno = (enum ypstat)YPXFR_NOMAP;
 				break;
 			case YPERR_YPERR:
 			default:
-				yp_errno = YPXFR_YPERR;
+				yp_errno = (enum ypstat)YPXFR_YPERR;
 				break;
 			}
 			return(0);
@@ -219,7 +219,7 @@ ypxfr_get_order(char *domain, char *map, char *source, const int yplib)
 		if ((clnt = clnt_create(source,YPPROG,YPVERS,"udp")) == NULL) {
 			yp_error("%s",clnt_spcreateerror("couldn't create \
 udp handle to ypserv"));
-			yp_errno = YPXFR_RPC;
+			yp_errno = (enum ypstat)YPXFR_RPC;
 			return(0);
 		}
 		req.map = map;
@@ -228,21 +228,21 @@ udp handle to ypserv"));
 			yp_error("%s", clnt_sperror(clnt, "YPPROC_ORDER \
 failed"));
 			clnt_destroy(clnt);
-			yp_errno = YPXFR_RPC;
+			yp_errno = (enum ypstat)YPXFR_RPC;
 			return(0);
 		}
 		clnt_destroy(clnt);
 		if (resp->stat != YP_TRUE) {
 			switch (resp->stat) {
 			case YP_NODOM:
-				yp_errno = YPXFR_NODOM;
+				yp_errno = (enum ypstat)YPXFR_NODOM;
 				break;
 			case YP_NOMAP:
-				yp_errno = YPXFR_NOMAP;
+				yp_errno = (enum ypstat)YPXFR_NOMAP;
 				break;
 			case YP_YPERR:
 			default:
-				yp_errno = YPXFR_YPERR;
+				yp_errno = (enum ypstat)YPXFR_YPERR;
 				break;
 			}
 			return(0);

@@ -6,10 +6,12 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	@(#)gs.h	10.34 (Berkeley) 9/24/96
+ *	$Id: gs.h,v 11.0 2012/10/17 06:34:37 zy Exp $
  */
 
 #define	TEMPORARY_FILE_STRING	"/tmp"	/* Default temporary file name. */
+
+#include <nl_types.h>
 
 /*
  * File reference structure (FREF).  The structure contains the name of the
@@ -19,7 +21,7 @@
  * The read-only bit follows the file name, not the file itself.
  */
 struct _fref {
-	CIRCLEQ_ENTRY(_fref) q;		/* Linked list of file references. */
+	TAILQ_ENTRY(_fref) q;		/* Linked list of file references. */
 	char	*name;			/* File name. */
 	char	*tname;			/* Backing temporary file name. */
 
@@ -56,20 +58,15 @@ struct _gs {
 	char	*progname;		/* Programe name. */
 
 	int	 id;			/* Last allocated screen id. */
-	CIRCLEQ_HEAD(_dqh, _scr) dq;	/* Displayed screens. */
-	CIRCLEQ_HEAD(_hqh, _scr) hq;	/* Hidden screens. */
+	TAILQ_HEAD(_dqh, _scr) dq[1];	/* Displayed screens. */
+	TAILQ_HEAD(_hqh, _scr) hq[1];	/* Hidden screens. */
 
 	SCR	*ccl_sp;		/* Colon command-line screen. */
 
-	void	*perl_interp;		/* Perl interpreter. */
-	void	*tcl_interp;		/* Tcl_Interp *: Tcl interpreter. */
-
 	void	*cl_private;		/* Curses support private area. */
-	void	*ip_private;		/* IP support private area. */
-	void	*tk_private;		/* Tk/Tcl support private area. */
 
 					/* File references. */
-	CIRCLEQ_HEAD(_frefh, _fref) frefq;
+	TAILQ_HEAD(_frefh, _fref) frefq[1];
 
 #define	GO_COLUMNS	0		/* Global options: columns. */
 #define	GO_LINES	1		/* Global options: lines. */
@@ -77,10 +74,10 @@ struct _gs {
 #define	GO_TERM		3		/* Global options: terminal type. */
 	OPTION	 opts[GO_TERM + 1];
 
-	DB	*msg;			/* Message catalog DB. */
-	MSGH	 msgq;			/* User message list. */
+	nl_catd	 catd;			/* Message catalog descriptor. */
+	MSGH	 msgq[1];		/* User message list. */
 #define	DEFAULT_NOPRINT	'\1'		/* Emergency non-printable character. */
-	CHAR_T	 noprint;		/* Cached, unprintable character. */
+	int	 noprint;		/* Cached, unprintable character. */
 
 	char	*tmp_bp;		/* Temporary buffer. */
 	size_t	 tmp_blen;		/* Temporary buffer size. */
@@ -89,8 +86,9 @@ struct _gs {
 	 * Ex command structures (EXCMD).  Defined here because ex commands
 	 * exist outside of any particular screen or file.
 	 */
-#define	EXCMD_RUNNING(gp)	((gp)->ecq.lh_first->clen != 0)
-	LIST_HEAD(_excmdh, _excmd) ecq;	/* Ex command linked list. */
+#define	EXCMD_RUNNING(gp)	(SLIST_FIRST((gp)->ecq)->clen != 0)
+					/* Ex command linked list. */
+	SLIST_HEAD(_excmdh, _excmd) ecq[1];
 	EXCMD	 excmd;			/* Default ex command structure. */
 	char	 *if_name;		/* Current associated file. */
 	recno_t	  if_lno;		/* Current associated line number. */
@@ -108,30 +106,28 @@ struct _gs {
 
 	CB	*dcbp;			/* Default cut buffer pointer. */
 	CB	 dcb_store;		/* Default cut buffer storage. */
-	LIST_HEAD(_cuth, _cb) cutq;	/* Linked list of cut buffers. */
+	SLIST_HEAD(_cuth, _cb) cutq[1];	/* Linked list of cut buffers. */
 
-#define	MAX_BIT_SEQ	128		/* Max + 1 fast check character. */
-	LIST_HEAD(_seqh, _seq) seqq;	/* Linked list of maps, abbrevs. */
-	bitstr_t bit_decl(seqb, MAX_BIT_SEQ);
+#define	MAX_BIT_SEQ	0x7f		/* Max + 1 fast check character. */
+	SLIST_HEAD(_seqh, _seq) seqq[1];/* Linked list of maps, abbrevs. */
+	bitstr_t bit_decl(seqb, MAX_BIT_SEQ + 1);
 
-#define	MAX_FAST_KEY	254		/* Max fast check character.*/
+#define	MAX_FAST_KEY	0xff		/* Max fast check character.*/
 #define	KEY_LEN(sp, ch)							\
-	((unsigned char)(ch) <= MAX_FAST_KEY ?				\
+	(((ch) & ~MAX_FAST_KEY) == 0 ?					\
 	    sp->gp->cname[(unsigned char)ch].len : v_key_len(sp, ch))
 #define	KEY_NAME(sp, ch)						\
-	((unsigned char)(ch) <= MAX_FAST_KEY ?				\
+	(((ch) & ~MAX_FAST_KEY) == 0 ?					\
 	    sp->gp->cname[(unsigned char)ch].name : v_key_name(sp, ch))
 	struct {
-		CHAR_T	 name[MAX_CHARACTER_COLUMNS + 1];
+		char	 name[MAX_CHARACTER_COLUMNS + 1];
 		u_int8_t len;
 	} cname[MAX_FAST_KEY + 1];	/* Fast lookup table. */
 
 #define	KEY_VAL(sp, ch)							\
-	((unsigned char)(ch) <= MAX_FAST_KEY ? 				\
-	    sp->gp->special_key[(unsigned char)ch] :			\
-	    (unsigned char)(ch) > sp->gp->max_special ? 0 : v_key_val(sp,ch))
-	CHAR_T	 max_special;		/* Max special character. */
-	u_char				/* Fast lookup table. */
+	(((ch) & ~MAX_FAST_KEY) == 0 ? 					\
+	    sp->gp->special_key[(unsigned char)ch] : v_key_val(sp,ch))
+	e_key_t				/* Fast lookup table. */
 	    special_key[MAX_FAST_KEY + 1];
 
 /* Flags. */
@@ -148,63 +144,55 @@ struct _gs {
 
 	/* Screen interface functions. */
 					/* Add a string to the screen. */
-	int	(*scr_addstr) __P((SCR *, const char *, size_t));
+	int	(*scr_addstr)(SCR *, const char *, size_t);
+					/* Add a string to the screen. */
+	int	(*scr_waddstr)(SCR *, const CHAR_T *, size_t);
 					/* Toggle a screen attribute. */
-	int	(*scr_attr) __P((SCR *, scr_attr_t, int));
+	int	(*scr_attr)(SCR *, scr_attr_t, int);
 					/* Terminal baud rate. */
-	int	(*scr_baud) __P((SCR *, u_long *));
+	int	(*scr_baud)(SCR *, u_long *);
 					/* Beep/bell/flash the terminal. */
-	int	(*scr_bell) __P((SCR *));
+	int	(*scr_bell)(SCR *);
 					/* Display a busy message. */
-	void	(*scr_busy) __P((SCR *, const char *, busy_t));
+	void	(*scr_busy)(SCR *, const char *, busy_t);
+					/* Prepare child. */
+	int	(*scr_child)(SCR *);
 					/* Clear to the end of the line. */
-	int	(*scr_clrtoeol) __P((SCR *));
+	int	(*scr_clrtoeol)(SCR *);
 					/* Return the cursor location. */
-	int	(*scr_cursor) __P((SCR *, size_t *, size_t *));
+	int	(*scr_cursor)(SCR *, size_t *, size_t *);
 					/* Delete a line. */
-	int	(*scr_deleteln) __P((SCR *));
+	int	(*scr_deleteln)(SCR *);
+					/* Discard a screen. */
+	int	(*scr_discard)(SCR *, SCR **);
 					/* Get a keyboard event. */
-	int	(*scr_event) __P((SCR *, EVENT *, u_int32_t, int));
+	int	(*scr_event)(SCR *, EVENT *, u_int32_t, int);
 					/* Ex: screen adjustment routine. */
-	int	(*scr_ex_adjust) __P((SCR *, exadj_t));
+	int	(*scr_ex_adjust)(SCR *, exadj_t);
 	int	(*scr_fmap)		/* Set a function key. */
-	    __P((SCR *, seq_t, CHAR_T *, size_t, CHAR_T *, size_t));
+	   (SCR *, seq_t, CHAR_T *, size_t, CHAR_T *, size_t);
 					/* Get terminal key value. */
-	int	(*scr_keyval) __P((SCR *, scr_keyval_t, CHAR_T *, int *));
+	int	(*scr_keyval)(SCR *, scr_keyval_t, CHAR_T *, int *);
 					/* Insert a line. */
-	int	(*scr_insertln) __P((SCR *));
+	int	(*scr_insertln)(SCR *);
 					/* Handle an option change. */
-	int	(*scr_optchange) __P((SCR *, int, char *, u_long *));
+	int	(*scr_optchange)(SCR *, int, char *, u_long *);
 					/* Move the cursor. */
-	int	(*scr_move) __P((SCR *, size_t, size_t));
+	int	(*scr_move)(SCR *, size_t, size_t);
 					/* Message or ex output. */
-	void	(*scr_msg) __P((SCR *, mtype_t, char *, size_t));
+	void	(*scr_msg)(SCR *, mtype_t, char *, size_t);
 					/* Refresh the screen. */
-	int	(*scr_refresh) __P((SCR *, int));
+	int	(*scr_refresh)(SCR *, int);
 					/* Rename the file. */
-	int	(*scr_rename) __P((SCR *, char *, int));
+	int	(*scr_rename)(SCR *, char *, int);
+					/* Reply to an event. */
+	int	(*scr_reply)(SCR *, int, char *);
 					/* Set the screen type. */
-	int	(*scr_screen) __P((SCR *, u_int32_t));
+	int	(*scr_screen)(SCR *, u_int32_t);
+					/* Split the screen. */
+	int	(*scr_split)(SCR *, SCR *);
 					/* Suspend the editor. */
-	int	(*scr_suspend) __P((SCR *, int *));
+	int	(*scr_suspend)(SCR *, int *);
 					/* Print usage message. */
-	void	(*scr_usage) __P((void));
+	void	(*scr_usage)(void);
 };
-
-/*
- * XXX
- * Block signals if there are asynchronous events.  Used to keep DB system calls
- * from being interrupted and not restarted, as that will result in consistency
- * problems.  This should be handled by DB.
- */
-#ifdef BLOCK_SIGNALS
-#include <signal.h>
-extern sigset_t	__sigblockset;
-#define	SIGBLOCK \
-	(void)sigprocmask(SIG_BLOCK, &__sigblockset, NULL)
-#define	SIGUNBLOCK \
-	(void)sigprocmask(SIG_UNBLOCK, &__sigblockset, NULL);
-#else
-#define	SIGBLOCK
-#define	SIGUNBLOCK
-#endif

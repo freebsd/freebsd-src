@@ -158,7 +158,7 @@ netflush(void)
 	    perror(hostname);
 	    (void)NetClose(net);
 	    ring_clear_mark(&netoring);
-	    longjmp(peerdied, -1);
+	    ExitString("Connection closed by foreign host.\n", 1);
 	    /*NOTREACHED*/
 	}
 	n = 0;

@@ -56,8 +56,8 @@ extern volatile sig_atomic_t exception;
 /* exceptions */
 #define EXINT 0		/* SIGINT received */
 #define EXERROR 1	/* a generic error */
-#define EXSHELLPROC 2	/* execute a shell procedure */
-#define EXEXEC 3	/* command execution failed */
+#define EXEXEC 2	/* command execution failed */
+#define EXEXIT 3	/* call exitshell(exitstatus) */
 
 
 /*
@@ -72,14 +72,18 @@ extern volatile sig_atomic_t intpending;
 
 #define INTOFF suppressint++
 #define INTON { if (--suppressint == 0 && intpending) onint(); }
+#define is_int_on() suppressint
+#define SETINTON(s) suppressint = (s)
 #define FORCEINTON {suppressint = 0; if (intpending) onint();}
+#define SET_PENDING_INT intpending = 1
 #define CLEAR_PENDING_INT intpending = 0
 #define int_pending() intpending
 
-void exraise(int);
-void onint(void);
-void error(const char *, ...) __printf0like(1, 2);
-void exerror(int, const char *, ...) __printf0like(2, 3);
+void exraise(int) __dead2;
+void onint(void) __dead2;
+void warning(const char *, ...) __printflike(1, 2);
+void error(const char *, ...) __printf0like(1, 2) __dead2;
+void exerror(int, const char *, ...) __printf0like(2, 3) __dead2;
 
 
 /*

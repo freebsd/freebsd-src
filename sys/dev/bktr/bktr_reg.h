@@ -35,7 +35,7 @@
  */
 
 #ifdef __NetBSD__
-#include <machine/bus.h>		/* struct device */
+#include <machine/bus.h>		/* device_t */
 #include <sys/device.h>
 #include <sys/select.h>			/* struct selinfo */
 # ifdef DEBUG
@@ -716,10 +716,6 @@ struct bt848_card_sig {
 /***********************************************************/
 /* ioctl_cmd_t int on old versions, u_long on new versions */
 /***********************************************************/
-
-#if (__FreeBSD__ == 2)
-typedef int ioctl_cmd_t;
-#endif
 
 #if defined(__FreeBSD__)
 typedef u_long ioctl_cmd_t;

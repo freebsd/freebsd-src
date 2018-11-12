@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 31, 2006
+.Dd June 1, 2016
 .Dt MEMGUARD 9
 .Os
 .Sh NAME
@@ -39,62 +39,155 @@ to help detect tamper-after-free scenarios.
 These problems are more and more common and likely with
 multithreaded kernels where race conditions are more prevalent.
 .Pp
-Currently,
 .Nm
-can only take over
+can take over
 .Fn malloc ,
 .Fn realloc
 and
 .Fn free
-for a particular malloc type.
+for a single malloc type.
+Alternatively
+.Nm
+can take over
+.Fn uma_zalloc ,
+.Fn uma_zalloc_arg
+and
+.Fn uma_free
+for a single
+.Xr uma
+zone.
+Also
+.Nm
+can guard all allocations larger than
+.Dv PAGE_SIZE ,
+and can guard a random fraction of all allocations.
+There is also a knob to prevent allocations smaller than a specified
+size from being guarded, to limit memory waste.
 .Sh EXAMPLES
 To use
 .Nm
-for memory type compiled into the kernel, one has to add the
-following line to the
+for a memory type, either add an entry to
 .Pa /boot/loader.conf :
 .Bd -literal -offset indent
 vm.memguard.desc=<memory_type>
 .Ed
 .Pp
-Where
-.Ar memory_type
-is a short description of memory type to monitor.
-The short description of memory type is the second argument to
-.Xr MALLOC_DEFINE 9 ,
-so one has to find it in the kernel source.
-.Pp
-To use
-.Nm
-for memory type defined in a kernel module, one has to set
+Or set the
 .Va vm.memguard.desc
 .Xr sysctl 8
-variable before loading the module:
+variable at run-time:
 .Bd -literal -offset indent
 sysctl vm.memguard.desc=<memory_type>
 .Ed
 .Pp
+Where
+.Ar memory_type
+can be either a short description of the memory type to monitor,
+either name of
+.Xr uma 9
+zone.
+Only allocations from that
+.Ar memory_type
+made after
+.Va vm.memguard.desc
+is set will potentially be guarded.
+If
+.Va vm.memguard.desc
+is modified at run-time then only allocations of the new
+.Ar memory_type
+will potentially be guarded once the
+.Xr sysctl 8
+is set.
+Existing guarded allocations will still be properly released by
+either
+.Xr free 9
+or
+.Xr uma_zfree 9 ,
+depending on what kind of allocation was taken over.
+.Pp
+To determine short description of a
+.Xr malloc 9
+type one can either take it from the first column of
+.Xr vmstat 8 Fl m
+output, or to find it in the kernel source.
+It is the second argument to
+.Xr MALLOC_DEFINE 9
+macro.
+To determine name of
+.Xr uma 9
+zone one can either take it from the first column of
+.Xr vmstat 8 Fl z
+output, or to find it in the kernel source.
+It is the first argument to the
+.Xr uma_zcreate 9
+function.
+.Pp
 The
 .Va vm.memguard.divisor
-boot-time tunable is used to scale how much of
-.Va kmem_map
-one wants to allocate for
-.Nm .
-The default is 10, so
-.Va kmem_size Ns /10
-bytes will be used.
-The
-.Va kmem_size
-value can be obtained via the
-.Va vm.kmem_size
-.Xr sysctl 8
-variable.
+boot-time tunable is used to scale how much of the system's physical
+memory
+.Nm
+is allowed to consume.
+The default is 10, so up to
+.Va vm_cnt.v_page_count Ns /10
+pages can be used.
+.Nm
+will reserve
+.Va vm_kmem_max
+/
+.Va vm.memguard.divisor
+bytes of virtual address space, limited by twice the physical memory
+size.
+The physical limit is reported as
+.Va vm.memguard.phys_limit
+and the virtual space reserved for
+.Nm
+is reported as
+.Va vm.memguard.mapsize .
+.Pp
+.Nm
+will not do page promotions for any allocation smaller than
+.Va vm.memguard.minsize
+bytes.
+The default is 0, meaning all allocations can potentially be guarded.
+.Nm
+can guard sufficiently large allocations randomly, with average
+frequency of every one in 100000 /
+.Va vm.memguard.frequency
+allocations.
+The default is 0, meaning no allocations are randomly guarded.
+.Pp
+.Nm
+can optionally add unmapped guard pages around each allocation to
+detect overflow and underflow, if
+.Va vm.memguard.options
+has the 1 bit set.
+This option is enabled by default.
+.Nm
+will optionally guard all allocations of
+.Dv PAGE_SIZE
+or larger if
+.Va vm.memguard.options
+has the 2 bit set.
+This option is off by default.
+By default
+.Nm
+doesn't guard those
+.Xr uma 9
+zones that have been initialized with the
+.Dv UMA_ZONE_NOFREE
+flag set, since it can produce false positives on them.
+However, this safety measure can be turned off by setting bit 3
+of the
+.Va vm.memguard.options
+tunable.
 .Sh SEE ALSO
 .Xr sysctl 8 ,
 .Xr vmstat 8 ,
 .Xr contigmalloc 9 ,
 .Xr malloc 9 ,
-.Xr redzone 9
+.Xr redzone 9 ,
+.Xr uma 9
 .Sh HISTORY
 .Nm
 first appeared in
@@ -102,11 +195,12 @@ first appeared in
 .Sh AUTHORS
 .An -nosplit
 .Nm
-was written by
-.An Bosko Milekic Aq bmilekic@FreeBSD.org .
-This manual page was written by
-.An Christian Brueffer Aq brueffer@FreeBSD.org .
-.Sh BUGS
-Currently, it is not possible to override UMA
-.Xr zone 9
-allocations.
+was originally written by
+.An Bosko Milekic Aq Mt bmilekic@FreeBSD.org .
+This manual page was originally written by
+.An Christian Brueffer Aq Mt brueffer@FreeBSD.org .
+Additions have been made by
+.An Matthew Fleming Aq Mt mdf@FreeBSD.org
+and
+.An Gleb Smirnoff Aq Mt glebius@FreeBSD.org
+to both the implementation and the documentation.

@@ -1,15 +1,10 @@
-/* $OpenBSD: cipher-bf1.c,v 1.5 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: cipher-bf1.c,v 1.7 2015/01/14 10:24:42 markus Exp $ */
 /*
  * Copyright (c) 2003 Markus Friedl.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -25,15 +20,14 @@
 
 #include "includes.h"
 
-#include <sys/types.h>
+#ifdef WITH_OPENSSL
 
-#include <openssl/evp.h>
+#include <sys/types.h>
 
 #include <stdarg.h>
 #include <string.h>
 
-#include "xmalloc.h"
-#include "log.h"
+#include <openssl/evp.h>
 
 #include "openbsd-compat/openssl-compat.h"
 
@@ -76,10 +70,12 @@ static void bf_ssh1_init (EVP_CIPHER_CTX * ctx, const unsigned char *key,
 }
 #endif
 
-static int (*orig_bf)(EVP_CIPHER_CTX *, u_char *, const u_char *, u_int) = NULL;
+static int (*orig_bf)(EVP_CIPHER_CTX *, u_char *,
+    const u_char *, LIBCRYPTO_EVP_INL_TYPE) = NULL;
 
 static int
-bf_ssh1_cipher(EVP_CIPHER_CTX *ctx, u_char *out, const u_char *in, u_int len)
+bf_ssh1_cipher(EVP_CIPHER_CTX *ctx, u_char *out, const u_char *in,
+    LIBCRYPTO_EVP_INL_TYPE len)
 {
 	int ret;
 
@@ -104,3 +100,4 @@ evp_ssh1_bf(void)
 	ssh1_bf.key_len = 32;
 	return (&ssh1_bf);
 }
+#endif /* WITH_OPENSSL */

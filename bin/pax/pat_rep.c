@@ -43,9 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <stdlib.h>
-#include <errno.h>
 #ifdef NET2_REGEX
 #include <regexp.h>
 #else
@@ -76,7 +74,7 @@ static char * range_match(char *, int);
 #ifdef NET2_REGEX
 static int resub(regexp *, char *, char *, char *);
 #else
-static int resub(regex_t *, regmatch_t *, char *, char *, char *);
+static int resub(regex_t *, regmatch_t *, char *, char *, char *, char *);
 #endif
 
 /*
@@ -397,7 +395,7 @@ pat_sel(ARCHD *arcn)
 		/*
 		 * should never happen....
 		 */
-		paxwarn(1, "Pattern list inconsistant");
+		paxwarn(1, "Pattern list inconsistent");
 		return(-1);
 	}
 	*ppt = pt->fow;
@@ -880,7 +878,7 @@ rep_name(char *name, int *nlen, int prnt)
 	 * (the user already saw that substitution go by)
 	 */
 	pt = rephead;
-	(void)strcpy(buf1, name);
+	(void)strlcpy(buf1, name, sizeof(buf1));
 	inpt = buf1;
 	outpt = nname;
 	endpt = outpt + PAXPATHLEN;
@@ -929,7 +927,7 @@ rep_name(char *name, int *nlen, int prnt)
 #			ifdef NET2_REGEX
 			if ((res = resub(pt->rcmp,pt->nstr,outpt,endpt)) < 0) {
 #			else
-			if ((res = resub(&(pt->rcmp),pm,pt->nstr,outpt,endpt))
+			if ((res = resub(&(pt->rcmp),pm,inpt,pt->nstr,outpt,endpt))
 			    < 0) {
 #			endif
 				if (prnt)
@@ -1071,7 +1069,7 @@ resub(regexp *prog, char *src, char *dest, char *destend)
  */
 
 static int
-resub(regex_t *rp, regmatch_t *pm, char *src, char *dest,
+resub(regex_t *rp, regmatch_t *pm, char *orig, char *src, char *dest,
 	char *destend)
 {
 	char *spt;
@@ -1121,7 +1119,7 @@ resub(regex_t *rp, regmatch_t *pm, char *src, char *dest,
 		 */
 		if (len > (destend - dpt))
 			len = destend - dpt;
-		if (l_strncpy(dpt, src + pmpt->rm_so, len) != len)
+		if (l_strncpy(dpt, orig + pmpt->rm_so, len) != len)
 			return(-1);
 		dpt += len;
 	}

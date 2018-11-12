@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/errno.h>
 
@@ -52,9 +54,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/socket.h>
  
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_arp.h>
+#include <net/route.h>
 
 #include <net80211/ieee80211_var.h>
 
@@ -120,29 +124,6 @@ mwl_pci_probe(device_t dev)
 	return ENXIO;
 }
 
-static u_int32_t
-mwl_pci_setup(device_t dev)
-{
-	u_int32_t cmd;
-
-	/*
-	 * Enable memory mapping and bus mastering.
-	 */
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, cmd, 4);
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	if ((cmd & PCIM_CMD_MEMEN) == 0) {
-		device_printf(dev, "failed to enable memory mapping\n");
-		return 0;
-	}
-	if ((cmd & PCIM_CMD_BUSMASTEREN) == 0) {
-		device_printf(dev, "failed to enable bus mastering\n");
-		return 0;
-	}
-	return 1;
-}
-
 static int
 mwl_pci_attach(device_t dev)
 {
@@ -152,11 +133,8 @@ mwl_pci_attach(device_t dev)
 
 	sc->sc_dev = dev;
 
-	/*
-	 * Enable memory mapping and bus mastering.
-	 */
-	if (!mwl_pci_setup(dev))
-		return 0;
+	pci_enable_busmaster(dev);
+
 	/* 
 	 * Setup memory-mapping of PCI registers.
 	 */
@@ -201,10 +179,10 @@ mwl_pci_attach(device_t dev)
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
-			       BUS_SPACE_MAXADDR,	/* maxsize */
+			       BUS_SPACE_MAXSIZE,	/* maxsize */
 			       MWL_TXDESC,		/* nsegments */
-			       BUS_SPACE_MAXADDR,	/* maxsegsize */
-			       BUS_DMA_ALLOCNOW,	/* flags */
+			       BUS_SPACE_MAXSIZE,	/* maxsegsize */
+			       0,			/* flags */
 			       NULL,			/* lockfunc */
 			       NULL,			/* lockarg */
 			       &sc->sc_dmat)) {
@@ -285,8 +263,7 @@ mwl_pci_resume(device_t dev)
 {
 	struct mwl_pci_softc *psc = device_get_softc(dev);
 
-	if (!mwl_pci_setup(dev))
-		return ENXIO;
+	pci_enable_busmaster(dev);
 
 	mwl_resume(&psc->sc_sc);
 
@@ -313,4 +290,4 @@ static	devclass_t mwl_devclass;
 DRIVER_MODULE(mwl, pci, mwl_pci_driver, mwl_devclass, 0, 0);
 MODULE_VERSION(mwl, 1);
 MODULE_DEPEND(mwl, wlan, 1, 1, 1);		/* 802.11 media layer */
-MODULE_DEPEND(mwl, mwlfw_fw, 1, 1, 1);		/* firmware */
+MODULE_DEPEND(mwl, firmware, 1, 1, 1);

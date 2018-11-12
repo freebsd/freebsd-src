@@ -32,7 +32,7 @@
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2006
+.Dd November 7, 2015
 .Dt RM 1
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f | i
-.Op Fl dIPRrvW
+.Op Fl dIPRrvWx
 .Ar
 .Nm unlink
 .Ar file
@@ -88,14 +88,23 @@ yet provides almost the same level of protection against mistakes.
 Overwrite regular files before deleting them.
 Files are overwritten three times, first with the byte pattern 0xff,
 then 0x00, and then 0xff again, before they are deleted.
-Files with multiple links will not be overwritten nor deleted unless
+Files with multiple links will not be overwritten nor deleted
+and a warning will be issued.
+If the
 .Fl f
-is specified, a warning is generated instead.
+option is specified, files with multiple links will also be overwritten
+and deleted.
+No warning will be issued.
 .Pp
 Specifying this flag for a read only file will cause
 .Nm
 to generate an error message and exit.
 The file will not be removed or overwritten.
+.Pp
+N.B.: The
+.Fl P
+flag is not considered a security feature
+.Pq see Sx BUGS .
 .It Fl R
 Attempt to remove the file hierarchy rooted in each
 .Ar file
@@ -112,7 +121,6 @@ each directory's contents are processed (as well as before the attempt
 is made to remove the directory).
 If the user does not respond affirmatively, the file hierarchy rooted in
 that directory is skipped.
-.Pp
 .It Fl r
 Equivalent to
 .Fl R .
@@ -123,6 +131,8 @@ Attempt to undelete the named files.
 Currently, this option can only be used to recover
 files covered by whiteouts in a union file system (see
 .Xr undelete 2 ) .
+.It Fl x
+When removing a hierarchy, do not cross mount points.
 .El
 .Pp
 The
@@ -184,6 +194,19 @@ When
 is specified with
 .Fl f
 the file will be overwritten and removed even if it has hard links.
+.Sh EXAMPLES
+Recursively remove all files contained within the
+.Pa foobar
+directory hierarchy:
+.Pp
+.Dl $ rm -rf foobar
+.Pp
+Either of these commands will remove the file
+.Pa -f :
+.Bd -literal -offset indent
+$ rm -- -f
+$ rm ./-f
+.Ed
 .Sh COMPATIBILITY
 The
 .Nm
@@ -211,7 +234,7 @@ not the standard error output.
 The
 .Nm
 command conforms to
-.St -p1003.2 .
+.St -p1003.1-2013 .
 .Pp
 The simplified
 .Nm unlink
@@ -225,8 +248,12 @@ command appeared in
 .Sh BUGS
 The
 .Fl P
-option assumes that the underlying file system is a fixed-block file
-system.
-UFS is a fixed-block file system, LFS is not.
-In addition, only regular files are overwritten, other types of files
-are not.
+option assumes that the underlying storage overwrites file blocks
+when data is written to an existing offset.
+Several factors including the file system and its backing store could defeat
+this assumption.
+This includes, but is not limited to file systems that use a
+Copy-On-Write strategy (e.g. ZFS or UFS when snapshots are being used), Flash
+media that are using a wear leveling algorithm, or when the backing datastore
+does journaling, etc.
+In addition, only regular files are overwritten, other types of files are not.

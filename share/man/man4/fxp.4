@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2008
+.Dd November 26, 2010
 .Dt FXP 4
 .Os
 .Sh NAME
@@ -62,23 +62,25 @@ except i82557, i82259ER and early i82558 revisions.
 The
 .Nm
 driver supports the following media types:
-.Pp
-.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
-.It autoselect
-Enable autoselection of the media type and options
-.It 10baseT/UTP
-Set 10Mbps operation
-.It 100baseTX
-Set 100Mbps (Fast Ethernet) operation
+.Bl -tag -width "10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+The autoselected mode can be overridden by adding the media options to
+.Xr rc.conf 5 .
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
 .El
 .Pp
 The
 .Nm
 driver supports the following media options:
-.Pp
-.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
-.It full-duplex
-Set full duplex operation
+.Bl -tag -width "full-duplex"
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
 .El
 .Pp
 Note that 100baseTX media type is not available on the Pro/10.
@@ -142,6 +144,40 @@ NEC PC-9821Ra20, Rv20, Xv13, Xv20 internal 100Base-TX (PC-98)
 NEC PC-9821X-B06 (PC-98)
 .It
 Many on-board network interfaces on Intel motherboards
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+The following variables are available as both
+.Xr loader 8
+tunables and
+.Xr sysctl 8
+variables:
+.Bl -tag -width "xxxxxx"
+.It Va dev.fxp.%d.int_delay
+Maximum amount of time, in microseconds, that an interrupt may
+be delayed in an attempt to coalesce interrupts.
+This is only effective if the Intel microcode is loaded.
+The accepted range is 300 to 3000, the default is 1000.
+.It Va dev.fxp.%d.bundle_max
+Number of packets that will be bundled, before an interrupt is
+generated.
+This is only effective if the Intel microcode is loaded.
+The accepted range is 1 to 65535, the default is 6.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as
+.Xr sysctl 8
+variables.
+.Bl -tag -width "xxxxxx"
+.It Va dev.fxp.%d.rnr
+This is a read-only variable and shows the number of events of
+RNR (resource not ready).
+.It Va dev.fxp.%d.stats
+This is a read-only variable and displays useful MAC counters
+maintained in the driver.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag

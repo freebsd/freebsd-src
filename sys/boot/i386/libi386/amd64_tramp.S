@@ -84,7 +84,7 @@ amd64_tramp:
 
 	/* Turn on PAE */
 	movl	%cr4, %eax
-	orl	$(CR4_PAE | CR4_PSE), %eax
+	orl	$CR4_PAE, %eax
 	movl	%eax, %cr4
 
 	/* Set %cr3 for PT4 */
@@ -96,7 +96,7 @@ amd64_tramp:
 	orl	$CR0_PG, %eax
 	movl	%eax, %cr0
 	
-	/* Now we're in compatability mode. set %cs for long mode */
+	/* Now we're in compatibility mode. set %cs for long mode */
 	movl	$VTOP(gdtdesc), %eax
 	movl	VTOP(entry_hi), %esi
 	movl	VTOP(entry_lo), %edi

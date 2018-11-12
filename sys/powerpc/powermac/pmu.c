@@ -35,16 +35,23 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
+#include <sys/clock.h>
+#include <sys/proc.h>
+#include <sys/reboot.h>
 #include <sys/sysctl.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/led/led.h>
 
+#include <machine/_inttypes.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/cpu.h>
+#include <machine/hid.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
+#include <machine/pcb.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
 
@@ -55,27 +62,52 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/adb/adb.h>
 
+#include "clock_if.h"
 #include "pmuvar.h"
 #include "viareg.h"
+#include "uninorthvar.h"	/* For unin_chip_sleep()/unin_chip_wake() */
+
+#define PMU_DEFAULTS	PMU_INT_TICK | PMU_INT_ADB | \
+	PMU_INT_PCEJECT | PMU_INT_SNDBRT | \
+	PMU_INT_BATTERY | PMU_INT_ENVIRONMENT
 
 /*
- * MacIO interface
+ * Bus interface
  */
 static int	pmu_probe(device_t);
 static int	pmu_attach(device_t);
 static int	pmu_detach(device_t);
+
+/*
+ * Clock interface
+ */
+static int	pmu_gettime(device_t dev, struct timespec *ts);
+static int	pmu_settime(device_t dev, struct timespec *ts);
+
+/*
+ * ADB Interface
+ */
 
 static u_int	pmu_adb_send(device_t dev, u_char command_byte, int len, 
 		    u_char *data, u_char poll);
 static u_int	pmu_adb_autopoll(device_t dev, uint16_t mask);
 static u_int	pmu_poll(device_t dev);
 
+/*
+ * Power interface
+ */
+
+static void	pmu_shutdown(void *xsc, int howto);
 static void	pmu_set_sleepled(void *xsc, int onoff);
 static int	pmu_server_mode(SYSCTL_HANDLER_ARGS);
 static int	pmu_acline_state(SYSCTL_HANDLER_ARGS);
 static int	pmu_query_battery(struct pmu_softc *sc, int batt, 
 		    struct pmu_battstate *info);
 static int	pmu_battquery_sysctl(SYSCTL_HANDLER_ARGS);
+static int	pmu_battmon(SYSCTL_HANDLER_ARGS);
+static void	pmu_battquery_proc(void);
+static void	pmu_battery_notify(struct pmu_battstate *batt,
+		    struct pmu_battstate *old);
 
 /*
  * List of battery-related sysctls we might ask for
@@ -98,19 +130,17 @@ static device_method_t  pmu_methods[] = {
 	DEVMETHOD(device_attach,	pmu_attach),
         DEVMETHOD(device_detach,        pmu_detach),
         DEVMETHOD(device_shutdown,      bus_generic_shutdown),
-        DEVMETHOD(device_suspend,       bus_generic_suspend),
-        DEVMETHOD(device_resume,        bus_generic_resume),
-
-	/* bus interface, for ADB root */
-        DEVMETHOD(bus_print_child,      bus_generic_print_child),
-        DEVMETHOD(bus_driver_added,     bus_generic_driver_added),
 
 	/* ADB bus interface */
 	DEVMETHOD(adb_hb_send_raw_packet,   pmu_adb_send),
 	DEVMETHOD(adb_hb_controller_poll,   pmu_poll),
 	DEVMETHOD(adb_hb_set_autopoll_mask, pmu_adb_autopoll),
 
-	{ 0, 0 },
+	/* Clock interface */
+	DEVMETHOD(clock_gettime,	pmu_gettime),
+	DEVMETHOD(clock_settime,	pmu_settime),
+
+	DEVMETHOD_END
 };
 
 static driver_t pmu_driver = {
@@ -176,7 +206,7 @@ static signed char pm_send_cmd_type[] = {
 	0x02,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,   -1,   -1,
 	0x01, 0x01, 0x01,   -1,   -1,   -1,   -1,   -1,
-	0x00, 0x00,   -1,   -1,   -1,   -1, 0x04, 0x04,
+	0x00, 0x00,   -1,   -1,   -1, 0x05, 0x04, 0x04,
 	0x04,   -1, 0x00,   -1,   -1,   -1,   -1,   -1,
 	0x00,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
 	0x01, 0x02,   -1,   -1,   -1,   -1,   -1,   -1,
@@ -212,7 +242,7 @@ static signed char pm_receive_cmd_type[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x04, 0x04, 0x03, 0x09,   -1,   -1,   -1,   -1,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	  -1,   -1,   -1,   -1,   -1,   -1, 0x01, 0x01,
+	  -1,   -1,   -1,   -1,   -1, 0x01, 0x01, 0x01,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x06,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -229,6 +259,14 @@ static signed char pm_receive_cmd_type[] = {
 	  -1,   -1, 0x02,   -1,   -1,   -1,   -1, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	  -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+};
+
+static int pmu_battmon_enabled = 1;
+static struct proc *pmubattproc;
+static struct kproc_desc pmu_batt_kp = {
+	"pmu_batt",
+	pmu_battquery_proc,
+	&pmubattproc
 };
 
 /* We only have one of each device, so globals are safe */
@@ -340,15 +378,16 @@ pmu_attach(device_t dev)
 
 	/* Init PMU */
 
-	reg = PMU_INT_TICK | PMU_INT_ADB | PMU_INT_PCEJECT | PMU_INT_SNDBRT;
-	reg |= PMU_INT_BATTERY;
-	reg |= PMU_INT_ENVIRONMENT;
+	pmu_write_reg(sc, vBufB, pmu_read_reg(sc, vBufB) | vPB4);
+	pmu_write_reg(sc, vDirB, (pmu_read_reg(sc, vDirB) | vPB4) & ~vPB3);
+
+	reg = PMU_DEFAULTS;
 	pmu_send(sc, PMU_SET_IMASK, 1, &reg, 16, resp);
 
-	pmu_write_reg(sc, vIER, 0x90); /* make sure VIA interrupts are on */
+	pmu_write_reg(sc, vIER, 0x94); /* make sure VIA interrupts are on */
 
 	pmu_send(sc, PMU_SYSTEM_READY, 1, cmd, 16, resp);
-	pmu_send(sc, PMU_GET_VERSION, 1, cmd, 16, resp);
+	pmu_send(sc, PMU_GET_VERSION, 0, cmd, 16, resp);
 
 	/* Initialize child buses (ADB) */
 	node = ofw_bus_get_node(dev);
@@ -393,6 +432,13 @@ pmu_attach(device_t dev)
 	if (sc->sc_batteries > 0) {
 		struct sysctl_oid *oid, *battroot;
 		char battnum[2];
+
+		/* Only start the battery monitor if we have a battery. */
+		kproc_start(&pmu_batt_kp);
+		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "monitor_batteries", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		    pmu_battmon, "I", "Post battery events to devd");
+
 
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		    "acline", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
@@ -452,6 +498,18 @@ pmu_attach(device_t dev)
 	 */
 
 	sc->sc_leddev = led_create(pmu_set_sleepled, sc, "sleepled");
+
+	/*
+	 * Register RTC
+	 */
+
+	clock_register(dev, 1000);
+
+	/*
+	 * Register power control handler
+	 */
+	EVENTHANDLER_REGISTER(shutdown_final, pmu_shutdown, sc,
+	    SHUTDOWN_PRI_LAST);
 
 	return (bus_generic_attach(dev));
 }
@@ -672,6 +730,20 @@ pmu_intr(void *arg)
 		adb_receive_raw_packet(sc->adb_bus,resp[1],resp[2],
 			len - 3,&resp[3]);
 	}
+	if (resp[1] & PMU_INT_ENVIRONMENT) {
+		/* if the lid was just closed, notify devd. */
+		if ((resp[2] & PMU_ENV_LID_CLOSED) && (!sc->lid_closed)) {
+			sc->lid_closed = 1;
+			devctl_notify("PMU", "lid", "close", NULL);
+		}
+		else if (!(resp[2] & PMU_ENV_LID_CLOSED) && (sc->lid_closed)) {
+			/* if the lid was just opened, notify devd. */
+			sc->lid_closed = 0;
+			devctl_notify("PMU", "lid", "open", NULL);
+		}
+		if (resp[2] & PMU_ENV_POWER)
+			devctl_notify("PMU", "Button", "pressed", NULL);
+	}
 }
 
 static u_int
@@ -727,6 +799,20 @@ pmu_adb_autopoll(device_t dev, uint16_t mask)
 	mtx_unlock(&sc->sc_mutex);
 	
 	return 0;
+}
+
+static void
+pmu_shutdown(void *xsc, int howto)
+{
+	struct pmu_softc *sc = xsc;
+	uint8_t cmd[] = {'M', 'A', 'T', 'T'};
+	
+	if (howto & RB_HALT)
+		pmu_send(sc, PMU_POWER_OFF, 4, cmd, 0, NULL);
+	else
+		pmu_send(sc, PMU_RESET_CPU, 0, NULL, 0, NULL);
+
+	for (;;);
 }
 
 static void
@@ -848,6 +934,65 @@ pmu_query_battery(struct pmu_softc *sc, int batt, struct pmu_battstate *info)
 	return (0);
 }
 
+static void
+pmu_battery_notify(struct pmu_battstate *batt, struct pmu_battstate *old)
+{
+	char notify_buf[16];
+	int new_acline, old_acline;
+
+	new_acline = (batt->state & PMU_PWR_AC_PRESENT) ? 1 : 0;
+	old_acline = (old->state & PMU_PWR_AC_PRESENT) ? 1 : 0;
+
+	if (new_acline != old_acline) {
+		snprintf(notify_buf, sizeof(notify_buf),
+		    "notify=0x%02x", new_acline);
+		devctl_notify("PMU", "POWER", "ACLINE", notify_buf);
+	}
+}
+
+static void
+pmu_battquery_proc()
+{
+	struct pmu_softc *sc;
+	struct pmu_battstate batt;
+	struct pmu_battstate cur_batt;
+	int error;
+
+	sc = device_get_softc(pmu);
+
+	bzero(&cur_batt, sizeof(cur_batt));
+	while (1) {
+		kproc_suspend_check(curproc);
+		error = pmu_query_battery(sc, 0, &batt);
+		pmu_battery_notify(&batt, &cur_batt);
+		cur_batt = batt;
+		pause("pmu_batt", hz);
+	}
+}
+
+static int
+pmu_battmon(SYSCTL_HANDLER_ARGS)
+{
+	struct pmu_softc *sc;
+	int error, result;
+
+	sc = arg1;
+	result = pmu_battmon_enabled;
+
+	error = sysctl_handle_int(oidp, &result, 0, req);
+
+	if (error || !req->newptr)
+		return (error);
+	
+	if (!result && pmu_battmon_enabled)
+		error = kproc_suspend(pmubattproc, hz);
+	else if (result && pmu_battmon_enabled == 0)
+		error = kproc_resume(pmubattproc);
+	pmu_battmon_enabled = (result != 0);
+
+	return (error);
+}
+
 static int
 pmu_acline_state(SYSCTL_HANDLER_ARGS)
 {
@@ -919,10 +1064,71 @@ pmu_battquery_sysctl(SYSCTL_HANDLER_ARGS)
 	default:
 		/* This should never happen */
 		result = -1;
-	};
+	}
 
 	error = sysctl_handle_int(oidp, &result, 0, req);
 
 	return (error);
 }
 
+#define DIFF19041970	2082844800
+
+static int
+pmu_gettime(device_t dev, struct timespec *ts)
+{
+	struct pmu_softc *sc = device_get_softc(dev);
+	uint8_t resp[16];
+	uint32_t sec;
+
+	mtx_lock(&sc->sc_mutex);
+	pmu_send(sc, PMU_READ_RTC, 0, NULL, 16, resp);
+	mtx_unlock(&sc->sc_mutex);
+
+	memcpy(&sec, &resp[1], 4);
+	ts->tv_sec = sec - DIFF19041970;
+	ts->tv_nsec = 0;
+
+	return (0);
+}
+
+static int
+pmu_settime(device_t dev, struct timespec *ts)
+{
+	struct pmu_softc *sc = device_get_softc(dev);
+	uint32_t sec;
+
+	sec = ts->tv_sec + DIFF19041970;
+
+	mtx_lock(&sc->sc_mutex);
+	pmu_send(sc, PMU_SET_RTC, sizeof(sec), (uint8_t *)&sec, 0, NULL);
+	mtx_unlock(&sc->sc_mutex);
+
+	return (0);
+}
+
+int
+pmu_set_speed(int low_speed)
+{
+	struct pmu_softc *sc;
+	uint8_t sleepcmd[] = {'W', 'O', 'O', 'F', 0};
+	uint8_t resp[16];
+
+	sc = device_get_softc(pmu);
+	pmu_write_reg(sc, vIER, 0x10);
+	spinlock_enter();
+	mtdec(0x7fffffff);
+	mb();
+	mtdec(0x7fffffff);
+
+	sleepcmd[4] = low_speed;
+	pmu_send(sc, PMU_CPU_SPEED, 5, sleepcmd, 16, resp);
+	unin_chip_sleep(NULL, 1);
+	platform_sleep();
+	unin_chip_wake(NULL);
+
+	mtdec(1);	/* Force a decrementer exception */
+	spinlock_exit();
+	pmu_write_reg(sc, vIER, 0x90);
+
+	return (0);
+}

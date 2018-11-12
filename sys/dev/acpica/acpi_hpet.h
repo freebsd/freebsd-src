@@ -57,9 +57,22 @@
 #define	HPET_TCAP_PER_INT	0x00000010 /* Supports periodic interrupts */
 #define	HPET_TCNF_TYPE		0x00000008 /* 1 = periodic, 0 = one-shot */
 #define	HPET_TCNF_INT_ENB	0x00000004
-#define	HPET_TCNT_INT_TYPE	0x00000002 /* 1 = level triggered, 0 = edge */
+#define	HPET_TCNF_INT_TYPE	0x00000002 /* 1 = level triggered, 0 = edge */
 #define	HPET_TIMER_COMPARATOR(x) ((x) * 0x20 + 0x108)
 #define	HPET_TIMER_FSB_VAL(x)	((x) * 0x20 + 0x110)
 #define	HPET_TIMER_FSB_ADDR(x)	((x) * 0x20 + 0x114)
+
+#define	HPET_MIN_CYCLES		128	/* Period considered reliable. */
+
+#ifdef _KERNEL
+struct timecounter;
+struct vdso_timehands;
+struct vdso_timehands32;
+
+uint32_t hpet_vdso_timehands(struct vdso_timehands *vdso_th,
+    struct timecounter *tc);
+uint32_t hpet_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
+    struct timecounter *tc);
+#endif
 
 #endif /* !__ACPI_HPET_H__ */

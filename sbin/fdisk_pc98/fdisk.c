@@ -63,8 +63,6 @@ static char lbuf[LBUF];
 #define Decimal(str, ans, tmp) if (decimal(str, &tmp, ans)) ans = tmp
 #define String(str, ans, len) {char *z = ans; char **dflt = &z; if (string(str, dflt)) strncpy(ans, *dflt, len); }
 
-#define RoundCyl(x) ((((x) + cylsecs - 1) / cylsecs) * cylsecs)
-
 #define MAX_SEC_SIZE 2048	/* maximum section size that is supported */
 #define MIN_SEC_SIZE 512	/* the sector size to start sensing at */
 static int secsize = 0;		/* the sensed sector size */
@@ -254,7 +252,7 @@ main(int argc, char *argv[])
 		    dos_sectors);
 		printf("Part  %11s %11s %4s %4s %-16s\n", "Start", "Size", "MID",
 		    "SID", "Name");
-		for (i = 0; i < NDOSPART; i++) {
+		for (i = 0; i < PC98_NPARTS; i++) {
 			partp = ((struct pc98_partition *) &mboot.parts) + i;
 			if (partp->dp_sid == 0)
 				continue;
@@ -310,7 +308,7 @@ main(int argc, char *argv[])
 	    printf("Warning: BIOS sector numbering starts with sector 1\n");
 	    printf("Information from DOS bootblock is:\n");
 	    if (partition == -1)
-		for (i = 1; i <= NDOSPART; i++)
+		for (i = 1; i <= PC98_NPARTS; i++)
 		    change_part(i, v_flag);
 	    else
 		change_part(partition, 1);
@@ -367,7 +365,7 @@ print_s0(int which)
 	print_params();
 	printf("Information from DOS bootblock is:\n");
 	if (which == -1) {
-		for (i = 1; i <= NDOSPART; i++)
+		for (i = 1; i <= PC98_NPARTS; i++)
 			if (v_flag || !part_unused(i)) {
 				printf("%d: ", i);
 				print_part(i);
@@ -414,7 +412,7 @@ static void
 init_boot(void)
 {
 
-	mboot.signature = DOSMAGIC;
+	mboot.signature = PC98_MAGIC;
 }
 
 
@@ -517,7 +515,7 @@ change_active(int which)
 	int active, i, new, tmp;
 
 	active = -1;
-	for (i = 0; i < NDOSPART; i++) {
+	for (i = 0; i < PC98_NPARTS; i++) {
 		if ((partp[i].dp_sid & PC98_SID_ACTIVE) == 0)
 			continue;
 		printf("Partition %d is marked active\n", i + 1);
@@ -672,7 +670,7 @@ write_disk(off_t sector, void *buf)
 	if (error == sz)
 		return (0);
 
-	for (i = 0; i < NDOSPART; i++) {
+	for (i = 0; i < PC98_NPARTS; i++) {
 		sprintf(fbuf, "%ss%d", disk, i + 1);
 		fdw = open(fbuf, O_RDWR, 0);
 		if (fdw < 0)
@@ -731,7 +729,7 @@ read_s0()
 		warnx("can't read fdisk partition table");
 		return -1;
 	}
-	if (mboot.signature != DOSMAGIC) {
+	if (mboot.signature != PC98_MAGIC) {
 		warnx("invalid fdisk partition table found");
 		/* So should we initialize things */
 		return -1;
@@ -854,17 +852,11 @@ string(const char *str, char **ans)
 static const char *
 get_type(int type)
 {
-	int	numentries = (sizeof(part_types)/sizeof(struct part_type));
-	int	counter = 0;
-	struct	part_type *ptr = part_types;
+	size_t i;
 
-
-	while(counter < numentries) {
-		if(ptr->type == (type & 0x7f))
-			return(ptr->name);
-		ptr++;
-		counter++;
-	}
+	for (i = 0; i < nitems(part_types); i++)
+		if (part_types[i].type == (type & 0x7f))
+			return(part_types[i].name);
 	return("unknown");
 }
 
@@ -911,7 +903,7 @@ reset_boot(void)
 	struct pc98_partition *partp;
 
 	init_boot();
-	for (i = 1; i <= NDOSPART; i++) {
+	for (i = 1; i <= PC98_NPARTS; i++) {
 		partp = ((struct pc98_partition *) &mboot.parts) + i - 1;
 		bzero((char *)partp, sizeof (struct pc98_partition));
 	}

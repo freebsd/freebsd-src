@@ -181,6 +181,16 @@ $ ENOATTR
 87 Atributo non encontrado
 $ EDOOFUS
 88 Erro de programación
+$ EBADMSG
+89 Mensaxe inválido
+$ EMULTIHOP
+90 Intento de Multihop
+$ ENOLINK
+91 Enlace fortaleceuse
+$ EPROTO
+92 Erro de protocolo
+$ ENOTCAPABLE
+93 Habilidades non suficientes
 $
 $ strsignal() support catalog
 $
@@ -247,3 +257,39 @@ $ SIGUSR1
 30 Sinal definida polo usuario no. 1
 $ SIGUSR2
 31 Sinal definida polo usuario no. 2
+$
+$ gai_strerror() support catalog
+$
+$set 3
+$ 1 (obsoleto)
+1 Tipo de dirección non soportado
+$ EAI_AGAIN
+2 Erro temporal na resolución de nomes
+$ EAI_BADFLAGS
+3 Valor inválido de ai_flags
+$ EAI_FAIL
+4 Erro non recuperable na resolución de nomes
+$ EAI_FAMILY
+5 ai_family non soportado
+$ EAI_MEMORY
+6 Erro na asignación de memoria
+$ 7 (obsoleto)
+7 Non hai dirección asociada co nome de máquina
+$ EAI_NONAME
+8 Non se dispón nome de máquina, nin nome de servizo
+$ EAI_SERVICE
+9 Nome de servizo non soportado en ai_socktype
+$ EAI_SOCKTYPE
+10 ai_socktype non soportado
+$ EAI_SYSTEM
+11 Erro de sistema devolto en errno
+$ EAI_BADHINTS
+12 Valor inválido de hints
+$ EAI_PROTOCOL
+13 Protocolo resolto descoñecido
+$ EAI_OVERFLOW
+14 Búfer de argumentos excedido
+$ 0
+32766 Éxito
+$ NL_MSGMAX
+32767 Erro descoñecido

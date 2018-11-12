@@ -70,17 +70,11 @@ struct tcb {
 	u_int __i;						\
 	__asm __volatile("movl %%gs:%1, %0"			\
 	    : "=r" (__i)					\
-	    : "m" (*(u_int *)(__tcb_offset(name))));		\
+	    : "m" (*(volatile u_int *)(__tcb_offset(name))));	\
 	__result = (__tcb_type(name))__i;			\
 								\
 	__result;						\
 })
-
-/*
- * The constructors.
- */
-struct tcb	*_tcb_ctor(struct pthread *, int);
-void		_tcb_dtor(struct tcb *tcb);
 
 /* Called from the thread to set its private data. */
 static __inline void

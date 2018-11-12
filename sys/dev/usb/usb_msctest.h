@@ -27,7 +27,32 @@
 #ifndef _USB_MSCTEST_H_
 #define	_USB_MSCTEST_H_
 
-usb_error_t usb_test_autoinstall(struct usb_device *udev,
-	    uint8_t iface_index, uint8_t do_eject);
+enum {
+	MSC_EJECT_STOPUNIT,
+	MSC_EJECT_REZERO,
+	MSC_EJECT_ZTESTOR,
+	MSC_EJECT_CMOTECH,
+	MSC_EJECT_HUAWEI,
+	MSC_EJECT_HUAWEI2,
+	MSC_EJECT_TCT,
+};
+
+int usb_iface_is_cdrom(struct usb_device *udev,
+	    uint8_t iface_index);
+usb_error_t usb_msc_eject(struct usb_device *udev,
+	    uint8_t iface_index, int method);
+usb_error_t usb_msc_auto_quirk(struct usb_device *udev,
+	    uint8_t iface_index);
+usb_error_t usb_msc_read_10(struct usb_device *udev,
+	    uint8_t iface_index, uint32_t lba, uint32_t blocks,
+	    void *buffer);
+usb_error_t usb_msc_write_10(struct usb_device *udev,
+	    uint8_t iface_index, uint32_t lba, uint32_t blocks,
+	    void *buffer);
+usb_error_t usb_msc_read_capacity(struct usb_device *udev,
+	    uint8_t iface_index, uint32_t *lba_last,
+	    uint32_t *block_size);
+usb_error_t usb_dymo_eject(struct usb_device *udev,
+	    uint8_t iface_index);
 
 #endif					/* _USB_MSCTEST_H_ */

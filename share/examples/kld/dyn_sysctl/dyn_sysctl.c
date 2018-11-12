@@ -59,7 +59,7 @@ load(module_t mod, int cmd, void *arg)
 
 	error = 0;
 	switch (cmd) {
-	case MOD_LOAD :
+	case MOD_LOAD:
 		/* Initialize the contexts */
 		printf("Initializing contexts and creating subtrees.\n\n");
 		sysctl_ctx_init(&clist);
@@ -100,8 +100,9 @@ load(module_t mod, int cmd, void *arg)
 			return (EINVAL);
 		}
 		SYSCTL_ADD_PROC(&clist, SYSCTL_CHILDREN(a_root1),
-		    OID_AUTO, "procedure", CTLFLAG_RD, 0, 0,
-		    sysctl_dyn_sysctl_test, "A", "I can be here, too");
+		    OID_AUTO, "procedure", CTLTYPE_STRING | CTLFLAG_RD,
+		    NULL, 0, sysctl_dyn_sysctl_test, "A",
+		    "I can be here, too");
 		printf("   (%p)	/kern		  dyn_sysctl\n", &clist);
 
 		/* Overlap second tree with the first. */
@@ -122,7 +123,7 @@ load(module_t mod, int cmd, void *arg)
 		    OID_AUTO, "string_c", CTLFLAG_RD, c, 0, "shouldn't panic");
 		printf("3. (%p)	/kern/dyn_sysctl  bad		(WRONG!)\n", &clist2);
 		break;
-	case MOD_UNLOAD :
+	case MOD_UNLOAD:
 		printf("1. Try to free ctx1 (%p): ", &clist);
 		if (sysctl_ctx_free(&clist) != 0)
 			printf("failed: expected. Need to remove ctx3 first.\n");
@@ -152,7 +153,7 @@ load(module_t mod, int cmd, void *arg)
 		} else
 			printf("Ok\n");
 		break;
-	default :
+	default:
 		error = EOPNOTSUPP;
 		break;
 	}

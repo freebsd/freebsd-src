@@ -29,18 +29,22 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+
+#include <sys/capsicum.h>
 #include <sys/elf32.h>
 #include <sys/elf64.h>
 #include <sys/endian.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
 #define	ED_DYN		(1<<0)
@@ -83,7 +87,7 @@ enum elf_member {
 
 typedef enum elf_member elf_member_t;
 
-int elf32_offsets[] = {
+static int elf32_offsets[] = {
 	0,
 
 	offsetof(Elf32_Dyn, d_tag), offsetof(Elf32_Dyn, d_un.d_ptr),
@@ -124,7 +128,7 @@ int elf32_offsets[] = {
 	offsetof(Elf32_Rela, r_addend)
 };
 
-int elf64_offsets[] = {
+static int elf64_offsets[] = {
 	0,
 
 	offsetof(Elf64_Dyn, d_tag), offsetof(Elf64_Dyn, d_un.d_ptr),
@@ -167,77 +171,83 @@ int elf64_offsets[] = {
 
 /* http://www.sco.com/developers/gabi/latest/ch5.dynamic.html#tag_encodings */
 static const char *
-d_tags(u_int64_t tag) {
+d_tags(u_int64_t tag)
+{
+	static char unknown_tag[48];
+
 	switch (tag) {
-	case 0: return "DT_NULL";
-	case 1: return "DT_NEEDED";
-	case 2: return "DT_PLTRELSZ";
-	case 3: return "DT_PLTGOT";
-	case 4: return "DT_HASH";
-	case 5: return "DT_STRTAB";
-	case 6: return "DT_SYMTAB";
-	case 7: return "DT_RELA";
-	case 8: return "DT_RELASZ";
-	case 9: return "DT_RELAENT";
-	case 10: return "DT_STRSZ";
-	case 11: return "DT_SYMENT";
-	case 12: return "DT_INIT";
-	case 13: return "DT_FINI";
-	case 14: return "DT_SONAME";
-	case 15: return "DT_RPATH";
-	case 16: return "DT_SYMBOLIC";
-	case 17: return "DT_REL";
-	case 18: return "DT_RELSZ";
-	case 19: return "DT_RELENT";
-	case 20: return "DT_PLTREL";
-	case 21: return "DT_DEBUG";
-	case 22: return "DT_TEXTREL";
-	case 23: return "DT_JMPREL";
-	case 24: return "DT_BIND_NOW";
-	case 25: return "DT_INIT_ARRAY";
-	case 26: return "DT_FINI_ARRAY";
-	case 27: return "DT_INIT_ARRAYSZ";
-	case 28: return "DT_FINI_ARRAYSZ";
-	case 29: return "DT_RUNPATH";
-	case 30: return "DT_FLAGS";
-	case 32: return "DT_PREINIT_ARRAY"; /* XXX: DT_ENCODING */
-	case 33: return "DT_PREINIT_ARRAYSZ";
+	case DT_NULL:		return "DT_NULL";
+	case DT_NEEDED:		return "DT_NEEDED";
+	case DT_PLTRELSZ:	return "DT_PLTRELSZ";
+	case DT_PLTGOT:		return "DT_PLTGOT";
+	case DT_HASH:		return "DT_HASH";
+	case DT_STRTAB:		return "DT_STRTAB";
+	case DT_SYMTAB:		return "DT_SYMTAB";
+	case DT_RELA:		return "DT_RELA";
+	case DT_RELASZ:		return "DT_RELASZ";
+	case DT_RELAENT:	return "DT_RELAENT";
+	case DT_STRSZ:		return "DT_STRSZ";
+	case DT_SYMENT:		return "DT_SYMENT";
+	case DT_INIT:		return "DT_INIT";
+	case DT_FINI:		return "DT_FINI";
+	case DT_SONAME:		return "DT_SONAME";
+	case DT_RPATH:		return "DT_RPATH";
+	case DT_SYMBOLIC:	return "DT_SYMBOLIC";
+	case DT_REL:		return "DT_REL";
+	case DT_RELSZ:		return "DT_RELSZ";
+	case DT_RELENT:		return "DT_RELENT";
+	case DT_PLTREL:		return "DT_PLTREL";
+	case DT_DEBUG:		return "DT_DEBUG";
+	case DT_TEXTREL:	return "DT_TEXTREL";
+	case DT_JMPREL:		return "DT_JMPREL";
+	case DT_BIND_NOW:	return "DT_BIND_NOW";
+	case DT_INIT_ARRAY:	return "DT_INIT_ARRAY";
+	case DT_FINI_ARRAY:	return "DT_FINI_ARRAY";
+	case DT_INIT_ARRAYSZ:	return "DT_INIT_ARRAYSZ";
+	case DT_FINI_ARRAYSZ:	return "DT_FINI_ARRAYSZ";
+	case DT_RUNPATH:	return "DT_RUNPATH";
+	case DT_FLAGS:		return "DT_FLAGS";
+	case DT_PREINIT_ARRAY:	return "DT_PREINIT_ARRAY"; /* XXX DT_ENCODING */
+	case DT_PREINIT_ARRAYSZ:return "DT_PREINIT_ARRAYSZ";
 	/* 0x6000000D - 0x6ffff000 operating system-specific semantics */
-	case 0x6ffffdf5: return "DT_GNU_PRELINKED";
-	case 0x6ffffdf6: return "DT_GNU_CONFLICTSZ";
-	case 0x6ffffdf7: return "DT_GNU_LIBLISTSZ";
-	case 0x6ffffdf8: return "DT_SUNW_CHECKSUM";
-	case 0x6ffffdf9: return "DT_PLTPADSZ";
-	case 0x6ffffdfa: return "DT_MOVEENT";
-	case 0x6ffffdfb: return "DT_MOVESZ";
-	case 0x6ffffdfc: return "DT_FEATURE";
-	case 0x6ffffdfd: return "DT_POSFLAG_1";
-	case 0x6ffffdfe: return "DT_SYMINSZ";
-	case 0x6ffffdff: return "DT_SYMINENT (DT_VALRNGHI)";
-	case 0x6ffffe00: return "DT_ADDRRNGLO";
-	case 0x6ffffef8: return "DT_GNU_CONFLICT";
-	case 0x6ffffef9: return "DT_GNU_LIBLIST";
-	case 0x6ffffefa: return "DT_SUNW_CONFIG";
-	case 0x6ffffefb: return "DT_SUNW_DEPAUDIT";
-	case 0x6ffffefc: return "DT_SUNW_AUDIT";
-	case 0x6ffffefd: return "DT_SUNW_PLTPAD";
-	case 0x6ffffefe: return "DT_SUNW_MOVETAB";
-	case 0x6ffffeff: return "DT_SYMINFO (DT_ADDRRNGHI)";
-	case 0x6ffffff9: return "DT_RELACOUNT";
-	case 0x6ffffffa: return "DT_RELCOUNT";
-	case 0x6ffffffb: return "DT_FLAGS_1";
-	case 0x6ffffffc: return "DT_VERDEF";
-	case 0x6ffffffd: return "DT_VERDEFNUM";
-	case 0x6ffffffe: return "DT_VERNEED";
-	case 0x6fffffff: return "DT_VERNEEDNUM";
-	case 0x6ffffff0: return "DT_GNU_VERSYM";
+	case 0x6ffffdf5:	return "DT_GNU_PRELINKED";
+	case 0x6ffffdf6:	return "DT_GNU_CONFLICTSZ";
+	case 0x6ffffdf7:	return "DT_GNU_LIBLISTSZ";
+	case 0x6ffffdf8:	return "DT_SUNW_CHECKSUM";
+	case DT_PLTPADSZ:	return "DT_PLTPADSZ";
+	case DT_MOVEENT:	return "DT_MOVEENT";
+	case DT_MOVESZ:		return "DT_MOVESZ";
+	case DT_FEATURE:	return "DT_FEATURE";
+	case DT_POSFLAG_1:	return "DT_POSFLAG_1";
+	case DT_SYMINSZ:	return "DT_SYMINSZ";
+	case DT_SYMINENT :	return "DT_SYMINENT (DT_VALRNGHI)";
+	case DT_ADDRRNGLO:	return "DT_ADDRRNGLO";
+	case DT_GNU_HASH:	return "DT_GNU_HASH";
+	case 0x6ffffef8:	return "DT_GNU_CONFLICT";
+	case 0x6ffffef9:	return "DT_GNU_LIBLIST";
+	case DT_CONFIG:		return "DT_CONFIG";
+	case DT_DEPAUDIT:	return "DT_DEPAUDIT";
+	case DT_AUDIT:		return "DT_AUDIT";
+	case DT_PLTPAD:		return "DT_PLTPAD";
+	case DT_MOVETAB:	return "DT_MOVETAB";
+	case DT_SYMINFO :	return "DT_SYMINFO (DT_ADDRRNGHI)";
+	case DT_RELACOUNT:	return "DT_RELACOUNT";
+	case DT_RELCOUNT:	return "DT_RELCOUNT";
+	case DT_FLAGS_1:	return "DT_FLAGS_1";
+	case DT_VERDEF:		return "DT_VERDEF";
+	case DT_VERDEFNUM:	return "DT_VERDEFNUM";
+	case DT_VERNEED:	return "DT_VERNEED";
+	case DT_VERNEEDNUM:	return "DT_VERNEEDNUM";
+	case 0x6ffffff0:	return "DT_GNU_VERSYM";
 	/* 0x70000000 - 0x7fffffff processor-specific semantics */
-	case 0x70000000: return "DT_IA_64_PLT_RESERVE";
-	case 0x7ffffffd: return "DT_SUNW_AUXILIARY";
-	case 0x7ffffffe: return "DT_SUNW_USED";
-	case 0x7fffffff: return "DT_SUNW_FILTER";
-	default: return "ERROR: TAG NOT DEFINED";
+	case 0x70000000:	return "DT_IA_64_PLT_RESERVE";
+	case 0x7ffffffd:	return "DT_SUNW_AUXILIARY";
+	case 0x7ffffffe:	return "DT_SUNW_USED";
+	case 0x7fffffff:	return "DT_SUNW_FILTER";
 	}
+	snprintf(unknown_tag, sizeof(unknown_tag),
+		"ERROR: TAG NOT DEFINED -- tag 0x%jx", (uintmax_t)tag);
+	return (unknown_tag);
 }
 
 static const char *
@@ -252,133 +262,238 @@ e_machines(u_int mach)
 	case EM_386:	return "EM_386";
 	case EM_68K:	return "EM_68K";
 	case EM_88K:	return "EM_88K";
+	case EM_IAMCU:	return "EM_IAMCU";
 	case EM_860:	return "EM_860";
 	case EM_MIPS:	return "EM_MIPS";
 	case EM_PPC:	return "EM_PPC";
+	case EM_PPC64:	return "EM_PPC64";
 	case EM_ARM:	return "EM_ARM";
 	case EM_ALPHA:	return "EM_ALPHA (legacy)";
 	case EM_SPARCV9:return "EM_SPARCV9";
 	case EM_IA_64:	return "EM_IA_64";
 	case EM_X86_64:	return "EM_X86_64";
+	case EM_AARCH64:return "EM_AARCH64";
+	case EM_RISCV:	return "EM_RISCV";
 	}
 	snprintf(machdesc, sizeof(machdesc),
 	    "(unknown machine) -- type 0x%x", mach);
 	return (machdesc);
 }
 
-const char *e_types[] = {
+static const char *e_types[] = {
 	"ET_NONE", "ET_REL", "ET_EXEC", "ET_DYN", "ET_CORE"
 };
 
-const char *ei_versions[] = {
+static const char *ei_versions[] = {
 	"EV_NONE", "EV_CURRENT"
 };
 
-const char *ei_classes[] = {
+static const char *ei_classes[] = {
 	"ELFCLASSNONE", "ELFCLASS32", "ELFCLASS64"
 };
 
-const char *ei_data[] = {
+static const char *ei_data[] = {
 	"ELFDATANONE", "ELFDATA2LSB", "ELFDATA2MSB"
 };
 
-const char *ei_abis[] = {
-	"ELFOSABI_SYSV", "ELFOSABI_HPUX", "ELFOSABI_NETBSD", "ELFOSABI_LINUX",
-	"ELFOSABI_HURD", "ELFOSABI_86OPEN", "ELFOSABI_SOLARIS",
-	"ELFOSABI_MONTEREY", "ELFOSABI_IRIX", "ELFOSABI_FREEBSD",
-	"ELFOSABI_TRU64", "ELFOSABI_MODESTO", "ELFOSABI_OPENBSD"
+static const char *ei_abis[256] = {
+	"ELFOSABI_NONE", "ELFOSABI_HPUX", "ELFOSABI_NETBSD", "ELFOSABI_LINUX",
+	"ELFOSABI_HURD", "ELFOSABI_86OPEN", "ELFOSABI_SOLARIS", "ELFOSABI_AIX",
+	"ELFOSABI_IRIX", "ELFOSABI_FREEBSD", "ELFOSABI_TRU64",
+	"ELFOSABI_MODESTO", "ELFOSABI_OPENBSD",
+	[255] = "ELFOSABI_STANDALONE"
 };
 
-const char *p_types[] = {
+static const char *p_types[] = {
 	"PT_NULL", "PT_LOAD", "PT_DYNAMIC", "PT_INTERP", "PT_NOTE",
 	"PT_SHLIB", "PT_PHDR", "PT_TLS"
 };
 
-const char *p_flags[] = {
+static const char *p_flags[] = {
 	"", "PF_X", "PF_W", "PF_X|PF_W", "PF_R", "PF_X|PF_R", "PF_W|PF_R",
 	"PF_X|PF_W|PF_R"
 };
 
 /* http://www.sco.com/developers/gabi/latest/ch4.sheader.html#sh_type */
 static const char *
-sh_types(u_int64_t sht) {
-	switch (sht) {
-	case 0:	return "SHT_NULL";
-	case 1: return "SHT_PROGBITS";
-	case 2: return "SHT_SYMTAB";
-	case 3: return "SHT_STRTAB";
-	case 4: return "SHT_RELA";
-	case 5: return "SHT_HASH";
-	case 6: return "SHT_DYNAMIC";
-	case 7: return "SHT_NOTE";
-	case 8: return "SHT_NOBITS";
-	case 9: return "SHT_REL";
-	case 10: return "SHT_SHLIB";
-	case 11: return "SHT_DYNSYM";
-	case 14: return "SHT_INIT_ARRAY";
-	case 15: return "SHT_FINI_ARRAY";
-	case 16: return "SHT_PREINIT_ARRAY";
-	case 17: return "SHT_GROUP";
-	case 18: return "SHT_SYMTAB_SHNDX";
-	/* 0x60000000 - 0x6fffffff operating system-specific semantics */
-	case 0x6ffffff0: return "XXX:VERSYM";
-	case 0x6ffffff7: return "SHT_GNU_LIBLIST";
-	case 0x6ffffffc: return "XXX:VERDEF";
-	case 0x6ffffffd: return "SHT_SUNW(GNU)_verdef";
-	case 0x6ffffffe: return "SHT_SUNW(GNU)_verneed";
-	case 0x6fffffff: return "SHT_SUNW(GNU)_versym";
-	/* 0x70000000 - 0x7fffffff processor-specific semantics */
-	case 0x70000000: return "SHT_IA_64_EXT";
-	case 0x70000001: return "SHT_IA_64_UNWIND";
-	case 0x7ffffffd: return "XXX:AUXILIARY";
-	case 0x7fffffff: return "XXX:FILTER";
-	/* 0x80000000 - 0xffffffff application programs */
-	default: return "ERROR: SHT NOT DEFINED";
+sh_types(uint64_t machine, uint64_t sht) {
+	static char unknown_buf[64]; 
+
+	if (sht < 0x60000000) {
+		switch (sht) {
+		case SHT_NULL:		return "SHT_NULL";
+		case SHT_PROGBITS:	return "SHT_PROGBITS";
+		case SHT_SYMTAB:	return "SHT_SYMTAB";
+		case SHT_STRTAB:	return "SHT_STRTAB";
+		case SHT_RELA:		return "SHT_RELA";
+		case SHT_HASH:		return "SHT_HASH";
+		case SHT_DYNAMIC:	return "SHT_DYNAMIC";
+		case SHT_NOTE:		return "SHT_NOTE";
+		case SHT_NOBITS:	return "SHT_NOBITS";
+		case SHT_REL:		return "SHT_REL";
+		case SHT_SHLIB:		return "SHT_SHLIB";
+		case SHT_DYNSYM:	return "SHT_DYNSYM";
+		case SHT_INIT_ARRAY:	return "SHT_INIT_ARRAY";
+		case SHT_FINI_ARRAY:	return "SHT_FINI_ARRAY";
+		case SHT_PREINIT_ARRAY:	return "SHT_PREINIT_ARRAY";
+		case SHT_GROUP:		return "SHT_GROUP";
+		case SHT_SYMTAB_SHNDX:	return "SHT_SYMTAB_SHNDX";
+		}
+		snprintf(unknown_buf, sizeof(unknown_buf),
+		    "ERROR: SHT %ju NOT DEFINED", (uintmax_t)sht);
+		return (unknown_buf);
+	} else if (sht < 0x70000000) {
+		/* 0x60000000-0x6fffffff operating system-specific semantics */
+		switch (sht) {
+		case 0x6ffffff0:	return "XXX:VERSYM";
+		case SHT_SUNW_dof:	return "SHT_SUNW_dof";
+		case SHT_GNU_HASH:	return "SHT_GNU_HASH";
+		case 0x6ffffff7:	return "SHT_GNU_LIBLIST";
+		case 0x6ffffffc:	return "XXX:VERDEF";
+		case SHT_SUNW_verdef:	return "SHT_SUNW(GNU)_verdef";
+		case SHT_SUNW_verneed:	return "SHT_SUNW(GNU)_verneed";
+		case SHT_SUNW_versym:	return "SHT_SUNW(GNU)_versym";
+		}
+		snprintf(unknown_buf, sizeof(unknown_buf),
+		    "ERROR: OS-SPECIFIC SHT 0x%jx NOT DEFINED",
+		     (uintmax_t)sht);
+		return (unknown_buf);
+	} else if (sht < 0x80000000) {
+		/* 0x70000000-0x7fffffff processor-specific semantics */
+		switch (machine) {
+		case EM_ARM:
+			switch (sht) {
+			case SHT_ARM_EXIDX: return "SHT_ARM_EXIDX";
+			case SHT_ARM_PREEMPTMAP:return "SHT_ARM_PREEMPTMAP";
+			case SHT_ARM_ATTRIBUTES:return "SHT_ARM_ATTRIBUTES";
+			case SHT_ARM_DEBUGOVERLAY:
+			    return "SHT_ARM_DEBUGOVERLAY";
+			case SHT_ARM_OVERLAYSECTION:
+			    return "SHT_ARM_OVERLAYSECTION";
+			}
+			break;
+		case EM_IA_64:
+			switch (sht) {
+			case 0x70000000: return "SHT_IA_64_EXT";
+			case 0x70000001: return "SHT_IA_64_UNWIND";
+			}
+			break;
+		case EM_MIPS:
+			switch (sht) {
+			case SHT_MIPS_REGINFO: return "SHT_MIPS_REGINFO";
+			case SHT_MIPS_OPTIONS: return "SHT_MIPS_OPTIONS";
+			case SHT_MIPS_ABIFLAGS: return "SHT_MIPS_ABIFLAGS";
+			}
+			break;
+		}
+		switch (sht) {
+		case 0x7ffffffd: return "XXX:AUXILIARY";
+		case 0x7fffffff: return "XXX:FILTER";
+		}
+		snprintf(unknown_buf, sizeof(unknown_buf),
+		    "ERROR: PROCESSOR-SPECIFIC SHT 0x%jx NOT DEFINED",
+		     (uintmax_t)sht);
+		return (unknown_buf);
+	} else {
+		/* 0x80000000-0xffffffff application programs */
+		snprintf(unknown_buf, sizeof(unknown_buf),
+		    "ERROR: SHT 0x%jx NOT DEFINED",
+		     (uintmax_t)sht);
+		return (unknown_buf);
 	}
 }
 
-const char *sh_flags[] = {
+static const char *sh_flags[] = {
 	"", "SHF_WRITE", "SHF_ALLOC", "SHF_WRITE|SHF_ALLOC", "SHF_EXECINSTR",
 	"SHF_WRITE|SHF_EXECINSTR", "SHF_ALLOC|SHF_EXECINSTR",
 	"SHF_WRITE|SHF_ALLOC|SHF_EXECINSTR"
 };
 
-const char *st_types[] = {
-	"STT_NOTYPE", "STT_OBJECT", "STT_FUNC", "STT_SECTION", "STT_FILE"
-};
+static const char *
+st_type(unsigned int mach, unsigned int type)
+{
+        static char s_type[32];
 
-const char *st_bindings[] = {
+        switch (type) {
+        case STT_NOTYPE: return "STT_NOTYPE";
+        case STT_OBJECT: return "STT_OBJECT";
+        case STT_FUNC: return "STT_FUNC";
+        case STT_SECTION: return "STT_SECTION";
+        case STT_FILE: return "STT_FILE";
+        case STT_COMMON: return "STT_COMMON";
+        case STT_TLS: return "STT_TLS";
+        case 13:
+                if (mach == EM_SPARCV9)
+                        return "STT_SPARC_REGISTER";
+                break;
+        }
+        snprintf(s_type, sizeof(s_type), "<unknown: %#x>", type);
+        return (s_type);
+}
+
+static const char *st_bindings[] = {
 	"STB_LOCAL", "STB_GLOBAL", "STB_WEAK"
 };
 
-char *dynstr;
-char *shstrtab;
-char *strtab;
-FILE *out;
+static char *dynstr;
+static char *shstrtab;
+static char *strtab;
+static FILE *out;
 
-u_int64_t elf_get_byte(Elf32_Ehdr *e, void *base, elf_member_t member);
-u_int64_t elf_get_quarter(Elf32_Ehdr *e, void *base, elf_member_t member);
-u_int64_t elf_get_half(Elf32_Ehdr *e, void *base, elf_member_t member);
-u_int64_t elf_get_word(Elf32_Ehdr *e, void *base, elf_member_t member);
-u_int64_t elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member);
+static u_int64_t elf_get_byte(Elf32_Ehdr *e, void *base, elf_member_t member);
+static u_int64_t elf_get_quarter(Elf32_Ehdr *e, void *base,
+    elf_member_t member);
+#if 0
+static u_int64_t elf_get_half(Elf32_Ehdr *e, void *base, elf_member_t member);
+#endif
+static u_int64_t elf_get_word(Elf32_Ehdr *e, void *base, elf_member_t member);
+static u_int64_t elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member);
 
-void elf_print_ehdr(Elf32_Ehdr *e);
-void elf_print_phdr(Elf32_Ehdr *e, void *p);
-void elf_print_shdr(Elf32_Ehdr *e, void *sh);
-void elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str);
-void elf_print_dynamic(Elf32_Ehdr *e, void *sh);
-void elf_print_rel(Elf32_Ehdr *e, void *r);
-void elf_print_rela(Elf32_Ehdr *e, void *ra);
-void elf_print_interp(Elf32_Ehdr *e, void *p);
-void elf_print_got(Elf32_Ehdr *e, void *sh);
-void elf_print_hash(Elf32_Ehdr *e, void *sh);
-void elf_print_note(Elf32_Ehdr *e, void *sh);
+static void elf_print_ehdr(Elf32_Ehdr *e, void *sh);
+static void elf_print_phdr(Elf32_Ehdr *e, void *p);
+static void elf_print_shdr(Elf32_Ehdr *e, void *sh);
+static void elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str);
+static void elf_print_dynamic(Elf32_Ehdr *e, void *sh);
+static void elf_print_rel(Elf32_Ehdr *e, void *r);
+static void elf_print_rela(Elf32_Ehdr *e, void *ra);
+static void elf_print_interp(Elf32_Ehdr *e, void *p);
+static void elf_print_got(Elf32_Ehdr *e, void *sh);
+static void elf_print_hash(Elf32_Ehdr *e, void *sh);
+static void elf_print_note(Elf32_Ehdr *e, void *sh);
 
-void usage(void);
+static void usage(void);
+
+/*
+ * Helpers for ELF files with shnum or shstrndx values that don't fit in the
+ * ELF header.  If the values are too large then an escape value is used to
+ * indicate that the actual value is found in one of section 0's fields.
+ */
+static uint64_t
+elf_get_shnum(Elf32_Ehdr *e, void *sh)
+{
+	uint64_t shnum;
+
+	shnum = elf_get_quarter(e, e, E_SHNUM);
+	if (shnum == 0)
+		shnum = elf_get_word(e, (char *)sh, SH_SIZE);
+	return shnum;
+}
+
+static uint64_t
+elf_get_shstrndx(Elf32_Ehdr *e, void *sh)
+{
+	uint64_t shstrndx;
+
+	shstrndx = elf_get_quarter(e, e, E_SHSTRNDX);
+	if (shstrndx == SHN_XINDEX)
+		shstrndx = elf_get_word(e, (char *)sh, SH_LINK);
+	return shstrndx;
+}
 
 int
 main(int ac, char **av)
 {
+	cap_rights_t rights;
 	u_int64_t phoff;
 	u_int64_t shoff;
 	u_int64_t phentsize;
@@ -390,6 +505,7 @@ main(int ac, char **av)
 	u_int64_t name;
 	u_int64_t type;
 	struct stat sb;
+	unsigned long cmd;
 	u_int flags;
 	Elf32_Ehdr *e;
 	void *p;
@@ -439,6 +555,9 @@ main(int ac, char **av)
 		case 'w':
 			if ((out = fopen(optarg, "w")) == NULL)
 				err(1, "%s", optarg);
+			cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE);
+			if (cap_rights_limit(fileno(out), &rights) < 0 && errno != ENOSYS)
+				err(1, "unable to limit rights for %s", optarg);
 			break;
 		case '?':
 		default:
@@ -451,6 +570,19 @@ main(int ac, char **av)
 	if ((fd = open(*av, O_RDONLY)) < 0 ||
 	    fstat(fd, &sb) < 0)
 		err(1, "%s", *av);
+	cap_rights_init(&rights, CAP_MMAP_R);
+	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for %s", *av);
+	cap_rights_limit(STDIN_FILENO, cap_rights_init(&rights));
+	cap_rights_init(&rights, CAP_FSTAT, CAP_IOCTL, CAP_WRITE);
+	cmd = TIOCGETA; /* required by isatty(3) in printf(3) */
+	if ((cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS) ||
+	    (cap_ioctls_limit(STDOUT_FILENO, &cmd, 1) < 0 && errno != ENOSYS) ||
+	    (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS) ||
+	    (cap_ioctls_limit(STDERR_FILENO, &cmd, 1) < 0 && errno != ENOSYS))
+		err(1, "unable to limit rights for stdout/stderr");
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "unable to enter capability mode");
 	e = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (e == MAP_FAILED)
 		err(1, NULL);
@@ -461,12 +593,20 @@ main(int ac, char **av)
 	phentsize = elf_get_quarter(e, e, E_PHENTSIZE);
 	phnum = elf_get_quarter(e, e, E_PHNUM);
 	shentsize = elf_get_quarter(e, e, E_SHENTSIZE);
-	shnum = elf_get_quarter(e, e, E_SHNUM);
-	shstrndx = elf_get_quarter(e, e, E_SHSTRNDX);
 	p = (char *)e + phoff;
-	sh = (char *)e + shoff;
-	offset = elf_get_off(e, (char *)sh + shstrndx * shentsize, SH_OFFSET);
-	shstrtab = (char *)e + offset;
+	if (shoff > 0) {
+		sh = (char *)e + shoff;
+		shnum = elf_get_shnum(e, sh);
+		shstrndx = elf_get_shstrndx(e, sh);
+		offset = elf_get_off(e, (char *)sh + shstrndx * shentsize,
+		    SH_OFFSET);
+		shstrtab = (char *)e + offset;
+	} else {
+		sh = NULL;
+		shnum = 0;
+		shstrndx = 0;
+		shstrtab = NULL;
+	}
 	for (i = 0; (u_int64_t)i < shnum; i++) {
 		name = elf_get_word(e, (char *)sh + i * shentsize, SH_NAME);
 		offset = elf_get_off(e, (char *)sh + i * shentsize, SH_OFFSET);
@@ -476,7 +616,7 @@ main(int ac, char **av)
 			dynstr = (char *)e + offset;
 	}
 	if (flags & ED_EHDR)
-		elf_print_ehdr(e);
+		elf_print_ehdr(e, sh);
 	if (flags & ED_PHDR)
 		elf_print_phdr(e, p);
 	if (flags & ED_SHDR)
@@ -549,8 +689,8 @@ main(int ac, char **av)
 	return 0;
 }
 
-void
-elf_print_ehdr(Elf32_Ehdr *e)
+static void
+elf_print_ehdr(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t class;
 	u_int64_t data;
@@ -583,8 +723,6 @@ elf_print_ehdr(Elf32_Ehdr *e)
 	phentsize = elf_get_quarter(e, e, E_PHENTSIZE);
 	phnum = elf_get_quarter(e, e, E_PHNUM);
 	shentsize = elf_get_quarter(e, e, E_SHENTSIZE);
-	shnum = elf_get_quarter(e, e, E_SHNUM);
-	shstrndx = elf_get_quarter(e, e, E_SHSTRNDX);
 	fprintf(out, "\nelf header:\n");
 	fprintf(out, "\n");
 	fprintf(out, "\te_ident: %s %s %s\n", ei_classes[class], ei_data[data],
@@ -600,11 +738,15 @@ elf_print_ehdr(Elf32_Ehdr *e)
 	fprintf(out, "\te_phentsize: %jd\n", (intmax_t)phentsize);
 	fprintf(out, "\te_phnum: %jd\n", (intmax_t)phnum);
 	fprintf(out, "\te_shentsize: %jd\n", (intmax_t)shentsize);
-	fprintf(out, "\te_shnum: %jd\n", (intmax_t)shnum);
-	fprintf(out, "\te_shstrndx: %jd\n", (intmax_t)shstrndx);
+	if (sh != NULL) {
+		shnum = elf_get_shnum(e, sh);
+		shstrndx = elf_get_shstrndx(e, sh);
+		fprintf(out, "\te_shnum: %jd\n", (intmax_t)shnum);
+		fprintf(out, "\te_shstrndx: %jd\n", (intmax_t)shstrndx);
+	}
 }
 
-void
+static void
 elf_print_phdr(Elf32_Ehdr *e, void *p)
 {
 	u_int64_t phentsize;
@@ -646,7 +788,7 @@ elf_print_phdr(Elf32_Ehdr *e, void *p)
 	}
 }
 
-void
+static void
 elf_print_shdr(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t shentsize;
@@ -661,11 +803,18 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 	u_int64_t info;
 	u_int64_t addralign;
 	u_int64_t entsize;
+	u_int64_t machine;
 	void *v;
 	int i;
 
+	if (sh == NULL) {
+		fprintf(out, "\nNo section headers\n");
+		return;
+	}
+
+	machine = elf_get_quarter(e, e, E_MACHINE);
 	shentsize = elf_get_quarter(e, e, E_SHENTSIZE);
-	shnum = elf_get_quarter(e, e, E_SHNUM);
+	shnum = elf_get_shnum(e, sh);
 	fprintf(out, "\nsection header:\n");
 	for (i = 0; (u_int64_t)i < shnum; i++) {
 		v = (char *)sh + i * shentsize;
@@ -682,7 +831,7 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 		fprintf(out, "\n");
 		fprintf(out, "entry: %d\n", i);
 		fprintf(out, "\tsh_name: %s\n", shstrtab + name);
-		fprintf(out, "\tsh_type: %s\n", sh_types(type));
+		fprintf(out, "\tsh_type: %s\n", sh_types(machine, type));
 		fprintf(out, "\tsh_flags: %s\n", sh_flags[flags & 0x7]);
 		fprintf(out, "\tsh_addr: %#jx\n", addr);
 		fprintf(out, "\tsh_offset: %jd\n", (intmax_t)offset);
@@ -694,9 +843,10 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 	}
 }
 
-void
+static void
 elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str)
 {
+	u_int64_t machine;
 	u_int64_t offset;
 	u_int64_t entsize;
 	u_int64_t size;
@@ -708,6 +858,7 @@ elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str)
 	int len;
 	int i;
 
+	machine = elf_get_quarter(e, e, E_MACHINE);
 	offset = elf_get_off(e, sh, SH_OFFSET);
 	entsize = elf_get_size(e, sh, SH_ENTSIZE);
 	size = elf_get_size(e, sh, SH_SIZE);
@@ -727,13 +878,13 @@ elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str)
 		fprintf(out, "\tst_value: %#jx\n", value);
 		fprintf(out, "\tst_size: %jd\n", (intmax_t)size);
 		fprintf(out, "\tst_info: %s %s\n",
-		    st_types[ELF32_ST_TYPE(info)],
+		    st_type(machine, ELF32_ST_TYPE(info)),
 		    st_bindings[ELF32_ST_BIND(info)]);
 		fprintf(out, "\tst_shndx: %jd\n", (intmax_t)shndx);
 	}
 }
 
-void
+static void
 elf_print_dynamic(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
@@ -793,7 +944,7 @@ elf_print_dynamic(Elf32_Ehdr *e, void *sh)
 	}
 }
 
-void
+static void
 elf_print_rela(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
@@ -825,7 +976,7 @@ elf_print_rela(Elf32_Ehdr *e, void *sh)
 	}
 }
 
-void
+static void
 elf_print_rel(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
@@ -854,7 +1005,7 @@ elf_print_rel(Elf32_Ehdr *e, void *sh)
 	}
 }
 
-void
+static void
 elf_print_interp(Elf32_Ehdr *e, void *p)
 {
 	u_int64_t offset;
@@ -866,7 +1017,7 @@ elf_print_interp(Elf32_Ehdr *e, void *p)
 	fprintf(out, "\t%s\n", s);
 }
 
-void
+static void
 elf_print_got(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
@@ -889,12 +1040,12 @@ elf_print_got(Elf32_Ehdr *e, void *sh)
 	}
 }
 
-void
+static void
 elf_print_hash(Elf32_Ehdr *e __unused, void *sh __unused)
 {
 }
 
-void
+static void
 elf_print_note(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
@@ -902,7 +1053,6 @@ elf_print_note(Elf32_Ehdr *e, void *sh)
 	u_int64_t name;
 	u_int32_t namesz;
 	u_int32_t descsz;
-	u_int32_t type;
 	u_int32_t desc;
 	char *n, *s;
 
@@ -914,7 +1064,6 @@ elf_print_note(Elf32_Ehdr *e, void *sh)
  	while (n < ((char *)e + offset + size)) {
 		namesz = elf_get_word(e, n, N_NAMESZ);
 		descsz = elf_get_word(e, n, N_DESCSZ);
-		type = elf_get_word(e, n, N_TYPE);
  		s = n + sizeof(Elf_Note);
  		desc = elf_get_word(e, n + sizeof(Elf_Note) + namesz, 0);
 		fprintf(out, "\t%s %d\n", s, desc);
@@ -922,7 +1071,7 @@ elf_print_note(Elf32_Ehdr *e, void *sh)
 	}
 }
 
-u_int64_t
+static u_int64_t
 elf_get_byte(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
 	u_int64_t val;
@@ -930,10 +1079,10 @@ elf_get_byte(Elf32_Ehdr *e, void *base, elf_member_t member)
 	val = 0;
 	switch (e->e_ident[EI_CLASS]) {
 	case ELFCLASS32:
-		val = ((char *)base)[elf32_offsets[member]];
+		val = ((uint8_t *)base)[elf32_offsets[member]];
 		break;
 	case ELFCLASS64:
-		val = ((char *)base)[elf64_offsets[member]];
+		val = ((uint8_t *)base)[elf64_offsets[member]];
 		break;
 	case ELFCLASSNONE:
 		errx(1, "invalid class");
@@ -942,7 +1091,7 @@ elf_get_byte(Elf32_Ehdr *e, void *base, elf_member_t member)
 	return val;
 }
 
-u_int64_t
+static u_int64_t
 elf_get_quarter(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
 	u_int64_t val;
@@ -982,7 +1131,8 @@ elf_get_quarter(Elf32_Ehdr *e, void *base, elf_member_t member)
 	return val;
 }
 
-u_int64_t
+#if 0
+static u_int64_t
 elf_get_half(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
 	u_int64_t val;
@@ -1021,8 +1171,9 @@ elf_get_half(Elf32_Ehdr *e, void *base, elf_member_t member)
 
 	return val;
 }
+#endif
 
-u_int64_t
+static u_int64_t
 elf_get_word(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
 	u_int64_t val;
@@ -1062,7 +1213,7 @@ elf_get_word(Elf32_Ehdr *e, void *base, elf_member_t member)
 	return val;
 }
 
-u_int64_t
+static u_int64_t
 elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
 	u_int64_t val;
@@ -1102,7 +1253,7 @@ elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member)
 	return val;
 }
 
-void
+static void
 usage(void)
 {
 	fprintf(stderr, "usage: elfdump -a | -cdeGhinprs [-w file] file\n");

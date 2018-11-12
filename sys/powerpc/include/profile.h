@@ -34,9 +34,9 @@
 
 #define	_MCOUNT_DECL	void __mcount
 
-#define FUNCTION_ALIGNMENT 16
+#define	FUNCTION_ALIGNMENT	4
 
-typedef u_int	fptrdiff_t;
+typedef __ptrdiff_t	fptrdiff_t;
 
 /*
  * The mcount trampoline macro, expanded in libc/gmon/mcount.c
@@ -74,6 +74,61 @@ typedef u_int	fptrdiff_t;
  * ctr register rather than the link register, to allow the link register
  * to be restored to what it was on entry to the profiled routine.
  */
+
+#if defined(__powerpc64__)
+
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
+#define MCOUNT_PREAMBLE \
+	"	.align	2			\n" \
+	"	.globl	_mcount			\n" \
+	"	.section \".opd\",\"aw\"	\n" \
+	"	.align	3			\n" \
+	"_mcount:				\n" \
+	"	.quad .L._mcount,.TOC.@tocbase,0\n" \
+	"	.previous			\n" \
+	"	.size   _mcount,24		\n" \
+	"	.type	_mcount,@function	\n" \
+	"	.align	4			\n" \
+	".L._mcount:				\n" 
+#else
+#define MCOUNT_PREAMBLE \
+	"	.globl	_mcount			\n" \
+	"	.type	_mcount,@function	\n" \
+	"	.align	4			\n" \
+	"_mcount:				\n"
+#endif
+
+#define	MCOUNT					\
+__asm(	MCOUNT_PREAMBLE \
+	"	stdu	%r1,-(288+128)(%r1)	\n" \
+	"	std	%r3,48(%r1)		\n" \
+	"	std	%r4,56(%r1)		\n" \
+	"	std	%r5,64(%r1)		\n" \
+	"	std	%r6,72(%r1)		\n" \
+	"	std	%r7,80(%r1)		\n" \
+	"	std	%r8,88(%r1)		\n" \
+	"	std	%r9,96(%r1)		\n" \
+	"	std	%r10,104(%r1)		\n" \
+	"	mflr	%r4			\n" \
+	"	std	%r4,112(%r1)		\n" \
+	"	ld	%r3,0(%r1)		\n" \
+	"	ld	%r3,0(%r3)		\n" \
+	"	ld	%r3,16(%r3)		\n" \
+	"	bl	__mcount		\n" \
+	"	nop				\n" \
+	"	ld	%r4,112(%r1)		\n" \
+	"	mtlr	%r4			\n" \
+	"	ld	%r3,48(%r1)		\n" \
+	"	ld	%r4,56(%r1)		\n" \
+	"	ld	%r5,64(%r1)		\n" \
+	"	ld	%r6,72(%r1)		\n" \
+	"	ld	%r7,80(%r1)		\n" \
+	"	ld	%r8,88(%r1)		\n" \
+	"	ld	%r9,96(%r1)		\n" \
+	"	ld	%r10,104(%r1)		\n" \
+	"	addi	%r1,%r1,(288+128)	\n" \
+	"	blr				\n");
+#else
 
 #ifdef PIC
 #define _PLT "@plt"
@@ -115,6 +170,7 @@ __asm(	"	.globl	_mcount			\n" \
 	"	bctr				\n" \
 	"_mcount_end:				\n" \
 	"	.size	_mcount,_mcount_end-_mcount");
+#endif
 
 #ifdef _KERNEL
 #define	MCOUNT_ENTER(s)		s = intr_disable()
@@ -127,12 +183,13 @@ __asm(	"	.globl	_mcount			\n" \
 #define	__PROFILE_VECTOR_BASE	EXC_RST
 #define	__PROFILE_VECTOR_TOP	(EXC_LAST + 0x100)
 #endif	/* AIM */
-#ifdef E500
+#if defined(BOOKE)
 extern char interrupt_vector_base[];
 extern char interrupt_vector_top[];
 #define	__PROFILE_VECTOR_BASE	(uintfptr_t)interrupt_vector_base
 #define	__PROFILE_VECTOR_TOP	(uintfptr_t)interrupt_vector_top
-#endif	/* E500 */
+#endif	/* BOOKE_E500 || BOOKE_PPC4XX */
+
 #endif	/* !COMPILING_LINT */
 
 #ifndef __PROFILE_VECTOR_BASE
@@ -165,7 +222,11 @@ void __mcount(uintfptr_t frompc, uintfptr_t selfpc);
 
 #else	/* !_KERNEL */
 
+#ifdef __powerpc64__
+typedef u_long	uintfptr_t;
+#else
 typedef u_int	uintfptr_t;
+#endif
 
 #endif	/* _KERNEL */
 

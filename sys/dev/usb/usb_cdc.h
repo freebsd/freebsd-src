@@ -17,13 +17,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -168,7 +161,7 @@ struct usb_cdc_notification {
 #define	UCDC_NOTIFICATION_LENGTH	8
 
 /*
- * Bits set in the SERIAL STATE notifcation (first byte of data)
+ * Bits set in the SERIAL STATE notification (first byte of data)
  */
 
 #define	UCDC_N_SERIAL_OVERRUN		0x40
@@ -248,6 +241,7 @@ struct usb_ncm_func_descriptor {
 #define	UCDC_NCM_CAP_ENCAP	0x04
 #define	UCDC_NCM_CAP_MAX_DATA	0x08
 #define	UCDC_NCM_CAP_CRCMODE	0x10
+#define	UCDC_NCM_CAP_MAX_DGRAM	0x20
 } __packed;
 
 /* Communications interface specific class request codes */
@@ -283,7 +277,7 @@ struct usb_ncm_parameters {
 	uWord	wNdpOutDivisor;
 	uWord	wNdpOutPayloadRemainder;
 	uWord	wNdpOutAlignment;
-	uWord	wReserved26;
+	uWord	wNtbOutMaxDatagrams;
 } __packed;
 
 /* Communications interface specific class notification codes */

@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -26,6 +25,8 @@
 #define	INIT_HANDLER	01000	/* Call option handler function at startup */
 
 #define	OTYPE		(BOOL|TRIPLE|NUMBER|STRING|NOVAR)
+
+#define OLETTER_NONE    '\1'     /* Invalid option letter */
 
 /*
  * Argument to a handling function tells what type of activity:
@@ -49,6 +50,8 @@ struct optname
 	char *oname;            /* Long (GNU-style) option name */
 	struct optname *onext;  /* List of synonymous option names */
 };
+
+#define OPTNAME_MAX	32	/* Max length of long option name */
 
 struct loption
 {

@@ -22,7 +22,6 @@
 ; types:
 ;	STD	always included
 ;	COMPAT	included on COMPAT #ifdef
-;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 
@@ -78,7 +77,7 @@
 31	AUE_NULL	UNIMPL	stty
 32	AUE_NULL	UNIMPL	gtty
 33	AUE_NULL	STD	{ int svr4_sys_access(char *path, \
-				    int flags); }
+				    int amode); }
 34	AUE_NULL	STD	{ int svr4_sys_nice(int prio); }
 35	AUE_NULL	UNIMPL	statfs
 36	AUE_NULL	NOPROTO	{ int sync(void); }
@@ -88,7 +87,7 @@
 				    int pgid); }
 40	AUE_NULL	UNIMPL	xenix
 41	AUE_NULL	NOPROTO	{ int dup(u_int fd); }
-42	AUE_NULL	NOPROTO	{ int pipe(void); }
+42	AUE_NULL	STD	{ int svr4_pipe(void); }
 43	AUE_NULL	STD	{ int svr4_sys_times(struct tms *tp); }
 44	AUE_NULL	UNIMPL	profil
 45	AUE_NULL	UNIMPL	plock

@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -70,9 +66,9 @@ static void set_events(file_info_t *files);
 #define USE_KQUEUE	1
 #define ADD_EVENTS	2
 
-struct kevent *ev;
-int action = USE_SLEEP;
-int kq;
+static struct kevent *ev;
+static int action = USE_SLEEP;
+static int kq;
 
 static const file_info_t *last;
 
@@ -247,7 +243,7 @@ show(file_info_t *file)
 	while ((ch = getc(file->fp)) != EOF) {
 		if (last != file && no_files > 1) {
 			if (!qflag)
-				(void)printf("\n==> %s <==\n", file->file_name);
+				printfn(file->file_name, 1);
 			last = file;
 		}
 		if (putchar(ch) == EOF)
@@ -324,7 +320,7 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 			active = 1;
 			n++;
 			if (no_files > 1 && !qflag)
-				(void)printf("\n==> %s <==\n", file->file_name);
+				printfn(file->file_name, 1);
 			forward(file->fp, file->file_name, style, off, &file->st);
 			if (Fflag && fileno(file->fp) != STDIN_FILENO)
 				n++;
@@ -365,8 +361,10 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 					if (errno != ENOENT)
 						ierr(file->file_name);
 					show(file);
-					fclose(file->fp);
-					file->fp = NULL;
+					if (file->fp != NULL) {
+						fclose(file->fp);
+						file->fp = NULL;
+					}
 					ev_change++;
 					continue;
 				}

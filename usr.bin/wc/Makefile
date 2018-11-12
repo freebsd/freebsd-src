@@ -2,5 +2,6 @@
 # $FreeBSD$
 
 PROG=	wc
-WARNS?=	6
+LIBADD=	xo
+
 .include <bsd.prog.mk>

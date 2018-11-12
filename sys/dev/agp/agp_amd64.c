@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_bus.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -115,7 +113,7 @@ agp_amd64_match(device_t dev)
 		return ("VIA K8T800Pro host to PCI bridge");
 	case 0x31881106:
 		return ("VIA 8385 host to PCI bridge");
-	};
+	}
 
 	return (NULL);
 }
@@ -243,8 +241,6 @@ agp_amd64_attach(device_t dev)
 		    4);
 	}
 
-	agp_flush_cache();
-
 	return (0);
 }
 
@@ -278,8 +274,7 @@ static uint32_t agp_amd64_table[] = {
 	0x80000000,	/* 2048 MB */
 };
 
-#define AGP_AMD64_TABLE_SIZE \
-	(sizeof(agp_amd64_table) / sizeof(agp_amd64_table[0]))
+#define AGP_AMD64_TABLE_SIZE nitems(agp_amd64_table)
 
 static uint32_t
 agp_amd64_get_aperture(device_t dev)

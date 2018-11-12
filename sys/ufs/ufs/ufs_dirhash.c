@@ -68,13 +68,12 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_DIRHASH, "ufs_dirhash", "UFS directory hash tables");
 
-static SYSCTL_NODE(_vfs, OID_AUTO, ufs, CTLFLAG_RD, 0, "UFS filesystem");
-
 static int ufs_mindirhashsize = DIRBLKSIZ * 5;
 SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_minsize, CTLFLAG_RW,
     &ufs_mindirhashsize,
     0, "minimum directory size in bytes for which to use hashed lookup");
-static int ufs_dirhashmaxmem = 2 * 1024 * 1024;
+static int ufs_dirhashmaxmem = 2 * 1024 * 1024;	/* NOTE: initial value. It is
+						   tuned in ufsdirhash_init() */
 SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_maxmem, CTLFLAG_RW, &ufs_dirhashmaxmem,
     0, "maximum allowed dirhash memory usage");
 static int ufs_dirhashmem;
@@ -86,10 +85,11 @@ SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_docheck, CTLFLAG_RW, &ufs_dirhashcheck,
 static int ufs_dirhashlowmemcount = 0;
 SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_lowmemcount, CTLFLAG_RD, 
     &ufs_dirhashlowmemcount, 0, "number of times low memory hook called");
-static int ufs_dirhashreclaimage = 5;
-SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_reclaimage, CTLFLAG_RW, 
-    &ufs_dirhashreclaimage, 0, 
-    "max time in seconds of hash inactivity before deletion in low VM events");
+static int ufs_dirhashreclaimpercent = 10;
+static int ufsdirhash_set_reclaimpercent(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vfs_ufs, OID_AUTO, dirhash_reclaimpercent,
+    CTLTYPE_INT | CTLFLAG_RW, 0, 0, ufsdirhash_set_reclaimpercent, "I",
+    "set percentage of dirhash cache to be removed in low VM events");
 
 
 static int ufsdirhash_hash(struct dirhash *dh, char *name, int namelen);
@@ -190,9 +190,7 @@ ufsdirhash_create(struct inode *ip)
 	struct dirhash *ndh;
 	struct dirhash *dh;
 	struct vnode *vp;
-	int error;
 
-	error = 0;
 	ndh = dh = NULL;
 	vp = ip->i_vnode;
 	for (;;) {
@@ -274,11 +272,9 @@ static struct dirhash *
 ufsdirhash_acquire(struct inode *ip)
 {
 	struct dirhash *dh;
-	struct vnode *vp;
 
 	ASSERT_VOP_ELOCKED(ip->i_vnode, __FUNCTION__);
 
-	vp = ip->i_vnode;
 	dh = ip->i_dirhash;
 	if (dh == NULL)
 		return (NULL);
@@ -403,8 +399,7 @@ ufsdirhash_build(struct inode *ip)
 		dh->dh_firstfree[i] = -1;
 	dh->dh_firstfree[DH_NFSTATS] = 0;
 	dh->dh_hused = 0;
-	dh->dh_seqopt = 0;
-	dh->dh_seqoff = 0;
+	dh->dh_seqoff = -1;
 	dh->dh_score = DH_SCOREINIT;
 	dh->dh_lastused = time_second;
 
@@ -428,7 +423,7 @@ ufsdirhash_build(struct inode *ip)
 	}
 	for (i = 0; i < dirblocks; i++)
 		dh->dh_blkfree[i] = DIRBLKSIZ / DIRALIGN;
-	bmask = VFSTOUFS(vp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
+	bmask = vp->v_mount->mnt_stat.f_iosize - 1;
 	pos = 0;
 	while (pos < ip->i_size) {
 		/* If necessary, get the next directory block. */
@@ -552,7 +547,7 @@ ufsdirhash_lookup(struct inode *ip, char *name, int namelen, doff_t *offp,
 	struct direct *dp;
 	struct vnode *vp;
 	struct buf *bp;
-	doff_t blkoff, bmask, offset, prevoff;
+	doff_t blkoff, bmask, offset, prevoff, seqoff;
 	int i, slot;
 	int error;
 
@@ -589,32 +584,33 @@ ufsdirhash_lookup(struct inode *ip, char *name, int namelen, doff_t *offp,
 	DIRHASHLIST_UNLOCK();
 
 	vp = ip->i_vnode;
-	bmask = VFSTOUFS(vp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
+	bmask = vp->v_mount->mnt_stat.f_iosize - 1;
 	blkoff = -1;
 	bp = NULL;
+	seqoff = dh->dh_seqoff;
 restart:
 	slot = ufsdirhash_hash(dh, name, namelen);
 
-	if (dh->dh_seqopt) {
+	if (seqoff != -1) {
 		/*
-		 * Sequential access optimisation. dh_seqoff contains the
+		 * Sequential access optimisation. seqoff contains the
 		 * offset of the directory entry immediately following
 		 * the last entry that was looked up. Check if this offset
 		 * appears in the hash chain for the name we are looking for.
 		 */
 		for (i = slot; (offset = DH_ENTRY(dh, i)) != DIRHASH_EMPTY;
 		    i = WRAPINCR(i, dh->dh_hlen))
-			if (offset == dh->dh_seqoff)
+			if (offset == seqoff)
 				break;
-		if (offset == dh->dh_seqoff) {
+		if (offset == seqoff) {
 			/*
 			 * We found an entry with the expected offset. This
 			 * is probably the entry we want, but if not, the
-			 * code below will turn off seqopt and retry.
+			 * code below will retry.
 			 */ 
 			slot = i;
-		} else 
-			dh->dh_seqopt = 0;
+		} else
+			seqoff = -1;
 	}
 
 	for (; (offset = DH_ENTRY(dh, slot)) != DIRHASH_EMPTY;
@@ -632,6 +628,7 @@ restart:
 				goto fail;
 			}
 		}
+		KASSERT(bp != NULL, ("no buffer allocated"));
 		dp = (struct direct *)(bp->b_data + (offset & bmask));
 		if (dp->d_reclen == 0 || dp->d_reclen >
 		    DIRBLKSIZ - (offset & (DIRBLKSIZ - 1))) {
@@ -655,9 +652,7 @@ restart:
 				*prevoffp = prevoff;
 			}
 
-			/* Check for sequential access, and update offset. */
-			if (dh->dh_seqopt == 0 && dh->dh_seqoff == offset)
-				dh->dh_seqopt = 1;
+			/* Update offset. */
 			dh->dh_seqoff = offset + DIRSIZ(0, dp);
 			*bpp = bp;
 			*offp = offset;
@@ -666,11 +661,11 @@ restart:
 		}
 
 		/*
-		 * When the name doesn't match in the seqopt case, go back
-		 * and search normally.
+		 * When the name doesn't match in the sequential
+		 * optimization case, go back and search normally.
 		 */
-		if (dh->dh_seqopt) {
-			dh->dh_seqopt = 0;
+		if (seqoff != -1) {
+			seqoff = -1;
 			goto restart;
 		}
 	}
@@ -1150,7 +1145,7 @@ ufsdirhash_getprev(struct direct *dirp, doff_t offset)
 	doff_t blkoff, prevoff;
 	int entrypos, i;
 
-	blkoff = offset & ~(DIRBLKSIZ - 1);	/* offset of start of block */
+	blkoff = rounddown2(offset, DIRBLKSIZ);	/* offset of start of block */
 	entrypos = offset & (DIRBLKSIZ - 1);	/* entry relative to block */
 	blkbuf = (char *)dirp - entrypos;
 	prevoff = blkoff;
@@ -1249,48 +1244,59 @@ static void
 ufsdirhash_lowmem()
 {
 	struct dirhash *dh, *dh_temp;
-	int memfreed = 0;
-	/* XXX: this 10% may need to be adjusted */
-	int memwanted = ufs_dirhashmem / 10;
+	int memfreed, memwanted;
 
 	ufs_dirhashlowmemcount++;
+	memfreed = 0;
+	memwanted = ufs_dirhashmem * ufs_dirhashreclaimpercent / 100;
 
 	DIRHASHLIST_LOCK();
-	/* 
-	 * Delete dirhashes not used for more than ufs_dirhashreclaimage 
-	 * seconds. If we can't get a lock on the dirhash, it will be skipped.
+
+	/*
+	 * Reclaim up to memwanted from the oldest dirhashes. This will allow
+	 * us to make some progress when the system is running out of memory
+	 * without compromising the dinamicity of maximum age. If the situation
+	 * does not improve lowmem will be eventually retriggered and free some
+	 * other entry in the cache. The entries on the head of the list should
+	 * be the oldest. If during list traversal we can't get a lock on the
+	 * dirhash, it will be skipped.
 	 */
 	TAILQ_FOREACH_SAFE(dh, &ufsdirhash_list, dh_list, dh_temp) {
-		if (!sx_try_xlock(&dh->dh_lock))
-			continue;
-		if (time_second - dh->dh_lastused > ufs_dirhashreclaimage)
+		if (sx_try_xlock(&dh->dh_lock))
 			memfreed += ufsdirhash_destroy(dh);
-		/* Unlock if we didn't delete the dirhash */
-		else
-			ufsdirhash_release(dh);
-	}
-
-	/* 
-	 * If not enough memory was freed, keep deleting hashes from the head 
-	 * of the dirhash list. The ones closest to the head should be the 
-	 * oldest. 
-	 */
-	if (memfreed < memwanted) {
-		TAILQ_FOREACH_SAFE(dh, &ufsdirhash_list, dh_list, dh_temp) {
-			if (!sx_try_xlock(&dh->dh_lock))
-				continue;
-			memfreed += ufsdirhash_destroy(dh);
-			if (memfreed >= memwanted)
-				break;
-		}
+		if (memfreed >= memwanted)
+			break;
 	}
 	DIRHASHLIST_UNLOCK();
 }
 
+static int
+ufsdirhash_set_reclaimpercent(SYSCTL_HANDLER_ARGS)
+{
+	int error, v;
+
+	v = ufs_dirhashreclaimpercent;
+	error = sysctl_handle_int(oidp, &v, v, req);
+	if (error)
+		return (error);
+	if (req->newptr == NULL)
+		return (error);
+	if (v == ufs_dirhashreclaimpercent)
+		return (0);
+
+	/* Refuse invalid percentages */
+	if (v < 0 || v > 100)
+		return (EINVAL);
+	ufs_dirhashreclaimpercent = v;
+	return (0);
+}
 
 void
 ufsdirhash_init()
 {
+	ufs_dirhashmaxmem = lmax(roundup(hibufspace / 64, PAGE_SIZE),
+	    2 * 1024 * 1024);
+
 	ufsdirhash_zone = uma_zcreate("DIRHASH", DH_NBLKOFF * sizeof(doff_t),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	mtx_init(&ufsdirhash_mtx, "dirhash list", NULL, MTX_DEF);

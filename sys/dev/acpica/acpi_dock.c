@@ -224,7 +224,7 @@ acpi_dock_insert_child(ACPI_HANDLE handle, UINT32 level, void *context,
 	ACPI_INIT_WALK_INFO	Info;
 
 	AcpiNsWalkNamespace(ACPI_TYPE_ANY, handle,
-	    100, TRUE, AcpiNsInitOneDevice, &Info, NULL);
+	    100, TRUE, AcpiNsInitOneDevice, NULL, &Info, NULL);
 #endif
 
 	dev = acpi_get_device(handle);
@@ -249,7 +249,7 @@ acpi_dock_insert_children(device_t dev)
 	status = AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_SB_", &sb_handle);
 	if (ACPI_SUCCESS(status)) {
 		AcpiWalkNamespace(ACPI_TYPE_DEVICE, sb_handle,
-		    100, acpi_dock_insert_child, dev, NULL);
+		    100, acpi_dock_insert_child, NULL, dev, NULL);
 	}
 }
 
@@ -257,12 +257,10 @@ static void
 acpi_dock_insert(device_t dev)
 {
 	struct acpi_dock_softc *sc;
-	ACPI_HANDLE	h;
 
 	ACPI_SERIAL_ASSERT(dock);
 
 	sc = device_get_softc(dev);
-	h = acpi_get_handle(dev);
 
 	if (sc->status == ACPI_DOCK_STATUS_UNDOCKED ||
 	    sc->status == ACPI_DOCK_STATUS_UNKNOWN) {
@@ -319,7 +317,7 @@ acpi_dock_eject_children(device_t dev)
 	status = AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_SB_", &sb_handle);
 	if (ACPI_SUCCESS(status)) {
 		AcpiWalkNamespace(ACPI_TYPE_DEVICE, sb_handle,
-		    100, acpi_dock_eject_child, &dev, NULL);
+		    100, acpi_dock_eject_child, NULL, &dev, NULL);
 	}
 }
 
@@ -414,7 +412,6 @@ acpi_dock_status_sysctl(SYSCTL_HANDLER_ARGS)
 	device_t	dev;
 	int		status, err;
 
-	err = 0;
 	dev = (device_t)arg1;
 
 	sc = device_get_softc(dev);
@@ -524,7 +521,7 @@ static device_method_t acpi_dock_methods[] = {
 	DEVMETHOD(device_probe, acpi_dock_probe),
 	DEVMETHOD(device_attach, acpi_dock_attach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t	acpi_dock_driver = {

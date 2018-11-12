@@ -501,6 +501,14 @@ c_cpp_builtins (cpp_reader *pfile)
 
   /* Other target-independent built-ins determined by command-line
      options.  */
+  /* APPLE LOCAL begin blocks */
+  /* APPLE LOCAL radar 5868913 */
+  if (flag_blocks)
+    {
+      cpp_define (pfile, "__block=__attribute__((__blocks__(byref)))");
+      cpp_define (pfile, "__BLOCKS__=1");
+    }
+  /* APPLE LOCAL end blocks */
   if (optimize_size)
     cpp_define (pfile, "__OPTIMIZE_SIZE__");
   if (optimize)
@@ -545,7 +553,9 @@ c_cpp_builtins (cpp_reader *pfile)
   /* Make the choice of the stack protector runtime visible to source code.
      The macro names and values here were chosen for compatibility with an
      earlier implementation, i.e. ProPolice.  */
-  if (flag_stack_protect == 2)
+  if (flag_stack_protect == 3)
+    cpp_define (pfile, "__SSP_STRONG__=3");
+  else if (flag_stack_protect == 2)
     cpp_define (pfile, "__SSP_ALL__=2");
   else if (flag_stack_protect == 1)
     cpp_define (pfile, "__SSP__=1");

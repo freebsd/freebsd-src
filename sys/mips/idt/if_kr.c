@@ -40,7 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/taskqueue.h>
 
@@ -50,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 
 #include <net/bpf.h>
 
@@ -118,16 +121,12 @@ static device_method_t kr_methods[] = {
 	DEVMETHOD(device_resume,	kr_resume),
 	DEVMETHOD(device_shutdown,	kr_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	kr_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	kr_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	kr_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t kr_driver = {
@@ -265,10 +264,10 @@ kr_attach(device_t dev)
 	CSR_WRITE_4(sc, KR_MIIMCFG, 0);
 
 	/* Do MII setup. */
-	if (mii_phy_probe(dev, &sc->kr_miibus,
-	    kr_ifmedia_upd, kr_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->kr_miibus, ifp, kr_ifmedia_upd,
+	    kr_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -925,10 +924,8 @@ kr_ifmedia_upd(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	KR_LOCK(sc);
 	mii = device_get_softc(sc->kr_miibus);
-	if (mii->mii_instance) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	KR_UNLOCK(sc);
 
@@ -947,9 +944,9 @@ kr_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii = device_get_softc(sc->kr_miibus);
 	KR_LOCK(sc);
 	mii_pollstat(mii);
-	KR_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	KR_UNLOCK(sc);
 }
 
 struct kr_dmamap_arg {
@@ -1152,31 +1149,29 @@ kr_dma_free(struct kr_softc *sc)
 
 	/* Tx ring. */
 	if (sc->kr_cdata.kr_tx_ring_tag) {
-		if (sc->kr_cdata.kr_tx_ring_map)
+		if (sc->kr_rdata.kr_tx_ring_paddr)
 			bus_dmamap_unload(sc->kr_cdata.kr_tx_ring_tag,
 			    sc->kr_cdata.kr_tx_ring_map);
-		if (sc->kr_cdata.kr_tx_ring_map &&
-		    sc->kr_rdata.kr_tx_ring)
+		if (sc->kr_rdata.kr_tx_ring)
 			bus_dmamem_free(sc->kr_cdata.kr_tx_ring_tag,
 			    sc->kr_rdata.kr_tx_ring,
 			    sc->kr_cdata.kr_tx_ring_map);
 		sc->kr_rdata.kr_tx_ring = NULL;
-		sc->kr_cdata.kr_tx_ring_map = NULL;
+		sc->kr_rdata.kr_tx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->kr_cdata.kr_tx_ring_tag);
 		sc->kr_cdata.kr_tx_ring_tag = NULL;
 	}
 	/* Rx ring. */
 	if (sc->kr_cdata.kr_rx_ring_tag) {
-		if (sc->kr_cdata.kr_rx_ring_map)
+		if (sc->kr_rdata.kr_rx_ring_paddr)
 			bus_dmamap_unload(sc->kr_cdata.kr_rx_ring_tag,
 			    sc->kr_cdata.kr_rx_ring_map);
-		if (sc->kr_cdata.kr_rx_ring_map &&
-		    sc->kr_rdata.kr_rx_ring)
+		if (sc->kr_rdata.kr_rx_ring)
 			bus_dmamem_free(sc->kr_cdata.kr_rx_ring_tag,
 			    sc->kr_rdata.kr_rx_ring,
 			    sc->kr_cdata.kr_rx_ring_map);
 		sc->kr_rdata.kr_rx_ring = NULL;
-		sc->kr_cdata.kr_rx_ring_map = NULL;
+		sc->kr_rdata.kr_rx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->kr_cdata.kr_rx_ring_tag);
 		sc->kr_cdata.kr_rx_ring_tag = NULL;
 	}
@@ -1311,7 +1306,7 @@ kr_newbuf(struct kr_softc *sc, int idx)
 	bus_dmamap_t		map;
 	int			nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -1400,13 +1395,13 @@ kr_tx(struct kr_softc *sc)
 		txd = &sc->kr_cdata.kr_txdesc[cons];
 
 		if (devcs & KR_DMATX_DEVCS_TOK)
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		else {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			/* collisions: medium busy, late collision */
 			if ((devcs & KR_DMATX_DEVCS_EC) || 
 			    (devcs & KR_DMATX_DEVCS_LC))
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 		}
 
 		bus_dmamap_sync(sc->kr_cdata.kr_tx_tag, txd->tx_dmamap,
@@ -1465,11 +1460,11 @@ kr_rx(struct kr_softc *sc)
 		error = 1;
 
 		if (packet_len != count)
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		else if (count < 64)
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		else if ((cur_rx->kr_devcs & KR_DMARX_DEVCS_LD) == 0)
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		else if ((cur_rx->kr_devcs & KR_DMARX_DEVCS_ROK) != 0) {
 			error = 0;
 			bus_dmamap_sync(sc->kr_cdata.kr_rx_tag, rxd->rx_dmamap,
@@ -1479,7 +1474,7 @@ kr_rx(struct kr_softc *sc)
 			m->m_pkthdr.rcvif = ifp;
 			/* Skip 4 bytes of CRC */
 			m->m_pkthdr.len = m->m_len = packet_len - ETHER_CRC_LEN;
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 			KR_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);

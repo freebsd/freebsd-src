@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Author: Ed Maste <emaste@phaedrus.sandvine.ca>
+ * Author: Ed Maste <emaste@FreeBSD.org>
  */
 
 /*
@@ -34,7 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <machine/mptable.h>
+#include <x86/mptable.h>
 
 #include <err.h>
 #include <fcntl.h>

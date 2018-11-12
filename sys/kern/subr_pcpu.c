@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the author nor the names of any co-contributors
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -53,16 +53,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
-#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/sx.h>
+#include <vm/uma.h>
 #include <ddb/ddb.h>
 
-MALLOC_DEFINE(M_PCPU, "Per-cpu", "Per-cpu resource accouting.");
+static MALLOC_DEFINE(M_PCPU, "Per-cpu", "Per-cpu resource accouting.");
 
 struct dpcpu_free {
 	uintptr_t	df_start;
@@ -75,7 +75,7 @@ static TAILQ_HEAD(, dpcpu_free) dpcpu_head = TAILQ_HEAD_INITIALIZER(dpcpu_head);
 static struct sx dpcpu_lock;
 uintptr_t dpcpu_off[MAXCPU];
 struct pcpu *cpuid_to_pcpu[MAXCPU];
-struct cpuhead cpuhead = SLIST_HEAD_INITIALIZER(cpuhead);
+struct cpuhead cpuhead = STAILQ_HEAD_INITIALIZER(cpuhead);
 
 /*
  * Initialize the MI portions of a struct pcpu.
@@ -88,15 +88,11 @@ pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 	KASSERT(cpuid >= 0 && cpuid < MAXCPU,
 	    ("pcpu_init: invalid cpuid %d", cpuid));
 	pcpu->pc_cpuid = cpuid;
-	pcpu->pc_cpumask = 1 << cpuid;
 	cpuid_to_pcpu[cpuid] = pcpu;
-	SLIST_INSERT_HEAD(&cpuhead, pcpu, pc_allcpu);
+	STAILQ_INSERT_TAIL(&cpuhead, pcpu, pc_allcpu);
 	cpu_pcpu_init(pcpu, cpuid, size);
 	pcpu->pc_rm_queue.rmq_next = &pcpu->pc_rm_queue;
 	pcpu->pc_rm_queue.rmq_prev = &pcpu->pc_rm_queue;
-#ifdef KTR
-	snprintf(pcpu->pc_name, sizeof(pcpu->pc_name), "CPU %d", cpuid);
-#endif
 }
 
 void
@@ -125,11 +121,35 @@ dpcpu_startup(void *dummy __unused)
 
 	df = malloc(sizeof(*df), M_PCPU, M_WAITOK | M_ZERO);
 	df->df_start = (uintptr_t)&DPCPU_NAME(modspace);
-	df->df_len = DPCPU_MODSIZE;
+	df->df_len = DPCPU_MODMIN;
 	TAILQ_INSERT_HEAD(&dpcpu_head, df, df_link);
 	sx_init(&dpcpu_lock, "dpcpu alloc lock");
 }
 SYSINIT(dpcpu, SI_SUB_KLD, SI_ORDER_FIRST, dpcpu_startup, 0);
+
+/*
+ * UMA_PCPU_ZONE zones, that are available for all kernel
+ * consumers. Right now 64 bit zone is used for counter(9)
+ * and pointer zone is used by flowtable.
+ */
+
+uma_zone_t pcpu_zone_64;
+uma_zone_t pcpu_zone_ptr;
+
+static void
+pcpu_zones_startup(void)
+{
+
+	pcpu_zone_64 = uma_zcreate("64 pcpu", sizeof(uint64_t),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_PCPU);
+
+	if (sizeof(uint64_t) == sizeof(void *))
+		pcpu_zone_ptr = pcpu_zone_64;
+	else
+		pcpu_zone_ptr = uma_zcreate("ptr pcpu", sizeof(void *),
+		    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_PCPU);
+}
+SYSINIT(pcpu_zones, SI_SUB_KMEM, SI_ORDER_ANY, pcpu_zones_startup, NULL);
 
 /*
  * First-fit extent based allocator for allocating space in the per-cpu
@@ -228,7 +248,7 @@ dpcpu_copy(void *s, int size)
 	uintptr_t dpcpu;
 	int i;
 
-	for (i = 0; i < mp_ncpus; ++i) {
+	CPU_FOREACH(i) {
 		dpcpu = dpcpu_off[i];
 		if (dpcpu == 0)
 			continue;
@@ -246,7 +266,7 @@ void
 pcpu_destroy(struct pcpu *pcpu)
 {
 
-	SLIST_REMOVE(&cpuhead, pcpu, pcpu, pc_allcpu);
+	STAILQ_REMOVE(&cpuhead, pcpu, pcpu, pc_allcpu);
 	cpuid_to_pcpu[pcpu->pc_cpuid] = NULL;
 	dpcpu_off[pcpu->pc_cpuid] = 0;
 }
@@ -269,7 +289,7 @@ sysctl_dpcpu_quad(SYSCTL_HANDLER_ARGS)
 	int i;
 
 	count = 0;
-	for (i = 0; i < mp_ncpus; ++i) {
+	CPU_FOREACH(i) {
 		dpcpu = dpcpu_off[i];
 		if (dpcpu == 0)
 			continue;
@@ -286,7 +306,7 @@ sysctl_dpcpu_long(SYSCTL_HANDLER_ARGS)
 	int i;
 
 	count = 0;
-	for (i = 0; i < mp_ncpus; ++i) {
+	CPU_FOREACH(i) {
 		dpcpu = dpcpu_off[i];
 		if (dpcpu == 0)
 			continue;
@@ -303,7 +323,7 @@ sysctl_dpcpu_int(SYSCTL_HANDLER_ARGS)
 	int i;
 
 	count = 0;
-	for (i = 0; i < mp_ncpus; ++i) {
+	CPU_FOREACH(i) {
 		dpcpu = dpcpu_off[i];
 		if (dpcpu == 0)
 			continue;
@@ -317,9 +337,7 @@ DB_SHOW_COMMAND(dpcpu_off, db_show_dpcpu_off)
 {
 	int id;
 
-	for (id = 0; id <= mp_maxid; id++) {
-		if (CPU_ABSENT(id))
-			continue;
+	CPU_FOREACH(id) {
 		db_printf("dpcpu_off[%2d] = 0x%jx (+ DPCPU_START = %p)\n",
 		    id, (uintmax_t)dpcpu_off[id],
 		    (void *)(uintptr_t)(dpcpu_off[id] + DPCPU_START));
@@ -332,12 +350,12 @@ show_pcpu(struct pcpu *pc)
 	struct thread *td;
 
 	db_printf("cpuid        = %d\n", pc->pc_cpuid);
-	db_printf("dynamic pcpu	= %p\n", (void *)pc->pc_dynamic);
+	db_printf("dynamic pcpu = %p\n", (void *)pc->pc_dynamic);
 	db_printf("curthread    = ");
 	td = pc->pc_curthread;
 	if (td != NULL)
-		db_printf("%p: pid %d \"%s\"\n", td, td->td_proc->p_pid,
-		    td->td_name);
+		db_printf("%p: pid %d tid %d \"%s\"\n", td, td->td_proc->p_pid,
+		    td->td_tid, td->td_name);
 	else
 		db_printf("none\n");
 	db_printf("curpcb       = %p\n", pc->pc_curpcb);
@@ -351,19 +369,18 @@ show_pcpu(struct pcpu *pc)
 	db_printf("idlethread   = ");
 	td = pc->pc_idlethread;
 	if (td != NULL)
-		db_printf("%p: pid %d \"%s\"\n", td, td->td_proc->p_pid,
-		    td->td_name);
+		db_printf("%p: tid %d \"%s\"\n", td, td->td_tid, td->td_name);
 	else
 		db_printf("none\n");
 	db_show_mdpcpu(pc);
-		
+
 #ifdef VIMAGE
 	db_printf("curvnet      = %p\n", pc->pc_curthread->td_vnet);
 #endif
 
 #ifdef WITNESS
 	db_printf("spin locks held:\n");
-	witness_list_locks(&pc->pc_spinlocks);
+	witness_list_locks(&pc->pc_spinlocks, db_printf);
 #endif
 }
 

@@ -1,8 +1,14 @@
 # $FreeBSD$
 
+PACKAGE=	clibs
 SHLIBDIR?=	/lib
 
-.include <bsd.own.mk>
+.if !defined(ENABLE_WIDEC)
+# Override any MAN= setting below..
+MK_MAN=no
+.endif
+
+.include <src.opts.mk>
 
 .include "${.CURDIR}/../config.mk"
 
@@ -50,7 +56,7 @@ HAVE_TERMIOS_H=		1
 HAVE_TERMIO_H=		0
 HAVE_VSSCANF=		1
 HEADER_STDBOOL=		1
-# XXX amd64, ia64 1L and int
+# XXX amd64 1L and int
 ONEUL=			1UL
 TYPEOF_CHTYPE=		long
 TYPEOF_MMASK_T=		long
@@ -157,7 +163,6 @@ SRCS+=	\
 	lib_wattron.c \
 	lib_winch.c \
 	lib_window.c \
-	memmove.c \
 	nc_panel.c \
 	resizeterm.c \
 	safe_sprintf.c \
@@ -207,9 +212,9 @@ SRCS+=	\
 	lib_tputs.c \
 	lib_ttyflags.c \
 	name_match.c \
+	obsolete.c \
 	parse_entry.c \
 	read_entry.c \
-	setbuf.c \
 	strings.c \
 	trim_sgr0.c \
 	write_entry.c
@@ -278,6 +283,7 @@ CFLAGS+=	-DFREEBSD_NATIVE -DTERMIOS
 # Installed
 HEADERS=	curses.h term.h termcap.h unctrl.h
 SRCHDRS=	ncurses_dll.h
+CLEANFILES+=	ncurses_dll.h
 
 .if defined(ENABLE_WIDEC)
 INCS=		${HEADERS} ${SRCHDRS}
@@ -304,12 +310,16 @@ SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libtermlib${LIB_SUFFIX}_p.a
 SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libtinfo${LIB_SUFFIX}_p.a
 .endif
 
+.if ${.CURDIR:T} == "ncursesw"
+.if defined(ENABLE_WIDEC)
 DOCSDIR=	${SHAREDIR}/doc/ncurses
 DOCS=		ncurses-intro.html hackguide.html
+.endif
 
 .if ${MK_HTML} != "no"
 .PATH: ${NCURSES_DIR}/doc/html
 FILESGROUPS=	DOCS
+.endif
 .endif
 
 # Generated source
@@ -322,7 +332,7 @@ codes.c: MKcodes.awk
 	${AWK} -f ${NCURSES_DIR}/ncurses/tinfo/MKcodes.awk bigstrings=${USE_BIG_STRINGS} ${NCURSES_DIR}/include/Caps > codes.c
 
 lib_gen.c: MKlib_gen.sh curses.h
-	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
+	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CC:N${CCACHE_BIN}} -E ${CFLAGS}" \
 	    "${AWK}" generated < curses.h >$@
 
 lib_keyname.c: keys.list MKkeyname.awk
@@ -332,23 +342,23 @@ unctrl.c: MKunctrl.awk
 	echo | ${AWK} -f ${NCURSES_DIR}/ncurses/base/MKunctrl.awk bigstrings=${USE_BIG_STRINGS} > unctrl.c
 
 comp_captab.c: MKcaptab.sh MKcaptab.awk Caps make_hash
-	sh ${NCURSES_DIR}/ncurses/tinfo/MKcaptab.sh "${AWK}" \
+	env PATH=${BTOOLSPATH:U.}:${PATH} sh ${NCURSES_DIR}/ncurses/tinfo/MKcaptab.sh "${AWK}" \
 	    ${USE_BIG_STRINGS} ${NCURSES_DIR}/ncurses/tinfo/MKcaptab.awk \
 	    ${NCURSES_DIR}/include/Caps > comp_captab.c
 
 expanded.c: MKexpanded.sh
-	sh ${NCURSES_DIR}/ncurses/tty/MKexpanded.sh "${CC} -E" ${CFLAGS} >expanded.c
+	sh ${NCURSES_DIR}/ncurses/tty/MKexpanded.sh "${CC:N${CCACHE_BIN}} -E" ${CFLAGS} >expanded.c
 
 fallback.c: MKfallback.sh
 	sh ${NCURSES_DIR}/ncurses/tinfo/MKfallback.sh > fallback.c
 
 # Generated headers
 nomacros.h: MKlib_gen.sh curses.h
-	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
+	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CC:N${CCACHE_BIN}} -E ${CFLAGS}" \
 	    "${AWK}" generated < curses.h | fgrep undef > $@
 
 init_keytry.h: keys.list make_keys
-	./make_keys keys.list > init_keytry.h
+	${BTOOLSPATH:U.}/make_keys keys.list > init_keytry.h
 
 hashsize.h: MKhashsize.sh Caps
 	sh ${NCURSES_DIR}/include/MKhashsize.sh ${NCURSES_DIR}/include/Caps > $@
@@ -380,17 +390,19 @@ keys.list: MKkeys_list.sh Caps
 # Build tools
 build-tools: make_hash make_keys
 
-make_keys: make_keys.c names.c ncurses_def.h ${HEADERS}
+make_keys: make_keys.c names.c ncurses_def.h ${HEADERS} ${BUILD_TOOLS_META}
 	${CC} -o $@ ${CFLAGS} ${NCURSES_DIR}/ncurses/tinfo/make_keys.c
 
-make_hash: comp_hash.c hashsize.h ncurses_def.h ${HEADERS}
+make_hash: make_hash.c hashsize.h ncurses_def.h ${HEADERS} ${BUILD_TOOLS_META}
 	${CC} -o $@ ${CFLAGS} -DMAIN_PROGRAM \
-		${NCURSES_DIR}/ncurses/tinfo/comp_hash.c
+		${NCURSES_DIR}/ncurses/tinfo/make_hash.c
 
 # ./configure generated
 MKterm.h.awk: MKterm.h.awk.in
 	sed <${NCURSES_DIR}/include/MKterm.h.awk.in >$@ \
 	    -e "/@BROKEN_LINKER@/s%%${BROKEN_LINKER}%" \
+	    -e "s%@NCURSES_USE_DATABASE@%0%g" \
+	    -e "s%@NCURSES_USE_TERMCAP@%1%g" \
 	    -e "/@NCURSES_MAJOR@/s%%${NCURSES_MAJOR}%" \
 	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%" \
 	    -e "/@NCURSES_CONST@/s%%${NCURSES_CONST}%" \
@@ -408,6 +420,10 @@ termcap.h: termcap.h.in
 	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%" \
 	    -e "/@NCURSES_CONST@/s%%${NCURSES_CONST}%" \
 	    -e "/@NCURSES_OSPEED@/s%%${NCURSES_OSPEED}%"
+
+ncurses_dll.h: ncurses_dll.h.in
+	sed <${NCURSES_DIR}/include/ncurses_dll.h.in >$@ \
+	    -e "s%@NCURSES_WRAP_PREFIX@%_nc_%g"
 
 curses.head: curses.h.in
 	sed <${NCURSES_DIR}/include/curses.h.in >$@ \
@@ -433,6 +449,10 @@ curses.head: curses.h.in
 	    -e "/@NCURSES_WINT_T@/s%%${NCURSES_WINT_T}%" \
 	    -e "/@NEED_WCHAR_H@/s%%${NEED_WCHAR_H}%" \
 	    -e "/@USE_CXX_BOOL@/s%%${USE_CXX_BOOL}%" \
+	    -e "s%@NCURSES_SP_FUNCS@%0%g" \
+	    -e "s%@NCURSES_INTEROP_FUNCS@%0%g" \
+	    -e "s%@NCURSES_CCHARW_MAX@%5%g" \
+	    -e "s%@NCURSES_TPARM_ARG@%long%g" \
 	    -e "s%@cf_cv_1UL@%${ONEUL}%g" \
 	    -e "s%@cf_cv_builtin_bool@%${BUILTIN_BOOL}%g" \
 	    -e "s%@cf_cv_enable_lp64@%${ENABLE_LP64}%g" \
@@ -447,6 +467,7 @@ curses.head: curses.h.in
 
 unctrl.h: unctrl.h.in
 	sed <${NCURSES_DIR}/include/$@.in >$@ \
+	    -e "s%@NCURSES_SP_FUNCS@%0%g" \
 	    -e "/@NCURSES_MAJOR@/s%%${NCURSES_MAJOR}%" \
 	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%"
 
@@ -457,6 +478,7 @@ terminfo.5: MKterminfo.sh terminfo.head Caps
 
 CLEANFILES+=	terminfo.5
 
+.if defined(ENABLE_WIDEC)
 .PATH: ${NCURSES_DIR}/man
 MAN=	\
 	curs_addch.3 \
@@ -499,6 +521,7 @@ MAN=	\
 	curs_scr_dump.3 \
 	curs_scroll.3 \
 	curs_slk.3 \
+	curs_sp_funcs.3 \
 	curs_termattrs.3 \
 	curs_termcap.3 \
 	curs_terminfo.3 \
@@ -506,6 +529,7 @@ MAN=	\
 	curs_touch.3 \
 	curs_trace.3 \
 	curs_util.3 \
+	curs_variables.3 \
 	curs_window.3 \
 	default_colors.3 \
 	define_key.3 \
@@ -515,9 +539,9 @@ MAN=	\
 	legacy_coding.3 \
 	ncurses.3 \
 	resizeterm.3 \
+	term_variables.3 \
 	wresize.3
 
-.if defined(ENABLE_WIDEC)
 MAN+=	\
 	curs_add_wch.3 \
 	curs_add_wchstr.3 \
@@ -530,12 +554,12 @@ MAN+=	\
 	curs_ins_wstr.3 \
 	curs_printw.3 \
 	curs_scanw.3
-.endif
-
-CLEANFILES+=	${MAN:M*.3}
 
 MAN+=	term.5 terminfo.5
 MAN+=	term.7
+.endif
+
+CLEANFILES+=	${MAN:M*.3}
 
 MLINKS=	ncurses.3 curses.3 \
 	curs_addch.3 addch.3 \
@@ -815,6 +839,123 @@ MLINKS=	ncurses.3 curses.3 \
 	curs_slk.3 slk_restore.3 \
 	curs_slk.3 slk_set.3 \
 	curs_slk.3 slk_touch.3 \
+	curs_sp_funcs.3 sp_funcs.3 \
+	curs_sp_funcs.3 assume_default_colors_sp.3 \
+	curs_sp_funcs.3 baudrate_sp.3 \
+	curs_sp_funcs.3 beep_sp.3 \
+	curs_sp_funcs.3 can_change_color_sp.3 \
+	curs_sp_funcs.3 cbreak_sp.3 \
+	curs_sp_funcs.3 ceiling_panel.3 \
+	curs_sp_funcs.3 color_content_sp.3 \
+	curs_sp_funcs.3 curs_set_sp.3 \
+	curs_sp_funcs.3 def_prog_mode_sp.3 \
+	curs_sp_funcs.3 def_shell_mode_sp.3 \
+	curs_sp_funcs.3 define_key_sp.3 \
+	curs_sp_funcs.3 del_curterm_sp.3 \
+	curs_sp_funcs.3 delay_output_sp.3 \
+	curs_sp_funcs.3 doupdate_sp.3 \
+	curs_sp_funcs.3 echo_sp.3 \
+	curs_sp_funcs.3 endwin_sp.3 \
+	curs_sp_funcs.3 erasechar_sp.3 \
+	curs_sp_funcs.3 filter_sp.3 \
+	curs_sp_funcs.3 flash_sp.3 \
+	curs_sp_funcs.3 flushinp_sp.3 \
+	curs_sp_funcs.3 get_escdelay_sp.3 \
+	curs_sp_funcs.3 getmouse_sp.3 \
+	curs_sp_funcs.3 getwin_sp.3 \
+	curs_sp_funcs.3 ground_panel.3 \
+	curs_sp_funcs.3 halfdelay_sp.3 \
+	curs_sp_funcs.3 has_colors_sp.3 \
+	curs_sp_funcs.3 has_ic_sp.3 \
+	curs_sp_funcs.3 has_il_sp.3 \
+	curs_sp_funcs.3 has_key_sp.3 \
+	curs_sp_funcs.3 has_mouse_sp.3 \
+	curs_sp_funcs.3 init_color_sp.3 \
+	curs_sp_funcs.3 init_pair_sp.3 \
+	curs_sp_funcs.3 intrflush_sp.3 \
+	curs_sp_funcs.3 is_term_resized_sp.3 \
+	curs_sp_funcs.3 isendwin_sp.3 \
+	curs_sp_funcs.3 key_defined_sp.3 \
+	curs_sp_funcs.3 keybound_sp.3 \
+	curs_sp_funcs.3 keyname_sp.3 \
+	curs_sp_funcs.3 keyok_sp.3 \
+	curs_sp_funcs.3 killchar_sp.3 \
+	curs_sp_funcs.3 mcprint_sp.3 \
+	curs_sp_funcs.3 mouseinterval_sp.3 \
+	curs_sp_funcs.3 mousemask_sp.3 \
+	curs_sp_funcs.3 mvcur_sp.3 \
+	curs_sp_funcs.3 napms_sp.3 \
+	curs_sp_funcs.3 new_form_sp.3 \
+	curs_sp_funcs.3 new_menu_sp.3 \
+	curs_sp_funcs.3 new_prescr.3 \
+	curs_sp_funcs.3 newpad_sp.3 \
+	curs_sp_funcs.3 newterm_sp.3 \
+	curs_sp_funcs.3 newwin_sp.3 \
+	curs_sp_funcs.3 nl_sp.3 \
+	curs_sp_funcs.3 nocbreak_sp.3 \
+	curs_sp_funcs.3 noecho_sp.3 \
+	curs_sp_funcs.3 nofilter_sp.3 \
+	curs_sp_funcs.3 nonl_sp.3 \
+	curs_sp_funcs.3 noqiflush_sp.3 \
+	curs_sp_funcs.3 noraw_sp.3 \
+	curs_sp_funcs.3 pair_content_sp.3 \
+	curs_sp_funcs.3 putp_sp.3 \
+	curs_sp_funcs.3 qiflush_sp.3 \
+	curs_sp_funcs.3 raw_sp.3 \
+	curs_sp_funcs.3 reset_prog_mode_sp.3 \
+	curs_sp_funcs.3 reset_shell_mode_sp.3 \
+	curs_sp_funcs.3 resetty_sp.3 \
+	curs_sp_funcs.3 resize_term_sp.3 \
+	curs_sp_funcs.3 resizeterm_sp.3 \
+	curs_sp_funcs.3 restartterm_sp.3 \
+	curs_sp_funcs.3 ripoffline_sp.3 \
+	curs_sp_funcs.3 savetty_sp.3 \
+	curs_sp_funcs.3 scr_init_sp.3 \
+	curs_sp_funcs.3 scr_restore_sp.3 \
+	curs_sp_funcs.3 scr_set_sp.3 \
+	curs_sp_funcs.3 set_curterm_sp.3 \
+	curs_sp_funcs.3 set_escdelay_sp.3 \
+	curs_sp_funcs.3 set_tabsize_sp.3 \
+	curs_sp_funcs.3 slk_attr_set_sp.3 \
+	curs_sp_funcs.3 slk_attr_sp.3 \
+	curs_sp_funcs.3 slk_attroff_sp.3 \
+	curs_sp_funcs.3 slk_attron_sp.3 \
+	curs_sp_funcs.3 slk_attrset_sp.3 \
+	curs_sp_funcs.3 slk_clear_sp.3 \
+	curs_sp_funcs.3 slk_color_sp.3 \
+	curs_sp_funcs.3 slk_init_sp.3 \
+	curs_sp_funcs.3 slk_label_sp.3 \
+	curs_sp_funcs.3 slk_noutrefresh_sp.3 \
+	curs_sp_funcs.3 slk_refresh_sp.3 \
+	curs_sp_funcs.3 slk_restore_sp.3 \
+	curs_sp_funcs.3 slk_set_sp.3 \
+	curs_sp_funcs.3 slk_touch_sp.3 \
+	curs_sp_funcs.3 start_color_sp.3 \
+	curs_sp_funcs.3 term_attrs_sp.3 \
+	curs_sp_funcs.3 termattrs_sp.3 \
+	curs_sp_funcs.3 termname_sp.3 \
+	curs_sp_funcs.3 tgetent_sp.3 \
+	curs_sp_funcs.3 tgetflag_sp.3 \
+	curs_sp_funcs.3 tgetnum_sp.3 \
+	curs_sp_funcs.3 tgetstr_sp.3 \
+	curs_sp_funcs.3 tigetflag_sp.3 \
+	curs_sp_funcs.3 tigetnum_sp.3 \
+	curs_sp_funcs.3 tigetstr_sp.3 \
+	curs_sp_funcs.3 tputs_sp.3 \
+	curs_sp_funcs.3 typeahead_sp.3 \
+	curs_sp_funcs.3 unctrl_sp.3 \
+	curs_sp_funcs.3 unget_wch_sp.3 \
+	curs_sp_funcs.3 ungetch_sp.3 \
+	curs_sp_funcs.3 ungetmouse_sp.3 \
+	curs_sp_funcs.3 update_panels_sp.3 \
+	curs_sp_funcs.3 use_default_colors_sp.3 \
+	curs_sp_funcs.3 use_env_sp.3 \
+	curs_sp_funcs.3 use_legacy_coding_sp.3 \
+	curs_sp_funcs.3 vid_attr_sp.3 \
+	curs_sp_funcs.3 vid_puts_sp.3 \
+	curs_sp_funcs.3 vidattr_sp.3 \
+	curs_sp_funcs.3 vidputs_sp.3 \
+	curs_sp_funcs.3 wunctrl_sp.3 \
 	curs_termattrs.3 baudrate.3 \
 	curs_termattrs.3 erasechar.3 \
 	curs_termattrs.3 erasewchar.3 \

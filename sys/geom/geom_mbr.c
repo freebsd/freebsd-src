@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/endian.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
@@ -44,11 +45,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/md5.h>
+#include <sys/proc.h>
 
 #include <sys/diskmbr.h>
 #include <sys/sbuf.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
+
+FEATURE(geom_mbr, "GEOM DOS/MBR partitioning support");
 
 #define MBR_CLASS_NAME "MBR"
 #define MBREXT_CLASS_NAME "MBREXT"
@@ -186,7 +190,6 @@ g_mbr_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thr
 	case DIOCSMBR: {
 		if (!(fflag & FWRITE))
 			return (EPERM);
-		DROP_GIANT();
 		g_topology_lock();
 		cp = LIST_FIRST(&gp->consumer);
 		if (cp->acw == 0) {
@@ -201,7 +204,6 @@ g_mbr_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thr
 		if (opened)
 			g_access(cp, 0, -1 , 0);
 		g_topology_unlock();
-		PICKUP_GIANT();
 		return(error);
 	}
 	default:
@@ -479,8 +481,8 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 				    ((off_t)dp[0].dp_size) << 9ULL,
 				    sectorsize,
 				    "%*.*s%d",
-				    strlen(gp->name) - 1,
-				    strlen(gp->name) - 1,
+				    (int)strlen(gp->name) - 1,
+				    (int)strlen(gp->name) - 1,
 				    gp->name,
 				    slice + 5);
 				g_topology_unlock();

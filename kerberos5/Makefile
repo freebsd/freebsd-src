@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-SUBDIR=	doc tools lib libexec usr.bin usr.sbin
+SUBDIR=	lib .WAIT \
+	libexec tools usr.bin usr.sbin
+SUBDIR_PARALLEL=
 
 # These are the programs which depend on Kerberos.
 KPROGS=	lib/libpam \
@@ -12,7 +14,6 @@ kerberize:
 	cd ${.CURDIR}/../${entry}; \
 	${MAKE} cleandir; \
 	${MAKE} obj; \
-	${MAKE} depend; \
 	${MAKE} all; \
 	${MAKE} install
 .endfor
@@ -21,11 +22,10 @@ kerberize:
 dekerberize:
 .for entry in ${KPROGS}
 	cd ${.CURDIR}/../${entry}; \
-	${MAKE} -DWITHOUT_KERBEROS cleandir; \
-	${MAKE} -DWITHOUT_KERBEROS obj; \
-	${MAKE} -DWITHOUT_KERBEROS depend; \
-	${MAKE} -DWITHOUT_KERBEROS all; \
-	${MAKE} -DWITHOUT_KERBEROS install
+	${MAKE} MK_KERBEROS=no cleandir; \
+	${MAKE} MK_KERBEROS=no obj; \
+	${MAKE} MK_KERBEROS=no all; \
+	${MAKE} MK_KERBEROS=no install
 .endfor
 
 .include <bsd.subdir.mk>

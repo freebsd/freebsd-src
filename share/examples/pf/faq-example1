@@ -26,7 +26,7 @@ set skip on lo
 scrub in
 
 # nat/rdr
-nat on $ext_if from !($ext_if) -> ($ext_if:0)
+nat on $ext_if inet from !($ext_if) -> ($ext_if:0)
 nat-anchor "ftp-proxy/*"
 rdr-anchor "ftp-proxy/*"
 

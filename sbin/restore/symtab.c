@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -100,7 +101,7 @@ addino(ino_t inum, struct entry *np)
 	struct entry **epp;
 
 	if (inum < WINO || inum >= maxino)
-		panic("addino: out of range %d\n", inum);
+		panic("addino: out of range %ju\n", (uintmax_t)inum);
 	epp = &entry[inum % entrytblsize];
 	np->e_ino = inum;
 	np->e_next = *epp;
@@ -121,7 +122,7 @@ deleteino(ino_t inum)
 	struct entry **prev;
 
 	if (inum < WINO || inum >= maxino)
-		panic("deleteino: out of range %d\n", inum);
+		panic("deleteino: out of range %ju\n", (uintmax_t)inum);
 	prev = &entry[inum % entrytblsize];
 	for (next = *prev; next != NULL; next = next->e_next) {
 		if (next->e_ino == inum) {
@@ -131,7 +132,7 @@ deleteino(ino_t inum)
 		}
 		prev = &next->e_next;
 	}
-	panic("deleteino: %d not found\n", inum);
+	panic("deleteino: %ju not found\n", (uintmax_t)inum);
 }
 
 /*
@@ -371,7 +372,7 @@ struct strhdr {
 };
 
 #define STRTBLINCR	(sizeof(struct strhdr))
-#define allocsize(size)	(((size) + 1 + STRTBLINCR - 1) & ~(STRTBLINCR - 1))
+#define	allocsize(size)	roundup2((size) + 1, STRTBLINCR)
 
 static struct strhdr strtblhdr[allocsize(NAME_MAX) / STRTBLINCR];
 
@@ -383,7 +384,7 @@ char *
 savename(char *name)
 {
 	struct strhdr *np;
-	long len;
+	size_t len;
 	char *cp;
 
 	if (name == NULL)
@@ -394,7 +395,7 @@ savename(char *name)
 		strtblhdr[len / STRTBLINCR].next = np->next;
 		cp = (char *)np;
 	} else {
-		cp = malloc((unsigned)allocsize(len));
+		cp = malloc(allocsize(len));
 		if (cp == NULL)
 			panic("no space for string table\n");
 	}
@@ -443,7 +444,7 @@ dumpsymtable(char *filename, long checkpt)
 	FILE *fd;
 	struct symtableheader hdr;
 
-	vprintf(stdout, "Check pointing the restore\n");
+	vprintf(stdout, "Checkpointing the restore\n");
 	if (Nflag)
 		return;
 	if ((fd = fopen(filename, "w")) == NULL) {
@@ -534,9 +535,8 @@ initsymtable(char *filename)
 	vprintf(stdout, "Initialize symbol table.\n");
 	if (filename == NULL) {
 		entrytblsize = maxino / HASHFACTOR;
-		entry = (struct entry **)
-			calloc((unsigned)entrytblsize, sizeof(struct entry *));
-		if (entry == (struct entry **)NULL)
+		entry = calloc((unsigned)entrytblsize, sizeof(struct entry *));
+		if (entry == NULL)
 			panic("no memory for entry table\n");
 		ep = addentry(".", ROOTINO, NODE);
 		ep->e_flags |= NEW;
@@ -559,6 +559,7 @@ initsymtable(char *filename)
 		fprintf(stderr, "read: %s\n", strerror(errno));
 		panic("cannot read symbol table file %s\n", filename);
 	}
+	(void)close(fd);
 	switch (command) {
 	case 'r':
 		/*

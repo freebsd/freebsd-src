@@ -76,7 +76,7 @@ provider test {
 };
 EOF
 
-/usr/ccs/bin/as -xregsym=no -P -D_ASM -o test.o test.s
+/usr/bin/as -xregsym=no -P -D_ASM -o test.o test.s
 if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.s"
 	exit 1
@@ -127,6 +127,6 @@ EOF
 status=$?
 
 cd /
-/usr/bin/rm -rf $DIR
+/bin/rm -rf $DIR
 
 exit $status

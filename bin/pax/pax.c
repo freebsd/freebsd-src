@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include "pax.h"
 #include "extern.h"
 static int gen_init(void);
@@ -85,6 +84,7 @@ int	vflag;			/* produce verbose output */
 int	Dflag;			/* same as uflag except inode change time */
 int	Hflag;			/* follow command line symlinks (write only) */
 int	Lflag;			/* follow symlinks when writing */
+int	Oflag;			/* limit to single volume */
 int	Xflag;			/* archive files with same device id only */
 int	Yflag;			/* same as Dflg except after name mode */
 int	Zflag;			/* same as uflg except after name mode */
@@ -372,7 +372,7 @@ gen_init(void)
 	/*
 	 * signal handling to reset stored directory times and modes. Since
 	 * we deal with broken pipes via failed writes we ignore it. We also
-	 * deal with any file size limit thorugh failed writes. Cpu time
+	 * deal with any file size limit thorough failed writes. Cpu time
 	 * limits are caught and a cleanup is forced.
 	 */
 	if ((sigemptyset(&s_mask) < 0) || (sigaddset(&s_mask, SIGTERM) < 0) ||

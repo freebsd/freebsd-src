@@ -201,7 +201,7 @@ static void seeColon(FICL_VM *pVM, CELL *pc)
 			*cp++ = '>';
 		else
 			*cp++ = ' ';
-        cp += sprintf(cp, "%3d   ", pc-param0);
+        cp += sprintf(cp, "%3d   ", (int)(pc-param0));
         
         if (isAFiclWord(pd, pFW))
         {
@@ -216,10 +216,11 @@ static void seeColon(FICL_VM *pVM, CELL *pc)
                 {
                     FICL_WORD *pLit = (FICL_WORD *)c.p;
                     sprintf(cp, "%.*s ( %#lx literal )", 
-                        pLit->nName, pLit->name, c.u);
+                        pLit->nName, pLit->name, (unsigned long)c.u);
                 }
                 else
-                    sprintf(cp, "literal %ld (%#lx)", c.i, c.u);
+                    sprintf(cp, "literal %ld (%#lx)",
+                        (long)c.i, (unsigned long)c.u);
                 break;
             case STRINGLIT:
                 {
@@ -238,40 +239,40 @@ static void seeColon(FICL_VM *pVM, CELL *pc)
             case IF:
                 c = *++pc;
                 if (c.i > 0)
-                    sprintf(cp, "if / while (branch %d)", pc+c.i-param0);
+                    sprintf(cp, "if / while (branch %d)", (int)(pc+c.i-param0));
                 else
-                    sprintf(cp, "until (branch %d)",      pc+c.i-param0);
+                    sprintf(cp, "until (branch %d)",      (int)(pc+c.i-param0));
                 break;                                                           
             case BRANCH:
                 c = *++pc;
                 if (c.i == 0)
-                    sprintf(cp, "repeat (branch %d)",     pc+c.i-param0);
+                    sprintf(cp, "repeat (branch %d)",     (int)(pc+c.i-param0));
                 else if (c.i == 1)
-                    sprintf(cp, "else (branch %d)",       pc+c.i-param0);
+                    sprintf(cp, "else (branch %d)",       (int)(pc+c.i-param0));
                 else
-                    sprintf(cp, "endof (branch %d)",       pc+c.i-param0);
+                    sprintf(cp, "endof (branch %d)",      (int)(pc+c.i-param0));
                 break;
 
             case OF:
                 c = *++pc;
-                sprintf(cp, "of (branch %d)",       pc+c.i-param0);
+                sprintf(cp, "of (branch %d)",       (int)(pc+c.i-param0));
                 break;
 
             case QDO:
                 c = *++pc;
-                sprintf(cp, "?do (leave %d)",  (CELL *)c.p-param0);
+                sprintf(cp, "?do (leave %d)",  (int)((CELL *)c.p-param0));
                 break;
             case DO:
                 c = *++pc;
-                sprintf(cp, "do (leave %d)", (CELL *)c.p-param0);
+                sprintf(cp, "do (leave %d)", (int)((CELL *)c.p-param0));
                 break;
             case LOOP:
                 c = *++pc;
-                sprintf(cp, "loop (branch %d)", pc+c.i-param0);
+                sprintf(cp, "loop (branch %d)", (int)(pc+c.i-param0));
                 break;
             case PLOOP:
                 c = *++pc;
-                sprintf(cp, "+loop (branch %d)", pc+c.i-param0);
+                sprintf(cp, "+loop (branch %d)", (int)(pc+c.i-param0));
                 break;
             default:
                 sprintf(cp, "%.*s", pFW->nName, pFW->name);
@@ -281,7 +282,7 @@ static void seeColon(FICL_VM *pVM, CELL *pc)
         }
         else /* probably not a word - punt and print value */
         {
-            sprintf(cp, "%ld ( %#lx )", pc->i, pc->u);
+            sprintf(cp, "%ld ( %#lx )", (long)pc->i, (unsigned long)pc->u);
         }
 
 		vmTextOut(pVM, pVM->pad, 1);
@@ -324,19 +325,22 @@ static void seeXT(FICL_VM *pVM)
         break;
 
     case VARIABLE:
-        sprintf(pVM->pad, "variable = %ld (%#lx)", pFW->param->i, pFW->param->u);
+        sprintf(pVM->pad, "variable = %ld (%#lx)",
+            (long)pFW->param->i, (unsigned long)pFW->param->u);
         vmTextOut(pVM, pVM->pad, 1);
         break;
 
 #if FICL_WANT_USER
     case USER:
-        sprintf(pVM->pad, "user variable %ld (%#lx)", pFW->param->i, pFW->param->u);
+        sprintf(pVM->pad, "user variable %ld (%#lx)",
+            (long)pFW->param->i, (unsigned long)pFW->param->u);
         vmTextOut(pVM, pVM->pad, 1);
         break;
 #endif
 
     case CONSTANT:
-        sprintf(pVM->pad, "constant = %ld (%#lx)", pFW->param->i, pFW->param->u);
+        sprintf(pVM->pad, "constant = %ld (%#lx)",
+            (long)pFW->param->i, (unsigned long)pFW->param->u);
         vmTextOut(pVM, pVM->pad, 1);
 
     default:

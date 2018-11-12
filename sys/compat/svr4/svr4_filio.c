@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/capsicum.h>
 #include <sys/file.h>
 #include <sys/filio.h>
 #include <sys/lock.h>
@@ -40,10 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/resource.h>
-#include <sys/resourcevar.h>
 
 #include <sys/sysproto.h>
+#include <sys/syscallsubr.h>
 
 #include <compat/svr4/svr4.h>
 #include <compat/svr4/svr4_types.h>
@@ -66,13 +66,8 @@ svr4_sys_poll(td, uap)
      int idx = 0, cerr;
      u_long siz;
 
-     PROC_LOCK(td->td_proc);
-     if (uap->nfds > lim_cur(td->td_proc, RLIMIT_NOFILE) &&
-       uap->nfds > FD_SETSIZE) {
-       PROC_UNLOCK(td->td_proc);
+     if (uap->nfds > maxfilesperproc && uap->nfds > FD_SETSIZE)
        return (EINVAL);
-     }
-     PROC_UNLOCK(td->td_proc);
 
      pa.fds = uap->fds;
      pa.nfds = uap->nfds;
@@ -81,7 +76,7 @@ svr4_sys_poll(td, uap)
      siz = uap->nfds * sizeof(struct pollfd);
      pfd = (struct pollfd *)malloc(siz, M_TEMP, M_WAITOK);
 
-     error = poll(td, (struct poll_args *)uap);
+     error = sys_poll(td, (struct poll_args *)uap);
 
      if ((cerr = copyin(uap->fds, pfd, siz)) != 0) {
        error = cerr;
@@ -110,6 +105,7 @@ svr4_sys_read(td, uap)
      struct svr4_sys_read_args *uap;
 {
      struct read_args ra;
+     cap_rights_t rights;
      struct file *fp;
      struct socket *so = NULL;
      int so_state;
@@ -120,7 +116,7 @@ svr4_sys_read(td, uap)
      ra.buf = uap->buf;
      ra.nbyte = uap->nbyte;
 
-     if (fget(td, uap->fd, &fp) != 0) {
+     if (fget(td, uap->fd, cap_rights_init(&rights, CAP_READ), &fp) != 0) {
        DPRINTF(("Something fishy with the user-supplied file descriptor...\n"));
        return EBADF;
      }
@@ -203,22 +199,24 @@ svr4_fil_ioctl(fp, td, retval, fd, cmd, data)
 	u_long cmd;
 	caddr_t data;
 {
-	int error;
-	int num;
 	struct filedesc *fdp = td->td_proc->p_fd;
+	struct filedescent *fde;
+	int error, num;
 
 	*retval = 0;
 
 	switch (cmd) {
 	case SVR4_FIOCLEX:
 		FILEDESC_XLOCK(fdp);
-		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
+		fde = &fdp->fd_ofiles[fd];
+		fde->fde_flags |= UF_EXCLOSE;
 		FILEDESC_XUNLOCK(fdp);
 		return 0;
 
 	case SVR4_FIONCLEX:
 		FILEDESC_XLOCK(fdp);
-		fdp->fd_ofileflags[fd] &= ~UF_EXCLOSE;
+		fde = &fdp->fd_ofiles[fd];
+		fde->fde_flags &= ~UF_EXCLOSE;
 		FILEDESC_XUNLOCK(fdp);
 		return 0;
 
@@ -253,3 +251,19 @@ svr4_fil_ioctl(fp, td, retval, fd, cmd, data)
 		return 0;	/* ENOSYS really */
 	}
 }
+
+int
+svr4_pipe(struct thread *td, struct svr4_pipe_args *uap) {
+	int error;
+	int fildes[2];
+
+	error = kern_pipe(td, fildes, 0, NULL, NULL);
+	if (error)
+	return (error);
+
+	td->td_retval[0] = fildes[0];
+	td->td_retval[1] = fildes[1];
+
+	return (0);
+}
+

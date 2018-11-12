@@ -64,6 +64,7 @@ static const char rcsid[] =
 
 #define	_PATH_LD32_HINTS	"/var/run/ld32.so.hints"
 #define	_PATH_ELF32_HINTS	"/var/run/ld-elf32.so.hints"
+#define	_PATH_ELFSOFT_HINTS	"/var/run/ld-elf-soft.so.hints"
 
 #undef major
 #undef minor
@@ -97,6 +98,13 @@ static void		listhints(void);
 static int		readhints(void);
 static void		usage(void);
 
+/*
+ * Note on aout/a.out support.
+ * To properly support shared libraries for compat2x, which are a.out, we need
+ * to support a.out here.  As of 2013, bug reports are still coming in for this
+ * feature (on amd64 no less), so we know it is still in use.
+ */
+
 int
 main(int argc, char **argv)
 {
@@ -104,6 +112,7 @@ main(int argc, char **argv)
 	int		rval = 0;
 	int		is_aout = 0;
 	int		is_32 = 0;
+	int		is_soft = 0;
 
 	while (argc > 1) {
 		if (strcmp(argv[1], "-aout") == 0) {
@@ -118,12 +127,18 @@ main(int argc, char **argv)
 			is_32 = 1;
 			argc--;
 			argv++;
+		} else if (strcmp(argv[1], "-soft") == 0) {
+			is_soft = 1;
+			argc--;
+			argv++;
 		} else {
 			break;
 		}
 	}
 
-	if (is_32)
+	if (is_soft)
+		hints_file = _PATH_ELFSOFT_HINTS;	/* Never will have a.out softfloat */
+	else if (is_32)
 		hints_file = is_aout ? _PATH_LD32_HINTS : _PATH_ELF32_HINTS;
 	else
 		hints_file = is_aout ? _PATH_LD_HINTS : _PATH_ELF_HINTS;
@@ -222,7 +237,7 @@ main(int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 	"usage: ldconfig [-32] [-aout | -elf] [-Rimrsv] [-f hints_file] [directory | file ...]\n");
@@ -230,9 +245,7 @@ usage()
 }
 	
 int
-dofile(fname, silent)
-char	*fname;
-int	silent;
+dofile(char *fname, int silent)
 {
 	FILE *hfp;
 	char buf[MAXPATHLEN];
@@ -269,9 +282,7 @@ int	silent;
 }
 
 int
-dodir(dir, silent)
-char	*dir;
-int	silent;
+dodir(char *dir, int silent)
 {
 	DIR		*dd;
 	struct dirent	*dp;
@@ -328,9 +339,7 @@ int	silent;
 }
 
 static void
-enter(dir, file, name, dewey, ndewey)
-char	*dir, *file, *name;
-int	dewey[], ndewey;
+enter(char *dir, char *file, char *name, int dewey[], int ndewey)
 {
 	struct shlib_list	*shp;
 
@@ -391,7 +400,7 @@ hinthash(char *cp, int vmajor)
 }
 
 int
-buildhints()
+buildhints(void)
 {
 	struct hints_header	hdr;
 	struct hints_bucket	*blist;
@@ -523,7 +532,7 @@ buildhints()
 }
 
 static int
-readhints()
+readhints(void)
 {
 	int			fd;
 	void			*addr;
@@ -623,7 +632,7 @@ readhints()
 }
 
 static void
-listhints()
+listhints(void)
 {
 	struct shlib_list	*shp;
 	int			i;

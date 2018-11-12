@@ -2,36 +2,43 @@
 #
 # Doing a make install builds /usr/share/examples
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
+
+PACKAGE=examples
+FILESDIR=	${SHAREDIR}/examples
+
+.for _XFILE in ${XFILES}
+FILESGROUPS+=	${_XFILE}
+PACKAGE_${_XFILE}?=examples
+${_XFILE}DIR=	${SHAREDIR}/examples/${_XFILE:H}
+.endfor
 
 LDIRS=	BSD_daemon \
 	FreeBSD_version \
 	IPv6 \
 	bootforth \
-	cvsup \
+	csh \
 	diskless \
 	drivers \
 	etc \
 	find_interface \
 	ibcs2 \
+	indent \
 	ipfw \
+	jails \
 	kld \
 	libvgl \
 	mdoc \
 	netgraph \
-	nwclient \
 	perfmon \
-	portal \
 	ppi \
 	ppp \
-	pppd \
 	printing \
 	ses \
 	scsi_target \
-	slattach \
-	sliplogin \
-	startslip \
-	sunrpc
+	sunrpc \
+	uefisign \
+	ypldap
 
 XFILES=	BSD_daemon/FreeBSD.pfa \
 	BSD_daemon/README \
@@ -50,16 +57,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	bootforth/menu.4th \
 	bootforth/menuconf.4th \
 	bootforth/screen.4th \
-	cvsup/README \
-	cvsup/cvs-supfile \
-	cvsup/doc-supfile \
-	cvsup/gnats-supfile \
-	cvsup/ports-supfile \
-	cvsup/refuse \
-	cvsup/refuse.README \
-	cvsup/stable-supfile \
-	cvsup/standard-supfile \
-	cvsup/www-supfile \
+	csh/dot.cshrc \
 	diskless/ME \
 	diskless/README.BOOTP \
 	diskless/README.TEMPLATING \
@@ -75,7 +73,9 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	find_interface/find_interface.c \
 	ibcs2/README \
 	ibcs2/hello.uu \
+	indent/indent.pro \
 	ipfw/change_rules.sh \
+	jails/README \
 	kld/Makefile \
 	kld/cdev/Makefile \
 	kld/cdev/README \
@@ -88,6 +88,15 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	kld/dyn_sysctl/Makefile \
 	kld/dyn_sysctl/README \
 	kld/dyn_sysctl/dyn_sysctl.c \
+	kld/firmware/Makefile \
+	kld/firmware/README \
+	kld/firmware/fwconsumer/Makefile \
+	kld/firmware/fwconsumer/fw_consumer.c \
+	kld/firmware/fwimage/Makefile \
+	kld/firmware/fwimage/firmware.img.uu \
+	kld/khelp/Makefile \
+	kld/khelp/README \
+	kld/khelp/h_example.c \
 	kld/syscall/Makefile \
 	kld/syscall/module/Makefile \
 	kld/syscall/module/syscall.c \
@@ -106,13 +115,11 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	netgraph/ngctl \
 	netgraph/raw \
 	netgraph/udp.tunnel \
-	nwclient/dot.nwfsrc \
-	nwclient/nwfs.sh.sample \
+	netgraph/virtual.chain \
+	netgraph/virtual.lan \
 	perfmon/Makefile \
 	perfmon/README \
 	perfmon/perfmon.c \
-	portal/README \
-	portal/portal.conf \
 	ppi/Makefile \
 	ppi/ppilcd.c \
 	ppp/chap-auth \
@@ -129,16 +136,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	ppp/ppp.secret.sample \
 	ppp/ppp.secret.span-isp \
 	ppp/ppp.secret.span-isp.working \
-	pppd/auth-down.sample \
-	pppd/auth-up.sample \
-	pppd/chap-secrets.sample \
-	pppd/chat.sh.sample \
-	pppd/ip-down.sample \
-	pppd/ip-up.sample \
-	pppd/options.sample \
-	pppd/pap-secrets.sample \
-	pppd/ppp.deny.sample \
-	pppd/ppp.shells.sample \
 	printing/README \
 	printing/diablo-if-net \
 	printing/hpdf \
@@ -168,6 +165,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	ses/setobjstat/setobjstat.0 \
 	ses/srcs/chpmon.c \
 	ses/srcs/eltsub.c \
+	ses/srcs/eltsub.h \
 	ses/srcs/getencstat.c \
 	ses/srcs/getnobj.c \
 	ses/srcs/getobjmap.c \
@@ -181,14 +179,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	scsi_target/scsi_target.h \
 	scsi_target/scsi_target.8 \
 	scsi_target/scsi_cmds.c \
-	slattach/unit-command.sh \
-	sliplogin/slip.hosts \
-	sliplogin/slip.login \
-	sliplogin/slip.logout \
-	sliplogin/slip.slparms \
-	startslip/sldown.sh \
-	startslip/slip.sh \
-	startslip/slup.sh \
 	sunrpc/Makefile \
 	sunrpc/dir/Makefile \
 	sunrpc/dir/dir.x \
@@ -202,11 +192,38 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	sunrpc/sort/Makefile \
 	sunrpc/sort/rsort.c \
 	sunrpc/sort/sort.x \
-	sunrpc/sort/sort_proc.c
+	sunrpc/sort/sort_proc.c \
+	uefisign/uefikeys \
+	ypldap/ypldap.conf
 
 BINDIR= ${SHAREDIR}/examples
 
-NO_OBJ=
+.if ${MK_HAST} != "no"
+LDIRS+=		hast
+XFILES+=	hast/ucarp.sh \
+		hast/ucarp_down.sh \
+		hast/ucarp_up.sh \
+		hast/vip-down.sh \
+		hast/vip-up.sh
+.endif
+
+.if ${MK_USB} != "no"
+LDIRS+=		libusb20
+XFILES+=	libusb20/Makefile \
+		libusb20/README \
+		libusb20/util.c \
+		libusb20/util.h \
+		libusb20/bulk.c \
+		libusb20/control.c
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64"
+.if ${MK_BHYVE} != "no"
+LDIRS+=		bhyve
+XFILES+=	bhyve/vmrun.sh
+PACKAGE_bhyve/vmrun.sh=	bhyve
+.endif
+.endif
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies''); (latter useful
@@ -214,6 +231,7 @@ NO_OBJ=
 SHARED?=	copies
 
 beforeinstall: ${SHARED} etc-examples
+META_TARGETS+=	copies symlinks
 .ORDER: ${SHARED} etc-examples
 
 copies:
@@ -225,7 +243,7 @@ copies:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../../etc/mtree/BSD.usr.dist -p ${DESTDIR}/usr
 .for file in ${XFILES}
-	${INSTALL} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
+	${INSTALL} -T package=${PACKAGE_${file}:Uexamples} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
 		${.CURDIR}/${file} ${DESTDIR}${BINDIR}/${file}
 .endfor
 
@@ -237,7 +255,7 @@ symlinks:
 
 etc-examples:
 .if ${SHARED} != "symlinks"
-	(cd ${.CURDIR}/../../etc; ${MAKE} etc-examples)
+	${_+_}(cd ${.CURDIR}/../../etc; ${MAKE} etc-examples)
 .endif
 
 .if ${SHARED} != "symlinks"
@@ -250,4 +268,10 @@ SUBDIR+=pf
 .endif
 .endif
 
-.include <bsd.subdir.mk>
+.if ${MK_TESTS} != "no"
+SUBDIR+=tests
+.endif
+
+SUBDIR_PARALLEL=
+
+.include <bsd.prog.mk>

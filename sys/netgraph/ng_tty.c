@@ -156,15 +156,13 @@ ngt_constructor(node_p node)
 	sc_p sc;
 
 	/* Allocate private structure */
-	sc = malloc(sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (sc == NULL)
-		return (ENOMEM);
+	sc = malloc(sizeof(*sc), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	NG_NODE_SET_PRIVATE(node, sc);
 	sc->node = node;
 
 	mtx_init(&sc->outq.ifq_mtx, "ng_tty node+queue", NULL, MTX_DEF);
-	IFQ_SET_MAXLEN(&sc->outq, IFQ_MAXLEN);
+	IFQ_SET_MAXLEN(&sc->outq, ifqmaxlen);
 
 	return (0);
 }
@@ -192,7 +190,7 @@ ngt_newhook(node_p node, hook_p hook, const char *name)
 
 /*
  * Set the hook into queueing mode (for outgoing packets),
- * so that we wont deliver mbuf thru the whole graph holding
+ * so that we wont deliver mbuf through the whole graph holding
  * tty locks.
  */
 static int
@@ -211,7 +209,7 @@ ngt_disconnect(hook_p hook)
 	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
 	if (hook != sc->hook)
-		panic(__func__);
+		panic("%s", __func__);
 
 	NGTLOCK(sc);
 	sc->hook = NULL;
@@ -317,7 +315,7 @@ ngt_rcvdata(hook_p hook, item_p item)
 	struct mbuf *m;
 
 	if (hook != sc->hook)
-		panic(__func__);
+		panic("%s", __func__);
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
@@ -329,7 +327,6 @@ ngt_rcvdata(hook_p hook, item_p item)
 
 	IF_LOCK(&sc->outq);
 	if (_IF_QFULL(&sc->outq)) {
-		_IF_DROP(&sc->outq);
 		IF_UNLOCK(&sc->outq);
 		NG_FREE_M(m);
 		return (ENOBUFS);
@@ -420,7 +417,7 @@ ngt_rint_bypass(struct tty *tp, const void *buf, size_t len)
 	if (sc->hook == NULL)
 		return (0);
 
-	m = m_getm2(NULL, len, M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getm2(NULL, len, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		if (sc->flags & FLG_DEBUG)
 			log(LOG_ERR,
@@ -478,7 +475,7 @@ ngt_rint(struct tty *tp, char c, int flags)
 
 	/* Get a new header mbuf if we need one */
 	if (!(m = sc->m)) {
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (!m) {
 			if (sc->flags & FLG_DEBUG)
 				log(LOG_ERR,

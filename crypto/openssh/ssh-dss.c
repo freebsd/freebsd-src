@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-dss.c,v 1.24 2006/11/06 21:25:28 markus Exp $ */
+/* $OpenBSD: ssh-dss.c,v 1.34 2015/12/11 04:21:12 mmcc Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -25,161 +25,195 @@
 
 #include "includes.h"
 
+#ifdef WITH_OPENSSL
+
 #include <sys/types.h>
 
 #include <openssl/bn.h>
+#include <openssl/dsa.h>
 #include <openssl/evp.h>
 
 #include <stdarg.h>
 #include <string.h>
 
-#include "xmalloc.h"
-#include "buffer.h"
+#include "sshbuf.h"
 #include "compat.h"
-#include "log.h"
-#include "key.h"
+#include "ssherr.h"
+#include "digest.h"
+#define SSHKEY_INTERNAL
+#include "sshkey.h"
 
 #define INTBLOB_LEN	20
 #define SIGBLOB_LEN	(2*INTBLOB_LEN)
 
 int
-ssh_dss_sign(const Key *key, u_char **sigp, u_int *lenp,
-    const u_char *data, u_int datalen)
+ssh_dss_sign(const struct sshkey *key, u_char **sigp, size_t *lenp,
+    const u_char *data, size_t datalen, u_int compat)
 {
-	DSA_SIG *sig;
-	const EVP_MD *evp_md = EVP_sha1();
-	EVP_MD_CTX md;
-	u_char digest[EVP_MAX_MD_SIZE], sigblob[SIGBLOB_LEN];
-	u_int rlen, slen, len, dlen;
-	Buffer b;
+	DSA_SIG *sig = NULL;
+	u_char digest[SSH_DIGEST_MAX_LENGTH], sigblob[SIGBLOB_LEN];
+	size_t rlen, slen, len, dlen = ssh_digest_bytes(SSH_DIGEST_SHA1);
+	struct sshbuf *b = NULL;
+	int ret = SSH_ERR_INVALID_ARGUMENT;
 
-	if (key == NULL || key->type != KEY_DSA || key->dsa == NULL) {
-		error("ssh_dss_sign: no DSA key");
-		return -1;
-	}
-	EVP_DigestInit(&md, evp_md);
-	EVP_DigestUpdate(&md, data, datalen);
-	EVP_DigestFinal(&md, digest, &dlen);
+	if (lenp != NULL)
+		*lenp = 0;
+	if (sigp != NULL)
+		*sigp = NULL;
 
-	sig = DSA_do_sign(digest, dlen, key->dsa);
-	memset(digest, 'd', sizeof(digest));
+	if (key == NULL || key->dsa == NULL ||
+	    sshkey_type_plain(key->type) != KEY_DSA)
+		return SSH_ERR_INVALID_ARGUMENT;
+	if (dlen == 0)
+		return SSH_ERR_INTERNAL_ERROR;
 
-	if (sig == NULL) {
-		error("ssh_dss_sign: sign failed");
-		return -1;
+	if ((ret = ssh_digest_memory(SSH_DIGEST_SHA1, data, datalen,
+	    digest, sizeof(digest))) != 0)
+		goto out;
+
+	if ((sig = DSA_do_sign(digest, dlen, key->dsa)) == NULL) {
+		ret = SSH_ERR_LIBCRYPTO_ERROR;
+		goto out;
 	}
 
 	rlen = BN_num_bytes(sig->r);
 	slen = BN_num_bytes(sig->s);
 	if (rlen > INTBLOB_LEN || slen > INTBLOB_LEN) {
-		error("bad sig size %u %u", rlen, slen);
-		DSA_SIG_free(sig);
-		return -1;
+		ret = SSH_ERR_INTERNAL_ERROR;
+		goto out;
 	}
-	memset(sigblob, 0, SIGBLOB_LEN);
-	BN_bn2bin(sig->r, sigblob+ SIGBLOB_LEN - INTBLOB_LEN - rlen);
-	BN_bn2bin(sig->s, sigblob+ SIGBLOB_LEN - slen);
-	DSA_SIG_free(sig);
+	explicit_bzero(sigblob, SIGBLOB_LEN);
+	BN_bn2bin(sig->r, sigblob + SIGBLOB_LEN - INTBLOB_LEN - rlen);
+	BN_bn2bin(sig->s, sigblob + SIGBLOB_LEN - slen);
 
-	if (datafellows & SSH_BUG_SIGBLOB) {
-		if (lenp != NULL)
-			*lenp = SIGBLOB_LEN;
+	if (compat & SSH_BUG_SIGBLOB) {
 		if (sigp != NULL) {
-			*sigp = xmalloc(SIGBLOB_LEN);
+			if ((*sigp = malloc(SIGBLOB_LEN)) == NULL) {
+				ret = SSH_ERR_ALLOC_FAIL;
+				goto out;
+			}
 			memcpy(*sigp, sigblob, SIGBLOB_LEN);
 		}
+		if (lenp != NULL)
+			*lenp = SIGBLOB_LEN;
+		ret = 0;
 	} else {
 		/* ietf-drafts */
-		buffer_init(&b);
-		buffer_put_cstring(&b, "ssh-dss");
-		buffer_put_string(&b, sigblob, SIGBLOB_LEN);
-		len = buffer_len(&b);
+		if ((b = sshbuf_new()) == NULL) {
+			ret = SSH_ERR_ALLOC_FAIL;
+			goto out;
+		}
+		if ((ret = sshbuf_put_cstring(b, "ssh-dss")) != 0 ||
+		    (ret = sshbuf_put_string(b, sigblob, SIGBLOB_LEN)) != 0)
+			goto out;
+		len = sshbuf_len(b);
+		if (sigp != NULL) {
+			if ((*sigp = malloc(len)) == NULL) {
+				ret = SSH_ERR_ALLOC_FAIL;
+				goto out;
+			}
+			memcpy(*sigp, sshbuf_ptr(b), len);
+		}
 		if (lenp != NULL)
 			*lenp = len;
-		if (sigp != NULL) {
-			*sigp = xmalloc(len);
-			memcpy(*sigp, buffer_ptr(&b), len);
-		}
-		buffer_free(&b);
+		ret = 0;
 	}
-	return 0;
+ out:
+	explicit_bzero(digest, sizeof(digest));
+	if (sig != NULL)
+		DSA_SIG_free(sig);
+	sshbuf_free(b);
+	return ret;
 }
-int
-ssh_dss_verify(const Key *key, const u_char *signature, u_int signaturelen,
-    const u_char *data, u_int datalen)
-{
-	DSA_SIG *sig;
-	const EVP_MD *evp_md = EVP_sha1();
-	EVP_MD_CTX md;
-	u_char digest[EVP_MAX_MD_SIZE], *sigblob;
-	u_int len, dlen;
-	int rlen, ret;
-	Buffer b;
 
-	if (key == NULL || key->type != KEY_DSA || key->dsa == NULL) {
-		error("ssh_dss_verify: no DSA key");
-		return -1;
-	}
+int
+ssh_dss_verify(const struct sshkey *key,
+    const u_char *signature, size_t signaturelen,
+    const u_char *data, size_t datalen, u_int compat)
+{
+	DSA_SIG *sig = NULL;
+	u_char digest[SSH_DIGEST_MAX_LENGTH], *sigblob = NULL;
+	size_t len, dlen = ssh_digest_bytes(SSH_DIGEST_SHA1);
+	int ret = SSH_ERR_INTERNAL_ERROR;
+	struct sshbuf *b = NULL;
+	char *ktype = NULL;
+
+	if (key == NULL || key->dsa == NULL ||
+	    sshkey_type_plain(key->type) != KEY_DSA)
+		return SSH_ERR_INVALID_ARGUMENT;
+	if (dlen == 0)
+		return SSH_ERR_INTERNAL_ERROR;
 
 	/* fetch signature */
-	if (datafellows & SSH_BUG_SIGBLOB) {
-		sigblob = xmalloc(signaturelen);
+	if (compat & SSH_BUG_SIGBLOB) {
+		if ((sigblob = malloc(signaturelen)) == NULL)
+			return SSH_ERR_ALLOC_FAIL;
 		memcpy(sigblob, signature, signaturelen);
 		len = signaturelen;
 	} else {
 		/* ietf-drafts */
-		char *ktype;
-		buffer_init(&b);
-		buffer_append(&b, signature, signaturelen);
-		ktype = buffer_get_string(&b, NULL);
-		if (strcmp("ssh-dss", ktype) != 0) {
-			error("ssh_dss_verify: cannot handle type %s", ktype);
-			buffer_free(&b);
-			xfree(ktype);
-			return -1;
+		if ((b = sshbuf_from(signature, signaturelen)) == NULL)
+			return SSH_ERR_ALLOC_FAIL;
+		if (sshbuf_get_cstring(b, &ktype, NULL) != 0 ||
+		    sshbuf_get_string(b, &sigblob, &len) != 0) {
+			ret = SSH_ERR_INVALID_FORMAT;
+			goto out;
 		}
-		xfree(ktype);
-		sigblob = buffer_get_string(&b, &len);
-		rlen = buffer_len(&b);
-		buffer_free(&b);
-		if (rlen != 0) {
-			error("ssh_dss_verify: "
-			    "remaining bytes in signature %d", rlen);
-			xfree(sigblob);
-			return -1;
+		if (strcmp("ssh-dss", ktype) != 0) {
+			ret = SSH_ERR_KEY_TYPE_MISMATCH;
+			goto out;
+		}
+		if (sshbuf_len(b) != 0) {
+			ret = SSH_ERR_UNEXPECTED_TRAILING_DATA;
+			goto out;
 		}
 	}
 
 	if (len != SIGBLOB_LEN) {
-		fatal("bad sigbloblen %u != SIGBLOB_LEN", len);
+		ret = SSH_ERR_INVALID_FORMAT;
+		goto out;
 	}
 
 	/* parse signature */
-	if ((sig = DSA_SIG_new()) == NULL)
-		fatal("ssh_dss_verify: DSA_SIG_new failed");
-	if ((sig->r = BN_new()) == NULL)
-		fatal("ssh_dss_verify: BN_new failed");
-	if ((sig->s = BN_new()) == NULL)
-		fatal("ssh_dss_verify: BN_new failed");
+	if ((sig = DSA_SIG_new()) == NULL ||
+	    (sig->r = BN_new()) == NULL ||
+	    (sig->s = BN_new()) == NULL) {
+		ret = SSH_ERR_ALLOC_FAIL;
+		goto out;
+	}
 	if ((BN_bin2bn(sigblob, INTBLOB_LEN, sig->r) == NULL) ||
-	    (BN_bin2bn(sigblob+ INTBLOB_LEN, INTBLOB_LEN, sig->s) == NULL))
-		fatal("ssh_dss_verify: BN_bin2bn failed");
-
-	/* clean up */
-	memset(sigblob, 0, len);
-	xfree(sigblob);
+	    (BN_bin2bn(sigblob+ INTBLOB_LEN, INTBLOB_LEN, sig->s) == NULL)) {
+		ret = SSH_ERR_LIBCRYPTO_ERROR;
+		goto out;
+	}
 
 	/* sha1 the data */
-	EVP_DigestInit(&md, evp_md);
-	EVP_DigestUpdate(&md, data, datalen);
-	EVP_DigestFinal(&md, digest, &dlen);
+	if ((ret = ssh_digest_memory(SSH_DIGEST_SHA1, data, datalen,
+	    digest, sizeof(digest))) != 0)
+		goto out;
 
-	ret = DSA_do_verify(digest, dlen, sig, key->dsa);
-	memset(digest, 'd', sizeof(digest));
+	switch (DSA_do_verify(digest, dlen, sig, key->dsa)) {
+	case 1:
+		ret = 0;
+		break;
+	case 0:
+		ret = SSH_ERR_SIGNATURE_INVALID;
+		goto out;
+	default:
+		ret = SSH_ERR_LIBCRYPTO_ERROR;
+		goto out;
+	}
 
-	DSA_SIG_free(sig);
-
-	debug("ssh_dss_verify: signature %s",
-	    ret == 1 ? "correct" : ret == 0 ? "incorrect" : "error");
+ out:
+	explicit_bzero(digest, sizeof(digest));
+	if (sig != NULL)
+		DSA_SIG_free(sig);
+	sshbuf_free(b);
+	free(ktype);
+	if (sigblob != NULL) {
+		explicit_bzero(sigblob, len);
+		free(sigblob);
+	}
 	return ret;
 }
+#endif /* WITH_OPENSSL */

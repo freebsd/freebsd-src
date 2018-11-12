@@ -75,25 +75,19 @@ static int
 dpt_pci_attach (device_t dev)
 {
 	dpt_softc_t *	dpt;
-	int		s;
 	int		error = 0;
-
-	u_int32_t	command;
 
 	dpt = device_get_softc(dev);
 	dpt->dev = dev;
-
-	command = pci_read_config(dev, PCIR_COMMAND, /*bytes*/1);
+	dpt_alloc(dev);
 
 #ifdef DPT_ALLOW_MMIO
-	if ((command & PCIM_CMD_MEMEN) != 0) {
-		dpt->io_rid = DPT_PCI_MEMADDR;
-		dpt->io_type = SYS_RES_MEMORY;
-		dpt->io_res = bus_alloc_resource_any(dev, dpt->io_type,
-						     &dpt->io_rid, RF_ACTIVE);
-	}
+	dpt->io_rid = DPT_PCI_MEMADDR;
+	dpt->io_type = SYS_RES_MEMORY;
+	dpt->io_res = bus_alloc_resource_any(dev, dpt->io_type,
+	    &dpt->io_rid, RF_ACTIVE);
 #endif
-	if (dpt->io_res == NULL && (command &  PCIM_CMD_PORTEN) != 0) {
+	if (dpt->io_res == NULL) {
 		dpt->io_rid = DPT_PCI_IOADDR;
 		dpt->io_type = SYS_RES_IOPORT;
 		dpt->io_res = bus_alloc_resource_any(dev, dpt->io_type,
@@ -117,8 +111,7 @@ dpt_pci_attach (device_t dev)
 	}
 
 	/* Ensure busmastering is enabled */
-	command |= PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, command, /*bytes*/1);
+	pci_enable_busmaster(dev);
 
 	if (rman_get_start(dpt->io_res) == (ISA_PRIMARY_WD_ADDRESS - 0x10)) {
 #ifdef DPT_DEBUG_WARN
@@ -129,11 +122,8 @@ dpt_pci_attach (device_t dev)
 		goto bad;
 	}
 
-	dpt_alloc(dev);
-
 	/* Allocate a dmatag representing the capabilities of this attachment */
-	/* XXX Should be a child of the PCI bus dma tag */
-	if (bus_dma_tag_create(	/* parent    */	NULL,
+	if (bus_dma_tag_create(	/* PCI parent */ bus_get_dma_tag(dev),
 				/* alignemnt */	1,
 				/* boundary  */	0,
 				/* lowaddr   */	BUS_SPACE_MAXADDR_32BIT,
@@ -144,14 +134,12 @@ dpt_pci_attach (device_t dev)
 				/* nsegments */	~0,
 				/* maxsegsz  */	BUS_SPACE_MAXSIZE_32BIT,
 				/* flags     */	0,
-				/* lockfunc  */ busdma_lock_mutex,
-				/* lockarg   */ &Giant,
+				/* lockfunc  */ NULL,
+				/* lockarg   */ NULL,
 				&dpt->parent_dmat) != 0) {
 		error = ENXIO;
 		goto bad;
 	}
-
-	s = splcam();
 
 	if (dpt_init(dpt) != 0) {
 		error = ENXIO;
@@ -161,10 +149,8 @@ dpt_pci_attach (device_t dev)
 	/* Register with the XPT */
 	dpt_attach(dpt);
 
-	splx(s);
-
-	if (bus_setup_intr(dev, dpt->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
-			   NULL, dpt_intr, dpt, &dpt->ih)) {
+	if (bus_setup_intr(dev, dpt->irq_res, INTR_TYPE_CAM | INTR_ENTROPY |
+	    INTR_MPSAFE, NULL, dpt_intr, dpt, &dpt->ih)) {
 		device_printf(dev, "Unable to register interrupt handler\n");
 		error = ENXIO;
 		goto bad;

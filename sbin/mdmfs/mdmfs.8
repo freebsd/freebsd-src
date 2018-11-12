@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2007
+.Dd September 9, 2016
 .Dt MDMFS 8
 .Os
 .Sh NAME
@@ -36,22 +36,22 @@
 driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl DLlMNPSUX
+.Op Fl DLlMNnPStTUX
 .Op Fl a Ar maxcontig
 .Op Fl b Ar block-size
 .Op Fl c Ar blocks-per-cylinder-group
-.Op Fl d Ar max-extent-size 
+.Op Fl d Ar max-extent-size
 .Op Fl E Ar path-mdconfig
 .Op Fl e Ar maxbpg
 .Op Fl F Ar file
 .Op Fl f Ar frag-size
 .Op Fl i Ar bytes
 .Op Fl m Ar percent-free
-.Op Fl n Ar rotational-positions
 .Op Fl O Ar optimization
 .Op Fl o Ar mount-options
 .Op Fl p Ar permissions
 .Op Fl s Ar size
+.Op Fl T Ar fstype
 .Op Fl v Ar version
 .Op Fl w Ar user : Ns Ar group
 .Ar md-device
@@ -75,8 +75,8 @@ was specified) using
 .Xr newfs 8 ,
 and mounts it using
 .Xr mount 8 .
-It can handle 
-.Xr geom_uzip 4 
+It can handle
+.Xr geom_uzip 4
 compressed disk images, as long as the kernel supports this GEOM class.
 All the command line options are passed to the appropriate program
 at the appropriate stage in order to achieve the desired effect.
@@ -127,7 +127,8 @@ to try to detach the unit before attaching it.
 .It Fl d Ar max-extent-size
 The file system may choose to store large files using extents.
 This parameter specifies the largest extent size that may be
-used.  It is presently limited to its default value which is 16
+used.
+It is presently limited to its default value which is 16
 times the file system blocksize.
 .It Fl E Ar path-mdconfig
 Use
@@ -167,8 +168,10 @@ The percentage of space reserved for the superuser.
 Do not actually run the helper programs.
 This is most useful in conjunction with
 .Fl X .
-.It Fl n Ar rotational-positions
-The default number of rotational positions to distinguish.
+.It Fl n
+Do not create a
+.Pa .snap
+directory on the new file system.
 .It Fl O Ar optimization
 Select the optimization preference;
 valid choices are
@@ -224,6 +227,22 @@ and the optional
 .Xr malloc 9
 backed disks
 .Pq Dv MD_MALLOC .
+.It Fl t
+Turn on the TRIM enable flag for
+.Xr newfs 8 .
+When used with a file system that issue BIO_DELETE bio requests,
+.Xr md 4
+returns deleted blocks to the system memory pool.
+.It Fl T Ar fstype
+Specify a file system type for a vnode-backed memory disk.
+Any file system supported by
+.Xr mount 8
+command can be specified.
+This option only makes sense when
+.Fl F
+and
+.Fl P
+are used.
 .It Fl U
 Enable soft-updates on the file system.
 This is the default, and is accepted only
@@ -275,8 +294,8 @@ and
 .Fl n
 options are passed to
 .Xr newfs 8
-with the same letter;
-the
+with the same letter.
+The
 .Fl O
 option is passed to
 .Xr newfs 8
@@ -287,8 +306,14 @@ The
 option is passed to
 .Xr mount 8
 with the same letter.
-See the programs that the options are passed to for more information
-on their semantics.
+The
+.Fl T
+option is passed to
+.Xr mount 8
+as
+.Fl t .
+For information on semantics, refer to the documentation of the programs
+that the options are passed to.
 .Sh EXAMPLES
 Create and mount a 32 megabyte swap-backed file system on
 .Pa /tmp :
@@ -311,7 +336,7 @@ do not use soft-updates on it and mount it
 .Pp
 .Dl "mdmfs -M -S -o async -s 16m md1 /tmp"
 .Pp
-Create and mount a 
+Create and mount a
 .Xr geom_uzip 4
 based compressed disk image:
 .Pp
@@ -327,6 +352,10 @@ Configure a vnode-backed file system and mount its first partition,
 using automatic device numbering:
 .Pp
 .Dl "mdmfs -P -F foo.img mds1a /tmp/"
+.Pp
+Mount a vnode-backed cd9660 file system using automatic device numbering:
+.Pp
+.Dl "mdmfs -T cd9660 -P -F foo.iso md /tmp"
 .Sh COMPATIBILITY
 The
 .Nm
@@ -366,5 +395,10 @@ was given on the command line.
 .Xr mdconfig 8 ,
 .Xr mount 8 ,
 .Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.0 .
 .Sh AUTHORS
 .An Dima Dorfman

@@ -36,53 +36,20 @@
 #define	_NETINET_IP_DIVERT_H_
 
 /*
- * Sysctl declaration.
+ * divert has no custom kernel-userland API.
+ *
+ * All communication occurs through a sockaddr_in socket where
+ *
+ * kernel-->userland
+ *	sin_port = matching rule, host format;
+ * 	sin_addr = IN: first address of the incoming interface;
+ *		   OUT: INADDR_ANY
+ *	sin_zero = if fits, the interface name (max 7 bytes + NUL)
+ *
+ * userland->kernel
+ *	sin_port = restart-rule - 1, host order
+ *		(we restart at sin_port + 1)
+ *	sin_addr = IN: address of the incoming interface;
+ *		   OUT: INADDR_ANY
  */
-#ifdef SYSCTL_DECL
-SYSCTL_DECL(_net_inet_divert);
-#endif
-
-/*
- * Divert socket definitions.
- */
-struct divert_tag {
-	u_int32_t	info;		/* port & flags */
-	u_int16_t	cookie;		/* ipfw rule number */
-};
-
-/*
- * Return the divert cookie associated with the mbuf; if any.
- */
-static __inline u_int16_t
-divert_cookie(struct m_tag *mtag)
-{
-	return ((struct divert_tag *)(mtag+1))->cookie;
-}
-static __inline u_int16_t
-divert_find_cookie(struct mbuf *m)
-{
-	struct m_tag *mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL);
-	return mtag ? divert_cookie(mtag) : 0;
-}
-
-/*
- * Return the divert info associated with the mbuf; if any.
- */
-static __inline u_int32_t
-divert_info(struct m_tag *mtag)
-{
-	return ((struct divert_tag *)(mtag+1))->info;
-}
-static __inline u_int32_t
-divert_find_info(struct mbuf *m)
-{
-	struct m_tag *mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL);
-	return mtag ? divert_info(mtag) : 0;
-}
-
-typedef	void ip_divert_packet_t(struct mbuf *m, int incoming);
-extern	ip_divert_packet_t *ip_divert_ptr;
-
-extern	void div_input(struct mbuf *, int);
-extern	void div_ctlinput(int, struct sockaddr *, void *);
 #endif /* _NETINET_IP_DIVERT_H_ */

@@ -41,7 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
+#include <sys/ctype.h>
 #include <sys/bio.h>
+#include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -50,8 +52,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <sys/limits.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
+#include <machine/stdarg.h>
+
+struct g_dev_softc {
+	struct mtx	 sc_mtx;
+	struct cdev	*sc_dev;
+	struct cdev	*sc_alias;
+	int		 sc_open;
+	int		 sc_active;
+};
 
 static d_open_t		g_dev_open;
 static d_close_t	g_dev_close;
@@ -70,15 +82,131 @@ static struct cdevsw g_dev_cdevsw = {
 	.d_flags =	D_DISK | D_TRACKCLOSE,
 };
 
+static g_init_t g_dev_init;
+static g_fini_t g_dev_fini;
 static g_taste_t g_dev_taste;
 static g_orphan_t g_dev_orphan;
+static g_attrchanged_t g_dev_attrchanged;
 
 static struct g_class g_dev_class	= {
 	.name = "DEV",
 	.version = G_VERSION,
+	.init = g_dev_init,
+	.fini = g_dev_fini,
 	.taste = g_dev_taste,
 	.orphan = g_dev_orphan,
+	.attrchanged = g_dev_attrchanged
 };
+
+/*
+ * We target 262144 (8 x 32768) sectors by default as this significantly
+ * increases the throughput on commonly used SSD's with a marginal
+ * increase in non-interruptible request latency.
+ */
+static uint64_t g_dev_del_max_sectors = 262144;
+SYSCTL_DECL(_kern_geom);
+SYSCTL_NODE(_kern_geom, OID_AUTO, dev, CTLFLAG_RW, 0, "GEOM_DEV stuff");
+SYSCTL_QUAD(_kern_geom_dev, OID_AUTO, delete_max_sectors, CTLFLAG_RW,
+    &g_dev_del_max_sectors, 0, "Maximum number of sectors in a single "
+    "delete request sent to the provider. Larger requests are chunked "
+    "so they can be interrupted. (0 = disable chunking)");
+
+static char *dumpdev = NULL;
+static void
+g_dev_init(struct g_class *mp)
+{
+
+	dumpdev = kern_getenv("dumpdev");
+}
+
+static void
+g_dev_fini(struct g_class *mp)
+{
+
+	freeenv(dumpdev);
+	dumpdev = NULL;
+}
+
+static int
+g_dev_setdumpdev(struct cdev *dev, struct thread *td)
+{
+	struct g_kerneldump kd;
+	struct g_consumer *cp;
+	int error, len;
+
+	if (dev == NULL)
+		return (set_dumper(NULL, NULL, td));
+
+	cp = dev->si_drv2;
+	len = sizeof(kd);
+	kd.offset = 0;
+	kd.length = OFF_MAX;
+	error = g_io_getattr("GEOM::kerneldump", cp, &len, &kd);
+	if (error == 0) {
+		error = set_dumper(&kd.di, devtoname(dev), td);
+		if (error == 0)
+			dev->si_flags |= SI_DUMPDEV;
+	}
+	return (error);
+}
+
+static int
+init_dumpdev(struct cdev *dev)
+{
+	struct g_consumer *cp;
+	const char *devprefix = "/dev/", *devname;
+	int error;
+	size_t len;
+
+	if (dumpdev == NULL)
+		return (0);
+
+	len = strlen(devprefix);
+	devname = devtoname(dev);
+	if (strcmp(devname, dumpdev) != 0 &&
+	   (strncmp(dumpdev, devprefix, len) != 0 ||
+	    strcmp(devname, dumpdev + len) != 0))
+		return (0);
+
+	cp = (struct g_consumer *)dev->si_drv2;
+	error = g_access(cp, 1, 0, 0);
+	if (error != 0)
+		return (error);
+
+	error = g_dev_setdumpdev(dev, curthread);
+	if (error == 0) {
+		freeenv(dumpdev);
+		dumpdev = NULL;
+	}
+
+	(void)g_access(cp, -1, 0, 0);
+
+	return (error);
+}
+
+static void
+g_dev_destroy(void *arg, int flags __unused)
+{
+	struct g_consumer *cp;
+	struct g_geom *gp;
+	struct g_dev_softc *sc;
+	char buf[SPECNAMELEN + 6];
+
+	g_topology_assert();
+	cp = arg;
+	gp = cp->geom;
+	sc = cp->private;
+	g_trace(G_T_TOPOLOGY, "g_dev_destroy(%p(%s))", cp, gp->name);
+	snprintf(buf, sizeof(buf), "cdev=%s", gp->name);
+	devctl_notify_f("GEOM", "DEV", "DESTROY", buf, M_WAITOK);
+	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
+		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
+	g_detach(cp);
+	g_destroy_consumer(cp);
+	g_destroy_geom(gp);
+	mtx_destroy(&sc->sc_mtx);
+	g_free(sc);
+}
 
 void
 g_dev_print(void)
@@ -91,6 +219,72 @@ g_dev_print(void)
 		p = " ";
 	}
 	printf("\n");
+}
+
+static void
+g_dev_set_physpath(struct g_consumer *cp)
+{
+	struct g_dev_softc *sc;
+	char *physpath;
+	int error, physpath_len;
+
+	if (g_access(cp, 1, 0, 0) != 0)
+		return;
+
+	sc = cp->private;
+	physpath_len = MAXPATHLEN;
+	physpath = g_malloc(physpath_len, M_WAITOK|M_ZERO);
+	error = g_io_getattr("GEOM::physpath", cp, &physpath_len, physpath);
+	g_access(cp, -1, 0, 0);
+	if (error == 0 && strlen(physpath) != 0) {
+		struct cdev *dev, *old_alias_dev;
+		struct cdev **alias_devp;
+
+		dev = sc->sc_dev;
+		old_alias_dev = sc->sc_alias;
+		alias_devp = (struct cdev **)&sc->sc_alias;
+		make_dev_physpath_alias(MAKEDEV_WAITOK, alias_devp, dev,
+		    old_alias_dev, physpath);
+	} else if (sc->sc_alias) {
+		destroy_dev((struct cdev *)sc->sc_alias);
+		sc->sc_alias = NULL;
+	}
+	g_free(physpath);
+}
+
+static void
+g_dev_set_media(struct g_consumer *cp)
+{
+	struct g_dev_softc *sc;
+	struct cdev *dev;
+	char buf[SPECNAMELEN + 6];
+
+	sc = cp->private;
+	dev = sc->sc_dev;
+	snprintf(buf, sizeof(buf), "cdev=%s", dev->si_name);
+	devctl_notify_f("DEVFS", "CDEV", "MEDIACHANGE", buf, M_WAITOK);
+	devctl_notify_f("GEOM", "DEV", "MEDIACHANGE", buf, M_WAITOK);
+	dev = sc->sc_alias;
+	if (dev != NULL) {
+		snprintf(buf, sizeof(buf), "cdev=%s", dev->si_name);
+		devctl_notify_f("DEVFS", "CDEV", "MEDIACHANGE", buf, M_WAITOK);
+		devctl_notify_f("GEOM", "DEV", "MEDIACHANGE", buf, M_WAITOK);
+	}
+}
+
+static void
+g_dev_attrchanged(struct g_consumer *cp, const char *attr)
+{
+
+	if (strcmp(attr, "GEOM::media") == 0) {
+		g_dev_set_media(cp);
+		return;
+	}
+
+	if (strcmp(attr, "GEOM::physpath") == 0) {
+		g_dev_set_physpath(cp);
+		return;
+	}
 }
 
 struct g_provider *
@@ -107,50 +301,68 @@ g_dev_getprovider(struct cdev *dev)
 	return (cp->provider);
 }
 
-
 static struct g_geom *
 g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
+	struct g_dev_softc *sc;
 	int error;
 	struct cdev *dev;
+	char buf[SPECNAMELEN + 6];
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
-	LIST_FOREACH(cp, &pp->consumers, consumers)
-		if (cp->geom->class == mp)
-			return (NULL);
-	gp = g_new_geomf(mp, pp->name);
+	gp = g_new_geomf(mp, "%s", pp->name);
+	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
+	mtx_init(&sc->sc_mtx, "g_dev", NULL, MTX_DEF);
 	cp = g_new_consumer(gp);
+	cp->private = sc;
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	KASSERT(error == 0,
 	    ("g_dev_taste(%s) failed to g_attach, err=%d", pp->name, error));
-	dev = make_dev(&g_dev_cdevsw, 0,
-	    UID_ROOT, GID_OPERATOR, 0640, gp->name);
-	if (pp->flags & G_PF_CANDELETE)
-		dev->si_flags |= SI_CANDELETE;
+	error = make_dev_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK, &dev,
+	    &g_dev_cdevsw, NULL, UID_ROOT, GID_OPERATOR, 0640, "%s", gp->name);
+	if (error != 0) {
+		printf("%s: make_dev_p() failed (gp->name=%s, error=%d)\n",
+		    __func__, gp->name, error);
+		g_detach(cp);
+		g_destroy_consumer(cp);
+		g_destroy_geom(gp);
+		mtx_destroy(&sc->sc_mtx);
+		g_free(sc);
+		return (NULL);
+	}
+	dev->si_flags |= SI_UNMAPPED;
+	sc->sc_dev = dev;
+
 	dev->si_iosize_max = MAXPHYS;
-	gp->softc = dev;
-	dev->si_drv1 = gp;
 	dev->si_drv2 = cp;
+	error = init_dumpdev(dev);
+	if (error != 0)
+		printf("%s: init_dumpdev() failed (gp->name=%s, error=%d)\n",
+		    __func__, gp->name, error);
+
+	g_dev_attrchanged(cp, "GEOM::physpath");
+	snprintf(buf, sizeof(buf), "cdev=%s", gp->name);
+	devctl_notify_f("GEOM", "DEV", "CREATE", buf, M_WAITOK);
+
 	return (gp);
 }
 
 static int
 g_dev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	struct g_geom *gp;
 	struct g_consumer *cp;
+	struct g_dev_softc *sc;
 	int error, r, w, e;
 
-	gp = dev->si_drv1;
 	cp = dev->si_drv2;
-	if (gp == NULL || cp == NULL || gp->softc != dev)
-		return(ENXIO);		/* g_dev_taste() not done yet */
-
+	if (cp == NULL)
+		return (ENXIO);		/* g_dev_taste() not done yet */
 	g_trace(G_T_ACCESS, "g_dev_open(%s, %d, %d, %p)",
-	    gp->name, flags, fmt, td);
+	    cp->geom->name, flags, fmt, td);
 
 	r = flags & FREAD ? 1 : 0;
 	w = flags & FWRITE ? 1 : 0;
@@ -159,6 +371,13 @@ g_dev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 #else
 	e = 0;
 #endif
+
+	/*
+	 * This happens on attempt to open a device node with O_EXEC.
+	 */
+	if (r + w + e == 0)
+		return (EINVAL);
+
 	if (w) {
 		/*
 		 * When running in very secure mode, do not allow
@@ -169,27 +388,32 @@ g_dev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 			return (error);
 	}
 	g_topology_lock();
-	if (dev->si_devsw == NULL)
-		error = ENXIO;		/* We were orphaned */
-	else
-		error = g_access(cp, r, w, e);
+	error = g_access(cp, r, w, e);
 	g_topology_unlock();
-	return(error);
+	if (error == 0) {
+		sc = cp->private;
+		mtx_lock(&sc->sc_mtx);
+		if (sc->sc_open == 0 && sc->sc_active != 0)
+			wakeup(&sc->sc_active);
+		sc->sc_open += r + w + e;
+		mtx_unlock(&sc->sc_mtx);
+	}
+	return (error);
 }
 
 static int
 g_dev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	struct g_geom *gp;
 	struct g_consumer *cp;
-	int error, r, w, e, i;
+	struct g_dev_softc *sc;
+	int error, r, w, e;
 
-	gp = dev->si_drv1;
 	cp = dev->si_drv2;
-	if (gp == NULL || cp == NULL)
-		return(ENXIO);
+	if (cp == NULL)
+		return (ENXIO);
 	g_trace(G_T_ACCESS, "g_dev_close(%s, %d, %d, %p)",
-	    gp->name, flags, fmt, td);
+	    cp->geom->name, flags, fmt, td);
+
 	r = flags & FREAD ? -1 : 0;
 	w = flags & FWRITE ? -1 : 0;
 #ifdef notyet
@@ -197,25 +421,28 @@ g_dev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 #else
 	e = 0;
 #endif
+
+	/*
+	 * The vgonel(9) - caused by eg. forced unmount of devfs - calls
+	 * VOP_CLOSE(9) on devfs vnode without any FREAD or FWRITE flags,
+	 * which would result in zero deltas, which in turn would cause
+	 * panic in g_access(9).
+	 *
+	 * Note that we cannot zero the counters (ie. do "r = cp->acr"
+	 * etc) instead, because the consumer might be opened in another
+	 * devfs instance.
+	 */
+	if (r + w + e == 0)
+		return (EINVAL);
+
+	sc = cp->private;
+	mtx_lock(&sc->sc_mtx);
+	sc->sc_open += r + w + e;
+	while (sc->sc_open == 0 && sc->sc_active != 0)
+		msleep(&sc->sc_active, &sc->sc_mtx, 0, "PRIBIO", 0);
+	mtx_unlock(&sc->sc_mtx);
 	g_topology_lock();
-	if (dev->si_devsw == NULL)
-		error = ENXIO;		/* We were orphaned */
-	else
-		error = g_access(cp, r, w, e);
-	for (i = 0; i < 10 * hz;) {
-		if (cp->acr != 0 || cp->acw != 0)
-			break;
- 		if (cp->nstart == cp->nend)
-			break;
-		pause("gdevwclose", hz / 10);
-		i += hz / 10;
-	}
-	if (cp->acr == 0 && cp->acw == 0 && cp->nstart != cp->nend) {
-		printf("WARNING: Final close of geom_dev(%s) %s %s\n",
-		    gp->name,
-		    "still has outstanding I/O after 10 seconds.",
-		    "Completing close anyway, panic may happen later.");
-	}
+	error = g_access(cp, r, w, e);
 	g_topology_unlock();
 	return (error);
 }
@@ -229,15 +456,11 @@ g_dev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
-	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct g_provider *pp;
-	struct g_kerneldump kd;
 	off_t offset, length, chunk;
 	int i, error;
-	u_int u;
 
-	gp = dev->si_drv1;
 	cp = dev->si_drv2;
 	pp = cp->provider;
 
@@ -271,18 +494,10 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		error = g_io_getattr("GEOM::frontstuff", cp, &i, data);
 		break;
 	case DIOCSKERNELDUMP:
-		u = *((u_int *)data);
-		if (!u) {
-			set_dumper(NULL);
-			error = 0;
-			break;
-		}
-		kd.offset = 0;
-		kd.length = OFF_MAX;
-		i = sizeof kd;
-		error = g_io_getattr("GEOM::kerneldump", cp, &i, &kd);
-		if (!error)
-			dev->si_flags |= SI_DUMPDEV;
+		if (*(u_int *)data == 0)
+			error = g_dev_setdumpdev(NULL, td);
+		else
+			error = g_dev_setdumpdev(dev, td);
 		break;
 	case DIOCGFLUSH:
 		error = g_io_flush(cp);
@@ -297,19 +512,22 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 			error = EINVAL;
 			break;
 		}
-		while (length > 0) { 
+		while (length > 0) {
 			chunk = length;
-			if (chunk > 1024 * cp->provider->sectorsize)
-				chunk = 1024 * cp->provider->sectorsize;
+			if (g_dev_del_max_sectors != 0 && chunk >
+			    g_dev_del_max_sectors * cp->provider->sectorsize) {
+				chunk = g_dev_del_max_sectors *
+				    cp->provider->sectorsize;
+			}
 			error = g_delete_data(cp, offset, chunk);
 			length -= chunk;
 			offset += chunk;
 			if (error)
 				break;
 			/*
-			 * Since the request size is unbounded, the service
-			 * time is likewise.  We make this ioctl interruptible
-			 * by checking for signals for each bio.
+			 * Since the request size can be large, the service
+			 * time can be is likewise.  We make this ioctl
+			 * interruptible by checking for signals for each bio.
 			 */
 			if (SIGPENDING(td))
 				break;
@@ -323,7 +541,63 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 			return (ENOENT);
 		strlcpy(data, pp->name, i);
 		break;
+	case DIOCGSTRIPESIZE:
+		*(off_t *)data = cp->provider->stripesize;
+		break;
+	case DIOCGSTRIPEOFFSET:
+		*(off_t *)data = cp->provider->stripeoffset;
+		break;
+	case DIOCGPHYSPATH:
+		error = g_io_getattr("GEOM::physpath", cp, &i, data);
+		if (error == 0 && *(char *)data == '\0')
+			error = ENOENT;
+		break;
+	case DIOCGATTR: {
+		struct diocgattr_arg *arg = (struct diocgattr_arg *)data;
 
+		if (arg->len > sizeof(arg->value)) {
+			error = EINVAL;
+			break;
+		}
+		error = g_io_getattr(arg->name, cp, &arg->len, &arg->value);
+		break;
+	}
+	case DIOCZONECMD: {
+		struct disk_zone_args *zone_args =(struct disk_zone_args *)data;
+		struct disk_zone_rep_entry *new_entries, *old_entries;
+		struct disk_zone_report *rep;
+		size_t alloc_size;
+
+		old_entries = NULL;
+		new_entries = NULL;
+		rep = NULL;
+		alloc_size = 0;
+
+		if (zone_args->zone_cmd == DISK_ZONE_REPORT_ZONES) {
+
+			rep = &zone_args->zone_params.report;
+			alloc_size = rep->entries_allocated *
+			    sizeof(struct disk_zone_rep_entry);
+			if (alloc_size != 0)
+				new_entries = g_malloc(alloc_size,
+				    M_WAITOK| M_ZERO);
+			old_entries = rep->entries;
+			rep->entries = new_entries;
+		}
+		error = g_io_zonecmd(zone_args, cp);
+		if ((zone_args->zone_cmd == DISK_ZONE_REPORT_ZONES)
+		 && (alloc_size != 0)
+		 && (error == 0)) {
+			error = copyout(new_entries, old_entries, alloc_size);
+		}
+		if ((old_entries != NULL)
+		 && (rep != NULL))
+			rep->entries = old_entries;
+
+		if (new_entries != NULL)
+			g_free(new_entries);
+		break;
+	}
 	default:
 		if (cp->provider->geom->ioctl != NULL) {
 			error = cp->provider->geom->ioctl(cp->provider, cmd, data, fflag, td);
@@ -338,21 +612,40 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 static void
 g_dev_done(struct bio *bp2)
 {
+	struct g_consumer *cp;
+	struct g_dev_softc *sc;
 	struct bio *bp;
+	int destroy;
 
+	cp = bp2->bio_from;
+	sc = cp->private;
 	bp = bp2->bio_parent;
 	bp->bio_error = bp2->bio_error;
-	if (bp->bio_error != 0) {
+	bp->bio_completed = bp2->bio_completed;
+	bp->bio_resid = bp->bio_length - bp2->bio_completed;
+	if (bp2->bio_cmd == BIO_ZONE)
+		bcopy(&bp2->bio_zone, &bp->bio_zone, sizeof(bp->bio_zone));
+
+	if (bp2->bio_error != 0) {
 		g_trace(G_T_BIO, "g_dev_done(%p) had error %d",
-		    bp2, bp->bio_error);
+		    bp2, bp2->bio_error);
 		bp->bio_flags |= BIO_ERROR;
 	} else {
 		g_trace(G_T_BIO, "g_dev_done(%p/%p) resid %ld completed %jd",
-		    bp2, bp, bp->bio_resid, (intmax_t)bp2->bio_completed);
+		    bp2, bp, bp2->bio_resid, (intmax_t)bp2->bio_completed);
 	}
-	bp->bio_resid = bp->bio_length - bp2->bio_completed;
-	bp->bio_completed = bp2->bio_completed;
 	g_destroy_bio(bp2);
+	destroy = 0;
+	mtx_lock(&sc->sc_mtx);
+	if ((--sc->sc_active) == 0) {
+		if (sc->sc_open == 0)
+			wakeup(&sc->sc_active);
+		if (sc->sc_dev == NULL)
+			destroy = 1;
+	}
+	mtx_unlock(&sc->sc_mtx);
+	if (destroy)
+		g_post_event(g_dev_destroy, cp, M_NOWAIT, NULL);
 	biodone(bp);
 }
 
@@ -362,13 +655,17 @@ g_dev_strategy(struct bio *bp)
 	struct g_consumer *cp;
 	struct bio *bp2;
 	struct cdev *dev;
+	struct g_dev_softc *sc;
 
 	KASSERT(bp->bio_cmd == BIO_READ ||
 	        bp->bio_cmd == BIO_WRITE ||
-	        bp->bio_cmd == BIO_DELETE,
+	        bp->bio_cmd == BIO_DELETE ||
+		bp->bio_cmd == BIO_FLUSH ||
+		bp->bio_cmd == BIO_ZONE,
 		("Wrong bio_cmd bio=%p cmd=%d", bp, bp->bio_cmd));
 	dev = bp->bio_dev;
 	cp = dev->si_drv2;
+	sc = cp->private;
 	KASSERT(cp->acr || cp->acw,
 	    ("Consumer with zero access count in g_dev_strategy"));
 #ifdef INVARIANTS
@@ -379,10 +676,15 @@ g_dev_strategy(struct bio *bp)
 		return;
 	}
 #endif
+	mtx_lock(&sc->sc_mtx);
+	KASSERT(sc->sc_open > 0, ("Closed device in g_dev_strategy"));
+	sc->sc_active++;
+	mtx_unlock(&sc->sc_mtx);
+
 	for (;;) {
 		/*
-		 * XXX: This is not an ideal solution, but I belive it to
-		 * XXX: deadlock safe, all things considered.
+		 * XXX: This is not an ideal solution, but I believe it to
+		 * XXX: deadlock safely, all things considered.
 		 */
 		bp2 = g_clone_bio(bp);
 		if (bp2 != NULL)
@@ -402,46 +704,61 @@ g_dev_strategy(struct bio *bp)
 }
 
 /*
+ * g_dev_callback()
+ *
+ * Called by devfs when asynchronous device destruction is completed.
+ * - Mark that we have no attached device any more.
+ * - If there are no outstanding requests, schedule geom destruction.
+ *   Otherwise destruction will be scheduled later by g_dev_done().
+ */
+
+static void
+g_dev_callback(void *arg)
+{
+	struct g_consumer *cp;
+	struct g_dev_softc *sc;
+	int destroy;
+
+	cp = arg;
+	sc = cp->private;
+	g_trace(G_T_TOPOLOGY, "g_dev_callback(%p(%s))", cp, cp->geom->name);
+
+	mtx_lock(&sc->sc_mtx);
+	sc->sc_dev = NULL;
+	sc->sc_alias = NULL;
+	destroy = (sc->sc_active == 0);
+	mtx_unlock(&sc->sc_mtx);
+	if (destroy)
+		g_post_event(g_dev_destroy, cp, M_WAITOK, NULL);
+}
+
+/*
  * g_dev_orphan()
  *
  * Called from below when the provider orphaned us.
  * - Clear any dump settings.
- * - Destroy the struct cdev *to prevent any more request from coming in.  The
- *   provider is already marked with an error, so anything which comes in
- *   in the interrim will be returned immediately.
- * - Wait for any outstanding I/O to finish.
- * - Set our access counts to zero, whatever they were.
- * - Detach and self-destruct.
+ * - Request asynchronous device destruction to prevent any more requests
+ *   from coming in.  The provider is already marked with an error, so
+ *   anything which comes in the interim will be returned immediately.
  */
 
 static void
 g_dev_orphan(struct g_consumer *cp)
 {
-	struct g_geom *gp;
 	struct cdev *dev;
+	struct g_dev_softc *sc;
 
 	g_topology_assert();
-	gp = cp->geom;
-	dev = gp->softc;
-	g_trace(G_T_TOPOLOGY, "g_dev_orphan(%p(%s))", cp, gp->name);
+	sc = cp->private;
+	dev = sc->sc_dev;
+	g_trace(G_T_TOPOLOGY, "g_dev_orphan(%p(%s))", cp, cp->geom->name);
 
 	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV)
-		set_dumper(NULL);
+		(void)set_dumper(NULL, NULL, curthread);
 
 	/* Destroy the struct cdev *so we get no more requests */
-	destroy_dev(dev);
-
-	/* Wait for the cows to come home */
-	while (cp->nstart != cp->nend)
-		pause("gdevorphan", hz / 10);
-
-	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
-		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
-
-	g_detach(cp);
-	g_destroy_consumer(cp);
-	g_destroy_geom(gp);
+	destroy_dev_sched_cb(dev, g_dev_callback, cp);
 }
 
 DECLARE_GEOM_CLASS(g_dev_class, g_dev);

@@ -1,32 +1,31 @@
 /*	$NetBSD: xdr.h,v 1.19 2000/07/17 05:00:45 matt Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
  *
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice,
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
+ *   from this software without specific prior written permission.
  *
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- *
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- *
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- *
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: @(#)xdr.h 1.19 87/04/22 SMI
  *	from: @(#)xdr.h	2.2 88/07/29 4.0 RPCSRC
@@ -97,26 +96,26 @@ enum xdr_op {
  * an operations vector for the particular implementation (e.g. see xdr_mem.c),
  * and two private fields for the use of the particular implementation.
  */
-typedef struct __rpc_xdr {
+typedef struct XDR {
 	enum xdr_op	x_op;		/* operation; fast additional param */
 	const struct xdr_ops {
 		/* get a long from underlying stream */
-		bool_t	(*x_getlong)(struct __rpc_xdr *, long *);
+		bool_t	(*x_getlong)(struct XDR *, long *);
 		/* put a long to " */
-		bool_t	(*x_putlong)(struct __rpc_xdr *, const long *);
+		bool_t	(*x_putlong)(struct XDR *, const long *);
 		/* get some bytes from " */
-		bool_t	(*x_getbytes)(struct __rpc_xdr *, char *, u_int);
+		bool_t	(*x_getbytes)(struct XDR *, char *, u_int);
 		/* put some bytes to " */
-		bool_t	(*x_putbytes)(struct __rpc_xdr *, const char *, u_int);
+		bool_t	(*x_putbytes)(struct XDR *, const char *, u_int);
 		/* returns bytes off from beginning */
-		u_int	(*x_getpostn)(struct __rpc_xdr *);
+		u_int	(*x_getpostn)(struct XDR *);
 		/* lets you reposition the stream */
-		bool_t  (*x_setpostn)(struct __rpc_xdr *, u_int);
+		bool_t  (*x_setpostn)(struct XDR *, u_int);
 		/* buf quick ptr to buffered data */
-		int32_t *(*x_inline)(struct __rpc_xdr *, u_int);
+		int32_t *(*x_inline)(struct XDR *, u_int);
 		/* free privates of this xdr_stream */
-		void	(*x_destroy)(struct __rpc_xdr *);
-		bool_t	(*x_control)(struct __rpc_xdr *, int, void *);
+		void	(*x_destroy)(struct XDR *);
+		bool_t	(*x_control)(struct XDR *, int, void *);
 	} *x_ops;
 	char *	 	x_public;	/* users' data */
 	void *		x_private;	/* pointer to private data */
@@ -220,15 +219,11 @@ xdr_putint32(XDR *xdrs, int32_t *ip)
 		(*(xdrs)->x_ops->x_control)(xdrs, req, op)
 #define xdr_control(xdrs, req, op) XDR_CONTROL(xdrs, req, op)
 
-/*
- * Solaris strips the '_t' from these types -- not sure why.
- * But, let's be compatible.
- */
-#define xdr_rpcvers(xdrs, versp) xdr_u_int32(xdrs, versp)
-#define xdr_rpcprog(xdrs, progp) xdr_u_int32(xdrs, progp)
-#define xdr_rpcproc(xdrs, procp) xdr_u_int32(xdrs, procp)
-#define xdr_rpcprot(xdrs, protp) xdr_u_int32(xdrs, protp)
-#define xdr_rpcport(xdrs, portp) xdr_u_int32(xdrs, portp)
+#define xdr_rpcvers(xdrs, versp) xdr_u_int32_t(xdrs, versp)
+#define xdr_rpcprog(xdrs, progp) xdr_u_int32_t(xdrs, progp)
+#define xdr_rpcproc(xdrs, procp) xdr_u_int32_t(xdrs, procp)
+#define xdr_rpcprot(xdrs, protp) xdr_u_int32_t(xdrs, protp)
+#define xdr_rpcport(xdrs, portp) xdr_u_int32_t(xdrs, portp)
 
 /*
  * Support struct for discriminated unions.
@@ -322,6 +317,7 @@ extern bool_t	xdr_hyper(XDR *, quad_t *);
 extern bool_t	xdr_u_hyper(XDR *, u_quad_t *);
 extern bool_t	xdr_longlong_t(XDR *, quad_t *);
 extern bool_t	xdr_u_longlong_t(XDR *, u_quad_t *);
+extern unsigned long	xdr_sizeof(xdrproc_t, void *);
 __END_DECLS
 
 /*

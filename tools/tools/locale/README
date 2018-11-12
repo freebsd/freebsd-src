@@ -1,0 +1,19 @@
+# $FreeBSD$
+
+To generate the locales:
+
+Tools needed: java, perl, devel/p5-Tie-IxHash, converters/p5-Text-Iconv and
+textproc/p5-XML-Parser
+
+fetch cldr data from: http://cldr.unicode.org
+extract in a directory ~/unicode/cldr/v27.0.1 for example
+fetch unidata from http://www.unicode.org/Public/zipped/ (latest version)
+extract in a directory ~/unicode/UNIDATA/8.0.0 for example
+
+either modify tools/tools/locales/etc/unicode.conf or export variables:
+CLDRDIR="~/unicode/cldr/v27.0.1"
+UNIDATADIR="~/unicode/UNIDATA/8.0.0"
+
+run:
+make POSIX
+make install

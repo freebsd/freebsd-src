@@ -87,9 +87,8 @@ read_archive(struct bsdar *bsdar, char mode)
 
 	if ((a = archive_read_new()) == NULL)
 		bsdar_errc(bsdar, EX_SOFTWARE, 0, "archive_read_new failed");
-	archive_read_support_compression_all(a);
-	archive_read_support_format_all(a);
-	AC(archive_read_open_file(a, bsdar->filename, DEF_BLKSZ));
+	archive_read_support_format_ar(a);
+	AC(archive_read_open_filename(a, bsdar->filename, DEF_BLKSZ));
 
 	for (;;) {
 		r = archive_read_next_header(a, &entry);
@@ -103,7 +102,8 @@ read_archive(struct bsdar *bsdar, char mode)
 			continue;
 		}
 
-		name = archive_entry_pathname(entry);
+		if ((name = archive_entry_pathname(entry)) == NULL)
+			break;
 
 		/* Skip pseudo members. */
 		if (strcmp(name, "/") == 0 || strcmp(name, "//") == 0)
@@ -187,7 +187,15 @@ read_archive(struct bsdar *bsdar, char mode)
 
 				if (bsdar->options & AR_V)
 					(void)fprintf(stdout, "x - %s\n", name);
-				flags = 0;
+				/* Disallow absolute paths. */
+				if (name[0] == '/') {
+					bsdar_warnc(bsdar, 0,
+					    "Absolute path '%s'", name);
+					continue;
+				}
+				/* Basic path security flags. */
+				flags = ARCHIVE_EXTRACT_SECURE_SYMLINKS |
+				    ARCHIVE_EXTRACT_SECURE_NODOTDOT;
 				if (bsdar->options & AR_O)
 					flags |= ARCHIVE_EXTRACT_TIME;
 
@@ -200,5 +208,5 @@ read_archive(struct bsdar *bsdar, char mode)
 		}
 	}
 	AC(archive_read_close(a));
-	AC(archive_read_finish(a));
+	AC(archive_read_free(a));
 }

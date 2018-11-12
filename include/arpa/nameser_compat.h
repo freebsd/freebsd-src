@@ -9,11 +9,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- * 	This product includes software developed by the University of
- * 	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -32,7 +28,7 @@
 
 /*%
  *      from nameser.h	8.1 (Berkeley) 6/2/93
- *	$Id: nameser_compat.h,v 1.5.18.3 2006/05/19 02:36:00 marka Exp $
+ *	$Id: nameser_compat.h,v 1.8 2006/05/19 02:33:40 marka Exp $
  * $FreeBSD$
  */
 
@@ -67,7 +63,7 @@ typedef struct {
 			/* fields in third byte */
 	unsigned	qr: 1;		/*%< response flag */
 	unsigned	opcode: 4;	/*%< purpose of message */
-	unsigned	aa: 1;		/*%< authoritive answer */
+	unsigned	aa: 1;		/*%< authoritative answer */
 	unsigned	tc: 1;		/*%< truncated message */
 	unsigned	rd: 1;		/*%< recursion desired */
 			/* fields in fourth byte */
@@ -81,7 +77,7 @@ typedef struct {
 			/* fields in third byte */
 	unsigned	rd :1;		/*%< recursion desired */
 	unsigned	tc :1;		/*%< truncated message */
-	unsigned	aa :1;		/*%< authoritive answer */
+	unsigned	aa :1;		/*%< authoritative answer */
 	unsigned	opcode :4;	/*%< purpose of message */
 	unsigned	qr :1;		/*%< response flag */
 			/* fields in fourth byte */

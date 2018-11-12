@@ -2,29 +2,16 @@
  * EAP-IKEv2 definitions
  * Copyright (c) 2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef EAP_IKEV2_COMMON_H
 #define EAP_IKEV2_COMMON_H
 
-#ifdef CCNS_PL
-/* incorrect bit order */
-#define IKEV2_FLAGS_LENGTH_INCLUDED 0x01
-#define IKEV2_FLAGS_MORE_FRAGMENTS 0x02
-#define IKEV2_FLAGS_ICV_INCLUDED 0x04
-#else /* CCNS_PL */
 #define IKEV2_FLAGS_LENGTH_INCLUDED 0x80
 #define IKEV2_FLAGS_MORE_FRAGMENTS 0x40
 #define IKEV2_FLAGS_ICV_INCLUDED 0x20
-#endif /* CCNS_PL */
 
 #define IKEV2_FRAGMENT_SIZE 1400
 

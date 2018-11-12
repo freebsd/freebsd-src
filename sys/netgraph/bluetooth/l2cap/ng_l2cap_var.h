@@ -92,7 +92,9 @@ typedef struct ng_l2cap {
 
 	LIST_HEAD(, ng_l2cap_con)	con_list;     /* ACL connections */
 
-	u_int16_t			cid;          /* last allocated CID */
+    	u_int16_t			cid;          /* last allocated CID */
+    	u_int16_t			lecid;          /* last allocated CID for LE */
+
 	LIST_HEAD(, ng_l2cap_chan)	chan_list;    /* L2CAP channels */
 } ng_l2cap_t;
 typedef ng_l2cap_t *			ng_l2cap_p;
@@ -116,6 +118,9 @@ typedef struct ng_l2cap_con {
 	struct callout			 con_timo;   /* connection timeout */
 
 	u_int8_t			 ident;      /* last allocated ident */
+	uint8_t				 linktype;
+	uint8_t				 encryption;
+	
 	TAILQ_HEAD(, ng_l2cap_cmd)	 cmd_list;   /* pending L2CAP cmds */
 
 	struct mbuf			*tx_pkt;     /* xmitted L2CAP packet */
@@ -148,6 +153,7 @@ typedef struct ng_l2cap_chan {
 	u_int16_t			scid;       /* source channel ID */
 	u_int16_t			dcid;       /* destination channel ID */
 
+	uint16_t			idtype;
 	u_int16_t			imtu;       /* incoming channel MTU */
 	ng_l2cap_flow_t			iflow;      /* incoming flow control */
 

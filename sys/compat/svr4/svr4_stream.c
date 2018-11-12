@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
@@ -281,7 +282,8 @@ clean_pipe(td, path)
 	struct stat st;
 	int error;
 
-	error = kern_lstat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, path,
+	    UIO_SYSSPACE, &st, NULL);
 
 	/*
 	 * Make sure we are dealing with a mode 0 named pipe.
@@ -292,7 +294,7 @@ clean_pipe(td, path)
 	if ((st.st_mode & ALLPERMS) != 0)
 		return (0);
 
-	error = kern_unlink(td, path, UIO_SYSSPACE);
+	error = kern_unlinkat(td, AT_FDCWD, path, UIO_SYSSPACE, 0);
 	if (error)
 		DPRINTF(("clean_pipe: unlink failed %d\n", error));
 	return (error);
@@ -522,7 +524,7 @@ si_listen(fp, fd, ioc, td)
 	DPRINTF(("SI_LISTEN: fileno %d backlog = %d\n", fd, 5));
 	la.backlog = 5;
 
-	if ((error = listen(td, &la)) != 0) {
+	if ((error = sys_listen(td, &la)) != 0) {
 		DPRINTF(("SI_LISTEN: listen failed %d\n", error));
 		return error;
 	}
@@ -636,7 +638,7 @@ si_shutdown(fp, fd, ioc, td)
 
 	ap.s = fd;
 
-	return shutdown(td, &ap);
+	return sys_shutdown(td, &ap);
 }
 
 
@@ -811,7 +813,7 @@ ti_bind(fp, fd, ioc, td)
 
 	DPRINTF(("TI_BIND: fileno %d\n", fd));
 
-	if ((error = kern_bind(td, fd, skp)) != 0) {
+	if ((error = kern_bindat(td, AT_FDCWD, fd, skp)) != 0) {
 		DPRINTF(("TI_BIND: bind failed %d\n", error));
 		return error;
 	}
@@ -1055,7 +1057,7 @@ i_fdinsert(fp, td, retval, fd, cmd, dat)
 	d2p.from = st->s_afd;
 	d2p.to = fdi.fd;
 
-	if ((error = dup2(td, &d2p)) != 0) {
+	if ((error = sys_dup2(td, &d2p)) != 0) {
 		DPRINTF(("fdinsert: dup2(%d, %d) failed %d\n", 
 		    st->s_afd, fdi.fd, error));
 		mtx_unlock(&Giant);
@@ -1098,7 +1100,7 @@ _i_bind_rsvd(fp, td, retval, fd, cmd, dat)
 	ap.path = dat;
 	ap.mode = S_IFIFO;
 
-	return mkfifo(td, &ap);
+	return sys_mkfifo(td, &ap);
 }
 
 static int
@@ -1118,7 +1120,7 @@ _i_rele_rsvd(fp, td, retval, fd, cmd, dat)
 	 */
 	ap.path = dat;
 
-	return unlink(td, &ap);
+	return sys_unlink(td, &ap);
 }
 
 static int
@@ -1445,10 +1447,12 @@ svr4_sys_putmsg(td, uap)
 	struct thread *td;
 	struct svr4_sys_putmsg_args *uap;
 {
-	struct file     *fp;
+	cap_rights_t rights;
+	struct file *fp;
 	int error;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0) {
+	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_SEND), &fp);
+	if (error != 0) {
 #ifdef DEBUG_SVR4
 	        uprintf("putmsg: bad fp\n");
 #endif
@@ -1538,7 +1542,7 @@ svr4_do_putmsg(td, uap, fp)
 				wa.fd = uap->fd;
 				wa.buf = dat.buf;
 				wa.nbyte = dat.len;
-				return write(td, &wa);
+				return sys_write(td, &wa);
 			}
 	                DPRINTF(("putmsg: Invalid inet length %ld\n", sc.len));
 	                return EINVAL;
@@ -1583,7 +1587,7 @@ svr4_do_putmsg(td, uap, fp)
 	case SVR4_TI_CONNECT_REQUEST:	/* connect 	*/
 		{
 
-			return (kern_connect(td, uap->fd, sa));
+			return (kern_connectat(td, AT_FDCWD, uap->fd, sa));
 		}
 
 	case SVR4_TI_SENDTO_REQUEST:	/* sendto 	*/
@@ -1617,10 +1621,12 @@ svr4_sys_getmsg(td, uap)
 	struct thread *td;
 	struct svr4_sys_getmsg_args *uap;
 {
-	struct file     *fp;
+	cap_rights_t rights;
+	struct file *fp;
 	int error;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0) {
+	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_RECV), &fp);
+	if (error != 0) {
 #ifdef DEBUG_SVR4
 	        uprintf("getmsg: bad fp\n");
 #endif
@@ -1823,7 +1829,7 @@ svr4_do_getmsg(td, uap, fp)
 			break;
 
 		default:
-			fdclose(td->td_proc->p_fd, afp, st->s_afd, td);
+			fdclose(td, afp, st->s_afd);
 			fdrop(afp, td);
 			st->s_afd = -1;
 			mtx_unlock(&Giant);
@@ -1925,7 +1931,7 @@ svr4_do_getmsg(td, uap, fp)
 			ra.fd = uap->fd;
 			ra.buf = dat.buf;
 			ra.nbyte = dat.maxlen;
-			if ((error = read(td, &ra)) != 0) {
+			if ((error = sys_read(td, &ra)) != 0) {
 				mtx_unlock(&Giant);
 			        return error;
 			}
@@ -1961,7 +1967,7 @@ svr4_do_getmsg(td, uap, fp)
 
 	if (error) {
 		if (afp) {
-			fdclose(td->td_proc->p_fd, afp, st->s_afd, td);
+			fdclose(td, afp, st->s_afd);
 			fdrop(afp, td);
 			st->s_afd = -1;
 		}
@@ -1994,7 +2000,7 @@ int svr4_sys_send(td, uap)
 	sta.to = NULL;
 	sta.tolen = 0;
 
-	return (sendto(td, &sta));
+	return (sys_sendto(td, &sta));
 }
 
 int svr4_sys_recv(td, uap)
@@ -2010,7 +2016,7 @@ int svr4_sys_recv(td, uap)
 	rfa.from = NULL;
 	rfa.fromlenaddr = NULL;
 
-	return (recvfrom(td, &rfa));
+	return (sys_recvfrom(td, &rfa));
 }
 
 /* 
@@ -2032,6 +2038,6 @@ svr4_sys_sendto(td, uap)
 	sa.tolen = uap->tolen;
 
 	DPRINTF(("calling sendto()\n"));
-	return sendto(td, &sa);
+	return sys_sendto(td, &sa);
 }
 

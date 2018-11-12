@@ -28,7 +28,7 @@
 .\"     @(#)directory.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 16, 2008
+.Dd August 31, 2016
 .Dt DIRECTORY 3
 .Os
 .Sh NAME
@@ -40,12 +40,12 @@
 .Nm seekdir ,
 .Nm rewinddir ,
 .Nm closedir ,
+.Nm fdclosedir ,
 .Nm dirfd
 .Nd directory operations
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
 .In dirent.h
 .Ft DIR *
 .Fn opendir "const char *filename"
@@ -64,8 +64,19 @@
 .Ft int
 .Fn closedir "DIR *dirp"
 .Ft int
+.Fn fdclosedir "DIR *dirp"
+.Ft int
 .Fn dirfd "DIR *dirp"
 .Sh DESCRIPTION
+.Bf -symbolic
+The
+.Fn readdir_r
+interface is deprecated
+because it cannot be used correctly unless
+.Brq Va NAME_MAX
+is a fixed value.
+.Ef
+.Pp
 The
 .Fn opendir
 function
@@ -120,11 +131,20 @@ The
 .Fn readdir
 function
 returns a pointer to the next directory entry.
-It returns
+The directory entry remains valid until the next call to
+.Fn readdir
+or
+.Fn closedir
+on the same
+.Em directory stream .
+The function returns
 .Dv NULL
-upon reaching the end of the directory or detecting an invalid
-.Fn seekdir
-operation.
+upon reaching the end of the directory or on error.
+In the event of an error,
+.Va errno
+may be set to any of the values documented for the
+.Xr getdirentries 2
+system call.
 .Pp
 The
 .Fn readdir_r
@@ -134,6 +154,13 @@ provides the same functionality as
 but the caller must provide a directory
 .Fa entry
 buffer to store the results in.
+The buffer must be large enough for a
+.Vt struct dirent
+with a
+.Va d_name
+array with
+.Brq Va NAME_MAX
++ 1 elements.
 If the read succeeds,
 .Fa result
 is pointed at the
@@ -150,7 +177,7 @@ returns 0 on success or an error number to indicate failure.
 The
 .Fn telldir
 function
-returns the current location associated with the named
+returns a token representing the current location associated with the named
 .Em directory stream .
 Values returned by
 .Fn telldir
@@ -163,6 +190,10 @@ If the directory is closed and then
 reopened, prior values returned by
 .Fn telldir
 will no longer be valid.
+Values returned by
+.Fn telldir
+are also invalidated by a call to
+.Fn rewinddir .
 .Pp
 The
 .Fn seekdir
@@ -198,6 +229,13 @@ On failure, \-1 is returned and the global variable
 is set to indicate the error.
 .Pp
 The
+.Fn fdclosedir
+function is equivalent to the
+.Fn closedir
+function except that this function returns directory file descriptor instead of
+closing it.
+.Pp
+The
 .Fn dirfd
 function
 returns the integer file descriptor associated with the named
@@ -207,15 +245,18 @@ see
 .Pp
 Sample code which searches a directory for entry ``name'' is:
 .Bd -literal -offset indent
-len = strlen(name);
 dirp = opendir(".");
-while ((dp = readdir(dirp)) != NULL)
-	if (dp->d_namlen == len && !strcmp(dp->d_name, name)) {
+if (dirp == NULL)
+	return (ERROR);
+len = strlen(name);
+while ((dp = readdir(dirp)) != NULL) {
+	if (dp->d_namlen == len && strcmp(dp->d_name, name) == 0) {
 		(void)closedir(dirp);
-		return FOUND;
+		return (FOUND);
 	}
+}
 (void)closedir(dirp);
-return NOT_FOUND;
+return (NOT_FOUND);
 .Ed
 .Sh SEE ALSO
 .Xr close 2 ,
@@ -239,3 +280,29 @@ The
 .Fn fdopendir
 function appeared in
 .Fx 8.0 .
+.Fn fdclosedir
+function appeared in
+.Fx 10.0 .
+.Sh BUGS
+The behaviour of
+.Fn telldir
+and
+.Fn seekdir
+is likely to be wrong if there are parallel unlinks happening
+and the directory is larger than one page.
+There is code to ensure that a
+.Fn seekdir
+to the location given by a 
+.Fn telldir
+immediately before the last 
+.Fn readdir
+will always set the correct location to return the same value as that last
+.Fn readdir
+performed.
+This is enough for some applications which want to "push back the last entry read" E.g. Samba. 
+Seeks back to any other location,
+other than the beginning of the directory,
+may result in unexpected behaviour if deletes are present.
+It is hoped that this situation will be resolved with changes to
+.Fn getdirentries
+and the VFS.

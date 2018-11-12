@@ -76,16 +76,15 @@ This is normally done by the
 utility that is launched by
 .Xr devd 8
 when the device is inserted.
-.Xr uathload 
+.Xr uathload
 includes the firmware in the binary program.
 This firmware is licensed for general use and is included in the base system.
 .Sh HARDWARE
 The
 .Nm
 driver should work with the following adapters:
-.Pp
-.Bl -column -compact "TRENDware International TEW-444UB" "AR5005UX" -offset 6n
-.It Em "Adapter	Chipset"
+.Bl -column "TRENDware International TEW-444UB" "AR5005UX"
+.It Em "Adapter" Ta Em "Chipset"
 .\".It Belkin F6D3050	AR5005UX
 .It Li "Compex WLU108AG" Ta AR5005UX
 .It Li "Compex WLU108G" Ta AR5005UG
@@ -122,7 +121,6 @@ An up to date list can be found at
 .Pa http://customerproducts.atheros.com/customerproducts/default.asp .
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev uath0 inet 192.168.0.20 \e
     netmask 0xffffff00
@@ -177,11 +175,11 @@ driver first appeared in
 The
 .Nm
 driver was written by
-.An Weongyo Jeong Aq weongyo@freebsd.org
+.An Weongyo Jeong Aq Mt weongyo@FreeBSD.org
 and
-.An Sam Leffler Aq sam@freebsd.org .
+.An Sam Leffler Aq Mt sam@FreeBSD.org .
 It is distantly related to a driver written by
-.An Damien Bergamini Aq damien@openbsd.org .
+.An Damien Bergamini Aq Mt damien@openbsd.org .
 .Sh CAVEATS
 Atheros proprietary 108 Mbps mode (aka Super AG mode) is not supported.
 .Pp

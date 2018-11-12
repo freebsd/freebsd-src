@@ -41,6 +41,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <err.h>
+
+#include "ctrl.h"
 
 typedef struct {
 	HAL_REVS revs;
@@ -92,11 +95,11 @@ main(int argc, char *argv[])
 	const char *ifname;
 	u_int32_t *data;
 	u_int32_t *dp, *ep;
-	int what, c, s, i;
+	int what, c, i;
+	struct ath_driver_req req;
 
-	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (s < 0)
-		err(1, "socket");
+	ath_driver_req_init(&req);
+
 	ifname = getenv("ATH");
 	if (!ifname)
 		ifname = ATH_DEFAULT;
@@ -143,6 +146,16 @@ main(int argc, char *argv[])
 			usage();
 			/*NOTREACHED*/
 		}
+
+	/* Initialise the driver interface */
+	if (ath_driver_req_open(&req, ifname) < 0) {
+		exit(127);
+	}
+
+	/*
+	 * Whilst we're doing the ath_diag pieces, we have to set this
+	 * ourselves.
+	 */
 	strncpy(atd.ad_name, ifname, sizeof (atd.ad_name));
 
 	argc -= optind;
@@ -153,8 +166,9 @@ main(int argc, char *argv[])
 	atd.ad_id = HAL_DIAG_REVS;
 	atd.ad_out_data = (caddr_t) &state.revs;
 	atd.ad_out_size = sizeof(state.revs);
-	if (ioctl(s, SIOCGATHDIAG, &atd) < 0)
-		err(1, atd.ad_name);
+
+	if (ath_driver_req_fetch_diag(&req, SIOCGATHDIAG, &atd) < 0)
+		err(1, "%s", atd.ad_name);
 
 	if (ath_hal_setupregs(&atd, what) == 0)
 		errx(-1, "no registers are known for this part "
@@ -171,8 +185,9 @@ main(int argc, char *argv[])
 		exit(-1);
 	}
 	atd.ad_id = HAL_DIAG_REGS | ATH_DIAG_IN | ATH_DIAG_DYN;
-	if (ioctl(s, SIOCGATHDIAG, &atd) < 0)
-		err(1, atd.ad_name);
+
+	if (ath_driver_req_fetch_diag(&req, SIOCGATHDIAG, &atd) < 0)
+		err(1, "%s", atd.ad_name);
 
 	/*
 	 * Expand register data into global space that can be
@@ -181,8 +196,9 @@ main(int argc, char *argv[])
 	dp = (u_int32_t *)atd.ad_out_data;
 	ep = (u_int32_t *)(atd.ad_out_data + atd.ad_out_size);
 	while (dp < ep) {
-		u_int r = dp[0] >> 16;		/* start of range */
-		u_int e = dp[0] & 0xffff;	/* end of range */
+		u_int r = dp[0];	/* start of range */
+		u_int e = dp[1];	/* end of range */
+		dp++;
 		dp++;
 		/* convert offsets to indices */
 		r >>= 2; e >>= 2;
@@ -236,6 +252,7 @@ main(int argc, char *argv[])
 			fprintf(stdout, "\n");
 		ath_hal_dumpbb(stdout, what);
 	}
+	ath_driver_req_close(&req);
 	return 0;
 }
 
@@ -353,7 +370,7 @@ register_range(u_int brange, u_int erange, int type,
 	    def_srev_min, def_srev_max, def_phy_min, def_phy_max);
 }
 
-static __inline
+static __inline int
 match(const struct dumpreg *dr, const HAL_REVS *revs)
 {
 	if (!MAC_MATCH(dr, revs->ah_macVersion, revs->ah_macRev))
@@ -610,7 +627,7 @@ ath_hal_setupdiagregs(const HAL_REGRANGE regs[], u_int nr)
 
 	space = 0;
 	for (i = 0; i < nr; i++) {
-		u_int n = 2 * sizeof(u_int32_t);	/* reg range + first */
+		u_int n = sizeof(HAL_REGRANGE) + sizeof(u_int32_t);	/* reg range + first */
 		if (regs[i].end) {
 			if (regs[i].end < regs[i].start) {
 				fprintf(stderr, "%s: bad register range, "

@@ -21,63 +21,158 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-esp.c,v 1.56 2005-04-21 06:44:40 guy Exp $ (LBL)";
-#endif
-
+#define NETDISSECT_REWORKED
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <string.h>
-
 #include <tcpdump-stdinc.h>
 
+#include <string.h>
 #include <stdlib.h>
 
+/* Any code in this file that depends on HAVE_LIBCRYPTO depends on
+ * HAVE_OPENSSL_EVP_H too. Undefining the former when the latter isn't defined
+ * is the simplest way of handling the dependency.
+ */
 #ifdef HAVE_LIBCRYPTO
 #ifdef HAVE_OPENSSL_EVP_H
 #include <openssl/evp.h>
+#else
+#undef HAVE_LIBCRYPTO
 #endif
 #endif
-
-#include <stdio.h>
 
 #include "ip.h"
-#include "esp.h"
 #ifdef INET6
 #include "ip6.h"
 #endif
 
-#include "netdissect.h"
-#include "addrtoname.h"
+#include "interface.h"
 #include "extract.h"
 
-#ifndef HAVE_SOCKADDR_STORAGE
-#ifdef INET6
-struct sockaddr_storage {
-	union {
-		struct sockaddr_in sin;
-		struct sockaddr_in6 sin6;
-	} un;
+/*
+ * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the project nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+/*
+ * RFC1827/2406 Encapsulated Security Payload.
+ */
+
+struct newesp {
+	uint32_t	esp_spi;	/* ESP */
+	uint32_t	esp_seq;	/* Sequence number */
+	/*variable size*/		/* (IV and) Payload data */
+	/*variable size*/		/* padding */
+	/*8bit*/			/* pad size */
+	/*8bit*/			/* next header */
+	/*8bit*/			/* next header */
+	/*variable size, 32bit bound*/	/* Authentication data */
 };
-#else
-#define sockaddr_storage sockaddr
-#endif
-#endif /* HAVE_SOCKADDR_STORAGE */
 
 #ifdef HAVE_LIBCRYPTO
+union inaddr_u {
+	struct in_addr in4;
+#ifdef INET6
+	struct in6_addr in6;
+#endif
+};
 struct sa_list {
 	struct sa_list	*next;
-	struct sockaddr_storage daddr;
-	u_int32_t	spi;
+	u_int		daddr_version;
+	union inaddr_u	daddr;
+	uint32_t	spi;          /* if == 0, then IKEv2 */
+	int             initiator;
+	u_char          spii[8];      /* for IKEv2 */
+	u_char          spir[8];
 	const EVP_CIPHER *evp;
 	int		ivlen;
 	int		authlen;
+	u_char          authsecret[256];
+	int             authsecret_len;
 	u_char		secret[256];  /* is that big enough for all secrets? */
 	int		secretlen;
 };
+
+/*
+ * this will adjust ndo_packetp and ndo_snapend to new buffer!
+ */
+USES_APPLE_DEPRECATED_API
+int esp_print_decrypt_buffer_by_ikev2(netdissect_options *ndo,
+				      int initiator,
+				      u_char spii[8], u_char spir[8],
+				      u_char *buf, u_char *end)
+{
+	struct sa_list *sa;
+	u_char *iv;
+	int len;
+	EVP_CIPHER_CTX ctx;
+
+	/* initiator arg is any non-zero value */
+	if(initiator) initiator=1;
+
+	/* see if we can find the SA, and if so, decode it */
+	for (sa = ndo->ndo_sa_list_head; sa != NULL; sa = sa->next) {
+		if (sa->spi == 0
+		    && initiator == sa->initiator
+		    && memcmp(spii, sa->spii, 8) == 0
+		    && memcmp(spir, sa->spir, 8) == 0)
+			break;
+	}
+
+	if(sa == NULL) return 0;
+	if(sa->evp == NULL) return 0;
+
+	/*
+	 * remove authenticator, and see if we still have something to
+	 * work with
+	 */
+	end = end - sa->authlen;
+	iv  = buf;
+	buf = buf + sa->ivlen;
+	len = end-buf;
+
+	if(end <= buf) return 0;
+
+	memset(&ctx, 0, sizeof(ctx));
+	if (EVP_CipherInit(&ctx, sa->evp, sa->secret, NULL, 0) < 0)
+		(*ndo->ndo_warning)(ndo, "espkey init failed");
+	EVP_CipherInit(&ctx, NULL, NULL, iv, 0);
+	EVP_Cipher(&ctx, buf, buf, len);
+	EVP_CIPHER_CTX_cleanup(&ctx);
+
+	ndo->ndo_packetp = buf;
+	ndo->ndo_snapend = end;
+
+	return 1;
+
+}
+USES_APPLE_RST
 
 static void esp_print_addsa(netdissect_options *ndo,
 			    struct sa_list *sa, int sa_def)
@@ -123,13 +218,193 @@ static u_int hex2byte(netdissect_options *ndo, char *hexstring)
 }
 
 /*
+ * returns size of binary, 0 on failure.
+ */
+static
+int espprint_decode_hex(netdissect_options *ndo,
+			u_char *binbuf, unsigned int binbuf_len,
+			char *hex)
+{
+	unsigned int len;
+	int i;
+
+	len = strlen(hex) / 2;
+
+	if (len > binbuf_len) {
+		(*ndo->ndo_warning)(ndo, "secret is too big: %d\n", len);
+		return 0;
+	}
+
+	i = 0;
+	while (hex[0] != '\0' && hex[1]!='\0') {
+		binbuf[i] = hex2byte(ndo, hex);
+		hex += 2;
+		i++;
+	}
+
+	return i;
+}
+
+/*
  * decode the form:    SPINUM@IP <tab> ALGONAME:0xsecret
+ */
+
+USES_APPLE_DEPRECATED_API
+static int
+espprint_decode_encalgo(netdissect_options *ndo,
+			char *decode, struct sa_list *sa)
+{
+	size_t i;
+	const EVP_CIPHER *evp;
+	int authlen = 0;
+	char *colon, *p;
+
+	colon = strchr(decode, ':');
+	if (colon == NULL) {
+		(*ndo->ndo_warning)(ndo, "failed to decode espsecret: %s\n", decode);
+		return 0;
+	}
+	*colon = '\0';
+
+	if (strlen(decode) > strlen("-hmac96") &&
+	    !strcmp(decode + strlen(decode) - strlen("-hmac96"),
+		    "-hmac96")) {
+		p = strstr(decode, "-hmac96");
+		*p = '\0';
+		authlen = 12;
+	}
+	if (strlen(decode) > strlen("-cbc") &&
+	    !strcmp(decode + strlen(decode) - strlen("-cbc"), "-cbc")) {
+		p = strstr(decode, "-cbc");
+		*p = '\0';
+	}
+	evp = EVP_get_cipherbyname(decode);
+
+	if (!evp) {
+		(*ndo->ndo_warning)(ndo, "failed to find cipher algo %s\n", decode);
+		sa->evp = NULL;
+		sa->authlen = 0;
+		sa->ivlen = 0;
+		return 0;
+	}
+
+	sa->evp = evp;
+	sa->authlen = authlen;
+	sa->ivlen = EVP_CIPHER_iv_length(evp);
+
+	colon++;
+	if (colon[0] == '0' && colon[1] == 'x') {
+		/* decode some hex! */
+
+		colon += 2;
+		sa->secretlen = espprint_decode_hex(ndo, sa->secret, sizeof(sa->secret), colon);
+		if(sa->secretlen == 0) return 0;
+	} else {
+		i = strlen(colon);
+
+		if (i < sizeof(sa->secret)) {
+			memcpy(sa->secret, colon, i);
+			sa->secretlen = i;
+		} else {
+			memcpy(sa->secret, colon, sizeof(sa->secret));
+			sa->secretlen = sizeof(sa->secret);
+		}
+	}
+
+	return 1;
+}
+USES_APPLE_RST
+
+/*
+ * for the moment, ignore the auth algorith, just hard code the authenticator
+ * length. Need to research how openssl looks up HMAC stuff.
+ */
+static int
+espprint_decode_authalgo(netdissect_options *ndo,
+			 char *decode, struct sa_list *sa)
+{
+	char *colon;
+
+	colon = strchr(decode, ':');
+	if (colon == NULL) {
+		(*ndo->ndo_warning)(ndo, "failed to decode espsecret: %s\n", decode);
+		return 0;
+	}
+	*colon = '\0';
+
+	if(strcasecmp(colon,"sha1") == 0 ||
+	   strcasecmp(colon,"md5") == 0) {
+		sa->authlen = 12;
+	}
+	return 1;
+}
+
+static void esp_print_decode_ikeline(netdissect_options *ndo, char *line,
+				     const char *file, int lineno)
+{
+	/* it's an IKEv2 secret, store it instead */
+	struct sa_list sa1;
+
+	char *init;
+	char *icookie, *rcookie;
+	int   ilen, rlen;
+	char *authkey;
+	char *enckey;
+
+	init = strsep(&line, " \t");
+	icookie = strsep(&line, " \t");
+	rcookie = strsep(&line, " \t");
+	authkey = strsep(&line, " \t");
+	enckey  = strsep(&line, " \t");
+
+	/* if any fields are missing */
+	if(!init || !icookie || !rcookie || !authkey || !enckey) {
+		(*ndo->ndo_warning)(ndo, "print_esp: failed to find all fields for ikev2 at %s:%u",
+				    file, lineno);
+
+		return;
+	}
+
+	ilen = strlen(icookie);
+	rlen = strlen(rcookie);
+
+	if((init[0]!='I' && init[0]!='R')
+	   || icookie[0]!='0' || icookie[1]!='x'
+	   || rcookie[0]!='0' || rcookie[1]!='x'
+	   || ilen!=18
+	   || rlen!=18) {
+		(*ndo->ndo_warning)(ndo, "print_esp: line %s:%u improperly formatted.",
+				    file, lineno);
+
+		(*ndo->ndo_warning)(ndo, "init=%s icookie=%s(%u) rcookie=%s(%u)",
+				    init, icookie, ilen, rcookie, rlen);
+
+		return;
+	}
+
+	sa1.spi = 0;
+	sa1.initiator = (init[0] == 'I');
+	if(espprint_decode_hex(ndo, sa1.spii, sizeof(sa1.spii), icookie+2)!=8)
+		return;
+
+	if(espprint_decode_hex(ndo, sa1.spir, sizeof(sa1.spir), rcookie+2)!=8)
+		return;
+
+	if(!espprint_decode_encalgo(ndo, enckey, &sa1)) return;
+
+	if(!espprint_decode_authalgo(ndo, authkey, &sa1)) return;
+
+	esp_print_addsa(ndo, &sa1, FALSE);
+}
+
+/*
  *
  * special form: file /name
  * causes us to go read from this file instead.
  *
  */
-static void esp_print_decode_onesecret(netdissect_options *ndo, char *line)
+static void esp_print_decode_onesecret(netdissect_options *ndo, char *line,
+				       const char *file, int lineno)
 {
 	struct sa_list sa1;
 	int sa_def;
@@ -145,6 +420,7 @@ static void esp_print_decode_onesecret(netdissect_options *ndo, char *line)
 	if (line == NULL) {
 		decode = spikey;
 		spikey = NULL;
+		/* sa1.daddr.version = 0; */
 		/* memset(&sa1.daddr, 0, sizeof(sa1.daddr)); */
 		/* sa1.spi = 0; */
 		sa_def    = 1;
@@ -155,15 +431,18 @@ static void esp_print_decode_onesecret(netdissect_options *ndo, char *line)
 		/* open file and read it */
 		FILE *secretfile;
 		char  fileline[1024];
+		int   lineno=0;
 		char  *nl;
+		char *filename = line;
 
-		secretfile = fopen(line, FOPEN_READ_TXT);
+		secretfile = fopen(filename, FOPEN_READ_TXT);
 		if (secretfile == NULL) {
-			perror(line);
+			perror(filename);
 			exit(3);
 		}
 
 		while (fgets(fileline, sizeof(fileline)-1, secretfile) != NULL) {
+			lineno++;
 			/* remove newline from the line */
 			nl = strchr(fileline, '\n');
 			if (nl)
@@ -171,20 +450,22 @@ static void esp_print_decode_onesecret(netdissect_options *ndo, char *line)
 			if (fileline[0] == '#') continue;
 			if (fileline[0] == '\0') continue;
 
-			esp_print_decode_onesecret(ndo, fileline);
+			esp_print_decode_onesecret(ndo, fileline, filename, lineno);
 		}
 		fclose(secretfile);
 
 		return;
 	}
 
+	if (spikey && strcasecmp(spikey, "ikev2") == 0) {
+		esp_print_decode_ikeline(ndo, line, file, lineno);
+		return;
+	}
+
 	if (spikey) {
+
 		char *spistr, *foo;
-		u_int32_t spino;
-		struct sockaddr_in *sin;
-#ifdef INET6
-		struct sockaddr_in6 *sin6;
-#endif
+		uint32_t spino;
 
 		spistr = strsep(&spikey, "@");
 
@@ -196,134 +477,72 @@ static void esp_print_decode_onesecret(netdissect_options *ndo, char *line)
 
 		sa1.spi = spino;
 
-		sin = (struct sockaddr_in *)&sa1.daddr;
 #ifdef INET6
-		sin6 = (struct sockaddr_in6 *)&sa1.daddr;
-		if (inet_pton(AF_INET6, spikey, &sin6->sin6_addr) == 1) {
-#ifdef HAVE_SOCKADDR_SA_LEN
-			sin6->sin6_len = sizeof(struct sockaddr_in6);
-#endif
-			sin6->sin6_family = AF_INET6;
+		if (inet_pton(AF_INET6, spikey, &sa1.daddr.in6) == 1) {
+			sa1.daddr_version = 6;
 		} else
 #endif
-		if (inet_pton(AF_INET, spikey, &sin->sin_addr) == 1) {
-#ifdef HAVE_SOCKADDR_SA_LEN
-			sin->sin_len = sizeof(struct sockaddr_in);
-#endif
-			sin->sin_family = AF_INET;
-		} else {
-			(*ndo->ndo_warning)(ndo, "print_esp: can not decode IP# %s\n", spikey);
-			return;
-		}
+			if (inet_pton(AF_INET, spikey, &sa1.daddr.in4) == 1) {
+				sa1.daddr_version = 4;
+			} else {
+				(*ndo->ndo_warning)(ndo, "print_esp: can not decode IP# %s\n", spikey);
+				return;
+			}
 	}
 
 	if (decode) {
-		char *colon, *p;
-		u_char espsecret_key[256];
-		int len;
-		size_t i;
-		const EVP_CIPHER *evp;
-		int authlen = 0;
-
 		/* skip any blank spaces */
 		while (isspace((unsigned char)*decode))
 			decode++;
 
-		colon = strchr(decode, ':');
-		if (colon == NULL) {
-			(*ndo->ndo_warning)(ndo, "failed to decode espsecret: %s\n", decode);
+		if(!espprint_decode_encalgo(ndo, decode, &sa1)) {
 			return;
-		}
-		*colon = '\0';
-
-		len = colon - decode;
-		if (strlen(decode) > strlen("-hmac96") &&
-		    !strcmp(decode + strlen(decode) - strlen("-hmac96"),
-		    "-hmac96")) {
-			p = strstr(decode, "-hmac96");
-			*p = '\0';
-			authlen = 12;
-		}
-		if (strlen(decode) > strlen("-cbc") &&
-		    !strcmp(decode + strlen(decode) - strlen("-cbc"), "-cbc")) {
-			p = strstr(decode, "-cbc");
-			*p = '\0';
-		}
-		evp = EVP_get_cipherbyname(decode);
-		if (!evp) {
-			(*ndo->ndo_warning)(ndo, "failed to find cipher algo %s\n", decode);
-			sa1.evp = NULL;
-			sa1.authlen = 0;
-			sa1.ivlen = 0;
-			return;
-		}
-
-		sa1.evp = evp;
-		sa1.authlen = authlen;
-		sa1.ivlen = EVP_CIPHER_iv_length(evp);
-
-		colon++;
-		if (colon[0] == '0' && colon[1] == 'x') {
-			/* decode some hex! */
-			colon += 2;
-			len = strlen(colon) / 2;
-
-			if (len > 256) {
-				(*ndo->ndo_warning)(ndo, "secret is too big: %d\n", len);
-				return;
-			}
-
-			i = 0;
-			while (colon[0] != '\0' && colon[1]!='\0') {
-				espsecret_key[i] = hex2byte(ndo, colon);
-				colon += 2;
-				i++;
-			}
-
-			memcpy(sa1.secret, espsecret_key, i);
-			sa1.secretlen = i;
-		} else {
-			i = strlen(colon);
-
-			if (i < sizeof(sa1.secret)) {
-				memcpy(sa1.secret, colon, i);
-				sa1.secretlen = i;
-			} else {
-				memcpy(sa1.secret, colon, sizeof(sa1.secret));
-				sa1.secretlen = sizeof(sa1.secret);
-			}
 		}
 	}
 
 	esp_print_addsa(ndo, &sa1, sa_def);
 }
 
-static void esp_print_decodesecret(netdissect_options *ndo)
-{
-	char *line;
-	char *p;
-
-	p = ndo->ndo_espsecret;
-
-	while (ndo->ndo_espsecret && ndo->ndo_espsecret[0] != '\0') {
-		/* pick out the first line or first thing until a comma */
-		if ((line = strsep(&ndo->ndo_espsecret, "\n,")) == NULL) {
-			line = ndo->ndo_espsecret;
-			ndo->ndo_espsecret = NULL;
-		}
-
-		esp_print_decode_onesecret(ndo, line);
-	}
-}
-
+USES_APPLE_DEPRECATED_API
 static void esp_init(netdissect_options *ndo _U_)
 {
 
 	OpenSSL_add_all_algorithms();
 	EVP_add_cipher_alias(SN_des_ede3_cbc, "3des");
 }
+USES_APPLE_RST
+
+void esp_print_decodesecret(netdissect_options *ndo)
+{
+	char *line;
+	char *p;
+	static int initialized = 0;
+
+	if (!initialized) {
+		esp_init(ndo);
+		initialized = 1;
+	}
+
+	p = ndo->ndo_espsecret;
+
+	while (p && p[0] != '\0') {
+		/* pick out the first line or first thing until a comma */
+		if ((line = strsep(&p, "\n,")) == NULL) {
+			line = p;
+			p = NULL;
+		}
+
+		esp_print_decode_onesecret(ndo, line, "cmdline", 0);
+	}
+
+	ndo->ndo_espsecret = NULL;
+}
+
 #endif
 
+#ifdef HAVE_LIBCRYPTO
+USES_APPLE_DEPRECATED_API
+#endif
 int
 esp_print(netdissect_options *ndo,
 	  const u_char *bp, const int length, const u_char *bp2
@@ -347,7 +566,6 @@ esp_print(netdissect_options *ndo,
 #ifdef HAVE_LIBCRYPTO
 	struct ip *ip;
 	struct sa_list *sa = NULL;
-	int espsecret_keylen;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 #endif
@@ -358,8 +576,6 @@ esp_print(netdissect_options *ndo,
 	u_char *ivoff;
 	u_char *p;
 	EVP_CIPHER_CTX ctx;
-	int blocksz;
-	static int initialized = 0;
 #endif
 
 	esp = (struct newesp *)bp;
@@ -367,11 +583,6 @@ esp_print(netdissect_options *ndo,
 #ifdef HAVE_LIBCRYPTO
 	secret = NULL;
 	advance = 0;
-
-	if (!initialized) {
-		esp_init(ndo);
-		initialized = 1;
-	}
 #endif
 
 #if 0
@@ -383,12 +594,12 @@ esp_print(netdissect_options *ndo,
 	ep = ndo->ndo_snapend;
 
 	if ((u_char *)(esp + 1) >= ep) {
-		fputs("[|ESP]", stdout);
+		ND_PRINT((ndo, "[|ESP]"));
 		goto fail;
 	}
-	(*ndo->ndo_printf)(ndo, "ESP(spi=0x%08x", EXTRACT_32BITS(&esp->esp_spi));
-	(*ndo->ndo_printf)(ndo, ",seq=0x%x)", EXTRACT_32BITS(&esp->esp_seq));
-        (*ndo->ndo_printf)(ndo, ", length %u", length);
+	ND_PRINT((ndo, "ESP(spi=0x%08x", EXTRACT_32BITS(&esp->esp_spi)));
+	ND_PRINT((ndo, ",seq=0x%x)", EXTRACT_32BITS(&esp->esp_seq)));
+	ND_PRINT((ndo, ", length %u", length));
 
 #ifndef HAVE_LIBCRYPTO
 	goto fail;
@@ -417,10 +628,9 @@ esp_print(netdissect_options *ndo,
 
 		/* see if we can find the SA, and if so, decode it */
 		for (sa = ndo->ndo_sa_list_head; sa != NULL; sa = sa->next) {
-			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&sa->daddr;
-			if (sa->spi == ntohl(esp->esp_spi) &&
-			    sin6->sin6_family == AF_INET6 &&
-			    memcmp(&sin6->sin6_addr, &ip6->ip6_dst,
+			if (sa->spi == EXTRACT_32BITS(&esp->esp_spi) &&
+			    sa->daddr_version == 6 &&
+			    UNALIGNED_MEMCMP(&sa->daddr.in6, &ip6->ip6_dst,
 				   sizeof(struct in6_addr)) == 0) {
 				break;
 			}
@@ -435,10 +645,10 @@ esp_print(netdissect_options *ndo,
 
 		/* see if we can find the SA, and if so, decode it */
 		for (sa = ndo->ndo_sa_list_head; sa != NULL; sa = sa->next) {
-			struct sockaddr_in *sin = (struct sockaddr_in *)&sa->daddr;
-			if (sa->spi == ntohl(esp->esp_spi) &&
-			    sin->sin_family == AF_INET &&
-			    sin->sin_addr.s_addr == ip->ip_dst.s_addr) {
+			if (sa->spi == EXTRACT_32BITS(&esp->esp_spi) &&
+			    sa->daddr_version == 4 &&
+			    UNALIGNED_MEMCMP(&sa->daddr.in4, &ip->ip_dst,
+				   sizeof(struct in_addr)) == 0) {
 				break;
 			}
 		}
@@ -452,7 +662,7 @@ esp_print(netdissect_options *ndo,
 	 */
 	if (sa == NULL)
 		sa = ndo->ndo_sa_default;
-	
+
 	/* if not found fail */
 	if (sa == NULL)
 		goto fail;
@@ -468,7 +678,6 @@ esp_print(netdissect_options *ndo,
 	ivoff = (u_char *)(esp + 1) + 0;
 	ivlen = sa->ivlen;
 	secret = sa->secret;
-	espsecret_keylen = sa->secretlen;
 	ep = ep - sa->authlen;
 
 	if (sa->evp) {
@@ -476,11 +685,10 @@ esp_print(netdissect_options *ndo,
 		if (EVP_CipherInit(&ctx, sa->evp, secret, NULL, 0) < 0)
 			(*ndo->ndo_warning)(ndo, "espkey init failed");
 
-		blocksz = EVP_CIPHER_CTX_block_size(&ctx);
-
 		p = ivoff;
 		EVP_CipherInit(&ctx, NULL, NULL, p, 0);
 		EVP_Cipher(&ctx, p + ivlen, p + ivlen, ep - (p + ivlen));
+		EVP_CIPHER_CTX_cleanup(&ctx);
 		advance = ivoff - (u_char *)esp + ivlen;
 	} else
 		advance = sizeof(struct newesp);
@@ -495,13 +703,16 @@ esp_print(netdissect_options *ndo,
 	if (nhdr)
 		*nhdr = *(ep - 1);
 
-	(ndo->ndo_printf)(ndo, ": ");
+	ND_PRINT((ndo, ": "));
 	return advance;
 #endif
 
 fail:
 	return -1;
 }
+#ifdef HAVE_LIBCRYPTO
+USES_APPLE_RST
+#endif
 
 /*
  * Local Variables:

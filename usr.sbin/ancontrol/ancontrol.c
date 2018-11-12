@@ -40,14 +40,12 @@ static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/cdefs.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 
 #include <arpa/inet.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/ethernet.h>
 
 #include <dev/an/if_aironet_ieee.h>
@@ -575,9 +573,9 @@ an_dumpstats(const char *iface)
 	printf("Management frames transmitted:\t\t\t[ %u ]\n",
 	    stats->an_tx_mgmt_pkts);
 	printf("Refresh frames received:\t\t\t[ %u ]\n",
-	    stats->an_rx_refresh_pkts),
+	    stats->an_rx_refresh_pkts);
 	printf("Refresh frames transmitted:\t\t\t[ %u ]\n",
-	    stats->an_tx_refresh_pkts),
+	    stats->an_tx_refresh_pkts);
 	printf("Poll frames received:\t\t\t\t[ %u ]\n",
 	    stats->an_rx_poll_pkts);
 	printf("Poll frames transmitted:\t\t\t[ %u ]\n",
@@ -1327,8 +1325,8 @@ an_setkeys(const char *iface, const char *key, int keytype)
 	}
 }
 
-static void an_readkeyinfo(iface)
-	const char		*iface;
+static void
+an_readkeyinfo(const char *iface)
 {
 	struct an_req		areq;
 	struct an_ltv_genconfig	*cfg;
@@ -1444,7 +1442,7 @@ an_enable_leap_mode(const char *iface, const char *username)
 
 	caps = (struct an_ltv_caps *)&areq;
 
-	if (!caps->an_softcaps & AN_AUTHTYPE_LEAP) {
+	if (!(caps->an_softcaps & AN_AUTHTYPE_LEAP)) {
 		fprintf(stderr, "Firmware does not support LEAP\n");
 		exit(1);
 	}

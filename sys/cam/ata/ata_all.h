@@ -35,12 +35,17 @@ struct ccb_ataio;
 struct cam_periph;
 union  ccb;
 
+#define	SID_DMA48	0x01 /* Abuse inq_flags bit to track enabled DMA48. */
+#define	SID_AEN		0x04 /* Abuse inq_flags bit to track enabled AEN. */
+#define	SID_DMA		0x10 /* Abuse inq_flags bit to track enabled DMA. */
+
 struct ata_cmd {
 	u_int8_t	flags;		/* ATA command flags */
 #define		CAM_ATAIO_48BIT		0x01	/* Command has 48-bit format */
 #define		CAM_ATAIO_FPDMA		0x02	/* FPDMA command */
 #define		CAM_ATAIO_CONTROL	0x04	/* Control, not a command */
 #define		CAM_ATAIO_NEEDRESULT	0x08	/* Request requires result. */
+#define		CAM_ATAIO_DMA		0x10	/* DMA command */
 
 	u_int8_t	command;
 	u_int8_t	features;
@@ -80,8 +85,36 @@ struct ata_res {
 	u_int8_t	sector_count_exp;
 };
 
+struct sep_identify_data {
+	uint8_t		length;		/* Enclosure descriptor length */
+	uint8_t		subenc_id;	/* Sub-enclosure identifier */
+	uint8_t		logical_id[8];	/* Enclosure logical identifier (WWN) */
+	uint8_t		vendor_id[8];	/* Vendor identification string */
+	uint8_t		product_id[16];	/* Product identification string */
+	uint8_t		product_rev[4];	/* Product revision string */
+	uint8_t		channel_id;	/* Channel identifier */
+	uint8_t		firmware_rev[4];/* Firmware revision */
+	uint8_t		interface_id[6];/* Interface spec ("S-E-S "/"SAF-TE")*/
+	uint8_t		interface_rev[4];/* Interface spec revision */
+	uint8_t		vend_spec[11];	/* Vendor specific information */
+};
+
 int	ata_version(int ver);
+
+char *	ata_op_string(struct ata_cmd *cmd);
+char *	ata_cmd_string(struct ata_cmd *cmd, char *cmd_string, size_t len);
+void	ata_cmd_sbuf(struct ata_cmd *cmd, struct sbuf *sb);
+char *	ata_res_string(struct ata_res *res, char *res_string, size_t len);
+int	ata_command_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
+int	ata_status_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
+int	ata_res_sbuf(struct ata_res *res, struct sbuf *sb);
+
 void	ata_print_ident(struct ata_params *ident_data);
+void	ata_print_ident_short(struct ata_params *ident_data);
+
+uint32_t	ata_logical_sector_size(struct ata_params *ident_data);
+uint64_t	ata_physical_sector_size(struct ata_params *ident_data);
+uint64_t	ata_logical_sector_offset(struct ata_params *ident_data);
 
 void	ata_28bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
     uint32_t lba, uint8_t sector_count);
@@ -91,7 +124,12 @@ void	ata_ncq_cmd(struct ccb_ataio *ataio, uint8_t cmd,
     uint64_t lba, uint16_t sector_count);
 void	ata_reset_cmd(struct ccb_ataio *ataio);
 void	ata_pm_read_cmd(struct ccb_ataio *ataio, int reg, int port);
-void	ata_pm_write_cmd(struct ccb_ataio *ataio, int reg, int port, uint64_t val);
+void	ata_pm_write_cmd(struct ccb_ataio *ataio, int reg, int port, uint32_t val);
+void	ata_read_log(struct ccb_ataio *ataio, uint32_t retries,
+		     void (*cbfcnp)(struct cam_periph *, union ccb *),
+		     uint32_t log_address, uint32_t page_number,
+		     uint16_t block_count, uint32_t protocol,
+		     uint8_t *data_ptr, uint32_t dxfer_len, uint32_t timeout);
 
 void	ata_bswap(int8_t *buf, int len);
 void	ata_btrim(int8_t *buf, int len);
@@ -100,6 +138,50 @@ void	ata_bpack(int8_t *src, int8_t *dst, int len);
 int	ata_max_pmode(struct ata_params *ap);
 int	ata_max_wmode(struct ata_params *ap);
 int	ata_max_umode(struct ata_params *ap);
-int	ata_max_mode(struct ata_params *ap, int mode, int maxmode);
+int	ata_max_mode(struct ata_params *ap, int maxmode);
+
+char *	ata_mode2string(int mode);
+int	ata_string2mode(char *str);
+u_int	ata_mode2speed(int mode);
+u_int	ata_revision2speed(int revision);
+int	ata_speed2revision(u_int speed);
+
+int	ata_identify_match(caddr_t identbuffer, caddr_t table_entry);
+int	ata_static_identify_match(caddr_t identbuffer, caddr_t table_entry);
+
+void	semb_print_ident(struct sep_identify_data *ident_data);
+void	semb_print_ident_short(struct sep_identify_data *ident_data);
+
+void semb_receive_diagnostic_results(struct ccb_ataio *ataio,
+	u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
+	uint8_t tag_action, int pcv, uint8_t page_code,
+	uint8_t *data_ptr, uint16_t allocation_length, uint32_t timeout);
+
+void semb_send_diagnostic(struct ccb_ataio *ataio,
+	u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
+	uint8_t tag_action, uint8_t *data_ptr, uint16_t param_list_length,
+	uint32_t timeout);
+
+void semb_read_buffer(struct ccb_ataio *ataio,
+	u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
+	uint8_t tag_action, uint8_t page_code,
+	uint8_t *data_ptr, uint16_t allocation_length, uint32_t timeout);
+
+void semb_write_buffer(struct ccb_ataio *ataio,
+	u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
+	uint8_t tag_action, uint8_t *data_ptr, uint16_t param_list_length,
+	uint32_t timeout);
+
+void ata_zac_mgmt_out(struct ccb_ataio *ataio, uint32_t retries, 
+	void (*cbfcnp)(struct cam_periph *, union ccb *),
+	int use_ncq __unused, uint8_t zm_action, uint64_t zone_id,
+	uint8_t zone_flags, uint16_t sector_count, uint8_t *data_ptr,
+	uint32_t dxfer_len, uint32_t timeout);
+
+void ata_zac_mgmt_in(struct ccb_ataio *ataio, uint32_t retries, 
+	void (*cbfcnp)(struct cam_periph *, union ccb *),
+	int use_ncq __unused, uint8_t zm_action, uint64_t zone_id,
+	uint8_t zone_flags, uint8_t *data_ptr, uint32_t dxfer_len,
+	uint32_t timeout);
 
 #endif

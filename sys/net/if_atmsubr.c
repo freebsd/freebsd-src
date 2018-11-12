@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/if_dl.h>
@@ -98,7 +99,7 @@ void	(*atm_harp_event_p)(struct ifnet *, uint32_t, void *);
 
 SYSCTL_NODE(_hw, OID_AUTO, atm, CTLFLAG_RW, 0, "ATM hardware");
 
-MALLOC_DEFINE(M_IFATM, "ifatm", "atm interface internals");
+static MALLOC_DEFINE(M_IFATM, "ifatm", "atm interface internals");
 
 #ifndef ETHERTYPE_IPV6
 #define	ETHERTYPE_IPV6	0x86dd
@@ -121,7 +122,7 @@ MALLOC_DEFINE(M_IFATM, "ifatm", "atm interface internals");
  *		ro->ro_rt must also be NULL.
  */
 int
-atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
+atm_output(struct ifnet *ifp, struct mbuf *m0, const struct sockaddr *dst,
     struct route *ro)
 {
 	u_int16_t etype = 0;			/* if using LLC/SNAP */
@@ -129,7 +130,7 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 	struct atm_pseudohdr atmdst, *ad;
 	struct mbuf *m = m0;
 	struct atmllc *atmllc;
-	struct atmllc *llc_hdr = NULL;
+	const struct atmllc *llc_hdr = NULL;
 	u_int32_t atm_flags;
 
 #ifdef MAC
@@ -173,7 +174,7 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 			 * (atm pseudo header (4) + LLC/SNAP (8))
 			 */
 			bcopy(dst->sa_data, &atmdst, sizeof(atmdst));
-			llc_hdr = (struct atmllc *)(dst->sa_data +
+			llc_hdr = (const struct atmllc *)(dst->sa_data +
 			    sizeof(atmdst));
 			break;
 			
@@ -190,8 +191,8 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 		atm_flags = ATM_PH_FLAGS(&atmdst);
 		if (atm_flags & ATM_PH_LLCSNAP)
 			sz += 8;	/* sizeof snap == 8 */
-		M_PREPEND(m, sz, M_DONTWAIT);
-		if (m == 0)
+		M_PREPEND(m, sz, M_NOWAIT);
+		if (m == NULL)
 			senderr(ENOBUFS);
 		ad = mtod(m, struct atm_pseudohdr *);
 		*ad = atmdst;
@@ -251,7 +252,7 @@ atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
 #ifdef MAC
 	mac_ifnet_create_mbuf(ifp, m);
 #endif
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	if (ng_atm_input_p != NULL) {
 		(*ng_atm_input_p)(ifp, &m, ah, rxhand);
@@ -294,7 +295,7 @@ atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
 			struct atmllc *alc;
 
 			if (m->m_len < sizeof(*alc) &&
-			    (m = m_pullup(m, sizeof(*alc))) == 0)
+			    (m = m_pullup(m, sizeof(*alc))) == NULL)
 				return; /* failed */
 			alc = mtod(m, struct atmllc *);
 			if (bcmp(alc, ATMLLC_HDR, 6)) {
@@ -332,6 +333,7 @@ atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
 			return;
 		}
 	}
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 }
 

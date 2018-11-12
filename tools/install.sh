@@ -29,14 +29,46 @@
 # $FreeBSD$
 
 # parse install's options and ignore them completely.
+dirmode=""
+linkmode=""
 while [ $# -gt 0 ]; do
     case $1 in
-    -[bCcMpSs]) shift;;
-    -[Bfgmo]) shift; shift;;
-    -[Bfgmo]*) shift;;
+    -d) dirmode="YES"; shift;;
+    -[bCcpSsv]) shift;;
+    -[BDfghMmNoTU]) shift; shift;;
+    -[BDfghMmNoTU]*) shift;;
+    -l)
+	shift
+	case $1 in
+	*[sm]*) linkmode="symbolic";;	# XXX: 'm' should prefer hard
+	*h*) linkmode="hard";;
+	*) echo "invalid link mode"; exit 1;;
+	esac
+	shift
+	;;
     *) break;
     esac
 done
 
+if [ "$#" -eq 0 ]; then
+	echo "$0: no files/dirs specified" >&2
+	exit 1
+fi
+
+if [ -z "$dirmode" ] && [ "$#" -lt 2 ]; then
+	echo "$0: no target specified" >&2
+	exit 1
+fi
+
 # the remaining arguments are assumed to be files/dirs only.
-exec install -p $*
+if [ -n "${linkmode}" ]; then
+	if [ "${linkmode}" = "symbolic" ]; then
+		ln -fsn "$@"
+	else
+		ln -f "$@"
+	fi
+elif [ -z "$dirmode" ]; then
+	exec install -p "$@"
+else
+	exec install -d "$@"
+fi

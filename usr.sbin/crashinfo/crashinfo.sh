@@ -35,6 +35,22 @@ usage()
 	exit 1
 }
 
+# Run a single gdb command against a kernel file in batch mode.
+# The kernel file is specified as the first argument and the command
+# is given in the remaining arguments.
+gdb_command()
+{
+	local k
+
+	k=$1 ; shift
+
+	if [ -x /usr/local/bin/gdb ]; then
+		/usr/local/bin/gdb -batch -ex "$@" $k
+	else
+		echo -e "$@" | /usr/bin/gdb -x /dev/stdin -batch $k
+	fi
+}
+
 find_kernel()
 {
 	local ivers k kvers
@@ -45,17 +61,18 @@ find_kernel()
 		nextline=1
 		next
 	}
-	// {
-		if (nextline) {
-			print
+	nextline==1 {
+		if ($0 ~ "^  [A-Za-z ]+: ") {
 			nextline=0
+		} else {
+			print
 		}
 	}' $INFO)
 
 	# Look for a matching kernel version.
-	for k in /boot/kernel/kernel $(ls -t /boot/*/kernel); do
-		kvers=$(echo 'printf "  Version String: %s", version' | \
-		    gdb -x /dev/stdin -batch $k 2>/dev/null)
+	for k in `sysctl -n kern.bootfile` $(ls -t /boot/*/kernel); do
+		kvers=$(gdb_command $k 'printf "  Version String: %s", version' \
+		     2>/dev/null)
 		if [ "$ivers" = "$kvers" ]; then
 			KERNEL=$k
 			break
@@ -147,12 +164,13 @@ fi
 
 echo "Writing crash summary to $FILE."
 
+umask 077
+
 # Simulate uname
-ostype=$(echo -e printf '"%s", ostype' | gdb -x /dev/stdin -batch $KERNEL)
-osrelease=$(echo -e printf '"%s", osrelease' | gdb -x /dev/stdin -batch $KERNEL)
-version=$(echo -e printf '"%s", version' | gdb -x /dev/stdin -batch $KERNEL | \
-    tr '\t\n' '  ')
-machine=$(echo -e printf '"%s", machine' | gdb -x /dev/stdin -batch $KERNEL)
+ostype=$(gdb_command $KERNEL 'printf "%s", ostype')
+osrelease=$(gdb_command $KERNEL 'printf "%s", osrelease')
+version=$(gdb_command $KERNEL 'printf "%s", version' | tr '\t\n' '  ')
+machine=$(gdb_command $KERNEL 'printf "%s", machine')
 
 exec > $FILE 2>&1
 
@@ -171,16 +189,20 @@ file=`mktemp /tmp/crashinfo.XXXXXX`
 if [ $? -eq 0 ]; then
 	echo "bt" >> $file
 	echo "quit" >> $file
-	kgdb $KERNEL $VMCORE < $file
+	if [ -x /usr/local/bin/kgdb ]; then
+		/usr/local/bin/kgdb $KERNEL $VMCORE < $file
+	else
+		kgdb $KERNEL $VMCORE < $file
+	fi
 	rm -f $file
 	echo
 fi
 echo
 
 echo "------------------------------------------------------------------------"
-echo "ps -axl"
+echo "ps -axlww"
 echo
-ps -M $VMCORE -N $KERNEL -axl
+ps -M $VMCORE -N $KERNEL -axlww
 echo
 
 echo "------------------------------------------------------------------------"
@@ -265,18 +287,6 @@ netstat -M $VMCORE -N $KERNEL -m
 echo
 
 echo "------------------------------------------------------------------------"
-echo "netstat -id"
-echo
-netstat -M $VMCORE -N $KERNEL -id
-echo
-
-echo "------------------------------------------------------------------------"
-echo "netstat -anr"
-echo
-netstat -M $VMCORE -N $KERNEL -anr
-echo
-
-echo "------------------------------------------------------------------------"
 echo "netstat -anA"
 echo
 netstat -M $VMCORE -N $KERNEL -anA
@@ -304,3 +314,10 @@ echo "------------------------------------------------------------------------"
 echo "kernel config"
 echo
 config -x $KERNEL
+
+echo
+echo "------------------------------------------------------------------------"
+echo "ddb capture buffer"
+echo
+
+ddb capture -M $VMCORE -N $KERNEL print

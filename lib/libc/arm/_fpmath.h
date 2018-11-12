@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#if defined(__VFP_FP__)
+#if defined(__VFP_FP__) || defined(__ARM_EABI__)
 #define	_IEEE_WORD_ORDER	_BYTE_ORDER
 #else
 #define	_IEEE_WORD_ORDER	_BIG_ENDIAN
@@ -55,9 +55,10 @@ union IEEEl2bits {
 };
 
 #define	LDBL_NBIT	0
+#define	LDBL_IMPLICIT_NBIT
 #define	mask_nbit_l(u)	((void)0)
 
-#define	LDBL_MANH_SIZE	32
+#define	LDBL_MANH_SIZE	20
 #define	LDBL_MANL_SIZE	32
 
 #define	LDBL_TO_ARRAY32(u, a) do {			\

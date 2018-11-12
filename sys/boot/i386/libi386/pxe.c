@@ -72,7 +72,7 @@ static void	bangpxe_call(int func);
 
 static int	pxe_init(void);
 static int	pxe_strategy(void *devdata, int flag, daddr_t dblk,
-			     size_t size, char *buf, size_t *rsize);
+			     size_t offset, size_t size, char *buf, size_t *rsize);
 static int	pxe_open(struct open_file *f, ...);
 static int	pxe_close(struct open_file *f);
 static void	pxe_print(int verbose);
@@ -87,6 +87,12 @@ static int	pxe_netif_get(struct iodesc *desc, void *pkt, size_t len,
 			      time_t timeout);
 static int	pxe_netif_put(struct iodesc *desc, void *pkt, size_t len);
 static void	pxe_netif_end(struct netif *nif);
+
+#ifdef OLD_NFSV2
+int nfs_getrootfh(struct iodesc*, char*, u_char*);
+#else
+int nfs_getrootfh(struct iodesc*, char*, uint32_t*, u_char*);
+#endif
 
 extern struct netif_stats	pxe_st[];
 extern u_int16_t		__bangpxeseg;
@@ -241,7 +247,7 @@ pxe_init(void)
 
 
 static int
-pxe_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
+pxe_strategy(void *devdata, int flag, daddr_t dblk, size_t offset, size_t size,
 		char *buf, size_t *rsize)
 {
 	return (EIO);
@@ -282,7 +288,14 @@ pxe_open(struct open_file *f, ...)
 		bootp(pxe_sock, BOOTP_PXE);
 		if (rootip.s_addr == 0)
 			rootip.s_addr = bootplayer.sip;
-		if (!rootpath[0])
+
+		netproto = NET_NFS;
+		if (tftpip.s_addr != 0) {
+			netproto = NET_TFTP;
+			rootip.s_addr = tftpip.s_addr;
+		}
+
+		if (netproto == NET_NFS && !rootpath[0])
 			strcpy(rootpath, PXENFSROOTPATH);
 
 		for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)
@@ -295,10 +308,6 @@ pxe_open(struct open_file *f, ...)
 			bcopy(&rootpath[i], &temp[0], strlen(&rootpath[i])+1);
 			bcopy(&temp[0], &rootpath[0], strlen(&rootpath[i])+1);
 		}
-		printf("pxe_open: server addr: %s\n", inet_ntoa(rootip));
-		printf("pxe_open: server path: %s\n", rootpath);
-		printf("pxe_open: gateway ip:  %s\n", inet_ntoa(gateip));
-
 		setenv("boot.netif.ip", inet_ntoa(myip), 1);
 		setenv("boot.netif.netmask", intoa(netmask), 1);
 		setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
@@ -306,9 +315,29 @@ pxe_open(struct open_file *f, ...)
 		    sprintf(temp, "%6D", bootplayer.CAddr, ":");
 		    setenv("boot.netif.hwaddr", temp, 1);
 		}
-		setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
-		setenv("boot.nfsroot.path", rootpath, 1);
+		if (intf_mtu != 0) {
+			char mtu[16];
+			sprintf(mtu, "%u", intf_mtu);
+			setenv("boot.netif.mtu", mtu, 1);
+		}
+		printf("pxe_open: server addr: %s\n", inet_ntoa(rootip));
+		printf("pxe_open: server path: %s\n", rootpath);
+		printf("pxe_open: gateway ip:  %s\n", inet_ntoa(gateip));
+
+		if (netproto == NET_NFS) {
+			setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
+			setenv("boot.nfsroot.path", rootpath, 1);
+		} else if (netproto == NET_TFTP) {
+			setenv("boot.netif.server", inet_ntoa(rootip), 1);
+			setenv("boot.tftproot.path", rootpath, 1);
+		}
 		setenv("dhcp.host-name", hostname, 1);
+
+		setenv("pxeboot.ip", inet_ntoa(myip), 1);
+		if (bootplayer.Hardware == ETHER_TYPE) {
+		    sprintf(temp, "%6D", bootplayer.CAddr, ":");
+		    setenv("pxeboot.hwaddr", temp, 1);
+		}
 	}
     }
     pxe_opens++;
@@ -335,10 +364,10 @@ pxe_close(struct open_file *f)
     if (pxe_opens > 0)
 	return(0);
 
-#ifdef LOADER_NFS_SUPPORT
-    /* get an NFS filehandle for our root filesystem */
-    pxe_setnfshandle(rootpath);
-#endif
+    if (netproto == NET_NFS) {
+	/* get an NFS filehandle for our root filesystem */
+	pxe_setnfshandle(rootpath);
+    }
 
     if (pxe_sock >= 0) {
 
@@ -355,18 +384,11 @@ pxe_close(struct open_file *f)
 static void
 pxe_print(int verbose)
 {
-	if (pxe_call != NULL) {
-		if (*bootplayer.Sname == '\0') {
-			printf("      "IP_STR":%s\n",
-			       IP_ARGS(htonl(bootplayer.sip)),
-			       bootplayer.bootfile);
-		} else {
-			printf("      %s:%s\n", bootplayer.Sname,
-			       bootplayer.bootfile);
-		}
-	}
 
-	return;
+	if (pxe_call == NULL)
+		return;
+
+	printf("    pxe0:    %s:%s\n", inet_ntoa(rootip), rootpath);
 }
 
 static void
@@ -409,6 +431,7 @@ pxe_perror(int err)
  * Reach inside the libstand NFS code and dig out an NFS handle
  * for the root filesystem.
  */
+#ifdef OLD_NFSV2
 struct nfs_iodesc {
 	struct	iodesc	*iodesc;
 	off_t	off;
@@ -456,6 +479,64 @@ pxe_setnfshandle(char *rootpath)
 	sprintf(cp, "X");
 	setenv("boot.nfsroot.nfshandle", buf, 1);
 }
+#else	/* !OLD_NFSV2 */
+
+#define	NFS_V3MAXFHSIZE		64
+
+struct nfs_iodesc {
+	struct iodesc *iodesc;
+	off_t off;
+	uint32_t fhsize;
+	u_char fh[NFS_V3MAXFHSIZE];
+	/* structure truncated */
+};
+extern struct nfs_iodesc nfs_root_node;
+extern int rpc_port;
+
+static void
+pxe_rpcmountcall()
+{
+	struct iodesc *d;
+	int error;
+
+	if (!(d = socktodesc(pxe_sock)))
+		return;
+        d->myport = htons(--rpc_port);
+        d->destip = rootip;
+	if ((error = nfs_getrootfh(d, rootpath, &nfs_root_node.fhsize,
+	    nfs_root_node.fh)) != 0) {
+		printf("NFS MOUNT RPC error: %d\n", error);
+		nfs_root_node.fhsize = 0;
+	}
+	nfs_root_node.iodesc = d;
+}
+
+static void
+pxe_setnfshandle(char *rootpath)
+{
+	int i;
+	u_char *fh;
+	char buf[2 * NFS_V3MAXFHSIZE + 3], *cp;
+
+	/*
+	 * If NFS files were never opened, we need to do mount call
+	 * ourselves. Use nfs_root_node.iodesc as flag indicating
+	 * previous NFS usage.
+	 */
+	if (nfs_root_node.iodesc == NULL)
+		pxe_rpcmountcall();
+
+	fh = &nfs_root_node.fh[0];
+	buf[0] = 'X';
+	cp = &buf[1];
+	for (i = 0; i < nfs_root_node.fhsize; i++, cp += 2)
+		sprintf(cp, "%02x", fh[i]);
+	sprintf(cp, "X");
+	setenv("boot.nfsroot.nfshandle", buf, 1);
+	sprintf(buf, "%d", nfs_root_node.fhsize);
+	setenv("boot.nfsroot.nfshandlelen", buf, 1);
+}
+#endif	/* OLD_NFSV2 */
 
 void
 pxenv_call(int func)
@@ -505,7 +586,7 @@ bangpxe_call(int func)
 
 
 time_t
-getsecs()
+getsecs(void)
 {
 	time_t n = 0;
 	time(&n);

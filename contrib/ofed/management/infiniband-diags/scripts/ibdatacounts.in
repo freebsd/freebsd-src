@@ -1,0 +1,164 @@
+#!/bin/sh
+
+IBPATH=${IBPATH:-@IBSCRIPTPATH@}
+
+function usage() {
+	echo Usage: `basename $0` "[-h] [-b] [-v] [-G] [-N | -nocolor]" \
+	    "[-C ca_name] [-P ca_port] [-t(imeout) timeout_ms] <lid|guid>" \
+	    "[<port>]"
+	exit -1
+}
+
+function green() {
+	if [ "$bw" = "yes" ]; then
+		if [ "$verbose" = "yes" ]; then
+			echo $1
+		fi
+		return
+	fi
+	if [ "$verbose" = "yes" ]; then
+		echo -e "\\033[1;032m" $1 "\\033[0;39m"
+	fi
+}
+
+function red() {
+	if [ "$bw" = "yes" ]; then
+		echo $1
+		return
+	fi
+	echo -e "\\033[1;031m" $1 "\\033[0;39m"
+}
+
+guid_addr=""
+bw=""
+verbose=""
+brief=""
+ca_info=""
+
+while [ "$1" ]; do
+	case $1 in
+	-G)
+		guid_addr=yes
+		;;
+	-nocolor|-N)
+		bw=yes
+		;;
+	-v)
+		verbose=yes
+		brief=""
+		;;
+	-b)
+		brief=yes
+		verbose=""
+		;;
+	-P | -C | -t | -timeout)
+		case $2 in
+		-*)
+			usage
+			;;
+		esac
+		if [ x$2 = x ] ; then
+			usage
+		fi
+		ca_info="$ca_info $1 $2"
+		shift
+		;;
+	-*)
+		usage
+		;;
+	*)
+		break
+		;;
+	esac
+	shift
+done
+
+#default is all ports
+portnum=255
+
+if [ $# -lt 1 ]; then
+	usage
+fi
+
+if [ "$2" ]; then
+	portnum=$2
+fi
+
+if [ "$portnum" = "255" ]; then
+	portname="all"
+else
+	portname=$2
+fi
+
+if [ "$guid_addr" ]; then
+	if ! lid=`$IBPATH/ibaddr $ca_info -G -L $1 | awk '/failed/{exit -1} {print $3}'`; then
+		echo -n "guid $1 address resolution: "
+		red "FAILED"
+		exit -1
+	fi
+	guid=$1
+else
+	lid=$1
+	if ! temp=`$IBPATH/ibaddr $ca_info -L $1 | awk '/failed/{exit -1} {print $1}'`; then
+		echo -n "lid $1 address resolution: "
+		red "FAILED"
+		exit -1
+	fi
+fi
+
+nodename=`smpquery $ca_info nodedesc $lid | sed -e "s/^Node Description:\.*\(.*\)/\1/"`
+
+text="`eval $IBPATH/perfquery $ca_info $lid $portnum`"
+rv=$?
+if echo "$text" | awk -v mono=$bw -v brief=$brief -F '[.:]*' '
+function blue(s)
+{
+	if (brief == "yes") {
+		return
+	}
+	if (mono)
+		printf s
+	else if (!quiet) {
+		printf "\033[1;034m" s
+		printf "\033[0;39m"
+	}
+}
+
+# Only display Xmit/Rcv Pkts/Data
+
+/^# Port counters/ {print}
+
+/^CounterSelect/ {next}
+
+/AllPortSelect/ {next}
+
+/^ib/	{print $0; next}
+/ibpanic:/	{print $0}
+/ibwarn:/	{print $0}
+/iberror:/	{print $0}
+
+/^PortSelect/	{ if ($2 != '$portnum') {err = err "error: lid '$lid' port " $2 " does not match query ('$portnum')\n"; exit -1}}
+
+$1 ~ "(Xmt|Rcv)(Pkts|Data)" { print $1 ":........................." $2 }
+
+END {
+	if (err != "") {
+		blue(err)
+		exit -1
+	}
+	if (warn != "") {
+		blue(warn)
+		exit -1
+	}
+	exit 0
+}' 2>&1 && test $rv -eq 0 ; then
+	if [ "$verbose" = "yes" ]; then
+		echo -n "Error on lid $lid ($nodename) port $portname: "
+		green OK
+	fi
+	exit 0
+else
+	echo -n "Error on lid $lid ($nodename) port $portname: "
+	red FAILED
+	exit -1
+fi

@@ -12,10 +12,9 @@ CFLAGS+=	 -g -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith -
 # Uncomment for ElectricFence
 #LDADD += -lefence -L/usr/local/lib
 
-DPADD += ${LIBBSDXML}
-LDADD += -lbsdxml
+LIBADD= bsdxml
 
-NO_MAN=
+MAN=
 CLEANFILES	+= _*
 
 .include <bsd.prog.mk>

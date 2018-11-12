@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2000 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -22,7 +22,7 @@ ifelse(defn(`_ARG_'), `', `errprint(`Feature "nullclient" requires argument')',
 #
 
 divert(0)
-VERSIONID(`$Id: nullclient.m4,v 8.24 2000/09/17 17:30:00 gshapiro Exp $')
+VERSIONID(`$Id: nullclient.m4,v 8.25 2013-11-22 20:51:11 ca Exp $')
 divert(-1)
 
 undefine(`ALIAS_FILE')

@@ -43,7 +43,7 @@
 .\" this program; if not, write to the Free Software Foundation, Inc., 59
 .\" Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 .\"
-.Dd May 20, 2006
+.Dd February 8, 2012
 .Dt LMC 4
 .Os
 .\"
@@ -179,7 +179,7 @@ higher-level issues like protocol multiplexing and security.
 This driver is compatible with several line protocol packages:
 .Bl -tag -width "Generic HDLC"
 .It Sy "Netgraph"
-.Xr Netgraph 4
+.Xr netgraph 4
 implements many basic packet-handling functions as kernel loadable modules.
 They can be interconnected in a graph to implement many protocols.
 Configuration is done from userland without rebuilding the kernel.
@@ -407,7 +407,7 @@ When testing an HSSI card with a null modem cable, configure it
 with
 .Xr lmcconfig 8 :
 .Pp
-.Dl "lmcconfig lmc0 -a 2
+.Dl "lmcconfig lmc0 -a 2"
 .Pp
 .Dq Fl a Li 2
 selects the PCI bus clock as the transmit clock.
@@ -517,7 +517,7 @@ packets occasionally.
 .Ss Device Polling
 .\"
 A T3 receiver can generate over 100K interrupts per second,
-This can cause a system to
+this can cause a system to
 .Dq live-lock :
 spend all of its
 time servicing interrupts.
@@ -723,8 +723,6 @@ Thus, cable length does not affect data/clock timing.
 .Xr ngctl 8 ,
 .Xr ping 8 ,
 .Xr ifnet 9
-.Pp
-.Pa http://www.sbei.com/
 .\"
 .Sh HISTORY
 .\"
@@ -763,4 +761,4 @@ rewrote everything and now feels responsible for it.
 .\"
 .Sh AUTHORS
 .\"
-.An "David Boggs" Aq boggs@boggs.palo-alto.ca.us
+.An David Boggs Aq Mt boggs@boggs.palo-alto.ca.us

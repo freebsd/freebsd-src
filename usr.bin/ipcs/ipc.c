@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * The split of ipcs.c into ipcs.c and ipc.c to accomodate the
+ * The split of ipcs.c into ipcs.c and ipc.c to accommodate the
  * changes in ipcrm.c was done by Edwin Groothuis <edwin@FreeBSD.org>
  */
 
@@ -55,16 +55,15 @@ struct msginfo		msginfo;
 struct msqid_kernel	*msqids;
 struct shminfo		shminfo;
 struct shmid_kernel	*shmsegs;
-void	kget(int idx, void *addr, size_t size);
 
 struct nlist symbols[] = {
-	{"sema"},
-	{"seminfo"},
-	{"msginfo"},
-	{"msqids"},
-	{"shminfo"},
-	{"shmsegs"},
-	{NULL}
+	{ .n_name = "sema" },
+	{ .n_name = "seminfo" },
+	{ .n_name = "msginfo" },
+	{ .n_name = "msqids" },
+	{ .n_name = "shminfo" },
+	{ .n_name = "shmsegs" },
+	{ .n_name = NULL }
 };
 
 #define	SHMINFO_XVEC	X(shmmax, sizeof(u_long))			\
@@ -73,8 +72,7 @@ struct nlist symbols[] = {
 			X(shmseg, sizeof(u_long))			\
 			X(shmall, sizeof(u_long))
 
-#define	SEMINFO_XVEC	X(semmap, sizeof(int))				\
-			X(semmni, sizeof(int))				\
+#define	SEMINFO_XVEC	X(semmni, sizeof(int))				\
 			X(semmns, sizeof(int))				\
 			X(semmnu, sizeof(int))				\
 			X(semmsl, sizeof(int))				\
@@ -93,13 +91,13 @@ struct nlist symbols[] = {
 
 #define	X(a, b)	{ "kern.ipc." #a, offsetof(TYPEC, a), (b) },
 #define	TYPEC	struct shminfo
-struct scgs_vector shminfo_scgsv[] = { SHMINFO_XVEC { NULL } };
+static struct scgs_vector shminfo_scgsv[] = { SHMINFO_XVEC { .sysctl=NULL } };
 #undef	TYPEC
 #define	TYPEC	struct seminfo
-struct scgs_vector seminfo_scgsv[] = { SEMINFO_XVEC { NULL } };
+static struct scgs_vector seminfo_scgsv[] = { SEMINFO_XVEC { .sysctl=NULL } };
 #undef	TYPEC
 #define	TYPEC	struct msginfo
-struct scgs_vector msginfo_scgsv[] = { MSGINFO_XVEC { NULL } };
+static struct scgs_vector msginfo_scgsv[] = { MSGINFO_XVEC { .sysctl=NULL } };
 #undef	TYPEC
 #undef	X
 
@@ -120,7 +118,7 @@ sysctlgatherstruct(void *addr, size_t size, struct scgs_vector *vecarr)
 		if (rv == -1)
 			err(1, "sysctlbyname: %s", xp->sysctl);
 		if (tsiz != xp->size)
-			errx(1, "%s size mismatch (expected %d, got %d)",
+			errx(1, "%s size mismatch (expected %zu, got %zu)",
 			    xp->sysctl, xp->size, tsiz);
 	}
 }
@@ -128,7 +126,7 @@ sysctlgatherstruct(void *addr, size_t size, struct scgs_vector *vecarr)
 void
 kget(int idx, void *addr, size_t size)
 {
-	char *symn;			/* symbol name */
+	const char *symn;		/* symbol name */
 	size_t tsiz;
 	int rv;
 	unsigned long kaddr;
@@ -199,7 +197,7 @@ kget(int idx, void *addr, size_t size)
 				err(1, "sysctlbyname: %s", sym2sysctl[idx]);
 			if (tsiz != size)
 				errx(1, "%s size mismatch "
-				    "(expected %d, got %d)",
+				    "(expected %zu, got %zu)",
 				    sym2sysctl[idx], size, tsiz);
 			break;
 		}

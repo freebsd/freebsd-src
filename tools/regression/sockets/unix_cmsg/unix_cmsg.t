@@ -11,47 +11,78 @@ n=0
 
 run()
 {
-	result=`${cmd} -t $2 $3 $4 2>&1`
-	if [ $? -eq 0 ]; then
-		echo -n "ok $1"
-	else
-		echo -n "not ok $1"
+	result=`${cmd} -t $2 $3 ${5%% *} 2>&1`
+	if [ $? -ne 0 ]; then
+		echo -n "not "
 	fi
-	echo " -" $5
+	echo "ok $1 - $4 ${5#* }"
 	echo ${result} | grep -E "SERVER|CLIENT" | while read line; do
 		echo "# ${line}"
 	done
 }
 
-echo "1..15"
+echo "1..47"
 
-for desc in \
-	"Sending, receiving cmsgcred" \
-	"Receiving sockcred (listening socket has LOCAL_CREDS) # TODO" \
-	"Receiving sockcred (accepted socket has LOCAL_CREDS) # TODO" \
-	"Sending cmsgcred, receiving sockcred # TODO" \
-	"Sending, receiving timestamp"
+for t1 in \
+	"1 Sending, receiving cmsgcred" \
+	"4 Sending cmsgcred, receiving sockcred" \
+	"5 Sending, receiving timeval" \
+	"6 Sending, receiving bintime" \
+	"7 Check cmsghdr.cmsg_len"
 do
-	n=`expr ${n} + 1`
-	run ${n} stream "" ${n} "STREAM ${desc}"
+	for t2 in \
+		"0 " \
+		"1 (no data)" \
+		"2 (no array)" \
+		"3 (no data, array)"
+	do
+		n=$((n + 1))
+		run ${n} stream "-z ${t2%% *}" STREAM "${t1} ${t2#* }"
+	done
 done
 
-i=0
-for desc in \
-	"Sending, receiving cmsgcred" \
-	"Receiving sockcred # TODO" \
-	"Sending cmsgcred, receiving sockcred # TODO" \
-	"Sending, receiving timestamp"
+for t1 in \
+	"2 Receiving sockcred (listening socket)" \
+	"3 Receiving sockcred (accepted socket)"
 do
-	i=`expr ${i} + 1`
-	n=`expr ${n} + 1`
-	run ${n} dgram "" ${i} "DGRAM ${desc}"
+	for t2 in \
+		"0 " \
+		"1 (no data)"
+	do
+		n=$((n + 1))
+		run ${n} stream "-z ${t2%% *}" STREAM "${t1} ${t2#* }"
+	done
 done
 
-run 10 stream -z 1 "STREAM Sending, receiving cmsgcred (no control data)"
-run 11 stream -z 4 "STREAM Sending cmsgcred, receiving sockcred (no control data) # TODO"
-run 12 stream -z 5 "STREAM Sending, receiving timestamp (no control data)"
+n=$((n + 1))
+run ${n} stream "-z 0" STREAM "8 Check LOCAL_PEERCRED socket option"
 
-run 13 dgram -z 1 "DGRAM Sending, receiving cmsgcred (no control data)"
-run 14 dgram -z 3 "DGRAM Sending cmsgcred, receiving sockcred (no control data) # TODO"
-run 15 dgram -z 4 "DGRAM Sending, receiving timestamp (no control data)"
+for t1 in \
+	"1 Sending, receiving cmsgcred" \
+	"3 Sending cmsgcred, receiving sockcred" \
+	"4 Sending, receiving timeval" \
+	"5 Sending, receiving bintime" \
+	"6 Check cmsghdr.cmsg_len"
+do
+	for t2 in \
+		"0 " \
+		"1 (no data)" \
+		"2 (no array)" \
+		"3 (no data, array)"
+	do
+		n=$((n + 1))
+		run ${n} dgram "-z ${t2%% *}" DGRAM "${t1} ${t2#* }"
+	done
+done
+
+for t1 in \
+	"2 Receiving sockcred"
+do
+	for t2 in \
+		"0 " \
+		"1 (no data)"
+	do
+		n=$((n + 1))
+		run ${n} dgram "-z ${t2%% *}" DGRAM "${t1} ${t2#* }"
+	done
+done

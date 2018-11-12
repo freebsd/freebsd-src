@@ -9,10 +9,9 @@
 
 . /etc/rc.subr
 
-name="gssd"
+name=gssd
+desc="Generic Security Services Daemon"
+rcvar=gssd_enable
 
 load_rc_config $name
-rcvar="gssd_enable"
-command="${gssd:-/usr/sbin/${name}}"
-eval ${name}_flags=\"${gssd_flags}\"
 run_rc_command "$1"

@@ -23,6 +23,19 @@
 #include "opt_ah.h"		/* NB: required for AH_SUPPORT_AR5416 */
 
 /*
+ * For now, define this for the structure definitions.
+ * Because of how the HAL / driver module currently builds,
+ * it's not very feasible to build the module without
+ * this defined.  The rest of the code (eg in the driver
+ * body) can work fine with these fields being uninitialised;
+ * they'll be initialised to 0 anyway.
+ */
+
+#ifndef	AH_SUPPORT_AR5416
+#define	AH_SUPPORT_AR5416	1
+#endif
+
+/*
  * Transmit descriptor status.  This structure is filled
  * in only after the tx descriptor process method finds a
  * ``done'' descriptor; at which point it returns something
@@ -33,7 +46,8 @@
  */
 struct ath_tx_status {
 	uint16_t	ts_seqnum;	/* h/w assigned sequence number */
-	uint16_t	ts_tstamp;	/* h/w assigned timestamp */
+	uint16_t	ts_pad1[1];
+	uint32_t	ts_tstamp;	/* h/w assigned timestamp */
 	uint8_t		ts_status;	/* frame status, 0 => xmit ok */
 	uint8_t		ts_rate;	/* h/w transmit rate index */
 	int8_t		ts_rssi;	/* tx ack RSSI */
@@ -44,15 +58,19 @@ struct ath_tx_status {
 	uint8_t		ts_finaltsi;	/* final transmit series index */
 #ifdef AH_SUPPORT_AR5416
 					/* 802.11n status */
-	uint8_t    	ts_flags;   	/* misc flags */
-	int8_t      	ts_rssi_ctl[3];	/* tx ack RSSI [ctl, chain 0-2] */
-	int8_t      	ts_rssi_ext[3];	/* tx ack RSSI [ext, chain 0-2] */
+	uint8_t		ts_flags;	/* misc flags */
+	uint8_t		ts_queue_id;	/* AR9300: TX queue id */
+	uint8_t		ts_desc_id;	/* AR9300: TX descriptor id */
+	uint8_t		ts_tid;		/* TID */
 /* #define ts_rssi ts_rssi_combined */
-	uint32_t   	ts_ba_low;	/* blockack bitmap low */
-	uint32_t   	ts_ba_high;	/* blockack bitmap high */
-	uint32_t  	ts_evm0;	/* evm bytes */
-	uint32_t   	ts_evm1;
-	uint32_t   	ts_evm2;
+	uint32_t	ts_ba_low;	/* blockack bitmap low */
+	uint32_t	ts_ba_high;	/* blockack bitmap high */
+	uint32_t	ts_evm0;	/* evm bytes */
+	uint32_t	ts_evm1;
+	uint32_t	ts_evm2;
+	int8_t		ts_rssi_ctl[3];	/* tx ack RSSI [ctl, chain 0-2] */
+	int8_t		ts_rssi_ext[3];	/* tx ack RSSI [ext, chain 0-2] */
+	uint8_t		ts_pad[2];
 #endif /* AH_SUPPORT_AR5416 */
 };
 
@@ -69,6 +87,7 @@ struct ath_tx_status {
 #define	HAL_TX_DESC_CFG_ERR	0x10	/* Error in 20/40 desc config */
 #define	HAL_TX_DATA_UNDERRUN	0x20	/* Tx buffer underrun */
 #define	HAL_TX_DELIM_UNDERRUN	0x40	/* Tx delimiter underrun */
+#define	HAL_TX_FAST_TS		0x80	/* Tx locationing timestamp */
 
 /*
  * Receive descriptor status.  This structure is filled
@@ -108,11 +127,17 @@ struct ath_rx_status {
 	int8_t		rs_rssi_ext[3];	/* rx frame RSSI [ext, chain 0-2] */
 	uint8_t		rs_isaggr;	/* is part of the aggregate */
 	uint8_t		rs_moreaggr;	/* more frames in aggr to follow */
+	uint16_t	rs_flags;	/* misc flags */
 	uint8_t		rs_num_delims;	/* number of delims in aggr */
-	uint8_t		rs_flags;	/* misc flags */
+	uint8_t		rs_spare0;	/* padding */
+	uint8_t		rs_ness;	/* number of extension spatial streams */
+	uint8_t		rs_hw_upload_data_type;	/* hw upload format */
+	uint16_t	rs_spare1;
 	uint32_t	rs_evm0;	/* evm bytes */
 	uint32_t	rs_evm1;
-	uint32_t	rs_evm2;	
+	uint32_t	rs_evm2;
+	uint32_t	rs_evm3;	/* needed for ar9300 and later */
+	uint32_t	rs_evm4;	/* needed for ar9300 and later */
 #endif /* AH_SUPPORT_AR5416 */
 };
 
@@ -122,16 +147,51 @@ struct ath_rx_status {
 #define	HAL_RXERR_FIFO		0x04	/* fifo overrun */
 #define	HAL_RXERR_DECRYPT	0x08	/* non-Michael decrypt error */
 #define	HAL_RXERR_MIC		0x10	/* Michael MIC decrypt error */
+#define	HAL_RXERR_INCOMP	0x20	/* Rx Desc processing is incomplete */
+#define	HAL_RXERR_KEYMISS	0x40	/* Key not found in keycache */
 
 /* bits found in rs_flags */
-#define	HAL_RX_MORE		0x01	/* more descriptors follow */
-#define	HAL_RX_MORE_AGGR	0x02	/* more frames in aggr */
-#define	HAL_RX_GI		0x04	/* full gi */
-#define	HAL_RX_2040		0x08	/* 40 Mhz */
-#define	HAL_RX_DELIM_CRC_PRE	0x10	/* crc error in delimiter pre */
-#define	HAL_RX_DELIM_CRC_POST	0x20	/* crc error in delim after */
-#define	HAL_RX_DECRYPT_BUSY	0x40	/* decrypt was too slow */
-#define	HAL_RX_HI_RX_CHAIN	0x80	/* SM power save: hi Rx chain control */
+#define	HAL_RX_MORE		0x0001	/* more descriptors follow */
+#define	HAL_RX_MORE_AGGR	0x0002	/* more frames in aggr */
+#define	HAL_RX_GI		0x0004	/* full gi */
+#define	HAL_RX_2040		0x0008	/* 40 Mhz */
+#define	HAL_RX_DELIM_CRC_PRE	0x0010	/* crc error in delimiter pre */
+#define	HAL_RX_DELIM_CRC_POST	0x0020	/* crc error in delim after */
+#define	HAL_RX_DECRYPT_BUSY	0x0040	/* decrypt was too slow */
+#define	HAL_RX_HI_RX_CHAIN	0x0080	/* SM power save: hi Rx chain control */
+#define	HAL_RX_IS_APSD		0x0100	/* Is ASPD trigger frame */
+#define	HAL_RX_STBC		0x0200	/* Is an STBC frame */
+#define	HAL_RX_LOC_INFO		0x0400	/* RX locationing information */
+
+#define	HAL_RX_HW_UPLOAD_DATA	0x1000	/* This is a hardware data frame */
+#define	HAL_RX_HW_SOUNDING	0x2000	/* Rx sounding frame (TxBF, positioning) */
+#define	HAL_RX_UPLOAD_VALID	0x4000	/* This hardware data frame is valid */
+
+/*
+ * This is the format of RSSI[2] on the AR9285/AR9485.
+ * It encodes the LNA configuration information.
+ *
+ * For boards with an external diversity antenna switch,
+ * HAL_RX_LNA_EXTCFG encodes which configuration was
+ * used (antenna 1 or antenna 2.)  This feeds into the
+ * switch table and ensures that the given antenna was
+ * connected to an LNA.
+ */
+#define	HAL_RX_LNA_LNACFG	0x80	/* 1 = main LNA config used, 0 = ALT */
+#define	HAL_RX_LNA_EXTCFG	0x40	/* 0 = external diversity ant1, 1 = ant2 */
+#define	HAL_RX_LNA_CFG_USED	0x30	/* 2 bits; LNA config used on RX */
+#define	HAL_RX_LNA_CFG_USED_S		4
+#define	HAL_RX_LNA_CFG_MAIN	0x0c	/* 2 bits; "Main" LNA config */
+#define	HAL_RX_LNA_CFG_ALT	0x02	/* 2 bits; "Alt" LNA config */
+
+/*
+ * This is the format of RSSI_EXT[2] on the AR9285/AR9485.
+ * It encodes the switch table configuration and fast diversity
+ * value.
+ */
+#define	HAL_RX_LNA_FASTDIV	0x40	/* 1 = fast diversity measurement done */
+#define	HAL_RX_LNA_SWITCH_0	0x30	/* 2 bits; sw_0[1:0] */
+#define	HAL_RX_LNA_SWITCH_COM	0x0f	/* 4 bits, sw_com[3:0] */
 
 enum {
 	HAL_PHYERR_UNDERRUN		= 0,	/* Transmit underrun */
@@ -142,7 +202,7 @@ enum {
 	HAL_PHYERR_RADAR		= 5,	/* Radar detect */
 	HAL_PHYERR_SERVICE		= 6,	/* Illegal service */
 	HAL_PHYERR_TOR			= 7,	/* Transmit override receive */
-	/* NB: these are specific to the 5212 */
+	/* NB: these are specific to the 5212 and later */
 	HAL_PHYERR_OFDM_TIMING		= 17,	/* */
 	HAL_PHYERR_OFDM_SIGNAL_PARITY	= 18,	/* */
 	HAL_PHYERR_OFDM_RATE_ILLEGAL	= 19,	/* */
@@ -150,11 +210,20 @@ enum {
 	HAL_PHYERR_OFDM_POWER_DROP	= 21,	/* */
 	HAL_PHYERR_OFDM_SERVICE		= 22,	/* */
 	HAL_PHYERR_OFDM_RESTART		= 23,	/* */
+	HAL_PHYERR_FALSE_RADAR_EXT	= 24,	/* */
 	HAL_PHYERR_CCK_TIMING		= 25,	/* */
 	HAL_PHYERR_CCK_HEADER_CRC	= 26,	/* */
 	HAL_PHYERR_CCK_RATE_ILLEGAL	= 27,	/* */
 	HAL_PHYERR_CCK_SERVICE		= 30,	/* */
 	HAL_PHYERR_CCK_RESTART		= 31,	/* */
+	HAL_PHYERR_CCK_LENGTH_ILLEGAL	= 32,	/* */
+	HAL_PHYERR_CCK_POWER_DROP	= 33,	/* */
+	/* AR5416 and later */
+	HAL_PHYERR_HT_CRC_ERROR		= 34,	/* */
+	HAL_PHYERR_HT_LENGTH_ILLEGAL	= 35,	/* */
+	HAL_PHYERR_HT_RATE_ILLEGAL	= 36,	/* */
+
+	HAL_PHYERR_SPECTRAL		= 38,
 };
 
 /* value found in rs_keyix to mark invalid entries */
@@ -191,6 +260,12 @@ struct ath_desc {
 	uint32_t	ds_hw[HAL_DESC_HW_SIZE];	/* opaque h/w region */
 };
 
+struct ath_desc_txedma {
+	uint32_t	ds_info;
+	uint32_t	ds_link;
+	uint32_t	ds_hw[21];	/* includes buf/len */
+};
+
 struct ath_desc_status {
 	union {
 		struct ath_tx_status tx;/* xmit status */
@@ -202,6 +277,7 @@ struct ath_desc_status {
 #define	ds_rxstat	ds_us.rx
 
 /* flags passed to tx descriptor setup methods */
+/* This is a uint16_t field in ath_buf, just be warned! */
 #define	HAL_TXDESC_CLRDMASK	0x0001	/* clear destination filter mask */
 #define	HAL_TXDESC_NOACK	0x0002	/* don't wait for ACK */
 #define	HAL_TXDESC_RTSENA	0x0004	/* enable RTS */
@@ -213,6 +289,10 @@ struct ath_desc_status {
 #define	HAL_TXDESC_EXT_ONLY	0x0080	/* send on ext channel only (11n) */
 #define	HAL_TXDESC_EXT_AND_CTL	0x0100	/* send on ext + ctl channels (11n) */
 #define	HAL_TXDESC_VMF		0x0200	/* virtual more frag */
+#define	HAL_TXDESC_LOWRXCHAIN	0x0400	/* switch to low RX chain */
+#define	HAL_TXDESC_LDPC		0x1000	/* Set LDPC TX for all rates */
+#define	HAL_TXDESC_HWTS		0x2000	/* Request Azimuth Timestamp in TX payload */
+#define	HAL_TXDESC_POS		0x4000	/* Request ToD/ToA locationing */
 
 /* flags passed to rx descriptor setup methods */
 #define	HAL_RXDESC_INTREQ	0x0020	/* enable per-descriptor interrupt */

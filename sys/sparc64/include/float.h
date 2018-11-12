@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -48,7 +48,7 @@ __END_DECLS
 #define FLT_ROUNDS	__flt_rounds()
 #if __ISO_C_VISIBLE >= 1999
 #define	FLT_EVAL_METHOD	0		/* no promotion */
-#define	DECIMAL_DIG	35		/* max precision in decimal digits */
+#define	DECIMAL_DIG	36		/* max precision in decimal digits */
 #endif
 
 #define FLT_MANT_DIG	24		/* p */
@@ -60,6 +60,11 @@ __END_DECLS
 #define FLT_MAX_EXP	128		/* emax */
 #define FLT_MAX		3.40282347E+38F	/* (1-b**(-p))*b**emax */
 #define FLT_MAX_10_EXP	38		/* floor(log10((1-b**(-p))*b**emax)) */
+#if __ISO_C_VISIBLE >= 2011
+#define	FLT_TRUE_MIN	1.40129846E-45F	/* b**(emin-p) */
+#define	FLT_DECIMAL_DIG	9		/* ceil(1+p*log10(b)) */
+#define	FLT_HAS_SUBNORM	1
+#endif /* __ISO_C_VISIBLE >= 2011 */
 
 #define DBL_MANT_DIG	53
 #define DBL_EPSILON	2.2204460492503131E-16
@@ -70,6 +75,11 @@ __END_DECLS
 #define DBL_MAX_EXP	1024
 #define DBL_MAX		1.7976931348623157E+308
 #define DBL_MAX_10_EXP	308
+#if __ISO_C_VISIBLE >= 2011
+#define	DBL_TRUE_MIN	4.9406564584124654E-324
+#define	DBL_DECIMAL_DIG	17
+#define	DBL_HAS_SUBNORM	1
+#endif /* __ISO_C_VISIBLE >= 2011 */
 
 #define LDBL_MANT_DIG	113
 #define LDBL_EPSILON	1.925929944387235853055977942584927319E-34L
@@ -80,5 +90,10 @@ __END_DECLS
 #define LDBL_MAX_EXP	(+16384)
 #define LDBL_MAX	1.189731495357231765085759326628007016E+4932L
 #define LDBL_MAX_10_EXP	(+4932)
+#if __ISO_C_VISIBLE >= 2011
+#define	LDBL_TRUE_MIN	6.475175119438025110924438958227646552E-4966L
+#define	LDBL_DECIMAL_DIG 36
+#define	LDBL_HAS_SUBNORM 1
+#endif /* __ISO_C_VISIBLE >= 2011 */
 
 #endif	/* _MACHINE_FLOAT_H_ */

@@ -46,9 +46,7 @@
 
 #include <sys/cdefs.h>
 #ifdef _KERNEL
-#ifdef _LOCORE
-#include <machine/psl.h>
-#else
+#ifndef _LOCORE
 #include <machine/cpu.h>
 #endif
 #endif
@@ -59,7 +57,29 @@
 #define	MACHINE		"mips"
 #endif
 #ifndef MACHINE_ARCH
+#if _BYTE_ORDER == _BIG_ENDIAN
+#ifdef __mips_n64
+#define	MACHINE_ARCH	"mips64"
+#ifndef	MACHINE_ARCH32
+#define	MACHINE_ARCH32	"mips"
+#endif
+#elif defined(__mips_n32)
+#define	MACHINE_ARCH	"mipsn32"
+#else
 #define	MACHINE_ARCH	"mips"
+#endif
+#else
+#ifdef __mips_n64
+#define	MACHINE_ARCH	"mips64el"
+#ifndef	MACHINE_ARCH32
+#define	MACHINE_ARCH32	"mipsel"
+#endif
+#elif defined(__mips_n32)
+#define	MACHINE_ARCH	"mipsn32el"
+#else
+#define	MACHINE_ARCH	"mipsel"
+#endif
+#endif
 #endif
 
 /*
@@ -72,11 +92,17 @@
 #define	MID_MACHINE	0	/* None but has to be defined */
 
 #ifdef SMP
-#define	MAXSMPCPU	16
+#define	MAXSMPCPU	32
+#ifndef MAXCPU
 #define	MAXCPU		MAXSMPCPU
+#endif
 #else
 #define	MAXSMPCPU	1
 #define	MAXCPU		1
+#endif
+
+#ifndef MAXMEMDOM
+#define	MAXMEMDOM	1
 #endif
 
 /*
@@ -93,7 +119,7 @@
  * This does not reflect the optimal alignment, just the possibility
  * (within reasonable limits). 
  */
-#define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof (t) - 1)) == 0)
+#define	ALIGNED_POINTER(p, t)	((((unsigned long)(p)) & (sizeof (t) - 1)) == 0)
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
@@ -102,71 +128,60 @@
 #define	CACHE_LINE_SHIFT	6
 #define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
 
-#define	NBPG		4096		/* bytes/page */
-#define	PGOFSET		(NBPG-1)	/* byte offset into page */
-#define	PGSHIFT		12		/* LOG2(NBPG) */
+#define	PAGE_SHIFT		12		/* LOG2(PAGE_SIZE) */
+#define	PAGE_SIZE		(1<<PAGE_SHIFT) /* bytes/page */
+#define	PAGE_MASK		(PAGE_SIZE-1)
 
-#define	PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
-#define	PAGE_SIZE	(1<<PAGE_SHIFT) /* bytes/page */
-#define	PAGE_MASK	(PAGE_SIZE-1)
-#define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
+#define	NPTEPG			(PAGE_SIZE/(sizeof (pt_entry_t)))
+#define	NPDEPG			(PAGE_SIZE/(sizeof (pd_entry_t)))
 
-#define	NBSEG		0x400000	/* bytes/segment */
-#define	SEGOFSET	(NBSEG-1)	/* byte offset into segment */
-#define	SEGSHIFT	22		/* LOG2(NBSEG) */
+#if defined(__mips_n32) || defined(__mips_n64) /*  PHYSADDR_64_BIT */
+#define	NPTEPGSHIFT		9               /* LOG2(NPTEPG) */
+#else
+#define	NPTEPGSHIFT		10               /* LOG2(NPTEPG) */
+#endif
 
-#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
+#ifdef __mips_n64
+#define	NPDEPGSHIFT		9               /* LOG2(NPTEPG) */
+#define	SEGSHIFT		(PAGE_SHIFT + NPTEPGSHIFT + NPDEPGSHIFT)
+#define	NBSEG			(1ul << SEGSHIFT)
+#define	PDRSHIFT		(PAGE_SHIFT + NPTEPGSHIFT)
+#define	PDRSIZE			(1ul << PDRSHIFT)
+#define	PDRMASK			((1 << PDRSHIFT) - 1)
+#else
+#define	NPDEPGSHIFT		10               /* LOG2(NPTEPG) */
+#define	SEGSHIFT		(PAGE_SHIFT + NPTEPGSHIFT)
+#define	NBSEG			(1 << SEGSHIFT)	/* bytes/segment */
+#define	PDRSHIFT		SEGSHIFT	/* alias for SEG in 32 bit */
+#define	PDRSIZE			(1ul << PDRSHIFT)
+#define	PDRMASK			((1 << PDRSHIFT) - 1)
+#endif
+#define	NBPDR			(1 << PDRSHIFT)	/* bytes/pagedir */
+#define	SEGMASK			(NBSEG - 1)	/* byte offset into segment */
 
-/* XXXimp: This has moved to vmparam.h */
-/* Also, this differs from the mips2 definition, but likely is better */
-/* since this means the kernel won't chew up TLBs when it is executing */
-/* code */
-#define	KERNBASE	0x80000000	/* start of kernel virtual */
-#define	BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
+#define	MAXPAGESIZES		1		/* max supported pagesizes */
 
-#define	BLKDEV_IOSIZE	2048		/* xxx: Why is this 1/2 page? */
-#define	MAXDUMPPGS	1		/* xxx: why is this only one? */
-
-/*
- * NOTE: In FreeBSD, Uarea's don't have a fixed address.
- *	 Therefore, any code imported from OpenBSD which depends on
- *	 UADDR, UVPN and KERNELSTACK requires porting.
- * XXX: 3 stack pages?  Not 4 which would be more efficient from a tlb
- * XXX: point of view.
- */
-#define	KSTACK_PAGES		3	/* kernel stack*/
-#define	KSTACK_GUARD_PAGES	0	/* pages of kstack guard; 0 disables */
-
-#define	UPAGES			2
-
-/* pages ("clicks") (4096 bytes) to disk blocks */
-#define	ctod(x)		((x) << (PGSHIFT - DEV_BSHIFT))
-#define	dtoc(x)		((x) >> (PGSHIFT - DEV_BSHIFT))
+#define	MAXDUMPPGS		1		/* xxx: why is this only one? */
 
 /*
- * Map a ``block device block'' to a file system block.
- * This should be device dependent, and should use the bsize
- * field from the disk label.
- * For now though just use DEV_BSIZE.
+ * The kernel stack needs to be aligned on a (PAGE_SIZE * 2) boundary.
  */
-#define	bdbtofsb(bn)	((bn) / (BLKDEV_IOSIZE/DEV_BSIZE))
+#define	KSTACK_PAGES		2	/* kernel stack */
+#define	KSTACK_GUARD_PAGES	2	/* pages of kstack guard; 0 disables */
 
 /*
- * Conversion macros
+ * Mach derived conversion macros
  */
-#define	mips_round_page(x)	((((unsigned)(x)) + NBPG - 1) & ~(NBPG-1))
-#define	mips_trunc_page(x)	((unsigned)(x) & ~(NBPG-1))
-#define	mips_btop(x)		((unsigned)(x) >> PGSHIFT)
-#define	mips_ptob(x)		((unsigned)(x) << PGSHIFT)
-#define	round_page		mips_round_page
-#define	trunc_page		mips_trunc_page
-#define	atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
-#define	ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)
+#define	round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
+#define	trunc_page(x)		((x) & ~PAGE_MASK)
+
+#define	atop(x)			((x) >> PAGE_SHIFT)
+#define	ptoa(x)			((x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
 
-#ifndef _KERNEL
-#define	DELAY(n)	{ register int N = (n); while (--N > 0); }
-#endif /* !_KERNEL */
+#ifdef _KERNEL
+#define	NO_FUEWORD	1
+#endif
 
 #endif /* !_MIPS_INCLUDE_PARAM_H_ */

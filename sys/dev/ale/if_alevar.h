@@ -40,7 +40,7 @@
 
 #define	ALE_TSO_MAXSEGSIZE	4096
 #define	ALE_TSO_MAXSIZE		(65535 + sizeof(struct ether_vlan_header))
-#define	ALE_MAXTXSEGS		32
+#define	ALE_MAXTXSEGS		35
 
 #define	ALE_ADDR_LO(x)		((uint64_t) (x) & 0xFFFFFFFF)
 #define	ALE_ADDR_HI(x)		((uint64_t) (x) >> 32)
@@ -206,7 +206,6 @@ struct ale_softc {
 #define	ALE_FLAG_RXCSUM_BUG	0x0080
 #define	ALE_FLAG_TXCSUM_BUG	0x0100
 #define	ALE_FLAG_TXCMB_BUG	0x0200
-#define	ALE_FLAG_DETACH		0x4000
 #define	ALE_FLAG_LINK		0x8000
 
 	struct callout		ale_tick_ch;
@@ -222,8 +221,6 @@ struct ale_softc {
 	int			ale_pagesize;
 
 	struct task		ale_int_task;
-	struct task		ale_tx_task;
-	struct task		ale_link_task;
 	struct taskqueue	*ale_tq;
 	struct mtx		ale_mtx;
 };

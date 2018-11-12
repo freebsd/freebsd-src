@@ -38,15 +38,15 @@
  *
  * machdep.c
  *
- * Machine dependant functions for kernel setup
+ * Machine dependent functions for kernel setup
  *
- * This file needs a lot of work. 
+ * This file needs a lot of work.
  *
  * Created      : 17/09/94
  */
 
-#include "opt_msgbuf.h"
 #include "opt_ddb.h"
+#include "opt_kstack_pages.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/kdb.h>
 #include <sys/msgbuf.h>
+#include <sys/devmap.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
 
@@ -80,10 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_map.h>
-#include <vm/vnode_pager.h>
-#include <machine/pmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -91,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/metadata.h>
 #include <machine/armreg.h>
 #include <machine/bus.h>
+#include <machine/physmem.h>
 #include <sys/reboot.h>
 
 #include <arm/xscale/pxa/pxareg.h>
@@ -105,29 +104,9 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-/* Define various stack sizes in pages */
-#define IRQ_STACK_SIZE	1
-#define ABT_STACK_SIZE	1
-#define UND_STACK_SIZE	1
-
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
-
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
-extern void *_end;
-
-extern int *end;
-
-struct pcpu __pcpu;
-struct pcpu *pcpup = &__pcpu;
-
 /* Physical and virtual addresses for some global pages */
-
-vm_paddr_t phys_avail[PXA2X0_SDRAM_BANKS * 2 + 4];
-vm_paddr_t dump_avail[PXA2X0_SDRAM_BANKS * 2 + 4];
-vm_offset_t physical_pages;
 
 struct pv_addr systempage;
 struct pv_addr msgbufpv;
@@ -137,14 +116,12 @@ struct pv_addr abtstack;
 struct pv_addr kernelstack;
 struct pv_addr minidataclean;
 
-static struct trapframe proc0_tf;
-
 static void	pxa_probe_sdram(bus_space_tag_t, bus_space_handle_t,
 		    uint32_t *, uint32_t *);
 
 /* Static device mappings. */
-static const struct pmap_devmap pxa_devmap[] = {
-	/* 
+static const struct devmap_entry pxa_devmap[] = {
+	/*
 	 * Map the on-board devices up into the KVA region so we don't muck
 	 * up user-space.
 	 */
@@ -152,10 +129,8 @@ static const struct pmap_devmap pxa_devmap[] = {
 		PXA2X0_PERIPH_START + PXA2X0_PERIPH_OFFSET,
 		PXA2X0_PERIPH_START,
 		PXA250_PERIPH_END - PXA2X0_PERIPH_START,
-		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
 	},
-	{ 0, 0, 0, 0, 0, }
+	{ 0, 0, 0, }
 };
 
 #define SDRAM_START 0xa0000000
@@ -163,7 +138,7 @@ static const struct pmap_devmap pxa_devmap[] = {
 extern vm_offset_t xscale_cache_clean_addr;
 
 void *
-initarm(void *arg, void *arg2)
+initarm(struct arm_boot_params *abp)
 {
 	struct pv_addr  kernel_l1pt;
 	struct pv_addr  dpcpu;
@@ -177,11 +152,14 @@ initarm(void *arg, void *arg2)
 	int i, j;
 	uint32_t memsize[PXA2X0_SDRAM_BANKS], memstart[PXA2X0_SDRAM_BANKS];
 
+	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
 	set_cpufuncs();
-
-	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
+
+	/* Do basic tuning, hz etc */
+	init_param1();
 
 	freemempos = 0xa0200000;
 	/* Define a macro to simplify memory allocation */
@@ -205,10 +183,9 @@ initarm(void *arg, void *arg2)
 			kernel_pt_table[loop].pv_pa = freemempos +
 			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
-			kernel_pt_table[loop].pv_va = 
+			kernel_pt_table[loop].pv_va =
 			    kernel_pt_table[loop].pv_pa + 0x20000000;
 		}
-		i++;
 	}
 	freemem_pt = freemempos;
 	freemempos = 0xa0100000;
@@ -227,23 +204,9 @@ initarm(void *arg, void *arg2)
 	valloc_pages(irqstack, IRQ_STACK_SIZE);
 	valloc_pages(abtstack, ABT_STACK_SIZE);
 	valloc_pages(undstack, UND_STACK_SIZE);
-	valloc_pages(kernelstack, KSTACK_PAGES);
+	valloc_pages(kernelstack, kstack_pages);
 	alloc_pages(minidataclean.pv_pa, 1);
-	valloc_pages(msgbufpv, round_page(MSGBUF_SIZE) / PAGE_SIZE);
-#ifdef ARM_USE_SMALL_ALLOC
-	freemempos -= PAGE_SIZE;
-	freemem_pt = trunc_page(freemem_pt);
-	freemem_after = freemempos - ((freemem_pt - 0xa0100000) /
-	    PAGE_SIZE) * sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + 0x20000000)
-	    , (void *)0xc0100000, freemem_pt - 0xa0100000, 1);
-	freemem_after -= ((freemem_after - 0xa0001000) / PAGE_SIZE) *
-	    sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + 0x20000000)
-	, (void *)0xc0001000, trunc_page(freemem_after) - 0xa0001000, 0);
-	freemempos = trunc_page(freemem_after);
-	freemempos -= PAGE_SIZE;
-#endif
+	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 	/*
 	 * Allocate memory for the l1 and l2 page tables. The scheme to avoid
 	 * wasting memory by allocating the l1pt on the first 16k memory was
@@ -259,8 +222,8 @@ initarm(void *arg, void *arg2)
 	l1pagetable = kernel_l1pt.pv_va;
 
 	/* Map the L2 pages tables in the L1 page table */
-	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH & ~(0x00100000 - 1),
-	    &kernel_pt_table[KERNEL_PT_SYS]);
+	pmap_link_l2pt(l1pagetable, rounddown2(ARM_VECTORS_HIGH, 0x00100000),
+		       &kernel_pt_table[KERNEL_PT_SYS]);
 #if 0 /* XXXBJR: What is this?  Don't know if there's an analogue. */
 	pmap_link_l2pt(l1pagetable, IQ80321_IOPXS_VBASE,
 	                &kernel_pt_table[KERNEL_PT_IOPXS]);
@@ -272,25 +235,17 @@ initarm(void *arg, void *arg2)
 	pmap_map_chunk(l1pagetable, KERNBASE + 0x100000, SDRAM_START + 0x100000,
 	    0x100000, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	pmap_map_chunk(l1pagetable, KERNBASE + 0x200000, SDRAM_START + 0x200000,
-	   (((uint32_t)(lastaddr) - KERNBASE - 0x200000) + L1_S_SIZE) & ~(L1_S_SIZE - 1),
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	freemem_after = ((int)lastaddr + PAGE_SIZE) & ~(PAGE_SIZE - 1);
-	afterkern = round_page(((vm_offset_t)lastaddr + L1_S_SIZE) &
-	    ~(L1_S_SIZE - 1));
+	   rounddown2(((uint32_t)(lastaddr) - KERNBASE - 0x200000) + L1_S_SIZE, L1_S_SIZE),
+	   VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	freemem_after = rounddown2((int)lastaddr + PAGE_SIZE, PAGE_SIZE);
+	afterkern = round_page(rounddown2((vm_offset_t)lastaddr + L1_S_SIZE, L1_S_SIZE));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
 		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
 	}
-	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa, 
+	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
-#ifdef ARM_USE_SMALL_ALLOC
-	if ((freemem_after + 2 * PAGE_SIZE) <= afterkern) {
-		arm_add_smallalloc_pages((void *)(freemem_after),
-		    (void*)(freemem_after + PAGE_SIZE),
-		    afterkern - (freemem_after + PAGE_SIZE), 0);
-	}
-#endif
 
 	/* Map the Mini-Data cache clean area. */
 	xscale_setup_minidata(l1pagetable, afterkern,
@@ -299,7 +254,7 @@ initarm(void *arg, void *arg2)
 	/* Map the vector page. */
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_devmap_bootstrap(l1pagetable, pxa_devmap);
+	devmap_bootstrap(l1pagetable, pxa_devmap);
 
 	/*
 	 * Give the XScale global cache clean code an appropriately
@@ -309,7 +264,7 @@ initarm(void *arg, void *arg2)
 	xscale_cache_clean_addr = 0xff000000U;
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT);
-	setttb(kernel_l1pt.pv_pa);
+	cpu_setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
 
@@ -321,17 +276,12 @@ initarm(void *arg, void *arg2)
 	 * Since the ARM stacks use STMFD etc. we must set r13 to the top end
 	 * of the stack memory.
 	 */
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ABT_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + UND_STACK_SIZE * PAGE_SIZE);
+	set_stackptrs(0);
 
 	/*
 	 * We must now clean the cache again....
 	 * Cleaning may be done by reading new data to displace any
-	 * dirty data in the cache. This will have happened in setttb()
+	 * dirty data in the cache. This will have happened in cpu_setttb()
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.
@@ -339,6 +289,7 @@ initarm(void *arg, void *arg2)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
+	cpu_setup();
 
 	/*
 	 * Sort out bus_space for on-board devices.
@@ -351,82 +302,45 @@ initarm(void *arg, void *arg2)
 	 */
 	pxa_probe_sdram(obio_tag, PXA2X0_MEMCTL_BASE, memstart, memsize);
 
-	physmem = 0;
-	for (i = 0; i < PXA2X0_SDRAM_BANKS; i++) {
-		physmem += memsize[i] / PAGE_SIZE;
-	}
-
 	/* Fire up consoles. */
 	cninit();
 
-	/* Set stack for exception handlers */
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
-	proc_linkup(&proc0, &thread0);
-	thread0.td_kstack = kernelstack.pv_va;
-	thread0.td_pcb = (struct pcb *)
-		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_frame = &proc0_tf;
-	pcpup->pc_curpcb = thread0.td_pcb;
+	init_proc0(kernelstack.pv_va);
 
 	/* Enable MMU, I-cache, D-cache, write buffer. */
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
-	/*
-	 * ARM USE_SMALL_ALLOC uses dump_avail, so it must be filled before
-	 * calling pmap_bootstrap.
-	 */
-	i = 0;
-	for (j = 0; j < PXA2X0_SDRAM_BANKS; j++) {
-		if (memsize[j] > 0) {
-			dump_avail[i++] = round_page(memstart[j]);
-			dump_avail[i++] =
-			    trunc_page(memstart[j] + memsize[j]);
-		}
-	}
-	dump_avail[i] = 0;
-	dump_avail[i] = 0;
-	pmap_bootstrap(pmap_curmaxkvaddr, 0xd0000000, &kernel_l1pt);
+	vm_max_kernel_address = 0xe0000000;
+	pmap_bootstrap(pmap_curmaxkvaddr, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
 
-	i = 0;
-#ifdef ARM_USE_SMALL_ALLOC
-	phys_avail[i++] = 0xa0000000;
-	phys_avail[i++] = 0xa0001000; 	/*
-					 *XXX: Gross hack to get our
-					 * pages in the vm_page_array
-					 . */
-#endif
+	/*
+	 * Add the physical ram we have available.
+	 *
+	 * Exclude the kernel (and all the things we allocated which immediately
+	 * follow the kernel) from the VM allocation pool but not from crash
+	 * dumps.  virtual_avail is a global variable which tracks the kva we've
+	 * "allocated" while setting up pmaps.
+	 *
+	 * Prepare the list of physical memory available to the vm subsystem.
+	 */
 	for (j = 0; j < PXA2X0_SDRAM_BANKS; j++) {
-		if (memsize[j] > 0) {
-			phys_avail[i] = round_page(memstart[j]);
-			dump_avail[i++] = round_page(memstart[j]);
-			phys_avail[i] =
-			    trunc_page(memstart[j] + memsize[j]);
-			dump_avail[i++] =
-			    trunc_page(memstart[j] + memsize[j]);
-		}
+		if (memsize[j] > 0)
+			arm_physmem_hardware_region(memstart[j], memsize[j]);
 	}
+	arm_physmem_exclude_region(freemem_pt, abp->abp_physaddr -
+	    freemem_pt, EXFLAG_NOALLOC);
+	arm_physmem_exclude_region(freemempos, abp->abp_physaddr - 0x100000 -
+	    freemempos, EXFLAG_NOALLOC);
+	arm_physmem_exclude_region(abp->abp_physaddr, 
+	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
+	arm_physmem_init_kernel_globals();
 
-	dump_avail[i] = 0;
-	phys_avail[i++] = 0;
-	dump_avail[i] = 0;
-	phys_avail[i] = 0;
-#ifdef ARM_USE_SMALL_ALLOC
-	phys_avail[2] = round_page(virtual_avail - KERNBASE + phys_avail[2]);
-#else
-	phys_avail[0] = round_page(virtual_avail - KERNBASE + phys_avail[0]);
-#endif
-
-	/* Do basic tuning, hz etc */
-	init_param1();
 	init_param2(physmem);
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -

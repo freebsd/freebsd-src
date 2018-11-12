@@ -28,7 +28,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 13, 2008
+.Dd June 16, 2015
 .Dt SYSLOGD 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl 468ACcdknosuv
+.Op Fl 468ACcdFkNnosTuv
 .Op Fl a Ar allowed_peer
 .Op Fl b Ar bind_address
 .Op Fl f Ar config_file
@@ -171,10 +171,31 @@ The
 options are ignored if the
 .Fl s
 option is also specified.
-.It Fl b Ar bind_address
-Specify one specific IP address or hostname to bind to.
-If a hostname is specified,
-the IPv4 or IPv6 address which corresponds to it is used.
+.It Xo
+.Fl b
+.Sm off
+.Ar bind_address Op : Ar service
+.Sm on
+.Xc
+.It Xo
+.Fl b
+.Sm off
+.Li : Ar service
+.Sm on
+.Xc
+Bind to a specific address and/or port.
+The address can be specified as a hostname,
+and the port as a service name.
+If an IPv6 address is specified, it should be enclosed with
+.Ql \&[
+and
+.Ql \&] .
+The default
+.Ar service
+is
+.Ql syslog .
+This option can be specified multiple times to bind to
+multiple addresses and/or ports.
 .It Fl C
 Create log files that do not exist (permission is set to
 .Li 0600 ) .
@@ -194,6 +215,17 @@ This is probably only of use to developers working on
 Specify the pathname of an alternate configuration file;
 the default is
 .Pa /etc/syslog.conf .
+.It Fl F
+Run
+.Nm
+in the foreground, rather than going into daemon mode. This is useful if
+some other process uses
+.Xr fork 2
+and
+.Xr exec 3
+to run
+.Nm ,
+and wants to monitor when and how it exits.
 .It Fl k
 Disable the translation of
 messages received with facility
@@ -208,6 +240,13 @@ facility is reserved for messages read directly from
 Select the number of minutes between
 .Dq mark
 messages; the default is 20 minutes.
+.It Fl N
+Disable binding on UDP sockets.  RFC 3164 recommends that outgoing
+syslogd messages should originate from the privileged port, this
+option
+.Em disables
+the recommended behavior.  This option inherits
+.Fl s .
 .It Fl n
 Disable dns query for every request.
 .It Fl o
@@ -318,7 +357,7 @@ therefore, they must be created manually before running
 The date and time are taken from the received message.
 If the format of the timestamp field is incorrect,
 time obtained from the local host is used instead.
-This can be overriden by the
+This can be overridden by the
 .Fl T
 flag.
 .Sh FILES

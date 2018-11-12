@@ -31,6 +31,7 @@
 #include <net/if_arp.h>
 #include <sys/types.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_vlan_var.h>
 
 int       copyright_print       = 0;
@@ -1190,7 +1191,7 @@ xge_interface_setup(device_t dev)
 	ifnetp->if_start    = xge_send;
 
 	/* TODO: Check and assign optimal value */
-	ifnetp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifnetp->if_snd.ifq_maxlen = ifqmaxlen;
 
 	ifnetp->if_capabilities = IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU |
 	    IFCAP_HWCSUM;
@@ -1272,7 +1273,7 @@ xge_callback_event(xge_queue_item_t *item)
 	lldev  = xge_hal_device_private(hldev);
 	ifnetp = lldev->ifnetp;
 
-	switch(item->event_type) {
+	switch((int)item->event_type) {
 	    case XGE_LL_EVENT_TRY_XMIT_AGAIN:
 	        if(lldev->initialized) {
 	            if(xge_hal_channel_dtr_count(lldev->fifo_channel[0]) > 0) {
@@ -1456,7 +1457,7 @@ xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 
 	    case XGE_READ_VERSION:
 	        info = xge_os_malloc(NULL, XGE_BUFFER_SIZE);
-	        if(version != NULL) {
+	        if(info != NULL) {
 	            strcpy(info, XGE_DRIVER_VERSION);
 	            if(copyout(info, ifreqp->ifr_data, XGE_BUFFER_SIZE) == 0)
 	                retValue = 0;
@@ -1743,7 +1744,7 @@ xge_device_init(xge_lldev_t *lldev, xge_hal_channel_reopen_e option)
 	    return;
 
 	/* Initializing timer */
-	callout_init(&lldev->timer, CALLOUT_MPSAFE);
+	callout_init(&lldev->timer, 1);
 
 	xge_trace(XGE_TRACE, "Set MTU size");
 	status = xge_hal_device_mtu_set(hldev, ifnetp->if_mtu);
@@ -2943,10 +2944,8 @@ xge_flush_txds(xge_hal_channel_h channelh)
 	xge_lldev_t *lldev = xge_hal_channel_userdata(channelh);
 	xge_hal_dtr_h tx_dtr;
 	xge_tx_priv_t *tx_priv;
-	struct ifnet *ifnetp = lldev->ifnetp;
 	u8 t_code;
 
-	ifnetp->if_timer = 0;
 	while(xge_hal_fifo_dtr_next_completed(channelh, &tx_dtr, &t_code)
 	    == XGE_HAL_OK) {
 	    XGE_DRV_STATS(tx_desc_compl);
@@ -3006,7 +3005,7 @@ xge_send_locked(struct ifnet *ifnetp, int qindex)
 
 	/* If device is not initialized, return */
 	if((!lldev->initialized) || (!(ifnetp->if_drv_flags & IFF_DRV_RUNNING)))
-	    goto _exit;
+	    return;
 
 	XGE_DRV_STATS(tx_calls);
 
@@ -3016,14 +3015,17 @@ xge_send_locked(struct ifnet *ifnetp, int qindex)
 	 */
 	for(;;) {
 	    IF_DEQUEUE(&ifnetp->if_snd, m_head);
-	    if(m_head == NULL) break;
+	    if (m_head == NULL) {
+		ifnetp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
+		return;
+	    }
 
 	    for(m_buf = m_head; m_buf != NULL; m_buf = m_buf->m_next) {
 	        if(m_buf->m_len) count += 1;
 	    }
 
 	    if(count >= max_fragments) {
-	        m_buf = m_defrag(m_head, M_DONTWAIT);
+	        m_buf = m_defrag(m_head, M_NOWAIT);
 	        if(m_buf != NULL) m_head = m_buf;
 	        XGE_DRV_STATS(tx_defrag);
 	    }
@@ -3033,7 +3035,7 @@ xge_send_locked(struct ifnet *ifnetp, int qindex)
 	    if(status != XGE_HAL_OK) {
 	        XGE_DRV_STATS(tx_no_txd);
 	        xge_flush_txds(channelh);
-	        goto _exit1;
+		break;
 	    }
 
 	    vlan_tag =
@@ -3054,7 +3056,7 @@ xge_send_locked(struct ifnet *ifnetp, int qindex)
 	        ll_tx_priv->dma_map, m_head, segs, &nsegs, BUS_DMA_NOWAIT)) {
 	        xge_trace(XGE_TRACE, "DMA map load failed");
 	        XGE_DRV_STATS(tx_map_fail);
-	        goto _exit1;
+		break;
 	    }
 
 	    if(lldev->driver_stats.tx_max_frags < nsegs)
@@ -3093,9 +3095,7 @@ xge_send_locked(struct ifnet *ifnetp, int qindex)
 	     * listener so that we can use tools like tcpdump */
 	    ETHER_BPF_MTAP(ifnetp, m_head);
 	}
-	ifnetp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
-	goto _exit;
-_exit1:
+
 	/* Prepend the packet back to queue */
 	IF_PREPEND(&ifnetp->if_snd, m_head);
 	ifnetp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -3103,9 +3103,6 @@ _exit1:
 	xge_queue_produce_context(xge_hal_device_queue(lldev->devh),
 	    XGE_LL_EVENT_TRY_XMIT_AGAIN, lldev->devh);
 	XGE_DRV_STATS(tx_again);
-
-_exit:
-	ifnetp->if_timer = 15;
 }
 
 /**
@@ -3136,7 +3133,7 @@ xge_get_buf(xge_hal_dtr_h dtrh, xge_rx_priv_t *rxd_priv,
 
 	if(buffer_size <= MCLBYTES) {
 	    cluster_size = MCLBYTES;
-	    mp = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	    mp = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	}
 	else {
 	    cluster_size = MJUMPAGESIZE;
@@ -3144,7 +3141,7 @@ xge_get_buf(xge_hal_dtr_h dtrh, xge_rx_priv_t *rxd_priv,
 	        (buffer_size > MJUMPAGESIZE)) {
 	        cluster_size = MJUM9BYTES;
 	    }
-	    mp = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, cluster_size);
+	    mp = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, cluster_size);
 	}
 	if(!mp) {
 	    xge_trace(XGE_ERR, "Out of memory to allocate mbuf");
@@ -3268,8 +3265,6 @@ xge_tx_compl(xge_hal_channel_h channelh,
 	mtx_lock(&lldev->mtx_tx[qindex]);
 
 	XGE_DRV_STATS(tx_completions);
-
-	ifnetp->if_timer = 0;
 
 	/*
 	 * For each completed descriptor: Get private structure, free buffer,
@@ -3513,7 +3508,8 @@ static device_method_t xge_methods[] = {
 	DEVMETHOD(device_attach,    xge_attach),
 	DEVMETHOD(device_detach,    xge_detach),
 	DEVMETHOD(device_shutdown,  xge_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t xge_driver = {

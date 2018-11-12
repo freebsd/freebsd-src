@@ -94,7 +94,7 @@ union uu {
  * (sizeof(long)*CHAR_BIT/2).
  */
 #define	HHALF(x)	((x) >> HALF_BITS)
-#define	LHALF(x)	((x) & ((1UL << HALF_BITS) - 1))
+#define	LHALF(x)	((x) & ((1 << HALF_BITS) - 1))
 #define	LHUP(x)		((x) << HALF_BITS)
 
 typedef unsigned int	qshift_t;
@@ -109,5 +109,10 @@ u_quad_t	__qdivrem(u_quad_t u, u_quad_t v, u_quad_t *rem);
 u_quad_t	__udivdi3(u_quad_t a, u_quad_t b);
 u_quad_t	__umoddi3(u_quad_t a, u_quad_t b);
 int		__ucmpdi2(u_quad_t a, u_quad_t b);
+
+/* ARM EABI support functions. */
+#ifdef __ARM_EABI__
+int		__aeabi_ulcmp(unsigned long long, unsigned long long);
+#endif
 
 #endif /* !_LIBKERN_QUAD_H_ */

@@ -38,8 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_command.h>
 #include <ddb/db_sym.h>
 
-static db_expr_t hex2dec(db_expr_t expr);
-
 void
 db_print_thread(void)
 {
@@ -48,11 +46,11 @@ db_print_thread(void)
 	pid = -1;
 	if (kdb_thread->td_proc != NULL)
 		pid = kdb_thread->td_proc->p_pid;
-	db_printf("[thread pid %d tid %ld ]\n", pid, (long)kdb_thread->td_tid);
+	db_printf("[ thread pid %d tid %ld ]\n", pid, (long)kdb_thread->td_tid);
 }
 
 void
-db_set_thread(db_expr_t tid, boolean_t hastid, db_expr_t cnt, char *mod)
+db_set_thread(db_expr_t tid, bool hastid, db_expr_t cnt, char *mod)
 {
 	struct thread *thr;
 	db_expr_t radix;
@@ -88,7 +86,7 @@ db_set_thread(db_expr_t tid, boolean_t hastid, db_expr_t cnt, char *mod)
 }
 
 void
-db_show_threads(db_expr_t addr, boolean_t hasaddr, db_expr_t cnt, char *mod)
+db_show_threads(db_expr_t addr, bool hasaddr, db_expr_t cnt, char *mod)
 {
 	jmp_buf jb;
 	void *prev_jb;
@@ -96,7 +94,8 @@ db_show_threads(db_expr_t addr, boolean_t hasaddr, db_expr_t cnt, char *mod)
 
 	thr = kdb_thr_first();
 	while (!db_pager_quit && thr != NULL) {
-		db_printf("  %6ld (%p)  ", (long)thr->td_tid, thr);
+		db_printf("  %6ld (%p) (stack %p)  ", (long)thr->td_tid, thr,
+		    (void *)thr->td_kstack);
 		prev_jb = kdb_jmpbuf(jb);
 		if (setjmp(jb) == 0) {
 			if (db_trace_thread(thr, 1) != 0)
@@ -108,40 +107,15 @@ db_show_threads(db_expr_t addr, boolean_t hasaddr, db_expr_t cnt, char *mod)
 }
 
 /*
- * Take the parsed expression value from the command line that was parsed
- * as a hexadecimal value and convert it as if the expression was parsed
- * as a decimal value.  Returns -1 if the expression was not a valid
- * decimal value.
- */
-static db_expr_t
-hex2dec(db_expr_t expr)
-{
-	uintptr_t x, y;
-	db_expr_t val;
-
-	y = 1;
-	val = 0;
-	x = expr;
-	while (x != 0) {
-		if (x % 16 > 9)
-			return (-1);
-		val += (x % 16) * (y);
-		x >>= 4;
-		y *= 10;
-	}
-	return (val);
-}
-
-/*
  * Lookup a thread based on a db expression address.  We assume that the
  * address was parsed in hexadecimal.  We reparse the address in decimal
  * first and try to treat it as a thread ID to find an associated thread.
- * If that fails and check_pid is true, we terat the decimal value as a
+ * If that fails and check_pid is true, we treat the decimal value as a
  * PID.  If that matches a process, we return the first thread in that
  * process.  Otherwise, we treat the addr as a pointer to a thread.
  */
 struct thread *
-db_lookup_thread(db_expr_t addr, boolean_t check_pid)
+db_lookup_thread(db_expr_t addr, bool check_pid)
 {
 	struct thread *td;
 	db_expr_t decaddr;
@@ -151,7 +125,7 @@ db_lookup_thread(db_expr_t addr, boolean_t check_pid)
 	 * If the parsed address was not a valid decimal expression,
 	 * assume it is a thread pointer.
 	 */
-	decaddr = hex2dec(addr);
+	decaddr = db_hex2dec(addr);
 	if (decaddr == -1)
 		return ((struct thread *)addr);
 
@@ -183,7 +157,7 @@ db_lookup_proc(db_expr_t addr)
 	db_expr_t decaddr;
 	struct proc *p;
 
-	decaddr = hex2dec(addr);
+	decaddr = db_hex2dec(addr);
 	if (decaddr != -1) {
 		FOREACH_PROC_IN_SYSTEM(p) {
 			if (p->p_pid == decaddr)

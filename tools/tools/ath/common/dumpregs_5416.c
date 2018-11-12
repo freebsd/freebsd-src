@@ -28,6 +28,9 @@
  *
  * $FreeBSD$
  */
+
+#include <sys/param.h>
+
 #include "diag.h"
 
 #include "ah.h"
@@ -37,9 +40,7 @@
 
 #include "dumpregs.h"
 
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
-
-#define	MAC5416	SREV(13,8), SREV(0xff,0xff)	/* XXX */
+#define	MAC5416	SREV(13,8), SREV(0xffff,0xffff)	/* XXX */
 
 static struct dumpreg ar5416regs[] = {
     DEFBASIC(AR_CR,		"CR"),
@@ -76,6 +77,7 @@ static struct dumpreg ar5416regs[] = {
 	  "\30CABTO\31DTIM"),
     DEFINT(AR_ISR_S3,		"ISR_S3"),
     DEFINT(AR_ISR_S4,		"ISR_S4"),
+    DEFINT(AR_ISR_S5,		"ISR_S5"),
     DEFINTfmt(AR_IMR,		"IMR",
 	  "\20\1RXOK\2RXDESC\3RXERR\4RXNOPKT\5RXEOL\6RXORN\7TXOK\10TXDESC"
 	  "\11TXERR\12TXNOPKT\13TXEOL\14TXURN\15MIB\16SWI\17RXPHY\20RXKCM"
@@ -95,6 +97,7 @@ static struct dumpreg ar5416regs[] = {
     DEFINT(AR_ISR_S2_S,		"ISR_S2_S"),
     DEFINT(AR_ISR_S3_S,		"ISR_S3_S"),
     DEFINT(AR_ISR_S4_S,		"ISR_S4_S"),
+    DEFINT(AR_ISR_S5_S,		"ISR_S5_S"),
 
     DEFBASIC(AR_DMADBG_0,	"DMADBG0"),
     DEFBASIC(AR_DMADBG_1,	"DMADBG1"),
@@ -394,6 +397,7 @@ static struct dumpreg ar5416regs[] = {
     DEFBASIC(AR_SLP_CNT,	"SLPCNT"),
     DEFBASIC(AR_SLP_MIB_CTRL,	"SLPMIB"),
     DEFBASIC(AR_EXTRCCNT,	"EXTRCCNT"),
+    DEFBASIC(AR_PHY_TURBO,	"PHYTURBO"),
 
     DEFVOID(AR_PHY_ADC_SERIAL_CTL,	"PHY_ADC_SERIAL_CTL"),
 
@@ -403,7 +407,7 @@ static struct dumpreg ar5416regs[] = {
 static __constructor void
 ar5416_ctor(void)
 {
-	register_regs(ar5416regs, N(ar5416regs), MAC5416, PHYANY);
+	register_regs(ar5416regs, nitems(ar5416regs), MAC5416, PHYANY);
 	register_keycache(128, MAC5416, PHYANY);
 
 	register_range(0x9800, 0x987c, DUMP_BASEBAND, MAC5416, PHYANY);

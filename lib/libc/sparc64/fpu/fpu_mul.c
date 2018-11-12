@@ -125,10 +125,8 @@ __fpu_mul(fe)
 	 *	The result is x * y (XOR sign, multiply bits, add exponents).
 	 */
 	ORDER(x, y);
-	if (ISNAN(y)) {
-		y->fp_sign ^= x->fp_sign;
+	if (ISNAN(y))
 		return (y);
-	}
 	if (ISINF(y)) {
 		if (ISZERO(x))
 			return (__fpu_newnan(fe));

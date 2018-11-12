@@ -149,7 +149,7 @@ circleq_dnsentry *yp_malloc_dnsent(void)
 {
 	register struct circleq_dnsentry *q;
 
-	q = (struct circleq_dnsentry *)malloc(sizeof(struct circleq_dnsentry));
+	q = malloc(sizeof(struct circleq_dnsentry));
 
 	if (q == NULL) {
 		yp_error("failed to malloc() circleq dns entry");
@@ -456,7 +456,7 @@ yp_async_lookup_name(struct svc_req *rqstp, char *name, int af)
 	pending++;
 
 	if (debug)
-		yp_error("queueing async DNS name lookup (%d)", q->id);
+		yp_error("queueing async DNS name lookup (%lu)", q->id);
 
 	yp_prune_dnsq();
 	return(YP_TRUE);
@@ -489,9 +489,6 @@ yp_async_lookup_addr(struct svc_req *rqstp, char *addr, int af)
 	    yp_find_dnsqent(svcudp_get_xid(rqstp->rq_xprt),BY_RPC_XID) != NULL)
 		return(YP_TRUE);
 
-	if ((q = yp_malloc_dnsent()) == NULL)
-		return(YP_YPERR);
-
 	switch (af) {
 	case AF_INET:
 		if (inet_aton(addr, (struct in_addr *)uaddr) != 1)
@@ -515,6 +512,9 @@ yp_async_lookup_addr(struct svc_req *rqstp, char *addr, int af)
 	default:
 		return(YP_YPERR);
 	}
+
+	if ((q = yp_malloc_dnsent()) == NULL)
+		return(YP_YPERR);
 
 	if (debug)
 		yp_error("DNS address is: %s", buf);
@@ -544,7 +544,7 @@ yp_async_lookup_addr(struct svc_req *rqstp, char *addr, int af)
 	pending++;
 
 	if (debug)
-		yp_error("queueing async DNS address lookup (%d)", q->id);
+		yp_error("queueing async DNS address lookup (%lu)", q->id);
 
 	yp_prune_dnsq();
 	return(YP_TRUE);

@@ -2,8 +2,9 @@
 # $FreeBSD$
 #
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 LIB=	wrap
 SHLIB_MAJOR= 6
 INCS=	tcpd.h
@@ -17,7 +18,7 @@ MLINKS=	hosts_access.3 hosts_ctl.3 \
 .PATH:	${.CURDIR}/../../contrib/tcp_wrappers
 
 CFLAGS+=-DFACILITY=LOG_AUTH -DHOSTS_ACCESS -DNETGROUP -DDAEMON_UMASK=022 \
-	-DREAL_DAEMON_DIR=\"/usr/libexec\" -DPROCESS_OPTIONS \
+	-DREAL_DAEMON_DIR=\"${LIBEXECDIR}\" -DPROCESS_OPTIONS \
 	-DSEVERITY=LOG_INFO -DRFC931_TIMEOUT=10 \
 	-DHOSTS_DENY=\"/etc/hosts.deny\" -DHOSTS_ALLOW=\"/etc/hosts.allow\" \
 	-DSYS_ERRLIST_DEFINED -DALWAYS_HOSTNAME -DUSE_STRSEP -DPROCESS_OPTIONS
@@ -27,6 +28,8 @@ CFLAGS+= -DUSE_GETDOMAIN
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6
 .endif
+
+WARNS?=	0
 
 SRCS=	clean_exit.c diag.c eval.c fix_options.c fromhost.c \
 	hosts_access.c hosts_ctl.c misc.c myvsyslog.c options.c \

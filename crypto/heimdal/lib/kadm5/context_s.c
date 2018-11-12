@@ -1,39 +1,39 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: context_s.c 22211 2007-12-07 19:27:27Z lha $");
+RCSID("$Id$");
 
 static void
 set_funcs(kadm5_server_context *c)
@@ -53,6 +53,8 @@ set_funcs(kadm5_server_context *c)
     SET(c, rename_principal);
 }
 
+#ifndef NO_UNIX_SOCKETS
+
 static void
 set_socket_name(krb5_context context, struct sockaddr_un *un)
 {
@@ -61,7 +63,17 @@ set_socket_name(krb5_context context, struct sockaddr_un *un)
     memset(un, 0, sizeof(*un));
     un->sun_family = AF_UNIX;
     strlcpy (un->sun_path, fn, sizeof(un->sun_path));
+
 }
+#else
+
+static void
+set_socket_info(krb5_context context, struct addrinfo **info)
+{
+    kadm5_log_signal_socket_info(context, 0, info);
+}
+
+#endif
 
 static kadm5_ret_t
 find_db_spec(kadm5_server_context *ctx)
@@ -75,27 +87,27 @@ find_db_spec(kadm5_server_context *ctx)
 	ret = hdb_get_dbinfo(context, &info);
 	if (ret)
 	    return ret;
-	
+
 	d = NULL;
 	while ((d = hdb_dbinfo_get_next(info, d)) != NULL) {
 	    const char *p = hdb_dbinfo_get_realm(context, d);
-	    
+
 	    /* match default (realm-less) */
 	    if(p != NULL && strcmp(ctx->config.realm, p) != 0)
 		continue;
-	    
+
 	    p = hdb_dbinfo_get_dbname(context, d);
 	    if (p)
 		ctx->config.dbname = strdup(p);
-	    
+
 	    p = hdb_dbinfo_get_acl_file(context, d);
 	    if (p)
 		ctx->config.acl_file = strdup(p);
-	    
+
 	    p = hdb_dbinfo_get_mkey_file(context, d);
 	    if (p)
 		ctx->config.stash_file = strdup(p);
-	    
+
 	    p = hdb_dbinfo_get_log_file(context, d);
 	    if (p)
 		ctx->log_context.log_file = strdup(p);
@@ -115,13 +127,17 @@ find_db_spec(kadm5_server_context *ctx)
     if (ctx->log_context.log_file == NULL)
 	asprintf(&ctx->log_context.log_file, "%s/log", hdb_db_dir(context));
 
+#ifndef NO_UNIX_SOCKETS
     set_socket_name(context, &ctx->log_context.socket_name);
+#else
+    set_socket_info(context, &ctx->log_context.socket_info);
+#endif
 
     return 0;
 }
 
 kadm5_ret_t
-_kadm5_s_init_context(kadm5_server_context **ctx, 
+_kadm5_s_init_context(kadm5_server_context **ctx,
 		      kadm5_config_params *params,
 		      krb5_context context)
 {
@@ -143,11 +159,11 @@ _kadm5_s_init_context(kadm5_server_context **ctx,
 	(*ctx)->config.acl_file = strdup(params->acl_file);
     if(is_set(STASH_FILE))
 	(*ctx)->config.stash_file = strdup(params->stash_file);
-    
+
     find_db_spec(*ctx);
-    
+
     /* PROFILE can't be specified for now */
-    /* KADMIND_PORT is supposed to be used on the server also, 
+    /* KADMIND_PORT is supposed to be used on the server also,
        but this doesn't make sense */
     /* ADMIN_SERVER is client only */
     /* ADNAME is not used at all (as far as I can tell) */

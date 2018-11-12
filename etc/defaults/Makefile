@@ -1,7 +1,12 @@
 # $FreeBSD$
 
-FILES=	bluetooth.device.conf devfs.rules periodic.conf rc.conf
-NO_OBJ=
+.include <src.opts.mk>
+
+FILES=	devfs.rules periodic.conf rc.conf
 FILESDIR= /etc/defaults
+
+.if ${MK_BLUETOOTH} != "no"
+FILES+=	bluetooth.device.conf
+.endif
 
 .include <bsd.prog.mk>

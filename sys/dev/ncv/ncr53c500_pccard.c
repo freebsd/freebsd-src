@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/systm.h>
 
 #include <machine/bus.h>
@@ -50,12 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <compat/netbsd/dvcfg.h>
 
-#include <sys/device_port.h>
+#include <sys/bus.h>
 
 #include <dev/pccard/pccardvar.h>
 
 #include <cam/scsi/scsi_low.h>
-#include <cam/scsi/scsi_low_pisa.h>
 
 #include <dev/ncv/ncr53c500reg.h>
 #include <dev/ncv/ncr53c500hw.h>
@@ -67,10 +67,10 @@ __FBSDID("$FreeBSD$");
 
 #include "pccarddevs.h"
 
-static int ncvprobe(DEVPORT_PDEVICE devi);
-static int ncvattach(DEVPORT_PDEVICE devi);
+static int ncvprobe(device_t devi);
+static int ncvattach(device_t devi);
 
-static void	ncv_card_unload(DEVPORT_PDEVICE);
+static void	ncv_card_unload(device_t);
 
 static const struct ncv_product {
 	struct pccard_product	prod;
@@ -98,11 +98,16 @@ static const struct ncv_product {
 static void
 ncv_pccard_intr(void * arg)
 {
+	struct ncv_softc *sc;
+
+	sc = arg;
+	SCSI_LOW_LOCK(&sc->sc_sclow);
 	ncvintr(arg);
+	SCSI_LOW_UNLOCK(&sc->sc_sclow);
 }
 
 static void
-ncv_release_resource(DEVPORT_PDEVICE dev)
+ncv_release_resource(device_t dev)
 {
 	struct ncv_softc	*sc = device_get_softc(dev);
 
@@ -129,14 +134,15 @@ ncv_release_resource(DEVPORT_PDEVICE dev)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 				     sc->mem_rid, sc->mem_res);
 	}
+	mtx_destroy(&sc->sc_sclow.sl_lock);
 }
 
 static int
-ncv_alloc_resource(DEVPORT_PDEVICE dev)
+ncv_alloc_resource(device_t dev)
 {
 	struct ncv_softc	*sc = device_get_softc(dev);
-	u_int32_t		flags = DEVPORT_PDEVFLAGS(dev);
-	u_long			ioaddr, iosize, maddr, msize;
+	u_int32_t		flags = device_get_flags(dev);
+	rman_res_t		ioaddr, iosize, maddr, msize;
 	int			error;
 	bus_addr_t		offset = 0;
 
@@ -148,6 +154,7 @@ ncv_alloc_resource(DEVPORT_PDEVICE dev)
 		return(ENOMEM);
 	}
 
+	mtx_init(&sc->sc_sclow.sl_lock, "ncv", NULL, MTX_DEF);
 	sc->port_rid = 0;
 	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
 					  ioaddr+offset, ioaddr+iosize-offset,
@@ -223,7 +230,7 @@ ncv_pccard_probe(device_t dev)
 		strncmp(prodstr, "SOUND/SCSI2 CARD", 16) == 0) {
 		device_set_desc(dev, "RATOC REX-5572");
 		device_set_flags(dev, FLAGS_REX5572);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 	return(EIO);
 }
@@ -234,8 +241,6 @@ ncv_pccard_attach(device_t dev)
 	struct ncv_softc	*sc = device_get_softc(dev);
 	int			error;
 
-	bzero(sc, sizeof(struct ncv_softc));
-
 	error = ncv_alloc_resource(dev);
 	if (error) {
 		return(error);
@@ -245,8 +250,8 @@ ncv_pccard_attach(device_t dev)
 		ncv_release_resource(dev);
 		return(ENXIO);
 	}
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
-			       NULL, ncv_pccard_intr, (void *)sc, &sc->ncv_intrhand);
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY |
+	    INTR_MPSAFE, NULL, ncv_pccard_intr, sc, &sc->ncv_intrhand);
 	if (error) {
 		ncv_release_resource(dev);
 		return(error);
@@ -288,60 +293,45 @@ static devclass_t ncv_devclass;
 
 MODULE_DEPEND(ncv, scsi_low, 1, 1, 1);
 DRIVER_MODULE(ncv, pccard, ncv_pccard_driver, ncv_devclass, 0, 0);
+PCCARD_PNP_INFO(ncv_products);
 
 static void
-ncv_card_unload(DEVPORT_PDEVICE devi)
+ncv_card_unload(device_t devi)
 {
-	struct ncv_softc *sc = DEVPORT_PDEVGET_SOFTC(devi);
-	intrmask_t s;
+	struct ncv_softc *sc = device_get_softc(devi);
 
-	s = splcam();
-	scsi_low_deactivate((struct scsi_low_softc *)sc);
-        scsi_low_dettach(&sc->sc_sclow);
-	splx(s);
+	scsi_low_deactivate(&sc->sc_sclow);
+        scsi_low_detach(&sc->sc_sclow);
 }
 
 static int
-ncvprobe(DEVPORT_PDEVICE devi)
+ncvprobe(device_t devi)
 {
 	int rv;
 	struct ncv_softc *sc = device_get_softc(devi);
-	u_int32_t flags = DEVPORT_PDEVFLAGS(devi);
+	u_int32_t flags = device_get_flags(devi);
 
-	rv = ncvprobesubr(rman_get_bustag(sc->port_res),
-			  rman_get_bushandle(sc->port_res),
+	rv = ncvprobesubr(sc->port_res,
 			  flags, NCV_HOSTID);
 
 	return rv;
 }
 
 static int
-ncvattach(DEVPORT_PDEVICE devi)
+ncvattach(device_t devi)
 {
 	struct ncv_softc *sc;
 	struct scsi_low_softc *slp;
-	u_int32_t flags = DEVPORT_PDEVFLAGS(devi);
-	intrmask_t s;
-	char dvname[16]; /* SCSI_LOW_DVNAME_LEN */
+	u_int32_t flags = device_get_flags(devi);
 
-	strcpy(dvname, "ncv");
-
-	sc = DEVPORT_PDEVALLOC_SOFTC(devi);
-	if (sc == NULL) {
-		return(0);
-	}
+	sc = device_get_softc(devi);
 
 	slp = &sc->sc_sclow;
 	slp->sl_dev = devi;
-	sc->sc_iot = rman_get_bustag(sc->port_res);
-	sc->sc_ioh = rman_get_bushandle(sc->port_res);
-
 	slp->sl_hostid = NCV_HOSTID;
 	slp->sl_cfgflags = flags;
 
-	s = splcam();
 	ncvattachsubr(sc);
-	splx(s);
 
 	return(NCVIOSZ);
 }

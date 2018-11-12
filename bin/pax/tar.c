@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include "pax.h"
 #include "extern.h"
 #include "tar.h"
@@ -291,7 +289,7 @@ tar_chksm(char *blk, int len)
 /*
  * tar_id()
  *	determine if a block given to us is a valid tar header (and not a USTAR
- *	header). We have to be on the lookout for those pesky blocks of	all
+ *	header). We have to be on the lookout for those pesky blocks of all
  *	zero's.
  * Return:
  *	0 if a tar header, -1 otherwise
@@ -1086,7 +1084,7 @@ name_split(char *name, int len)
 	 */
 	if (len <= TNMSZ)
 		return(name);
-	if (len > (TPFSZ + TNMSZ + 1))
+	if (len > TPFSZ + TNMSZ)
 		return(NULL);
 
 	/*
@@ -1095,7 +1093,7 @@ name_split(char *name, int len)
 	 * to find the biggest piece to fit in the name field (or the smallest
 	 * prefix we can find)
 	 */
-	start = name + len - TNMSZ - 1;
+	start = name + len - TNMSZ;
 	while ((*start != '\0') && (*start != '/'))
 		++start;
 

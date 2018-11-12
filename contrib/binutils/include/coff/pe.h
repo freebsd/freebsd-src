@@ -1,6 +1,6 @@
 /* pe.h  -  PE COFF header information 
 
-   Copyright 2000, 2001, 2003 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2003, 2004, 2006 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 #ifndef _PE_H
 #define _PE_H
 
@@ -119,6 +119,7 @@
 #define IMAGE_FILE_MACHINE_THUMB             0x01c2
 #define IMAGE_FILE_MACHINE_TRICORE           0x0520
 #define IMAGE_FILE_MACHINE_WCEMIPSV2         0x0169
+#define IMAGE_FILE_MACHINE_AMD64             0x8664
 
 #define IMAGE_SUBSYSTEM_UNKNOWN			 0
 #define IMAGE_SUBSYSTEM_NATIVE			 1
@@ -129,6 +130,8 @@
 #define IMAGE_SUBSYSTEM_EFI_APPLICATION		10
 #define IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER	11
 #define IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER	12
+#define IMAGE_SUBSYSTEM_EFI_ROM			13
+#define IMAGE_SUBSYSTEM_XBOX			14
   
 /* Magic values that are true for all dos/nt implementations.  */
 #define DOSMAGIC       0x5a4d  
@@ -259,6 +262,7 @@ typedef struct
   /* IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];  */
   char  DataDirectory[16][2][4]; /* 16 entries, 2 elements/entry, 4 chars.  */
 } PEAOUTHDR;
+
 #undef AOUTSZ
 #define AOUTSZ (AOUTHDRSZ + 196)
 
@@ -267,8 +271,11 @@ typedef struct
    of just 4 bytes long.  */
 typedef struct 
 {
+#ifdef AOUTHDRSZ64
+  AOUTHDR64 standard;
+#else
   AOUTHDR standard;
-
+#endif
   /* NT extra fields; see internal.h for descriptions.  */
   char  ImageBase[8];
   char  SectionAlignment[4];
@@ -294,7 +301,12 @@ typedef struct
   /* IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];  */
   char  DataDirectory[16][2][4]; /* 16 entries, 2 elements/entry, 4 chars.  */
 } PEPAOUTHDR;
+
+#ifdef AOUTHDRSZ64
+#define PEPAOUTSZ	(AOUTHDRSZ64 + 196 + 5 * 4) /* = 240 */
+#else
 #define PEPAOUTSZ	240
+#endif
   
 #undef  E_FILNMLEN
 #define E_FILNMLEN	18	/* # characters in a file name.  */
@@ -309,5 +321,10 @@ typedef struct
 #define IMPORT_NAME		1
 #define IMPORT_NAME_NOPREFIX	2
 #define IMPORT_NAME_UNDECORATE	3
+
+/* Weak external characteristics.  */
+#define IMAGE_WEAK_EXTERN_SEARCH_NOLIBRARY	1
+#define IMAGE_WEAK_EXTERN_SEARCH_LIBRARY	2
+#define IMAGE_WEAK_EXTERN_SEARCH_ALIAS		3
 
 #endif /* _PE_H */

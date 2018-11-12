@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -32,7 +35,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -51,23 +53,29 @@
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_dynamic.h>
+#include <dev/usb/usb_request.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 /* function prototypes */
 static usb_handle_req_t usb_temp_get_desc_w;
 static usb_temp_setup_by_index_t usb_temp_setup_by_index_w;
+#if USB_HAVE_COMPAT_LINUX
+static usb_linux_free_device_t usb_linux_free_device_w;
+#endif
 static usb_temp_unsetup_t usb_temp_unsetup_w;
 static usb_test_quirk_t usb_test_quirk_w;
-static usb_test_huawei_autoinst_t usb_test_huawei_autoinst_w;
 static usb_quirk_ioctl_t usb_quirk_ioctl_w;
 
 /* global variables */
 usb_handle_req_t *usb_temp_get_desc_p = &usb_temp_get_desc_w;
 usb_temp_setup_by_index_t *usb_temp_setup_by_index_p = &usb_temp_setup_by_index_w;
+#if USB_HAVE_COMPAT_LINUX
+usb_linux_free_device_t *usb_linux_free_device_p = &usb_linux_free_device_w;
+#endif
 usb_temp_unsetup_t *usb_temp_unsetup_p = &usb_temp_unsetup_w;
 usb_test_quirk_t *usb_test_quirk_p = &usb_test_quirk_w;
-usb_test_huawei_autoinst_t *usb_test_huawei_autoinst_p = &usb_test_huawei_autoinst_w;
 usb_quirk_ioctl_t *usb_quirk_ioctl_p = &usb_quirk_ioctl_w;
-devclass_t usb_devclass_ptr = NULL;
+devclass_t usb_devclass_ptr;
 
 static usb_error_t
 usb_temp_setup_by_index_w(struct usb_device *udev, uint16_t index)
@@ -97,20 +105,17 @@ usb_temp_get_desc_w(struct usb_device *udev, struct usb_device_request *req, con
 static void
 usb_temp_unsetup_w(struct usb_device *udev)
 {
-	if (udev->usb_template_ptr) {
-
-		free(udev->usb_template_ptr, M_USB);
-
-		udev->usb_template_ptr = NULL;
-	}
+	usbd_free_config_desc(udev, udev->usb_template_ptr);
+	udev->usb_template_ptr = NULL;
 }
 
-static usb_error_t
-usb_test_huawei_autoinst_w(struct usb_device *udev,
-    struct usb_attach_arg *uaa)
+#if USB_HAVE_COMPAT_LINUX
+static void
+usb_linux_free_device_w(struct usb_device *udev)
 {
-	return (USB_ERR_INVAL);
+	/* NOP */
 }
+#endif
 
 void
 usb_quirk_unload(void *arg)
@@ -157,16 +162,18 @@ usb_bus_unload(void *arg)
 	pause("WAIT", hz);
 }
 
+#if USB_HAVE_COMPAT_LINUX
 void
-usb_test_huawei_unload(void *arg)
+usb_linux_unload(void *arg)
 {
 	/* reset function pointers */
 
-	usb_test_huawei_autoinst_p = &usb_test_huawei_autoinst_w;
-
+	usb_linux_free_device_p = &usb_linux_free_device_w;
+  
 	/* wait for CPU to exit the loaded functions, if any */
 
 	/* XXX this is a tradeoff */
 
-	pause("WAIT", 16*hz);
+	pause("WAIT", hz);
 }
+#endif

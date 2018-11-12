@@ -18,12 +18,17 @@
  *
  * CDDL HEADER END
  */
+
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2015 by Syneto S.R.L. All rights reserved.
+ * Copyright 2016 Nexenta Systems, Inc.
+ */
 
 /*
  * The pool configuration repository is stored in /etc/zfs/zpool.cache as a
@@ -220,6 +225,37 @@ zpool_get_config(zpool_handle_t *zhp, nvlist_t **oldconfig)
 }
 
 /*
+ * Retrieves a list of enabled features and their refcounts and caches it in
+ * the pool handle.
+ */
+nvlist_t *
+zpool_get_features(zpool_handle_t *zhp)
+{
+	nvlist_t *config, *features;
+
+	config = zpool_get_config(zhp, NULL);
+
+	if (config == NULL || !nvlist_exists(config,
+	    ZPOOL_CONFIG_FEATURE_STATS)) {
+		int error;
+		boolean_t missing = B_FALSE;
+
+		error = zpool_refresh_stats(zhp, &missing);
+
+		if (error != 0 || missing)
+			return (NULL);
+
+		config = zpool_get_config(zhp, NULL);
+	}
+
+	if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_FEATURE_STATS,
+	    &features) != 0)
+		return (NULL);
+
+	return (features);
+}
+
+/*
  * Refresh the vdev statistics associated with the given pool.  This is used in
  * iostat to show configuration changes and determine the delta from the last
  * time the function was called.  This function can fail, in case the pool has
@@ -283,8 +319,7 @@ zpool_refresh_stats(zpool_handle_t *zhp, boolean_t *missing)
 		verify(nvlist_lookup_uint64(config,
 		    ZPOOL_CONFIG_POOL_TXG, &newtxg) == 0);
 
-		if (zhp->zpool_old_config != NULL)
-			nvlist_free(zhp->zpool_old_config);
+		nvlist_free(zhp->zpool_old_config);
 
 		if (oldtxg != newtxg) {
 			nvlist_free(zhp->zpool_config);
@@ -304,6 +339,62 @@ zpool_refresh_stats(zpool_handle_t *zhp, boolean_t *missing)
 }
 
 /*
+ * The following environment variables are undocumented
+ * and should be used for testing purposes only:
+ *
+ * __ZFS_POOL_EXCLUDE - don't iterate over the pools it lists
+ * __ZFS_POOL_RESTRICT - iterate only over the pools it lists
+ *
+ * This function returns B_TRUE if the pool should be skipped
+ * during iteration.
+ */
+boolean_t
+zpool_skip_pool(const char *poolname)
+{
+	static boolean_t initialized = B_FALSE;
+	static const char *exclude = NULL;
+	static const char *restricted = NULL;
+
+	const char *cur, *end;
+	int len;
+	int namelen = strlen(poolname);
+
+	if (!initialized) {
+		initialized = B_TRUE;
+		exclude = getenv("__ZFS_POOL_EXCLUDE");
+		restricted = getenv("__ZFS_POOL_RESTRICT");
+	}
+
+	if (exclude != NULL) {
+		cur = exclude;
+		do {
+			end = strchr(cur, ' ');
+			len = (NULL == end) ? strlen(cur) : (end - cur);
+			if (len == namelen && 0 == strncmp(cur, poolname, len))
+				return (B_TRUE);
+			cur += (len + 1);
+		} while (NULL != end);
+	}
+
+	if (NULL == restricted)
+		return (B_FALSE);
+
+	cur = restricted;
+	do {
+		end = strchr(cur, ' ');
+		len = (NULL == end) ? strlen(cur) : (end - cur);
+
+		if (len == namelen && 0 == strncmp(cur, poolname, len)) {
+			return (B_FALSE);
+		}
+
+		cur += (len + 1);
+	} while (NULL != end);
+
+	return (B_TRUE);
+}
+
+/*
  * Iterate over all pools in the system.
  */
 int
@@ -313,21 +404,36 @@ zpool_iter(libzfs_handle_t *hdl, zpool_iter_f func, void *data)
 	zpool_handle_t *zhp;
 	int ret;
 
-	if (namespace_reload(hdl) != 0)
+	/*
+	 * If someone makes a recursive call to zpool_iter(), we want to avoid
+	 * refreshing the namespace because that will invalidate the parent
+	 * context.  We allow recursive calls, but simply re-use the same
+	 * namespace AVL tree.
+	 */
+	if (!hdl->libzfs_pool_iter && namespace_reload(hdl) != 0)
 		return (-1);
 
+	hdl->libzfs_pool_iter++;
 	for (cn = uu_avl_first(hdl->libzfs_ns_avl); cn != NULL;
 	    cn = uu_avl_next(hdl->libzfs_ns_avl, cn)) {
 
-		if (zpool_open_silent(hdl, cn->cn_name, &zhp) != 0)
+		if (zpool_skip_pool(cn->cn_name))
+			continue;
+
+		if (zpool_open_silent(hdl, cn->cn_name, &zhp) != 0) {
+			hdl->libzfs_pool_iter--;
 			return (-1);
+		}
 
 		if (zhp == NULL)
 			continue;
 
-		if ((ret = func(zhp, data)) != 0)
+		if ((ret = func(zhp, data)) != 0) {
+			hdl->libzfs_pool_iter--;
 			return (ret);
+		}
 	}
+	hdl->libzfs_pool_iter--;
 
 	return (0);
 }
@@ -348,6 +454,9 @@ zfs_iter_root(libzfs_handle_t *hdl, zfs_iter_f func, void *data)
 
 	for (cn = uu_avl_first(hdl->libzfs_ns_avl); cn != NULL;
 	    cn = uu_avl_next(hdl->libzfs_ns_avl, cn)) {
+
+		if (zpool_skip_pool(cn->cn_name))
+			continue;
 
 		if ((zhp = make_dataset_handle(hdl, cn->cn_name)) == NULL)
 			continue;

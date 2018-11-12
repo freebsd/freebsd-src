@@ -190,7 +190,7 @@ void get_prga(struct params *p)
 	if (memcmp(p->ap, bssid, 6) != 0)
 		return;
 
-	if (!(wh->i_fc[1] & IEEE80211_FC1_WEP)) {
+	if (!(wh->i_fc[1] & IEEE80211_FC1_PROTECTED)) {
 		printf("Packet not WEP!\n");
 		return;
 	}
@@ -281,7 +281,7 @@ void send_frag(struct params *p)
 	/* 802.11 */
 	wh->i_fc[0] |= IEEE80211_FC0_TYPE_DATA;
 	wh->i_fc[0] |= IEEE80211_FC0_SUBTYPE_DATA;
-	wh->i_fc[1] |= IEEE80211_FC1_WEP;
+	wh->i_fc[1] |= IEEE80211_FC1_PROTECTED;
 	wh->i_fc[1] |= IEEE80211_FC1_DIR_TODS;
 	if (!last)
 		wh->i_fc[1] |= IEEE80211_FC1_MORE_FRAG;
@@ -527,7 +527,7 @@ void read_tap(struct params *p)
 	wh = (struct ieee80211_frame*) p->packet;
 	wh->i_fc[0] |= IEEE80211_FC0_TYPE_DATA;
 	wh->i_fc[0] |= IEEE80211_FC0_SUBTYPE_DATA;
-	wh->i_fc[1] |= IEEE80211_FC1_WEP;
+	wh->i_fc[1] |= IEEE80211_FC1_PROTECTED;
 	wh->i_fc[1] |= IEEE80211_FC1_DIR_TODS;
 
 	wh->i_dur[0] = 0x69;

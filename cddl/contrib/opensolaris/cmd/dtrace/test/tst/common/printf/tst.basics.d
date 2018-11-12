@@ -44,7 +44,7 @@ BEGIN
 
 	printf("\n");
 
-	printf("%%a = %a\n", &`kmem_alloc);
+	printf("%%a = %a\n", &`malloc);
 	printf("%%c = %c\n", i);
 	printf("%%d = %d\n", i);
 	printf("%%hd = %hd\n", (short)i);

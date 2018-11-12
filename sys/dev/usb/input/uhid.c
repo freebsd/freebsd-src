@@ -23,13 +23,6 @@ __FBSDID("$FreeBSD$");
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -56,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -83,11 +75,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/input/usb_rdesc.h>
 #include <dev/usb/quirk/usb_quirk.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int uhid_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uhid, CTLFLAG_RW, 0, "USB uhid");
-SYSCTL_INT(_hw_usb_uhid, OID_AUTO, debug, CTLFLAG_RW,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uhid, CTLFLAG_RW, 0, "USB uhid");
+SYSCTL_INT(_hw_usb_uhid, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uhid_debug, 0, "Debug level");
 #endif
 
@@ -95,6 +87,7 @@ SYSCTL_INT(_hw_usb_uhid, OID_AUTO, debug, CTLFLAG_RW,
 #define	UHID_FRAME_NUM 	  50		/* bytes, frame number */
 
 enum {
+	UHID_INTR_DT_WR,
 	UHID_INTR_DT_RD,
 	UHID_CTRL_DT_WR,
 	UHID_CTRL_DT_RD,
@@ -136,7 +129,8 @@ static device_probe_t uhid_probe;
 static device_attach_t uhid_attach;
 static device_detach_t uhid_detach;
 
-static usb_callback_t uhid_intr_callback;
+static usb_callback_t uhid_intr_write_callback;
+static usb_callback_t uhid_intr_read_callback;
 static usb_callback_t uhid_write_callback;
 static usb_callback_t uhid_read_callback;
 
@@ -160,7 +154,36 @@ static struct usb_fifo_methods uhid_fifo_methods = {
 };
 
 static void
-uhid_intr_callback(struct usb_xfer *xfer, usb_error_t error)
+uhid_intr_write_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	struct uhid_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
+	int actlen;
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
+	case USB_ST_SETUP:
+tr_setup:
+		pc = usbd_xfer_get_frame(xfer, 0);
+		if (usb_fifo_get_data(sc->sc_fifo.fp[USB_FIFO_TX], pc,
+		    0, usbd_xfer_max_len(xfer), &actlen, 0)) {
+			usbd_xfer_set_frame_len(xfer, 0, actlen);
+			usbd_transfer_submit(xfer);
+		}
+		return;
+
+	default:			/* Error */
+		if (error != USB_ERR_CANCELLED) {
+			/* try to clear stall first */
+			usbd_xfer_set_stall(xfer);
+			goto tr_setup;
+		}
+		return;
+	}
+}
+
+static void
+uhid_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct uhid_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
@@ -173,12 +196,21 @@ uhid_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTF("transferred!\n");
 
 		pc = usbd_xfer_get_frame(xfer, 0);
-		if (actlen >= sc->sc_isize) {
+
+		/* 
+		 * If the ID byte is non zero we allow descriptors
+		 * having multiple sizes:
+		 */
+		if ((actlen >= (int)sc->sc_isize) ||
+		    ((actlen > 0) && (sc->sc_iid != 0))) {
+			/* limit report length to the maximum */
+			if (actlen > (int)sc->sc_isize)
+				actlen = sc->sc_isize;
 			usb_fifo_put_data(sc->sc_fifo.fp[USB_FIFO_RX], pc,
-			    0, sc->sc_isize, 1);
+			    0, actlen, 1);
 		} else {
 			/* ignore it */
-			DPRINTF("ignored short transfer, %d bytes\n", actlen);
+			DPRINTF("ignored transfer, %d bytes\n", actlen);
 		}
 
 	case USB_ST_SETUP:
@@ -326,13 +358,22 @@ uhid_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 static const struct usb_config uhid_config[UHID_N_TRANSFER] = {
 
+	[UHID_INTR_DT_WR] = {
+		.type = UE_INTERRUPT,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_OUT,
+		.flags = {.pipe_bof = 1,.no_pipe_ok = 1, },
+		.bufsize = UHID_BSIZE,
+		.callback = &uhid_intr_write_callback,
+	},
+
 	[UHID_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.bufsize = UHID_BSIZE,
-		.callback = &uhid_intr_callback,
+		.callback = &uhid_intr_read_callback,
 	},
 
 	[UHID_CTRL_DT_WR] = {
@@ -380,7 +421,12 @@ uhid_start_write(struct usb_fifo *fifo)
 {
 	struct uhid_softc *sc = usb_fifo_softc(fifo);
 
-	usbd_transfer_start(sc->sc_xfer[UHID_CTRL_DT_WR]);
+	if ((sc->sc_flags & UHID_FLAG_IMMED) ||
+	    sc->sc_xfer[UHID_INTR_DT_WR] == NULL) {
+		usbd_transfer_start(sc->sc_xfer[UHID_CTRL_DT_WR]);
+	} else {
+		usbd_transfer_start(sc->sc_xfer[UHID_INTR_DT_WR]);
+	}
 }
 
 static void
@@ -389,6 +435,7 @@ uhid_stop_write(struct usb_fifo *fifo)
 	struct uhid_softc *sc = usb_fifo_softc(fifo);
 
 	usbd_transfer_stop(sc->sc_xfer[UHID_CTRL_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[UHID_INTR_DT_WR]);
 }
 
 static int
@@ -471,7 +518,9 @@ uhid_open(struct usb_fifo *fifo, int fflags)
 	 */
 	if (fflags & FREAD) {
 		/* reset flags */
+		mtx_lock(&sc->sc_mtx);
 		sc->sc_flags &= ~UHID_FLAG_IMMED;
+		mtx_unlock(&sc->sc_mtx);
 
 		if (usb_fifo_alloc_buffer(fifo,
 		    sc->sc_isize + 1, UHID_FRAME_NUM)) {
@@ -565,8 +614,10 @@ uhid_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 		default:
 			return (EINVAL);
 		}
+		if (id != 0)
+			copyin(ugd->ugd_data, &id, 1);
 		error = uhid_get_report(sc, ugd->ugd_report_type, id,
-		    NULL, ugd->ugd_data, size);
+		    NULL, ugd->ugd_data, imin(ugd->ugd_maxlen, size));
 		break;
 
 	case USB_SET_REPORT:
@@ -591,8 +642,10 @@ uhid_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 		default:
 			return (EINVAL);
 		}
+		if (id != 0)
+			copyin(ugd->ugd_data, &id, 1);
 		error = uhid_set_report(sc, ugd->ugd_report_type, id,
-		    NULL, ugd->ugd_data, size);
+		    NULL, ugd->ugd_data, imin(ugd->ugd_maxlen, size));
 		break;
 
 	case USB_GET_REPORT_ID:
@@ -606,34 +659,47 @@ uhid_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 	return (error);
 }
 
+static const STRUCT_USB_HOST_ID uhid_devs[] = {
+	/* generic HID class */
+	{USB_IFACE_CLASS(UICLASS_HID),},
+	/* the Xbox 360 gamepad doesn't use the HID class */
+	{USB_IFACE_CLASS(UICLASS_VENDOR),
+	 USB_IFACE_SUBCLASS(UISUBCLASS_XBOX360_CONTROLLER),
+	 USB_IFACE_PROTOCOL(UIPROTO_XBOX360_GAMEPAD),},
+};
+
 static int
 uhid_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	int error;
 
 	DPRINTFN(11, "\n");
 
-	if (uaa->usb_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
-	if (uaa->use_generic == 0) {
-		/* give Mouse and Keyboard drivers a try first */
-		return (ENXIO);
-	}
-	if (uaa->info.bInterfaceClass != UICLASS_HID) {
 
-		/* the Xbox 360 gamepad doesn't use the HID class */
+	error = usbd_lookup_id_by_uaa(uhid_devs, sizeof(uhid_devs), uaa);
+	if (error)
+		return (error);
 
-		if ((uaa->info.bInterfaceClass != UICLASS_VENDOR) ||
-		    (uaa->info.bInterfaceSubClass != UISUBCLASS_XBOX360_CONTROLLER) ||
-		    (uaa->info.bInterfaceProtocol != UIPROTO_XBOX360_GAMEPAD)) {
-			return (ENXIO);
-		}
-	}
-	if (usb_test_quirk(uaa, UQ_HID_IGNORE)) {
+	if (usb_test_quirk(uaa, UQ_HID_IGNORE))
 		return (ENXIO);
-	}
-	return (0);
+
+	/*
+	 * Don't attach to mouse and keyboard devices, hence then no
+	 * "nomatch" event is generated and then ums and ukbd won't
+	 * attach properly when loaded.
+	 */
+	if ((uaa->info.bInterfaceClass == UICLASS_HID) &&
+	    (uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
+	    (((uaa->info.bInterfaceProtocol == UIPROTO_BOOT_KEYBOARD) &&
+	      !usb_test_quirk(uaa, UQ_KBD_IGNORE)) ||
+	     ((uaa->info.bInterfaceProtocol == UIPROTO_MOUSE) &&
+	      !usb_test_quirk(uaa, UQ_UMS_IGNORE))))
+		return (ENXIO);
+
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
@@ -670,7 +736,7 @@ uhid_attach(device_t dev)
 		if (uaa->info.idProduct == USB_PRODUCT_WACOM_GRAPHIRE) {
 
 			sc->sc_repdesc_size = sizeof(uhid_graphire_report_descr);
-			sc->sc_repdesc_ptr = &uhid_graphire_report_descr;
+			sc->sc_repdesc_ptr = __DECONST(void *, &uhid_graphire_report_descr);
 			sc->sc_flags |= UHID_FLAG_STATIC_DESC;
 
 		} else if (uaa->info.idProduct == USB_PRODUCT_WACOM_GRAPHIRE3_4X5) {
@@ -691,16 +757,27 @@ uhid_attach(device_t dev)
 				    usbd_errstr(error));
 			}
 			sc->sc_repdesc_size = sizeof(uhid_graphire3_4x5_report_descr);
-			sc->sc_repdesc_ptr = &uhid_graphire3_4x5_report_descr;
+			sc->sc_repdesc_ptr = __DECONST(void *, &uhid_graphire3_4x5_report_descr);
 			sc->sc_flags |= UHID_FLAG_STATIC_DESC;
 		}
 	} else if ((uaa->info.bInterfaceClass == UICLASS_VENDOR) &&
-		    (uaa->info.bInterfaceSubClass == UISUBCLASS_XBOX360_CONTROLLER) &&
+	    (uaa->info.bInterfaceSubClass == UISUBCLASS_XBOX360_CONTROLLER) &&
 	    (uaa->info.bInterfaceProtocol == UIPROTO_XBOX360_GAMEPAD)) {
-
+		static const uint8_t reportbuf[3] = {1, 3, 0};
+		/*
+		 * Turn off the four LEDs on the gamepad which
+		 * are blinking by default:
+		 */
+		error = usbd_req_set_report(uaa->device, NULL,
+		    __DECONST(void *, reportbuf), sizeof(reportbuf),
+		    uaa->info.bIfaceIndex, UHID_OUTPUT_REPORT, 0);
+		if (error) {
+			DPRINTF("set output report failed, error=%s (ignored)\n",
+			    usbd_errstr(error));
+		}
 		/* the Xbox 360 gamepad has no report descriptor */
 		sc->sc_repdesc_size = sizeof(uhid_xb360gp_report_descr);
-		sc->sc_repdesc_ptr = &uhid_xb360gp_report_descr;
+		sc->sc_repdesc_ptr = __DECONST(void *, &uhid_xb360gp_report_descr);
 		sc->sc_flags |= UHID_FLAG_STATIC_DESC;
 	}
 	if (sc->sc_repdesc_ptr == NULL) {
@@ -751,7 +828,7 @@ uhid_attach(device_t dev)
 
 	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &uhid_fifo_methods, &sc->sc_fifo,
-	    unit, 0 - 1, uaa->info.bIfaceIndex,
+	    unit, -1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;
@@ -788,7 +865,8 @@ static device_method_t uhid_methods[] = {
 	DEVMETHOD(device_probe, uhid_probe),
 	DEVMETHOD(device_attach, uhid_attach),
 	DEVMETHOD(device_detach, uhid_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t uhid_driver = {
@@ -799,3 +877,5 @@ static driver_t uhid_driver = {
 
 DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, NULL, 0);
 MODULE_DEPEND(uhid, usb, 1, 1, 1);
+MODULE_VERSION(uhid, 1);
+USB_PNP_HOST_INFO(uhid_devs);

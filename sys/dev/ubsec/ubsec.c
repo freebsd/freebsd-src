@@ -123,17 +123,13 @@ static device_method_t ubsec_methods[] = {
 	DEVMETHOD(device_resume,	ubsec_resume),
 	DEVMETHOD(device_shutdown,	ubsec_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_newsession,	ubsec_newsession),
 	DEVMETHOD(cryptodev_freesession,ubsec_freesession),
 	DEVMETHOD(cryptodev_process,	ubsec_process),
 	DEVMETHOD(cryptodev_kprocess,	ubsec_kprocess),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ubsec_driver = {
 	"ubsec",
@@ -177,7 +173,8 @@ static	int ubsec_ksigbits(struct crparam *);
 static	void ubsec_kshift_r(u_int, u_int8_t *, u_int, u_int8_t *, u_int);
 static	void ubsec_kshift_l(u_int, u_int8_t *, u_int, u_int8_t *, u_int);
 
-SYSCTL_NODE(_hw, OID_AUTO, ubsec, CTLFLAG_RD, 0, "Broadcom driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, ubsec, CTLFLAG_RD, 0,
+    "Broadcom driver parameters");
 
 #ifdef UBSEC_DEBUG
 static	void ubsec_dump_pb(volatile struct ubsec_pktbuf *);
@@ -262,7 +259,8 @@ ubsec_partname(struct ubsec_softc *sc)
 static void
 default_harvest(struct rndtest_state *rsp, void *buf, u_int count)
 {
-	random_harvest(buf, count, count*NBBY, 0, RANDOM_PURE);
+	/* MarkM: FIX!! Check that this does not swamp the harvester! */
+	random_harvest_queue(buf, count, count*NBBY/2, RANDOM_PURE_UBSEC);
 }
 
 static int
@@ -270,7 +268,7 @@ ubsec_attach(device_t dev)
 {
 	struct ubsec_softc *sc = device_get_softc(dev);
 	struct ubsec_dma *dmap;
-	u_int32_t cmd, i;
+	u_int32_t i;
 	int rid;
 
 	bzero(sc, sizeof (*sc));
@@ -315,20 +313,7 @@ ubsec_attach(device_t dev)
 		    UBS_FLAGS_LONGCTX | UBS_FLAGS_HWNORM | UBS_FLAGS_BIGKEY;
 	}
 
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, cmd, 4);
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-
-	if (!(cmd & PCIM_CMD_MEMEN)) {
-		device_printf(dev, "failed to enable memory mapping\n");
-		goto bad;
-	}
-
-	if (!(cmd & PCIM_CMD_BUSMASTEREN)) {
-		device_printf(dev, "failed to enable bus mastering\n");
-		goto bad;
-	}
+	pci_enable_busmaster(dev);
 
 	/*
 	 * Setup memory-mapping of PCI registers.
@@ -372,7 +357,7 @@ ubsec_attach(device_t dev)
 	/*
 	 * Setup DMA descriptor area.
 	 */
-	if (bus_dma_tag_create(NULL,			/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 			       1, 0,			/* alignment, bounds */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
@@ -472,7 +457,7 @@ ubsec_attach(device_t dev)
 			sc->sc_rnghz = hz / 100;
 		else
 			sc->sc_rnghz = 1;
-		callout_init(&sc->sc_rngto, CALLOUT_MPSAFE);
+		callout_init(&sc->sc_rngto, 1);
 		callout_reset(&sc->sc_rngto, sc->sc_rnghz, ubsec_rng, sc);
 skip_rng:
 	;
@@ -1378,18 +1363,18 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 				ubsecstats.hst_unaligned++;
 				totlen = q->q_src_mapsize;
 				if (totlen >= MINCLSIZE) {
-					m = m_getcl(M_DONTWAIT, MT_DATA,
+					m = m_getcl(M_NOWAIT, MT_DATA,
 					    q->q_src_m->m_flags & M_PKTHDR);
 					len = MCLBYTES;
 				} else if (q->q_src_m->m_flags & M_PKTHDR) {
-					m = m_gethdr(M_DONTWAIT, MT_DATA);
+					m = m_gethdr(M_NOWAIT, MT_DATA);
 					len = MHLEN;
 				} else {
-					m = m_get(M_DONTWAIT, MT_DATA);
+					m = m_get(M_NOWAIT, MT_DATA);
 					len = MLEN;
 				}
 				if (m && q->q_src_m->m_flags & M_PKTHDR &&
-				    !m_dup_pkthdr(m, q->q_src_m, M_DONTWAIT)) {
+				    !m_dup_pkthdr(m, q->q_src_m, M_NOWAIT)) {
 					m_free(m);
 					m = NULL;
 				}
@@ -1405,11 +1390,11 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 
 				while (totlen > 0) {
 					if (totlen >= MINCLSIZE) {
-						m = m_getcl(M_DONTWAIT,
+						m = m_getcl(M_NOWAIT,
 						    MT_DATA, 0);
 						len = MCLBYTES;
 					} else {
-						m = m_get(M_DONTWAIT, MT_DATA);
+						m = m_get(M_NOWAIT, MT_DATA);
 						len = MLEN;
 					}
 					if (m == NULL) {
@@ -1858,7 +1843,7 @@ ubsec_dma_malloc(
 	int r;
 
 	/* XXX could specify sc_dmat as parent but that just adds overhead */
-	r = bus_dma_tag_create(NULL,			/* parent */
+	r = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev),	/* parent */
 			       1, 0,			/* alignment, bounds */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
@@ -1872,13 +1857,6 @@ ubsec_dma_malloc(
 	if (r != 0) {
 		device_printf(sc->sc_dev, "ubsec_dma_malloc: "
 			"bus_dma_tag_create failed; error %u\n", r);
-		goto fail_0;
-	}
-
-	r = bus_dmamap_create(dma->dma_tag, BUS_DMA_NOWAIT, &dma->dma_map);
-	if (r != 0) {
-		device_printf(sc->sc_dev, "ubsec_dma_malloc: "
-			"bus_dmamap_create failed; error %u\n", r);
 		goto fail_1;
 	}
 
@@ -1886,8 +1864,8 @@ ubsec_dma_malloc(
 			     BUS_DMA_NOWAIT, &dma->dma_map);
 	if (r != 0) {
 		device_printf(sc->sc_dev, "ubsec_dma_malloc: "
-			"bus_dmammem_alloc failed; size %zu, error %u\n",
-			size, r);
+			"bus_dmammem_alloc failed; size %ju, error %u\n",
+			(intmax_t)size, r);
 		goto fail_2;
 	}
 
@@ -1910,10 +1888,7 @@ fail_3:
 fail_2:
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
 fail_1:
-	bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
-fail_0:
-	dma->dma_map = NULL;
 	dma->dma_tag = NULL;
 	return (r);
 }
@@ -1923,7 +1898,6 @@ ubsec_dma_free(struct ubsec_softc *sc, struct ubsec_dma_alloc *dma)
 {
 	bus_dmamap_unload(dma->dma_tag, dma->dma_map);
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
-	bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
 }
 
@@ -2328,25 +2302,25 @@ ubsec_kprocess_modexp_sw(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 
 errout:
 	if (me != NULL) {
-		if (me->me_q.q_mcr.dma_map != NULL)
+		if (me->me_q.q_mcr.dma_tag != NULL)
 			ubsec_dma_free(sc, &me->me_q.q_mcr);
-		if (me->me_q.q_ctx.dma_map != NULL) {
+		if (me->me_q.q_ctx.dma_tag != NULL) {
 			bzero(me->me_q.q_ctx.dma_vaddr, me->me_q.q_ctx.dma_size);
 			ubsec_dma_free(sc, &me->me_q.q_ctx);
 		}
-		if (me->me_M.dma_map != NULL) {
+		if (me->me_M.dma_tag != NULL) {
 			bzero(me->me_M.dma_vaddr, me->me_M.dma_size);
 			ubsec_dma_free(sc, &me->me_M);
 		}
-		if (me->me_E.dma_map != NULL) {
+		if (me->me_E.dma_tag != NULL) {
 			bzero(me->me_E.dma_vaddr, me->me_E.dma_size);
 			ubsec_dma_free(sc, &me->me_E);
 		}
-		if (me->me_C.dma_map != NULL) {
+		if (me->me_C.dma_tag != NULL) {
 			bzero(me->me_C.dma_vaddr, me->me_C.dma_size);
 			ubsec_dma_free(sc, &me->me_C);
 		}
-		if (me->me_epb.dma_map != NULL)
+		if (me->me_epb.dma_tag != NULL)
 			ubsec_dma_free(sc, &me->me_epb);
 		free(me, M_DEVBUF);
 	}
@@ -2529,25 +2503,25 @@ ubsec_kprocess_modexp_hw(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 
 errout:
 	if (me != NULL) {
-		if (me->me_q.q_mcr.dma_map != NULL)
+		if (me->me_q.q_mcr.dma_tag != NULL)
 			ubsec_dma_free(sc, &me->me_q.q_mcr);
-		if (me->me_q.q_ctx.dma_map != NULL) {
+		if (me->me_q.q_ctx.dma_tag != NULL) {
 			bzero(me->me_q.q_ctx.dma_vaddr, me->me_q.q_ctx.dma_size);
 			ubsec_dma_free(sc, &me->me_q.q_ctx);
 		}
-		if (me->me_M.dma_map != NULL) {
+		if (me->me_M.dma_tag != NULL) {
 			bzero(me->me_M.dma_vaddr, me->me_M.dma_size);
 			ubsec_dma_free(sc, &me->me_M);
 		}
-		if (me->me_E.dma_map != NULL) {
+		if (me->me_E.dma_tag != NULL) {
 			bzero(me->me_E.dma_vaddr, me->me_E.dma_size);
 			ubsec_dma_free(sc, &me->me_E);
 		}
-		if (me->me_C.dma_map != NULL) {
+		if (me->me_C.dma_tag != NULL) {
 			bzero(me->me_C.dma_vaddr, me->me_C.dma_size);
 			ubsec_dma_free(sc, &me->me_C);
 		}
-		if (me->me_epb.dma_map != NULL)
+		if (me->me_epb.dma_tag != NULL)
 			ubsec_dma_free(sc, &me->me_epb);
 		free(me, M_DEVBUF);
 	}
@@ -2723,13 +2697,13 @@ ubsec_kprocess_rsapriv(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 
 errout:
 	if (rp != NULL) {
-		if (rp->rpr_q.q_mcr.dma_map != NULL)
+		if (rp->rpr_q.q_mcr.dma_tag != NULL)
 			ubsec_dma_free(sc, &rp->rpr_q.q_mcr);
-		if (rp->rpr_msgin.dma_map != NULL) {
+		if (rp->rpr_msgin.dma_tag != NULL) {
 			bzero(rp->rpr_msgin.dma_vaddr, rp->rpr_msgin.dma_size);
 			ubsec_dma_free(sc, &rp->rpr_msgin);
 		}
-		if (rp->rpr_msgout.dma_map != NULL) {
+		if (rp->rpr_msgout.dma_tag != NULL) {
 			bzero(rp->rpr_msgout.dma_vaddr, rp->rpr_msgout.dma_size);
 			ubsec_dma_free(sc, &rp->rpr_msgout);
 		}

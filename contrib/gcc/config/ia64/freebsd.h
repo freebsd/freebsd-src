@@ -27,6 +27,7 @@ Boston, MA 02110-1301, USA.  */
   %{p:%nconsider using `-pg' instead of `-p' with gprof(1)}		\
   %{assert*} %{R*} %{rpath*} %{defsym*}					\
   %{shared:-Bshareable %{h*} %{soname*}}				\
+  %{!static:--enable-new-dtags}						\
   %{symbolic:-Bsymbolic}						\
   %{!shared:								\
     %{!static:								\

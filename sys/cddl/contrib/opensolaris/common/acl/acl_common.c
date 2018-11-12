@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -151,166 +149,6 @@ typedef struct ace_list {
 	ace_to_aent_state_t state;
 	int seen; /* bitmask of all aclent_t a_type values seen */
 } ace_list_t;
-
-ace_t trivial_acl[] = {
-	{(uid_t)-1, 0, ACE_OWNER, ACE_ACCESS_DENIED_ACE_TYPE},
-	{(uid_t)-1, ACE_WRITE_ACL|ACE_WRITE_OWNER|ACE_WRITE_ATTRIBUTES|
-	    ACE_WRITE_NAMED_ATTRS, ACE_OWNER, ACE_ACCESS_ALLOWED_ACE_TYPE},
-	{(uid_t)-1, 0, ACE_GROUP|ACE_IDENTIFIER_GROUP,
-	    ACE_ACCESS_DENIED_ACE_TYPE},
-	{(uid_t)-1, 0, ACE_GROUP|ACE_IDENTIFIER_GROUP,
-	    ACE_ACCESS_ALLOWED_ACE_TYPE},
-	{(uid_t)-1, ACE_WRITE_ACL|ACE_WRITE_OWNER| ACE_WRITE_ATTRIBUTES|
-	    ACE_WRITE_NAMED_ATTRS, ACE_EVERYONE, ACE_ACCESS_DENIED_ACE_TYPE},
-	{(uid_t)-1, ACE_READ_ACL|ACE_READ_ATTRIBUTES|ACE_READ_NAMED_ATTRS|
-	    ACE_SYNCHRONIZE, ACE_EVERYONE, ACE_ACCESS_ALLOWED_ACE_TYPE}
-};
-
-
-void
-adjust_ace_pair_common(void *pair, size_t access_off,
-    size_t pairsize, mode_t mode)
-{
-	char *datap = (char *)pair;
-	uint32_t *amask0 = (uint32_t *)(uintptr_t)(datap + access_off);
-	uint32_t *amask1 = (uint32_t *)(uintptr_t)(datap + pairsize +
-	    access_off);
-	if (mode & S_IROTH)
-		*amask1 |= ACE_READ_DATA;
-	else
-		*amask0 |= ACE_READ_DATA;
-	if (mode & S_IWOTH)
-		*amask1 |= ACE_WRITE_DATA|ACE_APPEND_DATA;
-	else
-		*amask0 |= ACE_WRITE_DATA|ACE_APPEND_DATA;
-	if (mode & S_IXOTH)
-		*amask1 |= ACE_EXECUTE;
-	else
-		*amask0 |= ACE_EXECUTE;
-}
-
-void
-adjust_ace_pair(ace_t *pair, mode_t mode)
-{
-	adjust_ace_pair_common(pair, offsetof(ace_t, a_access_mask),
-	    sizeof (ace_t), mode);
-}
-
-static void
-ace_allow_deny_helper(uint16_t type, boolean_t *allow, boolean_t *deny)
-{
-	if (type == ACE_ACCESS_ALLOWED_ACE_TYPE)
-		*allow = B_TRUE;
-	else if (type == ACE_ACCESS_DENIED_ACE_TYPE)
-		*deny = B_TRUE;
-}
-
-/*
- * ace_trivial:
- * determine whether an ace_t acl is trivial
- *
- * Trivialness implies that the acl is composed of only
- * owner, group, everyone entries.  ACL can't
- * have read_acl denied, and write_owner/write_acl/write_attributes
- * can only be owner@ entry.
- */
-int
-ace_trivial_common(void *acep, int aclcnt,
-    uint64_t (*walk)(void *, uint64_t, int aclcnt,
-    uint16_t *, uint16_t *, uint32_t *))
-{
-	boolean_t owner_allow = B_FALSE;
-	boolean_t group_allow = B_FALSE;
-	boolean_t everyone_allow = B_FALSE;
-	boolean_t owner_deny = B_FALSE;
-	boolean_t group_deny = B_FALSE;
-	boolean_t everyone_deny = B_FALSE;
-	uint16_t flags;
-	uint32_t mask;
-	uint16_t type;
-	uint64_t cookie = 0;
-
-	while (cookie = walk(acep, cookie, aclcnt, &flags, &type, &mask)) {
-		switch (flags & ACE_TYPE_FLAGS) {
-		case ACE_OWNER:
-			if (group_allow || group_deny || everyone_allow ||
-			    everyone_deny)
-				return (1);
-			ace_allow_deny_helper(type, &owner_allow, &owner_deny);
-			break;
-		case ACE_GROUP|ACE_IDENTIFIER_GROUP:
-			if (everyone_allow || everyone_deny &&
-			    (!owner_allow && !owner_deny))
-				return (1);
-			ace_allow_deny_helper(type, &group_allow, &group_deny);
-			break;
-
-		case ACE_EVERYONE:
-			if (!owner_allow && !owner_deny &&
-			    !group_allow && !group_deny)
-				return (1);
-			ace_allow_deny_helper(type,
-			    &everyone_allow, &everyone_deny);
-			break;
-		default:
-			return (1);
-
-		}
-
-		if (flags & (ACE_FILE_INHERIT_ACE|
-		    ACE_DIRECTORY_INHERIT_ACE|ACE_NO_PROPAGATE_INHERIT_ACE|
-		    ACE_INHERIT_ONLY_ACE))
-			return (1);
-
-		/*
-		 * Special check for some special bits
-		 *
-		 * Don't allow anybody to deny reading basic
-		 * attributes or a files ACL.
-		 */
-		if ((mask & (ACE_READ_ACL|ACE_READ_ATTRIBUTES)) &&
-		    (type == ACE_ACCESS_DENIED_ACE_TYPE))
-			return (1);
-
-		/*
-		 * Allow on owner@ to allow
-		 * write_acl/write_owner/write_attributes
-		 */
-		if (type == ACE_ACCESS_ALLOWED_ACE_TYPE &&
-		    (!(flags & ACE_OWNER) && (mask &
-		    (ACE_WRITE_OWNER|ACE_WRITE_ACL|ACE_WRITE_ATTRIBUTES))))
-			return (1);
-
-	}
-
-	if (!owner_allow || !owner_deny || !group_allow || !group_deny ||
-	    !everyone_allow || !everyone_deny)
-		return (1);
-
-	return (0);
-}
-
-uint64_t
-ace_walk(void *datap, uint64_t cookie, int aclcnt, uint16_t *flags,
-    uint16_t *type, uint32_t *mask)
-{
-	ace_t *acep = datap;
-
-	if (cookie >= aclcnt)
-		return (0);
-
-	*flags = acep[cookie].a_flags;
-	*type = acep[cookie].a_type;
-	*mask = acep[cookie++].a_access_mask;
-
-	return (cookie);
-}
-
-int
-ace_trivial(ace_t *acep, int aclcnt)
-{
-	return (ace_trivial_common(acep, aclcnt, ace_walk));
-}
 
 /*
  * Generic shellsort, from K&R (1st ed, p 58.), somewhat modified.
@@ -539,7 +377,7 @@ access_mask_set(int haswriteperm, int hasreadperm, int isowner, int isallow)
  * by nfsace, assuming aclent_t -> nfsace semantics.
  */
 static uint32_t
-mode_to_ace_access(mode_t mode, int isdir, int isowner, int isallow)
+mode_to_ace_access(mode_t mode, boolean_t isdir, int isowner, int isallow)
 {
 	uint32_t access = 0;
 	int haswriteperm = 0;
@@ -582,7 +420,7 @@ mode_to_ace_access(mode_t mode, int isdir, int isowner, int isallow)
 			access |= ACE_DELETE_CHILD;
 	}
 	/* exec */
-	if (mode & 01) {
+	if (mode & S_IXOTH) {
 		access |= ACE_EXECUTE;
 	}
 
@@ -833,7 +671,7 @@ out:
 }
 
 static int
-convert_aent_to_ace(aclent_t *aclentp, int aclcnt, int isdir,
+convert_aent_to_ace(aclent_t *aclentp, int aclcnt, boolean_t isdir,
     ace_t **retacep, int *retacecnt)
 {
 	ace_t *acep;
@@ -859,7 +697,7 @@ convert_aent_to_ace(aclent_t *aclentp, int aclcnt, int isdir,
 		dfaclcnt = aclcnt - i;
 	}
 
-	if (dfaclcnt && isdir == 0) {
+	if (dfaclcnt && !isdir) {
 		return (EINVAL);
 	}
 
@@ -897,7 +735,7 @@ convert_aent_to_ace(aclent_t *aclentp, int aclcnt, int isdir,
 }
 
 static int
-ace_mask_to_mode(uint32_t  mask, o_mode_t *modep, int isdir)
+ace_mask_to_mode(uint32_t  mask, o_mode_t *modep, boolean_t isdir)
 {
 	int error = 0;
 	o_mode_t mode = 0;
@@ -1194,7 +1032,7 @@ out:
 }
 
 static int
-ace_allow_to_mode(uint32_t mask, o_mode_t *modep, int isdir)
+ace_allow_to_mode(uint32_t mask, o_mode_t *modep, boolean_t isdir)
 {
 	/* ACE_READ_ACL and ACE_READ_ATTRIBUTES must both be set */
 	if ((mask & (ACE_READ_ACL | ACE_READ_ATTRIBUTES)) !=
@@ -1207,7 +1045,7 @@ ace_allow_to_mode(uint32_t mask, o_mode_t *modep, int isdir)
 
 static int
 acevals_to_aent(acevals_t *vals, aclent_t *dest, ace_list_t *list,
-    uid_t owner, gid_t group, int isdir)
+    uid_t owner, gid_t group, boolean_t isdir)
 {
 	int error;
 	uint32_t  flips = ACE_POSIX_SUPPORTED_BITS;
@@ -1247,7 +1085,7 @@ out:
 
 static int
 ace_list_to_aent(ace_list_t *list, aclent_t **aclentp, int *aclcnt,
-    uid_t owner, gid_t group, int isdir)
+    uid_t owner, gid_t group, boolean_t isdir)
 {
 	int error = 0;
 	aclent_t *aent, *result = NULL;
@@ -1427,7 +1265,7 @@ acevals_compare(const void *va, const void *vb)
 static int
 ln_ace_to_aent(ace_t *ace, int n, uid_t owner, gid_t group,
     aclent_t **aclentp, int *aclcnt, aclent_t **dfaclentp, int *dfaclcnt,
-    int isdir)
+    boolean_t isdir)
 {
 	int error = 0;
 	ace_t *acep;
@@ -1622,7 +1460,7 @@ out:
 }
 
 static int
-convert_ace_to_aent(ace_t *acebufp, int acecnt, int isdir,
+convert_ace_to_aent(ace_t *acebufp, int acecnt, boolean_t isdir,
     uid_t owner, gid_t group, aclent_t **retaclentp, int *retaclcnt)
 {
 	int error = 0;
@@ -1664,7 +1502,7 @@ convert_ace_to_aent(ace_t *acebufp, int acecnt, int isdir,
 
 
 int
-acl_translate(acl_t *aclp, int target_flavor, int isdir, uid_t owner,
+acl_translate(acl_t *aclp, int target_flavor, boolean_t isdir, uid_t owner,
     gid_t group)
 {
 	int aclcnt;
@@ -1726,4 +1564,202 @@ out:
 	return (error);
 #endif
 }
-#endif /* _KERNEL */
+#endif /* !_KERNEL */
+
+#define	SET_ACE(acl, index, who, mask, type, flags) { \
+	acl[0][index].a_who = (uint32_t)who; \
+	acl[0][index].a_type = type; \
+	acl[0][index].a_flags = flags; \
+	acl[0][index++].a_access_mask = mask; \
+}
+
+void
+acl_trivial_access_masks(mode_t mode, boolean_t isdir, trivial_acl_t *masks)
+{
+	uint32_t read_mask = ACE_READ_DATA;
+	uint32_t write_mask = ACE_WRITE_DATA|ACE_APPEND_DATA;
+	uint32_t execute_mask = ACE_EXECUTE;
+
+	(void) isdir;	/* will need this later */
+
+	masks->deny1 = 0;
+	if (!(mode & S_IRUSR) && (mode & (S_IRGRP|S_IROTH)))
+		masks->deny1 |= read_mask;
+	if (!(mode & S_IWUSR) && (mode & (S_IWGRP|S_IWOTH)))
+		masks->deny1 |= write_mask;
+	if (!(mode & S_IXUSR) && (mode & (S_IXGRP|S_IXOTH)))
+		masks->deny1 |= execute_mask;
+
+	masks->deny2 = 0;
+	if (!(mode & S_IRGRP) && (mode & S_IROTH))
+		masks->deny2 |= read_mask;
+	if (!(mode & S_IWGRP) && (mode & S_IWOTH))
+		masks->deny2 |= write_mask;
+	if (!(mode & S_IXGRP) && (mode & S_IXOTH))
+		masks->deny2 |= execute_mask;
+
+	masks->allow0 = 0;
+	if ((mode & S_IRUSR) && (!(mode & S_IRGRP) && (mode & S_IROTH)))
+		masks->allow0 |= read_mask;
+	if ((mode & S_IWUSR) && (!(mode & S_IWGRP) && (mode & S_IWOTH)))
+		masks->allow0 |= write_mask;
+	if ((mode & S_IXUSR) && (!(mode & S_IXGRP) && (mode & S_IXOTH)))
+		masks->allow0 |= execute_mask;
+
+	masks->owner = ACE_WRITE_ATTRIBUTES|ACE_WRITE_OWNER|ACE_WRITE_ACL|
+	    ACE_WRITE_NAMED_ATTRS|ACE_READ_ACL|ACE_READ_ATTRIBUTES|
+	    ACE_READ_NAMED_ATTRS|ACE_SYNCHRONIZE;
+	if (mode & S_IRUSR)
+		masks->owner |= read_mask;
+	if (mode & S_IWUSR)
+		masks->owner |= write_mask;
+	if (mode & S_IXUSR)
+		masks->owner |= execute_mask;
+
+	masks->group = ACE_READ_ACL|ACE_READ_ATTRIBUTES|ACE_READ_NAMED_ATTRS|
+	    ACE_SYNCHRONIZE;
+	if (mode & S_IRGRP)
+		masks->group |= read_mask;
+	if (mode & S_IWGRP)
+		masks->group |= write_mask;
+	if (mode & S_IXGRP)
+		masks->group |= execute_mask;
+
+	masks->everyone = ACE_READ_ACL|ACE_READ_ATTRIBUTES|ACE_READ_NAMED_ATTRS|
+	    ACE_SYNCHRONIZE;
+	if (mode & S_IROTH)
+		masks->everyone |= read_mask;
+	if (mode & S_IWOTH)
+		masks->everyone |= write_mask;
+	if (mode & S_IXOTH)
+		masks->everyone |= execute_mask;
+}
+
+int
+acl_trivial_create(mode_t mode, boolean_t isdir, ace_t **acl, int *count)
+{
+	int		index = 0;
+	int		error;
+	trivial_acl_t	masks;
+
+	*count = 3;
+	acl_trivial_access_masks(mode, isdir, &masks);
+
+	if (masks.allow0)
+		(*count)++;
+	if (masks.deny1)
+		(*count)++;
+	if (masks.deny2)
+		(*count)++;
+
+	if ((error = cacl_malloc((void **)acl, *count * sizeof (ace_t))) != 0)
+		return (error);
+
+	if (masks.allow0) {
+		SET_ACE(acl, index, -1, masks.allow0,
+		    ACE_ACCESS_ALLOWED_ACE_TYPE, ACE_OWNER);
+	}
+	if (masks.deny1) {
+		SET_ACE(acl, index, -1, masks.deny1,
+		    ACE_ACCESS_DENIED_ACE_TYPE, ACE_OWNER);
+	}
+	if (masks.deny2) {
+		SET_ACE(acl, index, -1, masks.deny2,
+		    ACE_ACCESS_DENIED_ACE_TYPE, ACE_GROUP|ACE_IDENTIFIER_GROUP);
+	}
+
+	SET_ACE(acl, index, -1, masks.owner, ACE_ACCESS_ALLOWED_ACE_TYPE,
+	    ACE_OWNER);
+	SET_ACE(acl, index, -1, masks.group, ACE_ACCESS_ALLOWED_ACE_TYPE,
+	    ACE_IDENTIFIER_GROUP|ACE_GROUP);
+	SET_ACE(acl, index, -1, masks.everyone, ACE_ACCESS_ALLOWED_ACE_TYPE,
+	    ACE_EVERYONE);
+
+	return (0);
+}
+
+/*
+ * ace_trivial:
+ * determine whether an ace_t acl is trivial
+ *
+ * Trivialness implies that the acl is composed of only
+ * owner, group, everyone entries.  ACL can't
+ * have read_acl denied, and write_owner/write_acl/write_attributes
+ * can only be owner@ entry.
+ */
+int
+ace_trivial_common(void *acep, int aclcnt,
+    uint64_t (*walk)(void *, uint64_t, int aclcnt,
+    uint16_t *, uint16_t *, uint32_t *))
+{
+	uint16_t flags;
+	uint32_t mask;
+	uint16_t type;
+	uint64_t cookie = 0;
+
+	while (cookie = walk(acep, cookie, aclcnt, &flags, &type, &mask)) {
+		switch (flags & ACE_TYPE_FLAGS) {
+		case ACE_OWNER:
+		case ACE_GROUP|ACE_IDENTIFIER_GROUP:
+		case ACE_EVERYONE:
+			break;
+		default:
+			return (1);
+
+		}
+
+		if (flags & (ACE_FILE_INHERIT_ACE|
+		    ACE_DIRECTORY_INHERIT_ACE|ACE_NO_PROPAGATE_INHERIT_ACE|
+		    ACE_INHERIT_ONLY_ACE))
+			return (1);
+
+		/*
+		 * Special check for some special bits
+		 *
+		 * Don't allow anybody to deny reading basic
+		 * attributes or a files ACL.
+		 */
+		if ((mask & (ACE_READ_ACL|ACE_READ_ATTRIBUTES)) &&
+		    (type == ACE_ACCESS_DENIED_ACE_TYPE))
+			return (1);
+
+		/*
+		 * Delete permissions are never set by default
+		 */
+		if (mask & (ACE_DELETE|ACE_DELETE_CHILD))
+			return (1);
+		/*
+		 * only allow owner@ to have
+		 * write_acl/write_owner/write_attributes/write_xattr/
+		 */
+		if (type == ACE_ACCESS_ALLOWED_ACE_TYPE &&
+		    (!(flags & ACE_OWNER) && (mask &
+		    (ACE_WRITE_OWNER|ACE_WRITE_ACL| ACE_WRITE_ATTRIBUTES|
+		    ACE_WRITE_NAMED_ATTRS))))
+			return (1);
+
+	}
+	return (0);
+}
+
+uint64_t
+ace_walk(void *datap, uint64_t cookie, int aclcnt, uint16_t *flags,
+    uint16_t *type, uint32_t *mask)
+{
+	ace_t *acep = datap;
+
+	if (cookie >= aclcnt)
+		return (0);
+
+	*flags = acep[cookie].a_flags;
+	*type = acep[cookie].a_type;
+	*mask = acep[cookie++].a_access_mask;
+
+	return (cookie);
+}
+
+int
+ace_trivial(ace_t *acep, int aclcnt)
+{
+	return (ace_trivial_common(acep, aclcnt, ace_walk));
+}

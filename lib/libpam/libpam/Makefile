@@ -35,27 +35,46 @@
 #
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 OPENPAM=	${.CURDIR}/../../../contrib/openpam
-.PATH: ${OPENPAM}/include ${OPENPAM}/lib ${OPENPAM}/doc/man
+.PATH: ${OPENPAM}/include ${OPENPAM}/lib/libpam ${OPENPAM}/doc/man
 
-LIB=	pam
-NO_PROFILE=
+# static_libpam will build libpam.a
+.if !defined(LIB)
+SHLIB=	pam
+.endif
 
-SRCS=	openpam_borrow_cred.c \
+MK_PROFILE=no
+
+SRCS=	openpam_asprintf.c \
+	openpam_borrow_cred.c \
+	openpam_check_owner_perms.c \
 	openpam_configure.c \
+	openpam_constants.c \
 	openpam_dispatch.c \
 	openpam_dynamic.c \
+	openpam_features.c \
 	openpam_findenv.c \
 	openpam_free_data.c \
 	openpam_free_envlist.c \
+	openpam_get_feature.c \
 	openpam_get_option.c \
 	openpam_load.c \
 	openpam_log.c \
 	openpam_nullconv.c \
 	openpam_readline.c \
+	openpam_readlinev.c \
+	openpam_readword.c \
 	openpam_restore_cred.c \
+	openpam_set_feature.c \
 	openpam_set_option.c \
+	openpam_straddch.c \
+	openpam_strlcat.c \
+	openpam_strlcpy.c \
+	openpam_strlset.c \
+	openpam_subst.c \
 	openpam_ttyconv.c \
+	openpam_vasprintf.c \
 	pam_acct_mgmt.c \
 	pam_authenticate.c \
 	pam_chauthtok.c \
@@ -81,19 +100,23 @@ SRCS=	openpam_borrow_cred.c \
 	pam_verror.c \
 	pam_vinfo.c \
 	pam_vprompt.c
-# Local additions
-SRCS+=	pam_debug_log.c
 
-MAN=	openpam.3 \
+MAN?=	openpam.3 \
 	openpam_borrow_cred.3 \
 	openpam_free_data.3 \
 	openpam_free_envlist.3 \
+	openpam_get_feature.3 \
 	openpam_get_option.3 \
 	openpam_log.3 \
 	openpam_nullconv.3 \
 	openpam_readline.3 \
+	openpam_readlinev.3 \
+	openpam_readword.3 \
 	openpam_restore_cred.3 \
+	openpam_set_feature.3 \
 	openpam_set_option.3 \
+	openpam_straddch.3 \
+	openpam_subst.3 \
 	openpam_ttyconv.3 \
 	pam.3 \
 	pam_acct_mgmt.3 \
@@ -130,13 +153,16 @@ MAN=	openpam.3 \
 	pam_vprompt.3 \
 	pam.conf.5
 
-MLINKS=	pam.conf.5 pam.d.5
+MLINKS?=	pam.conf.5 pam.d.5
 
 CSTD?= c99
-WARNS?=	3
-CFLAGS+= -I${.CURDIR} -I${OPENPAM}/include
+CFLAGS+= -I${OPENPAM}/include
 CFLAGS+= -DLIB_MAJ=${SHLIB_MAJOR}
-CFLAGS+= -DOPENPAM_MODULES_DIR='"${PAM_MOD_DIR:C/\/*$//}/"'
+CFLAGS+= -DHAVE_DLFUNC=1
+CFLAGS+= -DHAVE_FDLOPEN=1
+CFLAGS+= -DHAVE_FPURGE=1
+CFLAGS+= -DHAVE_STRLCAT=1
+CFLAGS+= -DHAVE_STRLCPY=1
 
 HEADERS=	security/openpam.h \
 		security/openpam_attr.h \
@@ -148,22 +174,14 @@ HEADERS=	security/openpam.h \
 
 ADD_HEADERS=	security/pam_mod_misc.h
 
-# Static modules
-MODULE_DIR=	../modules
-.include "${.CURDIR}/${MODULE_DIR}/modules.inc"
-STATIC_MODULES=	${MODULES:C/.*/${MODULE_DIR}\/&\/lib&.a/}
-STATICOBJS+=	openpam_static_modules.o
-CLEANFILES+=	openpam_static.o \
-		openpam_static_modules.o
-
-openpam_static_modules.o: openpam_static.o ${STATIC_MODULES}
-	${LD} -o ${.TARGET} -r --whole-archive ${.ALLSRC}
-
-# Can't put openpam_static.c in SRCS but want .o in .depend.
-DPSRCS=		openpam_static.c
-
 # Headers
-INCS=		${HEADERS} ${ADD_HEADERS}
+INCS?=		${HEADERS} ${ADD_HEADERS}
 INCSDIR=	${INCLUDEDIR}/security
+
+.include <src.opts.mk>
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=        tests
+.endif
 
 .include <bsd.lib.mk>

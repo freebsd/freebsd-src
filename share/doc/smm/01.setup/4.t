@@ -9,11 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -30,6 +26,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)4.t	8.1 (Berkeley) 7/29/93
+.\" $FreeBSD$
 .\"
 .ds LH "Installing/Operating \*(4B
 .ds CF \*(Dy
@@ -88,7 +85,6 @@ miscfs		miscellaneous filesystems broken down as follows
 	kernfs	filesystem access to kernel data structures
 	lofs	loopback filesystem
 	nullfs	another loopback filesystem
-	portal	associate processes with filesystem locations
 	specfs	device special files
 	umapfs	provide alternate uid/gid mappings
 dev		generic device drivers (SCSI, vnode, concatenated disk)
@@ -152,38 +148,11 @@ directory.
 For all the devices supported by the distribution system, the
 files in
 .Pn /dev
-are created by the
-.Pn /dev/MAKEDEV
-shell script.
+are created by devfs.
 .PP
 Determine the set of devices that you have and create a new
 .Pn /dev
-directory by running the MAKEDEV script.
-First create a new directory
-.Pn /newdev ,
-copy MAKEDEV into it, edit the file MAKEDEV.local
-to provide an entry for local needs,
-and run it to generate a
-.Pn /newdev directory.
-For instance,
-.DS
-\fB#\fP \fIcd /\fP
-\fB#\fP \fImkdir newdev\fP
-\fB#\fP \fIcp dev/MAKEDEV newdev/MAKEDEV\fP
-\fB#\fP \fIcd newdev\fP
-\fB#\fP \fIMAKEDEV \*(Dk0 pt0 std LOCAL\fP
-.DE
-Note the ``std'' argument causes standard devices such as
-.Pn /dev/console ,
-the machine console, to be created.
-.PP
-You can then do
-.DS
-\fB#\fP \fIcd /\fP
-\fB#\fP \fImv dev olddev ; mv newdev dev\fP
-\fB#\fP \fIsync\fP
-.DE
-to install the new device directory.
+directory by mounting devfs.
 .Sh 3 "Building new system images"
 .PP
 The kernel configuration of each UNIX system is described by
@@ -232,8 +201,8 @@ the file
 must be edited.
 .PP
 To add a new terminal device, be sure the device is configured into the system
-and that the special files for the device have been made by
-.Pn /dev/MAKEDEV .
+and that the special files for the device exist in
+.Pn /dev .
 Then, enable the appropriate lines of
 .Pn /etc/ttys
 by setting the ``status''
@@ -335,9 +304,6 @@ Finally note that you should change the names of any dialup
 terminals to ttyd?
 where ? is in [0-9a-zA-Z], as some programs use this property of the
 names to determine if a terminal is a dialup.
-Shell commands to do this should be put in the
-.Pn /dev/MAKEDEV.local
-script.
 .PP
 While it is possible to use truly arbitrary strings for terminal names,
 the accounting and noticeably the

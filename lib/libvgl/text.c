@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1991-1997 Søren Schmidt
+ * Copyright (c) 1991-1997 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fbio.h>
 #include "vgl.h"
 
-static VGLText		*VGLTextFont = 0;
+static VGLText		*VGLTextFont;
 
 extern byte VGLFont[];
 

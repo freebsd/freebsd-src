@@ -132,7 +132,6 @@ static struct cdevsw drm_cdevsw = {
 };
 
 static int drm_msi = 1;	/* Enable by default. */
-TUNABLE_INT("hw.drm.msi", &drm_msi);
 SYSCTL_NODE(_hw, OID_AUTO, drm, CTLFLAG_RW, NULL, "DRM device");
 SYSCTL_INT(_hw_drm, OID_AUTO, msi, CTLFLAG_RDTUN, &drm_msi, 1,
     "Enable MSI interrupts for drm devices");
@@ -162,19 +161,8 @@ int drm_probe(device_t kdev, drm_pci_id_list_t *idlist)
 {
 	drm_pci_id_list_t *id_entry;
 	int vendor, device;
-#if __FreeBSD_version < 700010
-	device_t realdev;
-
-	if (!strcmp(device_get_name(kdev), "drmsub"))
-		realdev = device_get_parent(kdev);
-	else
-		realdev = kdev;
-	vendor = pci_get_vendor(realdev);
-	device = pci_get_device(realdev);
-#else
 	vendor = pci_get_vendor(kdev);
 	device = pci_get_device(kdev);
-#endif
 
 	if (pci_get_class(kdev) != PCIC_DISPLAY
 	    || pci_get_subclass(kdev) != PCIS_DISPLAY_VGA)
@@ -201,14 +189,7 @@ int drm_attach(device_t kdev, drm_pci_id_list_t *idlist)
 	unit = device_get_unit(kdev);
 	dev = device_get_softc(kdev);
 
-#if __FreeBSD_version < 700010
-	if (!strcmp(device_get_name(kdev), "drmsub"))
-		dev->device = device_get_parent(kdev);
-	else
-		dev->device = kdev;
-#else
 	dev->device = kdev;
-#endif
 	dev->devnode = make_dev(&drm_cdevsw,
 			0,
 			DRM_DEV_UID,
@@ -217,11 +198,7 @@ int drm_attach(device_t kdev, drm_pci_id_list_t *idlist)
 			"dri/card%d", unit);
 	dev->devnode->si_drv1 = dev;
 
-#if __FreeBSD_version >= 700053
 	dev->pci_domain = pci_get_domain(dev->device);
-#else
-	dev->pci_domain = 0;
-#endif
 	dev->pci_bus = pci_get_bus(dev->device);
 	dev->pci_slot = pci_get_slot(dev->device);
 	dev->pci_func = pci_get_function(dev->device);
@@ -434,6 +411,12 @@ static int drm_load(struct drm_device *dev)
 	DRM_DEBUG("\n");
 
 	TAILQ_INIT(&dev->maplist);
+	dev->map_unrhdr = new_unrhdr(1, ((1 << DRM_MAP_HANDLE_BITS) - 1), NULL);
+	if (dev->map_unrhdr == NULL) {
+		DRM_ERROR("Couldn't allocate map number allocator\n");
+		return EINVAL;
+	}
+
 
 	drm_mem_init();
 	drm_sysctl_init(dev);
@@ -472,7 +455,7 @@ static int drm_load(struct drm_device *dev)
 			retcode = ENOMEM;
 			goto error;
 		}
-		if (dev->agp != NULL) {
+		if (dev->agp != NULL && dev->agp->info.ai_aperture_base != 0) {
 			if (drm_mtrr_add(dev->agp->info.ai_aperture_base,
 			    dev->agp->info.ai_aperture_size, DRM_MTRR_WC) == 0)
 				dev->agp->mtrr = 1;
@@ -565,6 +548,7 @@ static void drm_unload(struct drm_device *dev)
 	}
 
 	delete_unrhdr(dev->drw_unrhdr);
+	delete_unrhdr(dev->map_unrhdr);
 
 	drm_mem_uninit();
 

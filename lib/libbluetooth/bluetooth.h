@@ -35,14 +35,16 @@
 #define _BLUETOOTH_H_
 
 #include <sys/types.h>
-#include <sys/bitstring.h>
 #include <sys/endian.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <sys/un.h>
+
 #include <errno.h>
 #include <netdb.h>
+#include <bitstring.h>
+
 #include <netgraph/ng_message.h>
 #include <netgraph/bluetooth/include/ng_hci.h>
 #include <netgraph/bluetooth/include/ng_l2cap.h>
@@ -59,6 +61,10 @@ __BEGIN_DECLS
 #define	bacpy(dst, src)	memcpy((dst), (src), sizeof(bdaddr_t))
 #define ba2str(ba, str)	bt_ntoa((ba), (str))
 #define str2ba(str, ba)	(bt_aton((str), (ba)) == 1? 0 : -1)
+#define htobs(d)	htole16(d)
+#define htobl(d)	htole32(d)
+#define btohs(d)	le16toh(d)
+#define btohl(d)	le32toh(d)
 
 /*
  * Interface to the outside world
@@ -163,8 +169,8 @@ int		bt_devclose(int s);
 int		bt_devsend (int s, uint16_t opcode, void *param, size_t plen);
 ssize_t		bt_devrecv (int s, void *buf, size_t size, time_t to);
 int		bt_devreq  (int s, struct bt_devreq *r, time_t to);
-int		bt_devfilter(int s, struct bt_devfilter const *new,
-			     struct bt_devfilter *old);
+int		bt_devfilter(int s, struct bt_devfilter const *newp,
+			     struct bt_devfilter *oldp);
 void		bt_devfilter_pkt_set(struct bt_devfilter *filter, uint8_t type);
 void		bt_devfilter_pkt_clr(struct bt_devfilter *filter, uint8_t type);
 int		bt_devfilter_pkt_tst(struct bt_devfilter const *filter, uint8_t type);
@@ -174,7 +180,7 @@ int		bt_devfilter_evt_tst(struct bt_devfilter const *filter, uint8_t event);
 int		bt_devinquiry(char const *devname, time_t length, int num_rsp,
 			      struct bt_devinquiry **ii);
 int		bt_devinfo (struct bt_devinfo *di);
-int		bt_devenum (bt_devenum_cb_t *cb, void *arg);
+int		bt_devenum (bt_devenum_cb_t cb, void *arg);
 
 /*
  * bdaddr utility functions (from NetBSD)

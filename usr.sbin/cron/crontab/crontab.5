@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 31, 2005
+.Dd January 5, 2016
 .Dt CRONTAB 5
 .Os
 .Sh NAME
@@ -74,7 +74,7 @@ is set to
 .Pa /bin/sh ,
 .Ev PATH
 is set to
-.Pa /usr/bin:/bin ,
+.Pa /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin ,
 and
 .Ev LOGNAME
 and
@@ -224,7 +224,7 @@ one of eight special strings may appear:
 .Bd -literal -offset indent
 string		meaning
 ------		-------
-@reboot		Run once, at startup.
+@reboot		Run once, at startup of cron.
 @yearly		Run once a year, "0 0 1 1 *".
 @annually	(same as @yearly)
 @monthly	Run once a month, "0 0 1 * *".
@@ -232,6 +232,8 @@ string		meaning
 @daily		Run once a day, "0 0 * * *".
 @midnight	(same as @daily)
 @hourly		Run once an hour, "0 * * * *".
+@every_minute	Run once a minute, "*/1 * * * *".
+@every_second	Run once a second.
 .Ed
 .Sh EXAMPLE CRON FILE
 .Bd -literal
@@ -293,15 +295,26 @@ All of the
 commands that can appear in place of the first five fields
 are extensions.
 .Sh AUTHORS
-.An Paul Vixie Aq paul@vix.com
+.An Paul Vixie Aq Mt paul@vix.com
 .Sh BUGS
 If you are in one of the 70-odd countries that observe Daylight
-Savings Time, jobs scheduled during the rollback or advance will be
-affected.
+Savings Time, jobs scheduled during the rollback or advance may be
+affected if
+.Xr cron 8
+is not started with the
+.Fl s
+flag.
 In general, it is not a good idea to schedule jobs during
-this period.
+this period if
+.Xr cron 8
+is not started with the
+.Fl s
+flag, which is enabled by default.
+See
+.Xr cron 8
+for more details.
 .Pp
-For US timezones (except parts of IN, AZ, and HI) the time shift occurs at
+For US timezones (except parts of AZ and HI) the time shift occurs at
 2AM local time.
 For others, the output of the
 .Xr zdump 8

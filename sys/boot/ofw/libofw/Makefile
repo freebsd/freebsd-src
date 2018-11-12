@@ -6,6 +6,8 @@ INTERNALLIB=
 SRCS=	devicename.c elf_freebsd.c ofw_console.c ofw_copy.c ofw_disk.c \
 	ofw_memory.c ofw_module.c ofw_net.c ofw_reboot.c \
 	ofw_time.c openfirm.c
+.PATH:	${.CURDIR}/../../zfs
+SRCS+=  devicename_stubs.c
 
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
@@ -13,8 +15,9 @@ CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
 
 CFLAGS+=	-ffreestanding
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 CFLAGS+=	-msoft-float
+SRCS+=		ppc64_elf_freebsd.c
 .endif
 
 .ifdef(BOOT_DISK_DEBUG)
@@ -22,8 +25,8 @@ CFLAGS+=	-msoft-float
 CFLAGS+= -DDISK_DEBUG
 .endif
 
-machine:
-	ln -sf ${.CURDIR}/../../../${MACHINE_ARCH}/include machine
+machine: .NOMETA
+	ln -sf ${.CURDIR}/../../../${MACHINE_CPUARCH}/include machine
 
 CLEANFILES+=	machine
 

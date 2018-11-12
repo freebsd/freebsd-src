@@ -32,8 +32,8 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/mqueue.h>
+#include <sys/signal.h>
 
-struct sigevent;
 struct timespec;
 
 __BEGIN_DECLS
@@ -50,7 +50,9 @@ ssize_t	mq_timedreceive(mqd_t, char *__restrict, size_t,
 int	mq_timedsend(mqd_t, const char *, size_t, unsigned,
 		const struct timespec *);
 int	mq_unlink(const char *);
-int	__mq_oshandle(mqd_t mqd);
+#if __BSD_VISIBLE
+int	mq_getfd_np(mqd_t mqd);
+#endif /* __BSD_VISIBLE */
 
 __END_DECLS
 #endif

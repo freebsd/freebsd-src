@@ -40,10 +40,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
+
+FEATURE(geom_part_mbr, "GEOM partitioning class for MBR support");
+
+SYSCTL_DECL(_kern_geom_part);
+static SYSCTL_NODE(_kern_geom_part, OID_AUTO, mbr, CTLFLAG_RW, 0,
+    "GEOM_PART_MBR Master Boot Record");
+
+static u_int enforce_chs = 0;
+SYSCTL_UINT(_kern_geom_part_mbr, OID_AUTO, enforce_chs,
+    CTLFLAG_RWTUN, &enforce_chs, 0, "Enforce alignment to CHS addressing");
 
 #define	MBRSIZE		512
 
@@ -76,6 +88,8 @@ static int g_part_mbr_setunset(struct g_part_table *, struct g_part_entry *,
 static const char *g_part_mbr_type(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_mbr_write(struct g_part_table *, struct g_consumer *);
+static int g_part_mbr_resize(struct g_part_table *, struct g_part_entry *,
+    struct g_part_parms *);
 
 static kobj_method_t g_part_mbr_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_mbr_add),
@@ -85,6 +99,7 @@ static kobj_method_t g_part_mbr_methods[] = {
 	KOBJMETHOD(g_part_dumpconf,	g_part_mbr_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_mbr_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_mbr_modify),
+	KOBJMETHOD(g_part_resize,	g_part_mbr_resize),
 	KOBJMETHOD(g_part_name,		g_part_mbr_name),
 	KOBJMETHOD(g_part_probe,	g_part_mbr_probe),
 	KOBJMETHOD(g_part_read,		g_part_mbr_read),
@@ -105,12 +120,36 @@ static struct g_part_scheme g_part_mbr_scheme = {
 };
 G_PART_SCHEME_DECLARE(g_part_mbr);
 
+static struct g_part_mbr_alias {
+	u_char		typ;
+	int		alias;
+} mbr_alias_match[] = {
+	{ DOSPTYP_386BSD,	G_PART_ALIAS_FREEBSD },
+	{ DOSPTYP_EXT,		G_PART_ALIAS_EBR },
+	{ DOSPTYP_NTFS,		G_PART_ALIAS_MS_NTFS },
+	{ DOSPTYP_FAT16,	G_PART_ALIAS_MS_FAT16 },
+	{ DOSPTYP_FAT32,	G_PART_ALIAS_MS_FAT32 },
+	{ DOSPTYP_EXTLBA,	G_PART_ALIAS_EBR },
+	{ DOSPTYP_LDM,		G_PART_ALIAS_MS_LDM_DATA },
+	{ DOSPTYP_LINSWP,	G_PART_ALIAS_LINUX_SWAP },
+	{ DOSPTYP_LINUX,	G_PART_ALIAS_LINUX_DATA },
+	{ DOSPTYP_LINLVM,	G_PART_ALIAS_LINUX_LVM },
+	{ DOSPTYP_LINRAID,	G_PART_ALIAS_LINUX_RAID },
+	{ DOSPTYP_PPCBOOT,	G_PART_ALIAS_PREP_BOOT },
+	{ DOSPTYP_VMFS,		G_PART_ALIAS_VMFS },
+	{ DOSPTYP_VMKDIAG,	G_PART_ALIAS_VMKDIAG },
+	{ DOSPTYP_APPLE_UFS,	G_PART_ALIAS_APPLE_UFS },
+	{ DOSPTYP_APPLE_BOOT,	G_PART_ALIAS_APPLE_BOOT },
+	{ DOSPTYP_HFS,		G_PART_ALIAS_APPLE_HFS },
+};
+
 static int
 mbr_parse_type(const char *type, u_char *dp_typ)
 {
 	const char *alias;
 	char *endp;
 	long lt;
+	int i;
 
 	if (type[0] == '!') {
 		lt = strtol(type + 1, &endp, 0);
@@ -119,10 +158,12 @@ mbr_parse_type(const char *type, u_char *dp_typ)
 		*dp_typ = (u_char)lt;
 		return (0);
 	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
-	if (!strcasecmp(type, alias)) {
-		*dp_typ = DOSPTYP_386BSD;
-		return (0);
+	for (i = 0; i < nitems(mbr_alias_match); i++) {
+		alias = g_part_alias_name(mbr_alias_match[i].alias);
+		if (strcasecmp(type, alias) == 0) {
+			*dp_typ = mbr_alias_match[i].typ;
+			return (0);
+		}
 	}
 	return (EINVAL);
 }
@@ -165,39 +206,46 @@ mbr_set_chs(struct g_part_table *table, uint32_t lba, u_char *cylp, u_char *hdp,
 }
 
 static int
+mbr_align(struct g_part_table *basetable, uint32_t *start, uint32_t *size)
+{
+	uint32_t sectors;
+
+	if (enforce_chs == 0)
+		return (0);
+	sectors = basetable->gpt_sectors;
+	if (*size < sectors)
+		return (EINVAL);
+	if (start != NULL && (*start % sectors)) {
+		*size += (*start % sectors) - sectors;
+		*start -= (*start % sectors) - sectors;
+	}
+	if (*size % sectors)
+		*size -= (*size % sectors);
+	if (*size < sectors)
+		return (EINVAL);
+	return (0);
+}
+
+static int
 g_part_mbr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
     struct g_part_parms *gpp)
 {
 	struct g_part_mbr_entry *entry;
-	struct g_part_mbr_table *table;
-	uint32_t start, size, sectors;
+	uint32_t start, size;
 
 	if (gpp->gpp_parms & G_PART_PARM_LABEL)
 		return (EINVAL);
 
-	sectors = basetable->gpt_sectors;
-
 	entry = (struct g_part_mbr_entry *)baseentry;
-	table = (struct g_part_mbr_table *)basetable;
-
 	start = gpp->gpp_start;
 	size = gpp->gpp_size;
-	if (size < sectors)
+	if (mbr_align(basetable, &start, &size) != 0)
 		return (EINVAL);
-	if (start % sectors) {
-		size = size - sectors + (start % sectors);
-		start = start - (start % sectors) + sectors;
-	}
-	if (size % sectors)
-		size = size - (size % sectors);
-	if (size < sectors)
-		return (EINVAL);
-
 	if (baseentry->gpe_deleted)
 		bzero(&entry->ent, sizeof(entry->ent));
 
-	KASSERT(baseentry->gpe_start <= start, (__func__));
-	KASSERT(baseentry->gpe_end >= start + size - 1, (__func__));
+	KASSERT(baseentry->gpe_start <= start, ("%s", __func__));
+	KASSERT(baseentry->gpe_end >= start + size - 1, ("%s", __func__));
 	baseentry->gpe_start = start;
 	baseentry->gpe_end = start + size - 1;
 	entry->ent.dp_start = start;
@@ -213,34 +261,32 @@ static int
 g_part_mbr_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_part_mbr_table *table;
-	size_t codesz;
+	uint32_t dsn;
 
-	codesz = DOSPARTOFF;
+	if (gpp->gpp_codesize != MBRSIZE)
+		return (ENODEV);
+
 	table = (struct g_part_mbr_table *)basetable;
-	bzero(table->mbr, codesz);
-	codesz = MIN(codesz,  gpp->gpp_codesize);
-	if (codesz > 0)
-		bcopy(gpp->gpp_codeptr, table->mbr, codesz);
+	dsn = *(uint32_t *)(table->mbr + DOSDSNOFF);
+	bcopy(gpp->gpp_codeptr, table->mbr, DOSPARTOFF);
+	if (dsn != 0)
+		*(uint32_t *)(table->mbr + DOSDSNOFF) = dsn;
 	return (0);
 }
 
 static int
 g_part_mbr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
-	struct g_consumer *cp;
 	struct g_provider *pp;
 	struct g_part_mbr_table *table;
-	uint32_t msize;
 
 	pp = gpp->gpp_provider;
-	cp = LIST_FIRST(&pp->consumers);
-
 	if (pp->sectorsize < MBRSIZE)
 		return (ENOSPC);
 
-	msize = MIN(pp->mediasize / pp->sectorsize, 0xffffffff);
 	basetable->gpt_first = basetable->gpt_sectors;
-	basetable->gpt_last = msize - (msize % basetable->gpt_sectors) - 1;
+	basetable->gpt_last = MIN(pp->mediasize / pp->sectorsize,
+	    UINT32_MAX) - 1;
 
 	table = (struct g_part_mbr_table *)basetable;
 	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
@@ -282,9 +328,10 @@ g_part_mbr_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 {
 	struct g_part_mbr_entry *entry;
 
-	/* Allow dumping to a FreeBSD partition only. */
+	/* Allow dumping to a FreeBSD partition or Linux swap partition only. */
 	entry = (struct g_part_mbr_entry *)baseentry;
-	return ((entry->ent.dp_typ == DOSPTYP_386BSD) ? 1 : 0);
+	return ((entry->ent.dp_typ == DOSPTYP_386BSD ||
+	    entry->ent.dp_typ == DOSPTYP_LINSWP) ? 1 : 0);
 }
 
 static int
@@ -299,6 +346,36 @@ g_part_mbr_modify(struct g_part_table *basetable,
 	entry = (struct g_part_mbr_entry *)baseentry;
 	if (gpp->gpp_parms & G_PART_PARM_TYPE)
 		return (mbr_parse_type(gpp->gpp_type, &entry->ent.dp_typ));
+	return (0);
+}
+
+static int
+g_part_mbr_resize(struct g_part_table *basetable,
+    struct g_part_entry *baseentry, struct g_part_parms *gpp)
+{
+	struct g_part_mbr_entry *entry;
+	struct g_provider *pp;
+	uint32_t size;
+
+	if (baseentry == NULL) {
+		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+		basetable->gpt_last = MIN(pp->mediasize / pp->sectorsize,
+		    UINT32_MAX) - 1;
+		return (0);
+	}
+	size = gpp->gpp_size;
+	if (mbr_align(basetable, NULL, &size) != 0)
+		return (EINVAL);
+	/* XXX: prevent unexpected shrinking. */
+	pp = baseentry->gpe_pp;
+	if ((g_debugflags & 0x10) == 0 && size < gpp->gpp_size &&
+	    pp->mediasize / pp->sectorsize > size)
+		return (EBUSY);
+	entry = (struct g_part_mbr_entry *)baseentry;
+	baseentry->gpe_end = baseentry->gpe_start + size - 1;
+	entry->ent.dp_size = size;
+	mbr_set_chs(basetable, baseentry->gpe_end, &entry->ent.dp_ecyl,
+	    &entry->ent.dp_ehd, &entry->ent.dp_esect);
 	return (0);
 }
 
@@ -378,13 +455,14 @@ g_part_mbr_read(struct g_part_table *basetable, struct g_consumer *cp)
 	struct g_part_mbr_table *table;
 	struct g_part_mbr_entry *entry;
 	u_char *buf, *p;
-	off_t chs, msize;
+	off_t chs, msize, first;
 	u_int sectors, heads;
 	int error, index;
 
 	pp = cp->provider;
 	table = (struct g_part_mbr_table *)basetable;
-	msize = pp->mediasize / pp->sectorsize;
+	first = basetable->gpt_sectors;
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 
 	buf = g_read_data(cp, 0L, pp->sectorsize, &error);
 	if (buf == NULL)
@@ -416,13 +494,8 @@ g_part_mbr_read(struct g_part_table *basetable, struct g_consumer *cp)
 				basetable->gpt_heads = heads;
 			}
 		}
-		if ((ent.dp_start % basetable->gpt_sectors) != 0)
-			printf("GEOM: %s: partition %d does not start on a "
-			    "track boundary.\n", pp->name, index + 1);
-		if ((ent.dp_size % basetable->gpt_sectors) != 0)
-			printf("GEOM: %s: partition %d does not end on a "
-			    "track boundary.\n", pp->name, index + 1);
-
+		if (ent.dp_start < first)
+			first = ent.dp_start;
 		entry = (struct g_part_mbr_entry *)g_part_new_entry(basetable,
 		    index + 1, ent.dp_start, ent.dp_start + ent.dp_size - 1);
 		entry->ent = ent;
@@ -430,8 +503,12 @@ g_part_mbr_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	basetable->gpt_entries = NDOSPART;
 	basetable->gpt_first = basetable->gpt_sectors;
-	basetable->gpt_last = msize - (msize % basetable->gpt_sectors) - 1;
+	basetable->gpt_last = msize - 1;
 
+	if (first < basetable->gpt_first)
+		basetable->gpt_first = 1;
+
+	g_free(buf);
 	return (0);
 }
 
@@ -443,6 +520,8 @@ g_part_mbr_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
 	struct g_part_mbr_entry *entry;
 	int changed;
 
+	if (baseentry == NULL)
+		return (ENODEV);
 	if (strcasecmp(attrib, "active") != 0)
 		return (EINVAL);
 
@@ -477,13 +556,14 @@ g_part_mbr_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
 	struct g_part_mbr_entry *entry;
-	int type;
+	int i;
 
 	entry = (struct g_part_mbr_entry *)baseentry;
-	type = entry->ent.dp_typ;
-	if (type == DOSPTYP_386BSD)
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD));
-	snprintf(buf, bufsz, "!%d", type);
+	for (i = 0; i < nitems(mbr_alias_match); i++) {
+		if (mbr_alias_match[i].typ == entry->ent.dp_typ)
+			return (g_part_alias_name(mbr_alias_match[i].alias));
+	}
+	snprintf(buf, bufsz, "!%d", entry->ent.dp_typ);
 	return (buf);
 }
 

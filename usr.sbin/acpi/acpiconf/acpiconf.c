@@ -86,7 +86,8 @@ acpi_battinfo(int num)
 {
 	union acpi_battery_ioctl_arg battio;
 	const char *pwr_units;
-	int hours, min;
+	int hours, min, amp;
+	uint32_t volt;
 
 	if (num < 0 || num > 64)
 		err(EX_USAGE, "invalid battery %d", num);
@@ -95,11 +96,8 @@ acpi_battinfo(int num)
 	battio.unit = num;
 	if (ioctl(acpifd, ACPIIO_BATT_GET_BIF, &battio) == -1)
 		err(EX_IOERR, "get battery info (%d) failed", num);
-	if (battio.bif.units == 0)
-		pwr_units = "mW";
-	else
-		pwr_units = "mA";
-
+	amp = battio.bif.units;
+	pwr_units = amp ? "mA" : "mW";
 	if (battio.bif.dcap == UNKNOWN_CAP)
 		printf("Design capacity:\tunknown\n");
 	else
@@ -125,21 +123,43 @@ acpi_battinfo(int num)
 	printf("Type:\t\t\t%s\n", battio.bif.type);
 	printf("OEM info:\t\t%s\n", battio.bif.oeminfo);
 
+	/* Fetch battery voltage information. */
+	volt = UNKNOWN_VOLTAGE;
+	battio.unit = num;
+	if (ioctl(acpifd, ACPIIO_BATT_GET_BST, &battio) == -1)
+		err(EX_IOERR, "get battery status (%d) failed", num);
+	if (battio.bst.state != ACPI_BATT_STAT_NOT_PRESENT)
+		volt = battio.bst.volt;
+
 	/* Print current battery state information. */
 	battio.unit = num;
 	if (ioctl(acpifd, ACPIIO_BATT_GET_BATTINFO, &battio) == -1)
 		err(EX_IOERR, "get battery user info (%d) failed", num);
 	if (battio.battinfo.state != ACPI_BATT_STAT_NOT_PRESENT) {
-		printf("State:\t\t\t");
-		if (battio.battinfo.state == 0)
-			printf("high ");
-		if (battio.battinfo.state & ACPI_BATT_STAT_CRITICAL)
-			printf("critical ");
-		if (battio.battinfo.state & ACPI_BATT_STAT_DISCHARG)
-			printf("discharging ");
-		if (battio.battinfo.state & ACPI_BATT_STAT_CHARGING)
-			printf("charging ");
-		printf("\n");
+		const char *state;
+		switch (battio.battinfo.state & ACPI_BATT_STAT_BST_MASK) {
+		case 0:
+			state = "high";
+			break;
+		case ACPI_BATT_STAT_DISCHARG:
+			state = "discharging";
+			break;
+		case ACPI_BATT_STAT_CHARGING:
+			state = "charging";
+			break;
+		case ACPI_BATT_STAT_CRITICAL:
+			state = "critical";
+			break;
+		case ACPI_BATT_STAT_DISCHARG | ACPI_BATT_STAT_CRITICAL:
+			state = "critical discharging";
+			break;
+		case ACPI_BATT_STAT_CHARGING | ACPI_BATT_STAT_CRITICAL:
+			state = "critical charging";
+			break;
+		default:
+			state = "invalid";
+		}
+		printf("State:\t\t\t%s\n", state);
 		if (battio.battinfo.cap == -1)
 			printf("Remaining capacity:\tunknown\n");
 		else
@@ -154,22 +174,21 @@ acpi_battinfo(int num)
 		}
 		if (battio.battinfo.rate == -1)
 			printf("Present rate:\t\tunknown\n");
-		else
+		else if (amp && volt != UNKNOWN_VOLTAGE) {
+			printf("Present rate:\t\t%d mA (%d mW)\n",
+			    battio.battinfo.rate,
+			    battio.battinfo.rate * volt / 1000);
+		} else
 			printf("Present rate:\t\t%d %s\n",
 			    battio.battinfo.rate, pwr_units);
 	} else
 		printf("State:\t\t\tnot present\n");
 
 	/* Print battery voltage information. */
-	battio.unit = num;
-	if (ioctl(acpifd, ACPIIO_BATT_GET_BST, &battio) == -1)
-		err(EX_IOERR, "get battery status (%d) failed", num);
-	if (battio.bst.state != ACPI_BATT_STAT_NOT_PRESENT) {
-		if (battio.bst.volt == UNKNOWN_VOLTAGE)
-			printf("Voltage:\t\tunknown\n");
-		else
-			printf("Voltage:\t\t%d mV\n", battio.bst.volt);
-	}
+	if (volt == UNKNOWN_VOLTAGE)
+		printf("Present voltage:\tunknown\n");
+	else
+		printf("Present voltage:\t%d mV\n", volt);
 
 	return (0);
 }

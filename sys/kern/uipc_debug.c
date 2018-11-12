@@ -209,15 +209,15 @@ db_print_sbstate(short sb_state)
 
 	comma = 0;
 	if (sb_state & SBS_CANTSENDMORE) {
-		db_printf("%sSS_CANTSENDMORE", comma ? ", " : "");
+		db_printf("%sSBS_CANTSENDMORE", comma ? ", " : "");
 		comma = 1;
 	}
 	if (sb_state & SBS_CANTRCVMORE) {
-		db_printf("%sSS_CANTRCVMORE", comma ? ", " : "");
+		db_printf("%sSBS_CANTRCVMORE", comma ? ", " : "");
 		comma = 1;
 	}
 	if (sb_state & SBS_RCVATMARK) {
-		db_printf("%sSS_RCVATMARK", comma ? ", " : "");
+		db_printf("%sSBS_RCVATMARK", comma ? ", " : "");
 		comma = 1;
 	}
 }
@@ -255,8 +255,6 @@ db_print_domain(struct domain *d, const char *domain_name, int indent)
 
 	db_print_indent(indent);
 	db_printf("dom_rtattach: %p   ", d->dom_rtattach);
-	db_printf("dom_rtoffset: %d   ", d->dom_rtoffset);
-	db_printf("dom_maxrtkey: %d\n", d->dom_maxrtkey);
 
 	db_print_indent(indent);
 	db_printf("dom_ifattach: %p   ", d->dom_ifattach);
@@ -403,7 +401,8 @@ db_print_sockbuf(struct sockbuf *sb, const char *sockbufname, int indent)
 	db_printf("sb_sndptroff: %u\n", sb->sb_sndptroff);
 
 	db_print_indent(indent);
-	db_printf("sb_cc: %u   ", sb->sb_cc);
+	db_printf("sb_acc: %u   ", sb->sb_acc);
+	db_printf("sb_ccc: %u   ", sb->sb_ccc);
 	db_printf("sb_hiwat: %u   ", sb->sb_hiwat);
 	db_printf("sb_mbcnt: %u   ", sb->sb_mbcnt);
 	db_printf("sb_mbmax: %u\n", sb->sb_mbmax);
@@ -411,12 +410,15 @@ db_print_sockbuf(struct sockbuf *sb, const char *sockbufname, int indent)
 	db_print_indent(indent);
 	db_printf("sb_ctl: %u   ", sb->sb_ctl);
 	db_printf("sb_lowat: %d   ", sb->sb_lowat);
-	db_printf("sb_timeo: %d\n", sb->sb_timeo);
+	db_printf("sb_timeo: %jd\n", sb->sb_timeo);
 
 	db_print_indent(indent);
 	db_printf("sb_flags: 0x%x (", sb->sb_flags);
 	db_print_sbflags(sb->sb_flags);
 	db_printf(")\n");
+
+	db_print_indent(indent);
+	db_printf("sb_aiojobq first: %p\n", TAILQ_FIRST(&sb->sb_aiojobq));
 }
 
 static void
@@ -462,16 +464,15 @@ db_print_socket(struct socket *so, const char *socketname, int indent)
 
 	db_print_indent(indent);
 	/* so_list skipped */
-	db_printf("so_qlen: %d   ", so->so_qlen);
-	db_printf("so_incqlen: %d   ", so->so_incqlen);
-	db_printf("so_qlimit: %d   ", so->so_qlimit);
+	db_printf("so_qlen: %u   ", so->so_qlen);
+	db_printf("so_incqlen: %u   ", so->so_incqlen);
+	db_printf("so_qlimit: %u   ", so->so_qlimit);
 	db_printf("so_timeo: %d   ", so->so_timeo);
 	db_printf("so_error: %d\n", so->so_error);
 
 	db_print_indent(indent);
 	db_printf("so_sigio: %p   ", so->so_sigio);
 	db_printf("so_oobmark: %lu   ", so->so_oobmark);
-	db_printf("so_aiojobq first: %p\n", TAILQ_FIRST(&so->so_aiojobq));
 
 	db_print_sockbuf(&so->so_rcv, "so_rcv", indent);
 	db_print_sockbuf(&so->so_snd, "so_snd", indent);

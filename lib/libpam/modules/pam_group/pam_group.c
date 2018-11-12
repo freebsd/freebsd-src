@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by
@@ -46,16 +47,16 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #define PAM_SM_AUTH
+#define PAM_SM_ACCOUNT
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
 #include <security/openpam.h>
 
-
-PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
-    int argc __unused, const char *argv[] __unused)
+static int
+pam_group(pam_handle_t *pamh)
 {
+	int local, remote;
 	const char *group, *user;
 	const void *ruser;
 	char *const *list;
@@ -69,10 +70,24 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	if (pwd->pw_uid != 0 && openpam_get_option(pamh, "root_only"))
 		return (PAM_IGNORE);
 
-	/* get applicant */
-	if (pam_get_item(pamh, PAM_RUSER, &ruser) != PAM_SUCCESS
-	    || ruser == NULL || (pwd = getpwnam(ruser)) == NULL)
-		return (PAM_AUTH_ERR);
+	/* check local / remote */
+	local = openpam_get_option(pamh, "luser") ? 1 : 0;
+	remote = openpam_get_option(pamh, "ruser") ? 1 : 0;
+	if (local && remote) {
+		openpam_log(PAM_LOG_ERROR, "(pam_group) "
+		    "the luser and ruser options are mutually exclusive");
+		return (PAM_SERVICE_ERR);
+	} else if (local) {
+		/* we already have the correct struct passwd */
+	} else {
+		if (!remote)
+			openpam_log(PAM_LOG_NOTICE, "(pam_group) "
+			    "neither luser nor ruser specified, assuming ruser");
+		/* default / historical behavior */
+		if (pam_get_item(pamh, PAM_RUSER, &ruser) != PAM_SUCCESS ||
+		    ruser == NULL || (pwd = getpwnam(ruser)) == NULL)
+			return (PAM_AUTH_ERR);
+	}
 
 	/* get regulating group */
 	if ((group = openpam_get_option(pamh, "group")) == NULL)
@@ -80,14 +95,12 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	if ((grp = getgrnam(group)) == NULL || grp->gr_mem == NULL)
 		goto failed;
 
-	/* check if the group is empty */
-	if (*grp->gr_mem == NULL)
-		goto failed;
-
-	/* check membership */
+	/* check if user's own primary group */
 	if (pwd->pw_gid == grp->gr_gid)
 		goto found;
-	for (list = grp->gr_mem; *list != NULL; ++list)
+
+	/* iterate over members */
+	for (list = grp->gr_mem; list != NULL && *list != NULL; ++list)
 		if (strcmp(*list, pwd->pw_name) == 0)
 			goto found;
 
@@ -107,11 +120,27 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 }
 
 PAM_EXTERN int
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
+{
+
+	return (pam_group(pamh));
+}
+
+PAM_EXTERN int
 pam_sm_setcred(pam_handle_t * pamh __unused, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
 
 	return (PAM_SUCCESS);
+}
+
+PAM_EXTERN int
+pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
+{
+
+	return (pam_group(pamh));
 }
 
 PAM_MODULE_ENTRY("pam_group");

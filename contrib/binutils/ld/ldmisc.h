@@ -1,5 +1,5 @@
 /* ldmisc.h -
-   Copyright 1991, 1992, 1993, 1994, 1996, 1997, 2001, 2003
+   Copyright 1991, 1992, 1993, 1994, 1996, 1997, 2001, 2003, 2004, 2007
    Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
@@ -16,13 +16,12 @@
 
    You should have received a copy of the GNU General Public License
    along with GLD; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #ifndef LDMISC_H
 #define LDMISC_H
 
-extern bfd_boolean error_handler (int, const char *, ...);
 extern void einfo (const char *, ...);
 extern void minfo (const char *, ...);
 extern void info_msg (const char *, ...);
@@ -41,6 +40,5 @@ do { info_assert(__FILE__,__LINE__); } while (0)
 
 extern void print_space (void);
 extern void print_nl (void);
-extern char *demangle (const char *);
 
 #endif

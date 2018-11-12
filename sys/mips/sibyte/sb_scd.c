@@ -23,17 +23,31 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/cpuset.h>
 
 #include <machine/resource.h>
+#include <machine/hwfunc.h>
 
 #include "sb_scd.h"
 
-__FBSDID("$FreeBSD$");
+/*
+ * We compile a 32-bit kernel to run on the SB-1 processor which is a 64-bit
+ * processor. It has some registers that must be accessed using 64-bit load
+ * and store instructions.
+ *
+ * We use the mips_ld() and mips_sd() functions to do this for us.
+ */
+#define	sb_store64(addr, val)	mips3_sd((uint64_t *)(uintptr_t)(addr), (val))
+#define	sb_load64(addr)		mips3_ld((uint64_t *)(uintptr_t)(addr))
 
 /*
  * System Control and Debug (SCD) unit on the Sibyte ZBbus.
@@ -44,7 +58,46 @@ __FBSDID("$FreeBSD$");
  */
 #define	GET_VAL_64(x, b, n)	(((x) >> (b)) & ((1ULL << (n)) - 1))
 
+#define	SYSREV_ADDR		MIPS_PHYS_TO_KSEG1(0x10020000)
+#define	SYSREV_NUM_PROCESSORS(x) GET_VAL_64((x), 24, 4)
+
+#define	SYSCFG_ADDR		MIPS_PHYS_TO_KSEG1(0x10020008)
 #define SYSCFG_PLLDIV(x)	GET_VAL_64((x), 7, 5)
+
+#define	ZBBUS_CYCLE_COUNT_ADDR	MIPS_PHYS_TO_KSEG1(0x10030000)
+
+#define	INTSRC_MASK_ADDR(cpu)	\
+	(MIPS_PHYS_TO_KSEG1(0x10020028) | ((cpu) << 13))
+
+#define	INTSRC_MAP_ADDR(cpu, intsrc)	\
+	(MIPS_PHYS_TO_KSEG1(0x10020200) | ((cpu) << 13)) + (intsrc * 8)
+
+#define	MAILBOX_SET_ADDR(cpu)	\
+	(MIPS_PHYS_TO_KSEG1(0x100200C8) | ((cpu) << 13))
+
+#define	MAILBOX_CLEAR_ADDR(cpu)	\
+	(MIPS_PHYS_TO_KSEG1(0x100200D0) | ((cpu) << 13))
+
+static uint64_t
+sb_read_syscfg(void)
+{
+
+	return (sb_load64(SYSCFG_ADDR));
+}
+
+static void
+sb_write_syscfg(uint64_t val)
+{
+	
+	sb_store64(SYSCFG_ADDR, val);
+}
+
+uint64_t
+sb_zbbus_cycle_count(void)
+{
+
+	return (sb_load64(ZBBUS_CYCLE_COUNT_ADDR));
+}
 
 uint64_t
 sb_cpu_speed(void)
@@ -76,6 +129,71 @@ sb_system_reset(void)
 	sb_write_syscfg(syscfg);
 }
 
+void
+sb_disable_intsrc(int cpu, int src)
+{
+	int regaddr;
+	uint64_t val;
+
+	regaddr = INTSRC_MASK_ADDR(cpu);
+
+	val = sb_load64(regaddr);
+	val |= 1ULL << src;
+	sb_store64(regaddr, val);
+}
+
+void
+sb_enable_intsrc(int cpu, int src)
+{
+	int regaddr;
+	uint64_t val;
+
+	regaddr = INTSRC_MASK_ADDR(cpu);
+
+	val = sb_load64(regaddr);
+	val &= ~(1ULL << src);
+	sb_store64(regaddr, val);
+}
+
+void
+sb_write_intsrc_mask(int cpu, uint64_t val)
+{
+	int regaddr;
+
+	regaddr = INTSRC_MASK_ADDR(cpu);
+	sb_store64(regaddr, val);
+}
+
+uint64_t
+sb_read_intsrc_mask(int cpu)
+{
+	int regaddr;
+	uint64_t val;
+
+	regaddr = INTSRC_MASK_ADDR(cpu);
+	val = sb_load64(regaddr);
+
+	return (val);
+}
+
+void
+sb_write_intmap(int cpu, int intsrc, int intrnum)
+{
+	int regaddr;
+
+	regaddr = INTSRC_MAP_ADDR(cpu, intsrc);
+	sb_store64(regaddr, intrnum);
+}
+
+int
+sb_read_intmap(int cpu, int intsrc)
+{
+	int regaddr;
+
+	regaddr = INTSRC_MAP_ADDR(cpu, intsrc);
+	return (sb_load64(regaddr) & 0x7);
+}
+
 int
 sb_route_intsrc(int intsrc)
 {
@@ -86,18 +204,56 @@ sb_route_intsrc(int intsrc)
 
 	/*
 	 * Interrupt 5 is used by sources internal to the CPU (e.g. timer).
-	 * Use a deterministic mapping for the remaining sources to map to
-	 * interrupt numbers 0 through 4.
+	 * Use a deterministic mapping for the remaining sources.
 	 */
+#ifdef SMP
+	KASSERT(platform_ipi_hardintr_num() == 4,
+		("Unexpected interrupt number used for IPI"));
+	intrnum = intsrc % 4;
+#else
 	intrnum = intsrc % 5;
-
-	/*
-	 * Program the interrupt mapper while we are here.
-	 */
-	sb_write_intmap(intsrc, intrnum);
+#endif
 
 	return (intrnum);
 }
+
+#ifdef SMP
+static uint64_t
+sb_read_sysrev(void)
+{
+
+	return (sb_load64(SYSREV_ADDR));
+}
+
+void
+sb_set_mailbox(int cpu, uint64_t val)
+{
+	int regaddr;
+
+	regaddr = MAILBOX_SET_ADDR(cpu);
+	sb_store64(regaddr, val);
+}
+
+void
+sb_clear_mailbox(int cpu, uint64_t val)
+{
+	int regaddr;
+
+	regaddr = MAILBOX_CLEAR_ADDR(cpu);
+	sb_store64(regaddr, val);
+}
+
+void
+platform_cpu_mask(cpuset_t *mask)
+{
+	int i, s;
+
+	CPU_ZERO(mask);
+	s = SYSREV_NUM_PROCESSORS(sb_read_sysrev());
+	for (i = 0; i < s; i++)
+		CPU_SET(i, mask);
+}
+#endif	/* SMP */
 
 #define	SCD_PHYSADDR	0x10000000
 #define	SCD_SIZE	0x00060000
@@ -116,16 +272,14 @@ scd_attach(device_t dev)
 	int rid;
 	struct resource *res;
 
-	if (bootverbose) {
+	if (bootverbose)
 		device_printf(dev, "attached.\n");
-	}
 
 	rid = 0;
 	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, SCD_PHYSADDR,
 				 SCD_PHYSADDR + SCD_SIZE - 1, SCD_SIZE, 0);
-	if (res == NULL) {
+	if (res == NULL)
 		panic("Cannot allocate resource for system control and debug.");
-	}
 	
 	return (0);
 }

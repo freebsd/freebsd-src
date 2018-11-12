@@ -45,18 +45,18 @@ _kadm5_client_send (
 	kadm5_client_context */*context*/,
 	krb5_storage */*sp*/);
 
-int
-_kadm5_cmp_keys (
-	Key */*keys1*/,
-	int /*len1*/,
-	Key */*keys2*/,
-	int /*len2*/);
-
 kadm5_ret_t
 _kadm5_connect (void */*handle*/);
 
 kadm5_ret_t
 _kadm5_error_code (kadm5_ret_t /*code*/);
+
+int
+_kadm5_exists_keys (
+	Key */*keys1*/,
+	int /*len1*/,
+	Key */*keys2*/,
+	int /*len2*/);
 
 void
 _kadm5_free_keys (
@@ -352,6 +352,12 @@ kadm5_log_set_version (
 
 const char *
 kadm5_log_signal_socket (krb5_context /*context*/);
+
+kadm5_ret_t
+kadm5_log_signal_socket_info (
+	krb5_context /*context*/,
+	int /*server_end*/,
+	struct addrinfo **/*ret_addrs*/);
 
 kadm5_ret_t
 kadm5_log_truncate (kadm5_server_context */*server_context*/);

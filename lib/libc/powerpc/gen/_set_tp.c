@@ -25,11 +25,11 @@
  *
  *	$FreeBSD$
  */
+#include "libc_private.h"
 
 void
 _set_tp(void *tpval)
 {
-	register void *tp __asm__("r2");
 
-	__asm __volatile("mr %0,%1" : "=r"(tp) : "r"((char*)tpval + 0x7008));
+	__asm __volatile("mr 2,%0" :: "r"((char*)tpval + 0x7008));
 }

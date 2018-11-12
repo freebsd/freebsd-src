@@ -1,4 +1,4 @@
-/* $Id: port-solaris.h,v 1.1 2006/08/30 17:24:42 djm Exp $ */
+/* $Id: port-solaris.h,v 1.2 2010/11/05 01:03:05 dtucker Exp $ */
 
 /*
  * Copyright (c) 2006 Chad Mynhier.
@@ -20,8 +20,17 @@
 
 #include <sys/types.h>
 
+#include <pwd.h>
+
 void solaris_contract_pre_fork(void);
 void solaris_contract_post_fork_child(void);
 void solaris_contract_post_fork_parent(pid_t pid);
+void solaris_set_default_project(struct passwd *);
+# ifdef USE_SOLARIS_PRIVS
+priv_set_t *solaris_basic_privset(void);
+void solaris_drop_privs_pinfo_net_fork_exec(void);
+void solaris_drop_privs_root_pinfo_net(void);
+void solaris_drop_privs_root_pinfo_net_exec(void);
+# endif /* USE_SOLARIS_PRIVS */
 
 #endif

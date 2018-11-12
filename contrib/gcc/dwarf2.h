@@ -376,7 +376,14 @@ enum dwarf_attribute
     /* PGI (STMicroelectronics) extensions.  */
     DW_AT_PGI_lbase    = 0x3a00,
     DW_AT_PGI_soffset  = 0x3a01,
-    DW_AT_PGI_lstride  = 0x3a02
+    /* APPLE LOCAL begin radar 5811943 - Fix type of pointers to blocks  */
+    DW_AT_PGI_lstride  = 0x3a02,
+    /* APPLE LOCAL begin radar 6386976  */
+    DW_AT_APPLE_block    = 0x3fe4,
+    /* APPLE LOCAL end radar 5811943 - Fix type of pointers to blocks  */
+    DW_AT_APPLE_major_runtime_vers = 0x3fe5,
+    DW_AT_APPLE_runtime_class = 0x3fe6
+    /* APPLE LOCAL end radar 6386976  */
   };
 
 #define DW_AT_lo_user	0x2000	/* Implementation-defined range start.  */
@@ -540,6 +547,7 @@ enum dwarf_location_atom
     DW_OP_bit_piece = 0x9d,
     /* GNU extensions.  */
     DW_OP_GNU_push_tls_address = 0xe0,
+    DW_OP_GNU_uninit     = 0xf0,
     /* HP extensions.  */
     DW_OP_HP_unknown     = 0xe0, /* Ouch, the same as GNU_push_tls_address.  */
     DW_OP_HP_is_value    = 0xe1,

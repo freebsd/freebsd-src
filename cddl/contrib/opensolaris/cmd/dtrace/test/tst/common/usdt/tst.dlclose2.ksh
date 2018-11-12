@@ -48,7 +48,7 @@ main.o: main.c
 
 
 livelib.so: livelib.o prov.o
-	cc -z defs -G -o livelib.so livelib.o prov.o -lc
+	cc -shared -o livelib.so livelib.o prov.o -lc
 
 livelib.o: livelib.c prov.h
 	cc -c livelib.c
@@ -61,7 +61,7 @@ prov.h: prov.d
 
 
 deadlib.so: deadlib.o
-	cc -z defs -G -o deadlib.so deadlib.o -lc
+	cc -shared -o deadlib.so deadlib.o -lc
 
 deadlib.o: deadlib.c
 	cc -c deadlib.c
@@ -136,7 +136,7 @@ main(int argc, char **argv)
 }
 EOF
 
-/usr/ccs/bin/make > /dev/null
+/usr/bin/make > /dev/null
 if [ $? -ne 0 ]; then
 	print -u2 "failed to build"
 	exit 1
@@ -155,6 +155,6 @@ script
 status=$?
 
 cd /
-/usr/bin/rm -rf $DIR
+/bin/rm -rf $DIR
 
 exit $status

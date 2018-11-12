@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.dol.c,v 3.77 2009/06/19 16:25:00 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.dol.c,v 3.83 2011/01/25 20:10:46 christos Exp $ */
 /*
  * sh.dol.c: Variable substitutions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.dol.c,v 3.77 2009/06/19 16:25:00 christos Exp $")
+RCSID("$tcsh: sh.dol.c,v 3.83 2011/01/25 20:10:46 christos Exp $")
 
 /*
  * C shell
@@ -47,7 +47,7 @@ RCSID("$tcsh: sh.dol.c,v 3.77 2009/06/19 16:25:00 christos Exp $")
  * some QUOTEing may have occurred already, so we dont "trim()" here.
  */
 
-static Char Dpeekc;		/* Peek for DgetC */
+static eChar Dpeekc;		/* Peek for DgetC */
 static eChar Dpeekrd;		/* Peek for Dreadc */
 static Char *Dcp, *const *Dvp;	/* Input vector for Dreadc */
 
@@ -317,7 +317,7 @@ Dword(struct blk_buf *bb)
 static eChar
 DgetC(int flag)
 {
-    Char c;
+    eChar c;
 
 top:
     if ((c = Dpeekc) != 0) {
@@ -402,7 +402,7 @@ Dgetdol(void)
 	    stderror(ERR_SYNTAX);
 	if (backpid != 0) {
 	    xfree(dolbang);
-	    setDolp(dolbang = putn(backpid));
+	    setDolp(dolbang = putn((tcsh_number_t)backpid));
 	}
 	cleanup_until(name);
 	goto eatbrac;
@@ -528,7 +528,7 @@ Dgetdol(void)
 		    stderror(ERR_DOLZERO);
 		if (length) {
 		    length = Strlen(ffile);
-		    addla(putn(length));
+		    addla(putn((tcsh_number_t)length));
 		}
 		else {
 		    fixDolMod();
@@ -588,7 +588,7 @@ Dgetdol(void)
 	    cleanup_until(name);
 	    fixDolMod();
 	    if (length) {
-		    addla(putn(Strlen(np)));
+		    addla(putn((tcsh_number_t)Strlen(np)));
 	    } else {
 		    xfree(env_val);
 		    env_val = Strsave(np);
@@ -625,7 +625,7 @@ Dgetdol(void)
 
 	    for (i = 0; Isdigit(*np); i = i * 10 + *np++ - '0')
 		continue;
-	    if (i < 0 || i > upb && !any("-*", *np)) {
+	    if (i < 0 || (i > upb && !any("-*", *np))) {
 		cleanup_until(name);
 		dolerror(vp->v_name);
 		return;
@@ -687,7 +687,7 @@ Dgetdol(void)
 		stderror(ERR_MISSING, '}');
 	    unDredc(c);
 	}
-	addla(putn(upb - lwb + 1));
+	addla(putn((tcsh_number_t)(upb - lwb + 1)));
     }
     else if (length) {
 	int i;
@@ -698,7 +698,7 @@ Dgetdol(void)
 	/* We don't want that, since we can always compute it by adding $#xxx */
 	length += i - 1;	/* Add the number of spaces in */
 #endif
-	addla(putn(length));
+	addla(putn((tcsh_number_t)length));
     }
     else {
 eatmod:
@@ -830,7 +830,7 @@ setDolp(Char *cp)
 		    cp = np;
 		    cp[--len] = '\0';
 		    didmod = 1;
-		    if (diff >= len)
+		    if (diff >= (ssize_t)len)
 			break;
 		} else {
 		    /* should this do a seterror? */
@@ -887,7 +887,7 @@ unDredc(eChar c)
 static eChar
 Dredc(void)
 {
-    Char c;
+    eChar c;
 
     if ((c = Dpeekrd) != 0) {
 	Dpeekrd = 0;
@@ -936,45 +936,52 @@ heredoc(Char *term)
     Char *lbp, *obp, *mbp;
     Char  **vp;
     int    quoted;
+#ifdef HAVE_MKSTEMP
+    char   *tmp = short2str(shtemp);
+    char   *dot = strrchr(tmp, '.');
+
+    if (!dot)
+	stderror(ERR_NAME | ERR_NOMATCH);
+    strcpy(dot, TMP_TEMPLATE);
+
+    xclose(0);
+    if (mkstemp(tmp) == -1)
+	stderror(ERR_SYSTEM, tmp, strerror(errno));
+#else /* !HAVE_MKSTEMP */
     char   *tmp;
-#ifndef WINNT_NATIVE
+# ifndef WINNT_NATIVE
     struct timeval tv;
 
 again:
-#endif /* WINNT_NATIVE */
+# endif /* WINNT_NATIVE */
     tmp = short2str(shtemp);
-#ifndef O_CREAT
-# define O_CREAT 0
+# if O_CREAT == 0
     if (xcreat(tmp, 0600) < 0)
 	stderror(ERR_SYSTEM, tmp, strerror(errno));
-#endif
+# endif
     xclose(0);
-#ifndef O_TEMPORARY
-# define O_TEMPORARY 0
-#endif
-#ifndef O_EXCL
-# define O_EXCL 0
-#endif
     if (xopen(tmp, O_RDWR|O_CREAT|O_EXCL|O_TEMPORARY|O_LARGEFILE, 0600) ==
 	-1) {
 	int oerrno = errno;
-#ifndef WINNT_NATIVE
+# ifndef WINNT_NATIVE
 	if (errno == EEXIST) {
 	    if (unlink(tmp) == -1) {
 		(void) gettimeofday(&tv, NULL);
 		xfree(shtemp);
-		mbp = putn((((int)tv.tv_sec) ^ 
-		    ((int)tv.tv_usec) ^ ((int)getpid())) & 0x00ffffff);
+		mbp = putn((((tcsh_number_t)tv.tv_sec) ^ 
+		    ((tcsh_number_t)tv.tv_usec) ^
+		    ((tcsh_number_t)getpid())) & 0x00ffffff);
 		shtemp = Strspl(STRtmpsh, mbp);
 		xfree(mbp);
 	    }
 	    goto again;
 	}
-#endif /* WINNT_NATIVE */
+# endif /* WINNT_NATIVE */
 	(void) unlink(tmp);
 	errno = oerrno;
  	stderror(ERR_SYSTEM, tmp, strerror(errno));
     }
+#endif /* HAVE_MKSTEMP */
     (void) unlink(tmp);		/* 0 0 inode! */
     Dv[0] = term;
     Dv[1] = NULL;
@@ -1006,6 +1013,10 @@ again:
 		Strbuf_append1(&lbuf, (Char) c);
 	}
 	Strbuf_terminate(&lbuf);
+
+	/* Catch EOF in the middle of a line. */
+	if (c == CHAR_ERR && lbuf.len != 0)
+	    c = '\n';
 
 	/*
 	 * Check for EOF or compare to terminator -- before expansion

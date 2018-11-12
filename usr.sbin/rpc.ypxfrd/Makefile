@@ -9,13 +9,14 @@ SRCS=	ypxfrd_svc.c ypxfrd.h ypxfrd_server.c yp_error.c \
 
 CFLAGS+= -I. -DXFRBLOCKSIZE=65535
 
-DPADD=	${LIBRPCSVC}
-LDADD=	-lrpcsvc
+WARNS?=	2
+
+LIBADD=	rpcsvc
 
 CLEANFILES= ypxfrd_svc.c ypxfrd.h
 
 RPCDIR=	${.CURDIR}/../../include/rpcsvc
-RPCGEN= rpcgen -I -C
+RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that
 # ypxfrd_main.c can see it.

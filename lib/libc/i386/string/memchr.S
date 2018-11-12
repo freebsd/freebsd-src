@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * memchr (b, c, len)
- *	locates the first occurance of c in string b.
+ *	locates the first occurrence of c in string b.
  *
  * Written by:
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
@@ -57,3 +57,5 @@ L1:	xorl	%eax,%eax
 	popl	%edi
 	ret
 END(memchr)
+
+	.section .note.GNU-stack,"",%progbits

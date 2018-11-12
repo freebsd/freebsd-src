@@ -159,6 +159,7 @@ struct udav_softc {
 	int			sc_flags;
 #define	UDAV_FLAG_LINK		0x0001
 #define	UDAV_FLAG_EXT_PHY	0x0040
+#define	UDAV_FLAG_NO_PHY	0x0080
 };
 
 #define	UDAV_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)

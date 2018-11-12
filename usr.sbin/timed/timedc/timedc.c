@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -56,7 +52,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 int trace = 0;
-FILE *fd = 0;
+FILE *fd = NULL;
 int	margc;
 int	fromatty;
 #define	MAX_MARGV	20
@@ -66,20 +62,19 @@ jmp_buf	toplevel;
 static struct cmd *getcmd(char *);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	register struct cmd *c;
 
-	openlog("timedc", LOG_ODELAY, LOG_AUTH);
+	openlog("timedc", 0, LOG_AUTH);
 
 	/*
 	 * security dictates!
 	 */
 	if (priv_resources() < 0)
 		errx(1, "could not get privileged resources");
-	(void) setuid(getuid());
+	if (setuid(getuid()) != 0)
+		err(1, "setuid()");
 
 	if (--argc > 0) {
 		c = getcmd(*++argv);
@@ -87,7 +82,7 @@ main(argc, argv)
 			printf("?Ambiguous command\n");
 			exit(1);
 		}
-		if (c == 0) {
+		if (c == NULL) {
 			printf("?Invalid command\n");
 			exit(1);
 		}
@@ -108,19 +103,19 @@ main(argc, argv)
 			printf("timedc> ");
 			(void) fflush(stdout);
 		}
-		if (fgets(cmdline, sizeof(cmdline), stdin) == 0)
+		if (fgets(cmdline, sizeof(cmdline), stdin) == NULL)
 			quit();
 		if (cmdline[0] == 0)
 			break;
 		makeargv();
-		if (margv[0] == 0)
+		if (margv[0] == NULL)
 			continue;
 		c = getcmd(margv[0]);
 		if (c == (struct cmd *)-1) {
 			printf("?Ambiguous command\n");
 			continue;
 		}
-		if (c == 0) {
+		if (c == NULL) {
 			printf("?Invalid command\n");
 			continue;
 		}
@@ -134,8 +129,7 @@ main(argc, argv)
 }
 
 void
-intr(signo)
-	int signo;
+intr(int signo __unused)
 {
 	if (!fromatty)
 		exit(0);
@@ -144,8 +138,7 @@ intr(signo)
 
 
 static struct cmd *
-getcmd(name)
-	char *name;
+getcmd(char *name)
 {
 	register char *p, *q;
 	register struct cmd *c, *found;
@@ -154,7 +147,7 @@ getcmd(name)
 
 	longest = 0;
 	nmatches = 0;
-	found = 0;
+	found = NULL;
 	for (c = cmdtab; c < &cmdtab[NCMDS]; c++) {
 		p = c->c_name;
 		for (q = name; *q == *p++; q++)
@@ -178,7 +171,7 @@ getcmd(name)
  * Slice a string up into argc/argv.
  */
 void
-makeargv()
+makeargv(void)
 {
 	register char *cp;
 	register char **argp = margv;
@@ -197,7 +190,7 @@ makeargv()
 			break;
 		*cp++ = '\0';
 	}
-	*argp++ = 0;
+	*argp++ = NULL;
 }
 
 #define HELPINDENT (sizeof ("directory"))
@@ -206,9 +199,7 @@ makeargv()
  * Help command.
  */
 void
-help(argc, argv)
-	int argc;
-	char *argv[];
+help(int argc, char *argv[])
 {
 	register struct cmd *c;
 

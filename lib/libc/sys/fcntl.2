@@ -28,7 +28,7 @@
 .\"     @(#)fcntl.2	8.2 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd September 28, 2009
+.Dd July 7, 2016
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -54,7 +54,7 @@ Depending on the value of
 .Fn fcntl
 can take an additional third argument
 .Fa "int arg" .
-.Bl -tag -width F_GETOWNX
+.Bl -tag -width F_DUP2FD_CLOEXEC
 .It Dv F_DUPFD
 Return a new descriptor as follows:
 .Pp
@@ -73,23 +73,44 @@ Same access mode (read, write or read/write).
 Same file status flags (i.e., both file descriptors
 share the same file status flags).
 .It
-The close-on-exec flag associated with the new file descriptor
-is set to remain open across
+The close-on-exec flag
+.Dv FD_CLOEXEC
+associated with the new file descriptor is cleared, so the file descriptor is
+to remain open across
 .Xr execve 2
 system calls.
 .El
+.It Dv F_DUPFD_CLOEXEC
+Like
+.Dv F_DUPFD ,
+but the
+.Dv FD_CLOEXEC
+flag associated with the new file descriptor is set, so the file descriptor
+is closed when
+.Xr execve 2
+system call executes.
 .It Dv F_DUP2FD
 It is functionally equivalent to
 .Bd -literal -offset indent
 dup2(fd, arg)
 .Ed
+.It Dv F_DUP2FD_CLOEXEC
+Like
+.Dv F_DUP2FD ,
+but the
+.Dv FD_CLOEXEC
+flag associated with the new file descriptor is set.
 .Pp
 The
 .Dv F_DUP2FD
-constant is not portable, so it should not be used if portability is needed.
+and
+.Dv F_DUP2FD_CLOEXEC
+constants are not portable, so they should not be used if
+portability is needed.
 Use
 .Fn dup2
-instead.
+instead of
+.Dv F_DUP2FD .
 .It Dv F_GETFD
 Get the close-on-exec flag associated with the file descriptor
 .Fa fd
@@ -143,6 +164,22 @@ process groups are specified by supplying
 as negative, otherwise
 .Fa arg
 is interpreted as a process ID.
+.It Dv F_READAHEAD
+Set or clear the read ahead amount for sequential access to the third
+argument,
+.Fa arg ,
+which is rounded up to the nearest block size.
+A zero value in
+.Fa arg
+turns off read ahead, a negative value restores the system default.
+.It Dv F_RDAHEAD
+Equivalent to Darwin counterpart which sets read ahead amount of 128KB
+when the third argument,
+.Fa arg
+is non-zero.
+A zero value in
+.Fa arg
+turns off read ahead.
 .El
 .Pp
 The flags for the
@@ -241,22 +278,6 @@ will be interrupted if the signal handler has not specified the
 .Dv SA_RESTART
 (see
 .Xr sigaction 2 ) .
-.It Dv F_READAHEAD
-Set or clear the read ahead amount for sequential access to the third
-argument,
-.Fa arg ,
-which is rounded up to the nearest block size.
-A zero value in
-.Fa arg
-turns off read ahead.
-.It Dv F_RDAHEAD
-Equivalent to Darwin counterpart which sets read ahead amount of 128KB
-when the third argument,
-.Fa arg
-is non-zero.
-A zero value in
-.Fa arg
-turns off read ahead.
 .El
 .Pp
 When a shared lock has been set on a segment of a file,
@@ -341,6 +362,13 @@ or an
 request fails or blocks respectively when another process has existing
 locks on bytes in the specified region and the type of any of those
 locks conflicts with the type specified in the request.
+.Pp
+The queuing for
+.Dv F_SETLKW
+requests on local files is fair;
+that is, while the thread is blocked,
+subsequent requests conflicting with its requests will not be granted,
+even if these requests do not conflict with existing locks.
 .Pp
 This interface follows the completely stupid semantics of System V and
 .St -p1003.1-88
@@ -539,8 +567,6 @@ The argument
 .Fa cmd
 is
 .Dv F_DUPFD
-or
-.Dv F_DUP2FD
 and the maximum number of file descriptors permitted for the
 process are already in use,
 or no file descriptors greater than or equal to
@@ -618,7 +644,7 @@ for the reasons as stated in
 .Xr flock 2 ,
 .Xr getdtablesize 2 ,
 .Xr open 2 ,
-.Xr sigvec 2 ,
+.Xr sigaction 2 ,
 .Xr lockf 3 ,
 .Xr tcgetpgrp 3 ,
 .Xr tcsetpgrp 3
@@ -627,6 +653,20 @@ The
 .Dv F_DUP2FD
 constant is non portable.
 It is provided for compatibility with AIX and Solaris.
+.Pp
+Per
+.St -susv4 ,
+a call with
+.Dv F_SETLKW
+should fail with
+.Bq Er EINTR
+after any caught signal
+and should continue waiting during thread suspension such as a stop signal.
+However, in this implementation a call with
+.Dv F_SETLKW
+is restarted after catching a signal with a
+.Dv SA_RESTART
+handler or a thread suspension such as a stop signal.
 .Sh HISTORY
 The
 .Fn fcntl

@@ -465,6 +465,7 @@ struct pcn_softc {
 	struct pcn_ring_data	pcn_cdata;
 	struct callout		pcn_stat_callout;
 	struct mtx		pcn_mtx;
+	int			pcn_timer;
 };
 
 #define	PCN_LOCK(_sc)		mtx_lock(&(_sc)->pcn_mtx)

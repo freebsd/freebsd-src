@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2010 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,15 +39,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-#if __FreeBSD_version < 500000
-#include <sys/time.h>
-#endif
 #include <sys/ioctl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "iscsi.h"
+#include <dev/iscsi_initiator/iscsi.h>
 #include "iscontrol.h"
 
 static char *status_class1[] = {
@@ -107,7 +104,7 @@ getkeyval(char *key, pdu_t *pp)
     debug_called(3);
 
     len = pp->ds_len;
-    ptr = (char *)pp->ds;
+    ptr = (char *)pp->ds_addr;
     klen = strlen(key);
     while(len > klen) {
 	 if(strncmp(key, ptr, klen) == 0)
@@ -163,7 +160,7 @@ processParams(isess_t *sess, pdu_t *pp)
      debug_called(3);
 
      len = pp->ds_len;
-     ptr = (char *)pp->ds;
+     ptr = (char *)pp->ds_addr;
      while(len > 0) {
 	  if(vflag > 1)
 	       printf("got: len=%d %s\n", len, ptr);
@@ -233,7 +230,7 @@ handleLoginResp(isess_t *sess, pdu_t *pp)
 
      st_class  = status >> 8;
      if(status) {
-	  int	st_detail = status & 0xff;
+	  uint	st_detail = status & 0xff;
 
 	  switch(st_class) {
 	  case 1: // Redirect

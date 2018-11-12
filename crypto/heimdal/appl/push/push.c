@@ -1,41 +1,44 @@
 /*
- * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997-2004 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "push_locl.h"
-RCSID("$Id: push.c 14850 2005-04-19 18:00:17Z lha $");
+RCSID("$Id$");
 
-#ifdef KRB4
-static int use_v4 = -1;
+#if defined(_AIX) && defined(STAT)
+/*
+ * AIX defines STAT to 1 in sys/dir.h
+ */
+#  undef STAT
 #endif
 
 #ifdef KRB5
@@ -54,10 +57,6 @@ static int do_count;
 static char *header_str;
 
 struct getargs args[] = {
-#ifdef KRB4
-    { "krb4",	'4', arg_flag,		&use_v4,	"Use Kerberos V4",
-      NULL },
-#endif    
 #ifdef KRB5
     { "krb5",	'5', arg_flag,		&use_v5,	"Use Kerberos V5",
       NULL },
@@ -134,12 +133,12 @@ do_connect (const char *hostname, int port, int nodelay)
     return s;
 }
 
-typedef enum { INIT = 0, GREET, USER, PASS, STAT, RETR, TOP, 
+typedef enum { INIT = 0, GREET, USER, PASS, STAT, RETR, TOP,
 	       DELE, XDELE, QUIT} pop_state;
 
 static char *pop_state_string[] = {
     "INIT", "GREET", "USER", "PASS", "STAT", "RETR", "TOP",
-    "DELE", "XDELE", "QUIT" 
+    "DELE", "XDELE", "QUIT"
 };
 
 #define PUSH_BUFSIZ 65536
@@ -169,20 +168,20 @@ write_state_init (struct write_state *w, int fd)
 static void
 write_state_add (struct write_state *w, void *v, size_t len)
 {
-    if(w->niovecs == w->allociovecs) {				
-	if(w->niovecs == w->maxiovecs) {				
-	    if(writev (w->fd, w->iovecs, w->niovecs) < 0)		
-		err(1, "writev");				
-	    w->niovecs = 0;					
-	} else {						
-	    w->allociovecs = min(w->allociovecs + STEP, w->maxiovecs);	
-	    w->iovecs = erealloc (w->iovecs,				
-				  w->allociovecs * sizeof(*w->iovecs));	
-	}							
-    }								
-    w->iovecs[w->niovecs].iov_base = v;				
-    w->iovecs[w->niovecs].iov_len  = len;				
-    ++w->niovecs;							
+    if(w->niovecs == w->allociovecs) {
+	if(w->niovecs == w->maxiovecs) {
+	    if(writev (w->fd, w->iovecs, w->niovecs) < 0)
+		err(1, "writev");
+	    w->niovecs = 0;
+	} else {
+	    w->allociovecs = min(w->allociovecs + STEP, w->maxiovecs);
+	    w->iovecs = erealloc (w->iovecs,
+				  w->allociovecs * sizeof(*w->iovecs));
+	}
+    }
+    w->iovecs[w->niovecs].iov_base = v;
+    w->iovecs[w->niovecs].iov_len  = len;
+    ++w->niovecs;
 }
 
 static void
@@ -219,7 +218,7 @@ doit(int s,
     size_t in_len = 0;
     char *in_ptr;
     pop_state state = INIT;
-    unsigned count, bytes;
+    unsigned count = 0, bytes;
     unsigned asked_for = 0, retrieved = 0, asked_deleted = 0, deleted = 0;
     unsigned sent_xdele = 0;
     int out_fd;
@@ -227,7 +226,7 @@ doit(int s,
     size_t from_line_length;
     time_t now;
     struct write_state write_state;
-    int numheaders = 1;
+    unsigned int numheaders = 1;
     char **headers = NULL;
     int i;
     char *tmp = NULL;
@@ -296,7 +295,7 @@ doit(int s,
 	if (verbose > 1)
 	    fprintf (stderr, "state: %s count: %d asked_for: %d "
 		     "retrieved: %d asked_deleted: %d\n",
-		     pop_state_string[state], 
+		     pop_state_string[state],
 		     count, asked_for, retrieved, asked_deleted);
 
 	if (((state == STAT || state == RETR || state == TOP)
@@ -311,12 +310,12 @@ doit(int s,
 	    else
 		err (1, "select");
 	}
-	
+
 	if (FD_ISSET(s, &readset)) {
 	    char *beg, *p;
 	    size_t rem;
 	    int blank_line = 0;
-	    
+
 	    if(in_len >= in_buf_size) {
 		char *tmp = erealloc(in_buf, in_buf_size + PUSH_BUFSIZ + 1);
 		in_ptr = tmp + (in_ptr - in_buf);
@@ -329,11 +328,11 @@ doit(int s,
 		err (1, "read");
 	    else if (ret == 0)
 		errx (1, "EOF during read");
-	    
+
 	    in_len += ret;
 	    in_ptr += ret;
 	    *in_ptr = '\0';
-	    
+
 	    beg = in_buf;
 	    rem = in_len;
 	    while(rem > 1
@@ -406,7 +405,7 @@ doit(int s,
 			    ++copy;
 		    }
 		    *p = '\n';
-		    if(blank_line && 
+		    if(blank_line &&
 		       strncmp(copy, "From ", min(p - copy + 1, 5)) == 0)
 			write_state_add(&write_state, ">", 1);
 		    write_state_add(&write_state, copy, p - copy + 1);
@@ -419,7 +418,7 @@ doit(int s,
 			    write_state_add(&write_state,
 					    from_line, from_line_length);
 			blank_line = 0;
-			if (do_from) 
+			if (do_from)
 			    state = TOP;
 			else
 			    state = RETR;
@@ -564,48 +563,6 @@ do_v5 (const char *host,
     return doit (s, host, user, filename, header_str, leavep, verbose, forkp);
 }
 #endif
-
-#ifdef KRB4
-static int
-do_v4 (const char *host,
-       int port,
-       const char *user,
-       const char *filename,
-       const char *header_str,
-       int leavep,
-       int verbose,
-       int forkp)
-{
-    KTEXT_ST ticket;
-    MSG_DAT msg_data;
-    CREDENTIALS cred;
-    des_key_schedule sched;
-    int s;
-    int ret;
-
-    s = do_connect (host, port, 1);
-    if (s < 0)
-	return 1;
-    ret = krb_sendauth(0,
-		       s,
-		       &ticket, 
-		       "pop",
-		       (char *)host,
-		       krb_realmofhost(host),
-		       getpid(),
-		       &msg_data,
-		       &cred,
-		       sched,
-		       NULL,
-		       NULL,
-		       "KPOPV0.1");
-    if(ret) {
-	warnx("krb_sendauth: %s", krb_get_err_text(ret));
-	return 1;
-    }
-    return doit (s, host, user, filename, header_str, leavep, verbose, forkp);
-}
-#endif /* KRB4 */
 
 #ifdef HESIOD
 
@@ -763,13 +720,6 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-#if defined(KRB4) && defined(KRB5)
-    if(use_v4 == -1 && use_v5 == 1)
-	use_v4 = 0;
-    if(use_v5 == -1 && use_v4 == 1)
-	use_v5 = 0;
-#endif    
-
     if (do_help)
 	usage (0);
 
@@ -777,7 +727,7 @@ main(int argc, char **argv)
 	print_version(NULL);
 	return 0;
     }
-	
+
     if (do_from && header_str == NULL)
 	header_str = "From:";
     else if (header_str != NULL)
@@ -818,10 +768,8 @@ main(int argc, char **argv)
     if (port == 0) {
 #ifdef KRB5
 	port = krb5_getportbyname (context, "kpop", "tcp", 1109);
-#elif defined(KRB4)
-	port = k_getportbyname ("kpop", "tcp", htons(1109));
 #else
-#error must define KRB4 or KRB5
+#error must define KRB5
 #endif
     }
 
@@ -833,12 +781,5 @@ main(int argc, char **argv)
 		     do_leave, verbose_level, do_fork);
     }
 #endif
-
-#ifdef KRB4
-    if (ret && use_v4) {
-	ret = do_v4 (host, port, user, filename, header_str,
-		     do_leave, verbose_level, do_fork);
-    }
-#endif /* KRB4 */
     return ret;
 }

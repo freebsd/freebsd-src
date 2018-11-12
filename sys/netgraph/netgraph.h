@@ -53,9 +53,11 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/refcount.h>
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_netgraph.h"
+#include "opt_kdb.h"
 #endif
 
 /* debugging options */
@@ -107,7 +109,7 @@ typedef	int	ng_rcvitem (node_p node, hook_p hook, item_p item);
  */
 struct ng_hook {
 	char	hk_name[NG_HOOKSIZ];	/* what this node knows this link as */
-	void   *hk_private;		/* node dependant ID for this hook */
+	void   *hk_private;		/* node dependent ID for this hook */
 	int	hk_flags;		/* info about this hook/link */
 	int	hk_type;		/* tbd: hook data link type */
 	struct	ng_hook *hk_peer;	/* the other end of this link */
@@ -137,7 +139,7 @@ struct ng_hook {
  * If you can't do it with these you probably shouldn;t be doing it.
  */
 void ng_unref_hook(hook_p hook); /* don't move this */
-#define	_NG_HOOK_REF(hook)	atomic_add_int(&(hook)->hk_refs, 1)
+#define	_NG_HOOK_REF(hook)	refcount_acquire(&(hook)->hk_refs)
 #define _NG_HOOK_NAME(hook)	((hook)->hk_name)
 #define _NG_HOOK_UNREF(hook)	ng_unref_hook(hook)
 #define	_NG_HOOK_SET_PRIVATE(hook, val)	do {(hook)->hk_private = val;} while (0)
@@ -189,7 +191,7 @@ static __inline void
 _chkhook(hook_p hook, char *file, int line)
 {
 	if (hook->hk_magic != HK_MAGIC) {
-		printf("Accessing freed hook ");
+		printf("Accessing freed ");
 		dumphook(hook, file, line);
 	}
 	hook->lastline = line;
@@ -360,10 +362,10 @@ struct ng_node {
 	struct	ng_type *nd_type;	/* the installed 'type' */
 	int	nd_flags;		/* see below for bit definitions */
 	int	nd_numhooks;		/* number of hooks */
-	void   *nd_private;		/* node type dependant node ID */
+	void   *nd_private;		/* node type dependent node ID */
 	ng_ID_t	nd_ID;			/* Unique per node */
 	LIST_HEAD(hooks, ng_hook) nd_hooks;	/* linked list of node hooks */
-	LIST_ENTRY(ng_node)	  nd_nodes;	/* linked list of all nodes */
+	LIST_ENTRY(ng_node)	  nd_nodes;	/* name hash collision list */
 	LIST_ENTRY(ng_node)	  nd_idnodes;	/* ID hash collision list */
 	struct	ng_queue	  nd_input_queue; /* input queue for locking */
 	int	nd_refs;		/* # of references to this node */
@@ -396,11 +398,11 @@ struct ng_node {
  * Public methods for nodes.
  * If you can't do it with these you probably shouldn't be doing it.
  */
-int	ng_unref_node(node_p node); /* don't move this */
+void	ng_unref_node(node_p node); /* don't move this */
 #define _NG_NODE_NAME(node)	((node)->nd_name + 0)
 #define _NG_NODE_HAS_NAME(node)	((node)->nd_name[0] + 0)
 #define _NG_NODE_ID(node)	((node)->nd_ID + 0)
-#define	_NG_NODE_REF(node)	atomic_add_int(&(node)->nd_refs, 1)
+#define	_NG_NODE_REF(node)	refcount_acquire(&(node)->nd_refs)
 #define	_NG_NODE_UNREF(node)	ng_unref_node(node)
 #define	_NG_NODE_SET_PRIVATE(node, val)	do {(node)->nd_private = val;} while (0)
 #define	_NG_NODE_PRIVATE(node)	((node)->nd_private)
@@ -441,7 +443,7 @@ static __inline char * _ng_node_name(node_p node, char *file, int line);
 static __inline int _ng_node_has_name(node_p node, char *file, int line);
 static __inline ng_ID_t _ng_node_id(node_p node, char *file, int line);
 static __inline void _ng_node_ref(node_p node, char *file, int line);
-static __inline int _ng_node_unref(node_p node, char *file, int line);
+static __inline void _ng_node_unref(node_p node, char *file, int line);
 static __inline void _ng_node_set_private(node_p node, void * val,
 							char *file, int line);
 static __inline void * _ng_node_private(node_p node, char *file, int line);
@@ -457,7 +459,7 @@ static __inline void
 _chknode(node_p node, char *file, int line)
 {
 	if (node->nd_magic != ND_MAGIC) {
-		printf("Accessing freed node ");
+		printf("Accessing freed ");
 		dumpnode(node, file, line);
 	}
 	node->lastline = line;
@@ -492,11 +494,11 @@ _ng_node_ref(node_p node, char *file, int line)
 	_NG_NODE_REF(node);
 }
 
-static __inline int
+static __inline void
 _ng_node_unref(node_p node, char *file, int line)
 {
 	_chknode(node, file, line);
-	return (_NG_NODE_UNREF(node));
+	_NG_NODE_UNREF(node);
 }
 
 static __inline void
@@ -1064,7 +1066,7 @@ struct ng_cmdlist {
  * Note the input queueing system is to allow modules
  * to 'release the stack' or to pass data across spl layers.
  * The data will be redelivered as soon as the NETISR code runs
- * which may be almost immediatly.  A node may also do it's own queueing
+ * which may be almost immediately.  A node may also do it's own queueing
  * for other reasons (e.g. device output queuing).
  */
 struct ng_type {
@@ -1133,7 +1135,7 @@ SYSCTL_DECL(_net_graph);
  */
 int	ng_address_ID(node_p here, item_p item, ng_ID_t ID, ng_ID_t retaddr);
 int	ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr);
-int	ng_address_path(node_p here, item_p item, char *address, ng_ID_t raddr);
+int	ng_address_path(node_p here, item_p item, const char *address, ng_ID_t raddr);
 int	ng_bypass(hook_p hook1, hook_p hook2);
 hook_p	ng_findhook(node_p node, const char *name);
 struct	ng_type *ng_findtype(const char *type);
@@ -1159,7 +1161,7 @@ int 	ng_send_fn2(node_p node, hook_p hook, item_p pitem, ng_item_fn2 *fn,
 int	ng_uncallout(struct callout *c, node_p node);
 int	ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 	    ng_item_fn *fn, void * arg1, int arg2);
-#define	ng_callout_init(c)	callout_init(c, CALLOUT_MPSAFE)
+#define	ng_callout_init(c)	callout_init(c, 1)
 
 /* Flags for netgraph functions. */
 #define	NG_NOFLAGS	0x00000000	/* no special options */
@@ -1199,10 +1201,6 @@ typedef void *meta_p;
 #define NG_FREE_META(meta)
 #define NGI_GET_META(i,m)
 #define	ng_copy_meta(meta) NULL
-
-/* Hash related definitions */
-#define	NG_ID_HASH_SIZE 128 /* most systems wont need even this many */
-#define	NG_NAME_HASH_SIZE 128 /* most systems wont need even this many */
 
 /*
  * Mark the current thread when called from the outbound path of the

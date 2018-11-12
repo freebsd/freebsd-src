@@ -52,6 +52,8 @@ struct acpi_lid_softc {
     int		lid_status;	/* open or closed */
 };
 
+ACPI_HANDLE acpi_lid_handle;
+
 ACPI_SERIAL_DECL(lid, "ACPI lid");
 
 static int	acpi_lid_probe(device_t dev);
@@ -69,7 +71,7 @@ static device_method_t acpi_lid_methods[] = {
     DEVMETHOD(device_suspend,	acpi_lid_suspend),
     DEVMETHOD(device_resume,	acpi_lid_resume),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_lid_driver = {
@@ -98,13 +100,14 @@ acpi_lid_probe(device_t dev)
 static int
 acpi_lid_attach(device_t dev)
 {
+    struct acpi_prw_data	prw;
     struct acpi_lid_softc	*sc;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     sc = device_get_softc(dev);
     sc->lid_dev = dev;
-    sc->lid_handle = acpi_get_handle(dev);
+    acpi_lid_handle = sc->lid_handle = acpi_get_handle(dev);
 
     /*
      * If a system does not get lid events, it may make sense to change
@@ -115,8 +118,9 @@ acpi_lid_attach(device_t dev)
 			     acpi_lid_notify_handler, sc);
 
     /* Enable the GPE for wake/runtime. */
-    acpi_wake_init(dev, ACPI_GPE_TYPE_WAKE_RUN);
     acpi_wake_set_enable(dev, 1);
+    if (acpi_parse_prw(sc->lid_handle, &prw) == 0)
+	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit);
 
     return (0);
 }

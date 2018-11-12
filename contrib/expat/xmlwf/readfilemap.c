@@ -8,16 +8,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+/* Functions close(2) and read(2) */
 #ifdef __WATCOMC__
 #ifndef __LINUX__
 #include <io.h>
 #else
 #include <unistd.h>
 #endif
-#endif
-
-#ifdef __BEOS__
-#include <unistd.h>
+#else
+# if !defined(WIN32) && !defined(_WIN32) && !defined(_WIN64)
+#  include <unistd.h>
+# endif
 #endif
 
 #ifndef S_ISREG
@@ -58,10 +59,12 @@ filemap(const char *name,
   }
   if (fstat(fd, &sb) < 0) {
     perror(name);
+    close(fd);
     return 0;
   }
   if (!S_ISREG(sb.st_mode)) {
     fprintf(stderr, "%s: not a regular file\n", name);
+    close(fd);
     return 0;
   }
   nbytes = sb.st_size;

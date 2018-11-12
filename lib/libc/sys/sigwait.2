@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2005
+.Dd September 6, 2013
 .Dt SIGWAIT 2
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@ waits until one or more of the selected signals has been generated.
 Then
 .Fn sigwait
 atomically clears one of the selected signals from the set of pending signals
-for the process and sets the location pointed to by
+(for the process or for the current thread) and sets the location pointed to by
 .Fa sig
 to the signal number that was cleared.
 .Pp
@@ -82,6 +82,14 @@ selected, it will be the lowest numbered one.
 The selection order between realtime
 and non-realtime signals, or between multiple pending non-realtime signals,
 is unspecified.
+.Sh IMPLEMENTATION NOTES
+The
+.Fn sigwait
+function is implemented as a wrapper around the
+.Fn __sys_sigwait
+system call, which retries the call on
+.Er EINTR
+error.
 .Sh RETURN VALUES
 If successful,
 .Fn sigwait
@@ -99,9 +107,6 @@ The
 .Fa set
 argument
 specifies one or more invalid signal numbers.
-.It Bq Er EFAULT
-Any arguments point outside the allocated address space or there is a
-memory protection fault.
 .El
 .Sh SEE ALSO
 .Xr sigaction 2 ,

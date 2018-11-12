@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+files		"../at91/files.at91"
+cpu		CPU_ARM9
+machine 	arm
+makeoptions	CONF_CFLAGS=-mcpu=arm9
+options 	PHYSADDR=0x20000000
+options		NO_EVENTTIMERS
+
+# bring in the sam specific timers and such
+device		at91sam9

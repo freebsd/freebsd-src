@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5210_recv.c,v 1.4 2008/11/10 04:08:02 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -30,8 +30,10 @@
  * Get the RXDP.
  */
 uint32_t
-ar5210GetRxDP(struct ath_hal *ah)
+ar5210GetRxDP(struct ath_hal *ah, HAL_RX_QUEUE qtype)
 {
+
+	HALASSERT(qtype == HAL_RX_QUEUE_HP);
 	return OS_REG_READ(ah, AR_RXDP);
 }
 
@@ -39,8 +41,10 @@ ar5210GetRxDP(struct ath_hal *ah)
  * Set the RxDP.
  */
 void
-ar5210SetRxDP(struct ath_hal *ah, uint32_t rxdp)
+ar5210SetRxDP(struct ath_hal *ah, uint32_t rxdp, HAL_RX_QUEUE qtype)
 {
+
+	HALASSERT(qtype == HAL_RX_QUEUE_HP);
 	OS_REG_WRITE(ah, AR_RXDP, rxdp);
 }
 
@@ -82,7 +86,7 @@ ar5210StopDmaReceive(struct ath_hal *ah)
 void
 ar5210StartPcuReceive(struct ath_hal *ah)
 {
-	OS_REG_WRITE(ah, AR_DIAG_SW,
+	ar5210UpdateDiagReg(ah,
 		OS_REG_READ(ah, AR_DIAG_SW) & ~(AR_DIAG_SW_DIS_RX));
 }
 
@@ -92,7 +96,7 @@ ar5210StartPcuReceive(struct ath_hal *ah)
 void
 ar5210StopPcuReceive(struct ath_hal *ah)
 {
-	OS_REG_WRITE(ah, AR_DIAG_SW,
+	ar5210UpdateDiagReg(ah,
 		OS_REG_READ(ah, AR_DIAG_SW) | AR_DIAG_SW_DIS_RX);
 }
 

@@ -43,8 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
+#include <net/ethernet.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -198,9 +200,8 @@ ndis_attach_pccard(dev)
 	resource_list_init(&sc->ndis_rl);
 
 	sc->ndis_io_rid = 0;
-	sc->ndis_res_io = bus_alloc_resource(dev,
-	    SYS_RES_IOPORT, &sc->ndis_io_rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->ndis_res_io = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+	    &sc->ndis_io_rid, RF_ACTIVE);
 	if (sc->ndis_res_io == NULL) {
 		device_printf(dev,
 		    "couldn't map iospace\n");
@@ -208,13 +209,12 @@ ndis_attach_pccard(dev)
 		goto fail;
 	}
 	sc->ndis_rescnt++;
-	resource_list_add(&sc->ndis_rl, SYS_RES_IOPORT, rid,
+	resource_list_add(&sc->ndis_rl, SYS_RES_IOPORT, sc->ndis_io_rid,
 	    rman_get_start(sc->ndis_res_io), rman_get_end(sc->ndis_res_io),
 	    rman_get_size(sc->ndis_res_io));
 
 	rid = 0;
-	sc->ndis_irq = bus_alloc_resource(dev,
-	    SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->ndis_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->ndis_irq == NULL) {
 		device_printf(dev,
@@ -280,8 +280,8 @@ ndis_alloc_amem(arg)
 
 	sc = arg;
 	rid = NDIS_AM_RID;
-	sc->ndis_res_am = bus_alloc_resource(sc->ndis_dev, SYS_RES_MEMORY,
-	    &rid, 0UL, ~0UL, 0x1000, RF_ACTIVE);
+	sc->ndis_res_am = bus_alloc_resource_anywhere(sc->ndis_dev,
+	    SYS_RES_MEMORY, &rid, 0x1000, RF_ACTIVE);
 
 	if (sc->ndis_res_am == NULL) {
 		device_printf(sc->ndis_dev,

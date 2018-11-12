@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
@@ -38,17 +39,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/jail.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/sx.h>
 
-#include "opt_compat.h"
-
-#ifdef COMPAT_LINUX32
-#include <machine/../linux32/linux.h>
-#else
-#include <machine/../linux/linux.h>
-#endif
 #include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_misc.h>
 
 struct linux_prison {
 	char	pr_osname[LINUX_MAX_UTSNAME];
@@ -59,15 +53,18 @@ struct linux_prison {
 
 static struct linux_prison lprison0 = {
 	.pr_osname =		"Linux",
-	.pr_osrelease =		"2.6.16",
+	.pr_osrelease =		LINUX_VERSION_STR,
 	.pr_oss_version =	0x030600,
-	.pr_osrel =		2006016
+	.pr_osrel =		LINUX_VERSION_CODE
 };
 
 static unsigned linux_osd_jail_slot;
 
-SYSCTL_NODE(_compat, OID_AUTO, linux, CTLFLAG_RW, 0,
-	    "Linux mode");
+SYSCTL_NODE(_compat, OID_AUTO, linux, CTLFLAG_RW, 0, "Linux mode");
+
+static int	linux_set_osname(struct thread *td, char *osname);
+static int	linux_set_osrelease(struct thread *td, char *osrelease);
+static int	linux_set_oss_version(struct thread *td, int oss_version);
 
 static int
 linux_sysctl_osname(SYSCTL_HANDLER_ARGS)
@@ -77,9 +74,10 @@ linux_sysctl_osname(SYSCTL_HANDLER_ARGS)
 
 	linux_get_osname(req->td, osname);
 	error = sysctl_handle_string(oidp, osname, LINUX_MAX_UTSNAME, req);
-	if (error || req->newptr == NULL)
+	if (error != 0 || req->newptr == NULL)
 		return (error);
 	error = linux_set_osname(req->td, osname);
+
 	return (error);
 }
 
@@ -96,9 +94,10 @@ linux_sysctl_osrelease(SYSCTL_HANDLER_ARGS)
 
 	linux_get_osrelease(req->td, osrelease);
 	error = sysctl_handle_string(oidp, osrelease, LINUX_MAX_UTSNAME, req);
-	if (error || req->newptr == NULL)
+	if (error != 0 || req->newptr == NULL)
 		return (error);
 	error = linux_set_osrelease(req->td, osrelease);
+
 	return (error);
 }
 
@@ -115,9 +114,10 @@ linux_sysctl_oss_version(SYSCTL_HANDLER_ARGS)
 
 	oss_version = linux_get_oss_version(req->td);
 	error = sysctl_handle_int(oidp, &oss_version, 0, req);
-	if (error || req->newptr == NULL)
+	if (error != 0 || req->newptr == NULL)
 		return (error);
 	error = linux_set_oss_version(req->td, oss_version);
+
 	return (error);
 }
 
@@ -153,7 +153,9 @@ linux_map_osrel(char *osrelease, int *osrel)
 	if (v < 1000000)
 		return (EINVAL);
 
-	*osrel = v;
+	if (osrel != NULL)
+		*osrel = v;
+
 	return (0);
 }
 
@@ -167,9 +169,6 @@ linux_find_prison(struct prison *spr, struct prison **prp)
 	struct prison *pr;
 	struct linux_prison *lpr;
 
-	if (!linux_osd_jail_slot)
-		/* In case osd_register failed. */
-		spr = &prison0;
 	for (pr = spr;; pr = pr->pr_parent) {
 		mtx_lock(&pr->pr_mtx);
 		lpr = (pr == &prison0)
@@ -180,6 +179,7 @@ linux_find_prison(struct prison *spr, struct prison **prp)
 		mtx_unlock(&pr->pr_mtx);
 	}
 	*prp = pr;
+
 	return (lpr);
 }
 
@@ -187,15 +187,14 @@ linux_find_prison(struct prison *spr, struct prison **prp)
  * Ensure a prison has its own Linux info.  If lprp is non-null, point it to
  * the Linux info and lock the prison.
  */
-static int
+static void
 linux_alloc_prison(struct prison *pr, struct linux_prison **lprp)
 {
 	struct prison *ppr;
 	struct linux_prison *lpr, *nlpr;
-	int error;
+	void **rsv;
 
 	/* If this prison already has Linux info, return that. */
-	error = 0;
 	lpr = linux_find_prison(pr, &ppr);
 	if (ppr == pr)
 		goto done;
@@ -205,28 +204,24 @@ linux_alloc_prison(struct prison *pr, struct linux_prison **lprp)
 	 */
 	mtx_unlock(&ppr->pr_mtx);
 	nlpr = malloc(sizeof(struct linux_prison), M_PRISON, M_WAITOK);
+	rsv = osd_reserve(linux_osd_jail_slot);
 	lpr = linux_find_prison(pr, &ppr);
 	if (ppr == pr) {
 		free(nlpr, M_PRISON);
+		osd_free_reserved(rsv);
 		goto done;
 	}
 	/* Inherit the initial values from the ancestor. */
 	mtx_lock(&pr->pr_mtx);
-	error = osd_jail_set(pr, linux_osd_jail_slot, nlpr);
-	if (error == 0) {
-		bcopy(lpr, nlpr, sizeof(*lpr));
-		lpr = nlpr;
-	} else {
-		free(nlpr, M_PRISON);
-		lpr = NULL;
-	}
+	(void)osd_jail_set_reserved(pr, linux_osd_jail_slot, rsv, nlpr);
+	bcopy(lpr, nlpr, sizeof(*lpr));
+	lpr = nlpr;
 	mtx_unlock(&ppr->pr_mtx);
  done:
 	if (lprp != NULL)
 		*lprp = lpr;
 	else
 		mtx_unlock(&pr->pr_mtx);
-	return (error);
 }
 
 /*
@@ -246,7 +241,8 @@ linux_prison_create(void *obj, void *data)
 	 * Inherit a prison's initial values from its parent
 	 * (different from JAIL_SYS_INHERIT which also inherits changes).
 	 */
-	return linux_alloc_prison(pr, NULL);
+	linux_alloc_prison(pr, NULL);
+	return (0);
 }
 
 static int
@@ -254,7 +250,7 @@ linux_prison_check(void *obj __unused, void *data)
 {
 	struct vfsoptlist *opts = data;
 	char *osname, *osrelease;
-	int error, jsys, len, osrel, oss_version;
+	int error, jsys, len, oss_version;
 
 	/* Check that the parameters are correct. */
 	error = vfs_copyopt(opts, "linux", &jsys, sizeof(jsys));
@@ -285,7 +281,7 @@ linux_prison_check(void *obj __unused, void *data)
 			vfs_opterror(opts, "linux.osrelease too long");
 			return (ENAMETOOLONG);
 		}
-		error = linux_map_osrel(osrelease, &osrel);
+		error = linux_map_osrel(osrelease, NULL);
 		if (error != 0) {
 			vfs_opterror(opts, "linux.osrelease format error");
 			return (error);
@@ -293,7 +289,10 @@ linux_prison_check(void *obj __unused, void *data)
 	}
 	error = vfs_copyopt(opts, "linux.oss_version", &oss_version,
 	    sizeof(oss_version));
-	return (error == ENOENT ? 0 : error);
+
+	if (error == ENOENT)
+		error = 0;
+	return (error);
 }
 
 static int
@@ -339,17 +338,9 @@ linux_prison_set(void *obj, void *data)
 		 * "linux=new" or "linux.*":
 		 * the prison gets its own Linux info.
 		 */
-		error = linux_alloc_prison(pr, &lpr);
-		if (error) {
-			mtx_unlock(&pr->pr_mtx);
-			return (error);
-		}
+		linux_alloc_prison(pr, &lpr);
 		if (osrelease) {
-			error = linux_map_osrel(osrelease, &lpr->pr_osrel);
-			if (error) {
-				mtx_unlock(&pr->pr_mtx);
-				return (error);
-			}
+			(void)linux_map_osrel(osrelease, &lpr->pr_osrel);
 			strlcpy(lpr->pr_osrelease, osrelease,
 			    LINUX_MAX_UTSNAME);
 		}
@@ -359,6 +350,7 @@ linux_prison_set(void *obj, void *data)
 			lpr->pr_oss_version = oss_version;
 		mtx_unlock(&pr->pr_mtx);
 	}
+
 	return (0);
 }
 
@@ -418,6 +410,7 @@ linux_prison_get(void *obj, void *data)
 
  done:
 	mtx_unlock(&ppr->pr_mtx);
+
 	return (error);
 }
 
@@ -441,21 +434,18 @@ linux_osd_jail_register(void)
 
 	linux_osd_jail_slot =
 	    osd_jail_register(linux_prison_destructor, methods);
-	if (linux_osd_jail_slot > 0) {
-		/* Copy the system linux info to any current prisons. */
-		sx_xlock(&allprison_lock);
-		TAILQ_FOREACH(pr, &allprison, pr_list)
-			(void)linux_alloc_prison(pr, NULL);
-		sx_xunlock(&allprison_lock);
-	}
+	/* Copy the system linux info to any current prisons. */
+	sx_slock(&allprison_lock);
+	TAILQ_FOREACH(pr, &allprison, pr_list)
+		linux_alloc_prison(pr, NULL);
+	sx_sunlock(&allprison_lock);
 }
 
 void
 linux_osd_jail_deregister(void)
 {
 
-	if (linux_osd_jail_slot)
-		osd_jail_deregister(linux_osd_jail_slot);
+	osd_jail_deregister(linux_osd_jail_slot);
 }
 
 void
@@ -469,7 +459,7 @@ linux_get_osname(struct thread *td, char *dst)
 	mtx_unlock(&pr->pr_mtx);
 }
 
-int
+static int
 linux_set_osname(struct thread *td, char *osname)
 {
 	struct prison *pr;
@@ -478,6 +468,7 @@ linux_set_osname(struct thread *td, char *osname)
 	lpr = linux_find_prison(td->td_ucred->cr_prison, &pr);
 	strlcpy(lpr->pr_osname, osname, LINUX_MAX_UTSNAME);
 	mtx_unlock(&pr->pr_mtx);
+
 	return (0);
 }
 
@@ -502,10 +493,11 @@ linux_kernver(struct thread *td)
 	lpr = linux_find_prison(td->td_ucred->cr_prison, &pr);
 	osrel = lpr->pr_osrel;
 	mtx_unlock(&pr->pr_mtx);
+
 	return (osrel);
 }
 
-int
+static int
 linux_set_osrelease(struct thread *td, char *osrelease)
 {
 	struct prison *pr;
@@ -517,6 +509,7 @@ linux_set_osrelease(struct thread *td, char *osrelease)
 	if (error == 0)
 		strlcpy(lpr->pr_osrelease, osrelease, LINUX_MAX_UTSNAME);
 	mtx_unlock(&pr->pr_mtx);
+
 	return (error);
 }
 
@@ -530,10 +523,11 @@ linux_get_oss_version(struct thread *td)
 	lpr = linux_find_prison(td->td_ucred->cr_prison, &pr);
 	version = lpr->pr_oss_version;
 	mtx_unlock(&pr->pr_mtx);
+
 	return (version);
 }
 
-int
+static int
 linux_set_oss_version(struct thread *td, int oss_version)
 {
 	struct prison *pr;
@@ -542,66 +536,6 @@ linux_set_oss_version(struct thread *td, int oss_version)
 	lpr = linux_find_prison(td->td_ucred->cr_prison, &pr);
 	lpr->pr_oss_version = oss_version;
 	mtx_unlock(&pr->pr_mtx);
+
 	return (0);
 }
-
-#if defined(DEBUG) || defined(KTR)
-
-u_char linux_debug_map[howmany(LINUX_SYS_MAXSYSCALL, sizeof(u_char))];
-
-static int
-linux_debug(int syscall, int toggle, int global)
-{
-
-	if (global) {
-		char c = toggle ? 0 : 0xff;
-
-		memset(linux_debug_map, c, sizeof(linux_debug_map));
-		return (0);
-	}
-	if (syscall < 0 || syscall >= LINUX_SYS_MAXSYSCALL)
-		return (EINVAL);
-	if (toggle)
-		clrbit(linux_debug_map, syscall);
-	else
-		setbit(linux_debug_map, syscall);
-	return (0);
-}
-
-/*
- * Usage: sysctl linux.debug=<syscall_nr>.<0/1>
- *
- *    E.g.: sysctl linux.debug=21.0
- *
- * As a special case, syscall "all" will apply to all syscalls globally.
- */
-#define LINUX_MAX_DEBUGSTR	16
-static int
-linux_sysctl_debug(SYSCTL_HANDLER_ARGS)
-{
-	char value[LINUX_MAX_DEBUGSTR], *p;
-	int error, sysc, toggle;
-	int global = 0;
-
-	value[0] = '\0';
-	error = sysctl_handle_string(oidp, value, LINUX_MAX_DEBUGSTR, req);
-	if (error || req->newptr == NULL)
-		return (error);
-	for (p = value; *p != '\0' && *p != '.'; p++);
-	if (*p == '\0')
-		return (EINVAL);
-	*p++ = '\0';
-	sysc = strtol(value, NULL, 0);
-	toggle = strtol(p, NULL, 0);
-	if (strcmp(value, "all") == 0)
-		global = 1;
-	error = linux_debug(sysc, toggle, global);
-	return (error);
-}
-
-SYSCTL_PROC(_compat_linux, OID_AUTO, debug,
-            CTLTYPE_STRING | CTLFLAG_RW,
-            0, 0, linux_sysctl_debug, "A",
-            "Linux debugging control");
-
-#endif /* DEBUG || KTR */

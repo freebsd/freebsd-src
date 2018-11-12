@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -44,6 +37,8 @@ __FBSDID("$FreeBSD$");
 	.globl	.rtld_start
 	.type	.rtld_start,%function
 .rtld_start:
+	mov	r6, sp			/* save the stack pointer */
+	bic	sp, sp, #7		/* align the stack pointer */
 	sub	sp, sp, #8		/* make room for obj_main & exit proc */
 	mov	r4, r0			/* save ps_strings */
 	ldr	sl, .L2
@@ -59,13 +54,13 @@ __FBSDID("$FreeBSD$");
 	bl	_rtld_relocate_nonplt_self
 	mov	r1, sp
 	add	r2, sp, #4
-	add	r0, sp, #8
+	mov	r0, r6			/* load the sp the kernel gave us */
 	bl	_rtld			/* call the shared loader */
 	mov	r3, r0			/* save entry point */
 
 	ldr	r2, [sp, #0]		/* r2 = cleanup */
 	ldr	r1, [sp, #4]		/* r1 = obj_main */
-	add	sp, sp, #8		/* restore stack */
+	mov	sp, r6			/* restore stack */
 	mov	r0, r4			/* restore ps_strings */
 	mov	pc, r3			/* jump to the entry point */
 .L2:
@@ -82,7 +77,7 @@ __FBSDID("$FreeBSD$");
  *	lr = &GOT[2]
  */
 _rtld_bind_start:
-	stmdb	sp!,{r0-r4,sl,fp}
+	stmdb	sp!,{r0-r5,sl,fp}
 
 	sub	r1, ip, lr		/* r1 = 4 * (n + 1) */
 	sub	r1, r1, #4		/* r1 = 4 * n */
@@ -91,11 +86,15 @@ _rtld_bind_start:
 	ldr	r0, [lr, #-4]		/* get obj ptr from GOT[1] */
 	mov	r4, ip			/* save GOT location */
 
+	mov	r5, sp			/* Save the stack pointer */
+	bic	sp, sp, #7		/* Align the stack pointer */
 	bl	_rtld_bind		/* Call the binder */
+	mov	sp, r5			/* Restore the old stack pointer */
 
 	str	r0, [r4]		/* save address in GOT */
 	mov	ip, r0			/* save new address */
 
-	ldmia	sp!,{r0-r4,sl,fp,lr}	/* restore the stack */
+	ldmia	sp!,{r0-r5,sl,fp,lr}	/* restore the stack */
 	mov	pc, ip			/* jump to the new address */
 
+	.section .note.GNU-stack,"",%progbits

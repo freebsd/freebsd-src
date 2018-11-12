@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -40,27 +36,37 @@
 #include <sys/cdefs.h>
 
 /* Default search path. */
-#define	_PATH_DEFPATH	"/usr/bin:/bin"
+#define	_PATH_DEFPATH	"/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
 /* All standard utilities path. */
-#define	_PATH_STDPATH	"/usr/bin:/bin:/usr/sbin:/sbin:"
+#define	_PATH_STDPATH	"/usr/bin:/bin:/usr/sbin:/sbin"
 /* Locate system binaries. */
 #define	_PATH_SYSPATH	"/sbin:/usr/sbin"
 
-#define	_PATH_AUTHCONF	"/etc/auth.conf"
 #define	_PATH_BSHELL	"/bin/sh"
 #define	_PATH_CAPABILITY	"/etc/capability"
 #define	_PATH_CAPABILITY_DB	"/etc/capability.db"
 #define	_PATH_CONSOLE	"/dev/console"
 #define	_PATH_CP	"/bin/cp"
 #define	_PATH_CSHELL	"/bin/csh"
+#define	_PATH_CSMAPPER	"/usr/share/i18n/csmapper"
 #define	_PATH_DEFTAPE	"/dev/sa0"
+#define	_PATH_DEVGPIOC	"/dev/gpioc"
 #define	_PATH_DEVNULL	"/dev/null"
 #define	_PATH_DEVZERO	"/dev/zero"
 #define	_PATH_DRUM	"/dev/drum"
+#define	_PATH_ESDB	"/usr/share/i18n/esdb"
 #define	_PATH_ETC	"/etc"
+#define	_PATH_FIRMWARE	"/usr/share/firmware"
 #define	_PATH_FTPUSERS	"/etc/ftpusers"
 #define	_PATH_FWMEM	"/dev/fwmem"
+#define	_PATH_GBDE	"/sbin/gbde"
+#define	_PATH_GELI	"/sbin/geli"
 #define	_PATH_HALT	"/sbin/halt"
+#ifdef COMPAT_32BIT
+#define	_PATH_I18NMODULE	"/usr/lib32/i18n"
+#else
+#define	_PATH_I18NMODULE	"/usr/lib/i18n"
+#endif
 #define	_PATH_IFCONFIG	"/sbin/ifconfig"
 #define	_PATH_KMEM	"/dev/kmem"
 #define	_PATH_LIBMAP_CONF	"/etc/libmap.conf"
@@ -83,6 +89,7 @@
 #define	_PATH_SHELLS	"/etc/shells"
 #define	_PATH_TTY	"/dev/tty"
 #define	_PATH_UNIX	"don't use _PATH_UNIX"
+#define	_PATH_UFSSUSPEND	"/dev/ufssuspend"
 #define	_PATH_VI	"/usr/bin/vi"
 #define	_PATH_WALL	"/usr/bin/wall"
 
@@ -102,7 +109,7 @@ __END_DECLS
 
 #ifdef RESCUE
 #undef	_PATH_DEFPATH
-#define	_PATH_DEFPATH	"/rescue:/usr/bin:/bin"
+#define	_PATH_DEFPATH	"/rescue:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
 #undef	_PATH_STDPATH
 #define	_PATH_STDPATH	"/rescue:/usr/bin:/bin:/usr/sbin:/sbin"
 #undef	_PATH_SYSPATH

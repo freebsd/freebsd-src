@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1998 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -171,4 +171,8 @@ static scrn_saver_t logo_module = {
 	NULL
 };
 
+#ifdef BEASTIE_LOGO
+SAVER_MODULE(beastie_saver, logo_module);
+#else
 SAVER_MODULE(logo_saver, logo_module);
+#endif

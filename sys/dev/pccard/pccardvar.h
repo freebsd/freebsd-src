@@ -31,18 +31,6 @@
  */
 
 /*
- * PCCARD_API_LEVEL.  When set to 5, we provide a 5.x compatable API
- * for driver writers that have to share their code between 5.x and 6.x.
- * The 5.x compatibility interfaces will be unsupported in 7.0, at which
- * point we'll only support 6 and newer, etc.
- */
-#ifndef PCCARD_API_LEVEL
-#define PCCARD_API_LEVEL 6
-#elif PCCARD_API_LEVEL < 5
-#error "pccard API less than 5 unsupported"
-#endif
-
-/*
  * Contains information about mapped/allocated i/o spaces.
  */
 struct pccard_io_handle {
@@ -97,6 +85,16 @@ struct pccard_product {
 	const char	*pp_cis[4];
 };
 
+/**
+ * Note: There's no cis3 or cis4 reported for NOMATCH / pnpinfo events for pccard
+ * It's unclear if we actually need that for automatic loading or not. These stirngs
+ * are informative, according to the standard, but I have a dim memory of using these
+ * strings to match things, though I can't find the example right now.
+ */
+#define PCCARD_PNP_DESCR "D:human;V32:manufacturer;V32:product;Z:cisvendor;Z:cisproduct;"
+#define PCCARD_PNP_INFO(t) \
+	MODULE_PNP_INFO(PCCARD_PNP_DESCR, pccard, t, t, sizeof(t[0]), sizeof(t) / sizeof(t[0])); \
+
 typedef int (*pccard_product_match_fn) (device_t dev,
     const struct pccard_product *ent, int vpfmatch);
 
@@ -106,7 +104,7 @@ typedef int (*pccard_product_match_fn) (device_t dev,
  * make this inline so that we don't have to worry about dangling references
  * to it in the modules or the code.
  */
-static __inline const struct pccard_product *
+static inline const struct pccard_product *
 pccard_product_lookup(device_t dev, const struct pccard_product *tab,
     size_t ent_size, pccard_product_match_fn matchfn)
 {
@@ -150,31 +148,31 @@ pccard_product_lookup(device_t dev, const struct pccard_product *tab,
 
 /* Convenience functions */
 
-static __inline int
+static inline int
 pccard_cis_scan(device_t dev, pccard_scan_t fct, void *arg)
 {
 	return (CARD_CIS_SCAN(device_get_parent(dev), dev, fct, arg));
 }
 
-static __inline int
+static inline int
 pccard_attr_read_1(device_t dev, uint32_t offset, uint8_t *val)
 {
 	return (CARD_ATTR_READ(device_get_parent(dev), dev, offset, val));
 }
 
-static __inline int
+static inline int
 pccard_attr_write_1(device_t dev, uint32_t offset, uint8_t val)
 {
 	return (CARD_ATTR_WRITE(device_get_parent(dev), dev, offset, val));
 }
 
-static __inline int
+static inline int
 pccard_ccr_read_1(device_t dev, uint32_t offset, uint8_t *val)
 {
 	return (CARD_CCR_READ(device_get_parent(dev), dev, offset, val));
 }
 
-static __inline int
+static inline int
 pccard_ccr_write_1(device_t dev, uint32_t offset, uint8_t val)
 {
 	return (CARD_CCR_WRITE(device_get_parent(dev), dev, offset, val));
@@ -191,7 +189,7 @@ enum {
 	PCCARD_IVAR_PRODEXT,
 	PCCARD_IVAR_FUNCTION_NUMBER,
 	PCCARD_IVAR_VENDOR_STR,	/* CIS string for "Manufacturer" */
-	PCCARD_IVAR_PRODUCT_STR,/* CIS strnig for "Product" */
+	PCCARD_IVAR_PRODUCT_STR,/* CIS string for "Product" */
 	PCCARD_IVAR_CIS3_STR,
 	PCCARD_IVAR_CIS4_STR,
 	PCCARD_IVAR_FUNCTION,
@@ -199,7 +197,7 @@ enum {
 };
 
 #define PCCARD_ACCESSOR(A, B, T)					\
-__inline static int							\
+static inline int							\
 pccard_get_ ## A(device_t dev, T *t)					\
 {									\
 	return BUS_READ_IVAR(device_get_parent(dev), dev,		\
@@ -229,32 +227,13 @@ enum {
 #define PCCARD_S(a, b) PCMCIA_STR_ ## a ## _ ## b
 #define PCCARD_P(a, b) PCMCIA_PRODUCT_ ## a ## _ ## b
 #define PCCARD_C(a, b) PCMCIA_CIS_ ## a ## _ ## b
-#if PCCARD_API_LEVEL >= 6
 #define PCMCIA_CARD_D(v, p) { PCCARD_S(v, p), PCMCIA_VENDOR_ ## v, \
 		PCCARD_P(v, p), PCCARD_C(v, p) }
-#define PCMCIA_CARD2_D(v1, p1, p2) \
-		{ PCMCIA_STR_ ## p2, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
-		  PCMCIA_CIS_ ## p2}
-#define PCMCIA_CARD(v, p) { NULL, PCMCIA_VENDOR_ ## v, \
+#define PCMCIA_CARD(v, p) { PCCARD_S(v, p), PCMCIA_VENDOR_ ## v, \
 		PCCARD_P(v, p), PCCARD_C(v, p) }
-#define PCMCIA_CARD2(v1, p1, p2) \
-		{ NULL, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
-		  PCMCIA_CIS_ ## p2}
-#else
-#define PCMCIA_CARD_D(v, p, f) { PCCARD_S(v, p), PCMCIA_VENDOR_ ## v, \
-		PCCARD_P(v, p), PCCARD_C(v, p) }
-#define PCMCIA_CARD2_D(v1, p1, p2, f) \
-		{ PCMCIA_STR_ ## p2, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
-		  PCMCIA_CIS_ ## p2}
-#define PCMCIA_CARD(v, p, f) { NULL, PCMCIA_VENDOR_ ## v, \
-		PCCARD_P(v, p), PCCARD_C(v, p) }
-#define PCMCIA_CARD2(v1, p1, p2, f) \
-		{ NULL, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
-		  PCMCIA_CIS_ ## p2}
-#endif
 
 /*
- * Defines to decoe the get_funce_disk return value.  See the PCMCIA standard
+ * Defines to decode the get_funce_disk return value.  See the PCMCIA standard
  * for all the details of what these bits mean.
  */
 #define	PFD_I_V_MASK		0x3

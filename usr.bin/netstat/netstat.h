@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -36,6 +32,10 @@
 
 #include <sys/cdefs.h>
 
+#define	satosin(sa)	((struct sockaddr_in *)(sa))
+#define	satosin6(sa)	((struct sockaddr_in6 *)(sa))
+#define	sin6tosa(sin6)	((struct sockaddr *)(sin6))
+
 extern int	Aflag;	/* show addresses of protocol control block */
 extern int	aflag;	/* show all sockets (including servers) */
 extern int	bflag;	/* show i/f total bytes in/out */
@@ -45,11 +45,13 @@ extern int	hflag;	/* show counters in human readable format */
 extern int	iflag;	/* show interfaces */
 extern int	Lflag;	/* show size of listen queues */
 extern int	mflag;	/* show memory stats */
+extern int	noutputs;	/* how much outputs before we exit */
 extern int	numeric_addr;	/* show addresses numerically */
 extern int	numeric_port;	/* show ports numerically */
 extern int	rflag;	/* show routing tables (or routing stats) */
+extern int	Rflag;	/* show flowid / RSS information */
 extern int	sflag;	/* show protocol statistics */
-extern int	tflag;	/* show i/f watchdog timers */
+extern int	Tflag;  /* show TCP control block info */
 extern int	Wflag;	/* wide display */
 extern int	xflag;	/* extended display, includes all socket buffer info */
 extern int	zflag;	/* zero stats */
@@ -59,14 +61,23 @@ extern int	interval; /* repeat interval for i/f stats */
 extern char	*interface; /* desired i/f for stats, or NULL for all i/fs */
 extern int	unit;	/* unit number for above */
 
-extern int	af;	/* address family */
 extern int	live;	/* true if we are examining a live system */
 
+typedef	int kreadfn_t(u_long, void *, size_t);
+int	fetch_stats(const char *, u_long, void *, size_t, kreadfn_t);
+int	fetch_stats_ro(const char *, u_long, void *, size_t, kreadfn_t);
+
 int	kread(u_long addr, void *buf, size_t size);
+uint64_t kread_counter(u_long addr);
+int	kread_counters(u_long addr, void *buf, size_t size);
+void	kset_dpcpu(u_int);
 const char *plural(uintmax_t);
 const char *plurales(uintmax_t);
 const char *pluralies(uintmax_t);
 
+struct sockaddr;
+struct socket;
+struct xsocket;
 int	sotoxsocket(struct socket *, struct xsocket *);
 void	protopr(u_long, const char *, int, int);
 void	tcp_stats(u_long, const char *, int, int);
@@ -96,14 +107,13 @@ void	icmp6_stats(u_long, const char *, int, int);
 void	icmp6_ifstats(char *);
 void	pim6_stats(u_long, const char *, int, int);
 void	rip6_stats(u_long, const char *, int, int);
-void	mroute6pr(u_long, u_long);
-void	mrt6_stats(u_long);
+void	mroute6pr(void);
+void	mrt6_stats(void);
 
 struct sockaddr_in6;
 struct in6_addr;
-char *routename6(struct sockaddr_in6 *);
-const char *netname6(struct sockaddr_in6 *, struct in6_addr *);
-void	inet6print(struct in6_addr *, int, const char *, int);
+void in6_fillscopeid(struct sockaddr_in6 *);
+void	inet6print(const char *, struct in6_addr *, int, const char *, int);
 #endif /*INET6*/
 
 #ifdef IPSEC
@@ -112,55 +122,27 @@ void	pfkey_stats(u_long, const char *, int, int);
 
 void	mbpr(void *, u_long);
 
+void	netisr_stats(void);
+
 void	hostpr(u_long, u_long);
 void	impstats(u_long, u_long);
 
-void	intpr(int, u_long, void (*)(char *));
+void	intpr(void (*)(char *), int);
 
-void	pr_rthdr(int);
 void	pr_family(int);
-void	rt_stats(u_long, u_long);
-char	*ipx_pnet(struct sockaddr *);
-char	*ipx_phost(struct sockaddr *);
-char	*ns_phost(struct sockaddr *);
-void	upHex(char *);
+void	rt_stats(void);
+void	flowtable_stats(void);
 
-char	*routename(in_addr_t);
-char	*netname(in_addr_t, u_long);
-char	*atalk_print(struct sockaddr *, int);
-char	*atalk_print2(struct sockaddr *, struct sockaddr *, int);
-char	*ipx_print(struct sockaddr *);
-char	*ns_print(struct sockaddr *);
-void	routepr(u_long);
-
-void	ipxprotopr(u_long, const char *, int, int);
-void	spx_stats(u_long, const char *, int, int);
-void	ipx_stats(u_long, const char *, int, int);
-void	ipxerr_stats(u_long, const char *, int, int);
-
-void	nsprotopr(u_long, const char *, int, int);
-void	spp_stats(u_long, const char *, int, int);
-void	idp_stats(u_long, const char *, int, int);
-void	nserr_stats(u_long, const char *, int, int);
-
-void	atalkprotopr(u_long, const char *, int, int);
-void	ddp_stats(u_long, const char *, int, int);
+char	*routename(struct sockaddr *, int);
+const char *netname(struct sockaddr *, struct sockaddr *);
+void	routepr(int, int);
 
 #ifdef NETGRAPH
 void	netgraphprotopr(u_long, const char *, int, int);
 #endif
 
-void	unixpr(u_long, u_long, u_long, u_long);
+void	unixpr(u_long, u_long, u_long, u_long, u_long, bool *);
 
-void	esis_stats(u_long, const char *, int, int);
-void	clnp_stats(u_long, const char *, int, int);
-void	cltp_stats(u_long, const char *, int, int);
-void	iso_protopr(u_long, const char *, int, int);
-void	iso_protopr1(u_long, int);
-void	tp_protopr(u_long, const char *, int, int);
-void	tp_inproto(u_long);
-void	tp_stats(caddr_t, caddr_t);
-
-void	mroutepr(u_long, u_long, u_long);
-void	mrt_stats(u_long);
+void	mroutepr(void);
+void	mrt_stats(void);
 void	bpf_stats(char *);

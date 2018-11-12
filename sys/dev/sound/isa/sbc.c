@@ -80,14 +80,12 @@ static int sbc_attach(device_t dev);
 static void sbc_intr(void *p);
 
 static struct resource *sbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-					   u_long start, u_long end, u_long count, u_int flags);
+					   rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 static int sbc_release_resource(device_t bus, device_t child, int type, int rid,
 				struct resource *r);
 static int sbc_setup_intr(device_t dev, device_t child, struct resource *irq,
    	       int flags,
-#if __FreeBSD_version >= 700031
 	       driver_filter_t *filter,
-#endif
 	       driver_intr_t *intr, 
    	       void *arg, void **cookiep);
 static int sbc_teardown_intr(device_t dev, device_t child, struct resource *irq,
@@ -303,8 +301,8 @@ sbc_probe(device_t dev)
 		io = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
 					 pcm_iat, 16, RF_ACTIVE);
 #else
-		io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-		  		    	0, ~0, 16, RF_ACTIVE);
+		io = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+						 16, RF_ACTIVE);
 #endif
 		if (!io) goto bad;
 #ifdef PC98
@@ -512,9 +510,7 @@ sbc_intr(void *p)
 
 static int
 sbc_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
-#if __FreeBSD_version >= 700031
    	       driver_filter_t *filter,
-#endif
 	       driver_intr_t *intr, 
    	       void *arg, void **cookiep)
 {
@@ -522,12 +518,10 @@ sbc_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 	struct sbc_ihl *ihl = NULL;
 	int i, ret;
 
-#if __FreeBSD_version >= 700031
 	if (filter != NULL) {
 		printf("sbc.c: we cannot use a filter here\n");
 		return (EINVAL);
 	}
-#endif
 	sbc_lock(scp);
 	i = 0;
 	while (i < IRQ_MAX) {
@@ -579,7 +573,7 @@ sbc_teardown_intr(device_t dev, device_t child, struct resource *irq,
 
 static struct resource *
 sbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		      u_long start, u_long end, u_long count, u_int flags)
+		   rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct sbc_softc *scp;
 	int *alloced, rid_max, alloced_max;
@@ -714,8 +708,11 @@ alloc_resource(struct sbc_softc *scp)
 						   io_range[i]);
 #else
 			scp->io_rid[i] = i;
-			scp->io[i] = bus_alloc_resource(scp->dev, SYS_RES_IOPORT, &scp->io_rid[i],
-							0, ~0, io_range[i], RF_ACTIVE);
+			scp->io[i] = bus_alloc_resource_anywhere(scp->dev,
+								 SYS_RES_IOPORT,
+								 &scp->io_rid[i],
+								io_range[i],
+								RF_ACTIVE);
 #endif
 			if (i == 0 && scp->io[i] == NULL)
 				return (1);
@@ -790,7 +787,6 @@ static device_method_t sbc_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	sbc_read_ivar),
 	DEVMETHOD(bus_write_ivar,	sbc_write_ivar),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	sbc_alloc_resource),
 	DEVMETHOD(bus_release_resource,	sbc_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
@@ -798,7 +794,7 @@ static device_method_t sbc_methods[] = {
 	DEVMETHOD(bus_setup_intr,	sbc_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	sbc_teardown_intr),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t sbc_driver = {

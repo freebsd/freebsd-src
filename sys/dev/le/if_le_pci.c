@@ -16,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -312,7 +305,6 @@ le_pci_attach(device_t dev)
 	LE_LOCK_INIT(sc, device_get_nameunit(dev));
 
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, PCIM_CMD_PORTEN);
 
 	i = PCIR_BAR(0);
 	lesc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_IOPORT,

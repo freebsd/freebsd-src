@@ -19,14 +19,13 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef _SYS_IDMAP_H
 #define	_SYS_IDMAP_H
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /* Idmap status codes */
 #define	IDMAP_SUCCESS			0
@@ -64,12 +63,13 @@
 #define	IDMAP_ERR_W2U_NAMERULE_CONFLICT	-9970
 #define	IDMAP_ERR_U2W_NAMERULE_CONFLICT	-9969
 #define	IDMAP_ERR_BAD_UTF8		-9968
-#define	IDMAP_ERR_NONEGENERATED		-9967
+#define	IDMAP_ERR_NONE_GENERATED	-9967
 #define	IDMAP_ERR_PROP_UNKNOWN		-9966
 #define	IDMAP_ERR_NS_LDAP_OP_FAILED	-9965
 #define	IDMAP_ERR_NS_LDAP_PARTIAL	-9964
 #define	IDMAP_ERR_NS_LDAP_CFG		-9963
 #define	IDMAP_ERR_NS_LDAP_BAD_WINNAME	-9962
+#define	IDMAP_ERR_NO_ACTIVEDIRECTORY	-9961
 
 /* Reserved GIDs for some well-known SIDs */
 #define	IDMAP_WK_LOCAL_SYSTEM_GID	2147483648U /* 0x80000000 */
@@ -89,5 +89,9 @@
  * alloca()s).  See libidmap:idmap_init().
  */
 #define	IDMAP_MAX_DOOR_RPC		(256 * 1024)
+
+#define	IDMAP_SENTINEL_PID		UINT32_MAX
+#define	IDMAP_ID_IS_EPHEMERAL(pid)	\
+	(((pid) > INT32_MAX) && ((pid) != IDMAP_SENTINEL_PID))
 
 #endif /* _SYS_IDMAP_H */

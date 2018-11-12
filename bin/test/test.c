@@ -9,6 +9,10 @@
  *
  * This program is in the Public Domain.
  */
+/*
+ * Important: This file is used both as a standalone program /bin/test and
+ * as a builtin for /bin/sh (#define SHELL).
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -63,9 +67,18 @@ error(const char *msg, ...)
 	operand ::= <any legal UNIX file name>
 */
 
+enum token_types {
+	UNOP = 0x100,
+	BINOP = 0x200,
+	BUNOP = 0x300,
+	BBINOP = 0x400,
+	PAREN = 0x500
+};
+
 enum token {
 	EOI,
-	FILRD,
+	OPERAND,
+	FILRD = UNOP + 1,
 	FILWR,
 	FILEX,
 	FILEXIST,
@@ -81,13 +94,13 @@ enum token {
 	FILSUID,
 	FILSGID,
 	FILSTCK,
-	FILNT,
-	FILOT,
-	FILEQ,
-	FILUID,
-	FILGID,
 	STREZ,
 	STRNZ,
+	FILUID,
+	FILGID,
+	FILNT = BINOP + 1,
+	FILOT,
+	FILEQ,
 	STREQ,
 	STRNE,
 	STRLT,
@@ -98,75 +111,70 @@ enum token {
 	INTGT,
 	INTLE,
 	INTLT,
-	UNOT,
-	BAND,
+	UNOT = BUNOP + 1,
+	BAND = BBINOP + 1,
 	BOR,
-	LPAREN,
-	RPAREN,
-	OPERAND
+	LPAREN = PAREN + 1,
+	RPAREN
 };
 
-enum token_types {
-	UNOP,
-	BINOP,
-	BUNOP,
-	BBINOP,
-	PAREN
+#define TOKEN_TYPE(token) ((token) & 0xff00)
+
+static const struct t_op {
+	char op_text[2];
+	short op_num;
+} ops1[] = {
+	{"=",	STREQ},
+	{"<",	STRLT},
+	{">",	STRGT},
+	{"!",	UNOT},
+	{"(",	LPAREN},
+	{")",	RPAREN},
+}, opsm1[] = {
+	{"r",	FILRD},
+	{"w",	FILWR},
+	{"x",	FILEX},
+	{"e",	FILEXIST},
+	{"f",	FILREG},
+	{"d",	FILDIR},
+	{"c",	FILCDEV},
+	{"b",	FILBDEV},
+	{"p",	FILFIFO},
+	{"u",	FILSUID},
+	{"g",	FILSGID},
+	{"k",	FILSTCK},
+	{"s",	FILGZ},
+	{"t",	FILTT},
+	{"z",	STREZ},
+	{"n",	STRNZ},
+	{"h",	FILSYM},		/* for backwards compat */
+	{"O",	FILUID},
+	{"G",	FILGID},
+	{"L",	FILSYM},
+	{"S",	FILSOCK},
+	{"a",	BAND},
+	{"o",	BOR},
+}, ops2[] = {
+	{"==",	STREQ},
+	{"!=",	STRNE},
+}, opsm2[] = {
+	{"eq",	INTEQ},
+	{"ne",	INTNE},
+	{"ge",	INTGE},
+	{"gt",	INTGT},
+	{"le",	INTLE},
+	{"lt",	INTLT},
+	{"nt",	FILNT},
+	{"ot",	FILOT},
+	{"ef",	FILEQ},
 };
 
-struct t_op {
-	const char *op_text;
-	short op_num, op_type;
-} const ops [] = {
-	{"-r",	FILRD,	UNOP},
-	{"-w",	FILWR,	UNOP},
-	{"-x",	FILEX,	UNOP},
-	{"-e",	FILEXIST,UNOP},
-	{"-f",	FILREG,	UNOP},
-	{"-d",	FILDIR,	UNOP},
-	{"-c",	FILCDEV,UNOP},
-	{"-b",	FILBDEV,UNOP},
-	{"-p",	FILFIFO,UNOP},
-	{"-u",	FILSUID,UNOP},
-	{"-g",	FILSGID,UNOP},
-	{"-k",	FILSTCK,UNOP},
-	{"-s",	FILGZ,	UNOP},
-	{"-t",	FILTT,	UNOP},
-	{"-z",	STREZ,	UNOP},
-	{"-n",	STRNZ,	UNOP},
-	{"-h",	FILSYM,	UNOP},		/* for backwards compat */
-	{"-O",	FILUID,	UNOP},
-	{"-G",	FILGID,	UNOP},
-	{"-L",	FILSYM,	UNOP},
-	{"-S",	FILSOCK,UNOP},
-	{"=",	STREQ,	BINOP},
-	{"!=",	STRNE,	BINOP},
-	{"<",	STRLT,	BINOP},
-	{">",	STRGT,	BINOP},
-	{"-eq",	INTEQ,	BINOP},
-	{"-ne",	INTNE,	BINOP},
-	{"-ge",	INTGE,	BINOP},
-	{"-gt",	INTGT,	BINOP},
-	{"-le",	INTLE,	BINOP},
-	{"-lt",	INTLT,	BINOP},
-	{"-nt",	FILNT,	BINOP},
-	{"-ot",	FILOT,	BINOP},
-	{"-ef",	FILEQ,	BINOP},
-	{"!",	UNOT,	BUNOP},
-	{"-a",	BAND,	BBINOP},
-	{"-o",	BOR,	BBINOP},
-	{"(",	LPAREN,	PAREN},
-	{")",	RPAREN,	PAREN},
-	{0,	0,	0}
-};
-
-struct t_op const *t_wp_op;
-int nargc;
-char **t_wp;
-int parenlevel;
+static int nargc;
+static char **t_wp;
+static int parenlevel;
 
 static int	aexpr(enum token);
-static int	binop(void);
+static int	binop(enum token);
 static int	equalf(const char *, const char *);
 static int	filstat(char *, enum token);
 static int	getn(const char *);
@@ -189,7 +197,7 @@ main(int argc, char **argv)
 	int	res;
 	char	*p;
 
-	if ((p = rindex(argv[0], '/')) == NULL)
+	if ((p = strrchr(argv[0], '/')) == NULL)
 		p = argv[0];
 	else
 		p++;
@@ -290,10 +298,10 @@ primary(enum token n)
 		parenlevel--;
 		return res;
 	}
-	if (t_wp_op && t_wp_op->op_type == UNOP) {
+	if (TOKEN_TYPE(n) == UNOP) {
 		/* unary expression */
 		if (--nargc == 0)
-			syntax(t_wp_op->op_text, "argument expected");
+			syntax(NULL, "argument expected"); /* impossible */
 		switch (n) {
 		case STREZ:
 			return strlen(*++t_wp) == 0;
@@ -306,28 +314,25 @@ primary(enum token n)
 		}
 	}
 
-	if (t_lex(nargc > 0 ? t_wp[1] : NULL), t_wp_op && t_wp_op->op_type ==
-	    BINOP) {
-		return binop();
-	}
+	nn = t_lex(nargc > 0 ? t_wp[1] : NULL);
+	if (TOKEN_TYPE(nn) == BINOP)
+		return binop(nn);
 
 	return strlen(*t_wp) > 0;
 }
 
 static int
-binop(void)
+binop(enum token n)
 {
-	const char *opnd1, *opnd2;
-	struct t_op const *op;
+	const char *opnd1, *op, *opnd2;
 
 	opnd1 = *t_wp;
-	(void) t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL);
-	op = t_wp_op;
+	op = nargc > 0 ? (--nargc, *++t_wp) : NULL;
 
 	if ((opnd2 = nargc > 0 ? (--nargc, *++t_wp) : NULL) == NULL)
-		syntax(op->op_text, "argument expected");
+		syntax(op, "argument expected");
 
-	switch (op->op_num) {
+	switch (n) {
 	case STREQ:
 		return strcmp(opnd1, opnd2) == 0;
 	case STRNE:
@@ -413,37 +418,71 @@ filstat(char *nm, enum token mode)
 	}
 }
 
+static int
+find_op_1char(const struct t_op *op, const struct t_op *end, const char *s)
+{
+	char c;
+
+	c = s[0];
+	while (op != end) {
+		if (c == *op->op_text)
+			return op->op_num;
+		op++;
+	}
+	return OPERAND;
+}
+
+static int
+find_op_2char(const struct t_op *op, const struct t_op *end, const char *s)
+{
+	while (op != end) {
+		if (s[0] == op->op_text[0] && s[1] == op->op_text[1])
+			return op->op_num;
+		op++;
+	}
+	return OPERAND;
+}
+
+static int
+find_op(const char *s)
+{
+	if (s[0] == '\0')
+		return OPERAND;
+	else if (s[1] == '\0')
+		return find_op_1char(ops1, (&ops1)[1], s);
+	else if (s[2] == '\0')
+		return s[0] == '-' ? find_op_1char(opsm1, (&opsm1)[1], s + 1) :
+		    find_op_2char(ops2, (&ops2)[1], s);
+	else if (s[3] == '\0')
+		return s[0] == '-' ? find_op_2char(opsm2, (&opsm2)[1], s + 1) :
+		    OPERAND;
+	else
+		return OPERAND;
+}
+
 static enum token
 t_lex(char *s)
 {
-	struct t_op const *op = ops;
+	int num;
 
-	if (s == 0) {
-		t_wp_op = NULL;
+	if (s == NULL) {
 		return EOI;
 	}
-	while (op->op_text) {
-		if (strcmp(s, op->op_text) == 0) {
-			if (((op->op_type == UNOP || op->op_type == BUNOP)
-						&& isunopoperand()) ||
-			    (op->op_num == LPAREN && islparenoperand()) ||
-			    (op->op_num == RPAREN && isrparenoperand()))
-				break;
-			t_wp_op = op;
-			return op->op_num;
-		}
-		op++;
-	}
-	t_wp_op = NULL;
-	return OPERAND;
+	num = find_op(s);
+	if (((TOKEN_TYPE(num) == UNOP || TOKEN_TYPE(num) == BUNOP)
+				&& isunopoperand()) ||
+	    (num == LPAREN && islparenoperand()) ||
+	    (num == RPAREN && isrparenoperand()))
+		return OPERAND;
+	return num;
 }
 
 static int
 isunopoperand(void)
 {
-	struct t_op const *op = ops;
 	char *s;
 	char *t;
+	int num;
 
 	if (nargc == 1)
 		return 1;
@@ -451,20 +490,16 @@ isunopoperand(void)
 	if (nargc == 2)
 		return parenlevel == 1 && strcmp(s, ")") == 0;
 	t = *(t_wp + 2);
-	while (op->op_text) {
-		if (strcmp(s, op->op_text) == 0)
-			return op->op_type == BINOP &&
-			    (parenlevel == 0 || t[0] != ')' || t[1] != '\0');
-		op++;
-	}
-	return 0;
+	num = find_op(s);
+	return TOKEN_TYPE(num) == BINOP &&
+	    (parenlevel == 0 || t[0] != ')' || t[1] != '\0');
 }
 
 static int
 islparenoperand(void)
 {
-	struct t_op const *op = ops;
 	char *s;
+	int num;
 
 	if (nargc == 1)
 		return 1;
@@ -473,12 +508,8 @@ islparenoperand(void)
 		return parenlevel == 1 && strcmp(s, ")") == 0;
 	if (nargc != 3)
 		return 0;
-	while (op->op_text) {
-		if (strcmp(s, op->op_text) == 0)
-			return op->op_type == BINOP;
-		op++;
-	}
-	return 0;
+	num = find_op(s);
+	return TOKEN_TYPE(num) == BINOP;
 }
 
 static int
@@ -572,12 +603,12 @@ newerf (const char *f1, const char *f2)
 	if (stat(f1, &b1) != 0 || stat(f2, &b2) != 0)
 		return 0;
 
-	if (b1.st_mtimespec.tv_sec > b2.st_mtimespec.tv_sec)
+	if (b1.st_mtim.tv_sec > b2.st_mtim.tv_sec)
 		return 1;
-	if (b1.st_mtimespec.tv_sec < b2.st_mtimespec.tv_sec)
+	if (b1.st_mtim.tv_sec < b2.st_mtim.tv_sec)
 		return 0;
 
-       return (b1.st_mtimespec.tv_nsec > b2.st_mtimespec.tv_nsec);
+       return (b1.st_mtim.tv_nsec > b2.st_mtim.tv_nsec);
 }
 
 static int

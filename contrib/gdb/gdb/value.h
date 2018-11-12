@@ -165,6 +165,9 @@ struct value
     /* The BFD section associated with this value.  */
     asection *bfd_section;
 
+    /* If value is a variable, is it initialized or not.  */
+    int initialized;
+
     /* Actual contents of the value.  For use of this value; setting
        it uses the stuff above.  Not valid if lazy is nonzero.
        Target byte-order.  We force it to be aligned properly for any
@@ -522,6 +525,11 @@ extern int val_print (struct type * type, char *valaddr,
 		      struct ui_file * stream, int format,
 		      int deref_ref, int recurse,
 		      enum val_prettyprint pretty);
+
+extern int common_val_print (struct value *val,
+			     struct ui_file *stream, int format,
+			     int deref_ref, int recurse,
+			     enum val_prettyprint pretty);
 
 extern int val_print_string (CORE_ADDR addr, int len, int width, struct ui_file *stream);
 

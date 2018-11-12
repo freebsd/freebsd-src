@@ -138,6 +138,7 @@ enum {
 #include <vm/uma.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_atm.h>
 
@@ -343,6 +344,7 @@ en_k2sz(int k)
 }
 #define en_log2(X) en_k2sz(X)
 
+#if 0
 /*
  * en_b2sz: convert a DMA burst code to its byte size
  */
@@ -364,6 +366,7 @@ en_b2sz(int b)
 	}
 	return (0);
 }
+#endif
 
 /*
  * en_sz2b: convert a burst size (bytes) to DMA burst code
@@ -771,7 +774,7 @@ en_txdma(struct en_softc *sc, struct en_txslot *slot)
 	}
 
 	EN_COUNT(sc->stats.launch);
-	sc->ifp->if_opackets++;
+	if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
 
 	sc->vccs[tx.vci]->opackets++;
 	sc->vccs[tx.vci]->obytes += tx.datalen;
@@ -837,15 +840,15 @@ copy_mbuf(struct mbuf *m)
 {
 	struct mbuf *new;
 
-	MGET(new, M_WAIT, MT_DATA);
+	MGET(new, M_WAITOK, MT_DATA);
 
 	if (m->m_flags & M_PKTHDR) {
 		M_MOVE_PKTHDR(new, m);
 		if (m->m_len > MHLEN)
-			MCLGET(new, M_WAIT);
+			MCLGET(new, M_WAITOK);
 	} else {
 		if (m->m_len > MLEN)
-			MCLGET(new, M_WAIT);
+			MCLGET(new, M_WAITOK);
 	}
 
 	bcopy(m->m_data, new->m_data, m->m_len);
@@ -1484,7 +1487,7 @@ en_init(struct en_softc *sc)
 		loc = sc->txslot[slot].cur = sc->txslot[slot].start;
 		loc = loc - MID_RAMOFF;
 		/* mask, cvt to words */
-		loc = (loc & ~((EN_TXSZ * 1024) - 1)) >> 2;
+		loc = rounddown2(loc, EN_TXSZ * 1024) >> 2;
 		/* top 11 bits */
 		loc = loc >> MIDV_LOCTOPSHFT;
 		en_write(sc, MIDX_PLACE(slot), MIDX_MKPLACE(en_k2sz(EN_TXSZ),
@@ -1848,7 +1851,7 @@ en_rx_drain(struct en_softc *sc, u_int drq)
 		    EN_DQ_LEN(drq), vc->rxhand));
 
 		m->m_pkthdr.rcvif = sc->ifp;
-		sc->ifp->if_ipackets++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 
 		vc->ipackets++;
 		vc->ibytes += m->m_pkthdr.len;
@@ -1925,14 +1928,14 @@ en_mget(struct en_softc *sc, u_int pktlen)
 	 * words at the begin.
 	 */
 	/* called from interrupt context */
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (NULL);
 
 	m->m_pkthdr.rcvif = NULL;
 	m->m_pkthdr.len = pktlen;
 	m->m_len = EN_RX1BUF;
-	MH_ALIGN(m, EN_RX1BUF);
+	M_ALIGN(m, EN_RX1BUF);
 	if (m->m_len >= totlen) {
 		m->m_len = totlen;
 
@@ -1940,7 +1943,7 @@ en_mget(struct en_softc *sc, u_int pktlen)
 		totlen -= m->m_len;
 
 		/* called from interrupt context */
-		tmp = m_getm(m, totlen, M_DONTWAIT, MT_DATA);
+		tmp = m_getm(m, totlen, M_NOWAIT, MT_DATA);
 		if (tmp == NULL) {
 			m_free(m);
 			return (NULL);
@@ -2246,13 +2249,13 @@ en_service(struct en_softc *sc)
 			device_printf(sc->dev, "invalid AAL5 length\n");
 			rx.post_skip = MID_RBD_CNT(rbd) * MID_ATMDATASZ;
 			mlen = 0;
-			sc->ifp->if_ierrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 
 		} else if (rbd & MID_RBD_CRCERR) {
 			device_printf(sc->dev, "CRC error\n");
 			rx.post_skip = MID_RBD_CNT(rbd) * MID_ATMDATASZ;
 			mlen = 0;
-			sc->ifp->if_ierrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 
 		} else {
 			mlen = MID_PDU_LEN(pdu);
@@ -2714,7 +2717,7 @@ en_dmaprobe(struct en_softc *sc)
 	 * Allocate some DMA-able memory.
 	 * We need 3 times the max burst size aligned to the max burst size.
 	 */
-	err = bus_dma_tag_create(NULL, MIDDMA_MAXBURST, 0,
+	err = bus_dma_tag_create(bus_get_dma_tag(sc->dev), MIDDMA_MAXBURST, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    3 * MIDDMA_MAXBURST, 1, 3 * MIDDMA_MAXBURST, 0,
 	    NULL, NULL, &tag);
@@ -2908,8 +2911,8 @@ en_attach(struct en_softc *sc)
 		goto fail;
 
 	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	    OID_AUTO, "istats", CTLFLAG_RD, sc, 0, en_sysctl_istats,
-	    "S", "internal statistics") == NULL)
+	    OID_AUTO, "istats", CTLTYPE_OPAQUE | CTLFLAG_RD, sc, 0,
+	    en_sysctl_istats, "S", "internal statistics") == NULL)
 		goto fail;
 
 #ifdef EN_DEBUG
@@ -2924,10 +2927,10 @@ en_attach(struct en_softc *sc)
 	    &en_utopia_methods);
 	utopia_init_media(&sc->utopia);
 
-	MGET(sc->padbuf, M_WAIT, MT_DATA);
+	MGET(sc->padbuf, M_WAITOK, MT_DATA);
 	bzero(sc->padbuf->m_data, MLEN);
 
-	if (bus_dma_tag_create(NULL, 1, 0,
+	if (bus_dma_tag_create(bus_get_dma_tag(sc->dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    EN_TXSZ * 1024, EN_MAX_DMASEG, EN_TXSZ * 1024, 0,
 	    NULL, NULL, &sc->txtag))
@@ -2989,7 +2992,7 @@ en_attach(struct en_softc *sc)
 		sc->rxslot[lcv].stop = ptr;
 		midvloc = midvloc - MID_RAMOFF;
 		/* mask, cvt to words */
-		midvloc = (midvloc & ~((EN_RXSZ*1024) - 1)) >> 2;
+		midvloc = rounddown2(midvloc, EN_RXSZ * 1024) >> 2;
 		/* we only want the top 11 bits */
 		midvloc = midvloc >> MIDV_LOCTOPSHFT;
 		midvloc = (midvloc & MIDV_LOCMASK) << MIDV_LOCSHIFT;

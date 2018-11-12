@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/pmap.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -181,7 +180,7 @@ admpci_attach(device_t dev)
 		panic("bus_space_map failed");
 	}
 
-	device_add_child(dev, "pci", busno);
+	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 
@@ -356,7 +355,7 @@ admpci_write_ivar(device_t dev, device_t child, int which, uintptr_t result)
 
 static struct resource *
 admpci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 
 	return (NULL);
@@ -473,7 +472,6 @@ static device_method_t admpci_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	admpci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	admpci_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	admpci_alloc_resource),
@@ -489,7 +487,7 @@ static device_method_t admpci_methods[] = {
 	DEVMETHOD(pcib_write_config,	admpci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	admpci_route_interrupt),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t admpci_driver = {

@@ -1,13 +1,17 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../contrib/dev/iwn
+SUBDIR=	iwn100		\
+	iwn105		\
+	iwn135		\
+	iwn1000		\
+	iwn2000		\
+	iwn2030		\
+	iwn4965		\
+	iwn5000		\
+	iwn5150		\
+	iwn6000		\
+	iwn6000g2a	\
+	iwn6000g2b	\
+	iwn6050
 
-KMOD=	iwnfw
-FIRMWS=	iwlwifi-4965-4.44.17.fw:iwnfw:44417
-
-CLEANFILES=	iwlwifi-4965-4.44.17.fw
-
-iwlwifi-4965-4.44.17.fw: ${.CURDIR}/../../contrib/dev/iwn/iwlwifi-4965-4.44.17.fw.uu
-	uudecode -p ${.CURDIR}/../../contrib/dev/iwn/iwlwifi-4965-4.44.17.fw.uu > ${.TARGET}
-
-.include <bsd.kmod.mk>
+.include <bsd.subdir.mk>

@@ -61,13 +61,25 @@ NLSDIR?=	${SHAREDIR}/nls
 #
 # installation rules
 #
+.if ${MK_STAGING_PROG} == "yes"
+.if !defined(_SKIP_BUILD)
+STAGE_TARGETS+= stage_symlinks
+.endif
+STAGE_SYMLINKS.NLS= ${NLSSYMLINKS}
+STAGE_SYMLINKS_DIR.NLS= ${STAGE_OBJTOP}
+.else
+SYMLINKS+= ${NLSSYMLINKS}
+.endif
 .for file in ${NLS}
 NLSNAME_${file:T}= ${file:T:R}/${NLSNAME}.cat
 .if defined(NLSLINKS_${file:R}) && !empty(NLSLINKS_${file:R})
+.if !empty(NLSLINKS_${file:R}:M${file:R})
+.error NLSLINKS_${file:R} contains itself: ${file:R}
+.endif
 NLSLINKS+=	${file:R}
 .endif
 .for dst in ${NLSLINKS_${file:R}}
-SYMLINKS+=	../${file:R}/${NLSNAME}.cat ${NLSDIR}/${dst}/${NLSNAME}.cat
+NLSSYMLINKS+= ../${file:R}/${NLSNAME}.cat ${NLSDIR}/${dst}/${NLSNAME}.cat
 .endfor
 .endfor
 

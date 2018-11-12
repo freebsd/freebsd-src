@@ -31,6 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/linker.h>
 
+#ifdef __mips__
+#include <sys/proc.h>
+#include <machine/frame.h>
+#endif
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/elf.h>
@@ -38,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 
 #include "bootstrap.h"
+#include "libuboot.h"
 
 extern vm_offset_t md_load(char *, vm_offset_t *);
 
@@ -69,6 +74,7 @@ __elfN(uboot_exec)(struct preloaded_file *fp)
 	vm_offset_t mdp;
 	Elf_Ehdr *e;
 	int error;
+	void (*entry)(void *);
 
 	if ((fmp = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
 		return (EFTYPE);
@@ -78,11 +84,13 @@ __elfN(uboot_exec)(struct preloaded_file *fp)
 	if ((error = md_load(fp->f_args, &mdp)) != 0)
 		return (error);
 
-	printf("Kernel entry at 0x%x ...\n", e->e_entry);
+	entry = (void *)e->e_entry;
+	printf("Kernel entry at %p...\n", entry);
 
 	dev_cleanup();
+	printf("Kernel args: %s\n", fp->f_args);
 
-	(*(void (*)())e->e_entry)((void *)mdp);
+	(*entry)((void *)mdp);
 	panic("exec returned");
 }
 

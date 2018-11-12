@@ -137,6 +137,7 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
 		 int fontsize, int fontwidth)
 {
     video_info_t info;
+    struct winsize wsz;
     u_char *font;
     int prev_ysize;
     int error;
@@ -150,34 +151,33 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
 	fontwidth = info.vi_cwidth;
     if (fontsize <= 0)
 	fontsize = info.vi_cheight;
-    if (fontsize < 14) {
+    if (fontsize < 14)
 	fontsize = 8;
-#ifndef SC_NO_FONT_LOADING
-	if (!(scp->sc->fonts_loaded & FONT_8))
-	    return EINVAL;
-	font = scp->sc->font_8;
-#else
-	font = NULL;
-#endif
-    } else if (fontsize >= 16) {
+    else if (fontsize >= 16)
 	fontsize = 16;
-#ifndef SC_NO_FONT_LOADING
-	if (!(scp->sc->fonts_loaded & FONT_16))
-	    return EINVAL;
-	font = scp->sc->font_16;
-#else
-	font = NULL;
-#endif
-    } else {
+    else
 	fontsize = 14;
 #ifndef SC_NO_FONT_LOADING
-	if (!(scp->sc->fonts_loaded & FONT_14))
-	    return EINVAL;
+    switch (fontsize) {
+    case 8:
+	if ((scp->sc->fonts_loaded & FONT_8) == 0)
+	    return (EINVAL);
+	font = scp->sc->font_8;
+	break;
+    case 14:
+	if ((scp->sc->fonts_loaded & FONT_14) == 0)
+	    return (EINVAL);
 	font = scp->sc->font_14;
-#else
-	font = NULL;
-#endif
+	break;
+    case 16:
+	if ((scp->sc->fonts_loaded & FONT_16) == 0)
+	    return (EINVAL);
+	font = scp->sc->font_16;
+	break;
     }
+#else
+    font = NULL;
+#endif
     if ((xsize <= 0) || (xsize > info.vi_width))
 	xsize = info.vi_width;
     if ((ysize <= 0) || (ysize > info.vi_height))
@@ -235,16 +235,9 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
 
     if (tp == NULL)
 	return 0;
-    DPRINTF(5, ("ws_*size (%d,%d), size (%d,%d)\n",
-	tp->t_winsize.ws_col, tp->t_winsize.ws_row, scp->xsize, scp->ysize));
-    if (tp->t_winsize.ws_col != scp->xsize
-	|| tp->t_winsize.ws_row != scp->ysize) {
-	tp->t_winsize.ws_col = scp->xsize;
-	tp->t_winsize.ws_row = scp->ysize;
-
-	tty_signal_pgrp(tp, SIGWINCH);
-    }
-
+    wsz.ws_col = scp->xsize;
+    wsz.ws_row = scp->ysize;
+    tty_set_winsize(tp, &wsz);
     return 0;
 }
 
@@ -255,6 +248,7 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
     return ENODEV;
 #else
     video_info_t info;
+    struct winsize wsz;
     int error;
     int s;
 
@@ -301,14 +295,9 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
 
     if (tp == NULL)
 	return 0;
-    if (tp->t_winsize.ws_xpixel != scp->xpixel
-	|| tp->t_winsize.ws_ypixel != scp->ypixel) {
-	tp->t_winsize.ws_xpixel = scp->xpixel;
-	tp->t_winsize.ws_ypixel = scp->ypixel;
-
-	tty_signal_pgrp(tp, SIGWINCH);
-    }
-
+    wsz.ws_col = scp->xsize;
+    wsz.ws_row = scp->ysize;
+    tty_set_winsize(tp, &wsz);
     return 0;
 #endif /* SC_NO_MODE_CHANGE */
 }
@@ -321,6 +310,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     return ENODEV;
 #else
     video_info_t info;
+    struct winsize wsz;
     u_char *font;
     int prev_ysize;
     int error;
@@ -332,34 +322,33 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     /* adjust argument values */
     if (fontsize <= 0)
 	fontsize = info.vi_cheight;
-    if (fontsize < 14) {
+    if (fontsize < 14)
 	fontsize = 8;
-#ifndef SC_NO_FONT_LOADING
-	if (!(scp->sc->fonts_loaded & FONT_8))
-	    return EINVAL;
-	font = scp->sc->font_8;
-#else
-	font = NULL;
-#endif
-    } else if (fontsize >= 16) {
+    else if (fontsize >= 16)
 	fontsize = 16;
-#ifndef SC_NO_FONT_LOADING
-	if (!(scp->sc->fonts_loaded & FONT_16))
-	    return EINVAL;
-	font = scp->sc->font_16;
-#else
-	font = NULL;
-#endif
-    } else {
+    else
 	fontsize = 14;
 #ifndef SC_NO_FONT_LOADING
-	if (!(scp->sc->fonts_loaded & FONT_14))
-	    return EINVAL;
+    switch (fontsize) {
+    case 8:
+	if ((scp->sc->fonts_loaded & FONT_8) == 0)
+	    return (EINVAL);
+	font = scp->sc->font_8;
+	break;
+    case 14:
+	if ((scp->sc->fonts_loaded & FONT_14) == 0)
+	    return (EINVAL);
 	font = scp->sc->font_14;
-#else
-	font = NULL;
-#endif
+	break;
+    case 16:
+	if ((scp->sc->fonts_loaded & FONT_16) == 0)
+	    return (EINVAL);
+	font = scp->sc->font_16;
+	break;
     }
+#else
+    font = NULL;
+#endif
     if (xsize <= 0)
 	xsize = info.vi_width/8;
     if (ysize <= 0)
@@ -368,34 +357,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     if ((info.vi_width < xsize*8) || (info.vi_height < ysize*fontsize))
 	return EINVAL;
 
-    /*
-     * We currently support the following graphic modes:
-     *
-     * - 4 bpp planar modes whose memory size does not exceed 64K
-     * - 15, 16, 24 and 32 bpp linear modes
-     */
-
-    if (info.vi_mem_model == V_INFO_MM_PLANAR) {
-	if (info.vi_planes != 4)
-	    return ENODEV;
-
-	/*
-	 * A memory size >64K requires bank switching to access the entire
-	 * screen. XXX
-	 */
-
-	if (info.vi_width * info.vi_height / 8 > info.vi_window_size)
-	    return ENODEV;
-    } else if (info.vi_mem_model == V_INFO_MM_DIRECT) {
-	if (!(info.vi_flags & V_INFO_LINEAR) &&
-	    (info.vi_depth != 15) && (info.vi_depth != 16) &&
-	    (info.vi_depth != 24) && (info.vi_depth != 32))
-	    return ENODEV;
-    } else if (info.vi_mem_model == V_INFO_MM_PACKED) {
-	if (!(info.vi_flags & V_INFO_LINEAR) &&
-	    (info.vi_depth != 8))
-	    return ENODEV;
-    } else
+    if (!sc_support_pixel_mode(&info))
 	return ENODEV;
 
     /* stop screen saver, etc */
@@ -453,19 +415,53 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 
     if (tp == NULL)
 	return 0;
-    if (tp->t_winsize.ws_col != scp->xsize
-	|| tp->t_winsize.ws_row != scp->ysize) {
-	tp->t_winsize.ws_col = scp->xsize;
-	tp->t_winsize.ws_row = scp->ysize;
-	if (tp->t_pgrp != NULL) {
-	    PGRP_LOCK(tp->t_pgrp);
-	    pgsignal(tp->t_pgrp, SIGWINCH, 1);
-	    PGRP_UNLOCK(tp->t_pgrp);
-	}
-    }
-
+    wsz.ws_col = scp->xsize;
+    wsz.ws_row = scp->ysize;
+    tty_set_winsize(tp, &wsz);
     return 0;
 #endif /* SC_PIXEL_MODE */
+}
+
+int
+sc_support_pixel_mode(void *arg)
+{
+#ifdef SC_PIXEL_MODE
+	video_info_t *info = arg;
+
+	if ((info->vi_flags & V_INFO_GRAPHICS) == 0)
+		return (0);
+
+	/*
+	 * We currently support the following graphic modes:
+	 *
+	 * - 4 bpp planar modes whose memory size does not exceed 64K
+	 * - 15, 16, 24 and 32 bpp linear modes
+	 */
+	switch (info->vi_mem_model) {
+	case V_INFO_MM_PLANAR:
+		if (info->vi_planes != 4)
+			break;
+		/*
+		 * A memory size >64K requires bank switching to access
+		 * the entire screen. XXX
+		 */
+		if (info->vi_width * info->vi_height / 8 > info->vi_window_size)
+			break;
+		return (1);
+	case V_INFO_MM_DIRECT:
+		if ((info->vi_flags & V_INFO_LINEAR) == 0 &&
+		    info->vi_depth != 15 && info->vi_depth != 16 &&
+		    info->vi_depth != 24 && info->vi_depth != 32)
+			break;
+		return (1);
+	case V_INFO_MM_PACKED:
+		if ((info->vi_flags & V_INFO_LINEAR) == 0 &&
+		    info->vi_depth != 8)
+			break;
+		return (1);
+	}
+#endif
+	return (0);
 }
 
 #define fb_ioctl(a, c, d)		\
@@ -721,6 +717,11 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 #endif
 
 #ifndef SC_NO_PALETTE_LOADING
+#ifdef SC_PIXEL_MODE
+	    if (adp->va_info.vi_mem_model == V_INFO_MM_DIRECT)
+		vidd_load_palette(adp, scp->sc->palette2);
+	    else
+#endif
 	    vidd_load_palette(adp, scp->sc->palette);
 #endif
 
@@ -778,7 +779,10 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	    if (scp == scp->sc->cur_scp) {
 		set_mode(scp);
 #ifndef SC_NO_PALETTE_LOADING
-		vidd_load_palette(adp, scp->sc->palette);
+		if (adp->va_info.vi_mem_model == V_INFO_MM_DIRECT)
+		    vidd_load_palette(adp, scp->sc->palette2);
+		else
+		    vidd_load_palette(adp, scp->sc->palette);
 #endif
 	    }
 	    sc_clear_screen(scp);

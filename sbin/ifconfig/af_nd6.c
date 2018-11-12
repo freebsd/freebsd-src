@@ -46,7 +46,6 @@ static const char rcsid[] =
 #include <arpa/inet.h>
 
 #include <netinet/in.h>
-#include <net/if_var.h>
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -56,21 +55,15 @@ static const char rcsid[] =
 #include "ifconfig.h"
 
 #define	MAX_SYSCTL_TRY	5
-
-static struct nd6_opt_list {
-	const char *label;
-	u_int mask;
-} nd6_opts[]  = {
-	{ "IFDISABLED",		ND6_IFF_IFDISABLED, },
-	{ "PERFORMNUD",		ND6_IFF_PERFORMNUD, },
-	{ "ACCEPT_RTADV",	ND6_IFF_ACCEPT_RTADV,	},
-	{ "PREFER_SOURCE",	ND6_IFF_PREFER_SOURCE,	},
-	{ "AUTO_LINKLOCAL",	ND6_IFF_AUTO_LINKLOCAL,	},
-};
+#define	ND6BITS	"\020\001PERFORMNUD\002ACCEPT_RTADV\003PREFER_SOURCE" \
+		"\004IFDISABLED\005DONT_SET_IFROUTE\006AUTO_LINKLOCAL" \
+		"\007NO_RADR\010NO_PREFER_IFACE\011IGNORELOOP\012NO_DAD" \
+		"\020DEFAULTIF"
 
 static int isnd6defif(int);
 void setnd6flags(const char *, int, int, const struct afswtch *);
 void setnd6defif(const char *, int, int, const struct afswtch *);
+void nd6_status(int);
 
 void
 setnd6flags(const char *dummyaddr __unused,
@@ -81,7 +74,7 @@ setnd6flags(const char *dummyaddr __unused,
 	int error;
 
 	memset(&nd, 0, sizeof(nd));
-	strncpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
+	strlcpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
 	error = ioctl(s, SIOCGIFINFO_IN6, &nd);
 	if (error) {
 		warn("ioctl(SIOCGIFINFO_IN6)");
@@ -106,7 +99,7 @@ setnd6defif(const char *dummyaddr __unused,
 	int error;
 
 	memset(&ndifreq, 0, sizeof(ndifreq));
-	strncpy(ndifreq.ifname, ifr.ifr_name, sizeof(ndifreq.ifname));
+	strlcpy(ndifreq.ifname, ifr.ifr_name, sizeof(ndifreq.ifname));
 
 	if (d < 0) {
 		if (isnd6defif(s)) {
@@ -133,7 +126,7 @@ isnd6defif(int s)
 	int error;
 
 	memset(&ndifreq, 0, sizeof(ndifreq));
-	strncpy(ndifreq.ifname, ifr.ifr_name, sizeof(ndifreq.ifname));
+	strlcpy(ndifreq.ifname, ifr.ifr_name, sizeof(ndifreq.ifname));
 
 	ifindex = if_nametoindex(ndifreq.ifname);
 	error = ioctl(s, SIOCGDEFIFACE_IN6, (caddr_t)&ndifreq);
@@ -144,75 +137,25 @@ isnd6defif(int s)
 	return (ndifreq.ifindex == ifindex);
 }
 
-static void
+void
 nd6_status(int s)
 {
 	struct in6_ndireq nd;
-	struct rt_msghdr *rtm;
-	size_t needed;
-	char *buf, *next;
-	int mib[6], ntry;
 	int s6;
-	int i, error;
-	int isinet6, isdefif;
-	int nopts;
-
-	/* Check if the interface has at least one IPv6 address. */
-	mib[0] = CTL_NET;
-	mib[1] = PF_ROUTE;
-	mib[2] = 0;
-	mib[3] = AF_INET6;
-	mib[4] = NET_RT_IFLIST;
-	mib[5] = if_nametoindex(ifr.ifr_name);
-
-	/* Try to prevent a race between two sysctls. */
-	ntry = 0;
-	do {
-		error = sysctl(mib, 6, NULL, &needed, NULL, 0);
-		if (error) {
-			warn("sysctl(NET_RT_IFLIST)/estimate");
-			return;
-		}
-		buf = malloc(needed);
-		if (buf == NULL) {
-			warn("malloc for sysctl(NET_RT_IFLIST) failed");
-			return;
-		}
-		if ((error = sysctl(mib, 6, buf, &needed, NULL, 0)) < 0) {
-			if (errno != ENOMEM || ++ntry >= MAX_SYSCTL_TRY) {
-				warn("sysctl(NET_RT_IFLIST)/get");
-				free(buf);
-				return;
-			}
-			free(buf);
-			buf = NULL;
-		}
-	} while (buf == NULL);
-	
-	isinet6 = 0;
-	for (next = buf; next < buf + needed; next += rtm->rtm_msglen) {
-		rtm = (struct rt_msghdr *)next;
-
-		if (rtm->rtm_version != RTM_VERSION)
-			continue;
-		if (rtm->rtm_type == RTM_NEWADDR) {
-			isinet6 = 1;
-			break;
-		}
-	}
-	free(buf);
-	if (!isinet6)
-		return;
+	int error;
+	int isdefif;
 
 	memset(&nd, 0, sizeof(nd));
-	strncpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
+	strlcpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
 	if ((s6 = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
-		warn("socket(AF_INET6, SOCK_DGRAM)");
+		if (errno != EAFNOSUPPORT && errno != EPROTONOSUPPORT)
+			warn("socket(AF_INET6, SOCK_DGRAM)");
 		return;
 	}
 	error = ioctl(s6, SIOCGIFINFO_IN6, &nd);
 	if (error) {
-		warn("ioctl(SIOCGIFINFO_IN6)");
+		if (errno != EPFNOSUPPORT)
+			warn("ioctl(SIOCGIFINFO_IN6)");
 		close(s6);
 		return;
 	}
@@ -220,32 +163,7 @@ nd6_status(int s)
 	close(s6);
 	if (nd.ndi.flags == 0 && !isdefif)
 		return;
-
-	nopts = 0;
-	printf("\tnd6 options=%d<", nd.ndi.flags);
-	for (i=0; i < sizeof(nd6_opts)/sizeof(nd6_opts[0]); i++) {
-		if (nd.ndi.flags & nd6_opts[i].mask) {
-			if (nopts++)
-				printf(",");
-			printf("%s", nd6_opts[i].label);
-		}
-	}
-	if (isdefif) {
-		if (nopts)
-			printf(",");
-		printf("DEFAULTIF");
-	}
-	printf(">\n");
-}
-
-static struct afswtch af_nd6 = {
-	.af_name	= "nd6",
-	.af_af		= AF_LOCAL,
-	.af_other_status= nd6_status,
-};
-
-static __constructor void
-nd6_ctor(void)
-{
-	af_register(&af_nd6);
+	printb("\tnd6 options",
+	    (unsigned int)(nd.ndi.flags | (isdefif << 15)), ND6BITS);
+	putchar('\n');
 }

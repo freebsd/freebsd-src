@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PROG=	cv_cancel1
-NO_MAN=
-
-LDADD=	-lpthread
+MAN=
+LIBADD=	pthread
 
 .include <bsd.prog.mk>

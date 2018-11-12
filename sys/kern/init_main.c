@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_init_path.h"
+#include "opt_verbose_sysinit.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -55,11 +56,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/loginclass.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
@@ -84,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_domain.h>
 #include <sys/copyright.h>
 
 #include <ddb/ddb.h>
@@ -95,14 +99,27 @@ void mi_startup(void);				/* Should be elsewhere */
 static struct session session0;
 static struct pgrp pgrp0;
 struct	proc proc0;
-struct	thread thread0 __aligned(16);
+struct thread0_storage thread0_st __aligned(16);
 struct	vmspace vmspace0;
 struct	proc *initproc;
 
-int	boothowto = 0;		/* initialized so that it can be patched */
-SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0, "");
-int	bootverbose;
-SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0, "");
+#ifndef BOOTHOWTO
+#define	BOOTHOWTO	0
+#endif
+int	boothowto = BOOTHOWTO;	/* initialized so that it can be patched */
+SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0,
+	"Boot control flags, passed from loader");
+
+#ifndef BOOTVERBOSE
+#define	BOOTVERBOSE	0
+#endif
+int	bootverbose = BOOTVERBOSE;
+SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
+	"Control the output of verbose kernel messages");
+
+#ifdef INVARIANTS
+FEATURE(invariants, "Kernel compiled with INVARIANTS, may affect performance");
+#endif
 
 /*
  * This ensures that there is at least one entry so that the sysinit_set
@@ -154,6 +171,24 @@ sysinit_add(struct sysinit **set, struct sysinit **set_end)
 	newsysinit_end = newset + count;
 }
 
+#if defined (DDB) && defined(VERBOSE_SYSINIT)
+static const char *
+symbol_name(vm_offset_t va, db_strategy_t strategy)
+{
+	const char *name;
+	c_db_sym_t sym;
+	db_expr_t  offset;
+
+	if (va == 0)
+		return (NULL);
+	sym = db_search_symbol(va, strategy, &offset);
+	if (offset != 0)
+		return (NULL);
+	db_symbol_values(sym, &name, NULL);
+	return (name);
+}
+#endif
+
 /*
  * System startup; initialize the world, create process 0, mount root
  * filesystem, and fork to create init and pagedaemon.  Most of the
@@ -177,6 +212,9 @@ mi_startup(void)
 	int last;
 	int verbose;
 #endif
+
+	if (boothowto & RB_VERBOSE)
+		bootverbose++;
 
 	if (sysinit == NULL) {
 		sysinit = SET_BEGIN(sysinit_set);
@@ -211,9 +249,6 @@ restart:
 	/*
 	 * Traverse the (now) ordered list of system initialization tasks.
 	 * Perform each task, and continue on to the next task.
-	 *
-	 * The last item on the list is expected to be the scheduler,
-	 * which will not return.
 	 */
 	for (sipp = sysinit; sipp < sysinit_end; sipp++) {
 
@@ -231,15 +266,16 @@ restart:
 		}
 		if (verbose) {
 #if defined(DDB)
-			const char *name;
-			c_db_sym_t sym;
-			db_expr_t  offset;
+			const char *func, *data;
 
-			sym = db_search_symbol((vm_offset_t)(*sipp)->func,
-			    DB_STGY_PROC, &offset);
-			db_symbol_values(sym, &name, NULL);
-			if (name != NULL)
-				printf("   %s(%p)... ", name, (*sipp)->udata);
+			func = symbol_name((vm_offset_t)(*sipp)->func,
+			    DB_STGY_PROC);
+			data = symbol_name((vm_offset_t)(*sipp)->udata,
+			    DB_STGY_ANY);
+			if (func != NULL && data != NULL)
+				printf("   %s(&%s)... ", func, data);
+			else if (func != NULL)
+				printf("   %s(%p)... ", func, (*sipp)->udata);
 			else
 #endif
 				printf("   %p(%p)... ", (*sipp)->func,
@@ -270,7 +306,13 @@ restart:
 		}
 	}
 
-	panic("Shouldn't get here!");
+	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
+	mtx_unlock(&Giant);
+
+	/*
+	 * Now hand over this thread to swapper.
+	 */
+	swapper();
 	/* NOTREACHED*/
 }
 
@@ -299,6 +341,7 @@ print_version(void *data __unused)
 	while (len > 0 && version[len - 1] == '\n')
 		len--;
 	printf("%.*s %s\n", len, version, machine);
+	printf("%s\n", compiler_version);
 }
 
 SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
@@ -312,7 +355,7 @@ static char wit_warn[] =
      "WARNING: WITNESS option enabled, expect reduced performance.\n";
 SYSINIT(witwarn, SI_SUB_COPYRIGHT, SI_ORDER_THIRD + 1,
    print_caddr_t, wit_warn);
-SYSINIT(witwarn2, SI_SUB_RUN_SCHEDULER, SI_ORDER_THIRD + 1,
+SYSINIT(witwarn2, SI_SUB_LAST, SI_ORDER_THIRD + 1,
    print_caddr_t, wit_warn);
 #endif
 
@@ -321,25 +364,29 @@ static char diag_warn[] =
      "WARNING: DIAGNOSTIC option enabled, expect reduced performance.\n";
 SYSINIT(diagwarn, SI_SUB_COPYRIGHT, SI_ORDER_THIRD + 2,
     print_caddr_t, diag_warn);
-SYSINIT(diagwarn2, SI_SUB_RUN_SCHEDULER, SI_ORDER_THIRD + 2,
+SYSINIT(diagwarn2, SI_SUB_LAST, SI_ORDER_THIRD + 2,
     print_caddr_t, diag_warn);
 #endif
 
-static void
-set_boot_verbose(void *data __unused)
+static int
+null_fetch_syscall_args(struct thread *td __unused,
+    struct syscall_args *sa __unused)
 {
 
-	if (boothowto & RB_VERBOSE)
-		bootverbose++;
+	panic("null_fetch_syscall_args");
 }
-SYSINIT(boot_verbose, SI_SUB_TUNABLES, SI_ORDER_ANY, set_boot_verbose, NULL);
+
+static void
+null_set_syscall_retval(struct thread *td __unused, int error __unused)
+{
+
+	panic("null_set_syscall_retval");
+}
 
 struct sysentvec null_sysvec = {
 	.sv_size	= 0,
 	.sv_table	= NULL,
 	.sv_mask	= 0,
-	.sv_sigsize	= 0,
-	.sv_sigtbl	= NULL,
 	.sv_errsize	= 0,
 	.sv_errtbl	= NULL,
 	.sv_transtrap	= NULL,
@@ -347,7 +394,6 @@ struct sysentvec null_sysvec = {
 	.sv_sendsig	= NULL,
 	.sv_sigcode	= NULL,
 	.sv_szsigcode	= NULL,
-	.sv_prepsyscall	= NULL,
 	.sv_name	= "null",
 	.sv_coredump	= NULL,
 	.sv_imgact_try	= NULL,
@@ -361,7 +407,14 @@ struct sysentvec null_sysvec = {
 	.sv_copyout_strings	= NULL,
 	.sv_setregs	= NULL,
 	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL
+	.sv_maxssiz	= NULL,
+	.sv_flags	= 0,
+	.sv_set_syscall_retval = null_set_syscall_retval,
+	.sv_fetch_syscall_args = null_fetch_syscall_args,
+	.sv_syscallnames = NULL,
+	.sv_schedtail	= NULL,
+	.sv_thread_detach = NULL,
+	.sv_trap	= NULL,
 };
 
 /*
@@ -382,8 +435,10 @@ static void
 proc0_init(void *dummy __unused)
 {
 	struct proc *p;
-	unsigned i;
 	struct thread *td;
+	struct ucred *newcred;
+	vm_paddr_t pageablemem;
+	int i;
 
 	GIANT_REQUIRED;
 	p = &proc0;
@@ -406,15 +461,6 @@ proc0_init(void *dummy __unused)
 	 * Add scheduler specific parts to proc, thread as needed.
 	 */
 	schedinit();	/* scheduler gets its house in order */
-	/*
-	 * Initialize sleep queue hash table
-	 */
-	sleepinit();
-
-	/*
-	 * additional VM structures
-	 */
-	vm_init2();
 
 	/*
 	 * Create process 0 (the swapper).
@@ -433,47 +479,57 @@ proc0_init(void *dummy __unused)
 	session0.s_leader = p;
 
 	p->p_sysent = &null_sysvec;
-	p->p_flag = P_SYSTEM | P_INMEM;
+	p->p_flag = P_SYSTEM | P_INMEM | P_KPROC;
+	p->p_flag2 = 0;
 	p->p_state = PRS_NORMAL;
-	knlist_init_mtx(&p->p_klist, &p->p_mtx);
+	p->p_klist = knlist_alloc(&p->p_mtx);
 	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
+	/* pid_max cannot be greater than PID_MAX */
 	td->td_tid = PID_MAX + 1;
+	LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
 	td->td_state = TDS_RUNNING;
 	td->td_pri_class = PRI_TIMESHARE;
 	td->td_user_pri = PUSER;
 	td->td_base_user_pri = PUSER;
+	td->td_lend_user_pri = PRI_MAX;
 	td->td_priority = PVM;
-	td->td_base_pri = PUSER;
-	td->td_oncpu = 0;
-	td->td_flags = TDF_INMEM|TDP_KTHREAD;
+	td->td_base_pri = PVM;
+	td->td_oncpu = curcpu;
+	td->td_flags = TDF_INMEM;
+	td->td_pflags = TDP_KTHREAD;
 	td->td_cpuset = cpuset_thread0();
-	prison0.pr_cpuset = cpuset_ref(td->td_cpuset);
+	vm_domain_policy_init(&td->td_vm_dom_policy);
+	vm_domain_policy_set(&td->td_vm_dom_policy, VM_POLICY_NONE, -1);
+	vm_domain_policy_init(&p->p_vm_dom_policy);
+	vm_domain_policy_set(&p->p_vm_dom_policy, VM_POLICY_NONE, -1);
+	prison0_init();
 	p->p_peers = 0;
 	p->p_leader = p;
-
+	p->p_reaper = p;
+	LIST_INIT(&p->p_reaplist);
 
 	strncpy(p->p_comm, "kernel", sizeof (p->p_comm));
 	strncpy(td->td_name, "swapper", sizeof (td->td_name));
 
-	callout_init(&p->p_itcallout, CALLOUT_MPSAFE);
+	callout_init_mtx(&p->p_itcallout, &p->p_mtx, 0);
 	callout_init_mtx(&p->p_limco, &p->p_mtx, 0);
-	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
+	callout_init(&td->td_slpcallout, 1);
 
 	/* Create credentials. */
-	p->p_ucred = crget();
-	p->p_ucred->cr_ngroups = 1;	/* group 0 */
-	p->p_ucred->cr_uidinfo = uifind(0);
-	p->p_ucred->cr_ruidinfo = uifind(0);
-	p->p_ucred->cr_prison = &prison0;
+	newcred = crget();
+	newcred->cr_ngroups = 1;	/* group 0 */
+	newcred->cr_uidinfo = uifind(0);
+	newcred->cr_ruidinfo = uifind(0);
+	newcred->cr_prison = &prison0;
+	newcred->cr_loginclass = loginclass_find("default");
+	proc_set_cred_init(p, newcred);
 #ifdef AUDIT
-	audit_cred_kproc0(p->p_ucred);
+	audit_cred_kproc0(newcred);
 #endif
 #ifdef MAC
-	mac_cred_create_swapper(p->p_ucred);
+	mac_cred_create_swapper(newcred);
 #endif
-	td->td_ucred = crhold(p->p_ucred);
-
 	/* Create sigacts. */
 	p->p_sigacts = sigacts_alloc();
 
@@ -481,7 +537,7 @@ proc0_init(void *dummy __unused)
 	siginit(&proc0);
 
 	/* Create the file descriptor table. */
-	p->p_fd = fdinit(NULL);
+	p->p_fd = fdinit(NULL, false);
 	p->p_fdtol = NULL;
 
 	/* Create the limits structures. */
@@ -493,26 +549,42 @@ proc0_init(void *dummy __unused)
 	    p->p_limit->pl_rlimit[RLIMIT_NOFILE].rlim_max = maxfiles;
 	p->p_limit->pl_rlimit[RLIMIT_NPROC].rlim_cur =
 	    p->p_limit->pl_rlimit[RLIMIT_NPROC].rlim_max = maxproc;
-	i = ptoa(cnt.v_free_count);
-	p->p_limit->pl_rlimit[RLIMIT_RSS].rlim_max = i;
-	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_max = i;
-	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_cur = i / 3;
+	p->p_limit->pl_rlimit[RLIMIT_DATA].rlim_cur = dfldsiz;
+	p->p_limit->pl_rlimit[RLIMIT_DATA].rlim_max = maxdsiz;
+	p->p_limit->pl_rlimit[RLIMIT_STACK].rlim_cur = dflssiz;
+	p->p_limit->pl_rlimit[RLIMIT_STACK].rlim_max = maxssiz;
+	/* Cast to avoid overflow on i386/PAE. */
+	pageablemem = ptoa((vm_paddr_t)vm_cnt.v_free_count);
+	p->p_limit->pl_rlimit[RLIMIT_RSS].rlim_cur =
+	    p->p_limit->pl_rlimit[RLIMIT_RSS].rlim_max = pageablemem;
+	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_cur = pageablemem / 3;
+	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_max = pageablemem;
 	p->p_cpulimit = RLIM_INFINITY;
+
+	PROC_LOCK(p);
+	thread_cow_get_proc(td, p);
+	PROC_UNLOCK(p);
+
+	/* Initialize resource accounting structures. */
+	racct_create(&p->p_racct);
 
 	p->p_stats = pstats_alloc();
 
 	/* Allocate a prototype map so we have something to fork. */
-	pmap_pinit0(vmspace_pmap(&vmspace0));
 	p->p_vmspace = &vmspace0;
 	vmspace0.vm_refcnt = 1;
-	vm_map_init(&vmspace0.vm_map, p->p_sysent->sv_minuser,
-	    p->p_sysent->sv_maxuser);
-	vmspace0.vm_map.pmap = vmspace_pmap(&vmspace0);
+	pmap_pinit0(vmspace_pmap(&vmspace0));
 
-	/*-
-	 * call the init and ctor for the new thread and proc
-	 * we wait to do this until all other structures
-	 * are fairly sane.
+	/*
+	 * proc0 is not expected to enter usermode, so there is no special
+	 * handling for sv_minuser here, like is done for exec_new_vmspace().
+	 */
+	vm_map_init(&vmspace0.vm_map, vmspace_pmap(&vmspace0),
+	    p->p_sysent->sv_minuser, p->p_sysent->sv_maxuser);
+
+	/*
+	 * Call the init and ctor for the new thread and proc.  We wait
+	 * to do this until all other structures are fairly sane.
 	 */
 	EVENTHANDLER_INVOKE(process_init, p);
 	EVENTHANDLER_INVOKE(thread_init, td);
@@ -523,6 +595,9 @@ proc0_init(void *dummy __unused)
 	 * Charge root for one process.
 	 */
 	(void)chgproccnt(p->p_ucred->cr_ruidinfo, 1, 0);
+	PROC_LOCK(p);
+	racct_add_force(p, RACCT_NPROC, 1);
+	PROC_UNLOCK(p);
 }
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL);
 
@@ -542,9 +617,9 @@ proc0_post(void *dummy __unused)
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		microuptime(&p->p_stats->p_start);
-		PROC_SLOCK(p);
+		PROC_STATLOCK(p);
 		rufetch(p, &ru);	/* Clears thread stats */
-		PROC_SUNLOCK(p);
+		PROC_STATUNLOCK(p);
 		p->p_rux.rux_runtime = 0;
 		p->p_rux.rux_uticks = 0;
 		p->p_rux.rux_sticks = 0;
@@ -564,6 +639,19 @@ proc0_post(void *dummy __unused)
 	srandom(ts.tv_sec ^ ts.tv_nsec);
 }
 SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL);
+
+static void
+random_init(void *dummy __unused)
+{
+
+	/*
+	 * After CPU has been started we have some randomness on most
+	 * platforms via get_cyclecount().  For platforms that don't
+	 * we will reseed random(9) in proc0_post() as well.
+	 */
+	srandom(get_cyclecount());
+}
+SYSINIT(random, SI_SUB_RANDOM, SI_ORDER_FIRST, random_init, NULL);
 
 /*
  ***************************************************************************
@@ -591,7 +679,7 @@ static char init_path[MAXPATHLEN] =
 #ifdef	INIT_PATH
     __XSTRING(INIT_PATH);
 #else
-    "/sbin/init:/sbin/oinit:/sbin/init.bak:/rescue/init:/stand/sysinstall";
+    "/sbin/init:/sbin/oinit:/sbin/init.bak:/rescue/init";
 #endif
 SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0,
 	"Path used to search the init process");
@@ -605,7 +693,8 @@ SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0,
 #endif
 static int init_shutdown_timeout = INIT_SHUTDOWN_TIMEOUT;
 SYSCTL_INT(_kern, OID_AUTO, init_shutdown_timeout,
-	CTLFLAG_RW, &init_shutdown_timeout, 0, "");
+	CTLFLAG_RW, &init_shutdown_timeout, 0, "Shutdown timeout of init(8). "
+	"Unused within kernel, but used to control init(8)");
 
 /*
  * Start the initial user process; try exec'ing each pathname in init_path.
@@ -631,17 +720,20 @@ start_init(void *dummy)
 
 	vfs_mountroot();
 
+	/* Wipe GELI passphrase from the environment. */
+	kern_unsetenv("kern.geom.eli.passphrase");
+
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
 	 */
 	addr = p->p_sysent->sv_usrstack - PAGE_SIZE;
-	if (vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &addr, PAGE_SIZE,
-			FALSE, VM_PROT_ALL, VM_PROT_ALL, 0) != 0)
+	if (vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &addr, PAGE_SIZE, 0,
+	    VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL, 0) != 0)
 		panic("init: couldn't allocate argument space");
 	p->p_vmspace->vm_maxsaddr = (caddr_t)addr;
 	p->p_vmspace->vm_ssize = 1;
 
-	if ((var = getenv("init_path")) != NULL) {
+	if ((var = kern_getenv("init_path")) != NULL) {
 		strlcpy(init_path, var, sizeof(init_path));
 		freeenv(var);
 	}
@@ -695,7 +787,7 @@ start_init(void *dummy)
 		/*
 		 * Move out the arg pointers.
 		 */
-		uap = (char **)((intptr_t)ucp & ~(sizeof(intptr_t)-1));
+		uap = (char **)rounddown2((intptr_t)ucp, sizeof(intptr_t));
 		(void)suword((caddr_t)--uap, (long)0);	/* terminator */
 		(void)suword((caddr_t)--uap, (long)(intptr_t)arg1);
 		(void)suword((caddr_t)--uap, (long)(intptr_t)arg0);
@@ -714,7 +806,7 @@ start_init(void *dummy)
 		 * Otherwise, return via fork_trampoline() all the way
 		 * to user mode as init!
 		 */
-		if ((error = execve(td, &args)) == 0) {
+		if ((error = sys_execve(td, &args)) == 0) {
 			mtx_unlock(&Giant);
 			return;
 		}
@@ -736,17 +828,25 @@ start_init(void *dummy)
 static void
 create_init(const void *udata __unused)
 {
+	struct fork_req fr;
 	struct ucred *newcred, *oldcred;
+	struct thread *td;
 	int error;
 
-	error = fork1(&thread0, RFFDG | RFPROC | RFSTOPPED, 0, &initproc);
+	bzero(&fr, sizeof(fr));
+	fr.fr_flags = RFFDG | RFPROC | RFSTOPPED;
+	fr.fr_procp = &initproc;
+	error = fork1(&thread0, &fr);
 	if (error)
 		panic("cannot fork init: %d\n", error);
 	KASSERT(initproc->p_pid == 1, ("create_init: initproc->p_pid != 1"));
 	/* divorce init's credentials from the kernel's */
 	newcred = crget();
+	sx_xlock(&proctree_lock);
 	PROC_LOCK(initproc);
 	initproc->p_flag |= P_SYSTEM | P_INMEM;
+	initproc->p_treeflag |= P_TREE_REAPER;
+	LIST_INSERT_HEAD(&initproc->p_reaplist, &proc0, p_reapsibling);
 	oldcred = initproc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC
@@ -755,11 +855,15 @@ create_init(const void *udata __unused)
 #ifdef AUDIT
 	audit_cred_proc1(newcred);
 #endif
-	initproc->p_ucred = newcred;
+	proc_set_cred(initproc, newcred);
+	td = FIRST_THREAD_IN_PROC(initproc);
+	crfree(td->td_ucred);
+	td->td_ucred = crhold(initproc->p_ucred);
 	PROC_UNLOCK(initproc);
+	sx_xunlock(&proctree_lock);
 	crfree(oldcred);
-	cred_update_thread(FIRST_THREAD_IN_PROC(initproc));
-	cpu_set_fork_handler(FIRST_THREAD_IN_PROC(initproc), start_init, NULL);
+	cpu_fork_kthread_handler(FIRST_THREAD_IN_PROC(initproc),
+	    start_init, NULL);
 }
 SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL);
 
@@ -777,4 +881,4 @@ kick_init(const void *udata __unused)
 	sched_add(td, SRQ_BORING);
 	thread_unlock(td);
 }
-SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL);
+SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_MIDDLE, kick_init, NULL);

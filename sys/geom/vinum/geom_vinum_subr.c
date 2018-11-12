@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/malloc.h>
+#include <sys/sbuf.h>
 #include <sys/systm.h>
 
 #include <geom/geom.h>
@@ -71,7 +72,7 @@ gv_parse_config(struct gv_softc *sc, char *buf, struct gv_drive *d)
 		bptr = aptr;
 		cptr = aptr;
 
-		/* Seperate input lines. */
+		/* Separate input lines. */
 		while (*bptr != '\n')
 			bptr++;
 		*bptr = '\0';
@@ -585,7 +586,7 @@ gv_sd_to_drive(struct gv_sd *s, struct gv_drive *d)
 				return (0);
 			}
 		} else {
-			G_VINUM_DEBUG(0, "can't give sd '%s' to '%s' "
+			G_VINUM_DEBUG(0, "error giving subdisk '%s' to '%s' "
 			    "(already on '%s')", s->name, d->name,
 			    s->drive_sc->name);
 			return (GV_ERR_ISATTACHED);
@@ -612,7 +613,7 @@ gv_sd_to_drive(struct gv_sd *s, struct gv_drive *d)
 
 		/* No good slot found? */
 		if (s->size == -1) {
-			G_VINUM_DEBUG(0, "couldn't autosize '%s' on '%s'",
+			G_VINUM_DEBUG(0, "unable to autosize '%s' on '%s'",
 			    s->name, d->name);
 			return (GV_ERR_BADSIZE);
 		}

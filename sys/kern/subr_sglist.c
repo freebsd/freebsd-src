@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/bio.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <vm/vm.h>
+#include <vm/vm_page.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
@@ -190,6 +192,31 @@ sglist_count(void *buf, size_t len)
 }
 
 /*
+ * Determine the number of scatter/gather list elements needed to
+ * describe a buffer backed by an array of VM pages.
+ */
+int
+sglist_count_vmpages(vm_page_t *m, size_t pgoff, size_t len)
+{
+	vm_paddr_t lastaddr, paddr;
+	int i, nsegs;
+
+	if (len == 0)
+		return (0);
+
+	len += pgoff;
+	nsegs = 1;
+	lastaddr = VM_PAGE_TO_PHYS(m[0]);
+	for (i = 1; len > PAGE_SIZE; len -= PAGE_SIZE, i++) {
+		paddr = VM_PAGE_TO_PHYS(m[i]);
+		if (lastaddr + PAGE_SIZE != paddr)
+			nsegs++;
+		lastaddr = paddr;
+	}
+	return (nsegs);
+}
+
+/*
  * Allocate a scatter/gather list along with 'nsegs' segments.  The
  * 'mflags' parameters are the same as passed to malloc(9).  The caller
  * should use sglist_free() to free this list.
@@ -214,6 +241,9 @@ void
 sglist_free(struct sglist *sg)
 {
 
+	if (sg == NULL)
+		return;
+
 	if (refcount_release(&sg->sg_refs))
 		free(sg, M_SGLIST);
 }
@@ -235,6 +265,25 @@ sglist_append(struct sglist *sg, void *buf, size_t len)
 	error = _sglist_append_buf(sg, buf, len, NULL, NULL);
 	if (error)
 		SGLIST_RESTORE(sg, save);
+	return (error);
+}
+
+/*
+ * Append the segments to describe a bio's data to a scatter/gather list.
+ * If there are insufficient segments, then this fails with EFBIG.
+ *
+ * NOTE: This function expects bio_bcount to be initialized.
+ */
+int
+sglist_append_bio(struct sglist *sg, struct bio *bp)
+{
+	int error;
+
+	if ((bp->bio_flags & BIO_UNMAPPED) == 0)
+		error = sglist_append(sg, bp->bio_data, bp->bio_bcount);
+	else
+		error = sglist_append_vmpages(sg, bp->bio_ma,
+		    bp->bio_ma_offset, bp->bio_bcount);
 	return (error);
 }
 
@@ -293,6 +342,51 @@ sglist_append_mbuf(struct sglist *sg, struct mbuf *m0)
 				return (error);
 			}
 		}
+	}
+	return (0);
+}
+
+/*
+ * Append the segments that describe a buffer spanning an array of VM
+ * pages.  The buffer begins at an offset of 'pgoff' in the first
+ * page.
+ */
+int
+sglist_append_vmpages(struct sglist *sg, vm_page_t *m, size_t pgoff,
+    size_t len)
+{
+	struct sgsave save;
+	struct sglist_seg *ss;
+	vm_paddr_t paddr;
+	size_t seglen;
+	int error, i;
+
+	if (sg->sg_maxseg == 0)
+		return (EINVAL);
+	if (len == 0)
+		return (0);
+
+	SGLIST_SAVE(sg, save);
+	i = 0;
+	if (sg->sg_nseg == 0) {
+		seglen = min(PAGE_SIZE - pgoff, len);
+		sg->sg_segs[0].ss_paddr = VM_PAGE_TO_PHYS(m[0]) + pgoff;
+		sg->sg_segs[0].ss_len = seglen;
+		sg->sg_nseg = 1;
+		pgoff = 0;
+		len -= seglen;
+		i++;
+	}
+	ss = &sg->sg_segs[sg->sg_nseg - 1];
+	for (; len > 0; i++, len -= seglen) {
+		seglen = min(PAGE_SIZE - pgoff, len);
+		paddr = VM_PAGE_TO_PHYS(m[i]) + pgoff;
+		error = _sglist_append_range(sg, &ss, paddr, seglen);
+		if (error) {
+			SGLIST_RESTORE(sg, save);
+			return (error);
+		}
+		pgoff = 0;
 	}
 	return (0);
 }

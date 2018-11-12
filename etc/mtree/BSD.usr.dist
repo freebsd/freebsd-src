@@ -7,12 +7,28 @@
 .
     bin
     ..
-    games
-    ..
     include
+        private
+            bsdstat
+            ..
+            ucl
+            ..
+        ..
     ..
     lib
         aout
+        ..
+        clang
+            3.8.0
+                include
+                    sanitizer
+                    ..
+                ..
+                lib
+                    freebsd
+                    ..
+                ..
+            ..
         ..
         compat
             aout
@@ -22,6 +38,12 @@
         ..
         engines
         ..
+        i18n
+        ..
+        libxo
+            encoder
+            ..
+        ..
     ..
     libdata
         gcc
@@ -30,8 +52,74 @@
         ..
         lint
         ..
+        pkgconfig
+        ..
     ..
     libexec
+        bsdconfig
+            020.docsinstall
+                include
+                ..
+            ..
+            030.packages
+                include
+                ..
+            ..
+            040.password
+                include
+                ..
+            ..
+            050.diskmgmt
+                include
+                ..
+            ..
+            070.usermgmt
+                include
+                ..
+            ..
+            080.console
+                include
+                ..
+            ..
+            090.timezone
+                include
+                ..
+            ..
+            110.mouse
+                include
+                ..
+            ..
+            120.networking
+                include
+                ..
+            ..
+            130.security
+                include
+                ..
+            ..
+            140.startup
+                include
+                ..
+            ..
+            150.ttys
+                include
+                ..
+            ..
+            dot
+                include
+                ..
+            ..
+            include
+            ..
+            includes
+                include
+                ..
+            ..
+        ..
+        bsdinstall
+        ..
+        hyperv
+        ..
         lpr
             ru
             ..
@@ -48,7 +136,27 @@
     sbin
     ..
     share
+        atf
+        ..
+        bsdconfig
+            media
+            ..
+            networking
+            ..
+            packages
+            ..
+            password
+            ..
+            startup
+            ..
+            timezone
+            ..
+            usermgmt
+            ..
+        ..
         calendar
+            de_AT.ISO_8859-15
+            ..
             de_DE.ISO8859-1
             ..
             fr_FR.ISO8859-1
@@ -57,7 +165,13 @@
             ..
             hu_HU.ISO8859-2
             ..
+            pt_BR.ISO8859-1
+            ..
+            pt_BR.UTF-8
+            ..
             ru_RU.KOI8-R
+            ..
+            ru_RU.UTF-8
             ..
             uk_UA.KOI8-U
             ..
@@ -67,27 +181,37 @@
         doc
             IPv6
             ..
+            atf
+            ..
             atm
             ..
-            bind9
-                arm
-                ..
-                misc
-                ..
-            ..
             legal
-                intel_ipw
-                ..
-                intel_iwi
-                ..
-                intel_wpi
+            ..
+            llvm
+                clang
                 ..
             ..
             ncurses
             ..
             ntp
+                drivers
+                    icons
+                    ..
+                    scripts
+                    ..
+                ..
+                hints
+                ..
+                icons
+                ..
+                pic
+                ..
+                scripts
+                ..
             ..
             papers
+            ..
+            pjdfstest
             ..
             psd
                 01.cacm
@@ -130,8 +254,6 @@
                 ..
                 27.nfsrfc
                 ..
-                28.cvs
-                ..
             ..
             smm
                 01.setup
@@ -160,6 +282,10 @@
             usd
                 04.csh
                 ..
+                05.dc
+                ..
+                06.bc
+                ..
                 07.mail
                 ..
                 10.exref
@@ -182,6 +308,8 @@
                 ..
             ..
         ..
+        dtrace
+        ..
         examples
             BSD_daemon
             ..
@@ -189,19 +317,17 @@
             ..
             IPv6
             ..
-            bc
+            bhyve
             ..
             bootforth
             ..
-            cvs
-                contrib
-                ..
+            bsdconfig
             ..
-            cvsup
-            ..
-            dialog
+            csh
             ..
             diskless
+            ..
+            dma
             ..
             drivers
             ..
@@ -211,15 +337,19 @@
             ..
             find_interface
             ..
+            hast
+            ..
             hostapd
             ..
             ibcs2
+            ..
+            indent
             ..
             ipfilter
             ..
             ipfw
             ..
-            iscsi
+            jails
             ..
             kld
                 cdev
@@ -230,6 +360,14 @@
                 ..
                 dyn_sysctl
                 ..
+                firmware
+                    fwconsumer
+                    ..
+                    fwimage
+                    ..
+                ..
+                khelp
+                ..
                 syscall
                     module
                     ..
@@ -237,29 +375,23 @@
                     ..
                 ..
             ..
-            libdialog
+            libusb20
             ..
             libvgl
             ..
             mdoc
             ..
             netgraph
-                bluetooth
-                ..
             ..
-            nwclient
+            pc-sysinstall
             ..
             perfmon
             ..
             pf
             ..
-            portal
-            ..
             ppi
             ..
             ppp
-            ..
-            pppd
             ..
             printing
             ..
@@ -277,15 +409,9 @@
                 srcs
                 ..
             ..
-            slattach
-            ..
-            sliplogin
-            ..
             smbfs
                 print
                 ..
-            ..
-            startslip
             ..
             sunrpc
                 dir
@@ -297,51 +423,117 @@
             ..
             tcsh
             ..
+            uefisign
+            ..
+            ypldap
+            ..
+        ..
+        firmware
         ..
         games
             fortune
             ..
         ..
-        groff_font
-            devX100
+        i18n
+            csmapper
+                APPLE
+                ..
+                AST
+                ..
+                BIG5
+                ..
+                CNS
+                ..
+                CP
+                ..
+                EBCDIC
+                ..
+                GB
+                ..
+                GEORGIAN
+                ..
+                ISO-8859
+                ..
+                ISO646
+                ..
+                JIS
+                ..
+                KAZAKH
+                ..
+                KOI
+                ..
+                KS
+                ..
+                MISC
+                ..
+                TCVN
+                ..
             ..
-            devX100-12
-            ..
-            devX75
-            ..
-            devX75-12
-            ..
-            devascii
-            ..
-            devcp1047
-            ..
-            devdvi
-            ..
-            devhtml
-            ..
-            devkoi8-r
-            ..
-            devlatin1
-            ..
-            devlbp
-            ..
-            devlj4
-            ..
-            devps
-            ..
-            devutf8
+            esdb
+                APPLE
+                ..
+                AST
+                ..
+                BIG5
+                ..
+                CP
+                ..
+                DEC
+                ..
+                EBCDIC
+                ..
+                EUC
+                ..
+                GB
+                ..
+                GEORGIAN
+                ..
+                ISO-2022
+                ..
+                ISO-8859
+                ..
+                ISO646
+                ..
+                KAZAKH
+                ..
+                KOI
+                ..
+                MISC
+                ..
+                TCVN
+                ..
+                UTF
+                ..
             ..
         ..
         info
         ..
-        locale
-            UTF-8
+        keys
+            pkg
+                revoked
+                ..
+                trusted
+                ..
             ..
+        ..
+        locale
             af_ZA.ISO8859-1
             ..
             af_ZA.ISO8859-15
             ..
             af_ZA.UTF-8
+            ..
+            ar_AE.UTF-8
+            ..
+            ar_EG.UTF-8
+            ..
+            ar_JO.UTF-8
+            ..
+            ar_MA.UTF-8
+            ..
+            ar_QA.UTF-8
+            ..
+            ar_SA.UTF-8
             ..
             am_ET.UTF-8
             ..
@@ -359,17 +551,17 @@
             ..
             ca_AD.ISO8859-1
             ..
-            ca_ES.ISO8859-1
-            ..
-            ca_FR.ISO8859-1
-            ..
-            ca_IT.ISO8859-1
-            ..
             ca_AD.ISO8859-15
+            ..
+            ca_ES.ISO8859-1
             ..
             ca_ES.ISO8859-15
             ..
+            ca_FR.ISO8859-1
+            ..
             ca_FR.ISO8859-15
+            ..
+            ca_IT.ISO8859-1
             ..
             ca_IT.ISO8859-15
             ..
@@ -437,6 +629,14 @@
             ..
             en_GB.UTF-8
             ..
+            en_HK.ISO8859-1
+            ..
+            en_HK.UTF-8
+            ..
+            en_IE.ISO8859-1
+            ..
+            en_IE.ISO8859-15
+            ..
             en_IE.UTF-8
             ..
             en_NZ.ISO8859-1
@@ -447,6 +647,12 @@
             ..
             en_NZ.UTF-8
             ..
+            en_PH.UTF-8
+            ..
+            en_SG.ISO8859-1
+            ..
+            en_SG.UTF-8
+            ..
             en_US.ISO8859-1
             ..
             en_US.ISO8859-15
@@ -455,11 +661,31 @@
             ..
             en_US.UTF-8
             ..
+            en_ZA.ISO8859-1
+            ..
+            en_ZA.ISO8859-15
+            ..
+            en_ZA.US-ASCII
+            ..
+            en_ZA.UTF-8
+            ..
+            es_AR.ISO8859-1
+            ..
+            es_AR.UTF-8
+            ..
+            es_CR.UTF-8
+            ..
             es_ES.ISO8859-1
             ..
             es_ES.ISO8859-15
             ..
             es_ES.UTF-8
+            ..
+            es_MX.ISO8859-1
+            ..
+            es_MX.UTF-8
+            ..
+            et_EE.ISO8859-1
             ..
             et_EE.ISO8859-15
             ..
@@ -505,6 +731,8 @@
             ..
             hi_IN.ISCII-DEV
             ..
+            hi_IN.UTF-8
+            ..
             hr_HR.ISO8859-2
             ..
             hr_HR.UTF-8
@@ -541,8 +769,6 @@
             ..
             ja_JP.eucJP
             ..
-            kk_KZ.PT154
-            ..
             kk_KZ.UTF-8
             ..
             ko_KR.CP949
@@ -551,21 +777,7 @@
             ..
             ko_KR.eucKR
             ..
-            la_LN.ISO8859-1
-            ..
-            la_LN.ISO8859-13
-            ..
-            la_LN.ISO8859-15
-            ..
-            la_LN.ISO8859-2
-            ..
-            la_LN.ISO8859-4
-            ..
-            la_LN.US-ASCII
-            ..
             lt_LT.ISO8859-13
-            ..
-            lt_LT.ISO8859-4
             ..
             lt_LT.UTF-8
             ..
@@ -599,12 +811,6 @@
             ..
             nn_NO.UTF-8
             ..
-            no_NO.ISO8859-1
-            ..
-            no_NO.ISO8859-15
-            ..
-            no_NO.UTF-8
-            ..
             pl_PL.ISO8859-2
             ..
             pl_PL.UTF-8
@@ -633,6 +839,10 @@
             ..
             ru_RU.UTF-8
             ..
+            se_FI.UTF-8
+            ..
+            se_NO.UTF-8
+            ..
             sk_SK.ISO8859-2
             ..
             sk_SK.UTF-8
@@ -641,11 +851,19 @@
             ..
             sl_SI.UTF-8
             ..
-            sr_YU.ISO8859-2
+            sr_RS.ISO8859-5
             ..
-            sr_YU.ISO8859-5
+            sr_RS.UTF-8
             ..
-            sr_YU.UTF-8
+            sr_RS.ISO8859-2
+            ..
+            sr_RS.UTF-8@latin
+            ..
+            sv_FI.ISO8859-1
+            ..
+            sv_FI.ISO8859-15
+            ..
+            sv_FI.UTF-8
             ..
             sv_SE.ISO8859-1
             ..
@@ -671,11 +889,9 @@
             ..
             zh_CN.GBK
             ..
-            zh_CN.UTF-8
-            ..
             zh_CN.eucCN
             ..
-            zh_HK.Big5HKSCS
+            zh_CN.UTF-8
             ..
             zh_HK.UTF-8
             ..
@@ -687,8 +903,6 @@
         man
 /set uname=man
             cat1
-            ..
-            cat1aout
             ..
             cat2
             ..
@@ -727,8 +941,6 @@
             en.ISO8859-1    uname=root
                 cat1
                 ..
-                cat1aout
-                ..
                 cat2
                 ..
                 cat3
@@ -766,8 +978,6 @@
             ..
             en.UTF-8        uname=root
                 cat1
-                ..
-                cat1aout
                 ..
                 cat2
                 ..
@@ -845,8 +1055,6 @@
             ..
             man1
             ..
-            man1aout
-            ..
             man2
             ..
             man3
@@ -881,8 +1089,6 @@
             ..
             man9
             ..
-        ..
-        me
         ..
         misc
             fonts
@@ -1083,21 +1289,7 @@
             ..
             ko_KR.eucKR
             ..
-            la_LN.ISO8859-1
-            ..
-            la_LN.ISO8859-13
-            ..
-            la_LN.ISO8859-15
-            ..
-            la_LN.ISO8859-2
-            ..
-            la_LN.ISO8859-4
-            ..
-            la_LN.US-ASCII
-            ..
             lt_LT.ISO8859-13
-            ..
-            lt_LT.ISO8859-4
             ..
             lt_LT.UTF-8
             ..
@@ -1222,6 +1414,20 @@
                 ..
             ..
         ..
+        pc-sysinstall
+            backend
+            ..
+            backend-partmanager
+            ..
+            backend-query
+            ..
+            conf
+                license
+                ..
+            ..
+            doc
+            ..
+        ..
         security
         ..
         sendmail
@@ -1244,14 +1450,14 @@
         ..
         tabset
         ..
-        tmac
-            mdoc
-            ..
-            mm
-            ..
-        ..
         vi
             catalog
+            ..
+        ..
+        vt
+            fonts
+            ..
+            keymaps
             ..
         ..
         zoneinfo

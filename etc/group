@@ -17,7 +17,9 @@ sshd:*:22:
 smmsp:*:25:
 mailnull:*:26:
 guest:*:31:
+video:*:44:
 bind:*:53:
+unbound:*:59:
 proxy:*:62:
 authpf:*:63:
 _pflogd:*:64:
@@ -27,5 +29,7 @@ dialer:*:68:
 network:*:69:
 audit:*:77:
 www:*:80:
+_ypldap:*:160:
+hast:*:845:
 nogroup:*:65533:
 nobody:*:65534:

@@ -16,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -39,24 +39,25 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sf_buf.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_param.h>
 
+#include <machine/cache.h>
 #include <machine/tlb.h>
 
 /*
  * Implement uiomove(9) from physical memory using a combination
  * of the direct mapping and sf_bufs to reduce the creation and
- * destruction of ephemeral mappings.  
+ * destruction of ephemeral mappings.
  */
 int
 uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
@@ -92,7 +93,8 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		cnt = ulmin(cnt, PAGE_SIZE - page_offset);
 		m = ma[offset >> PAGE_SHIFT];
 		pa = VM_PAGE_TO_PHYS(m);
-		if (m->md.color != DCACHE_COLOR(pa)) {
+		if (dcache_color_ignore == 0 &&
+		    m->md.color != DCACHE_COLOR(pa)) {
 			sf = sf_buf_alloc(m, 0);
 			cp = (char *)sf_buf_kva(sf) + page_offset;
 		} else {
@@ -101,8 +103,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		}
 		switch (uio->uio_segflg) {
 		case UIO_USERSPACE:
-			if (ticks - PCPU_GET(switchticks) >= hogticks)
-				uio_yield();
+			maybe_yield();
 			if (uio->uio_rw == UIO_READ)
 				error = copyout(cp, iov->iov_base, cnt);
 			else

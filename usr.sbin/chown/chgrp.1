@@ -31,7 +31,7 @@
 .\"     @(#)chgrp.1	8.3 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2003
+.Dd April 20, 2015
 .Dt CHGRP 1
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Nd change group
 .Sh SYNOPSIS
 .Nm
-.Op Fl fhv
+.Op Fl fhvx
 .Oo
 .Fl R
 .Op Fl H | Fl L | Fl P
@@ -60,8 +60,9 @@ The following options are available:
 .It Fl H
 If the
 .Fl R
-option is specified, symbolic links on the command line are followed.
-(Symbolic links encountered in the tree traversal are not followed.)
+option is specified, symbolic links on the command line are followed
+and hence unaffected by the command.
+(Symbolic links encountered during traversal are not followed.)
 .It Fl L
 If the
 .Fl R
@@ -72,8 +73,12 @@ If the
 option is specified, no symbolic links are followed.
 This is the default.
 .It Fl R
-Change the group ID for the file hierarchies rooted
-in the files instead of just the files themselves.
+Change the group ID of the file hierarchies rooted in the files,
+instead of just the files themselves.
+Beware of unintentionally matching the
+.Dq Pa ".."
+hard link to the parent directory when using wildcards like
+.Dq Li ".*" .
 .It Fl f
 The force option ignores errors, except for usage errors and does not
 query about strange modes (unless the user does not have proper permissions).
@@ -89,6 +94,8 @@ If the
 flag is specified more than once,
 .Nm
 will print the filename, followed by the old and new numeric group ID.
+.It Fl x
+File system mount points are not traversed.
 .El
 .Pp
 The
@@ -125,7 +132,9 @@ In previous versions of this system, symbolic links did not have groups.
 .Pp
 The
 .Fl v
-option is non-standard and its use in scripts is not recommended.
+and
+.Fl x
+options are non-standard and their use in scripts is not recommended.
 .Sh SEE ALSO
 .Xr chown 2 ,
 .Xr fts 3 ,

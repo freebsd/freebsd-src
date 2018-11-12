@@ -342,6 +342,8 @@ dump_type (tree t, int flags)
 	 reduces code size.  */
     case ARRAY_TYPE:
     case POINTER_TYPE:
+      /* APPLE LOCAL blocks 6040305 */
+    case BLOCK_POINTER_TYPE:
     case REFERENCE_TYPE:
     case OFFSET_TYPE:
     offset_type:
@@ -497,6 +499,8 @@ dump_type_prefix (tree t, int flags)
   switch (TREE_CODE (t))
     {
     case POINTER_TYPE:
+      /* APPLE LOCAL blocks 6040305 */
+    case BLOCK_POINTER_TYPE:
     case REFERENCE_TYPE:
       {
 	tree sub = TREE_TYPE (t);
@@ -507,7 +511,10 @@ dump_type_prefix (tree t, int flags)
 	    pp_cxx_whitespace (cxx_pp);
 	    pp_cxx_left_paren (cxx_pp);
 	  }
-	pp_character (cxx_pp, "&*"[TREE_CODE (t) == POINTER_TYPE]);
+	/* APPLE LOCAL begin blocks 6040305 */
+	pp_character (cxx_pp, "&*^"[(TREE_CODE (t) == POINTER_TYPE)
+				    + (TREE_CODE (t) == BLOCK_POINTER_TYPE)*2]);
+	/* APPLE LOCAL end blocks 6040305 */
 	pp_base (cxx_pp)->padding = pp_before;
 	pp_cxx_cv_qualifier_seq (cxx_pp, t);
       }
@@ -593,6 +600,8 @@ dump_type_suffix (tree t, int flags)
   switch (TREE_CODE (t))
     {
     case POINTER_TYPE:
+      /* APPLE LOCAL blocks 6040305 */
+    case BLOCK_POINTER_TYPE:
     case REFERENCE_TYPE:
     case OFFSET_TYPE:
       if (TREE_CODE (TREE_TYPE (t)) == ARRAY_TYPE)
@@ -899,6 +908,10 @@ dump_decl (tree t, int flags)
 	pp_cxx_declaration (cxx_pp, t);
       else
 	pp_type_id (cxx_pp, t);
+      break;
+
+    case UNBOUND_CLASS_TEMPLATE:
+      dump_type (t, flags);
       break;
 
     default:
@@ -1301,10 +1314,14 @@ static tree
 resolve_virtual_fun_from_obj_type_ref (tree ref)
 {
   tree obj_type = TREE_TYPE (OBJ_TYPE_REF_OBJECT (ref));
-  int index = tree_low_cst (OBJ_TYPE_REF_TOKEN (ref), 1);
+  HOST_WIDE_INT index = tree_low_cst (OBJ_TYPE_REF_TOKEN (ref), 1);
   tree fun = BINFO_VIRTUALS (TYPE_BINFO (TREE_TYPE (obj_type)));
-    while (index--)
+  while (index)
+    {
       fun = TREE_CHAIN (fun);
+      index -= (TARGET_VTABLE_USES_DESCRIPTORS
+		? TARGET_VTABLE_USES_DESCRIPTORS : 1);
+    }
 
   return BV_FN (fun);
 }
@@ -1420,13 +1437,13 @@ dump_expr (tree t, int flags)
 	    if (TREE_CODE (ob) == ADDR_EXPR)
 	      {
 		dump_expr (TREE_OPERAND (ob, 0), flags | TFF_EXPR_IN_PARENS);
-		pp_dot (cxx_pp);
+		pp_cxx_dot (cxx_pp);
 	      }
 	    else if (TREE_CODE (ob) != PARM_DECL
 		     || strcmp (IDENTIFIER_POINTER (DECL_NAME (ob)), "this"))
 	      {
 		dump_expr (ob, flags | TFF_EXPR_IN_PARENS);
-		pp_arrow (cxx_pp);
+		pp_cxx_arrow (cxx_pp);
 	      }
 	    args = TREE_CHAIN (args);
 	  }

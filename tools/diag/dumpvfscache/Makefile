@@ -1,10 +1,9 @@
 # $FreeBSD$
 
 PROG=	dumpvfscache
-DPADD=	${LIBKVM}
-LDADD=	-lkvm
+LIBADD=	kvm
 
-NO_MAN=
+MAN=
 
 test:	${PROG}
 	./${PROG} > a

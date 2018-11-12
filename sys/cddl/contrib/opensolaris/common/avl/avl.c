@@ -19,12 +19,14 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
+/*
+ * Copyright (c) 2014 by Delphix. All rights reserved.
+ * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
+ */
 
 /*
  * AVL - generic AVL tree implementation for kernel use
@@ -40,7 +42,7 @@
  * insertion and deletion relatively efficiently. Searching the tree is
  * still a fast operation, roughly O(log(N)).
  *
- * The key to insertion and deletion is a set of tree maniuplations called
+ * The key to insertion and deletion is a set of tree manipulations called
  * rotations, which bring unbalanced subtrees back into the semi-balanced state.
  *
  * This implementation of AVL trees has the following peculiarities:
@@ -48,7 +50,7 @@
  *	- The AVL specific data structures are physically embedded as fields
  *	  in the "using" data structures.  To maintain generality the code
  *	  must constantly translate between "avl_node_t *" and containing
- *	  data structure "void *"s by adding/subracting the avl_offset.
+ *	  data structure "void *"s by adding/subtracting the avl_offset.
  *
  *	- Since the AVL data is always embedded in other structures, there is
  *	  no locking or memory allocation in the AVL routines. This must be
@@ -88,6 +90,12 @@
  *	  is a modified "avl_node_t *".  The bottom bit (normally 0 for a
  *	  pointer) is set to indicate if that the new node has a value greater
  *	  than the value of the indicated "avl_node_t *".
+ *
+ * Note - in addition to userland (e.g. libavl and libutil) and the kernel
+ * (e.g. genunix), avl.c is compiled into ld.so and kmdb's genunix module,
+ * which each have their own compilation environments and subsequent
+ * requirements. Each of these environments must be considered when adding
+ * dependencies from avl.c.
  */
 
 #include <sys/types.h>
@@ -97,7 +105,7 @@
 #include <sys/avl.h>
 
 /*
- * Small arrays to translate between balance (or diff) values and child indeces.
+ * Small arrays to translate between balance (or diff) values and child indices.
  *
  * Code that deals with binary tree data structures will randomly use
  * left and right children when examining a tree.  C "if()" statements
@@ -117,7 +125,8 @@ static const int  avl_balance2child[]	= {0, 0, 1};
  *
  * - If there is a left child, go to it, then to it's rightmost descendant.
  *
- * - otherwise we return thru parent nodes until we've come from a right child.
+ * - otherwise we return through parent nodes until we've come from a right
+ *   child.
  *
  * Return Value:
  * NULL - if at the end of the nodes
@@ -243,7 +252,7 @@ avl_nearest(avl_tree_t *tree, avl_index_t where, int direction)
  *	"void *"  of the found tree node
  */
 void *
-avl_find(avl_tree_t *tree, void *value, avl_index_t *where)
+avl_find(avl_tree_t *tree, const void *value, avl_index_t *where)
 {
 	avl_node_t *node;
 	avl_node_t *prev = NULL;
@@ -627,14 +636,17 @@ avl_add(avl_tree_t *tree, void *new_node)
 	/*
 	 * This is unfortunate.  We want to call panic() here, even for
 	 * non-DEBUG kernels.  In userland, however, we can't depend on anything
-	 * in libc or else the rtld build process gets confused.  So, all we can
-	 * do in userland is resort to a normal ASSERT().
+	 * in libc or else the rtld build process gets confused.
+	 * Thankfully, rtld provides us with its own assfail() so we can use
+	 * that here.  We use assfail() directly to get a nice error message
+	 * in the core - much like what panic() does for crashdumps.
 	 */
 	if (avl_find(tree, new_node, &where) != NULL)
 #ifdef _KERNEL
 		panic("avl_find() succeeded inside avl_add()");
 #else
-		ASSERT(0);
+		(void) assfail("avl_find() succeeded inside avl_add()",
+		    __FILE__, __LINE__);
 #endif
 	avl_insert(tree, new_node, where);
 }
@@ -866,6 +878,24 @@ avl_update(avl_tree_t *t, void *obj)
 	return (B_FALSE);
 }
 
+void
+avl_swap(avl_tree_t *tree1, avl_tree_t *tree2)
+{
+	avl_node_t *temp_node;
+	ulong_t temp_numnodes;
+
+	ASSERT3P(tree1->avl_compar, ==, tree2->avl_compar);
+	ASSERT3U(tree1->avl_offset, ==, tree2->avl_offset);
+	ASSERT3U(tree1->avl_size, ==, tree2->avl_size);
+
+	temp_node = tree1->avl_root;
+	temp_numnodes = tree1->avl_numnodes;
+	tree1->avl_root = tree2->avl_root;
+	tree1->avl_numnodes = tree2->avl_numnodes;
+	tree2->avl_root = temp_node;
+	tree2->avl_numnodes = temp_numnodes;
+}
+
 /*
  * initialize a new AVL tree
  */
@@ -922,7 +952,7 @@ avl_is_empty(avl_tree_t *tree)
 
 /*
  * Post-order tree walk used to visit all tree nodes and destroy the tree
- * in post order. This is used for destroying a tree w/o paying any cost
+ * in post order. This is used for destroying a tree without paying any cost
  * for rebalancing it.
  *
  * example:

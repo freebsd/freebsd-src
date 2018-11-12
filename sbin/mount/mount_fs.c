@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -62,7 +58,7 @@ static const char rcsid[] =
 #include "extern.h"
 #include "mntopts.h"
 
-struct mntopt mopts[] = {
+static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	MOPT_END
 };
@@ -86,7 +82,6 @@ mount_fs(const char *vfstype, int argc, char *argv[])
 	char fstype[32];
 	char errmsg[255];
 	char *p, *val;
-	int ret;
 
 	strlcpy(fstype, vfstype, sizeof(fstype));
 	memset(errmsg, 0, sizeof(errmsg));
@@ -122,17 +117,23 @@ mount_fs(const char *vfstype, int argc, char *argv[])
 	dev = argv[0];
 	dir = argv[1];
 
-	(void)checkpath(dir, mntpath);
+	if (checkpath(dir, mntpath) != 0) {
+		warn("%s", mntpath);
+		return (1);
+	}
 	(void)rmslashes(dev, dev);
 
 	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
 	build_iovec(&iov, &iovlen, "from", dev, (size_t)-1);
 	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
-	
-	ret = nmount(iov, iovlen, mntflags);
-	if (ret < 0)
-		err(1, "%s %s", dev, errmsg);
 
-	return (ret);
+	if (nmount(iov, iovlen, mntflags) == -1) {
+		if (*errmsg != '\0')
+			warn("%s: %s", dev, errmsg);
+		else
+			warn("%s", dev);
+		return (1);
+	}
+	return (0);
 }

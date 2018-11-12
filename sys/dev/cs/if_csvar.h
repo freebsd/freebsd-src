@@ -28,9 +28,6 @@
 #ifndef _IF_CSVAR_H
 #define _IF_CSVAR_H
 
-#include <net/if_arp.h>
-#include <net/if_media.h>
-
 /*
  * cs_softc: per line info and status
  */
@@ -57,7 +54,6 @@ struct cs_softc {
 
 	int	flags;
 #define	CS_NO_IRQ	0x1
-	int 	nic_addr; 		/* Base IO address of card */
 	int	send_cmd;
 	int	line_ctl;		/* */
 	int	send_underrun;

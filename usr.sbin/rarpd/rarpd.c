@@ -27,8 +27,8 @@ __FBSDID("$FreeBSD$");
 /*
  * rarpd - Reverse ARP Daemon
  *
- * Usage:	rarpd -a [-dfsv] [-t directory] [hostname]
- *		rarpd [-dfsv] [-t directory] interface [hostname]
+ * Usage:	rarpd -a [-dfsv] [-t directory] [-P pidfile] [hostname]
+ *		rarpd [-dfsv] [-t directory] [-P pidfile] interface [hostname]
  *
  * 'hostname' is optional solely for backwards compatibility with Sun's rarpd.
  * Currently, the argument is ignored.
@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <libutil.h>
 
 /* Cast a struct sockaddr to a struct sockaddr_in */
 #define SATOSIN(sa) ((struct sockaddr_in *)(sa))
@@ -89,15 +90,20 @@ struct if_info {
  * The list of all interfaces that are being listened to.  rarp_loop()
  * "selects" on the descriptors in this list.
  */
-struct if_info *iflist;
+static struct if_info *iflist;
 
-int verbose;			/* verbose messages */
-const char *tftp_dir = TFTP_DIR;	/* tftp directory */
+static int verbose;		/* verbose messages */
+static const char *tftp_dir = TFTP_DIR;	/* tftp directory */
 
-int dflag;			/* messages to stdout/stderr, not syslog(3) */
-int sflag;			/* ignore /tftpboot */
+static int dflag;		/* messages to stdout/stderr, not syslog(3) */
+static int sflag;		/* ignore /tftpboot */
 
 static	u_char zero[6];
+
+static char pidfile_buf[PATH_MAX];
+static char *pidfile;
+#define	RARPD_PIDFILE	"/var/run/rarpd.%s.pid"
+static struct pidfh *pidfile_fh;
 
 static int	bpf_open(void);
 static in_addr_t	choose_ipaddr(in_addr_t **, in_addr_t, in_addr_t);
@@ -122,7 +128,7 @@ int
 main(int argc, char *argv[])
 {
 	int op;
-	char *ifname, *hostname, *name;
+	char *ifname, *name;
 
 	int aflag = 0;		/* listen on "all" interfaces  */
 	int fflag = 0;		/* don't fork */
@@ -140,7 +146,7 @@ main(int argc, char *argv[])
 	openlog(name, LOG_PID | LOG_CONS, LOG_DAEMON);
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "adfst:v")) != -1)
+	while ((op = getopt(argc, argv, "adfsP:t:v")) != -1)
 		switch (op) {
 		case 'a':
 			++aflag;
@@ -156,6 +162,12 @@ main(int argc, char *argv[])
 
 		case 's':
 			++sflag;
+			break;
+
+		case 'P':
+			strncpy(pidfile_buf, optarg, sizeof(pidfile_buf) - 1);
+			pidfile_buf[sizeof(pidfile_buf) - 1] = '\0';
+			pidfile = pidfile_buf;
 			break;
 
 		case 't':
@@ -174,7 +186,6 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	ifname = (aflag == 0) ? argv[0] : NULL;
-	hostname = ifname ? argv[1] : argv[0];
 	
 	if ((aflag && ifname) || (!aflag && ifname == NULL))
 		usage();
@@ -182,10 +193,23 @@ main(int argc, char *argv[])
 	init(ifname);
 
 	if (!fflag) {
+		if (pidfile == NULL && ifname != NULL && aflag == 0) {
+			snprintf(pidfile_buf, sizeof(pidfile_buf) - 1,
+			    RARPD_PIDFILE, ifname);
+			pidfile_buf[sizeof(pidfile_buf) - 1] = '\0';
+			pidfile = pidfile_buf;
+		}
+		/* If pidfile == NULL, /var/run/<progname>.pid will be used. */
+		pidfile_fh = pidfile_open(pidfile, 0600, NULL);
+		if (pidfile_fh == NULL)
+			logmsg(LOG_ERR, "Cannot open or create pidfile: %s",
+			    (pidfile == NULL) ? "/var/run/rarpd.pid" : pidfile);
 		if (daemon(0,0)) {
 			logmsg(LOG_ERR, "cannot fork");
+			pidfile_remove(pidfile_fh);
 			exit(1);
 		}
+		pidfile_write(pidfile_fh);
 	}
 	rarp_loop();
 	return(0);
@@ -235,6 +259,7 @@ init_one(struct ifaddrs *ifa, char *target, int pass1)
 		ii = (struct if_info *)malloc(sizeof(*ii));
 		if (ii == NULL) {
 			logmsg(LOG_ERR, "malloc: %m");
+			pidfile_remove(pidfile_fh);
 			exit(1);
 		}
 		bzero(ii, sizeof(*ii));
@@ -252,6 +277,7 @@ init_one(struct ifaddrs *ifa, char *target, int pass1)
 		ii2 = (struct if_info *)malloc(sizeof(*ii2));
 		if (ii2 == NULL) {
 			logmsg(LOG_ERR, "malloc: %m");
+			pidfile_remove(pidfile_fh);
 			exit(1);
 		}
 		memcpy(ii2, ii, sizeof(*ii2));
@@ -274,11 +300,15 @@ init_one(struct ifaddrs *ifa, char *target, int pass1)
 
 	case AF_LINK:
 		ll = (struct sockaddr_dl *)ifa->ifa_addr;
-		if (ll->sdl_type == IFT_ETHER)
+		switch (ll->sdl_type) {
+		case IFT_ETHER:
+		case IFT_L2VLAN:
 			bcopy(LLADDR(ll), ii->ii_eaddr, 6);
+		}
 		break;
 	}
 }
+
 /*
  * Initialize all "candidate" interfaces that are in the system
  * configuration list.  A "candidate" is up, not loopback and not
@@ -294,6 +324,7 @@ init(char *target)
 	error = getifaddrs(&ifhead);
 	if (error) {
 		logmsg(LOG_ERR, "getifaddrs: %m");
+		pidfile_remove(pidfile_fh);
 		exit(1);
 	}
 	/*
@@ -339,9 +370,10 @@ init(char *target)
 static void
 usage(void)
 {
+
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: rarpd -a [-dfsv] [-t directory]",
-	    "       rarpd [-dfsv] [-t directory] interface");
+	    "usage: rarpd -a [-dfsv] [-t directory] [-P pidfile]",
+	    "       rarpd [-dfsv] [-t directory] [-P pidfile] interface");
 	exit(1);
 }
 
@@ -362,6 +394,7 @@ bpf_open(void)
 
 	if (fd == -1) {
 		logmsg(LOG_ERR, "%s: %m", device);
+		pidfile_remove(pidfile_fh);
 		exit(1);
 	}
 	return fd;
@@ -400,12 +433,12 @@ rarp_open(char *device)
 	immediate = 1;
 	if (ioctl(fd, BIOCIMMEDIATE, &immediate) == -1) {
 		logmsg(LOG_ERR, "BIOCIMMEDIATE: %m");
-		exit(1);
+		goto rarp_open_err;
 	}
 	strlcpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
 	if (ioctl(fd, BIOCSETIF, (caddr_t)&ifr) == -1) {
 		logmsg(LOG_ERR, "BIOCSETIF: %m");
-		exit(1);
+		goto rarp_open_err;
 	}
 	/*
 	 * Check that the data link layer is an Ethernet; this code won't
@@ -413,20 +446,24 @@ rarp_open(char *device)
 	 */
 	if (ioctl(fd, BIOCGDLT, (caddr_t)&dlt) == -1) {
 		logmsg(LOG_ERR, "BIOCGDLT: %m");
-		exit(1);
+		goto rarp_open_err;
 	}
 	if (dlt != DLT_EN10MB) {
 		logmsg(LOG_ERR, "%s is not an ethernet", device);
-		exit(1);
+		goto rarp_open_err;
 	}
 	/*
 	 * Set filter program.
 	 */
 	if (ioctl(fd, BIOCSETF, (caddr_t)&filter) == -1) {
 		logmsg(LOG_ERR, "BIOCSETF: %m");
-		exit(1);
+		goto rarp_open_err;
 	}
 	return fd;
+
+rarp_open_err:
+	pidfile_remove(pidfile_fh);
+	exit(1);
 }
 
 /*
@@ -481,16 +518,16 @@ rarp_loop(void)
 
 	if (iflist == NULL) {
 		logmsg(LOG_ERR, "no interfaces");
-		exit(1);
+		goto rarpd_loop_err;
 	}
 	if (ioctl(iflist->ii_fd, BIOCGBLEN, (caddr_t)&bufsize) == -1) {
 		logmsg(LOG_ERR, "BIOCGBLEN: %m");
-		exit(1);
+		goto rarpd_loop_err;
 	}
 	buf = malloc(bufsize);
 	if (buf == NULL) {
 		logmsg(LOG_ERR, "malloc: %m");
-		exit(1);
+		goto rarpd_loop_err;
 	}
 
 	while (1) {
@@ -510,7 +547,7 @@ rarp_loop(void)
 			if (errno == EINTR)
 				continue;
 			logmsg(LOG_ERR, "select: %m");
-			exit(1);
+			goto rarpd_loop_err;
 		}
 		for (ii = iflist; ii != NULL; ii = ii->ii_next) {
 			fd = ii->ii_fd;
@@ -538,6 +575,11 @@ rarp_loop(void)
 		}
 	}
 #undef bhp
+	return;
+
+rarpd_loop_err:
+	pidfile_remove(pidfile_fh);
+	exit(1);
 }
 
 /*
@@ -563,12 +605,12 @@ rarp_bootable(in_addr_t addr)
 	else {
 		if (chdir(tftp_dir) == -1) {
 			logmsg(LOG_ERR, "chdir: %s: %m", tftp_dir);
-			exit(1);
+			goto rarp_bootable_err;
 		}
 		d = opendir(".");
 		if (d == NULL) {
 			logmsg(LOG_ERR, "opendir: %m");
-			exit(1);
+			goto rarp_bootable_err;
 		}
 		dd = d;
 	}
@@ -576,6 +618,10 @@ rarp_bootable(in_addr_t addr)
 		if (strncmp(dent->d_name, ipname, 8) == 0)
 			return 1;
 	return 0;
+
+rarp_bootable_err:
+	pidfile_remove(pidfile_fh);
+	exit(1);
 }
 
 /*
@@ -586,6 +632,7 @@ rarp_bootable(in_addr_t addr)
 static in_addr_t
 choose_ipaddr(in_addr_t **alist, in_addr_t net, in_addr_t netmask)
 {
+
 	for (; *alist; ++alist)
 		if ((**alist & netmask) == net)
 			return **alist;
@@ -648,17 +695,18 @@ rarp_process(struct if_info *ii, u_char *pkt, u_int len)
  * host (i.e. the guy running rarpd), won't try to ARP for the hardware
  * address of the guy being booted (he cannot answer the ARP).
  */
-struct sockaddr_inarp sin_inarp = {
-	sizeof(struct sockaddr_inarp), AF_INET, 0,
+static struct sockaddr_in sin_inarp = {
+	sizeof(struct sockaddr_in), AF_INET, 0,
 	{0},
 	{0},
-	0, 0
 };
-struct sockaddr_dl sin_dl = {
+
+static struct sockaddr_dl sin_dl = {
 	sizeof(struct sockaddr_dl), AF_LINK, 0, IFT_ETHER, 0, 6,
 	0, ""
 };
-struct {
+
+static struct {
 	struct rt_msghdr rthdr;
 	char rtspace[512];
 } rtmsg;
@@ -666,8 +714,9 @@ struct {
 static void
 update_arptab(u_char *ep, in_addr_t ipaddr)
 {
+	struct timespec tp;
 	int cc;
-	struct sockaddr_inarp *ar, *ar2;
+	struct sockaddr_in *ar, *ar2;
 	struct sockaddr_dl *ll, *ll2;
 	struct rt_msghdr *rt;
 	int xtype, xindex;
@@ -678,6 +727,7 @@ update_arptab(u_char *ep, in_addr_t ipaddr)
 	r = socket(PF_ROUTE, SOCK_RAW, 0);
 	if (r == -1) {
 		logmsg(LOG_ERR, "raw route socket: %m");
+		pidfile_remove(pidfile_fh);
 		exit(1);
 	}
 	pid = getpid();
@@ -689,12 +739,12 @@ update_arptab(u_char *ep, in_addr_t ipaddr)
 
 	/* Get the type and interface index */
 	rt = &rtmsg.rthdr;
-	bzero(rt, sizeof(rtmsg));
+	bzero(&rtmsg, sizeof(rtmsg));
 	rt->rtm_version = RTM_VERSION;
 	rt->rtm_addrs = RTA_DST;
 	rt->rtm_type = RTM_GET;
 	rt->rtm_seq = ++seq;
-	ar2 = (struct sockaddr_inarp *)rtmsg.rtspace;
+	ar2 = (struct sockaddr_in *)rtmsg.rtspace;
 	bcopy(ar, ar2, sizeof(*ar));
 	rt->rtm_msglen = sizeof(*rt) + sizeof(*ar);
 	errno = 0;
@@ -731,7 +781,8 @@ update_arptab(u_char *ep, in_addr_t ipaddr)
 	rt->rtm_version = RTM_VERSION;
 	rt->rtm_addrs = RTA_DST | RTA_GATEWAY;
 	rt->rtm_inits = RTV_EXPIRE;
-	rt->rtm_rmx.rmx_expire = time(0) + ARPSECS;
+	clock_gettime(CLOCK_MONOTONIC, &tp);
+	rt->rtm_rmx.rmx_expire = tp.tv_sec + ARPSECS;
 	rt->rtm_flags = RTF_HOST | RTF_STATIC;
 	rt->rtm_type = RTM_ADD;
 	rt->rtm_seq = ++seq;
@@ -837,6 +888,7 @@ rarp_reply(struct if_info *ii, struct ether_header *ep, in_addr_t ipaddr,
 static in_addr_t
 ipaddrtonetmask(in_addr_t addr)
 {
+
 	addr = ntohl(addr);
 	if (IN_CLASSA(addr))
 		return htonl(IN_CLASSA_NET);

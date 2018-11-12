@@ -31,6 +31,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -70,14 +71,13 @@
  * Sebastien Bourdeauducq <lekernel@prism54.org>.
  */
 
-SYSCTL_NODE(_hw, OID_AUTO, upgt, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw, OID_AUTO, upgt, CTLFLAG_RD, 0,
     "USB PrismGT GW3887 driver parameters");
 
 #ifdef UPGT_DEBUG
 int upgt_debug = 0;
-SYSCTL_INT(_hw_upgt, OID_AUTO, debug, CTLFLAG_RW, &upgt_debug,
+SYSCTL_INT(_hw_upgt, OID_AUTO, debug, CTLFLAG_RWTUN, &upgt_debug,
 	    0, "control debugging printfs");
-TUNABLE_INT("hw.upgt.debug", &upgt_debug);
 enum {
 	UPGT_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	UPGT_DEBUG_RECV		= 0x00000002,	/* basic recv operation */
@@ -128,21 +128,21 @@ static void	upgt_eeprom_parse_freq4(struct upgt_softc *, uint8_t *, int);
 static void	upgt_eeprom_parse_freq6(struct upgt_softc *, uint8_t *, int);
 static uint32_t	upgt_chksum_le(const uint32_t *, size_t);
 static void	upgt_tx_done(struct upgt_softc *, uint8_t *);
-static void	upgt_init(void *);
-static void	upgt_init_locked(struct upgt_softc *);
-static int	upgt_ioctl(struct ifnet *, u_long, caddr_t);
-static void	upgt_start(struct ifnet *);
+static void	upgt_init(struct upgt_softc *);
+static void	upgt_parent(struct ieee80211com *);
+static int	upgt_transmit(struct ieee80211com *, struct mbuf *);
+static void	upgt_start(struct upgt_softc *);
 static int	upgt_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
 static void	upgt_scan_start(struct ieee80211com *);
 static void	upgt_scan_end(struct ieee80211com *);
 static void	upgt_set_channel(struct ieee80211com *);
 static struct ieee80211vap *upgt_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	upgt_vap_delete(struct ieee80211vap *);
-static void	upgt_update_mcast(struct ifnet *);
+static void	upgt_update_mcast(struct ieee80211com *);
 static uint8_t	upgt_rx_rate(struct upgt_softc *, const int);
 static void	upgt_set_multi(void *);
 static void	upgt_stop(struct upgt_softc *);
@@ -170,7 +170,7 @@ static int	upgt_tx_start(struct upgt_softc *, struct mbuf *,
 
 static const char *upgt_fwname = "upgt-gw3887";
 
-static const struct usb_device_id upgt_devs_2[] = {
+static const STRUCT_USB_HOST_ID upgt_devs[] = {
 #define	UPGT_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
 	/* version 2 devices */
 	UPGT_DEV(ACCTON,	PRISM_GT),
@@ -182,8 +182,10 @@ static const struct usb_device_id upgt_devs_2[] = {
 	UPGT_DEV(FSC,		E5400),
 	UPGT_DEV(GLOBESPAN,	PRISM_GT_1),
 	UPGT_DEV(GLOBESPAN,	PRISM_GT_2),
+	UPGT_DEV(NETGEAR,	WG111V1_2),
 	UPGT_DEV(INTERSIL,	PRISM_GT),
 	UPGT_DEV(SMC,		2862WG),
+	UPGT_DEV(USR,		USR5422),
 	UPGT_DEV(WISTRONNEWEB,	UR045G),
 	UPGT_DEV(XYRATEX,	PRISM_GT_1),
 	UPGT_DEV(XYRATEX,	PRISM_GT_2),
@@ -199,9 +201,8 @@ static const struct usb_config upgt_config[UPGT_N_XFERS] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.bufsize = MCLBYTES,
+		.bufsize = MCLBYTES * UPGT_TX_MAXCOUNT,
 		.flags = {
-			.ext_buffer = 1,
 			.force_short_xfer = 1,
 			.pipe_bof = 1
 		},
@@ -212,9 +213,8 @@ static const struct usb_config upgt_config[UPGT_N_XFERS] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = MCLBYTES,
+		.bufsize = MCLBYTES * UPGT_RX_MAXCOUNT,
 		.flags = {
-			.ext_buffer = 1,
 			.pipe_bof = 1,
 			.short_xfer_ok = 1
 		},
@@ -234,18 +234,18 @@ upgt_match(device_t dev)
 	if (uaa->info.bIfaceIndex != UPGT_IFACE_INDEX)
 		return (ENXIO);
 
-	return (usbd_lookup_id_by_uaa(upgt_devs_2, sizeof(upgt_devs_2), uaa));
+	return (usbd_lookup_id_by_uaa(upgt_devs, sizeof(upgt_devs), uaa));
 }
 
 static int
 upgt_attach(device_t dev)
 {
-	int error;
-	struct ieee80211com *ic;
-	struct ifnet *ifp;
 	struct upgt_softc *sc = device_get_softc(dev);
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
-	uint8_t bands, iface_index = UPGT_IFACE_INDEX;
+	uint8_t bands[IEEE80211_MODE_BYTES];
+	uint8_t iface_index = UPGT_IFACE_INDEX;
+	int error;
 
 	sc->sc_dev = dev;
 	sc->sc_udev = uaa->device;
@@ -258,43 +258,43 @@ upgt_attach(device_t dev)
 	    MTX_DEF);
 	callout_init(&sc->sc_led_ch, 0);
 	callout_init(&sc->sc_watchdog_ch, 0);
-
-	/* Allocate TX and RX xfers.  */
-	error = upgt_alloc_tx(sc);
-	if (error)
-		goto fail1;
-	error = upgt_alloc_rx(sc);
-	if (error)
-		goto fail2;
+	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
 	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 	    upgt_config, UPGT_N_XFERS, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "could not allocate USB transfers, "
 		    "err=%s\n", usbd_errstr(error));
-		goto fail3;
+		goto fail1;
 	}
 
-	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
-	if (ifp == NULL) {
-		device_printf(dev, "can not if_alloc()\n");
-		goto fail4;
-	}
+	sc->sc_rx_dma_buf = usbd_xfer_get_frame_buffer(
+	    sc->sc_xfer[UPGT_BULK_RX], 0);
+	sc->sc_tx_dma_buf = usbd_xfer_get_frame_buffer(
+	    sc->sc_xfer[UPGT_BULK_TX], 0);
+
+	/* Setup TX and RX buffers */
+	error = upgt_alloc_tx(sc);
+	if (error)
+		goto fail2;
+	error = upgt_alloc_rx(sc);
+	if (error)
+		goto fail3;
 
 	/* Initialize the device.  */
 	error = upgt_device_reset(sc);
 	if (error)
-		goto fail5;
+		goto fail4;
 	/* Verify the firmware.  */
 	error = upgt_fw_verify(sc);
 	if (error)
-		goto fail5;
+		goto fail4;
 	/* Calculate device memory space.  */
 	if (sc->sc_memaddr_frame_start == 0 || sc->sc_memaddr_frame_end == 0) {
 		device_printf(dev,
-		    "could not find memory space addresses on FW!\n");
+		    "could not find memory space addresses on FW\n");
 		error = EIO;
-		goto fail5;
+		goto fail4;
 	}
 	sc->sc_memaddr_frame_end -= UPGT_MEMSIZE_RX + 1;
 	sc->sc_memaddr_rx_start = sc->sc_memaddr_frame_end + 1;
@@ -311,31 +311,21 @@ upgt_attach(device_t dev)
 	/* Load the firmware.  */
 	error = upgt_fw_load(sc);
 	if (error)
-		goto fail5;
+		goto fail4;
 
 	/* Read the whole EEPROM content and parse it.  */
 	error = upgt_eeprom_read(sc);
 	if (error)
-		goto fail5;
+		goto fail4;
 	error = upgt_eeprom_parse(sc);
 	if (error)
-		goto fail5;
+		goto fail4;
 
 	/* all works related with the device have done here. */
 	upgt_abort_xfers(sc);
 
-	/* Setup the 802.11 device.  */
-	ifp->if_softc = sc;
-	if_initname(ifp, "upgt", device_get_unit(sc->sc_dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_init = upgt_init;
-	ifp->if_ioctl = upgt_ioctl;
-	ifp->if_start = upgt_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	IFQ_SET_READY(&ifp->if_snd);
-
-	ic = ifp->if_l2com;
-	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(dev);
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
 	ic->ic_opmode = IEEE80211_M_STA;
 	/* set device capabilities */
@@ -348,20 +338,21 @@ upgt_attach(device_t dev)
 	        | IEEE80211_C_WPA		/* 802.11i */
 		;
 
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
-	ieee80211_init_channels(ic, NULL, &bands);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_init_channels(ic, NULL, bands);
 
-	ieee80211_ifattach(ic, sc->sc_myaddr);
+	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = upgt_raw_xmit;
 	ic->ic_scan_start = upgt_scan_start;
 	ic->ic_scan_end = upgt_scan_end;
 	ic->ic_set_channel = upgt_set_channel;
-
 	ic->ic_vap_create = upgt_vap_create;
 	ic->ic_vap_delete = upgt_vap_delete;
 	ic->ic_update_mcast = upgt_update_mcast;
+	ic->ic_transmit = upgt_transmit;
+	ic->ic_parent = upgt_parent;
 
 	ieee80211_radiotap_attach(ic,
 	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
@@ -376,10 +367,9 @@ upgt_attach(device_t dev)
 
 	return (0);
 
-fail5:	if_free(ifp);
-fail4:	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
-fail3:	upgt_free_rx(sc);
-fail2:	upgt_free_tx(sc);
+fail4:	upgt_free_rx(sc);
+fail3:	upgt_free_tx(sc);
+fail2:	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
 fail1:	mtx_destroy(&sc->sc_mtx);
 
 	return (error);
@@ -388,30 +378,13 @@ fail1:	mtx_destroy(&sc->sc_mtx);
 static void
 upgt_txeof(struct usb_xfer *xfer, struct upgt_data *data)
 {
-	struct upgt_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct mbuf *m;
 
-	UPGT_ASSERT_LOCKED(sc);
-
-	/*
-	 * Do any tx complete callback.  Note this must be done before releasing
-	 * the node reference.
-	 */
 	if (data->m) {
-		m = data->m;
-		if (m->m_flags & M_TXCB) {
-			/* XXX status? */
-			ieee80211_process_callback(data->ni, m, 0);
-		}
-		m_freem(m);
+		/* XXX status? */
+		ieee80211_tx_complete(data->ni, data->m, 0);
 		data->m = NULL;
-	}
-	if (data->ni) {
-		ieee80211_free_node(data->ni);
 		data->ni = NULL;
 	}
-	ifp->if_opackets++;
 }
 
 static void
@@ -423,14 +396,14 @@ upgt_get_stats(struct upgt_softc *sc)
 
 	data_cmd = upgt_getbuf(sc);
 	if (data_cmd == NULL) {
-		device_printf(sc->sc_dev, "%s: out of buffer.\n", __func__);
+		device_printf(sc->sc_dev, "%s: out of buffers.\n", __func__);
 		return;
 	}
 
 	/*
 	 * Transmit the URB containing the CMD data.
 	 */
-	bzero(data_cmd->buf, MCLBYTES);
+	memset(data_cmd->buf, 0, MCLBYTES);
 
 	mem = (struct upgt_lmac_mem *)data_cmd->buf;
 	mem->addr = htole32(sc->sc_memaddr_frame_start +
@@ -455,70 +428,43 @@ upgt_get_stats(struct upgt_softc *sc)
 	upgt_bulk_tx(sc, data_cmd);
 }
 
-static int
-upgt_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
-{
-	struct upgt_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0;
-
-	switch (cmd) {
-	case SIOCSIFFLAGS:
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				if ((ifp->if_flags ^ sc->sc_if_flags) &
-				    (IFF_ALLMULTI | IFF_PROMISC))
-					upgt_set_multi(sc);
-			} else {
-				upgt_init(sc);
-				startall = 1;
-			}
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				upgt_stop(sc);
-		}
-		sc->sc_if_flags = ifp->if_flags;
-		if (startall)
-			ieee80211_start_all(ic);
-		break;
-	case SIOCGIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
-		break;
-	case SIOCGIFADDR:
-		error = ether_ioctl(ifp, cmd, data);
-		break;
-	default:
-		error = EINVAL;
-		break;
-	}
-	return error;
-}
-
 static void
-upgt_stop_locked(struct upgt_softc *sc)
+upgt_parent(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	struct upgt_softc *sc = ic->ic_softc;
+	int startall = 0;
 
-	UPGT_ASSERT_LOCKED(sc);
-
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		upgt_set_macfilter(sc, IEEE80211_S_INIT);
-	upgt_abort_xfers_locked(sc);
+	UPGT_LOCK(sc);
+	if (sc->sc_flags & UPGT_FLAG_DETACHED) {
+		UPGT_UNLOCK(sc);
+		return;
+	}
+	if (ic->ic_nrunning > 0) {
+		if (sc->sc_flags & UPGT_FLAG_INITDONE) {
+			if (ic->ic_allmulti > 0 || ic->ic_promisc > 0)
+				upgt_set_multi(sc);
+		} else {
+			upgt_init(sc);
+			startall = 1;
+		}
+	} else if (sc->sc_flags & UPGT_FLAG_INITDONE)
+		upgt_stop(sc);
+	UPGT_UNLOCK(sc);
+	if (startall)
+		ieee80211_start_all(ic);
 }
 
 static void
 upgt_stop(struct upgt_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 
-	UPGT_LOCK(sc);
-	upgt_stop_locked(sc);
-	UPGT_UNLOCK(sc);
+	UPGT_ASSERT_LOCKED(sc);
 
+	if (sc->sc_flags & UPGT_FLAG_INITDONE)
+		upgt_set_macfilter(sc, IEEE80211_S_INIT);
+	upgt_abort_xfers_locked(sc);
 	/* device down */
 	sc->sc_tx_timer = 0;
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->sc_flags &= ~UPGT_FLAG_INITDONE;
 }
 
@@ -538,7 +484,7 @@ upgt_set_led(struct upgt_softc *sc, int action)
 	/*
 	 * Transmit the URB containing the CMD data.
 	 */
-	bzero(data_cmd->buf, MCLBYTES);
+	memset(data_cmd->buf, 0, MCLBYTES);
 
 	mem = (struct upgt_lmac_mem *)data_cmd->buf;
 	mem->addr = htole32(sc->sc_memaddr_frame_start +
@@ -610,36 +556,18 @@ upgt_set_led_blink(void *arg)
 }
 
 static void
-upgt_init(void *priv)
+upgt_init(struct upgt_softc *sc)
 {
-	struct upgt_softc *sc = priv;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-
-	UPGT_LOCK(sc);
-	upgt_init_locked(sc);
-	UPGT_UNLOCK(sc);
-
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		ieee80211_start_all(ic);		/* start all vap's */
-}
-
-static void
-upgt_init_locked(struct upgt_softc *sc)
-{
-	struct ifnet *ifp = sc->sc_ifp;
 
 	UPGT_ASSERT_LOCKED(sc);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		upgt_stop_locked(sc);
+	if (sc->sc_flags & UPGT_FLAG_INITDONE)
+		upgt_stop(sc);
 
 	usbd_transfer_start(sc->sc_xfer[UPGT_BULK_RX]);
 
 	(void)upgt_set_macfilter(sc, IEEE80211_S_SCAN);
 
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	sc->sc_flags |= UPGT_FLAG_INITDONE;
 
 	callout_reset(&sc->sc_watchdog_ch, hz, upgt_watchdog, sc);
@@ -648,14 +576,12 @@ upgt_init_locked(struct upgt_softc *sc)
 static int
 upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	struct ieee80211_node *ni = vap->iv_bss;
+	struct ieee80211_node *ni;
 	struct upgt_data *data_cmd;
 	struct upgt_lmac_mem *mem;
 	struct upgt_lmac_filter *filter;
-	uint8_t broadcast[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	UPGT_ASSERT_LOCKED(sc);
 
@@ -668,7 +594,7 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 	/*
 	 * Transmit the URB containing the CMD data.
 	 */
-	bzero(data_cmd->buf, MCLBYTES);
+	memset(data_cmd->buf, 0, MCLBYTES);
 
 	mem = (struct upgt_lmac_mem *)data_cmd->buf;
 	mem->addr = htole32(sc->sc_memaddr_frame_start +
@@ -695,10 +621,11 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 	case IEEE80211_S_SCAN:
 		DPRINTF(sc, UPGT_DEBUG_STATE,
 		    "set MAC filter to SCAN (bssid %s)\n",
-		    ether_sprintf(broadcast));
+		    ether_sprintf(ieee80211broadcastaddr));
 		filter->type = htole16(UPGT_FILTER_TYPE_NONE);
-		IEEE80211_ADDR_COPY(filter->dst, sc->sc_myaddr);
-		IEEE80211_ADDR_COPY(filter->src, broadcast);
+		IEEE80211_ADDR_COPY(filter->dst,
+		    vap ? vap->iv_myaddr : ic->ic_macaddr);
+		IEEE80211_ADDR_COPY(filter->src, ieee80211broadcastaddr);
 		filter->unknown1 = htole16(UPGT_FILTER_UNKNOWN1);
 		filter->rxaddr = htole32(sc->sc_memaddr_rx_start);
 		filter->unknown2 = htole16(UPGT_FILTER_UNKNOWN2);
@@ -706,10 +633,12 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 		filter->unknown3 = htole16(UPGT_FILTER_UNKNOWN3);
 		break;
 	case IEEE80211_S_RUN:
+		ni = ieee80211_ref_node(vap->iv_bss);
 		/* XXX monitor mode isn't tested yet.  */
 		if (vap->iv_opmode == IEEE80211_M_MONITOR) {
 			filter->type = htole16(UPGT_FILTER_TYPE_MONITOR);
-			IEEE80211_ADDR_COPY(filter->dst, sc->sc_myaddr);
+			IEEE80211_ADDR_COPY(filter->dst,
+			    vap ? vap->iv_myaddr : ic->ic_macaddr);
 			IEEE80211_ADDR_COPY(filter->src, ni->ni_bssid);
 			filter->unknown1 = htole16(UPGT_FILTER_MONITOR_UNKNOWN1);
 			filter->rxaddr = htole32(sc->sc_memaddr_rx_start);
@@ -721,7 +650,8 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 			    "set MAC filter to RUN (bssid %s)\n",
 			    ether_sprintf(ni->ni_bssid));
 			filter->type = htole16(UPGT_FILTER_TYPE_STA);
-			IEEE80211_ADDR_COPY(filter->dst, sc->sc_myaddr);
+			IEEE80211_ADDR_COPY(filter->dst,
+			    vap ? vap->iv_myaddr : ic->ic_macaddr);
 			IEEE80211_ADDR_COPY(filter->src, ni->ni_bssid);
 			filter->unknown1 = htole16(UPGT_FILTER_UNKNOWN1);
 			filter->rxaddr = htole32(sc->sc_memaddr_rx_start);
@@ -729,10 +659,11 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 			filter->rxhw = htole32(sc->sc_eeprom_hwrx);
 			filter->unknown3 = htole16(UPGT_FILTER_UNKNOWN3);
 		}
+		ieee80211_free_node(ni);
 		break;
 	default:
 		device_printf(sc->sc_dev,
-		    "MAC filter does not know that state!\n");
+		    "MAC filter does not know that state\n");
 		break;
 	}
 
@@ -749,8 +680,7 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 static void
 upgt_setup_rates(struct ieee80211vap *vap, struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct upgt_softc *sc = ifp->if_softc;
+	struct upgt_softc *sc = ic->ic_softc;
 	const struct ieee80211_txparam *tp;
 
 	/*
@@ -781,11 +711,11 @@ upgt_setup_rates(struct ieee80211vap *vap, struct ieee80211com *ic)
 		 * will pickup a rate.
 		 */
 		if (ic->ic_curmode == IEEE80211_MODE_11B)
-			bcopy(rateset_auto_11b, sc->sc_cur_rateset,
+			memcpy(sc->sc_cur_rateset, rateset_auto_11b,
 			    sizeof(sc->sc_cur_rateset));
 		if (ic->ic_curmode == IEEE80211_MODE_11G ||
 		    ic->ic_curmode == IEEE80211_MODE_AUTO)
-			bcopy(rateset_auto_11g, sc->sc_cur_rateset,
+			memcpy(sc->sc_cur_rateset, rateset_auto_11g,
 			    sizeof(sc->sc_cur_rateset));
 	} else {
 		/* set a fixed rate */
@@ -797,39 +727,48 @@ upgt_setup_rates(struct ieee80211vap *vap, struct ieee80211com *ic)
 static void
 upgt_set_multi(void *arg)
 {
-	struct upgt_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
 
-	if (!(ifp->if_flags & IFF_UP))
-		return;
+	/* XXX don't know how to set a device.  Lack of docs. */
+}
 
-	/*
-	 * XXX don't know how to set a device.  Lack of docs.  Just try to set
-	 * IFF_ALLMULTI flag here.
-	 */
-	ifp->if_flags |= IFF_ALLMULTI;
+static int
+upgt_transmit(struct ieee80211com *ic, struct mbuf *m)   
+{
+	struct upgt_softc *sc = ic->ic_softc;
+	int error;
+
+	UPGT_LOCK(sc);
+	if ((sc->sc_flags & UPGT_FLAG_INITDONE) == 0) {
+		UPGT_UNLOCK(sc);
+		return (ENXIO);
+	}
+	error = mbufq_enqueue(&sc->sc_snd, m);
+	if (error) {
+		UPGT_UNLOCK(sc);
+		return (error);
+	}
+	upgt_start(sc);
+	UPGT_UNLOCK(sc);
+
+	return (0);
 }
 
 static void
-upgt_start(struct ifnet *ifp)
+upgt_start(struct upgt_softc *sc)
 {
-	struct upgt_softc *sc = ifp->if_softc;
 	struct upgt_data *data_tx;
 	struct ieee80211_node *ni;
 	struct mbuf *m;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	UPGT_ASSERT_LOCKED(sc);
+
+	if ((sc->sc_flags & UPGT_FLAG_INITDONE) == 0)
 		return;
 
-	UPGT_LOCK(sc);
-	for (;;) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
-			break;
-
+	while ((m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
 		data_tx = upgt_gettxbuf(sc);
 		if (data_tx == NULL) {
-			IFQ_DRV_PREPEND(&ifp->if_snd, m);
+			mbufq_prepend(&sc->sc_snd, m);
 			break;
 		}
 
@@ -837,15 +776,15 @@ upgt_start(struct ifnet *ifp)
 		m->m_pkthdr.rcvif = NULL;
 
 		if (upgt_tx_start(sc, m, ni, data_tx) != 0) {
+			if_inc_counter(ni->ni_vap->iv_ifp,
+			    IFCOUNTER_OERRORS, 1);
 			STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, data_tx, next);
 			UPGT_STAT_INC(sc, st_tx_inactive);
 			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
 			continue;
 		}
 		sc->sc_tx_timer = 5;
 	}
-	UPGT_UNLOCK(sc);
 }
 
 static int
@@ -853,21 +792,19 @@ upgt_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct upgt_softc *sc = ifp->if_softc;
+	struct upgt_softc *sc = ic->ic_softc;
 	struct upgt_data *data_tx = NULL;
 
+	UPGT_LOCK(sc);
 	/* prevent management frames from being sent if we're not ready */
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if (!(sc->sc_flags & UPGT_FLAG_INITDONE)) {
 		m_freem(m);
-		ieee80211_free_node(ni);
+		UPGT_UNLOCK(sc);
 		return ENETDOWN;
 	}
 
-	UPGT_LOCK(sc);
 	data_tx = upgt_gettxbuf(sc);
 	if (data_tx == NULL) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		UPGT_UNLOCK(sc);
 		return (ENOBUFS);
@@ -876,8 +813,6 @@ upgt_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (upgt_tx_start(sc, m, ni, data_tx) != 0) {
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, data_tx, next);
 		UPGT_STAT_INC(sc, st_tx_inactive);
-		ieee80211_free_node(ni);
-		ifp->if_oerrors++;
 		UPGT_UNLOCK(sc);
 		return (EIO);
 	}
@@ -891,13 +826,13 @@ static void
 upgt_watchdog(void *arg)
 {
 	struct upgt_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
 			device_printf(sc->sc_dev, "watchdog timeout\n");
-			/* upgt_init(ifp); XXX needs a process context ? */
-			ifp->if_oerrors++;
+			/* upgt_init(sc); XXX needs a process context ? */
+			counter_u64_add(ic->ic_oerrors, 1);
 			return;
 		}
 		callout_reset(&sc->sc_watchdog_ch, hz, upgt_watchdog, sc);
@@ -934,7 +869,7 @@ upgt_scan_end(struct ieee80211com *ic)
 static void
 upgt_set_channel(struct ieee80211com *ic)
 {
-	struct upgt_softc *sc = ic->ic_ifp->if_softc;
+	struct upgt_softc *sc = ic->ic_softc;
 
 	UPGT_LOCK(sc);
 	upgt_set_chan(sc, ic->ic_curchan);
@@ -944,8 +879,7 @@ upgt_set_channel(struct ieee80211com *ic)
 static void
 upgt_set_chan(struct upgt_softc *sc, struct ieee80211_channel *c)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct upgt_data *data_cmd;
 	struct upgt_lmac_mem *mem;
 	struct upgt_lmac_channel *chan;
@@ -971,7 +905,7 @@ upgt_set_chan(struct upgt_softc *sc, struct ieee80211_channel *c)
 	/*
 	 * Transmit the URB containing the CMD data.
 	 */
-	bzero(data_cmd->buf, MCLBYTES);
+	memset(data_cmd->buf, 0, MCLBYTES);
 
 	mem = (struct upgt_lmac_mem *)data_cmd->buf;
 	mem->addr = htole32(sc->sc_memaddr_frame_start +
@@ -994,11 +928,11 @@ upgt_set_chan(struct upgt_softc *sc, struct ieee80211_channel *c)
 	chan->settings = sc->sc_eeprom_freq6_settings;
 	chan->unknown3 = UPGT_CHANNEL_UNKNOWN3;
 
-	bcopy(&sc->sc_eeprom_freq3[channel].data, chan->freq3_1,
+	memcpy(chan->freq3_1, &sc->sc_eeprom_freq3[channel].data,
 	    sizeof(chan->freq3_1));
-	bcopy(&sc->sc_eeprom_freq4[channel], chan->freq4,
+	memcpy(chan->freq4, &sc->sc_eeprom_freq4[channel],
 	    sizeof(sc->sc_eeprom_freq4[channel]));
-	bcopy(&sc->sc_eeprom_freq3[channel].data, chan->freq3_2,
+	memcpy(chan->freq3_2, &sc->sc_eeprom_freq3[channel].data,
 	    sizeof(chan->freq3_2));
 
 	data_cmd->buflen = sizeof(*mem) + sizeof(*chan);
@@ -1010,24 +944,26 @@ upgt_set_chan(struct upgt_softc *sc, struct ieee80211_channel *c)
 }
 
 static struct ieee80211vap *
-upgt_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+upgt_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct upgt_vap *uvp;
 	struct ieee80211vap *vap;
 
 	if (!TAILQ_EMPTY(&ic->ic_vaps))		/* only one at a time */
 		return NULL;
-	uvp = (struct upgt_vap *) malloc(sizeof(struct upgt_vap),
-	    M_80211_VAP, M_NOWAIT | M_ZERO);
-	if (uvp == NULL)
-		return NULL;
+	uvp = malloc(sizeof(struct upgt_vap), M_80211_VAP, M_WAITOK | M_ZERO);
 	vap = &uvp->vap;
 	/* enable s/w bmiss handling for sta mode */
-	ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
+
+	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
+	    flags | IEEE80211_CLONE_NOBEACONS, bssid) != 0) {
+		/* out of memory */
+		free(uvp, M_80211_VAP);
+		return (NULL);
+	}
 
 	/* override state transition machine */
 	uvp->newstate = vap->iv_newstate;
@@ -1038,7 +974,7 @@ upgt_vap_create(struct ieee80211com *ic,
 
 	/* complete setup */
 	ieee80211_vap_attach(vap, ieee80211_media_change,
-	    ieee80211_media_status);
+	    ieee80211_media_status, mac);
 	ic->ic_opmode = opmode;
 	return vap;
 }
@@ -1048,7 +984,7 @@ upgt_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct upgt_vap *uvp = UPGT_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
-	struct upgt_softc *sc = ic->ic_ifp->if_softc;
+	struct upgt_softc *sc = ic->ic_softc;
 
 	/* do it in a process context */
 	sc->sc_state = nstate;
@@ -1094,9 +1030,9 @@ upgt_vap_delete(struct ieee80211vap *vap)
 }
 
 static void
-upgt_update_mcast(struct ifnet *ifp)
+upgt_update_mcast(struct ieee80211com *ic)
 {
-	struct upgt_softc *sc = ifp->if_softc;
+	struct upgt_softc *sc = ic->ic_softc;
 
 	upgt_set_multi(sc);
 }
@@ -1104,6 +1040,7 @@ upgt_update_mcast(struct ifnet *ifp)
 static int
 upgt_eeprom_parse(struct upgt_softc *sc)
 {
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct upgt_eeprom_header *eeprom_header;
 	struct upgt_eeprom_option *eeprom_option;
 	uint16_t option_len;
@@ -1118,11 +1055,22 @@ upgt_eeprom_parse(struct upgt_softc *sc)
 	    (sizeof(struct upgt_eeprom_header) + preamble_len));
 
 	while (!option_end) {
+
+		/* sanity check */
+		if (eeprom_option >= (struct upgt_eeprom_option *)
+		    (sc->sc_eeprom + UPGT_EEPROM_SIZE)) {
+			return (EINVAL);
+		}
+
 		/* the eeprom option length is stored in words */
 		option_len =
 		    (le16toh(eeprom_option->len) - 1) * sizeof(uint16_t);
 		option_type =
 		    le16toh(eeprom_option->type);
+
+		/* sanity check */
+		if (option_len == 0 || option_len >= UPGT_EEPROM_SIZE)
+			return (EINVAL);
 
 		switch (option_type) {
 		case UPGT_EEPROM_TYPE_NAME:
@@ -1137,7 +1085,8 @@ upgt_eeprom_parse(struct upgt_softc *sc)
 			DPRINTF(sc, UPGT_DEBUG_FW,
 			    "EEPROM mac len=%d\n", option_len);
 
-			IEEE80211_ADDR_COPY(sc->sc_myaddr, eeprom_option->data);
+			IEEE80211_ADDR_COPY(ic->ic_macaddr,
+			    eeprom_option->data);
 			break;
 		case UPGT_EEPROM_TYPE_HWRX:
 			DPRINTF(sc, UPGT_DEBUG_FW,
@@ -1181,7 +1130,7 @@ upgt_eeprom_parse(struct upgt_softc *sc)
 			break;
 		case UPGT_EEPROM_TYPE_OFF:
 			DPRINTF(sc, UPGT_DEBUG_FW,
-			    "%s: EEPROM off without end option!\n", __func__);
+			    "%s: EEPROM off without end option\n", __func__);
 			return (EIO);
 		default:
 			DPRINTF(sc, UPGT_DEBUG_FW,
@@ -1194,7 +1143,6 @@ upgt_eeprom_parse(struct upgt_softc *sc)
 		eeprom_option = (struct upgt_eeprom_option *)
 		    (eeprom_option->data + option_len);
 	}
-
 	return (0);
 }
 
@@ -1203,7 +1151,9 @@ upgt_eeprom_parse_freq3(struct upgt_softc *sc, uint8_t *data, int len)
 {
 	struct upgt_eeprom_freq3_header *freq3_header;
 	struct upgt_lmac_freq3 *freq3;
-	int i, elements, flags;
+	int i;
+	int elements;
+	int flags;
 	unsigned channel;
 
 	freq3_header = (struct upgt_eeprom_freq3_header *)data;
@@ -1215,9 +1165,12 @@ upgt_eeprom_parse_freq3(struct upgt_softc *sc, uint8_t *data, int len)
 	DPRINTF(sc, UPGT_DEBUG_FW, "flags=0x%02x elements=%d\n",
 	    flags, elements);
 
+	if (elements >= (int)(UPGT_EEPROM_SIZE / sizeof(freq3[0])))
+		return;
+
 	for (i = 0; i < elements; i++) {
 		channel = ieee80211_mhz2ieee(le16toh(freq3[i].freq), 0);
-		if (!(channel >= 0 && channel < IEEE80211_CHAN_MAX))
+		if (channel >= IEEE80211_CHAN_MAX)
 			continue;
 
 		sc->sc_eeprom_freq3[channel] = freq3[i];
@@ -1233,7 +1186,11 @@ upgt_eeprom_parse_freq4(struct upgt_softc *sc, uint8_t *data, int len)
 	struct upgt_eeprom_freq4_header *freq4_header;
 	struct upgt_eeprom_freq4_1 *freq4_1;
 	struct upgt_eeprom_freq4_2 *freq4_2;
-	int i, j, elements, settings, flags;
+	int i;
+	int j;
+	int elements;
+	int settings;
+	int flags;
 	unsigned channel;
 
 	freq4_header = (struct upgt_eeprom_freq4_header *)data;
@@ -1248,9 +1205,12 @@ upgt_eeprom_parse_freq4(struct upgt_softc *sc, uint8_t *data, int len)
 	DPRINTF(sc, UPGT_DEBUG_FW, "flags=0x%02x elements=%d settings=%d\n",
 	    flags, elements, settings);
 
+	if (elements >= (int)(UPGT_EEPROM_SIZE / sizeof(freq4_1[0])))
+		return;
+
 	for (i = 0; i < elements; i++) {
 		channel = ieee80211_mhz2ieee(le16toh(freq4_1[i].freq), 0);
-		if (!(channel >= 0 && channel < IEEE80211_CHAN_MAX))
+		if (channel >= IEEE80211_CHAN_MAX)
 			continue;
 
 		freq4_2 = (struct upgt_eeprom_freq4_2 *)freq4_1[i].data;
@@ -1268,7 +1228,8 @@ void
 upgt_eeprom_parse_freq6(struct upgt_softc *sc, uint8_t *data, int len)
 {
 	struct upgt_lmac_freq6 *freq6;
-	int i, elements;
+	int i;
+	int elements;
 	unsigned channel;
 
 	freq6 = (struct upgt_lmac_freq6 *)data;
@@ -1276,9 +1237,12 @@ upgt_eeprom_parse_freq6(struct upgt_softc *sc, uint8_t *data, int len)
 
 	DPRINTF(sc, UPGT_DEBUG_FW, "elements=%d\n", elements);
 
+	if (elements >= (int)(UPGT_EEPROM_SIZE / sizeof(freq6[0])))
+		return;
+
 	for (i = 0; i < elements; i++) {
 		channel = ieee80211_mhz2ieee(le16toh(freq6[i].freq), 0);
-		if (!(channel >= 0 && channel < IEEE80211_CHAN_MAX))
+		if (channel >= IEEE80211_CHAN_MAX)
 			continue;
 
 		sc->sc_eeprom_freq6[channel] = freq6[i];
@@ -1327,7 +1291,7 @@ upgt_eeprom_read(struct upgt_softc *sc)
 		/*
 		 * Transmit the URB containing the CMD data.
 		 */
-		bzero(data_cmd->buf, MCLBYTES);
+		memset(data_cmd->buf, 0, MCLBYTES);
 
 		mem = (struct upgt_lmac_mem *)data_cmd->buf;
 		mem->addr = htole32(sc->sc_memaddr_frame_start +
@@ -1356,7 +1320,7 @@ upgt_eeprom_read(struct upgt_softc *sc)
 		error = mtx_sleep(sc, &sc->sc_mtx, 0, "eeprom_request", hz);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "timeout while waiting for EEPROM data!\n");
+			    "timeout while waiting for EEPROM data\n");
 			UPGT_UNLOCK(sc);
 			return (EIO);
 		}
@@ -1399,7 +1363,7 @@ upgt_rxeof(struct usb_xfer *xfer, struct upgt_data *data, int *rssi)
 		return (NULL);
 	}
 
-	if (actlen < UPGT_RX_MINSZ)
+	if (actlen < (int)UPGT_RX_MINSZ)
 		return (NULL);
 
 	/*
@@ -1419,8 +1383,9 @@ upgt_rxeof(struct usb_xfer *xfer, struct upgt_data *data, int *rssi)
 		    "received EEPROM block (offset=%d, len=%d)\n",
 		    eeprom_offset, eeprom_len);
 
-		bcopy(data->buf + sizeof(struct upgt_lmac_eeprom) + 4,
-			sc->sc_eeprom + eeprom_offset, eeprom_len);
+		memcpy(sc->sc_eeprom + eeprom_offset,
+		    data->buf + sizeof(struct upgt_lmac_eeprom) + 4,
+		    eeprom_len);
 
 		/* EEPROM data has arrived in time, wakeup.  */
 		wakeup(sc);
@@ -1456,7 +1421,7 @@ upgt_rxeof(struct usb_xfer *xfer, struct upgt_data *data, int *rssi)
 static uint32_t
 upgt_chksum_le(const uint32_t *buf, size_t size)
 {
-	int i;
+	size_t i;
 	uint32_t crc = 0;
 
 	for (i = 0; i < size; i += sizeof(uint32_t)) {
@@ -1470,8 +1435,7 @@ upgt_chksum_le(const uint32_t *buf, size_t size)
 static struct mbuf *
 upgt_rx(struct upgt_softc *sc, uint8_t *data, int pkglen, int *rssi)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct upgt_lmac_rx_desc *rxdesc;
 	struct mbuf *m;
 
@@ -1479,7 +1443,7 @@ upgt_rx(struct upgt_softc *sc, uint8_t *data, int pkglen, int *rssi)
 	 * don't pass packets to the ieee80211 framework if the driver isn't
 	 * RUNNING.
 	 */
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(sc->sc_flags & UPGT_FLAG_INITDONE))
 		return (NULL);
 
 	/* access RX packet descriptor */
@@ -1488,16 +1452,15 @@ upgt_rx(struct upgt_softc *sc, uint8_t *data, int pkglen, int *rssi)
 	/* create mbuf which is suitable for strict alignment archs */
 	KASSERT((pkglen + ETHER_ALIGN) < MCLBYTES,
 	    ("A current mbuf storage is small (%d)", pkglen + ETHER_ALIGN));
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
-		device_printf(sc->sc_dev, "could not create RX mbuf!\n");
+		device_printf(sc->sc_dev, "could not create RX mbuf\n");
 		return (NULL);
 	}
 	m_adj(m, ETHER_ALIGN);
-	bcopy(rxdesc->data, mtod(m, char *), pkglen);
+	memcpy(mtod(m, char *), rxdesc->data, pkglen);
 	/* trim FCS */
 	m->m_len = m->m_pkthdr.len = pkglen - IEEE80211_CRC_LEN;
-	m->m_pkthdr.rcvif = ifp;
 
 	if (ieee80211_radiotap_active(ic)) {
 		struct upgt_rx_radiotap_header *tap = &sc->sc_rxtap;
@@ -1506,7 +1469,6 @@ upgt_rx(struct upgt_softc *sc, uint8_t *data, int pkglen, int *rssi)
 		tap->wr_rate = upgt_rx_rate(sc, rxdesc->rate);
 		tap->wr_antsignal = rxdesc->rssi;
 	}
-	ifp->if_ipackets++;
 
 	DPRINTF(sc, UPGT_DEBUG_RX_PROC, "%s: RX done\n", __func__);
 	*rssi = rxdesc->rssi;
@@ -1516,8 +1478,7 @@ upgt_rx(struct upgt_softc *sc, uint8_t *data, int pkglen, int *rssi)
 static uint8_t
 upgt_rx_rate(struct upgt_softc *sc, const int rate)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	static const uint8_t cck_upgt2rate[4] = { 2, 4, 11, 22 };
 	static const uint8_t ofdm_upgt2rate[12] =
 	    { 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
@@ -1536,7 +1497,6 @@ upgt_rx_rate(struct upgt_softc *sc, const int rate)
 static void
 upgt_tx_done(struct upgt_softc *sc, uint8_t *data)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 	struct upgt_lmac_tx_done_desc *desc;
 	int i, freed = 0;
 
@@ -1552,7 +1512,6 @@ upgt_tx_done(struct upgt_softc *sc, uint8_t *data)
 			data_tx->ni = NULL;
 			data_tx->addr = 0;
 			data_tx->m = NULL;
-			data_tx->use = 0;
 
 			DPRINTF(sc, UPGT_DEBUG_TX_PROC,
 			    "TX done: memaddr=0x%08x, status=0x%04x, rssi=%d, ",
@@ -1566,10 +1525,9 @@ upgt_tx_done(struct upgt_softc *sc, uint8_t *data)
 	}
 
 	if (freed != 0) {
-		sc->sc_tx_timer = 0;
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		UPGT_UNLOCK(sc);
-		upgt_start(ifp);
+		sc->sc_tx_timer = 0;
+		upgt_start(sc);
 		UPGT_LOCK(sc);
 	}
 }
@@ -1587,7 +1545,7 @@ upgt_mem_free(struct upgt_softc *sc, uint32_t addr)
 	}
 
 	device_printf(sc->sc_dev,
-	    "could not free memory address 0x%08x!\n", addr);
+	    "could not free memory address 0x%08x\n", addr);
 }
 
 static int
@@ -1597,12 +1555,15 @@ upgt_fw_load(struct upgt_softc *sc)
 	struct upgt_data *data_cmd;
 	struct upgt_fw_x2_header *x2;
 	char start_fwload_cmd[] = { 0x3c, 0x0d };
-	int error = 0, offset, bsize, n;
+	int error = 0;
+	size_t offset;
+	int bsize;
+	int n;
 	uint32_t crc32;
 
 	fw = firmware_get(upgt_fwname);
 	if (fw == NULL) {
-		device_printf(sc->sc_dev, "could not read microcode %s!\n",
+		device_printf(sc->sc_dev, "could not read microcode %s\n",
 		    upgt_fwname);
 		return (EIO);
 	}
@@ -1616,7 +1577,7 @@ upgt_fw_load(struct upgt_softc *sc)
 		goto fail;
 	}
 	data_cmd->buflen = sizeof(start_fwload_cmd);
-	bcopy(start_fwload_cmd, data_cmd->buf, data_cmd->buflen);
+	memcpy(data_cmd->buf, start_fwload_cmd, data_cmd->buflen);
 	upgt_bulk_tx(sc, data_cmd);
 
 	/* send X2 header */
@@ -1627,7 +1588,7 @@ upgt_fw_load(struct upgt_softc *sc)
 	}
 	data_cmd->buflen = sizeof(struct upgt_fw_x2_header);
 	x2 = (struct upgt_fw_x2_header *)data_cmd->buf;
-	bcopy(UPGT_X2_SIGNATURE, x2->signature, UPGT_X2_SIGNATURE_SIZE);
+	memcpy(x2->signature, UPGT_X2_SIGNATURE, UPGT_X2_SIGNATURE_SIZE);
 	x2->startaddr = htole32(UPGT_MEMADDR_FIRMWARE_START);
 	x2->len = htole32(fw->datasize);
 	x2->crc = upgt_crc32_le((uint8_t *)data_cmd->buf +
@@ -1676,7 +1637,7 @@ upgt_fw_load(struct upgt_softc *sc)
 	usbd_transfer_start(sc->sc_xfer[UPGT_BULK_RX]);
 	error = mtx_sleep(sc, &sc->sc_mtx, 0, "upgtfw", 2 * hz);
 	if (error != 0) {
-		device_printf(sc->sc_dev, "firmware load failed!\n");
+		device_printf(sc->sc_dev, "firmware load failed\n");
 		error = EIO;
 	}
 
@@ -1778,11 +1739,13 @@ upgt_fw_verify(struct upgt_softc *sc)
 	const uint8_t *p;
 	const uint32_t *uc;
 	uint32_t bra_option_type, bra_option_len;
-	int offset, bra_end = 0, error = 0;
+	size_t offset;
+	int bra_end = 0;
+	int error = 0;
 
 	fw = firmware_get(upgt_fwname);
 	if (fw == NULL) {
-		device_printf(sc->sc_dev, "could not read microcode %s!\n",
+		device_printf(sc->sc_dev, "could not read microcode %s\n",
 		    upgt_fwname);
 		return EIO;
 	}
@@ -1802,7 +1765,7 @@ upgt_fw_verify(struct upgt_softc *sc)
 	}
 	if (offset == fw->datasize) { 
 		device_printf(sc->sc_dev,
-		    "firmware Boot Record Area not found!\n");
+		    "firmware Boot Record Area not found\n");
 		error = EIO;
 		goto fail;
 	}
@@ -1827,7 +1790,7 @@ upgt_fw_verify(struct upgt_softc *sc)
 
 			if (bra_option_len != UPGT_BRA_FWTYPE_SIZE) {
 				device_printf(sc->sc_dev,
-				    "wrong UPGT_BRA_TYPE_FW len!\n");
+				    "wrong UPGT_BRA_TYPE_FW len\n");
 				error = EIO;
 				goto fail;
 			}
@@ -1842,7 +1805,7 @@ upgt_fw_verify(struct upgt_softc *sc)
 				break;
 			}
 			device_printf(sc->sc_dev,
-			    "unsupported firmware type!\n");
+			    "unsupported firmware type\n");
 			error = EIO;
 			goto fail;
 		case UPGT_BRA_TYPE_VERSION:
@@ -1921,7 +1884,7 @@ upgt_device_reset(struct upgt_softc *sc)
 		UPGT_UNLOCK(sc);
 		return (ENOBUFS);
 	}
-	bcopy(init_cmd, data->buf, sizeof(init_cmd));
+	memcpy(data->buf, init_cmd, sizeof(init_cmd));
 	data->buflen = sizeof(init_cmd);
 	upgt_bulk_tx(sc, data);
 	usb_pause_mtx(&sc->sc_mtx, 100);
@@ -1942,13 +1905,7 @@ upgt_alloc_tx(struct upgt_softc *sc)
 
 	for (i = 0; i < UPGT_TX_MAXCOUNT; i++) {
 		struct upgt_data *data = &sc->sc_tx_data[i];
-
-		data->buf = malloc(MCLBYTES, M_USBDEV, M_NOWAIT | M_ZERO);
-		if (data->buf == NULL) {
-			device_printf(sc->sc_dev,
-			    "could not allocate TX buffer!\n");
-			return (ENOMEM);
-		}
+		data->buf = ((uint8_t *)sc->sc_tx_dma_buf) + (i * MCLBYTES);
 		STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, data, next);
 		UPGT_STAT_INC(sc, st_tx_inactive);
 	}
@@ -1966,16 +1923,9 @@ upgt_alloc_rx(struct upgt_softc *sc)
 
 	for (i = 0; i < UPGT_RX_MAXCOUNT; i++) {
 		struct upgt_data *data = &sc->sc_rx_data[i];
-
-		data->buf = malloc(MCLBYTES, M_USBDEV, M_NOWAIT | M_ZERO);
-		if (data->buf == NULL) {
-			device_printf(sc->sc_dev,
-			    "could not allocate RX buffer!\n");
-			return (ENOMEM);
-		}
+		data->buf = ((uint8_t *)sc->sc_rx_dma_buf) + (i * MCLBYTES);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_inactive, data, next);
 	}
-
 	return (0);
 }
 
@@ -1983,23 +1933,44 @@ static int
 upgt_detach(device_t dev)
 {
 	struct upgt_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
+	unsigned int x;
 
-	if (!device_is_attached(dev))
-		return 0;
+	/*
+	 * Prevent further allocations from RX/TX/CMD
+	 * data lists and ioctls
+	 */
+	UPGT_LOCK(sc);
+	sc->sc_flags |= UPGT_FLAG_DETACHED;
+
+	STAILQ_INIT(&sc->sc_tx_active);
+	STAILQ_INIT(&sc->sc_tx_inactive);
+	STAILQ_INIT(&sc->sc_tx_pending);
+
+	STAILQ_INIT(&sc->sc_rx_active);
+	STAILQ_INIT(&sc->sc_rx_inactive);
 
 	upgt_stop(sc);
+	UPGT_UNLOCK(sc);
 
 	callout_drain(&sc->sc_led_ch);
 	callout_drain(&sc->sc_watchdog_ch);
 
-	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
-	ieee80211_ifdetach(ic);
+	/* drain USB transfers */
+	for (x = 0; x != UPGT_N_XFERS; x++)
+		usbd_transfer_drain(sc->sc_xfer[x]);
+
+	/* free data buffers */
+	UPGT_LOCK(sc);
 	upgt_free_rx(sc);
 	upgt_free_tx(sc);
+	UPGT_UNLOCK(sc);
 
-	if_free(ifp);
+	/* free USB transfers and some data buffers */
+	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
+
+	ieee80211_ifdetach(ic);
+	mbufq_drain(&sc->sc_snd);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -2013,7 +1984,7 @@ upgt_free_rx(struct upgt_softc *sc)
 	for (i = 0; i < UPGT_RX_MAXCOUNT; i++) {
 		struct upgt_data *data = &sc->sc_rx_data[i];
 
-		free(data->buf, M_USBDEV);
+		data->buf = NULL;
 		data->ni = NULL;
 	}
 }
@@ -2026,7 +1997,10 @@ upgt_free_tx(struct upgt_softc *sc)
 	for (i = 0; i < UPGT_TX_MAXCOUNT; i++) {
 		struct upgt_data *data = &sc->sc_tx_data[i];
 
-		free(data->buf, M_USBDEV);
+		if (data->ni != NULL)
+			ieee80211_free_node(data->ni);
+
+		data->buf = NULL;
 		data->ni = NULL;
 	}
 }
@@ -2104,12 +2078,8 @@ upgt_getbuf(struct upgt_softc *sc)
 	UPGT_ASSERT_LOCKED(sc);
 
 	bf = _upgt_getbuf(sc);
-	if (bf == NULL) {
-		struct ifnet *ifp = sc->sc_ifp;
-
+	if (bf == NULL)
 		DPRINTF(sc, UPGT_DEBUG_XMIT, "%s: stop queue\n", __func__);
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	}
 
 	return (bf);
 }
@@ -2127,14 +2097,10 @@ upgt_gettxbuf(struct upgt_softc *sc)
 
 	bf->addr = upgt_mem_alloc(sc);
 	if (bf->addr == 0) {
-		struct ifnet *ifp = sc->sc_ifp;
-
 		DPRINTF(sc, UPGT_DEBUG_XMIT, "%s: no free prism memory!\n",
 		    __func__);
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		UPGT_STAT_INC(sc, st_tx_inactive);
-		if (!(ifp->if_drv_flags & IFF_DRV_OACTIVE))
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		return (NULL);
 	}
 	return (bf);
@@ -2148,7 +2114,6 @@ upgt_tx_start(struct upgt_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	int error = 0, len;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k;
-	struct ifnet *ifp = sc->sc_ifp;
 	struct upgt_lmac_mem *mem;
 	struct upgt_lmac_tx_desc *txdesc;
 
@@ -2160,7 +2125,7 @@ upgt_tx_start(struct upgt_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	 * Software crypto.
 	 */
 	wh = mtod(m, struct ieee80211_frame *);
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m);
 		if (k == NULL) {
 			device_printf(sc->sc_dev,
@@ -2174,7 +2139,7 @@ upgt_tx_start(struct upgt_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	}
 
 	/* Transmit the URB containing the TX data.  */
-	bzero(data->buf, MCLBYTES);
+	memset(data->buf, 0, MCLBYTES);
 	mem = (struct upgt_lmac_mem *)data->buf;
 	mem->addr = htole32(data->addr);
 	txdesc = (struct upgt_lmac_tx_desc *)(mem + 1);
@@ -2188,7 +2153,7 @@ upgt_tx_start(struct upgt_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	} else {
 		/* data frames  */
 		txdesc->header1.flags = UPGT_H1_FLAGS_TX_DATA;
-		bcopy(sc->sc_cur_rateset, txdesc->rates, sizeof(txdesc->rates));
+		memcpy(txdesc->rates, sc->sc_cur_rateset, sizeof(txdesc->rates));
 	}
 	txdesc->header1.type = UPGT_H1_TYPE_TX_DATA;
 	txdesc->header1.len = htole16(m->m_pkthdr.len);
@@ -2231,7 +2196,8 @@ done:
 	 * will stall.  It's strange, but it works, so we keep reading
 	 * the statistics here.  *shrug*
 	 */
-	if (!(ifp->if_opackets % UPGT_TX_STAT_INTERVAL))
+	if (!(vap->iv_ifp->if_get_counter(vap->iv_ifp, IFCOUNTER_OPACKETS) %
+	    UPGT_TX_STAT_INTERVAL))
 		upgt_get_stats(sc);
 
 	return (error);
@@ -2241,8 +2207,7 @@ static void
 upgt_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct upgt_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL;
@@ -2268,8 +2233,7 @@ setup:
 			return;
 		STAILQ_REMOVE_HEAD(&sc->sc_rx_inactive, next);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_active, data, next);
-		usbd_xfer_set_frame_data(xfer, 0, data->buf,
-		    usbd_xfer_max_len(xfer));
+		usbd_xfer_set_frame_data(xfer, 0, data->buf, MCLBYTES);
 		usbd_transfer_submit(xfer);
 
 		/*
@@ -2292,6 +2256,7 @@ setup:
 			m = NULL;
 		}
 		UPGT_LOCK(sc);
+		upgt_start(sc);
 		break;
 	default:
 		/* needs it to the inactive queue due to a error.  */
@@ -2302,7 +2267,7 @@ setup:
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
-			ifp->if_ierrors++;
+			counter_u64_add(ic->ic_ierrors, 1);
 			goto setup;
 		}
 		break;
@@ -2313,7 +2278,6 @@ static void
 upgt_bulk_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct upgt_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = sc->sc_ifp;
 	struct upgt_data *data;
 
 	UPGT_ASSERT_LOCKED(sc);
@@ -2343,18 +2307,17 @@ setup:
 
 		usbd_xfer_set_frame_data(xfer, 0, data->buf, data->buflen);
 		usbd_transfer_submit(xfer);
-		UPGT_UNLOCK(sc);
-		upgt_start(ifp);
-		UPGT_LOCK(sc);
+		upgt_start(sc);
 		break;
 	default:
 		data = STAILQ_FIRST(&sc->sc_tx_active);
 		if (data == NULL)
 			goto setup;
 		if (data->ni != NULL) {
+			if_inc_counter(data->ni->ni_vap->iv_ifp,
+			    IFCOUNTER_OERRORS, 1);
 			ieee80211_free_node(data->ni);
 			data->ni = NULL;
-			ifp->if_oerrors++;
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
@@ -2369,14 +2332,13 @@ static device_method_t upgt_methods[] = {
         DEVMETHOD(device_probe, upgt_match),
         DEVMETHOD(device_attach, upgt_attach),
         DEVMETHOD(device_detach, upgt_detach),
-	
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t upgt_driver = {
-        "upgt",
-        upgt_methods,
-        sizeof(struct upgt_softc)
+	.name = "upgt",
+	.methods = upgt_methods,
+	.size = sizeof(struct upgt_softc)
 };
 
 static devclass_t upgt_devclass;
@@ -2386,3 +2348,4 @@ MODULE_VERSION(if_upgt, 1);
 MODULE_DEPEND(if_upgt, usb, 1, 1, 1);
 MODULE_DEPEND(if_upgt, wlan, 1, 1, 1);
 MODULE_DEPEND(if_upgt, upgtfw_fw, 1, 1, 1);
+USB_PNP_HOST_INFO(upgt_devs);

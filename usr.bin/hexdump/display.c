@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -224,7 +220,7 @@ bpad(PR *pr)
 	pr->cchar[0] = 's';
 	pr->cchar[1] = '\0';
 	for (p1 = pr->fmt; *p1 != '%'; ++p1);
-	for (p2 = ++p1; *p1 && index(spec, *p1); ++p1);
+	for (p2 = ++p1; *p1 && strchr(spec, *p1); ++p1);
 	while ((*p2++ = *p1++));
 }
 
@@ -378,13 +374,13 @@ doskip(const char *fname, int statok)
 	if (statok) {
 		if (fstat(fileno(stdin), &sb))
 			err(1, "%s", fname);
-		if (S_ISREG(sb.st_mode) && skip >= sb.st_size) {
+		if (S_ISREG(sb.st_mode) && skip > sb.st_size) {
 			address += sb.st_size;
 			skip -= sb.st_size;
 			return;
 		}
 	}
-	if (S_ISREG(sb.st_mode)) {
+	if (statok && S_ISREG(sb.st_mode)) {
 		if (fseeko(stdin, skip, SEEK_SET))
 			err(1, "%s", fname);
 		address += skip;

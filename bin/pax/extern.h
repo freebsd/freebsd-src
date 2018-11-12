@@ -186,7 +186,7 @@ void options(int, char **);
 OPLIST * opt_next(void);
 int opt_add(const char *);
 int bad_opt(void);
-char *chdname;
+extern char *chdname;
 
 /*
  * pat_rep.c
@@ -217,6 +217,7 @@ extern int vflag;
 extern int Dflag;
 extern int Hflag;
 extern int Lflag;
+extern int Oflag;
 extern int Xflag;
 extern int Yflag;
 extern int Zflag;
@@ -231,6 +232,7 @@ extern int exit_val;
 extern int docrc;
 extern char *dirptr;
 extern const char *argv0;
+extern sigset_t s_mask;
 extern FILE *listf;
 extern char *tempfile;
 extern char *tempbase;

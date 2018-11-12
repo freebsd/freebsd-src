@@ -96,7 +96,6 @@ calls apply to the changer.
 They are defined
 in the header file
 .In sys/chio.h .
-.Pp
 .Bl -tag -width CHIOEXCHANGE
 .It Dv CHIOMOVE
 .Pq Vt "struct changer_move"
@@ -188,7 +187,7 @@ u_int cp_ndrives;  /* number of drives */
 This call can be used by applications to query the dimensions of
 the jukebox before using the
 .Dv CHIGSTATUS
-ioctl to query the jukebox' status.
+ioctl to query the jukebox status.
 .It Dv CHIOIELEM
 Perform the
 .Sy INITIALIZE ELEMENT STATUS
@@ -231,7 +230,8 @@ base address and number of elements for which information is to be
 returned in the array of
 .Vt changer_element_status
 structures pointed to by the
-.Va cesr_element_status field .
+.Va cesr_element_status
+field.
 The application must allocate enough
 memory for
 .Va cesr_element_count
@@ -326,6 +326,7 @@ driver, it will produce both console error messages and failure return
 codes to the ioctls described here.
 .Sh SEE ALSO
 .Xr chio 1 ,
+.Xr cam 4 ,
 .Xr cd 4 ,
 .Xr da 4 ,
 .Xr sa 4
@@ -339,13 +340,13 @@ driver appeared in
 The
 .Nm
 driver was written by
-.An Jason R. Thorpe Aq thorpej@and.com
+.An Jason R. Thorpe Aq Mt thorpej@and.com
 for And Communications,
 .Pa http://www.and.com/ .
 It was added to the system by
-.An Stefan Grefen Aq grefen@goofy.zdv.uni-mainz.de
+.An Stefan Grefen Aq Mt grefen@goofy.zdv.uni-mainz.de
 who apparently had such a device.
 It was ported to CAM by
-.An Kenneth Merry Aq ken@FreeBSD.org .
+.An Kenneth Merry Aq Mt ken@FreeBSD.org .
 It was updated to support volume tags by
-.An Hans Huebner Aq hans@artcom.de .
+.An Hans Huebner Aq Mt hans@artcom.de .

@@ -39,10 +39,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/kernel.h>
 #include <sys/linker_set.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
+#include <sys/sdt.h>
 #include <sys/syscallsubr.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
@@ -50,11 +52,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <compat/linux/linux_util.h>
-#ifdef COMPAT_LINUX32
-#include <machine/../linux32/linux.h>
-#else
-#include <machine/../linux/linux.h>
-#endif
+
+MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
+MALLOC_DEFINE(M_EPOLL, "lepoll", "Linux events structures");
+MALLOC_DEFINE(M_FUTEX, "futex", "Linux futexes");
+MALLOC_DEFINE(M_FUTEX_WP, "futex wp", "Linux futex waiting proc");
 
 const char      linux_emul_path[] = "/compat/linux";
 
@@ -66,17 +68,15 @@ const char      linux_emul_path[] = "/compat/linux";
  * named file, i.e. we check if the directory it should be in exists.
  */
 int
-linux_emul_convpath(td, path, pathseg, pbuf, cflag, dfd)
-	struct thread	 *td;
-	const char	 *path;
-	enum uio_seg	  pathseg;
-	char		**pbuf;
-	int		  cflag;
-	int		  dfd;
+linux_emul_convpath(struct thread *td, const char *path, enum uio_seg pathseg,
+    char **pbuf, int cflag, int dfd)
 {
+	int retval;
 
-	return (kern_alternate_path(td, linux_emul_path, path, pathseg, pbuf,
-		cflag, dfd));
+	retval = kern_alternate_path(td, linux_emul_path, path, pathseg, pbuf,
+	    cflag, dfd);
+
+	return (retval);
 }
 
 void
@@ -120,11 +120,11 @@ linux_driver_get_name_dev(device_t dev)
 			return (de->entry.linux_driver_name);
 	}
 
-	return NULL;
+	return (NULL);
 }
 
 int
-linux_driver_get_major_minor(char *node, int *major, int *minor)
+linux_driver_get_major_minor(const char *node, int *major, int *minor)
 {
 	struct device_element *de;
 
@@ -143,18 +143,19 @@ linux_driver_get_major_minor(char *node, int *major, int *minor)
 		devno = strtoul(node + strlen("pts/"), NULL, 10);
 		*major = 136 + (devno / 256);
 		*minor = devno % 256;
-		return 0;
+
+		return (0);
 	}
 
 	TAILQ_FOREACH(de, &devices, list) {
 		if (strcmp(node, de->entry.bsd_device_name) == 0) {
 			*major = de->entry.linux_major;
 			*minor = de->entry.linux_minor;
-			return 0;
+			return (0);
 		}
 	}
 
-	return 1;
+	return (1);
 }
 
 char *
@@ -191,12 +192,13 @@ linux_get_char_devices()
 		}
 	}
 
-	return string;
+	return (string);
 }
 
 void
 linux_free_get_char_devices(char *string)
 {
+
 	free(string, M_LINUX);
 }
 
@@ -210,8 +212,7 @@ linux_device_register_handler(struct linux_device_handler *d)
 	if (d == NULL)
 		return (EINVAL);
 
-	de = malloc(sizeof(*de),
-	    M_LINUX, M_WAITOK);
+	de = malloc(sizeof(*de), M_LINUX, M_WAITOK);
 	if (d->linux_major < 0) {
 		d->linux_major = linux_major_starting++;
 	}
@@ -235,6 +236,7 @@ linux_device_unregister_handler(struct linux_device_handler *d)
 		if (bcmp(d, &de->entry, sizeof(*d)) == 0) {
 			TAILQ_REMOVE(&devices, de, list);
 			free(de, M_LINUX);
+
 			return (0);
 		}
 	}

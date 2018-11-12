@@ -271,8 +271,6 @@ sn_pccard_megahertz_activate(device_t dev)
 		sn_deactivate(dev);
 		return ENOMEM;
 	}
-	sc->bst = rman_get_bustag(sc->port_res);
-	sc->bsh = rman_get_bushandle(sc->port_res);
 	return 0;
 }
 
@@ -329,3 +327,4 @@ extern devclass_t sn_devclass;
 
 DRIVER_MODULE(sn, pccard, sn_pccard_driver, sn_devclass, 0, 0);
 MODULE_DEPEND(sn, ether, 1, 1, 1);
+PCCARD_PNP_INFO(sn_pccard_products);

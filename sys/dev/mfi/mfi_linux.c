@@ -29,11 +29,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/file.h>
 #include <sys/proc.h>
+#include <machine/bus.h>
 
 #if defined(__amd64__) /* Assume amd64 wants 32 bit Linux */
 #include <machine/../linux32/linux.h>
@@ -82,6 +84,7 @@ MODULE_DEPEND(mfi, linux, 1, 1, 1);
 static int
 mfi_linux_ioctl(struct thread *p, struct linux_ioctl_args *args)
 {
+	cap_rights_t rights;
 	struct file *fp;
 	int error;
 	u_long cmd = args->cmd;
@@ -95,7 +98,8 @@ mfi_linux_ioctl(struct thread *p, struct linux_ioctl_args *args)
 		break;
 	}
 
-	if ((error = fget(p, args->fd, &fp)) != 0)
+	error = fget(p, args->fd, cap_rights_init(&rights, CAP_IOCTL), &fp);
+	if (error != 0)
 		return (error);
 	error = fo_ioctl(fp, cmd, (caddr_t)args->arg, p->td_ucred, p);
 	fdrop(fp, p);

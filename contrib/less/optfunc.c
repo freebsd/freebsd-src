@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -44,6 +43,7 @@ extern char *prproto[];
 extern char *eqproto;
 extern char *hproto;
 extern char *wproto;
+extern char *every_first_cmd;
 extern IFILE curr_ifile;
 extern char version[];
 extern int jump_sline;
@@ -59,6 +59,7 @@ extern int logfile;
 #if TAGS
 public char *tagoption = NULL;
 extern char *tags;
+extern char ztags[];
 #endif
 #if MSDOS_COMPILER
 extern int nm_fg_color, nm_bg_color;
@@ -88,7 +89,7 @@ opt_o(type, s)
 	switch (type)
 	{
 	case INIT:
-		namelogfile = s;
+		namelogfile = save(s);
 		break;
 	case TOGGLE:
 		if (ch_getflags() & CH_CANSEEK)
@@ -102,6 +103,8 @@ opt_o(type, s)
 			return;
 		}
 		s = skipsp(s);
+		if (namelogfile != NULL)
+			free(namelogfile);
 		namelogfile = lglob(s);
 		use_logfile(namelogfile);
 		sync_logfile();
@@ -130,34 +133,6 @@ opt__O(type, s)
 	opt_o(type, s);
 }
 #endif
-
-/*
- * Handlers for -l option.
- */
-	public void
-opt_l(type, s)
-	int type;
-	char *s;
-{
-	int err;
-	int n;
-	char *t;
-	
-	switch (type)
-	{
-	case INIT:
-		t = s;
-		n = getnum(&t, "l", &err);
-		if (err || n <= 0)
-		{
-			error("Line number is required after -l", NULL_PARG);
-			return;
-		}
-		plusoption = TRUE;
-		ungetsc(s);
-		break;
-	}
-}
 
 /*
  * Handlers for -j option.
@@ -205,7 +180,7 @@ opt_j(type, s)
 		{
 
 			sprintf(buf, ".%06d", jump_sline_fraction);
-			len = strlen(buf);
+			len = (int) strlen(buf);
 			while (len > 2 && buf[len-1] == '0')
 				len--;
 			buf[len] = '\0';
@@ -270,7 +245,7 @@ opt_shift(type, s)
 		{
 
 			sprintf(buf, ".%06d", shift_count_fraction);
-			len = strlen(buf);
+			len = (int) strlen(buf);
 			while (len > 2 && buf[len-1] == '0')
 				len--;
 			buf[len] = '\0';
@@ -324,7 +299,7 @@ opt_t(type, s)
 	switch (type)
 	{
 	case INIT:
-		tagoption = s;
+		tagoption = save(s);
 		/* Do the rest in main() */
 		break;
 	case TOGGLE:
@@ -364,10 +339,12 @@ opt__T(type, s)
 	switch (type)
 	{
 	case INIT:
-		tags = s;
+		tags = save(s);
 		break;
 	case TOGGLE:
 		s = skipsp(s);
+		if (tags != NULL && tags != ztags)
+			free(tags);
 		tags = lglob(s);
 		break;
 	case QUERY:
@@ -390,18 +367,26 @@ opt_p(type, s)
 	{
 	case INIT:
 		/*
-		 * Unget a search command for the specified string.
-		 * {{ This won't work if the "/" command is
-		 *    changed or invalidated by a .lesskey file. }}
+		 * Unget a command for the specified string.
 		 */
-		plusoption = TRUE;
-		ungetsc(s);
-		/*
-		 * In "more" mode, the -p argument is a command,
-		 * not a search string, so we don't need a slash.
-		 */
-		if (!less_is_more)
+		if (less_is_more)
+		{
+			/*
+			 * In "more" mode, the -p argument is a command,
+			 * not a search string, so we don't need a slash.
+			 */
+			every_first_cmd = save(s);
+		} else
+		{
+			plusoption = TRUE;
+			ungetcc(CHAR_END_COMMAND);
+			ungetsc(s);
+			 /*
+			  * {{ This won't work if the "/" command is
+			  *    changed or invalidated by a .lesskey file. }}
+			  */
 			ungetsc("/");
+		}
 		break;
 	}
 }
@@ -509,7 +494,30 @@ opt__V(type, s)
 		any_display = 1;
 		putstr("less ");
 		putstr(version);
-		putstr("\nCopyright (C) 1984-2009 Mark Nudelman\n\n");
+		putstr(" (");
+#if HAVE_GNU_REGEX
+		putstr("GNU ");
+#endif
+#if HAVE_POSIX_REGCOMP
+		putstr("POSIX ");
+#endif
+#if HAVE_PCRE
+		putstr("PCRE ");
+#endif
+#if HAVE_RE_COMP
+		putstr("BSD ");
+#endif
+#if HAVE_REGCMP
+		putstr("V8 ");
+#endif
+#if HAVE_V8_REGCOMP
+		putstr("Spencer V8 ");
+#endif
+#if !HAVE_GNU_REGEX && !HAVE_POSIX_REGCOMP && !HAVE_PCRE && !HAVE_RE_COMP && !HAVE_REGCMP && !HAVE_V8_REGCOMP
+		putstr("no ");
+#endif
+		putstr("regular expressions)\n");
+		putstr("Copyright (C) 1984-2015  Mark Nudelman\n\n");
 		putstr("less comes with NO WARRANTY, to the extent permitted by law.\n");
 		putstr("For information about the terms of redistribution,\n");
 		putstr("see the file named README in the less distribution.\n");

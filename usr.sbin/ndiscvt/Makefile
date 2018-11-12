@@ -11,9 +11,9 @@ MAN=	ndiscvt.8
 MAN+=	ndisgen.8
 
 WARNS?=	4
+NO_WCAST_ALIGN=
 
-DPADD=  ${LIBL}
-LDADD=  -ll
+LIBADD=	l
 
 YFLAGS+=-v
 
@@ -22,8 +22,7 @@ CFLAGS+=-I. -I${.CURDIR} -I${.CURDIR}/../../sys
 CLEANFILES= y.output
 
 FILES= windrv_stub.c
-FILESNAME= windrv_stub.c
-FILESDIR= /usr/share/misc
+FILESDIR= ${SHAREDIR}/misc
 
 SCRIPTS= ndisgen.sh
 

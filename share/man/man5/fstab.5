@@ -9,11 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +28,7 @@
 .\"     @(#)fstab.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 23, 2008
+.Dd April 14, 2014
 .Dt FSTAB 5
 .Os
 .Sh NAME
@@ -66,11 +62,20 @@ The first field,
 .Pq Fa fs_spec ,
 describes the special device or
 remote file system to be mounted.
+The contents are decoded by the
+.Xr strunvis 3
+function.
+This allows using spaces or tabs in the device name which would be
+interpreted as field separators otherwise.
 .Pp
 The second field,
 .Pq Fa fs_file ,
 describes the mount point for the file system.
-For swap partitions, this field should be specified as ``none''.
+For swap partitions, this field should be specified as
+.Dq none .
+The contents are decoded by the
+.Xr strunvis 3
+function, as above.
 .Pp
 The third field,
 .Pq Fa fs_vfstype ,
@@ -125,7 +130,11 @@ sync,noatime,-m=644,-M=755,-u=foo,-g=bar
 in the option field of
 .Nm .
 .Pp
-If the options ``userquota'' and/or ``groupquota'' are specified,
+If the options
+.Dq userquota
+and/or
+.Dq groupquota
+are specified,
 the file system is automatically processed by the
 .Xr quotacheck 8
 command, and user and/or group disk quotas are enabled with
@@ -147,7 +156,18 @@ this location can be specified as:
 userquota=/var/quotas/tmp.user
 .Ed
 .Pp
-If the option ``noauto'' is specified, the file system will not be automatically
+If the option
+.Dq failok
+is specified,
+the system will ignore any error which happens during the mount of that filesystem,
+which would otherwise cause the system to drop into single user mode.
+This option is implemented by the
+.Xr mount 8
+command and will not be passed to the kernel.
+.Pp
+If the option
+.Dq noauto
+is specified, the file system will not be automatically
 mounted at system startup.
 Note that, for network file systems
 of third party types
@@ -161,6 +181,15 @@ variable must be used to extend the
 .Xr rc 8
 startup script's list of network file system types.
 .Pp
+If the option
+.Dq late
+is specified, the file system will be automatically mounted
+at a stage of system startup after remote mount points are mounted.
+For more detail about this option,
+see the
+.Xr mount 8
+manual page.
+.Pp
 The type of the mount is extracted from the
 .Fa fs_mntops
 field and stored separately in the
@@ -170,16 +199,55 @@ field (it is not deleted from the
 field).
 If
 .Fa fs_type
-is ``rw'' or ``ro'' then the file system whose name is given in the
+is
+.Dq rw
+or
+.Dq ro
+then the file system whose name is given in the
 .Fa fs_file
 field is normally mounted read-write or read-only on the
 specified special file.
+.Pp
 If
 .Fa fs_type
-is ``sw'' then the special file is made available as a piece of swap
+is
+.Dq sw
+then the special file is made available as a piece of swap
 space by the
 .Xr swapon 8
 command at the end of the system reboot procedure.
+For vnode-backed swap spaces,
+.Dq file
+is supported in the
+.Fa fs_mntops
+field.
+When
+.Fa fs_spec
+is an
+.Xr md 4
+device file
+.Pq Do md Dc or Do md[0-9]* Dc
+and
+.Dq file
+is specified in
+.Fa fs_mntopts ,
+an
+.Xr md 4
+device is created with the specified file used as backing store,
+and then the new device is used as swap space.
+Swap entries on
+.Pa .eli
+devices will cause automatic creation of encrypted devices.
+The
+.Dq ealgo ,
+.Dq aalgo ,
+.Dq keylen ,
+.Dq notrim ,
+and
+.Dq sectorsize
+options may be passed to control those
+.Xr geli 8
+parameters.
 The fields other than
 .Fa fs_spec
 and
@@ -187,7 +255,9 @@ and
 are unused.
 If
 .Fa fs_type
-is specified as ``xx'' the entry is ignored.
+is specified as
+.Dq xx
+the entry is ignored.
 This is useful to show disk partitions which are currently unused.
 .Pp
 The fifth field,
@@ -211,7 +281,7 @@ programs to determine the order in which file system and quota
 checks are done at reboot time.
 The
 .Fa fs_passno
-field can be any value between 0 and 
+field can be any value between 0 and
 .Ql INT_MAX Ns -1 .
 .Pp
 The root file system should be specified with a
@@ -221,7 +291,7 @@ of 1, and other file systems should have a
 of 2 or greater.
 A file system with a
 .Fa fs_passno
-value of 1 is always checked sequentially and be completed before 
+value of 1 is always checked sequentially and be completed before
 another file system is processed, and it will be processed before
 all file systems with a larger
 .Fa fs_passno .
@@ -245,7 +315,7 @@ will assume that the file system does not need to be checked.
 .Pp
 The
 .Fa fs_passno
-field can be used to implement finer control when 
+field can be used to implement finer control when
 the system utilities may determine that the file system resides
 on a different physical device, when it actually does not, as with a
 .Xr ccd 4
@@ -305,12 +375,49 @@ The file
 resides in
 .Pa /etc .
 .El
+.Sh EXAMPLES
+.Bd -literal
+# Device	Mountpoint	FStype	Options		Dump	Pass#
+#
+# UFS file system.
+/dev/da0p2	/		ufs	rw		1	1
+#
+# Swap space on a block device.
+/dev/da0p1	none		swap	sw		0	0
+#
+# Swap space using a block device with GBDE/GELI encyption.
+# aalgo, ealgo, keylen, sectorsize options are available
+# for .eli devices.
+/dev/da1p1.bde	none		swap	sw		0	0
+/dev/da1p2.eli	none		swap	sw		0	0
+#
+# tmpfs.
+tmpfs		/tmp		tmpfs	rw,size=1g,mode=1777	0 0
+#
+# UFS file system on a swap-backed md(4).  /dev/md10 is
+# automatically created.  If it is "md", a unit number
+# will be automatically selected.
+md10		/scratch	mfs	rw,-s1g		0	0
+#
+# Swap space on a vnode-backed md(4).
+md11		none		swap	sw,file=/swapfile	0 0
+#
+# CDROM.  "noauto" option is typically used because the
+# media is removable.
+/dev/cd0	/cdrom		cd9660	ro,noauto	0	0
+#
+# NFS-exported file system.  "serv" is an NFS server name
+# or IP address.
+serv:/export	/nfs		nfs	rw,noinet6	0	0
+.Ed
 .Sh SEE ALSO
 .Xr getfsent 3 ,
 .Xr getvfsbyname 3 ,
+.Xr strunvis 3 ,
 .Xr ccd 4 ,
 .Xr dump 8 ,
 .Xr fsck 8 ,
+.Xr geli 8 ,
 .Xr mount 8 ,
 .Xr quotacheck 8 ,
 .Xr quotaon 8 ,

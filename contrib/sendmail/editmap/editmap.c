@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002, 2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002, 2004 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1992 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1992, 1993
@@ -14,7 +14,7 @@
 #include <sm/gen.h>
 #ifndef lint
 SM_UNUSED(static char copyright[]) =
-"@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1998-2001 Proofpoint, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1992 Eric P. Allman.  All rights reserved.\n\
      Copyright (c) 1992, 1993\n\
@@ -22,7 +22,7 @@ SM_UNUSED(static char copyright[]) =
 #endif /* ! lint */
 
 #ifndef lint
-SM_UNUSED(static char id[]) = "@(#)$Id: editmap.c,v 1.25 2007/05/11 18:50:35 ca Exp $";
+SM_UNUSED(static char id[]) = "@(#)$Id: editmap.c,v 1.26 2013-11-22 20:51:26 ca Exp $";
 #endif /* ! lint */
 
 
@@ -76,7 +76,6 @@ main(argc, argv)
 {
 	char *progname;
 	char *cfile;
-	bool verbose = false;
 	bool query = false;
 	bool update = false;
 	bool remove = false;
@@ -131,7 +130,7 @@ main(argc, argv)
 	(void) sm_strlcpy(user_info.smdbu_name, RunAsUserName,
 			  SMDB_MAX_USER_NAME_LEN);
 
-#define OPTIONS		"C:fquxvN"
+#define OPTIONS		"C:fquxN"
 	while ((opt = getopt(argc, argv, OPTIONS)) != -1)
 	{
 		switch (opt)
@@ -157,10 +156,6 @@ main(argc, argv)
 		  case 'x':
 			remove = true;
 			nops++;
-			break;
-
-		  case 'v':
-			verbose = true;
 			break;
 
 		  case 'N':

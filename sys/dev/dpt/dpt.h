@@ -26,6 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 /*
@@ -38,9 +39,6 @@
  *		Ron McDaniels;	SCSI Software Interrupts
  *		FreeBSD.ORG;	Great O/S to work on and for.
  */
-
-
-#ident "$FreeBSD$"
 
 #ifndef _DPT_H
 #define _DPT_H
@@ -144,7 +142,7 @@ typedef void *physaddr;
  */
 #define DPT_NO_CACHE		       	0
 #define DPT_CACHE_WRITETHROUGH		1
-#define DPT_CACHE_WRITEBACK			-2
+#define DPT_CACHE_WRITEBACK		2
 
 #define min(a,b) ((a<b)?(a):(b))
 
@@ -878,6 +876,7 @@ typedef enum {
 typedef struct dpt_ccb {
 	eata_ccb_t	 eata_ccb;
 	bus_dmamap_t	 dmamap;
+	struct callout	 timer;
 	dpt_sg_t	*sg_list;
 	u_int32_t	 sg_busaddr;
 	dccb_state	 state;
@@ -1019,6 +1018,7 @@ struct sg_map_node {
 /* Main state machine and interface structure */
 typedef struct dpt_softc {
 	device_t		dev;
+	struct mtx		lock;
 
 	struct resource *	io_res;
 	int			io_rid;
@@ -1032,8 +1032,6 @@ typedef struct dpt_softc {
 	struct resource *	drq_res;
 	int			drq_rid;
 
-	bus_space_tag_t	   tag;
-	bus_space_handle_t bsh;
 	bus_dma_tag_t	   buffer_dmat;		/* dmat for buffer I/O */
 	dpt_ccb_t	  *dpt_dccbs;		/* Array of dpt ccbs */
 	bus_addr_t	   dpt_ccb_busbase;	/* phys base address of array */
@@ -1081,12 +1079,11 @@ typedef struct dpt_softc {
 	u_int8_t  dma_channel;
 
 	TAILQ_ENTRY(dpt_softc) links;
-	int	  unit;
 	int	  init_level;
 
 	/*
 	 * Every object on a unit can have a receiver, if it treats
-	 * us as a target.  We do that so that separate and independant
+	 * us as a target.  We do that so that separate and independent
 	 * clients can consume received buffers.
 	 */
 
@@ -1112,16 +1109,6 @@ typedef struct dpt_softc {
 #define DPT_HA_SHUTDOWN_ACTIVE  0x00000040
 #define DPT_HA_COMMAND_ACTIVE  	0x00000080
 #define DPT_HA_QUIET            0x00000100
-
-#ifdef DPT_LOST_IRQ
-#define DPT_LOST_IRQ_SET	0x10000000
-#define DPT_LOST_IRQ_ACTIVE	0x20000000
-#endif
-	
-#ifdef DPT_HANDLE_TIMEOUTS
-#define DPT_HA_TIMEOUTS_SET	0x40000000
-#define DPT_HA_TIMEOUTS_ACTIVE	0x80000000
-#endif
 
 	u_int8_t  primary;	/* true if primary */	
 
@@ -1258,7 +1245,7 @@ dpt_softc_t *dpt_minor2softc(int minor_no);
 #endif /* _KERNEL */
 
 /*
- * This function substracts one timval structure from another,
+ * This function subtracts one timval structure from another,
  * Returning the result in usec.
  * It assumes that less than 4 billion usecs passed form start to end.
  * If times are sensless, ~0 is returned.
@@ -1277,9 +1264,6 @@ dpt_time_delta(struct timeval start,
 	     (end.tv_usec - start.tv_usec) );
 }
 
-extern TAILQ_HEAD(dpt_softc_list, dpt_softc) dpt_softcs;
-
-extern int		dpt_controllers_present;
 extern devclass_t	dpt_devclass;
 
 #ifdef _KERNEL

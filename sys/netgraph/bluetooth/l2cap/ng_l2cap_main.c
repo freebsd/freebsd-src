@@ -113,10 +113,7 @@ ng_l2cap_constructor(node_p node)
 	ng_l2cap_p	l2cap = NULL;
 
 	/* Create new L2CAP node */
-	l2cap = malloc(sizeof(*l2cap),
-		M_NETGRAPH_L2CAP, M_NOWAIT|M_ZERO);
-	if (l2cap == NULL)
-		return (ENOMEM);
+	l2cap = malloc(sizeof(*l2cap), M_NETGRAPH_L2CAP, M_WAITOK | M_ZERO);
 
 	l2cap->node = node;
 	l2cap->debug = NG_L2CAP_WARN_LEVEL;
@@ -353,7 +350,9 @@ ng_l2cap_lower_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_HCI_LP_QOS_IND:
 			error = ng_l2cap_lp_qos_ind(l2cap, msg);
 			break;
-
+		case NGM_HCI_LP_ENC_CHG:
+			error = ng_l2cap_lp_enc_change(l2cap, msg);
+			break;
 		default:
 			error = EINVAL;
 			break;

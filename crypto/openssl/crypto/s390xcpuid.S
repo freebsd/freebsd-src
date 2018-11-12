@@ -1,19 +1,50 @@
 .text
 
-.globl	OPENSSL_cpuid_setup
-.type	OPENSSL_cpuid_setup,@function
-.align	16
-OPENSSL_cpuid_setup:
-	br	%r14		# reserved for future
-.size	OPENSSL_cpuid_setup,.-OPENSSL_cpuid_setup
-
 .globl	OPENSSL_s390x_facilities
 .type	OPENSSL_s390x_facilities,@function
 .align	16
 OPENSSL_s390x_facilities:
 	lghi	%r0,0
-	.long	0xb2b0f010	# stfle	16(%r15)
-	lg	%r2,16(%r15)
+	larl	%r4,OPENSSL_s390xcap_P
+	stg	%r0,8(%r4)	# wipe capability vectors
+	stg	%r0,16(%r4)
+	stg	%r0,24(%r4)
+	stg	%r0,32(%r4)
+	stg	%r0,40(%r4)
+	stg	%r0,48(%r4)
+	stg	%r0,56(%r4)
+	stg	%r0,64(%r4)
+	stg	%r0,72(%r4)
+
+	.long	0xb2b04000	# stfle	0(%r4)
+	brc	8,.Ldone
+	lghi	%r0,1
+	.long	0xb2b04000	# stfle 0(%r4)
+.Ldone:
+	lmg	%r2,%r3,0(%r4)
+	tmhl	%r2,0x4000	# check for message-security-assist
+	jz	.Lret
+
+	lghi	%r0,0		# query kimd capabilities
+	la	%r1,16(%r4)
+	.long	0xb93e0002	# kimd %r0,%r2
+
+	lghi	%r0,0		# query km capability vector
+	la	%r1,32(%r4)
+	.long	0xb92e0042	# km %r4,%r2
+
+	lghi	%r0,0		# query kmc capability vector
+	la	%r1,48(%r4)
+	.long	0xb92f0042	# kmc %r4,%r2
+
+	tmhh	%r3,0x0004	# check for message-security-assist-4
+	jz	.Lret
+
+	lghi	%r0,0		# query kmctr capability vector
+	la	%r1,64(%r4)
+	.long	0xb92d2042	# kmctr %r4,%r2,%r2
+
+.Lret:
 	br	%r14
 .size	OPENSSL_s390x_facilities,.-OPENSSL_s390x_facilities
 
@@ -63,10 +94,15 @@ OPENSSL_wipe_cpu:
 .type	OPENSSL_cleanse,@function
 .align	16
 OPENSSL_cleanse:
+#if !defined(__s390x__) && !defined(__s390x)
+	llgfr	%r3,%r3
+#endif
 	lghi	%r4,15
 	lghi	%r0,0
 	clgr	%r3,%r4
 	jh	.Lot
+	clgr	%r3,%r0
+	bcr	8,%r14
 .Little:
 	stc	%r0,0(%r2)
 	la	%r2,1(%r2)
@@ -88,3 +124,8 @@ OPENSSL_cleanse:
 	jnz	.Little
 	br	%r14
 .size	OPENSSL_cleanse,.-OPENSSL_cleanse
+
+.section	.init
+	brasl	%r14,OPENSSL_cpuid_setup
+
+.comm	OPENSSL_s390xcap_P,80,8

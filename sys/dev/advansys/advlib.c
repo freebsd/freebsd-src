@@ -45,7 +45,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/conf.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 
 #include <machine/bus.h>
@@ -298,6 +301,7 @@ advasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 	struct adv_softc *adv;
 
 	adv = (struct adv_softc *)callback_arg;
+	mtx_assert(&adv->lock, MA_OWNED);
 	switch (code) {
 	case AC_FOUND_DEVICE:
 	{
@@ -312,7 +316,7 @@ advasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 
 		target_mask = ADV_TID_TO_TARGET_MASK(cgd->ccb_h.target_id);
 
-		num_entries = sizeof(adv_quirk_table)/sizeof(*adv_quirk_table);
+		num_entries = nitems(adv_quirk_table);
 		match = cam_quirkmatch((caddr_t)&cgd->inq_data,
 				       (caddr_t)adv_quirk_table,
 				       num_entries, sizeof(*adv_quirk_table),
@@ -460,12 +464,12 @@ adv_write_lram_16(struct adv_softc *adv, u_int16_t addr, u_int16_t value)
  * found, 0 otherwise.
  */
 int                         
-adv_find_signature(bus_space_tag_t tag, bus_space_handle_t bsh)
+adv_find_signature(struct resource *res)
 {                            
 	u_int16_t signature;
 
-	if (bus_space_read_1(tag, bsh, ADV_SIGNATURE_BYTE) == ADV_1000_ID1B) {
-		signature = bus_space_read_2(tag, bsh, ADV_SIGNATURE_WORD);
+	if (bus_read_1(res, ADV_SIGNATURE_BYTE) == ADV_1000_ID1B) {
+		signature = bus_read_2(res, ADV_SIGNATURE_WORD);
 		if ((signature == ADV_1000_ID0W)
 		 || (signature == ADV_1000_ID0W_FIX))
 			return (1);
@@ -594,8 +598,8 @@ adv_init_lram_and_mcode(struct adv_softc *adv)
 	retval = adv_load_microcode(adv, 0, (u_int16_t *)adv_mcode,
 				    adv_mcode_size);
 	if (retval != adv_mcode_chksum) {
-		printf("adv%d: Microcode download failed checksum!\n",
-		       adv->unit);
+		device_printf(adv->dev,
+		    "Microcode download failed checksum!\n");
 		return (1);
 	}
 	
@@ -692,6 +696,8 @@ adv_execute_scsi_queue(struct adv_softc *adv, struct adv_scsi_q *scsiq,
 	u_int8_t	sg_entry_cnt_minus_one;
 	u_int8_t	tid_no;
 
+	if (!dumping)
+		mtx_assert(&adv->lock, MA_OWNED);
 	scsiq->q1.q_no = 0;
 	retval = 1;  /* Default to error case */
 	target_ix = scsiq->q2.target_ix;
@@ -938,6 +944,8 @@ adv_isr_chip_halted(struct adv_softc *adv)
 	u_int8_t	  q_cntl;
 	u_int8_t	  tid_no;
 
+	if (!dumping)
+		mtx_assert(&adv->lock, MA_OWNED);
 	int_halt_code = adv_read_lram_16(adv, ADVV_HALTCODE_W);
 	halt_qp = adv_read_lram_8(adv, ADVV_CURCDB_B);
 	halt_q_addr = ADV_QNO_TO_QADDR(halt_qp);
@@ -966,6 +974,7 @@ adv_isr_chip_halted(struct adv_softc *adv)
 				     target_mask, tid_no);
 	} else if (int_halt_code == ADV_HALT_CHK_CONDITION) {
 		struct	  adv_target_transinfo* tinfo;
+		struct	  adv_ccb_info *cinfo;
 		union	  ccb *ccb;
 		u_int32_t cinfo_index;
 		u_int8_t  tag_code;
@@ -1008,6 +1017,7 @@ adv_isr_chip_halted(struct adv_softc *adv)
 		 */
 		cinfo_index =
 		    adv_read_lram_32(adv, halt_q_addr + ADV_SCSIQ_D_CINFO_IDX);
+		cinfo = &adv->ccb_infos[cinfo_index];
 		ccb = adv->ccb_infos[cinfo_index].ccb;
 		xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
 		ccb->ccb_h.status |= CAM_DEV_QFRZN;
@@ -1021,9 +1031,7 @@ adv_isr_chip_halted(struct adv_softc *adv)
 		 * Ensure we have enough time to actually
 		 * retrieve the sense.
 		 */
-		untimeout(adv_timeout, (caddr_t)ccb, ccb->ccb_h.timeout_ch);
-		ccb->ccb_h.timeout_ch =
-		    timeout(adv_timeout, (caddr_t)ccb, 5 * hz);
+		callout_reset(&cinfo->timer, 5 * hz, adv_timeout, ccb);
 	} else if (int_halt_code == ADV_HALT_SDTR_REJECTED) {
 		struct	ext_msg out_msg;
 
@@ -1043,12 +1051,10 @@ adv_isr_chip_halted(struct adv_softc *adv)
 		q_cntl &= ~QC_MSG_OUT;
 		adv_write_lram_8(adv, halt_q_addr + ADV_SCSIQ_B_CNTL, q_cntl);
 	} else if (int_halt_code == ADV_HALT_SS_QUEUE_FULL) {
-		u_int8_t scsi_status;
 		union ccb *ccb;
 		u_int32_t cinfo_index;
 		
-		scsi_status = adv_read_lram_8(adv, halt_q_addr
-					      + ADV_SCSIQ_SCSI_STATUS);
+		adv_read_lram_8(adv, halt_q_addr + ADV_SCSIQ_SCSI_STATUS);
 		cinfo_index =
 		    adv_read_lram_32(adv, halt_q_addr + ADV_SCSIQ_D_CINFO_IDX);
 		ccb = adv->ccb_infos[cinfo_index].ccb;
@@ -1090,6 +1096,7 @@ adv_set_syncrate(struct adv_softc *adv, struct cam_path *path,
 	u_int old_offset;
 	u_int8_t sdtr_data;
 
+	mtx_assert(&adv->lock, MA_OWNED);
 	tinfo = &adv->tinfo[tid];
 
 	/* Filter our input */
@@ -1102,10 +1109,8 @@ adv_set_syncrate(struct adv_softc *adv, struct cam_path *path,
 	if ((type & ADV_TRANS_CUR) != 0
 	 && ((old_period != period || old_offset != offset)
 	  || period == 0 || offset == 0) /*Changes in asyn fix settings*/) {
-		int s;
 		int halted;
 
-		s = splcam();
 		halted = adv_is_chip_halted(adv);
 		if (halted == 0)
 			/* Must halt the chip first */
@@ -1125,7 +1130,6 @@ adv_set_syncrate(struct adv_softc *adv, struct cam_path *path,
 			/* Start the chip again */
 			adv_start_chip(adv);
 
-		splx(s);
 		tinfo->current.period = period;
 		tinfo->current.offset = offset;
 
@@ -1235,8 +1239,8 @@ adv_mset_lram_16(struct adv_softc *adv, u_int16_t s_addr,
 		 u_int16_t set_value, int count)
 {
 	ADV_OUTW(adv, ADV_LRAM_ADDR, s_addr);
-	bus_space_set_multi_2(adv->tag, adv->bsh, ADV_LRAM_DATA,
-			      set_value, count);
+	bus_set_multi_2(adv->res, adv->reg_off + ADV_LRAM_DATA,
+	    set_value, count);
 }
 
 static u_int32_t
@@ -1507,8 +1511,8 @@ adv_init_microcode_var(struct adv_softc *adv)
 
 	ADV_OUTW(adv, ADV_REG_PROG_COUNTER, ADV_MCODE_START_ADDR);
 	if (ADV_INW(adv, ADV_REG_PROG_COUNTER) != ADV_MCODE_START_ADDR) {
-		printf("adv%d: Unable to set program counter. Aborting.\n",
-		       adv->unit);
+		device_printf(adv->dev,
+		    "Unable to set program counter. Aborting.\n");
 		return (1);
 	}
 	return (0);
@@ -1708,13 +1712,9 @@ adv_send_scsi_queue(struct adv_softc *adv, struct adv_scsi_q *scsiq,
 {
 	u_int8_t	free_q_head;
 	u_int8_t	next_qp;
-	u_int8_t	tid_no;
-	u_int8_t	target_ix;
 	int		retval;
 
 	retval = 1;
-	target_ix = scsiq->q2.target_ix;
-	tid_no = ADV_TIX_TO_TID(target_ix);
 	free_q_head = adv_read_lram_16(adv, ADVV_FREE_Q_HEAD_W) & 0xFF;
 	if ((next_qp = adv_alloc_free_queues(adv, free_q_head, n_q_required))
 	    != ADV_QLINK_END) {
@@ -2002,6 +2002,8 @@ adv_abort_ccb(struct adv_softc *adv, int target, int lun, union ccb *ccb,
 	u_int8_t  target_ix;
 	int	  count;
 
+	if (!dumping)
+		mtx_assert(&adv->lock, MA_OWNED);
 	scsiq = &scsiq_buf;
 	target_ix = ADV_TIDLUN_TO_IX(target, lun);
 	count = 0;
@@ -2045,6 +2047,8 @@ adv_reset_bus(struct adv_softc *adv, int initiate_bus_reset)
 	int i;
 	union ccb *ccb;
 
+	if (!dumping)
+		mtx_assert(&adv->lock, MA_OWNED);
 	i = 200;
 	while ((ADV_INW(adv, ADV_CHIP_STATUS) & ADV_CSW_SCSI_RESET_ACTIVE) != 0
 	    && i--)
@@ -2056,7 +2060,7 @@ adv_reset_bus(struct adv_softc *adv, int initiate_bus_reset)
 				 /*offset*/0, ADV_TRANS_CUR);
 	ADV_OUTW(adv, ADV_REG_PROG_COUNTER, ADV_MCODE_START_ADDR);
 
-	/* Tell the XPT layer that a bus reset occured */
+	/* Tell the XPT layer that a bus reset occurred */
 	if (adv->path != NULL)
 		xpt_async(AC_BUS_RESET, adv->path, NULL);
 

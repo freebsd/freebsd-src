@@ -26,12 +26,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * RMI_BSD */
+ * RMI_BSD
+ * $FreeBSD$
+ */
 #ifndef _RMI_IOMAP_H_
 #define _RMI_IOMAP_H_
 
 #include <machine/endian.h>
-
+#define XLR_DEVICE_REGISTER_BASE	0x1EF00000
 #define DEFAULT_XLR_IO_BASE 0xffffffffbef00000ULL
 #define XLR_IO_SIZE                   0x1000
 
@@ -65,6 +67,9 @@
 
 #define XLR_IO_UART_0_OFFSET          0x14000
 #define XLR_IO_UART_1_OFFSET          0x15000
+#define XLR_UART0ADDR                 (XLR_IO_UART_0_OFFSET+XLR_DEVICE_REGISTER_BASE)
+
+
 
 #define XLR_IO_I2C_0_OFFSET           0x16000
 #define XLR_IO_I2C_1_OFFSET           0x17000
@@ -92,7 +97,7 @@
  * For now, choose 256M phys in kseg1 = 0xA0000000 + (1<<28)
  * Config space spans 256 (num of buses) * 256 (num functions) * 256 bytes
  * ie 1<<24 = 16M
- */ 
+ */
 #define DEFAULT_PCI_CONFIG_BASE         0x18000000
 #define DEFAULT_HT_TYPE0_CFG_BASE       0x16000000
 #define DEFAULT_HT_TYPE1_CFG_BASE       0x17000000
@@ -107,4 +112,4 @@ extern unsigned long xlr_io_base;
 
 extern void on_chip_init(void);
 
-#endif /* _RMI_IOMAP_H_ */
+#endif				/* _RMI_IOMAP_H_ */

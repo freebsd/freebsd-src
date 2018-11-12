@@ -41,10 +41,17 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <libutil.h>
 
+struct pidfh {
+	int	pf_fd;
+	char	pf_path[MAXPATHLEN + 1];
+	dev_t	pf_dev;
+	ino_t	pf_ino;
+};
+
 static int _pidfile_remove(struct pidfh *pfh, int freeit);
 
 static int
-pidfile_verify(struct pidfh *pfh)
+pidfile_verify(const struct pidfh *pfh)
 {
 	struct stat sb;
 
@@ -66,7 +73,7 @@ pidfile_read(const char *path, pid_t *pidptr)
 	char buf[16], *endptr;
 	int error, fd, i;
 
-	fd = open(path, O_RDONLY);
+	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd == -1)
 		return (errno);
 
@@ -112,31 +119,37 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 
 	/*
 	 * Open the PID file and obtain exclusive lock.
-	 * We truncate PID file here only to remove old PID immediatelly,
+	 * We truncate PID file here only to remove old PID immediately,
 	 * PID file will be truncated again in pidfile_write(), so
 	 * pidfile_write() can be called multiple times.
 	 */
 	fd = flopen(pfh->pf_path,
-	    O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK, mode);
+	    O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NONBLOCK, mode);
 	if (fd == -1) {
-		count = 0;
-		rqtp.tv_sec = 0;
-		rqtp.tv_nsec = 5000000;
-		if (errno == EWOULDBLOCK && pidptr != NULL) {
-		again:
-			errno = pidfile_read(pfh->pf_path, pidptr);
-			if (errno == 0)
+		if (errno == EWOULDBLOCK) {
+			if (pidptr == NULL) {
 				errno = EEXIST;
-			else if (errno == EAGAIN) {
-				if (++count <= 3) {
+			} else {
+				count = 20;
+				rqtp.tv_sec = 0;
+				rqtp.tv_nsec = 5000000;
+				for (;;) {
+					errno = pidfile_read(pfh->pf_path,
+					    pidptr);
+					if (errno != EAGAIN || --count == 0)
+						break;
 					nanosleep(&rqtp, 0);
-					goto again;
 				}
+				if (errno == EAGAIN)
+					*pidptr = -1;
+				if (errno == 0 || errno == EAGAIN)
+					errno = EEXIST;
 			}
 		}
 		free(pfh);
 		return (NULL);
 	}
+
 	/*
 	 * Remember file information, so in pidfile_write() we are sure we write
 	 * to the proper descriptor.
@@ -251,4 +264,15 @@ pidfile_remove(struct pidfh *pfh)
 {
 
 	return (_pidfile_remove(pfh, 1));
+}
+
+int
+pidfile_fileno(const struct pidfh *pfh)
+{
+
+	if (pfh == NULL || pfh->pf_fd == -1) {
+		errno = EDOOFUS;
+		return (-1);
+	}
+	return (pfh->pf_fd);
 }

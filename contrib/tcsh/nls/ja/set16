@@ -1,13 +1,13 @@
-$ $tcsh: set16,v 1.3 2006/03/02 18:46:47 christos Exp $
+$ $tcsh: set16,v 1.4 2011/02/04 18:19:40 christos Exp $
 $ sh.lex.c
 $set 16 
-1 tty pgrp ¤ò %d ¤«¤é %d¤ËºÆÀßÄê¤·¤Ş¤¹\n
-2 \n¥í¥°¥¢¥¦¥È¤Ï"logout"¤ò»ÈÍÑ¤·¤Æ²¼¤µ¤¤\n
-3 \n%s½ªÎ»¤Ï"exit"¤ò»ÈÍÑ¤·¤Æ²¼¤µ¤¤\n
+1 tty pgrp ã‚’ %d ã‹ã‚‰ %dã«å†è¨­å®šã—ã¾ã™\n
+2 \nãƒ­ã‚°ã‚¢ã‚¦ãƒˆã¯"logout"ã‚’ä½¿ç”¨ã—ã¦ä¸‹ã•ã„\n
+3 \n%sçµ‚äº†ã¯"exit"ã‚’ä½¿ç”¨ã—ã¦ä¸‹ã•ã„\n
 4 seek to eval %x %x\n
 5 seek to alias %x %x\n
 6 seek to file %x\n
-7 ´Ö°ã¤Ã¤¿ seek ¥¿¥¤¥×¤Ç¤¹ %d\n
+7 é–“é•ã£ãŸ seek ã‚¿ã‚¤ãƒ—ã§ã™ %d\n
 8 tell eval %x %x\n
 9 tell alias %x %x\n
 10 tell file %x\n

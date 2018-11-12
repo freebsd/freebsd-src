@@ -185,7 +185,7 @@ static int mv88e1xxx_set_loopback(struct cphy *cphy, int mmd, int dir, int on)
 			 	   on ? BMCR_LOOPBACK : 0);
 }
 
-static int mv88e1xxx_get_link_status(struct cphy *cphy, int *link_ok,
+static int mv88e1xxx_get_link_status(struct cphy *cphy, int *link_state,
 				     int *speed, int *duplex, int *fc)
 {
 	u32 status;
@@ -206,8 +206,9 @@ static int mv88e1xxx_get_link_status(struct cphy *cphy, int *link_ok,
 		else
 			sp = SPEED_1000;
 	}
-	if (link_ok)
-		*link_ok = (status & V_PSSR_LINK) != 0;
+	if (link_state)
+		*link_state = status & V_PSSR_LINK ? PHY_LINK_UP :
+		    PHY_LINK_DOWN;
 	if (speed)
 		*speed = sp;
 	if (duplex)
@@ -294,12 +295,13 @@ static struct cphy_ops mv88e1xxx_ops = {
 };
 #endif
 
-int t3_mv88e1xxx_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_mv88e1xxx_phy_prep(pinfo_t *pinfo, int phy_addr,
 			  const struct mdio_ops *mdio_ops)
 {
+	struct cphy *phy = &pinfo->phy;
 	int err;
 
-	cphy_init(phy, adapter, phy_addr, &mv88e1xxx_ops, mdio_ops,
+	cphy_init(phy, pinfo->adapter, pinfo, phy_addr, &mv88e1xxx_ops, mdio_ops,
 		  SUPPORTED_10baseT_Full | SUPPORTED_100baseT_Full |
 		  SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg | SUPPORTED_MII |
 		  SUPPORTED_TP | SUPPORTED_IRQ, "10/100/1000BASE-T");

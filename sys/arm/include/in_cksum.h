@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -46,7 +42,9 @@ u_short in_cksum(struct mbuf *m, int len);
 u_short in_addword(u_short sum, u_short b);
 u_short in_cksum_skip(struct mbuf *m, int len, int skip);
 u_int do_cksum(const void *, int);
+#if defined(IPVERSION) && (IPVERSION == 4)
 u_int in_cksum_hdr(const struct ip *);
+#endif
 
 static __inline u_short
 in_pseudo(u_int sum, u_int b, u_int c)
@@ -54,7 +52,7 @@ in_pseudo(u_int sum, u_int b, u_int c)
 	__asm __volatile("adds %0, %0, %1\n"
 	    		"adcs %0, %0, %2\n"
 			"adc %0, %0, #0\n"
-			: "+r" (sum) 
+			: "+r" (sum)
 			: "r" (b), "r" (c));
 	sum = (sum & 0xffff) + (sum >> 16);
 	if (sum > 0xffff)

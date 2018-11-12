@@ -81,7 +81,7 @@ emit(definition *def)
 
 		if (strcmp(def->def.ty.old_type, def->def_name) == 0)
 			return;
-	};
+	}
 	print_header(def);
 	switch (def->def_kind) {
 	case DEF_UNION:
@@ -489,6 +489,7 @@ inline_struct(definition *def, int flag)
 			}
 			size = 0;
 			i = 0;
+			free(sizestr);
 			sizestr = NULL;
 			print_stat(indent + 1, &dl->decl);
 		}

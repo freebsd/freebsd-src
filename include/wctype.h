@@ -87,32 +87,39 @@ wint_t	iswrune(wint_t);
 wint_t	iswspecial(wint_t);
 wint_t	nextwctype(wint_t, wctype_t);
 #endif
+
+#if __POSIX_VISIBLE >= 200809
+#define _XLOCALE_WCTYPES 1
+#include <xlocale/_ctype.h>
+#endif /* __POSIX_VISIBLE >= 200809 */
 __END_DECLS
 
-#define	iswalnum(wc)		__istype((wc), _CTYPE_A|_CTYPE_D)
+#ifndef __cplusplus
+#define	iswalnum(wc)		__istype((wc), _CTYPE_A|_CTYPE_D|_CTYPE_N)
 #define	iswalpha(wc)		__istype((wc), _CTYPE_A)
 #define	iswblank(wc)		__istype((wc), _CTYPE_B)
 #define	iswcntrl(wc)		__istype((wc), _CTYPE_C)
 #define	iswctype(wc, charclass)	__istype((wc), (charclass))
-#define	iswdigit(wc)		__isctype((wc), _CTYPE_D)
+#define	iswdigit(wc)		__istype((wc), _CTYPE_D)
 #define	iswgraph(wc)		__istype((wc), _CTYPE_G)
 #define	iswlower(wc)		__istype((wc), _CTYPE_L)
 #define	iswprint(wc)		__istype((wc), _CTYPE_R)
 #define	iswpunct(wc)		__istype((wc), _CTYPE_P)
 #define	iswspace(wc)		__istype((wc), _CTYPE_S)
 #define	iswupper(wc)		__istype((wc), _CTYPE_U)
-#define	iswxdigit(wc)		__isctype((wc), _CTYPE_X)
+#define	iswxdigit(wc)		__istype((wc), _CTYPE_X)
 #define	towlower(wc)		__tolower(wc)
 #define	towupper(wc)		__toupper(wc)
 
 #if __BSD_VISIBLE
 #define	iswascii(wc)		(((wc) & ~0x7F) == 0)
-#define	iswhexnumber(wc)	__istype((wc), _CTYPE_X)
+#define	iswhexnumber(wc)	__istype((wc), _CTYPE_X) /* alias of iswxdigit */
 #define	iswideogram(wc)		__istype((wc), _CTYPE_I)
-#define	iswnumber(wc)		__istype((wc), _CTYPE_D)
+#define	iswnumber(wc)		__istype((wc), _CTYPE_D|_CTYPE_N)
 #define	iswphonogram(wc)	__istype((wc), _CTYPE_Q)
 #define	iswrune(wc)		__istype((wc), 0xFFFFFF00L)
 #define	iswspecial(wc)		__istype((wc), _CTYPE_T)
-#endif
+#endif /* __BSD_VISIBLE */
+#endif /* __cplusplus */
 
 #endif		/* _WCTYPE_H_ */

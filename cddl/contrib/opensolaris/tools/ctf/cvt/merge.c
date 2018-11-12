@@ -283,24 +283,14 @@ static int
 equiv_su(tdesc_t *stdp, tdesc_t *ttdp, equiv_data_t *ed)
 {
 	mlist_t *ml1 = stdp->t_members, *ml2 = ttdp->t_members;
-	mlist_t *olm1 = NULL;
 
 	while (ml1 && ml2) {
 		if (ml1->ml_offset != ml2->ml_offset ||
-		    strcmp(ml1->ml_name, ml2->ml_name) != 0)
+		    strcmp(ml1->ml_name, ml2->ml_name) != 0 ||
+		    ml1->ml_size != ml2->ml_size ||
+		    !equiv_node(ml1->ml_type, ml2->ml_type, ed))
 			return (0);
 
-		/*
-		 * Don't do the recursive equivalency checking more than
-		 * we have to.
-		 */
-		if (olm1 == NULL || olm1->ml_type->t_id != ml1->ml_type->t_id) {
-			if (ml1->ml_size != ml2->ml_size ||
-			    !equiv_node(ml1->ml_type, ml2->ml_type, ed))
-				return (0);
-		}
-
-		olm1 = ml1;
 		ml1 = ml1->ml_next;
 		ml2 = ml2->ml_next;
 	}
@@ -348,7 +338,8 @@ fwd_equiv(tdesc_t *ctdp, tdesc_t *mtdp)
 {
 	tdesc_t *defn = (ctdp->t_type == FORWARD ? mtdp : ctdp);
 
-	return (defn->t_type == STRUCT || defn->t_type == UNION);
+	return (defn->t_type == STRUCT || defn->t_type == UNION ||
+	    defn->t_type == ENUM);
 }
 
 static int
@@ -357,7 +348,7 @@ equiv_node(tdesc_t *ctdp, tdesc_t *mtdp, equiv_data_t *ed)
 	int (*equiv)(tdesc_t *, tdesc_t *, equiv_data_t *);
 	int mapping;
 
-	if (ctdp->t_emark > ed->ed_clear_mark ||
+	if (ctdp->t_emark > ed->ed_clear_mark &&
 	    mtdp->t_emark > ed->ed_clear_mark)
 		return (ctdp->t_emark == mtdp->t_emark);
 

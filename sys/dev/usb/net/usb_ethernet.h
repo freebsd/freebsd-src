@@ -22,6 +22,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef _USB_ETHERNET_H_
@@ -66,7 +68,7 @@ struct usb_ether_methods {
 	void			(*ue_mii_sts)(struct ifnet *,
 				    struct ifmediareq *);
 	int			(*ue_ioctl)(struct ifnet *, u_long, caddr_t);
-
+	int			(*ue_attach_post_sub)(struct usb_ether *);
 };
 
 struct usb_ether_cfg_task {
@@ -110,6 +112,8 @@ struct mii_data *uether_getmii(struct usb_ether *);
 void		*uether_getsc(struct usb_ether *);
 int		uether_ifattach(struct usb_ether *);
 void		uether_ifdetach(struct usb_ether *);
+int		uether_ifmedia_upd(struct ifnet *);
+void		uether_init(void *);
 int		uether_ioctl(struct ifnet *, u_long, caddr_t);
 struct mbuf	*uether_newbuf(void);
 int		uether_rxmbuf(struct usb_ether *, struct mbuf *, 
@@ -119,4 +123,5 @@ int		uether_rxbuf(struct usb_ether *,
 		    unsigned int, unsigned int);
 void		uether_rxflush(struct usb_ether *);
 uint8_t		uether_is_gone(struct usb_ether *);
+void		uether_start(struct ifnet *);
 #endif					/* _USB_ETHERNET_H_ */

@@ -29,11 +29,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+
+#ifdef TCP_OFFLOAD
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
 #include <sys/pciio.h>
 #include <sys/conf.h>
 #include <machine/bus.h>
@@ -59,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
@@ -66,13 +69,17 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 
-#include <contrib/rdma/ib_verbs.h>
+#include <rdma/ib_verbs.h>
+#include <linux/idr.h>
+#include <ulp/iw_cxgb/iw_cxgb_ib_intfc.h>
 
 #include <cxgb_include.h>
 #include <ulp/tom/cxgb_tom.h>
-#include <ulp/tom/cxgb_t3_ddp.h>
-#include <ulp/tom/cxgb_defs.h>
 #include <ulp/tom/cxgb_toepcb.h>
+#include <ulp/iw_cxgb/iw_cxgb_ib_intfc.h>
+#include <rdma/ib_verbs.h>
+#include <linux/idr.h>
+
 #include <ulp/iw_cxgb/iw_cxgb_wr.h>
 #include <ulp/iw_cxgb/iw_cxgb_hal.h>
 #include <ulp/iw_cxgb/iw_cxgb_provider.h>
@@ -97,46 +104,38 @@ static char *states[] = {
 };
 #endif
 
-SYSCTL_NODE(_hw, OID_AUTO, cxgb, CTLFLAG_RD, 0, "iw_cxgb driver parameters");
+SYSCTL_NODE(_hw, OID_AUTO, iw_cxgb, CTLFLAG_RD, 0, "iw_cxgb driver parameters");
 
-static int ep_timeout_secs = 10;
-TUNABLE_INT("hw.iw_cxgb.ep_timeout_secs", &ep_timeout_secs);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, ep_timeout_secs, CTLFLAG_RDTUN, &ep_timeout_secs, 0,
-    "CM Endpoint operation timeout in seconds (default=10)");
+static int ep_timeout_secs = 60;
+SYSCTL_INT(_hw_iw_cxgb, OID_AUTO, ep_timeout_secs, CTLFLAG_RWTUN, &ep_timeout_secs, 0,
+    "CM Endpoint operation timeout in seconds (default=60)");
 
 static int mpa_rev = 1;
-TUNABLE_INT("hw.iw_cxgb.mpa_rev", &mpa_rev);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, mpa_rev, CTLFLAG_RDTUN, &mpa_rev, 0,
+SYSCTL_INT(_hw_iw_cxgb, OID_AUTO, mpa_rev, CTLFLAG_RWTUN, &mpa_rev, 0,
     "MPA Revision, 0 supports amso1100, 1 is spec compliant. (default=1)");
 
 static int markers_enabled = 0;
-TUNABLE_INT("hw.iw_cxgb.markers_enabled", &markers_enabled);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, markers_enabled, CTLFLAG_RDTUN, &markers_enabled, 0,
+SYSCTL_INT(_hw_iw_cxgb, OID_AUTO, markers_enabled, CTLFLAG_RWTUN, &markers_enabled, 0,
     "Enable MPA MARKERS (default(0)=disabled)");
 
 static int crc_enabled = 1;
-TUNABLE_INT("hw.iw_cxgb.crc_enabled", &crc_enabled);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, crc_enabled, CTLFLAG_RDTUN, &crc_enabled, 0,
+SYSCTL_INT(_hw_iw_cxgb, OID_AUTO, crc_enabled, CTLFLAG_RWTUN, &crc_enabled, 0,
     "Enable MPA CRC (default(1)=enabled)");
 
 static int rcv_win = 256 * 1024;
-TUNABLE_INT("hw.iw_cxgb.rcv_win", &rcv_win);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, rcv_win, CTLFLAG_RDTUN, &rcv_win, 0,
+SYSCTL_INT(_hw_iw_cxgb, OID_AUTO, rcv_win, CTLFLAG_RWTUN, &rcv_win, 0,
     "TCP receive window in bytes (default=256KB)");
 
 static int snd_win = 32 * 1024;
-TUNABLE_INT("hw.iw_cxgb.snd_win", &snd_win);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, snd_win, CTLFLAG_RDTUN, &snd_win, 0,
+SYSCTL_INT(_hw_iw_cxgb, OID_AUTO, snd_win, CTLFLAG_RWTUN, &snd_win, 0,
     "TCP send window in bytes (default=32KB)");
 
 static unsigned int nocong = 0;
-TUNABLE_INT("hw.iw_cxgb.nocong", &nocong);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, nocong, CTLFLAG_RDTUN, &nocong, 0,
+SYSCTL_UINT(_hw_iw_cxgb, OID_AUTO, nocong, CTLFLAG_RWTUN, &nocong, 0,
     "Turn off congestion control (default=0)");
 
 static unsigned int cong_flavor = 1;
-TUNABLE_INT("hw.iw_cxgb.cong_flavor", &cong_flavor);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, cong_flavor, CTLFLAG_RDTUN, &cong_flavor, 0,
+SYSCTL_UINT(_hw_iw_cxgb, OID_AUTO, cong_flavor, CTLFLAG_RWTUN, &cong_flavor, 0,
     "TCP Congestion control flavor (default=1)");
 
 static void ep_timeout(void *arg);
@@ -165,7 +164,7 @@ start_ep_timer(struct iwch_ep *ep)
 		 * XXX this looks racy
 		 */
 		get_ep(&ep->com);
-		callout_init(&ep->timer, TRUE);
+		callout_init(&ep->timer, 1);
 	}
 	callout_reset(&ep->timer, ep_timeout_secs * hz, ep_timeout, ep);
 }
@@ -174,42 +173,44 @@ static void
 stop_ep_timer(struct iwch_ep *ep)
 {
 	CTR2(KTR_IW_CXGB, "%s ep %p", __FUNCTION__, ep);
+	if (!callout_pending(&ep->timer)) {
+		CTR3(KTR_IW_CXGB, "%s timer stopped when its not running!  ep %p state %u\n",
+                       __func__, ep, ep->com.state);
+		return;
+	}
 	callout_drain(&ep->timer);
 	put_ep(&ep->com);
 }
 
-static int set_tcpinfo(struct iwch_ep *ep)
+static int
+set_tcpinfo(struct iwch_ep *ep)
 {
-	struct tcp_info ti;
-	struct sockopt sopt;
-	int err;
+	struct socket *so = ep->com.so;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+	struct toepcb *toep;
+	int rc = 0;
 
-	sopt.sopt_dir = SOPT_GET;
-	sopt.sopt_level = IPPROTO_TCP;
-	sopt.sopt_name = TCP_INFO;
-	sopt.sopt_val = (caddr_t)&ti;
-	sopt.sopt_valsize = sizeof ti;
-	sopt.sopt_td = NULL;
-	
-	err = sogetopt(ep->com.so, &sopt);
-	if (err) {
-		printf("%s can't get tcpinfo\n", __FUNCTION__);
-		return -err;
-	}
-	if (!(ti.tcpi_options & TCPI_OPT_TOE)) {
-		printf("%s connection NOT OFFLOADED!\n", __FUNCTION__);
-		return -EINVAL;
-	}
+	INP_WLOCK(inp);
+	tp = intotcpcb(inp);
 
-	ep->snd_seq = ti.tcpi_snd_nxt;
-	ep->rcv_seq = ti.tcpi_rcv_nxt;
-	ep->emss = ti.__tcpi_snd_mss - sizeof(struct tcpiphdr);
-	ep->hwtid = TOEPCB(ep->com.so)->tp_tid; /* XXX */
-	if (ti.tcpi_options & TCPI_OPT_TIMESTAMPS)
-		ep->emss -= 12;
+	if ((tp->t_flags & TF_TOE) == 0) {
+		rc = EINVAL;
+		printf("%s: connection NOT OFFLOADED!\n", __func__);
+		goto done;
+	}
+	toep = tp->t_toe;
+
+	ep->hwtid = toep->tp_tid;
+	ep->snd_seq = tp->snd_nxt;
+	ep->rcv_seq = tp->rcv_nxt;
+	ep->emss = tp->t_maxseg;
 	if (ep->emss < 128)
 		ep->emss = 128;
-	return 0;
+done:
+	INP_WUNLOCK(inp);
+	return (rc);
+
 }
 
 static enum iwch_ep_state
@@ -259,85 +260,31 @@ alloc_ep(int size, int flags)
 void __free_ep(struct iwch_ep_common *epc)
 {
 	CTR3(KTR_IW_CXGB, "%s ep %p state %s", __FUNCTION__, epc, states[state_read(epc)]);
-	KASSERT(!epc->so, ("%s warning ep->so %p \n", __FUNCTION__, epc->so));
 	KASSERT(!epc->entry.tqe_prev, ("%s epc %p still on req list!\n", __FUNCTION__, epc));
 	free(epc, M_DEVBUF);
 }
 
-int
-iwch_quiesce_tid(struct iwch_ep *ep)
-{
-#ifdef notyet
-	struct cpl_set_tcb_field *req;
-	struct mbuf *m = get_mbuf(NULL, sizeof(*req), M_NOWAIT);
-
-	if (m == NULL)
-		return (-ENOMEM);
-	req = (struct cpl_set_tcb_field *) mbuf_put(m, sizeof(*req));
-	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
-	req->wr.wr_lo = htonl(V_WR_TID(ep->hwtid));
-	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, ep->hwtid));
-	req->reply = 0;
-	req->cpu_idx = 0;
-	req->word = htons(W_TCB_RX_QUIESCE);
-	req->mask = cpu_to_be64(1ULL << S_TCB_RX_QUIESCE);
-	req->val = cpu_to_be64(1 << S_TCB_RX_QUIESCE);
-
-	m_set_priority(m, CPL_PRIORITY_DATA); 
-	cxgb_ofld_send(ep->com.tdev, m);
-#endif
-	return 0;
-}
-
-int
-iwch_resume_tid(struct iwch_ep *ep)
-{
-#ifdef notyet
-	struct cpl_set_tcb_field *req;
-	struct mbuf *m = get_mbuf(NULL, sizeof(*req), M_NOWAIT);
-
-	if (m == NULL)
-		return (-ENOMEM);
-	req = (struct cpl_set_tcb_field *) mbuf_put(m, sizeof(*req));
-	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
-	req->wr.wr_lo = htonl(V_WR_TID(ep->hwtid));
-	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, ep->hwtid));
-	req->reply = 0;
-	req->cpu_idx = 0;
-	req->word = htons(W_TCB_RX_QUIESCE);
-	req->mask = cpu_to_be64(1ULL << S_TCB_RX_QUIESCE);
-	req->val = 0;
-
-	m_set_priority(m, CPL_PRIORITY_DATA);
-	cxgb_ofld_send(ep->com.tdev, m);
-#endif
-	return 0;
-}
-
-static struct rtentry *
+static int
 find_route(__be32 local_ip, __be32 peer_ip, __be16 local_port,
-    __be16 peer_port, u8 tos)
+    __be16 peer_port, u8 tos, struct nhop4_extended *pnh4)
 {
-        struct route iproute;
-        struct sockaddr_in *dst = (struct sockaddr_in *)&iproute.ro_dst;
- 
-        bzero(&iproute, sizeof iproute);
-	dst->sin_family = AF_INET;
-	dst->sin_len = sizeof *dst;
-        dst->sin_addr.s_addr = peer_ip;
- 
-        rtalloc(&iproute);
-	return iproute.ro_rt;
+	struct in_addr addr;
+
+	addr.s_addr = peer_ip;
+	return (fib4_lookup_nh_ext(RT_DEFAULT_FIB, addr, NHR_REF, 0, pnh4));
 }
 
 static void
-close_socket(struct iwch_ep_common *epc)
+close_socket(struct iwch_ep_common *epc, int close)
 {
 	CTR4(KTR_IW_CXGB, "%s ep %p so %p state %s", __FUNCTION__, epc, epc->so, states[epc->state]);
 	SOCK_LOCK(epc->so);
 	soupcall_clear(epc->so, SO_RCV);
 	SOCK_UNLOCK(epc->so);
-	soshutdown(epc->so, SHUT_WR|SHUT_RD);
+	if (close)
+		soclose(epc->so);
+	else
+		soshutdown(epc->so, SHUT_WR|SHUT_RD);
 	epc->so = NULL;
 }
 
@@ -500,7 +447,7 @@ abort_connection(struct iwch_ep *ep)
 	CTR4(KTR_IW_CXGB, "%s ep %p so %p state %s", __FUNCTION__, ep, ep->com.so, states[ep->com.state]);
 	state_set(&ep->com, ABORTING);
 	abort_socket(ep);
-	close_socket(&ep->com);
+	close_socket(&ep->com, 0);
 	close_complete_upcall(ep);
 	state_set(&ep->com, DEAD);
 	put_ep(&ep->com);
@@ -582,12 +529,13 @@ connect_request_upcall(struct iwch_ep *ep)
 	event.private_data = ep->mpa_pkt + sizeof(struct mpa_message);
 	event.provider_data = ep;
 	event.so = ep->com.so;
-	if (state_read(&ep->parent_ep->com) != DEAD)
+	if (state_read(&ep->parent_ep->com) != DEAD) {
+		get_ep(&ep->com);
 		ep->parent_ep->com.cm_id->event_handler(
 						ep->parent_ep->com.cm_id,
 						&event);
+	}
 	put_ep(&ep->parent_ep->com);
-	ep->parent_ep = NULL;
 }
 
 static void
@@ -729,6 +677,7 @@ process_mpa_reply(struct iwch_ep *ep)
 	 */
 	CTR1(KTR_IW_CXGB, "%s mpa rpl looks good!", __FUNCTION__);
 	state_set(&ep->com, FPDU_MODE);
+	ep->mpa_attr.initiator = 1;
 	ep->mpa_attr.crc_enabled = (mpa->flags & MPA_CRC) | crc_enabled ? 1 : 0;
 	ep->mpa_attr.recv_marker_enabled = markers_enabled;
 	ep->mpa_attr.xmit_marker_enabled = mpa->flags & MPA_MARKERS ? 1 : 0;
@@ -885,6 +834,7 @@ process_mpa_request(struct iwch_ep *ep)
 	 * If we get here we have accumulated the entire mpa
 	 * start reply message including private data.
 	 */
+	ep->mpa_attr.initiator = 0;
 	ep->mpa_attr.crc_enabled = (mpa->flags & MPA_CRC) | crc_enabled ? 1 : 0;
 	ep->mpa_attr.recv_marker_enabled = markers_enabled;
 	ep->mpa_attr.xmit_marker_enabled = mpa->flags & MPA_MARKERS ? 1 : 0;
@@ -934,7 +884,6 @@ process_peer_close(struct iwch_ep *ep)
 		 * rejects the CR.
 		 */
 		__state_set(&ep->com, CLOSING);
-		get_ep(&ep->com);
 		break;
 	case MPA_REP_SENT:
 		__state_set(&ep->com, CLOSING);
@@ -961,7 +910,7 @@ process_peer_close(struct iwch_ep *ep)
 			iwch_modify_qp(ep->com.qp->rhp, ep->com.qp,
 				       IWCH_QP_ATTR_NEXT_STATE, &attrs, 1);
 		}
-		close_socket(&ep->com);
+		close_socket(&ep->com, 0);
 		close_complete_upcall(ep);
 		__state_set(&ep->com, DEAD);
 		release = 1;
@@ -986,11 +935,10 @@ process_conn_error(struct iwch_ep *ep)
 {
 	struct iwch_qp_attributes attrs;
 	int ret;
-	int state;
 
-	state = state_read(&ep->com);
-	CTR5(KTR_IW_CXGB, "%s ep %p so %p so->so_error %u state %s", __FUNCTION__, ep, ep->com.so, ep->com.so->so_error, states[ep->com.state]);
-	switch (state) {
+	mtx_lock(&ep->com.lock);
+	CTR3(KTR_IW_CXGB, "%s ep %p state %u", __func__, ep, ep->com.state);
+	switch (ep->com.state) {
 	case MPA_REQ_WAIT:
 		stop_ep_timer(ep);
 		break;
@@ -1009,7 +957,6 @@ process_conn_error(struct iwch_ep *ep)
 		 * the reference on it until the ULP accepts or
 		 * rejects the CR.
 		 */
-		get_ep(&ep->com);
 		break;
 	case MORIBUND:
 	case CLOSING:
@@ -1031,6 +978,7 @@ process_conn_error(struct iwch_ep *ep)
 	case ABORTING:
 		break;
 	case DEAD:
+		mtx_unlock(&ep->com.lock);
 		CTR2(KTR_IW_CXGB, "%s so_error %d IN DEAD STATE!!!!", __FUNCTION__, 
 			ep->com.so->so_error);
 		return;
@@ -1039,11 +987,12 @@ process_conn_error(struct iwch_ep *ep)
 		break;
 	}
 
-	if (state != ABORTING) {
-		close_socket(&ep->com);
-		state_set(&ep->com, DEAD);
+	if (ep->com.state != ABORTING) {
+		close_socket(&ep->com, 0);
+		__state_set(&ep->com, DEAD);
 		put_ep(&ep->com);
 	}
+	mtx_unlock(&ep->com.lock);
 	return;
 }
 
@@ -1071,7 +1020,10 @@ process_close_complete(struct iwch_ep *ep)
 					     IWCH_QP_ATTR_NEXT_STATE,
 					     &attrs, 1);
 		}
-		close_socket(&ep->com);
+		if (ep->parent_ep)
+			close_socket(&ep->com, 1);
+		else
+			close_socket(&ep->com, 0);
 		close_complete_upcall(ep);
 		__state_set(&ep->com, DEAD);
 		release = 1;
@@ -1102,77 +1054,59 @@ process_close_complete(struct iwch_ep *ep)
  * terminate() handles case (1)...
  */
 static int
-terminate(struct t3cdev *tdev, struct mbuf *m, void *ctx)
+terminate(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 {
-	struct toepcb *toep = (struct toepcb *)ctx;
-	struct socket *so = toeptoso(toep);
+	struct adapter *sc = qs->adap;
+	struct tom_data *td = sc->tom_softc;
+	uint32_t hash = *((uint32_t *)r + 1);
+	unsigned int tid = ntohl(hash) >> 8 & 0xfffff;
+	struct toepcb *toep = lookup_tid(&td->tid_maps, tid);
+	struct socket *so = toep->tp_inp->inp_socket;
 	struct iwch_ep *ep = so->so_rcv.sb_upcallarg;
 
-	CTR2(KTR_IW_CXGB, "%s ep %p", __FUNCTION__, ep);
+	if (state_read(&ep->com) != FPDU_MODE)
+		goto done;
+
 	m_adj(m, sizeof(struct cpl_rdma_terminate));
-	CTR2(KTR_IW_CXGB, "%s saving %d bytes of term msg", __FUNCTION__, m->m_len);
+
+	CTR4(KTR_IW_CXGB, "%s: tid %u, ep %p, saved %d bytes",
+	    __func__, tid, ep, m->m_len);
+
 	m_copydata(m, 0, m->m_len, ep->com.qp->attr.terminate_buffer);
 	ep->com.qp->attr.terminate_msg_len = m->m_len;
 	ep->com.qp->attr.is_terminate_local = 0;
-	return CPL_RET_BUF_DONE;
+
+done:
+	m_freem(m);
+	return (0);
 }
 
 static int
-ec_status(struct t3cdev *tdev, struct mbuf *m, void *ctx)
+ec_status(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 {
-	struct toepcb *toep = (struct toepcb *)ctx;
-	struct socket *so = toeptoso(toep);
-	struct cpl_rdma_ec_status *rep = cplhdr(m);
-	struct iwch_ep *ep;
-	struct iwch_qp_attributes attrs;
-	int release = 0;
+	struct adapter *sc = qs->adap;
+	struct tom_data *td = sc->tom_softc;
+	struct cpl_rdma_ec_status *rep = mtod(m, void *);
+	unsigned int tid = GET_TID(rep);
+	struct toepcb *toep = lookup_tid(&td->tid_maps, tid);
+	struct socket *so = toep->tp_inp->inp_socket;
+	struct iwch_ep *ep = so->so_rcv.sb_upcallarg;
 
-	ep = so->so_rcv.sb_upcallarg;
-	CTR5(KTR_IW_CXGB, "%s ep %p so %p state %s ec_status %d", __FUNCTION__, ep, ep->com.so, states[ep->com.state], rep->status);
-	if (!so || !ep) {
-		panic("bogosity ep %p state %d, so %p state %x\n", ep, ep ? ep->com.state : -1, so, so ? so->so_state : -1); 
-	}
-	mtx_lock(&ep->com.lock);
-	switch (ep->com.state) {
-	case CLOSING:
-		if (!rep->status)
-			__state_set(&ep->com, MORIBUND);
-		else
-			__state_set(&ep->com, ABORTING);
-		break;
-	case MORIBUND:
-		stop_ep_timer(ep);
-		if (!rep->status) {
-			if ((ep->com.cm_id) && (ep->com.qp)) {
-				attrs.next_state = IWCH_QP_STATE_IDLE;
-				iwch_modify_qp(ep->com.qp->rhp,
-					     ep->com.qp,
-					     IWCH_QP_ATTR_NEXT_STATE,
-					     &attrs, 1);
-			}
-			close_socket(&ep->com);
-			close_complete_upcall(ep);
-			__state_set(&ep->com, DEAD);
-			release = 1;
-		}
-		break;
-	case DEAD:
-		break;
-	default:
-		panic("unknown state: %d\n", ep->com.state);
-	}
-	mtx_unlock(&ep->com.lock);
 	if (rep->status) {
-		log(LOG_ERR, "%s BAD CLOSE - Aborting tid %u\n",
-		       __FUNCTION__, ep->hwtid);
+		struct iwch_qp_attributes attrs;
+
+		CTR1(KTR_IW_CXGB, "%s BAD CLOSE - Aborting", __FUNCTION__);
+		stop_ep_timer(ep);
 		attrs.next_state = IWCH_QP_STATE_ERROR;
 		iwch_modify_qp(ep->com.qp->rhp,
-			       ep->com.qp, IWCH_QP_ATTR_NEXT_STATE,
-			       &attrs, 1);
+			     ep->com.qp,
+			     IWCH_QP_ATTR_NEXT_STATE,
+			     &attrs, 1);
+		abort_connection(ep);
 	}
-	if (release)
-		put_ep(&ep->com);
-	return CPL_RET_BUF_DONE;
+
+	m_freem(m);
+	return (0);
 }
 
 static void
@@ -1181,24 +1115,29 @@ ep_timeout(void *arg)
 	struct iwch_ep *ep = (struct iwch_ep *)arg;
 	struct iwch_qp_attributes attrs;
 	int err = 0;
+	int abort = 1;
 
 	mtx_lock(&ep->com.lock);
 	CTR4(KTR_IW_CXGB, "%s ep %p so %p state %s", __FUNCTION__, ep, ep->com.so, states[ep->com.state]);
 	switch (ep->com.state) {
 	case MPA_REQ_SENT:
+		__state_set(&ep->com, ABORTING);
 		connect_reply_upcall(ep, -ETIMEDOUT);
 		break;
 	case MPA_REQ_WAIT:
+		__state_set(&ep->com, ABORTING);
 		break;
 	case CLOSING:
 	case MORIBUND:
 		if (ep->com.cm_id && ep->com.qp)
 			err = 1;
+		__state_set(&ep->com, ABORTING);
 		break;
 	default:
-		panic("unknown state: %d\n", ep->com.state);
+		CTR3(KTR_IW_CXGB, "%s unexpected state ep %p state %u\n",
+			__func__, ep, ep->com.state);
+		abort = 0;
 	}
-	__state_set(&ep->com, ABORTING);
 	mtx_unlock(&ep->com.lock);
 	if (err){
 		attrs.next_state = IWCH_QP_STATE_ERROR;
@@ -1206,7 +1145,8 @@ ep_timeout(void *arg)
 			     ep->com.qp, IWCH_QP_ATTR_NEXT_STATE,
 			     &attrs, 1);
 	}
-	abort_connection(ep);
+	if (abort)
+		abort_connection(ep);
 	put_ep(&ep->com);
 }
 
@@ -1228,6 +1168,7 @@ iwch_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 		err = send_mpa_reject(ep, pdata, pdata_len);
 		err = soshutdown(ep->com.so, 3);
 	}
+	put_ep(&ep->com);
 	return 0;
 }
 
@@ -1242,8 +1183,10 @@ iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct iwch_qp *qp = get_qhp(h, conn_param->qpn);
 
 	CTR4(KTR_IW_CXGB, "%s ep %p so %p state %s", __FUNCTION__, ep, ep->com.so, states[ep->com.state]);
-	if (state_read(&ep->com) == DEAD)
-		return (-ECONNRESET);
+	if (state_read(&ep->com) == DEAD) {
+		err = -ECONNRESET;
+		goto err;
+	}
 
 	PANIC_IF(state_read(&ep->com) != MPA_REQ_RCVD);
 	PANIC_IF(!qp);
@@ -1251,7 +1194,8 @@ iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if ((conn_param->ord > qp->rhp->attr.max_rdma_read_qp_depth) ||
 	    (conn_param->ird > qp->rhp->attr.max_rdma_reads_per_qp)) {
 		abort_connection(ep);
-		return (-EINVAL);
+		err = -EINVAL;
+		goto err;
 	}
 
 	cm_id->add_ref(cm_id);
@@ -1263,11 +1207,10 @@ iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ep->ird = conn_param->ird;
 	ep->ord = conn_param->ord;
 	CTR3(KTR_IW_CXGB, "%s ird %d ord %d", __FUNCTION__, ep->ird, ep->ord);
-	get_ep(&ep->com);
 
 	/* bind QP to EP and move to RTS */
 	attrs.mpa_attr = ep->mpa_attr;
-	attrs.max_ird = ep->ord;
+	attrs.max_ird = ep->ird;
 	attrs.max_ord = ep->ord;
 	attrs.llp_stream_handle = ep;
 	attrs.next_state = IWCH_QP_STATE_RTS;
@@ -1283,20 +1226,21 @@ iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 			     ep->com.qp, mask, &attrs, 1);
 
 	if (err) 
-		goto err;
+		goto err1;
 
 	err = send_mpa_reply(ep, conn_param->private_data,
  			     conn_param->private_data_len);
 	if (err)
-		goto err;
+		goto err1;
 	state_set(&ep->com, FPDU_MODE);
 	established_upcall(ep);
 	put_ep(&ep->com);
 	return 0;
-err:
+err1:
 	ep->com.cm_id = NULL;
 	ep->com.qp = NULL;
 	cm_id->rem_ref(cm_id);
+err:
 	put_ep(&ep->com);
 	return err;
 }
@@ -1311,15 +1255,6 @@ static int init_sock(struct iwch_ep_common *epc)
 	soupcall_set(epc->so, SO_RCV, iwch_so_upcall, epc);
 	epc->so->so_state |= SS_NBIO;
 	SOCK_UNLOCK(epc->so);
-	sopt.sopt_dir = SOPT_SET;
-	sopt.sopt_level = SOL_SOCKET;
-	sopt.sopt_name = SO_NO_DDP;
-	sopt.sopt_val = (caddr_t)&on;
-	sopt.sopt_valsize = sizeof on;
-	sopt.sopt_td = NULL;
-	err = sosetopt(epc->so, &sopt);
-	if (err) 
-		printf("%s can't set SO_NO_DDP err %d\n", __FUNCTION__, err);
 	sopt.sopt_dir = SOPT_SET;
 	sopt.sopt_level = IPPROTO_TCP;
 	sopt.sopt_name = TCP_NODELAY;
@@ -1352,7 +1287,7 @@ iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	int err = 0;
 	struct iwch_dev *h = to_iwch_dev(cm_id->device);
 	struct iwch_ep *ep;
-	struct rtentry *rt;
+	struct nhop4_extended nh4;
 	struct toedev *tdev;
 	
 	if (is_loopback_dst(cm_id)) {
@@ -1366,7 +1301,7 @@ iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		err = (-ENOMEM);
 		goto out;
 	}
-	callout_init(&ep->timer, TRUE);
+	callout_init(&ep->timer, 1);
 	ep->plen = conn_param->private_data_len;
 	if (ep->plen)
 		memcpy(ep->mpa_pkt + sizeof(struct mpa_message),
@@ -1388,30 +1323,28 @@ iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto fail2;
 
 	/* find a route */
-	rt = find_route(cm_id->local_addr.sin_addr.s_addr,
+	err = find_route(cm_id->local_addr.sin_addr.s_addr,
 			cm_id->remote_addr.sin_addr.s_addr,
 			cm_id->local_addr.sin_port,
-			cm_id->remote_addr.sin_port, IPTOS_LOWDELAY);
-	if (!rt) {
+			cm_id->remote_addr.sin_port, IPTOS_LOWDELAY, &nh4);
+	if (err) {
 		printf("%s - cannot find route.\n", __FUNCTION__);
 		err = EHOSTUNREACH;
 		goto fail2;
 	}
 
-	if (!(rt->rt_ifp->if_flags & IFCAP_TOE)) {
+	if (!(nh4.nh_ifp->if_flags & IFCAP_TOE)) {
 		printf("%s - interface not TOE capable.\n", __FUNCTION__);
-		goto fail3;
+		fib4_free_nh_ext(RT_DEFAULT_FIB, &nh4);
+		goto fail2;
 	}
-	tdev = TOEDEV(rt->rt_ifp);
+	tdev = TOEDEV(nh4.nh_ifp);
 	if (tdev == NULL) {
 		printf("%s - No toedev for interface.\n", __FUNCTION__);
-		goto fail3;
+		fib4_free_nh_ext(RT_DEFAULT_FIB, &nh4);
+		goto fail2;
 	}
-	if (!tdev->tod_can_offload(tdev, ep->com.so)) {
-		printf("%s - interface cannot offload!.\n", __FUNCTION__);
-		goto fail3;
-	}
-	RTFREE(rt);
+	fib4_free_nh_ext(RT_DEFAULT_FIB, &nh4);
 
 	state_set(&ep->com, CONNECTING);
 	ep->com.local_addr = cm_id->local_addr;
@@ -1420,8 +1353,6 @@ iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		ep->com.thread);
 	if (!err)
 		goto out;
-fail3:
-	RTFREE(ep->dst);
 fail2:
 	put_ep(&ep->com);
 out:
@@ -1429,7 +1360,7 @@ out:
 }
 
 int
-iwch_create_listen(struct iw_cm_id *cm_id, int backlog)
+iwch_create_listen_ep(struct iw_cm_id *cm_id, int backlog)
 {
 	int err = 0;
 	struct iwch_listen_ep *ep;
@@ -1449,35 +1380,22 @@ iwch_create_listen(struct iw_cm_id *cm_id, int backlog)
 	state_set(&ep->com, LISTEN);
 
 	ep->com.so = cm_id->so;
-	err = init_sock(&ep->com);
-	if (err)
-		goto fail;
-
-	err = solisten(ep->com.so, ep->backlog, ep->com.thread);
-	if (!err) {
-		cm_id->provider_data = ep;
-		goto out;
-	}
-	close_socket(&ep->com);
-fail:
-	cm_id->rem_ref(cm_id);
-	put_ep(&ep->com);
+	cm_id->provider_data = ep;
 out:
 	return err;
 }
 
-int
-iwch_destroy_listen(struct iw_cm_id *cm_id)
+void
+iwch_destroy_listen_ep(struct iw_cm_id *cm_id)
 {
 	struct iwch_listen_ep *ep = to_listen_ep(cm_id);
 
 	CTR2(KTR_IW_CXGB, "%s ep %p", __FUNCTION__, ep);
 
 	state_set(&ep->com, DEAD);
-	close_socket(&ep->com);
 	cm_id->rem_ref(cm_id);
 	put_ep(&ep->com);
-	return 0;
+	return;
 }
 
 int
@@ -1493,47 +1411,48 @@ iwch_ep_disconnect(struct iwch_ep *ep, int abrupt, int flags)
 	CTR5(KTR_IW_CXGB, "%s ep %p so %p state %s, abrupt %d", __FUNCTION__, ep,
 	     ep->com.so, states[ep->com.state], abrupt);
 
-	if (ep->com.state == DEAD) {
-		CTR2(KTR_IW_CXGB, "%s already dead ep %p", __FUNCTION__, ep);
-		goto out;
-	}
-
-	if (abrupt) {
-		if (ep->com.state != ABORTING) {
-			ep->com.state = ABORTING;
-			close = 1;
-		}
-		goto out;
-	}
-
 	switch (ep->com.state) {
 	case MPA_REQ_WAIT:
 	case MPA_REQ_SENT:
 	case MPA_REQ_RCVD:
 	case MPA_REP_SENT:
 	case FPDU_MODE:
-		start_ep_timer(ep);
-		ep->com.state = CLOSING;
 		close = 1;
+		if (abrupt)
+			ep->com.state = ABORTING;
+		else {
+			ep->com.state = CLOSING;
+			start_ep_timer(ep);
+		}
 		break;
 	case CLOSING:
-		ep->com.state = MORIBUND;
 		close = 1;
+		if (abrupt) {
+			stop_ep_timer(ep);
+			ep->com.state = ABORTING;
+		} else
+			ep->com.state = MORIBUND;
 		break;
 	case MORIBUND:
 	case ABORTING:
+	case DEAD:
+		CTR3(KTR_IW_CXGB, "%s ignoring disconnect ep %p state %u\n",
+			__func__, ep, ep->com.state);
 		break;
 	default:
 		panic("unknown state: %d\n", ep->com.state);
 		break;
 	}
-out:
+
 	mtx_unlock(&ep->com.lock);
 	if (close) {
 		if (abrupt)
 			abort_connection(ep);
-		else
+		else {
+			if (!ep->parent_ep)
+				__state_set(&ep->com, MORIBUND);
 			shutdown_socket(&ep->com);
+		}
 	}
 	return 0;
 }
@@ -1569,11 +1488,11 @@ process_data(struct iwch_ep *ep)
 		process_mpa_request(ep);
 		break;
 	default:
-		if (ep->com.so->so_rcv.sb_cc) 
+		if (sbavail(&ep->com.so->so_rcv)) 
 			printf("%s Unexpected streaming data."
 			       " ep %p state %d so %p so_state %x so_rcv.sb_cc %u so_rcv.sb_mb %p\n",
 			       __FUNCTION__, ep, state_read(&ep->com), ep->com.so, ep->com.so->so_state,
-			       ep->com.so->so_rcv.sb_cc, ep->com.so->so_rcv.sb_mb);
+			       sbavail(&ep->com.so->so_rcv), ep->com.so->so_rcv.sb_mb);
 		break;
 	}
 	return;
@@ -1587,70 +1506,58 @@ process_connected(struct iwch_ep *ep)
 		send_mpa_req(ep);
 	} else {
 		connect_reply_upcall(ep, -ep->com.so->so_error);
-		close_socket(&ep->com);
+		close_socket(&ep->com, 0);
 		state_set(&ep->com, DEAD);
 		put_ep(&ep->com);
 	}
 }
 
-static struct socket *
-dequeue_socket(struct socket *head, struct sockaddr_in **remote, struct iwch_ep *child_ep)
+void
+process_newconn(struct iw_cm_id *parent_cm_id, struct socket *child_so)
 {
-	struct socket *so;
-
-	ACCEPT_LOCK();
-	so = TAILQ_FIRST(&head->so_comp);
-	if (!so) {
-		ACCEPT_UNLOCK();
-		return NULL;
-	}
-	TAILQ_REMOVE(&head->so_comp, so, so_list);
-	head->so_qlen--;
-	SOCK_LOCK(so);
-	so->so_qstate &= ~SQ_COMP;
-	so->so_head = NULL;
-	soref(so);
-	soupcall_set(so, SO_RCV, iwch_so_upcall, child_ep);
-	so->so_state |= SS_NBIO;
-	PANIC_IF(!(so->so_state & SS_ISCONNECTED));
-	PANIC_IF(so->so_error);
-	SOCK_UNLOCK(so);
-	ACCEPT_UNLOCK();
-	soaccept(so, (struct sockaddr **)remote);
-	return so;
-}
-
-static void
-process_newconn(struct iwch_ep *parent_ep)
-{
-	struct socket *child_so;
 	struct iwch_ep *child_ep;
+	struct sockaddr_in *local;
 	struct sockaddr_in *remote;
+	struct iwch_ep *parent_ep = parent_cm_id->provider_data;
 
 	CTR3(KTR_IW_CXGB, "%s parent ep %p so %p", __FUNCTION__, parent_ep, parent_ep->com.so);
+	if (!child_so) {
+		log(LOG_ERR, "%s - invalid child socket!\n", __func__);
+		return;
+	}
 	child_ep = alloc_ep(sizeof(*child_ep), M_NOWAIT);
 	if (!child_ep) {
 		log(LOG_ERR, "%s - failed to allocate ep entry!\n",
 		       __FUNCTION__);
 		return;
 	}
-	child_so = dequeue_socket(parent_ep->com.so, &remote, child_ep);
-	if (!child_so) {
-		log(LOG_ERR, "%s - failed to dequeue child socket!\n",
-		       __FUNCTION__);
-		__free_ep(&child_ep->com);
-		return;
-	}
+	SOCKBUF_LOCK(&child_so->so_rcv);
+	soupcall_set(child_so, SO_RCV, iwch_so_upcall, child_ep);
+	SOCKBUF_UNLOCK(&child_so->so_rcv);
+
+	in_getsockaddr(child_so, (struct sockaddr **)&local);
+	in_getpeeraddr(child_so, (struct sockaddr **)&remote);
+
 	CTR3(KTR_IW_CXGB, "%s remote addr %s port %d", __FUNCTION__, 
 		inet_ntoa(remote->sin_addr), ntohs(remote->sin_port));
+	child_ep->com.tdev = parent_ep->com.tdev;
+	child_ep->com.local_addr.sin_family = parent_ep->com.local_addr.sin_family;
+	child_ep->com.local_addr.sin_port = parent_ep->com.local_addr.sin_port;
+	child_ep->com.local_addr.sin_addr.s_addr = parent_ep->com.local_addr.sin_addr.s_addr;
+	child_ep->com.local_addr.sin_len = parent_ep->com.local_addr.sin_len;
+	child_ep->com.remote_addr.sin_family = remote->sin_family;
+	child_ep->com.remote_addr.sin_port = remote->sin_port;
+	child_ep->com.remote_addr.sin_addr.s_addr = remote->sin_addr.s_addr;
+	child_ep->com.remote_addr.sin_len = remote->sin_len;
 	child_ep->com.so = child_so;
 	child_ep->com.cm_id = NULL;
 	child_ep->com.thread = parent_ep->com.thread;
 	child_ep->parent_ep = parent_ep;
+
+	free(local, M_SONAME);
 	free(remote, M_SONAME);
 	get_ep(&parent_ep->com);
-	child_ep->parent_ep = parent_ep;
-	callout_init(&child_ep->timer, TRUE);
+	callout_init(&child_ep->timer, 1);
 	state_set(&child_ep->com, MPA_REQ_WAIT);
 	start_ep_timer(child_ep);
 
@@ -1687,7 +1594,10 @@ process_socket_event(struct iwch_ep *ep)
 	}
 
 	if (state == LISTEN) {
-		process_newconn(ep);
+		/* socket listening events are handled at IWCM */
+		CTR3(KTR_IW_CXGB, "%s Invalid ep state:%u, ep:%p", __func__,
+			ep->com.state, ep);
+		BUG();
 		return;
 	}
 
@@ -1747,17 +1657,30 @@ iwch_cm_init(void)
         }
         taskqueue_start_threads(&iw_cxgb_taskq, 1, PI_NET, "iw_cxgb taskq");
         TASK_INIT(&iw_cxgb_task, 0, process_req, NULL);
-	t3tom_register_cpl_handler(CPL_RDMA_TERMINATE, terminate);
-	t3tom_register_cpl_handler(CPL_RDMA_EC_STATUS, ec_status);
-	return 0;
+	return (0);
 }
 
 void
 iwch_cm_term(void)
 {
-	t3tom_register_cpl_handler(CPL_RDMA_TERMINATE, NULL);
-	t3tom_register_cpl_handler(CPL_RDMA_EC_STATUS, NULL);
+
 	taskqueue_drain(iw_cxgb_taskq, &iw_cxgb_task);
 	taskqueue_free(iw_cxgb_taskq);
 }
 
+void
+iwch_cm_init_cpl(struct adapter *sc)
+{
+
+	t3_register_cpl_handler(sc, CPL_RDMA_TERMINATE, terminate);
+	t3_register_cpl_handler(sc, CPL_RDMA_EC_STATUS, ec_status);
+}
+
+void
+iwch_cm_term_cpl(struct adapter *sc)
+{
+
+	t3_register_cpl_handler(sc, CPL_RDMA_TERMINATE, NULL);
+	t3_register_cpl_handler(sc, CPL_RDMA_EC_STATUS, NULL);
+}
+#endif

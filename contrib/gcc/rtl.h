@@ -22,6 +22,11 @@ Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
 #ifndef GCC_RTL_H
 #define GCC_RTL_H
 
+#include <sys/param.h>
+#ifndef __PAST_END
+# define __PAST_END(array, offset) (((typeof(*(array)) *)(array))[offset])
+#endif
+
 #include "statistics.h"
 #include "machmode.h"
 #include "input.h"
@@ -565,12 +570,12 @@ extern void rtvec_check_failed_bounds (rtvec, int, const char *, int,
 
 #define RTL_CHECK1(RTX, N, C1)      ((RTX)->u.fld[N])
 #define RTL_CHECK2(RTX, N, C1, C2)  ((RTX)->u.fld[N])
-#define RTL_CHECKC1(RTX, N, C)	    ((RTX)->u.fld[N])
+#define RTL_CHECKC1(RTX, N, C)	    __PAST_END((RTX)->u.fld, N)
 #define RTL_CHECKC2(RTX, N, C1, C2) ((RTX)->u.fld[N])
-#define RTVEC_ELT(RTVEC, I)	    ((RTVEC)->elem[I])
+#define RTVEC_ELT(RTVEC, I)	    __PAST_END((RTVEC)->elem, I)
 #define XWINT(RTX, N)		    ((RTX)->u.hwint[N])
 #define XCWINT(RTX, N, C)	    ((RTX)->u.hwint[N])
-#define XCMWINT(RTX, N, C, M)	    ((RTX)->u.hwint[N])
+#define XCMWINT(RTX, N, C, M)	    __PAST_END((RTX)->u.hwint, N)
 #define XCNMWINT(RTX, N, C, M)	    ((RTX)->u.hwint[N])
 #define XCNMPRV(RTX, C, M)	    (&(RTX)->u.rv)
 #define BLOCK_SYMBOL_CHECK(RTX)	    (&(RTX)->u.block_sym)
@@ -903,6 +908,15 @@ extern const char * const note_insn_name[NOTE_INSN_MAX - NOTE_INSN_BIAS];
    of LABEL_REFs that point at it, so unused labels can be deleted.  */
 #define LABEL_NUSES(RTX) XCINT (RTX, 4, CODE_LABEL)
 
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+/* The alignment of the label, as the log-base-2 of the alignment in bytes.  */
+#define LABEL_ALIGN_LOG(RTX) (XCUINT (RTX, 8, CODE_LABEL) & 0xFF)
+/* The maximum number of bytes to skip to achieve that alignment.  */
+#define LABEL_MAX_SKIP(RTX) (XCUINT (RTX, 8, CODE_LABEL) >> 8)
+#define SET_LABEL_ALIGN(RTX, ALIGN, MAX_SKIP) \
+  (XCUINT (RTX, 8, CODE_LABEL) = (ALIGN) | ((MAX_SKIP) << 8))
+
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 /* Labels carry a two-bit field composed of the ->jump and ->call
    bits.  This field indicates whether the label is an alternate
    entry point, and if so, what kind.  */
@@ -1184,8 +1198,8 @@ do {						\
    refer to part of a DECL.  */
 #define REG_EXPR(RTX) (REG_ATTRS (RTX) == 0 ? 0 : REG_ATTRS (RTX)->decl)
 
-/* For a MEM rtx, the offset from the start of MEM_DECL, if known, as a
-   RTX that is always a CONST_INT.  */
+/* For a REG rtx, the offset from the start of REG_EXPR, if known, as an
+   HOST_WIDE_INT.  */
 #define REG_OFFSET(RTX) (REG_ATTRS (RTX) == 0 ? 0 : REG_ATTRS (RTX)->offset)
 
 /* Copy the attributes that apply to memory locations from RHS to LHS.  */

@@ -12,14 +12,16 @@ GENSRCS=yp.h yp_clnt.c ypxfr_clnt.c
 MAN=	ypxfr.8
 
 CFLAGS+= -I.
+
+WARNS?=	2
 WFORMAT=0
-DPADD=	${LIBRPCSVC}
-LDADD=	-lrpcsvc
+
+LIBADD=	rpcsvc
 
 CLEANFILES= ${GENSRCS}
 
 RPCDIR= ${.CURDIR}/../../include/rpcsvc
-RPCGEN= rpcgen -I -C
+RPCGEN=	RPCGEN_CPP=${CPP:Q} rpcgen -I -C
 
 ypxfr_clnt.c: ${RPCDIR}/yp.x
 	rm -f ${.TARGET}

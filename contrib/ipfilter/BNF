@@ -67,7 +67,7 @@ facility = "kern" | "user" | "mail" | "daemon" | "auth" | "syslog" |
 	   "audit" | "logalert" | "local0" | "local1" | "local2" |
 	   "local3" | "local4" | "local5" | "local6" | "local7" .
 priority = "emerg" | "alert" | "crit" | "err" | "warn" | "notice" |
-	   "info" | "debug" . 
+	   "info" | "debug" .
 
 hexnumber = "0" "x" hexstring .
 hexstring = hexdigit [ hexstring ] .

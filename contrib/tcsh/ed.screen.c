@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.screen.c,v 3.76 2009/06/25 21:15:37 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/ed.screen.c,v 3.78 2011/02/27 00:14:38 christos Exp $ */
 /*
  * ed.screen.c: Editor/termcap-curses interface
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: ed.screen.c,v 3.76 2009/06/25 21:15:37 christos Exp $")
+RCSID("$tcsh: ed.screen.c,v 3.78 2011/02/27 00:14:38 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"
@@ -1562,6 +1562,28 @@ GetSize(int *lins, int *cols)
 
 #endif /* SIG_WINDOW */
 
+#ifdef KNOWsize
+static void
+UpdateVal(const Char *tag, int value, Char *termcap, Char *backup)
+{
+    Char *ptr, *p;
+    if ((ptr = Strstr(termcap, tag)) == NULL) {
+	(void)Strcpy(backup, termcap);
+	return;
+    } else {
+	size_t len = (ptr - termcap) + Strlen(tag);
+	(void)Strncpy(backup, termcap, len);
+	backup[len] = '\0';
+	p = Itoa(value, 0, 0);
+	(void) Strcat(backup + len, p);
+	xfree(p);
+	ptr = Strchr(ptr, ':');
+	if (ptr)
+	    (void) Strcat(backup, ptr);
+    }
+}
+#endif
+
 void
 ChangeSize(int lins, int cols)
 {
@@ -1609,43 +1631,9 @@ ChangeSize(int lins, int cols)
 	    (void) Strncpy(termcap, ptr, TC_BUFSIZE);
 	    termcap[TC_BUFSIZE-1] = '\0';
 
-	    /* update termcap string; first do columns */
-	    buf[0] = 'c';
-	    buf[1] = 'o';
-	    buf[2] = '#';
-	    buf[3] = '\0';
-	    if ((ptr = Strstr(termcap, buf)) == NULL) {
-		(void) Strcpy(backup, termcap);
-	    }
-	    else {
-		size_t len = (ptr - termcap) + Strlen(buf);
-		(void) Strncpy(backup, termcap, len);
-		backup[len] = '\0';
-		p = Itoa(Val(T_co), 0, 0);
-		(void) Strcat(backup + len, p);
-		xfree(p);
-		ptr = Strchr(ptr, ':');
-		(void) Strcat(backup, ptr);
-	    }
+	    UpdateVal(STRco, Val(T_co), termcap, backup);
+	    UpdateVal(STRli, Val(T_li), termcap, backup);
 
-	    /* now do lines */
-	    buf[0] = 'l';
-	    buf[1] = 'i';
-	    buf[2] = '#';
-	    buf[3] = '\0';
-	    if ((ptr = Strstr(backup, buf)) == NULL) {
-		(void) Strcpy(termcap, backup);
-	    }
-	    else {
-		size_t len = (ptr - backup) + Strlen(buf);
-		(void) Strncpy(termcap, backup, len);
-		termcap[len] = '\0';
-		p = Itoa(Val(T_li), 0, 0);
-		(void) Strcat(termcap, p);
-		xfree(p);
-		ptr = Strchr(ptr, ':');
-		(void) Strcat(termcap, ptr);
-	    }
 	    /*
 	     * Chop the termcap string at TC_BUFSIZE-1 characters to avoid
 	     * core-dumps in the termcap routines

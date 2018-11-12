@@ -90,30 +90,26 @@ struct resource_i {
 	TAILQ_ENTRY(resource_i)	r_link;
 	LIST_ENTRY(resource_i)	r_sharelink;
 	LIST_HEAD(, resource_i)	*r_sharehead;
-	u_long	r_start;	/* index of the first entry in this resource */
-	u_long	r_end;		/* index of the last entry (inclusive) */
+	rman_res_t	r_start;	/* index of the first entry in this resource */
+	rman_res_t	r_end;		/* index of the last entry (inclusive) */
 	u_int	r_flags;
 	void	*r_virtual;	/* virtual address of this resource */
-	struct	device *r_dev;	/* device which has allocated this resource */
-	struct	rman *r_rm;	/* resource manager from whence this came */
+	device_t r_dev;	/* device which has allocated this resource */
+	struct rman *r_rm;	/* resource manager from whence this came */
 	int	r_rid;		/* optional rid for this resource. */
 };
 
-static int     rman_debug = 0;
-TUNABLE_INT("debug.rman_debug", &rman_debug);
-SYSCTL_INT(_debug, OID_AUTO, rman_debug, CTLFLAG_RW,
+static int rman_debug = 0;
+SYSCTL_INT(_debug, OID_AUTO, rman_debug, CTLFLAG_RWTUN,
     &rman_debug, 0, "rman debug");
 
 #define DPRINTF(params) if (rman_debug) printf params
 
 static MALLOC_DEFINE(M_RMAN, "rman", "Resource manager");
 
-struct	rman_head rman_head;
-static	struct mtx rman_mtx; /* mutex to protect rman_head */
-static	int int_rman_activate_resource(struct rman *rm, struct resource_i *r,
-				       struct resource_i **whohas);
-static	int int_rman_deactivate_resource(struct resource_i *r);
-static	int int_rman_release_resource(struct rman *rm, struct resource_i *r);
+struct rman_head rman_head;
+static struct mtx rman_mtx; /* mutex to protect rman_head */
+static int int_rman_release_resource(struct rman *rm, struct resource_i *r);
 
 static __inline struct resource_i *
 int_alloc_resource(int malloc_flag)
@@ -138,6 +134,8 @@ rman_init(struct rman *rm)
 		mtx_init(&rman_mtx, "rman head", NULL, MTX_DEF);
 	}
 
+	if (rm->rm_start == 0 && rm->rm_end == 0)
+		rm->rm_end = ~0;
 	if (rm->rm_type == RMAN_UNINIT)
 		panic("rman_init");
 	if (rm->rm_type == RMAN_GAUGE)
@@ -156,12 +154,15 @@ rman_init(struct rman *rm)
 }
 
 int
-rman_manage_region(struct rman *rm, u_long start, u_long end)
+rman_manage_region(struct rman *rm, rman_res_t start, rman_res_t end)
 {
 	struct resource_i *r, *s, *t;
+	int rv = 0;
 
-	DPRINTF(("rman_manage_region: <%s> request: start %#lx, end %#lx\n",
+	DPRINTF(("rman_manage_region: <%s> request: start %#jx, end %#jx\n",
 	    rm->rm_descr, start, end));
+	if (start < rm->rm_start || end > rm->rm_end)
+		return EINVAL;
 	r = int_alloc_resource(M_NOWAIT);
 	if (r == NULL)
 		return ENOMEM;
@@ -173,7 +174,7 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 
 	/* Skip entries before us. */
 	TAILQ_FOREACH(s, &rm->rm_list, r_link) {
-		if (s->r_end == ULONG_MAX)
+		if (s->r_end == ~0)
 			break;
 		if (s->r_end + 1 >= r->r_start)
 			break;
@@ -184,13 +185,17 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 		TAILQ_INSERT_TAIL(&rm->rm_list, r, r_link);
 	} else {
 		/* Check for any overlap with the current region. */
-		if (r->r_start <= s->r_end && r->r_end >= s->r_start)
-			return EBUSY;
+		if (r->r_start <= s->r_end && r->r_end >= s->r_start) {
+			rv = EBUSY;
+			goto out;
+		}
 
 		/* Check for any overlap with the next region. */
 		t = TAILQ_NEXT(s, r_link);
-		if (t && r->r_start <= t->r_end && r->r_end >= t->r_start)
-			return EBUSY;
+		if (t && r->r_start <= t->r_end && r->r_end >= t->r_start) {
+			rv = EBUSY;
+			goto out;
+		}
 
 		/*
 		 * See if this region can be merged with the next region.  If
@@ -221,9 +226,9 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 			TAILQ_INSERT_BEFORE(s, r, r_link);
 		}
 	}
-
+out:
 	mtx_unlock(rm->rm_mtx);
-	return 0;
+	return rv;
 }
 
 int
@@ -268,54 +273,237 @@ rman_fini(struct rman *rm)
 	return 0;
 }
 
-struct resource *
-rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
-		      u_long count, u_long bound,  u_int flags,
-		      struct device *dev)
+int
+rman_first_free_region(struct rman *rm, rman_res_t *start, rman_res_t *end)
 {
-	u_int	want_activate;
-	struct	resource_i *r, *s, *rv;
-	u_long	rstart, rend, amask, bmask;
+	struct resource_i *r;
+
+	mtx_lock(rm->rm_mtx);
+	TAILQ_FOREACH(r, &rm->rm_list, r_link) {
+		if (!(r->r_flags & RF_ALLOCATED)) {
+			*start = r->r_start;
+			*end = r->r_end;
+			mtx_unlock(rm->rm_mtx);
+			return (0);
+		}
+	}
+	mtx_unlock(rm->rm_mtx);
+	return (ENOENT);
+}
+
+int
+rman_last_free_region(struct rman *rm, rman_res_t *start, rman_res_t *end)
+{
+	struct resource_i *r;
+
+	mtx_lock(rm->rm_mtx);
+	TAILQ_FOREACH_REVERSE(r, &rm->rm_list, resource_head, r_link) {
+		if (!(r->r_flags & RF_ALLOCATED)) {
+			*start = r->r_start;
+			*end = r->r_end;
+			mtx_unlock(rm->rm_mtx);
+			return (0);
+		}
+	}
+	mtx_unlock(rm->rm_mtx);
+	return (ENOENT);
+}
+
+/* Shrink or extend one or both ends of an allocated resource. */
+int
+rman_adjust_resource(struct resource *rr, rman_res_t start, rman_res_t end)
+{
+	struct resource_i *r, *s, *t, *new;
+	struct rman *rm;
+
+	/* Not supported for shared resources. */
+	r = rr->__r_i;
+	if (r->r_flags & RF_SHAREABLE)
+		return (EINVAL);
+
+	/*
+	 * This does not support wholesale moving of a resource.  At
+	 * least part of the desired new range must overlap with the
+	 * existing resource.
+	 */
+	if (end < r->r_start || r->r_end < start)
+		return (EINVAL);
+
+	/*
+	 * Find the two resource regions immediately adjacent to the
+	 * allocated resource.
+	 */
+	rm = r->r_rm;
+	mtx_lock(rm->rm_mtx);
+#ifdef INVARIANTS
+	TAILQ_FOREACH(s, &rm->rm_list, r_link) {
+		if (s == r)
+			break;
+	}
+	if (s == NULL)
+		panic("resource not in list");
+#endif
+	s = TAILQ_PREV(r, resource_head, r_link);
+	t = TAILQ_NEXT(r, r_link);
+	KASSERT(s == NULL || s->r_end + 1 == r->r_start,
+	    ("prev resource mismatch"));
+	KASSERT(t == NULL || r->r_end + 1 == t->r_start,
+	    ("next resource mismatch"));
+
+	/*
+	 * See if the changes are permitted.  Shrinking is always allowed,
+	 * but growing requires sufficient room in the adjacent region.
+	 */
+	if (start < r->r_start && (s == NULL || (s->r_flags & RF_ALLOCATED) ||
+	    s->r_start > start)) {
+		mtx_unlock(rm->rm_mtx);
+		return (EBUSY);
+	}
+	if (end > r->r_end && (t == NULL || (t->r_flags & RF_ALLOCATED) ||
+	    t->r_end < end)) {
+		mtx_unlock(rm->rm_mtx);
+		return (EBUSY);
+	}
+
+	/*
+	 * While holding the lock, grow either end of the resource as
+	 * needed and shrink either end if the shrinking does not require
+	 * allocating a new resource.  We can safely drop the lock and then
+	 * insert a new range to handle the shrinking case afterwards.
+	 */
+	if (start < r->r_start ||
+	    (start > r->r_start && s != NULL && !(s->r_flags & RF_ALLOCATED))) {
+		KASSERT(s->r_flags == 0, ("prev is busy"));
+		r->r_start = start;
+		if (s->r_start == start) {
+			TAILQ_REMOVE(&rm->rm_list, s, r_link);
+			free(s, M_RMAN);
+		} else
+			s->r_end = start - 1;
+	}
+	if (end > r->r_end ||
+	    (end < r->r_end && t != NULL && !(t->r_flags & RF_ALLOCATED))) {
+		KASSERT(t->r_flags == 0, ("next is busy"));
+		r->r_end = end;
+		if (t->r_end == end) {
+			TAILQ_REMOVE(&rm->rm_list, t, r_link);
+			free(t, M_RMAN);
+		} else
+			t->r_start = end + 1;
+	}
+	mtx_unlock(rm->rm_mtx);
+
+	/*
+	 * Handle the shrinking cases that require allocating a new
+	 * resource to hold the newly-free region.  We have to recheck
+	 * if we still need this new region after acquiring the lock.
+	 */
+	if (start > r->r_start) {
+		new = int_alloc_resource(M_WAITOK);
+		new->r_start = r->r_start;
+		new->r_end = start - 1;
+		new->r_rm = rm;
+		mtx_lock(rm->rm_mtx);
+		r->r_start = start;
+		s = TAILQ_PREV(r, resource_head, r_link);
+		if (s != NULL && !(s->r_flags & RF_ALLOCATED)) {
+			s->r_end = start - 1;
+			free(new, M_RMAN);
+		} else
+			TAILQ_INSERT_BEFORE(r, new, r_link);
+		mtx_unlock(rm->rm_mtx);
+	}
+	if (end < r->r_end) {
+		new = int_alloc_resource(M_WAITOK);
+		new->r_start = end + 1;
+		new->r_end = r->r_end;
+		new->r_rm = rm;
+		mtx_lock(rm->rm_mtx);
+		r->r_end = end;
+		t = TAILQ_NEXT(r, r_link);
+		if (t != NULL && !(t->r_flags & RF_ALLOCATED)) {
+			t->r_start = end + 1;
+			free(new, M_RMAN);
+		} else
+			TAILQ_INSERT_AFTER(&rm->rm_list, r, new, r_link);
+		mtx_unlock(rm->rm_mtx);
+	}
+	return (0);
+}
+
+#define	SHARE_TYPE(f)	(f & (RF_SHAREABLE | RF_PREFETCHABLE))
+
+struct resource *
+rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
+			    rman_res_t count, rman_res_t bound, u_int flags,
+			    device_t dev)
+{
+	u_int new_rflags;
+	struct resource_i *r, *s, *rv;
+	rman_res_t rstart, rend, amask, bmask;
 
 	rv = NULL;
 
-	DPRINTF(("rman_reserve_resource_bound: <%s> request: [%#lx, %#lx], "
-	       "length %#lx, flags %u, device %s\n", rm->rm_descr, start, end,
+	DPRINTF(("rman_reserve_resource_bound: <%s> request: [%#jx, %#jx], "
+	       "length %#jx, flags %x, device %s\n", rm->rm_descr, start, end,
 	       count, flags,
 	       dev == NULL ? "<null>" : device_get_nameunit(dev)));
-	want_activate = (flags & RF_ACTIVE);
-	flags &= ~RF_ACTIVE;
+	KASSERT((flags & RF_FIRSTSHARE) == 0,
+	    ("invalid flags %#x", flags));
+	new_rflags = (flags & ~RF_FIRSTSHARE) | RF_ALLOCATED;
 
 	mtx_lock(rm->rm_mtx);
 
+	r = TAILQ_FIRST(&rm->rm_list);
+	if (r == NULL) {
+	    DPRINTF(("NULL list head\n"));
+	} else {
+	    DPRINTF(("rman_reserve_resource_bound: trying %#jx <%#jx,%#jx>\n",
+		    r->r_end, start, count-1));
+	}
 	for (r = TAILQ_FIRST(&rm->rm_list);
-	     r && r->r_end < start;
-	     r = TAILQ_NEXT(r, r_link))
+	     r && r->r_end < start + count - 1;
+	     r = TAILQ_NEXT(r, r_link)) {
 		;
+		DPRINTF(("rman_reserve_resource_bound: tried %#jx <%#jx,%#jx>\n",
+			r->r_end, start, count-1));
+	}
 
 	if (r == NULL) {
 		DPRINTF(("could not find a region\n"));
 		goto out;
 	}
 
-	amask = (1ul << RF_ALIGNMENT(flags)) - 1;
+	amask = (1ull << RF_ALIGNMENT(flags)) - 1;
+	KASSERT(start <= RM_MAX_END - amask,
+	    ("start (%#jx) + amask (%#jx) would wrap around", start, amask));
+
 	/* If bound is 0, bmask will also be 0 */
 	bmask = ~(bound - 1);
 	/*
 	 * First try to find an acceptable totally-unshared region.
 	 */
 	for (s = r; s; s = TAILQ_NEXT(s, r_link)) {
-		DPRINTF(("considering [%#lx, %#lx]\n", s->r_start, s->r_end));
-		if (s->r_start + count - 1 > end) {
-			DPRINTF(("s->r_start (%#lx) + count - 1> end (%#lx)\n",
+		DPRINTF(("considering [%#jx, %#jx]\n", s->r_start, s->r_end));
+		/*
+		 * The resource list is sorted, so there is no point in
+		 * searching further once r_start is too large.
+		 */
+		if (s->r_start > end - (count - 1)) {
+			DPRINTF(("s->r_start (%#jx) + count - 1> end (%#jx)\n",
 			    s->r_start, end));
+			break;
+		}
+		if (s->r_start > RM_MAX_END - amask) {
+			DPRINTF(("s->r_start (%#jx) + amask (%#jx) too large\n",
+			    s->r_start, amask));
 			break;
 		}
 		if (s->r_flags & RF_ALLOCATED) {
 			DPRINTF(("region is allocated\n"));
 			continue;
 		}
-		rstart = ulmax(s->r_start, start);
+		rstart = ummax(s->r_start, start);
 		/*
 		 * Try to find a region by adjusting to boundary and alignment
 		 * until both conditions are satisfied. This is not an optimal
@@ -327,21 +515,21 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 				rstart += bound - (rstart & ~bmask);
 		} while ((rstart & amask) != 0 && rstart < end &&
 		    rstart < s->r_end);
-		rend = ulmin(s->r_end, ulmax(rstart + count - 1, end));
+		rend = ummin(s->r_end, ummax(rstart + count - 1, end));
 		if (rstart > rend) {
 			DPRINTF(("adjusted start exceeds end\n"));
 			continue;
 		}
-		DPRINTF(("truncated region: [%#lx, %#lx]; size %#lx (requested %#lx)\n",
+		DPRINTF(("truncated region: [%#jx, %#jx]; size %#jx (requested %#jx)\n",
 		       rstart, rend, (rend - rstart + 1), count));
 
 		if ((rend - rstart + 1) >= count) {
-			DPRINTF(("candidate region: [%#lx, %#lx], size %#lx\n",
+			DPRINTF(("candidate region: [%#jx, %#jx], size %#jx\n",
 			       rstart, rend, (rend - rstart + 1)));
 			if ((s->r_end - s->r_start + 1) == count) {
 				DPRINTF(("candidate region is entire chunk\n"));
 				rv = s;
-				rv->r_flags |= RF_ALLOCATED | flags;
+				rv->r_flags = new_rflags;
 				rv->r_dev = dev;
 				goto out;
 			}
@@ -361,13 +549,13 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 				goto out;
 			rv->r_start = rstart;
 			rv->r_end = rstart + count - 1;
-			rv->r_flags = flags | RF_ALLOCATED;
+			rv->r_flags = new_rflags;
 			rv->r_dev = dev;
 			rv->r_rm = rm;
 
 			if (s->r_start < rv->r_start && s->r_end > rv->r_end) {
 				DPRINTF(("splitting region in three parts: "
-				       "[%#lx, %#lx]; [%#lx, %#lx]; [%#lx, %#lx]\n",
+				       "[%#jx, %#jx]; [%#jx, %#jx]; [%#jx, %#jx]\n",
 				       s->r_start, rv->r_start - 1,
 				       rv->r_start, rv->r_end,
 				       rv->r_end + 1, s->r_end));
@@ -418,18 +606,13 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	 * additional work, but this does not seem warranted.)
 	 */
 	DPRINTF(("no unshared regions found\n"));
-	if ((flags & (RF_SHAREABLE | RF_TIMESHARE)) == 0)
+	if ((flags & RF_SHAREABLE) == 0)
 		goto out;
 
-	for (s = r; s; s = TAILQ_NEXT(s, r_link)) {
-		if (s->r_start > end)
-			break;
-		if ((s->r_flags & flags) != flags)
-			continue;
-		rstart = ulmax(s->r_start, start);
-		rend = ulmin(s->r_end, ulmax(start + count - 1, end));
-		if (s->r_start >= start && s->r_end <= end
-		    && (s->r_end - s->r_start + 1) == count &&
+	for (s = r; s && s->r_end <= end; s = TAILQ_NEXT(s, r_link)) {
+		if (SHARE_TYPE(s->r_flags) == SHARE_TYPE(flags) &&
+		    s->r_start >= start &&
+		    (s->r_end - s->r_start + 1) == count &&
 		    (s->r_start & amask) == 0 &&
 		    ((s->r_start ^ s->r_end) & bmask) == 0) {
 			rv = int_alloc_resource(M_NOWAIT);
@@ -437,8 +620,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 				goto out;
 			rv->r_start = s->r_start;
 			rv->r_end = s->r_end;
-			rv->r_flags = s->r_flags &
-				(RF_ALLOCATED | RF_SHAREABLE | RF_TIMESHARE);
+			rv->r_flags = new_rflags;
 			rv->r_dev = dev;
 			rv->r_rm = rm;
 			if (s->r_sharehead == NULL) {
@@ -459,135 +641,46 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 			goto out;
 		}
 	}
-
 	/*
 	 * We couldn't find anything.
 	 */
-out:
-	/*
-	 * If the user specified RF_ACTIVE in the initial flags,
-	 * which is reflected in `want_activate', we attempt to atomically
-	 * activate the resource.  If this fails, we release the resource
-	 * and indicate overall failure.  (This behavior probably doesn't
-	 * make sense for RF_TIMESHARE-type resources.)
-	 */
-	if (rv && want_activate) {
-		struct resource_i *whohas;
-		if (int_rman_activate_resource(rm, rv, &whohas)) {
-			int_rman_release_resource(rm, rv);
-			rv = NULL;
-		}
-	}
 
+out:
 	mtx_unlock(rm->rm_mtx);
 	return (rv == NULL ? NULL : &rv->r_r);
 }
 
 struct resource *
-rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
-		      u_int flags, struct device *dev)
+rman_reserve_resource(struct rman *rm, rman_res_t start, rman_res_t end,
+		      rman_res_t count, u_int flags, device_t dev)
 {
 
 	return (rman_reserve_resource_bound(rm, start, end, count, 0, flags,
 	    dev));
 }
 
-static int
-int_rman_activate_resource(struct rman *rm, struct resource_i *r,
-			   struct resource_i **whohas)
-{
-	struct resource_i *s;
-	int ok;
-
-	/*
-	 * If we are not timesharing, then there is nothing much to do.
-	 * If we already have the resource, then there is nothing at all to do.
-	 * If we are not on a sharing list with anybody else, then there is
-	 * little to do.
-	 */
-	if ((r->r_flags & RF_TIMESHARE) == 0
-	    || (r->r_flags & RF_ACTIVE) != 0
-	    || r->r_sharehead == NULL) {
-		r->r_flags |= RF_ACTIVE;
-		return 0;
-	}
-
-	ok = 1;
-	for (s = LIST_FIRST(r->r_sharehead); s && ok;
-	     s = LIST_NEXT(s, r_sharelink)) {
-		if ((s->r_flags & RF_ACTIVE) != 0) {
-			ok = 0;
-			*whohas = s;
-		}
-	}
-	if (ok) {
-		r->r_flags |= RF_ACTIVE;
-		return 0;
-	}
-	return EBUSY;
-}
-
 int
 rman_activate_resource(struct resource *re)
 {
-	int rv;
-	struct resource_i *r, *whohas;
+	struct resource_i *r;
 	struct rman *rm;
 
 	r = re->__r_i;
 	rm = r->r_rm;
 	mtx_lock(rm->rm_mtx);
-	rv = int_rman_activate_resource(rm, r, &whohas);
+	r->r_flags |= RF_ACTIVE;
 	mtx_unlock(rm->rm_mtx);
-	return rv;
-}
-
-int
-rman_await_resource(struct resource *re, int pri, int timo)
-{
-	int	rv;
-	struct	resource_i *r, *whohas;
-	struct	rman *rm;
-
-	r = re->__r_i;
-	rm = r->r_rm;
-	mtx_lock(rm->rm_mtx);
-	for (;;) {
-		rv = int_rman_activate_resource(rm, r, &whohas);
-		if (rv != EBUSY)
-			return (rv);	/* returns with mutex held */
-
-		if (r->r_sharehead == NULL)
-			panic("rman_await_resource");
-		whohas->r_flags |= RF_WANTED;
-		rv = msleep(r->r_sharehead, rm->rm_mtx, pri, "rmwait", timo);
-		if (rv) {
-			mtx_unlock(rm->rm_mtx);
-			return (rv);
-		}
-	}
-}
-
-static int
-int_rman_deactivate_resource(struct resource_i *r)
-{
-
-	r->r_flags &= ~RF_ACTIVE;
-	if (r->r_flags & RF_WANTED) {
-		r->r_flags &= ~RF_WANTED;
-		wakeup(r->r_sharehead);
-	}
 	return 0;
 }
 
 int
 rman_deactivate_resource(struct resource *r)
 {
-	struct	rman *rm;
+	struct rman *rm;
 
 	rm = r->__r_i->r_rm;
 	mtx_lock(rm->rm_mtx);
-	int_rman_deactivate_resource(r->__r_i);
+	r->__r_i->r_flags &= ~RF_ACTIVE;
 	mtx_unlock(rm->rm_mtx);
 	return 0;
 }
@@ -595,10 +688,10 @@ rman_deactivate_resource(struct resource *r)
 static int
 int_rman_release_resource(struct rman *rm, struct resource_i *r)
 {
-	struct	resource_i *s, *t;
+	struct resource_i *s, *t;
 
 	if (r->r_flags & RF_ACTIVE)
-		int_rman_deactivate_resource(r);
+		r->r_flags &= ~RF_ACTIVE;
 
 	/*
 	 * Check for a sharing list first.  If there is one, then we don't
@@ -677,6 +770,7 @@ int_rman_release_resource(struct rman *rm, struct resource_i *r)
 		 * without freeing anything.
 		 */
 		r->r_flags &= ~RF_ALLOCATED;
+		r->r_dev = NULL;
 		return 0;
 	}
 
@@ -688,9 +782,9 @@ out:
 int
 rman_release_resource(struct resource *re)
 {
-	int	rv;
-	struct	resource_i *r;
-	struct	rman *rm;
+	int rv;
+	struct resource_i *r;
+	struct rman *rm;
 
 	r = re->__r_i;
 	rm = r->r_rm;
@@ -703,7 +797,7 @@ rman_release_resource(struct resource *re)
 uint32_t
 rman_make_alignment_flags(uint32_t size)
 {
-	int	i;
+	int i;
 
 	/*
 	 * Find the hightest bit set, and add one if more than one bit
@@ -719,98 +813,135 @@ rman_make_alignment_flags(uint32_t size)
 }
 
 void
-rman_set_start(struct resource *r, u_long start)
+rman_set_start(struct resource *r, rman_res_t start)
 {
+
 	r->__r_i->r_start = start;
 }
 
-u_long
+rman_res_t
 rman_get_start(struct resource *r)
 {
+
 	return (r->__r_i->r_start);
 }
 
 void
-rman_set_end(struct resource *r, u_long end)
+rman_set_end(struct resource *r, rman_res_t end)
 {
+
 	r->__r_i->r_end = end;
 }
 
-u_long
+rman_res_t
 rman_get_end(struct resource *r)
 {
+
 	return (r->__r_i->r_end);
 }
 
-u_long
+rman_res_t
 rman_get_size(struct resource *r)
 {
+
 	return (r->__r_i->r_end - r->__r_i->r_start + 1);
 }
 
 u_int
 rman_get_flags(struct resource *r)
 {
+
 	return (r->__r_i->r_flags);
 }
 
 void
 rman_set_virtual(struct resource *r, void *v)
 {
+
 	r->__r_i->r_virtual = v;
 }
 
 void *
 rman_get_virtual(struct resource *r)
 {
+
 	return (r->__r_i->r_virtual);
 }
 
 void
 rman_set_bustag(struct resource *r, bus_space_tag_t t)
 {
+
 	r->r_bustag = t;
 }
 
 bus_space_tag_t
 rman_get_bustag(struct resource *r)
 {
+
 	return (r->r_bustag);
 }
 
 void
 rman_set_bushandle(struct resource *r, bus_space_handle_t h)
 {
+
 	r->r_bushandle = h;
 }
 
 bus_space_handle_t
 rman_get_bushandle(struct resource *r)
 {
+
 	return (r->r_bushandle);
+}
+
+void
+rman_set_mapping(struct resource *r, struct resource_map *map)
+{
+
+	KASSERT(rman_get_size(r) == map->r_size,
+	    ("rman_set_mapping: size mismatch"));
+	rman_set_bustag(r, map->r_bustag);
+	rman_set_bushandle(r, map->r_bushandle);
+	rman_set_virtual(r, map->r_vaddr);
+}
+
+void
+rman_get_mapping(struct resource *r, struct resource_map *map)
+{
+
+	map->r_bustag = rman_get_bustag(r);
+	map->r_bushandle = rman_get_bushandle(r);
+	map->r_size = rman_get_size(r);
+	map->r_vaddr = rman_get_virtual(r);
 }
 
 void
 rman_set_rid(struct resource *r, int rid)
 {
+
 	r->__r_i->r_rid = rid;
 }
 
 int
 rman_get_rid(struct resource *r)
 {
+
 	return (r->__r_i->r_rid);
 }
 
 void
-rman_set_device(struct resource *r, struct device *dev)
+rman_set_device(struct resource *r, device_t dev)
 {
+
 	r->__r_i->r_dev = dev;
 }
 
-struct device *
+device_t
 rman_get_device(struct resource *r)
 {
+
 	return (r->__r_i->r_dev);
 }
 
@@ -922,10 +1053,20 @@ found:
 	return (error);
 }
 
-SYSCTL_NODE(_hw_bus, OID_AUTO, rman, CTLFLAG_RD, sysctl_rman,
+static SYSCTL_NODE(_hw_bus, OID_AUTO, rman, CTLFLAG_RD, sysctl_rman,
     "kernel resource manager");
 
 #ifdef DDB
+static void
+dump_rman_header(struct rman *rm)
+{
+
+	if (db_pager_quit)
+		return;
+	db_printf("rman %p: %s (0x%jx-0x%jx full range)\n",
+	    rm, rm->rm_descr, (rman_res_t)rm->rm_start, (rman_res_t)rm->rm_end);
+}
+
 static void
 dump_rman(struct rman *rm)
 {
@@ -934,8 +1075,6 @@ dump_rman(struct rman *rm)
 
 	if (db_pager_quit)
 		return;
-	db_printf("rman: %s\n", rm->rm_descr);
-	db_printf("    0x%lx-0x%lx (full range)\n", rm->rm_start, rm->rm_end);
 	TAILQ_FOREACH(r, &rm->rm_list, r_link) {
 		if (r->r_dev != NULL) {
 			devname = device_get_nameunit(r->r_dev);
@@ -943,7 +1082,8 @@ dump_rman(struct rman *rm)
 				devname = "nomatch";
 		} else
 			devname = NULL;
-		db_printf("    0x%lx-0x%lx ", r->r_start, r->r_end);
+		db_printf("    0x%jx-0x%jx (RID=%d) ",
+		    r->r_start, r->r_end, r->r_rid);
 		if (devname != NULL)
 			db_printf("(%s)\n", devname);
 		else
@@ -956,16 +1096,29 @@ dump_rman(struct rman *rm)
 DB_SHOW_COMMAND(rman, db_show_rman)
 {
 
-	if (have_addr)
+	if (have_addr) {
+		dump_rman_header((struct rman *)addr);
 		dump_rman((struct rman *)addr);
+	}
+}
+
+DB_SHOW_COMMAND(rmans, db_show_rmans)
+{
+	struct rman *rm;
+
+	TAILQ_FOREACH(rm, &rman_head, rm_link) {
+		dump_rman_header(rm);
+	}
 }
 
 DB_SHOW_ALL_COMMAND(rman, db_show_all_rman)
 {
 	struct rman *rm;
 
-	TAILQ_FOREACH(rm, &rman_head, rm_link)
+	TAILQ_FOREACH(rm, &rman_head, rm_link) {
+		dump_rman_header(rm);
 		dump_rman(rm);
+	}
 }
 DB_SHOW_ALIAS(allrman, db_show_all_rman);
 #endif

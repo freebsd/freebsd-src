@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -100,18 +96,18 @@ typedef struct _buf {
 	int b_bsize;
 } BUF;
 
-DB *db;
-NODE *graph, **cycle_buf, **longest_cycle;
-int debug, longest, quiet;
+static DB *db;
+static NODE *graph, **cycle_buf, **longest_cycle;
+static int debug, longest, quiet;
 
-void	 add_arc(char *, char *);
-int	 find_cycle(NODE *, NODE *, int, int);
-NODE	*get_node(char *);
-void	*grow_buf(void *, size_t);
-void	 remove_node(NODE *);
-void	 clear_cycle(void);
-void	 tsort(void);
-void	 usage(void);
+static void	 add_arc(char *, char *);
+static int	 find_cycle(NODE *, NODE *, int, int);
+static NODE	*get_node(char *);
+static void	*grow_buf(void *, size_t);
+static void	 remove_node(NODE *);
+static void	 clear_cycle(void);
+static void	 tsort(void);
+static void	 usage(void);
 
 int
 main(int argc, char *argv[])
@@ -189,7 +185,7 @@ main(int argc, char *argv[])
 }
 
 /* double the size of oldbuf and return a pointer to the new buffer. */
-void *
+static void *
 grow_buf(void *bp, size_t size)
 {
 	if ((bp = realloc(bp, size)) == NULL)
@@ -201,7 +197,7 @@ grow_buf(void *bp, size_t size)
  * add an arc from node s1 to node s2 in the graph.  If s1 or s2 are not in
  * the graph, then add them.
  */
-void
+static void
 add_arc(char *s1, char *s2)
 {
 	NODE *n1;
@@ -236,7 +232,7 @@ add_arc(char *s1, char *s2)
 }
 
 /* Find a node in the graph (insert if not found) and return a pointer to it. */
-NODE *
+static NODE *
 get_node(char *name)
 {
 	DBT data, key;
@@ -288,7 +284,7 @@ get_node(char *name)
 /*
  * Clear the NODEST flag from all nodes.
  */
-void
+static void
 clear_cycle(void)
 {
 	NODE *n;
@@ -298,7 +294,7 @@ clear_cycle(void)
 }
 
 /* do topological sort on graph */
-void
+static void
 tsort(void)
 {
 	NODE *n, *next;
@@ -361,7 +357,7 @@ tsort(void)
 }
 
 /* print node and remove from graph (does not actually free node) */
-void
+static void
 remove_node(NODE *n)
 {
 	NODE **np;
@@ -378,7 +374,7 @@ remove_node(NODE *n)
 
 
 /* look for the longest? cycle from node from to node to. */
-int
+static int
 find_cycle(NODE *from, NODE *to, int longest_len, int depth)
 {
 	NODE **np;
@@ -424,7 +420,7 @@ find_cycle(NODE *from, NODE *to, int longest_len, int depth)
 	return (longest_len);
 }
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr, "usage: tsort [-dlq] [file]\n");

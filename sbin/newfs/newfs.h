@@ -41,6 +41,38 @@
 #include <libufs.h>
 
 /*
+ * The following two constants set the default block and fragment sizes.
+ * Both constants must be a power of 2 and meet the following constraints:
+ *	MINBSIZE <= DESBLKSIZE <= MAXBSIZE
+ *	sectorsize <= DESFRAGSIZE <= DESBLKSIZE
+ *	DESBLKSIZE / DESFRAGSIZE <= 8
+ */
+#define	DFL_FRAGSIZE	4096
+#define	DFL_BLKSIZE	32768
+
+/*
+ * Cylinder groups may have up to MAXBLKSPERCG blocks. The actual
+ * number used depends upon how much information can be stored
+ * in a cylinder group map which must fit in a single file system
+ * block. The default is to use as many as possible blocks per group.
+ */
+#define	MAXBLKSPERCG	0x7fffffff	/* desired fs_fpg ("infinity") */
+
+/*
+ * MAXBLKPG determines the maximum number of data blocks which are
+ * placed in a single cylinder group. The default is one indirect
+ * block worth of data blocks.
+ */
+#define MAXBLKPG(bsize)	((bsize) / sizeof(ufs2_daddr_t))
+
+/*
+ * Each file system has a number of inodes statically allocated.
+ * We allocate one inode slot per NFPI fragments, expecting this
+ * to be far more than we will ever need.
+ */
+#define	NFPI		2
+
+/*
  * variables set up by front end.
  */
 extern int	Eflag;		/* Erase previous disk contents */
@@ -49,11 +81,14 @@ extern int	Nflag;		/* run mkfs without writing file system */
 extern int	Oflag;		/* build UFS1 format file system */
 extern int	Rflag;		/* regression test */
 extern int	Uflag;		/* enable soft updates for file system */
+extern int	jflag;		/* enable soft updates journaling for filesys */
 extern int	Xflag;		/* exit in middle of newfs for testing */
 extern int	Jflag;		/* enable gjournal for file system */
 extern int	lflag;		/* enable multilabel MAC for file system */
 extern int	nflag;		/* do not create .snap directory */
+extern int	tflag;		/* enable TRIM */
 extern intmax_t	fssize;		/* file system size */
+extern off_t	mediasize;	/* device size */
 extern int	sectorsize;	/* bytes/sector */
 extern int	realsectorsize;	/* bytes/sector in hardware*/
 extern int	fsize;		/* fragment size */
@@ -61,6 +96,7 @@ extern int	bsize;		/* block size */
 extern int	maxbsize;	/* maximum clustering */
 extern int	maxblkspercg;	/* maximum blocks per cylinder group */
 extern int	minfree;	/* free space threshold */
+extern int	metaspace;	/* space held for metadata blocks */
 extern int	opt;		/* optimization preference (space or time) */
 extern int	density;	/* number of bytes per inode */
 extern int	maxcontig;	/* max contiguous blocks to allocate */

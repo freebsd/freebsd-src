@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #if __FreeBSD_version > 501000
 #   include <dev/pci/pcivar.h>
 #   include <dev/pci/pcireg.h>
@@ -75,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ce/ceddk.h>
 #include <machine/cserial.h>
 #include <machine/resource.h>
-#include <machine/pmap.h>
 
 /* If we don't have Cronyx's sppp version, we don't have fr support via sppp */
 #ifndef PP_FR
@@ -102,10 +102,6 @@ __FBSDID("$FreeBSD$");
 				printf ("%s: ", d->name); printf s;}})
 #define CE_DEBUG2(d,s)	({if (d->chan->debug>1) {\
 				printf ("%s: ", d->name); printf s;}})
-
-#ifndef CALLOUT_MPSAFE
-#define CALLOUT_MPSAFE		0
-#endif
 
 #ifndef IF_DRAIN
 #define IF_DRAIN(ifq) do {		\
@@ -145,7 +141,7 @@ static	device_method_t ce_methods[] = {
 	DEVMETHOD(device_attach,	ce_attach),
 	DEVMETHOD(device_detach,	ce_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 typedef struct _ce_dma_mem_t {
@@ -171,11 +167,11 @@ typedef struct _drv_t {
 	node_p	node;
 	struct	ifqueue queue;
 	struct	ifqueue hi_queue;
-	short	timeout;
-	struct	callout timeout_handle;
 #else
 	struct	ifnet *ifp;
 #endif
+	short	timeout;
+	struct	callout timeout_handle;
 #if __FreeBSD_version >= 500000
 	struct	cdev *devt;
 #else /* __FreeBSD_version < 500000 */
@@ -211,13 +207,13 @@ static void ce_up (drv_t *d);
 static void ce_start (drv_t *d);
 static void ce_down (drv_t *d);
 static void ce_watchdog (drv_t *d);
+static void ce_watchdog_timer (void *arg);
 #ifdef NETGRAPH
 extern struct ng_type typestruct;
 #else
 static void ce_ifstart (struct ifnet *ifp);
 static void ce_tlf (struct sppp *sp);
 static void ce_tls (struct sppp *sp);
-static void ce_ifwatchdog (struct ifnet *ifp);
 static int ce_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data);
 static void ce_initialize (void *softc);
 #endif
@@ -297,33 +293,16 @@ static struct cdevsw ce_cdevsw = {
 #endif
 
 /*
- * Print the mbuf chain, for debug purposes only.
- */
-static void printmbuf (struct mbuf *m)
-{
-	printf ("mbuf:");
-	for (; m; m=m->m_next) {
-		if (m->m_flags & M_PKTHDR)
-			printf (" HDR %d:", m->m_pkthdr.len);
-		if (m->m_flags & M_EXT)
-			printf (" EXT:");
-		printf (" %d", m->m_len);
-	}
-	printf ("\n");
-}
-
-/*
  * Make an mbuf from data.
  */
 static struct mbuf *makembuf (void *buf, unsigned len)
 {
 	struct mbuf *m;
 
-	MGETHDR (m, M_DONTWAIT, MT_DATA);
+	MGETHDR (m, M_NOWAIT, MT_DATA);
 	if (! m)
 		return 0;
-	MCLGET (m, M_DONTWAIT);
-	if (! (m->m_flags & M_EXT)) {
+	if (!(MCLGET(m, M_NOWAIT))) {
 		m_freem (m);
 		return 0;
 	}
@@ -625,7 +604,7 @@ static int ce_attach (device_t dev)
 		return (ENXIO);
 	}
 #if __FreeBSD_version >= 500000
-	callout_init (&led_timo[unit], CALLOUT_MPSAFE);
+	callout_init (&led_timo[unit], 1);
 #else
 	callout_init (&led_timo[unit]);
 #endif
@@ -677,6 +656,7 @@ static int ce_attach (device_t dev)
 			continue;
 		d = c->sys;
 
+		callout_init (&d->timeout_handle, 1);
 #ifdef NETGRAPH
 		if (ng_make_node_common (&typestruct, &d->node) != 0) {
 			printf ("%s: cannot make common node\n", d->name);
@@ -685,7 +665,6 @@ static int ce_attach (device_t dev)
 		}
 #if __FreeBSD_version >= 500000
 		NG_NODE_SET_PRIVATE (d->node, d);
-		callout_init (&d->timeout_handle, CALLOUT_MPSAFE);
 #else
 		d->node->private = d;
 #endif
@@ -701,9 +680,9 @@ static int ce_attach (device_t dev)
 #endif
 			continue;
 		}
-		d->queue.ifq_maxlen	= IFQ_MAXLEN;
-		d->hi_queue.ifq_maxlen	= IFQ_MAXLEN;
-		d->rqueue.ifq_maxlen	= IFQ_MAXLEN;
+		d->queue.ifq_maxlen	= ifqmaxlen;
+		d->hi_queue.ifq_maxlen	= ifqmaxlen;
+		d->rqueue.ifq_maxlen	= ifqmaxlen;
 #if __FreeBSD_version >= 500000
 		mtx_init (&d->queue.ifq_mtx, "ce_queue", NULL, MTX_DEF);
 		mtx_init (&d->hi_queue.ifq_mtx, "ce_queue_hi", NULL, MTX_DEF);
@@ -731,9 +710,8 @@ static int ce_attach (device_t dev)
 		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
 		d->ifp->if_ioctl	= ce_sioctl;
 		d->ifp->if_start	= ce_ifstart;
-		d->ifp->if_watchdog	= ce_ifwatchdog;
 		d->ifp->if_init		= ce_initialize;
-		d->rqueue.ifq_maxlen	= IFQ_MAXLEN;
+		d->rqueue.ifq_maxlen	= ifqmaxlen;
 #if __FreeBSD_version >= 500000
 		mtx_init (&d->rqueue.ifq_mtx, "ce_rqueue", NULL, MTX_DEF);
 #endif		
@@ -806,6 +784,7 @@ static int ce_detach (device_t dev)
 
 		if (! d || ! d->chan)
 			continue;
+		callout_stop (&d->timeout_handle);
 #ifndef NETGRAPH
 		/* Detach from the packet filter list of interfaces. */
 		bpfdetach (d->ifp);
@@ -855,13 +834,12 @@ static int ce_detach (device_t dev)
 	TAU32_DestructiveHalt (b->ddk.pControllerObject, 0);
 	bus_release_resource (dev, SYS_RES_MEMORY, PCIR_BAR(0), bd->ce_res);
 
-	s = splimp ();
-	CE_LOCK (bd);
 	for (c = b->chan; c < b->chan + NCHAN; ++c) {
 		drv_t *d = (drv_t*) c->sys;
 
 		if (! d || ! d->chan)
 			continue;
+		callout_drain (&d->timeout_handle);
 		channel [b->num * NCHAN + c->num] = 0;
 		/* Deallocate buffers. */
 		ce_bus_dma_mem_free (&d->dmamem);
@@ -869,8 +847,6 @@ static int ce_detach (device_t dev)
 	adapter [b->num] = 0;
 	ce_bus_dma_mem_free (&bd->dmamem);
 	free (b, M_DEVBUF);
-	CE_UNLOCK (bd);
-	splx (s);
 #if __FreeBSD_version >= 504000
 	mtx_destroy (&bd->ce_mtx);
 #endif
@@ -886,13 +862,6 @@ static void ce_ifstart (struct ifnet *ifp)
 	CE_LOCK (bd);
 	ce_start (d);
 	CE_UNLOCK (bd);
-}
-
-static void ce_ifwatchdog (struct ifnet *ifp)
-{
-	drv_t *d = ifp->if_softc;
-
-	ce_watchdog (d);
 }
 
 static void ce_tlf (struct sppp *sp)
@@ -989,6 +958,7 @@ static void ce_down (drv_t *d)
 	ce_set_rts (d->chan, 0);
 
 	d->running = 0;
+	callout_stop (&d->timeout_handle);
 }
 
 /*
@@ -1055,11 +1025,7 @@ static void ce_send (drv_t *d)
 		}
 		m_freem (m);
 		/* Set up transmit timeout, if the transmit ring is not empty.*/
-#ifdef NETGRAPH
 		d->timeout = 10;
-#else
-		d->ifp->if_timer = 10;
-#endif
 	}
 #ifndef NETGRAPH
 #if __FreeBSD_version >= 600034
@@ -1082,6 +1048,7 @@ static void ce_start (drv_t *d)
 		if (! d->chan->rts)
 			ce_set_rts (d->chan, 1);
 		ce_send (d);
+		callout_reset (&d->timeout_handle, hz, ce_watchdog_timer, d);
 	}
 }
 
@@ -1092,11 +1059,8 @@ static void ce_start (drv_t *d)
  */
 static void ce_watchdog (drv_t *d)
 {
-	bdrv_t *bd = d->board->sys;
 	CE_DEBUG (d, ("device timeout\n"));
 	if (d->running) {
-		int s = splimp ();
-		CE_LOCK (bd);
 		ce_set_dtr (d->chan, 0);
 		ce_set_rts (d->chan, 0);
 /*		ce_stop_chan (d->chan);*/
@@ -1104,25 +1068,35 @@ static void ce_watchdog (drv_t *d)
 		ce_set_dtr (d->chan, 1);
 		ce_set_rts (d->chan, 1);
 		ce_start (d);
-		CE_UNLOCK (bd);
-		splx (s);
 	}
+}
+
+static void ce_watchdog_timer (void *arg)
+{
+	drv_t *d = arg;
+	bdrv_t *bd = d->board->sys;
+
+	CE_LOCK(bd);
+	if (d->timeout == 1)
+		ce_watchdog (d);
+	if (d->timeout)
+		d->timeout--;
+	callout_reset (&d->timeout_handle, hz, ce_watchdog_timer, d);
+	CE_UNLOCK(bd);
 }
 
 static void ce_transmit (ce_chan_t *c, void *attachment, int len)
 {
 	drv_t *d = c->sys;
 
-#ifdef NETGRAPH
 	d->timeout = 0;
-#else
-	++d->ifp->if_opackets;
+#ifndef NETGRAPH
+	if_inc_counter(d->ifp, IFCOUNTER_OPACKETS, 1);
 #if __FreeBSD_version >=  600034
 	d->ifp->if_flags &= ~IFF_DRV_OACTIVE;
 #else
 	d->ifp->if_flags &= ~IFF_OACTIVE;
 #endif
-	d->ifp->if_timer = 0;
 #endif
 	ce_start (d);
 }
@@ -1139,26 +1113,21 @@ static void ce_receive (ce_chan_t *c, unsigned char *data, int len)
 	if (! m) {
 		CE_DEBUG (d, ("no memory for packet\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_iqdrops;
+		if_inc_counter(d->ifp, IFCOUNTER_IQDROPS, 1);
 #endif
 		return;
 	}
 	if (c->debug > 1)
-		printmbuf (m);
+		m_print (m, 0);
 #ifdef NETGRAPH
 	m->m_pkthdr.rcvif = 0;
 	IF_ENQUEUE(&d->rqueue, m);
 #else
-	++d->ifp->if_ipackets;
+	if_inc_counter(d->ifp, IFCOUNTER_IPACKETS, 1);
 	m->m_pkthdr.rcvif = d->ifp;
 	/* Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to bpf. */
-#if __FreeBSD_version >= 500000
-	BPF_TAP (d->ifp, data, len);
-#else
-	if (d->ifp->if_bpf)
-		bpf_tap (d->ifp, data, len);
-#endif
+	BPF_MTAP(d->ifp, m);
 	IF_ENQUEUE(&d->rqueue, m);
 #endif
 }
@@ -1171,40 +1140,38 @@ static void ce_error (ce_chan_t *c, int data)
 	case CE_FRAME:
 		CE_DEBUG (d, ("frame error\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_ierrors;
+		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CE_CRC:
 		CE_DEBUG (d, ("crc error\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_ierrors;
+		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CE_OVERRUN:
 		CE_DEBUG (d, ("overrun error\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_collisions;
-		++d->ifp->if_ierrors;
+		if_inc_counter(d->ifp, IFCOUNTER_COLLISIONS, 1);
+		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CE_OVERFLOW:
 		CE_DEBUG (d, ("overflow error\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_ierrors;
+		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CE_UNDERRUN:
 		CE_DEBUG (d, ("underrun error\n"));
-#ifdef NETGRAPH
 		d->timeout = 0;
-#else
-		++d->ifp->if_oerrors;
+#ifndef NETGRAPH
+		if_inc_counter(d->ifp, IFCOUNTER_OERRORS, 1);
 #if __FreeBSD_version >= 600034
 		d->ifp->if_flags &= ~IFF_DRV_OACTIVE;
 #else
 		d->ifp->if_flags &= ~IFF_OACTIVE;
 #endif
-		d->ifp->if_timer = 0;
 #endif
 		ce_start (d);
 		break;
@@ -1320,9 +1287,11 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR);
 			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
 			d->ifp->if_flags |= PP_CISCO;
-		} else if (! strcmp ("fr", (char*)data) && PP_FR) {
+#if PP_FR != 0
+		} else if (! strcmp ("fr", (char*)data)) {
 			d->ifp->if_flags &= ~(PP_CISCO);
 			IFP2SP(d->ifp)->pp_flags |= PP_FR | PP_KEEPALIVE;
+#endif
 		} else if (! strcmp ("ppp", (char*)data)) {
 			IFP2SP(d->ifp)->pp_flags &= ~PP_FR;
 			IFP2SP(d->ifp)->pp_flags &= ~PP_KEEPALIVE;
@@ -2428,7 +2397,6 @@ static int ng_ce_rcvdata (hook_p hook, struct mbuf *m, meta_p meta)
 #if __FreeBSD_version >= 500000
 	IF_LOCK (q);
 	if (_IF_QFULL (q)) {
-		_IF_DROP (q);
 		IF_UNLOCK (q);
 		CE_UNLOCK (bd);
 		splx (s);
@@ -2480,7 +2448,7 @@ static int ng_ce_rmnode (node_p node)
 		NG_NODE_UNREF (node);
 	}
 #if __FreeBSD_version >= 502120
-	NG_NODE_REVIVE(node);		/* Persistant node */
+	NG_NODE_REVIVE(node);		/* Persistent node */
 #else
 	node->nd_flags &= ~NG_INVALID;
 #endif
@@ -2507,19 +2475,6 @@ static int ng_ce_rmnode (node_p node)
 	return 0;
 }
 
-static void ng_ce_watchdog (void *arg)
-{
-	drv_t *d = arg;
-
-	if (d) {
-		if (d->timeout == 1)
-			ce_watchdog (d);
-		if (d->timeout)
-			d->timeout--;
-		callout_reset (&d->timeout_handle, hz, ng_ce_watchdog, d);
-	}
-}
-
 static int ng_ce_connect (hook_p hook)
 {
 #if __FreeBSD_version >= 500000
@@ -2530,7 +2485,7 @@ static int ng_ce_connect (hook_p hook)
 
 	if (d) {
 		CE_DEBUG (d, ("Connect\n"));
-		callout_reset (&d->timeout_handle, hz, ng_ce_watchdog, d);
+		callout_reset (&d->timeout_handle, hz, ce_watchdog_timer, d);
 	}
 	
 	return 0;
@@ -2598,7 +2553,7 @@ static int ce_modevent (module_t mod, int type, void *unused)
 		cdevsw_add (&ce_cdevsw);
 #endif
 #if __FreeBSD_version >= 500000
-		callout_init (&timeout_handle, CALLOUT_MPSAFE);
+		callout_init (&timeout_handle, 1);
 #else
 		callout_init (&timeout_handle);
 #endif

@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -45,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <dirent.h>
+#include <err.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
@@ -72,8 +69,6 @@ static int	all = 0;		/* eliminate all files (root only) */
 static int	cur_daemon;		/* daemon's pid */
 static char	current[7+MAXHOSTNAMELEN];  /* active control file name */
 
-extern uid_t	uid, euid;		/* real and effective user id's */
-
 static	void	alarmhandler(int _signo);
 static	void	do_unlink(char *_file);
 static int	 isowner(char *_owner, char *_file, const char *_cfhost);
@@ -82,7 +77,7 @@ void
 rmjob(const char *printer)
 {
 	register int i, nitems;
-	int assasinated = 0;
+	int assassinated = 0;
 	struct dirent **files;
 	char *cp;
 	struct printer myprinter, *pp = &myprinter;
@@ -114,12 +109,12 @@ rmjob(const char *printer)
 		person = root;
 	}
 
-	seteuid(euid);
+	PRIV_START
 	if (chdir(pp->spool_dir) < 0)
 		fatal(pp, "cannot chdir to spool directory");
 	if ((nitems = scandir(".", &files, iscf, NULL)) < 0)
 		fatal(pp, "cannot access spool directory");
-	seteuid(uid);
+	PRIV_END
 
 	if (nitems) {
 		/*
@@ -128,10 +123,10 @@ rmjob(const char *printer)
 		 *  (after which we have to restart the daemon).
 		 */
 		if (lockchk(pp, pp->lock_file) && chk(current)) {
-			seteuid(euid);
-			assasinated = kill(cur_daemon, SIGINT) == 0;
-			seteuid(uid);
-			if (!assasinated)
+			PRIV_START
+			assassinated = kill(cur_daemon, SIGINT) == 0;
+			PRIV_END
+			if (!assassinated)
 				fatal(pp, "cannot kill printer daemon");
 		}
 		/*
@@ -144,7 +139,7 @@ rmjob(const char *printer)
 	/*
 	 * Restart the printer daemon if it was killed
 	 */
-	if (assasinated && !startdaemon(pp))
+	if (assassinated && !startdaemon(pp))
 		fatal(pp, "cannot restart printer daemon\n");
 	exit(0);
 }
@@ -160,15 +155,15 @@ lockchk(struct printer *pp, char *slockf)
 	register FILE *fp;
 	register int i, n;
 
-	seteuid(euid);
+	PRIV_START
 	if ((fp = fopen(slockf, "r")) == NULL) {
 		if (errno == EACCES)
 			fatal(pp, "%s: %s", slockf, strerror(errno));
 		else
 			return(0);
 	}
-	seteuid(uid);
-	if (!getline(fp)) {
+	PRIV_END
+	if (!get_line(fp)) {
 		(void) fclose(fp);
 		return(0);		/* no daemon present */
 	}
@@ -199,11 +194,11 @@ process(const struct printer *pp, char *file)
 
 	if (!chk(file))
 		return;
-	seteuid(euid);
+	PRIV_START
 	if ((cfp = fopen(file, "r")) == NULL)
 		fatal(pp, "cannot open %s", file);
-	seteuid(uid);
-	while (getline(cfp)) {
+	PRIV_END
+	while (get_line(cfp)) {
 		switch (line[0]) {
 		case 'U':  /* unlink associated files */
 			if (strchr(line+1, '/') || strncmp(line+1, "df", 2))
@@ -222,9 +217,9 @@ do_unlink(char *file)
 
 	if (from_host != local_host)
 		printf("%s: ", local_host);
-	seteuid(euid);
+	PRIV_START
 	ret = unlink(file);
-	seteuid(uid);
+	PRIV_END
 	printf(ret ? "cannot dequeue %s\n" : "%s dequeued\n", file);
 }
 
@@ -252,11 +247,11 @@ chk(char *file)
 	/*
 	 * get the owner's name from the control file.
 	 */
-	seteuid(euid);
+	PRIV_START
 	if ((cfp = fopen(file, "r")) == NULL)
 		return(0);
-	seteuid(uid);
-	while (getline(cfp)) {
+	PRIV_END
+	while (get_line(cfp)) {
 		if (line[0] == 'P')
 			break;
 	}
@@ -337,7 +332,7 @@ rmremote(const struct printer *pp)
 	else
 		niov = 4 + requests + 1;
 	iov = malloc(niov * sizeof *iov);
-	if (iov == 0)
+	if (iov == NULL)
 		fatal(pp, "out of memory in rmremote()");
 	iov[0].iov_base = "\5";
 	iov[1].iov_base = pp->remote_queue;
@@ -384,7 +379,7 @@ rmremote(const struct printer *pp)
  * Return 1 if the filename begins with 'cf'
  */
 int
-iscf(struct dirent *d)
+iscf(const struct dirent *d)
 {
 	return(d->d_name[0] == 'c' && d->d_name[1] == 'f');
 }

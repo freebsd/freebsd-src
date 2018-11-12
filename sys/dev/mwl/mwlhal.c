@@ -190,7 +190,8 @@ static void dumpresult(struct mwl_hal_priv *, int showresult);
 #endif /* MWLHAL_DEBUG */
 
 SYSCTL_DECL(_hw_mwl);
-SYSCTL_NODE(_hw_mwl, OID_AUTO, hal, CTLFLAG_RD, 0, "Marvell HAL parameters");
+static SYSCTL_NODE(_hw_mwl, OID_AUTO, hal, CTLFLAG_RD, 0,
+    "Marvell HAL parameters");
 
 static __inline void
 MWL_HAL_LOCK(struct mwl_hal_priv *mh)
@@ -279,7 +280,7 @@ mwl_hal_attach(device_t dev, uint16_t devid,
 	hvap->vap_type = MWL_HAL_STA;
 	hvap->bss_type = htole16(WL_MAC_TYPE_PRIMARY_CLIENT);
 	hvap->macid = i;
-	for (i++; i < MWL_MBSS_STA_MAX; i++) {
+	for (i++; i < MWL_MBSS_MAX; i++) {
 		hvap = &mh->mh_vaps[i];
 		hvap->vap_type = MWL_HAL_STA;
 		hvap->bss_type = htole16(WL_MAC_TYPE_SECONDARY_CLIENT);
@@ -308,19 +309,12 @@ mwl_hal_attach(device_t dev, uint16_t devid,
 		       NULL,			/* lockarg */
 		       &mh->mh_dmat);
 	if (error != 0) {
-		device_printf(dev, "unable to allocate memory for cmd buffer, "
+		device_printf(dev, "unable to allocate memory for cmd tag, "
 			"error %u\n", error);
 		goto fail0;
 	}
 
 	/* allocate descriptors */
-	error = bus_dmamap_create(mh->mh_dmat, BUS_DMA_NOWAIT, &mh->mh_dmamap);
-	if (error != 0) {
-		device_printf(dev, "unable to create dmamap for cmd buffers, "
-			"error %u\n", error);
-		goto fail0;
-	}
-
 	error = bus_dmamem_alloc(mh->mh_dmat, (void**) &mh->mh_cmdbuf,
 				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT, 
 				 &mh->mh_dmamap);
@@ -364,9 +358,8 @@ mwl_hal_attach(device_t dev, uint16_t devid,
 fail2:
 	bus_dmamem_free(mh->mh_dmat, mh->mh_cmdbuf, mh->mh_dmamap);
 fail1:
-	bus_dmamap_destroy(mh->mh_dmat, mh->mh_dmamap);
-fail0:
 	bus_dma_tag_destroy(mh->mh_dmat);
+fail0:
 	mtx_destroy(&mh->mh_mtx);
 	free(mh, M_DEVBUF);
 	return NULL;
@@ -378,7 +371,6 @@ mwl_hal_detach(struct mwl_hal *mh0)
 	struct mwl_hal_priv *mh = MWLPRIV(mh0);
 
 	bus_dmamem_free(mh->mh_dmat, mh->mh_cmdbuf, mh->mh_dmamap);
-	bus_dmamap_destroy(mh->mh_dmat, mh->mh_dmamap);
 	bus_dma_tag_destroy(mh->mh_dmat);
 	mtx_destroy(&mh->mh_mtx);
 	free(mh, M_DEVBUF);
@@ -1448,7 +1440,7 @@ mwl_hal_bastream_alloc(struct mwl_hal_vap *vap, int ba_policy,
 	sp->setup = 0;
 	sp->ba_policy = ba_policy;
 	MWL_HAL_UNLOCK(mh);
-	return sp != NULL ? &sp->public : NULL;
+	return &sp->public;
 }
 
 const MWL_HAL_BASTREAM *

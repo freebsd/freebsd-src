@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -343,7 +342,7 @@ v201   7/27/94  Check for no memcpy; add casts to calloc;
                 look for regcmp in libgen.a.
                 (thanks to Kaveh Ghazi).
 v202   7/28/94  Fix bug in edit_next/edit_prev with 
-                non-existant files.
+                non-existent files.
 v203   8/2/94   Fix a variety of configuration bugs on
                 various systems. (thanks to Sakai
                 Kiyotaka, Harald Koenig, Bjorn Brox,
@@ -729,6 +728,69 @@ v433  6/28/09   Cleanup search code.
 v434  6/29/09   More cleanup.
 v435  7/04/09   Fix bugs with non-regex filtering.
 v436  7/05/09   Fix memory leak.
+-----------------------------------------------------------------
+v437  7/14/09   Fix bug in handling some long option names;
+                make percentage calculation more accurate.
+v438  12/29/10  Fix bugs with -i/-I and & filtering; 
+                exit with status 2 on ctrl-C with -K.
+v439  12/31/10  Add -A option.
+v440  1/5/11    Fix bug displaying prompt after = command.
+v441  1/21/11   Fix semi-infinite loop if no newlines in file;
+                make new -A behavior the default.
+-----------------------------------------------------------------
+v442  3/2/11    Fix search bug.
+                Add ctrl-G line edit command.
+v443  4/9/11    Fix Windows build.
+v444  6/8/11    Fix ungetc bug; remove vestiges of obsolete -l option.
+-----------------------------------------------------------------
+v445  10/19/11  Fix hilite bug in backwards scroll with -J.
+                Fix hilite bug with backspaces.
+                Fix bugs handling SGR sequences in Win32 (thanks to Eric Lee).
+                Add support for GNU regex (thanks to Reuben Thomas).
+v446  5/15/12   Up/down arrows in cmd editing search for matching cmd.
+v447  5/21/12   Add ESC-F command, two-pipe LESSOPEN syntax.
+v448  6/15/12   Print name of regex library in version message.
+v449  6/23/12   Allow config option --with-regex=none.
+v450  7/4/12    Fix EOF bug with ESC-F.
+v451  7/20/12   Fix typo.
+-----------------------------------------------------------------
+v452  10/19/12  Fix --with-regex=none, fix "stty 0", fix Win32.
+                Don't quit if errors in cmd line options.
+v453  10/27/12  Increase buffer sizes.
+v454  11/5/12   Fix typo.
+v455  11/5/12   Fix typo.
+v456  11/8/12   Fix option string incompatibility.
+v457  12/8/12   Use new option string syntax only after --use-backslash.
+v458  4/4/13    Fix display bug in using up/down in cmd buffer.
+-----------------------------------------------------------------
+v459  5/6/13    Fix ++ bug.
+v460  6/19/13   Automate construction of Unicode tables.
+v461  6/21/13   Collapse multiple CRs before LF.
+v462  11/26/13  Don't overwrite history file, just append to it.
+v463  7/13/14   Misc. fixes.
+v464  7/19/14   Fix bugs & improve performance in & filtering
+                (thanks to John Sullivan).
+v465  8/9/14    More fixes from John Sullivan.
+v466  8/23/14   Add colon to LESSANSIMIDCHARS.
+v467  9/18/14   Misc. fixes.
+v468  9/18/14   Fix typo
+v469  10/2/14   Allow extra string in command to append to a multichar
+                cmd without executing it; fix bug using GNU regex.
+v470  10/5/14   Fix some compiler warnings.
+v471  12/14/14  Fix unget issues with prompt. Allow disabling history
+                when compiled value of LESSHISTFILE = "-".
+v473  12/19/14  Fix prompt bug with stdin and -^P in lesskey extra string.
+v474  1/30/15   Fix bug in backwards search with match on bottom line.
+                Make follow mode reopen file if file shrinks.
+v475  3/2/15    Fix possible buffer overrun with invalid UTF-8; 
+                fix bug when compiled with no regex; fix non-match search.
+v476  5/3/15    Update man pages.
+v477  5/19/15   Fix off-by-one in jump_forw_buffered;
+                don't add FAKE_* files to cmd history.
+v478  5/21/15   Fix nonportable pointer usage in hilite tree.
+v479  7/6/15    Allow %% escapes in LESSOPEN variable.
+v480  7/24/15	Fix bug in no-regex searches; support MSVC v1900.
+v481  8/20/15	Fix broken -g option.
 */
 
-char version[] = "436";
+char version[] = "481";

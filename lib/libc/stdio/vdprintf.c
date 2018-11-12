@@ -2,6 +2,11 @@
  * Copyright (c) 2009 David Schultz <das@FreeBSD.org>
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -35,11 +40,12 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 #include "local.h"
+#include "xlocale_private.h"
 
 int
 vdprintf(int fd, const char * __restrict fmt, va_list ap)
 {
-	FILE f;
+	FILE f = FAKE_FILE;
 	unsigned char buf[BUFSIZ];
 	int ret;
 
@@ -56,10 +62,8 @@ vdprintf(int fd, const char * __restrict fmt, va_list ap)
 	f._write = __swrite;
 	f._bf._base = buf;
 	f._bf._size = sizeof(buf);
-	f._orientation = 0;
-	bzero(&f._mbstate, sizeof(f._mbstate));
 
-	if ((ret = __vfprintf(&f, fmt, ap)) < 0)
+	if ((ret = __vfprintf(&f, __get_locale(), fmt, ap)) < 0)
 		return (ret);
 
 	return (__fflush(&f) ? EOF : ret);

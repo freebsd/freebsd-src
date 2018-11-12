@@ -24,9 +24,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2009
-.Os
+.Dd June 30, 2013
 .Dt KILLALL 1
+.Os
 .Sh NAME
 .Nm killall
 .Nd kill processes by name
@@ -34,6 +34,7 @@
 .Nm
 .Op Fl delmsvz
 .Op Fl help
+.Op Fl I
 .Op Fl j Ar jail
 .Op Fl u Ar user
 .Op Fl t Ar tty
@@ -71,6 +72,9 @@ processes specified with the
 option.
 .It Fl help
 Give a help on the command usage and exit.
+.It Fl I
+Request confirmation before attempting to signal each
+process.
 .It Fl l
 List the names of the available signals and exit, like in
 .Xr kill 1 .
@@ -106,6 +110,8 @@ the specified
 Limit potentially matching processes to those matching
 the specified
 .Ar procname .
+.It Fl q
+Suppress error message if no processes are matched.
 .It Fl z
 Do not skip zombies.
 This should not have any effect except to print a few error messages
@@ -118,9 +124,20 @@ is already supported by
 So use
 .Xr kill 1
 for this job (e.g.\&
-.Dq Li "kill -TERM -1
+.Dq Li "kill -TERM -1"
 or as root
 .Dq Li "echo kill -TERM -1 | su -m <user>" ) .
+.Sh IMPLEMENTATION NOTES
+This
+.Fx
+implementation of
+.Nm
+has completely different semantics as compared to the traditional
+.Ux
+System V behavior of
+.Nm .
+The latter will kill all processes that the current user is able to
+kill, and is intended to be used by the system shutdown process only.
 .Sh EXIT STATUS
 The
 .Nm

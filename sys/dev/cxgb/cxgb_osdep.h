@@ -39,15 +39,15 @@ $FreeBSD$
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-#include <dev/mii/mii.h>
+#include <sys/kdb.h>
 
-#define	CONFIG_CHELSIO_T3_CORE
-#include <common/cxgb_version.h>
+#include <dev/mii/mii.h>
 
 #ifndef _CXGB_OSDEP_H_
 #define _CXGB_OSDEP_H_
 
 typedef struct adapter adapter_t;
+typedef struct port_info pinfo_t;
 struct sge_rspq;
 
 enum {
@@ -67,54 +67,6 @@ struct t3_mbuf_hdr {
 	if (exp)                            \
 		panic("BUG: %s", #exp);      \
 } while (0)
-#endif
-
-#define m_get_priority(m) ((uintptr_t)(m)->m_pkthdr.rcvif)
-#define m_set_priority(m, pri) ((m)->m_pkthdr.rcvif = (struct ifnet *)((uintptr_t)pri))
-#define m_set_sgl(m, sgl) ((m)->m_pkthdr.header = (sgl))
-#define m_get_sgl(m) ((bus_dma_segment_t *)(m)->m_pkthdr.header)
-#define m_set_sgllen(m, len) ((m)->m_pkthdr.ether_vtag = len)
-#define m_get_sgllen(m) ((m)->m_pkthdr.ether_vtag)
-
-/*
- * XXX FIXME
- */
-#define m_set_toep(m, a) ((m)->m_pkthdr.header = (a))
-#define m_get_toep(m) ((m)->m_pkthdr.header)
-#define m_set_handler(m, handler) ((m)->m_pkthdr.header = (handler))
-
-#define m_set_socket(m, a) ((m)->m_pkthdr.header = (a))
-#define m_get_socket(m) ((m)->m_pkthdr.header)
-
-#define	KTR_CXGB	KTR_SPARE2
-
-#define MT_DONTFREE  128
-
-#if __FreeBSD_version > 700030
-#define INTR_FILTERS
-#define FIRMWARE_LATEST
-#endif
-
-#if ((__FreeBSD_version > 602103) && (__FreeBSD_version < 700000))
-#define FIRMWARE_LATEST
-#endif
-
-#if __FreeBSD_version > 700000
-#define MSI_SUPPORTED
-#define TSO_SUPPORTED
-#define VLAN_SUPPORTED
-#define TASKQUEUE_CURRENT
-#else
-#define if_name(ifp) (ifp)->if_xname
-#define M_SANITY(m, n)
-#endif
-
-#if __FreeBSD_version >= 701000
-#include "opt_inet.h"
-#ifdef INET
-#define LRO_SUPPORTED
-#define TOE_SUPPORTED
-#endif
 #endif
 
 #if __FreeBSD_version < 800054
@@ -141,8 +93,6 @@ struct t3_mbuf_hdr {
 #endif
 #endif
 
-#define __read_mostly __attribute__((__section__(".data.read_mostly")))
-
 /*
  * Workaround for weird Chelsio issue
  */
@@ -151,13 +101,6 @@ struct t3_mbuf_hdr {
 #endif
 
 #define CXGB_TX_CLEANUP_THRESHOLD        32
-
-
-#ifdef DEBUG_PRINT
-#define DPRINTF printf
-#else 
-#define DPRINTF(...)
-#endif
 
 #define TX_MAX_SIZE                (1 << 16)    /* 64KB                          */
 #define TX_MAX_SEGS                      36     /* maximum supported by card     */
@@ -187,10 +130,8 @@ void prefetch(void *x)
 #define smp_mb() mb()
 
 #define L1_CACHE_BYTES 128
-extern void kdb_backtrace(void);
-
 #define WARN_ON(condition) do { \
-       if (__predict_false((condition)!=0)) {  \
+	if (__predict_false((condition)!=0)) {  \
                 log(LOG_WARNING, "BUG: warning at %s:%d/%s()\n", __FILE__, __LINE__, __FUNCTION__); \
                 kdb_backtrace(); \
         } \
@@ -228,8 +169,7 @@ static const int debug_flags = DBG_RX;
 #define test_and_clear_bit(bit, p) atomic_cmpset_int((p), ((*(p)) | (1<<bit)), ((*(p)) & ~(1<<bit)))
 
 #define max_t(type, a, b) (type)max((a), (b))
-#define net_device ifnet
-#define cpu_to_be32            htobe32
+#define cpu_to_be32(x)		htobe32(x)
 
 /* Standard PHY definitions */
 #define BMCR_LOOPBACK		BMCR_LOOP
@@ -247,10 +187,10 @@ static const int debug_flags = DBG_RX;
 #define MII_CTRL1000		MII_100T2CR
 
 #define ADVERTISE_PAUSE_CAP	ANAR_FC
-#define ADVERTISE_PAUSE_ASYM	ANAR_X_PAUSE_ASYM
-#define ADVERTISE_PAUSE		ANAR_X_PAUSE_SYM
-#define ADVERTISE_1000HALF	ANAR_X_HD
-#define ADVERTISE_1000FULL	ANAR_X_FD
+#define ADVERTISE_PAUSE_ASYM	0x800
+#define ADVERTISE_PAUSE		ANAR_FC
+#define ADVERTISE_1000HALF	0x100
+#define ADVERTISE_1000FULL	0x200
 #define ADVERTISE_10FULL	ANAR_10_FD
 #define ADVERTISE_10HALF	ANAR_10
 #define ADVERTISE_100FULL	ANAR_TX_FD
@@ -266,17 +206,18 @@ static const int debug_flags = DBG_RX;
 #define ADVERTISE_NPAGE		ANAR_NP
 
 
-/* Standard PCI Extended Capaibilities definitions */
-#define PCI_CAP_ID_VPD	0x03
-#define PCI_VPD_ADDR	2
+/* Standard PCI Extended Capabilities definitions */
+#define PCI_CAP_ID_VPD	PCIY_VPD
+#define PCI_VPD_ADDR	PCIR_VPD_ADDR
 #define PCI_VPD_ADDR_F	0x8000
-#define PCI_VPD_DATA	4
+#define PCI_VPD_DATA	PCIR_VPD_DATA
 
-#define PCI_CAP_ID_EXP	0x10
-#define PCI_EXP_DEVCTL	8
-#define PCI_EXP_DEVCTL_PAYLOAD 0x00e0
-#define PCI_EXP_LNKCTL	16
-#define PCI_EXP_LNKSTA	18
+#define PCI_CAP_ID_EXP		PCIY_EXPRESS
+#define PCI_EXP_DEVCTL		PCIER_DEVICE_CTL
+#define PCI_EXP_DEVCTL_PAYLOAD	PCIEM_CTL_MAX_PAYLOAD
+#define PCI_EXP_DEVCTL_READRQ	PCIEM_CTL_MAX_READ_REQUEST
+#define PCI_EXP_LNKCTL		PCIER_LINK_CTL
+#define PCI_EXP_LNKSTA		PCIER_LINK_STA
 
 /*
  * Linux compatibility macros
@@ -290,7 +231,9 @@ static const int debug_flags = DBG_RX;
 #define le16_to_cpu(x) le16toh(x)
 #define cpu_to_le32(x) htole32(x)
 #define swab32(x) bswap32(x)
-#define simple_strtoul strtoul
+#ifndef simple_strtoul
+#define simple_strtoul(...) strtoul(__VA_ARGS__)
+#endif
 
 
 #ifndef LINUX_TYPES_DEFINED

@@ -61,7 +61,7 @@ static MALLOC_DEFINE(M_DEVFS2, "DEVFS2", "DEVFS data 2");
 static MALLOC_DEFINE(M_DEVFS3, "DEVFS3", "DEVFS data 3");
 static MALLOC_DEFINE(M_CDEVP, "DEVFS1", "DEVFS cdev_priv storage");
 
-static SYSCTL_NODE(_vfs, OID_AUTO, devfs, CTLFLAG_RW, 0, "DEVFS filesystem");
+SYSCTL_NODE(_vfs, OID_AUTO, devfs, CTLFLAG_RW, 0, "DEVFS filesystem");
 
 static unsigned devfs_generation;
 SYSCTL_UINT(_vfs_devfs, OID_AUTO, generation, CTLFLAG_RD,
@@ -72,8 +72,8 @@ SYSCTL_UINT(_vfs_devfs, OID_AUTO, rule_depth, CTLFLAG_RW,
 	&devfs_rule_depth, 0, "Max depth of ruleset include");
 
 /*
- * Helper sysctl for devname(3).  We're given a struct cdev * and return
- * the name, if any, registered by the device driver.
+ * Helper sysctl for devname(3).  We're given a dev_t and return the
+ * name, if any, registered by the device driver.
  */
 static int
 sysctl_devname(SYSCTL_HANDLER_ARGS)
@@ -81,23 +81,26 @@ sysctl_devname(SYSCTL_HANDLER_ARGS)
 	int error;
 	dev_t ud;
 	struct cdev_priv *cdp;
+	struct cdev *dev;
 
 	error = SYSCTL_IN(req, &ud, sizeof (ud));
 	if (error)
 		return (error);
 	if (ud == NODEV)
-		return(EINVAL);
-/*
-	ud ^ devfs_random();
-*/
+		return (EINVAL);
+	dev = NULL;
 	dev_lock();
 	TAILQ_FOREACH(cdp, &cdevp_list, cdp_list)
-		if (cdp->cdp_inode == ud)
+		if (cdp->cdp_inode == ud) {
+			dev = &cdp->cdp_c;
+			dev_refl(dev);
 			break;
+		}
 	dev_unlock();
-	if (cdp == NULL)
-		return(ENOENT);
-	return(SYSCTL_OUT(req, cdp->cdp_c.si_name, strlen(cdp->cdp_c.si_name) + 1));
+	if (dev == NULL)
+		return (ENOENT);
+	error = SYSCTL_OUT(req, dev->si_name, strlen(dev->si_name) + 1);
+	dev_rel(dev);
 	return (error);
 }
 
@@ -106,32 +109,52 @@ SYSCTL_PROC(_kern, OID_AUTO, devname,
     NULL, 0, sysctl_devname, "", "devname(3) handler");
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, cdev, CTLFLAG_RD,
-    0, sizeof(struct cdev), "sizeof(struct cdev)");
+    SYSCTL_NULL_INT_PTR, sizeof(struct cdev), "sizeof(struct cdev)");
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, cdev_priv, CTLFLAG_RD,
-    0, sizeof(struct cdev_priv), "sizeof(struct cdev_priv)");
+    SYSCTL_NULL_INT_PTR, sizeof(struct cdev_priv), "sizeof(struct cdev_priv)");
 
 struct cdev *
-devfs_alloc(void)
+devfs_alloc(int flags)
 {
 	struct cdev_priv *cdp;
 	struct cdev *cdev;
 	struct timespec ts;
 
-	cdp = malloc(sizeof *cdp, M_CDEVP, M_USE_RESERVE | M_ZERO | M_WAITOK);
+	cdp = malloc(sizeof *cdp, M_CDEVP, M_ZERO |
+	    ((flags & MAKEDEV_NOWAIT) ? M_NOWAIT : M_WAITOK));
+	if (cdp == NULL)
+		return (NULL);
 
 	cdp->cdp_dirents = &cdp->cdp_dirent0;
-	cdp->cdp_dirent0 = NULL;
-	cdp->cdp_maxdirent = 0;
 
 	cdev = &cdp->cdp_c;
-
-	cdev->si_name = cdev->__si_namebuf;
 	LIST_INIT(&cdev->si_children);
 	vfs_timestamp(&ts);
 	cdev->si_atime = cdev->si_mtime = cdev->si_ctime = ts;
 
 	return (cdev);
+}
+
+int
+devfs_dev_exists(const char *name)
+{
+	struct cdev_priv *cdp;
+
+	mtx_assert(&devmtx, MA_OWNED);
+
+	TAILQ_FOREACH(cdp, &cdevp_list, cdp_list) {
+		if ((cdp->cdp_flags & CDP_ACTIVE) == 0)
+			continue;
+		if (devfs_pathpath(cdp->cdp_c.si_name, name) != 0)
+			return (1);
+		if (devfs_pathpath(name, cdp->cdp_c.si_name) != 0)
+			return (1);
+	}
+	if (devfs_dir_find(name) != 0)
+		return (1);
+
+	return (0);
 }
 
 void
@@ -142,25 +165,38 @@ devfs_free(struct cdev *cdev)
 	cdp = cdev2priv(cdev);
 	if (cdev->si_cred != NULL)
 		crfree(cdev->si_cred);
-	if (cdp->cdp_inode > 0)
-		free_unr(devfs_inos, cdp->cdp_inode);
+	devfs_free_cdp_inode(cdp->cdp_inode);
 	if (cdp->cdp_maxdirent > 0) 
 		free(cdp->cdp_dirents, M_DEVFS2);
 	free(cdp, M_CDEVP);
 }
 
 struct devfs_dirent *
-devfs_find(struct devfs_dirent *dd, const char *name, int namelen)
+devfs_find(struct devfs_dirent *dd, const char *name, int namelen, int type)
 {
 	struct devfs_dirent *de;
 
 	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
 		if (namelen != de->de_dirent->d_namlen)
 			continue;
+		if (type != 0 && type != de->de_dirent->d_type)
+			continue;
+
+		/*
+		 * The race with finding non-active name is not
+		 * completely closed by the check, but it is similar
+		 * to the devfs_allocv() in making it unlikely enough.
+		 */
+		if (de->de_dirent->d_type == DT_CHR &&
+		    (de->de_cdp->cdp_flags & CDP_ACTIVE) == 0)
+			continue;
+
 		if (bcmp(name, de->de_dirent->d_name, namelen) != 0)
 			continue;
 		break;
 	}
+	KASSERT(de == NULL || (de->de_flags & DE_DOOMED) == 0,
+	    ("devfs_find: returning a doomed entry"));
 	return (de);
 }
 
@@ -190,6 +226,26 @@ devfs_newdirent(char *name, int namelen)
 }
 
 struct devfs_dirent *
+devfs_parent_dirent(struct devfs_dirent *de)
+{
+
+	if (de->de_dirent->d_type != DT_DIR)
+		return (de->de_dir);
+
+	if (de->de_flags & (DE_DOT | DE_DOTDOT))
+		return (NULL);
+
+	de = TAILQ_FIRST(&de->de_dlist);	/* "." */
+	if (de == NULL)
+		return (NULL);
+	de = TAILQ_NEXT(de, de_list);		/* ".." */
+	if (de == NULL)
+		return (NULL);
+
+	return (de->de_dir);
+}
+
+struct devfs_dirent *
 devfs_vmkdir(struct devfs_mount *dmp, char *name, int namelen, struct devfs_dirent *dotdot, u_int inode)
 {
 	struct devfs_dirent *dd;
@@ -207,14 +263,19 @@ devfs_vmkdir(struct devfs_mount *dmp, char *name, int namelen, struct devfs_dire
 	else
 		dd->de_inode = alloc_unr(devfs_inos);
 
-	/* Create the "." entry in the new directory */
+	/*
+	 * "." and ".." are always the two first entries in the
+	 * de_dlist list.
+	 *
+	 * Create the "." entry in the new directory.
+	 */
 	de = devfs_newdirent(".", 1);
 	de->de_dirent->d_type = DT_DIR;
 	de->de_flags |= DE_DOT;
 	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 	de->de_dir = dd;
 
-	/* Create the ".." entry in the new directory */
+	/* Create the ".." entry in the new directory. */
 	de = devfs_newdirent("..", 2);
 	de->de_dirent->d_type = DT_DIR;
 	de->de_flags |= DE_DOTDOT;
@@ -223,8 +284,10 @@ devfs_vmkdir(struct devfs_mount *dmp, char *name, int namelen, struct devfs_dire
 		de->de_dir = dd;
 	} else {
 		de->de_dir = dotdot;
+		sx_assert(&dmp->dm_lock, SX_XLOCKED);
 		TAILQ_INSERT_TAIL(&dotdot->de_dlist, dd, de_list);
 		dotdot->de_links++;
+		devfs_rules_apply(dmp, dd);
 	}
 
 #ifdef MAC
@@ -236,7 +299,58 @@ devfs_vmkdir(struct devfs_mount *dmp, char *name, int namelen, struct devfs_dire
 void
 devfs_dirent_free(struct devfs_dirent *de)
 {
+	struct vnode *vp;
+
+	vp = de->de_vnode;
+	mtx_lock(&devfs_de_interlock);
+	if (vp != NULL && vp->v_data == de)
+		vp->v_data = NULL;
+	mtx_unlock(&devfs_de_interlock);
 	free(de, M_DEVFS3);
+}
+
+/*
+ * Removes a directory if it is empty. Also empty parent directories are
+ * removed recursively.
+ */
+static void
+devfs_rmdir_empty(struct devfs_mount *dm, struct devfs_dirent *de)
+{
+	struct devfs_dirent *dd, *de_dot, *de_dotdot;
+
+	sx_assert(&dm->dm_lock, SX_XLOCKED);
+
+	for (;;) {
+		KASSERT(de->de_dirent->d_type == DT_DIR,
+		    ("devfs_rmdir_empty: de is not a directory"));
+
+		if ((de->de_flags & DE_DOOMED) != 0 || de == dm->dm_rootdir)
+			return;
+
+		de_dot = TAILQ_FIRST(&de->de_dlist);
+		KASSERT(de_dot != NULL, ("devfs_rmdir_empty: . missing"));
+		de_dotdot = TAILQ_NEXT(de_dot, de_list);
+		KASSERT(de_dotdot != NULL, ("devfs_rmdir_empty: .. missing"));
+		/* Return if the directory is not empty. */
+		if (TAILQ_NEXT(de_dotdot, de_list) != NULL)
+			return;
+
+		dd = devfs_parent_dirent(de);
+		KASSERT(dd != NULL, ("devfs_rmdir_empty: NULL dd"));
+		TAILQ_REMOVE(&de->de_dlist, de_dot, de_list);
+		TAILQ_REMOVE(&de->de_dlist, de_dotdot, de_list);
+		TAILQ_REMOVE(&dd->de_dlist, de, de_list);
+		DEVFS_DE_HOLD(dd);
+		devfs_delete(dm, de, DEVFS_DEL_NORECURSE);
+		devfs_delete(dm, de_dot, DEVFS_DEL_NORECURSE);
+		devfs_delete(dm, de_dotdot, DEVFS_DEL_NORECURSE);
+		if (DEVFS_DE_DROP(dd)) {
+			devfs_dirent_free(dd);
+			return;
+		}
+
+		de = dd;
+	}
 }
 
 /*
@@ -244,13 +358,26 @@ devfs_dirent_free(struct devfs_dirent *de)
  * dm->dm_lock may be temporary dropped.
  */
 void
-devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked)
+devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int flags)
 {
+	struct devfs_dirent *dd;
 	struct vnode *vp;
 
 	KASSERT((de->de_flags & DE_DOOMED) == 0,
 		("devfs_delete doomed dirent"));
 	de->de_flags |= DE_DOOMED;
+
+	if ((flags & DEVFS_DEL_NORECURSE) == 0) {
+		dd = devfs_parent_dirent(de);
+		if (dd != NULL)
+			DEVFS_DE_HOLD(dd);
+		if (de->de_flags & DE_USER) {
+			KASSERT(dd != NULL, ("devfs_delete: NULL dd"));
+			devfs_dir_unref_de(dm, dd);
+		}
+	} else
+		dd = NULL;
+
 	mtx_lock(&devfs_de_interlock);
 	vp = de->de_vnode;
 	if (vp != NULL) {
@@ -258,12 +385,12 @@ devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked)
 		mtx_unlock(&devfs_de_interlock);
 		vholdl(vp);
 		sx_unlock(&dm->dm_lock);
-		if (!vp_locked)
+		if ((flags & DEVFS_DEL_VNLOCKED) == 0)
 			vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK | LK_RETRY);
 		else
 			VI_UNLOCK(vp);
 		vgone(vp);
-		if (!vp_locked)
+		if ((flags & DEVFS_DEL_VNLOCKED) == 0)
 			VOP_UNLOCK(vp, 0);
 		vdrop(vp);
 		sx_xlock(&dm->dm_lock);
@@ -277,11 +404,18 @@ devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked)
 	mac_devfs_destroy(de);
 #endif
 	if (de->de_inode > DEVFS_ROOTINO) {
-		free_unr(devfs_inos, de->de_inode);
+		devfs_free_cdp_inode(de->de_inode);
 		de->de_inode = 0;
 	}
 	if (DEVFS_DE_DROP(de))
 		devfs_dirent_free(de);
+
+	if (dd != NULL) {
+		if (DEVFS_DE_DROP(dd))
+			devfs_dirent_free(dd);
+		else
+			devfs_rmdir_empty(dm, dd);
+	}
 }
 
 /*
@@ -296,19 +430,31 @@ devfs_purge(struct devfs_mount *dm, struct devfs_dirent *dd)
 	struct devfs_dirent *de;
 
 	sx_assert(&dm->dm_lock, SX_XLOCKED);
+
+	DEVFS_DE_HOLD(dd);
 	for (;;) {
-		de = TAILQ_FIRST(&dd->de_dlist);
+		/*
+		 * Use TAILQ_LAST() to remove "." and ".." last.
+		 * We might need ".." to resolve a path in
+		 * devfs_dir_unref_de().
+		 */
+		de = TAILQ_LAST(&dd->de_dlist, devfs_dlist_head);
 		if (de == NULL)
 			break;
 		TAILQ_REMOVE(&dd->de_dlist, de, de_list);
-		if (de->de_flags & (DE_DOT|DE_DOTDOT))
-			devfs_delete(dm, de, 0);
+		if (de->de_flags & DE_USER)
+			devfs_dir_unref_de(dm, dd);
+		if (de->de_flags & (DE_DOT | DE_DOTDOT))
+			devfs_delete(dm, de, DEVFS_DEL_NORECURSE);
 		else if (de->de_dirent->d_type == DT_DIR)
 			devfs_purge(dm, de);
-		else 
-			devfs_delete(dm, de, 0);
+		else
+			devfs_delete(dm, de, DEVFS_DEL_NORECURSE);
 	}
-	devfs_delete(dm, dd, 0);
+	if (DEVFS_DE_DROP(dd))
+		devfs_dirent_free(dd);
+	else if ((dd->de_flags & DE_DOOMED) == 0)
+		devfs_delete(dm, dd, DEVFS_DEL_NORECURSE);
 }
 
 /*
@@ -352,9 +498,9 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 {
 	struct cdev_priv *cdp;
 	struct devfs_dirent *de;
-	struct devfs_dirent *dd;
+	struct devfs_dirent *dd, *dt;
 	struct cdev *pdev;
-	int j;
+	int de_flags, depth, j;
 	char *q, *s;
 
 	sx_assert(&dm->dm_lock, SX_XLOCKED);
@@ -426,12 +572,27 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 				continue;
 			if (*q != '/')
 				break;
-			de = devfs_find(dd, s, q - s);
+			de = devfs_find(dd, s, q - s, 0);
 			if (de == NULL)
 				de = devfs_vmkdir(dm, s, q - s, dd, 0);
+			else if (de->de_dirent->d_type == DT_LNK) {
+				de = devfs_find(dd, s, q - s, DT_DIR);
+				if (de == NULL)
+					de = devfs_vmkdir(dm, s, q - s, dd, 0);
+				de->de_flags |= DE_COVERED;
+			}
 			s = q + 1;
 			dd = de;
+			KASSERT(dd->de_dirent->d_type == DT_DIR &&
+			    (dd->de_flags & (DE_DOT | DE_DOTDOT)) == 0,
+			    ("%s: invalid directory (si_name=%s)",
+			    __func__, cdp->cdp_c.si_name));
+
 		}
+		de_flags = 0;
+		de = devfs_find(dd, s, q - s, DT_LNK);
+		if (de != NULL)
+			de_flags |= DE_COVERED;
 
 		de = devfs_newdirent(s, q - s);
 		if (cdp->cdp_c.si_flags & SI_ALIAS) {
@@ -440,15 +601,24 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 			de->de_mode = 0755;
 			de->de_dirent->d_type = DT_LNK;
 			pdev = cdp->cdp_c.si_parent;
-			j = strlen(pdev->si_name) + 1;
+			dt = dd;
+			depth = 0;
+			while (dt != dm->dm_rootdir &&
+			    (dt = devfs_parent_dirent(dt)) != NULL)
+				depth++;
+			j = depth * 3 + strlen(pdev->si_name) + 1;
 			de->de_symlink = malloc(j, M_DEVFS, M_WAITOK);
-			bcopy(pdev->si_name, de->de_symlink, j);
+			de->de_symlink[0] = 0;
+			while (depth-- > 0)
+				strcat(de->de_symlink, "../");
+			strcat(de->de_symlink, pdev->si_name);
 		} else {
 			de->de_uid = cdp->cdp_c.si_uid;
 			de->de_gid = cdp->cdp_c.si_gid;
 			de->de_mode = cdp->cdp_c.si_mode;
 			de->de_dirent->d_type = DT_CHR;
 		}
+		de->de_flags |= de_flags;
 		de->de_inode = cdp->cdp_inode;
 		de->de_cdp = cdp;
 #ifdef MAC
@@ -478,13 +648,15 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 void
 devfs_populate(struct devfs_mount *dm)
 {
+	unsigned gen;
 
 	sx_assert(&dm->dm_lock, SX_XLOCKED);
-	if (dm->dm_generation == devfs_generation)
+	gen = devfs_generation;
+	if (dm->dm_generation == gen)
 		return;
 	while (devfs_populate_loop(dm, 0))
 		continue;
-	dm->dm_generation = devfs_generation;
+	dm->dm_generation = gen;
 }
 
 /*
@@ -503,7 +675,7 @@ devfs_cleanup(struct devfs_mount *dm)
 /*
  * devfs_create() and devfs_destroy() are called from kern_conf.c and
  * in both cases the devlock() mutex is held, so no further locking
- * is necesary and no sleeping allowed.
+ * is necessary and no sleeping allowed.
  */
 
 void
@@ -529,6 +701,21 @@ devfs_destroy(struct cdev *dev)
 	cdp = cdev2priv(dev);
 	cdp->cdp_flags &= ~CDP_ACTIVE;
 	devfs_generation++;
+}
+
+ino_t
+devfs_alloc_cdp_inode(void)
+{
+
+	return (alloc_unr(devfs_inos));
+}
+
+void
+devfs_free_cdp_inode(ino_t ino)
+{
+
+	if (ino > 0)
+		free_unr(devfs_inos, ino);
 }
 
 static void

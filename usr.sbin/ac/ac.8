@@ -11,11 +11,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"      This product includes software developed by Christopher G. Demetriou.
-.\" 3. The name of the author may not be used to endorse or promote products
-.\"    derived from this software without specific prior written permission
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
 .\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -30,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 15, 1994
+.Dd January 21, 2010
 .Dt AC 8
 .Os
 .Sh NAME
@@ -45,7 +40,7 @@
 .Op Ar users ...
 .Sh DESCRIPTION
 If the file
-.Pa /var/log/wtmp
+.Pa /var/log/utx.log
 exists, a record of individual login and logout
 times are written to it by
 .Xr login 1
@@ -86,7 +81,7 @@ flags may be specified.
 Read connect time data from
 .Ar wtmp
 instead of the default file,
-.Pa /var/log/wtmp .
+.Pa /var/log/utx.log .
 .It Ar users ...
 Display totals for the given individuals only.
 .El
@@ -95,42 +90,40 @@ If no arguments are given,
 .Nm
 displays the total connect time for all
 accounts with login sessions recorded in
-.Pa wtmp .
+.Pa utx.log .
 .Pp
 The default
-.Pa wtmp
+.Pa utx.log
 file will increase without bound unless it is truncated.
 It is normally truncated by the daily scripts run
 by
 .Xr cron 8 ,
 which rename and rotate the
-.Pa wtmp
+.Pa utx.log
 files, keeping a week's worth of data on
 hand.
 No login or connect time accounting is performed if
-.Pa /var/log/wtmp
+.Pa /var/log/utx.log
 does not exist.
-.Pp
-For example,
-.Bd -literal -offset
-ac -p -t "ttyd*" > modems
-ac -p -t "!ttyd*" > other
-.Ed
-.Pp
-allows times recorded in
-.Pa modems
-to be charged out at a different rate than
-.Pa other .
 .Sh FILES
-.Bl -tag -width /var/log/wtmp -compact
-.It Pa /var/log/wtmp
+.Bl -tag -width /var/log/utx.log -compact
+.It Pa /var/log/utx.log
 connect time accounting file
 .El
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Allow times recorded in
+.Pa modems
+to be charged out at a different rate than
+.Pa other :
+.Bd -literal -offset indent
+ac -p -t "ttyd*" > modems
+ac -p -t "!ttyd*" > other
+.Ed
 .Sh SEE ALSO
 .Xr login 1 ,
-.Xr utmp 5 ,
+.Xr getutxent 3 ,
 .Xr init 8 ,
 .Xr sa 8
 .\" .Sh NOTES

@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <bootstrap.h>
 #include <btxv86.h>
-#include <machine/psl.h>
 #include <machine/cpufunc.h>
 #include "libi386.h"
 

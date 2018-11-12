@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -92,6 +88,13 @@ typedef	__timer_t	timer_t;
 #include <sys/timespec.h>
 #endif /* __POSIX_VISIBLE >= 199309 */
 
+#if __POSIX_VISIBLE >= 200112
+#ifndef _PID_T_DECLARED
+typedef	__pid_t		pid_t;
+#define	_PID_T_DECLARED
+#endif
+#endif
+
 /* These macros are also in sys/time.h. */
 #if !defined(CLOCK_REALTIME) && __POSIX_VISIBLE >= 200112
 #define CLOCK_REALTIME	0
@@ -109,6 +112,7 @@ typedef	__timer_t	timer_t;
 #define CLOCK_MONOTONIC_FAST	12	/* FreeBSD-specific. */
 #define CLOCK_SECOND	13		/* FreeBSD-specific. */
 #define CLOCK_THREAD_CPUTIME_ID	14
+#define	CLOCK_PROCESS_CPUTIME_ID	15
 #endif /* !defined(CLOCK_REALTIME) && __POSIX_VISIBLE >= 200112 */
 
 #if !defined(TIMER_ABSTIME) && __POSIX_VISIBLE >= 200112
@@ -169,6 +173,10 @@ int clock_settime(clockid_t, const struct timespec *);
 int nanosleep(const struct timespec *, struct timespec *);
 #endif /* __POSIX_VISIBLE >= 199309 */
 
+#if __POSIX_VISIBLE >= 200112
+int clock_getcpuclockid(pid_t, clockid_t *);
+#endif
+
 #if __POSIX_VISIBLE >= 199506
 char *asctime_r(const struct tm *, char *);
 char *ctime_r(const time_t *, char *);
@@ -186,7 +194,12 @@ char *timezone(int, int);	/* XXX XSI conflict */
 void tzsetwall(void);
 time_t timelocal(struct tm * const);
 time_t timegm(struct tm * const);
+int timer_oshandle_np(timer_t timerid);
 #endif /* __BSD_VISIBLE */
+
+#if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)
+#include <xlocale/_time.h>
+#endif
 __END_DECLS
 
 #endif /* !_TIME_H_ */

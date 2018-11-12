@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -113,6 +114,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <dev/mii/mii.h>
+#include <dev/mii/mii_bitbang.h>
 #include <dev/mii/miivar.h>
 
 /* "device miibus" required.  See GENERIC if you get errors here. */
@@ -129,7 +131,7 @@ MODULE_DEPEND(wb, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static struct wb_type wb_devs[] = {
+static const struct wb_type wb_devs[] = {
 	{ WB_VENDORID, WB_DEVICEID_840F,
 		"Winbond W89C840F 10/100BaseTX" },
 	{ CP_VENDORID, CP_DEVICEID_RL100,
@@ -141,7 +143,7 @@ static int wb_probe(device_t);
 static int wb_attach(device_t);
 static int wb_detach(device_t);
 
-static void wb_bfree(void *addr, void *args);
+static void wb_bfree(struct mbuf *, void *addr, void *args);
 static int wb_newbuf(struct wb_softc *, struct wb_chain_onefrag *,
 		struct mbuf *);
 static int wb_encap(struct wb_softc *, struct wb_chain *, struct mbuf *);
@@ -158,7 +160,7 @@ static int wb_ioctl(struct ifnet *, u_long, caddr_t);
 static void wb_init(void *);
 static void wb_init_locked(struct wb_softc *);
 static void wb_stop(struct wb_softc *);
-static void wb_watchdog(struct ifnet *);
+static void wb_watchdog(struct wb_softc *);
 static int wb_shutdown(device_t);
 static int wb_ifmedia_upd(struct ifnet *);
 static void wb_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -166,10 +168,6 @@ static void wb_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static void wb_eeprom_putbyte(struct wb_softc *, int);
 static void wb_eeprom_getword(struct wb_softc *, int, u_int16_t *);
 static void wb_read_eeprom(struct wb_softc *, caddr_t, int, int, int);
-static void wb_mii_sync(struct wb_softc *);
-static void wb_mii_send(struct wb_softc *, u_int32_t, int);
-static int wb_mii_readreg(struct wb_softc *, struct wb_mii_frame *);
-static int wb_mii_writereg(struct wb_softc *, struct wb_mii_frame *);
 
 static void wb_setcfg(struct wb_softc *, u_int32_t);
 static void wb_setmulti(struct wb_softc *);
@@ -181,6 +179,24 @@ static int wb_list_tx_init(struct wb_softc *);
 static int wb_miibus_readreg(device_t, int, int);
 static int wb_miibus_writereg(device_t, int, int, int);
 static void wb_miibus_statchg(device_t);
+
+/*
+ * MII bit-bang glue
+ */
+static uint32_t wb_mii_bitbang_read(device_t);
+static void wb_mii_bitbang_write(device_t, uint32_t);
+
+static const struct mii_bitbang_ops wb_mii_bitbang_ops = {
+	wb_mii_bitbang_read,
+	wb_mii_bitbang_write,
+	{
+		WB_SIO_MII_DATAOUT,	/* MII_BIT_MDO */
+		WB_SIO_MII_DATAIN,	/* MII_BIT_MDI */
+		WB_SIO_MII_CLK,		/* MII_BIT_MDC */
+		WB_SIO_MII_DIR,		/* MII_BIT_DIR_HOST_PHY */
+		0,			/* MII_BIT_DIR_PHY_HOST */
+	}
+};
 
 #ifdef WB_USEIOSPACE
 #define WB_RES			SYS_RES_IOPORT
@@ -197,15 +213,12 @@ static device_method_t wb_methods[] = {
 	DEVMETHOD(device_detach,	wb_detach),
 	DEVMETHOD(device_shutdown,	wb_shutdown),
 
-	/* bus interface, for miibus */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	wb_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	wb_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	wb_miibus_statchg),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t wb_driver = {
@@ -262,8 +275,6 @@ wb_eeprom_putbyte(sc, addr)
 		SIO_CLR(WB_SIO_EE_CLK);
 		DELAY(100);
 	}
-
-	return;
 }
 
 /*
@@ -304,8 +315,6 @@ wb_eeprom_getword(sc, addr, dest)
 	CSR_WRITE_4(sc, WB_SIO, 0);
 
 	*dest = word;
-
-	return;
 }
 
 /*
@@ -330,194 +339,39 @@ wb_read_eeprom(sc, dest, off, cnt, swap)
 		else
 			*ptr = word;
 	}
-
-	return;
 }
 
 /*
- * Sync the PHYs by setting data bit and strobing the clock 32 times.
+ * Read the MII serial port for the MII bit-bang module.
+ */
+static uint32_t
+wb_mii_bitbang_read(device_t dev)
+{
+	struct wb_softc *sc;
+	uint32_t val;
+
+	sc = device_get_softc(dev);
+
+	val = CSR_READ_4(sc, WB_SIO);
+	CSR_BARRIER(sc, WB_SIO, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+
+	return (val);
+}
+
+/*
+ * Write the MII serial port for the MII bit-bang module.
  */
 static void
-wb_mii_sync(sc)
-	struct wb_softc		*sc;
+wb_mii_bitbang_write(device_t dev, uint32_t val)
 {
-	register int		i;
+	struct wb_softc *sc;
 
-	SIO_SET(WB_SIO_MII_DIR|WB_SIO_MII_DATAIN);
+	sc = device_get_softc(dev);
 
-	for (i = 0; i < 32; i++) {
-		SIO_SET(WB_SIO_MII_CLK);
-		DELAY(1);
-		SIO_CLR(WB_SIO_MII_CLK);
-		DELAY(1);
-	}
-
-	return;
-}
-
-/*
- * Clock a series of bits through the MII.
- */
-static void
-wb_mii_send(sc, bits, cnt)
-	struct wb_softc		*sc;
-	u_int32_t		bits;
-	int			cnt;
-{
-	int			i;
-
-	SIO_CLR(WB_SIO_MII_CLK);
-
-	for (i = (0x1 << (cnt - 1)); i; i >>= 1) {
-                if (bits & i) {
-			SIO_SET(WB_SIO_MII_DATAIN);
-                } else {
-			SIO_CLR(WB_SIO_MII_DATAIN);
-                }
-		DELAY(1);
-		SIO_CLR(WB_SIO_MII_CLK);
-		DELAY(1);
-		SIO_SET(WB_SIO_MII_CLK);
-	}
-}
-
-/*
- * Read an PHY register through the MII.
- */
-static int
-wb_mii_readreg(sc, frame)
-	struct wb_softc		*sc;
-	struct wb_mii_frame	*frame;
-	
-{
-	int			i, ack;
-
-	/*
-	 * Set up frame for RX.
-	 */
-	frame->mii_stdelim = WB_MII_STARTDELIM;
-	frame->mii_opcode = WB_MII_READOP;
-	frame->mii_turnaround = 0;
-	frame->mii_data = 0;
-	
-	CSR_WRITE_4(sc, WB_SIO, 0);
-
-	/*
- 	 * Turn on data xmit.
-	 */
-	SIO_SET(WB_SIO_MII_DIR);
-
-	wb_mii_sync(sc);
-
-	/*
-	 * Send command/address info.
-	 */
-	wb_mii_send(sc, frame->mii_stdelim, 2);
-	wb_mii_send(sc, frame->mii_opcode, 2);
-	wb_mii_send(sc, frame->mii_phyaddr, 5);
-	wb_mii_send(sc, frame->mii_regaddr, 5);
-
-	/* Idle bit */
-	SIO_CLR((WB_SIO_MII_CLK|WB_SIO_MII_DATAIN));
-	DELAY(1);
-	SIO_SET(WB_SIO_MII_CLK);
-	DELAY(1);
-
-	/* Turn off xmit. */
-	SIO_CLR(WB_SIO_MII_DIR);
-	/* Check for ack */
-	SIO_CLR(WB_SIO_MII_CLK);
-	DELAY(1);
-	ack = CSR_READ_4(sc, WB_SIO) & WB_SIO_MII_DATAOUT;
-	SIO_SET(WB_SIO_MII_CLK);
-	DELAY(1);
-	SIO_CLR(WB_SIO_MII_CLK);
-	DELAY(1);
-	SIO_SET(WB_SIO_MII_CLK);
-	DELAY(1);
-
-	/*
-	 * Now try reading data bits. If the ack failed, we still
-	 * need to clock through 16 cycles to keep the PHY(s) in sync.
-	 */
-	if (ack) {
-		for(i = 0; i < 16; i++) {
-			SIO_CLR(WB_SIO_MII_CLK);
-			DELAY(1);
-			SIO_SET(WB_SIO_MII_CLK);
-			DELAY(1);
-		}
-		goto fail;
-	}
-
-	for (i = 0x8000; i; i >>= 1) {
-		SIO_CLR(WB_SIO_MII_CLK);
-		DELAY(1);
-		if (!ack) {
-			if (CSR_READ_4(sc, WB_SIO) & WB_SIO_MII_DATAOUT)
-				frame->mii_data |= i;
-			DELAY(1);
-		}
-		SIO_SET(WB_SIO_MII_CLK);
-		DELAY(1);
-	}
-
-fail:
-
-	SIO_CLR(WB_SIO_MII_CLK);
-	DELAY(1);
-	SIO_SET(WB_SIO_MII_CLK);
-	DELAY(1);
-
-	if (ack)
-		return(1);
-	return(0);
-}
-
-/*
- * Write to a PHY register through the MII.
- */
-static int
-wb_mii_writereg(sc, frame)
-	struct wb_softc		*sc;
-	struct wb_mii_frame	*frame;
-	
-{
-
-	/*
-	 * Set up frame for TX.
-	 */
-
-	frame->mii_stdelim = WB_MII_STARTDELIM;
-	frame->mii_opcode = WB_MII_WRITEOP;
-	frame->mii_turnaround = WB_MII_TURNAROUND;
-	
-	/*
- 	 * Turn on data output.
-	 */
-	SIO_SET(WB_SIO_MII_DIR);
-
-	wb_mii_sync(sc);
-
-	wb_mii_send(sc, frame->mii_stdelim, 2);
-	wb_mii_send(sc, frame->mii_opcode, 2);
-	wb_mii_send(sc, frame->mii_phyaddr, 5);
-	wb_mii_send(sc, frame->mii_regaddr, 5);
-	wb_mii_send(sc, frame->mii_turnaround, 2);
-	wb_mii_send(sc, frame->mii_data, 16);
-
-	/* Idle bit. */
-	SIO_SET(WB_SIO_MII_CLK);
-	DELAY(1);
-	SIO_CLR(WB_SIO_MII_CLK);
-	DELAY(1);
-
-	/*
-	 * Turn off xmit.
-	 */
-	SIO_CLR(WB_SIO_MII_DIR);
-
-	return(0);
+	CSR_WRITE_4(sc, WB_SIO, val);
+	CSR_BARRIER(sc, WB_SIO, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 static int
@@ -525,18 +379,8 @@ wb_miibus_readreg(dev, phy, reg)
 	device_t		dev;
 	int			phy, reg;
 {
-	struct wb_softc		*sc;
-	struct wb_mii_frame	frame;
 
-	sc = device_get_softc(dev);
-
-	bzero((char *)&frame, sizeof(frame));
-
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	wb_mii_readreg(sc, &frame);
-
-	return(frame.mii_data);
+	return (mii_bitbang_readreg(dev, &wb_mii_bitbang_ops, phy, reg));
 }
 
 static int
@@ -544,18 +388,8 @@ wb_miibus_writereg(dev, phy, reg, data)
 	device_t		dev;
 	int			phy, reg, data;
 {
-	struct wb_softc		*sc;
-	struct wb_mii_frame	frame;
 
-	sc = device_get_softc(dev);
-
-	bzero((char *)&frame, sizeof(frame));
-
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	frame.mii_data = data;
-
-	wb_mii_writereg(sc, &frame);
+	mii_bitbang_writereg(dev, &wb_mii_bitbang_ops, phy, reg, data);
 
 	return(0);
 }
@@ -570,8 +404,6 @@ wb_miibus_statchg(dev)
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->wb_miibus);
 	wb_setcfg(sc, mii->mii_media_active);
-
-	return;
 }
 
 /*
@@ -627,8 +459,6 @@ wb_setmulti(sc)
 	CSR_WRITE_4(sc, WB_MAR0, hashes[0]);
 	CSR_WRITE_4(sc, WB_MAR1, hashes[1]);
 	CSR_WRITE_4(sc, WB_NETCFG, rxfilt);
-
-	return;
 }
 
 /*
@@ -671,8 +501,6 @@ wb_setcfg(sc, media)
 
 	if (restart)
 		WB_SETBIT(sc, WB_NETCFG, WB_NETCFG_TX_ON|WB_NETCFG_RX_ON);
-
-	return;
 }
 
 static void
@@ -681,6 +509,7 @@ wb_reset(sc)
 {
 	register int		i;
 	struct mii_data		*mii;
+	struct mii_softc	*miisc;
 
 	CSR_WRITE_4(sc, WB_NETCFG, 0);
 	CSR_WRITE_4(sc, WB_BUSCTL, 0);
@@ -705,16 +534,8 @@ wb_reset(sc)
 		return;
 
 	mii = device_get_softc(sc->wb_miibus);
-	if (mii == NULL)
-		return;
-
-        if (mii->mii_instance) {
-                struct mii_softc        *miisc;
-                LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-                        mii_phy_reset(miisc);
-        }
-
-        return;
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 }
 
 static void
@@ -724,9 +545,6 @@ wb_fixmedia(sc)
 	struct mii_data		*mii = NULL;
 	struct ifnet		*ifp;
 	u_int32_t		media;
-
-	if (sc->wb_miibus == NULL)
-		return;
 
 	mii = device_get_softc(sc->wb_miibus);
 	ifp = sc->wb_ifp;
@@ -742,8 +560,6 @@ wb_fixmedia(sc)
 		return;
 
 	ifmedia_set(&mii->mii_media, media);
-
-	return;
 }
 
 /*
@@ -754,7 +570,7 @@ static int
 wb_probe(dev)
 	device_t		dev;
 {
-	struct wb_type		*t;
+	const struct wb_type		*t;
 
 	t = wb_devs;
 
@@ -804,9 +620,6 @@ wb_attach(dev)
 		goto fail;
 	}
 
-	sc->wb_btag = rman_get_bustag(sc->wb_res);
-	sc->wb_bhandle = rman_get_bushandle(sc->wb_res);
-
 	/* Allocate interrupt */
 	rid = 0;
 	sc->wb_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -848,20 +661,19 @@ wb_attach(dev)
 	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = wb_ioctl;
 	ifp->if_start = wb_start;
-	ifp->if_watchdog = wb_watchdog;
 	ifp->if_init = wb_init;
 	ifp->if_snd.ifq_maxlen = WB_TX_LIST_CNT - 1;
 
 	/*
 	 * Do MII setup.
 	 */
-	if (mii_phy_probe(dev, &sc->wb_miibus,
-	    wb_ifmedia_upd, wb_ifmedia_sts)) {
-		error = ENXIO;
+	error = mii_attach(dev, &sc->wb_miibus, ifp, wb_ifmedia_upd,
+	    wb_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -910,11 +722,11 @@ wb_detach(dev)
 	 * This should only be done if attach succeeded.
 	 */
 	if (device_is_attached(dev)) {
+		ether_ifdetach(ifp);
 		WB_LOCK(sc);
 		wb_stop(sc);
 		WB_UNLOCK(sc);
 		callout_drain(&sc->wb_stat_callout);
-		ether_ifdetach(ifp);
 	}
 	if (sc->wb_miibus)
 		device_delete_child(dev, sc->wb_miibus);
@@ -1012,11 +824,8 @@ wb_list_rx_init(sc)
 }
 
 static void
-wb_bfree(buf, args)
-	void			*buf;
-	void			*args;
+wb_bfree(struct mbuf *m, void *buf, void *args)
 {
-	return;
 }
 
 /*
@@ -1031,7 +840,7 @@ wb_newbuf(sc, c, m)
 	struct mbuf		*m_new = NULL;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		if (m_new == NULL)
 			return(ENOBUFS);
 		m_new->m_data = c->wb_buf;
@@ -1086,7 +895,7 @@ wb_rxeof(sc)
 		    (WB_RXBYTES(cur_rx->wb_ptr->wb_status) > 1536) ||
 		    !(rxstat & WB_RXSTAT_LASTFRAG) ||
 		    !(rxstat & WB_RXSTAT_RXCMP)) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			wb_newbuf(sc, cur_rx, m);
 			device_printf(sc->wb_dev,
 			    "receiver babbling: possible chip bug,"
@@ -1098,7 +907,7 @@ wb_rxeof(sc)
 		}
 
 		if (rxstat & WB_RXSTAT_RXERR) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			wb_newbuf(sc, cur_rx, m);
 			break;
 		}
@@ -1119,12 +928,12 @@ wb_rxeof(sc)
 		    NULL);
 		wb_newbuf(sc, cur_rx, m);
 		if (m0 == NULL) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			break;
 		}
 		m = m0;
 
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		WB_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		WB_LOCK(sc);
@@ -1142,8 +951,6 @@ wb_rxeoc(sc)
 	WB_SETBIT(sc, WB_NETCFG, WB_NETCFG_RX_ON);
 	if (CSR_READ_4(sc, WB_ISR) & WB_RXSTATE_SUSPEND)
 		CSR_WRITE_4(sc, WB_RXSTART, 0xFFFFFFFF);
-
-	return;
 }
 
 /*
@@ -1160,7 +967,7 @@ wb_txeof(sc)
 	ifp = sc->wb_ifp;
 
 	/* Clear the timeout timer. */
-	ifp->if_timer = 0;
+	sc->wb_timer = 0;
 
 	if (sc->wb_cdata.wb_tx_head == NULL)
 		return;
@@ -1179,16 +986,16 @@ wb_txeof(sc)
 			break;
 
 		if (txstat & WB_TXSTAT_TXERR) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			if (txstat & WB_TXSTAT_ABORT)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			if (txstat & WB_TXSTAT_LATECOLL)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 		}
 
-		ifp->if_collisions += (txstat & WB_TXSTAT_COLLCNT) >> 3;
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS, (txstat & WB_TXSTAT_COLLCNT) >> 3);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		m_freem(cur_tx->wb_mbuf);
 		cur_tx->wb_mbuf = NULL;
 
@@ -1200,8 +1007,6 @@ wb_txeof(sc)
 
 		sc->wb_cdata.wb_tx_head = cur_tx->wb_nextdesc;
 	}
-
-	return;
 }
 
 /*
@@ -1215,7 +1020,7 @@ wb_txeoc(sc)
 
 	ifp = sc->wb_ifp;
 
-	ifp->if_timer = 0;
+	sc->wb_timer = 0;
 
 	if (sc->wb_cdata.wb_tx_head == NULL) {
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -1223,12 +1028,10 @@ wb_txeoc(sc)
 	} else {
 		if (WB_TXOWN(sc->wb_cdata.wb_tx_head) == WB_UNSENT) {
 			WB_TXOWN(sc->wb_cdata.wb_tx_head) = WB_TXSTAT_OWN;
-			ifp->if_timer = 5;
+			sc->wb_timer = 5;
 			CSR_WRITE_4(sc, WB_TXSTART, 0xFFFFFFFF);
 		}
 	}
-
-	return;
 }
 
 static void
@@ -1261,7 +1064,7 @@ wb_intr(arg)
 			break;
 
 		if ((status & WB_ISR_RX_NOBUF) || (status & WB_ISR_RX_ERR)) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			wb_reset(sc);
 			if (status & WB_ISR_RX_ERR)
 				wb_fixmedia(sc);
@@ -1290,7 +1093,7 @@ wb_intr(arg)
 		}
 
 		if (status & WB_ISR_TX_UNDERRUN) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			wb_txeof(sc);
 			WB_CLRBIT(sc, WB_NETCFG, WB_NETCFG_TX_ON);
 			/* Jack up TX threshold */
@@ -1315,8 +1118,6 @@ wb_intr(arg)
 	}
 
 	WB_UNLOCK(sc);
-
-	return;
 }
 
 static void
@@ -1332,9 +1133,9 @@ wb_tick(xsc)
 
 	mii_tick(mii);
 
+	if (sc->wb_timer > 0 && --sc->wb_timer == 0)
+		wb_watchdog(sc);
 	callout_reset(&sc->wb_stat_callout, hz, wb_tick, sc);
-
-	return;
 }
 
 /*
@@ -1389,12 +1190,11 @@ wb_encap(sc, c, m_head)
 	if (m != NULL) {
 		struct mbuf		*m_new = NULL;
 
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		if (m_new == NULL)
 			return(1);
 		if (m_head->m_pkthdr.len > MHLEN) {
-			MCLGET(m_new, M_DONTWAIT);
-			if (!(m_new->m_flags & M_EXT)) {
+			if (!(MCLGET(m_new, M_NOWAIT))) {
 				m_freem(m_new);
 				return(1);
 			}
@@ -1532,9 +1332,7 @@ wb_start_locked(ifp)
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
-	ifp->if_timer = 5;
-
-	return;
+	sc->wb_timer = 5;
 }
 
 static void
@@ -1660,8 +1458,6 @@ wb_init_locked(sc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	callout_reset(&sc->wb_stat_callout, hz, wb_tick, sc);
-
-	return;
 }
 
 /*
@@ -1703,8 +1499,6 @@ wb_ifmedia_sts(ifp, ifmr)
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
 	WB_UNLOCK(sc);
-
-	return;
 }
 
 static int
@@ -1751,15 +1545,14 @@ wb_ioctl(ifp, command, data)
 }
 
 static void
-wb_watchdog(ifp)
-	struct ifnet		*ifp;
-{
+wb_watchdog(sc)
 	struct wb_softc		*sc;
+{
+	struct ifnet		*ifp;
 
-	sc = ifp->if_softc;
-
-	WB_LOCK(sc);
-	ifp->if_oerrors++;
+	WB_LOCK_ASSERT(sc);
+	ifp = sc->wb_ifp;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if_printf(ifp, "watchdog timeout\n");
 #ifdef foo
 	if (!(wb_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_LINKSTAT))
@@ -1771,9 +1564,6 @@ wb_watchdog(ifp)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		wb_start_locked(ifp);
-	WB_UNLOCK(sc);
-
-	return;
 }
 
 /*
@@ -1789,7 +1579,7 @@ wb_stop(sc)
 
 	WB_LOCK_ASSERT(sc);
 	ifp = sc->wb_ifp;
-	ifp->if_timer = 0;
+	sc->wb_timer = 0;
 
 	callout_stop(&sc->wb_stat_callout);
 
@@ -1824,8 +1614,6 @@ wb_stop(sc)
 		sizeof(sc->wb_ldata->wb_tx_list));
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-
-	return;
 }
 
 /*

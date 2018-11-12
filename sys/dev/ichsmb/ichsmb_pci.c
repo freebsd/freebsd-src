@@ -5,7 +5,7 @@
  * Copyright (c) 2000 Whistle Communications, Inc.
  * All rights reserved.
  * Author: Archie Cobbs <archie@freebsd.org>
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -75,8 +75,24 @@ __FBSDID("$FreeBSD$");
 #define ID_82801EB			0x24D38086
 #define ID_82801FB			0x266A8086
 #define ID_82801GB			0x27da8086
+#define ID_82801H			0x283e8086
+#define ID_82801I			0x29308086
+#define ID_82801JI			0x3a308086
+#define ID_PCH				0x3b308086
 #define ID_6300ESB			0x25a48086
 #define	ID_631xESB			0x269b8086
+#define ID_DH89XXCC			0x23308086
+#define ID_PATSBURG			0x1d228086
+#define ID_CPT				0x1c228086
+#define ID_PPT				0x1e228086
+#define ID_AVOTON			0x1f3c8086
+#define ID_COLETOCRK			0x23B08086
+#define ID_LPT				0x8c228086
+#define ID_LPTLP			0x9c228086
+#define ID_WCPT				0x8ca28086
+#define ID_WCPTLP			0x9ca28086
+#define	ID_WELLSBURG			0x8d228086
+#define	ID_SRPT				0xa1238086
 
 #define PCIS_SERIALBUS_SMBUS_PROGIF	0x00
 
@@ -95,9 +111,6 @@ static device_method_t ichsmb_pci_methods[] = {
         DEVMETHOD(device_attach, ichsmb_pci_attach),
         DEVMETHOD(device_detach, ichsmb_detach),
 
-	/* Bus methods */
-        DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	/* SMBus methods */
         DEVMETHOD(smbus_callback, ichsmb_callback),
         DEVMETHOD(smbus_quick, ichsmb_quick),
@@ -110,7 +123,8 @@ static device_method_t ichsmb_pci_methods[] = {
         DEVMETHOD(smbus_pcall, ichsmb_pcall),
         DEVMETHOD(smbus_bwrite, ichsmb_bwrite),
         DEVMETHOD(smbus_bread, ichsmb_bread),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t ichsmb_pci_driver = {
@@ -152,19 +166,61 @@ ichsmb_pci_probe(device_t dev)
 	case ID_82801GB:
 		device_set_desc(dev, "Intel 82801GB (ICH7) SMBus controller");
 		break;
+	case ID_82801H:
+		device_set_desc(dev, "Intel 82801H (ICH8) SMBus controller");
+		break;
+	case ID_82801I:
+		device_set_desc(dev, "Intel 82801I (ICH9) SMBus controller");
+		break;
+	case ID_82801JI:
+		device_set_desc(dev, "Intel 82801JI (ICH10) SMBus controller");
+		break;
+	case ID_PCH:
+		device_set_desc(dev, "Intel PCH SMBus controller");
+		break;
 	case ID_6300ESB:
 		device_set_desc(dev, "Intel 6300ESB (ICH) SMBus controller");
 		break;
 	case ID_631xESB:
 		device_set_desc(dev, "Intel 631xESB/6321ESB (ESB2) SMBus controller");
 		break;
+	case ID_DH89XXCC:
+		device_set_desc(dev, "Intel DH89xxCC SMBus controller");
+		break;
+	case ID_PATSBURG:
+		device_set_desc(dev, "Intel Patsburg SMBus controller");
+		break;
+	case ID_CPT:
+		device_set_desc(dev, "Intel Cougar Point SMBus controller");
+		break;
+	case ID_PPT:
+		device_set_desc(dev, "Intel Panther Point SMBus controller");
+		break;
+	case ID_AVOTON:
+		device_set_desc(dev, "Intel Avoton SMBus controller");
+		break;
+	case ID_LPT:
+		device_set_desc(dev, "Intel Lynx Point SMBus controller");
+		break;
+	case ID_LPTLP:
+		device_set_desc(dev, "Intel Lynx Point-LP SMBus controller");
+		break;
+	case ID_WCPT:
+		device_set_desc(dev, "Intel Wildcat Point SMBus controller");
+		break;
+	case ID_WCPTLP:
+		device_set_desc(dev, "Intel Wildcat Point-LP SMBus controller");
+		break;
+	case ID_COLETOCRK:
+		device_set_desc(dev, "Intel Coleto Creek SMBus controller");
+		break;
+	case ID_WELLSBURG:
+		device_set_desc(dev, "Intel Wellsburg SMBus controller");
+		break;
+	case ID_SRPT:
+		device_set_desc(dev, "Intel Sunrise Point-H SMBus controller");
+		break;
 	default:
-		if (pci_get_class(dev) == PCIC_SERIALBUS
-		    && pci_get_subclass(dev) == PCIS_SERIALBUS_SMBUS
-		    && pci_get_progif(dev) == PCIS_SERIALBUS_SMBUS_PROGIF) {
-			device_set_desc(dev, "SMBus controller");
-			return (BUS_PROBE_DEFAULT); /* XXX */
-		}
 		return (ENXIO);
 	}
 
@@ -185,11 +241,11 @@ ichsmb_pci_attach(device_t dev)
 
 	/* Allocate an I/O range */
 	sc->io_rid = ICH_SMB_BASE;
-	sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-	    &sc->io_rid, 0, ~0, 16, RF_ACTIVE);
+	sc->io_res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+	    &sc->io_rid, 16, RF_ACTIVE);
 	if (sc->io_res == NULL)
-		sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		    &sc->io_rid, 0ul, ~0ul, 32, RF_ACTIVE);
+		sc->io_res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+		    &sc->io_rid, 32, RF_ACTIVE);
 	if (sc->io_res == NULL) {
 		device_printf(dev, "can't map I/O\n");
 		error = ENXIO;

@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_MODULE, "module", "module data structures");
 
-typedef TAILQ_HEAD(, module) modulelist_t;
 struct module {
 	TAILQ_ENTRY(module)	link;	/* chain together all modules */
 	TAILQ_ENTRY(module)	flink;	/* all modules in a file */
@@ -61,7 +60,7 @@ struct module {
 
 #define MOD_EVENT(mod, type)	(mod)->handler((mod), (type), (mod)->arg)
 
-static modulelist_t modules;
+static TAILQ_HEAD(modulelist, module) modules;
 struct sx modules_sx;
 static int nextid = 1;
 static void module_shutdown(void *, int);
@@ -101,7 +100,7 @@ module_shutdown(void *arg1, int arg2)
 		return;
 	mtx_lock(&Giant);
 	MOD_SLOCK;
-	TAILQ_FOREACH(mod, &modules, link)
+	TAILQ_FOREACH_REVERSE(mod, &modules, modulelist, link)
 		MOD_EVENT(mod, MOD_SHUTDOWN);
 	MOD_SUNLOCK;
 	mtx_unlock(&Giant);
@@ -134,7 +133,7 @@ module_register_init(const void *arg)
 		MOD_XLOCK;
 		if (mod->file) {
 			/*
-			 * Once a module is succesfully loaded, move
+			 * Once a module is successfully loaded, move
 			 * it to the head of the module list for this
 			 * linker file.  This resorts the list so that
 			 * when the kernel linker iterates over the
@@ -159,16 +158,12 @@ module_register(const moduledata_t *data, linker_file_t container)
 	newmod = module_lookupbyname(data->name);
 	if (newmod != NULL) {
 		MOD_XUNLOCK;
-		printf("module_register: module %s already exists!\n",
-		    data->name);
+		printf("%s: cannot register %s from %s; already loaded from %s\n",
+		    __func__, data->name, container->filename, newmod->file->filename);
 		return (EEXIST);
 	}
 	namelen = strlen(data->name) + 1;
 	newmod = malloc(sizeof(struct module) + namelen, M_MODULE, M_WAITOK);
-	if (newmod == NULL) {
-		MOD_XUNLOCK;
-		return (ENOMEM);
-	}
 	newmod->refs = 1;
 	newmod->id = nextid++;
 	newmod->name = (char *)(newmod + 1);
@@ -311,7 +306,7 @@ module_file(module_t mod)
  * Syscalls.
  */
 int
-modnext(struct thread *td, struct modnext_args *uap)
+sys_modnext(struct thread *td, struct modnext_args *uap)
 {
 	module_t mod;
 	int error = 0;
@@ -342,7 +337,7 @@ done2:
 }
 
 int
-modfnext(struct thread *td, struct modfnext_args *uap)
+sys_modfnext(struct thread *td, struct modfnext_args *uap)
 {
 	module_t mod;
 	int error;
@@ -372,7 +367,7 @@ struct module_stat_v1 {
 };
 
 int
-modstat(struct thread *td, struct modstat_args *uap)
+sys_modstat(struct thread *td, struct modstat_args *uap)
 {
 	module_t mod;
 	modspecific_t data;
@@ -425,7 +420,7 @@ modstat(struct thread *td, struct modstat_args *uap)
 }
 
 int
-modfind(struct thread *td, struct modfind_args *uap)
+sys_modfind(struct thread *td, struct modfind_args *uap)
 {
 	int error = 0;
 	char name[MAXMODNAME];
@@ -446,7 +441,7 @@ modfind(struct thread *td, struct modfind_args *uap)
 
 MODULE_VERSION(kernel, __FreeBSD_version);
 
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <compat/freebsd32/freebsd32_util.h>
@@ -455,9 +450,9 @@ MODULE_VERSION(kernel, __FreeBSD_version);
 
 typedef union modspecific32 {
 	int		intval;
-	u_int32_t	uintval;
+	uint32_t	uintval;
 	int		longval;
-	u_int32_t	ulongval;
+	uint32_t	ulongval;
 } modspecific32_t;
 
 struct module_stat32 {

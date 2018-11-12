@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001, 2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001, 2003 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: stab.c,v 8.89 2006/08/15 23:24:58 ca Exp $")
+SM_RCSID("@(#)$Id: stab.c,v 8.92 2013-11-22 20:51:56 ca Exp $")
 
 /*
 **  STAB -- manage the symbol table
@@ -65,7 +65,7 @@ stab(name, type, op)
 		sm_dprintf("(hfunc=%d) ", hfunc);
 
 	ps = &SymTab[hfunc];
-	if (type == ST_MACRO || type == ST_RULESET)
+	if (type == ST_MACRO || type == ST_RULESET || type == ST_NAMECANON)
 	{
 		while ((s = *ps) != NULL &&
 		       (s->s_symtype != type || strcmp(name, s->s_name)))
@@ -111,10 +111,6 @@ stab(name, type, op)
 	{
 	  case ST_CLASS:
 		len = sizeof(s->s_class);
-		break;
-
-	  case ST_ADDRESS:
-		len = sizeof(s->s_address);
 		break;
 
 	  case ST_MAILER:

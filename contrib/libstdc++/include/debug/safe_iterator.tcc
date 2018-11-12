@@ -54,8 +54,8 @@ namespace __gnu_debug
 	    static_cast<const _Sequence*>(_M_sequence)->begin();
 	  std::pair<difference_type, _Distance_precision> __dist =
 	    this->_M_get_distance(__begin, *this);
-	  bool __ok =  (__dist.second == __dp_exact && __dist.first >= -__n
-			|| __dist.second != __dp_exact && __dist.first > 0);
+	  bool __ok =  ((__dist.second == __dp_exact && __dist.first >= -__n)
+			|| (__dist.second != __dp_exact && __dist.first > 0));
 	  return __ok;
 	}
       else
@@ -64,8 +64,8 @@ namespace __gnu_debug
 	    static_cast<const _Sequence*>(_M_sequence)->end();
 	  std::pair<difference_type, _Distance_precision> __dist =
 	    this->_M_get_distance(*this, __end);
-	  bool __ok = (__dist.second == __dp_exact && __dist.first >= __n
-		       || __dist.second != __dp_exact && __dist.first > 0);
+	  bool __ok = ((__dist.second == __dp_exact && __dist.first >= __n)
+		       || (__dist.second != __dp_exact && __dist.first > 0));
 	  return __ok;
 	}
     }

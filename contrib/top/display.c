@@ -29,9 +29,12 @@
  */
 
 #include "os.h"
+
+#include <sys/time.h>
+
 #include <ctype.h>
 #include <time.h>
-#include <sys/time.h>
+#include <unistd.h>
 
 #include "screen.h"		/* interface to screen package */
 #include "layout.h"		/* defines for screen position layout */
@@ -56,7 +59,6 @@ static int display_width = MAX_COLS;
 
 #define lineindex(l) ((l)*display_width)
 
-char *printable();
 
 /* things initialized by display_init and used thruout */
 
@@ -66,6 +68,7 @@ char *screenbuf = NULL;
 static char **procstate_names;
 static char **cpustate_names;
 static char **memory_names;
+static char **arc_names;
 static char **swap_names;
 
 static int num_procstates;
@@ -100,6 +103,8 @@ int  x_brkdn =		15;
 int  y_brkdn =		1;
 int  x_mem =		5;
 int  y_mem =		3;
+int  x_arc =		5;
+int  y_arc =		4;
 int  x_swap =		6;
 int  y_swap =		4;
 int  y_message =	5;
@@ -151,6 +156,38 @@ int display_resize()
     return(smart_terminal ? lines : Largest);
 }
 
+int display_updatecpus(statics)
+
+struct statics *statics;
+
+{
+    register int *lp;
+    register int lines;
+    register int i;
+    
+    /* call resize to do the dirty work */
+    lines = display_resize();
+    if (pcpu_stats)
+	num_cpus = statics->ncpus;
+    else
+	num_cpus = 1;
+    cpustates_column = 5;	/* CPU: */
+    if (num_cpus != 1)
+    cpustates_column += 2;	/* CPU 0: */
+    for (i = num_cpus; i > 9; i /= 10)
+	cpustates_column++;
+
+    /* fill the "last" array with all -1s, to insure correct updating */
+    lp = lcpustates;
+    i = num_cpustates * num_cpus;
+    while (--i >= 0)
+    {
+	*lp++ = -1;
+    }
+    
+    return(lines);
+}
+    
 int display_init(statics)
 
 struct statics *statics;
@@ -161,14 +198,7 @@ struct statics *statics;
     register int *ip;
     register int i;
 
-    /* call resize to do the dirty work */
-    lines = display_resize();
-    num_cpus = statics->ncpus;
-    cpustates_column = 5;	/* CPU: */
-    if (num_cpus != 1)
-    cpustates_column += 2;	/* CPU 0: */
-    for (i = num_cpus; i > 9; i /= 10)
-	cpustates_column++;
+    lines = display_updatecpus(statics);
 
     /* only do the rest if we need to */
     if (lines > -1)
@@ -184,13 +214,15 @@ struct statics *statics;
 	num_swap = string_count(swap_names);
 	lswap = (int *)malloc(num_swap * sizeof(int));
 	num_cpustates = string_count(cpustate_names);
-	lcpustates = (int *)malloc(num_cpustates * sizeof(int) * num_cpus);
+	lcpustates = (int *)malloc(num_cpustates * sizeof(int) * statics->ncpus);
 	cpustate_columns = (int *)malloc(num_cpustates * sizeof(int));
 
 	memory_names = statics->memory_names;
 	num_memory = string_count(memory_names);
 	lmemory = (int *)malloc(num_memory * sizeof(int));
 
+	arc_names = statics->arc_names;
+	
 	/* calculate starting columns where needed */
 	cpustate_total_length = 0;
 	pp = cpustate_names;
@@ -209,6 +241,7 @@ struct statics *statics;
     return(lines);
 }
 
+void
 i_loadave(mpid, avenrun)
 
 int mpid;
@@ -237,6 +270,7 @@ double *avenrun;
     lmpid = mpid;
 }
 
+void
 u_loadave(mpid, avenrun)
 
 int mpid;
@@ -276,6 +310,7 @@ double *avenrun;
     }
 }
 
+void
 i_timeofday(tod)
 
 time_t *tod;
@@ -321,6 +356,7 @@ static char procstates_buffer[MAX_COLS];
  *		  lastline is valid
  */
 
+void
 i_procstates(total, brkdn)
 
 int total;
@@ -348,6 +384,7 @@ int *brkdn;
     memcpy(lprocstates, brkdn, num_procstates * sizeof(int));
 }
 
+void
 u_procstates(total, brkdn)
 
 int total;
@@ -430,9 +467,10 @@ char *cpustates_tag()
 }
 #endif
 
+void
 i_cpustates(states)
 
-register int *states;
+int *states;
 
 {
     register int i = 0;
@@ -447,12 +485,14 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
     /* print tag and bump lastline */
     if (num_cpus == 1)
 	printf("\nCPU: ");
-    else
-	printf("\nCPU %d: ", cpu);
+    else {
+	value = printf("\nCPU %d: ", cpu);
+	while (value++ <= cpustates_column)
+		printf(" ");
+    }
     lastline++;
 
     /* now walk thru the names and print the line */
-    Move_to(cpustates_column, y_cpustates + cpu);
     while ((thisname = *names++) != NULL)
     {
 	if (*thisname != '\0')
@@ -473,9 +513,10 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
     memcpy(lcpustates, states, num_cpustates * sizeof(int) * num_cpus);
 }
 
+void
 u_cpustates(states)
 
-register int *states;
+int *states;
 
 {
     register int value;
@@ -525,6 +566,7 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
 }
 }
 
+void
 z_cpustates()
 
 {
@@ -532,7 +574,7 @@ z_cpustates()
     register char **names;
     register char *thisname;
     register int *lp;
-    int cpu;
+    int cpu, value;
 
 for (cpu = 0; cpu < num_cpus; cpu++) {
     names = cpustate_names;
@@ -540,11 +582,13 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
     /* show tag and bump lastline */
     if (num_cpus == 1)
 	printf("\nCPU: ");
-    else
-	printf("\nCPU %d: ", cpu);
+    else {
+	value = printf("\nCPU %d: ", cpu);
+	while (value++ <= cpustates_column)
+		printf(" ");
+    }
     lastline++;
 
-    Move_to(cpustates_column, y_cpustates + cpu);
     while ((thisname = *names++) != NULL)
     {
 	if (*thisname != '\0')
@@ -572,6 +616,7 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
 
 char memory_buffer[MAX_COLS];
 
+void
 i_memory(stats)
 
 int *stats;
@@ -585,6 +630,7 @@ int *stats;
     fputs(memory_buffer, stdout);
 }
 
+void
 u_memory(stats)
 
 int *stats;
@@ -598,6 +644,48 @@ int *stats;
 }
 
 /*
+ *  *_arc(stats) - print "ARC: " followed by the ARC summary string
+ *
+ *  Assumptions:  cursor is on "lastline"
+ *                for i_arc ONLY: cursor is on the previous line
+ */
+char arc_buffer[MAX_COLS];
+
+void
+i_arc(stats)
+
+int *stats;
+
+{
+    if (arc_names == NULL)
+	return;
+
+    fputs("\nARC: ", stdout);
+    lastline++;
+
+    /* format and print the memory summary */
+    summary_format(arc_buffer, stats, arc_names);
+    fputs(arc_buffer, stdout);
+}
+
+void
+u_arc(stats)
+
+int *stats;
+
+{
+    static char new[MAX_COLS];
+
+    if (arc_names == NULL)
+	return;
+
+    /* format the new line */
+    summary_format(new, stats, arc_names);
+    line_update(arc_buffer, new, x_arc, y_arc);
+}
+
+ 
+/*
  *  *_swap(stats) - print "Swap: " followed by the swap summary string
  *
  *  Assumptions:  cursor is on "lastline"
@@ -606,6 +694,7 @@ int *stats;
 
 char swap_buffer[MAX_COLS];
 
+void
 i_swap(stats)
 
 int *stats;
@@ -619,6 +708,7 @@ int *stats;
     fputs(swap_buffer, stdout);
 }
 
+void
 u_swap(stats)
 
 int *stats;
@@ -650,6 +740,7 @@ static int msglen = 0;
 /* Invariant: msglen is always the length of the message currently displayed
    on the screen (even when next_msg doesn't contain that message). */
 
+void
 i_message()
 
 {
@@ -671,6 +762,7 @@ i_message()
     }
 }
 
+void
 u_message()
 
 {
@@ -712,6 +804,7 @@ char *text;
  *  Assumptions:  cursor is on the previous line and lastline is consistent
  */
 
+void
 i_header(text)
 
 char *text;
@@ -737,9 +830,10 @@ char *text;
 }
 
 /*ARGSUSED*/
+void
 u_header(text)
 
-char *text;		/* ignored */
+char *text __unused;		/* ignored */
 
 {
 
@@ -758,6 +852,7 @@ char *text;		/* ignored */
  *  Assumptions:  lastline is consistent
  */
 
+void
 i_process(line, thisline)
 
 int line;
@@ -788,6 +883,7 @@ char *thisline;
     memzero(p, display_width - (p - base));
 }
 
+void
 u_process(line, newline)
 
 int line;
@@ -835,9 +931,10 @@ char *newline;
     }
 }
 
+void
 u_endscreen(hi)
 
-register int hi;
+int hi;
 
 {
     register int screen_line = hi + Header_lines;
@@ -895,6 +992,7 @@ register int hi;
     }
 }
 
+void
 display_header(t)
 
 int t;
@@ -911,6 +1009,7 @@ int t;
 }
 
 /*VARARGS2*/
+void
 new_message(type, msgfmt, a1, a2, a3)
 
 int type;
@@ -951,6 +1050,7 @@ caddr_t a1, a2, a3;
     }
 }
 
+void
 clear_message()
 
 {
@@ -960,6 +1060,7 @@ clear_message()
     }
 }
 
+int
 readline(buffer, size, numeric)
 
 char *buffer;
@@ -1262,6 +1363,7 @@ char *str;
     return(str);
 }
 
+void
 i_uptime(bt, tod)
 
 struct timeval* bt;
@@ -1273,7 +1375,6 @@ time_t *tod;
 
     if (bt->tv_sec != -1) {
 	uptime = *tod - bt->tv_sec;
-	uptime += 30;
 	days = uptime / 86400;
 	uptime %= 86400;
 	hrs = uptime / 3600;

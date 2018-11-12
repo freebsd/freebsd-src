@@ -16,7 +16,7 @@ top:
 all:	lib
 
 lib:	$(LIBOBJ)
-	$(ARX) $(LIB) $(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
@@ -31,6 +31,8 @@ install:
 	(cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/include/openssl/$$i; \
 	chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/include/openssl/$$i ); \
 	done;
+
+update: depend
 
 depend:
 	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...

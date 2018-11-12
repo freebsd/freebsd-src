@@ -100,7 +100,7 @@ static int cx_reset (port_t port)
 
 	cx_cmd (port, CCR_RSTALL);
 
-	/* Firmware revision code should clear imediately. */
+	/* Firmware revision code should clear immediately. */
 	/* Wait up to 10 msec for revision code to appear again. */
 	for (count=0; count<20000; ++count)
 		if (inb(GFRCR(port)) != 0)
@@ -1168,7 +1168,7 @@ void cx_set_dtr (cx_chan_t *c, int on)
 
 	switch (c->num) {
 	default:
-		/* Channels 4..7 and 12..15 in syncronous mode
+		/* Channels 4..7 and 12..15 in synchronous mode
 		 * have no DTR signal. */
 		break;
 

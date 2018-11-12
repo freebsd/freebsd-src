@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -48,18 +44,18 @@
 #include <machine/setjmp.h>
 
 __BEGIN_DECLS
-#if __BSD_VISIBLE || __XSI_VISIBLE >= 600
+#if __XSI_VISIBLE >= 600
 void	_longjmp(jmp_buf, int) __dead2;
-int	_setjmp(jmp_buf);
+int	_setjmp(jmp_buf) __returns_twice;
 #endif
 void	longjmp(jmp_buf, int) __dead2;
 #if __BSD_VISIBLE
 void	longjmperror(void);
 #endif
-int	setjmp(jmp_buf);
-#if __BSD_VISIBLE || __POSIX_VISIBLE || __XSI_VISIBLE
+int	setjmp(jmp_buf) __returns_twice;
+#if __POSIX_VISIBLE || __XSI_VISIBLE
 void	siglongjmp(sigjmp_buf, int) __dead2;
-int	sigsetjmp(sigjmp_buf, int);
+int	sigsetjmp(sigjmp_buf, int) __returns_twice;
 #endif
 __END_DECLS
 

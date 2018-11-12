@@ -1,4 +1,4 @@
-.ident "s390x.S, version 1.0"
+.ident "s390x.S, version 1.1"
 // ====================================================================
 // Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
 // project.
@@ -18,73 +18,108 @@
 .align	4
 bn_mul_add_words:
 	lghi	zero,0		// zero = 0
-	la	%r1,0(%r2)	// put rp aside
-	lghi	%r2,0		// i=0;
+	la	%r1,0(%r2)	// put rp aside [to give way to]
+	lghi	%r2,0		// return value
 	ltgfr	%r4,%r4
 	bler	%r14		// if (len<=0) return 0;
 
-	stmg	%r6,%r10,48(%r15)
-	lghi	%r8,0		// carry = 0
-	srag	%r10,%r4,2	// cnt=len/4
-	jz	.Loop1_madd
+	stmg	%r6,%r13,48(%r15)
+	lghi	%r2,3
+	lghi	%r12,0		// carry = 0
+	slgr	%r1,%r3		// rp-=ap
+	nr	%r2,%r4		// len%4
+	sra	%r4,2		// cnt=len/4
+	jz	.Loop1_madd	// carry is incidentally cleared if branch taken
+	algr	zero,zero	// clear carry
+
+	lg	%r7,0(%r3)	// ap[0]
+	lg	%r9,8(%r3)	// ap[1]
+	mlgr	%r6,%r5		// *=w
+	brct	%r4,.Loop4_madd
+	j	.Loop4_madd_tail
 
 .Loop4_madd:
-	lg	%r7,0(%r2,%r3)	// ap[i]
-	mlgr	%r6,%r5		// *=w
-	algr	%r7,%r8		// +=carry
-	alcgr	%r6,zero
-	alg	%r7,0(%r2,%r1)	// +=rp[i]
-	alcgr	%r6,zero
-	stg	%r7,0(%r2,%r1)	// rp[i]=
-
-	lg	%r9,8(%r2,%r3)
 	mlgr	%r8,%r5
-	algr	%r9,%r6
-	alcgr	%r8,zero
-	alg	%r9,8(%r2,%r1)
-	alcgr	%r8,zero
-	stg	%r9,8(%r2,%r1)
+	lg	%r11,16(%r3)	// ap[i+2]
+	alcgr	%r7,%r12	// +=carry
+	alcgr	%r6,zero
+	alg	%r7,0(%r3,%r1)	// +=rp[i]
+	stg	%r7,0(%r3,%r1)	// rp[i]=
 
-	lg	%r7,16(%r2,%r3)
+	mlgr	%r10,%r5
+	lg	%r13,24(%r3)
+	alcgr	%r9,%r6
+	alcgr	%r8,zero
+	alg	%r9,8(%r3,%r1)
+	stg	%r9,8(%r3,%r1)
+
+	mlgr	%r12,%r5
+	lg	%r7,32(%r3)
+	alcgr	%r11,%r8
+	alcgr	%r10,zero
+	alg	%r11,16(%r3,%r1)
+	stg	%r11,16(%r3,%r1)
+
 	mlgr	%r6,%r5
-	algr	%r7,%r8
-	alcgr	%r6,zero
-	alg	%r7,16(%r2,%r1)
-	alcgr	%r6,zero
-	stg	%r7,16(%r2,%r1)
+	lg	%r9,40(%r3)
+	alcgr	%r13,%r10
+	alcgr	%r12,zero
+	alg	%r13,24(%r3,%r1)
+	stg	%r13,24(%r3,%r1)
 
-	lg	%r9,24(%r2,%r3)
+	la	%r3,32(%r3)	// i+=4
+	brct	%r4,.Loop4_madd
+
+.Loop4_madd_tail:
 	mlgr	%r8,%r5
-	algr	%r9,%r6
-	alcgr	%r8,zero
-	alg	%r9,24(%r2,%r1)
-	alcgr	%r8,zero
-	stg	%r9,24(%r2,%r1)
-
-	la	%r2,32(%r2)	// i+=4
-	brct	%r10,.Loop4_madd
-
-	lghi	%r10,3
-	nr	%r4,%r10	// cnt=len%4
-	jz	.Lend_madd
-
-.Loop1_madd:
-	lg	%r7,0(%r2,%r3)	// ap[i]
-	mlgr	%r6,%r5		// *=w
-	algr	%r7,%r8		// +=carry
+	lg	%r11,16(%r3)
+	alcgr	%r7,%r12	// +=carry
 	alcgr	%r6,zero
-	alg	%r7,0(%r2,%r1)	// +=rp[i]
-	alcgr	%r6,zero
-	stg	%r7,0(%r2,%r1)	// rp[i]=
+	alg	%r7,0(%r3,%r1)	// +=rp[i]
+	stg	%r7,0(%r3,%r1)	// rp[i]=
 
-	lgr	%r8,%r6
-	la	%r2,8(%r2)	// i++
-	brct	%r4,.Loop1_madd
+	mlgr	%r10,%r5
+	lg	%r13,24(%r3)
+	alcgr	%r9,%r6
+	alcgr	%r8,zero
+	alg	%r9,8(%r3,%r1)
+	stg	%r9,8(%r3,%r1)
+
+	mlgr	%r12,%r5
+	alcgr	%r11,%r8
+	alcgr	%r10,zero
+	alg	%r11,16(%r3,%r1)
+	stg	%r11,16(%r3,%r1)
+
+	alcgr	%r13,%r10
+	alcgr	%r12,zero
+	alg	%r13,24(%r3,%r1)
+	stg	%r13,24(%r3,%r1)
+
+	la	%r3,32(%r3)	// i+=4
+
+	la	%r2,1(%r2)	// see if len%4 is zero ...
+	brct	%r2,.Loop1_madd	// without touching condition code:-)
 
 .Lend_madd:
-	lgr	%r2,%r8
-	lmg	%r6,%r10,48(%r15)
+	lgr	%r2,zero	// return value
+	alcgr	%r2,%r12	// collect even carry bit
+	lmg	%r6,%r13,48(%r15)
 	br	%r14
+
+.Loop1_madd:
+	lg	%r7,0(%r3)	// ap[i]
+	mlgr	%r6,%r5		// *=w
+	alcgr	%r7,%r12	// +=carry
+	alcgr	%r6,zero
+	alg	%r7,0(%r3,%r1)	// +=rp[i]
+	stg	%r7,0(%r3,%r1)	// rp[i]=
+
+	lgr	%r12,%r6
+	la	%r3,8(%r3)	// i++
+	brct	%r2,.Loop1_madd
+
+	j	.Lend_madd
 .size	bn_mul_add_words,.-bn_mul_add_words
 
 // BN_ULONG bn_mul_words(BN_ULONG *r2,BN_ULONG *r3,int r4,BN_ULONG r5);
@@ -99,57 +134,57 @@ bn_mul_words:
 	bler	%r14		// if (len<=0) return 0;
 
 	stmg	%r6,%r10,48(%r15)
+	lghi	%r10,3
 	lghi	%r8,0		// carry = 0
-	srag	%r10,%r4,2	// cnt=len/4
-	jz	.Loop1_mul
+	nr	%r10,%r4	// len%4
+	sra	%r4,2		// cnt=len/4
+	jz	.Loop1_mul	// carry is incidentally cleared if branch taken
+	algr	zero,zero	// clear carry
 
 .Loop4_mul:
 	lg	%r7,0(%r2,%r3)	// ap[i]
 	mlgr	%r6,%r5		// *=w
-	algr	%r7,%r8		// +=carry
-	alcgr	%r6,zero
+	alcgr	%r7,%r8		// +=carry
 	stg	%r7,0(%r2,%r1)	// rp[i]=
 
 	lg	%r9,8(%r2,%r3)
 	mlgr	%r8,%r5
-	algr	%r9,%r6
-	alcgr	%r8,zero
+	alcgr	%r9,%r6
 	stg	%r9,8(%r2,%r1)
 
 	lg	%r7,16(%r2,%r3)
 	mlgr	%r6,%r5
-	algr	%r7,%r8
-	alcgr	%r6,zero
+	alcgr	%r7,%r8
 	stg	%r7,16(%r2,%r1)
 
 	lg	%r9,24(%r2,%r3)
 	mlgr	%r8,%r5
-	algr	%r9,%r6
-	alcgr	%r8,zero
+	alcgr	%r9,%r6
 	stg	%r9,24(%r2,%r1)
 
 	la	%r2,32(%r2)	// i+=4
-	brct	%r10,.Loop4_mul
+	brct	%r4,.Loop4_mul
 
-	lghi	%r10,3
-	nr	%r4,%r10	// cnt=len%4
-	jz	.Lend_mul
+	la	%r10,1(%r10)		// see if len%4 is zero ...
+	brct	%r10,.Loop1_mul		// without touching condition code:-)
+
+.Lend_mul:
+	alcgr	%r8,zero	// collect carry bit
+	lgr	%r2,%r8
+	lmg	%r6,%r10,48(%r15)
+	br	%r14
 
 .Loop1_mul:
 	lg	%r7,0(%r2,%r3)	// ap[i]
 	mlgr	%r6,%r5		// *=w
-	algr	%r7,%r8		// +=carry
-	alcgr	%r6,zero
+	alcgr	%r7,%r8		// +=carry
 	stg	%r7,0(%r2,%r1)	// rp[i]=
 
 	lgr	%r8,%r6
 	la	%r2,8(%r2)	// i++
-	brct	%r4,.Loop1_mul
+	brct	%r10,.Loop1_mul
 
-.Lend_mul:
-	lgr	%r2,%r8
-	lmg	%r6,%r10,48(%r15)
-	br	%r14
+	j	.Lend_mul
 .size	bn_mul_words,.-bn_mul_words
 
 // void bn_sqr_words(BN_ULONG *r2,BN_ULONG *r2,int r4)

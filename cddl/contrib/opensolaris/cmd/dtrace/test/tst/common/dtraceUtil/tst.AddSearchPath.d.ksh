@@ -78,5 +78,5 @@ if [ "$status" -ne 0 ]; then
 	exit $status
 fi
 
-/usr/bin/rm -f $tempfile
+/bin/rm -f $tempfile
 exit 0

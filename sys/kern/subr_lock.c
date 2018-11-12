@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -42,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/lock_profile.h>
 #include <sys/malloc.h>
@@ -67,6 +63,7 @@ struct lock_class *lock_classes[LOCK_CLASS_MAX + 1] = {
 	&lock_class_mtx_sleep,
 	&lock_class_sx,
 	&lock_class_rm,
+	&lock_class_rm_sleepable,
 	&lock_class_rw,
 	&lock_class_lockmgr,
 };
@@ -78,8 +75,8 @@ lock_init(struct lock_object *lock, struct lock_class *class, const char *name,
 	int i;
 
 	/* Check for double-init and zero object. */
-	KASSERT(!lock_initalized(lock), ("lock \"%s\" %p already initialized",
-	    name, lock));
+	KASSERT(flags & LO_NEW || !lock_initialized(lock),
+	    ("lock \"%s\" %p already initialized", name, lock));
 
 	/* Look up lock class to find its index. */
 	for (i = 0; i < LOCK_CLASS_MAX; i++)
@@ -100,10 +97,38 @@ void
 lock_destroy(struct lock_object *lock)
 {
 
-	KASSERT(lock_initalized(lock), ("lock %p is not initialized", lock));
+	KASSERT(lock_initialized(lock), ("lock %p is not initialized", lock));
 	WITNESS_DESTROY(lock);
 	LOCK_LOG_DESTROY(lock, 0);
 	lock->lo_flags &= ~LO_INITIALIZED;
+}
+
+void
+lock_delay(struct lock_delay_arg *la)
+{
+	u_int i, delay, backoff, min, max;
+	struct lock_delay_config *lc = la->config;
+
+	delay = la->delay;
+
+	if (delay == 0)
+		delay = lc->initial;
+	else {
+		delay += lc->step;
+		max = lc->max;
+		if (delay > max)
+			delay = max;
+	}
+
+	backoff = cpu_ticks() % delay;
+	min = lc->min;
+	if (backoff < min)
+		backoff = min;
+	for (i = 0; i < backoff; i++)
+		cpu_spinwait();
+
+	la->delay = delay;
+	la->spin_cnt += backoff;
 }
 
 #ifdef DDB
@@ -139,8 +164,8 @@ struct lock_profile_object {
 	int		lpo_line;
 	uint16_t	lpo_ref;
 	uint16_t	lpo_cnt;
-	u_int64_t	lpo_acqtime;
-	u_int64_t	lpo_waittime;
+	uint64_t	lpo_acqtime;
+	uint64_t	lpo_waittime;
 	u_int		lpo_contest_locking;
 };
 
@@ -170,7 +195,7 @@ SLIST_HEAD(lphead, lock_prof);
 
 /*
  * Array of objects and profs for each type of object for each cpu.  Spinlocks
- * are handled seperately because a thread may be preempted and acquire a
+ * are handled separately because a thread may be preempted and acquire a
  * spinlock while in the lock profiling code of a non-spinlock.  In this way
  * we only need a critical section to protect the per-cpu lists.
  */
@@ -191,23 +216,22 @@ struct lock_prof_cpu *lp_cpu[MAXCPU];
 volatile int lock_prof_enable = 0;
 static volatile int lock_prof_resetting;
 
-/* SWAG: sbuf size = avg stat. line size * number of locks */
-#define LPROF_SBUF_SIZE		256 * 400
+#define LPROF_SBUF_SIZE		256
 
 static int lock_prof_rejected;
 static int lock_prof_skipspin;
 static int lock_prof_skipcount;
 
 #ifndef USE_CPU_NANOSECONDS
-u_int64_t
+uint64_t
 nanoseconds(void)
 {
 	struct bintime bt;
-	u_int64_t ns;
+	uint64_t ns;
 
 	binuptime(&bt);
 	/* From bintime2timespec */
-	ns = bt.sec * (u_int64_t)1000000000;
+	ns = bt.sec * (uint64_t)1000000000;
 	ns += ((uint64_t)1000000000 * (uint32_t)(bt.frac >> 32)) >> 32;
 	return (ns);
 }
@@ -242,36 +266,13 @@ lock_prof_init(void *arg)
 }
 SYSINIT(lockprof, SI_SUB_SMP, SI_ORDER_ANY, lock_prof_init, NULL);
 
-/*
- * To be certain that lock profiling has idled on all cpus before we
- * reset, we schedule the resetting thread on all active cpus.  Since
- * all operations happen within critical sections we can be sure that
- * it is safe to zero the profiling structures.
- */
-static void
-lock_prof_idle(void)
-{
-	struct thread *td;
-	int cpu;
-
-	td = curthread;
-	thread_lock(td);
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
-		sched_bind(td, cpu);
-	}
-	sched_unbind(td);
-	thread_unlock(td);
-}
-
 static void
 lock_prof_reset_wait(void)
 {
 
 	/*
-	 * Spin relinquishing our cpu so that lock_prof_idle may
-	 * run on it.
+	 * Spin relinquishing our cpu so that quiesce_all_cpus may
+	 * complete.
 	 */
 	while (lock_prof_resetting)
 		sched_relinquish(curthread);
@@ -293,7 +294,7 @@ lock_prof_reset(void)
 	atomic_store_rel_int(&lock_prof_resetting, 1);
 	enabled = lock_prof_enable;
 	lock_prof_enable = 0;
-	lock_prof_idle();
+	quiesce_all_cpus("profreset", 0);
 	/*
 	 * Some objects may have migrated between CPUs.  Clear all links
 	 * before we zero the structures.  Some items may still be linked
@@ -386,8 +387,6 @@ lock_prof_type_stats(struct lock_prof_type *type, struct sbuf *sb, int spin,
 				continue;
 			lock_prof_sum(l, &lp, i, spin, t);
 			lock_prof_output(&lp, sb);
-			if (sbuf_overflowed(sb))
-				return;
 		}
 	}
 }
@@ -395,34 +394,32 @@ lock_prof_type_stats(struct lock_prof_type *type, struct sbuf *sb, int spin,
 static int
 dump_lock_prof_stats(SYSCTL_HANDLER_ARGS)
 {
-	static int multiplier = 1;
 	struct sbuf *sb;
 	int error, cpu, t;
 	int enabled;
 
-retry_sbufops:
-	sb = sbuf_new(NULL, NULL, LPROF_SBUF_SIZE * multiplier, SBUF_FIXEDLEN);
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sb = sbuf_new_for_sysctl(NULL, NULL, LPROF_SBUF_SIZE, req);
 	sbuf_printf(sb, "\n%8s %9s %11s %11s %11s %6s %6s %2s %6s %s\n",
 	    "max", "wait_max", "total", "wait_total", "count", "avg", "wait_avg", "cnt_hold", "cnt_lock", "name");
 	enabled = lock_prof_enable;
 	lock_prof_enable = 0;
-	lock_prof_idle();
+	quiesce_all_cpus("profstat", 0);
 	t = ticks;
 	for (cpu = 0; cpu <= mp_maxid; cpu++) {
 		if (lp_cpu[cpu] == NULL)
 			continue;
 		lock_prof_type_stats(&lp_cpu[cpu]->lpc_types[0], sb, 0, t);
 		lock_prof_type_stats(&lp_cpu[cpu]->lpc_types[1], sb, 1, t);
-		if (sbuf_overflowed(sb)) {
-			sbuf_delete(sb);
-			multiplier++;
-			goto retry_sbufops;
-		}
 	}
 	lock_prof_enable = enabled;
 
-	sbuf_finish(sb);
-	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	error = sbuf_finish(sb);
+	/* Output a trailing NUL. */
+	if (error == 0)
+		error = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (error);
 }
@@ -540,6 +537,9 @@ lock_profile_obtain_lock_success(struct lock_object *lo, int contested,
 	struct lock_profile_object *l;
 	int spin;
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	/* don't reset the timer when/if recursing */
 	if (!lock_prof_enable || (lo->lo_flags & LO_NOPROFILE))
 		return;
@@ -600,10 +600,12 @@ lock_profile_release_lock(struct lock_object *lo)
 	struct lock_profile_object *l;
 	struct lock_prof_type *type;
 	struct lock_prof *lp;
-	u_int64_t holdtime;
+	uint64_t curtime, holdtime;
 	struct lpohead *head;
 	int spin;
 
+	if (SCHEDULER_STOPPED())
+		return;
 	if (lo->lo_flags & LO_NOPROFILE)
 		return;
 	spin = (LOCK_CLASS(lo)->lc_flags & LC_SPINLOCK) ? 1 : 0;
@@ -628,9 +630,11 @@ lock_profile_release_lock(struct lock_object *lo)
 	lp = lock_profile_lookup(lo, spin, l->lpo_file, l->lpo_line);
 	if (lp == NULL)
 		goto release;
-	holdtime = nanoseconds() - l->lpo_acqtime;
-	if (holdtime < 0)
+	curtime = nanoseconds();
+	if (curtime < l->lpo_acqtime)
 		goto release;
+	holdtime = curtime - l->lpo_acqtime;
+
 	/*
 	 * Record if the lock has been held longer now than ever
 	 * before.
@@ -651,8 +655,9 @@ out:
 	critical_exit();
 }
 
-SYSCTL_NODE(_debug, OID_AUTO, lock, CTLFLAG_RD, NULL, "lock debugging");
-SYSCTL_NODE(_debug_lock, OID_AUTO, prof, CTLFLAG_RD, NULL, "lock profiling");
+static SYSCTL_NODE(_debug, OID_AUTO, lock, CTLFLAG_RD, NULL, "lock debugging");
+static SYSCTL_NODE(_debug_lock, OID_AUTO, prof, CTLFLAG_RD, NULL,
+    "lock profiling");
 SYSCTL_INT(_debug_lock_prof, OID_AUTO, skipspin, CTLFLAG_RW,
     &lock_prof_skipspin, 0, "Skip profiling on spinlocks.");
 SYSCTL_INT(_debug_lock_prof, OID_AUTO, skipcount, CTLFLAG_RW,

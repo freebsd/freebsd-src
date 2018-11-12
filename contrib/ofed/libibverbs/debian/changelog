@@ -1,0 +1,78 @@
+libibverbs (1.1.2-1) unstable; urgency=low
+
+  * New upstream release.
+    - Fix memory registration failure cause by too-big madvise()
+    - Fix many Valgrind false positives
+    - Add functions to convert enum values to strings
+  * Replace deprecated ${Source-Version} with ${binary:Version}
+  * Use DEB_DH_MAKESHLIBS_ARGS_ALL to pass appropriate -V option to
+    dh_makeshlibs, since new symbols were added in libibverbs 1.1.2.
+    (Closes: #465435)
+  * Add debian/watch file.
+  * Update control file to talk about generic RDMA and iWARP, not just
+    InfiniBand, since libibverbs works with both IB and iWARP.
+  * Acknowledge NMU (Closes: #442638).
+
+ -- Roland Dreier <rolandd@cisco.com>  Fri, 18 Apr 2008 15:08:52 -0700
+
+libibverbs (1.1.1-1.1) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Re-generated autotools files to fix double build bug, closes: #442638
+  * Bumped Standards-Version to 3.7.3, no change needed.
+
+ -- Michael Meskes <meskes@debian.org>  Mon, 14 Apr 2008 10:07:58 +0000
+
+libibverbs (1.1.1-1) unstable; urgency=low
+
+  * New upstream release.
+    - Initialize state of newly created QPs to RESET (fixes problems
+      with libmlx4/ConnectX HCAs).
+    - Don't warn root about RLIMIT_MEMLOCK, since it doesn't matter.
+    - Fix free() errors in ibv_xx_pingpong examples.
+
+ -- Roland Dreier <rolandd@cisco.com>  Fri, 15 Jun 2007 12:49:02 -0700
+
+libibverbs (1.1-1) unstable; urgency=low
+
+  * New upstream release.
+    - Add support for use of fork() in applications.
+    - Add manual pages documenting API in section 3.
+    - New method of finding and loading device-specific drivers.
+    - Add basic support for iWARP devices.
+    - Provide compatible ABI for applications linked against libibverbs 1.0.
+  * Update libtool during build to avoid setting RPATH in binaries on amd64.
+
+ -- Roland Dreier <rolandd@cisco.com>  Sat, 28 Apr 2007 14:15:29 -0700
+
+libibverbs (1.0.4-1) unstable; urgency=low
+
+  * New upstream release.
+    - Fix static linking so it has a chance of working.
+    - Fix cut-and-paste error in sparc mb() macro.
+    - Other miscellaneous fixes.
+  * Improve package description.
+
+ -- Roland Dreier <rolandd@cisco.com>  Tue, 31 Oct 2006 15:04:33 -0800
+	
+libibverbs (1.0.3-1) unstable; urgency=low
+
+  * Change priority to extra, since libibverbs depends on libsysfs2, which
+    has priority extra.  (Debian policy section 2.5 states that a package
+    may not depend on another package of lower priority)
+  * New upstream release:
+    - For sparc, only generate membar instruction if compiling for V9
+      instruction set.  (Closes: #365559)
+    - Reduce (but not yet eliminate) dependency on libsysfs.
+    - Deprecate some ib_XXX symbol names and introduce ibv_XXX
+      replacements for internal consistency.
+    - Other minor fixes.
+  * Update to Standards-Version: 3.7.2.
+
+ -- Roland Dreier <rolandd@cisco.com>  Tue,  2 May 2006 15:33:14 -0700
+
+libibverbs (1.0.2-1) unstable; urgency=low
+
+  * Initial Release.  (Closes: #325752)
+
+ -- Roland Dreier <rolandd@cisco.com>  Wed, 15 Feb 2006 11:21:59 -0700

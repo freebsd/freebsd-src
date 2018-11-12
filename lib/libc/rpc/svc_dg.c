@@ -1,32 +1,31 @@
 /*	$NetBSD: svc_dg.c,v 1.4 2000/07/06 03:10:35 christos Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice, 
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, 
+ *   this list of conditions and the following disclaimer in the documentation 
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its 
+ *   contributors may be used to endorse or promote products derived 
+ *   from this software without specific prior written permission.
  * 
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- * 
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- * 
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- * 
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 /*
@@ -103,10 +102,7 @@ static const char svc_dg_err4[] = "cannot set IP_RECVDSTADDR";
 static const char __no_mem_str[] = "out of memory";
 
 SVCXPRT *
-svc_dg_create(fd, sendsize, recvsize)
-	int fd;
-	u_int sendsize;
-	u_int recvsize;
+svc_dg_create(int fd, u_int sendsize, u_int recvsize)
 {
 	SVCXPRT *xprt;
 	struct svc_dg_data *su = NULL;
@@ -189,8 +185,7 @@ freedata_nowarn:
 
 /*ARGSUSED*/
 static enum xprt_stat
-svc_dg_stat(xprt)
-	SVCXPRT *xprt;
+svc_dg_stat(SVCXPRT *xprt)
 {
 	return (XPRT_IDLE);
 }
@@ -251,9 +246,7 @@ svc_dg_recvfrom(int fd, char *buf, int buflen,
 }
 
 static bool_t
-svc_dg_recv(xprt, msg)
-	SVCXPRT *xprt;
-	struct rpc_msg *msg;
+svc_dg_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 {
 	struct svc_dg_data *su = su_data(xprt);
 	XDR *xdrs = &(su->su_xdrs);
@@ -336,9 +329,7 @@ svc_dg_sendto(int fd, char *buf, int buflen,
 }
 
 static bool_t
-svc_dg_reply(xprt, msg)
-	SVCXPRT *xprt;
-	struct rpc_msg *msg;
+svc_dg_reply(SVCXPRT *xprt, struct rpc_msg *msg)
 {
 	struct svc_dg_data *su = su_data(xprt);
 	XDR *xdrs = &(su->su_xdrs);
@@ -379,10 +370,7 @@ svc_dg_reply(xprt, msg)
 }
 
 static bool_t
-svc_dg_getargs(xprt, xdr_args, args_ptr)
-	SVCXPRT *xprt;
-	xdrproc_t xdr_args;
-	void *args_ptr;
+svc_dg_getargs(SVCXPRT *xprt, xdrproc_t xdr_args, void *args_ptr)
 {
 	struct svc_dg_data *su;
 
@@ -393,10 +381,7 @@ svc_dg_getargs(xprt, xdr_args, args_ptr)
 }
 
 static bool_t
-svc_dg_freeargs(xprt, xdr_args, args_ptr)
-	SVCXPRT *xprt;
-	xdrproc_t xdr_args;
-	void *args_ptr;
+svc_dg_freeargs(SVCXPRT *xprt, xdrproc_t xdr_args, void *args_ptr)
 {
 	XDR *xdrs = &(su_data(xprt)->su_xdrs);
 
@@ -405,8 +390,7 @@ svc_dg_freeargs(xprt, xdr_args, args_ptr)
 }
 
 static void
-svc_dg_destroy(xprt)
-	SVCXPRT *xprt;
+svc_dg_destroy(SVCXPRT *xprt)
 {
 	struct svc_dg_data *su = su_data(xprt);
 
@@ -422,24 +406,19 @@ svc_dg_destroy(xprt)
 		(void) mem_free(xprt->xp_rtaddr.buf, xprt->xp_rtaddr.maxlen);
 	if (xprt->xp_ltaddr.buf)
 		(void) mem_free(xprt->xp_ltaddr.buf, xprt->xp_ltaddr.maxlen);
-	if (xprt->xp_tp)
-		(void) free(xprt->xp_tp);
+	free(xprt->xp_tp);
 	svc_xprt_free(xprt);
 }
 
 static bool_t
 /*ARGSUSED*/
-svc_dg_control(xprt, rq, in)
-	SVCXPRT *xprt;
-	const u_int	rq;
-	void		*in;
+svc_dg_control(SVCXPRT *xprt, const u_int rq, void *in)
 {
 	return (FALSE);
 }
 
 static void
-svc_dg_ops(xprt)
-	SVCXPRT *xprt;
+svc_dg_ops(SVCXPRT *xprt)
 {
 	static struct xp_ops ops;
 	static struct xp_ops2 ops2;
@@ -537,9 +516,7 @@ static const char alloc_err[] = "could not allocate cache ";
 static const char enable_err[] = "cache already enabled";
 
 int
-svc_dg_enablecache(transp, size)
-	SVCXPRT *transp;
-	u_int size;
+svc_dg_enablecache(SVCXPRT *transp, u_int size)
 {
 	struct svc_dg_data *su = su_data(transp);
 	struct cl_cache *uc;
@@ -594,9 +571,7 @@ static const char cache_set_err2[] = "victim alloc failed";
 static const char cache_set_err3[] = "could not allocate new rpc buffer";
 
 static void
-cache_set(xprt, replylen)
-	SVCXPRT *xprt;
-	size_t replylen;
+cache_set(SVCXPRT *xprt, size_t replylen)
 {
 	cache_ptr victim;
 	cache_ptr *vicp;
@@ -684,11 +659,7 @@ cache_set(xprt, replylen)
  * return 1 if found, 0 if not found and set the stage for cache_set()
  */
 static int
-cache_get(xprt, msg, replyp, replylenp)
-	SVCXPRT *xprt;
-	struct rpc_msg *msg;
-	char **replyp;
-	size_t *replylenp;
+cache_get(SVCXPRT *xprt, struct rpc_msg *msg, char **replyp, size_t *replylenp)
 {
 	u_int loc;
 	cache_ptr ent;

@@ -9,7 +9,9 @@ s_client - SSL/TLS client program
 
 B<openssl> B<s_client>
 [B<-connect host:port>]
+[B<-servername name>]
 [B<-verify depth>]
+[B<-verify_return_error>]
 [B<-cert filename>]
 [B<-certform DER|PEM>]
 [B<-key filename>]
@@ -17,6 +19,7 @@ B<openssl> B<s_client>
 [B<-pass arg>]
 [B<-CApath directory>]
 [B<-CAfile filename>]
+[B<-no_alt_chains>]
 [B<-reconnect>]
 [B<-pause>]
 [B<-showcerts>]
@@ -27,6 +30,7 @@ B<openssl> B<s_client>
 [B<-nbio>]
 [B<-crlf>]
 [B<-ign_eof>]
+[B<-no_ign_eof>]
 [B<-quiet>]
 [B<-ssl2>]
 [B<-ssl3>]
@@ -34,8 +38,12 @@ B<openssl> B<s_client>
 [B<-no_ssl2>]
 [B<-no_ssl3>]
 [B<-no_tls1>]
+[B<-no_tls1_1>]
+[B<-no_tls1_2>]
+[B<-fallback_scsv>]
 [B<-bugs>]
 [B<-cipher cipherlist>]
+[B<-serverpref>]
 [B<-starttls protocol>]
 [B<-engine id>]
 [B<-tlsextdebug>]
@@ -43,6 +51,10 @@ B<openssl> B<s_client>
 [B<-sess_out filename>]
 [B<-sess_in filename>]
 [B<-rand file(s)>]
+[B<-serverinfo types>]
+[B<-status>]
+[B<-alpn protocols>]
+[B<-nextprotoneg protocols>]
 
 =head1 DESCRIPTION
 
@@ -58,6 +70,10 @@ SSL servers.
 
 This specifies the host and optional port to connect to. If not specified
 then an attempt is made to connect to the local host on port 4433.
+
+=item B<-servername name>
+
+Set the TLS SNI (Server Name Indication) extension in the ClientHello message.
 
 =item B<-cert certname>
 
@@ -90,6 +106,11 @@ Currently the verify operation continues after errors so all the problems
 with a certificate chain can be seen. As a side effect the connection
 will never fail due to a server certificate verify failure.
 
+=item B<-verify_return_error>
+
+Return verification errors instead of continuing. This will typically
+abort the handshake with a fatal error.
+
 =item B<-CApath directory>
 
 The directory to use for server certificate verification. This directory
@@ -100,6 +121,11 @@ also used when building the client certificate chain.
 
 A file containing trusted certificates to use during server authentication
 and to use when attempting to build the client certificate chain.
+
+=item B<-purpose, -ignore_critical, -issuer_checks, -crl_check, -crl_check_all, -policy_check, -extended_crl, -x509_strict, -policy -check_ss_sig -no_alt_chains>
+
+Set various certificate chain valiadition option. See the
+L<B<verify>|verify(1)> manual page for details.
 
 =item B<-reconnect>
 
@@ -161,16 +187,30 @@ input.
 inhibit printing of session and certificate information.  This implicitly
 turns on B<-ign_eof> as well.
 
-=item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>
+=item B<-no_ign_eof>
 
-these options disable the use of certain SSL or TLS protocols. By default
-the initial handshake uses a method which should be compatible with all
-servers and permit them to use SSL v3, SSL v2 or TLS as appropriate.
+shut down the connection when end of file is reached in the input.
+Can be used to override the implicit B<-ign_eof> after B<-quiet>.
 
-Unfortunately there are a lot of ancient and broken servers in use which
-cannot handle this technique and will fail to connect. Some servers only
-work if TLS is turned off with the B<-no_tls> option others will only
-support SSL v2 and may need the B<-ssl2> option.
+=item B<-psk_identity identity>
+
+Use the PSK identity B<identity> when using a PSK cipher suite.
+
+=item B<-psk key>
+
+Use the PSK key B<key> when using a PSK cipher suite. The key is
+given as a hexadecimal number without leading 0x, for example -psk
+1a2b3c4d.
+
+=item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-tls1_1>, B<-tls1_2>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>
+
+These options require or disable the use of the specified SSL or TLS protocols.
+By default the initial handshake uses a I<version-flexible> method which will
+negotiate the highest mutually supported protocol version.
+
+=item B<-fallback_scsv>
+
+Send TLS_FALLBACK_SCSV in the ClientHello.
 
 =item B<-bugs>
 
@@ -184,6 +224,10 @@ the server determines which cipher suite is used it should take the first
 supported cipher in the list sent by the client. See the B<ciphers>
 command for more information.
 
+=item B<-serverpref>
+
+use the server's cipher preferences; only used for SSLV2.
+
 =item B<-starttls protocol>
 
 send the protocol-specific message(s) to switch to TLS for communication.
@@ -192,14 +236,11 @@ supported keywords are "smtp", "pop3", "imap", and "ftp".
 
 =item B<-tlsextdebug>
 
-print out a hex dump of any TLS extensions received from the server. Note: this
-option is only available if extension support is explicitly enabled at compile
-time
+print out a hex dump of any TLS extensions received from the server.
 
 =item B<-no_ticket>
 
-disable RFC4507bis session ticket support. Note: this option is only available
-if extension support is explicitly enabled at compile time
+disable RFC4507bis session ticket support. 
 
 =item B<-sess_out filename>
 
@@ -212,7 +253,7 @@ connection from this session.
 
 =item B<-engine id>
 
-specifying an engine (by it's unique B<id> string) will cause B<s_client>
+specifying an engine (by its unique B<id> string) will cause B<s_client>
 to attempt to obtain a functional reference to the specified engine,
 thus initialising it if needed. The engine will then be set as the default
 for all available algorithms.
@@ -224,6 +265,33 @@ generator, or an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
 Multiple files can be specified separated by a OS-dependent character.
 The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
 all others.
+
+=item B<-serverinfo types>
+
+a list of comma-separated TLS Extension Types (numbers between 0 and 
+65535).  Each type will be sent as an empty ClientHello TLS Extension.
+The server's response (if any) will be encoded and displayed as a PEM
+file.
+
+=item B<-status>
+
+sends a certificate status request to the server (OCSP stapling). The server
+response (if any) is printed out.
+
+=item B<-alpn protocols>, B<-nextprotoneg protocols>
+
+these flags enable the 
+Enable the Application-Layer Protocol Negotiation or Next Protocol
+Negotiation extension, respectively. ALPN is the IETF standard and
+replaces NPN.
+The B<protocols> list is a
+comma-separated protocol names that the client should advertise
+support for. The list should contain most wanted protocols first.
+Protocol names are printable ASCII strings, for example "http/1.1" or
+"spdy/3".
+Empty list of protocols is treated specially and will cause the client to
+advertise support for the TLS extension but disconnect just after
+reciving ServerHello with a list of server supported protocols.
 
 =back
 
@@ -274,8 +342,12 @@ Since the SSLv23 client hello cannot include compression methods or extensions
 these will only be supported if its use is disabled, for example by using the
 B<-no_sslv2> option.
 
-TLS extensions are only supported in OpenSSL 0.9.8 if they are explictly
-enabled at compile time using for example the B<enable-tlsext> switch.
+The B<s_client> utility is a test tool and is designed to continue the
+handshake after any certificate verification errors. As a result it will
+accept any certificate chain (trusted or not) sent by the peer. None test
+applications should B<not> do this as it makes them vulnerable to a MITM
+attack. This behaviour can be changed by with the B<-verify_return_error>
+option: any verify errors are then returned aborting the handshake.
 
 =head1 BUGS
 
@@ -284,14 +356,15 @@ the techniques used are rather old, the C source of s_client is rather
 hard to read and not a model of how things should be done. A typical
 SSL client program would be much simpler.
 
-The B<-verify> option should really exit if the server verification
-fails.
-
 The B<-prexit> option is a bit of a hack. We should really report
 information whenever a session is renegotiated.
 
 =head1 SEE ALSO
 
 L<sess_id(1)|sess_id(1)>, L<s_server(1)|s_server(1)>, L<ciphers(1)|ciphers(1)>
+
+=head1 HISTORY
+
+The -no_alt_chains options was first added to OpenSSL 1.0.2b.
 
 =cut

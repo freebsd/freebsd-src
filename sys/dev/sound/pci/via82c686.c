@@ -477,7 +477,7 @@ dma_cb(void *p, bus_dma_segment_t *bds, int a, int b)
 static int
 via_attach(device_t dev)
 {
-	struct via_info *via = 0;
+	struct via_info *via = NULL;
 	char status[SND_STATUSLEN];
 	u_int32_t data, cnt;
 
@@ -485,11 +485,7 @@ via_attach(device_t dev)
 	via->lock = snd_mtxcreate(device_get_nameunit(dev),
 	    "snd_via82c686 softc");
 
-	/* Get resources */
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
+	pci_enable_busmaster(dev);
 
 	/* Wake up and reset AC97 if necessary */
 	data = pci_read_config(dev, VIA_AC97STATUS, 1);
@@ -594,7 +590,7 @@ via_attach(device_t dev)
 	    NSEGS * sizeof(struct via_dma_op), dma_cb, via, 0) != 0)
 		goto bad;
 
-	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld %s",
+	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd %s",
 		 rman_get_start(via->reg), rman_get_start(via->irq),
 		 PCM_KLDSTRING(snd_via82c686));
 
@@ -610,7 +606,7 @@ bad:
 	if (via->ih) bus_teardown_intr(dev, via->irq, via->ih);
 	if (via->irq) bus_release_resource(dev, SYS_RES_IRQ, via->irqid, via->irq);
 	if (via->parent_dmat) bus_dma_tag_destroy(via->parent_dmat);
-	if (via->sgd_dmamap) bus_dmamap_unload(via->sgd_dmat, via->sgd_dmamap);
+	if (via->sgd_addr) bus_dmamap_unload(via->sgd_dmat, via->sgd_dmamap);
 	if (via->sgd_table) bus_dmamem_free(via->sgd_dmat, via->sgd_table, via->sgd_dmamap);
 	if (via->sgd_dmat) bus_dma_tag_destroy(via->sgd_dmat);
 	if (via->lock) snd_mtxfree(via->lock);
@@ -622,7 +618,7 @@ static int
 via_detach(device_t dev)
 {
 	int r;
-	struct via_info *via = 0;
+	struct via_info *via = NULL;
 
 	r = pcm_unregister(dev);
 	if (r)

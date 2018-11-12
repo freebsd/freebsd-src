@@ -31,7 +31,7 @@
 .\" $FreeBSD$
 .\"	$OpenBSD: wi.4tbl,v 1.14 2002/04/29 19:53:50 jsyn Exp $
 .\"
-.Dd August 2, 2008
+.Dd July 23, 2011
 .Dt WI 4
 .Os
 .Sh NAME
@@ -241,7 +241,6 @@ DLink DWL520
 .El
 .Sh EXAMPLES
 Join an existing BSS network (ie: connect to an access point):
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev wi0 inet 192.168.0.20 \e
     netmask 0xffffff00
@@ -249,10 +248,10 @@ ifconfig wlan create wlandev wi0 inet 192.168.0.20 \e
 .Pp
 Join a specific BSS network with network name
 .Dq Li my_net :
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev wi0 inet 192.168.0.20 \e
     netmask 0xffffff00 ssid my_net
+.Ed
 .Pp
 Join a specific BSS network with WEP encryption:
 .Bd -literal -offset indent
@@ -320,7 +319,7 @@ command.
 .Xr wpa_supplicant 8 .
 .Rs
 .%T HCF Light programming specification
-.%O http://www.wavelan.com
+.%U http://web.archive.org/web/20040130141721/http://wavelan.com/
 .Re
 .Sh HISTORY
 The
@@ -331,7 +330,7 @@ device driver first appeared in
 The original
 .Nm
 driver was written by
-.An Bill Paul Aq wpaul@ctr.columbia.edu .
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu .
 This man page comes from
 .Ox .
 .Sh CAVEATS
@@ -356,7 +355,7 @@ Lucent cards prior to firmware version 6.0.6 do not implement IBSS
 mode and are not supported.
 .Pp
 Prior versions of
-.Nm 
+.Nm
 supported Symbol firmware.
 That support has been removed due to persistent problems with this
 firmware as well as getting proper documentation on this firmware.
@@ -376,21 +375,3 @@ Symbol	none	none	none	none
 Not all the new messages are documented here, and many of them are
 indications of transient errors that are not indications of serious
 problems.
-.Pp
-WL200 PCI wireless cards are based on a Cirrus Logic CL-PD6729 bridge
-chips glued to an Intersil Prism-II PCMCIA chipset w/o the PC Card
-form factor being present.
-These chips are special and require special care to use properly.
-One must set
-.Va hw.pcic.pd6729_intr_path Ns = Ns Qq Li 2
-in
-.Pa /boot/loader.conf .
-This tells the PC Card system to use PCI interrupts for this odd beast.
-It is not possible to know automatically which kind of interrupts to use.
-OLDCARD devices
-support this device.
-NEWCARD devices
-.Xr ( pccbb 4
-and
-.Xr pccard 4 )
-do not support it at this time.

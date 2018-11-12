@@ -9,7 +9,9 @@
 #	Portions derived from amd/libamu/Makefile
 #	$NetBSD: Makefile,v 1.8 1998/08/08 22:33:37 christos Exp $
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
+
+PACKAGE= amd
 
 CFLAGS+= -I. -I${.CURDIR} 
 CFLAGS+= -I${.CURDIR}/../include
@@ -27,18 +29,13 @@ CFLAGS+= -DHAVE_LOCALCONFIG_H
 CFLAGS+= -DYES_HESIOD
 .endif
 
-CFLAGS+= -DHOST_CPU=\"${MACHINE_ARCH}\" -DHOST_ARCH=\"${MACHINE_ARCH}\"
+CFLAGS+= -DHOST_CPU=\"${MACHINE_CPUARCH}\" -DHOST_ARCH=\"${MACHINE_ARCH}\"
 
-.if exists(${.OBJDIR}/../libamu)
-LIBAMUDIR=	${.OBJDIR}/../libamu
-.else
-LIBAMUDIR=	${.CURDIR}/../libamu
-.endif
-LIBAMU=		${LIBAMUDIR}/libamu.a
-
-RPCCOM=		rpcgen
+RPCCOM=		RPCGEN_CPP=${CPP:Q} rpcgen
 MOUNT_X=	${DESTDIR}/usr/include/rpcsvc/mount.x
 NFS_PROT_X=	${DESTDIR}/usr/include/rpcsvc/nfs_prot.x
+
+WARNS?=	1
 
 .if exists(${.CURDIR}/../../Makefile.inc)
 .include "${.CURDIR}/../../Makefile.inc"

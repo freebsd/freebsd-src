@@ -1,6 +1,40 @@
+2005-04-13  H.J. Lu  <hongjiu.lu@intel.com>
+
+	Moved from ../ChangeLog
+
+	2003-10-14  Bob Wilson  <bob.wilson@acm.org>
+	* xtensa.h: Formatting.  Fix comments about property section
+	names for linkonce sections.
+
+	2003-05-23  Jakub Jelinek  <jakub@redhat.com>
+	* common.h (PT_GNU_STACK): Define.
+
+	2003-01-25  Jakub Jelinek  <jakub@redhat.com>
+	* sparc.h: Add TLS relocs.  Move R_SPARC_REV32 to 252.
+
+	2002-09-26  Jakub Jelinek  <jakub@redhat.com>
+	* x86-64.h: Add TLS relocs.
+
+	2002-09-19  Jakub Jelinek  <jakub@redhat.com>
+	* i386.h (R_386_TLS_TPOFF, R_386_TLS_IE, R_386_TLS_GOTIE):
+	Define.
+
+	2002-07-10  Jakub Jelinek  <jakub@redhat.com>
+	* common.h (SHT_GNU_LIBLIST, DT_GNU_PRELINKED,
+	DT_GNU_CONFLICT*, DT_GNU_LIBLIST*): Define.
+
+	2002-05-31  Michal Ludvig  <mludvig@suse.cz>
+	* dwarf2.h (DW_CFA_low_user, DW_CFA_high_user): Renamed
+	to DW_CFA_lo_user, DW_CFA_hi_user respectively.
+
+	2002-05-23  Jakub Jelinek  <jakub@redhat.com>
+	* common.h (PT_TLS, SHF_TLS, STT_TLS, DF_STATIC_TLS): Define.
+	* ia64.h (R_IA64_LTOFF_TPREL22): Renamed from R_IA64_LTOFF_TP22.
+	* i386.h: Add TLS relocs.
+
 2003-12-19  Kazuhiro Inaoka  <inaoka.kazuhiro@renesas.com>
 
-	* elf/m32r.h : Added m32r-linux and PIC support.  Add new ABI that
+	* m32r.h : Added m32r-linux and PIC support.  Add new ABI that
 	uses RELA.
 	(R_M32R_16_RELA, R_M32R_32_RELA, R_M32R_24_RELA,
 	R_M32R_10_PCREL_RELA, R_M32R_18_PCREL_RELA,
@@ -22,7 +56,7 @@
 
 2003-12-03   Kazuhiro Inaoka  <inaoka.kazuhiro@renesas.com>
 
-	* elf/m32r.h: Add new machine type m32r2 and instruction modes.
+	* m32r.h: Add new machine type m32r2 and instruction modes.
 
 2003-11-06  Alan Modra  <amodra@bigpond.net.au>
 
@@ -148,7 +182,7 @@
 
 2003-04-24 Dhananjay Deshpande <dhananjayd@kpitcummins.com>
 
-	* elf/h8.h (E_H8_MACH_H8300HN, E_H8_MACH_H8300SN): New
+	* h8.h (E_H8_MACH_H8300HN, E_H8_MACH_H8300SN): New
 
 2003-04-23  J"orn Rennecke <joern.rennecke@superh.com>
 
@@ -165,8 +199,8 @@
 
 2003-04-01  Bob Wilson  <bob.wilson@acm.org>
 
-	* elf/common.h (EM_XTENSA_OLD): Define.
-	* elf/xtensa.h: New file.
+	* common.h (EM_XTENSA_OLD): Define.
+	* xtensa.h: New file.
 
 2003-04-01  Nick Clifton  <nickc@redhat.com>
 
@@ -339,7 +373,7 @@
 
 2002-08-28  Catherine Moore  <clm@redhat.com>
 
-	* elf/v850.h (R_V850_LONGCALL, R_V850_ALIGN,
+	* v850.h (R_V850_LONGCALL, R_V850_ALIGN,
 	R_V850_LONGJUMP): New relocations.
 
 2002-08-15  Alan Modra  <amodra@bigpond.net.au>
@@ -535,7 +569,7 @@
 
 2001-12-13  Jakub Jelinek  <jakub@redhat.com>
 
-	* elf/common.h (PT_GNU_EH_FRAME): Define.
+	* common.h (PT_GNU_EH_FRAME): Define.
 
 2001-12-11  Alan Modra  <amodra@bigpond.net.au>
 

@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <fts.h>
 #include <grp.h>
 #include <libgen.h>
@@ -57,30 +58,30 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-void	a_gid(const char *);
-void	a_uid(const char *);
-void	chownerr(const char *);
-uid_t	id(const char *, const char *);
-void	usage(void);
+static void	a_gid(const char *);
+static void	a_uid(const char *);
+static void	chownerr(const char *);
+static uid_t	id(const char *, const char *);
+static void	usage(void);
 
-uid_t uid;
-gid_t gid;
-int ischown;
-const char *gname;
+static uid_t uid;
+static gid_t gid;
+static int ischown;
+static const char *gname;
 
 int
 main(int argc, char **argv)
 {
 	FTS *ftsp;
 	FTSENT *p;
-	int Hflag, Lflag, Rflag, fflag, hflag, vflag;
+	int Hflag, Lflag, Rflag, fflag, hflag, vflag, xflag;
 	int ch, fts_options, rval;
 	char *cp;
 
 	ischown = (strcmp(basename(argv[0]), "chown") == 0);
 
-	Hflag = Lflag = Rflag = fflag = hflag = vflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfhv")) != -1)
+	Hflag = Lflag = Rflag = fflag = hflag = vflag = xflag = 0;
+	while ((ch = getopt(argc, argv, "HLPRfhvx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -105,6 +106,9 @@ main(int argc, char **argv)
 		case 'v':
 			vflag++;
 			break;
+		case 'x':
+			xflag = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -116,18 +120,26 @@ main(int argc, char **argv)
 		usage();
 
 	if (Rflag) {
-		fts_options = FTS_PHYSICAL;
 		if (hflag && (Hflag || Lflag))
 			errx(1, "the -R%c and -h options may not be "
 			    "specified together", Hflag ? 'H' : 'L');
-		if (Hflag)
-			fts_options |= FTS_COMFOLLOW;
-		else if (Lflag) {
-			fts_options &= ~FTS_PHYSICAL;
-			fts_options |= FTS_LOGICAL;
+		if (Lflag) {
+			fts_options = FTS_LOGICAL;
+		} else {
+			fts_options = FTS_PHYSICAL;
+
+			if (Hflag) {
+				fts_options |= FTS_COMFOLLOW;
+			}
 		}
-	} else
-		fts_options = hflag ? FTS_PHYSICAL : FTS_LOGICAL;
+	} else if (hflag) {
+		fts_options = FTS_PHYSICAL;
+	} else {
+		fts_options = FTS_LOGICAL;
+	}
+
+	if (xflag)
+		fts_options |= FTS_XDEV;
 
 	uid = (uid_t)-1;
 	gid = (gid_t)-1;
@@ -151,6 +163,15 @@ main(int argc, char **argv)
 		err(1, NULL);
 
 	for (rval = 0; (p = fts_read(ftsp)) != NULL;) {
+		int atflag;
+
+		if ((fts_options & FTS_LOGICAL) ||
+		    ((fts_options & FTS_COMFOLLOW) &&
+		    p->fts_level == FTS_ROOTLEVEL))
+			atflag = 0;
+		else
+			atflag = AT_SYMLINK_NOFOLLOW;
+
 		switch (p->fts_info) {
 		case FTS_D:			/* Change it at FTS_DP. */
 			if (!Rflag)
@@ -165,58 +186,44 @@ main(int argc, char **argv)
 			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			continue;
-		case FTS_SL:
-		case FTS_SLNONE:
-			/*
-			 * The only symlinks that end up here are ones that
-			 * don't point to anything and ones that we found
-			 * doing a physical walk.
-			 */
-			if (hflag)
-				break;
-			else
-				continue;
 		default:
 			break;
 		}
 		if ((uid == (uid_t)-1 || uid == p->fts_statp->st_uid) &&
 		    (gid == (gid_t)-1 || gid == p->fts_statp->st_gid))
 			continue;
-		if ((hflag ? lchown : chown)(p->fts_accpath, uid, gid) == -1) {
-			if (!fflag) {
-				chownerr(p->fts_path);
-				rval = 1;
-			}
-		} else {
-			if (vflag) {
-				printf("%s", p->fts_path);
-				if (vflag > 1) {
-					if (ischown) {
-						printf(": %ju:%ju -> %ju:%ju",
-						    (uintmax_t)
-						    p->fts_statp->st_uid, 
-						    (uintmax_t)
-						    p->fts_statp->st_gid,
-						    (uid == (uid_t)-1) ? 
-						    (uintmax_t)
-						    p->fts_statp->st_uid : 
-						    (uintmax_t)uid,
-						    (gid == (gid_t)-1) ? 
-						    (uintmax_t)
-						    p->fts_statp->st_gid :
-						    (uintmax_t)gid);
-					} else {
-						printf(": %ju -> %ju",
-						    (uintmax_t)
-						    p->fts_statp->st_gid,
-						    (gid == (gid_t)-1) ? 
-						    (uintmax_t)
-						    p->fts_statp->st_gid : 
-						    (uintmax_t)gid);
-					}
+		if (fchownat(AT_FDCWD, p->fts_accpath, uid, gid, atflag)
+		    == -1 && !fflag) {
+			chownerr(p->fts_path);
+			rval = 1;
+		} else if (vflag) {
+			printf("%s", p->fts_path);
+			if (vflag > 1) {
+				if (ischown) {
+					printf(": %ju:%ju -> %ju:%ju",
+					    (uintmax_t)
+					    p->fts_statp->st_uid, 
+					    (uintmax_t)
+					    p->fts_statp->st_gid,
+					    (uid == (uid_t)-1) ? 
+					    (uintmax_t)
+					    p->fts_statp->st_uid : 
+					    (uintmax_t)uid,
+					    (gid == (gid_t)-1) ? 
+					    (uintmax_t)
+					    p->fts_statp->st_gid :
+					    (uintmax_t)gid);
+				} else {
+					printf(": %ju -> %ju",
+					    (uintmax_t)
+					    p->fts_statp->st_gid,
+					    (gid == (gid_t)-1) ? 
+					    (uintmax_t)
+					    p->fts_statp->st_gid : 
+					    (uintmax_t)gid);
 				}
-				printf("\n");
 			}
+			printf("\n");
 		}
 	}
 	if (errno)
@@ -224,7 +231,7 @@ main(int argc, char **argv)
 	exit(rval);
 }
 
-void
+static void
 a_gid(const char *s)
 {
 	struct group *gr;
@@ -235,7 +242,7 @@ a_gid(const char *s)
 	gid = ((gr = getgrnam(s)) != NULL) ? gr->gr_gid : id(s, "group");
 }
 
-void
+static void
 a_uid(const char *s)
 {
 	struct passwd *pw;
@@ -245,7 +252,7 @@ a_uid(const char *s)
 	uid = ((pw = getpwnam(s)) != NULL) ? pw->pw_uid : id(s, "user");
 }
 
-uid_t
+static uid_t
 id(const char *name, const char *type)
 {
 	uid_t val;
@@ -257,14 +264,12 @@ id(const char *name, const char *type)
 	 */
 	errno = 0;
 	val = strtoul(name, &ep, 10);
-	if (errno)
-		err(1, "%s", name);
-	if (*ep != '\0')
+	if (errno || *ep != '\0')
 		errx(1, "%s: illegal %s name", name, type);
 	return (val);
 }
 
-void
+static void
 chownerr(const char *file)
 {
 	static uid_t euid = -1;
@@ -287,6 +292,7 @@ chownerr(const char *file)
 			err(1, "malloc");
 		ngroups = getgroups(ngroups_max, groups);
 		while (--ngroups >= 0 && gid != groups[ngroups]);
+		free(groups);
 		if (ngroups < 0) {
 			warnx("you are not a member of group %s", gname);
 			return;
@@ -295,17 +301,17 @@ chownerr(const char *file)
 	warn("%s", file);
 }
 
-void
+static void
 usage(void)
 {
 
 	if (ischown)
 		(void)fprintf(stderr, "%s\n%s\n",
-		    "usage: chown [-fhv] [-R [-H | -L | -P]] owner[:group]"
+		    "usage: chown [-fhvx] [-R [-H | -L | -P]] owner[:group]"
 		    " file ...",
-		    "       chown [-fhv] [-R [-H | -L | -P]] :group file ...");
+		    "       chown [-fhvx] [-R [-H | -L | -P]] :group file ...");
 	else
 		(void)fprintf(stderr, "%s\n",
-		    "usage: chgrp [-fhv] [-R [-H | -L | -P]] group file ...");
+		    "usage: chgrp [-fhvx] [-R [-H | -L | -P]] group file ...");
 	exit(1);
 }

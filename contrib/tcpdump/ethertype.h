@@ -17,8 +17,6 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @(#) $Header: /tcpdump/master/tcpdump/ethertype.h,v 1.29.2.1 2008-02-06 10:49:22 guy Exp $ (LBL)
  * $FreeBSD$
  */
 
@@ -77,6 +75,9 @@
 #ifndef ETHERTYPE_SCA
 #define ETHERTYPE_SCA		0x6007
 #endif
+#ifndef ETHERTYPE_TEB
+#define ETHERTYPE_TEB		0x6558
+#endif
 #ifndef	ETHERTYPE_LANBRIDGE
 #define	ETHERTYPE_LANBRIDGE	0x8038
 #endif
@@ -98,8 +99,25 @@
 #ifndef ETHERTYPE_AARP
 #define ETHERTYPE_AARP		0x80f3
 #endif
+#ifndef	ETHERTYPE_TIPC
+#define	ETHERTYPE_TIPC		0x88ca
+#endif
 #ifndef	ETHERTYPE_8021Q
 #define	ETHERTYPE_8021Q		0x8100
+#endif
+
+/* see:
+        http://en.wikipedia.org/wiki/IEEE_802.1Q
+    and http://en.wikipedia.org/wiki/QinQ
+*/
+#ifndef	ETHERTYPE_8021Q9100
+#define	ETHERTYPE_8021Q9100	0x9100
+#endif
+#ifndef	ETHERTYPE_8021Q9200
+#define	ETHERTYPE_8021Q9200	0x9200
+#endif
+#ifndef	ETHERTYPE_8021QinQ
+#define	ETHERTYPE_8021QinQ      0x88a8
 #endif
 #ifndef ETHERTYPE_IPX
 #define ETHERTYPE_IPX		0x8137
@@ -134,6 +152,9 @@
 #ifndef ETHERTYPE_PPPOES2
 #define ETHERTYPE_PPPOES2	0x3c13
 #endif
+#ifndef ETHERTYPE_MS_NLB_HB
+#define ETHERTYPE_MS_NLB_HB	0x886f /* MS Network Load Balancing Heartbeat */
+#endif
 #ifndef ETHERTYPE_JUMBO
 #define ETHERTYPE_JUMBO         0x8870
 #endif
@@ -146,11 +167,14 @@
 #ifndef ETHERTYPE_RRCP
 #define ETHERTYPE_RRCP  	0x8899
 #endif
+#ifndef ETHERTYPE_AOE
+#define ETHERTYPE_AOE  		0x88a2
+#endif
 #ifndef	ETHERTYPE_LOOPBACK
 #define	ETHERTYPE_LOOPBACK	0x9000
 #endif
 #ifndef	ETHERTYPE_VMAN
-#define	ETHERTYPE_VMAN	        0x9100 /* Extreme VMAN Protocol */ 
+#define	ETHERTYPE_VMAN	        0x9100 /* Extreme VMAN Protocol */
 #endif
 #ifndef	ETHERTYPE_CFM_OLD
 #define	ETHERTYPE_CFM_OLD       0xabcd /* 802.1ag depreciated */
@@ -158,8 +182,20 @@
 #ifndef	ETHERTYPE_CFM
 #define	ETHERTYPE_CFM           0x8902 /* 802.1ag */
 #endif
+#ifndef	ETHERTYPE_IEEE1905_1
+#define	ETHERTYPE_IEEE1905_1    0x893a /* IEEE 1905.1 */
+#endif
 #ifndef	ETHERTYPE_ISO
 #define	ETHERTYPE_ISO           0xfefe  /* nonstandard - used in Cisco HDLC encapsulation */
+#endif
+#ifndef	ETHERTYPE_CALM_FAST
+#define	ETHERTYPE_CALM_FAST     0x1111  /* ISO CALM FAST */
+#endif
+#ifndef	ETHERTYPE_GEONET_OLD
+#define	ETHERTYPE_GEONET_OLD    0x0707  /* ETSI GeoNetworking (before Jan 2013) */
+#endif
+#ifndef	ETHERTYPE_GEONET
+#define	ETHERTYPE_GEONET        0x8947  /* ETSI GeoNetworking (Official IEEE registration from Jan 2013) */
 #endif
 
 extern const struct tok ethertype_values[];

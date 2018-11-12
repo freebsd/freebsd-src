@@ -34,22 +34,15 @@ __FBSDID("$FreeBSD$");
  * Otherwise, the setcontext() syscall will return here and we'll
  * pop off the return address and go to the *setcontext* call.
  */
-	.weak	_getcontext
-	.set	_getcontext,__sys_getcontext
-	.weak	getcontext
-	.set	getcontext,__sys_getcontext
+	WEAK_REFERENCE(__sys_getcontext, _getcontext)
+	WEAK_REFERENCE(__sys_getcontext, getcontext)
 ENTRY(__sys_getcontext)
 	movq	(%rsp),%rsi	/* save getcontext return address */
 	mov	$SYS_getcontext,%rax
 	KERNCALL
-	jb	1f
+	jb	HIDENAME(cerror)
 	addq	$8,%rsp		/* remove stale (setcontext) return address */
 	jmp	*%rsi		/* restore return address */
-1:
-#ifdef PIC
-	movq	PIC_GOT(HIDENAME(cerror)),%rdx
-	jmp	*%rdx
-#else
-	jmp	HIDENAME(cerror)
-#endif
 END(__sys_getcontext)
+
+	.section .note.GNU-stack,"",%progbits

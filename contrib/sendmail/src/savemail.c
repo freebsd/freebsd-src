@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003, 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003, 2006, 2012, 2013 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: savemail.c,v 8.313 2006/11/29 00:20:41 ca Exp $")
+SM_RCSID("@(#)$Id: savemail.c,v 8.319 2013-11-22 20:51:56 ca Exp $")
 
 static bool	errbody __P((MCI *, ENVELOPE *, char *));
 static bool	pruneroute __P((char *));
@@ -204,7 +204,7 @@ savemail(e, sendbody)
 				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 						     "Transcript follows:\r\n");
 				while (sm_io_fgets(e->e_xfp, SM_TIME_DEFAULT,
-						   buf, sizeof(buf)) != NULL &&
+						   buf, sizeof(buf)) >= 0 &&
 				       !sm_io_error(smioout))
 					(void) sm_io_fputs(smioout,
 							   SM_TIME_DEFAULT,
@@ -506,6 +506,7 @@ returntosender(msg, returnq, flags, e)
 	int flags;
 	register ENVELOPE *e;
 {
+	int ret;
 	register ENVELOPE *ee;
 	ENVELOPE *oldcur = CurEnv;
 	ENVELOPE errenvelope;
@@ -580,6 +581,10 @@ returntosender(msg, returnq, flags, e)
 	else
 		ee->e_flags |= EF_NO_BODY_RETN;
 
+#if _FFR_BOUNCE_QUEUE
+	if (BounceQueue != NOQGRP)
+		ee->e_qgrp = ee->e_dfqgrp = BounceQueue;
+#endif /* _FFR_BOUNCE_QUEUE */
 	if (!setnewqueue(ee))
 	{
 		syserr("554 5.3.0 returntosender: cannot select queue for %s",
@@ -701,26 +706,44 @@ returntosender(msg, returnq, flags, e)
 	/* mark statistics */
 	markstats(ee, NULLADDR, STATS_NORMAL);
 
-	/* actually deliver the error message */
-	sendall(ee, SM_DELIVER);
+#if _FFR_BOUNCE_QUEUE
+	if (BounceQueue == NOQGRP)
+	{
+#endif
+		/* actually deliver the error message */
+		sendall(ee, SM_DELIVER);
+#if _FFR_BOUNCE_QUEUE
+	}
+#endif
+	(void) dropenvelope(ee, true, false);
+
+	/* check for delivery errors */
+	ret = -1;
+	if (ee->e_parent == NULL ||
+	    !bitset(EF_RESPONSE, ee->e_parent->e_flags))
+	{
+		ret = 0;
+	}
+	else
+	{
+		for (q = ee->e_sendqueue; q != NULL; q = q->q_next)
+		{
+			if (QS_IS_ATTEMPTED(q->q_state))
+			{
+				ret = 0;
+				break;
+			}
+		}
+	}
 
 	/* restore state */
-	dropenvelope(ee, true, false);
 	sm_rpool_free(ee->e_rpool);
 	CurEnv = oldcur;
 	returndepth--;
 
-	/* check for delivery errors */
-	if (ee->e_parent == NULL ||
-	    !bitset(EF_RESPONSE, ee->e_parent->e_flags))
-		return 0;
-	for (q = ee->e_sendqueue; q != NULL; q = q->q_next)
-	{
-		if (QS_IS_ATTEMPTED(q->q_state))
-			return 0;
-	}
-	return -1;
+	return ret;
 }
+
 /*
 **  ERRBODY -- output the body of an error message.
 **
@@ -854,7 +877,7 @@ errbody(mci, e, separator)
 			if (xfile != NULL)
 			{
 				while (sm_io_fgets(xfile, SM_TIME_DEFAULT, buf,
-						   sizeof(buf)) != NULL)
+						   sizeof(buf)) >= 0)
 				{
 					int lbs;
 					bool putok;
@@ -1030,18 +1053,20 @@ errbody(mci, e, separator)
 	}
 	else
 	{
+		int blen;
+
 		printheader = true;
 		(void) bfrewind(e->e_parent->e_xfp);
 		if (e->e_xfp != NULL)
 			(void) sm_io_flush(e->e_xfp, SM_TIME_DEFAULT);
-		while (sm_io_fgets(e->e_parent->e_xfp, SM_TIME_DEFAULT, buf,
-				   sizeof(buf)) != NULL)
+		while ((blen = sm_io_fgets(e->e_parent->e_xfp, SM_TIME_DEFAULT,
+					buf, sizeof(buf))) >= 0)
 		{
 			if (printheader && !putline("   ----- Transcript of session follows -----\n",
 						mci))
 				goto writeerr;
 			printheader = false;
-			if (!putline(buf, mci))
+			if (!putxline(buf, blen, mci, PXLF_MAPFROM))
 				goto writeerr;
 		}
 	}
@@ -1162,11 +1187,24 @@ errbody(mci, e, separator)
 			/* Original-Recipient: -- passed from on high */
 			if (q->q_orcpt != NULL)
 			{
-				(void) sm_snprintf(buf, sizeof(buf),
-						"Original-Recipient: %.800s",
-						q->q_orcpt);
-				if (!putline(buf, mci))
-					goto writeerr;
+				p = strchr(q->q_orcpt, ';');
+
+				/*
+				**  p == NULL shouldn't happen due to
+				**  check in srvrsmtp.c
+				**  we could log an error in this case.
+				*/
+
+				if (p != NULL)
+				{
+					*p = '\0';
+					(void) sm_snprintf(buf, sizeof(buf),
+						"Original-Recipient: %.100s;%.700s",
+						q->q_orcpt, xuntextify(p + 1));
+					*p = ';';
+					if (!putline(buf, mci))
+						goto writeerr;
+				}
 			}
 
 			/* Figure out actual recipient */
@@ -1666,6 +1704,34 @@ xtextok(s)
 				return false;
 		}
 		else if (c < '!' || c > '~' || c == '=')
+			return false;
+	}
+	return true;
+}
+
+/*
+**  ISATOM -- check if a string is an "atom"
+**
+**	Parameters:
+**		s -- the string to check.
+**
+**	Returns:
+**		true -- iff s is an atom
+*/
+
+bool
+isatom(s)
+	const char *s;
+{
+	int c;
+
+	if (s == NULL || *s == '\0')
+		return false;
+	while ((c = *s++) != '\0')
+	{
+		if (strchr("()<>@,;:\\.[]\"", c) != NULL)
+			return false;
+		if (c < '!' || c > '~')
 			return false;
 	}
 	return true;

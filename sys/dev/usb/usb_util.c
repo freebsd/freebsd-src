@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -32,7 +35,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -57,31 +59,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
-
-/*------------------------------------------------------------------------*
- * device_delete_all_children - delete all children of a device
- *------------------------------------------------------------------------*/
-#ifndef device_delete_all_children
-int
-device_delete_all_children(device_t dev)
-{
-	device_t *devlist;
-	int devcount;
-	int error;
-
-	error = device_get_children(dev, &devlist, &devcount);
-	if (error == 0) {
-		while (devcount-- > 0) {
-			error = device_delete_child(dev, devlist[devcount]);
-			if (error) {
-				break;
-			}
-		}
-		free(devlist, M_TEMP);
-	}
-	return (error);
-}
-#endif
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 /*------------------------------------------------------------------------*
  *	device_set_usb_desc
@@ -97,6 +75,7 @@ device_set_usb_desc(device_t dev)
 	struct usb_interface *iface;
 	char *temp_p;
 	usb_error_t err;
+	uint8_t do_unlock;
 
 	if (dev == NULL) {
 		/* should not happen */
@@ -118,19 +97,26 @@ device_set_usb_desc(device_t dev)
 		err = 0;
 	}
 
-	temp_p = (char *)udev->bus->scratch[0].data;
+	/* Protect scratch area */
+	do_unlock = usbd_ctrl_lock(udev);
 
-	if (!err) {
+	temp_p = (char *)udev->scratch.data;
+
+	if (err == 0) {
 		/* try to get the interface string ! */
-		err = usbd_req_get_string_any
-		    (udev, NULL, temp_p,
-		    sizeof(udev->bus->scratch), iface->idesc->iInterface);
+		err = usbd_req_get_string_any(udev, NULL, temp_p,
+		    sizeof(udev->scratch.data),
+		    iface->idesc->iInterface);
 	}
-	if (err) {
+	if (err != 0) {
 		/* use default description */
 		usb_devinfo(udev, temp_p,
-		    sizeof(udev->bus->scratch));
+		    sizeof(udev->scratch.data));
 	}
+
+	if (do_unlock)
+		usbd_ctrl_unlock(udev);
+
 	device_set_desc_copy(dev, temp_p);
 	device_printf(dev, "<%s> on %s\n", temp_p,
 	    device_get_nameunit(udev->bus->bdev));
@@ -141,33 +127,21 @@ device_set_usb_desc(device_t dev)
  *
  * This function will delay the code by the passed number of system
  * ticks. The passed mutex "mtx" will be dropped while waiting, if
- * "mtx" is not NULL.
+ * "mtx" is different from NULL.
  *------------------------------------------------------------------------*/
 void
-usb_pause_mtx(struct mtx *mtx, int _ticks)
+usb_pause_mtx(struct mtx *mtx, int timo)
 {
 	if (mtx != NULL)
 		mtx_unlock(mtx);
 
-	if (cold) {
-		/* convert to milliseconds */
-		_ticks = (_ticks * 1000) / hz;
-		/* convert to microseconds, rounded up */
-		_ticks = (_ticks + 1) * 1000;
-		DELAY(_ticks);
+	/*
+	 * Add one tick to the timeout so that we don't return too
+	 * early! Note that pause() will assert that the passed
+	 * timeout is positive and non-zero!
+	 */
+	pause("USBWAIT", timo + 1);
 
-	} else {
-
-		/*
-		 * Add one to the number of ticks so that we don't return
-		 * too early!
-		 */
-		_ticks++;
-
-		if (pause("USBWAIT", _ticks)) {
-			/* ignore */
-		}
-	}
 	if (mtx != NULL)
 		mtx_lock(mtx);
 }

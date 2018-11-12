@@ -12,10 +12,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -35,9 +31,9 @@
 .\"     From: @(#)comm.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2005
-.Os
+.Dd December 12, 2009
 .Dt COMM 1
+.Os
 .Sh NAME
 .Nm comm
 .Nd select or reject lines common to two files
@@ -65,11 +61,13 @@ The filename ``-'' means the standard input.
 The following options are available:
 .Bl -tag -width indent
 .It Fl 1
-Suppress printing of column 1.
+Suppress printing of column 1, lines only in
+.Ar file1 .
 .It Fl 2
-Suppress printing of column 2.
+Suppress printing of column 2, lines only in
+.Ar file2 .
 .It Fl 3
-Suppress printing of column 3.
+Suppress printing of column 3, lines common to both.
 .It Fl i
 Case insensitive comparison of lines.
 .El
@@ -118,7 +116,3 @@ A
 .Nm
 command appeared in
 .At v4 .
-.Sh BUGS
-Input lines are limited to
-.Dv LINE_MAX
-(2048) characters in length.

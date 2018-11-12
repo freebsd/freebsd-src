@@ -51,7 +51,7 @@ pci_hostb_probe(device_t dev)
 
 	switch (id) {
 
-	/* VIA VT82C596 Power Managment Function */
+	/* VIA VT82C596 Power Management Function */
 	case 0x30501106:
 		return (ENXIO);
 
@@ -78,7 +78,7 @@ pci_hostb_attach(device_t dev)
 	 * If AGP capabilities are present on this device, then create
 	 * an AGP child.
 	 */
-	if (pci_find_extcap(dev, PCIY_AGP, NULL) == 0)
+	if (pci_find_cap(dev, PCIY_AGP, NULL) == 0)
 		device_add_child(dev, "agp", -1);
 	bus_generic_attach(dev);
 	return (0);
@@ -102,7 +102,7 @@ pci_hostb_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 
 static struct resource *
 pci_hostb_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 
 	return (bus_alloc_resource(dev, type, rid, start, end, count, flags));
@@ -197,11 +197,27 @@ pci_hostb_assign_interrupt(device_t dev, device_t child)
 }
 
 static int
+pci_hostb_find_cap(device_t dev, device_t child, int capability,
+    int *capreg)
+{
+
+	return (pci_find_cap(dev, capability, capreg));
+}
+
+static int
 pci_hostb_find_extcap(device_t dev, device_t child, int capability,
     int *capreg)
 {
 
 	return (pci_find_extcap(dev, capability, capreg));
+}
+
+static int
+pci_hostb_find_htcap(device_t dev, device_t child, int capability,
+    int *capreg)
+{
+
+	return (pci_find_htcap(dev, capability, capreg));
 }
 
 static device_method_t pci_hostb_methods[] = {
@@ -233,7 +249,9 @@ static device_method_t pci_hostb_methods[] = {
 	DEVMETHOD(pci_get_powerstate,	pci_hostb_get_powerstate),
 	DEVMETHOD(pci_set_powerstate,	pci_hostb_set_powerstate),
 	DEVMETHOD(pci_assign_interrupt,	pci_hostb_assign_interrupt),
+	DEVMETHOD(pci_find_cap,		pci_hostb_find_cap),
 	DEVMETHOD(pci_find_extcap,	pci_hostb_find_extcap),
+	DEVMETHOD(pci_find_htcap,	pci_hostb_find_htcap),
 
 	{ 0, 0 }
 };

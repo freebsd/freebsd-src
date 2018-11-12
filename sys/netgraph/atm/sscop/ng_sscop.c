@@ -246,8 +246,7 @@ ng_sscop_constructor(node_p node)
 {
 	struct priv *p;
 
-	if ((p = malloc(sizeof(*p), M_NG_SSCOP, M_NOWAIT | M_ZERO)) == NULL)
-		return (ENOMEM);
+	p = malloc(sizeof(*p), M_NG_SSCOP, M_WAITOK | M_ZERO);
 
 	if ((p->sscop = sscop_create(node, &sscop_funcs)) == NULL) {
 		free(p, M_NG_SSCOP);
@@ -862,10 +861,8 @@ sscop_send_manage(struct sscop *sscop, void *p, enum sscop_maasig sig,
 static int
 ng_sscop_mod_event(module_t mod, int event, void *data)
 {
-	int s;
 	int error = 0;
 
-	s = splnet();
 	switch (event) {
 
 	  case MOD_LOAD:
@@ -878,6 +875,5 @@ ng_sscop_mod_event(module_t mod, int event, void *data)
 		error = EOPNOTSUPP;
 		break;
 	}
-	splx(s);
 	return (error);
 }

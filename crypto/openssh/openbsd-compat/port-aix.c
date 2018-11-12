@@ -86,7 +86,7 @@ aix_usrinfo(struct passwd *pw)
 		fatal("Couldn't set usrinfo: %s", strerror(errno));
 	debug3("AIX/UsrInfo: set len %d", i);
 
-	xfree(cp);
+	free(cp);
 }
 
 # ifdef WITH_AIXAUTHENTICATE
@@ -215,16 +215,14 @@ sys_auth_passwd(Authctxt *ctxt, const char *password)
 		default: /* user can't change(2) or other error (-1) */
 			logit("Password can't be changed for user %s: %.100s",
 			    name, msg);
-			if (msg)
-				xfree(msg);
+			free(msg);
 			authsuccess = 0;
 		}
 
 		aix_restoreauthdb();
 	}
 
-	if (authmsg != NULL)
-		xfree(authmsg);
+	free(authmsg);
 
 	return authsuccess;
 }
@@ -269,7 +267,7 @@ sys_auth_allowed_user(struct passwd *pw, Buffer *loginmsg)
 
 	if (!permitted)
 		logit("Login restricted for %s: %.100s", pw->pw_name, msg);
-	xfree(msg);
+	free(msg);
 	return permitted;
 }
 
@@ -373,6 +371,31 @@ aix_restoreauthdb(void)
 }
 
 # endif /* WITH_AIXAUTHENTICATE */
+
+# ifdef USE_AIX_KRB_NAME
+/*
+ * aix_krb5_get_principal_name: returns the user's kerberos client principal name if
+ * configured, otherwise NULL.  Caller must free returned string.
+ */
+char *
+aix_krb5_get_principal_name(char *pw_name)
+{
+	char *authname = NULL, *authdomain = NULL, *principal = NULL;
+
+	setuserdb(S_READ);
+	if (getuserattr(pw_name, S_AUTHDOMAIN, &authdomain, SEC_CHAR) != 0)
+		debug("AIX getuserattr S_AUTHDOMAIN: %s", strerror(errno));
+	if (getuserattr(pw_name, S_AUTHNAME, &authname, SEC_CHAR) != 0)
+		debug("AIX getuserattr S_AUTHNAME: %s", strerror(errno));
+
+	if (authdomain != NULL)
+		xasprintf(&principal, "%s@%s", authname ? authname : pw_name, authdomain);
+	else if (authname != NULL)
+		principal = xstrdup(authname);
+	enduserdb();
+	return principal;
+}
+# endif /* USE_AIX_KRB_NAME */
 
 # if defined(AIX_GETNAMEINFO_HACK) && !defined(BROKEN_ADDRINFO)
 # undef getnameinfo

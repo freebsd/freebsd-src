@@ -42,40 +42,49 @@ LIST_HEAD(nfsclienthashhead, nfsclient);
 LIST_HEAD(nfsstatehead, nfsstate);
 LIST_HEAD(nfslockhead, nfslock);
 LIST_HEAD(nfslockhashhead, nfslockfile);
+LIST_HEAD(nfssessionhead, nfsdsession);
+LIST_HEAD(nfssessionhashhead, nfsdsession);
 
 /*
  * List head for nfsusrgrp.
  */
-LIST_HEAD(nfsuserhashhead, nfsusrgrp);
-TAILQ_HEAD(nfsuserlruhead, nfsusrgrp);
+TAILQ_HEAD(nfsuserhashhead, nfsusrgrp);
 
 #define	NFSCLIENTHASH(id)						\
-	(&nfsclienthash[(id).lval[1] % NFSCLIENTHASHSIZE])
+	(&nfsclienthash[(id).lval[1] % nfsrv_clienthashsize])
 #define	NFSSTATEHASH(clp, id)						\
-	(&((clp)->lc_stateid[(id).other[2] % NFSSTATEHASHSIZE]))
+	(&((clp)->lc_stateid[(id).other[2] % nfsrv_statehashsize]))
 #define	NFSUSERHASH(id)							\
-	(&nfsuserhash[(id) % NFSUSERHASHSIZE])
+	(&nfsuserhash[(id) % nfsrv_lughashsize])
 #define	NFSUSERNAMEHASH(p, l)						\
 	(&nfsusernamehash[((l)>=4?(*(p)+*((p)+1)+*((p)+2)+*((p)+3)):*(p)) \
-		% NFSUSERHASHSIZE])
+		% nfsrv_lughashsize])
 #define	NFSGROUPHASH(id)						\
-	(&nfsgrouphash[(id) % NFSGROUPHASHSIZE])
+	(&nfsgrouphash[(id) % nfsrv_lughashsize])
 #define	NFSGROUPNAMEHASH(p, l)						\
 	(&nfsgroupnamehash[((l)>=4?(*(p)+*((p)+1)+*((p)+2)+*((p)+3)):*(p)) \
-		% NFSGROUPHASHSIZE])
+		% nfsrv_lughashsize])
+
+struct nfssessionhash {
+	struct mtx			mtx;
+	struct nfssessionhashhead	list;
+};
+#define	NFSSESSIONHASH(f) 						\
+	(&nfssessionhash[nfsrv_hashsessionid(f) % nfsrv_sessionhashsize])
 
 /*
  * Client server structure for V4. It is doubly linked into two lists.
  * The first is a hash table based on the clientid and the second is a
  * list of all clients maintained in LRU order.
- * The actual size malloc'd is large enough to accomodate the id string.
+ * The actual size malloc'd is large enough to accommodate the id string.
  */
 struct nfsclient {
 	LIST_ENTRY(nfsclient) lc_hash;		/* Clientid hash list */
-	struct nfsstatehead lc_stateid[NFSSTATEHASHSIZE]; /* stateid hash */
+	struct nfsstatehead *lc_stateid;	/* Stateid hash */
 	struct nfsstatehead lc_open;		/* Open owner list */
 	struct nfsstatehead lc_deleg;		/* Delegations */
 	struct nfsstatehead lc_olddeleg;	/* and old delegations */
+	struct nfssessionhead lc_session;	/* List of NFSv4.1 sessions */
 	time_t		lc_expiry;		/* Expiry time (sec) */
 	time_t		lc_delegtime;		/* Old deleg expiry (sec) */
 	nfsquad_t	lc_clientid;		/* 64 bit clientid */
@@ -87,10 +96,10 @@ struct nfsclient {
 	u_int32_t	lc_cbref;		/* Cnt of callbacks */
 	uid_t		lc_uid;			/* User credential */
 	gid_t		lc_gid;
-	u_int16_t	lc_namelen;
+	u_int16_t	lc_idlen;		/* Client ID and len */
+	u_int16_t	lc_namelen;		/* plus GSS principal and len */
 	u_char		*lc_name;
 	struct nfssockreq lc_req;		/* Callback info */
-	u_short		lc_idlen;		/* Length of id string */
 	u_int32_t	lc_flags;		/* LCL_ flag bits */
 	u_char		lc_verf[NFSX_VERF];	 /* client verifier */
 	u_char		lc_id[1];		/* Malloc'd correct size */
@@ -99,6 +108,43 @@ struct nfsclient {
 #define	CLOPS_CONFIRM		0x0001
 #define	CLOPS_RENEW		0x0002
 #define	CLOPS_RENEWOP		0x0004
+
+/*
+ * Structure for an NFSv4.1 session.
+ * Locking rules for this structure.
+ * To add/delete one of these structures from the lists, you must lock
+ * both: NFSLOCKSTATE() and NFSLOCKSESSION(session hashhead) in that order.
+ * To traverse the lists looking for one of these, you must hold one
+ * of these two locks.
+ * The exception is if the thread holds the exclusive root sleep lock.
+ * In this case, all other nfsd threads are blocked, so locking the
+ * mutexes isn't required.
+ * When manipulating sess_refcnt, NFSLOCKSTATE() must be locked.
+ * When manipulating the fields withinsess_cbsess except nfsess_xprt,
+ * sess_cbsess.nfsess_mtx must be locked.
+ * When manipulating sess_slots and sess_cbsess.nfsess_xprt,
+ * NFSLOCKSESSION(session hashhead) must be locked.
+ */
+struct nfsdsession {
+	uint64_t		sess_refcnt;	/* Reference count. */
+	LIST_ENTRY(nfsdsession)	sess_hash;	/* Hash list of sessions. */
+	LIST_ENTRY(nfsdsession)	sess_list;	/* List of client sessions. */
+	struct nfsslot		sess_slots[NFSV4_SLOTS];
+	struct nfsclient	*sess_clp;	/* Associated clientid. */
+	uint32_t		sess_crflags;
+	uint32_t		sess_cbprogram;
+	uint32_t		sess_maxreq;
+	uint32_t		sess_maxresp;
+	uint32_t		sess_maxrespcached;
+	uint32_t		sess_maxops;
+	uint32_t		sess_maxslots;
+	uint32_t		sess_cbmaxreq;
+	uint32_t		sess_cbmaxresp;
+	uint32_t		sess_cbmaxrespcached;
+	uint32_t		sess_cbmaxops;
+	uint8_t			sess_sessionid[NFSX_V4SESSIONID];
+	struct nfsclsession	sess_cbsess;	/* Callback session. */
+};
 
 /*
  * Nfs state structure. I couldn't resist overloading this one, since
@@ -185,6 +231,17 @@ struct nfslockconflict {
 };
 
 /*
+ * This structure is used to keep track of local locks that might need
+ * to be rolled back.
+ */
+struct nfsrollback {
+	LIST_ENTRY(nfsrollback)	rlck_list;
+	uint64_t		rlck_first;
+	uint64_t		rlck_end;
+	int			rlck_type;
+};
+
+/*
  * This structure refers to a file for which lock(s) and/or open(s) exist.
  * Searched via hash table on file handle or found via the back pointer from an
  * open or lock owner.
@@ -193,8 +250,12 @@ struct nfslockfile {
 	LIST_HEAD(, nfsstate)	lf_open;	/* Open list */
 	LIST_HEAD(, nfsstate)	lf_deleg;	/* Delegation list */
 	LIST_HEAD(, nfslock)	lf_lock;	/* Lock list */
+	LIST_HEAD(, nfslock)	lf_locallock;	/* Local lock list */
+	LIST_HEAD(, nfsrollback) lf_rollback;	/* Local lock rollback list */
 	LIST_ENTRY(nfslockfile)	lf_hash;	/* Hash list entry */
 	fhandle_t		lf_fh;		/* The file handle */
+	struct nfsv4lock	lf_locallock_lck; /* serialize local locking */
+	int			lf_usecount;	/* Ref count for locking */
 };
 
 /*
@@ -202,14 +263,14 @@ struct nfslockfile {
  * names.
  */
 struct nfsusrgrp {
-	TAILQ_ENTRY(nfsusrgrp)	lug_lru;	/* LRU list */
-	LIST_ENTRY(nfsusrgrp)	lug_numhash;	/* Hash by id# */
-	LIST_ENTRY(nfsusrgrp)	lug_namehash;	/* and by name */
+	TAILQ_ENTRY(nfsusrgrp)	lug_numhash;	/* Hash by id# */
+	TAILQ_ENTRY(nfsusrgrp)	lug_namehash;	/* and by name */
 	time_t			lug_expiry;	/* Expiry time in sec */
 	union {
 		uid_t		un_uid;		/* id# */
 		gid_t		un_gid;
 	} lug_un;
+	struct ucred		*lug_cred;	/* Cred. with groups list */
 	int			lug_namelen;	/* Name length */
 	u_char			lug_name[1];	/* malloc'd correct length */
 };

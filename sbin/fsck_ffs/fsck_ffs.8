@@ -29,7 +29,7 @@
 .\"	@(#)fsck.8	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2009
+.Dd July 30, 2013
 .Dt FSCK_FFS 8
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd file system consistency check and interactive repair
 .Sh SYNOPSIS
 .Nm
-.Op Fl BFprfny
+.Op Fl BEFfnpRryZ
 .Op Fl b Ar block
 .Op Fl c Ar level
 .Op Fl m Ar mode
@@ -139,6 +139,34 @@ action.
 The following flags are interpreted by
 .Nm :
 .Bl -tag -width indent
+.It Fl B
+A check is done on the specified and possibly active file system.
+The set of corrections that can be done is limited to those done
+when running in preen mode (see the
+.Fl p
+flag).
+If unexpected errors are found,
+the file system is marked as needing a foreground check and
+.Nm
+exits without attempting any further cleaning.
+.It Fl E
+Clear unallocated blocks, notifying the underlying device that they
+are not used and that their contents may be discarded.
+This is useful for filesystems which have been mounted on systems
+without TRIM support, or with TRIM support disabled, as well as
+filesystems which have been copied from one device to another.
+.Pp
+See the
+.Fl E
+and
+.Fl t
+flags of
+.Xr newfs 8 ,
+and
+the
+.Fl t
+flag of
+.Xr tunefs 8 .
 .It Fl F
 Determine whether the file system needs to be cleaned immediately
 in foreground, or if its cleaning can be deferred to background.
@@ -160,26 +188,21 @@ The only thing that
 .Nm
 does is to determine whether a foreground or background
 check is needed and exit with an appropriate status code.
-.It Fl B
-A check is done on the specified and possibly active file system.
-The set of corrections that can be done is limited to those done
-when running in preen mode (see the
-.Fl p
-flag).
-If unexpected errors are found,
-the file system is marked as needing a foreground check and
-.Nm
-exits without attempting any further cleaning.
 .It Fl b
 Use the block specified immediately after the flag as
 the super block for the file system.
 An alternate super block is usually located at block 32 for UFS1,
 and block 160 for UFS2.
+.Pp
+See the
+.Fl N
+flag of
+.Xr newfs 8 .
 .It Fl C
-Check if file system was dismouted cleanly.
+Check if file system was dismounted cleanly.
 If so, skip file system checks (like "preen").
 However, if the file system was not cleanly dismounted, do full checks,
-is if
+as if
 .Nm
 was invoked without
 .Fl C .
@@ -243,6 +266,11 @@ which is assumed to be affirmative;
 do not open the file system for writing.
 .It Fl p
 Preen file systems (see above).
+.It Fl R
+Instruct fsck_ffs to restart itself if it encounters certain errors that
+warrant another run.  It will limit itself to a maximum of 10 restarts
+in a given run in order to avoid an endless loop with extremely corrupted
+filesystems.
 .It Fl r
 Free up excess unused inodes.
 Decreasing the number of preallocated inodes reduces the
@@ -252,11 +280,25 @@ and frees up space that can allocated to files.
 The
 .Fl r
 option is ignored when running in preen mode.
+.It Fl S
+Surrender on error.
+With this flag enabled, a hard error returned on disk i/o will cause
+.Nm
+to abort instead of continuing on and possibly tripping over more i/o errors.
 .It Fl y
 Assume a yes response to all questions asked by
 .Nm ;
 this should be used with great caution as this is a free license
 to continue after essentially unlimited trouble has been encountered.
+.It Fl Z
+Similar to
+.Fl E ,
+but overwrites unused blocks with zeroes.
+If both
+.Fl E
+and
+.Fl Z
+are specified, blocks are first zeroed and then erased.
 .El
 .Pp
 Inconsistencies checked are as follows:
@@ -315,6 +357,15 @@ If the
 .Pa lost+found
 directory does not exist, it is created.
 If there is insufficient space its size is increased.
+.Pp
+The full foreground
+.Nm
+checks for many more problems that may occur after an
+unrecoverable disk write error.
+Thus, it is recommended that you perform foreground
+.Nm
+on your systems periodically and whenever you encounter
+unrecoverable disk write errors or file-system\-related panics.
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
 .It Pa /etc/fstab

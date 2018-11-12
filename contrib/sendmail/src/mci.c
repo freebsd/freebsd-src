@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2005, 2010 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: mci.c,v 8.221 2007/11/13 23:44:25 gshapiro Exp $")
+SM_RCSID("@(#)$Id: mci.c,v 8.225 2013-11-22 20:51:56 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -288,6 +288,32 @@ mci_flush(doquit, allbut)
 			mci_uncache(&MciCache[i], doquit);
 	}
 }
+
+/*
+**  MCI_CLR_EXTENSIONS -- clear knowledge about SMTP extensions
+**
+**	Parameters:
+**		mci -- the connection to clear.
+**
+**	Returns:
+**		none.
+*/
+
+void
+mci_clr_extensions(mci)
+	MCI *mci;
+{
+	if (mci == NULL)
+		return;
+
+	mci->mci_flags &= ~MCIF_EXTENS;
+	mci->mci_maxsize = 0;
+	mci->mci_min_by = 0;
+#if SASL
+	mci->mci_saslcap = NULL;
+#endif /* SASL */
+}
+
 /*
 **  MCI_GET -- get information about a particular host
 **
@@ -326,6 +352,7 @@ mci_get(host, m)
 #if PIPELINING
 	mci->mci_okrcpts = 0;
 #endif /* PIPELINING */
+	mci->mci_flags &= ~MCIF_NOTSTICKY;
 
 	if (mci->mci_rpool == NULL)
 		mci->mci_rpool = sm_rpool_new_x(NULL);
@@ -567,6 +594,7 @@ static struct mcifbits	MciFlags[] =
 	{ MCIF_CVT7TO8,		"CVT7TO8"	},
 	{ MCIF_INMIME,		"INMIME"	},
 	{ MCIF_AUTH,		"AUTH"		},
+	{ MCIF_AUTH2,		"AUTH2"		},
 	{ MCIF_AUTHACT,		"AUTHACT"	},
 	{ MCIF_ENHSTAT,		"ENHSTAT"	},
 	{ MCIF_PIPELINED,	"PIPELINED"	},
@@ -945,7 +973,7 @@ mci_read_persistent(fp, mci)
 	sm_io_rewind(fp, SM_TIME_DEFAULT);
 	ver = -1;
 	LineNumber = 0;
-	while (sm_io_fgets(fp, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+	while (sm_io_fgets(fp, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 		LineNumber++;
 		p = strchr(buf, '\n');

@@ -1,38 +1,48 @@
 # $FreeBSD$
 
+SYSDIR?=${.CURDIR}/../..
+
 KMOD=	zfs
 
-SRCS=	vnode_if.h
+SRCS=	bus_if.h device_if.h vnode_if.h opt_kstack_pages.h
 
-SUNW=	${.CURDIR}/../../cddl/contrib/opensolaris
+SUNW=	${SYSDIR}/cddl/contrib/opensolaris
 
 .PATH:	${SUNW}/common/acl
 SRCS+=	acl_common.c
 .PATH:	${SUNW}/common/avl
 SRCS+=	avl.c
 .PATH:	${SUNW}/common/nvpair
-SRCS+=	nvpair.c
-.PATH:	${.CURDIR}/../../cddl/contrib/opensolaris/common/unicode
+SRCS+=	opensolaris_nvpair.c
+SRCS+=	opensolaris_nvpair_alloc_fixed.c
+SRCS+=	opensolaris_fnvpair.c
+.PATH:	${SYSDIR}/cddl/contrib/opensolaris/common/unicode
 SRCS+=	u8_textprep.c
 
-.PATH:	${.CURDIR}/../../cddl/compat/opensolaris/kern
+.PATH:	${SYSDIR}/cddl/compat/opensolaris/kern
 SRCS+=	opensolaris_acl.c
-SRCS+=	opensolaris_kmem.c
+SRCS+=	opensolaris_dtrace.c
 SRCS+=	opensolaris_kobj.c
 SRCS+=	opensolaris_kstat.c
 SRCS+=	opensolaris_lookup.c
 SRCS+=	opensolaris_policy.c
 SRCS+=	opensolaris_string.c
+SRCS+=	opensolaris_sysevent.c
 SRCS+=	opensolaris_taskq.c
+SRCS+=	opensolaris_uio.c
 SRCS+=	opensolaris_vfs.c
+SRCS+=	opensolaris_vm.c
 SRCS+=	opensolaris_zone.c
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "sparc64"
-.PATH:	${SUNW}/common/atomic/${MACHINE_ARCH}
-SRCS+=	opensolaris_atomic.S
+_A=${SYSDIR}/cddl/contrib/opensolaris/common/atomic
+.if exists(${_A}/${MACHINE_CPUARCH}/opensolaris_atomic.S)
+.PATH:	${_A}/${MACHINE_CPUARCH}
+SRCS+=		opensolaris_atomic.S
+.elif exists(${_A}/${MACHINE_ARCH}/opensolaris_atomic.S)
+.PATH:	${_A}/${MACHINE_ARCH}
+SRCS+=		opensolaris_atomic.S
 .else
-.PATH:	${.CURDIR}/../../cddl/compat/opensolaris/kern
-SRCS+=	opensolaris_atomic.c
+SRCS+=		opensolaris_atomic.c
 .endif
 
 .PATH:	${SUNW}/uts/common/fs
@@ -41,6 +51,7 @@ SRCS+=	vnode.c
 
 .PATH:	${SUNW}/uts/common/os
 SRCS+=	callb.c
+SRCS+=	fm.c
 SRCS+=	list.c
 SRCS+=	nvpair_alloc_system.c
 
@@ -56,35 +67,45 @@ SRCS+=	zmod.c
 SRCS+=	zmod_subr.c
 SRCS+=	zutil.c
 
+.PATH:	${SYSDIR}/crypto/sha2
+SRCS+=	sha256c.c sha512c.c
+
+.PATH:	${SYSDIR}/crypto/skein
+SRCS+=	skein.c skein_block.c
+
 .PATH:	${SUNW}/common/zfs
 .include "${SUNW}/uts/common/Makefile.files"
 .PATH:	${SUNW}/uts/common/fs/zfs
 ZFS_SRCS=	${ZFS_OBJS:C/.o$/.c/}
 SRCS+=	${ZFS_SRCS}
 SRCS+=	vdev_geom.c
-
-# Use UMA for ZIO allocation. This is not stable.
-#CFLAGS+=-DZIO_USE_UMA
+SRCS+=	trim_map.c
 
 # Use FreeBSD's namecache.
 CFLAGS+=-DFREEBSD_NAMECACHE
 
-CFLAGS+=-I${.CURDIR}/../../cddl/compat/opensolaris
+CFLAGS+=-I${SYSDIR}/cddl/compat/opensolaris
 CFLAGS+=-I${SUNW}/uts/common/fs/zfs
 CFLAGS+=-I${SUNW}/uts/common/zmod
 CFLAGS+=-I${SUNW}/uts/common
-CFLAGS+=-I${.CURDIR}/../..
+CFLAGS+=-I${SYSDIR}
 CFLAGS+=-I${SUNW}/common/zfs
 CFLAGS+=-I${SUNW}/common
-CFLAGS+=-I${.CURDIR}/../../../include
 CFLAGS+=-DBUILDING_ZFS
 
-#CFLAGS+=-DDEBUG=1
-#DEBUG_FLAGS=-g
+.if ${MACHINE_ARCH} == "powerpc64"
+CFLAGS+=-mminimal-toc
+.endif
+
+.ifdef ZFS_DEBUG
+CFLAGS+=-DDEBUG=1
+DEBUG_FLAGS=-g
+.endif
 
 .include <bsd.kmod.mk>
 
-CWARNFLAGS+=-Wno-unknown-pragmas
+CFLAGS+=	-include ${SYSDIR}/cddl/compat/opensolaris/sys/debug_compat.h
+
 CWARNFLAGS+=-Wno-missing-prototypes
 CWARNFLAGS+=-Wno-undef
 CWARNFLAGS+=-Wno-strict-prototypes

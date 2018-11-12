@@ -1,12 +1,10 @@
-/* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 #define NEWBOT 1
@@ -297,6 +295,15 @@ struct scrpos
 	int ln;
 };
 
+/*
+ * A mark is an ifile (input file) plus a position within the file.
+ */
+struct mark 
+{
+	IFILE m_ifile;
+	struct scrpos m_scrpos;
+};
+
 typedef union parg
 {
 	char *p_string;
@@ -310,6 +317,17 @@ struct textlist
 {
 	char *string;
 	char *endstring;
+};
+
+struct wchar_range
+{
+	LWCHAR first, last;
+};
+
+struct wchar_range_table 
+{
+	struct wchar_range *table;
+	int count;
 };
 
 #define	EOI		(-1)
@@ -345,6 +363,7 @@ struct textlist
 #define SRCH_FIRST_FILE (1 << 10) /* Search starting at the first file */
 #define SRCH_NO_REGEX   (1 << 12) /* Don't use regular expressions */
 #define SRCH_FILTER     (1 << 13) /* Search is for '&' (filter) command */
+#define SRCH_AFTER_TARGET (1 << 14) /* Start search after the target line */
 
 #define	SRCH_REVERSE(t)	(((t) & SRCH_FORW) ? \
 				(((t) & ~SRCH_FORW) | SRCH_BACK) : \
@@ -446,6 +465,7 @@ struct textlist
 
 #define	ESC		CONTROL('[')
 #define	CSI		((unsigned char)'\233')
+#define	CHAR_END_COMMAND 0x40000000
 
 #if _OSK_MWC32
 #define	LSIGNAL(sig,func)	os9_signal(sig,func)
@@ -474,6 +494,7 @@ struct textlist
 
 #define	QUIT_OK		0
 #define	QUIT_ERROR	1
+#define	QUIT_INTERRUPT	2
 #define	QUIT_SAVED_STATUS (-1)
 
 #define FOLLOW_DESC     0
@@ -484,16 +505,25 @@ struct textlist
 #define	CH_KEEPOPEN	002
 #define	CH_POPENED	004
 #define	CH_HELPFILE	010
+#define	CH_NODATA  	020	/* Special case for zero length files */
+
 
 #define	ch_zero()	((POSITION)0)
 
 #define	FAKE_HELPFILE	"@/\\less/\\help/\\file/\\@"
+#define FAKE_EMPTYFILE	"@/\\less/\\empty/\\file/\\@"
 
 /* Flags for cvt_text */
 #define	CVT_TO_LC	01	/* Convert upper-case to lower-case */
 #define	CVT_BS		02	/* Do backspace processing */
 #define	CVT_CRLF	04	/* Remove CR after LF */
 #define	CVT_ANSI	010	/* Remove ANSI escape sequences */
+
+#if HAVE_TIME_T
+#define time_type	time_t
+#else
+#define	time_type	long
+#endif
 
 #include "funcs.h"
 

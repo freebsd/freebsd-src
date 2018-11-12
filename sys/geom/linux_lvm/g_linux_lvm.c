@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/linux_lvm/g_linux_lvm.h>
 
+FEATURE(geom_linux_lvm, "GEOM Linux LVM partitioning support");
+
 /* Declare malloc(9) label */
 static MALLOC_DEFINE(M_GLLVM, "gllvm", "GEOM_LINUX_LVM Data");
 
@@ -77,8 +79,7 @@ SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, linux_lvm, CTLFLAG_RW, 0,
     "GEOM_LINUX_LVM stuff");
 static u_int g_llvm_debug = 0;
-TUNABLE_INT("kern.geom.linux_lvm.debug", &g_llvm_debug);
-SYSCTL_UINT(_kern_geom_linux_lvm, OID_AUTO, debug, CTLFLAG_RW, &g_llvm_debug, 0,
+SYSCTL_UINT(_kern_geom_linux_lvm, OID_AUTO, debug, CTLFLAG_RWTUN, &g_llvm_debug, 0,
     "Debug level");
 
 LIST_HEAD(, g_llvm_vg) vg_list;
@@ -332,7 +333,7 @@ g_llvm_remove_disk(struct g_llvm_vg *vg, struct g_consumer *cp)
 		if (found) {
 			G_LLVM_DEBUG(0, "Device %s removed.",
 			    lv->lv_gprov->name);
-			g_orphan_provider(lv->lv_gprov, ENXIO);
+			g_wither_provider(lv->lv_gprov, ENXIO);
 			lv->lv_gprov = NULL;
 		}
 	}

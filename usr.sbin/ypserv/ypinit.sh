@@ -14,8 +14,9 @@ MAPLIST="master.passwd.byname master.passwd.byuid passwd.byname passwd.byuid \
 	 group.byname group.bygid hosts.byname hosts.byaddr services.byname \
 	 rpc.byname rpc.bynumber networks.byname networks.byaddr netgroup \
 	 netgroup.byuser netgroup.byhost netid.byname publickey.byname \
-	 bootparams ethers.byname ethers.byaddr amd.host mail.aliases \
-	 ypservers protocols.byname protocols.bynumber netmasks.byaddr"
+	 bootparams ethers.byname ethers.byaddr eui64.byname eui64.byid \
+	 amd.host mail.aliases ypservers protocols.byname protocols.bynumber \
+	 netmasks.byaddr"
 
 ERROR_EXISTS="NO"
 umask 077
@@ -234,7 +235,7 @@ then
 
 	for MAP in ${YPMAPLIST}
 	do
-		echo "Transfering ${MAP}..."
+		echo "Transferring ${MAP}..."
 		if ! ${YPXFR} -p ${YP_DIR} -h ${MASTER} -c -d ${DOMAIN} ${MAP}; then
 			echo "Can't transfer map ${MAP}." 1>&2
 			ERROR_EXISTS="YES"
@@ -298,7 +299,7 @@ do
 		echo "Update the list of hosts running YP servers in domain ${DOMAIN}."
 		echo "Master for this domain is ${MASTER_NAME}."
 		echo ""
-		echo "First verify old servers, type \\ to remove a server."
+		echo "First verify old servers, type \\\\ to remove a server."
 		echo "Then add new servers, one per line. When done type a <control D>."
 		echo ""
 		echo "	master server   :  ${HOST}"

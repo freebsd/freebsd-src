@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2005
+.Dd February 21, 2016
 .Dt CONFIG 5
 .Os
 .Sh NAME
@@ -86,9 +86,9 @@ Directives are processed in order of appearance with subsequent
 directive lines overriding the effect of prior ones.
 .Pp
 The list of keywords and their meanings are as follows:
+.Pp
 .Bl -tag -width indent -compact
 .\" -------- CPU --------
-.Pp
 .It Ic cpu Ar cputype
 Specify the CPU this kernel will run on.
 There can be more than one
@@ -118,7 +118,8 @@ The kernel normally uses an environment prepared for it at boot time
 by
 .Xr loader 8 .
 This directive makes the kernel ignore the boot environment and use
-the compiled-in environment instead.
+the compiled-in environment instead, unless the boot environment contains
+.Va static_env.disabled=1 .
 .Pp
 This directive is useful for setting kernel tunables in
 embedded environments that do not start from
@@ -141,7 +142,9 @@ time (see
 .Xr device.hints 5 ) .
 This directive configures the kernel to use the static device configuration
 listed in
-.Ar filename .
+.Ar filename ,
+unless the boot environment contains
+.Va static_hints.disabled=1 .
 The file
 .Ar filename
 must conform to the syntax specified by
@@ -182,8 +185,6 @@ The ARM architecture.
 The AMD x86-64 architecture.
 .It Cm i386
 The Intel x86 based PC architecture.
-.It Cm ia64
-The Intel IA64 architecture.
 .It Cm mips
 The MIPS architecture.
 .It Cm pc98
@@ -208,9 +209,9 @@ When
 .Ar cpuarch
 is not specified, it is assumed to be the same as
 .Ar arch .
-.Ar arch 
+.Ar arch
 corresponds to MACHINE.
-.Ar cpuarch 
+.Ar cpuarch
 corresponds to MACHINE_ARCH.
 .Pp
 A kernel configuration file may have only one
@@ -351,7 +352,6 @@ option to
 The following kernel configuration directives are obsolete.
 .Bl -tag -width indent
 .\" -------- CONFIG --------
-.Pp
 .It Ic config
 This directive was used to specify the device to be used for the root
 file system.

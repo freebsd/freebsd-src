@@ -36,6 +36,7 @@
  * PCIV_xxx: PCI vendor ID (only required to fixup ancient devices)
  * PCID_xxx: device ID
  * PCIY_xxx: capability identification number
+ * PCIZ_xxx: extended capability identification number
  */
 
 /* some PCI bus constants */
@@ -46,6 +47,34 @@
 #define	PCI_REGMAX	255	/* highest supported config register addr. */
 #define	PCIE_REGMAX	4095	/* highest supported config register addr. */
 #define	PCI_MAXHDRTYPE	2
+
+#define	PCIE_ARI_SLOTMAX 0
+#define	PCIE_ARI_FUNCMAX 255
+
+#define	PCI_RID_DOMAIN_SHIFT	16
+#define	PCI_RID_BUS_SHIFT	8
+#define	PCI_RID_SLOT_SHIFT	3
+#define	PCI_RID_FUNC_SHIFT	0
+
+#define PCI_RID(bus, slot, func) \
+    ((((bus) & PCI_BUSMAX) << PCI_RID_BUS_SHIFT) | \
+    (((slot) & PCI_SLOTMAX) << PCI_RID_SLOT_SHIFT) | \
+    (((func) & PCI_FUNCMAX) << PCI_RID_FUNC_SHIFT))
+
+#define PCI_ARI_RID(bus, func) \
+    ((((bus) & PCI_BUSMAX) << PCI_RID_BUS_SHIFT) | \
+    (((func) & PCIE_ARI_FUNCMAX) << PCI_RID_FUNC_SHIFT))
+
+#define PCI_RID2BUS(rid) (((rid) >> PCI_RID_BUS_SHIFT) & PCI_BUSMAX)
+#define PCI_RID2SLOT(rid) (((rid) >> PCI_RID_SLOT_SHIFT) & PCI_SLOTMAX)
+#define PCI_RID2FUNC(rid) (((rid) >> PCI_RID_FUNC_SHIFT) & PCI_FUNCMAX)
+
+#define PCIE_ARI_RID2SLOT(rid) (0)
+#define PCIE_ARI_RID2FUNC(rid) \
+    (((rid) >> PCI_RID_FUNC_SHIFT) & PCIE_ARI_FUNCMAX)
+
+#define PCIE_ARI_SLOT(func) (((func) >> PCI_RID_SLOT_SHIFT) & PCI_SLOTMAX)
+#define PCIE_ARI_FUNC(func) (((func) >> PCI_RID_FUNC_SHIFT) & PCI_FUNCMAX)
 
 /* PCI config header registers for all devices */
 
@@ -63,10 +92,11 @@
 #define	PCIM_CMD_BACKTOBACK	0x0200
 #define	PCIM_CMD_INTxDIS	0x0400
 #define	PCIR_STATUS	0x06
+#define	PCIM_STATUS_INTxSTATE	0x0008
 #define	PCIM_STATUS_CAPPRESENT	0x0010
 #define	PCIM_STATUS_66CAPABLE	0x0020
 #define	PCIM_STATUS_BACKTOBACK	0x0080
-#define	PCIM_STATUS_PERRREPORT	0x0100
+#define	PCIM_STATUS_MDPERR	0x0100
 #define	PCIM_STATUS_SEL_FAST	0x0000
 #define	PCIM_STATUS_SEL_MEDIMUM	0x0200
 #define	PCIM_STATUS_SEL_SLOW	0x0400
@@ -116,6 +146,50 @@
 #define	PCIY_MSIX	0x11	/* MSI-X */
 #define	PCIY_SATA	0x12	/* SATA */
 #define	PCIY_PCIAF	0x13	/* PCI Advanced Features */
+#define	PCIY_EA		0x14	/* PCI Extended Allocation */
+
+/* Extended Capability Register Fields */
+
+#define	PCIR_EXTCAP	0x100
+#define	PCIM_EXTCAP_ID		0x0000ffff
+#define	PCIM_EXTCAP_VER		0x000f0000
+#define	PCIM_EXTCAP_NEXTPTR	0xfff00000
+#define	PCI_EXTCAP_ID(ecap)	((ecap) & PCIM_EXTCAP_ID)
+#define	PCI_EXTCAP_VER(ecap)	(((ecap) & PCIM_EXTCAP_VER) >> 16)
+#define	PCI_EXTCAP_NEXTPTR(ecap) (((ecap) & PCIM_EXTCAP_NEXTPTR) >> 20)
+
+/* Extended Capability Identification Numbers */
+
+#define	PCIZ_AER	0x0001	/* Advanced Error Reporting */
+#define	PCIZ_VC		0x0002	/* Virtual Channel if MFVC Ext Cap not set */
+#define	PCIZ_SERNUM	0x0003	/* Device Serial Number */
+#define	PCIZ_PWRBDGT	0x0004	/* Power Budgeting */
+#define	PCIZ_RCLINK_DCL	0x0005	/* Root Complex Link Declaration */
+#define	PCIZ_RCLINK_CTL	0x0006	/* Root Complex Internal Link Control */
+#define	PCIZ_RCEC_ASSOC	0x0007	/* Root Complex Event Collector Association */
+#define	PCIZ_MFVC	0x0008	/* Multi-Function Virtual Channel */
+#define	PCIZ_VC2	0x0009	/* Virtual Channel if MFVC Ext Cap set */
+#define	PCIZ_RCRB	0x000a	/* RCRB Header */
+#define	PCIZ_VENDOR	0x000b	/* Vendor Unique */
+#define	PCIZ_CAC	0x000c	/* Configuration Access Correction -- obsolete */
+#define	PCIZ_ACS	0x000d	/* Access Control Services */
+#define	PCIZ_ARI	0x000e	/* Alternative Routing-ID Interpretation */
+#define	PCIZ_ATS	0x000f	/* Address Translation Services */
+#define	PCIZ_SRIOV	0x0010	/* Single Root IO Virtualization */
+#define	PCIZ_MRIOV	0x0011	/* Multiple Root IO Virtualization */
+#define	PCIZ_MULTICAST	0x0012	/* Multicast */
+#define	PCIZ_PAGE_REQ	0x0013	/* Page Request */
+#define	PCIZ_AMD	0x0014	/* Reserved for AMD */
+#define	PCIZ_RESIZE_BAR	0x0015	/* Resizable BAR */
+#define	PCIZ_DPA	0x0016	/* Dynamic Power Allocation */
+#define	PCIZ_TPH_REQ	0x0017	/* TPH Requester */
+#define	PCIZ_LTR	0x0018	/* Latency Tolerance Reporting */
+#define	PCIZ_SEC_PCIE	0x0019	/* Secondary PCI Express */
+#define	PCIZ_PMUX	0x001a	/* Protocol Multiplexing */
+#define	PCIZ_PASID	0x001b	/* Process Address Space ID */
+#define	PCIZ_LN_REQ	0x001c	/* LN Requester */
+#define	PCIZ_DPC	0x001d	/* Downstream Porto Containment */
+#define	PCIZ_L1PM	0x001e	/* L1 PM Substates */
 
 /* config registers for header type 0 devices */
 
@@ -148,7 +222,7 @@
 #define	PCIM_CIS_ASI_ROM	7
 #define	PCIM_CIS_ADDR_MASK	0x0ffffff8
 #define	PCIM_CIS_ROM_MASK	0xf0000000
-#define PCIM_CIS_CONFIG_MASK	0xff
+#define	PCIM_CIS_CONFIG_MASK	0xff
 #define	PCIR_SUBVEND_0	0x2c
 #define	PCIR_SUBDEV_0	0x2e
 #define	PCIR_BIOS	0x30
@@ -189,7 +263,13 @@
 #define	PCIM_BRPM_64		0x1
 #define	PCIM_BRPM_MASK		0xf
 
+#define	PCIR_BIOS_1	0x38
 #define	PCIR_BRIDGECTL_1 0x3e
+
+#define	PCI_PPBMEMBASE(h,l)  ((((uint64_t)(h) << 32) + ((l)<<16)) & ~0xfffff)
+#define	PCI_PPBMEMLIMIT(h,l) ((((uint64_t)(h) << 32) + ((l)<<16)) | 0xfffff)
+#define	PCI_PPBIOBASE(h,l)   ((((h)<<16) + ((l)<<8)) & ~0xfff)
+#define	PCI_PPBIOLIMIT(h,l)  ((((h)<<16) + ((l)<<8)) | 0xfff)
 
 /* config registers for header type 2 (CardBus) devices */
 
@@ -210,6 +290,9 @@
 #define	PCIR_IOLIMIT0_2	0x30
 #define	PCIR_IOBASE1_2	0x34
 #define	PCIR_IOLIMIT1_2	0x38
+#define	PCIM_CBBIO_16		0x0
+#define	PCIM_CBBIO_32		0x1
+#define	PCIM_CBBIO_MASK		0x3
 
 #define	PCIR_BRIDGECTL_2 0x3e
 
@@ -217,6 +300,11 @@
 #define	PCIR_SUBDEV_2	0x42
 
 #define	PCIR_PCCARDIF_2	0x44
+
+#define	PCI_CBBMEMBASE(l)  ((l) & ~0xfffff)
+#define	PCI_CBBMEMLIMIT(l) ((l) | 0xfffff)
+#define	PCI_CBBIOBASE(l)   ((l) & ~0x3)
+#define	PCI_CBBIOLIMIT(l)  ((l) | 0x3)
 
 /* PCI device class, subclass and programming interface definitions */
 
@@ -239,6 +327,9 @@
 #define	PCIS_STORAGE_SATA	0x06
 #define	PCIP_STORAGE_SATA_AHCI_1_0	0x01
 #define	PCIS_STORAGE_SAS	0x07
+#define	PCIS_STORAGE_NVM	0x08
+#define	PCIP_STORAGE_NVM_NVMHCI_1_0	0x01
+#define	PCIP_STORAGE_NVM_ENTERPRISE_NVMHCI_1_0	0x02
 #define	PCIS_STORAGE_OTHER	0x80
 
 #define	PCIC_NETWORK	0x02
@@ -312,6 +403,7 @@
 #define	PCIS_BASEPERIPH_RTC	0x03
 #define	PCIS_BASEPERIPH_PCIHOT	0x04
 #define	PCIS_BASEPERIPH_SDHC	0x05
+#define	PCIS_BASEPERIPH_IOMMU	0x06
 #define	PCIS_BASEPERIPH_OTHER	0x80
 
 #define	PCIC_INPUTDEV	0x09
@@ -343,6 +435,7 @@
 #define	PCIP_SERIALBUS_USB_UHCI		0x00
 #define	PCIP_SERIALBUS_USB_OHCI		0x10
 #define	PCIP_SERIALBUS_USB_EHCI		0x20
+#define	PCIP_SERIALBUS_USB_XHCI		0x30
 #define	PCIP_SERIALBUS_USB_DEVICE	0xfe
 #define	PCIS_SERIALBUS_FC	0x04
 #define	PCIS_SERIALBUS_SMBUS	0x05
@@ -400,16 +493,31 @@
 #define	PCIB_BCR_DISCARD_TIMER_STATUS	0x0400
 #define	PCIB_BCR_DISCARD_TIMER_SERREN	0x0800
 
+#define	CBB_BCR_PERR_ENABLE		0x0001
+#define	CBB_BCR_SERR_ENABLE		0x0002
+#define	CBB_BCR_ISA_ENABLE		0x0004
+#define	CBB_BCR_VGA_ENABLE		0x0008
+#define	CBB_BCR_MASTER_ABORT_MODE	0x0020
+#define	CBB_BCR_CARDBUS_RESET		0x0040
+#define	CBB_BCR_IREQ_INT_ENABLE		0x0080
+#define	CBB_BCR_PREFETCH_0_ENABLE	0x0100
+#define	CBB_BCR_PREFETCH_1_ENABLE	0x0200
+#define	CBB_BCR_WRITE_POSTING_ENABLE	0x0400
+
 /* PCI power manangement */
 #define	PCIR_POWER_CAP		0x2
 #define	PCIM_PCAP_SPEC			0x0007
 #define	PCIM_PCAP_PMEREQCLK		0x0008
-#define	PCIM_PCAP_PMEREQPWR		0x0010
 #define	PCIM_PCAP_DEVSPECINIT		0x0020
-#define	PCIM_PCAP_DYNCLOCK		0x0040
-#define	PCIM_PCAP_SECCLOCK		0x00c0
-#define	PCIM_PCAP_CLOCKMASK		0x00c0
-#define	PCIM_PCAP_REQFULLCLOCK		0x0100
+#define	PCIM_PCAP_AUXPWR_0		0x0000
+#define	PCIM_PCAP_AUXPWR_55		0x0040
+#define	PCIM_PCAP_AUXPWR_100		0x0080
+#define	PCIM_PCAP_AUXPWR_160		0x00c0
+#define	PCIM_PCAP_AUXPWR_220		0x0100
+#define	PCIM_PCAP_AUXPWR_270		0x0140
+#define	PCIM_PCAP_AUXPWR_320		0x0180
+#define	PCIM_PCAP_AUXPWR_375		0x01c0
+#define	PCIM_PCAP_AUXPWRMASK		0x01c0
 #define	PCIM_PCAP_D1SUPP		0x0200
 #define	PCIM_PCAP_D2SUPP		0x0400
 #define	PCIM_PCAP_D0PME			0x0800
@@ -424,16 +532,17 @@
 #define	PCIM_PSTAT_D2			0x0002
 #define	PCIM_PSTAT_D3			0x0003
 #define	PCIM_PSTAT_DMASK		0x0003
-#define	PCIM_PSTAT_REPENABLE		0x0010
+#define	PCIM_PSTAT_NOSOFTRESET		0x0008
 #define	PCIM_PSTAT_PMEENABLE		0x0100
 #define	PCIM_PSTAT_D0POWER		0x0000
 #define	PCIM_PSTAT_D1POWER		0x0200
 #define	PCIM_PSTAT_D2POWER		0x0400
 #define	PCIM_PSTAT_D3POWER		0x0600
 #define	PCIM_PSTAT_D0HEAT		0x0800
-#define	PCIM_PSTAT_D1HEAT		0x1000
-#define	PCIM_PSTAT_D2HEAT		0x1200
-#define	PCIM_PSTAT_D3HEAT		0x1400
+#define	PCIM_PSTAT_D1HEAT		0x0a00
+#define	PCIM_PSTAT_D2HEAT		0x0c00
+#define	PCIM_PSTAT_D3HEAT		0x0e00
+#define	PCIM_PSTAT_DATASELMASK		0x1e00
 #define	PCIM_PSTAT_DATAUNKN		0x0000
 #define	PCIM_PSTAT_DATADIV10		0x2000
 #define	PCIM_PSTAT_DATADIV100		0x4000
@@ -441,11 +550,10 @@
 #define	PCIM_PSTAT_DATADIVMASK		0x6000
 #define	PCIM_PSTAT_PME			0x8000
 
-#define	PCIR_POWER_PMCSR	0x6
-#define	PCIM_PMCSR_DCLOCK		0x10
-#define	PCIM_PMCSR_B2SUPP		0x20
-#define	PCIM_BMCSR_B3SUPP		0x40
-#define	PCIM_BMCSR_BPCE			0x80
+#define	PCIR_POWER_BSE		0x6
+#define	PCIM_PMCSR_BSE_D3B3		0x00
+#define	PCIM_PMCSR_BSE_D3B2		0x40
+#define	PCIM_PMCSR_BSE_BPCCE		0x80
 
 #define	PCIR_POWER_DATA		0x7
 
@@ -478,6 +586,52 @@
 #define	PCIR_MSI_DATA_64BIT	0xc
 #define	PCIR_MSI_MASK		0x10
 #define	PCIR_MSI_PENDING	0x14
+
+/* PCI Enhanced Allocation registers */
+#define	PCIR_EA_NUM_ENT		2	/* Number of Capability Entries */
+#define	PCIM_EA_NUM_ENT_MASK	0x3f	/* Num Entries Mask */
+#define	PCIR_EA_FIRST_ENT	4	/* First EA Entry in List */
+#define	PCIR_EA_FIRST_ENT_BRIDGE	8	/* First EA Entry for Bridges */
+#define	PCIM_EA_ES		0x00000007	/* Entry Size */
+#define	PCIM_EA_BEI		0x000000f0	/* BAR Equivalent Indicator */
+#define	PCIM_EA_BEI_OFFSET	4
+/* 0-5 map to BARs 0-5 respectively */
+#define	PCIM_EA_BEI_BAR_0	0
+#define	PCIM_EA_BEI_BAR_5	5
+#define	PCIM_EA_BEI_BAR(x)	(((x) >> PCIM_EA_BEI_OFFSET) & 0xf)
+#define	PCIM_EA_BEI_BRIDGE	0x6	/* Resource behind bridge */
+#define	PCIM_EA_BEI_ENI		0x7	/* Equivalent Not Indicated */
+#define	PCIM_EA_BEI_ROM		0x8	/* Expansion ROM */
+/* 9-14 map to VF BARs 0-5 respectively */
+#define	PCIM_EA_BEI_VF_BAR_0	9
+#define	PCIM_EA_BEI_VF_BAR_5	14
+#define	PCIM_EA_BEI_RESERVED	0xf	/* Reserved - Treat like ENI */
+#define	PCIM_EA_PP		0x0000ff00	/* Primary Properties */
+#define	PCIM_EA_PP_OFFSET	8
+#define	PCIM_EA_SP_OFFSET	16
+#define	PCIM_EA_SP		0x00ff0000	/* Secondary Properties */
+#define	PCIM_EA_P_MEM		0x00	/* Non-Prefetch Memory */
+#define	PCIM_EA_P_MEM_PREFETCH	0x01	/* Prefetchable Memory */
+#define	PCIM_EA_P_IO		0x02	/* I/O Space */
+#define	PCIM_EA_P_VF_MEM_PREFETCH	0x03	/* VF Prefetchable Memory */
+#define	PCIM_EA_P_VF_MEM	0x04	/* VF Non-Prefetch Memory */
+#define	PCIM_EA_P_BRIDGE_MEM	0x05	/* Bridge Non-Prefetch Memory */
+#define	PCIM_EA_P_BRIDGE_MEM_PREFETCH	0x06	/* Bridge Prefetchable Memory */
+#define	PCIM_EA_P_BRIDGE_IO	0x07	/* Bridge I/O Space */
+/* 0x08-0xfc reserved */
+#define	PCIM_EA_P_MEM_RESERVED	0xfd	/* Reserved Memory */
+#define	PCIM_EA_P_IO_RESERVED	0xfe	/* Reserved I/O Space */
+#define	PCIM_EA_P_UNAVAILABLE	0xff	/* Entry Unavailable */
+#define	PCIM_EA_WRITABLE	0x40000000	/* Writable: 1 = RW, 0 = HwInit */
+#define	PCIM_EA_ENABLE		0x80000000	/* Enable for this entry */
+#define	PCIM_EA_BASE		4	/* Base Address Offset */
+#define	PCIM_EA_MAX_OFFSET	8	/* MaxOffset (resource length) */
+/* bit 0 is reserved */
+#define	PCIM_EA_IS_64		0x00000002	/* 64-bit field flag */
+#define	PCIM_EA_FIELD_MASK	0xfffffffc	/* For Base & Max Offset */
+/* Bridge config register */
+#define	PCIM_EA_SEC_NR(reg)	((reg) & 0xff)
+#define	PCIM_EA_SUB_NR(reg)	(((reg) >> 8) & 0xff)
 
 /* PCI-X definitions */
 
@@ -568,6 +722,10 @@
 #define	PCIM_HTCAP_VCSET		0xb800	/* 10111 */
 #define	PCIM_HTCAP_RETRY_MODE		0xc000	/* 11000 */
 #define	PCIM_HTCAP_X86_ENCODING		0xc800	/* 11001 */
+#define	PCIM_HTCAP_GEN3			0xd000	/* 11010 */
+#define	PCIM_HTCAP_FLE			0xd800	/* 11011 */
+#define	PCIM_HTCAP_PM			0xe000	/* 11100 */
+#define	PCIM_HTCAP_HIGH_NODE_COUNT	0xe800	/* 11101 */
 
 /* HT MSI Mapping Capability definitions. */
 #define	PCIM_HTCMD_MSI_ENABLE		0x0001
@@ -579,6 +737,9 @@
 #define	PCIR_VENDOR_LENGTH	0x2
 #define	PCIR_VENDOR_DATA	0x3
 
+/* PCI Device capability definitions */
+#define	PCIR_DEVICE_LENGTH	0x2
+
 /* PCI EHCI Debug Port definitions */
 #define	PCIR_DEBUG_PORT		0x2
 #define	PCIM_DEBUG_PORT_OFFSET		0x1FFF
@@ -588,45 +749,180 @@
 #define	PCIR_SUBVENDCAP_ID	0x4
 
 /* PCI Express definitions */
-#define	PCIR_EXPRESS_FLAGS	0x2
-#define	PCIM_EXP_FLAGS_VERSION		0x000F
-#define	PCIM_EXP_FLAGS_TYPE		0x00F0
-#define	PCIM_EXP_TYPE_ENDPOINT		0x0000
-#define	PCIM_EXP_TYPE_LEGACY_ENDPOINT	0x0010
-#define	PCIM_EXP_TYPE_ROOT_PORT		0x0040
-#define	PCIM_EXP_TYPE_UPSTREAM_PORT	0x0050
-#define	PCIM_EXP_TYPE_DOWNSTREAM_PORT	0x0060
-#define	PCIM_EXP_TYPE_PCI_BRIDGE	0x0070
-#define	PCIM_EXP_TYPE_PCIE_BRIDGE	0x0080
-#define	PCIM_EXP_TYPE_ROOT_INT_EP	0x0090
-#define	PCIM_EXP_TYPE_ROOT_EC		0x00a0
-#define	PCIM_EXP_FLAGS_SLOT		0x0100
-#define	PCIM_EXP_FLAGS_IRQ		0x3e00
-#define	PCIR_EXPRESS_DEVICE_CAP	0x4
-#define	PCIM_EXP_CAP_MAX_PAYLOAD	0x0007
-#define	PCIR_EXPRESS_DEVICE_CTL	0x8
-#define	PCIM_EXP_CTL_MAX_PAYLOAD	0x00e0
-#define	PCIM_EXP_CTL_MAX_READ_REQUEST	0x7000
-#define	PCIR_EXPRESS_DEVICE_STA	0xa
-#define	PCIR_EXPRESS_LINK_CAP	0xc
-#define	PCIM_LINK_CAP_MAX_SPEED		0x0000000f
-#define	PCIM_LINK_CAP_MAX_WIDTH		0x000003f0
-#define	PCIM_LINK_CAP_ASPM		0x00000c00
-#define	PCIM_LINK_CAP_L0S_EXIT		0x00007000
-#define	PCIM_LINK_CAP_L1_EXIT		0x00038000
-#define	PCIM_LINK_CAP_PORT		0xff000000
-#define	PCIR_EXPRESS_LINK_CTL	0x10
-#define	PCIR_EXPRESS_LINK_STA	0x12
-#define	PCIM_LINK_STA_SPEED		0x000f
-#define	PCIM_LINK_STA_WIDTH		0x03f0
-#define	PCIM_LINK_STA_TRAINING_ERROR	0x0400
-#define	PCIM_LINK_STA_TRAINING		0x0800
-#define	PCIM_LINK_STA_SLOT_CLOCK	0x1000
-#define	PCIR_EXPRESS_SLOT_CAP	0x14
-#define	PCIR_EXPRESS_SLOT_CTL	0x18
-#define	PCIR_EXPRESS_SLOT_STA	0x1a
-#define	PCIR_EXPRESS_ROOT_CTL	0x1c
-#define	PCIR_EXPRESS_ROOT_STA	0x20
+#define	PCIER_FLAGS		0x2
+#define	PCIEM_FLAGS_VERSION		0x000F
+#define	PCIEM_FLAGS_TYPE		0x00F0
+#define	PCIEM_TYPE_ENDPOINT		0x0000
+#define	PCIEM_TYPE_LEGACY_ENDPOINT	0x0010
+#define	PCIEM_TYPE_ROOT_PORT		0x0040
+#define	PCIEM_TYPE_UPSTREAM_PORT	0x0050
+#define	PCIEM_TYPE_DOWNSTREAM_PORT	0x0060
+#define	PCIEM_TYPE_PCI_BRIDGE		0x0070
+#define	PCIEM_TYPE_PCIE_BRIDGE		0x0080
+#define	PCIEM_TYPE_ROOT_INT_EP		0x0090
+#define	PCIEM_TYPE_ROOT_EC		0x00a0
+#define	PCIEM_FLAGS_SLOT		0x0100
+#define	PCIEM_FLAGS_IRQ			0x3e00
+#define	PCIER_DEVICE_CAP	0x4
+#define	PCIEM_CAP_MAX_PAYLOAD		0x00000007
+#define	PCIEM_CAP_PHANTHOM_FUNCS	0x00000018
+#define	PCIEM_CAP_EXT_TAG_FIELD		0x00000020
+#define	PCIEM_CAP_L0S_LATENCY		0x000001c0
+#define	PCIEM_CAP_L1_LATENCY		0x00000e00
+#define	PCIEM_CAP_ROLE_ERR_RPT		0x00008000
+#define	PCIEM_CAP_SLOT_PWR_LIM_VAL	0x03fc0000
+#define	PCIEM_CAP_SLOT_PWR_LIM_SCALE	0x0c000000
+#define	PCIEM_CAP_FLR			0x10000000
+#define	PCIER_DEVICE_CTL	0x8
+#define	PCIEM_CTL_COR_ENABLE		0x0001
+#define	PCIEM_CTL_NFER_ENABLE		0x0002
+#define	PCIEM_CTL_FER_ENABLE		0x0004
+#define	PCIEM_CTL_URR_ENABLE		0x0008
+#define	PCIEM_CTL_RELAXED_ORD_ENABLE	0x0010
+#define	PCIEM_CTL_MAX_PAYLOAD		0x00e0
+#define	PCIEM_CTL_EXT_TAG_FIELD		0x0100
+#define	PCIEM_CTL_PHANTHOM_FUNCS	0x0200
+#define	PCIEM_CTL_AUX_POWER_PM		0x0400
+#define	PCIEM_CTL_NOSNOOP_ENABLE	0x0800
+#define	PCIEM_CTL_MAX_READ_REQUEST	0x7000
+#define	PCIEM_CTL_BRDG_CFG_RETRY	0x8000	/* PCI-E - PCI/PCI-X bridges */
+#define	PCIEM_CTL_INITIATE_FLR		0x8000	/* FLR capable endpoints */
+#define	PCIER_DEVICE_STA	0xa
+#define	PCIEM_STA_CORRECTABLE_ERROR	0x0001
+#define	PCIEM_STA_NON_FATAL_ERROR	0x0002
+#define	PCIEM_STA_FATAL_ERROR		0x0004
+#define	PCIEM_STA_UNSUPPORTED_REQ	0x0008
+#define	PCIEM_STA_AUX_POWER		0x0010
+#define	PCIEM_STA_TRANSACTION_PND	0x0020
+#define	PCIER_LINK_CAP		0xc
+#define	PCIEM_LINK_CAP_MAX_SPEED	0x0000000f
+#define	PCIEM_LINK_CAP_MAX_WIDTH	0x000003f0
+#define	PCIEM_LINK_CAP_ASPM		0x00000c00
+#define	PCIEM_LINK_CAP_L0S_EXIT		0x00007000
+#define	PCIEM_LINK_CAP_L1_EXIT		0x00038000
+#define	PCIEM_LINK_CAP_CLOCK_PM		0x00040000
+#define	PCIEM_LINK_CAP_SURPRISE_DOWN	0x00080000
+#define	PCIEM_LINK_CAP_DL_ACTIVE	0x00100000
+#define	PCIEM_LINK_CAP_LINK_BW_NOTIFY	0x00200000
+#define	PCIEM_LINK_CAP_ASPM_COMPLIANCE	0x00400000
+#define	PCIEM_LINK_CAP_PORT		0xff000000
+#define	PCIER_LINK_CTL		0x10
+#define	PCIEM_LINK_CTL_ASPMC_DIS	0x0000
+#define	PCIEM_LINK_CTL_ASPMC_L0S	0x0001
+#define	PCIEM_LINK_CTL_ASPMC_L1		0x0002
+#define	PCIEM_LINK_CTL_ASPMC		0x0003
+#define	PCIEM_LINK_CTL_RCB		0x0008
+#define	PCIEM_LINK_CTL_LINK_DIS		0x0010
+#define	PCIEM_LINK_CTL_RETRAIN_LINK	0x0020
+#define	PCIEM_LINK_CTL_COMMON_CLOCK	0x0040
+#define	PCIEM_LINK_CTL_EXTENDED_SYNC	0x0080
+#define	PCIEM_LINK_CTL_ECPM		0x0100
+#define	PCIEM_LINK_CTL_HAWD		0x0200
+#define	PCIEM_LINK_CTL_LBMIE		0x0400
+#define	PCIEM_LINK_CTL_LABIE		0x0800
+#define	PCIER_LINK_STA		0x12
+#define	PCIEM_LINK_STA_SPEED		0x000f
+#define	PCIEM_LINK_STA_WIDTH		0x03f0
+#define	PCIEM_LINK_STA_TRAINING_ERROR	0x0400
+#define	PCIEM_LINK_STA_TRAINING		0x0800
+#define	PCIEM_LINK_STA_SLOT_CLOCK	0x1000
+#define	PCIEM_LINK_STA_DL_ACTIVE	0x2000
+#define	PCIEM_LINK_STA_LINK_BW_MGMT	0x4000
+#define	PCIEM_LINK_STA_LINK_AUTO_BW	0x8000
+#define	PCIER_SLOT_CAP		0x14
+#define	PCIEM_SLOT_CAP_APB		0x00000001
+#define	PCIEM_SLOT_CAP_PCP		0x00000002
+#define	PCIEM_SLOT_CAP_MRLSP		0x00000004
+#define	PCIEM_SLOT_CAP_AIP		0x00000008
+#define	PCIEM_SLOT_CAP_PIP		0x00000010
+#define	PCIEM_SLOT_CAP_HPS		0x00000020
+#define	PCIEM_SLOT_CAP_HPC		0x00000040
+#define	PCIEM_SLOT_CAP_SPLV		0x00007f80
+#define	PCIEM_SLOT_CAP_SPLS		0x00018000
+#define	PCIEM_SLOT_CAP_EIP		0x00020000
+#define	PCIEM_SLOT_CAP_NCCS		0x00040000
+#define	PCIEM_SLOT_CAP_PSN		0xfff80000
+#define	PCIER_SLOT_CTL		0x18
+#define	PCIEM_SLOT_CTL_ABPE		0x0001
+#define	PCIEM_SLOT_CTL_PFDE		0x0002
+#define	PCIEM_SLOT_CTL_MRLSCE		0x0004
+#define	PCIEM_SLOT_CTL_PDCE		0x0008
+#define	PCIEM_SLOT_CTL_CCIE		0x0010
+#define	PCIEM_SLOT_CTL_HPIE		0x0020
+#define	PCIEM_SLOT_CTL_AIC		0x00c0
+#define	PCIEM_SLOT_CTL_AI_ON		0x0040
+#define	PCIEM_SLOT_CTL_AI_BLINK		0x0080
+#define	PCIEM_SLOT_CTL_AI_OFF		0x00c0
+#define	PCIEM_SLOT_CTL_PIC		0x0300
+#define	PCIEM_SLOT_CTL_PI_ON		0x0100
+#define	PCIEM_SLOT_CTL_PI_BLINK		0x0200
+#define	PCIEM_SLOT_CTL_PI_OFF		0x0300
+#define	PCIEM_SLOT_CTL_PCC		0x0400
+#define	PCIEM_SLOT_CTL_PC_ON		0x0000
+#define	PCIEM_SLOT_CTL_PC_OFF		0x0400
+#define	PCIEM_SLOT_CTL_EIC		0x0800
+#define	PCIEM_SLOT_CTL_DLLSCE		0x1000
+#define	PCIER_SLOT_STA		0x1a
+#define	PCIEM_SLOT_STA_ABP		0x0001
+#define	PCIEM_SLOT_STA_PFD		0x0002
+#define	PCIEM_SLOT_STA_MRLSC		0x0004
+#define	PCIEM_SLOT_STA_PDC		0x0008
+#define	PCIEM_SLOT_STA_CC		0x0010
+#define	PCIEM_SLOT_STA_MRLSS		0x0020
+#define	PCIEM_SLOT_STA_PDS		0x0040
+#define	PCIEM_SLOT_STA_EIS		0x0080
+#define	PCIEM_SLOT_STA_DLLSC		0x0100
+#define	PCIER_ROOT_CTL		0x1c
+#define	PCIEM_ROOT_CTL_SERR_CORR	0x0001
+#define	PCIEM_ROOT_CTL_SERR_NONFATAL	0x0002
+#define	PCIEM_ROOT_CTL_SERR_FATAL	0x0004
+#define	PCIEM_ROOT_CTL_PME		0x0008
+#define	PCIEM_ROOT_CTL_CRS_VIS		0x0010
+#define	PCIER_ROOT_CAP		0x1e
+#define	PCIEM_ROOT_CAP_CRS_VIS		0x0001
+#define	PCIER_ROOT_STA		0x20
+#define	PCIEM_ROOT_STA_PME_REQID_MASK	0x0000ffff
+#define	PCIEM_ROOT_STA_PME_STATUS	0x00010000
+#define	PCIEM_ROOT_STA_PME_PEND		0x00020000
+#define	PCIER_DEVICE_CAP2	0x24
+#define	PCIEM_CAP2_COMP_TIMO_RANGES	0x0000000f
+#define	PCIEM_CAP2_COMP_TIMO_RANGE_A	0x00000001
+#define	PCIEM_CAP2_COMP_TIMO_RANGE_B	0x00000002
+#define	PCIEM_CAP2_COMP_TIMO_RANGE_C	0x00000004
+#define	PCIEM_CAP2_COMP_TIMO_RANGE_D	0x00000008
+#define	PCIEM_CAP2_COMP_TIMO_DISABLE	0x00000010
+#define	PCIEM_CAP2_ARI			0x00000020
+#define	PCIER_DEVICE_CTL2	0x28
+#define	PCIEM_CTL2_COMP_TIMO_VAL	0x000f
+#define	PCIEM_CTL2_COMP_TIMO_50MS	0x0000
+#define	PCIEM_CTL2_COMP_TIMO_100US	0x0001
+#define	PCIEM_CTL2_COMP_TIMO_10MS	0x0002
+#define	PCIEM_CTL2_COMP_TIMO_55MS	0x0005
+#define	PCIEM_CTL2_COMP_TIMO_210MS	0x0006
+#define	PCIEM_CTL2_COMP_TIMO_900MS	0x0009
+#define	PCIEM_CTL2_COMP_TIMO_3500MS	0x000a
+#define	PCIEM_CTL2_COMP_TIMO_13S	0x000d
+#define	PCIEM_CTL2_COMP_TIMO_64S	0x000e
+#define	PCIEM_CTL2_COMP_TIMO_DISABLE	0x0010
+#define	PCIEM_CTL2_ARI			0x0020
+#define	PCIEM_CTL2_ATOMIC_REQ_ENABLE	0x0040
+#define	PCIEM_CTL2_ATOMIC_EGR_BLOCK	0x0080
+#define	PCIEM_CTL2_ID_ORDERED_REQ_EN	0x0100
+#define	PCIEM_CTL2_ID_ORDERED_CMP_EN	0x0200
+#define	PCIEM_CTL2_LTR_ENABLE		0x0400
+#define	PCIEM_CTL2_OBFF			0x6000
+#define	PCIEM_OBFF_DISABLE		0x0000
+#define	PCIEM_OBFF_MSGA_ENABLE		0x2000
+#define	PCIEM_OBFF_MSGB_ENABLE		0x4000
+#define	PCIEM_OBFF_WAKE_ENABLE		0x6000
+#define	PCIEM_CTL2_END2END_TLP		0x8000
+#define	PCIER_DEVICE_STA2	0x2a
+#define	PCIER_LINK_CAP2		0x2c
+#define	PCIER_LINK_CTL2		0x30
+#define	PCIER_LINK_STA2		0x32
+#define	PCIER_SLOT_CAP2		0x34
+#define	PCIER_SLOT_CTL2		0x38
+#define	PCIER_SLOT_STA2		0x3a
 
 /* MSI-X definitions */
 #define	PCIR_MSIX_CTRL		0x2
@@ -652,3 +948,95 @@
 #define	PCIR_PCIAFCTRL_FLR	0x01
 #define	PCIR_PCIAF_STATUS	0x5
 #define	PCIR_PCIAFSTATUS_TP	0x01
+
+/* Advanced Error Reporting */
+#define	PCIR_AER_UC_STATUS	0x04
+#define	PCIM_AER_UC_TRAINING_ERROR	0x00000001
+#define	PCIM_AER_UC_DL_PROTOCOL_ERROR	0x00000010
+#define	PCIM_AER_UC_SURPRISE_LINK_DOWN	0x00000020
+#define	PCIM_AER_UC_POISONED_TLP	0x00001000
+#define	PCIM_AER_UC_FC_PROTOCOL_ERROR	0x00002000
+#define	PCIM_AER_UC_COMPLETION_TIMEOUT	0x00004000
+#define	PCIM_AER_UC_COMPLETER_ABORT	0x00008000
+#define	PCIM_AER_UC_UNEXPECTED_COMPLETION 0x00010000
+#define	PCIM_AER_UC_RECEIVER_OVERFLOW	0x00020000
+#define	PCIM_AER_UC_MALFORMED_TLP	0x00040000
+#define	PCIM_AER_UC_ECRC_ERROR		0x00080000
+#define	PCIM_AER_UC_UNSUPPORTED_REQUEST	0x00100000
+#define	PCIM_AER_UC_ACS_VIOLATION	0x00200000
+#define	PCIM_AER_UC_INTERNAL_ERROR	0x00400000
+#define	PCIM_AER_UC_MC_BLOCKED_TLP	0x00800000
+#define	PCIM_AER_UC_ATOMIC_EGRESS_BLK	0x01000000
+#define	PCIM_AER_UC_TLP_PREFIX_BLOCKED	0x02000000
+#define	PCIR_AER_UC_MASK	0x08	/* Shares bits with UC_STATUS */
+#define	PCIR_AER_UC_SEVERITY	0x0c	/* Shares bits with UC_STATUS */
+#define	PCIR_AER_COR_STATUS	0x10
+#define	PCIM_AER_COR_RECEIVER_ERROR	0x00000001
+#define	PCIM_AER_COR_BAD_TLP		0x00000040
+#define	PCIM_AER_COR_BAD_DLLP		0x00000080
+#define	PCIM_AER_COR_REPLAY_ROLLOVER	0x00000100
+#define	PCIM_AER_COR_REPLAY_TIMEOUT	0x00001000
+#define	PCIM_AER_COR_ADVISORY_NF_ERROR	0x00002000
+#define	PCIM_AER_COR_INTERNAL_ERROR	0x00004000
+#define	PCIM_AER_COR_HEADER_LOG_OVFLOW	0x00008000
+#define	PCIR_AER_COR_MASK	0x14	/* Shares bits with COR_STATUS */
+#define	PCIR_AER_CAP_CONTROL	0x18
+#define	PCIM_AER_FIRST_ERROR_PTR	0x0000001f
+#define	PCIM_AER_ECRC_GEN_CAPABLE	0x00000020
+#define	PCIM_AER_ECRC_GEN_ENABLE	0x00000040
+#define	PCIM_AER_ECRC_CHECK_CAPABLE	0x00000080
+#define	PCIM_AER_ECRC_CHECK_ENABLE	0x00000100
+#define	PCIM_AER_MULT_HDR_CAPABLE	0x00000200
+#define	PCIM_AER_MULT_HDR_ENABLE	0x00000400
+#define	PCIM_AER_TLP_PREFIX_LOG_PRESENT	0x00000800
+#define	PCIR_AER_HEADER_LOG	0x1c
+#define	PCIR_AER_ROOTERR_CMD	0x2c	/* Only for root complex ports */
+#define	PCIM_AER_ROOTERR_COR_ENABLE	0x00000001
+#define	PCIM_AER_ROOTERR_NF_ENABLE	0x00000002
+#define	PCIM_AER_ROOTERR_F_ENABLE	0x00000004
+#define	PCIR_AER_ROOTERR_STATUS	0x30	/* Only for root complex ports */
+#define	PCIM_AER_ROOTERR_COR_ERR	0x00000001
+#define	PCIM_AER_ROOTERR_MULTI_COR_ERR	0x00000002
+#define	PCIM_AER_ROOTERR_UC_ERR		0x00000004
+#define	PCIM_AER_ROOTERR_MULTI_UC_ERR	0x00000008
+#define	PCIM_AER_ROOTERR_FIRST_UC_FATAL	0x00000010
+#define	PCIM_AER_ROOTERR_NF_ERR		0x00000020
+#define	PCIM_AER_ROOTERR_F_ERR		0x00000040
+#define	PCIM_AER_ROOTERR_INT_MESSAGE	0xf8000000
+#define	PCIR_AER_COR_SOURCE_ID	0x34	/* Only for root complex ports */
+#define	PCIR_AER_ERR_SOURCE_ID	0x36	/* Only for root complex ports */
+#define	PCIR_AER_TLP_PREFIX_LOG	0x38	/* Only for TLP prefix functions */
+
+/* Virtual Channel definitions */
+#define	PCIR_VC_CAP1		0x04
+#define	PCIM_VC_CAP1_EXT_COUNT		0x00000007
+#define	PCIM_VC_CAP1_LOWPRI_EXT_COUNT	0x00000070
+#define	PCIR_VC_CAP2		0x08
+#define	PCIR_VC_CONTROL		0x0C
+#define	PCIR_VC_STATUS		0x0E
+#define	PCIR_VC_RESOURCE_CAP(n)	(0x10 + (n) * 0x0C)
+#define	PCIR_VC_RESOURCE_CTL(n)	(0x14 + (n) * 0x0C)
+#define	PCIR_VC_RESOURCE_STA(n)	(0x18 + (n) * 0x0C)
+
+/* Serial Number definitions */
+#define	PCIR_SERIAL_LOW		0x04
+#define	PCIR_SERIAL_HIGH	0x08
+
+/* SR-IOV definitions */
+#define	PCIR_SRIOV_CTL		0x08
+#define	PCIM_SRIOV_VF_EN	0x01
+#define	PCIM_SRIOV_VF_MSE	0x08	/* Memory space enable. */
+#define	PCIM_SRIOV_ARI_EN	0x10
+#define	PCIR_SRIOV_TOTAL_VFS	0x0E
+#define	PCIR_SRIOV_NUM_VFS	0x10
+#define	PCIR_SRIOV_VF_OFF	0x14
+#define	PCIR_SRIOV_VF_STRIDE	0x16
+#define	PCIR_SRIOV_VF_DID	0x1A
+#define	PCIR_SRIOV_PAGE_CAP	0x1C
+#define	PCIR_SRIOV_PAGE_SIZE	0x20
+
+#define	PCI_SRIOV_BASE_PAGE_SHIFT	12
+
+#define	PCIR_SRIOV_BARS		0x24
+#define	PCIR_SRIOV_BAR(x)	(PCIR_SRIOV_BARS + (x) * 4)
+

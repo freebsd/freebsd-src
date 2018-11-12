@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2009, 2011, 2012, 2014 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sem.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.977 2008/02/15 23:19:58 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.1000 2013-11-22 20:51:56 ca Exp $")
 
 #include <dirent.h>
 
@@ -125,16 +125,9 @@ static SM_DEBUG_T DebugLeakQ = SM_DEBUG_INITIALIZER("leak_q",
 	"@(#)$Debug: leak_q - trace memory leaks during queue processing $");
 #endif /* SM_HEAP_CHECK */
 
-/*
-**  We use EmptyString instead of "" to avoid
-**  'zero-length format string' warnings from gcc
-*/
-
-static const char EmptyString[] = "";
-
 static void	grow_wlist __P((int, int));
 static int	multiqueue_cache __P((char *, int, QUEUEGRP *, int, unsigned int *));
-static int	gatherq __P((int, int, bool, bool *, bool *));
+static int	gatherq __P((int, int, bool, bool *, bool *, int *));
 static int	sortq __P((int));
 static void	printctladdr __P((ADDRESS *, SM_FILE_T *));
 static bool	readqf __P((ENVELOPE *, bool));
@@ -203,7 +196,7 @@ static const char *FSPath[MAXFILESYS];	/* pathnames for file systems */
 **	tag -- should be a unique id to avoid misinterpretations by others.
 **		idea: hash over configuration data that will be stored here.
 **	NumFileSys -- number of file systems.
-**	FileSys -- (arrary of) structure for used file systems.
+**	FileSys -- (array of) structure for used file systems.
 **	RSATmpCnt -- counter for number of uses of ephemeral RSA key.
 **	QShm -- (array of) structure for information about queue directories.
 */
@@ -304,7 +297,7 @@ hash_q(p, h)
 **	d	data file directory name (added in 8.12)
 **	E	error recipient
 **	F	flag bits
-**	G	free (was: queue delay algorithm if _FFR_QUEUEDELAY)
+**	G	free
 **	H	header
 **	I	data file's inode number
 **	K	time of last delivery attempt
@@ -320,7 +313,7 @@ hash_q(p, h)
 **	T	init time
 **	V	queue file version
 **	X	free (was: character set if _FFR_SAVE_CHARSET)
-**	Y	free (was: current delay if _FFR_QUEUEDELAY)
+**	Y	free
 **	Z	original envelope id from ESMTP
 **	!	deliver by (added in 8.12)
 **	$	define macro
@@ -404,8 +397,8 @@ queueup(e, announce, msync)
 
 			printopenfds(true);
 			errno = save_errno;
-			syserr("!queueup: cannot create queue file %s, euid=%d, fd=%d, fp=%p",
-				tf, (int) geteuid(), tfd, tfp);
+			syserr("!queueup: cannot create queue file %s, euid=%ld, fd=%d, fp=%p",
+				tf, (long) geteuid(), tfd, tfp);
 			/* NOTREACHED */
 		}
 		e->e_lockfp = tfp;
@@ -427,8 +420,8 @@ queueup(e, announce, msync)
 						break;
 					if (LogLevel > 0 && (i % 32) == 0)
 						sm_syslog(LOG_ALERT, e->e_id,
-							  "queueup: cannot create %s, euid=%d: %s",
-							  tf, (int) geteuid(),
+							  "queueup: cannot create %s, euid=%ld: %s",
+							  tf, (long) geteuid(),
 							  sm_errstring(errno));
 				}
 #if SM_OPEN_EXLOCK
@@ -473,8 +466,8 @@ queueup(e, announce, msync)
 
 			printopenfds(true);
 			errno = save_errno;
-			syserr("!queueup: cannot create queue temp file %s, uid=%d",
-				tf, (int) geteuid());
+			syserr("!queueup: cannot create queue temp file %s, uid=%ld",
+				tf, (long) geteuid());
 		}
 	}
 
@@ -518,8 +511,8 @@ queueup(e, announce, msync)
 		    sm_io_setinfo(e->e_dfp, SM_BF_COMMIT, NULL) < 0 &&
 		    errno != EINVAL)
 		{
-			syserr("!queueup: cannot commit data file %s, uid=%d",
-			       queuename(e, DATAFL_LETTER), (int) geteuid());
+			syserr("!queueup: cannot commit data file %s, uid=%ld",
+			       queuename(e, DATAFL_LETTER), (long) geteuid());
 		}
 		if (e->e_dfp != NULL &&
 		    SuperSafe == SAFE_INTERACTIVE && msync)
@@ -560,8 +553,8 @@ queueup(e, announce, msync)
 		if (dfd < 0 || (dfp = sm_io_open(SmFtStdiofd, SM_TIME_DEFAULT,
 						 (void *) &dfd, SM_IO_WRONLY_B,
 						 NULL)) == NULL)
-			syserr("!queueup: cannot create data temp file %s, uid=%d",
-				df, (int) geteuid());
+			syserr("!queueup: cannot create data temp file %s, uid=%ld",
+				df, (long) geteuid());
 		if (fstat(dfd, &stbuf) < 0)
 			e->e_dfino = -1;
 		else
@@ -595,8 +588,8 @@ queueup(e, announce, msync)
 		}
 
 		if (sm_io_close(dfp, SM_TIME_DEFAULT) < 0)
-			syserr("!queueup: cannot save data temp file %s, uid=%d",
-				df, (int) geteuid());
+			syserr("!queueup: cannot save data temp file %s, uid=%ld",
+				df, (long) geteuid());
 		e->e_putbody = putbody;
 	}
 
@@ -633,7 +626,6 @@ queueup(e, announce, msync)
 	}
 
 	/* output inode number of data file */
-	/* XXX should probably include device major/minor too */
 	if (e->e_dfino != -1)
 	{
 		(void) sm_io_fprintf(tfp, SM_TIME_DEFAULT, "I%ld/%ld/%llu\n",
@@ -734,9 +726,15 @@ queueup(e, announce, msync)
 			(void) sm_io_putc(tfp, SM_TIME_DEFAULT, 'F');
 		if (bitset(QPINGONDELAY, q->q_flags))
 			(void) sm_io_putc(tfp, SM_TIME_DEFAULT, 'D');
+		if (bitset(QINTBCC, q->q_flags))
+			(void) sm_io_putc(tfp, SM_TIME_DEFAULT, 'B');
 		if (q->q_alias != NULL &&
 		    bitset(QALIAS, q->q_alias->q_flags))
 			(void) sm_io_putc(tfp, SM_TIME_DEFAULT, 'A');
+
+		/* _FFR_RCPTFLAGS */
+		if (bitset(QDYNMAILER, q->q_flags))
+			(void) sm_io_putc(tfp, SM_TIME_DEFAULT, QDYNMAILFLG);
 		(void) sm_io_putc(tfp, SM_TIME_DEFAULT, ':');
 		(void) sm_io_fprintf(tfp, SM_TIME_DEFAULT, "%s\n",
 				     denlstring(q->q_paddr, true, false));
@@ -748,10 +746,10 @@ queueup(e, announce, msync)
 				tag = "quarantined";
 
 			e->e_to = q->q_paddr;
-			message(tag);
+			message("%s", tag);
 			if (LogLevel > 8)
 				logdelivery(q->q_mailer, NULL, q->q_status,
-					    tag, NULL, (time_t) 0, e);
+					    tag, NULL, (time_t) 0, e, q, EX_OK);
 			e->e_to = NULL;
 		}
 		if (tTd(40, 1))
@@ -889,8 +887,8 @@ queueup(e, announce, msync)
 		(void) sm_strlcpy(qf, queuename(e, ANYQFL_LETTER),
 				  sizeof(qf));
 		if (rename(tf, qf) < 0)
-			syserr("cannot rename(%s, %s), uid=%d",
-				tf, qf, (int) geteuid());
+			syserr("cannot rename(%s, %s), uid=%ld",
+				tf, qf, (long) geteuid());
 		else
 		{
 			/*
@@ -1494,6 +1492,7 @@ runqueue(forkflag, verbose, persistent, runall)
 	for (i = 0; i < NumWorkGroups && !NoMoreRunners; i++)
 	{
 		int rwgflags = RWG_NONE;
+		int wasblocked;
 
 		/*
 		**  If MaxQueueChildren active then test whether the start
@@ -1530,7 +1529,11 @@ runqueue(forkflag, verbose, persistent, runall)
 		**  increase if some queue runners "hang" for a long time.
 		*/
 
+		/* don't let proc_list_drop() change CurRunners */
+		wasblocked = sm_blocksignal(SIGCHLD);
 		CurRunners += WorkGrp[curnum].wg_maxact;
+		if (wasblocked == 0)
+			(void) sm_releasesignal(SIGCHLD);
 		if (forkflag)
 			rwgflags |= RWG_FORK;
 		if (verbose)
@@ -1550,7 +1553,13 @@ runqueue(forkflag, verbose, persistent, runall)
 
 		if (!ret)
 		{
+			/* don't let proc_list_drop() change CurRunners */
+			wasblocked = sm_blocksignal(SIGCHLD);
 			CurRunners -= WorkGrp[curnum].wg_maxact;
+			CHK_CUR_RUNNERS("runqueue", curnum,
+					WorkGrp[curnum].wg_maxact);
+			if (wasblocked == 0)
+				(void) sm_releasesignal(SIGCHLD);
 			break;
 		}
 
@@ -1775,7 +1784,7 @@ runner_work(e, sequenceno, didfork, skip, njobs)
 		if (shouldqueue(w->w_pri, w->w_ctime))
 		{
 			if (Verbose)
-				message(EmptyString);
+				message("%s", "");
 			if (QueueSortOrder == QSO_BYPRIORITY)
 			{
 				if (Verbose)
@@ -1803,7 +1812,7 @@ runner_work(e, sequenceno, didfork, skip, njobs)
 		{
 			if (Verbose)
 			{
-				message(EmptyString);
+				message("%s", "");
 				message("Running %s/%s (sequence %d of %d)",
 					qid_printqueue(w->w_qgrp, w->w_qdir),
 					w->w_name + 2, sequenceno, njobs);
@@ -2032,6 +2041,7 @@ run_work_group(wgrp, flags)
 	{
 		IgnoreHostStatus = true;
 		MinQueueAge = 0;
+		MaxQueueAge = 0;
 	}
 
 	/*
@@ -2106,7 +2116,7 @@ run_work_group(wgrp, flags)
 
 	for (i = 0; i < Queue[qgrp]->qg_numqueues; i++)
 	{
-		h = gatherq(qgrp, qdir, false, &full, &more);
+		(void) gatherq(qgrp, qdir, false, &full, &more, &h);
 #if SM_CONF_SHM
 		if (ShmId != SM_SHM_NO_ID)
 			QSHM_ENTRIES(Queue[qgrp]->qg_qpaths[qdir].qp_idx) = h;
@@ -2301,7 +2311,7 @@ run_work_group(wgrp, flags)
 	if (bitset(RWG_PERSISTENT, flags))
 	{
 		sequenceno = 1;
-		sm_setproctitle(true, CurEnv, "running queue: %s",
+		sm_setproctitle(true, NULL, "running queue: %s",
 				qid_printqueue(qgrp, qdir));
 
 		/*
@@ -2450,6 +2460,7 @@ runqueueevent(ignore)
 **		full -- (optional) to be set 'true' if WorkList is full
 **		more -- (optional) to be set 'true' if there are still more
 **			messages in this queue not added to WorkList
+**		pnentries -- (optional) total nuber of entries in queue
 **
 **	Returns:
 **		The number of request in the queue (not necessarily
@@ -2472,25 +2483,26 @@ static int	WorkListSize = 0;	/* current max size of WorkList */
 static int	WorkListCount = 0;	/* # of work items in WorkList */
 
 static int
-gatherq(qgrp, qdir, doall, full, more)
+gatherq(qgrp, qdir, doall, full, more, pnentries)
 	int qgrp;
 	int qdir;
 	bool doall;
 	bool *full;
 	bool *more;
+	int *pnentries;
 {
 	register struct dirent *d;
 	register WORK *w;
 	register char *p;
 	DIR *f;
-	int i, num_ent;
-	int wn;
+	int i, num_ent, wn, nentries;
 	QUEUE_CHAR *check;
 	char qd[MAXPATHLEN];
 	char qf[MAXPATHLEN];
 
 	wn = WorkListCount - 1;
 	num_ent = 0;
+	nentries = 0;
 	if (qdir == NOQDIR)
 		(void) sm_strlcpy(qd, ".", sizeof(qd));
 	else
@@ -2600,6 +2612,7 @@ gatherq(qgrp, qdir, doall, full, more)
 			continue;
 		}
 
+		++nentries;
 		check = QueueLimitId;
 		while (check != NULL)
 		{
@@ -2730,7 +2743,7 @@ gatherq(qgrp, qdir, doall, full, more)
 			i |= NEED_QUARANTINE;
 		while (cf != NULL && i != 0 &&
 		       sm_io_fgets(cf, SM_TIME_DEFAULT, lbuf,
-				   sizeof(lbuf)) != NULL)
+				   sizeof(lbuf)) >= 0)
 		{
 			int c;
 			time_t age;
@@ -2855,6 +2868,19 @@ gatherq(qgrp, qdir, doall, full, more)
 				break;
 
 			  case 'K':
+				if (MaxQueueAge > 0)
+				{
+					time_t lasttry, delay;
+
+					lasttry = (time_t) atol(&lbuf[1]);
+					delay = MIN(lasttry - w->w_ctime,
+						    MaxQueueAge);
+					age = curtime() - lasttry;
+					if (age < delay)
+						w->w_tooyoung = true;
+					break;
+				}
+
 				age = curtime() - (time_t) atol(&lbuf[1]);
 				if (age >= 0 && MinQueueAge > 0 &&
 				    age < MinQueueAge)
@@ -2900,6 +2926,8 @@ gatherq(qgrp, qdir, doall, full, more)
 		*full = (wn >= MaxQueueRun && MaxQueueRun > 0) ||
 			(WorkList == NULL && wn > 0);
 
+	if (pnentries != NULL)
+		*pnentries = nentries;
 	return i;
 }
 /*
@@ -2907,7 +2935,7 @@ gatherq(qgrp, qdir, doall, full, more)
 **
 **	First the old WorkQ is cleared away. Then the WorkList is sorted
 **	for all items so that important (higher sorting value) items are not
-**	trunctated off. Then the most important items are moved from
+**	truncated off. Then the most important items are moved from
 **	WorkList to WorkQ. The lower count of 'max' or MaxListCount items
 **	are moved.
 **
@@ -3331,8 +3359,8 @@ workcmpf4(a, b)
 **  WORKCMPF5 -- compare based on assigned random number
 **
 **	Parameters:
-**		a -- the first argument (ignored).
-**		b -- the second argument (ignored).
+**		a -- the first argument.
+**		b -- the second argument.
 **
 **	Returns:
 **		randomly 1/-1
@@ -3682,9 +3710,10 @@ dowork(qgrp, qdir, id, forkflag, requeueflag, e)
 			finis(true, true, ExitStat);
 		else
 		{
-			dropenvelope(e, true, false);
+			(void) dropenvelope(e, true, false);
 			sm_rpool_free(rpool);
 			e->e_rpool = NULL;
+			e->e_message = NULL;
 		}
 	}
 	e->e_id = NULL;
@@ -3859,7 +3888,7 @@ doworklist(el, forkflag, requeueflag)
 
 			/* do the delivery */
 			sendall(&e, SM_DELIVER);
-			dropenvelope(&e, true, false);
+			(void) dropenvelope(&e, true, false);
 		}
 		else
 		{
@@ -4062,8 +4091,9 @@ readqf(e, openonly)
 		if (LogLevel > 0)
 		{
 			sm_syslog(LOG_ALERT, e->e_id,
-				  "bogus queue file, uid=%d, gid=%d, mode=%o",
-				  st.st_uid, st.st_gid, st.st_mode);
+				  "bogus queue file, uid=%ld, gid=%ld, mode=%o",
+				  (long) st.st_uid, (long) st.st_gid,
+				  (unsigned int) st.st_mode);
 		}
 		if (tTd(40, 8))
 			sm_dprintf("readqf(%s): bogus file\n", qf);
@@ -4384,6 +4414,14 @@ readqf(e, openonly)
 							ctladdr->q_flags |= QALIAS;
 						break;
 
+					  case 'B':
+						qflags |= QINTBCC;
+						break;
+
+					  case QDYNMAILFLG:
+						qflags |= QDYNMAILER;
+						break;
+
 					  default: /* ignore or complain? */
 						break;
 					}
@@ -4392,7 +4430,7 @@ readqf(e, openonly)
 			else
 				qflags |= QPRIMARY;
 			macdefine(&e->e_macro, A_PERM, macid("{addr_type}"),
-				"e r");
+				((qflags & QINTBCC) != 0) ? "e b" : "e r");
 			if (*p != '\0')
 				q = parseaddr(++p, NULLADDR, RF_COPYALL, '\0',
 						NULL, e, true);
@@ -4409,6 +4447,10 @@ readqf(e, openonly)
 				q->q_flags |= qflags;
 				q->q_finalrcpt = frcpt;
 				q->q_orcpt = orcpt;
+#if _FFR_RCPTFLAGS
+				if (bitset(QDYNMAILER, qflags))
+					newmodmailer(q, QDYNMAILFLG);
+#endif
 				(void) recipient(q, &e->e_sendqueue, 0, e);
 			}
 			frcpt = NULL;
@@ -4465,24 +4507,6 @@ readqf(e, openonly)
 		  case '.':		/* terminate file */
 			nomore = true;
 			break;
-
-#if _FFR_QUEUEDELAY
-		  case 'G':
-		  case 'Y':
-
-			/*
-			**  Maintain backward compatibility for
-			**  users who defined _FFR_QUEUEDELAY in
-			**  previous releases.  Remove this
-			**  code in 8.14 or 8.15.
-			*/
-
-			if (qfver == 5 || qfver == 7)
-				break;
-
-			/* If not qfver 5 or 7, then 'G' or 'Y' is invalid */
-			/* FALLTHROUGH */
-#endif /* _FFR_QUEUEDELAY */
 
 		  default:
 			syserr("readqf: %s: line %d: bad line \"%s\"",
@@ -4558,7 +4582,7 @@ readqf(e, openonly)
 			e->e_dfdev = st.st_dev;
 			e->e_dfino = ST_INODE(st);
 			(void) sm_snprintf(buf, sizeof(buf), "%ld",
-					   e->e_msgsize);
+					   PRT_NONNEGL(e->e_msgsize));
 			macdefine(&e->e_macro, A_TEMP, macid("{msg_size}"),
 				  buf);
 		}
@@ -4600,6 +4624,14 @@ readqf(e, openonly)
 */
 
 static void prtstr __P((char *, int));
+
+#if _FFR_BOUNCE_QUEUE
+# define SKIP_BOUNCE_QUEUE	\
+		if (i == BounceQueue)	\
+			continue;
+#else
+# define SKIP_BOUNCE_QUEUE
+#endif
 
 static void
 prtstr(s, ml)
@@ -4664,6 +4696,7 @@ printnqe(out, prefix)
 	{
 		int j;
 
+		SKIP_BOUNCE_QUEUE
 		k++;
 		for (j = 0; j < Queue[i]->qg_numqueues; j++)
 		{
@@ -4834,7 +4867,7 @@ print_single_queue(qgrp, qdir)
 	**  Read and order the queue.
 	*/
 
-	nrequests = gatherq(qgrp, qdir, true, NULL, NULL);
+	nrequests = gatherq(qgrp, qdir, true, NULL, NULL, NULL);
 	(void) sortq(Queue[qgrp]->qg_maxlist);
 
 	/*
@@ -4947,7 +4980,7 @@ print_single_queue(qgrp, qdir)
 		quarmsg[0] = '\0';
 		statmsg[0] = bodytype[0] = '\0';
 		qfver = 0;
-		while (sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+		while (sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 		{
 			register int i;
 			register char *p;
@@ -5175,7 +5208,11 @@ queuename(e, type)
 
 	/* Assign an ID if needed */
 	if (e->e_id == NULL)
+	{
+		if (IntSig)
+			return NULL;
 		assign_queueid(e);
+	}
 	type = queue_letter(e, type);
 
 	/* begin of filename */
@@ -5219,7 +5256,11 @@ queuename(e, type)
 	else
 	{
 		if (e->e_qgrp == NOQGRP || e->e_qdir == NOQDIR)
+		{
+			if (IntSig)
+				return NULL;
 			(void) setnewqueue(e);
+		}
 		if (type ==  DATAFL_LETTER)
 		{
 			qd = e->e_dfqdir;
@@ -5259,6 +5300,8 @@ queuename(e, type)
 			break;
 
 		  default:
+			if (IntSig)
+				return NULL;
 			sm_abort("queuename: bad queue file type %d", type);
 		}
 
@@ -5332,31 +5375,31 @@ static const char QueueIdChars[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefgh
 */
 
 # define queuenextid() CurrentPid
-
+#define QIC_LEN_SQR	(QIC_LEN * QIC_LEN)
 
 void
 assign_queueid(e)
 	register ENVELOPE *e;
 {
 	pid_t pid = queuenextid();
-	static int cX = 0;
-	static long random_offset;
+	static unsigned int cX = 0;
+	static unsigned int random_offset;
 	struct tm *tm;
 	char idbuf[MAXQFNAME - 2];
-	int seq;
+	unsigned int seq;
 
 	if (e->e_id != NULL)
 		return;
 
 	/* see if we need to get a new base time/pid */
-	if (cX >= QIC_LEN * QIC_LEN || LastQueueTime == 0 ||
-	    LastQueuePid != pid)
+	if (cX >= QIC_LEN_SQR || LastQueueTime == 0 || LastQueuePid != pid)
 	{
 		time_t then = LastQueueTime;
 
 		/* if the first time through, pick a random offset */
 		if (LastQueueTime == 0)
-			random_offset = get_random();
+			random_offset = ((unsigned int)get_random())
+					% QIC_LEN_SQR;
 
 		while ((LastQueueTime = curtime()) == then &&
 		       LastQueuePid == pid)
@@ -5368,16 +5411,16 @@ assign_queueid(e)
 	}
 
 	/*
-	**  Generate a new sequence number between 0 and QIC_LEN*QIC_LEN-1.
-	**  This lets us generate up to QIC_LEN*QIC_LEN unique queue ids
+	**  Generate a new sequence number between 0 and QIC_LEN_SQR-1.
+	**  This lets us generate up to QIC_LEN_SQR unique queue ids
 	**  per second, per process.  With envelope splitting,
 	**  a single message can consume many queue ids.
 	*/
 
-	seq = (int)((cX + random_offset) % (QIC_LEN * QIC_LEN));
+	seq = (cX + random_offset) % QIC_LEN_SQR;
 	++cX;
 	if (tTd(7, 50))
-		sm_dprintf("assign_queueid: random_offset = %ld (%d)\n",
+		sm_dprintf("assign_queueid: random_offset=%u (%u)\n",
 			random_offset, seq);
 
 	tm = gmtime(&LastQueueTime);
@@ -5430,6 +5473,7 @@ sync_queue_time()
 {
 #if FAST_PID_RECYCLE
 	if (OpMode != MD_TEST &&
+	    OpMode != MD_CHECKCONFIG &&
 	    OpMode != MD_VERIFY &&
 	    LastQueueTime > 0 &&
 	    LastQueuePid == CurrentPid &&
@@ -5598,8 +5642,8 @@ loseqfile(e, why)
 	{
 		p = queuename(e, LOSEQF_LETTER);
 		if (rename(buf, p) < 0)
-			syserr("cannot rename(%s, %s), uid=%d",
-			       buf, p, (int) geteuid());
+			syserr("cannot rename(%s, %s), uid=%ld",
+			       buf, p, (long) geteuid());
 		else if (LogLevel > 0)
 			sm_syslog(LOG_ALERT, e->e_id,
 				  "Losing %s: %s", buf, why);
@@ -5740,6 +5784,10 @@ pickqdir(qg, fsize, e)
 	else
 		qdir = get_rand_mod(qg->qg_numqueues);
 
+#if _FFR_TESTS
+	if (tTd(4, 101))
+		return NOQDIR;
+#endif /* _FFR_TESTS */
 	if (MinBlocksFree <= 0 && fsize <= 0)
 		return qdir;
 
@@ -6600,6 +6648,16 @@ init_sem(owner)
 			(long) SemKey, SemId, sm_errstring(-SemId));
 		return;
 	}
+	if (owner && RunAsUid != 0)
+	{
+		int r;
+
+		r = sm_semsetowner(SemId, RunAsUid, RunAsGid, 0660);
+		if (r != 0)
+			sm_syslog(LOG_ERR, NOQID,
+				"key=%ld, sm_semsetowner=%d, RunAsUid=%ld, RunAsGid=%ld",
+				(long) SemKey, r, (long) RunAsUid, (long) RunAsGid);
+	}
 #endif /* SM_CONF_SEM */
 #endif /* _FFR_USE_SEM_LOCKING */
 	return;
@@ -6675,11 +6733,12 @@ upd_qs(e, count, space, where)
 	if (QSHM_ENTRIES(idx) >= 0 && count != 0)
 	{
 # if _FFR_USE_SEM_LOCKING
-		r = sm_sem_acq(SemId, 0, 1);
+		if (SemId >= 0)
+			r = sm_sem_acq(SemId, 0, 1);
 # endif /* _FFR_USE_SEM_LOCKING */
 		QSHM_ENTRIES(idx) += count;
 # if _FFR_USE_SEM_LOCKING
-		if (r >= 0)
+		if (SemId >= 0 && r >= 0)
 			r = sm_sem_rel(SemId, 0, 1);
 # endif /* _FFR_USE_SEM_LOCKING */
 	}
@@ -6756,8 +6815,8 @@ write_key_file(keypath, key)
 				int err = errno;
 
 				sm_syslog(LOG_ALERT, NOQID,
-					  "ownership change on %s to %d failed: %s",
-					  keypath, RunAsUid, sm_errstring(err));
+					  "ownership change on %s to %ld failed: %s",
+					  keypath, (long) RunAsUid, sm_errstring(err));
 			}
 #  endif /* HASFCHOWN */
 		}
@@ -6907,8 +6966,8 @@ init_shm(qn, owner, hash)
 			i = sm_shmsetowner(ShmId, RunAsUid, RunAsGid, 0660);
 			if (i != 0)
 				sm_syslog(LOG_ERR, NOQID,
-					"key=%ld, sm_shmsetowner=%d, RunAsUid=%d, RunAsGid=%d",
-					(long) ShmKey, i, RunAsUid, RunAsGid);
+					"key=%ld, sm_shmsetowner=%d, RunAsUid=%ld, RunAsGid=%ld",
+					(long) ShmKey, i, (long) RunAsUid, (long) RunAsGid);
 		}
 		p = (int *) Pshm;
 		if (owner)
@@ -7096,19 +7155,19 @@ setup_queues(owner)
 		    safefile(" ", RunAsUid, RunAsGid, RunAsUserName, sff,
 			     QueueFileMode, NULL) != 0)
 		{
-			syserr("can not write to queue directory %s (RunAsGid=%d, required=%d)",
-				basedir, (int) RunAsGid, (int) st.st_gid);
+			syserr("can not write to queue directory %s (RunAsGid=%ld, required=%ld)",
+				basedir, (long) RunAsGid, (long) st.st_gid);
 		}
 		if (bitset(S_IWOTH|S_IXOTH, st.st_mode))
 		{
 #if _FFR_MSP_PARANOIA
 			syserr("dangerous permissions=%o on queue directory %s",
-				(int) st.st_mode, basedir);
+				(unsigned int) st.st_mode, basedir);
 #else /* _FFR_MSP_PARANOIA */
 			if (LogLevel > 0)
 				sm_syslog(LOG_ERR, NOQID,
 					  "dangerous permissions=%o on queue directory %s",
-					  (int) st.st_mode, basedir);
+					  (unsigned int) st.st_mode, basedir);
 #endif /* _FFR_MSP_PARANOIA */
 		}
 #if _FFR_MSP_PARANOIA
@@ -7560,7 +7619,7 @@ cmpidx(a, b)
 }
 
 /*
-**  MAKEWORKGROUP -- balance queue groups into work groups per MaxQueueChildren
+**  MAKEWORKGROUPS -- balance queue groups into work groups per MaxQueueChildren
 **
 **  Take the now defined queue groups and assign them to work groups.
 **  This is done to balance out the number of concurrently active
@@ -7632,6 +7691,7 @@ makeworkgroups()
 	NumWorkGroups = 0;
 	for (i = 0; i < NumQueue; i++)
 	{
+		SKIP_BOUNCE_QUEUE
 		total_runners += si[i].sg_maxqrun;
 		if (MaxQueueChildren <= 0 || total_runners <= MaxQueueChildren)
 			NumWorkGroups++;
@@ -7657,6 +7717,8 @@ makeworkgroups()
 	dir = 1;
 	for (i = 0; i < NumQueue; i++)
 	{
+		SKIP_BOUNCE_QUEUE
+
 		/* a to-and-fro packing scheme, continue from last position */
 		if (j >= NumWorkGroups)
 		{
@@ -8826,7 +8888,7 @@ quarantine_queue(reason, qgrplimit)
 			if (StopRequest)
 				stop_sendmail();
 
-			nrequests = gatherq(qgrp, qdir, true, NULL, NULL);
+			nrequests = gatherq(qgrp, qdir, true, NULL, NULL, NULL);
 
 			/* first see if there is anything */
 			if (nrequests <= 0)

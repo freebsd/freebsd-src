@@ -175,7 +175,7 @@
 
 /* nativefile */
 #ifndef CROSS_DEBUGGER
-#define GDB_NM_FILE config/ia64/nm-fbsd.h
+#define GDB_NM_FILE config/powerpc/nm-fbsd.h
 #endif
 
 /* Define to 1 so <sys/proc.h> gets a definition of anon_hdl.  Works
@@ -438,9 +438,6 @@
 
 /* Name of this package.  */
 #define PACKAGE "gdb"
-
-/* Global directory for separate debug files.  */
-#define DEBUGDIR "/usr/local/lib/debug"
 
 /* Define to BFD's default architecture.  */
 #define DEFAULT_BFD_ARCH bfd_rs6000_arch

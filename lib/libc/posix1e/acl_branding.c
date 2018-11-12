@@ -129,6 +129,9 @@ _acl_type_not_valid_for_acl(const acl_t acl, acl_type_t type)
 		if (type == ACL_TYPE_ACCESS || type == ACL_TYPE_DEFAULT)
 			return (0);
 		break;
+
+	case ACL_BRAND_UNKNOWN:
+		return (0);
 	}
 
 	return (-1);

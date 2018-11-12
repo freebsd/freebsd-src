@@ -23,6 +23,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -39,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/bus.h>
 
-#include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91_twireg.h>
 #include <arm/at91/at91var.h>
 
@@ -47,9 +48,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/iicbus/iicbus.h>
 #include "iicbus_if.h"
 
-#define TWI_SLOW_CLOCK		 1500
-#define TWI_FAST_CLOCK 		45000
-#define TWI_FASTEST_CLOCK	90000
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
+
+#define	TWI_SLOW_CLOCK		 1500
+#define	TWI_FAST_CLOCK		45000
+#define	TWI_FASTEST_CLOCK	90000
 
 struct at91_twi_softc
 {
@@ -68,24 +75,26 @@ struct at91_twi_softc
 static inline uint32_t
 RD4(struct at91_twi_softc *sc, bus_size_t off)
 {
+
 	return bus_read_4(sc->mem_res, off);
 }
 
 static inline void
 WR4(struct at91_twi_softc *sc, bus_size_t off, uint32_t val)
 {
+
 	bus_write_4(sc->mem_res, off, val);
 }
 
-#define AT91_TWI_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	AT91_TWI_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	AT91_TWI_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define AT91_TWI_LOCK_INIT(_sc) \
+#define	AT91_TWI_LOCK_INIT(_sc) \
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
 	    "twi", MTX_DEF)
-#define AT91_TWI_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
-#define AT91_TWI_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define AT91_TWI_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
-#define TWI_DEF_CLK	100000
+#define	AT91_TWI_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
+#define	AT91_TWI_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
+#define	AT91_TWI_ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+#define	TWI_DEF_CLK	100000
 
 static devclass_t at91_twi_devclass;
 
@@ -103,6 +112,11 @@ static void at91_twi_deactivate(device_t dev);
 static int
 at91_twi_probe(device_t dev)
 {
+#ifdef FDT
+	/* XXXX need a whole list, since there's at least 4 different ones */
+	if (!ofw_bus_is_compatible(dev, "atmel,at91sam9g20-i2c"))
+		return (ENXIO);
+#endif
 	device_set_desc(dev, "TWI");
 	return (0);
 }
@@ -119,6 +133,15 @@ at91_twi_attach(device_t dev)
 		goto out;
 
 	AT91_TWI_LOCK_INIT(sc);
+
+#ifdef FDT
+	/*
+	 * Disable devices need to hold their resources, so return now and not attach
+	 * the iicbus, setup interrupt handlers, etc.
+	 */
+	if (!ofw_bus_status_okay(dev))
+		return 0;
+#endif
 
 	/*
 	 * Activate the interrupt
@@ -140,7 +163,7 @@ at91_twi_attach(device_t dev)
 		device_printf(dev, "could not allocate iicbus instance\n");
 	/* probe and attach the iicbus */
 	bus_generic_attach(dev);
-out:;
+out:
 	if (err)
 		at91_twi_deactivate(dev);
 	return (err);
@@ -193,16 +216,16 @@ at91_twi_deactivate(device_t dev)
 	sc = device_get_softc(dev);
 	if (sc->intrhand)
 		bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
-	sc->intrhand = 0;
+	sc->intrhand = NULL;
 	bus_generic_detach(sc->dev);
 	if (sc->mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->mem_res), sc->mem_res);
-	sc->mem_res = 0;
+	sc->mem_res = NULL;
 	if (sc->irq_res)
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    rman_get_rid(sc->irq_res), sc->irq_res);
-	sc->irq_res = 0;
+	sc->irq_res = NULL;
 	return;
 }
 
@@ -282,7 +305,6 @@ at91_twi_rst_card(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	WR4(sc, TWI_CR, TWI_CR_SWRST);
 	WR4(sc, TWI_CR, TWI_CR_MSEN | TWI_CR_SVDIS);
 	WR4(sc, TWI_CWGR, sc->cwgr);
-	printf("setting cwgr to %#x\n", sc->cwgr);
 	AT91_TWI_UNLOCK(sc);
 
 	return 0;
@@ -338,7 +360,7 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			err = EINVAL;
 			goto out;
 		}
-		if (len == 1)
+		if (len == 1 && msgs[i].flags & IIC_M_RD)
 			WR4(sc, TWI_CR, TWI_CR_START | TWI_CR_STOP);
 		else
 			WR4(sc, TWI_CR, TWI_CR_START);
@@ -348,7 +370,7 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 				if ((sr = RD4(sc, TWI_SR)) & TWI_SR_RXRDY) {
 					len--;
 					*buf++ = RD4(sc, TWI_RHR) & 0xff;
-					if (len == 0 && msgs[i].len != 1)
+					if (len == 1)
 						WR4(sc, TWI_CR, TWI_CR_STOP);
 				}
 			}
@@ -358,17 +380,16 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			}
 		} else {
 			while (len--) {
-				if (len == 0 && msgs[i].len != 1)
-					WR4(sc, TWI_CR, TWI_CR_STOP);
 				if ((err = at91_twi_wait(sc, TWI_SR_TXRDY)))
 					goto out;
 				WR4(sc, TWI_THR, *buf++);
 			}
+			WR4(sc, TWI_CR, TWI_CR_STOP);
 		}
 		if ((err = at91_twi_wait(sc, TWI_SR_TXCOMP)))
 			break;
 	}
-out:;
+out:
 	if (err) {
 		WR4(sc, TWI_CR, TWI_CR_SWRST);
 		WR4(sc, TWI_CR, TWI_CR_MSEN | TWI_CR_SVDIS);
@@ -388,7 +409,7 @@ static device_method_t at91_twi_methods[] = {
 	DEVMETHOD(iicbus_callback,	at91_twi_callback),
 	DEVMETHOD(iicbus_reset,		at91_twi_rst_card),
 	DEVMETHOD(iicbus_transfer,	at91_twi_transfer),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t at91_twi_driver = {
@@ -397,6 +418,12 @@ static driver_t at91_twi_driver = {
 	sizeof(struct at91_twi_softc),
 };
 
-DRIVER_MODULE(at91_twi, atmelarm, at91_twi_driver, at91_twi_devclass, 0, 0);
-DRIVER_MODULE(iicbus, at91_twi, iicbus_driver, iicbus_devclass, 0, 0);
+#ifdef FDT
+DRIVER_MODULE(at91_twi, simplebus, at91_twi_driver, at91_twi_devclass, NULL,
+    NULL);
+#else
+DRIVER_MODULE(at91_twi, atmelarm, at91_twi_driver, at91_twi_devclass, NULL,
+    NULL);
+#endif
+DRIVER_MODULE(iicbus, at91_twi, iicbus_driver, iicbus_devclass, NULL, NULL);
 MODULE_DEPEND(at91_twi, iicbus, 1, 1, 1);

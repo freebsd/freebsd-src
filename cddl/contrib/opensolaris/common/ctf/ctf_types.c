@@ -25,8 +25,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <ctf_impl.h>
 
 ssize_t
@@ -199,8 +197,9 @@ ctf_type_resolve(ctf_file_t *fp, ctf_id_t type)
  * Lookup the given type ID and print a string name for it into buf.  Return
  * the actual number of bytes (not including \0) needed to format the name.
  */
-ssize_t
-ctf_type_lname(ctf_file_t *fp, ctf_id_t type, char *buf, size_t len)
+static ssize_t
+ctf_type_qlname(ctf_file_t *fp, ctf_id_t type, char *buf, size_t len,
+    const char *qname)
 {
 	ctf_decl_t cd;
 	ctf_decl_node_t *cdp;
@@ -255,6 +254,8 @@ ctf_type_lname(ctf_file_t *fp, ctf_id_t type, char *buf, size_t len)
 			case CTF_K_INTEGER:
 			case CTF_K_FLOAT:
 			case CTF_K_TYPEDEF:
+				if (qname != NULL)
+					ctf_decl_sprintf(&cd, "%s`", qname);
 				ctf_decl_sprintf(&cd, "%s", name);
 				break;
 			case CTF_K_POINTER:
@@ -268,13 +269,22 @@ ctf_type_lname(ctf_file_t *fp, ctf_id_t type, char *buf, size_t len)
 				break;
 			case CTF_K_STRUCT:
 			case CTF_K_FORWARD:
-				ctf_decl_sprintf(&cd, "struct %s", name);
+				ctf_decl_sprintf(&cd, "struct ");
+				if (qname != NULL)
+					ctf_decl_sprintf(&cd, "%s`", qname);
+				ctf_decl_sprintf(&cd, "%s", name);
 				break;
 			case CTF_K_UNION:
-				ctf_decl_sprintf(&cd, "union %s", name);
+				ctf_decl_sprintf(&cd, "union ");
+				if (qname != NULL)
+					ctf_decl_sprintf(&cd, "%s`", qname);
+				ctf_decl_sprintf(&cd, "%s", name);
 				break;
 			case CTF_K_ENUM:
-				ctf_decl_sprintf(&cd, "enum %s", name);
+				ctf_decl_sprintf(&cd, "enum ");
+				if (qname != NULL)
+					ctf_decl_sprintf(&cd, "%s`", qname);
+				ctf_decl_sprintf(&cd, "%s", name);
 				break;
 			case CTF_K_VOLATILE:
 				ctf_decl_sprintf(&cd, "volatile");
@@ -301,6 +311,12 @@ ctf_type_lname(ctf_file_t *fp, ctf_id_t type, char *buf, size_t len)
 	return (cd.cd_len);
 }
 
+ssize_t
+ctf_type_lname(ctf_file_t *fp, ctf_id_t type, char *buf, size_t len)
+{
+	return (ctf_type_qlname(fp, type, buf, len, NULL));
+}
+
 /*
  * Lookup the given type ID and print a string name for it into buf.  If buf
  * is too small, return NULL: the ECTF_NAMELEN error is set on 'fp' for us.
@@ -308,9 +324,18 @@ ctf_type_lname(ctf_file_t *fp, ctf_id_t type, char *buf, size_t len)
 char *
 ctf_type_name(ctf_file_t *fp, ctf_id_t type, char *buf, size_t len)
 {
-	ssize_t rv = ctf_type_lname(fp, type, buf, len);
+	ssize_t rv = ctf_type_qlname(fp, type, buf, len, NULL);
 	return (rv >= 0 && rv < len ? buf : NULL);
 }
+
+char *
+ctf_type_qname(ctf_file_t *fp, ctf_id_t type, char *buf, size_t len,
+    const char *qname)
+{
+	ssize_t rv = ctf_type_qlname(fp, type, buf, len, qname);
+	return (rv >= 0 && rv < len ? buf : NULL);
+}
+
 
 /*
  * Resolve the type down to a base type node, and then return the size
@@ -619,11 +644,8 @@ ctf_type_compat(ctf_file_t *lfp, ctf_id_t ltype,
 	}
 }
 
-/*
- * Return the type and offset for a given member of a STRUCT or UNION.
- */
-int
-ctf_member_info(ctf_file_t *fp, ctf_id_t type, const char *name,
+static int
+_ctf_member_info(ctf_file_t *fp, ctf_id_t type, const char *name, ulong_t off,
     ctf_membinfo_t *mip)
 {
 	ctf_file_t *ofp = fp;
@@ -648,9 +670,13 @@ ctf_member_info(ctf_file_t *fp, ctf_id_t type, const char *name,
 		    ((uintptr_t)tp + increment);
 
 		for (n = LCTF_INFO_VLEN(fp, tp->ctt_info); n != 0; n--, mp++) {
+			if (mp->ctm_name == 0 &&
+			    _ctf_member_info(fp, mp->ctm_type, name,
+			    mp->ctm_offset + off, mip) == 0)
+				return (0);
 			if (strcmp(ctf_strptr(fp, mp->ctm_name), name) == 0) {
 				mip->ctm_type = mp->ctm_type;
-				mip->ctm_offset = mp->ctm_offset;
+				mip->ctm_offset = mp->ctm_offset + off;
 				return (0);
 			}
 		}
@@ -659,15 +685,31 @@ ctf_member_info(ctf_file_t *fp, ctf_id_t type, const char *name,
 		    ((uintptr_t)tp + increment);
 
 		for (n = LCTF_INFO_VLEN(fp, tp->ctt_info); n != 0; n--, lmp++) {
+			if (lmp->ctlm_name == 0 &&
+			    _ctf_member_info(fp, lmp->ctlm_name, name,
+			    (ulong_t)CTF_LMEM_OFFSET(lmp) + off, mip) == 0)
+				return (0);
 			if (strcmp(ctf_strptr(fp, lmp->ctlm_name), name) == 0) {
 				mip->ctm_type = lmp->ctlm_type;
-				mip->ctm_offset = (ulong_t)CTF_LMEM_OFFSET(lmp);
+				mip->ctm_offset =
+				    (ulong_t)CTF_LMEM_OFFSET(lmp) + off;
 				return (0);
 			}
 		}
 	}
 
 	return (ctf_set_errno(ofp, ECTF_NOMEMBNAM));
+}
+
+/*
+ * Return the type and offset for a given member of a STRUCT or UNION.
+ */
+int
+ctf_member_info(ctf_file_t *fp, ctf_id_t type, const char *name,
+    ctf_membinfo_t *mip)
+{
+
+	return (_ctf_member_info(fp, type, name, 0, mip));
 }
 
 /*

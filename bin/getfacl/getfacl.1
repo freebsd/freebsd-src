@@ -30,7 +30,7 @@
 .\" Developed by the TrustedBSD Project.
 .\" Support for POSIX.1e access control lists.
 .\"
-.Dd September 04, 2009
+.Dd September 4, 2009
 .Dt GETFACL 1
 .Os
 .Sh NAME
@@ -48,7 +48,7 @@ the specified file(s) to standard output.
 If the
 .Xr getconf 1
 utility indicates that
-.Eq { } Va _POSIX_ACL_EXTENDED
+.Brq Va _POSIX_ACL_EXTENDED
 is not in effect for a
 .Ar file
 then the standard discretionary access permissions are interpreted as
@@ -97,6 +97,10 @@ then
 reads a list of pathnames, each terminated by one newline character,
 from the standard input.
 .El
+.Pp
+For an explanation of the ACL syntax, see the
+.Xr setfacl 1
+manual page.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES

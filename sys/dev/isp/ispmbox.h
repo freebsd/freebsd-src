@@ -48,7 +48,7 @@
 #define	MBOX_LOAD_RISC_RAM_2100		0x0009
 					/*   a */
 #define	MBOX_LOAD_RISC_RAM		0x000b
-					/*   c */
+#define	MBOX_DUMP_RISC_RAM		0x000c
 #define MBOX_WRITE_RAM_WORD_EXTENDED	0x000d
 #define MBOX_CHECK_FIRMWARE		0x000e
 #define	MBOX_READ_RAM_WORD_EXTENDED	0x000f
@@ -122,22 +122,61 @@
 #define	MBOX_GET_TARGET_STATUS		0x0056
 
 /* These are for the ISP2X00 FC cards */
+#define	MBOX_LOAD_FLASH_FIRMWARE	0x0003
+#define	MBOX_WRITE_FC_SERDES_REG	0x0003	/* FC only */
+#define	MBOX_READ_FC_SERDES_REG		0x0004	/* FC only */
+#define	MBOX_GET_IO_STATUS		0x0012
+#define	MBOX_SET_TRANSMIT_PARAMS	0x0019
+#define	MBOX_SET_PORT_PARAMS		0x001a
+#define	MBOX_LOAD_OP_FW_PARAMS		0x001b
+#define	MBOX_INIT_MULTIPLE_QUEUE	0x001f
 #define	MBOX_GET_LOOP_ID		0x0020
 /* for 24XX cards, outgoing mailbox 7 has these values for F or FL topologies */
 #define		ISP24XX_INORDER		0x0100
 #define		ISP24XX_NPIV_SAN	0x0400
 #define		ISP24XX_VSAN_SAN	0x1000
 #define		ISP24XX_FC_SP_SAN	0x2000
-
+#define	MBOX_GET_TIMEOUT_PARAMS		0x0022
 #define	MBOX_GET_FIRMWARE_OPTIONS	0x0028
+#define	MBOX_GENERATE_SYSTEM_ERROR	0x002a
+#define	MBOX_WRITE_SFP			0x0030
+#define	MBOX_READ_SFP			0x0031
+#define	MBOX_SET_TIMEOUT_PARAMS		0x0032
 #define	MBOX_SET_FIRMWARE_OPTIONS	0x0038
+#define	MBOX_GET_SET_FC_LED_CONF	0x003b
+#define	MBOX_RESTART_NIC_FIRMWARE	0x003d	/* FCoE only */
+#define	MBOX_ACCESS_CONTROL		0x003e
+#define	MBOX_LOOP_PORT_BYPASS		0x0040	/* FC only */
+#define	MBOX_LOOP_PORT_ENABLE		0x0041	/* FC only */
 #define	MBOX_GET_RESOURCE_COUNT		0x0042
 #define	MBOX_REQUEST_OFFLINE_MODE	0x0043
+#define	MBOX_DIAGNOSTIC_ECHO_TEST	0x0044
+#define	MBOX_DIAGNOSTIC_LOOPBACK	0x0045
 #define	MBOX_ENHANCED_GET_PDB		0x0047
 #define	MBOX_INIT_FIRMWARE_MULTI_ID	0x0048	/* 2400 only */
 #define	MBOX_GET_VP_DATABASE		0x0049	/* 2400 only */
 #define	MBOX_GET_VP_DATABASE_ENTRY	0x004a	/* 2400 only */
+#define	MBOX_GET_FCF_LIST		0x0050	/* FCoE only */
+#define	MBOX_GET_DCBX_PARAMETERS	0x0051	/* FCoE only */
+#define	MBOX_HOST_MEMORY_COPY		0x0053
 #define	MBOX_EXEC_COMMAND_IOCB_A64	0x0054
+#define	MBOX_SEND_RNID			0x0057
+#define	MBOX_SET_PARAMETERS		0x0059
+#define	MBOX_GET_PARAMETERS		0x005a
+#define	MBOX_DRIVER_HEARTBEAT		0x005B	/* FC only */
+#define	MBOX_FW_HEARTBEAT		0x005C
+#define	MBOX_GET_SET_DATA_RATE		0x005D	/* >=23XX only */
+#define		MBGSD_GET_RATE		0
+#define		MBGSD_SET_RATE		1
+#define		MBGSD_SET_RATE_NOW	2	/* 24XX only */
+#define		MBGSD_1GB	0x00
+#define		MBGSD_2GB	0x01
+#define		MBGSD_AUTO	0x02
+#define		MBGSD_4GB	0x03		/* 24XX only */
+#define		MBGSD_8GB	0x04		/* 25XX only */
+#define		MBGSD_16GB	0x05		/* 26XX only */
+#define		MBGSD_10GB	0x13		/* 26XX only */
+#define	MBOX_SEND_RNFT			0x005e
 #define	MBOX_INIT_FIRMWARE		0x0060
 #define	MBOX_GET_INIT_CONTROL_BLOCK	0x0061
 #define	MBOX_INIT_LIP			0x0062
@@ -151,26 +190,18 @@
 #define	MBOX_GET_PORT_NAME		0x006A
 #define	MBOX_GET_LINK_STATUS		0x006B
 #define	MBOX_INIT_LIP_RESET		0x006C
+#define	MBOX_GET_LINK_STAT_PR_DATA_CNT	0x006D
 #define	MBOX_SEND_SNS			0x006E
 #define	MBOX_FABRIC_LOGIN		0x006F
 #define	MBOX_SEND_CHANGE_REQUEST	0x0070
 #define	MBOX_FABRIC_LOGOUT		0x0071
 #define	MBOX_INIT_LIP_LOGIN		0x0072
+#define	MBOX_GET_PORT_NODE_NAME_LIST	0x0075
+#define	MBOX_SET_VENDOR_ID		0x0076
+#define	MBOX_GET_XGMAC_STATS		0x007a
+#define	MBOX_GET_ID_LIST		0x007C
+#define	MBOX_SEND_LFA			0x007d
 #define	MBOX_LUN_RESET			0x007E
-
-#define	MBOX_DRIVER_HEARTBEAT		0x005B
-#define	MBOX_FW_HEARTBEAT		0x005C
-
-#define	MBOX_GET_SET_DATA_RATE		0x005D	/* 24XX/23XX only */
-#define		MBGSD_GET_RATE		0
-#define		MBGSD_SET_RATE		1
-#define		MBGSD_SET_RATE_NOW	2	/* 24XX only */
-#define		MBGSD_ONEGB	0
-#define		MBGSD_TWOGB	1
-#define		MBGSD_AUTO	2
-#define		MBGSD_FOURGB	3		/* 24XX only */
-#define		MBGSD_EIGHTGB	4		/* 25XX only */
-
 
 #define	ISP2100_SET_PCI_PARAM		0x00ff
 
@@ -189,13 +220,17 @@
 #define	MBOX_LOOP_ID_USED		0x4008
 #define	MBOX_ALL_IDS_USED		0x4009
 #define	MBOX_NOT_LOGGED_IN		0x400A
+#define	MBOX_LINK_DOWN_ERROR		0x400B
+#define	MBOX_LOOPBACK_ERROR		0x400C
+#define	MBOX_CHECKSUM_ERROR		0x4010
+#define	MBOX_INVALID_PRODUCT_KEY	0x4020
 /* pseudo mailbox completion codes */
 #define	MBOX_REGS_BUSY			0x6000	/* registers in use */
 #define	MBOX_TIMEOUT			0x6001	/* command timed out */
 
-#define	MBLOGALL			0x000f
-#define	MBLOGNONE			0x0000
-#define	MBLOGMASK(x)			((x) & 0xf)
+#define	MBLOGALL			0xffffffff
+#define	MBLOGNONE			0x00000000
+#define	MBLOGMASK(x)			(1 << (((x) - 1) & 0x1f))
 
 /*
  * Asynchronous event status codes
@@ -212,38 +247,58 @@
 #define	ASYNC_HUNG_SCSI			0x800C
 #define	ASYNC_KILLED_BUS		0x800D
 #define	ASYNC_BUS_TRANSIT		0x800E	/* LVD -> HVD, eg. */
-#define	ASYNC_LIP_OCCURRED		0x8010
+#define	ASYNC_LIP_OCCURRED		0x8010	/* FC only */
 #define	ASYNC_LOOP_UP			0x8011
 #define	ASYNC_LOOP_DOWN			0x8012
-#define	ASYNC_LOOP_RESET		0x8013
+#define	ASYNC_LOOP_RESET		0x8013	/* FC only */
 #define	ASYNC_PDB_CHANGED		0x8014
 #define	ASYNC_CHANGE_NOTIFY		0x8015
-#define	ASYNC_LIP_F8			0x8016
-#define	ASYNC_LIP_ERROR			0x8017
+#define	ASYNC_LIP_NOS_OLS_RECV		0x8016	/* FC only */
+#define	ASYNC_LIP_ERROR			0x8017	/* FC only */
+#define	ASYNC_AUTO_PLOGI_RJT		0x8018
 #define	ASYNC_SECURITY_UPDATE		0x801B
 #define	ASYNC_CMD_CMPLT			0x8020
 #define	ASYNC_CTIO_DONE			0x8021
+#define	ASYNC_RIO32_1			0x8021
+#define	ASYNC_RIO32_2			0x8022
 #define	ASYNC_IP_XMIT_DONE		0x8022
 #define	ASYNC_IP_RECV_DONE		0x8023
 #define	ASYNC_IP_BROADCAST		0x8024
 #define	ASYNC_IP_RCVQ_LOW		0x8025
 #define	ASYNC_IP_RCVQ_EMPTY		0x8026
 #define	ASYNC_IP_RECV_DONE_ALIGNED	0x8027
-#define	ASYNC_PTPMODE			0x8030
-#define	ASYNC_RIO1			0x8031
-#define	ASYNC_RIO2			0x8032
-#define	ASYNC_RIO3			0x8033
-#define	ASYNC_RIO4			0x8034
-#define	ASYNC_RIO5			0x8035
+#define	ASYNC_ERR_LOGGING_DISABLED	0x8029
+#define	ASYNC_PTPMODE			0x8030	/* FC only */
+#define	ASYNC_RIO16_1			0x8031
+#define	ASYNC_RIO16_2			0x8032
+#define	ASYNC_RIO16_3			0x8033
+#define	ASYNC_RIO16_4			0x8034
+#define	ASYNC_RIO16_5			0x8035
 #define	ASYNC_CONNMODE			0x8036
 #define		ISP_CONN_LOOP		1
 #define		ISP_CONN_PTP		2
 #define		ISP_CONN_BADLIP		3
 #define		ISP_CONN_FATAL		4
 #define		ISP_CONN_LOOPBACK	5
-#define	ASYNC_RIO_RESP			0x8040
-#define	ASYNC_RIO_COMP			0x8042
+#define	ASYNC_P2P_INIT_ERR		0x8037
+#define	ASYNC_RIOZIO_STALL		0x8040	/* there's a RIO/ZIO entry that hasn't been serviced */
+#define	ASYNC_RIO32_2_2200		0x8042	/* same as ASYNC_RIO32_2, but for 2100/2200 */
 #define	ASYNC_RCV_ERR			0x8048
+/*
+ * 2.01.31 2200 Only. Need Bit 13 in Mailbox 1 for Set Firmware Options
+ * mailbox command to enable this.
+ */
+#define	ASYNC_QFULL_SENT		0x8049
+#define	ASYNC_RJT_SENT			0x8049	/* 24XX only */
+#define	ASYNC_SEL_CLASS2_P_RJT_SENT	0x804f
+#define	ASYNC_FW_RESTART_COMPLETE	0x8060
+#define	ASYNC_TEMPERATURE_ALERT		0x8070
+#define	ASYNC_INTER_DRIVER_COMP		0x8100	/* FCoE only */
+#define	ASYNC_INTER_DRIVER_NOTIFY	0x8101	/* FCoE only */
+#define	ASYNC_INTER_DRIVER_TIME_EXT	0x8102	/* FCoE only */
+#define	ASYNC_NIC_FW_STATE_CHANGE	0x8200	/* FCoE only */
+#define	ASYNC_AUTOLOAD_FW_COMPLETE	0x8400
+#define	ASYNC_AUTOLOAD_FW_FAILURE	0x8401
 
 /*
  * Firmware Options. There are a lot of them.
@@ -267,30 +322,11 @@
 
 #define	IFCOPT3_NOPRLI		(1 << 4)	/* disable automatic sending of PRLI on local loops */
 #define	IFCOPT3_RNDASYNC	(1 << 1)
-/*
- * 2.01.31 2200 Only. Need Bit 13 in Mailbox 1 for Set Firmware Options
- * mailbox command to enable this.
- */
-#define	ASYNC_QFULL_SENT		0x8049
-
-/*
- * Needs to be enabled
- */
-#define	ASYNC_AUTO_PLOGI_RJT		0x8018
-/*
- * 24XX only
- */
-#define	ASYNC_RJT_SENT			0x8049
 
 /*
  * All IOCB Queue entries are this size
  */
 #define	QENTRY_LEN			64
-
-/*
- * Special Internal Handle for IOCBs
- */
-#define	ISP_SPCL_HANDLE			0xa5dead5a
 
 /*
  * Command Structure Definitions
@@ -431,7 +467,8 @@ typedef struct {
 	uint8_t		req_target;
 	uint16_t	req_scclun;
 	uint16_t	req_flags;
-	uint16_t	req_reserved;
+	uint8_t		req_crn;
+	uint8_t		req_reserved;
 	uint16_t	req_time;
 	uint16_t	req_seg_count;
 	uint8_t		req_cdb[16];
@@ -445,7 +482,8 @@ typedef struct {
 	uint16_t	req_target;
 	uint16_t	req_scclun;
 	uint16_t	req_flags;
-	uint16_t	req_reserved;
+	uint8_t		req_crn;
+	uint8_t		req_reserved;
 	uint16_t	req_time;
 	uint16_t	req_seg_count;
 	uint8_t		req_cdb[16];
@@ -461,7 +499,8 @@ typedef struct {
 	uint8_t		req_target;
 	uint16_t	req_scclun;
 	uint16_t	req_flags;
-	uint16_t	req_reserved;
+	uint8_t		req_crn;
+	uint8_t		req_reserved;
 	uint16_t	req_time;
 	uint16_t	req_seg_count;
 	uint8_t		req_cdb[16];
@@ -476,7 +515,8 @@ typedef struct {
 	uint16_t	req_target;
 	uint16_t	req_scclun;
 	uint16_t	req_flags;
-	uint16_t	req_reserved;
+	uint8_t		req_crn;
+	uint8_t		req_reserved;
 	uint16_t	req_time;
 	uint16_t	req_seg_count;
 	uint8_t		req_cdb[16];
@@ -518,40 +558,10 @@ typedef struct {
 	uint8_t		req_cdb[44];
 } ispextreq_t;
 
-/* 24XX only */
-typedef struct {
-	uint16_t	fcd_length;
-	uint16_t	fcd_a1500;
-	uint16_t	fcd_a3116;
-	uint16_t	fcd_a4732;
-	uint16_t	fcd_a6348;
-} fcp_cmnd_ds_t;
 
-typedef struct {
-	isphdr_t	req_header;
-	uint32_t	req_handle;
-	uint16_t	req_nphdl;
-	uint16_t	req_time;
-	uint16_t	req_seg_count;
-	uint16_t	req_fc_rsp_dsd_length;
-	uint8_t		req_lun[8];
-	uint16_t	req_flags;
-	uint16_t	req_fc_cmnd_dsd_length;
-	uint16_t	req_fc_cmnd_dsd_a1500;
-	uint16_t	req_fc_cmnd_dsd_a3116;
-	uint16_t	req_fc_cmnd_dsd_a4732;
-	uint16_t	req_fc_cmnd_dsd_a6348;
-	uint16_t	req_fc_rsp_dsd_a1500;
-	uint16_t	req_fc_rsp_dsd_a3116;
-	uint16_t	req_fc_rsp_dsd_a4732;
-	uint16_t	req_fc_rsp_dsd_a6348;
-	uint32_t	req_totalcnt;
-	uint16_t	req_tidlo;
-	uint8_t		req_tidhi;
-	uint8_t		req_vpidx;
-	ispds64_t	req_dataseg;
-} ispreqt6_t;
-
+/*
+ * ISP24XX structures
+ */
 typedef struct {
 	isphdr_t	req_header;
 	uint32_t	req_handle;
@@ -604,7 +614,8 @@ typedef struct {
 	uint16_t	abrt_nphdl;
 	uint16_t	abrt_options;
 	uint32_t	abrt_cmd_handle;
-	uint8_t		abrt_reserved[32];
+	uint16_t	abrt_queue_number;
+	uint8_t		abrt_reserved[30];
 	uint16_t	abrt_tidlo;
 	uint8_t		abrt_tidhi;
 	uint8_t		abrt_vpidx;
@@ -662,7 +673,7 @@ typedef struct {
 	uint32_t	req_resid;
 	uint16_t	req_reserved0;
 	uint16_t	req_state_flags;
-	uint16_t	req_reserved1;
+	uint16_t	req_retry_delay;	/* aka Status Qualifier */
 	uint16_t	req_scsi_status;
 	uint32_t	req_fcp_residual;
 	uint32_t	req_sense_len;
@@ -674,11 +685,12 @@ typedef struct {
  * For Qlogic 2X00, the high order byte of SCSI status has
  * additional meaning.
  */
-#define	RQCS_RU	0x800	/* Residual Under */
-#define	RQCS_RO	0x400	/* Residual Over */
+#define	RQCS_CR	0x1000	/* Confirmation Request */
+#define	RQCS_RU	0x0800	/* Residual Under */
+#define	RQCS_RO	0x0400	/* Residual Over */
 #define	RQCS_RESID	(RQCS_RU|RQCS_RO)
-#define	RQCS_SV	0x200	/* Sense Length Valid */
-#define	RQCS_RV	0x100	/* FCP Response Length Valid */
+#define	RQCS_SV	0x0200	/* Sense Length Valid */
+#define	RQCS_RV	0x0100	/* FCP Response Length Valid */
 
 /*
  * CT Passthru IOCB
@@ -850,22 +862,55 @@ typedef struct {
 #define	ISP2400_FW_ATTR_SB2	0x0008
 #define	ISP2400_FW_ATTR_T10CRC	0x0010
 #define	ISP2400_FW_ATTR_VI	0x0020
+#define	ISP2400_FW_ATTR_MQ	0x0040
+#define	ISP2400_FW_ATTR_MSIX	0x0080
+#define	ISP2400_FW_ATTR_FCOE	0x0800
+#define	ISP2400_FW_ATTR_VP0	0x1000
 #define	ISP2400_FW_ATTR_EXPFW	0x2000
+#define	ISP2400_FW_ATTR_HOTFW	0x4000
+#define	ISP2400_FW_ATTR_EXTNDED	0x8000
+#define	ISP2400_FW_ATTR_EXTVP	0x00010000
+#define	ISP2400_FW_ATTR_VN2VN	0x00040000
+#define	ISP2400_FW_ATTR_EXMOFF	0x00080000
+#define	ISP2400_FW_ATTR_NPMOFF	0x00100000
+#define	ISP2400_FW_ATTR_DIFCHOP	0x00400000
+#define	ISP2400_FW_ATTR_SRIOV	0x02000000
+#define	ISP2400_FW_ATTR_ASICTMP	0x0200000000
+#define	ISP2400_FW_ATTR_ATIOMQ	0x0400000000
 
+/*
+ * These are either manifestly true or are dependent on f/w attributes
+ */
 #define	ISP_CAP_TMODE(isp)	\
 	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_TMODE))
 #define	ISP_CAP_SCCFW(isp)	\
 	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_SCCLUN))
 #define	ISP_CAP_2KLOGIN(isp)	\
 	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_2KLOGINS))
-#define	ISP_CAP_MULTI_ID(isp)	\
-	(IS_24XX(isp)? (isp->isp_fwattr & ISP2400_FW_ATTR_MULTIID) : 0)
-
-#define	ISP_GET_VPIDX(isp, tag) \
-	(ISP_CAP_MULTI_ID(isp) ? tag : 0)
 
 /*
- * Reduced Interrupt Operation Response Queue Entreis
+ * This is only true for 24XX cards with this f/w attribute
+ */
+#define	ISP_CAP_MULTI_ID(isp)	\
+	(IS_24XX(isp)? (isp->isp_fwattr & ISP2400_FW_ATTR_MULTIID) : 0)
+#define	ISP_GET_VPIDX(isp, tag) \
+	(ISP_CAP_MULTI_ID(isp) ? tag : 0)
+#define	ISP_CAP_VP0(isp)	\
+	(IS_24XX(isp)? (isp->isp_fwattr & ISP2400_FW_ATTR_VP0) : 0)
+
+/*
+ * This is true manifestly or is dependent on a f/w attribute
+ * but may or may not actually be *enabled*. In any case, it
+ * is enabled on a per-channel basis.
+ */
+#define	ISP_CAP_FCTAPE(isp)	\
+	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_FCTAPE))
+
+#define	ISP_FCTAPE_ENABLED(isp, chan)	\
+	(IS_24XX(isp)? (FCPARAM(isp, chan)->isp_xfwoptions & ICB2400_OPT2_FCTAPE) != 0 : (FCPARAM(isp, chan)->isp_xfwoptions & ICBXOPT_FCTAPE) != 0)
+
+/*
+ * Reduced Interrupt Operation Response Queue Entries
  */
 
 typedef struct {
@@ -925,11 +970,11 @@ typedef struct {
 #define	ICBOPT_BOTH_WWNS	0x4000
 #define	ICBOPT_FULL_LOGIN	0x2000
 #define	ICBOPT_STOP_ON_QFULL	0x1000	/* 2200/2100 only */
-#define	ICBOPT_PREVLOOP		0x0800
+#define	ICBOPT_PREV_ADDRESS	0x0800
 #define	ICBOPT_SRCHDOWN		0x0400
 #define	ICBOPT_NOLIP		0x0200
 #define	ICBOPT_PDBCHANGE_AE	0x0100
-#define	ICBOPT_INI_TGTTYPE	0x0080
+#define	ICBOPT_TGT_TYPE		0x0080
 #define	ICBOPT_INI_ADISC	0x0040
 #define	ICBOPT_INI_DISABLE	0x0020
 #define	ICBOPT_TGT_ENABLE	0x0010
@@ -963,10 +1008,11 @@ typedef struct {
 #define	ICBXOPT_TIMER_MASK	0x7
 
 #define	ICBZOPT_RATE_MASK	0xC000
-#define	ICBZOPT_RATE_ONEGB	0x0000
+#define	ICBZOPT_RATE_1GB	0x0000
 #define	ICBZOPT_RATE_AUTO	0x8000
-#define	ICBZOPT_RATE_TWOGB	0x4000
+#define	ICBZOPT_RATE_2GB	0x4000
 #define	ICBZOPT_50_OHM		0x2000
+#define	ICBZOPT_NO_LOCAL_PLOGI	0x0080
 #define	ICBZOPT_ENA_OOF		0x0040	/* out of order frame handling */
 #define	ICBZOPT_RSPSZ_MASK	0x0030
 #define	ICBZOPT_RSPSZ_24	0x0000
@@ -979,7 +1025,7 @@ typedef struct {
 /* 2400 F/W options */
 #define	ICB2400_OPT1_BOTH_WWNS		0x00004000
 #define	ICB2400_OPT1_FULL_LOGIN		0x00002000
-#define	ICB2400_OPT1_PREVLOOP		0x00000800
+#define	ICB2400_OPT1_PREV_ADDRESS	0x00000800
 #define	ICB2400_OPT1_SRCHDOWN		0x00000400
 #define	ICB2400_OPT1_NOLIP		0x00000200
 #define	ICB2400_OPT1_INI_DISABLE	0x00000020
@@ -988,7 +1034,16 @@ typedef struct {
 #define	ICB2400_OPT1_FAIRNESS		0x00000002
 #define	ICB2400_OPT1_HARD_ADDRESS	0x00000001
 
+#define	ICB2400_OPT2_ENA_ATIOMQ		0x08000000
+#define	ICB2400_OPT2_ENA_IHA		0x04000000
+#define	ICB2400_OPT2_QOS		0x02000000
+#define	ICB2400_OPT2_IOCBS		0x01000000
+#define	ICB2400_OPT2_ENA_IHR		0x00400000
+#define	ICB2400_OPT2_ENA_VMS		0x00200000
+#define	ICB2400_OPT2_ENA_TA		0x00100000
+#define	ICB2400_OPT2_TPRLIC		0x00004000
 #define	ICB2400_OPT2_FCTAPE		0x00001000
+#define	ICB2400_OPT2_FCSP		0x00000800
 #define	ICB2400_OPT2_CLASS2_ACK0	0x00000200
 #define	ICB2400_OPT2_CLASS2		0x00000100
 #define	ICB2400_OPT2_NO_PLAY		0x00000080
@@ -996,19 +1051,24 @@ typedef struct {
 #define	ICB2400_OPT2_LOOP_ONLY		0x00000000
 #define	ICB2400_OPT2_PTP_ONLY		0x00000010
 #define	ICB2400_OPT2_LOOP_2_PTP		0x00000020
-#define	ICB2400_OPT2_PTP_2_LOOP		0x00000030
-#define	ICB2400_OPT2_TIMER_MASK		0x00000007
+#define	ICB2400_OPT2_TIMER_MASK		0x0000000f
 #define	ICB2400_OPT2_ZIO		0x00000005
 #define	ICB2400_OPT2_ZIO1		0x00000006
 
-#define	ICB2400_OPT3_75_OHM		0x00010000
+#define	ICB2400_OPT3_NO_CTXDIS		0x40000000
+#define	ICB2400_OPT3_ENA_ETH_RESP	0x08000000
+#define	ICB2400_OPT3_ENA_ETH_ATIO	0x04000000
+#define	ICB2400_OPT3_ENA_MFCF		0x00020000
+#define	ICB2400_OPT3_SKIP_4GB		0x00010000
 #define	ICB2400_OPT3_RATE_MASK		0x0000E000
-#define	ICB2400_OPT3_RATE_ONEGB		0x00000000
-#define	ICB2400_OPT3_RATE_TWOGB		0x00002000
-#define ICB2400_OPT3_RATE_AUTO		0x00004000
-#define	ICB2400_OPT3_RATE_FOURGB	0x00006000
-#define	ICB2400_OPT3_RATE_EIGHTGB	0x00008000
+#define	ICB2400_OPT3_RATE_1GB		0x00000000
+#define	ICB2400_OPT3_RATE_2GB		0x00002000
+#define	ICB2400_OPT3_RATE_AUTO		0x00004000
+#define	ICB2400_OPT3_RATE_4GB		0x00006000
+#define	ICB2400_OPT3_RATE_8GB		0x00008000
+#define	ICB2400_OPT3_RATE_16GB		0x0000A000
 #define	ICB2400_OPT3_ENA_OOF_XFRDY	0x00000200
+#define	ICB2400_OPT3_NO_N2N_LOGI	0x00000100
 #define	ICB2400_OPT3_NO_LOCAL_PLOGI	0x00000080
 #define	ICB2400_OPT3_ENA_OOF		0x00000040
 /* note that a response size flag of zero is reserved! */
@@ -1026,8 +1086,8 @@ typedef struct {
 #define	ICB_DFLT_RDELAY		5
 #define	ICB_DFLT_RCOUNT		3
 
-#define	ICB_LOGIN_TOV		30
-#define	ICB_LUN_ENABLE_TOV	180
+#define	ICB_LOGIN_TOV		10
+#define	ICB_LUN_ENABLE_TOV	15
 
 
 /*
@@ -1053,8 +1113,10 @@ typedef struct {
 	uint16_t	icb_prqstqlen;
 	uint16_t	icb_rqstaddr[4];
 	uint16_t	icb_respaddr[4];
-	uint16_t	icb_priaddr[4];	
-	uint16_t	icb_reserved1[4];
+	uint16_t	icb_priaddr[4];
+	uint16_t	icb_msixresp;
+	uint16_t	icb_msixatio;
+	uint16_t	icb_reserved1[2];
 	uint16_t	icb_atio_in;
 	uint16_t	icb_atioqlen;
 	uint16_t	icb_atioqaddr[4];
@@ -1063,7 +1125,11 @@ typedef struct {
 	uint32_t	icb_fwoptions1;
 	uint32_t	icb_fwoptions2;
 	uint32_t	icb_fwoptions3;
-	uint16_t	icb_reserved2[12];
+	uint16_t	icb_qos;
+	uint16_t	icb_reserved2[3];
+	uint16_t	icb_enodemac[3];
+	uint16_t	icb_disctime;
+	uint16_t	icb_reserved3[4];
 } isp_icb_2400_t;
 
 #define	RQRSP_ADDR0015	0
@@ -1116,12 +1182,13 @@ typedef struct {
 	uint16_t	vp_port_portid_hi;	/* not present when trailing icb */
 } vp_port_info_t;
 
-#define	ICB2400_VPOPT_TGT_DISABLE	0x00000020	/* disable target mode */
-#define	ICB2400_VPOPT_INI_ENABLE	0x00000010	/* enable initiator mode */
-#define	ICB2400_VPOPT_ENABLED		0x00000008
-#define	ICB2400_VPOPT_NOPLAY		0x00000004
-#define	ICB2400_VPOPT_PREVLOOP		0x00000002
-#define	ICB2400_VPOPT_HARD_ADDRESS	0x00000001
+#define	ICB2400_VPOPT_ENA_SNSLOGIN	0x00000040	/* Enable SNS Login and SCR for Virtual Ports */
+#define	ICB2400_VPOPT_TGT_DISABLE	0x00000020	/* Target Mode Disabled */
+#define	ICB2400_VPOPT_INI_ENABLE	0x00000010	/* Initiator Mode Enabled */
+#define	ICB2400_VPOPT_ENABLED		0x00000008	/* VP Enabled */
+#define	ICB2400_VPOPT_NOPLAY		0x00000004	/* ID Not Acquired */
+#define	ICB2400_VPOPT_PREV_ADDRESS	0x00000002	/* Previously Assigned ID */
+#define	ICB2400_VPOPT_HARD_ADDRESS	0x00000001	/* Hard Assigned ID */
 
 #define	ICB2400_VPOPT_WRITE_SIZE	20
 
@@ -1137,10 +1204,14 @@ typedef struct {
 
 #define	ICB2400_VPINFO_OFF	0x80	/* offset from start of ICB */
 #define	ICB2400_VPINFO_PORT_OFF(chan)		\
-    ICB2400_VPINFO_OFF + 			\
-    sizeof (isp_icb_2400_vpinfo_t) + ((chan - 1) * ICB2400_VPOPT_WRITE_SIZE)
+    (ICB2400_VPINFO_OFF + 			\
+     sizeof (isp_icb_2400_vpinfo_t) + (chan * ICB2400_VPOPT_WRITE_SIZE))
 
-#define	ICB2400_VPGOPT_MID_DISABLE	0x02
+#define	ICB2400_VPGOPT_FCA		0x01	/* Assume Clean Address bit in FLOGI ACC set (works only in static configurations) */
+#define	ICB2400_VPGOPT_MID_DISABLE	0x02	/* when set, connection mode2 will work with NPIV-capable switched */
+#define	ICB2400_VPGOPT_VP0_DECOUPLE	0x04	/* Allow VP0 decoupling if firmware supports it */
+#define	ICB2400_VPGOPT_SUSP_FDISK	0x10	/* Suspend FDISC for Enabled VPs */
+#define	ICB2400_VPGOPT_GEN_RIDA		0x20	/* Generate RIDA if FLOGI Fails */
 
 typedef struct {
 	isphdr_t	vp_ctrl_hdr;
@@ -1149,14 +1220,16 @@ typedef struct {
 	uint16_t	vp_ctrl_status;
 	uint16_t	vp_ctrl_command;
 	uint16_t	vp_ctrl_vp_count;
-	uint16_t	vp_ctrl_idmap[8];
-	uint8_t		vp_ctrl_reserved[32];
+	uint16_t	vp_ctrl_idmap[16];
+	uint16_t	vp_ctrl_reserved[7];
+	uint16_t	vp_ctrl_fcf_index;
 } vp_ctrl_info_t;
 
-#define	VP_CTRL_CMD_ENABLE_VP			0
-#define	VP_CTRL_CMD_DISABLE_VP			8
-#define	VP_CTRL_CMD_DISABLE_VP_REINIT_LINK	9
-#define	VP_CTRL_CMD_DISABLE_VP_LOGO		0xA
+#define	VP_CTRL_CMD_ENABLE_VP			0x00
+#define	VP_CTRL_CMD_DISABLE_VP			0x08
+#define	VP_CTRL_CMD_DISABLE_VP_REINIT_LINK	0x09
+#define	VP_CTRL_CMD_DISABLE_VP_LOGO		0x0A
+#define	VP_CTRL_CMD_DISABLE_VP_LOGO_ALL		0x0B
 
 /*
  * We can use this structure for modifying either one or two VP ports after initialization
@@ -1187,8 +1260,10 @@ typedef struct {
 #define	VP_IDX_ERR	0x04
 #define	VP_STS_BSY	0x05
 
-#define	VP_MODIFY_VP	0x00
+#define	VP_MODIFY	0x00
 #define	VP_MODIFY_ENA	0x01
+#define	VP_MODIFY_OPT	0x02
+#define	VP_RESUME	0x03
 
 /*
  * Port Data Base Element
@@ -1253,10 +1328,8 @@ typedef struct {
 #define	PDB_STATE_PLOGO		10
 #define	PDB_STATE_PLOG_ACK	11
 
-#define		SVC3_TGT_ROLE		0x10
-#define 	SVC3_INI_ROLE		0x20
-#define			SVC3_ROLE_MASK	0x30
-#define			SVC3_ROLE_SHIFT	4
+#define	SVC3_ROLE_MASK		0x30
+#define	SVC3_ROLE_SHIFT		4
 
 #define	BITS2WORD(x)		((x)[0] << 16 | (x)[3] << 8 | (x)[2])
 #define	BITS2WORD_24XX(x)	((x)[0] << 16 | (x)[1] << 8 | (x)[2])
@@ -1302,12 +1375,46 @@ typedef struct {
  */
 typedef struct {
 	uint16_t	handle;
-	uint16_t	reserved;
-	uint32_t	s3_role	: 8,
+	uint16_t	prli_word3;
+	uint32_t		: 8,
 			portid	: 24;
 	uint8_t		portname[8];
 	uint8_t		nodename[8];
 } isp_pdb_t;
+
+/*
+ * Port/Node Name List Element
+ */
+typedef struct {
+	uint8_t		pnnle_name[8];
+	uint16_t	pnnle_handle;
+	uint16_t	pnnle_reserved;
+} isp_pnnle_t;
+
+#define	PNNL_OPTIONS_NODE_NAMES	(1<<0)
+#define	PNNL_OPTIONS_PORT_DATA	(1<<2)
+#define	PNNL_OPTIONS_INITIATORS	(1<<3)
+
+/*
+ * Port and N-Port Handle List Element
+ */
+typedef struct {
+	uint16_t	pnhle_port_id_lo;
+	uint16_t	pnhle_port_id_hi_handle;
+} isp_pnhle_21xx_t;
+
+typedef struct {
+	uint16_t	pnhle_port_id_lo;
+	uint16_t	pnhle_port_id_hi;
+	uint16_t	pnhle_handle;
+} isp_pnhle_23xx_t;
+
+typedef struct {
+	uint16_t	pnhle_port_id_lo;
+	uint16_t	pnhle_port_id_hi;
+	uint16_t	pnhle_handle;
+	uint16_t	pnhle_reserved;
+} isp_pnhle_24xx_t;
 
 /*
  * Port Database Changed Async Event information for 24XX cards
@@ -1379,7 +1486,7 @@ typedef struct {
 #define	PLOGX_IOCBERR_FAILED	0x04	/* further info in IOPARM 1 */
 #define	PLOGX_IOCBERR_NOFABRIC	0x05
 #define	PLOGX_IOCBERR_NOTREADY	0x07
-#define	PLOGX_IOCBERR_NOLOGIN	0x08	/* further info in IOPARM 1 */
+#define	PLOGX_IOCBERR_NOLOGIN	0x09	/* further info in IOPARM 1 */
 #define	PLOGX_IOCBERR_NOPCB	0x0a
 #define	PLOGX_IOCBERR_REJECT	0x18	/* further info in IOPARM 1 */
 #define	PLOGX_IOCBERR_EINVAL	0x19	/* further info in IOPARM 1 */
@@ -1413,18 +1520,10 @@ typedef struct {
 typedef struct {
 	isphdr_t	ridacq_hdr;
 	uint32_t	ridacq_handle;
-	union {
-		struct {
-			uint8_t		ridacq_vp_acquired;
-			uint8_t		ridacq_vp_setup;
-			uint16_t	ridacq_reserved0;
-		} type0;	/* type 0 */
-		struct {
-			uint16_t	ridacq_vp_count;
-			uint8_t		ridacq_vp_index;
-			uint8_t		ridacq_vp_status;
-		} type1;	/* type 1 */
-	} un;
+	uint8_t		ridacq_vp_acquired;
+	uint8_t		ridacq_vp_setup;
+	uint8_t		ridacq_vp_index;
+	uint8_t		ridacq_vp_status;
 	uint16_t	ridacq_vp_port_lo;
 	uint8_t		ridacq_vp_port_hi;
 	uint8_t		ridacq_format;		/* 0 or 1 */
@@ -1434,8 +1533,11 @@ typedef struct {
 
 #define	RIDACQ_STS_COMPLETE	0
 #define	RIDACQ_STS_UNACQUIRED	1
-#define	RIDACQ_STS_CHANGED	20
-
+#define	RIDACQ_STS_CHANGED	2
+#define	RIDACQ_STS_SNS_TIMEOUT	3
+#define	RIDACQ_STS_SNS_REJECTED	4
+#define	RIDACQ_STS_SCR_TIMEOUT	5
+#define	RIDACQ_STS_SCR_REJECTED	6
 
 /*
  * Simple Name Server Data Structures
@@ -1446,13 +1548,16 @@ typedef struct {
 #define	SNS_GFF_ID	0x11F
 #define	SNS_GID_FT	0x171
 #define	SNS_RFT_ID	0x217
+#define	SNS_RSPN_ID	0x218
+#define	SNS_RFF_ID	0x21F
+#define	SNS_RSNN_NN	0x239
 typedef struct {
 	uint16_t	snscb_rblen;	/* response buffer length (words) */
 	uint16_t	snscb_reserved0;
 	uint16_t	snscb_addr[4];	/* response buffer address */
 	uint16_t	snscb_sblen;	/* subcommand buffer length (words) */
 	uint16_t	snscb_reserved1;
-	uint16_t	snscb_data[1];	/* variable data */
+	uint16_t	snscb_data[];	/* variable data */
 } sns_screq_t;	/* Subcommand Request Structure */
 
 typedef struct {
@@ -1513,7 +1618,7 @@ typedef struct {
 	uint8_t		snscb_port_type;
 	uint8_t		snscb_port_id[3];
 	uint8_t		snscb_portname[8];
-	uint16_t	snscb_data[1];	/* variable data */
+	uint16_t	snscb_data[];	/* variable data */
 } sns_scrsp_t;	/* Subcommand Response Structure */
 
 typedef struct {
@@ -1762,6 +1867,7 @@ typedef struct {
 #define	IN_PORT_CHANGED	0x2A	/* port changed */
 #define	IN_GLOBAL_LOGO	0x2E	/* all ports logged out */
 #define	IN_NO_NEXUS	0x3B	/* Nexus not established */
+#define	IN_SRR_RCVD	0x45	/* SRR received */
 
 /*
  * Values for the in_task_flags field- should only get one at a time!
@@ -1785,31 +1891,24 @@ typedef struct {
 	uint16_t	in_srr_rxid;
 	uint16_t	in_status;
 	uint8_t		in_status_subcode;
-	uint8_t		in_reserved2;
+	uint8_t		in_fwhandle;
 	uint32_t	in_rxid;
 	uint16_t	in_srr_reloff_lo;
 	uint16_t	in_srr_reloff_hi;
 	uint16_t	in_srr_iu;
 	uint16_t	in_srr_oxid;
 	/*
-	 * If bit 2 is set in in_flags, the following
-	 * two tags are valid. If the received ELS is
+	 * If bit 2 is set in in_flags, the N-Port and
+	 * handle tags are valid. If the received ELS is
 	 * a LOGO, then these tags contain the N Port ID
 	 * from the LOGO payload. If the received ELS
 	 * request is TPRLO, these tags contain the
 	 * Third Party Originator N Port ID.
 	 */
 	uint16_t	in_nport_id_hi;
+#define	in_prli_options in_nport_id_hi
 	uint8_t		in_nport_id_lo;
 	uint8_t		in_reserved3;
-	/*
-	 * If bit 2 is set in in_flags, the following
-	 * tag is valid. If the received ELS is a LOGO,
-	 * then this tag contains the n-port handle
-	 * from the LOGO payload. If the received ELS
-	 * request is TPRLO, this tag contain the
-	 * n-port handle for the Third Party Originator.
-	 */
 	uint16_t	in_np_handle;
 	uint8_t		in_reserved4[12];
 	uint8_t		in_reserved5;
@@ -1825,6 +1924,8 @@ typedef struct {
 #define	IN24XX_FLAG_PUREX_IOCB		0x1
 #define	IN24XX_FLAG_GLOBAL_LOGOUT	0x2
 #define	IN24XX_FLAG_NPHDL_VALID		0x4
+#define	IN24XX_FLAG_N2N_PRLI		0x8
+#define	IN24XX_FLAG_PN_NN_VALID		0x10
 
 #define	IN24XX_LIP_RESET	0x0E
 #define	IN24XX_LINK_RESET	0x0F
@@ -1842,6 +1943,8 @@ typedef struct {
  * the WWNN/WWPN if the ELS is PLOGI, PDISC or ADISC. The WWN is in
  * Big Endian format.
  */
+#define	IN24XX_PRLI_WWNN_OFF	0x18
+#define	IN24XX_PRLI_WWPN_OFF	0x28
 #define	IN24XX_PLOGI_WWNN_OFF	0x20
 #define	IN24XX_PLOGI_WWPN_OFF	0x28
 
@@ -1945,7 +2048,7 @@ typedef struct {
 	uint16_t	na_srr_rxid;
 	uint16_t	na_status;
 	uint8_t		na_status_subcode;
-	uint8_t		na_reserved2;
+	uint8_t		na_fwhandle;
 	uint32_t	na_rxid;
 	uint16_t	na_srr_reloff_lo;
 	uint16_t	na_srr_reloff_hi;
@@ -2164,7 +2267,7 @@ typedef struct {
 	uint8_t 	ct_tag_val;	/* tag value */
 	uint8_t 	ct_tag_type;	/* tag type */
 	uint32_t	ct_xfrlen;	/* transfer length */
-	int32_t		ct_resid;	/* residual length */
+	uint32_t	ct_resid;	/* residual length */
 	uint16_t	ct_timeout;
 	uint16_t	ct_seg_count;
 	ispds_t		ct_dataseg[ISP_RQDSEG];
@@ -2187,8 +2290,8 @@ typedef struct {
  * ct_flags values
  */
 #define CT_TQAE		0x00000002	/* bit  1, Tagged Queue Action enable */
-#define CT_DATA_IN	0x00000040	/* bits 6&7, Data direction */
-#define CT_DATA_OUT	0x00000080	/* bits 6&7, Data direction */
+#define CT_DATA_IN	0x00000040	/* bits 6&7, Data direction - *to* initiator */
+#define CT_DATA_OUT	0x00000080	/* bits 6&7, Data direction - *from* initiator */
 #define CT_NO_DATA	0x000000C0	/* bits 6&7, Data direction */
 #define	CT_CCINCR	0x00000100	/* bit 8, autoincrement atio count */
 #define CT_DATAMASK	0x000000C0	/* bits 6&7, Data direction */
@@ -2259,7 +2362,7 @@ typedef struct {
 	uint16_t	ct_timeout;
 	uint16_t	ct_seg_count;
 	uint32_t	ct_reloff;	/* relative offset */
-	int32_t		ct_resid;	/* residual length */
+	uint32_t	ct_resid;	/* residual length */
 	union {
 		/*
 		 * The three different modes that the target driver
@@ -2298,7 +2401,10 @@ typedef struct {
 			uint16_t _reserved2;
 			uint16_t _reserved3;
 			uint32_t ct_datalen;
-			ispds_t ct_fcp_rsp_iudata;
+			union {
+				ispds_t	ct_fcp_rsp_iudata_32;
+				ispds64_t ct_fcp_rsp_iudata_64;
+			} u;
 		} m2;
 	} rsp;
 } ct2_entry_t;
@@ -2313,7 +2419,7 @@ typedef struct {
 	uint16_t	ct_timeout;
 	uint16_t	ct_seg_count;
 	uint32_t	ct_reloff;	/* relative offset */
-	int32_t		ct_resid;	/* residual length */
+	uint32_t	ct_resid;	/* residual length */
 	union {
 		struct {
 			uint32_t _reserved;
@@ -2339,7 +2445,10 @@ typedef struct {
 			uint16_t _reserved2;
 			uint16_t _reserved3;
 			uint32_t ct_datalen;
-			ispds_t ct_fcp_rsp_iudata;
+			union {
+				ispds_t	ct_fcp_rsp_iudata_32;
+				ispds64_t ct_fcp_rsp_iudata_64;
+			} u;
 		} m2;
 	} rsp;
 } ct2e_entry_t;
@@ -2351,8 +2460,8 @@ typedef struct {
 #define	CT2_FLAG_MODE1	0x0001
 #define	CT2_FLAG_MODE2	0x0002
 #define		CT2_FLAG_MMASK	0x0003
-#define CT2_DATA_IN	0x0040
-#define CT2_DATA_OUT	0x0080
+#define CT2_DATA_IN	0x0040	/* *to* initiator */
+#define CT2_DATA_OUT	0x0080	/* *from* initiator */
 #define CT2_NO_DATA	0x00C0
 #define 	CT2_DATAMASK	0x00C0
 #define	CT2_CCINCR	0x0100
@@ -2393,7 +2502,7 @@ typedef struct {
 	uint32_t	ct_rxid;
 	uint16_t	ct_senselen;	/* mode 1 only */
 	uint16_t	ct_flags;
-	int32_t		ct_resid;	/* residual length */
+	uint32_t	ct_resid;	/* residual length */
 	uint16_t	ct_oxid;
 	uint16_t	ct_scsi_status;	/* modes 0 && 1 only */
 	union {
@@ -2411,8 +2520,9 @@ typedef struct {
 		} m1;
 		struct {
 			uint32_t reserved0;
-			uint32_t ct_datalen;
 			uint32_t reserved1;
+			uint32_t ct_datalen;
+			uint32_t reserved2;
 			ispds64_t ct_fcp_rsp_iudata;
 		} m2;
 	} rsp;
@@ -2421,10 +2531,10 @@ typedef struct {
 /*
  * ct_flags values for CTIO7
  */
-#define CT7_DATA_IN	0x0002
-#define CT7_DATA_OUT	0x0001
 #define CT7_NO_DATA	0x0000
-#define 	CT7_DATAMASK	0x003
+#define CT7_DATA_OUT	0x0001	/* *from* initiator */
+#define CT7_DATA_IN	0x0002	/* *to* initiator */
+#define 	CT7_DATAMASK	0x3
 #define	CT7_DSD_ENABLE	0x0004
 #define	CT7_CONF_STSFD	0x0010
 #define	CT7_EXPLCT_CONF	0x0020
@@ -2432,9 +2542,9 @@ typedef struct {
 #define	CT7_FLAG_MODE1	0x0040
 #define	CT7_FLAG_MODE2	0x0080
 #define		CT7_FLAG_MMASK	0x00C0
-#define	CT7_NOACK	0x0100
+#define	CT7_NOACK	    0x0100
 #define	CT7_TASK_ATTR_SHIFT	9
-#define	CT7_CONFIRM	0x2000
+#define	CT7_CONFIRM     0x2000
 #define	CT7_TERMINATE	0x4000
 #define CT7_SENDSTATUS	0x8000
 

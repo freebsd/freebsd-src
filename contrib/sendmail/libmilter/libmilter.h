@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2003, 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2003, 2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -19,7 +19,7 @@
 #ifdef _DEFINE
 # define EXTERN
 # define INIT(x)	= x
-SM_IDSTR(MilterlId, "@(#)$Id: libmilter.h,v 8.74 2006/12/19 18:19:52 ca Exp $")
+SM_IDSTR(MilterlId, "@(#)$Id: libmilter.h,v 8.78 2013-11-22 20:51:36 ca Exp $")
 #else /* _DEFINE */
 # define EXTERN extern
 # define INIT(x)
@@ -282,6 +282,7 @@ extern int	mi_handle_session __P((SMFICTX_PTR));
 extern int	mi_engine __P((SMFICTX_PTR));
 extern int	mi_listener __P((char *, int, smfiDesc_ptr, time_t, int));
 extern void	mi_clr_macros __P((SMFICTX_PTR, int));
+extern void	mi_clr_ctx __P((SMFICTX_PTR));
 extern int	mi_stop __P((void));
 extern int	mi_control_startup __P((char *));
 extern void	mi_stop_milters __P((int));

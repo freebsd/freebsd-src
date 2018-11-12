@@ -19,14 +19,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #ifndef	_ZFS_COMUTIL_H
 #define	_ZFS_COMUTIL_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/fs/zfs.h>
 #include <sys/types.h>
@@ -35,7 +33,13 @@
 extern "C" {
 #endif
 
-extern boolean_t zfs_allocatable_devs(nvlist_t *nv);
+extern boolean_t zfs_allocatable_devs(nvlist_t *);
+extern void zpool_get_rewind_policy(nvlist_t *, zpool_rewind_policy_t *);
+
+extern int zfs_zpl_version_map(int spa_version);
+extern int zfs_spa_version_map(int zpl_version);
+#define	ZFS_NUM_LEGACY_HISTORY_EVENTS 41
+extern const char *zfs_history_event_names[ZFS_NUM_LEGACY_HISTORY_EVENTS];
 
 #ifdef	__cplusplus
 }

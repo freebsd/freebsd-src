@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 PROG=	rpctest
-NO_MAN=
+MAN=
 WARNS?=	6
-LDADD=	-lrpcsec_gss
+LIBADD=	rpcsec_gss
 DEBUG_FLAGS= -g -O0
 
 .include <bsd.prog.mk>

@@ -41,3 +41,5 @@ ENTRY(fabs)
 	fabs
 	ret
 END(fabs)
+
+	.section .note.GNU-stack,"",%progbits

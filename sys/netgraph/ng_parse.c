@@ -62,7 +62,7 @@
 #include <netgraph/ng_parse.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_PARSE, "netgraph_parse", "netgraph parse info");
+static MALLOC_DEFINE(M_NETGRAPH_PARSE, "netgraph_parse", "netgraph parse info");
 #else
 #define M_NETGRAPH_PARSE M_NETGRAPH
 #endif
@@ -374,9 +374,6 @@ ng_int8_unparse(const struct ng_parse_type *type,
 		break;
 	default:
 		panic("%s: unknown type", __func__);
-#ifdef	RESTARTABLE_PANICS
-		return(0);
-#endif
 	}
 	if ((error = ng_parse_append(&cbuf, &cbuflen, fmt, fval)) != 0)
 		return (error);
@@ -473,9 +470,6 @@ ng_int16_unparse(const struct ng_parse_type *type,
 		break;
 	default:
 		panic("%s: unknown type", __func__);
-#ifdef	RESTARTABLE_PANICS
-		return(0);
-#endif
 	}
 	if ((error = ng_parse_append(&cbuf, &cbuflen, fmt, fval)) != 0)
 		return (error);
@@ -575,9 +569,6 @@ ng_int32_unparse(const struct ng_parse_type *type,
 		break;
 	default:
 		panic("%s: unknown type", __func__);
-#ifdef	RESTARTABLE_PANICS
-		return(0);
-#endif
 	}
 	if ((error = ng_parse_append(&cbuf, &cbuflen, fmt, fval)) != 0)
 		return (error);
@@ -673,9 +664,6 @@ ng_int64_unparse(const struct ng_parse_type *type,
 		break;
 	default:
 		panic("%s: unknown type", __func__);
-#ifdef	RESTARTABLE_PANICS
-		return(0);
-#endif
 	}
 	if ((error = ng_parse_append(&cbuf, &cbuflen, fmt, fval)) != 0)
 		return (error);
@@ -1134,7 +1122,7 @@ ng_bytearray_parse(const struct ng_parse_type *type,
 		struct ng_parse_type subtype;
 
 		subtype = ng_parse_bytearray_subtype;
-		*(const void **)&subtype.private = type->info;
+		subtype.private = __DECONST(void *, type->info);
 		return ng_array_parse(&subtype, s, off, start, buf, buflen);
 	}
 }
@@ -1146,7 +1134,7 @@ ng_bytearray_unparse(const struct ng_parse_type *type,
 	struct ng_parse_type subtype;
 
 	subtype = ng_parse_bytearray_subtype;
-	*(const void **)&subtype.private = type->info;
+	subtype.private = __DECONST(void *, type->info);
 	return ng_array_unparse(&subtype, data, off, cbuf, cbuflen);
 }
 
@@ -1157,7 +1145,7 @@ ng_bytearray_getDefault(const struct ng_parse_type *type,
 	struct ng_parse_type subtype;
 
 	subtype = ng_parse_bytearray_subtype;
-	*(const void **)&subtype.private = type->info;
+	subtype.private = __DECONST(void *, type->info);
 	return ng_array_getDefault(&subtype, start, buf, buflen);
 }
 
@@ -1248,6 +1236,7 @@ ng_parse_composite(const struct ng_parse_type *type, const char *s,
 		   distinguish name from values by seeing if the next
 		   token is an equals sign */
 		if (ctype != CT_STRUCT) {
+			u_long ul;
 			int len2, off2;
 			char *eptr;
 
@@ -1271,11 +1260,12 @@ ng_parse_composite(const struct ng_parse_type *type, const char *s,
 			}
 
 			/* Index was specified explicitly; parse it */
-			index = (u_int)strtoul(s + *off, &eptr, 0);
-			if (index < 0 || eptr - (s + *off) != len) {
+			ul = strtoul(s + *off, &eptr, 0);
+			if (ul == ULONG_MAX || eptr - (s + *off) != len) {
 				error = EINVAL;
 				goto done;
 			}
+			index = (u_int)ul;
 			nextIndex = index + 1;
 			*off += len + len2;
 		} else {			/* a structure field */

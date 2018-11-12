@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003, 2005 Alan L. Cox <alc@cs.rice.edu>
+ * Copyright (c) 2003 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,43 +23,47 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: src/sys/i386/include/sf_buf.h,v 1.4 2005/02/13 06:23:13 alc
  * $FreeBSD$
  */
 
 #ifndef _MACHINE_SF_BUF_H_
-#define	_MACHINE_SF_BUF_H_
+#define _MACHINE_SF_BUF_H_
 
-#include <sys/queue.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
+#ifdef __mips_n64	/* In 64 bit the whole memory is directly mapped */
 
-struct vm_page;
-
-struct sf_buf {
-	LIST_ENTRY(sf_buf) list_entry;	/* list of buffers */
-	TAILQ_ENTRY(sf_buf) free_entry; /* list of buffers */
-	struct		vm_page *m;	/* currently mapped page */
-	vm_offset_t	kva;		/* va of mapping */
-	int		ref_count;	/* usage of this mapping */
-#ifdef SMP
-	cpumask_t	cpumask;	/* cpus on which mapping is valid */
-#endif
-};
-
-static __inline vm_offset_t
+static inline vm_offset_t
 sf_buf_kva(struct sf_buf *sf)
 {
+	vm_page_t	m;
 
-	return (sf->kva);
+	m = (vm_page_t)sf;
+	return (MIPS_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m)));
 }
 
-static __inline struct vm_page *
+static inline struct vm_page *
 sf_buf_page(struct sf_buf *sf)
 {
 
-	return (sf->m);
+	return ((vm_page_t)sf);
 }
+
+#else	/* !__mips_n64 */
+
+static inline void
+sf_buf_map(struct sf_buf *sf, int flags)
+{
+
+	pmap_qenter(sf->kva, &sf->m, 1);
+}
+
+static inline int
+sf_buf_unmap(struct sf_buf *sf)
+{
+
+	pmap_qremove(sf->kva, 1);
+	return (1);
+}
+
+#endif	/* __mips_n64 */
 
 #endif /* !_MACHINE_SF_BUF_H_ */

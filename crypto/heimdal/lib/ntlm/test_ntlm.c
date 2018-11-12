@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2006 - 2007 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -38,15 +38,13 @@
 #include <roken.h>
 #include <getarg.h>
 
-RCSID("$Id: test_ntlm.c 22377 2007-12-28 18:38:53Z lha $");
-
-#include <krb5.h>
+#include <krb5-types.h> /* or <inttypes.h> */
 #include <heimntlm.h>
 
 static int
 test_parse(void)
 {
-    const char *user = "foo", 
+    const char *user = "foo",
 	*domain = "mydomain",
 	*password = "digestpassword",
 	*target = "DOMAIN";
@@ -54,9 +52,8 @@ test_parse(void)
     struct ntlm_type2 type2;
     struct ntlm_type3 type3;
     struct ntlm_buf data;
-    krb5_error_code ret;
-    int flags;
-    
+    int ret, flags;
+
     memset(&type1, 0, sizeof(type1));
 
     type1.flags = NTLM_NEG_UNICODE|NTLM_NEG_TARGET|NTLM_NEG_NTLM;
@@ -87,7 +84,7 @@ test_parse(void)
     flags = NTLM_NEG_UNICODE | NTLM_NEG_NTLM | NTLM_TARGET_DOMAIN;
     type2.flags = flags;
 
-    memset(type2.challange, 0x7f, sizeof(type2.challange));
+    memset(type2.challenge, 0x7f, sizeof(type2.challenge));
     type2.targetname = rk_UNCONST(target);
     type2.targetinfo.data = NULL;
     type2.targetinfo.length = 0;
@@ -121,7 +118,7 @@ test_parse(void)
 	heim_ntlm_nt_key(password, &key);
 
 	heim_ntlm_calculate_ntlm1(key.data, key.length,
-				  type2.challange,
+				  type2.challenge,
 				  &type3.ntlm);
 	free(key.data);
     }
@@ -160,7 +157,7 @@ test_parse(void)
     flags = NTLM_NEG_UNICODE | NTLM_NEG_NTLM | NTLM_TARGET_DOMAIN;
     type2.flags = flags;
 
-    memset(type2.challange, 0x7f, sizeof(type2.challange));
+    memset(type2.challenge, 0x7f, sizeof(type2.challenge));
     type2.targetname = rk_UNCONST(target);
     type2.targetinfo.data = "\x00\x00";
     type2.targetinfo.length = 2;
@@ -188,12 +185,12 @@ test_keys(void)
 	*username = "test",
 	*password = "test1234",
 	*target = "TESTNT";
-    const unsigned char 
-	serverchallange[8] = "\x67\x7f\x1c\x55\x7a\x5e\xe9\x6c";
+    const unsigned char
+	serverchallenge[8] = "\x67\x7f\x1c\x55\x7a\x5e\xe9\x6c";
     struct ntlm_buf infotarget, infotarget2, answer, key;
     unsigned char ntlmv2[16], ntlmv2_1[16];
     int ret;
-    
+
     infotarget.length = 70;
     infotarget.data =
 	"\x02\x00\x0c\x00\x54\x00\x45\x00\x53\x00\x54\x00\x4e\x00\x54\x00"
@@ -212,7 +209,7 @@ test_keys(void)
 				    key.length,
 				    username,
 				    target,
-				    serverchallange,
+				    serverchallenge,
 				    &infotarget,
 				    ntlmv2,
 				    &answer);
@@ -224,7 +221,7 @@ test_keys(void)
 				 username,
 				 target,
 				 0,
-				 serverchallange,
+				 serverchallenge,
 				 &answer,
 				 &infotarget2,
 				 ntlmv2_1);
@@ -253,18 +250,18 @@ test_ntlm2_session_resp(void)
     int ret;
     struct ntlm_buf lm, ntlm;
 
-    const unsigned char lm_resp[24] = 
+    const unsigned char lm_resp[24] =
 	"\xff\xff\xff\x00\x11\x22\x33\x44"
 	"\x00\x00\x00\x00\x00\x00\x00\x00"
 	"\x00\x00\x00\x00\x00\x00\x00\x00";
-    const unsigned char ntlm2_sess_resp[24] = 
+    const unsigned char ntlm2_sess_resp[24] =
 	"\x10\xd5\x50\x83\x2d\x12\xb2\xcc"
 	"\xb7\x9d\x5a\xd1\xf4\xee\xd3\xdf"
 	"\x82\xac\xa4\xc3\x68\x1d\xd4\x55";
-    
+
     const unsigned char client_nonce[8] =
 	"\xff\xff\xff\x00\x11\x22\x33\x44";
-    const unsigned char server_challange[8] =
+    const unsigned char server_challenge[8] =
 	"\x01\x23\x45\x67\x89\xab\xcd\xef";
 
     const unsigned char ntlm_hash[16] =
@@ -272,7 +269,7 @@ test_ntlm2_session_resp(void)
 	"\x1d\x33\xb7\x48\x5a\x2e\xd8\x08";
 
     ret = heim_ntlm_calculate_ntlm2_sess(client_nonce,
-					 server_challange,
+					 server_challenge,
 					 ntlm_hash,
 					 &lm,
 					 &ntlm);
@@ -283,7 +280,7 @@ test_ntlm2_session_resp(void)
 	errx(1, "lm_resp wrong");
     if (ntlm.length != 24 || memcmp(ntlm.data, ntlm2_sess_resp, 24) != 0)
 	errx(1, "ntlm2_sess_resp wrong");
-    
+
     free(lm.data);
     free(ntlm.data);
 
@@ -291,10 +288,45 @@ test_ntlm2_session_resp(void)
     return 0;
 }
 
+static int
+test_targetinfo(void)
+{
+    struct ntlm_targetinfo ti;
+    struct ntlm_buf buf;
+    const char *dnsservername = "dnsservername";
+    int ret;
+
+    memset(&ti, 0, sizeof(ti));
+
+    ti.dnsservername = rk_UNCONST(dnsservername);
+    ti.avflags = 1;
+    ret = heim_ntlm_encode_targetinfo(&ti, 1, &buf);
+    if (ret)
+	return ret;
+
+    memset(&ti, 0, sizeof(ti));
+
+    ret = heim_ntlm_decode_targetinfo(&buf, 1, &ti);
+    if (ret)
+	return ret;
+
+    if (ti.dnsservername == NULL ||
+	strcmp(ti.dnsservername, dnsservername) != 0)
+	errx(1, "ti.dnshostname != %s", dnsservername);
+    if (ti.avflags != 1)
+	errx(1, "ti.avflags != 1");
+
+    heim_ntlm_free_targetinfo(&ti);
+
+    return 0;
+}
+
+static int verbose_flag = 0;
 static int version_flag = 0;
 static int help_flag	= 0;
 
 static struct getargs args[] = {
+    {"verbose",	0,	arg_flag,	&verbose_flag, "verbose printing", NULL },
     {"version",	0,	arg_flag,	&version_flag, "print version", NULL },
     {"help",	0,	arg_flag,	&help_flag,  NULL, NULL }
 };
@@ -316,7 +348,7 @@ main(int argc, char **argv)
 
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind))
 	usage(1);
-    
+
     if (help_flag)
 	usage (0);
 
@@ -328,12 +360,21 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-    printf("test_parse\n");
+    if (verbose_flag)
+	printf("test_parse\n");
+
     ret += test_parse();
-    printf("test_keys\n");
+    if (verbose_flag)
+	printf("test_keys\n");
+
     ret += test_keys();
-    printf("test_ntlm2_session_resp\n");
+    if (verbose_flag)
+	printf("test_ntlm2_session_resp\n");
     ret += test_ntlm2_session_resp();
 
-    return 0;
+    if (verbose_flag)
+	printf("test_targetinfo\n");
+    ret += test_targetinfo();
+
+    return ret;
 }

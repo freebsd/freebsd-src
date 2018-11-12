@@ -43,6 +43,7 @@
 #include <err.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #ifndef DIR_TEMPLATE
 #define	DIR_TEMPLATE	"/usr/local/libdata/athprom"
@@ -158,7 +159,7 @@ main(int argc, char *argv[])
 		atd.ad_out_data = (caddr_t) &eep;
 		atd.ad_out_size = sizeof(eep);
 		if (ioctl(s, SIOCGATHDIAG, &atd) < 0)
-			err(1, atd.ad_name);
+			err(1, "ioctl: %s", atd.ad_name);
 		if (fd == NULL) {
 			fd = opentemplate(DIR_TEMPLATE);
 			if (fd == NULL)
@@ -185,7 +186,7 @@ eeread(u_int16_t off)
 	atd.ad_out_size = sizeof(eedata);
 	atd.ad_out_data = (caddr_t) &eedata;
 	if (ioctl(s, SIOCGATHDIAG, &atd) < 0)
-		err(1, atd.ad_name);
+		err(1, "ioctl: %s", atd.ad_name);
 	return eedata;
 }
 
@@ -203,7 +204,7 @@ eewrite(uint16_t off, uint16_t value)
 	atd.ad_out_size = 0;
 	atd.ad_out_data = NULL;
 	if (ioctl(s, SIOCGATHDIAG, &atd) < 0)
-		err(1, atd.ad_name);
+		err(1, "ioctl: %s", atd.ad_name);
 }
 
 #define	MAXID	128
@@ -331,7 +332,7 @@ setmode(int mode)
 		    + sizeof(EXPN_DATA_PER_CHANNEL_5112) * exp->numChannels;
 		atd.ad_out_data = (caddr_t) malloc(atd.ad_out_size);
 		if (ioctl(s, SIOCGATHDIAG, &atd) < 0)
-			err(1, atd.ad_name);
+			err(1, "ioctl: %s", atd.ad_name);
 		exp->pChannels = (void *) atd.ad_out_data;
 		exp->pDataPerChannel = (void *)((char *)atd.ad_out_data +
 		   roundup(sizeof(u_int16_t) * exp->numChannels, sizeof(u_int32_t)));

@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <pwd.h>
@@ -67,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #define	M		*60
 #define	S		*1
 #define	NOLOG_TIME	5*60
-struct interval {
+static struct interval {
 	int timeleft, timetowait;
 } tlist[] = {
 	{ 10 H,  5 H },
@@ -115,8 +116,31 @@ main(int argc, char **argv)
 	if (geteuid())
 		errx(1, "NOT super-user");
 #endif
+
 	nosync = NULL;
 	readstdin = 0;
+
+	/*
+	 * Test for the special case where the utility is called as
+	 * "poweroff", for which it runs 'shutdown -p now'.
+	 */
+	if ((p = strrchr(argv[0], '/')) == NULL)
+		p = argv[0];
+	else
+		++p;
+	if (strcmp(p, "poweroff") == 0) {
+		if (getopt(argc, argv, "") != -1)
+			usage((char *)NULL);
+		argc -= optind;
+		argv += optind;
+		if (argc != 0)
+			usage((char *)NULL);
+		dopower = 1;
+		offset = 0;
+		(void)time(&shuttime);
+		goto poweroff;
+	}
+
 	while ((ch = getopt(argc, argv, "-hknopr")) != -1)
 		switch (ch) {
 		case '-':
@@ -161,6 +185,7 @@ main(int argc, char **argv)
 
 	getoffset(*argv++);
 
+poweroff:
 	if (*argv) {
 		for (p = mbuf, len = sizeof(mbuf); *argv; ++argv) {
 			arglen = strlen(*argv);
@@ -298,7 +323,8 @@ timewarn(int timeleft)
 		(void)fprintf(pf, "System going down in %d minute%s\n\n",
 		    timeleft / 60, (timeleft > 60) ? "s" : "");
 	else if (timeleft)
-		(void)fprintf(pf, "System going down in 30 seconds\n\n");
+		(void)fprintf(pf, "System going down in %s30 seconds\n\n",
+		    (offset > 0 && offset < 30 ? "less than " : ""));
 	else
 		(void)fprintf(pf, "System going down IMMEDIATELY\n\n");
 
@@ -325,14 +351,13 @@ timeout(int signo __unused)
 }
 
 static void
-die_you_gravy_sucking_pig_dog()
+die_you_gravy_sucking_pig_dog(void)
 {
 	char *empty_environ[] = { NULL };
 
 	syslog(LOG_NOTICE, "%s by %s: %s",
 	    doreboot ? "reboot" : dohalt ? "halt" : dopower ? "power-down" : 
 	    "shutdown", whom, mbuf);
-	(void)sleep(2);
 
 	(void)printf("\r\nSystem shutdown time has arrived\007\007\r\n");
 	if (killflg) {
@@ -392,6 +417,7 @@ getoffset(char *timearg)
 	char *p;
 	time_t now;
 	int this_year;
+	char *timeunit;
 
 	(void)time(&now);
 
@@ -404,8 +430,25 @@ getoffset(char *timearg)
 	if (*timearg == '+') {				/* +minutes */
 		if (!isdigit(*++timearg))
 			badtime();
-		if ((offset = atoi(timearg) * 60) < 0)
+		errno = 0;
+		offset = strtol(timearg, &timeunit, 10);
+		if (offset < 0 || offset == LONG_MAX || errno != 0)
 			badtime();
+		if (timeunit[0] == '\0' || strcasecmp(timeunit, "m") == 0 ||
+		    strcasecmp(timeunit, "min") == 0 ||
+		    strcasecmp(timeunit, "mins") == 0) {
+			offset *= 60;
+		} else if (strcasecmp(timeunit, "h") == 0 ||
+		    strcasecmp(timeunit, "hour") == 0 ||
+		    strcasecmp(timeunit, "hours") == 0) {
+			offset *= 60 * 60;
+		} else if (strcasecmp(timeunit, "s") == 0 ||
+		    strcasecmp(timeunit, "sec") == 0 ||
+		    strcasecmp(timeunit, "secs") == 0) {
+			offset *= 1;
+		} else {
+			badtime();
+		}
 		shuttime = now + offset;
 		return;
 	}
@@ -499,7 +542,7 @@ finish(int signo __unused)
 }
 
 static void
-badtime()
+badtime(void)
 {
 	errx(1, "bad time format");
 }
@@ -510,7 +553,7 @@ usage(const char *cp)
 	if (cp != NULL)
 		warnx("%s", cp);
 	(void)fprintf(stderr,
-	    "usage: shutdown [-] [-h | -p | -r | -k] [-o [-n]]"
-	    " time [warning-message ...]\n");
+	    "usage: shutdown [-] [-h | -p | -r | -k] [-o [-n]] time [warning-message ...]\n"
+	    "       poweroff\n");
 	exit(1);
 }

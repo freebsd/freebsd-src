@@ -247,13 +247,13 @@ static const char *
 devstate(devinfo_state_t state)
 {
 	switch (state) {
-	case DIS_NOTPRESENT:
+	case DS_NOTPRESENT:
 		return "not-present";
-	case DIS_ALIVE:
+	case DS_ALIVE:
 		return "alive";
-	case DIS_ATTACHED:
+	case DS_ATTACHED:
 		return "attached";
-	case DIS_BUSY:
+	case DS_BUSY:
 		return "busy";
 	default:
 		return "unknown-state";
@@ -266,8 +266,8 @@ acpi0_check(struct devinfo_dev *dd, void *arg)
 	printf("%s: %s %s\n", __func__, dd->dd_name, devstate(dd->dd_state));
 	/* NB: device must be present AND attached */
 	if (strcmp(dd->dd_name, "acpi0") == 0)
-		return (dd->dd_state == DIS_ATTACHED ||
-			dd->dd_state == DIS_BUSY);
+		return (dd->dd_state == DS_ATTACHED ||
+			dd->dd_state == DS_BUSY);
 	return devinfo_foreach_device_child(dd, acpi0_check, arg);
 }
 

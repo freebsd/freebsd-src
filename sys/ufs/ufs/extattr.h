@@ -94,14 +94,14 @@ struct extattr {
  *	attribute name to calculate and set the ea_length, ea_namelength,
  *	and ea_contentpadlen fields of the extended attribute structure.
  */
-#define EXTATTR_NEXT(eap) \
+#define	EXTATTR_NEXT(eap) \
 	((struct extattr *)(((void *)(eap)) + (eap)->ea_length))
-#define EXTATTR_CONTENT(eap) (((void *)(eap)) + EXTATTR_BASE_LENGTH(eap))
-#define EXTATTR_CONTENT_SIZE(eap) \
+#define	EXTATTR_CONTENT(eap) (((void *)(eap)) + EXTATTR_BASE_LENGTH(eap))
+#define	EXTATTR_CONTENT_SIZE(eap) \
 	((eap)->ea_length - EXTATTR_BASE_LENGTH(eap) - (eap)->ea_contentpadlen)
-#define EXTATTR_BASE_LENGTH(eap) \
+#define	EXTATTR_BASE_LENGTH(eap) \
 	((sizeof(struct extattr) + (eap)->ea_namelength + 7) & ~7)
-#define EXTATTR_SET_LENGTHS(eap, contentsize) do { \
+#define	EXTATTR_SET_LENGTHS(eap, contentsize) do { \
 	KASSERT(((eap)->ea_name[0] != 0), \
 		("Must initialize name before setting lengths")); \
 	(eap)->ea_namelength = strlen((eap)->ea_name); \
@@ -114,10 +114,6 @@ struct extattr {
 #ifdef _KERNEL
 
 #include <sys/_sx.h>
-
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_EXTATTR);
-#endif
 
 struct vnode;
 LIST_HEAD(ufs_extattr_list_head, ufs_extattr_list_entry);
@@ -137,6 +133,10 @@ struct ufs_extattr_per_mount {
 	int	uepm_flags;
 };
 
+struct vop_getextattr_args;
+struct vop_deleteextattr_args;
+struct vop_setextattr_args;
+
 void	ufs_extattr_uepm_init(struct ufs_extattr_per_mount *uepm);
 void	ufs_extattr_uepm_destroy(struct ufs_extattr_per_mount *uepm);
 int	ufs_extattr_start(struct mount *mp, struct thread *td);
@@ -152,7 +152,7 @@ void	ufs_extattr_vnode_inactive(struct vnode *vp, struct thread *td);
 #else
 
 /* User-level definition of KASSERT for macros above */
-#define KASSERT(cond, str) do { \
+#define	KASSERT(cond, str) do { \
         if (!(cond)) { printf("panic: "); printf(str); printf("\n"); exit(1); }\
 } while (0)
 

@@ -1,8 +1,8 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 .PATH: ${.CURDIR}/../../misc
 
-CLASS=	cache
-NO_MAN=	# notyet
+GEOM_CLASS=	cache
 
 .include <bsd.lib.mk>

@@ -10,8 +10,9 @@ FILES=	INDEX.keymaps \
 	cs.latin2.qwertz.kbd \
 	cz.iso2.kbd \
 	danish.iso.kbd danish.iso.acc.kbd danish.cp865.kbd \
+	danish.iso.macbook.kbd \
 	dutch.iso.acc.kbd \
-	el.iso07.kbd \
+	eee_nordic.kbd el.iso07.kbd \
 	estonian.iso.kbd estonian.iso15.kbd estonian.cp850.kbd \
 	finnish.iso.kbd finnish.cp850.kbd \
 	fr.iso.kbd fr.iso.acc.kbd fr.dvorak.kbd fr.dvorak.acc.kbd \
@@ -36,19 +37,19 @@ FILES=	INDEX.keymaps \
 	ru.cp866.kbd ru.iso5.kbd \
 	si.iso.kbd \
 	sk.iso2.kbd \
+	spanish.dvorak.kbd \
 	spanish.iso.kbd spanish.iso.acc.kbd spanish.iso15.acc.kbd \
 	swedish.iso.kbd swedish.cp850.kbd \
 	swissfrench.iso.kbd swissfrench.iso.acc.kbd swissfrench.cp850.kbd \
 	swissgerman.iso.kbd swissgerman.iso.acc.kbd swissgerman.cp850.kbd \
+	swissgerman.macbook.acc.kbd \
 	tr.iso9.q.kbd \
 	ua.koi8-u.kbd ua.koi8-u.shift.alt.kbd ua.iso5.kbd \
 	uk.iso.kbd uk.iso-ctrl.kbd uk.cp850.kbd uk.cp850-ctrl.kbd \
 	uk.dvorak.kbd \
-	us.iso.kbd us.dvorak.kbd us.dvorakx.kbd us.emacs.kbd us.pc-ctrl.kbd \
-	us.unix.kbd us.iso.acc.kbd
+	us.iso.kbd us.dvorak.kbd us.dvorakl.kbd us.dvorakr.kbd us.dvorakp.kbd \
+	us.dvorakx.kbd us.emacs.kbd us.pc-ctrl.kbd us.unix.kbd us.iso.acc.kbd
 
 FILESDIR= ${SHAREDIR}/syscons/keymaps
-
-NO_OBJ=
 
 .include <bsd.prog.mk>

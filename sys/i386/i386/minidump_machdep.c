@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_watchdog.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -34,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #include <sys/msgbuf.h>
+#include <sys/watchdog.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/atomic.h>
@@ -51,7 +54,7 @@ CTASSERT(sizeof(struct kerneldumpheader) == 512);
 #define	SIZEOF_METADATA		(64*1024)
 
 #define	MD_ALIGN(x)	(((off_t)(x) + PAGE_MASK) & ~PAGE_MASK)
-#define	DEV_ALIGN(x)	(((off_t)(x) + (DEV_BSIZE-1)) & ~(DEV_BSIZE-1))
+#define	DEV_ALIGN(x)	roundup2((off_t)(x), DEV_BSIZE)
 
 uint32_t *vm_page_dump;
 int vm_page_dump_size;
@@ -65,6 +68,7 @@ static void *dump_va;
 static uint64_t counter, progress;
 
 CTASSERT(sizeof(*vm_page_dump) == 4);
+
 
 static int
 is_dumpable(vm_paddr_t pa)
@@ -133,6 +137,9 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 			printf(" %lld", PG2MB(progress >> PAGE_SHIFT));
 			counter &= (1<<24) - 1;
 		}
+
+		wdog_kern_pat(WD_LASTVAL);
+
 		if (ptr) {
 			error = dump_write(di, ptr, 0, dumplo, len);
 			if (error)
@@ -167,7 +174,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 /* A fake page table page, to avoid having to handle both 4K and 2M pages */
 static pt_entry_t fakept[NPTEPG];
 
-void
+int
 minidumpsys(struct dumperinfo *di)
 {
 	uint64_t dumpsize;
@@ -254,7 +261,7 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.bitmapsize = vm_page_dump_size;
 	mdhdr.ptesize = ptesize;
 	mdhdr.kernbase = KERNBASE;
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	mdhdr.paemode = 1;
 #endif
 
@@ -350,7 +357,7 @@ minidumpsys(struct dumperinfo *di)
 	/* Signal completion, signoff and exit stage left. */
 	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
-	return;
+	return (0);
 
  fail:
 	if (error < 0)
@@ -362,6 +369,7 @@ minidumpsys(struct dumperinfo *di)
 		printf("\nDump failed. Partition too small.\n");
 	else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);
+	return (error);
 }
 
 void

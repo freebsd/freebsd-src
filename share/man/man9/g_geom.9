@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2004
+.Dd April 24, 2016
 .Dt G_GEOM 9
 .Os
 .Sh NAME
@@ -109,9 +109,9 @@ The topology lock has to be held.
 .Fn g_destroy_geom :
 .Bl -item -offset indent
 .It
-The geom cannot posses any providers.
+The geom cannot possess any providers.
 .It
-The geom cannot posses any consumers.
+The geom cannot possess any consumers.
 .It
 The topology lock has to be held.
 .El
@@ -123,7 +123,7 @@ returns a pointer to the newly created geom.
 .Sh EXAMPLES
 Create an example geom.
 .Bd -literal -offset indent
-static struct geom *
+static void
 g_example_start(struct bio *bp)
 {
 
@@ -148,7 +148,7 @@ g_example_spoiled(struct g_consumer *cp)
 	[...]
 }
 
-static void
+static int
 g_example_access(struct g_provider *pp, int dr, int dw, int de)
 {
 
@@ -203,4 +203,4 @@ destroy_example_geom(struct g_geom *gp)
 .Sh AUTHORS
 .An -nosplit
 This manual page was written by
-.An Pawel Jakub Dawidek Aq pjd@FreeBSD.org .
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

@@ -1,161 +1,88 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2000-2006 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: printfr.c,v 1.43.2.18 2007/05/07 06:55:38 darrenr Exp $
+ * $Id$
  */
 
 #include "ipf.h"
-
-static void printaddr(int, int, char *, u_32_t *, u_32_t *);
-
-static void printaddr(v, type, ifname, addr, mask)
-int v, type;
-char *ifname;
-u_32_t *addr, *mask;
-{
-	char *suffix;
-
-	switch (type)
-	{
-	case FRI_BROADCAST :
-		suffix = "bcast";
-		break;
-
-	case FRI_DYNAMIC :
-		printf("%s", ifname);
-		printmask(mask);
-		suffix = NULL;
-		break;
-
-	case FRI_NETWORK :
-		suffix = "net";
-		break;
-
-	case FRI_NETMASKED :
-		suffix = "netmasked";
-		break;
-
-	case FRI_PEERADDR :
-		suffix = "peer";
-		break;
-
-	case FRI_LOOKUP :
-		suffix = NULL;
-		printlookup((i6addr_t *)addr, (i6addr_t *)mask);
-		break;
-
-	case FRI_NORMAL :
-		printhostmask(v, addr, mask);
-		suffix = NULL;
-		break;
-	default :
-		printf("<%d>", type);
-		printmask(mask);
-		suffix = NULL;
-		break;
-	}
-
-	if (suffix != NULL) {
-		printf("%s/%s", ifname, suffix);
-	}
-}
-
-
-void printlookup(addr, mask)
-i6addr_t *addr, *mask;
-{
-	switch (addr->iplookuptype)
-	{
-	case IPLT_POOL :
-		printf("pool/");
-		break;
-	case IPLT_HASH :
-		printf("hash/");
-		break;
-	default :
-		printf("lookup(%x)=", addr->iplookuptype);
-		break;
-	}
-
-	printf("%u", addr->iplookupnum);
-	if (mask->iplookupptr == NULL)
-		printf("(!)");
-}
 
 
 /*
  * print the filter structure in a useful way
  */
-void	printfr(fp, iocfunc)
-struct	frentry	*fp;
-ioctlfunc_t	iocfunc;
+void
+printfr(fp, iocfunc)
+	struct	frentry	*fp;
+	ioctlfunc_t	iocfunc;
 {
 	struct protoent	*p;
 	u_short	sec[2];
 	u_32_t type;
-	u_char *t;
+	int pr, af;
 	char *s;
-	int pr;
+	int hash;
 
 	pr = -2;
 	type = fp->fr_type & ~FR_T_BUILTIN;
 
 	if ((fp->fr_type & FR_T_BUILTIN) != 0)
-		printf("# Builtin: ");
+		PRINTF("# Builtin: ");
 
 	if (fp->fr_collect != 0)
-		printf("%u ", fp->fr_collect);
+		PRINTF("%u ", fp->fr_collect);
 
 	if (fp->fr_type == FR_T_CALLFUNC) {
 		;
 	} else if (fp->fr_func != NULL) {
-		printf("call");
+		PRINTF("call");
 		if ((fp->fr_flags & FR_CALLNOW) != 0)
-			printf(" now");
+			PRINTF(" now");
 		s = kvatoname(fp->fr_func, iocfunc);
-		printf(" %s/%u", s ? s : "?", fp->fr_arg);
+		PRINTF(" %s/%u", s ? s : "?", fp->fr_arg);
 	} else if (FR_ISPASS(fp->fr_flags))
-		printf("pass");
+		PRINTF("pass");
 	else if (FR_ISBLOCK(fp->fr_flags)) {
-		printf("block");
+		PRINTF("block");
 	} else if ((fp->fr_flags & FR_LOGMASK) == FR_LOG) {
 		printlog(fp);
 	} else if (FR_ISACCOUNT(fp->fr_flags))
-		printf("count");
+		PRINTF("count");
 	else if (FR_ISAUTH(fp->fr_flags))
-		printf("auth");
+		PRINTF("auth");
 	else if (FR_ISPREAUTH(fp->fr_flags))
-		printf("preauth");
+		PRINTF("preauth");
 	else if (FR_ISNOMATCH(fp->fr_flags))
-		printf("nomatch");
+		PRINTF("nomatch");
+	else if (FR_ISDECAPS(fp->fr_flags))
+		PRINTF("decapsulate");
 	else if (FR_ISSKIP(fp->fr_flags))
-		printf("skip %u", fp->fr_arg);
+		PRINTF("skip %u", fp->fr_arg);
 	else {
-		printf("%x", fp->fr_flags);
+		PRINTF("%x", fp->fr_flags);
 	}
 	if (fp->fr_flags & FR_RETICMP) {
 		if ((fp->fr_flags & FR_RETMASK) == FR_FAKEICMP)
-			printf(" return-icmp-as-dest");
+			PRINTF(" return-icmp-as-dest");
 		else if ((fp->fr_flags & FR_RETMASK) == FR_RETICMP)
-			printf(" return-icmp");
+			PRINTF(" return-icmp");
 		if (fp->fr_icode) {
 			if (fp->fr_icode <= MAX_ICMPCODE)
-				printf("(%s)",
+				PRINTF("(%s)",
 					icmpcodes[(int)fp->fr_icode]);
 			else
-				printf("(%d)", fp->fr_icode);
+				PRINTF("(%d)", fp->fr_icode);
 		}
 	} else if ((fp->fr_flags & FR_RETMASK) == FR_RETRST)
-		printf(" return-rst");
+		PRINTF(" return-rst");
 
 	if (fp->fr_flags & FR_OUTQUE)
-		printf(" out ");
-	else
-		printf(" in ");
+		PRINTF(" out ");
+	else if (fp->fr_flags & FR_INQUE)
+		PRINTF(" in ");
 
 	if (((fp->fr_flags & FR_LOGB) == FR_LOGB) ||
 	    ((fp->fr_flags & FR_LOGP) == FR_LOGP)) {
@@ -164,126 +91,153 @@ ioctlfunc_t	iocfunc;
 	}
 
 	if (fp->fr_flags & FR_QUICK)
-		printf("quick ");
+		PRINTF("quick ");
 
-	if (*fp->fr_ifname) {
-		printifname("on ", fp->fr_ifname, fp->fr_ifa);
-		if (*fp->fr_ifnames[1] && strcmp(fp->fr_ifnames[1], "*"))
-			printifname(",", fp->fr_ifnames[1], fp->fr_ifas[1]);
+	if (fp->fr_ifnames[0] != -1) {
+		printifname("on ", fp->fr_names + fp->fr_ifnames[0],
+			    fp->fr_ifa);
+		if (fp->fr_ifnames[1] != -1 &&
+		    strcmp(fp->fr_names + fp->fr_ifnames[1], "*"))
+			printifname(",", fp->fr_names + fp->fr_ifnames[1],
+				    fp->fr_ifas[1]);
 		putchar(' ');
 	}
 
-	if (*fp->fr_dif.fd_ifname || (fp->fr_flags & FR_DUP))
-		print_toif("dup-to", &fp->fr_dif);
-	if (*fp->fr_tif.fd_ifname)
-		print_toif("to", &fp->fr_tif);
-	if (*fp->fr_rif.fd_ifname)
-		print_toif("reply-to", &fp->fr_rif);
+	if (fp->fr_tif.fd_name != -1)
+		print_toif(fp->fr_family, "to", fp->fr_names, &fp->fr_tif);
+	if (fp->fr_dif.fd_name != -1)
+		print_toif(fp->fr_family, "dup-to", fp->fr_names,
+			   &fp->fr_dif);
+	if (fp->fr_rif.fd_name != -1)
+		print_toif(fp->fr_family, "reply-to", fp->fr_names,
+			   &fp->fr_rif);
 	if (fp->fr_flags & FR_FASTROUTE)
-		printf("fastroute ");
+		PRINTF("fastroute ");
 
-	if ((*fp->fr_ifnames[2] && strcmp(fp->fr_ifnames[2], "*")) ||
-	    (*fp->fr_ifnames[3] && strcmp(fp->fr_ifnames[3], "*"))) {
+	if ((fp->fr_ifnames[2] != -1 &&
+	     strcmp(fp->fr_names + fp->fr_ifnames[2], "*")) ||
+	    (fp->fr_ifnames[3] != -1 &&
+		 strcmp(fp->fr_names + fp->fr_ifnames[3], "*"))) {
 		if (fp->fr_flags & FR_OUTQUE)
-			printf("in-via ");
+			PRINTF("in-via ");
 		else
-			printf("out-via ");
+			PRINTF("out-via ");
 
-		if (*fp->fr_ifnames[2]) {
-			printifname("", fp->fr_ifnames[2],
+		if (fp->fr_ifnames[2] != -1) {
+			printifname("", fp->fr_names + fp->fr_ifnames[2],
 				    fp->fr_ifas[2]);
-			if (*fp->fr_ifnames[3]) {
-				printifname(",", fp->fr_ifnames[3],
+			if (fp->fr_ifnames[3] != -1) {
+				printifname(",",
+					    fp->fr_names + fp->fr_ifnames[3],
 					    fp->fr_ifas[3]);
 			}
 			putchar(' ');
 		}
 	}
 
+	if (fp->fr_family == AF_INET) {
+		PRINTF("inet ");
+		af = AF_INET;
+#ifdef USE_INET6
+	} else if (fp->fr_family == AF_INET6) {
+		PRINTF("inet6 ");
+		af = AF_INET6;
+#endif
+	} else {
+		af = -1;
+	}
+
 	if (type == FR_T_IPF) {
 		if (fp->fr_mip.fi_tos)
-			printf("tos %#x ", fp->fr_tos);
+			PRINTF("tos %#x ", fp->fr_tos);
 		if (fp->fr_mip.fi_ttl)
-			printf("ttl %d ", fp->fr_ttl);
+			PRINTF("ttl %d ", fp->fr_ttl);
 		if (fp->fr_flx & FI_TCPUDP) {
-			printf("proto tcp/udp ");
+			PRINTF("proto tcp/udp ");
 			pr = -1;
 		} else if (fp->fr_mip.fi_p) {
 			pr = fp->fr_ip.fi_p;
 			p = getprotobynumber(pr);
-			printf("proto ");
+			PRINTF("proto ");
 			printproto(p, pr, NULL);
 			putchar(' ');
 		}
 	}
 
-	if (type == FR_T_NONE) {
-		printf("all");
-	} else if (type == FR_T_IPF) {
-		printf("from %s", fp->fr_flags & FR_NOTSRCIP ? "!" : "");
-		printaddr(fp->fr_v, fp->fr_satype, fp->fr_ifname,
+	switch (type)
+	{
+	case FR_T_NONE :
+		PRINTF("all");
+		break;
+
+	case FR_T_IPF :
+		PRINTF("from %s", fp->fr_flags & FR_NOTSRCIP ? "!" : "");
+		printaddr(af, fp->fr_satype, fp->fr_names, fp->fr_ifnames[0],
 			  &fp->fr_src.s_addr, &fp->fr_smsk.s_addr);
 		if (fp->fr_scmp)
 			printportcmp(pr, &fp->fr_tuc.ftu_src);
 
-		printf(" to %s", fp->fr_flags & FR_NOTDSTIP ? "!" : "");
-		printaddr(fp->fr_v, fp->fr_datype, fp->fr_ifname,
+		PRINTF(" to %s", fp->fr_flags & FR_NOTDSTIP ? "!" : "");
+		printaddr(af, fp->fr_datype, fp->fr_names, fp->fr_ifnames[0],
 			  &fp->fr_dst.s_addr, &fp->fr_dmsk.s_addr);
 		if (fp->fr_dcmp)
 			printportcmp(pr, &fp->fr_tuc.ftu_dst);
 
-		if (fp->fr_proto == IPPROTO_ICMP && fp->fr_icmpm) {
+		if (((fp->fr_proto == IPPROTO_ICMP) ||
+		     (fp->fr_proto == IPPROTO_ICMPV6)) && fp->fr_icmpm) {
 			int	type = fp->fr_icmp, code;
+			char	*name;
 
 			type = ntohs(fp->fr_icmp);
 			code = type & 0xff;
 			type /= 256;
-			if (type < (sizeof(icmptypes) / sizeof(char *) - 1) &&
-			    icmptypes[type])
-				printf(" icmp-type %s", icmptypes[type]);
+			name = icmptypename(fp->fr_family, type);
+			if (name == NULL)
+				PRINTF(" icmp-type %d", type);
 			else
-				printf(" icmp-type %d", type);
+				PRINTF(" icmp-type %s", name);
 			if (ntohs(fp->fr_icmpm) & 0xff)
-				printf(" code %d", code);
+				PRINTF(" code %d", code);
 		}
 		if ((fp->fr_proto == IPPROTO_TCP) &&
 		    (fp->fr_tcpf || fp->fr_tcpfm)) {
-			printf(" flags ");
-			if (fp->fr_tcpf & ~TCPF_ALL)
-				printf("0x%x", fp->fr_tcpf);
-			else
-				for (s = flagset, t = flags; *s; s++, t++)
-					if (fp->fr_tcpf & *t)
-						(void)putchar(*s);
-			if (fp->fr_tcpfm) {
-				(void)putchar('/');
-				if (fp->fr_tcpfm & ~TCPF_ALL)
-					printf("0x%x", fp->fr_tcpfm);
-				else
-					for (s = flagset, t = flags; *s;
-					     s++, t++)
-						if (fp->fr_tcpfm & *t)
-							(void)putchar(*s);
-			}
+			PRINTF(" flags ");
+			printtcpflags(fp->fr_tcpf, fp->fr_tcpfm);
 		}
-	} else if (type == FR_T_BPFOPC) {
+		break;
+
+	case FR_T_BPFOPC :
+	    {
 		fakebpf_t *fb;
 		int i;
 
-		printf("bpf-v%d { \"", fp->fr_v);
+		PRINTF("bpf-v%d { \"", fp->fr_family);
 		i = fp->fr_dsize / sizeof(*fb);
 
 		for (fb = fp->fr_data, s = ""; i; i--, fb++, s = " ")
-			printf("%s%#x %#x %#x %#x", s, fb->fb_c, fb->fb_t,
+			PRINTF("%s%#x %#x %#x %#x", s, fb->fb_c, fb->fb_t,
 			       fb->fb_f, fb->fb_k);
 
-		printf("\" }");
-	} else if (type == FR_T_COMPIPF) {
-		;
-	} else if (type == FR_T_CALLFUNC) {
-		printf("call function at %p", fp->fr_data);
-	} else {
-		printf("[unknown filter type %#x]", fp->fr_type);
+		PRINTF("\" }");
+		break;
+	    }
+
+	case FR_T_COMPIPF :
+		break;
+
+	case FR_T_CALLFUNC :
+		PRINTF("call function at %p", fp->fr_data);
+		break;
+
+	case FR_T_IPFEXPR :
+		PRINTF("exp { \"");
+		printipfexpr(fp->fr_data);
+		PRINTF("\" } ");
+		break;
+
+	default :
+		PRINTF("[unknown filter type %#x]", fp->fr_type);
+		break;
 	}
 
 	if ((type == FR_T_IPF) &&
@@ -292,12 +246,12 @@ ioctlfunc_t	iocfunc;
 	     fp->fr_secbits || fp->fr_secmask)) {
 		char *comma = " ";
 
-		printf(" with");
+		PRINTF(" with");
 		if (fp->fr_optbits || fp->fr_optmask ||
 		    fp->fr_secbits || fp->fr_secmask) {
 			sec[0] = fp->fr_secmask;
 			sec[1] = fp->fr_secbits;
-			if (fp->fr_v == 4)
+			if (fp->fr_family == AF_INET)
 				optprint(sec, fp->fr_optmask, fp->fr_optbits);
 #ifdef	USE_INET6
 			else
@@ -307,175 +261,213 @@ ioctlfunc_t	iocfunc;
 		} else if (fp->fr_mflx & FI_OPTIONS) {
 			fputs(comma, stdout);
 			if (!(fp->fr_flx & FI_OPTIONS))
-				printf("not ");
-			printf("ipopts");
+				PRINTF("not ");
+			PRINTF("ipopts");
 			comma = ",";
 		}
 		if (fp->fr_mflx & FI_SHORT) {
 			fputs(comma, stdout);
 			if (!(fp->fr_flx & FI_SHORT))
-				printf("not ");
-			printf("short");
+				PRINTF("not ");
+			PRINTF("short");
 			comma = ",";
 		}
 		if (fp->fr_mflx & FI_FRAG) {
 			fputs(comma, stdout);
 			if (!(fp->fr_flx & FI_FRAG))
-				printf("not ");
-			printf("frag");
+				PRINTF("not ");
+			PRINTF("frag");
 			comma = ",";
 		}
 		if (fp->fr_mflx & FI_FRAGBODY) {
 			fputs(comma, stdout);
 			if (!(fp->fr_flx & FI_FRAGBODY))
-				printf("not ");
-			printf("frag-body");
+				PRINTF("not ");
+			PRINTF("frag-body");
 			comma = ",";
 		}
 		if (fp->fr_mflx & FI_NATED) {
 			fputs(comma, stdout);
 			if (!(fp->fr_flx & FI_NATED))
-				printf("not ");
-			printf("nat");
+				PRINTF("not ");
+			PRINTF("nat");
 			comma = ",";
 		}
 		if (fp->fr_mflx & FI_LOWTTL) {
 			fputs(comma, stdout);
 			if (!(fp->fr_flx & FI_LOWTTL))
-				printf("not ");
-			printf("lowttl");
+				PRINTF("not ");
+			PRINTF("lowttl");
 			comma = ",";
 		}
 		if (fp->fr_mflx & FI_BAD) {
 			fputs(comma, stdout);
 			if (!(fp->fr_flx & FI_BAD))
-				printf("not ");
-			printf("bad");
+				PRINTF("not ");
+			PRINTF("bad");
 			comma = ",";
 		}
 		if (fp->fr_mflx & FI_BADSRC) {
 			fputs(comma, stdout);
 			if (!(fp->fr_flx & FI_BADSRC))
-				printf("not ");
-			printf("bad-src");
+				PRINTF("not ");
+			PRINTF("bad-src");
 			comma = ",";
 		}
 		if (fp->fr_mflx & FI_BADNAT) {
 			fputs(comma, stdout);
 			if (!(fp->fr_flx & FI_BADNAT))
-				printf("not ");
-			printf("bad-nat");
+				PRINTF("not ");
+			PRINTF("bad-nat");
 			comma = ",";
 		}
 		if (fp->fr_mflx & FI_OOW) {
 			fputs(comma, stdout);
 			if (!(fp->fr_flx & FI_OOW))
-				printf("not ");
-			printf("oow");
+				PRINTF("not ");
+			PRINTF("oow");
 			comma = ",";
 		}
 		if (fp->fr_mflx & FI_MBCAST) {
 			fputs(comma, stdout);
 			if (!(fp->fr_flx & FI_MBCAST))
-				printf("not ");
-			printf("mbcast");
+				PRINTF("not ");
+			PRINTF("mbcast");
 			comma = ",";
 		}
 		if (fp->fr_mflx & FI_BROADCAST) {
 			fputs(comma, stdout);
 			if (!(fp->fr_flx & FI_BROADCAST))
-				printf("not ");
-			printf("bcast");
+				PRINTF("not ");
+			PRINTF("bcast");
 			comma = ",";
 		}
 		if (fp->fr_mflx & FI_MULTICAST) {
 			fputs(comma, stdout);
 			if (!(fp->fr_flx & FI_MULTICAST))
-				printf("not ");
-			printf("mcast");
+				PRINTF("not ");
+			PRINTF("mcast");
 			comma = ",";
 		}
 		if (fp->fr_mflx & FI_STATE) {
 			fputs(comma, stdout);
 			if (!(fp->fr_flx & FI_STATE))
-				printf("not ");
-			printf("state");
+				PRINTF("not ");
+			PRINTF("state");
+			comma = ",";
+		}
+		if (fp->fr_mflx & FI_V6EXTHDR) {
+			fputs(comma, stdout);
+			if (!(fp->fr_flx & FI_V6EXTHDR))
+				PRINTF("not ");
+			PRINTF("v6hdrs");
 			comma = ",";
 		}
 	}
 
 	if (fp->fr_flags & FR_KEEPSTATE) {
-		printf(" keep state");
-		if ((fp->fr_flags & (FR_STSTRICT|FR_NEWISN|FR_NOICMPERR|FR_STATESYNC)) ||
-		    (fp->fr_statemax != 0) || (fp->fr_age[0] != 0)) {
+		host_track_t *src = &fp->fr_srctrack;
+		PRINTF(" keep state");
+		if ((fp->fr_flags & (FR_STSTRICT|FR_NEWISN|
+				     FR_NOICMPERR|FR_STATESYNC)) ||
+		    (fp->fr_statemax != 0) || (fp->fr_age[0] != 0) ||
+		    (src->ht_max_nodes != 0)) {
 			char *comma = "";
-			printf(" (");
+			PRINTF(" (");
 			if (fp->fr_statemax != 0) {
-				printf("limit %u", fp->fr_statemax);
+				PRINTF("limit %u", fp->fr_statemax);
+				comma = ",";
+			}
+			if (src->ht_max_nodes != 0) {
+				PRINTF("%smax-nodes %d", comma,
+				       src->ht_max_nodes);
+				if (src->ht_max_per_node)
+					PRINTF(", max-per-src %d/%d",
+					       src->ht_max_per_node,
+					       src->ht_netmask);
 				comma = ",";
 			}
 			if (fp->fr_flags & FR_STSTRICT) {
-				printf("%sstrict", comma);
+				PRINTF("%sstrict", comma);
+				comma = ",";
+			}
+			if (fp->fr_flags & FR_STLOOSE) {
+				PRINTF("%sloose", comma);
 				comma = ",";
 			}
 			if (fp->fr_flags & FR_NEWISN) {
-				printf("%snewisn", comma);
+				PRINTF("%snewisn", comma);
 				comma = ",";
 			}
 			if (fp->fr_flags & FR_NOICMPERR) {
-				printf("%sno-icmp-err", comma);
+				PRINTF("%sno-icmp-err", comma);
 				comma = ",";
 			}
 			if (fp->fr_flags & FR_STATESYNC) {
-				printf("%ssync", comma);
+				PRINTF("%ssync", comma);
 				comma = ",";
 			}
 			if (fp->fr_age[0] || fp->fr_age[1])
-				printf("%sage %d/%d", comma, fp->fr_age[0],
+				PRINTF("%sage %d/%d", comma, fp->fr_age[0],
 				       fp->fr_age[1]);
-			printf(")");
+			PRINTF(")");
 		}
 	}
 	if (fp->fr_flags & FR_KEEPFRAG) {
-		printf(" keep frags");
+		PRINTF(" keep frags");
 		if (fp->fr_flags & (FR_FRSTRICT)) {
-			printf(" (");
+			PRINTF(" (");
 			if (fp->fr_flags & FR_FRSTRICT)
-				printf("strict");
-			printf(")");
-				
+				PRINTF("strict");
+			PRINTF(")");
+
 		}
 	}
 	if (fp->fr_isc != (struct ipscan *)-1) {
-		if (fp->fr_isctag[0])
-			printf(" scan %s", fp->fr_isctag);
+		if (fp->fr_isctag != -1)
+			PRINTF(" scan %s", fp->fr_isctag + fp->fr_names);
 		else
-			printf(" scan *");
+			PRINTF(" scan *");
 	}
-	if (*fp->fr_grhead != '\0')
-		printf(" head %s", fp->fr_grhead);
-	if (*fp->fr_group != '\0')
-		printf(" group %s", fp->fr_group);
+	if (fp->fr_grhead != -1)
+		PRINTF(" head %s", fp->fr_names + fp->fr_grhead);
+	if (fp->fr_group != -1)
+		PRINTF(" group %s", fp->fr_names + fp->fr_group);
 	if (fp->fr_logtag != FR_NOLOGTAG || *fp->fr_nattag.ipt_tag) {
 		char *s = "";
 
-		printf(" set-tag(");
+		PRINTF(" set-tag(");
 		if (fp->fr_logtag != FR_NOLOGTAG) {
-			printf("log=%u", fp->fr_logtag);
+			PRINTF("log=%u", fp->fr_logtag);
 			s = ", ";
 		}
 		if (*fp->fr_nattag.ipt_tag) {
-			printf("%snat=%-.*s", s, IPFTAG_LEN,
+			PRINTF("%snat=%-.*s", s, IPFTAG_LEN,
 				fp->fr_nattag.ipt_tag);
 		}
-		printf(")");
+		PRINTF(")");
 	}
 
 	if (fp->fr_pps)
-		printf(" pps %d", fp->fr_pps);
+		PRINTF(" pps %d", fp->fr_pps);
 
+	if (fp->fr_comment != -1)
+		PRINTF(" comment \"%s\"", fp->fr_names + fp->fr_comment);
+
+	hash = 0;
 	if ((fp->fr_flags & FR_KEEPSTATE) && (opts & OPT_VERBOSE)) {
-		printf(" # count %d", fp->fr_statecnt);
+		PRINTF(" # count %d", fp->fr_statecnt);
+		if (fp->fr_die != 0)
+			PRINTF(" rule-ttl %u", fp->fr_die);
+		hash = 1;
+	} else if (fp->fr_die != 0) {
+		PRINTF(" # rule-ttl %u", fp->fr_die);
+		hash = 1;
+	}
+	if (opts & OPT_DEBUG) {
+		if (hash == 0)
+			putchar('#');
+		PRINTF(" ref %d", fp->fr_ref);
 	}
 	(void)putchar('\n');
 }

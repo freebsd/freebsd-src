@@ -34,19 +34,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/bio.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <geom/geom.h>
 #include <geom/concat/g_concat.h>
 
+FEATURE(geom_concat, "GEOM concatenation support");
 
 static MALLOC_DEFINE(M_CONCAT, "concat_data", "GEOM_CONCAT Data");
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, concat, CTLFLAG_RW, 0, "GEOM_CONCAT stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, concat, CTLFLAG_RW, 0,
+    "GEOM_CONCAT stuff");
 static u_int g_concat_debug = 0;
-TUNABLE_INT("kern.geom.concat.debug", &g_concat_debug);
-SYSCTL_UINT(_kern_geom_concat, OID_AUTO, debug, CTLFLAG_RW, &g_concat_debug, 0,
+SYSCTL_UINT(_kern_geom_concat, OID_AUTO, debug, CTLFLAG_RWTUN, &g_concat_debug, 0,
     "Debug level");
 
 static int g_concat_destroy(struct g_concat_softc *sc, boolean_t force);
@@ -115,25 +117,32 @@ g_concat_remove_disk(struct g_concat_disk *disk)
 	struct g_consumer *cp;
 	struct g_concat_softc *sc;
 
+	g_topology_assert();
 	KASSERT(disk->d_consumer != NULL, ("Non-valid disk in %s.", __func__));
 	sc = disk->d_softc;
 	cp = disk->d_consumer;
 
-	G_CONCAT_DEBUG(0, "Disk %s removed from %s.", cp->provider->name,
-	    sc->sc_name);
+	if (!disk->d_removed) {
+		G_CONCAT_DEBUG(0, "Disk %s removed from %s.",
+		    cp->provider->name, sc->sc_name);
+		disk->d_removed = 1;
+	}
 
-	disk->d_consumer = NULL;
 	if (sc->sc_provider != NULL) {
-		sc->sc_provider->flags |= G_PF_WITHER;
-		g_orphan_provider(sc->sc_provider, ENXIO);
+		G_CONCAT_DEBUG(0, "Device %s deactivated.",
+		    sc->sc_provider->name);
+		g_wither_provider(sc->sc_provider, ENXIO);
 		sc->sc_provider = NULL;
-		G_CONCAT_DEBUG(0, "Device %s removed.", sc->sc_name);
 	}
 
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
-		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
+		return;
+	disk->d_consumer = NULL;
 	g_detach(cp);
 	g_destroy_consumer(cp);
+	/* If there are no valid disks anymore, remove device. */
+	if (LIST_EMPTY(&sc->sc_geom->consumer))
+		g_concat_destroy(sc, 1);
 }
 
 static void
@@ -153,37 +162,18 @@ g_concat_orphan(struct g_consumer *cp)
 	if (disk == NULL)	/* Possible? */
 		return;
 	g_concat_remove_disk(disk);
-
-	/* If there are no valid disks anymore, remove device. */
-	if (g_concat_nvalid(sc) == 0)
-		g_concat_destroy(sc, 1);
 }
 
 static int
 g_concat_access(struct g_provider *pp, int dr, int dw, int de)
 {
-	struct g_consumer *cp1, *cp2;
-	struct g_concat_softc *sc;
+	struct g_consumer *cp1, *cp2, *tmp;
+	struct g_concat_disk *disk;
 	struct g_geom *gp;
 	int error;
 
+	g_topology_assert();
 	gp = pp->geom;
-	sc = gp->softc;
-
-	if (sc == NULL) {
-		/*
-		 * It looks like geom is being withered.
-		 * In that case we allow only negative requests.
-		 */
-		KASSERT(dr <= 0 && dw <= 0 && de <= 0,
-		    ("Positive access request (device=%s).", pp->name));
-		if ((pp->acr + dr) == 0 && (pp->acw + dw) == 0 &&
-		    (pp->ace + de) == 0) {
-			G_CONCAT_DEBUG(0, "Device %s definitely destroyed.",
-			    gp->name);
-		}
-		return (0);
-	}
 
 	/* On first open, grab an extra "exclusive" bit */
 	if (pp->acr == 0 && pp->acw == 0 && pp->ace == 0)
@@ -192,23 +182,79 @@ g_concat_access(struct g_provider *pp, int dr, int dw, int de)
 	if ((pp->acr + dr) == 0 && (pp->acw + dw) == 0 && (pp->ace + de) == 0)
 		de--;
 
-	error = ENXIO;
-	LIST_FOREACH(cp1, &gp->consumer, consumer) {
+	LIST_FOREACH_SAFE(cp1, &gp->consumer, consumer, tmp) {
 		error = g_access(cp1, dr, dw, de);
-		if (error == 0)
-			continue;
-		/*
-		 * If we fail here, backout all previous changes.
-		 */
-		LIST_FOREACH(cp2, &gp->consumer, consumer) {
-			if (cp1 == cp2)
-				return (error);
-			g_access(cp2, -dr, -dw, -de);
+		if (error != 0)
+			goto fail;
+		disk = cp1->private;
+		if (cp1->acr == 0 && cp1->acw == 0 && cp1->ace == 0 &&
+		    disk->d_removed) {
+			g_concat_remove_disk(disk); /* May destroy geom. */
 		}
-		/* NOTREACHED */
 	}
+	return (0);
 
+fail:
+	LIST_FOREACH(cp2, &gp->consumer, consumer) {
+		if (cp1 == cp2)
+			break;
+		g_access(cp2, -dr, -dw, -de);
+	}
 	return (error);
+}
+
+static void
+g_concat_kernel_dump(struct bio *bp)
+{
+	struct g_concat_softc *sc;
+	struct g_concat_disk *disk;
+	struct bio *cbp;
+	struct g_kerneldump *gkd;
+	u_int i;
+
+	sc = bp->bio_to->geom->softc;
+	gkd = (struct g_kerneldump *)bp->bio_data;
+	for (i = 0; i < sc->sc_ndisks; i++) {
+		if (sc->sc_disks[i].d_start <= gkd->offset &&
+		    sc->sc_disks[i].d_end > gkd->offset)
+			break;
+	}
+	if (i == sc->sc_ndisks)
+		g_io_deliver(bp, EOPNOTSUPP);
+	disk = &sc->sc_disks[i];
+	gkd->offset -= disk->d_start;
+	if (gkd->length > disk->d_end - disk->d_start - gkd->offset)
+		gkd->length = disk->d_end - disk->d_start - gkd->offset;
+	cbp = g_clone_bio(bp);
+	if (cbp == NULL) {
+		g_io_deliver(bp, ENOMEM);
+		return;
+	}
+	cbp->bio_done = g_std_done;
+	g_io_request(cbp, disk->d_consumer);
+	G_CONCAT_DEBUG(1, "Kernel dump will go to %s.",
+	    disk->d_consumer->provider->name);
+}
+
+static void
+g_concat_done(struct bio *bp)
+{
+	struct g_concat_softc *sc;
+	struct bio *pbp;
+
+	pbp = bp->bio_parent;
+	sc = pbp->bio_to->geom->softc;
+	mtx_lock(&sc->sc_lock);
+	if (pbp->bio_error == 0)
+		pbp->bio_error = bp->bio_error;
+	pbp->bio_completed += bp->bio_completed;
+	pbp->bio_inbed++;
+	if (pbp->bio_children == pbp->bio_inbed) {
+		mtx_unlock(&sc->sc_lock);
+		g_io_deliver(pbp, pbp->bio_error);
+	} else
+		mtx_unlock(&sc->sc_lock);
+	g_destroy_bio(bp);
 }
 
 static void
@@ -223,23 +269,19 @@ g_concat_flush(struct g_concat_softc *sc, struct bio *bp)
 	for (no = 0; no < sc->sc_ndisks; no++) {
 		cbp = g_clone_bio(bp);
 		if (cbp == NULL) {
-			for (cbp = bioq_first(&queue); cbp != NULL;
-			    cbp = bioq_first(&queue)) {
-				bioq_remove(&queue, cbp);
+			while ((cbp = bioq_takefirst(&queue)) != NULL)
 				g_destroy_bio(cbp);
-			}
 			if (bp->bio_error == 0)
 				bp->bio_error = ENOMEM;
 			g_io_deliver(bp, bp->bio_error);
 			return;
 		}
 		bioq_insert_tail(&queue, cbp);
-		cbp->bio_done = g_std_done;
+		cbp->bio_done = g_concat_done;
 		cbp->bio_caller1 = sc->sc_disks[no].d_consumer;
 		cbp->bio_to = sc->sc_disks[no].d_consumer->provider;
 	}
-	for (cbp = bioq_first(&queue); cbp != NULL; cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		G_CONCAT_LOGREQ(cbp, "Sending request.");
 		cp = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
@@ -280,7 +322,12 @@ g_concat_start(struct bio *bp)
 		g_concat_flush(sc, bp);
 		return;
 	case BIO_GETATTR:
+		if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
+			g_concat_kernel_dump(bp);
+			return;
+		}
 		/* To which provider it should be delivered? */
+		/* FALLTHROUGH */
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
@@ -288,7 +335,10 @@ g_concat_start(struct bio *bp)
 
 	offset = bp->bio_offset;
 	length = bp->bio_length;
-	addr = bp->bio_data;
+	if ((bp->bio_flags & BIO_UNMAPPED) != 0)
+		addr = NULL;
+	else
+		addr = bp->bio_data;
 	end = offset + length;
 
 	bioq_init(&queue);
@@ -306,11 +356,8 @@ g_concat_start(struct bio *bp)
 
 		cbp = g_clone_bio(bp);
 		if (cbp == NULL) {
-			for (cbp = bioq_first(&queue); cbp != NULL;
-			    cbp = bioq_first(&queue)) {
-				bioq_remove(&queue, cbp);
+			while ((cbp = bioq_takefirst(&queue)) != NULL)
 				g_destroy_bio(cbp);
-			}
 			if (bp->bio_error == 0)
 				bp->bio_error = ENOMEM;
 			g_io_deliver(bp, bp->bio_error);
@@ -320,11 +367,21 @@ g_concat_start(struct bio *bp)
 		/*
 		 * Fill in the component buf structure.
 		 */
-		cbp->bio_done = g_std_done;
+		if (len == bp->bio_length)
+			cbp->bio_done = g_std_done;
+		else
+			cbp->bio_done = g_concat_done;
 		cbp->bio_offset = off;
-		cbp->bio_data = addr;
-		addr += len;
 		cbp->bio_length = len;
+		if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+			cbp->bio_ma_offset += (uintptr_t)addr;
+			cbp->bio_ma += cbp->bio_ma_offset / PAGE_SIZE;
+			cbp->bio_ma_offset %= PAGE_SIZE;
+			cbp->bio_ma_n = round_page(cbp->bio_ma_offset +
+			    cbp->bio_length) / PAGE_SIZE;
+		} else
+			cbp->bio_data = addr;
+		addr += len;
 		cbp->bio_to = disk->d_consumer->provider;
 		cbp->bio_caller1 = disk;
 
@@ -334,8 +391,7 @@ g_concat_start(struct bio *bp)
 	KASSERT(length == 0,
 	    ("Length is still greater than 0 (class=%s, name=%s).",
 	    bp->bio_to->geom->class->name, bp->bio_to->geom->name));
-	for (cbp = bioq_first(&queue); cbp != NULL; cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		G_CONCAT_LOGREQ(cbp, "Sending request.");
 		disk = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
@@ -347,36 +403,47 @@ static void
 g_concat_check_and_run(struct g_concat_softc *sc)
 {
 	struct g_concat_disk *disk;
+	struct g_provider *dp, *pp;
 	u_int no, sectorsize = 0;
 	off_t start;
 
+	g_topology_assert();
 	if (g_concat_nvalid(sc) != sc->sc_ndisks)
 		return;
 
-	sc->sc_provider = g_new_providerf(sc->sc_geom, "concat/%s",
-	    sc->sc_name);
+	pp = g_new_providerf(sc->sc_geom, "concat/%s", sc->sc_name);
+	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE |
+	    G_PF_ACCEPT_UNMAPPED;
 	start = 0;
 	for (no = 0; no < sc->sc_ndisks; no++) {
 		disk = &sc->sc_disks[no];
+		dp = disk->d_consumer->provider;
 		disk->d_start = start;
-		disk->d_end = disk->d_start +
-		    disk->d_consumer->provider->mediasize;
+		disk->d_end = disk->d_start + dp->mediasize;
 		if (sc->sc_type == G_CONCAT_TYPE_AUTOMATIC)
-			disk->d_end -= disk->d_consumer->provider->sectorsize;
+			disk->d_end -= dp->sectorsize;
 		start = disk->d_end;
 		if (no == 0)
-			sectorsize = disk->d_consumer->provider->sectorsize;
-		else {
-			sectorsize = lcm(sectorsize,
-			    disk->d_consumer->provider->sectorsize);
+			sectorsize = dp->sectorsize;
+		else
+			sectorsize = lcm(sectorsize, dp->sectorsize);
+
+		/* A provider underneath us doesn't support unmapped */
+		if ((dp->flags & G_PF_ACCEPT_UNMAPPED) == 0) {
+			G_CONCAT_DEBUG(1, "Cancelling unmapped "
+			    "because of %s.", dp->name);
+			pp->flags &= ~G_PF_ACCEPT_UNMAPPED;
 		}
 	}
-	sc->sc_provider->sectorsize = sectorsize;
+	pp->sectorsize = sectorsize;
 	/* We have sc->sc_disks[sc->sc_ndisks - 1].d_end in 'start'. */
-	sc->sc_provider->mediasize = start;
-	g_error_provider(sc->sc_provider, 0);
+	pp->mediasize = start;
+	pp->stripesize = sc->sc_disks[0].d_consumer->provider->stripesize;
+	pp->stripeoffset = sc->sc_disks[0].d_consumer->provider->stripeoffset;
+	sc->sc_provider = pp;
+	g_error_provider(pp, 0);
 
-	G_CONCAT_DEBUG(0, "Device %s activated.", sc->sc_name);
+	G_CONCAT_DEBUG(0, "Device %s activated.", sc->sc_provider->name);
 }
 
 static int
@@ -418,6 +485,7 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	struct g_geom *gp;
 	int error;
 
+	g_topology_assert();
 	/* Metadata corrupted? */
 	if (no >= sc->sc_ndisks)
 		return (EINVAL);
@@ -431,6 +499,7 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	fcp = LIST_FIRST(&gp->consumer);
 
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	if (error != 0) {
 		g_destroy_consumer(cp);
@@ -466,6 +535,7 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	disk->d_softc = sc;
 	disk->d_start = 0;	/* not yet */
 	disk->d_end = 0;	/* not yet */
+	disk->d_removed = 0;
 
 	G_CONCAT_DEBUG(0, "Disk %s attached to %s.", pp->name, sc->sc_name);
 
@@ -505,8 +575,6 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 		}
 	}
 	gp = g_new_geomf(mp, "%s", md->md_name);
-	gp->softc = NULL;	/* for a moment */
-
 	sc = malloc(sizeof(*sc), M_CONCAT, M_WAITOK | M_ZERO);
 	gp->start = g_concat_start;
 	gp->spoiled = g_concat_orphan;
@@ -521,6 +589,7 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 	for (no = 0; no < sc->sc_ndisks; no++)
 		sc->sc_disks[no].d_consumer = NULL;
 	sc->sc_type = type;
+	mtx_init(&sc->sc_lock, "gconcat lock", NULL, MTX_DEF);
 
 	gp->softc = sc;
 	sc->sc_geom = gp;
@@ -535,8 +604,8 @@ static int
 g_concat_destroy(struct g_concat_softc *sc, boolean_t force)
 {
 	struct g_provider *pp;
+	struct g_consumer *cp, *cp1;
 	struct g_geom *gp;
-	u_int no;
 
 	g_topology_assert();
 
@@ -556,24 +625,24 @@ g_concat_destroy(struct g_concat_softc *sc, boolean_t force)
 		}
 	}
 
-	for (no = 0; no < sc->sc_ndisks; no++) {
-		if (sc->sc_disks[no].d_consumer != NULL)
-			g_concat_remove_disk(&sc->sc_disks[no]);
-	}
-
 	gp = sc->sc_geom;
+	LIST_FOREACH_SAFE(cp, &gp->consumer, consumer, cp1) {
+		g_concat_remove_disk(cp->private);
+		if (cp1 == NULL)
+			return (0);	/* Recursion happened. */
+	}
+	if (!LIST_EMPTY(&gp->consumer))
+		return (EINPROGRESS);
+
 	gp->softc = NULL;
 	KASSERT(sc->sc_provider == NULL, ("Provider still exists? (device=%s)",
 	    gp->name));
 	free(sc->sc_disks, M_CONCAT);
+	mtx_destroy(&sc->sc_lock);
 	free(sc, M_CONCAT);
 
-	pp = LIST_FIRST(&gp->provider);
-	if (pp == NULL || (pp->acr == 0 && pp->acw == 0 && pp->ace == 0))
-		G_CONCAT_DEBUG(0, "Device %s destroyed.", gp->name);
-
+	G_CONCAT_DEBUG(0, "Device %s destroyed.", gp->name);
 	g_wither_geom(gp, ENXIO);
-
 	return (0);
 }
 
@@ -598,6 +667,10 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	g_topology_assert();
+
+	/* Skip providers that are already open for writing. */
+	if (pp->acw > 0)
+		return (NULL);
 
 	G_CONCAT_DEBUG(3, "Tasting %s.", pp->name);
 
@@ -632,7 +705,8 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (md.md_version < 4)
 		md.md_provsize = pp->mediasize;
 
-	if (md.md_provider[0] != '\0' && strcmp(md.md_provider, pp->name) != 0)
+	if (md.md_provider[0] != '\0' &&
+	    !g_compare_names(md.md_provider, pp->name))
 		return (NULL);
 	if (md.md_provsize != pp->mediasize)
 		return (NULL);

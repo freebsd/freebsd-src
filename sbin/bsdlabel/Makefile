@@ -3,23 +3,16 @@
 
 .PATH: ${.CURDIR}/../../sys/geom
 
+PACKAGE=runtime
 PROG=	bsdlabel
 SRCS=	bsdlabel.c geom_bsd_enc.c
-#MAN=	bsdlabel.5
 MAN+=	bsdlabel.8
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 LINKS=	${BINDIR}/bsdlabel ${BINDIR}/disklabel
 MLINKS=	bsdlabel.8 disklabel.8
 .endif
 
-DPADD=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF}
-LDADD=	-lgeom -lbsdxml -lsbuf
+LIBADD=	geom
 
 .include <bsd.prog.mk>
-
-test: ${PROG}
-	sh ${.CURDIR}/runtest.sh
-
-testx: ${PROG}
-	sh -x ${.CURDIR}/runtest.sh

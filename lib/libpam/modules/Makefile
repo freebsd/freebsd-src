@@ -27,5 +27,6 @@
 .include "modules.inc"
 
 SUBDIR=	${MODULES}
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

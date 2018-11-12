@@ -51,12 +51,12 @@ struct hc_metrics {
 	struct	hc_head *rmx_head; /* head of bucket tail queue */
 	struct	in_addr ip4;	/* IP address */
 	struct	in6_addr ip6;	/* IP6 address */
+	uint32_t ip6_zoneid;	/* IPv6 scope zone id */
 	/* endpoint specific values for tcp */
 	u_long	rmx_mtu;	/* MTU for this path */
 	u_long	rmx_ssthresh;	/* outbound gateway buffer limit */
 	u_long	rmx_rtt;	/* estimated round trip time */
 	u_long	rmx_rttvar;	/* estimated rtt variance */
-	u_long	rmx_bandwidth;	/* estimated bandwidth */
 	u_long	rmx_cwnd;	/* congestion window */
 	u_long	rmx_sendpipe;	/* outbound delay-bandwidth product */
 	u_long	rmx_recvpipe;	/* inbound delay-bandwidth product */

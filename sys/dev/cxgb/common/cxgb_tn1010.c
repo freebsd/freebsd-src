@@ -129,7 +129,7 @@ static int tn1010_advertise(struct cphy *phy, unsigned int advert)
 			  ADVERTISE_LOOP_TIMING);
 }
 
-static int tn1010_get_link_status(struct cphy *phy, int *link_ok,
+static int tn1010_get_link_status(struct cphy *phy, int *link_state,
 				  int *speed, int *duplex, int *fc)
 {
 	unsigned int status, lpa, adv;
@@ -139,8 +139,9 @@ static int tn1010_get_link_status(struct cphy *phy, int *link_ok,
 	if (err)
 		return err;
 
-	if (link_ok)
-		*link_ok = (status & F_LINK_STAT) != 0;
+	if (link_state)
+		*link_state = status & F_LINK_STAT ? PHY_LINK_UP :
+		    PHY_LINK_DOWN;
 
 	if (G_ANEG_STAT(status) == ANEG_COMPLETE) {
 		sp = (status & F_ANEG_SPEED_1G) ? SPEED_1000 : SPEED_10000;
@@ -209,10 +210,10 @@ static struct cphy_ops tn1010_ops = {
 };
 #endif
 
-int t3_tn1010_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_tn1010_phy_prep(pinfo_t *pinfo, int phy_addr,
 		       const struct mdio_ops *mdio_ops)
 {
-	cphy_init(phy, adapter, phy_addr, &tn1010_ops, mdio_ops,
+	cphy_init(&pinfo->phy, pinfo->adapter, pinfo, phy_addr, &tn1010_ops, mdio_ops,
 		  SUPPORTED_1000baseT_Full | SUPPORTED_10000baseT_Full |
 		  SUPPORTED_Autoneg | SUPPORTED_AUI | SUPPORTED_TP,
 		  "1000/10GBASE-T");

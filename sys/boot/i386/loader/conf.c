@@ -30,6 +30,9 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <bootstrap.h>
 #include "libi386/libi386.h"
+#if defined(LOADER_ZFS_SUPPORT)
+#include "../zfs/libzfs.h"
+#endif
 
 /*
  * We could use linker sets for some or all of these, but
@@ -42,16 +45,8 @@ __FBSDID("$FreeBSD$");
  * XXX as libi386 and biosboot merge, some of these can become linker sets.
  */
 
-#if defined(LOADER_NFS_SUPPORT) && defined(LOADER_TFTP_SUPPORT)
-#error "Cannot have both tftp and nfs support yet."
-#endif
-
 #if defined(LOADER_FIREWIRE_SUPPORT)
 extern struct devsw fwohci;
-#endif
-
-#if defined(LOADER_ZFS_SUPPORT)
-extern struct devsw zfs_dev;
 #endif
 
 /* Exported for libstand */
@@ -70,18 +65,22 @@ struct devsw *devsw[] = {
     NULL
 };
 
-#if defined(LOADER_ZFS_SUPPORT)
-extern struct fs_ops zfs_fsops;
-#endif
-
 struct fs_ops *file_system[] = {
+#if defined(LOADER_ZFS_SUPPORT)
+    &zfs_fsops,
+#endif
     &ufs_fsops,
     &ext2fs_fsops,
     &dosfs_fsops,
     &cd9660_fsops,
-    &splitfs_fsops,
-#if defined(LOADER_ZFS_SUPPORT)
-    &zfs_fsops,
+#if defined(LOADER_NANDFS_SUPPORT)
+    &nandfs_fsops,
+#endif
+#ifdef LOADER_NFS_SUPPORT 
+    &nfs_fsops,
+#endif
+#ifdef LOADER_TFTP_SUPPORT
+    &tftp_fsops,
 #endif
 #ifdef LOADER_GZIP_SUPPORT
     &gzipfs_fsops,
@@ -89,11 +88,8 @@ struct fs_ops *file_system[] = {
 #ifdef LOADER_BZIP2_SUPPORT
     &bzipfs_fsops,
 #endif
-#ifdef LOADER_NFS_SUPPORT 
-    &nfs_fsops,
-#endif
-#ifdef LOADER_TFTP_SUPPORT
-    &tftp_fsops,
+#ifdef LOADER_SPLIT_SUPPORT
+    &splitfs_fsops,
 #endif
     NULL
 };
@@ -107,12 +103,22 @@ extern struct file_format	i386_elf;
 extern struct file_format	i386_elf_obj;
 extern struct file_format	amd64_elf;
 extern struct file_format	amd64_elf_obj;
+extern struct file_format	multiboot;
+extern struct file_format	multiboot_obj;
 
 struct file_format *file_formats[] = {
-    &i386_elf,
-    &i386_elf_obj,
+	&multiboot,
+	&multiboot_obj,
+#ifdef LOADER_PREFER_AMD64
     &amd64_elf,
     &amd64_elf_obj,
+#endif
+    &i386_elf,
+    &i386_elf_obj,
+#ifndef LOADER_PREFER_AMD64
+    &amd64_elf,
+    &amd64_elf_obj,
+#endif
     NULL
 };
 
@@ -128,6 +134,7 @@ extern struct console comconsole;
 extern struct console dconsole;
 #endif
 extern struct console nullconsole;
+extern struct console spinconsole;
 
 struct console *consoles[] = {
     &vidconsole,
@@ -136,6 +143,7 @@ struct console *consoles[] = {
     &dconsole,
 #endif
     &nullconsole,
+    &spinconsole,
     NULL
 };
 

@@ -51,6 +51,10 @@ suspends execution for a minimum of
 If the
 .Nm
 command receives a signal, it takes the standard action.
+When the
+.Dv SIGINFO
+signal is received, the estimate of the amount of seconds left to
+sleep is printed on the standard output.
 .Sh IMPLEMENTATION NOTES
 The
 .Dv SIGALRM
@@ -58,14 +62,11 @@ signal is not handled specially by this implementation.
 .Pp
 The
 .Nm
-command will accept and honor a non-integer number of specified seconds
-(with a
-.Ql .\&
-character as a decimal point).
-.Bf Sy
+command allows and honors a non-integer number of seconds to sleep
+in any form acceptable by
+.Xr strtod 3 .
 This is a non-portable extension, and its use will nearly guarantee that
 a shell script will not execute properly on another system.
-.Ef
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES

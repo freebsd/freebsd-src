@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define	_WITH_DPRINTF
 #include "namespace.h"
 #include <stdarg.h>
 #include <stdio.h>

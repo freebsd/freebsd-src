@@ -36,6 +36,10 @@
 #ifndef _NFSCLIENT_NFSMOUNT_H_
 #define _NFSCLIENT_NFSMOUNT_H_
 
+#include <sys/socket.h>
+
+#include <nfs/nfs_mountcommon.h>
+
 #include <rpc/types.h>
 #include <rpc/auth.h>
 #include <rpc/clnt.h>
@@ -47,10 +51,7 @@
  * Holds NFS specific information for mount.
  */
 struct	nfsmount {
-	struct mtx	nm_mtx;
-	int	nm_flag;		/* Flags for soft/hard... */
-	int	nm_state;		/* Internal state flags */
-	struct	mount *nm_mountp;	/* Vfs structure for this filesystem */
+	struct	nfsmount_common nm_com;	/* Common fields for nlm */
 	int	nm_numgrps;		/* Max. size of groupslist */
 	u_char	nm_fh[NFSX_V4FH];	/* File handle of root dir */
 	int	nm_fhsize;		/* Size of root file handle */
@@ -58,8 +59,6 @@ struct	nfsmount {
 	int	nm_soproto;		/* and protocol */
 	int	nm_soflags;		/* pr_flags for socket protocol */
 	struct	sockaddr *nm_nam;	/* Addr of server */
-	int	nm_timeo;		/* Init timer for NFSMNT_DUMBTIMR */
-	int	nm_retry;		/* Max retries */
 	int	nm_deadthresh;		/* Threshold of timeouts-->dead server*/
 	int	nm_rsize;		/* Max size of read rpc */
 	int	nm_wsize;		/* Max size of write rpc */
@@ -79,12 +78,13 @@ struct	nfsmount {
 	struct nfs_rpcops *nm_rpcops;
 	int	nm_tprintf_initial_delay;	/* initial delay */
 	int	nm_tprintf_delay;		/* interval for messages */
-	char	nm_hostname[MNAMELEN];	 /* server's name */
 	int	nm_secflavor;		 /* auth flavor to use for rpc */
 	struct __rpc_client *nm_client;
 	struct rpc_timers nm_timers[NFS_MAX_TIMER]; /* RTT Timers for rpcs */
 	char	nm_principal[MNAMELEN];	/* GSS-API principal of server */
 	gss_OID	nm_mech_oid;		/* OID of selected GSS-API mechanism */
+	int	nm_nametimeo;		/* timeout for +ve entries (sec) */
+	int	nm_negnametimeo;	/* timeout for -ve entries (sec) */
 
 	/* NFSv4 */
 	uint64_t nm_clientid;
@@ -92,6 +92,16 @@ struct	nfsmount {
 	u_int	nm_lease_time;
 	time_t	nm_last_renewal;
 };
+
+#define	nm_mtx		nm_com.nmcom_mtx
+#define	nm_flag		nm_com.nmcom_flag
+#define	nm_state	nm_com.nmcom_state
+#define	nm_mountp	nm_com.nmcom_mountp
+#define	nm_timeo	nm_com.nmcom_timeo
+#define	nm_retry	nm_com.nmcom_retry
+#define	nm_hostname	nm_com.nmcom_hostname
+#define	nm_getinfo	nm_com.nmcom_getinfo
+#define	nm_vinvalbuf	nm_com.nmcom_vinvalbuf
 
 #if defined(_KERNEL)
 /*
@@ -107,7 +117,13 @@ struct	nfsmount {
 #define NFS_TPRINTF_DELAY               30
 #endif
 
-#define	NFS_PCATCH	(PCATCH | PBDRY)
+#ifndef NFS_DEFAULT_NAMETIMEO
+#define NFS_DEFAULT_NAMETIMEO		60
+#endif
+
+#ifndef NFS_DEFAULT_NEGNAMETIMEO
+#define NFS_DEFAULT_NEGNAMETIMEO	60
+#endif
 
 #endif
 

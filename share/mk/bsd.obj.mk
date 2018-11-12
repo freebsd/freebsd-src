@@ -42,11 +42,49 @@
 __<bsd.obj.mk>__:
 .include <bsd.own.mk>
 
-.if defined(MAKEOBJDIRPREFIX)
+.if ${MK_AUTO_OBJ} == "yes"
+# it is done by now
+objwarn:
+obj:
+CANONICALOBJDIR= ${.OBJDIR}
+.if defined(NO_OBJ)
+# but this makefile does not want it!
+.OBJDIR: ${.CURDIR}
+.endif
+# Handle special case where SRCS is full-pathed and requires
+# nested objdirs.  This duplicates some auto.obj.mk logic.
+.if (!empty(SRCS:M*/*) || !empty(DPSRCS:M*/*)) && \
+    (${.TARGETS} == "" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} != "")
+_wantdirs=	${SRCS:M*/*:H} ${DPSRCS:M*/*:H}
+.if !empty(_wantdirs)
+_wantdirs:=	${_wantdirs:O:u}
+_needdirs=
+.for _dir in ${_wantdirs}
+.if !exists(${.OBJDIR}/${_dir}/)
+_needdirs+=	${_dir}
+.endif
+.endfor
+.endif
+.if !empty(_needdirs)
+#_mkneededdirs!=	umask ${OBJDIR_UMASK:U002}; ${Mkdirs} ${_needdirs}
+__objdir_made != umask ${OBJDIR_UMASK:U002}; ${Mkdirs}; \
+	for dir in ${_needdirs}; do \
+	  dir=${.OBJDIR}/$${dir}; \
+	  ${ECHO_TRACE} "[Creating nested objdir $${dir}...]" >&2; \
+          Mkdirs $${dir}; \
+	done
+.endif
+.endif	# !empty(SRCS:M*/*) || !empty(DPSRCS:M*/*)
+.elif defined(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
+.elif defined(MAKEOBJDIR) && ${MAKEOBJDIR:M/*} != ""
+CANONICALOBJDIR:=${MAKEOBJDIR}
+OBJTOP?= ${MAKEOBJDIR}
 .else
 CANONICALOBJDIR:=/usr/obj${.CURDIR}
 .endif
+
+OBJTOP?= ${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
 
 #
 # Warn of unorthodox object directory.
@@ -75,6 +113,7 @@ objwarn:
 		canonical ${CANONICALOBJDIR}"
 .endif
 .endif
+beforebuild: objwarn
 
 .if !defined(NO_OBJ)
 .if !target(obj)
@@ -87,6 +126,16 @@ obj: .PHONY
 		fi; \
 		${ECHO} "${CANONICALOBJDIR} created for ${.CURDIR}"; \
 	fi
+.for dir in ${SRCS:H:O:u} ${DPSRCS:H:O:u}
+	@if ! test -d ${CANONICALOBJDIR}/${dir}/; then \
+		mkdir -p ${CANONICALOBJDIR}/${dir}; \
+		if ! test -d ${CANONICALOBJDIR}/${dir}/; then \
+			${ECHO} "Unable to create ${CANONICALOBJDIR}/${dir}."; \
+			exit 1; \
+		fi; \
+		${ECHO} "${CANONICALOBJDIR}/${dir} created for ${.CURDIR}"; \
+	fi
+.endfor
 .endif
 
 .if !target(objlink)
@@ -110,11 +159,17 @@ whereobj:
 
 .if ${CANONICALOBJDIR} != ${.CURDIR} && exists(${CANONICALOBJDIR}/)
 cleanobj:
-	@rm -rf ${CANONICALOBJDIR}
+	@-rm -rf ${CANONICALOBJDIR}
 .else
 cleanobj: clean cleandepend
 .endif
 	@if [ -L ${.CURDIR}/obj ]; then rm -f ${.CURDIR}/obj; fi
+
+# Tell bmake not to look for generated files via .PATH
+NOPATH_FILES+=	${CLEANFILES}
+.if !empty(NOPATH_FILES)
+.NOPATH: ${NOPATH_FILES}
+.endif
 
 .if !target(clean)
 clean:
@@ -122,12 +177,60 @@ clean:
 	rm -f ${CLEANFILES}
 .endif
 .if defined(CLEANDIRS) && !empty(CLEANDIRS)
-	rm -rf ${CLEANDIRS}
+	-rm -rf ${CLEANDIRS}
 .endif
 .endif
+.ORDER: clean all
 
 cleandir: cleanobj
 
 .include <bsd.subdir.mk>
+
+.if make(destroy*) && defined(OBJROOT)
+# this (rm -rf objdir) is much faster and more reliable than cleaning.
+
+# just in case we are playing games with these...
+_OBJDIR?= ${.OBJDIR}
+_CURDIR?= ${.CURDIR}
+
+# destroy almost everything
+destroy: destroy-all
+destroy-all:
+
+# just remove our objdir
+destroy-arch: .NOMETA
+.if ${_OBJDIR} != ${_CURDIR}
+	cd ${_CURDIR} && rm -rf ${_OBJDIR}
+.endif
+
+.if defined(HOST_OBJTOP)
+destroy-host: destroy.host
+destroy.host: .NOMETA
+	cd ${_CURDIR} && rm -rf ${HOST_OBJTOP}/${RELDIR:N.}
+.endif
+
+.if make(destroy-all) && ${RELDIR} == "."
+destroy-all: destroy-stage
+.endif
+
+# remove the stage tree
+destroy-stage: .NOMETA
+.if defined(STAGE_ROOT)
+	cd ${_CURDIR} && rm -rf ${STAGE_ROOT}
+.endif
+
+# allow parallel destruction
+_destroy_machine_list = common host ${ALL_MACHINE_LIST}
+.for m in ${_destroy_machine_list:O:u}
+destroy-all: destroy.$m
+.if !target(destroy.$m)
+destroy.$m: .NOMETA
+.if ${_OBJDIR} != ${_CURDIR}
+	cd ${_CURDIR} && rm -rf ${OBJROOT}$m*/${RELDIR:N.}
+.endif
+.endif
+.endfor
+
+.endif
 
 .endif # !target(__<bsd.obj.mk>__)

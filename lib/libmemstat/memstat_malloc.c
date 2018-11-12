@@ -96,11 +96,6 @@ retry:
 		return (-1);
 	}
 
-	if (maxcpus > MEMSTAT_MAXCPU) {
-		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
-		return (-1);
-	}
-
 	size = sizeof(count);
 	if (sysctlbyname("kern.malloc_count", &count, &size, NULL, 0) < 0) {
 		if (errno == EACCES || errno == EPERM)
@@ -160,12 +155,6 @@ retry:
 		return (-1);
 	}
 
-	if (mtshp->mtsh_maxcpus > MEMSTAT_MAXCPU) {
-		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
-		free(buffer);
-		return (-1);
-	}
-
 	/*
 	 * For the remainder of this function, we are quite trusting about
 	 * the layout of structures and sizes, since we've determined we have
@@ -184,7 +173,7 @@ retry:
 			mtp = NULL;
 		if (mtp == NULL)
 			mtp = _memstat_mt_allocate(list, ALLOCATOR_MALLOC,
-			    mthp->mth_name);
+			    mthp->mth_name, maxcpus);
 		if (mtp == NULL) {
 			_memstat_mtl_empty(list);
 			free(buffer);
@@ -195,7 +184,7 @@ retry:
 		/*
 		 * Reset the statistics on a current node.
 		 */
-		_memstat_mt_reset_stats(mtp);
+		_memstat_mt_reset_stats(mtp, maxcpus);
 
 		for (j = 0; j < maxcpus; j++) {
 			mtsp = (struct malloc_type_stats *)p;
@@ -295,7 +284,7 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 	void *kmemstatistics;
 	int hint_dontsearch, j, mp_maxcpus, ret;
 	char name[MEMTYPE_MAXNAME];
-	struct malloc_type_stats mts[MEMSTAT_MAXCPU], *mtsp;
+	struct malloc_type_stats *mts, *mtsp;
 	struct malloc_type_internal *mtip;
 	struct malloc_type type, *typep;
 	kvm_t *kvm;
@@ -322,11 +311,6 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 		return (-1);
 	}
 
-	if (mp_maxcpus > MEMSTAT_MAXCPU) {
-		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
-		return (-1);
-	}
-
 	ret = kread_symbol(kvm, X_KMEMSTATISTICS, &kmemstatistics,
 	    sizeof(kmemstatistics), 0);
 	if (ret != 0) {
@@ -334,10 +318,17 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 		return (-1);
 	}
 
+	mts = malloc(sizeof(struct malloc_type_stats) * mp_maxcpus);
+	if (mts == NULL) {
+		list->mtl_error = MEMSTAT_ERROR_NOMEMORY;
+		return (-1);
+	}
+
 	for (typep = kmemstatistics; typep != NULL; typep = type.ks_next) {
 		ret = kread(kvm, typep, &type, sizeof(type), 0);
 		if (ret != 0) {
 			_memstat_mtl_empty(list);
+			free(mts);
 			list->mtl_error = ret;
 			return (-1);
 		}
@@ -345,6 +336,7 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 		    MEMTYPE_MAXNAME);
 		if (ret != 0) {
 			_memstat_mtl_empty(list);
+			free(mts);
 			list->mtl_error = ret;
 			return (-1);
 		}
@@ -358,6 +350,7 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 		    sizeof(struct malloc_type_stats), 0);
 		if (ret != 0) {
 			_memstat_mtl_empty(list);
+			free(mts);
 			list->mtl_error = ret;
 			return (-1);
 		}
@@ -368,9 +361,10 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 			mtp = NULL;
 		if (mtp == NULL)
 			mtp = _memstat_mt_allocate(list, ALLOCATOR_MALLOC,
-			    name);
+			    name, mp_maxcpus);
 		if (mtp == NULL) {
 			_memstat_mtl_empty(list);
+			free(mts);
 			list->mtl_error = MEMSTAT_ERROR_NOMEMORY;
 			return (-1);
 		}
@@ -379,7 +373,7 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 		 * This logic is replicated from kern_malloc.c, and should
 		 * be kept in sync.
 		 */
-		_memstat_mt_reset_stats(mtp);
+		_memstat_mt_reset_stats(mtp, mp_maxcpus);
 		for (j = 0; j < mp_maxcpus; j++) {
 			mtsp = &mts[j];
 			mtp->mt_memalloced += mtsp->mts_memalloced;

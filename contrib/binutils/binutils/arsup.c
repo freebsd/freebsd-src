@@ -1,6 +1,6 @@
 /* arsup.c - Archive support for MRI compatibility
-   Copyright 1992, 1994, 1995, 1996, 1997, 2000, 2002, 2003, 2004
-   Free Software Foundation, Inc.
+   Copyright 1992, 1994, 1995, 1996, 1997, 1999, 2000, 2001, 2002, 2003,
+   2004, 2007 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 
 /* Contributed by Steve Chamberlain
@@ -25,11 +25,12 @@
    This file looks after requests from arparse.y, to provide the MRI
    style librarian command syntax + 1 word LIST.  */
 
+#include "sysdep.h"
 #include "bfd.h"
-#include "arsup.h"
 #include "libiberty.h"
-#include "bucomm.h"
 #include "filenames.h"
+#include "bucomm.h"
+#include "arsup.h"
 
 static void map_over_list
   (bfd *, void (*function) (bfd *, bfd *), struct list *);
@@ -37,6 +38,10 @@ static void ar_directory_doer (bfd *, bfd *);
 static void ar_addlib_doer (bfd *, bfd *);
 
 extern int verbose;
+
+static bfd *obfd;
+static char *real_name;
+static FILE *outfile;
 
 static void
 map_over_list (bfd *arch, void (*function) (bfd *, bfd *), struct list *list)
@@ -47,10 +52,10 @@ map_over_list (bfd *arch, void (*function) (bfd *, bfd *), struct list *list)
     {
       bfd *next;
 
-      head = arch->next;
+      head = arch->archive_next;
       while (head != NULL)
 	{
-	  next = head->next;
+	  next = head->archive_next;
 	  function (head, (bfd *) NULL);
 	  head = next;
 	}
@@ -69,7 +74,7 @@ map_over_list (bfd *arch, void (*function) (bfd *, bfd *), struct list *list)
 	  bfd_boolean found = FALSE;
 	  bfd *prev = arch;
 
-	  for (head = arch->next; head; head = head->next)
+	  for (head = arch->archive_next; head; head = head->archive_next)
 	    {
 	      if (head->filename != NULL
 		  && FILENAME_CMP (ptr->name, head->filename) == 0)
@@ -86,7 +91,6 @@ map_over_list (bfd *arch, void (*function) (bfd *, bfd *), struct list *list)
 }
 
 
-FILE *outfile;
 
 static void
 ar_directory_doer (bfd *abfd, bfd *ignore ATTRIBUTE_UNUSED)
@@ -141,9 +145,6 @@ maybequit (void)
 }
 
 
-bfd *obfd;
-char *real_name;
-
 void
 ar_open (char *name, int t)
 {
@@ -197,7 +198,7 @@ ar_open (char *name, int t)
 	  while (element)
 	    {
 	      *ptr = element;
-	      ptr = &element->next;
+	      ptr = &element->archive_next;
 	      element = bfd_openr_next_archived_file (ibfd, element);
 	    }
 	}
@@ -213,9 +214,9 @@ ar_addlib_doer (bfd *abfd, bfd *prev)
 {
   /* Add this module to the output bfd.  */
   if (prev != NULL)
-    prev->next = abfd->next;
+    prev->archive_next = abfd->archive_next;
 
-  abfd->next = obfd->archive_head;
+  abfd->archive_next = obfd->archive_head;
   obfd->archive_head = abfd;
 }
 
@@ -261,7 +262,7 @@ ar_addmod (struct list *list)
 	    }
 	  else
 	    {
-	      abfd->next = obfd->archive_head;
+	      abfd->archive_next = obfd->archive_head;
 	      obfd->archive_head = abfd;
 	    }
 	  list = list->next;
@@ -298,13 +299,13 @@ ar_delete (struct list *list)
 	    {
 	      if (FILENAME_CMP(member->filename, list->name) == 0)
 		{
-		  *prev = member->next;
+		  *prev = member->archive_next;
 		  found = 1;
 		}
 	      else
-		prev = &(member->next);
+		prev = &(member->archive_next);
 
-	      member = member->next;
+	      member = member->archive_next;
 	    }
 
 	  if (!found)
@@ -372,15 +373,15 @@ ar_replace (struct list *list)
 		  else
 		    {
 		      *prev = abfd;
-		      abfd->next = member->next;
+		      abfd->archive_next = member->archive_next;
 		      found = 1;
 		    }
 		}
 	      else
 		{
-		  prev = &(member->next);
+		  prev = &(member->archive_next);
 		}
-	      member = member->next;
+	      member = member->archive_next;
 	    }
 
 	  if (!found)
@@ -423,7 +424,7 @@ ar_list (void)
 
       for (abfd = obfd->archive_head;
 	   abfd != (bfd *)NULL;
-	   abfd = abfd->next)
+	   abfd = abfd->archive_next)
 	ar_directory_doer (abfd, (bfd *) NULL);
     }
 }
@@ -462,7 +463,7 @@ ar_extract (struct list *list)
 		  found = 1;
 		}
 
-	      member = member->next;
+	      member = member->archive_next;
 	    }
 
 	  if (!found)

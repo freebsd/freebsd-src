@@ -1,0 +1,4 @@
+.\" $FreeBSD$
+Causes the old FreeBSD
+.Xr make 1
+program to be built and installed as fmake.

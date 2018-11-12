@@ -36,6 +36,7 @@
 #include <sys/ioccom.h>
 
 #define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
+#define	DOSDSNOFF	440	/* WinNT/2K/XP Drive Serial Number offset */
 #define	DOSPARTOFF	446
 #define	DOSPARTSIZE	16
 #define	NDOSPART	4
@@ -43,12 +44,25 @@
 #define	DOSMAGICOFFSET	510
 #define	DOSMAGIC	0xAA55
 
-#define	DOSPTYP_386BSD	0xa5	/* 386BSD partition type */
+#define	DOSPTYP_EXT	0x05	/* DOS extended partition */
+#define	DOSPTYP_FAT16	0x06	/* FAT16 partition */
+#define	DOSPTYP_NTFS	0x07	/* NTFS partition */
+#define	DOSPTYP_FAT32	0x0b	/* FAT32 partition */
+#define	DOSPTYP_EXTLBA	0x0f	/* DOS extended partition */
+#define	DOSPTYP_PPCBOOT	0x41	/* PReP/CHRP boot partition */
+#define	DOSPTYP_LDM	0x42	/* Win2k dynamic extended partition */
 #define	DOSPTYP_LINSWP	0x82	/* Linux swap partition */
 #define	DOSPTYP_LINUX	0x83	/* Linux partition */
+#define	DOSPTYP_LINLVM	0x8e	/* Linux LVM partition */
+#define	DOSPTYP_386BSD	0xa5	/* 386BSD partition type */
+#define	DOSPTYP_APPLE_UFS	0xa8	/* Apple Mac OS X boot */
+#define	DOSPTYP_APPLE_BOOT	0xab	/* Apple Mac OS X UFS */
+#define	DOSPTYP_HFS	0xaf	/* HFS/HFS+ partition type */
 #define	DOSPTYP_PMBR	0xee	/* GPT Protective MBR */
-#define	DOSPTYP_EXT	5	/* DOS extended partition */
-#define	DOSPTYP_EXTLBA	15	/* DOS extended partition */
+#define	DOSPTYP_EFI	0xef	/* EFI FAT parition */
+#define	DOSPTYP_VMFS	0xfb	/* VMware VMFS partition */
+#define	DOSPTYP_VMKDIAG	0xfc	/* VMware vmkDiagnostic partition */
+#define	DOSPTYP_LINRAID	0xfd	/* Linux raid partition */
 
 struct dos_partition {
 	unsigned char	dp_flag;	/* bootstrap flags */

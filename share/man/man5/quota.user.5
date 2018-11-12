@@ -44,9 +44,8 @@ It is possible to specify a different location and file name with the
 and
 .Dq Li groupquota
 options in the
-.Xr fstab 5 
+.Xr fstab 5
 file.
-.Pp
 .Pp
 The data files contain the following information:
 .Pp
@@ -69,14 +68,13 @@ Block grace time remaining if over the soft limit
 File grace time remaining if over the soft limit
 .El
 .Pp
-.Pp
 See
 .Xr edquota 8
 for an explanation on the various limits and grace periods.
 .Pp
-During normal quota operations the 
+During normal quota operations the
 .Xr quotactl 2
-interface is used to query or set quota information and the kernel 
+interface is used to query or set quota information and the kernel
 will maintain the data files as needed.
 If quotas are disabled on
 a file system, but marked as having quotas enabled in
@@ -100,14 +98,15 @@ utility will truncate the data files to the minimum size needed
 to store the highest id with either non-zero file usage or
 non-zero quota limits.
 .Pp
-The data record for id 0 has special meaning.  If the
+The data record for id 0 has special meaning.
+If the
 .Dq Dv dqb_btime
 or
 .Dq Dv dbq_itime
 fields are non-zero, they are used to indicate the grace period on
 that file system for users who have exceeded their soft limit.
-These times can be set by 
-.Xr edquota 8 
+These times can be set by
+.Xr edquota 8
 with the
 .Fl t
 flag.

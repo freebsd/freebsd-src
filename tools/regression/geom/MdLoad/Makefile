@@ -1,10 +1,9 @@
 # $FreeBSD$
 
 PROG=	MdLoad
-DPADD=	${LIBSBUF} ${LIBBSDXML}
-LDADD=	-lsbuf -lbsdxml
+LIBADD=	sbuf bsdxml
 
-NO_MAN=
+MAN=
 
 
 WARNS?=	4

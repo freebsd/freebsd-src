@@ -58,7 +58,7 @@
 /* If you do complicated mallocs you may want to do this */
 /* and use it for your mallocs */
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_XXX, "netgraph_xxx", "netgraph xxx node ");
+static MALLOC_DEFINE(M_NETGRAPH_XXX, "netgraph_xxx", "netgraph xxx node");
 #else
 #define M_NETGRAPH_XXX M_NETGRAPH
 #endif
@@ -154,10 +154,7 @@ ng_xxx_constructor(node_p node)
 	int i;
 
 	/* Initialize private descriptor */
-	privdata = malloc(sizeof(*privdata), M_NETGRAPH,
-		M_NOWAIT | M_ZERO);
-	if (privdata == NULL)
-		return (ENOMEM);
+	privdata = malloc(sizeof(*privdata), M_NETGRAPH, M_WAITOK | M_ZERO);
 	for (i = 0; i < XXX_NUM_DLCIS; i++) {
 		privdata->channel[i].dlci = -2;
 		privdata->channel[i].channel = i;
@@ -244,7 +241,7 @@ ng_xxx_newhook(node_p node, hook_p hook, const char *name)
 
 /*
  * Get a netgraph control message.
- * We actually recieve a queue item that has a pointer to the message.
+ * We actually receive a queue item that has a pointer to the message.
  * If we free the item, the message will be freed too, unless we remove
  * it from the item using NGI_GET_MSG();
  * The return address is also stored in the item, as an ng_ID_t,
@@ -407,8 +404,8 @@ devintr()
 /*
  * Do local shutdown processing..
  * All our links and the name have already been removed.
- * If we are a persistant device, we might refuse to go away.
- * In the case of a persistant node we signal the framework that we
+ * If we are a persistent device, we might refuse to go away.
+ * In the case of a persistent node we signal the framework that we
  * are still in business by clearing the NGF_INVALID bit. However
  * If we find the NGF_REALLY_DIE bit set, this means that
  * we REALLY need to die (e.g. hardware removed).
@@ -429,7 +426,7 @@ ng_xxx_shutdown(node_p node)
 	if (node->nd_flags & NGF_REALLY_DIE) {
 		/*
 		 * WE came here because the widget card is being unloaded,
-		 * so stop being persistant.
+		 * so stop being persistent.
 		 * Actually undo all the things we did on creation.
 		 */
 		NG_NODE_SET_PRIVATE(node, NULL);

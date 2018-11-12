@@ -46,7 +46,7 @@ typedef struct {
 } CHAN_INFO_2GHZ;
 
 #define CI_2GHZ_INDEX_CORRECTION 19
-const static CHAN_INFO_2GHZ chan2GHzData[] = {
+static const CHAN_INFO_2GHZ chan2GHzData[] = {
 	{ 1, 0x46, 96  },	/* 2312 -19 */
 	{ 1, 0x46, 97  },	/* 2317 -18 */
 	{ 1, 0x46, 98  },	/* 2322 -17 */
@@ -136,7 +136,7 @@ static void ar5211GetLowerUpperPcdacs(uint16_t pcdac,
 		uint16_t channel, const PCDACS_EEPROM *pSrcStruct,
 		uint16_t *pLowerPcdac, uint16_t *pUpperPcdac);
 
-static void ar5211SetRfgain(struct ath_hal *, const GAIN_VALUES *);;
+static void ar5211SetRfgain(struct ath_hal *, const GAIN_VALUES *);
 static void ar5211RequestRfgain(struct ath_hal *);
 static HAL_BOOL ar5211InvalidGainReadback(struct ath_hal *, GAIN_VALUES *);
 static HAL_BOOL ar5211IsGainAdjustNeeded(struct ath_hal *, const GAIN_VALUES *);
@@ -154,6 +154,7 @@ static void ar5211SetOperatingMode(struct ath_hal *, int opmode);
 HAL_BOOL
 ar5211Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	struct ieee80211_channel *chan, HAL_BOOL bChannelChange,
+	HAL_RESET_TYPE resetType,
 	HAL_STATUS *status)
 {
 uint32_t softLedCfg, softLedState;
@@ -764,12 +765,10 @@ ar5211SetResetReg(struct ath_hal *ah, uint32_t resetMask)
         if ((resetMask & AR_RC_MAC) == 0) {
 		if (isBigEndian()) {
 			/*
-			 * Set CFG, little-endian for register
-			 * and descriptor accesses.
+			 * Set CFG, little-endian for descriptor accesses.
 			 */
-			mask = INIT_CONFIG_STATUS |
-				AR_CFG_SWTD | AR_CFG_SWRD | AR_CFG_SWRG;
-			OS_REG_WRITE(ah, AR_CFG, LE_READ_4(&mask));
+			mask = INIT_CONFIG_STATUS | AR_CFG_SWTD | AR_CFG_SWRD;
+			OS_REG_WRITE(ah, AR_CFG, mask);
 		} else
 			OS_REG_WRITE(ah, AR_CFG, INIT_CONFIG_STATUS);
 	}
@@ -914,7 +913,7 @@ getNoiseFloorThresh(struct ath_hal *ah, const struct ieee80211_channel *chan,
 }
 
 /*
- * Read the NF and check it against the noise floor threshhold
+ * Read the NF and check it against the noise floor threshold
  *
  * Returns: TRUE if the NF is good
  */
@@ -926,9 +925,10 @@ ar5211IsNfGood(struct ath_hal *ah, struct ieee80211_channel *chan)
 
 	if (!getNoiseFloorThresh(ah, chan, &nfThresh))
 		return AH_FALSE;
-	if (OS_REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF)
+	if (OS_REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: NF did not complete in calibration window\n", __func__);
+	}
 	nf = ar5211GetNoiseFloor(ah);
 	if (nf > nfThresh) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,

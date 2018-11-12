@@ -36,21 +36,25 @@ static char sccsid[] = "@(#)sysconf.c	8.2 (Berkeley) 3/20/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
 
+#include <elf.h>
 #include <errno.h>
 #include <limits.h>
 #include <paths.h>
 #include <pthread.h>		/* we just need the limits */
 #include <time.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 #include "../stdlib/atexit.h"
-#include "../stdtime/tzfile.h"
+#include "tzfile.h"		/* from ../../../contrib/tzcode/stdtime */
+#include "libc_private.h"
 
 #define	_PATH_ZONEINFO	TZDIR	/* from tzfile.h */
 
@@ -67,8 +71,7 @@ __FBSDID("$FreeBSD$");
  * less useful than returning up-to-date values, however.
  */
 long
-sysconf(name)
-	int name;
+sysconf(int name)
 {
 	struct rlimit rl;
 	size_t len;
@@ -357,11 +360,7 @@ yesno:
 		return (_POSIX_CLOCK_SELECTION);
 #endif
 	case _SC_CPUTIME:
-#if _POSIX_CPUTIME == 0
-#error "_POSIX_CPUTIME"
-#else
 		return (_POSIX_CPUTIME);
-#endif
 #ifdef notdef
 	case _SC_FILE_LOCKING:
 		/*
@@ -369,11 +368,17 @@ yesno:
 		 * _POSIX_FILE_LOCKING, so we can't answer this one.
 		 */
 #endif
-#if _POSIX_THREAD_SAFE_FUNCTIONS > -1
+
+	/*
+	 * SUSv4tc1 says the following about _SC_GETGR_R_SIZE_MAX and
+	 * _SC_GETPW_R_SIZE_MAX:
+	 * Note that sysconf(_SC_GETGR_R_SIZE_MAX) may return -1 if
+	 * there is no hard limit on the size of the buffer needed to
+	 * store all the groups returned.
+	 */
 	case _SC_GETGR_R_SIZE_MAX:
 	case _SC_GETPW_R_SIZE_MAX:
-#error "somebody needs to implement this"
-#endif
+		return (-1);
 	case _SC_HOST_NAME_MAX:
 		return (MAXHOSTNAMELEN - 1); /* does not include \0 */
 	case _SC_LOGIN_NAME_MAX:
@@ -572,10 +577,10 @@ yesno:
 	case _SC_IPV6:
 #if _POSIX_IPV6 == 0
 		sverrno = errno;
-		value = socket(PF_INET6, SOCK_DGRAM, 0);
+		value = _socket(PF_INET6, SOCK_DGRAM, 0);
 		errno = sverrno;
 		if (value >= 0) {
-			close(value);
+			_close(value);
 			return (200112L);
 		} else
 			return (0);
@@ -585,6 +590,8 @@ yesno:
 
 	case _SC_NPROCESSORS_CONF:
 	case _SC_NPROCESSORS_ONLN:
+		if (_elf_aux_info(AT_NCPUS, &value, sizeof(value)) == 0)
+			return ((long)value);
 		mib[0] = CTL_HW;
 		mib[1] = HW_NCPU;
 		break;
@@ -595,6 +602,15 @@ yesno:
 		if (sysctlbyname("hw.availpages", &lvalue, &len, NULL, 0) == -1)
 			return (-1);
 		return (lvalue);
+#endif
+
+#ifdef _SC_CPUSET_SIZE
+	case _SC_CPUSET_SIZE:
+		len = sizeof(value);
+		if (sysctlbyname("kern.sched.cpusetsize", &value, &len, NULL,
+		    0) == -1)
+			return (-1);
+		return ((long)value);
 #endif
 
 	default:

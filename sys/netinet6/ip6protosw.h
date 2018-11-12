@@ -92,7 +92,7 @@ struct pr_usrreqs;
  *
  * ip6c_finaldst usually points to ip6c_ip6->ip6_dst.  if the original
  * (internal) packet carries a routing header, it may point the final
- * dstination address in the routing header.
+ * destination address in the routing header.
  *
  * ip6c_src: ip6c_ip6->ip6_src + scope info + flowlabel in ip6c_ip6
  *	(beware of flowlabel, if you try to compare it against others)
@@ -110,39 +110,8 @@ struct ip6ctlparam {
 	u_int8_t ip6c_nxt;		/* final next header field */
 };
 
-struct ip6protosw {
-	short	pr_type;		/* socket type used for */
-	struct	domain *pr_domain;	/* domain protocol a member of */
-	short	pr_protocol;		/* protocol number */
-	short	pr_flags;		/* see below */
-
-/* protocol-protocol hooks */
-	int	(*pr_input)		/* input to protocol (from below) */
-			__P((struct mbuf **, int *, int));
-	int	(*pr_output)		/* output to protocol (from above) */
-			__P((struct mbuf *, ...));
-	void	(*pr_ctlinput)		/* control input (from below) */
-			__P((int, struct sockaddr *, void *));
-	int	(*pr_ctloutput)		/* control output (from above) */
-			__P((struct socket *, struct sockopt *));
-
-/* utility hooks */
-	void	(*pr_init)		/* initialization hook */
-			__P((void));
-	void	(*pr_destroy)		/* cleanup hook */
-			__P((void));
-
-	void	(*pr_fasttimo)		/* fast timeout (200ms) */
-			__P((void));
-	void	(*pr_slowtimo)		/* slow timeout (500ms) */
-			__P((void));
-	void	(*pr_drain)		/* flush any excess space possible */
-			__P((void));
-	struct	pr_usrreqs *pr_usrreqs;	/* supersedes pr_usrreq() */
-};
-
 #ifdef _KERNEL
-extern struct ip6protosw inet6sw[];
+extern struct protosw inet6sw[];
 #endif
 
 #endif /* !_NETINET6_IP6PROTOSW_H_ */

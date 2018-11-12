@@ -43,12 +43,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
+#include <machine/intr_machdep.h>
 #include <machine/resource.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 
+#include "ofw_pcibus.h"
 #include "pcib_if.h"
 #include "pci_if.h"
 
@@ -57,8 +59,10 @@ typedef uint32_t ofw_pci_intr_t;
 /* Methods */
 static device_probe_t ofw_pcibus_probe;
 static device_attach_t ofw_pcibus_attach;
+static pci_alloc_devinfo_t ofw_pcibus_alloc_devinfo;
 static pci_assign_interrupt_t ofw_pcibus_assign_interrupt;
 static ofw_bus_get_devinfo_t ofw_pcibus_get_devinfo;
+static bus_child_deleted_t ofw_pcibus_child_deleted;
 static int ofw_pcibus_child_pnpinfo_str_method(device_t cbdev, device_t child,
     char *buf, size_t buflen);
 
@@ -71,9 +75,12 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(device_attach,	ofw_pcibus_attach),
 
 	/* Bus interface */
+	DEVMETHOD(bus_child_deleted,	ofw_pcibus_child_deleted),
 	DEVMETHOD(bus_child_pnpinfo_str, ofw_pcibus_child_pnpinfo_str_method),
+	DEVMETHOD(bus_rescan,		bus_null_rescan),
 
 	/* PCI interface */
+	DEVMETHOD(pci_alloc_devinfo,	ofw_pcibus_alloc_devinfo),
 	DEVMETHOD(pci_assign_interrupt, ofw_pcibus_assign_interrupt),
 
 	/* ofw_bus interface */
@@ -84,43 +91,42 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	{ 0, 0 }
-};
-
-struct ofw_pcibus_devinfo {
-	struct pci_devinfo	opd_dinfo;
-	struct ofw_bus_devinfo	opd_obdinfo;
+	DEVMETHOD_END
 };
 
 static devclass_t pci_devclass;
 
-DEFINE_CLASS_1(pci, ofw_pcibus_driver, ofw_pcibus_methods, 1 /* no softc */,
-    pci_driver);
+DEFINE_CLASS_1(pci, ofw_pcibus_driver, ofw_pcibus_methods,
+    sizeof(struct pci_softc), pci_driver);
 DRIVER_MODULE(ofw_pcibus, pcib, ofw_pcibus_driver, pci_devclass, 0, 0);
 MODULE_VERSION(ofw_pcibus, 1);
 MODULE_DEPEND(ofw_pcibus, pci, 1, 1, 1);
+
+static int ofw_devices_only = 0;
+TUNABLE_INT("hw.pci.ofw_devices_only", &ofw_devices_only);
 
 static int
 ofw_pcibus_probe(device_t dev)
 {
 
-	if (ofw_bus_get_node(dev) == 0)
+	if (ofw_bus_get_node(dev) == -1)
 		return (ENXIO);
 	device_set_desc(dev, "OFW PCI bus");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
 ofw_pcibus_attach(device_t dev)
 {
 	u_int busno, domain;
+	int error;
 
+	error = pci_attach_common(dev);
+	if (error)
+		return (error);
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
-	if (bootverbose)
-		device_printf(dev, "domain=%d, physical bus=%d\n",
-		    domain, busno);
 
 	/*
 	 * Attach those children represented in the device tree.
@@ -135,9 +141,19 @@ ofw_pcibus_attach(device_t dev)
 	 * functions on multi-function cards.
 	 */
 
-	ofw_pcibus_enum_bus(dev, domain, busno);
+	if (!ofw_devices_only)
+		ofw_pcibus_enum_bus(dev, domain, busno);
 
 	return (bus_generic_attach(dev));
+}
+
+struct pci_devinfo *
+ofw_pcibus_alloc_devinfo(device_t dev)
+{
+	struct ofw_pcibus_devinfo *dinfo;
+
+	dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
+	return (&dinfo->opd_dinfo);
 }
 
 static void
@@ -154,7 +170,8 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 	node = ofw_bus_get_node(dev);
 
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		if (OF_getprop(child, "reg", &pcir, sizeof(pcir)) == -1)
+		if (OF_getencprop(child, "reg", (pcell_t *)&pcir,
+		    sizeof(pcir)) == -1)
 			continue;
 		slot = OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi);
 		func = OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi);
@@ -180,8 +197,8 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 		 * to the PCI bus.
 		 */
 
-		dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib,
-		    domain, busno, slot, func, sizeof(*dinfo));
+		dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib, dev,
+		    domain, busno, slot, func);
 		if (dinfo == NULL)
 			continue;
 		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, child) !=
@@ -189,23 +206,18 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 			pci_freecfg((struct pci_devinfo *)dinfo);
 			continue;
 		}
+		dinfo->opd_dma_tag = NULL;
 		pci_add_child(dev, (struct pci_devinfo *)dinfo);
 
 		/*
-                 * Some devices don't have an intpin set, but do have
-                 * interrupts. These are fully specified, and set in the
+		 * Some devices don't have an intpin set, but do have
+		 * interrupts. These are fully specified, and set in the
 		 * interrupts property, so add that value to the device's
 		 * resource list.
-                 */
-                if (dinfo->opd_dinfo.cfg.intpin == 0) {
-                        ofw_pci_intr_t intr;
-
-			if (OF_getprop(child, "interrupts", &intr, 
-			    sizeof(intr)) > 0) {
-                                resource_list_add(&dinfo->opd_dinfo.resources,
-                                    SYS_RES_IRQ, 0, intr, intr, 1);
-			}
-                }
+		 */
+		if (dinfo->opd_dinfo.cfg.intpin == 0)
+			ofw_bus_intr_to_rl(dev, child,
+				&dinfo->opd_dinfo.resources, NULL);
 	}
 }
 
@@ -244,18 +256,41 @@ ofw_pcibus_enum_bus(device_t dev, u_int domain, u_int busno)
 				continue;
 
 			dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(
-			    pcib, domain, busno, s, f, sizeof(*dinfo));
-			if (dinfo != NULL) {
-				dinfo->opd_obdinfo.obd_node = -1;
+			    pcib, dev, domain, busno, s, f);
+			if (dinfo == NULL)
+				continue;
 
-				dinfo->opd_obdinfo.obd_name = NULL;
-				dinfo->opd_obdinfo.obd_compat = NULL;
-				dinfo->opd_obdinfo.obd_type = NULL;
-				dinfo->opd_obdinfo.obd_model = NULL;
-				pci_add_child(dev, (struct pci_devinfo *)dinfo);
+			dinfo->opd_dma_tag = NULL;
+			dinfo->opd_obdinfo.obd_node = -1;
+
+			dinfo->opd_obdinfo.obd_name = NULL;
+			dinfo->opd_obdinfo.obd_compat = NULL;
+			dinfo->opd_obdinfo.obd_type = NULL;
+			dinfo->opd_obdinfo.obd_model = NULL;
+
+			/*
+			 * For non OFW-devices, don't believe 0 
+			 * for an interrupt.
+			 */
+			if (dinfo->opd_dinfo.cfg.intline == 0) {
+				dinfo->opd_dinfo.cfg.intline = PCI_INVALID_IRQ;
+				PCIB_WRITE_CONFIG(pcib, busno, s, f, 
+				    PCIR_INTLINE, PCI_INVALID_IRQ, 1);
 			}
+
+			pci_add_child(dev, (struct pci_devinfo *)dinfo);
 		}
 	}
+}
+
+static void
+ofw_pcibus_child_deleted(device_t dev, device_t child)
+{
+	struct ofw_pcibus_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
+	pci_child_deleted(dev, child);
 }
 
 static int
@@ -275,45 +310,51 @@ ofw_pcibus_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
 static int
 ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 {
-	ofw_pci_intr_t intr;
-	phandle_t node;
-	int isz;
+	ofw_pci_intr_t intr[2];
+	phandle_t node, iparent;
+	int isz, icells;
 
 	node = ofw_bus_get_node(child);
 
 	if (node == -1) {
 		/* Non-firmware enumerated child, use standard routing */
 	
-		/*
-		 * XXX: Right now we don't have anything sensible to do here,
-		 * since the ofw_imap stuff relies on nodes have a reg
-		 * property. There exists ways around this, so the ePAPR
-		 * spec will need to be studied.
-		 */
-
-		return (0);
-
-#ifdef NOTYET
-		intr = pci_get_intpin(child);
+		intr[0] = pci_get_intpin(child);
 		return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child, 
-		    intr));
-#endif
+		    intr[0]));
 	}
+	
+	/*
+	 * Try to determine the node's interrupt parent so we know which
+	 * PIC to use.
+	 */
+
+	iparent = -1;
+	if (OF_getencprop(node, "interrupt-parent", &iparent,
+	    sizeof(iparent)) < 0)
+		iparent = -1;
+	icells = 1;
+	if (iparent != -1)
+		OF_getencprop(OF_node_from_xref(iparent), "#interrupt-cells",
+		    &icells, sizeof(icells));
 	
 	/*
 	 * Any AAPL,interrupts property gets priority and is
 	 * fully specified (i.e. does not need routing)
 	 */
 
-	isz = OF_getprop(node, "AAPL,interrupts", &intr, sizeof(intr));
-	if (isz == sizeof(intr)) {
-		return (intr);
-	}
+	isz = OF_getencprop(node, "AAPL,interrupts", intr, sizeof(intr));
+	if (isz == sizeof(intr[0])*icells)
+		return ((iparent == -1) ? intr[0] : ofw_bus_map_intr(dev,
+		    iparent, icells, intr));
 
-	isz = OF_getprop(node, "interrupts", &intr, sizeof(intr));
-	if (isz != sizeof(intr)) {
-		/* No property; our best guess is the intpin. */
-		intr = pci_get_intpin(child);
+	isz = OF_getencprop(node, "interrupts", intr, sizeof(intr));
+	if (isz == sizeof(intr[0])*icells) {
+		if (iparent != -1)
+			intr[0] = ofw_bus_map_intr(dev, iparent, icells, intr);
+	} else {
+		/* No property: our best guess is the intpin. */
+		intr[0] = pci_get_intpin(child);
 	}
 	
 	/*
@@ -326,7 +367,7 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	 * will always use the route_interrupt method, and treat exceptions
 	 * on the level they become apparent.
 	 */
-	return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child, intr));
+	return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child, intr[0]));
 }
 
 static const struct ofw_bus_devinfo *

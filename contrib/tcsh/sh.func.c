@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.func.c,v 3.153 2009/06/25 21:15:37 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.func.c,v 3.162 2011/02/26 00:07:06 christos Exp $ */
 /*
  * sh.func.c: csh builtin functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.func.c,v 3.153 2009/06/25 21:15:37 christos Exp $")
+RCSID("$tcsh: sh.func.c,v 3.162 2011/02/26 00:07:06 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -41,8 +41,7 @@ RCSID("$tcsh: sh.func.c,v 3.153 2009/06/25 21:15:37 christos Exp $")
 #include "nt.const.h"
 #endif /* WINNT_NATIVE */
 
-#if defined (NLS_CATALOGS) && defined(HAVE_ICONV) && defined(HAVE_NL_LANGINFO)
-#include <langinfo.h>
+#if defined (NLS_CATALOGS) && defined(HAVE_ICONV)
 static iconv_t catgets_iconv; /* Or (iconv_t)-1 */
 #endif
 
@@ -520,12 +519,13 @@ doforeach(Char **v, struct command *c)
 
     USE(c);
     v++;
-    sp = cp = strip(*v);
-    if (!letter(*sp))
+    cp = sp = strip(*v);
+    if (!letter(*cp))
 	stderror(ERR_NAME | ERR_VARBEGIN);
-    while (*cp && alnum(*cp))
+    do {
 	cp++;
-    if (*cp)
+    } while (alnum(*cp));
+    if (*cp != '\0')
 	stderror(ERR_NAME | ERR_VARALNUM);
     cp = *v++;
     if (v[0][0] != '(' || v[blklen(v) - 1][0] != ')')
@@ -587,6 +587,7 @@ dowhile(Char **v, struct command *c)
 	nwp->w_start = lineloc;
 	nwp->w_end.type = TCSH_F_SEEK;
 	nwp->w_end.f_seek = 0;
+	nwp->w_end.a_seek = 0;
 	nwp->w_next = whyles;
 	whyles = nwp;
 	zlast = TC_WHILE;
@@ -763,6 +764,7 @@ search(int type, int level, Char *goal)
 	struct Ain a;
 	a.type = TCSH_F_SEEK;
 	a.f_seek = 0;
+	a.a_seek = 0;
 	bseek(&a);
     }
     cleanup_push(&word, Strbuf_cleanup);
@@ -963,9 +965,6 @@ histgetword(struct wordent *histent)
 	}
     }
     
-    unreadc(c);
-    return histent;
-
 past:
     switch (Stype) {
 
@@ -1376,13 +1375,16 @@ dosetenv(Char **v, struct command *c)
     }
 
     vp = *v++;
-
     lp = vp;
- 
-    for (; *lp != '\0' ; lp++) {
-	if (*lp == '=')
-	    stderror(ERR_NAME | ERR_SYNTAX);
-    }
+
+    if (!letter(*lp))
+	stderror(ERR_NAME | ERR_VARBEGIN);
+    do {
+	lp++;
+    } while (alnum(*lp));
+    if (*lp != '\0')
+	stderror(ERR_NAME | ERR_VARALNUM);
+
     if ((lp = *v++) == 0)
 	lp = STRNULL;
 
@@ -1426,6 +1428,9 @@ dosetenv(Char **v, struct command *c)
 # ifdef LC_CTYPE
 	(void) setlocale(LC_CTYPE, ""); /* for iscntrl */
 # endif /* LC_CTYPE */
+# if defined(AUTOSET_KANJI)
+        autoset_kanji();
+# endif /* AUTOSET_KANJI */
 # ifdef NLS_CATALOGS
 #  ifdef LC_MESSAGES
 	(void) setlocale(LC_MESSAGES, "");
@@ -1859,8 +1864,17 @@ doumask(Char **v, struct command *c)
 #  endif
 # endif /* SYSVREL > 3 && BSDLIMIT */
 
-# if (defined(__linux__) || defined(__GNU__) || defined(__GLIBC__)) && defined(RLIMIT_AS) && !defined(RLIMIT_VMEM)
-#  define RLIMIT_VMEM	RLIMIT_AS
+# if (defined(__linux__) || defined(__GNU__) || defined(__GLIBC__))
+#  if defined(RLIMIT_AS) && !defined(RLIMIT_VMEM)
+#   define RLIMIT_VMEM	RLIMIT_AS
+#  endif
+/*
+ * Oh well, <asm-generic/resource.h> has it, but <bits/resource.h> does not
+ * Linux headers: When the left hand does not know what the right hand does.
+ */
+#  if defined(RLIMIT_RTPRIO) && !defined(RLIMIT_RTTIME)
+#   define RLIMIT_RTTIME (RLIMIT_RTPRIO + 1)
+#  endif
 # endif
 
 struct limits limits[] = 
@@ -1937,12 +1951,38 @@ struct limits limits[] =
     { RLIMIT_SWAP,	"swapsize",	1024,	"kbytes"	}, 
 # endif /* RLIMIT_SWAP */ 
 
+# ifdef RLIMIT_LOCKS 
+    { RLIMIT_LOCKS,	"maxlocks",	1,	""		}, 
+# endif /* RLIMIT_LOCKS */ 
+
+# ifdef RLIMIT_SIGPENDING 
+    { RLIMIT_SIGPENDING,"maxsignal",	1,	""		}, 
+# endif /* RLIMIT_SIGPENDING */ 
+
+# ifdef RLIMIT_MSGQUEUE 
+    { RLIMIT_MSGQUEUE,	"maxmessage",	1,	""		}, 
+# endif /* RLIMIT_MSGQUEUE */ 
+
+# ifdef RLIMIT_NICE 
+    { RLIMIT_NICE,	"maxnice",	1,	""		}, 
+# endif /* RLIMIT_NICE */ 
+
+# ifdef RLIMIT_RTPRIO 
+    { RLIMIT_RTPRIO,	"maxrtprio",	1,	""		}, 
+# endif /* RLIMIT_RTPRIO */ 
+
+# ifdef RLIMIT_RTTIME 
+    { RLIMIT_RTTIME,	"maxrttime",	1,	"usec"		}, 
+# endif /* RLIMIT_RTTIME */ 
+
     { -1, 		NULL, 		0, 	NULL		}
 };
 
 static struct limits *findlim	(Char *);
 static RLIM_TYPE getval		(struct limits *, Char **);
+static int strtail		(Char *, const char *);
 static void limtail		(Char *, const char *);
+static void limtail2		(Char *, const char *, const char *);
 static void plim		(struct limits *, int);
 static int setlim		(struct limits *, int, RLIM_TYPE);
 
@@ -2050,29 +2090,43 @@ getval(struct limits *lp, Char **v)
 	limtail(cp, "hours");
 	f *= 3600.0;
 	break;
+# endif /* RLIMIT_CPU */
     case 'm':
+# ifdef RLIMIT_CPU
 	if (lp->limconst == RLIMIT_CPU) {
 	    limtail(cp, "minutes");
 	    f *= 60.0;
 	    break;
 	}
-	*cp = 'm';
-	limtail(cp, "megabytes");
+# endif /* RLIMIT_CPU */
+	limtail2(cp, "megabytes", "mbytes");
 	f *= 1024.0 * 1024.0;
 	break;
+# ifdef RLIMIT_CPU
     case 's':
 	if (lp->limconst != RLIMIT_CPU)
 	    goto badscal;
 	limtail(cp, "seconds");
 	break;
 # endif /* RLIMIT_CPU */
+    case 'G':
+	*cp = 'g';
+	/*FALLTHROUGH*/
+    case 'g':
+# ifdef RLIMIT_CPU
+	if (lp->limconst == RLIMIT_CPU)
+	    goto badscal;
+# endif /* RLIMIT_CPU */
+	limtail2(cp, "gigabytes", "gbytes");
+	f *= 1024.0 * 1024.0 * 1024.0;
+	break;
     case 'M':
 # ifdef RLIMIT_CPU
 	if (lp->limconst == RLIMIT_CPU)
 	    goto badscal;
 # endif /* RLIMIT_CPU */
 	*cp = 'm';
-	limtail(cp, "megabytes");
+	limtail2(cp, "megabytes", "mbytes");
 	f *= 1024.0 * 1024.0;
 	break;
     case 'k':
@@ -2080,7 +2134,7 @@ getval(struct limits *lp, Char **v)
 	if (lp->limconst == RLIMIT_CPU)
 	    goto badscal;
 # endif /* RLIMIT_CPU */
-	limtail(cp, "kbytes");
+	limtail2(cp, "kilobytes", "kbytes");
 	f *= 1024.0;
 	break;
     case 'b':
@@ -2104,25 +2158,34 @@ badscal:
     return f == 0.0 ? (RLIM_TYPE) 0 : restrict_limit((f + 0.5));
 # else
     f += 0.5;
-    if (f > (float) RLIM_INFINITY)
+    if (f > (float) ((RLIM_TYPE) RLIM_INFINITY))
 	return ((RLIM_TYPE) RLIM_INFINITY);
     else
 	return ((RLIM_TYPE) f);
 # endif /* convex */
 }
 
+static int
+strtail(Char *cp, const char *str)
+{
+    while (*cp && *cp == (Char)*str)
+	cp++, str++;
+    return (*cp != '\0');
+}
+
 static void
 limtail(Char *cp, const char *str)
 {
-    const char *sp;
-
-    sp = str;
-    while (*cp && *cp == (Char)*str)
-	cp++, str++;
-    if (*cp)
-	stderror(ERR_BADSCALE, sp);
+    if (strtail(cp, str))
+	stderror(ERR_BADSCALE, str);
 }
 
+static void
+limtail2(Char *cp, const char *str1, const char *str2)
+{
+    if (strtail(cp, str1) && strtail(cp, str2))
+	stderror(ERR_BADSCALE, str1);
+}
 
 /*ARGSUSED*/
 static void
@@ -2564,13 +2627,24 @@ nlsinit(void)
 
     if (adrof(STRcatalog) != NULL)
 	catalog = xasprintf("tcsh.%s", short2str(varval(STRcatalog)));
+#ifdef NL_CAT_LOCALE /* POSIX-compliant. */
+    /*
+     * Check if LC_MESSAGES is set in the environment and use it, if so.
+     * If not, fall back to the setting of LANG.
+     */
+    catd = catopen(catalog, tgetenv(STRLC_MESSAGES) ? NL_CAT_LOCALE : 0);
+#else /* pre-POSIX */
+# ifndef MCLoadBySet
+#  define MCLoadBySet 0
+#  endif
     catd = catopen(catalog, MCLoadBySet);
+#endif
     if (catalog != default_catalog)
 	xfree(catalog);
 #if defined(HAVE_ICONV) && defined(HAVE_NL_LANGINFO)
     /* xcatgets (), not CGETS, the charset name should be in ASCII anyway. */
     catgets_iconv = iconv_open (nl_langinfo (CODESET),
-				xcatgets(catd, 255, 1, "ASCII"));
+				xcatgets(catd, 255, 1, "UTF-8"));
 #endif /* HAVE_ICONV && HAVE_NL_LANGINFO */
 #endif /* NLS_CATALOGS */
 #ifdef WINNT_NATIVE

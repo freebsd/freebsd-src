@@ -29,6 +29,8 @@
 #ifndef _OPENSOLARIS_SYS_VNODE_H_
 #define	_OPENSOLARIS_SYS_VNODE_H_
 
+#ifdef _KERNEL
+
 struct vnode;
 struct vattr;
 
@@ -49,6 +51,7 @@ enum symfollow { NO_FOLLOW = NOFOLLOW };
 #include <sys/syscallsubr.h>
 
 typedef	struct vop_vector	vnodeops_t;
+#define	VOP_FID		VOP_VPTOFH
 #define	vop_fid		vop_vptofh
 #define	vop_fid_args	vop_vptofh_args
 #define	a_fid		a_fhp
@@ -56,6 +59,10 @@ typedef	struct vop_vector	vnodeops_t;
 #define	IS_XATTRDIR(dvp)	(0)
 
 #define	v_count	v_usecount
+
+#define	V_APPEND	VAPPEND
+
+#define	rootvfs		(rootvnode == NULL ? NULL : rootvnode->v_mount)
 
 static __inline int
 vn_is_readonly(vnode_t *vp)
@@ -66,17 +73,19 @@ vn_is_readonly(vnode_t *vp)
 #define	vn_vfsunlock(vp)	do { } while (0)
 #define	vn_ismntpt(vp)		((vp)->v_type == VDIR && (vp)->v_mountedhere != NULL)
 #define	vn_mountedvfs(vp)	((vp)->v_mountedhere)
-#define	vn_has_cached_data(vp)	((vp)->v_object != NULL && (vp)->v_object->resident_page_count > 0)
+#define	vn_has_cached_data(vp)	\
+	((vp)->v_object != NULL && \
+	 ((vp)->v_object->resident_page_count > 0 || \
+	  !vm_object_cache_is_empty((vp)->v_object)))
 #define	vn_exists(vp)		do { } while (0)
 #define	vn_invalid(vp)		do { } while (0)
 #define	vn_renamepath(tdvp, svp, tnm, lentnm)	do { } while (0)
 #define	vn_free(vp)		do { } while (0)
+#define	vn_matchops(vp, vops)	((vp)->v_op == &(vops))
 
 #define	VN_HOLD(v)	vref(v)
 #define	VN_RELE(v)	vrele(v)
 #define	VN_URELE(v)	vput(v)
-
-#define	VOP_REALVP(vp, vpp, ct)	(*(vpp) = (vp), 0)
 
 #define	vnevent_create(vp, ct)			do { } while (0)
 #define	vnevent_link(vp, ct)			do { } while (0)
@@ -87,7 +96,8 @@ vn_is_readonly(vnode_t *vp)
 #define	vnevent_rename_dest_dir(vp, ct)		do { } while (0)
 
 #define	specvp(vp, rdev, type, cr)	(VN_HOLD(vp), (vp))
-#define	MANDMODE(mode)	(0)
+#define	MANDMODE(mode)		(0)
+#define	MANDLOCK(vp, mode)	(0)
 #define	chklock(vp, op, offset, size, mode, ct)	(0)
 #define	cleanlocks(vp, pid, foo)	do { } while (0)
 #define	cleanshares(vp, pid)		do { } while (0)
@@ -137,6 +147,7 @@ vattr_init_mask(vattr_t *vap)
 
 #define	FCREAT		O_CREAT
 #define	FTRUNC		O_TRUNC
+#define	FEXCL		O_EXCL
 #define	FDSYNC		FFSYNC
 #define	FRSYNC		FFSYNC
 #define	FSYNC		FFSYNC
@@ -149,7 +160,6 @@ vn_openat(char *pnamep, enum uio_seg seg, int filemode, int createmode,
     int fd)
 {
 	struct thread *td = curthread;
-	struct filedesc *fdc;
 	struct nameidata nd;
 	int error, operation;
 
@@ -159,27 +169,18 @@ vn_openat(char *pnamep, enum uio_seg seg, int filemode, int createmode,
 		ASSERT(crwhy == CRCREAT);
 		operation = CREATE;
 	} else {
-		ASSERT(filemode == (FREAD | FWRITE | FOFFMAX));
+		ASSERT(filemode == (FREAD | FOFFMAX) ||
+		    filemode == (FREAD | FWRITE | FOFFMAX));
 		ASSERT(crwhy == 0);
 		operation = LOOKUP;
 	}
 	ASSERT(umask == 0);
 
-	fdc = td->td_proc->p_fd;
-	FILEDESC_XLOCK(fdc);
-	if (fdc->fd_rdir == NULL) {
-		fdc->fd_rdir = rootvnode;
-		vref(fdc->fd_rdir);
-	}
-	if (fdc->fd_cdir == NULL) {
-		fdc->fd_cdir = rootvnode;
-		vref(fdc->fd_rdir);
-	}
-	FILEDESC_XUNLOCK(fdc);
+	pwd_ensure_dirs();
 
 	if (startvp != NULL)
 		vref(startvp);
-	NDINIT_ATVP(&nd, operation, MPSAFE, UIO_SYSSPACE, pnamep, startvp, td);
+	NDINIT_ATVP(&nd, operation, 0, UIO_SYSSPACE, pnamep, startvp, td);
 	filemode |= O_NOFOLLOW;
 	error = vn_open_cred(&nd, &filemode, createmode, 0, td->td_ucred, NULL);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -209,12 +210,12 @@ zfs_vn_rdwr(enum uio_rw rw, vnode_t *vp, caddr_t base, ssize_t len,
     ssize_t *residp)
 {
 	struct thread *td = curthread;
-	int error, vfslocked, resid;
+	int error;
+	ssize_t resid;
 
 	ASSERT(ioflag == 0);
 	ASSERT(ulimit == RLIM64_INFINITY);
 
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (rw == UIO_WRITE) {
 		ioflag = IO_SYNC;
 	} else {
@@ -222,7 +223,6 @@ zfs_vn_rdwr(enum uio_rw rw, vnode_t *vp, caddr_t base, ssize_t len,
 	}
 	error = vn_rdwr(rw, vp, base, len, offset, seg, ioflag, cr, NOCRED,
 	    &resid, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	if (residp != NULL)
 		*residp = (ssize_t)resid;
 	return (error);
@@ -234,11 +234,10 @@ static __inline int
 zfs_vop_fsync(vnode_t *vp, int flag, cred_t *cr)
 {
 	struct mount *mp;
-	int error, vfslocked;
+	int error;
 
 	ASSERT(flag == FSYNC);
 
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto drop;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
@@ -246,7 +245,6 @@ zfs_vop_fsync(vnode_t *vp, int flag, cred_t *cr)
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 drop:
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 #define	VOP_FSYNC(vp, flag, cr, ct)	zfs_vop_fsync((vp), (flag), (cr))
@@ -254,14 +252,12 @@ drop:
 static __inline int
 zfs_vop_close(vnode_t *vp, int flag, int count, offset_t offset, cred_t *cr)
 {
-	int error, vfslocked;
+	int error;
 
 	ASSERT(count == 1);
 	ASSERT(offset == 0);
 
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	error = vn_close(vp, flag, cr, curthread);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 #define	VOP_CLOSE(vp, oflags, count, offset, cr, ct)			\
@@ -273,7 +269,7 @@ vn_rename(char *from, char *to, enum uio_seg seg)
 
 	ASSERT(seg == UIO_SYSSPACE);
 
-	return (kern_rename(curthread, from, to, seg));
+	return (kern_renameat(curthread, AT_FDCWD, from, AT_FDCWD, to, seg));
 }
 
 static __inline int
@@ -283,7 +279,9 @@ vn_remove(char *fnamep, enum uio_seg seg, enum rm dirflag)
 	ASSERT(seg == UIO_SYSSPACE);
 	ASSERT(dirflag == RMFILE);
 
-	return (kern_unlink(curthread, fnamep, seg));
+	return (kern_unlinkat(curthread, AT_FDCWD, fnamep, seg, 0));
 }
+
+#endif	/* _KERNEL */
 
 #endif	/* _OPENSOLARIS_SYS_VNODE_H_ */

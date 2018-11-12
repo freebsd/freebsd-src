@@ -1,92 +1,92 @@
-$ $tcsh: set2,v 1.2 2006/03/02 18:46:48 christos Exp $
-$ Nombres de señales
+$ $tcsh: set2,v 1.3 2011/02/04 18:19:43 christos Exp $
+$ Nombres de seÃ±ales
 $set 2 
-1 Señal nula
+1 SeÃ±al nula
 2 Colgar
 3 Interrumpir
 4 Salir
-5 Instrucción ilegal
+5 InstrucciÃ³n ilegal
 6 trap Trace/BPT
 7 Abortar
 8 trap IOT
-9 Caída del sistema inminente
+9 CaÃ­da del sistema inminente
 10 Salida con error
 11 trap EMT
-12 Excepción de punto flotante
+12 ExcepciÃ³n de punto flotante
 13 Terminado
-14 Señal de usuario 1
-15 Señal de usuario 2
-16 Error de segmentación
+14 SeÃ±al de usuario 1
+15 SeÃ±al de usuario 2
+16 Error de segmentaciÃ³n
 17 Error de bus
 18 Error de rango de programa
 19 Error de rango de operando
-20 Llamada del sistema errónea
-21 Tubería rota
+20 Llamada del sistema errÃ³nea
+21 TuberÃ­a rota
 22 Despertador
 23 Terminado
 24 Cambio de estado en el hijo
 25 Muerte del hijo
-26 Fallo específico de Apollo
+26 Fallo especÃ­fico de Apollo
 27 El hijo ha parado o terminado
 28 Hijo ha terminado
-29 Fallo de alimentación
+29 Fallo de alimentaciÃ³n
 30 Recurso perdido
 31 Break (Ctrl-Break)
-32 Posible señal de entrada/salida
-33 E/S asíncrona (select)
-34 Condición urgente en el canal de E/S
+32 Posible seÃ±al de entrada/salida
+33 E/S asÃ­ncrona (select)
+34 CondiciÃ³n urgente en el canal de E/S
 35 Despertar mutiltarea
-36 Finalización multitarea
-37 Final de E/S asíncrona Fortran
-38 Recuperación
+36 FinalizaciÃ³n multitarea
+37 Final de E/S asÃ­ncrona Fortran
+38 RecuperaciÃ³n
 39 Error incorregible de memoria
 40 Excedido el tiempo de CPU
 41 Bajada del sistema inminente
 42 Grupo micro-tarea-no se ha activado la bandera de despertar
-43 Error de hilo de ejecución - (use cord -T para información detallada)
+43 Error de hilo de ejecuciÃ³n - (use cord -T para informaciÃ³n detallada)
 44 Error de paridad de registro CRAY Y-MP
-45 Petición de información
-46 Suspendido (señal)
-47 Parado (señal)
+45 PeticiÃ³n de informaciÃ³n
+46 Suspendido (seÃ±al)
+47 Parado (seÃ±al)
 48 Suspendido
 49 Parado
-50 Continúa
+50 ContinÃºa
 51 Suspendido (entrada tty)
 52 Parado (entrada tty)
 53 Suspendido (salida tty)
 54 Parado (salida tty)
 55 Modificado el estado de la ventana
-56 Modificado el tamaño de la ventana
-57 Modificado el estado del teléfono
+56 Modificado el tamaÃ±o de la ventana
+57 Modificado el estado del telÃ©fono
 58 Excedido el tiempo de CPU
-59 Excedido el límite del tamaño de archivo
-60 Señal de temporizador virtual
+59 Excedido el lÃ­mite del tamaÃ±o de archivo
+60 SeÃ±al de temporizador virtual
 61 Perfilando la alarma de temporizador
-62 Señal DIL
+62 SeÃ±al DIL
 63 Ha tenido lugar un evento interrogable
-64 Los lwps del proceso están bloqueados
-65 Señal LWP especial
-66 Señal CPR especial
-67 Señal CPR especial
-68 Primera señal de tiempo real
-69 Segunda señal de tiempo real
-70 Tercera señal de tiempo real
-71 Cuarta señal de tiempo real
-72 Cuarta señal por la cola de tiempo real
-73 Antepenúltima señal de tiempo real
-74 Penúltima señal de tiempo real
-75 Última señal de tiempo real
-76 E/S asíncrona LAN
+64 Los lwps del proceso estÃ¡n bloqueados
+65 SeÃ±al LWP especial
+66 SeÃ±al CPR especial
+67 SeÃ±al CPR especial
+68 Primera seÃ±al de tiempo real
+69 Segunda seÃ±al de tiempo real
+70 Tercera seÃ±al de tiempo real
+71 Cuarta seÃ±al de tiempo real
+72 Cuarta seÃ±al por la cola de tiempo real
+73 AntepenÃºltima seÃ±al de tiempo real
+74 PenÃºltima seÃ±al de tiempo real
+75 Ãšltima seÃ±al de tiempo real
+76 E/S asÃ­ncrona LAN
 77 Lectura/escritura PTY disponible
-78 Intervención E/S requerida
+78 IntervenciÃ³n E/S requerida
 79 Otorgado modo monitor HFT
-80 Se debería abandonar el modo monitor HFT
+80 Se deberÃ­a abandonar el modo monitor HFT
 81 Se ha completado el control de sonido HFT
 82 Hay datos en el buffer circular HFT
 83 Migrar proceso
-84 Tecla de atención asegurada
-85 Reprogramación
-86 Señalar SS$_DEBUG
+84 Tecla de atenciÃ³n asegurada
+85 ReprogramaciÃ³n
+86 SeÃ±alar SS$_DEBUG
 87 Prioridad cambiada
 88 Bloqueo real detectado
-89 Nuevo carácter de entrada
+89 Nuevo carÃ¡cter de entrada

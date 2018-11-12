@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2008
+.Dd October 20, 2008
 .Dt SETFIB 1
 .Os
 .Sh NAME
@@ -32,20 +32,20 @@
 .Nd execute a utility with an altered default network view
 .Sh SYNOPSIS
 .Nm
-.Op Fl F 
+.Op Fl F
 .Ar fib
 .Ar utility
 .Op Ar argument ...
 .Sh DESCRIPTION
 The
 .Nm
-utility runs
+utility runs another
 .Ar utility
-with an different routing table.
+with a different routing table.
 The table number
-.Dq Ar fib
+.Ar fib
 will be used by default for all sockets started by this
-process or descendents.
+process or descendants.
 .Sh ENVIRONMENT
 The
 .Ev PATH
@@ -69,8 +69,8 @@ An exit status of 127 indicates
 .Ar utility
 could not be found.
 .Sh EXAMPLES
-Execute utility
-.Sq netstat
+Run
+.Xr netstat 1
 to view the second routing table.
 .Pp
 .Dl "setfib -F 1 netstat -rn"
@@ -86,8 +86,9 @@ The
 .Nm
 utility is a
 .Fx
-specific extension, however many
-.Ux
+specific extension.
+However, many
+.Ux Ns - Ns
 like systems
 have an equivalent function.
 .Sh HISTORY

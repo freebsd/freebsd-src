@@ -42,6 +42,7 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/module.h>
@@ -55,6 +56,7 @@
 #include <dev/pci/pcivar.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_media.h>
@@ -137,22 +139,12 @@ static int
 wi_pci_attach(device_t dev)
 {
 	struct wi_softc		*sc;
-	u_int32_t		command, wanted;
+	u_int32_t		command;
 	u_int16_t		reg;
 	int			error;
 	int			timeout;
 
 	sc = device_get_softc(dev);
-
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-	wanted = PCIM_CMD_PORTEN|PCIM_CMD_MEMEN;
-	command |= wanted;
-	pci_write_config(dev, PCIR_COMMAND, command, 4);
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-	if ((command & wanted) != wanted) {
-		device_printf(dev, "wi_pci_attach() failed to enable pci!\n");
-		return (ENXIO);
-	}
 
 	if (sc->wi_bus_type != WI_BUS_PCI_NATIVE) {
 		error = wi_alloc(dev, WI_PCI_IORES);
@@ -247,7 +239,9 @@ wi_pci_suspend(device_t dev)
 {
 	struct wi_softc	*sc = device_get_softc(dev);
 
+	WI_LOCK(sc);
 	wi_stop(sc, 1);
+	WI_UNLOCK(sc);
 	
 	return (0);
 }
@@ -256,16 +250,15 @@ static int
 wi_pci_resume(device_t dev)
 {
 	struct wi_softc	*sc = device_get_softc(dev);
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = &sc->sc_ic;
 
-	if (sc->wi_bus_type != WI_BUS_PCI_NATIVE)
+	WI_LOCK(sc);
+	if (sc->wi_bus_type != WI_BUS_PCI_NATIVE) {
 		return (0);
-
-	if (ifp->if_flags & IFF_UP) {
-		ifp->if_init(ifp->if_softc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			ifp->if_start(ifp);
+		WI_UNLOCK(sc);
 	}
-
+	if (ic->ic_nrunning > 0)
+		wi_init(sc);
+	WI_UNLOCK(sc);
 	return (0);
 }

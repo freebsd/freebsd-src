@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <sys/mutex.h>
+#include <sys/rwlock.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 static vm_object_t default_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 static void default_pager_dealloc(vm_object_t);
-static int default_pager_getpages(vm_object_t, vm_page_t *, int, int);
+static int default_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
 static void default_pager_putpages(vm_object_t, vm_page_t *, int, 
 		boolean_t, int *);
 static boolean_t default_pager_haspage(vm_object_t, vm_pindex_t, int *, 
@@ -80,23 +80,21 @@ default_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t offset, struct ucred *cred)
 {
 	vm_object_t object;
-	struct uidinfo *uip;
 
 	if (handle != NULL)
 		panic("default_pager_alloc: handle specified");
 	if (cred != NULL) {
-		uip = cred->cr_ruidinfo;
-		if (!swap_reserve_by_uid(size, uip))
+		if (!swap_reserve_by_cred(size, cred))
 			return (NULL);
-		uihold(uip);
+		crhold(cred);
 	}
 	object = vm_object_allocate(OBJT_DEFAULT,
 	    OFF_TO_IDX(round_page(offset + size)));
 	if (cred != NULL) {
-		VM_OBJECT_LOCK(object);
-		object->uip = uip;
+		VM_OBJECT_WLOCK(object);
+		object->cred = cred;
 		object->charge = size;
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 	}
 	return (object);
 }
@@ -115,6 +113,7 @@ default_pager_dealloc(object)
 	/*
 	 * OBJT_DEFAULT objects have no special resources allocated to them.
 	 */
+	object->type = OBJT_DEAD;
 }
 
 /*
@@ -123,13 +122,11 @@ default_pager_dealloc(object)
  * see a vm_page with assigned swap here.
  */
 static int
-default_pager_getpages(object, m, count, reqpage)
-	vm_object_t object;
-	vm_page_t *m;
-	int count;
-	int reqpage;
+default_pager_getpages(vm_object_t object, vm_page_t *m, int count,
+    int *rbehind, int *rahead)
 {
-	return VM_PAGER_FAIL;
+
+	return (VM_PAGER_FAIL);
 }
 
 /*
@@ -139,14 +136,11 @@ default_pager_getpages(object, m, count, reqpage)
  * cache to the free list.
  */
 static void
-default_pager_putpages(object, m, c, sync, rtvals)
-	vm_object_t object;
-	vm_page_t *m;
-	int c;
-	boolean_t sync;
-	int *rtvals;
+default_pager_putpages(vm_object_t object, vm_page_t *m, int count,
+    int flags, int *rtvals)
 {
-	swappagerops.pgo_putpages(object, m, c, sync, rtvals);
+
+	swappagerops.pgo_putpages(object, m, count, flags, rtvals);
 }
 
 /*

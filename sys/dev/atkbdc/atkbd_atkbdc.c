@@ -94,8 +94,7 @@ atkbdprobe(device_t dev)
 
 	/* see if IRQ is available */
 	rid = KBDC_RID_KBD;
-	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-				     RF_SHAREABLE | RF_ACTIVE);
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (res == NULL) {
 		if (bootverbose)
 			device_printf(dev, "unable to allocate IRQ\n");
@@ -105,9 +104,7 @@ atkbdprobe(device_t dev)
 	bus_release_resource(dev, SYS_RES_IRQ, rid, res);
 
 	/* probe the device */
-	return atkbd_probe_unit(device_get_unit(dev),
-				device_get_unit(device_get_parent(dev)),
-				irq, flags);
+	return atkbd_probe_unit(dev, irq, flags);
 }
 
 static int
@@ -125,15 +122,12 @@ atkbdattach(device_t dev)
 	rid = KBDC_RID_KBD;
 	irq = bus_get_resource_start(dev, SYS_RES_IRQ, rid);
 	flags = device_get_flags(dev);
-	error = atkbd_attach_unit(device_get_unit(dev), &kbd,
-				  device_get_unit(device_get_parent(dev)),
-				  irq, flags);
+	error = atkbd_attach_unit(dev, &kbd, irq, flags);
 	if (error)
 		return error;
 
 	/* declare our interrupt handler */
-	sc->intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-					  RF_SHAREABLE | RF_ACTIVE);
+	sc->intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->intr == NULL)
 		return ENXIO;
 	error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, NULL, atkbdintr,

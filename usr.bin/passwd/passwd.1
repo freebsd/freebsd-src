@@ -9,10 +9,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -32,7 +28,7 @@
 .\"	@(#)passwd.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd February 14, 2014
 .Dt PASSWD 1
 .Os
 .Sh NAME
@@ -63,26 +59,9 @@ The
 .Nm
 utility prompts for the new password twice in order to detect typing errors.
 .Pp
-The new password should be at least six characters long (which
-may be overridden using the
-.Xr login.conf 5
-.Dq minpasswordlen
-setting for a user's login class) and not purely alphabetic.
-Its total length must be less than
+The total length of the password must be less than
 .Dv _PASSWORD_LEN
 (currently 128 characters).
-.Pp
-The new password should contain a mixture of upper and lower case
-characters (which may be overridden using the
-.Xr login.conf 5
-.Dq mixpasswordcase
-setting for a user's login class).
-Allowing lower case passwords may
-be useful where the password file will be used in situations where only
-lower case passwords are permissible, such as when using Samba to
-authenticate Windows clients.
-In all other situations, numbers, upper
-case letters and meta characters are encouraged.
 .Pp
 Once the password has been verified,
 .Nm
@@ -225,8 +204,6 @@ a Version 7 format password file
 temporary copy of the password file
 .It Pa /etc/login.conf
 login class capabilities database
-.It Pa /etc/auth.conf
-configure authentication services
 .El
 .Sh SEE ALSO
 .Xr chpass 1 ,
@@ -236,6 +213,7 @@ configure authentication services
 .Xr passwd 5 ,
 .Xr kerberos 8 ,
 .Xr kpasswdd 8 ,
+.Xr pam_passwdqc 8 ,
 .Xr pw 8 ,
 .Xr pwd_mkdb 8 ,
 .Xr vipw 8

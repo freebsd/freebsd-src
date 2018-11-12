@@ -14,13 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -56,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -81,44 +73,25 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/usb_pci.h>
 #include <dev/usb/controller/uhci.h>
+#include <dev/usb/controller/uhcireg.h>
+#include "usb_if.h"
 
 #define	PCI_UHCI_VENDORID_INTEL		0x8086
+#define	PCI_UHCI_VENDORID_HP		0x103c
 #define	PCI_UHCI_VENDORID_VIA		0x1106
 
 /* PIIX4E has no separate stepping */
 
-#define	PCI_UHCI_BASE_REG               0x20
-
 static device_probe_t uhci_pci_probe;
 static device_attach_t uhci_pci_attach;
 static device_detach_t uhci_pci_detach;
-static device_suspend_t uhci_pci_suspend;
-static device_resume_t uhci_pci_resume;
+static usb_take_controller_t uhci_pci_take_controller;
 
 static int
-uhci_pci_suspend(device_t self)
+uhci_pci_take_controller(device_t self)
 {
-	uhci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_suspend(self);
-	if (err) {
-		return (err);
-	}
-	uhci_suspend(sc);
-	return (0);
-}
-
-static int
-uhci_pci_resume(device_t self)
-{
-	uhci_softc_t *sc = device_get_softc(self);
-
 	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 2);
 
-	uhci_resume(sc);
-
-	bus_generic_resume(self);
 	return (0);
 }
 
@@ -188,6 +161,12 @@ uhci_pci_match(device_t self)
 	case 0x24de8086:
 		return ("Intel 82801EB (ICH5) USB controller USB-D");
 
+	case 0x25a98086:
+		return ("Intel 6300ESB USB controller USB-A");
+
+	case 0x25aa8086:
+		return ("Intel 6300ESB USB controller USB-B");
+
 	case 0x26588086:
 		return ("Intel 82801FB/FR/FW/FRW (ICH6) USB controller USB-A");
 
@@ -231,12 +210,27 @@ uhci_pci_match(device_t self)
 		return ("Intel 82801I (ICH9) USB controller");
 	case 0x29398086:
 		return ("Intel 82801I (ICH9) USB controller");
+	case 0x3a348086:
+		return ("Intel 82801JI (ICH10) USB controller USB-A");
+	case 0x3a358086:
+		return ("Intel 82801JI (ICH10) USB controller USB-B");
+	case 0x3a368086:
+		return ("Intel 82801JI (ICH10) USB controller USB-C");
+	case 0x3a378086:
+		return ("Intel 82801JI (ICH10) USB controller USB-D");
+	case 0x3a388086:
+		return ("Intel 82801JI (ICH10) USB controller USB-E");
+	case 0x3a398086:
+		return ("Intel 82801JI (ICH10) USB controller USB-F");
 
 	case 0x719a8086:
 		return ("Intel 82443MX USB controller");
 
 	case 0x76028086:
 		return ("Intel 82372FB/82468GX USB controller");
+
+	case 0x3300103c:
+		return ("HP iLO Standard Virtual USB controller");
 
 	case 0x30381106:
 		return ("VIA 83C572 USB controller");
@@ -260,7 +254,7 @@ uhci_pci_probe(device_t self)
 
 	if (desc) {
 		device_set_desc(self, desc);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	} else {
 		return (ENXIO);
 	}
@@ -277,6 +271,7 @@ uhci_pci_attach(device_t self)
 	sc->sc_bus.parent = self;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = UHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus, USB_GET_DMA_TAG(self),
@@ -323,6 +318,9 @@ uhci_pci_attach(device_t self)
 	switch (pci_get_vendor(self)) {
 	case PCI_UHCI_VENDORID_INTEL:
 		sprintf(sc->sc_vendor, "Intel");
+		break;
+	case PCI_UHCI_VENDORID_HP:
+		sprintf(sc->sc_vendor, "HP");
 		break;
 	case PCI_UHCI_VENDORID_VIA:
 		sprintf(sc->sc_vendor, "VIA");
@@ -403,7 +401,7 @@ uhci_pci_detach(device_t self)
 		device_delete_child(self, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(self);
+	device_delete_children(self);
 
 	/*
 	 * disable interrupts that might have been switched on in
@@ -443,23 +441,22 @@ uhci_pci_detach(device_t self)
 	return (0);
 }
 
-static driver_t uhci_driver =
-{
+static device_method_t uhci_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe, uhci_pci_probe),
+	DEVMETHOD(device_attach, uhci_pci_attach),
+	DEVMETHOD(device_detach, uhci_pci_detach),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(usb_take_controller, uhci_pci_take_controller),
+
+	DEVMETHOD_END
+};
+
+static driver_t uhci_driver = {
 	.name = "uhci",
-	.methods = (device_method_t[]){
-		/* device interface */
-		DEVMETHOD(device_probe, uhci_pci_probe),
-		DEVMETHOD(device_attach, uhci_pci_attach),
-		DEVMETHOD(device_detach, uhci_pci_detach),
-
-		DEVMETHOD(device_suspend, uhci_pci_suspend),
-		DEVMETHOD(device_resume, uhci_pci_resume),
-		DEVMETHOD(device_shutdown, bus_generic_shutdown),
-
-		/* Bus interface */
-		DEVMETHOD(bus_print_child, bus_generic_print_child),
-		{0, 0}
-	},
+	.methods = uhci_pci_methods,
 	.size = sizeof(struct uhci_softc),
 };
 

@@ -52,17 +52,18 @@ It can return:
 .It Dv LK_EXCLUSIVE
 An exclusive lock is held by curthread.
 .It Dv LK_EXCLOTHER
-An exclusive lock is held by someone other than curthread
+An exclusive lock is held by someone other than curthread.
 .It Dv LK_SHARED
 A shared lock is held.
 .It Li 0
 The lock is not held by anyone.
+.El
 .Sh SEE ALSO
-.Xr lockstatus 9 ,
 .Xr buf 9 ,
 .Xr BUF_LOCK 9 ,
 .Xr BUF_UNLOCK 9 ,
-.Xr lockmgr 9
+.Xr lockmgr 9 ,
+.Xr lockstatus 9
 .Sh AUTHORS
 This manual page was written by
-.An Attilio Rao Aq attilio@FreeBSD.org .
+.An Attilio Rao Aq Mt attilio@FreeBSD.org .

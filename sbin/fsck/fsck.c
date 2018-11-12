@@ -1,4 +1,4 @@
-/*	$NetBSD: fsck.c,v 1.21 1999/04/22 04:20:53 abs Exp $	*/
+/*	$NetBSD: fsck.c,v 1.30 2003/08/07 10:04:15 agc Exp $	*/
 
 /*
  * Copyright (c) 1996 Christos Zoulas. All rights reserved.
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -35,7 +31,7 @@
  *
  * From: @(#)mount.c	8.19 (Berkeley) 4/19/94
  * From: $NetBSD: mount.c,v 1.24 1995/11/18 03:34:29 cgd Exp 
- * $NetBSD: fsck.c,v 1.21 1999/04/22 04:20:53 abs Exp $
+ * $NetBSD: fsck.c,v 1.30 2003/08/07 10:04:15 agc Exp $
  */
 
 #include <sys/cdefs.h>
@@ -45,8 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
-#define FSTYPENAMES
-#include <sys/disklabel.h>
+#include <sys/disk.h>
 #include <sys/ioctl.h>
 
 #include <ctype.h>
@@ -65,7 +60,7 @@ __FBSDID("$FreeBSD$");
 
 static enum { IN_LIST, NOT_IN_LIST } which = NOT_IN_LIST;
 
-TAILQ_HEAD(fstypelist, entry) opthead, selhead;
+static TAILQ_HEAD(fstypelist, entry) opthead, selhead;
 
 struct entry {
 	char *type;
@@ -77,17 +72,28 @@ static char *options = NULL;
 static int flags = 0;
 static int forceflag = 0;
 
-static int checkfs(const char *, const char *, const char *, char *, pid_t *);
+static int checkfs(const char *, const char *, const char *, const char *, pid_t *);
 static int selected(const char *);
 static void addoption(char *);
 static const char *getoptions(const char *);
 static void addentry(struct fstypelist *, const char *, const char *);
 static void maketypelist(char *);
 static void catopt(char **, const char *);
-static void mangle(char *, int *, const char ***, int *);
-static const char *getfslab(const char *);
+static void mangle(char *, int *, const char ** volatile *, int *);
+static const char *getfstype(const char *);
 static void usage(void) __dead2;
 static int isok(struct fstab *);
+
+static struct {
+	const char *ptype;
+	const char *name;
+} ptype_map[] = {
+	{ "ufs",	"ffs" },
+	{ "ffs",	"ffs" },
+	{ "fat",	"msdosfs" },
+	{ "efi",	"msdosfs" },
+	{ NULL,		NULL },
+};
 
 int
 main(int argc, char *argv[])
@@ -96,6 +102,7 @@ main(int argc, char *argv[])
 	int i, rval = 0;
 	const char *vfstype = NULL;
 	char globopt[3];
+	const char *etc_fstab;
 
 	globopt[0] = '-';
 	globopt[2] = '\0';
@@ -103,7 +110,8 @@ main(int argc, char *argv[])
 	TAILQ_INIT(&selhead);
 	TAILQ_INIT(&opthead);
 
-	while ((i = getopt(argc, argv, "BCdvpfFnyl:t:T:")) != -1)
+	etc_fstab = NULL;
+	while ((i = getopt(argc, argv, "BCdvpfFnyl:t:T:c:")) != -1)
 		switch (i) {
 		case 'B':
 			if (flags & CHECK_BACKGRD)
@@ -160,6 +168,10 @@ main(int argc, char *argv[])
 			vfstype = optarg;
 			break;
 
+		case 'c':
+			etc_fstab = optarg;
+			break;
+
 		case '?':
 		default:
 			usage();
@@ -168,6 +180,9 @@ main(int argc, char *argv[])
 
 	argc -= optind;
 	argv += optind;
+
+	if (etc_fstab != NULL)
+		setfstab(etc_fstab);
 
 	if (argc == 0)
 		return checkfstab(flags, isok, checkfs);
@@ -182,9 +197,10 @@ main(int argc, char *argv[])
 		char device[MAXPATHLEN];
 		struct statfs *mntp;
 
+		mntpt = NULL;
 		spec = *argv;
 		cp = strrchr(spec, '/');
-		if (cp == 0) {
+		if (cp == NULL) {
 			(void)snprintf(device, sizeof(device), "%s%s",
 				_PATH_DEV, spec);
 			spec = device;
@@ -197,7 +213,7 @@ main(int argc, char *argv[])
 		if ((fs = getfsfile(spec)) == NULL &&
 		    (fs = getfsspec(spec)) == NULL) {
 			if (vfstype == NULL)
-				vfstype = getfslab(spec);
+				vfstype = getfstype(spec);
 			if (vfstype == NULL)
 				errx(1, "Could not determine filesystem type");
 			type = vfstype;
@@ -280,9 +296,9 @@ isok(struct fstab *fs)
 
 static int
 checkfs(const char *pvfstype, const char *spec, const char *mntpt,
-    char *auxopt, pid_t *pidp)
+    const char *auxopt, pid_t *pidp)
 {
-	const char **argv;
+	const char ** volatile argv;
 	pid_t pid;
 	int argc, i, status, maxargc;
 	char *optbuf, execbase[MAXPATHLEN];
@@ -306,8 +322,8 @@ checkfs(const char *pvfstype, const char *spec, const char *mntpt,
 	 */
 	vfstype = strdup(pvfstype);
 	if (vfstype == NULL)
-		perror("strdup(pvfstype)"); 
-	for (i = 0; i < strlen(vfstype); i++) {
+		perr("strdup(pvfstype)");
+	for (i = 0; i < (int)strlen(vfstype); i++) {
 		vfstype[i] = tolower(vfstype[i]);
 		if (vfstype[i] == ' ')
 			vfstype[i] = '_';
@@ -356,7 +372,7 @@ checkfs(const char *pvfstype, const char *spec, const char *mntpt,
 			_exit(0);
 
 		/* Go find an executable. */
-		execvP(execbase, _PATH_SYSPATH, (char * const *)argv);
+		execvP(execbase, _PATH_SYSPATH, __DECONST(char * const *, argv));
 		if (spec)
 			warn("exec %s for %s in %s", execbase, spec, _PATH_SYSPATH);
 		else
@@ -493,7 +509,7 @@ catopt(char **sp, const char *o)
 
 
 static void
-mangle(char *options, int *argcp, const char ***argvp, int *maxargcp)
+mangle(char *opts, int *argcp, const char ** volatile *argvp, int *maxargcp)
 {
 	char *p, *s;
 	int argc, maxargc;
@@ -503,7 +519,7 @@ mangle(char *options, int *argcp, const char ***argvp, int *maxargcp)
 	argv = *argvp;
 	maxargc = *maxargcp;
 
-	for (s = options; (p = strsep(&s, ",")) != NULL;) {
+	for (s = opts; (p = strsep(&s, ",")) != NULL;) {
 		/* Always leave space for one more argument and the NULL. */
 		if (argc >= maxargc - 3) {
 			maxargc <<= 1;
@@ -529,39 +545,27 @@ mangle(char *options, int *argcp, const char ***argvp, int *maxargcp)
 	*maxargcp = maxargc;
 }
 
-
-const static char *
-getfslab(const char *str)
+static const char *
+getfstype(const char *str)
 {
-	struct disklabel dl;
-	int fd;
-	char p;
-	const char *vfstype;
-	u_char t;
+	struct diocgattr_arg attr;
+	int fd, i;
 
-	/* deduce the file system type from the disk label */
 	if ((fd = open(str, O_RDONLY)) == -1)
 		err(1, "cannot open `%s'", str);
 
-	if (ioctl(fd, DIOCGDINFO, &dl) == -1)
+	strncpy(attr.name, "PART::type", sizeof(attr.name));
+	memset(&attr.value, 0, sizeof(attr.value));
+	attr.len = sizeof(attr.value);
+	if (ioctl(fd, DIOCGATTR, &attr) == -1) {
+		(void) close(fd);
 		return(NULL);
-
+	}
 	(void) close(fd);
-
-	p = str[strlen(str) - 1];
-
-	if ((p - 'a') >= dl.d_npartitions)
-		errx(1, "partition `%s' is not defined on disk", str);
-
-	if ((t = dl.d_partitions[p - 'a'].p_fstype) >= FSMAXTYPES) 
-		errx(1, "partition `%s' is not of a legal vfstype",
-		    str);
-
-	if ((vfstype = fstypenames[t]) == NULL)
-		errx(1, "vfstype `%s' on partition `%s' is not supported",
-		    fstypenames[t], str);
-
-	return vfstype;
+	for (i = 0; ptype_map[i].ptype != NULL; i++)
+		if (strstr(attr.value.str, ptype_map[i].ptype) != NULL)
+			return (ptype_map[i].name);
+	return (NULL);
 }
 
 
@@ -569,7 +573,7 @@ static void
 usage(void)
 {
 	static const char common[] =
-	    "[-Cdfnpvy] [-B | -F] [-T fstype:fsoptions] [-t fstype]";
+	    "[-Cdfnpvy] [-B | -F] [-T fstype:fsoptions] [-t fstype] [-c fstab]";
 
 	(void)fprintf(stderr, "usage: %s %s [special | node] ...\n",
 	    getprogname(), common);

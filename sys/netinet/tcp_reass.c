@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -49,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -74,62 +76,63 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
 
-static VNET_DEFINE(int, tcp_reass_maxseg);
-VNET_DEFINE(int, tcp_reass_qsize);
-static VNET_DEFINE(int, tcp_reass_maxqlen);
-static VNET_DEFINE(int, tcp_reass_overflows);
-
-#define	V_tcp_reass_maxseg		VNET(tcp_reass_maxseg)
-#define	V_tcp_reass_maxqlen		VNET(tcp_reass_maxqlen)
-#define	V_tcp_reass_overflows		VNET(tcp_reass_overflows)
-
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
     "TCP Segment Reassembly Queue");
 
-SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
-    &VNET_NAME(tcp_reass_maxseg), 0,
+static int tcp_reass_maxseg = 0;
+SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
+    &tcp_reass_maxseg, 0,
     "Global maximum number of TCP Segments in Reassembly Queue");
 
-SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, cursegments, CTLFLAG_RD,
-    &VNET_NAME(tcp_reass_qsize), 0,
+static uma_zone_t tcp_reass_zone;
+SYSCTL_UMA_CUR(_net_inet_tcp_reass, OID_AUTO, cursegments, 0,
+    &tcp_reass_zone,
     "Global number of TCP Segments currently in Reassembly Queue");
-
-SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, maxqlen, CTLFLAG_RW,
-    &VNET_NAME(tcp_reass_maxqlen), 0,
-    "Maximum number of TCP Segments per individual Reassembly Queue");
-
-SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, overflows, CTLFLAG_RD,
-    &VNET_NAME(tcp_reass_overflows), 0,
-    "Global number of TCP Segment Reassembly Queue Overflows");
 
 /* Initialize TCP reassembly queue */
 static void
 tcp_reass_zone_change(void *tag)
 {
 
-	V_tcp_reass_maxseg = nmbclusters / 16;
-	uma_zone_set_max(V_tcp_reass_zone, V_tcp_reass_maxseg);
+	/* Set the zone limit and read back the effective value. */
+	tcp_reass_maxseg = nmbclusters / 16;
+	tcp_reass_maxseg = uma_zone_set_max(tcp_reass_zone,
+	    tcp_reass_maxseg);
 }
 
-VNET_DEFINE(uma_zone_t, tcp_reass_zone);
-
 void
-tcp_reass_init(void)
+tcp_reass_global_init(void)
 {
 
-	V_tcp_reass_maxseg = 0;
-	V_tcp_reass_qsize = 0;
-	V_tcp_reass_maxqlen = 48;
-	V_tcp_reass_overflows = 0;
-
-	V_tcp_reass_maxseg = nmbclusters / 16;
+	tcp_reass_maxseg = nmbclusters / 16;
 	TUNABLE_INT_FETCH("net.inet.tcp.reass.maxsegments",
-	    &V_tcp_reass_maxseg);
-	V_tcp_reass_zone = uma_zcreate("tcpreass", sizeof (struct tseg_qent),
+	    &tcp_reass_maxseg);
+	tcp_reass_zone = uma_zcreate("tcpreass", sizeof (struct tseg_qent),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(V_tcp_reass_zone, V_tcp_reass_maxseg);
+	/* Set the zone limit and read back the effective value. */
+	tcp_reass_maxseg = uma_zone_set_max(tcp_reass_zone,
+	    tcp_reass_maxseg);
 	EVENTHANDLER_REGISTER(nmbclusters_change,
 	    tcp_reass_zone_change, NULL, EVENTHANDLER_PRI_ANY);
+}
+
+void
+tcp_reass_flush(struct tcpcb *tp)
+{
+	struct tseg_qent *qe;
+
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	while ((qe = LIST_FIRST(&tp->t_segq)) != NULL) {
+		LIST_REMOVE(qe, tqe_q);
+		m_freem(qe->tqe_m);
+		uma_zfree(tcp_reass_zone, qe);
+		tp->t_segqlen--;
+	}
+
+	KASSERT((tp->t_segqlen == 0),
+	    ("TCP reass queue %p segment count is %d instead of 0 after flush.",
+	    tp, tp->t_segqlen));
 }
 
 int
@@ -140,7 +143,9 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	struct tseg_qent *nq;
 	struct tseg_qent *te = NULL;
 	struct socket *so = tp->t_inpcb->inp_socket;
+	char *s = NULL;
 	int flags;
+	struct tseg_qent tqs;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
@@ -157,35 +162,67 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 		goto present;
 
 	/*
-	 * Limit the number of segments in the reassembly queue to prevent
-	 * holding on to too many segments (and thus running out of mbufs).
-	 * Make sure to let the missing segment through which caused this
-	 * queue.  Always keep one global queue entry spare to be able to
-	 * process the missing segment.
+	 * Limit the number of segments that can be queued to reduce the
+	 * potential for mbuf exhaustion. For best performance, we want to be
+	 * able to queue a full window's worth of segments. The size of the
+	 * socket receive buffer determines our advertised window and grows
+	 * automatically when socket buffer autotuning is enabled. Use it as the
+	 * basis for our queue limit.
+	 * Always let the missing segment through which caused this queue.
+	 * NB: Access to the socket buffer is left intentionally unlocked as we
+	 * can tolerate stale information here.
+	 *
+	 * XXXLAS: Using sbspace(so->so_rcv) instead of so->so_rcv.sb_hiwat
+	 * should work but causes packets to be dropped when they shouldn't.
+	 * Investigate why and re-evaluate the below limit after the behaviour
+	 * is understood.
 	 */
-	if (th->th_seq != tp->rcv_nxt &&
-	    (V_tcp_reass_qsize + 1 >= V_tcp_reass_maxseg ||
-	     tp->t_segqlen >= V_tcp_reass_maxqlen)) {
-		V_tcp_reass_overflows++;
-		TCPSTAT_INC(tcps_rcvmemdrop);
-		m_freem(m);
+	if ((th->th_seq != tp->rcv_nxt || !TCPS_HAVEESTABLISHED(tp->t_state)) &&
+	    tp->t_segqlen >= (so->so_rcv.sb_hiwat / tp->t_maxseg) + 1) {
+		TCPSTAT_INC(tcps_rcvreassfull);
 		*tlenp = 0;
+		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: queue limit reached, "
+			    "segment dropped\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
+		m_freem(m);
 		return (0);
 	}
 
 	/*
 	 * Allocate a new queue entry. If we can't, or hit the zone limit
 	 * just drop the pkt.
+	 *
+	 * Use a temporary structure on the stack for the missing segment
+	 * when the zone is exhausted. Otherwise we may get stuck.
 	 */
-	te = uma_zalloc(V_tcp_reass_zone, M_NOWAIT);
+	te = uma_zalloc(tcp_reass_zone, M_NOWAIT);
 	if (te == NULL) {
-		TCPSTAT_INC(tcps_rcvmemdrop);
-		m_freem(m);
-		*tlenp = 0;
-		return (0);
+		if (th->th_seq != tp->rcv_nxt || !TCPS_HAVEESTABLISHED(tp->t_state)) {
+			TCPSTAT_INC(tcps_rcvmemdrop);
+			m_freem(m);
+			*tlenp = 0;
+			if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL,
+			    NULL))) {
+				log(LOG_DEBUG, "%s; %s: global zone limit "
+				    "reached, segment dropped\n", s, __func__);
+				free(s, M_TCPLOG);
+			}
+			return (0);
+		} else {
+			bzero(&tqs, sizeof(struct tseg_qent));
+			te = &tqs;
+			if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL,
+			    NULL))) {
+				log(LOG_DEBUG,
+				    "%s; %s: global zone limit reached, using "
+				    "stack for missing segment\n", s, __func__);
+				free(s, M_TCPLOG);
+			}
+		}
 	}
 	tp->t_segqlen++;
-	V_tcp_reass_qsize++;
 
 	/*
 	 * Find a segment which begins after this one does.
@@ -210,9 +247,9 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 				TCPSTAT_INC(tcps_rcvduppack);
 				TCPSTAT_ADD(tcps_rcvdupbyte, *tlenp);
 				m_freem(m);
-				uma_zfree(V_tcp_reass_zone, te);
+				if (te != &tqs)
+					uma_zfree(tcp_reass_zone, te);
 				tp->t_segqlen--;
-				V_tcp_reass_qsize--;
 				/*
 				 * Try to present any queued data
 				 * at the left window edge to the user.
@@ -226,6 +263,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 			th->th_seq += i;
 		}
 	}
+	tp->t_rcvoopack++;
 	TCPSTAT_INC(tcps_rcvoopack);
 	TCPSTAT_ADD(tcps_rcvoobyte, *tlenp);
 
@@ -247,9 +285,8 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 		nq = LIST_NEXT(q, tqe_q);
 		LIST_REMOVE(q, tqe_q);
 		m_freem(q->tqe_m);
-		uma_zfree(V_tcp_reass_zone, q);
+		uma_zfree(tcp_reass_zone, q);
 		tp->t_segqlen--;
-		V_tcp_reass_qsize--;
 		q = nq;
 	}
 
@@ -261,6 +298,8 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	if (p == NULL) {
 		LIST_INSERT_HEAD(&tp->t_segq, te, tqe_q);
 	} else {
+		KASSERT(te != &tqs, ("%s: temporary stack based entry not "
+		    "first element in queue", __func__));
 		LIST_INSERT_AFTER(p, te, tqe_q);
 	}
 
@@ -283,13 +322,12 @@ present:
 		if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 			m_freem(q->tqe_m);
 		else
-			sbappendstream_locked(&so->so_rcv, q->tqe_m);
-		uma_zfree(V_tcp_reass_zone, q);
+			sbappendstream_locked(&so->so_rcv, q->tqe_m, 0);
+		if (q != &tqs)
+			uma_zfree(tcp_reass_zone, q);
 		tp->t_segqlen--;
-		V_tcp_reass_qsize--;
 		q = nq;
 	} while (q && q->tqe_th->th_seq == tp->rcv_nxt);
-	ND6_HINT(tp);
 	sorwakeup_locked(so);
 	return (flags);
 }

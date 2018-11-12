@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -56,9 +52,7 @@ __FBSDID("$FreeBSD$");
  * mail is queued).
  */
 void
-findmail(user, buf, buflen)
-	char *user, *buf;
-	int buflen;
+findmail(char *user, char *buf, int buflen)
 {
 	char *tmp = getenv("MAIL");
 
@@ -72,18 +66,21 @@ findmail(user, buf, buflen)
  * Get rid of the queued mail.
  */
 void
-demail()
+demail(void)
 {
+	int fd;
 
 	if (value("keep") != NULL || rm(mailname) < 0)
-		(void)close(open(mailname, O_CREAT | O_TRUNC | O_WRONLY, 0600));
+		if ((fd = open(mailname, O_CREAT | O_TRUNC | O_WRONLY, 0600)) >=
+		    0)
+			(void)close(fd);
 }
 
 /*
  * Discover user login name.
  */
 char *
-username()
+username(void)
 {
 	char *np;
 	uid_t uid;

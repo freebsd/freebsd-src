@@ -2,7 +2,7 @@
 
 .PATH: ${.CURDIR}/../../dev/aac
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SUBDIR= aac_linux
 .endif
 

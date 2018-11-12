@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -253,6 +249,20 @@ typedef enum { TR_SENDING, TR_RECVING, TR_PRINTING } tr_sendrecv;
 #define	CMD_SHOWQ_LONG	'\4'
 #define	CMD_RMJOB	'\5'
 
+/*
+ * seteuid() macros.
+*/
+
+extern uid_t	uid, euid;
+
+#define PRIV_START { \
+    if (seteuid(euid) != 0) err(1, "seteuid failed"); \
+}
+#define PRIV_END { \
+    if (seteuid(uid) != 0) err(1, "seteuid failed"); \
+}
+
+
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
 
 __BEGIN_DECLS
@@ -271,7 +281,7 @@ void	 fatal(const struct printer *_pp, const char *_msg, ...)
 int	 firstprinter(struct printer *_pp, int *_error);
 void	 free_printer(struct printer *_pp);
 void	 free_request(struct request *_rp);
-int	 getline(FILE *_cfp);
+int	 get_line(FILE *_cfp);
 int	 getport(const struct printer *_pp, const char *_rhost, int _rport);
 int	 getprintcap(const char *_printer, struct printer *_pp);
 int	 getq(const struct printer *_pp, struct jobqueue *(*_namelist[]));
@@ -280,7 +290,7 @@ void	 inform(const struct printer *_pp, char *_cf);
 void	 init_printer(struct printer *_pp);
 void	 init_request(struct request *_rp);
 int	 inlist(char *_uname, char *_cfile);
-int	 iscf(struct dirent *_d);
+int	 iscf(const struct dirent *_d);
 void	 ldump(const char *_nfile, const char *_datafile, int _copies);
 void	 lastprinter(void);
 int	 lockchk(struct printer *_pp, char *_slockf);

@@ -261,34 +261,53 @@ vsyslog(int pri, const char *fmt, va_list ap)
 	connectlog();
 
 	/*
-	 * If the send() failed, there are two likely scenarios: 
+	 * If the send() fails, there are two likely scenarios: 
 	 *  1) syslogd was restarted
 	 *  2) /var/run/log is out of socket buffer space, which
 	 *     in most cases means local DoS.
-	 * We attempt to reconnect to /var/run/log to take care of
-	 * case #1 and keep send()ing data to cover case #2
-	 * to give syslogd a chance to empty its socket buffer.
+	 * If the error does not indicate a full buffer, we address
+	 * case #1 by attempting to reconnect to /var/run/log[priv]
+	 * and resending the message once.
 	 *
-	 * If we are working with a priveleged socket, then take
-	 * only one attempt, because we don't want to freeze a
+	 * If we are working with a privileged socket, the retry
+	 * attempts end there, because we don't want to freeze a
 	 * critical application like su(1) or sshd(8).
 	 *
+	 * Otherwise, we address case #2 by repeatedly retrying the
+	 * send() to give syslogd a chance to empty its socket buffer.
 	 */
 
 	if (send(LogFile, tbuf, cnt, 0) < 0) {
 		if (errno != ENOBUFS) {
+			/*
+			 * Scenario 1: syslogd was restarted
+			 * reconnect and resend once
+			 */
 			disconnectlog();
 			connectlog();
+			if (send(LogFile, tbuf, cnt, 0) >= 0) {
+				THREAD_UNLOCK();
+				return;
+			}
+			/*
+			 * if the resend failed, fall through to
+			 * possible scenario 2
+			 */
 		}
-		do {
+		while (errno == ENOBUFS) {
+			/*
+			 * Scenario 2: out of socket buffer space
+			 * possible DoS, fail fast on a privileged
+			 * socket
+			 */
+			if (status == CONNPRIV)
+				break;
 			_usleep(1);
 			if (send(LogFile, tbuf, cnt, 0) >= 0) {
 				THREAD_UNLOCK();
 				return;
 			}
-			if (status == CONNPRIV)
-				break;
-		} while (errno == ENOBUFS);
+		}
 	} else {
 		THREAD_UNLOCK();
 		return;
@@ -300,7 +319,8 @@ vsyslog(int pri, const char *fmt, va_list ap)
 	 * Make sure the error reported is the one from the syslogd failure.
 	 */
 	if (LogStat & LOG_CONS &&
-	    (fd = _open(_PATH_CONSOLE, O_WRONLY|O_NONBLOCK, 0)) >= 0) {
+	    (fd = _open(_PATH_CONSOLE, O_WRONLY|O_NONBLOCK|O_CLOEXEC, 0)) >=
+	    0) {
 		struct iovec iov[2];
 		struct iovec *v = iov;
 
@@ -340,16 +360,16 @@ connectlog(void)
 	struct sockaddr_un SyslogAddr;	/* AF_UNIX address of local logger */
 
 	if (LogFile == -1) {
-		if ((LogFile = _socket(AF_UNIX, SOCK_DGRAM, 0)) == -1)
+		if ((LogFile = _socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC,
+		    0)) == -1)
 			return;
-		(void)_fcntl(LogFile, F_SETFD, 1);
 	}
 	if (LogFile != -1 && status == NOCONN) {
 		SyslogAddr.sun_len = sizeof(SyslogAddr);
 		SyslogAddr.sun_family = AF_UNIX;
 
 		/*
-		 * First try priveleged socket. If no success,
+		 * First try privileged socket. If no success,
 		 * then try default socket.
 		 */
 		(void)strncpy(SyslogAddr.sun_path, _PATH_LOG_PRIV,
@@ -413,8 +433,10 @@ void
 closelog(void)
 {
 	THREAD_LOCK();
-	(void)_close(LogFile);
-	LogFile = -1;
+	if (LogFile != -1) {
+		(void)_close(LogFile);
+		LogFile = -1;
+	}
 	LogTag = NULL;
 	status = NOCONN;
 	THREAD_UNLOCK();

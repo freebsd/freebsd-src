@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -52,14 +48,12 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
-#include <utmp.h>
 #include "pathnames.h"
 
 /*XXX*/#include <inttypes.h>
@@ -89,10 +83,12 @@ main(int argc, char *argv[])
 	int (*readrec)(FILE *f, struct acctv2 *av2);
 	time_t t;
 	int ch, rv;
-	const char *acctfile;
+	const char *acctfile, *format;
+	char buf[1024];
 	int flags = 0;
 
 	acctfile = _PATH_ACCT;
+	format = NULL;
 	while ((ch = getopt(argc, argv, "f:usecSE")) != -1)
 		switch((char)ch) {
 		case 'f':
@@ -133,6 +129,12 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	if (argc > 0 && **argv == '+') {
+		format = *argv + 1; /* skip + */
+		argc--;
+		argv++;
+	}
+
 	if (strcmp(acctfile, "-") == 0) {
 		fp = stdin;
 		readrec = readrec_forward;
@@ -154,11 +156,11 @@ main(int argc, char *argv[])
 		if (*argv && !requested(argv, &ab))
 			continue;
 
-		(void)printf("%-*.*s %-7s %-*s %-*s",
+		(void)printf("%-*.*s %-7s %-*s %-8s",
 			     AC_COMM_LEN, AC_COMM_LEN, ab.ac_comm,
 			     flagbits(ab.ac_flagx),
-			     UT_NAMESIZE, user_from_uid(ab.ac_uid, 0),
-			     UT_LINESIZE, getdev(ab.ac_tty));
+			     MAXLOGNAME - 1, user_from_uid(ab.ac_uid, 0),
+			     getdev(ab.ac_tty));
 		
 		
 		/* user + system time */
@@ -184,14 +186,24 @@ main(int argc, char *argv[])
 		
 		/* starting time */
 		if (flags & AC_BTIME) {
-			(void)printf(" %.16s", ctime(&ab.ac_btime));
+			if (format != NULL) {
+				(void)strftime(buf, sizeof(buf), format,
+				    localtime(&ab.ac_btime));
+				(void)printf(" %s", buf);
+			} else
+				(void)printf(" %.16s", ctime(&ab.ac_btime));
 		}
 		
 		/* exit time (starting time + elapsed time )*/
 		if (flags & AC_FTIME) {
 			t = ab.ac_btime;
 			t += (time_t)(ab.ac_etime / 1000000);
-			(void)printf(" %.16s", ctime(&t));
+			if (format != NULL) {
+				(void)strftime(buf, sizeof(buf), format,
+				    localtime(&t));
+				(void)printf(" %s", buf);
+			} else
+				(void)printf(" %.16s", ctime(&t));
 		}
 		printf("\n");
  	}
@@ -257,6 +269,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: lastcomm [-EScesu] [-f file] [command ...] [user ...] [terminal ...]\n");
+	    "usage: lastcomm [-EScesu] [-f file] [+format] [command ...] "
+	    "[user ...] [terminal ...]\n");
 	exit(1);
 }

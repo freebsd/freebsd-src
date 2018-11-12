@@ -80,7 +80,7 @@ ddb_readfile(char *filename)
 		argc++;
 
 		spn = strcspn(argv[0], WHITESP);
-		argv[1] = argv[0] + spn + strspn(argv[0] + spn, WHITESP);;
+		argv[1] = argv[0] + spn + strspn(argv[0] + spn, WHITESP);
 		argv[0][spn] = '\0';
 		if (*argv[1] != '\0')
 			argc++;
@@ -96,6 +96,7 @@ ddb_readfile(char *filename)
 #endif
 		ddb_main(argc, argv);
 	}
+	fclose(f);
 }
 
 void

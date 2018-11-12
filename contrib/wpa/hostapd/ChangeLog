@@ -1,10 +1,516 @@
 ChangeLog for hostapd
 
-2009-02-15 - v0.6.8
+2015-09-27 - v2.5
+	* fixed WPS UPnP vulnerability with HTTP chunked transfer encoding
+	  [http://w1.fi/security/2015-2/] (CVE-2015-4141)
+	* fixed WMM Action frame parser
+	  [http://w1.fi/security/2015-3/] (CVE-2015-4142)
+	* fixed EAP-pwd server missing payload length validation
+	  [http://w1.fi/security/2015-4/]
+	  (CVE-2015-4143, CVE-2015-4144, CVE-2015-4145)
+	* fixed validation of WPS and P2P NFC NDEF record payload length
+	  [http://w1.fi/security/2015-5/]
+	* nl80211:
+	  - fixed vendor command handling to check OUI properly
+	* fixed hlr_auc_gw build with OpenSSL
+	* hlr_auc_gw: allow Milenage RES length to be reduced
+	* disable HT for a station that does not support WMM/QoS
+	* added support for hashed password (NtHash) in EAP-pwd server
+	* fixed and extended dynamic VLAN cases
+	* added EAP-EKE server support for deriving Session-Id
+	* set Acct-Session-Id to a random value to make it more likely to be
+	  unique even if the device does not have a proper clock
+	* added more 2.4 GHz channels for 20/40 MHz HT co-ex scan
+	* modified SAE routines to be more robust and PWE generation to be
+	  stronger against timing attacks
+	* added support for Brainpool Elliptic Curves with SAE
+	* increases maximum value accepted for cwmin/cwmax
+	* added support for CCMP-256 and GCMP-256 as group ciphers with FT
+	* added Fast Session Transfer (FST) module
+	* removed optional fields from RSNE when using FT with PMF
+	  (workaround for interoperability issues with iOS 8.4)
+	* added EAP server support for TLS session resumption
+	* fixed key derivation for Suite B 192-bit AKM (this breaks
+	  compatibility with the earlier version)
+	* added mechanism to track unconnected stations and do minimal band
+	  steering
+	* number of small fixes
+
+2015-03-15 - v2.4
+	* allow OpenSSL cipher configuration to be set for internal EAP server
+	  (openssl_ciphers parameter)
+	* fixed number of small issues based on hwsim test case failures and
+	  static analyzer reports
+	* fixed Accounting-Request to not include duplicated Acct-Session-Id
+	* add support for Acct-Multi-Session-Id in RADIUS Accounting messages
+	* add support for PMKSA caching with SAE
+	* add support for generating BSS Load element (bss_load_update_period)
+	* fixed channel switch from VHT to HT
+	* add INTERFACE-ENABLED and INTERFACE-DISABLED ctrl_iface events
+	* add support for learning STA IPv4/IPv6 addresses and configuring
+	  ProxyARP support
+	* dropped support for the madwifi driver interface
+	* add support for Suite B (128-bit and 192-bit level) key management and
+	  cipher suites
+	* fixed a regression with driver=wired
+	* extend EAPOL-Key msg 1/4 retry workaround for changing SNonce
+	* add BSS_TM_REQ ctrl_iface command to send BSS Transition Management
+	  Request frames and BSS-TM-RESP event to indicate response to such
+	  frame
+	* add support for EAP Re-Authentication Protocol (ERP)
+	* fixed AP IE in EAPOL-Key 3/4 when both WPA and FT was enabled
+	* fixed a regression in HT 20/40 coex Action frame parsing
+	* set stdout to be line-buffered
+	* add support for vendor specific VHT extension to enable 256 QAM rates
+	  (VHT-MCS 8 and 9) on 2.4 GHz band
+	* RADIUS DAS:
+	  - extend Disconnect-Request processing to allow matching of multiple
+	    sessions
+	  - support Acct-Multi-Session-Id as an identifier
+	  - allow PMKSA cache entry to be removed without association
+	* expire hostapd STA entry if kernel does not have a matching entry
+	* allow chanlist to be used to specify a subset of channels for ACS
+	* improve ACS behavior on 2.4 GHz band and allow channel bias to be
+	  configured with acs_chan_bias parameter
+	* do not reply to a Probe Request frame that includes DSS Parameter Set
+	  element in which the channel does not match the current operating
+	  channel
+	* add UPDATE_BEACON ctrl_iface command; this can be used to force Beacon
+	  frame contents to be updated and to start beaconing on an interface
+	  that used start_disabled=1
+	* fixed some RADIUS server failover cases
+
+2014-10-09 - v2.3
+	* fixed number of minor issues identified in static analyzer warnings
+	* fixed DFS and channel switch operation for multi-BSS cases
+	* started to use constant time comparison for various password and hash
+	  values to reduce possibility of any externally measurable timing
+	  differences
+	* extended explicit clearing of freed memory and expired keys to avoid
+	  keeping private data in memory longer than necessary
+	* added support for number of new RADIUS attributes from RFC 7268
+	  (Mobility-Domain-Id, WLAN-HESSID, WLAN-Pairwise-Cipher,
+	  WLAN-Group-Cipher, WLAN-AKM-Suite, WLAN-Group-Mgmt-Pairwise-Cipher)
+	* fixed GET_CONFIG wpa_pairwise_cipher value
+	* added code to clear bridge FDB entry on station disconnection
+	* fixed PMKSA cache timeout from Session-Timeout for WPA/WPA2 cases
+	* fixed OKC PMKSA cache entry fetch to avoid a possible infinite loop
+	  in case the first entry does not match
+	* fixed hostapd_cli action script execution to use more robust mechanism
+	  (CVE-2014-3686)
+
+2014-06-04 - v2.2
+	* fixed SAE confirm-before-commit validation to avoid a potential
+	  segmentation fault in an unexpected message sequence that could be
+	  triggered remotely
+	* extended VHT support
+	  - Operating Mode Notification
+	  - Power Constraint element (local_pwr_constraint)
+	  - Spectrum management capability (spectrum_mgmt_required=1)
+	  - fix VHT80 segment picking in ACS
+	  - fix vht_capab 'Maximum A-MPDU Length Exponent' handling
+	  - fix VHT20
+	* fixed HT40 co-ex scan for some pri/sec channel switches
+	* extended HT40 co-ex support to allow dynamic channel width changes
+	  during the lifetime of the BSS
+	* fixed HT40 co-ex support to check for overlapping 20 MHz BSS
+	* fixed MSCHAP UTF-8 to UCS-2 conversion for three-byte encoding;
+	  this fixes password with include UTF-8 characters that use
+	  three-byte encoding EAP methods that use NtPasswordHash
+	* reverted TLS certificate validation step change in v2.1 that rejected
+	  any AAA server certificate with id-kp-clientAuth even if
+	  id-kp-serverAuth EKU was included
+	* fixed STA validation step for WPS ER commands to prevent a potential
+	  crash if an ER sends an unexpected PutWLANResponse to a station that
+	  is disassociated, but not fully removed
+	* enforce full EAP authentication after RADIUS Disconnect-Request by
+	  removing the PMKSA cache entry
+	* added support for NAS-IP-Address, NAS-identifier, and NAS-IPv6-Address
+	  in RADIUS Disconnect-Request
+	* added mechanism for removing addresses for MAC ACLs by prefixing an
+	  entry with "-"
+	* Interworking/Hotspot 2.0 enhancements
+	  - support Hotspot 2.0 Release 2
+	    * OSEN network for online signup connection
+	    * subscription remediation (based on RADIUS server request or
+	      control interface HS20_WNM_NOTIF for testing purposes)
+	    * Hotspot 2.0 release number indication in WFA RADIUS VSA
+	    * deauthentication request (based on RADIUS server request or
+	      control interface WNM_DEAUTH_REQ for testing purposes)
+	    * Session Info URL RADIUS AVP to trigger ESS Disassociation Imminent
+	    * hs20_icon config parameter to configure icon files for OSU
+	    * osu_* config parameters for OSU Providers list
+	  - do not use Interworking filtering rules on Probe Request if
+	    Interworking is disabled to avoid interop issues
+	* added/fixed nl80211 functionality
+	  - AP interface teardown optimization
+	  - support vendor specific driver command
+	    (VENDOR <vendor id> <sub command id> [<hex formatted data>])
+	* fixed PMF protection of Deauthentication frame when this is triggered
+	  by session timeout
+	* internal TLS implementation enhancements/fixes
+	  - add SHA256-based cipher suites
+	  - add DHE-RSA cipher suites
+	  - fix X.509 validation of PKCS#1 signature to check for extra data
+	* RADIUS server functionality
+	  - add minimal RADIUS accounting server support (hostapd-as-server);
+	    this is mainly to enable testing coverage with hwsim scripts
+	  - allow authentication log to be written into SQLite databse
+	  - added option for TLS protocol testing of an EAP peer by simulating
+	    various misbehaviors/known attacks
+	  - MAC ACL support for testing purposes
+	* fixed PTK derivation for CCMP-256 and GCMP-256
+	* extended WPS per-station PSK to support ER case
+	* added option to configure the management group cipher
+	  (group_mgmt_cipher=AES-128-CMAC (default), BIP-GMAC-128, BIP-GMAC-256,
+	  BIP-CMAC-256)
+	* fixed AP mode default TXOP Limit values for AC_VI and AC_VO (these
+	  were rounded incorrectly)
+	* added support for postponing FT response in case PMK-R1 needs to be
+	  pulled from R0KH
+	* added option to advertise 40 MHz intolerant HT capability with
+	  ht_capab=[40-INTOLERANT]
+	* remove WPS 1.0 only support, i.e., WSC 2.0 support is now enabled
+	  whenever CONFIG_WPS=y is set
+	* EAP-pwd fixes
+	  - fix possible segmentation fault on EAP method deinit if an invalid
+	    group is negotiated
+	* fixed RADIUS client retransmit/failover behavior
+	  - there was a potential ctash due to freed memory being accessed
+	  - failover to a backup server mechanism did not work properly
+	* fixed a possible crash on double DISABLE command when multiple BSSes
+	  are enabled
+	* fixed a memory leak in SAE random number generation
+	* fixed GTK rekeying when the station uses FT protocol
+	* fixed off-by-one bounds checking in printf_encode()
+	  - this could result in deinial of service in some EAP server cases
+	* various bug fixes
+
+2014-02-04 - v2.1
+	* added support for simultaneous authentication of equals (SAE) for
+	  stronger password-based authentication with WPA2-Personal
+	* added nl80211 functionality
+	  - VHT configuration for nl80211
+	  - support split wiphy dump
+	  - driver-based MAC ACL
+	  - QoS Mapping configuration
+	* added fully automated regression testing with mac80211_hwsim
+	* allow ctrl_iface group to be specified on command line (-G<group>)
+	* allow single hostapd process to control independent WPS interfaces
+	  (wps_independent=1) instead of synchronized operations through all
+	  configured interfaces within a process
+	* avoid processing received management frames multiple times when using
+	  nl80211 with multiple BSSes
+	* added support for DFS (processing radar detection events, CAC, channel
+	  re-selection)
+	* added EAP-EKE server
+	* added automatic channel selection (ACS)
+	* added option for using per-BSS (vif) configuration files with
+	  -b<phyname>:<config file name>
+	* extended global control interface ADD/REMOVE commands to allow BSSes
+	  of a radio to be removed individually without having to add/remove all
+	  other BSSes of the radio at the same time
+	* added support for sending debug info to Linux tracing (-T on command
+	  line)
+	* replace dump_file functionality with same information being available
+	  through the hostapd control interface
+	* added support for using Protected Dual of Public Action frames for
+	  GAS/ANQP exchanges when PMF is enabled
+	* added support for WPS+NFC updates
+	  - improved protocol
+	  - option to fetch and report alternative carrier records for external
+	    NFC operations
+	* various bug fixes
+
+2013-01-12 - v2.0
+	* added AP-STA-DISCONNECTED ctrl_iface event
+	* improved debug logging (human readable event names, interface name
+	  included in more entries)
+	* added number of small changes to make it easier for static analyzers
+	  to understand the implementation
+	* added a workaround for Windows 7 Michael MIC failure reporting and
+	  use of the Secure bit in EAPOL-Key msg 3/4
+	* fixed number of small bugs (see git logs for more details)
+	* changed OpenSSL to read full certificate chain from server_cert file
+	* nl80211: number of updates to use new cfg80211/nl80211 functionality
+	  - replace monitor interface with nl80211 commands
+	  - additional information for driver-based AP SME
+	* EAP-pwd:
+	  - fix KDF for group 21 and zero-padding
+	  - added support for fragmentation
+	  - increased maximum number of hunting-and-pecking iterations
+	* avoid excessive Probe Response retries for broadcast Probe Request
+	  frames (only with drivers using hostapd SME/MLME)
+	* added preliminary support for using TLS v1.2 (CONFIG_TLSV12=y)
+	* fixed WPS operation stopping on dual concurrent AP
+	* added wps_rf_bands configuration parameter for overriding RF Bands
+	  value for WPS
+	* added support for getting per-device PSK from RADIUS Tunnel-Password
+	* added support for libnl 3.2 and newer
+	* increased initial group key handshake retransmit timeout to 500 ms
+	* added a workaround for 4-way handshake to update SNonce even after
+	  having sent EAPOL-Key 3/4 to avoid issues with some supplicant
+	  implementations that can change SNonce for each EAP-Key 2/4
+	* added a workaround for EAPOL-Key 4/4 using incorrect type value in
+	  WPA2 mode (some deployed stations use WPA type in that message)
+	* added a WPS workaround for mixed mode AP Settings with Windows 7
+	* changed WPS AP PIN disabling mechanism to disable the PIN after 10
+	  consecutive failures in addition to using the exponential lockout
+	  period
+	* added support for WFA Hotspot 2.0
+	  - GAS/ANQP advertisement of network information
+	  - disable_dgaf parameter to disable downstream group-addressed
+	    forwarding
+	* simplified licensing terms by selecting the BSD license as the only
+	  alternative
+	* EAP-SIM: fixed re-authentication not to update pseudonym
+	* EAP-SIM: use Notification round before EAP-Failure
+	* EAP-AKA: added support for AT_COUNTER_TOO_SMALL
+	* EAP-AKA: skip AKA/Identity exchange if EAP identity is recognized
+	* EAP-AKA': fixed identity for MK derivation
+	* EAP-AKA': updated to RFC 5448 (username prefixes changed); note: this
+	  breaks interoperability with older versions
+	* EAP-SIM/AKA: allow pseudonym to be used after unknown reauth id
+	* changed ANonce to be a random number instead of Counter-based
+	* added support for canceling WPS operations with hostapd_cli wps_cancel
+	* fixed EAP/WPS to PSK transition on reassociation in cases where
+	  deauthentication is missed
+	* hlr_auc_gw enhancements:
+	  - a new command line parameter -u can be used to enable updating of
+	    SQN in Milenage file
+	  - use 5 bit IND for SQN updates
+	  - SQLite database can now be used to store Milenage information
+	* EAP-SIM/AKA DB: added optional use of SQLite database for pseudonyms
+	  and reauth data
+	* added support for Chargeable-User-Identity (RFC 4372)
+	* added radius_auth_req_attr and radius_acct_req_attr configuration
+	  parameters to allow adding/overriding of RADIUS attributes in
+	  Access-Request and Accounting-Request packets
+	* added support for RADIUS dynamic authorization server (RFC 5176)
+	* added initial support for WNM operations
+	  - BSS max idle period
+	  - WNM-Sleep Mode
+	* added new WPS NFC ctrl_iface mechanism
+	  - removed obsoleted WPS_OOB command (including support for deprecated
+	    UFD config_method)
+	* added FT support for drivers that implement MLME internally
+	* added SA Query support for drivers that implement MLME internally
+	* removed default ACM=1 from AC_VO and AC_VI
+	* changed VENDOR-TEST EAP method to use proper private enterprise number
+	  (this will not interoperate with older versions)
+	* added hostapd.conf parameter vendor_elements to allow arbitrary vendor
+	  specific elements to be added to the Beacon and Probe Response frames
+	* added support for configuring GCMP cipher for IEEE 802.11ad
+	* added support for 256-bit AES with internal TLS implementation
+	* changed EAPOL transmission to use AC_VO if WMM is active
+	* fixed EAP-TLS/PEAP/TTLS/FAST server to validate TLS Message Length
+	  correctly; invalid messages could have caused the hostapd process to
+	  terminate before this fix [CVE-2012-4445]
+	* limit number of active wildcard PINs for WPS Registrar to one to avoid
+	  confusing behavior with multiple wildcard PINs
+	* added a workaround for WPS PBC session overlap detection to avoid
+	  interop issues with deployed station implementations that do not
+	  remove active PBC indication from Probe Request frames properly
+	* added support for using SQLite for the eap_user database
+	* added Acct-Session-Id attribute into Access-Request messages
+	* fixed EAPOL frame transmission to non-QoS STAs with nl80211
+	  (do not send QoS frames if the STA did not negotiate use of QoS for
+	  this association)
+
+2012-05-10 - v1.0
+	* Add channel selection support in hostapd. See hostapd.conf.
+	* Add support for IEEE 802.11v Time Advertisement mechanism with UTC
+	  TSF offset. See hostapd.conf for config info.
+	* Delay STA entry removal until Deauth/Disassoc TX status in AP mode.
+	  This allows the driver to use PS buffering of Deauthentication and
+	  Disassociation frames when the STA is in power save sleep. Only
+	  available with drivers that provide TX status events for Deauth/
+	  Disassoc frames (nl80211).
+	* Allow PMKSA caching to be disabled on the Authenticator. See
+	  hostap.conf config parameter disable_pmksa_caching.
+	* atheros: Add support for IEEE 802.11w configuration.
+	* bsd: Add support for setting HT values in IFM_MMASK.
+	* Allow client isolation to be configured with ap_isolate. Client
+	  isolation can be used to prevent low-level bridging of frames
+	  between associated stations in the BSS. By default, this bridging
+	  is allowed.
+	* Allow coexistance of HT BSSes with WEP/TKIP BSSes.
+	* Add require_ht config parameter, which can be used to configure
+	  hostapd to reject association with any station that does not support
+	  HT PHY.
+	* Add support for writing debug log to a file using "-f" option. Also
+	  add relog CLI command to re-open the log file.
+	* Add bridge handling for WDS STA interfaces. By default they are
+	  added to the configured bridge of the AP interface (if present),
+	  but the user can also specify a separate bridge using cli command
+	  wds_bridge.
+	* hostapd_cli:
+	  - Add wds_bridge command for specifying bridge for WDS STA
+	    interfaces.
+	  - Add relog command for reopening log file.
+	  - Send AP-STA-DISCONNECTED event when an AP disconnects a station
+	    due to inactivity.
+	  - Add wps_config ctrl_interface command for configuring AP. This
+	    command can be used to configure the AP using the internal WPS
+	    registrar. It works in the same way as new AP settings received
+	    from an ER.
+	  - Many WPS/WPS ER commands - see WPS/WPS ER sections for details.
+	  - Add command get version, that returns hostapd version string.
+	* WNM: Add BSS Transition Management Request for ESS Disassoc Imminent.
+	  Use hostapd_cli ess_disassoc (STA addr) (URL) to send the
+	  notification to the STA.
+	* Allow AP mode to disconnect STAs based on low ACK condition (when
+	  the data connection is not working properly, e.g., due to the STA
+	  going outside the range of the AP). Disabled by default, enable by
+	  config option disassoc_low_ack.
+	* Add WPA_IGNORE_CONFIG_ERRORS build option to continue in case of bad
+	  config file.
+	* WPS:
+	  - Send AP Settings as a wrapped Credential attribute to ctrl_iface
+	    in WPS-NEW-AP-SETTINGS.
+	  - Dispatch more WPS events through hostapd ctrl_iface.
+	  - Add mechanism for indicating non-standard WPS errors.
+	  - Change concurrent radio AP to use only one WPS UPnP instance.
+	  - Add wps_check_pin command for processing PIN from user input.
+	    UIs can use this command to process a PIN entered by a user and to
+	    validate the checksum digit (if present).
+	  - Add hostap_cli get_config command to display current AP config.
+	  - Add new hostapd_cli command, wps_ap_pin, to manage AP PIN at
+	    runtime and support dynamic AP PIN management.
+	  - Disable AP PIN after 10 consecutive failures. Slow down attacks
+	    on failures up to 10.
+	  - Allow AP to start in Enrollee mode without AP PIN for probing,
+	    to be compatible with Windows 7.
+	  - Add Config Error into WPS-FAIL events to provide more info
+	    to the user on how to resolve the issue.
+	  - When controlling multiple interfaces:
+	     - apply WPS commands to all interfaces configured to use WPS
+	     - apply WPS config changes to all interfaces that use WPS
+	     - when an attack is detected on any interface, disable AP PIN on
+	       all interfaces
+	* WPS ER:
+	  - Show SetSelectedRegistrar events as ctrl_iface events.
+	  - Add special AP Setup Locked mode to allow read only ER.
+	    ap_setup_locked=2 can now be used to enable a special mode where
+	    WPS ER can learn the current AP settings, but cannot change them.
+	* WPS 2.0: Add support for WPS 2.0 (CONFIG_WPS2)
+	  - Add build option CONFIG_WPS_EXTENSIBILITY_TESTING to enable tool
+	    for testing protocol extensibility.
+	  - Add build option CONFIG_WPS_STRICT to allow disabling of WPS
+	    workarounds.
+	  - Add support for AuthorizedMACs attribute.
+	* TDLS:
+	  - Allow TDLS use or TDLS channel switching in the BSS to be
+	    prohibited in the BSS, using config params tdls_prohibit and
+	    tdls_prohibit_chan_switch.
+	* EAP server: Add support for configuring fragment size (see
+	  fragment_size in hostapd.conf).
+	* wlantest: Add a tool wlantest for IEEE802.11 protocol testing.
+	  wlantest can be used to capture frames from a monitor interface
+	  for realtime capturing or from pcap files for offline analysis.
+	* Interworking: Support added for 802.11u. Enable in .config with
+	  CONFIG_INTERWORKING. See hostapd.conf for config parameters for
+	  interworking.
+	* Android: Add build and runtime support for Android hostapd.
+	* Add a new debug message level for excessive information. Use
+	  -ddd to enable.
+	* TLS: Add support for tls_disable_time_checks=1 in client mode.
+	* Internal TLS:
+	  - Add support for TLS v1.1 (RFC 4346). Enable with build parameter
+	    CONFIG_TLSV11.
+	  - Add domainComponent parser for X.509 names
+	* Reorder some IEs to get closer to IEEE 802.11 standard. Move
+	  WMM into end of Beacon, Probe Resp and (Re)Assoc Resp frames.
+	  Move HT IEs to be later in (Re)Assoc Resp.
+	* Many bugfixes.
+
+2010-04-18 - v0.7.2
+	* fix WPS internal Registrar use when an external Registrar is also
+	  active
+	* bsd: Cleaned up driver wrapper and added various low-level
+	  configuration options
+	* TNC: fixed issues with fragmentation
+	* EAP-TNC: add Flags field into fragment acknowledgement (needed to
+	  interoperate with other implementations; may potentially breaks
+	  compatibility with older wpa_supplicant/hostapd versions)
+	* cleaned up driver wrapper API for multi-BSS operations
+	* nl80211: fix multi-BSS and VLAN operations
+	* fix number of issues with IEEE 802.11r/FT; this version is not
+	  backwards compatible with old versions
+	* add SA Query Request processing in AP mode (IEEE 802.11w)
+	* fix IGTK PN in group rekeying (IEEE 802.11w)
+	* fix WPS PBC session overlap detection to use correct attribute
+	* hostapd_notif_Assoc() can now be called with all IEs to simplify
+	  driver wrappers
+	* work around interoperability issue with some WPS External Registrar
+	  implementations
+	* nl80211: fix WPS IE update
+	* hostapd_cli: add support for action script operations (run a script
+	  on hostapd events)
+	* fix DH padding with internal crypto code (mainly, for WPS)
+	* fix WPS association with both WPS IE and WPA/RSN IE present with
+	  driver wrappers that use hostapd MLME (e.g., nl80211)
+
+2010-01-16 - v0.7.1
+	* cleaned up driver wrapper API (struct wpa_driver_ops); the new API
+	  is not fully backwards compatible, so out-of-tree driver wrappers
+	  will need modifications
+	* cleaned up various module interfaces
+	* merge hostapd and wpa_supplicant developers' documentation into a
+	  single document
+	* fixed HT Capabilities IE with nl80211 drivers
+	* moved generic AP functionality code into src/ap
+	* WPS: handle Selected Registrar as union of info from all Registrars
+	* remove obsolte Prism54.org driver wrapper
+	* added internal debugging mechanism with backtrace support and memory
+	  allocation/freeing validation, etc. tests (CONFIG_WPA_TRACE=y)
+	* EAP-FAST server: piggyback Phase 2 start with the end of Phase 1
+	* WPS: add support for dynamically selecting whether to provision the
+	  PSK as an ASCII passphrase or PSK
+	* added support for WDS (4-address frame) mode with per-station virtual
+	  interfaces (wds_sta=1 in config file; only supported with
+	  driver=nl80211 for now)
+	* fixed WPS Probe Request processing to handle missing required
+	  attribute
+	* fixed PKCS#12 use with OpenSSL 1.0.0
+	* detect bridge interface automatically so that bridge parameter in
+	  hostapd.conf becomes optional (though, it may now be used to
+	  automatically add then WLAN interface into a bridge with
+	  driver=nl80211)
+
+2009-11-21 - v0.7.0
 	* increased hostapd_cli ping interval to 5 seconds and made this
 	  configurable with a new command line options (-G<seconds>)
 	* driver_nl80211: use Linux socket filter to improve performance
 	* added support for external Registrars with WPS (UPnP transport)
+	* 802.11n: scan for overlapping BSSes before starting 20/40 MHz channel
+	* driver_nl80211: fixed STA accounting data collection (TX/RX bytes
+	  reported correctly; TX/RX packets not yet available from kernel)
+	* added support for WPS USBA out-of-band mechanism with USB Flash
+	  Drives (UFD) (CONFIG_WPS_UFD=y)
+	* fixed EAPOL/EAP reauthentication when using an external RADIUS
+	  authentication server
+	* fixed TNC with EAP-TTLS
+	* fixed IEEE 802.11r key derivation function to match with the standard
+	  (note: this breaks interoperability with previous version) [Bug 303]
+	* fixed SHA-256 based key derivation function to match with the
+	  standard when using CCMP (for IEEE 802.11r and IEEE 802.11w)
+	  (note: this breaks interoperability with previous version) [Bug 307]
+	* added number of code size optimizations to remove unnecessary
+	  functionality from the program binary based on build configuration
+	  (part of this automatic; part configurable with CONFIG_NO_* build
+	  options)
+	* use shared driver wrapper files with wpa_supplicant
+	* driver_nl80211: multiple updates to provide support for new Linux
+	  nl80211/mac80211 functionality
+	* updated management frame protection to use IEEE Std 802.11w-2009
+	* fixed number of small WPS issues and added workarounds to
+	  interoperate with common deployed broken implementations
+	* added some IEEE 802.11n co-existence rules to disable 40 MHz channels
+	  or modify primary/secondary channels if needed based on neighboring
+	  networks
+	* added support for NFC out-of-band mechanism with WPS
+	* added preliminary support for IEEE 802.11r RIC processing
 
 2009-01-06 - v0.6.7
 	* added support for Wi-Fi Protected Setup (WPS)

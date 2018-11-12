@@ -17,16 +17,14 @@ __stack_chk_fail(void)
 	panic("stack overflow detected; backtrace may be corrupted");
 }
 
-#define __arraycount(__x)	(sizeof(__x) / sizeof(__x[0]))
 static void
 __stack_chk_init(void *dummy __unused)
 {
 	size_t i;
-	long guard[__arraycount(__stack_chk_guard)];
+	long guard[nitems(__stack_chk_guard)];
 
 	arc4rand(guard, sizeof(guard), 0);
-	for (i = 0; i < __arraycount(guard); i++)
+	for (i = 0; i < nitems(guard); i++)
 		__stack_chk_guard[i] = guard[i];
 }
-/* SI_SUB_EVENTHANDLER is right after SI_SUB_LOCK used by arc4rand() init. */
-SYSINIT(stack_chk, SI_SUB_EVENTHANDLER, SI_ORDER_ANY, __stack_chk_init, NULL);
+SYSINIT(stack_chk, SI_SUB_RANDOM, SI_ORDER_ANY, __stack_chk_init, NULL);

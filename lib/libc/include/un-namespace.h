@@ -61,6 +61,7 @@
 #undef		listen
 #undef		nanosleep
 #undef		open
+#undef		openat
 #undef		poll
 #undef		pthread_atfork
 #undef		pthread_attr_destroy
@@ -117,6 +118,7 @@
 #undef		pthread_getprio
 #undef		pthread_getschedparam
 #undef		pthread_getspecific
+#undef		pthread_getthreadid_np
 #undef		pthread_join
 #undef		pthread_key_create
 #undef		pthread_key_delete
@@ -187,6 +189,7 @@
 #undef		readv
 #undef		recvfrom
 #undef		recvmsg
+#undef		recvmmsg
 #undef		select
 #undef		sem_close
 #undef		sem_destroy
@@ -199,6 +202,7 @@
 #undef		sem_unlink
 #undef		sem_wait
 #undef		sendmsg
+#undef		sendmmsg
 #undef		sendto
 #undef		setsockopt
 #undef		sigaction
@@ -208,6 +212,7 @@
 #undef		socketpair
 #undef		usleep
 #undef		wait4
+#undef		wait6
 #undef		waitpid
 #undef		write
 #undef		writev

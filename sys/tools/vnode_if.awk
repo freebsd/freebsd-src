@@ -165,13 +165,12 @@ if (hfile) {
 
 if (cfile) {
 	printc(common_head \
-	    "#include \"opt_kdtrace.h\"\n" \
-	    "\n" \
 	    "#include <sys/param.h>\n" \
 	    "#include <sys/event.h>\n" \
 	    "#include <sys/kernel.h>\n" \
 	    "#include <sys/mount.h>\n" \
 	    "#include <sys/sdt.h>\n" \
+	    "#include <sys/signalvar.h>\n" \
 	    "#include <sys/systm.h>\n" \
 	    "#include <sys/vnode.h>\n" \
 	    "\n" \
@@ -195,7 +194,7 @@ while ((getline < srcfile) > 0) {
 		continue;
 	if ($1 ~ /^%%/) {
 		if (NF != 6 ||
-		    $2 !~ /^[a-z]+$/  ||  $3 !~ /^[a-z]+$/  ||
+		    $2 !~ /^[a-z_]+$/  ||  $3 !~ /^[a-z]+$/  ||
 		    $4 !~ /^.$/  ||  $5 !~ /^.$/  ||  $6 !~ /^.$/) {
 			die("Invalid %s construction", "%%");
 			continue;
@@ -222,8 +221,6 @@ while ((getline < srcfile) > 0) {
 	name = $1;
 	uname = toupper(name);
 
-	# Start constructing a ktrpoint string
-	ctrstr = "\"" uname;
 	# Get the function arguments.
 	for (numargs = 0; ; ++numargs) {
 		if ((getline < srcfile) <= 0) {
@@ -267,27 +264,15 @@ while ((getline < srcfile) > 0) {
 		# remove trailing space (if any)
 		sub(/ $/, "");
 		types[numargs] = $0;
-
-		# We can do a maximum of 6 arguments to CTR*
-		if (numargs <= 6) {
-			if (numargs == 0)
-				ctrstr = ctrstr "(" args[numargs];
-			else
-				ctrstr = ctrstr ", " args[numargs];
-			if (types[numargs] ~ /\*/)
-				ctrstr = ctrstr " 0x%lX";
-			else
-				ctrstr = ctrstr " %ld";
-		}
 	}
-	if (numargs > 6)
-		ctrargs = 6;
+	if (numargs > 4)
+		ctrargs = 4;
 	else
 		ctrargs = numargs;
-	ctrstr = "\tCTR" ctrargs "(KTR_VOP,\n\t    " ctrstr ")\",\n\t    ";
-	ctrstr = ctrstr "a->a_" args[0];
+	ctrstr = ctrargs "(KTR_VOP, \"VOP\", \"" uname "\", (uintptr_t)a,\n\t    "; 
+	ctrstr = ctrstr "\"" args[0] ":0x%jX\", (uintptr_t)a->a_" args[0];
 	for (i = 1; i < ctrargs; ++i)
-		ctrstr = ctrstr ", a->a_" args[i];
+		ctrstr = ctrstr ", \"" args[i] ":0x%jX\", a->a_" args[i];
 	ctrstr = ctrstr ");";
 
 	if (pfile) {
@@ -374,16 +359,18 @@ while ((getline < srcfile) > 0) {
 		printc("\t    vop->"name" == NULL && vop->vop_bypass == NULL)")
 		printc("\t\tvop = vop->vop_default;")
 		printc("\tVNASSERT(vop != NULL, a->a_" args[0]", (\"No "name"(%p, %p)\", a->a_" args[0]", a));")
-		printc("\tSDT_PROBE(vfs, vop, " name ", entry, a->a_" args[0] ", a, 0, 0, 0);\n");
+		printc("\tSDT_PROBE2(vfs, vop, " name ", entry, a->a_" args[0] ", a);\n");
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "Entry", "\t");
+		printc("\tKTR_START" ctrstr);
 		add_pre(name);
+		printc("\tVFS_PROLOGUE(a->a_" args[0]"->v_mount);")
 		printc("\tif (vop->"name" != NULL)")
 		printc("\t\trc = vop->"name"(a);")
 		printc("\telse")
 		printc("\t\trc = vop->vop_bypass(&a->a_gen);")
-		printc(ctrstr);
-		printc("\tSDT_PROBE(vfs, vop, " name ", return, a->a_" args[0] ", a, rc, 0, 0);\n");
+		printc("\tVFS_EPILOGUE(a->a_" args[0]"->v_mount);")
+		printc("\tSDT_PROBE3(vfs, vop, " name ", return, a->a_" args[0] ", a, rc);\n");
 		printc("\tif (rc == 0) {");
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "OK", "\t\t");
@@ -392,6 +379,7 @@ while ((getline < srcfile) > 0) {
 			add_debug_code(name, args[i], "Error", "\t\t");
 		printc("\t}");
 		add_post(name);
+		printc("\tKTR_STOP" ctrstr);
 		printc("\treturn (rc);");
 		printc("}\n");
 

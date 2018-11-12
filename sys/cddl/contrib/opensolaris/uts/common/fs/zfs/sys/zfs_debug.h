@@ -19,14 +19,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_ZFS_DEBUG_H
 #define	_SYS_ZFS_DEBUG_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -45,16 +43,23 @@ extern "C" {
  */
 
 #if defined(DEBUG) || !defined(_KERNEL)
+#if !defined(ZFS_DEBUG)
 #define	ZFS_DEBUG
+#endif
 #endif
 
 extern int zfs_flags;
+extern boolean_t zfs_recover;
+extern boolean_t zfs_free_leak_on_eio;
 
-#define	ZFS_DEBUG_DPRINTF	0x0001
-#define	ZFS_DEBUG_DBUF_VERIFY	0x0002
-#define	ZFS_DEBUG_DNODE_VERIFY	0x0004
-#define	ZFS_DEBUG_SNAPNAMES	0x0008
-#define	ZFS_DEBUG_MODIFY	0x0010
+#define	ZFS_DEBUG_DPRINTF		(1<<0)
+#define	ZFS_DEBUG_DBUF_VERIFY		(1<<1)
+#define	ZFS_DEBUG_DNODE_VERIFY		(1<<2)
+#define	ZFS_DEBUG_SNAPNAMES		(1<<3)
+#define	ZFS_DEBUG_MODIFY		(1<<4)
+#define	ZFS_DEBUG_SPA			(1<<5)
+#define	ZFS_DEBUG_ZIO_FREE		(1<<6)
+#define	ZFS_DEBUG_HISTOGRAM_VERIFY	(1<<7)
 
 #ifdef ZFS_DEBUG
 extern void __dprintf(const char *file, const char *func,
@@ -67,6 +72,23 @@ extern void __dprintf(const char *file, const char *func,
 #endif /* ZFS_DEBUG */
 
 extern void zfs_panic_recover(const char *fmt, ...);
+
+typedef struct zfs_dbgmsg {
+	list_node_t zdm_node;
+	time_t zdm_timestamp;
+	char zdm_msg[1]; /* variable length allocation */
+} zfs_dbgmsg_t;
+
+extern void zfs_dbgmsg_init(void);
+extern void zfs_dbgmsg_fini(void);
+extern void zfs_dbgmsg(const char *fmt, ...);
+extern void zfs_dbgmsg_print(const char *tag);
+
+#ifdef illumos
+#ifndef _KERNEL
+extern int dprintf_find_string(const char *string);
+#endif
+#endif /* illumos */
 
 #ifdef	__cplusplus
 }

@@ -9,7 +9,7 @@
 
 #ifndef _h_config
 #define _h_config
-/****************** System dependant compilation flags ****************/
+/****************** System dependent compilation flags ****************/
 /*
  * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
  */
@@ -34,7 +34,8 @@
  *		Note that some machines eg. rs6000 have a vfork, but not
  *		with the berkeley semantics, so we cannot use it there either.
  */
-#define VFORK
+/* #define VFORK */
+#define	vfork fork
 
 /*
  * BSDJOBS	You have BSD-style job control (both process groups and
@@ -85,6 +86,7 @@
 /* Use LC_MESSAGES locale category to open the message catalog */
 #define MCLoadBySet NL_CAT_LOCALE
 #define BUFSIZE 8192
+#define UTMPX_FILE "/var/run/utx.active"
 #endif
 
 #if defined(__bsdi__)
@@ -105,9 +107,6 @@
 
 #elif defined(__APPLE__)
 # define SYSMALLOC
-
-#else
-# define NLS_CATALOGS
 #endif
 
 #endif /* _h_config */

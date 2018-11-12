@@ -64,7 +64,6 @@ char *ahd_chip_names[] =
 	"aic7902",
 	"aic7901A"
 };
-static const u_int num_chip_names = NUM_ELEMENTS(ahd_chip_names);
 
 /*
  * Hardware error codes.
@@ -401,6 +400,7 @@ ahd_flush_qoutfifo(struct ahd_softc *ahd)
 		if (scb == NULL) {
 			printf("%s: Warning - GSFIFO SCB %d invalid\n",
 			       ahd_name(ahd), scbid);
+			AHD_CORRECTABLE_ERROR(ahd);
 			continue;
 		}
 		/*
@@ -525,6 +525,7 @@ rescan_fifos:
 		if (scb == NULL) {
 			printf("%s: Warning - DMA-up and complete "
 			       "SCB %d invalid\n", ahd_name(ahd), scbid);
+			AHD_CORRECTABLE_ERROR(ahd);
 			continue;
 		}
 		hscb_ptr = (uint8_t *)scb->hscb;
@@ -546,6 +547,7 @@ rescan_fifos:
 		if (scb == NULL) {
 			printf("%s: Warning - Complete Qfrz SCB %d invalid\n",
 			       ahd_name(ahd), scbid);
+			AHD_CORRECTABLE_ERROR(ahd);
 			continue;
 		}
 
@@ -563,6 +565,7 @@ rescan_fifos:
 		if (scb == NULL) {
 			printf("%s: Warning - Complete SCB %d invalid\n",
 			       ahd_name(ahd), scbid);
+			AHD_CORRECTABLE_ERROR(ahd);
 			continue;
 		}
 
@@ -870,6 +873,7 @@ ahd_run_qoutfifo(struct ahd_softc *ahd)
 			       "(cmdcmplt)\nQOUTPOS = %d\n",
 			       ahd_name(ahd), scb_index,
 			       ahd->qoutfifonext);
+			AHD_CORRECTABLE_ERROR(ahd);
 			ahd_dump_card_state(ahd);
 		} else if ((completion->sg_status & SG_STATUS_VALID) != 0) {
 			ahd_handle_scb_status(ahd, scb);
@@ -897,9 +901,11 @@ ahd_handle_hwerrint(struct ahd_softc *ahd)
 
 	error = ahd_inb(ahd, ERROR);
 	for (i = 0; i < num_errors; i++) {
-		if ((error & ahd_hard_errors[i].errno) != 0)
+		if ((error & ahd_hard_errors[i].errno) != 0) {
 			printf("%s: hwerrint, %s\n",
 			       ahd_name(ahd), ahd_hard_errors[i].errmesg);
+			AHD_UNCORRECTABLE_ERROR(ahd);
+		}
 	}
 
 	ahd_dump_card_state(ahd);
@@ -990,6 +996,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 		       ahd_name(ahd));
 		ahd_dump_card_state(ahd);
 		ahd_reset_channel(ahd, 'A', /*Initiate Reset*/TRUE);
+		AHD_UNCORRECTABLE_ERROR(ahd);
 		break;
 	case STATUS_OVERRUN:
 	{
@@ -1005,6 +1012,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 		printf("SCB %d Packetized Status Overrun", scbid);
 		ahd_dump_card_state(ahd);
 		ahd_reset_channel(ahd, 'A', /*Initiate Reset*/TRUE);
+		AHD_UNCORRECTABLE_ERROR(ahd);
 		break;
 	}
 	case CFG4ISTAT_INTR:
@@ -1017,6 +1025,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 		if (scb == NULL) {
 			ahd_dump_card_state(ahd);
 			printf("CFG4ISTAT: Free SCB %d referenced", scbid);
+			AHD_FATAL_ERROR(ahd);
 			panic("For safety");
 		}
 		ahd_outq(ahd, HADDR, scb->sense_busaddr);
@@ -1044,14 +1053,13 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 		case P_MESGIN:
 			ahd_reset_channel(ahd, 'A', /*Initiate Reset*/TRUE);
 			printf("%s: Issued Bus Reset.\n", ahd_name(ahd));
+			AHD_UNCORRECTABLE_ERROR(ahd);
 			break;
 		case P_COMMAND:
 		{
 			struct	ahd_devinfo devinfo;
 			struct	scb *scb;
-			struct	ahd_initiator_tinfo *targ_info;
 			struct	ahd_tmode_tstate *tstate;
-			struct	ahd_transinfo *tinfo;
 			u_int	scbid;
 
 			/*
@@ -1068,6 +1076,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 			scbid = ahd_get_scbptr(ahd);
 			scb = ahd_lookup_scb(ahd, scbid);
 			if (scb == NULL) {
+				AHD_CORRECTABLE_ERROR(ahd);
 				printf("Invalid phase with no valid SCB.  "
 				       "Resetting bus.\n");
 				ahd_reset_channel(ahd, 'A',
@@ -1079,12 +1088,11 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 					    SCB_GET_LUN(scb),
 					    SCB_GET_CHANNEL(ahd, scb),
 					    ROLE_INITIATOR);
-			targ_info = ahd_fetch_transinfo(ahd,
-							devinfo.channel,
-							devinfo.our_scsiid,
-							devinfo.target,
-							&tstate);
-			tinfo = &targ_info->curr;
+			ahd_fetch_transinfo(ahd,
+					    devinfo.channel,
+					    devinfo.our_scsiid,
+					    devinfo.target,
+					    &tstate);
 			ahd_set_width(ahd, &devinfo, MSG_EXT_WDTR_BUS_8_BIT,
 				      AHD_TRANS_ACTIVE, /*paused*/TRUE);
 			ahd_set_syncrate(ahd, &devinfo, /*period*/0,
@@ -1127,6 +1135,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 #ifdef AHD_DEBUG
 			if ((ahd_debug & AHD_SHOW_RECOVERY) != 0) {
 				ahd_print_path(ahd, scb);
+				AHD_CORRECTABLE_ERROR(ahd);
 				printf("Unexpected command phase from "
 				       "packetized target\n");
 			}
@@ -1197,7 +1206,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 		 * that requires host assistance for completion.
 		 * While handling the message phase(s), we will be
 		 * notified by the sequencer after each byte is
-		 * transfered so we can track bus phase changes.
+		 * transferred so we can track bus phase changes.
 		 *
 		 * If this is the first time we've seen a HOST_MSG_LOOP
 		 * interrupt, initialize the state of the host message
@@ -1214,6 +1223,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 			 && bus_phase != P_MESGOUT) {
 				printf("ahd_intr: HOST_MSG_LOOP bad "
 				       "phase 0x%x\n", bus_phase);
+				AHD_CORRECTABLE_ERROR(ahd);
 				/*
 				 * Probably transitioned to bus free before
 				 * we got here.  Just punt the message.
@@ -1316,6 +1326,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 		       ahd_name(ahd), 'A',
 		       SCSIID_TARGET(ahd, ahd_inb(ahd, SAVED_SCSIID)),
 		       lastphase, ahd_inb(ahd, SCSISIGI));
+		AHD_CORRECTABLE_ERROR(ahd);
 		break;
 	}
 	case MISSED_BUSFREE:
@@ -1328,6 +1339,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 		       ahd_name(ahd), 'A',
 		       SCSIID_TARGET(ahd, ahd_inb(ahd, SAVED_SCSIID)),
 		       lastphase, ahd_inb(ahd, SCSISIGI));
+		AHD_CORRECTABLE_ERROR(ahd);
 		ahd_restart(ahd);
 		return;
 	}
@@ -1387,6 +1399,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 		       devinfo.lun);
 		scbid = ahd_get_scbptr(ahd);
 		scb = ahd_lookup_scb(ahd, scbid);
+		AHD_CORRECTABLE_ERROR(ahd);
 		if (scb != NULL
 		 && (scb->flags & SCB_RECOVERY_SCB) != 0)
 			/*
@@ -1570,11 +1583,13 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 
 		printf("%s: SCSI offset overrun detected.  Resetting bus.\n",
 		       ahd_name(ahd));
+		AHD_CORRECTABLE_ERROR(ahd);
 		ahd_reset_channel(ahd, 'A', /*Initiate Reset*/TRUE);
 	} else if ((status & SCSIRSTI) != 0) {
 
 		printf("%s: Someone reset channel A\n", ahd_name(ahd));
 		ahd_reset_channel(ahd, 'A', /*Initiate Reset*/FALSE);
+		AHD_UNCORRECTABLE_ERROR(ahd);
 	} else if ((status & SCSIPERR) != 0) {
 
 		/* Make sure the sequencer is in a safe location. */
@@ -1605,7 +1620,7 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 		/*
 		 * Although the driver does not care about the
 		 * 'Selection in Progress' status bit, the busy
-		 * LED does.  SELINGO is only cleared by a sucessfull
+		 * LED does.  SELINGO is only cleared by a successful
 		 * selection, so we must manually clear it to insure
 		 * the LED turns off just incase no future successful
 		 * selections occur (e.g. no devices on the bus).
@@ -1619,6 +1634,7 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 			       "valid during SELTO scb(0x%x)\n",
 			       ahd_name(ahd), scbid);
 			ahd_dump_card_state(ahd);
+			AHD_UNCORRECTABLE_ERROR(ahd);
 		} else {
 			struct ahd_devinfo devinfo;
 #ifdef AHD_DEBUG
@@ -1654,6 +1670,7 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 	} else if (status3 != 0) {
 		printf("%s: SCSI Cell parity error SSTAT3 == 0x%x\n",
 		       ahd_name(ahd), status3);
+		AHD_CORRECTABLE_ERROR(ahd);
 		ahd_outb(ahd, CLRSINT3, status3);
 	} else if ((lqistat1 & (LQIPHASE_LQ|LQIPHASE_NLQ)) != 0) {
 
@@ -1712,6 +1729,7 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 				       "during unexpected busfree\n",
 				       ahd_name(ahd), scbid, mode);
 				packetized = 0;
+				AHD_CORRECTABLE_ERROR(ahd);
 			} else
 				packetized = (scb->flags & SCB_PACKETIZED) != 0;
 			clear_fifo = 1;
@@ -1796,7 +1814,6 @@ ahd_handle_transmission_error(struct ahd_softc *ahd)
 	struct	scb *scb;
 	u_int	scbid;
 	u_int	lqistat1;
-	u_int	lqistat2;
 	u_int	msg_out;
 	u_int	curphase;
 	u_int	lastphase;
@@ -1807,7 +1824,7 @@ ahd_handle_transmission_error(struct ahd_softc *ahd)
 	scb = NULL;
 	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
 	lqistat1 = ahd_inb(ahd, LQISTAT1) & ~(LQIPHASE_LQ|LQIPHASE_NLQ);
-	lqistat2 = ahd_inb(ahd, LQISTAT2);
+	ahd_inb(ahd, LQISTAT2);
 	if ((lqistat1 & (LQICRCI_NLQ|LQICRCI_LQ)) == 0
 	 && (ahd->bugs & AHD_NLQICRC_DELAYED_BUG) != 0) {
 		u_int lqistate;
@@ -1856,6 +1873,7 @@ ahd_handle_transmission_error(struct ahd_softc *ahd)
 		ahd_scsisigi_print(curphase, &cur_col, 50);
 		ahd_perrdiag_print(perrdiag, &cur_col, 50);
 		printf("\n");
+		AHD_CORRECTABLE_ERROR(ahd);
 		ahd_dump_card_state(ahd);
 	}
 
@@ -1864,6 +1882,7 @@ ahd_handle_transmission_error(struct ahd_softc *ahd)
 			printf("%s: Gross protocol error during incoming "
 			       "packet.  lqistat1 == 0x%x.  Resetting bus.\n",
 			       ahd_name(ahd), lqistat1);
+			AHD_UNCORRECTABLE_ERROR(ahd);
 		}
 		ahd_reset_channel(ahd, 'A', /*Initiate Reset*/TRUE);
 		return;
@@ -1891,6 +1910,7 @@ ahd_handle_transmission_error(struct ahd_softc *ahd)
 		 */
 		ahd_outb(ahd, LQCTL2, LQIRETRY);
 		printf("LQIRetry for LQICRCI_LQ to release ACK\n");
+		AHD_CORRECTABLE_ERROR(ahd);
 	} else if ((lqistat1 & LQICRCI_NLQ) != 0) {
 		/*
 		 * We detected a CRC error in a NON-LQ packet.
@@ -1942,6 +1962,7 @@ ahd_handle_transmission_error(struct ahd_softc *ahd)
 		if (scb == NULL) {
 			printf("%s: No SCB valid for LQICRC_NLQ.  "
 			       "Resetting bus\n", ahd_name(ahd));
+			AHD_UNCORRECTABLE_ERROR(ahd);
 			ahd_reset_channel(ahd, 'A', /*Initiate Reset*/TRUE);
 			return;
 		}
@@ -1999,9 +2020,11 @@ ahd_handle_lqiphase_error(struct ahd_softc *ahd, u_int lqistat1)
 	 && (ahd_inb(ahd, MDFFSTAT) & DLZERO) != 0) {
 		if ((lqistat1 & LQIPHASE_LQ) != 0) {
 			printf("LQIRETRY for LQIPHASE_LQ\n");
+			AHD_CORRECTABLE_ERROR(ahd);
 			ahd_outb(ahd, LQCTL2, LQIRETRY);
 		} else if ((lqistat1 & LQIPHASE_NLQ) != 0) {
 			printf("LQIRETRY for LQIPHASE_NLQ\n");
+			AHD_CORRECTABLE_ERROR(ahd);
 			ahd_outb(ahd, LQCTL2, LQIRETRY);
 		} else
 			panic("ahd_handle_lqiphase_error: No phase errors\n");
@@ -2010,6 +2033,7 @@ ahd_handle_lqiphase_error(struct ahd_softc *ahd, u_int lqistat1)
 		ahd_unpause(ahd);
 	} else {
 		printf("Reseting Channel for LQI Phase error\n");
+		AHD_CORRECTABLE_ERROR(ahd);
 		ahd_dump_card_state(ahd);
 		ahd_reset_channel(ahd, 'A', /*Initiate Reset*/TRUE);
 	}
@@ -2099,6 +2123,7 @@ ahd_handle_pkt_busfree(struct ahd_softc *ahd, u_int busfreetime)
 				ahd_print_path(ahd, scb);
 				printf("Probable outgoing LQ CRC error.  "
 				       "Retrying command\n");
+				AHD_CORRECTABLE_ERROR(ahd);
 			}
 			scb->crc_retry_count++;
 		} else {
@@ -2134,6 +2159,7 @@ ahd_handle_pkt_busfree(struct ahd_softc *ahd, u_int busfreetime)
 		scb = ahd_lookup_scb(ahd, scbid);
 		ahd_print_path(ahd, scb);
 		printf("Unexpected PKT busfree condition\n");
+		AHD_UNCORRECTABLE_ERROR(ahd);
 		ahd_dump_card_state(ahd);
 		ahd_abort_scbs(ahd, SCB_GET_TARGET(ahd, scb), 'A',
 			       SCB_GET_LUN(scb), SCB_GET_TAG(scb),
@@ -2143,6 +2169,7 @@ ahd_handle_pkt_busfree(struct ahd_softc *ahd, u_int busfreetime)
 		return (1);
 	}
 	printf("%s: Unexpected PKT busfree condition\n", ahd_name(ahd));
+	AHD_UNCORRECTABLE_ERROR(ahd);
 	ahd_dump_card_state(ahd);
 	/* Restart the sequencer. */
 	return (1);
@@ -2421,6 +2448,7 @@ ahd_handle_nonpkt_busfree(struct ahd_softc *ahd)
 		       ahd_lookup_phase_entry(lastphase)->phasemsg,
 		       aborted,
 		       ahd_inw(ahd, PRGMCNT));
+		AHD_UNCORRECTABLE_ERROR(ahd);
 		ahd_dump_card_state(ahd);
 		if (lastphase != P_BUSFREE)
 			ahd_force_renegotiation(ahd, &devinfo);
@@ -2456,6 +2484,7 @@ ahd_handle_proto_violation(struct ahd_softc *ahd)
 		ahd_print_devinfo(ahd, &devinfo);
 		printf("Target did not send an IDENTIFY message. "
 		       "LASTPHASE = 0x%x.\n", lastphase);
+		AHD_UNCORRECTABLE_ERROR(ahd);
 		scb = NULL;
 	} else if (scb == NULL) {
 		/*
@@ -2464,12 +2493,14 @@ ahd_handle_proto_violation(struct ahd_softc *ahd)
 		 */
 		ahd_print_devinfo(ahd, &devinfo);
 		printf("No SCB found during protocol violation\n");
+		AHD_UNCORRECTABLE_ERROR(ahd);
 		goto proto_violation_reset;
 	} else {
 		aic_set_transaction_status(scb, CAM_SEQUENCE_FAIL);
 		if ((seq_flags & NO_CDB_SENT) != 0) {
 			ahd_print_path(ahd, scb);
 			printf("No or incomplete CDB sent to device.\n");
+			AHD_UNCORRECTABLE_ERROR(ahd);
 		} else if ((ahd_inb_scbram(ahd, SCB_CONTROL)
 			  & STATUS_RCVD) == 0) {
 			/*
@@ -2484,6 +2515,7 @@ ahd_handle_proto_violation(struct ahd_softc *ahd)
 		} else {
 			ahd_print_path(ahd, scb);
 			printf("Unknown protocol violation.\n");
+			AHD_UNCORRECTABLE_ERROR(ahd);
 			ahd_dump_card_state(ahd);
 		}
 	}
@@ -2499,6 +2531,7 @@ proto_violation_reset:
 		found = ahd_reset_channel(ahd, 'A', TRUE);
 		printf("%s: Issued Channel %c Bus Reset. "
 		       "%d SCBs aborted\n", ahd_name(ahd), 'A', found);
+		AHD_UNCORRECTABLE_ERROR(ahd);
 	} else {
 		/*
 		 * Leave the selection hardware off in case
@@ -2521,6 +2554,7 @@ proto_violation_reset:
 		}
 		printf("Protocol violation %s.  Attempting to abort.\n",
 		       ahd_lookup_phase_entry(curphase)->phasemsg);
+		AHD_UNCORRECTABLE_ERROR(ahd);
 	}
 }
 
@@ -2602,6 +2636,7 @@ ahd_clear_critical_section(struct ahd_softc *ahd)
 			       "%s: First Instruction 0x%x now 0x%x\n",
 			       ahd_name(ahd), ahd_name(ahd), first_instr,
 			       seqaddr);
+			AHD_FATAL_ERROR(ahd);
 			ahd_dump_card_state(ahd);
 			panic("critical section loop");
 		}
@@ -2660,7 +2695,7 @@ ahd_clear_critical_section(struct ahd_softc *ahd)
 		ahd_outb(ahd, SEQCTL0, ahd_inb(ahd, SEQCTL0) & ~STEP);
   		ahd_outb(ahd, SIMODE1, simode1);
 		/*
-		 * SCSIINT seems to glitch occassionally when
+		 * SCSIINT seems to glitch occasionally when
 		 * the interrupt masks are restored.  Clear SCSIINT
 		 * one more time so that only persistent errors
 		 * are seen as a real interrupt.
@@ -2741,10 +2776,8 @@ ahd_dump_sglist(struct scb *scb)
 			sg_list = (struct ahd_dma64_seg*)scb->sg_list;
 			for (i = 0; i < scb->sg_count; i++) {
 				uint64_t addr;
-				uint32_t len;
 
 				addr = aic_le64toh(sg_list[i].addr);
-				len = aic_le32toh(sg_list[i].len);
 				printf("sg[%d] - Addr 0x%x%x : Length %d%s\n",
 				       i,
 				       (uint32_t)((addr >> 32) & 0xFFFFFFFF),
@@ -2990,7 +3023,7 @@ ahd_validate_width(struct ahd_softc *ahd, struct ahd_initiator_tinfo *tinfo,
 
 /*
  * Update the bitmask of targets for which the controller should
- * negotiate with at the next convenient oportunity.  This currently
+ * negotiate with at the next convenient opportunity.  This currently
  * means the next time we send the initial identify messages for
  * a new transaction.
  */
@@ -3341,7 +3374,7 @@ ahd_update_neg_table(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 
 	/*
 	 * During packetized transfers, the target will
-	 * give us the oportunity to send command packets
+	 * give us the opportunity to send command packets
 	 * without us asserting attention.
 	 */
 	if ((tinfo->ppr_options & MSG_EXT_PPR_IU_REQ) == 0)
@@ -3379,13 +3412,12 @@ ahd_update_pending_scbs(struct ahd_softc *ahd)
 	pending_scb_count = 0;
 	LIST_FOREACH(pending_scb, &ahd->pending_scbs, pending_links) {
 		struct ahd_devinfo devinfo;
-		struct ahd_initiator_tinfo *tinfo;
 		struct ahd_tmode_tstate *tstate;
 
 		ahd_scb_devinfo(ahd, &devinfo, pending_scb);
-		tinfo = ahd_fetch_transinfo(ahd, devinfo.channel,
-					    devinfo.our_scsiid,
-					    devinfo.target, &tstate);
+		ahd_fetch_transinfo(ahd, devinfo.channel,
+				    devinfo.our_scsiid,
+				    devinfo.target, &tstate);
 		if ((tstate->auto_negotiate & devinfo.target_mask) == 0
 		 && (pending_scb->flags & SCB_AUTO_NEGOTIATE) != 0) {
 			pending_scb->flags &= ~SCB_AUTO_NEGOTIATE;
@@ -3566,6 +3598,7 @@ ahd_setup_initiator_msgout(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 	} else if (scb == NULL) {
 		printf("%s: WARNING. No pending message for "
 		       "I_T msgin.  Issuing NO-OP\n", ahd_name(ahd));
+		AHD_CORRECTABLE_ERROR(ahd);
 		ahd->msgout_buf[ahd->msgout_index++] = MSG_NOOP;
 		ahd->msgout_len++;
 		ahd->msg_type = MSG_TYPE_INITIATOR_MSGOUT;
@@ -3596,6 +3629,7 @@ ahd_setup_initiator_msgout(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 		ahd->msgout_len++;
 		ahd_print_path(ahd, scb);
 		printf("Bus Device Reset Message Sent\n");
+		AHD_CORRECTABLE_ERROR(ahd);
 		/*
 		 * Clear our selection hardware in advance of
 		 * the busfree.  We may have an entry in the waiting
@@ -3615,6 +3649,7 @@ ahd_setup_initiator_msgout(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 		ahd_print_path(ahd, scb);
 		printf("Abort%s Message Sent\n",
 		       (scb->hscb->control & TAG_ENB) != 0 ? " Tag" : "");
+		AHD_CORRECTABLE_ERROR(ahd);
 		/*
 		 * Clear our selection hardware in advance of
 		 * the busfree.  We may have an entry in the waiting
@@ -3638,6 +3673,7 @@ ahd_setup_initiator_msgout(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 		       "does not have a waiting message\n");
 		printf("SCSIID = %x, target_mask = %x\n", scb->hscb->scsiid,
 		       devinfo->target_mask);
+		AHD_FATAL_ERROR(ahd);
 		panic("SCB = %d, SCB Control = %x:%x, MSG_OUT = %x "
 		      "SCB flags = %x", SCB_GET_TAG(scb), scb->hscb->control,
 		      ahd_inb_scbram(ahd, SCB_CONTROL), ahd_inb(ahd, MSG_OUT),
@@ -4802,7 +4838,7 @@ ahd_handle_msg_reject(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 
 		/*
 		 * Requeue all tagged commands for this target
-		 * currently in our posession so they can be
+		 * currently in our possession so they can be
 		 * converted to untagged commands.
 		 */
 		ahd_search_qinfifo(ahd, SCB_GET_TARGET(ahd, scb),
@@ -5129,9 +5165,11 @@ ahd_handle_devreset(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 			       lun, AC_SENT_BDR, NULL);
 
 	if (message != NULL
-	 && (verbose_level <= bootverbose))
+	 && (verbose_level <= bootverbose)) {
+		AHD_CORRECTABLE_ERROR(ahd);
 		printf("%s: %s on %c:%d. %d SCBs aborted\n", ahd_name(ahd),
 		       message, devinfo->channel, devinfo->target, found);
+	}
 }
 
 #ifdef AHD_TARGET_MODE
@@ -5375,8 +5413,6 @@ ahd_free(struct ahd_softc *ahd)
 	case 3:
 		aic_dmamem_free(ahd, ahd->shared_data_dmat, ahd->qoutfifo,
 				ahd->shared_data_map.dmamap);
-		aic_dmamap_destroy(ahd, ahd->shared_data_dmat,
-				   ahd->shared_data_map.dmamap);
 		/* FALLTHROUGH */
 	case 2:
 		aic_dma_tag_destroy(ahd, ahd->shared_data_dmat);
@@ -5453,7 +5489,7 @@ ahd_shutdown(void *arg)
 /*
  * Reset the controller and record some information about it
  * that is only available just after a reset.  If "reinit" is
- * non-zero, this reset occured after initial configuration
+ * non-zero, this reset occurred after initial configuration
  * and the caller requests that the chip be fully reinitialized
  * to a runable state.  Chip interrupts are *not* enabled after
  * a reinitialization.  The caller must enable interrupts via
@@ -5509,6 +5545,7 @@ ahd_reset(struct ahd_softc *ahd, int reinit)
 	if (wait == 0) {
 		printf("%s: WARNING - Failed chip reset!  "
 		       "Trying to initialize anyway.\n", ahd_name(ahd));
+		AHD_FATAL_ERROR(ahd);
 	}
 	ahd_outb(ahd, HCNTRL, ahd->pause);
 
@@ -5630,6 +5667,7 @@ ahd_init_scbdata(struct ahd_softc *ahd)
 	scb_data->maxhscbs = ahd_probe_scbs(ahd);
 	if (scb_data->maxhscbs == 0) {
 		printf("%s: No SCB space found\n", ahd_name(ahd));
+		AHD_FATAL_ERROR(ahd);
 		return (ENXIO);
 	}
 
@@ -5704,7 +5742,7 @@ ahd_init_scbdata(struct ahd_softc *ahd)
 	}
 
 	/*
-	 * Note that we were successfull
+	 * Note that we were successful
 	 */
 	return (0); 
 
@@ -6051,7 +6089,8 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 		/* Allocate the next batch of hardware SCBs */
 		if (aic_dmamem_alloc(ahd, scb_data->hscb_dmat,
 				     (void **)&hscb_map->vaddr,
-				     BUS_DMA_NOWAIT, &hscb_map->dmamap) != 0) {
+				     BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
+				     &hscb_map->dmamap) != 0) {
 			free(hscb_map, M_DEVBUF);
 			return (0);
 		}
@@ -6084,7 +6123,8 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 		/* Allocate the next batch of S/G lists */
 		if (aic_dmamem_alloc(ahd, scb_data->sg_dmat,
 				     (void **)&sg_map->vaddr,
-				     BUS_DMA_NOWAIT, &sg_map->dmamap) != 0) {
+				     BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
+				     &sg_map->dmamap) != 0) {
 			free(sg_map, M_DEVBUF);
 			return (0);
 		}
@@ -6349,7 +6389,7 @@ ahd_init(struct ahd_softc *ahd)
 	/* Allocation of driver data */
 	if (aic_dmamem_alloc(ahd, ahd->shared_data_dmat,
 			     (void **)&ahd->shared_data_map.vaddr,
-			     BUS_DMA_NOWAIT,
+			     BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
 			     &ahd->shared_data_map.dmamap) != 0) {
 		return (ENOMEM);
 	}
@@ -6474,6 +6514,7 @@ ahd_init(struct ahd_softc *ahd)
 		printf("%s: WARNING. Termination is not configured correctly.\n"
 		       "%s: WARNING. SCSI bus operations may FAIL.\n",
 		       ahd_name(ahd), ahd_name(ahd));
+		AHD_CORRECTABLE_ERROR(ahd);
 	}
 init_done:
 	ahd_restart(ahd);
@@ -6830,6 +6871,7 @@ ahd_default_config(struct ahd_softc *ahd)
 	if (ahd_alloc_tstate(ahd, ahd->our_id, 'A') == NULL) {
 		printf("%s: unable to allocate ahd_tmode_tstate.  "
 		       "Failing attach\n", ahd_name(ahd));
+		AHD_FATAL_ERROR(ahd);
 		return (ENOMEM);
 	}
 
@@ -6909,6 +6951,7 @@ ahd_parse_cfgdata(struct ahd_softc *ahd, struct seeprom_config *sc)
 	if (ahd_alloc_tstate(ahd, ahd->our_id, 'A') == NULL) {
 		printf("%s: unable to allocate ahd_tmode_tstate.  "
 		       "Failing attach\n", ahd_name(ahd));
+		AHD_FATAL_ERROR(ahd);
 		return (ENOMEM);
 	}
 
@@ -7135,6 +7178,7 @@ ahd_pause_and_flushwork(struct ahd_softc *ahd)
 	if (maxloops == 0) {
 		printf("Infinite interrupt loop, INTSTAT = %x",
 		      ahd_inb(ahd, INTSTAT));
+		AHD_FATAL_ERROR(ahd);
 	}
 	ahd->qfreeze_cnt++;
 	ahd_outw(ahd, KERNEL_QFREEZE_COUNT, ahd->qfreeze_cnt);
@@ -7440,6 +7484,7 @@ ahd_search_qinfifo(struct ahd_softc *ahd, int target, char channel,
 		if (scb == NULL) {
 			printf("qinpos = %d, SCB index = %d\n",
 				qinpos, ahd->qinfifo[qinpos]);
+			AHD_FATAL_ERROR(ahd);
 			panic("Loop 1\n");
 		}
 
@@ -8195,20 +8240,26 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 				switch (SIU_PKTFAIL_CODE(siu)) {
 				case SIU_PFC_NONE:
 					printf("No packet failure found\n");
+					AHD_UNCORRECTABLE_ERROR(ahd);
 					break;
 				case SIU_PFC_CIU_FIELDS_INVALID:
 					printf("Invalid Command IU Field\n");
+					AHD_UNCORRECTABLE_ERROR(ahd);
 					break;
 				case SIU_PFC_TMF_NOT_SUPPORTED:
 					printf("TMF not supportd\n");
+					AHD_UNCORRECTABLE_ERROR(ahd);
 					break;
 				case SIU_PFC_TMF_FAILED:
 					printf("TMF failed\n");
+					AHD_UNCORRECTABLE_ERROR(ahd);
 					break;
 				case SIU_PFC_INVALID_TYPE_CODE:
 					printf("Invalid L_Q Type code\n");
+					AHD_UNCORRECTABLE_ERROR(ahd);
 					break;
 				case SIU_PFC_ILLEGAL_REQUEST:
+					AHD_UNCORRECTABLE_ERROR(ahd);
 					printf("Illegal request\n");
 				default:
 					break;
@@ -8500,7 +8551,7 @@ void
 ahd_send_lstate_events(struct ahd_softc *ahd, struct ahd_tmode_lstate *lstate)
 {
 	struct ccb_hdr *ccbh;
-	struct ccb_immed_notify *inot;
+	struct ccb_immediate_notify *inot;
 
 	while (lstate->event_r_idx != lstate->event_w_idx
 	    && (ccbh = SLIST_FIRST(&lstate->immed_notifies)) != NULL) {
@@ -8508,19 +8559,18 @@ ahd_send_lstate_events(struct ahd_softc *ahd, struct ahd_tmode_lstate *lstate)
 
 		event = &lstate->event_buffer[lstate->event_r_idx];
 		SLIST_REMOVE_HEAD(&lstate->immed_notifies, sim_links.sle);
-		inot = (struct ccb_immed_notify *)ccbh;
+		inot = (struct ccb_immediate_notify *)ccbh;
 		switch (event->event_type) {
 		case EVENT_TYPE_BUS_RESET:
 			ccbh->status = CAM_SCSI_BUS_RESET|CAM_DEV_QFRZN;
 			break;
 		default:
 			ccbh->status = CAM_MESSAGE_RECV|CAM_DEV_QFRZN;
-			inot->message_args[0] = event->event_type;
-			inot->message_args[1] = event->event_arg;
+			inot->arg = event->event_type;
+			inot->seq_id = event->event_arg;
 			break;
 		}
 		inot->initiator_id = event->initiator_id;
-		inot->sense_len = 0;
 		xpt_done((union ccb *)inot);
 		lstate->event_r_idx++;
 		if (lstate->event_r_idx == AHD_TMODE_EVENT_BUFFER_SIZE)
@@ -8735,7 +8785,7 @@ ahd_check_patch(struct ahd_softc *ahd, struct patch **start_patch,
 			cur_patch += cur_patch->skip_patch;
 		} else {
 			/* Accepted this patch.  Advance to the next
-			 * one and wait for our intruction pointer to
+			 * one and wait for our instruction pointer to
 			 * hit this point.
 			 */
 			cur_patch++;
@@ -9281,6 +9331,7 @@ ahd_recover_commands(struct ahd_softc *ahd)
 
 	printf("%s: Recovery Initiated - Card was %spaused\n", ahd_name(ahd),
 	       was_paused ? "" : "not ");
+	AHD_CORRECTABLE_ERROR(ahd);
 	ahd_dump_card_state(ahd);
 
 	ahd_pause_and_flushwork(ahd);
@@ -9507,6 +9558,7 @@ ahd_other_scb_timeout(struct ahd_softc *ahd, struct scb *scb,
  	       (scb->flags & SCB_OTHERTCL_TIMEOUT) != 0
 	       ? " again\n" : "\n");
 
+	AHD_UNCORRECTABLE_ERROR(ahd);
 	newtimeout = aic_get_timeout(scb);
 	scb->flags |= SCB_OTHERTCL_TIMEOUT;
 	found = 0;
@@ -9612,7 +9664,7 @@ ahd_write_seeprom(struct ahd_softc *ahd, uint16_t *buf,
 		return (error);
 
 	/*
-	 * Write the data.  If we don't get throught the loop at
+	 * Write the data.  If we don't get through the loop at
 	 * least once, the arguments were invalid.
 	 */
 	retval = EINVAL;
@@ -9929,6 +9981,7 @@ ahd_handle_en_lun(struct ahd_softc *ahd, struct cam_sim *sim, union ccb *ccb)
 		if (lstate != NULL) {
 			xpt_print_path(ccb->ccb_h.path);
 			printf("Lun already enabled\n");
+			AHD_CORRECTABLE_ERROR(ahd);
 			ccb->ccb_h.status = CAM_LUN_ALRDY_ENA;
 			return;
 		}
@@ -10280,9 +10333,9 @@ ahd_handle_target_cmd(struct ahd_softc *ahd, struct target_cmd *cmd)
 		/* Tag was included */
 		atio->tag_action = *byte++;
 		atio->tag_id = *byte++;
-		atio->ccb_h.flags = CAM_TAG_ACTION_VALID;
+		atio->ccb_h.flags |= CAM_TAG_ACTION_VALID;
 	} else {
-		atio->ccb_h.flags = 0;
+		atio->ccb_h.flags &= ~CAM_TAG_ACTION_VALID;
 	}
 	byte++;
 

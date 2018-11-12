@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 PROG=	gsstest
-NO_MAN=
+MAN=
 WARNS?=	2
-LDADD=	-lgssapi -lgssapi_krb5
+LIBADD=	gssapi gssapi_krb5
 DEBUG_FLAGS= -g -O0
 
 .include <bsd.prog.mk>

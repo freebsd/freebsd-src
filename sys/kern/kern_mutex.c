@@ -38,8 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_adaptive_mutexes.h"
 #include "opt_ddb.h"
-#include "opt_global.h"
-#include "opt_kdtrace.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -56,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sbuf.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/turnstile.h>
 #include <sys/vmmeter.h>
@@ -76,6 +76,17 @@ __FBSDID("$FreeBSD$");
 #define	ADAPTIVE_MUTEXES
 #endif
 
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+PMC_SOFT_DEFINE( , , lock, failed);
+#endif
+
+/*
+ * Return the mutex address when the lock cookie address is provided.
+ * This functionality assumes that struct mtx* have a member named mtx_lock.
+ */
+#define	mtxlock2mtx(c)	(__containerof(c, struct mtx, mtx_lock))
+
 /*
  * Internal utility macros.
  */
@@ -85,17 +96,18 @@ __FBSDID("$FreeBSD$");
 
 #define	mtx_owner(m)	((struct thread *)((m)->mtx_lock & ~MTX_FLAGMASK))
 
-static void	assert_mtx(struct lock_object *lock, int what);
+static void	assert_mtx(const struct lock_object *lock, int what);
 #ifdef DDB
-static void	db_show_mtx(struct lock_object *lock);
+static void	db_show_mtx(const struct lock_object *lock);
 #endif
-static void	lock_mtx(struct lock_object *lock, int how);
-static void	lock_spin(struct lock_object *lock, int how);
+static void	lock_mtx(struct lock_object *lock, uintptr_t how);
+static void	lock_spin(struct lock_object *lock, uintptr_t how);
 #ifdef KDTRACE_HOOKS
-static int	owner_mtx(struct lock_object *lock, struct thread **owner);
+static int	owner_mtx(const struct lock_object *lock,
+		    struct thread **owner);
 #endif
-static int	unlock_mtx(struct lock_object *lock);
-static int	unlock_spin(struct lock_object *lock);
+static uintptr_t unlock_mtx(struct lock_object *lock);
+static uintptr_t unlock_spin(struct lock_object *lock);
 
 /*
  * Lock classes for sleep and spin mutexes.
@@ -127,6 +139,67 @@ struct lock_class lock_class_mtx_spin = {
 #endif
 };
 
+#ifdef ADAPTIVE_MUTEXES
+static SYSCTL_NODE(_debug, OID_AUTO, mtx, CTLFLAG_RD, NULL, "mtx debugging");
+
+static struct lock_delay_config mtx_delay = {
+	.initial	= 1000,
+	.step		= 500,
+	.min		= 100,
+	.max		= 5000,
+};
+
+SYSCTL_INT(_debug_mtx, OID_AUTO, delay_initial, CTLFLAG_RW, &mtx_delay.initial,
+    0, "");
+SYSCTL_INT(_debug_mtx, OID_AUTO, delay_step, CTLFLAG_RW, &mtx_delay.step,
+    0, "");
+SYSCTL_INT(_debug_mtx, OID_AUTO, delay_min, CTLFLAG_RW, &mtx_delay.min,
+    0, "");
+SYSCTL_INT(_debug_mtx, OID_AUTO, delay_max, CTLFLAG_RW, &mtx_delay.max,
+    0, "");
+
+static void
+mtx_delay_sysinit(void *dummy)
+{
+
+	mtx_delay.initial = mp_ncpus * 25;
+	mtx_delay.step = (mp_ncpus * 25) / 2;
+	mtx_delay.min = mp_ncpus * 5;
+	mtx_delay.max = mp_ncpus * 25 * 10;
+}
+LOCK_DELAY_SYSINIT(mtx_delay_sysinit);
+#endif
+
+static SYSCTL_NODE(_debug, OID_AUTO, mtx_spin, CTLFLAG_RD, NULL,
+    "mtx spin debugging");
+
+static struct lock_delay_config mtx_spin_delay = {
+	.initial        = 1000,
+	.step           = 500,
+	.min            = 100,
+	.max            = 5000,
+};
+
+SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_initial, CTLFLAG_RW,
+    &mtx_spin_delay.initial, 0, "");
+SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_step, CTLFLAG_RW, &mtx_spin_delay.step,
+    0, "");
+SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_min, CTLFLAG_RW, &mtx_spin_delay.min,
+    0, "");
+SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_max, CTLFLAG_RW, &mtx_spin_delay.max,
+    0, "");
+
+static void
+mtx_spin_delay_sysinit(void *dummy)
+{
+
+	mtx_spin_delay.initial = mp_ncpus * 25;
+	mtx_spin_delay.step = (mp_ncpus * 25) / 2;
+	mtx_spin_delay.min = mp_ncpus * 5;
+	mtx_spin_delay.max = mp_ncpus * 25 * 10;
+}
+LOCK_DELAY_SYSINIT(mtx_spin_delay_sysinit);
+
 /*
  * System-wide mutexes
  */
@@ -134,27 +207,27 @@ struct mtx blocked_lock;
 struct mtx Giant;
 
 void
-assert_mtx(struct lock_object *lock, int what)
+assert_mtx(const struct lock_object *lock, int what)
 {
 
-	mtx_assert((struct mtx *)lock, what);
+	mtx_assert((const struct mtx *)lock, what);
 }
 
 void
-lock_mtx(struct lock_object *lock, int how)
+lock_mtx(struct lock_object *lock, uintptr_t how)
 {
 
 	mtx_lock((struct mtx *)lock);
 }
 
 void
-lock_spin(struct lock_object *lock, int how)
+lock_spin(struct lock_object *lock, uintptr_t how)
 {
 
 	panic("spin locks can only use msleep_spin");
 }
 
-int
+uintptr_t
 unlock_mtx(struct lock_object *lock)
 {
 	struct mtx *m;
@@ -165,7 +238,7 @@ unlock_mtx(struct lock_object *lock)
 	return (0);
 }
 
-int
+uintptr_t
 unlock_spin(struct lock_object *lock)
 {
 
@@ -174,9 +247,9 @@ unlock_spin(struct lock_object *lock)
 
 #ifdef KDTRACE_HOOKS
 int
-owner_mtx(struct lock_object *lock, struct thread **owner)
+owner_mtx(const struct lock_object *lock, struct thread **owner)
 {
-	struct mtx *m = (struct mtx *)lock;
+	const struct mtx *m = (const struct mtx *)lock;
 
 	*owner = mtx_owner(m);
 	return (mtx_unowned(m) == 0);
@@ -188,72 +261,127 @@ owner_mtx(struct lock_object *lock, struct thread **owner)
  * modules and can also be called from assembly language if needed.
  */
 void
-_mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
+__mtx_lock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 {
+	struct mtx *m;
 
-	MPASS(curthread != NULL);
+	if (SCHEDULER_STOPPED())
+		return;
+
+	m = mtxlock2mtx(c);
+
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	    ("mtx_lock() by idle thread %p on sleep mutex %s @ %s:%d",
+	    curthread, m->lock_object.lo_name, file, line));
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_lock() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_sleep,
 	    ("mtx_lock() of spin mutex %s @ %s:%d", m->lock_object.lo_name,
 	    file, line));
-	WITNESS_CHECKORDER(&m->lock_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
-	    file, line, NULL);
+	WITNESS_CHECKORDER(&m->lock_object, (opts & ~MTX_RECURSE) |
+	    LOP_NEWORDER | LOP_EXCLUSIVE, file, line, NULL);
 
-	_get_sleep_lock(m, curthread, opts, file, line);
+	__mtx_lock(m, curthread, opts, file, line);
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
-	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
-	curthread->td_locks++;
+	WITNESS_LOCK(&m->lock_object, (opts & ~MTX_RECURSE) | LOP_EXCLUSIVE,
+	    file, line);
+	TD_LOCKS_INC(curthread);
 }
 
 void
-_mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
+__mtx_unlock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 {
-	MPASS(curthread != NULL);
+	struct mtx *m;
+
+	if (SCHEDULER_STOPPED())
+		return;
+
+	m = mtxlock2mtx(c);
+
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_unlock() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_sleep,
 	    ("mtx_unlock() of spin mutex %s @ %s:%d", m->lock_object.lo_name,
 	    file, line));
-	curthread->td_locks--;
 	WITNESS_UNLOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("UNLOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
 	mtx_assert(m, MA_OWNED);
 
-	if (m->mtx_recurse == 0)
-		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_MTX_UNLOCK_RELEASE, m);
-	_rel_sleep_lock(m, curthread, opts, file, line);
+	__mtx_unlock(m, curthread, opts, file, line);
+	TD_LOCKS_DEC(curthread);
 }
 
 void
-_mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
+__mtx_lock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
+    int line)
 {
+	struct mtx *m;
 
-	MPASS(curthread != NULL);
+	if (SCHEDULER_STOPPED())
+		return;
+
+	m = mtxlock2mtx(c);
+
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_lock_spin() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin,
 	    ("mtx_lock_spin() of sleep mutex %s @ %s:%d",
 	    m->lock_object.lo_name, file, line));
 	if (mtx_owned(m))
-		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0,
+		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0 ||
+		    (opts & MTX_RECURSE) != 0,
 	    ("mtx_lock_spin: recursed on non-recursive mutex %s @ %s:%d\n",
 		    m->lock_object.lo_name, file, line));
+	opts &= ~MTX_RECURSE;
 	WITNESS_CHECKORDER(&m->lock_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
 	    file, line, NULL);
-	_get_spin_lock(m, curthread, opts, file, line);
+	__mtx_lock_spin(m, curthread, opts, file, line);
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
 	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
 }
 
-void
-_mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
+int
+__mtx_trylock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
+    int line)
 {
+	struct mtx *m;
 
-	MPASS(curthread != NULL);
+	if (SCHEDULER_STOPPED())
+		return (1);
+
+	m = mtxlock2mtx(c);
+
+	KASSERT(m->mtx_lock != MTX_DESTROYED,
+	    ("mtx_trylock_spin() of destroyed mutex @ %s:%d", file, line));
+	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin,
+	    ("mtx_trylock_spin() of sleep mutex %s @ %s:%d",
+	    m->lock_object.lo_name, file, line));
+	KASSERT((opts & MTX_RECURSE) == 0,
+	    ("mtx_trylock_spin: unsupp. opt MTX_RECURSE on mutex %s @ %s:%d\n",
+	    m->lock_object.lo_name, file, line));
+	if (__mtx_trylock_spin(m, curthread, opts, file, line)) {
+		LOCK_LOG_TRY("LOCK", &m->lock_object, opts, 1, file, line);
+		WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
+		return (1);
+	}
+	LOCK_LOG_TRY("LOCK", &m->lock_object, opts, 0, file, line);
+	return (0);
+}
+
+void
+__mtx_unlock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
+    int line)
+{
+	struct mtx *m;
+
+	if (SCHEDULER_STOPPED())
+		return;
+
+	m = mtxlock2mtx(c);
+
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_unlock_spin() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin,
@@ -264,7 +392,7 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 	    line);
 	mtx_assert(m, MA_OWNED);
 
-	_rel_spin_lock(m);
+	__mtx_unlock_spin(m);
 }
 
 /*
@@ -273,35 +401,45 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
  * is already owned, it will recursively acquire the lock.
  */
 int
-_mtx_trylock(struct mtx *m, int opts, const char *file, int line)
+_mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
 {
+	struct mtx *m;
 #ifdef LOCK_PROFILING
 	uint64_t waittime = 0;
 	int contested = 0;
 #endif
 	int rval;
 
-	MPASS(curthread != NULL);
+	if (SCHEDULER_STOPPED())
+		return (1);
+
+	m = mtxlock2mtx(c);
+
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	    ("mtx_trylock() by idle thread %p on sleep mutex %s @ %s:%d",
+	    curthread, m->lock_object.lo_name, file, line));
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_trylock() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_sleep,
 	    ("mtx_trylock() of spin mutex %s @ %s:%d", m->lock_object.lo_name,
 	    file, line));
 
-	if (mtx_owned(m) && (m->lock_object.lo_flags & LO_RECURSABLE) != 0) {
+	if (mtx_owned(m) && ((m->lock_object.lo_flags & LO_RECURSABLE) != 0 ||
+	    (opts & MTX_RECURSE) != 0)) {
 		m->mtx_recurse++;
 		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
 		rval = 1;
 	} else
-		rval = _obtain_lock(m, (uintptr_t)curthread);
+		rval = _mtx_obtain_lock(m, (uintptr_t)curthread);
+	opts &= ~MTX_RECURSE;
 
 	LOCK_LOG_TRY("LOCK", &m->lock_object, opts, rval, file, line);
 	if (rval) {
 		WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
-		curthread->td_locks++;
+		TD_LOCKS_INC(curthread);
 		if (m->mtx_recurse == 0)
-			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_LOCK_ACQUIRE,
+			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire,
 			    m, contested, waittime, file, line);
 
 	}
@@ -310,15 +448,16 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 }
 
 /*
- * _mtx_lock_sleep: the tougher part of acquiring an MTX_DEF lock.
+ * __mtx_lock_sleep: the tougher part of acquiring an MTX_DEF lock.
  *
  * We call this if the lock is either contested (i.e. we need to go to
  * sleep waiting for it), or if we need to recurse on it.
  */
 void
-_mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
-    int line)
+__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
+    const char *file, int line)
 {
+	struct mtx *m;
 	struct turnstile *ts;
 	uintptr_t v;
 #ifdef ADAPTIVE_MUTEXES
@@ -331,33 +470,57 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	int contested = 0;
 	uint64_t waittime = 0;
 #endif
+#if defined(ADAPTIVE_MUTEXES) || defined(KDTRACE_HOOKS)
+	struct lock_delay_arg lda;
+#endif
 #ifdef KDTRACE_HOOKS
-	uint64_t spin_cnt = 0;
-	uint64_t sleep_cnt = 0;
+	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
+	int64_t all_time = 0;
 #endif
 
+	if (SCHEDULER_STOPPED())
+		return;
+
+#if defined(ADAPTIVE_MUTEXES)
+	lock_delay_arg_init(&lda, &mtx_delay);
+#elif defined(KDTRACE_HOOKS)
+	lock_delay_arg_init(&lda, NULL);
+#endif
+	m = mtxlock2mtx(c);
+
 	if (mtx_owned(m)) {
-		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0,
+		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0 ||
+		    (opts & MTX_RECURSE) != 0,
 	    ("_mtx_lock_sleep: recursed on non-recursive mutex %s @ %s:%d\n",
 		    m->lock_object.lo_name, file, line));
+		opts &= ~MTX_RECURSE;
 		m->mtx_recurse++;
 		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
 		if (LOCK_LOG_TEST(&m->lock_object, opts))
 			CTR1(KTR_LOCK, "_mtx_lock_sleep: %p recursing", m);
 		return;
 	}
+	opts &= ~MTX_RECURSE;
 
+#ifdef HWPMC_HOOKS
+	PMC_SOFT_CALL( , , lock, failed);
+#endif
 	lock_profile_obtain_lock_failed(&m->lock_object,
 		    &contested, &waittime);
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR4(KTR_LOCK,
 		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
 		    m->lock_object.lo_name, (void *)m->mtx_lock, file, line);
-
-	while (!_obtain_lock(m, tid)) {
 #ifdef KDTRACE_HOOKS
-		spin_cnt++;
+	all_time -= lockstat_nsecs(&m->lock_object);
+#endif
+
+	for (;;) {
+		if (m->mtx_lock == MTX_UNOWNED && _mtx_obtain_lock(m, tid))
+			break;
+#ifdef KDTRACE_HOOKS
+		lda.spin_cnt++;
 #endif
 #ifdef ADAPTIVE_MUTEXES
 		/*
@@ -372,13 +535,16 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 					CTR3(KTR_LOCK,
 					    "%s: spinning on %p held by %p",
 					    __func__, m, owner);
+				KTR_STATE1(KTR_SCHED, "thread",
+				    sched_tdname((struct thread *)tid),
+				    "spinning", "lockname:\"%s\"",
+				    m->lock_object.lo_name);
 				while (mtx_owner(m) == owner &&
-				    TD_IS_RUNNING(owner)) {
-					cpu_spinwait();
-#ifdef KDTRACE_HOOKS
-					spin_cnt++;
-#endif
-				}
+				    TD_IS_RUNNING(owner))
+					lock_delay(&lda);
+				KTR_STATE0(KTR_SCHED, "thread",
+				    sched_tdname((struct thread *)tid),
+				    "running");
 				continue;
 			}
 		}
@@ -442,14 +608,17 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		 * Block on the turnstile.
 		 */
 #ifdef KDTRACE_HOOKS
-		sleep_time -= lockstat_nsecs();
+		sleep_time -= lockstat_nsecs(&m->lock_object);
 #endif
 		turnstile_wait(ts, mtx_owner(m), TS_EXCLUSIVE_QUEUE);
 #ifdef KDTRACE_HOOKS
-		sleep_time += lockstat_nsecs();
+		sleep_time += lockstat_nsecs(&m->lock_object);
 		sleep_cnt++;
 #endif
 	}
+#ifdef KDTRACE_HOOKS
+	all_time += lockstat_nsecs(&m->lock_object);
+#endif
 #ifdef KTR
 	if (cont_logged) {
 		CTR4(KTR_CONTENTION,
@@ -457,17 +626,17 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		    m->lock_object.lo_name, (void *)tid, file, line);
 	}
 #endif
-	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_LOCK_ACQUIRE, m, contested,
+	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire, m, contested,
 	    waittime, file, line);
 #ifdef KDTRACE_HOOKS
 	if (sleep_time)
-		LOCKSTAT_RECORD1(LS_MTX_LOCK_BLOCK, m, sleep_time);
+		LOCKSTAT_RECORD1(adaptive__block, m, sleep_time);
 
 	/*
 	 * Only record the loops spinning and not sleeping. 
 	 */
-	if (spin_cnt > sleep_cnt)
-		LOCKSTAT_RECORD1(LS_MTX_LOCK_SPIN, m, (spin_cnt - sleep_cnt));
+	if (lda.spin_cnt > sleep_cnt)
+		LOCKSTAT_RECORD1(adaptive__spin, m, all_time - sleep_time);
 #endif
 }
 
@@ -485,42 +654,63 @@ _mtx_lock_spin_failed(struct mtx *m)
 	printf( "spin lock %p (%s) held by %p (tid %d) too long\n",
 	    m, m->lock_object.lo_name, td, td->td_tid);
 #ifdef WITNESS
-	witness_display_spinlock(&m->lock_object, td);
+	witness_display_spinlock(&m->lock_object, td, printf);
 #endif
 	panic("spin lock held too long");
 }
 
 #ifdef SMP
 /*
- * _mtx_lock_spin: the tougher part of acquiring an MTX_SPIN lock.
+ * _mtx_lock_spin_cookie: the tougher part of acquiring an MTX_SPIN lock.
  *
  * This is only called if we need to actually spin for the lock. Recursion
  * is handled inline.
  */
 void
-_mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
-    int line)
+_mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t tid, int opts,
+    const char *file, int line)
 {
-	int i = 0;
+	struct mtx *m;
+	struct lock_delay_arg lda;
 #ifdef LOCK_PROFILING
 	int contested = 0;
 	uint64_t waittime = 0;
 #endif
+#ifdef KDTRACE_HOOKS
+	int64_t spin_time = 0;
+#endif
+
+	if (SCHEDULER_STOPPED())
+		return;
+
+	lock_delay_arg_init(&lda, &mtx_spin_delay);
+	m = mtxlock2mtx(c);
 
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
+	KTR_STATE1(KTR_SCHED, "thread", sched_tdname((struct thread *)tid),
+	    "spinning", "lockname:\"%s\"", m->lock_object.lo_name);
 
+#ifdef HWPMC_HOOKS
+	PMC_SOFT_CALL( , , lock, failed);
+#endif
 	lock_profile_obtain_lock_failed(&m->lock_object, &contested, &waittime);
-	while (!_obtain_lock(m, tid)) {
-
+#ifdef KDTRACE_HOOKS
+	spin_time -= lockstat_nsecs(&m->lock_object);
+#endif
+	for (;;) {
+		if (m->mtx_lock == MTX_UNOWNED && _mtx_obtain_lock(m, tid))
+			break;
 		/* Give interrupts a chance while we spin. */
 		spinlock_exit();
 		while (m->mtx_lock != MTX_UNOWNED) {
-			if (i++ < 10000000) {
-				cpu_spinwait();
+			if (lda.spin_cnt < 10000000) {
+				lock_delay(&lda);
 				continue;
 			}
-			if (i < 60000000 || kdb_active || panicstr != NULL)
+			lda.spin_cnt++;
+			if (lda.spin_cnt < 60000000 || kdb_active ||
+			    panicstr != NULL)
 				DELAY(1);
 			else
 				_mtx_lock_spin_failed(m);
@@ -528,32 +718,55 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		}
 		spinlock_enter();
 	}
+#ifdef KDTRACE_HOOKS
+	spin_time += lockstat_nsecs(&m->lock_object);
+#endif
 
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spin done", m);
+	KTR_STATE0(KTR_SCHED, "thread", sched_tdname((struct thread *)tid),
+	    "running");
 
-	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_SPIN_LOCK_ACQUIRE, m,
-	    contested, waittime, (file), (line));
-	LOCKSTAT_RECORD1(LS_MTX_SPIN_LOCK_SPIN, m, i);
+#ifdef KDTRACE_HOOKS
+	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m,
+	    contested, waittime, file, line);
+	if (spin_time != 0)
+		LOCKSTAT_RECORD1(spin__spin, m, spin_time);
+#endif
 }
 #endif /* SMP */
 
 void
-_thread_lock_flags(struct thread *td, int opts, const char *file, int line)
+thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 {
 	struct mtx *m;
 	uintptr_t tid;
-	int i;
+	struct lock_delay_arg lda;
 #ifdef LOCK_PROFILING
 	int contested = 0;
 	uint64_t waittime = 0;
 #endif
 #ifdef KDTRACE_HOOKS
-	uint64_t spin_cnt = 0;
+	int64_t spin_time = 0;
 #endif
 
-	i = 0;
 	tid = (uintptr_t)curthread;
+
+	if (SCHEDULER_STOPPED()) {
+		/*
+		 * Ensure that spinlock sections are balanced even when the
+		 * scheduler is stopped, since we may otherwise inadvertently
+		 * re-enable interrupts while dumping core.
+		 */
+		spinlock_enter();
+		return;
+	}
+
+	lock_delay_arg_init(&lda, &mtx_spin_delay);
+
+#ifdef KDTRACE_HOOKS
+	spin_time -= lockstat_nsecs(&td->td_lock->lock_object);
+#endif
 	for (;;) {
 retry:
 		spinlock_enter();
@@ -569,27 +782,32 @@ retry:
 			    m->lock_object.lo_name, file, line));
 		WITNESS_CHECKORDER(&m->lock_object,
 		    opts | LOP_NEWORDER | LOP_EXCLUSIVE, file, line, NULL);
-		while (!_obtain_lock(m, tid)) {
-#ifdef KDTRACE_HOOKS
-			spin_cnt++;
-#endif
+		for (;;) {
+			if (m->mtx_lock == MTX_UNOWNED && _mtx_obtain_lock(m, tid))
+				break;
 			if (m->mtx_lock == tid) {
 				m->mtx_recurse++;
 				break;
 			}
+#ifdef HWPMC_HOOKS
+			PMC_SOFT_CALL( , , lock, failed);
+#endif
 			lock_profile_obtain_lock_failed(&m->lock_object,
 			    &contested, &waittime);
 			/* Give interrupts a chance while we spin. */
 			spinlock_exit();
 			while (m->mtx_lock != MTX_UNOWNED) {
-				if (i++ < 10000000)
+				if (lda.spin_cnt < 10000000) {
+					lock_delay(&lda);
+				} else {
+					lda.spin_cnt++;
+					if (lda.spin_cnt < 60000000 ||
+					    kdb_active || panicstr != NULL)
+						DELAY(1);
+					else
+						_mtx_lock_spin_failed(m);
 					cpu_spinwait();
-				else if (i < 60000000 ||
-				    kdb_active || panicstr != NULL)
-					DELAY(1);
-				else
-					_mtx_lock_spin_failed(m);
-				cpu_spinwait();
+				}
 				if (m != td->td_lock)
 					goto retry;
 			}
@@ -597,18 +815,21 @@ retry:
 		}
 		if (m == td->td_lock)
 			break;
-		_rel_spin_lock(m);	/* does spinlock_exit() */
-#ifdef KDTRACE_HOOKS
-		spin_cnt++;
-#endif
+		__mtx_unlock_spin(m);	/* does spinlock_exit() */
 	}
+#ifdef KDTRACE_HOOKS
+	spin_time += lockstat_nsecs(&m->lock_object);
+#endif
 	if (m->mtx_recurse == 0)
-		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_SPIN_LOCK_ACQUIRE,
-		    m, contested, waittime, (file), (line));
+		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m,
+		    contested, waittime, file, line);
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
 	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
-	LOCKSTAT_RECORD1(LS_THREAD_LOCK_SPIN, m, spin_cnt);
+#ifdef KDTRACE_HOOKS
+	if (spin_time != 0)
+		LOCKSTAT_RECORD1(thread__spin, m, spin_time);
+#endif
 }
 
 struct mtx *
@@ -616,7 +837,6 @@ thread_lock_block(struct thread *td)
 {
 	struct mtx *lock;
 
-	spinlock_enter();
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	lock = td->td_lock;
 	td->td_lock = &blocked_lock;
@@ -631,7 +851,6 @@ thread_lock_unblock(struct thread *td, struct mtx *new)
 	mtx_assert(new, MA_OWNED);
 	MPASS(td->td_lock == &blocked_lock);
 	atomic_store_rel_ptr((volatile void *)&td->td_lock, (uintptr_t)new);
-	spinlock_exit();
 }
 
 void
@@ -647,15 +866,21 @@ thread_lock_set(struct thread *td, struct mtx *new)
 }
 
 /*
- * _mtx_unlock_sleep: the tougher part of releasing an MTX_DEF lock.
+ * __mtx_unlock_sleep: the tougher part of releasing an MTX_DEF lock.
  *
  * We are only called here if the lock is recursed or contested (i.e. we
  * need to wake up a blocked thread).
  */
 void
-_mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
+__mtx_unlock_sleep(volatile uintptr_t *c, int opts, const char *file, int line)
 {
+	struct mtx *m;
 	struct turnstile *ts;
+
+	if (SCHEDULER_STOPPED())
+		return;
+
+	m = mtxlock2mtx(c);
 
 	if (mtx_recursed(m)) {
 		if (--(m->mtx_recurse) == 0)
@@ -675,7 +900,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);
 	MPASS(ts != NULL);
 	turnstile_broadcast(ts, TS_EXCLUSIVE_QUEUE);
-	_release_lock_quick(m);
+	_mtx_release_lock_quick(m);
 
 	/*
 	 * This turnstile is now no longer associated with the mutex.  We can
@@ -687,7 +912,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 
 /*
  * All the unlocking of MTX_SPIN locks is done inline.
- * See the _rel_spin_lock() macro for the details.
+ * See the __mtx_unlock_spin() macro for the details.
  */
 
 /*
@@ -695,11 +920,15 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
  */
 #ifdef INVARIANT_SUPPORT
 void
-_mtx_assert(struct mtx *m, int what, const char *file, int line)
+__mtx_assert(const volatile uintptr_t *c, int what, const char *file, int line)
 {
+	const struct mtx *m;
 
-	if (panicstr != NULL || dumping)
+	if (panicstr != NULL || dumping || SCHEDULER_STOPPED())
 		return;
+
+	m = mtxlock2mtx(c);
+
 	switch (what) {
 	case MA_OWNED:
 	case MA_OWNED | MA_RECURSED:
@@ -728,37 +957,6 @@ _mtx_assert(struct mtx *m, int what, const char *file, int line)
 #endif
 
 /*
- * The MUTEX_DEBUG-enabled mtx_validate()
- *
- * Most of these checks have been moved off into the LO_INITIALIZED flag
- * maintained by the witness code.
- */
-#ifdef MUTEX_DEBUG
-
-void	mtx_validate(struct mtx *);
-
-void
-mtx_validate(struct mtx *m)
-{
-
-/*
- * XXX: When kernacc() does not require Giant we can reenable this check
- */
-#ifdef notyet
-	/*
-	 * Can't call kernacc() from early init386(), especially when
-	 * initializing Giant mutex, because some stuff in kernacc()
-	 * requires Giant itself.
-	 */
-	if (!cold)
-		if (!kernacc((caddr_t)m, sizeof(m),
-		    VM_PROT_READ | VM_PROT_WRITE))
-			panic("Can't read and write to mutex %p", m);
-#endif
-}
-#endif
-
-/*
  * General init routine used by the MTX_SYSINIT() macro.
  */
 void
@@ -766,7 +964,8 @@ mtx_sysinit(void *arg)
 {
 	struct mtx_args *margs = arg;
 
-	mtx_init(margs->ma_mtx, margs->ma_desc, NULL, margs->ma_opts);
+	mtx_init((struct mtx *)margs->ma_mtx, margs->ma_desc, NULL,
+	    margs->ma_opts);
 }
 
 /*
@@ -776,21 +975,19 @@ mtx_sysinit(void *arg)
  * witness.
  */
 void
-mtx_init(struct mtx *m, const char *name, const char *type, int opts)
+_mtx_init(volatile uintptr_t *c, const char *name, const char *type, int opts)
 {
+	struct mtx *m;
 	struct lock_class *class;
 	int flags;
 
+	m = mtxlock2mtx(c);
+
 	MPASS((opts & ~(MTX_SPIN | MTX_QUIET | MTX_RECURSE |
-		MTX_NOWITNESS | MTX_DUPOK | MTX_NOPROFILE)) == 0);
+	    MTX_NOWITNESS | MTX_DUPOK | MTX_NOPROFILE | MTX_NEW)) == 0);
 	ASSERT_ATOMIC_LOAD_PTR(m->mtx_lock,
 	    ("%s: mtx_lock not aligned for %s: %p", __func__, name,
 	    &m->mtx_lock));
-
-#ifdef MUTEX_DEBUG
-	/* Diagnostic and error correction */
-	mtx_validate(m);
-#endif
 
 	/* Determine lock class and lock flags. */
 	if (opts & MTX_SPIN)
@@ -808,12 +1005,14 @@ mtx_init(struct mtx *m, const char *name, const char *type, int opts)
 		flags |= LO_DUPOK;
 	if (opts & MTX_NOPROFILE)
 		flags |= LO_NOPROFILE;
+	if (opts & MTX_NEW)
+		flags |= LO_NEW;
 
 	/* Initialize mutex. */
+	lock_init(&m->lock_object, class, name, type, flags);
+
 	m->mtx_lock = MTX_UNOWNED;
 	m->mtx_recurse = 0;
-
-	lock_init(&m->lock_object, class, name, type, flags);
 }
 
 /*
@@ -823,8 +1022,11 @@ mtx_init(struct mtx *m, const char *name, const char *type, int opts)
  * flags.
  */
 void
-mtx_destroy(struct mtx *m)
+_mtx_destroy(volatile uintptr_t *c)
 {
+	struct mtx *m;
+
+	m = mtxlock2mtx(c);
 
 	if (!mtx_owned(m))
 		MPASS(mtx_unowned(m));
@@ -835,7 +1037,7 @@ mtx_destroy(struct mtx *m)
 		if (LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin)
 			spinlock_exit();
 		else
-			curthread->td_locks--;
+			TD_LOCKS_DEC(curthread);
 
 		lock_profile_release_lock(&m->lock_object);
 		/* Tell witness this isn't locked to make it happy. */
@@ -866,19 +1068,22 @@ mutex_init(void)
 	mtx_init(&blocked_lock, "blocked lock", NULL, MTX_SPIN);
 	blocked_lock.mtx_lock = 0xdeadc0de;	/* Always blocked. */
 	mtx_init(&proc0.p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
-	mtx_init(&proc0.p_slock, "process slock", NULL, MTX_SPIN | MTX_RECURSE);
+	mtx_init(&proc0.p_slock, "process slock", NULL, MTX_SPIN);
+	mtx_init(&proc0.p_statmtx, "pstatl", NULL, MTX_SPIN);
+	mtx_init(&proc0.p_itimmtx, "pitiml", NULL, MTX_SPIN);
+	mtx_init(&proc0.p_profmtx, "pprofl", NULL, MTX_SPIN);
 	mtx_init(&devmtx, "cdev", NULL, MTX_DEF);
 	mtx_lock(&Giant);
 }
 
 #ifdef DDB
 void
-db_show_mtx(struct lock_object *lock)
+db_show_mtx(const struct lock_object *lock)
 {
 	struct thread *td;
-	struct mtx *m;
+	const struct mtx *m;
 
-	m = (struct mtx *)lock;
+	m = (const struct mtx *)lock;
 
 	db_printf(" flags: {");
 	if (LOCK_CLASS(lock) == &lock_class_mtx_spin)

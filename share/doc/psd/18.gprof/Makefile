@@ -10,6 +10,5 @@ USE_SOELIM=
 USE_PIC=
 USE_TBL=
 USE_EQN=
-SRCDIR=		${.CURDIR}/../../../../usr.bin/gprof/PSD.doc
 
 .include <bsd.doc.mk>

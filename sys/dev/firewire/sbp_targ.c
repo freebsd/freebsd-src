@@ -1,7 +1,7 @@
 /*-
  * Copyright (C) 2003
  * 	Hidetoshi Shimokawa. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -18,7 +18,7 @@
  * 4. Neither the name of the author nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,7 +30,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -41,9 +41,7 @@
 #include <sys/types.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
-#if __FreeBSD_version < 500000
-#include <sys/devicestat.h>
-#endif
+#include <sys/endian.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -61,6 +59,7 @@
 #include <cam/cam_debug.h>
 #include <cam/cam_periph.h>
 #include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_message.h>
 
 #define SBP_TARG_RECV_LEN	8
 #define MAX_INITIATORS		8
@@ -94,7 +93,7 @@
 #define F_HOLD		(1 << 3)
 #define F_FREEZED	(1 << 4)
 
-MALLOC_DEFINE(M_SBP_TARG, "sbp_targ", "SBP-II/FireWire target mode");
+static MALLOC_DEFINE(M_SBP_TARG, "sbp_targ", "SBP-II/FireWire target mode");
 
 static int debug = 0;
 
@@ -105,16 +104,16 @@ struct sbp_targ_login {
 	struct sbp_targ_lstate *lstate;
 	struct fw_device *fwdev;
 	struct sbp_login_res loginres;
-	uint16_t fifo_hi; 
+	uint16_t fifo_hi;
 	uint16_t last_hi;
-	uint32_t fifo_lo; 
+	uint32_t fifo_lo;
 	uint32_t last_lo;
 	STAILQ_HEAD(, orb_info) orbs;
 	STAILQ_ENTRY(sbp_targ_login) link;
 	uint16_t hold_sec;
 	uint16_t id;
-	uint8_t flags; 
-	uint8_t spd; 
+	uint8_t flags;
+	uint8_t spd;
 	struct callout hold_callout;
 };
 
@@ -125,7 +124,7 @@ struct sbp_targ_lstate {
 	struct ccb_hdr_slist accept_tios;
 	struct ccb_hdr_slist immed_notifies;
 	struct crom_chunk model;
-	uint32_t flags; 
+	uint32_t flags;
 	STAILQ_HEAD(, sbp_targ_login) logins;
 };
 
@@ -185,13 +184,28 @@ struct morb4 {
 #endif
 };
 
+ 
+/*
+ * Urestricted page table format 
+ * states that the segment length
+ * and high base addr are in the first
+ * 32 bits and the base low is in 
+ * the second
+ */
+struct unrestricted_page_table_fmt {
+	uint16_t segment_len;
+	uint16_t segment_base_high;
+	uint32_t segment_base_low;
+};
+
+
 struct orb_info {
 	struct sbp_targ_softc *sc;
 	struct fw_device *fwdev;
 	struct sbp_targ_login *login;
 	union ccb *ccb;
 	struct ccb_accept_tio *atio;
-	uint8_t state; 
+	uint8_t state;
 #define ORBI_STATUS_NONE	0
 #define ORBI_STATUS_FETCH	1
 #define ORBI_STATUS_ATIO	2
@@ -199,7 +213,7 @@ struct orb_info {
 #define ORBI_STATUS_STATUS	4
 #define ORBI_STATUS_POINTER	5
 #define ORBI_STATUS_ABORTED	7
-	uint8_t refcount; 
+	uint8_t refcount;
 	uint16_t orb_hi;
 	uint32_t orb_lo;
 	uint32_t data_hi;
@@ -207,7 +221,10 @@ struct orb_info {
 	struct corb4 orb4;
 	STAILQ_ENTRY(orb_info) link;
 	uint32_t orb[8];
-	uint32_t *page_table;
+	struct unrestricted_page_table_fmt *page_table;
+	struct unrestricted_page_table_fmt *cur_pte;
+	struct unrestricted_page_table_fmt *last_pte;
+	uint32_t  last_block_read;
 	struct sbp_status status;
 };
 
@@ -218,6 +235,7 @@ static char *orb_fun_name[] = {
 static void sbp_targ_recv(struct fw_xfer *);
 static void sbp_targ_fetch_orb(struct sbp_targ_softc *, struct fw_device *,
     uint16_t, uint32_t, struct sbp_targ_login *, int);
+static void sbp_targ_xfer_pt(struct orb_info *);
 static void sbp_targ_abort(struct sbp_targ_softc *, struct orb_info *);
 
 static void
@@ -232,8 +250,8 @@ sbp_targ_probe(device_t dev)
 	device_t pa;
 
 	pa = device_get_parent(dev);
-	if(device_get_unit(dev) != device_get_unit(pa)){
-		return(ENXIO);
+	if (device_get_unit(dev) != device_get_unit(pa)) {
+		return (ENXIO);
 	}
 
 	device_set_desc(dev, "SBP-2/SCSI over FireWire target mode");
@@ -251,13 +269,19 @@ sbp_targ_dealloc_login(struct sbp_targ_login *login)
 	}
 	for (orbi = STAILQ_FIRST(&login->orbs); orbi != NULL; orbi = next) {
 		next = STAILQ_NEXT(orbi, link);
+		if (debug)
+			printf("%s: free orbi %p\n", __func__, orbi);
 		free(orbi, M_SBP_TARG);
+		orbi = NULL;
 	}
 	callout_stop(&login->hold_callout);
 
 	STAILQ_REMOVE(&login->lstate->logins, login, sbp_targ_login, link);
 	login->lstate->sc->logins[login->id] = NULL;
+	if (debug)
+		printf("%s: free login %p\n", __func__, login);
 	free((void *)login, M_SBP_TARG);
+	login = NULL;
 }
 
 static void
@@ -312,7 +336,7 @@ sbp_targ_post_busreset(void *arg)
 	crom_add_entry(unit, CROM_MGM, SBP_TARG_MGM >> 2);
 	crom_add_entry(unit, CSRKEY_UNIT_CH, (10<<8) | 8);
 
-	for (i = 0; i < MAX_LUN; i ++) {
+	for (i = 0; i < MAX_LUN; i++) {
 		lstate = sc->lstate[i];
 		if (lstate == NULL)
 			continue;
@@ -323,7 +347,7 @@ sbp_targ_post_busreset(void *arg)
 	}
 
 	/* Process for reconnection hold time */
-	for (i = 0; i < MAX_LOGINS; i ++) {
+	for (i = 0; i < MAX_LOGINS; i++) {
 		login = sc->logins[i];
 		if (login == NULL)
 			continue;
@@ -331,7 +355,7 @@ sbp_targ_post_busreset(void *arg)
 		if (login->flags & F_LOGIN) {
 			login->flags |= F_HOLD;
 			callout_reset(&login->hold_callout,
-			    hz * login->hold_sec, 
+			    hz * login->hold_sec,
 			    sbp_targ_hold_expire, (void *)login);
 		}
 	}
@@ -360,20 +384,26 @@ sbp_targ_find_devs(struct sbp_targ_softc *sc, union ccb *ccb,
 	if (ccb->ccb_h.target_id == CAM_TARGET_WILDCARD &&
 	    ccb->ccb_h.target_lun == CAM_LUN_WILDCARD) {
 		*lstate = sc->black_hole;
+		if (debug)
+			printf("setting black hole for this target id(%d)\n", ccb->ccb_h.target_id);
 		return (CAM_REQ_CMP);
 	}
-
-	if (ccb->ccb_h.target_id != 0)
-		return (CAM_TID_INVALID);
 
 	lun = ccb->ccb_h.target_lun;
 	if (lun >= MAX_LUN)
 		return (CAM_LUN_INVALID);
-	
+
 	*lstate = sc->lstate[lun];
 
-	if (notfound_failure != 0 && *lstate == NULL)
+	if (notfound_failure != 0 && *lstate == NULL) {
+		if (debug)
+			printf("%s: lstate for lun is invalid, target(%d), lun(%d)\n",
+				__func__, ccb->ccb_h.target_id, lun);
 		return (CAM_PATH_INVALID);
+	} else
+		if (debug)
+			printf("%s: setting lstate for tgt(%d) lun(%d)\n",
+				__func__,ccb->ccb_h.target_id, lun);
 
 	return (CAM_REQ_CMP);
 }
@@ -410,11 +440,18 @@ sbp_targ_en_lun(struct sbp_targ_softc *sc, union ccb *ccb)
 			printf("Couldn't allocate lstate\n");
 			ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 			return;
-		}
-		if (ccb->ccb_h.target_id == CAM_TARGET_WILDCARD)
+		} else {
+			if (debug)
+				printf("%s: malloc'd lstate %p\n",__func__, lstate);
+		}	
+		if (ccb->ccb_h.target_id == CAM_TARGET_WILDCARD) {
 			sc->black_hole = lstate;
-		else
+			if (debug)
+				printf("Blackhole set due to target id == %d\n",
+					ccb->ccb_h.target_id);
+		} else
 			sc->lstate[ccb->ccb_h.target_lun] = lstate;
+
 		memset(lstate, 0, sizeof(*lstate));
 		lstate->sc = sc;
 		status = xpt_create_path(&lstate->path, /*periph*/NULL,
@@ -423,6 +460,7 @@ sbp_targ_en_lun(struct sbp_targ_softc *sc, union ccb *ccb)
 					 xpt_path_lun_id(ccb->ccb_h.path));
 		if (status != CAM_REQ_CMP) {
 			free(lstate, M_SBP_TARG);
+			lstate = NULL;
 			xpt_print_path(ccb->ccb_h.path);
 			printf("Couldn't allocate path\n");
 			ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
@@ -442,6 +480,7 @@ sbp_targ_en_lun(struct sbp_targ_softc *sc, union ccb *ccb)
 
 		if (lstate == NULL) {
 			ccb->ccb_h.status = CAM_LUN_INVALID;
+			printf("Invalid lstate for this target\n");
 			return;
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -457,6 +496,7 @@ sbp_targ_en_lun(struct sbp_targ_softc *sc, union ccb *ccb)
 		}
 
 		if (ccb->ccb_h.status != CAM_REQ_CMP) {
+			printf("status != CAM_REQ_CMP\n");
 			return;
 		}
 
@@ -474,7 +514,10 @@ sbp_targ_en_lun(struct sbp_targ_softc *sc, union ccb *ccb)
 			sc->black_hole = NULL;
 		else
 			sc->lstate[ccb->ccb_h.target_lun] = NULL;
+		if (debug)
+			printf("%s: free lstate %p\n", __func__, lstate);
 		free(lstate, M_SBP_TARG);
+		lstate = NULL;
 
 		/* bus reset */
 		sc->fd.fc->ibr(sc->fd.fc);
@@ -487,7 +530,7 @@ sbp_targ_send_lstate_events(struct sbp_targ_softc *sc,
 {
 #if 0
 	struct ccb_hdr *ccbh;
-	struct ccb_immed_notify *inot;
+	struct ccb_immediate_notify *inot;
 
 	printf("%s: not implemented yet\n", __func__);
 #endif
@@ -537,7 +580,7 @@ sbp_targ_get_orb_info(struct sbp_targ_lstate *lstate,
 		if (orbi->orb_lo == tag_id)
 			goto found;
 	printf("%s: orb not found tag_id=0x%08x init_id=%d\n",
-				 __func__, tag_id, init_id);
+			 __func__, tag_id, init_id);
 	return (NULL);
 found:
 	return (orbi);
@@ -558,12 +601,13 @@ sbp_targ_abort(struct sbp_targ_softc *sc, struct orb_info *orbi)
 				xpt_done(orbi->ccb);
 				orbi->ccb = NULL;
 			}
-#if 0
 			if (orbi->state <= ORBI_STATUS_ATIO) {
 				sbp_targ_remove_orb_info_locked(orbi->login, orbi);
+				if (debug)
+					printf("%s: free orbi %p\n", __func__, orbi);
 				free(orbi, M_SBP_TARG);
+				orbi = NULL;
 			} else
-#endif
 				orbi->state = ORBI_STATUS_ABORTED;
 		}
 	}
@@ -575,12 +619,21 @@ sbp_targ_free_orbi(struct fw_xfer *xfer)
 {
 	struct orb_info *orbi;
 
-	orbi = (struct orb_info *)xfer->sc;
 	if (xfer->resp != 0) {
 		/* XXX */
 		printf("%s: xfer->resp = %d\n", __func__, xfer->resp);
 	}
+	orbi = (struct orb_info *)xfer->sc;
+	if ( orbi->page_table != NULL ) {
+		if (debug)
+			printf("%s:  free orbi->page_table %p\n", __func__, orbi->page_table);
+		free(orbi->page_table, M_SBP_TARG);
+		orbi->page_table = NULL;
+	}
+	if (debug)
+		printf("%s: free orbi %p\n", __func__, orbi);
 	free(orbi, M_SBP_TARG);
+	orbi = NULL;
 	fw_xfer_free(xfer);
 }
 
@@ -594,7 +647,7 @@ sbp_targ_status_FIFO(struct orb_info *orbi,
 		sbp_targ_remove_orb_info(orbi->login, orbi);
 
 	xfer = fwmem_write_block(orbi->fwdev, (void *)orbi,
-	    /*spd*/2, fifo_hi, fifo_lo,
+	    /*spd*/FWSPD_S400, fifo_hi, fifo_lo,
 	    sizeof(uint32_t) * (orbi->status.len + 1), (char *)&orbi->status,
 	    sbp_targ_free_orbi);
 
@@ -604,6 +657,10 @@ sbp_targ_status_FIFO(struct orb_info *orbi,
 	}
 }
 
+/*
+ * Generate the appropriate CAM status for the
+ * target.
+ */
 static void
 sbp_targ_send_status(struct orb_info *orbi, union ccb *ccb)
 {
@@ -620,6 +677,8 @@ sbp_targ_send_status(struct orb_info *orbi, union ccb *ccb)
 	sbp_status->status = 0; /* XXX */
 	sbp_status->dead = 0; /* XXX */
 
+	ccb->ccb_h.status= CAM_REQ_CMP;
+
 	switch (ccb->csio.scsi_status) {
 	case SCSI_STATUS_OK:
 		if (debug)
@@ -627,15 +686,25 @@ sbp_targ_send_status(struct orb_info *orbi, union ccb *ccb)
 		sbp_status->len = 1;
 		break;
 	case SCSI_STATUS_CHECK_COND:
+		if (debug)
+			printf("%s: STATUS SCSI_STATUS_CHECK_COND\n", __func__);
+		goto process_scsi_status;
 	case SCSI_STATUS_BUSY:
+		if (debug)
+			printf("%s: STATUS SCSI_STATUS_BUSY\n", __func__);
+		goto process_scsi_status;
 	case SCSI_STATUS_CMD_TERMINATED:
+process_scsi_status:
 	{
 		struct sbp_cmd_status *sbp_cmd_status;
 		struct scsi_sense_data *sense;
+		int error_code, sense_key, asc, ascq;
+		uint8_t stream_bits;
+		uint8_t sks[3];
+		uint64_t info;
+		int64_t sinfo;
+		int sense_len;
 
-		if (debug)
-			printf("%s: STATUS %d\n", __func__,
-			    ccb->csio.scsi_status);
 		sbp_cmd_status = (struct sbp_cmd_status *)&sbp_status->data[0];
 		sbp_cmd_status->status = ccb->csio.scsi_status;
 		sense = &ccb->csio.sense_data;
@@ -659,35 +728,76 @@ sbp_targ_send_status(struct orb_info *orbi, union ccb *ccb)
 #endif
 #endif
 
-		if ((sense->error_code & SSD_ERRCODE) == SSD_CURRENT_ERROR)
+		sense_len = ccb->csio.sense_len - ccb->csio.sense_resid;
+		scsi_extract_sense_len(sense, sense_len, &error_code,
+		    &sense_key, &asc, &ascq, /*show_errors*/ 0);
+
+		switch (error_code) {
+		case SSD_CURRENT_ERROR:
+		case SSD_DESC_CURRENT_ERROR:
 			sbp_cmd_status->sfmt = SBP_SFMT_CURR;
-		else
+			break;
+		default:
 			sbp_cmd_status->sfmt = SBP_SFMT_DEFER;
+			break;
+		}
 
-		sbp_cmd_status->valid = (sense->error_code & SSD_ERRCODE_VALID)
-		    ? 1 : 0;
-		sbp_cmd_status->s_key = sense->flags & SSD_KEY;
-		sbp_cmd_status->mark = (sense->flags & SSD_FILEMARK)? 1 : 0;
-		sbp_cmd_status->eom = (sense->flags & SSD_EOM) ? 1 : 0;
-		sbp_cmd_status->ill_len = (sense->flags & SSD_ILI) ? 1 : 0;
+		if (scsi_get_sense_info(sense, sense_len, SSD_DESC_INFO, &info,
+					&sinfo) == 0) {
+			uint32_t info_trunc;
+			sbp_cmd_status->valid = 1;
+			info_trunc = info;
 
-		bcopy(&sense->info[0], &sbp_cmd_status->info, 4);
+			sbp_cmd_status->info = htobe32(info_trunc);
+		} else {
+			sbp_cmd_status->valid = 0;
+		}
 
-		if (sense->extra_len <= 6)
-			/* add_sense_code(_qual), info, cmd_spec_info */
-			sbp_status->len = 4;
-		else
-			/* fru, sense_key_spec */
+		sbp_cmd_status->s_key = sense_key;
+
+		if (scsi_get_stream_info(sense, sense_len, NULL,
+					 &stream_bits) == 0) {
+			sbp_cmd_status->mark =
+			    (stream_bits & SSD_FILEMARK) ? 1 : 0;
+			sbp_cmd_status->eom =
+			    (stream_bits & SSD_EOM) ? 1 : 0;
+			sbp_cmd_status->ill_len =
+			    (stream_bits & SSD_ILI) ? 1 : 0;
+		} else {
+			sbp_cmd_status->mark = 0;
+			sbp_cmd_status->eom = 0;
+			sbp_cmd_status->ill_len = 0;
+		}
+
+
+		/* add_sense_code(_qual), info, cmd_spec_info */
+		sbp_status->len = 4;
+
+		if (scsi_get_sense_info(sense, sense_len, SSD_DESC_COMMAND,
+					&info, &sinfo) == 0) {
+			uint32_t cmdspec_trunc;
+
+			cmdspec_trunc = info;
+
+			sbp_cmd_status->cdb = htobe32(cmdspec_trunc);
+		}
+
+		sbp_cmd_status->s_code = asc;
+		sbp_cmd_status->s_qlfr = ascq;
+
+		if (scsi_get_sense_info(sense, sense_len, SSD_DESC_FRU, &info,
+					&sinfo) == 0) {
+			sbp_cmd_status->fru = (uint8_t)info;
 			sbp_status->len = 5;
-			
-		bcopy(&sense->cmd_spec_info[0], &sbp_cmd_status->cdb, 4);
+		} else {
+			sbp_cmd_status->fru = 0;
+		}
 
-		sbp_cmd_status->s_code = sense->add_sense_code;
-		sbp_cmd_status->s_qlfr = sense->add_sense_code_qual;
-		sbp_cmd_status->fru = sense->fru;
-
-		bcopy(&sense->sense_key_spec[0],
-		    &sbp_cmd_status->s_keydep[0], 3);
+		if (scsi_get_sks(sense, sense_len, sks) == 0) {
+			bcopy(sks, &sbp_cmd_status->s_keydep[0], sizeof(sks));
+			sbp_status->len = 5;
+			ccb->ccb_h.status |= CAM_SENT_SENSE;
+		}
 
 		break;
 	}
@@ -696,13 +806,20 @@ sbp_targ_send_status(struct orb_info *orbi, union ccb *ccb)
 		    sbp_status->status);
 	}
 
-	if (orbi->page_table != NULL)
-		free(orbi->page_table, M_SBP_TARG);
 
 	sbp_targ_status_FIFO(orbi,
 	    orbi->login->fifo_hi, orbi->login->fifo_lo, /*dequeue*/1);
 }
 
+/*
+ * Invoked as a callback handler from fwmem_read/write_block
+ *
+ * Process read/write of initiator address space
+ * completion and pass status onto the backend target.
+ * If this is a partial read/write for a CCB then
+ * we decrement the orbi's refcount to indicate
+ * the status of the read/write is complete
+ */
 static void
 sbp_targ_cam_done(struct fw_xfer *xfer)
 {
@@ -711,7 +828,7 @@ sbp_targ_cam_done(struct fw_xfer *xfer)
 
 	orbi = (struct orb_info *)xfer->sc;
 
-	if (debug > 1)
+	if (debug)
 		printf("%s: resp=%d refcount=%d\n", __func__,
 			xfer->resp, orbi->refcount);
 
@@ -723,7 +840,7 @@ sbp_targ_cam_done(struct fw_xfer *xfer)
 		sbp_targ_abort(orbi->sc, STAILQ_NEXT(orbi, link));
 	}
 
-	orbi->refcount --;
+	orbi->refcount--;
 
 	ccb = orbi->ccb;
 	if (orbi->refcount == 0) {
@@ -732,13 +849,26 @@ sbp_targ_cam_done(struct fw_xfer *xfer)
 			if (debug)
 				printf("%s: orbi aborted\n", __func__);
 			sbp_targ_remove_orb_info(orbi->login, orbi);
-			if (orbi->page_table != NULL)
+			if (orbi->page_table != NULL) {
+				if (debug)
+					printf("%s: free orbi->page_table %p\n",
+						__func__, orbi->page_table);
 				free(orbi->page_table, M_SBP_TARG);
+			}
+			if (debug)
+				printf("%s: free orbi %p\n", __func__, orbi);
 			free(orbi, M_SBP_TARG);
-		} else if (orbi->status.resp == 0) {
-			if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0)
+			orbi = NULL;
+		} else if (orbi->status.resp == ORBI_STATUS_NONE) {
+			if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
+				if (debug) 
+					printf("%s: CAM_SEND_STATUS set %0x\n", __func__, ccb->ccb_h.flags);
 				sbp_targ_send_status(orbi, ccb);
-			ccb->ccb_h.status = CAM_REQ_CMP;
+			} else {
+				if (debug)
+					printf("%s: CAM_SEND_STATUS not set %0x\n", __func__, ccb->ccb_h.flags);
+				ccb->ccb_h.status = CAM_REQ_CMP;
+			}
 			SBP_LOCK(orbi->sc);
 			xpt_done(ccb);
 			SBP_UNLOCK(orbi->sc);
@@ -775,7 +905,7 @@ sbp_targ_abort_ccb(struct sbp_targ_softc *sc, union ccb *ccb)
 
 	if (accb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO)
 		list = &lstate->accept_tios;
-	else if (accb->ccb_h.func_code == XPT_IMMED_NOTIFY)
+	else if (accb->ccb_h.func_code == XPT_IMMEDIATE_NOTIFY)
 		list = &lstate->immed_notifies;
 	else
 		return (CAM_UA_ABORT);
@@ -786,7 +916,7 @@ sbp_targ_abort_ccb(struct sbp_targ_softc *sc, union ccb *ccb)
 		found = 1;
 		SLIST_REMOVE_HEAD(list, sim_links.sle);
 	} else {
-		while(curelm != NULL) {
+		while (curelm != NULL) {
 			struct ccb_hdr *nextelm;
 
 			nextelm = SLIST_NEXT(curelm, sim_links.sle);
@@ -808,6 +938,13 @@ sbp_targ_abort_ccb(struct sbp_targ_softc *sc, union ccb *ccb)
 	return (CAM_PATH_INVALID);
 }
 
+/*
+ * directly execute a read or write to the initiator
+ * address space and set hand(sbp_targ_cam_done) to 
+ * process the completion from the SIM to the target.
+ * set orbi->refcount to inidicate that a read/write
+ * is inflight to/from the initiator.
+ */
 static void
 sbp_targ_xfer_buf(struct orb_info *orbi, u_int offset,
     uint16_t dst_hi, uint32_t dst_lo, u_int size,
@@ -827,20 +964,25 @@ sbp_targ_xfer_buf(struct orb_info *orbi, u_int offset,
 		len = MIN(size, 2048 /* XXX */);
 		size -= len;
 		orbi->refcount ++;
-		if (ccb_dir == CAM_DIR_OUT)
+		if (ccb_dir == CAM_DIR_OUT) {
+			if (debug)
+				printf("%s: CAM_DIR_OUT --> read block in?\n",__func__);
 			xfer = fwmem_read_block(orbi->fwdev,
-			   (void *)orbi, /*spd*/2,
+			   (void *)orbi, /*spd*/FWSPD_S400,
 			    dst_hi, dst_lo + off, len,
 			    ptr + off, hand);
-		else
+		} else {
+			if (debug)
+				printf("%s: CAM_DIR_IN --> write block out?\n",__func__);
 			xfer = fwmem_write_block(orbi->fwdev,
-			   (void *)orbi, /*spd*/2,
+			   (void *)orbi, /*spd*/FWSPD_S400,
 			    dst_hi, dst_lo + off, len,
 			    ptr + off, hand);
+		}
 		if (xfer == NULL) {
 			printf("%s: xfer == NULL", __func__);
 			/* XXX what should we do?? */
-			orbi->refcount --;
+			orbi->refcount--;
 		}
 		off += len;
 	}
@@ -850,18 +992,22 @@ static void
 sbp_targ_pt_done(struct fw_xfer *xfer)
 {
 	struct orb_info *orbi;
-	union ccb *ccb;
-	u_int i, offset, res, len;
-	uint32_t t1, t2, *p;
+	struct unrestricted_page_table_fmt *pt;
+	uint32_t i;
 
 	orbi = (struct orb_info *)xfer->sc;
-	ccb = orbi->ccb;
+
 	if (orbi->state == ORBI_STATUS_ABORTED) {
 		if (debug)
 			printf("%s: orbi aborted\n", __func__);
 		sbp_targ_remove_orb_info(orbi->login, orbi);
+		if (debug) {
+			printf("%s: free orbi->page_table %p\n", __func__, orbi->page_table);
+			printf("%s: free orbi %p\n", __func__, orbi);
+		}
 		free(orbi->page_table, M_SBP_TARG);
 		free(orbi, M_SBP_TARG);
+		orbi = NULL;
 		fw_xfer_free(xfer);
 		return;
 	}
@@ -873,60 +1019,158 @@ sbp_targ_pt_done(struct fw_xfer *xfer)
 		orbi->status.len = 1;
 		sbp_targ_abort(orbi->sc, STAILQ_NEXT(orbi, link));
 
+		if (debug)
+			printf("%s: free orbi->page_table %p\n", __func__, orbi->page_table);
+
 		sbp_targ_status_FIFO(orbi,
 		    orbi->login->fifo_hi, orbi->login->fifo_lo, /*dequeue*/1);
 		free(orbi->page_table, M_SBP_TARG);
+		orbi->page_table = NULL;
 		fw_xfer_free(xfer);
 		return;
 	}
-	res = ccb->csio.dxfer_len;
-	offset = 0;
-	if (debug)
-		printf("%s: dxfer_len=%d\n", __func__, res);
-	orbi->refcount ++;
-	for (p = orbi->page_table, i = orbi->orb4.data_size; i > 0; i --) {
-		t1 = ntohl(*p++);
-		t2 = ntohl(*p++);
-		if (debug > 1)
-			printf("page_table: %04x:%08x %d\n", 
-			    t1 & 0xffff, t2, t1>>16);
-		len = MIN(t1 >> 16, res);
-		res -= len;
-		sbp_targ_xfer_buf(orbi, offset, t1 & 0xffff, t2, len,
-		    sbp_targ_cam_done);
-		offset += len;
-		if (res == 0)
-			break;
+	orbi->refcount++;
+/*
+ * Set endianness here so we don't have 
+ * to deal with is later
+ */
+	for (i = 0, pt = orbi->page_table; i < orbi->orb4.data_size; i++, pt++) {
+		pt->segment_len = ntohs(pt->segment_len);
+		if (debug)
+			printf("%s:segment_len = %u\n", __func__,pt->segment_len);
+		pt->segment_base_high = ntohs(pt->segment_base_high);
+		pt->segment_base_low = ntohl(pt->segment_base_low);
 	}
-	orbi->refcount --;
+
+	sbp_targ_xfer_pt(orbi);
+
+	orbi->refcount--;
 	if (orbi->refcount == 0)
 		printf("%s: refcount == 0\n", __func__);
-	if (res !=0)
-		/* XXX handle res != 0 case */
-		printf("%s: page table is too small(%d)\n", __func__, res);
 
 	fw_xfer_free(xfer);
 	return;
 }
+
+static void sbp_targ_xfer_pt(struct orb_info *orbi)
+{
+	union ccb *ccb;
+	uint32_t res, offset, len;
+
+	ccb = orbi->ccb;
+	if (debug)
+		printf("%s: dxfer_len=%d\n", __func__, ccb->csio.dxfer_len);
+	res = ccb->csio.dxfer_len;
+	/*
+	 * If the page table required multiple CTIO's to 
+	 * complete, then cur_pte is non NULL 
+	 * and we need to start from the last position
+	 * If this is the first pass over a page table
+	 * then we just start at the beginning of the page
+	 * table.
+	 *
+	 * Parse the unrestricted page table and figure out where we need
+	 * to shove the data from this read request.
+	 */
+	for (offset = 0, len = 0; (res != 0) && (orbi->cur_pte < orbi->last_pte); offset += len) {
+		len = MIN(orbi->cur_pte->segment_len, res);
+		res -= len;
+		if (debug)
+			printf("%s:page_table: %04x:%08x segment_len(%u) res(%u) len(%u)\n", 
+				__func__, orbi->cur_pte->segment_base_high,
+				orbi->cur_pte->segment_base_low,
+				orbi->cur_pte->segment_len,
+				res, len);
+		sbp_targ_xfer_buf(orbi, offset, 
+				orbi->cur_pte->segment_base_high,
+				orbi->cur_pte->segment_base_low,
+				len, sbp_targ_cam_done);
+		/*
+		 * If we have only written partially to
+		 * this page table, then we need to save
+		 * our position for the next CTIO.  If we
+		 * have completed the page table, then we
+		 * are safe to move on to the next entry.
+		 */
+		if (len == orbi->cur_pte->segment_len) {
+			orbi->cur_pte++;
+		} else {
+			uint32_t saved_base_low;
+
+			/* Handle transfers that cross a 4GB boundary. */
+			saved_base_low = orbi->cur_pte->segment_base_low;
+			orbi->cur_pte->segment_base_low += len;
+			if (orbi->cur_pte->segment_base_low < saved_base_low)
+				orbi->cur_pte->segment_base_high++;
+
+			orbi->cur_pte->segment_len -= len;
+		}
+	}
+	if (debug) {
+		printf("%s: base_low(%08x) page_table_off(%p) last_block(%u)\n",
+			__func__, orbi->cur_pte->segment_base_low, 
+			orbi->cur_pte, orbi->last_block_read);  
+	}
+	if (res != 0)
+		printf("Warning - short pt encountered.  "
+			"Could not transfer all data.\n");
+	return;
+}
+
+/*
+ * Create page table in local memory
+ * and transfer it from the initiator
+ * in order to know where we are supposed
+ * to put the data.
+ */
 
 static void
 sbp_targ_fetch_pt(struct orb_info *orbi)
 {
 	struct fw_xfer *xfer;
 
-	if (debug)
-		printf("%s: page_table_size=%d\n",
-		    __func__, orbi->orb4.data_size);
-	orbi->page_table = malloc(orbi->orb4.data_size*8, M_SBP_TARG, M_NOWAIT);
-	if (orbi->page_table == NULL)
-		goto error;
-	xfer = fwmem_read_block(orbi->fwdev, (void *)orbi, /*spd*/2,
-		    orbi->data_hi, orbi->data_lo, orbi->orb4.data_size*8,
-			    (void *)orbi->page_table, sbp_targ_pt_done);
-	if (xfer != NULL)
+	/*
+	 * Pull in page table from initiator
+	 * and setup for data from our
+	 * backend device.
+	 */
+	if (orbi->page_table == NULL) {
+		orbi->page_table = malloc(orbi->orb4.data_size*
+					  sizeof(struct unrestricted_page_table_fmt),
+					  M_SBP_TARG, M_NOWAIT|M_ZERO);
+		if (orbi->page_table == NULL)
+			goto error;
+		orbi->cur_pte = orbi->page_table;
+		orbi->last_pte = orbi->page_table + orbi->orb4.data_size;
+		orbi->last_block_read = orbi->orb4.data_size;
+		if (debug && orbi->page_table != NULL) 
+			printf("%s: malloc'd orbi->page_table(%p), orb4.data_size(%u)\n",
+ 				__func__, orbi->page_table, orbi->orb4.data_size);
+
+		xfer = fwmem_read_block(orbi->fwdev, (void *)orbi, /*spd*/FWSPD_S400,
+					orbi->data_hi, orbi->data_lo, orbi->orb4.data_size*
+					sizeof(struct unrestricted_page_table_fmt),
+					(void *)orbi->page_table, sbp_targ_pt_done);
+
+		if (xfer != NULL)
+			return;
+	} else {
+		/*
+		 * This is a CTIO for a page table we have
+		 * already malloc'd, so just directly invoke
+		 * the xfer function on the orbi.
+		 */
+		sbp_targ_xfer_pt(orbi);
 		return;
+	}
 error:
 	orbi->ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+	if (debug)      
+		printf("%s: free orbi->page_table %p due to xfer == NULL\n", __func__, orbi->page_table);
+	if (orbi->page_table != NULL) {
+		free(orbi->page_table, M_SBP_TARG);
+		orbi->page_table = NULL;
+	}
 	xpt_done(orbi->ccb);
 	return;
 }
@@ -969,6 +1213,8 @@ sbp_targ_action1(struct cam_sim *sim, union ccb *ccb)
 			if (debug)
 				printf("%s: ctio aborted\n", __func__);
 			sbp_targ_remove_orb_info_locked(orbi->login, orbi);
+			if (debug)
+				printf("%s: free orbi %p\n", __func__, orbi);
 			free(orbi, M_SBP_TARG);
 			ccb->ccb_h.status = CAM_REQ_ABORTED;
 			xpt_done(ccb);
@@ -1004,17 +1250,16 @@ sbp_targ_action1(struct cam_sim *sim, union ccb *ccb)
 		}
 
 		/* Sanity check */
-		if (ccb_dir != CAM_DIR_NONE &&
-		    orbi->orb4.data_size != ccb->csio.dxfer_len)
-			printf("%s: data_size(%d) != dxfer_len(%d)\n",
-			    __func__, orbi->orb4.data_size,
-			    ccb->csio.dxfer_len);
-
-		if (ccb_dir != CAM_DIR_NONE)
+		if (ccb_dir != CAM_DIR_NONE) {
 			sbp_targ_xfer_buf(orbi, 0, orbi->data_hi,
 			    orbi->data_lo,
 			    MIN(orbi->orb4.data_size, ccb->csio.dxfer_len),
 			    sbp_targ_cam_done);
+			if ( orbi->orb4.data_size > ccb->csio.dxfer_len ) {
+				orbi->data_lo += ccb->csio.dxfer_len;
+				orbi->orb4.data_size -= ccb->csio.dxfer_len;
+			}
+		}
 
 		if (ccb_dir == CAM_DIR_NONE) {
 			if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
@@ -1053,8 +1298,8 @@ sbp_targ_action1(struct cam_sim *sim, union ccb *ccb)
 				}
 		}
 		break;
-	case XPT_NOTIFY_ACK:		/* recycle notify ack */
-	case XPT_IMMED_NOTIFY:		/* Add Immediate Notify Resource */
+	case XPT_NOTIFY_ACKNOWLEDGE:	/* recycle notify ack */
+	case XPT_IMMEDIATE_NOTIFY:	/* Add Immediate Notify Resource */
 		if (status != CAM_REQ_CMP) {
 			ccb->ccb_h.status = status;
 			xpt_done(ccb);
@@ -1078,6 +1323,7 @@ sbp_targ_action1(struct cam_sim *sim, union ccb *ccb)
 		cpi->target_sprt = PIT_PROCESSOR
 				 | PIT_DISCONNECT
 				 | PIT_TERM_IO;
+		cpi->transport = XPORT_SPI; /* FIXME add XPORT_FW type to cam */
 		cpi->hba_misc = PIM_NOBUSRESET | PIM_NO_6_BYTE;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 7; /* XXX */
@@ -1100,7 +1346,7 @@ sbp_targ_action1(struct cam_sim *sim, union ccb *ccb)
 
 		switch (accb->ccb_h.func_code) {
 		case XPT_ACCEPT_TARGET_IO:
-		case XPT_IMMED_NOTIFY:
+		case XPT_IMMEDIATE_NOTIFY:
 			ccb->ccb_h.status = sbp_targ_abort_ccb(sc, ccb);
 			break;
 		case XPT_CONT_TARGET_IO:
@@ -1108,7 +1354,7 @@ sbp_targ_action1(struct cam_sim *sim, union ccb *ccb)
 			ccb->ccb_h.status = CAM_UA_ABORT;
 			break;
 		default:
-			printf("%s: aborting unknown function %d\n", 
+			printf("%s: aborting unknown function %d\n",
 				__func__, accb->ccb_h.func_code);
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			break;
@@ -1116,10 +1362,42 @@ sbp_targ_action1(struct cam_sim *sim, union ccb *ccb)
 		xpt_done(ccb);
 		break;
 	}
-	default:
-		printf("%s: unknown function %d\n",
-		    __func__, ccb->ccb_h.func_code);
+#ifdef CAM_NEW_TRAN_CODE
+	case XPT_SET_TRAN_SETTINGS:
 		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		break;
+	case XPT_GET_TRAN_SETTINGS:
+	{
+		struct ccb_trans_settings *cts = &ccb->cts;
+		struct ccb_trans_settings_scsi *scsi =
+			&cts->proto_specific.scsi;
+		struct ccb_trans_settings_spi *spi =
+			&cts->xport_specific.spi;
+
+		cts->protocol = PROTO_SCSI;
+		cts->protocol_version = SCSI_REV_2;
+		cts->transport = XPORT_FW;     /* should have a FireWire */
+		cts->transport_version = 2;
+		spi->valid = CTS_SPI_VALID_DISC;
+		spi->flags = CTS_SPI_FLAGS_DISC_ENB;
+		scsi->valid = CTS_SCSI_VALID_TQ;
+		scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
+#if 0
+		printf("%s:%d:%d XPT_GET_TRAN_SETTINGS:\n",
+			device_get_nameunit(sc->fd.dev),
+			ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
+#endif
+		cts->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	}
+#endif
+
+	default:
+		printf("%s: unknown function 0x%x\n",
+		    __func__, ccb->ccb_h.func_code);
+		ccb->ccb_h.status = CAM_PROVIDE_FAIL;
 		xpt_done(ccb);
 		break;
 	}
@@ -1186,7 +1464,7 @@ sbp_targ_cmd_handler(struct fw_xfer *xfer)
 
 	orb = orbi->orb;
 	/* swap payload except SCSI command */
-	for (i = 0; i < 5; i ++)
+	for (i = 0; i < 5; i++)
 		orb[i] = ntohl(orb[i]);
 
 	orb4 = (struct corb4 *)&orb[4];
@@ -1198,11 +1476,11 @@ sbp_targ_cmd_handler(struct fw_xfer *xfer)
 	atio->ccb_h.target_id = 0; /* XXX */
 	atio->ccb_h.target_lun = orbi->login->lstate->lun;
 	atio->sense_len = 0;
-	atio->tag_action = 1; /* XXX */
+	atio->tag_action = MSG_SIMPLE_TASK;
 	atio->tag_id = orbi->orb_lo;
 	atio->init_id = orbi->login->id;
 
-	atio->ccb_h.flags = CAM_TAG_ACTION_VALID;
+	atio->ccb_h.flags |= CAM_TAG_ACTION_VALID;
 	bytes = (u_char *)&orb[5];
 	if (debug)
 		printf("%s: %p %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
@@ -1267,12 +1545,12 @@ sbp_targ_get_login(struct sbp_targ_softc *sc, struct fw_device *fwdev, int lun)
 	int i;
 
 	lstate = sc->lstate[lun];
-	
+
 	STAILQ_FOREACH(login, &lstate->logins, link)
 		if (login->fwdev == fwdev)
 			return (login);
 
-	for (i = 0; i < MAX_LOGINS; i ++)
+	for (i = 0; i < MAX_LOGINS; i++)
 		if (sc->logins[i] == NULL)
 			goto found;
 
@@ -1329,7 +1607,7 @@ sbp_targ_mgm_handler(struct fw_xfer *xfer)
 
 	orb = orbi->orb;
 	/* swap payload */
-	for (i = 0; i < 8; i ++) {
+	for (i = 0; i < 8; i++) {
 		orb[i] = ntohl(orb[i]);
 	}
 	orb4 = (struct morb4 *)&orb[4];
@@ -1350,10 +1628,10 @@ sbp_targ_mgm_handler(struct fw_xfer *xfer)
 		lstate = orbi->sc->lstate[lun];
 
 		if (lun >= MAX_LUN || lstate == NULL ||
-		    (exclusive && 
+		    (exclusive &&
 		    STAILQ_FIRST(&lstate->logins) != NULL &&
 		    STAILQ_FIRST(&lstate->logins)->fwdev != orbi->fwdev)
-		    ) {
+		   ) {
 			/* error */
 			orbi->status.dead = 1;
 			orbi->status.status = STATUS_ACCESS_DENY;
@@ -1382,7 +1660,7 @@ sbp_targ_mgm_handler(struct fw_xfer *xfer)
 		login->loginres.recon_hold = htons(login->hold_sec);
 
 		STAILQ_INSERT_TAIL(&lstate->logins, login, link);
-		fwmem_write_block(orbi->fwdev, NULL, /*spd*/2, orb[2], orb[3],
+		fwmem_write_block(orbi->fwdev, NULL, /*spd*/FWSPD_S400, orb[2], orb[3],
 		    sizeof(struct sbp_login_res), (void *)&login->loginres,
 		    fw_asy_callback_free);
 		/* XXX return status after loginres is successfully written */
@@ -1435,7 +1713,7 @@ sbp_targ_pointer_handler(struct fw_xfer *xfer)
 
 	orb0 = ntohl(orbi->orb[0]);
 	orb1 = ntohl(orbi->orb[1]);
-	if ((orb0 & (1 << 31)) != 0) {
+	if ((orb0 & (1U << 31)) != 0) {
 		printf("%s: invalid pointer\n", __func__);
 		goto done;
 	}
@@ -1468,10 +1746,11 @@ sbp_targ_fetch_orb(struct sbp_targ_softc *sc, struct fw_device *fwdev,
 	orbi->orb_lo = orb_lo;
 	orbi->status.orb_hi = htons(orb_hi);
 	orbi->status.orb_lo = htonl(orb_lo);
+	orbi->page_table = NULL;
 
 	switch (mode) {
 	case FETCH_MGM:
-		fwmem_read_block(fwdev, (void *)orbi, /*spd*/2, orb_hi, orb_lo,
+		fwmem_read_block(fwdev, (void *)orbi, /*spd*/FWSPD_S400, orb_hi, orb_lo,
 		    sizeof(uint32_t) * 8, &orbi->orb[0],
 		    sbp_targ_mgm_handler);
 		break;
@@ -1498,14 +1777,14 @@ sbp_targ_fetch_orb(struct sbp_targ_softc *sc, struct fw_device *fwdev,
 		SLIST_REMOVE_HEAD(&login->lstate->accept_tios, sim_links.sle);
 		STAILQ_INSERT_TAIL(&login->orbs, orbi, link);
 		SBP_UNLOCK(sc);
-		fwmem_read_block(fwdev, (void *)orbi, /*spd*/2, orb_hi, orb_lo,
+		fwmem_read_block(fwdev, (void *)orbi, /*spd*/FWSPD_S400, orb_hi, orb_lo,
 		    sizeof(uint32_t) * 8, &orbi->orb[0],
 		    sbp_targ_cmd_handler);
 		break;
 	case FETCH_POINTER:
 		orbi->state = ORBI_STATUS_POINTER;
 		login->flags |= F_LINK_ACTIVE;
-		fwmem_read_block(fwdev, (void *)orbi, /*spd*/2, orb_hi, orb_lo,
+		fwmem_read_block(fwdev, (void *)orbi, /*spd*/FWSPD_S400, orb_hi, orb_lo,
 		    sizeof(uint32_t) * 2, &orbi->orb[0],
 		    sbp_targ_pointer_handler);
 		break;
@@ -1540,16 +1819,16 @@ sbp_targ_cmd(struct fw_xfer *xfer, struct fw_device *fwdev, int login_id,
 	int rtcode = 0;
 
 	if (login_id < 0 || login_id >= MAX_LOGINS)
-		return(RESP_ADDRESS_ERROR);
+		return (RESP_ADDRESS_ERROR);
 
 	sc = (struct sbp_targ_softc *)xfer->sc;
 	login = sc->logins[login_id];
 	if (login == NULL)
-		return(RESP_ADDRESS_ERROR);
+		return (RESP_ADDRESS_ERROR);
 
 	if (login->fwdev != fwdev) {
 		/* XXX */
-		return(RESP_ADDRESS_ERROR);
+		return (RESP_ADDRESS_ERROR);
 	}
 
 	switch (reg) {
@@ -1616,17 +1895,17 @@ sbp_targ_mgm(struct fw_xfer *xfer, struct fw_device *fwdev)
 	sc = (struct sbp_targ_softc *)xfer->sc;
 
 	fp = &xfer->recv.hdr;
-	if (fp->mode.wreqb.tcode != FWTCODE_WREQB){
+	if (fp->mode.wreqb.tcode != FWTCODE_WREQB) {
 		printf("%s: tcode = %d\n", __func__, fp->mode.wreqb.tcode);
-		return(RESP_TYPE_ERROR);
+		return (RESP_TYPE_ERROR);
         }
 
 	sbp_targ_fetch_orb(sc, fwdev,
 	    ntohl(xfer->recv.payload[0]),
 	    ntohl(xfer->recv.payload[1]),
 	    NULL, FETCH_MGM);
-	
-	return(0);
+
+	return (0);
 }
 
 static void
@@ -1662,7 +1941,7 @@ done:
 	if (rtcode != 0)
 		printf("%s: rtcode = %d\n", __func__, rtcode);
 	sfp = &xfer->send.hdr;
-	xfer->send.spd = 2; /* XXX */
+	xfer->send.spd = FWSPD_S400;
 	xfer->hand = sbp_targ_resp_callback;
 	sfp->mode.wres.dst = fp->mode.wreqb.src;
 	sfp->mode.wres.tlrt = fp->mode.wreqb.tlrt;
@@ -1744,9 +2023,9 @@ sbp_targ_detach(device_t dev)
 	xpt_free_path(sc->path);
 	xpt_bus_deregister(cam_sim_path(sc->sim));
 	SBP_UNLOCK(sc);
-	cam_sim_free(sc->sim, /*free_devq*/TRUE); 
+	cam_sim_free(sc->sim, /*free_devq*/TRUE);
 
-	for (i = 0; i < MAX_LUN; i ++) {
+	for (i = 0; i < MAX_LUN; i++) {
 		lstate = sc->lstate[i];
 		if (lstate != NULL) {
 			xpt_free_path(lstate->path);
@@ -1757,7 +2036,7 @@ sbp_targ_detach(device_t dev)
 		xpt_free_path(sc->black_hole->path);
 		free(sc->black_hole, M_SBP_TARG);
 	}
-			
+
 	fw_bindremove(sc->fd.fc, &sc->fwb);
 	fw_xferlist_remove(&sc->fwb.xferlist);
 

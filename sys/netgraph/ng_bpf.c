@@ -74,7 +74,7 @@
 #include <netgraph/ng_bpf.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BPF, "netgraph_bpf", "netgraph bpf node ");
+static MALLOC_DEFINE(M_NETGRAPH_BPF, "netgraph_bpf", "netgraph bpf node");
 #else
 #define M_NETGRAPH_BPF M_NETGRAPH
 #endif

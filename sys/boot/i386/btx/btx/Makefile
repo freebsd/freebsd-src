@@ -2,7 +2,7 @@
 
 PROG=	btx
 INTERNALPROG=
-NO_MAN=
+MAN=
 SRCS=	btx.S
 
 .if defined(BOOT_BTX_NOHANG)
@@ -12,6 +12,7 @@ BOOT_BTX_FLAGS=0x0
 .endif
 
 CFLAGS+=-DBTX_FLAGS=${BOOT_BTX_FLAGS}
+CFLAGS+=-I${.CURDIR}/../../common
 
 .if defined(BTX_SERIAL)
 BOOT_COMCONSOLE_PORT?= 0x3f8
@@ -24,6 +25,9 @@ CFLAGS+=-DBTX_SERIAL -DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 
 ORG=	0x9000
 
-LDFLAGS=-N -e start -Ttext ${ORG} -Wl,-S,--oformat,binary
+LDFLAGS=${LDFLAGS_BIN}
 
 .include <bsd.prog.mk>
+
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS.btx.S=		${CLANG_NO_IAS}

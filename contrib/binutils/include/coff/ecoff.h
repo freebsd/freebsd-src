@@ -2,7 +2,7 @@
    This does not include symbol information, found in sym.h and
    symconst.h.
 
-   Copyright 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef ECOFF_H
 #define ECOFF_H
@@ -41,6 +41,8 @@
 /* Alpha magic numbers used in filehdr.  */
 #define ALPHA_MAGIC 0x183
 #define ALPHA_MAGIC_BSD 0x185
+/* A compressed version of an ALPHA_MAGIC file created by DEC's tools.  */
+#define ALPHA_MAGIC_COMPRESSED 0x188
 
 /* Magic numbers used in a.out header.  */
 #define ECOFF_AOUT_OMAGIC 0407	/* not demand paged (ld -N).  */
@@ -322,34 +324,6 @@ struct ecoff_debug_info
      this changes in the future.  This is a pointer to an array, not a
      single structure.  */
   FDR *fdr;
-
-  /* When relaxing MIPS embedded PIC code, we may need to adjust
-     symbol values when they are output.  This is a linked list of
-     structures indicating how values should be adjusted.  There is no
-     requirement that the entries be in any order, or that they not
-     overlap.  This field is normally NULL, in which case no
-     adjustments need to be made.  */
-  struct ecoff_value_adjust *adjust;
-};
-
-/* This structure describes how to adjust symbol values when
-   outputting MIPS embedded PIC code.  These adjustments only apply to
-   the internal symbols, as the external symbol values will come from
-   the hash table and have already been adjusted.  */
-
-struct ecoff_value_adjust
-{
-  /* Next entry on adjustment list.  */
-  struct ecoff_value_adjust *next;
-  /* Starting VMA of adjustment.  This is the VMA in the ECOFF file,
-     not the offset from the start of the section.  Thus it should
-     indicate a particular section.  */
-  bfd_vma start;
-  /* Ending VMA of adjustment.  */
-  bfd_vma end;
-  /* Adjustment.  This should be added to the value of the symbol, or
-     FDR.  This is zero for the last entry in the array.  */
-  long adjust;
 };
 
 /* These structures are used by the ECOFF find_nearest_line function.  */

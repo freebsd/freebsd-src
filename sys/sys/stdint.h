@@ -33,46 +33,7 @@
 #include <sys/_types.h>
 
 #include <machine/_stdint.h>
-
-#ifndef _INT8_T_DECLARED
-typedef	__int8_t		int8_t;
-#define	_INT8_T_DECLARED
-#endif
-
-#ifndef _INT16_T_DECLARED
-typedef	__int16_t		int16_t;
-#define	_INT16_T_DECLARED
-#endif
-
-#ifndef _INT32_T_DECLARED
-typedef	__int32_t		int32_t;
-#define	_INT32_T_DECLARED
-#endif
-
-#ifndef _INT64_T_DECLARED
-typedef	__int64_t		int64_t;
-#define	_INT64_T_DECLARED
-#endif
-
-#ifndef _UINT8_T_DECLARED
-typedef	__uint8_t		uint8_t;
-#define	_UINT8_T_DECLARED
-#endif
-
-#ifndef _UINT16_T_DECLARED
-typedef	__uint16_t		uint16_t;
-#define	_UINT16_T_DECLARED
-#endif
-
-#ifndef _UINT32_T_DECLARED
-typedef	__uint32_t		uint32_t;
-#define	_UINT32_T_DECLARED
-#endif
-
-#ifndef _UINT64_T_DECLARED
-typedef	__uint64_t		uint64_t;
-#define	_UINT64_T_DECLARED
-#endif
+#include <sys/_stdint.h>
 
 typedef	__int_least8_t		int_least8_t;
 typedef	__int_least16_t		int_least16_t;
@@ -94,13 +55,15 @@ typedef	__uint_fast16_t		uint_fast16_t;
 typedef	__uint_fast32_t		uint_fast32_t;
 typedef	__uint_fast64_t		uint_fast64_t;
 
-typedef	__intmax_t		intmax_t;
-typedef	__uintmax_t		uintmax_t;
-
-#ifndef _INTPTR_T_DECLARED
-typedef	__intptr_t		intptr_t;
-typedef	__uintptr_t		uintptr_t;
-#define	_INTPTR_T_DECLARED
+/* GNU and Darwin define this and people seem to think it's portable */
+#if defined(UINTPTR_MAX) && defined(UINT64_MAX) && (UINTPTR_MAX == UINT64_MAX)
+#define	__WORDSIZE		64
+#else
+#define	__WORDSIZE		32
 #endif
+
+/* Limits of wchar_t. */
+#define	WCHAR_MIN	__WCHAR_MIN
+#define	WCHAR_MAX	__WCHAR_MAX
 
 #endif /* !_SYS_STDINT_H_ */

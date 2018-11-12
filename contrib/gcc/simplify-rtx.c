@@ -589,7 +589,8 @@ simplify_unary_operation_1 (enum rtx_code code, enum machine_mode mode, rtx op)
       /* (neg (lt x 0)) is (ashiftrt X C) if STORE_FLAG_VALUE is 1.  */
       /* (neg (lt x 0)) is (lshiftrt X C) if STORE_FLAG_VALUE is -1.  */
       if (GET_CODE (op) == LT
-	  && XEXP (op, 1) == const0_rtx)
+	  && XEXP (op, 1) == const0_rtx
+	  && SCALAR_INT_MODE_P (GET_MODE (XEXP (op, 0))))
 	{
 	  enum machine_mode inner = GET_MODE (XEXP (op, 0));
 	  int isize = GET_MODE_BITSIZE (inner);
@@ -1042,6 +1043,9 @@ simplify_const_unary_operation (enum rtx_code code, enum machine_mode mode,
 	    val++, arg0 &= arg0 - 1;
 	  val &= 1;
 	  break;
+
+	case BSWAP:
+	  return 0;
 
 	case TRUNCATE:
 	  val = arg0;
@@ -4886,4 +4890,3 @@ simplify_rtx (rtx x)
     }
   return NULL;
 }
-

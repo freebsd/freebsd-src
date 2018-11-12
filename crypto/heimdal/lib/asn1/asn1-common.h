@@ -1,7 +1,8 @@
-/* $Id: asn1-common.h 22429 2008-01-13 10:25:50Z lha $ */
+/* $Id$ */
 
 #include <stddef.h>
 #include <time.h>
+#include <krb5-types.h>
 
 #ifndef __asn1_common_definitions__
 #define __asn1_common_definitions__
@@ -19,8 +20,8 @@ typedef struct heim_octet_string {
 
 typedef char *heim_general_string;
 typedef char *heim_utf8_string;
-typedef char *heim_printable_string;
-typedef char *heim_ia5_string;
+typedef struct heim_octet_string heim_printable_string;
+typedef struct heim_octet_string heim_ia5_string;
 
 typedef struct heim_bmp_string {
     size_t length;
@@ -62,5 +63,17 @@ typedef struct heim_octet_string heim_any_set;
       }                                                        \
     }                                                          \
   } while (0)
+
+#ifdef _WIN32
+#ifndef ASN1_LIB
+#define ASN1EXP  __declspec(dllimport)
+#else
+#define ASN1EXP
+#endif
+#define ASN1CALL __stdcall
+#else
+#define ASN1EXP
+#define ASN1CALL
+#endif
 
 #endif

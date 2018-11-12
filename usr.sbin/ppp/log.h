@@ -76,7 +76,7 @@ extern void log_DiscardAllLocal(u_long *);
 extern int log_IsKept(int);
 extern int log_IsKeptLocal(int, u_long);
 extern void log_Open(const char *);
-extern void log_SetTun(int);
+extern void log_SetTun(int, const char *);
 extern void log_Close(void);
 #ifdef __GNUC__
 extern void log_Printf(int, const char *,...)

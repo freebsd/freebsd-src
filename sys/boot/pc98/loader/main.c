@@ -33,28 +33,26 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <stand.h>
+#include <stddef.h>
 #include <string.h>
 #include <machine/bootinfo.h>
-#include <machine/psl.h>
+#include <machine/cpufunc.h>
+#include <sys/param.h>
 #include <sys/reboot.h>
 
 #include "bootstrap.h"
+#include "common/bootargs.h"
 #include "libi386/libi386.h"
+#include "libpc98/libpc98.h"
 #include "btxv86.h"
 
-#define	KARGS_FLAGS_CD		0x1
-#define	KARGS_FLAGS_PXE		0x2
+CTASSERT(sizeof(struct bootargs) == BOOTARGS_SIZE);
+CTASSERT(offsetof(struct bootargs, bootinfo) == BA_BOOTINFO);
+CTASSERT(offsetof(struct bootargs, bootflags) == BA_BOOTFLAGS);
+CTASSERT(offsetof(struct bootinfo, bi_size) == BI_SIZE);
 
 /* Arguments passed in from the boot1/boot2 loader */
-static struct 
-{
-    u_int32_t	howto;
-    u_int32_t	bootdev;
-    u_int32_t	bootflags;
-    u_int32_t	pxeinfo;
-    u_int32_t	res2;
-    u_int32_t	bootinfo;
-} *kargs;
+static struct bootargs *kargs;
 
 static u_int32_t	initial_howto;
 static u_int32_t	initial_bootdev;
@@ -76,10 +74,28 @@ extern char end[];
 static void *heap_top;
 static void *heap_bottom;
 
+static uint64_t
+pc98_loadaddr(u_int type, void *data, uint64_t addr)
+{
+	struct stat st;
+
+	if (type == LOAD_ELF)
+		return (roundup(addr, PAGE_SIZE));
+
+	/* We cannot use 15M-16M area on pc98. */
+	if (type == LOAD_RAW && addr < 0x1000000 && stat(data, &st) == 0 &&
+	    (st.st_size == -1 || addr + st.st_size > 0xf00000))
+		addr = 0x1000000;
+	return (addr);
+}
+
 int
 main(void)
 {
     int			i;
+
+    /* Set machine type to PC98_SYSTEM_PARAMETER. */
+    set_machine_type();
 
     /* Pick up arguments */
     kargs = (void *)__args;
@@ -96,14 +112,18 @@ main(void)
      */
     bios_getmem();
 
-#ifdef LOADER_BZIP2_SUPPORT
-    heap_top = PTOV(memtop_copyin);
-    memtop_copyin -= 0x300000;
-    heap_bottom = PTOV(memtop_copyin);
-#else
-    heap_top = (void *)bios_basemem;
-    heap_bottom = (void *)end;
+#if defined(LOADER_BZIP2_SUPPORT)
+    if (high_heap_size > 0) {
+	heap_top = PTOV(high_heap_base + high_heap_size);
+	heap_bottom = PTOV(high_heap_base);
+	if (high_heap_base < memtop_copyin)
+	    memtop_copyin = high_heap_base;
+    } else
 #endif
+    {
+	heap_top = (void *)PTOV(bios_basemem);
+	heap_bottom = (void *)end;
+    }
     setheap(heap_bottom, heap_top);
 
     /* 
@@ -127,9 +147,9 @@ main(void)
     cons_probe();
 
     /*
-     * Initialise the block cache
+     * Initialise the block cache. Set the upper limit.
      */
-    bcache_init(32, 512);	/* 16k cache XXX tune this */
+    bcache_init(32768, 512);
 
     /*
      * Special handling for PXE and CD booting.
@@ -152,6 +172,7 @@ main(void)
     archsw.arch_readin = i386_readin;
     archsw.arch_isainb = isa_inb;
     archsw.arch_isaoutb = isa_outb;
+    archsw.arch_loadaddr = pc98_loadaddr;
 
     /*
      * March through the device switch probing for things.
@@ -172,7 +193,7 @@ main(void)
     extract_currdev();				/* set $currdev and $loaddev */
     setenv("LINES", "24", 1);			/* optional */
 
-    interact();			/* doesn't return */
+    interact(NULL);			/* doesn't return */
 
     /* if we ever get here, it is an error */
     return (1);
@@ -187,9 +208,9 @@ main(void)
 static void
 extract_currdev(void)
 {
-    struct i386_devdesc	new_currdev;
-    int			major;
-    int			biosdev = -1;
+    struct i386_devdesc		new_currdev;
+    int				major;
+    int				biosdev = -1;
 
     /* Assume we are booting from a BIOS disk by default */
     new_currdev.d_dev = &biosdisk;
@@ -235,7 +256,7 @@ extract_currdev(void)
 	}
     }
     new_currdev.d_type = new_currdev.d_dev->dv_type;
-    
+
     /*
      * If we are booting off of a BIOS disk and we didn't succeed in determining
      * which one we booted off of, just use disk0: as a reasonable default.
@@ -246,6 +267,7 @@ extract_currdev(void)
 	       "Guessed BIOS device 0x%x not found by probes, defaulting to disk0:\n", biosdev);
 	new_currdev.d_unit = 0;
     }
+
     env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&new_currdev),
 	       i386_setcurrdev, env_nounset);
     env_setenv("loaddev", EV_VOLATILE, i386_fmtdev(&new_currdev), env_noset,
@@ -286,33 +308,17 @@ command_heap(int argc, char *argv[])
     return(CMD_OK);
 }
 
-/* ISA bus access functions for PnP, derived from <machine/cpufunc.h> */
-static int		
+/* ISA bus access functions for PnP. */
+static int
 isa_inb(int port)
 {
-    u_char	data;
-    
-    if (__builtin_constant_p(port) && 
-	(((port) & 0xffff) < 0x100) && 
-	((port) < 0x10000)) {
-	__asm __volatile("inb %1,%0" : "=a" (data) : "id" ((u_short)(port)));
-    } else {
-	__asm __volatile("inb %%dx,%0" : "=a" (data) : "d" (port));
-    }
-    return(data);
+
+    return (inb(port));
 }
 
 static void
 isa_outb(int port, int value)
 {
-    u_char	al = value;
-    
-    if (__builtin_constant_p(port) && 
-	(((port) & 0xffff) < 0x100) && 
-	((port) < 0x10000)) {
-	__asm __volatile("outb %0,%1" : : "a" (al), "id" ((u_short)(port)));
-    } else {
-        __asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
-    }
-}
 
+    outb(port, value);
+}

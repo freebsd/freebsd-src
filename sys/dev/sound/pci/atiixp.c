@@ -1097,7 +1097,7 @@ atiixp_chip_post_init(void *arg)
 	    "polling", CTLTYPE_INT | CTLFLAG_RW, sc->dev, sizeof(sc->dev),
 	    sysctl_atiixp_polling, "I", "Enable polling mode");
 
-	snprintf(status, SND_STATUSLEN, "at memory 0x%lx irq %ld %s",
+	snprintf(status, SND_STATUSLEN, "at memory 0x%jx irq %jd %s",
 	    rman_get_start(sc->reg), rman_get_start(sc->irq),
 	    PCM_KLDSTRING(snd_atiixp));
 
@@ -1146,13 +1146,14 @@ atiixp_release_resource(struct atiixp_info *sc)
 		bus_dma_tag_destroy(sc->parent_dmat);
 		sc->parent_dmat = NULL;
 	}
-	if (sc->sgd_dmamap)
+	if (sc->sgd_addr) {
 		bus_dmamap_unload(sc->sgd_dmat, sc->sgd_dmamap);
+		sc->sgd_addr = 0;
+	}
 	if (sc->sgd_table) {
 		bus_dmamem_free(sc->sgd_dmat, sc->sgd_table, sc->sgd_dmamap);
 		sc->sgd_table = NULL;
 	}
-	sc->sgd_dmamap = NULL;
 	if (sc->sgd_dmat) {
 		bus_dma_tag_destroy(sc->sgd_dmat);
 		sc->sgd_dmat = NULL;
@@ -1193,7 +1194,7 @@ atiixp_pci_attach(device_t dev)
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_atiixp softc");
 	sc->dev = dev;
 
-	callout_init(&sc->poll_timer, CALLOUT_MPSAFE);
+	callout_init(&sc->poll_timer, 1);
 	sc->poll_ticks = 1;
 
 	if (resource_int_value(device_get_name(sc->dev),
@@ -1202,7 +1203,6 @@ atiixp_pci_attach(device_t dev)
 	else
 		sc->polling = 0;
 
-	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	pci_enable_busmaster(dev);
 
 	sc->regid = PCIR_BAR(0);
@@ -1354,7 +1354,6 @@ atiixp_pci_suspend(device_t dev)
 	value = atiixp_rd(sc, ATI_REG_CMD);
 	value |= ATI_REG_CMD_POWERDOWN | ATI_REG_CMD_AC_RESET;
 	atiixp_wr(sc, ATI_REG_CMD, ATI_REG_CMD_POWERDOWN);
-	pci_set_powerstate(dev, PCI_POWERSTATE_D3);
 	atiixp_unlock(sc);
 
 	return (0);
@@ -1366,10 +1365,6 @@ atiixp_pci_resume(device_t dev)
 	struct atiixp_info *sc = pcm_getdevinfo(dev);
 
 	atiixp_lock(sc);
-	/* power up pci bus */
-	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-	pci_enable_io(dev, SYS_RES_MEMORY);
-	pci_enable_busmaster(dev);
 	/* reset / power up aclink */
 	atiixp_reset_aclink(sc);
 	atiixp_unlock(sc);

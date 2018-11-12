@@ -40,7 +40,6 @@
 #include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/cred.h>
-#include <sys/kdb.h>
 
 #include <sys/gfs.h>
 
@@ -91,7 +90,7 @@
  *	gfs_dir_lookup()
  *	gfs_dir_readdir()
  *
- * 	gfs_vop_inactive()
+ * 	gfs_vop_reclaim()
  * 	gfs_vop_lookup()
  * 	gfs_vop_readdir()
  * 	gfs_vop_map()
@@ -107,6 +106,42 @@
  *
  * 	gfs_root_create_file()
  */
+
+#ifdef illumos
+/*
+ * gfs_make_opsvec: take an array of vnode type definitions and create
+ * their vnodeops_t structures
+ *
+ * This routine takes an array of gfs_opsvec_t's.  It could
+ * alternatively take an array of gfs_opsvec_t*'s, which would allow
+ * vnode types to be completely defined in files external to the caller
+ * of gfs_make_opsvec().  As it stands, much more sharing takes place --
+ * both the caller and the vnode type provider need to access gfsv_ops
+ * and gfsv_template, and the caller also needs to know gfsv_name.
+ */
+int
+gfs_make_opsvec(gfs_opsvec_t *vec)
+{
+	int error, i;
+
+	for (i = 0; ; i++) {
+		if (vec[i].gfsv_name == NULL)
+			return (0);
+		error = vn_make_ops(vec[i].gfsv_name, vec[i].gfsv_template,
+		    vec[i].gfsv_ops);
+		if (error)
+			break;
+	}
+
+	cmn_err(CE_WARN, "gfs_make_opsvec: bad vnode ops template for '%s'",
+	    vec[i].gfsv_name);
+	for (i--; i >= 0; i--) {
+		vn_freevnodeops(*vec[i].gfsv_ops);
+		*vec[i].gfsv_ops = NULL;
+	}
+	return (error);
+}
+#endif	/* illumos */
 
 /*
  * Low level directory routines
@@ -312,6 +347,22 @@ gfs_readdir_emit(gfs_readdir_state_t *st, uio_t *uiop, offset_t voff,
 	    cookies));
 }
 
+#ifdef illumos
+/*
+ * gfs_readdir_emitn: like gfs_readdir_emit(), but takes an integer
+ * instead of a string for the entry's name.
+ */
+int
+gfs_readdir_emitn(gfs_readdir_state_t *st, uio_t *uiop, offset_t voff,
+    ino64_t ino, unsigned long num)
+{
+	char buf[40];
+
+	numtos(num, buf);
+	return (gfs_readdir_emit(st, uiop, voff, ino, buf, 0));
+}
+#endif
+
 /*
  * gfs_readdir_pred: readdir loop predicate
  *   voffp - a pointer in which the next virtual offset should be stored
@@ -384,20 +435,16 @@ gfs_readdir_fini(gfs_readdir_state_t *st, int error, int *eofp, int eof)
 int
 gfs_lookup_dot(vnode_t **vpp, vnode_t *dvp, vnode_t *pvp, const char *nm)
 {
+	int ltype;
+
 	if (*nm == '\0' || strcmp(nm, ".") == 0) {
 		VN_HOLD(dvp);
 		*vpp = dvp;
 		return (0);
 	} else if (strcmp(nm, "..") == 0) {
-		if (pvp == NULL) {
-			ASSERT(dvp->v_flag & VROOT);
-			VN_HOLD(dvp);
-			*vpp = dvp;
-		} else {
-			VN_HOLD(pvp);
-			*vpp = pvp;
-		}
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+		ASSERT(pvp != NULL);
+		VN_HOLD(pvp);
+		*vpp = pvp;
 		return (0);
 	}
 
@@ -432,7 +479,7 @@ gfs_file_create(size_t size, vnode_t *pvp, vfs_t *vfsp, vnodeops_t *ops)
 	 * Allocate vnode and internal data structure
 	 */
 	fp = kmem_zalloc(size, KM_SLEEP);
-	error = getnewvnode("zfs", vfsp, ops, &vp);
+	error = getnewvnode("zfs_gfs", vfsp, ops, &vp);
 	ASSERT(error == 0);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vp->v_data = (caddr_t)fp;
@@ -532,7 +579,9 @@ gfs_root_create(size_t size, vfs_t *vfsp, vnodeops_t *ops, ino64_t ino,
 {
 	vnode_t *vp;
 
+#ifdef illumos
 	VFS_HOLD(vfsp);
+#endif
 	vp = gfs_dir_create(size, NULL, vfsp, ops, entries, inode_cb,
 	    maxlen, readdir_cb, lookup_cb);
 	/* Manually set the inode */
@@ -542,10 +591,32 @@ gfs_root_create(size_t size, vfs_t *vfsp, vnodeops_t *ops, ino64_t ino,
 	return (vp);
 }
 
+#ifdef illumos
+/*
+ * gfs_root_create_file(): create a root vnode for a GFS file as a filesystem
+ *
+ * Similar to gfs_root_create(), this creates a root vnode for a file to
+ * be the pseudo-filesystem.
+ */
+vnode_t *
+gfs_root_create_file(size_t size, vfs_t *vfsp, vnodeops_t *ops, ino64_t ino)
+{
+	vnode_t	*vp = gfs_file_create(size, NULL, ops);
+
+	((gfs_file_t *)vp->v_data)->gfs_ino = ino;
+
+	VFS_HOLD(vfsp);
+	VN_SET_VFS_TYPE_DEV(vp, vfsp, VREG, 0);
+	vp->v_flag |= VROOT | VNOCACHE | VNOMAP | VNOSWAP | VNOMOUNT;
+
+	return (vp);
+}
+#endif	/* illumos */
+
 /*
  * gfs_file_inactive()
  *
- * Called from the VOP_INACTIVE() routine.  If necessary, this routine will
+ * Called from the VOP_RECLAIM() routine.  If necessary, this routine will
  * remove the given vnode from the parent directory and clean up any references
  * in the VFS layer.
  *
@@ -570,7 +641,7 @@ gfs_file_inactive(vnode_t *vp)
 	 */
 	if ((dp = fp->gfs_parent->v_data) == NULL)
 		return (NULL);
-		
+
 	/*
 	 * First, see if this vnode is cached in the parent.
 	 */
@@ -592,8 +663,10 @@ gfs_file_inactive(vnode_t *vp)
 	ge = NULL;
 
 found:
+#ifdef TODO
 	if (vp->v_flag & V_XATTRDIR)
 		VI_LOCK(fp->gfs_parent);
+#endif
 	VI_LOCK(vp);
 	/*
 	 * Really remove this vnode
@@ -614,16 +687,19 @@ found:
 	if (fp->gfs_parent) {
 		if (dp)
 			gfs_dir_unlock(dp);
-		VI_LOCK(fp->gfs_parent);
-		fp->gfs_parent->v_usecount--;
-		VI_UNLOCK(fp->gfs_parent);
+		VOP_UNLOCK(vp, 0);
+		VN_RELE(fp->gfs_parent);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	} else {
 		ASSERT(vp->v_vfsp != NULL);
+#ifdef illumos
 		VFS_RELE(vp->v_vfsp);
+#endif
 	}
+#ifdef TODO
 	if (vp->v_flag & V_XATTRDIR)
 		VI_UNLOCK(fp->gfs_parent);
-
+#endif
 	return (data);
 }
 
@@ -995,6 +1071,7 @@ gfs_dir_readdir(vnode_t *dvp, uio_t *uiop, int *eofp, int *ncookies,
 	return (gfs_readdir_fini(&gstate, error, eofp, eof));
 }
 
+
 /*
  * gfs_vop_lookup: VOP_LOOKUP() entry point
  *
@@ -1062,16 +1139,91 @@ gfs_vop_readdir(ap)
 	return (error);
 }
 
+
+#ifdef illumos
 /*
- * gfs_vop_inactive: VOP_INACTIVE() entry point
+ * gfs_vop_map: VOP_MAP() entry point
+ *
+ * Convenient routine for handling pseudo-files that wish to allow mmap() calls.
+ * This function only works for readonly files, and uses the read function for
+ * the vnode to fill in the data.  The mapped data is immediately faulted in and
+ * filled with the necessary data during this call; there are no getpage() or
+ * putpage() routines.
+ */
+/* ARGSUSED */
+int
+gfs_vop_map(vnode_t *vp, offset_t off, struct as *as, caddr_t *addrp,
+    size_t len, uchar_t prot, uchar_t maxprot, uint_t flags, cred_t *cred,
+    caller_context_t *ct)
+{
+	int rv;
+	ssize_t resid = len;
+
+	/*
+	 * Check for bad parameters
+	 */
+#ifdef _ILP32
+	if (len > MAXOFF_T)
+		return (ENOMEM);
+#endif
+	if (vp->v_flag & VNOMAP)
+		return (ENOTSUP);
+	if (off > MAXOFF_T)
+		return (EFBIG);
+	if ((long)off < 0 || (long)(off + len) < 0)
+		return (EINVAL);
+	if (vp->v_type != VREG)
+		return (ENODEV);
+	if ((prot & (PROT_EXEC | PROT_WRITE)) != 0)
+		return (EACCES);
+
+	/*
+	 * Find appropriate address if needed, otherwise clear address range.
+	 */
+	as_rangelock(as);
+	rv = choose_addr(as, addrp, len, off, ADDR_VACALIGN, flags);
+	if (rv != 0) {
+		as_rangeunlock(as);
+		return (rv);
+	}
+
+	/*
+	 * Create mapping
+	 */
+	rv = as_map(as, *addrp, len, segvn_create, zfod_argsp);
+	as_rangeunlock(as);
+	if (rv != 0)
+		return (rv);
+
+	/*
+	 * Fill with data from read()
+	 */
+	rv = vn_rdwr(UIO_READ, vp, *addrp, len, off, UIO_USERSPACE,
+	    0, (rlim64_t)0, cred, &resid);
+
+	if (rv == 0 && resid != 0)
+		rv = ENXIO;
+
+	if (rv != 0) {
+		as_rangelock(as);
+		(void) as_unmap(as, *addrp, len);
+		as_rangeunlock(as);
+	}
+
+	return (rv);
+}
+#endif	/* illumos */
+
+/*
+ * gfs_vop_reclaim: VOP_RECLAIM() entry point (solaris' VOP_INACTIVE())
  *
  * Given a vnode that is a GFS file or directory, call gfs_file_inactive() or
  * gfs_dir_inactive() as necessary, and kmem_free()s associated private data.
  */
 /* ARGSUSED */
 int
-gfs_vop_inactive(ap)
-	struct vop_inactive_args /* {
+gfs_vop_reclaim(ap)
+	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
 		struct thread *a_td;
 	} */ *ap;
@@ -1084,6 +1236,7 @@ gfs_vop_inactive(ap)
 	else
 		gfs_file_inactive(vp);
 
+	vnode_destroy_vobject(vp);
 	VI_LOCK(vp);
 	vp->v_data = NULL;
 	VI_UNLOCK(vp);

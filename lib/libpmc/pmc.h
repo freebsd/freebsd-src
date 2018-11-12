@@ -30,20 +30,22 @@
 #define _PMC_H_
 
 #include <sys/cdefs.h>
+#include <sys/types.h>
 #include <sys/pmc.h>
 
 /*
  * Driver statistics.
  */
 struct pmc_driverstats {
-	int	pm_intr_ignored;	/* #interrupts ignored */
-	int	pm_intr_processed;	/* #interrupts processed */
-	int	pm_intr_bufferfull;	/* #interrupts with ENOSPC */
-	int	pm_syscalls;		/* #syscalls */
-	int	pm_syscall_errors;	/* #syscalls with errors */
-	int	pm_buffer_requests;	/* #buffer requests */
-	int	pm_buffer_requests_failed; /* #failed buffer requests */
-	int	pm_log_sweeps;		/* #sample buffer processing passes */
+	unsigned int	pm_intr_ignored;	/* #interrupts ignored */
+	unsigned int	pm_intr_processed;	/* #interrupts processed */
+	unsigned int	pm_intr_bufferfull;	/* #interrupts with ENOSPC */
+	unsigned int	pm_syscalls;		/* #syscalls */
+	unsigned int	pm_syscall_errors;	/* #syscalls with errors */
+	unsigned int	pm_buffer_requests;	/* #buffer requests */
+	unsigned int	pm_buffer_requests_failed; /* #failed buffer requests */
+	unsigned int	pm_log_sweeps;		/* #sample buffer processing
+						   passes */
 };
 
 /*
@@ -76,6 +78,7 @@ int	pmc_attach(pmc_id_t _pmcid, pid_t _pid);
 int	pmc_capabilities(pmc_id_t _pmc, uint32_t *_caps);
 int	pmc_configure_logfile(int _fd);
 int	pmc_flush_logfile(void);
+int	pmc_close_logfile(void);
 int	pmc_detach(pmc_id_t _pmcid, pid_t _pid);
 int	pmc_disable(int _cpu, int _pmc);
 int	pmc_enable(int _cpu, int _pmc);
@@ -97,7 +100,7 @@ int	pmc_npmc(int _cpu);
 int	pmc_cpuinfo(const struct pmc_cpuinfo **_cpu_info);
 int	pmc_pmcinfo(int _cpu, struct pmc_pmcinfo **_pmc_info);
 
-const char	*pmc_name_of_capability(uint32_t _c);
+const char	*pmc_name_of_capability(enum pmc_caps _c);
 const char	*pmc_name_of_class(enum pmc_class _pc);
 const char	*pmc_name_of_cputype(enum pmc_cputype _cp);
 const char	*pmc_name_of_disposition(enum pmc_disp _pd);

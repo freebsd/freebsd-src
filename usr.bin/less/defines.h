@@ -184,6 +184,7 @@
 /*
  * Sizes of various buffers.
  */
+#if 0 /* old sizes for small memory machines */
 #define	CMDBUF_SIZE	512	/* Buffer for multichar commands */
 #define	UNGOT_SIZE	100	/* Max chars to unget() */
 #define	LINEBUF_SIZE	1024	/* Max size of line in input file */
@@ -193,6 +194,17 @@
 #define	TERMSBUF_SIZE	1024	/* Buffer to hold termcap strings */
 #define	TAGLINE_SIZE	512	/* Max size of line in tags file */
 #define	TABSTOP_MAX	32	/* Max number of custom tab stops */
+#else /* more reasonable sizes for modern machines */
+#define	CMDBUF_SIZE	2048	/* Buffer for multichar commands */
+#define	UNGOT_SIZE	200	/* Max chars to unget() */
+#define	LINEBUF_SIZE	1024	/* Initial max size of line in input file */
+#define	OUTBUF_SIZE	1024	/* Output buffer */
+#define	PROMPT_SIZE	2048	/* Max size of prompt string */
+#define	TERMBUF_SIZE	2048	/* Termcap buffer for tgetent */
+#define	TERMSBUF_SIZE	1024	/* Buffer to hold termcap strings */
+#define	TAGLINE_SIZE	1024	/* Max size of line in tags file */
+#define	TABSTOP_MAX	128	/* Max number of custom tab stops */
+#endif
 
 /* Settings automatically determined by configure.  */
 
@@ -221,20 +233,17 @@
 /* Define HAVE_FILENO if you have the fileno() macro. */
 #define HAVE_FILENO 1
 
+/* Define HAVE_FLOAT if your compiler supports the "double" type. */
+#define HAVE_FLOAT 1
+
 /* Define to 1 if you have the `fsync' function. */
 #define HAVE_FSYNC 1
 
+/* GNU regex library */
+/* #undef HAVE_GNU_REGEX */
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
-
-/* Define to 1 if you have the `gen' library (-lgen). */
-/* #undef HAVE_LIBGEN */
-
-/* Define to 1 if you have the `intl' library (-lintl). */
-/* #undef HAVE_LIBINTL */
-
-/* Define to 1 if you have the `PW' library (-lPW). */
-/* #undef HAVE_LIBPW */
 
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
@@ -388,6 +397,9 @@
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "less"
 
+/* Define to the home page for this package. */
+#define PACKAGE_URL ""
+
 /* Define to the version of this package. */
 #define PACKAGE_VERSION "1"
 
@@ -405,6 +417,11 @@
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #define TIME_WITH_SYS_TIME 1
+
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */

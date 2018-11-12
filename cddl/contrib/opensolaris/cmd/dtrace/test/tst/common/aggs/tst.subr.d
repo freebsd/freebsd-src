@@ -22,11 +22,11 @@
 /*
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright (c) 2012, Joyent, Inc.  All rights reserved.
  */
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
-#include <sys/dtrace.h>
 
 #define INTFUNC(x)			\
 	BEGIN				\
@@ -98,6 +98,9 @@ INTFUNC(ntohll(0x1234567890abcdefL))
 STRFUNC(inet_ntoa((ipaddr_t *)alloca(sizeof (ipaddr_t))))
 STRFUNC(inet_ntoa6((in6_addr_t *)alloca(sizeof (in6_addr_t))))
 STRFUNC(inet_ntop(AF_INET, (void *)alloca(sizeof (ipaddr_t))))
+INTFUNC(getf(0))
+INTFUNC(strtoll("0x12EE5D5", 16))
+STRFUNC(json("{\"systemtap\": false}", "systemtap"))
 
 BEGIN
 /subr == DIF_SUBR_MAX + 1/

@@ -38,9 +38,9 @@ extern char bootprog_rev[];
 /* #define BFORTH_DEBUG */
 
 #ifdef BFORTH_DEBUG
-# define DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __func__ , ## args)
+#define	DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __func__ , ## args)
 #else
-# define DEBUG(fmt, args...)
+#define	DEBUG(fmt, args...)
 #endif
 
 /*
@@ -49,6 +49,13 @@ extern char bootprog_rev[];
  * just in this file, it is getting defined.
  */
 #define BF_PARSE 100
+
+/*
+ * FreeBSD loader default dictionary cells
+ */
+#ifndef	BF_DICTSIZE
+#define	BF_DICTSIZE	10000
+#endif
 
 /*
  * BootForth   Interface to Ficl Forth interpreter.
@@ -131,7 +138,23 @@ bf_command(FICL_VM *vm)
     } else {
 	result=BF_PARSE;
     }
+
+    switch (result) {
+    case CMD_CRIT:
+	printf("%s\n", command_errmsg);
+	break;
+    case CMD_FATAL:
+	panic("%s\n", command_errmsg);
+    }
+
     free(line);
+    /*
+     * If there was error during nested ficlExec(), we may no longer have
+     * valid environment to return.  Throw all exceptions from here.
+     */
+    if (result != CMD_OK)
+	vmThrow(vm, result);
+
     /* This is going to be thrown!!! */
     stackPushINT(vm->pStack,result);
 }
@@ -228,13 +251,13 @@ bf_command(FICL_VM *vm)
  * Initialise the Forth interpreter, create all our commands as words.
  */
 void
-bf_init(void)
+bf_init(const char *rc)
 {
     struct bootblk_command	**cmdp;
     char create_buf[41];	/* 31 characters-long builtins */
     int fd;
-   
-    bf_sys = ficlInitSystem(10000);	/* Default dictionary ~4000 cells */
+
+    bf_sys = ficlInitSystem(BF_DICTSIZE);
     bf_vm = ficlNewVM(bf_sys);
 
     /* Put all private definitions in a "builtins" vocabulary */
@@ -258,13 +281,20 @@ bf_init(void)
     ficlSetEnv(bf_sys, "loader_version", 
 	       (bootprog_rev[0] - '0') * 10 + (bootprog_rev[2] - '0'));
 
+    pInterp = ficlLookup(bf_sys, "interpret");
+
     /* try to load and run init file if present */
-    if ((fd = open("/boot/boot.4th", O_RDONLY)) != -1) {
-	(void)ficlExecFD(bf_vm, fd);
-	close(fd);
+    if (rc == NULL)
+	rc = "/boot/boot.4th";
+    if (*rc != '\0') {
+	fd = open(rc, O_RDONLY);
+	if (fd != -1) {
+	    (void)ficlExecFD(bf_vm, fd);
+	    close(fd);
+	}
     }
 
-    /* Do this last, so /boot/boot.4th can change it */
+    /* Do this again, so that interpret can be redefined. */
     pInterp = ficlLookup(bf_sys, "interpret");
 }
 
@@ -295,13 +325,15 @@ bf_run(char *line)
 	printf("Parse error!\n");
 	break;
     default:
-        /* Hopefully, all other codes filled this buffer */
-	printf("%s\n", command_errmsg);
+	if (command_errmsg != NULL) {
+	    printf("%s\n", command_errmsg);
+	    command_errmsg = NULL;
+	}
     }
     
     if (result == VM_USEREXIT)
 	panic("interpreter exit");
     setenv("interpret", bf_vm->state ? "" : "OK", 1);
 
-    return result;
+    return (result);
 }

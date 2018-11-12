@@ -52,7 +52,7 @@
 
 /* XXX these should be defined per controller (or drive) elsewhere, not here! */
 #if defined(__i386__) || defined(__amd64__) || defined(__arm__) || \
-    defined(__ia64__) || defined(__powerpc__)
+    defined(__powerpc__) || defined(__mips__)
 #define LABELSECTOR	1			/* sector containing label */
 #define LABELOFFSET	0			/* offset of label in sector */
 #endif
@@ -229,9 +229,12 @@ static const char *dktypenames[] = {
 #define	FS_NTFS		18		/* Windows/NT file system */
 #define	FS_CCD		20		/* concatenated disk component */
 #define	FS_JFS2		21		/* IBM JFS2 */
+#define	FS_HAMMER	22		/* DragonFlyBSD Hammer FS */
+#define	FS_HAMMER2	23		/* DragonFlyBSD Hammer2 FS */
 #define	FS_UDF		24		/* UDF */
 #define	FS_EFS		26		/* SGI's Extent File system */
 #define	FS_ZFS		27		/* Sun's ZFS */
+#define	FS_NANDFS	30		/* FreeBSD nandfs (NiLFS derived) */
 
 #ifdef	FSTYPENAMES
 static const char *fstypenames[] = {
@@ -257,12 +260,15 @@ static const char *fstypenames[] = {
 	"?",
 	"ccd",
 	"jfs",
-	"?",
-	"?",
+	"HAMMER",
+	"HAMMER2",
 	"UDF",
 	"?",
 	"EFS",
 	"ZFS",
+	"?",
+	"?",
+	"nandfs",
 	NULL
 };
 #define FSMAXTYPES	(sizeof(fstypenames) / sizeof(fstypenames[0]) - 1)
@@ -278,15 +284,8 @@ static const char *fstypenames[] = {
 #define	D_CHAIN		0x10		/* can do back-back transfers */
 
 /*
- * Disklabel-specific ioctls.
- *
  * NB: <sys/disk.h> defines ioctls from 'd'/128 and up.
  */
-		/* get and set disklabel */
-#define DIOCGDINFO	_IOR('d', 101, struct disklabel)/* get */
-#define DIOCSDINFO	_IOW('d', 102, struct disklabel)/* set */
-#define DIOCWDINFO	_IOW('d', 103, struct disklabel)/* set, update disk */
-#define DIOCBSDBB	_IOW('d', 110, void *)	/* write bootblocks */
 
 /*
  * Functions for proper encoding/decoding of struct disklabel into/from

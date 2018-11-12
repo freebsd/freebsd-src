@@ -51,6 +51,7 @@ static int	 portable(const char *);
 static void	 usage(void);
 
 static int	 pflag;			/* Perform portability checks */
+static int	 Pflag;			/* Check for empty paths, leading '-' */
 
 int
 main(int argc, char *argv[])
@@ -58,10 +59,13 @@ main(int argc, char *argv[])
 	int ch, rval;
 	const char *arg;
 
-	while ((ch = getopt(argc, argv, "p")) > 0) {
+	while ((ch = getopt(argc, argv, "pP")) > 0) {
 		switch (ch) {
 		case 'p':
 			pflag = 1;
+			break;
+		case 'P':
+			Pflag = 1;
 			break;
 		default:
 			usage();
@@ -85,7 +89,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: pathchk [-p] pathname ...\n");
+	fprintf(stderr, "usage: pathchk [-Pp] pathname ...\n");
 	exit(1);
 }
 
@@ -94,13 +98,22 @@ check(const char *path)
 {
 	struct stat sb;
 	long complen, namemax, pathmax, svnamemax;
-	int badch, last;
+	int last;
 	char *end, *p, *pathd;
 
 	if ((pathd = strdup(path)) == NULL)
 		err(1, "strdup");
 
 	p = pathd;
+
+	if (Pflag && *p == '\0') {
+		warnx("%s: empty pathname", path);
+		goto bad;
+	}
+	if ((Pflag || pflag) && (*p == '-' || strstr(p, "/-") != NULL)) {
+		warnx("%s: contains a component starting with '-'", path);
+		goto bad;
+	}
 
 	if (!pflag) {
 		errno = 0;
@@ -129,9 +142,9 @@ check(const char *path)
 			goto bad;
 		}
 
-		if (pflag && (badch = portable(p)) >= 0) {
+		if (pflag && !portable(p)) {
 			warnx("%s: %s: component contains non-portable "
-			    "character `%c'", path, p, badch);
+			    "character", path, p);
 			goto bad;
 		}
 
@@ -170,8 +183,7 @@ bad:	free(pathd);
 }
 
 /*
- * Check whether a path component contains only portable characters. Return
- * the first non-portable character found.
+ * Check whether a path component contains only portable characters.
  */
 static int
 portable(const char *path)
@@ -182,12 +194,9 @@ portable(const char *path)
 	    "0123456789._-";
 	long s;
 
-	if (*path == '-')
-		return (*path);
-
 	s = strspn(path, charset);
 	if (path[s] != '\0')
-		return (path[s]);
+		return (0);
 
-	return (-1);
+	return (1);
 }

@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -62,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/ehci.h>
+#include <dev/usb/controller/ehcireg.h>
 
 #include <arm/xscale/ixp425/ixp425reg.h>
 #include <arm/xscale/ixp425/ixp425var.h>
@@ -78,54 +78,25 @@ struct ixp_ehci_softc {
 
 static device_attach_t ehci_ixp_attach;
 static device_detach_t ehci_ixp_detach;
-static device_shutdown_t ehci_ixp_shutdown;
-static device_suspend_t ehci_ixp_suspend;
-static device_resume_t ehci_ixp_resume;
 
-static uint8_t ehci_bs_r_1(void *, bus_space_handle_t, bus_size_t);
-static void ehci_bs_w_1(void *, bus_space_handle_t, bus_size_t, u_int8_t);
-static uint16_t ehci_bs_r_2(void *, bus_space_handle_t, bus_size_t);
-static void ehci_bs_w_2(void *, bus_space_handle_t, bus_size_t, uint16_t);
-static uint32_t ehci_bs_r_4(void *, bus_space_handle_t, bus_size_t);
-static void ehci_bs_w_4(void *, bus_space_handle_t, bus_size_t, uint32_t);
+static uint8_t ehci_bs_r_1(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
+static void ehci_bs_w_1(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, u_int8_t);
+static uint16_t ehci_bs_r_2(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
+static void ehci_bs_w_2(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, uint16_t);
+static uint32_t ehci_bs_r_4(bus_space_tag_t tag, bus_space_handle_t, bus_size_t);
+static void ehci_bs_w_4(bus_space_tag_t tag, bus_space_handle_t, bus_size_t, uint32_t);
 
-static int
-ehci_ixp_suspend(device_t self)
+static void
+ehci_ixp_post_reset(struct ehci_softc *ehci_softc)
 {
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
+	uint32_t usbmode;
 
-	err = bus_generic_suspend(self);
-	if (err)
-		return (err);
-	ehci_suspend(sc);
-	return (0);
-}
-
-static int
-ehci_ixp_resume(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-
-	ehci_resume(sc);
-
-	bus_generic_resume(self);
-
-	return (0);
-}
-
-static int
-ehci_ixp_shutdown(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_shutdown(self);
-	if (err)
-		return (err);
-	ehci_shutdown(sc);
-
-	return (0);
+	/* Force HOST mode, select big-endian mode */
+	usbmode = EOREAD4(ehci_softc, EHCI_USBMODE_NOLPM);
+	usbmode &= ~EHCI_UM_CM;
+	usbmode |= EHCI_UM_CM_HOST;
+	usbmode |= EHCI_UM_ES_BE;
+	EOWRITE4(ehci_softc, EHCI_USBMODE_NOLPM, usbmode);
 }
 
 static int
@@ -149,14 +120,13 @@ ehci_ixp_attach(device_t self)
 	sc->sc_bus.parent = self;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus,
 	    USB_GET_DMA_TAG(self), &ehci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
-
-	sc->sc_bus.usbrev = USB_REV_2_0;
 
 	/* NB: hints fix the memory location and irq */
 
@@ -175,15 +145,15 @@ ehci_ixp_attach(device_t self)
 	 * done with bus_space_subregion.
 	 */
 	isc->iot = rman_get_bustag(sc->sc_io_res);
-	isc->tag.bs_cookie = isc->iot;
+	isc->tag.bs_privdata = isc->iot;
 	/* read single */
-	isc->tag.bs_r_1	= ehci_bs_r_1,
-	isc->tag.bs_r_2	= ehci_bs_r_2,
-	isc->tag.bs_r_4	= ehci_bs_r_4,
+	isc->tag.bs_r_1	= ehci_bs_r_1;
+	isc->tag.bs_r_2	= ehci_bs_r_2;
+	isc->tag.bs_r_4	= ehci_bs_r_4;
 	/* write (single) */
-	isc->tag.bs_w_1	= ehci_bs_w_1,
-	isc->tag.bs_w_2	= ehci_bs_w_2,
-	isc->tag.bs_w_4	= ehci_bs_w_4,
+	isc->tag.bs_w_1	= ehci_bs_w_1;
+	isc->tag.bs_w_2	= ehci_bs_w_2;
+	isc->tag.bs_w_4	= ehci_bs_w_4;
 
 	sc->sc_io_tag = &isc->tag;
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
@@ -216,20 +186,20 @@ ehci_ixp_attach(device_t self)
 	}
 
 	/*
-	 * Arrange to force Host mode, select big-endian byte alignment,
-	 * and arrange to not terminate reset operations (the adapter
-	 * will ignore it if we do but might as well save a reg write).
-	 * Also, the controller has an embedded Transaction Translator
-	 * which means port speed must be read from the Port Status
-	 * register following a port enable.
+	 * Select big-endian byte alignment and arrange to not terminate
+	 * reset operations (the adapter will ignore it if we do but might
+	 * as well save a reg write). Also, the controller has an embedded
+	 * Transaction Translator which means port speed must be read from
+	 * the Port Status register following a port enable.
 	 */
 	sc->sc_flags |= EHCI_SCFLG_TT
-		     | EHCI_SCFLG_SETMODE
 		     | EHCI_SCFLG_BIGEDESC
-		     | EHCI_SCFLG_BIGEMMIO
 		     | EHCI_SCFLG_NORESTERM
 		     ;
-	(void) ehci_reset(sc);
+
+	/* Setup callbacks. */
+	sc->sc_vendor_post_reset = ehci_ixp_post_reset;
+	sc->sc_vendor_get_port_speed = ehci_get_port_speed_portsc;
 
 	err = ehci_init(sc);
 	if (!err) {
@@ -260,14 +230,7 @@ ehci_ixp_detach(device_t self)
 		device_delete_child(self, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(self);
-
-	/*
-	 * disable interrupts that might have been switched on in ehci_init
-	 */
-	if (sc->sc_io_res) {
-		EWRITE4(sc, EHCI_USBINTR, 0);
-	}
+	device_delete_children(self);
 
  	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/*
@@ -303,41 +266,41 @@ ehci_ixp_detach(device_t self)
  */
 
 static uint8_t
-ehci_bs_r_1(void *t, bus_space_handle_t h, bus_size_t o)
+ehci_bs_r_1(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o)
 {
-	return bus_space_read_1((bus_space_tag_t) t, h,
+	return bus_space_read_1((bus_space_tag_t)tag->bs_privdata, h,
 	    0x100 + (o &~ 3) + (3 - (o & 3)));
 }
 
 static void
-ehci_bs_w_1(void *t, bus_space_handle_t h, bus_size_t o, u_int8_t v)
+ehci_bs_w_1(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o, u_int8_t v)
 {
 	panic("%s", __func__);
 }
 
 static uint16_t
-ehci_bs_r_2(void *t, bus_space_handle_t h, bus_size_t o)
+ehci_bs_r_2(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o)
 {
-	return bus_space_read_2((bus_space_tag_t) t, h,
+	return bus_space_read_2((bus_space_tag_t)tag->bs_privdata, h,
 	    0x100 + (o &~ 3) + (2 - (o & 3)));
 }
 
 static void
-ehci_bs_w_2(void *t, bus_space_handle_t h, bus_size_t o, uint16_t v)
+ehci_bs_w_2(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o, uint16_t v)
 {
 	panic("%s", __func__);
 }
 
 static uint32_t
-ehci_bs_r_4(void *t, bus_space_handle_t h, bus_size_t o)
+ehci_bs_r_4(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o)
 {
-	return bus_space_read_4((bus_space_tag_t) t, h, 0x100 + o);
+	return bus_space_read_4((bus_space_tag_t) tag->bs_privdata, h, 0x100 + o);
 }
 
 static void
-ehci_bs_w_4(void *t, bus_space_handle_t h, bus_size_t o, uint32_t v)
+ehci_bs_w_4(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o, uint32_t v)
 {
-	bus_space_write_4((bus_space_tag_t) t, h, 0x100 + o, v);
+	bus_space_write_4((bus_space_tag_t) tag->bs_privdata, h, 0x100 + o, v);
 }
 
 static device_method_t ehci_methods[] = {
@@ -345,14 +308,11 @@ static device_method_t ehci_methods[] = {
 	DEVMETHOD(device_probe, ehci_ixp_probe),
 	DEVMETHOD(device_attach, ehci_ixp_attach),
 	DEVMETHOD(device_detach, ehci_ixp_detach),
-	DEVMETHOD(device_suspend, ehci_ixp_suspend),
-	DEVMETHOD(device_resume, ehci_ixp_resume),
-	DEVMETHOD(device_shutdown, ehci_ixp_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ehci_driver = {

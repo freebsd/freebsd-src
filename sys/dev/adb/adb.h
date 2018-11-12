@@ -69,6 +69,7 @@ uint8_t adb_get_device_handler(device_t dev);
 uint8_t adb_set_device_handler(device_t dev, uint8_t newhandler);
 
 size_t	adb_read_register(device_t dev, u_char reg, void *data);
+size_t	adb_write_register(device_t dev, u_char reg, size_t len, void *data);
 
 /* Bits for implementing ADB host bus adapters */
 extern devclass_t adb_devclass;

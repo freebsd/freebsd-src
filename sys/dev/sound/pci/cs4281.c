@@ -760,18 +760,14 @@ cs4281_pci_attach(device_t dev)
 {
     struct sc_info *sc;
     struct ac97_info *codec = NULL;
-    u_int32_t data;
     char status[SND_STATUSLEN];
 
     sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
     sc->dev = dev;
     sc->type = pci_get_devid(dev);
 
-    data = pci_read_config(dev, PCIR_COMMAND, 2);
-    data |= (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
-    pci_write_config(dev, PCIR_COMMAND, data, 2);
+    pci_enable_busmaster(dev);
 
-#if __FreeBSD_version > 500000
     if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
 	/* Reset the power state. */
 	device_printf(dev, "chip is in D%d power mode "
@@ -779,26 +775,14 @@ cs4281_pci_attach(device_t dev)
 
 	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
     }
-#else
-    data = pci_read_config(dev, CS4281PCI_PMCS_OFFSET, 4);
-    if (data & CS4281PCI_PMCS_PS_MASK) {
-	    /* Reset the power state. */
-	    device_printf(dev, "chip is in D%d power mode "
-			  "-- setting to D0\n",
-			  data & CS4281PCI_PMCS_PS_MASK);
-	    pci_write_config(dev, CS4281PCI_PMCS_OFFSET,
-			     data & ~CS4281PCI_PMCS_PS_MASK, 4);
-    }
-#endif
 
     sc->regid   = PCIR_BAR(0);
     sc->regtype = SYS_RES_MEMORY;
-    sc->reg = bus_alloc_resource(dev, sc->regtype, &sc->regid,
-				 0, ~0, CS4281PCI_BA0_SIZE, RF_ACTIVE);
+    sc->reg = bus_alloc_resource_any(dev, sc->regtype, &sc->regid, RF_ACTIVE);
     if (!sc->reg) {
 	sc->regtype = SYS_RES_IOPORT;
-	sc->reg = bus_alloc_resource(dev, sc->regtype, &sc->regid,
-				     0, ~0, CS4281PCI_BA0_SIZE, RF_ACTIVE);
+	sc->reg = bus_alloc_resource_any(dev, sc->regtype, &sc->regid,
+					 RF_ACTIVE);
 	if (!sc->reg) {
 	    device_printf(dev, "unable to allocate register space\n");
 	    goto bad;
@@ -808,8 +792,8 @@ cs4281_pci_attach(device_t dev)
     sc->sh = rman_get_bushandle(sc->reg);
 
     sc->memid = PCIR_BAR(1);
-    sc->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->memid, 0,
-				 ~0, CS4281PCI_BA1_SIZE, RF_ACTIVE);
+    sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->memid,
+				     RF_ACTIVE);
     if (sc->mem == NULL) {
 	device_printf(dev, "unable to allocate fifo space\n");
 	goto bad;
@@ -865,7 +849,7 @@ cs4281_pci_attach(device_t dev)
     pcm_addchan(dev, PCMDIR_PLAY, &cs4281chan_class, sc);
     pcm_addchan(dev, PCMDIR_REC, &cs4281chan_class, sc);
 
-    snprintf(status, SND_STATUSLEN, "at %s 0x%lx irq %ld %s",
+    snprintf(status, SND_STATUSLEN, "at %s 0x%jx irq %jd %s",
 	     (sc->regtype == SYS_RES_IOPORT)? "io" : "memory",
 	     rman_get_start(sc->reg), rman_get_start(sc->irq),PCM_KLDSTRING(snd_cs4281));
     pcm_setstatus(dev, status);

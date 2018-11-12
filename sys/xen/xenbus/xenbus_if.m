@@ -27,11 +27,38 @@
 #
 
 #include <sys/bus.h>
-#include <xen/interface/io/xenbus.h>
+
+#include <machine/atomic.h>
+
+#include <xen/xen-os.h>
+#include <xen/evtchn.h>
+#include <xen/xenbus/xenbusvar.h>
 
 INTERFACE xenbus;
 
-METHOD int backend_changed {
-	device_t dev;
-	enum xenbus_state newstate;
+/**
+ * \brief Callback triggered when the state of the otherend
+ *        of a split device changes.
+ *
+ * \param _dev       NewBus device_t for this XenBus device whose otherend's
+ *                   state has changed..
+ * \param _newstate  The new state of the otherend device.
+ */
+METHOD void otherend_changed {
+	device_t _dev;
+	enum xenbus_state _newstate;
 };
+
+/**
+ * \brief Callback triggered when the XenStore tree of the local end
+ *        of a split device changes.
+ *
+ * \param _dev   NewBus device_t for this XenBus device whose otherend's
+ *               state has changed..
+ * \param _path  The tree relative sub-path to the modified node.  The empty
+ *               string indicates the root of the tree was destroyed.
+ */
+METHOD void localend_changed {
+	device_t _dev;
+	const char * _path;
+} DEFAULT xenbus_localend_changed;

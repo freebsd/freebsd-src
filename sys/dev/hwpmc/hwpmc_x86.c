@@ -40,13 +40,19 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/intr_machdep.h>
+#if (__FreeBSD_version >= 1100000)
+#include <x86/apicvar.h>
+#else
 #include <machine/apicvar.h>
+#endif
 #include <machine/pmc_mdep.h>
 #include <machine/md_var.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+
+#include "hwpmc_soft.h"
 
 /*
  * Attempt to walk a user call stack using a too-simple algorithm.
@@ -101,7 +107,7 @@ pmc_save_user_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 		if (copyin((void *) sp, &pc, sizeof(pc)) != 0)
 			return (n);
 	} else if (copyin((void *) r, &pc, sizeof(pc)) != 0 ||
-	    copyin((void *) fp, &fp, sizeof(fp) != 0))
+	    copyin((void *) fp, &fp, sizeof(fp)) != 0)
 		return (n);
 
 	for (; n < nframes;) {
@@ -159,15 +165,13 @@ pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 	KASSERT(TRAPF_USERMODE(tf) == 0,("[x86,%d] not a kernel backtrace",
 	    __LINE__));
 
+	td = curthread;
 	pc = PMC_TRAPFRAME_TO_PC(tf);
 	fp = PMC_TRAPFRAME_TO_FP(tf);
 	sp = PMC_TRAPFRAME_TO_KERNEL_SP(tf);
 
 	*cc++ = pc;
 	r = fp + sizeof(uintptr_t); /* points to return address */
-
-	if ((td = curthread) == NULL)
-		return (1);
 
 	if (nframes <= 1)
 		return (1);
@@ -176,7 +180,8 @@ pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 	stackend = (uintptr_t) td->td_kstack + td->td_kstack_pages * PAGE_SIZE;
 
 	if (PMC_IN_TRAP_HANDLER(pc) ||
-	    !PMC_IN_KERNEL(pc) || !PMC_IN_KERNEL(r) ||
+	    !PMC_IN_KERNEL(pc) ||
+	    !PMC_IN_KERNEL_STACK(r, stackstart, stackend) ||
 	    !PMC_IN_KERNEL_STACK(sp, stackstart, stackend) ||
 	    !PMC_IN_KERNEL_STACK(fp, stackstart, stackend))
 		return (1);
@@ -221,7 +226,7 @@ pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 
 		r = fp + sizeof(uintptr_t);
 		if (!PMC_IN_KERNEL_STACK(fp, stackstart, stackend) ||
-		    !PMC_IN_KERNEL(r))
+		    !PMC_IN_KERNEL_STACK(r, stackstart, stackend))
 			break;
 		pc = *(uintptr_t *) r;
 		fp = *(uintptr_t *) fp;
@@ -249,9 +254,12 @@ pmc_md_initialize()
 		return (NULL);
 
 	/* disallow sampling if we do not have an LAPIC */
-	if (!lapic_enable_pmc())
-		for (i = 1; i < md->pmd_nclass; i++)
+	if (md != NULL && !lapic_enable_pmc())
+		for (i = 0; i < md->pmd_nclass; i++) {
+			if (i == PMC_CLASS_INDEX_SOFT)
+				continue;
 			md->pmd_classdep[i].pcd_caps &= ~PMC_CAP_INTERRUPT;
+		}
 
 	return (md);
 }

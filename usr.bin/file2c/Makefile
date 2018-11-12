@@ -1,5 +1,11 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PROG=	file2c
-WARNS?=	6
+
+.if ${MK_TESTS} != "no"
+SUBDIR+= tests
+.endif
+
 .include <bsd.prog.mk>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2007, 2009 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: util.c,v 8.414 2007/11/02 17:30:38 ca Exp $")
+SM_RCSID("@(#)$Id: util.c,v 8.427 2013-11-22 20:51:57 ca Exp $")
 
 #include <sm/sendmail.h>
 #include <sysexits.h>
@@ -868,7 +868,7 @@ xputs(fp, s)
 			c &= 0177;
 		}
   printchar:
-		if (isprint(c))
+		if (isascii(c) && isprint(c))
 		{
 			(void) sm_io_putc(fp, SM_TIME_DEFAULT, c);
 			continue;
@@ -895,7 +895,7 @@ xputs(fp, s)
 					     TermEscape.te_rv_on);
 			shiftout = true;
 		}
-		if (isprint(c))
+		if (isascii(c) && isprint(c))
 		{
 			(void) sm_io_putc(fp, SM_TIME_DEFAULT, '\\');
 			(void) sm_io_putc(fp, SM_TIME_DEFAULT, c);
@@ -1285,8 +1285,7 @@ sfgets(buf, siz, fp, timeout, during)
 	char *during;
 {
 	register char *p;
-	int save_errno;
-	int io_timeout;
+	int save_errno, io_timeout, l;
 
 	SM_REQUIRE(siz > 0);
 	SM_REQUIRE(buf != NULL);
@@ -1299,7 +1298,7 @@ sfgets(buf, siz, fp, timeout, during)
 	}
 
 	/* try to read */
-	p = NULL;
+	l = -1;
 	errno = 0;
 
 	/* convert the timeout to sm_io notation */
@@ -1307,8 +1306,8 @@ sfgets(buf, siz, fp, timeout, during)
 	while (!sm_io_eof(fp) && !sm_io_error(fp))
 	{
 		errno = 0;
-		p = sm_io_fgets(fp, io_timeout, buf, siz);
-		if (p == NULL && errno == EAGAIN)
+		l = sm_io_fgets(fp, io_timeout, buf, siz);
+		if (l < 0 && errno == EAGAIN)
 		{
 			/* The sm_io_fgets() call timedout */
 			if (LogLevel > 1)
@@ -1328,7 +1327,7 @@ sfgets(buf, siz, fp, timeout, during)
 			errno = ETIMEDOUT;
 			return NULL;
 		}
-		if (p != NULL || errno != EINTR)
+		if (l >= 0 || errno != EINTR)
 			break;
 		(void) sm_io_clearerr(fp);
 	}
@@ -1336,7 +1335,7 @@ sfgets(buf, siz, fp, timeout, during)
 
 	/* clean up the books and exit */
 	LineNumber++;
-	if (p == NULL)
+	if (l < 0)
 	{
 		buf[0] = '\0';
 		if (TrafficLogFile != NULL)
@@ -1834,7 +1833,7 @@ dumpfd(fd, printclosed, logit)
 	}
 
 	(void) sm_snprintf(p, SPACELEFT(buf, p), "mode=%o: ",
-			(int) st.st_mode);
+			(unsigned int) st.st_mode);
 	p += strlen(p);
 	switch (st.st_mode & S_IFMT)
 	{
@@ -1937,11 +1936,11 @@ dumpfd(fd, printclosed, logit)
 	  default:
 defprint:
 		(void) sm_snprintf(p, SPACELEFT(buf, p),
-			 "dev=%d/%d, ino=%llu, nlink=%d, u/gid=%d/%d, ",
-			 major(st.st_dev), minor(st.st_dev),
+			 "dev=%ld/%ld, ino=%llu, nlink=%d, u/gid=%ld/%ld, ",
+			 (long) major(st.st_dev), (long) minor(st.st_dev),
 			 (ULONGLONG_T) st.st_ino,
-			 (int) st.st_nlink, (int) st.st_uid,
-			 (int) st.st_gid);
+			 (int) st.st_nlink, (long) st.st_uid,
+			 (long) st.st_gid);
 		p += strlen(p);
 		(void) sm_snprintf(p, SPACELEFT(buf, p), "size=%llu",
 			 (ULONGLONG_T) st.st_size);
@@ -2638,7 +2637,13 @@ proc_list_drop(pid, st, other)
 		mark_work_group_restart(ProcListVec[i].proc_other, st);
 	}
 	else if (type == PROC_QUEUE)
+	{
 		CurRunners -= ProcListVec[i].proc_count;
+
+		/* CHK_CUR_RUNNERS() can't be used here: uses syslog() */
+		if (CurRunners < 0)
+			CurRunners = 0;
+	}
 }
 
 /*
@@ -2702,6 +2707,14 @@ proc_list_probe()
 					  (int) ProcListVec[i].proc_pid);
 			ProcListVec[i].proc_pid = NO_PID;
 			SM_FREE_CLR(ProcListVec[i].proc_task);
+
+			if (ProcListVec[i].proc_type == PROC_QUEUE)
+			{
+				CurRunners -= ProcListVec[i].proc_count;
+				CHK_CUR_RUNNERS("proc_list_probe", i,
+						ProcListVec[i].proc_count);
+			}
+
 			CurChildren--;
 		}
 		else
@@ -2852,3 +2865,140 @@ count_open_connections(hostaddr)
 	}
 	return n;
 }
+
+#if _FFR_XCNCT
+/*
+**  XCONNECT -- get X-CONNECT info
+**
+**	Parameters:
+**		inchannel -- FILE to check
+**
+**	Returns:
+**		-1 on error
+**		0 if X-CONNECT was not given
+**		>0 if X-CONNECT was used successfully (D_XCNCT*)
+*/
+
+int
+xconnect(inchannel)
+	SM_FILE_T *inchannel;
+{
+	int r, i;
+	char *p, *b, delim, inp[MAXINPLINE];
+	SOCKADDR addr;
+	char **pvp;
+	char pvpbuf[PSBUFSIZE];
+	char *peerhostname;	/* name of SMTP peer or "localhost" */
+	extern ENVELOPE BlankEnvelope;
+
+#define XCONNECT "X-CONNECT "
+#define XCNNCTLEN (sizeof(XCONNECT) - 1)
+
+	/* Ask the ruleset whether to use x-connect */
+	pvp = NULL;
+	peerhostname = RealHostName;
+	if (peerhostname == NULL)
+		peerhostname = "localhost";
+	r = rscap("x_connect", peerhostname,
+		  anynet_ntoa(&RealHostAddr), &BlankEnvelope,
+		  &pvp, pvpbuf, sizeof(pvpbuf));
+	if (tTd(75, 8))
+		sm_syslog(LOG_INFO, NOQID, "x-connect: rscap=%d", r);
+	if (r == EX_UNAVAILABLE)
+		return 0;
+	if (r != EX_OK)
+	{
+		/* ruleset error */
+		sm_syslog(LOG_INFO, NOQID, "x-connect: rscap=%d", r);
+		return 0;
+	}
+	if (pvp != NULL && pvp[0] != NULL && (pvp[0][0] & 0377) == CANONNET)
+	{
+		/* $#: no x-connect */
+		if (tTd(75, 7))
+			sm_syslog(LOG_INFO, NOQID, "x-connect: nope");
+		return 0;
+	}
+
+	p = sfgets(inp, sizeof(inp), InChannel, TimeOuts.to_nextcommand, "pre");
+	if (tTd(75, 6))
+		sm_syslog(LOG_INFO, NOQID, "x-connect: input=%s", p);
+	if (p == NULL || strncasecmp(p, XCONNECT, XCNNCTLEN) != 0)
+		return -1;
+	p += XCNNCTLEN;
+	while (isascii(*p) && isspace(*p))
+		p++;
+
+	/* parameters: IPAddress [Hostname[ M]] */
+	b = p;
+	while (*p != '\0' && isascii(*p) &&
+	       (isalnum(*p) || *p == '.' || *p== ':'))
+		p++;
+	delim = *p;
+	*p = '\0';
+
+	memset(&addr, '\0', sizeof(addr));
+	addr.sin.sin_addr.s_addr = inet_addr(b);
+	if (addr.sin.sin_addr.s_addr != INADDR_NONE)
+	{
+		addr.sa.sa_family = AF_INET;
+		memcpy(&RealHostAddr, &addr, sizeof(addr));
+		if (tTd(75, 2))
+			sm_syslog(LOG_INFO, NOQID, "x-connect: addr=%s",
+				anynet_ntoa(&RealHostAddr));
+	}
+# if NETINET6
+	else if ((r = inet_pton(AF_INET6, b, &addr.sin6.sin6_addr)) == 1)
+	{
+		addr.sa.sa_family = AF_INET6;
+		memcpy(&RealHostAddr, &addr, sizeof(addr));
+	}
+# endif /* NETINET6 */
+	else
+		return -1;
+
+	/* more parameters? */
+	if (delim != ' ')
+		return D_XCNCT;
+	while (*p != '\0' && isascii(*p) && isspace(*p))
+		p++;
+
+	for (b = ++p, i = 0;
+	     *p != '\0' && isascii(*p) && (isalnum(*p) || *p == '.' || *p == '-');
+	     p++, i++)
+		;
+	if (i == 0)
+		return D_XCNCT;
+	delim = *p;
+	if (i > MAXNAME)
+		b[MAXNAME] = '\0';
+	else
+		b[i] = '\0';
+	SM_FREE_CLR(RealHostName);
+	RealHostName = newstr(b);
+	if (tTd(75, 2))
+		sm_syslog(LOG_INFO, NOQID, "x-connect: host=%s", b);
+	*p = delim;
+
+	b = p;
+	if (*p != ' ')
+		return D_XCNCT;
+
+	while (*p != '\0' && isascii(*p) && isspace(*p))
+		p++;
+
+	if (tTd(75, 4))
+	{
+		char *e;
+
+		e = strpbrk(p, "\r\n");
+		if (e != NULL)
+			*e = '\0';
+		sm_syslog(LOG_INFO, NOQID, "x-connect: rest=%s", p);
+	}
+	if (*p == 'M')
+		return D_XCNCT_M;
+
+	return D_XCNCT;
+}
+#endif /* _FFR_XCNCT */

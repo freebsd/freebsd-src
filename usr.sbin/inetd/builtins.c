@@ -60,7 +60,7 @@ void		discard_dg(int, struct servtab *);
 void		discard_stream(int, struct servtab *);
 void		echo_dg(int, struct servtab *);
 void		echo_stream(int, struct servtab *);
-static int	getline(int, char *, int);
+static int	get_line(int, char *, int);
 void		iderror(int, int, int, const char *);
 void		ident_stream(int, struct servtab *);
 void		initring(void);
@@ -691,15 +691,9 @@ printit:
 uint32_t
 machtime(void)
 {
-	struct timeval tv;
 
-	if (gettimeofday(&tv, (struct timezone *)NULL) < 0) {
-		if (debug)
-			warnx("unable to get time of day");
-		return (0L);
-	}
 #define	OFFSET ((uint32_t)25567 * 24*60*60)
-	return (htonl((uint32_t)(tv.tv_sec + OFFSET)));
+	return (htonl((uint32_t)(time(NULL) + OFFSET)));
 #undef OFFSET
 }
 
@@ -745,8 +739,8 @@ machtime_stream(int s, struct servtab *sep __unused)
 #define MAX_SERV_LEN	(256+2)		/* 2 bytes for \r\n */
 #define strwrite(fd, buf)	(void) write(fd, buf, sizeof(buf)-1)
 
-static int		/* # of characters upto \r,\n or \0 */
-getline(int fd, char *buf, int len)
+static int		/* # of characters up to \r,\n or \0 */
+get_line(int fd, char *buf, int len)
 {
 	int count = 0, n;
 	struct sigaction sa;
@@ -781,7 +775,7 @@ tcpmux(int s)
 	int len;
 
 	/* Get requested service name */
-	if ((len = getline(s, service, MAX_SERV_LEN)) < 0) {
+	if ((len = get_line(s, service, MAX_SERV_LEN)) < 0) {
 		strwrite(s, "-Error reading service name\r\n");
 		return (NULL);
 	}

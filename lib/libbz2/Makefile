@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	lib${LIB}
 BZ2DIR=	${.CURDIR}/../../contrib/bzip2
 .PATH: ${BZ2DIR}
 
@@ -9,5 +10,7 @@ SRCS=		bzlib.c blocksort.c compress.c crctable.c decompress.c \
 		huffman.c randtable.c
 INCS=		bzlib.h
 CFLAGS+=	-I${BZ2DIR}
+
+WARNS?=		3
 
 .include <bsd.lib.mk>

@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2006
+.Dd November 24, 2015
 .Dt KUE 4
 .Os
 .Sh NAME
@@ -44,6 +44,8 @@ kernel configuration file:
 .Cd "device uhci"
 .Cd "device ohci"
 .Cd "device usb"
+.Cd "device miibus"
+.Cd "device uether"
 .Cd "device kue"
 .Ed
 .Pp
@@ -134,7 +136,7 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An Bill Paul Aq wpaul@ee.columbia.edu .
+.An Bill Paul Aq Mt wpaul@ee.columbia.edu .
 .Sh BUGS
 The
 .Nm

@@ -1,6 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/2/95
 # $FreeBSD$
 
+PACKAGE=sendmail
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/smrsh
 
@@ -9,11 +10,9 @@ SRCS=	smrsh.c
 MAN=	smrsh.8
 CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -I.
 
-LIBSMDIR=	${.OBJDIR}/../../lib/libsm
-LIBSM=		${LIBSMDIR}/libsm.a
+LIBADD=	sm
 
-DPADD=	${LIBSM}
-LDADD=	${LIBSM}
+WARNS?=	2
 
 SRCS+=	sm_os.h
 CLEANFILES+=sm_os.h
@@ -24,7 +23,7 @@ DPADD+=${SENDMAIL_DPADD}
 LDADD+=${SENDMAIL_LDADD}
 LDFLAGS+=${SENDMAIL_LDFLAGS}
 
-sm_os.h:
-	ln -sf ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h sm_os.h
+sm_os.h: ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

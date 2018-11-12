@@ -26,8 +26,10 @@
  * SUCH DAMAGE.
  *
  *	from BSDI: pmap.c,v 1.28.2.15 2000/04/27 03:10:31 cp Exp
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_pmap.h"
@@ -35,15 +37,15 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/ktr.h>
-#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
-#include <vm/vm.h> 
+#include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
@@ -51,7 +53,6 @@
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_pager.h>
 
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
@@ -78,6 +79,7 @@ struct tte *tsb_kernel;
 vm_size_t tsb_kernel_mask;
 vm_size_t tsb_kernel_size;
 vm_paddr_t tsb_kernel_phys;
+u_int tsb_kernel_ldd_phys;
 
 struct tte *
 tsb_tte_lookup(pmap_t pm, vm_offset_t va)
@@ -118,7 +120,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 	int i;
 
 	if (DCACHE_COLOR(VM_PAGE_TO_PHYS(m)) != DCACHE_COLOR(va)) {
-		CTR5(KTR_CT2,
+		CTR5(KTR_SPARE2,
 	"tsb_tte_enter: off colour va=%#lx pa=%#lx o=%p ot=%d pi=%#lx",
 		    va, VM_PAGE_TO_PHYS(m), m->object,
 		    m->object ? m->object->type : -1,
@@ -129,7 +131,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 			PMAP_STATS_INC(tsb_nenter_u_oc);
 	}
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	rw_assert(&tte_list_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pm, MA_OWNED);
 	if (pm == kernel_pmap) {
 		PMAP_STATS_INC(tsb_nenter_k);
@@ -171,7 +173,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 enter:
 	if ((m->flags & PG_FICTITIOUS) == 0) {
 		data |= TD_CP;
-		if ((m->flags & PG_UNMANAGED) == 0) {
+		if ((m->oflags & VPO_UNMANAGED) == 0) {
 			pm->pm_stats.resident_count++;
 			data |= TD_PV;
 		}

@@ -38,6 +38,7 @@
 struct lock {
 	struct lock_object	lock_object;
 	volatile uintptr_t	lk_lock;
+	u_int			lk_exslpfail;
 	int			lk_timo;
 	int			lk_pri;
 #ifdef DEBUG_LOCKS

@@ -25,9 +25,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 19, 2008
-.Os
+.Dd November 18, 2015
 .Dt PMCSTAT 8
+.Os
 .Sh NAME
 .Nm pmcstat
 .Nd "performance measurement with performance monitoring hardware"
@@ -36,6 +36,7 @@
 .Op Fl C
 .Op Fl D Ar pathname
 .Op Fl E
+.Op Fl F Ar pathname
 .Op Fl G Ar pathname
 .Op Fl M Ar mapfilename
 .Op Fl N
@@ -43,11 +44,16 @@
 .Op Fl P Ar event-spec
 .Op Fl R Ar logfilename
 .Op Fl S Ar event-spec
+.Op Fl T
 .Op Fl W
+.Op Fl a Ar pathname
 .Op Fl c Ar cpu-spec
 .Op Fl d
+.Op Fl e
+.Op Fl f Ar pluginopt
 .Op Fl g
 .Op Fl k Ar kerneldir
+.Op Fl l Ar secs
 .Op Fl m Ar pathname
 .Op Fl n Ar rate
 .Op Fl o Ar outputfile
@@ -129,6 +135,16 @@ complex pipeline of processes when used in conjunction with the
 .Fl d
 option.
 The default is to not to enable per-process tracking.
+.It Fl F Ar pathname
+Print calltree (Kcachegrind) information to file
+.Ar pathname .
+If argument
+.Ar pathname
+is a
+.Dq Li -
+this information is sent to the output file specified by the
+.Fl o
+option.
 .It Fl G Ar pathname
 Print callchain information to file
 .Ar pathname .
@@ -195,6 +211,12 @@ Perform offline analysis using sampling data in file
 Allocate a system mode sampling PMC measuring hardware events
 specified in
 .Ar event-spec .
+.It Fl T
+Use a top like mode for sampling PMCs. The following hotkeys
+can be used: 'c+a' switch to accumulative mode, 'c+d' switch
+to delta mode, 'm' merge PMCs, 'n' change view, 'p' show next
+PMC, ' ' pause, 'q' quit. calltree only: 'f' cost under threshold
+is seen as a dot.
 .It Fl W
 Toggle logging the incremental counts seen by the threads of a
 tracked process each time they are scheduled on a CPU.
@@ -202,6 +224,21 @@ This is an experimental feature intended to help analyse the
 dynamic behaviour of processes in the system.
 It may incur substantial overhead if enabled.
 The default is for this feature to be disabled.
+.It Fl a Ar pathname
+Perform a symbol and file:line lookup for each address in each
+callgraph and save the output to
+.Ar pathname .
+Unlike
+.Fl m
+that only resolves the first symbol in the graph, this resolves
+every node in the callgraph, or prints out addresses if no
+lookup information is available.
+This option requires the
+.Fl R
+option to read in samples that were previously collected and
+saved with the
+.Fl O
+option.
 .It Fl c Ar cpu-spec
 Set the cpus for subsequent system mode PMCs specified on the
 command line to
@@ -210,14 +247,32 @@ Argument
 .Ar cpu-spec
 is a comma separated list of CPU numbers, or the literal
 .Sq *
-denoting all unhalted CPUs.
-The default is to allocate system mode PMCs on all unhalted
+denoting all available CPUs.
+The default is to allocate system mode PMCs on all available
 CPUs.
 .It Fl d
 Toggle between process mode PMCs measuring events for the target
 process' current and future children or only measuring events for
 the target process.
 The default is to measure events for the target process alone.
+(it has to be passed in the command line prior to
+.Fl p ,
+.Fl s ,
+.Fl P ,
+or
+.Fl S ) .
+.It Fl e
+Specify that the gprof profile files will use a wide history counter.
+These files are produced in a format compatible with
+.Xr gprof 1 .
+However, other tools that cannot fully parse a BSD-style
+gmon header might be unable to correctly parse these files.
+.It Fl f Ar pluginopt
+Pass option string to the active plugin.
+.br
+threshold=<float> do not display cost under specified value (Top).
+.br
+skiplink=0|1 replace node with cost under threshold by a dot (Top).
 .It Fl g
 Produce profiles in a format compatible with
 .Xr gprof 1 .
@@ -231,20 +286,34 @@ Set the pathname of the kernel directory to argument
 This directory specifies where
 .Nm
 should look for the kernel and its modules.
-The default is
-.Pa /boot/kernel .
+The default is to use the path of the running kernel obtained from the
+.Va kern.bootfile
+sysctl.
+.It Fl l Ar secs
+Set system-wide performance measurement duration for
+.Ar secs
+seconds.
+The argument
+.Ar secs
+may be a fractional value.
 .It Fl m Ar pathname
 Print the sampled PCs with the name, the start and ending addresses
 of the function within they live.
 The
 .Ar pathname
-argument is mandatory and indicates where informations will be stored.
+argument is mandatory and indicates where the information will be stored.
 If argument
 .Ar pathname
 is a
 .Dq Li -
 this information is sent to the output file specified by the
 .Fl o
+option.
+This option requires the
+.Fl R
+option to read in samples that were previously collected and
+saved with the
+.Fl O
 option.
 .It Fl n Ar rate
 Set the default sampling rate for subsequent sampling mode
@@ -286,7 +355,8 @@ regular expression for selecting processes based on their command names.
 .It Fl v
 Increase verbosity.
 .It Fl w Ar secs
-Print the values of all counting mode PMCs every
+Print the values of all counting mode PMCs or sampling mode PMCs
+for top mode every
 .Ar secs
 seconds.
 The argument
@@ -362,7 +432,7 @@ If option
 is specified,
 .Nm
 may issue the following diagnostic messages:
-.Bl -diag -width indent
+.Bl -diag
 .It "#callchain/dubious-frames"
 The number of callchain records that had an
 .Dq impossible
@@ -421,7 +491,7 @@ utility first appeared in
 It is
 .Ud
 .Sh AUTHORS
-.An Joseph Koshy Aq jkoshy@FreeBSD.org
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org
 .Sh BUGS
 The
 .Nm

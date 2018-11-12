@@ -61,3 +61,5 @@ ENTRY(remquof)
 	movl	%eax,(%ecx)
 	ret
 END(remquof)
+
+	.section .note.GNU-stack,"",%progbits

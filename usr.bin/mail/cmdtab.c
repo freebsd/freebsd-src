@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -62,10 +58,10 @@ const struct cmd cmdtab[] = {
 	{ "top",	top,		MSGLIST,	0,	MMNDEL	},
 	{ "touch",	stouch,		W|MSGLIST,	0,	MMNDEL	},
 	{ "preserve",	preserve,	W|MSGLIST,	0,	MMNDEL	},
-	{ "delete",	delete,		W|P|MSGLIST,	0,	MMNDEL	},
+	{ "delete",	deletecmd,	W|P|MSGLIST,	0,	MMNDEL	},
 	{ "dp",		deltype,	W|MSGLIST,	0,	MMNDEL	},
 	{ "dt",		deltype,	W|MSGLIST,	0,	MMNDEL	},
-	{ "undelete",	undelete_messages, P|MSGLIST,	MDELETED,MMNDEL },
+	{ "undelete",	undeletecmd, 	P|MSGLIST,	MDELETED,MMNDEL },
 	{ "unset",	unset,		M|RAWLIST,	1,	1000 	},
 	{ "mail",	sendmail,	R|M|I|STRLIST,	0,	0 	},
 	{ "mbox",	mboxit,		W|MSGLIST,	0,	0 	},

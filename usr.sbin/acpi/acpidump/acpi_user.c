@@ -53,7 +53,7 @@ struct acpi_user_mapping {
 	size_t          size;
 };
 
-LIST_HEAD(acpi_user_mapping_list, acpi_user_mapping) maplist;
+static LIST_HEAD(acpi_user_mapping_list, acpi_user_mapping) maplist;
 
 static void
 acpi_user_init(void)
@@ -119,7 +119,7 @@ acpi_get_rsdp(u_long addr)
 
 	/* If the revision is 0, assume a version 1 length. */
 	if (rsdp.Revision == 0)
-		len = ACPI_RSDP_REV0_SIZE;
+		len = sizeof(ACPI_RSDP_COMMON);
 	else
 		len = rsdp.Length;
 
@@ -172,7 +172,7 @@ acpi_find_rsd_ptr(void)
 	addr = 0;
 
 	/* Attempt to use kenv or sysctl to find RSD PTR record. */
-	if (kenv(KENV_GET, hint_acpi_0_rsdp, buf, 20) == 0)
+	if (kenv(KENV_GET, hint_acpi_0_rsdp, buf, 20) > 0)
 		addr = strtoul(buf, NULL, 0);
 	if (addr == 0) {
 		len = sizeof(addr);

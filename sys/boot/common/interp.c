@@ -90,7 +90,7 @@ perform(int argc, char *argv[])
  * Interactive mode
  */
 void
-interact(void)
+interact(const char *rc)
 {
     static char	input[256];			/* big enough? */
 #ifndef BOOT_FORTH
@@ -99,15 +99,18 @@ interact(void)
 #endif
 
 #ifdef BOOT_FORTH
-    bf_init();
+    bf_init((rc) ? "" : NULL);
 #endif
 
-    /*
-     * Read our default configuration
-     */
-    if(include("/boot/loader.rc")!=CMD_OK)
-	include("/boot/boot.conf");
+    if (rc == NULL) {
+	/* Read our default configuration. */
+	if (include("/boot/loader.rc") != CMD_OK)
+	    include("/boot/boot.conf");
+    } else if (*rc != '\0')
+	include(rc);
+
     printf("\n");
+
     /*
      * Before interacting, we might want to autoboot.
      */
@@ -211,7 +214,8 @@ include(const char *filename)
 #endif
 
     if (((fd = open(filename, O_RDONLY)) == -1)) {
-	sprintf(command_errbuf,"can't open '%s': %s\n", filename, strerror(errno));
+	snprintf(command_errbuf, sizeof(command_errbuf),
+	    "can't open '%s': %s", filename, strerror(errno));
 	return(CMD_ERROR);
     }
 
@@ -246,6 +250,18 @@ include(const char *filename)
 	if (*cp == '\0')
 		continue;	/* ignore empty line, save memory */
 	sp = malloc(sizeof(struct includeline) + strlen(cp) + 1);
+	/* On malloc failure (it happens!), free as much as possible and exit */
+	if (sp == NULL) {
+		while (script != NULL) {
+			se = script;
+			script = script->next;
+			free(se);
+		}
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "file '%s' line %d: memory allocation failure - aborting",
+		    filename, line);
+		return (CMD_ERROR);
+	}
 	strcpy(sp->text, cp);
 #ifndef BOOT_FORTH
 	sp->flags = flags;
@@ -277,7 +293,9 @@ include(const char *filename)
 #ifdef BOOT_FORTH
 	res = bf_run(sp->text);
 	if (res != VM_OUTOFTEXT) {
-		sprintf(command_errbuf, "Error while including %s, in the line:\n%s", filename, sp->text);
+		snprintf(command_errbuf, sizeof(command_errbuf),
+		    "Error while including %s, in the line:\n%s",
+		    filename, sp->text);
 		res = CMD_ERROR;
 		break;
 	} else

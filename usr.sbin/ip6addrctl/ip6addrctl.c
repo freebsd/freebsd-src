@@ -39,7 +39,6 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 
 #include <netinet/in.h>
 #include <netinet6/in6_var.h>
@@ -59,7 +58,7 @@ struct policyqueue {
 	struct in6_addrpolicy pc_policy;
 };
 TAILQ_HEAD(policyhead, policyqueue);
-struct policyhead policyhead;
+static struct policyhead policyhead;
 
 static void usage(void);
 static void get_policy(void);
@@ -71,12 +70,10 @@ static void plen2mask(struct sockaddr_in6 *, int);
 static void set_policy(void);
 static void add_policy(char *, char *, char *);
 static void delete_policy(char *);
-static void flush_policy();
+static void flush_policy(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	TAILQ_INIT(&policyhead);
 
@@ -107,11 +104,11 @@ main(argc, argv)
 }
 
 static void
-get_policy()
+get_policy(void)
 {
 	int mib[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, IPV6CTL_ADDRCTLPOLICY };
 	size_t l;
-	char *buf;
+	struct in6_addrpolicy *buf;
 	struct in6_addrpolicy *pol, *ep;
 
 	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &l, NULL, 0) < 0) {
@@ -131,8 +128,8 @@ get_policy()
 		/* NOTREACHED */
 	}
 
-	ep = (struct in6_addrpolicy *)(buf + l);
-	for (pol = (struct in6_addrpolicy *)buf; pol + 1 <= ep; pol++) {
+	ep = buf + l/sizeof(*buf);
+	for (pol = buf; pol + 1 <= ep; pol++) {
 		struct policyqueue *new;
 
 		if ((new = malloc(sizeof(*new))) == NULL)
@@ -145,7 +142,7 @@ get_policy()
 }
 
 static void
-dump_policy()
+dump_policy(void)
 {
 	size_t addrlen;
 	char addrbuf[NI_MAXHOST];
@@ -201,8 +198,7 @@ dump_policy()
 	} while (0);
 
 static void
-make_policy_fromfile(conf)
-	char *conf;
+make_policy_fromfile(char *conf)
 {
 	char line[_POSIX2_LINE_MAX], *cp;
 	char *addrstr;
@@ -257,9 +253,7 @@ make_policy_fromfile(conf)
 }
 
 static int
-parse_prefix(prefix0, pol)
-	const char *prefix0;
-	struct in6_addrpolicy *pol;
+parse_prefix(const char *prefix0, struct in6_addrpolicy *pol)
 {
 	int e = 0, plen;
 	char *prefix, *plenstr;
@@ -299,11 +293,9 @@ parse_prefix(prefix0, pol)
 }
 
 static void
-plen2mask(mask, plen)
-	struct sockaddr_in6 *mask;
-	int plen;
+plen2mask(struct sockaddr_in6 *mask, int plen)
 {
-	u_char *cp = (char *)&mask->sin6_addr;
+	u_char *cp = (unsigned char *)&mask->sin6_addr;
 
 	memset(mask, 0, sizeof(*mask));
 	mask->sin6_family = AF_INET6; /* just in case */
@@ -316,7 +308,7 @@ plen2mask(mask, plen)
 }
 
 static void
-set_policy()
+set_policy(void)
 {
 	struct policyqueue *ent;
 	int s;
@@ -334,8 +326,7 @@ set_policy()
 }
 
 static int
-mask2plen(mask)
-	struct sockaddr_in6 *mask;
+mask2plen(struct sockaddr_in6 *mask)
 {
 	int masklen, final = 0;
 	u_char *p, *lim;
@@ -394,8 +385,7 @@ mask2plen(mask)
 }
 
 static void
-add_policy(prefix, prec, label)
-	char *prefix, *prec, *label;
+add_policy(char *prefix, char *prec, char *label)
 {
 	struct in6_addrpolicy p;
 	int s;
@@ -416,8 +406,7 @@ add_policy(prefix, prec, label)
 }
 
 static void
-delete_policy(prefix)
-	char *prefix;
+delete_policy(char *prefix)
 {
 	struct in6_addrpolicy p;
 	int s;
@@ -436,7 +425,7 @@ delete_policy(prefix)
 }
 
 static void
-flush_policy()
+flush_policy(void)
 {
 	struct policyqueue *ent;
 	int s;
@@ -454,7 +443,7 @@ flush_policy()
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: ip6addrctl [show]\n");
 	fprintf(stderr, "       ip6addrctl add "

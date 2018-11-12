@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006, 2008 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008, 2009, 2011 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -19,14 +19,14 @@
 
 #ifndef lint
 SM_UNUSED(static char copyright[]) =
-"@(#) Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1998-2013 Proofpoint, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.\n\
      Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.967 2008/03/31 16:32:13 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.988 2013-11-23 02:52:37 gshapiro Exp $")
 
 
 #if NETINET || NETINET6
@@ -77,17 +77,19 @@ static SIGFUNC_DECL	sigusr1 __P((int));
 **				(11/88 - 9/89).
 **			     UCB/Mammoth Project (10/89 - 7/95).
 **			     InReference, Inc. (8/95 - 1/97).
-**			     Sendmail, Inc. (1/98 - present).
+**			     Sendmail, Inc. (1/98 - 9/13).
 **		The support of my employers is gratefully acknowledged.
 **			Few of them (Britton-Lee in particular) have had
 **			anything to gain from my involvement in this project.
 **
 **		Gregory Neil Shapiro,
 **			Worcester Polytechnic Institute	(until 3/98).
-**			Sendmail, Inc. (3/98 - present).
+**			Sendmail, Inc. (3/98 - 10/13).
+**			Proofpoint, Inc. (10/13 - present).
 **
 **		Claus Assmann,
-**			Sendmail, Inc. (12/98 - present).
+**			Sendmail, Inc. (12/98 - 10/13).
+**			Proofpoint, Inc. (10/13 - present).
 */
 
 char		*FullName;	/* sender's full name */
@@ -109,8 +111,8 @@ GIDSET_T	InitialGidSet[NGROUPS_MAX];
 #if SASL
 static sasl_callback_t srvcallbacks[] =
 {
-	{	SASL_CB_VERIFYFILE,	&safesaslfile,	NULL	},
-	{	SASL_CB_PROXY_POLICY,	&proxy_policy,	NULL	},
+	{	SASL_CB_VERIFYFILE,	(sasl_callback_ft)&safesaslfile,	NULL	},
+	{	SASL_CB_PROXY_POLICY,	(sasl_callback_ft)&proxy_policy,	NULL	},
 	{	SASL_CB_LIST_END,	NULL,		NULL	}
 };
 #endif /* SASL */
@@ -129,7 +131,7 @@ int		SyslogPrefixLen; /* estimated length of syslog prefix */
 {									\
 	if (extraprivs &&						\
 	    OpMode != MD_DELIVER && OpMode != MD_SMTP &&		\
-	    OpMode != MD_ARPAFTP &&					\
+	    OpMode != MD_ARPAFTP && OpMode != MD_CHECKCONFIG &&		\
 	    OpMode != MD_VERIFY && OpMode != MD_TEST)			\
 	{								\
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,		\
@@ -304,6 +306,9 @@ main(argc, argv, envp)
 	SubmitMode = SUBMIT_UNKNOWN;
 #if _FFR_LOCAL_DAEMON
 	LocalDaemon = false;
+# if NETINET6
+	V6LoopbackAddrFound = false;
+# endif /* NETINET6 */
 #endif /* _FFR_LOCAL_DAEMON */
 #if XDEBUG
 	checkfd012("after openlog");
@@ -401,6 +406,7 @@ main(argc, argv, envp)
 			  case MD_HOSTSTAT:
 			  case MD_PURGESTAT:
 			  case MD_ARPAFTP:
+			  case MD_CHECKCONFIG:
 				OpMode = j;
 				break;
 
@@ -636,6 +642,17 @@ main(argc, argv, envp)
 		sm_dprintf("   FFR Defines:");
 		sm_printoptions(FFRCompileOptions);
 	}
+
+#if STARTTLS
+	if (tTd(0, 14))
+	{
+		/* exit(EX_CONFIG) if different? */
+		sm_dprintf("       OpenSSL: compiled 0x%08x\n",
+			   (uint) OPENSSL_VERSION_NUMBER);
+		sm_dprintf("       OpenSSL: linked   0x%08x\n",
+			   (uint) SSLeay());
+	}
+#endif /* STARTTLS */
 
 	/* clear sendmail's environment */
 	ExternalEnviron = environ;
@@ -1192,7 +1209,7 @@ main(argc, argv, envp)
 	}
 
 	/* if we've had errors so far, exit now */
-	if ((ExitStat != EX_OK && OpMode != MD_TEST) ||
+	if ((ExitStat != EX_OK && OpMode != MD_TEST && OpMode != MD_CHECKCONFIG) ||
 	    ExitStat == EX_OSERR)
 	{
 		finis(false, true, ExitStat);
@@ -1305,7 +1322,7 @@ main(argc, argv, envp)
 		(void) getfallbackmxrr(FallbackMX);
 #endif /* NAMED_BIND */
 
-	if (SuperSafe == SAFE_INTERACTIVE && CurEnv->e_sendmode != SM_DELIVER)
+	if (SuperSafe == SAFE_INTERACTIVE && !SM_IS_INTERACTIVE(CurEnv->e_sendmode))
 	{
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     "WARNING: SuperSafe=interactive should only be used with\n         DeliveryMode=interactive\n");
@@ -1566,6 +1583,7 @@ main(argc, argv, envp)
 			break;
 
 		  case MD_TEST:
+		  case MD_CHECKCONFIG:
 		  case MD_PRINT:
 		  case MD_PRINTNQE:
 		  case MD_FREEZE:
@@ -1626,6 +1644,9 @@ main(argc, argv, envp)
 	  case MD_TEST:
 		/* don't have persistent host status in test mode */
 		HostStatDir = NULL;
+		/* FALLTHROUGH */
+
+	  case MD_CHECKCONFIG:
 		if (Verbose == 0)
 			Verbose = 2;
 		BlankEnvelope.e_errormode = EM_PRINT;
@@ -1933,8 +1954,8 @@ main(argc, argv, envp)
 		}
 	}
 
-	/* if we've had errors so far, exit now */
-	if (ExitStat != EX_OK && OpMode != MD_TEST)
+	/* if checking config or have had errors so far, exit now */
+	if (OpMode == MD_CHECKCONFIG || (ExitStat != EX_OK && OpMode != MD_TEST))
 	{
 		finis(false, true, ExitStat);
 		/* NOTREACHED */
@@ -1958,7 +1979,7 @@ main(argc, argv, envp)
 	  case MD_PRINT:
 		/* print the queue */
 		HoldErrs = false;
-		dropenvelope(&BlankEnvelope, true, false);
+		(void) dropenvelope(&BlankEnvelope, true, false);
 		(void) sm_signal(SIGPIPE, sigpipe);
 		if (qgrp != NOQGRP)
 		{
@@ -1981,7 +2002,7 @@ main(argc, argv, envp)
 
 	  case MD_PRINTNQE:
 		/* print number of entries in queue */
-		dropenvelope(&BlankEnvelope, true, false);
+		(void) dropenvelope(&BlankEnvelope, true, false);
 		(void) sm_signal(SIGPIPE, sigpipe);
 		printnqe(smioout, NULL);
 		finis(false, true, EX_OK);
@@ -2093,7 +2114,7 @@ main(argc, argv, envp)
 							     "> ");
 				(void) sm_io_flush(smioout, SM_TIME_DEFAULT);
 				if (sm_io_fgets(smioin, SM_TIME_DEFAULT, buf,
-						sizeof(buf)) == NULL)
+						sizeof(buf)) < 0)
 					testmodeline("/quit", &MainEnvelope);
 				p = strchr(buf, '\n');
 				if (p != NULL)
@@ -2133,8 +2154,8 @@ main(argc, argv, envp)
 	else if (OpMode == MD_DAEMON || OpMode == MD_FGDAEMON ||
 		 OpMode == MD_SMTP)
 	{
-		/* check whether STARTTLS is turned off for the server */
-		if (chkdaemonmodifiers(D_NOTLS))
+		/* check whether STARTTLS is turned off */
+		if (chkdaemonmodifiers(D_NOTLS) && chkclientmodifiers(D_NOTLS))
 			tls_ok = false;
 	}
 	else	/* other modes don't need STARTTLS */
@@ -2143,7 +2164,13 @@ main(argc, argv, envp)
 	if (tls_ok)
 	{
 		/* basic TLS initialization */
-		tls_ok = init_tls_library();
+		tls_ok = init_tls_library(FipsMode);
+		if (!tls_ok && FipsMode)
+		{
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "ERROR: FIPSMode failed to initialize\n");
+			exit(EX_USAGE);
+		}
 	}
 
 	if (!tls_ok && (OpMode == MD_QUEUERUN || OpMode == MD_DELIVER))
@@ -2530,7 +2557,7 @@ main(argc, argv, envp)
 				}
 			}
 		}
-		dropenvelope(&MainEnvelope, true, false);
+		(void) dropenvelope(&MainEnvelope, true, false);
 
 #if STARTTLS
 		/* init TLS for server, ignore result for now */
@@ -2548,9 +2575,45 @@ main(argc, argv, envp)
 		**  Set _ macro in BlankEnvelope before calling newenvelope().
 		*/
 
+#if _FFR_XCNCT
+		if (bitnset(D_XCNCT, *p_flags) || bitnset(D_XCNCT_M, *p_flags))
+		{
+			/* copied from getauthinfo() */
+			if (RealHostName == NULL)
+			{
+				RealHostName = newstr(hostnamebyanyaddr(&RealHostAddr));
+				if (strlen(RealHostName) > MAXNAME)
+					RealHostName[MAXNAME] = '\0'; /* XXX - 1 ? */
+			}
+			snprintf(buf, sizeof(buf), "%s [%s]",
+				RealHostName, anynet_ntoa(&RealHostAddr));
+
+			forged = bitnset(D_XCNCT_M, *p_flags);
+			if (forged)
+			{
+				(void) sm_strlcat(buf, " (may be forged)",
+						sizeof(buf));
+				macdefine(&BlankEnvelope.e_macro, A_PERM,
+					  macid("{client_resolve}"), "FORGED");
+			}
+
+			/* HACK! variable used only two times right below */
+			authinfo = buf;
+			if (tTd(75, 9))
+				sm_syslog(LOG_INFO, NOQID,
+					"main: where=not_calling_getauthinfo, RealHostAddr=%s",
+					anynet_ntoa(&RealHostAddr));
+		}
+		else
+		/* WARNING: "non-braced" else */
+#endif /* _FFR_XCNCT */
 		authinfo = getauthinfo(sm_io_getinfo(InChannel, SM_IO_WHAT_FD,
 						     NULL), &forged);
 		macdefine(&BlankEnvelope.e_macro, A_TEMP, '_', authinfo);
+		if (tTd(75, 9))
+			sm_syslog(LOG_INFO, NOQID,
+				"main: where=after_getauthinfo, RealHostAddr=%s",
+				anynet_ntoa(&RealHostAddr));
 
 		/* at this point we are in a child: reset state */
 		sm_rpool_free(MainEnvelope.e_rpool);
@@ -2600,13 +2663,13 @@ main(argc, argv, envp)
 #if NETINET
 		  case AF_INET:
 			(void) sm_snprintf(pbuf, sizeof(pbuf), "%d",
-					   RealHostAddr.sin.sin_port);
+					   ntohs(RealHostAddr.sin.sin_port));
 			break;
 #endif /* NETINET */
 #if NETINET6
 		  case AF_INET6:
 			(void) sm_snprintf(pbuf, sizeof(pbuf), "%d",
-					   RealHostAddr.sin6.sin6_port);
+					   ntohs(RealHostAddr.sin6.sin6_port));
 			break;
 #endif /* NETINET6 */
 		  default:
@@ -2817,7 +2880,7 @@ main(argc, argv, envp)
 
 		/* set message size */
 		(void) sm_snprintf(buf, sizeof(buf), "%ld",
-				   MainEnvelope.e_msgsize);
+				   PRT_NONNEGL(MainEnvelope.e_msgsize));
 		macdefine(&MainEnvelope.e_macro, A_TEMP,
 			  macid("{msg_size}"), buf);
 
@@ -2952,7 +3015,11 @@ finis(drop, cleanup, exitstat)
 		{
 			if (CurEnv->e_id != NULL)
 			{
-				dropenvelope(CurEnv, true, false);
+				int r;
+
+				r = dropenvelope(CurEnv, true, false);
+				if (exitstat == EX_OK)
+					exitstat = r;
 				sm_rpool_free(CurEnv->e_rpool);
 				CurEnv->e_rpool = NULL;
 
@@ -3179,7 +3246,7 @@ sigpipe(sig)
 **	may resend a message.
 **
 **	Parameters:
-**		none.
+**		sig -- incoming signal.
 **
 **	Returns:
 **		none.
@@ -3190,8 +3257,6 @@ sigpipe(sig)
 **	NOTE:	THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
 **		ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
 **		DOING.
-**
-**		XXX: More work is needed for this signal handler.
 */
 
 /* ARGSUSED */
@@ -3206,38 +3271,34 @@ intsig(sig)
 	errno = save_errno;
 	CHECK_CRITICAL(sig);
 	sm_allsignals(true);
+	IntSig = true;
 
-	if (sig != 0 && LogLevel > 79)
-		sm_syslog(LOG_DEBUG, CurEnv->e_id, "interrupt");
 	FileName = NULL;
 
 	/* Clean-up on aborted stdin message submission */
-	if (CurEnv->e_id != NULL &&
-	    (OpMode == MD_SMTP ||
+	if  (OpMode == MD_SMTP ||
 	     OpMode == MD_DELIVER ||
-	     OpMode == MD_ARPAFTP))
+	     OpMode == MD_ARPAFTP)
 	{
-		register ADDRESS *q;
+		if (CurEnv->e_id != NULL)
+		{
+			char *fn;
 
-		/* don't return an error indication */
-		CurEnv->e_to = NULL;
-		CurEnv->e_flags &= ~EF_FATALERRS;
-		CurEnv->e_flags |= EF_CLRQUEUE;
-
-		/*
-		**  Spin through the addresses and
-		**  mark them dead to prevent bounces
-		*/
-
-		for (q = CurEnv->e_sendqueue; q != NULL; q = q->q_next)
-			q->q_state = QS_DONTSEND;
-
-		drop = true;
+			fn = queuename(CurEnv, DATAFL_LETTER);
+			if (fn != NULL)
+				(void) unlink(fn);
+			fn = queuename(CurEnv, ANYQFL_LETTER);
+			if (fn != NULL)
+				(void) unlink(fn);
+		}
+		_exit(EX_OK);
+		/* NOTREACHED */
 	}
-	else if (OpMode != MD_TEST)
-	{
+
+	if (sig != 0 && LogLevel > 79)
+		sm_syslog(LOG_DEBUG, CurEnv->e_id, "interrupt");
+	if (OpMode != MD_TEST)
 		unlockqueue(CurEnv);
-	}
 
 	finis(drop, false, EX_OK);
 	/* NOTREACHED */
@@ -3676,12 +3737,12 @@ drop_privileges(to_real_uid)
 	GIDSET_T emptygidset[1];
 
 	if (tTd(47, 1))
-		sm_dprintf("drop_privileges(%d): Real[UG]id=%d:%d, get[ug]id=%d:%d, gete[ug]id=%d:%d, RunAs[UG]id=%d:%d\n",
+		sm_dprintf("drop_privileges(%d): Real[UG]id=%ld:%ld, get[ug]id=%ld:%ld, gete[ug]id=%ld:%ld, RunAs[UG]id=%ld:%ld\n",
 			   (int) to_real_uid,
-			   (int) RealUid, (int) RealGid,
-			   (int) getuid(), (int) getgid(),
-			   (int) geteuid(), (int) getegid(),
-			   (int) RunAsUid, (int) RunAsGid);
+			   (long) RealUid, (long) RealGid,
+			   (long) getuid(), (long) getgid(),
+			   (long) geteuid(), (long) getegid(),
+			   (long) RunAsUid, (long) RunAsGid);
 
 	if (to_real_uid)
 	{
@@ -3756,15 +3817,15 @@ drop_privileges(to_real_uid)
 	{
 		if (setgid(RunAsGid) < 0 && (!UseMSP || getegid() != RunAsGid))
 		{
-			syserr("drop_privileges: setgid(%d) failed",
-			       (int) RunAsGid);
+			syserr("drop_privileges: setgid(%ld) failed",
+			       (long) RunAsGid);
 			rval = EX_OSERR;
 		}
 		errno = 0;
 		if (rval == EX_OK && getegid() != RunAsGid)
 		{
-			syserr("drop_privileges: Unable to set effective gid=%d to RunAsGid=%d",
-			       (int) getegid(), (int) RunAsGid);
+			syserr("drop_privileges: Unable to set effective gid=%ld to RunAsGid=%ld",
+			       (long) getegid(), (long) RunAsGid);
 			rval = EX_OSERR;
 		}
 	}
@@ -4466,6 +4527,25 @@ testmodeline(line, e)
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "ul = %lu\n", ul);
 		}
+#if NETINET || NETINET6
+		else if (sm_strcasecmp(&line[1], "gethostbyname") == 0)
+		{
+			int family = AF_INET;
+
+			q = strpbrk(p, " \t");
+			if (q != NULL)
+			{
+				while (isascii(*q) && isspace(*q))
+					*q++ = '\0';
+# if NETINET6
+				if (*q != '\0' && (strcmp(q, "inet6") == 0 ||
+						   strcmp(q, "AAAA") == 0))
+					family = AF_INET6;
+# endif /* NETINET6 */
+			}
+			(void) sm_gethostbyname(p, family);
+		}
+#endif /* NETINET || NETINET6 */
 		else
 		{
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,

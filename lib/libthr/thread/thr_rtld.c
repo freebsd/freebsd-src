@@ -22,17 +22,22 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
  /*
   * A lockless rwlock for rtld.
   */
 #include <sys/cdefs.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
+#include <link.h>
 #include <stdlib.h>
+#include <string.h>
 
+#include "libc_private.h"
 #include "rtld_lock.h"
 #include "thr_private.h"
 
@@ -81,8 +86,11 @@ static void
 _thr_rtld_lock_destroy(void *lock)
 {
 	int locki;
+	size_t i;
 
 	locki = (struct rtld_lock *)lock - &lock_place[0];
+	for (i = 0; i < sizeof(struct rtld_lock); ++i)
+		((char *)lock)[i] = 0;
 	busy_places &= ~(1 << locki);
 }
 
@@ -129,7 +137,7 @@ _thr_rtld_wlock_acquire(void *lock)
 	SAVE_ERRNO();
 	l = (struct rtld_lock *)lock;
 
-	_thr_signal_block(curthread);
+	THR_CRITICAL_ENTER(curthread);
 	while (_thr_rwlock_wrlock(&l->lock, NULL) != 0)
 		;
 	RESTORE_ERRNO();
@@ -149,12 +157,9 @@ _thr_rtld_lock_release(void *lock)
 	
 	state = l->lock.rw_state;
 	if (_thr_rwlock_unlock(&l->lock) == 0) {
-		curthread->rdlock_count--;
-		if ((state & URWLOCK_WRITE_OWNER) == 0) {
-			THR_CRITICAL_LEAVE(curthread);
-		} else {
-			_thr_signal_unblock(curthread);
-		}
+		if ((state & URWLOCK_WRITE_OWNER) == 0)
+			curthread->rdlock_count--;
+		THR_CRITICAL_LEAVE(curthread);
 	}
 	RESTORE_ERRNO();
 }
@@ -180,7 +185,9 @@ _thr_rtld_init(void)
 {
 	struct RtldLockInfo	li;
 	struct pthread		*curthread;
+	ucontext_t *uc;
 	long dummy = -1;
+	int uc_len;
 
 	curthread = _get_curthread();
 
@@ -190,6 +197,12 @@ _thr_rtld_init(void)
 	/* force to resolve errno() PLT */
 	__error();
 
+	/* force to resolve memcpy PLT */
+	memcpy(&dummy, &dummy, sizeof(dummy));
+
+	mprotect(NULL, 0, 0);
+	_rtld_get_stack_prot();
+
 	li.lock_create  = _thr_rtld_lock_create;
 	li.lock_destroy = _thr_rtld_lock_destroy;
 	li.rlock_acquire = _thr_rtld_rlock_acquire;
@@ -198,20 +211,32 @@ _thr_rtld_init(void)
 	li.thread_set_flag = _thr_rtld_set_flag;
 	li.thread_clr_flag = _thr_rtld_clr_flag;
 	li.at_fork = NULL;
-	
+
+	/*
+	 * Preresolve the symbols needed for the fork interposer.  We
+	 * call _rtld_atfork_pre() and _rtld_atfork_post() with NULL
+	 * argument to indicate that no actual locking inside the
+	 * functions should happen.  Neither rtld compat locks nor
+	 * libthr rtld locks cannot work there:
+	 * - compat locks do not handle the case of two locks taken
+	 *   in write mode (the signal mask for the thread is corrupted);
+	 * - libthr locks would work, but locked rtld_bind_lock prevents
+	 *   symbol resolution for _rtld_atfork_post.
+	 */
+	_rtld_atfork_pre(NULL);
+	_rtld_atfork_post(NULL);
+	_malloc_prefork();
+	_malloc_postfork();
+	getpid();
+	syscall(SYS_getpid);
+
 	/* mask signals, also force to resolve __sys_sigprocmask PLT */
 	_thr_signal_block(curthread);
 	_rtld_thread_init(&li);
 	_thr_signal_unblock(curthread);
-}
 
-void
-_thr_rtld_fini(void)
-{
-	struct pthread	*curthread;
-
-	curthread = _get_curthread();
-	_thr_signal_block(curthread);
-	_rtld_thread_init(NULL);
-	_thr_signal_unblock(curthread);
+	uc_len = __getcontextx_size();
+	uc = alloca(uc_len);
+	getcontext(uc);
+	__fillcontextx2((char *)uc);
 }

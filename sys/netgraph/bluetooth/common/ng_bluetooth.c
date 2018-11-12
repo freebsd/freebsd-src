@@ -57,7 +57,7 @@ static u_int32_t	bluetooth_sco_rtx_timeout_value      = 60;  /* sec */
 
 SYSCTL_NODE(_net, OID_AUTO, bluetooth, CTLFLAG_RW, 0, "Bluetooth family");
 SYSCTL_INT(_net_bluetooth, OID_AUTO, version,
-	CTLFLAG_RD, 0, NG_BLUETOOTH_VERSION, "Version of the stack");
+	CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_BLUETOOTH_VERSION, "Version of the stack");
 
 /* 
  * HCI
@@ -114,7 +114,7 @@ SYSCTL_PROC(_net_bluetooth_hci, OID_AUTO, connection_timeout,
 	bluetooth_set_hci_connect_timeout_value,
 	"I", "HCI connect timeout (sec)");
 
-SYSCTL_INT(_net_bluetooth_hci, OID_AUTO, max_neighbor_age, CTLFLAG_RW,
+SYSCTL_UINT(_net_bluetooth_hci, OID_AUTO, max_neighbor_age, CTLFLAG_RW,
 	&bluetooth_hci_max_neighbor_age_value, 600,
 	"Maximal HCI neighbor cache entry age (sec)");
 

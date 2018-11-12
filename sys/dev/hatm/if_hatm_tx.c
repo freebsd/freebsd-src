@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_atm.h>
 #include <net/route.h>
@@ -122,7 +123,7 @@ hatm_alloc_tpd(struct hatm_softc *sc, u_int flags)
 			return (NULL);
 	}
 
-	/* make it beeing used */
+	/* make it being used */
 	t = SLIST_FIRST(&sc->tpd_free);
 	KASSERT(t != NULL, ("tpd botch"));
 	SLIST_REMOVE_HEAD(&sc->tpd_free, link);
@@ -451,7 +452,7 @@ hatm_start(struct ifnet *ifp)
 		if ((tpd = hatm_alloc_tpd(sc, M_NOWAIT)) == NULL) {
 			hatm_free_txmbuf(sc);
 			m_freem(m);
-			sc->ifp->if_oerrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			continue;
 		}
 		tpd->cid = cid;
@@ -466,12 +467,12 @@ hatm_start(struct ifnet *ifp)
 		if (error == EFBIG) {
 			/* try to defragment the packet */
 			sc->istats.defrag++;
-			m = m_defrag(m, M_DONTWAIT);
+			m = m_defrag(m, M_NOWAIT);
 			if (m == NULL) {
 				tpd->mbuf = NULL;
 				hatm_free_txmbuf(sc);
 				hatm_free_tpd(sc, tpd);
-				sc->ifp->if_oerrors++;
+				if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 				continue;
 			}
 			arg.mbuf = m;
@@ -483,17 +484,17 @@ hatm_start(struct ifnet *ifp)
 			if_printf(sc->ifp, "mbuf loaded error=%d\n",
 			    error);
 			hatm_free_tpd(sc, tpd);
-			sc->ifp->if_oerrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			continue;
 		}
 		if (arg.error) {
 			hatm_free_tpd(sc, tpd);
-			sc->ifp->if_oerrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			continue;
 		}
 		arg.vcc->opackets++;
 		arg.vcc->obytes += len;
-		sc->ifp->if_opackets++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
 	}
 	mtx_unlock(&sc->mtx);
 }

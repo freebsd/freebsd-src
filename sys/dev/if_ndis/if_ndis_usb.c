@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -91,11 +92,9 @@ static device_method_t ndis_methods[] = {
 	DEVMETHOD(device_shutdown,	ndis_shutdown),
 
         /* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_get_resource_list, ndis_get_resource_list),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ndis_driver = {
@@ -165,6 +164,7 @@ ndisusb_attach(device_t self)
 	driver_object		*drv;
 	int			devidx = 0;
 
+	device_set_usb_desc(self);
 	db = uaa->driver_ivar;
 	sc = (struct ndis_softc *)dummy;
 	sc->ndis_dev = self;
@@ -194,9 +194,9 @@ ndisusb_attach(device_t self)
 	}
 
 	if (ndis_attach(self) != 0)
-		return ENXIO;
+		return (ENXIO);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -204,7 +204,7 @@ ndisusb_detach(device_t self)
 {
 	int i;
 	struct ndis_softc       *sc = device_get_softc(self);
-	struct ndisusb_ep	*ne;;
+	struct ndisusb_ep	*ne;
 
 	sc->ndisusb_status |= NDISUSB_STATUS_DETACH;
 

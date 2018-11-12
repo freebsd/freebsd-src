@@ -32,11 +32,12 @@
 .\" @(#) dlopen.3 1.6 90/01/31 SMI
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2009
-.Os
+.Dd February 14, 2015
 .Dt DLOPEN 3
+.Os
 .Sh NAME
 .Nm dlopen ,
+.Nm fdlopen ,
 .Nm dlsym ,
 .Nm dlfunc ,
 .Nm dlerror ,
@@ -49,10 +50,12 @@
 .Ft void *
 .Fn dlopen "const char *path" "int mode"
 .Ft void *
+.Fn fdlopen "int fd" "int mode"
+.Ft void *
 .Fn dlsym "void * restrict handle" "const char * restrict symbol"
 .Ft dlfunc_t
 .Fn dlfunc "void * restrict handle" "const char * restrict symbol"
-.Ft const char *
+.Ft char *
 .Fn dlerror "void"
 .Ft int
 .Fn dlclose "void *handle"
@@ -149,7 +152,7 @@ The same behaviour may be requested by
 option of the static linker
 .Xr ld 1 .
 .It Dv RTLD_NOLOAD
-Ony return valid handle for the object if it is already loaded in
+Only return valid handle for the object if it is already loaded in
 the process address space, otherwise
 .Dv NULL
 is returned.
@@ -162,6 +165,36 @@ If
 fails, it returns a null pointer, and sets an error condition which may
 be interrogated with
 .Fn dlerror .
+.Pp
+The
+.Fn fdlopen
+function is similar to
+.Fn dlopen ,
+but it takes the file descriptor argument
+.Fa fd ,
+which is used for the file operations needed to load an object
+into the address space.
+The file descriptor
+.Fa fd
+is not closed by the function regardless a result of execution,
+but a duplicate of the file descriptor is.
+This may be important if a
+.Xr lockf 3
+lock is held on the passed descriptor.
+The
+.Fa fd
+argument -1 is interpreted as a reference to the main
+executable of the process, similar to
+.Va NULL
+value for the
+.Fa name
+argument to
+.Fn dlopen .
+The
+.Fn fdlopen
+function can be used by the code that needs to perform
+additional checks on the loaded objects, to prevent races with
+symlinking or renames.
 .Pp
 The
 .Fn dlsym
@@ -203,7 +236,7 @@ as follows, in the given order:
 The referencing object itself (or the object from which the call to
 .Fn dlsym
 is made), if that object was linked using the
-.Fl Wsymbolic
+.Fl Bsymbolic
 option to
 .Xr ld 1 .
 .It
@@ -354,6 +387,7 @@ option to the C language compiler.
 .Sh ERRORS
 The
 .Fn dlopen ,
+.Fn fdlopen ,
 .Fn dlsym ,
 and
 .Fn dlfunc

@@ -31,6 +31,7 @@
  * Support functions for modules.
  */
 #include <sys/types.h>
+#include <sys/queue.h>
 #include <sys/un.h>
 #include <stdio.h>
 #include <stdlib.h>

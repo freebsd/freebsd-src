@@ -1,10 +1,10 @@
 # $FreeBSD$
 #
-PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/games:/usr/local/sbin:/usr/local/bin:~/bin
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:~/bin
 export PATH
 HOME=/root
 export HOME
-TERM=${TERM:-cons25}
+TERM=${TERM:-xterm}
 export TERM
 PAGER=more
 export PAGER

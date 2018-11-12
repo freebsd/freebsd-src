@@ -1,4 +1,4 @@
-/* $OpenBSD: canohost.c,v 1.65 2009/05/27 06:31:25 andreas Exp $ */
+/* $OpenBSD: canohost.c,v 1.72 2015/03/01 15:44:40 millert Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -16,17 +16,18 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include <ctype.h>
 #include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <unistd.h>
 
 #include "xmalloc.h"
 #include "packet.h"
@@ -40,14 +41,13 @@ static int cached_port = -1;
 
 /*
  * Return the canonical name of the host at the other end of the socket. The
- * caller should free the returned string with xfree.
+ * caller should free the returned string.
  */
 
 static char *
 get_remote_hostname(int sock, int use_dns)
 {
 	struct sockaddr_storage from;
-	int i;
 	socklen_t fromlen;
 	struct addrinfo hints, *ai, *aitop;
 	char name[NI_MAXHOST], ntop[NI_MAXHOST], ntop2[NI_MAXHOST];
@@ -98,13 +98,9 @@ get_remote_hostname(int sock, int use_dns)
 		return xstrdup(ntop);
 	}
 
-	/*
-	 * Convert it to all lowercase (which is expected by the rest
-	 * of this software).
-	 */
-	for (i = 0; name[i]; i++)
-		if (isupper(name[i]))
-			name[i] = (char)tolower(name[i]);
+	/* Names are stores in lowercase. */
+	lowercase(name);
+
 	/*
 	 * Map it back to an IP address and check that the given
 	 * address actually is an address of this host.  This is
@@ -159,8 +155,7 @@ check_ip_options(int sock, char *ipaddr)
 #ifdef IP_OPTIONS
 	u_char options[200];
 	char text[sizeof(options) * 3 + 1];
-	socklen_t option_size;
-	u_int i;
+	socklen_t option_size, i;
 	int ipproto;
 	struct protoent *ip;
 
@@ -198,7 +193,7 @@ ipv64_normalise_mapped(struct sockaddr_storage *addr, socklen_t *len)
 	memcpy(&inaddr, ((char *)&a6->sin6_addr) + 12, sizeof(inaddr));
 	port = a6->sin6_port;
 
-	memset(addr, 0, sizeof(*a4));
+	memset(a4, 0, sizeof(*a4));
 
 	a4->sin_family = AF_INET;
 	*len = sizeof(*a4);
@@ -265,19 +260,29 @@ get_socket_address(int sock, int remote, int flags)
 	}
 
 	/* Work around Linux IPv6 weirdness */
-	if (addr.ss_family == AF_INET6)
+	if (addr.ss_family == AF_INET6) {
 		addrlen = sizeof(struct sockaddr_in6);
+		ipv64_normalise_mapped(&addr, &addrlen);
+	}
 
-	ipv64_normalise_mapped(&addr, &addrlen);
-
-	/* Get the address in ascii. */
-	if ((r = getnameinfo((struct sockaddr *)&addr, addrlen, ntop,
-	    sizeof(ntop), NULL, 0, flags)) != 0) {
-		error("get_socket_address: getnameinfo %d failed: %s", flags,
-		    ssh_gai_strerror(r));
+	switch (addr.ss_family) {
+	case AF_INET:
+	case AF_INET6:
+		/* Get the address in ascii. */
+		if ((r = getnameinfo((struct sockaddr *)&addr, addrlen, ntop,
+		    sizeof(ntop), NULL, 0, flags)) != 0) {
+			error("get_socket_address: getnameinfo %d failed: %s",
+			    flags, ssh_gai_strerror(r));
+			return NULL;
+		}
+		return xstrdup(ntop);
+	case AF_UNIX:
+		/* Get the Unix domain socket path. */
+		return xstrdup(((struct sockaddr_un *)&addr)->sun_path);
+	default:
+		/* We can't look up remote Unix domain sockets. */
 		return NULL;
 	}
-	return xstrdup(ntop);
 }
 
 char *
@@ -301,18 +306,29 @@ get_local_ipaddr(int sock)
 }
 
 char *
-get_local_name(int sock)
+get_local_name(int fd)
 {
-	return get_socket_address(sock, 0, NI_NAMEREQD);
+	char *host, myname[NI_MAXHOST];
+
+	/* Assume we were passed a socket */
+	if ((host = get_socket_address(fd, 0, NI_NAMEREQD)) != NULL)
+		return host;
+
+	/* Handle the case where we were passed a pipe */
+	if (gethostname(myname, sizeof(myname)) == -1) {
+		verbose("get_local_name: gethostname: %s", strerror(errno));
+	} else {
+		host = xstrdup(myname);
+	}
+
+	return host;
 }
 
 void
 clear_cached_addr(void)
 {
-	if (canonical_host_ip != NULL) {
-		xfree(canonical_host_ip);
-		canonical_host_ip = NULL;
-	}
+	free(canonical_host_ip);
+	canonical_host_ip = NULL;
 	cached_port = -1;
 }
 
@@ -378,6 +394,10 @@ get_sock_port(int sock, int local)
 	/* Work around Linux IPv6 weirdness */
 	if (from.ss_family == AF_INET6)
 		fromlen = sizeof(struct sockaddr_in6);
+
+	/* Non-inet sockets don't have a port number. */
+	if (from.ss_family != AF_INET && from.ss_family != AF_INET6)
+		return 0;
 
 	/* Return port number. */
 	if ((r = getnameinfo((struct sockaddr *)&from, fromlen, NULL, 0,

@@ -32,8 +32,6 @@
  */
 
 %{
-#define YY_NO_UNPUT
-
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -42,10 +40,6 @@
 #include <string.h>
 
 #include <net/if.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
-#include <net/if_var.h>
-#endif /* __FreeBSD__ >= 3 */
-
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/icmp6.h>
@@ -63,6 +57,8 @@ int parse(FILE **);
 void yyerror(const char *);
 int yylex(void);
 %}
+
+%option nounput
 
 /* common section */
 nl		\n

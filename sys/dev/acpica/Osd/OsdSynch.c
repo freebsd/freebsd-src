@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #define	_COMPONENT	ACPI_OS_SERVICES
 ACPI_MODULE_NAME("SYNCH")
 
-MALLOC_DEFINE(M_ACPISEM, "acpisem", "ACPI semaphore");
+static MALLOC_DEFINE(M_ACPISEM, "acpisem", "ACPI semaphore");
 
 /*
  * Convert milliseconds to ticks.
@@ -188,6 +188,23 @@ AcpiOsWaitSemaphore(ACPI_SEMAPHORE Handle, UINT32 Units, UINT16 Timeout)
 		}
 		break;
 	default:
+		if (cold) {
+			/*
+			 * Just spin polling the semaphore once a
+			 * millisecond.
+			 */
+			while (!ACPISEM_AVAIL(as, Units)) {
+				if (Timeout == 0) {
+					status = AE_TIME;
+					break;
+				}
+				Timeout--;
+				mtx_unlock(&as->as_lock);
+				DELAY(1000);
+				mtx_lock(&as->as_lock);
+			}
+			break;
+		}
 		tmo = timeout2hz(Timeout);
 		while (!ACPISEM_AVAIL(as, Units)) {
 			prevtick = ticks;
@@ -208,7 +225,7 @@ AcpiOsWaitSemaphore(ACPI_SEMAPHORE Handle, UINT32 Units, UINT16 Timeout)
 			tmo -= slptick;
 		}
 	}
-	if (status == AE_OK)
+	if (ACPI_SUCCESS(status))
 		as->as_units -= Units;
 
 	mtx_unlock(&as->as_lock);
@@ -381,6 +398,23 @@ AcpiOsAcquireMutex(ACPI_MUTEX Handle, UINT16 Timeout)
 		}
 		break;
 	default:
+		if (cold) {
+			/*
+			 * Just spin polling the mutex once a
+			 * millisecond.
+			 */
+			while (!ACPIMTX_AVAIL(am)) {
+				if (Timeout == 0) {
+					status = AE_TIME;
+					break;
+				}
+				Timeout--;
+				mtx_unlock(&am->am_lock);
+				DELAY(1000);
+				mtx_lock(&am->am_lock);
+			}
+			break;
+		}
 		tmo = timeout2hz(Timeout);
 		while (!ACPIMTX_AVAIL(am)) {
 			prevtick = ticks;
@@ -402,7 +436,7 @@ AcpiOsAcquireMutex(ACPI_MUTEX Handle, UINT16 Timeout)
 			tmo -= slptick;
 		}
 	}
-	if (status == AE_OK)
+	if (ACPI_SUCCESS(status))
 		am->am_owner = curthread;
 
 	mtx_unlock(&am->am_lock);
@@ -566,11 +600,6 @@ AcpiOsReleaseLock(ACPI_SPINLOCK Handle, ACPI_CPU_FLAGS Flags)
 }
 
 /* Section 5.2.10.1: global lock acquire/release functions */
-#define	GL_ACQUIRED	(-1)
-#define	GL_BUSY		0
-#define	GL_BIT_PENDING	0x01
-#define	GL_BIT_OWNED	0x02
-#define	GL_BIT_MASK	(GL_BIT_PENDING | GL_BIT_OWNED)
 
 /*
  * Acquire the global lock.  If busy, set the pending bit.  The caller
@@ -578,17 +607,18 @@ AcpiOsReleaseLock(ACPI_SPINLOCK Handle, ACPI_CPU_FLAGS Flags)
  * and then attempt to acquire it again.
  */
 int
-acpi_acquire_global_lock(uint32_t *lock)
+acpi_acquire_global_lock(volatile uint32_t *lock)
 {
 	uint32_t	new, old;
 
 	do {
 		old = *lock;
-		new = ((old & ~GL_BIT_MASK) | GL_BIT_OWNED) |
-			((old >> 1) & GL_BIT_PENDING);
-	} while (atomic_cmpset_acq_int(lock, old, new) == 0);
+		new = (old & ~ACPI_GLOCK_PENDING) | ACPI_GLOCK_OWNED;
+		if ((old & ACPI_GLOCK_OWNED) != 0)
+			new |= ACPI_GLOCK_PENDING;
+	} while (atomic_cmpset_32(lock, old, new) == 0);
 
-	return ((new < GL_BIT_MASK) ? GL_ACQUIRED : GL_BUSY);
+	return ((new & ACPI_GLOCK_PENDING) == 0);
 }
 
 /*
@@ -597,14 +627,14 @@ acpi_acquire_global_lock(uint32_t *lock)
  * releases the lock.
  */
 int
-acpi_release_global_lock(uint32_t *lock)
+acpi_release_global_lock(volatile uint32_t *lock)
 {
 	uint32_t	new, old;
 
 	do {
 		old = *lock;
-		new = old & ~GL_BIT_MASK;
-	} while (atomic_cmpset_rel_int(lock, old, new) == 0);
+		new = old & ~(ACPI_GLOCK_PENDING | ACPI_GLOCK_OWNED);
+	} while (atomic_cmpset_32(lock, old, new) == 0);
 
-	return (old & GL_BIT_PENDING);
+	return ((old & ACPI_GLOCK_PENDING) != 0);
 }

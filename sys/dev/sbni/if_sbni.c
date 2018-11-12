@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/ethernet.h>
 #include <net/bpf.h>
@@ -235,7 +236,7 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 	ifp->if_init	= sbni_init;
 	ifp->if_start	= sbni_start;
 	ifp->if_ioctl	= sbni_ioctl;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 
 	/* report real baud rate */
 	csr0 = sbni_inb(sc, CSR0);
@@ -249,7 +250,7 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 	ether_ifattach(ifp, sc->enaddr);
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
-	if_printf(ifp, "speed %ld, rxl ", ifp->if_baudrate);
+	if_printf(ifp, "speed %ju, rxl ", (uintmax_t)ifp->if_baudrate);
 	if (sc->delta_rxl)
 		printf("auto\n");
 	else
@@ -606,12 +607,12 @@ upload_data(struct sbni_softc *sc, u_int framelen, u_int frameno,
 
 		/*
 		 * if CRC is right but framelen incorrect then transmitter
-		 * error was occured... drop entire packet
+		 * error was occurred... drop entire packet
 		 */
 		} else if ((frame_ok = skip_tail(sc, framelen, crc)) != 0) {
 			sc->wait_frameno = 0;
 			sc->inppos = 0;
-			sc->ifp->if_ierrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 			/* now skip all frames until is_first != 0 */
 		}
 	} else
@@ -623,7 +624,7 @@ upload_data(struct sbni_softc *sc, u_int framelen, u_int frameno,
 		 * is_first already... Drop entire packet.
 		 */
 		sc->wait_frameno = 0;
-		sc->ifp->if_ierrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	}
 
 	return (frame_ok);
@@ -637,7 +638,7 @@ send_complete(struct sbni_softc *sc)
 {
 	m_freem(sc->tx_buf_p);
 	sc->tx_buf_p = NULL;
-	sc->ifp->if_opackets++;
+	if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
 }
 
 
@@ -688,7 +689,7 @@ append_frame_to_pkt(struct sbni_softc *sc, u_int framelen, u_int32_t crc)
 	sc->inppos += framelen - 4;
 	if (--sc->wait_frameno == 0) {		/* last frame received */
 		indicate_pkt(sc);
-		sc->ifp->if_ipackets++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 	}
 
 	return (1);
@@ -737,7 +738,7 @@ prepare_to_send(struct sbni_softc *sc)
 		len = SBNI_MIN_LEN;
 
 	sc->pktlen	= len;
-	sc->tx_frameno	= (len + sc->maxframe - 1) / sc->maxframe;
+	sc->tx_frameno	= howmany(len, sc->maxframe);
 	sc->framelen	= min(len, sc->maxframe);
 
 	sbni_outb(sc, CSR0, sbni_inb(sc, CSR0) | TR_REQ);
@@ -754,7 +755,7 @@ drop_xmit_queue(struct sbni_softc *sc)
 	if (sc->tx_buf_p) {
 		m_freem(sc->tx_buf_p);
 		sc->tx_buf_p = NULL;
-		sc->ifp->if_oerrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 	}
 
 	for (;;) {
@@ -762,7 +763,7 @@ drop_xmit_queue(struct sbni_softc *sc)
 		if (m == NULL)
 			break;
 		m_freem(m);
-		sc->ifp->if_oerrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 	}
 
 	sc->tx_frameno	= 0;
@@ -863,7 +864,7 @@ get_rx_buf(struct sbni_softc *sc)
 {
 	struct mbuf *m;
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		if_printf(sc->ifp, "cannot allocate header mbuf\n");
 		return (0);
@@ -877,8 +878,7 @@ get_rx_buf(struct sbni_softc *sc)
 	 */
 	if (ETHER_MAX_LEN + 2 > MHLEN) {
 		/* Attach an mbuf cluster */
-		MCLGET(m, M_DONTWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			m_freem(m);
 			return (0);
 		}

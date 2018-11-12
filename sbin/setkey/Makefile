@@ -27,8 +27,9 @@
 #
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	setkey
 MAN=	setkey.8
 SRCS=	setkey.c parse.y token.l
@@ -37,8 +38,7 @@ WARNS?=	1
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../../lib/libipsec
 YFLAGS=	-d
 
-DPADD=	${LIBL} ${LIBY}
-LDADD=	-ll -ly
+LIBADD=	l y
 
 CLEANFILES=	y.tab.c y.tab.h key_test.o keytest
 
@@ -55,13 +55,12 @@ CFLAGS+= -DIPSEC_DEBUG -DYY_NO_UNPUT
 CFLAGS+= -DINET6
 .endif
 CFLAGS+= -I.
-DPADD+=	${LIBIPSEC}
-LDADD+=	-lipsec
+LIBADD+=	ipsec
 CLEANFILES+=	scriptdump y.tab.h
 
 #SCRIPTS= scriptdump
 
-LOCALPREFIX=	/usr
+LOCALPREFIX=	/usr/local
 
 scriptdump: scriptdump.pl
 	sed -e 's#@LOCALPREFIX@#${LOCALPREFIX}#' < $> > scriptdump

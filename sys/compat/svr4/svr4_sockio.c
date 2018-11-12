@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 
 #include <compat/svr4/svr4.h>
@@ -71,6 +72,8 @@ bsd_to_svr4_flags(bf)
 	bsd_to_svr4_flag(FF_MULTICAST);
 	return sf;
 }
+
+#define	OSIOCGIFCONF	_IOWR('i', 20, struct ifconf)
 
 int
 svr4_sock_ioctl(fp, td, retval, fd, cmd, data)

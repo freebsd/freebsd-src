@@ -26,13 +26,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_record.h#10
  * $FreeBSD$
  */
 
 #ifndef _BSM_AUDIT_RECORD_H_
 #define _BSM_AUDIT_RECORD_H_
 
+#include <sys/types.h>
 #include <sys/time.h>			/* struct timeval */
 
 /*
@@ -126,6 +126,8 @@
 #define	AUT_SOCKINET128		0x81		/* XXX */
 #define	AUT_SOCKUNIX		0x82		/* XXX */
 
+#define	AUT_RIGHTS		0x83
+
 /* print values for the arbitrary token */
 #define AUP_BINARY      0
 #define AUP_OCTAL       1
@@ -188,6 +190,13 @@ struct sockaddr_un;
 struct vnode_au_info;
 #endif
 
+#ifndef	_CAP_RIGHTS_T_DECLARED
+#define	_CAP_RIGHTS_T_DECLARED
+struct cap_rights;
+
+typedef	struct cap_rights	cap_rights_t;
+#endif
+
 int	 au_open(void);
 int	 au_write(int d, token_t *m);
 int	 au_close(int d, int keep, short event);
@@ -234,6 +243,7 @@ token_t	*au_to_ipc_perm(struct ipc_perm *perm);
 token_t	*au_to_iport(uint16_t iport);
 token_t	*au_to_opaque(const char *data, uint16_t bytes);
 token_t	*au_to_path(const char *path);
+token_t	*au_to_privset(char *privtypestr, char *privstr);
 token_t	*au_to_process(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	    gid_t rgid, pid_t pid, au_asid_t sid, au_tid_t *tid);
 token_t	*au_to_process32(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
@@ -247,6 +257,7 @@ token_t	*au_to_process32_ex(au_id_t auid, uid_t euid, gid_t egid,
 	    au_tid_addr_t *tid);
 token_t	*au_to_process64_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	    gid_t rgid, pid_t pid, au_asid_t sid, au_tid_addr_t *tid);
+token_t	*au_to_rights(cap_rights_t *rightsp);
 token_t	*au_to_return(char status, uint32_t ret);
 token_t	*au_to_return32(char status, uint32_t ret);
 token_t	*au_to_return64(char status, uint64_t ret);
@@ -279,6 +290,7 @@ token_t	*au_to_exec_env(char **envp);
 token_t	*au_to_text(const char *text);
 token_t	*au_to_kevent(struct kevent *kev);
 token_t	*au_to_trailer(int rec_size);
+token_t	*au_to_upriv(char sorf, char *priv);
 token_t	*au_to_zonename(const char *zonename);
 
 /*

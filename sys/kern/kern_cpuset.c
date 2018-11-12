@@ -50,11 +50,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuset.h>
 #include <sys/sx.h>
 #include <sys/queue.h>
+#include <sys/libkern.h>
 #include <sys/limits.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 
 #include <vm/uma.h>
+#include <vm/vm.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -79,7 +84,7 @@ __FBSDID("$FreeBSD$");
  * not.  This means that anonymous sets are immutable because they may be
  * shared.  To modify an anonymous set a new set is created with the desired
  * mask and the same parent as the existing anonymous set.  This gives the
- * illusion of each thread having a private mask.A
+ * illusion of each thread having a private mask.
  *
  * Via the syscall apis a user may ask to retrieve or modify the root, base,
  * or mask that is discovered via a pid, tid, or setid.  Modifying a set
@@ -87,7 +92,7 @@ __FBSDID("$FreeBSD$");
  * Modifying a pid or tid's mask applies only to that tid but must still
  * exist within the assigned parent set.
  *
- * A thread may not be assigned to a a group seperate from other threads in
+ * A thread may not be assigned to a group separate from other threads in
  * the process.  This is to remove ambiguity when the setid is queried with
  * a pid argument.  There is no other technical limitation.
  *
@@ -98,16 +103,21 @@ __FBSDID("$FreeBSD$");
  *
  * A simple application should not concern itself with sets at all and
  * rather apply masks to its own threads via CPU_WHICH_TID and a -1 id
- * meaning 'curthread'.  It may query availble cpus for that tid with a
+ * meaning 'curthread'.  It may query available cpus for that tid with a
  * getaffinity call using (CPU_LEVEL_CPUSET, CPU_WHICH_PID, -1, ...).
  */
 static uma_zone_t cpuset_zone;
 static struct mtx cpuset_lock;
 static struct setlist cpuset_ids;
 static struct unrhdr *cpuset_unr;
-static struct cpuset *cpuset_zero;
+static struct cpuset *cpuset_zero, *cpuset_default;
+
+/* Return the size of cpuset_t at the kernel level */
+SYSCTL_INT(_kern_sched, OID_AUTO, cpusetsize, CTLFLAG_RD | CTLFLAG_CAPRD,
+    SYSCTL_NULL_INT_PTR, sizeof(cpuset_t), "sizeof(cpuset_t)");
 
 cpuset_t *cpuset_root;
+cpuset_t cpuset_domain[MAXMEMDOM];
 
 /*
  * Acquire a reference to a cpuset, all pointers must be tracked with refs.
@@ -153,7 +163,7 @@ cpuset_refbase(struct cpuset *set)
 }
 
 /*
- * Release a reference in a context where it is safe to allocte.
+ * Release a reference in a context where it is safe to allocate.
  */
 void
 cpuset_rel(struct cpuset *set)
@@ -245,7 +255,7 @@ cpuset_lookup(cpusetid_t setid, struct thread *td)
  * will have no valid cpu based on restrictions from the parent.
  */
 static int
-_cpuset_create(struct cpuset *set, struct cpuset *parent, cpuset_t *mask,
+_cpuset_create(struct cpuset *set, struct cpuset *parent, const cpuset_t *mask,
     cpusetid_t id)
 {
 
@@ -256,7 +266,7 @@ _cpuset_create(struct cpuset *set, struct cpuset *parent, cpuset_t *mask,
 	refcount_init(&set->cs_ref, 1);
 	set->cs_flags = 0;
 	mtx_lock_spin(&cpuset_lock);
-	CPU_AND(mask, &parent->cs_mask);
+	CPU_AND(&set->cs_mask, &parent->cs_mask);
 	set->cs_id = id;
 	set->cs_parent = cpuset_ref(parent);
 	LIST_INSERT_HEAD(&parent->cs_children, set, cs_siblings);
@@ -273,7 +283,7 @@ _cpuset_create(struct cpuset *set, struct cpuset *parent, cpuset_t *mask,
  * allocated.
  */
 static int
-cpuset_create(struct cpuset **setp, struct cpuset *parent, cpuset_t *mask)
+cpuset_create(struct cpuset **setp, struct cpuset *parent, const cpuset_t *mask)
 {
 	struct cpuset *set;
 	cpusetid_t id;
@@ -298,7 +308,7 @@ cpuset_create(struct cpuset **setp, struct cpuset *parent, cpuset_t *mask)
  * empty as well as RDONLY flags.
  */
 static int
-cpuset_testupdate(struct cpuset *set, cpuset_t *mask)
+cpuset_testupdate(struct cpuset *set, cpuset_t *mask, int check_mask)
 {
 	struct cpuset *nset;
 	cpuset_t newmask;
@@ -307,13 +317,16 @@ cpuset_testupdate(struct cpuset *set, cpuset_t *mask)
 	mtx_assert(&cpuset_lock, MA_OWNED);
 	if (set->cs_flags & CPU_SET_RDONLY)
 		return (EPERM);
-	if (!CPU_OVERLAP(&set->cs_mask, mask))
-		return (EDEADLK);
-	CPU_COPY(&set->cs_mask, &newmask);
-	CPU_AND(&newmask, mask);
+	if (check_mask) {
+		if (!CPU_OVERLAP(&set->cs_mask, mask))
+			return (EDEADLK);
+		CPU_COPY(&set->cs_mask, &newmask);
+		CPU_AND(&newmask, mask);
+	} else
+		CPU_COPY(mask, &newmask);
 	error = 0;
 	LIST_FOREACH(nset, &set->cs_children, cs_siblings) 
-		if ((error = cpuset_testupdate(nset, &newmask)) != 0)
+		if ((error = cpuset_testupdate(nset, &newmask, 1)) != 0)
 			break;
 	return (error);
 }
@@ -365,11 +378,11 @@ cpuset_modify(struct cpuset *set, cpuset_t *mask)
 	if (root && !CPU_SUBSET(&root->cs_mask, mask))
 		return (EINVAL);
 	mtx_lock_spin(&cpuset_lock);
-	error = cpuset_testupdate(set, mask);
+	error = cpuset_testupdate(set, mask, 0);
 	if (error)
 		goto out;
-	cpuset_update(set, mask);
 	CPU_COPY(mask, &set->cs_mask);
+	cpuset_update(set, mask);
 out:
 	mtx_unlock_spin(&cpuset_lock);
 
@@ -387,7 +400,7 @@ out:
  * -1 may be supplied for any argument to mean the current proc/thread or
  * the base set of the current thread.  May fail with ESRCH/EPERM.
  */
-static int
+int
 cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
     struct cpuset **setp)
 {
@@ -416,19 +429,10 @@ cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
 			td = curthread;
 			break;
 		}
-		sx_slock(&allproc_lock);
-		FOREACH_PROC_IN_SYSTEM(p) {
-			PROC_LOCK(p);
-			FOREACH_THREAD_IN_PROC(p, td)
-				if (td->td_tid == id)
-					break;
-			if (td != NULL)
-				break;
-			PROC_UNLOCK(p);
-		}
-		sx_sunlock(&allproc_lock);
+		td = tdfind(id, -1);
 		if (td == NULL)
 			return (ESRCH);
+		p = td->td_proc;
 		break;
 	case CPU_WHICH_CPUSET:
 		if (id == -1) {
@@ -458,6 +462,7 @@ cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
 		return (0);
 	}
 	case CPU_WHICH_IRQ:
+	case CPU_WHICH_DOMAIN:
 		return (0);
 	default:
 		return (EINVAL);
@@ -480,7 +485,7 @@ cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
  * the new set is a child of 'set'.
  */
 static int
-cpuset_shadow(struct cpuset *set, struct cpuset *fset, cpuset_t *mask)
+cpuset_shadow(struct cpuset *set, struct cpuset *fset, const cpuset_t *mask)
 {
 	struct cpuset *parent;
 
@@ -622,6 +627,66 @@ out:
 }
 
 /*
+ * Return a string representing a valid layout for a cpuset_t object.
+ * It expects an incoming buffer at least sized as CPUSETBUFSIZ.
+ */
+char *
+cpusetobj_strprint(char *buf, const cpuset_t *set)
+{
+	char *tbuf;
+	size_t i, bytesp, bufsiz;
+
+	tbuf = buf;
+	bytesp = 0;
+	bufsiz = CPUSETBUFSIZ;
+
+	for (i = 0; i < (_NCPUWORDS - 1); i++) {
+		bytesp = snprintf(tbuf, bufsiz, "%lx,", set->__bits[i]);
+		bufsiz -= bytesp;
+		tbuf += bytesp;
+	}
+	snprintf(tbuf, bufsiz, "%lx", set->__bits[_NCPUWORDS - 1]);
+	return (buf);
+}
+
+/*
+ * Build a valid cpuset_t object from a string representation.
+ * It expects an incoming buffer at least sized as CPUSETBUFSIZ.
+ */
+int
+cpusetobj_strscan(cpuset_t *set, const char *buf)
+{
+	u_int nwords;
+	int i, ret;
+
+	if (strlen(buf) > CPUSETBUFSIZ - 1)
+		return (-1);
+
+	/* Allow to pass a shorter version of the mask when necessary. */
+	nwords = 1;
+	for (i = 0; buf[i] != '\0'; i++)
+		if (buf[i] == ',')
+			nwords++;
+	if (nwords > _NCPUWORDS)
+		return (-1);
+
+	CPU_ZERO(set);
+	for (i = 0; i < (nwords - 1); i++) {
+		ret = sscanf(buf, "%lx,", &set->__bits[i]);
+		if (ret == 0 || ret == -1)
+			return (-1);
+		buf = strstr(buf, ",");
+		if (buf == NULL)
+			return (-1);
+		buf++;
+	}
+	ret = sscanf(buf, "%lx", &set->__bits[nwords - 1]);
+	if (ret == 0 || ret == -1)
+		return (-1);
+	return (0);
+}
+
+/*
  * Apply an anonymous mask to a single thread.
  */
 int
@@ -657,7 +722,102 @@ out:
 }
 
 /*
- * Creates the cpuset for thread0.  We make two sets:
+ * Apply new cpumask to the ithread.
+ */
+int
+cpuset_setithread(lwpid_t id, int cpu)
+{
+	struct cpuset *nset, *rset;
+	struct cpuset *parent, *old_set;
+	struct thread *td;
+	struct proc *p;
+	cpusetid_t cs_id;
+	cpuset_t mask;
+	int error;
+
+	nset = uma_zalloc(cpuset_zone, M_WAITOK);
+	rset = uma_zalloc(cpuset_zone, M_WAITOK);
+	cs_id = CPUSET_INVALID;
+
+	CPU_ZERO(&mask);
+	if (cpu == NOCPU)
+		CPU_COPY(cpuset_root, &mask);
+	else
+		CPU_SET(cpu, &mask);
+
+	error = cpuset_which(CPU_WHICH_TID, id, &p, &td, &old_set);
+	if (error != 0 || ((cs_id = alloc_unr(cpuset_unr)) == CPUSET_INVALID))
+		goto out;
+
+	/* cpuset_which() returns with PROC_LOCK held. */
+	old_set = td->td_cpuset;
+
+	if (cpu == NOCPU) {
+
+		/*
+		 * roll back to default set. We're not using cpuset_shadow()
+		 * here because we can fail CPU_SUBSET() check. This can happen
+		 * if default set does not contain all CPUs.
+		 */
+		error = _cpuset_create(nset, cpuset_default, &mask,
+		    CPUSET_INVALID);
+
+		goto applyset;
+	}
+
+	if (old_set->cs_id == 1 || (old_set->cs_id == CPUSET_INVALID &&
+	    old_set->cs_parent->cs_id == 1)) {
+
+		/*
+		 * Current set is either default (1) or
+		 * shadowed version of default set.
+		 *
+		 * Allocate new root set to be able to shadow it
+		 * with any mask.
+		 */
+		error = _cpuset_create(rset, cpuset_zero,
+		    &cpuset_zero->cs_mask, cs_id);
+		if (error != 0) {
+			PROC_UNLOCK(p);
+			goto out;
+		}
+		rset->cs_flags |= CPU_SET_ROOT;
+		parent = rset;
+		rset = NULL;
+		cs_id = CPUSET_INVALID;
+	} else {
+		/* Assume existing set was already allocated by previous call */
+		parent = old_set;
+		old_set = NULL;
+	}
+
+	error = cpuset_shadow(parent, nset, &mask);
+applyset:
+	if (error == 0) {
+		thread_lock(td);
+		td->td_cpuset = nset;
+		sched_affinity(td);
+		thread_unlock(td);
+		nset = NULL;
+	} else
+		old_set = NULL;
+	PROC_UNLOCK(p);
+	if (old_set != NULL)
+		cpuset_rel(old_set);
+out:
+	if (nset != NULL)
+		uma_zfree(cpuset_zone, nset);
+	if (rset != NULL)
+		uma_zfree(cpuset_zone, rset);
+	if (cs_id != CPUSET_INVALID)
+		free_unr(cpuset_unr, cs_id);
+	return (error);
+}
+
+
+/*
+ * Creates system-wide cpusets and the cpuset for thread0 including two
+ * sets:
  * 
  * 0 - The root set which should represent all valid processors in the
  *     system.  It is initially created with a mask of all processors
@@ -671,33 +831,47 @@ struct cpuset *
 cpuset_thread0(void)
 {
 	struct cpuset *set;
-	int error;
+	int error, i;
 
 	cpuset_zone = uma_zcreate("cpuset", sizeof(struct cpuset), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	mtx_init(&cpuset_lock, "cpuset", NULL, MTX_SPIN | MTX_RECURSE);
+
 	/*
 	 * Create the root system set for the whole machine.  Doesn't use
 	 * cpuset_create() due to NULL parent.
 	 */
 	set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
-	set->cs_mask.__bits[0] = -1;
+	CPU_FILL(&set->cs_mask);
 	LIST_INIT(&set->cs_children);
 	LIST_INSERT_HEAD(&cpuset_ids, set, cs_link);
 	set->cs_ref = 1;
 	set->cs_flags = CPU_SET_ROOT;
 	cpuset_zero = set;
 	cpuset_root = &set->cs_mask;
+
 	/*
 	 * Now derive a default, modifiable set from that to give out.
 	 */
 	set = uma_zalloc(cpuset_zone, M_WAITOK);
 	error = _cpuset_create(set, cpuset_zero, &cpuset_zero->cs_mask, 1);
 	KASSERT(error == 0, ("Error creating default set: %d\n", error));
+	cpuset_default = set;
+
 	/*
 	 * Initialize the unit allocator. 0 and 1 are allocated above.
 	 */
 	cpuset_unr = new_unrhdr(2, INT_MAX, NULL);
+
+	/*
+	 * If MD code has not initialized per-domain cpusets, place all
+	 * CPUs in domain 0.
+	 */
+	for (i = 0; i < MAXMEMDOM; i++)
+		if (!CPU_EMPTY(&cpuset_domain[i]))
+			goto domains_set;
+	CPU_COPY(&all_cpus, &cpuset_domain[0]);
+domains_set:
 
 	return (set);
 }
@@ -752,19 +926,14 @@ cpuset_setproc_update_set(struct proc *p, struct cpuset *set)
 
 /*
  * This is called once the final set of system cpus is known.  Modifies
- * the root set and all children and mark the root readonly.  
+ * the root set and all children and mark the root read-only.  
  */
 static void
 cpuset_init(void *arg)
 {
 	cpuset_t mask;
 
-	CPU_ZERO(&mask);
-#ifdef SMP
-	mask.__bits[0] = all_cpus;
-#else
-	mask.__bits[0] = 1;
-#endif
+	mask = all_cpus;
 	if (cpuset_modify(cpuset_zero, &mask))
 		panic("Can't set initial cpuset mask.\n");
 	cpuset_zero->cs_flags |= CPU_SET_RDONLY;
@@ -777,7 +946,7 @@ struct cpuset_args {
 };
 #endif
 int
-cpuset(struct thread *td, struct cpuset_args *uap)
+sys_cpuset(struct thread *td, struct cpuset_args *uap)
 {
 	struct cpuset *root;
 	struct cpuset *set;
@@ -805,7 +974,7 @@ struct cpuset_setid_args {
 };
 #endif
 int
-cpuset_setid(struct thread *td, struct cpuset_setid_args *uap)
+sys_cpuset_setid(struct thread *td, struct cpuset_setid_args *uap)
 {
 	struct cpuset *set;
 	int error;
@@ -829,9 +998,10 @@ struct cpuset_getid_args {
 	cpuwhich_t	which;
 	id_t		id;
 	cpusetid_t	*setid;
+};
 #endif
 int
-cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
+sys_cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
 {
 	struct cpuset *nset;
 	struct cpuset *set;
@@ -857,6 +1027,7 @@ cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
 	case CPU_WHICH_JAIL:
 		break;
 	case CPU_WHICH_IRQ:
+	case CPU_WHICH_DOMAIN:
 		return (EINVAL);
 	}
 	switch (uap->level) {
@@ -888,7 +1059,7 @@ struct cpuset_getaffinity_args {
 };
 #endif
 int
-cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
+sys_cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 {
 	struct thread *ttd;
 	struct cpuset *nset;
@@ -920,6 +1091,7 @@ cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 		case CPU_WHICH_JAIL:
 			break;
 		case CPU_WHICH_IRQ:
+		case CPU_WHICH_DOMAIN:
 			error = EINVAL;
 			goto out;
 		}
@@ -951,6 +1123,12 @@ cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 		case CPU_WHICH_IRQ:
 			error = intr_getaffinity(uap->id, mask);
 			break;
+		case CPU_WHICH_DOMAIN:
+			if (uap->id < 0 || uap->id >= MAXMEMDOM)
+				error = ESRCH;
+			else
+				CPU_COPY(&cpuset_domain[uap->id], mask);
+			break;
 		}
 		break;
 	default:
@@ -978,7 +1156,7 @@ struct cpuset_setaffinity_args {
 };
 #endif
 int
-cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
+sys_cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 {
 	struct cpuset *nset;
 	struct cpuset *set;
@@ -1029,6 +1207,7 @@ cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 		case CPU_WHICH_JAIL:
 			break;
 		case CPU_WHICH_IRQ:
+		case CPU_WHICH_DOMAIN:
 			error = EINVAL;
 			goto out;
 		}
@@ -1075,25 +1254,34 @@ out:
 }
 
 #ifdef DDB
+void
+ddb_display_cpuset(const cpuset_t *set)
+{
+	int cpu, once;
+
+	for (once = 0, cpu = 0; cpu < CPU_SETSIZE; cpu++) {
+		if (CPU_ISSET(cpu, set)) {
+			if (once == 0) {
+				db_printf("%d", cpu);
+				once = 1;
+			} else  
+				db_printf(",%d", cpu);
+		}
+	}
+	if (once == 0)
+		db_printf("<none>");
+}
+
 DB_SHOW_COMMAND(cpusets, db_show_cpusets)
 {
 	struct cpuset *set;
-	int cpu, once;
 
 	LIST_FOREACH(set, &cpuset_ids, cs_link) {
 		db_printf("set=%p id=%-6u ref=%-6d flags=0x%04x parent id=%d\n",
 		    set, set->cs_id, set->cs_ref, set->cs_flags,
 		    (set->cs_parent != NULL) ? set->cs_parent->cs_id : 0);
 		db_printf("  mask=");
-		for (once = 0, cpu = 0; cpu < CPU_SETSIZE; cpu++) {
-			if (CPU_ISSET(cpu, &set->cs_mask)) {
-				if (once == 0) {
-					db_printf("%d", cpu);
-					once = 1;
-				} else  
-					db_printf(",%d", cpu);
-			}
-		}
+		ddb_display_cpuset(&set->cs_mask);
 		db_printf("\n");
 		if (db_pager_quit)
 			break;

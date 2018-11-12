@@ -49,7 +49,7 @@
 #define	DCACHE_COLORS		(1 << DCACHE_COLOR_BITS)
 #define	DCACHE_COLOR_MASK	(DCACHE_COLORS - 1)
 #define	DCACHE_COLOR(va)	(((va) >> PAGE_SHIFT) & DCACHE_COLOR_MASK)
-#define	DCACHE_OTHER_COLOR(color) \
+#define	DCACHE_OTHER_COLOR(color)					\
 	((color) ^ DCACHE_COLOR_BITS)
 
 #define	DC_TAG_SHIFT	2
@@ -89,9 +89,11 @@ struct cacheinfo {
 
 #ifdef _KERNEL
 
+extern u_int dcache_color_ignore;
+
 struct pcpu;
 
-typedef void cache_enable_t(void);
+typedef void cache_enable_t(u_int cpu_impl);
 typedef void cache_flush_t(void);
 typedef void dcache_page_inval_t(vm_paddr_t pa);
 typedef void icache_page_inval_t(vm_paddr_t pa);
@@ -107,6 +109,11 @@ cache_enable_t spitfire_cache_enable;
 cache_flush_t spitfire_cache_flush;
 dcache_page_inval_t spitfire_dcache_page_inval;
 icache_page_inval_t spitfire_icache_page_inval;
+
+cache_enable_t zeus_cache_enable;
+cache_flush_t zeus_cache_flush;
+dcache_page_inval_t zeus_dcache_page_inval;
+icache_page_inval_t zeus_icache_page_inval;
 
 extern cache_enable_t *cache_enable;
 extern cache_flush_t *cache_flush;

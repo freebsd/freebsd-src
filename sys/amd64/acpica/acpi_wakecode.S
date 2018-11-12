@@ -2,7 +2,7 @@
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
  * Copyright (c) 2003 Peter Wemm
- * Copyright (c) 2008-2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2008-2012 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,10 +29,10 @@
  * $FreeBSD$
  */
 
-#define LOCORE
-
 #include <machine/asmacros.h>
+#include <machine/ppireg.h>
 #include <machine/specialreg.h>
+#include <machine/timerreg.h>
 
 #include "assym.s"
 
@@ -54,18 +54,17 @@
 	.data				/* So we can modify it */
 
 	ALIGN_TEXT
-wakeup_start:
 	.code16
+wakeup_start:
 	/*
 	 * Set up segment registers for real mode, a small stack for
 	 * any calls we make, and clear any flags.
 	 */
 	cli				/* make sure no interrupts */
-	cld
 	mov	%cs, %ax		/* copy %cs to %ds.  Remember these */
 	mov	%ax, %ds		/* are offsets rather than selectors */
 	mov	%ax, %ss
-	movw	$PAGE_SIZE - 8, %sp
+	movw	$PAGE_SIZE, %sp
 	xorw	%ax, %ax
 	pushw	%ax
 	popfw
@@ -74,13 +73,21 @@ wakeup_start:
 	testb	$~0, resume_beep - wakeup_start
 	jz	1f
 	movb	$0, resume_beep - wakeup_start
-	movb	$0xc0, %al
-	outb	%al, $0x42
-	movb	$0x04, %al
-	outb	%al, $0x42
-	inb	$0x61, %al
-	orb	$0x3, %al
-	outb	%al, $0x61
+
+	/* Set PIC timer2 to beep. */
+	movb	$(TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT), %al
+	outb	%al, $TIMER_MODE
+
+	/* Turn on speaker. */
+	inb	$IO_PPI, %al
+	orb	$PIT_SPKR, %al
+	outb	%al, $IO_PPI
+
+	/* Set frequency. */
+	movw	$0x4c0, %ax
+	outb	%al, $TIMER_CNTR2
+	shrw	$8, %ax
+	outb	%al, $TIMER_CNTR2
 1:
 
 	/* Re-initialize video BIOS if the reset_video tunable is set. */
@@ -88,6 +95,11 @@ wakeup_start:
 	jz	1f
 	movb	$0, reset_video - wakeup_start
 	lcall	$0xc000, $3
+
+	/* When we reach here, int 0x10 should be ready.  Hide cursor. */
+	movb	$0x01, %ah
+	movb	$0x20, %ch
+	int	$0x10
 
 	/* Re-start in case the previous BIOS call clobbers them. */
 	jmp	wakeup_start
@@ -129,15 +141,16 @@ wakeup_sw32:
 	/*
 	 * At this point, we are running in 32 bit legacy protected mode.
 	 */
+	ALIGN_TEXT
 	.code32
 wakeup_32:
 
 	mov	$bootdata32 - bootgdt, %eax
 	mov	%ax, %ds
 
-	/* Turn on the PAE and PSE bits for when paging is enabled */
+	/* Turn on the PAE bit for when paging is enabled */
 	mov	%cr4, %eax
-	orl	$(CR4_PAE | CR4_PSE), %eax
+	orl	$CR4_PAE, %eax
 	mov	%eax, %cr4
 
 	/*
@@ -166,7 +179,7 @@ wakeup_32:
 	 * Finally, switch to long bit mode by enabling paging.  We have
 	 * to be very careful here because all the segmentation disappears
 	 * out from underneath us.  The spec says we can depend on the
-	 * subsequent pipelined branch to execute, but *only if* everthing
+	 * subsequent pipelined branch to execute, but *only if* everything
 	 * is still identity mapped.  If any mappings change, the pipeline
 	 * will flush.
 	 */
@@ -175,7 +188,7 @@ wakeup_32:
 	mov	%eax, %cr0
 
 	/*
-	 * At this point paging is enabled, and we are in "compatability" mode.
+	 * At this point paging is enabled, and we are in "compatibility" mode.
 	 * We do another far jump to reload %cs with the 64 bit selector.
 	 * %cr3 points to a 4-level page table page.
 	 * We cannot yet jump all the way to the kernel because we can only
@@ -206,10 +219,14 @@ wakeup_64:
 	mov	$bootdata64 - bootgdt, %eax
 	mov	%ax, %ds
 
-	/* Restore arguments and return. */
-	movq	wakeup_ctx - wakeup_start(%rbx), %rdi
-	movq	wakeup_kpml4 - wakeup_start(%rbx), %rsi
-	movq	wakeup_retaddr - wakeup_start(%rbx), %rax
+	/* Restore arguments. */
+	movq	wakeup_pcb - wakeup_start(%rbx), %rdi
+	movq	wakeup_ret - wakeup_start(%rbx), %rax
+
+	/* Restore GDT. */
+	lgdt	wakeup_gdt - wakeup_start(%rbx)
+
+	/* Jump to return address. */
 	jmp	*%rax
 
 	.data
@@ -255,32 +272,11 @@ bootgdtdesc:
 	.long	bootgdt - wakeup_start	/* Offset plus %ds << 4 */
 
 	ALIGN_DATA
-wakeup_retaddr:
+wakeup_pcb:
 	.quad	0
-wakeup_kpml4:
-	.quad	0
-
-wakeup_ctx:
-	.quad	0
-wakeup_xpcb:
+wakeup_ret:
 	.quad	0
 wakeup_gdt:
 	.word	0
 	.quad	0
-
-	ALIGN_DATA
-wakeup_efer:
-	.quad	0
-wakeup_pat:
-	.quad	0
-wakeup_star:
-	.quad	0
-wakeup_lstar:
-	.quad	0
-wakeup_cstar:
-	.quad	0
-wakeup_sfmask:
-	.quad	0
-wakeup_cpu:
-	.long	0
 dummy:

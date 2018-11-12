@@ -60,6 +60,7 @@ static device_attach_t central_attach;
 static bus_print_child_t central_print_child;
 static bus_probe_nomatch_t central_probe_nomatch;
 static bus_alloc_resource_t central_alloc_resource;
+static bus_adjust_resource_t central_adjust_resource;
 static bus_get_resource_list_t central_get_resource_list;
 static ofw_bus_get_devinfo_t central_get_devinfo;
 
@@ -79,6 +80,7 @@ static device_method_t central_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	central_alloc_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	central_adjust_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -94,7 +96,7 @@ static device_method_t central_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t central_driver = {
@@ -105,7 +107,9 @@ static driver_t central_driver = {
 
 static devclass_t central_devclass;
 
-DRIVER_MODULE(central, nexus, central_driver, central_devclass, 0, 0);
+EARLY_DRIVER_MODULE(central, nexus, central_driver, central_devclass, 0, 0,
+    BUS_PASS_BUS);
+MODULE_DEPEND(fhc, nexus, 1, 1, 1);
 MODULE_VERSION(central, 1);
 
 static int
@@ -161,7 +165,7 @@ central_attach(device_t dev)
 			resource_list_add(&cdi->cdi_rl, SYS_RES_MEMORY, i,
 			    reg[i].sbr_offset, reg[i].sbr_offset +
 			    reg[i].sbr_size, reg[i].sbr_size);
-		free(reg, M_OFWPROP);
+		OF_prop_free(reg);
 		cdev = device_add_child(dev, NULL, -1);
 		if (cdev == NULL) {
 			device_printf(dev, "<%s>: device_add_child failed\n",
@@ -175,6 +179,15 @@ central_attach(device_t dev)
 	}
 
 	return (bus_generic_attach(dev));
+}
+
+static int
+central_adjust_resource(device_t bus __unused, device_t child __unused,
+    int type __unused, struct resource *r __unused, rman_res_t start __unused,
+    rman_res_t end __unused)
+{
+
+	return (ENXIO);
 }
 
 static int
@@ -202,7 +215,7 @@ central_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 central_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
@@ -215,7 +228,7 @@ central_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	int passthrough;
 	int i;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	res = NULL;
 	rle = NULL;
@@ -282,5 +295,5 @@ central_print_res(struct central_devinfo *cdi)
 {
 
 	return (resource_list_print_type(&cdi->cdi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx"));
+	    "%#jx"));
 }

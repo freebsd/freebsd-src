@@ -207,9 +207,6 @@ struct denode {
 	     ((dep)->de_Attributes & ATTR_DIRECTORY) ? 0 : (dep)->de_FileSize), \
 	 putushort((dp)->deHighClust, (dep)->de_StartCluster >> 16))
 
-#define	de_forw		de_chain[0]
-#define	de_back		de_chain[1]
-
 #ifdef _KERNEL
 
 #define	VTODE(vp)	((struct denode *)(vp)->v_data)
@@ -268,7 +265,6 @@ int msdosfs_reclaim(struct vop_reclaim_args *);
  */
 int deget(struct msdosfsmount *, u_long, u_long, struct denode **);
 int uniqdosname(struct denode *, struct componentname *, u_char *);
-int findwin95(struct denode *);
 
 int readep(struct msdosfsmount *pmp, u_long dirclu, u_long dirofs,  struct buf **bpp, struct direntry **epp);
 int readde(struct denode *dep, struct buf **bpp, struct direntry **epp);
@@ -279,6 +275,6 @@ int dosdirempty(struct denode *dep);
 int createde(struct denode *dep, struct denode *ddep, struct denode **depp, struct componentname *cnp);
 int deupdat(struct denode *dep, int waitfor);
 int removede(struct denode *pdep, struct denode *dep);
-int detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred, struct thread *td);
+int detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred);
 int doscheckpath( struct denode *source, struct denode *target);
 #endif	/* _KERNEL */

@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-SUBDIR=	doc libgdb gdb gdbtui kgdb
+SUBDIR=	libgdb gdb gdbtui kgdb
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "arm" || ${MACHINE_ARCH} == "powerpc"
+.if exists(${.CURDIR}/gdbserver/reg-${MACHINE_CPUARCH}.c)
 SUBDIR+=gdbserver
 .endif
 

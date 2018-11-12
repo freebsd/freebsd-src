@@ -77,6 +77,67 @@ static int	ahd_create_path(struct ahd_softc *ahd,
 				char channel, u_int target, u_int lun,
 				struct cam_path **path);
 
+static const char *ahd_sysctl_node_elements[] = {
+	"root",
+	"summary",
+	"debug"
+};
+
+#ifndef NO_SYSCTL_DESCR
+static const char *ahd_sysctl_node_descriptions[] = {
+	"root error collection for aic79xx controllers",
+	"summary collection for aic79xx controllers",
+	"debug collection for aic79xx controllers"
+};
+#endif
+
+static const char *ahd_sysctl_errors_elements[] = {
+	"Cerrors",
+	"Uerrors",
+	"Ferrors"
+};
+
+#ifndef NO_SYSCTL_DESCR
+static const char *ahd_sysctl_errors_descriptions[] = {
+	"Correctable errors",
+	"Uncorrectable errors",
+	"Fatal errors"
+};
+#endif
+
+static int
+ahd_set_debugcounters(SYSCTL_HANDLER_ARGS)
+{
+	struct ahd_softc *sc;
+	int error, tmpv;
+
+	tmpv = 0;
+	sc = arg1;
+	error = sysctl_handle_int(oidp, &tmpv, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (tmpv < 0 || tmpv >= AHD_ERRORS_NUMBER)
+		return (EINVAL);
+	sc->summerr[arg2] = tmpv;
+	return (0);
+}
+
+static int
+ahd_clear_allcounters(SYSCTL_HANDLER_ARGS)
+{
+	struct ahd_softc *sc;
+	int error, tmpv;
+
+	tmpv = 0;
+	sc = arg1;
+	error = sysctl_handle_int(oidp, &tmpv, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (tmpv != 0)
+		bzero(sc->summerr, sizeof(sc->summerr));
+	return (0);
+}
+
 static int
 ahd_create_path(struct ahd_softc *ahd, char channel, u_int target,
 	        u_int lun, struct cam_path **path)
@@ -86,6 +147,48 @@ ahd_create_path(struct ahd_softc *ahd, char channel, u_int target,
 	path_id = cam_sim_path(ahd->platform_data->sim);
 	return (xpt_create_path(path, /*periph*/NULL,
 				path_id, target, lun));
+}
+
+void
+ahd_sysctl(struct ahd_softc *ahd)
+{
+	u_int i;
+
+	for (i = 0; i < AHD_SYSCTL_NUMBER; i++)
+		sysctl_ctx_init(&ahd->sysctl_ctx[i]);
+
+	ahd->sysctl_tree[AHD_SYSCTL_ROOT] =
+	    SYSCTL_ADD_NODE(&ahd->sysctl_ctx[AHD_SYSCTL_ROOT],
+			    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
+			    device_get_nameunit(ahd->dev_softc), CTLFLAG_RD, 0,
+			    ahd_sysctl_node_descriptions[AHD_SYSCTL_ROOT]);
+	    SYSCTL_ADD_PROC(&ahd->sysctl_ctx[AHD_SYSCTL_ROOT],
+			    SYSCTL_CHILDREN(ahd->sysctl_tree[AHD_SYSCTL_ROOT]),
+			    OID_AUTO, "clear", CTLTYPE_UINT | CTLFLAG_RW, ahd,
+			    0, ahd_clear_allcounters, "IU",
+			    "Clear all counters");
+
+	for (i = AHD_SYSCTL_SUMMARY; i < AHD_SYSCTL_NUMBER; i++)
+		ahd->sysctl_tree[i] =
+		    SYSCTL_ADD_NODE(&ahd->sysctl_ctx[i],
+				    SYSCTL_CHILDREN(ahd->sysctl_tree[AHD_SYSCTL_ROOT]),
+				    OID_AUTO, ahd_sysctl_node_elements[i],
+				    CTLFLAG_RD, 0,
+				    ahd_sysctl_node_descriptions[i]);
+
+	for (i = AHD_ERRORS_CORRECTABLE; i < AHD_ERRORS_NUMBER; i++) {
+		SYSCTL_ADD_UINT(&ahd->sysctl_ctx[AHD_SYSCTL_SUMMARY],
+				SYSCTL_CHILDREN(ahd->sysctl_tree[AHD_SYSCTL_SUMMARY]),
+				OID_AUTO, ahd_sysctl_errors_elements[i],
+				CTLFLAG_RD, &ahd->summerr[i], i,
+				ahd_sysctl_errors_descriptions[i]);
+		SYSCTL_ADD_PROC(&ahd->sysctl_ctx[AHD_SYSCTL_DEBUG],
+				SYSCTL_CHILDREN(ahd->sysctl_tree[AHD_SYSCTL_DEBUG]),
+				OID_AUTO, ahd_sysctl_errors_elements[i],
+				CTLFLAG_RW | CTLTYPE_UINT, ahd, i,
+				ahd_set_debugcounters, "IU",
+				ahd_sysctl_errors_descriptions[i]);
+	}
 }
 
 int
@@ -119,6 +222,7 @@ ahd_attach(struct ahd_softc *ahd)
 	count = 0;
 	devq = NULL;
 	sim = NULL;
+	path = NULL;
 
 	/*
 	 * Create a thread to perform all recovery.
@@ -498,8 +602,8 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 #ifdef AHD_TARGET_MODE
-	case XPT_NOTIFY_ACK:
-	case XPT_IMMED_NOTIFY:
+	case XPT_NOTIFY_ACKNOWLEDGE:
+	case XPT_IMMEDIATE_NOTIFY:
 	{
 		struct	   ahd_tmode_tstate *tstate;
 		struct	   ahd_tmode_lstate *lstate;
@@ -967,6 +1071,7 @@ ahd_setup_data(struct ahd_softc *ahd, struct cam_sim *sim,
 {
 	struct hardware_scb *hscb;
 	struct ccb_hdr *ccb_h;
+	int error;
 	
 	hscb = scb->hscb;
 	ccb_h = &csio->ccb_h;
@@ -1016,64 +1121,18 @@ ahd_setup_data(struct ahd_softc *ahd, struct cam_sim *sim,
 		}
 	}
 		
-	/* Only use S/G if there is a transfer */
-	if ((ccb_h->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		if ((ccb_h->flags & CAM_SCATTER_VALID) == 0) {
-			/* We've been given a pointer to a single buffer */
-			if ((ccb_h->flags & CAM_DATA_PHYS) == 0) {
-				int s;
-				int error;
-
-				s = splsoftvm();
-				error = bus_dmamap_load(ahd->buffer_dmat,
-							scb->dmamap,
-							csio->data_ptr,
-							csio->dxfer_len,
-							ahd_execute_scb,
-							scb, /*flags*/0);
-				if (error == EINPROGRESS) {
-					/*
-					 * So as to maintain ordering,
-					 * freeze the controller queue
-					 * until our mapping is
-					 * returned.
-					 */
-					xpt_freeze_simq(sim,
-							/*count*/1);
-					scb->io_ctx->ccb_h.status |=
-					    CAM_RELEASE_SIMQ;
-				}
-				splx(s);
-			} else {
-				struct bus_dma_segment seg;
-
-				/* Pointer to physical buffer */
-				if (csio->dxfer_len > AHD_MAXTRANSFER_SIZE)
-					panic("ahd_setup_data - Transfer size "
-					      "larger than can device max");
-
-				seg.ds_addr =
-				    (bus_addr_t)(vm_offset_t)csio->data_ptr;
-				seg.ds_len = csio->dxfer_len;
-				ahd_execute_scb(scb, &seg, 1, 0);
-			}
-		} else {
-			struct bus_dma_segment *segs;
-
-			if ((ccb_h->flags & CAM_DATA_PHYS) != 0)
-				panic("ahd_setup_data - Physical segment "
-				      "pointers unsupported");
-
-			if ((ccb_h->flags & CAM_SG_LIST_PHYS) == 0)
-				panic("ahd_setup_data - Virtual segment "
-				      "addresses unsupported");
-
-			/* Just use the segments provided */
-			segs = (struct bus_dma_segment *)csio->data_ptr;
-			ahd_execute_scb(scb, segs, csio->sglist_cnt, 0);
-		}
-	} else {
-		ahd_execute_scb(scb, NULL, 0, 0);
+	error = bus_dmamap_load_ccb(ahd->buffer_dmat,
+				    scb->dmamap,
+				    (union ccb *)csio,
+				    ahd_execute_scb,
+				    scb, /*flags*/0);
+	if (error == EINPROGRESS) {
+		/*
+		 * So as to maintain ordering, freeze the controller queue
+		 * until our mapping is returned.
+		 */
+		xpt_freeze_simq(sim, /*count*/1);
+		scb->io_ctx->ccb_h.status |= CAM_RELEASE_SIMQ;
 	}
 }
 
@@ -1086,7 +1145,7 @@ ahd_abort_ccb(struct ahd_softc *ahd, struct cam_sim *sim, union ccb *ccb)
 	switch (abort_ccb->ccb_h.func_code) {
 #ifdef AHD_TARGET_MODE
 	case XPT_ACCEPT_TARGET_IO:
-	case XPT_IMMED_NOTIFY:
+	case XPT_IMMEDIATE_NOTIFY:
 	case XPT_CONT_TARGET_IO:
 	{
 		struct ahd_tmode_tstate *tstate;
@@ -1104,7 +1163,7 @@ ahd_abort_ccb(struct ahd_softc *ahd, struct cam_sim *sim, union ccb *ccb)
 
 		if (abort_ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO)
 			list = &lstate->accept_tios;
-		else if (abort_ccb->ccb_h.func_code == XPT_IMMED_NOTIFY)
+		else if (abort_ccb->ccb_h.func_code == XPT_IMMEDIATE_NOTIFY)
 			list = &lstate->immed_notifies;
 		else
 			list = NULL;

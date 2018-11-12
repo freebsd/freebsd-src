@@ -1,9 +1,12 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=		ugidfw
-SHLIB_MAJOR=	4
+SHLIB_MAJOR=	5	
 SRCS=		ugidfw.c
 INCS=		ugidfw.h
+
+WARNS?=		2
 
 MAN+=		bsde_get_rule.3 bsde_get_rule_count.3 bsde_parse_rule.3 \
 		bsde_rule_to_string.3 libugidfw.3

@@ -129,23 +129,18 @@ __elfN(obj_loadfile)(char *filename, u_int64_t dest,
 		goto oerr;
 	}
 
-	kfp = file_findfile(NULL, NULL);
+	kfp = file_findfile(NULL, __elfN(obj_kerneltype));
 	if (kfp == NULL) {
 		printf("elf" __XSTRING(__ELF_WORD_SIZE)
 		    "_obj_loadfile: can't load module before kernel\n");
 		err = EPERM;
 		goto oerr;
 	}
-	if (strcmp(__elfN(obj_kerneltype), kfp->f_type)) {
-		printf("elf" __XSTRING(__ELF_WORD_SIZE)
-		    "_obj_loadfile: can't load module with kernel type '%s'\n",
-		    kfp->f_type);
-		err = EPERM;
-		goto oerr;
-	}
 
-	/* Page-align the load address */
-	dest = roundup(dest, PAGE_SIZE);
+	if (archsw.arch_loadaddr != NULL)
+		dest = archsw.arch_loadaddr(LOAD_ELF, hdr, dest);
+	else
+		dest = roundup(dest, PAGE_SIZE);
 
 	/*
 	 * Ok, we think we should handle this.
@@ -194,7 +189,7 @@ static int
 __elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 {
 	Elf_Ehdr *hdr;
-	Elf_Shdr *shdr;
+	Elf_Shdr *shdr, *cshdr, *lshdr;
 	vm_offset_t firstaddr, lastaddr;
 	int i, nsym, res, ret, shdrbytes, symstrindex;
 
@@ -221,9 +216,14 @@ __elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	for (i = 0; i < hdr->e_shnum; i++)
 		shdr[i].sh_addr = 0;
 	for (i = 0; i < hdr->e_shnum; i++) {
+		if (shdr[i].sh_size == 0)
+			continue;
 		switch (shdr[i].sh_type) {
 		case SHT_PROGBITS:
 		case SHT_NOBITS:
+#if defined(__i386__) || defined(__amd64__)
+		case SHT_X86_64_UNWIND:
+#endif
 			lastaddr = roundup(lastaddr, shdr[i].sh_addralign);
 			shdr[i].sh_addr = (Elf_Addr)lastaddr;
 			lastaddr += shdr[i].sh_size;
@@ -290,12 +290,35 @@ __elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	/* Clear the whole area, including bss regions. */
 	kern_bzero(firstaddr, lastaddr - firstaddr);
 
-	/* Now read it all in. */
-	for (i = 0; i < hdr->e_shnum; i++) {
-		if (shdr[i].sh_addr == 0 || shdr[i].sh_type == SHT_NOBITS)
-			continue;
-		if (kern_pread(ef->fd, (vm_offset_t)shdr[i].sh_addr,
-		    shdr[i].sh_size, (off_t)shdr[i].sh_offset) != 0) {
+	/* Figure section with the lowest file offset we haven't loaded yet. */
+	for (cshdr = NULL; /* none */; /* none */)
+	{
+		/*
+		 * Find next section to load. The complexity of this loop is
+		 * O(n^2), but with  the number of sections being typically
+		 * small, we do not care.
+		 */
+		lshdr = cshdr;
+
+		for (i = 0; i < hdr->e_shnum; i++) {
+			if (shdr[i].sh_addr == 0 ||
+			    shdr[i].sh_type == SHT_NOBITS)
+				continue;
+			/* Skip sections that were loaded already. */
+			if (lshdr != NULL &&
+			    lshdr->sh_offset >= shdr[i].sh_offset)
+				continue;
+			/* Find section with smallest offset. */
+			if (cshdr == lshdr ||
+			    cshdr->sh_offset > shdr[i].sh_offset)
+				cshdr = &shdr[i];
+		}
+
+		if (cshdr == lshdr)
+			break;
+
+		if (kern_pread(ef->fd, (vm_offset_t)cshdr->sh_addr,
+		    cshdr->sh_size, (off_t)cshdr->sh_offset) != 0) {
 			printf("\nelf" __XSTRING(__ELF_WORD_SIZE)
 			    "_obj_loadimage: read failed\n");
 			goto out;
@@ -342,7 +365,7 @@ __elfN(obj_parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
 
 	if (__elfN(obj_lookup_set)(fp, ef, "modmetadata_set", &p, &p_stop,
 	    &modcnt) != 0)
-		return ENOENT;
+		return 0;
 
 	modcnt = 0;
 	while (p < p_stop) {
@@ -389,6 +412,7 @@ __elfN(obj_parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
 			modcnt++;
 			break;
 		case MDT_MODULE:
+		case MDT_PNP_INFO:
 			break;
 		default:
 			printf("unknown type %d\n", md.md_type);
@@ -499,10 +523,8 @@ __elfN(obj_symaddr)(struct elf_file *ef, Elf_Size symidx)
 {
 	Elf_Sym sym;
 	Elf_Addr base;
-	int symcnt;
 
-	symcnt = ef->e_shdr[ef->symtabindex].sh_size / sizeof(Elf_Sym);
-	if (symidx >= symcnt)
+	if (symidx >= ef->e_shdr[ef->symtabindex].sh_size / sizeof(Elf_Sym))
 		return (0);
 	COPYOUT(ef->e_shdr[ef->symtabindex].sh_addr + symidx * sizeof(Elf_Sym),
 	    &sym, sizeof(sym));

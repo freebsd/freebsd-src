@@ -127,7 +127,7 @@ disk_err(struct bio *bp, const char *what, int blkdone, int nl)
  * bioq_remove()	remove a generic element from the queue, act as
  *		bioq_takefirst() if invoked on the head of the queue.
  *
- * The semantic of these methods is the same of the operations
+ * The semantic of these methods is the same as the operations
  * on the underlying TAILQ, but with additional guarantees on
  * subsequent bioq_disksort() calls. E.g. bioq_insert_tail()
  * can be useful for making sure that all previous ops are flushed
@@ -156,10 +156,10 @@ void
 bioq_remove(struct bio_queue_head *head, struct bio *bp)
 {
 
-	if (bp == TAILQ_FIRST(&head->queue))
-		head->last_offset = bp->bio_offset + bp->bio_length;
-
-	if (bp == head->insert_point)
+	if (head->insert_point == NULL) {
+		if (bp == TAILQ_FIRST(&head->queue))
+			head->last_offset = bp->bio_offset + bp->bio_length;
+	} else if (bp == head->insert_point)
 		head->insert_point = NULL;
 
 	TAILQ_REMOVE(&head->queue, bp, bio_queue);
@@ -178,7 +178,8 @@ void
 bioq_insert_head(struct bio_queue_head *head, struct bio *bp)
 {
 
-	head->last_offset = bp->bio_offset;
+	if (head->insert_point == NULL)
+		head->last_offset = bp->bio_offset;
 	TAILQ_INSERT_HEAD(&head->queue, bp, bio_queue);
 }
 
@@ -188,6 +189,7 @@ bioq_insert_tail(struct bio_queue_head *head, struct bio *bp)
 
 	TAILQ_INSERT_TAIL(&head->queue, bp, bio_queue);
 	head->insert_point = bp;
+	head->last_offset = bp->bio_offset;
 }
 
 struct bio *
@@ -230,13 +232,28 @@ bioq_bio_key(struct bio_queue_head *head, struct bio *bp)
 void
 bioq_disksort(struct bio_queue_head *head, struct bio *bp)
 {
-	struct bio *cur, *prev = NULL;
-	uoff_t key = bioq_bio_key(head, bp);
+	struct bio *cur, *prev;
+	uoff_t key;
 
+	if ((bp->bio_flags & BIO_ORDERED) != 0) {
+		/*
+		 * Ordered transactions can only be dispatched
+		 * after any currently queued transactions.  They
+		 * also have barrier semantics - no transactions
+		 * queued in the future can pass them.
+		 */
+		bioq_insert_tail(head, bp);
+		return;
+	}
+
+	prev = NULL;
+	key = bioq_bio_key(head, bp);
 	cur = TAILQ_FIRST(&head->queue);
 
-	if (head->insert_point)
-		cur = head->insert_point;
+	if (head->insert_point) {
+		prev = head->insert_point;
+		cur = TAILQ_NEXT(head->insert_point, bio_queue);
+	}
 
 	while (cur != NULL && key >= bioq_bio_key(head, cur)) {
 		prev = cur;

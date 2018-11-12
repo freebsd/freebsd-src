@@ -14,12 +14,10 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5211desc.h,v 1.5 2008/11/10 04:08:03 sam Exp $
+ * $FreeBSD$
  */
 #ifndef _DEV_ATH_AR5211DESC_H
 #define _DEV_ATH_AR5211DESC_H
-
-#include "ah_desc.h"
 
 /*
  * Defintions for the DMA descriptors used by the Atheros

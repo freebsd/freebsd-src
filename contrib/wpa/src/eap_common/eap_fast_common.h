@@ -2,14 +2,8 @@
  * EAP-FAST definitions (RFC 4851)
  * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef EAP_FAST_H
@@ -24,8 +18,7 @@
 #define TLS_EXT_PAC_OPAQUE 35
 
 /*
- * draft-cam-winget-eap-fast-provisioning-04.txt:
- * Section 4.2.1 - Formats for PAC TLV Attributes / Type Field
+ * RFC 5422: Section 4.2.1 - Formats for PAC TLV Attributes / Type Field
  * Note: bit 0x8000 (Mandatory) and bit 0x4000 (Reserved) are also defined
  * in the general PAC TLV format (Section 4.2).
  */
@@ -59,10 +52,7 @@ struct pac_tlv_hdr {
 
 #define EAP_FAST_PAC_KEY_LEN 32
 
-/* draft-cam-winget-eap-fast-provisioning-04.txt: 4.2.6 PAC-Type TLV
- * Note: Machine Authentication PAC and User Authorization PAC were removed in
- * draft-cam-winget-eap-fast-provisioning-03.txt
- */
+/* RFC 5422: 4.2.6 PAC-Type TLV */
 #define PAC_TYPE_TUNNEL_PAC 1
 /* Application Specific Short Lived PACs (only in volatile storage) */
 /* User Authorization PAC */
@@ -73,8 +63,8 @@ struct pac_tlv_hdr {
 
 
 /*
- * draft-cam-winget-eap-fast-provisioning-04.txt:
- * Section 3.4 - Key Derivations Used in the EAP-FAST Provisioning Exchange
+ * RFC 5422:
+ * Section 3.3 - Key Derivations Used in the EAP-FAST Provisioning Exchange
  */
 struct eap_fast_key_block_provisioning {
 	/* Extra key material after TLS key_block */
@@ -112,6 +102,6 @@ u8 * eap_fast_derive_key(void *ssl_ctx, struct tls_connection *conn,
 void eap_fast_derive_eap_msk(const u8 *simck, u8 *msk);
 void eap_fast_derive_eap_emsk(const u8 *simck, u8 *emsk);
 int eap_fast_parse_tlv(struct eap_fast_tlv_parse *tlv,
-		       int tlv_type, u8 *pos, int len);
+		       int tlv_type, u8 *pos, size_t len);
 
 #endif /* EAP_FAST_H */

@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -39,9 +35,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#define	TSPTYPES
 #include "globals.h"
-
-extern char *tsptype[];
 
 /*
  * LOOKAT checks if the message is of the requested type and comes from
@@ -74,11 +69,7 @@ struct timeval from_when;
  */
 
 struct tsp *
-readmsg(type, machfrom, intvl, netfrom)
-	int type;
-	char *machfrom;
-	struct timeval *intvl;
-	struct netinfo *netfrom;
+readmsg(int type, char *machfrom, struct timeval *intvl, struct netinfo *netfrom)
 {
 	int length;
 	fd_set ready;
@@ -94,9 +85,9 @@ readmsg(type, machfrom, intvl, netfrom)
 		fprintf(fd, "readmsg: looking for %s from %s, %s\n",
 			tsptype[type], machfrom == NULL ? "ANY" : machfrom,
 			netfrom == NULL ? "ANYNET" : inet_ntoa(netfrom->net));
-		if (head->p != 0) {
+		if (head->p != NULL) {
 			length = 1;
-			for (ptr = head->p; ptr != 0; ptr = ptr->p) {
+			for (ptr = head->p; ptr != NULL; ptr = ptr->p) {
 				/* do not repeat the hundreds of messages */
 				if (++length > 3) {
 					if (ptr == tail) {
@@ -173,11 +164,11 @@ again:
 	 * right one, return it, otherwise insert it in the linked list.
 	 */
 
-	(void)gettimeofday(&rtout, 0);
+	(void)gettimeofday(&rtout, NULL);
 	timevaladd(&rtout, intvl);
 	FD_ZERO(&ready);
 	for (;;) {
-		(void)gettimeofday(&rtime, 0);
+		(void)gettimeofday(&rtime, NULL);
 		timevalsub(&rwait, &rtout, &rtime);
 		if (rwait.tv_sec < 0)
 			rwait.tv_sec = rwait.tv_usec = 0;
@@ -186,8 +177,8 @@ again:
 			rwait.tv_usec = 1000000/CLK_TCK;
 
 		if (trace) {
-			fprintf(fd, "readmsg: wait %ld.%6ld at %s\n",
-				rwait.tv_sec, rwait.tv_usec, date());
+			fprintf(fd, "readmsg: wait %jd.%6ld at %s\n",
+				(intmax_t)rwait.tv_sec, rwait.tv_usec, date());
 			/* Notice a full disk, as we flush trace info.
 			 * It is better to flush periodically than at
 			 * every line because the tracing consists of bursts
@@ -219,12 +210,12 @@ again:
 		 */
 		if (n < (ssize_t)(sizeof(struct tsp) - MAXHOSTNAMELEN + 32)) {
 			syslog(LOG_NOTICE,
-			    "short packet (%u/%u bytes) from %s",
+			    "short packet (%zd/%zu bytes) from %s",
 			      n, sizeof(struct tsp) - MAXHOSTNAMELEN + 32,
 			      inet_ntoa(from.sin_addr));
 			continue;
 		}
-		(void)gettimeofday(&from_when, (struct timezone *)0);
+		(void)gettimeofday(&from_when, NULL);
 		bytehostorder(&msgin);
 
 		if (msgin.tsp_vers > TSPVERSION) {
@@ -347,7 +338,7 @@ again:
  * only the type ACK is to be sent by a slave
  */
 void
-slaveack()
+slaveack(void)
 {
 	switch(msgin.tsp_type) {
 
@@ -379,7 +370,7 @@ slaveack()
  * These packets should be acknowledged.
  */
 void
-ignoreack()
+ignoreack(void)
 {
 	switch(msgin.tsp_type) {
 
@@ -407,7 +398,7 @@ ignoreack()
  * to the messages received by a master
  */
 void
-masterack()
+masterack(void)
 {
 	struct tsp resp;
 
@@ -450,9 +441,7 @@ masterack()
  * Print a TSP message
  */
 void
-print(msg, addr)
-	struct tsp *msg;
-	struct sockaddr_in *addr;
+print(struct tsp *msg, struct sockaddr_in *addr)
 {
 	char tm[26];
 	time_t tsp_time_sec;
@@ -491,7 +480,7 @@ print(msg, addr)
 		break;
 
 	case TSP_ADJTIME:
-		fprintf(fd, "%s %d %-6u (%ld,%ld) %-15s %s\n",
+		fprintf(fd, "%s %d %-6u (%d,%d) %-15s %s\n",
 			tsptype[msg->tsp_type],
 			msg->tsp_vers,
 			msg->tsp_seq,

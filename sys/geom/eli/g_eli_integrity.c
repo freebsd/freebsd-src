@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
-#include <sys/uio.h>
 #include <sys/vnode.h>
 
 #include <vm/uma.h>
@@ -129,6 +128,7 @@ g_eli_auth_keygen(struct g_eli_softc *sc, off_t offset, u_char *key)
 static int
 g_eli_auth_read_done(struct cryptop *crp)
 {
+	struct g_eli_softc *sc;
 	struct bio *bp;
 
 	if (crp->crp_etype == EAGAIN) {
@@ -147,13 +147,14 @@ g_eli_auth_read_done(struct cryptop *crp)
 		if (bp->bio_error == 0)
 			bp->bio_error = crp->crp_etype;
 	}
+	sc = bp->bio_to->geom->softc;
+	g_eli_key_drop(sc, crp->crp_desc->crd_next->crd_key);
 	/*
 	 * Do we have all sectors already?
 	 */
 	if (bp->bio_inbed < bp->bio_children)
 		return (0);
 	if (bp->bio_error == 0) {
-		struct g_eli_softc *sc;
 		u_int i, lsec, nsec, data_secsize, decr_secsize, encr_secsize;
 		u_char *srcdata, *dstdata, *auth;
 		off_t coroff, corsize;
@@ -161,7 +162,6 @@ g_eli_auth_read_done(struct cryptop *crp)
 		/*
 		 * Verify data integrity based on calculated and read HMACs.
 		 */
-		sc = bp->bio_to->geom->softc;
 		/* Sectorsize of decrypted provider eg. 4096. */
 		decr_secsize = bp->bio_to->sectorsize;
 		/* The real sectorsize of encrypted provider, eg. 512. */
@@ -204,8 +204,8 @@ g_eli_auth_read_done(struct cryptop *crp)
 				 * Report previous corruption if there was one.
 				 */
 				if (coroff != -1) {
-					G_ELI_DEBUG(0, "%s: %jd bytes "
-					    "corrupted at offset %jd.",
+					G_ELI_DEBUG(0, "%s: Failed to authenticate %jd "
+					    "bytes of data at offset %jd.",
 					    sc->sc_name, (intmax_t)corsize,
 					    (intmax_t)coroff);
 					coroff = -1;
@@ -220,7 +220,8 @@ g_eli_auth_read_done(struct cryptop *crp)
 		}
 		/* Report previous corruption if there was one. */
 		if (coroff != -1) {
-			G_ELI_DEBUG(0, "%s: %jd bytes corrupted at offset %jd.",
+			G_ELI_DEBUG(0, "%s: Failed to authenticate %jd "
+			    "bytes of data at offset %jd.",
 			    sc->sc_name, (intmax_t)corsize, (intmax_t)coroff);
 		}
 	}
@@ -240,6 +241,7 @@ g_eli_auth_read_done(struct cryptop *crp)
 	 * Read is finished, send it up.
 	 */
 	g_io_deliver(bp, bp->bio_error);
+	atomic_subtract_int(&sc->sc_inflight, 1);
 	return (0);
 }
 
@@ -271,6 +273,8 @@ g_eli_auth_write_done(struct cryptop *crp)
 		if (bp->bio_error == 0)
 			bp->bio_error = crp->crp_etype;
 	}
+	sc = bp->bio_to->geom->softc;
+	g_eli_key_drop(sc, crp->crp_desc->crd_key);
 	/*
 	 * All sectors are already encrypted?
 	 */
@@ -285,9 +289,9 @@ g_eli_auth_write_done(struct cryptop *crp)
 		bp->bio_driver1 = NULL;
 		g_destroy_bio(cbp);
 		g_io_deliver(bp, bp->bio_error);
+		atomic_subtract_int(&sc->sc_inflight, 1);
 		return (0);
 	}
-	sc = bp->bio_to->geom->softc;
 	cp = LIST_FIRST(&sc->sc_geom->consumer);
 	cbp = bp->bio_driver1;
 	bp->bio_driver1 = NULL;
@@ -358,8 +362,6 @@ g_eli_auth_read(struct g_eli_softc *sc, struct bio *bp)
 	size += sizeof(struct cryptop) * nsec;
 	size += sizeof(struct cryptodesc) * nsec * 2;
 	size += G_ELI_AUTH_SECKEYLEN * nsec;
-	size += sizeof(struct uio) * nsec;
-	size += sizeof(struct iovec) * nsec;
 	cbp->bio_offset = (bp->bio_offset / bp->bio_to->sectorsize) * sc->sc_bytes_per_sector;
 	bp->bio_driver2 = malloc(size, M_ELI, M_WAITOK);
 	cbp->bio_data = bp->bio_driver2;
@@ -392,6 +394,11 @@ g_eli_auth_read(struct g_eli_softc *sc, struct bio *bp)
 /*
  * This is the main function responsible for cryptography (ie. communication
  * with crypto(9) subsystem).
+ *
+ * BIO_READ:
+ *	g_eli_start -> g_eli_auth_read -> g_io_request -> g_eli_read_done -> G_ELI_AUTH_RUN -> g_eli_auth_read_done -> g_io_deliver
+ * BIO_WRITE:
+ *	g_eli_start -> G_ELI_AUTH_RUN -> g_eli_auth_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
  */
 void
 g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
@@ -399,12 +406,10 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 	struct g_eli_softc *sc;
 	struct cryptop *crp;
 	struct cryptodesc *crde, *crda;
-	struct uio *uio;
-	struct iovec *iov;
 	u_int i, lsec, nsec, data_secsize, decr_secsize, encr_secsize;
 	off_t dstoff;
-	int err, error;
 	u_char *p, *data, *auth, *authkey, *plaindata;
+	int error;
 
 	G_ELI_LOGREQ(3, bp, "%s", __func__);
 
@@ -439,8 +444,6 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		size += sizeof(*crde) * nsec;
 		size += sizeof(*crda) * nsec;
 		size += G_ELI_AUTH_SECKEYLEN * nsec;
-		size += sizeof(*uio) * nsec;
-		size += sizeof(*iov) * nsec;
 		data = malloc(size, M_ELI, M_WAITOK);
 		bp->bio_driver2 = data;
 		p = data + encr_secsize * nsec;
@@ -448,14 +451,11 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 	bp->bio_inbed = 0;
 	bp->bio_children = nsec;
 
-	error = 0;
 	for (i = 1; i <= nsec; i++, dstoff += encr_secsize) {
 		crp = (struct cryptop *)p;	p += sizeof(*crp);
 		crde = (struct cryptodesc *)p;	p += sizeof(*crde);
 		crda = (struct cryptodesc *)p;	p += sizeof(*crda);
 		authkey = (u_char *)p;		p += G_ELI_AUTH_SECKEYLEN;
-		uio = (struct uio *)p;		p += sizeof(*uio);
-		iov = (struct iovec *)p;	p += sizeof(*iov);
 
 		data_secsize = sc->sc_data_per_sector;
 		if ((i % lsec) == 0)
@@ -472,21 +472,13 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 			plaindata += data_secsize;
 		}
 
-		iov->iov_len = sc->sc_alen + data_secsize;
-		iov->iov_base = data;
-		data += encr_secsize;
-
-		uio->uio_iov = iov;
-		uio->uio_iovcnt = 1;
-		uio->uio_segflg = UIO_SYSSPACE;
-		uio->uio_resid = iov->iov_len;
-
 		crp->crp_sid = wr->w_sid;
-		crp->crp_ilen = uio->uio_resid;
+		crp->crp_ilen = sc->sc_alen + data_secsize;
 		crp->crp_olen = data_secsize;
 		crp->crp_opaque = (void *)bp;
-		crp->crp_buf = (void *)uio;
-		crp->crp_flags = CRYPTO_F_IOV | CRYPTO_F_CBIFSYNC | CRYPTO_F_REL;
+		crp->crp_buf = (void *)data;
+		data += encr_secsize;
+		crp->crp_flags = CRYPTO_F_CBIFSYNC;
 		if (g_eli_batch)
 			crp->crp_flags |= CRYPTO_F_BATCH;
 		if (bp->bio_cmd == BIO_WRITE) {
@@ -504,11 +496,15 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		crde->crd_skip = sc->sc_alen;
 		crde->crd_len = data_secsize;
 		crde->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
+		if ((sc->sc_flags & G_ELI_FLAG_FIRST_KEY) == 0)
+			crde->crd_flags |= CRD_F_KEY_EXPLICIT;
 		if (bp->bio_cmd == BIO_WRITE)
 			crde->crd_flags |= CRD_F_ENCRYPT;
 		crde->crd_alg = sc->sc_ealgo;
-		crde->crd_key = sc->sc_ekey;
+		crde->crd_key = g_eli_key_hold(sc, dstoff, encr_secsize);
 		crde->crd_klen = sc->sc_ekeylen;
+		if (sc->sc_ealgo == CRYPTO_AES_XTS)
+			crde->crd_klen <<= 1;
 		g_eli_crypto_ivgen(sc, dstoff, crde->crd_iv,
 		    sizeof(crde->crd_iv));
 
@@ -522,10 +518,8 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		crda->crd_klen = G_ELI_AUTH_SECKEYLEN * 8;
 
 		crp->crp_etype = 0;
-		err = crypto_dispatch(crp);
-		if (err != 0 && error == 0)
-			error = err;
+		error = crypto_dispatch(crp);
+		KASSERT(error == 0, ("crypto_dispatch() failed (error=%d)",
+		    error));
 	}
-	if (bp->bio_error == 0)
-		bp->bio_error = error;
 }

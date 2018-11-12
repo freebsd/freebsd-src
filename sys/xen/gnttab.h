@@ -35,13 +35,15 @@
  */
 
 #ifndef __ASM_GNTTAB_H__
+#define __ASM_GNTTAB_H__
 
-#include <xen/interface/grant_table.h>
-
+#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
-#include <xen/interface/grant_table.h>
-#include <machine/xen/xen-os.h>
 #include <xen/features.h>
+
+#include <xen/interface/grant_table.h>
+
+#define GNTTAB_LIST_END GRANT_REF_INVALID
 
 struct gnttab_free_callback {
 	struct gnttab_free_callback *next;
@@ -49,8 +51,6 @@ struct gnttab_free_callback {
 	void *arg;
 	uint16_t count;
 };
-
-int gnttab_init(void);
 
 /*
  * Allocate a grant table reference and return it in *result. Returns
@@ -73,6 +73,13 @@ int gnttab_end_foreign_access_ref(grant_ref_t ref);
  * some time later.  page may be 0, in which case no freeing will occur.
  */
 void gnttab_end_foreign_access(grant_ref_t ref, void *page);
+
+/*
+ * Eventually end access through the given array of grant references.
+ * Access will be ended immediately iff the grant entry is not in use,
+ * otherwise it will happen some time later
+ */
+void gnttab_end_foreign_access_references(u_int count, grant_ref_t *refs);
 
 int gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn, grant_ref_t *result);
 
@@ -108,7 +115,7 @@ void gnttab_grant_foreign_transfer_ref(grant_ref_t, domid_t domid,
 				       unsigned long pfn);
 
 int gnttab_suspend(void);
-int gnttab_resume(void);
+int gnttab_resume(device_t);
 
 #if 0
 
@@ -120,10 +127,8 @@ gnttab_set_map_op(struct gnttab_map_grant_ref *map, vm_paddr_t addr,
 {
 	if (flags & GNTMAP_contains_pte)
 		map->host_addr = addr;
-	else if (xen_feature(XENFEAT_auto_translated_physmap))
-		map->host_addr = vtophys(addr);
 	else
-		map->host_addr = addr;
+		map->host_addr = vtophys(addr);
 
 	map->flags = flags;
 	map->ref = ref;
@@ -136,10 +141,8 @@ gnttab_set_unmap_op(struct gnttab_unmap_grant_ref *unmap, vm_paddr_t addr,
 {
 	if (flags & GNTMAP_contains_pte)
 		unmap->host_addr = addr;
-	else if (xen_feature(XENFEAT_auto_translated_physmap))
-		unmap->host_addr = vtophys(addr);
 	else
-		unmap->host_addr = addr;
+		unmap->host_addr = vtophys(addr);
 
 	unmap->handle = handle;
 	unmap->dev_bus_addr = 0;
@@ -149,13 +152,8 @@ static inline void
 gnttab_set_replace_op(struct gnttab_unmap_and_replace *unmap, vm_paddr_t addr,
 		      vm_paddr_t new_addr, grant_handle_t handle)
 {
-	if (xen_feature(XENFEAT_auto_translated_physmap)) {
-		unmap->host_addr = vtophys(addr);
-		unmap->new_addr = vtophys(new_addr);
-	} else {
-		unmap->host_addr = addr;
-		unmap->new_addr = new_addr;
-	}
+	unmap->host_addr = vtophys(addr);
+	unmap->new_addr = vtophys(new_addr);
 
 	unmap->handle = handle;
 }

@@ -66,6 +66,8 @@
 
 __FBSDID("$FreeBSD$");
 
+.syntax	unified
+
 ENTRY(memcmp)
 	mov	ip, r0
 #if defined(_KERNEL) && !defined(_STANDALONE)
@@ -76,7 +78,7 @@ ENTRY(memcmp)
 
 	/* Are both addresses aligned the same way? */
 	cmp	r2, #0x00
-	eornes	r3, ip, r1
+	eorsne	r3, ip, r1
 	RETeq			/* len == 0, or same addresses! */
 	tst	r3, #0x03
 	subne	r2, r2, #0x01
@@ -178,3 +180,6 @@ ENTRY(memcmp)
 	sub	r0, r3, r2		/* r0 = b1#5 - b2#5 */
 	RET
 #endif
+END(memcmp)
+
+	.section .note.GNU-stack,"",%progbits

@@ -1,8 +1,3 @@
-#
-# $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/Makefile.am#4 $
-#
-
-
 if ! USE_NATIVE_INCLUDES 
 openbsmdir = $(includedir)/bsm
 

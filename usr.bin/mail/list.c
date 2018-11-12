@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -56,9 +52,7 @@ __FBSDID("$FreeBSD$");
  * Returns the count of messages picked up or -1 on error.
  */
 int
-getmsglist(buf, vector, flags)
-	char *buf;
-	int *vector, flags;
+getmsglist(char *buf, int *vector, int flags)
 {
 	int *ip;
 	struct message *mp;
@@ -115,9 +109,7 @@ static struct coltab {
 static	int	lastcolmod;
 
 int
-markall(buf, f)
-	char buf[];
-	int f;
+markall(char buf[], int f)
 {
 	char **np;
 	int i;
@@ -347,8 +339,7 @@ number:
  * value.
  */
 int
-evalcol(col)
-	int col;
+evalcol(int col)
 {
 	struct coltab *colp;
 
@@ -366,8 +357,7 @@ evalcol(col)
  * has to be undeleted.
  */
 int
-check(mesg, f)
-	int mesg, f;
+check(int mesg, int f)
 {
 	struct message *mp;
 
@@ -388,10 +378,7 @@ check(mesg, f)
  * for a RAWLIST.
  */
 int
-getrawlist(line, argv, argc)
-	char line[];
-	char **argv;
-	int  argc;
+getrawlist(char line[], char **argv, int argc)
 {
 	char c, *cp, *cp2, quotec;
 	int argn;
@@ -515,8 +502,7 @@ static struct lex {
 };
 
 int
-scan(sp)
-	char **sp;
+scan(char **sp)
 {
 	char *cp, *cp2;
 	int c;
@@ -617,8 +603,7 @@ scan(sp)
  * Unscan the named token by pushing it onto the regret stack.
  */
 void
-regret(token)
-	int token;
+regret(int token)
 {
 	if (++regretp >= REGDEP)
 		errx(1, "Too many regrets");
@@ -632,7 +617,7 @@ regret(token)
  * Reset all the scanner global variables.
  */
 void
-scaninit()
+scaninit(void)
 {
 	regretp = -1;
 }
@@ -642,8 +627,7 @@ scaninit()
  * its message number.
  */
 int
-first(f, m)
-	int f, m;
+first(int f, int m)
 {
 	struct message *mp;
 
@@ -665,9 +649,7 @@ first(f, m)
  * if so.
  */
 int
-matchsender(str, mesg)
-	char *str;
-	int mesg;
+matchsender(char *str, int mesg)
 {
 	char *cp;
 
@@ -687,9 +669,7 @@ matchsender(str, mesg)
 static char *to_fields[] = { "to", "cc", "bcc", NULL };
 
 static int
-matchto(str, mesg)
-	char *str;
-	int mesg;
+matchto(char *str, int mesg)
 {
 	struct message *mp;
 	char *cp, **to;
@@ -725,9 +705,7 @@ matchto(str, mesg)
 
 static char lastscan[STRINGLEN];
 int
-matchfield(str, mesg)
-	char *str;
-	int mesg;
+matchfield(char *str, int mesg)
 {
 	struct message *mp;
 	char *cp, *cp2;
@@ -765,8 +743,7 @@ matchfield(str, mesg)
  * Mark the named message by setting its mark bit.
  */
 void
-mark(mesg)
-	int mesg;
+mark(int mesg)
 {
 	int i;
 
@@ -780,8 +757,7 @@ mark(mesg)
  * Unmark the named message.
  */
 void
-unmark(mesg)
-	int mesg;
+unmark(int mesg)
 {
 	int i;
 
@@ -795,8 +771,7 @@ unmark(mesg)
  * Return the message number corresponding to the passed meta character.
  */
 int
-metamess(meta, f)
-	int meta, f;
+metamess(int meta, int f)
 {
 	int c, m;
 	struct message *mp;

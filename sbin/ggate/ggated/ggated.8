@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2004
+.Dd September 8, 2016
 .Dt GGATED 8
 .Os
 .Sh NAME
@@ -37,20 +37,21 @@
 .Op Fl v
 .Op Fl a Ar address
 .Op Fl p Ar port
+.Op Fl F Ar pidfile
 .Op Fl R Ar rcvbuf
 .Op Fl S Ar sndbuf
 .Op Ar "exports file"
 .Sh DESCRIPTION
 The
 .Nm
-utility is a network server for GEOM Gate class.
+utility is a network server for the GEOM Gate class.
 It runs on a server machine to service GEOM Gate requests from workers
 placed on a client machine.
-Keep in mind, that connection between
+Keep in mind, that connections between
 .Xr ggatec 8
 and
 .Nm
-is not encrypted.
+are not encrypted.
 .Pp
 Available options:
 .Bl -tag -width ".Ar exports\ file"
@@ -65,8 +66,12 @@ option on TCP sockets.
 .It Fl p Ar port
 Port on which
 .Nm
-listens for connection.
+listens for connections.
 Default is 3080.
+.It Fl F Ar pidfile
+PID file that
+.Nm
+uses.
 .It Fl R Ar rcvbuf
 Size of receive buffer to use.
 Default is 131072 (128kB).
@@ -74,7 +79,7 @@ Default is 131072 (128kB).
 Size of send buffer to use.
 Default is 131072 (128kB).
 .It Fl v
-Do not fork, run in foreground and print debug informations on standard
+Do not fork, run in foreground and print debug information on standard
 output.
 .It Ar "exports file"
 An alternate location for the exports file.
@@ -82,10 +87,17 @@ An alternate location for the exports file.
 .Pp
 The format of an exports file is as follows:
 .Bd -literal -offset indent
-1.2.3.4		RO	/dev/acd0
+1.2.3.4		RO	/dev/cd0
 1.2.3.0/24	RW	/tmp/test.img
 hostname	WO	/tmp/image
 .Ed
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/ggated.pid" -compact
+.It Pa /var/run/ggated.pid
+The default location of the
+.Nm
+PID file.
+.El
 .Sh EXIT STATUS
 Exit status is 0 on success, or 1 if the command fails.
 To get details about the failure,
@@ -96,7 +108,7 @@ option.
 .Sh EXAMPLES
 Export CD-ROM device and a file:
 .Bd -literal -offset indent
-# echo "1.2.3.0/24 RO /dev/acd0" > /etc/gg.exports
+# echo "1.2.3.0/24 RO /dev/cd0" > /etc/gg.exports
 # echo "client RW /image" >> /etc/gg.exports
 # ggated
 .Ed
@@ -104,8 +116,13 @@ Export CD-ROM device and a file:
 .Xr geom 4 ,
 .Xr ggatec 8 ,
 .Xr ggatel 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.3 .
 .Sh AUTHORS
 The
 .Nm
 utility as well as this manual page was written by
-.An Pawel Jakub Dawidek Aq pjd@FreeBSD.org .
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org .

@@ -67,6 +67,9 @@
 #define LINK_TABLE_OUT_SIZE        4001
 #define LINK_TABLE_IN_SIZE         4001
 
+#define	GET_ALIAS_PORT		-1
+#define	GET_ALIAS_ID		GET_ALIAS_PORT
+
 struct proxy_entry;
 
 struct libalias {
@@ -249,6 +252,10 @@ DifferentialChecksum(u_short * _cksum, void * _new, void * _old, int _n);
 
 /* Internal data access */
 struct alias_link *
+AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
+    struct in_addr alias_addr, u_short src_port, u_short dst_port,
+    int alias_param, int link_type);
+struct alias_link *
 FindIcmpIn(struct libalias *la, struct in_addr _dst_addr, struct in_addr _alias_addr,
     u_short _id_alias, int _create);
 struct alias_link *
@@ -350,7 +357,7 @@ void		PunchFWHole(struct alias_link *_lnk);
 /* Housekeeping function */
 void		HouseKeeping(struct libalias *);
 
-/* Tcp specfic routines */
+/* Tcp specific routines */
 /* lint -save -library Suppress flexelint warnings */
 
 /* Transparent proxy routines */

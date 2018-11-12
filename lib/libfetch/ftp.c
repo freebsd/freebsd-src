@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998-2004 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1998-2011 Dag-Erling SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
  *
  * Major Changelog:
  *
- * Dag-Erling Coïdan Smørgrav
+ * Dag-Erling SmÃ¸rgrav
  * 9 Jun 1998
  *
  * Incorporated into libfetch
@@ -127,7 +127,7 @@ unmappedaddr(struct sockaddr_in6 *sin6)
 	    !IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
 		return;
 	sin4 = (struct sockaddr_in *)sin6;
-	addr = *(u_int32_t *)&sin6->sin6_addr.s6_addr[12];
+	addr = *(u_int32_t *)(uintptr_t)&sin6->sin6_addr.s6_addr[12];
 	port = sin6->sin6_port;
 	memset(sin4, 0, sizeof(struct sockaddr_in));
 	sin4->sin_addr.s_addr = addr;
@@ -633,13 +633,12 @@ ftp_transfer(conn_t *conn, const char *oper, const char *file,
 
 	/* check flags */
 	low = CHECK_FLAG('l');
-	pasv = CHECK_FLAG('p');
+	pasv = CHECK_FLAG('p') || !CHECK_FLAG('P');
 	verbose = CHECK_FLAG('v');
 
 	/* passive mode */
-	if (!pasv)
-		pasv = ((s = getenv("FTP_PASSIVE_MODE")) != NULL &&
-		    strncasecmp(s, "no", 2) != 0);
+	if ((s = getenv("FTP_PASSIVE_MODE")) != NULL)
+		pasv = (strncasecmp(s, "no", 2) != 0);
 
 	/* isolate filename */
 	filename = ftp_filename(file, &filenamelen, &type);
@@ -930,7 +929,7 @@ ftp_authenticate(conn_t *conn, struct url *url, struct url *purl)
 		if (*pwd == '\0')
 			pwd = getenv("FTP_PASSWORD");
 		if (pwd == NULL || *pwd == '\0') {
-			if ((logname = getlogin()) == 0)
+			if ((logname = getlogin()) == NULL)
 				logname = FTP_ANONYMOUS_USER;
 			if ((len = snprintf(pbuf, MAXLOGNAME + 1, "%s@", logname)) < 0)
 				len = 0;
@@ -1122,17 +1121,20 @@ ftp_request(struct url *url, const char *op, struct url_stat *us,
 
 	/* change directory */
 	if (ftp_cwd(conn, url->doc) == -1)
-		return (NULL);
+		goto errsock;
 
 	/* stat file */
 	if (us && ftp_stat(conn, url->doc, us) == -1
 	    && fetchLastErrCode != FETCH_PROTO
 	    && fetchLastErrCode != FETCH_UNAVAIL)
-		return (NULL);
+		goto errsock;
 
 	/* just a stat */
-	if (strcmp(op, "STAT") == 0)
+	if (strcmp(op, "STAT") == 0) {
+		--conn->ref;
+		ftp_disconnect(conn);
 		return (FILE *)1; /* bogus return value */
+	}
 	if (strcmp(op, "STOR") == 0 || strcmp(op, "APPE") == 0)
 		oflag = O_WRONLY;
 	else
@@ -1140,6 +1142,10 @@ ftp_request(struct url *url, const char *op, struct url_stat *us,
 
 	/* initiate the transfer */
 	return (ftp_transfer(conn, op, url->doc, oflag, url->offset, flags));
+
+errsock:
+	ftp_disconnect(conn);
+	return (NULL);
 }
 
 /*

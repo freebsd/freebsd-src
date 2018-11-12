@@ -39,14 +39,11 @@ __FBSDID("$FreeBSD$");
 #define	BIAS	(LDBL_MAX_EXP - 1)
 #define	EXPMASK	(BIAS + LDBL_MAX_EXP)
 
-#if 0 /* XXX Prevent gcc from erroneously constant folding this. */
-static const long double twom10000 = 0x1p-10000L;
-#else
-static volatile long double twom10000 = 0x1p-10000L;
-#endif
+static volatile long double
+    huge      = 0x1p10000L,
+    twom10000 = 0x1p-10000L;
 
 static const long double
-    huge      = 0x1p10000L,
     P1        = 0x1.62e42fefa39ef35793c7673007e6p-1L,
     P2	      = 0x1.ebfbdff82c58ea86f16b06ec9736p-3L,
     P3        = 0x1.c6b08d704a0bf8b33a762bad3459p-5L,

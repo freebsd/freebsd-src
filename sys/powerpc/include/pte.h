@@ -94,7 +94,11 @@ struct lpteg {
 
 /* High quadword: */
 #define LPTE_VSID_SHIFT		12
+#define LPTE_AVPN_MASK		0xFFFFFFFFFFFFFF80ULL
 #define LPTE_API		0x0000000000000F80ULL
+#define LPTE_SWBITS		0x0000000000000078ULL
+#define LPTE_WIRED		0x0000000000000010ULL
+#define LPTE_LOCKED		0x0000000000000008ULL
 #define LPTE_BIG		0x0000000000000004ULL	/* 4kb/16Mb page */
 #define LPTE_HID		0x0000000000000002ULL
 #define LPTE_VALID		0x0000000000000001ULL
@@ -128,11 +132,11 @@ typedef	struct lpte lpte_t;
  * Extract bits from address
  */
 #define	ADDR_SR_SHFT	28
-#define	ADDR_PIDX	0x0ffff000
+#define	ADDR_PIDX	0x0ffff000UL
 #define	ADDR_PIDX_SHFT	12
 #define	ADDR_API_SHFT	22
 #define	ADDR_API_SHFT64	16
-#define	ADDR_POFF	0x00000fff
+#define	ADDR_POFF	0x00000fffUL
 
 /*
  * Bits in DSISR:
@@ -154,13 +158,7 @@ typedef	struct lpte lpte_t;
 #define	ISSRR1_PROTECT	0x08000000
 #define	ISSRR1_SEGMENT	0x00200000
 
-#ifdef	_KERNEL
-#ifndef	LOCORE
-extern u_int dsisr(void);
-#endif	/* _KERNEL */
-#endif	/* LOCORE */
-
-#else
+#else /* BOOKE */
 
 #include <machine/tlb.h>
 
@@ -189,7 +187,7 @@ extern u_int dsisr(void);
  */
 #define PTBL_SHIFT	PAGE_SHIFT
 #define PTBL_SIZE	PAGE_SIZE		/* va range mapped by ptbl entry */
-#define PTBL_MASK	((PDIR_SIZE - 1) & ~PAGE_MASK)
+#define PTBL_MASK	((PDIR_SIZE - 1) & ~((1 << PAGE_SHIFT) - 1))
 #define PTBL_NENTRIES	1024			/* number of pages mapped by ptbl */
 
 /* Returns ptbl entry number for given va */
@@ -209,26 +207,28 @@ extern u_int dsisr(void);
 
 /*
  * Page Table Entry definitions and macros.
+ *
+ * RPN need only be 32-bit because Book-E has 36-bit addresses, and the smallest
+ * page size is 4k (12-bit mask), so RPN can really fit into 24 bits.
  */
 #ifndef	LOCORE
-struct pte {
-	vm_offset_t rpn;
-	uint32_t flags;
-};
-typedef struct pte pte_t;
+typedef uint64_t pte_t;
 #endif
 
 /* RPN mask, TLB0 4K pages */
 #define PTE_PA_MASK	PAGE_MASK
 
+#if defined(BOOKE_E500)
+
 /* PTE bits assigned to MAS2, MAS3 flags */
-#define PTE_W		MAS2_W
-#define PTE_I		MAS2_I
-#define PTE_M		MAS2_M
-#define PTE_G		MAS2_G
+#define	PTE_MAS2_SHIFT	19
+#define PTE_W		(MAS2_W << PTE_MAS2_SHIFT)
+#define PTE_I		(MAS2_I << PTE_MAS2_SHIFT)
+#define PTE_M		(MAS2_M << PTE_MAS2_SHIFT)
+#define PTE_G		(MAS2_G << PTE_MAS2_SHIFT)
 #define PTE_MAS2_MASK	(MAS2_G | MAS2_M | MAS2_I | MAS2_W)
 
-#define PTE_MAS3_SHIFT	8
+#define PTE_MAS3_SHIFT	2
 #define PTE_UX		(MAS3_UX << PTE_MAS3_SHIFT)
 #define PTE_SX		(MAS3_SX << PTE_MAS3_SHIFT)
 #define PTE_UW		(MAS3_UW << PTE_MAS3_SHIFT)
@@ -238,21 +238,46 @@ typedef struct pte pte_t;
 #define PTE_MAS3_MASK	((MAS3_UX | MAS3_SX | MAS3_UW	\
 			| MAS3_SW | MAS3_UR | MAS3_SR) << PTE_MAS3_SHIFT)
 
+#define	PTE_PS_SHIFT	8
+#define	PTE_PS_4KB	(2 << PTE_PS_SHIFT)
+
+#elif defined(BOOKE_PPC4XX)
+
+#define PTE_WL1		TLB_WL1
+#define PTE_IL2I	TLB_IL2I
+#define PTE_IL2D	TLB_IL2D
+
+#define PTE_W		TLB_W
+#define PTE_I		TLB_I
+#define PTE_M		TLB_M
+#define PTE_G		TLB_G
+
+#define PTE_UX		TLB_UX
+#define PTE_SX		TLB_SX
+#define PTE_UW		TLB_UW
+#define PTE_SW		TLB_SW
+#define PTE_UR		TLB_UR
+#define PTE_SR		TLB_SR
+
+#endif
+
 /* Other PTE flags */
-#define PTE_VALID	0x80000000	/* Valid */
-#define PTE_MODIFIED	0x40000000	/* Modified */
-#define PTE_WIRED	0x20000000	/* Wired */
-#define PTE_MANAGED	0x10000000	/* Managed */
-#define PTE_REFERENCED	0x04000000	/* Referenced */
+#define PTE_VALID	0x00000001	/* Valid */
+#define PTE_MODIFIED	0x00001000	/* Modified */
+#define PTE_WIRED	0x00002000	/* Wired */
+#define PTE_MANAGED	0x00000002	/* Managed */
+#define PTE_REFERENCED	0x00040000	/* Referenced */
 
 /* Macro argument must of pte_t type. */
-#define PTE_PA(pte)		((pte)->rpn & ~PTE_PA_MASK)
-#define PTE_ISVALID(pte)	((pte)->flags & PTE_VALID)
-#define PTE_ISWIRED(pte)	((pte)->flags & PTE_WIRED)
-#define PTE_ISMANAGED(pte)	((pte)->flags & PTE_MANAGED)
-#define PTE_ISMODIFIED(pte)	((pte)->flags & PTE_MODIFIED)
-#define PTE_ISREFERENCED(pte)	((pte)->flags & PTE_REFERENCED)
+#define	PTE_ARPN_SHIFT		12
+#define	PTE_FLAGS_MASK		0x00ffffff
+#define PTE_RPN_FROM_PA(pa)	(((pa) & ~PAGE_MASK) << PTE_ARPN_SHIFT)
+#define PTE_PA(pte)		((vm_paddr_t)(*pte >> PTE_ARPN_SHIFT) & ~PAGE_MASK)
+#define PTE_ISVALID(pte)	((*pte) & PTE_VALID)
+#define PTE_ISWIRED(pte)	((*pte) & PTE_WIRED)
+#define PTE_ISMANAGED(pte)	((*pte) & PTE_MANAGED)
+#define PTE_ISMODIFIED(pte)	((*pte) & PTE_MODIFIED)
+#define PTE_ISREFERENCED(pte)	((*pte) & PTE_REFERENCED)
 
-#endif /* #elif defined(E500) */
-
+#endif /* BOOKE */
 #endif /* _MACHINE_PTE_H_ */

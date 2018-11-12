@@ -27,6 +27,7 @@
  *	$FreeBSD$
  */
 
+#include <sys/types.h>
 #include <sys/rman.h>
 #include <sys/bus.h>
 

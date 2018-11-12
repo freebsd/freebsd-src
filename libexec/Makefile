@@ -1,18 +1,18 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
-SUBDIR=	${_atrun} \
-	bootpd \
+SUBDIR=	${_atf} \
+	${_atrun} \
+	${_blacklistd-helper} \
 	${_comsat} \
-	fingerd \
-	ftpd \
+	${_dma} \
 	getty \
 	${_mail.local} \
+	${_makewhatis.local} \
 	${_mknetid} \
 	${_pppoed} \
-	rbootd \
 	revnetgroup \
 	${_rlogind} \
 	rpc.rquotad \
@@ -24,19 +24,38 @@ SUBDIR=	${_atrun} \
 	${_rtld-elf} \
 	save-entropy \
 	${_smrsh} \
-	talkd \
-	tcpd \
 	${_telnetd} \
-	tftpd \
+	${_tests} \
 	${_tftp-proxy} \
+	ulog-helper \
 	${_ypxfr}
 
 .if ${MK_AT} != "no"
 _atrun=		atrun
 .endif
 
+.if ${MK_BLACKLIST} != "no"
+_blacklistd-helper+=	blacklistd-helper
+.endif
+
+.if ${MK_BOOTPD} != "no"
+SUBDIR+=	bootpd
+.endif
+
+.if ${MK_FINGER} != "no"
+SUBDIR+=	fingerd
+.endif
+
+.if ${MK_FTP} != "no"
+SUBDIR+=	ftpd
+.endif
+
 .if ${MK_MAIL} != "no"
 _comsat=	comsat
+.endif
+
+.if ${MK_DMAGENT} != "no"
+_dma=		dma
 .endif
 
 .if ${MK_NIS} != "no"
@@ -56,6 +75,10 @@ _tftp-proxy=	tftp-proxy
 _rtld-elf=	rtld-elf
 .endif
 
+.if ${MK_RBOOTD} != "no"
+SUBDIR+=	rbootd
+.endif
+
 .if ${MK_RCMDS} != "no"
 _rlogind=	rlogind
 _rshd=		rshd
@@ -66,8 +89,31 @@ _mail.local=	mail.local
 _smrsh=		smrsh
 .endif
 
+.if ${MK_MAN_UTILS} != "no"
+_makewhatis.local=	makewhatis.local
+.endif
+
+.if ${MK_TALK} != "no"
+SUBDIR+=	talkd
+.endif
+
+.if ${MK_TCP_WRAPPERS} != "no"
+SUBDIR+=	tcpd
+.endif
+
 .if ${MK_TELNET} != "no"
 _telnetd=	telnetd
 .endif
+
+.if ${MK_TFTP} != "no"
+SUBDIR+=	tftpd
+.endif
+
+.if ${MK_TESTS} != "no"
+_atf=		atf
+_tests=		tests
+.endif
+
+.include <bsd.arch.inc.mk>
 
 .include <bsd.subdir.mk>

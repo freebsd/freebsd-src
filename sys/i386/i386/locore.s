@@ -99,20 +99,19 @@ physfree:	.long	0		/* phys addr of next free page */
 	.globl	IdlePTD
 IdlePTD:	.long	0		/* phys addr of kernel PTD */
 
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	.globl	IdlePDPT
 IdlePDPT:	.long	0		/* phys addr of kernel PDPT */
 #endif
 
-#ifdef SMP
+	.globl	KPTmap
+KPTmap:		.long	0		/* address of kernel page tables */
+
 	.globl	KPTphys
-#endif
 KPTphys:	.long	0		/* phys addr of kernel page tables */
 
 	.globl	proc0kstack
-proc0uarea:	.long	0		/* address of proc 0 uarea (unused)*/
 proc0kstack:	.long	0		/* address of proc 0 kstack space */
-p0upa:		.long	0		/* phys addr of proc0 UAREA (unused) */
 p0kpa:		.long	0		/* phys addr of proc0's STACK */
 
 vm86phystk:	.long	0		/* PA of vm86/bios stack */
@@ -282,7 +281,7 @@ NON_GPROF_ENTRY(btext)
 1:
 
 /* Now enable paging */
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	movl	R(IdlePDPT), %eax
 	movl	%eax, %cr3
 	movl	%cr4, %eax
@@ -303,17 +302,14 @@ NON_GPROF_ENTRY(btext)
 begin:
 	/* set up bootstrap stack */
 	movl	proc0kstack,%eax	/* location of in-kernel stack */
-			/* bootstrap stack end location */
-	leal	(KSTACK_PAGES*PAGE_SIZE-PCB_SIZE)(%eax),%esp
+
+	/*
+	 * Only use bottom page for init386().  init386() calculates the
+	 * PCB + FPU save area size and returns the true top of stack.
+	 */
+	leal	PAGE_SIZE(%eax),%esp
 
 	xorl	%ebp,%ebp		/* mark end of frames */
-
-#ifdef PAE
-	movl	IdlePDPT,%esi
-#else
-	movl	IdlePTD,%esi
-#endif
-	movl	%esi,(KSTACK_PAGES*PAGE_SIZE-PCB_SIZE+PCB_CR3)(%eax)
 
 	pushl	physfree		/* value of first for init386(first) */
 	call	init386			/* wire 386 chip for unix operation */
@@ -324,6 +320,9 @@ begin:
 	 * inaccessible memory are more fatal than usual this early.
 	 */
 	addl	$4,%esp
+
+	/* Switch to true top of stack. */
+	movl	%eax,%esp
 
 	call	mi_startup		/* autoconfiguration, mountroot etc */
 	/* NOTREACHED */
@@ -719,9 +718,11 @@ no_kernend:
 /* Allocate Kernel Page Tables */
 	ALLOCPAGES(NKPT)
 	movl	%esi,R(KPTphys)
+	addl	$(KERNBASE-(KPTDI<<(PDRSHIFT-PAGE_SHIFT+PTESHIFT))),%esi
+	movl	%esi,R(KPTmap)
 
 /* Allocate Page Table Directory */
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	/* XXX only need 32 bytes (easier for now) */
 	ALLOCPAGES(1)
 	movl	%esi,R(IdlePDPT)
@@ -730,7 +731,7 @@ no_kernend:
 	movl	%esi,R(IdlePTD)
 
 /* Allocate KSTACK */
-	ALLOCPAGES(KSTACK_PAGES)
+	ALLOCPAGES(TD0_KSTACK_PAGES)
 	movl	%esi,R(p0kpa)
 	addl	$KERNBASE, %esi
 	movl	%esi, R(proc0kstack)
@@ -774,16 +775,20 @@ no_kernend:
  * if we've enabled PSE above, we'll just switch the corresponding kernel
  * PDEs before we turn on paging.
  *
- * XXX: We waste some pages here in the PSE case!  DON'T BLINDLY REMOVE
- * THIS!  SMP needs the page table to be there to map the kernel P==V.
+ * XXX: We waste some pages here in the PSE case!
  */
 	xorl	%eax, %eax
 	movl	R(KERNend),%ecx
 	shrl	$PAGE_SHIFT,%ecx
 	fillkptphys($PG_RW)
 
+/* Map page table pages. */
+	movl	R(KPTphys),%eax
+	movl	$NKPT,%ecx
+	fillkptphys($PG_RW)
+
 /* Map page directory. */
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	movl	R(IdlePDPT), %eax
 	movl	$1, %ecx
 	fillkptphys($PG_RW)
@@ -795,7 +800,7 @@ no_kernend:
 
 /* Map proc0's KSTACK in the physical way ... */
 	movl	R(p0kpa), %eax
-	movl	$(KSTACK_PAGES), %ecx
+	movl	$(TD0_KSTACK_PAGES), %ecx
 	fillkptphys($PG_RW)
 
 /* Map ISA hole */
@@ -885,7 +890,7 @@ done_pde:
 	movl	$NPGPTD,%ecx
 	fillkpt(R(IdlePTD), $PG_RW)
 
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	movl	R(IdlePTD), %eax
 	xorl	%ebx, %ebx
 	movl	$NPGPTD, %ecx
@@ -893,3 +898,12 @@ done_pde:
 #endif
 
 	ret
+
+#ifdef XENHVM
+/* Xen Hypercall page */
+	.text
+.p2align PAGE_SHIFT, 0x90	/* Hypercall_page needs to be PAGE aligned */
+
+NON_GPROF_ENTRY(hypercall_page)
+	.skip	0x1000, 0x90	/* Fill with "nop"s */
+#endif

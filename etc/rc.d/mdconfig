@@ -28,12 +28,12 @@
 #
 
 # PROVIDE: mdconfig
-# REQUIRE: localswap
-# BEFORE: mountcritlocal
+# REQUIRE: swap root
 
 . /etc/rc.subr
 
 name="mdconfig"
+desc="Create and control memory disks"
 stop_cmd="mdconfig_stop"
 start_cmd="mdconfig_start"
 start_precmd='[ -n "${_mdconfig_list}" ]'
@@ -49,7 +49,7 @@ is_readonly()
 		*" ${_mp} "*read-only*)
 			echo "yes"
 			;;
-		
+
 		*)
 			;;
 		esac;
@@ -139,7 +139,7 @@ mdconfig_start()
 				if ! eval ${_fsck_cmd} -p ${_dev} >/dev/null; then
 					echo "Fsck failed on ${_dev}, not mounting the filesystem."
 					continue
-					
+
 				fi
 			else
 				newfs ${_newfs} ${_dev} >/dev/null
@@ -182,17 +182,16 @@ fi
 
 load_rc_config $name
 
-_mdconfig_unit=0
 if [ -z "${_mdconfig_list}" ]; then
-	while :; do
-		eval _mdconfig_config=\$mdconfig_md${_mdconfig_unit}
-		if [ -z "${_mdconfig_config}" ]; then
-			break
-		else
-			_mdconfig_list="${_mdconfig_list}${_mdconfig_list:+ }md${_mdconfig_unit}"
-			_mdconfig_unit=$((${_mdconfig_unit} + 1))
-		fi
+	for _mdconfig_config in `list_vars mdconfig_md[0-9]\* |
+		sort_lite -nk1.12`
+	do
+		_mdconfig_unit=${_mdconfig_config#mdconfig_md}
+		[ "${_mdconfig_unit#*[!0-9]}" = "$_mdconfig_unit" ] ||
+			continue
+		_mdconfig_list="$_mdconfig_list md$_mdconfig_unit"
 	done
+	_mdconfig_list="${_mdconfig_list# }"
 fi
-	
+
 run_rc_command "${_mdconfig_cmd}"

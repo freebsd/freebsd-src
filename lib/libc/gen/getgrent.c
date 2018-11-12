@@ -75,6 +75,7 @@ static const ns_src defaultsrc[] = {
 	{ NULL, 0 }
 };
 
+int	 __getgroupmembership(const char *, gid_t, gid_t *, int, int *);
 int	 __gr_match_entry(const char *, size_t, enum nss_lookup_type,
 	    const char *, gid_t);
 int	 __gr_parse_entry(char *, size_t, struct group *, char *, size_t,
@@ -532,12 +533,10 @@ out:
 	return (rv);
 }
 
-/* XXX IEEE Std 1003.1, 2003 specifies `void setgrent(void)' */
-int				
+void
 setgrent(void)
 {
 	(void)_nsdispatch(NULL, setgrent_dtab, NSDB_GROUP, "setgrent", defaultsrc, 0);
-	return (1);
 }
 
 
@@ -659,14 +658,13 @@ __getgroupmembership(const char *uname, gid_t agroup, gid_t *groups,
 		NS_FALLBACK_CB(getgroupmembership_fallback)
 		{ NULL, NULL, NULL }
 	};
-	int rv;
 
 	assert(uname != NULL);
 	/* groups may be NULL if just sizing when invoked with maxgrp = 0 */
 	assert(grpcnt != NULL);
 
 	*grpcnt = 0;
-	rv = _nsdispatch(NULL, dtab, NSDB_GROUP, "getgroupmembership",
+	(void)_nsdispatch(NULL, dtab, NSDB_GROUP, "getgroupmembership",
 	    defaultsrc, uname, agroup, groups, maxgrp, grpcnt);
 
 	/* too many groups found? */
@@ -810,7 +808,7 @@ files_setgrent(void *retval, void *mdata, va_list ap)
 		if (st->fp != NULL)
 			rewind(st->fp);
 		else if (stayopen)
-			st->fp = fopen(_PATH_GROUP, "r");
+			st->fp = fopen(_PATH_GROUP, "re");
 		break;
 	case ENDGRENT:
 		if (st->fp != NULL) {
@@ -861,7 +859,7 @@ files_group(void *retval, void *mdata, va_list ap)
 	if (*errnop != 0)
 		return (NS_UNAVAIL);
 	if (st->fp == NULL &&
-	    ((st->fp = fopen(_PATH_GROUP, "r")) == NULL)) {
+	    ((st->fp = fopen(_PATH_GROUP, "re")) == NULL)) {
 		*errnop = errno;
 		return (NS_UNAVAIL);
 	}
@@ -896,7 +894,7 @@ files_group(void *retval, void *mdata, va_list ap)
 			break;
 		pos = ftello(st->fp);
 	}
-	if (!stayopen && st->fp != NULL) {
+	if (st->fp != NULL && !stayopen) {
 		fclose(st->fp);
 		st->fp = NULL;
 	}
@@ -1173,8 +1171,10 @@ nis_group(void *retval, void *mdata, va_list ap)
 		 * terminator, alignment padding, and one (char *)
 		 * pointer for the member list terminator.
 		 */
-		if (resultlen >= bufsize - _ALIGNBYTES - sizeof(char *))
+		if (resultlen >= bufsize - _ALIGNBYTES - sizeof(char *)) {
+			free(result);
 			goto erange;
+		}
 		memcpy(buffer, result, resultlen);
 		buffer[resultlen] = '\0';
 		free(result);
@@ -1237,13 +1237,12 @@ compat_setgrent(void *retval, void *mdata, va_list ap)
 
 #define set_setent(x, y) do {	 				\
 	int i;							\
-								\
-	for (i = 0; i < (sizeof(x)/sizeof(x[0])) - 1; i++)	\
+	for (i = 0; i < (int)(nitems(x) - 1); i++)		\
 		x[i].mdata = (void *)y;				\
 } while (0)
 
 	rv = compat_getstate(&st);
-	if (rv != 0) 
+	if (rv != 0)
 		return (NS_UNAVAIL);
 	switch ((enum constants)mdata) {
 	case SETGRENT:
@@ -1251,7 +1250,7 @@ compat_setgrent(void *retval, void *mdata, va_list ap)
 		if (st->fp != NULL)
 			rewind(st->fp);
 		else if (stayopen)
-			st->fp = fopen(_PATH_GROUP, "r");
+			st->fp = fopen(_PATH_GROUP, "re");
 		set_setent(dtab, mdata);
 		(void)_nsdispatch(NULL, dtab, NSDB_GROUP_COMPAT, "setgrent",
 		    compatsrc, 0);
@@ -1307,8 +1306,7 @@ compat_group(void *retval, void *mdata, va_list ap)
 
 #define set_lookup_type(x, y) do { 				\
 	int i;							\
-								\
-	for (i = 0; i < (sizeof(x)/sizeof(x[0])) - 1; i++)	\
+	for (i = 0; i < (int)(nitems(x) - 1); i++)		\
 		x[i].mdata = (void *)y;				\
 } while (0)
 
@@ -1335,7 +1333,7 @@ compat_group(void *retval, void *mdata, va_list ap)
 	if (*errnop != 0)
 		return (NS_UNAVAIL);
 	if (st->fp == NULL &&
-	    ((st->fp = fopen(_PATH_GROUP, "r")) == NULL)) {
+	    ((st->fp = fopen(_PATH_GROUP, "re")) == NULL)) {
 		*errnop = errno;
 		rv = NS_UNAVAIL;
 		goto fin;
@@ -1450,7 +1448,7 @@ docompat:
 		pos = ftello(st->fp);
 	}
 fin:
-	if (!stayopen && st->fp != NULL) {
+	if (st->fp != NULL && !stayopen) {
 		fclose(st->fp);
 		st->fp = NULL;
 	}

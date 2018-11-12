@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2000 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: timers.h,v 8.6 2001/04/03 01:53:18 gshapiro Exp $
+ *	$Id: timers.h,v 8.7 2013-11-22 20:51:57 ca Exp $
  *
  * Contributed by Exactis.com, Inc.
  *

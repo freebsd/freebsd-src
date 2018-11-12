@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 #include <netinet/in.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -107,7 +108,7 @@ __FBSDID("$FreeBSD$");
 
 struct randomtab {
 	const int	ru_bits; /* resulting bits */
-	const long	ru_out;	/* Time after wich will be reseeded */
+	const long	ru_out;	/* Time after which will be reseeded */
 	const u_int32_t ru_max;	/* Uniq cycle, avoid blackjack prediction */
 	const u_int32_t ru_gen;	/* Starting generator */
 	const u_int32_t ru_n;	/* ru_n: prime, ru_n - 1: product of pfacts[] */
@@ -127,7 +128,7 @@ struct randomtab {
 
 static struct randomtab randomtab_32 = {
 	32,			/* resulting bits */
-	180,			/* Time after wich will be reseeded */
+	180,			/* Time after which will be reseeded */
 	1000000000,		/* Uniq cycle, avoid blackjack prediction */
 	2,			/* Starting generator */
 	2147483629,		/* RU_N-1 = 2^2*3^2*59652323 */
@@ -138,7 +139,7 @@ static struct randomtab randomtab_32 = {
 
 static struct randomtab randomtab_20 = {
 	20,			/* resulting bits */
-	180,			/* Time after wich will be reseeded */
+	180,			/* Time after which will be reseeded */
 	200000,			/* Uniq cycle, avoid blackjack prediction */
 	2,			/* Starting generator */
 	524269,			/* RU_N-1 = 2^2*3^2*14563 */
@@ -221,7 +222,7 @@ initid(struct randomtab *p)
 	p->ru_g = pmod(p->ru_gen, j, p->ru_n);
 	p->ru_counter = 0;
 
-	p->ru_reseed = time_second + p->ru_out;
+	p->ru_reseed = time_uptime + p->ru_out;
 	p->ru_msb = p->ru_msb ? 0 : (1U << (p->ru_bits - 1));
 }
 
@@ -231,7 +232,7 @@ randomid(struct randomtab *p)
 	int i, n;
 	u_int32_t tmp;
 
-	if (p->ru_counter >= p->ru_max || time_second > p->ru_reseed)
+	if (p->ru_counter >= p->ru_max || time_uptime > p->ru_reseed)
 		initid(p);
 
 	tmp = arc4random();

@@ -28,9 +28,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 
 #include <machine/bus.h>
@@ -38,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <net/if.h>
-#include <net/if_arp.h>
 #include <net/if_media.h>
 
 #include <dev/mca/mca_busreg.h>
@@ -145,7 +147,7 @@ static device_method_t ep_mca_methods[] = {
 	DEVMETHOD(device_attach, ep_mca_attach),
 	DEVMETHOD(device_detach, ep_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ep_mca_driver = {

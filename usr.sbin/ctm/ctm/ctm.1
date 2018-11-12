@@ -12,9 +12,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 25, 1995
-.Os
+.Dd April 14, 2016
 .Dt CTM 1
+.Os
 .Sh NAME
 .Nm ctm
 .Nd source code mirror program
@@ -303,8 +303,14 @@ and
 .Fl V
 options.
 .Sh SEE ALSO
+.Xr ctm_dequeue 1 ,
 .Xr ctm_rmail 1 ,
+.Xr ctm_smail 1 ,
 .Xr ctm 5
+.Rs
+.%T "Miscellaneous CTM on FreeBSD Resources"
+.%U http://ctm.berklix.org
+.Re
 .Sh HISTORY
 Initial trials were run during the work on
 .Fx 1.1.5 ,
@@ -316,10 +322,9 @@ The
 command appeared in
 .Fx 2.1 .
 .Sh AUTHORS
+.An -nosplit
 The CTM system has been designed and implemented by
-.An Poul-Henning Kamp
-.Aq phk@FreeBSD.org .
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .
 .Pp
-.An Joerg Wunsch
-.Aq joerg@FreeBSD.org
+.An Joerg Wunsch Aq Mt joerg@FreeBSD.org
 wrote this man-page.

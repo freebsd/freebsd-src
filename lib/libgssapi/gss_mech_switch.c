@@ -42,7 +42,7 @@
 #endif
 
 struct _gss_mech_switch_list _gss_mechs =
-	SLIST_HEAD_INITIALIZER(&_gss_mechs);
+	SLIST_HEAD_INITIALIZER(_gss_mechs);
 gss_OID_set _gss_mech_oids;
 
 /*
@@ -83,7 +83,7 @@ _gss_string_to_oid(const char* s, gss_OID oid)
 	 * out the size. Second time around, we actually encode the
 	 * number.
 	 */
-	res = 0;
+	res = NULL;
 	for (i = 0; i < 2; i++) {
 		byte_count = 0;
 		for (p = s, j = 0; p; p = q, j++) {

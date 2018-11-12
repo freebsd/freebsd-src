@@ -16,13 +16,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"        This product includes software developed by the NetBSD
-.\"        Foundation, Inc. and its contributors.
-.\" 4. Neither the name of The NetBSD Foundation nor the names of its
-.\"    contributors may be used to endorse or promote products derived
-.\"    from this software without specific prior written permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
 .\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -36,7 +29,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 16, 2009
+.Dd August 21, 2015
 .Dt PKILL 1
 .Os
 .Sh NAME
@@ -44,31 +37,33 @@
 .Nd find or signal processes by name
 .Sh SYNOPSIS
 .Nm pgrep
-.Op Fl LSafilnovx
+.Op Fl LSafilnoqvx
 .Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl P Ar ppid
 .Op Fl U Ar uid
+.Op Fl c Ar class
 .Op Fl d Ar delim
 .Op Fl g Ar pgrp
-.Op Fl j Ar jid
+.Op Fl j Ar jail
 .Op Fl s Ar sid
 .Op Fl t Ar tty
 .Op Fl u Ar euid
 .Ar pattern ...
 .Nm pkill
 .Op Fl Ar signal
-.Op Fl ILafinovx
+.Op Fl ILafilnovx
 .Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl P Ar ppid
 .Op Fl U Ar uid
+.Op Fl c Ar class
 .Op Fl g Ar pgrp
-.Op Fl j Ar jid
+.Op Fl j Ar jail
 .Op Fl s Ar sid
 .Op Fl t Ar tty
 .Op Fl u Ar euid
@@ -137,6 +132,9 @@ or
 process and all of its ancestors are excluded (unless
 .Fl v
 is used).
+.It Fl c Ar class
+Restrict matches to processes running with specified login class
+.Ar class .
 .It Fl f
 Match against full argument lists.
 The default is to match against process names.
@@ -151,30 +149,34 @@ or
 command.
 .It Fl i
 Ignore case distinctions in both the process table and the supplied pattern.
-.It Fl j Ar jid
-Restrict matches to processes inside jails with a jail ID in the comma-separated
-list
-.Ar jid .
-The value
+.It Fl j Ar jail
+Restrict matches to processes inside the specified jails.
+The argument
+.Ar jail
+may be
 .Dq Li any
-matches processes in any jail.
-The value
+to match processes in any jail,
 .Dq Li none
-matches processes not in jail.
+to match processes not in jail,
+or a comma-separated list of jail IDs or names.
 .It Fl l
 Long output.
-Print the process name in addition to the process ID for each matching
+For
+.Nm pgrep ,
+print the process name in addition to the process ID for each matching
 process.
 If used in conjunction with
 .Fl f ,
 print the process ID and the full argument list for each matching process.
-This option can only be used with the
-.Nm pgrep
-command.
+For
+.Nm pkill ,
+display the kill command used for each process killed.
 .It Fl n
 Select only the newest (most recently started) of the matching processes.
 .It Fl o
 Select only the oldest (least recently started) of the matching processes.
+.It Fl q
+Do not write anything to standard output.
 .It Fl s Ar sid
 Restrict matches to processes with a session ID in the comma-separated
 list
@@ -289,5 +291,4 @@ Solaris 7.
 They made their first appearance in
 .Fx 5.3 .
 .Sh AUTHORS
-.An Andrew Doran
-.Aq ad@NetBSD.org
+.An Andrew Doran Aq Mt ad@NetBSD.org

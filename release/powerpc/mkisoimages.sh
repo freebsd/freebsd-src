@@ -24,34 +24,46 @@
 # into base-bits-dir as part of making the image.
 
 if [ "x$1" = "x-b" ]; then
-	cp /usr/src/release/powerpc/boot.tbxi ${4}/boot
-	bootable="-hfs-bless ${4}/boot -map /usr/src/release/powerpc/hfs.map"
+	# Apple boot code
+	uudecode -o /tmp/hfs-boot-block.bz2 "`dirname "$0"`/hfs-boot.bz2.uu"
+	bzip2 -d /tmp/hfs-boot-block.bz2
+	OFFSET=$(hd /tmp/hfs-boot-block | grep 'Loader START' | cut -f 1 -d ' ')
+	OFFSET=0x$(echo 0x$OFFSET | awk '{printf("%x\n",$1/512);}')
+	dd if="$4/boot/loader" of=/tmp/hfs-boot-block seek=$OFFSET conv=notrunc
+
+	bootable="-o bootimage=macppc;/tmp/hfs-boot-block -o no-emul-boot"
+
+	# pSeries/PAPR boot code
+	mkdir -p "$4/ppc/chrp"
+	cp "$4/boot/loader" "$4/ppc/chrp"
+	cat > "$4/ppc/bootinfo.txt" << EOF
+<chrp-boot>
+<description>FreeBSD Install</description>
+<os-name>FreeBSD</os-name>
+<boot-script>boot &device;:,\ppc\chrp\loader</boot-script>
+</chrp-boot>
+EOF
+	bootable="$bootable -o chrp-boot"
+
+	# Playstation 3 boot code
+	echo "FreeBSD Install='/boot/loader.ps3'" > "$4/etc/kboot.conf"
+
 	shift
 else
 	bootable=""
 fi
 
 if [ $# -lt 3 ]; then
-	echo Usage: $0 '[-b] image-label image-name base-bits-dir [extra-bits-dir]'
-	rm -f ${IMG}
+	echo "Usage: $0 [-b] image-label image-name base-bits-dir [extra-bits-dir]"
 	exit 1
 fi
 
-type mkisofs 2>&1 | grep " is " >/dev/null
-if [ $? -ne 0 ]; then
-	echo The cdrtools port is not installed.  Trying to get it now.
-	if [ -f /usr/ports/sysutils/cdrtools/Makefile ]; then
-		cd /usr/ports/sysutils/cdrtools && make install BATCH=yes && make clean
-	else
-		if ! pkg_add -r cdrtools; then
-			echo "Could not get it via pkg_add - please go install this"
-			echo "from the ports collection and run this script again."
-			exit 2
-		fi
-	fi
-fi
+LABEL=`echo "$1" | tr '[:lower:]' '[:upper:]'`; shift
+NAME="$1"; shift
 
-LABEL=$1; shift
-NAME=$1; shift
-
-mkisofs $bootable -r -hfs -part -no-desktop -hfs-volid $LABEL -l -J -L -o $NAME $*
+publisher="The FreeBSD Project.  http://www.FreeBSD.org/"
+echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$1/etc/fstab"
+makefs -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
+rm -f "$1/etc/fstab"
+rm -f /tmp/hfs-boot-block
+rm -rf "$1/ppc"

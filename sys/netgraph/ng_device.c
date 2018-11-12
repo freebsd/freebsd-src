@@ -163,9 +163,7 @@ ng_device_constructor(node_p node)
 
 	DBG;
 
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	/* Allocate unit number */
 	priv->unit = alloc_unr(ngd_unit);
@@ -205,6 +203,7 @@ ng_device_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *msg;
 	struct ng_mesg *resp = NULL;
+	const char *dn;
 	int error = 0;
 
 	NGI_GET_MSG(item, msg);
@@ -219,8 +218,8 @@ ng_device_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (resp == NULL)
 				ERROUT(ENOMEM);
 
-			strlcpy((char *)resp->data, priv->ngddev->si_name,
-			    strlen(priv->ngddev->si_name) + 1);
+			dn = devtoname(priv->ngddev);
+			strlcpy((char *)resp->data, dn, strlen(dn) + 1);
 			break;
 
 		default:
@@ -271,7 +270,6 @@ ng_device_rcvdata(hook_p hook, item_p item)
 
 	IF_LOCK(&priv->readq);
 	if (_IF_QFULL(&priv->readq)) {
-		_IF_DROP(&priv->readq);
 		IF_UNLOCK(&priv->readq);
 		NG_FREE_M(m);
 		return (ENOBUFS);
@@ -466,7 +464,7 @@ ngdwrite(struct cdev *dev, struct uio *uio, int flag)
 	if (uio->uio_resid < 0 || uio->uio_resid > IP_MAXPACKET)
 		return (EIO);
 
-	if ((m = m_uiotombuf(uio, M_DONTWAIT, 0, 0, M_PKTHDR)) == NULL)
+	if ((m = m_uiotombuf(uio, M_NOWAIT, 0, 0, M_PKTHDR)) == NULL)
 		return (ENOBUFS);
 
 	NG_SEND_DATA_ONLY(error, priv->hook, m);

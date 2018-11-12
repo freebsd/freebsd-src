@@ -28,7 +28,7 @@
 .\"     @(#)intro.2	8.5 (Berkeley) 2/27/95
 .\" $FreeBSD$
 .\"
-.Dd February 27, 1995
+.Dd September 8, 2016
 .Dt INTRO 2
 .Os
 .Sh NAME
@@ -133,7 +133,6 @@ executable file.
 A file descriptor argument was out of range, referred to no open file,
 or a read (write) request was made to a file that was only open for
 writing (reading).
-.Pp
 .It Er 10 ECHILD Em "\&No child processes" .
 A
 .Xr wait 2
@@ -189,12 +188,13 @@ or a
 .Xr kill 2
 system call).
 .It Er 23 ENFILE Em "Too many open files in system" .
-Maximum number of file descriptors allowable on the system
-has been reached and a requests for an open cannot be satisfied
+Maximum number of open files allowable on the system
+has been reached and requests for an open cannot be satisfied
 until at least one has been closed.
 .It Er 24 EMFILE Em "Too many open files" .
-(As released, the limit on the number of
-open files per process is 64.)
+Maximum number of file descriptors allowable in the process
+has been reached and requests for an open cannot be satisfied
+until at least one has been closed.
 The
 .Xr getdtablesize 2
 system call will obtain the current limit.
@@ -301,7 +301,6 @@ addresses with
 Internet protocols.
 .It Er 48 EADDRINUSE Em "Address already in use" .
 Only one usage of each address is normally permitted.
-.Pp
 .It Er 49 EADDRNOTAVAIL Em "Can't assign requested address" .
 Normally results from an attempt to create a socket with an
 address not on this machine.
@@ -456,6 +455,23 @@ The specified extended attribute does not exist.
 .It Er 88 EDOOFUS Em "Programming error" .
 A function or API is being abused in a way which could only be detected
 at run-time.
+.It Er 89 EBADMSG Em "Bad message" .
+A corrupted message was detected.
+.It Er 90 EMULTIHOP Em "Multihop attempted" .
+This error code is unused, but present for compatibility with other systems.
+.It Er 91 ENOLINK Em "Link has been severed" .
+This error code is unused, but present for compatibility with other systems.
+.It Er 92 EPROTO Em "Protocol error" .
+A device or socket encountered an unrecoverable protocol error.
+.It Er 93 ENOTCAPABLE Em "Capabilities insufficient" .
+An operation on a capability file descriptor requires greater privilege than
+the capability allows.
+.It Er 94 ECAPMODE Em "Not permitted in capability mode" .
+The system call or operation is not permitted for capability mode processes.
+.It Er 95 ENOTRECOVERABLE Em "State not recoverable" .
+The state protected by a robust mutex is not recoverable.
+.It Er 96 EOWNERDEAD Em "Previous owner died" .
+The owner of a robust mutex terminated while holding the mutex lock.
 .El
 .Sh DEFINITIONS
 .Bl -tag -width Ds
@@ -468,7 +484,10 @@ A new process is created by a currently active process (see
 .Xr fork 2 ) .
 The parent process ID of a process is initially the process ID of its creator.
 If the creating process exits,
-the parent process ID of each child is set to the ID of a system process,
+the parent process ID of each child is set to the ID of the calling process's
+reaper (see
+.Xr procctl 2 ) ,
+normally
 .Xr init 8 .
 .It Process Group
 Each active process is a member of a process group that is identified by
@@ -517,7 +536,7 @@ when none of its members has a parent process that is in the same session
 as the group,
 but is in a different process group.
 Note that when a process exits, the parent process for its children
-is changed to be
+is normally changed to be
 .Xr init 8 ,
 which is in a separate session.
 Not all members of an orphaned process group are necessarily orphaned

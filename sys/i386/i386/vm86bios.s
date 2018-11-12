@@ -69,14 +69,11 @@ ENTRY(vm86_bioscall)
 	movl	PCPU(CURTHREAD),%ecx
 	cmpl	%ecx,PCPU(FPCURTHREAD)	/* do we need to save fp? */
 	jne	1f
-	testl	%ecx,%ecx
-	je 	1f			/* no curproc/npxproc */
 	pushl	%edx
 	movl	TD_PCB(%ecx),%ecx
-	addl	$PCB_SAVEFPU,%ecx
-	pushl	%ecx
+	pushl	PCB_SAVEFPU(%ecx)
 	call	npxsave
-	popl	%ecx
+	addl	$4,%esp
 	popl	%edx			/* recover our pcb */
 1:
 	popfl
@@ -123,7 +120,7 @@ ENTRY(vm86_bioscall)
 	movl	SCR_NEWPTD(%edx),%eax	/* mapping for vm86 page table */
 	movl	%eax,0(%ebx)		/* ... install as PTD entry 0 */
 
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	movl	IdlePDPT,%ecx
 #endif
 	movl	%ecx,%cr3		/* new page tables */

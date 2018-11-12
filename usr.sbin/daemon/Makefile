@@ -3,9 +3,6 @@
 PROG=	daemon
 MAN=	daemon.8
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
-
-WARNS?=	2
+LIBADD=	util
 
 .include <bsd.prog.mk>

@@ -69,6 +69,7 @@ static void ar5210SetOperatingMode(struct ath_hal *, int opmode);
 HAL_BOOL
 ar5210Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	struct ieee80211_channel *chan, HAL_BOOL bChannelChange,
+	HAL_RESET_TYPE resetType,
 	HAL_STATUS *status)
 {
 #define	N(a)	(sizeof (a) /sizeof (a[0]))
@@ -87,7 +88,7 @@ ar5210Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	if (!IEEE80211_IS_CHAN_5GHZ(chan)) {
 		/* Only 11a mode */
-		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: channel not 5Ghz\n", __func__);
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: channel not 5GHz\n", __func__);
 		FAIL(HAL_EINVAL);
 	}
 	/*
@@ -152,8 +153,12 @@ ar5210Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	/* Restore previous led state */
 	OS_REG_WRITE(ah, AR_PCICFG, OS_REG_READ(ah, AR_PCICFG) | ledstate);
 
+#if 0
 	OS_REG_WRITE(ah, AR_BSS_ID0, LE_READ_4(ahp->ah_bssid));
 	OS_REG_WRITE(ah, AR_BSS_ID1, LE_READ_2(ahp->ah_bssid + 4));
+#endif
+	/* BSSID, association id, ps-poll */
+	ar5210WriteAssocid(ah, ahp->ah_bssid, ahp->ah_associd);
 
 	OS_REG_WRITE(ah, AR_TXDP0, 0);
 	OS_REG_WRITE(ah, AR_TXDP1, 0);
@@ -190,7 +195,7 @@ ar5210Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	OS_REG_WRITE(ah, AR_CLR_TMASK, 1);
 	OS_REG_WRITE(ah, AR_TRIG_LEV, 1);	/* minimum */
 
-	OS_REG_WRITE(ah, AR_DIAG_SW, 0);
+	ar5210UpdateDiagReg(ah, 0);
 
 	OS_REG_WRITE(ah, AR_CFP_PERIOD, 0);
 	OS_REG_WRITE(ah, AR_TIMER0, 0);		/* next beacon time */
@@ -285,7 +290,7 @@ ar5210Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	if (ahp->ah_ctstimeout != (u_int) -1)
 		ar5210SetCTSTimeout(ah, ahp->ah_ctstimeout);
 	if (AH_PRIVATE(ah)->ah_diagreg != 0)
-		OS_REG_WRITE(ah, AR_DIAG_SW, AH_PRIVATE(ah)->ah_diagreg);
+		ar5210UpdateDiagReg(ah, AH_PRIVATE(ah)->ah_diagreg);
 
 	AH_PRIVATE(ah)->ah_opmode = opmode;	/* record operating mode */
 
@@ -454,7 +459,7 @@ ar5210PerCalibrationN(struct ath_hal *ah,
 	if (ichan == AH_NULL)
 		return AH_FALSE;
 	/* Disable tx and rx */
-	OS_REG_WRITE(ah, AR_DIAG_SW,
+	ar5210UpdateDiagReg(ah,
 		OS_REG_READ(ah, AR_DIAG_SW) | (AR_DIAG_SW_DIS_TX | AR_DIAG_SW_DIS_RX));
 
 	/* Disable Beacon Enable */
@@ -526,9 +531,10 @@ ar5210PerCalibrationN(struct ath_hal *ah,
 	/* AGC calibration (this was added to make the NF threshold check work) */
 	OS_REG_WRITE(ah, AR_PHY_AGCCTL,
 		 OS_REG_READ(ah, AR_PHY_AGCCTL) | AR_PHY_AGC_CAL);
-	if (!ath_hal_wait(ah, AR_PHY_AGCCTL, AR_PHY_AGC_CAL, 0))
+	if (!ath_hal_wait(ah, AR_PHY_AGCCTL, AR_PHY_AGC_CAL, 0)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: AGC calibration timeout\n",
 		    __func__);
+	}
 
 	/* Rewrite our AGC values we stored off earlier (return AGC to normal operation) */
 	OS_REG_WRITE(ah, 0x9858, reg9858);
@@ -550,7 +556,7 @@ ar5210PerCalibrationN(struct ath_hal *ah,
 	}
 
 	/* Clear tx and rx disable bit */
-	OS_REG_WRITE(ah, AR_DIAG_SW,
+	ar5210UpdateDiagReg(ah,
 		 OS_REG_READ(ah, AR_DIAG_SW) & ~(AR_DIAG_SW_DIS_TX | AR_DIAG_SW_DIS_RX));
 
 	/* Re-enable Beacons */
@@ -593,12 +599,10 @@ ar5210SetResetReg(struct ath_hal *ah, uint32_t resetMask, u_int delay)
         if ((resetMask & AR_RC_RMAC) == 0) {
 		if (isBigEndian()) {
 			/*
-			 * Set CFG, little-endian for register
-			 * and descriptor accesses.
+			 * Set CFG, little-endian for descriptor accesses.
 			 */
-			mask = INIT_CONFIG_STATUS |
-				AR_CFG_SWTD | AR_CFG_SWRD | AR_CFG_SWRG;
-			OS_REG_WRITE(ah, AR_CFG, LE_READ_4(&mask));
+			mask = INIT_CONFIG_STATUS | AR_CFG_SWTD | AR_CFG_SWRD;
+			OS_REG_WRITE(ah, AR_CFG, mask);
 		} else
 			OS_REG_WRITE(ah, AR_CFG, INIT_CONFIG_STATUS);
 	}

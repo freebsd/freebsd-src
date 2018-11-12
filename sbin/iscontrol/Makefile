@@ -1,13 +1,14 @@
 # $FreeBSD$
 
+PACKAGE=iscsi_legacy
 SRCS= iscontrol.c pdu.c fsm.c config.c login.c auth_subr.c misc.c
 PROG= iscontrol
-DPADD= ${LIBCAM} ${LIBMD}
-LDADD= -lcam -lmd
+LIBADD=	cam md
+S= ${.CURDIR}/../../sys
 
-CFLAGS += -I${.CURDIR}/../../sys/dev/iscsi/initiator
-#CFLAGS += -g -DDEBUG
+WARNS?=	3
+CFLAGS+=	-I$S
 
-MAN= iscsi.conf.5 iscontrol.8
+MAN= iscontrol.8
 
 .include <bsd.prog.mk>

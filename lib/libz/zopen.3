@@ -1,0 +1,96 @@
+.\" Copyright (c) 2014 Xin Li <delphij@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 5, 2014
+.Dt ZOPEN 3
+.Os
+.Sh NAME
+.Nm zopen
+.Nd open a gzip compressed stream
+.Sh LIBRARY
+.Lb libz
+.Sh SYNOPSIS
+.Ft FILE *
+.Fn zopen "const char *path" "const char *mode"
+.Sh DESCRIPTION
+The
+.Fn zopen
+opens a gzip file whose name is the string pointed to by
+.Fa path
+and associates a stream with it.
+It is a wrapper around
+.Xr zlib 3
+and standard stream I/O APIs.
+.Pp
+The argument
+.Fa mode
+have the same meaning as it does in
+.Xr fopen 3 .
+.Pp
+The
+.Nm
+function will associate read, write, seek and close
+functions of
+.Xr zlib 3
+after successfully opened a file with
+.Xr funopen 3
+so that they will be used to read or write the new stream.
+.Sh RETURN VALUES
+Upon successful completion
+.Nm
+returns a
+.Tn FILE
+pointer.
+Otherwise,
+.Dv NULL
+is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+In addition to the errors documented for
+.Xr fopen 3 ,
+the
+.Nm
+function may also fail for: 
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+Insufficient memory is available.
+.El
+.Sh COMPATIBILITY
+This implementation of
+.Nm
+function first appeared in
+.Nx 1.6
+and
+.Fx 4.5 .
+The
+.Nm
+function may not be portable to systems other than
+.Fx .
+.Sh SEE ALSO
+.Xr fopen 3 ,
+.Xr funopen 3 ,
+.Xr zlib 3

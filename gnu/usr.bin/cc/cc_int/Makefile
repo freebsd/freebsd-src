@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .include "../Makefile.inc"
 .include "../Makefile.ver"
 
@@ -22,6 +24,7 @@ OBJS-common = \
  tree-outof-ssa.o tree-ssa-ccp.o tree-vn.o tree-ssa-uncprop.o		   \
  tree-ssa-dce.o  tree-ssa-copy.o tree-nrv.o tree-ssa-copyrename.o	   \
  tree-ssa-pre.o tree-ssa-live.o tree-ssa-operands.o tree-ssa-alias.o       \
+ tree-ssa-alias-warnings.o						   \
  tree-ssa-phiopt.o tree-ssa-forwprop.o tree-nested.o tree-ssa-dse.o	   \
  tree-ssa-dom.o domwalk.o tree-tailcall.o gimple-low.o tree-iterator.o	   \
  omp-low.o tree-phinodes.o tree-ssanames.o tree-sra.o tree-complex.o	   \
@@ -75,10 +78,6 @@ OBJS-md+= ${GCC_CPU}-c.o
 # Target specific, C specific object file
 C_TARGET_OBJS=
 
-.if ${TARGET_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
-CFLAGS += -DTARGET_ENDIAN_DEFAULT=MASK_BIG_END
-.endif
-
 # Language-specific object files for C and Objective C.
 C_AND_OBJC_OBJS = attribs.o c-errors.o c-lex.o c-pragma.o c-decl.o c-typeck.o \
   c-convert.o c-aux-info.o c-common.o c-opts.o c-format.o c-semantics.o \
@@ -101,5 +100,8 @@ SRCS+= ${OBJS-all:R:S/$/.c/g}
 
 toplev.o:	toplev.c
 	${CC} ${CFLAGS} -DTARGET_NAME=\"${GCC_TARGET}\" -c ${.IMPSRC}
+
+# make sure we don't find .o's in ../cc_tools/
+CLEANFILES+= ${OBJS-all}
 
 .include <bsd.lib.mk>

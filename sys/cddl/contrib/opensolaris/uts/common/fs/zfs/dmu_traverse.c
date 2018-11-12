@@ -19,11 +19,10 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2015 Chunwei Chen. All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/zfs_context.h>
 #include <sys/dmu_objset.h>
@@ -35,886 +34,680 @@
 #include <sys/spa.h>
 #include <sys/zio.h>
 #include <sys/dmu_impl.h>
-#include <sys/zvol.h>
+#include <sys/sa.h>
+#include <sys/sa_impl.h>
+#include <sys/callb.h>
+#include <sys/zfeature.h>
 
-#define	BP_SPAN_SHIFT(level, width)	((level) * (width))
+int32_t zfs_pd_bytes_max = 50 * 1024 * 1024;	/* 50MB */
+boolean_t send_holes_without_birth_time = B_TRUE;
 
-#define	BP_EQUAL(b1, b2)				\
-	(DVA_EQUAL(BP_IDENTITY(b1), BP_IDENTITY(b2)) &&	\
-	(b1)->blk_birth == (b2)->blk_birth)
+#ifdef _KERNEL
+SYSCTL_DECL(_vfs_zfs);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, send_holes_without_birth_time, CTLFLAG_RWTUN,
+    &send_holes_without_birth_time, 0, "Send holes without birth time");
+#endif
 
-/*
- * Compare two bookmarks.
- *
- * For ADVANCE_PRE, the visitation order is:
- *
- *	objset 0, 1, 2, ..., ZB_MAXOBJSET.
- *	object 0, 1, 2, ..., ZB_MAXOBJECT.
- *	blkoff 0, 1, 2, ...
- *	level ZB_MAXLEVEL, ..., 2, 1, 0.
- *
- * where blkoff = blkid << BP_SPAN_SHIFT(level, width), and thus a valid
- * ordering vector is:
- *
- *	< objset, object, blkoff, -level >
- *
- * For ADVANCE_POST, the starting offsets aren't sequential but ending
- * offsets [blkoff = (blkid + 1) << BP_SPAN_SHIFT(level, width)] are.
- * The visitation order is:
- *
- *	objset 1, 2, ..., ZB_MAXOBJSET, 0.
- *	object 1, 2, ..., ZB_MAXOBJECT, 0.
- *	blkoff 1, 2, ...
- *	level 0, 1, 2, ..., ZB_MAXLEVEL.
- *
- * and thus a valid ordering vector is:
- *
- *	< objset - 1, object - 1, blkoff, level >
- *
- * Both orderings can be expressed as:
- *
- *	< objset + bias, object + bias, blkoff, level ^ bias >
- *
- * where 'bias' is either 0 or -1 (for ADVANCE_PRE or ADVANCE_POST)
- * and 'blkoff' is (blkid - bias) << BP_SPAN_SHIFT(level, wshift).
- *
- * Special case: an objset's osphys is represented as level -1 of object 0.
- * It is always either the very first or very last block we visit in an objset.
- * Therefore, if either bookmark's level is -1, level alone determines order.
- */
+typedef struct prefetch_data {
+	kmutex_t pd_mtx;
+	kcondvar_t pd_cv;
+	int32_t pd_bytes_fetched;
+	int pd_flags;
+	boolean_t pd_cancel;
+	boolean_t pd_exited;
+	zbookmark_phys_t pd_resume;
+} prefetch_data_t;
+
+typedef struct traverse_data {
+	spa_t *td_spa;
+	uint64_t td_objset;
+	blkptr_t *td_rootbp;
+	uint64_t td_min_txg;
+	zbookmark_phys_t *td_resume;
+	int td_flags;
+	prefetch_data_t *td_pfd;
+	boolean_t td_paused;
+	uint64_t td_hole_birth_enabled_txg;
+	blkptr_cb_t *td_func;
+	void *td_arg;
+	boolean_t td_realloc_possible;
+} traverse_data_t;
+
+static int traverse_dnode(traverse_data_t *td, const dnode_phys_t *dnp,
+    uint64_t objset, uint64_t object);
+static void prefetch_dnode_metadata(traverse_data_t *td, const dnode_phys_t *,
+    uint64_t objset, uint64_t object);
+
 static int
-compare_bookmark(zbookmark_t *szb, zbookmark_t *ezb, dnode_phys_t *dnp,
-    int advance)
+traverse_zil_block(zilog_t *zilog, blkptr_t *bp, void *arg, uint64_t claim_txg)
 {
-	int bias = (advance & ADVANCE_PRE) ? 0 : -1;
-	uint64_t sblkoff, eblkoff;
-	int slevel, elevel, wshift;
+	traverse_data_t *td = arg;
+	zbookmark_phys_t zb;
 
-	if (szb->zb_objset + bias < ezb->zb_objset + bias)
-		return (-1);
-
-	if (szb->zb_objset + bias > ezb->zb_objset + bias)
-		return (1);
-
-	slevel = szb->zb_level;
-	elevel = ezb->zb_level;
-
-	if ((slevel | elevel) < 0)
-		return ((slevel ^ bias) - (elevel ^ bias));
-
-	if (szb->zb_object + bias < ezb->zb_object + bias)
-		return (-1);
-
-	if (szb->zb_object + bias > ezb->zb_object + bias)
-		return (1);
-
-	if (dnp == NULL)
+	if (BP_IS_HOLE(bp))
 		return (0);
 
-	wshift = dnp->dn_indblkshift - SPA_BLKPTRSHIFT;
-
-	sblkoff = (szb->zb_blkid - bias) << BP_SPAN_SHIFT(slevel, wshift);
-	eblkoff = (ezb->zb_blkid - bias) << BP_SPAN_SHIFT(elevel, wshift);
-
-	if (sblkoff < eblkoff)
-		return (-1);
-
-	if (sblkoff > eblkoff)
-		return (1);
-
-	return ((elevel ^ bias) - (slevel ^ bias));
-}
-
-#define	SET_BOOKMARK(zb, objset, object, level, blkid)	\
-{							\
-	(zb)->zb_objset = objset;			\
-	(zb)->zb_object = object;			\
-	(zb)->zb_level = level;				\
-	(zb)->zb_blkid = blkid;				\
-}
-
-#define	SET_BOOKMARK_LB(zb, level, blkid)		\
-{							\
-	(zb)->zb_level = level;				\
-	(zb)->zb_blkid = blkid;				\
-}
-
-static int
-advance_objset(zseg_t *zseg, uint64_t objset, int advance)
-{
-	zbookmark_t *zb = &zseg->seg_start;
-
-	if (advance & ADVANCE_PRE) {
-		if (objset >= ZB_MAXOBJSET)
-			return (ERANGE);
-		SET_BOOKMARK(zb, objset, 0, -1, 0);
-	} else {
-		if (objset >= ZB_MAXOBJSET)
-			objset = 0;
-		SET_BOOKMARK(zb, objset, 1, 0, 0);
-	}
-
-	if (compare_bookmark(zb, &zseg->seg_end, NULL, advance) > 0)
-		return (ERANGE);
-
-	return (EAGAIN);
-}
-
-static int
-advance_object(zseg_t *zseg, uint64_t object, int advance)
-{
-	zbookmark_t *zb = &zseg->seg_start;
-
-	if (advance & ADVANCE_PRE) {
-		if (object >= ZB_MAXOBJECT) {
-			SET_BOOKMARK(zb, zb->zb_objset + 1, 0, -1, 0);
-		} else {
-			SET_BOOKMARK(zb, zb->zb_objset, object, ZB_MAXLEVEL, 0);
-		}
-	} else {
-		if (zb->zb_object == 0) {
-			SET_BOOKMARK(zb, zb->zb_objset, 0, -1, 0);
-		} else {
-			if (object >= ZB_MAXOBJECT)
-				object = 0;
-			SET_BOOKMARK(zb, zb->zb_objset, object, 0, 0);
-		}
-	}
-
-	if (compare_bookmark(zb, &zseg->seg_end, NULL, advance) > 0)
-		return (ERANGE);
-
-	return (EAGAIN);
-}
-
-static int
-advance_from_osphys(zseg_t *zseg, int advance)
-{
-	zbookmark_t *zb = &zseg->seg_start;
-
-	ASSERT(zb->zb_object == 0);
-	ASSERT(zb->zb_level == -1);
-	ASSERT(zb->zb_blkid == 0);
-
-	if (advance & ADVANCE_PRE) {
-		SET_BOOKMARK_LB(zb, ZB_MAXLEVEL, 0);
-	} else {
-		if (zb->zb_objset == 0)
-			return (ERANGE);
-		SET_BOOKMARK(zb, zb->zb_objset + 1, 1, 0, 0);
-	}
-
-	if (compare_bookmark(zb, &zseg->seg_end, NULL, advance) > 0)
-		return (ERANGE);
-
-	return (EAGAIN);
-}
-
-static int
-advance_block(zseg_t *zseg, dnode_phys_t *dnp, int rc, int advance)
-{
-	zbookmark_t *zb = &zseg->seg_start;
-	int wshift = dnp->dn_indblkshift - SPA_BLKPTRSHIFT;
-	int maxlevel = dnp->dn_nlevels - 1;
-	int level = zb->zb_level;
-	uint64_t blkid = zb->zb_blkid;
-
-	if (advance & ADVANCE_PRE) {
-		if (level > 0 && rc == 0) {
-			level--;
-			blkid <<= wshift;
-		} else {
-			blkid++;
-
-			if ((blkid << BP_SPAN_SHIFT(level, wshift)) >
-			    dnp->dn_maxblkid)
-				return (ERANGE);
-
-			while (level < maxlevel) {
-				if (P2PHASE(blkid, 1ULL << wshift))
-					break;
-				blkid >>= wshift;
-				level++;
-			}
-		}
-	} else {
-		if (level >= maxlevel || P2PHASE(blkid + 1, 1ULL << wshift)) {
-			blkid = (blkid + 1) << BP_SPAN_SHIFT(level, wshift);
-			level = 0;
-		} else {
-			blkid >>= wshift;
-			level++;
-		}
-
-		while ((blkid << BP_SPAN_SHIFT(level, wshift)) >
-		    dnp->dn_maxblkid) {
-			if (level == maxlevel)
-				return (ERANGE);
-			blkid >>= wshift;
-			level++;
-		}
-	}
-	SET_BOOKMARK_LB(zb, level, blkid);
-
-	if (compare_bookmark(zb, &zseg->seg_end, dnp, advance) > 0)
-		return (ERANGE);
-
-	return (EAGAIN);
-}
-
-/*
- * The traverse_callback function will call the function specified in th_func.
- * In the event of an error the callee, specified by th_func, must return
- * one of the following errors:
- *
- *	EINTR		- Indicates that the callee wants the traversal to
- *			  abort immediately.
- * 	ERESTART	- The callee has acknowledged the error and would
- *			  like to continue.
- */
-static int
-traverse_callback(traverse_handle_t *th, zseg_t *zseg, traverse_blk_cache_t *bc)
-{
-	/*
-	 * Before we issue the callback, prune against maxtxg.
-	 *
-	 * We prune against mintxg before we get here because it's a big win.
-	 * If a given block was born in txg 37, then we know that the entire
-	 * subtree below that block must have been born in txg 37 or earlier.
-	 * We can therefore lop off huge branches of the tree as we go.
-	 *
-	 * There's no corresponding optimization for maxtxg because knowing
-	 * that bp->blk_birth >= maxtxg doesn't imply anything about the bp's
-	 * children.  In fact, the copy-on-write design of ZFS ensures that
-	 * top-level blocks will pretty much always be new.
-	 *
-	 * Therefore, in the name of simplicity we don't prune against
-	 * maxtxg until the last possible moment -- that being right now.
-	 */
-	if (bc->bc_errno == 0 && bc->bc_blkptr.blk_birth >= zseg->seg_maxtxg)
+	if (claim_txg == 0 && bp->blk_birth >= spa_first_txg(td->td_spa))
 		return (0);
 
-	/*
-	 * Debugging: verify that the order we visit things agrees with the
-	 * order defined by compare_bookmark().  We don't check this for
-	 * log blocks because there's no defined ordering for them; they're
-	 * always visited (or not) as part of visiting the objset_phys_t.
-	 */
-	if (bc->bc_errno == 0 && bc != &th->th_zil_cache) {
-		zbookmark_t *zb = &bc->bc_bookmark;
-		zbookmark_t *szb = &zseg->seg_start;
-		zbookmark_t *ezb = &zseg->seg_end;
-		zbookmark_t *lzb = &th->th_lastcb;
-		dnode_phys_t *dnp = bc->bc_dnode;
+	SET_BOOKMARK(&zb, td->td_objset, ZB_ZIL_OBJECT, ZB_ZIL_LEVEL,
+	    bp->blk_cksum.zc_word[ZIL_ZC_SEQ]);
 
-		ASSERT(compare_bookmark(zb, ezb, dnp, th->th_advance) <= 0);
-		ASSERT(compare_bookmark(zb, szb, dnp, th->th_advance) == 0);
-		ASSERT(compare_bookmark(lzb, zb, dnp, th->th_advance) < 0 ||
-		    lzb->zb_level == ZB_NO_LEVEL);
-		*lzb = *zb;
-	}
-
-	th->th_callbacks++;
-	return (th->th_func(bc, th->th_spa, th->th_arg));
-}
-
-static int
-traverse_read(traverse_handle_t *th, traverse_blk_cache_t *bc, blkptr_t *bp,
-	dnode_phys_t *dnp)
-{
-	zbookmark_t *zb = &bc->bc_bookmark;
-	int error;
-
-	th->th_hits++;
-
-	bc->bc_dnode = dnp;
-	bc->bc_errno = 0;
-
-	if (BP_EQUAL(&bc->bc_blkptr, bp))
-		return (0);
-
-	bc->bc_blkptr = *bp;
-
-	if (bc->bc_data == NULL)
-		return (0);
-
-	if (BP_IS_HOLE(bp)) {
-		ASSERT(th->th_advance & ADVANCE_HOLES);
-		return (0);
-	}
-
-	if (compare_bookmark(zb, &th->th_noread, dnp, 0) == 0) {
-		error = EIO;
-	} else if (arc_tryread(th->th_spa, bp, bc->bc_data) == 0) {
-		error = 0;
-		th->th_arc_hits++;
-	} else {
-		error = zio_wait(zio_read(NULL, th->th_spa, bp, bc->bc_data,
-		    BP_GET_LSIZE(bp), NULL, NULL, ZIO_PRIORITY_SYNC_READ,
-		    th->th_zio_flags | ZIO_FLAG_DONT_CACHE, zb));
-
-		if (BP_SHOULD_BYTESWAP(bp) && error == 0)
-			(zb->zb_level > 0 ? byteswap_uint64_array :
-			    dmu_ot[BP_GET_TYPE(bp)].ot_byteswap)(bc->bc_data,
-			    BP_GET_LSIZE(bp));
-		th->th_reads++;
-	}
-
-	if (error) {
-		bc->bc_errno = error;
-		error = traverse_callback(th, NULL, bc);
-		ASSERT(error == EAGAIN || error == EINTR || error == ERESTART);
-		bc->bc_blkptr.blk_birth = -1ULL;
-	}
-
-	dprintf("cache %02x error %d <%llu, %llu, %d, %llx>\n",
-	    bc - &th->th_cache[0][0], error,
-	    zb->zb_objset, zb->zb_object, zb->zb_level, zb->zb_blkid);
-
-	return (error);
-}
-
-static int
-find_block(traverse_handle_t *th, zseg_t *zseg, dnode_phys_t *dnp, int depth)
-{
-	zbookmark_t *zb = &zseg->seg_start;
-	traverse_blk_cache_t *bc;
-	blkptr_t *bp = dnp->dn_blkptr;
-	int i, first, level;
-	int nbp = dnp->dn_nblkptr;
-	int minlevel = zb->zb_level;
-	int maxlevel = dnp->dn_nlevels - 1;
-	int wshift = dnp->dn_indblkshift - SPA_BLKPTRSHIFT;
-	int bp_shift = BP_SPAN_SHIFT(maxlevel - minlevel, wshift);
-	uint64_t blkid = zb->zb_blkid >> bp_shift;
-	int do_holes = (th->th_advance & ADVANCE_HOLES) && depth == ZB_DN_CACHE;
-	int rc;
-
-	if (minlevel > maxlevel || blkid >= nbp)
-		return (ERANGE);
-
-	for (level = maxlevel; level >= minlevel; level--) {
-		first = P2PHASE(blkid, 1ULL << wshift);
-
-		for (i = first; i < nbp; i++)
-			if (bp[i].blk_birth > zseg->seg_mintxg ||
-			    BP_IS_HOLE(&bp[i]) && do_holes)
-				break;
-
-		if (i != first) {
-			i--;
-			SET_BOOKMARK_LB(zb, level, blkid + (i - first));
-			return (ENOTBLK);
-		}
-
-		bc = &th->th_cache[depth][level];
-
-		SET_BOOKMARK(&bc->bc_bookmark, zb->zb_objset, zb->zb_object,
-		    level, blkid);
-
-		if (rc = traverse_read(th, bc, bp + i, dnp)) {
-			if (rc != EAGAIN) {
-				SET_BOOKMARK_LB(zb, level, blkid);
-			}
-			return (rc);
-		}
-
-		if (BP_IS_HOLE(&bp[i])) {
-			SET_BOOKMARK_LB(zb, level, blkid);
-			th->th_lastcb.zb_level = ZB_NO_LEVEL;
-			return (0);
-		}
-
-		nbp = 1 << wshift;
-		bp = bc->bc_data;
-		bp_shift -= wshift;
-		blkid = zb->zb_blkid >> bp_shift;
-	}
+	(void) td->td_func(td->td_spa, zilog, bp, &zb, NULL, td->td_arg);
 
 	return (0);
 }
 
 static int
-get_dnode(traverse_handle_t *th, uint64_t objset, dnode_phys_t *mdn,
-    uint64_t *objectp, dnode_phys_t **dnpp, uint64_t txg, int type, int depth)
-{
-	zseg_t zseg;
-	zbookmark_t *zb = &zseg.seg_start;
-	uint64_t object = *objectp;
-	int i, rc;
-
-	SET_BOOKMARK(zb, objset, 0, 0, object / DNODES_PER_BLOCK);
-	SET_BOOKMARK(&zseg.seg_end, objset, 0, 0, ZB_MAXBLKID);
-
-	zseg.seg_mintxg = txg;
-	zseg.seg_maxtxg = -1ULL;
-
-	for (;;) {
-		rc = find_block(th, &zseg, mdn, depth);
-
-		if (rc == EAGAIN || rc == EINTR || rc == ERANGE)
-			break;
-
-		if (rc == 0 && zb->zb_level == 0) {
-			dnode_phys_t *dnp = th->th_cache[depth][0].bc_data;
-			for (i = 0; i < DNODES_PER_BLOCK; i++) {
-				object = (zb->zb_blkid * DNODES_PER_BLOCK) + i;
-				if (object >= *objectp &&
-				    dnp[i].dn_type != DMU_OT_NONE &&
-				    (type == -1 || dnp[i].dn_type == type)) {
-					*objectp = object;
-					*dnpp = &dnp[i];
-					return (0);
-				}
-			}
-		}
-
-		rc = advance_block(&zseg, mdn, rc, ADVANCE_PRE);
-
-		if (rc == ERANGE)
-			break;
-	}
-
-	if (rc == ERANGE)
-		*objectp = ZB_MAXOBJECT;
-
-	return (rc);
-}
-
-/* ARGSUSED */
-static void
-traverse_zil_block(zilog_t *zilog, blkptr_t *bp, void *arg, uint64_t claim_txg)
-{
-	traverse_handle_t *th = arg;
-	traverse_blk_cache_t *bc = &th->th_zil_cache;
-	zbookmark_t *zb = &bc->bc_bookmark;
-	zseg_t *zseg = list_head(&th->th_seglist);
-
-	if (bp->blk_birth <= zseg->seg_mintxg)
-		return;
-
-	if (claim_txg != 0 || bp->blk_birth < spa_first_txg(th->th_spa)) {
-		zb->zb_object = 0;
-		zb->zb_blkid = bp->blk_cksum.zc_word[ZIL_ZC_SEQ];
-		bc->bc_blkptr = *bp;
-		(void) traverse_callback(th, zseg, bc);
-	}
-}
-
-/* ARGSUSED */
-static void
 traverse_zil_record(zilog_t *zilog, lr_t *lrc, void *arg, uint64_t claim_txg)
 {
-	traverse_handle_t *th = arg;
-	traverse_blk_cache_t *bc = &th->th_zil_cache;
-	zbookmark_t *zb = &bc->bc_bookmark;
-	zseg_t *zseg = list_head(&th->th_seglist);
+	traverse_data_t *td = arg;
 
 	if (lrc->lrc_txtype == TX_WRITE) {
 		lr_write_t *lr = (lr_write_t *)lrc;
 		blkptr_t *bp = &lr->lr_blkptr;
+		zbookmark_phys_t zb;
 
-		if (bp->blk_birth <= zseg->seg_mintxg)
-			return;
+		if (BP_IS_HOLE(bp))
+			return (0);
 
-		if (claim_txg != 0 && bp->blk_birth >= claim_txg) {
-			zb->zb_object = lr->lr_foid;
-			zb->zb_blkid = lr->lr_offset / BP_GET_LSIZE(bp);
-			bc->bc_blkptr = *bp;
-			(void) traverse_callback(th, zseg, bc);
-		}
+		if (claim_txg == 0 || bp->blk_birth < claim_txg)
+			return (0);
+
+		SET_BOOKMARK(&zb, td->td_objset, lr->lr_foid,
+		    ZB_ZIL_LEVEL, lr->lr_offset / BP_GET_LSIZE(bp));
+
+		(void) td->td_func(td->td_spa, zilog, bp, &zb, NULL,
+		    td->td_arg);
 	}
+	return (0);
 }
 
 static void
-traverse_zil(traverse_handle_t *th, traverse_blk_cache_t *bc)
+traverse_zil(traverse_data_t *td, zil_header_t *zh)
 {
-	spa_t *spa = th->th_spa;
-	dsl_pool_t *dp = spa_get_dsl(spa);
-	objset_phys_t *osphys = bc->bc_data;
-	zil_header_t *zh = &osphys->os_zil_header;
 	uint64_t claim_txg = zh->zh_claim_txg;
 	zilog_t *zilog;
 
-	ASSERT(bc == &th->th_cache[ZB_MDN_CACHE][ZB_MAXLEVEL - 1]);
-	ASSERT(bc->bc_bookmark.zb_level == -1);
-
 	/*
 	 * We only want to visit blocks that have been claimed but not yet
-	 * replayed (or, in read-only mode, blocks that *would* be claimed).
+	 * replayed; plus, in read-only mode, blocks that are already stable.
 	 */
-	if (claim_txg == 0 && (spa_mode & FWRITE))
+	if (claim_txg == 0 && spa_writeable(td->td_spa))
 		return;
 
-	th->th_zil_cache.bc_bookmark = bc->bc_bookmark;
+	zilog = zil_alloc(spa_get_dsl(td->td_spa)->dp_meta_objset, zh);
 
-	zilog = zil_alloc(dp->dp_meta_objset, zh);
-
-	(void) zil_parse(zilog, traverse_zil_block, traverse_zil_record, th,
+	(void) zil_parse(zilog, traverse_zil_block, traverse_zil_record, td,
 	    claim_txg);
 
 	zil_free(zilog);
 }
 
-static int
-traverse_segment(traverse_handle_t *th, zseg_t *zseg, blkptr_t *mosbp)
-{
-	zbookmark_t *zb = &zseg->seg_start;
-	traverse_blk_cache_t *bc;
-	dnode_phys_t *dn, *dn_tmp;
-	int worklimit = 100;
-	int rc;
-
-	dprintf("<%llu, %llu, %d, %llx>\n",
-	    zb->zb_objset, zb->zb_object, zb->zb_level, zb->zb_blkid);
-
-	bc = &th->th_cache[ZB_MOS_CACHE][ZB_MAXLEVEL - 1];
-	dn = &((objset_phys_t *)bc->bc_data)->os_meta_dnode;
-
-	SET_BOOKMARK(&bc->bc_bookmark, 0, 0, -1, 0);
-
-	rc = traverse_read(th, bc, mosbp, dn);
-
-	if (rc)		/* If we get ERESTART, we've got nowhere left to go */
-		return (rc == ERESTART ? EINTR : rc);
-
-	ASSERT(dn->dn_nlevels < ZB_MAXLEVEL);
-
-	if (zb->zb_objset != 0) {
-		uint64_t objset = zb->zb_objset;
-		dsl_dataset_phys_t *dsp;
-
-		rc = get_dnode(th, 0, dn, &objset, &dn_tmp, 0,
-		    DMU_OT_DSL_DATASET, ZB_MOS_CACHE);
-
-		if (objset != zb->zb_objset)
-			rc = advance_objset(zseg, objset, th->th_advance);
-
-		if (rc != 0)
-			return (rc);
-
-		dsp = DN_BONUS(dn_tmp);
-
-		bc = &th->th_cache[ZB_MDN_CACHE][ZB_MAXLEVEL - 1];
-		dn = &((objset_phys_t *)bc->bc_data)->os_meta_dnode;
-
-		SET_BOOKMARK(&bc->bc_bookmark, objset, 0, -1, 0);
-
-		/*
-		 * If we're traversing an open snapshot, we know that it
-		 * can't be deleted (because it's open) and it can't change
-		 * (because it's a snapshot).  Therefore, once we've gotten
-		 * from the uberblock down to the snapshot's objset_phys_t,
-		 * we no longer need to synchronize with spa_sync(); we're
-		 * traversing a completely static block tree from here on.
-		 */
-		if (th->th_advance & ADVANCE_NOLOCK) {
-			ASSERT(th->th_locked);
-			rw_exit(spa_traverse_rwlock(th->th_spa));
-			th->th_locked = 0;
-		}
-
-		if (BP_IS_HOLE(&dsp->ds_bp))
-			rc = ERESTART;
-		else
-			rc = traverse_read(th, bc, &dsp->ds_bp, dn);
-
-		if (rc != 0) {
-			if (rc == ERESTART)
-				rc = advance_objset(zseg, zb->zb_objset + 1,
-				    th->th_advance);
-			return (rc);
-		}
-
-		if (th->th_advance & ADVANCE_PRUNE)
-			zseg->seg_mintxg =
-			    MAX(zseg->seg_mintxg, dsp->ds_prev_snap_txg);
-	}
-
-	if (zb->zb_level == -1) {
-		ASSERT(zb->zb_object == 0);
-		ASSERT(zb->zb_blkid == 0);
-		ASSERT(BP_GET_TYPE(&bc->bc_blkptr) == DMU_OT_OBJSET);
-
-		if (bc->bc_blkptr.blk_birth > zseg->seg_mintxg) {
-			rc = traverse_callback(th, zseg, bc);
-			if (rc) {
-				ASSERT(rc == EINTR);
-				return (rc);
-			}
-			if ((th->th_advance & ADVANCE_ZIL) &&
-			    zb->zb_objset != 0)
-				traverse_zil(th, bc);
-		}
-
-		return (advance_from_osphys(zseg, th->th_advance));
-	}
-
-	if (zb->zb_object != 0) {
-		uint64_t object = zb->zb_object;
-
-		rc = get_dnode(th, zb->zb_objset, dn, &object, &dn_tmp,
-		    zseg->seg_mintxg, -1, ZB_MDN_CACHE);
-
-		if (object != zb->zb_object)
-			rc = advance_object(zseg, object, th->th_advance);
-
-		if (rc != 0)
-			return (rc);
-
-		dn = dn_tmp;
-	}
-
-	if (zb->zb_level == ZB_MAXLEVEL)
-		zb->zb_level = dn->dn_nlevels - 1;
-
-	for (;;) {
-		rc = find_block(th, zseg, dn, ZB_DN_CACHE);
-
-		if (rc == EAGAIN || rc == EINTR || rc == ERANGE)
-			break;
-
-		if (rc == 0) {
-			bc = &th->th_cache[ZB_DN_CACHE][zb->zb_level];
-			ASSERT(bc->bc_dnode == dn);
-			ASSERT(bc->bc_blkptr.blk_birth <= mosbp->blk_birth);
-			rc = traverse_callback(th, zseg, bc);
-			if (rc) {
-				ASSERT(rc == EINTR);
-				return (rc);
-			}
-			if (BP_IS_HOLE(&bc->bc_blkptr)) {
-				ASSERT(th->th_advance & ADVANCE_HOLES);
-				rc = ENOTBLK;
-			}
-		}
-
-		rc = advance_block(zseg, dn, rc, th->th_advance);
-
-		if (rc == ERANGE)
-			break;
-
-		/*
-		 * Give spa_sync() a chance to run.
-		 */
-		if (th->th_locked && spa_traverse_wanted(th->th_spa)) {
-			th->th_syncs++;
-			return (EAGAIN);
-		}
-
-		if (--worklimit == 0)
-			return (EAGAIN);
-	}
-
-	if (rc == ERANGE)
-		rc = advance_object(zseg, zb->zb_object + 1, th->th_advance);
-
-	return (rc);
-}
+typedef enum resume_skip {
+	RESUME_SKIP_ALL,
+	RESUME_SKIP_NONE,
+	RESUME_SKIP_CHILDREN
+} resume_skip_t;
 
 /*
- * It is the caller's responsibility to ensure that the dsl_dataset_t
- * doesn't go away during traversal.
+ * Returns RESUME_SKIP_ALL if td indicates that we are resuming a traversal and
+ * the block indicated by zb does not need to be visited at all. Returns
+ * RESUME_SKIP_CHILDREN if we are resuming a post traversal and we reach the
+ * resume point. This indicates that this block should be visited but not its
+ * children (since they must have been visited in a previous traversal).
+ * Otherwise returns RESUME_SKIP_NONE.
  */
-int
-traverse_dsl_dataset(dsl_dataset_t *ds, uint64_t txg_start, int advance,
-    blkptr_cb_t func, void *arg)
+static resume_skip_t
+resume_skip_check(traverse_data_t *td, const dnode_phys_t *dnp,
+    const zbookmark_phys_t *zb)
 {
-	spa_t *spa = ds->ds_dir->dd_pool->dp_spa;
-	traverse_handle_t *th;
-	int err;
+	if (td->td_resume != NULL && !ZB_IS_ZERO(td->td_resume)) {
+		/*
+		 * If we already visited this bp & everything below,
+		 * don't bother doing it again.
+		 */
+		if (zbookmark_subtree_completed(dnp, zb, td->td_resume))
+			return (RESUME_SKIP_ALL);
 
-	th = traverse_init(spa, func, arg, advance, ZIO_FLAG_MUSTSUCCEED);
-
-	traverse_add_objset(th, txg_start, -1ULL, ds->ds_object);
-
-	while ((err = traverse_more(th)) == EAGAIN)
-		continue;
-
-	traverse_fini(th);
-	return (err);
-}
-
-int
-traverse_zvol(objset_t *os, int advance,  blkptr_cb_t func, void *arg)
-{
-	spa_t *spa = dmu_objset_spa(os);
-	traverse_handle_t *th;
-	int err;
-
-	th = traverse_init(spa, func, arg, advance, ZIO_FLAG_CANFAIL);
-
-	traverse_add_dnode(th, 0, -1ULL, dmu_objset_id(os), ZVOL_OBJ);
-
-	while ((err = traverse_more(th)) == EAGAIN)
-		continue;
-
-	traverse_fini(th);
-	return (err);
-}
-
-int
-traverse_more(traverse_handle_t *th)
-{
-	zseg_t *zseg = list_head(&th->th_seglist);
-	uint64_t save_txg;	/* XXX won't be necessary with real itinerary */
-	krwlock_t *rw = spa_traverse_rwlock(th->th_spa);
-	blkptr_t *mosbp = spa_get_rootblkptr(th->th_spa);
-	int rc;
-
-	if (zseg == NULL)
-		return (0);
-
-	th->th_restarts++;
-
-	save_txg = zseg->seg_mintxg;
-
-	rw_enter(rw, RW_READER);
-	th->th_locked = 1;
-
-	rc = traverse_segment(th, zseg, mosbp);
-	ASSERT(rc == ERANGE || rc == EAGAIN || rc == EINTR);
-
-	if (th->th_locked)
-		rw_exit(rw);
-	th->th_locked = 0;
-
-	zseg->seg_mintxg = save_txg;
-
-	if (rc == ERANGE) {
-		list_remove(&th->th_seglist, zseg);
-		kmem_free(zseg, sizeof (*zseg));
-		return (EAGAIN);
+		/*
+		 * If we found the block we're trying to resume from, zero
+		 * the bookmark out to indicate that we have resumed.
+		 */
+		if (bcmp(zb, td->td_resume, sizeof (*zb)) == 0) {
+			bzero(td->td_resume, sizeof (*zb));
+			if (td->td_flags & TRAVERSE_POST)
+				return (RESUME_SKIP_CHILDREN);
+		}
 	}
-
-	return (rc);
+	return (RESUME_SKIP_NONE);
 }
 
-/*
- * Note: (mintxg, maxtxg) is an open interval; mintxg and maxtxg themselves
- * are not included.  The blocks covered by this segment will all have
- * mintxg < birth < maxtxg.
- */
 static void
-traverse_add_segment(traverse_handle_t *th, uint64_t mintxg, uint64_t maxtxg,
-    uint64_t sobjset, uint64_t sobject, int slevel, uint64_t sblkid,
-    uint64_t eobjset, uint64_t eobject, int elevel, uint64_t eblkid)
+traverse_prefetch_metadata(traverse_data_t *td,
+    const blkptr_t *bp, const zbookmark_phys_t *zb)
 {
-	zseg_t *zseg;
+	arc_flags_t flags = ARC_FLAG_NOWAIT | ARC_FLAG_PREFETCH;
 
-	zseg = kmem_alloc(sizeof (zseg_t), KM_SLEEP);
+	if (!(td->td_flags & TRAVERSE_PREFETCH_METADATA))
+		return;
+	/*
+	 * If we are in the process of resuming, don't prefetch, because
+	 * some children will not be needed (and in fact may have already
+	 * been freed).
+	 */
+	if (td->td_resume != NULL && !ZB_IS_ZERO(td->td_resume))
+		return;
+	if (BP_IS_HOLE(bp) || bp->blk_birth <= td->td_min_txg)
+		return;
+	if (BP_GET_LEVEL(bp) == 0 && BP_GET_TYPE(bp) != DMU_OT_DNODE)
+		return;
 
-	zseg->seg_mintxg = mintxg;
-	zseg->seg_maxtxg = maxtxg;
-
-	zseg->seg_start.zb_objset = sobjset;
-	zseg->seg_start.zb_object = sobject;
-	zseg->seg_start.zb_level = slevel;
-	zseg->seg_start.zb_blkid = sblkid;
-
-	zseg->seg_end.zb_objset = eobjset;
-	zseg->seg_end.zb_object = eobject;
-	zseg->seg_end.zb_level = elevel;
-	zseg->seg_end.zb_blkid = eblkid;
-
-	list_insert_tail(&th->th_seglist, zseg);
+	(void) arc_read(NULL, td->td_spa, bp, NULL, NULL,
+	    ZIO_PRIORITY_ASYNC_READ, ZIO_FLAG_CANFAIL, &flags, zb);
 }
 
-void
-traverse_add_dnode(traverse_handle_t *th, uint64_t mintxg, uint64_t maxtxg,
+static boolean_t
+prefetch_needed(prefetch_data_t *pfd, const blkptr_t *bp)
+{
+	ASSERT(pfd->pd_flags & TRAVERSE_PREFETCH_DATA);
+	if (BP_IS_HOLE(bp) || BP_IS_EMBEDDED(bp) ||
+	    BP_GET_TYPE(bp) == DMU_OT_INTENT_LOG)
+		return (B_FALSE);
+	return (B_TRUE);
+}
+
+static int
+traverse_visitbp(traverse_data_t *td, const dnode_phys_t *dnp,
+    const blkptr_t *bp, const zbookmark_phys_t *zb)
+{
+	zbookmark_phys_t czb;
+	int err = 0;
+	arc_buf_t *buf = NULL;
+	prefetch_data_t *pd = td->td_pfd;
+	boolean_t hard = td->td_flags & TRAVERSE_HARD;
+
+	switch (resume_skip_check(td, dnp, zb)) {
+	case RESUME_SKIP_ALL:
+		return (0);
+	case RESUME_SKIP_CHILDREN:
+		goto post;
+	case RESUME_SKIP_NONE:
+		break;
+	default:
+		ASSERT(0);
+	}
+
+	if (bp->blk_birth == 0) {
+		/*
+		 * Since this block has a birth time of 0 it must be one of
+		 * two things: a hole created before the
+		 * SPA_FEATURE_HOLE_BIRTH feature was enabled, or a hole
+		 * which has always been a hole in an object.
+		 *
+		 * If a file is written sparsely, then the unwritten parts of
+		 * the file were "always holes" -- that is, they have been
+		 * holes since this object was allocated.  However, we (and
+		 * our callers) can not necessarily tell when an object was
+		 * allocated.  Therefore, if it's possible that this object
+		 * was freed and then its object number reused, we need to
+		 * visit all the holes with birth==0.
+		 *
+		 * If it isn't possible that the object number was reused,
+		 * then if SPA_FEATURE_HOLE_BIRTH was enabled before we wrote
+		 * all the blocks we will visit as part of this traversal,
+		 * then this hole must have always existed, so we can skip
+		 * it.  We visit blocks born after (exclusive) td_min_txg.
+		 *
+		 * Note that the meta-dnode cannot be reallocated.
+		 */
+		if (!send_holes_without_birth_time &&
+		    (!td->td_realloc_possible ||
+		    zb->zb_object == DMU_META_DNODE_OBJECT) &&
+		    td->td_hole_birth_enabled_txg <= td->td_min_txg)
+			return (0);
+	} else if (bp->blk_birth <= td->td_min_txg) {
+		return (0);
+	}
+
+	if (pd != NULL && !pd->pd_exited && prefetch_needed(pd, bp)) {
+		uint64_t size = BP_GET_LSIZE(bp);
+		mutex_enter(&pd->pd_mtx);
+		ASSERT(pd->pd_bytes_fetched >= 0);
+		while (pd->pd_bytes_fetched < size && !pd->pd_exited)
+			cv_wait(&pd->pd_cv, &pd->pd_mtx);
+		pd->pd_bytes_fetched -= size;
+		cv_broadcast(&pd->pd_cv);
+		mutex_exit(&pd->pd_mtx);
+	}
+
+	if (BP_IS_HOLE(bp)) {
+		err = td->td_func(td->td_spa, NULL, bp, zb, dnp, td->td_arg);
+		if (err != 0)
+			goto post;
+		return (0);
+	}
+
+	if (td->td_flags & TRAVERSE_PRE) {
+		err = td->td_func(td->td_spa, NULL, bp, zb, dnp,
+		    td->td_arg);
+		if (err == TRAVERSE_VISIT_NO_CHILDREN)
+			return (0);
+		if (err != 0)
+			goto post;
+	}
+
+	if (BP_GET_LEVEL(bp) > 0) {
+		arc_flags_t flags = ARC_FLAG_WAIT;
+		int i;
+		blkptr_t *cbp;
+		int epb = BP_GET_LSIZE(bp) >> SPA_BLKPTRSHIFT;
+
+		err = arc_read(NULL, td->td_spa, bp, arc_getbuf_func, &buf,
+		    ZIO_PRIORITY_ASYNC_READ, ZIO_FLAG_CANFAIL, &flags, zb);
+		if (err != 0)
+			goto post;
+		cbp = buf->b_data;
+
+		for (i = 0; i < epb; i++) {
+			SET_BOOKMARK(&czb, zb->zb_objset, zb->zb_object,
+			    zb->zb_level - 1,
+			    zb->zb_blkid * epb + i);
+			traverse_prefetch_metadata(td, &cbp[i], &czb);
+		}
+
+		/* recursively visitbp() blocks below this */
+		for (i = 0; i < epb; i++) {
+			SET_BOOKMARK(&czb, zb->zb_objset, zb->zb_object,
+			    zb->zb_level - 1,
+			    zb->zb_blkid * epb + i);
+			err = traverse_visitbp(td, dnp, &cbp[i], &czb);
+			if (err != 0)
+				break;
+		}
+	} else if (BP_GET_TYPE(bp) == DMU_OT_DNODE) {
+		arc_flags_t flags = ARC_FLAG_WAIT;
+		int i;
+		int epb = BP_GET_LSIZE(bp) >> DNODE_SHIFT;
+
+		err = arc_read(NULL, td->td_spa, bp, arc_getbuf_func, &buf,
+		    ZIO_PRIORITY_ASYNC_READ, ZIO_FLAG_CANFAIL, &flags, zb);
+		if (err != 0)
+			goto post;
+		dnode_phys_t *child_dnp = buf->b_data;
+
+		for (i = 0; i < epb; i++) {
+			prefetch_dnode_metadata(td, &child_dnp[i],
+			    zb->zb_objset, zb->zb_blkid * epb + i);
+		}
+
+		/* recursively visitbp() blocks below this */
+		for (i = 0; i < epb; i++) {
+			err = traverse_dnode(td, &child_dnp[i],
+			    zb->zb_objset, zb->zb_blkid * epb + i);
+			if (err != 0)
+				break;
+		}
+	} else if (BP_GET_TYPE(bp) == DMU_OT_OBJSET) {
+		arc_flags_t flags = ARC_FLAG_WAIT;
+
+		err = arc_read(NULL, td->td_spa, bp, arc_getbuf_func, &buf,
+		    ZIO_PRIORITY_ASYNC_READ, ZIO_FLAG_CANFAIL, &flags, zb);
+		if (err != 0)
+			goto post;
+
+		objset_phys_t *osp = buf->b_data;
+		prefetch_dnode_metadata(td, &osp->os_meta_dnode, zb->zb_objset,
+		    DMU_META_DNODE_OBJECT);
+		/*
+		 * See the block comment above for the goal of this variable.
+		 * If the maxblkid of the meta-dnode is 0, then we know that
+		 * we've never had more than DNODES_PER_BLOCK objects in the
+		 * dataset, which means we can't have reused any object ids.
+		 */
+		if (osp->os_meta_dnode.dn_maxblkid == 0)
+			td->td_realloc_possible = B_FALSE;
+
+		if (arc_buf_size(buf) >= sizeof (objset_phys_t)) {
+			prefetch_dnode_metadata(td, &osp->os_groupused_dnode,
+			    zb->zb_objset, DMU_GROUPUSED_OBJECT);
+			prefetch_dnode_metadata(td, &osp->os_userused_dnode,
+			    zb->zb_objset, DMU_USERUSED_OBJECT);
+		}
+
+		err = traverse_dnode(td, &osp->os_meta_dnode, zb->zb_objset,
+		    DMU_META_DNODE_OBJECT);
+		if (err == 0 && arc_buf_size(buf) >= sizeof (objset_phys_t)) {
+			err = traverse_dnode(td, &osp->os_groupused_dnode,
+			    zb->zb_objset, DMU_GROUPUSED_OBJECT);
+		}
+		if (err == 0 && arc_buf_size(buf) >= sizeof (objset_phys_t)) {
+			err = traverse_dnode(td, &osp->os_userused_dnode,
+			    zb->zb_objset, DMU_USERUSED_OBJECT);
+		}
+	}
+
+	if (buf)
+		arc_buf_destroy(buf, &buf);
+
+post:
+	if (err == 0 && (td->td_flags & TRAVERSE_POST))
+		err = td->td_func(td->td_spa, NULL, bp, zb, dnp, td->td_arg);
+
+	if (hard && (err == EIO || err == ECKSUM)) {
+		/*
+		 * Ignore this disk error as requested by the HARD flag,
+		 * and continue traversal.
+		 */
+		err = 0;
+	}
+
+	/*
+	 * If we are stopping here, set td_resume.
+	 */
+	if (td->td_resume != NULL && err != 0 && !td->td_paused) {
+		td->td_resume->zb_objset = zb->zb_objset;
+		td->td_resume->zb_object = zb->zb_object;
+		td->td_resume->zb_level = 0;
+		/*
+		 * If we have stopped on an indirect block (e.g. due to
+		 * i/o error), we have not visited anything below it.
+		 * Set the bookmark to the first level-0 block that we need
+		 * to visit.  This way, the resuming code does not need to
+		 * deal with resuming from indirect blocks.
+		 *
+		 * Note, if zb_level <= 0, dnp may be NULL, so we don't want
+		 * to dereference it.
+		 */
+		td->td_resume->zb_blkid = zb->zb_blkid;
+		if (zb->zb_level > 0) {
+			td->td_resume->zb_blkid <<= zb->zb_level *
+			    (dnp->dn_indblkshift - SPA_BLKPTRSHIFT);
+		}
+		td->td_paused = B_TRUE;
+	}
+
+	return (err);
+}
+
+static void
+prefetch_dnode_metadata(traverse_data_t *td, const dnode_phys_t *dnp,
     uint64_t objset, uint64_t object)
 {
-	if (th->th_advance & ADVANCE_PRE)
-		traverse_add_segment(th, mintxg, maxtxg,
-		    objset, object, ZB_MAXLEVEL, 0,
-		    objset, object, 0, ZB_MAXBLKID);
-	else
-		traverse_add_segment(th, mintxg, maxtxg,
-		    objset, object, 0, 0,
-		    objset, object, 0, ZB_MAXBLKID);
+	int j;
+	zbookmark_phys_t czb;
+
+	for (j = 0; j < dnp->dn_nblkptr; j++) {
+		SET_BOOKMARK(&czb, objset, object, dnp->dn_nlevels - 1, j);
+		traverse_prefetch_metadata(td, &dnp->dn_blkptr[j], &czb);
+	}
+
+	if (dnp->dn_flags & DNODE_FLAG_SPILL_BLKPTR) {
+		SET_BOOKMARK(&czb, objset, object, 0, DMU_SPILL_BLKID);
+		traverse_prefetch_metadata(td, &dnp->dn_spill, &czb);
+	}
 }
 
-void
-traverse_add_objset(traverse_handle_t *th, uint64_t mintxg, uint64_t maxtxg,
-    uint64_t objset)
+static int
+traverse_dnode(traverse_data_t *td, const dnode_phys_t *dnp,
+    uint64_t objset, uint64_t object)
 {
-	if (th->th_advance & ADVANCE_PRE)
-		traverse_add_segment(th, mintxg, maxtxg,
-		    objset, 0, -1, 0,
-		    objset, ZB_MAXOBJECT, 0, ZB_MAXBLKID);
-	else
-		traverse_add_segment(th, mintxg, maxtxg,
-		    objset, 1, 0, 0,
-		    objset, 0, -1, 0);
+	int j, err = 0;
+	zbookmark_phys_t czb;
+
+	if (object != DMU_META_DNODE_OBJECT && td->td_resume != NULL &&
+	    object < td->td_resume->zb_object)
+		return (0);
+
+	if (td->td_flags & TRAVERSE_PRE) {
+		SET_BOOKMARK(&czb, objset, object, ZB_DNODE_LEVEL,
+		    ZB_DNODE_BLKID);
+		err = td->td_func(td->td_spa, NULL, NULL, &czb, dnp,
+		    td->td_arg);
+		if (err == TRAVERSE_VISIT_NO_CHILDREN)
+			return (0);
+		if (err != 0)
+			return (err);
+	}
+
+	for (j = 0; j < dnp->dn_nblkptr; j++) {
+		SET_BOOKMARK(&czb, objset, object, dnp->dn_nlevels - 1, j);
+		err = traverse_visitbp(td, dnp, &dnp->dn_blkptr[j], &czb);
+		if (err != 0)
+			break;
+	}
+
+	if (err == 0 && (dnp->dn_flags & DNODE_FLAG_SPILL_BLKPTR)) {
+		SET_BOOKMARK(&czb, objset, object, 0, DMU_SPILL_BLKID);
+		err = traverse_visitbp(td, dnp, &dnp->dn_spill, &czb);
+	}
+
+	if (err == 0 && (td->td_flags & TRAVERSE_POST)) {
+		SET_BOOKMARK(&czb, objset, object, ZB_DNODE_LEVEL,
+		    ZB_DNODE_BLKID);
+		err = td->td_func(td->td_spa, NULL, NULL, &czb, dnp,
+		    td->td_arg);
+		if (err == TRAVERSE_VISIT_NO_CHILDREN)
+			return (0);
+		if (err != 0)
+			return (err);
+	}
+	return (err);
 }
 
-void
-traverse_add_pool(traverse_handle_t *th, uint64_t mintxg, uint64_t maxtxg)
+/* ARGSUSED */
+static int
+traverse_prefetcher(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
+    const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
-	if (th->th_advance & ADVANCE_PRE)
-		traverse_add_segment(th, mintxg, maxtxg,
-		    0, 0, -1, 0,
-		    ZB_MAXOBJSET, ZB_MAXOBJECT, 0, ZB_MAXBLKID);
-	else
-		traverse_add_segment(th, mintxg, maxtxg,
-		    1, 1, 0, 0,
-		    0, 0, -1, 0);
+	prefetch_data_t *pfd = arg;
+	arc_flags_t aflags = ARC_FLAG_NOWAIT | ARC_FLAG_PREFETCH;
+
+	ASSERT(pfd->pd_bytes_fetched >= 0);
+	if (bp == NULL)
+		return (0);
+	if (pfd->pd_cancel)
+		return (SET_ERROR(EINTR));
+
+	if (!prefetch_needed(pfd, bp))
+		return (0);
+
+	mutex_enter(&pfd->pd_mtx);
+	while (!pfd->pd_cancel && pfd->pd_bytes_fetched >= zfs_pd_bytes_max)
+		cv_wait(&pfd->pd_cv, &pfd->pd_mtx);
+	pfd->pd_bytes_fetched += BP_GET_LSIZE(bp);
+	cv_broadcast(&pfd->pd_cv);
+	mutex_exit(&pfd->pd_mtx);
+
+	(void) arc_read(NULL, spa, bp, NULL, NULL, ZIO_PRIORITY_ASYNC_READ,
+	    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE, &aflags, zb);
+
+	return (0);
 }
 
-traverse_handle_t *
-traverse_init(spa_t *spa, blkptr_cb_t func, void *arg, int advance,
-    int zio_flags)
+static void
+traverse_prefetch_thread(void *arg)
 {
-	traverse_handle_t *th;
-	int d, l;
+	traverse_data_t *td_main = arg;
+	traverse_data_t td = *td_main;
+	zbookmark_phys_t czb;
 
-	th = kmem_zalloc(sizeof (*th), KM_SLEEP);
+	td.td_func = traverse_prefetcher;
+	td.td_arg = td_main->td_pfd;
+	td.td_pfd = NULL;
+	td.td_resume = &td_main->td_pfd->pd_resume;
 
-	th->th_spa = spa;
-	th->th_func = func;
-	th->th_arg = arg;
-	th->th_advance = advance;
-	th->th_lastcb.zb_level = ZB_NO_LEVEL;
-	th->th_noread.zb_level = ZB_NO_LEVEL;
-	th->th_zio_flags = zio_flags;
+	SET_BOOKMARK(&czb, td.td_objset,
+	    ZB_ROOT_OBJECT, ZB_ROOT_LEVEL, ZB_ROOT_BLKID);
+	(void) traverse_visitbp(&td, NULL, td.td_rootbp, &czb);
 
-	list_create(&th->th_seglist, sizeof (zseg_t),
-	    offsetof(zseg_t, seg_node));
+	mutex_enter(&td_main->td_pfd->pd_mtx);
+	td_main->td_pfd->pd_exited = B_TRUE;
+	cv_broadcast(&td_main->td_pfd->pd_cv);
+	mutex_exit(&td_main->td_pfd->pd_mtx);
+}
 
-	for (d = 0; d < ZB_DEPTH; d++) {
-		for (l = 0; l < ZB_MAXLEVEL; l++) {
-			if ((advance & ADVANCE_DATA) ||
-			    l != 0 || d != ZB_DN_CACHE)
-				th->th_cache[d][l].bc_data =
-				    zio_buf_alloc(SPA_MAXBLOCKSIZE);
+/*
+ * NB: dataset must not be changing on-disk (eg, is a snapshot or we are
+ * in syncing context).
+ */
+static int
+traverse_impl(spa_t *spa, dsl_dataset_t *ds, uint64_t objset, blkptr_t *rootbp,
+    uint64_t txg_start, zbookmark_phys_t *resume, int flags,
+    blkptr_cb_t func, void *arg)
+{
+	traverse_data_t td;
+	prefetch_data_t pd = { 0 };
+	zbookmark_phys_t czb;
+	int err;
+
+	ASSERT(ds == NULL || objset == ds->ds_object);
+	ASSERT(!(flags & TRAVERSE_PRE) || !(flags & TRAVERSE_POST));
+
+	td.td_spa = spa;
+	td.td_objset = objset;
+	td.td_rootbp = rootbp;
+	td.td_min_txg = txg_start;
+	td.td_resume = resume;
+	td.td_func = func;
+	td.td_arg = arg;
+	td.td_pfd = &pd;
+	td.td_flags = flags;
+	td.td_paused = B_FALSE;
+	td.td_realloc_possible = (txg_start == 0 ? B_FALSE : B_TRUE);
+
+	if (spa_feature_is_active(spa, SPA_FEATURE_HOLE_BIRTH)) {
+		VERIFY(spa_feature_enabled_txg(spa,
+		    SPA_FEATURE_HOLE_BIRTH, &td.td_hole_birth_enabled_txg));
+	} else {
+		td.td_hole_birth_enabled_txg = UINT64_MAX;
+	}
+
+	pd.pd_flags = flags;
+	if (resume != NULL)
+		pd.pd_resume = *resume;
+	mutex_init(&pd.pd_mtx, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&pd.pd_cv, NULL, CV_DEFAULT, NULL);
+
+	/* See comment on ZIL traversal in dsl_scan_visitds. */
+	if (ds != NULL && !ds->ds_is_snapshot && !BP_IS_HOLE(rootbp)) {
+		arc_flags_t flags = ARC_FLAG_WAIT;
+		objset_phys_t *osp;
+		arc_buf_t *buf;
+
+		err = arc_read(NULL, td.td_spa, rootbp,
+		    arc_getbuf_func, &buf,
+		    ZIO_PRIORITY_ASYNC_READ, ZIO_FLAG_CANFAIL, &flags, NULL);
+		if (err != 0)
+			return (err);
+
+		osp = buf->b_data;
+		traverse_zil(&td, &osp->os_zil_header);
+		arc_buf_destroy(buf, &buf);
+	}
+
+	if (!(flags & TRAVERSE_PREFETCH_DATA) ||
+	    0 == taskq_dispatch(system_taskq, traverse_prefetch_thread,
+	    &td, TQ_NOQUEUE))
+		pd.pd_exited = B_TRUE;
+
+	SET_BOOKMARK(&czb, td.td_objset,
+	    ZB_ROOT_OBJECT, ZB_ROOT_LEVEL, ZB_ROOT_BLKID);
+	err = traverse_visitbp(&td, NULL, rootbp, &czb);
+
+	mutex_enter(&pd.pd_mtx);
+	pd.pd_cancel = B_TRUE;
+	cv_broadcast(&pd.pd_cv);
+	while (!pd.pd_exited)
+		cv_wait(&pd.pd_cv, &pd.pd_mtx);
+	mutex_exit(&pd.pd_mtx);
+
+	mutex_destroy(&pd.pd_mtx);
+	cv_destroy(&pd.pd_cv);
+
+	return (err);
+}
+
+/*
+ * NB: dataset must not be changing on-disk (eg, is a snapshot or we are
+ * in syncing context).
+ */
+int
+traverse_dataset_resume(dsl_dataset_t *ds, uint64_t txg_start,
+    zbookmark_phys_t *resume,
+    int flags, blkptr_cb_t func, void *arg)
+{
+	return (traverse_impl(ds->ds_dir->dd_pool->dp_spa, ds, ds->ds_object,
+	    &dsl_dataset_phys(ds)->ds_bp, txg_start, resume, flags, func, arg));
+}
+
+int
+traverse_dataset(dsl_dataset_t *ds, uint64_t txg_start,
+    int flags, blkptr_cb_t func, void *arg)
+{
+	return (traverse_dataset_resume(ds, txg_start, NULL, flags, func, arg));
+}
+
+int
+traverse_dataset_destroyed(spa_t *spa, blkptr_t *blkptr,
+    uint64_t txg_start, zbookmark_phys_t *resume, int flags,
+    blkptr_cb_t func, void *arg)
+{
+	return (traverse_impl(spa, NULL, ZB_DESTROYED_OBJSET,
+	    blkptr, txg_start, resume, flags, func, arg));
+}
+
+/*
+ * NB: pool must not be changing on-disk (eg, from zdb or sync context).
+ */
+int
+traverse_pool(spa_t *spa, uint64_t txg_start, int flags,
+    blkptr_cb_t func, void *arg)
+{
+	int err;
+	dsl_pool_t *dp = spa_get_dsl(spa);
+	objset_t *mos = dp->dp_meta_objset;
+	boolean_t hard = (flags & TRAVERSE_HARD);
+
+	/* visit the MOS */
+	err = traverse_impl(spa, NULL, 0, spa_get_rootblkptr(spa),
+	    txg_start, NULL, flags, func, arg);
+	if (err != 0)
+		return (err);
+
+	/* visit each dataset */
+	for (uint64_t obj = 1; err == 0;
+	    err = dmu_object_next(mos, &obj, B_FALSE, txg_start)) {
+		dmu_object_info_t doi;
+
+		err = dmu_object_info(mos, obj, &doi);
+		if (err != 0) {
+			if (hard)
+				continue;
+			break;
+		}
+
+		if (doi.doi_bonus_type == DMU_OT_DSL_DATASET) {
+			dsl_dataset_t *ds;
+			uint64_t txg = txg_start;
+
+			dsl_pool_config_enter(dp, FTAG);
+			err = dsl_dataset_hold_obj(dp, obj, FTAG, &ds);
+			dsl_pool_config_exit(dp, FTAG);
+			if (err != 0) {
+				if (hard)
+					continue;
+				break;
+			}
+			if (dsl_dataset_phys(ds)->ds_prev_snap_txg > txg)
+				txg = dsl_dataset_phys(ds)->ds_prev_snap_txg;
+			err = traverse_dataset(ds, txg, flags, func, arg);
+			dsl_dataset_rele(ds, FTAG);
+			if (err != 0)
+				break;
 		}
 	}
-
-	return (th);
-}
-
-void
-traverse_fini(traverse_handle_t *th)
-{
-	int d, l;
-	zseg_t *zseg;
-
-	for (d = 0; d < ZB_DEPTH; d++)
-		for (l = 0; l < ZB_MAXLEVEL; l++)
-			if (th->th_cache[d][l].bc_data != NULL)
-				zio_buf_free(th->th_cache[d][l].bc_data,
-				    SPA_MAXBLOCKSIZE);
-
-	while ((zseg = list_head(&th->th_seglist)) != NULL) {
-		list_remove(&th->th_seglist, zseg);
-		kmem_free(zseg, sizeof (*zseg));
-	}
-
-	list_destroy(&th->th_seglist);
-
-	dprintf("%llu hit, %llu ARC, %llu IO, %llu cb, %llu sync, %llu again\n",
-	    th->th_hits, th->th_arc_hits, th->th_reads, th->th_callbacks,
-	    th->th_syncs, th->th_restarts);
-
-	kmem_free(th, sizeof (*th));
+	if (err == ESRCH)
+		err = 0;
+	return (err);
 }

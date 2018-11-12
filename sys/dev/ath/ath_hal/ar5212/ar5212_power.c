@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212_power.c,v 1.4 2008/11/10 04:08:03 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -38,8 +38,8 @@ static HAL_BOOL
 ar5212SetPowerModeAwake(struct ath_hal *ah, int setChip)
 {
 #define	AR_SCR_MASK \
-    (AR_SCR_SLDUR|AR_SCR_SLE|AR_SCR_SLE|AR_SCR_SLDTP|AR_SCR_SLDWP|\
-     AR_SCR_SLEPOL|AR_SCR_MIBIE)
+    (AR_SCR_SLDUR|AR_SCR_SLE|AR_SCR_SLDTP|AR_SCR_SLDWP|\
+     AR_SCR_SLEPOL|AR_SCR_MIBIE|AR_SCR_UNKNOWN)
 #define	POWER_UP_TIME	2000
 	uint32_t scr, val;
 	int i;
@@ -51,7 +51,7 @@ ar5212SetPowerModeAwake(struct ath_hal *ah, int setChip)
 		 * which when blindly written back with OS_REG_RMW_FIELD 
 		 * enables the MIB interrupt for the sleep performance
 		 * counters.  This can result in an interrupt storm when
-		 * ANI is in operation as noone knows to turn off the MIB
+		 * ANI is in operation as no one knows to turn off the MIB
 		 * interrupt cause.
 		 */
 		scr = OS_REG_READ(ah, AR_SCR);
@@ -119,7 +119,6 @@ ar5212SetPowerModeNetworkSleep(struct ath_hal *ah, int setChip)
 HAL_BOOL
 ar5212SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode, int setChip)
 {
-	struct ath_hal_5212 *ahp = AH5212(ah);
 #ifdef AH_DEBUG
 	static const char* modes[] = {
 		"AWAKE",
@@ -131,24 +130,29 @@ ar5212SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode, int setChip)
 	int status = AH_TRUE;
 
 	HALDEBUG(ah, HAL_DEBUG_POWER, "%s: %s -> %s (%s)\n", __func__,
-		modes[ahp->ah_powerMode], modes[mode],
+		modes[ah->ah_powerMode], modes[mode],
 		setChip ? "set chip " : "");
 	switch (mode) {
 	case HAL_PM_AWAKE:
+		if (setChip)
+			ah->ah_powerMode = mode;
 		status = ar5212SetPowerModeAwake(ah, setChip);
 		break;
 	case HAL_PM_FULL_SLEEP:
 		ar5212SetPowerModeSleep(ah, setChip);
+		if (setChip)
+			ah->ah_powerMode = mode;
 		break;
 	case HAL_PM_NETWORK_SLEEP:
 		ar5212SetPowerModeNetworkSleep(ah, setChip);
+		if (setChip)
+			ah->ah_powerMode = mode;
 		break;
 	default:
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: unknown power mode %u\n",
 		    __func__, mode);
 		return AH_FALSE;
 	}
-	ahp->ah_powerMode = mode;
 	return status;
 }
 

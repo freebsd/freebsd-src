@@ -63,8 +63,8 @@ nexttoward(double x, long double y)
 	if(ix<0x00100000) {		/* underflow */
 	    t = x*x;
 	    if(t!=x) {		/* raise underflow flag */
-	        INSERT_WORDS(y,hx,lx);
-		return y;
+	        INSERT_WORDS(x,hx,lx);
+		return x;
 	    }
 	}
 	INSERT_WORDS(x,hx,lx);

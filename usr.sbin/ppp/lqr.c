@@ -108,7 +108,8 @@ lqr_RecvEcho(struct fsm *fp, struct mbuf *bp)
        *      die as a result.
        */
     }
-    if (lqr.signature == SIGNATURE) {
+    if (lqr.signature == SIGNATURE
+	|| lqr.signature == lcp->want_magic) {			/* some implementations return the wrong magic */
       /* careful not to update lqm.echo.seq_recv with older values */
       if ((hdlc->lqm.echo.seq_recv > (u_int32_t)0 - 5 && lqr.sequence < 5) ||
           (hdlc->lqm.echo.seq_recv <= (u_int32_t)0 - 5 &&
@@ -417,7 +418,7 @@ lqr_LayerPush(struct bundle *b __unused, struct link *l, struct mbuf *bp,
               int pri __unused, u_short *proto)
 {
   struct physical *p = link2physical(l);
-  int len, layer, extra_async_bytes;
+  int len, layer;
 
   if (!p) {
     /* Oops - can't happen :-] */
@@ -445,7 +446,6 @@ lqr_LayerPush(struct bundle *b __unused, struct link *l, struct mbuf *bp,
    * acf layers (to avoid alignment issues), so deal with this too.
    */
 
-  extra_async_bytes = 0;
   p->hdlc.lqm.ifOutUniPackets++;
   p->hdlc.lqm.ifOutOctets += len + 1;		/* plus 1 flag octet! */
   for (layer = 0; layer < l->nlayers; layer++)

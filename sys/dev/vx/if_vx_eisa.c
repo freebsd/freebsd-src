@@ -33,7 +33,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -44,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_arp.h>
+#include <net/if_var.h>
 
 #include <dev/eisa/eisaconf.h>
 
@@ -147,7 +149,7 @@ vx_eisa_attach(device_t dev)
 	}
 	sc->vx_irq = irq;
 
-	/* Now the registers are availible through the lower ioport */
+	/* Now the registers are available through the lower ioport */
 
 	if (vx_attach(dev) == 0)
 		goto bad;
@@ -177,7 +179,7 @@ static device_method_t vx_eisa_methods[] = {
 	DEVMETHOD(device_probe, vx_eisa_probe),
 	DEVMETHOD(device_attach, vx_eisa_attach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t vx_eisa_driver = {

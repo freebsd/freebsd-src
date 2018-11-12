@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -48,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -64,27 +66,22 @@ SYSCTL_NODE(_hw, OID_AUTO, malo, CTLFLAG_RD, 0,
     "Marvell 88w8335 driver parameters");
 
 static	int malo_txcoalesce = 8;	/* # tx pkts to q before poking f/w*/
-SYSCTL_INT(_hw_malo, OID_AUTO, txcoalesce, CTLFLAG_RW, &malo_txcoalesce,
+SYSCTL_INT(_hw_malo, OID_AUTO, txcoalesce, CTLFLAG_RWTUN, &malo_txcoalesce,
 	    0, "tx buffers to send at once");
-TUNABLE_INT("hw.malo.txcoalesce", &malo_txcoalesce);
 static	int malo_rxbuf = MALO_RXBUF;		/* # rx buffers to allocate */
-SYSCTL_INT(_hw_malo, OID_AUTO, rxbuf, CTLFLAG_RW, &malo_rxbuf,
+SYSCTL_INT(_hw_malo, OID_AUTO, rxbuf, CTLFLAG_RWTUN, &malo_rxbuf,
 	    0, "rx buffers allocated");
-TUNABLE_INT("hw.malo.rxbuf", &malo_rxbuf);
 static	int malo_rxquota = MALO_RXBUF;		/* # max buffers to process */
-SYSCTL_INT(_hw_malo, OID_AUTO, rxquota, CTLFLAG_RW, &malo_rxquota,
+SYSCTL_INT(_hw_malo, OID_AUTO, rxquota, CTLFLAG_RWTUN, &malo_rxquota,
 	    0, "max rx buffers to process per interrupt");
-TUNABLE_INT("hw.malo.rxquota", &malo_rxquota);
 static	int malo_txbuf = MALO_TXBUF;		/* # tx buffers to allocate */
-SYSCTL_INT(_hw_malo, OID_AUTO, txbuf, CTLFLAG_RW, &malo_txbuf,
+SYSCTL_INT(_hw_malo, OID_AUTO, txbuf, CTLFLAG_RWTUN, &malo_txbuf,
 	    0, "tx buffers allocated");
-TUNABLE_INT("hw.malo.txbuf", &malo_txbuf);
 
 #ifdef MALO_DEBUG
 static	int malo_debug = 0;
-SYSCTL_INT(_hw_malo, OID_AUTO, debug, CTLFLAG_RW, &malo_debug,
+SYSCTL_INT(_hw_malo, OID_AUTO, debug, CTLFLAG_RWTUN, &malo_debug,
 	    0, "control debugging printfs");
-TUNABLE_INT("hw.malo.debug", &malo_debug);
 enum {
 	MALO_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	MALO_DEBUG_XMIT_DESC	= 0x00000002,	/* xmit descriptors */
@@ -106,13 +103,9 @@ enum {
 	 (IEEE80211_FC0_TYPE_MGT|IEEE80211_FC0_SUBTYPE_BEACON))
 #define	IFF_DUMPPKTS_RECV(sc, wh)					\
 	(((sc->malo_debug & MALO_DEBUG_RECV) &&				\
-	  ((sc->malo_debug & MALO_DEBUG_RECV_ALL) || !IS_BEACON(wh))) || \
-	 (sc->malo_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) ==		\
-	  (IFF_DEBUG|IFF_LINK2))
+	  ((sc->malo_debug & MALO_DEBUG_RECV_ALL) || !IS_BEACON(wh))))
 #define	IFF_DUMPPKTS_XMIT(sc)						\
-	((sc->malo_debug & MALO_DEBUG_XMIT) ||				\
-	 (sc->malo_ifp->if_flags & (IFF_DEBUG | IFF_LINK2)) ==		\
-	     (IFF_DEBUG | IFF_LINK2))
+	(sc->malo_debug & MALO_DEBUG_XMIT)
 #define	DPRINTF(sc, m, fmt, ...) do {				\
 	if (sc->malo_debug & (m))				\
 		printf(fmt, __VA_ARGS__);			\
@@ -123,21 +116,22 @@ enum {
 } while (0)
 #endif
 
-MALLOC_DEFINE(M_MALODEV, "malodev", "malo driver dma buffers");
+static MALLOC_DEFINE(M_MALODEV, "malodev", "malo driver dma buffers");
 
-static struct ieee80211vap *malo_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN]);
+static struct ieee80211vap *malo_vap_create(struct ieee80211com *,
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static  void	malo_vap_delete(struct ieee80211vap *);
 static	int	malo_dma_setup(struct malo_softc *);
 static	int	malo_setup_hwdma(struct malo_softc *);
 static	void	malo_txq_init(struct malo_softc *, struct malo_txq *, int);
 static	void	malo_tx_cleanupq(struct malo_softc *, struct malo_txq *);
-static	void	malo_start(struct ifnet *);
-static	void	malo_watchdog(struct ifnet *);
-static	int	malo_ioctl(struct ifnet *, u_long, caddr_t);
-static	void	malo_updateslot(struct ifnet *);
+static	void	malo_parent(struct ieee80211com *);
+static	int	malo_transmit(struct ieee80211com *, struct mbuf *);
+static	void	malo_start(struct malo_softc *);
+static	void	malo_watchdog(void *);
+static	void	malo_updateslot(struct ieee80211com *);
 static	int	malo_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static	void	malo_scan_start(struct ieee80211com *);
 static	void	malo_scan_end(struct ieee80211com *);
@@ -147,7 +141,7 @@ static	int	malo_raw_xmit(struct ieee80211_node *, struct mbuf *,
 static	void	malo_sysctlattach(struct malo_softc *);
 static	void	malo_announce(struct malo_softc *);
 static	void	malo_dma_cleanup(struct malo_softc *);
-static	void	malo_stop_locked(struct ifnet *, int);
+static	void	malo_stop(struct malo_softc *);
 static	int	malo_chan_set(struct malo_softc *, struct ieee80211_channel *);
 static	int	malo_mode_init(struct malo_softc *);
 static	void	malo_tx_proc(void *, int);
@@ -168,8 +162,8 @@ malo_bar0_read4(struct malo_softc *sc, bus_size_t off)
 static void
 malo_bar0_write4(struct malo_softc *sc, bus_size_t off, uint32_t val)
 {
-	DPRINTF(sc, MALO_DEBUG_FW, "%s: off 0x%zx val 0x%x\n",
-	    __func__, off, val);
+	DPRINTF(sc, MALO_DEBUG_FW, "%s: off 0x%jx val 0x%x\n",
+	    __func__, (uintmax_t)off, val);
 
 	bus_space_write_4(sc->malo_io0t, sc->malo_io0h, off, val);
 }
@@ -177,29 +171,19 @@ malo_bar0_write4(struct malo_softc *sc, bus_size_t off, uint32_t val)
 int
 malo_attach(uint16_t devid, struct malo_softc *sc)
 {
-	int error;
-	struct ieee80211com *ic;
-	struct ifnet *ifp;
+	struct ieee80211com *ic = &sc->malo_ic;
 	struct malo_hal *mh;
-	uint8_t bands;
-
-	ifp = sc->malo_ifp = if_alloc(IFT_IEEE80211);
-	if (ifp == NULL) {
-		device_printf(sc->malo_dev, "can not if_alloc()\n");
-		return ENOSPC;
-	}
-	ic = ifp->if_l2com;
+	int error;
+	uint8_t bands[IEEE80211_MODE_BYTES];
 
 	MALO_LOCK_INIT(sc);
-
-	/* set these up early for if_printf use */
-	if_initname(ifp, device_get_name(sc->malo_dev),
-	    device_get_unit(sc->malo_dev));
+	callout_init_mtx(&sc->malo_watchdog_timer, &sc->malo_mtx, 0);
+	mbufq_init(&sc->malo_snd, ifqmaxlen);
 
 	mh = malo_hal_attach(sc->malo_dev, devid,
 	    sc->malo_io1h, sc->malo_io1t, sc->malo_dmat);
 	if (mh == NULL) {
-		if_printf(ifp, "unable to attach HAL\n");
+		device_printf(sc->malo_dev, "unable to attach HAL\n");
 		error = EIO;
 		goto bad;
 	}
@@ -212,13 +196,13 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	 */
 	error = malo_hal_fwload(mh, "malo8335-h", "malo8335-m");
 	if (error != 0) {
-		if_printf(ifp, "unable to setup firmware\n");
+		device_printf(sc->malo_dev, "unable to setup firmware\n");
 		goto bad1;
 	}
 	/* XXX gethwspecs() extracts correct informations?  not maybe!  */
 	error = malo_hal_gethwspecs(mh, &sc->malo_hwspecs);
 	if (error != 0) {
-		if_printf(ifp, "unable to fetch h/w specs\n");
+		device_printf(sc->malo_dev, "unable to fetch h/w specs\n");
 		goto bad1;
 	}
 
@@ -239,10 +223,10 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	    sc->malo_hwspecs.wcbbase[2], sc->malo_hwspecs.wcbbase[3]);
 
 	/* NB: firmware looks that it does not export regdomain info API.  */
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
-	ieee80211_init_channels(ic, NULL, &bands);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	sc->malo_txantenna = 0x2;	/* h/w default */
 	sc->malo_rxantenna = 0xffff;	/* h/w default */
@@ -254,7 +238,8 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	 */
 	error = malo_dma_setup(sc);
 	if (error != 0) {
-		if_printf(ifp, "failed to setup descriptors: %d\n", error);
+		device_printf(sc->malo_dev,
+		    "failed to setup descriptors: %d\n", error);
 		goto bad1;
 	}
 	error = malo_setup_hwdma(sc);	/* push to firmware */
@@ -264,22 +249,13 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	sc->malo_tq = taskqueue_create_fast("malo_taskq", M_NOWAIT,
 		taskqueue_thread_enqueue, &sc->malo_tq);
 	taskqueue_start_threads(&sc->malo_tq, 1, PI_NET,
-		"%s taskq", ifp->if_xname);
+		"%s taskq", device_get_nameunit(sc->malo_dev));
 
 	TASK_INIT(&sc->malo_rxtask, 0, malo_rx_proc, sc);
 	TASK_INIT(&sc->malo_txtask, 0, malo_tx_proc, sc);
 
-	ifp->if_softc = sc;
-	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
-	ifp->if_start = malo_start;
-	ifp->if_watchdog = malo_watchdog;
-	ifp->if_ioctl = malo_ioctl;
-	ifp->if_init = malo_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
-	IFQ_SET_READY(&ifp->if_snd);
-
-	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(sc->malo_dev);
 	/* XXX not right but it's not used anywhere important */
 	ic->ic_phytype = IEEE80211_T_OFDM;
 	ic->ic_opmode = IEEE80211_M_STA;
@@ -292,6 +268,7 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	    | IEEE80211_C_TXPMGT		/* capable of txpow mgt */
 	    | IEEE80211_C_WPA			/* capable of WPA1+WPA2 */
 	    ;
+	IEEE80211_ADDR_COPY(ic->ic_macaddr, sc->malo_hwspecs.macaddr);
 
 	/*
 	 * Transmit requires space in the packet for a special format transmit
@@ -303,16 +280,17 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 		sizeof(struct ieee80211_frame);
 
 	/* call MI attach routine. */
-	ieee80211_ifattach(ic, sc->malo_hwspecs.macaddr);
+	ieee80211_ifattach(ic);
 	/* override default methods */
 	ic->ic_vap_create = malo_vap_create;
 	ic->ic_vap_delete = malo_vap_delete;
 	ic->ic_raw_xmit = malo_raw_xmit;
 	ic->ic_updateslot = malo_updateslot;
-
 	ic->ic_scan_start = malo_scan_start;
 	ic->ic_scan_end = malo_scan_end;
 	ic->ic_set_channel = malo_set_channel;
+	ic->ic_parent = malo_parent;
+	ic->ic_transmit = malo_transmit;
 
 	sc->malo_invalid = 0;		/* ready to go, enable int handling */
 
@@ -337,24 +315,23 @@ bad2:
 bad1:
 	malo_hal_detach(mh);
 bad:
-	if_free(ifp);
 	sc->malo_invalid = 1;
 
 	return error;
 }
 
 static struct ieee80211vap *
-malo_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+malo_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
-	struct ifnet *ifp = ic->ic_ifp;
+	struct malo_softc *sc = ic->ic_softc;
 	struct malo_vap *mvp;
 	struct ieee80211vap *vap;
 
 	if (!TAILQ_EMPTY(&ic->ic_vaps)) {
-		if_printf(ifp, "multiple vaps not supported\n");
+		device_printf(sc->malo_dev, "multiple vaps not supported\n");
 		return NULL;
 	}
 	switch (opmode) {
@@ -365,18 +342,13 @@ malo_vap_create(struct ieee80211com *ic,
 	case IEEE80211_M_MONITOR:
 		break;
 	default:
-		if_printf(ifp, "%s mode not supported\n",
+		device_printf(sc->malo_dev, "%s mode not supported\n",
 		    ieee80211_opmode_name[opmode]);
 		return NULL;		/* unsupported */
 	}
-	mvp = (struct malo_vap *) malloc(sizeof(struct malo_vap),
-	    M_80211_VAP, M_NOWAIT | M_ZERO);
-	if (mvp == NULL) {
-		if_printf(ifp, "cannot allocate vap state block\n");
-		return NULL;
-	}
+	mvp = malloc(sizeof(struct malo_vap), M_80211_VAP, M_WAITOK | M_ZERO);
 	vap = &mvp->malo_vap;
-	ieee80211_vap_setup(ic, vap, name, unit, opmode, flags, bssid, mac);
+	ieee80211_vap_setup(ic, vap, name, unit, opmode, flags, bssid);
 
 	/* override state transition machine */
 	mvp->malo_newstate = vap->iv_newstate;
@@ -384,7 +356,7 @@ malo_vap_create(struct ieee80211com *ic,
 
 	/* complete setup */
 	ieee80211_vap_attach(vap,
-	    ieee80211_media_change, ieee80211_media_status);
+	    ieee80211_media_change, ieee80211_media_status, mac);
 	ic->ic_opmode = opmode;
 	return vap;
 }
@@ -425,9 +397,9 @@ malo_intr(void *arg)
 	    __func__, status, sc->malo_imask);
 
 	if (status & MALO_A2HRIC_BIT_RX_RDY)
-		taskqueue_enqueue_fast(sc->malo_tq, &sc->malo_rxtask);
+		taskqueue_enqueue(sc->malo_tq, &sc->malo_rxtask);
 	if (status & MALO_A2HRIC_BIT_TX_DONE)
-		taskqueue_enqueue_fast(sc->malo_tq, &sc->malo_txtask);
+		taskqueue_enqueue(sc->malo_tq, &sc->malo_txtask);
 	if (status & MALO_A2HRIC_BIT_OPC_DONE)
 		malo_hal_cmddone(mh);
 	if (status & MALO_A2HRIC_BIT_MAC_EVENT)
@@ -463,7 +435,6 @@ malo_desc_setup(struct malo_softc *sc, const char *name,
     int nbuf, size_t bufsize, int ndesc, size_t descsize)
 {
 	int error;
-	struct ifnet *ifp = sc->malo_ifp;
 	uint8_t *ds;
 
 	DPRINTF(sc, MALO_DEBUG_RESET,
@@ -490,22 +461,17 @@ malo_desc_setup(struct malo_softc *sc, const char *name,
 		       NULL,			/* lockarg */
 		       &dd->dd_dmat);
 	if (error != 0) {
-		if_printf(ifp, "cannot allocate %s DMA tag\n", dd->dd_name);
+		device_printf(sc->malo_dev, "cannot allocate %s DMA tag\n",
+		    dd->dd_name);
 		return error;
 	}
 	
 	/* allocate descriptors */
-	error = bus_dmamap_create(dd->dd_dmat, BUS_DMA_NOWAIT, &dd->dd_dmamap);
-	if (error != 0) {
-		if_printf(ifp, "unable to create dmamap for %s descriptors, "
-		    "error %u\n", dd->dd_name, error);
-		goto fail0;
-	}
-	
 	error = bus_dmamem_alloc(dd->dd_dmat, (void**) &dd->dd_desc,
 	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &dd->dd_dmamap);
 	if (error != 0) {
-		if_printf(ifp, "unable to alloc memory for %u %s descriptors, "
+		device_printf(sc->malo_dev,
+		    "unable to alloc memory for %u %s descriptors, "
 		    "error %u\n", nbuf * ndesc, dd->dd_name, error);
 		goto fail1;
 	}
@@ -514,23 +480,23 @@ malo_desc_setup(struct malo_softc *sc, const char *name,
 	    dd->dd_desc, dd->dd_desc_len,
 	    malo_load_cb, &dd->dd_desc_paddr, BUS_DMA_NOWAIT);
 	if (error != 0) {
-		if_printf(ifp, "unable to map %s descriptors, error %u\n",
+		device_printf(sc->malo_dev,
+		    "unable to map %s descriptors, error %u\n",
 		    dd->dd_name, error);
 		goto fail2;
 	}
 	
 	ds = dd->dd_desc;
 	memset(ds, 0, dd->dd_desc_len);
-	DPRINTF(sc, MALO_DEBUG_RESET, "%s: %s DMA map: %p (%lu) -> %p (%lu)\n",
+	DPRINTF(sc, MALO_DEBUG_RESET,
+	    "%s: %s DMA map: %p (%lu) -> 0x%jx (%lu)\n",
 	    __func__, dd->dd_name, ds, (u_long) dd->dd_desc_len,
-	    (caddr_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
+	    (uintmax_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
 
 	return 0;
 fail2:
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
 fail1:
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
-fail0:
 	bus_dma_tag_destroy(dd->dd_dmat);
 	memset(dd, 0, sizeof(*dd));
 	return error;
@@ -542,7 +508,6 @@ fail0:
 static int
 malo_rxdma_setup(struct malo_softc *sc)
 {
-	struct ifnet *ifp = sc->malo_ifp;
 	int error, bsize, i;
 	struct malo_rxbuf *bf;
 	struct malo_rxdesc *ds;
@@ -559,7 +524,8 @@ malo_rxdma_setup(struct malo_softc *sc)
 	bsize = malo_rxbuf * sizeof(struct malo_rxbuf);
 	bf = malloc(bsize, M_MALODEV, M_NOWAIT | M_ZERO);
 	if (bf == NULL) {
-		if_printf(ifp, "malloc of %u rx buffers failed\n", bsize);
+		device_printf(sc->malo_dev,
+		    "malloc of %u rx buffers failed\n", bsize);
 		return error;
 	}
 	sc->malo_rxdma.dd_bufptr = bf;
@@ -572,8 +538,9 @@ malo_rxdma_setup(struct malo_softc *sc)
 		error = bus_dmamap_create(sc->malo_dmat, BUS_DMA_NOWAIT,
 		    &bf->bf_dmamap);
 		if (error != 0) {
-			if_printf(ifp, "%s: unable to dmamap for rx buffer, "
-			    "error %d\n", __func__, error);
+			device_printf(sc->malo_dev,
+			    "%s: unable to dmamap for rx buffer, error %d\n",
+			    __func__, error);
 			return error;
 		}
 		/* NB: tail is intentional to preserve descriptor order */
@@ -585,7 +552,6 @@ malo_rxdma_setup(struct malo_softc *sc)
 static int
 malo_txdma_setup(struct malo_softc *sc, struct malo_txq *txq)
 {
-	struct ifnet *ifp = sc->malo_ifp;
 	int error, bsize, i;
 	struct malo_txbuf *bf;
 	struct malo_txdesc *ds;
@@ -600,7 +566,7 @@ malo_txdma_setup(struct malo_softc *sc, struct malo_txq *txq)
 	bsize = malo_txbuf * sizeof(struct malo_txbuf);
 	bf = malloc(bsize, M_MALODEV, M_NOWAIT | M_ZERO);
 	if (bf == NULL) {
-		if_printf(ifp, "malloc of %u tx buffers failed\n",
+		device_printf(sc->malo_dev, "malloc of %u tx buffers failed\n",
 		    malo_txbuf);
 		return ENOMEM;
 	}
@@ -615,7 +581,8 @@ malo_txdma_setup(struct malo_softc *sc, struct malo_txq *txq)
 		error = bus_dmamap_create(sc->malo_dmat, BUS_DMA_NOWAIT,
 		    &bf->bf_dmamap);
 		if (error != 0) {
-			if_printf(ifp, "unable to create dmamap for tx "
+			device_printf(sc->malo_dev,
+			    "unable to create dmamap for tx "
 			    "buffer %u, error %u\n", i, error);
 			return error;
 		}
@@ -631,7 +598,6 @@ malo_desc_cleanup(struct malo_softc *sc, struct malo_descdma *dd)
 {
 	bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
 	bus_dma_tag_destroy(dd->dd_dmat);
 
 	memset(dd, 0, sizeof(*dd));
@@ -854,7 +820,7 @@ malo_tx_dmasetup(struct malo_softc *sc, struct malo_txbuf *bf, struct mbuf *m0)
 	 */
 	if (error == EFBIG) {		/* too many desc's, linearize */
 		sc->malo_stats.mst_tx_linear++;
-		m = m_defrag(m0, M_DONTWAIT);
+		m = m_defrag(m0, M_NOWAIT);
 		if (m == NULL) {
 			m_freem(m0);
 			sc->malo_stats.mst_tx_nombuf++;
@@ -891,10 +857,9 @@ malo_printrxbuf(const struct malo_rxbuf *bf, u_int ix)
 	const struct malo_rxdesc *ds = bf->bf_desc;
 	uint32_t status = le32toh(ds->status);
 	
-	printf("R[%2u] (DS.V:%p DS.P:%p) NEXT:%08x DATA:%08x RC:%02x%s\n"
+	printf("R[%2u] (DS.V:%p DS.P:0x%jx) NEXT:%08x DATA:%08x RC:%02x%s\n"
 	    "      STAT:%02x LEN:%04x SNR:%02x NF:%02x CHAN:%02x"
-	    " RATE:%02x QOS:%04x\n",
-	    ix, ds, (const struct malo_desc *)bf->bf_daddr,
+	    " RATE:%02x QOS:%04x\n", ix, ds, (uintmax_t)bf->bf_daddr,
 	    le32toh(ds->physnext), le32toh(ds->physbuffdata),
 	    ds->rxcontrol, 
 	    ds->rxcontrol != MALO_RXD_CTRL_DRIVER_OWN ?
@@ -910,8 +875,7 @@ malo_printtxbuf(const struct malo_txbuf *bf, u_int qnum, u_int ix)
 	uint32_t status = le32toh(ds->status);
 	
 	printf("Q%u[%3u]", qnum, ix);
-	printf(" (DS.V:%p DS.P:%p)\n",
-	    ds, (const struct malo_txdesc *)bf->bf_daddr);
+	printf(" (DS.V:%p DS.P:0x%jx)\n", ds, (uintmax_t)bf->bf_daddr);
 	printf("    NEXT:%08x DATA:%08x LEN:%04x STAT:%08x%s\n",
 	    le32toh(ds->physnext),
 	    le32toh(ds->pktptr), le16toh(ds->pktlen), status,
@@ -938,22 +902,18 @@ malo_printtxbuf(const struct malo_txbuf *bf, u_int qnum, u_int ix)
 static __inline void
 malo_updatetxrate(struct ieee80211_node *ni, int rix)
 {
-#define	N(x)	(sizeof(x)/sizeof(x[0]))
 	static const int ieeerates[] =
 	    { 2, 4, 11, 22, 44, 12, 18, 24, 36, 48, 96, 108 };
-	if (rix < N(ieeerates))
+	if (rix < nitems(ieeerates))
 		ni->ni_txrate = ieeerates[rix];
-#undef N
 }
 
 static int
 malo_fix2rate(int fix_rate)
 {
-#define	N(x)	(sizeof(x)/sizeof(x[0]))
 	static const int rates[] =
 	    { 2, 4, 11, 22, 12, 18, 24, 36, 48, 96, 108 };
-	return (fix_rate < N(rates) ? rates[fix_rate] : 0);
-#undef N
+	return (fix_rate < nitems(rates) ? rates[fix_rate] : 0);
 }
 
 /* idiomatic shorthands: MS = mask+shift, SM = shift+mask */
@@ -1017,33 +977,19 @@ malo_tx_processq(struct malo_softc *sc, struct malo_txq *txq)
 				if (status & MALO_TXD_STATUS_FAILED_AGING)
 					sc->malo_stats.mst_tx_aging++;
 			}
-			/*
-			 * Do any tx complete callback.  Note this must
-			 * be done before releasing the node reference.
-			 * XXX no way to figure out if frame was ACK'd
-			 */
-			if (bf->bf_m->m_flags & M_TXCB) {
-				/* XXX strip fw len in case header inspected */
-				m_adj(bf->bf_m, sizeof(uint16_t));
-				ieee80211_process_callback(ni, bf->bf_m,
-					(status & MALO_TXD_STATUS_OK) == 0);
-			}
-			/*
-			 * Reclaim reference to node.
-			 *
-			 * NB: the node may be reclaimed here if, for example
-			 *     this is a DEAUTH message that was sent and the
-			 *     node was timed out due to inactivity.
-			 */
-			ieee80211_free_node(ni);
-		}
+			/* XXX strip fw len in case header inspected */
+			m_adj(bf->bf_m, sizeof(uint16_t));
+			ieee80211_tx_complete(ni, bf->bf_m, 
+			    (status & MALO_TXD_STATUS_OK) == 0);
+		} else
+			m_freem(bf->bf_m);
+
 		ds->status = htole32(MALO_TXD_STATUS_IDLE);
 		ds->pktlen = htole32(0);
 
 		bus_dmamap_sync(sc->malo_dmat, bf->bf_dmamap,
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->malo_dmat, bf->bf_dmamap);
-		m_freem(bf->bf_m);
 		bf->bf_m = NULL;
 		bf->bf_node = NULL;
 
@@ -1062,38 +1008,35 @@ static void
 malo_tx_proc(void *arg, int npending)
 {
 	struct malo_softc *sc = arg;
-	struct ifnet *ifp = sc->malo_ifp;
 	int i, nreaped;
 
 	/*
 	 * Process each active queue.
 	 */
 	nreaped = 0;
+	MALO_LOCK(sc);
 	for (i = 0; i < MALO_NUM_TX_QUEUES; i++) {
 		if (!STAILQ_EMPTY(&sc->malo_txq[i].active))
 			nreaped += malo_tx_processq(sc, &sc->malo_txq[i]);
 	}
 
 	if (nreaped != 0) {
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		ifp->if_timer = 0;
-		malo_start(ifp);
+		sc->malo_timer = 0;
+		malo_start(sc);
 	}
+	MALO_UNLOCK(sc);
 }
 
 static int
 malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
     struct malo_txbuf *bf, struct mbuf *m0)
 {
-#define	IEEE80211_DIR_DSTODS(wh) \
-	((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
 #define	IS_DATA_FRAME(wh)						\
 	((wh->i_fc[0] & (IEEE80211_FC0_TYPE_MASK)) == IEEE80211_FC0_TYPE_DATA)
 	int error, ismcast, iswep;
 	int copyhdrlen, hdrlen, pktlen;
 	struct ieee80211_frame *wh;
-	struct ifnet *ifp = sc->malo_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->malo_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct malo_txdesc *ds;
 	struct malo_txrec *tr;
@@ -1101,12 +1044,12 @@ malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
 	uint16_t qos;
 
 	wh = mtod(m0, struct ieee80211_frame *);
-	iswep = wh->i_fc[1] & IEEE80211_FC1_WEP;
+	iswep = wh->i_fc[1] & IEEE80211_FC1_PROTECTED;
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 	copyhdrlen = hdrlen = ieee80211_anyhdrsize(wh);
 	pktlen = m0->m_pkthdr.len;
 	if (IEEE80211_QOS_HAS_SEQ(wh)) {
-		if (IEEE80211_DIR_DSTODS(wh)) {
+		if (IEEE80211_IS_DSTODS(wh)) {
 			qos = *(uint16_t *)
 			    (((struct ieee80211_qosframe_addr4 *) wh)->i_qos);
 			copyhdrlen -= sizeof(qos);
@@ -1238,7 +1181,7 @@ malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
 		ds->txpriority = txq->qnum;
 		break;
 	default:
-		if_printf(ifp, "bogus frame type 0x%x (%s)\n",
+		device_printf(sc->malo_dev, "bogus frame type 0x%x (%s)\n",
 			wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK, __func__);
 		/* XXX statistic */
 		m_freem(m0);
@@ -1259,37 +1202,51 @@ malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
 	STAILQ_INSERT_TAIL(&txq->active, bf, bf_list);
 	MALO_TXDESC_SYNC(txq, ds, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	ifp->if_opackets++;
-	ifp->if_timer = 5;
+	sc->malo_timer = 5;
 	MALO_TXQ_UNLOCK(txq);
 	return 0;
-#undef IEEE80211_DIR_DSTODS
+}
+
+static int
+malo_transmit(struct ieee80211com *ic, struct mbuf *m)
+{
+	struct malo_softc *sc = ic->ic_softc;
+	int error;
+
+	MALO_LOCK(sc);
+	if (!sc->malo_running) {
+		MALO_UNLOCK(sc);
+		return (ENXIO);
+	}
+	error = mbufq_enqueue(&sc->malo_snd, m);
+	if (error) {
+		MALO_UNLOCK(sc);
+		return (error);
+	}
+	malo_start(sc);
+	MALO_UNLOCK(sc);
+	return (0);
 }
 
 static void
-malo_start(struct ifnet *ifp)
+malo_start(struct malo_softc *sc)
 {
-	struct malo_softc *sc = ifp->if_softc;
 	struct ieee80211_node *ni;
 	struct malo_txq *txq = &sc->malo_txq[0];
 	struct malo_txbuf *bf = NULL;
 	struct mbuf *m;
 	int nqueued = 0;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->malo_invalid)
+	MALO_LOCK_ASSERT(sc);
+
+	if (!sc->malo_running || sc->malo_invalid)
 		return;
 
-	for (;;) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
-			break;
+	while ((m = mbufq_dequeue(&sc->malo_snd)) != NULL) {
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		bf = malo_getbuf(sc, txq);
 		if (bf == NULL) {
-			IFQ_DRV_PREPEND(&ifp->if_snd, m);
-
-			/* XXX blocks other traffic */
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			mbufq_prepend(&sc->malo_snd, m);
 			sc->malo_stats.mst_tx_qstop++;
 			break;
 		}
@@ -1297,7 +1254,8 @@ malo_start(struct ifnet *ifp)
 		 * Pass the frame to the h/w for transmission.
 		 */
 		if (malo_tx_start(sc, ni, bf, m)) {
-			ifp->if_oerrors++;
+			if_inc_counter(ni->ni_vap->iv_ifp,
+			    IFCOUNTER_OERRORS, 1);
 			if (bf != NULL) {
 				bf->bf_m = NULL;
 				bf->bf_node = NULL;
@@ -1339,16 +1297,20 @@ malo_start(struct ifnet *ifp)
 }
 
 static void
-malo_watchdog(struct ifnet *ifp)
+malo_watchdog(void *arg)
 {
-	struct malo_softc *sc = ifp->if_softc;
+	struct malo_softc *sc = arg;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) && !sc->malo_invalid) {
-		if_printf(ifp, "watchdog timeout\n");
+	callout_reset(&sc->malo_watchdog_timer, hz, malo_watchdog, sc);
+	if (sc->malo_timer == 0 || --sc->malo_timer > 0)
+		return;
+
+	if (sc->malo_running && !sc->malo_invalid) {
+		device_printf(sc->malo_dev, "watchdog timeout\n");
 
 		/* XXX no way to reset h/w. now  */
 
-		ifp->if_oerrors++;
+		counter_u64_add(sc->malo_ic.ic_oerrors, 1);
 		sc->malo_stats.mst_watchdog++;
 	}
 }
@@ -1357,8 +1319,7 @@ static int
 malo_hal_reset(struct malo_softc *sc)
 {
 	static int first = 0;
-	struct ifnet *ifp = sc->malo_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->malo_ic;
 	struct malo_hal *mh = sc->malo_mh;
 
 	if (first == 0) {
@@ -1389,7 +1350,7 @@ malo_getrxmbuf(struct malo_softc *sc, struct malo_rxbuf *bf)
 	int error;
 
 	/* XXX don't need mbuf, just dma buffer */
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
 	if (m == NULL) {
 		sc->malo_stats.mst_rx_nombuf++;	/* XXX */
 		return NULL;
@@ -1398,7 +1359,7 @@ malo_getrxmbuf(struct malo_softc *sc, struct malo_rxbuf *bf)
 	    mtod(m, caddr_t), MJUMPAGESIZE,
 	    malo_load_cb, &paddr, BUS_DMA_NOWAIT);
 	if (error != 0) {
-		if_printf(sc->malo_ifp,
+		device_printf(sc->malo_dev,
 		    "%s: bus_dmamap_load failed, error %d\n", __func__, error);
 		m_freem(m);
 		return NULL;
@@ -1489,26 +1450,23 @@ malo_startrecv(struct malo_softc *sc)
 static void
 malo_init_locked(struct malo_softc *sc)
 {
-	struct ifnet *ifp = sc->malo_ifp;
 	struct malo_hal *mh = sc->malo_mh;
 	int error;
 	
-	DPRINTF(sc, MALO_DEBUG_ANY, "%s: if_flags 0x%x\n",
-	    __func__, ifp->if_flags);
-
 	MALO_LOCK_ASSERT(sc);
 	
 	/*
 	 * Stop anything previously setup.  This is safe whether this is
 	 * the first time through or not.
 	 */
-	malo_stop_locked(ifp, 0);
+	malo_stop(sc);
 
 	/*
 	 * Push state to the firmware.
 	 */
 	if (!malo_hal_reset(sc)) {
-		if_printf(ifp, "%s: unable to reset hardware\n", __func__);
+		device_printf(sc->malo_dev,
+		    "%s: unable to reset hardware\n", __func__);
 		return;
 	}
 
@@ -1517,7 +1475,8 @@ malo_init_locked(struct malo_softc *sc)
 	 */
 	error = malo_startrecv(sc);
 	if (error != 0) {
-		if_printf(ifp, "%s: unable to start recv logic, error %d\n",
+		device_printf(sc->malo_dev,
+		    "%s: unable to start recv logic, error %d\n",
 		    __func__, error);
 		return;
 	}
@@ -1534,26 +1493,22 @@ malo_init_locked(struct malo_softc *sc)
 	    | MALO_A2HRIC_BIT_RADAR_DETECT
 	    | MALO_A2HRIC_BIT_CHAN_SWITCH;
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	sc->malo_running = 1;
 	malo_hal_intrset(mh, sc->malo_imask);
+	callout_reset(&sc->malo_watchdog_timer, hz, malo_watchdog, sc);
 }
 
 static void
 malo_init(void *arg)
 {
 	struct malo_softc *sc = (struct malo_softc *) arg;
-	struct ifnet *ifp = sc->malo_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->malo_ic;
 	
-	DPRINTF(sc, MALO_DEBUG_ANY, "%s: if_flags 0x%x\n",
-	    __func__, ifp->if_flags);
-
 	MALO_LOCK(sc);
 	malo_init_locked(sc);
-
 	MALO_UNLOCK(sc);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (sc->malo_running)
 		ieee80211_start_all(ic);	/* start all vap's */
 }
 
@@ -1563,9 +1518,8 @@ malo_init(void *arg)
 static void
 malo_setmcastfilter(struct malo_softc *sc)
 {
-	struct ifnet *ifp = sc->malo_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ifmultiaddr *ifma;
+	struct ieee80211com *ic = &sc->malo_ic;
+	struct ieee80211vap *vap;
 	uint8_t macs[IEEE80211_ADDR_LEN * MALO_HAL_MCAST_MAX];
 	uint8_t *mp;
 	int nmc;
@@ -1573,26 +1527,32 @@ malo_setmcastfilter(struct malo_softc *sc)
 	mp = macs;
 	nmc = 0;
 
-	if (ic->ic_opmode == IEEE80211_M_MONITOR ||
-	    (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)))
+	if (ic->ic_opmode == IEEE80211_M_MONITOR || ic->ic_allmulti > 0 ||
+	    ic->ic_promisc > 0)
 		goto all;
-	
-	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
 
-		if (nmc == MALO_HAL_MCAST_MAX) {
-			ifp->if_flags |= IFF_ALLMULTI;
-			if_maddr_runlock(ifp);
-			goto all;
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+		struct ifnet *ifp;
+		struct ifmultiaddr *ifma;
+
+		ifp = vap->iv_ifp;
+		if_maddr_rlock(ifp);
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+
+			if (nmc == MALO_HAL_MCAST_MAX) {
+				ifp->if_flags |= IFF_ALLMULTI;
+				if_maddr_runlock(ifp);
+				goto all;
+			}
+			IEEE80211_ADDR_COPY(mp,
+			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+
+			mp += IEEE80211_ADDR_LEN, nmc++;
 		}
-		IEEE80211_ADDR_COPY(mp,
-		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-
-		mp += IEEE80211_ADDR_LEN, nmc++;
+		if_maddr_runlock(ifp);
 	}
-	if_maddr_runlock(ifp);
 
 	malo_hal_setmcast(sc->malo_mh, nmc, macs);
 
@@ -1607,18 +1567,10 @@ all:
 static int
 malo_mode_init(struct malo_softc *sc)
 {
-	struct ifnet *ifp = sc->malo_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->malo_ic;
 	struct malo_hal *mh = sc->malo_mh;
 
-	/*
-	 * NB: Ignore promisc in hostap mode; it's set by the
-	 * bridge.  This is wrong but we have no way to
-	 * identify internal requests (from the bridge)
-	 * versus external requests such as for tcpdump.
-	 */
-	malo_hal_setpromisc(mh, (ifp->if_flags & IFF_PROMISC) &&
-	    ic->ic_opmode != IEEE80211_M_HOSTAP);
+	malo_hal_setpromisc(mh, ic->ic_promisc > 0);
 	malo_setmcastfilter(sc);
 
 	return ENXIO;
@@ -1646,8 +1598,7 @@ malo_tx_draintxq(struct malo_softc *sc, struct malo_txq *txq)
 		MALO_TXQ_UNLOCK(txq);
 #ifdef MALO_DEBUG
 		if (sc->malo_debug & MALO_DEBUG_RESET) {
-			struct ifnet *ifp = sc->malo_ifp;
-			struct ieee80211com *ic = ifp->if_l2com;
+			struct ieee80211com *ic = &sc->malo_ic;
 			const struct malo_txrec *tr =
 			    mtod(bf->bf_m, const struct malo_txrec *);
 			malo_printtxbuf(bf, txq->qnum, ix);
@@ -1675,18 +1626,17 @@ malo_tx_draintxq(struct malo_softc *sc, struct malo_txq *txq)
 }
 
 static void
-malo_stop_locked(struct ifnet *ifp, int disable)
+malo_stop(struct malo_softc *sc)
 {
-	struct malo_softc *sc = ifp->if_softc;
 	struct malo_hal *mh = sc->malo_mh;
 	int i;
 
-	DPRINTF(sc, MALO_DEBUG_ANY, "%s: invalid %u if_flags 0x%x\n",
-	    __func__, sc->malo_invalid, ifp->if_flags);
+	DPRINTF(sc, MALO_DEBUG_ANY, "%s: invalid %u running %u\n",
+	    __func__, sc->malo_invalid, sc->malo_running);
 
 	MALO_LOCK_ASSERT(sc);
 
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!sc->malo_running)
 		return;
 
 	/*
@@ -1698,9 +1648,10 @@ malo_stop_locked(struct ifnet *ifp, int disable)
 	 * Note that some of this work is not possible if the hardware
 	 * is gone (invalid).
 	 */
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	ifp->if_timer = 0;
-	/* diable interrupt.  */
+	sc->malo_running = 0;
+	callout_stop(&sc->malo_watchdog_timer);
+	sc->malo_timer = 0;
+	/* disable interrupt.  */
 	malo_hal_intrset(mh, 0);
 	/* turn off the radio.  */
 	malo_hal_setradio(mh, 0, MHP_AUTO_PREAMBLE);
@@ -1710,57 +1661,38 @@ malo_stop_locked(struct ifnet *ifp, int disable)
 		malo_tx_draintxq(sc, &sc->malo_txq[i]);
 }
 
-static int
-malo_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+static void
+malo_parent(struct ieee80211com *ic)
 {
-#define	MALO_IS_RUNNING(ifp) \
-	((ifp->if_flags & IFF_UP) && (ifp->if_drv_flags & IFF_DRV_RUNNING))
-	struct malo_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0;
+	struct malo_softc *sc = ic->ic_softc;
+	int startall = 0;
 
 	MALO_LOCK(sc);
-	switch (cmd) {
-	case SIOCSIFFLAGS:
-		if (MALO_IS_RUNNING(ifp)) {
-			/*
-			 * To avoid rescanning another access point,
-			 * do not call malo_init() here.  Instead,
-			 * only reflect promisc mode settings.
-			 */
-			malo_mode_init(sc);
-		} else if (ifp->if_flags & IFF_UP) {
-			/*
-			 * Beware of being called during attach/detach
-			 * to reset promiscuous mode.  In that case we
-			 * will still be marked UP but not RUNNING.
-			 * However trying to re-init the interface
-			 * is the wrong thing to do as we've already
-			 * torn down much of our state.  There's
-			 * probably a better way to deal with this.
-			 */
-			if (!sc->malo_invalid) {
-				malo_init_locked(sc);
-				startall = 1;
-			}
-		} else
-			malo_stop_locked(ifp, 1);
-		break;
-	case SIOCGIFMEDIA:
-	case SIOCSIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
-		break;
-	default:
-		error = ether_ioctl(ifp, cmd, data);
-		break;
-	}
+	if (ic->ic_nrunning > 0) {
+		/*
+		 * Beware of being called during attach/detach
+		 * to reset promiscuous mode.  In that case we
+		 * will still be marked UP but not RUNNING.
+		 * However trying to re-init the interface
+		 * is the wrong thing to do as we've already
+		 * torn down much of our state.  There's
+		 * probably a better way to deal with this.
+		 */
+		if (!sc->malo_running && !sc->malo_invalid) {
+			malo_init(sc);
+			startall = 1;
+		}
+		/*
+		 * To avoid rescanning another access point,
+		 * do not call malo_init() here.  Instead,
+		 * only reflect promisc mode settings.
+		 */
+		malo_mode_init(sc);
+	} else if (sc->malo_running)
+		malo_stop(sc);
 	MALO_UNLOCK(sc);
-
 	if (startall)
 		ieee80211_start_all(ic);
-	return error;
-#undef MALO_IS_RUNNING
 }
 
 /*
@@ -1770,15 +1702,14 @@ malo_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  * like slot time and preamble.
  */
 static void
-malo_updateslot(struct ifnet *ifp)
+malo_updateslot(struct ieee80211com *ic)
 {
-	struct malo_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct malo_softc *sc = ic->ic_softc;
 	struct malo_hal *mh = sc->malo_mh;
 	int error;
 	
 	/* NB: can be called early; suppress needless cmds */
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if (!sc->malo_running)
 		return;
 
 	DPRINTF(sc, MALO_DEBUG_RESET,
@@ -1800,7 +1731,7 @@ static int
 malo_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct malo_softc *sc = ic->ic_ifp->if_softc;
+	struct malo_softc *sc = ic->ic_softc;
 	struct malo_hal *mh = sc->malo_mh;
 	int error;
 
@@ -1844,13 +1775,11 @@ malo_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct malo_softc *sc = ifp->if_softc;
+	struct malo_softc *sc = ic->ic_softc;
 	struct malo_txbuf *bf;
 	struct malo_txq *txq;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->malo_invalid) {
-		ieee80211_free_node(ni);
+	if (!sc->malo_running || sc->malo_invalid) {
 		m_freem(m);
 		return ENETDOWN;
 	}
@@ -1864,9 +1793,6 @@ malo_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	txq = &sc->malo_txq[0];
 	bf = malo_getbuf(sc, txq);
 	if (bf == NULL) {
-		/* XXX blocks other traffic */
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		ieee80211_free_node(ni);
 		m_freem(m);
 		return ENOBUFS;
 	}
@@ -1875,7 +1801,6 @@ malo_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	 * Pass the frame to the h/w for transmission.
 	 */
 	if (malo_tx_start(sc, ni, bf, m) != 0) {
-		ifp->if_oerrors++;
 		bf->bf_m = NULL;
 		bf->bf_node = NULL;
 		MALO_TXQ_LOCK(txq);
@@ -1883,7 +1808,6 @@ malo_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		txq->nfree++;
 		MALO_TXQ_UNLOCK(txq);
 
-		ieee80211_free_node(ni);
 		return EIO;		/* XXX */
 	}
 
@@ -1920,9 +1844,9 @@ malo_sysctlattach(struct malo_softc *sc)
 static void
 malo_announce(struct malo_softc *sc)
 {
-	struct ifnet *ifp = sc->malo_ifp;
 
-	if_printf(ifp, "versions [hw %d fw %d.%d.%d.%d] (regioncode %d)\n",
+	device_printf(sc->malo_dev,
+		"versions [hw %d fw %d.%d.%d.%d] (regioncode %d)\n",
 		sc->malo_hwspecs.hwversion,
 		(sc->malo_hwspecs.fw_releasenum >> 24) & 0xff,
 		(sc->malo_hwspecs.fw_releasenum >> 16) & 0xff,
@@ -1931,9 +1855,11 @@ malo_announce(struct malo_softc *sc)
 		sc->malo_hwspecs.regioncode);
 
 	if (bootverbose || malo_rxbuf != MALO_RXBUF)
-		if_printf(ifp, "using %u rx buffers\n", malo_rxbuf);
+		device_printf(sc->malo_dev,
+		    "using %u rx buffers\n", malo_rxbuf);
 	if (bootverbose || malo_txbuf != MALO_TXBUF)
-		if_printf(ifp, "using %u tx buffers\n", malo_txbuf);
+		device_printf(sc->malo_dev,
+		    "using %u tx buffers\n", malo_txbuf);
 }
 
 /*
@@ -1994,8 +1920,7 @@ malo_chan_set(struct malo_softc *sc, struct ieee80211_channel *chan)
 static void
 malo_scan_start(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct malo_softc *sc = ifp->if_softc;
+	struct malo_softc *sc = ic->ic_softc;
 
 	DPRINTF(sc, MALO_DEBUG_STATE, "%s\n", __func__);
 }
@@ -2003,8 +1928,7 @@ malo_scan_start(struct ieee80211com *ic)
 static void
 malo_scan_end(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct malo_softc *sc = ifp->if_softc;
+	struct malo_softc *sc = ic->ic_softc;
 
 	DPRINTF(sc, MALO_DEBUG_STATE, "%s\n", __func__);
 }
@@ -2012,8 +1936,7 @@ malo_scan_end(struct ieee80211com *ic)
 static void
 malo_set_channel(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct malo_softc *sc = ifp->if_softc;
+	struct malo_softc *sc = ic->ic_softc;
 
 	(void) malo_chan_set(sc, ic->ic_curchan);
 }
@@ -2021,12 +1944,8 @@ malo_set_channel(struct ieee80211com *ic)
 static void
 malo_rx_proc(void *arg, int npending)
 {
-#define	IEEE80211_DIR_DSTODS(wh)					\
-	((((const struct ieee80211_frame *)wh)->i_fc[1] &		\
-	    IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
 	struct malo_softc *sc = arg;
-	struct ifnet *ifp = sc->malo_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->malo_ic;
 	struct malo_rxbuf *bf;
 	struct malo_rxdesc *ds;
 	struct mbuf *m, *mnew;
@@ -2083,7 +2002,7 @@ malo_rx_proc(void *arg, int npending)
 #endif
 		status = ds->status;
 		if (status & MALO_RXD_STATUS_DECRYPT_ERR_MASK) {
-			ifp->if_ierrors++;
+			counter_u64_add(ic->ic_ierrors, 1);
 			goto rx_next;
 		}
 		/*
@@ -2099,7 +2018,7 @@ malo_rx_proc(void *arg, int npending)
 		 * payload prior to constructing the header.
 		 */
 		m = bf->bf_m;
-		data = mtod(m, uint8_t *);;
+		data = mtod(m, uint8_t *);
 		hdrlen = ieee80211_anyhdrsize(data + sizeof(uint16_t));
 		off = sizeof(uint16_t) + sizeof(struct ieee80211_frame_addr4);
 
@@ -2122,7 +2041,7 @@ malo_rx_proc(void *arg, int npending)
 		/* XXX don't need mbuf, just dma buffer */
 		mnew = malo_getrxmbuf(sc, bf);
 		if (mnew == NULL) {
-			ifp->if_ierrors++;
+			counter_u64_add(ic->ic_ierrors, 1);
 			goto rx_next;
 		}
 		/*
@@ -2133,7 +2052,6 @@ malo_rx_proc(void *arg, int npending)
 		bf->bf_m = mnew;
 		m->m_data += off - hdrlen;
 		m->m_pkthdr.len = m->m_len = pktlen;
-		m->m_pkthdr.rcvif = ifp;
 
 		/*
 		 * Piece 802.11 header together.
@@ -2143,7 +2061,7 @@ malo_rx_proc(void *arg, int npending)
 		/* XXX special case so we can memcpy after m_devget? */
 		ovbcopy(data + sizeof(uint16_t), wh, hdrlen);
 		if (IEEE80211_QOS_HAS_SEQ(wh)) {
-			if (IEEE80211_DIR_DSTODS(wh)) {
+			if (IEEE80211_IS_DSTODS(wh)) {
 				wh4 = mtod(m,
 				    struct ieee80211_qosframe_addr4*);
 				*(uint16_t *)wh4->i_qos = ds->qosctrl;
@@ -2163,8 +2081,6 @@ malo_rx_proc(void *arg, int npending)
 			    len, ds->rate, rssi);
 		}
 #endif
-		ifp->if_ipackets++;
-		
 		/* dispatch */
 		ni = ieee80211_find_rxnode(ic,
 		    (struct ieee80211_frame_min *)wh);
@@ -2182,20 +2098,8 @@ rx_next:
 	malo_bar0_write4(sc, sc->malo_hwspecs.rxdesc_read, readptr);
 	sc->malo_rxnext = bf;
 
-	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
-	    !IFQ_IS_EMPTY(&ifp->if_snd))
-		malo_start(ifp);
-#undef IEEE80211_DIR_DSTODS
-}
-
-static void
-malo_stop(struct ifnet *ifp, int disable)
-{
-	struct malo_softc *sc = ifp->if_softc;
-
-	MALO_LOCK(sc);
-	malo_stop_locked(ifp, disable);
-	MALO_UNLOCK(sc);
+	if (mbufq_first(&sc->malo_snd) != NULL)
+		malo_start(sc);
 }
 
 /*
@@ -2213,13 +2117,9 @@ malo_tx_cleanup(struct malo_softc *sc)
 int
 malo_detach(struct malo_softc *sc)
 {
-	struct ifnet *ifp = sc->malo_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->malo_ic;
 
-	DPRINTF(sc, MALO_DEBUG_ANY, "%s: if_flags %x\n",
-		__func__, ifp->if_flags);
-
-	malo_stop(ifp, 1);
+	malo_stop(sc);
 
 	if (sc->malo_tq != NULL) {
 		taskqueue_drain(sc->malo_tq, &sc->malo_rxtask);
@@ -2241,11 +2141,11 @@ malo_detach(struct malo_softc *sc)
 	 * Other than that, it's straightforward...
 	 */
 	ieee80211_ifdetach(ic);
+	callout_drain(&sc->malo_watchdog_timer);
 	malo_dma_cleanup(sc);
 	malo_tx_cleanup(sc);
 	malo_hal_detach(sc->malo_mh);
-	if_free(ifp);
-
+	mbufq_drain(&sc->malo_snd);
 	MALO_LOCK_DESTROY(sc);
 
 	return 0;
@@ -2254,28 +2154,21 @@ malo_detach(struct malo_softc *sc)
 void
 malo_shutdown(struct malo_softc *sc)
 {
-	malo_stop(sc->malo_ifp, 1);
+
+	malo_stop(sc);
 }
 
 void
 malo_suspend(struct malo_softc *sc)
 {
-	struct ifnet *ifp = sc->malo_ifp;
 
-	DPRINTF(sc, MALO_DEBUG_ANY, "%s: if_flags %x\n",
-		__func__, ifp->if_flags);
-
-	malo_stop(ifp, 1);
+	malo_stop(sc);
 }
 
 void
 malo_resume(struct malo_softc *sc)
 {
-	struct ifnet *ifp = sc->malo_ifp;
 
-	DPRINTF(sc, MALO_DEBUG_ANY, "%s: if_flags %x\n",
-		__func__, ifp->if_flags);
-
-	if (ifp->if_flags & IFF_UP)
+	if (sc->malo_ic.ic_nrunning > 0)
 		malo_init(sc);
 }

@@ -1,8 +1,8 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_control#8 $
 # $FreeBSD$
 #
 dir:/var/audit
+dist:off
 flags:lo,aa
 minfree:5
 naflags:lo,aa

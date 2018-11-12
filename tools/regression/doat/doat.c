@@ -26,25 +26,31 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/syscall.h>
+#include <sys/stat.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/syscall.h>
-#include <sys/stat.h>
+#include <unistd.h>
+
+void cleanup(void);
+void setup(void);
+void setup_once(void);
 
 union param {
 	int		i;
-	char		*cp;
+	const char	*cp;
 	mode_t		m;
 	dev_t		d;
 	void		*vp;
 	uid_t		u;
 	gid_t		g;
-	char		**cpp;
+	const char	**cpp;
 };
 
 struct testcase {
@@ -55,7 +61,7 @@ struct testcase {
 struct test {
 	int	syscall;
 	int	num_of_cases;
-	char	*name;
+	const char *name;
 	struct testcase	tests[10];	/* no more than 10 tests */
 	
 };
@@ -64,21 +70,21 @@ struct test *tests;
 #define	NUM_OF_TESTS	14		/* we dont want the fexecve test to run */
 
 char *absolute_path = NULL;
-char *relative_path = "tmp/";
-char *not_dir_path = "/bin/date";
+const char *relative_path = "tmp/";
+const char *not_dir_path = "/bin/date";
 
-char *file = "foo";
+const char *file = "foo";
 char *absolute_file = NULL;
 char *relative_file = NULL;
-char *symlinkf = "link";
-char *newlink = "nlink1";
-char *newlink2 = "nlink2";
-char *newlink3 = "nlink3";
-char *newdir = "newdir";
-char *fifo = "fifo";
-char *nod = "nod";
-char *newfile = "newfile";
-char *newslink = "nslink1";
+const char *symlinkf = "link";
+const char *newlink = "nlink1";
+const char *newlink2 = "nlink2";
+const char *newlink3 = "nlink3";
+const char *newdir = "newdir";
+const char *fifo = "fifo";
+const char *nod = "nod";
+const char *newfile = "newfile";
+const char *newslink = "nslink1";
 
 bool dir_exist = false;
 bool file_exist = false;
@@ -88,18 +94,18 @@ int rel_fd, abs_fd, notd_fd, exec_fd;
 
 struct timeval times[2];
 struct stat buf;
-char *pargv[2] = { "/bin/date", NULL };
+const char *pargv[2] = { "/bin/date", NULL };
 #define	PATH_MAX	1024
 char cbuf[PATH_MAX];
 
 void
-setup()
+setup(void)
 {
 	int i, error;
-	size_t siz;
 	struct stat sb;
+	size_t len;
 
-	tests = calloc(NUM_OF_TESTS, sizeof(struct test));
+	tests = calloc(NUM_OF_TESTS + 1, sizeof(struct test));
 	if (tests == NULL) {
 		perror("");
 		exit(0);		
@@ -111,14 +117,16 @@ setup()
 		exit(0);
 	}
 
-	absolute_path = realloc(absolute_path, strlen(absolute_path) + 5);
+	len = strlen(absolute_path);
+	absolute_path = realloc(absolute_path,
+	    len + 1 + strlen(relative_path) + 1);
 	if (absolute_path == NULL) {
 		perror("realloc");
 		exit(0);
 	}
 
-	absolute_path[strlen(absolute_path)] = '/';
-	strcpy(absolute_path + strlen(absolute_path), relative_path);
+	absolute_path[len] = '/';
+	strcpy(absolute_path + len + 1, relative_path);
 
 	absolute_file = malloc(strlen(absolute_path) + 1 + strlen(file));
 	bzero(absolute_file, strlen(absolute_path) + 1 + strlen(file));
@@ -140,7 +148,7 @@ setup()
 	relative_file[strlen(relative_file)] = '/';
 	strcpy(relative_file + strlen(relative_path), file);
 
-	error = mkdir(relative_path, 666);
+	error = mkdir(relative_path, 0700);
 	dir_exist = (errno == EEXIST);
 	if (error && errno != EEXIST) {
 		perror("tmp");
@@ -149,7 +157,7 @@ setup()
 
 	error = stat("tmp/foo", &sb);
 	file_exist = (errno != ENOENT);
-	i = open("tmp/foo", O_RDONLY | O_CREAT);
+	i = open("tmp/foo", O_RDONLY | O_CREAT, 0666);
 	if (i == -1) {
 		perror("foo");
 		exit(0);
@@ -607,13 +615,13 @@ setup()
 }
 
 void
-cleanup()
+cleanup(void)
 {
 	system("/bin/sh -c 'rm -rf tmp'");
 }
 
 void
-setup_once()
+setup_once(void)
 {
 }
 
@@ -623,10 +631,13 @@ main(int argc, char *argv[])
 	int i,j;
 	int error;
 
+	(void)argc;
+	(void)argv;
+
 	setup();
 
 	for (i = 0; i < NUM_OF_TESTS; i++) {
-	   	printf("\nTest: %s\n", tests[i].name);
+		printf("\nTest: %s\n", tests[i].name);
 		for (j = 0; j < tests[i].num_of_cases; j++) {
 			error = syscall(tests[i].syscall,
 				tests[i].tests[j].params[0],
@@ -652,13 +663,10 @@ main(int argc, char *argv[])
 						printf("#%i ... OK\n", j);
 				}
 			}
-
-
 		}
 	}
 
 	cleanup();
-
 
 	return (0);
 }

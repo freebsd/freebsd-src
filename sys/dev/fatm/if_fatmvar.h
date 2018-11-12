@@ -118,7 +118,7 @@ typedef void (*completion_cb)(struct fatm_softc *, struct cmdqueue *);
 struct cmdqueue {		/* command queue element */
 	struct fqelem	q;
 	completion_cb	cb;	/* call on command completion */
-	int		error;	/* set if error occured */
+	int		error;	/* set if error occurred */
 };
 
 /*
@@ -188,6 +188,7 @@ struct fatm_softc {
 	struct ifnet	*ifp;		/* common part */
 	struct mtx	mtx;		/* lock this structure */
 	struct ifmedia	media;		/* media */
+	struct callout	watchdog_timer;
 
 	int		init_state;	/* initialisation step */
 	int		memid;		/* resource id for card memory */

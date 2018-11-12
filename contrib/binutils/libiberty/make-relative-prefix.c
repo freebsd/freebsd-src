@@ -1,6 +1,6 @@
 /* Relative (relocatable) prefix support.
    Copyright (C) 1987, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2006 Free Software Foundation, Inc.
 
 This file is part of libiberty.
 
@@ -16,8 +16,8 @@ for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
 /*
 
@@ -95,16 +95,14 @@ relative prefix can be found, return @code{NULL}.
 
 #define DIR_UP ".."
 
-static char *save_string PARAMS ((const char *, int));
-static char **split_directories	PARAMS ((const char *, int *));
-static void free_split_directories PARAMS ((char **));
+static char *save_string (const char *, int);
+static char **split_directories	(const char *, int *);
+static void free_split_directories (char **);
 
 static char *
-save_string (s, len)
-     const char *s;
-     int len;
+save_string (const char *s, int len)
 {
-  char *result = malloc (len + 1);
+  char *result = (char *) malloc (len + 1);
 
   memcpy (result, s, len);
   result[len] = 0;
@@ -114,9 +112,7 @@ save_string (s, len)
 /* Split a filename into component directories.  */
 
 static char **
-split_directories (name, ptr_num_dirs)
-     const char *name;
-     int *ptr_num_dirs;
+split_directories (const char *name, int *ptr_num_dirs)
 {
   int num_dirs = 0;
   char **dirs;
@@ -201,8 +197,7 @@ split_directories (name, ptr_num_dirs)
 /* Release storage held by split directories.  */
 
 static void
-free_split_directories (dirs)
-     char **dirs;
+free_split_directories (char **dirs)
 {
   int i = 0;
 
@@ -222,11 +217,9 @@ free_split_directories (dirs)
 
    If no relative prefix can be found, return NULL.  */
 
-char *
-make_relative_prefix (progname, bin_prefix, prefix)
-     const char *progname;
-     const char *bin_prefix;
-     const char *prefix;
+static char *
+make_relative_prefix_1 (const char *progname, const char *bin_prefix,
+			const char *prefix, const int resolve_links)
 {
   char **prog_dirs, **bin_dirs, **prefix_dirs;
   int prog_num, bin_num, prefix_num;
@@ -296,9 +289,14 @@ make_relative_prefix (progname, bin_prefix, prefix)
 	}
     }
 
-  full_progname = lrealpath (progname);
-  if (full_progname == NULL)
-    return NULL;
+  if ( resolve_links )
+    {
+      full_progname = lrealpath (progname);
+      if (full_progname == NULL)
+	return NULL;
+    }
+  else
+    full_progname = strdup(progname);
 
   prog_dirs = split_directories (full_progname, &prog_num);
   bin_dirs = split_directories (bin_prefix, &bin_num);
@@ -394,3 +392,30 @@ make_relative_prefix (progname, bin_prefix, prefix)
 
   return ret;
 }
+
+
+/* Do the full job, including symlink resolution.
+   This path will find files installed in the same place as the
+   program even when a soft link has been made to the program
+   from somwhere else. */
+
+char *
+make_relative_prefix (const char *progname, const char *bin_prefix,
+		      const char *prefix)
+{
+  return make_relative_prefix_1 (progname, bin_prefix, prefix, 1);
+}
+
+/* Make the relative pathname without attempting to resolve any links.
+   '..' etc may also be left in the pathname.
+   This will find the files the user meant the program to find if the
+   installation is patched together with soft links. */
+
+char *
+make_relative_prefix_ignore_links (const char *progname,
+				   const char *bin_prefix,
+				   const char *prefix)
+{
+  return make_relative_prefix_1 (progname, bin_prefix, prefix, 0);
+}
+

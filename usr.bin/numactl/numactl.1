@@ -1,0 +1,132 @@
+.\" Copyright (c) 2015 Adrian Chadd <adrian@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 9, 2015
+.Dt NUMACTL 1
+.Os
+.Sh NAME
+.Nm numactl
+.Nd "manage NUMA policy configuration"
+.Sh SYNOPSIS
+.Nm
+.Op Fl l Ar policy
+.Op Fl m Ar domain
+.Op Fl c Ar domain
+.Ar cmd ...
+.Nm
+.Fl g
+.Op Fl p Ar pid
+.Op Fl t Ar tid
+.Nm
+.Fl s
+.Op Fl l Ar policy
+.Op Fl m Ar domain
+.Op Fl c Ar domain
+.Op Fl p Ar pid
+.Op Fl t Ar tid
+.Sh DESCRIPTION
+The
+.Nm
+command can be used to assign NUMA policies to processes/threads,
+run commands with a given NUMA policy, and query information
+about NUMA policies on running processes.
+.Pp
+.Nm
+requires a target to modify or query.
+The target may be specified as a command, process id or a thread id.
+Using
+.Fl -get
+the target's NUMA policy may be queried.
+Using
+.Fl -set
+the target's NUMA policy may be queried.
+If no target is specified,
+.Nm
+operates on itself.
+Not all combinations of operations and targets are supported.
+For example,
+you may not set the id of an existing set or query and launch a command
+at the same time.
+.Pp
+Each process and thread has a NUMA policy.
+By default the policy is NONE.
+If a thread policy is NONE, then the policy will fall back to the process.
+If the process policy is NONE, then the policy will fall back to the
+system default.
+The policy may be queried by using
+.Fl -get.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl -cpudomain Ar domain"
+.It Fl -cpudomain Ar domain , Fl c Ar domain
+Set the given CPU scheduling policy.
+Constrain the object (tid, pid, command) to run on CPUs
+that belong to the given domain.
+.It Fl -get , Fl g
+Retrieve the NUMA policy for the given thread or process id.
+.It Fl -set , Fl s
+Set the NUMA policy for the given thread or process id.
+.It Fl -memdomain Ar domain , Fl m Ar domain
+Constrain the object (tid, pid, command) to the given
+domain.
+This is only valid for fixed-domain and fixed-domain-rr.
+It must not be set for other policies.
+.It Fl -mempolicy Ar policy , Fl l Ar policy
+Set the given memory allocation policy.
+Valid policies are none, rr, fixed-domain, fixed-domain-rr,
+first-touch, and first-touch-rr.
+A memdomain argument is required for fixed-domain and
+fixed-domain-rr.
+.It Fl -pid Ar pid , Fl p Ar pid
+Operate on the given pid.
+.It Fl -tid Ar tid , Fl t Ar tid
+Operate on the given tid.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Create a
+.Pa /bin/sh
+process with memory coming from domain 0, but
+CPUs coming from domain 1:
+.Dl numactl --mempolicy=fixed-domain --memdomain=0 --cpudomain=1 /bin/sh
+.Pp
+Query the NUMA policy for the
+.Aq sh pid :
+.Dl numactl --get --pid=<sh pid>
+.Pp
+Set the NUMA policy for the given TID to round-robin:
+.Dl numactl --set --mempolicy=rr --tid=<tid>
+.Sh SEE ALSO
+.Xr cpuset 2 ,
+.Xr numa 4
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+.An Adrian Chadd Aq Mt adrian@FreeBSD.org

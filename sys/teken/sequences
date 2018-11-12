@@ -88,6 +88,7 @@ ICH	Insert character			^[ [ @		n
 IL	Insert line				^[ [ L		n
 IND	Index					^[ D
 NEL	Next line				^[ E
+OSC	Operating System Command		^[ ]
 RI	Reverse index				^[ M
 RIS	Reset to Initial State			^[ c
 RM	Reset Mode				^[ [ l		r
@@ -104,6 +105,8 @@ C25ADBG	Cons25 set adapter background		^[ [ = G	r
 C25ADFG	Cons25 set adapter foreground		^[ [ = F	r
 C25BLPD	Cons25 set bell pitch duration		^[ [ = B	r r
 C25CURS	Cons25 set cursor type			^[ [ = S	r
+C25MODE	Cons25 set terminal mode		^[ [ = T	r
+C25SGR	Cons25 set graphic rendition		^[ [ x		r r
 C25VTSW	Cons25 switch virtual terminal		^[ [ z		r
 
 # VT52 compatibility

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #ifndef _I915_DRV_H_
 #define _I915_DRV_H_
 
+#include "dev/drm/drm_mm.h"
 #include "dev/drm/i915_reg.h"
 
 /* General customization:
@@ -236,9 +237,8 @@ typedef struct drm_i915_private {
 	u8 saveCR[37];
 
 	struct {
-#ifdef __linux__
 		struct drm_mm gtt_space;
-#endif
+
 		/**
 		 * List of objects currently involved in rendering from the
 		 * ringbuffer.
@@ -307,7 +307,7 @@ typedef struct drm_i915_private {
 		 * Flag if the hardware appears to be wedged.
 		 *
 		 * This is set when attempts to idle the device timeout.
-		 * It prevents command submission from occuring and makes
+		 * It prevents command submission from occurring and makes
 		 * every pending request fail
 		 */
 		int wedged;
@@ -560,7 +560,7 @@ extern void opregion_enable_asle(struct drm_device *dev);
 		LOCK_TEST_WITH_RETURN(dev, file_priv);			\
 } while (0)
 
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) && !defined(__bool_true_false_are_defined)
 typedef boolean_t bool;
 #endif
 
@@ -644,7 +644,8 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 		       (dev)->pci_device == 0x2A42 || \
 		       (dev)->pci_device == 0x2E02 || \
 		       (dev)->pci_device == 0x2E12 || \
-		       (dev)->pci_device == 0x2E22)
+		       (dev)->pci_device == 0x2E22 || \
+		       (dev)->pci_device == 0x2E32)
 
 #define IS_I965GM(dev) ((dev)->pci_device == 0x2A02)
 
@@ -653,17 +654,24 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define IS_G4X(dev) ((dev)->pci_device == 0x2E02 || \
 		     (dev)->pci_device == 0x2E12 || \
 		     (dev)->pci_device == 0x2E22 || \
+		     (dev)->pci_device == 0x2E32 || \
 		     IS_GM45(dev))
+
+#define IS_IGDG(dev) ((dev)->pci_device == 0xa001)
+#define IS_IGDGM(dev) ((dev)->pci_device == 0xa011)
+#define IS_IGD(dev) (IS_IGDG(dev) || IS_IGDGM(dev))
 
 #define IS_G33(dev)    ((dev)->pci_device == 0x29C2 ||	\
 			(dev)->pci_device == 0x29B2 ||	\
-			(dev)->pci_device == 0x29D2)
+			(dev)->pci_device == 0x29D2 ||  \
+			IS_IGD(dev))
 
 #define IS_I9XX(dev) (IS_I915G(dev) || IS_I915GM(dev) || IS_I945G(dev) || \
 		      IS_I945GM(dev) || IS_I965G(dev) || IS_G33(dev))
 
 #define IS_MOBILE(dev) (IS_I830(dev) || IS_I85X(dev) || IS_I915GM(dev) || \
-			IS_I945GM(dev) || IS_I965GM(dev) || IS_GM45(dev))
+			IS_I945GM(dev) || IS_I965GM(dev) || IS_GM45(dev) || \
+			IS_IGD(dev))
 
 #define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_GM45(dev) || IS_G4X(dev))
 

@@ -50,7 +50,7 @@
 #include "ispmbox.h"
 #endif
 
-#define	ISP_CORE_VERSION_MAJOR	6
+#define	ISP_CORE_VERSION_MAJOR	7
 #define	ISP_CORE_VERSION_MINOR	0
 
 /*
@@ -58,7 +58,7 @@
  */
 typedef struct ispsoftc ispsoftc_t;
 struct ispmdvec {
-	int		(*dv_rd_isr) (ispsoftc_t *, uint32_t *, uint16_t *, uint16_t *);
+	int		(*dv_rd_isr) (ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
 	uint32_t	(*dv_rd_reg) (ispsoftc_t *, int);
 	void		(*dv_wr_reg) (ispsoftc_t *, int, uint32_t);
 	int		(*dv_mbxdma) (ispsoftc_t *);
@@ -77,7 +77,7 @@ struct ispmdvec {
  */
 #define	MAX_TARGETS		16
 #ifndef	MAX_FC_TARG
-#define	MAX_FC_TARG		512
+#define	MAX_FC_TARG		1024
 #endif
 #define	ISP_MAX_TARGETS(isp)	(IS_FC(isp)? MAX_FC_TARG : MAX_TARGETS)
 #define	ISP_MAX_LUNS(isp)	(isp)->isp_maxluns
@@ -86,8 +86,8 @@ struct ispmdvec {
  * Macros to access ISP registers through bus specific layers-
  * mostly wrappers to vector through the mdvec structure.
  */
-#define	ISP_READ_ISR(isp, isrp, semap, mbox0p)	\
-	(*(isp)->isp_mdvec->dv_rd_isr)(isp, isrp, semap, mbox0p)
+#define	ISP_READ_ISR(isp, isrp, semap, info)	\
+	(*(isp)->isp_mdvec->dv_rd_isr)(isp, isrp, semap, info)
 
 #define	ISP_READ(isp, reg)	\
 	(*(isp)->isp_mdvec->dv_rd_reg)((isp), (reg))
@@ -130,6 +130,8 @@ struct ispmdvec {
 #define	SYNC_SFORCPU	3	/* scratch, sync for CPU */
 #define	SYNC_REG	4	/* for registers */
 #define	SYNC_ATIOQ	5	/* atio result queue (24xx) */
+#define	SYNC_IFORDEV	6	/* synchrounous IOCB, sync for ISP */
+#define	SYNC_IFORCPU	7	/* synchrounous IOCB, sync for CPU */
 
 /*
  * Request/Response Queue defines and macros.
@@ -154,13 +156,13 @@ struct ispmdvec {
 #define	ISP_QAVAIL(isp)	\
 	ISP_QFREE(isp->isp_reqidx, isp->isp_reqodx, RQUEST_QUEUE_LEN(isp))
 
-#define	ISP_ADD_REQUEST(isp, nxti)					\
-	MEMORYBARRIER(isp, SYNC_REQUEST, isp->isp_reqidx, QENTRY_LEN);	\
-	ISP_WRITE(isp, isp->isp_rqstinrp, nxti);			\
+#define	ISP_ADD_REQUEST(isp, nxti)						\
+	MEMORYBARRIER(isp, SYNC_REQUEST, isp->isp_reqidx, QENTRY_LEN, -1);	\
+	ISP_WRITE(isp, isp->isp_rqstinrp, nxti);				\
 	isp->isp_reqidx = nxti
 
 #define	ISP_SYNC_REQUEST(isp)								\
-	MEMORYBARRIER(isp, SYNC_REQUEST, isp->isp_reqidx, QENTRY_LEN);			\
+	MEMORYBARRIER(isp, SYNC_REQUEST, isp->isp_reqidx, QENTRY_LEN, -1);		\
 	isp->isp_reqidx = ISP_NXT_QENTRY(isp->isp_reqidx, RQUEST_QUEUE_LEN(isp));	\
 	ISP_WRITE(isp, isp->isp_rqstinrp, isp->isp_reqidx)
 
@@ -171,7 +173,6 @@ typedef struct {
 	uint32_t 				: 8,
 			update			: 1,
 			sendmarker		: 1,
-			role			: 2,
 			isp_req_ack_active_neg	: 1,
 			isp_data_line_active_neg: 1,
 			isp_cmd_dma_burst_enable: 1,
@@ -244,16 +245,13 @@ typedef struct {
 #define	SNS_ID			0x80	/* SNS Server Special ID */
 #define	NPH_MAX			0xfe
 
-/* Use this handle for the base for multi-id firmware SNS logins */
-#define	NPH_SNS_HDLBASE		0x400
-
 /* These are for 2K Login Firmware cards */
 #define	NPH_RESERVED		0x7F0	/* begin of reserved N-port handles */
 #define	NPH_MGT_ID		0x7FA	/* Management Server Special ID */
 #define	NPH_SNS_ID		0x7FC	/* SNS Server Special ID */
 #define	NPH_FABRIC_CTLR		0x7FD	/* Fabric Controller (0xFFFFFD) */
 #define	NPH_FL_ID		0x7FE	/* F Port Special ID (0xFFFFFE) */
-#define	NPH_IP_BCST		0x7ff	/* IP Broadcast Special ID (0xFFFFFF) */
+#define	NPH_IP_BCST		0x7FF	/* IP Broadcast Special ID (0xFFFFFF) */
 #define	NPH_MAX_2K		0x800
 
 /*
@@ -285,8 +283,51 @@ typedef struct {
 #define	FABRIC_PORT_ID		0xFFFFFE
 #define	PORT_ANY		0xFFFFFF
 #define	PORT_NONE		0
+#define	VALID_PORT(port)	(port != PORT_NONE && port != PORT_ANY)
 #define	DOMAIN_CONTROLLER_BASE	0xFFFC00
 #define	DOMAIN_CONTROLLER_END	0xFFFCFF
+
+/*
+ * Command Handles
+ *
+ * Most QLogic initiator or target have 32 bit handles associated with them.
+ * We want to have a quick way to index back and forth between a local SCSI
+ * command context and what the firmware is passing back to us. We also
+ * want to avoid working on stale information. This structure handles both
+ * at the expense of some local memory.
+ *
+ * The handle is architected thusly:
+ *
+ *	0 means "free handle"
+ *	bits  0..12 index commands
+ *	bits 13..15 bits index usage
+ *	bits 16..31 contain a rolling sequence
+ *
+ * 
+ */
+typedef struct {
+	void *		cmd;	/* associated command context */
+	uint32_t	handle;	/* handle associated with this command */
+} isp_hdl_t;
+#define	ISP_HANDLE_FREE		0x00000000
+#define	ISP_HANDLE_CMD_MASK	0x00001fff
+#define	ISP_HANDLE_USAGE_MASK	0x0000e000
+#define	ISP_HANDLE_USAGE_SHIFT	13
+#define	ISP_H2HT(hdl)	((hdl & ISP_HANDLE_USAGE_MASK) >> ISP_HANDLE_USAGE_SHIFT)
+#	define	ISP_HANDLE_NONE		0
+#	define	ISP_HANDLE_INITIATOR	1
+#	define	ISP_HANDLE_TARGET	2
+#	define	ISP_HANDLE_CTRL		3
+#define	ISP_HANDLE_SEQ_MASK	0xffff0000
+#define	ISP_HANDLE_SEQ_SHIFT	16
+#define	ISP_H2SEQ(hdl)	((hdl & ISP_HANDLE_SEQ_MASK) >> ISP_HANDLE_SEQ_SHIFT)
+#define	ISP_VALID_HANDLE(c, hdl)	\
+	((ISP_H2HT(hdl) == ISP_HANDLE_INITIATOR || \
+	  ISP_H2HT(hdl) == ISP_HANDLE_TARGET || \
+	  ISP_H2HT(hdl) == ISP_HANDLE_CTRL) && \
+	 ((hdl) & ISP_HANDLE_CMD_MASK) < (c)->isp_maxcmds && \
+	 (hdl) == ((c)->isp_xflist[(hdl) & ISP_HANDLE_CMD_MASK].handle))
+#define	ISP_BAD_HANDLE_INDEX	0xffffffff
 
 
 /*
@@ -297,12 +338,7 @@ typedef struct {
  * devices) or by the driver (e.g., for fabric devices).
  *
  * It has a state. If the state if VALID, that means that we've logged into
- * the device. We also *may* have a initiator map index entry. This is a value
- * from 0..MAX_FC_TARG that is used to index into the isp_dev_map array. If
- * the value therein is non-zero, then that value minus one is used to index
- * into the Port Database to find the handle for forming commands. There is
- * back-index minus one value within to Port Database entry that tells us
- * which entry in isp_dev_map points to us (to avoid searching).
+ * the device.
  *
  * Local loop devices the firmware automatically performs PLOGI on for us
  * (which is why that handle is imposed upon us). Fabric devices we assign
@@ -320,9 +356,9 @@ typedef struct {
  * index to put it into the Database, but that's just an optimization. We mark
  * the entry VALID and make sure that the target index is updated and correct.
  *
- * When we get done searching the local loop, we then search similarily for
+ * When we get done searching the local loop, we then search similarly for
  * a list of devices we've gotten from the fabric name controller (if we're
- * on a fabric). VALID marking is also done similarily.
+ * on a fabric). VALID marking is also done similarly.
  *
  * When all of this is done, we can march through the database and clean up
  * any entry that is still PROBATIONAL (these represent devices which have
@@ -334,9 +370,6 @@ typedef struct {
  *    duples.
  *
  *  + There can never be two non-NIL entries with the same handle.
- *
- *  + There can never be two non-NIL entries which have the same dev_map_idx
- *    value.
  */
 typedef struct {
 	/*
@@ -347,48 +380,42 @@ typedef struct {
 	uint16_t	handle;
 
 	/*
-	 * The dev_map_idx, if nonzero, is the system virtual target ID (+1)
-	 * as a cross-reference with the isp_dev_map.
-	 *
-	 * A device is 'autologin' if the firmware automatically logs into
-	 * it (re-logins as needed). Basically, local private loop devices.
+	 * PRLI word 3 parameters contains role as well as other things.
 	 *
 	 * The state is the current state of this entry.
 	 *
-	 * Role is Initiator, Target, Both
+	 * The is_target is the current state of target on this port.
+	 *
+	 * The is_initiator is the current state of initiator on this port.
 	 *
 	 * Portid is obvious, as are node && port WWNs. The new_role and
 	 * new_portid is for when we are pending a change.
-	 *
-	 * The 'target_mode' tag means that this entry arrived via a
-	 * target mode command and is immune from normal flushing rules.
-	 * You should also never see anything with an initiator role
-	 * with this set.
 	 */
-	uint16_t	dev_map_idx	: 12,
-			autologin	: 1,	/* F/W does PLOGI/PLOGO */
+	uint16_t	prli_word3;		/* PRLI parameters */
+	uint16_t	new_prli_word3;		/* Incoming new PRLI parameters */
+	uint16_t			: 12,
+			probational	: 1,
 			state		: 3;
-	uint32_t	reserved	: 5,
-			target_mode	: 1,
-			roles		: 2,
+	uint32_t			: 6,
+			is_target	: 1,
+			is_initiator	: 1,
 			portid		: 24;
 	uint32_t
-			dirty		: 1,	/* commands have been run */
-			new_reserved	: 5,
-			new_roles	: 2,
+					: 8,
 			new_portid	: 24;
 	uint64_t	node_wwn;
 	uint64_t	port_wwn;
+	uint32_t	gone_timer;
 } fcportdb_t;
 
-#define	FC_PORTDB_STATE_NIL		0
-#define	FC_PORTDB_STATE_PROBATIONAL	1
-#define	FC_PORTDB_STATE_DEAD		2
-#define	FC_PORTDB_STATE_CHANGED		3
-#define	FC_PORTDB_STATE_NEW		4
-#define	FC_PORTDB_STATE_PENDING_VALID	5
-#define	FC_PORTDB_STATE_ZOMBIE		6
-#define	FC_PORTDB_STATE_VALID		7
+#define	FC_PORTDB_STATE_NIL		0	/* Empty DB slot */
+#define	FC_PORTDB_STATE_DEAD		1	/* Was valid, but no more. */
+#define	FC_PORTDB_STATE_CHANGED		2	/* Was valid, but changed. */
+#define	FC_PORTDB_STATE_NEW		3	/* Logged in, not announced. */
+#define	FC_PORTDB_STATE_ZOMBIE		4	/* Invalid, but announced. */
+#define	FC_PORTDB_STATE_VALID		5	/* Valid */
+
+#define	FC_PORTDB_TGT(isp, bus, pdb)		(int)(lp - FCPARAM(isp, bus)->portdb)
 
 /*
  * FC card specific information
@@ -398,21 +425,17 @@ typedef struct {
  */
 
 typedef struct {
-	uint32_t
-				link_active	: 1,
-				npiv_fabric	: 1,
-				inorder		: 1,
+	int			isp_gbspeed;		/* Connection speed */
+	int			isp_linkstate;		/* Link state */
+	int			isp_fwstate;		/* ISP F/W state */
+	int			isp_loopstate;		/* Loop State */
+	int			isp_topo;		/* Connection Type */
+
+	uint32_t				: 4,
+				fctape_enabled	: 1,
 				sendmarker	: 1,
 				role		: 2,
-				isp_gbspeed	: 4,
-				isp_loopstate	: 4,	/* Current Loop State */
-				isp_fwstate	: 4,	/* ISP F/W state */
-				isp_topo	: 3,	/* Connection Type */
-				loop_seen_once	: 1;
-
-	uint32_t				: 8,
 				isp_portid	: 24;	/* S_ID */
-
 
 	uint16_t		isp_fwoptions;
 	uint16_t		isp_xfwoptions;
@@ -421,6 +444,8 @@ typedef struct {
 	uint16_t		isp_sns_hdl;		/* N-port handle for SNS */
 	uint16_t		isp_lasthdl;		/* only valid for channel 0 */
 	uint16_t		isp_maxalloc;
+	uint16_t		isp_fabric_params;
+	uint16_t		isp_login_hdl;		/* Logging in handle */
 	uint8_t			isp_retry_delay;
 	uint8_t			isp_retry_count;
 
@@ -442,35 +467,16 @@ typedef struct {
 	fcportdb_t		portdb[MAX_FC_TARG];
 
 	/*
-	 * This maps system virtual 'target' id to a portdb entry.
-	 *
-	 * The mapping function is to take any non-zero entry and
-	 * subtract one to get the portdb index. This means that
-	 * entries which are zero are unmapped (i.e., don't exist).
-	 */
-	uint16_t		isp_dev_map[MAX_FC_TARG];
-
-#ifdef	ISP_TARGET_MODE
-	/*
-	 * This maps N-Port Handle to portdb entry so we
-	 * don't have to search for every incoming command.
-	 *
-	 * The mapping function is to take any non-zero entry and
-	 * subtract one to get the portdb index. This means that
-	 * entries which are zero are unmapped (i.e., don't exist).
-	 */
-	uint16_t		isp_tgt_map[MAX_NPORT_HANDLE];
-#endif
-
-	/*
 	 * Scratch DMA mapped in area to fetch Port Database stuff, etc.
 	 */
 	void *			isp_scratch;
 	XS_DMA_ADDR_T		isp_scdma;
+
+	uint8_t			isp_scanscratch[ISP_FC_SCRLEN];
 } fcparam;
 
 #define	FW_CONFIG_WAIT		0
-#define	FW_WAIT_AL_PA		1
+#define	FW_WAIT_LINK		1
 #define	FW_WAIT_LOGIN		2
 #define	FW_READY		3
 #define	FW_LOSS_OF_SYNC		4
@@ -479,20 +485,24 @@ typedef struct {
 #define	FW_NON_PART		7
 
 #define	LOOP_NIL		0
-#define	LOOP_LIP_RCVD		1
-#define	LOOP_PDB_RCVD		2
-#define	LOOP_SCANNING_LOOP	3
-#define	LOOP_LSCAN_DONE		4
-#define	LOOP_SCANNING_FABRIC	5
-#define	LOOP_FSCAN_DONE		6
-#define	LOOP_SYNCING_PDB	7
-#define	LOOP_READY		8
+#define	LOOP_HAVE_LINK		1
+#define	LOOP_HAVE_ADDR		2
+#define	LOOP_TESTING_LINK	3
+#define	LOOP_LTEST_DONE		4
+#define	LOOP_SCANNING_LOOP	5
+#define	LOOP_LSCAN_DONE		6
+#define	LOOP_SCANNING_FABRIC	7
+#define	LOOP_FSCAN_DONE		8
+#define	LOOP_SYNCING_PDB	9
+#define	LOOP_READY		10
 
 #define	TOPO_NL_PORT		0
 #define	TOPO_FL_PORT		1
 #define	TOPO_N_PORT		2
 #define	TOPO_F_PORT		3
 #define	TOPO_PTP_STUB		4
+
+#define TOPO_IS_FABRIC(x)	((x) == TOPO_FL_PORT || (x) == TOPO_F_PORT)
 
 /*
  * Soft Structure per host adapter
@@ -514,10 +524,12 @@ struct ispsoftc {
 	 */
 
 	void * 			isp_param;	/* type specific */
+	uint64_t		isp_fwattr;	/* firmware attributes */
 	uint16_t		isp_fwrev[3];	/* Loaded F/W revision */
 	uint16_t		isp_maxcmds;	/* max possible I/O cmds */
 	uint8_t			isp_type;	/* HBA Chip Type */
 	uint8_t			isp_revision;	/* HBA Chip H/W Revision */
+	uint16_t		isp_nchan;	/* number of channels */
 	uint32_t		isp_maxluns;	/* maximum luns supported */
 
 	uint32_t		isp_clock	: 8,	/* input clock */
@@ -528,8 +540,6 @@ struct ispsoftc {
 				isp_loaded_fw	: 1,	/* loaded firmware */
 				isp_dblev	: 16;	/* debug log mask */
 
-	uint16_t		isp_fwattr;	/* firmware attributes */
-	uint16_t		isp_nchan;	/* number of channels */
 
 	uint32_t		isp_confopts;	/* config options */
 
@@ -562,32 +572,34 @@ struct ispsoftc {
 		isp_mboxbsy	:	1,	/* mailbox command active */
 		isp_state	:	3,
 		isp_nactive	:	16;	/* how many commands active */
+	volatile mbreg_t	isp_curmbx;	/* currently active mailbox command */
 	volatile uint32_t	isp_reqodx;	/* index of last ISP pickup */
 	volatile uint32_t	isp_reqidx;	/* index of next request */
-	volatile uint32_t	isp_residx;	/* index of next result */
+	volatile uint32_t	isp_residx;	/* index of last ISP write */
 	volatile uint32_t	isp_resodx;	/* index of next result */
-	volatile uint32_t	isp_lasthdls;	/* last handle seed */
+	volatile uint32_t	isp_atioodx;	/* index of next ATIO */
 	volatile uint32_t	isp_obits;	/* mailbox command output */
 	volatile uint32_t	isp_serno;	/* rolling serial number */
-	volatile uint16_t	isp_mboxtmp[MAILBOX_STORAGE];
+	volatile uint16_t	isp_mboxtmp[MAX_MAILBOX];
 	volatile uint16_t	isp_lastmbxcmd;	/* last mbox command sent */
 	volatile uint16_t	isp_mbxwrk0;
 	volatile uint16_t	isp_mbxwrk1;
 	volatile uint16_t	isp_mbxwrk2;
 	volatile uint16_t	isp_mbxwrk8;
+	volatile uint16_t	isp_seqno;	/* running sequence number */
 	void *			isp_mbxworkp;
 
 	/*
 	 * Active commands are stored here, indexed by handle functions.
 	 */
-	XS_T **isp_xflist;
+	isp_hdl_t		*isp_xflist;
+	isp_hdl_t		*isp_xffree;
 
-#ifdef	ISP_TARGET_MODE
 	/*
-	 * Active target commands are stored here, indexed by handle functions.
+	 * DMA mapped in area for synchronous IOCB requests.
 	 */
-	void **isp_tgtlist;
-#endif
+	void *			isp_iocb;
+	XS_DMA_ADDR_T		isp_iocb_dma;
 
 	/*
 	 * request/result queue pointers and DMA handles for them.
@@ -628,22 +640,27 @@ struct ispsoftc {
 #define	ISP_RUNSTATE	4
 
 /*
- * ISP Configuration Options
+ * ISP Runtime Configuration Options
  */
+#define	ISP_CFG_FULL_DUPLEX	0x01	/* Full Duplex (Fibre Channel only) */
+#define	ISP_CFG_PORT_PREF	0x0e	/* Mask for Port Prefs (all FC except 2100) */
+#define	ISP_CFG_PORT_DEF	0x00	/* prefer connection type from NVRAM */
+#define	ISP_CFG_LPORT_ONLY	0x02	/* insist on {N/F}L-Port connection */
+#define	ISP_CFG_NPORT_ONLY	0x04	/* insist on {N/F}-Port connection */
+#define	ISP_CFG_LPORT		0x06	/* prefer {N/F}L-Port connection */
+#define	ISP_CFG_NPORT		0x08	/* prefer {N/F}-Port connection */
+#define	ISP_CFG_1GB		0x10	/* force 1GB connection (23XX only) */
+#define	ISP_CFG_2GB		0x20	/* force 2GB connection (23XX only) */
 #define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */
 #define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
-#define	ISP_CFG_TWOGB		0x20	/* force 2GB connection (23XX only) */
-#define	ISP_CFG_ONEGB		0x10	/* force 1GB connection (23XX only) */
-#define	ISP_CFG_FULL_DUPLEX	0x01	/* Full Duplex (Fibre Channel only) */
-#define	ISP_CFG_PORT_PREF	0x0C	/* Mask for Port Prefs (2200 only) */
-#define	ISP_CFG_LPORT		0x00	/* prefer {N/F}L-Port connection */
-#define	ISP_CFG_NPORT		0x04	/* prefer {N/F}-Port connection */
-#define	ISP_CFG_NPORT_ONLY	0x08	/* insist on {N/F}-Port connection */
-#define	ISP_CFG_LPORT_ONLY	0x0C	/* insist on {N/F}L-Port connection */
+#define	ISP_CFG_NOFCTAPE	0x100	/* disable FC-Tape */
+#define	ISP_CFG_FCTAPE		0x200	/* enable FC-Tape */
 #define	ISP_CFG_OWNFSZ		0x400	/* override NVRAM frame size */
 #define	ISP_CFG_OWNLOOPID	0x800	/* override NVRAM loopid */
 #define	ISP_CFG_OWNEXCTHROTTLE	0x1000	/* override NVRAM execution throttle */
-#define	ISP_CFG_FOURGB		0x2000	/* force 4GB connection (24XX only) */
+#define	ISP_CFG_4GB		0x2000	/* force 4GB connection (24XX only) */
+#define	ISP_CFG_8GB		0x4000	/* force 8GB connection (25XX only) */
+#define	ISP_CFG_16GB		0x8000	/* force 16GB connection (82XX only) */
 
 /*
  * For each channel, the outer layers should know what role that channel
@@ -673,7 +690,16 @@ struct ispsoftc {
 #define	ISP_ROLE_BOTH		(ISP_ROLE_TARGET|ISP_ROLE_INITIATOR)
 #define	ISP_ROLE_EITHER		ISP_ROLE_BOTH
 #ifndef	ISP_DEFAULT_ROLES
+/*
+ * Counterintuitively, we prefer to default to role 'none'
+ * if we are enable target mode support. This gives us the
+ * maximum flexibility as to which port will do what.
+ */
+#ifdef	ISP_TARGET_MODE
+#define	ISP_DEFAULT_ROLES	ISP_ROLE_NONE
+#else
 #define	ISP_DEFAULT_ROLES	ISP_ROLE_INITIATOR
+#endif
 #endif
 
 
@@ -734,6 +760,7 @@ struct ispsoftc {
 #define	ISP_HA_FC_2322		0x50
 #define	ISP_HA_FC_2400		0x60
 #define	ISP_HA_FC_2500		0x70
+#define	ISP_HA_FC_2600		0x80
 
 #define	IS_SCSI(isp)	(isp->isp_type & ISP_HA_SCSI)
 #define	IS_1020(isp)	(isp->isp_type < ISP_HA_SCSI_1240)
@@ -759,6 +786,7 @@ struct ispsoftc {
 #define	IS_2322(isp)	((isp)->isp_type == ISP_HA_FC_2322)
 #define	IS_24XX(isp)	((isp)->isp_type >= ISP_HA_FC_2400)
 #define	IS_25XX(isp)	((isp)->isp_type >= ISP_HA_FC_2500)
+#define	IS_26XX(isp)	((isp)->isp_type >= ISP_HA_FC_2600)
 
 /*
  * DMA related macros
@@ -788,7 +816,7 @@ void isp_init(ispsoftc_t *);
 /*
  * Reset the ISP and call completion for any orphaned commands.
  */
-void isp_reinit(ispsoftc_t *, int);
+int isp_reinit(ispsoftc_t *, int);
 
 /*
  * Internal Interrupt Service Routine
@@ -797,7 +825,7 @@ void isp_reinit(ispsoftc_t *, int);
  * semaphore register and first mailbox register (if appropriate). This also
  * means that most spurious/bogus interrupts not for us can be filtered first.
  */
-void isp_intr(ispsoftc_t *, uint32_t, uint16_t, uint16_t);
+void isp_intr(ispsoftc_t *, uint16_t, uint16_t, uint16_t);
 
 
 /*
@@ -832,10 +860,10 @@ void isp_done(XS_T *);
  *        Update any operating parameters (speed, etc.)
  * ... ISPCTL_FCLINK_TEST, int channel);
  *        Test FC link status on this channel
- * ... ISPCTL_SCAN_FABRIC, int channel);
- *        Scan fabric on this channel
  * ... ISPCTL_SCAN_LOOP, int channel);
  *        Scan local loop on this channel
+ * ... ISPCTL_SCAN_FABRIC, int channel);
+ *        Scan fabric on this channel
  * ... ISPCTL_PDB_SYNC, int channel);
  *        Synchronize port database on this channel
  * ... ISPCTL_SEND_LIP, int channel);
@@ -848,14 +876,15 @@ void isp_done(XS_T *);
  *        Get PDB on this channel for this N-port handle
  * ... ISPCTL_PLOGX, isp_plcmd_t *)
  *        Performa a port login/logout
+ * ... ISPCTL_CHANGE_ROLE, int channel, int role);
+ *        Change role of specified channel
  *
  * ISPCTL_PDB_SYNC is somewhat misnamed. It actually is the final step, in
- * order, of ISPCTL_FCLINK_TEST, ISPCTL_SCAN_FABRIC, and ISPCTL_SCAN_LOOP.
+ * order, of ISPCTL_FCLINK_TEST, ISPCTL_SCAN_LOOP, and ISPCTL_SCAN_FABRIC.
  * The main purpose of ISPCTL_PDB_SYNC is to complete management of logging
  * and logging out of fabric devices (if one is on a fabric) and then marking
  * the 'loop state' as being ready to now be used for sending commands to
- * devices. Originally fabric name server and local loop scanning were
- * part of this function. It's now been separated to allow for finer control.
+ * devices.
  */
 typedef enum {
 	ISPCTL_RESET_BUS,
@@ -870,7 +899,8 @@ typedef enum {
 	ISPCTL_GET_NAMES,
 	ISPCTL_RUN_MBOXCMD,
 	ISPCTL_GET_PDB,
-	ISPCTL_PLOGX
+	ISPCTL_PLOGX,
+	ISPCTL_CHANGE_ROLE
 } ispctl_t;
 int isp_control(ispsoftc_t *, ispctl_t, ...);
 
@@ -891,6 +921,7 @@ typedef enum {
 	ISPASYNC_DEV_STAYED,		/* FC Device Stayed */
 	ISPASYNC_DEV_GONE,		/* FC Device Departure */
 	ISPASYNC_TARGET_NOTIFY,		/* All target async notification */
+	ISPASYNC_TARGET_NOTIFY_ACK,	/* All target notify ack required */
 	ISPASYNC_TARGET_ACTION,		/* All target action requested */
 	ISPASYNC_FW_CRASH,		/* All Firmware has crashed */
 	ISPASYNC_FW_RESTARTED		/* All Firmware has been restarted */
@@ -902,14 +933,20 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
 #define	ISPASYNC_CHANGE_OTHER	2
 
 /*
+ * Platform Independent Error Prinout
+ */
+void isp_prt_endcmd(ispsoftc_t *, XS_T *);
+
+/*
  * Platform Dependent Error and Debug Printout
  *
- * Generally this is:
+ * Two required functions for each platform must be provided:
  *
  *    void isp_prt(ispsoftc_t *, int level, const char *, ...)
+ *    void isp_xs_prt(ispsoftc_t *, XS_T *, int level, const char *, ...)
  *
  * but due to compiler differences on different platforms this won't be
- * formally done here. Instead, it goes in each platform definition file.
+ * formally defined here. Instead, they go in each platform definition file.
  */
 
 #define	ISP_LOGALL	0x0	/* log always */
@@ -921,7 +958,9 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
 #define	ISP_LOGDEBUG1	0x20	/* log intermediate debug messages */
 #define	ISP_LOGDEBUG2	0x40	/* log most debug messages */
 #define	ISP_LOGDEBUG3	0x80	/* log high frequency debug messages */
-#define	ISP_LOGSANCFG	0x100	/* log SAN configuration */
+#define	ISP_LOG_SANCFG	0x100	/* log SAN configuration */
+#define	ISP_LOG_CWARN	0x200	/* log SCSI command "warnings" (e.g., check conditions) */
+#define	ISP_LOG_WARN1	0x400	/* log WARNS we might be interested at some time */
 #define	ISP_LOGTINFO	0x1000	/* log informational messages (target mode) */
 #define	ISP_LOGTDEBUG0	0x2000	/* log simple debug messages (target mode) */
 #define	ISP_LOGTDEBUG1	0x4000	/* log intermediate debug messages (target) */
@@ -944,6 +983,7 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *
  *	ISP_INLINE				___inline or not- depending on how
  *						good your debugger is
+ *	ISP_MIN					shorthand for ((a) < (b))? (a) : (b)
  *
  *	NANOTIME_T				nanosecond time type
  *
@@ -957,7 +997,7 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *	MAXISPREQUEST(ispsoftc_t *)		maximum request queue size
  *						for this particular board type
  *
- *	MEMORYBARRIER(ispsoftc_t *, barrier_type, offset, size)
+ *	MEMORYBARRIER(ispsoftc_t *, barrier_type, offset, size, chan)
  *
  *		Function/Macro the provides memory synchronization on
  *		various objects so that the ISP's and the system's view
@@ -971,6 +1011,8 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *	FC_SCRATCH_ACQUIRE(ispsoftc_t *, chan)	acquire lock on FC scratch area
  *						return -1 if you cannot
  *	FC_SCRATCH_RELEASE(ispsoftc_t *, chan)	acquire lock on FC scratch area
+ *
+ *	FCP_NEXT_CRN(ispsoftc_t *, XS_T *, rslt, channel, target, lun)	generate the next command reference number. XS_T * may be null.
  *
  *	SCSI_GOOD	SCSI 'Good' Status
  *	SCSI_CHECK	SCSI 'Check Condition' Status
@@ -993,8 +1035,11 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *	XS_GET_RESID(xs, resid)	sets the current residual count
  *	XS_STSP(xs)		gets a pointer to the SCSI status byte ""
  *	XS_SNSP(xs)		gets a pointer to the associate sense data
- *	XS_SNSLEN(xs)		gets the length of sense data storage
+ *	XS_TOT_SNSLEN(xs)	gets the total length of sense data storage
+ *	XS_CUR_SNSLEN(xs)	gets the currently used length of sense data storage
  *	XS_SNSKEY(xs)		dereferences XS_SNSP to get the current stored Sense Key
+ *	XS_SNSASC(xs)		dereferences XS_SNSP to get the current stored Additional Sense Code
+ *	XS_SNSASCQ(xs)		dereferences XS_SNSP to get the current stored Additional Sense Code Qualifier
  *	XS_TAG_P(xs)		predicate of whether this command should be tagged
  *	XS_TAG_TYPE(xs)		which type of tag to use
  *	XS_SETERR(xs)		set error state
@@ -1013,13 +1058,16 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *	XS_NOERR(xs)	there is no error currently set
  *	XS_INITERR(xs)	initialize error state
  *
- *	XS_SAVE_SENSE(xs, sp, len)	save sense data
+ *	XS_SAVE_SENSE(xs, sp, total_len, this_len)	save sense data (total and current amount)
+ *
+ *	XS_APPEND_SENSE(xs, sp, len)	append more sense data
+ *
+ *	XS_SENSE_VALID(xs)		indicates whether sense is valid
  *
  *	DEFAULT_FRAMESIZE(ispsoftc_t *)		Default Frame Size
  *	DEFAULT_EXEC_THROTTLE(ispsoftc_t *)	Default Execution Throttle
  *
- *	GET_DEFAULT_ROLE(ispsoftc_t *, int)	Get Default Role for a channel
- *	SET_DEFAULT_ROLE(ispsoftc_t *, int, int) Set Default Role for a channel
+ *	DEFAULT_ROLE(ispsoftc_t *, int)		Get Default Role for a channel
  *	DEFAULT_IID(ispsoftc_t *, int)		Default SCSI initiator ID
  *	DEFAULT_LOOPID(ispsoftc_t *, int)	Default FC Loop ID
  *
@@ -1077,14 +1125,6 @@ int isp_notify_ack(ispsoftc_t *, void *);
 int isp_acknak_abts(ispsoftc_t *, void *, int);
 
 /*
- * Enable/Disable/Modify a logical unit.
- * (softc, cmd, bus, tgt, lun, cmd_cnt, inotify_cnt)
- */
-#define	DFLT_CMND_CNT	0xfe	/* unmonitored */
-#define	DFLT_INOT_CNT	0xfe	/* unmonitored */
-int isp_lun_cmd(ispsoftc_t *, int, int, int, int, int);
-
-/*
  * General request queue 'put' routine for target mode entries.
  */
 int isp_target_put_entry(ispsoftc_t *isp, void *);
@@ -1103,7 +1143,8 @@ int isp_target_put_atio(ispsoftc_t *, void *);
  */
 int isp_endcmd(ispsoftc_t *, ...);
 #define	ECMD_SVALID	0x100
-#define	ECMD_TERMINATE	0x200
+#define	ECMD_RVALID	0x200
+#define	ECMD_TERMINATE	0x400
 
 /*
  * Handle an asynchronous event

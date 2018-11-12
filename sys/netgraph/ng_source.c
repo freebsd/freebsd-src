@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF SANDVINE IS ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * Author: Dave Chapeskie <dchapeskie@sandvine.com>
+ * Author: Dave Chapeskie
  */
 
 #include <sys/cdefs.h>
@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * This node is used for high speed packet geneneration.  It queues
- * all data recieved on its 'input' hook and when told to start via
+ * all data received on its 'input' hook and when told to start via
  * a control message it sends the packets out its 'output' hook.  In
  * this way this node can be preloaded with a packet stream which it
  * can then send continuously as fast as possible.
@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/vnet.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
@@ -273,9 +272,7 @@ ng_source_constructor(node_p node)
 {
 	sc_p sc;
 
-	sc = malloc(sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (sc == NULL)
-		return (ENOMEM);
+	sc = malloc(sizeof(*sc), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	NG_NODE_SET_PRIVATE(node, sc);
 	sc->node = node;
@@ -297,7 +294,7 @@ ng_source_newhook(node_p node, hook_p hook, const char *name)
 		sc->input = hook;
 	} else if (strcmp(name, NG_SOURCE_HOOK_OUTPUT) == 0) {
 		sc->output = hook;
-		sc->output_ifp = 0;
+		sc->output_ifp = NULL;
 		bzero(&sc->stats, sizeof(sc->stats));
 	} else
 		return (EINVAL);
@@ -448,7 +445,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		    {
 			struct ng_source_embed_info *embed;
 
-			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_DONTWAIT);
+			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				goto done;
@@ -487,7 +484,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = EINVAL;
 				goto done;
 			}
-			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_DONTWAIT);
+			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				goto done;
@@ -604,14 +601,13 @@ ng_source_disconnect(hook_p hook)
 }
 
 /*
- * Set sc->output_ifp to point to the the struct ifnet of the interface
+ * Set sc->output_ifp to point to the struct ifnet of the interface
  * reached via our output hook.
  */
 static int
 ng_source_store_output_ifp(sc_p sc, char *ifname)
 {
 	struct ifnet *ifp;
-	int s;
 
 	ifp = ifunit(ifname);
 
@@ -627,13 +623,11 @@ ng_source_store_output_ifp(sc_p sc, char *ifname)
 	 * interface with small packets.
 	 * XXX we should restore the original value at stop or disconnect
 	 */
-	s = splimp();		/* XXX is this required? */
 	if (ifp->if_snd.ifq_maxlen < NG_SOURCE_DRIVER_IFQ_MAXLEN) {
 		printf("ng_source: changing ifq_maxlen from %d to %d\n",
 		    ifp->if_snd.ifq_maxlen, NG_SOURCE_DRIVER_IFQ_MAXLEN);
 		ifp->if_snd.ifq_maxlen = NG_SOURCE_DRIVER_IFQ_MAXLEN;
 	}
-	splx(s);
 #endif
 	return (0);
 }
@@ -879,9 +873,9 @@ ng_source_dup_mod(sc_p sc, struct mbuf *m0, struct mbuf **m_ptr)
 
 	/* Duplicate the packet. */
 	if (modify)
-		m = m_dup(m0, M_DONTWAIT);
+		m = m_dup(m0, M_NOWAIT);
 	else
-		m = m_copypacket(m0, M_DONTWAIT);
+		m = m_copypacket(m0, M_NOWAIT);
 	if (m == NULL) {
 		error = ENOBUFS;
 		goto done;

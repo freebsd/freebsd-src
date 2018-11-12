@@ -1,8 +1,5 @@
+/* $FreeBSD$ */
 /*	$NetBSD: hid.c,v 1.17 2001/11/13 06:24:53 lukem Exp $	*/
-
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -19,13 +16,6 @@ __FBSDID("$FreeBSD$");
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -40,6 +30,9 @@ __FBSDID("$FreeBSD$");
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -48,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -72,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_request.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 static void hid_clear_local(struct hid_item *);
 static uint8_t hid_get_byte(struct hid_data *s, const uint16_t wSize);
@@ -361,7 +354,8 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 					/* range check usage count */
 					if (c->loc.count > 255) {
 						DPRINTFN(0, "Number of "
-						    "items truncated to 255\n");
+						    "items(%u) truncated to 255\n",
+						    (unsigned)(c->loc.count));
 						s->ncount = 255;
 					} else
 						s->ncount = c->loc.count;
@@ -433,7 +427,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				s->loc_size = dval & mask;
 				break;
 			case 8:
-				hid_switch_rid(s, c, dval);
+				hid_switch_rid(s, c, dval & mask);
 				break;
 			case 9:
 				/* mask because value is unsigned */
@@ -450,7 +444,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 					c = &s->cur[s->pushlevel];
 				} else {
 					DPRINTFN(0, "Cannot push "
-					    "item @ %d!\n", s->pushlevel);
+					    "item @ %d\n", s->pushlevel);
 				}
 				break;
 			case 11:	/* Pop */
@@ -468,7 +462,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 					c->loc.count = 0;
 				} else {
 					DPRINTFN(0, "Cannot pop "
-					    "item @ %d!\n", s->pushlevel);
+					    "item @ %d\n", s->pushlevel);
 				}
 				break;
 			default:
@@ -490,7 +484,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 					s->usages_max[s->nusage] = dval;
 					s->nusage ++;
 				} else {
-					DPRINTFN(0, "max usage reached!\n");
+					DPRINTFN(0, "max usage reached\n");
 				}
 
 				/* clear any pending usage sets */
@@ -525,7 +519,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 					    c->usage_maximum;
 					s->nusage ++;
 				} else {
-					DPRINTFN(0, "Usage set dropped!\n");
+					DPRINTFN(0, "Usage set dropped\n");
 				}
 				s->susage = 0;
 				break;
@@ -582,7 +576,7 @@ hid_report_size(const void *buf, usb_size_t len, enum hid_kind k, uint8_t *id)
 
 	for (d = hid_start_parse(buf, len, 1 << k); hid_get_item(d, &h);) {
 		if (h.kind == k) {
-			/* check for ID-byte presense */
+			/* check for ID-byte presence */
 			if ((h.report_ID != 0) && !any_id) {
 				if (id != NULL)
 					*id = h.report_ID;
@@ -620,7 +614,7 @@ hid_report_size(const void *buf, usb_size_t len, enum hid_kind k, uint8_t *id)
  *	hid_locate
  *------------------------------------------------------------------------*/
 int
-hid_locate(const void *desc, usb_size_t size, uint32_t u, enum hid_kind k,
+hid_locate(const void *desc, usb_size_t size, int32_t u, enum hid_kind k,
     uint8_t index, struct hid_location *loc, uint32_t *flags, uint8_t *id)
 {
 	struct hid_data *d;
@@ -653,8 +647,9 @@ hid_locate(const void *desc, usb_size_t size, uint32_t u, enum hid_kind k,
 /*------------------------------------------------------------------------*
  *	hid_get_data
  *------------------------------------------------------------------------*/
-uint32_t
-hid_get_data(const uint8_t *buf, usb_size_t len, struct hid_location *loc)
+static uint32_t
+hid_get_data_sub(const uint8_t *buf, usb_size_t len, struct hid_location *loc,
+    int is_signed)
 {
 	uint32_t hpos = loc->pos;
 	uint32_t hsize = loc->size;
@@ -683,21 +678,73 @@ hid_get_data(const uint8_t *buf, usb_size_t len, struct hid_location *loc)
 
 	/* Correctly shift down data */
 	data = (data >> (hpos % 8));
+	n = 32 - hsize;
 
 	/* Mask and sign extend in one */
-	n = 32 - hsize;
-	data = ((int32_t)data << n) >> n;
+	if (is_signed != 0)
+		data = (int32_t)((int32_t)data << n) >> n;
+	else
+		data = (uint32_t)((uint32_t)data << n) >> n;
 
 	DPRINTFN(11, "hid_get_data: loc %d/%d = %lu\n",
 	    loc->pos, loc->size, (long)data);
 	return (data);
 }
 
+int32_t
+hid_get_data(const uint8_t *buf, usb_size_t len, struct hid_location *loc)
+{
+	return (hid_get_data_sub(buf, len, loc, 1));
+}
+
+uint32_t
+hid_get_data_unsigned(const uint8_t *buf, usb_size_t len, struct hid_location *loc)
+{
+        return (hid_get_data_sub(buf, len, loc, 0));
+}
+
+/*------------------------------------------------------------------------*
+ *	hid_put_data
+ *------------------------------------------------------------------------*/
+void
+hid_put_data_unsigned(uint8_t *buf, usb_size_t len,
+    struct hid_location *loc, unsigned int value)
+{
+	uint32_t hpos = loc->pos;
+	uint32_t hsize = loc->size;
+	uint64_t data;
+	uint64_t mask;
+	uint32_t rpos;
+	uint8_t n;
+
+	DPRINTFN(11, "hid_put_data: loc %d/%d = %u\n", hpos, hsize, value);
+
+	/* Range check and limit */
+	if (hsize == 0)
+		return;
+	if (hsize > 32)
+		hsize = 32;
+
+	/* Put data in a safe way */	
+	rpos = (hpos / 8);
+	n = (hsize + 7) / 8;
+	data = ((uint64_t)value) << (hpos % 8);
+	mask = ((1ULL << hsize) - 1ULL) << (hpos % 8);
+	rpos += n;
+	while (n--) {
+		rpos--;
+		if (rpos < len) {
+			buf[rpos] &= ~(mask >> (8 * n));
+			buf[rpos] |= (data >> (8 * n));
+		}
+	}
+}
+
 /*------------------------------------------------------------------------*
  *	hid_is_collection
  *------------------------------------------------------------------------*/
 int
-hid_is_collection(const void *desc, usb_size_t size, uint32_t usage)
+hid_is_collection(const void *desc, usb_size_t size, int32_t usage)
 {
 	struct hid_data *hd;
 	struct hid_item hi;
@@ -799,4 +846,80 @@ usbd_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
 		return (err);
 	}
 	return (USB_ERR_NORMAL_COMPLETION);
+}
+
+/*------------------------------------------------------------------------*
+ *	hid_is_mouse
+ *
+ * This function will decide if a USB descriptor belongs to a USB mouse.
+ *
+ * Return values:
+ * Zero: Not a USB mouse.
+ * Else: Is a USB mouse.
+ *------------------------------------------------------------------------*/
+int
+hid_is_mouse(const void *d_ptr, uint16_t d_len)
+{
+	struct hid_data *hd;
+	struct hid_item hi;
+	int mdepth;
+	int found;
+
+	hd = hid_start_parse(d_ptr, d_len, 1 << hid_input);
+	if (hd == NULL)
+		return (0);
+
+	mdepth = 0;
+	found = 0;
+
+	while (hid_get_item(hd, &hi)) {
+		switch (hi.kind) {
+		case hid_collection:
+			if (mdepth != 0)
+				mdepth++;
+			else if (hi.collection == 1 &&
+			     hi.usage ==
+			      HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE))
+				mdepth++;
+			break;
+		case hid_endcollection:
+			if (mdepth != 0)
+				mdepth--;
+			break;
+		case hid_input:
+			if (mdepth == 0)
+				break;
+			if (hi.usage ==
+			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X) &&
+			    (hi.flags & (HIO_CONST|HIO_RELATIVE)) == HIO_RELATIVE)
+				found++;
+			if (hi.usage ==
+			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y) &&
+			    (hi.flags & (HIO_CONST|HIO_RELATIVE)) == HIO_RELATIVE)
+				found++;
+			break;
+		default:
+			break;
+		}
+	}
+	hid_end_parse(hd);
+	return (found);
+}
+
+/*------------------------------------------------------------------------*
+ *	hid_is_keyboard
+ *
+ * This function will decide if a USB descriptor belongs to a USB keyboard.
+ *
+ * Return values:
+ * Zero: Not a USB keyboard.
+ * Else: Is a USB keyboard.
+ *------------------------------------------------------------------------*/
+int
+hid_is_keyboard(const void *d_ptr, uint16_t d_len)
+{
+	if (hid_is_collection(d_ptr, d_len,
+	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_KEYBOARD)))
+		return (1);
+	return (0);
 }

@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -42,11 +42,11 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 FILE *
-funopen(cookie, readfn, writefn, seekfn, closefn)
-	const void *cookie;
-	int (*readfn)(), (*writefn)();
-	fpos_t (*seekfn)(void *cookie, fpos_t off, int whence);
-	int (*closefn)();
+funopen(const void *cookie,
+	int (*readfn)(void *, char *, int),
+	int (*writefn)(void *, const char *, int),
+	fpos_t (*seekfn)(void *, fpos_t, int),
+	int (*closefn)(void *))
 {
 	FILE *fp;
 	int flags;

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2005 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2005 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: time.h,v 1.1 2005/06/14 23:07:19 ca Exp $
+ *	$Id: time.h,v 1.2 2013-11-22 20:51:32 ca Exp $
  */
 
 #ifndef SM_TIME_H

@@ -18,7 +18,7 @@ case "$daily_status_ntpd_enable" in
 	echo ""
 	echo "NTP status:"
 
-	synchronized=$(ntpq -p | tee /dev/stderr | grep '^\*')
+	synchronized=$(ntpq -pn | tee /dev/stderr | grep '^\*')
 	if [ -z "$synchronized" ]; then
 		rc=1
 	fi

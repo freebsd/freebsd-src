@@ -100,7 +100,7 @@ struct svc_rpc_gss_callback {
 	rpc_gss_callback_t	cb_callback;
 };
 static SLIST_HEAD(svc_rpc_gss_callback_list, svc_rpc_gss_callback)
-	svc_rpc_gss_callbacks = SLIST_HEAD_INITIALIZER(&svc_rpc_gss_callbacks);
+	svc_rpc_gss_callbacks = SLIST_HEAD_INITIALIZER(svc_rpc_gss_callbacks);
 
 struct svc_rpc_gss_svc_name {
 	SLIST_ENTRY(svc_rpc_gss_svc_name) sn_link;
@@ -112,7 +112,7 @@ struct svc_rpc_gss_svc_name {
 	u_int			sn_version;
 };
 static SLIST_HEAD(svc_rpc_gss_svc_name_list, svc_rpc_gss_svc_name)
-	svc_rpc_gss_svc_names = SLIST_HEAD_INITIALIZER(&svc_rpc_gss_svc_names);
+	svc_rpc_gss_svc_names = SLIST_HEAD_INITIALIZER(svc_rpc_gss_svc_names);
 
 enum svc_rpc_gss_client_state {
 	CLIENT_NEW,				/* still authenticating */
@@ -331,7 +331,7 @@ rpc_gss_get_principal_name(rpc_gss_principal_t *principal,
 	 * Construct a gss_buffer containing the full name formatted
 	 * as "name/node@domain" where node and domain are optional.
 	 */
-	namelen = strlen(name);
+	namelen = strlen(name) + 1;
 	if (node) {
 		namelen += strlen(node) + 1;
 	}
@@ -504,11 +504,13 @@ svc_rpc_gss_find_client(struct svc_rpc_gss_clientid *id)
 {
 	struct svc_rpc_gss_client *client;
 	struct svc_rpc_gss_client_list *list;
+	struct timeval boottime;
 	unsigned long hostid;
 
 	rpc_gss_log_debug("in svc_rpc_gss_find_client(%d)", id->ci_id);
 
 	getcredhostid(curthread->td_ucred, &hostid);
+	getboottime(&boottime);
 	if (id->ci_hostid != hostid || id->ci_boottime != boottime.tv_sec)
 		return (NULL);
 
@@ -537,6 +539,7 @@ svc_rpc_gss_create_client(void)
 {
 	struct svc_rpc_gss_client *client;
 	struct svc_rpc_gss_client_list *list;
+	struct timeval boottime;
 	unsigned long hostid;
 
 	rpc_gss_log_debug("in svc_rpc_gss_create_client()");
@@ -547,6 +550,7 @@ svc_rpc_gss_create_client(void)
 	sx_init(&client->cl_lock, "GSS-client");
 	getcredhostid(curthread->td_ucred, &hostid);
 	client->cl_id.ci_hostid = hostid;
+	getboottime(&boottime);
 	client->cl_id.ci_boottime = boottime.tv_sec;
 	client->cl_id.ci_id = svc_rpc_gss_next_clientid++;
 	list = &svc_rpc_gss_client_hash[client->cl_id.ci_id % CLIENT_HASH_SIZE];
@@ -606,27 +610,52 @@ svc_rpc_gss_release_client(struct svc_rpc_gss_client *client)
 }
 
 /*
+ * Remove a client from our global lists.
+ * Must be called with svc_rpc_gss_lock held.
+ */
+static void
+svc_rpc_gss_forget_client_locked(struct svc_rpc_gss_client *client)
+{
+	struct svc_rpc_gss_client_list *list;
+
+	sx_assert(&svc_rpc_gss_lock, SX_XLOCKED);
+	list = &svc_rpc_gss_client_hash[client->cl_id.ci_id % CLIENT_HASH_SIZE];
+	TAILQ_REMOVE(list, client, cl_link);
+	TAILQ_REMOVE(&svc_rpc_gss_clients, client, cl_alllink);
+	svc_rpc_gss_client_count--;
+}
+
+/*
  * Remove a client from our global lists and free it if we can.
  */
 static void
 svc_rpc_gss_forget_client(struct svc_rpc_gss_client *client)
 {
 	struct svc_rpc_gss_client_list *list;
+	struct svc_rpc_gss_client *tclient;
 
 	list = &svc_rpc_gss_client_hash[client->cl_id.ci_id % CLIENT_HASH_SIZE];
 	sx_xlock(&svc_rpc_gss_lock);
-	TAILQ_REMOVE(list, client, cl_link);
-	TAILQ_REMOVE(&svc_rpc_gss_clients, client, cl_alllink);
-	svc_rpc_gss_client_count--;
+	TAILQ_FOREACH(tclient, list, cl_link) {
+		/*
+		 * Make sure this client has not already been removed
+		 * from the lists by svc_rpc_gss_forget_client() or
+		 * svc_rpc_gss_forget_client_locked().
+		 */
+		if (client == tclient) {
+			svc_rpc_gss_forget_client_locked(client);
+			sx_xunlock(&svc_rpc_gss_lock);
+			svc_rpc_gss_release_client(client);
+			return;
+		}
+	}
 	sx_xunlock(&svc_rpc_gss_lock);
-	svc_rpc_gss_release_client(client);
 }
 
 static void
 svc_rpc_gss_timeout_clients(void)
 {
 	struct svc_rpc_gss_client *client;
-	struct svc_rpc_gss_client *nclient;
 	time_t now = time_uptime;
 
 	rpc_gss_log_debug("in svc_rpc_gss_timeout_clients()");
@@ -635,16 +664,29 @@ svc_rpc_gss_timeout_clients(void)
 	 * First enforce the max client limit. We keep
 	 * svc_rpc_gss_clients in LRU order.
 	 */
-	while (svc_rpc_gss_client_count > CLIENT_MAX)
-		svc_rpc_gss_forget_client(TAILQ_LAST(&svc_rpc_gss_clients,
-			    svc_rpc_gss_client_list));
-	TAILQ_FOREACH_SAFE(client, &svc_rpc_gss_clients, cl_alllink, nclient) {
+	sx_xlock(&svc_rpc_gss_lock);
+	client = TAILQ_LAST(&svc_rpc_gss_clients, svc_rpc_gss_client_list);
+	while (svc_rpc_gss_client_count > CLIENT_MAX && client != NULL) {
+		svc_rpc_gss_forget_client_locked(client);
+		sx_xunlock(&svc_rpc_gss_lock);
+		svc_rpc_gss_release_client(client);
+		sx_xlock(&svc_rpc_gss_lock);
+		client = TAILQ_LAST(&svc_rpc_gss_clients,
+		    svc_rpc_gss_client_list);
+	}
+again:
+	TAILQ_FOREACH(client, &svc_rpc_gss_clients, cl_alllink) {
 		if (client->cl_state == CLIENT_STALE
 		    || now > client->cl_expiration) {
+			svc_rpc_gss_forget_client_locked(client);
+			sx_xunlock(&svc_rpc_gss_lock);
 			rpc_gss_log_debug("expiring client %p", client);
-			svc_rpc_gss_forget_client(client);
+			svc_rpc_gss_release_client(client);
+			sx_xlock(&svc_rpc_gss_lock);
+			goto again;
 		}
 	}
+	sx_xunlock(&svc_rpc_gss_lock);
 }
 
 #ifdef DEBUG
@@ -932,7 +974,7 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 			    "<mech %.*s, qop %d, svc %d>",
 			    client->cl_rawcred.client_principal->name,
 			    mechname.length, (char *)mechname.value,
-			    client->cl_qop, client->rawcred.service);
+			    client->cl_qop, client->cl_rawcred.service);
 
 			gss_release_buffer(&min_stat, &mechname);
 		}
@@ -943,7 +985,7 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 
 static bool_t
 svc_rpc_gss_validate(struct svc_rpc_gss_client *client, struct rpc_msg *msg,
-    gss_qop_t *qop)
+    gss_qop_t *qop, rpc_gss_proc_t gcproc)
 {
 	struct opaque_auth	*oa;
 	gss_buffer_desc		 rpcbuf, checksum;
@@ -983,7 +1025,16 @@ svc_rpc_gss_validate(struct svc_rpc_gss_client *client, struct rpc_msg *msg,
 	if (maj_stat != GSS_S_COMPLETE) {
 		rpc_gss_log_status("gss_verify_mic", client->cl_mech,
 		    maj_stat, min_stat);
-		client->cl_state = CLIENT_STALE;
+		/*
+		 * A bug in some versions of the Linux client generates a
+		 * Destroy operation with a bogus encrypted checksum. Deleting
+		 * the credential handle for that case causes the mount to fail.
+		 * Since the checksum is bogus (gss_verify_mic() failed), it
+		 * doesn't make sense to destroy the handle and not doing so
+		 * fixes the Linux mount.
+		 */
+		if (gcproc != RPCSEC_GSS_DESTROY)
+			client->cl_state = CLIENT_STALE;
 		return (FALSE);
 	}
 
@@ -1317,7 +1368,7 @@ svc_rpc_gss(struct svc_req *rqst, struct rpc_msg *msg)
 			break;
 		}
 
-		if (!svc_rpc_gss_validate(client, msg, &qop)) {
+		if (!svc_rpc_gss_validate(client, msg, &qop, gc.gc_proc)) {
 			result = RPCSEC_GSS_CREDPROBLEM;
 			break;
 		}

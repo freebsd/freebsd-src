@@ -47,7 +47,8 @@ specifies the source from which snapshots should be fetched.
 This is equivalent to the
 .Fl s Ar server
 option to
-.Xr portsnap 8 , and will be ignored if the command-line
+.Xr portsnap 8 ,
+and will be ignored if the command-line
 option is used.
 .Pp
 A line of the form
@@ -58,7 +59,8 @@ belonging to an RSA keypair which is trusted to sign updates.
 This is equivalent to the
 .Fl k Ar KEY
 option to
-.Xr portsnap 8 , and will be ignored if the command-line
+.Xr portsnap 8 ,
+and will be ignored if the command-line
 option is used.
 .Pp
 A line of the form
@@ -68,7 +70,8 @@ snapshot of the ports tree.
 This is equivalent to the
 .Fl d Ar workdir
 option to
-.Xr portsnap 8 , and will be ignored if the command-line option
+.Xr portsnap 8 ,
+and will be ignored if the command-line option
 is used.
 .Pp
 A line of the form
@@ -82,7 +85,8 @@ commands.
 This is equivalent to the
 .Fl p Ar portsdir
 option to
-.Xr portsnap 8 , and will be ignored if the command-line option
+.Xr portsnap 8 ,
+and will be ignored if the command-line option
 is used.
 .Pp
 If more than one line of any of the above forms is included in
@@ -131,13 +135,13 @@ supported and may cause unexpected results.
 Any lines not of the above forms will be ignored.
 .Sh FILES
 .Bl -tag -width "/etc/portsnap.conf"
-.It /etc/portsnap.conf
+.It Pa /etc/portsnap.conf
 Default location of the portsnap configuration file.
 .El
 .Sh SEE ALSO
 .Xr egrep 1 ,
 .Xr fetch 1 ,
-.Xr portsnap 8 ,
-.Xr sha256 8
+.Xr sha256 1 ,
+.Xr portsnap 8
 .Sh AUTHORS
-.An Colin Percival Aq cperciva@FreeBSD.org
+.An Colin Percival Aq Mt cperciva@FreeBSD.org

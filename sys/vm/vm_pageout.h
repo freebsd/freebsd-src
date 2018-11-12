@@ -72,10 +72,10 @@
  */
 
 extern int vm_page_max_wired;
-extern int vm_pages_needed;	/* should be some "event" structure */
-extern int vm_pageout_pages_needed;
 extern int vm_pageout_deficit;
 extern int vm_pageout_page_count;
+extern bool vm_pageout_wanted;
+extern bool vm_pages_needed;
 
 /*
  * Swap out requests
@@ -101,8 +101,7 @@ extern void vm_wait(void);
 extern void vm_waitpfault(void);
 
 #ifdef _KERNEL
-boolean_t vm_pageout_fallback_object_lock(vm_page_t, vm_page_t *);
-int vm_pageout_flush(vm_page_t *, int, int);
+int vm_pageout_flush(vm_page_t *, int, int, int, int *, boolean_t *);
 void vm_pageout_oom(int shortage);
 #endif
 #endif	/* _VM_VM_PAGEOUT_H_ */

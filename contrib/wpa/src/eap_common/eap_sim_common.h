@@ -2,14 +2,8 @@
  * EAP peer/server: EAP-SIM/AKA/AKA' shared routines
  * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef EAP_SIM_COMMON_H
@@ -94,7 +88,7 @@ int eap_sim_verify_mac(const u8 *k_aut, const struct wpabuf *req,
 void eap_sim_add_mac(const u8 *k_aut, const u8 *msg, size_t msg_len, u8 *mac,
 		     const u8 *extra, size_t extra_len);
 
-#ifdef EAP_AKA_PRIME
+#if defined(EAP_AKA_PRIME) || defined(EAP_SERVER_AKA_PRIME)
 void eap_aka_prime_derive_keys(const u8 *identity, size_t identity_len,
 			       const u8 *ik, const u8 *ck, u8 *k_encr,
 			       u8 *k_aut, u8 *k_re, u8 *msk, u8 *emsk);
@@ -110,7 +104,7 @@ void eap_sim_add_mac_sha256(const u8 *k_aut, const u8 *msg, size_t msg_len,
 void eap_aka_prime_derive_ck_ik_prime(u8 *ck, u8 *ik, const u8 *sqn_ak,
 				      const u8 *network_name,
 				      size_t network_name_len);
-#else /* EAP_AKA_PRIME */
+#else /* EAP_AKA_PRIME || EAP_SERVER_AKA_PRIME */
 static inline void eap_aka_prime_derive_keys(const u8 *identity,
 					     size_t identity_len,
 					     const u8 *ik, const u8 *ck,
@@ -135,7 +129,7 @@ static inline int eap_sim_verify_mac_sha256(const u8 *k_aut,
 {
 	return -1;
 }
-#endif /* EAP_AKA_PRIME */
+#endif /* EAP_AKA_PRIME || EAP_SERVER_AKA_PRIME */
 
 
 /* EAP-SIM/AKA Attributes (0..127 non-skippable) */
@@ -217,7 +211,8 @@ u8 * eap_sim_parse_encr(const u8 *k_encr, const u8 *encr_data,
 struct eap_sim_msg;
 
 struct eap_sim_msg * eap_sim_msg_init(int code, int id, int type, int subtype);
-struct wpabuf * eap_sim_msg_finish(struct eap_sim_msg *msg, const u8 *k_aut,
+struct wpabuf * eap_sim_msg_finish(struct eap_sim_msg *msg, int type,
+				   const u8 *k_aut,
 				   const u8 *extra, size_t extra_len);
 void eap_sim_msg_free(struct eap_sim_msg *msg);
 u8 * eap_sim_msg_add_full(struct eap_sim_msg *msg, u8 attr,

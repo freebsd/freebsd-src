@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003, 2004, 2005
  *	John Wehle <john@feith.com>.  All rights reserved.
  *
@@ -28,40 +28,34 @@
 
 /* Set the channel of the tuner card. */
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <sys/ioctl.h>
+#include <sys/param.h>
+
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/ioctl.h>
 #include <unistd.h>
 
-#if __FreeBSD_version < 503001
-#  include <machine/ioctl_meteor.h>
-#  include <machine/ioctl_bt848.h>
-#else
-#  include <dev/bktr/ioctl_meteor.h>
-#  include <dev/bktr/ioctl_bt848.h>
-#endif
-
+#include <dev/bktr/ioctl_meteor.h>
+#include <dev/bktr/ioctl_bt848.h>
 
 static void
-usage()
+usage(void)
 {
 	printf
 	    ("Usage: setchannel [-a {on|off}] [-c | -r | -s | -t] "
 	    "[-g geom] [-m chnl_set] [chnl | freq]\n"
 	    "  -a    Enable / disable AFC.\n"
 	    "  -c    Select composite input.\n"
-            "  -d    Select tuner unit number.\n"
-            "  -r    Select radio input.\n"
+	    "  -d    Select tuner unit number.\n"
+	    "  -r    Select radio input.\n"
 	    "  -s    Select svideo input.\n"
-            "  -t    Select tuner.\n"
+	    "  -t    Select tuner.\n"
 	    "  -g    Select geometry.\n"
-            "          352x240 or 352x288 = VCD\n"
+	    "          352x240 or 352x288 = VCD\n"
 	    "          480x480 or 480x576 = SVCD\n"
 	    "          352x480 or 352x576 = DVD (half D1)\n"
 	    "          720x480 or 720x576 = DVD (full D1)\n"
@@ -74,7 +68,7 @@ usage()
 	    "          %u = Japan Cable / NTSC\n"
 	    "          %u = Australia / PAL\n"
 	    "          %u = France / SECAM\n"
-            "  chnl  Channel\n"
+	    "  chnl  Channel\n"
 	    "  freq  Frequency in MHz (must include decimal point).\n",
 	    CHNLSET_NABCST, CHNLSET_CABLEIRC, CHNLSET_WEUROPE, CHNLSET_JPNBCST,
 	    CHNLSET_JPNCABLE, CHNLSET_AUSTRALIA, CHNLSET_FRANCE);
@@ -94,7 +88,7 @@ main(int argc, char *argv[])
 	int channel_set;
 	int i;
 	int status;
-        int unit;
+	int unit;
 	int tfd;
 	unsigned int channel;
 	unsigned int fraction;
@@ -111,7 +105,7 @@ main(int argc, char *argv[])
 	device = 0;
 	freq = 0;
 	status = 0;
-        unit = 0;
+	unit = 0;
 	x_size = 0;
 	y_size = 0;
 
@@ -214,11 +208,11 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-        sprintf(dev_name, DEVNAME_BASE "%d", unit);
-        tfd = open(dev_name, O_RDONLY);
+	sprintf(dev_name, DEVNAME_BASE "%d", unit);
+	tfd = open(dev_name, O_RDONLY);
 	if (tfd < 0) {
 		fprintf(stderr, "Can't open %s: %s (%d)\n", dev_name,
-                        strerror(errno), errno);
+		    strerror(errno), errno);
 		exit(1);
 	}
 

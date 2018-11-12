@@ -1,4 +1,6 @@
-/*
+/*-
+ * Copyright 2014 Garrett D'Amore <garrett@damore.org>
+ * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,10 +12,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -30,8 +28,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/*
+ * Important: This file is used both as a standalone program /usr/bin/printf
+ * and as a builtin for /bin/sh (#define SHELL).
+ */
 
-#if !defined(BUILTIN) && !defined(SHELL)
+#ifndef SHELL
 #ifndef lint
 static char const copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
@@ -49,48 +51,43 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
 
 #ifdef SHELL
-#define main printfcmd
+#define	main printfcmd
 #include "bltin/bltin.h"
-#include "memalloc.h"
-#else
-#define	warnx1(a, b, c)		warnx(a)
-#define	warnx2(a, b, c)		warnx(a, b)
-#define	warnx3(a, b, c)		warnx(a, b, c)
+#include "options.h"
 #endif
 
-#ifndef BUILTIN
-#include <locale.h>
-#endif
-
-#define PF(f, func) do { \
-	char *b = NULL; \
-	if (havewidth) \
-		if (haveprec) \
+#define	PF(f, func) do {						\
+	char *b = NULL;							\
+	if (havewidth)							\
+		if (haveprec)						\
 			(void)asprintf(&b, f, fieldwidth, precision, func); \
-		else \
-			(void)asprintf(&b, f, fieldwidth, func); \
-	else if (haveprec) \
-		(void)asprintf(&b, f, precision, func); \
-	else \
-		(void)asprintf(&b, f, func); \
-	if (b) { \
-		(void)fputs(b, stdout); \
-		free(b); \
-	} \
+		else							\
+			(void)asprintf(&b, f, fieldwidth, func);	\
+	else if (haveprec)						\
+		(void)asprintf(&b, f, precision, func);			\
+	else								\
+		(void)asprintf(&b, f, func);				\
+	if (b) {							\
+		(void)fputs(b, stdout);					\
+		free(b);						\
+	}								\
 } while (0)
 
 static int	 asciicode(void);
-static char	*doformat(char *, int *);
+static char	*printf_doformat(char *, int *);
 static int	 escape(char *, int, size_t *);
 static int	 getchr(void);
 static int	 getfloating(long double *, int);
@@ -98,25 +95,35 @@ static int	 getint(int *);
 static int	 getnum(intmax_t *, uintmax_t *, int);
 static const char
 		*getstr(void);
-static char	*mknum(char *, int);
+static char	*mknum(char *, char);
 static void	 usage(void);
 
+static const char digits[] = "0123456789";
+
+static char end_fmt[1];
+
+static int  myargc;
+static char **myargv;
 static char **gargv;
+static char **maxargv;
 
 int
-#ifdef BUILTIN
-progprintf(int argc, char *argv[])
-#else
 main(int argc, char *argv[])
-#endif
 {
 	size_t len;
-	int ch, chopped, end, rval;
+	int end, rval;
 	char *format, *fmt, *start;
+#ifndef SHELL
+	int ch;
 
-#ifndef BUILTIN
-	(void) setlocale(LC_NUMERIC, "");
+	(void) setlocale(LC_ALL, "");
 #endif
+
+#ifdef SHELL
+	nextopt("");
+	argc -= argptr - argv;
+	argv = argptr;
+#else
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch (ch) {
 		case '?':
@@ -126,12 +133,16 @@ main(int argc, char *argv[])
 		}
 	argc -= optind;
 	argv += optind;
+#endif
 
 	if (argc < 1) {
 		usage();
 		return (1);
 	}
 
+#ifdef SHELL
+	INTOFF;
+#endif
 	/*
 	 * Basic algorithm is to scan the format string for conversion
 	 * specifications -- once one is found, find out if the field
@@ -141,10 +152,16 @@ main(int argc, char *argv[])
 	 * up the format string.
 	 */
 	fmt = format = *argv;
-	chopped = escape(fmt, 1, &len);		/* backslash interpretation */
+	escape(fmt, 1, &len);		/* backslash interpretation */
 	rval = end = 0;
 	gargv = ++argv;
+
 	for (;;) {
+		maxargv = gargv;
+
+		myargv = gargv;
+		for (myargc = 0; gargv[myargc]; myargc++)
+			/* nop */;
 		start = fmt;
 		while (fmt < format + len) {
 			if (fmt[0] == '%') {
@@ -154,23 +171,37 @@ main(int argc, char *argv[])
 					putchar('%');
 					fmt += 2;
 				} else {
-					fmt = doformat(fmt, &rval);
-					if (fmt == NULL)
-						return (1);
+					fmt = printf_doformat(fmt, &rval);
+					if (fmt == NULL || fmt == end_fmt) {
+#ifdef SHELL
+						INTON;
+#endif
+						return (fmt == NULL ? 1 : rval);
+					}
 					end = 0;
 				}
 				start = fmt;
 			} else
 				fmt++;
+			if (gargv > maxargv)
+				maxargv = gargv;
 		}
+		gargv = maxargv;
 
 		if (end == 1) {
-			warnx1("missing format character", NULL, NULL);
+			warnx("missing format character");
+#ifdef SHELL
+			INTON;
+#endif
 			return (1);
 		}
 		fwrite(start, 1, fmt - start, stdout);
-		if (chopped || !*gargv)
+		if (!*gargv) {
+#ifdef SHELL
+			INTON;
+#endif
 			return (rval);
+		}
 		/* Restart at the beginning of the format string. */
 		fmt = format;
 		end = 1;
@@ -180,48 +211,136 @@ main(int argc, char *argv[])
 
 
 static char *
-doformat(char *start, int *rval)
+printf_doformat(char *fmt, int *rval)
 {
 	static const char skip1[] = "#'-+ 0";
-	static const char skip2[] = "0123456789";
-	char *fmt;
 	int fieldwidth, haveprec, havewidth, mod_ldbl, precision;
 	char convch, nextch;
+	char start[strlen(fmt) + 1];
+	char **fargv;
+	char *dptr;
+	int l;
 
-	fmt = start + 1;
+	dptr = start;
+	*dptr++ = '%';
+	*dptr = 0;
+
+	fmt++;
+
+	/* look for "n$" field index specifier */
+	l = strspn(fmt, digits);
+	if ((l > 0) && (fmt[l] == '$')) {
+		int idx = atoi(fmt);
+		if (idx <= myargc) {
+			gargv = &myargv[idx - 1];
+		} else {
+			gargv = &myargv[myargc];
+		}
+		if (gargv > maxargv)
+			maxargv = gargv;
+		fmt += l + 1;
+
+		/* save format argument */
+		fargv = gargv;
+	} else {
+		fargv = NULL;
+	}
+
 	/* skip to field width */
-	fmt += strspn(fmt, skip1);
+	while (*fmt && strchr(skip1, *fmt) != NULL) {
+		*dptr++ = *fmt++;
+		*dptr = 0;
+	}
+
 	if (*fmt == '*') {
+
+		fmt++;
+		l = strspn(fmt, digits);
+		if ((l > 0) && (fmt[l] == '$')) {
+			int idx = atoi(fmt);
+			if (fargv == NULL) {
+				warnx("incomplete use of n$");
+				return (NULL);
+			}
+			if (idx <= myargc) {
+				gargv = &myargv[idx - 1];
+			} else {
+				gargv = &myargv[myargc];
+			}
+			fmt += l + 1;
+		} else if (fargv != NULL) {
+			warnx("incomplete use of n$");
+			return (NULL);
+		}
+
 		if (getint(&fieldwidth))
 			return (NULL);
+		if (gargv > maxargv)
+			maxargv = gargv;
 		havewidth = 1;
-		++fmt;
+
+		*dptr++ = '*';
+		*dptr = 0;
 	} else {
 		havewidth = 0;
 
 		/* skip to possible '.', get following precision */
-		fmt += strspn(fmt, skip2);
+		while (isdigit(*fmt)) {
+			*dptr++ = *fmt++;
+			*dptr = 0;
+		}
 	}
+
 	if (*fmt == '.') {
 		/* precision present? */
-		++fmt;
+		fmt++;
+		*dptr++ = '.';
+
 		if (*fmt == '*') {
+
+			fmt++;
+			l = strspn(fmt, digits);
+			if ((l > 0) && (fmt[l] == '$')) {
+				int idx = atoi(fmt);
+				if (fargv == NULL) {
+					warnx("incomplete use of n$");
+					return (NULL);
+				}
+				if (idx <= myargc) {
+					gargv = &myargv[idx - 1];
+				} else {
+					gargv = &myargv[myargc];
+				}
+				fmt += l + 1;
+			} else if (fargv != NULL) {
+				warnx("incomplete use of n$");
+				return (NULL);
+			}
+
 			if (getint(&precision))
 				return (NULL);
+			if (gargv > maxargv)
+				maxargv = gargv;
 			haveprec = 1;
-			++fmt;
+			*dptr++ = '*';
+			*dptr = 0;
 		} else {
 			haveprec = 0;
 
 			/* skip to conversion char */
-			fmt += strspn(fmt, skip2);
+			while (isdigit(*fmt)) {
+				*dptr++ = *fmt++;
+				*dptr = 0;
+			}
 		}
 	} else
 		haveprec = 0;
 	if (!*fmt) {
-		warnx1("missing format character", NULL, NULL);
+		warnx("missing format character");
 		return (NULL);
 	}
+	*dptr++ = *fmt;
+	*dptr = 0;
 
 	/*
 	 * Look for a length modifier.  POSIX doesn't have these, so
@@ -237,15 +356,21 @@ doformat(char *start, int *rval)
 		mod_ldbl = 1;
 		fmt++;
 		if (!strchr("aAeEfFgG", *fmt)) {
-			warnx2("bad modifier L for %%%c", *fmt, NULL);
+			warnx("bad modifier L for %%%c", *fmt);
 			return (NULL);
 		}
 	} else {
 		mod_ldbl = 0;
 	}
 
+	/* save the current arg offset, and set to the format arg */
+	if (fargv != NULL) {
+		gargv = fargv;
+	}
+
 	convch = *fmt;
 	nextch = *++fmt;
+
 	*fmt = '\0';
 	switch (convch) {
 	case 'b': {
@@ -253,26 +378,16 @@ doformat(char *start, int *rval)
 		char *p;
 		int getout;
 
-#ifdef SHELL
-		p = savestr(getstr());
-#else
 		p = strdup(getstr());
-#endif
 		if (p == NULL) {
-			warnx2("%s", strerror(ENOMEM), NULL);
+			warnx("%s", strerror(ENOMEM));
 			return (NULL);
 		}
 		getout = escape(p, 0, &len);
-		*(fmt - 1) = 's';
-		PF(start, p);
-		*(fmt - 1) = 'b';
-#ifdef SHELL
-		ckfree(p);
-#else
+		fputs(p, stdout);
 		free(p);
-#endif
 		if (getout)
-			return (fmt);
+			return (end_fmt);
 		break;
 	}
 	case 'c': {
@@ -321,15 +436,16 @@ doformat(char *start, int *rval)
 		break;
 	}
 	default:
-		warnx2("illegal format character %c", convch, NULL);
+		warnx("illegal format character %c", convch);
 		return (NULL);
 	}
 	*fmt = nextch;
+	/* return the gargv to the next element */
 	return (fmt);
 }
 
 static char *
-mknum(char *str, int ch)
+mknum(char *str, char ch)
 {
 	static char *copy;
 	static size_t copy_size;
@@ -339,13 +455,8 @@ mknum(char *str, int ch)
 	len = strlen(str) + 2;
 	if (len > copy_size) {
 		newlen = ((len + 1023) >> 10) << 10;
-#ifdef SHELL
-		if ((newcopy = ckrealloc(copy, newlen)) == NULL)
-#else
-		if ((newcopy = realloc(copy, newlen)) == NULL)
-#endif
-		{
-			warnx2("%s", strerror(ENOMEM), NULL);
+		if ((newcopy = realloc(copy, newlen)) == NULL) {
+			warnx("%s", strerror(ENOMEM));
 			return (NULL);
 		}
 		copy = newcopy;
@@ -362,10 +473,10 @@ mknum(char *str, int ch)
 static int
 escape(char *fmt, int percent, size_t *len)
 {
-	char *save, *store;
-	int value, c;
+	char *save, *store, c;
+	int value;
 
-	for (save = store = fmt; (c = *fmt); ++fmt, ++store) {
+	for (save = store = fmt; ((c = *fmt) != 0); ++fmt, ++store) {
 		if (c != '\\') {
 			*store = c;
 			continue;
@@ -387,9 +498,13 @@ escape(char *fmt, int percent, size_t *len)
 			*store = '\b';
 			break;
 		case 'c':
-			*store = '\0';
-			*len = store - save;
-			return (1);
+			if (!percent) {
+				*store = '\0';
+				*len = store - save;
+				return (1);
+			}
+			*store = 'c';
+			break;
 		case 'f':		/* form-feed */
 			*store = '\f';
 			break;
@@ -419,7 +534,7 @@ escape(char *fmt, int percent, size_t *len)
 				*store++ = '%';
 				*store = '%';
 			} else
-				*store = value;
+				*store = (char)value;
 			break;
 		default:
 			*store = *fmt;
@@ -458,7 +573,7 @@ getint(int *ip)
 		return (1);
 	rval = 0;
 	if (val < INT_MIN || val > INT_MAX) {
-		warnx3("%s: %s", *gargv, strerror(ERANGE));
+		warnx("%s: %s", *gargv, strerror(ERANGE));
 		rval = 1;
 	}
 	*ip = (int)val;
@@ -472,7 +587,7 @@ getnum(intmax_t *ip, uintmax_t *uip, int signedconv)
 	int rval;
 
 	if (!*gargv) {
-		*ip = 0;
+		*ip = *uip = 0;
 		return (0);
 	}
 	if (**gargv == '"' || **gargv == '\'') {
@@ -489,15 +604,15 @@ getnum(intmax_t *ip, uintmax_t *uip, int signedconv)
 	else
 		*uip = strtoumax(*gargv, &ep, 0);
 	if (ep == *gargv) {
-		warnx2("%s: expected numeric value", *gargv, NULL);
+		warnx("%s: expected numeric value", *gargv);
 		rval = 1;
 	}
 	else if (*ep != '\0') {
-		warnx2("%s: not completely converted", *gargv, NULL);
+		warnx("%s: not completely converted", *gargv);
 		rval = 1;
 	}
 	if (errno == ERANGE) {
-		warnx3("%s: %s", *gargv, strerror(ERANGE));
+		warnx("%s: %s", *gargv, strerror(ERANGE));
 		rval = 1;
 	}
 	++gargv;
@@ -525,14 +640,14 @@ getfloating(long double *dp, int mod_ldbl)
 	else
 		*dp = strtod(*gargv, &ep);
 	if (ep == *gargv) {
-		warnx2("%s: expected numeric value", *gargv, NULL);
+		warnx("%s: expected numeric value", *gargv);
 		rval = 1;
 	} else if (*ep != '\0') {
-		warnx2("%s: not completely converted", *gargv, NULL);
+		warnx("%s: not completely converted", *gargv);
 		rval = 1;
 	}
 	if (errno == ERANGE) {
-		warnx3("%s: %s", *gargv, strerror(ERANGE));
+		warnx("%s: %s", *gargv, strerror(ERANGE));
 		rval = 1;
 	}
 	++gargv;
@@ -543,10 +658,23 @@ static int
 asciicode(void)
 {
 	int ch;
+	wchar_t wch;
+	mbstate_t mbs;
 
-	ch = **gargv;
-	if (ch == '\'' || ch == '"')
-		ch = (*gargv)[1];
+	ch = (unsigned char)**gargv;
+	if (ch == '\'' || ch == '"') {
+		memset(&mbs, 0, sizeof(mbs));
+		switch (mbrtowc(&wch, *gargv + 1, MB_LEN_MAX, &mbs)) {
+		case (size_t)-2:
+		case (size_t)-1:
+			wch = (unsigned char)gargv[0][1];
+			break;
+		case 0:
+			wch = 0;
+			break;
+		}
+		ch = wch;
+	}
 	++gargv;
 	return (ch);
 }

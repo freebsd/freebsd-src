@@ -79,8 +79,7 @@ static device_method_t acpi_button_methods[] = {
     DEVMETHOD(device_suspend,	acpi_button_suspend),
     DEVMETHOD(device_shutdown,	acpi_button_suspend),
     DEVMETHOD(device_resume,	acpi_button_resume),
-
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_button_driver = {
@@ -127,6 +126,7 @@ acpi_button_probe(device_t dev)
 static int
 acpi_button_attach(device_t dev)
 {
+    struct acpi_prw_data	prw;
     struct acpi_button_softc	*sc;
     ACPI_STATUS			status;
     int event;
@@ -164,9 +164,10 @@ acpi_button_attach(device_t dev)
     }
 
     /* Enable the GPE for wake/runtime. */
-    acpi_wake_init(dev, ACPI_GPE_TYPE_WAKE_RUN);
     acpi_wake_set_enable(dev, 1);
-    
+    if (acpi_parse_prw(sc->button_handle, &prw) == 0)
+	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit);
+
     return_VALUE (0);
 }
 

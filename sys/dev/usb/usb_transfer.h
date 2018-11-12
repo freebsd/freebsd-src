@@ -28,6 +28,120 @@
 #define	_USB_TRANSFER_H_
 
 /*
+ * Definition of internal USB transfer states:
+ * ===========================================
+ *
+ * The main reason there are many USB states is that we are allowed to
+ * cancel USB transfers, then start the USB transfer again and that
+ * this state transaction cannot always be done in a single atomic
+ * operation without blocking the calling thread. One reason for this
+ * is that the USB hardware sometimes needs to wait for DMA
+ * controllers to finish which is done asynchronously and grows the
+ * statemachine.
+ *
+ * When extending the following statemachine there are basically two
+ * things you should think about: Which states should be executed or
+ * modified in case of USB transfer stop and which states should be
+ * executed or modified in case of USB transfer start. Also respect
+ * the "can_cancel_immed" flag which basically tells if you can go
+ * directly from a wait state to the cancelling states.
+ */
+
+enum {
+	/* XFER start execute state */
+
+	/* USB_ST_SETUP = 0 (already defined) */
+
+	/* XFER transferred execute state */
+
+	/* USB_ST_TRANSFERRED = 1 (already defined) */
+
+	/* XFER error execute state */
+
+	/* USB_ST_ERROR = 2 (already defined) */
+
+	/* XFER restart after error execute state */
+
+	USB_ST_RESTART = 8,
+
+	/* XFER transfer idle state */
+
+	USB_ST_WAIT_SETUP,
+
+	/* Other XFER execute states */
+
+	USB_ST_PIPE_OPEN = 16,
+	USB_ST_PIPE_OPEN_ERROR,
+	USB_ST_PIPE_OPEN_RESTART,
+
+	USB_ST_BDMA_LOAD,
+	USB_ST_BDMA_LOAD_ERROR,
+	USB_ST_BDMA_LOAD_RESTART,
+
+	USB_ST_IVAL_DLY,
+	USB_ST_IVAL_DLY_ERROR,
+	USB_ST_IVAL_DLY_RESTART,
+
+	USB_ST_PIPE_STALL,
+	USB_ST_PIPE_STALL_ERROR,
+	USB_ST_PIPE_STALL_RESTART,
+
+	USB_ST_ENTER,
+	USB_ST_ENTER_ERROR,
+	USB_ST_ENTER_RESTART,
+
+	USB_ST_START,
+	USB_ST_START_ERROR,
+	USB_ST_START_RESTART,
+
+	USB_ST_PIPE_CLOSE,
+	USB_ST_PIPE_CLOSE_ERROR,
+	USB_ST_PIPE_CLOSE_RESTART,
+
+	USB_ST_BDMA_DLY,
+	USB_ST_BDMA_DLY_ERROR,
+	USB_ST_BDMA_DLY_RESTART,
+
+	/* XFER transfer wait states */
+
+	USB_ST_WAIT_PIPE_OPEN = 64,
+	USB_ST_WAIT_PIPE_OPEN_ERROR,
+	USB_ST_WAIT_PIPE_OPEN_RESTART,
+
+	USB_ST_WAIT_BDMA_LOAD,
+	USB_ST_WAIT_BDMA_LOAD_ERROR,
+	USB_ST_WAIT_BDMA_LOAD_RESTART,
+
+	USB_ST_WAIT_IVAL_DLY,
+	USB_ST_WAIT_IVAL_DLY_ERROR,
+	USB_ST_WAIT_IVAL_DLY_RESTART,
+
+	USB_ST_WAIT_PIPE_STALL,
+	USB_ST_WAIT_PIPE_STALL_ERROR,
+	USB_ST_WAIT_PIPE_STALL_RESTART,
+
+	USB_ST_WAIT_ENTER,
+	USB_ST_WAIT_ENTER_ERROR,
+	USB_ST_WAIT_ENTER_RESTART,
+
+	USB_ST_WAIT_START,
+	USB_ST_WAIT_START_ERROR,
+	USB_ST_WAIT_START_RESTART,
+
+	USB_ST_WAIT_PIPE_CLOSE,
+	USB_ST_WAIT_PIPE_CLOSE_ERROR,
+	USB_ST_WAIT_PIPE_CLOSE_RESTART,
+
+	USB_ST_WAIT_BDMA_DLY,
+	USB_ST_WAIT_BDMA_DLY_ERROR,
+	USB_ST_WAIT_BDMA_DLY_RESTART,
+
+	USB_ST_WAIT_TRANSFERRED,
+	USB_ST_WAIT_TRANSFERRED_ERROR,
+	USB_ST_WAIT_TRANSFERRED_RESTART,
+};
+
+/*
  * The following structure defines the messages that is used to signal
  * the "done_p" USB process.
  */
@@ -101,7 +215,7 @@ struct usb_setup_params {
 	usb_frlength_t bufsize;
 	usb_frlength_t bufsize_max;
 
-	uint16_t hc_max_frame_size;
+	uint32_t hc_max_frame_size;
 	uint16_t hc_max_packet_size;
 	uint8_t	hc_max_packet_count;
 	enum usb_dev_speed speed;
@@ -114,6 +228,7 @@ struct usb_setup_params {
 uint8_t	usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 	    struct usb_page_cache **ppc, usb_size_t size, usb_size_t align,
 	    usb_size_t count);
+void	usb_dma_delay_done_cb(struct usb_xfer *);
 void	usb_command_wrapper(struct usb_xfer_queue *pq,
 	    struct usb_xfer *xfer);
 void	usbd_pipe_enter(struct usb_xfer *xfer);
@@ -123,7 +238,9 @@ void	usbd_transfer_done(struct usb_xfer *xfer, usb_error_t error);
 void	usbd_transfer_enqueue(struct usb_xfer_queue *pq,
 	    struct usb_xfer *xfer);
 void	usbd_transfer_setup_sub(struct usb_setup_params *parm);
-void	usbd_default_transfer_setup(struct usb_device *udev);
+void	usbd_ctrl_transfer_setup(struct usb_device *udev);
+void	usbd_clear_stall_locked(struct usb_device *udev,
+	    struct usb_endpoint *ep);
 void	usbd_clear_data_toggle(struct usb_device *udev,
 	    struct usb_endpoint *ep);
 usb_callback_t usbd_do_request_callback;
@@ -131,7 +248,7 @@ usb_callback_t usb_handle_request_callback;
 usb_callback_t usb_do_clear_stall_callback;
 void	usbd_transfer_timeout_ms(struct usb_xfer *xfer,
 	    void (*cb) (void *arg), usb_timeout_t ms);
-usb_timeout_t usbd_get_dma_delay(struct usb_bus *bus);
+usb_timeout_t usbd_get_dma_delay(struct usb_device *udev);
 void	usbd_transfer_power_ref(struct usb_xfer *xfer, int val);
 
 #endif					/* _USB_TRANSFER_H_ */

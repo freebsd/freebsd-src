@@ -97,7 +97,7 @@ struct creator_softc {
 	bus_space_write_4((sc)->sc_bt[(reg)], (sc)->sc_bh[(reg)], (off), (val))
 
 #define	C(r, g, b)	((b << 16) | (g << 8) | (r))
-static const uint32_t const creator_cmap[] = {
+static const uint32_t creator_cmap[] = {
 	C(0x00, 0x00, 0x00),		/* black */
 	C(0x00, 0x00, 0xff),		/* blue */
 	C(0x00, 0xff, 0x00),		/* green */
@@ -121,7 +121,7 @@ static const struct {
 	vm_offset_t virt;
 	vm_paddr_t phys;
 	vm_size_t size;
-} const creator_fb_map[] = {
+} creator_fb_map[] = {
 	{ FFB_VIRT_SFB8R,	FFB_PHYS_SFB8R,		FFB_SIZE_SFB8R },
 	{ FFB_VIRT_SFB8G,	FFB_PHYS_SFB8G,		FFB_SIZE_SFB8G },
 	{ FFB_VIRT_SFB8B,	FFB_PHYS_SFB8B,		FFB_SIZE_SFB8B },
@@ -151,8 +151,7 @@ static const struct {
 	{ FFB_VIRT_EXP,		FFB_PHYS_EXP,		FFB_SIZE_EXP },
 };
 
-#define	CREATOR_FB_MAP_SIZE						\
-	(sizeof(creator_fb_map) / sizeof(creator_fb_map[0]))
+#define	CREATOR_FB_MAP_SIZE	nitems(creator_fb_map)
 
 extern const struct gfb_font gallant12x22;
 
@@ -270,7 +269,7 @@ RENDERER(creator, 0, txtrndrsw, gfb_set);
 
 RENDERER_MODULE(creator, gfb_set);
 
-static const u_char const creator_mouse_pointer[64][8] __aligned(8) = {
+static const u_char creator_mouse_pointer[64][8] __aligned(8) = {
 	{ 0x00, 0x00, },	/* ............ */
 	{ 0x80, 0x00, },	/* *........... */
 	{ 0xc0, 0x00, },	/* **.......... */
@@ -692,8 +691,8 @@ creator_blank_display(video_adapter_t *adp, int mode)
 }
 
 static int
-creator_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
-    int prot)
+creator_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 
 	return (EINVAL);
@@ -1048,8 +1047,8 @@ creator_fb_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 }
 
 static int
-creator_fb_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
-    int prot)
+creator_fb_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 	struct creator_softc *sc;
 	int i;

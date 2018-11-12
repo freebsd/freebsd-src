@@ -46,40 +46,28 @@ __FBSDID("$FreeBSD$");
 
 	.data
 _C_LABEL(__curbrk):
-	.word	_C_LABEL(_end)
+	PTR_WORD	_C_LABEL(_end)
 	.text
 
 LEAF(__sys_sbrk)
 	WEAK_ALIAS(sbrk, __sys_sbrk)
 	WEAK_ALIAS(_sbrk, __sys_sbrk)
-#ifdef __ABICALLS__
-	.set	noreorder
-	.cpload	t9
-	.set	reorder
-#endif
-	addu	sp, sp, -16
-	sw	s0, 0(sp)		# Preserve s0 value in stack
-					# it should be the same on return
-					# We can't use v1 as temporary
-					# register since syscall uses it
-					# to return 64-bit values
-	lw	s0, _C_LABEL(__curbrk)
-	li	v0, SYS_break
-	addu	a0, a0, s0		# compute current break
+	PIC_PROLOGUE(__sys_sbrk)
+	PTR_LA	t0, _C_LABEL(__curbrk)
+	PTR_L	t0, 0(t0)
+	PTR_ADDU a0, a0, t0
 
+	li	v0, SYS_break
 	syscall
 
 	bne	a3, zero, 1f
 	nop
-	move	v0, s0			# return old val of curbrk from above
-	lw	s0, 0(sp)
-	addu	sp, sp, 16
-	sw	a0, _C_LABEL(__curbrk)	# save current val of curbrk from above
+	move	v0, t0			# return old val of curbrk from above
+	PTR_LA	t0, _C_LABEL(__curbrk)
+	PTR_S	a0, 0(t0)		# save current val of curbrk from above
+	PIC_RETURN()
 	j	ra
 
 1:
-	lw	s0, 0(sp)
-	addu	sp, sp, 16
-	la	t9, _C_LABEL(__cerror)
-	jr	t9
+	PIC_TAILCALL(__cerror)
 END(__sys_sbrk)

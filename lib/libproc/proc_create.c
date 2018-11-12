@@ -26,7 +26,11 @@
  * $FreeBSD$
  */
 
-#include "_libproc.h"
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
+#include <sys/wait.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -34,58 +38,132 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/wait.h>
+
+#include <libelf.h>
+#include <libprocstat.h>
+
+#include "_libproc.h"
+
+static int	getelfclass(int);
+static int	proc_init(pid_t, int, int, struct proc_handle **);
+
+static int
+getelfclass(int fd)
+{
+	GElf_Ehdr ehdr;
+	Elf *e;
+	int class;
+
+	class = ELFCLASSNONE;
+
+	if ((e = elf_begin(fd, ELF_C_READ, NULL)) == NULL)
+		goto out;
+	if (gelf_getehdr(e, &ehdr) == NULL)
+		goto out;
+	class = ehdr.e_ident[EI_CLASS];
+out:
+	(void)elf_end(e);
+	return (class);
+}
+
+static int
+proc_init(pid_t pid, int flags, int status, struct proc_handle **pphdl)
+{
+	struct kinfo_proc *kp;
+	struct proc_handle *phdl;
+	int error, class, count, fd;
+
+	error = ENOMEM;
+	if ((phdl = malloc(sizeof(*phdl))) == NULL)
+		goto out;
+
+	memset(phdl, 0, sizeof(*phdl));
+	phdl->pid = pid;
+	phdl->flags = flags;
+	phdl->status = status;
+	phdl->procstat = procstat_open_sysctl();
+	if (phdl->procstat == NULL)
+		goto out;
+
+	/* Obtain a path to the executable. */
+	if ((kp = procstat_getprocs(phdl->procstat, KERN_PROC_PID, pid,
+	    &count)) == NULL)
+		goto out;
+	error = procstat_getpathname(phdl->procstat, kp, phdl->execpath,
+	    sizeof(phdl->execpath));
+	procstat_freeprocs(phdl->procstat, kp);
+	if (error != 0)
+		goto out;
+
+	/* Use it to determine the data model for the process. */
+	if ((fd = open(phdl->execpath, O_RDONLY)) < 0) {
+		error = errno;
+		goto out;
+	}
+	class = getelfclass(fd);
+	switch (class) {
+	case ELFCLASS64:
+		phdl->model = PR_MODEL_LP64;
+		break;
+	case ELFCLASS32:
+		phdl->model = PR_MODEL_ILP32;
+		break;
+	case ELFCLASSNONE:
+	default:
+		error = EINVAL;
+		break;
+	}
+	(void)close(fd);
+
+out:
+	*pphdl = phdl;
+	return (error);
+}
 
 int
 proc_attach(pid_t pid, int flags, struct proc_handle **pphdl)
 {
 	struct proc_handle *phdl;
-	struct kevent kev;
-	int error = 0;
-	int status;
+	int error, status;
 
-	if (pid == 0 || pphdl == NULL)
+	if (pid == 0 || pid == getpid())
 		return (EINVAL);
+	if (elf_version(EV_CURRENT) == EV_NONE)
+		return (ENOENT);
 
 	/*
 	 * Allocate memory for the process handle, a structure containing
 	 * all things related to the process.
 	 */
-	if ((phdl = malloc(sizeof(struct proc_handle))) == NULL)
-		return (ENOMEM);
+	error = proc_init(pid, flags, PS_RUN, &phdl);
+	if (error != 0)
+		goto out;
 
-	memset(phdl, 0, sizeof(struct proc_handle));
-	phdl->pid = pid;
-	phdl->flags = flags;
-	phdl->status = PS_RUN;
-
-	EV_SET(&kev, pid, EVFILT_PROC, EV_ADD | EV_ONESHOT, NOTE_EXIT,
-	    0, NULL);
-
-	if ((phdl->kq = kqueue()) == -1)
-		err(1, "ERROR: cannot create kernel evet queue");
-
-	if (kevent(phdl->kq, &kev, 1, NULL, 0, NULL) < 0)
-		err(2, "ERROR: cannot monitor child process %d", pid);
-
-	if (ptrace(PT_ATTACH, phdl->pid, NULL, 0) != 0)
+	if (ptrace(PT_ATTACH, phdl->pid, 0, 0) != 0) {
 		error = errno;
+		DPRINTF("ERROR: cannot ptrace child process %d", pid);
+		goto out;
+	}
 
 	/* Wait for the child process to stop. */
-	else if (waitpid(pid, &status, WUNTRACED) == -1)
-		err(3, "ERROR: child process %d didn't stop as expected", pid);
+	if (waitpid(pid, &status, WUNTRACED) == -1) {
+		error = errno;
+		DPRINTF("ERROR: child process %d didn't stop as expected", pid);
+		goto out;
+	}
 
 	/* Check for an unexpected status. */
-	else if (WIFSTOPPED(status) == 0)
-		err(4, "ERROR: child process %d status 0x%x", pid, status);
+	if (!WIFSTOPPED(status))
+		DPRINTFX("ERROR: child process %d status 0x%x", pid, status);
 	else
 		phdl->status = PS_STOP;
 
-	if (error)
+out:
+	if (error && phdl != NULL) {
 		proc_free(phdl);
-	else
-		*pphdl = phdl;
-
+		phdl = NULL;
+	}
+	*pphdl = phdl;
 	return (error);
 }
 
@@ -94,17 +172,12 @@ proc_create(const char *file, char * const *argv, proc_child_func *pcf,
     void *child_arg, struct proc_handle **pphdl)
 {
 	struct proc_handle *phdl;
-	struct kevent kev;
 	int error = 0;
 	int status;
 	pid_t pid;
 
-	/*
-	 * Allocate memory for the process handle, a structure containing
-	 * all things related to the process.
-	 */
-	if ((phdl = malloc(sizeof(struct proc_handle))) == NULL)
-		return (ENOMEM);
+	if (elf_version(EV_CURRENT) == EV_NONE)
+		return (ENOENT);
 
 	/* Fork a new process. */
 	if ((pid = vfork()) == -1)
@@ -122,42 +195,42 @@ proc_create(const char *file, char * const *argv, proc_child_func *pcf,
 
 		/* Couldn't execute the file. */
 		_exit(2);
+		/* NOTREACHED */
 	} else {
 		/* The parent owns the process handle. */
-		memset(phdl, 0, sizeof(struct proc_handle));
-		phdl->pid = pid;
-		phdl->status = PS_IDLE;
-
-		EV_SET(&kev, pid, EVFILT_PROC, EV_ADD | EV_ONESHOT, NOTE_EXIT,
-		    0, NULL);
-
-		if ((phdl->kq = kqueue()) == -1)
-                	err(1, "ERROR: cannot create kernel evet queue");
-
-        	if (kevent(phdl->kq, &kev, 1, NULL, 0, NULL) < 0)
-                	err(2, "ERROR: cannot monitor child process %d", pid);
+		error = proc_init(pid, 0, PS_IDLE, &phdl);
+		if (error != 0)
+			goto bad;
 
 		/* Wait for the child process to stop. */
-		if (waitpid(pid, &status, WUNTRACED) == -1)
-                	err(3, "ERROR: child process %d didn't stop as expected", pid);
+		if (waitpid(pid, &status, WUNTRACED) == -1) {
+			error = errno;
+			DPRINTF("ERROR: child process %d didn't stop as expected", pid);
+			goto bad;
+		}
 
 		/* Check for an unexpected status. */
-		if (WIFSTOPPED(status) == 0)
-                	err(4, "ERROR: child process %d status 0x%x", pid, status);
-		else
+		if (!WIFSTOPPED(status)) {
+			error = errno;
+			DPRINTFX("ERROR: child process %d status 0x%x", pid, status);
+			goto bad;
+		} else
 			phdl->status = PS_STOP;
 	}
-
-	if (error)
+bad:
+	if (error && phdl != NULL) {
 		proc_free(phdl);
-	else
-		*pphdl = phdl;
-
+		phdl = NULL;
+	}
+	*pphdl = phdl;
 	return (error);
 }
 
 void
 proc_free(struct proc_handle *phdl)
 {
+
+	if (phdl->procstat != NULL)
+		procstat_close(phdl->procstat);
 	free(phdl);
 }

@@ -18,22 +18,19 @@
 
 #include "config.h"
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE /* activate extra prototypes for glibc */
+#endif
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h> /* For CMSG_* */
 
 #ifdef HAVE_LIMITS_H
-# include <limits.h> /* For PATH_MAX */
+# include <limits.h> /* For PATH_MAX, _POSIX_HOST_NAME_MAX */
 #endif
 #ifdef HAVE_BSTRING_H
 # include <bstring.h>
-#endif
-#if defined(HAVE_GLOB_H) && defined(GLOB_HAS_ALTDIRFUNC) && \
-    defined(GLOB_HAS_GL_MATCHC) && \
-    defined(HAVE_DECL_GLOB_NOMATCH) &&  HAVE_DECL_GLOB_NOMATCH != 0 && \
-    !defined(BROKEN_GLOB)
-# include <glob.h>
 #endif
 #ifdef HAVE_ENDIAN_H
 # include <endian.h>
@@ -137,8 +134,10 @@
 # include <tmpdir.h>
 #endif
 
-#ifdef HAVE_LIBUTIL_H
-# include <libutil.h> /* Openpty on FreeBSD at least */
+#if defined(HAVE_BSD_LIBUTIL_H)
+# include <bsd/libutil.h>
+#elif defined(HAVE_LIBUTIL_H)
+# include <libutil.h>
 #endif
 
 #if defined(KRB5) && defined(USE_AFS)
@@ -162,7 +161,9 @@
 # endif
 #endif
 
+#ifdef WITH_OPENSSL
 #include <openssl/opensslv.h> /* For OPENSSL_VERSION_NUMBER */
+#endif
 
 #include "defines.h"
 

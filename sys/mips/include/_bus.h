@@ -31,15 +31,20 @@
 
 #ifndef MIPS_INCLUDE__BUS_H
 #define	MIPS_INCLUDE__BUS_H
+
 /*
  * Bus address and size types
  */
+#if defined(CPU_CNMIPS) && !defined(__mips_n64)
+typedef uint64_t bus_addr_t;
+#else
 typedef uintptr_t bus_addr_t;
+#endif
 typedef uintptr_t bus_size_t;
 
 /*
  * Access methods for bus resources and address space.
  */
 typedef struct bus_space *bus_space_tag_t;
-typedef u_long bus_space_handle_t;
+typedef bus_addr_t bus_space_handle_t;
 #endif /* MIPS_INCLUDE__BUS_H */

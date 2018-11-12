@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 2000, 2002, 2004 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000, 2002, 2004 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,10 +31,8 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID ("$Id: rtbl.c 17758 2006-06-30 13:41:40Z lha $");
-#endif
+
 #include "roken.h"
 #include "rtbl.h"
 
@@ -61,19 +59,19 @@ struct rtbl_data {
     char *column_separator;
 };
 
-rtbl_t ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION rtbl_t ROKEN_LIB_CALL
 rtbl_create (void)
 {
     return calloc (1, sizeof (struct rtbl_data));
 }
 
-void ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION void ROKEN_LIB_CALL
 rtbl_set_flags (rtbl_t table, unsigned int flags)
 {
     table->flags = flags;
 }
 
-unsigned int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION unsigned int ROKEN_LIB_CALL
 rtbl_get_flags (rtbl_t table)
 {
     return table->flags;
@@ -82,7 +80,7 @@ rtbl_get_flags (rtbl_t table)
 static struct column_data *
 rtbl_get_column_by_id (rtbl_t table, unsigned int id)
 {
-    int i;
+    size_t i;
     for(i = 0; i < table->num_columns; i++)
 	if(table->columns[i]->column_id == id)
 	    return table->columns[i];
@@ -92,17 +90,17 @@ rtbl_get_column_by_id (rtbl_t table, unsigned int id)
 static struct column_data *
 rtbl_get_column (rtbl_t table, const char *column)
 {
-    int i;
+    size_t i;
     for(i = 0; i < table->num_columns; i++)
 	if(strcmp(table->columns[i]->header, column) == 0)
 	    return table->columns[i];
     return NULL;
 }
 
-void ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION void ROKEN_LIB_CALL
 rtbl_destroy (rtbl_t table)
 {
-    int i, j;
+    size_t i, j;
 
     for (i = 0; i < table->num_columns; i++) {
 	struct column_data *c = table->columns[i];
@@ -121,8 +119,8 @@ rtbl_destroy (rtbl_t table)
     free (table);
 }
 
-int ROKEN_LIB_FUNCTION
-rtbl_add_column_by_id (rtbl_t table, unsigned int id, 
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
+rtbl_add_column_by_id (rtbl_t table, unsigned int id,
 		       const char *header, unsigned int flags)
 {
     struct column_data *col, **tmp;
@@ -150,13 +148,13 @@ rtbl_add_column_by_id (rtbl_t table, unsigned int id,
     return 0;
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 rtbl_add_column (rtbl_t table, const char *header, unsigned int flags)
 {
     return rtbl_add_column_by_id(table, 0, header, flags);
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 rtbl_new_row(rtbl_t table)
 {
     size_t max_rows = 0;
@@ -169,7 +167,7 @@ rtbl_new_row(rtbl_t table)
 
 	if(table->columns[c]->num_rows == max_rows)
 	    continue;
-	tmp = realloc(table->columns[c]->rows, 
+	tmp = realloc(table->columns[c]->rows,
 		      max_rows * sizeof(table->columns[c]->rows));
 	if(tmp == NULL)
 	    return ENOMEM;
@@ -185,18 +183,18 @@ rtbl_new_row(rtbl_t table)
 static void
 column_compute_width (rtbl_t table, struct column_data *column)
 {
-    int i;
+    size_t i;
 
     if(table->flags & RTBL_HEADER_STYLE_NONE)
 	column->width = 0;
     else
 	column->width = strlen (column->header);
     for (i = 0; i < column->num_rows; i++)
-	column->width = max (column->width, strlen (column->rows[i].data));
+	column->width = max (column->width, (int) strlen (column->rows[i].data));
 }
 
 /* DEPRECATED */
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 rtbl_set_prefix (rtbl_t table, const char *prefix)
 {
     if (table->column_prefix)
@@ -207,7 +205,7 @@ rtbl_set_prefix (rtbl_t table, const char *prefix)
     return 0;
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 rtbl_set_separator (rtbl_t table, const char *separator)
 {
     if (table->column_separator)
@@ -218,7 +216,7 @@ rtbl_set_separator (rtbl_t table, const char *separator)
     return 0;
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 rtbl_set_column_prefix (rtbl_t table, const char *column,
 			const char *prefix)
 {
@@ -234,7 +232,7 @@ rtbl_set_column_prefix (rtbl_t table, const char *column,
     return 0;
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 rtbl_set_column_affix_by_id(rtbl_t table, unsigned int id,
 			    const char *prefix, const char *suffix)
 {
@@ -303,7 +301,7 @@ add_column_entry (struct column_data *c, const char *data)
     return 0;
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 rtbl_add_column_entry_by_id (rtbl_t table, unsigned int id, const char *data)
 {
     struct column_data *c = rtbl_get_column_by_id (table, id);
@@ -314,7 +312,7 @@ rtbl_add_column_entry_by_id (rtbl_t table, unsigned int id, const char *data)
     return add_column_entry(c, data);
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 rtbl_add_column_entryv_by_id (rtbl_t table, unsigned int id,
 			      const char *fmt, ...)
 {
@@ -332,7 +330,7 @@ rtbl_add_column_entryv_by_id (rtbl_t table, unsigned int id,
     return ret;
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 rtbl_add_column_entry (rtbl_t table, const char *column, const char *data)
 {
     struct column_data *c = rtbl_get_column (table, column);
@@ -343,7 +341,7 @@ rtbl_add_column_entry (rtbl_t table, const char *column, const char *data)
     return add_column_entry(c, data);
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 rtbl_add_column_entryv (rtbl_t table, const char *column, const char *fmt, ...)
 {
     va_list ap;
@@ -361,10 +359,10 @@ rtbl_add_column_entryv (rtbl_t table, const char *column, const char *fmt, ...)
 }
 
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 rtbl_format (rtbl_t table, FILE * f)
 {
-    int i, j;
+    size_t i, j;
 
     for (i = 0; i < table->num_columns; i++)
 	column_compute_width (table, table->columns[i]);

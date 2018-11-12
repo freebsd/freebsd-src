@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2009
+.Dd April 28, 2010
 .Dt IEEE80211_NODE 9
 .Os
 .Sh NAME
@@ -67,18 +67,18 @@
 .Ft void
 .Fo ieee80211_dump_nodes
 .Fa "struct ieee80211_node_table *"
-.Fc 
+.Fc
 .\"
 .Ft void
 .Fo ieee80211_dump_node
 .Fa "struct ieee80211_node *"
-.Fc 
+.Fc
 .Sh DESCRIPTION
 The
 .Nm net80211
 layer that supports 802.11 device drivers maintains a database of
 peer stations called the
-.Dq node table 
+.Dq node table
 in the
 .Vt ic_sta
 entry of the
@@ -101,7 +101,7 @@ Node table entries are reference counted.
 That is, there is a count of all long term references that determines
 when an entry may be reclaimed.
 References are held by every in-flight frame sent to a station to
-insure the entry is not reclaimed while the frame is queued or otherwise
+ensure the entry is not reclaimed while the frame is queued or otherwise
 held by a driver.
 Routines that lookup a table entry return a
 .Dq held reference
@@ -125,7 +125,7 @@ field.
 This reference must be reclaimed by the driver when transmit processing
 is done.
 For each frame received the driver must lookup the table entry to
-use in dispatching the frame 
+use in dispatching the frame
 .Dq up the stack .
 This lookup implicitly obtains a reference to the table entry and
 the driver must reclaim the reference when frame processing is completed.
@@ -139,7 +139,7 @@ Entries may be looked up using one of the pre-defined API's or the
 .Fn ieee80211_iterate_nodes
 call may be used to iterate through all entries to do per-node
 processing or implement some non-standard search mechanism.
-Note that 
+Note that
 .Fn ieee80211_iterate_nodes
 is single-threaded per-device
 and the effort processing involved is fairly
@@ -152,7 +152,7 @@ displays the contents of a single node while
 .Fn ieee80211_dump_nodes
 displays the contents of the specified node table.
 Nodes may also be displayed using
-.Xr ddb 9
+.Xr ddb 4
 with the
 .Dq show node
 directive and the station node table can be displayed with
@@ -185,7 +185,7 @@ iwi_node_alloc(struct ieee80211vap *vap,
 {
         struct iwi_node *in;
 
-        in = malloc(sizeof (struct iwi_node), M_80211_NODE,
+        in = malloc(sizeof(struct iwi_node), M_80211_NODE,
 		M_NOWAIT | M_ZERO);
         if (in == NULL)
                 return NULL;
@@ -206,7 +206,7 @@ iwi_node_free(struct ieee80211_node *ni)
         struct ieee80211com *ic = ni->ni_ic;
         struct iwi_softc *sc = ic->ic_ifp->if_softc;
         struct iwi_node *in = (struct iwi_node *)ni;
-        
+
         if (in->in_station != -1)
                 free_unr(sc->sc_unr, in->in_station);
         sc->sc_node_free(ni);	/* invoke net80211 free handler */
@@ -246,6 +246,6 @@ If the specified index is
 .Dv IEEE80211_KEYIX_NONE
 then a normal lookup is done without a table update.
 .Sh SEE ALSO
-.Xr ddb 9
+.Xr ddb 4 ,
 .Xr ieee80211 9 ,
 .Xr ieee80211_proto 9

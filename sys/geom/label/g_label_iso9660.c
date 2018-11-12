@@ -47,7 +47,6 @@ g_label_iso9660_taste(struct g_consumer *cp, char *label, size_t size)
 {
 	struct g_provider *pp;
 	char *sector, *volume;
-	int i;
 
 	g_topology_assert_not();
 	pp = cp->provider;
@@ -68,17 +67,13 @@ g_label_iso9660_taste(struct g_consumer *cp, char *label, size_t size)
 	bzero(label, size);
 	strlcpy(label, volume, MIN(size, VOLUME_LEN));
 	g_free(sector);
-	for (i = size - 1; i > 0; i--) {
-		if (label[i] == '\0')
-			continue;
-		else if (label[i] == ' ')
-			label[i] = '\0';
-		else
-			break;
-	}
+	g_label_rtrim(label, size);
 }
 
-const struct g_label_desc g_label_iso9660 = {
+struct g_label_desc g_label_iso9660 = {
 	.ld_taste = g_label_iso9660_taste,
-	.ld_dir = G_LABEL_ISO9660_DIR
+	.ld_dir = G_LABEL_ISO9660_DIR,
+	.ld_enabled = 1
 };
+
+G_LABEL_INIT(iso9660, g_label_iso9660, "Create device nodes for ISO9660 volume names");

@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/fcntl.h>
 #include <sys/ipc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/malloc.h>
@@ -72,6 +73,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
+FEATURE(audit, "BSM audit support");
+
 static uma_zone_t	audit_record_zone;
 static MALLOC_DEFINE(M_AUDITCRED, "audit_cred", "Audit cred storage");
 MALLOC_DEFINE(M_AUDITDATA, "audit_data", "Audit data storage");
@@ -79,7 +82,7 @@ MALLOC_DEFINE(M_AUDITPATH, "audit_path", "Audit path storage");
 MALLOC_DEFINE(M_AUDITTEXT, "audit_text", "Audit text storage");
 MALLOC_DEFINE(M_AUDITGIDSET, "audit_gidset", "Audit GID set storage");
 
-SYSCTL_NODE(_security, OID_AUTO, audit, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security, OID_AUTO, audit, CTLFLAG_RW, 0,
     "TrustedBSD audit controls");
 
 /*
@@ -209,6 +212,7 @@ audit_record_ctor(void *mem, int size, void *arg, int flags)
 	struct kaudit_record *ar;
 	struct thread *td;
 	struct ucred *cred;
+	struct prison *pr;
 
 	KASSERT(sizeof(*ar) == size, ("audit_record_ctor: wrong size"));
 
@@ -231,6 +235,17 @@ audit_record_ctor(void *mem, int size, void *arg, int flags)
 	ar->k_ar.ar_subj_pid = td->td_proc->p_pid;
 	ar->k_ar.ar_subj_amask = cred->cr_audit.ai_mask;
 	ar->k_ar.ar_subj_term_addr = cred->cr_audit.ai_termid;
+	/*
+	 * If this process is jailed, make sure we capture the name of the
+	 * jail so we can use it to generate a zonename token when we covert
+	 * this record to BSM.
+	 */
+	if (jailed(cred)) {
+		pr = cred->cr_prison;
+		(void) strlcpy(ar->k_ar.ar_jailname, pr->pr_name,
+		    sizeof(ar->k_ar.ar_jailname));
+	} else
+		ar->k_ar.ar_jailname[0] = '\0';
 	return (0);
 }
 
@@ -686,10 +701,12 @@ audit_proc_coredump(struct thread *td, char *path, int errcode)
 	 * (signal) tokens.
 	 */
 	ar = audit_new(AUE_CORE, td);
+	if (ar == NULL)
+		return;
 	if (path != NULL) {
 		pathp = &ar->k_ar.ar_arg_upath1;
 		*pathp = malloc(MAXPATHLEN, M_AUDITPATH, M_WAITOK);
-		audit_canon_path(td, path, *pathp);
+		audit_canon_path(td, AT_FDCWD, path, *pathp);
 		ARG_SET_VALID(ar, ARG_UPATH1);
 	}
 	ar->k_ar.ar_arg_signum = td->td_proc->p_sig;

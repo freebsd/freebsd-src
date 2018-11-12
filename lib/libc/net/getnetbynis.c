@@ -80,7 +80,7 @@ _getnetbynis(const char *name, char *map, int af, struct netent *ne,
 	free(result);
 	result = (char *)&ypbuf;
 
-	if ((cp = index(result, '\n')))
+	if ((cp = strchr(result, '\n')))
 		*cp = '\0';
 
 	cp = strpbrk(result, " \t");
@@ -160,8 +160,10 @@ _nis_getnetbyname(void *rval, void *cb_data, va_list ap)
 		return (NS_NOTFOUND);
 	}
 	if (__copy_netent(&ne, nptr, buffer, buflen) != 0) {
+		*errnop = errno;
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
 		*h_errnop = statp->res_h_errno;
-		return (NS_NOTFOUND);
+		return (NS_RETURN);
 	}
 	*((struct netent **)rval) = nptr;
 	return (NS_SUCCESS);
@@ -244,8 +246,10 @@ _nis_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 		return (NS_NOTFOUND);
 	}
 	if (__copy_netent(&ne, nptr, buffer, buflen) != 0) {
+		*errnop = errno;
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
 		*h_errnop = statp->res_h_errno;
-		return (NS_NOTFOUND);
+		return (NS_RETURN);
 	}
 	*((struct netent **)rval) = nptr;
 	return (NS_SUCCESS);

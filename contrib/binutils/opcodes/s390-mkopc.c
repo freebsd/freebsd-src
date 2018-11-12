@@ -1,5 +1,5 @@
 /* s390-mkopc.c -- Generates opcode table out of s390-opc.txt
-   Copyright 2000, 2001 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2003 Free Software Foundation, Inc.
    Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
 
    This file is part of GDB, GAS, and the GNU binutils.
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,7 +35,9 @@ enum s390_opcode_cpu_val
     S390_OPCODE_G5 = 0,
     S390_OPCODE_G6,
     S390_OPCODE_Z900,
-    S390_OPCODE_Z990
+    S390_OPCODE_Z990,
+    S390_OPCODE_Z9_109,
+    S390_OPCODE_Z9_EC
   };
 
 struct op_struct
@@ -195,6 +197,10 @@ main (void)
 	    min_cpu = S390_OPCODE_Z900;
 	  else if (strcmp (cpu_string, "z990") == 0)
 	    min_cpu = S390_OPCODE_Z990;
+	  else if (strcmp (cpu_string, "z9-109") == 0)
+	    min_cpu = S390_OPCODE_Z9_109;
+	  else if (strcmp (cpu_string, "z9-ec") == 0)
+	    min_cpu = S390_OPCODE_Z9_EC;
 	  else {
 	    fprintf (stderr, "Couldn't parse cpu string %s\n", cpu_string);
 	    exit (1);

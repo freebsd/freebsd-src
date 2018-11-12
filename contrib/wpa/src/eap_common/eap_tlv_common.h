@@ -2,14 +2,8 @@
  * EAP-TLV definitions (draft-josefsson-pppext-eap-tls-eap-10.txt)
  * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef EAP_TLV_COMMON_H
@@ -24,8 +18,7 @@
 #define EAP_TLV_URI_TLV 8
 #define EAP_TLV_EAP_PAYLOAD_TLV 9
 #define EAP_TLV_INTERMEDIATE_RESULT_TLV 10
-#define EAP_TLV_PAC_TLV 11 /* draft-cam-winget-eap-fast-provisioning-04.txt,
-			    * Section 4.2 */
+#define EAP_TLV_PAC_TLV 11 /* RFC 5422, Section 4.2 */
 #define EAP_TLV_CRYPTO_BINDING_TLV 12
 #define EAP_TLV_CALLING_STATION_ID_TLV 13
 #define EAP_TLV_CALLED_STATION_ID_TLV 14
@@ -99,7 +92,7 @@ struct eap_tlv_request_action_tlv {
 	be16 action;
 } STRUCT_PACKED;
 
-/* draft-cam-winget-eap-fast-provisiong-04.txt, Section 4.2.6 - PAC-Type TLV */
+/* RFC 5422, Section 4.2.6 - PAC-Type TLV */
 struct eap_tlv_pac_type_tlv {
 	be16 tlv_type; /* PAC_TYPE_PAC_TYPE */
 	be16 length;

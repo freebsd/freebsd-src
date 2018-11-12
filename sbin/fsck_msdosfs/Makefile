@@ -4,11 +4,11 @@
 FSCK=	${.CURDIR}/../fsck
 .PATH: ${FSCK}
 
+PACKAGE=runtime
 PROG=	fsck_msdosfs
 MAN=	fsck_msdosfs.8
 SRCS=	main.c check.c boot.c fat.c dir.c fsutil.c
 
 CFLAGS+= -I${FSCK}
-WARNS?=	0
 
 .include <bsd.prog.mk>

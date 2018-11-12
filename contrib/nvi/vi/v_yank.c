@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_yank.c	10.9 (Berkeley) 5/19/96";
+static const char sccsid[] = "$Id: v_yank.c,v 10.10 2001/06/25 15:19:36 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -39,12 +39,10 @@ static const char sccsid[] = "@(#)v_yank.c	10.9 (Berkeley) 5/19/96";
  * to the line and column marked by a.  Hopefully, the motion component code
  * got it right...   Unlike delete, we make no adjustments here.
  *
- * PUBLIC: int v_yank __P((SCR *, VICMD *));
+ * PUBLIC: int v_yank(SCR *, VICMD *);
  */
 int
-v_yank(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_yank(SCR *sp, VICMD *vp)
 {
 	size_t len;
 

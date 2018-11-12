@@ -7,15 +7,14 @@ MLINKS=	rpc.lockd.8 lockd.8
 SRCS=	kern.c nlm_prot_svc.c lockd.c lock_proc.c lockd_lock.c
 
 CFLAGS+= -I. -I${DESTDIR}/usr/include/rpcsvc
-#WARNS?= 2
+WARNS?= 3
 
-DPADD=	${LIBRPCSVC} ${LIBUTIL}
-LDADD=	-lrpcsvc -lutil
+LIBADD=	rpcsvc
 
 CLEANFILES= nlm_prot_svc.c nlm_prot.h test
 
 RPCSRC= ${DESTDIR}/usr/include/rpcsvc/nlm_prot.x
-RPCGEN= rpcgen -L -C
+RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -L -C
 
 nlm_prot_svc.c: ${RPCSRC}
 	${RPCGEN} -m -o ${.TARGET} ${RPCSRC}

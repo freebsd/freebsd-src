@@ -162,7 +162,8 @@ ipsec_dump_policy(policy, delimiter)
 			return NULL;
 		}
 		buf = newbuf;
-		snprintf(buf, buflen, "%s%s%s", buf, delimiter, isrbuf);
+		snprintf(buf + strlen(buf), buflen - strlen(buf),
+		    "%s%s", delimiter, isrbuf);
 
 		off += xisr->sadb_x_ipsecrequest_len;
 	}
@@ -198,6 +199,7 @@ ipsec_dump_ipsecrequest(buf, len, xisr, bound)
 		break;
 	case IPPROTO_TCP:
 		proto = "tcp";
+		break;
 	default:
 		__ipsec_errcode = EIPSEC_INVAL_PROTO;
 		return NULL;

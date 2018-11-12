@@ -34,26 +34,10 @@
 
 #include <sys/ktr.h>
 
-#include <machine/upa.h>
-
-#ifndef LOCORE
-
-#define	KTR_CPU	UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG))
-
-#else
-
-#define	AND(var, mask, r1, r2) \
-	SET(var, r2, r1) ; \
-	lduw	[r1], r2 ; \
-	and	r2, mask, r1
-
-#define	TEST(var, mask, r1, r2, l1) \
-	AND(var, mask, r1, r2) ; \
-	brz	r1, l1 ## f ; \
-	 nop
+#ifdef LOCORE
 
 /*
- * XXX could really use another register...
+ * XXX could really use another register ...
  */
 #define	ATR(desc, r1, r2, r3, l1, l2) \
 	.sect	.rodata ; \
@@ -70,11 +54,12 @@ l2:	add	r2, 1, r3 ; \
 	bne	%icc, l2 ## b ; \
 	 mov	r3, r2 ; \
 	SET(ktr_buf, r3, r1) ; \
+	ldx	[r1], r1 ; \
 	mulx	r2, KTR_SIZEOF, r2 ; \
 	add	r1, r2, r1 ; \
 	rd	%tick, r2 ; \
 	stx	r2, [r1 + KTR_TIMESTAMP] ; \
-	UPA_GET_MID(r2) ; \
+	lduw	[PCPU(CPUID)], r2 ; \
 	stw	r2, [r1 + KTR_CPU] ; \
 	stw	%g0, [r1 + KTR_LINE] ; \
 	stx	%g0, [r1 + KTR_FILE] ; \
@@ -82,12 +67,31 @@ l2:	add	r2, 1, r3 ; \
 	stx	r2, [r1 + KTR_DESC]
 
 #define CATR(mask, desc, r1, r2, r3, l1, l2, l3) \
-	set	mask, r1 ; \
-	TEST(ktr_mask, r1, r2, r2, l3) ; \
-	UPA_GET_MID(r1) ; \
+	setx	mask, r3, r1 ; \
+	setx	ktr_mask, r3, r2 ; \
+	ldx	[r2], r2 ; \
+	and	r2, r1, r1 ; \
+	brz	r1, l3 ## f ; \
+	 nop ; \
+	lduw	[PCPU(CPUID)], r2 ; \
+	mov	_NCPUBITS, r3 ; \
+	udivx	r2, r3, r2 ; \
+	srl	r2, 0, r2 ; \
+	sllx	r2, PTR_SHIFT, r2 ; \
+	SET(ktr_cpumask, r3, r1) ; \
+	ldx	[r1 + r2], r1 ; \
+	lduw	[PCPU(CPUID)], r2 ; \
+	mov	_NCPUBITS, r3 ; \
+	udivx	r2, r3, r2 ; \
+	srl	r2, 0, r2 ; \
+	smul	r2, r3, r3 ; \
+	lduw	[PCPU(CPUID)], r2 ; \
+	sub	r2, r3, r3 ; \
 	mov	1, r2 ; \
-	sllx	r2, r1, r1 ; \
-	TEST(ktr_cpumask, r1, r2, r3, l3) ; \
+	sllx	r2, r3, r2 ; \
+	andn	r1, r2, r1 ; \
+	brz	r1, l3 ## f ; \
+	 nop ; \
 	ATR(desc, r1, r2, r3, l1, l2)
 
 #endif /* LOCORE */

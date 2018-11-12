@@ -3,4 +3,6 @@
 
 PROG=	split
 
+LIBADD=	util
+
 .include <bsd.prog.mk>

@@ -103,7 +103,7 @@ typedef	__nl_item	nl_item;
 #define	YESEXPR		52	/* affirmative response expression */
 #define	NOEXPR		53	/* negative response expression */
 
-#if __BSD_VISIBLE || __XSI_VISIBLE <= 500
+#if __BSD_VISIBLE || (__XSI_VISIBLE && __XSI_VISIBLE <= 500)
 #define	YESSTR		54	/* affirmative response for yes/no queries */
 #define	NOSTR		55	/* negative response for yes/no queries */
 #endif
@@ -114,8 +114,26 @@ typedef	__nl_item	nl_item;
 #define	D_MD_ORDER	57	/* month/day order (local extension) */
 #endif
 
+/* standalone months forms for %OB */
+#define	ALTMON_1	58
+#define	ALTMON_2	59
+#define	ALTMON_3	60
+#define	ALTMON_4	61
+#define	ALTMON_5	62
+#define	ALTMON_6	63
+#define	ALTMON_7	64
+#define	ALTMON_8	65
+#define	ALTMON_9	66
+#define	ALTMON_10	67
+#define	ALTMON_11	68
+#define	ALTMON_12	69
+
 __BEGIN_DECLS
 char	*nl_langinfo(nl_item);
+
+#if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)
+#include <xlocale/_langinfo.h>
+#endif
 __END_DECLS
 
 #endif /* !_LANGINFO_H_ */

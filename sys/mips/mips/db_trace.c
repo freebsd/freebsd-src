@@ -2,6 +2,27 @@
  * Copyright (c) 2004-2005, Juniper Networks, Inc.
  * All rights reserved.
  *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
  *	JNPR: db_trace.c,v 1.8 2007/08/09 11:23:32 katta
  */
 
@@ -30,7 +51,7 @@ extern char edata[];
 
 /*
  * A function using a stack frame has the following instruction as the first
- * one: addiu sp,sp,-<frame_size>
+ * one: [d]addiu sp,sp,-<frame_size>
  *
  * We make use of this to detect starting address of a function. This works
  * better than using 'j ra' instruction to signify end of the previous
@@ -39,7 +60,8 @@ extern char edata[];
  *
  * XXX the abi does not require that the addiu instruction be the first one.
  */
-#define	MIPS_START_OF_FUNCTION(ins)	(((ins) & 0xffff8000) == 0x27bd8000)
+#define	MIPS_START_OF_FUNCTION(ins)	((((ins) & 0xffff8000) == 0x27bd8000) \
+	|| (((ins) & 0xffff8000) == 0x67bd8000))
 
 /*
  * MIPS ABI 3.0 requires that all functions return using the 'j ra' instruction
@@ -48,10 +70,13 @@ extern char edata[];
  */
 #define	MIPS_END_OF_FUNCTION(ins)	((ins) == 0x03e00008)
 
-/*
- * kdbpeekD(addr) - skip one word starting at 'addr', then read the second word
- */
-#define	kdbpeekD(addr)	kdbpeek(((int *)(addr)) + 1)
+#if defined(__mips_n64)
+#	define	MIPS_IS_VALID_KERNELADDR(reg)	((((reg) & 3) == 0) && \
+					((vm_offset_t)(reg) >= MIPS_XKPHYS_START))
+#else
+#	define	MIPS_IS_VALID_KERNELADDR(reg)	((((reg) & 3) == 0) && \
+					((vm_offset_t)(reg) >= MIPS_KSEG0_START))
+#endif
 
 /*
  * Functions ``special'' enough to print by name
@@ -80,7 +105,7 @@ static struct {
 /*
  * Map a function address to a string name, if known; or a hex string.
  */
-static char *
+static const char *
 fn_name(uintptr_t addr)
 {
 	static char buf[17];
@@ -88,12 +113,12 @@ fn_name(uintptr_t addr)
 
 	db_expr_t diff;
 	c_db_sym_t sym;
-	char *symname;
+	const char *symname;
 
 	diff = 0;
 	symname = NULL;
 	sym = db_search_symbol((db_addr_t)addr, DB_STGY_ANY, &diff);
-	db_symbol_values(sym, (const char **)&symname, (db_expr_t *)0);
+	db_symbol_values(sym, &symname, (db_expr_t *)0);
 	if (symname && diff == 0)
 		return (symname);
 
@@ -119,6 +144,7 @@ stacktrace_subr(register_t pc, register_t sp, register_t ra,
 	unsigned instr, mask;
 	unsigned int frames = 0;
 	int more, stksize, j;
+	register_t	next_ra;
 
 /* Jump here when done with a frame, to start a new one */
 loop:
@@ -130,6 +156,7 @@ loop:
 	valid_args[1] = 0;
 	valid_args[2] = 0;
 	valid_args[3] = 0;
+	next_ra = 0;
 /* Jump here after a nonstandard (interrupt handler) frame */
 	stksize = 0;
 	subr = 0;
@@ -140,8 +167,8 @@ loop:
 	}
 	/* check for bad SP: could foul up next frame */
 	/*XXX MIPS64 bad: this hard-coded SP is lame */
-	if (sp & 3 || sp < 0x80000000) {
-		(*printfn) ("SP 0x%x: not in kernel\n", sp);
+	if (!MIPS_IS_VALID_KERNELADDR(sp)) {
+		(*printfn) ("SP 0x%jx: not in kernel\n", sp);
 		ra = 0;
 		subr = 0;
 		goto done;
@@ -164,14 +191,14 @@ loop:
 		subr = (uintptr_t)MipsKernIntr;
 	else if (pcBetween(MipsUserIntr, MipsTLBInvalidException))
 		subr = (uintptr_t)MipsUserIntr;
-	else if (pcBetween(MipsTLBInvalidException,
-	    MipsKernTLBInvalidException))
+	else if (pcBetween(MipsTLBInvalidException, MipsTLBMissException))
 		subr = (uintptr_t)MipsTLBInvalidException;
-	else if (pcBetween(MipsKernTLBInvalidException,
-	    MipsUserTLBInvalidException))
-		subr = (uintptr_t)MipsKernTLBInvalidException;
-	else if (pcBetween(MipsUserTLBInvalidException, MipsTLBMissException))
-		subr = (uintptr_t)MipsUserTLBInvalidException;
+	else if (pcBetween(fork_trampoline, savectx))
+		subr = (uintptr_t)fork_trampoline;
+	else if (pcBetween(savectx, cpu_throw))
+		subr = (uintptr_t)savectx;
+	else if (pcBetween(cpu_throw, cpu_switch))
+		subr = (uintptr_t)cpu_throw;
 	else if (pcBetween(cpu_switch, MipsSwitchFPState))
 		subr = (uintptr_t)cpu_switch;
 	else if (pcBetween(_locore, _locoreEnd)) {
@@ -181,8 +208,8 @@ loop:
 	}
 	/* check for bad PC */
 	/*XXX MIPS64 bad: These hard coded constants are lame */
-	if (pc & 3 || pc < (uintptr_t)0x80000000 || pc >= (uintptr_t)edata) {
-		(*printfn) ("PC 0x%x: not in kernel\n", pc);
+	if (!MIPS_IS_VALID_KERNELADDR(pc)) {
+		(*printfn) ("PC 0x%jx: not in kernel\n", pc);
 		ra = 0;
 		goto done;
 	}
@@ -235,7 +262,7 @@ loop:
 			case OP_SYSCALL:
 			case OP_BREAK:
 				more = 1;	/* stop now */
-			};
+			}
 			break;
 
 		case OP_BCOND:
@@ -256,16 +283,24 @@ loop:
 			case OP_BCx:
 			case OP_BCy:
 				more = 2;	/* stop after next instruction */
-			};
+			}
 			break;
 
 		case OP_SW:
 			/* look for saved registers on the stack */
 			if (i.IType.rs != 29)
 				break;
-			/* only restore the first one */
-			if (mask & (1 << i.IType.rt))
+			/*
+			 * only restore the first one except RA for
+			 * MipsKernGenException case
+			 */
+			if (mask & (1 << i.IType.rt)) {
+				if (subr == (uintptr_t)MipsKernGenException &&
+				    i.IType.rt == 31)
+					next_ra = kdbpeek((int *)(sp +
+					    (short)i.IType.imm));
 				break;
+			}
 			mask |= (1 << i.IType.rt);
 			switch (i.IType.rt) {
 			case 4:/* a0 */
@@ -303,32 +338,34 @@ loop:
 			mask |= (1 << i.IType.rt);
 			switch (i.IType.rt) {
 			case 4:/* a0 */
-				args[0] = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				args[0] = kdbpeekd((int *)(sp + (short)i.IType.imm));
 				valid_args[0] = 1;
 				break;
 
 			case 5:/* a1 */
-				args[1] = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				args[1] = kdbpeekd((int *)(sp + (short)i.IType.imm));
 				valid_args[1] = 1;
 				break;
 
 			case 6:/* a2 */
-				args[2] = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				args[2] = kdbpeekd((int *)(sp + (short)i.IType.imm));
 				valid_args[2] = 1;
 				break;
 
 			case 7:/* a3 */
-				args[3] = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				args[3] = kdbpeekd((int *)(sp + (short)i.IType.imm));
 				valid_args[3] = 1;
 				break;
 
 			case 31:	/* ra */
-				ra = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				ra = kdbpeekd((int *)(sp + (short)i.IType.imm));
 			}
 			break;
 
 		case OP_ADDI:
 		case OP_ADDIU:
+		case OP_DADDI:
+		case OP_DADDIU:
 			/* look for stack pointer adjustment */
 			if (i.IType.rs != 29 || i.IType.rt != 29)
 				break;
@@ -347,7 +384,10 @@ done:
 			(*printfn)("?");
 	}
 
-	(*printfn) (") ra %x sz %d\n", ra, stksize);
+	(*printfn) (") ra %jx sp %jx sz %d\n",
+	    (uintmax_t)(u_register_t) ra,
+	    (uintmax_t)(u_register_t) sp,
+	    stksize);
 
 	if (ra) {
 		if (pc == ra && stksize == 0)
@@ -355,7 +395,7 @@ done:
 		else {
 			pc = ra;
 			sp += stksize;
-			ra = 0;
+			ra = next_ra;
 			goto loop;
 		}
 	} else {
@@ -377,7 +417,7 @@ db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 
 
 int
-db_md_clr_watchpoint( db_expr_t addr, db_expr_t size)
+db_md_clr_watchpoint(db_expr_t addr, db_expr_t size)
 {
 
 	return(0);
@@ -403,8 +443,8 @@ db_trace_thread(struct thread *thr, int count)
 	struct pcb *ctx;
 
 	if (thr == curthread) {
-		sp = (register_t)__builtin_frame_address(0);
-		ra = (register_t)__builtin_return_address(0);
+		sp = (register_t)(intptr_t)__builtin_frame_address(0);
+		ra = (register_t)(intptr_t)__builtin_return_address(0);
 
         	__asm __volatile(
 			"jal 99f\n"
@@ -415,13 +455,11 @@ db_trace_thread(struct thread *thr, int count)
                          : "=r" (pc)
 			 : "r" (ra));
 
-	}
-
-	else {
-		ctx = thr->td_pcb;
-		sp = (register_t)ctx->pcb_context[PREG_SP];
-		pc = (register_t)ctx->pcb_context[PREG_PC];
-		ra = (register_t)ctx->pcb_context[PREG_RA];
+	} else {
+		ctx = kdb_thr_ctx(thr);
+		sp = (register_t)ctx->pcb_context[PCB_REG_SP];
+		pc = (register_t)ctx->pcb_context[PCB_REG_PC];
+		ra = (register_t)ctx->pcb_context[PCB_REG_RA];
 	}
 
 	stacktrace_subr(pc, sp, ra,
@@ -434,8 +472,8 @@ void
 db_show_mdpcpu(struct pcpu *pc)
 {
 
-	db_printf("ipis	    = 0x%x\n", pc->pc_pending_ipis);
+	db_printf("ipis         = 0x%x\n", pc->pc_pending_ipis);
 	db_printf("next ASID    = %d\n", pc->pc_next_asid);
-	db_printf("GENID	    = %d\n", pc->pc_asid_generation);
+	db_printf("GENID        = %d\n", pc->pc_asid_generation);
 	return;
 }

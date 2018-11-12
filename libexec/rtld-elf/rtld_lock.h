@@ -44,9 +44,9 @@ struct RtldLockInfo
 	void  (*at_fork)(void);
 };
 
-extern void _rtld_thread_init(struct RtldLockInfo *);
-extern void _rtld_atfork_pre(int *);
-extern void _rtld_atfork_post(int *);
+extern void _rtld_thread_init(struct RtldLockInfo *) __exported;
+extern void _rtld_atfork_pre(int *) __exported;
+extern void _rtld_atfork_post(int *) __exported;
 
 #ifdef IN_RTLD
 
@@ -57,10 +57,18 @@ extern rtld_lock_t	rtld_bind_lock;
 extern rtld_lock_t	rtld_libc_lock;
 extern rtld_lock_t	rtld_phdr_lock;
 
-int	rlock_acquire(rtld_lock_t);
-int 	wlock_acquire(rtld_lock_t);
-void	rlock_release(rtld_lock_t, int);
-void	wlock_release(rtld_lock_t, int);
+#define	RTLD_LOCK_UNLOCKED	0
+#define	RTLD_LOCK_RLOCKED	1
+#define	RTLD_LOCK_WLOCKED	2
+
+struct Struct_RtldLockState;
+typedef struct Struct_RtldLockState RtldLockState;
+
+void	rlock_acquire(rtld_lock_t, RtldLockState *);
+void 	wlock_acquire(rtld_lock_t, RtldLockState *);
+void	lock_release(rtld_lock_t, RtldLockState *);
+void	lock_upgrade(rtld_lock_t, RtldLockState *);
+void	lock_restart_for_upgrade(RtldLockState *);
 
 #endif	/* IN_RTLD */
 

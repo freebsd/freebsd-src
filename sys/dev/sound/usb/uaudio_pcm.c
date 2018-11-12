@@ -81,14 +81,14 @@ ua_chan_setfragments(kobj_t obj, void *data, uint32_t blocksize, uint32_t blockc
 static int
 ua_chan_trigger(kobj_t obj, void *data, int go)
 {
-	if (!PCMTRIG_COMMON(go)) {
-		return (0);
+	if (PCMTRIG_COMMON(go)) {
+		if (go == PCMTRIG_START) {
+			uaudio_chan_start(data);
+		} else {
+			uaudio_chan_stop(data);
+		}
 	}
-	if (go == PCMTRIG_START) {
-		return (uaudio_chan_start(data));
-	} else {
-		return (uaudio_chan_stop(data));
-	}
+	return (0);
 }
 
 static uint32_t
@@ -227,7 +227,7 @@ static device_method_t ua_pcm_methods[] = {
 	DEVMETHOD(device_attach, ua_attach),
 	DEVMETHOD(device_detach, ua_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ua_pcm_driver = {

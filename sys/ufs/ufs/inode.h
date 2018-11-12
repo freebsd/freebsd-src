@@ -66,14 +66,25 @@
 struct inode {
 	TAILQ_ENTRY(inode) i_nextsnap; /* snapshot file list. */
 	struct	vnode  *i_vnode;/* Vnode associated with this inode. */
-	struct	ufsmount *i_ump;/* Ufsmount point associated with this inode. */
-	u_int32_t i_flag;	/* flags, see below */
-	struct cdev *i_dev;	/* Device associated with the inode. */
+	struct 	ufsmount *i_ump;/* Ufsmount point associated with this inode. */
+	struct	 dquot *i_dquot[MAXQUOTAS]; /* Dquot structures. */
+	union {
+		struct dirhash *dirhash; /* Hashing for large directories. */
+		daddr_t *snapblklist;    /* Collect expunged snapshot blocks. */
+	} i_un;
+	/*
+	 * The real copy of the on-disk inode.
+	 */
+	union {
+		struct ufs1_dinode *din1;	/* UFS1 on-disk dinode. */
+		struct ufs2_dinode *din2;	/* UFS2 on-disk dinode. */
+	} dinode_u;
+
 	ino_t	  i_number;	/* The identity of the inode. */
+	u_int32_t i_flag;	/* flags, see below */
 	int	  i_effnlink;	/* i_nlink when I/O completes */
 
-	struct	 fs *i_fs;	/* Associated filesystem superblock. */
-	struct	 dquot *i_dquot[MAXQUOTAS]; /* Dquot structures. */
+
 	/*
 	 * Side effects; used during directory lookup.
 	 */
@@ -82,10 +93,7 @@ struct inode {
 	doff_t	  i_diroff;	/* Offset in dir, where we found last entry. */
 	doff_t	  i_offset;	/* Offset of free space in directory. */
 
-	union {
-		struct dirhash *dirhash; /* Hashing for large directories. */
-		daddr_t *snapblklist;    /* Collect expunged snapshot blocks. */
-	} i_un;
+	int	i_nextclustercg; /* last cg searched for cluster */
 
 	/*
 	 * Data for extended attribute modification.
@@ -98,20 +106,13 @@ struct inode {
 	/*
 	 * Copies from the on-disk dinode itself.
 	 */
-	u_int16_t i_mode;	/* IFMT, permissions; see below. */
-	int16_t	  i_nlink;	/* File link count. */
 	u_int64_t i_size;	/* File byte count. */
+	u_int64_t i_gen;	/* Generation number. */
 	u_int32_t i_flags;	/* Status flags (chflags). */
-	int64_t	  i_gen;	/* Generation number. */
 	u_int32_t i_uid;	/* File owner. */
 	u_int32_t i_gid;	/* File group. */
-	/*
-	 * The real copy of the on-disk inode.
-	 */
-	union {
-		struct ufs1_dinode *din1;	/* UFS1 on-disk dinode. */
-		struct ufs2_dinode *din2;	/* UFS2 on-disk dinode. */
-	} dinode_u;
+	u_int16_t i_mode;	/* IFMT, permissions; see below. */
+	int16_t	  i_nlink;	/* File link count. */
 };
 /*
  * These flags are kept in i_flag.
@@ -120,43 +121,60 @@ struct inode {
 #define	IN_CHANGE	0x0002		/* Inode change time update request. */
 #define	IN_UPDATE	0x0004		/* Modification time update request. */
 #define	IN_MODIFIED	0x0008		/* Inode has been modified. */
-#define	IN_RENAME	0x0010		/* Inode is being renamed. */
-#define	IN_LAZYMOD	0x0040		/* Modified, but don't write yet. */
-#define	IN_SPACECOUNTED	0x0080		/* Blocks to be freed in free count. */
-#define	IN_LAZYACCESS	0x0100		/* Process IN_ACCESS after the
+#define	IN_NEEDSYNC	0x0010		/* Inode requires fsync. */
+#define	IN_LAZYMOD	0x0020		/* Modified, but don't write yet. */
+#define	IN_LAZYACCESS	0x0040		/* Process IN_ACCESS after the
 					   suspension finished */
-#define	IN_EA_LOCKED	0x0200
-#define	IN_EA_LOCKWAIT	0x0400
+#define	IN_EA_LOCKED	0x0080
+#define	IN_EA_LOCKWAIT	0x0100
 
-#define i_devvp i_ump->um_devvp
-#define i_umbufobj i_ump->um_bo
-#define i_dirhash i_un.dirhash
-#define i_snapblklist i_un.snapblklist
-#define i_din1 dinode_u.din1
-#define i_din2 dinode_u.din2
+#define	IN_TRUNCATED	0x0200		/* Journaled truncation pending. */
+
+#define	IN_UFS2		0x0400		/* UFS2 vs UFS1 */
+
+#define	i_dirhash i_un.dirhash
+#define	i_snapblklist i_un.snapblklist
+#define	i_din1 dinode_u.din1
+#define	i_din2 dinode_u.din2
 
 #ifdef _KERNEL
+
+#define	ITOUMP(ip)	((ip)->i_ump)
+#define	ITODEV(ip)	(ITOUMP(ip)->um_dev)
+#define	ITODEVVP(ip)	(ITOUMP(ip)->um_devvp)
+#define	ITOFS(ip)	(ITOUMP(ip)->um_fs)
+#define	ITOVFS(ip)	((ip)->i_vnode->v_mount)
+
+static inline _Bool
+I_IS_UFS1(const struct inode *ip)
+{
+
+	return ((ip->i_flag & IN_UFS2) == 0);
+}
+
+static inline _Bool
+I_IS_UFS2(const struct inode *ip)
+{
+
+	return ((ip->i_flag & IN_UFS2) != 0);
+}
+
 /*
  * The DIP macro is used to access fields in the dinode that are
  * not cached in the inode itself.
  */
-#define	DIP(ip, field) \
-	(((ip)->i_ump->um_fstype == UFS1) ? \
-	(ip)->i_din1->d##field : (ip)->i_din2->d##field)
-#define	DIP_SET(ip, field, val) do { \
-	if ((ip)->i_ump->um_fstype == UFS1) \
-		(ip)->i_din1->d##field = (val); \
-	else \
-		(ip)->i_din2->d##field = (val); \
+#define	DIP(ip, field)	(I_IS_UFS1(ip) ? (ip)->i_din1->d##field : \
+    (ip)->i_din2->d##field)
+#define	DIP_SET(ip, field, val) do {				\
+	if (I_IS_UFS1(ip))					\
+		(ip)->i_din1->d##field = (val); 		\
+	else							\
+		(ip)->i_din2->d##field = (val); 		\
 	} while (0)
 
-#define	MAXSYMLINKLEN(ip) \
-	((ip)->i_ump->um_fstype == UFS1) ? \
-	((NDADDR + NIADDR) * sizeof(ufs1_daddr_t)) : \
-	((NDADDR + NIADDR) * sizeof(ufs2_daddr_t))
-#define	SHORTLINK(ip) \
-	(((ip)->i_ump->um_fstype == UFS1) ? \
-	(caddr_t)(ip)->i_din1->di_db : (caddr_t)(ip)->i_din2->di_db)
+#define	SHORTLINK(ip)	(I_IS_UFS1(ip) ?			\
+    (caddr_t)(ip)->i_din1->di_db : (caddr_t)(ip)->i_din2->di_db)
+#define	IS_SNAPSHOT(ip)		((ip)->i_flags & SF_SNAPSHOT)
 
 /*
  * Structure used to pass around logical block paths generated by
@@ -165,23 +183,24 @@ struct inode {
 struct indir {
 	ufs2_daddr_t in_lbn;		/* Logical block number. */
 	int	in_off;			/* Offset in buffer. */
-	int	in_exists;		/* Flag if the block exists. */
 };
 
 /* Convert between inode pointers and vnode pointers. */
-#define VTOI(vp)	((struct inode *)(vp)->v_data)
-#define ITOV(ip)	((ip)->i_vnode)
+#define	VTOI(vp)	((struct inode *)(vp)->v_data)
+#define	ITOV(ip)	((ip)->i_vnode)
 
 /* Determine if soft dependencies are being done */
-#define DOINGSOFTDEP(vp)	((vp)->v_mount->mnt_flag & MNT_SOFTDEP)
-#define DOINGASYNC(vp)		((vp)->v_mount->mnt_kern_flag & MNTK_ASYNC)
+#define	DOINGSOFTDEP(vp)   ((vp)->v_mount->mnt_flag & (MNT_SOFTDEP | MNT_SUJ))
+#define	MOUNTEDSOFTDEP(mp) ((mp)->mnt_flag & (MNT_SOFTDEP | MNT_SUJ))
+#define	DOINGSUJ(vp)	   ((vp)->v_mount->mnt_flag & MNT_SUJ)
+#define	MOUNTEDSUJ(mp)	   ((mp)->mnt_flag & MNT_SUJ)
 
 /* This overlays the fid structure (see mount.h). */
 struct ufid {
 	u_int16_t ufid_len;	/* Length of structure. */
 	u_int16_t ufid_pad;	/* Force 32-bit alignment. */
-	ino_t	  ufid_ino;	/* File number (ino). */
-	int32_t	  ufid_gen;	/* Generation number. */
+	uint32_t  ufid_ino;	/* File number (ino). */
+	uint32_t  ufid_gen;	/* Generation number. */
 };
 #endif /* _KERNEL */
 

@@ -2,14 +2,8 @@
  * WPA Supplicant / UNIX domain socket -based control interface
  * Copyright (c) 2004-2005, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef CTRL_IFACE_H
@@ -38,7 +32,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 					 char *buf, size_t *resp_len);
 
 /**
- * wpa_supplicant_ctrl_iface_process - Process global ctrl_iface command
+ * wpa_supplicant_global_ctrl_iface_process - Process global ctrl_iface command
  * @global: Pointer to global data from wpa_supplicant_init()
  * @buf: Received command buffer (nul terminated string)
  * @resp_len: Variable to be set to the response length
@@ -119,6 +113,8 @@ wpa_supplicant_global_ctrl_iface_init(struct wpa_global *global);
 void wpa_supplicant_global_ctrl_iface_deinit(
 	struct ctrl_iface_global_priv *priv);
 
+void wpas_ctrl_radio_work_flush(struct wpa_supplicant *wpa_s);
+
 #else /* CONFIG_CTRL_IFACE */
 
 static inline struct ctrl_iface_priv *
@@ -151,6 +147,10 @@ wpa_supplicant_global_ctrl_iface_init(struct wpa_global *global)
 
 static inline void
 wpa_supplicant_global_ctrl_iface_deinit(struct ctrl_iface_global_priv *priv)
+{
+}
+
+static inline void wpas_ctrl_radio_work_flush(struct wpa_supplicant *wpa_s)
 {
 }
 

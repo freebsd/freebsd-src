@@ -1,8 +1,8 @@
-# $Id: Makefile.am 20466 2007-04-20 08:29:05Z lha $
+# $Id$
 
 include $(top_srcdir)/Makefile.am.common
 
-AM_CPPFLAGS += $(INCLUDE_krb4) $(INCLUDE_hesiod)
+AM_CPPFLAGS += $(INCLUDE_hesiod)
 
 bin_SCRIPTS		= pfrom
 
@@ -18,10 +18,9 @@ man_MANS = push.8 pfrom.1
 
 CLEANFILES = pfrom
 
-EXTRA_DIST = pfrom.in $(man_MANS)
+EXTRA_DIST = NTMakefile pfrom.in $(man_MANS)
 
 LDADD = $(LIB_krb5) \
-	$(LIB_krb4) \
 	$(LIB_hcrypto) \
 	$(LIB_roken) \
 	$(LIB_hesiod)

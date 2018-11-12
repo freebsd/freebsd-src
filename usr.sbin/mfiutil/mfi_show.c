@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <err.h>
+#include <fcntl.h>
 #include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,9 +40,11 @@
 #include <unistd.h>
 #include "mfiutil.h"
 
+static const char* foreign_state = " (FOREIGN)";
+
 MFI_TABLE(top, show);
 
-static void
+void
 format_stripe(char *buf, size_t buflen, uint8_t stripe)
 {
 
@@ -50,26 +53,29 @@ format_stripe(char *buf, size_t buflen, uint8_t stripe)
 }
 
 static int
-show_adapter(int ac, char **av)
+show_adapter(int ac, char **av __unused)
 {
 	struct mfi_ctrl_info info;
 	char stripe[5];
-	int fd, comma;
+	int error, fd, comma;
 
 	if (ac != 1) {
 		warnx("show adapter: extra arguments");
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_ctrl_get_info(fd, &info, NULL) < 0) {
+		error = errno;
 		warn("Failed to get controller info");
-		return (errno);
+		close(fd);
+		return (error);
 	}
 	printf("mfi%d Adapter:\n", mfi_unit);
 	printf("    Product Name: %.80s\n", info.product_name);
@@ -132,50 +138,154 @@ show_adapter(int ac, char **av)
 MFI_COMMAND(show, adapter, show_adapter);
 
 static int
-show_battery(int ac, char **av)
+show_battery(int ac, char **av __unused)
 {
 	struct mfi_bbu_capacity_info cap;
 	struct mfi_bbu_design_info design;
+	struct mfi_bbu_properties props;
+	struct mfi_bbu_status stat;
 	uint8_t status;
-	int fd;
+	int comma, error, fd, show_capacity, show_props;
+	char buf[32];
 
 	if (ac != 1) {
 		warnx("show battery: extra arguments");
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_BBU_GET_CAPACITY_INFO, &cap,
 	    sizeof(cap), NULL, 0, &status) < 0) {
-		if (status == MFI_STAT_NO_HW_PRESENT) {
-			printf("mfi%d: No battery present\n", mfi_unit);
-			return (0);
-		}
+		error = errno;
 		warn("Failed to get capacity info");
-		return (errno);
+		close(fd);
+		return (error);
 	}
+	if (status == MFI_STAT_NO_HW_PRESENT) {
+		printf("mfi%d: No battery present\n", mfi_unit);
+		close(fd);
+		return (0);
+	}
+	show_capacity = (status == MFI_STAT_OK);
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_BBU_GET_DESIGN_INFO, &design,
 	    sizeof(design), NULL, 0, NULL) < 0) {
+		error = errno;
 		warn("Failed to get design info");
-		return (errno);
+		close(fd);
+		return (error);
 	}
 
+	if (mfi_dcmd_command(fd, MFI_DCMD_BBU_GET_STATUS, &stat, sizeof(stat),
+	    NULL, 0, NULL) < 0) {
+		error = errno;
+		warn("Failed to get status");
+		close(fd);
+		return (error);
+	}
+
+	if (mfi_bbu_get_props(fd, &props, &status) < 0) {
+		error = errno;
+		warn("Failed to get properties");
+		close(fd);
+		return (error);
+	}
+	show_props = (status == MFI_STAT_OK);
+
 	printf("mfi%d: Battery State:\n", mfi_unit);
-	printf(" Manufacture Date: %d/%d/%d\n", design.mfg_date >> 5 & 0x0f,
+	printf("     Manufacture Date: %d/%d/%d\n", design.mfg_date >> 5 & 0x0f,
 	    design.mfg_date & 0x1f, design.mfg_date >> 9 & 0xffff);
-	printf("    Serial Number: %d\n", design.serial_number);
-	printf("     Manufacturer: %s\n", design.mfg_name);
-	printf("            Model: %s\n", design.device_name);
-	printf("        Chemistry: %s\n", design.device_chemistry);
-	printf("  Design Capacity: %d mAh\n", design.design_capacity);
-	printf("   Design Voltage: %d mV\n", design.design_voltage);
-	printf("   Current Charge: %d%%\n", cap.relative_charge);
+	printf("        Serial Number: %d\n", design.serial_number);
+	printf("         Manufacturer: %s\n", design.mfg_name);
+	printf("                Model: %s\n", design.device_name);
+	printf("            Chemistry: %s\n", design.device_chemistry);
+	printf("      Design Capacity: %d mAh\n", design.design_capacity);
+	if (show_capacity) {
+		printf(" Full Charge Capacity: %d mAh\n",
+		    cap.full_charge_capacity);
+		printf("     Current Capacity: %d mAh\n",
+		    cap.remaining_capacity);
+		printf("        Charge Cycles: %d\n", cap.cycle_count);
+		printf("       Current Charge: %d%%\n", cap.relative_charge);
+	}
+	printf("       Design Voltage: %d mV\n", design.design_voltage);
+	printf("      Current Voltage: %d mV\n", stat.voltage);
+	printf("          Temperature: %d C\n", stat.temperature);
+	if (show_props) {
+		mfi_autolearn_period(props.auto_learn_period, buf, sizeof(buf));
+		printf("     Autolearn period: %s\n", buf);
+		if (props.auto_learn_mode != 0)
+			snprintf(buf, sizeof(buf), "never");
+		else
+			mfi_next_learn_time(props.next_learn_time, buf,
+			    sizeof(buf));
+		printf("      Next learn time: %s\n", buf);
+		printf(" Learn delay interval: %u hour%s\n",
+		    props.learn_delay_interval,
+		    props.learn_delay_interval != 1 ? "s" : "");
+		mfi_autolearn_mode(props.auto_learn_mode, buf, sizeof(buf));
+		printf("       Autolearn mode: %s\n", buf);
+		if (props.bbu_mode != 0)
+			printf("             BBU Mode: %d\n", props.bbu_mode);
+	}
+	printf("               Status:");
+	comma = 0;
+	if (stat.fw_status & MFI_BBU_STATE_PACK_MISSING) {
+		printf(" PACK_MISSING");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_VOLTAGE_LOW) {
+		printf("%s VOLTAGE_LOW", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_TEMPERATURE_HIGH) {
+		printf("%s TEMPERATURE_HIGH", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_CHARGE_ACTIVE) {
+		printf("%s CHARGING", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_DISCHARGE_ACTIVE) {
+		printf("%s DISCHARGING", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_LEARN_CYC_REQ) {
+		printf("%s LEARN_CYCLE_REQUESTED", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_LEARN_CYC_ACTIVE) {
+		printf("%s LEARN_CYCLE_ACTIVE", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_LEARN_CYC_FAIL) {
+		printf("%s LEARN_CYCLE_FAIL", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_LEARN_CYC_TIMEOUT) {
+		printf("%s LEARN_CYCLE_TIMEOUT", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_I2C_ERR_DETECT) {
+		printf("%s I2C_ERROR_DETECT", comma ? "," : "");
+		comma = 1;
+	}
+
+	if (!comma)
+		printf(" normal");
+	printf("\n");
+	switch (stat.battery_type) {
+	case MFI_BBU_TYPE_BBU:
+		printf("      State of Health: %s\n",
+		    stat.detail.bbu.is_SOH_good ? "good" : "bad");
+		break;
+	}
 
 	close(fd);
 
@@ -183,7 +293,7 @@ show_battery(int ac, char **av)
 }
 MFI_COMMAND(show, battery, show_battery);
 
-static void
+void
 print_ld(struct mfi_ld_info *info, int state_len)
 {
 	struct mfi_ld_params *params = &info->ld_config.params;
@@ -204,35 +314,31 @@ print_ld(struct mfi_ld_info *info, int state_len)
 		    mfi_ldstate(params->state));
 }
 
-static void
-print_pd(struct mfi_pd_info *info, int state_len, int location)
+void
+print_pd(struct mfi_pd_info *info, int state_len)
 {
 	const char *s;
-	char buf[6];
+	char buf[256];
 
-	humanize_number(buf, sizeof(buf), info->raw_size * 512, "",
+	humanize_number(buf, 6, info->raw_size * 512, "",
 	    HN_AUTOSCALE, HN_B | HN_NOSPACE |HN_DECIMAL);
 	printf("(%6s) ", buf);
+	if (info->state.ddf.v.pd_type.is_foreign) {
+		sprintf(buf, "%s%s", mfi_pdstate(info->fw_state), foreign_state);
+		s = buf;
+	} else
+		s = mfi_pdstate(info->fw_state);
 	if (state_len > 0)
-		printf("%-*s", state_len, mfi_pdstate(info->fw_state));
+		printf("%-*s", state_len, s);
 	else
-		printf("%s", mfi_pdstate(info->fw_state));
+		printf("%s",s);
 	s = mfi_pd_inq_string(info);
 	if (s != NULL)
 		printf(" %s", s);
-	if (!location)
-		return;
-	if (info->encl_device_id == 0xffff)
-		printf(" slot %d", info->slot_number);
-	else if (info->encl_device_id == info->ref.v.device_id)
-		printf(" enclosure %d", info->encl_index);
-	else
-		printf(" enclosure %d, slot %d", info->encl_index,
-		    info->slot_number);
 }
 
 static int
-show_config(int ac, char **av)
+show_config(int ac, char **av __unused)
 {
 	struct mfi_config_data *config;
 	struct mfi_array *ar;
@@ -242,23 +348,26 @@ show_config(int ac, char **av)
 	struct mfi_pd_info pinfo;
 	uint16_t device_id;
 	char *p;
-	int fd, i, j;
+	int error, fd, i, j;
 
 	if (ac != 1) {
 		warnx("show config: extra arguments");
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	/* Get the config from the controller. */
 	if (mfi_config_read(fd, &config) < 0) {
+		error = errno;
 		warn("Failed to get config");
-		return (errno);
+		close(fd);
+		return (error);
 	}
 
 	/* Dump out the configuration. */
@@ -273,18 +382,18 @@ show_config(int ac, char **av)
 		    ar->num_drives);
 		for (j = 0; j < ar->num_drives; j++) {
 			device_id = ar->pd[j].ref.v.device_id;
-			if (device_id == 0xffff)
-				printf("        drive MISSING\n");
-			else {
-				printf("        drive %u ", device_id);
+			printf("        drive %s ", mfi_drive_name(NULL,
+			    device_id,
+			    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
+			if (device_id != 0xffff) {
 				if (mfi_pd_get_info(fd, device_id, &pinfo,
 				    NULL) < 0)
 					printf("%s",
 					    mfi_pdstate(ar->pd[j].fw_state));
 				else
-					print_pd(&pinfo, -1, 1);
-				printf("\n");
+					print_pd(&pinfo, -1);
 			}
+			printf("\n");
 		}
 		p += config->array_size;
 	}
@@ -311,13 +420,14 @@ show_config(int ac, char **av)
 
 	for (i = 0; i < config->spares_count; i++) {
 		sp = (struct mfi_spare *)p;
-		printf("    %s spare %u ",
+		printf("    %s spare %s ",
 		    sp->spare_type & MFI_SPARE_DEDICATED ? "dedicated" :
-		    "global", sp->ref.v.device_id);
+		    "global", mfi_drive_name(NULL, sp->ref.v.device_id,
+		    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
 		if (mfi_pd_get_info(fd, sp->ref.v.device_id, &pinfo, NULL) < 0)
 			printf("%s", mfi_pdstate(MFI_PD_STATE_HOT_SPARE));
 		else
-			print_pd(&pinfo, -1, 1);
+			print_pd(&pinfo, -1);
 		if (sp->spare_type & MFI_SPARE_DEDICATED) {
 			printf(" backs:\n");
 			for (j = 0; j < sp->array_count; j++)
@@ -326,6 +436,7 @@ show_config(int ac, char **av)
 			printf("\n");
 		p += config->spares_size;
 	}
+	free(config);
 	close(fd);
 
 	return (0);
@@ -333,28 +444,31 @@ show_config(int ac, char **av)
 MFI_COMMAND(show, config, show_config);
 
 static int
-show_volumes(int ac, char **av)
+show_volumes(int ac, char **av __unused)
 {
 	struct mfi_ld_list list;
 	struct mfi_ld_info info;
+	int error, fd;
 	u_int i, len, state_len;
-	int fd;
 
 	if (ac != 1) {
 		warnx("show volumes: extra arguments");
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	/* Get the logical drive list from the controller. */
 	if (mfi_ld_get_list(fd, &list, NULL) < 0) {
+		error = errno;
 		warn("Failed to get volume list");
-		return (errno);
+		close(fd);
+		return (error);
 	}
 
 	/* List the volumes. */
@@ -376,9 +490,11 @@ show_volumes(int ac, char **av)
 	for (i = 0; i < list.ld_count; i++) {
 		if (mfi_ld_get_info(fd, list.ld_list[i].ld.v.target_id, &info,
 		    NULL) < 0) {
+			error = errno;
 			warn("Failed to get info for volume %d",
 			    list.ld_list[i].ld.v.target_id);
-			return (errno);
+			close(fd);
+			return (error);
 		}
 		printf("%6s ",
 		    mfi_volume_name(fd, list.ld_list[i].ld.v.target_id));
@@ -411,27 +527,30 @@ show_volumes(int ac, char **av)
 MFI_COMMAND(show, volumes, show_volumes);
 
 static int
-show_drives(int ac, char **av)
+show_drives(int ac, char **av __unused)
 {
 	struct mfi_pd_list *list;
 	struct mfi_pd_info info;
 	u_int i, len, state_len;
-	int fd;
+	int error, fd;
 
 	if (ac != 1) {
 		warnx("show drives: extra arguments");
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
+	list = NULL;
 	if (mfi_pd_get_list(fd, &list, NULL) < 0) {
+		error = errno;
 		warn("Failed to get drive list");
-		return (errno);
+		goto error;
 	}
 
 	/* Walk the list of drives to determine width of state column. */
@@ -442,11 +561,14 @@ show_drives(int ac, char **av)
 
 		if (mfi_pd_get_info(fd, list->addr[i].device_id, &info,
 		    NULL) < 0) {
+			error = errno;
 			warn("Failed to fetch info for drive %u",
 			    list->addr[i].device_id);
-			return (errno);
+			goto error;
 		}
 		len = strlen(mfi_pdstate(info.fw_state));
+		if (info.state.ddf.v.pd_type.is_foreign)
+			len += strlen(foreign_state);
 		if (len > state_len)
 			state_len = len;
 	}
@@ -462,72 +584,53 @@ show_drives(int ac, char **av)
 		/* Fetch details for this drive. */
 		if (mfi_pd_get_info(fd, list->addr[i].device_id, &info,
 		    NULL) < 0) {
+			error = errno;
 			warn("Failed to fetch info for drive %u",
 			    list->addr[i].device_id);
-			return (errno);
+			goto error;
 		}
 
-		print_pd(&info, state_len, 1);
+		printf("%s ", mfi_drive_name(&info, list->addr[i].device_id,
+		    MFI_DNAME_DEVICE_ID));
+		print_pd(&info, state_len);
+		printf(" %s", mfi_drive_name(&info, list->addr[i].device_id,
+		    MFI_DNAME_ES));
 		printf("\n");
 	}
+	error = 0;
+error:
+	free(list);
 	close(fd);
 
-	return (0);
+	return (error);
 }
 MFI_COMMAND(show, drives, show_drives);
 
-int fw_name_width, fw_version_width, fw_date_width, fw_time_width;
-
-static void
-scan_firmware(struct mfi_info_component *comp)
-{
-	int len;
-
-	len = strlen(comp->name);
-	if (fw_name_width < len)
-		fw_name_width = len;
-	len = strlen(comp->version);
-	if (fw_version_width < len)
-		fw_version_width = len;
-	len = strlen(comp->build_date);
-	if (fw_date_width < len)
-		fw_date_width = len;
-	len = strlen(comp->build_time);
-	if (fw_time_width < len)
-		fw_time_width = len;
-}
-
-static void
-display_firmware(struct mfi_info_component *comp, const char *tag)
-{
-
-	printf("%-*s  %-*s  %-*s  %-*s  %s\n", fw_name_width, comp->name,
-	    fw_version_width, comp->version, fw_date_width, comp->build_date,
-	    fw_time_width, comp->build_time, tag);
-}
-
 static int
-show_firmware(int ac, char **av)
+show_firmware(int ac, char **av __unused)
 {
 	struct mfi_ctrl_info info;
 	struct mfi_info_component header;
-	int fd;
+	int error, fd;
 	u_int i;
 
 	if (ac != 1) {
-		warnx("show drives: extra arguments");
+		warnx("show firmware: extra arguments");
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDONLY);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_ctrl_get_info(fd, &info, NULL) < 0) {
+		error = errno;
 		warn("Failed to get controller info");
-		return (errno);
+		close(fd);
+		return (error);
 	}
 
 	if (info.package_version[0] != '\0')
@@ -558,3 +661,128 @@ show_firmware(int ac, char **av)
 	return (0);
 }
 MFI_COMMAND(show, firmware, show_firmware);
+
+static int
+show_progress(int ac, char **av __unused)
+{
+	struct mfi_ld_list llist;
+	struct mfi_pd_list *plist;
+	struct mfi_ld_info linfo;
+	struct mfi_pd_info pinfo;
+	int busy, error, fd;
+	u_int i;
+	uint16_t device_id;
+	uint8_t target_id;
+
+	if (ac != 1) {
+		warnx("show progress: extra arguments");
+		return (EINVAL);
+	}
+
+	fd = mfi_open(mfi_unit, O_RDONLY);
+	if (fd < 0) {
+		error = errno;
+		warn("mfi_open");
+		return (error);
+	}
+
+	if (mfi_ld_get_list(fd, &llist, NULL) < 0) {
+		error = errno;
+		warn("Failed to get volume list");
+		close(fd);
+		return (error);
+	}
+	if (mfi_pd_get_list(fd, &plist, NULL) < 0) {
+		error = errno;
+		warn("Failed to get drive list");
+		close(fd);
+		return (error);
+	}
+
+	busy = 0;
+	for (i = 0; i < llist.ld_count; i++) {
+		target_id = llist.ld_list[i].ld.v.target_id;
+		if (mfi_ld_get_info(fd, target_id, &linfo, NULL) < 0) {
+			error = errno;
+			warn("Failed to get info for volume %s",
+			    mfi_volume_name(fd, target_id));
+			free(plist);
+			close(fd);
+			return (error);
+		}
+		if (linfo.progress.active & MFI_LD_PROGRESS_CC) {
+			printf("volume %s ", mfi_volume_name(fd, target_id));
+			mfi_display_progress("Consistency Check",
+			    &linfo.progress.cc);
+			busy = 1;
+		}
+		if (linfo.progress.active & MFI_LD_PROGRESS_BGI) {
+			printf("volume %s ", mfi_volume_name(fd, target_id));
+			mfi_display_progress("Background Init",
+			    &linfo.progress.bgi);
+			busy = 1;
+		}
+		if (linfo.progress.active & MFI_LD_PROGRESS_FGI) {
+			printf("volume %s ", mfi_volume_name(fd, target_id));
+			mfi_display_progress("Foreground Init",
+			    &linfo.progress.fgi);
+			busy = 1;
+		}
+		if (linfo.progress.active & MFI_LD_PROGRESS_RECON) {
+			printf("volume %s ", mfi_volume_name(fd, target_id));
+			mfi_display_progress("Reconstruction",
+			    &linfo.progress.recon);
+			busy = 1;
+		}
+	}
+
+	for (i = 0; i < plist->count; i++) {
+		if (plist->addr[i].scsi_dev_type != 0)
+			continue;
+
+		device_id = plist->addr[i].device_id;
+		if (mfi_pd_get_info(fd, device_id, &pinfo, NULL) < 0) {
+			error = errno;
+			warn("Failed to fetch info for drive %u", device_id);
+			free(plist);
+			close(fd);
+			return (error);
+		}
+
+		if (pinfo.prog_info.active & MFI_PD_PROGRESS_REBUILD) {
+			printf("drive %s ", mfi_drive_name(NULL, device_id,
+			    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
+			mfi_display_progress("Rebuild", &pinfo.prog_info.rbld);
+			busy = 1;
+		}
+		if (pinfo.prog_info.active & MFI_PD_PROGRESS_PATROL) {
+			printf("drive %s ", mfi_drive_name(NULL, device_id,
+			    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
+			mfi_display_progress("Patrol Read",
+			    &pinfo.prog_info.patrol);
+			busy = 1;
+		}
+		if (pinfo.prog_info.active & MFI_PD_PROGRESS_CLEAR) {
+			printf("drive %s ", mfi_drive_name(NULL, device_id,
+			    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
+			mfi_display_progress("Clear", &pinfo.prog_info.clear);
+			busy = 1;
+		}
+	}
+
+	free(plist);
+	close(fd);
+
+	if (!busy)
+		printf("No activity in progress for adapter mfi%d\n", mfi_unit);
+
+	return (0);
+}
+MFI_COMMAND(show, progress, show_progress);
+
+static int
+show_foreign(int ac, char **av)
+{
+	return(display_format(ac, av, 0/*normal display*/, MFI_DCMD_CFG_FOREIGN_DISPLAY));
+}
+MFI_COMMAND(show, foreign, show_foreign);

@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 23, 1994
+.Dd September 29, 2012
 .Dt RTPRIO 1
 .Os
 .Sh NAME
@@ -113,6 +113,14 @@ highest priority
 of 0 means "the current process".
 .Pp
 Only root is allowed to set realtime or idle priority for a process.
+A user may modify the idle priority of their own processes if the
+.Xr sysctl 8
+variable
+.Va security.bsd.unprivileged_idprio
+is set to non-zero.
+Note that this increases the chance that a deadlock can occur
+if a process locks a required resource and then does
+not get to run.
 .Sh EXIT STATUS
 If
 .Nm
@@ -161,18 +169,18 @@ The
 utility appeared in
 .Fx 2.0 ,
 but is similar to the HP-UX version.
-.Sh CAVEATS
-You can lock yourself out of the system by placing a cpu-heavy
-process in a realtime priority.
 .Sh AUTHORS
 .An -nosplit
-.An Henrik Vestergaard Draboel Aq hvd@terry.ping.dk
+.An Henrik Vestergaard Draboel Aq Mt hvd@terry.ping.dk
 is the original author.
 This
 implementation in
 .Fx
 was substantially rewritten by
 .An David Greenman .
+.Sh CAVEATS
+You can lock yourself out of the system by placing a cpu-heavy
+process in a realtime priority.
 .Sh BUGS
 There is no way to set/view the realtime priority of process 0
 (swapper) (see

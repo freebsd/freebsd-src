@@ -4,7 +4,8 @@
 PROG=	rwhod
 MAN=	rwhod.8
 
-# XXX breaks on Alpha due to alignment constraints
-#WARNS?=	4
+PACKAGE=rcmds
+
+WARNS?=	3
 
 .include <bsd.prog.mk>

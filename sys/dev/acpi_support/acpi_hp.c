@@ -116,7 +116,6 @@ struct acpi_hp_inst_seq_pair {
 
 struct acpi_hp_softc {
 	device_t	dev;
-	ACPI_HANDLE	handle;
 	device_t	wmi_dev;
 	int		has_notify;		/* notification GUID found */
 	int		has_cmi;		/* CMI GUID found */
@@ -153,135 +152,123 @@ static struct {
 	char	*name;
 	int	method;
 	char	*description;
-	int	access;
+	int	flag_rdonly;
 } acpi_hp_sysctls[] = {
 	{
 		.name		= "wlan_enabled",
 		.method		= ACPI_HP_METHOD_WLAN_ENABLED,
 		.description	= "Enable/Disable WLAN (WiFi)",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wlan_radio",
 		.method		= ACPI_HP_METHOD_WLAN_RADIO,
 		.description	= "WLAN radio status",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "wlan_on_air",
 		.method		= ACPI_HP_METHOD_WLAN_ON_AIR,
 		.description	= "WLAN radio ready to use (enabled and radio)",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "wlan_enable_if_radio_on",
 		.method		= ACPI_HP_METHOD_WLAN_ENABLE_IF_RADIO_ON,
 		.description	= "Enable WLAN if radio is turned on",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wlan_disable_if_radio_off",
 		.method		= ACPI_HP_METHOD_WLAN_DISABLE_IF_RADIO_OFF,
 		.description	= "Disable WLAN if radio is turned off",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "bt_enabled",
 		.method		= ACPI_HP_METHOD_BLUETOOTH_ENABLED,
 		.description	= "Enable/Disable Bluetooth",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "bt_radio",
 		.method		= ACPI_HP_METHOD_BLUETOOTH_RADIO,
 		.description	= "Bluetooth radio status",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "bt_on_air",
 		.method		= ACPI_HP_METHOD_BLUETOOTH_ON_AIR,
 		.description	= "Bluetooth radio ready to use"
 				    " (enabled and radio)",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "bt_enable_if_radio_on",
 		.method		= ACPI_HP_METHOD_BLUETOOTH_ENABLE_IF_RADIO_ON,
 		.description	= "Enable bluetooth if radio is turned on",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "bt_disable_if_radio_off",
 		.method		= ACPI_HP_METHOD_BLUETOOTH_DISABLE_IF_RADIO_OFF,
 		.description	= "Disable bluetooth if radio is turned off",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wwan_enabled",
 		.method		= ACPI_HP_METHOD_WWAN_ENABLED,
 		.description	= "Enable/Disable WWAN (UMTS)",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wwan_radio",
 		.method		= ACPI_HP_METHOD_WWAN_RADIO,
 		.description	= "WWAN radio status",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "wwan_on_air",
 		.method		= ACPI_HP_METHOD_WWAN_ON_AIR,
 		.description	= "WWAN radio ready to use (enabled and radio)",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "wwan_enable_if_radio_on",
 		.method		= ACPI_HP_METHOD_WWAN_ENABLE_IF_RADIO_ON,
 		.description	= "Enable WWAN if radio is turned on",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wwan_disable_if_radio_off",
 		.method		= ACPI_HP_METHOD_WWAN_DISABLE_IF_RADIO_OFF,
 		.description	= "Disable WWAN if radio is turned off",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "als_enabled",
 		.method		= ACPI_HP_METHOD_ALS,
 		.description	= "Enable/Disable ALS (Ambient light sensor)",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "display",
 		.method		= ACPI_HP_METHOD_DISPLAY,
 		.description	= "Display status",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "hdd_temperature",
 		.method		= ACPI_HP_METHOD_HDDTEMP,
 		.description	= "HDD temperature",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "is_docked",
 		.method		= ACPI_HP_METHOD_DOCK,
 		.description	= "Docking station status",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "cmi_detail",
 		.method		= ACPI_HP_METHOD_CMI_DETAIL,
 		.description	= "Details shown in CMI output "
 				    "(cat /dev/hpcmi)",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "verbose",
 		.method		= ACPI_HP_METHOD_VERBOSE,
 		.description	= "Verbosity level",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 
 	{ NULL, 0, NULL, 0 }
@@ -289,6 +276,7 @@ static struct {
 
 ACPI_SERIAL_DECL(hp, "HP ACPI-WMI Mapping");
 
+static void	acpi_hp_identify(driver_t *driver, device_t parent);
 static int	acpi_hp_probe(device_t dev);
 static int	acpi_hp_attach(device_t dev);
 static int	acpi_hp_detach(device_t dev);
@@ -320,10 +308,12 @@ static struct cdevsw hpcmi_cdevsw = {
 };
 
 static device_method_t acpi_hp_methods[] = {
+	DEVMETHOD(device_identify, acpi_hp_identify),
 	DEVMETHOD(device_probe, acpi_hp_probe),
 	DEVMETHOD(device_attach, acpi_hp_attach),
 	DEVMETHOD(device_detach, acpi_hp_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t	acpi_hp_driver = {
@@ -334,7 +324,7 @@ static driver_t	acpi_hp_driver = {
 
 static devclass_t acpi_hp_devclass;
 
-DRIVER_MODULE(acpi_hp, acpi, acpi_hp_driver, acpi_hp_devclass,
+DRIVER_MODULE(acpi_hp, acpi_wmi, acpi_hp_driver, acpi_hp_devclass,
 		0, 0);
 MODULE_DEPEND(acpi_hp, acpi_wmi, 1, 1, 1);
 MODULE_DEPEND(acpi_hp, acpi, 1, 1, 1);
@@ -405,7 +395,7 @@ acpi_hp_evaluate_auto_on_off(struct acpi_hp_softc *sc)
 			    	    "WLAN on air changed to %i "
 			    	    "(new_wlan_status is %i)\n",
 			    	    sc->was_wlan_on_air, new_wlan_status);
-			acpi_UserNotify("HP", sc->handle,
+			acpi_UserNotify("HP", ACPI_ROOT_OBJECT,
 			    0xc0+sc->was_wlan_on_air);
 		}
 	}
@@ -420,7 +410,7 @@ acpi_hp_evaluate_auto_on_off(struct acpi_hp_softc *sc)
 				    " to %i (new_bluetooth_status is %i)\n",
 				    sc->was_bluetooth_on_air,
 				    new_bluetooth_status);
-			acpi_UserNotify("HP", sc->handle,
+			acpi_UserNotify("HP", ACPI_ROOT_OBJECT,
 			    0xd0+sc->was_bluetooth_on_air);
 		}
 	}
@@ -433,19 +423,33 @@ acpi_hp_evaluate_auto_on_off(struct acpi_hp_softc *sc)
 				    "WWAN on air changed to %i"
 			    	    " (new_wwan_status is %i)\n",
 				    sc->was_wwan_on_air, new_wwan_status);
-			acpi_UserNotify("HP", sc->handle,
+			acpi_UserNotify("HP", ACPI_ROOT_OBJECT,
 			    0xe0+sc->was_wwan_on_air);
 		}
 	}
 }
 
+static void
+acpi_hp_identify(driver_t *driver, device_t parent)
+{
+
+	/* Don't do anything if driver is disabled. */
+	if (acpi_disabled("hp"))
+		return;
+
+	/* Add only a single device instance. */
+	if (device_find_child(parent, "acpi_hp", -1) != NULL)
+		return;
+
+	if (BUS_ADD_CHILD(parent, 0, "acpi_hp", -1) == NULL)
+		device_printf(parent, "add acpi_hp child failed\n");
+}
+
 static int
 acpi_hp_probe(device_t dev)
 {
-	if (acpi_disabled("hp") || device_get_unit(dev) != 0)
-		return (ENXIO);
-	device_set_desc(dev, "HP ACPI-WMI Mapping");
 
+	device_set_desc(dev, "HP ACPI-WMI Mapping");
 	return (0);
 }
 
@@ -453,15 +457,12 @@ static int
 acpi_hp_attach(device_t dev)
 {
 	struct acpi_hp_softc	*sc;
-	struct acpi_softc	*acpi_sc;
-	devclass_t		wmi_devclass;
 	int			arg;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	sc->handle = acpi_get_handle(dev);
 	sc->has_notify = 0;
 	sc->has_cmi = 0;
 	sc->bluetooth_enable_if_radio_on = 0;
@@ -477,16 +478,8 @@ acpi_hp_attach(device_t dev)
 	sc->cmi_order_size = -1;
 	sc->verbose = 0;
 	memset(sc->cmi_order, 0, sizeof(sc->cmi_order));
-	acpi_sc = acpi_device_get_parent_softc(dev);
 
-	if (!(wmi_devclass = devclass_find ("acpi_wmi"))) {
-		device_printf(dev, "Couldn't find acpi_wmi devclass\n");
-		return (EINVAL);
-	}
-	if (!(sc->wmi_dev = devclass_get_device(wmi_devclass, 0))) {
-		device_printf(dev, "Couldn't find acpi_wmi device\n");
-		return (EINVAL);
-	}
+	sc->wmi_dev = device_get_parent(dev);
 	if (!ACPI_WMI_PROVIDES_GUID_STRING(sc->wmi_dev,
 	    ACPI_HP_WMI_BIOS_GUID)) {
 		device_printf(dev,
@@ -555,11 +548,19 @@ acpi_hp_attach(device_t dev)
 			sc->was_wwan_on_air = arg;
 		}
 
-		SYSCTL_ADD_PROC(sc->sysctl_ctx,
-		SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-			acpi_hp_sysctls[i].name, acpi_hp_sysctls[i].access,
-			sc, i, acpi_hp_sysctl, "I",
-			acpi_hp_sysctls[i].description);
+		if (acpi_hp_sysctls[i].flag_rdonly != 0) {
+			SYSCTL_ADD_PROC(sc->sysctl_ctx,
+			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+			    acpi_hp_sysctls[i].name, CTLTYPE_INT | CTLFLAG_RD,
+			    sc, i, acpi_hp_sysctl, "I",
+			    acpi_hp_sysctls[i].description);
+		} else {
+			SYSCTL_ADD_PROC(sc->sysctl_ctx,
+			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+			    acpi_hp_sysctls[i].name, CTLTYPE_INT | CTLFLAG_RW,
+			    sc, i, acpi_hp_sysctl, "I",
+			    acpi_hp_sysctls[i].description);
+		}
 	}
 	ACPI_SERIAL_END(hp);
 
@@ -569,28 +570,26 @@ acpi_hp_attach(device_t dev)
 static int
 acpi_hp_detach(device_t dev)
 {
-	int	ret;
+	struct acpi_hp_softc *sc;
 	
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
-	struct acpi_hp_softc *sc = device_get_softc(dev);
-	if (sc->has_cmi && sc->hpcmi_open_pid != 0) {
-		ret = EBUSY;
-	}
-	else {
-		if (sc->has_notify) {
-			ACPI_WMI_REMOVE_EVENT_HANDLER(dev,
-			    ACPI_HP_WMI_EVENT_GUID);
-		}
+	sc = device_get_softc(dev);
+	if (sc->has_cmi && sc->hpcmi_open_pid != 0)
+		return (EBUSY);
+
+	if (sc->has_notify)
+		ACPI_WMI_REMOVE_EVENT_HANDLER(dev, ACPI_HP_WMI_EVENT_GUID);
+
+	if (sc->has_cmi) {
 		if (sc->hpcmi_bufptr != -1) {
 			sbuf_delete(&sc->hpcmi_sbuf);
 			sc->hpcmi_bufptr = -1;
 		}
 		sc->hpcmi_open_pid = 0;
 		destroy_dev(sc->hpcmi_dev_t);
-		ret = 0;
 	}
 
-	return (ret);
+	return (0);
 }
 
 static int
@@ -905,7 +904,7 @@ acpi_hp_get_cmi_block(device_t wmi_dev, const char* guid, UINT8 instance,
 		return (-EINVAL);
 	}
 	obj = out.Pointer;
-	if (!obj && obj->Type != ACPI_TYPE_PACKAGE) {
+	if (!obj || obj->Type != ACPI_TYPE_PACKAGE) {
 		acpi_hp_free_buffer(&out);
 		return (-EINVAL);
 	}
@@ -1034,7 +1033,8 @@ acpi_hp_hex_decode(char* buffer)
 	UINT8	*uin;
 	UINT8	uout;
 
-	if (((int)length/2)*2 == length || length < 10) return;
+	if (rounddown((int)length, 2) == length || length < 10)
+		return;
 
 	for (i = 0; i<length; ++i) {
 		if (!((i+1)%3)) {

@@ -50,19 +50,32 @@
 # ALL DEVICE TYPES
 
 0x0a "Control Mode Page" {
-	{Reserved} *t7
+	{TST} t3
+	{TMF_ONLY} t1
+	{DPICZ} t1
+	{D_SENSE} t1
+	{GLTSD} t1
 	{RLEC} t1
 	{Queue Algorithm Modifier} t4
-	{Reserved} *t2
-	{QErr} t1
+	{NUAR} t1
+	{QErr} t2
 	{DQue} t1
 	{EECA} t1
-	{Reserved} *t4
+	{RAC} t1
+	{UA_INTLCK_CTRL} t2
+	{SWP} t1
 	{RAENP} t1
 	{UAAENP} t1
 	{EAENP} t1
-	{Reserved} *i1
+	{ATO} t1
+	{TAS} t1
+	{ATMPE} t1
+	{RWWP} t1
+	{Reserved} *t1
+	{Autoload Mode} t3
 	{Ready AEN Holdoff Period} i2
+	{Busy Timeout Period} i2
+	{Extended Self-Test Completion Time} i2
 }
 
 0x02 "Disconnect-Reconnect Page" {
@@ -79,6 +92,25 @@
 	{Reserved} *i1
 }
 
+0x15 "Extended Page";
+
+0x16 "Extended Device-Type Specific Page";
+
+0x1c "Informational Exceptions Control Page" {
+	{PERF} t1
+	{Reserved} *t1
+	{EBF} t1
+	{EWasc} t1
+	{DExcpt} t1
+	{TEST} t1
+	{EBACKERR} t1
+	{LogErr} t1
+	{Reserved} *t4
+	{MRIE} t4
+	{Interval Timer} i4
+	{Report Count} i4
+}
+
 0x09 "Peripheral Device Page" {
 	{Interface Identifier} i2
 	{Reserved} *i1
@@ -87,7 +119,7 @@
 	{Reserved} *i1
 }
 
-0x1a "Power Control" {
+0x1a "Power Condition Page" {
 	{Reserved} *i1
 	{Reserved} *t6
 	{Idle} t1
@@ -95,6 +127,10 @@
 	{Idle Condition Timer} i4
 	{Standby Condition Timer} i4
 }
+
+0x18 "Protocol-Specific LUN Page";
+
+0x19 "Protocol-Specific Port Page";
 
 # DIRECT ACCESS DEVICES
 0x08 "Caching Page" {
@@ -187,7 +223,8 @@
 	{Correction Span} i1
 	{Head Offset Count} i1
 	{Data Strobe Offset Count} i1
-	{Reserved} *i1
+	{LBPERE (LBP Error Reporting Enabled)} t1
+	{Reserved} *t7
 	{Write Retry Count} i1
 	{Reserved} *i1
 	{Recovery Time Limit} i2

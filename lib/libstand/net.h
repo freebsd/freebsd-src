@@ -36,6 +36,8 @@
  * $FreeBSD$
  */
 
+#ifndef _STAND_NET_H
+#define _STAND_NET_H
 #ifndef _KERNEL	/* XXX - see <netinet/in.h> */
 #undef __IPADDR
 #define __IPADDR(x)	htonl((u_int32_t)(x))
@@ -45,12 +47,18 @@
 
 #define BA { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }
 
+enum net_proto {
+	NET_NONE,
+	NET_NFS,
+	NET_TFTP
+};
+
 /* Returns true if n_long's on the same net */
 #define	SAMENET(a1, a2, m) ((a1.s_addr & m) == (a2.s_addr & m))
 
 #define MACPY(s, d) bcopy((char *)s, (char *)d, 6)
 
-#define MAXTMO 20	/* seconds */
+#define MAXTMO 120	/* seconds */
 #define MINTMO 2	/* seconds */
 
 #define FNAME_SIZE 128
@@ -74,6 +82,7 @@ extern	char hostname[FNAME_SIZE];
 extern	int hostnamelen;
 extern	char domainname[FNAME_SIZE];
 extern	int domainnamelen;
+extern	int netproto;
 extern	char ifname[IFNAME_SIZE];
 
 /* All of these are in network order. */
@@ -82,7 +91,9 @@ extern	struct in_addr rootip;
 extern	struct in_addr swapip;
 extern	struct in_addr gateip;
 extern	struct in_addr nameip;
+extern	struct in_addr tftpip;
 extern	n_long netmask;
+extern	u_int intf_mtu;
 
 extern	int debug;			/* defined in the machdep sources */
 
@@ -119,3 +130,4 @@ n_long	inet_addr(char *);
 
 /* Machine-dependent functions: */
 time_t	getsecs(void);
+#endif /* ! _STAND_NET_H */

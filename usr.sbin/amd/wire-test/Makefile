@@ -5,12 +5,11 @@
 #
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../contrib/amd/wire-test
+.PATH:	${SRCTOP}/contrib/amd/wire-test
 
 PROG=	wire-test
 MAN=	wire-test.8
 
-DPADD=	${LIBAMU}
-LDADD=	${LIBAMU}
+LIBADD=	amu
 
 .include <bsd.prog.mk>

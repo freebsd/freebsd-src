@@ -144,6 +144,9 @@ struct icmp6_hdr {
 #define ICMP6_DST_UNREACH_BEYONDSCOPE	2	/* beyond scope of source address */
 #define ICMP6_DST_UNREACH_ADDR		3	/* address unreachable */
 #define ICMP6_DST_UNREACH_NOPORT	4	/* port unreachable */
+#define ICMP6_DST_UNREACH_POLICY	5	/* failed ingress/egress policy */
+#define ICMP6_DST_UNREACH_REJECT	6	/* Reject route to destination */
+#define ICMP6_DST_UNREACH_SRCROUTE	7	/* Error in source routing header */
 
 #define ICMP6_TIME_EXCEED_TRANSIT 	0	/* ttl==0 in transit */
 #define ICMP6_TIME_EXCEED_REASSEMBLY	1	/* ttl==0 in reass */
@@ -297,8 +300,11 @@ struct nd_opt_hdr {		/* Neighbor discovery option header */
 #define ND_OPT_PREFIX_INFORMATION	3
 #define ND_OPT_REDIRECTED_HEADER	4
 #define ND_OPT_MTU			5
-
-#define ND_OPT_ROUTE_INFO		200	/* draft-ietf-ipngwg-router-preference, not officially assigned yet */
+#define ND_OPT_NONCE			14	/* RFC 3971 */
+#define ND_OPT_ROUTE_INFO		24	/* RFC 4191 */
+#define ND_OPT_RDNSS			25	/* RFC 6106 */
+#define ND_OPT_DNSSL			31	/* RFC 6106 */
+#define ND_OPT_MAX			31
 
 struct nd_opt_prefix_info {	/* prefix information */
 	u_int8_t	nd_opt_pi_type;
@@ -329,6 +335,16 @@ struct nd_opt_mtu {		/* MTU option */
 	u_int32_t	nd_opt_mtu_mtu;
 } __packed;
 
+#define	ND_OPT_NONCE_LEN	((1 * 8) - 2)
+#if ((ND_OPT_NONCE_LEN + 2) % 8) != 0
+#error "(ND_OPT_NONCE_LEN + 2) must be a multiple of 8."
+#endif 
+struct nd_opt_nonce {		/* nonce option */
+	u_int8_t	nd_opt_nonce_type;
+	u_int8_t	nd_opt_nonce_len;
+	u_int8_t	nd_opt_nonce[ND_OPT_NONCE_LEN];
+} __packed;
+
 struct nd_opt_route_info {	/* route info */
 	u_int8_t	nd_opt_rti_type;
 	u_int8_t	nd_opt_rti_len;
@@ -336,6 +352,22 @@ struct nd_opt_route_info {	/* route info */
 	u_int8_t	nd_opt_rti_flags;
 	u_int32_t	nd_opt_rti_lifetime;
 	/* prefix follows */
+} __packed;
+
+struct nd_opt_rdnss {		/* RDNSS option (RFC 6106) */
+	u_int8_t	nd_opt_rdnss_type;
+	u_int8_t	nd_opt_rdnss_len;
+	u_int16_t	nd_opt_rdnss_reserved;
+	u_int32_t	nd_opt_rdnss_lifetime;
+	/* followed by list of recursive DNS servers */
+} __packed;
+
+struct nd_opt_dnssl {		/* DNSSL option (RFC 6106) */
+	u_int8_t	nd_opt_dnssl_type;
+	u_int8_t	nd_opt_dnssl_len;
+	u_int16_t	nd_opt_dnssl_reserved;
+	u_int32_t	nd_opt_dnssl_lifetime;
+	/* followed by list of DNS search domains */
 } __packed;
 
 /*
@@ -538,39 +570,39 @@ do {								\
  * of the internet control message protocol version 6.
  */
 struct icmp6errstat {
-	u_quad_t icp6errs_dst_unreach_noroute;
-	u_quad_t icp6errs_dst_unreach_admin;
-	u_quad_t icp6errs_dst_unreach_beyondscope;
-	u_quad_t icp6errs_dst_unreach_addr;
-	u_quad_t icp6errs_dst_unreach_noport;
-	u_quad_t icp6errs_packet_too_big;
-	u_quad_t icp6errs_time_exceed_transit;
-	u_quad_t icp6errs_time_exceed_reassembly;
-	u_quad_t icp6errs_paramprob_header;
-	u_quad_t icp6errs_paramprob_nextheader;
-	u_quad_t icp6errs_paramprob_option;
-	u_quad_t icp6errs_redirect; /* we regard redirect as an error here */
-	u_quad_t icp6errs_unknown;
+	uint64_t icp6errs_dst_unreach_noroute;
+	uint64_t icp6errs_dst_unreach_admin;
+	uint64_t icp6errs_dst_unreach_beyondscope;
+	uint64_t icp6errs_dst_unreach_addr;
+	uint64_t icp6errs_dst_unreach_noport;
+	uint64_t icp6errs_packet_too_big;
+	uint64_t icp6errs_time_exceed_transit;
+	uint64_t icp6errs_time_exceed_reassembly;
+	uint64_t icp6errs_paramprob_header;
+	uint64_t icp6errs_paramprob_nextheader;
+	uint64_t icp6errs_paramprob_option;
+	uint64_t icp6errs_redirect; /* we regard redirect as an error here */
+	uint64_t icp6errs_unknown;
 };
 
 struct icmp6stat {
 /* statistics related to icmp6 packets generated */
-	u_quad_t icp6s_error;		/* # of calls to icmp6_error */
-	u_quad_t icp6s_canterror;	/* no error 'cuz old was icmp */
-	u_quad_t icp6s_toofreq;		/* no error 'cuz rate limitation */
-	u_quad_t icp6s_outhist[256];
+	uint64_t icp6s_error;		/* # of calls to icmp6_error */
+	uint64_t icp6s_canterror;	/* no error 'cuz old was icmp */
+	uint64_t icp6s_toofreq;		/* no error 'cuz rate limitation */
+	uint64_t icp6s_outhist[256];
 /* statistics related to input message processed */
-	u_quad_t icp6s_badcode;		/* icmp6_code out of range */
-	u_quad_t icp6s_tooshort;	/* packet < sizeof(struct icmp6_hdr) */
-	u_quad_t icp6s_checksum;	/* bad checksum */
-	u_quad_t icp6s_badlen;		/* calculated bound mismatch */
+	uint64_t icp6s_badcode;		/* icmp6_code out of range */
+	uint64_t icp6s_tooshort;	/* packet < sizeof(struct icmp6_hdr) */
+	uint64_t icp6s_checksum;	/* bad checksum */
+	uint64_t icp6s_badlen;		/* calculated bound mismatch */
 	/*
 	 * number of responses: this member is inherited from netinet code, but
 	 * for netinet6 code, it is already available in icp6s_outhist[].
 	 */
-	u_quad_t icp6s_reflect;
-	u_quad_t icp6s_inhist[256];	
-	u_quad_t icp6s_nd_toomanyopt;	/* too many ND options */
+	uint64_t icp6s_reflect;
+	uint64_t icp6s_inhist[256];	
+	uint64_t icp6s_nd_toomanyopt;	/* too many ND options */
 	struct icmp6errstat icp6s_outerrhist;
 #define icp6s_odst_unreach_noroute \
 	icp6s_outerrhist.icp6errs_dst_unreach_noroute
@@ -590,29 +622,33 @@ struct icmp6stat {
 #define icp6s_oparamprob_option icp6s_outerrhist.icp6errs_paramprob_option
 #define icp6s_oredirect icp6s_outerrhist.icp6errs_redirect
 #define icp6s_ounknown icp6s_outerrhist.icp6errs_unknown
-	u_quad_t icp6s_pmtuchg;		/* path MTU changes */
-	u_quad_t icp6s_nd_badopt;	/* bad ND options */
-	u_quad_t icp6s_badns;		/* bad neighbor solicitation */
-	u_quad_t icp6s_badna;		/* bad neighbor advertisement */
-	u_quad_t icp6s_badrs;		/* bad router advertisement */
-	u_quad_t icp6s_badra;		/* bad router advertisement */
-	u_quad_t icp6s_badredirect;	/* bad redirect message */
+	uint64_t icp6s_pmtuchg;		/* path MTU changes */
+	uint64_t icp6s_nd_badopt;	/* bad ND options */
+	uint64_t icp6s_badns;		/* bad neighbor solicitation */
+	uint64_t icp6s_badna;		/* bad neighbor advertisement */
+	uint64_t icp6s_badrs;		/* bad router advertisement */
+	uint64_t icp6s_badra;		/* bad router advertisement */
+	uint64_t icp6s_badredirect;	/* bad redirect message */
 };
 
 #ifdef _KERNEL
+#include <sys/counter.h>
+
+VNET_PCPUSTAT_DECLARE(struct icmp6stat, icmp6stat);
 /*
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	ICMP6STAT_ADD(name, val)	V_icmp6stat.name += (val)
+#define	ICMP6STAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct icmp6stat, icmp6stat, name, (val))
 #define	ICMP6STAT_INC(name)		ICMP6STAT_ADD(name, 1)
 
 /*
  * Kernel module consumers must use this accessor macro.
  */
 void	kmod_icmp6stat_inc(int statnum);
-#define	KMOD_ICMP6STAT_INC(name)					\
-	kmod_icmp6stat_inc(offsetof(struct icmp6stat, name) / sizeof(u_quad_t))
+#define	KMOD_ICMP6STAT_INC(name)	\
+    kmod_icmp6stat_inc(offsetof(struct icmp6stat, name) / sizeof(uint64_t))
 #endif
 
 /*
@@ -642,7 +678,8 @@ void	kmod_icmp6stat_inc(int statnum);
 #define ICMPV6CTL_MLD_SOMAXSRC	22
 #define ICMPV6CTL_MLD_VERSION	23
 #define ICMPV6CTL_ND6_MAXQLEN	24
-#define ICMPV6CTL_MAXID		25
+#define ICMPV6CTL_NODEINFO_OLDMCPREFIX	25
+#define ICMPV6CTL_MAXID		26
 
 #define RTF_PROBEMTU	RTF_PROTO1
 
@@ -652,7 +689,6 @@ struct	rtentry;
 struct	rttimer;
 struct	in6_multi;
 # endif
-void	icmp6_init(void);
 void	icmp6_paramerror(struct mbuf *, int);
 void	icmp6_error(struct mbuf *, int, int, int);
 void	icmp6_error2(struct mbuf *, int, int, int, struct ifnet *);
@@ -671,7 +707,9 @@ void	icmp6_mtudisc_update(struct ip6ctlparam *, int);
 #define icmp6_ifstat_inc(ifp, tag) \
 do {								\
 	if (ifp)						\
-		((struct in6_ifextra *)((ifp)->if_afdata[AF_INET6]))->icmp6_ifstat->tag++; \
+		counter_u64_add(((struct in6_ifextra *)		\
+		    ((ifp)->if_afdata[AF_INET6]))->icmp6_ifstat[\
+		    offsetof(struct icmp6_ifstat, tag) / sizeof(uint64_t)], 1);\
 } while (/*CONSTCOND*/ 0)
 
 #define icmp6_ifoutstat_inc(ifp, type, code) \

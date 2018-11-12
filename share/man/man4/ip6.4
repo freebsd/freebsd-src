@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2008
+.Dd March 13, 2011
 .Dt IP6 4
 .Os
 .Sh NAME
@@ -75,12 +75,12 @@ The header has the following definition:
 struct ip6_hdr {
      union {
           struct ip6_hdrctl {
-               u_int32_t ip6_un1_flow;	/* 20 bits of flow ID */
-               u_int16_t ip6_un1_plen;	/* payload length */
-               u_int8_t	 ip6_un1_nxt;	/* next header */
-               u_int8_t	 ip6_un1_hlim;	/* hop limit */
+               uint32_t ip6_un1_flow;	/* 20 bits of flow ID */
+               uint16_t ip6_un1_plen;	/* payload length */
+               uint8_t  ip6_un1_nxt;	/* next header */
+               uint8_t  ip6_un1_hlim;	/* hop limit */
           } ip6_un1;
-          u_int8_t ip6_un2_vfc;   /* version and class */
+          uint8_t ip6_un2_vfc;	/* version and class */
      } ip6_ctlun;
      struct in6_addr ip6_src;	/* source address */
      struct in6_addr ip6_dst;	/* destination address */
@@ -121,8 +121,8 @@ The IPv6 header may be followed by any number of extension headers that start
 with the following generic definition:
 .Bd -literal -offset indent
 struct ip6_ext {
-     u_int8_t ip6e_nxt;
-     u_int8_t ip6e_len;
+     uint8_t ip6e_nxt;
+     uint8_t ip6e_len;
 } __packed;
 .Ed
 .Ss Options
@@ -232,12 +232,13 @@ The following values are available:
 .Bl -tag -width IPV6_PORTRANGE_DEFAULT -compact
 .It Dv IPV6_PORTRANGE_DEFAULT
 Use the regular range of non-reserved ports (varies, see
-.Xr sysctl 8 ) .
+.Xr ip 4 ) .
 .It Dv IPV6_PORTRANGE_HIGH
 Use a high range (varies, see
-.Xr sysctl 8 ) .
+.Xr ip 4 ) .
 .It Dv IPV6_PORTRANGE_LOW
-Use a low, reserved range (600\-1023).
+Use a low, reserved range (600\-1023, see
+.Xr ip 4 ) .
 .El
 .It Dv IPV6_PKTINFO Fa "int *"
 Get or set whether additional information about subsequent packets will
@@ -280,8 +281,8 @@ The option is stored in the following structure in the ancillary data
 returned:
 .Bd -literal
 struct ip6_hbh {
-	u_int8_t ip6h_nxt;	/* next header */
-	u_int8_t ip6h_len;	/* length in units of 8 octets */
+	uint8_t ip6h_nxt;	/* next header */
+	uint8_t ip6h_len;	/* length in units of 8 octets */
 /* followed by options */
 } __packed;
 .Ed
@@ -300,8 +301,8 @@ The option is stored in the following structure in the ancillary data
 returned:
 .Bd -literal
 struct ip6_dest {
-	u_int8_t ip6d_nxt;	/* next header */
-	u_int8_t ip6d_len;	/* length in units of 8 octets */
+	uint8_t ip6d_nxt;	/* next header */
+	uint8_t ip6d_len;	/* length in units of 8 octets */
 /* followed by options */
 } __packed;
 .Ed
@@ -332,10 +333,10 @@ The header is stored in the following structure in the ancillary data
 returned:
 .Bd -literal
 struct ip6_rthdr {
-	u_int8_t ip6r_nxt;	/* next header */
-	u_int8_t ip6r_len;	/* length in units of 8 octets */
-	u_int8_t ip6r_type;	/* routing type */
-	u_int8_t ip6r_segleft;	/* segments left */
+	uint8_t ip6r_nxt;	/* next header */
+	uint8_t ip6r_len;	/* length in units of 8 octets */
+	uint8_t ip6r_type;	/* routing type */
+	uint8_t ip6r_segleft;	/* segments left */
 /* followed by routing-type-specific data */
 } __packed;
 .Ed
@@ -392,10 +393,6 @@ For wildcard sockets, this can restrict connections to IPv6 only.
 .\".Ox
 .\"IPv6 sockets are always IPv6-only, so the socket option is read-only
 .\"(not modifiable).
-.It Dv IPV6_FAITH Fa "int *"
-Get or set the status of whether
-.Xr faith 4
-connections can be made to this socket.
 .It Dv IPV6_USE_MIN_MTU Fa "int *"
 Get or set whether the minimal IPv6 maximum transmission unit (MTU) size
 will be used to avoid fragmentation from occurring for subsequent
@@ -569,7 +566,8 @@ struct iovec iov[2];
 u_char buf[BUFSIZ];
 struct cmsghdr *cm;
 struct msghdr m;
-int found, optval;
+int optval;
+bool found;
 u_char data[2048];
 
 /* Create socket. */
@@ -596,8 +594,8 @@ if (setsockopt(s, IPPROTO_IPV6, IPV6_HOPLIMIT, &optval,
     sizeof(optval)) == -1)
 	err(1, "setsockopt");
 
-found = 0;
-while (!found) {
+found = false;
+do {
 	if (recvmsg(s, &m, 0) == -1)
 		err(1, "recvmsg");
 	for (cm = CMSG_FIRSTHDR(&m); cm != NULL;
@@ -605,13 +603,13 @@ while (!found) {
 		if (cm->cmsg_level == IPPROTO_IPV6 &&
 		    cm->cmsg_type == IPV6_HOPLIMIT &&
 		    cm->cmsg_len == CMSG_LEN(sizeof(int))) {
-			found = 1;
+			found = true;
 			(void)printf("hop limit: %d\en",
 			    *(int *)CMSG_DATA(cm));
 			break;
 		}
 	}
-}
+} while (!found);
 .Ed
 .Sh DIAGNOSTICS
 A socket operation may fail with one of the following errors returned:
@@ -656,6 +654,7 @@ An ancillary data object was improperly formed.
 .Xr bpf 4 ,
 .Xr icmp6 4 ,
 .Xr inet6 4 ,
+.Xr ip 4 ,
 .Xr netintro 4 ,
 .Xr tcp 4 ,
 .Xr udp 4

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.alloc.c,v 3.46 2006/03/02 18:46:44 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.alloc.c,v 3.50 2011/12/30 20:55:24 christos Exp $ */
 /*
  * tc.alloc.c (Caltech) 2/21/82
  * Chris Kingsley, kingsley@cit-20.
@@ -39,8 +39,11 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
+#ifdef HAVE_MALLINFO
+#include <malloc.h>
+#endif
 
-RCSID("$tcsh: tc.alloc.c,v 3.46 2006/03/02 18:46:44 christos Exp $")
+RCSID("$tcsh: tc.alloc.c,v 3.50 2011/12/30 20:55:24 christos Exp $")
 
 #define RCHECK
 #define DEBUG
@@ -438,6 +441,28 @@ realloc(ptr_t cp, size_t nbytes)
 #endif /* !lint */
 }
 
+/*
+ * On linux, _nss_nis_setnetgrent() calls this function to determine
+ * the usable size of the pointer passed, but this is not a portable
+ * API, so we cannot use our malloc replacement without providing one.
+ * Thanks a lot glibc!
+ */
+#ifdef __linux__
+#define M_U_S_CONST
+#else
+#define M_U_S_CONST
+#endif
+size_t malloc_usable_size(M_U_S_CONST void *);
+size_t
+malloc_usable_size(M_U_S_CONST void *ptr)
+{
+    const union overhead *op = (const union overhead *)
+	(((const char *) ptr) - MEMALIGN(sizeof(*op)));
+    if (op->ov_magic == MAGIC)
+	    return 1 << (op->ov_index + 2);
+    else
+	    return 0;
+}
 
 
 #ifndef lint
@@ -587,7 +612,7 @@ showall(Char **v, struct command *c)
 	xprintf(" %4zd", j);
 	totfree += j * (1 << (i + 3));
     }
-    xprintf(CGETS(19, 9, "\nused:\t"));
+    xprintf("\n%s:\t", CGETS(19, 9, "used"));
     for (i = 0; i < NBUCKETS; i++) {
 	xprintf(" %4d", nmalloc[i]);
 	totused += nmalloc[i] * (1 << (i + 3));
@@ -598,13 +623,27 @@ showall(Char **v, struct command *c)
 	    "\tAllocated memory from 0x%lx to 0x%lx.  Real top at 0x%lx\n"),
 	    (unsigned long) membot, (unsigned long) memtop,
 	    (unsigned long) sbrk(0));
-#else
+#else /* SYSMALLOC */
+#ifndef HAVE_MALLINFO
 #ifdef HAVE_SBRK
     memtop = sbrk(0);
 #endif /* HAVE_SBRK */
     xprintf(CGETS(19, 12, "Allocated memory from 0x%lx to 0x%lx (%ld).\n"),
 	    (unsigned long) membot, (unsigned long) memtop, 
 	    (unsigned long) (memtop - membot));
+#else /* HAVE_MALLINFO */
+    struct mallinfo mi;
+
+    mi = mallinfo();
+    xprintf(CGETS(19, 13, "%s current memory allocation:\n"), progname);
+    xprintf(CGETS(19, 14, "Total space allocated from system: %d\n"), mi.arena);
+    xprintf(CGETS(19, 15, "Number of non-inuse chunks: %d\n"), mi.ordblks);
+    xprintf(CGETS(19, 16, "Number of mmapped regions: %d\n"), mi.hblks);
+    xprintf(CGETS(19, 17, "Total space in mmapped regions: %d\n"), mi.hblkhd);
+    xprintf(CGETS(19, 18, "Total allocated space: %d\n"), mi.uordblks);
+    xprintf(CGETS(19, 19, "Total non-inuse space: %d\n"), mi.fordblks);
+    xprintf(CGETS(19, 20, "Top-most, releasable space: %d\n"), mi.keepcost);
+#endif /* HAVE_MALLINFO */
 #endif /* SYSMALLOC */
     USE(c);
     USE(v);

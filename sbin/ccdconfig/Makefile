@@ -1,10 +1,9 @@
 # $FreeBSD$
 
+PACKAGE=ccdconfig
 PROG=	ccdconfig
-WARNS?=	6
 MAN=	ccdconfig.8
 
-DPADD=	${LIBGEOM}
-LDADD=	-lgeom
+LIBADD=	geom
 
 .include <bsd.prog.mk>

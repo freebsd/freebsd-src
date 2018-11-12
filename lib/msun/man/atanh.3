@@ -28,12 +28,13 @@
 .\"     from: @(#)atanh.3	5.2 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2005
+.Dd June 9, 2013
 .Dt ATANH 3
 .Os
 .Sh NAME
 .Nm atanh ,
-.Nm atanhf
+.Nm atanhf ,
+.Nm atanhl
 .Nd inverse hyperbolic tangent functions
 .Sh LIBRARY
 .Lb libm
@@ -43,11 +44,14 @@
 .Fn atanh "double x"
 .Ft float
 .Fn atanhf "float x"
+.Ft long double
+.Fn atanhl "long double x"
 .Sh DESCRIPTION
 The
-.Fn atanh
-and the
-.Fn atanhf
+.Fn atanh ,
+.Fn atanhf ,
+and
+.Fn atanhl
 functions compute the inverse hyperbolic tangent
 of the real
 argument
@@ -55,11 +59,7 @@ argument
 For a discussion of error due to roundoff, see
 .Xr math 3 .
 .Sh RETURN VALUES
-The
-.Fn atanh
-and the
-.Fn atanhf
-functions
+These functions
 return the inverse hyperbolic tangent of
 .Ar x
 if successful.
@@ -76,6 +76,13 @@ If
 .Xr math 3
 .Sh HISTORY
 The
-.Fn atanh
-function appeared in
-.Bx 4.3 .
+.Fn atanh ,
+.Fn atanhf ,
+and
+.Fn atanhl
+functions appeared in
+.Bx 4.3 ,
+.Fx 2.0 ,
+and
+.Fx 10.0 ,
+respectively.

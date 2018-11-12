@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 11, 2009
+.Dd June 21, 2016
 .Dt SYSCONS 4
 .Os
 .Sh NAME
@@ -62,6 +62,10 @@ In
 .Pa /boot/device.hints :
 .Cd hint.sc.0.at="isa"
 .Cd hint.sc.0.vesa_mode=0x103
+.Pp
+In
+.Pa /boot/loader.conf :
+.Cd kern.vty=sc
 .Sh DESCRIPTION
 The
 .Nm
@@ -403,7 +407,9 @@ option too.
 The following driver flags can be used to control the
 .Nm
 driver.
-They can be set either in
+Driver flags can be set with the
+.Cd hint.sc.0.flags
+tunable, either in
 .Pa /boot/device.hints ,
 or else at the loader prompt (see
 .Xr loader 8 ) .
@@ -446,6 +452,28 @@ This option instructs the syscons driver to periodically scan
 for a keyboard device if it is not currently attached to one.
 Otherwise, the driver only probes for a keyboard once during bootup.
 .El
+.Ss Loader Tunables
+These settings can be entered at the
+.Xr loader 8
+prompt or in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va kern.vty
+When both
+.Nm
+and
+.Xr vt 4
+have been compiled into the kernel, the one to use for the system console can
+be selected by setting this variable to
+.Ql sc
+or
+.Ql vt .
+The
+.Pa GENERIC
+kernel uses
+.Xr vt 4
+when this value is not set.
+.El
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/xxxxyyyyzzz -compact
 .It Pa /dev/console
@@ -466,15 +494,14 @@ As the
 .Nm
 driver requires the keyboard driver and the video card driver,
 the kernel configuration file should contain the following lines.
-.Pp
 .Bd -literal -offset indent
 device atkbdc
 device atkbd
 device vga
 device sc
-
 device splash
 .Ed
+.Pp
 You also need the following lines in
 .Pa /boot/device.hints
 for these drivers.
@@ -502,15 +529,15 @@ Note that you cannot put any white space inside the quoted string,
 because of the current implementation of
 .Xr config 8 .
 .Pp
-.Dl "options SC_NORM_ATTR=(FG_GREEN|BG_BLACK)
-.Dl "options SC_NORM_REV_ATTR=(FG_YELLOW|BG_GREEN)
+.Dl "options SC_NORM_ATTR=(FG_GREEN|BG_BLACK)"
+.Dl "options SC_NORM_REV_ATTR=(FG_YELLOW|BG_GREEN)"
 .Pp
 The following lines will set the default colors of the kernel message.
 The kernel message will be printed bright red on black background.
 The reversed message will be black on red background.
 .Pp
-.Dl "options SC_KERNEL_CONS_ATTR=(FG_LIGHTRED|BG_BLACK)
-.Dl "options SC_KERNEL_CONS_REV_ATTR=(FG_BLACK|BG_RED)
+.Dl "options SC_KERNEL_CONS_ATTR=(FG_LIGHTRED|BG_BLACK)"
+.Dl "options SC_KERNEL_CONS_REV_ATTR=(FG_BLACK|BG_RED)"
 .Pp
 The following example adds the font files
 .Pa cp850-8x16.fnt ,
@@ -520,17 +547,9 @@ and
 to the kernel.
 .Pp
 .Dl "options SC_DFLT_FONT"
-.Dl "makeoptions SC_DFLT_FONT=cp850
+.Dl "makeoptions SC_DFLT_FONT=cp850"
 .Dl "device sc"
 .\".Sh DIAGNOSTICS
-.Sh CAVEATS
-The amount of data that is possible to insert from the cut buffer is limited
-by the
-.Brq Dv MAX_INPUT ,
-a system limit on the number of bytes that may be stored in the terminal
-input queue - usually 1024 bytes
-(see
-.Xr termios 4 ) .
 .Sh SEE ALSO
 .Xr kbdcontrol 1 ,
 .Xr login 1 ,
@@ -542,6 +561,7 @@ input queue - usually 1024 bytes
 .Xr splash 4 ,
 .Xr ukbd 4 ,
 .Xr vga 4 ,
+.Xr vt 4 ,
 .Xr kbdmap 5 ,
 .Xr rc.conf 5 ,
 .Xr ttys 5 ,
@@ -559,8 +579,16 @@ driver first appeared in
 The
 .Nm
 driver was written by
-.An S\(/oren Schmidt Aq sos@FreeBSD.org .
+.An S\(/oren Schmidt Aq Mt sos@FreeBSD.org .
 This manual page was written by
-.An Kazutaka Yokota Aq yokota@FreeBSD.org .
+.An Kazutaka Yokota Aq Mt yokota@FreeBSD.org .
+.Sh CAVEATS
+The amount of data that is possible to insert from the cut buffer is limited
+by the
+.Brq Dv MAX_INPUT ,
+a system limit on the number of bytes that may be stored in the terminal
+input queue - usually 1024 bytes
+(see
+.Xr termios 4 ) .
 .Sh BUGS
 This manual page is incomplete and urgently needs revision.

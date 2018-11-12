@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 26, 2009
+.Dd June 3, 2016
 .Dt NETISR 9
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@
 .Ft void
 .Fn netisr_clearqdrops "const struct netisr_handler *nhp"
 .Ft void
-.Fn netisr_getqdrops "const struct netisr_handler *nhp" "u_int64_t *qdropsp"
+.Fn netisr_getqdrops "const struct netisr_handler *nhp" "uint64_t *qdropsp"
 .Ft void
 .Fn netisr_getqlimit "const struct netisr_handler *nhp" "u_int *qlimitp"
 .Ft int
@@ -61,11 +61,23 @@
 .Fn netisr_get_cpucount "void"
 .Ft u_int
 .Fn netisr_get_cpuid "u_int cpunumber"
+.Pp
+With optional virtual network stack support enabled via the following kernel
+compile option:
+.Bd -ragged -offset indent
+.Cd "options VIMAGE"
+.Ed
+.Ft void
+.Fn netisr_register_vnet "const struct netisr_handler *nhp"
+.Ft void
+.Fn netisr_unregister_vnet "const struct netisr_handler *nhp"
 .Sh DESCRIPTION
 The
 .Nm
 kernel interface suite allows device drivers (and other packet sources) to
 direct packets to protocols for directly dispatched or deferred processing.
+Protocol registration and work stream statistics may be monitored using
+.Xr netstat 1 .
 .Ss Protocol registration
 Protocols register and unregister handlers using
 .Fn netisr_register
@@ -76,12 +88,22 @@ and may also manage queue limits and statistics using the
 .Fn netisr_getqdrops ,
 .Fn netisr_getqlimit ,
 and
-.Fn netisr_setqlimit.
+.Fn netisr_setqlimit .
+.Pp
+In case of VIMAGE kernels each virtual network stack (vnet), that is not the
+default base system network stack, calls
+.Fn netisr_register_vnet
+and
+.Fn netisr_unregister_vnet
+to enable or disable packet processing by the
+.Nm
+for each protocol.
+Disabling will also purge any outstanding packet from the protocol queue.
 .Pp
 .Nm
 supports multi-processor execution of handlers, and relies on a combination
 of source ordering and protocol-specific ordering and work-placement
-policies to decide how do distribute work across one or more worker
+policies to decide how to distribute work across one or more worker
 threads.
 Registering protocols will declare one of three policies:
 .Bl -tag -width NETISR_POLICY_SOURCE
@@ -101,7 +123,7 @@ If the protocol implements
 .Va nh_m2flow ,
 then
 .Nm
-will query the protocol in the evet that the
+will query the protocol in the event that the
 .Vt mbuf
 doesn't have a flow ID, falling back on source ordering.
 .It NETISR_POLICY_CPU
@@ -118,19 +140,19 @@ whose fields are defined as follows:
 .Bl -tag -width "netisr_handler_t nh_handler"
 .It Vt "const char *" Va nh_name
 Unique character string name of the protocol, which may be included in
-.Xr 2 sysctl
+.Xr sysctl 3
 MIB names, so should not contain whitespace.
 .It Vt netisr_handler_t Va nh_handler
 Protocol handler function that will be invoked on each packet received for
 the protocol.
 .It Vt netisr_m2flow_t Va nh_m2flow
-Optional protocol function to generate a flow ID and set
-.Dv M_FLOWID
-for packets that do not enter
+Optional protocol function to generate a flow ID and set a valid
+hashtype for packets that enter the
 .Nm
 with
-.Dv M_FLOWID
-defined.
+.Dv M_HASHTYPE_GET(m)
+equal to
+.Dv M_HASHTYPE_NONE .
 Will be used only with
 .Dv NETISR_POLICY_FLOW .
 .It Vt netisr_m2cpuid_t Va nh_m2cpuid
@@ -171,7 +193,7 @@ Both accept a protocol number and
 .Vt mbuf
 argument, but while
 .Fn netisr_queue
-will always execute the protocol handler asynchonously in a deferred
+will always execute the protocol handler asynchronously in a deferred
 context,
 .Fn netisr_dispatch
 will optionally direct dispatch if permitted by global and per-protocol
@@ -187,28 +209,21 @@ and
 variants.
 .Ss Protocol number constants
 The follow protocol numbers are currently defined:
-.Bl -tag -width NETISR_ATALK1
+.Bl -tag -width NETISR_ROUTE
 .It Dv NETISR_IP
 IPv4
 .It Dv NETISR_IGMP
 IGMPv3 loopback
 .It Dv NETISR_ROUTE
 Routing socket loopback
-.It Dv NETISR_AARP
-Appletalk AARP
-.It Dv NETISR_ATALK1
-Appletalk phase 1
-.It Dv NETISR_ATALK2
-Appletalk phase 2
 .It Dv NETISR_ARP
 ARP
-.It Dv NETISR_IPX
-IPX/SPX
 .It Dv NETISR_IPV6
 IPv6
 .It Dv NETISR_NATM
 ATM
 .It Dv NETISR_EPAIR
+.Xr netstat 1 ,
 .Xr epair 4
 .El
 .Sh AUTHORS

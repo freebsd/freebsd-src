@@ -1,33 +1,32 @@
 /*	$NetBSD: rpcbind.c,v 1.3 2002/11/08 00:16:40 fvdl Exp $	*/
 /*	$FreeBSD$ */
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
- * 
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- * 
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- * 
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- * 
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice,
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
+ *   from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  * Copyright (c) 1984 - 1991 by Sun Microsystems, Inc.
@@ -86,16 +85,20 @@ rpcblist_ptr list_rbl;	/* A list of version 3/4 rpcbind services */
 
 #define RPCBINDDLOCK "/var/run/rpcbind.lock"
 
-int runasdaemon = 0;
+static int runasdaemon = 0;
 int insecure = 0;
 int oldstyle_local = 0;
+#ifdef LIBWRAP
+int libwrap = 0;
+#endif
 int verboselog = 0;
 
-char **hosts = NULL;
-int ipv6_only = 0;
-int nhosts = 0;
-int on = 1;
-int rpcbindlockfd;
+static char **hosts = NULL;
+static struct sockaddr **bound_sa;
+static int ipv6_only = 0;
+static int nhosts = 0;
+static int on = 1;
+static int rpcbindlockfd;
 
 #ifdef WARMSTART
 /* Local Variable */
@@ -119,6 +122,7 @@ static void rbllist_add(rpcprog_t, rpcvers_t, struct netconfig *,
 			     struct netbuf *);
 static void terminate(int);
 static void parseargs(int, char *[]);
+static void update_bound_sa(void);
 
 int
 main(int argc, char *argv[])
@@ -129,6 +133,8 @@ main(int argc, char *argv[])
 	int maxrec = RPC_MAXDATASIZE;
 
 	parseargs(argc, argv);
+
+	update_bound_sa();
 
 	/* Check that another rpcbind isn't already running. */
 	if ((rpcbindlockfd = (open(RPCBINDDLOCK,
@@ -174,12 +180,13 @@ main(int argc, char *argv[])
 	init_transport(nconf);
 
 	while ((nconf = getnetconfig(nc_handle))) {
-	    if (nconf->nc_flag & NC_VISIBLE)
+	    if (nconf->nc_flag & NC_VISIBLE) {
 	    	if (ipv6_only == 1 && strcmp(nconf->nc_protofmly,
 		    "inet") == 0) {
 		    /* DO NOTHING */
 		} else
 		    init_transport(nconf);
+	    }
 	}
 	endnetconfig(nc_handle);
 
@@ -284,7 +291,7 @@ init_transport(struct netconfig *nconf)
 	     */
 	    if ((fd = __rpc_nconf2fd(nconf)) < 0) {
 		int non_fatal = 0;
-		if (errno == EPROTONOSUPPORT)
+		if (errno == EAFNOSUPPORT)
 		    non_fatal = 1;
 		syslog(non_fatal?LOG_DEBUG:LOG_ERR, "cannot create socket for %s",
 		    nconf->nc_netid);
@@ -323,8 +330,7 @@ init_transport(struct netconfig *nconf)
 	     * If no hosts were specified, just bind to INADDR_ANY.
 	     * Otherwise  make sure 127.0.0.1 is added to the list.
 	     */
-	    nhostsbak = nhosts;
-	    nhostsbak++;
+	    nhostsbak = nhosts + 1;
 	    hosts = realloc(hosts, nhostsbak * sizeof(char *));
 	    if (nhostsbak == 1)
 	        hosts[0] = "*";
@@ -348,7 +354,7 @@ init_transport(struct netconfig *nconf)
 		 */
 		if ((fd = __rpc_nconf2fd(nconf)) < 0) {
 		    int non_fatal = 0;
-		    if (errno == EPROTONOSUPPORT &&
+		    if (errno == EAFNOSUPPORT &&
 			nconf->nc_semantics != NC_TPI_CLTS) 
 			non_fatal = 1;
 		    syslog(non_fatal ? LOG_DEBUG : LOG_ERR, 
@@ -362,7 +368,7 @@ init_transport(struct netconfig *nconf)
 			hints.ai_flags &= AI_NUMERICHOST;
 		    } else {
 			/*
-			 * Skip if we have an AF_INET6 adress.
+			 * Skip if we have an AF_INET6 address.
 			 */
 			if (inet_pton(AF_INET6,
 			    hosts[nhostsbak], host_addr) == 1) {
@@ -377,7 +383,7 @@ init_transport(struct netconfig *nconf)
 			hints.ai_flags &= AI_NUMERICHOST;
 		    } else {
 			/*
-			 * Skip if we have an AF_INET adress.
+			 * Skip if we have an AF_INET address.
 			 */
 			if (inet_pton(AF_INET, hosts[nhostsbak],
 			    host_addr) == 1) {
@@ -657,6 +663,75 @@ error:
 	return (1);
 }
 
+/*
+ * Create the list of addresses that we're bound to.  Normally, this
+ * list is empty because we're listening on the wildcard address
+ * (nhost == 0).  If -h is specified on the command line, then
+ * bound_sa will have a list of the addresses that the program binds
+ * to specifically.  This function takes that list and converts them to
+ * struct sockaddr * and stores them in bound_sa.
+ */
+static void
+update_bound_sa(void)
+{
+	struct addrinfo hints, *res = NULL;
+	int i;
+
+	if (nhosts == 0)
+		return;
+	bound_sa = malloc(sizeof(*bound_sa) * nhosts);
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	for (i = 0; i < nhosts; i++)  {
+		if (getaddrinfo(hosts[i], NULL, &hints, &res) != 0)
+			continue;
+		bound_sa[i] = malloc(res->ai_addrlen);
+		memcpy(bound_sa[i], res->ai_addr, res->ai_addrlen);
+	}
+}
+
+/*
+ * Match the sa against the list of addresses we've bound to.  If
+ * we've not specifically bound to anything, we match everything.
+ * Otherwise, if the IPv4 or IPv6 address matches one of the addresses
+ * in bound_sa, we return true.  If not, we return false.
+ */
+int
+listen_addr(const struct sockaddr *sa)
+{
+	int i;
+
+	/*
+	 * If nhosts == 0, then there were no -h options on the
+	 * command line, so all addresses are addresses we're
+	 * listening to.
+	 */
+	if (nhosts == 0)
+		return 1;
+	for (i = 0; i < nhosts; i++) {
+		if (bound_sa[i] == NULL ||
+		    sa->sa_family != bound_sa[i]->sa_family)
+			continue;
+		switch (sa->sa_family) {
+		case AF_INET:
+		  	if (memcmp(&SA2SINADDR(sa), &SA2SINADDR(bound_sa[i]),
+			    sizeof(struct in_addr)) == 0)
+				return (1);
+			break;
+#ifdef INET6
+		case AF_INET6:
+		  	if (memcmp(&SA2SIN6ADDR(sa), &SA2SIN6ADDR(bound_sa[i]),
+			    sizeof(struct in6_addr)) == 0)
+				return (1);
+			break;
+#endif
+		default:
+			break;
+		}
+	}
+	return (0);
+}
+
 static void
 rbllist_add(rpcprog_t prog, rpcvers_t vers, struct netconfig *nconf,
 	    struct netbuf *addr)
@@ -694,7 +769,7 @@ terminate(int dummy __unused)
 }
 
 void
-rpcbind_abort()
+rpcbind_abort(void)
 {
 #ifdef WARMSTART
 	write_warmstart();	/* Dump yourself */
@@ -713,7 +788,12 @@ parseargs(int argc, char *argv[])
 #else
 #define	WSOP	""
 #endif
-	while ((c = getopt(argc, argv, "6adh:iLls" WSOP)) != -1) {
+#ifdef LIBWRAP
+#define WRAPOP	"W"
+#else
+#define WRAPOP	""
+#endif
+	while ((c = getopt(argc, argv, "6adh:iLls" WRAPOP WSOP)) != -1) {
 		switch (c) {
 		case '6':
 			ipv6_only = 1;
@@ -746,6 +826,11 @@ parseargs(int argc, char *argv[])
 		case 's':
 			runasdaemon = 1;
 			break;
+#ifdef LIBWRAP
+		case 'W':
+			libwrap = 1;
+			break;
+#endif
 #ifdef WARMSTART
 		case 'w':
 			warmstart = 1;
@@ -753,8 +838,8 @@ parseargs(int argc, char *argv[])
 #endif
 		default:	/* error */
 			fprintf(stderr,
-			    "usage: rpcbind [-6adiLls%s] [-h bindip]\n",
-			    WSOP);
+			    "usage: rpcbind [-6adiLls%s%s] [-h bindip]\n",
+			    WRAPOP, WSOP);
 			exit (1);
 		}
 	}

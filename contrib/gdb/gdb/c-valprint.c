@@ -232,9 +232,8 @@ c_val_print (struct type *type, char *valaddr, int embedded_offset,
 		      wtype = TYPE_TARGET_TYPE (type);
 		    }
 		  vt_val = value_at (wtype, vt_address, NULL);
-		  val_print (VALUE_TYPE (vt_val), VALUE_CONTENTS (vt_val), 0,
-			     VALUE_ADDRESS (vt_val), stream, format,
-			     deref_ref, recurse + 1, pretty);
+		  common_val_print (vt_val, stream, format,
+				    deref_ref, recurse + 1, pretty);
 		  if (pretty)
 		    {
 		      fprintf_filtered (stream, "\n");
@@ -283,15 +282,8 @@ c_val_print (struct type *type, char *valaddr, int embedded_offset,
 	       unpack_pointer (lookup_pointer_type (builtin_type_void),
 			       valaddr + embedded_offset),
 	       NULL);
-	      val_print (VALUE_TYPE (deref_val),
-			 VALUE_CONTENTS (deref_val),
-			 0,
-			 VALUE_ADDRESS (deref_val),
-			 stream,
-			 format,
-			 deref_ref,
-			 recurse,
-			 pretty);
+	      common_val_print (deref_val, stream, format, deref_ref,
+				recurse, pretty);
 	    }
 	  else
 	    fputs_filtered ("???", stream);
@@ -567,6 +559,10 @@ c_value_print (struct value *val, struct ui_file *stream, int format,
 	  fprintf_filtered (stream, ") ");
 	}
     }
+
+    if (!value_initialized (val))
+      fprintf_filtered (stream, " [uninitialized] ");
+
   if (objectprint && (TYPE_CODE (VALUE_TYPE (val)) == TYPE_CODE_CLASS))
     {
       /* Attempt to determine real type of object */

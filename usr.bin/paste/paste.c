@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -61,15 +57,15 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <wchar.h>
 
-wchar_t *delim;
-int delimcnt;
+static wchar_t *delim;
+static int delimcnt;
 
-int parallel(char **);
-int sequential(char **);
-int tr(wchar_t *);
+static int parallel(char **);
+static int sequential(char **);
+static int tr(wchar_t *);
 static void usage(void);
 
-wchar_t tab[] = L"\t";
+static wchar_t tab[] = L"\t";
 
 int
 main(int argc, char *argv[])
@@ -129,7 +125,7 @@ typedef struct _list {
 	char *name;
 } LIST;
 
-int
+static int
 parallel(char **argv)
 {
 	LIST *lp;
@@ -199,7 +195,7 @@ parallel(char **argv)
 	return (0);
 }
 
-int
+static int
 sequential(char **argv)
 {
 	FILE *fp;
@@ -239,7 +235,7 @@ sequential(char **argv)
 	return (failed != 0);
 }
 
-int
+static int
 tr(wchar_t *arg)
 {
 	int cnt;

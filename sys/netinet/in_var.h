@@ -33,11 +33,24 @@
 #ifndef _NETINET_IN_VAR_H_
 #define _NETINET_IN_VAR_H_
 
+/*
+ * Argument structure for SIOCAIFADDR.
+ */
+struct	in_aliasreq {
+	char	ifra_name[IFNAMSIZ];		/* if name, e.g. "en0" */
+	struct	sockaddr_in ifra_addr;
+	struct	sockaddr_in ifra_broadaddr;
+#define ifra_dstaddr ifra_broadaddr
+	struct	sockaddr_in ifra_mask;
+	int	ifra_vhid;
+};
+
+#ifdef _KERNEL
 #include <sys/queue.h>
 #include <sys/fnv_hash.h>
 #include <sys/tree.h>
 
-struct igmp_ifinfo;
+struct igmp_ifsoftc;
 struct in_multi;
 struct lltable;
 
@@ -46,7 +59,7 @@ struct lltable;
  */
 struct in_ifinfo {
 	struct lltable		*ii_llt;	/* ARP state */
-	struct igmp_ifinfo	*ii_igmp;	/* IGMP state */
+	struct igmp_ifsoftc	*ii_igmp;	/* IGMP state */
 	struct in_multi		*ii_allhosts;	/* 224.0.0.1 membership */
 };
 
@@ -60,39 +73,30 @@ struct in_ifaddr {
 	struct	ifaddr ia_ifa;		/* protocol-independent info */
 #define	ia_ifp		ia_ifa.ifa_ifp
 #define ia_flags	ia_ifa.ifa_flags
-					/* ia_{,sub}net{,mask} in host order */
-	u_long	ia_net;			/* network number of interface */
-	u_long	ia_netmask;		/* mask of net part */
-	u_long	ia_subnet;		/* subnet number, including net */
-	u_long	ia_subnetmask;		/* mask of subnet part */
-	struct	in_addr ia_netbroadcast; /* to recognize net broadcasts */
+					/* ia_subnet{,mask} in host order */
+	u_long	ia_subnet;		/* subnet address */
+	u_long	ia_subnetmask;		/* mask of subnet */
 	LIST_ENTRY(in_ifaddr) ia_hash;	/* entry in bucket of inet addresses */
 	TAILQ_ENTRY(in_ifaddr) ia_link;	/* list of internet addresses */
 	struct	sockaddr_in ia_addr;	/* reserve space for interface name */
 	struct	sockaddr_in ia_dstaddr; /* reserve space for broadcast addr */
 #define	ia_broadaddr	ia_dstaddr
 	struct	sockaddr_in ia_sockmask; /* reserve space for general netmask */
+	struct	callout ia_garp_timer;	/* timer for retransmitting GARPs */
+	int	ia_garp_count;		/* count of retransmitted GARPs */
 };
 
-struct	in_aliasreq {
-	char	ifra_name[IFNAMSIZ];		/* if name, e.g. "en0" */
-	struct	sockaddr_in ifra_addr;
-	struct	sockaddr_in ifra_broadaddr;
-#define ifra_dstaddr ifra_broadaddr
-	struct	sockaddr_in ifra_mask;
-};
 /*
  * Given a pointer to an in_ifaddr (ifaddr),
  * return a pointer to the addr as a sockaddr_in.
  */
 #define IA_SIN(ia)    (&(((struct in_ifaddr *)(ia))->ia_addr))
 #define IA_DSTSIN(ia) (&(((struct in_ifaddr *)(ia))->ia_dstaddr))
+#define IA_MASKSIN(ia) (&(((struct in_ifaddr *)(ia))->ia_sockmask))
 
 #define IN_LNAOF(in, ifa) \
 	((ntohl((in).s_addr) & ~((struct in_ifaddr *)(ifa)->ia_subnetmask))
 
-
-#ifdef	_KERNEL
 extern	u_char	inetctlerrmap[];
 
 #define LLTABLE(ifp)	\
@@ -117,15 +121,15 @@ VNET_DECLARE(u_long, in_ifaddrhmask);		/* mask for hash table */
 #define INADDR_HASH(x) \
 	(&V_in_ifaddrhashtbl[INADDR_HASHVAL(x) & V_in_ifaddrhmask])
 
-extern	struct rwlock in_ifaddr_lock;
+extern	struct rmlock in_ifaddr_lock;
 
-#define	IN_IFADDR_LOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_LOCKED)
-#define	IN_IFADDR_RLOCK()	rw_rlock(&in_ifaddr_lock)
-#define	IN_IFADDR_RLOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_RLOCKED)
-#define	IN_IFADDR_RUNLOCK()	rw_runlock(&in_ifaddr_lock)
-#define	IN_IFADDR_WLOCK()	rw_wlock(&in_ifaddr_lock)
-#define	IN_IFADDR_WLOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_WLOCKED)
-#define	IN_IFADDR_WUNLOCK()	rw_wunlock(&in_ifaddr_lock)
+#define	IN_IFADDR_LOCK_ASSERT()	rm_assert(&in_ifaddr_lock, RA_LOCKED)
+#define	IN_IFADDR_RLOCK(t)	rm_rlock(&in_ifaddr_lock, (t))
+#define	IN_IFADDR_RLOCK_ASSERT()	rm_assert(&in_ifaddr_lock, RA_RLOCKED)
+#define	IN_IFADDR_RUNLOCK(t)	rm_runlock(&in_ifaddr_lock, (t))
+#define	IN_IFADDR_WLOCK()	rm_wlock(&in_ifaddr_lock)
+#define	IN_IFADDR_WLOCK_ASSERT()	rm_assert(&in_ifaddr_lock, RA_WLOCKED)
+#define	IN_IFADDR_WUNLOCK()	rm_wunlock(&in_ifaddr_lock)
 
 /*
  * Macro for finding the internet address structure (in_ifaddr)
@@ -159,27 +163,20 @@ do { \
  * Macro for finding the internet address structure (in_ifaddr) corresponding
  * to a given interface (ifnet structure).
  */
-#define IFP_TO_IA(ifp, ia)						\
+#define IFP_TO_IA(ifp, ia, t)						\
 	/* struct ifnet *ifp; */					\
 	/* struct in_ifaddr *ia; */					\
-{									\
+	/* struct rm_priotracker *t; */					\
+do {									\
+	IN_IFADDR_RLOCK((t));						\
 	for ((ia) = TAILQ_FIRST(&V_in_ifaddrhead);			\
 	    (ia) != NULL && (ia)->ia_ifp != (ifp);			\
 	    (ia) = TAILQ_NEXT((ia), ia_link))				\
 		continue;						\
 	if ((ia) != NULL)						\
 		ifa_ref(&(ia)->ia_ifa);					\
-}
-#endif
-
-/*
- * IP datagram reassembly.
- */
-#define	IPREASS_NHASH_LOG2	6
-#define	IPREASS_NHASH		(1 << IPREASS_NHASH_LOG2)
-#define	IPREASS_HMASK		(IPREASS_NHASH - 1)
-#define	IPREASS_HASH(x,y) \
-	(((((x) & 0xF) | ((((x) >> 8) & 0xF) << 4)) ^ (y)) & IPREASS_HMASK)
+	IN_IFADDR_RUNLOCK((t));						\
+} while (0)
 
 /*
  * Legacy IPv4 IGMP per-link structure.
@@ -190,28 +187,6 @@ struct router_info {
 	int    rti_time; /* # of slow timeouts since last old query */
 	SLIST_ENTRY(router_info) rti_list;
 };
-
-/*
- * Per-interface IGMP router version information.
- */
-struct igmp_ifinfo {
-	LIST_ENTRY(igmp_ifinfo) igi_link;
-	struct ifnet *igi_ifp;	/* interface this instance belongs to */
-	uint32_t igi_version;	/* IGMPv3 Host Compatibility Mode */
-	uint32_t igi_v1_timer;	/* IGMPv1 Querier Present timer (s) */
-	uint32_t igi_v2_timer;	/* IGMPv2 Querier Present timer (s) */
-	uint32_t igi_v3_timer;	/* IGMPv3 General Query (interface) timer (s)*/
-	uint32_t igi_flags;	/* IGMP per-interface flags */
-	uint32_t igi_rv;	/* IGMPv3 Robustness Variable */
-	uint32_t igi_qi;	/* IGMPv3 Query Interval (s) */
-	uint32_t igi_qri;	/* IGMPv3 Query Response Interval (s) */
-	uint32_t igi_uri;	/* IGMPv3 Unsolicited Report Interval (s) */
-	SLIST_HEAD(,in_multi)	igi_relinmhead; /* released groups */
-	struct ifqueue	 igi_gq;	/* queue of general query responses */
-};
-
-#define IGIF_SILENT	0x00000001	/* Do not use IGMP on this ifp */
-#define IGIF_LOOPBACK	0x00000002	/* Send IGMP reports to loopback */
 
 /*
  * IPv4 multicast IGMP-layer source entry.
@@ -291,12 +266,12 @@ struct in_multi {
 	u_int	inm_refcount;		/* reference count */
 
 	/* New fields for IGMPv3 follow. */
-	struct igmp_ifinfo	*inm_igi;	/* IGMP info */
+	struct igmp_ifsoftc	*inm_igi;	/* IGMP info */
 	SLIST_ENTRY(in_multi)	 inm_nrele;	/* to-be-released by IGMP */
 	struct ip_msource_tree	 inm_srcs;	/* tree of sources */
 	u_long			 inm_nsrc;	/* # of tree entries */
 
-	struct ifqueue		 inm_scq;	/* queue of pending
+	struct mbufq		 inm_scq;	/* queue of pending
 						 * state-change packets */
 	struct timeval		 inm_lastgsrtv;	/* Time of last G-S-R query */
 	uint16_t		 inm_sctimer;	/* state-change timer */
@@ -340,8 +315,6 @@ ims_get_mode(const struct in_multi *inm, const struct ip_msource *ims,
 	return (MCAST_UNDEFINED);
 }
 
-#ifdef _KERNEL
-
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_inet);
 SYSCTL_DECL(_net_inet_ip);
@@ -359,49 +332,6 @@ extern struct mtx in_multi_mtx;
 #define	IN_MULTI_UNLOCK()	mtx_unlock(&in_multi_mtx)
 #define	IN_MULTI_LOCK_ASSERT()	mtx_assert(&in_multi_mtx, MA_OWNED)
 #define	IN_MULTI_UNLOCK_ASSERT() mtx_assert(&in_multi_mtx, MA_NOTOWNED)
-
-/*
- * Function for looking up an in_multi record for an IPv4 multicast address
- * on a given interface. ifp must be valid. If no record found, return NULL.
- * The IN_MULTI_LOCK and IF_ADDR_LOCK on ifp must be held.
- */
-static __inline struct in_multi *
-inm_lookup_locked(struct ifnet *ifp, const struct in_addr ina)
-{
-	struct ifmultiaddr *ifma;
-	struct in_multi *inm;
-
-	IN_MULTI_LOCK_ASSERT();
-	IF_ADDR_LOCK_ASSERT(ifp);
-
-	inm = NULL;
-	TAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) {
-		if (ifma->ifma_addr->sa_family == AF_INET) {
-			inm = (struct in_multi *)ifma->ifma_protospec;
-			if (inm->inm_addr.s_addr == ina.s_addr)
-				break;
-			inm = NULL;
-		}
-	}
-	return (inm);
-}
-
-/*
- * Wrapper for inm_lookup_locked().
- * The IF_ADDR_LOCK will be taken on ifp and released on return.
- */
-static __inline struct in_multi *
-inm_lookup(struct ifnet *ifp, const struct in_addr ina)
-{
-	struct in_multi *inm;
-
-	IN_MULTI_LOCK_ASSERT();
-	IF_ADDR_LOCK(ifp);
-	inm = inm_lookup_locked(ifp, ina);
-	IF_ADDR_UNLOCK(ifp);
-
-	return (inm);
-}
 
 /* Acquire an in_multi record. */
 static __inline void
@@ -424,6 +354,8 @@ struct	rtentry;
 struct	route;
 struct	ip_moptions;
 
+struct in_multi *inm_lookup_locked(struct ifnet *, const struct in_addr);
+struct in_multi *inm_lookup(struct ifnet *, const struct in_addr);
 int	imo_multi_filter(const struct ip_moptions *, const struct ifnet *,
 	    const struct sockaddr *, const struct sockaddr *);
 void	inm_commit(struct in_multi *);
@@ -444,29 +376,21 @@ int	in_leavegroup_locked(struct in_multi *,
 	    /*const*/ struct in_mfilter *);
 int	in_control(struct socket *, u_long, caddr_t, struct ifnet *,
 	    struct thread *);
-void	in_rtqdrain(void);
+int	in_addprefix(struct in_ifaddr *, int);
+int	in_scrubprefix(struct in_ifaddr *, u_int);
+void	in_ifscrub_all(void);
 void	ip_input(struct mbuf *);
-int	in_ifadown(struct ifaddr *ifa, int);
-void	in_ifscrub(struct ifnet *, struct in_ifaddr *);
-struct	mbuf	*ip_fastforward(struct mbuf *);
+void	ip_direct_input(struct mbuf *);
+void	in_ifadown(struct ifaddr *ifa, int);
+struct	mbuf	*ip_tryforward(struct mbuf *);
 void	*in_domifattach(struct ifnet *);
 void	in_domifdetach(struct ifnet *, void *);
 
 
 /* XXX */
 void	 in_rtalloc_ign(struct route *ro, u_long ignflags, u_int fibnum);
-void	 in_rtalloc(struct route *ro, u_int fibnum);
-struct rtentry *in_rtalloc1(struct sockaddr *, int, u_long, u_int);
 void	 in_rtredirect(struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *, u_int);
-int	 in_rtrequest(int, struct sockaddr *,
-	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
-
-#if 0
-int	 in_rt_getifa(struct rt_addrinfo *, u_int fibnum);
-int	 in_rtioctl(u_long, caddr_t, u_int);
-int	 in_rtrequest1(int, struct rt_addrinfo *, struct rtentry **, u_int);
-#endif
 #endif /* _KERNEL */
 
 /* INET6 stuff */

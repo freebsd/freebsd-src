@@ -24,13 +24,13 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <sys/soundcard.h>
 
-const char	*names[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
+static const char *names[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
 
-static void	usage(int devmask, int recmask);
+static void	usage(int devmask, int recmask) __dead2;
 static int	res_name(const char *name, int mask);
 static void	print_recsrc(int recsrc, int recmask, int sflag);
 
-static void
+static void __dead2
 usage(int devmask, int recmask)
 {
 	int	i, n;
@@ -193,10 +193,15 @@ main(int argc, char *argv[])
 			argc--;
 			argv++;
 			continue;
-		} else if (argc > 1 && strcmp("rec", *argv + 1) == 0) {
+		} else if (strcmp("rec", *argv + 1) == 0) {
 			if (**argv != '+' && **argv != '-' &&
 			    **argv != '=' && **argv != '^') {
 				warnx("unknown modifier: %c", **argv);
+				dusage = 1;
+				break;
+			}
+			if (argc <= 1) {
+				warnx("no recording device specified");
 				dusage = 1;
 				break;
 			}

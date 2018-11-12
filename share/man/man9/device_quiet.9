@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 21, 1999
+.Dd September 12, 2016
 .Dt DEVICE_QUIET 9
 .Os
 .Sh NAME
@@ -49,16 +49,18 @@
 Each device has a quiet flag associated with it.
 A device is
 verbose by default when it is created but may be quieted to prevent
-the device identification string to be printed during probe.
+printing of the device identification string during attach
+and printing of a message during detach.
 To quiet a device, call
-.Fn device_quiet ,
-to re-enable to probe message (to make the message appear again, for
-example after a
-.Xr device_detach 9 )
+.Fn device_quiet
+during a device driver probe routine.
+To re-enable probe messages,
 call
 .Fn device_verbose .
 To test to see if a device is quieted, call
 .Fn device_is_quiet .
+.Pp
+Devices are implicitly marked verbose after a driver detaches.
 .Sh SEE ALSO
 .Xr device 9
 .Sh AUTHORS

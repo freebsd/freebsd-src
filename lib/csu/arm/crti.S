@@ -19,3 +19,4 @@ _fini:
 	stmdb	sp!, {fp, ip, lr, pc}
 	sub	fp, ip, #4
 
+	.section .note.GNU-stack,"",%progbits

@@ -90,7 +90,8 @@ CODE {
 		return;
 	}
 
-	static int mmu_null_mincore(mmu_t mmu, pmap_t pmap, vm_offset_t addr)
+	static int mmu_null_mincore(mmu_t mmu, pmap_t pmap, vm_offset_t addr,
+	    vm_paddr_t *locked_pa)
 	{
 		return (0);
 	}
@@ -106,26 +107,48 @@ CODE {
 		return;
 	}
 
-	static struct pmap_md *mmu_null_scan_md(mmu_t mmu, struct pmap_md *p)
+	static void *mmu_null_mapdev_attr(mmu_t mmu, vm_paddr_t pa,
+	    vm_size_t size, vm_memattr_t ma)
 	{
-		return (NULL);
+		return MMU_MAPDEV(mmu, pa, size);
+	}
+
+	static void mmu_null_kenter_attr(mmu_t mmu, vm_offset_t va,
+	    vm_paddr_t pa, vm_memattr_t ma)
+	{
+		MMU_KENTER(mmu, va, pa);
+	}
+
+	static void mmu_null_page_set_memattr(mmu_t mmu, vm_page_t m,
+	    vm_memattr_t ma)
+	{
+		return;
+	}
+
+	static int mmu_null_change_attr(mmu_t mmu, vm_offset_t va,
+	    vm_size_t sz, vm_memattr_t mode)
+	{
+		return (0);
 	}
 };
 
 
 /**
- * @brief Change the wiring attribute for the page in the given physical
- * map and virtual address.
+ * @brief Apply the given advice to the specified range of addresses within
+ * the given pmap.  Depending on the advice, clear the referenced and/or
+ * modified flags in each mapping and set the mapped page's dirty field.
  *
- * @param _pmap		physical map of page
- * @param _va		page virtual address
- * @param _wired	TRUE to increment wired count, FALSE to decrement
+ * @param _pmap		physical map
+ * @param _start	virtual range start
+ * @param _end		virtual range end
+ * @param _advice	advice to apply
  */
-METHOD void change_wiring {
+METHOD void advise {
 	mmu_t		_mmu;
 	pmap_t		_pmap;
-	vm_offset_t	_va;
-	boolean_t	_wired;
+	vm_offset_t	_start;
+	vm_offset_t	_end;
+	int		_advice;
 };
 
 
@@ -135,17 +158,6 @@ METHOD void change_wiring {
  * @param _pg		physical page
  */
 METHOD void clear_modify {
-	mmu_t		_mmu;
-	vm_page_t	_pg;
-};
-
-
-/**
- * @brief Clear the 'referenced' bit on the given physical page
- *
- * @param _pg		physical page
- */
-METHOD void clear_reference {
 	mmu_t		_mmu;
 	vm_page_t	_pg;
 };
@@ -196,6 +208,14 @@ METHOD void copy_page {
 	vm_page_t	_dst;
 };
 
+METHOD void copy_pages {
+	mmu_t		_mmu;
+	vm_page_t	*_ma;
+	vm_offset_t	_a_offset;
+	vm_page_t	*_mb;
+	vm_offset_t	_b_offset;
+	int		_xfersize;
+};
 
 /**
  * @brief Create a mapping between a virtual/physical address pair in the
@@ -205,15 +225,17 @@ METHOD void copy_page {
  * @param _va		mapping virtual address
  * @param _p		mapping physical page
  * @param _prot		mapping page protection
- * @param _wired	TRUE if page will be wired
+ * @param _flags	pmap_enter flags
+ * @param _psind	superpage size index
  */
-METHOD void enter {
+METHOD int enter {
 	mmu_t		_mmu;
 	pmap_t		_pmap;
 	vm_offset_t	_va;
 	vm_page_t	_p;
 	vm_prot_t	_prot;
-	boolean_t	_wired;
+	u_int		_flags;
+	int8_t		_psind;
 };
 
 
@@ -346,6 +368,20 @@ METHOD boolean_t is_prefaultable {
 
 
 /**
+ * @brief Return whether or not the specified physical page was referenced
+ * in any physical maps.
+ *
+ * @params _pg		physical page
+ *
+ * @retval boolean	TRUE if page has been referenced
+ */
+METHOD boolean_t is_referenced {
+	mmu_t		_mmu;
+	vm_page_t	_pg;
+};
+
+
+/**
  * @brief Return a count of referenced bits for a page, clearing those bits.
  * Not all referenced bits need to be cleared, but it is necessary that 0
  * only be returned when there are none set.
@@ -354,7 +390,7 @@ METHOD boolean_t is_prefaultable {
  *
  * @retval int		count of referenced bits
  */
-METHOD boolean_t ts_referenced {
+METHOD int ts_referenced {
 	mmu_t		_mmu;
 	vm_page_t	_pg;
 };
@@ -551,7 +587,7 @@ METHOD void remove {
 
 /**
  * @brief Traverse the reverse-map list off the given physical page and
- * remove all mappings. Clear the PG_WRITEABLE attribute from the page.
+ * remove all mappings. Clear the PGA_WRITEABLE attribute from the page.
  *
  * @param _pg		physical page
  */
@@ -576,6 +612,22 @@ METHOD void remove_pages {
 	mmu_t		_mmu;
 	pmap_t		_pmap;
 } DEFAULT mmu_null_remove_pages;
+
+
+/**
+ * @brief Clear the wired attribute from the mappings for the specified range
+ * of addresses in the given pmap.
+ *
+ * @param _pmap		physical map
+ * @param _start	virtual range start
+ * @param _end		virtual range end
+ */
+METHOD void unwire {
+	mmu_t		_mmu;
+	pmap_t		_pmap;
+	vm_offset_t	_start;
+	vm_offset_t	_end;
+};
 
 
 /**
@@ -607,24 +659,11 @@ METHOD void zero_page_area {
 
 
 /**
- * @brief Called from the idle loop to zero pages. XXX I think locking
- * constraints might be different here compared to zero_page.
- *
- * @param _pg		physical page
- */
-METHOD void zero_page_idle {
-	mmu_t		_mmu;
-	vm_page_t	_pg;
-};
-
-
-/**
- * @brief Extract mincore(2) information from a mapping. This routine is
- * optional and is an optimisation: the mincore code will call is_modified
- * and ts_referenced if no result is returned.
+ * @brief Extract mincore(2) information from a mapping.
  *
  * @param _pmap		physical map
  * @param _addr		page virtual address
+ * @param _locked_pa	page physical address
  *
  * @retval 0		no result
  * @retval non-zero	mincore(2) flag values
@@ -633,6 +672,7 @@ METHOD int mincore {
 	mmu_t		_mmu;
 	pmap_t		_pmap;
 	vm_offset_t	_addr;
+	vm_paddr_t	*_locked_pa;
 } DEFAULT mmu_null_mincore;
 
 
@@ -728,10 +768,41 @@ METHOD void cpu_bootstrap {
  */
 METHOD void * mapdev {
 	mmu_t		_mmu;
-	vm_offset_t	_pa;
+	vm_paddr_t	_pa;
 	vm_size_t	_size;
 };
 
+/**
+ * @brief Create a kernel mapping for a given physical address range.
+ * Called by bus code on behalf of device drivers. The mapping does not
+ * have to be a virtual address: it can be a direct-mapped physical address
+ * if that is supported by the MMU.
+ *
+ * @param _pa		start physical address
+ * @param _size		size in bytes of mapping
+ * @param _attr		cache attributes
+ *
+ * @retval addr		address of mapping.
+ */
+METHOD void * mapdev_attr {
+	mmu_t		_mmu;
+	vm_paddr_t	_pa;
+	vm_size_t	_size;
+	vm_memattr_t	_attr;
+} DEFAULT mmu_null_mapdev_attr;
+
+/**
+ * @brief Change cache control attributes for a page. Should modify all
+ * mappings for that page.
+ *
+ * @param _m		page to modify
+ * @param _ma		new cache control attributes
+ */
+METHOD void page_set_memattr {
+	mmu_t		_mmu;
+	vm_page_t	_pg;
+	vm_memattr_t	_ma;
+} DEFAULT mmu_null_page_set_memattr;
 
 /**
  * @brief Remove the mapping created by mapdev. Called when a driver
@@ -754,7 +825,7 @@ METHOD void unmapdev {
  *
  * @retval pa		physical address corresponding to mapping
  */
-METHOD vm_offset_t kextract {
+METHOD vm_paddr_t kextract {
 	mmu_t		_mmu;
 	vm_offset_t	_va;
 };
@@ -769,9 +840,32 @@ METHOD vm_offset_t kextract {
 METHOD void kenter {
 	mmu_t		_mmu;
 	vm_offset_t	_va;
-	vm_offset_t	_pa;
+	vm_paddr_t	_pa;
 };
 
+/**
+ * @brief Map a wired page into kernel virtual address space
+ *
+ * @param _va		mapping virtual address
+ * @param _pa		mapping physical address
+ * @param _ma		mapping cache control attributes
+ */
+METHOD void kenter_attr {
+	mmu_t		_mmu;
+	vm_offset_t	_va;
+	vm_paddr_t	_pa;
+	vm_memattr_t	_ma;
+} DEFAULT mmu_null_kenter_attr;
+
+/**
+ * @brief Unmap a wired page from kernel virtual address space
+ *
+ * @param _va		mapped virtual address
+ */
+METHOD void kremove {
+	mmu_t		_mmu;
+	vm_offset_t	_va;
+};
 
 /**
  * @brief Determine if the given physical address range has been direct-mapped.
@@ -783,67 +877,103 @@ METHOD void kenter {
  */
 METHOD boolean_t dev_direct_mapped {
 	mmu_t		_mmu;
-	vm_offset_t	_pa;
+	vm_paddr_t	_pa;
 	vm_size_t	_size;
 };
 
 
 /**
- * @brief Evaluate if a physical page has an executable mapping
+ * @brief Enforce instruction cache coherency. Typically called after a
+ * region of memory has been modified and before execution of or within
+ * that region is attempted. Setting breakpoints in a process through
+ * ptrace(2) is one example of when the instruction cache needs to be
+ * made coherent.
  *
- * @param _pg		physical page
- *
- * @retval bool		TRUE if a physical mapping exists for the given page.
+ * @param _pm		the physical map of the virtual address
+ * @param _va		the virtual address of the modified region
+ * @param _sz		the size of the modified region
  */
-METHOD boolean_t page_executable {
+METHOD void sync_icache {
 	mmu_t		_mmu;
-	vm_page_t	_pg;
+	pmap_t		_pm;
+	vm_offset_t	_va;
+	vm_size_t	_sz;
 };
 
 
 /**
  * @brief Create temporary memory mapping for use by dumpsys().
  *
- * @param _md		The memory chunk in which the mapping lies.
- * @param _ofs		The offset within the chunk of the mapping.
+ * @param _pa		The physical page to map.
  * @param _sz		The requested size of the mapping.
- *
- * @retval vm_offset_t	The virtual address of the mapping.
- *			
- * The sz argument is modified to reflect the actual size of the
- * mapping.
+ * @param _va		The virtual address of the mapping.
  */
-METHOD vm_offset_t dumpsys_map {
+METHOD void dumpsys_map {
 	mmu_t		_mmu;
-	struct pmap_md	*_md;
-	vm_size_t	_ofs;
-	vm_size_t	*_sz;
+	vm_paddr_t	_pa;
+	size_t		_sz;
+	void		**_va;
 };
 
 
 /**
  * @brief Remove temporary dumpsys() mapping.
  *
- * @param _md		The memory chunk in which the mapping lies.
- * @param _ofs		The offset within the chunk of the mapping.
+ * @param _pa		The physical page to map.
+ * @param _sz		The requested size of the mapping.
  * @param _va		The virtual address of the mapping.
  */
 METHOD void dumpsys_unmap {
 	mmu_t		_mmu;
-	struct pmap_md	*_md;
-	vm_size_t	_ofs;
-	vm_offset_t	_va;
+	vm_paddr_t	_pa;
+	size_t		_sz;
+	void		*_va;
 };
 
 
 /**
- * @brief Scan/iterate memory chunks.
- *
- * @param _prev		The previously returned chunk or NULL.
- *
- * @retval		The next (or first when _prev is NULL) chunk.
+ * @brief Initialize memory chunks for dumpsys.
  */
-METHOD struct pmap_md * scan_md {
+METHOD void scan_init {
 	mmu_t		_mmu;
-	struct pmap_md	*_prev;
-} DEFAULT mmu_null_scan_md;
+};
+
+/**
+ * @brief Create a temporary thread-local KVA mapping of a single page.
+ *
+ * @param _pg		The physical page to map
+ *
+ * @retval addr		The temporary KVA
+ */
+METHOD vm_offset_t quick_enter_page {
+	mmu_t		_mmu;
+	vm_page_t	_pg;
+};
+
+/**
+ * @brief Undo a mapping created by quick_enter_page
+ *
+ * @param _va		The mapped KVA
+ */
+METHOD void quick_remove_page {
+	mmu_t		_mmu;
+	vm_offset_t	_va;
+};
+
+/**
+ * @brief Change the specified virtual address range's memory type.
+ *
+ * @param _va		The virtual base address to change
+ *
+ * @param _sz		Size of the region to change
+ *
+ * @param _mode		New mode to set on the VA range
+ *
+ * @retval error	0 on success, EINVAL or ENOMEM on error.
+ */
+METHOD int change_attr {
+	mmu_t		_mmu;
+	vm_offset_t	_va;
+	vm_size_t	_sz;
+	vm_memattr_t	_mode;
+} DEFAULT mmu_null_change_attr;

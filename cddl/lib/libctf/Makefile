@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-.include	"../../Makefile.inc"
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/common/ctf
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libctf/common
+.PATH:		${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/ctf
 
 LIB=		ctf
-SHLIB_MAJOR=	2
-
 SRCS=		ctf_create.c \
 		ctf_decl.c \
 		ctf_error.c \
@@ -16,11 +16,9 @@ SRCS=		ctf_create.c \
 		ctf_subr.c \
 		ctf_types.c \
 		ctf_util.c
+MAN=		ctf.5
 
-.PATH:		${OPENSOLARIS_USR_DISTDIR}/common/ctf
-.PATH:		${OPENSOLARIS_USR_DISTDIR}/lib/libctf/common
-.PATH:		${OPENSOLARIS_SYS_DISTDIR}/common/ctf
-
+WARNS?=		2
 CFLAGS+=	-DCTF_OLD_VERSIONS
 
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
@@ -30,5 +28,6 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libctf/common \
 		-I${OPENSOLARIS_SYS_DISTDIR}/uts/common
 
-.include <bsd.lib.mk>
+LIBADD+=	z
 
+.include <bsd.lib.mk>

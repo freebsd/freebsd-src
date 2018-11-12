@@ -56,18 +56,12 @@ __FBSDID("$FreeBSD$");
 
 static void usage(void);
 
-char	*user;		/* user to switch to before running program */
-char	*group;		/* group to switch to ... */
-char	*grouplist;	/* group list to switch to ... */
-
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct group	*gp;
 	struct passwd	*pw;
-	char		*endp, *p;
+	char		*endp, *p, *user, *group, *grouplist;
 	const char	*shell;
 	gid_t		gid, *gidlist;
 	uid_t		uid;
@@ -76,6 +70,7 @@ main(argc, argv)
 
 	gid = 0;
 	uid = 0;
+	user = group = grouplist = NULL;
 	while ((ch = getopt(argc, argv, "G:g:u:")) != -1) {
 		switch(ch) {
 		case 'u':
@@ -179,7 +174,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: chroot [-g group] [-G group,group,...] "
 	    "[-u user] newroot [command]\n");

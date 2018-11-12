@@ -65,15 +65,13 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-#ifndef SUN4V
 #include <machine/cache.h>
-#endif
 #include <machine/md_var.h>
-#include <machine/pmap.h>
 #include <machine/tlb.h>
 
 #include <machine/memdev.h>
@@ -94,13 +92,12 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	vm_size_t cnt;
 	vm_page_t m;
 	int error;
-	int i;
+	uint32_t colors;
 
 	cnt = 0;
+	colors = 1;
 	error = 0;
 	ova = 0;
-
-	GIANT_REQUIRED;
 
 	while (uio->uio_resid > 0 && error == 0) {
 		iov = uio->uio_iov;
@@ -124,30 +121,21 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			cnt = ulmin(cnt, PAGE_SIZE - off);
 			cnt = ulmin(cnt, iov->iov_len);
 
-			m = NULL;
-			for (i = 0; phys_avail[i] != 0; i += 2) {
-				if (pa >= phys_avail[i] &&
-				    pa < phys_avail[i + 1]) {
-					m = PHYS_TO_VM_PAGE(pa);
-					break;
-				}
-			}
-
+			m = vm_phys_paddr_to_vm_page(pa);
 			if (m != NULL) {
-#ifndef SUN4V
-				if (ova == 0)
-					ova = kmem_alloc_wait(kernel_map,
-					    PAGE_SIZE * DCACHE_COLORS);
-				if (m->md.color != -1)
+				if (ova == 0) {
+					if (dcache_color_ignore == 0)
+						colors = DCACHE_COLORS;
+					ova = kva_alloc(PAGE_SIZE * colors);
+					if (ova == 0) {
+						error = ENOMEM;
+						break;
+					}
+				}
+				if (colors != 1 && m->md.color != -1)
 					va = ova + m->md.color * PAGE_SIZE;
 				else
 					va = ova;
-#else
-				if (ova == 0)
-					ova = kmem_alloc_wait(kernel_map,
-					    PAGE_SIZE);
-				va = ova;
-#endif
 				pmap_qenter(va, &m, 1);
 				error = uiomove((void *)(va + off), cnt,
 				    uio);
@@ -158,8 +146,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 				    uio);
 			}
 			break;
-		}
-		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
+		} else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			va = trunc_page(uio->uio_offset);
 			eva = round_page(uio->uio_offset + iov->iov_len);
 
@@ -184,15 +171,6 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 		/* else panic! */
 	}
 	if (ova != 0)
-#ifndef SUN4V
-		kmem_free_wakeup(kernel_map, ova, PAGE_SIZE * DCACHE_COLORS);
-#else
-		kmem_free_wakeup(kernel_map, ova, PAGE_SIZE);
-#endif
+		kva_free(ova, PAGE_SIZE * colors);
 	return (error);
-}
-
-void
-dev_mem_md_init(void)
-{
 }

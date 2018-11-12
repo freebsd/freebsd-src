@@ -33,15 +33,13 @@ static char sccsid[] = "@(#)devname.c	8.2 (Berkeley) 4/29/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/sysctl.h>
 
-#include <err.h>
-#include <fcntl.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/param.h>
 #include <sys/stat.h>
 
 char *
@@ -49,22 +47,22 @@ devname_r(dev_t dev, mode_t type, char *buf, int len)
 {
 	int i;
 	size_t j;
-	char *r;
 
-	if ((type & S_IFMT) == S_IFCHR) {
+	if (dev == NODEV || !(S_ISCHR(type) || S_ISBLK(dev))) {
+		strlcpy(buf, "#NODEV", len);
+		return (buf);
+	}
+
+	if (S_ISCHR(type)) {
 		j = len;
 		i = sysctlbyname("kern.devname", buf, &j, &dev, sizeof (dev));
 		if (i == 0)
-		    return (buf);
+			return (buf);
 	}
 
 	/* Finally just format it */
-	if (dev == NODEV)
-		r = "#NODEV";
-	else 
-		r = "#%c:%d:0x%x";
-	snprintf(buf, len, r,
-	    (type & S_IFMT) == S_IFCHR ? 'C' : 'B', major(dev), minor(dev));
+	snprintf(buf, len, "#%c:%#jx",
+	    S_ISCHR(type) ? 'C' : 'B', (uintmax_t)dev);
 	return (buf);
 }
 
@@ -73,5 +71,5 @@ devname(dev_t dev, mode_t type)
 {
 	static char buf[SPECNAMELEN + 1];
 
-	return(devname_r(dev, type, buf, sizeof(buf)));
+	return (devname_r(dev, type, buf, sizeof(buf)));
 }

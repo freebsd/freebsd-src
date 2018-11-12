@@ -27,9 +27,9 @@
 .\"	$FreeBSD$
 .\"
 .\" The following commands are required for all man pages.
-.Dd October 30, 2007
-.Os
+.Dd January 26, 2010
 .Dt GSS_EXPORT_NAME 3 PRM
+.Os
 .Sh NAME
 .Nm gss_export_name
 .Nd Convert an MN to export form
@@ -58,7 +58,7 @@ parameter must specify a valid MN
 or by
 .Fn gss_canonicalize_name ).
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It exported_name"
 .It minor_status
 Mechanism specific status code.
 .It input_name
@@ -71,7 +71,7 @@ after use with
 .Fn gss_release_buffer .
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_BAD_NAMETYPE"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_NAME_NOT_MN
@@ -86,7 +86,7 @@ The internal name was of a type not supported by the GSS-API implementation.
 .Xr gss_canonicalize_name 3 ,
 .Xr gss_release_buffer 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744
@@ -95,7 +95,7 @@ Generic Security Service API Version 2 : C-bindings
 .Sh HISTORY
 The
 .Nm
-manual page example first appeared in
+function first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
 John Wray, Iris Associates

@@ -35,41 +35,46 @@
 #ifndef _MACHINE_PCB_H_
 #define	_MACHINE_PCB_H_
 
-typedef int faultbuf[25];
+#include <machine/setjmp.h>
 
 struct pcb {
 	register_t	pcb_context[20];	/* non-volatile r14-r31 */
 	register_t	pcb_cr;			/* Condition register */
 	register_t	pcb_sp;			/* stack pointer */
+	register_t	pcb_toc;		/* toc pointer */
 	register_t	pcb_lr;			/* link register */
 	struct		pmap *pcb_pm;		/* pmap of our vmspace */
-	faultbuf	*pcb_onfault;		/* For use during
+	jmp_buf		*pcb_onfault;		/* For use during
 						    copyin/copyout */
 	int		pcb_flags;
-#define	PCB_FPU		1	/* Process had FPU initialized */
-#define	PCB_VEC		2	/* Process had Altivec initialized */
+#define	PCB_FPU		1	/* Process uses FPU */
+#define	PCB_FPREGS	2	/* Process had FPU registers initialized */
+#define	PCB_VEC		4	/* Process had Altivec initialized */
+#define	PCB_VSX		8	/* Process had VSX initialized */
 	struct fpu {
-		double	fpr[32];
+		union {
+			double fpr;
+			uint32_t vsr[4];
+		} fpr[32];
 		double	fpscr;	/* FPSCR stored as double for easier access */
 	} pcb_fpu;		/* Floating point processor */
 	unsigned int	pcb_fpcpu;		/* which CPU had our FPU
 							stuff. */
 	struct vec {
 		uint32_t vr[32][4];
-		register_t vrsave;
-		register_t spare[2];
-		register_t vscr;
-	} pcb_vec __attribute__((aligned(16)));	/* Vector processor */
+		uint32_t spare[2];
+		uint32_t vrsave;
+		uint32_t vscr;	/* aligned at vector element 3 */
+	} pcb_vec __aligned(16);	/* Vector processor */
 	unsigned int	pcb_veccpu;		/* which CPU had our vector
 							stuff. */
 
 	union {
 		struct {
-			register_t	usr;	/* USER_SR segment */
+			vm_offset_t	usr_segm;	/* Base address */
+			register_t	usr_vsid;	/* USER_SR segment */
 		} aim;
 		struct {
-			register_t	ctr;
-			register_t	xer;
 			register_t	dbcr0;
 		} booke;
 	} pcb_cpu;
@@ -87,6 +92,7 @@ extern struct pmap *curpm;
 extern struct proc *fpuproc;
 
 void	makectx(struct trapframe *, struct pcb *);
+void	savectx(struct pcb *) __returns_twice;
 
 #endif
 #endif	/* _MACHINE_PCB_H_ */

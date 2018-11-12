@@ -39,11 +39,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/vtoc.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
+
+FEATURE(geom_part_vtoc8, "GEOM partitioning class for SMI VTOC8 disk labels");
 
 struct g_part_vtoc8_table {
 	struct g_part_table	base;
@@ -55,18 +59,20 @@ static int g_part_vtoc8_add(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static int g_part_vtoc8_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_vtoc8_destroy(struct g_part_table *, struct g_part_parms *);
-static void g_part_vtoc8_dumpconf(struct g_part_table *, struct g_part_entry *,
-    struct sbuf *, const char *);
+static void g_part_vtoc8_dumpconf(struct g_part_table *,
+    struct g_part_entry *, struct sbuf *, const char *);
 static int g_part_vtoc8_dumpto(struct g_part_table *, struct g_part_entry *);
-static int g_part_vtoc8_modify(struct g_part_table *, struct g_part_entry *,  
+static int g_part_vtoc8_modify(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
-static const char *g_part_vtoc8_name(struct g_part_table *, struct g_part_entry *,
-    char *, size_t);
+static const char *g_part_vtoc8_name(struct g_part_table *,
+    struct g_part_entry *, char *, size_t);
 static int g_part_vtoc8_probe(struct g_part_table *, struct g_consumer *);
 static int g_part_vtoc8_read(struct g_part_table *, struct g_consumer *);
-static const char *g_part_vtoc8_type(struct g_part_table *, struct g_part_entry *,
-    char *, size_t);
+static const char *g_part_vtoc8_type(struct g_part_table *,
+    struct g_part_entry *, char *, size_t);
 static int g_part_vtoc8_write(struct g_part_table *, struct g_consumer *);
+static int g_part_vtoc8_resize(struct g_part_table *, struct g_part_entry *,
+    struct g_part_parms *);
 
 static kobj_method_t g_part_vtoc8_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_vtoc8_add),
@@ -75,6 +81,7 @@ static kobj_method_t g_part_vtoc8_methods[] = {
 	KOBJMETHOD(g_part_dumpconf,	g_part_vtoc8_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_vtoc8_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_vtoc8_modify),
+	KOBJMETHOD(g_part_resize,	g_part_vtoc8_resize),
 	KOBJMETHOD(g_part_name,		g_part_vtoc8_name),
 	KOBJMETHOD(g_part_probe,	g_part_vtoc8_probe),
 	KOBJMETHOD(g_part_read,		g_part_vtoc8_read),
@@ -108,6 +115,11 @@ vtoc8_parse_type(const char *type, uint16_t *tag)
 		*tag = (uint16_t)lt;
 		return (0);
 	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_NANDFS);
+	if (!strcasecmp(type, alias)) {
+		*tag = VTOC_TAG_FREEBSD_NANDFS;
+		return (0);
+	}
 	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP);
 	if (!strcasecmp(type, alias)) {
 		*tag = VTOC_TAG_FREEBSD_SWAP;
@@ -132,6 +144,23 @@ vtoc8_parse_type(const char *type, uint16_t *tag)
 }
 
 static int
+vtoc8_align(struct g_part_vtoc8_table *table, uint64_t *start, uint64_t *size)
+{
+
+	if (*size < table->secpercyl)
+		return (EINVAL);
+	if (start != NULL && (*start % table->secpercyl)) {
+		*size += (*start % table->secpercyl) - table->secpercyl;
+		*start -= (*start % table->secpercyl) - table->secpercyl;
+	}
+	if (*size % table->secpercyl)
+		*size -= (*size % table->secpercyl);
+	if (*size < table->secpercyl)
+		return (EINVAL);
+	return (0);
+}
+
+static int
 g_part_vtoc8_add(struct g_part_table *basetable, struct g_part_entry *entry,
     struct g_part_parms *gpp)
 {
@@ -149,16 +178,9 @@ g_part_vtoc8_add(struct g_part_table *basetable, struct g_part_entry *entry,
 
 	table = (struct g_part_vtoc8_table *)basetable;
 	index = entry->gpe_index - 1;
-
 	start = gpp->gpp_start;
 	size = gpp->gpp_size;
-	if (start % table->secpercyl) {
-		size = size - table->secpercyl + (start % table->secpercyl);
-		start = start - (start % table->secpercyl) + table->secpercyl;
-	}
-	if (size % table->secpercyl)
-		size = size - (size % table->secpercyl);
-	if (size < table->secpercyl)
+	if (vtoc8_align(table, &start, &size) != 0)
 		return (EINVAL);
 
 	KASSERT(entry->gpe_start <= start, (__func__));
@@ -177,7 +199,6 @@ g_part_vtoc8_add(struct g_part_table *basetable, struct g_part_entry *entry,
 static int
 g_part_vtoc8_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
-	struct g_consumer *cp;
 	struct g_provider *pp;
 	struct g_part_entry *entry;
 	struct g_part_vtoc8_table *table;
@@ -185,7 +206,6 @@ g_part_vtoc8_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	uint32_t acyls, ncyls, pcyls;
 
 	pp = gpp->gpp_provider;
-	cp = LIST_FIRST(&pp->consumers);
 
 	if (pp->sectorsize < sizeof(struct vtoc8))
 		return (ENOSPC);
@@ -194,9 +214,7 @@ g_part_vtoc8_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 
 	table = (struct g_part_vtoc8_table *)basetable;
 
-	msize = pp->mediasize / pp->sectorsize;
-	if (msize > 0xffffffffu)
-		msize = 0xffffffffu;
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 	table->secpercyl = basetable->gpt_sectors * basetable->gpt_heads;
 	pcyls = msize / table->secpercyl;
 	acyls = 2;
@@ -260,7 +278,8 @@ g_part_vtoc8_dumpconf(struct g_part_table *basetable,
 }
 
 static int
-g_part_vtoc8_dumpto(struct g_part_table *basetable, struct g_part_entry *entry)  
+g_part_vtoc8_dumpto(struct g_part_table *basetable,
+    struct g_part_entry *entry)
 {
 	struct g_part_vtoc8_table *table;
 	uint16_t tag;
@@ -271,7 +290,8 @@ g_part_vtoc8_dumpto(struct g_part_table *basetable, struct g_part_entry *entry)
 	 */
 	table = (struct g_part_vtoc8_table *)basetable;
 	tag = be16dec(&table->vtoc.part[entry->gpe_index - 1].tag);
-	return ((tag == 0 || tag == VTOC_TAG_FREEBSD_SWAP) ? 1 : 0);
+	return ((tag == 0 || tag == VTOC_TAG_FREEBSD_SWAP ||
+	    tag == VTOC_TAG_SWAP) ? 1 : 0);
 }
 
 static int
@@ -293,6 +313,69 @@ g_part_vtoc8_modify(struct g_part_table *basetable,
 
 		be16enc(&table->vtoc.part[entry->gpe_index - 1].tag, tag);
 	}
+	return (0);
+}
+
+static int
+vtoc8_set_rawsize(struct g_part_table *basetable, struct g_provider *pp)
+{
+	struct g_part_vtoc8_table *table;
+	struct g_part_entry *baseentry;
+	off_t msize;
+	uint32_t acyls, ncyls, pcyls;
+
+	table = (struct g_part_vtoc8_table *)basetable;
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
+	pcyls = msize / table->secpercyl;
+	if (pcyls > UINT16_MAX)
+		return (ERANGE);
+	acyls = be16dec(&table->vtoc.altcyls);
+	ncyls = pcyls - acyls;
+	msize = ncyls * table->secpercyl;
+	basetable->gpt_last = msize - 1;
+
+	bzero(table->vtoc.ascii, sizeof(table->vtoc.ascii));
+	sprintf(table->vtoc.ascii, "FreeBSD%lldM cyl %u alt %u hd %u sec %u",
+	    (long long)(msize / 2048), ncyls, acyls, basetable->gpt_heads,
+	    basetable->gpt_sectors);
+	be16enc(&table->vtoc.physcyls, pcyls);
+	be16enc(&table->vtoc.ncyls, ncyls);
+	be32enc(&table->vtoc.map[VTOC_RAW_PART].nblks, msize);
+	if (be32dec(&table->vtoc.sanity) == VTOC_SANITY)
+		be16enc(&table->vtoc.part[VTOC_RAW_PART].tag, VTOC_TAG_BACKUP);
+	LIST_FOREACH(baseentry, &basetable->gpt_entry, gpe_entry) {
+		if (baseentry->gpe_index == VTOC_RAW_PART + 1) {
+			baseentry->gpe_end = basetable->gpt_last;
+			return (0);
+		}
+	}
+	return (ENXIO);
+}
+
+static int
+g_part_vtoc8_resize(struct g_part_table *basetable,
+    struct g_part_entry *entry, struct g_part_parms *gpp)
+{
+	struct g_part_vtoc8_table *table;
+	struct g_provider *pp;
+	uint64_t size;
+
+	if (entry == NULL) {
+		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+		return (vtoc8_set_rawsize(basetable, pp));
+	}
+	table = (struct g_part_vtoc8_table *)basetable;
+	size = gpp->gpp_size;
+	if (vtoc8_align(table, NULL, &size) != 0)
+		return (EINVAL);
+	/* XXX: prevent unexpected shrinking. */
+	pp = entry->gpe_pp;
+	if ((g_debugflags & 0x10) == 0 && size < gpp->gpp_size &&
+	    pp->mediasize / pp->sectorsize > size)
+		return (EBUSY);
+	entry->gpe_end = entry->gpe_start + size - 1;
+	be32enc(&table->vtoc.map[entry->gpe_index - 1].nblks, size);
+
 	return (0);
 }
 
@@ -367,8 +450,7 @@ g_part_vtoc8_read(struct g_part_table *basetable, struct g_consumer *cp)
 	bcopy(buf, &table->vtoc, sizeof(table->vtoc));
 	g_free(buf);
 
-	msize = pp->mediasize / pp->sectorsize;
-
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 	sectors = be16dec(&table->vtoc.nsecs);
 	if (sectors < 1)
 		goto invalid_label;
@@ -456,7 +538,7 @@ g_part_vtoc8_read(struct g_part_table *basetable, struct g_consumer *cp)
 }
 
 static const char *
-g_part_vtoc8_type(struct g_part_table *basetable, struct g_part_entry *entry, 
+g_part_vtoc8_type(struct g_part_table *basetable, struct g_part_entry *entry,
     char *buf, size_t bufsz)
 {
 	struct g_part_vtoc8_table *table;
@@ -464,6 +546,8 @@ g_part_vtoc8_type(struct g_part_table *basetable, struct g_part_entry *entry,
 
 	table = (struct g_part_vtoc8_table *)basetable;
 	tag = be16dec(&table->vtoc.part[entry->gpe_index - 1].tag);
+	if (tag == VTOC_TAG_FREEBSD_NANDFS)
+		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_NANDFS));
 	if (tag == VTOC_TAG_FREEBSD_SWAP)
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP));
 	if (tag == VTOC_TAG_FREEBSD_UFS)

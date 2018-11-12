@@ -74,8 +74,6 @@ namespace __debug
       typedef std::reverse_iterator<iterator>        reverse_iterator;
       typedef std::reverse_iterator<const_iterator>  const_reverse_iterator;
 
-      using _Base::value_compare;
-
       // 23.3.1.1 construct/copy/destroy:
       explicit multimap(const _Compare& __comp = _Compare(),
 			const _Allocator& __a = _Allocator())

@@ -39,7 +39,11 @@
 #include <sys/syscall.h>
 #include <machine/swi.h>
 
-#define SYSTRAP(x)	swi 0 | SYS_ ## x
+#define SYSTRAP(x)							\
+			mov ip, r7;					\
+			ldr r7, =SYS_ ## x;				\
+			swi 0;						\
+			mov r7, ip
 
 #define	CERROR		_C_LABEL(cerror)
 #define	CURBRK		_C_LABEL(curbrk)
@@ -54,6 +58,7 @@
 
 #define _SYSCALL(x)							\
 	_SYSCALL_NOERROR(x);						\
+	it	cs;							\
 	bcs PIC_SYM(CERROR, PLT)
 
 #define SYSCALL(x)							\
@@ -64,6 +69,7 @@
 	.weak _C_LABEL(__CONCAT(_,x));					\
 	.set _C_LABEL(__CONCAT(_,x)),_C_LABEL(__CONCAT(__sys_,x));	\
 	SYSTRAP(x);							\
+	it	cs;							\
 	bcs PIC_SYM(CERROR, PLT);					\
 	RET
 

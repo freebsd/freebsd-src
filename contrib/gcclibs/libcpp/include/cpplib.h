@@ -320,6 +320,11 @@ struct cpp_options
   /* Nonzero means warn if there are any trigraphs.  */
   unsigned char warn_trigraphs;
 
+  /* APPLE LOCAL begin -Wnewline-eof 2001-08-23 --sts */
+  /* Nonzero means warn if no newline at end of file.  */
+  unsigned char warn_newline_at_eof;
+  /* APPLE LOCAL end -Wnewline-eof 2001-08-23 --sts */
+
   /* Nonzero means warn about multicharacter charconsts.  */
   unsigned char warn_multichar;
 
@@ -440,6 +445,9 @@ struct cpp_options
 
   /* True means error callback should be used for diagnostics.  */
   bool client_diagnostic;
+
+  /* True disables tokenization outside of preprocessing directives. */
+  bool directives_only;
 };
 
 /* Callback for header lookup for HEADER, which is the name of a
@@ -555,7 +563,8 @@ enum builtin_type
   BT_TIME,			/* `__TIME__' */
   BT_STDC,			/* `__STDC__' */
   BT_PRAGMA,			/* `_Pragma' operator */
-  BT_TIMESTAMP			/* `__TIMESTAMP__' */
+  BT_TIMESTAMP,			/* `__TIMESTAMP__' */
+  BT_COUNTER			/* `__COUNTER__' */
 };
 
 #define CPP_HASHNODE(HNODE)	((cpp_hashnode *) (HNODE))
@@ -642,6 +651,10 @@ extern struct deps *cpp_get_deps (cpp_reader *);
    least one file change callback, and possibly a line change callback
    too.  If there was an error opening the file, it returns NULL.  */
 extern const char *cpp_read_main_file (cpp_reader *, const char *);
+
+/* Set up built-ins with special behavior.  Use cpp_init_builtins()
+   instead unless your know what you are doing.  */
+extern void cpp_init_special_builtins (cpp_reader *);
 
 /* Set up built-ins like __FILE__.  */
 extern void cpp_init_builtins (cpp_reader *, int);
@@ -744,10 +757,12 @@ struct cpp_num
 #define CPP_N_DECIMAL	0x0100
 #define CPP_N_HEX	0x0200
 #define CPP_N_OCTAL	0x0400
+#define CPP_N_BINARY	0x0800
 
 #define CPP_N_UNSIGNED	0x1000	/* Properties.  */
 #define CPP_N_IMAGINARY	0x2000
 #define CPP_N_DFLOAT	0x4000
+#define CPP_N_DEFAULT	0x8000
 
 /* Classify a CPP_NUMBER token.  The return value is a combination of
    the flags from the above sets.  */

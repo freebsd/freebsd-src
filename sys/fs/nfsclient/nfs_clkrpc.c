@@ -34,7 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_inet6.h"
 #include "opt_kgssapi.h"
 
 #include <fs/nfs/nfsport.h>
@@ -46,14 +45,13 @@ __FBSDID("$FreeBSD$");
 
 NFSDLOCKMUTEX;
 
-SYSCTL_DECL(_vfs_newnfs);
-
-SVCPOOL		*nfscbd_pool;
+extern SVCPOOL	*nfscbd_pool;
 
 static int nfs_cbproc(struct nfsrv_descript *, u_int32_t);
 
 extern u_long sb_max_adj;
 extern int nfs_numnfscbd;
+extern int nfscl_debuglevel;
 
 /*
  * NFS client system calls for handling callbacks.
@@ -85,7 +83,7 @@ nfscb_program(struct svc_req *rqst, SVCXPRT *xprt)
 	 */
 	nd.nd_mrep = rqst->rq_args;
 	rqst->rq_args = NULL;
-	newnfs_realign(&nd.nd_mrep);
+	newnfs_realign(&nd.nd_mrep, M_WAITOK);
 	nd.nd_md = nd.nd_mrep;
 	nd.nd_dpos = mtod(nd.nd_md, caddr_t);
 	nd.nd_nam = svc_getrpccaller(rqst);
@@ -93,6 +91,7 @@ nfscb_program(struct svc_req *rqst, SVCXPRT *xprt)
 	nd.nd_mreq = NULL;
 	nd.nd_cred = NULL;
 
+	NFSCL_DEBUG(1, "cbproc=%d\n",nd.nd_procnum);
 	if (nd.nd_procnum != NFSPROC_NULL) {
 		if (!svc_getcred(rqst, &nd.nd_cred, &credflavor)) {
 			svcerr_weakauth(rqst);
@@ -136,9 +135,10 @@ nfscb_program(struct svc_req *rqst, SVCXPRT *xprt)
 		svcerr_auth(rqst, nd.nd_repstat & ~NFSERR_AUTHERR);
 		if (nd.nd_mreq != NULL)
 			m_freem(nd.nd_mreq);
-	} else if (!svc_sendreply_mbuf(rqst, nd.nd_mreq)) {
+	} else if (!svc_sendreply_mbuf(rqst, nd.nd_mreq))
 		svcerr_systemerr(rqst);
-	}
+	else
+		NFSCL_DEBUG(1, "cbrep sent\n");
 	svc_freereq(rqst);
 }
 
@@ -217,12 +217,9 @@ nfscbd_addsock(struct file *fp)
 int
 nfscbd_nfsd(struct thread *td, struct nfsd_nfscbd_args *args)
 {
-#ifdef KGSSAPI
 	char principal[128];
 	int error;
-#endif
 
-#ifdef KGSSAPI
 	if (args != NULL) {
 		error = copyinstr(args->principal, principal,
 		    sizeof(principal), NULL);
@@ -231,7 +228,6 @@ nfscbd_nfsd(struct thread *td, struct nfsd_nfscbd_args *args)
 	} else {
 		principal[0] = '\0';
 	}
-#endif
 
 	/*
 	 * Only the first nfsd actually does any work. The RPC code
@@ -246,20 +242,16 @@ nfscbd_nfsd(struct thread *td, struct nfsd_nfscbd_args *args)
 
 		NFSD_UNLOCK();
 
-#ifdef KGSSAPI
 		if (principal[0] != '\0')
-			rpc_gss_set_svc_name(principal, "kerberosv5",
+			rpc_gss_set_svc_name_call(principal, "kerberosv5",
 			    GSS_C_INDEFINITE, NFS_CALLBCKPROG, NFSV4_CBVERS);
-#endif
 
 		nfscbd_pool->sp_minthreads = 4;
 		nfscbd_pool->sp_maxthreads = 4;
 			
 		svc_run(nfscbd_pool);
 
-#ifdef KGSSAPI
-		rpc_gss_clear_svc_name(NFS_CALLBCKPROG, NFSV4_CBVERS);
-#endif
+		rpc_gss_clear_svc_name_call(NFS_CALLBCKPROG, NFSV4_CBVERS);
 
 		NFSD_LOCK();
 		nfs_numnfscbd--;
@@ -282,19 +274,19 @@ nfsrvd_cbinit(int terminating)
 	NFSD_LOCK_ASSERT();
 
 	if (terminating) {
-		NFSD_UNLOCK();
-		svcpool_destroy(nfscbd_pool);
-		nfscbd_pool = NULL;
-		NFSD_LOCK();
+		/* Wait for any xprt registrations to complete. */
+		while (nfs_numnfscbd > 0)
+			msleep(&nfs_numnfscbd, NFSDLOCKMUTEXPTR, PZERO, 
+			    "nfscbdt", 0);
 	}
 
-	NFSD_UNLOCK();
-
-	nfscbd_pool = svcpool_create("nfscbd", NULL);
-	nfscbd_pool->sp_rcache = NULL;
-	nfscbd_pool->sp_assign = NULL;
-	nfscbd_pool->sp_done = NULL;
-
-	NFSD_LOCK();
+	if (nfscbd_pool == NULL) {
+		NFSD_UNLOCK();
+		nfscbd_pool = svcpool_create("nfscbd", NULL);
+		nfscbd_pool->sp_rcache = NULL;
+		nfscbd_pool->sp_assign = NULL;
+		nfscbd_pool->sp_done = NULL;
+		NFSD_LOCK();
+	}
 }
 

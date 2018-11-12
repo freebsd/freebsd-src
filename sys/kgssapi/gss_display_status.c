@@ -31,7 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 
 #include <kgssapi/gssapi.h>
 #include <kgssapi/gssapi_impl.h>
@@ -49,8 +51,11 @@ gss_display_status(OM_uint32 *minor_status,
 	struct display_status_res res;
 	struct display_status_args args;
 	enum clnt_stat stat;
+	CLIENT *cl;
 
-	if (!kgss_gssd_handle)
+	*minor_status = 0;
+	cl = kgss_gssd_client();
+	if (cl == NULL)
 		return (GSS_S_FAILURE);
 
 	args.status_value = status_value;
@@ -59,7 +64,8 @@ gss_display_status(OM_uint32 *minor_status,
 	args.message_context = *message_context;
 	
 	bzero(&res, sizeof(res));
-	stat = gssd_display_status_1(&args, &res, kgss_gssd_handle);
+	stat = gssd_display_status_1(&args, &res, cl);
+	CLNT_RELEASE(cl);
 	if (stat != RPC_SUCCESS) {
 		*minor_status = stat;
 		return (GSS_S_FAILURE);
@@ -70,7 +76,6 @@ gss_display_status(OM_uint32 *minor_status,
 		return (res.major_status);
 	}
 
-	*minor_status = 0;
 	*message_context = res.message_context;
 	kgss_copy_buffer(&res.status_string, status_string);
 	xdr_free((xdrproc_t) xdr_display_status_res, &res);

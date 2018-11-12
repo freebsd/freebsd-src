@@ -19,11 +19,8 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * This file is a sewer.
@@ -57,7 +54,7 @@ static int faketypenumber = 100000000;
 static tdesc_t *hash_table[BUCKETS];
 static tdesc_t *name_table[BUCKETS];
 
-list_t *typedbitfldmems;
+static list_t *typedbitfldmems;
 
 static void reset(void);
 static jmp_buf	resetbuf;
@@ -481,7 +478,8 @@ whitesp(char *cp)
 {
 	char c;
 
-	for (c = *cp++; isspace(c); c = *cp++);
+	for (c = *cp++; isspace(c); c = *cp++)
+		;
 	--cp;
 	return (cp);
 }
@@ -496,8 +494,8 @@ name(char *cp, char **w)
 	c = *cp++;
 	if (c == ':')
 		*w = NULL;
-	else if (isalpha(c) || strchr("_.$", c)) {
-		for (c = *cp++; isalnum(c) || strchr(" _.$", c); c = *cp++)
+	else if (isalpha(c) || strchr("_.$#", c)) {
+		for (c = *cp++; isalnum(c) || strchr(" _.$#", c); c = *cp++)
 			;
 		if (c != ':')
 			reset();
@@ -954,7 +952,7 @@ soudef(char *cp, stabtype_t type, tdesc_t **rtdp)
 
 		itdp = find_intrinsic(tdp);
 		if (itdp->t_type == INTRINSIC) {
-			if (mlp->ml_size != itdp->t_intr->intr_nbits) {
+			if ((int)mlp->ml_size != itdp->t_intr->intr_nbits) {
 				parse_debug(4, cp, "making %d bit intrinsic "
 				    "from %s", mlp->ml_size, tdesc_name(itdp));
 				mlp->ml_type = bitintrinsic(itdp, mlp->ml_size);
@@ -990,14 +988,28 @@ arraydef(char *cp, tdesc_t **rtdp)
 		expected("arraydef/2", ";", cp - 1);
 
 	if (*cp == 'S') {
-		/* variable length array - treat as null dimensioned */
+		/*
+		 * variable length array - treat as null dimensioned
+		 *
+		 * For VLA variables on sparc, SS12 generated stab entry
+		 * looks as follows:
+		 * .stabs "buf:(0,28)=zr(0,4);0;S-12;(0,1)", 0x80, 0, 0, -16
+		 * Whereas SS12u1 generated stab entry looks like this:
+		 * .stabs "buf:(0,28)=zr(0,4);0;S0;(0,1)", 0x80, 0, 0, 0
+		 * On x86, both versions generate the first type of entry.
+		 * We should be able to parse both.
+		 */
 		cp++;
-		if (*cp++ != '-')
-			expected("arraydef/fpoff-sep", "-", cp - 1);
+		if (*cp == '-')
+			cp++;
 		cp = number(cp, &end);
 		end = start;
 	} else {
-		/* normal fixed-dimension array */
+		/*
+		 * normal fixed-dimension array
+		 * Stab entry for this looks as follows :
+		 * .stabs "x:(0,28)=ar(0,4);0;9;(0,3)", 0x80, 0, 40, 0
+		 */
 		cp = number(cp, &end);  /* upper */
 	}
 
@@ -1161,7 +1173,7 @@ resolve_typed_bitfields_cb(void *arg, void *private __unused)
 	while (tdp) {
 		switch (tdp->t_type) {
 		case INTRINSIC:
-			if (ml->ml_size != tdp->t_intr->intr_nbits) {
+			if ((int)ml->ml_size != tdp->t_intr->intr_nbits) {
 				debug(3, "making %d bit intrinsic from %s",
 				    ml->ml_size, tdesc_name(tdp));
 				ml->ml_type = bitintrinsic(tdp, ml->ml_size);

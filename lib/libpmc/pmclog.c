@@ -369,6 +369,12 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		    == NULL)
 			goto error;
 		break;
+	case PMCLOG_TYPE_PMCALLOCATEDYN:
+		PMCLOG_READ32(le,ev->pl_u.pl_ad.pl_pmcid);
+		PMCLOG_READ32(le,ev->pl_u.pl_ad.pl_event);
+		PMCLOG_READ32(le,ev->pl_u.pl_ad.pl_flags);
+		PMCLOG_READSTRING(le,ev->pl_u.pl_ad.pl_evname,PMC_NAME_MAX);
+		break;
 	case PMCLOG_TYPE_PMCATTACH:
 		PMCLOG_GET_PATHLEN(pathlen,evlen,pmclog_pmcattach);
 		PMCLOG_READ32(le,ev->pl_u.pl_t.pl_pmcid);
@@ -549,8 +555,10 @@ pmclog_open(int fd)
 
 	/* allocate space for a work area */
 	if (ps->ps_fd != PMCLOG_FD_NONE) {
-		if ((ps->ps_buffer = malloc(PMCLOG_BUFFER_SIZE)) == NULL)
+		if ((ps->ps_buffer = malloc(PMCLOG_BUFFER_SIZE)) == NULL) {
+			free(ps);
 			return NULL;
+		}
 	}
 
 	return ps;

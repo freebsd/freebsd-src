@@ -117,6 +117,8 @@ struct exportlist {
 	char		*ex_indexfile;
 	int		ex_numsecflavors;
 	int		ex_secflavors[MAXSECFLAVORS];
+	int		ex_defnumsecflavors;
+	int		ex_defsecflavors[MAXSECFLAVORS];
 };
 /* ex_flag bits */
 #define	EX_LINKED	0x1
@@ -136,6 +138,8 @@ struct grouplist {
 	int gr_type;
 	union grouptypes gr_ptr;
 	struct grouplist *gr_next;
+	int gr_numsecflavors;
+	int gr_secflavors[MAXSECFLAVORS];
 };
 /* Group types */
 #define	GT_NULL		0x0
@@ -158,89 +162,102 @@ struct fhreturn {
 	int	*fhr_secflavors;
 };
 
-/* Global defs */
-char	*add_expdir(struct dirlist **, char *, int);
-void	add_dlist(struct dirlist **, struct dirlist *,
-				struct grouplist *, int);
-void	add_mlist(char *, char *);
-int	check_dirpath(char *);
-int	check_options(struct dirlist *);
-int	checkmask(struct sockaddr *sa);
-int	chk_host(struct dirlist *, struct sockaddr *, int *, int *);
-void	create_service(struct netconfig *nconf);
-void	del_mlist(char *hostp, char *dirp);
-struct dirlist *dirp_search(struct dirlist *, char *);
-int	do_mount(struct exportlist *, struct grouplist *, int,
-		struct xucred *, char *, int, struct statfs *);
-int	do_opt(char **, char **, struct exportlist *, struct grouplist *,
-				int *, int *, struct xucred *);
-struct	exportlist *ex_search(fsid_t *);
-struct	exportlist *get_exp(void);
-void	free_dir(struct dirlist *);
-void	free_exp(struct exportlist *);
-void	free_grp(struct grouplist *);
-void	free_host(struct hostlist *);
-void	get_exportlist(void);
-int	get_host(char *, struct grouplist *, struct grouplist *);
-struct hostlist *get_ht(void);
-int	get_line(void);
-void	get_mountlist(void);
-int	get_net(char *, struct netmsk *, int);
-void	getexp_err(struct exportlist *, struct grouplist *);
-struct grouplist *get_grp(void);
-void	hang_dirp(struct dirlist *, struct grouplist *,
-				struct exportlist *, int);
-void	huphandler(int sig);
-int	makemask(struct sockaddr_storage *ssp, int bitlen);
-void	mntsrv(struct svc_req *, SVCXPRT *);
-void	nextfield(char **, char **);
-void	out_of_mem(void);
-void	parsecred(char *, struct xucred *);
-int	put_exlist(struct dirlist *, XDR *, struct dirlist *, int *, int);
-void	*sa_rawaddr(struct sockaddr *sa, int *nbytes);
-int	sacmp(struct sockaddr *sa1, struct sockaddr *sa2,
-    struct sockaddr *samask);
-int	scan_tree(struct dirlist *, struct sockaddr *);
-static void usage(void);
-int	xdr_dir(XDR *, char *);
-int	xdr_explist(XDR *, caddr_t);
-int	xdr_explist_brief(XDR *, caddr_t);
-int	xdr_fhs(XDR *, caddr_t);
-int	xdr_mlist(XDR *, caddr_t);
-void	terminate(int);
+#define	GETPORT_MAXTRY	20	/* Max tries to get a port # */
 
-struct exportlist *exphead;
-struct mountlist *mlhead;
-struct grouplist *grphead;
-char *exnames_default[2] = { _PATH_EXPORTS, NULL };
-char **exnames;
-char **hosts = NULL;
-struct xucred def_anon = {
+/* Global defs */
+static char	*add_expdir(struct dirlist **, char *, int);
+static void	add_dlist(struct dirlist **, struct dirlist *,
+		    struct grouplist *, int, struct exportlist *);
+static void	add_mlist(char *, char *);
+static int	check_dirpath(char *);
+static int	check_options(struct dirlist *);
+static int	checkmask(struct sockaddr *sa);
+static int	chk_host(struct dirlist *, struct sockaddr *, int *, int *,
+		    int *, int **);
+static char	*strsep_quote(char **stringp, const char *delim);
+static int	create_service(struct netconfig *nconf);
+static void	complete_service(struct netconfig *nconf, char *port_str);
+static void	clearout_service(void);
+static void	del_mlist(char *hostp, char *dirp);
+static struct dirlist	*dirp_search(struct dirlist *, char *);
+static int	do_mount(struct exportlist *, struct grouplist *, int,
+		    struct xucred *, char *, int, struct statfs *);
+static int	do_opt(char **, char **, struct exportlist *,
+		    struct grouplist *, int *, int *, struct xucred *);
+static struct exportlist	*ex_search(fsid_t *);
+static struct exportlist	*get_exp(void);
+static void	free_dir(struct dirlist *);
+static void	free_exp(struct exportlist *);
+static void	free_grp(struct grouplist *);
+static void	free_host(struct hostlist *);
+static void	get_exportlist(void);
+static int	get_host(char *, struct grouplist *, struct grouplist *);
+static struct hostlist *get_ht(void);
+static int	get_line(void);
+static void	get_mountlist(void);
+static int	get_net(char *, struct netmsk *, int);
+static void	getexp_err(struct exportlist *, struct grouplist *);
+static struct grouplist	*get_grp(void);
+static void	hang_dirp(struct dirlist *, struct grouplist *,
+				struct exportlist *, int);
+static void	huphandler(int sig);
+static int	makemask(struct sockaddr_storage *ssp, int bitlen);
+static void	mntsrv(struct svc_req *, SVCXPRT *);
+static void	nextfield(char **, char **);
+static void	out_of_mem(void);
+static void	parsecred(char *, struct xucred *);
+static int	parsesec(char *, struct exportlist *);
+static int	put_exlist(struct dirlist *, XDR *, struct dirlist *,
+		    int *, int);
+static void	*sa_rawaddr(struct sockaddr *sa, int *nbytes);
+static int	sacmp(struct sockaddr *sa1, struct sockaddr *sa2,
+		    struct sockaddr *samask);
+static int	scan_tree(struct dirlist *, struct sockaddr *);
+static void	usage(void);
+static int	xdr_dir(XDR *, char *);
+static int	xdr_explist(XDR *, caddr_t);
+static int	xdr_explist_brief(XDR *, caddr_t);
+static int	xdr_explist_common(XDR *, caddr_t, int);
+static int	xdr_fhs(XDR *, caddr_t);
+static int	xdr_mlist(XDR *, caddr_t);
+static void	terminate(int);
+
+static struct exportlist *exphead;
+static struct mountlist *mlhead;
+static struct grouplist *grphead;
+static char *exnames_default[2] = { _PATH_EXPORTS, NULL };
+static char **exnames;
+static char **hosts = NULL;
+static struct xucred def_anon = {
 	XUCRED_VERSION,
 	(uid_t)-2,
 	1,
 	{ (gid_t)-2 },
 	NULL
 };
-int force_v2 = 0;
-int resvport_only = 1;
-int nhosts = 0;
-int dir_only = 1;
-int dolog = 0;
-int got_sighup = 0;
-int xcreated = 0;
+static int force_v2 = 0;
+static int resvport_only = 1;
+static int nhosts = 0;
+static int dir_only = 1;
+static int dolog = 0;
+static int got_sighup = 0;
+static int xcreated = 0;
 
-char *svcport_str = NULL;
+static char *svcport_str = NULL;
+static int mallocd_svcport = 0;
+static int *sock_fd;
+static int sock_fdcnt;
+static int sock_fdpos;
+static int suspend_nfsd = 0;
 
-int opt_flags;
+static int opt_flags;
 static int have_v6 = 1;
 
-int v4root_phase = 0;
-char v4root_dirpath[PATH_MAX + 1];
-int run_v4server = 0;
-int has_publicfh = 0;
+static int v4root_phase = 0;
+static char v4root_dirpath[PATH_MAX + 1];
+static int has_publicfh = 0;
 
-struct pidfh *pfh = NULL;
+static struct pidfh *pfh = NULL;
 /* Bits for opt_flags above */
 #define	OP_MAPROOT	0x01
 #define	OP_MAPALL	0x02
@@ -254,12 +271,79 @@ struct pidfh *pfh = NULL;
 #define OP_SEC		0x400
 
 #ifdef DEBUG
-int debug = 1;
-void	SYSLOG(int, const char *, ...) __printflike(2, 3);
+static int debug = 1;
+static void	SYSLOG(int, const char *, ...) __printflike(2, 3);
 #define syslog SYSLOG
 #else
-int debug = 0;
+static int debug = 0;
 #endif
+
+/*
+ * Similar to strsep(), but it allows for quoted strings
+ * and escaped characters.
+ *
+ * It returns the string (or NULL, if *stringp is NULL),
+ * which is a de-quoted version of the string if necessary.
+ *
+ * It modifies *stringp in place.
+ */
+static char *
+strsep_quote(char **stringp, const char *delim)
+{
+	char *srcptr, *dstptr, *retval;
+	char quot = 0;
+	
+	if (stringp == NULL || *stringp == NULL)
+		return (NULL);
+
+	srcptr = dstptr = retval = *stringp;
+
+	while (*srcptr) {
+		/*
+		 * We're looking for several edge cases here.
+		 * First:  if we're in quote state (quot != 0),
+		 * then we ignore the delim characters, but otherwise
+		 * process as normal, unless it is the quote character.
+		 * Second:  if the current character is a backslash,
+		 * we take the next character as-is, without checking
+		 * for delim, quote, or backslash.  Exception:  if the
+		 * next character is a NUL, that's the end of the string.
+		 * Third:  if the character is a quote character, we toggle
+		 * quote state.
+		 * Otherwise:  check the current character for NUL, or
+		 * being in delim, and end the string if either is true.
+		 */
+		if (*srcptr == '\\') {
+			srcptr++;
+			/*
+			 * The edge case here is if the next character
+			 * is NUL, we want to stop processing.  But if
+			 * it's not NUL, then we simply want to copy it.
+			 */
+			if (*srcptr) {
+				*dstptr++ = *srcptr++;
+			}
+			continue;
+		}
+		if (quot == 0 && (*srcptr == '\'' || *srcptr == '"')) {
+			quot = *srcptr++;
+			continue;
+		}
+		if (quot && *srcptr == quot) {
+			/* End of the quoted part */
+			quot = 0;
+			srcptr++;
+			continue;
+		}
+		if (!quot && strchr(delim, *srcptr))
+			break;
+		*dstptr++ = *srcptr++;
+	}
+
+	*dstptr = 0; /* Terminate the string */
+	*stringp = (*srcptr == '\0') ? NULL : srcptr + 1;
+	return (retval);
+}
 
 /*
  * Mountd server for NFS mount protocol as described in:
@@ -269,9 +353,7 @@ int debug = 0;
  * and "-n" to allow nonroot mount.
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	fd_set readfds;
 	struct netconfig *nconf;
@@ -281,6 +363,8 @@ main(argc, argv)
 	in_port_t svcport;
 	int c, k, s;
 	int maxrec = RPC_MAXDATASIZE;
+	int attempt_cnt, port_len, port_pos, ret;
+	char **port_list;
 
 	/* Check that another mountd isn't already running. */
 	pfh = pidfile_open(_PATH_MOUNTDPID, 0600, &otherpid);
@@ -296,13 +380,13 @@ main(argc, argv)
 	else
 		close(s);
 
-	while ((c = getopt(argc, argv, "2deh:lnp:r")) != -1)
+	while ((c = getopt(argc, argv, "2deh:lnp:rS")) != -1)
 		switch (c) {
 		case '2':
 			force_v2 = 1;
 			break;
 		case 'e':
-			run_v4server = 1;
+			/* now a no-op, since this is the default */
 			break;
 		case 'n':
 			resvport_only = 0;
@@ -345,26 +429,16 @@ main(argc, argv)
 				out_of_mem();
 			}
 			break;
+		case 'S':
+			suspend_nfsd = 1;
+			break;
 		default:
 			usage();
-		};
-
-	/*
-	 * If the "-e" option was specified OR only the nfsd module is
-	 * found in the server, run "nfsd".
-	 * Otherwise, try and run "nfsserver".
-	 */
-	if (run_v4server > 0) {
-		if (modfind("nfsd") < 0) {
-			/* Not present in kernel, try loading it */
-			if (kldload("nfsd") < 0 || modfind("nfsd") < 0)
-				errx(1, "NFS server is not available");
 		}
-	} else if (modfind("nfsserver") < 0 && modfind("nfsd") >= 0) {
-		run_v4server = 1;
-	} else if (modfind("nfsserver") < 0) {
+
+	if (modfind("nfsd") < 0) {
 		/* Not present in kernel, try loading it */
-		if (kldload("nfsserver") < 0 || modfind("nfsserver") < 0)
+		if (kldload("nfsd") < 0 || modfind("nfsd") < 0)
 			errx(1, "NFS server is not available");
 	}
 
@@ -416,7 +490,7 @@ main(argc, argv)
 	 * list.
 	 */
 	if (nhosts == 0) {
-		hosts = malloc(sizeof(char**));
+		hosts = malloc(sizeof(char *));
 		if (hosts == NULL)
 			out_of_mem();
 		hosts[0] = "*";
@@ -451,17 +525,97 @@ main(argc, argv)
 		hosts[nhosts - 1] = "127.0.0.1";
 	}
 
+	attempt_cnt = 1;
+	sock_fdcnt = 0;
+	sock_fd = NULL;
+	port_list = NULL;
+	port_len = 0;
 	nc_handle = setnetconfig();
 	while ((nconf = getnetconfig(nc_handle))) {
 		if (nconf->nc_flag & NC_VISIBLE) {
 			if (have_v6 == 0 && strcmp(nconf->nc_protofmly,
 			    "inet6") == 0) {
 				/* DO NOTHING */
+			} else {
+				ret = create_service(nconf);
+				if (ret == 1)
+					/* Ignore this call */
+					continue;
+				if (ret < 0) {
+					/*
+					 * Failed to bind port, so close off
+					 * all sockets created and try again
+					 * if the port# was dynamically
+					 * assigned via bind(2).
+					 */
+					clearout_service();
+					if (mallocd_svcport != 0 &&
+					    attempt_cnt < GETPORT_MAXTRY) {
+						free(svcport_str);
+						svcport_str = NULL;
+						mallocd_svcport = 0;
+					} else {
+						errno = EADDRINUSE;
+						syslog(LOG_ERR,
+						    "bindresvport_sa: %m");
+						exit(1);
+					}
+
+					/* Start over at the first service. */
+					free(sock_fd);
+					sock_fdcnt = 0;
+					sock_fd = NULL;
+					nc_handle = setnetconfig();
+					attempt_cnt++;
+				} else if (mallocd_svcport != 0 &&
+				    attempt_cnt == GETPORT_MAXTRY) {
+					/*
+					 * For the last attempt, allow
+					 * different port #s for each nconf
+					 * by saving the svcport_str and
+					 * setting it back to NULL.
+					 */
+					port_list = realloc(port_list,
+					    (port_len + 1) * sizeof(char *));
+					if (port_list == NULL)
+						out_of_mem();
+					port_list[port_len++] = svcport_str;
+					svcport_str = NULL;
+					mallocd_svcport = 0;
+				}
+			}
+		}
+	}
+
+	/*
+	 * Successfully bound the ports, so call complete_service() to
+	 * do the rest of the setup on the service(s).
+	 */
+	sock_fdpos = 0;
+	port_pos = 0;
+	nc_handle = setnetconfig();
+	while ((nconf = getnetconfig(nc_handle))) {
+		if (nconf->nc_flag & NC_VISIBLE) {
+			if (have_v6 == 0 && strcmp(nconf->nc_protofmly,
+			    "inet6") == 0) {
+				/* DO NOTHING */
+			} else if (port_list != NULL) {
+				if (port_pos >= port_len) {
+					syslog(LOG_ERR, "too many port#s");
+					exit(1);
+				}
+				complete_service(nconf, port_list[port_pos++]);
 			} else
-				create_service(nconf);
+				complete_service(nconf, svcport_str);
 		}
 	}
 	endnetconfig(nc_handle);
+	free(sock_fd);
+	if (port_list != NULL) {
+		for (port_pos = 0; port_pos < port_len; port_pos++)
+			free(port_list[port_pos]);
+		free(port_list);
+	}
 
 	if (xcreated == 0) {
 		syslog(LOG_ERR, "could not create any services");
@@ -491,30 +645,31 @@ main(argc, argv)
 
 /*
  * This routine creates and binds sockets on the appropriate
- * addresses. It gets called one time for each transport and
- * registrates the service with rpcbind on that trasport.
+ * addresses. It gets called one time for each transport.
+ * It returns 0 upon success, 1 for ingore the call and -1 to indicate
+ * bind failed with EADDRINUSE.
+ * Any file descriptors that have been created are stored in sock_fd and
+ * the total count of them is maintained in sock_fdcnt.
  */
-void
+static int
 create_service(struct netconfig *nconf)
 {
 	struct addrinfo hints, *res = NULL;
 	struct sockaddr_in *sin;
 	struct sockaddr_in6 *sin6;
 	struct __rpc_sockinfo si;
-	struct netbuf servaddr;
-	SVCXPRT	*transp = NULL;
 	int aicode;
 	int fd;
 	int nhostsbak;
 	int one = 1;
 	int r;
-	int registered = 0;
 	u_int32_t host_addr[4];  /* IPv4 or IPv6 */
+	int mallocd_res;
 
 	if ((nconf->nc_semantics != NC_TPI_CLTS) &&
 	    (nconf->nc_semantics != NC_TPI_COTS) &&
 	    (nconf->nc_semantics != NC_TPI_COTS_ORD))
-		return;	/* not my type */
+		return (1);	/* not my type */
 
 	/*
 	 * XXX - using RPC library internal functions.
@@ -522,12 +677,11 @@ create_service(struct netconfig *nconf)
 	if (!__rpc_nconf2sockinfo(nconf, &si)) {
 		syslog(LOG_ERR, "cannot get information for %s",
 		    nconf->nc_netid);
-		return;
+		return (1);
 	}
 
 	/* Get mountd's address on this transport */
 	memset(&hints, 0, sizeof hints);
-	hints.ai_flags = AI_PASSIVE;
 	hints.ai_family = si.si_af;
 	hints.ai_socktype = si.si_socktype;
 	hints.ai_protocol = si.si_proto;
@@ -538,25 +692,35 @@ create_service(struct netconfig *nconf)
 	nhostsbak = nhosts;
 	while (nhostsbak > 0) {
 		--nhostsbak;
+		sock_fd = realloc(sock_fd, (sock_fdcnt + 1) * sizeof(int));
+		if (sock_fd == NULL)
+			out_of_mem();
+		sock_fd[sock_fdcnt++] = -1;	/* Set invalid for now. */
+		mallocd_res = 0;
+
+		hints.ai_flags = AI_PASSIVE;
+
 		/*	
 		 * XXX - using RPC library internal functions.
 		 */
 		if ((fd = __rpc_nconf2fd(nconf)) < 0) {
 			int non_fatal = 0;
-	    		if (errno == EPROTONOSUPPORT &&
+	    		if (errno == EAFNOSUPPORT &&
 			    nconf->nc_semantics != NC_TPI_CLTS) 
 				non_fatal = 1;
 				
 			syslog(non_fatal ? LOG_DEBUG : LOG_ERR, 
 			    "cannot create socket for %s", nconf->nc_netid);
-	    		return;
+			if (non_fatal != 0)
+				continue;
+			exit(1);
 		}
 
 		switch (hints.ai_family) {
 		case AF_INET:
 			if (inet_pton(AF_INET, hosts[nhostsbak],
 			    host_addr) == 1) {
-				hints.ai_flags &= AI_NUMERICHOST;
+				hints.ai_flags |= AI_NUMERICHOST;
 			} else {
 				/*
 				 * Skip if we have an AF_INET6 address.
@@ -571,7 +735,7 @@ create_service(struct netconfig *nconf)
 		case AF_INET6:
 			if (inet_pton(AF_INET6, hosts[nhostsbak],
 			    host_addr) == 1) {
-				hints.ai_flags &= AI_NUMERICHOST;
+				hints.ai_flags |= AI_NUMERICHOST;
 			} else {
 				/*
 				 * Skip if we have an AF_INET address.
@@ -607,6 +771,7 @@ create_service(struct netconfig *nconf)
 				res = malloc(sizeof(struct addrinfo));
 				if (res == NULL) 
 					out_of_mem();
+				mallocd_res = 1;
 				res->ai_flags = hints.ai_flags;
 				res->ai_family = hints.ai_family;
 				res->ai_protocol = hints.ai_protocol;
@@ -620,7 +785,7 @@ create_service(struct netconfig *nconf)
 					sin->sin_addr.s_addr = htonl(INADDR_ANY);
 					res->ai_addr = (struct sockaddr*) sin;
 					res->ai_addrlen = (socklen_t)
-					    sizeof(res->ai_addr);
+					    sizeof(struct sockaddr_in);
 					break;
 				case AF_INET6:
 					sin6 = malloc(sizeof(struct sockaddr_in6));
@@ -631,10 +796,12 @@ create_service(struct netconfig *nconf)
 					sin6->sin6_addr = in6addr_any;
 					res->ai_addr = (struct sockaddr*) sin6;
 					res->ai_addrlen = (socklen_t)
-					    sizeof(res->ai_addr);
-						break;
-				default:
+					    sizeof(struct sockaddr_in6);
 					break;
+				default:
+					syslog(LOG_ERR, "bad addr fam %d",
+					    res->ai_family);
+					exit(1);
 				}
 			} else { 
 				if ((aicode = getaddrinfo(NULL, svcport_str,
@@ -643,6 +810,7 @@ create_service(struct netconfig *nconf)
 					    "cannot get local address for %s: %s",
 					    nconf->nc_netid,
 					    gai_strerror(aicode));
+					close(fd);
 					continue;
 				}
 			}
@@ -652,15 +820,90 @@ create_service(struct netconfig *nconf)
 				syslog(LOG_ERR,
 				    "cannot get local address for %s: %s",
 				    nconf->nc_netid, gai_strerror(aicode));
+				close(fd);
 				continue;
 			}
 		}
 
+		/* Store the fd. */
+		sock_fd[sock_fdcnt - 1] = fd;
+
+		/* Now, attempt the bind. */
 		r = bindresvport_sa(fd, res->ai_addr);
 		if (r != 0) {
+			if (errno == EADDRINUSE && mallocd_svcport != 0) {
+				if (mallocd_res != 0) {
+					free(res->ai_addr);
+					free(res);
+				} else
+					freeaddrinfo(res);
+				return (-1);
+			}
 			syslog(LOG_ERR, "bindresvport_sa: %m");
 			exit(1);
 		}
+
+		if (svcport_str == NULL) {
+			svcport_str = malloc(NI_MAXSERV * sizeof(char));
+			if (svcport_str == NULL)
+				out_of_mem();
+			mallocd_svcport = 1;
+
+			if (getnameinfo(res->ai_addr,
+			    res->ai_addr->sa_len, NULL, NI_MAXHOST,
+			    svcport_str, NI_MAXSERV * sizeof(char),
+			    NI_NUMERICHOST | NI_NUMERICSERV))
+				errx(1, "Cannot get port number");
+		}
+		if (mallocd_res != 0) {
+			free(res->ai_addr);
+			free(res);
+		} else
+			freeaddrinfo(res);
+		res = NULL;
+	}
+	return (0);
+}
+
+/*
+ * Called after all the create_service() calls have succeeded, to complete
+ * the setup and registration.
+ */
+static void
+complete_service(struct netconfig *nconf, char *port_str)
+{
+	struct addrinfo hints, *res = NULL;
+	struct __rpc_sockinfo si;
+	struct netbuf servaddr;
+	SVCXPRT	*transp = NULL;
+	int aicode, fd, nhostsbak;
+	int registered = 0;
+
+	if ((nconf->nc_semantics != NC_TPI_CLTS) &&
+	    (nconf->nc_semantics != NC_TPI_COTS) &&
+	    (nconf->nc_semantics != NC_TPI_COTS_ORD))
+		return;	/* not my type */
+
+	/*
+	 * XXX - using RPC library internal functions.
+	 */
+	if (!__rpc_nconf2sockinfo(nconf, &si)) {
+		syslog(LOG_ERR, "cannot get information for %s",
+		    nconf->nc_netid);
+		return;
+	}
+
+	nhostsbak = nhosts;
+	while (nhostsbak > 0) {
+		--nhostsbak;
+		if (sock_fdpos >= sock_fdcnt) {
+			/* Should never happen. */
+			syslog(LOG_ERR, "Ran out of socket fd's");
+			return;
+		}
+		fd = sock_fd[sock_fdpos++];
+		if (fd < 0)
+			continue;
 
 		if (nconf->nc_semantics != NC_TPI_CLTS)
 			listen(fd, SOMAXCONN);
@@ -696,19 +939,7 @@ create_service(struct netconfig *nconf)
 			hints.ai_socktype = si.si_socktype;
 			hints.ai_protocol = si.si_proto;
 
-			if (svcport_str == NULL) {
-				svcport_str = malloc(NI_MAXSERV * sizeof(char));
-				if (svcport_str == NULL)
-					out_of_mem();
-
-				if (getnameinfo(res->ai_addr,
-				    res->ai_addr->sa_len, NULL, NI_MAXHOST,
-				    svcport_str, NI_MAXSERV * sizeof(char),
-				    NI_NUMERICHOST | NI_NUMERICSERV))
-					errx(1, "Cannot get port number");
-			}
-
-			if((aicode = getaddrinfo(NULL, svcport_str, &hints,
+			if ((aicode = getaddrinfo(NULL, port_str, &hints,
 			    &res)) != 0) {
 				syslog(LOG_ERR, "cannot get local address: %s",
 				    gai_strerror(aicode));
@@ -728,12 +959,29 @@ create_service(struct netconfig *nconf)
 	} /* end while */
 }
 
+/*
+ * Clear out sockets after a failure to bind one of them, so that the
+ * cycle of socket creation/binding can start anew.
+ */
 static void
-usage()
+clearout_service(void)
+{
+	int i;
+
+	for (i = 0; i < sock_fdcnt; i++) {
+		if (sock_fd[i] >= 0) {
+			shutdown(sock_fd[i], SHUT_RDWR);
+			close(sock_fd[i]);
+		}
+	}
+}
+
+static void
+usage(void)
 {
 	fprintf(stderr,
 		"usage: mountd [-2] [-d] [-e] [-l] [-n] [-p <port>] [-r] "
-		"[-h <bindip>] [export_file ...]\n");
+		"[-S] [-h <bindip>] [export_file ...]\n");
 	exit(1);
 }
 
@@ -741,9 +989,7 @@ usage()
  * The mount rpc service
  */
 void
-mntsrv(rqstp, transp)
-	struct svc_req *rqstp;
-	SVCXPRT *transp;
+mntsrv(struct svc_req *rqstp, SVCXPRT *transp)
 {
 	struct exportlist *ep;
 	struct dirlist *dp;
@@ -757,6 +1003,7 @@ mntsrv(rqstp, transp)
 	char rpcpath[MNTPATHLEN + 1], dirpath[MAXPATHLEN];
 	int bad = 0, defset, hostset;
 	sigset_t sighup_mask;
+	int numsecflavors, *secflavorsp;
 
 	sigemptyset(&sighup_mask);
 	sigaddset(&sighup_mask, SIGHUP);
@@ -819,9 +1066,11 @@ mntsrv(rqstp, transp)
 		sigprocmask(SIG_BLOCK, &sighup_mask, NULL);
 		ep = ex_search(&fsb.f_fsid);
 		hostset = defset = 0;
-		if (ep && (chk_host(ep->ex_defdir, saddr, &defset, &hostset) ||
+		if (ep && (chk_host(ep->ex_defdir, saddr, &defset, &hostset,
+		    &numsecflavors, &secflavorsp) ||
 		    ((dp = dirp_search(ep->ex_dirl, dirpath)) &&
-		      chk_host(dp, saddr, &defset, &hostset)) ||
+		      chk_host(dp, saddr, &defset, &hostset, &numsecflavors,
+		       &secflavorsp)) ||
 		    (defset && scan_tree(ep->ex_defdir, saddr) == 0 &&
 		     scan_tree(ep->ex_dirl, saddr) == 0))) {
 			if (bad) {
@@ -831,10 +1080,15 @@ mntsrv(rqstp, transp)
 				sigprocmask(SIG_UNBLOCK, &sighup_mask, NULL);
 				return;
 			}
-			if (hostset & DP_HOSTSET)
+			if (hostset & DP_HOSTSET) {
 				fhr.fhr_flag = hostset;
-			else
+				fhr.fhr_numsecflavors = numsecflavors;
+				fhr.fhr_secflavors = secflavorsp;
+			} else {
 				fhr.fhr_flag = defset;
+				fhr.fhr_numsecflavors = ep->ex_defnumsecflavors;
+				fhr.fhr_secflavors = ep->ex_defsecflavors;
+			}
 			fhr.fhr_vers = rqstp->rq_vers;
 			/* Get the file handle */
 			memset(&fhr.fhr_fh, 0, sizeof(nfsfh_t));
@@ -847,8 +1101,6 @@ mntsrv(rqstp, transp)
 				sigprocmask(SIG_UNBLOCK, &sighup_mask, NULL);
 				return;
 			}
-			fhr.fhr_numsecflavors = ep->ex_numsecflavors;
-			fhr.fhr_secflavors = ep->ex_secflavors;
 			if (!svc_sendreply(transp, (xdrproc_t)xdr_fhs,
 			    (caddr_t)&fhr))
 				syslog(LOG_ERR, "can't send reply");
@@ -948,10 +1200,8 @@ mntsrv(rqstp, transp)
 /*
  * Xdr conversion for a dirpath string
  */
-int
-xdr_dir(xdrsp, dirp)
-	XDR *xdrsp;
-	char *dirp;
+static int
+xdr_dir(XDR *xdrsp, char *dirp)
 {
 	return (xdr_string(xdrsp, &dirp, MNTPATHLEN));
 }
@@ -959,10 +1209,8 @@ xdr_dir(xdrsp, dirp)
 /*
  * Xdr routine to generate file handle reply
  */
-int
-xdr_fhs(xdrsp, cp)
-	XDR *xdrsp;
-	caddr_t cp;
+static int
+xdr_fhs(XDR *xdrsp, caddr_t cp)
 {
 	struct fhreturn *fhrp = (struct fhreturn *)cp;
 	u_long ok = 0, len, auth;
@@ -993,14 +1241,12 @@ xdr_fhs(xdrsp, cp)
 				return (0);
 			return (xdr_long(xdrsp, &auth));
 		}
-	};
+	}
 	return (0);
 }
 
-int
-xdr_mlist(xdrsp, cp)
-	XDR *xdrsp;
-	caddr_t cp;
+static int
+xdr_mlist(XDR *xdrsp, caddr_t cp __unused)
 {
 	struct mountlist *mlp;
 	int true = 1;
@@ -1027,11 +1273,8 @@ xdr_mlist(xdrsp, cp)
 /*
  * Xdr conversion for export list
  */
-int
-xdr_explist_common(xdrsp, cp, brief)
-	XDR *xdrsp;
-	caddr_t cp;
-	int brief;
+static int
+xdr_explist_common(XDR *xdrsp, caddr_t cp __unused, int brief)
 {
 	struct exportlist *ep;
 	int false = 0;
@@ -1066,13 +1309,9 @@ errout:
  * Called from xdr_explist() to traverse the tree and export the
  * directory paths.
  */
-int
-put_exlist(dp, xdrsp, adp, putdefp, brief)
-	struct dirlist *dp;
-	XDR *xdrsp;
-	struct dirlist *adp;
-	int *putdefp;
-	int brief;
+static int
+put_exlist(struct dirlist *dp, XDR *xdrsp, struct dirlist *adp, int *putdefp,
+	int brief)
 {
 	struct grouplist *grp;
 	struct hostlist *hp;
@@ -1134,33 +1373,29 @@ put_exlist(dp, xdrsp, adp, putdefp, brief)
 	return (0);
 }
 
-int
-xdr_explist(xdrsp, cp)
-	XDR *xdrsp;
-	caddr_t cp;
+static int
+xdr_explist(XDR *xdrsp, caddr_t cp)
 {
 
 	return xdr_explist_common(xdrsp, cp, 0);
 }
 
-int
-xdr_explist_brief(xdrsp, cp)
-	XDR *xdrsp;
-	caddr_t cp;
+static int
+xdr_explist_brief(XDR *xdrsp, caddr_t cp)
 {
 
 	return xdr_explist_common(xdrsp, cp, 1);
 }
 
-char *line;
-int linesize;
-FILE *exp_file;
+static char *line;
+static size_t linesize;
+static FILE *exp_file;
 
 /*
  * Get the export list from one, currently open file
  */
 static void
-get_exportlist_one()
+get_exportlist_one(void)
 {
 	struct exportlist *ep, *ep2;
 	struct grouplist *grp, *tgrp;
@@ -1244,6 +1479,9 @@ get_exportlist_one()
 			    }
 			    if (check_dirpath(cp) &&
 				statfs(cp, &fsb) >= 0) {
+				if ((fsb.f_flags & MNT_AUTOMOUNTED) != 0)
+				    syslog(LOG_ERR, "Warning: exporting of "
+					"automounted fs %s not supported", cp);
 				if (got_nondir) {
 				    syslog(LOG_ERR, "dirs must be first");
 				    getexp_err(ep, tgrp);
@@ -1469,8 +1707,8 @@ nextline:
 /*
  * Get the export list from all specified files
  */
-void
-get_exportlist()
+static void
+get_exportlist(void)
 {
 	struct exportlist *ep, *ep2;
 	struct grouplist *grp, *tgrp;
@@ -1478,18 +1716,17 @@ get_exportlist()
 	struct iovec *iov;
 	struct statfs *fsp, *mntbufp;
 	struct xvfsconf vfc;
-	char *dirp;
 	char errmsg[255];
-	int dirplen, num, i;
+	int num, i;
 	int iovlen;
 	int done;
 	struct nfsex_args eargs;
 
+	if (suspend_nfsd != 0)
+		(void)nfssvc(NFSSVC_SUSPENDNFSD, NULL);
 	v4root_dirpath[0] = '\0';
 	bzero(&export, sizeof(export));
 	export.ex_flags = MNT_DELEXPORT;
-	dirp = NULL;
-	dirplen = 0;
 	iov = NULL;
 	iovlen = 0;
 	bzero(errmsg, sizeof(errmsg));
@@ -1518,8 +1755,7 @@ get_exportlist()
 	 */
 	bzero(&eargs, sizeof (eargs));
 	eargs.export.ex_flags = MNT_DELEXPORT;
-	if (run_v4server > 0 &&
-	    nfssvc(NFSSVC_V4ROOTEXPORT, (caddr_t)&eargs) < 0 &&
+	if (nfssvc(NFSSVC_V4ROOTEXPORT, (caddr_t)&eargs) < 0 &&
 	    errno != ENOENT)
 		syslog(LOG_ERR, "Can't delete exports for V4:");
 
@@ -1553,6 +1789,12 @@ get_exportlist()
 		}
 
 		/*
+		 * We do not need to delete "export" flag from
+		 * filesystems that do not have it set.
+		 */
+		if (!(fsp->f_flags & MNT_EXPORTED))
+		    continue;
+		/*
 		 * Do not delete export for network filesystem by
 		 * passing "export" arg to nmount().
 		 * It only makes sense to do this for local filesystems.
@@ -1566,9 +1808,14 @@ get_exportlist()
 		iov[3].iov_len = strlen(fsp->f_mntonname) + 1;
 		iov[5].iov_base = fsp->f_mntfromname;
 		iov[5].iov_len = strlen(fsp->f_mntfromname) + 1;
+		errmsg[0] = '\0';
 
+		/*
+		 * EXDEV is returned when path exists but is not a
+		 * mount point.  May happens if raced with unmount.
+		 */
 		if (nmount(iov, iovlen, fsp->f_flags) < 0 &&
-		    errno != ENOENT && errno != ENOTSUP) {
+		    errno != ENOENT && errno != ENOTSUP && errno != EXDEV) {
 			syslog(LOG_ERR,
 			    "can't delete exports for %s: %m %s",
 			    fsp->f_mntonname, errmsg);
@@ -1613,47 +1860,46 @@ get_exportlist()
 	/*
 	 * If there was no public fh, clear any previous one set.
 	 */
-	if (run_v4server > 0 && has_publicfh == 0)
+	if (has_publicfh == 0)
 		(void) nfssvc(NFSSVC_NOPUBLICFH, NULL);
+
+	/* Resume the nfsd. If they weren't suspended, this is harmless. */
+	(void)nfssvc(NFSSVC_RESUMENFSD, NULL);
 }
 
 /*
  * Allocate an export list element
  */
-struct exportlist *
-get_exp()
+static struct exportlist *
+get_exp(void)
 {
 	struct exportlist *ep;
 
-	ep = (struct exportlist *)malloc(sizeof (struct exportlist));
+	ep = (struct exportlist *)calloc(1, sizeof (struct exportlist));
 	if (ep == (struct exportlist *)NULL)
 		out_of_mem();
-	memset(ep, 0, sizeof(struct exportlist));
 	return (ep);
 }
 
 /*
  * Allocate a group list element
  */
-struct grouplist *
-get_grp()
+static struct grouplist *
+get_grp(void)
 {
 	struct grouplist *gp;
 
-	gp = (struct grouplist *)malloc(sizeof (struct grouplist));
+	gp = (struct grouplist *)calloc(1, sizeof (struct grouplist));
 	if (gp == (struct grouplist *)NULL)
 		out_of_mem();
-	memset(gp, 0, sizeof(struct grouplist));
 	return (gp);
 }
 
 /*
  * Clean up upon an error in get_exportlist().
  */
-void
-getexp_err(ep, grp)
-	struct exportlist *ep;
-	struct grouplist *grp;
+static void
+getexp_err(struct exportlist *ep, struct grouplist *grp)
 {
 	struct grouplist *tgrp;
 
@@ -1671,9 +1917,8 @@ getexp_err(ep, grp)
 /*
  * Search the export list for a matching fs.
  */
-struct exportlist *
-ex_search(fsid)
-	fsid_t *fsid;
+static struct exportlist *
+ex_search(fsid_t *fsid)
 {
 	struct exportlist *ep;
 
@@ -1690,11 +1935,8 @@ ex_search(fsid)
 /*
  * Add a directory path to the list.
  */
-char *
-add_expdir(dpp, cp, len)
-	struct dirlist **dpp;
-	char *cp;
-	int len;
+static char *
+add_expdir(struct dirlist **dpp, char *cp, int len)
 {
 	struct dirlist *dp;
 
@@ -1714,12 +1956,9 @@ add_expdir(dpp, cp, len)
  * Hang the dir list element off the dirpath binary tree as required
  * and update the entry for host.
  */
-void
-hang_dirp(dp, grp, ep, flags)
-	struct dirlist *dp;
-	struct grouplist *grp;
-	struct exportlist *ep;
-	int flags;
+static void
+hang_dirp(struct dirlist *dp, struct grouplist *grp, struct exportlist *ep,
+	int flags)
 {
 	struct hostlist *hp;
 	struct dirlist *dp2;
@@ -1731,11 +1970,21 @@ hang_dirp(dp, grp, ep, flags)
 			ep->ex_defdir = dp;
 		if (grp == (struct grouplist *)NULL) {
 			ep->ex_defdir->dp_flag |= DP_DEFSET;
+			/* Save the default security flavors list. */
+			ep->ex_defnumsecflavors = ep->ex_numsecflavors;
+			if (ep->ex_numsecflavors > 0)
+				memcpy(ep->ex_defsecflavors, ep->ex_secflavors,
+				    sizeof(ep->ex_secflavors));
 		} else while (grp) {
 			hp = get_ht();
 			hp->ht_grp = grp;
 			hp->ht_next = ep->ex_defdir->dp_hosts;
 			ep->ex_defdir->dp_hosts = hp;
+			/* Save the security flavors list for this host set. */
+			grp->gr_numsecflavors = ep->ex_numsecflavors;
+			if (ep->ex_numsecflavors > 0)
+				memcpy(grp->gr_secflavors, ep->ex_secflavors,
+				    sizeof(ep->ex_secflavors));
 			grp = grp->gr_next;
 		}
 	} else {
@@ -1745,7 +1994,7 @@ hang_dirp(dp, grp, ep, flags)
 		 */
 		while (dp) {
 			dp2 = dp->dp_left;
-			add_dlist(&ep->ex_dirl, dp, grp, flags);
+			add_dlist(&ep->ex_dirl, dp, grp, flags, ep);
 			dp = dp2;
 		}
 	}
@@ -1755,12 +2004,9 @@ hang_dirp(dp, grp, ep, flags)
  * Traverse the binary tree either updating a node that is already there
  * for the new directory or adding the new node.
  */
-void
-add_dlist(dpp, newdp, grp, flags)
-	struct dirlist **dpp;
-	struct dirlist *newdp;
-	struct grouplist *grp;
-	int flags;
+static void
+add_dlist(struct dirlist **dpp, struct dirlist *newdp, struct grouplist *grp,
+	int flags, struct exportlist *ep)
 {
 	struct dirlist *dp;
 	struct hostlist *hp;
@@ -1770,10 +2016,10 @@ add_dlist(dpp, newdp, grp, flags)
 	if (dp) {
 		cmp = strcmp(dp->dp_dirp, newdp->dp_dirp);
 		if (cmp > 0) {
-			add_dlist(&dp->dp_left, newdp, grp, flags);
+			add_dlist(&dp->dp_left, newdp, grp, flags, ep);
 			return;
 		} else if (cmp < 0) {
-			add_dlist(&dp->dp_right, newdp, grp, flags);
+			add_dlist(&dp->dp_right, newdp, grp, flags, ep);
 			return;
 		} else
 			free((caddr_t)newdp);
@@ -1792,20 +2038,28 @@ add_dlist(dpp, newdp, grp, flags)
 			hp->ht_grp = grp;
 			hp->ht_next = dp->dp_hosts;
 			dp->dp_hosts = hp;
+			/* Save the security flavors list for this host set. */
+			grp->gr_numsecflavors = ep->ex_numsecflavors;
+			if (ep->ex_numsecflavors > 0)
+				memcpy(grp->gr_secflavors, ep->ex_secflavors,
+				    sizeof(ep->ex_secflavors));
 			grp = grp->gr_next;
 		} while (grp);
 	} else {
 		dp->dp_flag |= DP_DEFSET;
+		/* Save the default security flavors list. */
+		ep->ex_defnumsecflavors = ep->ex_numsecflavors;
+		if (ep->ex_numsecflavors > 0)
+			memcpy(ep->ex_defsecflavors, ep->ex_secflavors,
+			    sizeof(ep->ex_secflavors));
 	}
 }
 
 /*
  * Search for a dirpath on the export point.
  */
-struct dirlist *
-dirp_search(dp, dirp)
-	struct dirlist *dp;
-	char *dirp;
+static struct dirlist *
+dirp_search(struct dirlist *dp, char *dirp)
 {
 	int cmp;
 
@@ -1824,12 +2078,9 @@ dirp_search(dp, dirp)
 /*
  * Scan for a host match in a directory tree.
  */
-int
-chk_host(dp, saddr, defsetp, hostsetp)
-	struct dirlist *dp;
-	struct sockaddr *saddr;
-	int *defsetp;
-	int *hostsetp;
+static int
+chk_host(struct dirlist *dp, struct sockaddr *saddr, int *defsetp,
+	int *hostsetp, int *numsecflavors, int **secflavorsp)
 {
 	struct hostlist *hp;
 	struct grouplist *grp;
@@ -1848,6 +2099,12 @@ chk_host(dp, saddr, defsetp, hostsetp)
 					if (!sacmp(ai->ai_addr, saddr, NULL)) {
 						*hostsetp =
 						    (hp->ht_flag | DP_HOSTSET);
+						if (numsecflavors != NULL) {
+							*numsecflavors =
+							    grp->gr_numsecflavors;
+							*secflavorsp =
+							    grp->gr_secflavors;
+						}
 						return (1);
 					}
 				}
@@ -1858,6 +2115,12 @@ chk_host(dp, saddr, defsetp, hostsetp)
 				    (struct sockaddr *)
 				    &grp->gr_ptr.gt_net.nt_mask)) {
 					*hostsetp = (hp->ht_flag | DP_HOSTSET);
+					if (numsecflavors != NULL) {
+						*numsecflavors =
+						    grp->gr_numsecflavors;
+						*secflavorsp =
+						    grp->gr_secflavors;
+					}
 					return (1);
 				}
 				break;
@@ -1871,17 +2134,15 @@ chk_host(dp, saddr, defsetp, hostsetp)
 /*
  * Scan tree for a host that matches the address.
  */
-int
-scan_tree(dp, saddr)
-	struct dirlist *dp;
-	struct sockaddr *saddr;
+static int
+scan_tree(struct dirlist *dp, struct sockaddr *saddr)
 {
 	int defset, hostset;
 
 	if (dp) {
 		if (scan_tree(dp->dp_left, saddr))
 			return (1);
-		if (chk_host(dp, saddr, &defset, &hostset))
+		if (chk_host(dp, saddr, &defset, &hostset, NULL, NULL))
 			return (1);
 		if (scan_tree(dp->dp_right, saddr))
 			return (1);
@@ -1892,9 +2153,8 @@ scan_tree(dp, saddr)
 /*
  * Traverse the dirlist tree and free it up.
  */
-void
-free_dir(dp)
-	struct dirlist *dp;
+static void
+free_dir(struct dirlist *dp)
 {
 
 	if (dp) {
@@ -1908,10 +2168,8 @@ free_dir(dp)
 /*
  * Parse a colon separated list of security flavors
  */
-int
-parsesec(seclist, ep)
-	char *seclist;
-	struct exportlist *ep;
+static int
+parsesec(char *seclist, struct exportlist *ep)
 {
 	char *cp, savedc;
 	int flavor;
@@ -1961,14 +2219,9 @@ parsesec(seclist, ep)
  * Option arguments may either be -<option>=<value> or
  * -<option> <value>
  */
-int
-do_opt(cpp, endcpp, ep, grp, has_hostp, exflagsp, cr)
-	char **cpp, **endcpp;
-	struct exportlist *ep;
-	struct grouplist *grp;
-	int *has_hostp;
-	int *exflagsp;
-	struct xucred *cr;
+static int
+do_opt(char **cpp, char **endcpp, struct exportlist *ep, struct grouplist *grp,
+	int *has_hostp, int *exflagsp, struct xucred *cr)
 {
 	char *cpoptarg, *cpoptend;
 	char *cp, *endcp, *cpopt, savedc, savedc2;
@@ -2051,7 +2304,7 @@ do_opt(cpp, endcpp, ep, grp, has_hostp, exflagsp, cr)
 			ep->ex_indexfile = strdup(cpoptarg);
 		} else if (!strcmp(cpopt, "quiet")) {
 			opt_flags |= OP_QUIET;
-		} else if (!strcmp(cpopt, "sec")) {
+		} else if (cpoptarg && !strcmp(cpopt, "sec")) {
 			if (parsesec(cpoptarg, ep))
 				return (1);
 			opt_flags |= OP_SEC;
@@ -2079,11 +2332,8 @@ do_opt(cpp, endcpp, ep, grp, has_hostp, exflagsp, cr)
  * Translate a character string to the corresponding list of network
  * addresses for a hostname.
  */
-int
-get_host(cp, grp, tgrp)
-	char *cp;
-	struct grouplist *grp;
-	struct grouplist *tgrp;
+static int
+get_host(char *cp, struct grouplist *grp, struct grouplist *tgrp)
 {
 	struct grouplist *checkgrp;
 	struct addrinfo *ai, *tai, hints;
@@ -2142,9 +2392,8 @@ get_host(cp, grp, tgrp)
 /*
  * Free up an exports list component
  */
-void
-free_exp(ep)
-	struct exportlist *ep;
+static void
+free_exp(struct exportlist *ep)
 {
 
 	if (ep->ex_defdir) {
@@ -2162,9 +2411,8 @@ free_exp(ep)
 /*
  * Free hosts.
  */
-void
-free_host(hp)
-	struct hostlist *hp;
+static void
+free_host(struct hostlist *hp)
 {
 	struct hostlist *hp2;
 
@@ -2175,8 +2423,8 @@ free_host(hp)
 	}
 }
 
-struct hostlist *
-get_ht()
+static struct hostlist *
+get_ht(void)
 {
 	struct hostlist *hp;
 
@@ -2191,8 +2439,8 @@ get_ht()
 /*
  * Out of memory, fatal
  */
-void
-out_of_mem()
+static void
+out_of_mem(void)
 {
 
 	syslog(LOG_ERR, "out of memory");
@@ -2203,13 +2451,13 @@ out_of_mem()
  * Do the nmount() syscall with the update flag to push the export info into
  * the kernel.
  */
-int
+static int
 do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
     struct xucred *anoncrp, char *dirp, int dirplen, struct statfs *fsb)
 {
 	struct statfs fsb1;
 	struct addrinfo *ai;
-	struct export_args ea, *eap;
+	struct export_args *eap;
 	char errmsg[255];
 	char *cp;
 	int done;
@@ -2219,10 +2467,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 	int ret;
 	struct nfsex_args nfsea;
 
-	if (run_v4server > 0)
-		eap = &nfsea.export;
-	else
-		eap = &ea;
+	eap = &nfsea.export;
 
 	cp = NULL;
 	savedc = '\0';
@@ -2295,15 +2540,14 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 				*cp = savedc;
 			ret = 1;
 			goto error_exit;
-		};
+		}
 
 		/*
 		 * For V4:, use the nfssvc() syscall, instead of mount().
 		 */
 		if (v4root_phase == 2) {
 			nfsea.fspec = v4root_dirpath;
-			if (run_v4server > 0 &&
-			    nfssvc(NFSSVC_V4ROOTEXPORT, (caddr_t)&nfsea) < 0) {
+			if (nfssvc(NFSSVC_V4ROOTEXPORT, (caddr_t)&nfsea) < 0) {
 				syslog(LOG_ERR, "Exporting V4: failed");
 				return (2);
 			}
@@ -2322,6 +2566,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 			iov[3].iov_len = strlen(fsb->f_mntonname) + 1;
 			iov[5].iov_base = fsb->f_mntfromname; /* "from" */
 			iov[5].iov_len = strlen(fsb->f_mntfromname) + 1;
+			errmsg[0] = '\0';
 	
 			while (nmount(iov, iovlen, fsb->f_flags) < 0) {
 				if (cp)
@@ -2334,11 +2579,11 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 				}
 				if (errno == EPERM) {
 					if (debug)
-						warnx("can't change attributes for %s",
-						    dirp);
+						warnx("can't change attributes for %s: %s",
+						    dirp, errmsg);
 					syslog(LOG_ERR,
-					   "can't change attributes for %s",
-					    dirp);
+					   "can't change attributes for %s: %s",
+					    dirp, errmsg);
 					ret = 1;
 					goto error_exit;
 				}
@@ -2391,7 +2636,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 		 * If this is the public directory, get the file handle
 		 * and load it into the kernel via the nfssvc() syscall.
 		 */
-		if (run_v4server > 0 && (exflags & MNT_EXPUBLIC) != 0) {
+		if ((exflags & MNT_EXPUBLIC) != 0) {
 			fhandle_t fh;
 			char *public_name;
 
@@ -2437,11 +2682,8 @@ error_exit:
  *
  * If `maskflg' is nonzero, then `cp' is a netmask, not a network address.
  */
-int
-get_net(cp, net, maskflg)
-	char *cp;
-	struct netmsk *net;
-	int maskflg;
+static int
+get_net(char *cp, struct netmsk *net, int maskflg)
 {
 	struct netent *np = NULL;
 	char *name, *p, *prefp;
@@ -2570,10 +2812,8 @@ fail:
 /*
  * Parse out the next white space separated field
  */
-void
-nextfield(cp, endcp)
-	char **cp;
-	char **endcp;
+static void
+nextfield(char **cp, char **endcp)
 {
 	char *p;
 
@@ -2594,8 +2834,8 @@ nextfield(cp, endcp)
  * Get an exports file line. Skip over blank lines and handle line
  * continuations.
  */
-int
-get_line()
+static int
+get_line(void)
 {
 	char *p, *cp;
 	size_t len;
@@ -2638,10 +2878,8 @@ get_line()
 /*
  * Parse a description of a credential.
  */
-void
-parsecred(namelist, cr)
-	char *namelist;
-	struct xucred *cr;
+static void
+parsecred(char *namelist, struct xucred *cr)
 {
 	char *name;
 	int cnt;
@@ -2661,8 +2899,9 @@ parsecred(namelist, cr)
 	/*
 	 * Get the user's password table entry.
 	 */
-	names = strsep(&namelist, " \t\n");
+	names = strsep_quote(&namelist, " \t\n");
 	name = strsep(&names, ":");
+	/* Bug?  name could be NULL here */
 	if (isdigit(*name) || *name == '-')
 		pw = getpwuid(atoi(name));
 	else
@@ -2721,8 +2960,8 @@ parsecred(namelist, cr)
 /*
  * Routines that maintain the remote mounttab
  */
-void
-get_mountlist()
+static void
+get_mountlist(void)
 {
 	struct mountlist *mlp, **mlpp;
 	char *host, *dirp, *cp;
@@ -2758,7 +2997,7 @@ get_mountlist()
 	fclose(mlfile);
 }
 
-void
+static void
 del_mlist(char *hostp, char *dirp)
 {
 	struct mountlist *mlp, **mlpp;
@@ -2794,9 +3033,8 @@ del_mlist(char *hostp, char *dirp)
 	}
 }
 
-void
-add_mlist(hostp, dirp)
-	char *hostp, *dirp;
+static void
+add_mlist(char *hostp, char *dirp)
 {
 	struct mountlist *mlp, **mlpp;
 	FILE *mlfile;
@@ -2829,9 +3067,8 @@ add_mlist(hostp, dirp)
 /*
  * Free up a group list.
  */
-void
-free_grp(grp)
-	struct grouplist *grp;
+static void
+free_grp(struct grouplist *grp)
 {
 	if (grp->gr_type == GT_HOST) {
 		if (grp->gr_ptr.gt_addrinfo != NULL)
@@ -2844,7 +3081,7 @@ free_grp(grp)
 }
 
 #ifdef DEBUG
-void
+static void
 SYSLOG(int pri, const char *fmt, ...)
 {
 	va_list ap;
@@ -2858,9 +3095,8 @@ SYSLOG(int pri, const char *fmt, ...)
 /*
  * Check options for consistency.
  */
-int
-check_options(dp)
-	struct dirlist *dp;
+static int
+check_options(struct dirlist *dp)
 {
 
 	if (v4root_phase == 0 && dp == NULL)
@@ -2881,14 +3117,14 @@ check_options(dp)
 		syslog(LOG_ERR, "-mask and /masklen are mutually exclusive");
 		return (1);
 	}
-	if ((opt_flags & OP_ALLDIRS) && dp->dp_left) {
-	    syslog(LOG_ERR, "-alldirs has multiple directories");
-	    return (1);
-	}
 	if (v4root_phase > 0 &&
 	    (opt_flags &
 	     ~(OP_SEC | OP_MASK | OP_NET | OP_HAVEMASK | OP_MASKLEN)) != 0) {
 	    syslog(LOG_ERR,"only -sec,-net,-mask options allowed on V4:");
+	    return (1);
+	}
+	if ((opt_flags & OP_ALLDIRS) && dp->dp_left) {
+	    syslog(LOG_ERR, "-alldirs has multiple directories");
 	    return (1);
 	}
 	return (0);
@@ -2897,9 +3133,8 @@ check_options(dp)
 /*
  * Check an absolute directory path for any symbolic links. Return true
  */
-int
-check_dirpath(dirp)
-	char *dirp;
+static int
+check_dirpath(char *dirp)
 {
 	char *cp;
 	int ret = 1;
@@ -2924,7 +3159,7 @@ check_dirpath(dirp)
  * Make a netmask according to the specified prefix length. The ss_family
  * and other non-address fields must be initialised before calling this.
  */
-int
+static int
 makemask(struct sockaddr_storage *ssp, int bitlen)
 {
 	u_char *p;
@@ -2936,8 +3171,8 @@ makemask(struct sockaddr_storage *ssp, int bitlen)
 		return (-1);
 
 	for (i = 0; i < len; i++) {
-		bits = (bitlen > CHAR_BIT) ? CHAR_BIT : bitlen;
-		*p++ = (1 << bits) - 1;
+		bits = MIN(CHAR_BIT, bitlen);
+		*p++ = (u_char)~0 << (CHAR_BIT - bits);
 		bitlen -= bits;
 	}
 	return 0;
@@ -2947,7 +3182,7 @@ makemask(struct sockaddr_storage *ssp, int bitlen)
  * Check that the sockaddr is a valid netmask. Returns 0 if the mask
  * is acceptable (i.e. of the form 1...10....0).
  */
-int
+static int
 checkmask(struct sockaddr *sa)
 {
 	u_char *mask;
@@ -2973,9 +3208,9 @@ checkmask(struct sockaddr *sa)
 /*
  * Compare two sockaddrs according to a specified mask. Return zero if
  * `sa1' matches `sa2' when filtered by the netmask in `samask'.
- * If samask is NULL, perform a full comparision.
+ * If samask is NULL, perform a full comparison.
  */
-int
+static int
 sacmp(struct sockaddr *sa1, struct sockaddr *sa2, struct sockaddr *samask)
 {
 	unsigned char *p1, *p2, *mask;
@@ -3014,7 +3249,7 @@ sacmp(struct sockaddr *sa1, struct sockaddr *sa2, struct sockaddr *samask)
  * raw address, and set *nbytes to its length in bytes. Returns
  * NULL if the address family is unknown.
  */
-void *
+static void *
 sa_rawaddr(struct sockaddr *sa, int *nbytes) {
 	void *p;
 	int len;
@@ -3038,18 +3273,18 @@ sa_rawaddr(struct sockaddr *sa, int *nbytes) {
 	return (p);
 }
 
-void
-huphandler(int sig)
+static void
+huphandler(int sig __unused)
 {
+
 	got_sighup = 1;
 }
 
-void terminate(sig)
-int sig;
+static void
+terminate(int sig __unused)
 {
 	pidfile_remove(pfh);
 	rpcb_unset(MOUNTPROG, MOUNTVERS, NULL);
 	rpcb_unset(MOUNTPROG, MOUNTVERS3, NULL);
 	exit (0);
 }
-

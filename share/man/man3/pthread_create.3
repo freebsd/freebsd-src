@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2006
+.Dd June 2, 2016
 .Dt PTHREAD_CREATE 3
 .Os
 .Sh NAME
@@ -101,23 +101,43 @@ indicate the error.
 .Sh ERRORS
 The
 .Fn pthread_create
-function will fail if:
+function can return any of the following errors:
 .Bl -tag -width Er
+.It Bq Er ENOMEM
+The system lacked the necessary resources to create another thread.
 .It Bq Er EAGAIN
-The system lacked the necessary resources to create another thread, or
-the system-imposed limit on the total number of threads in a process
-[PTHREAD_THREADS_MAX] would be exceeded.
+The system-imposed limit on the total number of threads in a process
+.Dv [PTHREAD_THREADS_MAX]
+would be exceeded.
+.It Bq Er EAGAIN
+The
+.Dv RACCT_NTHR
+limit would be exceeded; see
+.Xr racct 2 .
 .It Bq Er EPERM
-The caller does not have appropriate permission to set the required scheduling
-parameters or scheduling policy.
+The caller does not have permission to set the scheduling parameters or
+scheduling policy.
 .It Bq Er EINVAL
-The value specified by
+A value specified by
 .Fa attr
 is invalid.
+.It Bq Er EDEADLK
+The CPU set specified by
+.Fa attr
+would prevent the thread from running on any CPU.
+.It Bq Er EFAULT
+The stack base specified by
+.Fa attr
+is invalid, or the kernel was unable to put required
+initial data on the stack.
 .El
 .Sh SEE ALSO
+.Xr cpuset_setaffinity 2 ,
 .Xr fork 2 ,
+.Xr racct 2 ,
+.Xr thr_new 2 ,
 .Xr pthread_attr 3 ,
+.Xr pthread_cancel 3 ,
 .Xr pthread_cleanup_pop 3 ,
 .Xr pthread_cleanup_push 3 ,
 .Xr pthread_exit 3 ,

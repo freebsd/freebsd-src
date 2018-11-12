@@ -38,31 +38,58 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
+#include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 
-#define MV_TIMER_TICK	(get_tclk() / hz)
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #define INITIAL_TIMECOUNTER	(0xffffffff)
 #define MAX_WATCHDOG_TICKS	(0xffffffff)
+
+#define	MV_TMR	0x1
+#define	MV_WDT	0x2
+#define	MV_NONE	0x0
+
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
+#define MV_CLOCK_SRC		25000000	/* Timers' 25MHz mode */
+#else
+#define MV_CLOCK_SRC		get_tclk()
+#endif
+
+#if defined(SOC_MV_ARMADA38X)
+#define	WATCHDOG_TIMER	4
+#else
+#define	WATCHDOG_TIMER	2
+#endif
 
 struct mv_timer_softc {
 	struct resource	*	timer_res[2];
 	bus_space_tag_t		timer_bst;
 	bus_space_handle_t	timer_bsh;
 	struct mtx		timer_mtx;
+	struct eventtimer	et;
+	boolean_t		has_wdt;
 };
 
 static struct resource_spec mv_timer_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
+	{ SYS_RES_IRQ,		0,	RF_ACTIVE | RF_OPTIONAL },
 	{ -1, 0 }
+};
+
+/* Interrupt is not required by MV_WDT devices */
+static struct ofw_compat_data mv_timer_compat[] = {
+	{"mrvl,timer",			MV_TMR | MV_WDT },
+	{"marvell,armada-380-wdt",	MV_WDT },
+	{NULL,				MV_NONE }
 };
 
 static struct mv_timer_softc *timer_softc = NULL;
@@ -82,12 +109,14 @@ static void	mv_set_timer_rel(uint32_t, uint32_t);
 static void	mv_watchdog_enable(void);
 static void	mv_watchdog_disable(void);
 static void	mv_watchdog_event(void *, unsigned int, int *);
-static void	mv_setup_timer(void);
-static void	mv_setup_timercount(void);
+static int	mv_timer_start(struct eventtimer *et,
+    sbintime_t first, sbintime_t period);
+static int	mv_timer_stop(struct eventtimer *et);
+static void	mv_setup_timers(void);
 
 static struct timecounter mv_timer_timecounter = {
 	.tc_get_timecount = mv_timer_get_timecount,
-	.tc_name = "CPU Timer",
+	.tc_name = "CPUTimer1",
 	.tc_frequency = 0,	/* This is assigned on the fly in the init sequence */
 	.tc_counter_mask = ~0u,
 	.tc_quality = 1000,
@@ -96,6 +125,12 @@ static struct timecounter mv_timer_timecounter = {
 static int
 mv_timer_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (ofw_bus_search_compatible(dev, mv_timer_compat)->ocd_data == MV_NONE)
+		return (ENXIO);
 
 	device_set_desc(dev, "Marvell CPU Timer");
 	return (0);
@@ -107,6 +142,9 @@ mv_timer_attach(device_t dev)
 	int	error;
 	void	*ihl;
 	struct	mv_timer_softc *sc;
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
+	uint32_t irq_cause, irq_mask;
+#endif
 
 	if (timer_softc != NULL)
 		return (ENXIO);
@@ -123,19 +161,58 @@ mv_timer_attach(device_t dev)
 	sc->timer_bst = rman_get_bustag(sc->timer_res[0]);
 	sc->timer_bsh = rman_get_bushandle(sc->timer_res[0]);
 
-	mtx_init(&timer_softc->timer_mtx, "watchdog", NULL, MTX_DEF);
-	mv_watchdog_disable();
-	EVENTHANDLER_REGISTER(watchdog_list, mv_watchdog_event, sc, 0);
+	sc->has_wdt = ofw_bus_has_prop(dev, "mrvl,has-wdt") ||
+	    ofw_bus_is_compatible(dev, "marvell,armada-380-wdt");
 
-	if (bus_setup_intr(dev, sc->timer_res[1], INTR_TYPE_CLK,
-	    mv_hardclock, NULL, NULL, &ihl) != 0) {
+	mtx_init(&timer_softc->timer_mtx, "watchdog", NULL, MTX_DEF);
+
+	if (sc->has_wdt) {
+		mv_watchdog_disable();
+		EVENTHANDLER_REGISTER(watchdog_list, mv_watchdog_event, sc, 0);
+	}
+
+	if (ofw_bus_search_compatible(dev, mv_timer_compat)->ocd_data
+	    == MV_WDT) {
+		/* Don't set timers for wdt-only entry. */
+		device_printf(dev, "only watchdog attached\n");
+		return (0);
+	} else if (sc->timer_res[1] == NULL) {
+		device_printf(dev, "no interrupt resource\n");
 		bus_release_resources(dev, mv_timer_spec, sc->timer_res);
-		device_printf(dev, "could not setup hardclock interrupt\n");
 		return (ENXIO);
 	}
 
-	mv_setup_timercount();
-	timers_initialized = 1;
+	if (bus_setup_intr(dev, sc->timer_res[1], INTR_TYPE_CLK,
+	    mv_hardclock, NULL, sc, &ihl) != 0) {
+		bus_release_resources(dev, mv_timer_spec, sc->timer_res);
+		device_printf(dev, "Could not setup interrupt.\n");
+		return (ENXIO);
+	}
+
+	mv_setup_timers();
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
+	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
+        irq_cause &= IRQ_TIMER0_CLR;
+
+	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
+	irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
+	irq_mask |= IRQ_TIMER0_MASK;
+	irq_mask &= ~IRQ_TIMER1_MASK;
+	write_cpu_ctrl(BRIDGE_IRQ_MASK, irq_mask);
+#endif
+	sc->et.et_name = "CPUTimer0";
+	sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT;
+	sc->et.et_quality = 1000;
+
+	sc->et.et_frequency = MV_CLOCK_SRC;
+	sc->et.et_min_period = (0x00000002LLU << 32) / sc->et.et_frequency;
+	sc->et.et_max_period = (0xfffffffeLLU << 32) / sc->et.et_frequency;
+	sc->et.et_start = mv_timer_start;
+	sc->et.et_stop = mv_timer_stop;
+	sc->et.et_priv = sc;
+	et_register(&sc->et);
+	mv_timer_timecounter.tc_frequency = MV_CLOCK_SRC;
+	tc_init(&mv_timer_timecounter);
 
 	return (0);
 }
@@ -143,15 +220,16 @@ mv_timer_attach(device_t dev)
 static int
 mv_hardclock(void *arg)
 {
+	struct	mv_timer_softc *sc;
 	uint32_t irq_cause;
-	struct	trapframe *frame;
-
-	frame = (struct trapframe *)arg;
-	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 
 	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
-	irq_cause &= ~(IRQ_TIMER0);
+	irq_cause &= IRQ_TIMER0_CLR;
 	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
+
+	sc = (struct mv_timer_softc *)arg;
+	if (sc->et.et_active)
+		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 
 	return (FILTER_HANDLED);
 }
@@ -171,44 +249,13 @@ static driver_t mv_timer_driver = {
 
 static devclass_t mv_timer_devclass;
 
-DRIVER_MODULE(timer, mbus, mv_timer_driver, mv_timer_devclass, 0, 0);
+DRIVER_MODULE(timer, simplebus, mv_timer_driver, mv_timer_devclass, 0, 0);
 
 static unsigned
 mv_timer_get_timecount(struct timecounter *tc)
 {
 
 	return (INITIAL_TIMECOUNTER - mv_get_timer(1));
-}
-
-void
-cpu_initclocks(void)
-{
-	uint32_t irq_cause, irq_mask;
-
-	mv_setup_timer();
-
-	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
-	irq_cause &= ~(IRQ_TIMER0);
-	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
-
-	irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
-	irq_mask |= IRQ_TIMER0_MASK;
-	write_cpu_ctrl(BRIDGE_IRQ_MASK, irq_mask);
-
-	mv_timer_timecounter.tc_frequency = get_tclk();
-	tc_init(&mv_timer_timecounter);
-}
-
-void
-cpu_startprofclock(void)
-{
-
-}
-
-void
-cpu_stopprofclock(void)
-{
-
 }
 
 void
@@ -220,12 +267,12 @@ DELAY(int usec)
 	if (!timers_initialized) {
 		for (; usec > 0; usec--)
 			for (val = 100; val > 0; val--)
-				;
+				__asm __volatile("nop" ::: "memory");
 		return;
 	}
 
 	val = mv_get_timer(1);
-	nticks = ((get_tclk() / 1000000 + 1) * usec);
+	nticks = ((MV_CLOCK_SRC / 1000000 + 1) * usec);
 
 	while (nticks > 0) {
 		val_temp = mv_get_timer(1);
@@ -281,13 +328,24 @@ mv_set_timer_rel(uint32_t timer, uint32_t val)
 static void
 mv_watchdog_enable(void)
 {
-	uint32_t val;
-	uint32_t irq_cause, irq_mask;
+	uint32_t val, irq_cause;
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
+	uint32_t irq_mask;
+#endif
 
 	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
-	irq_cause &= ~(IRQ_TIMER_WD);
+	irq_cause &= IRQ_TIMER_WD_CLR;
 	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
 
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
+	val = read_cpu_mp_clocks(WD_RSTOUTn_MASK);
+	val |= (WD_GLOBAL_MASK | WD_CPU0_MASK);
+	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
+
+	val = read_cpu_misc(RSTOUTn_MASK);
+	val &= ~RSTOUTn_MASK_WD;
+	write_cpu_misc(RSTOUTn_MASK, val);
+#else
 	irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
 	irq_mask |= IRQ_TIMER_WD_MASK;
 	write_cpu_ctrl(BRIDGE_IRQ_MASK, irq_mask);
@@ -295,22 +353,44 @@ mv_watchdog_enable(void)
 	val = read_cpu_ctrl(RSTOUTn_MASK);
 	val |= WD_RST_OUT_EN;
 	write_cpu_ctrl(RSTOUTn_MASK, val);
+#endif
 
 	val = mv_get_timer_control();
-	val |= CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO;
+#if defined(SOC_MV_ARMADA38X)
+	val |= CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO | CPU_TIMER_WD_25MHZ_EN;
+#elif defined(SOC_MV_ARMADAXP)
+	val |= CPU_TIMER2_EN | CPU_TIMER2_AUTO | CPU_TIMER_WD_25MHZ_EN;
+#else
+	val |= CPU_TIMER2_EN | CPU_TIMER2_AUTO;
+#endif
 	mv_set_timer_control(val);
 }
 
 static void
 mv_watchdog_disable(void)
 {
-	uint32_t val;
-	uint32_t irq_cause, irq_mask;
+	uint32_t val, irq_cause;
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
+	uint32_t irq_mask;
+#endif
 
 	val = mv_get_timer_control();
+#if defined(SOC_MV_ARMADA38X)
 	val &= ~(CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO);
+#else
+	val &= ~(CPU_TIMER2_EN | CPU_TIMER2_AUTO);
+#endif
 	mv_set_timer_control(val);
 
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
+	val = read_cpu_mp_clocks(WD_RSTOUTn_MASK);
+	val &= ~(WD_GLOBAL_MASK | WD_CPU0_MASK);
+	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
+
+	val = read_cpu_misc(RSTOUTn_MASK);
+	val |= RSTOUTn_MASK_WD;
+	write_cpu_misc(RSTOUTn_MASK, RSTOUTn_MASK_WD);
+#else
 	val = read_cpu_ctrl(RSTOUTn_MASK);
 	val &= ~WD_RST_OUT_EN;
 	write_cpu_ctrl(RSTOUTn_MASK, val);
@@ -318,9 +398,10 @@ mv_watchdog_disable(void)
 	irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
 	irq_mask &= ~(IRQ_TIMER_WD_MASK);
 	write_cpu_ctrl(BRIDGE_IRQ_MASK, irq_mask);
+#endif
 
 	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
-	irq_cause &= ~(IRQ_TIMER_WD);
+	irq_cause &= IRQ_TIMER_WD_CLR;
 	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
 }
 
@@ -343,12 +424,11 @@ mv_watchdog_event(void *arg, unsigned int cmd, int *error)
 		 * watchdog(9)
 		 */
 		ns = (uint64_t)1 << (cmd & WD_INTERVAL);
-		ticks = (uint64_t)(ns * get_tclk()) / 1000000000;
+		ticks = (uint64_t)(ns * MV_CLOCK_SRC) / 1000000000;
 		if (ticks > MAX_WATCHDOG_TICKS)
 			mv_watchdog_disable();
 		else {
-			/* Timer 2 is the watchdog */
-			mv_set_timer(2, ticks);
+			mv_set_timer(WATCHDOG_TIMER, ticks);
 			mv_watchdog_enable();
 			*error = 0;
 		}
@@ -356,26 +436,61 @@ mv_watchdog_event(void *arg, unsigned int cmd, int *error)
 	mtx_unlock(&timer_softc->timer_mtx);
 }
 
-static void
-mv_setup_timer(void)
+static int
+mv_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
+{
+	struct	mv_timer_softc *sc;
+	uint32_t val, val1;
+
+	/* Calculate dividers. */
+	sc = (struct mv_timer_softc *)et->et_priv;
+	if (period != 0)
+		val = ((uint32_t)sc->et.et_frequency * period) >> 32;
+	else
+		val = 0;
+	if (first != 0)
+		val1 = ((uint32_t)sc->et.et_frequency * first) >> 32;
+	else
+		val1 = val;
+
+	/* Apply configuration. */
+	mv_set_timer_rel(0, val);
+	mv_set_timer(0, val1);
+	val = mv_get_timer_control();
+	val |= CPU_TIMER0_EN;
+	if (period != 0)
+		val |= CPU_TIMER0_AUTO;
+	else
+		val &= ~CPU_TIMER0_AUTO;
+	mv_set_timer_control(val);
+	return (0);
+}
+
+static int
+mv_timer_stop(struct eventtimer *et)
 {
 	uint32_t val;
 
-	mv_set_timer_rel(0, MV_TIMER_TICK);
-	mv_set_timer(0, MV_TIMER_TICK);
 	val = mv_get_timer_control();
-	val |= CPU_TIMER0_EN | CPU_TIMER0_AUTO;
+	val &= ~(CPU_TIMER0_EN | CPU_TIMER0_AUTO);
 	mv_set_timer_control(val);
+	return (0);
 }
 
 static void
-mv_setup_timercount(void)
+mv_setup_timers(void)
 {
 	uint32_t val;
 
 	mv_set_timer_rel(1, INITIAL_TIMECOUNTER);
 	mv_set_timer(1, INITIAL_TIMECOUNTER);
 	val = mv_get_timer_control();
+	val &= ~(CPU_TIMER0_EN | CPU_TIMER0_AUTO);
 	val |= CPU_TIMER1_EN | CPU_TIMER1_AUTO;
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
+	/* Enable 25MHz mode */
+	val |= CPU_TIMER0_25MHZ_EN | CPU_TIMER1_25MHZ_EN;
+#endif
 	mv_set_timer_control(val);
+	timers_initialized = 1;
 }

@@ -33,7 +33,9 @@
 #ifndef	_SYS_PTRACE_H_
 #define	_SYS_PTRACE_H_
 
-#include <sys/_sigset.h>
+#include <sys/signal.h>
+#include <sys/param.h>
+#include <machine/reg.h>
 
 #define	PT_TRACE_ME	0	/* child declares it's being traced */
 #define	PT_READ_I	1	/* read word in child's I space */
@@ -61,14 +63,35 @@
 #define	PT_TO_SCX	21
 #define	PT_SYSCALL	22
 
+#define	PT_FOLLOW_FORK	23
+#define	PT_LWP_EVENTS	24	/* report LWP birth and exit */
+
+#define	PT_GET_EVENT_MASK 25	/* get mask of optional events */
+#define	PT_SET_EVENT_MASK 26	/* set mask of optional events */
+
 #define PT_GETREGS      33	/* get general-purpose registers */
 #define PT_SETREGS      34	/* set general-purpose registers */
 #define PT_GETFPREGS    35	/* get floating-point registers */
 #define PT_SETFPREGS    36	/* set floating-point registers */
 #define PT_GETDBREGS    37	/* get debugging registers */
 #define PT_SETDBREGS    38	/* set debugging registers */
+
+#define	PT_VM_TIMESTAMP	40	/* Get VM version (timestamp) */
+#define	PT_VM_ENTRY	41	/* Get VM map (entry) */
+
 #define PT_FIRSTMACH    64	/* for machine-specific requests */
 #include <machine/ptrace.h>	/* machine-specific requests, if any */
+
+/* Events used with PT_GET_EVENT_MASK and PT_SET_EVENT_MASK */
+#define	PTRACE_EXEC	0x0001
+#define	PTRACE_SCE	0x0002
+#define	PTRACE_SCX	0x0004
+#define	PTRACE_SYSCALL	(PTRACE_SCE | PTRACE_SCX)
+#define	PTRACE_FORK	0x0008
+#define	PTRACE_LWP	0x0010
+#define	PTRACE_VFORK	0x0020
+
+#define	PTRACE_DEFAULT	(PTRACE_EXEC)
 
 struct ptrace_io_desc {
 	int	piod_op;	/* I/O operation */
@@ -94,24 +117,40 @@ struct ptrace_lwpinfo {
 	int	pl_flags;	/* LWP flags. */
 #define	PL_FLAG_SA	0x01	/* M:N thread */
 #define	PL_FLAG_BOUND	0x02	/* M:N bound thread */
+#define	PL_FLAG_SCE	0x04	/* syscall enter point */
+#define	PL_FLAG_SCX	0x08	/* syscall leave point */
+#define	PL_FLAG_EXEC	0x10	/* exec(2) succeeded */
+#define	PL_FLAG_SI	0x20	/* siginfo is valid */
+#define	PL_FLAG_FORKED	0x40	/* new child */
+#define	PL_FLAG_CHILD	0x80	/* I am from child */
+#define	PL_FLAG_BORN	0x100	/* new LWP */
+#define	PL_FLAG_EXITED	0x200	/* exiting LWP */
+#define	PL_FLAG_VFORKED	0x400	/* new child via vfork */
+#define	PL_FLAG_VFORK_DONE 0x800 /* vfork parent has resumed */
 	sigset_t	pl_sigmask;	/* LWP signal mask */
 	sigset_t	pl_siglist;	/* LWP pending signal */
+	struct __siginfo pl_siginfo;	/* siginfo for signal */
+	char		pl_tdname[MAXCOMLEN + 1]; /* LWP name */
+	pid_t		pl_child_pid;	/* New child pid */
+	u_int		pl_syscall_code;
+	u_int		pl_syscall_narg;
+};
+
+/* Argument structure for PT_VM_ENTRY. */
+struct ptrace_vm_entry {
+	int		pve_entry;	/* Entry number used for iteration. */
+	int		pve_timestamp;	/* Generation number of VM map. */
+	u_long		pve_start;	/* Start VA of range. */
+	u_long		pve_end;	/* End VA of range (incl). */
+	u_long		pve_offset;	/* Offset in backing object. */
+	u_int		pve_prot;	/* Protection of memory range. */
+	u_int		pve_pathlen;	/* Size of path. */
+	long		pve_fileid;	/* File ID. */
+	uint32_t	pve_fsid;	/* File system ID. */
+	char		*pve_path;	/* Path name of object. */
 };
 
 #ifdef _KERNEL
-
-#define	PTRACESTOP_SC(p, td, flag)				\
-	if ((p)->p_flag & P_TRACED && (p)->p_stops & (flag)) {	\
-		PROC_LOCK(p);					\
-		ptracestop((td), SIGTRAP);			\
-		PROC_UNLOCK(p);					\
-	}
-/*
- * The flags below are used for ptrace(2) tracing and have no relation
- * to procfs.  They are stored in struct proc's p_stops member.
- */
-#define	S_PT_SCE	0x000010000
-#define	S_PT_SCX	0x000020000
 
 int	ptrace_set_pc(struct thread *_td, unsigned long _addr);
 int	ptrace_single_step(struct thread *_td);
@@ -139,7 +178,11 @@ int	proc_read_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_write_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_sstep(struct thread *_td);
 int	proc_rwmem(struct proc *_p, struct uio *_uio);
-#ifdef COMPAT_IA32
+ssize_t	proc_readmem(struct thread *_td, struct proc *_p, vm_offset_t _va,
+	    void *_buf, size_t _len);
+ssize_t	proc_writemem(struct thread *_td, struct proc *_p, vm_offset_t _va,
+	    void *_buf, size_t _len);
+#ifdef COMPAT_FREEBSD32
 struct reg32;
 struct fpreg32;
 struct dbreg32;

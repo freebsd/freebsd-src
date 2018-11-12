@@ -3,6 +3,7 @@
  * Copyright (c) 2000, Michael Smith <msmith@freebsd.org>
  * Copyright (c) 2000, BSDi
  * Copyright (c) 2003, Thomas Moestl <tmm@FreeBSD.org>
+ * Copyright (c) 2005 - 2009 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,11 +65,13 @@ static void ofw_pcibus_setup_device(device_t bridge, uint32_t clock,
     u_int busno, u_int slot, u_int func);
 
 /* Methods */
-static device_probe_t ofw_pcibus_probe;
-static device_attach_t ofw_pcibus_attach;
-static pci_assign_interrupt_t ofw_pcibus_assign_interrupt;
-static ofw_bus_get_devinfo_t ofw_pcibus_get_devinfo;
+static bus_child_deleted_t ofw_pcibus_child_deleted;
 static bus_child_pnpinfo_str_t ofw_pcibus_pnpinfo_str;
+static device_attach_t ofw_pcibus_attach;
+static device_probe_t ofw_pcibus_probe;
+static ofw_bus_get_devinfo_t ofw_pcibus_get_devinfo;
+static pci_alloc_devinfo_t ofw_pcibus_alloc_devinfo;
+static pci_assign_interrupt_t ofw_pcibus_assign_interrupt;
 
 static device_method_t ofw_pcibus_methods[] = {
 	/* Device interface */
@@ -76,9 +79,12 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(device_attach,	ofw_pcibus_attach),
 
 	/* Bus interface */
+	DEVMETHOD(bus_child_deleted,	ofw_pcibus_child_deleted),
 	DEVMETHOD(bus_child_pnpinfo_str, ofw_pcibus_pnpinfo_str),
+	DEVMETHOD(bus_rescan,		bus_null_rescan),
 
 	/* PCI interface */
+	DEVMETHOD(pci_alloc_devinfo,	ofw_pcibus_alloc_devinfo),
 	DEVMETHOD(pci_assign_interrupt, ofw_pcibus_assign_interrupt),
 
 	/* ofw_bus interface */
@@ -89,7 +95,7 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 struct ofw_pcibus_devinfo {
@@ -99,9 +105,10 @@ struct ofw_pcibus_devinfo {
 
 static devclass_t pci_devclass;
 
-DEFINE_CLASS_1(pci, ofw_pcibus_driver, ofw_pcibus_methods, 1 /* no softc */,
-    pci_driver);
-DRIVER_MODULE(ofw_pcibus, pcib, ofw_pcibus_driver, pci_devclass, 0, 0);
+DEFINE_CLASS_1(pci, ofw_pcibus_driver, ofw_pcibus_methods,
+    sizeof(struct pci_softc), pci_driver);
+EARLY_DRIVER_MODULE(ofw_pcibus, pcib, ofw_pcibus_driver, pci_devclass, 0, 0,
+    BUS_PASS_BUS);
 MODULE_VERSION(ofw_pcibus, 1);
 MODULE_DEPEND(ofw_pcibus, pci, 1, 1, 1);
 
@@ -109,7 +116,7 @@ static int
 ofw_pcibus_probe(device_t dev)
 {
 
-	if (ofw_bus_get_node(dev) == 0)
+	if (ofw_bus_get_node(dev) == -1)
 		return (ENXIO);
 	device_set_desc(dev, "OFW PCI bus");
 
@@ -123,6 +130,11 @@ static void
 ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
     u_int slot, u_int func)
 {
+#define	CS_READ(n, w)							\
+	PCIB_READ_CONFIG(bridge, busno, slot, func, (n), (w))
+#define	CS_WRITE(n, v, w)						\
+	PCIB_WRITE_CONFIG(bridge, busno, slot, func, (n), (v), (w))
+
 #ifndef SUN4V
 	uint32_t reg;
 
@@ -137,34 +149,28 @@ ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
 	 * For bridges, we additionally set up the bridge control and the
 	 * secondary latency registers.
 	 */
-	if ((PCIB_READ_CONFIG(bridge, busno, slot, func, PCIR_HDRTYPE, 1) &
-	    PCIM_HDRTYPE) == PCIM_HDRTYPE_BRIDGE) {
-		reg = PCIB_READ_CONFIG(bridge, busno, slot, func,
-		    PCIR_BRIDGECTL_1, 1);
+	if ((CS_READ(PCIR_HDRTYPE, 1) & PCIM_HDRTYPE) ==
+	    PCIM_HDRTYPE_BRIDGE) {
+		reg = CS_READ(PCIR_BRIDGECTL_1, 1);
 		reg |= PCIB_BCR_MASTER_ABORT_MODE | PCIB_BCR_SERR_ENABLE |
 		    PCIB_BCR_PERR_ENABLE;
 #ifdef OFW_PCI_DEBUG
 		device_printf(bridge,
 		    "bridge %d/%d/%d: control 0x%x -> 0x%x\n",
-		    busno, slot, func, PCIB_READ_CONFIG(bridge, busno, slot,
-		    func, PCIR_BRIDGECTL_1, 1), reg);
+		    busno, slot, func, CS_READ(PCIR_BRIDGECTL_1, 1), reg);
 #endif /* OFW_PCI_DEBUG */
-		PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_BRIDGECTL_1,
-		    reg, 1);
+		CS_WRITE(PCIR_BRIDGECTL_1, reg, 1);
 
 		reg = OFW_PCI_LATENCY;
 #ifdef OFW_PCI_DEBUG
 		device_printf(bridge,
 		    "bridge %d/%d/%d: latency timer %d -> %d\n",
-		    busno, slot, func, PCIB_READ_CONFIG(bridge, busno, slot,
-		    func, PCIR_SECLAT_1, 1), reg);
+		    busno, slot, func, CS_READ(PCIR_SECLAT_1, 1), reg);
 #endif /* OFW_PCI_DEBUG */
-		PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_SECLAT_1,
-		    reg, 1);
+		CS_WRITE(PCIR_SECLAT_1, reg, 1);
 	} else {
-		reg = PCIB_READ_CONFIG(bridge, busno, slot, func,
-		    PCIR_MINGNT, 1);
-		if (reg != 0) {
+		reg = CS_READ(PCIR_MINGNT, 1);
+		if ((int)reg > 0) {
 			switch (clock) {
 			case 33000000:
 				reg *= 8;
@@ -179,10 +185,9 @@ ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
 	}
 #ifdef OFW_PCI_DEBUG
 	device_printf(bridge, "device %d/%d/%d: latency timer %d -> %d\n",
-	    busno, slot, func, PCIB_READ_CONFIG(bridge, busno, slot, func,
-	    PCIR_LATTIMER, 1), reg);
+	    busno, slot, func, CS_READ(PCIR_LATTIMER, 1), reg);
 #endif /* OFW_PCI_DEBUG */
-	PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_LATTIMER, reg, 1);
+	CS_WRITE(PCIR_LATTIMER, reg, 1);
 
 	/*
 	 * Compute a value to write into the cache line size register.
@@ -191,17 +196,34 @@ ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
 	 * reached.  Generally, the cache line size is fixed at 64 bytes
 	 * by Fireplane/Safari, JBus and UPA.
 	 */
-	PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_CACHELNSZ,
-	    STRBUF_LINESZ / sizeof(uint32_t), 1);
+	CS_WRITE(PCIR_CACHELNSZ, STRBUF_LINESZ / sizeof(uint32_t), 1);
 #endif
+
+	/*
+	 * Ensure that ALi M5229 report the actual content of PCIR_PROGIF
+	 * and that IDE I/O is force enabled.  The former is done in order
+	 * to have unique behavior across revisions as some default to
+	 * hiding bits 4-6 for compliance with PCI 2.3.  The latter is done
+	 * as at least revision 0xc8 requires the PCIM_CMD_PORTEN bypass
+	 * to be always enabled as otherwise even enabling PCIM_CMD_PORTEN
+	 * results in an instant data access trap on Fire-based machines.
+	 * Thus these quirks have to be handled before pci(4) adds the maps.
+	 * Note that for older revisions bit 0 of register 0x50 enables the
+	 * internal IDE function instead of force enabling IDE I/O.
+	 */
+	if ((CS_READ(PCIR_VENDOR, 2) == 0x10b9 &&
+	    CS_READ(PCIR_DEVICE, 2) == 0x5229))
+		CS_WRITE(0x50, CS_READ(0x50, 1) | 0x3, 1);
 
 	/*
 	 * The preset in the intline register is usually wrong.  Reset
 	 * it to 255, so that the PCI code will reroute the interrupt if
 	 * needed.
 	 */
-	PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_INTLINE,
-	    PCI_INVALID_IRQ, 1);
+	CS_WRITE(PCIR_INTLINE, PCI_INVALID_IRQ, 1);
+
+#undef CS_READ
+#undef CS_WRITE
 }
 
 static int
@@ -213,26 +235,31 @@ ofw_pcibus_attach(device_t dev)
 	phandle_t node, child;
 	uint32_t clock;
 	u_int busno, domain, func, slot;
+	int error;
 
+	error = pci_attach_common(dev);
+	if (error)
+		return (error);
 	pcib = device_get_parent(dev);
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
-	if (bootverbose)
-		device_printf(dev, "domain=%d, physical bus=%d\n",
-		    domain, busno);
 	node = ofw_bus_get_node(dev);
 
-#ifndef SUN4V
-	/* Add the PCI side of the HOST-PCI bridge itself to the bus. */
+	/*
+	 * Add the PCI side of the host-PCI bridge itself to the bus.
+	 * Note that we exclude the host-PCIe bridges here as these
+	 * have no configuration space implemented themselves.
+	 */
 	if (strcmp(device_get_name(device_get_parent(pcib)), "nexus") == 0 &&
-	    (dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib,
-	    domain, busno, 0, 0, sizeof(*dinfo))) != NULL) {
+	    ofw_bus_get_type(pcib) != NULL &&
+	    strcmp(ofw_bus_get_type(pcib), OFW_TYPE_PCIE) != 0 &&
+	    (dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib, dev,
+	    domain, busno, 0, 0)) != NULL) {
 		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, node) != 0)
 			pci_freecfg((struct pci_devinfo *)dinfo);
 		else
 			pci_add_child(dev, (struct pci_devinfo *)dinfo);
 	}
-#endif
 
 	if (OF_getprop(ofw_bus_get_node(pcib), "clock-frequency", &clock,
 	    sizeof(clock)) == -1)
@@ -246,8 +273,8 @@ ofw_pcibus_attach(device_t dev)
 		if (pci_find_dbsf(domain, busno, slot, func) != NULL)
 			continue;
 		ofw_pcibus_setup_device(pcib, clock, busno, slot, func);
-		dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib,
-		    domain, busno, slot, func, sizeof(*dinfo));
+		dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib, dev,
+		    domain, busno, slot, func);
 		if (dinfo == NULL)
 			continue;
 		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, child) !=
@@ -256,9 +283,19 @@ ofw_pcibus_attach(device_t dev)
 			continue;
 		}
 		pci_add_child(dev, (struct pci_devinfo *)dinfo);
+		OFW_PCI_SETUP_DEVICE(pcib, dinfo->opd_dinfo.cfg.dev);
 	}
 
 	return (bus_generic_attach(dev));
+}
+
+struct pci_devinfo *
+ofw_pcibus_alloc_devinfo(device_t dev)
+{
+	struct ofw_pcibus_devinfo *dinfo;
+
+	dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
+	return (&dinfo->opd_dinfo);
 }
 
 static int
@@ -302,6 +339,16 @@ ofw_pcibus_get_devinfo(device_t bus, device_t dev)
 
 	dinfo = device_get_ivars(dev);
 	return (&dinfo->opd_obdinfo);
+}
+
+static void
+ofw_pcibus_child_deleted(device_t dev, device_t child)
+{
+	struct ofw_pcibus_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
+	pci_child_deleted(dev, child);
 }
 
 static int

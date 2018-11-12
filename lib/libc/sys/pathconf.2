@@ -87,9 +87,7 @@ while
 returns information about the file the link references.
 .Pp
 The available values are as follows:
-.Pp
 .Bl -tag -width 6n
-.Pp
 .It Li _PC_LINK_MAX
 The maximum file link count.
 .It Li _PC_MAX_CANON
@@ -167,7 +165,7 @@ Returns 1 if a Mandatory Access Control (MAC) label can be set on the
 specified file, otherwise 0.
 .It Li _PC_MIN_HOLE_SIZE
 If a file system supports the reporting of holes (see
-.Xr lseek 2 ,
+.Xr lseek 2 ) ,
 .Fn pathconf
 and
 .Fn fpathconf
@@ -175,7 +173,7 @@ return a positive number that represents the minimum hole size returned in
 bytes.
 The offsets of holes returned will be aligned to this same value.
 A special value of 1 is returned if the file system does not specify the minimum
-hole size but still reports holes.  
+hole size but still reports holes.
 .El
 .Sh RETURN VALUES
 If the call to
@@ -234,11 +232,11 @@ Too many symbolic links were encountered in translating the pathname.
 An I/O error occurred while reading from or writing to the file system.
 .El
 .Pp
-.Bl -tag -width Er
 The
 .Fn fpathconf
 system call
 will fail if:
+.Bl -tag -width Er
 .It Bq Er EBADF
 The
 .Fa fd

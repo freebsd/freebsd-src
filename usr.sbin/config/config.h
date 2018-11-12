@@ -50,9 +50,10 @@ struct file_list {
 	int     f_type;                 /* type */
 	u_char	f_flags;		/* see below */
 	char	*f_compilewith;		/* special make rule if present */
-	char	*f_depends;		/* additional dependancies */
+	char	*f_depends;		/* additional dependencies */
 	char	*f_clean;		/* File list to add to clean rule */
 	char	*f_warn;		/* warning message */
+	const char *f_objprefix;	/* prefix string for object name */
 };
 
 struct files_name {
@@ -129,6 +130,8 @@ SLIST_HEAD(opt_head, opt) opt, mkopt, rmopts;
 struct opt_list {
 	char *o_name;
 	char *o_file;
+	int o_flags;
+#define OL_ALIAS	1
 	SLIST_ENTRY(opt_list) o_next;
 };
 
@@ -140,6 +143,13 @@ struct hint {
 };
 
 STAILQ_HEAD(hint_head, hint) hints;
+
+struct includepath {
+	char	*path;
+	SLIST_ENTRY(includepath) path_next;
+};
+
+SLIST_HEAD(, includepath) includepath;
 
 /*
  * Tag present in the kernelconf.tmlp template file. It's mandatory for those
@@ -168,7 +178,6 @@ char	*path(const char *);
 char	*raisestr(char *);
 void	remember(const char *);
 void	moveifchanged(const char *, const char *);
-int	yyparse(void);
 int	yylex(void);
 void	options(void);
 void	makefile(void);
@@ -177,6 +186,7 @@ void	makehints(void);
 void	headers(void);
 void	cfgfile_add(const char *);
 void	cfgfile_removeall(void);
+FILE	*open_makefile_template(void);
 
 extern STAILQ_HEAD(device_head, device) dtab;
 

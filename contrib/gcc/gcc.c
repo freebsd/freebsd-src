@@ -240,7 +240,7 @@ static const char *spec_machine = DEFAULT_TARGET_MACHINE;
 /* Nonzero if cross-compiling.
    When -b is used, the value comes from the `specs' file.  */
 
-#ifdef CROSS_COMPILE
+#ifdef CROSS_DIRECTORY_STRUCTURE
 static const char *cross_compile = "1";
 #else
 static const char *cross_compile = "0";
@@ -680,7 +680,7 @@ proper position among the other output files.  */
 #ifdef TARGET_LIBC_PROVIDES_SSP
 #define LINK_SSP_SPEC "%{fstack-protector:}"
 #else
-#define LINK_SSP_SPEC "%{fstack-protector|fstack-protector-all:-lssp_nonshared -lssp}"
+#define LINK_SSP_SPEC "%{fstack-protector|fstack-protector-strong|fstack-protector-all:-lssp_nonshared -lssp}"
 #endif
 #endif
 
@@ -1469,7 +1469,7 @@ static const char *gcc_libexec_prefix;
 #define STANDARD_STARTFILE_PREFIX_2 "/usr/lib/"
 #endif
 
-#ifdef CROSS_COMPILE  /* Don't use these prefixes for a cross compiler.  */
+#ifdef CROSS_DIRECTORY_STRUCTURE  /* Don't use these prefixes for a cross compiler.  */
 #undef MD_EXEC_PREFIX
 #undef MD_STARTFILE_PREFIX
 #undef MD_STARTFILE_PREFIX_1
@@ -2696,6 +2696,17 @@ find_a_file (const struct path_prefix *pprefix, const char *name, int mode,
     return xstrdup (DEFAULT_LINKER);
 #endif
 
+#ifdef FREEBSD_NATIVE
+  if (! strcmp(name, "include"))
+    {
+#ifdef CROSS_INCLUDE_DIR
+      return xstrdup(CROSS_INCLUDE_DIR);
+#else
+      return xstrdup(STANDARD_INCLUDE_DIR);
+#endif
+    }
+#endif
+
   /* Determine the filename to execute (special case for absolute paths).  */
 
   if (IS_ABSOLUTE_PATH (name))
@@ -2963,7 +2974,7 @@ execute (void)
       if (errmsg != NULL)
 	{
 	  if (err == 0)
-	    fatal (errmsg);
+	    fatal ("%s", errmsg);
 	  else
 	    {
 	      errno = err;
@@ -6514,7 +6525,7 @@ main (int argc, char **argv)
 
       if (! verbose_flag)
 	{
-	  printf (_("\nFor bug reporting instructions, please see:\n"));
+	  printf ("%s", _("\nFor bug reporting instructions, please see:\n"));
 	  printf ("%s.\n", bug_report_url);
 
 	  return (0);

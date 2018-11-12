@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  * Copyright (c) 1998 The NetBSD Foundation, Inc. All rights reserved.
@@ -25,9 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /*
  * USB Open Host Controller driver.
  *
@@ -35,6 +33,9 @@ __FBSDID("$FreeBSD$");
  * USB spec:  http://www.usb.org/developers/docs/usbspec.zip
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -43,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -71,7 +71,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
+
 #include <dev/usb/controller/ohci.h>
+#include <dev/usb/controller/ohcireg.h>
 
 #define	OHCI_BUS2SC(bus) \
    ((ohci_softc_t *)(((uint8_t *)(bus)) - \
@@ -80,9 +83,10 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int ohcidebug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
-SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RW,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
+SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RWTUN,
     &ohcidebug, 0, "ohci debug level");
+
 static void ohci_dumpregs(ohci_softc_t *);
 static void ohci_dump_tds(ohci_td_t *);
 static uint8_t ohci_dump_td(ohci_td_t *);
@@ -106,11 +110,11 @@ static void ohci_dump_itds(ohci_itd_t *);
 
 #define	OHCI_INTR_ENDPT 1
 
-extern struct usb_bus_methods ohci_bus_methods;
-extern struct usb_pipe_methods ohci_device_bulk_methods;
-extern struct usb_pipe_methods ohci_device_ctrl_methods;
-extern struct usb_pipe_methods ohci_device_intr_methods;
-extern struct usb_pipe_methods ohci_device_isoc_methods;
+static const struct usb_bus_methods ohci_bus_methods;
+static const struct usb_pipe_methods ohci_device_bulk_methods;
+static const struct usb_pipe_methods ohci_device_ctrl_methods;
+static const struct usb_pipe_methods ohci_device_intr_methods;
+static const struct usb_pipe_methods ohci_device_isoc_methods;
 
 static void ohci_do_poll(struct usb_bus *bus);
 static void ohci_device_done(struct usb_xfer *xfer, usb_error_t error);
@@ -163,7 +167,7 @@ ohci_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
 }
 
 static usb_error_t
-ohci_controller_init(ohci_softc_t *sc)
+ohci_controller_init(ohci_softc_t *sc, int do_suspend)
 {
 	struct usb_page_search buf_res;
 	uint32_t i;
@@ -229,6 +233,11 @@ reset:
 		ohci_dumpregs(sc);
 	}
 #endif
+
+	if (do_suspend) {
+		OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_SUSPEND);
+		return (USB_ERR_NORMAL_COMPLETION);
+	}
 
 	/* The controller is now in SUSPEND state, we have 2ms to finish. */
 
@@ -412,13 +421,12 @@ ohci_init(ohci_softc_t *sc)
 
 	sc->sc_bus.usbrev = USB_REV_1_0;
 
-	if (ohci_controller_init(sc)) {
+	if (ohci_controller_init(sc, 0) != 0)
 		return (USB_ERR_INVAL);
-	} else {
-		/* catch any lost interrupts */
-		ohci_do_poll(&sc->sc_bus);
-		return (USB_ERR_NORMAL_COMPLETION);
-	}
+
+	/* catch any lost interrupts */
+	ohci_do_poll(&sc->sc_bus);
+	return (USB_ERR_NORMAL_COMPLETION);
 }
 
 /*
@@ -442,75 +450,32 @@ ohci_detach(struct ohci_softc *sc)
 	usb_callout_drain(&sc->sc_tmo_rhsc);
 }
 
-/* NOTE: suspend/resume is called from
- * interrupt context and cannot sleep!
- */
-void
+static void
 ohci_suspend(ohci_softc_t *sc)
 {
-	uint32_t ctl;
-
-	USB_BUS_LOCK(&sc->sc_bus);
+	DPRINTF("\n");
 
 #ifdef USB_DEBUG
-	DPRINTF("\n");
-	if (ohcidebug > 2) {
+	if (ohcidebug > 2)
 		ohci_dumpregs(sc);
-	}
 #endif
 
-	ctl = OREAD4(sc, OHCI_CONTROL) & ~OHCI_HCFS_MASK;
-	if (sc->sc_control == 0) {
-		/*
-		 * Preserve register values, in case that APM BIOS
-		 * does not recover them.
-		 */
-		sc->sc_control = ctl;
-		sc->sc_intre = OREAD4(sc, OHCI_INTERRUPT_ENABLE);
-	}
-	ctl |= OHCI_HCFS_SUSPEND;
-	OWRITE4(sc, OHCI_CONTROL, ctl);
-
-	usb_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_MS_TO_TICKS(USB_RESUME_WAIT));
-
-	USB_BUS_UNLOCK(&sc->sc_bus);
+	/* reset HC and leave it suspended */
+	ohci_controller_init(sc, 1);
 }
 
-void
+static void
 ohci_resume(ohci_softc_t *sc)
 {
-	uint32_t ctl;
+	DPRINTF("\n");
 
 #ifdef USB_DEBUG
-	DPRINTF("\n");
-	if (ohcidebug > 2) {
+	if (ohcidebug > 2)
 		ohci_dumpregs(sc);
-	}
 #endif
+
 	/* some broken BIOSes never initialize the Controller chip */
-	ohci_controller_init(sc);
-
-	USB_BUS_LOCK(&sc->sc_bus);
-	if (sc->sc_intre) {
-		OWRITE4(sc, OHCI_INTERRUPT_ENABLE,
-		    sc->sc_intre & (OHCI_ALL_INTRS | OHCI_MIE));
-	}
-	if (sc->sc_control)
-		ctl = sc->sc_control;
-	else
-		ctl = OREAD4(sc, OHCI_CONTROL);
-	ctl |= OHCI_HCFS_RESUME;
-	OWRITE4(sc, OHCI_CONTROL, ctl);
-	usb_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_MS_TO_TICKS(USB_RESUME_DELAY));
-	ctl = (ctl & ~OHCI_HCFS_MASK) | OHCI_HCFS_OPERATIONAL;
-	OWRITE4(sc, OHCI_CONTROL, ctl);
-	usb_pause_mtx(&sc->sc_bus.bus_mtx, 
-	    USB_MS_TO_TICKS(USB_RESUME_RECOVERY));
-	sc->sc_control = sc->sc_intre = 0;
-
-	USB_BUS_UNLOCK(&sc->sc_bus);
+	ohci_controller_init(sc, 0);
 
 	/* catch any lost interrupts */
 	ohci_do_poll(&sc->sc_bus);
@@ -1427,7 +1392,7 @@ static void
 ohci_setup_standard_chain(struct usb_xfer *xfer, ohci_ed_t **ed_last)
 {
 	struct ohci_std_temp temp;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 	ohci_ed_t *ed;
 	ohci_td_t *td;
 	uint32_t ed_flags;
@@ -1666,7 +1631,7 @@ ohci_root_intr(ohci_softc_t *sc)
 static void
 ohci_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb_pipe_methods *methods = xfer->endpoint->methods;
+	const struct usb_pipe_methods *methods = xfer->endpoint->methods;
 	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 	ohci_ed_t *ed;
 
@@ -1732,7 +1697,7 @@ ohci_device_bulk_start(struct usb_xfer *xfer)
 	ohci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ohci_device_bulk_methods =
+static const struct usb_pipe_methods ohci_device_bulk_methods =
 {
 	.open = ohci_device_bulk_open,
 	.close = ohci_device_bulk_close,
@@ -1773,7 +1738,7 @@ ohci_device_ctrl_start(struct usb_xfer *xfer)
 	ohci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ohci_device_ctrl_methods =
+static const struct usb_pipe_methods ohci_device_ctrl_methods =
 {
 	.open = ohci_device_ctrl_open,
 	.close = ohci_device_ctrl_close,
@@ -1845,7 +1810,7 @@ ohci_device_intr_start(struct usb_xfer *xfer)
 	ohci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ohci_device_intr_methods =
+static const struct usb_pipe_methods ohci_device_intr_methods =
 {
 	.open = ohci_device_intr_open,
 	.close = ohci_device_intr_close,
@@ -2053,7 +2018,7 @@ ohci_device_isoc_start(struct usb_xfer *xfer)
 	ohci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ohci_device_isoc_methods =
+static const struct usb_pipe_methods ohci_device_isoc_methods =
 {
 	.open = ohci_device_isoc_open,
 	.close = ohci_device_isoc_close,
@@ -2078,7 +2043,7 @@ struct usb_device_descriptor ohci_devd =
 	UDPROTO_FSHUB,			/* protocol */
 	64,				/* max packet */
 	{0}, {0}, {0x00, 0x01},		/* device id */
-	1, 2, 0,			/* string indicies */
+	1, 2, 0,			/* string indexes */
 	1				/* # of configurations */
 };
 
@@ -2101,7 +2066,7 @@ struct ohci_config_desc ohci_confd =
 		.bNumEndpoints = 1,
 		.bInterfaceClass = UICLASS_HUB,
 		.bInterfaceSubClass = UISUBCLASS_HUB,
-		.bInterfaceProtocol = UIPROTO_FSHUB,
+		.bInterfaceProtocol = 0,
 	},
 	.endpd = {
 		.bLength = sizeof(struct usb_endpoint_descriptor),
@@ -2116,13 +2081,8 @@ struct ohci_config_desc ohci_confd =
 static const
 struct usb_hub_descriptor ohci_hubd =
 {
-	0,				/* dynamic length */
-	UDESC_HUB,
-	0,
-	{0, 0},
-	0,
-	0,
-	{0},
+	.bDescLength = 0,	/* dynamic length */
+	.bDescriptorType = UDESC_HUB,
 };
 
 static usb_error_t
@@ -2344,7 +2304,7 @@ ohci_roothub_exec(struct usb_device *udev,
 
 	case C(UR_GET_STATUS, UT_READ_CLASS_DEVICE):
 		len = 16;
-		bzero(sc->sc_hub_desc.temp, 16);
+		memset(sc->sc_hub_desc.temp, 0, 16);
 		break;
 	case C(UR_GET_STATUS, UT_READ_CLASS_OTHER):
 		DPRINTFN(9, "get port status i=%d\n",
@@ -2356,6 +2316,7 @@ ohci_roothub_exec(struct usb_device *udev,
 		}
 		v = OREAD4(sc, OHCI_RH_PORT_STATUS(index));
 		DPRINTFN(9, "port status=0x%04x\n", v);
+		v &= ~UPS_PORT_MODE_DEVICE;	/* force host mode */
 		USETW(sc->sc_hub_desc.ps.wPortStatus, v);
 		USETW(sc->sc_hub_desc.ps.wPortChange, v >> 16);
 		len = sizeof(sc->sc_hub_desc.ps);
@@ -2385,7 +2346,7 @@ ohci_roothub_exec(struct usb_device *udev,
 			for (v = 0;; v++) {
 				if (v < 12) {
 					usb_pause_mtx(&sc->sc_bus.bus_mtx,
-					    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
+					    USB_MS_TO_TICKS(usb_port_root_reset_delay));
 
 					if ((OREAD4(sc, port) & UPS_RESET) == 0) {
 						break;
@@ -2476,7 +2437,7 @@ ohci_xfer_setup(struct usb_setup_params *parm)
 		usbd_transfer_setup_sub(parm);
 
 		nitd = ((xfer->max_data_length / OHCI_PAGE_SIZE) +
-		    ((xfer->nframes + OHCI_ITD_NOFFSET - 1) / OHCI_ITD_NOFFSET) +
+		    howmany(xfer->nframes, OHCI_ITD_NOFFSET) +
 		    1 /* EXTRA */ );
 		ntd = 0;
 		nqh = 1;
@@ -2592,10 +2553,6 @@ ohci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_addr);
 
-	if (udev->flags.usb_mode != USB_MODE_HOST) {
-		/* not supported */
-		return;
-	}
 	if (udev->device_index != sc->sc_addr) {
 		switch (edesc->bmAttributes & UE_XFERTYPE) {
 		case UE_CONTROL:
@@ -2610,9 +2567,7 @@ ohci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 			}
 			break;
 		case UE_BULK:
-			if (udev->speed != USB_SPEED_LOW) {
-				ep->methods = &ohci_device_bulk_methods;
-			}
+			ep->methods = &ohci_device_bulk_methods;
 			break;
 		default:
 			/* do nothing */
@@ -2628,7 +2583,7 @@ ohci_xfer_unsetup(struct usb_xfer *xfer)
 }
 
 static void
-ohci_get_dma_delay(struct usb_bus *bus, uint32_t *pus)
+ohci_get_dma_delay(struct usb_device *udev, uint32_t *pus)
 {
 	/*
 	 * Wait until hardware has finished any possible use of the
@@ -2642,7 +2597,7 @@ ohci_device_resume(struct usb_device *udev)
 {
 	struct ohci_softc *sc = OHCI_BUS2SC(udev->bus);
 	struct usb_xfer *xfer;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 	ohci_ed_t *ed;
 
 	DPRINTF("\n");
@@ -2680,7 +2635,7 @@ ohci_device_suspend(struct usb_device *udev)
 {
 	struct ohci_softc *sc = OHCI_BUS2SC(udev->bus);
 	struct usb_xfer *xfer;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 	ohci_ed_t *ed;
 
 	DPRINTF("\n");
@@ -2709,6 +2664,24 @@ ohci_device_suspend(struct usb_device *udev)
 	USB_BUS_UNLOCK(udev->bus);
 
 	return;
+}
+
+static void
+ohci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
+{
+	struct ohci_softc *sc = OHCI_BUS2SC(bus);
+
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+	case USB_HW_POWER_SHUTDOWN:
+		ohci_suspend(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		ohci_resume(sc);
+		break;
+	default:
+		break;
+	}
 }
 
 static void
@@ -2746,7 +2719,7 @@ ohci_set_hw_power(struct usb_bus *bus)
 	return;
 }
 
-struct usb_bus_methods ohci_bus_methods =
+static const struct usb_bus_methods ohci_bus_methods =
 {
 	.endpoint_init = ohci_ep_init,
 	.xfer_setup = ohci_xfer_setup,
@@ -2755,6 +2728,7 @@ struct usb_bus_methods ohci_bus_methods =
 	.device_resume = ohci_device_resume,
 	.device_suspend = ohci_device_suspend,
 	.set_hw_power = ohci_set_hw_power,
+	.set_hw_power_sleep = ohci_set_hw_power_sleep,
 	.roothub_exec = ohci_roothub_exec,
 	.xfer_poll = ohci_do_poll,
 };

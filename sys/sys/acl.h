@@ -99,13 +99,13 @@ struct oldacl {
  * Current "struct acl".
  */
 struct acl_entry {
-	acl_tag_t	ae_tag;
-	uid_t		ae_id;
-	acl_perm_t	ae_perm;
-	/* "allow" or "deny".  Unused in POSIX ACLs. */
+	acl_tag_t		ae_tag;
+	uid_t			ae_id;
+	acl_perm_t		ae_perm;
+	/* NFSv4 entry type, "allow" or "deny".  Unused in POSIX.1e ACLs. */
 	acl_entry_type_t	ae_entry_type;
-	/* Flags control inheritance.  Unused in POSIX ACLs. */
-	acl_flag_t	ae_flags;
+	/* NFSv4 ACL inheritance.  Unused in POSIX.1e ACLs. */
+	acl_flag_t		ae_flags;
 };
 typedef struct acl_entry	*acl_entry_t;
 
@@ -217,11 +217,22 @@ typedef void *acl_t;
 #define	ACL_WRITE_OWNER		0x00004000
 #define	ACL_SYNCHRONIZE		0x00008000
 
-#define	ACL_NFS4_PERM_BITS	(ACL_READ_DATA | ACL_WRITE_DATA | \
+#define	ACL_FULL_SET		(ACL_READ_DATA | ACL_WRITE_DATA | \
     ACL_APPEND_DATA | ACL_READ_NAMED_ATTRS | ACL_WRITE_NAMED_ATTRS | \
     ACL_EXECUTE | ACL_DELETE_CHILD | ACL_READ_ATTRIBUTES | \
     ACL_WRITE_ATTRIBUTES | ACL_DELETE | ACL_READ_ACL | ACL_WRITE_ACL | \
     ACL_WRITE_OWNER | ACL_SYNCHRONIZE)
+
+#define	ACL_MODIFY_SET		(ACL_FULL_SET & \
+    ~(ACL_WRITE_ACL | ACL_WRITE_OWNER))
+
+#define	ACL_READ_SET		(ACL_READ_DATA | ACL_READ_NAMED_ATTRS | \
+    ACL_READ_ATTRIBUTES | ACL_READ_ACL)
+
+#define	ACL_WRITE_SET		(ACL_WRITE_DATA | ACL_APPEND_DATA | \
+    ACL_WRITE_NAMED_ATTRS | ACL_WRITE_ATTRIBUTES)
+
+#define	ACL_NFS4_PERM_BITS	ACL_FULL_SET
 
 /*
  * Possible entry_id values for acl_get_entry(3).
@@ -238,11 +249,12 @@ typedef void *acl_t;
 #define	ACL_ENTRY_INHERIT_ONLY		0x0008
 #define	ACL_ENTRY_SUCCESSFUL_ACCESS	0x0010
 #define	ACL_ENTRY_FAILED_ACCESS		0x0020
+#define	ACL_ENTRY_INHERITED		0x0080
 
 #define	ACL_FLAGS_BITS			(ACL_ENTRY_FILE_INHERIT | \
     ACL_ENTRY_DIRECTORY_INHERIT | ACL_ENTRY_NO_PROPAGATE_INHERIT | \
     ACL_ENTRY_INHERIT_ONLY | ACL_ENTRY_SUCCESSFUL_ACCESS | \
-    ACL_ENTRY_FAILED_ACCESS)
+    ACL_ENTRY_FAILED_ACCESS | ACL_ENTRY_INHERITED)
 
 /*
  * Undefined value in ae_id field.  ae_id should be set to this value

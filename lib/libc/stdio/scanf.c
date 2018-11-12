@@ -5,6 +5,11 @@
  * This code is derived from software contributed to Berkeley by
  * Chris Torek.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -42,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 #include "local.h"
+#include "xlocale_private.h"
 
 int
 scanf(char const * __restrict fmt, ...)
@@ -51,7 +57,21 @@ scanf(char const * __restrict fmt, ...)
 
 	va_start(ap, fmt);
 	FLOCKFILE(stdin);
-	ret = __svfscanf(stdin, fmt, ap);
+	ret = __svfscanf(stdin, __get_locale(), fmt, ap);
+	FUNLOCKFILE(stdin);
+	va_end(ap);
+	return (ret);
+}
+int
+scanf_l(locale_t locale, char const * __restrict fmt, ...)
+{
+	int ret;
+	va_list ap;
+	FIX_LOCALE(locale);
+
+	va_start(ap, fmt);
+	FLOCKFILE(stdin);
+	ret = __svfscanf(stdin, locale, fmt, ap);
 	FUNLOCKFILE(stdin);
 	va_end(ap);
 	return (ret);

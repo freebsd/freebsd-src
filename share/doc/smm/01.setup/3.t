@@ -9,11 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -1237,10 +1233,8 @@ location that uses a different password file.
 .PP
 Other new filesystems that may be stacked include the loopback filesystem
 .Xr mount_lofs (8),
-the kernel filesystem
-.Xr mount_kernfs (8),
-and the portal filesystem
-.Xr mount_portal (8).
+and the kernel filesystem
+.Xr mount_kernfs (8).
 .PP
 The buffer cache in the kernel is now organized as a file block cache
 rather than a device block cache.

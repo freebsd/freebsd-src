@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +32,7 @@
 .\"     @(#)bsearch.3	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd February 22, 2013
 .Dt BSEARCH 3
 .Os
 .Sh NAME
@@ -71,6 +71,12 @@ less than, equal to, or greater than zero if the
 .Fa key
 object is found, respectively, to be less than, to match, or be
 greater than the array member.
+See the
+.Fa int_compare
+sample function in
+.Xr qsort 3
+for a comparison function that is also compatible with
+.Fn bsearch .
 .Sh RETURN VALUES
 The
 .Fn bsearch

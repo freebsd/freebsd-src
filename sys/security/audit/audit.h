@@ -95,12 +95,12 @@ void	 audit_arg_pid(pid_t pid);
 void	 audit_arg_process(struct proc *p);
 void	 audit_arg_signum(u_int signum);
 void	 audit_arg_socket(int sodomain, int sotype, int soprotocol);
-void	 audit_arg_sockaddr(struct thread *td, struct sockaddr *sa);
+void	 audit_arg_sockaddr(struct thread *td, int dirfd, struct sockaddr *sa);
 void	 audit_arg_auid(uid_t auid);
 void	 audit_arg_auditinfo(struct auditinfo *au_info);
 void	 audit_arg_auditinfo_addr(struct auditinfo_addr *au_info);
-void	 audit_arg_upath1(struct thread *td, char *upath);
-void	 audit_arg_upath2(struct thread *td, char *upath);
+void	 audit_arg_upath1(struct thread *td, int dirfd, char *upath);
+void	 audit_arg_upath2(struct thread *td, int dirfd, char *upath);
 void	 audit_arg_vnode1(struct vnode *vp);
 void	 audit_arg_vnode2(struct vnode *vp);
 void	 audit_arg_text(char *text);
@@ -114,6 +114,8 @@ void	 audit_arg_auditon(union auditon_udata *udata);
 void	 audit_arg_file(struct proc *p, struct file *fp);
 void	 audit_arg_argv(char *argv, int argc, int length);
 void	 audit_arg_envv(char *envv, int envc, int length);
+void	 audit_arg_rights(cap_rights_t *rightsp);
+void	 audit_arg_fcntl_rights(uint32_t fcntlrights);
 void	 audit_sysclose(struct thread *td, int fd);
 void	 audit_cred_copy(struct ucred *src, struct ucred *dest);
 void	 audit_cred_destroy(struct ucred *cred);
@@ -210,6 +212,11 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_groupset((gidset), (gidset_size));		\
 } while (0)
 
+#define	AUDIT_ARG_LOGIN(login) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_login((login));				\
+} while (0)
+
 #define	AUDIT_ARG_MODE(mode) do {					\
 	if (AUDITING_TD(curthread))					\
 		audit_arg_mode((mode));					\
@@ -235,6 +242,16 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_rgid((rgid));					\
 } while (0)
 
+#define	AUDIT_ARG_RIGHTS(rights) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_rights((rights));				\
+} while (0)
+
+#define	AUDIT_ARG_FCNTL_RIGHTS(fcntlrights) do {			\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_fcntl_rights((fcntlrights));			\
+} while (0)
+
 #define	AUDIT_ARG_RUID(ruid) do {					\
 	if (AUDITING_TD(curthread))					\
 		audit_arg_ruid((ruid));					\
@@ -255,6 +272,11 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_socket((sodomain), (sotype), (soprotocol));	\
 } while (0)
 
+#define	AUDIT_ARG_SOCKADDR(td, dirfd, sa) do {				\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_sockaddr((td), (dirfd), (sa));		\
+} while (0)
+
 #define	AUDIT_ARG_SUID(suid) do {					\
 	if (AUDITING_TD(curthread))					\
 		audit_arg_suid((suid));					\
@@ -270,14 +292,14 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_uid((uid));					\
 } while (0)
 
-#define	AUDIT_ARG_UPATH1(td, upath) do {				\
+#define	AUDIT_ARG_UPATH1(td, dirfd, upath) do {				\
 	if (AUDITING_TD(curthread))					\
-		audit_arg_upath1((td), (upath));			\
+		audit_arg_upath1((td), (dirfd), (upath));		\
 } while (0)
 
-#define	AUDIT_ARG_UPATH2(td, upath) do {				\
+#define	AUDIT_ARG_UPATH2(td, dirfd, upath) do {				\
 	if (AUDITING_TD(curthread))					\
-		audit_arg_upath2((td), (upath));			\
+		audit_arg_upath2((td), (dirfd), (upath));		\
 } while (0)
 
 #define	AUDIT_ARG_VALUE(value) do {					\
@@ -337,20 +359,24 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_FFLAGS(fflags)
 #define	AUDIT_ARG_GID(gid)
 #define	AUDIT_ARG_GROUPSET(gidset, gidset_size)
+#define	AUDIT_ARG_LOGIN(login)
 #define	AUDIT_ARG_MODE(mode)
 #define	AUDIT_ARG_OWNER(uid, gid)
 #define	AUDIT_ARG_PID(pid)
 #define	AUDIT_ARG_PROCESS(p)
 #define	AUDIT_ARG_RGID(rgid)
+#define	AUDIT_ARG_RIGHTS(rights)
+#define	AUDIT_ARG_FCNTL_RIGHTS(fcntlrights)
 #define	AUDIT_ARG_RUID(ruid)
 #define	AUDIT_ARG_SIGNUM(signum)
 #define	AUDIT_ARG_SGID(sgid)
 #define	AUDIT_ARG_SOCKET(sodomain, sotype, soprotocol)
+#define	AUDIT_ARG_SOCKADDR(td, dirfd, sa)
 #define	AUDIT_ARG_SUID(suid)
 #define	AUDIT_ARG_TEXT(text)
 #define	AUDIT_ARG_UID(uid)
-#define	AUDIT_ARG_UPATH1(td, upath)
-#define	AUDIT_ARG_UPATH2(td, upath)
+#define	AUDIT_ARG_UPATH1(td, dirfd, upath)
+#define	AUDIT_ARG_UPATH2(td, dirfd, upath)
 #define	AUDIT_ARG_VALUE(value)
 #define	AUDIT_ARG_VNODE1(vp)
 #define	AUDIT_ARG_VNODE2(vp)

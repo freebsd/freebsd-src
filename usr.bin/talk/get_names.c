@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -45,6 +41,7 @@ static const char sccsid[] = "@(#)get_names.c	8.1 (Berkeley) 6/6/93";
 #include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "talk.h"
 
@@ -83,8 +80,7 @@ get_names(int argc, char *argv[])
 	gethostname(hostname, sizeof (hostname));
 	my_machine_name = hostname;
 	/* check for, and strip out, the machine name of the target */
-	for (cp = argv[1]; *cp && !index("@:!", *cp); cp++)
-		;
+	cp = argv[1] + strcspn(argv[1], "@:!");
 	if (*cp == '\0') {
 		/* this is a local to local talk */
 		his_name = argv[1];

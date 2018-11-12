@@ -18,12 +18,13 @@
 
 enum {
 	URTW_8187B_BULK_RX,
+	URTW_8187B_BULK_TX_STATUS,
 	URTW_8187B_BULK_TX_BE,
 	URTW_8187B_BULK_TX_BK,
 	URTW_8187B_BULK_TX_VI,
 	URTW_8187B_BULK_TX_VO,
 	URTW_8187B_BULK_TX_EP12,
-	URTW_8187B_N_XFERS = 6
+	URTW_8187B_N_XFERS = 7
 };
 
 enum {
@@ -54,6 +55,7 @@ typedef STAILQ_HEAD(, urtw_data) urtw_datahead;
 #define URTW_TX_DATA_LIST_COUNT		16
 #define URTW_RX_MAXSIZE			0x9c4
 #define URTW_TX_MAXSIZE			0x9c4
+#define	URTW_TX_MAXRETRY		11
 
 struct urtw_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
@@ -61,7 +63,7 @@ struct urtw_rx_radiotap_header {
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
 	int8_t		wr_dbm_antsignal;
-} __packed;
+} __packed __aligned(8);
 
 #define URTW_RX_RADIOTAP_PRESENT					\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
@@ -73,11 +75,15 @@ struct urtw_tx_radiotap_header {
 	uint8_t		wt_flags;
 	uint16_t	wt_chan_freq;
 	uint16_t	wt_chan_flags;
-} __packed;
+} __packed __aligned(8);
 
 #define URTW_TX_RADIOTAP_PRESENT					\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
 	 (1 << IEEE80211_RADIOTAP_CHANNEL))
+
+struct urtw_stats {
+	unsigned int			txrates[12];
+};
 
 struct urtw_vap {
 	struct ieee80211vap		vap;
@@ -87,26 +93,28 @@ struct urtw_vap {
 #define	URTW_VAP(vap)	((struct urtw_vap *)(vap))
 
 struct urtw_softc {
-	struct ifnet			*sc_ifp;
+	struct ieee80211com		sc_ic;
+	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 	struct mtx			sc_mtx;
+	void				*sc_tx_dma_buf;
 
 	int				sc_debug;
-	int				sc_if_flags;
 	int				sc_flags;
 #define	URTW_INIT_ONCE			(1 << 1)
 #define	URTW_RTL8187B			(1 << 2)
 #define	URTW_RTL8187B_REV_B		(1 << 3)
 #define	URTW_RTL8187B_REV_D		(1 << 4)
 #define	URTW_RTL8187B_REV_E		(1 << 5)
+#define	URTW_DETACHED			(1 << 6)
+#define	URTW_RUNNING			(1 << 7)
 	enum ieee80211_state		sc_state;
 
 	int				sc_epromtype;
 #define URTW_EEPROM_93C46		0
 #define URTW_EEPROM_93C56		1
 	uint8_t				sc_crcmon;
-	uint8_t				sc_bssid[IEEE80211_ADDR_LEN];
 
 	struct ieee80211_channel	*sc_curchan;
 
@@ -163,10 +171,14 @@ struct urtw_softc {
 	uint8_t				sc_txpwr_ofdm[URTW_MAX_CHANNELS];
 	uint8_t				sc_txpwr_ofdm_base;
 
+	uint8_t				sc_acmctl;
+	uint64_t			sc_txstatus;	/* only for 8187B */
+	struct task			sc_updateslot_task;
+
+	struct urtw_stats		sc_stats;
+
 	struct	urtw_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
 	struct	urtw_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
 };
 
 #define URTW_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)

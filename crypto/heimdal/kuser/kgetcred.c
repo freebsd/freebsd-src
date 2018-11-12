@@ -1,39 +1,37 @@
 /*
- * Copyright (c) 1997 - 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2008 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "kuser_locl.h"
-
-RCSID("$Id: kgetcred.c 22276 2007-12-12 02:42:31Z lha $");
 
 static char *cache_str;
 static char *out_cache_str;
@@ -41,6 +39,7 @@ static char *delegation_cred_str;
 static char *etype_str;
 static int transit_flag = 1;
 static int forwardable_flag;
+static int canonicalize_flag;
 static char *impersonate_str;
 static char *nametype_str;
 static int version_flag;
@@ -48,21 +47,23 @@ static int help_flag;
 
 struct getargs args[] = {
     { "cache",		'c', arg_string, &cache_str,
-      "credential cache to use", "cache"},
+      NP_("credential cache to use", ""), "cache"},
     { "out-cache",	0,   arg_string, &out_cache_str,
-      "credential cache to store credential in", "cache"},
+      NP_("credential cache to store credential in", ""), "cache"},
     { "delegation-credential-cache",0,arg_string, &delegation_cred_str,
-      "where to find the ticket use for delegation", "cache"},
+      NP_("where to find the ticket use for delegation", ""), "cache"},
+    { "canonicalize",	0, arg_flag, &canonicalize_flag,
+      NP_("canonicalize the principal", ""), NULL },
     { "forwardable",	0, arg_flag, &forwardable_flag,
-      "forwardable ticket requested"},
-    { "transit-check",	0,   arg_negative_flag, &transit_flag },
+      NP_("forwardable ticket requested", ""), NULL},
+    { "transit-check",	0,   arg_negative_flag, &transit_flag, NULL, NULL },
     { "enctype",	'e', arg_string, &etype_str,
-      "encryption type to use", "enctype"},
+      NP_("encryption type to use", ""), "enctype"},
     { "impersonate",	0,   arg_string, &impersonate_str,
-      "client to impersonate", "principal"},
-    { "name-type",		0,   arg_string, &nametype_str },
-    { "version", 	0,   arg_flag, &version_flag },
-    { "help",		0,   arg_flag, &help_flag }
+      NP_("client to impersonate", ""), "principal"},
+    { "name-type",		0,   arg_string, &nametype_str, NULL, NULL },
+    { "version", 	0,   arg_flag, &version_flag, NULL, NULL },
+    { "help",		0,   arg_flag, &help_flag, NULL, NULL }
 };
 
 static void
@@ -92,10 +93,10 @@ main(int argc, char **argv)
     ret = krb5_init_context (&context);
     if (ret)
 	errx(1, "krb5_init_context failed: %d", ret);
-  
+
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optidx))
 	usage(1);
-    
+
     if (help_flag)
 	usage (0);
 
@@ -129,7 +130,8 @@ main(int argc, char **argv)
 
 	ret = krb5_string_to_enctype(context, etype_str, &enctype);
 	if (ret)
-	    krb5_errx (context, 1, "unrecognized enctype: %s", etype_str);
+	    krb5_errx (context, 1, N_("unrecognized enctype: %s", ""),
+		       etype_str);
 	krb5_get_creds_opt_set_enctype(context, opt, enctype);
     }
 
@@ -148,6 +150,8 @@ main(int argc, char **argv)
 	krb5_get_creds_opt_add_options(context, opt, KRB5_GC_FORWARDABLE);
     if (!transit_flag)
 	krb5_get_creds_opt_add_options(context, opt, KRB5_GC_NO_TRANSIT_CHECK);
+    if (canonicalize_flag)
+	krb5_get_creds_opt_add_options(context, opt, KRB5_GC_CANONICALIZE);
 
     if (delegation_cred_str) {
 	krb5_ccache id;
@@ -169,7 +173,7 @@ main(int argc, char **argv)
 
 	ret = decode_Ticket(c.ticket.data, c.ticket.length, &ticket, NULL);
 	if (ret) {
-	    krb5_clear_error_string(context);
+	    krb5_clear_error_message(context);
 	    krb5_err (context, 1, ret, "decode_Ticket");
 	}
 	krb5_free_cred_contents(context, &c);
@@ -182,7 +186,7 @@ main(int argc, char **argv)
 	krb5_cc_close (context, id);
 	krb5_free_principal(context, mc.server);
 
-	krb5_get_creds_opt_add_options(context, opt, 
+	krb5_get_creds_opt_add_options(context, opt,
 				       KRB5_GC_CONSTRAINED_DELEGATION);
     }
 
@@ -191,10 +195,13 @@ main(int argc, char **argv)
 	krb5_err (context, 1, ret, "krb5_parse_name %s", argv[0]);
 
     if (nametype_str) {
-	ret = krb5_parse_nametype(context, nametype_str,
-				  &server->name.name_type);
+	int32_t nametype;
+
+	ret = krb5_parse_nametype(context, nametype_str, &nametype);
 	if (ret)
 	    krb5_err(context, 1, ret, "krb5_parse_nametype");
+
+	server->name.name_type = (NAME_TYPE)nametype;
     }
 
     ret = krb5_get_creds(context, opt, cache, server, &out);

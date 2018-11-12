@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 #
 # Make sure we will pick up our config.h file first, not the one from
 # cc_tools.

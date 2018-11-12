@@ -50,6 +50,9 @@ Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr,
 #define call_initfini_pointer(obj, target) \
 	(((InitFunc)(target))())
 
+#define call_init_pointer(obj, target) \
+	(((InitArrFunc)(target))(main_argc, main_argv, environ))
+
 #define round(size, align) \
 	(((size) + (align) - 1) & ~((align) - 1))
 #define calculate_first_tls_offset(size, align) \
@@ -64,5 +67,10 @@ typedef struct {
 } tls_index;
 
 extern void *__tls_get_addr(tls_index *ti);
+
+#define	RTLD_DEFAULT_STACK_PF_EXEC	0
+#define	RTLD_DEFAULT_STACK_EXEC		0
+
+#define md_abi_variant_hook(x)
 
 #endif

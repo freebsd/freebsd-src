@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2001, Boris Popov
+ * Copyright (c) 2000-2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,12 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Boris Popov.
- * 4. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -49,7 +43,7 @@ SYSCTL_DECL(_kern_iconv);
 SYSCTL_NODE(_kern, OID_AUTO, iconv, CTLFLAG_RW, NULL, "kernel iconv interface");
 
 MALLOC_DEFINE(M_ICONV, "iconv", "ICONV structures");
-MALLOC_DEFINE(M_ICONVDATA, "iconv_data", "ICONV data");
+static MALLOC_DEFINE(M_ICONVDATA, "iconv_data", "ICONV data");
 
 MODULE_VERSION(libiconv, 2);
 
@@ -90,9 +84,11 @@ iconv_mod_unload(void)
 	struct iconv_cspair *csp;
 
 	sx_xlock(&iconv_lock);
-	while ((csp = TAILQ_FIRST(&iconv_cslist)) != NULL) {
-		if (csp->cp_refcount)
+	TAILQ_FOREACH(csp, &iconv_cslist, cp_link) {
+		if (csp->cp_refcount) {
+			sx_xunlock(&iconv_lock);
 			return EBUSY;
+		}
 	}
 
 	while ((csp = TAILQ_FIRST(&iconv_cslist)) != NULL)
@@ -139,8 +135,9 @@ iconv_register_converter(struct iconv_converter_class *dcp)
 static int
 iconv_unregister_converter(struct iconv_converter_class *dcp)
 {
+	dcp->refs--;
 	if (dcp->refs > 1) {
-		ICDEBUG("converter have %d referenses left\n", dcp->refs);
+		ICDEBUG("converter has %d references left\n", dcp->refs);
 		return EBUSY;
 	}
 	TAILQ_REMOVE(&iconv_converters, dcp, cc_link);
@@ -171,8 +168,8 @@ iconv_lookupcs(const char *to, const char *from, struct iconv_cspair **cspp)
 	struct iconv_cspair *csp;
 
 	TAILQ_FOREACH(csp, &iconv_cslist, cp_link) {
-		if (strcmp(csp->cp_to, to) == 0 &&
-		    strcmp(csp->cp_from, from) == 0) {
+		if (strcasecmp(csp->cp_to, to) == 0 &&
+		    strcasecmp(csp->cp_from, from) == 0) {
 			if (cspp)
 				*cspp = csp;
 			return 0;
@@ -383,6 +380,18 @@ iconv_sysctl_cslist(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_iconv, OID_AUTO, cslist, CTLFLAG_RD | CTLTYPE_OPAQUE,
 	    NULL, 0, iconv_sysctl_cslist, "S,xlat", "registered charset pairs");
 
+int
+iconv_add(const char *converter, const char *to, const char *from)
+{
+	struct iconv_converter_class *dcp;
+	struct iconv_cspair *csp;
+
+	if (iconv_lookupconv(converter, &dcp) != 0)
+		return EINVAL;
+
+	return iconv_register_cspair(to, from, dcp, NULL, &csp);
+}
+
 /*
  * Add new charset pair
  */
@@ -543,9 +552,7 @@ int
 iconv_lookupcp(char **cpp, const char *s)
 {
 	if (cpp == NULL) {
-		ICDEBUG("warning a NULL list passed\n", ""); /* XXX ISO variadic								macros cannot
-								leave out the
-								variadic args */
+		ICDEBUG("warning a NULL list passed\n", "");
 		return ENOENT;
 	}
 	for (; *cpp; cpp++)

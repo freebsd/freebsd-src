@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2000
+.Dd April 16, 2013
 .Dt SEM_WAIT 3
 .Os
 .Sh NAME
@@ -75,6 +75,14 @@ points to an invalid semaphore.
 .El
 .Pp
 Additionally,
+.Fn sem_wait
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINTR
+A signal interrupted this function.
+.El
+.Pp
+Additionally,
 .Fn sem_trywait
 will fail if:
 .Bl -tag -width Er
@@ -84,8 +92,7 @@ The semaphore value was zero, and thus could not be decremented.
 .Sh SEE ALSO
 .Xr sem_getvalue 3 ,
 .Xr sem_post 3 ,
-.Xr sem_timedwait 3 ,
-.Xr sem 4
+.Xr sem_timedwait 3
 .Sh STANDARDS
 The
 .Fn sem_wait

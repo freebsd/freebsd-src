@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -51,24 +50,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 #include <ata_if.h>
 
-struct ata_serialize {
-    struct mtx  locked_mtx;
-    int         locked_ch;
-    int         restart_ch;
-};
-
 /* local prototypes */
 static int ata_acard_chipinit(device_t dev);
 static int ata_acard_ch_attach(device_t dev);
 static int ata_acard_status(device_t dev);
-static void ata_acard_850_setmode(device_t dev, int mode);
-static void ata_acard_86X_setmode(device_t dev, int mode);
-static int ata_serialize(device_t dev, int flags);
-static void ata_serialize_init(struct ata_serialize *serial);
+static int ata_acard_850_setmode(device_t dev, int target, int mode);
+static int ata_acard_86X_setmode(device_t dev, int target, int mode);
 
 /* misc defines */
 #define ATP_OLD		1
-
 
 /*
  * Acard chipset support functions
@@ -77,7 +67,7 @@ static int
 ata_acard_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static struct ata_chip_id ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_ATP850R, 0, ATP_OLD, 0x00, ATA_UDMA2, "ATP850" },
      { ATA_ATP860A, 0, 0,       0x00, ATA_UDMA4, "ATP860A" },
      { ATA_ATP860R, 0, 0,       0x00, ATA_UDMA4, "ATP860R" },
@@ -93,14 +83,13 @@ ata_acard_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_acard_chipinit;
-    return (BUS_PROBE_DEFAULT);
+    return (BUS_PROBE_LOW_PRIORITY);
 }
 
 static int
 ata_acard_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_serialize *serial;
 
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
@@ -109,11 +98,9 @@ ata_acard_chipinit(device_t dev)
     ctlr->ch_detach = ata_pci_ch_detach;
     if (ctlr->chip->cfg1 == ATP_OLD) {
 	ctlr->setmode = ata_acard_850_setmode;
-	ctlr->locking = ata_serialize;
-	serial = malloc(sizeof(struct ata_serialize),
-			      M_TEMP, M_WAITOK | M_ZERO);
-	ata_serialize_init(serial);
-	ctlr->chipset_data = serial;
+	/* Work around the lack of channel serialization in ATA_CAM. */
+	ctlr->channels = 1;
+	device_printf(dev, "second channel ignored\n");
     }
     else
 	ctlr->setmode = ata_acard_86X_setmode;
@@ -130,18 +117,15 @@ ata_acard_ch_attach(device_t dev)
 	return ENXIO;
 
     ch->hw.status = ata_acard_status;
+    ch->flags |= ATA_NO_ATAPI_DMA;
     return 0;
 }
 
 static int
 ata_acard_status(device_t dev)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
-    if (ctlr->chip->cfg1 == ATP_OLD &&
-	ATA_LOCKING(dev, ATA_LF_WHICH) != ch->unit)
-	    return 0;
     if (ch->dma.flags & ATA_DMA_ACTIVE) {
 	int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
@@ -162,129 +146,52 @@ ata_acard_status(device_t dev)
     return 1;
 }
 
-static void
-ata_acard_850_setmode(device_t dev, int mode)
+static int
+ata_acard_850_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int devno = (ch->unit << 1) + atadev->unit;
-    int error;
+    device_t parent = device_get_parent(dev);
+    struct ata_pci_controller *ctlr = device_get_softc(parent);
+    struct ata_channel *ch = device_get_softc(dev);
+    int devno = (ch->unit << 1) + target;
 
-    mode = ata_limit_mode(dev, mode,
-			  ata_atapi(dev) ? ATA_PIO_MAX : ctlr->chip->max_dma);
-
+    mode = min(mode, ctlr->chip->max_dma);
     /* XXX SOS missing WDMA0+1 + PIO modes */
     if (mode >= ATA_WDMA2) {
-	error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-	if (bootverbose)
-	    device_printf(dev, "%ssetting %s on %s chip\n",
-			  (error) ? "FAILURE " : "",
-			  ata_mode2str(mode), ctlr->chip->text);
-	if (!error) {
-	    u_int8_t reg54 = pci_read_config(gparent, 0x54, 1);
+	    u_int8_t reg54 = pci_read_config(parent, 0x54, 1);
 	    
 	    reg54 &= ~(0x03 << (devno << 1));
 	    if (mode >= ATA_UDMA0)
 		reg54 |= (((mode & ATA_MODE_MASK) + 1) << (devno << 1));
-	    pci_write_config(gparent, 0x54, reg54, 1);
-	    pci_write_config(gparent, 0x4a, 0xa6, 1);
-	    pci_write_config(gparent, 0x40 + (devno << 1), 0x0301, 2);
-	    atadev->mode = mode;
-	    return;
-	}
+	    pci_write_config(parent, 0x54, reg54, 1);
+	    pci_write_config(parent, 0x4a, 0xa6, 1);
+	    pci_write_config(parent, 0x40 + (devno << 1), 0x0301, 2);
     }
     /* we could set PIO mode timings, but we assume the BIOS did that */
-}
-
-static void
-ata_acard_86X_setmode(device_t dev, int mode)
-{
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int devno = (ch->unit << 1) + atadev->unit;
-    int error;
-
-
-    mode = ata_limit_mode(dev, mode,
-			  ata_atapi(dev) ? ATA_PIO_MAX : ctlr->chip->max_dma);
-
-    mode = ata_check_80pin(dev, mode);
-
-    /* XXX SOS missing WDMA0+1 + PIO modes */
-    if (mode >= ATA_WDMA2) {
-	error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-	if (bootverbose)
-	    device_printf(dev, "%ssetting %s on %s chip\n",
-			  (error) ? "FAILURE " : "",
-			  ata_mode2str(mode), ctlr->chip->text);
-	if (!error) {
-	    u_int16_t reg44 = pci_read_config(gparent, 0x44, 2);
-	    
-	    reg44 &= ~(0x000f << (devno << 2));
-	    if (mode >= ATA_UDMA0)
-		reg44 |= (((mode & ATA_MODE_MASK) + 1) << (devno << 2));
-	    pci_write_config(gparent, 0x44, reg44, 2);
-	    pci_write_config(gparent, 0x4a, 0xa6, 1);
-	    pci_write_config(gparent, 0x40 + devno, 0x31, 1);
-	    atadev->mode = mode;
-	    return;
-	}
-    }
-    /* we could set PIO mode timings, but we assume the BIOS did that */
-}
-
-static void
-ata_serialize_init(struct ata_serialize *serial)
-{
-
-    mtx_init(&serial->locked_mtx, "ATA serialize lock", NULL, MTX_DEF); 
-    serial->locked_ch = -1;
-    serial->restart_ch = -1;
+    return (mode);
 }
 
 static int
-ata_serialize(device_t dev, int flags)
+ata_acard_86X_setmode(device_t dev, int target, int mode)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
-    struct ata_channel *ch = device_get_softc(dev);
-    struct ata_serialize *serial;
-    int res;
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
+	struct ata_channel *ch = device_get_softc(dev);
+	int devno = (ch->unit << 1) + target;
 
-    serial = ctlr->chipset_data;
-
-    mtx_lock(&serial->locked_mtx);
-    switch (flags) {
-    case ATA_LF_LOCK:
-	if (serial->locked_ch == -1)
-	    serial->locked_ch = ch->unit;
-	if (serial->locked_ch != ch->unit)
-	    serial->restart_ch = ch->unit;
-	break;
-
-    case ATA_LF_UNLOCK:
-	if (serial->locked_ch == ch->unit) {
-	    serial->locked_ch = -1;
-	    if (serial->restart_ch != -1) {
-		if ((ch = ctlr->interrupt[serial->restart_ch].argument)) {
-		    serial->restart_ch = -1;
-		    mtx_unlock(&serial->locked_mtx);
-		    ata_start(dev);
-		    return -1;
-		}
-	    }
+	mode = min(mode, ctlr->chip->max_dma);
+	/* XXX SOS missing WDMA0+1 + PIO modes */
+	if (mode >= ATA_WDMA2) {
+		u_int16_t reg44 = pci_read_config(parent, 0x44, 2);
+	    
+		reg44 &= ~(0x000f << (devno << 2));
+		if (mode >= ATA_UDMA0)
+			reg44 |= (((mode & ATA_MODE_MASK) + 1) << (devno << 2));
+		pci_write_config(parent, 0x44, reg44, 2);
+		pci_write_config(parent, 0x4a, 0xa6, 1);
+		pci_write_config(parent, 0x40 + devno, 0x31, 1);
 	}
-	break;
-
-    case ATA_LF_WHICH:
-	break;
-    }
-    res = serial->locked_ch;
-    mtx_unlock(&serial->locked_mtx);
-    return res;
+	/* we could set PIO mode timings, but we assume the BIOS did that */
+	return (mode);
 }
 
 ATA_DECLARE_DRIVER(ata_acard);

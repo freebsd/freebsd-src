@@ -42,17 +42,17 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <stdio.h>
+#include <libutil.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <util.h>
 
 #include "ealloc.h"
 #include "sprite.h"
 #include "hash.h"
 
 #ifdef DEBUG
-int debug = 0;
+static int debug = 0;
 # define	DPRINTF(args) if (debug) { fflush(stdout); fprintf args; }
 #else
 # define	DPRINTF(args)
@@ -73,9 +73,9 @@ int debug = 0;
 #define KEYWORDS_STR	"# KEYWORDS:"
 #define KEYWORDS_LEN	(sizeof(KEYWORDS_STR) - 1)
 
-int exit_code;
-int file_count;
-char **file_list;
+static int exit_code;
+static int file_count;
+static char **file_list;
 
 typedef int bool;
 #define TRUE 1
@@ -84,7 +84,7 @@ typedef bool flag;
 #define SET TRUE
 #define RESET FALSE
 
-Hash_Table provide_hash_s, *provide_hash;
+static Hash_Table provide_hash_s, *provide_hash;
 
 typedef struct provnode provnode;
 typedef struct filenode filenode;
@@ -124,38 +124,35 @@ struct filenode {
 	strnodelist	*keyword_list;
 };
 
-filenode fn_head_s, *fn_head;
+static filenode fn_head_s, *fn_head;
 
-strnodelist *bl_list;
-strnodelist *keep_list;
-strnodelist *skip_list;
+static strnodelist *bl_list;
+static strnodelist *keep_list;
+static strnodelist *skip_list;
 
-void do_file(filenode *fnode);
-void strnode_add(strnodelist **, char *, filenode *);
-int skip_ok(filenode *fnode);
-int keep_ok(filenode *fnode);
-void satisfy_req(f_reqnode *rnode, char *filename);
-void crunch_file(char *);
-void parse_require(filenode *, char *);
-void parse_provide(filenode *, char *);
-void parse_before(filenode *, char *);
-void parse_keywords(filenode *, char *);
-filenode *filenode_new(char *);
-void add_require(filenode *, char *);
-void add_provide(filenode *, char *);
-void add_before(filenode *, char *);
-void add_keyword(filenode *, char *);
-void insert_before(void);
-Hash_Entry *make_fake_provision(filenode *);
-void crunch_all_files(void);
-void initialize(void);
-void generate_ordering(void);
-int main(int, char *[]);
+static void do_file(filenode *fnode);
+static void strnode_add(strnodelist **, char *, filenode *);
+static int skip_ok(filenode *fnode);
+static int keep_ok(filenode *fnode);
+static void satisfy_req(f_reqnode *rnode, char *filename);
+static void crunch_file(char *);
+static void parse_require(filenode *, char *);
+static void parse_provide(filenode *, char *);
+static void parse_before(filenode *, char *);
+static void parse_keywords(filenode *, char *);
+static filenode *filenode_new(char *);
+static void add_require(filenode *, char *);
+static void add_provide(filenode *, char *);
+static void add_before(filenode *, char *);
+static void add_keyword(filenode *, char *);
+static void insert_before(void);
+static Hash_Entry *make_fake_provision(filenode *);
+static void crunch_all_files(void);
+static void initialize(void);
+static void generate_ordering(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch;
 
@@ -198,8 +195,8 @@ main(argc, argv)
 /*
  * initialise various variables.
  */
-void
-initialize()
+static void
+initialize(void)
 {
 
 	fn_head = &fn_head_s;
@@ -209,11 +206,8 @@ initialize()
 }
 
 /* generic function to insert a new strnodelist element */
-void
-strnode_add(listp, s, fnode)
-	strnodelist **listp;
-	char *s;
-	filenode *fnode;
+static void
+strnode_add(strnodelist **listp, char *s, filenode *fnode)
 {
 	strnodelist *ent;
 
@@ -226,7 +220,7 @@ strnode_add(listp, s, fnode)
 
 /*
  * below are the functions that deal with creating the lists
- * from the filename's given and the dependancies and provisions
+ * from the filename's given dependencies and provisions
  * in each of these files.  no ordering or checking is done here.
  */
 
@@ -234,9 +228,8 @@ strnode_add(listp, s, fnode)
  * we have a new filename, create a new filenode structure.
  * fill in the bits, and put it in the filenode linked list
  */
-filenode *
-filenode_new(filename)
-	char *filename;
+static filenode *
+filenode_new(char *filename)
 {
 	filenode *temp;
 
@@ -263,10 +256,8 @@ filenode_new(filename)
 /*
  * add a requirement to a filenode.
  */
-void
-add_require(fnode, s)
-	filenode *fnode;
-	char *s;
+static void
+add_require(filenode *fnode, char *s)
 {
 	Hash_Entry *entry;
 	f_reqnode *rnode;
@@ -285,10 +276,8 @@ add_require(fnode, s)
  * add a provision to a filenode.  if this provision doesn't
  * have a head node, create one here.
  */
-void
-add_provide(fnode, s)
-	filenode *fnode;
-	char *s;
+static void
+add_provide(filenode *fnode, char *s)
 {
 	Hash_Entry *entry;
 	f_provnode *f_pnode;
@@ -366,10 +355,8 @@ add_provide(fnode, s)
 /*
  * put the BEFORE: lines to a list and handle them later.
  */
-void
-add_before(fnode, s)
-	filenode *fnode;
-	char *s;
+static void
+add_before(filenode *fnode, char *s)
 {
 	strnodelist *bf_ent;
 
@@ -383,10 +370,8 @@ add_before(fnode, s)
 /*
  * add a key to a filenode.
  */
-void
-add_keyword(fnode, s)
-	filenode *fnode;
-	char *s;
+static void
+add_keyword(filenode *fnode, char *s)
 {
 
 	strnode_add(&fnode->keyword_list, s, fnode);
@@ -396,10 +381,8 @@ add_keyword(fnode, s)
  * loop over the rest of a REQUIRE line, giving each word to
  * add_require() to do the real work.
  */
-void
-parse_require(node, buffer)
-	filenode *node;
-	char *buffer;
+static void
+parse_require(filenode *node, char *buffer)
 {
 	char *s;
 	
@@ -412,10 +395,8 @@ parse_require(node, buffer)
  * loop over the rest of a PROVIDE line, giving each word to
  * add_provide() to do the real work.
  */
-void
-parse_provide(node, buffer)
-	filenode *node;
-	char *buffer;
+static void
+parse_provide(filenode *node, char *buffer)
 {
 	char *s;
 	
@@ -428,10 +409,8 @@ parse_provide(node, buffer)
  * loop over the rest of a BEFORE line, giving each word to
  * add_before() to do the real work.
  */
-void
-parse_before(node, buffer)
-	filenode *node;
-	char *buffer;
+static void
+parse_before(filenode *node, char *buffer)
 {
 	char *s;
 	
@@ -444,10 +423,8 @@ parse_before(node, buffer)
  * loop over the rest of a KEYWORD line, giving each word to
  * add_keyword() to do the real work.
  */
-void
-parse_keywords(node, buffer)
-	filenode *node;
-	char *buffer;
+static void
+parse_keywords(filenode *node, char *buffer)
 {
 	char *s;
 	
@@ -460,9 +437,8 @@ parse_keywords(node, buffer)
  * given a file name, create a filenode for it, read in lines looking
  * for provision and requirement lines, building the graphs as needed.
  */
-void
-crunch_file(filename)
-	char *filename;
+static void
+crunch_file(char *filename)
 {
 	FILE *fp;
 	char *buf;
@@ -533,9 +509,8 @@ crunch_file(filename)
 	fclose(fp);
 }
 
-Hash_Entry *
-make_fake_provision(node)
-	filenode *node;
+static Hash_Entry *
+make_fake_provision(filenode *node)
 {
 	Hash_Entry *entry;
 	f_provnode *f_pnode;
@@ -580,8 +555,8 @@ make_fake_provision(node)
  * for each entry in the provision list for S, add a requirement to
  * that provisions filenode for P.
  */
-void
-insert_before()
+static void
+insert_before(void)
 {
 	Hash_Entry *entry, *fake_prov_entry;
 	provnode *pnode;
@@ -618,8 +593,8 @@ insert_before()
  * real work.  after we have built all the nodes, insert the BEFORE:
  * lines into graph(s).
  */
-void
-crunch_all_files()
+static void
+crunch_all_files(void)
 {
 	int i;
 	
@@ -643,10 +618,8 @@ crunch_all_files()
  * calling do_file() (enter recursion) for each filenode in this
  * provision.
  */
-void
-satisfy_req(rnode, filename)
-	f_reqnode *rnode;
-	char *filename;
+static void
+satisfy_req(f_reqnode *rnode, char *filename)
 {
 	Hash_Entry *entry;
 	provnode *head;
@@ -686,9 +659,8 @@ satisfy_req(rnode, filename)
 		do_file(head->next->fnode);
 }
 
-int
-skip_ok(fnode)
-	filenode *fnode;
+static int
+skip_ok(filenode *fnode)
 {
 	strnodelist *s;
 	strnodelist *k;
@@ -701,9 +673,8 @@ skip_ok(fnode)
 	return (1);
 }
 
-int
-keep_ok(fnode)
-	filenode *fnode;
+static int
+keep_ok(filenode *fnode)
 {
 	strnodelist *s;
 	strnodelist *k;
@@ -725,13 +696,12 @@ keep_ok(fnode)
  *
  * NOTE: do_file() is called recursively from several places and cannot
  * safely free() anything related to items that may be recursed on.
- * Circular dependancies will cause problems if we do.
+ * Circular dependencies will cause problems if we do.
  */
-void
-do_file(fnode)
-	filenode *fnode;
+static void
+do_file(filenode *fnode)
 {
-	f_reqnode *r, *r_tmp;
+	f_reqnode *r;
 	f_provnode *p, *p_tmp;
 	provnode *pnode;
 	int was_set;	
@@ -758,13 +728,8 @@ do_file(fnode)
 	 */
 	r = fnode->req_list;
 	while (r != NULL) {
-		r_tmp = r;
 		satisfy_req(r, fnode->filename);
 		r = r->next;
-#if 0
-		if (was_set == 0)
-			free(r_tmp);
-#endif
 	}
 	fnode->req_list = NULL;
 
@@ -811,8 +776,8 @@ do_file(fnode)
 #endif
 }
 
-void
-generate_ordering()
+static void
+generate_ordering(void)
 {
 
 	/*

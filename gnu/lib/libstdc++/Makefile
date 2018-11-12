@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
+GCCVER=	4.2
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 SRCDIR=	${.CURDIR}/../../../contrib/libstdc++
@@ -13,17 +16,15 @@ LIB=		stdc++
 SHLIB_MAJOR=	6
 
 CFLAGS+=	-DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
-.if ${MACHINE_ARCH} == "arm"
-CFLAGS+=	-D_GLIBCXX_SJLJ_EXCEPTIONS=1
-.endif
 CFLAGS+=	-I${.CURDIR} -I${SUPDIR} -I${GCCDIR} -I${SRCDIR}/include
 CFLAGS+=	-I${GCCLIB}/include -I${SRCDIR}/include -I.
 CFLAGS+=	-frandom-seed=RepeatabilityConsideredGood
 CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections \
 		-Wno-deprecated
+PO_CXXFLAGS=	${CXXFLAGS:N-ffunction-sections}
 
-DPADD=		${LIBM}
-LDADD=		-lm
+LIBADD+=	m
+LDADD=		-Wl,-f,libsupc++.so.1
 
 # libstdc++ sources
 SRCS+=	bitmap_allocator.cc pool_allocator.cc \
@@ -65,14 +66,14 @@ SRCS+=	del_op.cc del_opnt.cc del_opv.cc del_opvnt.cc eh_alloc.cc eh_arm.cc \
 SRCS+=	cp-demangle.c
 
 # MD headers location
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 MARCHDIR=	sparc
-.elif ${MACHINE_ARCH} == "i386" && ${MACHINE_CPU} != 'i386'
+.elif ${MACHINE_CPUARCH} == "i386" && ${MACHINE_CPU} != 'i386'
 MARCHDIR=	i486
-.elif ${MACHINE_ARCH} == "amd64"
+.elif ${MACHINE_CPUARCH} == "amd64"
 MARCHDIR=	i486
 .else
-MARCHDIR=	${MACHINE_ARCH}
+MARCHDIR=	${MACHINE_CPUARCH}
 .endif
 
 .if exists(${SRCDIR}/config/cpu/${MARCHDIR}/atomicity.h)
@@ -81,19 +82,19 @@ ATOMICITY_H=	${SRCDIR}/config/cpu/${MARCHDIR}/atomicity.h
 ATOMICITY_H=	${SRCDIR}/config/cpu/generic/atomicity_mutex/atomicity.h
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 .if exists(${SRCDIR}/config/cpu/generic/atomicity_builtins/atomicity.h)
 ATOMICITY_H=	${SRCDIR}/config/cpu/generic/atomicity_builtins/atomicity.h
 .endif
 .endif
 
-atomicity.cc:	${ATOMICITY_H}
+atomicity.cc:	${ATOMICITY_H} .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 CLEANFILES+=	atomicity.cc
 
 INCSGROUPS=	BITSHDRS BKWHDRS EXTHDRS BASEHDRS BASEXHDRS STDHDRS \
 		TARGETHDRS THRHDRS DEBUGHDRS TR1HDRS PBHDRS0 PBHDRS1
-CXXINCLUDEDIR=	${INCLUDEDIR}/c++/4.2
+CXXINCLUDEDIR=	${INCLUDEDIR}/c++/${GCCVER}
 
 STDHDRS=	std_algorithm.h std_bitset.h std_complex.h std_deque.h \
 		std_fstream.h std_functional.h std_iomanip.h std_ios.h \
@@ -592,7 +593,13 @@ gthr-default.h: ${GCCDIR}/gthr-posix.h
 
 CLEANFILES+=	${THRHDRS}
 
+.if ${MACHINE_CPUARCH} == "arm"
+unwind.h: ${GCCDIR}/config/arm/unwind-arm.h
+.else
 unwind.h: ${GCCDIR}/unwind-generic.h
+.endif
+
+unwind.h: .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 SRCS+=		unwind.h
@@ -617,9 +624,14 @@ CLEANFILES+=	c++config.h
 
 VERSION_MAP=  	libstdc++.map
 
-${VERSION_MAP}: ${SRCDIR}/config/abi/pre/gnu.ver
+${VERSION_MAP}: ${SRCDIR}/config/abi/pre/gnu.ver .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 CLEANFILES+=	${VERSION_MAP}
 
+CXXFLAGS.clang+= -stdlib=libstdc++
+
 .include <bsd.lib.mk>
+
+# Filter out libc++-specific flags, and -std= flags above c++98 or gnu++98.
+CXXFLAGS:=	${CXXFLAGS:N-stdlib=libc++:N-std=c++[01][13x]:N-std=gnu++[01][13x]}

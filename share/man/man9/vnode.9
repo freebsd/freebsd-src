@@ -26,9 +26,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2003
-.Os
+.Dd February 12, 2014
 .Dt VNODE 9
+.Os
 .Sh NAME
 .Nm vnode
 .Nd internal representation of a file or directory
@@ -69,11 +69,8 @@ and the
 .Va v_holdcnt
 of a vnode reaches zero then the vnode will be put on the freelist
 and may be reused for another file, possibly in another file system.
-The transition to and from the freelist is handled by
-.Xr getnewvnode 9 ,
-.Xr vfree 9
-and
-.Xr vbusy 9 .
+The transition from the freelist is handled by
+.Xr getnewvnode 9 .
 The third is a count of the number of clients which are writing into
 the file.
 It is maintained by the
@@ -82,9 +79,9 @@ and
 .Xr close 2
 system calls.
 .Pp
-Any call which returns a vnode (e.g.\&
+Any call which returns a vnode (e.g.,\&
 .Xr vget 9 ,
-.Xr VOP_LOOKUP 9
+.Xr VOP_LOOKUP 9 ,
 etc.)
 will increase the
 .Va v_usecount
@@ -119,13 +116,13 @@ No type.
 .It Dv VREG
 A regular file; may be with or without VM object backing.
 If you want to make sure this get a backing object, call
-.Xr vfs_object_create 9 .
+.Fn vnode_create_vobject .
 .It Dv VDIR
 A directory.
 .It Dv VBLK
 A block device; may be with or without VM object backing.
 If you want to make sure this get a backing object, call
-.Xr vfs_object_create 9 .
+.Fn vnode_create_vobject .
 .It Dv VCHR
 A character device.
 .It Dv VLNK
@@ -137,7 +134,7 @@ Advisory locking will not work on this.
 A FIFO (named pipe).
 Advisory locking will not work on this.
 .It Dv VBAD
-An old style bad sector map
+Indicates that the vnode has been reclaimed.
 .El
 .Sh IMPLEMENTATION NOTES
 VFIFO uses the "struct fileops" from
@@ -161,7 +158,40 @@ interlock, will cause a LOR (Lock Order Reversal) due to the
 intertwining of VM Objects and Vnodes.
 .Sh SEE ALSO
 .Xr malloc 9 ,
-.Xr VFS 9
+.Xr VFS 9 ,
+.Xr VOP_ACCESS 9 ,
+.Xr VOP_ACLCHECK 9 ,
+.Xr VOP_ADVISE 9 ,
+.Xr VOP_ADVLOCK 9 ,
+.Xr VOP_ALLOCATE 9 ,
+.Xr VOP_ATTRIB 9 ,
+.Xr VOP_BWRITE 9 ,
+.Xr VOP_CREATE 9 ,
+.Xr VOP_FSYNC 9 ,
+.Xr VOP_GETACL 9 ,
+.Xr VOP_GETEXTATTR 9 ,
+.Xr VOP_GETPAGES 9 ,
+.Xr VOP_INACTIVE 9 ,
+.Xr VOP_IOCTL 9 ,
+.Xr VOP_LINK 9 ,
+.Xr VOP_LISTEXTATTR 9 ,
+.Xr VOP_LOCK 9 ,
+.Xr VOP_LOOKUP 9 ,
+.Xr VOP_OPENCLOSE 9 ,
+.Xr VOP_PATHCONF 9 ,
+.Xr VOP_PRINT 9 ,
+.Xr VOP_RDWR 9 ,
+.Xr VOP_READDIR 9 ,
+.Xr VOP_READLINK 9 ,
+.Xr VOP_REALLOCBLKS 9 ,
+.Xr VOP_REMOVE 9 ,
+.Xr VOP_RENAME 9 ,
+.Xr VOP_REVOKE 9 ,
+.Xr VOP_SETACL 9 ,
+.Xr VOP_SETEXTATTR 9 ,
+.Xr VOP_STRATEGY 9 ,
+.Xr VOP_VPTOCNP 9 ,
+.Xr VOP_VPTOFH 9
 .Sh AUTHORS
 This manual page was written by
 .An Doug Rabson .

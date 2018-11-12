@@ -56,7 +56,7 @@
 
 /*
  * Receive completion ring size - we have one completion per
- * incoming packet (though the opposite isn't necesarrily true),
+ * incoming packet (though the opposite isn't necessarily true),
  * so this logic is a little simpler.
  */
 #define	CAS_NRXCOMP		4096
@@ -154,8 +154,6 @@ struct cas_softc {
 	bus_dma_tag_t	sc_cdmatag;	/* control data bus DMA tag */
 	bus_dmamap_t	sc_dmamap;	/* bus DMA handle */
 
-	u_int		sc_phyad;	/* PHY to use or -1 for any */
-
 	u_int		sc_variant;
 #define	CAS_UNKNOWN	0		/* don't know */
 #define	CAS_CAS		1		/* Sun Cassini */
@@ -197,6 +195,8 @@ struct cas_softc {
 
 	u_int		sc_rxcptr;	/* next ready RX completion */
 	u_int		sc_rxdptr;	/* next ready RX descriptor */
+
+	uint32_t	sc_mac_rxcfg;	/* RX MAC conf. % CAS_MAC_RX_CONF_EN */
 
 	int		sc_ifflags;
 };

@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 #define STATUS_MEDIA	0x2
 #define STATUS_VOLUME	0x4
 
-struct cmdtab {
+static struct cmdtab {
 	int command;
 	const char *name;
 	unsigned min;
@@ -119,40 +119,40 @@ struct cmdtab {
 { 0,		NULL,		0, NULL }
 };
 
-struct cd_toc_entry	toc_buffer[100];
+static struct cd_toc_entry toc_buffer[100];
 
-const char	*cdname;
-int		fd = -1;
-int		verbose = 1;
-int		msf = 1;
+static const char *cdname;
+static int	fd = -1;
+static int	verbose = 1;
+static int	msf = 1;
 
-int		 setvol(int, int);
-int		 read_toc_entrys(int);
-int		 play_msf(int, int, int, int, int, int);
-int		 play_track(int, int, int, int);
-int		 get_vol(int *, int *);
-int		 status(int *, int *, int *, int *);
-int		 open_cd(void);
-int		 next_prev(char *arg, int);
-int		 play(char *arg);
-int		 info(char *arg);
-int		 cdid(void);
-int		 pstatus(char *arg);
-char		*input(int *);
-void		 prtrack(struct cd_toc_entry *e, int lastflag);
-void		 lba2msf(unsigned long lba, u_char *m, u_char *s, u_char *f);
-unsigned int	 msf2lba(u_char m, u_char s, u_char f);
-int		 play_blocks(int blk, int len);
-int		 run(int cmd, char *arg);
-char		*parse(char *buf, int *cmd);
-void		 help(void);
-void		 usage(void);
-char		*use_cdrom_instead(const char *);
-__const char	*strstatus(int);
+static int	 setvol(int, int);
+static int	 read_toc_entrys(int);
+static int	 play_msf(int, int, int, int, int, int);
+static int	 play_track(int, int, int, int);
+static int	 status(int *, int *, int *, int *);
+static int	 open_cd(void);
+static int	 next_prev(char *arg, int);
+static int	 play(char *arg);
+static int	 info(char *arg);
+static int	 cdid(void);
+static int	 pstatus(char *arg);
+static char	*input(int *);
+static void	 prtrack(struct cd_toc_entry *e, int lastflag);
+static void	 lba2msf(unsigned long lba, u_char *m, u_char *s, u_char *f);
+static unsigned int msf2lba(u_char m, u_char s, u_char f);
+static int	 play_blocks(int blk, int len);
+static int	 run(int cmd, char *arg);
+static char	*parse(char *buf, int *cmd);
+static void	 help(void);
+static void	 usage(void);
+static char	*use_cdrom_instead(const char *);
+static const char *strstatus(int);
 static u_int	 dbprog_discid(void);
-__const char	*cdcontrol_prompt(void);
+static const char *cdcontrol_prompt(void);
 
-void help ()
+static void
+help(void)
 {
 	struct cmdtab *c;
 	const char *s;
@@ -178,13 +178,15 @@ void help ()
 	printf ("\tThe plain target address is taken as a synonym for play.\n");
 }
 
-void usage ()
+static void
+usage(void)
 {
 	fprintf (stderr, "usage: cdcontrol [-sv] [-f device] [command ...]\n");
 	exit (1);
 }
 
-char *use_cdrom_instead(const char *old_envvar)
+static char *
+use_cdrom_instead(const char *old_envvar)
 {
 	char *device;
 
@@ -196,7 +198,8 @@ char *use_cdrom_instead(const char *old_envvar)
 }
 
 
-int main (int argc, char **argv)
+int
+main(int argc, char **argv)
 {
 	int cmd;
 	char *arg;
@@ -241,7 +244,7 @@ int main (int argc, char **argv)
 
 	if (argc > 0) {
 		char buf[80], *p;
-		int len;
+		int len, rc;
 
 		for (p=buf; argc-->0; ++argv) {
 			len = strlen (*argv);
@@ -257,7 +260,11 @@ int main (int argc, char **argv)
 		}
 		*p = 0;
 		arg = parse (buf, &cmd);
-		return (run (cmd, arg));
+		rc = run (cmd, arg);
+		if (rc < 0 && verbose)
+			warn(NULL);
+
+		return (rc);
 	}
 
 	if (verbose == 1)
@@ -280,7 +287,8 @@ int main (int argc, char **argv)
 	}
 }
 
-int run (int cmd, char *arg)
+static int
+run(int cmd, char *arg)
 {
 	long speed;
 	int l, r, rc, count;
@@ -409,8 +417,11 @@ int run (int cmd, char *arg)
 		if (fd < 0 && !open_cd ())
 			return (0);
 
-		if (! strlen (arg))
-		    	return pstatus ("volume");
+		if (! strlen (arg)) {
+			char volume[] = "volume";
+
+		    	return pstatus (volume);
+		}
 
 		if (! strncasecmp (arg, "left", strlen(arg)))
 			return ioctl (fd, CDIOCSETLEFT);
@@ -458,7 +469,8 @@ int run (int cmd, char *arg)
 	}
 }
 
-int play (char *arg)
+static int
+play(char *arg)
 {
 	struct ioc_toc_header h;
 	unsigned int n;
@@ -741,7 +753,8 @@ Clean_up:
 	return (0);
 }
 
-int next_prev (char *arg, int cmd)
+static int
+next_prev(char *arg, int cmd)
 {
 	struct ioc_toc_header h;
 	int dir, junk, n, off, rc, trk;
@@ -771,7 +784,8 @@ int next_prev (char *arg, int cmd)
 	return (play_track (trk, 1, n, 1));
 }
 
-const char *strstatus (int sts)
+static const char *
+strstatus(int sts)
 {
 	switch (sts) {
 	case ASTS_INVALID:	return ("invalid");
@@ -784,7 +798,8 @@ const char *strstatus (int sts)
 	}
 }
 
-int pstatus (char *arg)
+static int
+pstatus(char *arg)
 {
 	struct ioc_vol v;
 	struct ioc_read_subchannel ss;
@@ -895,7 +910,7 @@ dbprog_sum(int n)
  *	The integer disc ID.
  */
 static u_int
-dbprog_discid()
+dbprog_discid(void)
 {
 	struct	ioc_toc_header h;
 	int	rc;
@@ -926,7 +941,8 @@ dbprog_discid()
 	return((n % 0xff) << 24 | t << 8 | ntr);
 }
 
-int cdid ()
+static int
+cdid(void)
 {
 	u_int	id;
 
@@ -940,7 +956,8 @@ int cdid ()
 	return id ? 0 : 1;
 }
 
-int info (char *arg __unused)
+static int
+info(char *arg __unused)
 {
 	struct ioc_toc_header h;
 	int rc, i, n;
@@ -977,7 +994,8 @@ int info (char *arg __unused)
 	return (0);
 }
 
-void lba2msf (unsigned long lba, u_char *m, u_char *s, u_char *f)
+static void
+lba2msf(unsigned long lba, u_char *m, u_char *s, u_char *f)
 {
 	lba += 150;			/* block start offset */
 	lba &= 0xffffff;		/* negative lbas use only 24 bits */
@@ -987,12 +1005,14 @@ void lba2msf (unsigned long lba, u_char *m, u_char *s, u_char *f)
 	*f = lba % 75;
 }
 
-unsigned int msf2lba (u_char m, u_char s, u_char f)
+static unsigned int
+msf2lba(u_char m, u_char s, u_char f)
 {
 	return (((m * 60) + s) * 75 + f) - 150;
 }
 
-void prtrack (struct cd_toc_entry *e, int lastflag)
+static void
+prtrack(struct cd_toc_entry *e, int lastflag)
 {
 	int block, next, len;
 	u_char m, s, f;
@@ -1030,7 +1050,8 @@ void prtrack (struct cd_toc_entry *e, int lastflag)
 		(e->control & 4) ? "data" : "audio");
 }
 
-int play_track (int tstart, int istart, int tend, int iend)
+static int
+play_track(int tstart, int istart, int tend, int iend)
 {
 	struct ioc_play_track t;
 
@@ -1042,7 +1063,8 @@ int play_track (int tstart, int istart, int tend, int iend)
 	return ioctl (fd, CDIOCPLAYTRACKS, &t);
 }
 
-int play_blocks (int blk, int len)
+static int
+play_blocks(int blk, int len)
 {
 	struct ioc_play_blocks  t;
 
@@ -1052,7 +1074,8 @@ int play_blocks (int blk, int len)
 	return ioctl (fd, CDIOCPLAYBLOCKS, &t);
 }
 
-int setvol (int left, int right)
+static int
+setvol(int left, int right)
 {
 	struct ioc_vol  v;
 
@@ -1067,7 +1090,8 @@ int setvol (int left, int right)
 	return ioctl (fd, CDIOCSETVOL, &v);
 }
 
-int read_toc_entrys (int len)
+static int
+read_toc_entrys(int len)
 {
 	struct ioc_read_toc_entry t;
 
@@ -1079,7 +1103,8 @@ int read_toc_entrys (int len)
 	return (ioctl (fd, CDIOREADTOCENTRYS, (char *) &t));
 }
 
-int play_msf (int start_m, int start_s, int start_f,
+static int
+play_msf(int start_m, int start_s, int start_f,
 	int end_m, int end_s, int end_f)
 {
 	struct ioc_play_msf a;
@@ -1094,7 +1119,8 @@ int play_msf (int start_m, int start_s, int start_f,
 	return ioctl (fd, CDIOCPLAYMSF, (char *) &a);
 }
 
-int status (int *trk, int *min, int *sec, int *frame)
+static int
+status(int *trk, int *min, int *sec, int *frame)
 {
 	struct ioc_read_subchannel s;
 	struct cd_sub_channel_info data;
@@ -1125,14 +1151,14 @@ int status (int *trk, int *min, int *sec, int *frame)
 	return s.data->header.audio_status;
 }
 
-const char *
-cdcontrol_prompt()
+static const char *
+cdcontrol_prompt(void)
 {
 	return ("cdcontrol> ");
 }
 
-char *
-input (int *cmd)
+static char *
+input(int *cmd)
 {
 #define MAXLINE 80
 	static EditLine *el = NULL;
@@ -1181,7 +1207,8 @@ input (int *cmd)
 	return (p);
 }
 
-char *parse (char *buf, int *cmd)
+static char *
+parse(char *buf, int *cmd)
 {
 	struct cmdtab *c;
 	char *p;
@@ -1245,7 +1272,8 @@ char *parse (char *buf, int *cmd)
 	return p;
 }
 
-int open_cd ()
+static int
+open_cd(void)
 {
 	char devbuf[MAXPATHLEN];
 	const char *dev;
@@ -1264,8 +1292,6 @@ int open_cd ()
 	    fd = open(dev = "/dev/cdrom", O_RDONLY);
 	    if (fd < 0 && errno == ENOENT)
 		fd = open(dev = "/dev/cd0", O_RDONLY);
-	    if (fd < 0 && errno == ENOENT)
-		fd = open(dev = "/dev/acd0", O_RDONLY);
 	}
 
 	if (fd < 0) {

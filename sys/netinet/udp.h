@@ -48,14 +48,16 @@ struct udphdr {
 /* 
  * User-settable options (used with setsockopt).
  */
-#define	UDP_ENCAP			0x01
+#define	UDP_ENCAP			1
 
+/* Start of reserved space for third-party user-settable options. */
+#define	UDP_VENDOR			SO_VENDOR
 
 /*
  * UDP Encapsulation of IPsec Packets options.
  */
 /* Encapsulation types. */
-#define	UDP_ENCAP_ESPINUDP_NON_IKE 	1 /* draft-ietf-ipsec-nat-t-ike-00/01 */
+#define	UDP_ENCAP_ESPINUDP_NON_IKE	1 /* draft-ietf-ipsec-nat-t-ike-00/01 */
 #define	UDP_ENCAP_ESPINUDP		2 /* draft-ietf-ipsec-udp-encaps-02+ */
 
 /* Default ESP in UDP encapsulation port. */

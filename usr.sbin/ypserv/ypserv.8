@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 25, 2009
+.Dd December 13, 2009
 .Dt YPSERV 8
 .Os
 .Sh NAME
@@ -220,7 +220,6 @@ clients to perform user
 authentication through
 .Tn NIS .
 .El
-.Pp
 .Ss Security
 In general, any remote user can issue an RPC to
 .Nm
@@ -292,7 +291,6 @@ security, they, like the privileged port test, are both vulnerable
 to
 .Dq IP spoofing
 attacks.
-.Pp
 .Ss NIS v1 compatibility
 This version of
 .Nm
@@ -408,6 +406,15 @@ in subprocesses, allowing the parent server process to go on handling
 other requests.)
 This makes it easier to trace the server with
 a debugging tool.
+.It Fl h Ar addr
+Specify a specific address to bind to for requests.  This option may be
+specified multiple times.  If no
+.Fl h
+option is specified,
+.Nm
+will bind to default passive address
+.Pq e.g. INADDR_ANY for IPv4
+for each transport.
 .It Fl P Ar port
 Force ypserv to bind to a specific TCP/UDP port, rather than selecting
 its own.
@@ -453,4 +460,4 @@ This version of
 first appeared in
 .Fx 2.2 .
 .Sh AUTHORS
-.An Bill Paul Aq wpaul@ctr.columbia.edu
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu

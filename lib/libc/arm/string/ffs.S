@@ -32,6 +32,8 @@
 
 __FBSDID("$FreeBSD$");
 
+.syntax unified
+
 /*
  * ffs - find first set bit, this algorithm isolates the first set
  * bit, then multiplies the number by 0x0450fbaf which leaves the top
@@ -60,7 +62,7 @@ ENTRY(ffs)
 	rsbne   r0, r0, r0, lsl #16 /* r0 = X * 0x0450fbaf */
               
 	/* now lookup in table indexed on top 6 bits of r0 */
-	ldrneb  r0, [ r2, r0, lsr #26 ]
+	ldrbne  r0, [ r2, r0, lsr #26 ]
 
         RET
 .text;
@@ -76,7 +78,11 @@ ENTRY(ffs)
 	.byte	31,  0,  0,  0,  0, 24,  0, 20  /* 48-55 */
 	.byte   30,  0, 23, 19, 29, 18, 17,  0  /* 56-63 */
 #else
+	itt	ne
 	clzne	r0, r0
 	rsbne	r0, r0, #32
 	RET
 #endif
+END(ffs)
+
+	.section .note.GNU-stack,"",%progbits

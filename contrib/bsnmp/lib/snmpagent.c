@@ -165,6 +165,31 @@ find_subnode(const struct snmp_value *value)
 	return (NULL);
 }
 
+static void
+snmp_pdu_create_response(const struct snmp_pdu *pdu, struct snmp_pdu *resp)
+{
+	memset(resp, 0, sizeof(*resp));
+	strcpy(resp->community, pdu->community);
+	resp->version = pdu->version;
+	resp->type = SNMP_PDU_RESPONSE;
+	resp->request_id = pdu->request_id;
+	resp->version = pdu->version;
+
+	if (resp->version != SNMP_V3)
+		return;
+
+	memcpy(&resp->engine, &pdu->engine, sizeof(pdu->engine));
+	memcpy(&resp->user, &pdu->user, sizeof(pdu->user));
+	snmp_pdu_init_secparams(resp);
+	resp->identifier = pdu->identifier;
+	resp->security_model = pdu->security_model;
+	resp->context_engine_len = pdu->context_engine_len;
+	memcpy(resp->context_engine, pdu->context_engine,
+	    resp->context_engine_len);
+	strlcpy(resp->context_name, pdu->context_name,
+	    sizeof(resp->context_name));
+}
+
 /*
  * Execute a GET operation. The tree is rooted at the global 'root'.
  * Build the response PDU on the fly. If the return code is SNMP_RET_ERR
@@ -184,12 +209,7 @@ snmp_get(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 	memset(&context, 0, sizeof(context));
 	context.ctx.data = data;
 
-	memset(resp, 0, sizeof(*resp));
-	strcpy(resp->community, pdu->community);
-	resp->version = pdu->version;
-	resp->type = SNMP_PDU_RESPONSE;
-	resp->request_id = pdu->request_id;
-	resp->version = pdu->version;
+	snmp_pdu_create_response(pdu, resp);
 
 	if (snmp_pdu_encode_header(resp_b, resp) != SNMP_CODE_OK)
 		/* cannot even encode header - very bad */
@@ -256,7 +276,12 @@ snmp_get(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 		}
 	}
 
-	return (snmp_fix_encoding(resp_b, resp));
+	if (snmp_fix_encoding(resp_b, resp) != SNMP_CODE_OK) {
+		snmp_debug("get: failed to encode PDU");
+		return (SNMP_RET_ERR);
+	}
+
+	return (SNMP_RET_OK);
 }
 
 static struct snmp_node *
@@ -384,11 +409,7 @@ snmp_getnext(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 	memset(&context, 0, sizeof(context));
 	context.ctx.data = data;
 
-	memset(resp, 0, sizeof(*resp));
-	strcpy(resp->community, pdu->community);
-	resp->type = SNMP_PDU_RESPONSE;
-	resp->request_id = pdu->request_id;
-	resp->version = pdu->version;
+	snmp_pdu_create_response(pdu, resp);
 
 	if (snmp_pdu_encode_header(resp_b, resp))
 		return (SNMP_RET_IGN);
@@ -422,7 +443,13 @@ snmp_getnext(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 			return (SNMP_RET_ERR);
 		}
 	}
-	return (snmp_fix_encoding(resp_b, resp));
+
+	if (snmp_fix_encoding(resp_b, resp) != SNMP_CODE_OK) {
+		snmp_debug("getnext: failed to encode PDU");
+		return (SNMP_RET_ERR);
+	}
+
+	return (SNMP_RET_OK);
 }
 
 enum snmp_ret
@@ -440,12 +467,7 @@ snmp_getbulk(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 	memset(&context, 0, sizeof(context));
 	context.ctx.data = data;
 
-	memset(resp, 0, sizeof(*resp));
-	strcpy(resp->community, pdu->community);
-	resp->version = pdu->version;
-	resp->type = SNMP_PDU_RESPONSE;
-	resp->request_id = pdu->request_id;
-	resp->version = pdu->version;
+	snmp_pdu_create_response(pdu, resp);
 
 	if (snmp_pdu_encode_header(resp_b, resp) != SNMP_CODE_OK)
 		/* cannot even encode header - very bad */
@@ -488,6 +510,11 @@ snmp_getbulk(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 	for (cnt = 0; cnt < pdu->error_index; cnt++) {
 		eomib = 1;
 		for (i = non_rep; i < pdu->nbindings; i++) {
+
+			if (resp->nbindings == SNMP_MAX_BINDINGS)
+				/* PDU is full */
+				goto done;
+
 			if (cnt == 0) 
 				result = do_getnext(&context, &pdu->bindings[i],
 				    &resp->bindings[resp->nbindings], pdu);
@@ -526,7 +553,12 @@ snmp_getbulk(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 	}
 
   done:
-	return (snmp_fix_encoding(resp_b, resp));
+	if (snmp_fix_encoding(resp_b, resp) != SNMP_CODE_OK) {
+		snmp_debug("getnext: failed to encode PDU");
+		return (SNMP_RET_ERR);
+	}
+
+	return (SNMP_RET_OK);
 }
 
 /*
@@ -652,11 +684,7 @@ snmp_set(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 	TAILQ_INIT(&context.dlist);
 	context.ctx.data = data;
 
-	memset(resp, 0, sizeof(*resp));
-	strcpy(resp->community, pdu->community);
-	resp->type = SNMP_PDU_RESPONSE;
-	resp->request_id = pdu->request_id;
-	resp->version = pdu->version;
+	snmp_pdu_create_response(pdu, resp);
 
 	if (snmp_pdu_encode_header(resp_b, resp))
 		return (SNMP_RET_IGN);
@@ -945,25 +973,57 @@ enum snmp_ret
 snmp_make_errresp(const struct snmp_pdu *pdu, struct asn_buf *pdu_b,
     struct asn_buf *resp_b)
 {
+	u_char type;
 	asn_len_t len;
 	struct snmp_pdu resp;
 	enum asn_err err;
 	enum snmp_code code;
 
-	memset(&resp, 0, sizeof(resp));
+	snmp_pdu_create_response(pdu, &resp);
 
-	/* Message sequence */
-	if (asn_get_sequence(pdu_b, &len) != ASN_ERR_OK)
-		return (SNMP_RET_IGN);
-	if (pdu_b->asn_len < len)
+	if ((code = snmp_pdu_decode_header(pdu_b, &resp)) != SNMP_CODE_OK)
 		return (SNMP_RET_IGN);
 
-	err = snmp_parse_message_hdr(pdu_b, &resp, &len);
-	if (ASN_ERR_STOPPED(err))
+	if (pdu->version == SNMP_V3) {
+		if (resp.user.priv_proto != SNMP_PRIV_NOPRIV &&
+		   (asn_get_header(pdu_b, &type, &resp.scoped_len) != ASN_ERR_OK
+		   || type != ASN_TYPE_OCTETSTRING)) {
+			snmp_error("cannot decode encrypted pdu");
+			return (SNMP_RET_IGN);
+		}
+
+		if (asn_get_sequence(pdu_b, &len) != ASN_ERR_OK) {
+			snmp_error("cannot decode scoped pdu header");
+			return (SNMP_RET_IGN);
+		}
+
+		len = SNMP_ENGINE_ID_SIZ;
+		if (asn_get_octetstring(pdu_b, (u_char *)resp.context_engine,
+		    &len) != ASN_ERR_OK) {
+			snmp_error("cannot decode msg context engine");
+			return (SNMP_RET_IGN);
+		}
+		resp.context_engine_len = len;
+		len = SNMP_CONTEXT_NAME_SIZ;
+		if (asn_get_octetstring(pdu_b, (u_char *)resp.context_name,
+		    &len) != ASN_ERR_OK) {
+			snmp_error("cannot decode msg context name");
+			return (SNMP_RET_IGN);
+		}
+		resp.context_name[len] = '\0';
+	}
+
+
+	if (asn_get_header(pdu_b, &type, &len) != ASN_ERR_OK) {
+		snmp_error("cannot get pdu header");
 		return (SNMP_RET_IGN);
-	if (pdu_b->asn_len < len)
+	}
+
+	if ((type & ~ASN_TYPE_MASK) !=
+	    (ASN_TYPE_CONSTRUCTED | ASN_CLASS_CONTEXT)) {
+		snmp_error("bad pdu header tag");
 		return (SNMP_RET_IGN);
-	pdu_b->asn_len = len;
+	}
 
 	err = snmp_parse_pdus_hdr(pdu_b, &resp, &len);
 	if (ASN_ERR_STOPPED(err))

@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -53,15 +49,14 @@ static const char sccsid[] = "@(#)wrterm.c	8.1 (Berkeley) 6/9/93";
  * shell problems and omitting empty fields.
  */
 void
-wrtermcap(bp)
-	char *bp;
+wrtermcap(char *bp)
 {
 	register int ch;
 	register char *p;
 	char *t, *sep;
 
 	/* Find the end of the terminal names. */
-	if ((t = index(bp, ':')) == NULL)
+	if ((t = strchr(bp, ':')) == NULL)
 		errx(1, "termcap names not colon terminated");
 	*t++ = '\0';
 

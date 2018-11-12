@@ -76,10 +76,10 @@ Archie's suggestions... :-)
      be careful with things like #ifdef INET.
    - All nodes assume that all data mbufs have the M_PKTHDR flag set!
      The ng_send_data() and related functions should have an
-     #ifdef DIAGNOSTICS check to check this assumption for every mbuf.
+     #ifdef DIAGNOSTIC check to check this assumption for every mbuf.
      -DONE with INVARIANTS. Framework should test this more.
    - More generally, netgraph code should make liberal use of the
-     #ifdef DIAGNOSTICS definition.
+     #ifdef DIAGNOSTIC definition.
      -INVARIANTS.
    - Since data and messages are sent functionally, programmers need
      to watch out for infinite feedback loops. Should ng_base.c detect

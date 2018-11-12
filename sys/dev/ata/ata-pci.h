@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2003 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,10 @@ struct ata_chip_id {
     int                 cfg1;
     int                 cfg2;
     u_int8_t            max_dma;
-    char                *text;
+    const char          *text;
 };
+
+#define ATA_PCI_MAX_CH	8
 
 /* structure describing a PCI ATA controller */
 struct ata_pci_controller {
@@ -48,24 +50,25 @@ struct ata_pci_controller {
     int                 r_irq_rid;
     struct resource     *r_irq;
     void                *handle;
-    struct ata_chip_id  *chip;
+    const struct ata_chip_id *chip;
     int			legacy;
     int                 channels;
     int			ichannels;
     int                 (*chipinit)(device_t);
+    int                 (*chipdeinit)(device_t);
     int                 (*suspend)(device_t);
     int                 (*resume)(device_t);
     int                 (*ch_attach)(device_t);
     int                 (*ch_detach)(device_t);
     int                 (*ch_suspend)(device_t);
     int                 (*ch_resume)(device_t);
-    int                 (*locking)(device_t, int);
     void                (*reset)(device_t);
-    void                (*setmode)(device_t, int);
+    int                 (*setmode)(device_t, int, int);
+    int                 (*getrev)(device_t, int);
     struct {
     void                (*function)(void *);
     void                *argument;
-    } interrupt[8];     /* XXX SOS max ch# for now */
+    } interrupt[ATA_PCI_MAX_CH];
     void                *chipset_data;
 };
 
@@ -81,6 +84,7 @@ struct ata_pci_controller {
 
 #define ATA_ACER_LABS_ID        0x10b9
 #define ATA_ALI_1533            0x153310b9
+#define ATA_ALI_5228            0x522810b9
 #define ATA_ALI_5229            0x522910b9
 #define ATA_ALI_5281            0x528110b9
 #define ATA_ALI_5287            0x528710b9
@@ -94,9 +98,16 @@ struct ata_pci_controller {
 #define ATA_AMD768              0x74411022
 #define ATA_AMD8111             0x74691022
 #define ATA_AMD5536             0x209a1022
+#define ATA_AMD_HUDSON2_S1	0x78001022
+#define ATA_AMD_HUDSON2_S2	0x78011022
+#define ATA_AMD_HUDSON2_S3	0x78021022
+#define ATA_AMD_HUDSON2_S4	0x78031022
+#define ATA_AMD_HUDSON2_S5	0x78041022
+#define ATA_AMD_HUDSON2		0x780c1022
 
 #define ATA_ADAPTEC_ID          0x9005
 #define ATA_ADAPTEC_1420        0x02419005
+#define ATA_ADAPTEC_1430        0x02439005
 
 #define ATA_ATI_ID              0x1002
 #define ATA_ATI_IXP200          0x43491002
@@ -158,44 +169,80 @@ struct ata_pci_controller {
 #define ATA_I6300ESB_R1         0x25b08086
 #define ATA_I63XXESB2           0x269e8086
 #define ATA_I63XXESB2_S1        0x26808086
-#define ATA_I63XXESB2_S2        0x26818086
-#define ATA_I63XXESB2_R1        0x26828086
-#define ATA_I63XXESB2_R2        0x26838086
 #define ATA_I82801FB            0x266f8086
 #define ATA_I82801FB_S1         0x26518086
 #define ATA_I82801FB_R1         0x26528086
 #define ATA_I82801FBM           0x26538086
 #define ATA_I82801GB            0x27df8086
 #define ATA_I82801GB_S1         0x27c08086
-#define ATA_I82801GB_AH         0x27c18086
-#define ATA_I82801GB_R1         0x27c38086
 #define ATA_I82801GBM_S1        0x27c48086
-#define ATA_I82801GBM_AH        0x27c58086
-#define ATA_I82801GBM_R1        0x27c68086
 #define ATA_I82801HB_S1         0x28208086
-#define ATA_I82801HB_AH6        0x28218086
-#define ATA_I82801HB_R1         0x28228086
-#define ATA_I82801HB_AH4        0x28248086
 #define ATA_I82801HB_S2         0x28258086
 #define ATA_I82801HBM           0x28508086
 #define ATA_I82801HBM_S1        0x28288086
-#define ATA_I82801HBM_S2        0x28298086
-#define ATA_I82801HBM_S3        0x282a8086
 #define ATA_I82801IB_S1         0x29208086
-#define ATA_I82801IB_AH2        0x29218086
-#define ATA_I82801IB_AH6        0x29228086
-#define ATA_I82801IB_AH4        0x29238086
+#define ATA_I82801IB_S3         0x29218086
 #define ATA_I82801IB_R1         0x29258086
 #define ATA_I82801IB_S2         0x29268086
+#define ATA_I82801IBM_S1        0x29288086
+#define ATA_I82801IBM_S2        0x292d8086
 #define ATA_I82801JIB_S1        0x3a208086
-#define ATA_I82801JIB_AH        0x3a228086
-#define ATA_I82801JIB_R1        0x3a258086
 #define ATA_I82801JIB_S2        0x3a268086
 #define ATA_I82801JD_S1         0x3a008086
-#define ATA_I82801JD_AH         0x3a028086
-#define ATA_I82801JD_R1         0x3a058086
 #define ATA_I82801JD_S2         0x3a068086
+#define ATA_I82801JI_S1         0x3a208086
+#define ATA_I82801JI_S2         0x3a268086
+
+#define ATA_5Series_S1          0x3b208086
+#define ATA_5Series_S2          0x3b218086
+#define ATA_5Series_S3          0x3b268086
+#define ATA_5Series_S4          0x3b288086
+#define ATA_5Series_S5          0x3b2d8086
+#define ATA_5Series_S6          0x3b2e8086
+
+#define ATA_CPT_S1              0x1c008086
+#define ATA_CPT_S2              0x1c018086
+#define ATA_CPT_S3              0x1c088086
+#define ATA_CPT_S4              0x1c098086
+
+#define ATA_PBG_S1		0x1d008086
+#define ATA_PBG_S2		0x1d088086
+
+#define ATA_PPT_S1		0x1e008086
+#define ATA_PPT_S2		0x1e018086
+#define ATA_PPT_S3		0x1e088086
+#define ATA_PPT_S4		0x1e098086
+
+#define ATA_AVOTON_S1		0x1f208086
+#define ATA_AVOTON_S2		0x1f218086
+#define ATA_AVOTON_S3		0x1f308086
+#define ATA_AVOTON_S4		0x1f318086
+
+#define ATA_LPT_S1		0x8c008086
+#define ATA_LPT_S2		0x8c018086
+#define ATA_LPT_S3		0x8c088086
+#define ATA_LPT_S4		0x8c098086
+
+#define ATA_WCPT_S1		0x8c808086
+#define ATA_WCPT_S2		0x8c818086
+#define ATA_WCPT_S3		0x8c888086
+#define ATA_WCPT_S4		0x8c898086
+
+#define ATA_WELLS_S1		0x8d008086
+#define ATA_WELLS_S2		0x8d088086
+#define ATA_WELLS_S3		0x8d608086
+#define ATA_WELLS_S4		0x8d688086
+
+#define ATA_LPTLP_S1		0x9c008086
+#define ATA_LPTLP_S2		0x9c018086
+#define ATA_LPTLP_S3		0x9c088086
+#define ATA_LPTLP_S4		0x9c098086
+
 #define ATA_I31244              0x32008086
+#define ATA_ISCH                0x811a8086
+
+#define ATA_COLETOCRK_S1        0x23a18086
+#define ATA_COLETOCRK_S2        0x23a68086
 
 #define ATA_ITE_ID              0x1283
 #define ATA_IT8211F             0x82111283
@@ -205,21 +252,21 @@ struct ata_pci_controller {
 #define ATA_JMICRON_ID          0x197b
 #define ATA_JMB360              0x2360197b
 #define ATA_JMB361              0x2361197b
+#define ATA_JMB362              0x2362197b
 #define ATA_JMB363              0x2363197b
 #define ATA_JMB365              0x2365197b
 #define ATA_JMB366              0x2366197b
 #define ATA_JMB368              0x2368197b
+#define ATA_JMB368_2            0x0368197b
 
 #define ATA_MARVELL_ID          0x11ab
-#define ATA_M88SX5040           0x504011ab
-#define ATA_M88SX5041           0x504111ab
-#define ATA_M88SX5080           0x508011ab
-#define ATA_M88SX5081           0x508111ab
-#define ATA_M88SX6041           0x604111ab
-#define ATA_M88SX6081           0x608111ab
-#define ATA_M88SX6101           0x610111ab
-#define ATA_M88SX6121           0x612111ab
-#define ATA_M88SX6145           0x614511ab
+#define ATA_M88SE6101           0x610111ab
+#define ATA_M88SE6102           0x610211ab
+#define ATA_M88SE6111           0x611111ab
+#define ATA_M88SE6121           0x612111ab
+#define ATA_M88SE6141           0x614111ab
+#define ATA_M88SE6145           0x614511ab
+#define ATA_MARVELL2_ID         0x1b4b
 
 #define ATA_MICRON_ID           0x1042
 #define ATA_MICRON_RZ1000       0x10001042
@@ -257,6 +304,15 @@ struct ata_pci_controller {
 #define ATA_NFORCE_MCP61_S2     0x03f610de
 #define ATA_NFORCE_MCP61_S3     0x03f710de
 #define ATA_NFORCE_MCP65        0x044810de
+#define ATA_NFORCE_MCP65_A0     0x044c10de
+#define ATA_NFORCE_MCP65_A1     0x044d10de
+#define ATA_NFORCE_MCP65_A2     0x044e10de
+#define ATA_NFORCE_MCP65_A3     0x044f10de
+#define ATA_NFORCE_MCP65_A4     0x045c10de
+#define ATA_NFORCE_MCP65_A5     0x045d10de
+#define ATA_NFORCE_MCP65_A6     0x045e10de
+#define ATA_NFORCE_MCP65_A7     0x045f10de
+#define ATA_NFORCE_MCP67        0x056010de
 #define ATA_NFORCE_MCP67_A0     0x055010de
 #define ATA_NFORCE_MCP67_A1     0x055110de
 #define ATA_NFORCE_MCP67_A2     0x055210de
@@ -270,7 +326,6 @@ struct ata_pci_controller {
 #define ATA_NFORCE_MCP67_AA     0x055A10de
 #define ATA_NFORCE_MCP67_AB     0x055B10de
 #define ATA_NFORCE_MCP67_AC     0x058410de
-#define ATA_NFORCE_MCP67        0x056010de
 #define ATA_NFORCE_MCP73        0x056c10de
 #define ATA_NFORCE_MCP73_A0     0x07f010de
 #define ATA_NFORCE_MCP73_A1     0x07f110de
@@ -285,6 +340,42 @@ struct ata_pci_controller {
 #define ATA_NFORCE_MCP73_AA     0x07fa10de
 #define ATA_NFORCE_MCP73_AB     0x07fb10de
 #define ATA_NFORCE_MCP77        0x075910de
+#define ATA_NFORCE_MCP77_A0     0x0ad010de
+#define ATA_NFORCE_MCP77_A1     0x0ad110de
+#define ATA_NFORCE_MCP77_A2     0x0ad210de
+#define ATA_NFORCE_MCP77_A3     0x0ad310de
+#define ATA_NFORCE_MCP77_A4     0x0ad410de
+#define ATA_NFORCE_MCP77_A5     0x0ad510de
+#define ATA_NFORCE_MCP77_A6     0x0ad610de
+#define ATA_NFORCE_MCP77_A7     0x0ad710de
+#define ATA_NFORCE_MCP77_A8     0x0ad810de
+#define ATA_NFORCE_MCP77_A9     0x0ad910de
+#define ATA_NFORCE_MCP77_AA     0x0ada10de
+#define ATA_NFORCE_MCP77_AB     0x0adb10de
+#define ATA_NFORCE_MCP79_A0     0x0ab410de
+#define ATA_NFORCE_MCP79_A1     0x0ab510de
+#define ATA_NFORCE_MCP79_A2     0x0ab610de
+#define ATA_NFORCE_MCP79_A3     0x0ab710de
+#define ATA_NFORCE_MCP79_A4     0x0ab810de
+#define ATA_NFORCE_MCP79_A5     0x0ab910de
+#define ATA_NFORCE_MCP79_A6     0x0aba10de
+#define ATA_NFORCE_MCP79_A7     0x0abb10de
+#define ATA_NFORCE_MCP79_A8     0x0abc10de
+#define ATA_NFORCE_MCP79_A9     0x0abd10de
+#define ATA_NFORCE_MCP79_AA     0x0abe10de
+#define ATA_NFORCE_MCP79_AB     0x0abf10de
+#define ATA_NFORCE_MCP89_A0     0x0d8410de
+#define ATA_NFORCE_MCP89_A1     0x0d8510de
+#define ATA_NFORCE_MCP89_A2     0x0d8610de
+#define ATA_NFORCE_MCP89_A3     0x0d8710de
+#define ATA_NFORCE_MCP89_A4     0x0d8810de
+#define ATA_NFORCE_MCP89_A5     0x0d8910de
+#define ATA_NFORCE_MCP89_A6     0x0d8a10de
+#define ATA_NFORCE_MCP89_A7     0x0d8b10de
+#define ATA_NFORCE_MCP89_A8     0x0d8c10de
+#define ATA_NFORCE_MCP89_A9     0x0d8d10de
+#define ATA_NFORCE_MCP89_AA     0x0d8e10de
+#define ATA_NFORCE_MCP89_AB     0x0d8f10de
 
 #define ATA_PROMISE_ID          0x105a
 #define ATA_PDC20246            0x4d33105a
@@ -344,10 +435,6 @@ struct ata_pci_controller {
 #define ATA_SII3512             0x35121095
 #define ATA_SII3112             0x31121095
 #define ATA_SII3112_1           0x02401095
-#define ATA_SII3124		0x31241095
-#define ATA_SII3132		0x31321095
-#define ATA_SII3132_1		0x02421095
-#define ATA_SII3132_2		0x02441095
 #define ATA_SII0680             0x06801095
 #define ATA_CMD646              0x06461095
 #define ATA_CMD648              0x06481095
@@ -415,6 +502,8 @@ struct ata_pci_controller {
 #define ATA_VIA8237             0x32271106
 #define ATA_VIA8237A            0x05911106
 #define ATA_VIA8237S		0x53371106
+#define ATA_VIA8237_5372	0x53721106
+#define ATA_VIA8237_7372	0x73721106
 #define ATA_VIA8251             0x33491106
 #define ATA_VIA8361             0x31121106
 #define ATA_VIA8363             0x03051106
@@ -423,6 +512,14 @@ struct ata_pci_controller {
 #define ATA_VIA6410             0x31641106
 #define ATA_VIA6420             0x31491106
 #define ATA_VIA6421             0x32491106
+#define ATA_VIACX700IDE         0x05811106
+#define ATA_VIACX700            0x83241106
+#define ATA_VIASATAIDE          0x53241106
+#define ATA_VIAVX800            0x83531106
+#define ATA_VIASATAIDE2         0xc4091106
+#define ATA_VIAVX855            0x84091106
+#define ATA_VIASATAIDE3         0x90011106
+#define ATA_VIAVX900            0x84101106
 
 /* global prototypes ata-pci.c */
 int ata_pci_probe(device_t dev);
@@ -430,7 +527,15 @@ int ata_pci_attach(device_t dev);
 int ata_pci_detach(device_t dev);
 int ata_pci_suspend(device_t dev);
 int ata_pci_resume(device_t dev);
-struct resource * ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
+int ata_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
+int ata_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
+uint32_t ata_pci_read_config(device_t dev, device_t child, int reg, int width);
+void ata_pci_write_config(device_t dev, device_t child, int reg, 
+    uint32_t val, int width);
+int ata_pci_print_child(device_t dev, device_t child);
+int ata_pci_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen);
+struct resource * ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 int ata_pci_release_resource(device_t dev, device_t child, int type, int rid, struct resource *r);
 int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags, driver_filter_t *filter, driver_intr_t *function, void *argument, void **cookiep);
  int ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq, void *cookie);
@@ -440,30 +545,24 @@ int ata_pci_status(device_t dev);
 void ata_pci_hw(device_t dev);
 void ata_pci_dmainit(device_t dev);
 void ata_pci_dmafini(device_t dev);
-char *ata_pcivendor2str(device_t dev);
+const char *ata_pcivendor2str(device_t dev);
 int ata_legacy(device_t);
 void ata_generic_intr(void *data);
+int ata_generic_chipinit(device_t dev);
+int ata_generic_setmode(device_t dev, int target, int mode);
 int ata_setup_interrupt(device_t dev, void *intr_func);
 void ata_set_desc(device_t dev);
-struct ata_chip_id *ata_match_chip(device_t dev, struct ata_chip_id *index);
-struct ata_chip_id *ata_find_chip(device_t dev, struct ata_chip_id *index, int slot);
-void ata_print_cable(device_t dev, u_int8_t *who);
-int ata_check_80pin(device_t dev, int mode);
+const struct ata_chip_id *ata_match_chip(device_t dev, const struct ata_chip_id *index);
+const struct ata_chip_id *ata_find_chip(device_t dev, const struct ata_chip_id *index, int slot);
 int ata_mode2idx(int mode);
 
 /* global prototypes from chipsets/ata-*.c */
-int ata_ahci_chipinit(device_t);
-int ata_ahci_ch_attach(device_t dev);
-int ata_ahci_ch_detach(device_t dev);
-int ata_ahci_ch_suspend(device_t dev);
-int ata_ahci_ch_resume(device_t dev);
-int ata_ahci_ctlr_reset(device_t dev);
-void ata_ahci_reset(device_t dev);
-int ata_marvell_edma_chipinit(device_t);
 int ata_sii_chipinit(device_t);
 
 /* externs */
 extern devclass_t ata_pci_devclass;
+
+MALLOC_DECLARE(M_ATAPCI);
 
 /* macro for easy definition of all driver module stuff */
 #define ATA_DECLARE_DRIVER(dname) \
@@ -474,21 +573,26 @@ static device_method_t __CONCAT(dname,_methods)[] = { \
     DEVMETHOD(device_suspend,   ata_pci_suspend), \
     DEVMETHOD(device_resume,    ata_pci_resume), \
     DEVMETHOD(device_shutdown,  bus_generic_shutdown), \
+    DEVMETHOD(bus_read_ivar,		ata_pci_read_ivar), \
+    DEVMETHOD(bus_write_ivar,		ata_pci_write_ivar), \
     DEVMETHOD(bus_alloc_resource,       ata_pci_alloc_resource), \
     DEVMETHOD(bus_release_resource,     ata_pci_release_resource), \
     DEVMETHOD(bus_activate_resource,    bus_generic_activate_resource), \
     DEVMETHOD(bus_deactivate_resource,  bus_generic_deactivate_resource), \
     DEVMETHOD(bus_setup_intr,           ata_pci_setup_intr), \
     DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr), \
-    { 0, 0 } \
+    DEVMETHOD(pci_read_config,		ata_pci_read_config), \
+    DEVMETHOD(pci_write_config,		ata_pci_write_config), \
+    DEVMETHOD(bus_print_child,		ata_pci_print_child), \
+    DEVMETHOD(bus_child_location_str,	ata_pci_child_location_str), \
+    DEVMETHOD_END \
 }; \
 static driver_t __CONCAT(dname,_driver) = { \
         "atapci", \
         __CONCAT(dname,_methods), \
         sizeof(struct ata_pci_controller) \
 }; \
-DRIVER_MODULE(dname, pci, __CONCAT(dname,_driver), ata_pci_devclass, 0, 0); \
+DRIVER_MODULE(dname, pci, __CONCAT(dname,_driver), ata_pci_devclass, NULL, NULL); \
 MODULE_VERSION(dname, 1); \
 MODULE_DEPEND(dname, ata, 1, 1, 1); \
 MODULE_DEPEND(dname, atapci, 1, 1, 1);
-

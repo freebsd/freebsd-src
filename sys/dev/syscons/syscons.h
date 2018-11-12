@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1995-1998 Søren Schmidt
+ * Copyright (c) 1995-1998 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
@@ -34,8 +34,9 @@
 #ifndef _DEV_SYSCONS_SYSCONS_H_
 #define	_DEV_SYSCONS_SYSCONS_H_
 
-#include <sys/lock.h>
-#include <sys/mutex.h>
+#include <sys/kdb.h>		/* XXX */
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 
 /* machine-dependent part of the header */
 
@@ -145,9 +146,9 @@
 /*
    The following #defines are hard-coded for a maximum text
    resolution corresponding to a maximum framebuffer
-   resolution of 1600x1200 with an 8x8 font...
+   resolution of 1920x1200 with an 8x8 font...
 */
-#define	COL		200
+#define	COL		240
 #define	ROW		150
 
 #define PCBURST		128
@@ -187,6 +188,14 @@ struct keyboard;
 struct video_adapter;
 struct scr_stat;
 struct tty;
+
+struct sc_cnstate {
+	u_char		kbd_locked;
+	u_char		kdb_locked;
+	u_char		mtx_locked;
+	u_char		kbd_opened;
+	u_char		scr_opened;
+};
 
 typedef struct sc_softc {
 	int		unit;			/* unit # */
@@ -230,6 +239,10 @@ typedef struct sc_softc {
 	char        	switch_in_progress;
 	char        	write_in_progress;
 	char        	blink_in_progress;
+	int		grab_level;
+	/* 2 is just enough for kdb to grab for stepping normal grabbing: */
+	struct sc_cnstate grab_state[2];
+	int		kbd_open_level;
 	struct mtx	video_mtx;
 
 	long		scrn_time_stamp;
@@ -245,7 +258,10 @@ typedef struct sc_softc {
 #endif
 
 #ifndef SC_NO_PALETTE_LOADING
-	u_char        	palette[256*3];
+	u_char		palette[256 * 3];
+#ifdef SC_PIXEL_MODE
+	u_char		palette2[256 * 3];
+#endif
 #endif
 
 #ifndef SC_NO_FONT_LOADING
@@ -263,6 +279,11 @@ typedef struct sc_softc {
 	u_char		cursor_char;
 	u_char		mouse_char;
 
+#ifdef KDB
+	int		sc_altbrk;
+#endif
+	struct callout	ctimeout;
+	struct callout	cblink;
 } sc_softc_t;
 
 /* virtual screen */
@@ -334,7 +355,6 @@ typedef struct scr_stat {
 
 	int		splash_save_mode;	/* saved mode for splash screen */
 	int		splash_save_status;	/* saved status for splash screen */
-	struct mtx	scr_lock;		/* mutex for sc_puts() */
 #ifdef _SCR_MD_STAT_DECLARED_
 	scr_md_stat_t	md;			/* machine dependent vars */
 #endif
@@ -381,6 +401,7 @@ typedef void	sc_term_notify_t(scr_stat *scp, int event);
 #define SC_TE_NOTIFY_VTSWITCH_IN	0
 #define SC_TE_NOTIFY_VTSWITCH_OUT	1
 typedef int	sc_term_input_t(scr_stat *scp, int c, struct tty *tp);
+typedef const char *sc_term_fkeystr_t(scr_stat *scp, int c);
 
 typedef struct sc_term_sw {
 	LIST_ENTRY(sc_term_sw)	link;
@@ -398,6 +419,7 @@ typedef struct sc_term_sw {
 	sc_term_clear_t		*te_clear;
 	sc_term_notify_t	*te_notify;
 	sc_term_input_t		*te_input;
+	sc_term_fkeystr_t	*te_fkeystr;
 } sc_term_sw_t;
 
 #define SCTERM_MODULE(name, sw)					\
@@ -528,12 +550,12 @@ typedef struct {
 		    MTX_SPIN | MTX_RECURSE);
 #define SC_VIDEO_LOCK(sc)						\
 		do {							\
-			if (!cold)					\
+			if (!kdb_active)				\
 				mtx_lock_spin(&(sc)->video_mtx);	\
 		} while(0)
 #define SC_VIDEO_UNLOCK(sc)						\
 		do {							\
-			if (!cold)					\
+			if (!kdb_active)				\
 				mtx_unlock_spin(&(sc)->video_mtx);	\
 		} while(0)
 
@@ -554,7 +576,6 @@ void		sc_save_font(scr_stat *scp, int page, int size, int width,
 void		sc_show_font(scr_stat *scp, int page);
 
 void		sc_touch_scrn_saver(void);
-void		sc_puts(scr_stat *scp, u_char *buf, int len, int kernel);
 void		sc_draw_cursor_image(scr_stat *scp);
 void		sc_remove_cursor_image(scr_stat *scp);
 void		sc_set_cursor_image(scr_stat *scp);
@@ -618,6 +639,7 @@ int		sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode,
 int		sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode);
 int		sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize,
 				  int ysize, int fontsize, int font_width);
+int		sc_support_pixel_mode(void *arg);
 int		sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data,
 			     struct thread *td);
 

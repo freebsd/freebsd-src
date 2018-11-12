@@ -1,6 +1,6 @@
 /* external.h  -- External COFF structures
    
-   Copyright 2001 Free Software Foundation, Inc.
+   Copyright 2001, 2006 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
    
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef COFF_EXTERNAL_H
 #define COFF_EXTERNAL_H
@@ -50,12 +50,26 @@ typedef struct external_aouthdr
     char entry[4];	/* entry pt.				*/
     char text_start[4];	/* base of text used for this file 	*/
     char data_start[4];	/* base of data used for this file 	*/
-  }
+  } ATTRIBUTE_PACKED
 AOUTHDR;
 
 #define AOUTHDRSZ 28
 #define AOUTSZ 28
-#endif
+
+typedef struct external_aouthdr64
+{
+  char magic[2];	/* Type of file.			*/
+  char vstamp[2];	/* Version stamp.			*/
+  char tsize[4];	/* Text size in bytes, padded to FW bdry*/
+  char dsize[4];	/* Initialized data "  ".		*/
+  char bsize[4];	/* Uninitialized data "   ".		*/
+  char entry[4];	/* Entry pt.				*/
+  char text_start[4];	/* Base of text used for this file. 	*/
+}
+AOUTHDR64;
+#define AOUTHDRSZ64	24
+
+#endif /* not DO_NOT_DEFINE_AOUTHDR */
 
 #ifndef DO_NOT_DEFINE_SCNHDR
 /********************** SECTION HEADER **********************/
@@ -150,7 +164,7 @@ struct external_syment
   char e_type[2];
   char e_sclass[1];
   char e_numaux[1];
-};
+} ATTRIBUTE_PACKED ;
 
 #define	SYMENT	struct external_syment
 #define	SYMESZ	18	
@@ -242,7 +256,7 @@ union external_auxent
     char x_tvlen[2];	/* length of .tv */
     char x_tvran[2][2];	/* tv range */
   } x_tv;		/* info about .tv section (in auxent of symbol .tv)) */
-};
+} ATTRIBUTE_PACKED ;
 
 #define	AUXENT	union external_auxent
 #define	AUXESZ	18

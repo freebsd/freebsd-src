@@ -39,15 +39,15 @@
 /* Functions accessed by the peripheral drivers */
 #ifdef _KERNEL
 void		xpt_polled_action(union ccb *ccb);
-union ccb	*xpt_alloc_ccb(void);
-union ccb	*xpt_alloc_ccb_nowait(void);
-void		xpt_free_ccb(union ccb *free_ccb);
 void		xpt_release_ccb(union ccb *released_ccb);
 void		xpt_schedule(struct cam_periph *perph, u_int32_t new_priority);
 int32_t		xpt_add_periph(struct cam_periph *periph);
 void		xpt_remove_periph(struct cam_periph *periph);
 void		xpt_announce_periph(struct cam_periph *periph,
 				    char *announce_string);
+void		xpt_announce_quirks(struct cam_periph *periph,
+				    int quirks, char *bit_string);
+void		xpt_denounce_periph(struct cam_periph *periph);
 #endif
 
 #endif /* _CAM_CAM_XPT_PERIPH_H */

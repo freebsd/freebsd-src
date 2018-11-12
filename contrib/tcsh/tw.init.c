@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tw.init.c,v 3.39 2006/03/02 18:46:45 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tw.init.c,v 3.42 2011/04/17 14:49:30 christos Exp $ */
 /*
  * tw.init.c: Handle lists of things to complete
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tw.init.c,v 3.39 2006/03/02 18:46:45 christos Exp $")
+RCSID("$tcsh: tw.init.c,v 3.42 2011/04/17 14:49:30 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -234,10 +234,14 @@ tw_cmd_cmd(void)
 #if defined(_UWIN) || defined(__CYGWIN__)
 	    /* Turn foo.{exe,com,bat} into foo since UWIN's readdir returns
 	     * the file with the .exe, .com, .bat extension
+	     *
+	     * Same for Cygwin, but only for .exe and .com extension.
 	     */
 	    len = strlen(dp->d_name);
 	    if (len > 4 && (strcmp(&dp->d_name[len - 4], ".exe") == 0 ||
+#ifndef __CYGWIN__
 		strcmp(&dp->d_name[len - 4], ".bat") == 0 ||
+#endif /* !__CYGWIN__ */
 		strcmp(&dp->d_name[len - 4], ".com") == 0))
 		dp->d_name[len - 4] = '\0';
 #endif /* _UWIN || __CYGWIN__ */
@@ -400,7 +404,7 @@ tw_cmd_next(struct Strbuf *res, struct Strbuf *dir, int *flags)
      * We need to process relatives in the path.
      */
     while ((tw_cmd_state.dfd == NULL ||
-	    (ret = tw_dir_next(res, tw_cmd_state.dfd)) == 0) &&
+	    (res->len = 0, ret = tw_dir_next(res, tw_cmd_state.dfd)) == 0) &&
 	   *tw_cmd_state.pathv != NULL) {
 
         CLRDIR(tw_cmd_state.dfd)
@@ -408,6 +412,7 @@ tw_cmd_next(struct Strbuf *res, struct Strbuf *dir, int *flags)
 	while (*tw_cmd_state.pathv && tw_cmd_state.pathv[0][0] == '/')
 	    tw_cmd_state.pathv++;
 	if ((ptr = *tw_cmd_state.pathv) != 0) {
+	    res->len = 0;
 	    Strbuf_append(res, ptr);
 	    ret = 1;
 	    /*
@@ -660,7 +665,7 @@ tw_grpname_start(DIR *dfd, const Char *pat)
 {
     USE(pat);
     SETDIR(dfd)
-#if !defined(_VMS_POSIX) && !defined(_OSD_POSIX) && !defined(WINNT_NATIVE)
+#if !defined(_VMS_POSIX) && !defined(_OSD_POSIX) && !defined(WINNT_NATIVE) && !defined (__ANDROID__)
     (void) setgrent();	/* Open group file */
 #endif /* !_VMS_POSIX && !_OSD_POSIX && !WINNT_NATIVE */
 } /* end tw_grpname_start */
@@ -684,7 +689,7 @@ tw_grpname_next(struct Strbuf *res, struct Strbuf *dir, int *flags)
     USE(flags);
     USE(dir);
     pintr_disabled++;
-#if !defined(_VMS_POSIX) && !defined(_OSD_POSIX) && !defined(WINNT_NATIVE)
+#if !defined(_VMS_POSIX) && !defined(_OSD_POSIX) && !defined(WINNT_NATIVE) && !defined(__ANDROID__)
     errno = 0;
     while ((gr = getgrent()) == NULL && errno == EINTR) {
 	handle_pending_signals();
@@ -715,7 +720,7 @@ tw_grpname_end(void)
 #ifdef YPBUGS
     fix_yp_bugs();
 #endif
-#if !defined(_VMS_POSIX) && !defined(_OSD_POSIX) && !defined(WINNT_NATIVE)
+#if !defined(_VMS_POSIX) && !defined(_OSD_POSIX) && !defined(WINNT_NATIVE) && !defined (__ANDROID__)
    (void) endgrent();
 #endif /* !_VMS_POSIX && !_OSD_POSIX && !WINNT_NATIVE */
 } /* end tw_grpname_end */

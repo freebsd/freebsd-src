@@ -26,25 +26,31 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 10, 2009
+.Dd March 15, 2016
 .Dt FAIL 9
 .Os
 .Sh NAME
 .Nm KFAIL_POINT_CODE ,
+.Nm KFAIL_POINT_CODE_FLAGS ,
+.Nm KFAIL_POINT_CODE_COND ,
 .Nm KFAIL_POINT_RETURN ,
 .Nm KFAIL_POINT_RETURN_VOID ,
 .Nm KFAIL_POINT_ERROR ,
 .Nm KFAIL_POINT_GOTO ,
+.Nm KFAIL_POINT_SLEEP_CALLBACKS ,
 .Nm fail_point ,
 .Nm DEBUG_FP
 .Nd fail points
 .Sh SYNOPSIS
 .In sys/fail.h
 .Fn KFAIL_POINT_CODE "parent" "name" "code"
+.Fn KFAIL_POINT_CODE_FLAGS "parent" "name" "flags" "code"
+.Fn KFAIL_POINT_CODE_COND "parent" "name" "cond" "flags" "code"
 .Fn KFAIL_POINT_RETURN "parent" "name"
 .Fn KFAIL_POINT_RETURN_VOID "parent" "name"
 .Fn KFAIL_POINT_ERROR "parent" "name" "error_var"
 .Fn KFAIL_POINT_GOTO "parent" "name" "error_var" "label"
+.Fn KFAIL_POINT_SLEEP_CALLBACKS "parent" "name" "pre_func" "pre_arg" "post_func" "post_arg" "code"
 .Sh DESCRIPTION
 Fail points are used to add code points where errors may be injected
 in a user controlled fashion.
@@ -77,6 +83,42 @@ argument, the evaluation of
 is derived from the
 .Fn return
 value set in the sysctl MIB.
+.Pp
+Additionally,
+.Fn KFAIL_POINT_CODE_FLAGS
+provides a
+.Fa flags
+argument which controls the fail point's behaviour.
+This can be used to e.g., mark the fail point's context as non-sleepable,
+which causes the
+.Sy sleep
+action to be coerced to a busy wait.
+The supported flags are:
+.Bl -ohang -offset indent
+.It FAIL_POINT_USE_TIMEOUT_PATH
+Rather than sleeping on a
+.Fn sleep
+call, just fire the post-sleep function after a timeout fires.
+.It FAIL_POINT_NONSLEEPABLE
+Mark the fail point as being in a non-sleepable context, which coerces
+.Fn sleep
+calls to
+.Fn delay
+calls.
+.El
+.Pp
+Likewise,
+.Fn KFAIL_POINT_CODE_COND
+supplies a
+.Fa cond
+argument, which allows you to set the condition under which the fail point's
+code may fire.
+This is equivalent to:
+.Bd -literal
+	if (cond)
+		KFAIL_POINT_CODE_FLAGS(...);
+
+.Ed
 See
 .Sx SYSCTL VARIABLES
 below.
@@ -84,7 +126,7 @@ below.
 The remaining
 .Fn KFAIL_POINT_*
 macros are wrappers around common error injection paths:
-.Bl -tag -width 8
+.Bl -inset
 .It Fn KFAIL_POINT_RETURN parent name
 is the equivalent of
 .Sy KFAIL_POINT_CODE(..., return RETURN_VALUE)
@@ -96,8 +138,7 @@ is the equivalent of
 .Sy KFAIL_POINT_CODE(..., error_var = RETURN_VALUE)
 .It Fn KFAIL_POINT_GOTO parent name error_var label
 is the equivalent of
-.Sy KFAIL_POINT_CODE(...,
-  { error_var = RETURN_VALUE; goto label;})
+.Sy KFAIL_POINT_CODE(..., { error_var = RETURN_VALUE; goto label;})
 .El
 .Sh SYSCTL VARIABLES
 The
@@ -108,26 +149,12 @@ Many base kernel MIBs can be found in the
 tree (referenced in code by
 .Sy DEBUG_FP ) .
 .Pp
-The sysctl variable may be set using the following grammar:
-.Pp
+The sysctl variable may be set in a number of ways:
 .Bd -literal
-  <fail_point> ::
-      <term> ( "->" <term> )*
-
-  <term> ::
-      ( (<float> "%") | (<integer> "*" ) )*
-      <type>
-      [ "(" <integer> ")" ]
-
-  <float> ::
-      <integer> [ "." <integer> ] |
-      "." <integer>
-
-  <type> ::
-      "off" | "return" | "sleep" | "panic" | "break" | "print"
+  [<pct>%][<cnt>*]<type>[(args...)][-><more terms>]
 .Ed
 .Pp
-The <type> argument specifies which action to take:
+The <type> argument specifies which action to take; it can be one of:
 .Bl -tag -width ".Dv return"
 .It Sy off
 Take no action (does not trigger fail point code)
@@ -141,13 +168,23 @@ Panic
 Break into the debugger, or trap if there is no debugger support
 .It Sy print
 Print that the fail point executed
+.It Sy pause
+Threads sleep at the fail point until the fail point is set to
+.Sy off
+.It Sy yield
+Thread yields the cpu when the fail point is evaluated
+.It Sy delay
+Similar to sleep, but busy waits the cpu.
+(Useful in non-sleepable contexts.)
 .El
 .Pp
-The <float>% and <integer>* modifiers prior to <type> control when
+The <pct>% and <cnt>* modifiers prior to <type> control when
 <type> is executed.
-The <float>% form (e.g. "1.2%") can be used to specify a
+The <pct>% form (e.g. "1.2%") can be used to specify a
 probability that <type> will execute.
-The <integer>* form (e.g. "5*") can be used to specify the number of
+This is a decimal in the range (0, 100] which can specify up to
+1/10,000% precision.
+The <cnt>* form (e.g. "5*") can be used to specify the number of
 times <type> should be executed before this <term> is disabled.
 Only the last probability and the last count are used if multiple
 are specified, i.e. "1.2%2%" is the same as "2%".
@@ -163,8 +200,11 @@ For the purpose of this operator, the return() and print() operators
 are the only types that cascade.
 A return() term only cascades if the code executes, and a print()
 term only cascades when passed a non-zero argument.
+A pid can optionally be specified.
+The fail point term is only executed when invoked by a process with a
+matching p_pid.
 .Sh EXAMPLES
-.Bl -tag
+.Bl -tag -width Sy
 .It Sy sysctl debug.fail_point.foobar="2.1%return(5)"
 21/1000ths of the time, execute
 .Fa code
@@ -183,7 +223,17 @@ After that, 1/1000th of the time, return 22.
 Return 5 for 1 in 1000 executions, but only 5 times total.
 .It Sy sysctl debug.fail_point.foobar="1%*sleep(50)"
 1/100th of the time, sleep 50ms.
+.It Sy sysctl debug.fail_point.foobar="1*return(5)[pid 1234]"
+Return 5 once, when pid 1234 executes the fail point.
 .El
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.Pp
+.An Matthew Bryan Aq Mt matthew.bryan@isilon.com
+and
+.Pp
+.An Zach Loafman Aq Mt zml@FreeBSD.org .
 .Sh CAVEATS
 It is easy to shoot yourself in the foot by setting fail points too
 aggressively or setting too many in combination.
@@ -198,7 +248,10 @@ Currently,
 .Fn fail_point_eval
 does not verify whether the context is appropriate for calling
 .Fn msleep .
-.Sh AUTHORS
-.An -nosplit
-This manual page was written by
-.An Zach Loafman Aq zml@FreeBSD.org .
+You can force it to evaluate a
+.Sy sleep
+action as a
+.Sy delay
+action by specifying the
+.Sy FAIL_POINT_NONSLEEPABLE
+flag at the point the fail point is declared.

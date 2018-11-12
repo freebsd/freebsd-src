@@ -27,54 +27,58 @@
  *	$FreeBSD$
  */
 
+#if 0
 /*
  * Status codes for block read/write commands, etc.
  *
  * XXX many of these would not normally be returned, as they are
  * relevant only to FSA operations.
  */
-static struct aac_code_lookup aac_command_status_table[] = {
-	{"OK",					0},
-	{"operation not permitted",		1},
-	{"not found",				2},
-	{"I/O error",				5},
-	{"device not configured",		6},
-	{"too big",				7},
-	{"permission denied",			13},
-	{"file exists",				17},
-	{"cross-device link",			18},
-	{"operation not supported by device",	19},
-	{"not a directory",			20},
-	{"is a directory",			21},
-	{"invalid argument",			22},
-	{"file too large",			27},
-	{"no space on device",			28},
-	{"readonly filesystem",			30},
-	{"too many links",			31},
-	{"operation would block",		35},
-	{"file name too long",			63},
-	{"directory not empty",			66},
-	{"quota exceeded",			69},
-	{"stale file handle",			70},
-	{"too many levels of remote in path",	71},
-	{"bad file handle",			10001},
-	{"not sync",				10002},
-	{"bad cookie",				10003},
-	{"operation not supported",		10004},
-	{"too small",				10005},
-	{"server fault",			10006},
-	{"bad type",				10007},
-	{"jukebox",				10008},
-	{"not mounted",				10009},
-	{"in maintenance mode",			10010},
-	{"stale ACL",				10011},
+static const struct aac_code_lookup aac_command_status_table[] = {
+	{"OK",					ST_OK},
+	{"operation not permitted",		ST_PERM},
+	{"not found",				ST_NOENT},
+	{"I/O error",				ST_IO},
+	{"device not configured",		ST_NXIO},
+	{"too big",				ST_E2BIG},
+	{"permission denied",			ST_ACCES},
+	{"file exists",				ST_EXIST},
+	{"cross-device link",			ST_XDEV},
+	{"operation not supported by device",	ST_NODEV},
+	{"not a directory",			ST_NOTDIR},
+	{"is a directory",			ST_ISDIR},
+	{"invalid argument",			ST_INVAL},
+	{"file too large",			ST_FBIG},
+	{"no space on device",			ST_NOSPC},
+	{"readonly filesystem",			ST_ROFS},
+	{"too many links",			ST_MLINK},
+	{"operation would block",		ST_WOULDBLOCK},
+	{"file name too long",			ST_NAMETOOLONG},
+	{"directory not empty",			ST_NOTEMPTY},
+	{"quota exceeded",			ST_DQUOT},
+	{"stale file handle",			ST_STALE},
+	{"too many levels of remote in path",	ST_REMOTE},
+	{"device busy (spinning up)",		ST_NOT_READY},
+	{"bad file handle",			ST_BADHANDLE},
+	{"not sync",				ST_NOT_SYNC},
+	{"bad cookie",				ST_BAD_COOKIE},
+	{"operation not supported",		ST_NOTSUPP},
+	{"too small",				ST_TOOSMALL},
+	{"server fault",			ST_SERVERFAULT},
+	{"bad type",				ST_BADTYPE},
+	{"jukebox",				ST_JUKEBOX},
+	{"not mounted",				ST_NOTMOUNTED},
+	{"in maintenance mode",			ST_MAINTMODE},
+	{"stale ACL",				ST_STALEACL},
+	{"bus reset - command aborted",		ST_BUS_RESET},
 	{NULL, 					0},
 	{"unknown command status",		0}
 };
 
 #define AAC_COMMAND_STATUS(x)	aac_describe_code(aac_command_status_table, x)
+#endif
 
-static struct aac_code_lookup aac_cpu_variant[] = {
+static const struct aac_code_lookup aac_cpu_variant[] = {
 	{"i960JX",		CPUI960_JX},
 	{"i960CX",		CPUI960_CX},
 	{"i960HX",		CPUI960_HX},
@@ -91,7 +95,7 @@ static struct aac_code_lookup aac_cpu_variant[] = {
 	{"Unknown processor",	0}
 };
 
-static struct aac_code_lookup aac_battery_platform[] = {
+static const struct aac_code_lookup aac_battery_platform[] = {
 	{"required battery present",		PLATFORM_BAT_REQ_PRESENT},
 	{"REQUIRED BATTERY NOT PRESENT",	PLATFORM_BAT_REQ_NOTPRESENT},
 	{"optional battery present",		PLATFORM_BAT_OPT_PRESENT},
@@ -101,7 +105,7 @@ static struct aac_code_lookup aac_battery_platform[] = {
 	{"unknown battery platform",		0}
 };
 
-static struct aac_code_lookup aac_container_types[] = {
+static const struct aac_code_lookup aac_container_types[] = {
 	{"Volume",		CT_VOLUME},
 	{"RAID 1 (Mirror)",	CT_MIRROR},
 	{"RAID 0 (Stripe)",	CT_STRIPE},
@@ -124,4 +128,3 @@ static struct aac_code_lookup aac_container_types[] = {
 	{NULL, 0},
 	{"unknown",		0}
 };
-

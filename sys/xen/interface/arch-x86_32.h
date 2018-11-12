@@ -24,4 +24,4 @@
  * Copyright (c) 2004-2006, K A Fraser
  */
 
-#include <xen/interface/arch-x86/xen.h>
+#include "arch-x86/xen.h"

@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5210_beacon.c,v 1.4 2008/11/10 04:08:02 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -25,6 +25,17 @@
 #include "ar5210/ar5210.h"
 #include "ar5210/ar5210reg.h"
 #include "ar5210/ar5210desc.h"
+
+/*
+ * Return the hardware NextTBTT in TSF
+ */
+uint64_t
+ar5210GetNextTBTT(struct ath_hal *ah)
+{
+#define TU_TO_TSF(_tu)	(((uint64_t)(_tu)) << 10)
+	return TU_TO_TSF(OS_REG_READ(ah, AR_TIMER0));
+#undef TU_TO_TSF
+}
 
 /*
  * Initialize all of the hardware registers used to send beacons.
@@ -56,9 +67,9 @@ ar5210BeaconInit(struct ath_hal *ah,
 
 	if (AH_PRIVATE(ah)->ah_opmode != HAL_M_STA) {
 		bt.bt_nextdba = (next_beacon -
-			ath_hal_dma_beacon_response_time) << 3;	/* 1/8 TU */
+			ah->ah_config.ah_dma_beacon_response_time) << 3; /* 1/8 TU */
 		bt.bt_nextswba = (next_beacon -
-			ath_hal_sw_beacon_response_time) << 3;	/* 1/8 TU */
+            ah->ah_config.ah_sw_beacon_response_time) << 3;	/* 1/8 TU */
 		/*
 		 * The SWBA interrupt is not used for beacons in ad hoc mode
 		 * as we don't yet support ATIMs. So since the beacon never

@@ -50,51 +50,76 @@
 /*
  * Step 1: Count the number of CPU types configured into the kernel.
  */
-#define	CPU_NTYPES	(defined(CPU_ARM7TDMI) +			\
-			 defined(CPU_ARM8) + defined(CPU_ARM9) +	\
+#define	CPU_NTYPES	(defined(CPU_ARM9) +				\
 			 defined(CPU_ARM9E) +				\
-			 defined(CPU_ARM10) +				\
-			 defined(CPU_ARM11) +				\
-			 defined(CPU_SA110) + defined(CPU_SA1100) +	\
-			 defined(CPU_SA1110) +				\
-			 defined(CPU_IXP12X0) +				\
-			 defined(CPU_XSCALE_80200) +			\
-			 defined(CPU_XSCALE_80321) +			\
+			 defined(CPU_ARM1176) +				\
 			 defined(CPU_XSCALE_PXA2X0) +			\
-			 defined(CPU_XSCALE_IXP425))
+			 defined(CPU_FA526) +				\
+			 defined(CPU_XSCALE_IXP425)) +			\
+			 defined(CPU_CORTEXA) +				\
+			 defined(CPU_KRAIT) +				\
+			 defined(CPU_MV_PJ4B)
 
 /*
  * Step 2: Determine which ARM architecture versions are configured.
  */
-#if (defined(CPU_ARM7TDMI) || defined(CPU_ARM8) || defined(CPU_ARM9) ||	\
-     defined(CPU_SA110) || defined(CPU_SA1100) || defined(CPU_SA1110) || \
-    defined(CPU_IXP12X0) || defined(CPU_XSCALE_IXP425))
+#if defined(CPU_ARM9) || defined(CPU_FA526)
 #define	ARM_ARCH_4	1
 #else
 #define	ARM_ARCH_4	0
 #endif
 
-#if (defined(CPU_ARM9E) || defined(CPU_ARM10) ||			\
-     defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
-     defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) ||		\
-     defined(CPU_XSCALE_PXA2X0))
+#if (defined(CPU_ARM9E) ||						\
+     defined(CPU_XSCALE_81342) ||					\
+     defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425))
 #define	ARM_ARCH_5	1
 #else
 #define	ARM_ARCH_5	0
 #endif
 
-#if defined(CPU_ARM11)
+#if !defined(ARM_ARCH_6)
+#if defined(CPU_ARM1176)
 #define ARM_ARCH_6	1
 #else
 #define ARM_ARCH_6	0
 #endif
+#endif
 
-#define	ARM_NARCH	(ARM_ARCH_4 + ARM_ARCH_5 + ARM_ARCH_6)
+#if defined(CPU_CORTEXA) || defined(CPU_KRAIT) || defined(CPU_MV_PJ4B)
+#define ARM_ARCH_7A	1
+#else
+#define ARM_ARCH_7A	0
+#endif
+
+#define	ARM_NARCH	(ARM_ARCH_4 + ARM_ARCH_5 + ARM_ARCH_6 | ARM_ARCH_7A)
+
+/*
+ * Compatibility for userland builds that have no CPUTYPE defined.  Use the ARCH
+ * constants predefined by the compiler to define our old-school arch constants.
+ * This is a stopgap measure to tide us over until the conversion of all code
+ * to the newer ACLE constants defined by ARM (see acle-compat.h).
+ */
+#if ARM_NARCH == 0
+#if defined(__ARM_ARCH_4T__)
+#undef  ARM_ARCH_4
+#undef  ARM_NARCH
+#define ARM_ARCH_4 1
+#define ARM_NARCH  1
+#define CPU_ARM9 1
+#elif defined(__ARM_ARCH_6ZK__)
+#undef  ARM_ARCH_6
+#undef  ARM_NARCH
+#define ARM_ARCH_6 1
+#define ARM_NARCH  1
+#define CPU_ARM1176 1
+#endif
+#endif
+
 #if ARM_NARCH == 0 && !defined(KLD_MODULE) && defined(_KERNEL)
 #error ARM_NARCH is 0
 #endif
 
-#if ARM_ARCH_5 || ARM_ARCH_6
+#if ARM_ARCH_5 || ARM_ARCH_6 || ARM_ARCH_7A
 /*
  * We could support Thumb code on v4T, but the lack of clean interworking
  * makes that hard.
@@ -108,46 +133,43 @@
  *	ARM_MMU_MEMC		Prehistoric, external memory controller
  *				and MMU for ARMv2 CPUs.
  *
- *	ARM_MMU_GENERIC		Generic ARM MMU, compatible with ARM6.
+ *      ARM_MMU_GENERIC		Generic ARM MMU, compatible with ARMv4 and v5.
  *
- *	ARM_MMU_SA1		StrongARM SA-1 MMU.  Compatible with generic
- *				ARM MMU, but has no write-through cache mode.
+ *	ARM_MMU_V6		ARMv6 MMU.
+ *
+ *	ARM_MMU_V7		ARMv7 MMU.
  *
  *	ARM_MMU_XSCALE		XScale MMU.  Compatible with generic ARM
  *				MMU, but also has several extensions which
  *				require different PTE layout to use.
  */
-#if (defined(CPU_ARM2) || defined(CPU_ARM250) || defined(CPU_ARM3))
-#define	ARM_MMU_MEMC		1
-#else
-#define	ARM_MMU_MEMC		0
-#endif
-
-#if (defined(CPU_ARM6) || defined(CPU_ARM7) || defined(CPU_ARM7TDMI) ||	\
-     defined(CPU_ARM8) || defined(CPU_ARM9) || defined(CPU_ARM9E) ||	\
-     defined(CPU_ARM10) || defined(CPU_ARM11))
+#if (defined(CPU_ARM9) || defined(CPU_ARM9E) ||	defined(CPU_FA526))
 #define	ARM_MMU_GENERIC		1
 #else
 #define	ARM_MMU_GENERIC		0
 #endif
 
-#if (defined(CPU_SA110) || defined(CPU_SA1100) || defined(CPU_SA1110) ||\
-     defined(CPU_IXP12X0))
-#define	ARM_MMU_SA1		1
+#if defined(CPU_ARM1176)
+#define ARM_MMU_V6		1
 #else
-#define	ARM_MMU_SA1		0
+#define ARM_MMU_V6		0
 #endif
 
-#if(defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
-    defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
-    defined(CPU_XSCALE_80219)) || defined(CPU_XSCALE_81342)
+#if defined(CPU_CORTEXA) || defined(CPU_KRAIT) || defined(CPU_MV_PJ4B)
+#define ARM_MMU_V7		1
+#else
+#define ARM_MMU_V7		0
+#endif
+
+#if (defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
+     defined(CPU_XSCALE_81342))
 #define	ARM_MMU_XSCALE		1
 #else
 #define	ARM_MMU_XSCALE		0
 #endif
 
-#define	ARM_NMMUS		(ARM_MMU_MEMC + ARM_MMU_GENERIC +	\
-				 ARM_MMU_SA1 + ARM_MMU_XSCALE)
+#define	ARM_NMMUS		(ARM_MMU_GENERIC + ARM_MMU_V6 + \
+				 ARM_MMU_V7 + ARM_MMU_XSCALE)
 #if ARM_NMMUS == 0 && !defined(KLD_MODULE) && defined(_KERNEL)
 #error ARM_NMMUS is 0
 #endif
@@ -155,11 +177,10 @@
 /*
  * Step 4: Define features that may be present on a subset of CPUs
  *
- *	ARM_XSCALE_PMU		Performance Monitoring Unit on 80200 and 80321
+ *	ARM_XSCALE_PMU		Performance Monitoring Unit on 81342
  */
 
-#if (defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
-     defined(CPU_XSCALE_80219)) || defined(CPU_XSCALE_81342)
+#if (defined(CPU_XSCALE_81342))
 #define ARM_XSCALE_PMU	1
 #else
 #define ARM_XSCALE_PMU	0

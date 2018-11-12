@@ -48,16 +48,15 @@ to the value of
 .Fa tag_type .
 .Pp
 Valid values are:
-.Pp
 .Bl -column -offset 3n "ACL_OTHER_OBJ"
-.It ACL_USER_OBJ	Permissions apply to file owner
-.It ACL_USER		Permissions apply to additional user specified by qualifier
-.It ACL_GROUP_OBJ	Permissions apply to file group
-.It ACL_GROUP		Permissions apply to additional group specified by qualifier
-.It ACL_MASK		Permissions specify mask
-.It ACL_OTHER		Permissions apply to "other"
-.It ACL_OTHER_OBJ	Same as ACL_OTHER
-.It ACL_EVERYONE	Permissions apply to "everyone@"
+.It ACL_USER_OBJ Ta "Permissions apply to file owner"
+.It ACL_USER Ta "Permissions apply to additional user specified by qualifier"
+.It ACL_GROUP_OBJ Ta "Permissions apply to file group"
+.It ACL_GROUP Ta "Permissions apply to additional group specified by qualifier"
+.It ACL_MASK Ta "Permissions specify mask"
+.It ACL_OTHER Ta Permissions apply to "other"
+.It ACL_OTHER_OBJ Ta "Same as ACL_OTHER"
+.It ACL_EVERYONE Ta Permissions apply to "everyone@"
 .El
 .Pp
 Calling
@@ -100,4 +99,4 @@ function was added in
 The
 .Fn acl_set_tag_type
 function was written by
-.An Chris D. Faulhaber Aq jedgar@fxp.org .
+.An Chris D. Faulhaber Aq Mt jedgar@fxp.org .

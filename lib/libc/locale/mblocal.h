@@ -1,6 +1,13 @@
 /*-
+ * Copyright 2013 Garrett D'Amore <garrett@damore.org>
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2004 Tim J. Robbins.
  * All rights reserved.
+ *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,35 +37,54 @@
 #define	_MBLOCAL_H_
 
 #include <runetype.h>
+#include "xlocale_private.h"
 
-/*
- * Rune initialization function prototypes.
- */
-int	_none_init(_RuneLocale *);
-int	_ascii_init(_RuneLocale *);
-int	_UTF8_init(_RuneLocale *);
-int	_EUC_init(_RuneLocale *);
-int	_GB18030_init(_RuneLocale *);
-int	_GB2312_init(_RuneLocale *);
-int	_GBK_init(_RuneLocale *);
-int	_BIG5_init(_RuneLocale *);
-int	_MSKanji_init(_RuneLocale *);
+#define	SS2	0x008e
+#define SS3	0x008f
 
 /*
  * Conversion function pointers for current encoding.
  */
-extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
-    size_t, mbstate_t * __restrict);
-extern int (*__mbsinit)(const mbstate_t *);
-extern size_t (*__mbsnrtowcs)(wchar_t * __restrict, const char ** __restrict,
-    size_t, size_t, mbstate_t * __restrict);
-extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
-extern size_t (*__wcsnrtombs)(char * __restrict, const wchar_t ** __restrict,
-    size_t, size_t, mbstate_t * __restrict);
+struct xlocale_ctype {
+	struct xlocale_component header;
+	_RuneLocale *runes;
+	size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
+		size_t, mbstate_t * __restrict);
+	int (*__mbsinit)(const mbstate_t *);
+	size_t (*__mbsnrtowcs)(wchar_t * __restrict, const char ** __restrict,
+		size_t, size_t, mbstate_t * __restrict);
+	size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
+	size_t (*__wcsnrtombs)(char * __restrict, const wchar_t ** __restrict,
+		size_t, size_t, mbstate_t * __restrict);
+	int __mb_cur_max;
+	int __mb_sb_limit;
+};
+#define XLOCALE_CTYPE(x) ((struct xlocale_ctype*)(x)->components[XLC_CTYPE])
+extern struct xlocale_ctype __xlocale_global_ctype;
 
-extern size_t __mbsnrtowcs_std(wchar_t * __restrict, const char ** __restrict,
-    size_t, size_t, mbstate_t * __restrict);
-extern size_t __wcsnrtombs_std(char * __restrict, const wchar_t ** __restrict,
-    size_t, size_t, mbstate_t * __restrict);
+/*
+ * Rune initialization function prototypes.
+ */
+__hidden int	_none_init(struct xlocale_ctype *, _RuneLocale *);
+__hidden int	_ascii_init(struct xlocale_ctype *, _RuneLocale *);
+__hidden int	_UTF8_init(struct xlocale_ctype *, _RuneLocale *);
+__hidden int	_EUC_CN_init(struct xlocale_ctype *, _RuneLocale *);
+__hidden int	_EUC_JP_init(struct xlocale_ctype *, _RuneLocale *);
+__hidden int	_EUC_KR_init(struct xlocale_ctype *, _RuneLocale *);
+__hidden int	_EUC_TW_init(struct xlocale_ctype *, _RuneLocale *);
+__hidden int	_GB18030_init(struct xlocale_ctype *, _RuneLocale *);
+__hidden int	_GB2312_init(struct xlocale_ctype *, _RuneLocale *);
+__hidden int	_GBK_init(struct xlocale_ctype *, _RuneLocale *);
+__hidden int	_BIG5_init(struct xlocale_ctype *, _RuneLocale *);
+__hidden int	_MSKanji_init(struct xlocale_ctype *, _RuneLocale *);
+
+typedef size_t (*mbrtowc_pfn_t)(wchar_t * __restrict,
+    const char * __restrict, size_t, mbstate_t * __restrict);
+typedef size_t (*wcrtomb_pfn_t)(char * __restrict, wchar_t,
+    mbstate_t * __restrict);
+size_t __mbsnrtowcs_std(wchar_t * __restrict, const char ** __restrict,
+    size_t, size_t, mbstate_t * __restrict, mbrtowc_pfn_t);
+size_t __wcsnrtombs_std(char * __restrict, const wchar_t ** __restrict,
+    size_t, size_t, mbstate_t * __restrict, wcrtomb_pfn_t);
 
 #endif	/* _MBLOCAL_H_ */

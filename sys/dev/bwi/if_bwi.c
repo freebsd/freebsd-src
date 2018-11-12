@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_bwi.h"
+#include "opt_wlan.h"
 
 #include <sys/param.h>
 #include <sys/endian.h>
@@ -54,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
  
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -64,8 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_regdomain.h>
-#include <net80211/ieee80211_amrr.h>
 #include <net80211/ieee80211_phy.h>
+#include <net80211/ieee80211_ratectl.h>
 
 #include <net/bpf.h>
 
@@ -96,33 +98,31 @@ struct bwi_myaddr_bssid {
 } __packed;
 
 static struct ieee80211vap *bwi_vap_create(struct ieee80211com *,
-		   const char [IFNAMSIZ], int, int, int,
-		   const uint8_t [IEEE80211_ADDR_LEN],
-		   const uint8_t [IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	bwi_vap_delete(struct ieee80211vap *);
-static void	bwi_init(void *);
-static int	bwi_ioctl(struct ifnet *, u_long, caddr_t);
-static void	bwi_start(struct ifnet *);
-static void	bwi_start_locked(struct ifnet *);
+static void	bwi_init(struct bwi_softc *);
+static void	bwi_parent(struct ieee80211com *);
+static int	bwi_transmit(struct ieee80211com *, struct mbuf *);
+static void	bwi_start_locked(struct bwi_softc *);
 static int	bwi_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			const struct ieee80211_bpf_params *);
-static void	bwi_watchdog(struct ifnet *);
+static void	bwi_watchdog(void *);
 static void	bwi_scan_start(struct ieee80211com *);
+static void	bwi_getradiocaps(struct ieee80211com *, int, int *,
+		    struct ieee80211_channel[]);
 static void	bwi_set_channel(struct ieee80211com *);
 static void	bwi_scan_end(struct ieee80211com *);
 static int	bwi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
-static void	bwi_updateslot(struct ifnet *);
-static struct ieee80211_node *bwi_node_alloc(struct ieee80211vap *,
-		    const uint8_t [IEEE80211_ADDR_LEN]);
-static void	bwi_newassoc(struct ieee80211_node *, int);
+static void	bwi_updateslot(struct ieee80211com *);
 static int	bwi_media_change(struct ifnet *);
 
 static void	bwi_calibrate(void *);
 
 static int	bwi_calc_rssi(struct bwi_softc *, const struct bwi_rxbuf_hdr *);
 static int	bwi_calc_noise(struct bwi_softc *);
-static __inline uint8_t bwi_ofdm_plcp2rate(const uint32_t *);
-static __inline uint8_t bwi_ds_plcp2rate(const struct ieee80211_ds_plcp_hdr *);
+static __inline uint8_t bwi_plcp2rate(uint32_t, enum ieee80211_phytype);
 static void	bwi_rx_radiotap(struct bwi_softc *, struct mbuf *,
 			struct bwi_rxbuf_hdr *, const void *, int, int, int);
 
@@ -224,7 +224,7 @@ static const struct {
 } bwi_bbpid_map[] = {
 	{ 0x4301, 0x4301, 0x4301 },
 	{ 0x4305, 0x4307, 0x4307 },
-	{ 0x4403, 0x4403, 0x4402 },
+	{ 0x4402, 0x4403, 0x4402 },
 	{ 0x4610, 0x4615, 0x4610 },
 	{ 0x4710, 0x4715, 0x4710 },
 	{ 0x4720, 0x4725, 0x4309 }
@@ -305,6 +305,9 @@ static const struct {
 	[108]	= { 7, 3 }
 };
 
+static const uint8_t bwi_chan_2ghz[] =
+	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+
 #ifdef BWI_DEBUG
 #ifdef BWI_DEBUG_VERBOSE
 static uint32_t bwi_debug = BWI_DBG_ATTACH | BWI_DBG_INIT | BWI_DBG_TXPOWER;
@@ -354,14 +357,11 @@ bwi_setup_desc32(struct bwi_softc *sc, struct bwi_desc32 *desc_array,
 int
 bwi_attach(struct bwi_softc *sc)
 {
-	struct ieee80211com *ic;
+	struct ieee80211com *ic = &sc->sc_ic;
 	device_t dev = sc->sc_dev;
-	struct ifnet *ifp;
 	struct bwi_mac *mac;
 	struct bwi_phy *phy;
 	int i, error;
-	uint8_t bands;
-	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	BWI_LOCK_INIT(sc);
 
@@ -373,8 +373,8 @@ bwi_attach(struct bwi_softc *sc)
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
 		device_get_nameunit(dev));
 	TASK_INIT(&sc->sc_restart_task, 0, bwi_restart, sc);
-
 	callout_init_mtx(&sc->sc_calib_ch, &sc->sc_mtx, 0);
+	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
 	/*
 	 * Initialize sysctl variables
@@ -448,53 +448,34 @@ bwi_attach(struct bwi_softc *sc)
 	if (error)
 		goto fail;
 
-	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
-	if (ifp == NULL) {
-		device_printf(dev, "can not if_alloc()\n");
-		error = ENOSPC;
+	error = bwi_mac_fw_alloc(mac);
+	if (error)
 		goto fail;
-	}
-	ic = ifp->if_l2com;
 
-	/* set these up early for if_printf use */
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-
-	ifp->if_softc = sc;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_init = bwi_init;
-	ifp->if_ioctl = bwi_ioctl;
-	ifp->if_start = bwi_start;
-	ifp->if_watchdog = bwi_watchdog;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
-	IFQ_SET_READY(&ifp->if_snd);
+	callout_init_mtx(&sc->sc_watchdog_timer, &sc->sc_mtx, 0);
 
 	/*
 	 * Setup ratesets, phytype, channels and get MAC address
 	 */
-	bands = 0;
 	if (phy->phy_mode == IEEE80211_MODE_11B ||
 	    phy->phy_mode == IEEE80211_MODE_11G) {
-		setbit(&bands, IEEE80211_MODE_11B);
 		if (phy->phy_mode == IEEE80211_MODE_11B) {
 			ic->ic_phytype = IEEE80211_T_DS;
 		} else {
 			ic->ic_phytype = IEEE80211_T_OFDM;
-			setbit(&bands, IEEE80211_MODE_11G);
 		}
 
-		bwi_get_eaddr(sc, BWI_SPROM_11BG_EADDR, macaddr);
-		if (IEEE80211_IS_MULTICAST(macaddr)) {
-			bwi_get_eaddr(sc, BWI_SPROM_11A_EADDR, macaddr);
-			if (IEEE80211_IS_MULTICAST(macaddr)) {
+		bwi_get_eaddr(sc, BWI_SPROM_11BG_EADDR, ic->ic_macaddr);
+		if (IEEE80211_IS_MULTICAST(ic->ic_macaddr)) {
+			bwi_get_eaddr(sc, BWI_SPROM_11A_EADDR, ic->ic_macaddr);
+			if (IEEE80211_IS_MULTICAST(ic->ic_macaddr)) {
 				device_printf(dev,
 				    "invalid MAC address: %6D\n",
-				    macaddr, ":");
+				    ic->ic_macaddr, ":");
 			}
 		}
 	} else if (phy->phy_mode == IEEE80211_MODE_11A) {
 		/* TODO:11A */
-		setbit(&bands, IEEE80211_MODE_11A);
 		error = ENXIO;
 		goto fail;
 	} else {
@@ -506,9 +487,11 @@ bwi_attach(struct bwi_softc *sc)
 				   BWI_SPROM_CARD_INFO_LOCALE);
 	DPRINTF(sc, BWI_DBG_ATTACH, "locale: %d\n", sc->sc_locale);
 	/* XXX use locale */
-	ieee80211_init_channels(ic, NULL, &bands);
+	bwi_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
-	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(dev);
 	ic->ic_caps = IEEE80211_C_STA |
 		      IEEE80211_C_SHSLOT |
 		      IEEE80211_C_SHPREAMBLE |
@@ -516,7 +499,7 @@ bwi_attach(struct bwi_softc *sc)
 		      IEEE80211_C_BGSCAN |
 		      IEEE80211_C_MONITOR;
 	ic->ic_opmode = IEEE80211_M_STA;
-	ieee80211_ifattach(ic, macaddr);
+	ieee80211_ifattach(ic);
 
 	ic->ic_headroom = sizeof(struct bwi_txbuf_hdr);
 
@@ -525,10 +508,12 @@ bwi_attach(struct bwi_softc *sc)
 	ic->ic_vap_delete = bwi_vap_delete;
 	ic->ic_raw_xmit = bwi_raw_xmit;
 	ic->ic_updateslot = bwi_updateslot;
-	ic->ic_node_alloc = bwi_node_alloc;
 	ic->ic_scan_start = bwi_scan_start;
 	ic->ic_scan_end = bwi_scan_end;
+	ic->ic_getradiocaps = bwi_getradiocaps;
 	ic->ic_set_channel = bwi_set_channel;
+	ic->ic_transmit = bwi_transmit;
+	ic->ic_parent = bwi_parent;
 
 	sc->sc_rates = ieee80211_get_ratetable(ic->ic_curchan);
 
@@ -541,11 +526,11 @@ bwi_attach(struct bwi_softc *sc)
 	/*
 	 * Add sysctl nodes
 	 */
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 		        SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 		        "fw_version", CTLFLAG_RD, &sc->sc_fw_version, 0,
 		        "Firmware version");
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 		        SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 		        "led_idle", CTLFLAG_RW, &sc->sc_led_idle, 0,
 		        "# ticks before LED enters idle state");
@@ -574,20 +559,20 @@ fail:
 int
 bwi_detach(struct bwi_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	int i;
 
 	bwi_stop(sc, 1);
 	callout_drain(&sc->sc_led_blink_ch);
 	callout_drain(&sc->sc_calib_ch);
+	callout_drain(&sc->sc_watchdog_timer);
 	ieee80211_ifdetach(ic);
 
 	for (i = 0; i < sc->sc_nmac; ++i)
 		bwi_mac_detach(&sc->sc_mac[i]);
 	bwi_dma_free(sc);
-	if_free(ifp);
 	taskqueue_free(sc->sc_tq);
+	mbufq_drain(&sc->sc_snd);
 
 	BWI_LOCK_DESTROY(sc);
 
@@ -595,24 +580,21 @@ bwi_detach(struct bwi_softc *sc)
 }
 
 static struct ieee80211vap *
-bwi_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+bwi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct bwi_vap *bvp;
 	struct ieee80211vap *vap;
 
 	if (!TAILQ_EMPTY(&ic->ic_vaps))		/* only one at a time */
 		return NULL;
-	bvp = (struct bwi_vap *) malloc(sizeof(struct bwi_vap),
-	    M_80211_VAP, M_WAITOK | M_ZERO);
-	if (bvp == NULL)
-		return NULL;
+	bvp = malloc(sizeof(struct bwi_vap), M_80211_VAP, M_WAITOK | M_ZERO);
 	vap = &bvp->bv_vap;
 	/* enable s/w bmiss handling for sta mode */
 	ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
+	    flags | IEEE80211_CLONE_NOBEACONS, bssid);
 
 	/* override default methods */
 	bvp->bv_newstate = vap->iv_newstate;
@@ -620,13 +602,11 @@ bwi_vap_create(struct ieee80211com *ic,
 #if 0
 	vap->iv_update_beacon = bwi_beacon_update;
 #endif
-	ieee80211_amrr_init(&bvp->bv_amrr, vap,
-	    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
-	    IEEE80211_AMRR_MAX_SUCCESS_THRESHOLD,
-	    500 /*ms*/);
+	ieee80211_ratectl_init(vap);
 
 	/* complete setup */
-	ieee80211_vap_attach(vap, bwi_media_change, ieee80211_media_status);
+	ieee80211_vap_attach(vap, bwi_media_change, ieee80211_media_status,
+	    mac);
 	ic->ic_opmode = opmode;
 	return vap;
 }
@@ -636,7 +616,7 @@ bwi_vap_delete(struct ieee80211vap *vap)
 {
 	struct bwi_vap *bvp = BWI_VAP(vap);
 
-	ieee80211_amrr_cleanup(&bvp->bv_amrr);
+	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
 	free(bvp, M_80211_VAP);
 }
@@ -650,9 +630,8 @@ bwi_suspend(struct bwi_softc *sc)
 void
 bwi_resume(struct bwi_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 
-	if (ifp->if_flags & IFF_UP)
+	if (sc->sc_ic.ic_nrunning > 0)
 		bwi_init(sc);
 }
 
@@ -785,7 +764,6 @@ bwi_regwin_info(struct bwi_softc *sc, uint16_t *type, uint8_t *rev)
 static int
 bwi_bbp_attach(struct bwi_softc *sc)
 {
-#define N(arr)	(int)(sizeof(arr) / sizeof(arr[0]))
 	uint16_t bbp_id, rw_type;
 	uint8_t rw_rev;
 	uint32_t info;
@@ -815,7 +793,7 @@ bwi_bbp_attach(struct bwi_softc *sc)
 
 		sc->sc_cap = CSR_READ_4(sc, BWI_CAPABILITY);
 	} else {
-		for (i = 0; i < N(bwi_bbpid_map); ++i) {
+		for (i = 0; i < nitems(bwi_bbpid_map); ++i) {
 			if (sc->sc_pci_did >= bwi_bbpid_map[i].did_min &&
 			    sc->sc_pci_did <= bwi_bbpid_map[i].did_max) {
 				bbp_id = bwi_bbpid_map[i].bbp_id;
@@ -839,7 +817,7 @@ bwi_bbp_attach(struct bwi_softc *sc)
 	if (rw_type == BWI_REGWIN_T_COM && rw_rev >= 4) {
 		nregwin = __SHIFTOUT(info, BWI_INFO_NREGWIN_MASK);
 	} else {
-		for (i = 0; i < N(bwi_regwin_count); ++i) {
+		for (i = 0; i < nitems(bwi_regwin_count); ++i) {
 			if (bwi_regwin_count[i].bbp_id == bbp_id) {
 				nregwin = bwi_regwin_count[i].nregwin;
 				break;
@@ -921,7 +899,6 @@ bwi_bbp_attach(struct bwi_softc *sc)
 		return error;
 
 	return 0;
-#undef N
 }
 
 int
@@ -1216,26 +1193,25 @@ bwi_set_clock_delay(struct bwi_softc *sc)
 }
 
 static void
-bwi_init(void *xsc)
+bwi_init(struct bwi_softc *sc)
 {
-	struct bwi_softc *sc = xsc;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	BWI_LOCK(sc);
 	bwi_init_statechg(sc, 1);
 	BWI_UNLOCK(sc);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (sc->sc_flags & BWI_F_RUNNING)
 		ieee80211_start_all(ic);		/* start all vap's */
 }
 
 static void
 bwi_init_statechg(struct bwi_softc *sc, int statechg)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 	struct bwi_mac *mac;
 	int error;
+
+	BWI_ASSERT_LOCKED(sc);
 
 	bwi_stop_locked(sc, statechg);
 
@@ -1246,20 +1222,21 @@ bwi_init_statechg(struct bwi_softc *sc, int statechg)
 	mac = &sc->sc_mac[0];
 	error = bwi_regwin_switch(sc, &mac->mac_regwin, NULL);
 	if (error) {
-		if_printf(ifp, "%s: error %d on regwin switch\n",
+		device_printf(sc->sc_dev, "%s: error %d on regwin switch\n",
 		    __func__, error);
 		goto bad;
 	}
 	error = bwi_mac_init(mac);
 	if (error) {
-		if_printf(ifp, "%s: error %d on MAC init\n", __func__, error);
+		device_printf(sc->sc_dev, "%s: error %d on MAC init\n",
+		    __func__, error);
 		goto bad;
 	}
 
 	bwi_bbp_power_on(sc, BWI_CLOCK_MODE_DYN);
 
 	bwi_set_bssid(sc, bwi_zero_addr);	/* Clear BSSID */
-	bwi_set_addr_filter(sc, BWI_ADDR_FILTER_MYADDR, IF_LLADDR(ifp));
+	bwi_set_addr_filter(sc, BWI_ADDR_FILTER_MYADDR, sc->sc_ic.ic_macaddr);
 
 	bwi_mac_reset_hwkeys(mac);
 
@@ -1277,7 +1254,8 @@ bwi_init_statechg(struct bwi_softc *sc, int statechg)
 			CSR_READ_4(sc, BWI_TXSTATUS1);
 		}
 		if (i == NRETRY)
-			if_printf(ifp, "%s: can't drain TX status\n", __func__);
+			device_printf(sc->sc_dev,
+			    "%s: can't drain TX status\n", __func__);
 #undef NRETRY
 	}
 
@@ -1287,14 +1265,15 @@ bwi_init_statechg(struct bwi_softc *sc, int statechg)
 	/* Start MAC */
 	error = bwi_mac_start(mac);
 	if (error) {
-		if_printf(ifp, "%s: error %d starting MAC\n", __func__, error);
+		device_printf(sc->sc_dev, "%s: error %d starting MAC\n",
+		    __func__, error);
 		goto bad;
 	}
 
 	/* Clear stop flag before enabling interrupt */
 	sc->sc_flags &= ~BWI_F_STOP;
-
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	sc->sc_flags |= BWI_F_RUNNING;
+	callout_reset(&sc->sc_watchdog_timer, hz, bwi_watchdog, sc);
 
 	/* Enable intrs */
 	bwi_enable_intrs(sc, BWI_INIT_INTRS);
@@ -1303,137 +1282,112 @@ bad:
 	bwi_stop_locked(sc, 1);
 }
 
-static int
-bwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
-{
-#define	IS_RUNNING(ifp) \
-	((ifp->if_flags & IFF_UP) && (ifp->if_drv_flags & IFF_DRV_RUNNING))
-	struct bwi_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0;
-
-	switch (cmd) {
-	case SIOCSIFFLAGS:
-		BWI_LOCK(sc);
-		if (IS_RUNNING(ifp)) {
-			struct bwi_mac *mac;
-			int promisc = -1;
-
-			KASSERT(sc->sc_cur_regwin->rw_type == BWI_REGWIN_T_MAC,
-			    ("current regwin type %d",
-			    sc->sc_cur_regwin->rw_type));
-			mac = (struct bwi_mac *)sc->sc_cur_regwin;
-
-			if ((ifp->if_flags & IFF_PROMISC) &&
-			    (sc->sc_flags & BWI_F_PROMISC) == 0) {
-				promisc = 1;
-				sc->sc_flags |= BWI_F_PROMISC;
-			} else if ((ifp->if_flags & IFF_PROMISC) == 0 &&
-				   (sc->sc_flags & BWI_F_PROMISC)) {
-				promisc = 0;
-				sc->sc_flags &= ~BWI_F_PROMISC;
-			}
-
-			if (promisc >= 0)
-				bwi_mac_set_promisc(mac, promisc);
-		}
-
-		if (ifp->if_flags & IFF_UP) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-				bwi_init_statechg(sc, 1);
-				startall = 1;
-			}
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				bwi_stop_locked(sc, 1);
-		}
-		BWI_UNLOCK(sc);
-		if (startall)
-			ieee80211_start_all(ic);
-		break;
-	case SIOCGIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
-		break;
-	case SIOCGIFADDR:
-		error = ether_ioctl(ifp, cmd, data);
-		break;
-	default:
-		error = EINVAL;
-		break;
-	}
-	return error;
-#undef IS_RUNNING
-}
-
 static void
-bwi_start(struct ifnet *ifp)
+bwi_parent(struct ieee80211com *ic)
 {
-	struct bwi_softc *sc = ifp->if_softc;
+	struct bwi_softc *sc = ic->ic_softc;
+	int startall = 0;
 
 	BWI_LOCK(sc);
-	bwi_start_locked(ifp);
+	if (ic->ic_nrunning > 0) {
+		struct bwi_mac *mac;
+		int promisc = -1;
+
+		KASSERT(sc->sc_cur_regwin->rw_type == BWI_REGWIN_T_MAC,
+		    ("current regwin type %d",
+		    sc->sc_cur_regwin->rw_type));
+		mac = (struct bwi_mac *)sc->sc_cur_regwin;
+
+		if (ic->ic_promisc > 0 && (sc->sc_flags & BWI_F_PROMISC) == 0) {
+			promisc = 1;
+			sc->sc_flags |= BWI_F_PROMISC;
+		} else if (ic->ic_promisc == 0 &&
+		    (sc->sc_flags & BWI_F_PROMISC) != 0) {
+			promisc = 0;
+			sc->sc_flags &= ~BWI_F_PROMISC;
+		}
+
+		if (promisc >= 0)
+			bwi_mac_set_promisc(mac, promisc);
+	}
+	if (ic->ic_nrunning > 0) {
+		if ((sc->sc_flags & BWI_F_RUNNING) == 0) {
+			bwi_init_statechg(sc, 1);
+			startall = 1;
+		}
+	} else if (sc->sc_flags & BWI_F_RUNNING)
+		bwi_stop_locked(sc, 1);
 	BWI_UNLOCK(sc);
+	if (startall)
+		ieee80211_start_all(ic);
+}
+
+static int
+bwi_transmit(struct ieee80211com *ic, struct mbuf *m)
+{
+	struct bwi_softc *sc = ic->ic_softc;
+	int error;
+
+	BWI_LOCK(sc);
+	if ((sc->sc_flags & BWI_F_RUNNING) == 0) {
+		BWI_UNLOCK(sc);
+		return (ENXIO);
+	}
+	error = mbufq_enqueue(&sc->sc_snd, m);
+	if (error) {
+		BWI_UNLOCK(sc);
+		return (error);
+	}
+	bwi_start_locked(sc);
+	BWI_UNLOCK(sc);
+	return (0);
 }
 
 static void
-bwi_start_locked(struct ifnet *ifp)
+bwi_start_locked(struct bwi_softc *sc)
 {
-	struct bwi_softc *sc = ifp->if_softc;
 	struct bwi_txbuf_data *tbd = &sc->sc_tx_bdata[BWI_TX_DATA_RING];
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
-	struct ieee80211_key *k;
 	struct mbuf *m;
 	int trans, idx;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		return;
+	BWI_ASSERT_LOCKED(sc);
 
 	trans = 0;
 	idx = tbd->tbd_idx;
 
-	while (tbd->tbd_buf[idx].tb_mbuf == NULL) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);	/* XXX: LOCK */
-		if (m == NULL)
-			break;
-
+	while (tbd->tbd_buf[idx].tb_mbuf == NULL &&
+	    tbd->tbd_used + BWI_TX_NSPRDESC < BWI_TX_NDESC &&
+	    (m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		wh = mtod(m, struct ieee80211_frame *);
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
-			k = ieee80211_crypto_encap(ni, m);
-			if (k == NULL) {
-				ieee80211_free_node(ni);
-				m_freem(m);
-				ifp->if_oerrors++;
-				continue;
-			}
-		}
-		wh = NULL;	/* Catch any invalid use */
-
-		if (bwi_encap(sc, idx, m, ni) != 0) {
-			/* 'm' is freed in bwi_encap() if we reach here */
-			if (ni != NULL)
-				ieee80211_free_node(ni);
-			ifp->if_oerrors++;
+		if ((wh->i_fc[1] & IEEE80211_FC1_PROTECTED) != 0 &&
+		    ieee80211_crypto_encap(ni, m) == NULL) {
+			if_inc_counter(ni->ni_vap->iv_ifp,
+			    IFCOUNTER_OERRORS, 1);
+			ieee80211_free_node(ni);
+			m_freem(m);
 			continue;
 		}
-
+		if (bwi_encap(sc, idx, m, ni) != 0) {
+			/* 'm' is freed in bwi_encap() if we reach here */
+			if (ni != NULL) {
+				if_inc_counter(ni->ni_vap->iv_ifp,
+				    IFCOUNTER_OERRORS, 1);
+				ieee80211_free_node(ni);
+			} else
+				counter_u64_add(sc->sc_ic.ic_oerrors, 1);
+			continue;
+		}
 		trans = 1;
 		tbd->tbd_used++;
 		idx = (idx + 1) % BWI_TX_NDESC;
-
-		ifp->if_opackets++;
-
-		if (tbd->tbd_used + BWI_TX_NSPRDESC >= BWI_TX_NDESC) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			break;
-		}
 	}
-	tbd->tbd_idx = idx;
 
+	tbd->tbd_idx = idx;
 	if (trans)
-		ifp->if_timer = 5;
+		sc->sc_tx_timer = 5;
 }
 
 static int
@@ -1441,14 +1395,12 @@ bwi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct bwi_softc *sc = ifp->if_softc;
+	struct bwi_softc *sc = ic->ic_softc;
 	/* XXX wme? */
 	struct bwi_txbuf_data *tbd = &sc->sc_tx_bdata[BWI_TX_DATA_RING];
 	int idx, error;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		ieee80211_free_node(ni);
+	if ((sc->sc_flags & BWI_F_RUNNING) == 0) {
 		m_freem(m);
 		return ENETDOWN;
 	}
@@ -1470,32 +1422,27 @@ bwi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		error = bwi_encap_raw(sc, idx, m, ni, params);
 	}
 	if (error == 0) {
-		ifp->if_opackets++;
-		if (++tbd->tbd_used + BWI_TX_NSPRDESC >= BWI_TX_NDESC)
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		tbd->tbd_used++;
 		tbd->tbd_idx = (idx + 1) % BWI_TX_NDESC;
-		ifp->if_timer = 5;
-	} else {
-		/* NB: m is reclaimed on encap failure */
-		ieee80211_free_node(ni);
-		ifp->if_oerrors++;
+		sc->sc_tx_timer = 5;
 	}
 	BWI_UNLOCK(sc);
 	return error;
 }
 
 static void
-bwi_watchdog(struct ifnet *ifp)
+bwi_watchdog(void *arg)
 {
-	struct bwi_softc *sc = ifp->if_softc;
+	struct bwi_softc *sc;
 
-	BWI_LOCK(sc);
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-		if_printf(ifp, "watchdog timeout\n");
-		ifp->if_oerrors++;
+	sc = arg;
+	BWI_ASSERT_LOCKED(sc);
+	if (sc->sc_tx_timer != 0 && --sc->sc_tx_timer == 0) {
+		device_printf(sc->sc_dev, "watchdog timeout\n");
+		counter_u64_add(sc->sc_ic.ic_oerrors, 1);
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_restart_task);
 	}
-	BWI_UNLOCK(sc);
+	callout_reset(&sc->sc_watchdog_timer, hz, bwi_watchdog, sc);
 }
 
 static void
@@ -1509,7 +1456,6 @@ bwi_stop(struct bwi_softc *sc, int statechg)
 static void
 bwi_stop_locked(struct bwi_softc *sc, int statechg)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 	struct bwi_mac *mac;
 	int i, error, pwr_off = 0;
 
@@ -1520,7 +1466,7 @@ bwi_stop_locked(struct bwi_softc *sc, int statechg)
 	sc->sc_led_blinking = 0;
 	sc->sc_flags |= BWI_F_STOP;
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if (sc->sc_flags & BWI_F_RUNNING) {
 		KASSERT(sc->sc_cur_regwin->rw_type == BWI_REGWIN_T_MAC,
 		    ("current regwin type %d", sc->sc_cur_regwin->rw_type));
 		mac = (struct bwi_mac *)sc->sc_cur_regwin;
@@ -1551,15 +1497,14 @@ bwi_stop_locked(struct bwi_softc *sc, int statechg)
 		bwi_bbp_power_off(sc);
 
 	sc->sc_tx_timer = 0;
-	ifp->if_timer = 0;
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	callout_stop(&sc->sc_watchdog_timer);
+	sc->sc_flags &= ~BWI_F_RUNNING;
 }
 
 void
 bwi_intr(void *xsc)
 {
 	struct bwi_softc *sc = xsc;
-	struct ifnet *ifp = sc->sc_ifp;
 	struct bwi_mac *mac;
 	uint32_t intr_status;
 	uint32_t txrx_intr_status[BWI_TXRX_NRING];
@@ -1567,7 +1512,7 @@ bwi_intr(void *xsc)
 
 	BWI_LOCK(sc);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	if ((sc->sc_flags & BWI_F_RUNNING) == 0 ||
 	    (sc->sc_flags & BWI_F_STOP)) {
 		BWI_UNLOCK(sc);
 		return;
@@ -1610,7 +1555,7 @@ bwi_intr(void *xsc)
 			 i, txrx_intr_status[i]);
 
 		if (txrx_intr_status[i] & BWI_TXRX_INTR_ERROR) {
-			if_printf(ifp,
+			device_printf(sc->sc_dev,
 			    "%s: intr fatal TX/RX (%d) error 0x%08x\n",
 			    __func__, i, txrx_intr_status[i]);
 			txrx_error = 1;
@@ -1648,7 +1593,8 @@ bwi_intr(void *xsc)
 	 */
 	if (intr_status & BWI_INTR_PHY_TXERR) {
 		if (mac->mac_flags & BWI_MAC_F_PHYE_RESET) {
-			if_printf(ifp, "%s: intr PHY TX error\n", __func__);
+			device_printf(sc->sc_dev, "%s: intr PHY TX error\n",
+			    __func__);
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_restart_task);
 			BWI_UNLOCK(sc);
 			return;
@@ -1663,7 +1609,7 @@ bwi_intr(void *xsc)
 		bwi_mac_config_ps(mac);
 
 	if (intr_status & BWI_INTR_EO_ATIM)
-		if_printf(ifp, "EO_ATIM\n");
+		device_printf(sc->sc_dev, "EO_ATIM\n");
 
 	if (intr_status & BWI_INTR_PMQ) {
 		for (;;) {
@@ -1674,7 +1620,7 @@ bwi_intr(void *xsc)
 	}
 
 	if (intr_status & BWI_INTR_NOISE)
-		if_printf(ifp, "intr noise\n");
+		device_printf(sc->sc_dev, "intr noise\n");
 
 	if (txrx_intr_status[0] & BWI_TXRX_INTR_RX) {
 		rx_data = sc->sc_rxeof(sc);
@@ -1723,7 +1669,7 @@ bwi_intr(void *xsc)
 static void
 bwi_scan_start(struct ieee80211com *ic)
 {
-	struct bwi_softc *sc = ic->ic_ifp->if_softc;
+	struct bwi_softc *sc = ic->ic_softc;
 
 	BWI_LOCK(sc);
 	/* Enable MAC beacon promiscuity */
@@ -1732,9 +1678,46 @@ bwi_scan_start(struct ieee80211com *ic)
 }
 
 static void
+bwi_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	struct bwi_softc *sc = ic->ic_softc;
+	struct bwi_mac *mac;
+	struct bwi_phy *phy;
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	/*
+	 * XXX First MAC is known to exist
+	 * TODO2
+	 */
+	mac = &sc->sc_mac[0];
+	phy = &mac->mac_phy;
+
+	memset(bands, 0, sizeof(bands));
+	switch (phy->phy_mode) {
+	case IEEE80211_MODE_11G:
+		setbit(bands, IEEE80211_MODE_11G);
+		/* FALLTHROUGH */
+	case IEEE80211_MODE_11B:
+		setbit(bands, IEEE80211_MODE_11B);
+		break;
+	case IEEE80211_MODE_11A:
+		/* TODO:11A */
+		setbit(bands, IEEE80211_MODE_11A);
+		device_printf(sc->sc_dev, "no 11a support\n");
+		return;
+	default:
+		panic("unknown phymode %d\n", phy->phy_mode);
+	}
+
+	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+	    bwi_chan_2ghz, nitems(bwi_chan_2ghz), bands, 0);
+}
+
+static void
 bwi_set_channel(struct ieee80211com *ic)
 {
-	struct bwi_softc *sc = ic->ic_ifp->if_softc;
+	struct bwi_softc *sc = ic->ic_softc;
 	struct ieee80211_channel *c = ic->ic_curchan;
 	struct bwi_mac *mac;
 
@@ -1760,7 +1743,7 @@ bwi_set_channel(struct ieee80211com *ic)
 static void
 bwi_scan_end(struct ieee80211com *ic)
 {
-	struct bwi_softc *sc = ic->ic_ifp->if_softc;
+	struct bwi_softc *sc = ic->ic_softc;
 
 	BWI_LOCK(sc);
 	CSR_CLRBITS_4(sc, BWI_MAC_STATUS, BWI_MAC_STATUS_PASS_BCN);
@@ -1772,11 +1755,9 @@ bwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct bwi_vap *bvp = BWI_VAP(vap);
 	struct ieee80211com *ic= vap->iv_ic;
-	struct ifnet *ifp = ic->ic_ifp;
+	struct bwi_softc *sc = ic->ic_softc;
 	enum ieee80211_state ostate = vap->iv_state;
-	struct bwi_softc *sc = ifp->if_softc;
 	struct bwi_mac *mac;
-	struct ieee80211_node *ni = vap->iv_bss;
 	int error;
 
 	BWI_LOCK(sc);
@@ -1824,10 +1805,6 @@ bwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 #else
 		sc->sc_txpwrcb_type = BWI_TXPWR_CALIB;
 #endif
-		if (vap->iv_opmode == IEEE80211_M_STA) {
-			/* fake a join to init the tx rate */
-			bwi_newassoc(ni, 1);
-		}
 
 		callout_reset(&sc->sc_calib_ch, hz, bwi_calibrate, sc);
 	}
@@ -1835,25 +1812,6 @@ back:
 	BWI_UNLOCK(sc);
 
 	return error;
-}
-
-/* ARGUSED */
-static struct ieee80211_node *
-bwi_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
-{
-	struct bwi_node *bn;
-
-	bn = malloc(sizeof(struct bwi_node), M_80211_NODE, M_NOWAIT | M_ZERO);
-	return bn != NULL ? &bn->ni : NULL;
-}
-
-static void
-bwi_newassoc(struct ieee80211_node *ni, int isnew)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-
-	ieee80211_amrr_node_init(&BWI_VAP(vap)->bv_amrr,
-	    &BWI_NODE(ni)->amn, ni);
 }
 
 static int
@@ -1941,10 +1899,10 @@ bwi_dma_alloc(struct bwi_softc *sc)
 			       lowaddr,			/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
-			       MAXBSIZE,		/* maxsize */
+			       BUS_SPACE_MAXSIZE,	/* maxsize */
 			       BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			       BUS_DMA_ALLOCNOW,	/* flags */
+			       0,			/* flags */
 			       NULL, NULL,		/* lockfunc, lockarg */
 			       &sc->sc_parent_dtag);
 	if (error) {
@@ -1964,8 +1922,8 @@ bwi_dma_alloc(struct bwi_softc *sc)
 				NULL, NULL,
 				tx_ring_sz,
 				1,
-				BUS_SPACE_MAXSIZE_32BIT,
-				BUS_DMA_ALLOCNOW,
+				tx_ring_sz,
+				0,
 				NULL, NULL,
 				&sc->sc_txring_dtag);
 	if (error) {
@@ -1994,8 +1952,8 @@ bwi_dma_alloc(struct bwi_softc *sc)
 				NULL, NULL,
 				rx_ring_sz,
 				1,
-				BUS_SPACE_MAXSIZE_32BIT,
-				BUS_DMA_ALLOCNOW,
+				rx_ring_sz,
+				0,
 				NULL, NULL,
 				&sc->sc_rxring_dtag);
 	if (error) {
@@ -2119,8 +2077,8 @@ bwi_dma_txstats_alloc(struct bwi_softc *sc, uint32_t ctrl_base,
 				NULL, NULL,
 				dma_size,
 				1,
-				BUS_SPACE_MAXSIZE_32BIT,
-				BUS_DMA_ALLOCNOW,
+				dma_size,
+				0,
 				NULL, NULL,
 				&st->stats_ring_dtag);
 	if (error) {
@@ -2167,8 +2125,8 @@ bwi_dma_txstats_alloc(struct bwi_softc *sc, uint32_t ctrl_base,
 				NULL, NULL,
 				dma_size,
 				1,
-				BUS_SPACE_MAXSIZE_32BIT,
-				BUS_DMA_ALLOCNOW,
+				dma_size,
+				0,
 				NULL, NULL,
 				&st->stats_dtag);
 	if (error) {
@@ -2250,7 +2208,7 @@ bwi_dma_mbuf_create(struct bwi_softc *sc)
 				NULL, NULL,
 				MCLBYTES,
 				1,
-				BUS_SPACE_MAXSIZE_32BIT,
+				MCLBYTES,
 				BUS_DMA_ALLOCNOW,
 				NULL, NULL,
 				&sc->sc_buf_dtag);
@@ -2560,7 +2518,7 @@ bwi_newbuf(struct bwi_softc *sc, int buf_idx, int init)
 
 	KASSERT(buf_idx < BWI_RX_NDESC, ("buf_idx %d", buf_idx));
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		error = ENOBUFS;
 
@@ -2644,8 +2602,7 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 {
 	struct bwi_ring_data *rd = &sc->sc_rx_rdata;
 	struct bwi_rxbuf_data *rbd = &sc->sc_rx_bdata;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	int idx, rx_data = 0;
 
 	idx = rbd->rbd_idx;
@@ -2655,7 +2612,7 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 		struct ieee80211_frame_min *wh;
 		struct ieee80211_node *ni;
 		struct mbuf *m;
-		const void *plcp;
+		uint32_t plcp;
 		uint16_t flags2;
 		int buflen, wh_ofs, hdr_extra, rssi, noise, type, rate;
 
@@ -2664,7 +2621,7 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 				BUS_DMASYNC_POSTREAD);
 
 		if (bwi_newbuf(sc, idx, 0)) {
-			ifp->if_ierrors++;
+			counter_u64_add(ic->ic_ierrors, 1);
 			goto next;
 		}
 
@@ -2678,29 +2635,29 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 
 		buflen = le16toh(hdr->rxh_buflen);
 		if (buflen < BWI_FRAME_MIN_LEN(wh_ofs)) {
-			if_printf(ifp, "%s: zero length data, hdr_extra %d\n",
-				  __func__, hdr_extra);
-			ifp->if_ierrors++;
+			device_printf(sc->sc_dev,
+			    "%s: zero length data, hdr_extra %d\n",
+			    __func__, hdr_extra);
+			counter_u64_add(ic->ic_ierrors, 1);
 			m_freem(m);
 			goto next;
 		}
 
-		plcp = ((const uint8_t *)(hdr + 1) + hdr_extra);
+	        bcopy((uint8_t *)(hdr + 1) + hdr_extra, &plcp, sizeof(plcp));	
 		rssi = bwi_calc_rssi(sc, hdr);
 		noise = bwi_calc_noise(sc);
 
-		m->m_pkthdr.rcvif = ifp;
 		m->m_len = m->m_pkthdr.len = buflen + sizeof(*hdr);
 		m_adj(m, sizeof(*hdr) + wh_ofs);
 
 		if (htole16(hdr->rxh_flags1) & BWI_RXH_F1_OFDM)
-			rate = bwi_ofdm_plcp2rate(plcp);
+			rate = bwi_plcp2rate(plcp, IEEE80211_T_OFDM);
 		else
-			rate = bwi_ds_plcp2rate(plcp);
+			rate = bwi_plcp2rate(plcp, IEEE80211_T_CCK);
 
 		/* RX radio tap */
 		if (ieee80211_radiotap_active(ic))
-			bwi_rx_radiotap(sc, m, hdr, plcp, rate, rssi, noise);
+			bwi_rx_radiotap(sc, m, hdr, &plcp, rate, rssi, noise);
 
 		m_adj(m, -IEEE80211_CRC_LEN);
 
@@ -2823,7 +2780,6 @@ bwi_free_tx_ring32(struct bwi_softc *sc, int ring_idx)
 {
 	struct bwi_ring_data *rd;
 	struct bwi_txbuf_data *tbd;
-	struct ifnet *ifp = sc->sc_ifp;
 	uint32_t state, val;
 	int i;
 
@@ -2844,8 +2800,9 @@ bwi_free_tx_ring32(struct bwi_softc *sc, int ring_idx)
 		DELAY(1000);
 	}
 	if (i == NRETRY) {
-		if_printf(ifp, "%s: wait for TX ring(%d) stable timed out\n",
-			  __func__, ring_idx);
+		device_printf(sc->sc_dev,
+		    "%s: wait for TX ring(%d) stable timed out\n",
+		    __func__, ring_idx);
 	}
 
 	CSR_WRITE_4(sc, rd->rdata_txrx_ctrl + BWI_TX32_CTRL, 0);
@@ -2858,7 +2815,7 @@ bwi_free_tx_ring32(struct bwi_softc *sc, int ring_idx)
 		DELAY(1000);
 	}
 	if (i == NRETRY)
-		if_printf(ifp, "%s: reset TX ring (%d) timed out\n",
+		device_printf(sc->sc_dev, "%s: reset TX ring (%d) timed out\n",
 		     __func__, ring_idx);
 
 #undef NRETRY
@@ -2966,8 +2923,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	  struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct bwi_ring_data *rd = &sc->sc_tx_rdata[BWI_TX_DATA_RING];
 	struct bwi_txbuf_data *tbd = &sc->sc_tx_bdata[BWI_TX_DATA_RING];
 	struct bwi_txbuf *tb = &tbd->tbd_buf[idx];
@@ -3007,7 +2963,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
 		rate = rate_fb = tp->ucastrate;
 	} else {
-		rix = ieee80211_amrr_choose(ni, &BWI_NODE(ni)->amn);
+		rix = ieee80211_ratectl_rate(ni, NULL, pkt_len);
 		rate = ni->ni_txrate;
 
 		if (rix > 0) {
@@ -3026,7 +2982,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	 */
 	if (ieee80211_radiotap_active_vap(vap)) {
 		sc->sc_tx_th.wt_flags = 0;
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 		if (ieee80211_rate2phytype(sc->sc_rates, rate) == IEEE80211_T_DS &&
 		    (ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
@@ -3041,9 +2997,10 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	/*
 	 * Setup the embedded TX header
 	 */
-	M_PREPEND(m, sizeof(*hdr), M_DONTWAIT);
+	M_PREPEND(m, sizeof(*hdr), M_NOWAIT);
 	if (m == NULL) {
-		if_printf(ifp, "%s: prepend TX header failed\n", __func__);
+		device_printf(sc->sc_dev, "%s: prepend TX header failed\n",
+		    __func__);
 		return ENOBUFS;
 	}
 	hdr = mtod(m, struct bwi_txbuf_hdr *);
@@ -3092,7 +3049,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	error = bus_dmamap_load_mbuf(sc->sc_buf_dtag, tb->tb_dmap, m,
 				     bwi_dma_buf_addr, &paddr, BUS_DMA_NOWAIT);
 	if (error && error != EFBIG) {
-		if_printf(ifp, "%s: can't load TX buffer (1) %d\n",
+		device_printf(sc->sc_dev, "%s: can't load TX buffer (1) %d\n",
 		    __func__, error);
 		goto back;
 	}
@@ -3100,10 +3057,10 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	if (error) {	/* error == EFBIG */
 		struct mbuf *m_new;
 
-		m_new = m_defrag(m, M_DONTWAIT);
+		m_new = m_defrag(m, M_NOWAIT);
 		if (m_new == NULL) {
-			if_printf(ifp, "%s: can't defrag TX buffer\n",
-			    __func__);
+			device_printf(sc->sc_dev,
+			    "%s: can't defrag TX buffer\n", __func__);
 			error = ENOBUFS;
 			goto back;
 		} else {
@@ -3114,7 +3071,8 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 					     bwi_dma_buf_addr, &paddr,
 					     BUS_DMA_NOWAIT);
 		if (error) {
-			if_printf(ifp, "%s: can't load TX buffer (2) %d\n",
+			device_printf(sc->sc_dev,
+			    "%s: can't load TX buffer (2) %d\n",
 			    __func__, error);
 			goto back;
 		}
@@ -3156,7 +3114,6 @@ static int
 bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 	  struct ieee80211_node *ni, const struct ieee80211_bpf_params *params)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct bwi_ring_data *rd = &sc->sc_tx_rdata[BWI_TX_DATA_RING];
@@ -3209,7 +3166,7 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 	if (ieee80211_radiotap_active_vap(vap)) {
 		sc->sc_tx_th.wt_flags = 0;
 		/* XXX IEEE80211_BPF_CRYPTO */
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 		if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
@@ -3221,9 +3178,10 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 	/*
 	 * Setup the embedded TX header
 	 */
-	M_PREPEND(m, sizeof(*hdr), M_DONTWAIT);
+	M_PREPEND(m, sizeof(*hdr), M_NOWAIT);
 	if (m == NULL) {
-		if_printf(ifp, "%s: prepend TX header failed\n", __func__);
+		device_printf(sc->sc_dev, "%s: prepend TX header failed\n",
+		    __func__);
 		return ENOBUFS;
 	}
 	hdr = mtod(m, struct bwi_txbuf_hdr *);
@@ -3271,14 +3229,15 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 		struct mbuf *m_new;
 
 		if (error != EFBIG) {
-			if_printf(ifp, "%s: can't load TX buffer (1) %d\n",
+			device_printf(sc->sc_dev,
+			    "%s: can't load TX buffer (1) %d\n",
 			    __func__, error);
 			goto back;
 		}
-		m_new = m_defrag(m, M_DONTWAIT);
+		m_new = m_defrag(m, M_NOWAIT);
 		if (m_new == NULL) {
-			if_printf(ifp, "%s: can't defrag TX buffer\n",
-			    __func__);
+			device_printf(sc->sc_dev,
+			    "%s: can't defrag TX buffer\n", __func__);
 			error = ENOBUFS;
 			goto back;
 		}
@@ -3287,7 +3246,8 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 					     bwi_dma_buf_addr, &paddr,
 					     BUS_DMA_NOWAIT);
 		if (error) {
-			if_printf(ifp, "%s: can't load TX buffer (2) %d\n",
+			device_printf(sc->sc_dev,
+			    "%s: can't load TX buffer (2) %d\n",
 			    __func__, error);
 			goto back;
 		}
@@ -3331,7 +3291,6 @@ bwi_start_tx64(struct bwi_softc *sc, uint32_t tx_ctrl, int idx)
 static void
 bwi_txeof_status32(struct bwi_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 	uint32_t val, ctrl_base;
 	int end_idx;
 
@@ -3346,8 +3305,7 @@ bwi_txeof_status32(struct bwi_softc *sc)
 	CSR_WRITE_4(sc, ctrl_base + BWI_RX32_INDEX,
 		    end_idx * sizeof(struct bwi_desc32));
 
-	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0)
-		ifp->if_start(ifp);
+	bwi_start_locked(sc);
 }
 
 static void
@@ -3359,14 +3317,13 @@ bwi_txeof_status64(struct bwi_softc *sc)
 static void
 _bwi_txeof(struct bwi_softc *sc, uint16_t tx_id, int acked, int data_txcnt)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 	struct bwi_txbuf_data *tbd;
 	struct bwi_txbuf *tb;
 	int ring_idx, buf_idx;
 	struct ieee80211_node *ni;
 
 	if (tx_id == 0) {
-		if_printf(ifp, "%s: zero tx id\n", __func__);
+		device_printf(sc->sc_dev, "%s: zero tx id\n", __func__);
 		return;
 	}
 
@@ -3387,11 +3344,10 @@ _bwi_txeof(struct bwi_softc *sc, uint16_t tx_id, int acked, int data_txcnt)
 
 	bus_dmamap_unload(sc->sc_buf_dtag, tb->tb_dmap);
 
-	ni = tb->tb_ni;
-	if (tb->tb_ni != NULL) {
-		struct bwi_node *bn = (struct bwi_node *) tb->tb_ni;
+	if ((ni = tb->tb_ni) != NULL) {
 		const struct bwi_txbuf_hdr *hdr =
 		    mtod(tb->tb_mbuf, const struct bwi_txbuf_hdr *);
+		struct ieee80211_ratectl_tx_status txs;
 
 		/* NB: update rate control only for unicast frames */
 		if (hdr->txh_mac_ctrl & htole32(BWI_TXH_MAC_C_ACK)) {
@@ -3402,27 +3358,24 @@ _bwi_txeof(struct bwi_softc *sc, uint16_t tx_id, int acked, int data_txcnt)
 			 * well so to avoid over-aggressive downshifting we
 			 * treat any number of retries as "1".
 			 */
-			ieee80211_amrr_tx_complete(&bn->amn, acked,
-			    data_txcnt > 1);
+			txs.flags = IEEE80211_RATECTL_STATUS_LONG_RETRY;
+			txs.long_retries = acked;
+			if (data_txcnt > 1)
+				txs.status = IEEE80211_RATECTL_TX_SUCCESS;
+			else {
+				txs.status =
+				    IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
+			}
+			ieee80211_ratectl_tx_complete(ni, &txs);
 		}
-
-		/*
-		 * Do any tx complete callback.  Note this must
-		 * be done before releasing the node reference.
-		 */
-		if (tb->tb_mbuf->m_flags & M_TXCB)
-			ieee80211_process_callback(ni, tb->tb_mbuf, !acked);
-
-		ieee80211_free_node(tb->tb_ni);
+		ieee80211_tx_complete(ni, tb->tb_mbuf, !acked);
 		tb->tb_ni = NULL;
-	}
-	m_freem(tb->tb_mbuf);
+	} else
+		m_freem(tb->tb_mbuf);
 	tb->tb_mbuf = NULL;
 
 	if (tbd->tbd_used == 0)
-		ifp->if_timer = 0;
-
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		sc->sc_tx_timer = 0;
 }
 
 static void
@@ -3454,7 +3407,6 @@ bwi_txeof_status(struct bwi_softc *sc, int end_idx)
 static void
 bwi_txeof(struct bwi_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 
 	for (;;) {
 		uint32_t tx_status0, tx_status1;
@@ -3477,8 +3429,7 @@ bwi_txeof(struct bwi_softc *sc)
 		    data_txcnt);
 	}
 
-	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0)
-		ifp->if_start(ifp);
+	bwi_start_locked(sc);
 }
 
 static int
@@ -3726,7 +3677,6 @@ bwi_regwin_enable(struct bwi_softc *sc, struct bwi_regwin *rw, uint32_t flags)
 static void
 bwi_set_bssid(struct bwi_softc *sc, const uint8_t *bssid)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 	struct bwi_mac *mac;
 	struct bwi_myaddr_bssid buf;
 	const uint8_t *p;
@@ -3739,7 +3689,7 @@ bwi_set_bssid(struct bwi_softc *sc, const uint8_t *bssid)
 
 	bwi_set_addr_filter(sc, BWI_ADDR_FILTER_BSSID, bssid);
 
-	bcopy(IF_LLADDR(ifp), buf.myaddr, sizeof(buf.myaddr));
+	bcopy(sc->sc_ic.ic_macaddr, buf.myaddr, sizeof(buf.myaddr));
 	bcopy(bssid, buf.bssid, sizeof(buf.bssid));
 
 	n = sizeof(buf) / sizeof(val);
@@ -3756,14 +3706,13 @@ bwi_set_bssid(struct bwi_softc *sc, const uint8_t *bssid)
 }
 
 static void
-bwi_updateslot(struct ifnet *ifp)
+bwi_updateslot(struct ieee80211com *ic)
 {
-	struct bwi_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct bwi_softc *sc = ic->ic_softc;
 	struct bwi_mac *mac;
 
 	BWI_LOCK(sc);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if (sc->sc_flags & BWI_F_RUNNING) {
 		DPRINTF(sc, BWI_DBG_80211, "%s\n", __func__);
 
 		KASSERT(sc->sc_cur_regwin->rw_type == BWI_REGWIN_T_MAC,
@@ -3779,16 +3728,12 @@ static void
 bwi_calibrate(void *xsc)
 {
 	struct bwi_softc *sc = xsc;
-#ifdef INVARIANTS
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-#endif
 	struct bwi_mac *mac;
 
 	BWI_ASSERT_LOCKED(sc);
 
-	KASSERT(ic->ic_opmode != IEEE80211_M_MONITOR,
-	    ("opmode %d", ic->ic_opmode));
+	KASSERT(sc->sc_ic.ic_opmode != IEEE80211_M_MONITOR,
+	    ("opmode %d", sc->sc_ic.ic_opmode));
 
 	KASSERT(sc->sc_cur_regwin->rw_type == BWI_REGWIN_T_MAC,
 	    ("current regwin type %d", sc->sc_cur_regwin->rw_type));
@@ -3826,20 +3771,10 @@ bwi_calc_noise(struct bwi_softc *sc)
 }
 
 static __inline uint8_t
-bwi_ofdm_plcp2rate(const uint32_t *plcp0)
+bwi_plcp2rate(const uint32_t plcp0, enum ieee80211_phytype type)
 {
-	uint32_t plcp;
-	uint8_t plcp_rate;
-
-	plcp = le32toh(*plcp0);
-	plcp_rate = __SHIFTOUT(plcp, IEEE80211_OFDM_PLCP_RATE_MASK);
-	return ieee80211_plcp2rate(plcp_rate, IEEE80211_T_OFDM);
-}
-
-static __inline uint8_t
-bwi_ds_plcp2rate(const struct ieee80211_ds_plcp_hdr *hdr)
-{
-	return ieee80211_plcp2rate(hdr->i_signal, IEEE80211_T_DS);
+	uint32_t plcp = le32toh(plcp0) & IEEE80211_OFDM_PLCP_RATE_MASK;
+	return (ieee80211_plcp2rate(plcp, type));
 }
 
 static void
@@ -3853,10 +3788,10 @@ bwi_rx_radiotap(struct bwi_softc *sc, struct mbuf *m,
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
 
 	wh = mtod(m, const struct ieee80211_frame_min *);
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_WEP;
 
-	sc->sc_rx_th.wr_tsf = hdr->rxh_tsf; /* No endian convertion */
+	sc->sc_rx_th.wr_tsf = hdr->rxh_tsf; /* No endian conversion */
 	sc->sc_rx_th.wr_rate = rate;
 	sc->sc_rx_th.wr_antsignal = rssi;
 	sc->sc_rx_th.wr_antnoise = noise;
@@ -3869,9 +3804,7 @@ bwi_led_attach(struct bwi_softc *sc)
 	uint16_t gpio, val[BWI_LED_MAX];
 	int i;
 
-#define N(arr)	(int)(sizeof(arr) / sizeof(arr[0]))
-
-	for (i = 0; i < N(bwi_vendor_led_act); ++i) {
+	for (i = 0; i < nitems(bwi_vendor_led_act); ++i) {
 		if (sc->sc_pci_subvid == bwi_vendor_led_act[i].vid) {
 			led_act = bwi_vendor_led_act[i].led_act;
 			break;
@@ -3879,8 +3812,6 @@ bwi_led_attach(struct bwi_softc *sc)
 	}
 	if (led_act == NULL)
 		led_act = bwi_default_led_act;
-
-#undef N
 
 	gpio = bwi_read_sprom(sc, BWI_SPROM_GPIO01);
 	val[0] = __SHIFTOUT(gpio, BWI_SPROM_GPIO_0);
@@ -3922,7 +3853,7 @@ bwi_led_attach(struct bwi_softc *sc)
 			"%dth led, act %d, lowact %d\n", i,
 			led->l_act, led->l_flags & BWI_LED_F_ACTLOW);
 	}
-	callout_init(&sc->sc_led_blink_ch, CALLOUT_MPSAFE);
+	callout_init_mtx(&sc->sc_led_blink_ch, &sc->sc_mtx, 0);
 }
 
 static __inline uint16_t
@@ -3940,8 +3871,7 @@ bwi_led_onoff(const struct bwi_led *led, uint16_t val, int on)
 static void
 bwi_led_newstate(struct bwi_softc *sc, enum ieee80211_state nstate)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	uint16_t val;
 	int i;
 
@@ -3950,7 +3880,7 @@ bwi_led_newstate(struct bwi_softc *sc, enum ieee80211_state nstate)
 		sc->sc_led_blinking = 0;
 	}
 
-	if ((ic->ic_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((sc->sc_flags & BWI_F_RUNNING) == 0)
 		return;
 
 	val = CSR_READ_2(sc, BWI_MAC_GPIO_CTRL);
@@ -4078,13 +4008,12 @@ static void
 bwi_restart(void *xsc, int pending)
 {
 	struct bwi_softc *sc = xsc;
-	struct ifnet *ifp = sc->sc_ifp;
 
-	if_printf(ifp, "%s begin, help!\n", __func__);
+	device_printf(sc->sc_dev, "%s begin, help!\n", __func__);
 	BWI_LOCK(sc);
-	bwi_init_statechg(xsc, 0);
+	bwi_init_statechg(sc, 0);
 #if 0
-	bwi_start_locked(ifp);
+	bwi_start_locked(sc);
 #endif
 	BWI_UNLOCK(sc);
 }

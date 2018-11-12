@@ -146,6 +146,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/rwlock.h>
@@ -348,24 +349,16 @@ MODULE_VERSION(libalias, 1);
 static int
 alias_mod_handler(module_t mod, int type, void *data)
 {
-	int error;
 
 	switch (type) {
-	case MOD_LOAD:
-		error = 0;
-		handler_chain_init();
-		break;
 	case MOD_QUIESCE:
 	case MOD_UNLOAD:
-	        handler_chain_destroy();
 	        finishoff();
-		error = 0;
-		break;
+	case MOD_LOAD:
+		return (0);
 	default:
-		error = EINVAL;
+		return (EINVAL);
 	}
-
-	return (error);
 }
 
 static moduledata_t alias_mod = {
@@ -552,10 +545,6 @@ static void	IncrementalCleanup(struct libalias *);
 static void	DeleteLink(struct alias_link *);
 
 static struct alias_link *
-AddLink(struct libalias *, struct in_addr, struct in_addr, struct in_addr,
-    u_short, u_short, int, int);
-
-static struct alias_link *
 ReLink(struct alias_link *,
     struct in_addr, struct in_addr, struct in_addr,
     u_short, u_short, int, int);
@@ -571,9 +560,6 @@ static struct alias_link *
 #define ALIAS_PORT_MASK            0x07fff
 #define ALIAS_PORT_MASK_EVEN       0x07ffe
 #define GET_NEW_PORT_MAX_ATTEMPTS       20
-
-#define GET_ALIAS_PORT                  -1
-#define GET_ALIAS_ID        GET_ALIAS_PORT
 
 #define FIND_EVEN_ALIAS_BASE             1
 
@@ -798,9 +784,9 @@ FindNewPortGroup(struct libalias *la,
 		struct alias_link *search_result;
 
 		for (j = 0; j < port_count; j++)
-			if (0 != (search_result = FindLinkIn(la, dst_addr, alias_addr,
-			    dst_port, htons(port_sys + j),
-			    link_type, 0)))
+			if ((search_result = FindLinkIn(la, dst_addr,
+			    alias_addr, dst_port, htons(port_sys + j),
+			    link_type, 0)) != NULL)
 				break;
 
 		/* Found a good range, return base */
@@ -937,17 +923,12 @@ DeleteLink(struct alias_link *lnk)
 }
 
 
-static struct alias_link *
-AddLink(struct libalias *la, struct in_addr src_addr,
-    struct in_addr dst_addr,
-    struct in_addr alias_addr,
-    u_short src_port,
-    u_short dst_port,
-    int alias_port_param,	/* if less than zero, alias   */
-    int link_type)
-{				/* port will be automatically *//* chosen.
-				 * If greater than    */
-	u_int start_point;	/* zero, equal to alias port  */
+struct alias_link *
+AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
+    struct in_addr alias_addr, u_short src_port, u_short dst_port,
+    int alias_port_param, int link_type)
+{
+	u_int start_point;
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK_ASSERT(la);
@@ -2136,7 +2117,7 @@ void
 SetProtocolFlags(struct alias_link *lnk, int pflags)
 {
 
-	lnk->pflags = pflags;;
+	lnk->pflags = pflags;
 }
 
 int
@@ -2181,7 +2162,6 @@ HouseKeeping(struct libalias *la)
 	int i, n;
 #ifndef	_KERNEL
 	struct timeval tv;
-	struct timezone tz;
 #endif
 
 	LIBALIAS_LOCK_ASSERT(la);
@@ -2193,7 +2173,7 @@ HouseKeeping(struct libalias *la)
 #ifdef	_KERNEL
 	la->timeStamp = time_uptime;
 #else
-	gettimeofday(&tv, &tz);
+	gettimeofday(&tv, NULL);
 	la->timeStamp = tv.tv_sec;
 #endif
 
@@ -2488,13 +2468,17 @@ LibAliasInit(struct libalias *la)
 	int i;
 #ifndef	_KERNEL
 	struct timeval tv;
-	struct timezone tz;
 #endif
 
 	if (la == NULL) {
+#ifdef _KERNEL
+#undef malloc	/* XXX: ugly */
+		la = malloc(sizeof *la, M_ALIAS, M_WAITOK | M_ZERO);
+#else
 		la = calloc(sizeof *la, 1);
 		if (la == NULL)
 			return (la);
+#endif
 
 #ifndef	_KERNEL		/* kernel cleans up on module unload */
 		if (LIST_EMPTY(&instancehead))
@@ -2506,7 +2490,7 @@ LibAliasInit(struct libalias *la)
 		la->timeStamp = time_uptime;
 		la->lastCleanupTime = time_uptime;
 #else
-		gettimeofday(&tv, &tz);
+		gettimeofday(&tv, NULL);
 		la->timeStamp = tv.tv_sec;
 		la->lastCleanupTime = tv.tv_sec;
 #endif
@@ -2738,7 +2722,6 @@ static void
 InitPunchFW(struct libalias *la)
 {
 
-	LIBALIAS_LOCK_ASSERT(la);
 	la->fireWallField = malloc(la->fireWallNumNums);
 	if (la->fireWallField) {
 		memset(la->fireWallField, 0, la->fireWallNumNums);
@@ -2754,7 +2737,6 @@ static void
 UninitPunchFW(struct libalias *la)
 {
 
-	LIBALIAS_LOCK_ASSERT(la);
 	ClearAllFWHoles(la);
 	if (la->fireWallFD >= 0)
 		close(la->fireWallFD);
@@ -2774,7 +2756,6 @@ PunchFWHole(struct alias_link *lnk)
 	struct ip_fw rule;	/* On-the-fly built rule */
 	int fwhole;		/* Where to punch hole */
 
-	LIBALIAS_LOCK_ASSERT(la);
 	la = lnk->la;
 
 /* Don't do anything unless we are asked to */
@@ -2848,7 +2829,6 @@ ClearFWHole(struct alias_link *lnk)
 {
 	struct libalias *la;
 
-	LIBALIAS_LOCK_ASSERT(la);
 	la = lnk->la;
 	if (lnk->link_type == LINK_TCP) {
 		int fwhole = lnk->data.tcp->fwhole;	/* Where is the firewall
@@ -2873,7 +2853,6 @@ ClearAllFWHoles(struct libalias *la)
 	struct ip_fw rule;	/* On-the-fly built rule */
 	int i;
 
-	LIBALIAS_LOCK_ASSERT(la);
 	if (la->fireWallFD < 0)
 		return;
 
@@ -2887,7 +2866,7 @@ ClearAllFWHoles(struct libalias *la)
 	memset(la->fireWallField, 0, la->fireWallNumNums);
 }
 
-#endif
+#endif /* !NO_FW_PUNCH */
 
 void
 LibAliasSetFWBase(struct libalias *la, unsigned int base, unsigned int num)

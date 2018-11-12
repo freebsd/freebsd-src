@@ -30,7 +30,9 @@
 #define _SYS_BUS_H_
 
 #include <machine/_limits.h>
+#include <machine/_bus.h>
 #include <sys/_bus_dma.h>
+#include <sys/ioccom.h>
 
 /**
  * @defgroup NEWBUS newbus - a generic framework for managing devices
@@ -52,6 +54,7 @@ struct u_businfo {
 typedef enum device_state {
 	DS_NOTPRESENT = 10,		/**< @brief not probed or probe failed */
 	DS_ALIVE = 20,			/**< @brief probe succeeded */
+	DS_ATTACHING = 25,		/**< @brief currently attaching */
 	DS_ATTACHED = 30,		/**< @brief attach method called */
 	DS_BUSY = 40			/**< @brief device is open */
 } device_state_t;
@@ -69,14 +72,70 @@ struct u_device {
 	char		dv_pnpinfo[128];	/**< @brief Plug and play info */
 	char		dv_location[128];	/**< @brief Where is the device? */
 	uint32_t	dv_devflags;		/**< @brief API Flags for device */
-	uint16_t	dv_flags;		/**< @brief flags for dev date */
+	uint16_t	dv_flags;		/**< @brief flags for dev state */
 	device_state_t	dv_state;		/**< @brief State of attachment */
 	/* XXX more driver info? */
 };
 
+/* Flags exported via dv_flags. */
+#define	DF_ENABLED	0x01		/* device should be probed/attached */
+#define	DF_FIXEDCLASS	0x02		/* devclass specified at create time */
+#define	DF_WILDCARD	0x04		/* unit was originally wildcard */
+#define	DF_DESCMALLOCED	0x08		/* description was malloced */
+#define	DF_QUIET	0x10		/* don't print verbose attach message */
+#define	DF_DONENOMATCH	0x20		/* don't execute DEVICE_NOMATCH again */
+#define	DF_EXTERNALSOFTC 0x40		/* softc not allocated by us */
+#define	DF_REBID	0x80		/* Can rebid after attach */
+#define	DF_SUSPENDED	0x100		/* Device is suspended. */
+
+/**
+ * @brief Device request structure used for ioctl's.
+ *
+ * Used for ioctl's on /dev/devctl2.  All device ioctl's
+ * must have parameter definitions which begin with dr_name.
+ */
+struct devreq_buffer {
+	void	*buffer;
+	size_t	length;
+};
+
+struct devreq {
+	char		dr_name[128];
+	int		dr_flags;		/* request-specific flags */
+	union {
+		struct devreq_buffer dru_buffer;
+		void	*dru_data;
+	} dr_dru;
+#define	dr_buffer	dr_dru.dru_buffer	/* variable-sized buffer */
+#define	dr_data		dr_dru.dru_data		/* fixed-size buffer */
+};
+
+#define	DEV_ATTACH	_IOW('D', 1, struct devreq)
+#define	DEV_DETACH	_IOW('D', 2, struct devreq)
+#define	DEV_ENABLE	_IOW('D', 3, struct devreq)
+#define	DEV_DISABLE	_IOW('D', 4, struct devreq)
+#define	DEV_SUSPEND	_IOW('D', 5, struct devreq)
+#define	DEV_RESUME	_IOW('D', 6, struct devreq)
+#define	DEV_SET_DRIVER	_IOW('D', 7, struct devreq)
+#define	DEV_CLEAR_DRIVER _IOW('D', 8, struct devreq)
+#define	DEV_RESCAN	_IOW('D', 9, struct devreq)
+#define	DEV_DELETE	_IOW('D', 10, struct devreq)
+
+/* Flags for DEV_DETACH and DEV_DISABLE. */
+#define	DEVF_FORCE_DETACH	0x0000001
+
+/* Flags for DEV_SET_DRIVER. */
+#define	DEVF_SET_DRIVER_DETACH	0x0000001	/* Detach existing driver. */
+
+/* Flags for DEV_CLEAR_DRIVER. */
+#define	DEVF_CLEAR_DRIVER_DETACH 0x0000001	/* Detach existing driver. */
+
+/* Flags for DEV_DELETE. */
+#define	DEVF_FORCE_DELETE	0x0000001
+
 #ifdef _KERNEL
 
-#include <sys/queue.h>
+#include <sys/eventhandler.h>
 #include <sys/kobj.h>
 
 /**
@@ -85,9 +144,21 @@ struct u_device {
  * included in case devctl_notify isn't sufficiently general.
  */
 boolean_t devctl_process_running(void);
+void devctl_notify_f(const char *__system, const char *__subsystem,
+    const char *__type, const char *__data, int __flags);
 void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
+void devctl_queue_data_f(char *__data, int __flags);
 void devctl_queue_data(char *__data);
+void devctl_safe_quote(char *__dst, const char *__src, size_t len);
+
+/**
+ * Device name parsers.  Hook to allow device enumerators to map
+ * scheme-specific names to a device.
+ */
+typedef void (*dev_lookup_fn)(void *arg, const char *name,
+    device_t *result);
+EVENTHANDLER_DECLARE(dev_lookup, dev_lookup_fn);
 
 /**
  * @brief A device driver (included mainly for compatibility with
@@ -118,8 +189,7 @@ typedef struct kobj_class	driver_t;
 typedef struct devclass		*devclass_t;
 
 /**
- * @brief A device method (included mainly for compatibility with
- * FreeBSD 4.x).
+ * @brief A device method
  */
 #define device_method_t		kobj_method_t
 
@@ -174,11 +244,8 @@ typedef void driver_intr_t(void*);
  * spls implicit in names like INTR_TYPE_TTY. In the meantime, don't
  * confuse things by renaming them (Grog, 18 July 2000).
  *
- * We define this in terms of bits because some devices may belong
- * to multiple classes (and therefore need to be included in
- * multiple interrupt masks, which is what this really serves to
- * indicate. Buses which do interrupt remapping will want to
- * change their type to reflect what sort of devices are underneath.
+ * Buses which do interrupt remapping will want to change their type
+ * to reflect what sort of devices are underneath.
  */
 enum intr_type {
 	INTR_TYPE_TTY = 1,
@@ -188,10 +255,13 @@ enum intr_type {
 	INTR_TYPE_MISC = 16,
 	INTR_TYPE_CLK = 32,
 	INTR_TYPE_AV = 64,
-	INTR_FAST = 128,
 	INTR_EXCL = 256,		/* exclusive interrupt */
 	INTR_MPSAFE = 512,		/* this interrupt is SMP safe */
-	INTR_ENTROPY = 1024		/* this interrupt provides entropy */
+	INTR_ENTROPY = 1024,		/* this interrupt provides entropy */
+	INTR_MD1 = 4096,		/* flag reserved for MD use */
+	INTR_MD2 = 8192,		/* flag reserved for MD use */
+	INTR_MD3 = 16384,		/* flag reserved for MD use */
+	INTR_MD4 = 32768		/* flag reserved for MD use */
 };
 
 enum intr_trigger {
@@ -206,6 +276,16 @@ enum intr_polarity {
 	INTR_POLARITY_LOW = 2
 };
 
+/**
+ * CPU sets supported by bus_get_cpus().  Note that not all sets may be
+ * supported for a given device.  If a request is not supported by a
+ * device (or its parents), then bus_get_cpus() will fail with EINVAL.
+ */
+enum cpu_sets {
+	LOCAL_CPUS = 0,
+	INTR_CPUS
+};
+
 typedef int (*devop_t)(void);
 
 /**
@@ -217,6 +297,31 @@ typedef int (*devop_t)(void);
 struct driver {
 	KOBJ_CLASS_FIELDS;
 };
+
+/**
+ * @brief A resource mapping.
+ */
+struct resource_map {
+	bus_space_tag_t r_bustag;
+	bus_space_handle_t r_bushandle;
+	bus_size_t r_size;
+	void	*r_vaddr;
+};
+	
+/**
+ * @brief Optional properties of a resource mapping request.
+ */
+struct resource_map_request {
+	size_t	size;
+	rman_res_t offset;
+	rman_res_t length;
+	vm_memattr_t memattr;
+};
+
+void	resource_init_map_request_impl(struct resource_map_request *_args,
+	    size_t _sz);
+#define	resource_init_map_request(rmr) 					\
+	resource_init_map_request_impl((rmr), sizeof(*(rmr)))
 
 /*
  * Definitions for drivers which need to keep simple lists of resources
@@ -231,22 +336,30 @@ struct resource_list_entry {
 	STAILQ_ENTRY(resource_list_entry) link;
 	int	type;			/**< @brief type argument to alloc_resource */
 	int	rid;			/**< @brief resource identifier */
+	int	flags;			/**< @brief resource flags */
 	struct	resource *res;		/**< @brief the real resource when allocated */
-	u_long	start;			/**< @brief start of resource range */
-	u_long	end;			/**< @brief end of resource range */
-	u_long	count;			/**< @brief count within range */
+	rman_res_t	start;		/**< @brief start of resource range */
+	rman_res_t	end;		/**< @brief end of resource range */
+	rman_res_t	count;			/**< @brief count within range */
 };
 STAILQ_HEAD(resource_list, resource_list_entry);
+
+#define	RLE_RESERVED		0x0001	/* Reserved by the parent bus. */
+#define	RLE_ALLOCATED		0x0002	/* Reserved resource is allocated. */
+#define	RLE_PREFETCH		0x0004	/* Resource is a prefetch range. */
 
 void	resource_list_init(struct resource_list *rl);
 void	resource_list_free(struct resource_list *rl);
 struct resource_list_entry *
 	resource_list_add(struct resource_list *rl,
 			  int type, int rid,
-			  u_long start, u_long end, u_long count);
+			  rman_res_t start, rman_res_t end, rman_res_t count);
 int	resource_list_add_next(struct resource_list *rl,
 			  int type,
-			  u_long start, u_long end, u_long count);
+			  rman_res_t start, rman_res_t end, rman_res_t count);
+int	resource_list_busy(struct resource_list *rl,
+			   int type, int rid);
+int	resource_list_reserved(struct resource_list *rl, int type, int rid);
 struct resource_list_entry*
 	resource_list_find(struct resource_list *rl,
 			   int type, int rid);
@@ -256,11 +369,23 @@ struct resource *
 	resource_list_alloc(struct resource_list *rl,
 			    device_t bus, device_t child,
 			    int type, int *rid,
-			    u_long start, u_long end,
-			    u_long count, u_int flags);
+			    rman_res_t start, rman_res_t end,
+			    rman_res_t count, u_int flags);
 int	resource_list_release(struct resource_list *rl,
 			      device_t bus, device_t child,
 			      int type, int rid, struct resource *res);
+int	resource_list_release_active(struct resource_list *rl,
+				     device_t bus, device_t child,
+				     int type);
+struct resource *
+	resource_list_reserve(struct resource_list *rl,
+			      device_t bus, device_t child,
+			      int type, int *rid,
+			      rman_res_t start, rman_res_t end,
+			      rman_res_t count, u_int flags);
+int	resource_list_unreserve(struct resource_list *rl,
+				device_t bus, device_t child,
+				int type, int rid);
 void	resource_list_purge(struct resource_list *rl);
 int	resource_list_print_type(struct resource_list *rl,
 				 const char *name, int type,
@@ -280,28 +405,44 @@ void	root_bus_configure(void);
 int	bus_generic_activate_resource(device_t dev, device_t child, int type,
 				      int rid, struct resource *r);
 device_t
-	bus_generic_add_child(device_t dev, int order, const char *name,
+	bus_generic_add_child(device_t dev, u_int order, const char *name,
 			      int unit);
+int	bus_generic_adjust_resource(device_t bus, device_t child, int type,
+				    struct resource *r, rman_res_t start,
+				    rman_res_t end);
 struct resource *
 	bus_generic_alloc_resource(device_t bus, device_t child, int type,
-				   int *rid, u_long start, u_long end,
-				   u_long count, u_int flags);
+				   int *rid, rman_res_t start, rman_res_t end,
+				   rman_res_t count, u_int flags);
 int	bus_generic_attach(device_t dev);
 int	bus_generic_bind_intr(device_t dev, device_t child,
 			      struct resource *irq, int cpu);
 int	bus_generic_child_present(device_t dev, device_t child);
 int	bus_generic_config_intr(device_t, int, enum intr_trigger,
 				enum intr_polarity);
+int	bus_generic_describe_intr(device_t dev, device_t child,
+				  struct resource *irq, void *cookie,
+				  const char *descr);
 int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 					int rid, struct resource *r);
 int	bus_generic_detach(device_t dev);
 void	bus_generic_driver_added(device_t dev, driver_t *driver);
+int	bus_generic_get_cpus(device_t dev, device_t child, enum cpu_sets op,
+			     size_t setsize, struct _cpuset *cpuset);
 bus_dma_tag_t
 	bus_generic_get_dma_tag(device_t dev, device_t child);
+bus_space_tag_t
+	bus_generic_get_bus_tag(device_t dev, device_t child);
+int	bus_generic_get_domain(device_t dev, device_t child, int *domain);
 struct resource_list *
 	bus_generic_get_resource_list (device_t, device_t);
+int	bus_generic_map_resource(device_t dev, device_t child, int type,
+				 struct resource *r,
+				 struct resource_map_request *args,
+				 struct resource_map *map);
 void	bus_generic_new_pass(device_t dev);
 int	bus_print_child_header(device_t dev, device_t child);
+int	bus_print_child_domain(device_t dev, device_t child);
 int	bus_print_child_footer(device_t dev, device_t child);
 int	bus_generic_print_child(device_t dev, device_t child);
 int	bus_generic_probe(device_t dev);
@@ -310,6 +451,7 @@ int	bus_generic_read_ivar(device_t dev, device_t child, int which,
 int	bus_generic_release_resource(device_t bus, device_t child,
 				     int type, int rid, struct resource *r);
 int	bus_generic_resume(device_t dev);
+int	bus_generic_resume_child(device_t dev, device_t child);
 int	bus_generic_setup_intr(device_t dev, device_t child,
 			       struct resource *irq, int flags,
 			       driver_filter_t *filter, driver_intr_t *intr, 
@@ -317,21 +459,26 @@ int	bus_generic_setup_intr(device_t dev, device_t child,
 
 struct resource *
 	bus_generic_rl_alloc_resource (device_t, device_t, int, int *,
-				       u_long, u_long, u_long, u_int);
+				       rman_res_t, rman_res_t, rman_res_t, u_int);
 void	bus_generic_rl_delete_resource (device_t, device_t, int, int);
-int	bus_generic_rl_get_resource (device_t, device_t, int, int, u_long *,
-				     u_long *);
-int	bus_generic_rl_set_resource (device_t, device_t, int, int, u_long,
-				     u_long);
+int	bus_generic_rl_get_resource (device_t, device_t, int, int, rman_res_t *,
+				     rman_res_t *);
+int	bus_generic_rl_set_resource (device_t, device_t, int, int, rman_res_t,
+				     rman_res_t);
 int	bus_generic_rl_release_resource (device_t, device_t, int, int,
 					 struct resource *);
 
 int	bus_generic_shutdown(device_t dev);
 int	bus_generic_suspend(device_t dev);
+int	bus_generic_suspend_child(device_t dev, device_t child);
 int	bus_generic_teardown_intr(device_t dev, device_t child,
 				  struct resource *irq, void *cookie);
+int	bus_generic_unmap_resource(device_t dev, device_t child, int type,
+				   struct resource *r,
+				   struct resource_map *map);
 int	bus_generic_write_ivar(device_t dev, device_t child, int which,
 			       uintptr_t value);
+int	bus_null_rescan(device_t dev);
 
 /*
  * Wrapper functions for the BUS_*_RESOURCE methods to make client code
@@ -344,17 +491,30 @@ struct resource_spec {
 	int	flags;
 };
 
-int bus_alloc_resources(device_t dev, struct resource_spec *rs, struct resource **res);
-void bus_release_resources(device_t dev, const struct resource_spec *rs, struct resource **res);
+int	bus_alloc_resources(device_t dev, struct resource_spec *rs,
+			    struct resource **res);
+void	bus_release_resources(device_t dev, const struct resource_spec *rs,
+			      struct resource **res);
 
+int	bus_adjust_resource(device_t child, int type, struct resource *r,
+			    rman_res_t start, rman_res_t end);
 struct	resource *bus_alloc_resource(device_t dev, int type, int *rid,
-				     u_long start, u_long end, u_long count,
-				     u_int flags);
+				     rman_res_t start, rman_res_t end,
+				     rman_res_t count, u_int flags);
 int	bus_activate_resource(device_t dev, int type, int rid,
 			      struct resource *r);
 int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
+int	bus_map_resource(device_t dev, int type, struct resource *r,
+			 struct resource_map_request *args,
+			 struct resource_map *map);
+int	bus_unmap_resource(device_t dev, int type, struct resource *r,
+			   struct resource_map *map);
+int	bus_get_cpus(device_t dev, enum cpu_sets op, size_t setsize,
+		     struct _cpuset *cpuset);
 bus_dma_tag_t bus_get_dma_tag(device_t dev);
+bus_space_tag_t bus_get_bus_tag(device_t dev);
+int	bus_get_domain(device_t dev, int *domain);
 int	bus_release_resource(device_t dev, int type, int rid,
 			     struct resource *r);
 int	bus_free_resource(device_t dev, int type, struct resource *r);
@@ -363,12 +523,14 @@ int	bus_setup_intr(device_t dev, struct resource *r, int flags,
 		       void *arg, void **cookiep);
 int	bus_teardown_intr(device_t dev, struct resource *r, void *cookie);
 int	bus_bind_intr(device_t dev, struct resource *r, int cpu);
+int	bus_describe_intr(device_t dev, struct resource *irq, void *cookie,
+			  const char *fmt, ...) __printflike(4, 5);
 int	bus_set_resource(device_t dev, int type, int rid,
-			 u_long start, u_long count);
+			 rman_res_t start, rman_res_t count);
 int	bus_get_resource(device_t dev, int type, int rid,
-			 u_long *startp, u_long *countp);
-u_long	bus_get_resource_start(device_t dev, int type, int rid);
-u_long	bus_get_resource_count(device_t dev, int type, int rid);
+			 rman_res_t *startp, rman_res_t *countp);
+rman_res_t	bus_get_resource_start(device_t dev, int type, int rid);
+rman_res_t	bus_get_resource_count(device_t dev, int type, int rid);
 void	bus_delete_resource(device_t dev, int type, int rid);
 int	bus_child_present(device_t child);
 int	bus_child_pnpinfo_str(device_t child, char *buf, size_t buflen);
@@ -378,17 +540,25 @@ void	bus_enumerate_hinted_children(device_t bus);
 static __inline struct resource *
 bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
 {
-	return (bus_alloc_resource(dev, type, rid, 0ul, ~0ul, 1, flags));
+	return (bus_alloc_resource(dev, type, rid, 0, ~0, 1, flags));
+}
+
+static __inline struct resource *
+bus_alloc_resource_anywhere(device_t dev, int type, int *rid,
+    rman_res_t count, u_int flags)
+{
+	return (bus_alloc_resource(dev, type, rid, 0, ~0, count, flags));
 }
 
 /*
  * Access functions for device.
  */
 device_t	device_add_child(device_t dev, const char *name, int unit);
-device_t	device_add_child_ordered(device_t dev, int order,
+device_t	device_add_child_ordered(device_t dev, u_int order,
 					 const char *name, int unit);
 void	device_busy(device_t dev);
 int	device_delete_child(device_t dev, device_t child);
+int	device_delete_children(device_t dev);
 int	device_attach(device_t dev);
 int	device_detach(device_t dev);
 void	device_disable(device_t dev);
@@ -413,7 +583,9 @@ struct sysctl_oid *device_get_sysctl_tree(device_t dev);
 int	device_is_alive(device_t dev);	/* did probe succeed? */
 int	device_is_attached(device_t dev);	/* did attach succeed? */
 int	device_is_enabled(device_t dev);
+int	device_is_suspended(device_t dev);
 int	device_is_quiet(device_t dev);
+device_t device_lookup_by_name(const char *name);
 int	device_print_prettyname(device_t dev);
 int	device_printf(device_t dev, const char *, ...) __printflike(2, 3);
 int	device_probe(device_t dev);
@@ -424,9 +596,12 @@ void	device_quiet(device_t dev);
 void	device_set_desc(device_t dev, const char* desc);
 void	device_set_desc_copy(device_t dev, const char* desc);
 int	device_set_devclass(device_t dev, const char *classname);
+int	device_set_devclass_fixed(device_t dev, const char *classname);
 int	device_set_driver(device_t dev, driver_t *driver);
 void	device_set_flags(device_t dev, u_int32_t flags);
 void	device_set_softc(device_t dev, void *softc);
+void	device_free_softc(void *softc);
+void	device_claim_softc(device_t dev);
 int	device_set_unit(device_t dev, int unit);	/* XXX DONT USE XXX */
 int	device_shutdown(device_t dev);
 void	device_unbusy(device_t dev);
@@ -435,7 +610,10 @@ void	device_verbose(device_t dev);
 /*
  * Access functions for devclass.
  */
+int		devclass_add_driver(devclass_t dc, driver_t *driver,
+				    int pass, devclass_t *dcp);
 devclass_t	devclass_create(const char *classname);
+int		devclass_delete_driver(devclass_t busclass, driver_t *driver);
 devclass_t	devclass_find(const char *classname);
 const char	*devclass_get_name(devclass_t dc);
 device_t	devclass_get_device(devclass_t dc, int unit);
@@ -471,6 +649,8 @@ int	resource_set_long(const char *name, int unit, const char *resname,
 			  long value);
 int	resource_set_string(const char *name, int unit, const char *resname,
 			    const char *value);
+int	resource_unset_value(const char *name, int unit, const char *resname);
+
 /*
  * Functions for maintaining and checking consistency of
  * bus information exported to userspace.
@@ -496,7 +676,7 @@ void	bus_data_generation_update(void);
  * is for drivers that wish to have a generic form and a specialized form,
  * like is done with the pci bus and the acpi pci bus.  BUS_PROBE_HOOVER is
  * for those busses that implement a generic device place-holder for devices on
- * the bus that have no more specific river for them (aka ugen).
+ * the bus that have no more specific driver for them (aka ugen).
  * BUS_PROBE_NOWILDCARD or lower means that the device isn't really bidding
  * for a device node, but accepts only devices that its parent has told it
  * use this driver.
@@ -506,7 +686,7 @@ void	bus_data_generation_update(void);
 #define BUS_PROBE_DEFAULT	(-20)	/* Base OS default driver */
 #define BUS_PROBE_LOW_PRIORITY	(-40)	/* Older, less desirable drivers */
 #define BUS_PROBE_GENERIC	(-100)	/* generic driver for dev */
-#define BUS_PROBE_HOOVER	(-500)	/* Generic dev for all devs on bus */
+#define BUS_PROBE_HOOVER	(-1000000) /* Driver for any dev on bus */
 #define BUS_PROBE_NOWILDCARD	(-2000000000) /* No wildcard device matches */
 
 /**
@@ -527,14 +707,21 @@ void	bus_data_generation_update(void);
 #define	BUS_PASS_SCHEDULER	60	/* Start scheduler. */
 #define	BUS_PASS_DEFAULT	__INT_MAX /* Everything else. */
 
+#define	BUS_PASS_ORDER_FIRST	0
+#define	BUS_PASS_ORDER_EARLY	2
+#define	BUS_PASS_ORDER_MIDDLE	5
+#define	BUS_PASS_ORDER_LATE	7
+#define	BUS_PASS_ORDER_LAST	9
+
 extern int bus_current_pass;
 
 void	bus_set_pass(int pass);
 
 /**
- * Shorthand for constructing method tables.
+ * Shorthands for constructing method tables.
  */
 #define	DEVMETHOD	KOBJMETHOD
+#define	DEVMETHOD_END	KOBJMETHOD_END
 
 /*
  * Some common device interfaces.
@@ -558,7 +745,8 @@ struct driver_module_data {
 	int		dmd_pass;
 };
 
-#define	EARLY_DRIVER_MODULE(name, busname, driver, devclass, evh, arg, pass) \
+#define	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, devclass,	\
+    evh, arg, order, pass)						\
 									\
 static struct driver_module_data name##_##busname##_driver_mod = {	\
 	evh, arg,							\
@@ -574,7 +762,16 @@ static moduledata_t name##_##busname##_mod = {				\
 	&name##_##busname##_driver_mod					\
 };									\
 DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
-	       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
+	       SI_SUB_DRIVERS, order)
+
+#define	EARLY_DRIVER_MODULE(name, busname, driver, devclass, evh, arg, pass) \
+	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, devclass,	\
+	    evh, arg, SI_ORDER_MIDDLE, pass)
+
+#define	DRIVER_MODULE_ORDERED(name, busname, driver, devclass, evh, arg,\
+    order)								\
+	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, devclass,	\
+	    evh, arg, order, BUS_PASS_DEFAULT)
 
 #define	DRIVER_MODULE(name, busname, driver, devclass, evh, arg)	\
 	EARLY_DRIVER_MODULE(name, busname, driver, devclass, evh, arg,	\

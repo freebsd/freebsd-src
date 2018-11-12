@@ -47,14 +47,13 @@ __FBSDID("$FreeBSD$");
 #include <glob.h>
 #include <limits.h>
 #include <setjmp.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "restore.h"
 #include "extern.h"
-
-#define round(a, b) (((a) + (b) - 1) / (b) * (b))
 
 /*
  * Things to handle interruptions.
@@ -83,7 +82,7 @@ struct arglist {
 static char	*copynext(char *, char *);
 static int	 fcmp(const void *, const void *);
 static void	 formatf(struct afile *, int);
-static void	 getcmd(char *, char *, char *, int, struct arglist *);
+static void	 getcmd(char *, char *, char *, size_t, struct arglist *);
 struct dirent	*glob_readdir(void *);
 static int	 glob_stat(const char *, struct stat *);
 static void	 mkentry(char *, struct direct *, struct afile *);
@@ -301,7 +300,7 @@ loop:
  * eliminate any embedded ".." components.
  */
 static void
-getcmd(char *curdir, char *cmd, char *name, int size, struct arglist *ap)
+getcmd(char *curdir, char *cmd, char *name, size_t size, struct arglist *ap)
 {
 	char *cp;
 	static char input[BUFSIZ];
@@ -441,7 +440,7 @@ copynext(char *input, char *output)
  * remove any embedded "." and ".." components.
  */
 void
-canon(char *rawname, char *canonname, int len)
+canon(char *rawname, char *canonname, size_t len)
 {
 	char *cp, *np;
 
@@ -670,12 +669,13 @@ formatf(struct afile *list, int nentry)
 	columns = 81 / width;
 	if (columns == 0)
 		columns = 1;
-	lines = (nentry + columns - 1) / columns;
+	lines = howmany(nentry, columns);
 	for (i = 0; i < lines; i++) {
 		for (j = 0; j < columns; j++) {
 			fp = &list[j * lines + i];
 			if (vflag) {
-				fprintf(stderr, "%*d ", precision, fp->fnum);
+				fprintf(stderr, "%*ju ",
+				    precision, (uintmax_t)fp->fnum);
 				fp->len += precision + 1;
 			}
 			if (haveprefix) {

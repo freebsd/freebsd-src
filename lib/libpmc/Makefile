@@ -1,11 +1,10 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=	pmc
 
 SRCS=	libpmc.c pmclog.c
 INCS=	pmc.h pmclog.h
-
-WARNS?=	6
 
 MAN=	pmc.3
 MAN+=	pmc_allocate.3
@@ -22,18 +21,36 @@ MAN+=	pmc_read.3
 MAN+=	pmc_set.3
 MAN+=	pmc_start.3
 MAN+=	pmclog.3
+MAN+=	pmc.soft.3
 
 # PMC-dependent manual pages
 MAN+=	pmc.atom.3
+MAN+=	pmc.atomsilvermont.3
 MAN+=	pmc.core.3
 MAN+=	pmc.core2.3
+MAN+=	pmc.corei7.3
+MAN+=	pmc.corei7uc.3
+MAN+=	pmc.haswell.3
+MAN+=	pmc.haswelluc.3
+MAN+=	pmc.haswellxeon.3
 MAN+=	pmc.iaf.3
+MAN+=	pmc.ivybridge.3
+MAN+=	pmc.ivybridgexeon.3
 MAN+=	pmc.k7.3
 MAN+=	pmc.k8.3
+MAN+=	pmc.mips24k.3
+MAN+=	pmc.octeon.3
 MAN+=	pmc.p4.3
 MAN+=	pmc.p5.3
 MAN+=	pmc.p6.3
+MAN+=	pmc.sandybridge.3
+MAN+=	pmc.sandybridgeuc.3
+MAN+=	pmc.sandybridgexeon.3
 MAN+=	pmc.tsc.3
+MAN+=	pmc.ucf.3
+MAN+=	pmc.westmere.3
+MAN+=	pmc.westmereuc.3
+MAN+=	pmc.xscale.3
 
 MLINKS+= \
 	pmc_allocate.3 pmc_release.3 \

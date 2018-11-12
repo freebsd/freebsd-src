@@ -104,6 +104,7 @@ struct vm_map_entry {
 	vm_offset_t start;		/* start address */
 	vm_offset_t end;		/* end address */
 	vm_offset_t avail_ssize;	/* amt can grow if this is a stack */
+	vm_offset_t next_read;		/* vaddr of the next sequential read */
 	vm_size_t adj_free;		/* amount of adjacent free space */
 	vm_size_t max_free;		/* max free space in subtree */
 	union vm_map_object object;	/* object I point to */
@@ -112,9 +113,10 @@ struct vm_map_entry {
 	vm_prot_t protection;		/* protection code */
 	vm_prot_t max_protection;	/* maximum protection */
 	vm_inherit_t inheritance;	/* inheritance */
+	uint8_t read_ahead;		/* pages in the read-ahead window */
 	int wired_count;		/* can be paged if = 0 */
-	vm_pindex_t lastr;		/* last read */
-	struct uidinfo *uip;		/* tmp storage for creator ref */
+	struct ucred *cred;		/* tmp storage for creator ref */
+	struct thread *wiring_thread;
 };
 
 #define MAP_ENTRY_NOSYNC		0x0001
@@ -139,6 +141,7 @@ struct vm_map_entry {
 #define	MAP_ENTRY_GROWS_UP		0x2000	/* Bottom-up stacks */
 
 #define	MAP_ENTRY_WIRE_SKIPPED		0x4000
+#define	MAP_ENTRY_VN_WRITECNT		0x8000	/* writeable vnode mapping */
 
 #ifdef	_KERNEL
 static __inline u_char
@@ -185,25 +188,26 @@ struct vm_map {
 	vm_flags_t flags;		/* flags for this vm_map */
 	vm_map_entry_t root;		/* Root of a binary search tree */
 	pmap_t pmap;			/* (c) Physical map */
-	vm_map_entry_t deferred_freelist;
 #define	min_offset	header.start	/* (c) */
 #define	max_offset	header.end	/* (c) */
+	int busy;
 };
 
 /*
  * vm_flags_t values
  */
 #define MAP_WIREFUTURE		0x01	/* wire all future pages */
+#define	MAP_BUSY_WAKEUP		0x02
 
 #ifdef	_KERNEL
 static __inline vm_offset_t
-vm_map_max(vm_map_t map)
+vm_map_max(const struct vm_map *map)
 {
 	return (map->max_offset);
 }
 
 static __inline vm_offset_t
-vm_map_min(vm_map_t map)
+vm_map_min(const struct vm_map *map)
 {
 	return (map->min_offset);
 }
@@ -237,7 +241,7 @@ struct vmspace {
 	caddr_t vm_taddr;	/* (c) user virtual address of text */
 	caddr_t vm_daddr;	/* (c) user virtual address of data */
 	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
-	int	vm_refcnt;	/* number of references */
+	volatile int vm_refcnt;	/* number of references */
 	/*
 	 * Keep the PMAP last, so that CPU-specific variations of that
 	 * structure on a single architecture don't result in offset
@@ -267,6 +271,7 @@ vmspace_pmap(struct vmspace *vmspace)
 
 void _vm_map_lock(vm_map_t map, const char *file, int line);
 void _vm_map_unlock(vm_map_t map, const char *file, int line);
+int _vm_map_unlock_and_wait(vm_map_t map, int timo, const char *file, int line);
 void _vm_map_lock_read(vm_map_t map, const char *file, int line);
 void _vm_map_unlock_read(vm_map_t map, const char *file, int line);
 int _vm_map_trylock(vm_map_t map, const char *file, int line);
@@ -274,11 +279,15 @@ int _vm_map_trylock_read(vm_map_t map, const char *file, int line);
 int _vm_map_lock_upgrade(vm_map_t map, const char *file, int line);
 void _vm_map_lock_downgrade(vm_map_t map, const char *file, int line);
 int vm_map_locked(vm_map_t map);
-int vm_map_unlock_and_wait(vm_map_t map, int timo);
 void vm_map_wakeup(vm_map_t map);
+void vm_map_busy(vm_map_t map);
+void vm_map_unbusy(vm_map_t map);
+void vm_map_wait_busy(vm_map_t map);
 
 #define	vm_map_lock(map)	_vm_map_lock(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_unlock(map)	_vm_map_unlock(map, LOCK_FILE, LOCK_LINE)
+#define	vm_map_unlock_and_wait(map, timo)	\
+			_vm_map_unlock_and_wait(map, timo, LOCK_FILE, LOCK_LINE)
 #define	vm_map_lock_read(map)	_vm_map_lock_read(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_unlock_read(map)	_vm_map_unlock_read(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_trylock(map)	_vm_map_trylock(map, LOCK_FILE, LOCK_LINE)
@@ -290,25 +299,25 @@ void vm_map_wakeup(vm_map_t map);
 			_vm_map_lock_downgrade(map, LOCK_FILE, LOCK_LINE)
 
 long vmspace_resident_count(struct vmspace *vmspace);
-long vmspace_wired_count(struct vmspace *vmspace);
 #endif	/* _KERNEL */
 
 
-/* XXX: number of kernel maps and entries to statically allocate */
+/* XXX: number of kernel maps to statically allocate */
 #define MAX_KMAP	10
-#define	MAX_KMAPENT	128
 
 /*
  * Copy-on-write flags for vm_map operations
  */
-#define MAP_UNUSED_01		0x0001
+#define MAP_INHERIT_SHARE	0x0001
 #define MAP_COPY_ON_WRITE	0x0002
 #define MAP_NOFAULT		0x0004
 #define MAP_PREFAULT		0x0008
 #define MAP_PREFAULT_PARTIAL	0x0010
 #define MAP_DISABLE_SYNCER	0x0020
+#define	MAP_CHECK_EXCL		0x0040
 #define MAP_DISABLE_COREDUMP	0x0100
 #define MAP_PREFAULT_MADVISE	0x0200	/* from (user) madvise request */
+#define	MAP_VN_WRITECOUNT	0x0400
 #define	MAP_STACK_GROWS_DOWN	0x1000
 #define	MAP_STACK_GROWS_UP	0x2000
 #define	MAP_ACC_CHARGED		0x4000
@@ -317,18 +326,29 @@ long vmspace_wired_count(struct vmspace *vmspace);
 /*
  * vm_fault option flags
  */
-#define VM_FAULT_NORMAL 0		/* Nothing special */
-#define VM_FAULT_CHANGE_WIRING 1	/* Change the wiring as appropriate */
-#define VM_FAULT_USER_WIRE 2		/* Likewise, but for user purposes */
-#define VM_FAULT_WIRE_MASK (VM_FAULT_CHANGE_WIRING|VM_FAULT_USER_WIRE)
-#define VM_FAULT_DIRTY 8		/* Dirty the page */
+#define	VM_FAULT_NORMAL	0		/* Nothing special */
+#define	VM_FAULT_WIRE	1		/* Wire the mapped page */
+#define	VM_FAULT_DIRTY	2		/* Dirty the page; use w/VM_PROT_COPY */
 
 /*
- * The following "find_space" options are supported by vm_map_find()
+ * Initially, mappings are slightly sequential.  The maximum window size must
+ * account for the map entry's "read_ahead" field being defined as an uint8_t.
+ */
+#define	VM_FAULT_READ_AHEAD_MIN		7
+#define	VM_FAULT_READ_AHEAD_INIT	15
+#define	VM_FAULT_READ_AHEAD_MAX		min(atop(MAXPHYS) - 1, UINT8_MAX)
+
+/*
+ * The following "find_space" options are supported by vm_map_find().
+ *
+ * For VMFS_ALIGNED_SPACE, the desired alignment is specified to
+ * the macro argument as log base 2 of the desired alignment.
  */
 #define	VMFS_NO_SPACE		0	/* don't find; use the given range */
 #define	VMFS_ANY_SPACE		1	/* find a range with any alignment */
-#define	VMFS_ALIGNED_SPACE	2	/* find a superpage-aligned range */
+#define	VMFS_OPTIMAL_SPACE	2	/* find a range with optimal alignment*/
+#define	VMFS_SUPER_SPACE	3	/* find a superpage-aligned range */
+#define	VMFS_ALIGNED_SPACE(x)	((x) << 8) /* find a range with fixed alignment */
 
 /*
  * vm_map_wire and vm_map_unwire option flags
@@ -339,17 +359,19 @@ long vmspace_wired_count(struct vmspace *vmspace);
 #define VM_MAP_WIRE_NOHOLES	0	/* region must not have holes */
 #define VM_MAP_WIRE_HOLESOK	2	/* region may have holes */
 
+#define VM_MAP_WIRE_WRITE	4	/* Validate writable. */
+
 #ifdef _KERNEL
 boolean_t vm_map_check_protection (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t);
 vm_map_t vm_map_create(pmap_t, vm_offset_t, vm_offset_t);
 int vm_map_delete(vm_map_t, vm_offset_t, vm_offset_t);
 int vm_map_find(vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t,
-    int, vm_prot_t, vm_prot_t, int);
+    vm_offset_t, int, vm_prot_t, vm_prot_t, int);
 int vm_map_fixed(vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_size_t,
     vm_prot_t, vm_prot_t, int);
 int vm_map_findspace (vm_map_t, vm_offset_t, vm_size_t, vm_offset_t *);
 int vm_map_inherit (vm_map_t, vm_offset_t, vm_offset_t, vm_inherit_t);
-void vm_map_init (struct vm_map *, vm_offset_t, vm_offset_t);
+void vm_map_init(vm_map_t, pmap_t, vm_offset_t, vm_offset_t);
 int vm_map_insert (vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_offset_t, vm_prot_t, vm_prot_t, int);
 int vm_map_lookup (vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_object_t *,
     vm_pindex_t *, vm_prot_t *, boolean_t *);
@@ -357,22 +379,19 @@ int vm_map_lookup_locked(vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, v
     vm_pindex_t *, vm_prot_t *, boolean_t *);
 void vm_map_lookup_done (vm_map_t, vm_map_entry_t);
 boolean_t vm_map_lookup_entry (vm_map_t, vm_offset_t, vm_map_entry_t *);
-void vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
-    vm_object_t object, vm_pindex_t pindex, vm_size_t size, int flags);
 int vm_map_protect (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t);
 int vm_map_remove (vm_map_t, vm_offset_t, vm_offset_t);
+void vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry);
 void vm_map_startup (void);
 int vm_map_submap (vm_map_t, vm_offset_t, vm_offset_t, vm_map_t);
 int vm_map_sync(vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t);
 int vm_map_madvise (vm_map_t, vm_offset_t, vm_offset_t, int);
-void vm_map_simplify_entry (vm_map_t, vm_map_entry_t);
-void vm_init2 (void);
 int vm_map_stack (vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int);
 int vm_map_growstack (struct proc *p, vm_offset_t addr);
 int vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
     int flags);
 int vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
     int flags);
-int vmspace_swap_count (struct vmspace *vmspace);
+long vmspace_swap_count(struct vmspace *vmspace);
 #endif				/* _KERNEL */
 #endif				/* _VM_MAP_ */

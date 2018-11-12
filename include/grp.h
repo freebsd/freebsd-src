@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -65,7 +61,7 @@ struct group {
 };
 
 __BEGIN_DECLS
-#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 void		 endgrent(void);
 struct group	*getgrent(void);
 #endif
@@ -73,12 +69,15 @@ struct group	*getgrgid(gid_t);
 struct group	*getgrnam(const char *);
 #if __BSD_VISIBLE
 const char	*group_from_gid(gid_t, int);
+int		 gid_from_group(const char *, gid_t *);
+int		 pwcache_groupdb(int (*)(int), void (*)(void),
+		    struct group * (*)(const char *),
+		    struct group * (*)(gid_t));
 #endif
-#if __BSD_VISIBLE || __XSI_VISIBLE
-/* XXX IEEE Std 1003.1, 2003 specifies `void setgrent(void)' */
-int		 setgrent(void);
+#if __XSI_VISIBLE
+void		 setgrent(void);
 #endif
-#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 int		 getgrgid_r(gid_t, struct group *, char *, size_t,
 		    struct group **);
 int		 getgrnam_r(const char *, struct group *, char *, size_t,

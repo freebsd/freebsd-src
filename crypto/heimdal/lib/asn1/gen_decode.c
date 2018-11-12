@@ -1,40 +1,40 @@
 /*
- * Copyright (c) 1997 - 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "gen_locl.h"
 #include "lex.h"
 
-RCSID("$Id: gen_decode.c 21503 2007-07-12 11:57:19Z lha $");
+RCSID("$Id$");
 
 static void
 decode_primitive (const char *typename, const char *name, const char *forwstr)
@@ -56,32 +56,6 @@ decode_primitive (const char *typename, const char *name, const char *forwstr)
 #endif
 }
 
-static int
-is_primitive_type(int type)
-{
-    switch(type) {
-    case TInteger:
-    case TBoolean:
-    case TOctetString:
-    case TBitString:
-    case TEnumerated:
-    case TGeneralizedTime:
-    case TGeneralString:
-    case TOID:
-    case TUTCTime:
-    case TUTF8String:
-    case TPrintableString:
-    case TIA5String:
-    case TBMPString:
-    case TUniversalString:
-    case TVisibleString:
-    case TNull:
-	return 1;
-    default:
-	return 0;
-    }
-}
-
 static void
 find_tag (const Type *t,
 	  Der_class *cl, Der_type *ty, unsigned *tag)
@@ -97,19 +71,24 @@ find_tag (const Type *t,
 	*ty  = PRIM;
 	*tag = UT_Boolean;
 	break;
-    case TChoice: 
+    case TChoice:
 	errx(1, "Cannot have recursive CHOICE");
     case TEnumerated:
 	*cl  = ASN1_C_UNIV;
 	*ty  = PRIM;
 	*tag = UT_Enumerated;
 	break;
-    case TGeneralString: 
+    case TGeneralString:
 	*cl  = ASN1_C_UNIV;
 	*ty  = PRIM;
 	*tag = UT_GeneralString;
 	break;
-    case TGeneralizedTime: 
+    case TTeletexString:
+	*cl  = ASN1_C_UNIV;
+	*ty  = PRIM;
+	*tag = UT_TeletexString;
+	break;
+    case TGeneralizedTime:
 	*cl  = ASN1_C_UNIV;
 	*ty  = PRIM;
 	*tag = UT_GeneralizedTime;
@@ -119,7 +98,7 @@ find_tag (const Type *t,
 	*ty  = PRIM;
 	*tag = UT_IA5String;
 	break;
-    case TInteger: 
+    case TInteger:
 	*cl  = ASN1_C_UNIV;
 	*ty  = PRIM;
 	*tag = UT_Integer;
@@ -129,12 +108,12 @@ find_tag (const Type *t,
 	*ty  = PRIM;
 	*tag = UT_Null;
 	break;
-    case TOID: 
+    case TOID:
 	*cl  = ASN1_C_UNIV;
 	*ty  = PRIM;
 	*tag = UT_OID;
 	break;
-    case TOctetString: 
+    case TOctetString:
 	*cl  = ASN1_C_UNIV;
 	*ty  = PRIM;
 	*tag = UT_OctetString;
@@ -144,35 +123,35 @@ find_tag (const Type *t,
 	*ty  = PRIM;
 	*tag = UT_PrintableString;
 	break;
-    case TSequence: 
+    case TSequence:
     case TSequenceOf:
 	*cl  = ASN1_C_UNIV;
 	*ty  = CONS;
 	*tag = UT_Sequence;
 	break;
-    case TSet: 
+    case TSet:
     case TSetOf:
 	*cl  = ASN1_C_UNIV;
 	*ty  = CONS;
 	*tag = UT_Set;
 	break;
-    case TTag: 
+    case TTag:
 	*cl  = t->tag.tagclass;
 	*ty  = is_primitive_type(t->subtype->type) ? PRIM : CONS;
 	*tag = t->tag.tagvalue;
 	break;
-    case TType: 
+    case TType:
 	if ((t->symbol->stype == Stype && t->symbol->type == NULL)
 	    || t->symbol->stype == SUndefined) {
-	    error_message("%s is imported or still undefined, "
-			  " can't generate tag checking data in CHOICE "
-			  "without this information",
-			  t->symbol->name);
+	    lex_error_message("%s is imported or still undefined, "
+			      " can't generate tag checking data in CHOICE "
+			      "without this information",
+			      t->symbol->name);
 	    exit(1);
 	}
 	find_tag(t->symbol->type, cl, ty, tag);
 	return;
-    case TUTCTime: 
+    case TUTCTime:
 	*cl  = ASN1_C_UNIV;
 	*ty  = PRIM;
 	*tag = UT_UTCTime;
@@ -205,7 +184,7 @@ find_tag (const Type *t,
 static void
 range_check(const char *name,
 	    const char *length,
-	    const char *forwstr, 
+	    const char *forwstr,
 	    struct range *r)
 {
     if (r->min == r->max + 2 || r->min < r->max)
@@ -229,13 +208,14 @@ range_check(const char *name,
 }
 
 static int
-decode_type (const char *name, const Type *t, int optional, 
-	     const char *forwstr, const char *tmpstr)
+decode_type (const char *name, const Type *t, int optional,
+	     const char *forwstr, const char *tmpstr, const char *dertype,
+	     unsigned int depth)
 {
     switch (t->type) {
     case TType: {
 	if (optional)
-	    fprintf(codefile, 
+	    fprintf(codefile,
 		    "%s = calloc(1, sizeof(*%s));\n"
 		    "if (%s == NULL) %s;\n",
 		    name, name, name, forwstr);
@@ -279,7 +259,7 @@ decode_type (const char *name, const Type *t, int optional,
 	} else if (t->range->min == 0 && t->range->max == INT_MAX) {
 	    decode_primitive ("unsigned", name, forwstr);
 	} else
-	    errx(1, "%s: unsupported range %d -> %d", 
+	    errx(1, "%s: unsupported range %d -> %d",
 		 name, t->range->min, t->range->max);
 	break;
     case TBoolean:
@@ -289,7 +269,17 @@ decode_type (const char *name, const Type *t, int optional,
 	decode_primitive ("enumerated", name, forwstr);
 	break;
     case TOctetString:
+	if (dertype) {
+	    fprintf(codefile,
+		    "if (%s == CONS) {\n",
+		    dertype);
+	    decode_primitive("octet_string_ber", name, forwstr);
+	    fprintf(codefile,
+		    "} else {\n");
+	}
 	decode_primitive ("octet_string", name, forwstr);
+	if (dertype)
+	    fprintf(codefile, "}\n");
 	if (t->range)
 	    range_check(name, "length", forwstr, t->range);
 	break;
@@ -331,19 +321,19 @@ decode_type (const char *name, const Type *t, int optional,
 	    break;
 
 	ASN1_TAILQ_FOREACH(m, t->members, members) {
-	    char *s;
+	    char *s = NULL;
 
 	    if (m->ellipsis)
 		continue;
 
-	    asprintf (&s, "%s(%s)->%s", m->optional ? "" : "&",
-		      name, m->gen_name);
-	    if (s == NULL)
+	    if (asprintf (&s, "%s(%s)->%s", m->optional ? "" : "&",
+			  name, m->gen_name) < 0 || s == NULL)
 		errx(1, "malloc");
-	    decode_type (s, m->type, m->optional, forwstr, m->gen_name);
+	    decode_type (s, m->type, m->optional, forwstr, m->gen_name, NULL,
+		depth + 1);
 	    free (s);
 	}
-	
+
 	break;
     }
     case TSet: {
@@ -356,7 +346,7 @@ decode_type (const char *name, const Type *t, int optional,
 	fprintf(codefile, "{\n");
 	fprintf(codefile, "unsigned int members = 0;\n");
 	fprintf(codefile, "while(len > 0) {\n");
-	fprintf(codefile, 
+	fprintf(codefile,
 		"Der_class class;\n"
 		"Der_type type;\n"
 		"int tag;\n"
@@ -374,22 +364,21 @@ decode_type (const char *name, const Type *t, int optional,
 		    is_primitive_type(m->type->subtype->type) ? "PRIM" : "CONS",
 		    valuename(m->type->tag.tagclass, m->type->tag.tagvalue));
 
-	    asprintf (&s, "%s(%s)->%s", m->optional ? "" : "&", name, m->gen_name);
-	    if (s == NULL)
+	    if (asprintf (&s, "%s(%s)->%s", m->optional ? "" : "&", name, m->gen_name) < 0 || s == NULL)
 		errx(1, "malloc");
 	    if(m->optional)
-		fprintf(codefile, 
+		fprintf(codefile,
 			"%s = calloc(1, sizeof(*%s));\n"
 			"if (%s == NULL) { e = ENOMEM; %s; }\n",
 			s, s, s, forwstr);
-	    decode_type (s, m->type, 0, forwstr, m->gen_name);
+	    decode_type (s, m->type, 0, forwstr, m->gen_name, NULL, depth + 1);
 	    free (s);
 
 	    fprintf(codefile, "members |= (1 << %d);\n", memno);
 	    memno++;
 	    fprintf(codefile, "break;\n");
 	}
-	fprintf(codefile, 
+	fprintf(codefile,
 		"default:\n"
 		"return ASN1_MISPLACED_FIELD;\n"
 		"break;\n");
@@ -399,8 +388,7 @@ decode_type (const char *name, const Type *t, int optional,
 	ASN1_TAILQ_FOREACH(m, t->members, members) {
 	    char *s;
 
-	    asprintf (&s, "%s->%s", name, m->gen_name);
-	    if (s == NULL)
+	    if (asprintf (&s, "%s->%s", name, m->gen_name) < 0 || s == NULL)
 		errx(1, "malloc");
 	    fprintf(codefile, "if((members & (1 << %d)) == 0)\n", memno);
 	    if(m->optional)
@@ -417,8 +405,8 @@ decode_type (const char *name, const Type *t, int optional,
     }
     case TSetOf:
     case TSequenceOf: {
-	char *n;
-	char *sname;
+	char *n = NULL;
+	char *sname = NULL;
 
 	fprintf (codefile,
 		 "{\n"
@@ -449,17 +437,15 @@ decode_type (const char *name, const Type *t, int optional,
 		 tmpstr, tmpstr, forwstr,
 		 tmpstr, tmpstr,
 		 tmpstr, name, tmpstr,
-		 tmpstr, forwstr, 
+		 tmpstr, forwstr,
 		 name, tmpstr);
 
-	asprintf (&n, "&(%s)->val[(%s)->len]", name, name);
-	if (n == NULL)
+	if (asprintf (&n, "&(%s)->val[(%s)->len]", name, name) < 0 || n == NULL)
 	    errx(1, "malloc");
-	asprintf (&sname, "%s_s_of", tmpstr);
-	if (sname == NULL)
+	if (asprintf (&sname, "%s_s_of", tmpstr) < 0 || sname == NULL)
 	    errx(1, "malloc");
-	decode_type (n, t->subtype, 0, forwstr, sname);
-	fprintf (codefile, 
+	decode_type (n, t->subtype, 0, forwstr, sname, NULL, depth + 1);
+	fprintf (codefile,
 		 "(%s)->len++;\n"
 		 "len = %s_origlen - ret;\n"
 		 "}\n"
@@ -479,24 +465,44 @@ decode_type (const char *name, const Type *t, int optional,
     case TGeneralString:
 	decode_primitive ("general_string", name, forwstr);
 	break;
+    case TTeletexString:
+	decode_primitive ("general_string", name, forwstr);
+	break;
     case TTag:{
-    	char *tname;
+    	char *tname = NULL, *typestring = NULL;
+	char *ide = NULL;
 
-	fprintf(codefile, 
+	if (asprintf(&typestring, "%s_type", tmpstr) < 0 || typestring == NULL)
+	    errx(1, "malloc");
+
+	fprintf(codefile,
 		"{\n"
-		"size_t %s_datalen, %s_oldlen;\n",
-		tmpstr, tmpstr);
-	if(dce_fix)
-	    fprintf(codefile, 
-		    "int dce_fix;\n");
-	fprintf(codefile, "e = der_match_tag_and_length(p, len, %s, %s, %s, "
+		"size_t %s_datalen, %s_oldlen;\n"
+		"Der_type %s;\n",
+		tmpstr, tmpstr, typestring);
+	if(support_ber)
+	    fprintf(codefile,
+		    "int is_indefinite%u;\n", depth);
+
+	fprintf(codefile, "e = der_match_tag_and_length(p, len, %s, &%s, %s, "
 		"&%s_datalen, &l);\n",
 		classname(t->tag.tagclass),
-		is_primitive_type(t->subtype->type) ? "PRIM" : "CONS",
+		typestring,
 		valuename(t->tag.tagclass, t->tag.tagvalue),
 		tmpstr);
+
+	/* XXX hardcode for now */
+	if (support_ber && t->subtype->type == TOctetString) {
+	    ide = typestring;
+	} else {
+	    fprintf(codefile,
+		    "if (e == 0 && %s != %s) { e = ASN1_BAD_ID; }\n",
+		    typestring,
+		    is_primitive_type(t->subtype->type) ? "PRIM" : "CONS");
+	}
+
 	if(optional) {
-	    fprintf(codefile, 
+	    fprintf(codefile,
 		    "if(e) {\n"
 		    "%s = NULL;\n"
 		    "} else {\n"
@@ -510,36 +516,45 @@ decode_type (const char *name, const Type *t, int optional,
 		 "p += l; len -= l; ret += l;\n"
 		 "%s_oldlen = len;\n",
 		 tmpstr);
-	if(dce_fix)
+	if(support_ber)
 	    fprintf (codefile,
-		     "if((dce_fix = _heim_fix_dce(%s_datalen, &len)) < 0)\n"
-		     "{ e = ASN1_BAD_FORMAT; %s; }\n",
-		     tmpstr, forwstr);
+		     "if((is_indefinite%u = _heim_fix_dce(%s_datalen, &len)) < 0)\n"
+		     "{ e = ASN1_BAD_FORMAT; %s; }\n"
+		     "if (is_indefinite%u) { if (len < 2) { e = ASN1_OVERRUN; %s; } len -= 2; }",
+		     depth, tmpstr, forwstr, depth, forwstr);
 	else
-	    fprintf(codefile, 
+	    fprintf(codefile,
 		    "if (%s_datalen > len) { e = ASN1_OVERRUN; %s; }\n"
 		    "len = %s_datalen;\n", tmpstr, forwstr, tmpstr);
-	asprintf (&tname, "%s_Tag", tmpstr);
-	if (tname == NULL)
+	if (asprintf (&tname, "%s_Tag", tmpstr) < 0 || tname == NULL)
 	    errx(1, "malloc");
-	decode_type (name, t->subtype, 0, forwstr, tname);
-	if(dce_fix)
+	decode_type (name, t->subtype, 0, forwstr, tname, ide, depth + 1);
+	if(support_ber)
 	    fprintf(codefile,
-		    "if(dce_fix){\n"
-		    "e = der_match_tag_and_length (p, len, "
-		    "(Der_class)0,(Der_type)0, UT_EndOfContent, "
+		    "if(is_indefinite%u){\n"
+		    "len += 2;\n"
+		    "e = der_match_tag_and_length(p, len, "
+		    "(Der_class)0, &%s, UT_EndOfContent, "
 		    "&%s_datalen, &l);\n"
-		    "if(e) %s;\np += l; len -= l; ret += l;\n"
-		    "} else \n", tmpstr, forwstr);
-	fprintf(codefile, 
+		    "if(e) %s;\n"
+		    "p += l; len -= l; ret += l;\n"
+		    "if (%s != (Der_type)0) { e = ASN1_BAD_ID; %s; }\n"
+		    "} else \n",
+		    depth,
+		    typestring,
+		    tmpstr,
+		    forwstr,
+		    typestring, forwstr);
+	fprintf(codefile,
 		"len = %s_oldlen - %s_datalen;\n",
 		tmpstr, tmpstr);
 	if(optional)
-	    fprintf(codefile, 
+	    fprintf(codefile,
 		    "}\n");
-	fprintf(codefile, 
+	fprintf(codefile,
 		"}\n");
 	free(tname);
+	free(typestring);
 	break;
     }
     case TChoice: {
@@ -551,11 +566,11 @@ decode_type (const char *name, const Type *t, int optional,
 
 	ASN1_TAILQ_FOREACH(m, t->members, members) {
 	    const Type *tt = m->type;
-	    char *s;
+	    char *s = NULL;
 	    Der_class cl;
 	    Der_type  ty;
 	    unsigned  tag;
-	    
+
 	    if (m->ellipsis) {
 		have_ellipsis = m;
 		continue;
@@ -569,11 +584,11 @@ decode_type (const char *name, const Type *t, int optional,
 		    classname(cl),
 		    ty ? "CONS" : "PRIM",
 		    valuename(cl, tag));
-	    asprintf (&s, "%s(%s)->u.%s", m->optional ? "" : "&",
-		      name, m->gen_name);
-	    if (s == NULL)
+	    if (asprintf (&s, "%s(%s)->u.%s", m->optional ? "" : "&",
+			  name, m->gen_name) < 0 || s == NULL)
 		errx(1, "malloc");
-	    decode_type (s, m->type, m->optional, forwstr, m->gen_name);
+	    decode_type (s, m->type, m->optional, forwstr, m->gen_name, NULL,
+		depth + 1);
 	    fprintf(codefile,
 		    "(%s)->element = %s;\n",
 		    name, m->label);
@@ -594,11 +609,11 @@ decode_type (const char *name, const Type *t, int optional,
 		    "(%s)->element = %s;\n"
 		    "p += len;\n"
 		    "ret += len;\n"
-		    "len -= len;\n"
+		    "len = 0;\n"
 		    "}\n",
 		    name, have_ellipsis->gen_name,
 		    name, have_ellipsis->gen_name,
-		    forwstr, 
+		    forwstr,
 		    name, have_ellipsis->gen_name,
 		    name, have_ellipsis->gen_name,
 		    name, have_ellipsis->label);
@@ -650,14 +665,9 @@ generate_type_decode (const Symbol *s)
 {
     int preserve = preserve_type(s->name) ? TRUE : FALSE;
 
-    fprintf (headerfile,
-	     "int    "
-	     "decode_%s(const unsigned char *, size_t, %s *, size_t *);\n",
-	     s->gen_name, s->gen_name);
-
-    fprintf (codefile, "int\n"
-	     "decode_%s(const unsigned char *p,"
-	     " size_t len, %s *data, size_t *size)\n"
+    fprintf (codefile, "int ASN1CALL\n"
+	     "decode_%s(const unsigned char *p HEIMDAL_UNUSED_ATTRIBUTE,"
+	     " size_t len HEIMDAL_UNUSED_ATTRIBUTE, %s *data, size_t *size)\n"
 	     "{\n",
 	     s->gen_name, s->gen_name);
 
@@ -668,6 +678,7 @@ generate_type_decode (const Symbol *s)
     case TOID:
     case TGeneralizedTime:
     case TGeneralString:
+    case TTeletexString:
     case TUTF8String:
     case TPrintableString:
     case TIA5String:
@@ -687,15 +698,15 @@ generate_type_decode (const Symbol *s)
     case TChoice:
 	fprintf (codefile,
 		 "size_t ret = 0;\n"
-		 "size_t l;\n"
-		 "int e;\n");
+		 "size_t l HEIMDAL_UNUSED_ATTRIBUTE;\n"
+		 "int e HEIMDAL_UNUSED_ATTRIBUTE;\n");
 	if (preserve)
 	    fprintf (codefile, "const unsigned char *begin = p;\n");
 
 	fprintf (codefile, "\n");
 	fprintf (codefile, "memset(data, 0, sizeof(*data));\n"); /* hack to avoid `unused variable' */
 
-	decode_type ("data", s->type, 0, "goto fail", "Top");
+	decode_type ("data", s->type, 0, "goto fail", "Top", NULL, 1);
 	if (preserve)
 	    fprintf (codefile,
 		     "data->_save.data = calloc(1, ret);\n"
@@ -704,7 +715,7 @@ generate_type_decode (const Symbol *s)
 		     "}\n"
 		     "data->_save.length = ret;\n"
 		     "memcpy(data->_save.data, begin, ret);\n");
-	fprintf (codefile, 
+	fprintf (codefile,
 		 "if(size) *size = ret;\n"
 		 "return 0;\n");
 	fprintf (codefile,

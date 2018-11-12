@@ -109,13 +109,14 @@ extern void output_addr_const (FILE *, rtx);
 
 /* Output a string of assembler code, substituting numbers, strings
    and fixed syntactic prefixes.  */
-#if GCC_VERSION >= 3004
+#if GCC_VERSION >= 3004 && !defined(__clang__)
 #define ATTRIBUTE_ASM_FPRINTF(m, n) __attribute__ ((__format__ (__asm_fprintf__, m, n))) ATTRIBUTE_NONNULL(m)
 /* This is a magic identifier which allows GCC to figure out the type
    of HOST_WIDE_INT for %wd specifier checks.  You must issue this
    typedef before using the __asm_fprintf__ format attribute.  */
 typedef HOST_WIDE_INT __gcc_host_wide_int__;
 #else
+/* FIXME(benl): what about %wd? */
 #define ATTRIBUTE_ASM_FPRINTF(m, n) ATTRIBUTE_NONNULL(m)
 #endif
 
@@ -200,9 +201,9 @@ extern void assemble_variable (tree, int, int, int);
    DONT_OUTPUT_DATA is from assemble_variable.  */
 extern void align_variable (tree decl, bool dont_output_data);
 
-/* Output something to declare an external symbol to the assembler.
-   (Most assemblers don't need this, so we normally output nothing.)
-   Do nothing if DECL is not external.  */
+/* Queue for outputing something to declare an external symbol to the
+   assembler.  (Most assemblers don't need this, so we normally output
+   nothing.)  Do nothing if DECL is not external.  */
 extern void assemble_external (tree);
 
 /* Assemble code to leave SIZE bytes of zeros.  */
@@ -606,6 +607,10 @@ extern void default_internal_label (FILE *, const char *, unsigned long);
 extern void default_file_start (void);
 extern void file_end_indicate_exec_stack (void);
 extern bool default_valid_pointer_mode (enum machine_mode);
+
+extern void default_elf_asm_output_external (FILE *file, tree,
+					     const char *);
+extern int maybe_assemble_visibility (tree);
 
 extern int default_address_cost (rtx);
 

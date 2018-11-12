@@ -30,6 +30,9 @@
 #define	_G_LABEL_H_
 
 #include <sys/endian.h>
+#ifdef _KERNEL
+#include <sys/sysctl.h>
+#endif
 
 #define	G_LABEL_CLASS_NAME	"LABEL"
 
@@ -56,23 +59,35 @@ extern u_int g_label_debug;
 	}								\
 } while (0)
 
+SYSCTL_DECL(_kern_geom_label);
+
+#define	G_LABEL_INIT(kind, label, descr) 				\
+	SYSCTL_NODE(_kern_geom_label, OID_AUTO, kind, CTLFLAG_RD,	\
+	    NULL, "");							\
+	SYSCTL_INT(_kern_geom_label_##kind, OID_AUTO, enable, 		\
+	    CTLFLAG_RWTUN, &label.ld_enabled, 1, descr)
+
 typedef void g_label_taste_t (struct g_consumer *cp, char *label, size_t size);
 
 struct g_label_desc {
 	g_label_taste_t	*ld_taste;
 	char		*ld_dir;
+	int		 ld_enabled;
 };
 
 /* Supported labels. */
-extern const struct g_label_desc g_label_ufs_id;
-extern const struct g_label_desc g_label_ufs_volume;
-extern const struct g_label_desc g_label_iso9660;
-extern const struct g_label_desc g_label_msdosfs;
-extern const struct g_label_desc g_label_ext2fs;
-extern const struct g_label_desc g_label_reiserfs;
-extern const struct g_label_desc g_label_ntfs;
-extern const struct g_label_desc g_label_gpt;
-extern const struct g_label_desc g_label_gpt_uuid;
+extern struct g_label_desc g_label_ufs_id;
+extern struct g_label_desc g_label_ufs_volume;
+extern struct g_label_desc g_label_iso9660;
+extern struct g_label_desc g_label_msdosfs;
+extern struct g_label_desc g_label_ext2fs;
+extern struct g_label_desc g_label_reiserfs;
+extern struct g_label_desc g_label_ntfs;
+extern struct g_label_desc g_label_gpt;
+extern struct g_label_desc g_label_gpt_uuid;
+extern struct g_label_desc g_label_disk_ident;
+
+extern void g_label_rtrim(char *label, size_t size);
 #endif	/* _KERNEL */
 
 struct g_label_metadata {

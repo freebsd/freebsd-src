@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "fsck.h"
@@ -97,6 +98,9 @@ pass4(void)
 				break;
 
 			case DCLEAR:
+				/* if on snapshot, already cleared */
+				if (cursnapshot != 0)
+					break;
 				dp = ginode(inumber);
 				if (DIP(dp, di_size) == 0) {
 					clri(&idesc, "ZERO LENGTH", 1);
@@ -111,8 +115,9 @@ pass4(void)
 				break;
 
 			default:
-				errx(EEXIT, "BAD STATE %d FOR INODE I=%d",
-				    inoinfo(inumber)->ino_state, inumber);
+				errx(EEXIT, "BAD STATE %d FOR INODE I=%ju",
+				    inoinfo(inumber)->ino_state,
+				    (uintmax_t)inumber);
 			}
 		}
 	}
@@ -138,7 +143,7 @@ pass4check(struct inodesc *idesc)
 				free((char *)dlp);
 				break;
 			}
-			if (dlp == 0) {
+			if (dlp == NULL) {
 				clrbmap(blkno);
 				n_blks--;
 			}

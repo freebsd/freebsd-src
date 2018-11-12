@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/i8134x/i81342reg.h>
 #include <arm/xscale/i8134x/obiovar.h>
 
-
 static int
 obio_probe(device_t dev)
 {
@@ -68,7 +67,7 @@ obio_attach(device_t dev)
 {
 	struct obio_softc *sc = device_get_softc(dev);
 
-	sc->oba_st = &obio_bs_tag;
+	sc->oba_st = arm_base_bs_tag;
 	sc->oba_rman.rm_type = RMAN_ARRAY;
 	sc->oba_rman.rm_descr = "OBIO I/O";
 	if (rman_init(&sc->oba_rman) != 0 ||
@@ -89,7 +88,7 @@ obio_attach(device_t dev)
 
 static struct resource *
 obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *rv;
 	struct rman *rm;
@@ -127,7 +126,7 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == NULL) 
+	if (rv == NULL)
 		return (NULL);
 	if (type == SYS_RES_IRQ)
 		return (rv);

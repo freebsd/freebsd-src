@@ -14,13 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -42,7 +35,7 @@
  * Test the SVID-compatible Semaphore facility.
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <sys/wait.h>
@@ -158,6 +151,15 @@ main(int argc, char *argv[])
 		err(1, "IPC_SET of mode didn't hold");
 
 	print_semid_ds(&s_ds, 0600);
+
+	errno = 0;
+	if (semget(semkey, 1, IPC_CREAT | IPC_EXCL | 0600) != -1 ||
+	    errno != EEXIST)
+		err(1, "semget IPC_EXCL 1 did not fail with [EEXIST]");
+	errno = 0;
+	if (semget(semkey, 2, IPC_CREAT | IPC_EXCL | 0600) != -1 ||
+	    errno != EEXIST)
+		err(1, "semget IPC_EXCL 2 did not fail with [EEXIST]");
 
 	for (child_count = 0; child_count < 5; child_count++) {
 		switch ((child_pid = fork())) {

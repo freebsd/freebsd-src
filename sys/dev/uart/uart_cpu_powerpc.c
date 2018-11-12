@@ -27,57 +27,29 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_platform.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-
-#ifndef MPC85XX
-#include <dev/ofw/openfirm.h>
 #include <machine/ofw_machdep.h>
-#endif
 
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
-#ifdef MPC85XX
-bus_space_tag_t uart_bus_space_io = &bs_be_tag;
-bus_space_tag_t uart_bus_space_mem = &bs_be_tag;
-#else
 bus_space_tag_t uart_bus_space_io = &bs_le_tag;
 bus_space_tag_t uart_bus_space_mem = &bs_le_tag;
-#endif
 
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
-#ifdef MPC85XX
-	return ((b1->bsh == b2->bsh) ? 1 : 0);
-#else
+
 	return ((pmap_kextract(b1->bsh) == pmap_kextract(b2->bsh)) ? 1 : 0);
-#endif
 }
 
-#ifdef MPC85XX
-int
-uart_cpu_getdev(int devtype, struct uart_devinfo *di)
-{
-	struct uart_class *class;
-
-	class = &uart_ns8250_class;
-	if (class == NULL)
-		class = &uart_quicc_class;
-	if (class == NULL)
-		return (ENXIO);
-
-	/* Check the environment. */
-	return (uart_getenv(devtype, di, class));
-}
-#else
 static int
 ofw_get_uart_console(phandle_t opts, phandle_t *result, const char *inputdev,
     const char *outputdev)
@@ -90,13 +62,48 @@ ofw_get_uart_console(phandle_t opts, phandle_t *result, const char *inputdev,
 	input = OF_finddevice(buf);
 	if (input == -1)
 		return (ENXIO);
-	if (OF_getprop(opts, outputdev, buf, sizeof(buf)) == -1)
-		return (ENXIO);
-	if (OF_finddevice(buf) != input)
-		return (ENXIO);
+
+	if (outputdev != NULL) {
+		if (OF_getprop(opts, outputdev, buf, sizeof(buf)) == -1)
+			return (ENXIO);
+		if (OF_finddevice(buf) != input)
+			return (ENXIO);
+	}
 
 	*result = input;
 	return (0);
+}
+
+static int
+ofw_get_console_phandle_path(phandle_t node, phandle_t *result,
+    const char *prop)
+{
+	union {
+		char buf[64];
+		phandle_t ref;
+	} field;
+	phandle_t output;
+	ssize_t size;
+
+	size = OF_getproplen(node, prop);
+	if (size == -1)
+		return (ENXIO);
+	OF_getprop(node, prop, &field, sizeof(field));
+
+	/* This property might be either a ihandle or path. Hooray. */
+
+	output = -1;
+	if (field.buf[size - 1] == 0)
+		output = OF_finddevice(field.buf);
+	if (output == -1 && size == 4)
+		output = OF_instance_to_package(field.ref);
+	
+	if (output != -1) {
+		*result = output;
+		return (0);
+	}
+
+	return (ENXIO);
 }
 
 int
@@ -104,28 +111,43 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
 	char buf[64];
 	struct uart_class *class;
-	phandle_t input, opts;
+	phandle_t input, opts, chosen;
 	int error;
 
-	class = &uart_z8530_class;
-	if (class == NULL)
-		return (ENXIO);
-
-	if ((opts = OF_finddevice("/options")) == -1)
-		return (ENXIO);
+	opts = OF_finddevice("/options");
+	chosen = OF_finddevice("/chosen");
 	switch (devtype) {
 	case UART_DEV_CONSOLE:
-		if (ofw_get_uart_console(opts, &input, "input-device",
-		    "output-device")) {
-			/*
-			 * At least some G5 Xserves require that we
-			 * probe input-device-1 as well
-			 */
-	
-			if (ofw_get_uart_console(opts, &input, "input-device-1",
-			    "output-device-1"))
-				return (ENXIO);
+		error = ENXIO;
+		if (chosen != -1 && error != 0)
+			error = ofw_get_uart_console(chosen, &input,
+			    "stdout-path", NULL);
+		if (chosen != -1 && error != 0)
+			error = ofw_get_uart_console(chosen, &input,
+			    "linux,stdout-path", NULL);
+		if (chosen != -1 && error != 0)
+			error = ofw_get_console_phandle_path(chosen, &input,
+			    "stdout");
+		if (chosen != -1 && error != 0)
+			error = ofw_get_uart_console(chosen, &input,
+			    "stdin-path", NULL);
+		if (chosen != -1 && error != 0)
+			error = ofw_get_console_phandle_path(chosen, &input,
+			    "stdin");
+		if (opts != -1 && error != 0)
+			error = ofw_get_uart_console(opts, &input,
+			    "input-device", "output-device");
+		if (opts != -1 && error != 0)
+			error = ofw_get_uart_console(opts, &input,
+			    "input-device-1", "output-device-1");
+		if (error != 0) {
+			input = OF_finddevice("serial0"); /* Last ditch */
+			if (input == -1)
+				error = (ENXIO);
 		}
+
+		if (error != 0)
+			return (error);
 		break;
 	case UART_DEV_DBGPORT:
 		if (!getenv_string("hw.uart.dbgport", buf, sizeof(buf)))
@@ -142,21 +164,23 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		return (ENXIO);
 	if (strcmp(buf, "serial") != 0)
 		return (ENXIO);
-	if (OF_getprop(input, "name", buf, sizeof(buf)) == -1)
-		return (ENXIO);
 
-	if (strcmp(buf, "ch-a") == 0) {
+	if (ofw_bus_node_is_compatible(input, "chrp,es")) {
 		class = &uart_z8530_class;
 		di->bas.regshft = 4;
 		di->bas.chan = 1;
-	} else if (strcmp(buf,"serial") == 0) {
+	} else if (ofw_bus_node_is_compatible(input,"ns16550") ||
+	    ofw_bus_node_is_compatible(input,"ns8250")) {
 		class = &uart_ns8250_class;
 		di->bas.regshft = 0;
 		di->bas.chan = 0;
 	} else
 		return (ENXIO);
 
-	error = OF_decode_addr(input, 0, &di->bas.bst, &di->bas.bsh);
+	if (class == NULL)
+		return (ENXIO);
+
+	error = OF_decode_addr(input, 0, &di->bas.bst, &di->bas.bsh, NULL);
 	if (error)
 		return (error);
 
@@ -168,10 +192,12 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	if (OF_getprop(input, "current-speed", &di->baudrate, 
 	    sizeof(di->baudrate)) == -1)
 		di->baudrate = 0;
+	OF_getprop(input, "reg-shift", &di->bas.regshft,
+	    sizeof(di->bas.regshft));
 
 	di->databits = 8;
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
 	return (0);
 }
-#endif
+

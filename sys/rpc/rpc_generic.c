@@ -1,32 +1,31 @@
 /*	$NetBSD: rpc_generic.c,v 1.4 2000/09/28 09:07:04 kleink Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice, 
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, 
+ *   this list of conditions and the following disclaimer in the documentation 
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its 
+ *   contributors may be used to endorse or promote products derived 
+ *   from this software without specific prior written permission.
  * 
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- * 
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- * 
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- * 
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
@@ -60,12 +59,18 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/rpc.h>
 #include <rpc/nettype.h>
+#include <rpc/rpcsec_gss.h>
 
 #include <rpc/rpc_com.h>
+
+extern	u_long sb_max_adj;	/* not defined in socketvar.h */
 
 #if __FreeBSD_version < 700000
 #define strrchr rindex
 #endif
+
+/* Provide an entry point hook for the rpcsec_gss module. */
+struct rpc_gss_entries	rpc_gss_entries;
 
 struct handle {
 	NCONF_HANDLE *nhandle;
@@ -113,9 +118,8 @@ u_int
 /*ARGSUSED*/
 __rpc_get_t_size(int af, int proto, int size)
 {
-	int maxsize, defsize;
+	int defsize;
 
-	maxsize = 256 * 1024;	/* XXX */
 	switch (proto) {
 	case IPPROTO_TCP:
 		defsize = 64 * 1024;	/* XXX */
@@ -131,7 +135,7 @@ __rpc_get_t_size(int af, int proto, int size)
 		return defsize;
 
 	/* Check whether the value is within the upper max limit */
-	return (size > maxsize ? (u_int)maxsize : (u_int)size);
+	return (size > sb_max_adj ? (u_int)sb_max_adj : (u_int)size);
 }
 
 /*
@@ -186,7 +190,9 @@ __rpc_socket2sockinfo(struct socket *so, struct __rpc_sockinfo *sip)
 	struct sockopt opt;
 	int error;
 
+	CURVNET_SET(so->so_vnet);
 	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+	CURVNET_RESTORE();
 	if (error)
 		return 0;
 
@@ -306,7 +312,7 @@ __rpc_taddr2uaddr_af(int af, const struct netbuf *nbuf)
 	switch (af) {
 	case AF_INET:
 		sin = nbuf->buf;
-		if (__rpc_inet_ntop(af, &sin->sin_addr, namebuf, sizeof namebuf)
+		if (inet_ntop(af, &sin->sin_addr, namebuf, sizeof namebuf)
 		    == NULL)
 			return NULL;
 		port = ntohs(sin->sin_port);
@@ -318,7 +324,7 @@ __rpc_taddr2uaddr_af(int af, const struct netbuf *nbuf)
 #ifdef INET6
 	case AF_INET6:
 		sin6 = nbuf->buf;
-		if (__rpc_inet_ntop(af, &sin6->sin6_addr, namebuf6, sizeof namebuf6)
+		if (inet_ntop(af, &sin6->sin6_addr, namebuf6, sizeof namebuf6)
 		    == NULL)
 			return NULL;
 		port = ntohs(sin6->sin6_port);
@@ -384,19 +390,15 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 	}
 
 	ret = (struct netbuf *)malloc(sizeof *ret, M_RPC, M_WAITOK);
-	if (ret == NULL)
-		goto out;
 	
 	switch (af) {
 	case AF_INET:
 		sin = (struct sockaddr_in *)malloc(sizeof *sin, M_RPC,
 		    M_WAITOK);
-		if (sin == NULL)
-			goto out;
 		memset(sin, 0, sizeof *sin);
 		sin->sin_family = AF_INET;
 		sin->sin_port = htons(port);
-		if (__rpc_inet_pton(AF_INET, addrstr, &sin->sin_addr) <= 0) {
+		if (inet_pton(AF_INET, addrstr, &sin->sin_addr) <= 0) {
 			free(sin, M_RPC);
 			free(ret, M_RPC);
 			ret = NULL;
@@ -409,12 +411,10 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 	case AF_INET6:
 		sin6 = (struct sockaddr_in6 *)malloc(sizeof *sin6, M_RPC,
 		    M_WAITOK);
-		if (sin6 == NULL)
-			goto out;
 		memset(sin6, 0, sizeof *sin6);
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = htons(port);
-		if (__rpc_inet_pton(AF_INET6, addrstr, &sin6->sin6_addr) <= 0) {
+		if (inet_pton(AF_INET6, addrstr, &sin6->sin6_addr) <= 0) {
 			free(sin6, M_RPC);
 			free(ret, M_RPC);
 			ret = NULL;
@@ -427,8 +427,6 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 	case AF_LOCAL:
 		sun = (struct sockaddr_un *)malloc(sizeof *sun, M_RPC,
 		    M_WAITOK);
-		if (sun == NULL)
-			goto out;
 		memset(sun, 0, sizeof *sun);
 		sun->sun_family = AF_LOCAL;
 		strncpy(sun->sun_path, addrstr, sizeof(sun->sun_path) - 1);
@@ -697,7 +695,9 @@ __rpc_sockisbound(struct socket *so)
 	struct sockaddr *sa;
 	int error, bound;
 
+	CURVNET_SET(so->so_vnet);
 	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+	CURVNET_RESTORE();
 	if (error)
 		return (0);
 
@@ -743,9 +743,7 @@ clnt_call_private(
 	struct mbuf *mrep;
 	enum clnt_stat stat;
 
-	MGET(mreq, M_WAIT, MT_DATA);
-	MCLGET(mreq, M_WAIT);
-	mreq->m_len = 0;
+	mreq = m_getcl(M_WAITOK, MT_DATA, 0);
 
 	xdrmbuf_create(&xdrs, mreq, XDR_ENCODE);
 	if (!xargs(&xdrs, argsp)) {
@@ -787,7 +785,9 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 	socklen_t salen;
 
 	if (sa == NULL) {
+		CURVNET_SET(so->so_vnet);
 		error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+		CURVNET_RESTORE();
 		if (error)
 			return (error);
 		freesa = TRUE;
@@ -824,7 +824,6 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 	sa->sa_len = salen;
 
 	if (*portp == 0) {
-		CURVNET_SET(so->so_vnet);
 		bzero(&opt, sizeof(opt));
 		opt.sopt_dir = SOPT_GET;
 		opt.sopt_level = proto;
@@ -833,14 +832,12 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 		opt.sopt_valsize = sizeof(old);
 		error = sogetopt(so, &opt);
 		if (error) {
-			CURVNET_RESTORE();
 			goto out;
 		}
 
 		opt.sopt_dir = SOPT_SET;
 		opt.sopt_val = &portlow;
 		error = sosetopt(so, &opt);
-		CURVNET_RESTORE();
 		if (error)
 			goto out;
 	}
@@ -851,9 +848,7 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 		if (error) {
 			opt.sopt_dir = SOPT_SET;
 			opt.sopt_val = &old;
-			CURVNET_SET(so->so_vnet);
 			sosetopt(so, &opt);
-			CURVNET_RESTORE();
 		}
 	}
 out:

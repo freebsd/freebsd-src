@@ -2,9 +2,8 @@
 
 PROG?=		ldd
 SRCS=		ldd.c
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SRCS+=		sods.c
 .endif
-WARNS?=		6
 
 .include <bsd.prog.mk>

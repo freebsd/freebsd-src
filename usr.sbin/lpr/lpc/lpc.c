@@ -11,10 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -97,7 +93,7 @@ main(int argc, char *argv[])
 
 	euid = geteuid();
 	uid = getuid();
-	seteuid(uid);
+	PRIV_END
 	progname = argv[0];
 	openlog("lpd", 0, LOG_LPR);
 
@@ -107,7 +103,7 @@ main(int argc, char *argv[])
 			printf("?Ambiguous command\n");
 			exit(1);
 		}
-		if (c == 0) {
+		if (c == NULL) {
 			printf("?Invalid command\n");
 			exit(1);
 		}
@@ -116,7 +112,7 @@ main(int argc, char *argv[])
 			printf("?Privileged command\n");
 			exit(1);
 		}
-		if (c->c_generic != 0)
+		if (c->c_generic != NULL)
 			generic(c->c_generic, c->c_opts, c->c_handler,
 			    argc, argv);
 		else
@@ -186,13 +182,13 @@ cmdscanner(void)
 			if ((bp = el_gets(el, &num)) == NULL || num == 0)
 				quit(0, NULL);
 
-			len = (num > MAX_CMDLINE - 1) ? MAX_CMDLINE - 1 : num;
+			len = MIN(MAX_CMDLINE - 1, num);
 			memcpy(cmdline, bp, len);
 			cmdline[len] = 0; 
 			history(hist, &he, H_ENTER, bp);
 
 		} else {
-			if (fgets(cmdline, MAX_CMDLINE, stdin) == 0)
+			if (fgets(cmdline, MAX_CMDLINE, stdin) == NULL)
 				quit(0, NULL);
 			if (cmdline[0] == 0 || cmdline[0] == '\n')
 				break;
@@ -209,7 +205,7 @@ cmdscanner(void)
 			printf("?Ambiguous command\n");
 			continue;
 		}
-		if (c == 0) {
+		if (c == NULL) {
 			printf("?Invalid command\n");
 			continue;
 		}
@@ -226,7 +222,7 @@ cmdscanner(void)
 		 * routine might also be set on a generic routine for
 		 * initial parameter processing.
 		 */
-		if (c->c_generic != 0)
+		if (c->c_generic != NULL)
 			generic(c->c_generic, c->c_opts, c->c_handler,
 			    margc, margv);
 		else
@@ -243,7 +239,7 @@ getcmd(const char *name)
 
 	longest = 0;
 	nmatches = 0;
-	found = 0;
+	found = NULL;
 	for (c = cmdtab; (p = c->c_name); c++) {
 		for (q = name; *q == *p++; q++)
 			if (*q == 0)		/* exact match? */
@@ -287,7 +283,7 @@ makeargv(void)
 			break;
 		*cp++ = '\0';
 	}
-	*argp++ = 0;
+	*argp++ = NULL;
 }
 
 #define HELPINDENT (sizeof ("directory"))
@@ -409,9 +405,9 @@ setup_myprinter(char *pwanted, struct printer *pp, int sump_opts)
 		printf("%s:\n", pp->printer);
 
 	if (sump_opts & SUMP_CHDIR_SD) {
-		seteuid(euid);
+		PRIV_START
 		cdres = chdir(pp->spool_dir);
-		seteuid(uid);
+		PRIV_END
 		if (cdres < 0) {
 			printf("\tcannot chdir to %s\n", pp->spool_dir);
 			free_printer(pp);

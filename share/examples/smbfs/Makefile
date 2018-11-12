@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-NO_OBJ=
-BINDIR=	/usr/share/examples/smbfs
+PACKAGE=examples
+FILESDIR= ${SHAREDIR}/examples/smbfs
 FILES=	dot.nsmbrc
 
 .PATH: ${.CURDIR}/../../../contrib/smbfs/examples

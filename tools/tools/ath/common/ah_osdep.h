@@ -35,12 +35,15 @@
  */
 #include <sys/param.h>
 
+#include <strings.h>
+
 /*
  * Bus i/o type definitions.
  */
 typedef void *HAL_SOFTC;
 typedef int HAL_BUS_TAG;
 typedef void *HAL_BUS_HANDLE;
+typedef uint32_t HAL_DMA_ADDR;
 
 #define	OS_DELAY(_n)	DELAY(_n)
 #define	OS_INLINE	__inline

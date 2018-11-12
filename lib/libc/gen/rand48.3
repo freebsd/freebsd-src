@@ -12,7 +12,7 @@
 .\"     @(#)rand48.3 V1.0 MB 8 Oct 1993
 .\" $FreeBSD$
 .\"
-.Dd October 8, 1993
+.Dd September 4, 2012
 .Dt RAND48 3
 .Os
 .Sh NAME
@@ -49,6 +49,14 @@
 .Ft void
 .Fn lcong48 "unsigned short p[7]"
 .Sh DESCRIPTION
+.Bf -symbolic
+The functions described in this manual page are not cryptographically
+secure.
+Cryptographic applications should use
+.Xr arc4random 3
+instead.
+.Ef
+.Pp
 The
 .Fn rand48
 family of functions generates pseudo-random numbers using a linear
@@ -57,7 +65,7 @@ The
 particular formula employed is
 r(n+1) = (a * r(n) + c) mod m
 where the default values are
-for the multiplicand a = 0xfdeece66d = 25214903917 and
+for the multiplicand a = 0x5deece66d = 25214903917 and
 the addend c = 0xb = 11.
 The modulo is always fixed at m = 2 ** 48.
 r(n) is called the seed of the random number generator.
@@ -174,10 +182,8 @@ It is thus not possible to use values greater than 0xffff as the addend.
 Note that all three methods of seeding the random number generator
 always also set the multiplicand and addend for any of the six
 generator calls.
-.Pp
-For a more powerful random number generator, see
-.Xr random 3 .
 .Sh SEE ALSO
+.Xr arc4random 3 ,
 .Xr rand 3 ,
 .Xr random 3
 .Sh AUTHORS

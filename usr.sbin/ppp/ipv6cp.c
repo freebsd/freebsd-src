@@ -148,6 +148,7 @@ SetInterfaceID(u_char *ifid, int userandom)
     switch(sdl->sdl_type) {
     case IFT_ETHER:
     case IFT_FDDI:
+    case IFT_L2VLAN:
       /* XXX need more cases? */
       break;
     default:
@@ -485,7 +486,7 @@ ipv6cp_LayerUp(struct fsm *fp)
    * evaluated.
    */
   if (!Enabled(fp->bundle, OPT_IPCP)) {
-    if (fp->bundle->radius.cfg.file && fp->bundle->radius.filterid)
+    if (*fp->bundle->radius.cfg.file && fp->bundle->radius.filterid)
       system_Select(fp->bundle, fp->bundle->radius.filterid, LINKUPFILE,
 		    NULL, NULL);
   }
@@ -538,7 +539,7 @@ ipv6cp_LayerDown(struct fsm *fp)
      * evaluated.
      */
     if (!Enabled(fp->bundle, OPT_IPCP)) {
-      if (fp->bundle->radius.cfg.file && fp->bundle->radius.filterid)
+      if (*fp->bundle->radius.cfg.file && fp->bundle->radius.filterid)
 	system_Select(fp->bundle, fp->bundle->radius.filterid, LINKDOWNFILE,
 		      NULL, NULL);
     }

@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef _KERNEL
-static MALLOC_DEFINE(M_SOLARIS, "solaris", "Solaris");
+MALLOC_DEFINE(M_SOLARIS, "solaris", "Solaris");
 #else
 #define	malloc(size, type, flags)	malloc(size)
 #define	free(addr, type)		free(addr)
@@ -61,6 +61,8 @@ static LIST_HEAD(, kmem_item) kmem_items;
 static struct mtx kmem_items_mtx;
 MTX_SYSINIT(kmem_items_mtx, &kmem_items_mtx, "kmem_items", MTX_DEF);
 #endif	/* KMEM_DEBUG */
+
+#include <sys/vmem.h>
 
 void *
 zfs_kmem_alloc(size_t size, int kmflags)
@@ -112,18 +114,23 @@ zfs_kmem_free(void *buf, size_t size __unused)
 	free(buf, M_SOLARIS);
 }
 
+static uint64_t kmem_size_val;
+
+static void
+kmem_size_init(void *unused __unused)
+{
+
+	kmem_size_val = (uint64_t)vm_cnt.v_page_count * PAGE_SIZE;
+	if (kmem_size_val > vm_kmem_size)
+		kmem_size_val = vm_kmem_size;
+}
+SYSINIT(kmem_size_init, SI_SUB_KMEM, SI_ORDER_ANY, kmem_size_init, NULL);
+
 uint64_t
 kmem_size(void)
 {
 
-	return ((uint64_t)vm_kmem_size);
-}
-
-uint64_t
-kmem_used(void)
-{
-
-	return ((uint64_t)kmem_map->size);
+	return (kmem_size_val);
 }
 
 static int

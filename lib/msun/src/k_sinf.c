@@ -29,10 +29,10 @@ S2 =  0x111110896efbb2.0p-59,	/*  0.0083333293858894631756 */
 S3 = -0x1a00f9e2cae774.0p-65,	/* -0.000198393348360966317347 */
 S4 =  0x16cd878c3b46a7.0p-71;	/*  0.0000027183114939898219064 */
 
-#ifndef INLINE_KERNEL_SINDF
-extern
+#ifdef INLINE_KERNEL_SINDF
+static __inline
 #endif
-__inline float
+float
 __kernel_sindf(double x)
 {
 	double r, s, w, z;

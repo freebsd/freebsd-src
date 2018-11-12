@@ -1,4 +1,4 @@
-/* $Id: bsd-poll.c,v 1.4 2008/08/29 21:32:38 dtucker Exp $ */
+/* $Id: bsd-poll.c,v 1.6 2014/02/05 23:44:13 dtucker Exp $ */
 
 /*
  * Copyright (c) 2004, 2005, 2007 Darren Tucker (dtucker at zip com au).
@@ -19,12 +19,15 @@
 #include "includes.h"
 #if !defined(HAVE_POLL)
 
+#include <sys/types.h>
+#include <sys/time.h>
 #ifdef HAVE_SYS_SELECT_H
 # include <sys/select.h>
 #endif
 
-#include <stdlib.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "bsd-poll.h"
 
 /*
@@ -106,12 +109,9 @@ poll(struct pollfd *fds, nfds_t nfds, int timeout)
 	}
 
 out:
-	if (readfds != NULL)
-		free(readfds);
-	if (writefds != NULL)
-		free(writefds);
-	if (exceptfds != NULL)
-		free(exceptfds);
+	free(readfds);
+	free(writefds);
+	free(exceptfds);
 	if (ret == -1)
 		errno = saved_errno;
 	return ret;

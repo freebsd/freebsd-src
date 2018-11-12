@@ -45,50 +45,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#if defined(__FreeBSD__) && __FreeBSD_version > 500001
 #include <sys/bio.h>
-#endif	/* __ FreeBSD__ */
 #include <sys/buf.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
+#include <sys/rman.h>
 
-#ifdef __NetBSD__
-#include <sys/device.h>
-#include <machine/bus.h>
-#include <machine/intr.h>
-
-#include <dev/scsipi/scsi_all.h>
-#include <dev/scsipi/scsipi_all.h>
-#include <dev/scsipi/scsiconf.h>
-#include <dev/scsipi/scsi_disk.h>
-
-#include <machine/dvcfg.h>
-#include <machine/physio_proc.h>
-
-#include <i386/Cbus/dev/scsi_low.h>
-#include <i386/Cbus/dev/nspreg.h>
-#include <i386/Cbus/dev/nspvar.h>
-#endif /* __NetBSD__ */
-
-#ifdef __FreeBSD__
 #include <machine/cpu.h>
 #include <machine/bus.h>
-
-#include <compat/netbsd/dvcfg.h>
-#include <compat/netbsd/physio_proc.h>
 
 #include <cam/scsi/scsi_low.h>
 #include <dev/nsp/nspreg.h>
 #include <dev/nsp/nspvar.h>
-#endif /* __FreeBSD__ */
 
 /***************************************************
  * USER SETTINGS
  ***************************************************/
 /* DEVICE CONFIGURATION FLAGS (MINOR)
  *
- * 0x01   DISCONECT OFF
+ * 0x01   DISCONNECT OFF
  * 0x02   PARITY LINE OFF
  * 0x04   IDENTIFY MSG OFF ( = single lun)
  * 0x08   SYNC TRANSFER OFF
@@ -203,55 +179,46 @@ struct scsi_low_funcs nspfuncs = {
 /****************************************************
  * hwfuncs
  ****************************************************/
-static __inline u_int8_t nsp_cr_read_1(bus_space_tag_t bst, bus_space_handle_t bsh, bus_addr_t ofs);
-static __inline void nsp_cr_write_1(bus_space_tag_t bst, bus_space_handle_t bsh, bus_addr_t ofs, u_int8_t va);
-
-static __inline u_int8_t
-nsp_cr_read_1(bst, bsh, ofs)
-	bus_space_tag_t bst;
-	bus_space_handle_t bsh;
-	bus_addr_t ofs;
+static __inline uint8_t
+nsp_cr_read_1(struct resource *res, bus_addr_t ofs)
 {
-	
-	bus_space_write_1(bst, bsh, nsp_idxr, ofs);
-	return bus_space_read_1(bst, bsh, nsp_datar);
+
+	bus_write_1(res, nsp_idxr, ofs);
+	return bus_read_1(res, nsp_datar);
 }
 
 static __inline void 
-nsp_cr_write_1(bus_space_tag_t bst, bus_space_handle_t bsh, bus_addr_t ofs,
-    u_int8_t va)
+nsp_cr_write_1(struct resource *res, bus_addr_t ofs, uint8_t va)
 {
 
-	bus_space_write_1(bst, bsh, nsp_idxr, ofs);
-	bus_space_write_1(bst, bsh, nsp_datar, va);
+	bus_write_1(res, nsp_idxr, ofs);
+	bus_write_1(res, nsp_datar, va);
 }
 	
 static int
 nsp_expect_signal(struct nsp_softc *sc, u_int8_t curphase, u_int8_t mask)
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	int wc;
 	u_int8_t ph, isrc;
 
 	for (wc = 0; wc < NSP_DELAY_MAX / NSP_DELAY_INTERVAL; wc ++)
 	{
-		ph = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON);
+		ph = nsp_cr_read_1(sc->port_res, NSPR_SCBUSMON);
 		if (ph == (u_int8_t) -1)
 			return -1;
 
-		isrc = bus_space_read_1(bst, bsh, nsp_irqsr);
+		isrc = bus_read_1(sc->port_res, nsp_irqsr);
 		if (isrc & IRQSR_SCSI)
 			return 0;
 
 		if ((ph & mask) != 0 && (ph & SCBUSMON_PHMASK) == curphase)
 			return 1;
 
-		SCSI_LOW_DELAY(NSP_DELAY_INTERVAL);
+		DELAY(NSP_DELAY_INTERVAL);
 	}
 
-	printf("%s: nsp_expect_signal timeout\n", slp->sl_xname);
+	device_printf(slp->sl_dev, "nsp_expect_signal timeout\n");
 	return -1;
 }
 
@@ -259,42 +226,40 @@ static void
 nsphw_init(sc)
 	struct nsp_softc *sc;
 {
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 
 	/* block all interrupts */
-	bus_space_write_1(bst, bsh, nsp_irqcr, IRQCR_ALLMASK);
+	bus_write_1(sc->port_res, nsp_irqcr, IRQCR_ALLMASK);
 
 	/* setup SCSI interface */
-	bus_space_write_1(bst, bsh, nsp_ifselr, IFSELR_IFSEL);
+	bus_write_1(sc->port_res, nsp_ifselr, IFSELR_IFSEL);
 
-	nsp_cr_write_1(bst, bsh, NSPR_SCIENR, 0);
+	nsp_cr_write_1(sc->port_res, NSPR_SCIENR, 0);
 
-	nsp_cr_write_1(bst, bsh, NSPR_XFERMR, XFERMR_IO8);
-	nsp_cr_write_1(bst, bsh, NSPR_CLKDIVR, sc->sc_iclkdiv);
+	nsp_cr_write_1(sc->port_res, NSPR_XFERMR, XFERMR_IO8);
+	nsp_cr_write_1(sc->port_res, NSPR_CLKDIVR, sc->sc_iclkdiv);
 
-	nsp_cr_write_1(bst, bsh, NSPR_SCIENR, sc->sc_icr);
-	nsp_cr_write_1(bst, bsh, NSPR_PARITYR, sc->sc_parr);
-	nsp_cr_write_1(bst, bsh, NSPR_PTCLRR,
+	nsp_cr_write_1(sc->port_res, NSPR_SCIENR, sc->sc_icr);
+	nsp_cr_write_1(sc->port_res, NSPR_PARITYR, sc->sc_parr);
+	nsp_cr_write_1(sc->port_res, NSPR_PTCLRR,
 		       PTCLRR_ACK | PTCLRR_REQ | PTCLRR_HOST | PTCLRR_RSS);
 
 	/* setup fifo asic */
-	bus_space_write_1(bst, bsh, nsp_ifselr, IFSELR_REGSEL);
-	nsp_cr_write_1(bst, bsh, NSPR_TERMPWRC, 0);
-	if ((nsp_cr_read_1(bst, bsh, NSPR_OCR) & OCR_TERMPWRS) == 0)
-		nsp_cr_write_1(bst, bsh, NSPR_TERMPWRC, TERMPWRC_POWON);
+	bus_write_1(sc->port_res, nsp_ifselr, IFSELR_REGSEL);
+	nsp_cr_write_1(sc->port_res, NSPR_TERMPWRC, 0);
+	if ((nsp_cr_read_1(sc->port_res, NSPR_OCR) & OCR_TERMPWRS) == 0)
+		nsp_cr_write_1(sc->port_res, NSPR_TERMPWRC, TERMPWRC_POWON);
 
-	nsp_cr_write_1(bst, bsh, NSPR_XFERMR, XFERMR_IO8);
-	nsp_cr_write_1(bst, bsh, NSPR_CLKDIVR, sc->sc_clkdiv);
-	nsp_cr_write_1(bst, bsh, NSPR_TIMERCNT, 0);
-	nsp_cr_write_1(bst, bsh, NSPR_TIMERCNT, 0);
+	nsp_cr_write_1(sc->port_res, NSPR_XFERMR, XFERMR_IO8);
+	nsp_cr_write_1(sc->port_res, NSPR_CLKDIVR, sc->sc_clkdiv);
+	nsp_cr_write_1(sc->port_res, NSPR_TIMERCNT, 0);
+	nsp_cr_write_1(sc->port_res, NSPR_TIMERCNT, 0);
 
-	nsp_cr_write_1(bst, bsh, NSPR_SYNCR, 0);
-	nsp_cr_write_1(bst, bsh, NSPR_ACKWIDTH, 0);
+	nsp_cr_write_1(sc->port_res, NSPR_SYNCR, 0);
+	nsp_cr_write_1(sc->port_res, NSPR_ACKWIDTH, 0);
 
 	/* enable interrupts and ack them */
-	nsp_cr_write_1(bst, bsh, NSPR_SCIENR, sc->sc_icr);
-	bus_space_write_1(bst, bsh, nsp_irqcr, IRQSR_MASK);
+	nsp_cr_write_1(sc->port_res, NSPR_SCIENR, sc->sc_icr);
+	bus_write_1(sc->port_res, nsp_irqcr, IRQSR_MASK);
 
 	nsp_setup_fifo(sc, NSP_FIFO_OFF, SCSI_LOW_READ, 0);
 }
@@ -306,32 +271,28 @@ static void
 nsphw_attention(sc)
 	struct nsp_softc *sc;
 {
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	u_int8_t cr;
 
-	cr = nsp_cr_read_1(bst, bsh, NSPR_SCBUSCR)/*  & ~SCBUSCR_ACK */;
-	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, cr | SCBUSCR_ATN);
-	SCSI_LOW_DELAY(10);
+	cr = nsp_cr_read_1(sc->port_res, NSPR_SCBUSCR)/*  & ~SCBUSCR_ACK */;
+	nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR, cr | SCBUSCR_ATN);
+	DELAY(10);
 }
 
 static void
 nsphw_bus_reset(sc)
 	struct nsp_softc *sc;
 {
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	int i;
 
-	bus_space_write_1(bst, bsh, nsp_irqcr, IRQCR_ALLMASK);
+	bus_write_1(sc->port_res, nsp_irqcr, IRQCR_ALLMASK);
 
-	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, SCBUSCR_RST);
-	SCSI_LOW_DELAY(100 * 1000);	/* 100ms */
-	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, 0);
+	nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR, SCBUSCR_RST);
+	DELAY(100 * 1000);	/* 100ms */
+	nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR, 0);
 	for (i = 0; i < 5; i ++)
-		(void) nsp_cr_read_1(bst, bsh, NSPR_IRQPHS);
+		(void) nsp_cr_read_1(sc->port_res, NSPR_IRQPHS);
 
-	bus_space_write_1(bst, bsh, nsp_irqcr, IRQSR_MASK);
+	bus_write_1(sc->port_res, nsp_irqcr, IRQSR_MASK);
 }
 
 static void
@@ -339,19 +300,17 @@ nsphw_selection_done_and_expect_msgout(sc)
 	struct nsp_softc *sc;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 
 	/* clear ack counter */
 	sc->sc_cnt = 0;
-	nsp_cr_write_1(bst, bsh, NSPR_PTCLRR, PTCLRR_PT | PTCLRR_ACK |
+	nsp_cr_write_1(sc->port_res, NSPR_PTCLRR, PTCLRR_PT | PTCLRR_ACK |
 			PTCLRR_REQ | PTCLRR_HOST);
 
 	/* deassert sel and assert atten */
 	sc->sc_seltout = 0;
-	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, sc->sc_busc);
-	SCSI_LOW_DELAY(1);
-	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, 
+	nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR, sc->sc_busc);
+	DELAY(1);
+	nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR, 
 			sc->sc_busc | SCBUSCR_ADIR | SCBUSCR_ACKEN);
 	SCSI_LOW_ASSERT_ATN(slp);
 }
@@ -362,21 +321,17 @@ nsphw_start_selection(sc, cb)
 	struct slccb *cb;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	struct targ_info *ti = cb->ti;
 	register u_int8_t arbs, ph;
-	int s, wc;
+	int wc;
 
 	wc = sc->sc_tmaxcnt = cb->ccb_tcmax * 1000 * 1000;
 	sc->sc_dataout_timeout = 0;
 
 	/* check bus free */
-	s = splhigh();
-	ph = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON);
+	ph = nsp_cr_read_1(sc->port_res, NSPR_SCBUSMON);
 	if (ph != SCBUSMON_FREE)
 	{
-		splx(s);
 #ifdef	NSP_STATICS
 		nsp_statics.arbit_conflict_1 ++;
 #endif	/* NSP_STATICS */
@@ -384,21 +339,20 @@ nsphw_start_selection(sc, cb)
 	}
 
 	/* start arbitration */
-	nsp_cr_write_1(bst, bsh, NSPR_ARBITS, ARBITS_EXEC);
-	splx(s);
+	nsp_cr_write_1(sc->port_res, NSPR_ARBITS, ARBITS_EXEC);
 
 	SCSI_LOW_SETUP_PHASE(ti, PH_ARBSTART);
 	do 
 	{
 		/* XXX: what a stupid chip! */
-		arbs = nsp_cr_read_1(bst, bsh, NSPR_ARBITS);
-		SCSI_LOW_DELAY(1);
+		arbs = nsp_cr_read_1(sc->port_res, NSPR_ARBITS);
+		DELAY(1);
 	} 
 	while ((arbs & (ARBITS_WIN | ARBITS_FAIL)) == 0 && wc -- > 0);
 
 	if ((arbs & ARBITS_WIN) == 0)
 	{
-		nsp_cr_write_1(bst, bsh, NSPR_ARBITS, ARBITS_CLR);
+		nsp_cr_write_1(sc->port_res, NSPR_ARBITS, ARBITS_CLR);
 #ifdef	NSP_STATICS
 		nsp_statics.arbit_conflict_2 ++;
 #endif	/* NSP_STATICS */
@@ -409,20 +363,19 @@ nsphw_start_selection(sc, cb)
 	SCSI_LOW_SETUP_PHASE(ti, PH_SELSTART);
 	scsi_low_arbit_win(slp);
 
-	s = splhigh();
-	SCSI_LOW_DELAY(3);
-	nsp_cr_write_1(bst, bsh, NSPR_DATA,
+	DELAY(3);
+	nsp_cr_write_1(sc->port_res, NSPR_DATA,
 		       sc->sc_idbit | (1 << ti->ti_id));
-	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR,
+	nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR,
 			SCBUSCR_SEL | SCBUSCR_BSY | sc->sc_busc);
-	SCSI_LOW_DELAY(3);
-	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, SCBUSCR_SEL |
+	DELAY(3);
+	nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR, SCBUSCR_SEL |
 			SCBUSCR_BSY | SCBUSCR_DOUT | sc->sc_busc);
-	nsp_cr_write_1(bst, bsh, NSPR_ARBITS, ARBITS_CLR);
-	SCSI_LOW_DELAY(3);
-	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR,
+	nsp_cr_write_1(sc->port_res, NSPR_ARBITS, ARBITS_CLR);
+	DELAY(3);
+	nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR,
 		       SCBUSCR_SEL | SCBUSCR_DOUT | sc->sc_busc);
-	SCSI_LOW_DELAY(1);
+	DELAY(1);
 
 	if ((nsp_io_control & NSP_WAIT_FOR_SELECT) != 0)
 	{
@@ -433,26 +386,24 @@ nsphw_start_selection(sc, cb)
 		for (wc = 0; wc < NSP_FIRST_SEL_WAIT / NSP_SEL_CHECK_INTERVAL;
 		     wc ++)
 		{
-			ph = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON);
+			ph = nsp_cr_read_1(sc->port_res, NSPR_SCBUSMON);
 			if ((ph & SCBUSMON_BSY) == 0)
 			{
-				SCSI_LOW_DELAY(NSP_SEL_CHECK_INTERVAL);
+				DELAY(NSP_SEL_CHECK_INTERVAL);
 				continue;
 			}
 
-			SCSI_LOW_DELAY(1);
-			ph = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON);
+			DELAY(1);
+			ph = nsp_cr_read_1(sc->port_res, NSPR_SCBUSMON);
 			if ((ph & SCBUSMON_BSY) != 0)
 			{
 				nsphw_selection_done_and_expect_msgout(sc);
-				splx(s);
 
 				SCSI_LOW_SETUP_PHASE(ti, PH_SELECTED);
 				return SCSI_LOW_START_OK;
 			}
 		}
 	}
-	splx(s);
 
 	/* check a selection timeout */
 	nsp_start_timer(sc, NSP_TIMER_1MS);
@@ -485,7 +436,6 @@ nsp_world_start(sc, fdone)
 	nsphw_init(sc);
 	scsi_low_bus_reset(slp);
 
-	SOFT_INTR_REQUIRED(slp);
 	return 0;
 }
 
@@ -517,8 +467,6 @@ nsp_msg(sc, ti, msg)
 	struct targ_info *ti;
 	u_int msg;
 {
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	struct ncp_synch_data *sdp;
 	struct nsp_targ_info *nti = (void *) ti;
 	u_int period, offset;
@@ -570,8 +518,8 @@ nsp_msg(sc, ti, msg)
 		error = 0;
 	}
 
-	nsp_cr_write_1(bst, bsh, NSPR_SYNCR, nti->nti_reg_syncr);
-	nsp_cr_write_1(bst, bsh, NSPR_ACKWIDTH, nti->nti_reg_ackwidth);
+	nsp_cr_write_1(sc->port_res, NSPR_SYNCR, nti->nti_reg_syncr);
+	nsp_cr_write_1(sc->port_res, NSPR_ACKWIDTH, nti->nti_reg_ackwidth);
 	return error;
 }
 
@@ -599,39 +547,23 @@ nsp_start_timer(sc, time)
 	struct nsp_softc *sc;
 	int time;
 {
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 
 	sc->sc_timer = time;
-	nsp_cr_write_1(bst, bsh, NSPR_TIMERCNT, time);
+	nsp_cr_write_1(sc->port_res, NSPR_TIMERCNT, time);
 }
 
 /**************************************************************
  * General probe attach
  **************************************************************/
 int
-nspprobesubr(iot, ioh, dvcfg)
-	bus_space_tag_t iot;
-	bus_space_handle_t ioh;
-	u_int dvcfg;
+nspprobesubr(struct resource *res, u_int dvcfg)
 {
 	u_int8_t regv;
 
-	regv = bus_space_read_1(iot, ioh, nsp_fifosr);
+	regv = bus_read_1(res, nsp_fifosr);
 	if (regv < 0x11 || regv >= 0x20)
 		return 0;
 	return 1;
-}
-
-int
-nspprint(aux, name)
-	void *aux;
-	const char *name;
-{
-
-	if (name != NULL)
-		printf("%s: scsibus ", name);
-	return UNCONF;
 }
 
 void
@@ -639,8 +571,6 @@ nspattachsubr(sc)
 	struct nsp_softc *sc;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-
-	printf("\n");
 
 	sc->sc_idbit = (1 << slp->sl_hostid);
 	slp->sl_flags |= HW_READ_PADDING;
@@ -658,14 +588,12 @@ static u_int
 nsp_fifo_count(sc)
 	struct nsp_softc *sc;
 {
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	u_int count;
 
-	nsp_cr_write_1(bst, bsh, NSPR_PTCLRR, PTCLRR_RSS_ACK | PTCLRR_PT);
-	count = bus_space_read_1(bst, bsh, nsp_datar);
-	count += (((u_int) bus_space_read_1(bst, bsh, nsp_datar)) << 8);
-	count += (((u_int) bus_space_read_1(bst, bsh, nsp_datar)) << 16);
+	nsp_cr_write_1(sc->port_res, NSPR_PTCLRR, PTCLRR_RSS_ACK | PTCLRR_PT);
+	count = bus_read_1(sc->port_res, nsp_datar);
+	count += (((u_int) bus_read_1(sc->port_res, nsp_datar)) << 8);
+	count += (((u_int) bus_read_1(sc->port_res, nsp_datar)) << 16);
 	return count;
 }
 
@@ -673,14 +601,12 @@ static u_int
 nsp_request_count(sc)
 	struct nsp_softc *sc;
 {
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	u_int count;
 
-	nsp_cr_write_1(bst, bsh, NSPR_PTCLRR, PTCLRR_RSS_REQ | PTCLRR_PT);
-	count = bus_space_read_1(bst, bsh, nsp_datar);
-	count += (((u_int) bus_space_read_1(bst, bsh, nsp_datar)) << 8);
-	count += (((u_int) bus_space_read_1(bst, bsh, nsp_datar)) << 16);
+	nsp_cr_write_1(sc->port_res, NSPR_PTCLRR, PTCLRR_RSS_REQ | PTCLRR_PT);
+	count = bus_read_1(sc->port_res, nsp_datar);
+	count += (((u_int) bus_read_1(sc->port_res, nsp_datar)) << 8);
+	count += (((u_int) bus_read_1(sc->port_res, nsp_datar)) << 16);
 	return count;
 }
 
@@ -720,7 +646,7 @@ nsp_setup_fifo(sc, on, direction, datalen)
 	/* determine a transfer type */
 	if (datalen < DEV_BSIZE || (datalen & 3) != 0)
 	{
-		if (sc->sc_memh != 0 &&
+		if (sc->mem_res != NULL &&
 		    (nsp_io_control & NSP_USE_MEMIO) != 0)
 			xfermode = XFERMR_XEN | XFERMR_MEM8;
 		else
@@ -728,7 +654,7 @@ nsp_setup_fifo(sc, on, direction, datalen)
 	}
 	else
 	{
-		if (sc->sc_memh != 0 &&
+		if (sc->mem_res != NULL &&
 		    (nsp_io_control & NSP_USE_MEMIO) != 0)
 			xfermode = XFERMR_XEN | XFERMR_MEM32;
 		else
@@ -740,7 +666,7 @@ nsp_setup_fifo(sc, on, direction, datalen)
 
 out:
 	sc->sc_xfermr = xfermode;
-	nsp_cr_write_1(sc->sc_iot, sc->sc_ioh, NSPR_XFERMR, sc->sc_xfermr);
+	nsp_cr_write_1(sc->port_res, NSPR_XFERMR, sc->sc_xfermr);
 }
 
 static void
@@ -758,7 +684,7 @@ nsp_pdma_end(sc, ti)
 	if ((sc->sc_icr & SCIENR_FIFO) != 0)
 	{
 		sc->sc_icr &= ~SCIENR_FIFO;
-		nsp_cr_write_1(sc->sc_iot, sc->sc_ioh, NSPR_SCIENR, sc->sc_icr);
+		nsp_cr_write_1(sc->port_res, NSPR_SCIENR, sc->sc_icr);
 	}
 
 	if (cb == NULL)
@@ -783,8 +709,8 @@ nsp_pdma_end(sc, ti)
 			else
 			{
 				slp->sl_error |= PDMAERR;
-				printf("%s len %x >= datalen %x\n",
-					slp->sl_xname,
+				device_printf(slp->sl_dev,
+					"len %x >= datalen %x\n",
 					len, slp->sl_scp.scp_datalen);
 			}
 		}
@@ -794,8 +720,9 @@ nsp_pdma_end(sc, ti)
 			    sc->sc_cnt > cb->ccb_scp.scp_datalen)
 			{
 				slp->sl_error |= PDMAERR;
-				printf("%s: data read count error %x != %x (%x)\n",
-					slp->sl_xname, sc->sc_cnt, cnt,
+				device_printf(slp->sl_dev,
+					"data read count error %x != %x (%x)\n",
+					sc->sc_cnt, cnt,
 					cb->ccb_scp.scp_datalen);
 			}
 		}
@@ -805,7 +732,7 @@ nsp_pdma_end(sc, ti)
 	else
 	{
 
-		printf("%s data phase miss\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "data phase miss\n");
 		slp->sl_error |= PDMAERR;
 	}
 }
@@ -819,24 +746,22 @@ nsp_data_padding(sc, direction, count)
 	int direction;
 	u_int count;
 {
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 
 	if (count > NSP_MAX_DATA_SIZE)
 		count = NSP_MAX_DATA_SIZE;
 
-	nsp_cr_write_1(bst, bsh, NSPR_XFERMR, XFERMR_XEN | XFERMR_IO8);
+	nsp_cr_write_1(sc->port_res, NSPR_XFERMR, XFERMR_XEN | XFERMR_IO8);
 	if (direction == SCSI_LOW_READ)
 	{
 		while (count -- > 0)
-			(void) bus_space_read_1(bst, bsh, nsp_fifodr);
+			(void) bus_read_1(sc->port_res, nsp_fifodr);
 	}
 	else
 	{
 		while (count -- > 0)
-			(void) bus_space_write_1(bst, bsh, nsp_fifodr, 0);
+			(void) bus_write_1(sc->port_res, nsp_fifodr, 0);
 	}
-	nsp_cr_write_1(bst, bsh, NSPR_XFERMR, sc->sc_xfermr);
+	nsp_cr_write_1(sc->port_res, NSPR_XFERMR, sc->sc_xfermr);
 }
 
 static int
@@ -845,8 +770,6 @@ nsp_read_fifo(sc, suspendio)
 	int suspendio;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	u_int res;
 
 	res = nsp_fifo_count(sc);
@@ -856,8 +779,8 @@ nsp_read_fifo(sc, suspendio)
 #ifdef	NSP_DEBUG
 	if (res < sc->sc_cnt || res == (u_int) -1)
 	{
-		printf("%s: strange fifo ack count 0x%x < 0x%x\n", 
-			slp->sl_xname, res, sc->sc_cnt);
+		device_printf(slp->sl_dev,
+		    "strange fifo ack count 0x%x < 0x%x\n", res, sc->sc_cnt);
 		return 0;
 	}
 #endif	/* NSP_DEBUG */
@@ -867,8 +790,8 @@ nsp_read_fifo(sc, suspendio)
 	{
 		if ((slp->sl_error & PDMAERR) == 0)
 		{
-			printf("%s: data overrun 0x%x > 0x%x\n",
-				slp->sl_xname, res, slp->sl_scp.scp_datalen);
+			device_printf(slp->sl_dev, "data overrun 0x%x > 0x%x\n",
+			    res, slp->sl_scp.scp_datalen);
 		}
 
 		slp->sl_error |= PDMAERR;
@@ -876,7 +799,7 @@ nsp_read_fifo(sc, suspendio)
 
 		if ((slp->sl_flags & HW_READ_PADDING) == 0)
 		{
-			printf("%s: read padding required\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "read padding required\n");
 			return 0;
 		}
 
@@ -893,12 +816,12 @@ nsp_read_fifo(sc, suspendio)
 		if ((sc->sc_xfermr & XFERMR_MEM32) != 0)
 		{
 			res &= ~3;
-			bus_space_read_region_4(sc->sc_memt, sc->sc_memh, 0, 
+			bus_read_region_4(sc->mem_res, 0, 
 				(u_int32_t *) slp->sl_scp.scp_data, res >> 2);
 		}
 		else
 		{
-			bus_space_read_region_1(sc->sc_memt, sc->sc_memh, 0, 
+			bus_read_region_1(sc->mem_res, 0, 
 				(u_int8_t *) slp->sl_scp.scp_data, res);
 		}
 	}
@@ -907,19 +830,19 @@ nsp_read_fifo(sc, suspendio)
 		if ((sc->sc_xfermr & XFERMR_IO32) != 0)
 		{
 			res &= ~3;
-			bus_space_read_multi_4(bst, bsh, nsp_fifodr,
+			bus_read_multi_4(sc->port_res, nsp_fifodr,
 				(u_int32_t *) slp->sl_scp.scp_data, res >> 2);
 		}
 		else 
 		{
-			bus_space_read_multi_1(bst, bsh, nsp_fifodr,
+			bus_read_multi_1(sc->port_res, nsp_fifodr,
 				(u_int8_t *) slp->sl_scp.scp_data, res);
 		}
 	}
 
-	if (nsp_cr_read_1(bst, bsh, NSPR_PARITYR) & PARITYR_PE)
+	if (nsp_cr_read_1(sc->port_res, NSPR_PARITYR) & PARITYR_PE)
 	{
-		nsp_cr_write_1(bst, bsh, NSPR_PARITYR, 
+		nsp_cr_write_1(sc->port_res, NSPR_PARITYR, 
 			       PARITYR_ENABLE | PARITYR_CLEAR);
 		scsi_low_assert_msg(slp, slp->sl_Tnexus, SCSI_LOW_MSG_ERROR, 1);
 	}
@@ -936,8 +859,6 @@ nsp_write_fifo(sc, suspendio)
 	int suspendio;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	u_int res;
 	register u_int8_t stat;
 
@@ -946,8 +867,9 @@ nsp_write_fifo(sc, suspendio)
 #ifdef	NSP_DEBUG
 		if ((slp->sl_scp.scp_datalen % WFIFO_CRIT) != 0)
 		{
-			printf("%s: strange write length 0x%x\n",
-				slp->sl_xname, slp->sl_scp.scp_datalen);
+			device_printf(slp->sl_dev,
+			    "strange write length 0x%x\n",
+			    slp->sl_scp.scp_datalen);
 		}
 #endif	/* NSP_DEBUG */
 		res = slp->sl_scp.scp_datalen % suspendio;
@@ -965,7 +887,7 @@ nsp_write_fifo(sc, suspendio)
 		res = slp->sl_scp.scp_datalen;
 
 	/* XXX: reconfirm! */
-	stat = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON) & SCBUSMON_PHMASK;
+	stat = nsp_cr_read_1(sc->port_res, NSPR_SCBUSMON) & SCBUSMON_PHMASK;
 	if (stat != PHASE_DATAOUT)
 		return 0;
 
@@ -973,12 +895,12 @@ nsp_write_fifo(sc, suspendio)
 	{
 		if ((sc->sc_xfermr & XFERMR_MEM32) != 0)
 		{
-			bus_space_write_region_4(sc->sc_memt, sc->sc_memh, 0,
+			bus_write_region_4(sc->mem_res, 0,
 				(u_int32_t *) slp->sl_scp.scp_data, res >> 2);
 		}
 		else
 		{
-			bus_space_write_region_1(sc->sc_memt, sc->sc_memh, 0,
+			bus_write_region_1(sc->mem_res, 0,
 				(u_int8_t *) slp->sl_scp.scp_data, res);
 		}
 	}
@@ -986,12 +908,12 @@ nsp_write_fifo(sc, suspendio)
 	{
 		if ((sc->sc_xfermr & XFERMR_IO32) != 0)
 		{
-			bus_space_write_multi_4(bst, bsh, nsp_fifodr,
+			bus_write_multi_4(sc->port_res, nsp_fifodr,
 				(u_int32_t *) slp->sl_scp.scp_data, res >> 2);
 		}
 		else
 		{
-			bus_space_write_multi_1(bst, bsh, nsp_fifodr,
+			bus_write_multi_1(sc->port_res, nsp_fifodr,
 				(u_int8_t *) slp->sl_scp.scp_data, res);
 		}
 	}
@@ -1006,24 +928,22 @@ static int
 nsp_wait_interrupt(sc)
 	struct nsp_softc *sc;
 {
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	int tout;
 	register u_int8_t isrc;
 
 	for (tout = 0; tout < DEV_BSIZE / 10; tout ++)
 	{
-		isrc = bus_space_read_1(bst, bsh, nsp_irqsr);
+		isrc = bus_read_1(sc->port_res, nsp_irqsr);
 		if ((isrc & (IRQSR_SCSI | IRQSR_FIFO)) != 0)
 		{
 			if ((isrc & IRQSR_FIFO) != 0)
 			{
-				bus_space_write_1(bst, bsh,
+				bus_write_1(sc->port_res,
 					nsp_irqcr, IRQCR_FIFOCL);
 			}
 			return 1;
 		}
-		SCSI_LOW_DELAY(1);
+		DELAY(1);
 	}
 	return 0;
 }
@@ -1034,8 +954,6 @@ nsp_pio_read(sc, suspendio)
 	int suspendio;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	int tout, padding, datalen;
 	register u_int8_t stat, fstat;
 
@@ -1047,7 +965,7 @@ nsp_pio_read(sc, suspendio)
 ReadLoop:
 	while (1)
 	{
-		stat = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON);
+		stat = nsp_cr_read_1(sc->port_res, NSPR_SCBUSMON);
 		if (stat == (u_int8_t) -1)
 			return;
 
@@ -1059,12 +977,12 @@ ReadLoop:
 		}
 
 		/* data phase */
-		fstat = bus_space_read_1(bst, bsh, nsp_fifosr);
+		fstat = bus_read_1(sc->port_res, nsp_fifosr);
 		if ((fstat & FIFOSR_FULLEMP) != 0)
 		{
 			if ((sc->sc_icr & SCIENR_FIFO) != 0)
 			{
-				bus_space_write_1(bst, bsh, nsp_irqcr, 
+				bus_write_1(sc->port_res, nsp_irqcr, 
 						  IRQCR_FIFOCL);
 			}
 
@@ -1088,12 +1006,12 @@ ReadLoop:
 			if ((sc->sc_icr & SCIENR_FIFO) != 0)
 				break;
 
-			SCSI_LOW_DELAY(1);
+			DELAY(1);
 		}
 
 		if ((-- tout) <= 0)
 		{
-			printf("%s: nsp_pio_read: timeout\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "nsp_pio_read: timeout\n");
 			return;
 		}
 	}
@@ -1113,8 +1031,6 @@ nsp_pio_write(sc, suspendio)
 	int suspendio;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	u_int rcount, acount;
 	int tout, datalen;
 	register u_int8_t stat, fstat;
@@ -1126,7 +1042,7 @@ nsp_pio_write(sc, suspendio)
 WriteLoop:
 	while (1)
 	{
-		stat = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON) & SCBUSMON_PHMASK;
+		stat = nsp_cr_read_1(sc->port_res, NSPR_SCBUSMON) & SCBUSMON_PHMASK;
 		if (stat != PHASE_DATAOUT)
 			return;
 
@@ -1137,12 +1053,12 @@ WriteLoop:
 			return;
 		}
 
-		fstat = bus_space_read_1(bst, bsh, nsp_fifosr);
+		fstat = bus_read_1(sc->port_res, nsp_fifosr);
 		if ((fstat & FIFOSR_FULLEMP) != 0)
 		{
 			if ((sc->sc_icr & SCIENR_FIFO) != 0)
 			{
-				bus_space_write_1(bst, bsh, nsp_irqcr,
+				bus_write_1(sc->port_res, nsp_irqcr,
 						  IRQCR_FIFOCL);
 			}
 
@@ -1153,7 +1069,7 @@ WriteLoop:
 				 * (not scsi bus!), we should check
 				 * the scsi device sends us request
 				 * signals, which means the scsi device
-				 * is ready to recieve data without
+				 * is ready to receive data without
 				 * heavy delays. 
 				 */
 				if ((slp->sl_scp.scp_datalen % suspendio) == 0)
@@ -1200,12 +1116,12 @@ WriteLoop:
 			if ((sc->sc_icr & SCIENR_FIFO) != 0)
 				break;
 
-			SCSI_LOW_DELAY(1);
+			DELAY(1);
 		}
 
 		if ((-- tout) <= 0)
 		{
-			printf("%s: nsp_pio_write: timeout\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "nsp_pio_write: timeout\n");
 			return;
 		}
 	}
@@ -1222,22 +1138,20 @@ static int
 nsp_negate_signal(struct nsp_softc *sc, u_int8_t mask, u_char *s)
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	int wc;
 	u_int8_t regv;
 
 	for (wc = 0; wc < NSP_DELAY_MAX / NSP_DELAY_INTERVAL; wc ++)
 	{
-		regv = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON);
+		regv = nsp_cr_read_1(sc->port_res, NSPR_SCBUSMON);
 		if (regv == (u_int8_t) -1)
 			return -1;
 		if ((regv & mask) == 0)
 			return 1;
-		SCSI_LOW_DELAY(NSP_DELAY_INTERVAL);
+		DELAY(NSP_DELAY_INTERVAL);
 	}
 
-	printf("%s: %s nsp_negate_signal timeout\n", slp->sl_xname, s);
+	device_printf(slp->sl_dev, "%s nsp_negate_signal timeout\n", s);
 	return -1;
 }
 
@@ -1249,8 +1163,6 @@ nsp_xfer(sc, buf, len, phase, clear_atn)
 	int phase;
 	int clear_atn;
 {
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	int ptr, rv;
 
 	for (ptr = 0; len > 0; len --, ptr ++)
@@ -1261,18 +1173,18 @@ nsp_xfer(sc, buf, len, phase, clear_atn)
 
 		if (len == 1 && clear_atn != 0)
 		{
-			nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR,
+			nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR,
 				       SCBUSCR_ADIR | SCBUSCR_ACKEN);
 			SCSI_LOW_DEASSERT_ATN(&sc->sc_sclow);
 		}
 
 		if (phase & SCBUSMON_IO)
 		{
-			buf[ptr] = nsp_cr_read_1(bst, bsh, NSPR_DATAACK);
+			buf[ptr] = nsp_cr_read_1(sc->port_res, NSPR_DATAACK);
 		}
 		else
 		{
-			nsp_cr_write_1(bst, bsh, NSPR_DATAACK, buf[ptr]);
+			nsp_cr_write_1(sc->port_res, NSPR_DATAACK, buf[ptr]);
 		}
 		nsp_negate_signal(sc, SCBUSMON_ACK, "xfer<ACK>");
 	}
@@ -1289,13 +1201,11 @@ nsp_reselected(sc)
 	struct nsp_softc *sc;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	struct targ_info *ti;
 	u_int sid;
 	u_int8_t cr;
 
-	sid = (u_int) nsp_cr_read_1(bst, bsh, NSPR_RESELR);
+	sid = (u_int) nsp_cr_read_1(sc->port_res, NSPR_RESELR);
 	sid &= ~sc->sc_idbit;
 	sid = ffs(sid) - 1;
 	if ((ti = scsi_low_reselected(slp, sid)) == NULL)
@@ -1303,11 +1213,11 @@ nsp_reselected(sc)
 
 	nsp_negate_signal(sc, SCBUSMON_SEL, "reselect<SEL>");
 
-	cr = nsp_cr_read_1(bst, bsh, NSPR_SCBUSCR);
+	cr = nsp_cr_read_1(sc->port_res, NSPR_SCBUSCR);
 	cr &= ~(SCBUSCR_BSY | SCBUSCR_ATN);
-	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, cr);
+	nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR, cr);
 	cr |= SCBUSCR_ADIR | SCBUSCR_ACKEN;
-	nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, cr);
+	nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR, cr);
 
 #ifdef	NSP_STATICS
 	nsp_statics.reselect ++;
@@ -1321,15 +1231,13 @@ nsp_disconnected(sc, ti)
 	struct targ_info *ti;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 
-	nsp_cr_write_1(bst, bsh, NSPR_PTCLRR, PTCLRR_PT | PTCLRR_ACK |
+	nsp_cr_write_1(sc->port_res, NSPR_PTCLRR, PTCLRR_PT | PTCLRR_ACK |
 			PTCLRR_REQ | PTCLRR_HOST);
 	if ((sc->sc_icr & SCIENR_FIFO) != 0)
 	{
 		sc->sc_icr &= ~SCIENR_FIFO;
-		nsp_cr_write_1(bst, bsh, NSPR_SCIENR, sc->sc_icr);
+		nsp_cr_write_1(sc->port_res, NSPR_SCIENR, sc->sc_icr);
 	}
 	sc->sc_cnt = 0;
 	sc->sc_dataout_timeout = 0;
@@ -1351,9 +1259,9 @@ nsp_error(struct nsp_softc * sc, u_char *s, u_int8_t isrc, u_int8_t ph,
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
 
-	printf("%s: %s\n", slp->sl_xname, s);
-	printf("%s: isrc 0x%x scmon 0x%x irqphs 0x%x\n",
-	       slp->sl_xname, (u_int) isrc, (u_int) ph, (u_int) irqphs);
+	device_printf(slp->sl_dev, "%s\n", s);
+	device_printf(slp->sl_dev, "isrc 0x%x scmon 0x%x irqphs 0x%x\n",
+	    (u_int) isrc, (u_int) ph, (u_int) irqphs);
 }
 
 static int
@@ -1361,14 +1269,12 @@ nsp_target_nexus_establish(sc)
 	struct nsp_softc *sc;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	struct targ_info *ti = slp->sl_Tnexus;
 	struct nsp_targ_info *nti = (void *) ti;
 
 	/* setup synch transfer registers */
-	nsp_cr_write_1(bst, bsh, NSPR_SYNCR, nti->nti_reg_syncr);
-	nsp_cr_write_1(bst, bsh, NSPR_ACKWIDTH, nti->nti_reg_ackwidth);
+	nsp_cr_write_1(sc->port_res, NSPR_SYNCR, nti->nti_reg_syncr);
+	nsp_cr_write_1(sc->port_res, NSPR_ACKWIDTH, nti->nti_reg_ackwidth);
 
 	/* setup pdma fifo (minimum) */
 	nsp_setup_fifo(sc, NSP_FIFO_ON, SCSI_LOW_READ, 0);
@@ -1402,7 +1308,7 @@ nsp_ccb_nexus_establish(sc)
 		    (nsp_io_control & NSP_READ_FIFO_INTERRUPTS) != 0)
 		{
 			sc->sc_icr |= SCIENR_FIFO;
-			nsp_cr_write_1(sc->sc_iot, sc->sc_ioh,
+			nsp_cr_write_1(sc->port_res,
 				       NSPR_SCIENR, sc->sc_icr);
 		}
 	}
@@ -1412,7 +1318,7 @@ nsp_ccb_nexus_establish(sc)
 		    (nsp_io_control & NSP_WRITE_FIFO_INTERRUPTS) != 0)
 		{
 			sc->sc_icr |= SCIENR_FIFO;
-			nsp_cr_write_1(sc->sc_iot, sc->sc_ioh,
+			nsp_cr_write_1(sc->port_res,
 				       NSPR_SCIENR, sc->sc_icr);
 		}
 	}
@@ -1426,8 +1332,8 @@ nsp_phase_match(struct nsp_softc *sc, u_int8_t phase, u_int8_t stat)
 
 	if ((stat & SCBUSMON_PHMASK) != phase)
 	{
-		printf("%s: phase mismatch 0x%x != 0x%x\n",
-			slp->sl_xname, (u_int) phase, (u_int) stat);
+		device_printf(slp->sl_dev, "phase mismatch 0x%x != 0x%x\n",
+		    (u_int) phase, (u_int) stat);
 		return EINVAL;
 	}
 
@@ -1443,10 +1349,7 @@ nspintr(arg)
 {
 	struct nsp_softc *sc = arg;
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	struct targ_info *ti;
-	struct physio_proc *pp;
 	struct buf *bp;
 	u_int derror, flags;
 	int len, rv;
@@ -1458,11 +1361,11 @@ nspintr(arg)
 	if (slp->sl_flags & HW_INACTIVE)
 		return 0;
 
-	bus_space_write_1(bst, bsh, nsp_irqcr, IRQCR_IRQDIS);
-	isrc = bus_space_read_1(bst, bsh, nsp_irqsr);
+	bus_write_1(sc->port_res, nsp_irqcr, IRQCR_IRQDIS);
+	isrc = bus_read_1(sc->port_res, nsp_irqsr);
 	if (isrc == (u_int8_t) -1 || (isrc & IRQSR_MASK) == 0)
 	{
-		bus_space_write_1(bst, bsh, nsp_irqcr, 0);
+		bus_write_1(sc->port_res, nsp_irqcr, 0);
 		return 0;
 	}
 
@@ -1470,10 +1373,10 @@ nspintr(arg)
  	 * Do not read an irqphs register if no scsi phase interrupt.
 	 * Unless, you should lose a scsi phase interrupt.
 	 */
-	ph = nsp_cr_read_1(bst, bsh, NSPR_SCBUSMON);
+	ph = nsp_cr_read_1(sc->port_res, NSPR_SCBUSMON);
 	if ((isrc & IRQSR_SCSI) != 0)
 	{
-		irqphs = nsp_cr_read_1(bst, bsh, NSPR_IRQPHS);
+		irqphs = nsp_cr_read_1(sc->port_res, NSPR_IRQPHS);
 	}
 	else
 		irqphs = 0;
@@ -1483,8 +1386,8 @@ nspintr(arg)
 	 */
 	if (sc->sc_timer != 0)
 	{
-		nsp_cr_write_1(bst, bsh, NSPR_TIMERCNT, 0);
-		nsp_cr_write_1(bst, bsh, NSPR_TIMERCNT, 0);
+		nsp_cr_write_1(sc->port_res, NSPR_TIMERCNT, 0);
+		nsp_cr_write_1(sc->port_res, NSPR_TIMERCNT, 0);
 		sc->sc_timer = 0;
 	}
 	
@@ -1494,7 +1397,7 @@ nspintr(arg)
 	{
 		if ((isrc & IRQSR_MASK) == IRQSR_TIMER && sc->sc_seltout == 0)
 		{
-			bus_space_write_1(bst, bsh, nsp_irqcr, IRQCR_TIMERCL);
+			bus_write_1(sc->port_res, nsp_irqcr, IRQCR_TIMERCL);
 			return 1;
 		}
 		regv |= IRQCR_TIMERCL;
@@ -1507,7 +1410,7 @@ nspintr(arg)
 	}
 
 	/* OK. enable all interrupts */
-	bus_space_write_1(bst, bsh, nsp_irqcr, regv);
+	bus_write_1(sc->port_res, nsp_irqcr, regv);
 
 	/*******************************************
 	 * debug section
@@ -1519,7 +1422,7 @@ nspintr(arg)
 		scsi_low_print(slp, NULL);
 #ifdef	KDB
 		if (nsp_debug > 1)
-			SCSI_LOW_DEBUGGER("nsp");
+			kdb_enter(KDB_WHY_CAM, "nsp");
 #endif	/* KDB */
 	}
 #endif	/* NSP_DEBUG */
@@ -1538,7 +1441,7 @@ nspintr(arg)
 
 		if ((irqphs & IRQPHS_RSEL) != 0)
 		{
-			bus_space_write_1(bst, bsh, nsp_irqcr, IRQCR_RESCL);
+			bus_write_1(sc->port_res, nsp_irqcr, IRQCR_RESCL);
 			if (nsp_reselected(sc) == EJUSTRETURN)
 				return 1;
 		}
@@ -1568,7 +1471,7 @@ nspintr(arg)
 			if (sc->sc_seltout >= NSP_SELTIMEOUT)
 			{
 				sc->sc_seltout = 0;
-				nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, 0);
+				nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR, 0);
 				return nsp_disconnected(sc, ti);
 			}
 			sc->sc_seltout ++;
@@ -1594,8 +1497,8 @@ nspintr(arg)
 		nsp_target_nexus_establish(sc);
 		if ((ph & SCBUSMON_PHMASK) != PHASE_MSGIN)
 		{
-			printf("%s: unexpected phase after reselect\n",
-			       slp->sl_xname);
+			device_printf(slp->sl_dev,
+			    "unexpected phase after reselect\n");
 			slp->sl_error |= FATALIO;
 			scsi_low_assert_msg(slp, ti, SCSI_LOW_MSG_ABORT, 1);
 			return 1;
@@ -1660,12 +1563,12 @@ nspintr(arg)
 			scsi_low_attention(slp);
 		}
 
-		nsp_cr_write_1(bst, bsh, NSPR_CMDCR, CMDCR_PTCLR);
+		nsp_cr_write_1(sc->port_res, NSPR_CMDCR, CMDCR_PTCLR);
 		for (len = 0; len < slp->sl_scp.scp_cmdlen; len ++)
-			nsp_cr_write_1(bst, bsh, NSPR_CMDDR,
+			nsp_cr_write_1(sc->port_res, NSPR_CMDDR,
 				       slp->sl_scp.scp_cmd[len]);
 
-		nsp_cr_write_1(bst, bsh, NSPR_CMDCR, CMDCR_PTCLR | CMDCR_EXEC);
+		nsp_cr_write_1(sc->port_res, NSPR_CMDCR, CMDCR_PTCLR | CMDCR_EXEC);
 		break;
 
 	case IRQPHS_DATAOUT:
@@ -1675,9 +1578,7 @@ nspintr(arg)
 			scsi_low_attention(slp);
 		}
 	
-		pp = physio_proc_enter(bp);
 		nsp_pio_write(sc, sc->sc_suspendio);
-		physio_proc_leave(pp);
 		break;
 
 	case IRQPHS_DATAIN:
@@ -1687,9 +1588,7 @@ nspintr(arg)
 			scsi_low_attention(slp);
 		}
 
-		pp = physio_proc_enter(bp);
 		nsp_pio_read(sc, sc->sc_suspendio);
-		physio_proc_leave(pp);
 		break;
 
 	case IRQPHS_STATUS:
@@ -1697,10 +1596,10 @@ nspintr(arg)
 			return 1;
 
 		SCSI_LOW_SETUP_PHASE(ti, PH_STAT);
-		regv = nsp_cr_read_1(bst, bsh, NSPR_DATA);
-		if (nsp_cr_read_1(bst, bsh, NSPR_PARITYR) & PARITYR_PE)
+		regv = nsp_cr_read_1(sc->port_res, NSPR_DATA);
+		if (nsp_cr_read_1(sc->port_res, NSPR_PARITYR) & PARITYR_PE)
 		{
-			nsp_cr_write_1(bst, bsh, NSPR_PARITYR, 
+			nsp_cr_write_1(sc->port_res, NSPR_PARITYR, 
 				       PARITYR_ENABLE | PARITYR_CLEAR);
 			derror = SCSI_LOW_DATA_PE;
 		}
@@ -1708,8 +1607,8 @@ nspintr(arg)
 			derror = 0;
 
 		/* assert ACK */
-		cr = SCBUSCR_ACK | nsp_cr_read_1(bst, bsh, NSPR_SCBUSCR);
-		nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, cr);
+		cr = SCBUSCR_ACK | nsp_cr_read_1(sc->port_res, NSPR_SCBUSCR);
+		nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR, cr);
 
 		if (scsi_low_statusin(slp, ti, derror | regv) != 0)
 		{
@@ -1720,8 +1619,8 @@ nspintr(arg)
 		nsp_negate_signal(sc, SCBUSMON_REQ, "statin<REQ>");
 
 		/* deassert ACK */
-		cr = nsp_cr_read_1(bst, bsh, NSPR_SCBUSCR) & (~SCBUSCR_ACK);
-		nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, cr);
+		cr = nsp_cr_read_1(sc->port_res, NSPR_SCBUSCR) & (~SCBUSCR_ACK);
+		nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR, cr);
 		break;
 
 	case IRQPHS_MSGOUT:
@@ -1796,10 +1695,10 @@ nspintr(arg)
 			SCSI_LOW_SETUP_PHASE(ti, PH_MSGIN);
 
 			/* read a data */
-			regv = nsp_cr_read_1(bst, bsh, NSPR_DATA);
-			if (nsp_cr_read_1(bst, bsh, NSPR_PARITYR) & PARITYR_PE)
+			regv = nsp_cr_read_1(sc->port_res, NSPR_DATA);
+			if (nsp_cr_read_1(sc->port_res, NSPR_PARITYR) & PARITYR_PE)
 			{
-				nsp_cr_write_1(bst, bsh,
+				nsp_cr_write_1(sc->port_res,
 					       NSPR_PARITYR, 
 					       PARITYR_ENABLE | PARITYR_CLEAR);
 				derror = SCSI_LOW_DATA_PE;
@@ -1810,8 +1709,8 @@ nspintr(arg)
 			}
 
 			/* assert ack */
-			cr = nsp_cr_read_1(bst, bsh, NSPR_SCBUSCR) | SCBUSCR_ACK;
-			nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, cr);
+			cr = nsp_cr_read_1(sc->port_res, NSPR_SCBUSCR) | SCBUSCR_ACK;
+			nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR, cr);
 
 			if (scsi_low_msgin(slp, ti, regv | derror) == 0)
 			{
@@ -1825,8 +1724,8 @@ nspintr(arg)
 			nsp_negate_signal(sc, SCBUSMON_REQ, "msgin<REQ>");
 
 			/* deassert ack */
-			cr = nsp_cr_read_1(bst, bsh, NSPR_SCBUSCR) & (~SCBUSCR_ACK);
-			nsp_cr_write_1(bst, bsh, NSPR_SCBUSCR, cr);
+			cr = nsp_cr_read_1(sc->port_res, NSPR_SCBUSCR) & (~SCBUSCR_ACK);
+			nsp_cr_write_1(sc->port_res, NSPR_SCBUSCR, cr);
 
 			/* catch a next signal */
 			rv = nsp_expect_signal(sc, PHASE_MSGIN, SCBUSMON_REQ);
@@ -1854,15 +1753,13 @@ nsp_timeout(sc)
 	struct nsp_softc *sc;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 	int tout;
 	u_int8_t ph, regv;
 
 	if (slp->sl_Tnexus == NULL)
 		return 0;
 
-	ph = nsp_cr_read_1(iot, ioh, NSPR_SCBUSMON);
+	ph = nsp_cr_read_1(sc->port_res, NSPR_SCBUSMON);
 	switch (ph & SCBUSMON_PHMASK)
 	{
 	case PHASE_DATAOUT:
@@ -1870,13 +1767,13 @@ nsp_timeout(sc)
 			break;
 
 		/* check a fifo empty */
-		regv = bus_space_read_1(iot, ioh, nsp_fifosr);
+		regv = bus_read_1(sc->port_res, nsp_fifosr);
 		if ((regv & FIFOSR_FULLEMP) == 0)
 			break;
-		bus_space_write_1(iot, ioh, nsp_irqcr, IRQCR_FIFOCL);
+		bus_write_1(sc->port_res, nsp_irqcr, IRQCR_FIFOCL);
 
 		/* check still requested */
-		ph = nsp_cr_read_1(iot, ioh, NSPR_SCBUSMON);
+		ph = nsp_cr_read_1(sc->port_res, NSPR_SCBUSMON);
 		if ((ph & SCBUSMON_REQ) == 0)
 			break;
 		/* check timeout */
@@ -1886,27 +1783,27 @@ nsp_timeout(sc)
 	        slp->sl_error |= PDMAERR;
 		if ((slp->sl_flags & HW_WRITE_PADDING) == 0)
 		{
-			printf("%s: write padding required\n", slp->sl_xname);
+			device_printf(slp->sl_dev, "write padding required\n");
 			break;
 		}
 
 		tout = NSP_DELAY_MAX;
 		while (tout -- > 0)
 		{
-			ph = nsp_cr_read_1(iot, ioh, NSPR_SCBUSMON);
+			ph = nsp_cr_read_1(sc->port_res, NSPR_SCBUSMON);
 			if ((ph & SCBUSMON_PHMASK) != PHASE_DATAOUT)
 				break;
-			regv = bus_space_read_1(iot, ioh, nsp_fifosr);
+			regv = bus_read_1(sc->port_res, nsp_fifosr);
 			if ((regv & FIFOSR_FULLEMP) == 0)
 			{
-				SCSI_LOW_DELAY(1);
+				DELAY(1);
 				continue;
 			}
 
-			bus_space_write_1(iot, ioh, nsp_irqcr, IRQCR_FIFOCL);
+			bus_write_1(sc->port_res, nsp_irqcr, IRQCR_FIFOCL);
 			nsp_data_padding(sc, SCSI_LOW_WRITE, 32);
 		}
-		ph = nsp_cr_read_1(iot, ioh, NSPR_SCBUSMON);
+		ph = nsp_cr_read_1(sc->port_res, NSPR_SCBUSMON);
 		if ((ph & SCBUSMON_PHMASK) == PHASE_DATAOUT)
 			sc->sc_dataout_timeout = SCSI_LOW_TIMEOUT_HZ;
 		break;

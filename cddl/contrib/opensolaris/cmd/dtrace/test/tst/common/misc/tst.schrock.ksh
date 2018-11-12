@@ -39,7 +39,7 @@ dtrace=$1
 # LD_NOEXEC_64 variable prevents nm from re-execing itself.
 #
 LD_NOEXEC_64=tomeeisrad $dtrace -F -s /dev/stdin -c \
-    '/usr/ccs/bin/nm /bin/ls' stat <<EOF
+    '/usr/bin/nm /bin/ls' stat <<EOF
 
 pid\$target::\$1:entry
 {

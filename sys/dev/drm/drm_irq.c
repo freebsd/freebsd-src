@@ -140,7 +140,7 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 	for (i = 0; i < num_crtcs; i++) {
 		DRM_INIT_WAITQUEUE(&dev->vblank[i].queue);
 		dev->vblank[i].refcount = 0;
-		atomic_set_rel_32(&dev->vblank[i].count, 0);
+		atomic_store_rel_32(&dev->vblank[i].count, 0);
 	}
 	dev->vblank_disable_allowed = 0;
 	DRM_SPINUNLOCK(&dev->vbl_lock);
@@ -175,15 +175,9 @@ int drm_irq_install(struct drm_device *dev)
 	DRM_UNLOCK();
 
 	/* Install handler */
-#if __FreeBSD_version >= 700031
 	retcode = bus_setup_intr(dev->device, dev->irqr,
 				 INTR_TYPE_TTY | INTR_MPSAFE,
 				 NULL, drm_irq_handler_wrap, dev, &dev->irqh);
-#else
-	retcode = bus_setup_intr(dev->device, dev->irqr,
-				 INTR_TYPE_TTY | INTR_MPSAFE,
-				 drm_irq_handler_wrap, dev, &dev->irqh);
-#endif
 	if (retcode != 0)
 		goto err;
 

@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include "nlm_prot.h"
 #include <nfs/nfsproto.h>
-#include <nfsclient/nfs_lock.h>
+#include <nfs/nfs_lock.h>
 
 #include "lockd.h"
 #include "lockd_lock.h"
@@ -97,8 +97,7 @@ nfslockdans(int vers, struct lockd_ans *ansp)
 #define d_args (debug_level > 2)
 
 static const char *
-from_addr(saddr)
-	struct sockaddr *saddr;
+from_addr(struct sockaddr *saddr)
 {
 	static char inet_buf[INET6_ADDRSTRLEN];
 
@@ -167,7 +166,7 @@ client_request(void)
 		goto err;
 	}
 	daemon_uid = pw->pw_uid;
-	/* drop our root priviledges */
+	/* drop our root privileges */
 	(void)lockd_seteuid(daemon_uid);
 
 	for (;;) {
@@ -231,9 +230,7 @@ err:
 }
 
 void
-set_auth(cl, xucred)
-	CLIENT *cl;
-	struct xucred *xucred;
+set_auth(CLIENT *cl, struct xucred *xucred)
 {
 	int ngroups;
 
@@ -595,7 +592,7 @@ show(LOCKD_MSG *mp)
 	syslog(LOG_DEBUG, "fh_len %d, fh %s\n", (int)mp->lm_fh_len, buf);
 
 	/* Show flock structure. */
-	syslog(LOG_DEBUG, "start %qu; len %qu; pid %lu; type %d; whence %d\n",
+	syslog(LOG_DEBUG, "start %llu; len %llu; pid %lu; type %d; whence %d\n",
 	    (unsigned long long)mp->lm_fl.l_start,
 	    (unsigned long long)mp->lm_fl.l_len, (u_long)mp->lm_fl.l_pid,
 	    mp->lm_fl.l_type, mp->lm_fl.l_whence);

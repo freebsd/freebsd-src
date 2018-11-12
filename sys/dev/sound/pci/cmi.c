@@ -803,8 +803,8 @@ cmi_muninit(struct mpu401 *arg, void *cookie)
 	struct sc_info *sc = cookie;
 
 	snd_mtxlock(sc->lock);
-	sc->mpu_intr = 0;
-	sc->mpu = 0;
+	sc->mpu_intr = NULL;
+	sc->mpu = NULL;
 	snd_mtxunlock(sc->lock);
 
 	return 0;
@@ -902,7 +902,7 @@ cmi_uninit(struct sc_info *sc)
 	cmi_clr4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
 
 	if( sc->mpu )
-		sc->mpu_intr = 0;
+		sc->mpu_intr = NULL;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -935,15 +935,11 @@ static int
 cmi_attach(device_t dev)
 {
 	struct sc_info		*sc;
-	u_int32_t		data;
 	char			status[SND_STATUSLEN];
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_cmi softc");
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= (PCIM_CMD_PORTEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
+	pci_enable_busmaster(dev);
 
 	sc->dev = dev;
 	sc->regid = PCIR_BAR(0);
@@ -999,7 +995,7 @@ cmi_attach(device_t dev)
 	pcm_addchan(dev, PCMDIR_PLAY, &cmichan_class, sc);
 	pcm_addchan(dev, PCMDIR_REC, &cmichan_class, sc);
 
-	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld %s",
+	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd %s",
 		 rman_get_start(sc->reg), rman_get_start(sc->irq),PCM_KLDSTRING(snd_cmi));
 	pcm_setstatus(dev, status);
 

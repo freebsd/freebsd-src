@@ -34,10 +34,15 @@
 
 typedef uint64_t cell_t;
 
+/* sparc64 doesn't use the interrupt parent #address-cells in interrupt maps */
+#define OFW_IMAP_NO_IPARENT_ADDR_CELLS
+
 int  OF_decode_addr(phandle_t, int, int *, bus_addr_t *);
 void OF_getetheraddr(device_t, u_char *);
-void cpu_shutdown(void *);
+u_int OF_getscsinitid(device_t);
+void OF_panic(const char *fmt, ...) __dead2 __printflike(1, 2);
+void cpu_shutdown(void *) __dead2;
 int  ofw_entry(void *);
-void ofw_exit(void *);
+void ofw_exit(void *) __dead2;
 
 #endif /* _MACHINE_OFW_MACHDEP_H_ */

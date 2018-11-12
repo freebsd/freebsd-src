@@ -121,7 +121,7 @@ struct priv_fw {
  * reallocate the array because pointers are held externally.
  * A list may work, though.
  */
-#define	FIRMWARE_MAX	30
+#define	FIRMWARE_MAX	50
 static struct priv_fw firmware_table[FIRMWARE_MAX];
 
 /*
@@ -175,6 +175,9 @@ firmware_register(const char *imagename, const void *data, size_t datasize,
     unsigned int version, const struct firmware *parent)
 {
 	struct priv_fw *match, *frp;
+	char *str;
+
+	str = strdup(imagename, M_TEMP);
 
 	mtx_lock(&firmware_mtx);
 	/*
@@ -185,23 +188,23 @@ firmware_register(const char *imagename, const void *data, size_t datasize,
 		mtx_unlock(&firmware_mtx);
 		printf("%s: image %s already registered!\n",
 			__func__, imagename);
+		free(str, M_TEMP);
 		return NULL;
 	}
 	if (frp == NULL) {
 		mtx_unlock(&firmware_mtx);
 		printf("%s: cannot register image %s, firmware table full!\n",
 		    __func__, imagename);
+		free(str, M_TEMP);
 		return NULL;
 	}
-	bzero(frp, sizeof(frp));	/* start from a clean record */
-	frp->fw.name = imagename;
+	bzero(frp, sizeof(*frp));	/* start from a clean record */
+	frp->fw.name = str;
 	frp->fw.data = data;
 	frp->fw.datasize = datasize;
 	frp->fw.version = version;
-	if (parent != NULL) {
+	if (parent != NULL)
 		frp->parent = PRIV_FW(parent);
-		frp->parent->refcnt++;
-	}
 	mtx_unlock(&firmware_mtx);
 	if (bootverbose)
 		printf("firmware: '%s' version %u: %zu bytes loaded at %p\n",
@@ -232,16 +235,15 @@ firmware_unregister(const char *imagename)
 		err = 0;
 	} else if (fp->refcnt != 0) {	/* cannot unregister */
 		err = EBUSY;
-	}  else {
+	} else {
 		linker_file_t x = fp->file;	/* save value */
 
-		if (fp->parent != NULL)	/* release parent reference */
-			fp->parent->refcnt--;
 		/*
 		 * Clear the whole entry with bzero to make sure we
 		 * do not forget anything. Then restore 'file' which is
 		 * non-null for autoloaded images.
 		 */
+		free((void *) (uintptr_t) fp->fw.name, M_TEMP);
 		bzero(fp, sizeof(struct priv_fw));
 		fp->file = x;
 		err = 0;
@@ -341,6 +343,8 @@ firmware_get(const char *imagename)
 		return NULL;
 	}
 found:				/* common exit point on success */
+	if (fp->refcnt == 0 && fp->parent != NULL)
+		fp->parent->refcnt++;
 	fp->refcnt++;
 	mtx_unlock(&firmware_mtx);
 	return &fp->fw;
@@ -363,6 +367,8 @@ firmware_put(const struct firmware *p, int flags)
 	mtx_lock(&firmware_mtx);
 	fp->refcnt--;
 	if (fp->refcnt == 0) {
+		if (fp->parent != NULL)
+			fp->parent->refcnt--;
 		if (flags & FIRMWARE_UNLOAD)
 			fp->flags |= FW_UNLOAD;
 		if (fp->file)
@@ -377,19 +383,8 @@ firmware_put(const struct firmware *p, int flags)
 static void
 set_rootvnode(void *arg, int npending)
 {
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
 
-	FILEDESC_XLOCK(p->p_fd);
-	if (p->p_fd->fd_cdir == NULL) {
-		p->p_fd->fd_cdir = rootvnode;
-		VREF(rootvnode);
-	}
-	if (p->p_fd->fd_rdir == NULL) {
-		p->p_fd->fd_rdir = rootvnode;
-		VREF(rootvnode);
-	}
-	FILEDESC_XUNLOCK(p->p_fd);
+	pwd_ensure_dirs();
 
 	free(arg, M_TEMP);
 }
@@ -500,7 +495,7 @@ firmware_modevent(module_t mod, int type, void *unused)
 		mtx_lock(&firmware_mtx);
 		for (i = 0; i < FIRMWARE_MAX; i++) {
 			fp = &firmware_table[i];
-			fp->flags |= FW_UNLOAD;;
+			fp->flags |= FW_UNLOAD;
 		}
 		mtx_unlock(&firmware_mtx);
 		taskqueue_enqueue(firmware_tq, &firmware_unload_task);

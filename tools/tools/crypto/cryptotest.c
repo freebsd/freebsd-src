@@ -82,25 +82,27 @@
  * Expect ~400 Mb/s for a Broadcom 582x for 8K buffers on a reasonable CPU
  * (64-bit PCI helps).  Hifn 7811 parts top out at ~110 Mb/s.
  */
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <sys/mman.h>
-#include <paths.h>
-#include <stdlib.h>
-#include <string.h>
 
+#include <sys/param.h>
+#include <sys/cpuset.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/wait.h>
+
+#include <err.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sysexits.h>
+#include <unistd.h>
+
 #include <crypto/cryptodev.h>
 
 #define	CHUNK	64	/* how much to display */
-#define	N(a)		(sizeof (a) / sizeof (a[0]))
 #define	streq(a,b)	(strcasecmp(a,b) == 0)
 
 void	hexdump(char *, int);
@@ -126,12 +128,10 @@ struct alg {
 	{ "blf",	0,	8,	5,	56,	CRYPTO_BLF_CBC },
 	{ "cast",	0,	8,	5,	16,	CRYPTO_CAST_CBC },
 	{ "skj",	0,	8,	10,	10,	CRYPTO_SKIPJACK_CBC },
-	{ "aes",	0,	16,	16,	16,	CRYPTO_RIJNDAEL128_CBC},
-	{ "aes192",	0,	16,	24,	24,	CRYPTO_RIJNDAEL128_CBC},
-	{ "aes256",	0,	16,	32,	32,	CRYPTO_RIJNDAEL128_CBC},
-#ifdef notdef
-	{ "arc4",	0,	8,	1,	32,	CRYPTO_ARC4 },
-#endif
+	{ "rij",	0,	16,	16,	16,	CRYPTO_RIJNDAEL128_CBC},
+	{ "aes",	0,	16,	16,	16,	CRYPTO_AES_CBC},
+	{ "aes192",	0,	16,	24,	24,	CRYPTO_AES_CBC},
+	{ "aes256",	0,	16,	32,	32,	CRYPTO_AES_CBC},
 	{ "md5",	1,	8,	16,	16,	CRYPTO_MD5_HMAC },
 	{ "sha1",	1,	8,	20,	20,	CRYPTO_SHA1_HMAC },
 	{ "sha256",	1,	8,	32,	32,	CRYPTO_SHA2_256_HMAC },
@@ -139,52 +139,54 @@ struct alg {
 	{ "sha512",	1,	8,	64,	64,	CRYPTO_SHA2_512_HMAC },
 };
 
-static void
+void
 usage(const char* cmd)
 {
 	printf("usage: %s [-czsbv] [-d dev] [-a algorithm] [count] [size ...]\n",
 		cmd);
 	printf("where algorithm is one of:\n");
-	printf("    des 3des (default) blowfish cast skipjack\n");
-	printf("    aes (aka rijndael) aes192 aes256 arc4\n");
+	printf("    null des 3des (default) blowfish cast skipjack rij\n");
+	printf("    aes aes192 aes256 md5 sha1 sha256 sha384 sha512\n");
 	printf("count is the number of encrypt/decrypt ops to do\n");
 	printf("size is the number of bytes of text to encrypt+decrypt\n");
 	printf("\n");
 	printf("-c check the results (slows timing)\n");
-	printf("-d use specific device\n");
+	printf("-d use specific device, specify 'soft' for testing software implementations\n");
+	printf("\tNOTE: to use software you must set:\n\t sysctl kern.cryptodevallowsoft=1\n");
 	printf("-z run all available algorithms on a variety of sizes\n");
 	printf("-v be verbose\n");
 	printf("-b mark operations for batching\n");
 	printf("-p profile kernel crypto operation (must be root)\n");
+	printf("-t n for n threads and run tests concurrently\n");
 	exit(-1);
 }
 
-static struct alg*
+struct alg*
 getalgbycode(int cipher)
 {
 	int i;
 
-	for (i = 0; i < N(algorithms); i++)
+	for (i = 0; i < nitems(algorithms); i++)
 		if (cipher == algorithms[i].code)
 			return &algorithms[i];
 	return NULL;
 }
 
-static struct alg*
+struct alg*
 getalgbyname(const char* name)
 {
 	int i;
 
-	for (i = 0; i < N(algorithms); i++)
+	for (i = 0; i < nitems(algorithms); i++)
 		if (streq(name, algorithms[i].name))
 			return &algorithms[i];
 	return NULL;
 }
 
-static int
+int
 devcrypto(void)
 {
-	static int fd = -1;
+	int fd = -1;
 
 	if (fd < 0) {
 		fd = open(_PATH_DEV "crypto", O_RDWR, 0);
@@ -196,10 +198,13 @@ devcrypto(void)
 	return fd;
 }
 
-static int
+int
 crlookup(const char *devname)
 {
 	struct crypt_find_op find;
+
+	if (strncmp(devname, "soft", 4) == 0)
+		return CRYPTO_FLAG_SOFTWARE;
 
 	find.crid = -1;
 	strlcpy(find.name, devname, sizeof(find.name));
@@ -208,10 +213,10 @@ crlookup(const char *devname)
 	return find.crid;
 }
 
-static const char *
+const char *
 crfind(int crid)
 {
-	static struct crypt_find_op find;
+	struct crypt_find_op find;
 
 	bzero(&find, sizeof(find));
 	find.crid = crid;
@@ -220,7 +225,7 @@ crfind(int crid)
 	return find.name;
 }
 
-static int
+int
 crget(void)
 {
 	int fd;
@@ -232,17 +237,17 @@ crget(void)
 	return fd;
 }
 
-static char
+char
 rdigit(void)
 {
 	const char a[] = {
 		0x10,0x54,0x11,0x48,0x45,0x12,0x4f,0x13,0x49,0x53,0x14,0x41,
 		0x15,0x16,0x4e,0x55,0x54,0x17,0x18,0x4a,0x4f,0x42,0x19,0x01
 	};
-	return 0x20+a[random()%N(a)];
+	return 0x20+a[random()%nitems(a)];
 }
 
-static void
+void
 runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 {
 	int i, fd = crget();
@@ -298,7 +303,7 @@ runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 	for (i = 0; i < size; i++)
 		cleartext[i] = rdigit();
 	memcpy(originaltext, cleartext, size);
-	for (i = 0; i < N(iv); i++)
+	for (i = 0; i < nitems(iv); i++)
 		iv[i] = rdigit();
 
 	if (verbose) {
@@ -386,7 +391,7 @@ runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 }
 
 #ifdef __FreeBSD__
-static void
+void
 resetstats()
 {
 	struct cryptostats stats;
@@ -409,7 +414,7 @@ resetstats()
 		perror("kern.cryptostats");
 }
 
-static void
+void
 printt(const char* tag, struct cryptotstat *ts)
 {
 	uint64_t avg, min, max;
@@ -424,7 +429,7 @@ printt(const char* tag, struct cryptotstat *ts)
 }
 #endif
 
-static void
+void
 runtests(struct alg *alg, int count, int size, u_long cmd, int threads, int profile)
 {
 	int i, status;
@@ -464,6 +469,11 @@ runtests(struct alg *alg, int count, int size, u_long cmd, int threads, int prof
 	if (threads > 1) {
 		for (i = 0; i < threads; i++)
 			if (fork() == 0) {
+				cpuset_t mask;
+				CPU_ZERO(&mask);
+				CPU_SET(i, &mask);
+				cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
+				    -1, sizeof(mask), &mask);
 				runtest(alg, count, size, cmd, &tvp[i]);
 				exit(0);
 			}
@@ -478,17 +488,10 @@ runtests(struct alg *alg, int count, int size, u_long cmd, int threads, int prof
 	if (t) {
 		int nops = alg->ishash ? count : 2*count;
 
-#if 0
-		t /= threads;
-		printf("%6.3lf sec, %7d %6s crypts, %7d bytes, %8.0lf byte/sec, %7.1lf Mb/sec\n",
-		    t, nops, alg->name, size, (double)nops*size / t,
-		    (double)nops*size / t * 8 / 1024 / 1024);
-#else
 		nops *= threads;
 		printf("%8.3lf sec, %7d %6s crypts, %7d bytes, %8.0lf byte/sec, %7.1lf Mb/sec\n",
 		    t, nops, alg->name, size, (double)nops*size / t,
 		    (double)nops*size / t * 8 / 1024 / 1024);
-#endif
 	}
 #ifdef __FreeBSD__
 	if (profile) {
@@ -569,13 +572,16 @@ main(int argc, char **argv)
 		count = atoi(argv[0]);
 	while (argc > 1) {
 		int s = atoi(argv[1]);
-		if (nsizes < N(sizes)) {
+		if (nsizes < nitems(sizes)) {
 			sizes[nsizes++] = s;
 		} else {
 			printf("Too many sizes, ignoring %u\n", s);
 		}
 		argc--, argv++;
 	}
+	if (maxthreads > CPU_SETSIZE)
+		errx(EX_USAGE, "Too many threads, %d, choose fewer.", maxthreads);
+	
 	if (nsizes == 0) {
 		if (alg)
 			sizes[nsizes++] = alg->blocksize;
@@ -590,7 +596,7 @@ main(int argc, char **argv)
 	}
 
 	if (testall) {
-		for (i = 0; i < N(algorithms); i++) {
+		for (i = 0; i < nitems(algorithms); i++) {
 			int j;
 			alg = &algorithms[i];
 			for (j = 0; j < nsizes; j++)

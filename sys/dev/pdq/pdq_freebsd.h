@@ -53,6 +53,7 @@
 #include <sys/rman.h>
         
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -124,10 +125,13 @@ typedef struct _pdq_os_ctx_t {
 	void *			irq_ih;
 
 	struct mtx		mtx;
+	struct callout		watchdog;
+	int			timer;
 } pdq_softc_t;
 
 #define PDQ_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
 #define PDQ_UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
+#define	PDQ_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED)
 
 #define	PDQ_OS_HDR_OFFSET	PDQ_RX_FC_OFFSET
 
@@ -184,10 +188,9 @@ typedef struct _pdq_os_ctx_t {
 
 #define	PDQ_OS_DATABUF_ALLOC(pdq, b) do { \
     PDQ_OS_DATABUF_T *x_m0; \
-    MGETHDR(x_m0, M_DONTWAIT, MT_DATA); \
+    MGETHDR(x_m0, M_NOWAIT, MT_DATA); \
     if (x_m0 != NULL) { \
-	MCLGET(x_m0, M_DONTWAIT);	\
-	if ((x_m0->m_flags & M_EXT) == 0) { \
+	if (!(MCLGET(x_m0, M_NOWAIT))) { \
 	    m_free(x_m0); \
 	    (b) = NULL; \
 	} else { \
@@ -255,7 +258,8 @@ pdq_state_t	pdq_stop (pdq_t *pdq);
  * OS dependent functions provided by
  * pdq_ifsubr.c or pdq.c to the bus front ends
  */
-void		pdq_ifattach (pdq_softc_t *, const pdq_uint8_t *);
+int		pdq_ifattach (pdq_softc_t *, const pdq_uint8_t *,
+			      pdq_type_t type);
 void		pdq_ifdetach (pdq_softc_t *);
 void		pdq_free (device_t);
 int		pdq_interrupt (pdq_t *pdq);

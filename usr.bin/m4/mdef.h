@@ -1,4 +1,4 @@
-/*	$OpenBSD: mdef.h,v 1.21 2001/09/27 11:40:33 espie Exp $	*/
+/*	$OpenBSD: mdef.h,v 1.33 2015/11/03 16:21:47 deraadt Exp $	*/
 /*	$NetBSD: mdef.h,v 1.7 1996/01/13 23:25:27 pk Exp $	*/
 
 /*
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -39,6 +35,12 @@
  *	@(#)mdef.h	8.1 (Berkeley) 6/6/93
  * $FreeBSD$
  */
+
+#ifdef __GNUC__
+# define UNUSED	__attribute__((__unused__))
+#else
+# define UNUSED
+#endif
 
 #define MACRTYPE        1
 #define DEFITYPE        2
@@ -83,7 +85,9 @@
 #define ESYSCMDTYPE	41
 #define TRACEONTYPE	42
 #define TRACEOFFTYPE	43
+#define FORMATTYPE	44
 
+#define BUILTIN_MARKER	"__builtin_"
 
 #define TYPEMASK	63	/* Keep bits really corresponding to a type. */
 #define RECDEF		256	/* Pure recursive def, don't expand it */
@@ -103,22 +107,17 @@
 #define SCOMMT          '#'
 #define ECOMMT          '\n'
 
-#ifdef msdos
-#define system(str)	(-1)
-#endif
-
 /*
  * other important constants
  */
 
 #define EOS             '\0'
-#define MAXINP          10              /* maximum include files   	    */
-#define MAXOUT          10              /* maximum # of diversions 	    */
+#define MAXINP          10              /* maximum include files	    */
+#define MAXOUT          10              /* maximum # of diversions	    */
 #define BUFSIZE         4096            /* starting size of pushback buffer */
-#define INITSTACKMAX    4096           	/* starting size of call stack      */
+#define INITSTACKMAX    4096		/* starting size of call stack      */
 #define STRSPMAX        4096            /* starting size of string space    */
-#define MAXTOK          512          	/* maximum chars in a tokn 	    */
-#define HASHSIZE        199             /* maximum size of hashtab 	    */
+#define MAXTOK          512		/* maximum chars in a tokn	    */
 #define MAXCCHARS	5		/* max size of comment/quote delim  */
 
 #define ALL             1
@@ -134,64 +133,79 @@
 
 typedef struct ndblock *ndptr;
 
-struct ndblock {		/* hastable structure         */
-	char		*name;	/* entry name..               */
+struct macro_definition {
+	struct macro_definition *next;
 	char		*defn;	/* definition..               */
 	unsigned int	type;	/* type of the entry..        */
-	unsigned int 	hv;	/* hash function value..      */
-	ndptr		nxtptr;	/* link to next entry..       */
 };
 
-#define nil     ((ndptr) 0)
 
-struct keyblk {
-        const char    *knam;    /* keyword name */
-        int     ktyp;           /* keyword type */
+struct ndblock {			/* hashtable structure         */
+	unsigned int		builtin_type;
+	unsigned int		trace_flags;
+	struct macro_definition *d;
+	char		name[1];	/* entry name..               */
 };
 
 typedef union {			/* stack structure */
 	int	sfra;		/* frame entry  */
-	char 	*sstr;		/* string entry */
+	char	*sstr;		/* string entry */
 } stae;
 
 struct input_file {
-	FILE 		*file;
-	char 		*name;
-	unsigned long 	lineno;
-	int 		c;
+	FILE		*file;
+	char		*name;
+	unsigned long	lineno;
+	unsigned long   synch_lineno;	/* used for -s */
+	int		c;
 };
+
+#define STORAGE_STRSPACE 0
+#define STORAGE_MACRO 1
+#define STORAGE_OTHER 2
 
 #define CURRENT_NAME	(infile[ilevel].name)
 #define CURRENT_LINE	(infile[ilevel].lineno)
 /*
  * macros for readibility and/or speed
  *
+ *      gpbc()  - get a possibly pushed-back character
  *      pushf() - push a call frame entry onto stack
  *      pushs() - push a string pointer onto stack
  */
-#define pushf(x) 					\
-	do {						\
-		if ((uintptr_t)++sp == STACKMAX) 	\
-			enlarge_stack();		\
-		mstack[sp].sfra = (x);			\
-		sstack[sp] = 0;				\
+#define gpbc()	 (bp > bufbase) ? *--bp : obtain_char(infile+ilevel)
+#define pushf(x)			\
+	do {				\
+		if (++sp == (int)STACKMAX)	\
+			enlarge_stack();\
+		mstack[sp].sfra = (x);	\
+		sstack[sp] = STORAGE_OTHER; \
 	} while (0)
 
-#define pushs(x) 					\
-	do {						\
-		if ((uintptr_t)++sp == STACKMAX) 	\
-			enlarge_stack();		\
-		mstack[sp].sstr = (x);			\
-		sstack[sp] = 1;				\
+#define pushs(x)			\
+	do {				\
+		if (++sp == (int)STACKMAX)	\
+			enlarge_stack();\
+		mstack[sp].sstr = (x);	\
+		sstack[sp] = STORAGE_STRSPACE; \
 	} while (0)
 
-#define pushs1(x) 					\
-	do {						\
-		if ((uintptr_t)++sp == STACKMAX) 	\
-			enlarge_stack();		\
-		mstack[sp].sstr = (x);			\
-		sstack[sp] = 0;				\
+#define pushs1(x)			\
+	do {				\
+		if (++sp == (int)STACKMAX)	\
+			enlarge_stack();\
+		mstack[sp].sstr = (x);	\
+		sstack[sp] = STORAGE_OTHER; \
 	} while (0)
+
+#define pushdef(p)			\
+	do {				\
+		if (++sp == (int)STACKMAX)	\
+			enlarge_stack();\
+		mstack[sp].sstr = macro_getdef(p)->defn;\
+		sstack[sp] = STORAGE_MACRO; \
+	} while (0)
+		
 
 /*
  *	    .				   .
@@ -199,25 +213,26 @@ struct input_file {
  *	+-------+			+-----+
  *	| arg 3 ----------------------->| str |
  *	+-------+			|  .  |
- *	| arg 2 ---PREVEP-----+ 	   .
+ *	| arg 2 ---PREVEP-----+		   .
  *	+-------+	      |
  *	    .		      |		|     |
- *	+-------+	      | 	+-----+
+ *	+-------+	      |		+-----+
  *	| plev	|  PARLEV     +-------->| str |
  *	+-------+			|  .  |
  *	| type	|  CALTYP		   .
  *	+-------+
  *	| prcf	---PREVFP--+
- *	+-------+  	   |
+ *	+-------+	   |
  *	|   .	|  PREVSP  |
- *	    .	   	   |
+ *	    .		   |
  *	+-------+	   |
  *	|	<----------+
  *	+-------+
  *
  */
 #define PARLEV  (mstack[fp].sfra)
-#define CALTYP  (mstack[fp-1].sfra)
+#define CALTYP  (mstack[fp-2].sfra)
+#define TRACESTATUS (mstack[fp-1].sfra)
 #define PREVEP	(mstack[fp+3].sstr)
-#define PREVSP	(fp-3)
-#define PREVFP	(mstack[fp-2].sfra)
+#define PREVSP	(fp-4)
+#define PREVFP	(mstack[fp-3].sfra)

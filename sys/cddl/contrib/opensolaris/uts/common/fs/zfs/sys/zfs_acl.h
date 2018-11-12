@@ -19,14 +19,11 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 #ifndef	_SYS_FS_ZFS_ACL_H
 #define	_SYS_FS_ZFS_ACL_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #ifdef _KERNEL
 #include <sys/cred.h>
@@ -34,6 +31,7 @@
 #include <sys/acl.h>
 #include <sys/dmu.h>
 #include <sys/zfs_fuid.h>
+#include <sys/sa.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -47,7 +45,8 @@ struct znode_phys;
 #define	ZFS_ACL_VERSION		ZFS_ACL_VERSION_FUID
 
 /*
- * ZFS ACLs are store in various forms.
+ * ZFS ACLs (Access Control Lists) are stored in various forms.
+ *
  * Files created with ACL version ZFS_ACL_VERSION_INITIAL
  * will all be created with fixed length ACEs of type
  * zfs_oldace_t.
@@ -107,15 +106,19 @@ typedef struct zfs_acl_phys_v0 {
 
 #define	ZFS_ACE_SPACE	(sizeof (zfs_oldace_t) * ACE_SLOT_CNT)
 
+/*
+ * Size of ACL count is always 2 bytes.
+ * Necessary to for dealing with both V0 ACL and V1 ACL layout
+ */
+#define	ZFS_ACL_COUNT_SIZE	(sizeof (uint16_t))
+
 typedef struct zfs_acl_phys {
 	uint64_t	z_acl_extern_obj;	  /* ext acl pieces */
 	uint32_t	z_acl_size;		  /* Number of bytes in ACL */
 	uint16_t	z_acl_version;		  /* acl version */
 	uint16_t	z_acl_count;		  /* ace count */
-	uint8_t		z_ace_data[ZFS_ACE_SPACE]; /* space for embedded ACEs */
+	uint8_t	z_ace_data[ZFS_ACE_SPACE]; /* space for embedded ACEs */
 } zfs_acl_phys_t;
-
-
 
 typedef struct acl_ops {
 	uint32_t	(*ace_mask_get) (void *acep); /* get  access mask */
@@ -133,8 +136,8 @@ typedef struct acl_ops {
 	size_t		(*ace_size)(void *acep); /* how big is this ace */
 	size_t		(*ace_abstract_size)(void); /* sizeof abstract entry */
 	int		(*ace_mask_off)(void); /* off of access mask in ace */
+	/* ptr to data if any */
 	int		(*ace_data)(void *acep, void **datap);
-			    /* ptr to data if any */
 } acl_ops_t;
 
 /*
@@ -149,24 +152,38 @@ typedef struct zfs_acl_node {
 	void		*z_allocdata;	/* pointer to kmem allocated memory */
 	size_t		z_allocsize;	/* Size of blob in bytes */
 	size_t		z_size;		/* length of ACL data */
-	int		z_ace_count;	/* number of ACEs in this acl node */
+	uint64_t	z_ace_count;	/* number of ACEs in this acl node */
 	int		z_ace_idx;	/* ace iterator positioned on */
 } zfs_acl_node_t;
 
 typedef struct zfs_acl {
-	int		z_acl_count;	/* Number of ACEs */
+	uint64_t	z_acl_count;	/* Number of ACEs */
 	size_t		z_acl_bytes;	/* Number of bytes in ACL */
 	uint_t		z_version;	/* version of ACL */
 	void		*z_next_ace;	/* pointer to next ACE */
-	int		z_hints;	/* ACL hints (ZFS_INHERIT_ACE ...) */
+	uint64_t	z_hints;	/* ACL hints (ZFS_INHERIT_ACE ...) */
 	zfs_acl_node_t	*z_curr_node;	/* current node iterator is handling */
 	list_t		z_acl;		/* chunks of ACE data */
 	acl_ops_t	z_ops;		/* ACL operations */
-	boolean_t	z_has_fuids;	/* FUIDs present in ACL? */
 } zfs_acl_t;
+
+typedef struct acl_locator_cb {
+	zfs_acl_t *cb_aclp;
+	zfs_acl_node_t *cb_acl_node;
+} zfs_acl_locator_cb_t;
 
 #define	ACL_DATA_ALLOCED	0x1
 #define	ZFS_ACL_SIZE(aclcnt)	(sizeof (ace_t) * (aclcnt))
+
+struct zfs_fuid_info;
+
+typedef struct zfs_acl_ids {
+	uint64_t		z_fuid;		/* file owner fuid */
+	uint64_t		z_fgid;		/* file group owner fuid */
+	uint64_t		z_mode;		/* mode to set on create */
+	zfs_acl_t		*z_aclp;	/* ACL to create with file */
+	struct zfs_fuid_info 	*z_fuidp;	/* for tracking fuids for log */
+} zfs_acl_ids_t;
 
 /*
  * Property values for acl_mode and acl_inherit.
@@ -180,20 +197,24 @@ typedef struct zfs_acl {
 #define	ZFS_ACL_GROUPMASK	2
 #define	ZFS_ACL_PASSTHROUGH	3
 #define	ZFS_ACL_RESTRICTED	4
+#define	ZFS_ACL_PASSTHROUGH_X	5
 
 struct znode;
 struct zfsvfs;
-struct zfs_fuid_info;
 
 #ifdef _KERNEL
-void zfs_perm_init(struct znode *, struct znode *, int, vattr_t *,
-    dmu_tx_t *, cred_t *, zfs_acl_t *, zfs_fuid_info_t **);
+int zfs_acl_ids_create(struct znode *, int, vattr_t *,
+    cred_t *, vsecattr_t *, zfs_acl_ids_t *);
+void zfs_acl_ids_free(zfs_acl_ids_t *);
+boolean_t zfs_acl_ids_overquota(struct zfsvfs *, zfs_acl_ids_t *);
 int zfs_getacl(struct znode *, vsecattr_t *, boolean_t, cred_t *);
 int zfs_setacl(struct znode *, vsecattr_t *, boolean_t, cred_t *);
 void zfs_acl_rele(void *);
 void zfs_oldace_byteswap(ace_t *, int);
 void zfs_ace_byteswap(void *, size_t, boolean_t);
+extern boolean_t zfs_has_access(struct znode *zp, cred_t *cr);
 extern int zfs_zaccess(struct znode *, int, int, boolean_t, cred_t *);
+int zfs_fastaccesschk_execute(struct znode *, cred_t *);
 extern int zfs_zaccess_rwx(struct znode *, mode_t, int, cred_t *);
 extern int zfs_zaccess_unix(struct znode *, mode_t, cred_t *);
 extern int zfs_acl_access(struct znode *, int, cred_t *);
@@ -202,14 +223,23 @@ int zfs_zaccess_delete(struct znode *, struct znode *, cred_t *);
 int zfs_zaccess_rename(struct znode *, struct znode *,
     struct znode *, struct znode *, cred_t *cr);
 void zfs_acl_free(zfs_acl_t *);
-int zfs_vsec_2_aclp(struct zfsvfs *, vtype_t, vsecattr_t *, zfs_acl_t **);
-int zfs_aclset_common(struct znode *, zfs_acl_t *, cred_t *,
-    struct zfs_fuid_info **, dmu_tx_t *);
+int zfs_vsec_2_aclp(struct zfsvfs *, vtype_t, vsecattr_t *, cred_t *,
+    struct zfs_fuid_info **, zfs_acl_t **);
+int zfs_aclset_common(struct znode *, zfs_acl_t *, cred_t *, dmu_tx_t *);
+uint64_t zfs_external_acl(struct znode *);
+int zfs_znode_acl_version(struct znode *);
+int zfs_acl_size(struct znode *, int *);
+zfs_acl_t *zfs_acl_alloc(int);
+zfs_acl_node_t *zfs_acl_node_alloc(size_t);
+void zfs_acl_xform(struct znode *, zfs_acl_t *, cred_t *);
+void zfs_acl_data_locator(void **, uint32_t *, uint32_t, boolean_t, void *);
+uint64_t zfs_mode_compute(uint64_t, zfs_acl_t *,
+    uint64_t *, uint64_t, uint64_t);
+int zfs_acl_chown_setattr(struct znode *);
 
 #endif
 
 #ifdef	__cplusplus
 }
 #endif
-
-#endif	/* !ZFS_NO_ACL */
+#endif	/* _SYS_FS_ZFS_ACL_H */

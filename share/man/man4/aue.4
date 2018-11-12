@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2006
+.Dd November 24, 2015
 .Dt AUE 4
 .Os
 .Sh NAME
@@ -45,6 +45,7 @@ kernel configuration file:
 .Cd "device ohci"
 .Cd "device usb"
 .Cd "device miibus"
+.Cd "device uether"
 .Cd "device aue"
 .Ed
 .Pp
@@ -80,7 +81,6 @@ received and transmitted over separate USB bulk transfer endpoints.
 The
 .Nm
 driver supports the following media types:
-.Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It autoselect
 Enable autoselection of the media type and options.
@@ -117,7 +117,6 @@ mode.
 The
 .Nm
 driver supports the following media options:
-.Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It full-duplex
 Force full duplex operation.
@@ -193,7 +192,7 @@ The driver failed to allocate an mbuf for the receiver ring.
 .Xr ifconfig 8
 .Rs
 .%T ADMtek AN986 data sheet
-.%O http://www.admtek.com.tw
+.%U http://www.admtek.com.tw
 .Re
 .Sh HISTORY
 The
@@ -204,4 +203,4 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An Bill Paul Aq wpaul@ee.columbia.edu .
+.An Bill Paul Aq Mt wpaul@ee.columbia.edu .

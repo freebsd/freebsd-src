@@ -33,16 +33,16 @@
  * $FreeBSD$
  */
 
-extern int pendingsigs;
-extern int in_dotrap;
-extern volatile sig_atomic_t gotwinch;
+extern volatile sig_atomic_t pendingsig;
+extern volatile sig_atomic_t pendingsig_waitcmd;
 
-int trapcmd(int, char **);
 void clear_traps(void);
 int have_traps(void);
 void setsignal(int);
 void ignoresig(int);
+int issigchldtrapped(void);
 void onsig(int);
 void dotrap(void);
 void setinteractive(int);
-void exitshell(int);
+void exitshell(int) __dead2;
+void exitshell_savedstatus(void) __dead2;

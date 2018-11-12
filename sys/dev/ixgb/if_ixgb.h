@@ -47,6 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/sockio.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -276,7 +277,7 @@ struct adapter {
 
 	/* FreeBSD operating-system-specific structures */
 	struct ixgb_osdep osdep;
-	struct device  *dev;
+	device_t	dev;
 	struct resource *res_memory;
 	struct resource *res_ioport;
 	struct resource *res_interrupt;
@@ -284,7 +285,7 @@ struct adapter {
 	struct ifmedia  media;
 	struct callout 	timer;
 	int             io_rid;
-	u_int8_t        unit;
+	int		tx_timer;
 	struct mtx	mtx;
 
 	/* Info about the board itself */
@@ -344,6 +345,8 @@ struct adapter {
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
 
+	/* Multicast array memory */
+	u_int8_t	*mta;
 	/* Misc stats maintained by the driver */
 	unsigned long   dropped_pkts;
 	unsigned long   mbuf_alloc_failed;

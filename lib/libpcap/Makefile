@@ -3,13 +3,15 @@
 
 SHLIBDIR?= /lib
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 LIB=	pcap
 SRCS=	grammar.y tokdefs.h version.h pcap-bpf.c \
-	pcap.c inet.c fad-getad.c gencode.c optimize.c nametoaddr.c \
+	pcap-netmap.c \
+	pcap.c pcap-common.c inet.c fad-getad.c gencode.c optimize.c nametoaddr.c \
 	etherent.c savefile.c bpf_filter.c bpf_image.c bpf_dump.c \
-	scanner.l version.c
+	scanner.l sf-pcap.c sf-pcap-ng.c version.c
 
 # Old compatibility headers
 INCS=	pcap.h pcap-int.h pcap-namedb.h pcap-bpf.h
@@ -37,15 +39,15 @@ MAN=	pcap.3 \
 	pcap_file.3 \
 	pcap_fileno.3 \
 	pcap_findalldevs.3 \
-	pcap_free_datalinks.3 \
-	pcap_freealldevs.3 \
 	pcap_freecode.3 \
 	pcap_get_selectable_fd.3 \
+	pcap_get_tstamp_precision.3 \
 	pcap_geterr.3 \
 	pcap_inject.3 \
 	pcap_is_swapped.3 \
 	pcap_lib_version.3 \
 	pcap_list_datalinks.3 \
+	pcap_list_tstamp_types.3 \
 	pcap_lookupdev.3 \
 	pcap_lookupnet.3 \
 	pcap_loop.3 \
@@ -57,10 +59,13 @@ MAN=	pcap.3 \
 	pcap_open_offline.3 \
 	pcap_set_buffer_size.3 \
 	pcap_set_datalink.3 \
+	pcap_set_immediate_mode.3 \
 	pcap_set_promisc.3 \
 	pcap_set_rfmon.3 \
 	pcap_set_snaplen.3 \
 	pcap_set_timeout.3 \
+	pcap_set_tstamp_precision.3 \
+	pcap_set_tstamp_type.3 \
 	pcap_setdirection.3 \
 	pcap_setfilter.3 \
 	pcap_setnonblock.3 \
@@ -69,12 +74,17 @@ MAN=	pcap.3 \
 	pcap_statustostr.3 \
 	pcap_strerror.3 \
 	pcap-savefile.5 \
+	pcap_tstamp_type_name_to_val.3 \
+	pcap_tstamp_type_val_to_name.3 \
 	pcap-filter.7 \
 	pcap-linktype.7
 MLINKS=	pcap_datalink_val_to_name.3 pcap_datalink_val_to_description.3 \
 	pcap_dump_open.3 pcap_dump_fopen.3 \
+	pcap_findalldevs.3 pcap_freealldevs.3 \
 	pcap_geterr.3 pcap_perror.3 \
 	pcap_inject.3 pcap_sendpacket.3 \
+	pcap_list_datalinks.3 pcap_free_datalinks.3 \
+	pcap_list_tstamp_types.3 pcap_free_tstamp_types.3 \
 	pcap_loop.3 pcap_dispatch.3 \
 	pcap_major_version.3 pcap_minor_version.3 \
 	pcap_next_ex.3 pcap_next.3 \
@@ -97,7 +107,9 @@ CFLAGS+=-DINET6
 CFLAGS+=-DHAVE_NET_PFVAR_H
 .endif
 
-SHLIB_MAJOR=7
+WARNS?=	0
+
+SHLIB_MAJOR=	8
 
 #
 # Magic to grab sources out of src/contrib
@@ -115,9 +127,8 @@ version.h: ${PCAP_DISTDIR}/VERSION
 	@rm -f $@
 	sed 's/.*/char pcap_version_string[] = "libpcap version &";/' ${PCAP_DISTDIR}/VERSION > $@
 
-tokdefs.h: grammar.h
-	ln -sf grammar.h tokdefs.h
-
+tokdefs.h: grammar.h .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 #
 # Magic to convert the man pages to something non Solarish

@@ -26,7 +26,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_comconsole.h"
 #include "opt_ofw.h"
 
 #include <sys/param.h>
@@ -61,10 +60,9 @@ static struct ttydevsw ofw_ttydevsw = {
 };
 
 static int			polltime;
-static struct callout_handle	ofw_timeouthandle
-    = CALLOUT_HANDLE_INITIALIZER(&ofw_timeouthandle);
+static struct callout		ofw_timer;
 
-#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
+#if defined(KDB)
 static int			alt_break_state;
 #endif
 
@@ -75,6 +73,8 @@ static cn_init_t	ofw_cninit;
 static cn_term_t	ofw_cnterm;
 static cn_getc_t	ofw_cngetc;
 static cn_putc_t	ofw_cnputc;
+static cn_grab_t	ofw_cngrab;
+static cn_ungrab_t	ofw_cnungrab;
 
 CONSOLE_DRIVER(ofw);
 
@@ -87,24 +87,27 @@ cn_drvinit(void *unused)
 
 	if (ofw_consdev.cn_pri != CN_DEAD &&
 	    ofw_consdev.cn_name[0] != '\0') {
-		if ((options = OF_finddevice("/options")) == -1 ||
-		    OF_getprop(options, "output-device", output,
-		    sizeof(output)) == -1)
-			return;
+		tp = tty_alloc(&ofw_ttydevsw, NULL);
+		tty_makedev(tp, NULL, "%s", "ofwcons");
+
 		/*
 		 * XXX: This is a hack and it may result in two /dev/ttya
 		 * XXX: devices on platforms where the sab driver works.
 		 */
-		tp = tty_alloc(&ofw_ttydevsw, NULL);
-		tty_makedev(tp, NULL, "%s", output);
-		tty_makealias(tp, "ofwcons");
+		if ((options = OF_finddevice("/options")) == -1 ||
+		    OF_getprop(options, "output-device", output,
+		    sizeof(output)) == -1)
+			return;
+		if (strlen(output) > 0)
+			tty_makealias(tp, "%s", output);
+		callout_init_mtx(&ofw_timer, tty_getlock(tp), 0);
 	}
 }
 
 SYSINIT(cndev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, cn_drvinit, NULL);
 
-static int	stdin;
-static int	stdout;
+static pcell_t	stdin;
+static pcell_t	stdout;
 
 static int
 ofwtty_open(struct tty *tp)
@@ -113,7 +116,7 @@ ofwtty_open(struct tty *tp)
 	if (polltime < 1)
 		polltime = 1;
 
-	ofw_timeouthandle = timeout(ofw_timeout, tp, polltime);
+	callout_reset(&ofw_timer, polltime, ofw_timeout, tp);
 
 	return (0);
 }
@@ -122,8 +125,7 @@ static void
 ofwtty_close(struct tty *tp)
 {
 
-	/* XXX Should be replaced with callout_stop(9) */
-	untimeout(ofw_timeout, tp, ofw_timeouthandle);
+	callout_stop(&ofw_timer);
 }
 
 static void
@@ -148,13 +150,12 @@ ofw_timeout(void *v)
 
 	tp = (struct tty *)v;
 
-	tty_lock(tp);
+	tty_lock_assert(tp, MA_OWNED);
 	while ((c = ofw_cngetc(NULL)) != -1)
 		ttydisc_rint(tp, c, 0);
 	ttydisc_rint_done(tp);
-	tty_unlock(tp);
 
-	ofw_timeouthandle = timeout(ofw_timeout, tp, polltime);
+	callout_schedule(&ofw_timer, polltime);
 }
 
 static void
@@ -167,12 +168,12 @@ ofw_cnprobe(struct consdev *cp)
 		return;
 	}
 
-	if (OF_getprop(chosen, "stdin", &stdin, sizeof(stdin)) == -1) {
+	if (OF_getencprop(chosen, "stdin", &stdin, sizeof(stdin)) == -1) {
 		cp->cn_pri = CN_DEAD;
 		return;
 	}
 
-	if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1) {
+	if (OF_getencprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1) {
 		cp->cn_pri = CN_DEAD;
 		return;
 	}
@@ -193,30 +194,24 @@ ofw_cnterm(struct consdev *cp)
 {
 }
 
+static void
+ofw_cngrab(struct consdev *cp)
+{
+}
+
+static void
+ofw_cnungrab(struct consdev *cp)
+{
+}
+
 static int
 ofw_cngetc(struct consdev *cp)
 {
 	unsigned char ch;
 
 	if (OF_read(stdin, &ch, 1) > 0) {
-#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
-		int kdb_brk;
-
-		if ((kdb_brk = kdb_alt_break(ch, &alt_break_state)) != 0) {
-			switch (kdb_brk) {
-			case KDB_REQ_DEBUGGER:
-				kdb_enter(KDB_WHY_BREAK,
-				    "Break sequence on console");
-				break;
-			case KDB_REQ_PANIC:
-				kdb_panic("Panic sequence on console");
-				break;
-			case KDB_REQ_REBOOT:
-				kdb_reboot();
-				break;
-
-			}
-		}
+#if defined(KDB)
+		kdb_alt_break(ch, &alt_break_state);
 #endif
 		return (ch);
 	}

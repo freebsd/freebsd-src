@@ -1,6 +1,6 @@
 /* subsegs.h -> subsegs.c
-   Copyright 1987, 1992, 1993, 1994, 1995, 1996, 1998, 2000
-   Free Software Foundation, Inc.
+   Copyright 1987, 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2003, 2005,
+   2006 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /*
  * For every sub-segment the user mentions in the ASsembler program,
@@ -40,25 +40,22 @@
 
 #include "obstack.h"
 
+struct frch_cfi_data;
+
 struct frchain			/* control building of a frag chain */
 {				/* FRCH = FRagment CHain control */
   struct frag *frch_root;	/* 1st struct frag in chain, or NULL */
   struct frag *frch_last;	/* last struct frag in chain, or NULL */
   struct frchain *frch_next;	/* next in chain of struct frchain-s */
-  segT frch_seg;		/* SEG_TEXT or SEG_DATA.  */
   subsegT frch_subseg;		/* subsegment number of this chain */
-#ifdef BFD_ASSEMBLER
   fixS *fix_root;		/* Root of fixups for this subsegment.  */
   fixS *fix_tail;		/* Last fixup for this subsegment.  */
-#endif
   struct obstack frch_obstack;	/* for objects in this frag chain */
   fragS *frch_frag_now;		/* frag_now for this subsegment */
+  struct frch_cfi_data *frch_cfi_data;
 };
 
 typedef struct frchain frchainS;
-
-/* All subsegments' chains hang off here.  NULL means no frchains yet.  */
-extern frchainS *frchain_root;
 
 /* Frchain we are assembling into now.  That is, the current segment's
    frag chain, even if it contains no (complete) frags.  */
@@ -77,30 +74,22 @@ typedef struct segment_info_struct {
 
   int user_stuff;
 
-  /* Fixups for this segment.  If BFD_ASSEMBLER, this is only valid
-     after the frchains are run together.  */
+  /* Fixups for this segment.  This is only valid after the frchains
+     are run together.  */
   fixS *fix_root;
   fixS *fix_tail;
-
-#if defined (MANY_SEGMENTS) && !defined (BFD_ASSEMBLER)
-  struct internal_scnhdr scnhdr;
-  enum linkonce_type linkonce;
-  const char *name;
-#endif
 
   symbolS *dot;
 
   struct lineno_list *lineno_list_head;
   struct lineno_list *lineno_list_tail;
 
-#ifdef BFD_ASSEMBLER
   /* Which BFD section does this gas segment correspond to?  */
   asection *bfd_section;
 
   /* NULL, or pointer to the gas symbol that is the section symbol for
      this section.  sym->bsym and bfd_section->symbol should be the same.  */
   symbolS *sym;
-#endif
 
   union {
     /* Current size of section holding stabs strings.  */
@@ -119,37 +108,10 @@ typedef struct segment_info_struct {
 #endif
 } segment_info_type;
 
-#ifdef BFD_ASSEMBLER
 
-extern segment_info_type *seg_info (segT);
+#define seg_info(sec) \
+  ((segment_info_type *) bfd_get_section_userdata (stdoutput, sec))
+
 extern symbolS *section_symbol (segT);
-
-#else /* ! BFD_ASSEMBLER */
-
-#ifdef MANY_SEGMENTS
-
-extern segment_info_type segment_info[];
-
-#define seg_info(SEC)	(&segment_info[SEC])
-
-#else
-
-/* Sentinel for frchain crawling.  Points to the 1st data-segment
-   frchain.  (Which is pointed to by the last text-segment frchain.) */
-extern frchainS *data0_frchainP;
-extern frchainS *bss0_frchainP;
-
-/* Dummy so stuff can compile.  Should never be used.  */
-struct seg_info_trash {
-  struct {
-    unsigned stab_string_size : 1;
-  } stabu;
-  unsigned hadone : 1;
-};
-#define seg_info(S)	(abort (), (struct seg_info_trash *) 0)
-
-#endif
-
-#endif /* ! BFD_ASSEMBLER */
 
 extern void subsegs_print_statistics (FILE *);

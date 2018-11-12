@@ -11,10 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -65,7 +61,9 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -176,9 +174,9 @@ printjob(struct printer *pp)
 		    pp->log_file);
 		(void) open(_PATH_DEVNULL, O_WRONLY);
 	}
-	setgid(getegid());
+	if(setgid(getegid()) != 0) err(1, "setgid() failed");
 	printpid = getpid();			/* for use with lprm */
-	setpgrp(0, printpid);
+	setpgid((pid_t)0, printpid);
 
 	/*
 	 * At initial lpd startup, printjob may be called with various
@@ -449,12 +447,12 @@ printit(struct printer *pp, char *file)
 	 *		M -- "mail" to user when done printing
 	 *              Z -- "locale" for pr
 	 *
-	 *      getline reads a line and expands tabs to blanks
+	 *      get_line reads a line and expands tabs to blanks
 	 */
 
 	/* pass 1 */
 
-	while (getline(cfp))
+	while (get_line(cfp))
 		switch (line[0]) {
 		case 'H':
 			strlcpy(origin_host, line + 1, sizeof(origin_host));
@@ -579,7 +577,7 @@ printit(struct printer *pp, char *file)
 
 pass2:
 	fseek(cfp, 0L, 0);
-	while (getline(cfp))
+	while (get_line(cfp))
 		switch (line[0]) {
 		case 'L':	/* identification line */
 			if (!pp->no_header && pp->header_last)
@@ -607,7 +605,7 @@ pass2:
 /*
  * Print a file.
  * Set up the chain [ PR [ | {IF, OF} ] ] or {IF, RF, TF, NF, DF, CF, VF}.
- * Return -1 if a non-recoverable error occured,
+ * Return -1 if a non-recoverable error occurred,
  * 2 if the filter detected some errors (but printed the job anyway),
  * 1 if we should try to reprint this job and
  * 0 if all is well.
@@ -675,7 +673,7 @@ print(struct printer *pp, int format, char *file)
 			av[i++] = "-L";
 			av[i++] = *locale ? locale : "C";
 			av[i++] = "-F";
-			av[i] = 0;
+			av[i] = NULL;
 			fo = ofd;
 			goto start;
 		}
@@ -797,7 +795,7 @@ print(struct printer *pp, int format, char *file)
 	av[n++] = "-h";
 	av[n++] = origin_host;
 	av[n++] = pp->acct_file;
-	av[n] = 0;
+	av[n] = NULL;
 	fo = pfd;
 	if (of_pid > 0) {		/* stop output filter */
 		write(ofd, "\031\1", 2);
@@ -890,7 +888,7 @@ start:
 
 /*
  * Send the daemon control file (cf) and any data files.
- * Return -1 if a non-recoverable error occured, 1 if a recoverable error and
+ * Return -1 if a non-recoverable error occurred, 1 if a recoverable error and
  * 0 if all is well.
  */
 static int
@@ -924,7 +922,7 @@ sendit(struct printer *pp, char *file)
 	 * pass 1
 	 */
 	err = OK;
-	while (getline(cfp)) {
+	while (get_line(cfp)) {
 	again:
 		if (line[0] == 'S') {
 			cp = line+1;
@@ -956,7 +954,7 @@ sendit(struct printer *pp, char *file)
 		} else if (line[0] >= 'a' && line[0] <= 'z') {
 			dfcopies = 1;
 			strcpy(last, line);
-			while ((i = getline(cfp)) != 0) {
+			while ((i = get_line(cfp)) != 0) {
 				if (strcmp(last, line) != 0)
 					break;
 				dfcopies++;
@@ -985,7 +983,7 @@ sendit(struct printer *pp, char *file)
 	 * pass 2
 	 */
 	fseek(cfp, 0L, 0);
-	while (getline(cfp))
+	while (get_line(cfp))
 		if (line[0] == 'U' && !strchr(line+1, '/'))
 			(void) unlink(line+1);
 	/*
@@ -1142,9 +1140,10 @@ sendagain:
 	copycnt++;
 
 	if (copycnt < 2)
-		(void) sprintf(buf, "%c%qd %s\n", type, stb.st_size, file);
+		(void) sprintf(buf, "%c%" PRId64 " %s\n", type, stb.st_size,
+		    file);
 	else
-		(void) sprintf(buf, "%c%qd %s_c%d\n", type, stb.st_size,
+		(void) sprintf(buf, "%c%" PRId64 " %s_c%d\n", type, stb.st_size,
 		    file, copycnt);
 	amt = strlen(buf);
 	for (i = 0;  ; i++) {
@@ -1263,8 +1262,9 @@ wait4data(struct printer *pp, const char *dfile)
 {
 	const char *cp;
 	int statres;
+	u_int sleepreq;
 	size_t dlen, hlen;
-	time_t amtslept, checktime;
+	time_t amtslept, cur_time, prev_mtime;
 	struct stat statdf;
 
 	/* Skip these checks if the print job is from the local host. */
@@ -1297,15 +1297,30 @@ wait4data(struct printer *pp, const char *dfile)
 
 	/*
 	 * The file exists, so keep waiting until the data file has not
-	 * changed for some reasonable amount of time.
+	 * changed for some reasonable amount of time.  Extra care is
+	 * taken when computing wait-times, just in case there are data
+	 * files with a last-modify time in the future.  While that is
+	 * very unlikely to happen, it can happen when the system has
+	 * a flakey time-of-day clock.
 	 */
-	while (statres == 0 && amtslept < MAXWAIT_4DATA) {
-		checktime = time(NULL) - MINWAIT_4DATA;
-		if (statdf.st_mtime <= checktime)
-			break;
+	prev_mtime = statdf.st_mtime;
+	cur_time = time(NULL);
+	if (statdf.st_mtime >= cur_time - MINWAIT_4DATA) {
+		if (statdf.st_mtime >= cur_time)	/* some TOD oddity */
+			sleepreq = MINWAIT_4DATA;
+		else
+			sleepreq = cur_time - statdf.st_mtime;
 		if (amtslept == 0)
 			pstatus(pp, "Waiting for data file from remote host");
-		amtslept += MINWAIT_4DATA - sleep(MINWAIT_4DATA);
+		amtslept += sleepreq - sleep(sleepreq);
+		statres = stat(dfile, &statdf);
+	}
+	sleepreq = MINWAIT_4DATA;
+	while (statres == 0 && amtslept < MAXWAIT_4DATA) {
+		if (statdf.st_mtime == prev_mtime)
+			break;
+		prev_mtime = statdf.st_mtime;
+		amtslept += sleepreq - sleep(sleepreq);
 		statres = stat(dfile, &statdf);
 	}
 
@@ -1722,7 +1737,7 @@ init(struct printer *pp)
 	sprintf(&length[2], "%ld", pp->page_length);
 	sprintf(&pxwidth[2], "%ld", pp->page_pwidth);
 	sprintf(&pxlength[2], "%ld", pp->page_plength);
-	if ((s = checkremote(pp)) != 0) {
+	if ((s = checkremote(pp)) != NULL) {
 		syslog(LOG_WARNING, "%s", s);
 		free(s);
 	}
@@ -1774,7 +1789,7 @@ openpr(const struct printer *pp)
 		of_pid = 0;
 		return;
 	} else if (*pp->lp) {
-		if ((cp = strchr(pp->lp, '@')) != NULL)
+		if (strchr(pp->lp, '@') != NULL)
 			opennet(pp);
 		else
 			opentty(pp);

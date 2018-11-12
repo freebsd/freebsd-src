@@ -44,7 +44,7 @@ mkdir $DIR
 cd $DIR
 
 cat > Makefile <<EOF
-	all: main
+all: main
 
 main: main.o prov.o
 	cc -o main main.o prov.o
@@ -97,6 +97,6 @@ script
 status=$?
 
 cd /tmp
-/usr/bin/rm -rf $DIR
+/bin/rm -rf $DIR
 
 exit $status

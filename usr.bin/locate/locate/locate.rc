@@ -15,8 +15,11 @@
 # directories to be put in the database
 #SEARCHPATHS="/"
 
+# paths unwanted in output
+#PRUNEPATHS="/tmp /usr/tmp /var/tmp /var/db/portsnap /var/db/freebsd-update"
+
 # directories unwanted in output
-#PRUNEPATHS="/tmp /usr/tmp /var/tmp /var/db/portsnap"
+#PRUNEDIRS=".zfs"
 
 # filesystems allowed. Beware: a non-listed filesystem will be pruned
 # and if the SEARCHPATHS starts in such a filesystem locate will build

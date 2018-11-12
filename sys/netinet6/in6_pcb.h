@@ -69,36 +69,51 @@
 #define	sin6tosa(sin6)	((struct sockaddr *)(sin6))
 #define	ifatoia6(ifa)	((struct in6_ifaddr *)(ifa))
 
-void	in6_pcbpurgeif0 __P((struct inpcbinfo *, struct ifnet *));
-void	in6_losing __P((struct inpcb *));
-int	in6_pcbbind __P((struct inpcb *, struct sockaddr *, struct ucred *));
-int	in6_pcbconnect __P((struct inpcb *, struct sockaddr *, struct ucred *));
-void	in6_pcbdisconnect __P((struct inpcb *));
-int	in6_pcbladdr(struct inpcb *, struct sockaddr *, struct in6_addr *);
+struct	inpcbgroup *
+	in6_pcbgroup_byhash(struct inpcbinfo *, u_int, uint32_t);
+struct	inpcbgroup *
+	in6_pcbgroup_byinpcb(struct inpcb *);
+struct inpcbgroup *
+	in6_pcbgroup_bymbuf(struct inpcbinfo *, struct mbuf *);
+struct	inpcbgroup *
+	in6_pcbgroup_bytuple(struct inpcbinfo *, const struct in6_addr *,
+	    u_short, const struct in6_addr *, u_short);
+
+void	in6_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
+void	in6_losing(struct inpcb *);
+int	in6_pcbbind(struct inpcb *, struct sockaddr *, struct ucred *);
+int	in6_pcbconnect(struct inpcb *, struct sockaddr *, struct ucred *);
+int	in6_pcbconnect_mbuf(struct inpcb *, struct sockaddr *,
+	    struct ucred *, struct mbuf *);
+void	in6_pcbdisconnect(struct inpcb *);
 struct	inpcb *
-	in6_pcblookup_local __P((struct inpcbinfo *,
+	in6_pcblookup_local(struct inpcbinfo *,
 				 struct in6_addr *, u_short, int,
-				 struct ucred *));
+				 struct ucred *);
 struct	inpcb *
-	in6_pcblookup_hash __P((struct inpcbinfo *,
-				struct in6_addr *, u_int, struct in6_addr *,
-				u_int, int, struct ifnet *));
-void	in6_pcbnotify __P((struct inpcbinfo *, struct sockaddr *,
+	in6_pcblookup(struct inpcbinfo *, struct in6_addr *,
+			   u_int, struct in6_addr *, u_int, int,
+			   struct ifnet *);
+struct	inpcb *
+	in6_pcblookup_mbuf(struct inpcbinfo *, struct in6_addr *,
+			   u_int, struct in6_addr *, u_int, int,
+			   struct ifnet *ifp, struct mbuf *);
+void	in6_pcbnotify(struct inpcbinfo *, struct sockaddr *,
 			   u_int, const struct sockaddr *, u_int, int, void *,
-			   struct inpcb *(*)(struct inpcb *, int)));
+			   struct inpcb *(*)(struct inpcb *, int));
 struct inpcb *
-	in6_rtchange __P((struct inpcb *, int));
+	in6_rtchange(struct inpcb *, int);
 struct sockaddr *
-	in6_sockaddr __P((in_port_t port, struct in6_addr *addr_p));
+	in6_sockaddr(in_port_t port, struct in6_addr *addr_p);
 struct sockaddr *
-	in6_v4mapsin6_sockaddr __P((in_port_t port, struct in_addr *addr_p));
-int	in6_getpeeraddr __P((struct socket *so, struct sockaddr **nam));
-int	in6_getsockaddr __P((struct socket *so, struct sockaddr **nam));
-int	in6_mapped_sockaddr __P((struct socket *so, struct sockaddr **nam));
-int	in6_mapped_peeraddr __P((struct socket *so, struct sockaddr **nam));
-int	in6_selecthlim __P((struct in6pcb *, struct ifnet *));
-int	in6_pcbsetport __P((struct in6_addr *, struct inpcb *, struct ucred *));
-void	init_sin6 __P((struct sockaddr_in6 *sin6, struct mbuf *m));
+	in6_v4mapsin6_sockaddr(in_port_t port, struct in_addr *addr_p);
+int	in6_getpeeraddr(struct socket *so, struct sockaddr **nam);
+int	in6_getsockaddr(struct socket *so, struct sockaddr **nam);
+int	in6_mapped_sockaddr(struct socket *so, struct sockaddr **nam);
+int	in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam);
+int	in6_selecthlim(struct in6pcb *, struct ifnet *);
+int	in6_pcbsetport(struct in6_addr *, struct inpcb *, struct ucred *);
+void	init_sin6(struct sockaddr_in6 *sin6, struct mbuf *m);
 #endif /* _KERNEL */
 
 #endif /* !_NETINET6_IN6_PCB_H_ */

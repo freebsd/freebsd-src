@@ -87,17 +87,8 @@ enum {
 static struct cdev *dt_ptm, *dt_arp, *dt_icmp, *dt_ip, *dt_tcp, *dt_udp,
 	*dt_rawip, *dt_unix_dgram, *dt_unix_stream, *dt_unix_ord_stream;
 
-static struct fileops svr4_netops = {
-	.fo_read = soo_read,
-	.fo_write = soo_write,
-	.fo_truncate = soo_truncate,
-	.fo_ioctl = soo_ioctl,
-	.fo_poll = soo_poll,
-	.fo_kqfilter = soo_kqfilter,
-	.fo_stat = soo_stat,
-	.fo_close =  svr4_soo_close
-};
- 
+static struct fileops svr4_netops;
+
 static struct cdevsw streams_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	streamsopen,
@@ -144,6 +135,11 @@ streams_modevent(module_t mod, int type, void *unused)
 			printf("WARNING: device config for STREAMS failed\n");
 			printf("Suggest unloading streams KLD\n");
 		}
+
+		/* Inherit generic socket file operations, except close(2). */
+		bcopy(&socketops, &svr4_netops, sizeof(struct fileops));
+		svr4_netops.fo_close = svr4_soo_close;
+
 		return 0;
 	case MOD_UNLOAD:
 	  	/* XXX should check to see if it's busy first */
@@ -173,6 +169,7 @@ static moduledata_t streams_mod = {
 };
 DECLARE_MODULE(streams, streams_mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
 MODULE_VERSION(streams, 1);
+MODULE_DEPEND(streams, svr4elf, 1, 1, 1);
 
 /*
  * We only need open() and close() routines.  open() calls socreate()
@@ -184,7 +181,6 @@ MODULE_VERSION(streams, 1);
 static  int
 streamsopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
-	struct filedesc *fdp;
 	struct svr4_strm *st;
 	struct socket *so;
 	struct file *fp;
@@ -240,14 +236,13 @@ streamsopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	  return EOPNOTSUPP;
 	}
 
-	fdp = td->td_proc->p_fd;
-	if ((error = falloc(td, &fp, &fd)) != 0)
+	if ((error = falloc(td, &fp, &fd, 0)) != 0)
 	  return error;
 	/* An extra reference on `fp' has been held for us by falloc(). */
 
 	error = socreate(family, &so, type, protocol, td->td_ucred, td);
 	if (error) {
-	   fdclose(fdp, fp, fd, td);
+	   fdclose(td, fp, fd);
 	   fdrop(fp, td);
 	   return error;
 	}
@@ -306,7 +301,8 @@ svr4_ptm_alloc(td)
 		ptyname[8] = ttyletters[l];
 		ptyname[9] = ttynumbers[n];
 
-		error = kern_open(td, ptyname, UIO_SYSSPACE, O_RDWR, 0);
+		error = kern_openat(td, AT_FDCWD, ptyname, UIO_SYSSPACE,
+		    O_RDWR, 0);
 		switch (error) {
 		case ENOENT:
 		case ENXIO:
@@ -326,27 +322,18 @@ svr4_ptm_alloc(td)
 }
 
 
-struct svr4_strm *
-svr4_stream_get(fp)
-	struct file *fp;
-{
-	struct socket *so;
-
-	if (fp == NULL || fp->f_type != DTYPE_SOCKET)
-		return NULL;
-
-	so = fp->f_data;
-	return so->so_emuldata;
-}
-
 static int
 svr4_soo_close(struct file *fp, struct thread *td)
 {
-        struct socket *so = fp->f_data;
+	struct socket *so = fp->f_data;
 	
 	/*	CHECKUNIT_DIAG(ENXIO);*/
 
 	svr4_delete_socket(td->td_proc, fp);
 	free(so->so_emuldata, M_TEMP);
-	return soo_close(fp, td);
+
+	fp->f_ops = &badfileops;
+	fp->f_data = NULL;
+
+	return soclose(so);
 }

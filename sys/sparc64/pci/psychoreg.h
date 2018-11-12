@@ -1,5 +1,4 @@
 /*-
- * Copyright (c) 1998, 1999 Eduardo E. Horvath
  * Copyright (c) 1999 Matthew R. Green
  * All rights reserved.
  *
@@ -25,8 +24,36 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ */
+
+/*-
+ * Copyright (c) 1998, 1999 Eduardo E. Horvath
+ * All rights reserved.
  *
- *	from: NetBSD: psychoreg.h,v 1.8 2001/09/10 16:17:06 eeh Exp
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	from: NetBSD: psychoreg.h,v 1.14 2008/05/30 02:29:37 mrg Exp
  *
  * $FreeBSD$
  */
@@ -46,7 +73,6 @@
  */
 
 #define	PSYCHO_NINTR		6
-#define	PSYCHO_NRANGE		4
 
 /*
  * Psycho register offsets
@@ -94,7 +120,7 @@
 #define	PSR_PWRMGT_INT_MAP	0x1090	/* power mgmt wake interrupt map reg */
 #define	PSR_FFB0_INT_MAP	0x1098	/* FFB0 graphics interrupt map reg */
 #define	PSR_FFB1_INT_MAP	0x10a0	/* FFB1 graphics interrupt map reg */
-/* Note: clear interrupt 0 registers are not really used */
+/* Note: Clear interrupt 0 registers are not really used. */
 #define	PSR_PCIA0_INT_CLR	0x1400	/* PCI a slot 0 clear int regs 0..3 */
 #define	PSR_PCIA1_INT_CLR	0x1420	/* PCI a slot 1 clear int regs 0..3 */
 #define	PSR_PCIA2_INT_CLR	0x1440	/* PCI a slot 2 clear int regs 0..3 */
@@ -138,6 +164,7 @@
 #define	PSR_PCI_INT_DIAG	0xa800	/* PCI int state diag reg */
 #define	PSR_OBIO_INT_DIAG	0xa808	/* OBIO and misc int state diag reg */
 #define	PSR_STRBUF_DIAG		0xb000	/* Streaming buffer diag regs */
+
 /*
  * Here is the rest of the map, which we're not specifying:
  *
@@ -149,7 +176,7 @@
  * 1ff.0000.0000 - 1ff.7fff.ffff	PCI A memory space
  * 1ff.8000.0000 - 1ff.ffff.ffff	PCI B memory space
  *
- * NB: config and I/O space can use 1-4 byte accesses, not 8 byte
+ * NB: Config and I/O space can use 1-4 byte accesses, not 8 byte
  * accesses.  Memory space can use any sized accesses.
  *
  * Note that the SUNW,sabre/SUNW,simba combinations found on the

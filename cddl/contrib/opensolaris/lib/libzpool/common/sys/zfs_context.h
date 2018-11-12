@@ -19,8 +19,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ */
+/*
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #ifndef _SYS_ZFS_CONTEXT_H
@@ -34,7 +38,6 @@ extern "C" {
 #define	_SYS_RWLOCK_H
 #define	_SYS_CONDVAR_H
 #define	_SYS_SYSTM_H
-#define	_SYS_DEBUG_H
 #define	_SYS_T_LOCK_H
 #define	_SYS_VNODE_H
 #define	_SYS_VFS_H
@@ -59,7 +62,11 @@ extern "C" {
 #include <time.h>
 #include <math.h>
 #include <umem.h>
+#include <inttypes.h>
 #include <fsshare.h>
+#include <pthread.h>
+#include <sched.h>
+#include <sys/debug.h>
 #include <sys/note.h>
 #include <sys/types.h>
 #include <sys/cred.h>
@@ -74,14 +81,19 @@ extern "C" {
 #include <sys/mntent.h>
 #include <sys/mnttab.h>
 #include <sys/zfs_debug.h>
-#include <sys/debug.h>
 #include <sys/sdt.h>
 #include <sys/kstat.h>
 #include <sys/u8_textprep.h>
 #include <sys/kernel.h>
 #include <sys/disk.h>
+#include <sys/sysevent.h>
 #include <sys/sysevent/eventdefs.h>
+#include <sys/sysevent/dev.h>
 #include <machine/atomic.h>
+#include <sys/debug.h>
+#ifdef illumos
+#include "zfs.h"
+#endif
 
 #define	ZFS_EXPORTS_PATH	"/etc/zfs/exports"
 
@@ -119,96 +131,110 @@ extern void vpanic(const char *, __va_list);
 
 #define	fm_panic	panic
 
-/* This definition is copied from assert.h. */
-#if defined(__STDC__)
-#if __STDC_VERSION__ - 0 >= 199901L
-#define	verify(EX) (void)((EX) || (__assert(#EX, __FILE__, __LINE__), 0))
-#else
-#define	verify(EX) (void)((EX) || (__assert(#EX, __FILE__, __LINE__), 0))
-#endif /* __STDC_VERSION__ - 0 >= 199901L */
-#else
-#define	verify(EX) (void)((EX) || (_assert("EX", __FILE__, __LINE__), 0))
-#endif	/* __STDC__ */
-
-
-#define	VERIFY	verify
-#define	ASSERT	assert
-
-extern void __assert(const char *, const char *, int);
-
-#ifdef lint
-#define	VERIFY3_IMPL(x, y, z, t)	if (x == z) ((void)0)
-#else
-/* BEGIN CSTYLED */
-#define	VERIFY3_IMPL(LEFT, OP, RIGHT, TYPE) do { \
-	const TYPE __left = (TYPE)(LEFT); \
-	const TYPE __right = (TYPE)(RIGHT); \
-	if (!(__left OP __right)) { \
-		char *__buf = alloca(256); \
-		(void) snprintf(__buf, 256, "%s %s %s (0x%llx %s 0x%llx)", \
-			#LEFT, #OP, #RIGHT, \
-			(u_longlong_t)__left, #OP, (u_longlong_t)__right); \
-		__assert(__buf, __FILE__, __LINE__); \
-	} \
-_NOTE(CONSTCOND) } while (0)
-/* END CSTYLED */
-#endif /* lint */
-
-#define	VERIFY3S(x, y, z)	VERIFY3_IMPL(x, y, z, int64_t)
-#define	VERIFY3U(x, y, z)	VERIFY3_IMPL(x, y, z, uint64_t)
-#define	VERIFY3P(x, y, z)	VERIFY3_IMPL(x, y, z, uintptr_t)
-
-#ifdef NDEBUG
-#define	ASSERT3S(x, y, z)	((void)0)
-#define	ASSERT3U(x, y, z)	((void)0)
-#define	ASSERT3P(x, y, z)	((void)0)
-#else
-#define	ASSERT3S(x, y, z)	VERIFY3S(x, y, z)
-#define	ASSERT3U(x, y, z)	VERIFY3U(x, y, z)
-#define	ASSERT3P(x, y, z)	VERIFY3P(x, y, z)
-#endif
+extern int aok;
 
 /*
  * DTrace SDT probes have different signatures in userland than they do in
- * kernel.  If they're being used in kernel code, re-define them out of
+ * the kernel.  If they're being used in kernel code, re-define them out of
  * existence for their counterparts in libzpool.
+ *
+ * Here's an example of how to use the set-error probes in userland:
+ * zfs$target:::set-error /arg0 == EBUSY/ {stack();}
+ *
+ * Here's an example of how to use DTRACE_PROBE probes in userland:
+ * If there is a probe declared as follows:
+ * DTRACE_PROBE2(zfs__probe_name, uint64_t, blkid, dnode_t *, dn);
+ * Then you can use it as follows:
+ * zfs$target:::probe2 /copyinstr(arg0) == "zfs__probe_name"/
+ *     {printf("%u %p\n", arg1, arg2);}
  */
 
 #ifdef DTRACE_PROBE
 #undef	DTRACE_PROBE
-#define	DTRACE_PROBE(a)	((void)0)
 #endif	/* DTRACE_PROBE */
+#ifdef illumos
+#define	DTRACE_PROBE(a) \
+	ZFS_PROBE0(#a)
+#endif
 
 #ifdef DTRACE_PROBE1
 #undef	DTRACE_PROBE1
-#define	DTRACE_PROBE1(a, b, c)	((void)0)
 #endif	/* DTRACE_PROBE1 */
+#ifdef illumos
+#define	DTRACE_PROBE1(a, b, c) \
+	ZFS_PROBE1(#a, (unsigned long)c)
+#endif
 
 #ifdef DTRACE_PROBE2
 #undef	DTRACE_PROBE2
-#define	DTRACE_PROBE2(a, b, c, d, e)	((void)0)
 #endif	/* DTRACE_PROBE2 */
+#ifdef illumos
+#define	DTRACE_PROBE2(a, b, c, d, e) \
+	ZFS_PROBE2(#a, (unsigned long)c, (unsigned long)e)
+#endif
 
 #ifdef DTRACE_PROBE3
 #undef	DTRACE_PROBE3
-#define	DTRACE_PROBE3(a, b, c, d, e, f, g)	((void)0)
 #endif	/* DTRACE_PROBE3 */
+#ifdef illumos
+#define	DTRACE_PROBE3(a, b, c, d, e, f, g) \
+	ZFS_PROBE3(#a, (unsigned long)c, (unsigned long)e, (unsigned long)g)
+#endif
 
 #ifdef DTRACE_PROBE4
 #undef	DTRACE_PROBE4
-#define	DTRACE_PROBE4(a, b, c, d, e, f, g, h, i)	((void)0)
 #endif	/* DTRACE_PROBE4 */
+#ifdef illumos
+#define	DTRACE_PROBE4(a, b, c, d, e, f, g, h, i) \
+	ZFS_PROBE4(#a, (unsigned long)c, (unsigned long)e, (unsigned long)g, \
+	(unsigned long)i)
+#endif
+
+#ifdef illumos
+/*
+ * We use the comma operator so that this macro can be used without much
+ * additional code.  For example, "return (EINVAL);" becomes
+ * "return (SET_ERROR(EINVAL));".  Note that the argument will be evaluated
+ * twice, so it should not have side effects (e.g. something like:
+ * "return (SET_ERROR(log_error(EINVAL, info)));" would log the error twice).
+ */
+#define	SET_ERROR(err)	(ZFS_SET_ERROR(err), err)
+#else	/* !illumos */
+
+#define	DTRACE_PROBE(a)	((void)0)
+#define	DTRACE_PROBE1(a, b, c)	((void)0)
+#define	DTRACE_PROBE2(a, b, c, d, e)	((void)0)
+#define	DTRACE_PROBE3(a, b, c, d, e, f, g)	((void)0)
+#define	DTRACE_PROBE4(a, b, c, d, e, f, g, h, i)	((void)0)
+
+#define SET_ERROR(err) (err)
+#endif	/* !illumos */
 
 /*
  * Threads
  */
 #define	curthread	((void *)(uintptr_t)thr_self())
 
+#define	kpreempt(x)	sched_yield()
+
 typedef struct kthread kthread_t;
 
 #define	thread_create(stk, stksize, func, arg, len, pp, state, pri)	\
 	zk_thread_create(func, arg)
 #define	thread_exit() thr_exit(NULL)
+#define	thread_join(t)	panic("libzpool cannot join threads")
+
+#define	newproc(f, a, cid, pri, ctp, pid)	(ENOSYS)
+
+/* in libzpool, p0 exists only to have its address taken */
+struct proc {
+	uintptr_t	this_is_never_used_dont_dereference_it;
+};
+
+extern struct proc p0;
+#define	curproc		(&p0)
+
+#define	PS_NONE		-1
 
 extern kthread_t *zk_thread_create(void (*func)(), void *arg);
 
@@ -225,8 +251,11 @@ typedef struct kmutex {
 } kmutex_t;
 
 #define	MUTEX_DEFAULT	USYNC_THREAD
-#undef MUTEX_HELD
+#undef	MUTEX_HELD
+#undef	MUTEX_NOT_HELD
 #define	MUTEX_HELD(m)	((m)->m_owner == curthread)
+#define	MUTEX_NOT_HELD(m) (!MUTEX_HELD(m))
+#define	_mutex_held(m)	pthread_mutex_isowned_np(m)
 
 /*
  * Argh -- we have to get cheesy here because the kernel and userland
@@ -234,6 +263,7 @@ typedef struct kmutex {
  */
 //extern int _mutex_init(mutex_t *mp, int type, void *arg);
 //extern int _mutex_destroy(mutex_t *mp);
+//extern int _mutex_owned(mutex_t *mp);
 
 #define	mutex_init(mp, b, c, d)		zmutex_init((kmutex_t *)(mp))
 #define	mutex_destroy(mp)		zmutex_destroy((kmutex_t *)(mp))
@@ -270,6 +300,9 @@ typedef int krw_t;
 #define	RW_WRITE_HELD(x)	((x)->rw_owner == curthread)
 #define	RW_LOCK_HELD(x)		rw_lock_held(x)
 
+#undef RW_LOCK_HELD
+#define	RW_LOCK_HELD(x)		(RW_READ_HELD(x) || RW_WRITE_HELD(x))
+
 extern void rw_init(krwlock_t *rwlp, char *name, int type, void *arg);
 extern void rw_destroy(krwlock_t *rwlp);
 extern void rw_enter(krwlock_t *rwlp, krw_t rw);
@@ -280,6 +313,7 @@ extern int rw_lock_held(krwlock_t *rwlp);
 #define	rw_downgrade(rwlp) do { } while (0)
 
 extern uid_t crgetuid(cred_t *cr);
+extern uid_t crgetruid(cred_t *cr);
 extern gid_t crgetgid(cred_t *cr);
 extern int crgetngroups(cred_t *cr);
 extern gid_t *crgetgroups(cred_t *cr);
@@ -290,13 +324,24 @@ extern gid_t *crgetgroups(cred_t *cr);
 typedef cond_t kcondvar_t;
 
 #define	CV_DEFAULT	USYNC_THREAD
+#define	CALLOUT_FLAG_ABSOLUTE	0x2
 
 extern void cv_init(kcondvar_t *cv, char *name, int type, void *arg);
 extern void cv_destroy(kcondvar_t *cv);
 extern void cv_wait(kcondvar_t *cv, kmutex_t *mp);
 extern clock_t cv_timedwait(kcondvar_t *cv, kmutex_t *mp, clock_t abstime);
+extern clock_t cv_timedwait_hires(kcondvar_t *cvp, kmutex_t *mp, hrtime_t tim,
+    hrtime_t res, int flag);
 extern void cv_signal(kcondvar_t *cv);
 extern void cv_broadcast(kcondvar_t *cv);
+
+/*
+ * Thread-specific data
+ */
+#define	tsd_get(k) pthread_getspecific(k)
+#define	tsd_set(k, v) pthread_setspecific(k, v)
+#define	tsd_create(kp, d) pthread_key_create(kp, d)
+#define	tsd_destroy(kp) /* nothing */
 
 /*
  * Kernel memory
@@ -305,6 +350,8 @@ extern void cv_broadcast(kcondvar_t *cv);
 #define	KM_PUSHPAGE		KM_SLEEP
 #define	KM_NOSLEEP		UMEM_DEFAULT
 #define	KMC_NODEBUG		UMC_NODEBUG
+#define	KMC_NOTOUCH		0	/* not needed for userland caches */
+#define	KM_NODEBUG		0
 #define	kmem_alloc(_s, _f)	umem_alloc(_s, _f)
 #define	kmem_zalloc(_s, _f)	umem_zalloc(_s, _f)
 #define	kmem_free(_b, _s)	umem_free(_b, _s)
@@ -315,9 +362,20 @@ extern void cv_broadcast(kcondvar_t *cv);
 #define	kmem_cache_alloc(_c, _f) umem_cache_alloc(_c, _f)
 #define	kmem_cache_free(_c, _b)	umem_cache_free(_c, _b)
 #define	kmem_debugging()	0
-#define	kmem_cache_reap_now(c)
+#define	kmem_cache_reap_now(_c)		/* nothing */
+#define	kmem_cache_set_move(_c, _cb)	/* nothing */
+#define	POINTER_INVALIDATE(_pp)		/* nothing */
+#define	POINTER_IS_VALID(_p)	0
 
 typedef umem_cache_t kmem_cache_t;
+
+typedef enum kmem_cbrc {
+	KMEM_CBRC_YES,
+	KMEM_CBRC_NO,
+	KMEM_CBRC_LATER,
+	KMEM_CBRC_DONT_NEED,
+	KMEM_CBRC_DONT_KNOW
+} kmem_cbrc_t;
 
 /*
  * Task queues
@@ -326,19 +384,46 @@ typedef struct taskq taskq_t;
 typedef uintptr_t taskqid_t;
 typedef void (task_func_t)(void *);
 
+typedef struct taskq_ent {
+	struct taskq_ent	*tqent_next;
+	struct taskq_ent	*tqent_prev;
+	task_func_t		*tqent_func;
+	void			*tqent_arg;
+	uintptr_t		tqent_flags;
+} taskq_ent_t;
+
+#define	TQENT_FLAG_PREALLOC	0x1	/* taskq_dispatch_ent used */
+
 #define	TASKQ_PREPOPULATE	0x0001
 #define	TASKQ_CPR_SAFE		0x0002	/* Use CPR safe protocol */
 #define	TASKQ_DYNAMIC		0x0004	/* Use dynamic thread scheduling */
+#define	TASKQ_THREADS_CPU_PCT	0x0008	/* Scale # threads by # cpus */
+#define	TASKQ_DC_BATCH		0x0010	/* Mark threads as batch */
 
 #define	TQ_SLEEP	KM_SLEEP	/* Can block for memory */
 #define	TQ_NOSLEEP	KM_NOSLEEP	/* cannot block for memory; may fail */
-#define	TQ_NOQUEUE	0x02	/* Do not enqueue if can't dispatch */
+#define	TQ_NOQUEUE	0x02		/* Do not enqueue if can't dispatch */
+#define	TQ_FRONT	0x08		/* Queue in front */
+
+
+extern taskq_t *system_taskq;
 
 extern taskq_t	*taskq_create(const char *, int, pri_t, int, int, uint_t);
+#define	taskq_create_proc(a, b, c, d, e, p, f) \
+	    (taskq_create(a, b, c, d, e, f))
+#define	taskq_create_sysdc(a, b, d, e, p, dc, f) \
+	    (taskq_create(a, b, maxclsyspri, d, e, f))
 extern taskqid_t taskq_dispatch(taskq_t *, task_func_t, void *, uint_t);
+extern void	taskq_dispatch_ent(taskq_t *, task_func_t, void *, uint_t,
+    taskq_ent_t *);
 extern void	taskq_destroy(taskq_t *);
 extern void	taskq_wait(taskq_t *);
 extern int	taskq_member(taskq_t *, void *);
+extern void	system_taskq_init(void);
+extern void	system_taskq_fini(void);
+
+#define	taskq_dispatch_safe(tq, func, arg, flags, task)			\
+	taskq_dispatch((tq), (func), (arg), (flags))
 
 #define	XVA_MAPSIZE	3
 #define	XVA_MAGIC	0x78766174
@@ -350,8 +435,11 @@ typedef struct vnode {
 	uint64_t	v_size;
 	int		v_fd;
 	char		*v_path;
+	int		v_dump_fd;
 } vnode_t;
 
+extern char *vn_dumpdir;
+#define	AV_SCANSTAMP_SZ	32		/* length of anti-virus scanstamp */
 
 typedef struct xoptattr {
 	timestruc_t	xoa_createtime;	/* Create time of file */
@@ -367,6 +455,10 @@ typedef struct xoptattr {
 	uint8_t		xoa_opaque;
 	uint8_t		xoa_av_quarantined;
 	uint8_t		xoa_av_modified;
+	uint8_t		xoa_av_scanstamp[AV_SCANSTAMP_SZ];
+	uint8_t		xoa_reparse;
+	uint8_t		xoa_offline;
+	uint8_t		xoa_sparse;
 } xoptattr_t;
 
 typedef struct vattr {
@@ -413,25 +505,19 @@ typedef struct vsecattr {
 
 #define	CRCREAT		0
 
+extern int fop_getattr(vnode_t *vp, vattr_t *vap);
+
 #define	VOP_CLOSE(vp, f, c, o, cr, ct)	0
 #define	VOP_PUTPAGE(vp, of, sz, fl, cr, ct)	0
-#define	VOP_GETATTR(vp, vap, cr)	((vap)->va_size = (vp)->v_size, 0)
+#define	VOP_GETATTR(vp, vap, cr)  fop_getattr((vp), (vap));
 
 #define	VOP_FSYNC(vp, f, cr, ct)	fsync((vp)->v_fd)
 
-#define	VN_RELE(vp)	vn_close(vp, 0, NULL, NULL)
+#define	VN_RELE(vp)			vn_close(vp, 0, NULL, NULL)
 #define	VN_RELE_ASYNC(vp, taskq)	vn_close(vp, 0, NULL, NULL)
 
 #define	vn_lock(vp, type)
 #define	VOP_UNLOCK(vp, type)
-#ifdef VFS_LOCK_GIANT
-#undef VFS_LOCK_GIANT
-#endif
-#define	VFS_LOCK_GIANT(mp)	0
-#ifdef VFS_UNLOCK_GIANT
-#undef VFS_UNLOCK_GIANT
-#endif
-#define	VFS_UNLOCK_GIANT(vfslocked)
 
 extern int vn_open(char *path, int x1, int oflags, int mode, vnode_t **vpp,
     int x2, int x3);
@@ -453,13 +539,21 @@ extern vnode_t *rootdir;
 /*
  * Random stuff
  */
-#define	lbolt	(gethrtime() >> 23)
-#define	lbolt64	(gethrtime() >> 23)
-//#define	hz	119	/* frequency when using gethrtime() >> 23 for lbolt */
+#define	ddi_get_lbolt()		(gethrtime() >> 23)
+#define	ddi_get_lbolt64()	(gethrtime() >> 23)
+#define	hz	119	/* frequency when using gethrtime() >> 23 for lbolt */
 
 extern void delay(clock_t ticks);
 
+#define	SEC_TO_TICK(sec)	((sec) * hz)
+#define	NSEC_TO_TICK(nsec)	((nsec) / (NANOSEC / hz))
+
 #define	gethrestime_sec() time(NULL)
+#define	gethrestime(t) \
+	do {\
+		(t)->tv_sec = gethrestime_sec();\
+		(t)->tv_nsec = 0;\
+	} while (0);
 
 #define	max_ncpus	64
 
@@ -468,13 +562,16 @@ extern void delay(clock_t ticks);
 
 #define	CPU_SEQID	(thr_self() & (max_ncpus - 1))
 
+#define	kcred		NULL
+#define	CRED()		NULL
+
 #ifndef ptob
 #define	ptob(x)		((x) * PAGESIZE)
 #endif
 
 extern uint64_t physmem;
 
-extern int highbit(ulong_t i);
+extern int highbit64(uint64_t i);
 extern int random_get_bytes(uint8_t *ptr, size_t len);
 extern int random_get_pseudo_bytes(uint8_t *ptr, size_t len);
 
@@ -509,13 +606,19 @@ typedef struct callb_cpr {
 #define	zone_dataset_visible(x, y)	(1)
 #define	INGLOBALZONE(z)			(1)
 
+extern char *kmem_asprintf(const char *fmt, ...);
+#define	strfree(str) kmem_free((str), strlen(str) + 1)
+
 /*
  * Hostname information
  */
 extern struct utsname utsname;
-extern char hw_serial[];
+extern char hw_serial[];	/* for userland-emulated hostid access */
 extern int ddi_strtoul(const char *str, char **nptr, int base,
     unsigned long *result);
+
+extern int ddi_strtoull(const char *str, char **nptr, int base,
+    u_longlong_t *result);
 
 /* ZFS Boot Related stuff. */
 
@@ -553,14 +656,6 @@ extern int zfs_secpolicy_rename_perms(const char *from, const char *to,
 extern int zfs_secpolicy_destroy_perms(const char *name, cred_t *cr);
 extern zoneid_t getzoneid(void);
 /* Random compatibility stuff. */
-#define	lbolt	(gethrtime() >> 23)
-#define	lbolt64	(gethrtime() >> 23)
-
-extern int hz;
-extern uint64_t physmem;
-
-#define	gethrestime_sec()	time(NULL)
-
 #define	pwrite64(d, p, n, o)	pwrite(d, p, n, o)
 #define	readdir64(d)		readdir(d)
 #define	SIGPENDING(td)		(0)
@@ -584,14 +679,64 @@ typedef struct ksiddomain {
 ksiddomain_t *ksid_lookupdomain(const char *);
 void ksiddomain_rele(ksiddomain_t *);
 
+typedef	uint32_t	idmap_rid_t;
+
+#define	DDI_SLEEP	KM_SLEEP
+#define	ddi_log_sysevent(_a, _b, _c, _d, _e, _f, _g)	(0)
+
 #define	SX_SYSINIT(name, lock, desc)
+
+#define SYSCTL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1,	\
+	intptr_t arg2, struct sysctl_req *req
+
+/*
+ * This describes the access space for a sysctl request.  This is needed
+ * so that we can use the interface from the kernel or from user-space.
+ */
+struct sysctl_req {
+	struct thread	*td;		/* used for access checking */
+	int		lock;		/* wiring state */
+	void		*oldptr;
+	size_t		oldlen;
+	size_t		oldidx;
+	int		(*oldfunc)(struct sysctl_req *, const void *, size_t);
+	void		*newptr;
+	size_t		newlen;
+	size_t		newidx;
+	int		(*newfunc)(struct sysctl_req *, void *, size_t);
+	size_t		validlen;
+	int		flags;
+};
+
+SLIST_HEAD(sysctl_oid_list, sysctl_oid);
+
+/*
+ * This describes one "oid" in the MIB tree.  Potentially more nodes can
+ * be hidden behind it, expanded by the handler.
+ */
+struct sysctl_oid {
+	struct sysctl_oid_list *oid_parent;
+	SLIST_ENTRY(sysctl_oid) oid_link;
+	int		oid_number;
+	u_int		oid_kind;
+	void		*oid_arg1;
+	intptr_t	oid_arg2;
+	const char	*oid_name;
+	int 		(*oid_handler)(SYSCTL_HANDLER_ARGS);
+	const char	*oid_fmt;
+	int		oid_refcnt;
+	u_int		oid_running;
+	const char	*oid_descr;
+};
 
 #define	SYSCTL_DECL(...)
 #define	SYSCTL_NODE(...)
 #define	SYSCTL_INT(...)
 #define	SYSCTL_UINT(...)
 #define	SYSCTL_ULONG(...)
+#define	SYSCTL_PROC(...)
 #define	SYSCTL_QUAD(...)
+#define	SYSCTL_UQUAD(...)
 #ifdef TUNABLE_INT
 #undef TUNABLE_INT
 #undef TUNABLE_ULONG
@@ -601,10 +746,74 @@ void ksiddomain_rele(ksiddomain_t *);
 #define	TUNABLE_ULONG(...)
 #define	TUNABLE_QUAD(...)
 
+int sysctl_handle_64(SYSCTL_HANDLER_ARGS);
+
 /* Errors */
 
 #ifndef	ERESTART
 #define	ERESTART	(-1)
+#endif
+
+#ifdef illumos
+/*
+ * Cyclic information
+ */
+extern kmutex_t cpu_lock;
+
+typedef uintptr_t cyclic_id_t;
+typedef uint16_t cyc_level_t;
+typedef void (*cyc_func_t)(void *);
+
+#define	CY_LOW_LEVEL	0
+#define	CY_INFINITY	INT64_MAX
+#define	CYCLIC_NONE	((cyclic_id_t)0)
+
+typedef struct cyc_time {
+	hrtime_t cyt_when;
+	hrtime_t cyt_interval;
+} cyc_time_t;
+
+typedef struct cyc_handler {
+	cyc_func_t cyh_func;
+	void *cyh_arg;
+	cyc_level_t cyh_level;
+} cyc_handler_t;
+
+extern cyclic_id_t cyclic_add(cyc_handler_t *, cyc_time_t *);
+extern void cyclic_remove(cyclic_id_t);
+extern int cyclic_reprogram(cyclic_id_t, hrtime_t);
+#endif	/* illumos */
+
+#ifdef illumos
+/*
+ * Buf structure
+ */
+#define	B_BUSY		0x0001
+#define	B_DONE		0x0002
+#define	B_ERROR		0x0004
+#define	B_READ		0x0040	/* read when I/O occurs */
+#define	B_WRITE		0x0100	/* non-read pseudo-flag */
+
+typedef struct buf {
+	int	b_flags;
+	size_t b_bcount;
+	union {
+		caddr_t b_addr;
+	} b_un;
+
+	lldaddr_t	_b_blkno;
+#define	b_lblkno	_b_blkno._f
+	size_t	b_resid;
+	size_t	b_bufsize;
+	int	(*b_iodone)(struct buf *);
+	int	b_error;
+	void	*b_private;
+} buf_t;
+
+extern void bioinit(buf_t *);
+extern void biodone(buf_t *);
+extern void bioerror(buf_t *, int);
+extern int geterror(buf_t *);
 #endif
 
 #ifdef	__cplusplus

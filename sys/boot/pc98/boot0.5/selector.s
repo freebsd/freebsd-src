@@ -35,7 +35,7 @@
 # Display partition table.
 #
 showpartitions:
-	# Clear partion table area
+	# Clear partition table area
 	movw	$16, %cx
 clear_part:
 	push	%cx

@@ -1,11 +1,12 @@
 #	$NetBSD: Makefile,v 1.1 2002/03/01 11:21:58 ad Exp $
 # $FreeBSD$
 
-PROG=	pkill
-WARNS?=	5
+.include <src.opts.mk>
 
-DPADD=	${LIBKVM}
-LDADD=	-lkvm
+PACKAGE=runtime
+PROG=	pkill
+
+LIBADD=	kvm jail
 
 LINKS=	${BINDIR}/pkill ${BINDIR}/pgrep
 MLINKS=	pkill.1 pgrep.1
@@ -17,5 +18,9 @@ MLINKS=	pkill.1 pgrep.1
 #
 SYMLINKS=	${BINDIR}/pkill /usr/bin/pkill
 SYMLINKS+=	${BINDIR}/pgrep /usr/bin/pgrep
+
+.if ${MK_TESTS} != "no"
+SUBDIR+= tests
+.endif
 
 .include <bsd.prog.mk>

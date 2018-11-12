@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_agp.h"
-#include "opt_bus.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -42,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 
 #include <dev/agp/agppriv.h>
 #include <dev/agp/agpvar.h>
@@ -50,12 +50,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/pmap.h>
 
-#include <machine/md_var.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
@@ -84,21 +86,13 @@ static devclass_t agp_devclass;
 
 /* Helper functions for implementing chipset mini drivers. */
 
-void
-agp_flush_cache()
-{
-#if defined(__i386__) || defined(__amd64__)
-	wbinvd();
-#endif
-}
-
 u_int8_t
 agp_find_caps(device_t dev)
 {
 	int capreg;
 
 
-	if (pci_find_extcap(dev, PCIY_AGP, &capreg) != 0)
+	if (pci_find_cap(dev, PCIY_AGP, &capreg) != 0)
 		capreg = 0;
 	return (capreg);
 }
@@ -158,17 +152,16 @@ agp_alloc_gatt(device_t dev)
 		return 0;
 
 	gatt->ag_entries = entries;
-	gatt->ag_virtual = contigmalloc(entries * sizeof(u_int32_t), M_AGP, 0,
-					0, ~0, PAGE_SIZE, 0);
+	gatt->ag_virtual = (void *)kmem_alloc_contig(kernel_arena,
+	    entries * sizeof(u_int32_t), M_NOWAIT | M_ZERO, 0, ~0, PAGE_SIZE,
+	    0, VM_MEMATTR_WRITE_COMBINING);
 	if (!gatt->ag_virtual) {
 		if (bootverbose)
 			device_printf(dev, "contiguous allocation failed\n");
 		free(gatt, M_AGP);
 		return 0;
 	}
-	bzero(gatt->ag_virtual, entries * sizeof(u_int32_t));
 	gatt->ag_physical = vtophys((vm_offset_t) gatt->ag_virtual);
-	agp_flush_cache();
 
 	return gatt;
 }
@@ -176,8 +169,8 @@ agp_alloc_gatt(device_t dev)
 void
 agp_free_gatt(struct agp_gatt *gatt)
 {
-	contigfree(gatt->ag_virtual,
-		   gatt->ag_entries * sizeof(u_int32_t), M_AGP);
+	kmem_free(kernel_arena, (vm_offset_t)gatt->ag_virtual,
+	    gatt->ag_entries * sizeof(u_int32_t));
 	free(gatt, M_AGP);
 }
 
@@ -192,7 +185,7 @@ static u_int agp_max[][2] = {
 	{2048,	1920},
 	{4096,	3932}
 };
-#define agp_max_size	(sizeof(agp_max) / sizeof(agp_max[0]))
+#define	AGP_MAX_SIZE	nitems(agp_max)
 
 /**
  * Sets the PCI resource which represents the AGP aperture.
@@ -219,24 +212,28 @@ agp_generic_attach(device_t dev)
 	 * Find and map the aperture, RF_SHAREABLE for DRM but not RF_ACTIVE
 	 * because the kernel doesn't need to map it.
 	 */
-	if (sc->as_aperture_rid == 0)
-		sc->as_aperture_rid = AGP_APBASE;
 
-	sc->as_aperture = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->as_aperture_rid, RF_SHAREABLE);
-	if (!sc->as_aperture)
-		return ENOMEM;
+	if (sc->as_aperture_rid != -1) {
+		if (sc->as_aperture_rid == 0)
+			sc->as_aperture_rid = AGP_APBASE;
+
+		sc->as_aperture = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &sc->as_aperture_rid, RF_SHAREABLE);
+		if (!sc->as_aperture)
+			return ENOMEM;
+	}
 
 	/*
 	 * Work out an upper bound for agp memory allocation. This
 	 * uses a heurisitc table from the Linux driver.
 	 */
-	memsize = ptoa(Maxmem) >> 20;
-	for (i = 0; i < agp_max_size; i++) {
+	memsize = ptoa(realmem) >> 20;
+	for (i = 0; i < AGP_MAX_SIZE; i++) {
 		if (memsize <= agp_max[i][0])
 			break;
 	}
-	if (i == agp_max_size) i = agp_max_size - 1;
+	if (i == AGP_MAX_SIZE)
+		i = AGP_MAX_SIZE - 1;
 	sc->as_maxmem = agp_max[i][1] << 20U;
 
 	/*
@@ -272,10 +269,10 @@ agp_free_res(device_t dev)
 {
 	struct agp_softc *sc = device_get_softc(dev);
 
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->as_aperture_rid,
-	    sc->as_aperture);
+	if (sc->as_aperture != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->as_aperture_rid,
+		    sc->as_aperture);
 	mtx_destroy(&sc->as_lock);
-	agp_flush_cache();
 }
 
 int
@@ -480,7 +477,7 @@ agp_generic_alloc_memory(device_t dev, int type, vm_size_t size)
 	if ((size & (AGP_PAGE_SIZE - 1)) != 0)
 		return 0;
 
-	if (sc->as_allocated + size > sc->as_maxmem)
+	if (size > sc->as_maxmem - sc->as_allocated)
 		return 0;
 
 	if (type != 0) {
@@ -537,10 +534,10 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 
 	/*
 	 * Allocate the pages early, before acquiring the lock,
-	 * because vm_page_grab() used with VM_ALLOC_RETRY may
-	 * block and we can't hold a mutex while blocking.
+	 * because vm_page_grab() may sleep and we can't hold a mutex
+	 * while sleeping.
 	 */
-	VM_OBJECT_LOCK(mem->am_obj);
+	VM_OBJECT_WLOCK(mem->am_obj);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
 		/*
 		 * Find a page from the object and wire it
@@ -550,17 +547,17 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		 * the pages will be allocated and zeroed.
 		 */
 		m = vm_page_grab(mem->am_obj, OFF_TO_IDX(i),
-		    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+		    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 		AGP_DPF("found page pa=%#jx\n", (uintmax_t)VM_PAGE_TO_PHYS(m));
 	}
-	VM_OBJECT_UNLOCK(mem->am_obj);
+	VM_OBJECT_WUNLOCK(mem->am_obj);
 
 	mtx_lock(&sc->as_lock);
 
 	if (mem->am_is_bound) {
 		device_printf(dev, "memory already bound\n");
 		error = EINVAL;
-		VM_OBJECT_LOCK(mem->am_obj);
+		VM_OBJECT_WLOCK(mem->am_obj);
 		i = 0;
 		goto bad;
 	}
@@ -569,7 +566,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	 * Bind the individual pages and flush the chipset's
 	 * TLB.
 	 */
-	VM_OBJECT_LOCK(mem->am_obj);
+	VM_OBJECT_WLOCK(mem->am_obj);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
 		m = vm_page_lookup(mem->am_obj, OFF_TO_IDX(i));
 
@@ -595,15 +592,9 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 				goto bad;
 			}
 		}
-		vm_page_wakeup(m);
+		vm_page_xunbusy(m);
 	}
-	VM_OBJECT_UNLOCK(mem->am_obj);
-
-	/*
-	 * Flush the cpu cache since we are providing a new mapping
-	 * for these pages.
-	 */
-	agp_flush_cache();
+	VM_OBJECT_WUNLOCK(mem->am_obj);
 
 	/*
 	 * Make sure the chipset gets the new mappings.
@@ -618,16 +609,16 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	return 0;
 bad:
 	mtx_unlock(&sc->as_lock);
-	VM_OBJECT_LOCK_ASSERT(mem->am_obj, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(mem->am_obj);
 	for (k = 0; k < mem->am_size; k += PAGE_SIZE) {
 		m = vm_page_lookup(mem->am_obj, OFF_TO_IDX(k));
 		if (k >= i)
-			vm_page_wakeup(m);
-		vm_page_lock_queues();
-		vm_page_unwire(m, 0);
-		vm_page_unlock_queues();
+			vm_page_xunbusy(m);
+		vm_page_lock(m);
+		vm_page_unwire(m, PQ_INACTIVE);
+		vm_page_unlock(m);
 	}
-	VM_OBJECT_UNLOCK(mem->am_obj);
+	VM_OBJECT_WUNLOCK(mem->am_obj);
 
 	return error;
 }
@@ -654,17 +645,17 @@ agp_generic_unbind_memory(device_t dev, struct agp_memory *mem)
 	 */
 	for (i = 0; i < mem->am_size; i += AGP_PAGE_SIZE)
 		AGP_UNBIND_PAGE(dev, mem->am_offset + i);
-	VM_OBJECT_LOCK(mem->am_obj);
+
+	AGP_FLUSH_TLB(dev);
+
+	VM_OBJECT_WLOCK(mem->am_obj);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
 		m = vm_page_lookup(mem->am_obj, atop(i));
-		vm_page_lock_queues();
-		vm_page_unwire(m, 0);
-		vm_page_unlock_queues();
+		vm_page_lock(m);
+		vm_page_unwire(m, PQ_INACTIVE);
+		vm_page_unlock(m);
 	}
-	VM_OBJECT_UNLOCK(mem->am_obj);
-		
-	agp_flush_cache();
-	AGP_FLUSH_TLB(dev);
+	VM_OBJECT_WUNLOCK(mem->am_obj);
 
 	mem->am_offset = 0;
 	mem->am_is_bound = 0;
@@ -729,7 +720,10 @@ agp_info_user(device_t dev, agp_info *info)
 	info->bridge_id = pci_get_devid(dev);
 	info->agp_mode = 
 	    pci_read_config(dev, agp_find_caps(dev) + AGP_STATUS, 4);
-	info->aper_base = rman_get_start(sc->as_aperture);
+	if (sc->as_aperture)
+		info->aper_base = rman_get_start(sc->as_aperture);
+	else
+		info->aper_base = 0;
 	info->aper_size = AGP_GET_APERTURE(dev) >> 20;
 	info->pg_total = info->pg_system = sc->as_maxmem >> AGP_PAGE_SHIFT;
 	info->pg_used = sc->as_allocated >> AGP_PAGE_SHIFT;
@@ -763,7 +757,7 @@ agp_allocate_user(device_t dev, agp_allocate *alloc)
 static int
 agp_deallocate_user(device_t dev, int id)
 {
-	struct agp_memory *mem = agp_find_memory(dev, id);;
+	struct agp_memory *mem = agp_find_memory(dev, id);
 
 	if (mem) {
 		AGP_FREE_MEMORY(dev, mem);
@@ -793,6 +787,13 @@ agp_unbind_user(device_t dev, agp_unbind *unbind)
 		return ENOENT;
 
 	return AGP_UNBIND_MEMORY(dev, mem);
+}
+
+static int
+agp_chipset_flush(device_t dev)
+{
+
+	return (AGP_CHIPSET_FLUSH(dev));
 }
 
 static int
@@ -862,18 +863,23 @@ agp_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int fflag, struct thread 
 	case AGPIOC_UNBIND:
 		return agp_unbind_user(dev, (agp_unbind *)data);
 
+	case AGPIOC_CHIPSET_FLUSH:
+		return agp_chipset_flush(dev);
 	}
 
 	return EINVAL;
 }
 
 static int
-agp_mmap(struct cdev *kdev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+agp_mmap(struct cdev *kdev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 	device_t dev = kdev->si_drv1;
 	struct agp_softc *sc = device_get_softc(dev);
 
 	if (offset > AGP_GET_APERTURE(dev))
+		return -1;
+	if (sc->as_aperture == NULL)
 		return -1;
 	*paddr = rman_get_start(sc->as_aperture) + offset;
 	return 0;
@@ -916,8 +922,11 @@ agp_get_info(device_t dev, struct agp_info *info)
 
 	info->ai_mode =
 		pci_read_config(dev, agp_find_caps(dev) + AGP_STATUS, 4);
-	info->ai_aperture_base = rman_get_start(sc->as_aperture);
-	info->ai_aperture_size = rman_get_size(sc->as_aperture);
+	if (sc->as_aperture != NULL)
+		info->ai_aperture_base = rman_get_start(sc->as_aperture);
+	else
+		info->ai_aperture_base = 0;
+	info->ai_aperture_size = AGP_GET_APERTURE(dev);
 	info->ai_memory_allowed = sc->as_maxmem;
 	info->ai_memory_used = sc->as_allocated;
 }
@@ -972,4 +981,77 @@ void agp_memory_info(device_t dev, void *handle, struct
 	mi->ami_physical = mem->am_physical;
 	mi->ami_offset = mem->am_offset;
 	mi->ami_is_bound = mem->am_is_bound;
+}
+
+int
+agp_bind_pages(device_t dev, vm_page_t *pages, vm_size_t size,
+    vm_offset_t offset)
+{
+	struct agp_softc *sc;
+	vm_offset_t i, j, k, pa;
+	vm_page_t m;
+	int error;
+
+	if ((size & (AGP_PAGE_SIZE - 1)) != 0 ||
+	    (offset & (AGP_PAGE_SIZE - 1)) != 0)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->as_lock);
+	for (i = 0; i < size; i += PAGE_SIZE) {
+		m = pages[OFF_TO_IDX(i)];
+		KASSERT(m->wire_count > 0,
+		    ("agp_bind_pages: page %p hasn't been wired", m));
+
+		/*
+		 * Install entries in the GATT, making sure that if
+		 * AGP_PAGE_SIZE < PAGE_SIZE and size is not
+		 * aligned to PAGE_SIZE, we don't modify too many GATT 
+		 * entries.
+		 */
+		for (j = 0; j < PAGE_SIZE && i + j < size; j += AGP_PAGE_SIZE) {
+			pa = VM_PAGE_TO_PHYS(m) + j;
+			AGP_DPF("binding offset %#jx to pa %#jx\n",
+				(uintmax_t)offset + i + j, (uintmax_t)pa);
+			error = AGP_BIND_PAGE(dev, offset + i + j, pa);
+			if (error) {
+				/*
+				 * Bail out. Reverse all the mappings.
+				 */
+				for (k = 0; k < i + j; k += AGP_PAGE_SIZE)
+					AGP_UNBIND_PAGE(dev, offset + k);
+
+				mtx_unlock(&sc->as_lock);
+				return (error);
+			}
+		}
+	}
+
+	AGP_FLUSH_TLB(dev);
+
+	mtx_unlock(&sc->as_lock);
+	return (0);
+}
+
+int
+agp_unbind_pages(device_t dev, vm_size_t size, vm_offset_t offset)
+{
+	struct agp_softc *sc;
+	vm_offset_t i;
+
+	if ((size & (AGP_PAGE_SIZE - 1)) != 0 ||
+	    (offset & (AGP_PAGE_SIZE - 1)) != 0)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->as_lock);
+	for (i = 0; i < size; i += AGP_PAGE_SIZE)
+		AGP_UNBIND_PAGE(dev, offset + i);
+
+	AGP_FLUSH_TLB(dev);
+
+	mtx_unlock(&sc->as_lock);
+	return (0);
 }

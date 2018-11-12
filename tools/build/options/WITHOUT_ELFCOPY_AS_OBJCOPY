@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to build and install
+.Xr objcopy 1
+from GNU Binutils, instead of the one from ELF Tool Chain.
+This option is provided as a transition aid and will be removed in due time.

@@ -46,11 +46,11 @@ __FBSDID("$FreeBSD$");
 
 /*
  * rpcinfo: ping a particular rpc program
- * 	or dump the the registered programs on the remote machine.
+ * 	or dump the registered programs on the remote machine.
  */
 
 /*
- * We are for now defining PORTMAP here.  It doesnt even compile
+ * We are for now defining PORTMAP here.  It doesn't even compile
  * unless it is defined.
  */
 #ifndef	PORTMAP
@@ -128,9 +128,9 @@ struct rpcbdump_short {
 
 
 #ifdef PORTMAP
-static void	ip_ping(u_short, char *, int, char **);
+static void	ip_ping(u_short, const char *, int, char **);
 static CLIENT	*clnt_com_create(struct sockaddr_in *, u_long, u_long, int *,
-				 char *);
+				 const char *);
 static void	pmapdump(int, char **);
 static void	get_inet_address(struct sockaddr_in *, char *);
 #endif
@@ -336,7 +336,7 @@ local_rpcb(u_long prog, u_long vers)
 #ifdef PORTMAP
 static CLIENT *
 clnt_com_create(struct sockaddr_in *addr, u_long prog, u_long vers,
-    int *fdp, char *trans)
+    int *fdp, const char *trans)
 {
 	CLIENT *clnt;
 
@@ -369,7 +369,7 @@ clnt_com_create(struct sockaddr_in *addr, u_long prog, u_long vers,
  * version 0 calls succeeds, it tries for MAXVERS call and repeats the same.
  */
 static void
-ip_ping(u_short portnum, char *trans, int argc, char **argv)
+ip_ping(u_short portnum, const char *trans, int argc, char **argv)
 {
 	CLIENT *client;
 	int fd = RPC_ANYFD;
@@ -476,7 +476,7 @@ pmapdump(int argc, char **argv)
 	struct rpcent *rpc;
 	enum clnt_stat clnt_st;
 	struct rpc_err err;
-	char *host;
+	char *host = NULL;
 
 	if (argc > 1)
 		usage();
@@ -513,10 +513,16 @@ pmapdump(int argc, char **argv)
 		if ((clnt_st == RPC_PROGVERSMISMATCH) ||
 		    (clnt_st == RPC_PROGUNAVAIL)) {
 			CLNT_GETERR(client, &err);
-			if (err.re_vers.low > PMAPVERS)
-				warnx(
-		"%s does not support portmapper.  Try rpcinfo %s instead",
-					host, host);
+			if (err.re_vers.low > PMAPVERS) {
+				if (host)
+					warnx("%s does not support portmapper."
+					    "Try rpcinfo %s instead", host,
+					    host);
+				else
+					warnx("local host does not support "
+					    "portmapper.  Try 'rpcinfo' "
+					    "instead");
+			}
 			exit(1);
 		}
 		clnt_perror(client, "rpcinfo: can't contact portmapper");
@@ -557,7 +563,8 @@ get_inet_address(struct sockaddr_in *addr, char *host)
 
 	(void) memset((char *)addr, 0, sizeof (*addr));
 	addr->sin_addr.s_addr = inet_addr(host);
-	if (addr->sin_addr.s_addr == -1 || addr->sin_addr.s_addr == 0) {
+	if (addr->sin_addr.s_addr == INADDR_NONE ||
+	    addr->sin_addr.s_addr == INADDR_ANY) {
 		if ((nconf = __rpc_getconfip("udp")) == NULL &&
 		    (nconf = __rpc_getconfip("tcp")) == NULL)
 			errx(1, "couldn't find a suitable transport");
@@ -594,7 +601,7 @@ reply_proc(void *res, struct netbuf *who, struct netconfig *nconf)
 {
 	char *uaddr;
 	char hostbuf[NI_MAXHOST];
-	char *hostname;
+	const char *hostname;
 	struct sockaddr *sa = (struct sockaddr *)who->buf;
 
 	if (getnameinfo(sa, sa->sa_len, hostbuf, NI_MAXHOST, NULL, 0, 0)) {
@@ -602,12 +609,13 @@ reply_proc(void *res, struct netbuf *who, struct netconfig *nconf)
 	} else {
 		hostname = hostbuf;
 	}
-	if (!(uaddr = taddr2uaddr(nconf, who))) {
-		uaddr = UNKNOWN;
-	}
-	printf("%s\t%s\n", uaddr, hostname);
-	if (strcmp(uaddr, UNKNOWN))
+	uaddr = taddr2uaddr(nconf, who);
+	if (uaddr == NULL) {
+		printf("%s\t%s\n", UNKNOWN, hostname);
+	} else {
+		printf("%s\t%s\n", uaddr, hostname);
 		free((char *)uaddr);
+	}
 	return (FALSE);
 }
 
@@ -987,15 +995,15 @@ rpcbgetstat(int argc, char **argv)
 #define	MAXLINE		256
 	char linebuf[MAXLINE];
 	char *cp, *lp;
-	char *pmaphdr[] = {
+	const char *pmaphdr[] = {
 		"NULL", "SET", "UNSET", "GETPORT",
 		"DUMP", "CALLIT"
 	};
-	char *rpcb3hdr[] = {
+	const char *rpcb3hdr[] = {
 		"NULL", "SET", "UNSET", "GETADDR", "DUMP", "CALLIT", "TIME",
 		"U2T", "T2U"
 	};
-	char *rpcb4hdr[] = {
+	const char *rpcb4hdr[] = {
 		"NULL", "SET", "UNSET", "GETADDR", "DUMP", "CALLIT", "TIME",
 		"U2T",  "T2U", "VERADDR", "INDRECT", "GETLIST", "GETSTAT"
 	};
@@ -1455,7 +1463,7 @@ progping(char *netid, int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: rpcinfo [-m | -s] [host]\n");
 #ifdef PORTMAP
@@ -1536,7 +1544,7 @@ pstatus(register CLIENT *client, u_long prog, u_long vers)
 static CLIENT *
 clnt_rpcbind_create(char *host, int rpcbversnum, struct netbuf **targaddr)
 {
-	static char *tlist[3] = {
+	static const char *tlist[3] = {
 		"circuit_n", "circuit_v", "datagram_v"
 	};
 	int i;

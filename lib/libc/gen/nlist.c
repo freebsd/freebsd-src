@@ -47,7 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
+/* i386 is the only current FreeBSD architecture that used a.out format. */
+#ifdef __i386__
 #define _NLIST_DO_AOUT
+#endif
 #define _NLIST_DO_ELF
 
 #ifdef _NLIST_DO_ELF
@@ -58,15 +61,14 @@ __FBSDID("$FreeBSD$");
 int __fdnlist(int, struct nlist *);
 int __aout_fdnlist(int, struct nlist *);
 int __elf_fdnlist(int, struct nlist *);
+int __elf_is_okay__(Elf_Ehdr *);
 
 int
-nlist(name, list)
-	const char *name;
-	struct nlist *list;
+nlist(const char *name, struct nlist *list)
 {
 	int fd, n;
 
-	fd = _open(name, O_RDONLY, 0);
+	fd = _open(name, O_RDONLY | O_CLOEXEC, 0);
 	if (fd < 0)
 		return (-1);
 	n = __fdnlist(fd, list);
@@ -86,13 +88,12 @@ static struct nlist_handlers {
 };
 
 int
-__fdnlist(fd, list)
-	int fd;
-	struct nlist *list;
+__fdnlist(int fd, struct nlist *list)
 {
-	int n = -1, i;
+	int n = -1;
+	unsigned int i;
 
-	for (i = 0; i < sizeof(nlist_fn) / sizeof(nlist_fn[0]); i++) {
+	for (i = 0; i < nitems(nlist_fn); i++) {
 		n = (nlist_fn[i].fn)(fd, list);
 		if (n != -1)
 			break;
@@ -104,9 +105,7 @@ __fdnlist(fd, list)
 
 #ifdef _NLIST_DO_AOUT
 int
-__aout_fdnlist(fd, list)
-	int fd;
-	struct nlist *list;
+__aout_fdnlist(int fd, struct nlist *list)
 {
 	struct nlist *p, *symtab;
 	caddr_t strtab, a_out_mmap;
@@ -209,8 +208,7 @@ static void elf_sym_to_nlist(struct nlist *, Elf_Sym *, Elf_Shdr *, int);
  * as such its use should be restricted.
  */
 int
-__elf_is_okay__(ehdr)
-	Elf_Ehdr *ehdr;
+__elf_is_okay__(Elf_Ehdr *ehdr)
 {
 	int retval = 0;
 	/*
@@ -233,9 +231,7 @@ __elf_is_okay__(ehdr)
 }
 
 int
-__elf_fdnlist(fd, list)
-	int fd;
-	struct nlist *list;
+__elf_fdnlist(int fd, struct nlist *list)
 {
 	struct nlist *p;
 	Elf_Off symoff = 0, symstroff = 0;
@@ -269,7 +265,7 @@ __elf_fdnlist(fd, list)
 	}
 
 	/* mmap section header table */
-	base = mmap(NULL, (size_t)shdr_size, PROT_READ, 0, fd,
+	base = mmap(NULL, (size_t)shdr_size, PROT_READ, MAP_PRIVATE, fd,
 	    (off_t)ehdr.e_shoff);
 	if (base == MAP_FAILED)
 		return (-1);
@@ -302,7 +298,7 @@ __elf_fdnlist(fd, list)
 	 * making the memory allocation permanent as with malloc/free
 	 * (i.e., munmap will return it to the system).
 	 */
-	base = mmap(NULL, (size_t)symstrsize, PROT_READ, 0, fd,
+	base = mmap(NULL, (size_t)symstrsize, PROT_READ, MAP_PRIVATE, fd,
 	    (off_t)symstroff);
 	if (base == MAP_FAILED)
 		goto done;
@@ -375,11 +371,7 @@ __elf_fdnlist(fd, list)
  * n_value and n_type members.
  */
 static void
-elf_sym_to_nlist(nl, s, shdr, shnum)
-	struct nlist *nl;
-	Elf_Sym *s;
-	Elf_Shdr *shdr;
-	int shnum;
+elf_sym_to_nlist(struct nlist *nl, Elf_Sym *s, Elf_Shdr *shdr, int shnum)
 {
 	nl->n_value = s->st_value;
 

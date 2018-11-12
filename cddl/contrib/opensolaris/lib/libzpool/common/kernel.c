@@ -19,11 +19,10 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <assert.h>
 #include <fcntl.h>
@@ -32,25 +31,39 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
+#include <libgen.h>
 #include <sys/spa.h>
 #include <sys/stat.h>
 #include <sys/processor.h>
 #include <sys/zfs_context.h>
+#include <sys/rrwlock.h>
 #include <sys/zmod.h>
 #include <sys/utsname.h>
+#include <sys/systeminfo.h>
 
 /*
  * Emulation of kernel services in userland.
  */
 
-int hz = 119;	/* frequency when using gethrtime() >> 23 for lbolt */
+#ifndef __FreeBSD__
+int aok;
+#endif
 uint64_t physmem;
 vnode_t *rootdir = (vnode_t *)0xabcd1234;
-char hw_serial[11];
+char hw_serial[HW_HOSTID_LEN];
+#ifdef illumos
+kmutex_t cpu_lock;
+#endif
+
+/* If set, all blocks read will be copied to the specified directory. */
+char *vn_dumpdir = NULL;
 
 struct utsname utsname = {
 	"userland", "libzpool", "1", "1", "na"
 };
+
+/* this only exists to have its address taken */
+struct proc p0;
 
 /*
  * =========================================================================
@@ -139,7 +152,7 @@ mutex_tryenter(kmutex_t *mp)
 {
 	ASSERT(mp->initialized == B_TRUE);
 	ASSERT(mp->m_owner != (void *)-1UL);
-	if (mutex_trylock(&mp->m_lock) == 0) {
+	if (0 == mutex_trylock(&mp->m_lock)) {
 		ASSERT(mp->m_owner == NULL);
 		mp->m_owner = curthread;
 		return (1);
@@ -152,7 +165,7 @@ void
 mutex_exit(kmutex_t *mp)
 {
 	ASSERT(mp->initialized == B_TRUE);
-	ASSERT(mp->m_owner == curthread);
+	ASSERT(mutex_owner(mp) == curthread);
 	mp->m_owner = NULL;
 	VERIFY(mutex_unlock(&mp->m_lock) == 0);
 }
@@ -176,11 +189,13 @@ rw_init(krwlock_t *rwlp, char *name, int type, void *arg)
 	rwlock_init(&rwlp->rw_lock, USYNC_THREAD, NULL);
 	rwlp->rw_owner = NULL;
 	rwlp->initialized = B_TRUE;
+	rwlp->rw_count = 0;
 }
 
 void
 rw_destroy(krwlock_t *rwlp)
 {
+	ASSERT(rwlp->rw_count == 0);
 	rwlock_destroy(&rwlp->rw_lock);
 	rwlp->rw_owner = (void *)-1UL;
 	rwlp->initialized = B_FALSE;
@@ -308,9 +323,9 @@ cv_timedwait(kcondvar_t *cv, kmutex_t *mp, clock_t abstime)
 	struct timeval tv;
 	clock_t delta;
 
-	ASSERT(abstime > 0);
+	abstime += ddi_get_lbolt();
 top:
-	delta = abstime;
+	delta = abstime - ddi_get_lbolt();
 	if (delta <= 0)
 		return (-1);
 
@@ -321,7 +336,7 @@ top:
 	ts.tv_nsec = tv.tv_usec * 1000 + (delta % hz) * (NANOSEC / hz);
 	ASSERT(ts.tv_nsec >= 0);
 
-	if(ts.tv_nsec >= NANOSEC) {
+	if (ts.tv_nsec >= NANOSEC) {
 		ts.tv_sec++;
 		ts.tv_nsec -= NANOSEC;
 	}
@@ -336,6 +351,44 @@ top:
 
 	if (error == ETIMEDOUT)
 		return (-1);
+
+	ASSERT(error == 0);
+
+	return (1);
+}
+
+/*ARGSUSED*/
+clock_t
+cv_timedwait_hires(kcondvar_t *cv, kmutex_t *mp, hrtime_t tim, hrtime_t res,
+    int flag)
+{
+	int error;
+	timestruc_t ts;
+	hrtime_t delta;
+
+	ASSERT(flag == 0 || flag == CALLOUT_FLAG_ABSOLUTE);
+
+top:
+	delta = tim;
+	if (flag & CALLOUT_FLAG_ABSOLUTE)
+		delta -= gethrtime();
+
+	if (delta <= 0)
+		return (-1);
+
+	ts.tv_sec = delta / NANOSEC;
+	ts.tv_nsec = delta % NANOSEC;
+
+	ASSERT(mutex_owner(mp) == curthread);
+	mp->m_owner = NULL;
+	error = pthread_cond_timedwait(cv, &mp->m_lock, &ts);
+	mp->m_owner = curthread;
+
+	if (error == ETIMEDOUT)
+		return (-1);
+
+	if (error == EINTR)
+		goto top;
 
 	ASSERT(error == 0);
 
@@ -371,6 +424,7 @@ int
 vn_open(char *path, int x1, int flags, int mode, vnode_t **vpp, int x2, int x3)
 {
 	int fd;
+	int dump_fd;
 	vnode_t *vp;
 	int old_umask;
 	char realpath[MAXPATHLEN];
@@ -419,6 +473,17 @@ vn_open(char *path, int x1, int flags, int mode, vnode_t **vpp, int x2, int x3)
 	if (flags & FCREAT)
 		(void) umask(old_umask);
 
+	if (vn_dumpdir != NULL) {
+		char dumppath[MAXPATHLEN];
+		(void) snprintf(dumppath, sizeof (dumppath),
+		    "%s/%s", vn_dumpdir, basename(realpath));
+		dump_fd = open64(dumppath, O_CREAT | O_WRONLY, 0666);
+		if (dump_fd == -1)
+			return (errno);
+	} else {
+		dump_fd = -1;
+	}
+
 	if (fd == -1)
 		return (errno);
 
@@ -432,11 +497,9 @@ vn_open(char *path, int x1, int flags, int mode, vnode_t **vpp, int x2, int x3)
 	*vpp = vp = umem_zalloc(sizeof (vnode_t), UMEM_NOFAIL);
 
 	vp->v_fd = fd;
-	if (S_ISCHR(st.st_mode))
-		ioctl(fd, DIOCGMEDIASIZE, &vp->v_size);
-	else
-		vp->v_size = st.st_size;
+	vp->v_size = st.st_size;
 	vp->v_path = spa_strdup(path);
+	vp->v_dump_fd = dump_fd;
 
 	return (0);
 }
@@ -463,18 +526,25 @@ vn_openat(char *path, int x1, int flags, int mode, vnode_t **vpp, int x2,
 /*ARGSUSED*/
 int
 vn_rdwr(int uio, vnode_t *vp, void *addr, ssize_t len, offset_t offset,
-	int x1, int x2, rlim64_t x3, void *x4, ssize_t *residp)
+    int x1, int x2, rlim64_t x3, void *x4, ssize_t *residp)
 {
 	ssize_t iolen, split;
 
 	if (uio == UIO_READ) {
 		iolen = pread64(vp->v_fd, addr, len, offset);
+		if (vp->v_dump_fd != -1) {
+			int status =
+			    pwrite64(vp->v_dump_fd, addr, iolen, offset);
+			ASSERT(status != -1);
+		}
 	} else {
 		/*
 		 * To simulate partial disk writes, we split writes into two
 		 * system calls so that the process can be killed in between.
 		 */
-		split = (len > 0 ? rand() % len : 0);
+		int sectors = len >> SPA_MINBLOCKSHIFT;
+		split = (sectors > 0 ? rand() % sectors : 0) <<
+		    SPA_MINBLOCKSHIFT;
 		iolen = pwrite64(vp->v_fd, addr, split, offset);
 		iolen += pwrite64(vp->v_fd, (char *)addr + split,
 		    len - split, offset + split);
@@ -493,8 +563,28 @@ void
 vn_close(vnode_t *vp, int openflag, cred_t *cr, kthread_t *td)
 {
 	close(vp->v_fd);
+	if (vp->v_dump_fd != -1)
+		close(vp->v_dump_fd);
 	spa_strfree(vp->v_path);
 	umem_free(vp, sizeof (vnode_t));
+}
+
+/*
+ * At a minimum we need to update the size since vdev_reopen()
+ * will no longer call vn_openat().
+ */
+int
+fop_getattr(vnode_t *vp, vattr_t *vap)
+{
+	struct stat64 st;
+
+	if (fstat64(vp->v_fd, &st) == -1) {
+		close(vp->v_fd);
+		return (errno);
+	}
+
+	vap->va_size = st.st_size;
+	return (0);
 }
 
 #ifdef ZFS_DEBUG
@@ -565,6 +655,15 @@ dprintf_setup(int *argc, char **argv)
 	 */
 	if (dprintf_find_string("on"))
 		dprintf_print_all = 1;
+
+	if (dprintf_string != NULL)
+		zfs_flags |= ZFS_DEBUG_DPRINTF;
+}
+
+int
+sysctl_handle_64(SYSCTL_HANDLER_ARGS)
+{
+	return (0);
 }
 
 /*
@@ -596,7 +695,7 @@ __dprintf(const char *file, const char *func, int line, const char *fmt, ...)
 		if (dprintf_find_string("pid"))
 			(void) printf("%d ", getpid());
 		if (dprintf_find_string("tid"))
-			(void) printf("%u ", thr_self());
+			(void) printf("%lu ", thr_self());
 #if 0
 		if (dprintf_find_string("cpu"))
 			(void) printf("%u ", getcpuid());
@@ -735,20 +834,17 @@ delay(clock_t ticks)
 /*
  * Find highest one bit set.
  *	Returns bit number + 1 of highest bit that is set, otherwise returns 0.
- * High order bit is 31 (or 63 in _LP64 kernel).
  */
 int
-highbit(ulong_t i)
+highbit64(uint64_t i)
 {
-	register int h = 1;
+	int h = 1;
 
 	if (i == 0)
 		return (0);
-#ifdef _LP64
-	if (i & 0xffffffff00000000ul) {
+	if (i & 0xffffffff00000000ULL) {
 		h += 32; i >>= 32;
 	}
-#endif
 	if (i & 0xffff0000) {
 		h += 16; i >>= 16;
 	}
@@ -811,6 +907,39 @@ ddi_strtoul(const char *hw_serial, char **nptr, int base, unsigned long *result)
 	return (0);
 }
 
+int
+ddi_strtoull(const char *str, char **nptr, int base, u_longlong_t *result)
+{
+	char *end;
+
+	*result = strtoull(str, &end, base);
+	if (*result == 0)
+		return (errno);
+	return (0);
+}
+
+#ifdef illumos
+/* ARGSUSED */
+cyclic_id_t
+cyclic_add(cyc_handler_t *hdlr, cyc_time_t *when)
+{
+	return (1);
+}
+
+/* ARGSUSED */
+void
+cyclic_remove(cyclic_id_t id)
+{
+}
+
+/* ARGSUSED */
+int
+cyclic_reprogram(cyclic_id_t id, hrtime_t expiration)
+{
+	return (1);
+}
+#endif
+
 /*
  * =========================================================================
  * kernel emulation setup & teardown
@@ -829,6 +958,8 @@ umem_out_of_memory(void)
 void
 kernel_init(int mode)
 {
+	extern uint_t rrw_tsd_key;
+
 	umem_nofail_callback(umem_out_of_memory);
 
 	physmem = sysconf(_SC_PHYS_PAGES);
@@ -836,19 +967,29 @@ kernel_init(int mode)
 	dprintf("physmem = %llu pages (%.2f GB)\n", physmem,
 	    (double)physmem * sysconf(_SC_PAGE_SIZE) / (1ULL << 30));
 
-	snprintf(hw_serial, sizeof (hw_serial), "%lu",
-	    (unsigned long)gethostid());
+	(void) snprintf(hw_serial, sizeof (hw_serial), "%lu",
+	    (mode & FWRITE) ? (unsigned long)gethostid() : 0);
 
 	VERIFY((random_fd = open("/dev/random", O_RDONLY)) != -1);
 	VERIFY((urandom_fd = open("/dev/urandom", O_RDONLY)) != -1);
 
+	system_taskq_init();
+
+#ifdef illumos
+	mutex_init(&cpu_lock, NULL, MUTEX_DEFAULT, NULL);
+#endif
+
 	spa_init(mode);
+
+	tsd_create(&rrw_tsd_key, rrw_tsd_destroy);
 }
 
 void
 kernel_fini(void)
 {
 	spa_fini();
+
+	system_taskq_fini();
 
 	close(random_fd);
 	close(urandom_fd);
@@ -884,6 +1025,12 @@ z_compress_level(void *dst, size_t *dstlen, const void *src, size_t srclen,
 
 uid_t
 crgetuid(cred_t *cr)
+{
+	return (0);
+}
+
+uid_t
+crgetruid(cred_t *cr)
 {
 	return (0);
 }
@@ -940,3 +1087,119 @@ ksiddomain_rele(ksiddomain_t *ksid)
 	spa_strfree(ksid->kd_name);
 	umem_free(ksid, sizeof (ksiddomain_t));
 }
+
+/*
+ * Do not change the length of the returned string; it must be freed
+ * with strfree().
+ */
+char *
+kmem_asprintf(const char *fmt, ...)
+{
+	int size;
+	va_list adx;
+	char *buf;
+
+	va_start(adx, fmt);
+	size = vsnprintf(NULL, 0, fmt, adx) + 1;
+	va_end(adx);
+
+	buf = kmem_alloc(size, KM_SLEEP);
+
+	va_start(adx, fmt);
+	size = vsnprintf(buf, size, fmt, adx);
+	va_end(adx);
+
+	return (buf);
+}
+
+/* ARGSUSED */
+int
+zfs_onexit_fd_hold(int fd, minor_t *minorp)
+{
+	*minorp = 0;
+	return (0);
+}
+
+/* ARGSUSED */
+void
+zfs_onexit_fd_rele(int fd)
+{
+}
+
+/* ARGSUSED */
+int
+zfs_onexit_add_cb(minor_t minor, void (*func)(void *), void *data,
+    uint64_t *action_handle)
+{
+	return (0);
+}
+
+/* ARGSUSED */
+int
+zfs_onexit_del_cb(minor_t minor, uint64_t action_handle, boolean_t fire)
+{
+	return (0);
+}
+
+/* ARGSUSED */
+int
+zfs_onexit_cb_data(minor_t minor, uint64_t action_handle, void **data)
+{
+	return (0);
+}
+
+#ifdef __FreeBSD__
+/* ARGSUSED */
+int
+zvol_create_minors(const char *name)
+{
+	return (0);
+}
+#endif
+
+#ifdef illumos
+void
+bioinit(buf_t *bp)
+{
+	bzero(bp, sizeof (buf_t));
+}
+
+void
+biodone(buf_t *bp)
+{
+	if (bp->b_iodone != NULL) {
+		(*(bp->b_iodone))(bp);
+		return;
+	}
+	ASSERT((bp->b_flags & B_DONE) == 0);
+	bp->b_flags |= B_DONE;
+}
+
+void
+bioerror(buf_t *bp, int error)
+{
+	ASSERT(bp != NULL);
+	ASSERT(error >= 0);
+
+	if (error != 0) {
+		bp->b_flags |= B_ERROR;
+	} else {
+		bp->b_flags &= ~B_ERROR;
+	}
+	bp->b_error = error;
+}
+
+
+int
+geterror(struct buf *bp)
+{
+	int error = 0;
+
+	if (bp->b_flags & B_ERROR) {
+		error = bp->b_error;
+		if (!error)
+			error = EIO;
+	}
+	return (error);
+}
+#endif

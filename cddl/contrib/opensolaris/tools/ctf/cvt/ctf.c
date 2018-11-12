@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * Create and parse buffers containing CTF data.
@@ -49,10 +47,12 @@
  *
  * The value is only valid during a call to ctf_load.
  */
-char *curfile;
+static char *curfile;
 
 #define	CTF_BUF_CHUNK_SIZE	(64 * 1024)
 #define	RES_BUF_CHUNK_SIZE	(64 * 1024)
+
+static int ntypes = 0;		/* The number of types. */
 
 struct ctf_buf {
 	strtab_t ctb_strtab;	/* string table */
@@ -63,6 +63,18 @@ struct ctf_buf {
 	int nptent;		/* number of processed types */
 	int ntholes;		/* number of type holes */
 };
+
+/*
+ * Macros to reverse byte order
+ */
+#define	BSWAP_8(x)	((x) & 0xff)
+#define	BSWAP_16(x)	((BSWAP_8(x) << 8) | BSWAP_8((x) >> 8))
+#define	BSWAP_32(x)	((BSWAP_16(x) << 16) | BSWAP_16((x) >> 16))
+
+#define	SWAP_16(x)	(x) = BSWAP_16(x)
+#define	SWAP_32(x)	(x) = BSWAP_32(x)
+
+static int target_requires_swap;
 
 /*PRINTFLIKE1*/
 static void
@@ -142,6 +154,11 @@ write_label(void *arg1, void *arg2)
 	ctl.ctl_label = strtab_insert(&b->ctb_strtab, le->le_name);
 	ctl.ctl_typeidx = le->le_idx;
 
+	if (target_requires_swap) {
+		SWAP_32(ctl.ctl_label);
+		SWAP_32(ctl.ctl_typeidx);
+	}
+
 	ctf_buf_write(b, &ctl, sizeof (ctl));
 
 	return (1);
@@ -151,6 +168,10 @@ static void
 write_objects(iidesc_t *idp, ctf_buf_t *b)
 {
 	ushort_t id = (idp ? idp->ii_dtype->t_id : 0);
+
+	if (target_requires_swap) {
+		SWAP_16(id);
+	}
 
 	ctf_buf_write(b, &id, sizeof (id));
 
@@ -174,12 +195,29 @@ write_functions(iidesc_t *idp, ctf_buf_t *b)
 	}
 
 	nargs = idp->ii_nargs + (idp->ii_vargs != 0);
+
+	if (nargs > CTF_MAX_VLEN) {
+		terminate("function %s has too many args: %d > %d\n",
+		    idp->ii_name, nargs, CTF_MAX_VLEN);
+	}
+
 	fdata[0] = CTF_TYPE_INFO(CTF_K_FUNCTION, 1, nargs);
 	fdata[1] = idp->ii_dtype->t_id;
+
+	if (target_requires_swap) {
+		SWAP_16(fdata[0]);
+		SWAP_16(fdata[1]);
+	}
+
 	ctf_buf_write(b, fdata, sizeof (fdata));
 
 	for (i = 0; i < idp->ii_nargs; i++) {
 		id = idp->ii_args[i]->t_id;
+
+		if (target_requires_swap) {
+			SWAP_16(id);
+		}
+
 		ctf_buf_write(b, &id, sizeof (id));
 	}
 
@@ -204,11 +242,25 @@ write_sized_type_rec(ctf_buf_t *b, ctf_type_t *ctt, size_t size)
 		ctt->ctt_size = CTF_LSIZE_SENT;
 		ctt->ctt_lsizehi = CTF_SIZE_TO_LSIZE_HI(size);
 		ctt->ctt_lsizelo = CTF_SIZE_TO_LSIZE_LO(size);
+		if (target_requires_swap) {
+			SWAP_32(ctt->ctt_name);
+			SWAP_16(ctt->ctt_info);
+			SWAP_16(ctt->ctt_size);
+			SWAP_32(ctt->ctt_lsizehi);
+			SWAP_32(ctt->ctt_lsizelo);
+		}
 		ctf_buf_write(b, ctt, sizeof (*ctt));
 	} else {
 		ctf_stype_t *cts = (ctf_stype_t *)ctt;
 
 		cts->ctt_size = (ushort_t)size;
+
+		if (target_requires_swap) {
+			SWAP_32(cts->ctt_name);
+			SWAP_16(cts->ctt_info);
+			SWAP_16(cts->ctt_size);
+		}
+
 		ctf_buf_write(b, cts, sizeof (*cts));
 	}
 }
@@ -217,6 +269,12 @@ static void
 write_unsized_type_rec(ctf_buf_t *b, ctf_type_t *ctt)
 {
 	ctf_stype_t *cts = (ctf_stype_t *)ctt;
+
+	if (target_requires_swap) {
+		SWAP_32(cts->ctt_name);
+		SWAP_16(cts->ctt_info);
+		SWAP_16(cts->ctt_size);
+	}
 
 	ctf_buf_write(b, cts, sizeof (*cts));
 }
@@ -292,6 +350,9 @@ write_type(void *arg1, void *arg2)
 			encoding = ip->intr_fformat;
 
 		data = CTF_INT_DATA(encoding, ip->intr_offset, ip->intr_nbits);
+		if (target_requires_swap) {
+			SWAP_32(data);
+		}
 		ctf_buf_write(b, &data, sizeof (data));
 		break;
 
@@ -308,6 +369,11 @@ write_type(void *arg1, void *arg2)
 		cta.cta_contents = tp->t_ardef->ad_contents->t_id;
 		cta.cta_index = tp->t_ardef->ad_idxtype->t_id;
 		cta.cta_nelems = tp->t_ardef->ad_nelems;
+		if (target_requires_swap) {
+			SWAP_16(cta.cta_contents);
+			SWAP_16(cta.cta_index);
+			SWAP_32(cta.cta_nelems);
+		}
 		ctf_buf_write(b, &cta, sizeof (cta));
 		break;
 
@@ -315,6 +381,11 @@ write_type(void *arg1, void *arg2)
 	case UNION:
 		for (i = 0, mp = tp->t_members; mp != NULL; mp = mp->ml_next)
 			i++; /* count up struct or union members */
+
+		if (i > CTF_MAX_VLEN) {
+			terminate("sou %s has too many members: %d > %d\n",
+			    tdesc_name(tp), i, CTF_MAX_VLEN);
+		}
 
 		if (tp->t_type == STRUCT)
 			ctt.ctt_info = CTF_TYPE_INFO(CTF_K_STRUCT, isroot, i);
@@ -332,6 +403,11 @@ write_type(void *arg1, void *arg2)
 				    offset);
 				ctm.ctm_type = mp->ml_type->t_id;
 				ctm.ctm_offset = mp->ml_offset;
+				if (target_requires_swap) {
+					SWAP_32(ctm.ctm_name);
+					SWAP_16(ctm.ctm_type);
+					SWAP_16(ctm.ctm_offset);
+				}
 				ctf_buf_write(b, &ctm, sizeof (ctm));
 			}
 		} else {
@@ -346,6 +422,14 @@ write_type(void *arg1, void *arg2)
 				    CTF_OFFSET_TO_LMEMHI(mp->ml_offset);
 				ctlm.ctlm_offsetlo =
 				    CTF_OFFSET_TO_LMEMLO(mp->ml_offset);
+
+				if (target_requires_swap) {
+					SWAP_32(ctlm.ctlm_name);
+					SWAP_16(ctlm.ctlm_type);
+					SWAP_32(ctlm.ctlm_offsethi);
+					SWAP_32(ctlm.ctlm_offsetlo);
+				}
+
 				ctf_buf_write(b, &ctlm, sizeof (ctlm));
 			}
 		}
@@ -355,14 +439,27 @@ write_type(void *arg1, void *arg2)
 		for (i = 0, ep = tp->t_emem; ep != NULL; ep = ep->el_next)
 			i++; /* count up enum members */
 
+		if (i > CTF_MAX_VLEN) {
+			warning("enum %s has too many values: %d > %d\n",
+			    tdesc_name(tp), i, CTF_MAX_VLEN);
+			i = CTF_MAX_VLEN;
+		}
+
 		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_ENUM, isroot, i);
 		write_sized_type_rec(b, &ctt, tp->t_size);
 
-		for (ep = tp->t_emem; ep != NULL; ep = ep->el_next) {
+		for (ep = tp->t_emem; ep != NULL && i > 0; ep = ep->el_next) {
 			offset = strtab_insert(&b->ctb_strtab, ep->el_name);
 			cte.cte_name = CTF_TYPE_NAME(CTF_STRTAB_0, offset);
 			cte.cte_value = ep->el_number;
+
+			if (target_requires_swap) {
+				SWAP_32(cte.cte_name);
+				SWAP_32(cte.cte_value);
+			}
+
 			ctf_buf_write(b, &cte, sizeof (cte));
+			i--;
 		}
 		break;
 
@@ -391,13 +488,24 @@ write_type(void *arg1, void *arg2)
 		break;
 
 	case FUNCTION:
-		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_FUNCTION, isroot,
-		    tp->t_fndef->fn_nargs + tp->t_fndef->fn_vargs);
+		i = tp->t_fndef->fn_nargs + tp->t_fndef->fn_vargs;
+
+		if (i > CTF_MAX_VLEN) {
+			terminate("function %s has too many args: %d > %d\n",
+			    tdesc_name(tp), i, CTF_MAX_VLEN);
+		}
+
+		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_FUNCTION, isroot, i);
 		ctt.ctt_type = tp->t_fndef->fn_ret->t_id;
 		write_unsized_type_rec(b, &ctt);
 
 		for (i = 0; i < (int) tp->t_fndef->fn_nargs; i++) {
 			id = tp->t_fndef->fn_args[i]->t_id;
+
+			if (target_requires_swap) {
+				SWAP_16(id);
+			}
+
 			ctf_buf_write(b, &id, sizeof (id));
 		}
 
@@ -591,6 +699,9 @@ ctf_gen(iiburst_t *iiburst, size_t *resszp, int do_compress)
 
 	int i;
 
+	target_requires_swap = do_compress & CTF_SWAP_BYTES;
+	do_compress &= ~CTF_SWAP_BYTES;
+
 	/*
 	 * Prepare the header, and create the CTF output buffers.  The data
 	 * object section and function section are both lists of 2-byte
@@ -626,6 +737,18 @@ ctf_gen(iiburst_t *iiburst, size_t *resszp, int do_compress)
 
 	h.cth_stroff = ctf_buf_cur(buf);
 	h.cth_strlen = strtab_size(&buf->ctb_strtab);
+
+	if (target_requires_swap) {
+		SWAP_16(h.cth_preamble.ctp_magic);
+		SWAP_32(h.cth_parlabel);
+		SWAP_32(h.cth_parname);
+		SWAP_32(h.cth_lbloff);
+		SWAP_32(h.cth_objtoff);
+		SWAP_32(h.cth_funcoff);
+		SWAP_32(h.cth_typeoff);
+		SWAP_32(h.cth_stroff);
+		SWAP_32(h.cth_strlen);
+	}
 
 	/*
 	 * We only do compression for ctfmerge, as ctfconvert is only
@@ -931,7 +1054,7 @@ resurrect_types(ctf_header_t *h, tdata_t *td, tdesc_t **tdarr, int tdsize,
 
 		if (CTF_NAME_STID(ctt->ctt_name) != CTF_STRTAB_0)
 			parseterminate(
-				"Unable to cope with non-zero strtab id");
+			    "Unable to cope with non-zero strtab id");
 		if (CTF_NAME_OFFSET(ctt->ctt_name) != 0) {
 			tdp->t_name =
 			    xstrdup(sbuf + CTF_NAME_OFFSET(ctt->ctt_name));
@@ -1022,6 +1145,10 @@ resurrect_types(ctf_header_t *h, tdata_t *td, tdesc_t **tdarr, int tdsize,
 					(*mpp)->ml_type = tdarr[ctm->ctm_type];
 					(*mpp)->ml_offset = ctm->ctm_offset;
 					(*mpp)->ml_size = 0;
+					if (ctm->ctm_type > ntypes) {
+						parseterminate("Invalid member type ctm_type=%d",
+						    ctm->ctm_type);
+					}
 				}
 			} else {
 				for (i = 0, mpp = &tdp->t_members; i < vlen;
@@ -1038,6 +1165,10 @@ resurrect_types(ctf_header_t *h, tdata_t *td, tdesc_t **tdarr, int tdsize,
 					(*mpp)->ml_offset =
 					    (int)CTF_LMEM_OFFSET(ctlm);
 					(*mpp)->ml_size = 0;
+					if (ctlm->ctlm_type > ntypes) {
+						parseterminate("Invalid lmember type ctlm_type=%d",
+						    ctlm->ctlm_type);
+					}
 				}
 			}
 
@@ -1151,8 +1282,9 @@ ctf_parse(ctf_header_t *h, caddr_t buf, symit_data_t *si, char *label)
 {
 	tdata_t *td = tdata_new();
 	tdesc_t **tdarr;
-	int ntypes = count_types(h, buf);
 	int idx, i;
+
+	ntypes = count_types(h, buf);
 
 	/* shudder */
 	tdarr = xcalloc(sizeof (tdesc_t *) * (ntypes + 1));

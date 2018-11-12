@@ -3,9 +3,8 @@
 PROG=	boot0cfg
 MAN=	boot0cfg.8
 
-WARNS?=	2
+LIBADD=	geom
 
-DPADD=	${LIBGEOM}
-LDADD=	-lgeom
+NO_WCAST_ALIGN=
 
 .include <bsd.prog.mk>

@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_atm.h>
 #include <net/route.h>
@@ -324,7 +325,7 @@ patm_lmbuf_alloc(struct patm_softc *sc)
 	struct mbuf *m;
 	struct lmbuf *b;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (NULL);
 	m->m_data += LMBUF_OFFSET;
@@ -381,7 +382,7 @@ patm_feed_lbufs(struct patm_softc *sc)
 static void
 patm_intr_tsif(struct patm_softc *sc)
 {
-	struct idt_tsqe *tsqe = sc->tsq_next;;
+	struct idt_tsqe *tsqe = sc->tsq_next;
 	struct idt_tsqe *prev = NULL;
 	uint32_t stamp;
 

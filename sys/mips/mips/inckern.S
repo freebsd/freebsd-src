@@ -22,10 +22,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_kernname.h"
-
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$")
+
+ENTRY(_start)
+	PTR_LA	t0, kernel_end
+	move	sp, t0
+	add	sp, 0x2000
+	and	sp, ~0x7
+	PTR_LA	t0, _startC
+	j	t0
+	nop
+END(_start)
+
+#ifndef KERNNAME
+#error Need a kernel name here
+#endif
+
 .section ".real_kernel","aw"
 .globl kernel_start;
 kernel_start:

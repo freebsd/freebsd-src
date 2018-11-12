@@ -56,7 +56,7 @@ do {									\
 		ng_l2cap_cmd_rej_data_t	 data;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL) 						\
 		break;							\
 									\
@@ -90,7 +90,7 @@ do {									\
 		ng_l2cap_con_req_cp	 param;				\
 	} __attribute__ ((packed)) 	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL) 						\
 		break;							\
 									\
@@ -113,7 +113,7 @@ do {									\
 		ng_l2cap_con_rsp_cp	 param;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL) 						\
 		break;							\
 									\
@@ -138,7 +138,7 @@ do {									\
 		ng_l2cap_cfg_req_cp	 param;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL) { 						\
 		NG_FREE_M((_data));					\
 		break;							\
@@ -172,7 +172,7 @@ do {									\
 		ng_l2cap_cfg_rsp_cp	 param;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL) { 						\
 		NG_FREE_M((_data));					\
 		break;							\
@@ -199,12 +199,31 @@ do {									\
 	c->hdr.length = htole16(c->hdr.length);				\
 } while (0)
 
+#define _ng_l2cap_cmd_urs(_m, _ident, _result)	\
+do {									\
+	struct  _cmd_urs{						\
+		ng_l2cap_cmd_hdr_t	 hdr;				\
+		uint16_t	 result;				\
+	} __attribute__ ((packed))	*c = NULL;			\
+									\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
+									\
+	(_m)->m_pkthdr.len = (_m)->m_len = sizeof(*c);			\
+									\
+	c = mtod((_m), struct _cmd_urs *);				\
+	c->hdr.code = NG_L2CAP_CMD_PARAM_UPDATE_RESPONSE;		\
+	c->hdr.ident = (_ident);					\
+	c->hdr.length = sizeof(c->result);				\
+									\
+	c->result = htole16((_result));				\
+} while (0)
+
 /* Build configuration options */
 #define _ng_l2cap_build_cfg_options(_m, _mtu, _flush_timo, _flow)	\
 do {									\
 	u_int8_t	*p = NULL;					\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL)						\
 		break;							\
 									\
@@ -281,7 +300,7 @@ do {									\
 		ng_l2cap_discon_req_cp	 param;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL)						\
 		break;							\
 									\
@@ -304,7 +323,7 @@ do {									\
 		ng_l2cap_discon_rsp_cp	 param;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL)						\
 		break;							\
 									\
@@ -324,7 +343,7 @@ do {									\
 do {									\
 	ng_l2cap_cmd_hdr_t	*c = NULL;				\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL) 						\
 		break;							\
 									\
@@ -351,7 +370,7 @@ do {									\
 		ng_l2cap_info_req_cp	 param;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL)						\
 		break;							\
 									\
@@ -374,12 +393,12 @@ do {									\
 		ng_l2cap_info_rsp_data_t data;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL) 						\
 		break;							\
 									\
 	c = mtod((_m), struct _info_rsp *);				\
-	c->hdr.code = NG_L2CAP_INFO_REQ;				\
+	c->hdr.code = NG_L2CAP_INFO_RSP;				\
 	c->hdr.ident = (_ident);					\
 	c->hdr.length = sizeof(c->param);				\
 									\

@@ -70,7 +70,7 @@
 .Cm volume status Ar volume
 .Nm
 .Op Fl u Ar unit
-.Cm volume cache Ar volume 
+.Cm volume cache Ar volume
 .Ar enable|disable
 .Nm
 .Op Fl u Ar unit
@@ -123,7 +123,7 @@ where
 is the bus ID and
 .Ar yy
 is the target ID.
-If the bus ID is ommitted,
+If the bus ID is omitted,
 the volume is assumed to be on bus 0.
 Second,
 on the volume may be specified by the corresponding
@@ -196,7 +196,7 @@ If any hot spare drives are configured, then they are listed as well.
 Lists all of the physical drives attached to the controller.
 .It Cm show events
 Display all the entries from the controller's event log.
-Due to lack of documentation this command isn't very useful currently and
+Due to lack of documentation this command is not very useful currently and
 just dumps each log entry in hex.
 .It Cm show volumes
 Lists all of the logical volumes managed by the controller.
@@ -348,8 +348,12 @@ as a global hot spare:
 .Dl Nm Cm add da3
 .Sh SEE ALSO
 .Xr mpt 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 8.0 .
 .Sh BUGS
-.Pp
 The handling of spare drives appears to be unreliable.
 The
 .Xr mpt 4
@@ -379,8 +383,15 @@ configurations may not work reliably.
 .Pp
 Drive configuration commands result in an excessive flood of messages on the
 console.
-.Sh HISTORY
-The
+.Pp
+The mpt version 1 API that is used by
 .Nm
-utility first appeared in
-.Fx 8.0 .
+and
+.Xr mpt 4
+does not support volumes above two terabytes.
+This is a limitation of the API.
+If you are using this adapter with volumes larger than two terabytes, use the adapter in JBOD mode.
+Utilize
+.Xr geom 8 ,
+.Xr zfs 8 ,
+or another software volume manager to work around this limitation.

@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 // C++ STL and other related includes
 #include <iostream>
 #include <string>
+#include <vector>
+#include <algorithm>
 
 // Operating System and other C based includes
 #include <unistd.h>
@@ -368,7 +370,7 @@ int source(char *interface, struct in_addr *group, int pkt_size,
         args[i].packets = received[i];
         args[i].number = number / clients;
 	args[i].client = base_port + i;
-	if (pthread_create(&thread[i], NULL, server, &args[i]) < 0) {
+	if (pthread_create(&thread[i], NULL, server, &args[i]) != 0) {
 	    perror("failed to create server thread");
 	    return -1;
         }
@@ -393,22 +395,38 @@ int source(char *interface, struct in_addr *group, int pkt_size,
     }
 
     for (int i = 0; i < clients; i++) {
-        if (pthread_join(thread[i], NULL) < 0) {
+        if (pthread_join(thread[i], NULL) != 0) {
  	    perror("failed to join thread");
  	    return -1;
         }
     }
 
     timeval result;
+    vector<int> deltas;
+    double idx[] = { .0001, .001, .01, .1, .5, .9, .99, .999, .9999, 0.0 };
+
     for (int client = 0;client < clients; client++) {
+	deltas.clear();
 	cout << "Results from client #" << client << endl;
+	cout << "in usecs" << endl;
         for (int i = 0; i < number; i++) {
-	    if (i % clients != client) 
-		continue;
+// 	    if (i % clients != client) 
+// 		continue;
+            if (&args[client].packets[i].tv_sec == 0)
+			continue;
 	    timersub(&args[client].packets[i], &sent[i], &result);
-	    cout << "sec: " << result.tv_sec;
-	    cout << " usecs: " << result.tv_usec << endl;
+	    deltas.push_back(result.tv_usec);
+// 	    cout << "sec: " << result.tv_sec;
+// 	    cout << " usecs: " << result.tv_usec << endl;
             }
+	cout << "comparing " << long(deltas.size()) << " deltas" << endl;
+	cout << "number represents usecs of round-trip time" << endl;
+	sort(deltas.begin(), deltas.end());
+	for (int i = 0; idx[i] != 0; ++i) {
+		printf("%s% 5d", (i == 0) ? "" : " ", 
+		       deltas[(int) (idx[i] * deltas.size())]); 
+	}
+	printf("\n");		
     }
 
     return 0;

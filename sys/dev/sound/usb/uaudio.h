@@ -27,6 +27,9 @@
 
 /* prototypes from "uaudio.c" used by "uaudio_pcm.c" */
 
+#ifndef _UAUDIO_H_
+#define	_UAUDIO_H_
+
 struct uaudio_chan;
 struct uaudio_softc;
 struct snd_dbuf;
@@ -51,8 +54,8 @@ extern struct	pcmchan_matrix *uaudio_chan_getmatrix(struct uaudio_chan *ch,
 		    uint32_t format);
 extern int	uaudio_chan_set_param_format(struct uaudio_chan *ch,
 		    uint32_t format);
-extern int	uaudio_chan_start(struct uaudio_chan *ch);
-extern int	uaudio_chan_stop(struct uaudio_chan *ch);
+extern void	uaudio_chan_start(struct uaudio_chan *ch);
+extern void	uaudio_chan_stop(struct uaudio_chan *ch);
 extern int	uaudio_mixer_init_sub(struct uaudio_softc *sc,
 		    struct snd_mixer *m);
 extern int	uaudio_mixer_uninit_sub(struct uaudio_softc *sc);
@@ -63,3 +66,5 @@ extern uint32_t	uaudio_mixer_setrecsrc(struct uaudio_softc *sc, uint32_t src);
 int	uaudio_get_vendor(device_t dev);
 int	uaudio_get_product(device_t dev);
 int	uaudio_get_release(device_t dev);
+
+#endif			/* _UAUDIO_H_ */

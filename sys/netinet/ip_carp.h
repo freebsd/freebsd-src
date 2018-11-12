@@ -117,55 +117,63 @@ struct carpstats {
 	uint64_t	carps_preempt;		/* if enabled, preemptions */
 };
 
-#ifdef _KERNEL
-#define	CARPSTATS_ADD(name, val)	carpstats.name += (val)
-#define	CARPSTATS_INC(name)		CARPSTATS_ADD(name, 1)
-#endif
-
 /*
  * Configuration structure for SIOCSVH SIOCGVH
  */
 struct carpreq {
+	int		carpr_count;
+	int		carpr_vhid;
+#define	CARP_MAXVHID	255
 	int		carpr_state;
 #define	CARP_STATES	"INIT", "BACKUP", "MASTER"
 #define	CARP_MAXSTATE	2
-	int		carpr_vhid;
 	int		carpr_advskew;
+#define	CARP_MAXSKEW	240
 	int		carpr_advbase;
 	unsigned char	carpr_key[CARP_KEY_LEN];
 };
 #define	SIOCSVH	_IOWR('i', 245, struct ifreq)
 #define	SIOCGVH	_IOWR('i', 246, struct ifreq)
 
-/*
- * Names for CARP sysctl objects
- */
-#define	CARPCTL_ALLOW		1	/* accept incoming CARP packets */
-#define	CARPCTL_PREEMPT		2	/* high-pri backup preemption mode */
-#define	CARPCTL_LOG		3	/* log bad packets */
-#define	CARPCTL_STATS		4	/* statistics (read-only) */
-#define	CARPCTL_ARPBALANCE	5	/* balance arp responses */
-#define	CARPCTL_MAXID		6
-
-#define	CARPCTL_NAMES { \
-	{ 0, 0 }, \
-	{ "allow", CTLTYPE_INT }, \
-	{ "preempt", CTLTYPE_INT }, \
-	{ "log", CTLTYPE_INT }, \
-	{ "stats", CTLTYPE_STRUCT }, \
-	{ "arpbalance", CTLTYPE_INT }, \
-}
-
 #ifdef _KERNEL
-void		 carp_carpdev_state(void *);
-void		 carp_input (struct mbuf *, int);
-int		 carp6_input (struct mbuf **, int *, int);
-int		 carp_output (struct ifnet *, struct mbuf *, struct sockaddr *,
-		     struct rtentry *);
-int		 carp_iamatch (void *, struct in_ifaddr *, struct in_addr *,
-		     u_int8_t **);
-struct ifaddr	*carp_iamatch6(void *, struct in6_addr *);
-void		*carp_macmatch6(void *, struct mbuf *, const struct in6_addr *);
-struct	ifnet	*carp_forus (void *, void *);
+int		carp_ioctl(struct ifreq *, u_long, struct thread *);
+int		carp_attach(struct ifaddr *, int);
+void		carp_detach(struct ifaddr *);
+void		carp_carpdev_state(struct ifnet *);
+int		carp_input(struct mbuf **, int *, int);
+int		carp6_input (struct mbuf **, int *, int);
+int		carp_output (struct ifnet *, struct mbuf *,
+		    const struct sockaddr *);
+int		carp_master(struct ifaddr *);
+int		carp_iamatch(struct ifaddr *, uint8_t **);
+struct ifaddr	*carp_iamatch6(struct ifnet *, struct in6_addr *);
+caddr_t		carp_macmatch6(struct ifnet *, struct mbuf *, const struct in6_addr *);
+int		carp_forus(struct ifnet *, u_char *);
+
+/* These are external networking stack hooks for CARP */
+/* net/if.c */
+extern int (*carp_ioctl_p)(struct ifreq *, u_long, struct thread *);
+extern int (*carp_attach_p)(struct ifaddr *, int);
+extern void (*carp_detach_p)(struct ifaddr *);
+extern void (*carp_linkstate_p)(struct ifnet *);
+extern void (*carp_demote_adj_p)(int, char *);
+extern int (*carp_master_p)(struct ifaddr *);
+/* net/if_bridge.c net/if_ethersubr.c */
+extern int (*carp_forus_p)(struct ifnet *, u_char *);
+/* net/if_ethersubr.c */
+extern int (*carp_output_p)(struct ifnet *, struct mbuf *,
+    const struct sockaddr *);
+/* net/rtsock.c */
+extern int (*carp_get_vhid_p)(struct ifaddr *);
+#ifdef INET
+/* netinet/if_ether.c */
+extern int (*carp_iamatch_p)(struct ifaddr *, uint8_t **);
+#endif
+#ifdef INET6
+/* netinet6/nd6_nbr.c */
+extern struct ifaddr *(*carp_iamatch6_p)(struct ifnet *, struct in6_addr *);
+extern caddr_t (*carp_macmatch6_p)(struct ifnet *, struct mbuf *,
+    const struct in6_addr *);
+#endif
 #endif
 #endif /* _IP_CARP_H */

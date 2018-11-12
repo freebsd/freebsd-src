@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2004, 2009, 2010 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@wiz.smi.sendmail.com on Fri May 2 20:39:00 PDT 2008
-##### in /extra/home/ca/sm-8.14.3/OpenSource/sendmail-8.14.3/cf/cf
+##### built by ca@sandman.dev-lab.sendmail.com on Thu Jul 2 05:24:31 PDT 2015
+##### in /x/ca/smi.git/sendmail/OpenSource/sendmail-8.15.2/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -27,15 +27,15 @@
 ######################################################################
 ######################################################################
 
-#####  $Id: cfhead.m4,v 8.116 2004/01/28 22:02:22 ca Exp $  #####
-#####  $Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $  #####
-#####  $Id: submit.mc,v 8.14 2006/04/05 05:54:41 ca Exp $  #####
-#####  $Id: msp.m4,v 1.33 2004/02/09 22:32:38 ca Exp $  #####
+#####  $Id: cfhead.m4,v 8.122 2013-11-22 20:51:13 ca Exp $  #####
+#####  $Id: cf.m4,v 8.33 2013-11-22 20:51:13 ca Exp $  #####
+#####  $Id: submit.mc,v 8.15 2013-11-22 20:51:08 ca Exp $  #####
+#####  $Id: msp.m4,v 1.34 2013-11-22 20:51:11 ca Exp $  #####
 
-#####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
+#####  $Id: no_default_msa.m4,v 8.3 2013-11-22 20:51:11 ca Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.734 2008/01/24 23:42:01 ca Exp $  #####
+#####  $Id: proto.m4,v 8.762 2013-11-22 20:51:13 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -114,7 +114,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.14.3/Submit
+DZ8.15.2/Submit
 
 
 ###############
@@ -202,6 +202,9 @@ O ConnectionCacheTimeout=5m
 # use Errors-To: header?
 O UseErrorsTo=False
 
+# use compressed IPv6 address format?
+#O UseCompressedIPv6Addresses
+
 # log level
 O LogLevel=9
 
@@ -250,6 +253,9 @@ O PrivacyOptions=goaway,noetrn,restrictqrun
 
 # minimum time in queue before retry
 #O MinQueueAge=30m
+
+# maximum time in queue before retry (if > 0; only for exponential delay)
+#O MaxQueueAge
 
 # how many jobs can you process in the queue?
 #O MaxQueueRunSize=0
@@ -440,6 +446,7 @@ O RunAsUser=smmsp
 # once the threshold number of recipients have been rejected
 #O BadRcptThrottle=0
 
+
 # shall we get local names from our installed interfaces?
 O DontProbeInterfaces=True
 
@@ -500,6 +507,13 @@ O PidFile=/var/spool/clientmqueue/sm-client.pid
 # SMTP STARTTLS server options
 #O TLSSrvOptions
 
+# SSL cipherlist
+#O CipherList
+# server side SSL options
+#O ServerSSLOptions
+# client side SSL options
+#O ClientSSLOptions
+
 # Input mail filters
 #O InputMailFilters
 
@@ -522,12 +536,16 @@ O PidFile=/var/spool/clientmqueue/sm-client.pid
 #O DHParameters
 # Random data source (required for systems without /dev/urandom under OpenSSL)
 #O RandFile
+# fingerprint algorithm (digest) to use for the presented cert
+#O CertFingerprintAlgorithm
 
 # Maximum number of "useless" commands before slowing down
 #O MaxNOOPCommands=20
 
 # Name to use for EHLO (defaults to $j)
 #O HeloName
+
+
 
 ############################
 # QUEUE GROUP DEFINITIONS  #
@@ -643,6 +661,7 @@ R$- . $- :: $+		$@ $>Canonify2 $3 < @ $1.$2 .DECNET >	numeric DECnet addr
 # if we have % signs, take the rightmost one
 R$* % $*		$1 @ $2				First make them all @s.
 R$* @ $* @ $*		$1 % $2 @ $3			Undo all but the last.
+
 R$* @ $*		$@ $>Canonify2 $1 < @ $2 >	Insert < > and finish
 
 # else we must be a local name
@@ -779,6 +798,7 @@ R$* $=O $* < @ *LOCAL* >
 			$@ $>Parse0 $>canonify $1 $2 $3	...@*LOCAL* -> ...
 R$* < @ *LOCAL* >	$: $1
 
+
 #
 #  Parse1 -- the bottom half of ruleset 0.
 #
@@ -815,6 +835,8 @@ R$* < @$* > $*		$#esmtp $@ $2 $: $1 < @ $2 > $3	user@host.domain
 # handle locally delivered names
 R$=L			$#local $: @ $1		special local names
 R$+			$#local $: $1			regular local names
+
+
 
 ###########################################################################
 ###   Ruleset 5 -- special rewriting after aliases have been expanded   ###
@@ -924,6 +946,8 @@ SParseLocal=98
 
 
 
+
+
 ######################################################################
 ###  CanonAddr --	Convert an address into a standard form for
 ###			relay checking.  Route address syntax is
@@ -990,7 +1014,6 @@ R< $* > $*		$: $2
 
 
 
-
 ######################################################################
 ###  check_mail -- check SMTP `MAIL FROM:' command argument
 ######################################################################
@@ -1024,6 +1047,10 @@ R$* $| $*		$: $2
 R<@> < $* @ localhost >	$: < ? $&{client_name} > < $1 @ localhost >
 R<@> < $* @ [127.0.0.1] >
 			$: < ? $&{client_name} > < $1 @ [127.0.0.1] >
+R<@> < $* @ [IPv6:0:0:0:0:0:0:0:1] >
+			$: < ? $&{client_name} > < $1 @ [IPv6:0:0:0:0:0:0:0:1] >
+R<@> < $* @ [IPv6:::1] >
+			$: < ? $&{client_name} > < $1 @ [IPv6:::1] >
 R<@> < $* @ localhost.$m >
 			$: < ? $&{client_name} > < $1 @ localhost.$m >
 R<@> < $* @ localhost.UUCP >
@@ -1138,6 +1165,7 @@ R$*			$: $&{client_addr}
 R$@			$@ RELAY		originated locally
 R0			$@ RELAY		originated locally
 R127.0.0.1		$@ RELAY		originated locally
+RIPv6:0:0:0:0:0:0:0:1	$@ RELAY		originated locally
 RIPv6:::1		$@ RELAY		originated locally
 R$=R $*			$@ RELAY		relayable IP address
 R$*			$: [ $1 ]		put brackets around it...
@@ -1242,6 +1270,8 @@ STLS_connection
 RSOFTWARE	$#error $@ 4.7.0 $: "403 TLS handshake."
 
 
+
+
 ######################################################################
 ###  RelayTLS: allow relaying based on TLS authentication
 ###
@@ -1296,7 +1326,7 @@ R$*			$#relay $@ ${MTAHost} $: $1 < @ $j >
 ###   Local and Program Mailer specification   ###
 ##################################################
 
-#####  $Id: local.m4,v 8.59 2004/11/23 00:37:25 ca Exp $  #####
+#####  $Id: local.m4,v 8.60 2013-11-22 20:51:14 ca Exp $  #####
 
 #
 #  Envelope sender rewriting
@@ -1348,7 +1378,7 @@ Mprog,		P=[IPC], F=lmDFMuXk5, S=EnvFromL/HdrFromL, R=EnvToL/HdrToL, D=$z:/,
 ###   SMTP Mailer specification   ###
 #####################################
 
-#####  $Id: smtp.m4,v 8.65 2006/07/12 21:08:10 ca Exp $  #####
+#####  $Id: smtp.m4,v 8.66 2013-11-22 20:51:14 ca Exp $  #####
 
 #
 #  common sender and masquerading recipient rewriting
@@ -1439,7 +1469,7 @@ Mrelay,		P=[IPC], F=mDFMuXa8k, S=EnvFromSMTP/HdrFromSMTP, R=MasqSMTP, E=\r\n, L=
 ### submit.mc ###
 # divert(-1)
 # #
-# # Copyright (c) 2001-2003 Sendmail, Inc. and its suppliers.
+# # Copyright (c) 2001-2003, 2014 Proofpoint, Inc. and its suppliers.
 # #	All rights reserved.
 # #
 # # By using this file, you agree to the terms and conditions set
@@ -1454,12 +1484,12 @@ Mrelay,		P=[IPC], F=mDFMuXa8k, S=EnvFromSMTP/HdrFromSMTP, R=MasqSMTP, E=\r\n, L=
 # #
 # 
 # divert(0)dnl
-# VERSIONID(`$Id: submit.mc,v 8.14 2006/04/05 05:54:41 ca Exp $')
+# VERSIONID(`$Id: submit.mc,v 8.15 2013-11-22 20:51:08 ca Exp $')
 # define(`confCF_VERSION', `Submit')dnl
 # define(`__OSTYPE__',`')dnl dirty hack to keep proto.m4 from complaining
 # define(`_USE_DECNET_SYNTAX_', `1')dnl support DECnet
 # define(`confTIME_ZONE', `USE_TZ')dnl
 # define(`confDONT_INIT_GROUPS', `True')dnl
 # dnl
-# dnl If you use IPv6 only, change [127.0.0.1] to [IPv6:::1]
+# dnl If you use IPv6 only, change [127.0.0.1] to [IPv6:0:0:0:0:0:0:0:1]
 # FEATURE(`msp', `[127.0.0.1]')dnl

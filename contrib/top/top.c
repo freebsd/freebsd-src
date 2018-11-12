@@ -34,13 +34,19 @@ char *copyright =
  */
 
 #include "os.h"
-#include <errno.h>
-#include <signal.h>
-#include <setjmp.h>
-#include <ctype.h>
+
+#include <sys/jail.h>
 #include <sys/time.h>
 
+#include <ctype.h>
+#include <errno.h>
+#include <jail.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <unistd.h>
+
 /* includes specific to top */
+#include "commands.h"
 #include "display.h"		/* interface to display package */
 #include "screen.h"		/* interface to screen package */
 #include "top.h"
@@ -48,6 +54,7 @@ char *copyright =
 #include "boolean.h"
 #include "machine.h"
 #include "utils.h"
+#include "username.h"
 
 /* Size of the stdio buffer given to stdout */
 #define Buffersize	2048
@@ -70,7 +77,6 @@ int pcpu_stats = No;
 
 /* signal handling routines */
 sigret_t leave();
-sigret_t onalrm();
 sigret_t tstop();
 #ifdef SIGWINCH
 sigret_t winch();
@@ -113,35 +119,21 @@ caddr_t get_process_info();
 char *username();
 char *itoa7();
 
-/* display routines that need to be predeclared */
-int i_loadave();
-int u_loadave();
-int i_procstates();
-int u_procstates();
-int i_cpustates();
-int u_cpustates();
-int i_memory();
-int u_memory();
-int i_swap();
-int u_swap();
-int i_message();
-int u_message();
-int i_header();
-int u_header();
-int i_process();
-int u_process();
-
 /* pointers to display routines */
-int (*d_loadave)() = i_loadave;
-int (*d_procstates)() = i_procstates;
-int (*d_cpustates)() = i_cpustates;
-int (*d_memory)() = i_memory;
-int (*d_swap)() = i_swap;
-int (*d_message)() = i_message;
-int (*d_header)() = i_header;
-int (*d_process)() = i_process;
+void (*d_loadave)() = i_loadave;
+void (*d_procstates)() = i_procstates;
+void (*d_cpustates)() = i_cpustates;
+void (*d_memory)() = i_memory;
+void (*d_arc)() = i_arc;
+void (*d_swap)() = i_swap;
+void (*d_message)() = i_message;
+void (*d_header)() = i_header;
+void (*d_process)() = i_process;
+
+void reset_display(void);
 
 
+int
 main(argc, argv)
 
 int  argc;
@@ -196,9 +188,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCajo";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJwo";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCaj";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJw";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -224,8 +216,12 @@ char *argv[];
 #define	CMD_wcputog	19
 #define	CMD_showargs	20
 #define	CMD_jidtog	21
+#define CMD_kidletog	22
+#define CMD_pcputog	23
+#define CMD_jail	24
+#define CMD_swaptog	25
 #ifdef ORDER
-#define CMD_order       22
+#define CMD_order       26
 #endif
 
     /* set the buffer for stdout */
@@ -257,7 +253,10 @@ char *argv[];
     ps.uid     = -1;
     ps.thread  = No;
     ps.wcpu    = 1;
+    ps.jid     = -1;
     ps.jail    = No;
+    ps.swap    = No;
+    ps.kidle   = Yes;
     ps.command = NULL;
 
     /* get preset options from the environment */
@@ -283,7 +282,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHPabijnquvs:d:U:m:o:t")) != EOF)
+	while ((i = getopt(ac, av, "CSIHPabijJ:nquvzs:d:U:m:o:tw")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -408,15 +407,32 @@ char *argv[];
 		ps.jail = !ps.jail;
 		break;
 
+	      case 'J':			/* display only jail's processes */
+		if ((ps.jid = jail_getid(optarg)) == -1)
+		{
+		    fprintf(stderr, "%s: unknown jail\n", optarg);
+		    exit(1);
+		}
+		ps.jail = 1;
+		break;
+
 	      case 'P':
-		pcpu_stats = Yes;
+		pcpu_stats = !pcpu_stats;
+		break;
+
+	      case 'w':
+		ps.swap = 1;
+		break;
+
+	      case 'z':
+		ps.kidle = !ps.kidle;
 		break;
 
 	      default:
 		fprintf(stderr,
 "Top version %s\n"
-"Usage: %s [-abCHIijnPqStuv] [-d count] [-m io | cpu] [-o field] [-s time]\n"
-"       [-U username] [number]\n",
+"Usage: %s [-abCHIijnPqStuvz] [-d count] [-m io | cpu] [-o field] [-s time]\n"
+"       [-J jail] [-U username] [number]\n",
 			version_string(), myname);
 		exit(1);
 	    }
@@ -641,6 +657,7 @@ restart:
 
 	/* display memory stats */
 	(*d_memory)(system_info.memory);
+	(*d_arc)(system_info.arc);
 
 	/* display swap stats */
 	(*d_swap)(system_info.swap);
@@ -706,6 +723,7 @@ restart:
 		    d_procstates = u_procstates;
 		    d_cpustates = u_cpustates;
 		    d_memory = u_memory;
+		    d_arc = u_arc;
 		    d_swap = u_swap;
 		    d_message = u_message;
 		    d_header = u_header;
@@ -716,12 +734,11 @@ restart:
 	    no_command = Yes;
 	    if (!interactive)
 	    {
-		/* set up alarm */
-		(void) signal(SIGALRM, onalrm);
-		(void) alarm((unsigned)delay);
-    
-		/* wait for the rest of it .... */
-		pause();
+		sleep(delay);
+		if (leaveflag) {
+		    end_screen();
+		    exit(0);
+		}
 	    }
 	    else while (no_command)
 	    {
@@ -984,7 +1001,7 @@ restart:
 
 			    case CMD_user:
 				new_message(MT_standout,
-				    "Username to show: ");
+				    "Username to show (+ for all): ");
 				if (readline(tempbuf2, sizeof(tempbuf2), No) > 0)
 				{
 				    if (tempbuf2[0] == '+' &&
@@ -1013,7 +1030,7 @@ restart:
 			    case CMD_thrtog:
 				ps.thread = !ps.thread;
 				new_message(MT_standout | MT_delayed,
-				    "Displaying threads %s",
+				    " Displaying threads %s",
 				    ps.thread ? "separately" : "as a count");
 				header_text = format_header(uname_field);
 				reset_display();
@@ -1022,8 +1039,8 @@ restart:
 			    case CMD_wcputog:
 				ps.wcpu = !ps.wcpu;
 				new_message(MT_standout | MT_delayed,
-				    "Displaying %sCPU",
-				    ps.wcpu ? "W" : "");
+				    " Displaying %s CPU",
+				    ps.wcpu ? "weighted" : "raw");
 				header_text = format_header(uname_field);
 				reset_display();
 				putchar('\r');
@@ -1075,7 +1092,70 @@ restart:
 				reset_display();
 				putchar('\r');
 				break;
+
+			    case CMD_jail:
+				new_message(MT_standout,
+				    "Jail to show (+ for all): ");
+				if (readline(tempbuf2, sizeof(tempbuf2), No) > 0)
+				{
+				    if (tempbuf2[0] == '+' &&
+					tempbuf2[1] == '\0')
+				    {
+					ps.jid = -1;
+				    }
+				    else if ((i = jail_getid(tempbuf2)) == -1)
+				    {
+					new_message(MT_standout,
+					    " %s: unknown jail", tempbuf2);
+					no_command = Yes;
+				    }
+				    else
+				    {
+					ps.jid = i;
+				    }
+				    if (ps.jail == 0) {
+					    ps.jail = 1;
+					    new_message(MT_standout |
+						MT_delayed, " Displaying jail "
+						"ID.");
+					    header_text =
+						format_header(uname_field);
+					    reset_display();
+				    }
+				    putchar('\r');
+				}
+				else
+				{
+				    clear_message();
+				}
+				break;
 	    
+			    case CMD_kidletog:
+				ps.kidle = !ps.kidle;
+				new_message(MT_standout | MT_delayed,
+				    " %sisplaying system idle process.",
+				    ps.kidle ? "D" : "Not d");
+				putchar('\r');
+				break;
+			    case CMD_pcputog:
+				pcpu_stats = !pcpu_stats;
+				new_message(MT_standout | MT_delayed,
+				    " Displaying %sCPU statistics.",
+				    pcpu_stats ? "per-" : "global ");
+				toggle_pcpustats();
+				max_topn = display_updatecpus(&statics);
+				reset_display();
+				putchar('\r');
+				break;
+			    case CMD_swaptog:
+				ps.swap = !ps.swap;
+				new_message(MT_standout | MT_delayed,
+				    " %sisplaying per-process swap usage.",
+				    ps.swap ? "D" : "Not d");
+				header_text = format_header(uname_field);
+				reset_display();
+				putchar('\r');
+				break;
 			    default:
 				new_message(MT_standout, " BAD CASE IN SWITCH!");
 				putchar('\r');
@@ -1101,6 +1181,7 @@ restart:
  *	screen will get redrawn.
  */
 
+void
 reset_display()
 
 {
@@ -1108,6 +1189,7 @@ reset_display()
     d_procstates = i_procstates;
     d_cpustates  = i_cpustates;
     d_memory     = i_memory;
+    d_arc        = i_arc;
     d_swap       = i_swap;
     d_message	 = i_message;
     d_header	 = i_header;
@@ -1151,11 +1233,3 @@ int status;
     exit(status);
     /*NOTREACHED*/
 }
-
-sigret_t onalrm()	/* SIGALRM handler */
-
-{
-    /* this is only used in batch mode to break out of the pause() */
-    /* return; */
-}
-

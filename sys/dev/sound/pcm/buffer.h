@@ -74,6 +74,7 @@ int sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 void sndbuf_reset(struct snd_dbuf *b);
 void sndbuf_clear(struct snd_dbuf *b, unsigned int length);
 void sndbuf_fillsilence(struct snd_dbuf *b);
+void sndbuf_fillsilence_rl(struct snd_dbuf *b, u_int rl);
 void sndbuf_softreset(struct snd_dbuf *b);
 void sndbuf_clearshadow(struct snd_dbuf *b);
 
@@ -111,7 +112,6 @@ u_int64_t sndbuf_getblocks(struct snd_dbuf *b);
 u_int64_t sndbuf_getprevblocks(struct snd_dbuf *b);
 u_int64_t sndbuf_gettotal(struct snd_dbuf *b);
 u_int64_t sndbuf_getprevtotal(struct snd_dbuf *b);
-unsigned int snd_xbytes(unsigned int v, unsigned int from, unsigned int to);
 unsigned int sndbuf_xbytes(unsigned int v, struct snd_dbuf *from, struct snd_dbuf *to);
 u_int8_t sndbuf_zerodata(u_int32_t fmt);
 void sndbuf_updateprevtotal(struct snd_dbuf *b);
@@ -132,3 +132,14 @@ void sndbuf_dmabounce(struct snd_dbuf *b);
 #ifdef OSSV4_EXPERIMENT
 void sndbuf_getpeaks(struct snd_dbuf *b, int *lp, int *rp);
 #endif
+
+static inline u_int32_t
+snd_xbytes(u_int32_t v, u_int32_t from, u_int32_t to)
+{
+
+	if (from == to)
+		return (v);
+	if (from == 0)
+		return (0);
+	return ((u_int64_t)v * to / from);
+}

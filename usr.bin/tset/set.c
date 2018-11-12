@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -40,6 +36,7 @@ static const char sccsid[] = "@(#)set.c	8.2 (Berkeley) 2/28/94";
 #endif
 
 #include <stdio.h>
+#include <termcap.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -54,7 +51,7 @@ int	set_tabs(void);
  * a child program dies in raw mode.
  */
 void
-reset_mode()
+reset_mode(void)
 {
 	tcgetattr(STDERR_FILENO, &mode);
 
@@ -155,7 +152,7 @@ reset_mode()
  * entry and command line and update their values in 'mode'.
  */
 void
-set_control_chars()
+set_control_chars(void)
 {
 	char *bp, *p, bs_char, buf[1024];
 
@@ -192,8 +189,7 @@ set_control_chars()
  * uppercase to internal lowercase.
  */
 void
-set_conversions(usingupper)
-	int usingupper;
+set_conversions(int usingupper)
 {
 	if (tgetflag("UC") || usingupper) {
 #ifdef IUCLC
@@ -238,7 +234,7 @@ set_conversions(usingupper)
 
 /* Output startup string. */
 void
-set_init()
+set_init(void)
 {
 	char *bp, buf[1024];
 	int settle;
@@ -282,7 +278,7 @@ set_init()
  * Return nonzero if we set any tab stops, zero if not.
  */
 int
-set_tabs()
+set_tabs(void)
 {
 	int c;
 	char *capsp, *clear_tabs;

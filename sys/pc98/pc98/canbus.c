@@ -62,13 +62,13 @@ struct canbus_softc {
 
 	/* index register */
 	int index_id;				/* index ID */
-	struct resource *index_res;		/* index resouce */
+	struct resource *index_res;		/* index resource */
 	bus_space_tag_t index_tag;		/* index tag */
 	bus_space_handle_t index_handle;	/* index handle */
 
 	/* data register */
 	int data_id;				/* data ID */
-	struct resource *data_res;		/* data resouce */
+	struct resource *data_res;		/* data resource */
 	bus_space_tag_t data_tag;		/* data tag */
 	bus_space_handle_t data_handle;		/* data handle */
 };
@@ -82,9 +82,9 @@ static int	canbus_detach(device_t);
 
 /* Bus interface methods */
 static int	canbus_print_child(device_t, device_t);
-static device_t	canbus_add_child(device_t, int, const char *, int);
+static device_t	canbus_add_child(device_t, u_int, const char *, int);
 static struct resource *	canbus_alloc_resource(
-    device_t, device_t, int, int *, u_long, u_long, u_long, u_int);
+    device_t, device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int	canbus_activate_resource(
     device_t, device_t, int, int, struct resource *);
 static int	canbus_deactivate_resource(
@@ -92,7 +92,7 @@ static int	canbus_deactivate_resource(
 static int	canbus_release_resource(
     device_t, device_t, int, int, struct resource *);
 static int	canbus_set_resource (
-    device_t, device_t, int, int, u_long, u_long);
+    device_t, device_t, int, int, rman_res_t, rman_res_t);
 static void	canbus_delete_resource(device_t, device_t, int, int);
 
 /* canbus local function */
@@ -188,9 +188,8 @@ canbus_attach(device_t dev)
 
 	/* Dynamic sysctl tree setup */
 	sysctl_ctx_init(&sc->canbus_sysctl_ctx);
-	canbus_sysctl_tree = SYSCTL_ADD_NODE(&sc->canbus_sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(/* tree top */), OID_AUTO,
-	    "canbus", CTLFLAG_RD, 0, "CanBe I/O Bus");
+	canbus_sysctl_tree = SYSCTL_ADD_ROOT_NODE(&sc->canbus_sysctl_ctx,
+	    OID_AUTO, "canbus", CTLFLAG_RD, 0, "CanBe I/O Bus");
 	SYSCTL_ADD_INT(&sc->canbus_sysctl_ctx,
 	    SYSCTL_CHILDREN(canbus_sysctl_tree), OID_AUTO, "io_delay_time",
 	    CTLFLAG_RW, &sc->io_delay_time, 0, "CanBe Bus I/O delay time");
@@ -235,7 +234,7 @@ canbus_print_child(device_t dev, device_t child)
 }
 
 static device_t
-canbus_add_child(device_t bus, int order, const char *name, int unit)
+canbus_add_child(device_t bus, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct canbus_device *cbdev;
@@ -255,7 +254,7 @@ canbus_add_child(device_t bus, int order, const char *name, int unit)
 
 static struct resource *
 canbus_alloc_resource(device_t dev, device_t child, int type,
-    int *rid, u_long start, u_long end, u_long count, u_int flags)
+    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	return (BUS_ALLOC_RESOURCE(device_get_parent(dev),
 	    child, type, rid, start, end, count, flags));
@@ -287,7 +286,8 @@ canbus_release_resource(
 
 static int
 canbus_set_resource (
-    device_t dev, device_t child, int type, int rid, u_long start, u_long count)
+    device_t dev, device_t child, int type, int rid, rman_res_t start,
+    rman_res_t count)
 {
 	struct  canbus_device *cbdev =
 	    (struct canbus_device *)device_get_ivars(child);
@@ -433,9 +433,9 @@ print_all_resources(device_t dev)
 	if (STAILQ_FIRST(rl))
 		retval += printf(" at");
 
-	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
-	retval += resource_list_print_type(rl, "iomem", SYS_RES_MEMORY, "%#lx");
-	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#jx");
+	retval += resource_list_print_type(rl, "iomem", SYS_RES_MEMORY, "%#jx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 
 	return retval;
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2002 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -53,10 +52,7 @@ struct ata_cbus_controller {
     struct resource *bankio;
     struct resource *irq;
     void *ih;
-    struct mtx bank_mtx;
-    int locked_bank;
-    int restart_bank;
-    int hardware_bank;
+    int channels;
     struct {
 	void (*function)(void *);
 	void *argument;
@@ -65,14 +61,13 @@ struct ata_cbus_controller {
 
 /* local prototypes */
 static void ata_cbus_intr(void *);
-static int ata_cbuschannel_banking(device_t dev, int flags);
 
 static int
 ata_cbus_probe(device_t dev)
 {
     struct resource *io;
     int rid;
-    u_long tmp;
+    rman_res_t tmp;
 
     /* dont probe PnP devices */
     if (isa_get_vendorid(dev))
@@ -80,8 +75,8 @@ ata_cbus_probe(device_t dev)
 
     /* allocate the ioport range */
     rid = ATA_IOADDR_RID;
-    if (!(io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-				  ATA_PC98_IOSIZE, RF_ACTIVE)))
+    if (!(io = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+					   ATA_PC98_IOSIZE, RF_ACTIVE)))
 	return ENOMEM;
 
     /* calculate & set the altport range */
@@ -111,8 +106,8 @@ ata_cbus_attach(device_t dev)
 
     /* allocate resources */
     rid = ATA_IOADDR_RID;
-    if (!(ctlr->io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-					ATA_PC98_IOSIZE, RF_ACTIVE)))
+    if (!(ctlr->io = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+						 ATA_PC98_IOSIZE, RF_ACTIVE)))
        return ENOMEM;
 
     rid = ATA_PC98_CTLADDR_RID;
@@ -155,12 +150,11 @@ ata_cbus_attach(device_t dev)
 	return ENXIO;
     }
 
-    mtx_init(&ctlr->bank_mtx, "ATA cbus bank lock", NULL, MTX_DEF);
-    ctlr->hardware_bank = -1;
-    ctlr->locked_bank = -1;
-    ctlr->restart_bank = -1;
+	/* Work around the lack of channel serialization in ATA_CAM. */
+	ctlr->channels = 1;
+	device_printf(dev, "second channel ignored\n");
 
-    for (unit = 0; unit < 2; unit++) {
+    for (unit = 0; unit < ctlr->channels; unit++) {
 	child = device_add_child(dev, "ata", unit);
 	if (child == NULL)
 	    device_printf(dev, "failed to add ata child device\n");
@@ -174,7 +168,8 @@ ata_cbus_attach(device_t dev)
 
 static struct resource *
 ata_cbus_alloc_resource(device_t dev, device_t child, int type, int *rid,
-			u_long start, u_long end, u_long count, u_int flags)
+			rman_res_t start, rman_res_t end, rman_res_t count,
+			u_int flags)
 {
     struct ata_cbus_controller *ctlr = device_get_softc(dev);
 
@@ -229,11 +224,10 @@ ata_cbus_intr(void *data)
     struct ata_channel *ch;
     int unit;
 
-    for (unit = 0; unit < 2; unit++) {
+    for (unit = 0; unit < ctlr->channels; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
-	if (ata_cbuschannel_banking(ch->dev, ATA_LF_WHICH) == unit)
-	    ctlr->interrupt[unit].function(ch);
+	ctlr->interrupt[unit].function(ch);
     }
 }
 
@@ -248,7 +242,7 @@ static device_method_t ata_cbus_methods[] = {
     DEVMETHOD(bus_setup_intr,           ata_cbus_setup_intr),
     DEVMETHOD(bus_print_child,          ata_cbus_print_child),
 
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t ata_cbus_driver = {
@@ -259,7 +253,7 @@ static driver_t ata_cbus_driver = {
 
 static devclass_t ata_cbus_devclass;
 
-DRIVER_MODULE(atacbus, isa, ata_cbus_driver, ata_cbus_devclass, 0, 0);
+DRIVER_MODULE(atacbus, isa, ata_cbus_driver, ata_cbus_devclass, NULL, NULL);
 
 static int
 ata_cbuschannel_probe(device_t dev)
@@ -335,48 +329,6 @@ ata_cbuschannel_resume(device_t dev)
     return ata_resume(dev);
 }
 
-static int
-ata_cbuschannel_banking(device_t dev, int flags)
-{
-    struct ata_cbus_controller *ctlr = device_get_softc(device_get_parent(dev));
-    struct ata_channel *ch = device_get_softc(dev);
-    int res;
-
-    mtx_lock(&ctlr->bank_mtx);
-    switch (flags) {
-    case ATA_LF_LOCK:
-	if (ctlr->locked_bank == -1)
-	    ctlr->locked_bank = ch->unit;
-	if (ctlr->locked_bank == ch->unit) {
-	    ctlr->hardware_bank = ch->unit;
-	    ATA_OUTB(ctlr->bankio, 0, ch->unit);
-	}
-	else
-	    ctlr->restart_bank = ch->unit;
-	break;
-
-    case ATA_LF_UNLOCK:
-	if (ctlr->locked_bank == ch->unit) {
-	    ctlr->locked_bank = -1;
-	    if (ctlr->restart_bank != -1) {
-		if ((ch = ctlr->interrupt[ctlr->restart_bank].argument)) {
-		    ctlr->restart_bank = -1;
-		    mtx_unlock(&ctlr->bank_mtx);
-		    ata_start(ch->dev);
-		    return -1;
-		}
-	    }
-	}
-	break;
-
-    case ATA_LF_WHICH:
-	break;
-    }
-    res = ctlr->locked_bank;
-    mtx_unlock(&ctlr->bank_mtx);
-    return res;
-}
-
 static device_method_t ata_cbuschannel_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,     ata_cbuschannel_probe),
@@ -384,10 +336,7 @@ static device_method_t ata_cbuschannel_methods[] = {
     DEVMETHOD(device_detach,    ata_cbuschannel_detach),
     DEVMETHOD(device_suspend,   ata_cbuschannel_suspend),
     DEVMETHOD(device_resume,    ata_cbuschannel_resume),
-
-    /* ATA methods */
-    DEVMETHOD(ata_locking,      ata_cbuschannel_banking),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t ata_cbuschannel_driver = {
@@ -396,5 +345,5 @@ static driver_t ata_cbuschannel_driver = {
     sizeof(struct ata_channel),
 };
 
-DRIVER_MODULE(ata, atacbus, ata_cbuschannel_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(ata, atacbus, ata_cbuschannel_driver, ata_devclass, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);

@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/10/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 # The following modules do not describe FreeBSD:
 # 14.uucpimpl, 15.uucpnet
@@ -9,9 +9,6 @@
 # The following modules do not build/install:
 # 13.amd (documentation is TeXinfo)
 # 16.security 17.password (encumbered)
-
-# The following modules are built with their programs:
-# 07.lpd
 
 SUBDIR=	title \
 	contents \
@@ -21,6 +18,7 @@ SUBDIR=	title \
 	04.quotas \
 	05.fastfs \
 	06.nfs \
+	${_07.lpd} \
 	${_08.sendmailop} \
 	11.timedop \
 	12.timed \
@@ -29,5 +27,11 @@ SUBDIR=	title \
 .if ${MK_SENDMAIL} != "no"
 _08.sendmailop=	08.sendmailop 
 .endif
+
+.if ${MK_LPR} != "no"
+_07.lpd=	07.lpd
+.endif
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

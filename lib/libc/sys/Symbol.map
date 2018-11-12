@@ -3,8 +3,8 @@
  */
 
 /*
- * It'd be nice to have this automatically generated, but we don't
- * know to what version they will eventually belong, so for now
+ * It'd be nice to automatically generate the syscall symbols, but we
+ * don't know to what version they will eventually belong to, so for now
  * it has to be manual.
  */
 FBSD_1.0 {
@@ -34,9 +34,7 @@ FBSD_1.0 {
 	__setugid;
 	__syscall;
 	__sysctl;
-	_umtx_lock;
 	_umtx_op;
-	_umtx_unlock;
 	abort2;
 	accept;
 	access;
@@ -56,7 +54,6 @@ FBSD_1.0 {
 	bind;
 	chdir;
 	chflags;
-	__chk_fail;
 	chmod;
 	chown;
 	chroot;
@@ -201,9 +198,6 @@ FBSD_1.0 {
 	nstat;
 	ntp_adjtime;
 	ntp_gettime;
-	oaio_read;
-	oaio_write;
-	olio_listio;
 	open;
 	pathconf;
 	pipe;
@@ -211,6 +205,7 @@ FBSD_1.0 {
 	posix_openpt;
 	preadv;
 	profil;
+	pselect;
 	ptrace;
 	pwritev;
 	quotactl;
@@ -244,7 +239,6 @@ FBSD_1.0 {
 	setaudit;
 	setaudit_addr;
 	setauid;
-	setcontext;
 	setegid;
 	seteuid;
 	setgid;
@@ -281,11 +275,8 @@ FBSD_1.0 {
 	sigwaitinfo;
 	socket;
 	socketpair;
-	__stack_chk_fail;
-	__stack_chk_guard;
 	stat;
 	statfs;
-	swapcontext;
 	swapoff;
 	swapon;
 	symlink;
@@ -350,13 +341,65 @@ FBSD_1.1 {
 	mkfifoat;
 	mknodat;
 	msgctl;
-	openat;
 	readlinkat;
 	renameat;
 	setfib;
 	shmctl;
 	symlinkat;
 	unlinkat;
+};
+
+FBSD_1.2 {
+	cap_enter;
+	cap_getmode;
+	getloginclass;
+	pdfork;
+	pdgetpid;
+	pdkill;
+	posix_fallocate;
+	rctl_get_racct;
+	rctl_get_rules;
+	rctl_get_limits;
+	rctl_add_rule;
+	rctl_remove_rule;
+	setloginclass;
+};
+
+FBSD_1.3 {
+	accept4;
+	aio_mlock;
+	bindat;
+	cap_fcntls_get;
+	cap_fcntls_limit;
+	cap_ioctls_get;
+	cap_ioctls_limit;
+	__cap_rights_get;
+	cap_rights_limit;
+	cap_sandboxed;
+	chflagsat;
+	clock_getcpuclockid2;
+	connectat;
+	ffclock_getcounter;
+	ffclock_getestimate;
+	ffclock_setestimate;
+	pipe2;
+	posix_fadvise;
+	procctl;
+	wait6;
+};
+
+FBSD_1.4 {
+	futimens;
+	ppoll;
+	utimensat;
+	numa_setaffinity;
+	numa_getaffinity;
+	sendmmsg;
+	recvmmsg;
+};
+
+FBSD_1.5 {
+	 fdatasync;
 };
 
 FBSDprivate_1.0 {
@@ -414,16 +457,14 @@ FBSDprivate_1.0 {
 	__sys___syscall;
 	___sysctl;
 	__sys___sysctl;
-	__umtx_lock;
-	__sys__umtx_lock;
 	__umtx_op;
 	__sys__umtx_op;
-	__umtx_unlock;
-	__sys__umtx_unlock;
 	_abort2;
 	__sys_abort2;
 	_accept;
 	__sys_accept;
+	_accept4;
+	__sys_accept4;
 	_access;
 	__sys_access;
 	_acct;
@@ -464,6 +505,8 @@ FBSDprivate_1.0 {
 	__sys_chown;
 	_chroot;
 	__sys_chroot;
+	_clock_getcpuclockid2;
+	__sys_clock_getcpuclockid2;
 	_clock_getres;
 	__sys_clock_getres;
 	_clock_gettime;
@@ -549,6 +592,8 @@ FBSDprivate_1.0 {
 	__sys_fstatfs;
 	_fsync;
 	__sys_fsync;
+	_fdatasync;
+	__sys_fdatasync;
 	_futimes;
 	__sys_futimes;
 	_getaudit;
@@ -761,24 +806,26 @@ FBSDprivate_1.0 {
 	__sys_ntp_adjtime;
 	_ntp_gettime;
 	__sys_ntp_gettime;
-	_oaio_read;
-	__sys_oaio_read;
-	_oaio_write;
-	__sys_oaio_write;
-	_olio_listio;
-	__sys_olio_listio;
 	_open;
 	__sys_open;
+	_openat;
+	__sys_openat;
 	_pathconf;
 	__sys_pathconf;
 	_pipe;
 	__sys_pipe;
 	_poll;
 	__sys_poll;
+	_ppoll;
+	__sys_ppoll;
 	_preadv;
 	__sys_preadv;
+	_procctl;
+	__sys_procctl;
 	_profil;
 	__sys_profil;
+	_pselect;
+	__sys_pselect;
 	_ptrace;
 	__sys_ptrace;
 	_pwritev;
@@ -914,6 +961,7 @@ FBSDprivate_1.0 {
 	_sigtimedwait;
 	__sys_sigtimedwait;
 	_sigwait;
+	__sigwait;
 	__sys_sigwait;
 	_sigwaitinfo;
 	__sys_sigwaitinfo;
@@ -985,11 +1033,15 @@ FBSDprivate_1.0 {
 	__sys_vadvise;
 	_wait4;
 	__sys_wait4;
+	_wait6;
+	__sys_wait6;
 	_write;
 	__sys_write;
 	_writev;
 	__sys_writev;
-	__error_unthreaded;
+	__set_error_selector;
 	nlm_syscall;
 	gssd_syscall;
+	__libc_interposing_slot;
+	__libc_sigwait;
 };

@@ -3,4 +3,4 @@
  */
 /* $FreeBSD$ */
 
-#include <i386/trap.h>
+#include <x86/trap.h>

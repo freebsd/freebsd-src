@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2003 Peter Wemm.
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -29,72 +30,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)frame.h	5.2 (Berkeley) 1/18/91
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_FRAME_H_
-#define _MACHINE_FRAME_H_ 1
+#ifndef _I386_FRAME_H_
+#define	_I386_FRAME_H_
 
-/*
- * System stack frames.
- */
+#include <x86/frame.h>
 
-/*
- * Exception/Trap Stack Frame
- */
+#define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
+#define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 
-struct trapframe {
-	int	tf_fs;
-	int	tf_es;
-	int	tf_ds;
-	int	tf_edi;
-	int	tf_esi;
-	int	tf_ebp;
-	int	tf_isp;
-	int	tf_ebx;
-	int	tf_edx;
-	int	tf_ecx;
-	int	tf_eax;
-	int	tf_trapno;
-	/* below portion defined in 386 hardware */
-	int	tf_err;
-	int	tf_eip;
-	int	tf_cs;
-	int	tf_eflags;
-	/* below only when crossing rings (e.g. user to kernel) */
-	int	tf_esp;
-	int	tf_ss;
-};
-
-/* Superset of trap frame, for traps from virtual-8086 mode */
-
-struct trapframe_vm86 {
-	int	tf_fs;
-	int	tf_es;
-	int	tf_ds;
-	int	tf_edi;
-	int	tf_esi;
-	int	tf_ebp;
-	int	tf_isp;
-	int	tf_ebx;
-	int	tf_edx;
-	int	tf_ecx;
-	int	tf_eax;
-	int	tf_trapno;
-	/* below portion defined in 386 hardware */
-	int	tf_err;
-	int	tf_eip;
-	int	tf_cs;
-	int	tf_eflags;
-	/* below only when crossing rings (e.g. user to kernel) */
-	int	tf_esp;
-	int	tf_ss;
-	/* below only when switching out of VM86 mode */
-	int	tf_vm86_es;
-	int	tf_vm86_ds;
-	int	tf_vm86_fs;
-	int	tf_vm86_gs;
-};
-
-#endif /* _MACHINE_FRAME_H_ */
+#endif	/* _I386_FRAME_H_ */

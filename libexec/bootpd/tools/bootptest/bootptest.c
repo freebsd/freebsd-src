@@ -186,7 +186,7 @@ main(argc, argv)
 			break;
 		switch (argv[0][1]) {
 
-		case 'f':				/* File name to reqest. */
+		case 'f':				/* File name to request. */
 			if (argc < 2)
 				goto error;
 			argc--; argv++;
@@ -466,9 +466,9 @@ send_request(s)
  */
 int
 printfn(s, ep)
-	register u_char *s, *ep;
+	u_char *s, *ep;
 {
-	register u_char c;
+	u_char c;
 
 	putchar('"');
 	while ((c = *s++) != '\0') {

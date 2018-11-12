@@ -272,7 +272,7 @@ otherwise 0.
 .Pp
 The
 .Fn bt_devinfo
-function populates prodivded
+function populates provided
 .Vt bt_devinfo
 structure with the information about given Bluetooth device.
 The caller is expected to pass Bluetooth device name in the
@@ -383,7 +383,7 @@ previously obtained with
 .Xr bt_devopen 3 .
 The
 .Fa opcode
-parameter is exppected to be in the host byte order.
+parameter is expected to be in the host byte order.
 The
 .Fa param
 and
@@ -422,7 +422,7 @@ function does not modify the
 .Dv HCI
 filter on the provided socket
 .Fa s .
-The function returns total number of bytes recevied,
+The function returns total number of bytes received,
 or -1 if an error occurred.
 .Pp
 The
@@ -494,7 +494,8 @@ previously obtained with
 .Xr bt_devopen 3 .
 Filtering can be done on packet types, i.e.
 .Dv ACL ,
-.Dv SCO or
+.Dv SCO
+or
 .Dv HCI ,
 command and event packets, and, in addition, on
 .Dv HCI
@@ -511,7 +512,7 @@ The function returns 0 on success, or -1 if an error occurred.
 .Pp
 The
 .Fn bt_devfilter_pkt_set ,
-.Fn bt_devfilter_pkt_clr 
+.Fn bt_devfilter_pkt_clr
 and
 .Fn bt_devfilter_pkt_tst
 functions can be used to modify and test the
@@ -526,7 +527,7 @@ packet type.
 .Pp
 The
 .Fn bt_devfilter_evt_set ,
-.Fn bt_devfilter_evt_clr 
+.Fn bt_devfilter_evt_clr
 and
 .Fn bt_devfilter_evt_tst
 functions can be used to modify and test the
@@ -545,7 +546,7 @@ function performs Bluetooth inquiry.
 The
 .Fa devname
 parameter specifies which local Bluetooth device should perform an inquiry.
-If not secified, i.e.
+If not specified, i.e.
 .Dv NULL ,
 then first available device will be used.
 The
@@ -719,7 +720,7 @@ The function guarantees that the socket,
 passed to the callback function,
 will be bound and connected to the Bluetooth device being enumerated.
 .Sh AUTHORS
-.An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
 .Sh BUGS
 Some of those functions use static data storage;
 if the data is needed for future use, it should be

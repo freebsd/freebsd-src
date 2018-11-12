@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -64,9 +60,7 @@ static const char rcsid[] =
 
 #define NIL ((TABLE_ENTRY *)0)
 
-extern	int debug;
-struct	timeval tp;
-struct	timezone txp;
+static struct timeval tp;
 
 typedef struct table_entry TABLE_ENTRY;
 
@@ -79,7 +73,7 @@ struct table_entry {
 
 static void delete(TABLE_ENTRY *);
 
-TABLE_ENTRY *table = NIL;
+static TABLE_ENTRY *table = NIL;
 
 /*
  * Look in the table for an invitation that matches the current
@@ -91,7 +85,7 @@ find_match(CTL_MSG *request)
 	TABLE_ENTRY *ptr;
 	time_t current_time;
 
-	gettimeofday(&tp, &txp);
+	gettimeofday(&tp, NULL);
 	current_time = tp.tv_sec;
 	if (debug)
 		print_request("find_match", request);
@@ -124,7 +118,7 @@ find_request(CTL_MSG *request)
 	TABLE_ENTRY *ptr;
 	time_t current_time;
 
-	gettimeofday(&tp, &txp);
+	gettimeofday(&tp, NULL);
 	current_time = tp.tv_sec;
 	/*
 	 * See if this is a repeated message, and check for
@@ -161,7 +155,7 @@ insert_table(CTL_MSG *request, CTL_RESPONSE *response)
 	TABLE_ENTRY *ptr;
 	time_t current_time;
 
-	gettimeofday(&tp, &txp);
+	gettimeofday(&tp, NULL);
 	current_time = tp.tv_sec;
 	request->id_num = new_id();
 	response->id_num = htonl(request->id_num);
@@ -203,7 +197,6 @@ delete_invite(u_int32_t id_num)
 {
 	TABLE_ENTRY *ptr;
 
-	ptr = table;
 	if (debug)
 		syslog(LOG_DEBUG, "delete_invite(%d)", id_num);
 	for (ptr = table; ptr != NIL; ptr = ptr->next) {

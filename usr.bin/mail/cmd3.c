@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -53,8 +49,7 @@ __FBSDID("$FreeBSD$");
  * and forking a sh -c
  */
 int
-shell(str)
-	char *str;
+shell(char *str)
 {
 	sig_t sigint = signal(SIGINT, SIG_IGN);
 	char *sh;
@@ -77,15 +72,14 @@ shell(str)
  */
 /*ARGSUSED*/
 int
-dosh(str)
-	char *str;
+dosh(char *str __unused)
 {
 	sig_t sigint = signal(SIGINT, SIG_IGN);
 	char *sh;
 
 	if ((sh = value("SHELL")) == NULL)
 		sh = _PATH_CSHELL;
-	(void)run_command(sh, 0, -1, -1, NULL, NULL, NULL);
+	(void)run_command(sh, 0, -1, -1, NULL);
 	(void)signal(SIGINT, sigint);
 	printf("\n");
 	return (0);
@@ -96,9 +90,7 @@ dosh(str)
  * last issued command where possible.
  */
 int
-bangexp(str, strsize)
-	char *str;
-	size_t strsize;
+bangexp(char *str, size_t strsize)
 {
 	char bangbuf[BUFSIZ];
 	static char lastbang[BUFSIZ];
@@ -110,7 +102,7 @@ bangexp(str, strsize)
 	n = sizeof(bangbuf);
 	while (*cp != '\0') {
 		if (*cp == '!') {
-			if (n < strlen(lastbang)) {
+			if (n < (int)strlen(lastbang)) {
 overf:
 				printf("Command buffer overflow\n");
 				return (-1);
@@ -152,7 +144,7 @@ overf:
  */
 
 int
-help()
+help(void)
 {
 	int c;
 	FILE *f;
@@ -171,9 +163,9 @@ help()
  * Change user's working directory.
  */
 int
-schdir(arglist)
-	char **arglist;
+schdir(void *v)
 {
+	char **arglist = v;
 	char *cp;
 
 	if (*arglist == NULL) {
@@ -191,9 +183,10 @@ schdir(arglist)
 }
 
 int
-respond(msgvec)
-	int *msgvec;
+respond(void *v)
 {
+	int *msgvec = v;
+
 	if (value("Replyall") == NULL && value("flipr") == NULL)
 		return (dorespond(msgvec));
 	else
@@ -205,8 +198,7 @@ respond(msgvec)
  * message header and send them off to mail1()
  */
 int
-dorespond(msgvec)
-	int *msgvec;
+dorespond(int *msgvec)
 {
 	struct message *mp;
 	char *cp, *rcv, *replyto;
@@ -271,8 +263,7 @@ dorespond(msgvec)
  * it does not already.
  */
 char *
-reedit(subj)
-	char *subj;
+reedit(char *subj)
 {
 	char *newsubj;
 
@@ -292,9 +283,9 @@ reedit(subj)
  * back to the system mailbox.
  */
 int
-preserve(msgvec)
-	int *msgvec;
+preserve(void *v)
 {
+	int *msgvec = v;
 	int *ip, mesg;
 	struct message *mp;
 
@@ -316,9 +307,9 @@ preserve(msgvec)
  * Mark all given messages as unread.
  */
 int
-unread(msgvec)
-	int	msgvec[];
+unread(void *v)
 {
+	int *msgvec = v;
 	int *ip;
 
 	for (ip = msgvec; *ip != 0; ip++) {
@@ -333,9 +324,9 @@ unread(msgvec)
  * Print the size of each message.
  */
 int
-messize(msgvec)
-	int *msgvec;
+messize(void *v)
 {
+	int *msgvec = v;
 	struct message *mp;
 	int *ip, mesg;
 
@@ -352,8 +343,7 @@ messize(msgvec)
  * by returning an error.
  */
 int
-rexit(e)
-	int e;
+rexit(void *v)
 {
 	if (sourcing)
 		return (1);
@@ -366,9 +356,9 @@ rexit(e)
  * of csh.
  */
 int
-set(arglist)
-	char **arglist;
+set(void *v)
 {
+	char **arglist = v;
 	struct var *vp;
 	char *cp, *cp2;
 	char varbuf[BUFSIZ], **ap, **p;
@@ -413,9 +403,9 @@ set(arglist)
  * Unset a bunch of variable values.
  */
 int
-unset(arglist)
-	char **arglist;
+unset(void *v)
 {
+	char **arglist = v;
 	struct var *vp, *vp2;
 	int errs, h;
 	char **ap;
@@ -453,9 +443,9 @@ unset(arglist)
  * Put add users to a group.
  */
 int
-group(argv)
-	char **argv;
+group(void *v)
 {
+	char **argv = v;
 	struct grouphead *gh;
 	struct group *gp;
 	char **ap, *gname, **p;
@@ -482,7 +472,8 @@ group(argv)
 	gname = *argv;
 	h = hash(gname);
 	if ((gh = findgroup(gname)) == NULL) {
-		gh = calloc(sizeof(*gh), 1);
+		if ((gh = calloc(1, sizeof(*gh))) == NULL)
+			err(1, "Out of memory");
 		gh->g_name = vcopy(gname);
 		gh->g_list = NULL;
 		gh->g_link = groups[h];
@@ -496,7 +487,8 @@ group(argv)
 	 */
 
 	for (ap = argv+1; *ap != NULL; ap++) {
-		gp = calloc(sizeof(*gp), 1);
+		if ((gp = calloc(1, sizeof(*gp))) == NULL)
+			err(1, "Out of memory");
 		gp->ge_name = vcopy(*ap);
 		gp->ge_link = gh->g_list;
 		gh->g_list = gp;
@@ -509,8 +501,7 @@ group(argv)
  * order.
  */
 void
-sort(list)
-	char **list;
+sort(char **list)
 {
 	char **ap;
 
@@ -526,8 +517,7 @@ sort(list)
  * qsort.
  */
 int
-diction(a, b)
-	const void *a, *b;
+diction(const void *a, const void *b)
 {
 	return (strcmp(*(const char **)a, *(const char **)b));
 }
@@ -538,8 +528,7 @@ diction(a, b)
 
 /*ARGSUSED*/
 int
-null(e)
-	int e;
+null(int e __unused)
 {
 	return (0);
 }
@@ -549,8 +538,7 @@ null(e)
  * the current file.
  */
 int
-file(argv)
-	char **argv;
+file(char **argv)
 {
 
 	if (argv[0] == NULL) {
@@ -567,8 +555,7 @@ file(argv)
  * Expand file names like echo
  */
 int
-echo(argv)
-	char **argv;
+echo(char **argv)
 {
 	char **ap, *cp;
 
@@ -585,8 +572,7 @@ echo(argv)
 }
 
 int
-Respond(msgvec)
-	int *msgvec;
+Respond(int *msgvec)
 {
 	if (value("Replyall") == NULL && value("flipr") == NULL)
 		return (doRespond(msgvec));
@@ -600,8 +586,7 @@ Respond(msgvec)
  * reply.
  */
 int
-doRespond(msgvec)
-	int msgvec[];
+doRespond(int msgvec[])
 {
 	struct header head;
 	struct message *mp;
@@ -638,8 +623,7 @@ doRespond(msgvec)
  * .mailrc and do some things if sending, others if receiving.
  */
 int
-ifcmd(argv)
-	char **argv;
+ifcmd(char **argv)
 {
 	char *cp;
 
@@ -670,7 +654,7 @@ ifcmd(argv)
  * flip over the conditional flag.
  */
 int
-elsecmd()
+elsecmd(void)
 {
 
 	switch (cond) {
@@ -698,7 +682,7 @@ elsecmd()
  * End of if statement.  Just set cond back to anything.
  */
 int
-endifcmd()
+endifcmd(void)
 {
 
 	if (cond == CANY) {
@@ -713,8 +697,7 @@ endifcmd()
  * Set the list of alternate names.
  */
 int
-alternates(namelist)
-	char **namelist;
+alternates(char **namelist)
 {
 	int c;
 	char **ap, **ap2, *cp;
@@ -730,7 +713,8 @@ alternates(namelist)
 	}
 	if (altnames != 0)
 		(void)free(altnames);
-	altnames = calloc((unsigned)c, sizeof(char *));
+	if ((altnames = calloc((unsigned)c, sizeof(char *))) == NULL)
+		err(1, "Out of memory");
 	for (ap = namelist, ap2 = altnames; *ap != NULL; ap++, ap2++) {
 		cp = calloc((unsigned)strlen(*ap) + 1, sizeof(char));
 		strcpy(cp, *ap);

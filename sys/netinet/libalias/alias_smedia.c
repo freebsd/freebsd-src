@@ -131,14 +131,14 @@ __FBSDID("$FreeBSD$");
 static void
 AliasHandleRtspOut(struct libalias *, struct ip *, struct alias_link *,	
 		  int maxpacketsize);
-static int 
+static int
 fingerprint(struct libalias *la, struct alias_data *ah)
 {
 
 	if (ah->dport != NULL && ah->aport != NULL && ah->sport != NULL &&
             ntohs(*ah->dport) == TFTP_PORT_NUMBER)
 		return (0);
-	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL || 
+	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL ||
 	    ah->maxpktsize == 0)
 		return (-1);
 	if (ntohs(*ah->dport) == RTSP_CONTROL_PORT_NUMBER_1
@@ -149,7 +149,7 @@ fingerprint(struct libalias *la, struct alias_data *ah)
 	return (-1);
 }
 
-static int 
+static int
 protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
 	
@@ -161,13 +161,13 @@ protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
 }
 
 struct proto_handler handlers[] = {
-	{ 
-	  .pri = 100, 
-	  .dir = OUT, 
+	{
+	  .pri = 100,
+	  .dir = OUT,
 	  .proto = TCP|UDP,
-	  .fingerprint = &fingerprint, 
+	  .fingerprint = &fingerprint,
 	  .protohandler = &protohandler
-	}, 
+	},
 	{ EOH }
 };
 
@@ -192,7 +192,7 @@ mod_handler(module_t mod, int type, void *data)
 }
 
 #ifdef _KERNEL
-static 
+static
 #endif
 moduledata_t alias_mod = {
        "alias_smedia", mod_handler, NULL
@@ -406,7 +406,7 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 	SetAckModified(lnk);
 	tc = (struct tcphdr *)ip_next(pip);
 	delta = GetDeltaSeqOut(tc->th_seq, lnk);
-	AddSeq(lnk, delta + new_dlen - dlen, pip->ip_hl, pip->ip_len, 
+	AddSeq(lnk, delta + new_dlen - dlen, pip->ip_hl, pip->ip_len,
 	    tc->th_seq, tc->th_off);
 
 	new_len = htons(hlen + new_dlen);
@@ -518,7 +518,7 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk, 
 
 		/*
 		 * When aliasing a server, check for the 200 reply
-		 * Accomodate varying number of blanks between 200 & OK
+		 * Accommodate varying number of blanks between 200 & OK
 		 */
 
 		if (dlen >= (int)strlen(str200)) {

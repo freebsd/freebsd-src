@@ -35,7 +35,8 @@
 
 extern char *commandname;	/* currently executing command */
 extern int exitstatus;		/* exit status of last command */
-extern struct strlist *cmdenviron;  /* environment for builtin command */
+extern int oexitstatus;		/* saved exit status */
+extern struct arglist *cmdenviron;  /* environment for builtin command */
 
 
 struct backcmd {		/* result of evalbackcmd */
@@ -45,32 +46,25 @@ struct backcmd {		/* result of evalbackcmd */
 	struct job *jp;		/* job structure for command */
 };
 
+void reseteval(void);
+
 /* flags in argument to evaltree/evalstring */
 #define EV_EXIT 01		/* exit after evaluating tree */
 #define EV_TESTED 02		/* exit status is checked; ignore -e flag */
 #define EV_BACKCMD 04		/* command executing within back quotes */
 
-int evalcmd(int, char **);
-void evalstring(char *, int);
+void evalstring(const char *, int);
 union node;	/* BLETCH for ansi C */
 void evaltree(union node *, int);
 void evalbackcmd(union node *, struct backcmd *);
-int bltincmd(int, char **);
-int breakcmd(int, char **);
-int returncmd(int, char **);
-int falsecmd(int, char **);
-int truecmd(int, char **);
-int execcmd(int, char **);
-int timescmd(int, char **);
-int commandcmd(int, char **);
 
 /* in_function returns nonzero if we are currently evaluating a function */
 #define in_function()	funcnest
 extern int funcnest;
 extern int evalskip;
+extern int skipcount;
 
 /* reasons for skipping commands (see comment on breakcmd routine) */
 #define SKIPBREAK	1
 #define SKIPCONT	2
-#define SKIPFUNC	3
-#define SKIPFILE	4
+#define SKIPRETURN	3

@@ -20,19 +20,17 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-#pragma	ident	"%Z%%M%	%I%	%E% SMI"
-
 /*
  * ASSERTION:
- *   Test multiple aggregations and overriding default order with
- *   printa() statements.
+ *     Test multiple aggregations and overriding default order with
+ *     printa() statements.
  *
  * SECTION: Aggregations/Aggregations;
- *	Aggregations/Output
+ *     Aggregations/Output
  *
  * NOTES: This is a simple verifiable test.
  *
@@ -55,6 +53,7 @@ tick-10ms
 	@e = max(i);
 	@f = quantize(i);
 	@g = lquantize(i, 0, 1000, 100);
+	@h = stddev(i);
 
 	i += 100;
 }
@@ -62,6 +61,7 @@ tick-10ms
 tick-10ms
 /i == 1000/
 {
+	printa("%@d\n", @h);
 	printa("%@d\n", @g);
 	printa("%@d\n", @f);
 	printa("%@d\n", @e);

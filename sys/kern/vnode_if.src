@@ -10,7 +10,7 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 4. Neither the name of the University nor the names of its contributors
+# 3. Neither the name of the University nor the names of its contributors
 #    may be used to endorse or promote products derived from this software
 #    without specific prior written permission.
 #
@@ -35,22 +35,18 @@
 # is a specification of the locking protocol used by each vop call.
 # The first column is the name of the variable, the remaining three
 # columns are in, out and error respectively.  The "in" column defines
-# the lock state on input, the "out" column defines the state on succesful
+# the lock state on input, the "out" column defines the state on successful
 # return, and the "error" column defines the locking state on error exit.
 #
 # The locking value can take the following values:
 # L: locked; not converted to type of lock.
-# A: any lock type.
-# S: locked with shared lock.
 # E: locked with exclusive lock for this process.
-# O: locked with exclusive lock for other process.
 # U: unlocked.
 # -: not applicable.  vnode does not yet (or no longer) exists.
 # =: the same on input and output, may be either L or U.
-# X: locked if not nil.
 #
 # The paramater named "vpp" is assumed to be always used with double
-# indirection (**vpp) and that name is hard-codeed in vnode_if.awk !
+# indirection (**vpp) and that name is hard-coded in vnode_if.awk !
 #
 # Lines starting with %! specify a pre or post-condition function
 # to call before/after the vop call.
@@ -63,10 +59,9 @@ vop_islocked {
 	IN struct vnode *vp;
 };
 
-%% lookup	dvp	L ? ?
+
+%% lookup	dvp	L L L
 %% lookup	vpp	- L -
-%! lookup	pre	vop_lookup_pre
-%! lookup	post	vop_lookup_post
 
 # XXX - the lookup locking protocol defies simple description and depends
 #	on the flags and operation fields in the (cnp) structure.  Note
@@ -78,7 +73,8 @@ vop_lookup {
 	IN struct componentname *cnp;
 };
 
-%% cachedlookup	dvp	L ? ?
+
+%% cachedlookup	dvp	L L L
 %% cachedlookup	vpp	- L -
 
 # This must be an exact copy of lookup.  See kern/vfs_cache.c for details.
@@ -88,6 +84,7 @@ vop_cachedlookup {
 	INOUT struct vnode **vpp;
 	IN struct componentname *cnp;
 };
+
 
 %% create	dvp	E E E
 %% create	vpp	- L -
@@ -123,6 +120,7 @@ vop_mknod {
 
 
 %% open		vp	L L L
+%! open		post	vop_open_post
 
 vop_open {
 	IN struct vnode *vp;
@@ -134,6 +132,7 @@ vop_open {
 
 
 %% close	vp	L L L
+%! close	post	vop_close_post
 
 vop_close {
 	IN struct vnode *vp;
@@ -181,13 +180,16 @@ vop_setattr {
 	IN struct ucred *cred;
 };
 
+
 %% markatime	vp	L L L
 
 vop_markatime {
 	IN struct vnode *vp;
 };
 
+
 %% read		vp	L L L
+%! read		post	vop_read_post
 
 vop_read {
 	IN struct vnode *vp;
@@ -328,6 +330,7 @@ vop_symlink {
 
 
 %% readdir	vp	L L L
+%! readdir	post	vop_readdir_post
 
 vop_readdir {
 	IN struct vnode *vp;
@@ -357,6 +360,7 @@ vop_inactive {
 
 
 %% reclaim	vp	E E E
+%! reclaim	post	vop_reclaim_post
 
 vop_reclaim {
 	IN struct vnode *vp;
@@ -453,6 +457,13 @@ vop_advlockasync {
 };
 
 
+%% advlockpurge	vp	E E E
+
+vop_advlockpurge {
+	IN struct vnode *vp;
+};
+
+
 %% reallocblks	vp	E E E
 
 vop_reallocblks {
@@ -467,12 +478,25 @@ vop_getpages {
 	IN struct vnode *vp;
 	IN vm_page_t *m;
 	IN int count;
-	IN int reqpage;
-	IN vm_ooffset_t offset;
+	IN int *rbehind;
+	IN int *rahead;
 };
 
 
-%% putpages	vp	E E E
+%% getpages_async	vp	L L L
+
+vop_getpages_async {
+	IN struct vnode *vp;
+	IN vm_page_t *m;
+	IN int count;
+	IN int *rbehind;
+	IN int *rahead;
+	IN vop_getpages_iodone_t *iodone;
+	IN void *arg;
+};
+
+
+%% putpages	vp	L L L
 
 vop_putpages {
 	IN struct vnode *vp;
@@ -480,7 +504,6 @@ vop_putpages {
 	IN int count;
 	IN int sync;
 	IN int *rtvals;
-	IN vm_ooffset_t offset;
 };
 
 
@@ -562,6 +585,7 @@ vop_openextattr {
 
 
 %% deleteextattr	vp	E E E
+%! deleteextattr	post	vop_deleteextattr_post
 
 vop_deleteextattr {
 	IN struct vnode *vp;
@@ -573,6 +597,7 @@ vop_deleteextattr {
 
 
 %% setextattr	vp	E E E
+%! setextattr	post	vop_setextattr_post
 
 vop_setextattr {
 	IN struct vnode *vp;
@@ -601,6 +626,7 @@ vop_vptofh {
 	IN struct fid *fhp;
 };
 
+
 %% vptocnp		vp	L L L
 %% vptocnp		vpp	- U -
 
@@ -610,4 +636,117 @@ vop_vptocnp {
 	IN struct ucred *cred;
 	INOUT char *buf;
 	INOUT int *buflen;
+};
+
+
+%% allocate	vp	E E E
+
+vop_allocate {
+	IN struct vnode *vp;
+	INOUT off_t *offset;
+	INOUT off_t *len;
+};
+
+
+%% advise	vp	U U U
+
+vop_advise {
+	IN struct vnode *vp;
+	IN off_t start;
+	IN off_t end;
+	IN int advice;
+};
+
+
+%% unp_bind	vp	E E E
+
+vop_unp_bind {
+	IN struct vnode *vp;
+	IN struct socket *socket;
+};
+
+
+%% unp_connect	vp	L L L
+
+vop_unp_connect {
+	IN struct vnode *vp;
+	OUT struct socket **socket;
+};
+
+
+%% unp_detach	vp	= = =
+
+vop_unp_detach {
+	IN struct vnode *vp;
+};
+
+
+%% is_text	vp	L L L
+
+vop_is_text {
+	IN struct vnode *vp;
+};
+
+
+%% set_text	vp	E E E
+
+vop_set_text {
+	IN struct vnode *vp;
+};
+
+
+%% vop_unset_text	vp	E E E
+
+vop_unset_text {
+	IN struct vnode *vp;
+};
+
+
+%% get_writecount	vp	L L L
+
+vop_get_writecount {
+	IN struct vnode *vp;
+	OUT int *writecount;
+};
+
+
+%% add_writecount	vp	E E E
+
+vop_add_writecount {
+	IN struct vnode *vp;
+	IN int inc;
+};
+
+
+%% fdatasync	vp	L L L
+
+vop_fdatasync {
+	IN struct vnode *vp;
+	IN struct thread *td;
+};
+
+
+# The VOPs below are spares at the end of the table to allow new VOPs to be
+# added in stable branches without breaking the KBI.  New VOPs in HEAD should
+# be added above these spares.  When merging a new VOP to a stable branch,
+# the new VOP should replace one of the spares.
+
+vop_spare1 {
+	IN struct vnode *vp;
+};
+
+vop_spare2 {
+	IN struct vnode *vp;
+};
+
+vop_spare3 {
+	IN struct vnode *vp;
+};
+
+vop_spare4 {
+	IN struct vnode *vp;
+};
+
+vop_spare5 {
+	IN struct vnode *vp;
 };

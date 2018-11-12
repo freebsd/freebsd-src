@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/bus_private.h>
 #include <machine/ofw_machdep.h>
-#include <machine/pmap.h>
 #include <machine/resource.h>
 #include <machine/sc_machdep.h>
 
@@ -87,7 +86,9 @@ struct machfb_softc {
 	struct resource		*sc_vmemres;
 	bus_space_tag_t		sc_memt;
 	bus_space_tag_t		sc_regt;
+	bus_space_tag_t		sc_vmemt;
 	bus_space_handle_t	sc_memh;
+	bus_space_handle_t	sc_vmemh;
 	bus_space_handle_t	sc_regh;
 	u_long			sc_mem;
 	u_long			sc_vmem;
@@ -129,7 +130,7 @@ static const struct {
 	uint16_t	chip_id;
 	const char	*name;
 	uint32_t	ramdac_freq;
-} const machfb_info[] = {
+} machfb_info[] = {
 	{ ATI_MACH64_CT, "ATI Mach64 CT", 135000 },
 	{ ATI_RAGE_PRO_AGP, "ATI 3D Rage Pro (AGP)", 230000 },
 	{ ATI_RAGE_PRO_AGP1X, "ATI 3D Rage Pro (AGP 1x)", 230000 },
@@ -167,7 +168,7 @@ static const struct machfb_cmap {
 	uint8_t red;
 	uint8_t green;
 	uint8_t blue;
-} const machfb_default_cmap[16] = {
+} machfb_default_cmap[16] = {
 	{0x00, 0x00, 0x00},	/* black */
 	{0x00, 0x00, 0xff},	/* blue */
 	{0x00, 0xff, 0x00},	/* green */
@@ -188,7 +189,7 @@ static const struct machfb_cmap {
 
 #define	MACHFB_CMAP_OFF		16
 
-static const u_char const machfb_mouse_pointer_bits[64][8] = {
+static const u_char machfb_mouse_pointer_bits[64][8] = {
 	{ 0x00, 0x00, },	/* ............ */
 	{ 0x80, 0x00, },	/* *........... */
 	{ 0xc0, 0x00, },	/* **.......... */
@@ -217,7 +218,7 @@ static const u_char const machfb_mouse_pointer_bits[64][8] = {
  * Lookup table to perform a bit-swap of the mouse pointer bits,
  * map set bits to CUR_CLR0 and unset bits to transparent.
  */
-static const u_char const machfb_mouse_pointer_lut[] = {
+static const u_char machfb_mouse_pointer_lut[] = {
 	0xaa, 0x2a, 0x8a, 0x0a, 0xa2, 0x22, 0x82, 0x02,
 	0xa8, 0x28, 0x88, 0x08, 0xa0, 0x20, 0x80, 0x00
 };
@@ -477,7 +478,7 @@ machfb_configure(int flags)
 		return (0);
 	if (OF_getprop(output, "device-id", &id, sizeof(id)) == -1)
 		return (0);
-	for (i = 0; i < sizeof(machfb_info) / sizeof(machfb_info[0]); i++) {
+	for (i = 0; i < nitems(machfb_info); i++) {
 		if (id == machfb_info[i].chip_id) {
 			sc->sc_flags = MACHFB_CONSOLE;
 			sc->sc_node = output;
@@ -531,7 +532,7 @@ machfb_init(int unit, video_adapter_t *adp, int flags)
 		return (ENXIO);
 
 	sc->sc_ramdac_freq = 0;
-	for (i = 0; i < sizeof(machfb_info) / sizeof(machfb_info[0]); i++) {
+	for (i = 0; i < nitems(machfb_info); i++) {
 		if (sc->sc_chip_id == machfb_info[i].chip_id) {
 			sc->sc_ramdac_freq = machfb_info[i].ramdac_freq;
 			break;
@@ -837,8 +838,8 @@ machfb_blank_display(video_adapter_t *adp, int mode)
 }
 
 static int
-machfb_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
-    int prot)
+machfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 	struct machfb_softc *sc;
 	video_info_t *vi;
@@ -1138,7 +1139,7 @@ machfb_pci_probe(device_t dev)
 	    pci_get_subclass(dev) != PCIS_DISPLAY_VGA)
 		return (ENXIO);
 
-	for (i = 0; i < sizeof(machfb_info) / sizeof(machfb_info[0]); i++) {
+	for (i = 0; i < nitems(machfb_info); i++) {
 		if (pci_get_device(dev) == machfb_info[i].chip_id) {
 			device_set_desc(dev, machfb_info[i].name);
 			return (BUS_PROBE_DEFAULT);
@@ -1175,68 +1176,52 @@ machfb_pci_attach(device_t dev)
 	adp = &sc->sc_va;
 	vi = &adp->va_info;
 
-	/*
-	 * Allocate resources regardless of whether we are the console
-	 * and already obtained the bus tag and handle for the framebuffer
-	 * in machfb_configure() or not so the resources are marked as
-	 * taken in the respective RMAN.
-	 */
-
-	/* Enable memory and IO access. */
-	pci_write_config(dev, PCIR_COMMAND,
-	    pci_read_config(dev, PCIR_COMMAND, 2) | PCIM_CMD_PORTEN |
-	    PCIM_CMD_MEMEN, 2);
-
-	/*
-	 * NB: we need to take care that the framebuffer isn't mapped
-	 * in twice as besides wasting resources this isn't possible with
-	 * all MMUs.
-	 */
 	rid = PCIR_BAR(0);
-	if ((sc->sc_memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &rid, 0)) == NULL) {
+	if ((sc->sc_memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE)) == NULL) {
 		device_printf(dev, "cannot allocate memory resources\n");
 		return (ENXIO);
 	}
+	sc->sc_memt = rman_get_bustag(sc->sc_memres);
+	sc->sc_memh = rman_get_bushandle(sc->sc_memres);
+	sc->sc_mem = rman_get_start(sc->sc_memres);
+	vi->vi_buffer = sc->sc_memh;
+	vi->vi_buffer_size = rman_get_size(sc->sc_memres);
 	if (OF_getprop(sc->sc_node, "address", &u32, sizeof(u32)) > 0 &&
-		vtophys(u32) == rman_get_bushandle(sc->sc_memres))
+		vtophys(u32) == sc->sc_memh)
 		adp->va_mem_base = u32;
 	else {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    rman_get_rid(sc->sc_memres), sc->sc_memres);
-		rid = PCIR_BAR(0);
-		if ((sc->sc_memres = bus_alloc_resource_any(dev,
-		    SYS_RES_MEMORY, &rid, RF_ACTIVE)) == NULL) {
-			device_printf(dev,
-			    "cannot allocate memory resources\n");
-			return (ENXIO);
+		if (bus_space_map(sc->sc_memt, vi->vi_buffer,
+		    vi->vi_buffer_size, BUS_SPACE_MAP_LINEAR,
+		    &sc->sc_memh) != 0) {
+			device_printf(dev, "cannot map memory resources\n");
+			error = ENXIO;
+			goto fail_memres;
 		}
 		adp->va_mem_base =
 		    (vm_offset_t)rman_get_virtual(sc->sc_memres);
 	}
-	sc->sc_memt = rman_get_bustag(sc->sc_memres);
-	sc->sc_memh = rman_get_bushandle(sc->sc_memres);
-	sc->sc_regt = sc->sc_memt;
-	bus_space_subregion(sc->sc_regt, sc->sc_memh, MACH64_REG_OFF,
-	    MACH64_REG_SIZE, &sc->sc_regh);
-	adp->va_mem_size = rman_get_size(sc->sc_memres);
+	adp->va_mem_size = vi->vi_buffer_size;
 	adp->va_buffer = adp->va_mem_base;
 	adp->va_buffer_size = adp->va_mem_size;
-	sc->sc_mem = rman_get_start(sc->sc_memres);
-	vi->vi_buffer = sc->sc_memh;
-	vi->vi_buffer_size = adp->va_buffer_size;
+	sc->sc_regt = sc->sc_memt;
+	if (bus_space_subregion(sc->sc_regt, sc->sc_memh, MACH64_REG_OFF,
+	    MACH64_REG_SIZE, &sc->sc_regh) != 0) {
+		device_printf(dev, "cannot allocate register resources\n");
+		error = ENXIO;
+		goto fail_memmap;
+	}
 
 	/*
 	 * Depending on the firmware version the VGA I/O and/or memory
-	 * resources of the Mach64 chips come up disabled.  We generally
-	 * enable them above (pci(4) actually already did this unless
-	 * pci_enable_io_modes is not set) but this doesn't necessarily
-	 * mean that we get valid ones.  Invalid resources seem to have
-	 * in common that they start at address 0.  We don't allocate
-	 * them in this case in order to avoid warnings in apb(4) and
-	 * crashes when using these invalid resources.  X.Org is aware
-	 * of this and doesn't use the VGA resources in this case (but
-	 * demands them if they are valid).
+	 * resources of the Mach64 chips come up disabled.  These will be
+	 * enabled by pci(4) when activating the resource in question but
+	 * this doesn't necessarily mean that the resource is valid.
+	 * Invalid resources seem to have in common that they start at
+	 * address 0.  We don't allocate the VGA memory in this case in
+	 * order to avoid warnings in apb(4) and crashes when using this
+	 * invalid resources.  X.Org is aware of this and doesn't use the
+	 * VGA memory resource in this case (but demands it if it's valid).
 	 */
 	rid = PCIR_BAR(2);
 	if (bus_get_resource_start(dev, SYS_RES_MEMORY, rid) != 0) {
@@ -1245,21 +1230,31 @@ machfb_pci_attach(device_t dev)
 			device_printf(dev,
 			    "cannot allocate VGA memory resources\n");
 			error = ENXIO;
-			goto fail_memres;
+			goto fail_memmap;
+		}
+		sc->sc_vmemt = rman_get_bustag(sc->sc_vmemres);
+		sc->sc_vmemh = rman_get_bushandle(sc->sc_vmemres);
+		sc->sc_vmem = rman_get_start(sc->sc_vmemres);
+		vi->vi_registers = sc->sc_vmemh;
+		vi->vi_registers_size = rman_get_size(sc->sc_vmemres);
+		if (bus_space_map(sc->sc_vmemt, vi->vi_registers,
+		    vi->vi_registers_size, BUS_SPACE_MAP_LINEAR,
+		    &sc->sc_vmemh) != 0) {
+			device_printf(dev,
+			    "cannot map VGA memory resources\n");
+			error = ENXIO;
+			goto fail_vmemres;
 		}
 		adp->va_registers =
 		    (vm_offset_t)rman_get_virtual(sc->sc_vmemres);
-		adp->va_registers_size = rman_get_size(sc->sc_vmemres);
-		sc->sc_vmem = rman_get_start(sc->sc_vmemres);
-		vi->vi_registers = rman_get_bushandle(sc->sc_vmemres);
-		vi->vi_registers_size = adp->va_registers_size;
+		adp->va_registers_size = vi->vi_registers_size;
 	}
 
 	if (!(sc->sc_flags & MACHFB_CONSOLE)) {
 		if ((sw = vid_get_switch(MACHFB_DRIVER_NAME)) == NULL) {
 			device_printf(dev, "cannot get video switch\n");
 			error = ENODEV;
-			goto fail_vmemres;
+			goto fail_vmemmap;
 		}
 		/*
 		 * During device configuration we don't necessarily probe
@@ -1275,7 +1270,7 @@ machfb_pci_attach(device_t dev)
 				break;
 		if ((error = sw->init(i, adp, 0)) != 0) {
 			device_printf(dev, "cannot initialize adapter\n");
-			goto fail_vmemres;
+			goto fail_vmemmap;
 		}
 	}
 
@@ -1283,8 +1278,8 @@ machfb_pci_attach(device_t dev)
 	 * Test whether the aperture is byte swapped or not, set
 	 * va_window and va_window_size as appropriate.  Note that
 	 * the aperture could be mapped either big or little endian
-	 * on independently of the endianess of the host so this
-	 * has to be a runtime test.
+	 * independently of the endianness of the host so this has
+	 * to be a runtime test.
 	 */
 	p32 = (uint32_t *)adp->va_buffer;
 	u32 = *p32;
@@ -1346,10 +1341,16 @@ machfb_pci_attach(device_t dev)
 
 	return (0);
 
+ fail_vmemmap:
+	if (adp->va_registers != 0)
+		bus_space_unmap(sc->sc_vmemt, sc->sc_vmemh,
+		    vi->vi_registers_size);
  fail_vmemres:
 	if (sc->sc_vmemres != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->sc_vmemres), sc->sc_vmemres);
+ fail_memmap:
+	bus_space_unmap(sc->sc_memt, sc->sc_memh, vi->vi_buffer_size);
  fail_memres:
 	bus_release_resource(dev, SYS_RES_MEMORY,
 	    rman_get_rid(sc->sc_memres), sc->sc_memres);
@@ -1416,7 +1417,7 @@ static int
 machfb_get_memsize(struct machfb_softc *sc)
 {
 	int tmp, memsize;
-	const int const mem_tab[] = {
+	const int mem_tab[] = {
 		512, 1024, 2048, 4096, 6144, 8192, 12288, 16384
 	};
 

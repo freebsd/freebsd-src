@@ -3463,7 +3463,7 @@ remote_store_registers (int regnum)
   {
     int i;
     regs = alloca (rs->sizeof_g_packet);
-    memset (regs, rs->sizeof_g_packet, 0);
+    memset (regs, 0, rs->sizeof_g_packet);
     for (i = 0; i < NUM_REGS + NUM_PSEUDO_REGS; i++)
       {
 	struct packet_reg *r = &rs->regs[i];
@@ -4834,7 +4834,7 @@ compare_sections_command (char *args, int from_tty)
       if (!(s->flags & SEC_LOAD))
 	continue;		/* skip non-loadable section */
 
-      size = bfd_get_section_size_before_reloc (s);
+      size = bfd_get_section_size (s);
       if (size == 0)
 	continue;		/* skip zero-length section */
 

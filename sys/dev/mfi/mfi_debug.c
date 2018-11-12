@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/selinfo.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/uio.h>
 #include <machine/resource.h>
@@ -56,13 +57,7 @@ __FBSDID("$FreeBSD$");
 static void
 mfi_print_frame_flags(device_t dev, uint32_t flags)
 {
-	device_printf(dev, "flags=%b\n", flags,
-	    "\20"
-	    "\1NOPOST"
-	    "\2SGL64"
-	    "\3SENSE64"
-	    "\4WRITE"
-	    "\5READ");
+	device_printf(dev, "flags=%b\n", flags, MFI_FRAME_FMT);
 }
 
 static void
@@ -72,7 +67,15 @@ mfi_print_sgl(struct mfi_frame_header *hdr, union mfi_sgl *sgl, int count)
 
 	printf("SG List:\n");
 	for (i = 0; i < count; i++) {
-		if (hdr->flags & MFI_FRAME_SGL64) {
+		if (hdr->flags & MFI_FRAME_IEEE_SGL) {
+			printf("0x%lx:%06d ", (u_long)sgl->sg_skinny[i].addr,
+			    sgl->sg_skinny[i].len);
+			columns += 26;
+			if (columns > 77) {
+				printf("\n");
+				columns = 0;
+			}
+		} else if (hdr->flags & MFI_FRAME_SGL64) {
 			printf("0x%lx:%06d ", (u_long)sgl->sg64[i].addr,
 			    sgl->sg64[i].len);
 			columns += 26;
@@ -162,6 +165,18 @@ mfi_print_dcmd(struct mfi_softc *sc, device_t dev, struct mfi_command *cm)
 	case MFI_DCMD_CLUSTER_RESET_LD:
 		opcode = "CLUSTER_RESET_LD";
 		break;
+	case MFI_DCMD_LD_MAP_GET_INFO:
+		opcode = "LD_MAP_GET_INFO";
+		break;
+	case MFI_DCMD_BBU_START_LEARN:
+		opcode = "BBU_START_LEARN";
+		break;
+	case MFI_DCMD_BBU_GET_PROP:
+		opcode = "BBU_GET_PROP";
+		break;
+	case MFI_DCMD_BBU_SET_PROP:
+		opcode = "BBU_SET_PROP";
+		break;
 	default:
 		opcode = "UNKNOWN";
 		break;
@@ -192,16 +207,7 @@ mfi_print_cmd(struct mfi_command *cm)
 	device_printf(dev, "cm=%p index=%d total_frame_size=%d "
 	    "extra_frames=%d\n", cm, cm->cm_index, cm->cm_total_frame_size,
 	    cm->cm_extra_frames);
-	device_printf(dev, "flags=%b\n", cm->cm_flags,
-	    "\20"
-	    "\1MAPPED"
-	    "\2DATAIN"
-	    "\3DATAOUT"
-	    "\4COMPLETED"
-	    "\5POLLED"
-	    "\6Q_FREE"
-	    "\7Q_READY"
-	    "\10Q_BUSY");
+	device_printf(dev, "flags=%b\n", cm->cm_flags, MFI_CMD_FLAGS_FMT);
 
 	switch (cm->cm_frame->header.cmd) {
 	case MFI_CMD_DCMD:
@@ -224,7 +230,7 @@ mfi_dump_cmds(struct mfi_softc *sc)
 {
 	int i;
 
-	for (i = 0; i < sc->mfi_total_cmds; i++)
+	for (i = 0; i < sc->mfi_max_fw_cmds; i++)
 		mfi_print_generic_frame(sc, &sc->mfi_commands[i]);
 }
 
@@ -239,7 +245,12 @@ mfi_validate_sg(struct mfi_softc *sc, struct mfi_command *cm,
 	hdr = &cm->cm_frame->header;
 	count = 0;
 	for (i = 0; i < hdr->sg_count; i++) {
-		count += cm->cm_sg->sg32[i].len;
+		if (hdr->flags & MFI_FRAME_IEEE_SGL)
+			count += cm->cm_sg->sg_skinny[i].len;
+		else if (hdr->flags & MFI_FRAME_SGL64)
+			count += cm->cm_sg->sg64[i].len;
+		else
+			count += cm->cm_sg->sg32[i].len;
 	}
 	/*
 	count++;

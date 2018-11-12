@@ -36,13 +36,22 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <unistd.h>
 
+#include "libc_private.h"
+
+int __pause(void);
+
 /*
  * Backwards compatible pause.
  */
 int
-__pause()
+__pause(void)
 {
-	return sigpause(sigblock(0L));
+	sigset_t oset;
+
+	if (sigprocmask(SIG_BLOCK, NULL, &oset) == -1)
+		return (-1);
+	return (sigsuspend(&oset));
 }
+
 __weak_reference(__pause, pause);
 __weak_reference(__pause, _pause);

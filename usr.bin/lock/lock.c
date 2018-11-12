@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -58,50 +54,53 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <sys/signal.h>
 #include <sys/consio.h>
+
 #include <err.h>
 #include <ctype.h>
 #include <errno.h>
+#include <paths.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <termios.h>
+#include <time.h>
 #include <unistd.h>
 
 #define	TIMEOUT	15
 
-void quit(int);
-void bye(int);
-void hi(int);
+static void quit(int);
+static void bye(int);
+static void hi(int);
 static void usage(void);
 
-struct timeval	timeout;
-struct timeval	zerotime;
-struct termios	tty, ntty;
-long	nexttime;			/* keep the timeout time */
-int            no_timeout;                     /* lock terminal forever */
-int	vtyunlock;			/* Unlock flag and code. */
+static struct timeval	timeout;
+static struct timeval	zerotime;
+static struct termios	tty, ntty;
+static long		nexttime;		/* keep the timeout time */
+static int		no_timeout;		/* lock terminal forever */
+static int		vtyunlock;		/* Unlock flag and code. */
 
 /*ARGSUSED*/
 int
 main(int argc, char **argv)
 {
 	struct passwd *pw;
-	struct timeval timval;
-	time_t timval_sec;
 	struct itimerval ntimer, otimer;
 	struct tm *timp;
+	time_t timval;
 	int ch, failures, sectimeout, usemine, vtylock;
-	char *ap, *mypw, *ttynam, *tzn;
+	char *ap, *cryptpw, *mypw, *ttynam, *tzn;
 	char hostname[MAXHOSTNAMELEN], s[BUFSIZ], s1[BUFSIZ];
 
-	openlog("lock", LOG_ODELAY, LOG_AUTH);
+	openlog("lock", 0, LOG_AUTH);
 
 	sectimeout = TIMEOUT;
+	pw = NULL;
 	mypw = NULL;
 	usemine = 0;
 	no_timeout = 0;
@@ -130,18 +129,20 @@ main(int argc, char **argv)
 		}
 	timeout.tv_sec = sectimeout * 60;
 
-	setuid(getuid());		/* discard privs */
+	/* discard privs */
+	if (setuid(getuid()) != 0)
+		errx(1, "setuid failed");
 
 	if (tcgetattr(0, &tty))		/* get information for header */
 		exit(1);
 	gethostname(hostname, sizeof(hostname));
 	if (!(ttynam = ttyname(0)))
 		errx(1, "not a terminal?");
-	if (gettimeofday(&timval, (struct timezone *)NULL))
-		err(1, "gettimeofday");
-	nexttime = timval.tv_sec + (sectimeout * 60);
-	timval_sec = timval.tv_sec;
-	timp = localtime(&timval_sec);
+	if (strncmp(ttynam, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		ttynam += strlen(_PATH_DEV);
+	timval = time(NULL);
+	nexttime = timval + (sectimeout * 60);
+	timp = localtime(&timval);
 	ap = asctime(timp);
 	tzn = timp->tm_zone;
 
@@ -196,7 +197,11 @@ main(int argc, char **argv)
 	}
 
 	/* header info */
-	(void)printf("lock: %s on %s.", ttynam, hostname);
+	if (pw != NULL)
+		(void)printf("lock: %s using %s on %s.", pw->pw_name,
+		    ttynam, hostname);
+	else
+		(void)printf("lock: %s on %s.", ttynam, hostname);
 	if (no_timeout)
 		(void)printf(" no timeout.");
 	else
@@ -217,7 +222,8 @@ main(int argc, char **argv)
 		}
 		if (usemine) {
 			s[strlen(s) - 1] = '\0';
-			if (!strcmp(mypw, crypt(s, mypw)))
+			cryptpw = crypt(s, mypw);
+			if (cryptpw == NULL || !strcmp(mypw, cryptpw))
 				break;
 		}
 		else if (!strcmp(s, s1))
@@ -247,24 +253,23 @@ usage(void)
 	exit(1);
 }
 
-void
+static void
 hi(int signo __unused)
 {
-	struct timeval timval;
+	time_t timval;
 
-	if (!gettimeofday(&timval, (struct timezone *)NULL)) {
-		(void)printf("lock: type in the unlock key. ");
-		if (no_timeout) {
-			(void)putchar('\n');
-		} else {
-			(void)printf("timeout in %ld:%ld minutes\n",
-			    (nexttime - timval.tv_sec) / 60,
-			    (nexttime - timval.tv_sec) % 60);
-		}
+	timval = time(NULL);
+	(void)printf("lock: type in the unlock key. ");
+	if (no_timeout) {
+		(void)putchar('\n');
+	} else {
+		(void)printf("timeout in %jd:%jd minutes\n",
+		    (intmax_t)(nexttime - timval) / 60,
+		    (intmax_t)(nexttime - timval) % 60);
 	}
 }
 
-void
+static void
 quit(int signo __unused)
 {
 	(void)putchar('\n');
@@ -274,7 +279,7 @@ quit(int signo __unused)
 	exit(0);
 }
 
-void
+static void
 bye(int signo __unused)
 {
 	if (!no_timeout) {

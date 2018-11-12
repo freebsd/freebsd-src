@@ -59,6 +59,18 @@ teken_subr_cons25_set_adapter_foreground(teken_t *t, unsigned int c)
 	}
 }
 
+static const teken_color_t cons25_revcolors[8] = { 0, 4, 2, 6, 1, 5, 3, 7 };
+
+void
+teken_get_defattr_cons25(teken_t *t, int *fg, int *bg)
+{
+
+	*fg = cons25_revcolors[teken_256to8(t->t_defattr.ta_fgcolor)];
+	if (t->t_defattr.ta_format & TF_BOLD)
+		*fg += 8;
+	*bg = cons25_revcolors[teken_256to8(t->t_defattr.ta_bgcolor)];
+}
+
 static void
 teken_subr_cons25_switch_virtual_terminal(teken_t *t, unsigned int vt)
 {
@@ -73,6 +85,34 @@ teken_subr_cons25_set_bell_pitch_duration(teken_t *t, unsigned int pitch,
 
 	teken_funcs_param(t, TP_SETBELLPD, (pitch << 16) |
 	    (duration & 0xffff));
+}
+
+static void
+teken_subr_cons25_set_graphic_rendition(teken_t *t, unsigned int cmd,
+    unsigned int param __unused)
+{
+
+	switch (cmd) {
+	case 0: /* Reset. */
+		t->t_curattr = t->t_defattr;
+		break;
+	default:
+		teken_printf("unsupported attribute %u\n", cmd);
+	}
+}
+
+static void
+teken_subr_cons25_set_terminal_mode(teken_t *t, unsigned int mode)
+{
+
+	switch (mode) {
+	case 0:	/* Switch terminal to xterm. */
+		t->t_stateflags &= ~TS_CONS25;
+		break;
+	case 1: /* Switch terminal to cons25. */
+		t->t_stateflags |= TS_CONS25;
+		break;
+	}
 }
 
 #if 0

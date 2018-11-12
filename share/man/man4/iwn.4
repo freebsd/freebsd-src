@@ -25,40 +25,104 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2008
-.Os
+.Dd August 30, 2014
 .Dt IWN 4
+.Os
 .Sh NAME
 .Nm iwn
-.Nd "Intel Wireless WiFi Link 4965AGN IEEE 802.11n driver"
+.Nd Intel IEEE 802.11n wireless network driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 include the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device iwn"
-.Cd "device iwnfw"
 .Cd "device pci"
 .Cd "device wlan"
 .Cd "device firmware"
 .Ed
 .Pp
+You also need to select a firmware for your device.
+Choose one from:
+.Bd -ragged -offset indent
+.Cd "device iwn1000fw"
+.Cd "device iwn100fw"
+.Cd "device iwn105fw"
+.Cd "device iwn135fw"
+.Cd "device iwn2000fw"
+.Cd "device iwn2030fw"
+.Cd "device iwn4965fw"
+.Cd "device iwn5000fw"
+.Cd "device iwn5150fw"
+.Cd "device iwn6000fw"
+.Cd "device iwn6000g2afw"
+.Cd "device iwn6000g2bfw"
+.Cd "device iwn6050fw"
+.Ed
+.Pp
+Or you can use
+.Bd -ragged -offset indent
+.Cd "device iwnfw"
+.Ed
+.Pp
+to include them all.
+.Pp
 Alternatively, to load the driver as a
-module at boot time, place the following line in
+module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_iwn_load="YES"
+iwn1000fw_load="YES"
+iwn100fw_load="YES"
+iwn105fw_load="YES"
+iwn135fw_load="YES"
+iwn2000fw_load="YES"
+iwn2030fw_load="YES"
+iwn4965fw_load="YES"
+iwn5000fw_load="YES"
+iwn5150fw_load="YES"
+iwn6000fw_load="YES"
+iwn6000g2afw_load="YES"
+iwn6000g2bfw_load="YES"
+iwn6050fw_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for
-.Tn Intel
-Wireless WiFi Link 4965AGN PCI-Express network adapters.
+driver provides support for:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Intel Centrino Advanced-N 6200
+.It Intel Centrino Advanced-N 6205
+.It Intel Centrino Advanced-N 6230
+.It Intel Centrino Advanced-N 6235
+.It Intel Centrino Advanced-N + WiMAX 6250
+.It Intel Centrino Ultimate-N 6300
+.It Intel Centrino Wireless-N 100
+.It Intel Centrino Wireless-N 105
+.It Intel Centrino Wireless-N 130
+.It Intel Centrino Wireless-N 135
+.It Intel Centrino Wireless-N 1000
+.It Intel Centrino Wireless-N 1030
+.It Intel Centrino Wireless-N 2200
+.It Intel Centrino Wireless-N 2230
+.It Intel Centrino Wireless-N 4965
+.It Intel Centrino Wireless-N 5100
+.It Intel Centrino Wireless-N 6150
+.It Intel Centrino Wireless-N 6200
+.It Intel Centrino Wireless-N 6250
+.It Intel Centrino Wireless-N 6250
+.It Intel Centrino Wireless-N + WiMAX 6150
+.It Intel Ultimate N WiFi Link 5300
+.It Intel Wireless WiFi Link 4965
+.It Intel WiFi Link 5100
+.It Intel WiMAX/WiFi Link 5150
+.It Intel WiMAX/WiFi Link 5350
+.El
+.Pp
 .Nm
 supports
-.Cm station ,
-.Cm adhoc ,
+.Cm station
 and
 .Cm monitor
 mode operation.
@@ -71,7 +135,6 @@ This driver requires the firmware built with the
 module to work.
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev iwn0 inet 192.168.0.20 \e
     netmask 0xffffff00
@@ -109,7 +172,7 @@ This should not happen.
 The driver failed to load the firmware image using the
 .Xr firmware 9
 subsystem.
-Verify the 
+Verify the
 .Xr iwnfw 4
 firmware module is present.
 .It "iwn%d: could not load boot firmware"
@@ -137,4 +200,4 @@ This should not happen.
 The original
 .Nm
 driver was written by
-.An Damien Bergamini Aq damien.bergamini@free.fr
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .

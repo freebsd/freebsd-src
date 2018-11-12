@@ -73,9 +73,7 @@ static __inline u_int16_t snc_nec16_select_bank
  * to accept packets.
  */
 int
-sncsetup(sc, lladdr)
-	struct snc_softc	*sc;
-	u_int8_t *lladdr;
+sncsetup(struct snc_softc *sc, u_int8_t *lladdr)
 {
 	u_int32_t p, pp;
 	int	i;
@@ -172,8 +170,7 @@ sncsetup(sc, lladdr)
  * check if a specified irq is acceptable.
  */
 u_int8_t
-snc_nec16_validate_irq(irq)
-	int irq;
+snc_nec16_validate_irq(int irq)
 {
 	const u_int8_t encoded_irq[16] = {
 	    -1, -1, -1, 0, -1, 1, 2, -1, -1, 3, 4, -1, 5, 6, -1, -1
@@ -186,9 +183,7 @@ snc_nec16_validate_irq(irq)
  * specify irq to board.
  */
 int
-snc_nec16_register_irq(sc, irq)
-	struct snc_softc *sc;
-	int irq;
+snc_nec16_register_irq(struct snc_softc *sc, int irq)
 {
 	bus_space_tag_t iot = sc->sc_iot;
 	bus_space_handle_t ioh = sc->sc_ioh;
@@ -212,8 +207,7 @@ snc_nec16_register_irq(sc, irq)
  * check if a specified memory base address is acceptable.
  */
 int
-snc_nec16_validate_mem(maddr)
-	int maddr;
+snc_nec16_validate_mem(int maddr)
 {
 
 	/* Check on Normal mode with max range, only */
@@ -230,9 +224,7 @@ snc_nec16_validate_mem(maddr)
  * specify memory base address to board and map to first bank.
  */
 int
-snc_nec16_register_mem(sc, maddr)
-	struct snc_softc *sc;
-	int maddr;
+snc_nec16_register_mem(struct snc_softc *sc, int maddr)
 {
 	bus_space_tag_t iot = sc->sc_iot;
 	bus_space_handle_t ioh = sc->sc_ioh;
@@ -260,11 +252,8 @@ snc_nec16_register_mem(sc, maddr)
 }
 
 int
-snc_nec16_check_memory(iot, ioh, memt, memh)
-	bus_space_tag_t iot;
-	bus_space_handle_t ioh;
-	bus_space_tag_t memt;
-	bus_space_handle_t memh;
+snc_nec16_check_memory(bus_space_tag_t iot, bus_space_handle_t ioh,
+    bus_space_tag_t memt, bus_space_handle_t memh)
 {
 	u_int16_t val;
 	int i, j;
@@ -341,14 +330,9 @@ snc_nec16_check_memory(iot, ioh, memt, memh)
 }
 
 int
-snc_nec16_detectsubr(iot, ioh, memt, memh, irq, maddr, type)
-	bus_space_tag_t iot;
-	bus_space_handle_t ioh;
-	bus_space_tag_t memt;
-	bus_space_handle_t memh;
-	int irq;
-	int maddr;
-	u_int8_t type;
+snc_nec16_detectsubr(bus_space_tag_t iot, bus_space_handle_t ioh,
+    bus_space_tag_t memt, bus_space_handle_t memh, int irq, int maddr,
+    u_int8_t type)
 {
 	u_int16_t cr;
 	u_int8_t ident;
@@ -413,8 +397,7 @@ snc_nec16_detectsubr(iot, ioh, memt, memh, irq, maddr, type)
 #define	SNC_NEC_SERIES_PNP_CBUS2	0x3d
 
 u_int8_t *
-snc_nec16_detect_type(myea)
-	u_int8_t *myea;
+snc_nec16_detect_type(u_int8_t *myea)
 {
 	u_int32_t vendor = (myea[0] << 16) | (myea[1] << 8) | myea[2];
 	u_int8_t series = myea[3];
@@ -459,10 +442,8 @@ snc_nec16_detect_type(myea)
 }
 
 int
-snc_nec16_get_enaddr(iot, ioh, myea)
-	bus_space_tag_t iot;
-	bus_space_handle_t ioh;
-	u_int8_t *myea;
+snc_nec16_get_enaddr(bus_space_tag_t iot, bus_space_handle_t ioh,
+    u_int8_t *myea)
 {
 	u_int8_t eeprom[SNEC_EEPROM_SIZE];
 	u_int8_t rom_sum, sum = 0x00;
@@ -493,9 +474,7 @@ snc_nec16_get_enaddr(iot, ioh, myea)
  * read from NEC/SONIC NIC register.
  */
 u_int16_t
-snc_nec16_nic_get(sc, reg)
-	struct snc_softc *sc;
-	u_int8_t reg;
+snc_nec16_nic_get(struct snc_softc *sc, u_int8_t reg)
 {
 	u_int16_t val;
 
@@ -510,10 +489,7 @@ snc_nec16_nic_get(sc, reg)
  * write to NEC/SONIC NIC register.
  */
 void
-snc_nec16_nic_put(sc, reg, val)
-	struct snc_softc *sc;
-	u_int8_t reg;
-	u_int16_t val;
+snc_nec16_nic_put(struct snc_softc *sc, u_int8_t reg, u_int16_t val)
 {
 
 	/* select SONIC register */
@@ -527,10 +503,7 @@ snc_nec16_nic_put(sc, reg, val)
  * where exists specified (internal buffer memory) offset.
  */
 static __inline u_int16_t
-snc_nec16_select_bank(sc, base, offset)
-	struct snc_softc *sc;
-	u_int32_t base;
-	u_int32_t offset;
+snc_nec16_select_bank(struct snc_softc *sc, u_int32_t base, u_int32_t offset)
 {
 	bus_space_tag_t iot = sc->sc_iot;
 	bus_space_handle_t ioh = sc->sc_ioh;
@@ -565,11 +538,8 @@ snc_nec16_select_bank(sc, base, offset)
  * write to SONIC descriptors.
  */
 void
-snc_nec16_writetodesc(sc, base, offset, val)
-	struct snc_softc *sc;
-	u_int32_t base;
-	u_int32_t offset;
-	u_int16_t val;
+snc_nec16_writetodesc(struct snc_softc *sc, u_int32_t base, u_int32_t offset,
+    u_int16_t val)
 {
 	bus_space_tag_t memt = sc->sc_memt;
 	bus_space_handle_t memh = sc->sc_memh;
@@ -584,10 +554,7 @@ snc_nec16_writetodesc(sc, base, offset, val)
  * read from SONIC descriptors.
  */
 u_int16_t
-snc_nec16_readfromdesc(sc, base, offset)
-	struct snc_softc *sc;
-	u_int32_t base;
-	u_int32_t offset;
+snc_nec16_readfromdesc(struct snc_softc *sc, u_int32_t base, u_int32_t offset)
 {
 	bus_space_tag_t memt = sc->sc_memt;
 	bus_space_handle_t memh = sc->sc_memh;
@@ -602,11 +569,8 @@ snc_nec16_readfromdesc(sc, base, offset)
  * read from SONIC data buffer.
  */
 void
-snc_nec16_copyfrombuf(sc, dst, offset, size)
-	struct snc_softc *sc;
-	void *dst;
-	u_int32_t offset;
-	size_t size;
+snc_nec16_copyfrombuf(struct snc_softc *sc, void *dst, u_int32_t offset,
+    size_t size)
 {
 	bus_space_tag_t memt = sc->sc_memt;
 	bus_space_handle_t memh = sc->sc_memh;
@@ -644,11 +608,8 @@ snc_nec16_copyfrombuf(sc, dst, offset, size)
  * write to SONIC data buffer.
  */
 void
-snc_nec16_copytobuf(sc, src, offset, size)
-	struct snc_softc *sc;
-	void *src;
-	u_int32_t offset;
-	size_t size;
+snc_nec16_copytobuf(struct snc_softc *sc, void *src, u_int32_t offset,
+    size_t size)
 {
 	bus_space_tag_t memt = sc->sc_memt;
 	bus_space_handle_t memh = sc->sc_memh;
@@ -688,10 +649,7 @@ snc_nec16_copytobuf(sc, src, offset, size)
  * write (fill) 0 to SONIC data buffer.
  */
 void
-snc_nec16_zerobuf(sc, offset, size)
-	struct snc_softc *sc;
-	u_int32_t offset;
-	size_t size;
+snc_nec16_zerobuf(struct snc_softc *sc, u_int32_t offset, size_t size)
 {
 	bus_space_tag_t memt = sc->sc_memt;
 	bus_space_handle_t memh = sc->sc_memh;
@@ -735,10 +693,8 @@ snc_nec16_zerobuf(sc, offset, size)
 #define	SNEC_EEP_DELAY	1000
 
 void
-snc_nec16_read_eeprom(iot, ioh, data)
-	bus_space_tag_t iot;
-	bus_space_handle_t ioh;
-	u_int8_t *data;
+snc_nec16_read_eeprom(bus_space_tag_t iot, bus_space_handle_t ioh,
+    u_int8_t *data)
 {
 	u_int8_t n, val, bit;
 
@@ -851,9 +807,7 @@ snc_nec16_read_eeprom(iot, ioh, data)
 
 #ifdef	SNCDEBUG
 void
-snc_nec16_dump_reg(iot, ioh)
-	bus_space_tag_t iot;
-	bus_space_handle_t ioh;
+snc_nec16_dump_reg(bus_space_tag_t iot, bus_space_handle_t ioh)
 {
 	u_int8_t n;
 	u_int16_t val;

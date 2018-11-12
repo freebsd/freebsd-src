@@ -39,6 +39,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -49,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact.h>
 #include <sys/ucontext.h>
 #include <sys/lock.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/ptrace.h>
 #include <sys/syslog.h>
@@ -61,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/md_var.h>
 #include <machine/sigframe.h>
+#include <machine/tls.h>
 #include <machine/vmparam.h>
 #include <sys/vnode.h>
 #include <fs/pseudofs/pseudofs.h>
@@ -107,6 +110,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_pc = regs->pc;
 	sf.sf_uc.uc_mcontext.mullo = regs->mullo;
 	sf.sf_uc.uc_mcontext.mulhi = regs->mulhi;
+	sf.sf_uc.uc_mcontext.mc_tls = td->td_md.md_tls;
 	sf.sf_uc.uc_mcontext.mc_regs[0] = UCONTEXT_MAGIC;  /* magic number */
 	bcopy((void *)&regs->ast, (void *)&sf.sf_uc.uc_mcontext.mc_regs[1],
 	    sizeof(sf.sf_uc.uc_mcontext.mc_regs) - sizeof(register_t));
@@ -123,31 +127,26 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct sigframe *)((vm_offset_t)(td->td_sigstk.ss_sp +
+		sfp = (struct sigframe *)(((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(struct sigframe))
 		    & ~(sizeof(__int64_t) - 1));
 	} else
 		sfp = (struct sigframe *)((vm_offset_t)(regs->sp - 
 		    sizeof(struct sigframe)) & ~(sizeof(__int64_t) - 1));
 
-	/* Translate the signal if appropriate */
-	if (p->p_sysent->sv_sigtbl) {
-		if (sig <= p->p_sysent->sv_sigsize)
-			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-	}
-
 	/* Build the argument list for the signal handler. */
 	regs->a0 = sig;
-	regs->a2 = (register_t)&sfp->sf_uc;
+	regs->a2 = (register_t)(intptr_t)&sfp->sf_uc;
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
-		regs->a1 = (register_t)&sfp->sf_si;
+		regs->a1 = (register_t)(intptr_t)&sfp->sf_si;
 		/* sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher; */
 
 		/* fill siginfo structure */
+		sf.sf_si = ksi->ksi_info;
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = ksi->ksi_code;
-		sf.sf_si.si_addr = (void*)regs->badvaddr;
+		sf.sf_si.si_addr = (void*)(intptr_t)regs->badvaddr;
 	} else {
 		/* Old FreeBSD-style arguments. */
 		regs->a1 = ksi->ksi_code;
@@ -170,37 +169,16 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sigexit(td, SIGILL);
 	}
 
-	regs->pc = (register_t) catcher;
-	regs->t9 = (register_t) catcher;
-	regs->sp = (register_t) sfp;
+	regs->pc = (register_t)(intptr_t)catcher;
+	regs->t9 = (register_t)(intptr_t)catcher;
+	regs->sp = (register_t)(intptr_t)sfp;
 	/*
 	 * Signal trampoline code is at base of user stack.
 	 */
-	regs->ra = (register_t) PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->ra = (register_t)(intptr_t)PS_STRINGS - *(p->p_sysent->sv_szsigcode);
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
-
-#ifdef GONE_IN_7
-/*
- * Build siginfo_t for SA thread
- */
-void
-cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
-{
-	struct proc *p;
-	struct thread *td;
-
-	td = curthread;
-	p = td->td_proc;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	bzero(si, sizeof(*si));
-	si->si_signo = sig;
-	si->si_code = code;
-	/* XXXKSE fill other fields */
-}
-#endif
 
 /*
  * System call to cleanup state after a signal
@@ -210,57 +188,23 @@ cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
  * context left by sendsig.
  */
 int
-sigreturn(struct thread *td, struct sigreturn_args *uap)
+sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
-	struct trapframe *regs;
-	const ucontext_t *ucp;
-	struct proc *p;
 	ucontext_t uc;
 	int error;
-
-	ucp = &uc;
-	p = td->td_proc;
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
 	if (error != 0)
 	    return (error);
 
-	regs = td->td_frame;
+	error = set_mcontext(td, &uc.uc_mcontext);
+	if (error != 0)
+		return (error);
 
-/* #ifdef DEBUG */
-	if (ucp->uc_mcontext.mc_regs[ZERO] != UCONTEXT_MAGIC) {
-		printf("sigreturn: pid %d, ucp %p\n", p->p_pid, ucp);
-		printf("  old sp %p ra %p pc %p\n",
-		    (void *)regs->sp, (void *)regs->ra, (void *)regs->pc);
-		printf("  new sp %p ra %p pc %p z %p\n",
-		    (void *)ucp->uc_mcontext.mc_regs[SP],
-		    (void *)ucp->uc_mcontext.mc_regs[RA],
-		    (void *)ucp->uc_mcontext.mc_regs[PC],
-		    (void *)ucp->uc_mcontext.mc_regs[ZERO]);
-		return EINVAL;
-	}
-/* #endif */
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
-	bcopy((const void *)&ucp->uc_mcontext.mc_regs[1], (void *)&regs->ast,
-	    sizeof(ucp->uc_mcontext.mc_regs) - sizeof(register_t));
-
-	if (ucp->uc_mcontext.mc_fpused)
-		bcopy((const void *)ucp->uc_mcontext.mc_fpregs,
-		    (void *)&td->td_frame->f0,
-		    sizeof(ucp->uc_mcontext.mc_fpregs));
-
-	regs->pc = ucp->uc_mcontext.mc_pc;
-	regs->mullo = ucp->uc_mcontext.mullo;
-	regs->mulhi = ucp->uc_mcontext.mulhi;
-
-	PROC_LOCK(p);
-	td->td_sigmask = ucp->uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
-	return(EJUSTRETURN);
+	return (EJUSTRETURN);
 }
-
 
 int
 ptrace_set_pc(struct thread *td, unsigned long addr)
@@ -272,39 +216,19 @@ ptrace_set_pc(struct thread *td, unsigned long addr)
 static int
 ptrace_read_int(struct thread *td, off_t addr, int *v)
 {
-	struct iovec iov;
-	struct uio uio;
 
-	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
-	iov.iov_base = (caddr_t) v;
-	iov.iov_len = sizeof(int);
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = (off_t)addr;
-	uio.uio_resid = sizeof(int);
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_rw = UIO_READ;
-	uio.uio_td = td;
-	return proc_rwmem(td->td_proc, &uio);
+	if (proc_readmem(td, td->td_proc, addr, v, sizeof(*v)) != sizeof(*v))
+		return (ENOMEM);
+	return (0);
 }
 
 static int
 ptrace_write_int(struct thread *td, off_t addr, int v)
 {
-	struct iovec iov;
-	struct uio uio;
 
-	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
-	iov.iov_base = (caddr_t) &v;
-	iov.iov_len = sizeof(int);
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = (off_t)addr;
-	uio.uio_resid = sizeof(int);
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_rw = UIO_WRITE;
-	uio.uio_td = td;
-	return proc_rwmem(td->td_proc, &uio);
+	if (proc_writemem(td, td->td_proc, addr, &v, sizeof(v)) != sizeof(v))
+		return (ENOMEM);
+	return (0);
 }
 
 int
@@ -313,7 +237,7 @@ ptrace_single_step(struct thread *td)
 	unsigned va;
 	struct trapframe *locr0 = td->td_frame;
 	int i;
-	int bpinstr = BREAK_SSTEP;
+	int bpinstr = MIPS_BREAK_SSTEP;
 	int curinstr;
 	struct proc *p;
 
@@ -427,7 +351,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 }
 
 int
-set_mcontext(struct thread *td, const mcontext_t *mcp)
+set_mcontext(struct thread *td, mcontext_t *mcp)
 {
 	struct trapframe *tp;
 
@@ -444,7 +368,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	td->td_frame->mullo = mcp->mullo;
 	td->td_frame->mulhi = mcp->mulhi;
 	td->td_md.md_tls = mcp->mc_tls;
-	/* Dont let user to set any bits in Status and casue registers */
+	/* Dont let user to set any bits in status and cause registers. */
 
 	return (0);
 }
@@ -475,27 +399,51 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
  * code by the MIPS elf abi).
  */
 void
-exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 
 	bzero((caddr_t)td->td_frame, sizeof(struct trapframe));
 
 	/*
-	 * Make sp 64-bit aligned.
+	 * The stack pointer has to be aligned to accommodate the largest
+	 * datatype at minimum.  This probably means it should be 16-byte
+	 * aligned, but for now we're 8-byte aligning it.
 	 */
 	td->td_frame->sp = ((register_t) stack) & ~(sizeof(__int64_t) - 1);
-	td->td_frame->pc = entry & ~3;
-	td->td_frame->t9 = entry & ~3; /* abicall req */
-#if 0
-//	td->td_frame->sr = SR_KSU_USER | SR_EXL | SR_INT_ENAB;
-//?	td->td_frame->sr |=  idle_mask & ALL_INT_MASK;
-#else
-	td->td_frame->sr = SR_KSU_USER | SR_EXL | SR_INT_ENAB |
-	    (mips_rd_status() & ALL_INT_MASK);
+
+	/*
+	 * If we're running o32 or n32 programs but have 64-bit registers,
+	 * GCC may use stack-relative addressing near the top of user
+	 * address space that, due to sign extension, will yield an
+	 * invalid address.  For instance, if sp is 0x7fffff00 then GCC
+	 * might do something like this to load a word from 0x7ffffff0:
+	 *
+	 * 	addu	sp, sp, 32768
+	 * 	lw	t0, -32528(sp)
+	 *
+	 * On systems with 64-bit registers, sp is sign-extended to
+	 * 0xffffffff80007f00 and the load is instead done from
+	 * 0xffffffff7ffffff0.
+	 *
+	 * To prevent this, we subtract 64K from the stack pointer here.
+	 *
+	 * For consistency, we should just always do this unless we're
+	 * running n64 programs.  For now, since we don't support
+	 * COMPAT_FREEBSD32 on n64 kernels, we just do it unless we're
+	 * running n64 kernels.
+	 */
+#if !defined(__mips_n64)
+	td->td_frame->sp -= 65536;
 #endif
-#ifdef TARGET_OCTEON
-	td->td_frame->sr |= MIPS_SR_COP_2_BIT | MIPS32_SR_PX | MIPS_SR_UX |
-	    MIPS_SR_KX | MIPS_SR_SX;
+
+	td->td_frame->pc = imgp->entry_addr & ~3;
+	td->td_frame->t9 = imgp->entry_addr & ~3; /* abicall req */
+	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
+	    (mips_rd_status() & MIPS_SR_INT_MASK);
+#if defined(__mips_n32) 
+	td->td_frame->sr |= MIPS_SR_PX;
+#elif  defined(__mips_n64)
+	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX;
 #endif
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:
@@ -514,12 +462,14 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	td->td_frame->a0 = (register_t) stack;
 	td->td_frame->a1 = 0;
 	td->td_frame->a2 = 0;
-	td->td_frame->a3 = (register_t)ps_strings;
+	td->td_frame->a3 = (register_t)imgp->ps_strings;
 
 	td->td_md.md_flags &= ~MDTD_FPUSED;
 	if (PCPU_GET(fpcurthread) == td)
 	    PCPU_SET(fpcurthread, (struct thread *)0);
 	td->td_md.md_ss_addr = 0;
+
+	td->td_md.md_tls_tcb_offset = TLS_TP_OFFSET + TLS_TCB_SIZE;
 }
 
 int

@@ -2,6 +2,11 @@
  * Copyright (c) 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -38,13 +43,14 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "xlocale_private.h"
 
 /* internal flags */
 #define	NEED_GROUPING		0x01	/* print digits grouped (default) */
 #define	SIGN_POSN_USED		0x02	/* '+' or '(' usage flag */
 #define	LOCALE_POSN		0x04	/* use locale defined +/- (default) */
 #define	PARENTH_POSN		0x08	/* enclose negative amount in () */
-#define	SUPRESS_CURR_SYMBOL	0x10	/* supress the currency from output */
+#define	SUPRESS_CURR_SYMBOL	0x10	/* suppress the currency from output */
 #define	LEFT_JUSTIFY		0x20	/* left justify */
 #define	USE_INTL_CURRENCY	0x40	/* use international currency symbol */
 #define IS_NEGATIVE		0x80	/* is argument value negative ? */
@@ -92,11 +98,10 @@ static void __setup_vars(int, char *, char *, char *, char **);
 static int __calc_left_pad(int, char *);
 static char *__format_grouped_double(double, int *, int, int, int);
 
-ssize_t
-strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
-    ...)
+static ssize_t
+vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
+		const char * __restrict format, va_list ap)
 {
-	va_list		ap;
 	char 		*dst;		/* output destination pointer */
 	const char 	*fmt;		/* current format poistion pointer */
 	struct lconv 	*lc;		/* pointer to lconv structure */
@@ -119,10 +124,10 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 
 	char		*tmpptr;	/* temporary vars */
 	int		sverrno;
+	FIX_LOCALE(loc);
 
-        va_start(ap, format);
 
-	lc = localeconv();
+	lc = localeconv_l(loc);
 	dst = s;
 	fmt = format;
 	asciivalue = NULL;
@@ -380,7 +385,6 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 	}
 
 	PRINT('\0');
-	va_end(ap);
 	free(asciivalue);
 	free(currency_symbol);
 	return (dst - s - 1);	/* return size of put data except trailing '\0' */
@@ -399,9 +403,32 @@ end_error:
 	if (currency_symbol != NULL)
 		free(currency_symbol);
 	errno = sverrno;
-	va_end(ap);
 	return (-1);
 }
+ssize_t
+strfmon_l(char * __restrict s, size_t maxsize, locale_t loc, const char * __restrict format,
+    ...)
+{
+	size_t ret;
+	va_list ap;
+	va_start(ap, format);
+	ret = vstrfmon_l(s, maxsize, loc, format, ap);
+	va_end(ap);
+	return ret;
+}
+
+ssize_t
+strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
+    ...)
+{
+	size_t ret;
+	va_list ap;
+	va_start(ap, format);
+	ret = vstrfmon_l(s, maxsize, __get_locale(), format, ap);
+	va_end(ap);
+	return ret;
+}
+
 
 static void
 __setup_vars(int flags, char *cs_precedes, char *sep_by_space,
@@ -413,7 +440,7 @@ __setup_vars(int flags, char *cs_precedes, char *sep_by_space,
 		*cs_precedes = lc->int_n_cs_precedes;
 		*sep_by_space = lc->int_n_sep_by_space;
 		*sign_posn = (flags & PARENTH_POSN) ? 0 : lc->int_n_sign_posn;
-		*signstr = (lc->negative_sign == '\0') ? "-"
+		*signstr = (lc->negative_sign[0] == '\0') ? "-"
 		    : lc->negative_sign;
 	} else if (flags & USE_INTL_CURRENCY) {
 		*cs_precedes = lc->int_p_cs_precedes;
@@ -424,7 +451,7 @@ __setup_vars(int flags, char *cs_precedes, char *sep_by_space,
 		*cs_precedes = lc->n_cs_precedes;
 		*sep_by_space = lc->n_sep_by_space;
 		*sign_posn = (flags & PARENTH_POSN) ? 0 : lc->n_sign_posn;
-		*signstr = (lc->negative_sign == '\0') ? "-"
+		*signstr = (lc->negative_sign[0] == '\0') ? "-"
 		    : lc->negative_sign;
 	} else {
 		*cs_precedes = lc->p_cs_precedes;
@@ -499,7 +526,6 @@ __format_grouped_double(double value, int *flags,
 	char		*rslt;
 	char		*avalue;
 	int		avalue_size;
-	char		fmt[32];
 
 	size_t		bufsize;
 	char		*bufend;
@@ -540,14 +566,13 @@ __format_grouped_double(double value, int *flags,
 		left_prec += get_groups(left_prec, grouping);
 
 	/* convert to string */
-	snprintf(fmt, sizeof(fmt), "%%%d.%df", left_prec + right_prec + 1,
-	    right_prec);
-	avalue_size = asprintf(&avalue, fmt, value);
+	avalue_size = asprintf(&avalue, "%*.*f", left_prec + right_prec + 1,
+	    right_prec, value);
 	if (avalue_size < 0)
 		return (NULL);
 
 	/* make sure that we've enough space for result string */
-	bufsize = strlen(avalue)*2+1;
+	bufsize = avalue_size * 2 + 1;
 	rslt = calloc(1, bufsize);
 	if (rslt == NULL) {
 		free(avalue);
@@ -555,7 +580,7 @@ __format_grouped_double(double value, int *flags,
 	}
 	bufend = rslt + bufsize - 1;	/* reserve space for trailing '\0' */
 
-	/* skip spaces at beggining */
+	/* skip spaces at beginning */
 	padded = 0;
 	while (avalue[padded] == ' ') {
 		padded++;

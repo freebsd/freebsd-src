@@ -32,7 +32,7 @@
 
 #ifdef _KERNEL
 
-#include <machine/frame.h>
+#include <machine/cpuconf.h>
 
 #define	ALT_STACK_SIZE	128
 
@@ -40,27 +40,102 @@ struct vmspace;
 
 #endif	/* _KERNEL */
 
-#define	PCPU_MD_FIELDS
+#if __ARM_ARCH >= 6
+#define PCPU_MD_FIELDS							\
+	unsigned int pc_vfpsid;						\
+	unsigned int pc_vfpmvfr0;					\
+	unsigned int pc_vfpmvfr1;					\
+	struct pmap *pc_curpmap;					\
+	vm_offset_t pc_qmap_addr;					\
+	void *pc_qmap_pte;						\
+	unsigned int pc_dbreg[32];					\
+	int pc_dbreg_cmd;						\
+	char __pad[1]
+#else
+#define PCPU_MD_FIELDS							\
+	vm_offset_t qmap_addr;						\
+	void *pc_qmap_pte;						\
+	char __pad[149]
+#endif
 
 #ifdef _KERNEL
+
+#define	PC_DBREG_CMD_NONE	0
+#define	PC_DBREG_CMD_LOAD	1
 
 struct pcb;
 struct pcpu;
 
 extern struct pcpu *pcpup;
-extern struct pcpu __pcpu;
 
-#define	PCPU_GET(member)	(__pcpu.pc_ ## member)
+#if __ARM_ARCH >= 6
+#define CPU_MASK (0xf)
 
-/*
- * XXX The implementation of this operation should be made atomic
- * with respect to preemption.
- */
-#define	PCPU_ADD(member, value)	(__pcpu.pc_ ## member += (value))
+#ifndef SMP
+#define get_pcpu() (pcpup)
+#else
+#define get_pcpu() __extension__ ({			  		\
+    	int id;								\
+        __asm __volatile("mrc p15, 0, %0, c0, c0, 5" : "=r" (id));	\
+    	(pcpup + (id & CPU_MASK));					\
+    })
+#endif
+
+static inline struct thread *
+get_curthread(void)
+{
+	void *ret;
+
+	__asm __volatile("mrc p15, 0, %0, c13, c0, 4" : "=r" (ret));
+	return (ret);
+}
+
+static inline void
+set_curthread(struct thread *td)
+{
+
+	__asm __volatile("mcr p15, 0, %0, c13, c0, 4" : : "r" (td));
+}
+
+
+static inline void *
+get_tls(void)
+{
+	void *tls;
+
+	/* TPIDRURW contains the authoritative value. */
+	__asm __volatile("mrc p15, 0, %0, c13, c0, 2" : "=r" (tls));
+	return (tls);
+}
+
+static inline void
+set_tls(void *tls)
+{
+
+	/*
+	 * Update both TPIDRURW and TPIDRURO. TPIDRURW needs to be written
+	 * first to ensure that a context switch between the two writes will
+	 * still give the desired result of updating both.
+	 */
+	__asm __volatile(
+	    "mcr p15, 0, %0, c13, c0, 2\n"
+	    "mcr p15, 0, %0, c13, c0, 3\n"
+	     : : "r" (tls));
+}
+
+#define curthread get_curthread()
+
+#else
+#define get_pcpu()	pcpup
+#endif
+
+#define	PCPU_GET(member)	(get_pcpu()->pc_ ## member)
+#define	PCPU_ADD(member, value)	(get_pcpu()->pc_ ## member += (value))
 #define	PCPU_INC(member)	PCPU_ADD(member, 1)
-#define	PCPU_PTR(member)	(&__pcpu.pc_ ## member)
-#define	PCPU_SET(member,value)	(__pcpu.pc_ ## member = (value))
+#define	PCPU_PTR(member)	(&get_pcpu()->pc_ ## member)
+#define	PCPU_SET(member,value)	(get_pcpu()->pc_ ## member = (value))
 
+void pcpu0_init(void);
 #endif	/* _KERNEL */
 
 #endif	/* !_MACHINE_PCPU_H_ */

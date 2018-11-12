@@ -274,7 +274,7 @@ indent(int amount, char *pfx, FILE *fp)
 
 FILE *tracefile;
 
-#if DEBUG == 2
+#if DEBUG >= 2
 int debug = 1;
 #else
 int debug = 0;
@@ -307,7 +307,7 @@ sh_trace(const char *fmt, ...)
 
 
 void
-trputs(char *s)
+trputs(const char *s)
 {
 	if (tracefile == NULL)
 		return;
@@ -390,11 +390,11 @@ opentrace(void)
 			else
 				p = "/tmp";
 		}
-		scopy(p, s);
+		strcpy(s, p);
 		strcat(s, "/trace");
 	}
 #else
-	scopy("./trace", s);
+	strcpy(s, "./trace");
 #endif /* not_this_way */
 	if ((tracefile = fopen(s, "a")) == NULL) {
 		fprintf(stderr, "Can't open %s: %s\n", s, strerror(errno));

@@ -31,10 +31,8 @@
  * $NetBSD: syncicache.c,v 1.2 1999/05/05 12:36:40 tsubai Exp $
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #if	defined(_KERNEL) || defined(_STANDALONE)
@@ -50,10 +48,10 @@ static const char rcsid[] =
 void
 __syncicache(void *from, int len)
 {
-	int	l, off;
+	register_t l, off;
 	char	*p;
 
-	off = (u_int)from & (cacheline_size - 1);
+	off = (uintptr_t)from & (cacheline_size - 1);
 	l = len += off;
 	p = (char *)from - off;
 

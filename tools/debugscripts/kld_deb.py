@@ -26,6 +26,7 @@
 #
 # $FreeBSD$
 
+from __future__ import print_function
 import sys
 import os
 import popen2
@@ -42,7 +43,7 @@ printre = re.compile(r'\$\d+\s+=\s+')
 kld_debug_paths = []
 
 if len(sys.argv[1:]) < 2:
-	print 'Usage: prog <kerncomp> <core> [<paths>]'
+	print('Usage: prog <kerncomp> <core> [<paths>]')
 	sys.exit(1)
 
 #Get the base modules path
@@ -68,9 +69,9 @@ gdb = popen2.popen4(gdb_cmd)
 
 def searchfor(inp, re, j = 0, l = None):
 	"""searchfor(inp, re, j, l):  Searches for regex re in inp.  It will
-automaticly add more lines.  If j is set, the lines will be joined together.
+automatically add more lines.  If j is set, the lines will be joined together.
 l can provide a starting line to help search against.  Return value is a
-tupple of the last line, and the match if any."""
+tuple of the last line, and the match if any."""
 	ret = None
 	if not l:
 		l = inp.readline()
@@ -87,7 +88,7 @@ tupple of the last line, and the match if any."""
 def get_addresses(inp, out):
 	"""get_addresses(inp, out):  It will search for addresses from gdb.
 inp and out, are the gdb input and output respectively.  Return value is
-a list of tupples.  The tupples contain the filename and the address the
+a list of tuples.  The tuples contain the filename and the address the
 filename was loaded."""
 	addr = []
 	nxad = 1
@@ -129,7 +130,7 @@ for i in addr[1:]:
 		#Tell our user that we couldn't find it.
 		a = i[1]
 		sys.stderr.write("Can't find module: %s (addr: %d + header)\n" % (i[0], a))
-		print '#add-symbol-file <file>', a, '#add header'
+		print('#add-symbol-file <file>', a, '#add header')
 		continue
 
 	#j = popen2.popen4('objdump --section-headers /boot/kernel/%s | grep "\.text"' % i[0])[0].read().strip().split()
@@ -137,6 +138,6 @@ for i in addr[1:]:
 	j = popen2.popen4('objdump --section-headers "%s" | grep "\.text"' % p)[0].read().strip().split()
 	try:
 		a = int(j[5], 16)
-		print 'add-symbol-file', p, i[1] + a
+		print('add-symbol-file', p, i[1] + a)
 	except IndexError:
 		sys.stderr.write('Bad file: %s, address: %d\n' % (i[0], i[1]))

@@ -30,8 +30,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * @(#) $Header: /tcpdump/master/libpcap/pcap/pcap.h,v 1.4.2.11 2008-10-06 15:38:39 gianluca Exp $ (LBL)
  */
 
 #ifndef lib_pcap_pcap_h
@@ -55,6 +53,13 @@
 extern "C" {
 #endif
 
+/*
+ * Version number of the current version of the pcap file format.
+ *
+ * NOTE: this is *NOT* the version number of the libpcap library.
+ * To fetch the version information for the version of libpcap
+ * you're using, use pcap_lib_version().
+ */
 #define PCAP_VERSION_MAJOR 2
 #define PCAP_VERSION_MINOR 4
 
@@ -104,12 +109,13 @@ typedef struct pcap_addr pcap_addr_t;
  *	the old file header as well as files with the new file header
  *	(using the magic number to determine the header format).
  *
- * Then supply the changes as a patch at
+ * Then supply the changes by forking the branch at
  *
- *	http://sourceforge.net/projects/libpcap/
+ *	https://github.com/the-tcpdump-group/libpcap/issues
  *
- * so that future versions of libpcap and programs that use it (such as
- * tcpdump) will be able to read your new capture file format.
+ * and issuing a pull request, so that future versions of libpcap and
+ * programs that use it (such as tcpdump) will be able to read your new
+ * capture file format.
  */
 struct pcap_file_header {
 	bpf_u_int32 magic;
@@ -123,7 +129,7 @@ struct pcap_file_header {
 
 /*
  * Macros for the value returned by pcap_datalink_ext().
- * 
+ *
  * If LT_FCS_LENGTH_PRESENT(x) is true, the LT_FCS_LENGTH(x) macro
  * gives the FCS length of packets in the capture.
  */
@@ -161,7 +167,7 @@ struct pcap_pkthdr {
 struct pcap_stat {
 	u_int ps_recv;		/* number of packets received */
 	u_int ps_drop;		/* number of packets dropped */
-	u_int ps_ifdrop;	/* drops by interface XXX not yet supported */
+	u_int ps_ifdrop;	/* drops by interface -- only supported on some platforms */
 #ifdef WIN32
 	u_int bs_capt;		/* number of packets that reach the application */
 #endif /* WIN32 */
@@ -212,6 +218,8 @@ struct pcap_if {
 };
 
 #define PCAP_IF_LOOPBACK	0x00000001	/* interface is loopback */
+#define PCAP_IF_UP		0x00000002	/* interface is up */
+#define PCAP_IF_RUNNING		0x00000004	/* interface is running */
 
 /*
  * Representation of an interface address.
@@ -242,6 +250,9 @@ typedef void (*pcap_handler)(u_char *, const struct pcap_pkthdr *,
 #define PCAP_ERROR_NOT_RFMON		-7	/* operation supported only in monitor mode */
 #define PCAP_ERROR_PERM_DENIED		-8	/* no permission to open the device */
 #define PCAP_ERROR_IFACE_NOT_UP		-9	/* interface isn't up */
+#define PCAP_ERROR_CANTSET_TSTAMP_TYPE	-10	/* this device doesn't support setting the time stamp type */
+#define PCAP_ERROR_PROMISC_PERM_DENIED	-11	/* you don't have permission to capture in promiscuous mode */
+#define PCAP_ERROR_TSTAMP_PRECISION_NOTSUP -12  /* the requested time stamp precision is not supported */
 
 /*
  * Warning codes for the pcap API.
@@ -250,6 +261,13 @@ typedef void (*pcap_handler)(u_char *, const struct pcap_pkthdr *,
  */
 #define PCAP_WARNING			1	/* generic warning code */
 #define PCAP_WARNING_PROMISC_NOTSUP	2	/* this device doesn't support promiscuous mode */
+#define PCAP_WARNING_TSTAMP_TYPE_NOTSUP	3	/* the requested time stamp type is not supported */
+
+/*
+ * Value to pass to pcap_compile() as the netmask if you don't know what
+ * the netmask is.
+ */
+#define PCAP_NETMASK_UNKNOWN	0xffffffff
 
 char	*pcap_lookupdev(char *);
 int	pcap_lookupnet(const char *, bpf_u_int32 *, bpf_u_int32 *, char *);
@@ -260,21 +278,91 @@ int	pcap_set_promisc(pcap_t *, int);
 int	pcap_can_set_rfmon(pcap_t *);
 int	pcap_set_rfmon(pcap_t *, int);
 int	pcap_set_timeout(pcap_t *, int);
+int	pcap_set_tstamp_type(pcap_t *, int);
+int	pcap_set_immediate_mode(pcap_t *, int);
 int	pcap_set_buffer_size(pcap_t *, int);
+int	pcap_set_tstamp_precision(pcap_t *, int);
+int	pcap_get_tstamp_precision(pcap_t *);
 int	pcap_activate(pcap_t *);
+
+int	pcap_list_tstamp_types(pcap_t *, int **);
+void	pcap_free_tstamp_types(int *);
+int	pcap_tstamp_type_name_to_val(const char *);
+const char *pcap_tstamp_type_val_to_name(int);
+const char *pcap_tstamp_type_val_to_description(int);
+
+/*
+ * Time stamp types.
+ * Not all systems and interfaces will necessarily support all of these.
+ *
+ * A system that supports PCAP_TSTAMP_HOST is offering time stamps
+ * provided by the host machine, rather than by the capture device,
+ * but not committing to any characteristics of the time stamp;
+ * it will not offer any of the PCAP_TSTAMP_HOST_ subtypes.
+ *
+ * PCAP_TSTAMP_HOST_LOWPREC is a time stamp, provided by the host machine,
+ * that's low-precision but relatively cheap to fetch; it's normally done
+ * using the system clock, so it's normally synchronized with times you'd
+ * fetch from system calls.
+ *
+ * PCAP_TSTAMP_HOST_HIPREC is a time stamp, provided by the host machine,
+ * that's high-precision; it might be more expensive to fetch.  It might
+ * or might not be synchronized with the system clock, and might have
+ * problems with time stamps for packets received on different CPUs,
+ * depending on the platform.
+ *
+ * PCAP_TSTAMP_ADAPTER is a high-precision time stamp supplied by the
+ * capture device; it's synchronized with the system clock.
+ *
+ * PCAP_TSTAMP_ADAPTER_UNSYNCED is a high-precision time stamp supplied by
+ * the capture device; it's not synchronized with the system clock.
+ *
+ * Note that time stamps synchronized with the system clock can go
+ * backwards, as the system clock can go backwards.  If a clock is
+ * not in sync with the system clock, that could be because the
+ * system clock isn't keeping accurate time, because the other
+ * clock isn't keeping accurate time, or both.
+ *
+ * Note that host-provided time stamps generally correspond to the
+ * time when the time-stamping code sees the packet; this could
+ * be some unknown amount of time after the first or last bit of
+ * the packet is received by the network adapter, due to batching
+ * of interrupts for packet arrival, queueing delays, etc..
+ */
+#define PCAP_TSTAMP_HOST		0	/* host-provided, unknown characteristics */
+#define PCAP_TSTAMP_HOST_LOWPREC	1	/* host-provided, low precision */
+#define PCAP_TSTAMP_HOST_HIPREC		2	/* host-provided, high precision */
+#define PCAP_TSTAMP_ADAPTER		3	/* device-provided, synced with the system clock */
+#define PCAP_TSTAMP_ADAPTER_UNSYNCED	4	/* device-provided, not synced with the system clock */
+
+/*
+ * Time stamp resolution types.
+ * Not all systems and interfaces will necessarily support all of these
+ * resolutions when doing live captures; all of them can be requested
+ * when reading a savefile.
+ */
+#define PCAP_TSTAMP_PRECISION_MICRO	0	/* use timestamps with microsecond precision, default */
+#define PCAP_TSTAMP_PRECISION_NANO	1	/* use timestamps with nanosecond precision */
 
 pcap_t	*pcap_open_live(const char *, int, int, int, char *);
 pcap_t	*pcap_open_dead(int, int);
+pcap_t	*pcap_open_dead_with_tstamp_precision(int, int, u_int);
+pcap_t	*pcap_open_offline_with_tstamp_precision(const char *, u_int, char *);
 pcap_t	*pcap_open_offline(const char *, char *);
 #if defined(WIN32)
+pcap_t  *pcap_hopen_offline_with_tstamp_precision(intptr_t, u_int, char *);
 pcap_t  *pcap_hopen_offline(intptr_t, char *);
 #if !defined(LIBPCAP_EXPORTS)
+#define pcap_fopen_offline_with_tstamp_precision(f,p,b) \
+	pcap_hopen_offline_with_tstamp_precision(_get_osfhandle(_fileno(f)), p, b)
 #define pcap_fopen_offline(f,b) \
 	pcap_hopen_offline(_get_osfhandle(_fileno(f)), b)
 #else /*LIBPCAP_EXPORTS*/
+static pcap_t *pcap_fopen_offline_with_tstamp_precision(FILE *, u_int, char *);
 static pcap_t *pcap_fopen_offline(FILE *, char *);
 #endif
 #else /*WIN32*/
+pcap_t	*pcap_fopen_offline_with_tstamp_precision(FILE *, u_int, char *);
 pcap_t	*pcap_fopen_offline(FILE *, char *);
 #endif /*WIN32*/
 
@@ -301,8 +389,8 @@ int	pcap_compile(pcap_t *, struct bpf_program *, const char *, int,
 int	pcap_compile_nopcap(int, int, struct bpf_program *,
 	    const char *, int, bpf_u_int32);
 void	pcap_freecode(struct bpf_program *);
-int	pcap_offline_filter(struct bpf_program *, const struct pcap_pkthdr *,
-	    const u_char *);
+int	pcap_offline_filter(const struct bpf_program *,
+	    const struct pcap_pkthdr *, const u_char *);
 int	pcap_datalink(pcap_t *);
 int	pcap_datalink_ext(pcap_t *);
 int	pcap_list_datalinks(pcap_t *, int **);
@@ -333,11 +421,19 @@ void	pcap_freealldevs(pcap_if_t *);
 
 const char *pcap_lib_version(void);
 
-/* XXX this guy lives in the bpf tree */
-u_int	bpf_filter(struct bpf_insn *, u_char *, u_int, u_int); 
-int	bpf_validate(struct bpf_insn *f, int len);
-char	*bpf_image(struct bpf_insn *, int);
-void	bpf_dump(struct bpf_program *, int);
+/*
+ * On at least some versions of NetBSD, we don't want to declare
+ * bpf_filter() here, as it's also be declared in <net/bpf.h>, with a
+ * different signature, but, on other BSD-flavored UN*Xes, it's not
+ * declared in <net/bpf.h>, so we *do* want to declare it here, so it's
+ * declared when we build pcap-bpf.c.
+ */
+#ifndef __NetBSD__
+u_int	bpf_filter(const struct bpf_insn *, const u_char *, u_int, u_int); 
+#endif
+int	bpf_validate(const struct bpf_insn *f, int len);
+char	*bpf_image(const struct bpf_insn *, int);
+void	bpf_dump(const struct bpf_program *, int);
 
 #if defined(WIN32)
 
@@ -348,6 +444,7 @@ void	bpf_dump(struct bpf_program *, int);
 int pcap_setbuff(pcap_t *p, int dim);
 int pcap_setmode(pcap_t *p, int mode);
 int pcap_setmintocopy(pcap_t *p, int size);
+Adapter *pcap_get_adapter(pcap_t *p);
 
 #ifdef WPCAP
 /* Include file with the wpcap-specific extensions */
@@ -382,4 +479,4 @@ int	pcap_get_selectable_fd(pcap_t *);
 }
 #endif
 
-#endif
+#endif /* lib_pcap_pcap_h */

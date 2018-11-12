@@ -1,5 +1,5 @@
 .\"
-.\" vidcontrol - a utility for manipulating the syscons video driver
+.\" vidcontrol - a utility for manipulating the syscons or vt video driver
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -13,7 +13,7 @@
 .\"     @(#)vidcontrol.1
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2006
+.Dd January 19, 2016
 .Dt VIDCONTROL 1
 .Os
 .Sh NAME
@@ -26,18 +26,21 @@
 .Op Fl c Ar appearance
 .Oo
 .Fl f
+.Oo
 .Op Ar size
 .Ar file
 .Oc
+.Oc
 .Op Fl g Ar geometry
 .Op Fl h Ar size
-.Op Fl i Cm adapter | mode
+.Op Fl i Cm active | adapter | mode
 .Op Fl l Ar screen_map
 .Op Fl M Ar char
 .Op Fl m Cm on | off
 .Op Fl r Ar foreground Ar background
 .Op Fl S Cm on | off
 .Op Fl s Ar number
+.Op Fl T Cm xterm | cons25
 .Op Fl t Ar N | Cm off
 .Op Ar mode
 .Op Ar foreground Op Ar background
@@ -47,9 +50,15 @@ The
 .Nm
 utility is used to set various options for the
 .Xr syscons 4
+or
+.Xr vt 4
 console driver,
 such as video mode, colors, cursor shape, screen output map, font and screen
 saver timeout.
+Only a small subset of options is supported by
+.Xr vt 4 .
+Unsupported options lead to error messages, typically including
+the text "Inappropriate ioctl for device".
 .Pp
 The following command line options are supported:
 .Bl -tag -width indent
@@ -129,8 +138,10 @@ The latter is actually a simulation.
 Print out current output screen map.
 .It Xo
 .Fl f
+.Oo
 .Op Ar size
 .Ar file
+.Oc
 .Xc
 Load font
 .Ar file
@@ -151,14 +162,25 @@ may be omitted, in this case
 .Nm
 will try to guess it from the size of font file.
 .Pp
+When using
+.Xr vt 4
+both
+.Ar size
+and
+.Ar font
+can be omitted, and the default font will be loaded.
+.Pp
 Note that older video cards, such as MDA and CGA, do not support
 software font.
 See also
 .Sx Video Mode Support
 and
 .Sx EXAMPLES
-below and the man page for
-.Xr syscons 4 .
+below and the man page for either
+.Xr syscons 4
+or
+.Xr vt 4
+(depending on which driver you use).
 .It Fl g Ar geometry
 Set the
 .Ar geometry
@@ -176,6 +198,8 @@ below.
 Set the size of the history (scrollback) buffer to
 .Ar size
 lines.
+.It Fl i Cm active
+Shows the active vty number.
 .It Fl i Cm adapter
 Shows info about the current video adapter.
 .It Fl i Cm mode
@@ -184,7 +208,10 @@ Shows the possible video modes with the current video hardware.
 Install screen output map file from
 .Ar screen_map .
 See also
-.Xr syscons 4 .
+.Xr syscons 4
+or
+.Xr vt 4
+(depending on which driver you use).
 .It Fl L
 Install default screen output map.
 .It Fl M Ar char
@@ -241,8 +268,10 @@ option.
 However, you probably should not compile the kernel debugger on a box which
 is supposed to be physically secure.
 .It Fl s Ar number
-Set the current vty to
+Set the active vty to
 .Ar number .
+.It Fl T Cm xterm | cons25
+Switch between xterm and cons25 style terminal emulation.
 .It Fl t Ar N | Cm off
 Set the screensaver timeout to
 .Ar N
@@ -304,12 +333,18 @@ kernel with the
 option.
 See
 .Xr syscons 4
+or
+.Xr vt 4
+(depending on which driver you use)
 for more details on this kernel option.
 .Ss Format of Video Buffer Dump
 The
 .Nm
 utility uses the
 .Xr syscons 4
+.\" is it supported on vt(4)???
+or
+.Xr vt 4
 .Dv CONS_SCRSHOT
 .Xr ioctl 2
 to capture the current contents of the video buffer.
@@ -324,7 +359,6 @@ In each tuple, the first byte will be the character code,
 and the second byte is the character's color attribute.
 .Pp
 The VGA color attribute byte looks like this:
-.Pp
 .Bl -column "X:X" "<00000000>" "width" "bright foreground color"
 .Sy "bits#		width	meaning"
 .Li "7	<X0000000>	1	character blinking"
@@ -451,9 +485,12 @@ for details.
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/scrnmaps/foo-bar -compact
 .It Pa /usr/share/syscons/fonts/*
+.It Pa /usr/share/vt/fonts/*
 font files.
 .It Pa /usr/share/syscons/scrnmaps/*
-screen output map files.
+screen output map files (relevant for
+.Xr syscons 4
+only).
 .El
 .Sh EXAMPLES
 If you want to load
@@ -465,7 +502,10 @@ as:
 .Dl vidcontrol -f 8x16 /usr/share/syscons/fonts/iso-8x16.fnt
 .Pp
 So long as the font file is in
-.Pa /usr/share/syscons/fonts ,
+.Pa /usr/share/syscons/fonts
+(if using syscons) or
+.Pa /usr/share/vt/fonts
+(if using vt),
 you may abbreviate the file name as
 .Pa iso-8x16 :
 .Pp
@@ -519,6 +559,7 @@ to the standard output in the human readable format:
 .Xr screen 4 ,
 .Xr syscons 4 ,
 .Xr vga 4 ,
+.Xr vt 4 ,
 .Xr rc.conf 5 ,
 .Xr kldload 8 ,
 .Xr moused 8 ,
@@ -533,8 +574,9 @@ and
 categories of the
 .Em "Ports Collection" .
 .Sh AUTHORS
-.An S\(/oren Schmidt Aq sos@FreeBSD.org
-.An Sascha Wildner
+.An S\(/oren Schmidt Aq Mt sos@FreeBSD.org
+.An Sascha Wildner Aq Mt saw@online.de
 .Sh CONTRIBUTORS
-.An Maxim Sobolev Aq sobomax@FreeBSD.org ,
-.An Nik Clayton Aq nik@FreeBSD.org
+.An -split
+.An Maxim Sobolev Aq Mt sobomax@FreeBSD.org
+.An Nik Clayton Aq Mt nik@FreeBSD.org

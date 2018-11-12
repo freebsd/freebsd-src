@@ -34,6 +34,7 @@
 #define _SYS_PROTOSW_H_
 
 /* Forward declare these structures referenced from prototypes below. */
+struct kaiocb;
 struct mbuf;
 struct thread;
 struct sockaddr;
@@ -64,13 +65,11 @@ struct sockopt;
  * similar to the vnode VOP interface.
  */
 /* USE THESE FOR YOUR PROTOTYPES ! */
-typedef void	pr_input_t (struct mbuf *, int);
-typedef int	pr_input6_t (struct mbuf **, int*, int);  /* XXX FIX THIS */
-typedef int	pr_output_t (struct mbuf *, struct socket *);
+typedef int	pr_input_t (struct mbuf **, int*, int);
+typedef int	pr_output_t (struct mbuf *, struct socket *, ...);
 typedef void	pr_ctlinput_t (int, struct sockaddr *, void *);
 typedef int	pr_ctloutput_t (struct socket *, struct sockopt *);
 typedef	void	pr_init_t (void);
-typedef	void	pr_destroy_t (void);
 typedef	void	pr_fasttimo_t (void);
 typedef	void	pr_slowtimo_t (void);
 typedef	void	pr_drain_t (void);
@@ -87,7 +86,6 @@ struct protosw {
 	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
 /* utility hooks */
 	pr_init_t *pr_init;
-	pr_destroy_t *pr_destroy;
 	pr_fasttimo_t *pr_fasttimo;	/* fast timeout (200ms) */
 	pr_slowtimo_t *pr_slowtimo;	/* slow timeout (500ms) */
 	pr_drain_t *pr_drain;		/* flush any excess space possible */
@@ -203,15 +201,17 @@ struct pr_usrreqs {
 	int	(*pru_peeraddr)(struct socket *so, struct sockaddr **nam);
 	int	(*pru_rcvd)(struct socket *so, int flags);
 	int	(*pru_rcvoob)(struct socket *so, struct mbuf *m, int flags);
-	int	(*pru_send)(struct socket *so, int flags, struct mbuf *m, 
+	int	(*pru_send)(struct socket *so, int flags, struct mbuf *m,
 		    struct sockaddr *addr, struct mbuf *control,
 		    struct thread *td);
 #define	PRUS_OOB	0x1
 #define	PRUS_EOF	0x2
 #define	PRUS_MORETOCOME	0x4
+#define	PRUS_NOTREADY	0x8
+	int	(*pru_ready)(struct socket *so, struct mbuf *m, int count);
 	int	(*pru_sense)(struct socket *so, struct stat *sb);
-        int	(*pru_shutdown)(struct socket *so);
-	int	(*pru_flush)(struct socket *so, int direction);  
+	int	(*pru_shutdown)(struct socket *so);
+	int	(*pru_flush)(struct socket *so, int direction);
 	int	(*pru_sockaddr)(struct socket *so, struct sockaddr **nam);
 	int	(*pru_sosend)(struct socket *so, struct sockaddr *addr,
 		    struct uio *uio, struct mbuf *top, struct mbuf *control,
@@ -223,16 +223,26 @@ struct pr_usrreqs {
 		    struct ucred *cred, struct thread *td);
 	void	(*pru_sosetlabel)(struct socket *so);
 	void	(*pru_close)(struct socket *so);
+	int	(*pru_bindat)(int fd, struct socket *so, struct sockaddr *nam,
+		    struct thread *td);
+	int	(*pru_connectat)(int fd, struct socket *so,
+		    struct sockaddr *nam, struct thread *td);
+	int	(*pru_aio_queue)(struct socket *so, struct kaiocb *job);
 };
 
 /*
  * All nonvoid pru_*() functions below return EOPNOTSUPP.
  */
 int	pru_accept_notsupp(struct socket *so, struct sockaddr **nam);
+int	pru_aio_queue_notsupp(struct socket *so, struct kaiocb *job);
 int	pru_attach_notsupp(struct socket *so, int proto, struct thread *td);
 int	pru_bind_notsupp(struct socket *so, struct sockaddr *nam,
 	    struct thread *td);
+int	pru_bindat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
+	    struct thread *td);
 int	pru_connect_notsupp(struct socket *so, struct sockaddr *nam,
+	    struct thread *td);
+int	pru_connectat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
 	    struct thread *td);
 int	pru_connect2_notsupp(struct socket *so1, struct socket *so2);
 int	pru_control_notsupp(struct socket *so, u_long cmd, caddr_t data,
@@ -244,6 +254,7 @@ int	pru_rcvd_notsupp(struct socket *so, int flags);
 int	pru_rcvoob_notsupp(struct socket *so, struct mbuf *m, int flags);
 int	pru_send_notsupp(struct socket *so, int flags, struct mbuf *m,
 	    struct sockaddr *addr, struct mbuf *control, struct thread *td);
+int	pru_ready_notsupp(struct socket *so, struct mbuf *m, int count);
 int	pru_sense_null(struct socket *so, struct stat *sb);
 int	pru_shutdown_notsupp(struct socket *so);
 int	pru_sockaddr_notsupp(struct socket *so, struct sockaddr **nam);
@@ -266,9 +277,9 @@ int	pru_sopoll_notsupp(struct socket *so, int events, struct ucred *cred,
  */
 #define	PRC_IFDOWN		0	/* interface transition */
 #define	PRC_ROUTEDEAD		1	/* select new route if possible ??? */
-#define	PRC_IFUP		2 	/* interface has come back up */
-#define	PRC_QUENCH2		3	/* DEC congestion bit says slow down */
-#define	PRC_QUENCH		4	/* some one said to slow down */
+#define	PRC_IFUP		2	/* interface has come back up */
+/* was	PRC_QUENCH2		3	DEC congestion bit says slow down */
+/* was	PRC_QUENCH		4	Deprecated by RFC 6633 */
 #define	PRC_MSGSIZE		5	/* message size forced drop */
 #define	PRC_HOSTDEAD		6	/* host appears to be down */
 #define	PRC_HOSTUNREACH		7	/* deprecated (use PRC_UNREACH_HOST) */
@@ -330,6 +341,7 @@ char	*prcorequests[] = {
 #ifdef _KERNEL
 void	pfctlinput(int, struct sockaddr *);
 void	pfctlinput2(int, struct sockaddr *, void *);
+struct domain *pffinddomain(int family);
 struct protosw *pffindproto(int family, int protocol, int type);
 struct protosw *pffindtype(int family, int type);
 int	pf_proto_register(int family, struct protosw *npr);

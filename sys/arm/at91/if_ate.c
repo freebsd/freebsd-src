@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2009 Greg Ansley.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,6 +30,8 @@
  * 2) GPIO initializtion in board setup code.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -36,13 +39,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
+
 #include <machine/bus.h>
 
 #include <net/ethernet.h>
@@ -52,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_mib.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -65,12 +70,19 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
+
+#include "opt_at91.h"
+#include <arm/at91/at91reg.h>
+#include <arm/at91/at91var.h>
 #include <arm/at91/if_atereg.h>
 
-#include "miibus_if.h"
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
-#define	ATE_MAX_TX_BUFFERS	2	/* We have ping-pong tx buffers */
-#define	ATE_MAX_RX_BUFFERS	64
+#include "miibus_if.h"
 
 /*
  * Driver-specific flags.
@@ -78,32 +90,77 @@ __FBSDID("$FreeBSD$");
 #define	ATE_FLAG_DETACHING	0x01
 #define	ATE_FLAG_MULTICAST	0x02
 
+/*
+ * Old EMAC assumes whole packet fits in one buffer;
+ * new EBACB assumes all receive buffers are 128 bytes
+ */
+#define	RX_BUF_SIZE(sc)	(sc->is_emacb ? 128 : MCLBYTES)
+
+/*
+ * EMACB has an 11 bit counter for Rx/Tx Descriptors
+ * for max total of 1024 decriptors each.
+ */
+#define	ATE_MAX_RX_DESCR	1024
+#define	ATE_MAX_TX_DESCR	1024
+
+/* How many buffers to allocate */
+#define	ATE_MAX_TX_BUFFERS	4	/* We have ping-pong tx buffers */
+
+/* How much memory to use for rx buffers */
+#define	ATE_RX_MEMORY		(ATE_MAX_RX_DESCR * 128)
+
+/* Actual number of descriptors we allocate */
+#define	ATE_NUM_RX_DESCR	ATE_MAX_RX_DESCR
+#define	ATE_NUM_TX_DESCR	ATE_MAX_TX_BUFFERS
+
+#if ATE_NUM_TX_DESCR > ATE_MAX_TX_DESCR
+#error "Can't have more TX buffers that descriptors"
+#endif
+#if ATE_NUM_RX_DESCR > ATE_MAX_RX_DESCR
+#error "Can't have more RX buffers that descriptors"
+#endif
+
+/* Wrap indexes the same way the hardware does */
+#define	NEXT_RX_IDX(sc, cur)	\
+    ((sc->rx_descs[cur].addr & ETH_WRAP_BIT) ? 0 : (cur + 1))
+
+#define	NEXT_TX_IDX(sc, cur)	\
+    ((sc->tx_descs[cur].status & ETHB_TX_WRAP) ? 0 : (cur + 1))
+
 struct ate_softc
 {
 	struct ifnet	*ifp;		/* ifnet pointer */
 	struct mtx	sc_mtx;		/* Basically a perimeter lock */
 	device_t	dev;		/* Myself */
 	device_t	miibus;		/* My child miibus */
-	struct resource	*irq_res;	/* IRQ resource */
+	struct resource *irq_res;	/* IRQ resource */
 	struct resource	*mem_res;	/* Memory resource */
-	struct callout	tick_ch;	/* Tick callout */
+	struct callout  tick_ch;	/* Tick callout */
 	struct ifmib_iso_8802_3 mibdata; /* Stuff for network mgmt */
+	bus_dma_tag_t   mtag;		/* bus dma tag for mbufs */
+	bus_dma_tag_t   rx_tag;
+	bus_dma_tag_t   rx_desc_tag;
+	bus_dmamap_t    rx_desc_map;
+	bus_dmamap_t    rx_map[ATE_MAX_RX_DESCR];
+	bus_addr_t	rx_desc_phys;   /* PA of rx descriptors */
+	eth_rx_desc_t   *rx_descs;	/* VA of rx descriptors */
+	void		*rx_buf[ATE_NUM_RX_DESCR]; /* RX buffer space */
+	int		rxhead;		/* Current RX map/desc index */
+	uint32_t	rx_buf_size;    /* Size of Rx buffers */
+
+	bus_dma_tag_t   tx_desc_tag;
+	bus_dmamap_t    tx_desc_map;
+	bus_dmamap_t    tx_map[ATE_MAX_TX_BUFFERS];
+	bus_addr_t	tx_desc_phys;   /* PA of tx descriptors */
+	eth_tx_desc_t   *tx_descs;	/* VA of tx descriptors */
+	int		txhead;		/* Current TX map/desc index */
+	int		txtail;		/* Current TX map/desc index */
 	struct mbuf	*sent_mbuf[ATE_MAX_TX_BUFFERS]; /* Sent mbufs */
-	bus_dma_tag_t	mtag;		/* bus dma tag for mbufs */
-	bus_dma_tag_t	rxtag;
-	bus_dma_tag_t	rx_desc_tag;
-	bus_dmamap_t	rx_desc_map;
-	bus_dmamap_t	rx_map[ATE_MAX_RX_BUFFERS];
-	bus_dmamap_t	tx_map[ATE_MAX_TX_BUFFERS];
-	bus_addr_t	rx_desc_phys;
-	eth_rx_desc_t	*rx_descs;
-	void		*rx_buf[ATE_MAX_RX_BUFFERS]; /* RX buffer space */
 	void		*intrhand;	/* Interrupt handle */
 	int		flags;
 	int		if_flags;
-	int		rx_buf_ptr;
-	int		txcur;		/* Current TX map pointer */
 	int		use_rmii;
+	int		is_emacb;	/* SAM9x hardware version */
 };
 
 static inline uint32_t
@@ -168,19 +225,84 @@ static int	ate_get_mac(struct ate_softc *sc, u_char *eaddr);
 static void	ate_set_mac(struct ate_softc *sc, u_char *eaddr);
 static void	ate_rxfilter(struct ate_softc *sc);
 
+static int	ate_miibus_readreg(device_t dev, int phy, int reg);
+
+static int	ate_miibus_writereg(device_t dev, int phy, int reg, int data);
+
 /*
- * The AT91 family of products has the ethernet called EMAC.  However,
- * it isn't self identifying.  It is anticipated that the parent bus
+ * The AT91 family of products has the ethernet interface called EMAC.
+ * However, it isn't self identifying.  It is anticipated that the parent bus
  * code will take care to only add ate devices where they really are.  As
  * such, we do nothing here to identify the device and just set its name.
+ * However, FDT makes it self-identifying.
  */
 static int
 ate_probe(device_t dev)
 {
-
+#ifdef FDT
+	if (!ofw_bus_is_compatible(dev, "cdns,at91rm9200-emac") &&
+	    !ofw_bus_is_compatible(dev, "cdns,emac") &&
+	    !ofw_bus_is_compatible(dev, "cdns,at32ap7000-macb"))
+		return (ENXIO);
+#endif
 	device_set_desc(dev, "EMAC");
 	return (0);
 }
+
+#ifdef FDT
+/*
+ * We have to know if we're using MII or RMII attachment
+ * for the MACB to talk to the PHY correctly. With FDT,
+ * we must use rmii if there's a proprety phy-mode
+ * equal to "rmii". Otherwise we MII mode is used.
+ */
+static void
+ate_set_rmii(struct ate_softc *sc)
+{
+	phandle_t node;
+	char prop[10];
+	ssize_t len;
+
+	node = ofw_bus_get_node(sc->dev);
+	memset(prop, 0 ,sizeof(prop));
+	len = OF_getproplen(node, "phy-mode");
+	if (len != 4)
+		return;
+	if (OF_getprop(node, "phy-mode", prop, len) != len)
+		return;
+	if (strncmp(prop, "rmii", 4) == 0)
+		sc->use_rmii = 1;
+}
+
+#else
+/*
+ * We have to know if we're using MII or RMII attachment
+ * for the MACB to talk to the PHY correctly. Without FDT,
+ * there's no good way to do this. So, if the config file
+ * has 'option AT91_ATE_USE_RMII', then we'll force RMII.
+ * Otherwise, we'll use what the bootloader setup. Either
+ * it setup RMII or MII, in which case we'll get it right,
+ * or it did nothing, and we'll fall back to MII and the
+ * option would override if present.
+ */
+static void
+ate_set_rmii(struct ate_softc *sc)
+{
+
+	/* Default to what boot rom did */
+	if (!sc->is_emacb)
+		sc->use_rmii =
+		    (RD4(sc, ETH_CFG) & ETH_CFG_RMII) == ETH_CFG_RMII;
+	else
+		sc->use_rmii =
+		    (RD4(sc, ETHB_UIO) & ETHB_UIO_RMII) == ETHB_UIO_RMII;
+
+#ifdef AT91_ATE_USE_RMII
+	/* Compile time override */
+	sc->use_rmii = 1;
+#endif
+}
+#endif
 
 static int
 ate_attach(device_t dev)
@@ -196,10 +318,7 @@ ate_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	ATE_LOCK_INIT(sc);
-	
-	/*
-	 * Allocate resources.
-	 */
+
 	rid = 0;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
@@ -217,17 +336,25 @@ ate_attach(device_t dev)
 		goto out;
 	}
 
+	/* New or old version, chooses buffer size. */
+#ifdef FDT
+	sc->is_emacb = ofw_bus_is_compatible(dev, "cdns,at32ap7000-macb");
+#else
+	sc->is_emacb = at91_is_sam9() || at91_is_sam9xe();
+#endif
+	sc->rx_buf_size = RX_BUF_SIZE(sc);
+
 	err = ate_activate(dev);
 	if (err)
 		goto out;
 
-	sc->use_rmii = (RD4(sc, ETH_CFG) & ETH_CFG_RMII) == ETH_CFG_RMII;
+	ate_set_rmii(sc);
 
 	/* Sysctls */
 	sctx = device_get_sysctl_ctx(dev);
 	soid = device_get_sysctl_tree(dev);
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "rmii",
-	    CTLFLAG_RD, &sc->use_rmii, 0, "rmii in use");
+	    CTLFLAG_RW, &sc->use_rmii, 0, "rmii in use");
 
 	/* Calling atestop before ifp is set is OK. */
 	ATE_LOCK(sc);
@@ -236,10 +363,8 @@ ate_attach(device_t dev)
 	callout_init_mtx(&sc->tick_ch, &sc->sc_mtx, 0);
 
 	if ((err = ate_get_mac(sc, eaddr)) != 0) {
-		/*
-		 * No MAC address configured. Generate the random one.
-		 */
-		if  (bootverbose)
+		/* No MAC address configured. Generate the random one. */
+		if (bootverbose)
 			device_printf(dev,
 			    "Generating random ethernet address.\n");
 		rnd = arc4random();
@@ -253,16 +378,22 @@ ate_attach(device_t dev)
 		eaddr[1] = 's';
 		eaddr[2] = 'd';
 		eaddr[3] = (rnd >> 16) & 0xff;
-		eaddr[4] = (rnd >> 8) & 0xff;
-		eaddr[5] = rnd & 0xff;
+		eaddr[4] = (rnd >>  8) & 0xff;
+		eaddr[5] = (rnd >>  0) & 0xff;
 	}
 
 	sc->ifp = ifp = if_alloc(IFT_ETHER);
-	if (mii_phy_probe(dev, &sc->miibus, ate_ifmedia_upd, ate_ifmedia_sts)) {
-		device_printf(dev, "Cannot find my PHY.\n");
-		err = ENXIO;
+	err = mii_attach(dev, &sc->miibus, ifp, ate_ifmedia_upd,
+	    ate_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (err != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto out;
 	}
+	/*
+	 * XXX: Clear the isolate bit, or we won't get up,
+	 * at least on the HL201
+	 */
+	ate_miibus_writereg(dev, 0, 0, 0x3000);
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
@@ -276,7 +407,6 @@ ate_attach(device_t dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_timer = 0;
 	ifp->if_linkmib = &sc->mibdata;
 	ifp->if_linkmiblen = sizeof(sc->mibdata);
 	sc->mibdata.dot3Compliance = DOT3COMPLIANCE_COLLS;
@@ -284,9 +414,7 @@ ate_attach(device_t dev)
 
 	ether_ifattach(ifp, eaddr);
 
-	/*
-	 * Activate the interrupt.
-	 */
+	/* Activate the interrupt. */
 	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, ate_intr, sc, &sc->intrhand);
 	if (err) {
@@ -349,45 +477,39 @@ ate_detach(device_t dev)
 static void
 ate_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
-	struct ate_softc *sc;
 
 	if (error != 0)
 		return;
-	sc = (struct ate_softc *)arg;
-	sc->rx_desc_phys = segs[0].ds_addr;
+	*(bus_addr_t *)arg = segs[0].ds_addr;
 }
 
 static void
 ate_load_rx_buf(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
 	struct ate_softc *sc;
-	int i;
 
 	if (error != 0)
 		return;
 	sc = (struct ate_softc *)arg;
-	i = sc->rx_buf_ptr;
 
-	/*
-	 * For the last buffer, set the wrap bit so the controller
-	 * restarts from the first descriptor.
-	 */
 	bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map, BUS_DMASYNC_PREWRITE);
-	if (i == ATE_MAX_RX_BUFFERS - 1)
-		sc->rx_descs[i].addr = segs[0].ds_addr | ETH_WRAP_BIT;
-	else
-		sc->rx_descs[i].addr = segs[0].ds_addr;
+	sc->rx_descs[sc->rxhead].addr = segs[0].ds_addr;
+	sc->rx_descs[sc->rxhead].status = 0;
 	bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map, BUS_DMASYNC_POSTWRITE);
-	sc->rx_descs[i].status = 0;
-	/* Flush the memory in the mbuf */
-	bus_dmamap_sync(sc->rxtag, sc->rx_map[i], BUS_DMASYNC_PREREAD);
+}
+
+static uint32_t
+ate_mac_hash(const uint8_t *buf)
+{
+	uint32_t index = 0;
+	for (int i = 0; i < 48; i++) {
+		index ^= ((buf[i >> 3] >> (i & 7)) & 1) << (i % 6);
+	}
+	return (index);
 }
 
 /*
- * Compute the multicast filter for this device using the standard
- * algorithm.  I wonder why this isn't in ether somewhere as a lot
- * of different MAC chips use this method (or the reverse the bits)
- * method.
+ * Compute the multicast filter for this device.
  */
 static int
 ate_setmcast(struct ate_softc *sc)
@@ -408,17 +530,15 @@ ate_setmcast(struct ate_softc *sc)
 		return (1);
 	}
 
-	/*
-	 * Compute the multicast hash.
-	 */
+	/* Compute the multicast hash. */
 	mcaf[0] = 0;
 	mcaf[1] = 0;
 	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		index = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
+		index = ate_mac_hash(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr));
 		af[index >> 3] |= 1 << (index & 7);
 	}
 	if_maddr_runlock(ifp);
@@ -439,69 +559,121 @@ static int
 ate_activate(device_t dev)
 {
 	struct ate_softc *sc;
-	int err, i;
+	int i;
 
 	sc = device_get_softc(dev);
 
-	/*
-	 * Allocate DMA tags and maps.
-	 */
-	err = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
+	/* Allocate DMA tags and maps for TX mbufs */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-	    1, MCLBYTES, 0, busdma_lock_mutex, &sc->sc_mtx, &sc->mtag);
-	if (err != 0)
+	    1, MCLBYTES, 0, busdma_lock_mutex, &sc->sc_mtx, &sc->mtag))
 		goto errout;
 	for (i = 0; i < ATE_MAX_TX_BUFFERS; i++) {
-		err = bus_dmamap_create(sc->mtag, 0, &sc->tx_map[i]);
-		if (err != 0)
+		if ( bus_dmamap_create(sc->mtag, 0, &sc->tx_map[i]))
 			goto errout;
 	}
 
-	/*
-	 * Allocate DMA tags and maps for RX.
-	 */
-	err = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-	    1, MCLBYTES, 0, busdma_lock_mutex, &sc->sc_mtx, &sc->rxtag);
-	if (err != 0)
-		goto errout;
 
-	/*
-	 * DMA tag and map for the RX descriptors.
-	 */
-	err = bus_dma_tag_create(bus_get_dma_tag(dev), sizeof(eth_rx_desc_t),
+	/* DMA tag and map for the RX descriptors. */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), sizeof(eth_rx_desc_t),
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    ATE_MAX_RX_BUFFERS * sizeof(eth_rx_desc_t), 1,
-	    ATE_MAX_RX_BUFFERS * sizeof(eth_rx_desc_t), 0, busdma_lock_mutex,
-	    &sc->sc_mtx, &sc->rx_desc_tag);
-	if (err != 0)
+	    ATE_NUM_RX_DESCR * sizeof(eth_rx_desc_t), 1,
+	    ATE_NUM_RX_DESCR * sizeof(eth_rx_desc_t), 0, busdma_lock_mutex,
+	    &sc->sc_mtx, &sc->rx_desc_tag))
 		goto errout;
 	if (bus_dmamem_alloc(sc->rx_desc_tag, (void **)&sc->rx_descs,
 	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &sc->rx_desc_map) != 0)
 		goto errout;
 	if (bus_dmamap_load(sc->rx_desc_tag, sc->rx_desc_map,
-	    sc->rx_descs, ATE_MAX_RX_BUFFERS * sizeof(eth_rx_desc_t),
-	    ate_getaddr, sc, 0) != 0)
+	    sc->rx_descs, ATE_NUM_RX_DESCR * sizeof(eth_rx_desc_t),
+	    ate_getaddr, &sc->rx_desc_phys, 0) != 0)
+		goto errout;
+
+	/* Allocate DMA tags and maps for RX. buffers */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    sc->rx_buf_size, 1, sc->rx_buf_size, 0,
+	    busdma_lock_mutex, &sc->sc_mtx, &sc->rx_tag))
 		goto errout;
 
 	/*
-	 * Allocate our RX buffers.  This chip has a RX structure that's filled
-	 * in.
+	 * Allocate our RX buffers.
+	 * This chip has a RX structure that's filled in.
+	 * XXX On MACB (SAM9 part) we should receive directly into mbuf
+	 * to avoid the copy.  XXX
 	 */
-	for (i = 0; i < ATE_MAX_RX_BUFFERS; i++) {
-		sc->rx_buf_ptr = i;
-		if (bus_dmamem_alloc(sc->rxtag, (void **)&sc->rx_buf[i],
-		      BUS_DMA_NOWAIT, &sc->rx_map[i]) != 0)
+	sc->rxhead = 0;
+	for (sc->rxhead = 0; sc->rxhead < ATE_RX_MEMORY/sc->rx_buf_size;
+	    sc->rxhead++) {
+		if (bus_dmamem_alloc(sc->rx_tag,
+		    (void **)&sc->rx_buf[sc->rxhead], BUS_DMA_NOWAIT,
+		    &sc->rx_map[sc->rxhead]) != 0)
 			goto errout;
-		if (bus_dmamap_load(sc->rxtag, sc->rx_map[i], sc->rx_buf[i],
-		    MCLBYTES, ate_load_rx_buf, sc, 0) != 0)
+
+		if (bus_dmamap_load(sc->rx_tag, sc->rx_map[sc->rxhead],
+		    sc->rx_buf[sc->rxhead], sc->rx_buf_size,
+		    ate_load_rx_buf, sc, 0) != 0) {
+			printf("bus_dmamem_load\n");
 			goto errout;
+		}
+		bus_dmamap_sync(sc->rx_tag, sc->rx_map[sc->rxhead], BUS_DMASYNC_PREREAD);
 	}
-	sc->rx_buf_ptr = 0;
+
+	/*
+	 * For the last buffer, set the wrap bit so the controller
+	 * restarts from the first descriptor.
+	 */
+	sc->rx_descs[--sc->rxhead].addr |= ETH_WRAP_BIT;
+	sc->rxhead = 0;
+
 	/* Flush the memory for the EMAC rx descriptor. */
 	bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map, BUS_DMASYNC_PREWRITE);
+
 	/* Write the descriptor queue address. */
 	WR4(sc, ETH_RBQP, sc->rx_desc_phys);
+
+	/*
+	 * DMA tag and map for the TX descriptors.
+	 */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), sizeof(eth_tx_desc_t),
+	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    ATE_MAX_TX_BUFFERS * sizeof(eth_tx_desc_t), 1,
+	    ATE_MAX_TX_BUFFERS * sizeof(eth_tx_desc_t), 0, busdma_lock_mutex,
+	    &sc->sc_mtx, &sc->tx_desc_tag) != 0)
+		goto errout;
+
+	if (bus_dmamem_alloc(sc->tx_desc_tag, (void **)&sc->tx_descs,
+	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &sc->tx_desc_map) != 0)
+		goto errout;
+
+	if (bus_dmamap_load(sc->tx_desc_tag, sc->tx_desc_map,
+	    sc->tx_descs, ATE_MAX_TX_BUFFERS * sizeof(eth_tx_desc_t),
+	    ate_getaddr, &sc->tx_desc_phys, 0) != 0)
+		goto errout;
+
+	/* Initialize descriptors; mark all empty */
+	for (i = 0; i < ATE_MAX_TX_BUFFERS; i++) {
+		sc->tx_descs[i].addr =0;
+		sc->tx_descs[i].status = ETHB_TX_USED;
+		sc->sent_mbuf[i] = NULL;
+	}
+
+	/* Mark last entry to cause wrap when indexing through */
+	sc->tx_descs[ATE_MAX_TX_BUFFERS - 1].status =
+	    ETHB_TX_WRAP | ETHB_TX_USED;
+
+	/* Flush the memory for the EMAC tx descriptor. */
+	bus_dmamap_sync(sc->tx_desc_tag, sc->tx_desc_map, BUS_DMASYNC_PREWRITE);
+
+	sc->txhead = sc->txtail = 0;
+	if (sc->is_emacb) {
+		/* Write the descriptor queue address. */
+		WR4(sc, ETHB_TBQP, sc->tx_desc_phys);
+
+		/* EMACB: Enable transceiver input clock */
+		WR4(sc, ETHB_UIO, RD4(sc, ETHB_UIO) | ETHB_UIO_CLKE);
+	}
+
 	return (0);
 
 errout:
@@ -539,24 +711,21 @@ ate_deactivate(struct ate_softc *sc)
 			}
 		}
 	}
-	if (sc->rxtag != NULL) {
-		for (i = 0; i < ATE_MAX_RX_BUFFERS; i++) {
-			if (sc->rx_buf[i] != NULL) {
-				if (sc->rx_descs[i].addr != 0) {
-					bus_dmamap_sync(sc->rxtag,
-					    sc->rx_map[i],
-					    BUS_DMASYNC_POSTREAD);
-					bus_dmamap_unload(sc->rxtag,
-					    sc->rx_map[i]);
-					sc->rx_descs[i].addr = 0;
-				}
-				bus_dmamem_free(sc->rxtag, sc->rx_buf[i],
+	if (sc->rx_tag != NULL) {
+		for (i = 0; sc->rx_buf[i] != NULL; i++) {
+			if (sc->rx_descs[i].addr != 0) {
+				bus_dmamap_sync(sc->rx_tag,
+				    sc->rx_map[i],
+				    BUS_DMASYNC_POSTREAD);
+				bus_dmamap_unload(sc->rx_tag,
 				    sc->rx_map[i]);
-				sc->rx_buf[i] = NULL;
-				sc->rx_map[i] = NULL;
+				sc->rx_descs[i].addr = 0;
 			}
+			bus_dmamem_free(sc->rx_tag, sc->rx_buf[i],
+			    sc->rx_map[i]);
+			sc->rx_buf[i] = NULL;
 		}
-		bus_dma_tag_destroy(sc->rxtag);
+		bus_dma_tag_destroy(sc->rx_tag);
 	}
 	if (sc->rx_desc_tag != NULL) {
 		if (sc->rx_descs != NULL)
@@ -566,6 +735,9 @@ ate_deactivate(struct ate_softc *sc)
 		sc->rx_descs = NULL;
 		sc->rx_desc_tag = NULL;
 	}
+
+	if (sc->is_emacb)
+		WR4(sc, ETHB_UIO, RD4(sc, ETHB_UIO) & ~ETHB_UIO_CLKE);
 }
 
 /*
@@ -639,7 +811,7 @@ ate_tick(void *xsc)
 		active = mii->mii_media_active;
 		mii_tick(mii);
 		if (mii->mii_media_status & IFM_ACTIVE &&
-		     active != mii->mii_media_active)
+		    active != mii->mii_media_active)
 			ate_stat_update(sc, mii->mii_media_active);
 	}
 
@@ -657,19 +829,19 @@ ate_tick(void *xsc)
 	sc->mibdata.dot3StatsAlignmentErrors += RD4(sc, ETH_ALE);
 	sc->mibdata.dot3StatsFCSErrors += RD4(sc, ETH_SEQE);
 	c = RD4(sc, ETH_SCOL);
-	ifp->if_collisions += c;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, c);
 	sc->mibdata.dot3StatsSingleCollisionFrames += c;
 	c = RD4(sc, ETH_MCOL);
 	sc->mibdata.dot3StatsMultipleCollisionFrames += c;
-	ifp->if_collisions += c;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, c);
 	sc->mibdata.dot3StatsSQETestErrors += RD4(sc, ETH_SQEE);
 	sc->mibdata.dot3StatsDeferredTransmissions += RD4(sc, ETH_DTE);
 	c = RD4(sc, ETH_LCOL);
 	sc->mibdata.dot3StatsLateCollisions += c;
-	ifp->if_collisions += c;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, c);
 	c = RD4(sc, ETH_ECOL);
 	sc->mibdata.dot3StatsExcessiveCollisions += c;
-	ifp->if_collisions += c;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, c);
 	sc->mibdata.dot3StatsCarrierSenseErrors += RD4(sc, ETH_CSE);
 	sc->mibdata.dot3StatsFrameTooLongs += RD4(sc, ETH_ELR);
 	sc->mibdata.dot3StatsInternalMacReceiveErrors += RD4(sc, ETH_DRFC);
@@ -678,13 +850,11 @@ ate_tick(void *xsc)
 	 * Not sure where to lump these, so count them against the errors
 	 * for the interface.
 	 */
-	sc->ifp->if_oerrors += RD4(sc, ETH_TUE);
-	sc->ifp->if_ierrors += RD4(sc, ETH_CDE) + RD4(sc, ETH_RJB) +
-	    RD4(sc, ETH_USF);
+	if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, RD4(sc, ETH_TUE));
+	if_inc_counter(sc->ifp, IFCOUNTER_IERRORS,
+	    RD4(sc, ETH_CDE) + RD4(sc, ETH_RJB) + RD4(sc, ETH_USF));
 
-	/*
-	 * Schedule another timeout one second from now.
-	 */
+	/* Schedule another timeout one second from now. */
 	callout_reset(&sc->tick_ch, hz, ate_tick, sc);
 }
 
@@ -706,8 +876,8 @@ ate_get_mac(struct ate_softc *sc, u_char *eaddr)
 	int i;
 
 	/*
-	 * The boot loader setup the MAC with an address, if one is set in
-	 * the loader. Grab one MAC address from the SA[1-4][HL] registers.
+	 * The boot loader may setup the MAC with an address(es), grab the
+	 * first MAC address from the SA[1-4][HL] registers.
 	 */
 	for (i = 0; i < 4; i++) {
 		low = RD4(sc, sa_low_reg[i]);
@@ -731,87 +901,155 @@ ate_intr(void *xsc)
 	struct ate_softc *sc = xsc;
 	struct ifnet *ifp = sc->ifp;
 	struct mbuf *mb;
-	void *bp;
-	uint32_t status, reg, rx_stat;
-	int i;
+	eth_rx_desc_t	*rxdhead;
+	uint32_t status, reg, idx;
+	int remain, count, done;
 
 	status = RD4(sc, ETH_ISR);
 	if (status == 0)
 		return;
+
 	if (status & ETH_ISR_RCOM) {
 		bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
 		    BUS_DMASYNC_POSTREAD);
-		while (sc->rx_descs[sc->rx_buf_ptr].addr & ETH_CPU_OWNER) {
-			i = sc->rx_buf_ptr;
-			sc->rx_buf_ptr = (i + 1) % ATE_MAX_RX_BUFFERS;
-			bp = sc->rx_buf[i];
-			rx_stat = sc->rx_descs[i].status;
-			if ((rx_stat & ETH_LEN_MASK) == 0) {
-				if (bootverbose)
-					device_printf(sc->dev, "ignoring bogus zero-length packet\n");
-				bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
-				    BUS_DMASYNC_PREWRITE);
-				sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
-				bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
-				    BUS_DMASYNC_POSTWRITE);
+
+		rxdhead = &sc->rx_descs[sc->rxhead];
+		while (rxdhead->addr & ETH_CPU_OWNER) {
+			if (!sc->is_emacb) {
+				/*
+				 * Simulate SAM9 FIRST/LAST bits for RM9200.
+				 * RM9200 EMAC has only on Rx buffer per packet.
+				 * But sometime we are handed a zero length packet.
+				 */
+				if ((rxdhead->status & ETH_LEN_MASK) == 0)
+					rxdhead->status = 0; /* Mark error */
+				else
+					rxdhead->status |= ETH_BUF_FIRST | ETH_BUF_LAST;
+			}
+
+			if ((rxdhead->status & ETH_BUF_FIRST) == 0) {
+				/* Something went wrong during RX so
+				   release back to EMAC all buffers of invalid packets.
+				*/
+				rxdhead->status = 0;
+				rxdhead->addr &= ~ETH_CPU_OWNER;
+				sc->rxhead = NEXT_RX_IDX(sc, sc->rxhead);
+				rxdhead = &sc->rx_descs[sc->rxhead];
 				continue;
 			}
-			/* Flush memory for mbuf so we don't get stale bytes */
-			bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
-			    BUS_DMASYNC_POSTREAD);
-			WR4(sc, ETH_RSR, RD4(sc, ETH_RSR));
 
-			/*
-			 * The length returned by the device includes the
-			 * ethernet CRC calculation for the packet, but
-			 * ifnet drivers are supposed to discard it.
-			 */
-			mb = m_devget(sc->rx_buf[i],
-			    (rx_stat & ETH_LEN_MASK) - ETHER_CRC_LEN,
-			    ETHER_ALIGN, ifp, NULL);
-			bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
-			    BUS_DMASYNC_PREWRITE);
-			sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
-			bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
-			    BUS_DMASYNC_PREREAD);
-			if (mb != NULL) {
-				ifp->if_ipackets++;
-				(*ifp->if_input)(ifp, mb);
+			/* Find end of packet or start of next */
+			idx = sc->rxhead;
+			if ((sc->rx_descs[idx].status & ETH_BUF_LAST) == 0) {
+				idx = NEXT_RX_IDX(sc, idx);
+
+				while ((sc->rx_descs[idx].addr & ETH_CPU_OWNER) &&
+					((sc->rx_descs[idx].status &
+					    (ETH_BUF_FIRST|ETH_BUF_LAST))== 0))
+					idx = NEXT_RX_IDX(sc, idx);
 			}
-			
+
+			/* Packet NOT yet completely in memory; we are done */
+			if ((sc->rx_descs[idx].addr & ETH_CPU_OWNER) == 0 ||
+			    ((sc->rx_descs[idx].status & (ETH_BUF_FIRST|ETH_BUF_LAST))== 0))
+					break;
+
+			/* Packets with no end descriptor are invalid. */
+			if ((sc->rx_descs[idx].status & ETH_BUF_LAST) == 0) {
+					rxdhead->status &= ~ETH_BUF_FIRST;
+					continue;
+			}
+
+			/* FCS is not coppied into mbuf. */
+			remain = (sc->rx_descs[idx].status & ETH_LEN_MASK) - 4;
+
+			/* Get an appropriately sized mbuf. */
+			mb = m_get2(remain + ETHER_ALIGN, M_NOWAIT, MT_DATA,
+			    M_PKTHDR);
+			if (mb == NULL) {
+				if_inc_counter(sc->ifp, IFCOUNTER_IQDROPS, 1);
+				rxdhead->status = 0;
+				continue;
+			}
+			mb->m_data += ETHER_ALIGN;
+			mb->m_pkthdr.rcvif = ifp;
+
+			WR4(sc, ETH_RSR, RD4(sc, ETH_RSR));	/* Reset status */
+
+			/* Now we process the buffers that make up the packet */
+			do {
+
+				/* Last buffer may just be 1-4 bytes of FCS so remain
+				 * may be zero for last descriptor.  */
+				if (remain > 0) {
+						/* Make sure we get the current bytes */
+						bus_dmamap_sync(sc->rx_tag, sc->rx_map[sc->rxhead],
+						    BUS_DMASYNC_POSTREAD);
+
+						count = MIN(remain, sc->rx_buf_size);
+
+						/* XXX Performance robbing copy. Could
+						 * receive directly to mbufs if not an
+						 * RM9200. And even then we could likely
+						 * copy just the protocol headers. XXX  */
+						m_append(mb, count, sc->rx_buf[sc->rxhead]);
+						remain -= count;
+				}
+
+				done = (rxdhead->status & ETH_BUF_LAST) != 0;
+
+				/* Return the descriptor to the EMAC */
+				rxdhead->status = 0;
+				rxdhead->addr &= ~ETH_CPU_OWNER;
+				bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
+				    BUS_DMASYNC_PREWRITE);
+
+				/* Move on to next descriptor with wrap */
+				sc->rxhead = NEXT_RX_IDX(sc, sc->rxhead);
+				rxdhead = &sc->rx_descs[sc->rxhead];
+
+			} while (!done);
+
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+			(*ifp->if_input)(ifp, mb);
 		}
 	}
+
+
 	if (status & ETH_ISR_TCOM) {
+		bus_dmamap_sync(sc->tx_desc_tag, sc->tx_desc_map,
+		    BUS_DMASYNC_POSTREAD);
+
 		ATE_LOCK(sc);
 		/* XXX TSR register should be cleared */
-		if (sc->sent_mbuf[0]) {
-			bus_dmamap_sync(sc->mtag, sc->tx_map[0],
+		if (!sc->is_emacb) {
+			/* Simulate Transmit descriptor table */
+
+			/* First packet done */
+			if (sc->txtail < sc->txhead)
+				sc->tx_descs[sc->txtail].status |= ETHB_TX_USED;
+
+			/* Second Packet done */
+			if (sc->txtail + 1 < sc->txhead &&
+			    RD4(sc, ETH_TSR) & ETH_TSR_IDLE)
+				sc->tx_descs[sc->txtail + 1].status |= ETHB_TX_USED;
+		}
+
+		while ((sc->tx_descs[sc->txtail].status & ETHB_TX_USED) &&
+		    sc->sent_mbuf[sc->txtail] != NULL) {
+			bus_dmamap_sync(sc->mtag, sc->tx_map[sc->txtail],
 			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(sc->mtag, sc->tx_map[0]);
-			m_freem(sc->sent_mbuf[0]);
-			ifp->if_opackets++;
-			sc->sent_mbuf[0] = NULL;
+			bus_dmamap_unload(sc->mtag, sc->tx_map[sc->txtail]);
+			m_freem(sc->sent_mbuf[sc->txtail]);
+			sc->tx_descs[sc->txtail].addr = 0;
+			sc->sent_mbuf[sc->txtail] = NULL;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+			sc->txtail = NEXT_TX_IDX(sc, sc->txtail);
 		}
-		if (sc->sent_mbuf[1]) {
-			if (RD4(sc, ETH_TSR) & ETH_TSR_IDLE) {
-				bus_dmamap_sync(sc->mtag, sc->tx_map[1],
-				    BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(sc->mtag, sc->tx_map[1]);
-				m_freem(sc->sent_mbuf[1]);
-				ifp->if_opackets++;
-				sc->txcur = 0;
-				sc->sent_mbuf[0] = sc->sent_mbuf[1] = NULL;
-			} else {
-				sc->sent_mbuf[0] = sc->sent_mbuf[1];
-				sc->sent_mbuf[1] = NULL;
-				sc->txcur = 1;
-			}
-		} else {
-			sc->sent_mbuf[0] = NULL;
-			sc->txcur = 0;
-		}
+
+		/* Flush descriptors to EMAC */
+		bus_dmamap_sync(sc->tx_desc_tag, sc->tx_desc_map, BUS_DMASYNC_PREWRITE);
+
 		/*
 		 * We're no longer busy, so clear the busy flag and call the
 		 * start routine to xmit more packets.
@@ -820,8 +1058,9 @@ ate_intr(void *xsc)
 		atestart_locked(sc->ifp);
 		ATE_UNLOCK(sc);
 	}
+
 	if (status & ETH_ISR_RBNA) {
-		/* Workaround Errata #11 */
+		/* Workaround RM9200 Errata #11 */
 		if (bootverbose)
 			device_printf(sc->dev, "RBNA workaround\n");
 		reg = RD4(sc, ETH_CTL);
@@ -829,6 +1068,9 @@ ate_intr(void *xsc)
 		BARRIER(sc, ETH_CTL, 4, BUS_SPACE_BARRIER_WRITE);
 		WR4(sc, ETH_CTL, reg | ETH_CTL_RE);
 	}
+
+	/* XXX need to work around SAM9260 errata 43.2.4.1:
+	 * disable the mac, reset tx buffer, enable mac on TUND */
 }
 
 /*
@@ -839,7 +1081,7 @@ ateinit_locked(void *xsc)
 {
 	struct ate_softc *sc = xsc;
 	struct ifnet *ifp = sc->ifp;
- 	struct mii_data *mii;
+	struct mii_data *mii;
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	uint32_t reg;
 
@@ -852,20 +1094,27 @@ ateinit_locked(void *xsc)
 	 * need to think about how best to turn it on/off as the interface
 	 * is brought up/down, as well as dealing with the mii bus...
 	 *
-	 * We also need to multiplex the pins correctly.
+	 * We also need to multiplex the pins correctly (in board_xxx.c).
 	 */
 
 	/*
 	 * There are two different ways that the mii bus is connected
-	 * to this chip.  Select the right one based on a compile-time
-	 * option.
+	 * to this chip mii or rmii.
 	 */
-	reg = RD4(sc, ETH_CFG);
-	if (sc->use_rmii)
-		reg |= ETH_CFG_RMII;
-	else
-		reg &= ~ETH_CFG_RMII;
-	WR4(sc, ETH_CFG, reg);
+	if (!sc->is_emacb) {
+		/* RM9200 */
+		reg = RD4(sc, ETH_CFG);
+		if (sc->use_rmii)
+			reg |= ETH_CFG_RMII;
+		else
+			reg &= ~ETH_CFG_RMII;
+		WR4(sc, ETH_CFG, reg);
+	} else  {
+		/* SAM9 */
+		reg = ETHB_UIO_CLKE;
+		reg |= (sc->use_rmii) ? ETHB_UIO_RMII : 0;
+		WR4(sc, ETHB_UIO, reg);
+	}
 
 	ate_rxfilter(sc);
 
@@ -874,6 +1123,13 @@ ateinit_locked(void *xsc)
 	 */
 	bcopy(IF_LLADDR(ifp), eaddr, ETHER_ADDR_LEN);
 	ate_set_mac(sc, eaddr);
+
+	/* Make sure we know state of TX queue */
+	sc->txhead = sc->txtail = 0;
+	if (sc->is_emacb) {
+		/* Write the descriptor queue address. */
+		WR4(sc, ETHB_TBQP, sc->tx_desc_phys);
+	}
 
 	/*
 	 * Turn on MACs and interrupt processing.
@@ -914,56 +1170,83 @@ atestart_locked(struct ifnet *ifp)
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
 
-	while (sc->txcur < ATE_MAX_TX_BUFFERS) {
+	while (sc->tx_descs[sc->txhead].status & ETHB_TX_USED) {
 		/*
 		 * Check to see if there's room to put another packet into the
-		 * xmit queue.  The EMAC chip has a ping-pong buffer for xmit
-		 * packets.  We use OACTIVE to indicate "we can stuff more into
-		 * our buffers (clear) or not (set)."
+		 * xmit queue. The old EMAC version has a ping-pong buffer for
+		 * xmit packets.  We use OACTIVE to indicate "we can stuff more
+		 * into our buffers (clear) or not (set)."
 		 */
-		if (!(RD4(sc, ETH_TSR) & ETH_TSR_BNQ)) {
+		/* RM9200 has only two hardware entries */
+		if (!sc->is_emacb && (RD4(sc, ETH_TSR) & ETH_TSR_BNQ) == 0) {
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			return;
 		}
+
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-		if (m == 0) {
-			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-			return;
-		}
-		e = bus_dmamap_load_mbuf_sg(sc->mtag, sc->tx_map[sc->txcur], m,
+		if (m == NULL)
+			break;
+
+		e = bus_dmamap_load_mbuf_sg(sc->mtag, sc->tx_map[sc->txhead], m,
 		    segs, &nseg, 0);
 		if (e == EFBIG) {
-			mdefrag = m_defrag(m, M_DONTWAIT);
+			mdefrag = m_defrag(m, M_NOWAIT);
 			if (mdefrag == NULL) {
 				IFQ_DRV_PREPEND(&ifp->if_snd, m);
 				return;
 			}
 			m = mdefrag;
 			e = bus_dmamap_load_mbuf_sg(sc->mtag,
-			    sc->tx_map[sc->txcur], m, segs, &nseg, 0);
+			    sc->tx_map[sc->txhead], m, segs, &nseg, 0);
 		}
 		if (e != 0) {
 			m_freem(m);
 			continue;
 		}
-		bus_dmamap_sync(sc->mtag, sc->tx_map[sc->txcur],
+
+		/*
+		 * There's a small race between the loop in ate_intr finishing
+		 * and the check above to see if the packet was finished, as well
+		 * as when atestart gets called via other paths. Lose the race
+		 * gracefully and free the mbuf...
+		 */
+		if (sc->sent_mbuf[sc->txhead] != NULL) {
+			bus_dmamap_sync(sc->mtag, sc->tx_map[sc->txtail],
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->mtag, sc->tx_map[sc->txtail]);
+			m_free(sc->sent_mbuf[sc->txhead]);
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		}
+		
+		sc->sent_mbuf[sc->txhead] = m;
+
+		bus_dmamap_sync(sc->mtag, sc->tx_map[sc->txhead],
 		    BUS_DMASYNC_PREWRITE);
 
-		/*
-		 * Tell the hardware to xmit the packet.
-		 */
-		WR4(sc, ETH_TAR, segs[0].ds_addr);
-		BARRIER(sc, ETH_TAR, 8, BUS_SPACE_BARRIER_WRITE);
-		WR4(sc, ETH_TCR, segs[0].ds_len);
-	
-		/*
-		 * Tap off here if there is a bpf listener.
-		 */
-		BPF_MTAP(ifp, m);
+		/* Tell the hardware to xmit the packet. */
+		if (!sc->is_emacb) {
+			WR4(sc, ETH_TAR, segs[0].ds_addr);
+			BARRIER(sc, ETH_TAR, 4, BUS_SPACE_BARRIER_WRITE);
+			WR4(sc, ETH_TCR, segs[0].ds_len);
+		} else {
+			bus_dmamap_sync(sc->tx_desc_tag, sc->tx_desc_map,
+			    BUS_DMASYNC_POSTWRITE);
+			sc->tx_descs[sc->txhead].addr = segs[0].ds_addr;
+			sc->tx_descs[sc->txhead].status = segs[0].ds_len |
+			    (sc->tx_descs[sc->txhead].status & ETHB_TX_WRAP) |
+			    ETHB_TX_BUF_LAST;
+			bus_dmamap_sync(sc->tx_desc_tag, sc->tx_desc_map,
+			    BUS_DMASYNC_PREWRITE);
+			WR4(sc, ETH_CTL, RD4(sc, ETH_CTL) | ETHB_CTL_TGO);
+		}
+		sc->txhead = NEXT_TX_IDX(sc, sc->txhead);
 
-		sc->sent_mbuf[sc->txcur] = m;
-		sc->txcur++;
+		/* Tap off here if there is a bpf listener. */
+		BPF_MTAP(ifp, m);
 	}
+
+	if ((sc->tx_descs[sc->txhead].status & ETHB_TX_USED) == 0)
+	    ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 }
 
 static void
@@ -999,7 +1282,7 @@ atestop(struct ate_softc *sc)
 	ATE_ASSERT_LOCKED(sc);
 	ifp = sc->ifp;
 	if (ifp) {
-		ifp->if_timer = 0;
+		//ifp->if_timer = 0;
 		ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	}
 
@@ -1016,7 +1299,18 @@ atestop(struct ate_softc *sc)
 	/*
 	 * Turn off all the configured options and revert to defaults.
 	 */
-	WR4(sc, ETH_CFG, ETH_CFG_CLK_32);
+
+	/* Make sure thate the MDIO clk is less than
+	 * 2.5 Mhz. Can no longer default to /32 since
+	 * SAM9 family may have MCK > 80 Mhz */
+	if (at91_master_clock <= 2000000)
+		WR4(sc, ETH_CFG, ETH_CFG_CLK_8);
+	else if (at91_master_clock <= 4000000)
+		WR4(sc, ETH_CFG, ETH_CFG_CLK_16);
+	else if (at91_master_clock <= 800000)
+		WR4(sc, ETH_CFG, ETH_CFG_CLK_32);
+	else
+		WR4(sc, ETH_CFG, ETH_CFG_CLK_64);
 
 	/*
 	 * Turn off all the interrupts, and ack any pending ones by reading
@@ -1032,9 +1326,7 @@ atestop(struct ate_softc *sc)
 	WR4(sc, ETH_TSR, 0xffffffff);
 	WR4(sc, ETH_RSR, 0xffffffff);
 
-	/*
-	 * Release TX resources.
-	 */
+	/* Release TX resources. */
 	for (i = 0; i < ATE_MAX_TX_BUFFERS; i++) {
 		if (sc->sent_mbuf[i] != NULL) {
 			bus_dmamap_sync(sc->mtag, sc->tx_map[i],
@@ -1044,6 +1336,10 @@ atestop(struct ate_softc *sc)
 			sc->sent_mbuf[i] = NULL;
 		}
 	}
+
+	/* Turn off transeiver input clock */
+	if (sc->is_emacb)
+		WR4(sc, ETHB_UIO, RD4(sc, ETHB_UIO) & ~ETHB_UIO_CLKE);
 
 	/*
 	 * XXX we should power down the EMAC if it isn't in use, after
@@ -1063,17 +1359,13 @@ ate_rxfilter(struct ate_softc *sc)
 	ATE_ASSERT_LOCKED(sc);
 	ifp = sc->ifp;
 
-	/*
-	 * Wipe out old filter settings.
-	 */
+	/* Wipe out old filter settings. */
 	reg = RD4(sc, ETH_CFG);
 	reg &= ~(ETH_CFG_CAF | ETH_CFG_MTI | ETH_CFG_UNI);
 	reg |= ETH_CFG_NBC;
 	sc->flags &= ~ATE_FLAG_MULTICAST;
 
-	/*
-	 * Set new parameters.
-	 */
+	/* Set new parameters. */
 	if ((ifp->if_flags & IFF_BROADCAST) != 0)
 		reg &= ~ETH_CFG_NBC;
 	if ((ifp->if_flags & IFF_PROMISC) != 0) {
@@ -1092,8 +1384,8 @@ static int
 ateioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ate_softc *sc = ifp->if_softc;
- 	struct mii_data *mii;
- 	struct ifreq *ifr = (struct ifreq *)data;	
+	struct mii_data *mii;
+	struct ifreq *ifr = (struct ifreq *)data;
 	int drv_flags, flags;
 	int mask, error, enabled;
 
@@ -1131,11 +1423,11 @@ ateioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		break;
 
-  	case SIOCSIFMEDIA:
-  	case SIOCGIFMEDIA:
- 		mii = device_get_softc(sc->miibus);
- 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, cmd);
-  		break;
+	case SIOCSIFMEDIA:
+	case SIOCGIFMEDIA:
+		mii = device_get_softc(sc->miibus);
+		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, cmd);
+		break;
 	case SIOCSIFCAP:
 		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
 		if (mask & IFCAP_VLAN_MTU) {
@@ -1176,7 +1468,7 @@ ate_miibus_readreg(device_t dev, int phy, int reg)
 	int val;
 
 	/*
-	 * XXX if we implement agressive power savings, then we need
+	 * XXX if we implement aggressive power savings, then we need
 	 * XXX to make sure that the clock to the emac is on here
 	 */
 
@@ -1194,9 +1486,9 @@ static int
 ate_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct ate_softc *sc;
-	
+
 	/*
-	 * XXX if we implement agressive power savings, then we need
+	 * XXX if we implement aggressive power savings, then we need
 	 * XXX to make sure that the clock to the emac is on here
 	 */
 
@@ -1220,7 +1512,7 @@ static device_method_t ate_methods[] = {
 	DEVMETHOD(miibus_readreg,	ate_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	ate_miibus_writereg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ate_driver = {
@@ -1229,7 +1521,11 @@ static driver_t ate_driver = {
 	sizeof(struct ate_softc),
 };
 
-DRIVER_MODULE(ate, atmelarm, ate_driver, ate_devclass, 0, 0);
-DRIVER_MODULE(miibus, ate, miibus_driver, miibus_devclass, 0, 0);
+#ifdef FDT
+DRIVER_MODULE(ate, simplebus, ate_driver, ate_devclass, NULL, NULL);
+#else
+DRIVER_MODULE(ate, atmelarm, ate_driver, ate_devclass, NULL, NULL);
+#endif
+DRIVER_MODULE(miibus, ate, miibus_driver, miibus_devclass, NULL, NULL);
 MODULE_DEPEND(ate, miibus, 1, 1, 1);
 MODULE_DEPEND(ate, ether, 1, 1, 1);

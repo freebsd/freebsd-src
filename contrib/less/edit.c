@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -65,7 +64,7 @@ init_textlist(tlist, str)
 	int meta_quoted = 0;
 	int delim_quoted = 0;
 	char *esc = get_meta_escape();
-	int esclen = strlen(esc);
+	int esclen = (int) strlen(esc);
 #endif
 	
 	tlist->string = skipsp(str);
@@ -310,6 +309,10 @@ edit_ifile(ifile)
 		 */
 		__djgpp_set_ctrl_c(1);
 #endif
+	} else if (strcmp(open_filename, FAKE_EMPTYFILE) == 0)
+	{
+		f = -1;
+		chflags |= CH_NODATA;
 	} else if (strcmp(open_filename, FAKE_HELPFILE) == 0)
 	{
 		f = -1;
@@ -408,7 +411,10 @@ edit_ifile(ifile)
 		}
 #endif
 		if (every_first_cmd != NULL)
+		{
+			ungetcc(CHAR_END_COMMAND);
 			ungetsc(every_first_cmd);
+		}
 	}
 
 	free(qopen_filename);
@@ -430,7 +436,8 @@ edit_ifile(ifile)
 #if HILITE_SEARCH
 		clr_hilite();
 #endif
-		cmd_addhist(ml_examine, filename);
+		if (strcmp(filename, FAKE_HELPFILE) && strcmp(filename, FAKE_EMPTYFILE))
+			cmd_addhist(ml_examine, filename, 1);
 		if (no_display && errmsgs > 0)
 		{
 			/*
@@ -742,7 +749,8 @@ use_logfile(filename)
 	 */
 	filename = shell_unquote(filename);
 	exists = open(filename, OPEN_READ);
-	close(exists);
+	if (exists >= 0)
+		close(exists);
 	exists = (exists >= 0);
 
 	/*

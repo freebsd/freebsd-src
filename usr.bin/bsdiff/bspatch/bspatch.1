@@ -62,4 +62,25 @@ of performance.
 .Sh SEE ALSO
 .Xr bsdiff 1
 .Sh AUTHORS
-.An Colin Percival Aq cperciva@FreeBSD.org
+.An Colin Percival Aq Mt cperciva@FreeBSD.org
+.Sh BUGS
+The
+.Nm
+utility does not verify that
+.Ar oldfile
+is the correct source file for
+.Ar patchfile .
+Attempting to apply a patch to the wrong file will usually produce
+garbage; consequently it is strongly recommended that users of
+.Nm
+verify that
+.Ar oldfile
+matches the source file from which
+.Ar patchfile
+was built, by comparing cryptographic hashes, for example.
+Users may also wish to verify after running
+.Nm
+that
+.Ar newfile
+matches the target file from which
+.Ar was built.

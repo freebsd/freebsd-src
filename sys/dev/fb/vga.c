@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
- * Copyright (c) 1992-1998 Søren Schmidt
+ * Copyright (c) 1992-1998 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -144,10 +144,10 @@ vga_ioctl(struct cdev *dev, vga_softc_t *sc, u_long cmd, caddr_t arg, int flag,
 }
 
 int
-vga_mmap(struct cdev *dev, vga_softc_t *sc, vm_offset_t offset, vm_offset_t *paddr,
-	 int prot)
+vga_mmap(struct cdev *dev, vga_softc_t *sc, vm_ooffset_t offset,
+    vm_offset_t *paddr, int prot, vm_memattr_t *memattr)
 {
-	return genfbmmap(&sc->gensc, sc->adp, offset, paddr, prot);
+	return genfbmmap(&sc->gensc, sc->adp, offset, paddr, prot, memattr);
 }
 
 #endif /* FB_INSTALL_CDEV */
@@ -602,7 +602,7 @@ map_mode_num(int mode)
     };
     int i;
 
-    for (i = 0; i < sizeof(mode_map)/sizeof(mode_map[0]); ++i) {
+    for (i = 0; i < nitems(mode_map); ++i) {
         if (mode_map[i].from == mode)
             return mode_map[i].to;
     }
@@ -655,7 +655,7 @@ map_gen_mode_num(int type, int color, int mode)
 	}
     }
 
-    for (i = 0; i < sizeof(mode_map)/sizeof(mode_map[0]); ++i) {
+    for (i = 0; i < nitems(mode_map); ++i) {
         if (mode_map[i].from == mode)
             return ((color) ? mode_map[i].to_color : mode_map[i].to_mono);
     }
@@ -702,7 +702,7 @@ map_bios_mode_num(int type, int color, int bios_mode)
     switch (type) {
 
     case KD_VGA:
-	if (bios_mode < sizeof(vga_modes)/sizeof(vga_modes[0]))
+	if (bios_mode < nitems(vga_modes))
 	    return vga_modes[bios_mode];
 	else if (color)
 	    return M_VGA_C80x25;
@@ -711,7 +711,7 @@ map_bios_mode_num(int type, int color, int bios_mode)
 	break;
 
     case KD_EGA:
-	if (bios_mode < sizeof(ega_modes)/sizeof(ega_modes[0]))
+	if (bios_mode < nitems(ega_modes))
 	    return ega_modes[bios_mode];
 	else if (color)
 	    return M_ENH_C80x25;
@@ -720,7 +720,7 @@ map_bios_mode_num(int type, int color, int bios_mode)
 	break;
 
     case KD_CGA:
-	if (bios_mode < sizeof(cga_modes)/sizeof(cga_modes[0]))
+	if (bios_mode < nitems(cga_modes))
 	    return cga_modes[bios_mode];
 	else
 	    return M_C80x25;
@@ -772,7 +772,7 @@ fill_adapter_param(int code, video_adapter_t *adp)
 	{ DCC_EGAMONO, 			DCC_CGA80 },
     };
 
-    if ((code < 0) || (code >= sizeof(dcc)/sizeof(dcc[0]))) {
+    if ((code < 0) || (code >= nitems(dcc))) {
 	adp[V_ADP_PRIMARY] = adapter_init_value[DCC_MONO];
 	adp[V_ADP_SECONDARY] = adapter_init_value[DCC_CGA80];
     } else {
@@ -918,7 +918,7 @@ comp_adpregs(u_char *buf1, u_char *buf2)
     if ((buf1 == NULL) || (buf2 == NULL))
 	return COMP_DIFFERENT;
 
-    for (i = 0; i < sizeof(params)/sizeof(params[0]); ++i) {
+    for (i = 0; i < nitems(params); ++i) {
 	if (params[i].mask == 0)	/* don't care */
 	    continue;
 	if ((buf1[i] & params[i].mask) != (buf2[i] & params[i].mask))
@@ -948,7 +948,7 @@ probe_adapters(void)
 
     /* 
      * Locate display adapters. 
-     * The AT architecture supports upto two adapters. `syscons' allows
+     * The AT architecture supports up to two adapters. `syscons' allows
      * the following combinations of adapters: 
      *     1) MDA + CGA
      *     2) MDA + EGA/VGA color 
@@ -1134,7 +1134,7 @@ probe_adapters(void)
 		case COMP_DIFFERENT:
 		default:
 		    /*
-		     * Don't use the paramter table in BIOS. It doesn't
+		     * Don't use the parameter table in BIOS. It doesn't
 		     * look familiar to us. Video mode switching is allowed
 		     * only if the new mode is the same as or based on
 		     * the initial mode. 
@@ -1247,12 +1247,12 @@ set_line_length(video_adapter_t *adp, int pixel)
     switch (adp->va_info.vi_mem_model) {
     case V_INFO_MM_PLANAR:
 	ppw = 16/(adp->va_info.vi_depth/adp->va_info.vi_planes);
-	count = (pixel + ppw - 1)/ppw/2;
-	bpl = ((pixel + ppw - 1)/ppw/2)*4;
+	count = howmany(pixel, ppw)/2;
+	bpl = (howmany(pixel, ppw)/2)*4;
 	break;
     case V_INFO_MM_PACKED:
 	count = (pixel + 7)/8;
-	bpl = ((pixel + 7)/8)*8;
+	bpl = rounddown(pixel + 7, 8);
 	break;
     case V_INFO_MM_TEXT:
 	count = (pixel + 7)/8;			/* columns */
@@ -1979,6 +1979,7 @@ vga_show_font(video_adapter_t *adp, int page)
 static int
 vga_save_palette(video_adapter_t *adp, u_char *palette)
 {
+    int bits;
     int i;
 
     prologue(adp, V_ADP_PALETTE, ENODEV);
@@ -1988,8 +1989,9 @@ vga_save_palette(video_adapter_t *adp, u_char *palette)
      * VGA has 6 bit DAC .
      */
     outb(PALRADR, 0x00);
+    bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 0 : 2;
     for (i = 0; i < 256*3; ++i)
-	palette[i] = inb(PALDATA) << 2; 
+	palette[i] = inb(PALDATA) << bits; 
     inb(adp->va_crtc_addr + 6);	/* reset flip/flop */
     return 0;
 }
@@ -1998,15 +2000,17 @@ static int
 vga_save_palette2(video_adapter_t *adp, int base, int count,
 		  u_char *r, u_char *g, u_char *b)
 {
+    int bits;
     int i;
 
     prologue(adp, V_ADP_PALETTE, ENODEV);
 
     outb(PALRADR, base);
+    bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 0 : 2;
     for (i = 0; i < count; ++i) {
-	r[i] = inb(PALDATA) << 2; 
-	g[i] = inb(PALDATA) << 2; 
-	b[i] = inb(PALDATA) << 2; 
+	r[i] = inb(PALDATA) << bits; 
+	g[i] = inb(PALDATA) << bits; 
+	b[i] = inb(PALDATA) << bits;
     }
     inb(adp->va_crtc_addr + 6);		/* reset flip/flop */
     return 0;
@@ -2021,14 +2025,16 @@ vga_save_palette2(video_adapter_t *adp, int base, int count,
 static int
 vga_load_palette(video_adapter_t *adp, u_char *palette)
 {
+    int bits;
     int i;
 
     prologue(adp, V_ADP_PALETTE, ENODEV);
 
     outb(PIXMASK, 0xff);		/* no pixelmask */
     outb(PALWADR, 0x00);
+    bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 0 : 2;
     for (i = 0; i < 256*3; ++i)
-	outb(PALDATA, palette[i] >> 2);
+	outb(PALDATA, palette[i] >> bits);
     inb(adp->va_crtc_addr + 6);	/* reset flip/flop */
     outb(ATC, 0x20);			/* enable palette */
     return 0;
@@ -2038,16 +2044,18 @@ static int
 vga_load_palette2(video_adapter_t *adp, int base, int count,
 		  u_char *r, u_char *g, u_char *b)
 {
+    int bits;
     int i;
 
     prologue(adp, V_ADP_PALETTE, ENODEV);
 
     outb(PIXMASK, 0xff);		/* no pixelmask */
     outb(PALWADR, base);
+    bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 0 : 2;
     for (i = 0; i < count; ++i) {
-	outb(PALDATA, r[i] >> 2);
-	outb(PALDATA, g[i] >> 2);
-	outb(PALDATA, b[i] >> 2);
+	outb(PALDATA, r[i] >> bits);
+	outb(PALDATA, g[i] >> bits);
+	outb(PALDATA, b[i] >> bits);
     }
     inb(adp->va_crtc_addr + 6);		/* reset flip/flop */
     outb(ATC, 0x20);			/* enable palette */
@@ -2152,10 +2160,6 @@ vga_save_state(video_adapter_t *adp, void *p, size_t size)
 	    buf[1] = info.vi_height - 1;	/* ROWS */
 	}
 	buf[2] = info.vi_cheight;		/* POINTS */
-    } else {
-	/* XXX: shouldn't be happening... */
-	printf("vga%d: %s: failed to obtain mode info. (vga_save_state())\n",
-	       adp->va_unit, adp->va_name);
     }
 #else
     buf[0] = readb(BIOS_PADDRTOVADDR(0x44a));	/* COLS */
@@ -2465,8 +2469,8 @@ vga_blank_display(video_adapter_t *adp, int mode)
  * all adapters
  */
 static int
-vga_mmap_buf(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
-   	     int prot)
+vga_mmap_buf(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
+   	     int prot, vm_memattr_t *memattr)
 {
     if (adp->va_info.vi_flags & V_INFO_LINEAR)
 	return -1;

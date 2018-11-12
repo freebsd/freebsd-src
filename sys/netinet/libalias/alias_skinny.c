@@ -56,7 +56,7 @@
 static void
 AliasHandleSkinny(struct libalias *, struct ip *, struct alias_link *);
 
-static int 
+static int
 fingerprint(struct libalias *la, struct alias_data *ah)
 {
 
@@ -68,7 +68,7 @@ fingerprint(struct libalias *la, struct alias_data *ah)
 	return (-1);
 }
 
-static int 
+static int
 protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
 	
@@ -77,13 +77,13 @@ protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
 }
 
 struct proto_handler handlers[] = {
-	{ 
-	  .pri = 110, 
-	  .dir = IN|OUT, 
-	  .proto = TCP, 
-	  .fingerprint = &fingerprint, 
+	{
+	  .pri = 110,
+	  .dir = IN|OUT,
+	  .proto = TCP,
+	  .fingerprint = &fingerprint,
 	  .protohandler = &protohandler
-	}, 
+	},
 	{ EOH }
 };
 
@@ -108,7 +108,7 @@ mod_handler(module_t mod, int type, void *data)
 }
 
 #ifdef _KERNEL
-static 
+static
 #endif
 moduledata_t alias_mod = {
        "alias_skinny", mod_handler, NULL
@@ -340,7 +340,7 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 	 * through the packet using len to determine message boundaries.
 	 * This comes into play big time with port messages being in the
 	 * same packet as register messages.  Also, open receive channel
-	 * acks are usually buried in a pakcet some 400 bytes long.
+	 * acks are usually buried in a packet some 400 bytes long.
 	 */
 	while (dlen >= skinny_hdr_len) {
 		len = (sd->len);

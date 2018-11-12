@@ -42,7 +42,13 @@
 
 #define	AGE_TSO_MAXSEGSIZE	4096
 #define	AGE_TSO_MAXSIZE		(65535 + sizeof(struct ether_vlan_header))
-#define	AGE_MAXTXSEGS		32
+#define	AGE_MAXTXSEGS		35
+#define	AGE_RX_BUF_ALIGN	8
+#ifndef __NO_STRICT_ALIGNMENT
+#define	AGE_RX_BUF_SIZE		(MCLBYTES - AGE_RX_BUF_ALIGN)	
+#else
+#define	AGE_RX_BUF_SIZE		(MCLBYTES)	
+#endif
 
 #define	AGE_ADDR_LO(x)		((uint64_t) (x) & 0xFFFFFFFF)
 #define	AGE_ADDR_HI(x)		((uint64_t) (x) >> 32)
@@ -222,7 +228,6 @@ struct age_softc {
 	int			age_tpd_cons;
 
 	struct task		age_int_task;
-	struct task		age_tx_task;
 	struct task		age_link_task;
 	struct taskqueue	*age_tq;
 	struct mtx		age_mtx;

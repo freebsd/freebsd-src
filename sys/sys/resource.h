@@ -37,6 +37,16 @@
 #include <sys/_timeval.h>
 #include <sys/_types.h>
 
+#ifndef _ID_T_DECLARED
+typedef	__id_t		id_t;
+#define	_ID_T_DECLARED
+#endif
+
+#ifndef _RLIM_T_DECLARED
+typedef	__rlim_t	rlim_t;
+#define	_RLIM_T_DECLARED
+#endif
+
 /*
  * Process priority specifications to get/setpriority.
  */
@@ -56,6 +66,7 @@
 
 #define	RUSAGE_SELF	0
 #define	RUSAGE_CHILDREN	-1
+#define	RUSAGE_THREAD	1
 
 struct rusage {
 	struct timeval ru_utime;	/* user time used */
@@ -78,6 +89,13 @@ struct rusage {
 #define	ru_last		ru_nivcsw
 };
 
+#if __BSD_VISIBLE
+struct __wrusage {
+	struct rusage	wru_self;
+	struct rusage	wru_children;
+};
+#endif
+
 /*
  * Resource limits
  */
@@ -91,14 +109,16 @@ struct rusage {
 #define	RLIMIT_NPROC	7		/* number of processes */
 #define	RLIMIT_NOFILE	8		/* number of open files */
 #define	RLIMIT_SBSIZE	9		/* maximum size of all socket buffers */
-#define RLIMIT_VMEM	10		/* virtual process size (inclusive of mmap) */
+#define	RLIMIT_VMEM	10		/* virtual process size (incl. mmap) */
 #define	RLIMIT_AS	RLIMIT_VMEM	/* standard name for RLIMIT_VMEM */
 #define	RLIMIT_NPTS	11		/* pseudo-terminals */
 #define	RLIMIT_SWAP	12		/* swap used */
+#define	RLIMIT_KQUEUES	13		/* kqueues allocated */
+#define	RLIMIT_UMTXP	14		/* process-shared umtx */
 
-#define	RLIM_NLIMITS	13		/* number of resource limits */
+#define	RLIM_NLIMITS	15		/* number of resource limits */
 
-#define	RLIM_INFINITY	((rlim_t)(((uint64_t)1 << 63) - 1))
+#define	RLIM_INFINITY	((rlim_t)(((__uint64_t)1 << 63) - 1))
 /* XXX Missing: RLIM_SAVED_MAX, RLIM_SAVED_CUR */
 
 
@@ -107,7 +127,7 @@ struct rusage {
  */
 
 #ifdef _RLIMIT_IDENT
-static char *rlimit_ident[RLIM_NLIMITS] = {
+static const char *rlimit_ident[RLIM_NLIMITS] = {
 	"cpu",
 	"fsize",
 	"data",
@@ -121,12 +141,9 @@ static char *rlimit_ident[RLIM_NLIMITS] = {
 	"vmem",
 	"npts",
 	"swap",
+	"kqueues",
+	"umtx",
 };
-#endif
-
-#ifndef _RLIM_T_DECLARED
-typedef	__rlim_t	rlim_t;
-#define	_RLIM_T_DECLARED
 #endif
 
 struct rlimit {

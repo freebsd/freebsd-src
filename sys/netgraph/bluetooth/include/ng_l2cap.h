@@ -73,11 +73,18 @@
 #define NG_L2CAP_NULL_CID	0x0000	/* DO NOT USE THIS CID */
 #define NG_L2CAP_SIGNAL_CID	0x0001	/* signaling channel ID */
 #define NG_L2CAP_CLT_CID	0x0002	/* connectionless channel ID */
-	/* 0x0003 - 0x003f Reserved */
+#define NG_L2CAP_A2MP_CID	0x0003  
+#define NG_L2CAP_ATT_CID	0x0004  
+#define NG_L2CAP_LESIGNAL_CID	0x0005
+#define NG_L2CAP_SMP_CID	0x0006
+	/* 0x0007 - 0x003f Reserved */
 #define NG_L2CAP_FIRST_CID	0x0040	/* dynamically alloc. (start) */
 #define NG_L2CAP_LAST_CID	0xffff	/* dynamically alloc. (end) */
+#define NG_L2CAP_LELAST_CID	0x007f
+
 
 /* L2CAP MTU */
+#define NG_L2CAP_MTU_LE_MINIMAM		23
 #define NG_L2CAP_MTU_MINIMUM		48
 #define NG_L2CAP_MTU_DEFAULT		672
 #define NG_L2CAP_MTU_MAXIMUM		0xffff
@@ -249,6 +256,7 @@ typedef union {
 	u_int16_t		mtu;		/* NG_L2CAP_OPT_MTU */
 	u_int16_t		flush_timo;	/* NG_L2CAP_OPT_FLUSH_TIMO */
 	ng_l2cap_flow_t		flow;		/* NG_L2CAP_OPT_QOS */
+	uint16_t		encryption;
 } ng_l2cap_cfg_opt_val_t;
 typedef ng_l2cap_cfg_opt_val_t * ng_l2cap_cfg_opt_val_p;
 
@@ -289,7 +297,6 @@ typedef struct {
  * NG_L2CAP_CONNLESS_MTU - 2 bytes connectionless MTU
  */
 } __attribute__ ((packed)) ng_l2cap_info_rsp_cp;
-
 typedef union {
  	/* NG_L2CAP_CONNLESS_MTU */
 	struct {
@@ -298,6 +305,20 @@ typedef union {
 } ng_l2cap_info_rsp_data_t;
 typedef ng_l2cap_info_rsp_data_t *	ng_l2cap_info_rsp_data_p;
 
+#define NG_L2CAP_CMD_PARAM_UPDATE_REQUEST	0x12
+
+typedef struct {
+  uint16_t interval_min;
+  uint16_t interval_max;
+  uint16_t slave_latency;
+  uint16_t timeout_mpl;
+} __attribute__ ((packed)) ng_l2cap_param_update_req_cp;
+
+#define NG_L2CAP_CMD_PARAM_UPDATE_RESPONSE	0x13
+#define NG_L2CAP_UPDATE_PARAM_ACCEPT 0
+#define NG_L2CAP_UPDATE_PARAM_REJECT 1
+
+//typedef uint16_t update_response;
 /**************************************************************************
  **************************************************************************
  **        Upper layer protocol interface. L2CA_xxx messages 
@@ -332,21 +353,29 @@ typedef struct {
 	u_int32_t	token;	/* token to use in L2CAP_L2CA_WRITE */
 	u_int16_t	length;	/* length of the data */
 	u_int16_t	lcid;	/* local channel ID */
+	uint16_t	idtype;
 } __attribute__ ((packed)) ng_l2cap_l2ca_hdr_t;
-
+#define NG_L2CAP_L2CA_IDTYPE_BREDR 0
+#define NG_L2CAP_L2CA_IDTYPE_ATT  1
+#define NG_L2CAP_L2CA_IDTYPE_LE  2
+#define NG_L2CAP_L2CA_IDTYPE_SMP  3
 /* L2CA_Connect */
 #define NGM_L2CAP_L2CA_CON		0x80
 /* Upper -> L2CAP */
 typedef struct {
 	u_int16_t	psm;    /* Protocol/Service Multiplexor */
 	bdaddr_t	bdaddr;	/* remote unit address */
+	uint8_t		linktype;
+	uint8_t		idtype;
 } ng_l2cap_l2ca_con_ip;
 
 /* L2CAP -> Upper */
 typedef struct {
 	u_int16_t	lcid;   /* local channel ID */
+	uint16_t	idtype; /*ID type*/
 	u_int16_t	result; /* 0x00 - success */
 	u_int16_t	status; /* if result != 0x00 */
+	uint8_t 	encryption;
 } ng_l2cap_l2ca_con_op;
 
 /* L2CA_ConnectInd */
@@ -356,8 +385,8 @@ typedef struct {
 	bdaddr_t	bdaddr; /* remote unit address */
 	u_int16_t	lcid;   /* local channel ID */
 	u_int16_t	psm;    /* Procotol/Service Multiplexor */
-	u_int8_t	ident;  /* indentifier */
-	u_int8_t	unused; /* place holder */
+	u_int8_t	ident;  /* identifier */
+	u_int8_t	linktype; /* link type*/
 } ng_l2cap_l2ca_con_ind_ip;
 /* No output parameters */
 
@@ -367,7 +396,7 @@ typedef struct {
 typedef struct {
 	bdaddr_t	bdaddr; /* remote unit address */
 	u_int8_t	ident;  /* "ident" from L2CAP_ConnectInd event */
-	u_int8_t	unused; /* place holder */
+	u_int8_t	linktype; /*link type */
 	u_int16_t	lcid;   /* local channel ID */
 	u_int16_t	result; /* 0x00 - success */ 
 	u_int16_t	status; /* if response != 0x00 */ 
@@ -435,6 +464,7 @@ typedef struct {
 /* Upper -> L2CAP */
 typedef struct {
 	u_int16_t	lcid;  /* local channel ID */
+	u_int16_t	idtype;
 } ng_l2cap_l2ca_discon_ip;
 
 /* L2CAP -> Upper */
@@ -457,6 +487,7 @@ typedef struct {
 	int		result;	/* result (0x00 - success) */
 	u_int16_t	length;	/* amount of data written */
 	u_int16_t	lcid;	/* local channel ID */
+	uint16_t 	idtype;
 } ng_l2cap_l2ca_write_op;
 
 /* L2CA_GroupCreate */
@@ -545,6 +576,8 @@ typedef struct {
 typedef struct {
 	bdaddr_t	bdaddr;	   /* remote unit address */
 	u_int16_t	info_type; /* info type */
+	uint8_t		linktype;
+	uint8_t	        unused;
 } ng_l2cap_l2ca_get_info_ip;
 
 /* L2CAP -> Upper */
@@ -568,6 +601,12 @@ typedef struct {
  * 	u_int16_t	result; /* 0x00 - success */
  * } ng_l2cap_l2ca_enable_clt_op;
 #endif
+#define NGM_L2CAP_L2CA_ENC_CHANGE 0x92
+typedef struct {
+	uint16_t 	lcid;
+	uint16_t	result;
+	uint8_t 	idtype;
+} ng_l2cap_l2ca_enc_chg_op;
 
 /**************************************************************************
  **************************************************************************
@@ -610,7 +649,9 @@ typedef u_int16_t	ng_l2cap_node_flags_ep;
 typedef u_int16_t	ng_l2cap_node_debug_ep;
 
 #define NGM_L2CAP_NODE_HOOK_INFO	0x409	/* L2CAP -> Upper */
-/* bdaddr_t bdaddr; -- local (source BDADDR) */
+typedef struct {
+	bdaddr_t addr;
+}ng_l2cap_node_hook_info_ep;
 
 #define NGM_L2CAP_NODE_GET_CON_LIST	0x40a	/* L2CAP -> User */
 typedef struct {
@@ -647,7 +688,7 @@ typedef struct {
 	u_int16_t	scid;		/* source (local) channel ID */
 	u_int16_t	dcid;		/* destination (remote) channel ID */
 
-	u_int16_t	imtu;		/* incomming MTU */
+	u_int16_t	imtu;		/* incoming MTU */
 	u_int16_t	omtu;		/* outgoing MTU */
 
 	u_int16_t	psm;		/* PSM */

@@ -61,13 +61,6 @@ __FBSDID("$FreeBSD$");
  * the outq, we'll stick to 128 byte blocks here.
  */
 
-/* Statistics. */
-static unsigned long ttyinq_nfast = 0;
-SYSCTL_ULONG(_kern, OID_AUTO, tty_inq_nfast, CTLFLAG_RD,
-	&ttyinq_nfast, 0, "Unbuffered reads to userspace on input");
-static unsigned long ttyinq_nslow = 0;
-SYSCTL_ULONG(_kern, OID_AUTO, tty_inq_nslow, CTLFLAG_RD,
-	&ttyinq_nslow, 0, "Buffered reads to userspace on input");
 static int ttyinq_flush_secure = 1;
 SYSCTL_INT(_kern, OID_AUTO, tty_inq_flush_secure, CTLFLAG_RW,
 	&ttyinq_flush_secure, 0, "Zero buffers while flushing");
@@ -149,7 +142,7 @@ void
 ttyinq_free(struct ttyinq *ti)
 {
 	struct ttyinq_block *tib;
-	
+
 	ttyinq_flush(ti);
 	ti->ti_quota = 0;
 
@@ -201,8 +194,6 @@ ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
 		 *   the write pointer to a new block.
 		 */
 		if (cend == TTYINQ_DATASIZE || cend == ti->ti_end) {
-			atomic_add_long(&ttyinq_nfast, 1);
-
 			/*
 			 * Fast path: zero copy. Remove the first block,
 			 * so we can unlock the TTY temporarily.
@@ -239,7 +230,6 @@ ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
 			TTYINQ_RECYCLE(ti, tib);
 		} else {
 			char ob[TTYINQ_DATASIZE - 1];
-			atomic_add_long(&ttyinq_nslow, 1);
 
 			/*
 			 * Slow path: store data in a temporary buffer.
@@ -286,7 +276,7 @@ ttyinq_write(struct ttyinq *ti, const void *buf, size_t nbytes, int quote)
 	struct ttyinq_block *tib;
 	unsigned int boff;
 	size_t l;
-	
+
 	while (nbytes > 0) {
 		boff = ti->ti_end % TTYINQ_DATASIZE;
 
@@ -323,7 +313,7 @@ ttyinq_write(struct ttyinq *ti, const void *buf, size_t nbytes, int quote)
 		nbytes -= l;
 		ti->ti_end += l;
 	}
-	
+
 	return (cbuf - (const char *)buf);
 }
 
@@ -365,7 +355,7 @@ ttyinq_findchar(struct ttyinq *ti, const char *breakc, size_t maxlen,
 		return (0);
 
 	while (boff < bend) {
-		if (index(breakc, tib->tib_data[boff]) && !GETBIT(tib, boff)) {
+		if (strchr(breakc, tib->tib_data[boff]) && !GETBIT(tib, boff)) {
 			*lastc = tib->tib_data[boff];
 			return (boff - ti->ti_begin + 1);
 		}
@@ -379,7 +369,7 @@ ttyinq_findchar(struct ttyinq *ti, const char *breakc, size_t maxlen,
 void
 ttyinq_flush(struct ttyinq *ti)
 {
-	struct ttyinq_block *tib = ti->ti_lastblock;
+	struct ttyinq_block *tib;
 
 	ti->ti_begin = 0;
 	ti->ti_linestart = 0;
@@ -407,7 +397,7 @@ ttyinq_peekchar(struct ttyinq *ti, char *c, int *quote)
 
 	*c = tib->tib_data[boff];
 	*quote = GETBIT(tib, boff);
-	
+
 	return (0);
 }
 

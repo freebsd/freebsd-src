@@ -3,7 +3,8 @@
 #
 
 PROG=	sendfile
-NO_MAN=
+MAN=
 WARNS?=	6
+LIBADD=	md
 
 .include <bsd.prog.mk>

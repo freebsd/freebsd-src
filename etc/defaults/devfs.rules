@@ -26,6 +26,7 @@ add hide
 # Requires: devfsrules_hide_all
 #
 [devfsrules_unhide_basic=2]
+add path log unhide
 add path null unhide
 add path zero unhide
 add path crypto unhide
@@ -44,6 +45,14 @@ add path 'ptyP*' unhide
 add path 'ptyQ*' unhide
 add path 'ptyR*' unhide
 add path 'ptyS*' unhide
+add path 'ptyl*' unhide
+add path 'ptym*' unhide
+add path 'ptyn*' unhide
+add path 'ptyo*' unhide
+add path 'ptyL*' unhide
+add path 'ptyM*' unhide
+add path 'ptyN*' unhide
+add path 'ptyO*' unhide
 add path 'ttyp*' unhide
 add path 'ttyq*' unhide
 add path 'ttyr*' unhide
@@ -52,6 +61,14 @@ add path 'ttyP*' unhide
 add path 'ttyQ*' unhide
 add path 'ttyR*' unhide
 add path 'ttyS*' unhide
+add path 'ttyl*' unhide
+add path 'ttym*' unhide
+add path 'ttyn*' unhide
+add path 'ttyo*' unhide
+add path 'ttyL*' unhide
+add path 'ttyM*' unhide
+add path 'ttyN*' unhide
+add path 'ttyO*' unhide
 add path ptmx unhide
 add path pts unhide
 add path 'pts/*' unhide
@@ -67,3 +84,4 @@ add path stderr unhide
 add include $devfsrules_hide_all
 add include $devfsrules_unhide_basic
 add include $devfsrules_unhide_login
+add path zfs unhide

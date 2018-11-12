@@ -31,8 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
@@ -42,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <kgssapi/gssapi_impl.h>
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
+#include <rpc/rpcsec_gss.h>
 
 #include "gssd.h"
 #include "kgss_if.h"
@@ -58,6 +61,7 @@ static bool_t gssd_syscall_registered = FALSE;
 
 struct kgss_mech_list kgss_mechs;
 CLIENT *kgss_gssd_handle;
+struct mtx kgss_gssd_lock;
 
 static void
 kgss_init(void *dummy)
@@ -66,7 +70,7 @@ kgss_init(void *dummy)
 
 	LIST_INIT(&kgss_mechs);
 	error = syscall_register(&gssd_syscall_offset, &gssd_syscall_sysent,
-	    &gssd_syscall_prev_sysent);
+	    &gssd_syscall_prev_sysent, SY_THR_STATIC_KLD);
 	if (error)
 		printf("Can't register GSSD syscall\n");
 	else
@@ -85,32 +89,45 @@ kgss_uninit(void *dummy)
 SYSUNINIT(kgss_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, kgss_uninit, NULL);
 
 int
-gssd_syscall(struct thread *td, struct gssd_syscall_args *uap)
+sys_gssd_syscall(struct thread *td, struct gssd_syscall_args *uap)
 {
         struct sockaddr_un sun;
         struct netconfig *nconf;
 	char path[MAXPATHLEN];
 	int error;
+	CLIENT *cl, *oldcl;
         
 	error = priv_check(td, PRIV_NFS_DAEMON);
 	if (error)
 		return (error);
 
-	if (kgss_gssd_handle)
-		CLNT_DESTROY(kgss_gssd_handle);
-
 	error = copyinstr(uap->path, path, sizeof(path), NULL);
 	if (error)
 		return (error);
+	if (strlen(path) + 1 > sizeof(sun.sun_path))
+		return (EINVAL);
 
-        sun.sun_family = AF_LOCAL;
-        strcpy(sun.sun_path, path);
-        sun.sun_len = SUN_LEN(&sun);
-        
-        nconf = getnetconfigent("local");
-        kgss_gssd_handle = clnt_reconnect_create(nconf,
-	    (struct sockaddr *) &sun, GSSD, GSSDVERS,
-	    RPC_MAXDATASIZE, RPC_MAXDATASIZE);
+	if (path[0] != '\0') {
+		sun.sun_family = AF_LOCAL;
+		strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
+		sun.sun_len = SUN_LEN(&sun);
+		
+		nconf = getnetconfigent("local");
+		cl = clnt_reconnect_create(nconf,
+		    (struct sockaddr *) &sun, GSSD, GSSDVERS,
+		    RPC_MAXDATASIZE, RPC_MAXDATASIZE);
+	} else
+		cl = NULL;
+
+	mtx_lock(&kgss_gssd_lock);
+	oldcl = kgss_gssd_handle;
+	kgss_gssd_handle = cl;
+	mtx_unlock(&kgss_gssd_lock);
+
+	if (oldcl != NULL) {
+		CLNT_CLOSE(oldcl);
+		CLNT_RELEASE(oldcl);
+	}
 
 	return (0);
 }
@@ -248,13 +265,68 @@ kgss_copy_buffer(const gss_buffer_t from, gss_buffer_t to)
 }
 
 /*
+ * Acquire the kgss_gssd_handle and return it with a reference count,
+ * if it is available.
+ */
+CLIENT *
+kgss_gssd_client(void)
+{
+	CLIENT *cl;
+
+	mtx_lock(&kgss_gssd_lock);
+	cl = kgss_gssd_handle;
+	if (cl != NULL)
+		CLNT_ACQUIRE(cl);
+	mtx_unlock(&kgss_gssd_lock);
+	return (cl);
+}
+
+/*
  * Kernel module glue
  */
 static int
 kgssapi_modevent(module_t mod, int type, void *data)
 {
+	int error = 0;
 
-	return (0);
+	switch (type) {
+	case MOD_LOAD:
+		rpc_gss_entries.rpc_gss_refresh_auth = rpc_gss_refresh_auth;
+		rpc_gss_entries.rpc_gss_secfind = rpc_gss_secfind;
+		rpc_gss_entries.rpc_gss_secpurge = rpc_gss_secpurge;
+		rpc_gss_entries.rpc_gss_seccreate = rpc_gss_seccreate;
+		rpc_gss_entries.rpc_gss_set_defaults = rpc_gss_set_defaults;
+		rpc_gss_entries.rpc_gss_max_data_length =
+		    rpc_gss_max_data_length;
+		rpc_gss_entries.rpc_gss_get_error = rpc_gss_get_error;
+		rpc_gss_entries.rpc_gss_mech_to_oid = rpc_gss_mech_to_oid;
+		rpc_gss_entries.rpc_gss_oid_to_mech = rpc_gss_oid_to_mech;
+		rpc_gss_entries.rpc_gss_qop_to_num = rpc_gss_qop_to_num;
+		rpc_gss_entries.rpc_gss_get_mechanisms = rpc_gss_get_mechanisms;
+		rpc_gss_entries.rpc_gss_get_versions = rpc_gss_get_versions;
+		rpc_gss_entries.rpc_gss_is_installed = rpc_gss_is_installed;
+		rpc_gss_entries.rpc_gss_set_svc_name = rpc_gss_set_svc_name;
+		rpc_gss_entries.rpc_gss_clear_svc_name = rpc_gss_clear_svc_name;
+		rpc_gss_entries.rpc_gss_getcred = rpc_gss_getcred;
+		rpc_gss_entries.rpc_gss_set_callback = rpc_gss_set_callback;
+		rpc_gss_entries.rpc_gss_clear_callback = rpc_gss_clear_callback;
+		rpc_gss_entries.rpc_gss_get_principal_name =
+		    rpc_gss_get_principal_name;
+		rpc_gss_entries.rpc_gss_svc_max_data_length =
+		    rpc_gss_svc_max_data_length;
+		mtx_init(&kgss_gssd_lock, "kgss_gssd_lock", NULL, MTX_DEF);
+		break;
+	case MOD_UNLOAD:
+		/*
+		 * Unloading of the kgssapi module is not currently supported.
+		 * If somebody wants this, we would need to keep track of
+		 * currently executing threads and make sure the count is 0.
+		 */
+		/* FALLTHROUGH */
+	default:
+		error = EOPNOTSUPP;
+	}
+	return (error);
 }
 static moduledata_t kgssapi_mod = {
 	"kgssapi",

@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -56,10 +56,18 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-static void setup(u_char *, u_char *, size_t, size_t,
-    int (*)(const void *, const void *));
-static void insertionsort(u_char *, size_t, size_t,
-    int (*)(const void *, const void *));
+#ifdef I_AM_MERGESORT_B
+#include "block_abi.h"
+#define	DECLARE_CMP	DECLARE_BLOCK(int, cmp, const void *, const void *)
+typedef DECLARE_BLOCK(int, cmp_t, const void *, const void *);
+#define	CMP(x, y)	CALL_BLOCK(cmp, x, y)
+#else
+typedef int (*cmp_t)(const void *, const void *);
+#define	CMP(x, y)	cmp(x, y)
+#endif
+
+static void setup(u_char *, u_char *, size_t, size_t, cmp_t);
+static void insertionsort(u_char *, size_t, size_t, cmp_t);
 
 #define ISIZE sizeof(int)
 #define PSIZE sizeof(u_char *)
@@ -91,15 +99,21 @@ static void insertionsort(u_char *, size_t, size_t,
 	((u_char *)0 +							\
 	    (((u_char *)p + PSIZE - 1 - (u_char *) 0) & ~(PSIZE - 1)))
 
+#ifdef I_AM_MERGESORT_B
+int mergesort_b(void *, size_t, size_t, cmp_t);
+#else
+int mergesort(void *, size_t, size_t, cmp_t);
+#endif
+
 /*
  * Arguments are as for qsort.
  */
 int
-mergesort(base, nmemb, size, cmp)
-	void *base;
-	size_t nmemb;
-	size_t size;
-	int (*cmp)(const void *, const void *);
+#ifdef I_AM_MERGESORT_B
+mergesort_b(void *base, size_t nmemb, size_t size, cmp_t cmp)
+#else
+mergesort(void *base, size_t nmemb, size_t size, cmp_t cmp)
+#endif
 {
 	size_t i;
 	int sense;
@@ -141,7 +155,7 @@ mergesort(base, nmemb, size, cmp)
 	    		p2 = *EVAL(p2);
 	    	l2 = list1 + (p2 - list2);
 	    	while (f1 < l1 && f2 < l2) {
-	    		if ((*cmp)(f1, f2) <= 0) {
+	    		if (CMP(f1, f2) <= 0) {
 	    			q = f2;
 	    			b = f1, t = l1;
 	    			sense = -1;
@@ -151,7 +165,7 @@ mergesort(base, nmemb, size, cmp)
 	    			sense = 0;
 	    		}
 	    		if (!big) {	/* here i = 0 */
-				while ((b += size) < t && cmp(q, b) >sense)
+				while ((b += size) < t && CMP(q, b) >sense)
 	    				if (++i == 6) {
 	    					big = 1;
 	    					goto EXPONENTIAL;
@@ -160,12 +174,12 @@ mergesort(base, nmemb, size, cmp)
 EXPONENTIAL:	    		for (i = size; ; i <<= 1)
 	    				if ((p = (b + i)) >= t) {
 	    					if ((p = t - size) > b &&
-						    (*cmp)(q, p) <= sense)
+						    CMP(q, p) <= sense)
 	    						t = p;
 	    					else
 	    						b = p;
 	    					break;
-	    				} else if ((*cmp)(q, p) <= sense) {
+	    				} else if (CMP(q, p) <= sense) {
 	    					t = p;
 	    					if (i == size)
 	    						big = 0;
@@ -174,14 +188,14 @@ EXPONENTIAL:	    		for (i = size; ; i <<= 1)
 	    					b = p;
 				while (t > b+size) {
 	    				i = (((t - b) / size) >> 1) * size;
-	    				if ((*cmp)(q, p = b + i) <= sense)
+	    				if (CMP(q, p = b + i) <= sense)
 	    					t = p;
 	    				else
 	    					b = p;
 	    			}
 	    			goto COPY;
 FASTCASE:	    		while (i > size)
-	    				if ((*cmp)(q,
+	    				if (CMP(q,
 	    					p = b + (i >>= 1)) <= sense)
 	    					t = p;
 	    				else
@@ -259,10 +273,7 @@ COPY:	    			b = t;
  * is defined.  Otherwise simple pairwise merging is used.)
  */
 void
-setup(list1, list2, n, size, cmp)
-	size_t n, size;
-	int (*cmp)(const void *, const void *);
-	u_char *list1, *list2;
+setup(u_char *list1, u_char *list2, size_t n, size_t size, cmp_t cmp)
 {
 	int i, length, size2, tmp, sense;
 	u_char *f1, *f2, *s, *l2, *last, *p2;
@@ -285,12 +296,12 @@ setup(list1, list2, n, size, cmp)
 #ifdef NATURAL
 	p2 = list2;
 	f1 = list1;
-	sense = (cmp(f1, f1 + size) > 0);
+	sense = (CMP(f1, f1 + size) > 0);
 	for (; f1 < last; sense = !sense) {
 		length = 2;
 					/* Find pairs with same sense. */
 		for (f2 = f1 + size2; f2 < last; f2 += size2) {
-			if ((cmp(f2, f2+ size) > 0) != sense)
+			if ((CMP(f2, f2+ size) > 0) != sense)
 				break;
 			length += 2;
 		}
@@ -303,7 +314,7 @@ setup(list1, list2, n, size, cmp)
 		} else {				/* Natural merge */
 			l2 = f2;
 			for (f2 = f1 + size2; f2 < l2; f2 += size2) {
-				if ((cmp(f2-size, f2) > 0) != sense) {
+				if ((CMP(f2-size, f2) > 0) != sense) {
 					p2 = *EVAL(p2) = f2 - list1 + list2;
 					if (sense > 0)
 						reverse(f1, f2-size);
@@ -313,7 +324,7 @@ setup(list1, list2, n, size, cmp)
 			if (sense > 0)
 				reverse (f1, f2-size);
 			f1 = f2;
-			if (f2 < last || cmp(f2 - size, f2) > 0)
+			if (f2 < last || CMP(f2 - size, f2) > 0)
 				p2 = *EVAL(p2) = f2 - list1 + list2;
 			else
 				p2 = *EVAL(p2) = list2 + n*size;
@@ -322,7 +333,7 @@ setup(list1, list2, n, size, cmp)
 #else		/* pairwise merge only. */
 	for (f1 = list1, p2 = list2; f1 < last; f1 += size2) {
 		p2 = *EVAL(p2) = p2 + size2;
-		if (cmp (f1, f1 + size) > 0)
+		if (CMP (f1, f1 + size) > 0)
 			swap(f1, f1 + size);
 	}
 #endif /* NATURAL */
@@ -333,10 +344,7 @@ setup(list1, list2, n, size, cmp)
  * last 4 elements.
  */
 static void
-insertionsort(a, n, size, cmp)
-	u_char *a;
-	size_t n, size;
-	int (*cmp)(const void *, const void *);
+insertionsort(u_char *a, size_t n, size_t size, cmp_t cmp)
 {
 	u_char *ai, *s, *t, *u, tmp;
 	int i;
@@ -344,7 +352,7 @@ insertionsort(a, n, size, cmp)
 	for (ai = a+size; --n >= 1; ai += size)
 		for (t = ai; t > a; t -= size) {
 			u = t - size;
-			if (cmp(u, t) <= 0)
+			if (CMP(u, t) <= 0)
 				break;
 			swap(u, t);
 		}

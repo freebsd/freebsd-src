@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_atm.h>
@@ -115,8 +116,8 @@ static const struct utopia_methods fatm_utopia_methods = {
 };
 
 #define VC_OK(SC, VPI, VCI)						\
-	(((VPI) & ~((1 << IFP2IFATM((SC)->ifp)->mib.vpi_bits) - 1)) == 0 &&	\
-	 (VCI) != 0 && ((VCI) & ~((1 << IFP2IFATM((SC)->ifp)->mib.vci_bits) - 1)) == 0)
+	(rounddown2(VPI, 1 << IFP2IFATM((SC)->ifp)->mib.vpi_bits) == 0 &&	\
+	 (VCI) != 0 && rounddown2(VCI, 1 << IFP2IFATM((SC)->ifp)->mib.vci_bits) == 0)
 
 static int fatm_load_vc(struct fatm_softc *sc, struct card_vcc *vc);
 
@@ -391,16 +392,14 @@ fatm_check_heartbeat(struct fatm_softc *sc)
  * Ensure that the heart is still beating.
  */
 static void
-fatm_watchdog(struct ifnet *ifp)
+fatm_watchdog(void *arg)
 {
-	struct fatm_softc *sc = ifp->if_softc;
+	struct fatm_softc *sc;
 
-	FATM_LOCK(sc);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		fatm_check_heartbeat(sc);
-		ifp->if_timer = 5;
-	}
-	FATM_UNLOCK(sc);
+	sc = arg;
+	FATM_CHECKLOCK(sc);
+	fatm_check_heartbeat(sc);
+	callout_reset(&sc->watchdog_timer, hz * 5, fatm_watchdog, sc);
 }
 
 /*
@@ -474,7 +473,7 @@ fatm_stop(struct fatm_softc *sc)
 	(void)fatm_reset(sc);
 
 	/* stop watchdog */
-	sc->ifp->if_timer = 0;
+	callout_stop(&sc->watchdog_timer);
 
 	if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		sc->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -860,7 +859,7 @@ fatm_getprom(struct fatm_softc *sc)
 	NEXT_QUEUE_ENTRY(sc->cmdqueue.head, FATM_CMD_QLEN);
 
 	q->error = 0;
-	q->cb = NULL;;
+	q->cb = NULL;
 	H_SETSTAT(q->q.statp, FATM_STAT_PENDING);
 	H_SYNCSTAT_PREWRITE(sc, q->q.statp);
 
@@ -1086,7 +1085,7 @@ fatm_supply_small_buffers(struct fatm_softc *sc)
 	nbufs = min(nbufs, SMALL_POOL_SIZE);
 	nbufs -= sc->small_cnt;
 
-	nblocks = (nbufs + SMALL_SUPPLY_BLKSIZE - 1) / SMALL_SUPPLY_BLKSIZE;
+	nblocks = howmany(nbufs, SMALL_SUPPLY_BLKSIZE);
 	for (cnt = 0; cnt < nblocks; cnt++) {
 		q = GET_QUEUE(sc->s1queue, struct supqueue, sc->s1queue.head);
 
@@ -1101,12 +1100,12 @@ fatm_supply_small_buffers(struct fatm_softc *sc)
 				if_printf(sc->ifp, "out of rbufs\n");
 				break;
 			}
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m == NULL) {
 				LIST_INSERT_HEAD(&sc->rbuf_free, rb, link);
 				break;
 			}
-			MH_ALIGN(m, SMALL_BUFFER_LEN);
+			M_ALIGN(m, SMALL_BUFFER_LEN);
 			error = bus_dmamap_load(sc->rbuf_tag, rb->map,
 			    m->m_data, SMALL_BUFFER_LEN, dmaload_helper,
 			    &phys, BUS_DMA_NOWAIT);
@@ -1175,7 +1174,7 @@ fatm_supply_large_buffers(struct fatm_softc *sc)
 	nbufs = min(nbufs, LARGE_POOL_SIZE);
 	nbufs -= sc->large_cnt;
 
-	nblocks = (nbufs + LARGE_SUPPLY_BLKSIZE - 1) / LARGE_SUPPLY_BLKSIZE;
+	nblocks = howmany(nbufs, LARGE_SUPPLY_BLKSIZE);
 
 	for (cnt = 0; cnt < nblocks; cnt++) {
 		q = GET_QUEUE(sc->l1queue, struct supqueue, sc->l1queue.head);
@@ -1191,7 +1190,7 @@ fatm_supply_large_buffers(struct fatm_softc *sc)
 				if_printf(sc->ifp, "out of rbufs\n");
 				break;
 			}
-			if ((m = m_getcl(M_DONTWAIT, MT_DATA,
+			if ((m = m_getcl(M_NOWAIT, MT_DATA,
 			    M_PKTHDR)) == NULL) {
 				LIST_INSERT_HEAD(&sc->rbuf_free, rb, link);
 				break;
@@ -1341,7 +1340,7 @@ fatm_init_locked(struct fatm_softc *sc)
 	/*
 	 * Start the watchdog timer
 	 */
-	sc->ifp->if_timer = 5;
+	callout_reset(&sc->watchdog_timer, hz * 5, fatm_watchdog, sc);
 
 	/* start SUNI */
 	utopia_start(&sc->utopia);
@@ -1565,7 +1564,7 @@ fatm_intr_drain_rx(struct fatm_softc *sc)
 			ATM_PH_SETVCI(&aph, vci);
 
 			ifp = sc->ifp;
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 			vc->ipackets++;
 			vc->ibytes += m0->m_pkthdr.len;
@@ -1665,7 +1664,7 @@ fatm_intr(void *p)
  * is stopped the stopping function will broadcast the cv. All threads will
  * find that the interface has been stopped and return.
  *
- * Aquiring of the buffer is done by the fatm_getstat() function. The freeing
+ * Acquiring of the buffer is done by the fatm_getstat() function. The freeing
  * must be done by the caller when he has finished using the buffer.
  */
 static void
@@ -1770,17 +1769,17 @@ copy_mbuf(struct mbuf *m)
 {
 	struct mbuf *new;
 
-	MGET(new, M_DONTWAIT, MT_DATA);
+	MGET(new, M_NOWAIT, MT_DATA);
 	if (new == NULL)
 		return (NULL);
 
 	if (m->m_flags & M_PKTHDR) {
 		M_MOVE_PKTHDR(new, m);
 		if (m->m_len > MHLEN)
-			MCLGET(new, M_WAIT);
+			MCLGET(new, M_WAITOK);
 	} else {
 		if (m->m_len > MLEN)
-			MCLGET(new, M_WAIT);
+			MCLGET(new, M_WAITOK);
 	}
 
 	bcopy(m->m_data, new->m_data, m->m_len);
@@ -1975,7 +1974,7 @@ fatm_tx(struct fatm_softc *sc, struct mbuf *m, struct card_vcc *vc, u_int mlen)
 	error = bus_dmamap_load_mbuf(sc->tx_tag, q->map, m,
 	    fatm_tpd_load, tpd, BUS_DMA_NOWAIT);
 	if(error) {
-		sc->ifp->if_oerrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		if_printf(sc->ifp, "mbuf loaded error=%d\n", error);
 		m_freem(m);
 		return (0);
@@ -2026,7 +2025,7 @@ fatm_tx(struct fatm_softc *sc, struct mbuf *m, struct card_vcc *vc, u_int mlen)
 	BARRIER_W(sc);
 
 	sc->txcnt++;
-	sc->ifp->if_opackets++;
+	if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
 	vc->obytes += m->m_pkthdr.len;
 	vc->opackets++;
 
@@ -2106,7 +2105,7 @@ fatm_start(struct ifnet *ifp)
 }
 
 /*
- * VCC managment
+ * VCC management
  *
  * This may seem complicated. The reason for this is, that we need an
  * asynchronuous open/close for the NATM VCCs because our ioctl handler
@@ -2117,7 +2116,7 @@ fatm_start(struct ifnet *ifp)
 
 /*
  * Command the card to open/close a VC.
- * Return the queue entry for waiting if we are succesful.
+ * Return the queue entry for waiting if we are successful.
  */
 static struct cmdqueue *
 fatm_start_vcc(struct fatm_softc *sc, u_int vpi, u_int vci, uint32_t cmd,
@@ -2543,6 +2542,7 @@ fatm_detach(device_t dev)
 		FATM_UNLOCK(sc);
 		atm_ifdetach(sc->ifp);		/* XXX race */
 	}
+	callout_drain(&sc->watchdog_timer);
 
 	if (sc->ih != NULL)
 		bus_teardown_intr(dev, sc->irqres, sc->ih);
@@ -2784,6 +2784,7 @@ fatm_attach(device_t dev)
 	cv_init(&sc->cv_regs, "fatm_regs");
 
 	sysctl_ctx_init(&sc->sysctl_ctx);
+	callout_init_mtx(&sc->watchdog_timer, &sc->mtx, 0);
 
 	/*
 	 * Make the sysctl tree
@@ -2794,13 +2795,13 @@ fatm_attach(device_t dev)
 		goto fail;
 
 	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	    OID_AUTO, "istats", CTLFLAG_RD, sc, 0, fatm_sysctl_istats,
-	    "LU", "internal statistics") == NULL)
+	    OID_AUTO, "istats", CTLTYPE_ULONG | CTLFLAG_RD, sc, 0,
+	    fatm_sysctl_istats, "LU", "internal statistics") == NULL)
 		goto fail;
 
 	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	    OID_AUTO, "stats", CTLFLAG_RD, sc, 0, fatm_sysctl_stats,
-	    "LU", "card statistics") == NULL)
+	    OID_AUTO, "stats", CTLTYPE_ULONG | CTLFLAG_RD, sc, 0,
+	    fatm_sysctl_stats, "LU", "card statistics") == NULL)
 		goto fail;
 
 	if (SYSCTL_ADD_INT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
@@ -2824,27 +2825,18 @@ fatm_attach(device_t dev)
 	ifp->if_flags = IFF_SIMPLEX;
 	ifp->if_ioctl = fatm_ioctl;
 	ifp->if_start = fatm_start;
-	ifp->if_watchdog = fatm_watchdog;
 	ifp->if_init = fatm_init;
 	ifp->if_linkmib = &IFP2IFATM(sc->ifp)->mib;
 	ifp->if_linkmiblen = sizeof(IFP2IFATM(sc->ifp)->mib);
 
 	/*
-	 * Enable memory and bustmaster
+	 * Enable busmaster
 	 */
-	cfg = pci_read_config(dev, PCIR_COMMAND, 2);
-	cfg |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, cfg, 2);
+	pci_enable_busmaster(dev);
 
 	/*
 	 * Map memory
 	 */
-	cfg = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (!(cfg & PCIM_CMD_MEMEN)) {
-		if_printf(ifp, "failed to enable memory mapping\n");
-		error = ENXIO;
-		goto fail;
-	}
 	sc->memid = 0x10;
 	sc->memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->memid,
 	    RF_ACTIVE);
@@ -2857,7 +2849,7 @@ fatm_attach(device_t dev)
 	sc->memt = rman_get_bustag(sc->memres);
 
 	/*
-	 * Convert endianess of slave access
+	 * Convert endianness of slave access
 	 */
 	cfg = pci_read_config(dev, FATM_PCIR_MCTL, 1);
 	cfg |= FATM_PCIM_SWAB;

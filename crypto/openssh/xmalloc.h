@@ -1,4 +1,4 @@
-/* $OpenBSD: xmalloc.h,v 1.13 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: xmalloc.h,v 1.16 2016/02/15 09:47:49 dtucker Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -16,10 +16,10 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 
+void	 ssh_malloc_init(void);
 void	*xmalloc(size_t);
 void	*xcalloc(size_t, size_t);
-void	*xrealloc(void *, size_t, size_t);
-void     xfree(void *);
+void	*xreallocarray(void *, size_t, size_t);
 char	*xstrdup(const char *);
 int	 xasprintf(char **, const char *, ...)
                 __attribute__((__format__ (printf, 2, 3)))

@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -52,7 +48,7 @@ __FBSDID("$FreeBSD$");
 FU *endfu;					/* format at end-of-data */
 
 void
-addfile(char *name)
+addfile(const char *name)
 {
 	unsigned char *p;
 	FILE *fp;
@@ -62,7 +58,7 @@ addfile(char *name)
 	if ((fp = fopen(name, "r")) == NULL)
 		err(1, "%s", name);
 	while (fgets(buf, sizeof(buf), fp)) {
-		if (!(p = index(buf, '\n'))) {
+		if (!(p = strchr(buf, '\n'))) {
 			warnx("line too long");
 			while ((ch = getchar()) != '\n' && ch != EOF);
 			continue;
@@ -171,7 +167,7 @@ size(FS *fs)
 			 * skip any special chars -- save precision in
 			 * case it's a %s format.
 			 */
-			while (index(spec + 1, *++fmt));
+			while (strchr(spec + 1, *++fmt));
 			if (*fmt == '.' && isdigit(*++fmt)) {
 				prec = atoi(fmt);
 				while (isdigit(*++fmt));
@@ -212,9 +208,7 @@ rewrite(FS *fs)
 	unsigned char *p1, *p2, *fmtp;
 	char savech, cs[3];
 	int nconv, prec;
-	size_t len;
 
-	nextpr = NULL;
 	prec = 0;
 
 	for (fu = fs->nextfu; fu; fu = fu->nextfu) {
@@ -222,13 +216,11 @@ rewrite(FS *fs)
 		 * Break each format unit into print units; each conversion
 		 * character gets its own.
 		 */
+		nextpr = &fu->nextpr;
 		for (nconv = 0, fmtp = fu->fmt; *fmtp; nextpr = &pr->nextpr) {
 			if ((pr = calloc(1, sizeof(PR))) == NULL)
 				err(1, NULL);
-			if (!fu->nextpr)
-				fu->nextpr = pr;
-			else
-				*nextpr = pr;
+			*nextpr = pr;
 
 			/* Skip preceding text and up to the next % sign. */
 			for (p1 = fmtp; *p1 && *p1 != '%'; ++p1);
@@ -247,10 +239,10 @@ rewrite(FS *fs)
 			if (fu->bcnt) {
 				sokay = USEBCNT;
 				/* Skip to conversion character. */
-				for (++p1; index(spec, *p1); ++p1);
+				for (++p1; strchr(spec, *p1); ++p1);
 			} else {
 				/* Skip any special chars, field width. */
-				while (index(spec + 1, *++p1));
+				while (strchr(spec + 1, *++p1));
 				if (*p1 == '.' && isdigit(*++p1)) {
 					sokay = USEPREC;
 					prec = atoi(p1);
@@ -259,7 +251,9 @@ rewrite(FS *fs)
 					sokay = NOTOKAY;
 			}
 
-			p2 = p1 + 1;		/* Set end pointer. */
+			p2 = *p1 ? p1 + 1 : p1;	/* Set end pointer -- make sure
+						 * that it's non-NUL/-NULL first
+						 * though. */
 			cs[0] = *p1;		/* Set conversion string. */
 			cs[1] = '\0';
 
@@ -394,10 +388,8 @@ isint2:					switch(fu->bcnt) {
 			 */
 			savech = *p2;
 			p1[0] = '\0';
-			len = strlen(fmtp) + strlen(cs) + 1;
-			if ((pr->fmt = calloc(1, len)) == NULL)
+			if (asprintf(&pr->fmt, "%s%s", fmtp, cs) == -1)
 				err(1, NULL);
-			snprintf(pr->fmt, len, "%s%s", fmtp, cs);
 			*p2 = savech;
 			pr->cchar = pr->fmt + (p1 - fmtp);
 			fmtp = p2;
@@ -453,13 +445,14 @@ escape(char *p1)
 	char *p2;
 
 	/* alphabetic escape sequences have to be done in place */
-	for (p2 = p1;; ++p1, ++p2) {
-		if (!*p1) {
-			*p2 = *p1;
-			break;
-		}
-		if (*p1 == '\\')
-			switch(*++p1) {
+	for (p2 = p1;; p1++, p2++) {
+		if (*p1 == '\\') {
+			p1++;
+			switch(*p1) {
+			case '\0':
+				*p2 = '\\';
+				*++p2 = '\0';
+				return;
 			case 'a':
 			     /* *p2 = '\a'; */
 				*p2 = '\007';
@@ -486,11 +479,16 @@ escape(char *p1)
 				*p2 = *p1;
 				break;
 			}
+		} else {
+			*p2 = *p1;
+			if (*p1 == '\0')
+				return;
+		}
 	}
 }
 
 void
-badcnt(char *s)
+badcnt(const char *s)
 {
 	errx(1, "%s: bad byte count", s);
 }
@@ -508,7 +506,7 @@ badfmt(const char *fmt)
 }
 
 void
-badconv(char *ch)
+badconv(const char *ch)
 {
 	errx(1, "%%%s: bad conversion character", ch);
 }

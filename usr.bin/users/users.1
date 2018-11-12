@@ -9,10 +9,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -32,7 +28,7 @@
 .\"     @(#)users.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd January 21, 2010
 .Dt USERS 1
 .Os
 .Sh NAME
@@ -46,14 +42,14 @@ The
 utility lists the login names of the users currently on the system,
 in sorted order, space separated, on a single line.
 .Sh FILES
-.Bl -tag -width /var/run/utmp
-.It Pa /var/run/utmp
+.Bl -tag -width /var/run/utx.active
+.It Pa /var/run/utx.active
 .El
 .Sh SEE ALSO
 .Xr finger 1 ,
 .Xr last 1 ,
 .Xr who 1 ,
-.Xr utmp 5
+.Xr getutxent 3
 .Sh HISTORY
 The
 .Nm

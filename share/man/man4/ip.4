@@ -9,11 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +28,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2009
+.Dd September 1, 2014
 .Dt IP 4
 .Os
 .Sh NAME
@@ -126,7 +122,7 @@ may be used to set the Don't Fragment flag on IP packets.
 Currently this option is respected only on
 .Xr udp 4
 and raw
-.Xr ip 4
+.Nm
 sockets, unless the
 .Dv IP_HDRINCL
 option has been set.
@@ -165,16 +161,14 @@ The
 .Vt cmsghdr
 fields have the following values:
 .Bd -literal
-cmsg_len = sizeof(struct in_addr)
+cmsg_len = CMSG_LEN(sizeof(struct in_addr))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVDSTADDR
 .Ed
 .Pp
 The source address to be used for outgoing
 .Tn UDP
-datagrams on a socket that is not bound to a specific
-.Tn IP
-address can be specified as ancillary data with a type code of
+datagrams on a socket can be specified as ancillary data with a type code of
 .Dv IP_SENDSRCADDR .
 The msg_control field in the msghdr structure should point to a buffer
 that contains a
@@ -184,10 +178,24 @@ structure followed by the
 address.
 The cmsghdr fields should have the following values:
 .Bd -literal
-cmsg_len = sizeof(struct in_addr)
+cmsg_len = CMSG_LEN(sizeof(struct in_addr))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_SENDSRCADDR
 .Ed
+.Pp
+The socket should be either bound to
+.Dv INADDR_ANY
+and a local port, and the address supplied with
+.Dv IP_SENDSRCADDR
+should't be
+.Dv INADDR_ANY ,
+or the socket should be bound to a local address and the address supplied with
+.Dv IP_SENDSRCADDR
+should be
+.Dv INADDR_ANY .
+In the latter case bound address is overriden via generic source address
+selection logic, which would choose IP address of interface closest to
+destination.
 .Pp
 For convenience,
 .Dv IP_SENDSRCADDR
@@ -215,7 +223,8 @@ before transmission.
 This is in contrast to the default behavior of the
 system, which is to transmit undirected broadcasts
 via the first network interface with the
-.Dv IFF_BROADCAST flag set.
+.Dv IFF_BROADCAST
+flag set.
 .Pp
 This option allows applications to choose which
 interface is used to transmit an undirected broadcast
@@ -226,7 +235,7 @@ configured with the broadcast address 192.168.2.255:
 .Bd -literal
 char msg[512];
 struct sockaddr_in sin;
-u_char onesbcast = 1;	/* 0 = disable (default), 1 = enable */
+int onesbcast = 1;	/* 0 = disable (default), 1 = enable */
 
 setsockopt(s, IPPROTO_IP, IP_ONESBCAST, &onesbcast, sizeof(onesbcast));
 sin.sin_addr.s_addr = inet_addr("192.168.2.255");
@@ -235,12 +244,14 @@ sendto(s, msg, sizeof(msg), 0, &sin, sizeof(sin));
 .Ed
 .Pp
 It is the application's responsibility to set the
-.Dv IP_TTL option
+.Dv IP_TTL
+option
 to an appropriate value in order to prevent broadcast storms.
 The application must have sufficient credentials to set the
 .Dv SO_BROADCAST
 socket level option, otherwise the
-.Dv IP_ONESBCAST option has no effect.
+.Dv IP_ONESBCAST
+option has no effect.
 .Pp
 If the
 .Dv IP_BINDANY
@@ -276,9 +287,32 @@ that contains a cmsghdr structure followed by the
 .Tn TTL .
 The cmsghdr fields have the following values:
 .Bd -literal
-cmsg_len = sizeof(u_char)
+cmsg_len = CMSG_LEN(sizeof(u_char))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVTTL
+.Ed
+.\"
+.Pp
+If the
+.Dv IP_RECVTOS
+option is enabled on a
+.Dv SOCK_DGRAM
+socket, the
+.Xr recvmsg 2
+call will return the
+.Tn IP
+.Tn TOS
+(type of service) field for a
+.Tn UDP
+datagram.
+The msg_control field in the msghdr structure points to a buffer
+that contains a cmsghdr structure followed by the
+.Tn TOS .
+The cmsghdr fields have the following values:
+.Bd -literal
+cmsg_len = CMSG_LEN(sizeof(u_char))
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_RECVTOS
 .Ed
 .\"
 .Pp
@@ -304,7 +338,7 @@ The
 .Vt cmsghdr
 fields have the following values:
 .Bd -literal
-cmsg_len = sizeof(struct sockaddr_dl)
+cmsg_len = CMSG_LEN(sizeof(struct sockaddr_dl))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVIF
 .Ed
@@ -392,7 +426,6 @@ and
 .Va net.inet.ip.portrange.randomtime
 are 10 port allocations per second and 45 seconds correspondingly.
 .Ss "Multicast Options"
-.Pp
 .Tn IP
 multicasting is supported only on
 .Dv AF_INET
@@ -682,7 +715,6 @@ are used to specify an upper limit on the number of per-socket and per-group
 source filter entries which the kernel may allocate.
 .\"-----------------------
 .Ss "Raw IP Sockets"
-.Pp
 Raw
 .Tn IP
 sockets are connectionless,
@@ -723,9 +755,11 @@ number the socket is created with),
 unless the
 .Dv IP_HDRINCL
 option has been set.
-Incoming packets are received with
+Unlike in previous
+.Bx
+releases, incoming packets are received with
 .Tn IP
-header and options intact.
+header and options intact, leaving all fields in network byte order.
 .Pp
 .Dv IP_HDRINCL
 indicates the complete IP header is included with the data
@@ -748,17 +782,16 @@ the fields of the IP header, including the following:
 ip->ip_v = IPVERSION;
 ip->ip_hl = hlen >> 2;
 ip->ip_id = 0;  /* 0 means kernel set appropriate value */
-ip->ip_off = offset;
+ip->ip_off = htons(offset);
+ip->ip_len = htons(len);
 .Ed
 .Pp
-The
+The packet should be provided as is to be sent over wire.
+This implies all fields, including
 .Va ip_len
 and
 .Va ip_off
-fields
-.Em must
-be provided in host byte order .
-All other fields must be provided in network byte order.
+to be in network byte order.
 See
 .Xr byteorder 3
 for more information on network byte order.
@@ -824,12 +857,12 @@ field was not equal to the length of the datagram written to the socket.
 .Xr recv 2 ,
 .Xr send 2 ,
 .Xr byteorder 3 ,
+.Xr sourcefilter 3 ,
 .Xr icmp 4 ,
 .Xr igmp 4 ,
 .Xr inet 4 ,
 .Xr intro 4 ,
-.Xr multicast 4 ,
-.Xr sourcefilter 3
+.Xr multicast 4
 .Rs
 .%A D. Thaler
 .%A B. Fenner
@@ -847,3 +880,24 @@ The
 .Vt ip_mreqn
 structure appeared in
 .Tn Linux 2.4 .
+.Sh BUGS
+Before
+.Fx 10.0
+packets received on raw IP sockets had the
+.Va ip_hl
+subtracted from the
+.Va ip_len
+field.
+.Pp
+Before
+.Fx 11.0
+packets received on raw IP sockets had the
+.Va ip_len
+and
+.Va ip_off
+fields converted to host byte order.
+Packets written to raw IP sockets were expected to have
+.Va ip_len
+and
+.Va ip_off
+in host byte order.

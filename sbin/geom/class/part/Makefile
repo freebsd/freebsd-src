@@ -1,11 +1,10 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 .PATH: ${.CURDIR}/../../misc
 
-CLASS=	part
+GEOM_CLASS=	part
 
-LDADD=	-lutil
-
-WARNS?=	4
+LIBADD=	util
 
 .include <bsd.lib.mk>

@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,9 +62,11 @@ main(int argc, char *argv[])
 	struct info i;
 	enum FMT fmt;
 	int ch;
+	const char *file, *errstr = NULL;
 
 	fmt = NOTSET;
 	i.fd = STDIN_FILENO;
+	file = "stdin";
 
 	opterr = 0;
 	while (optind < argc &&
@@ -79,6 +82,7 @@ main(int argc, char *argv[])
 		case 'f':
 			if ((i.fd = open(optarg, O_RDONLY | O_NONBLOCK)) < 0)
 				err(1, "%s", optarg);
+			file = optarg;
 			break;
 		case 'g':
 			fmt = GFLAG;
@@ -92,7 +96,7 @@ args:	argc -= optind;
 	argv += optind;
 
 	if (tcgetattr(i.fd, &i.t) < 0)
-		errx(1, "stdin isn't a terminal");
+		errx(1, "%s isn't a terminal", file);
 	if (ioctl(i.fd, TIOCGETD, &i.ldisc) < 0)
 		err(1, "TIOCGETD");
 	if (ioctl(i.fd, TIOCGWINSZ, &i.win) < 0)
@@ -127,7 +131,9 @@ args:	argc -= optind;
 		if (isdigit(**argv)) {
 			speed_t speed;
 
-			speed = atoi(*argv);
+			speed = strtonum(*argv, 0, UINT_MAX, &errstr);
+			if (errstr)
+				err(1, "speed");
 			cfsetospeed(&i.t, speed);
 			cfsetispeed(&i.t, speed);
 			i.set = 1;

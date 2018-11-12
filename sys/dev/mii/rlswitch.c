@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/bus.h>
+#include <sys/taskqueue.h>	/* XXXGL: if_rlreg.h contamination */
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -54,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include "miidevs.h"
 
 #include <machine/bus.h>
-#include <pci/if_rlreg.h>
+#include <dev/rl/if_rlreg.h>
 
 #include "miibus_if.h"
 
@@ -70,7 +71,7 @@ static device_method_t rlswitch_methods[] = {
 	DEVMETHOD(device_attach,	rlswitch_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t rlswitch_devclass;
@@ -91,8 +92,14 @@ static void	rlswitch_phydump(device_t dev);
 #endif
 
 static const struct mii_phydesc rlswitches[] = {
-	MII_PHY_DESC(xxREALTEK, RTL8305SC),
+	MII_PHY_DESC(REALTEK, RTL8305SC),
 	MII_PHY_END
+};
+
+static const struct mii_phy_funcs rlswitch_funcs = {
+	rlswitch_service,
+	rlswitch_status,
+	mii_phy_reset
 };
 
 static int
@@ -111,50 +118,19 @@ static int
 rlswitch_attach(device_t dev)
 {
 	struct mii_softc	*sc;
-	struct mii_attach_args	*ma;
-	struct mii_data		*mii;
 
 	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
 
 	/*
-	 * We handle all pseudo PHY in a single instance, so never allow
-	 * non-zero * instances!
+	 * We handle all pseudo PHYs in a single instance.
 	 */
-	if (mii->mii_instance != 0) {
-		device_printf(dev, "ignoring this PHY, non-zero instance\n");
-		return (ENXIO);
-	}
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
+	    &rlswitch_funcs, 0);
 
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = rlswitch_service;
-	sc->mii_pdata = mii;
-	mii->mii_instance++;
-
-	sc->mii_flags |= MIIF_NOISOLATE;
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-
-#if 0 /* See above. */
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    BMCR_ISO);
-#endif
-
-#if 0
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    BMCR_LOOP|BMCR_S100);
-#endif
-
-	sc->mii_capabilities = BMSR_100TXFDX & ma->mii_capmask;
+	sc->mii_capabilities = BMSR_100TXFDX & sc->mii_capmask;
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
 	printf("\n");
-#undef ADD
 #ifdef RL_DEBUG
 	rlswitch_phydump(dev);
 #endif
@@ -378,16 +354,11 @@ rlswitch_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_TICK:
-		/*
-		 * Is the interface even up?
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			return (0);
 		break;
 	}
 
 	/* Update the media status. */
-	rlswitch_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	// mii_phy_update(sc, cmd);
@@ -402,7 +373,8 @@ rlswitch_status(struct mii_softc *phy)
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
 	mii->mii_media_status |= IFM_ACTIVE;
-	mii->mii_media_active |= IFM_100_TX|IFM_FDX;
+	mii->mii_media_active |=
+	    IFM_100_TX | IFM_FDX | mii_phy_flowstatus(phy);
 }
 
 #ifdef RL_DEBUG

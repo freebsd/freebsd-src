@@ -79,8 +79,8 @@ hash_tbl *
 hash_Init(tablesize)
 	unsigned tablesize;
 {
-	register hash_tbl *hashtblptr;
-	register unsigned totalsize;
+	hash_tbl *hashtblptr;
+	unsigned totalsize;
 
 	if (tablesize > 0) {
 		totalsize = sizeof(hash_tbl)
@@ -169,9 +169,9 @@ hash_Reset(hashtable, free_data)
 unsigned
 hash_HashFunction(string, len)
 	unsigned char *string;
-	register unsigned len;
+	unsigned len;
 {
-	register unsigned accum;
+	unsigned accum;
 
 	accum = 0;
 	for (; len > 0; len--) {
@@ -195,7 +195,7 @@ hash_Exists(hashtable, hashcode, compare, key)
 	hash_cmpfp compare;
 	hash_datum *key;
 {
-	register hash_member *memberptr;
+	hash_member *memberptr;
 
 	memberptr = (hashtable->table)[hashcode % (hashtable->size)];
 	while (memberptr) {
@@ -345,8 +345,8 @@ hash_datum *
 hash_NextEntry(hashtable)
 	hash_tbl *hashtable;
 {
-	register unsigned bucket;
-	register hash_member *memberptr;
+	unsigned bucket;
+	hash_member *memberptr;
 
 	/*
 	 * First try to pick up where we left off.

@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -112,6 +111,7 @@ struct cmdname cmdnames[] =
 	{ "flush-repaint",        A_FREPAINT },
 	{ "forw-bracket",         A_F_BRACKET },
 	{ "forw-forever",         A_F_FOREVER },
+	{ "forw-until-hilite",    A_F_UNTIL_HILITE },
 	{ "forw-line",            A_F_LINE },
 	{ "forw-line-force",      A_FF_LINE },
 	{ "forw-screen",          A_F_SCREEN },
@@ -120,6 +120,7 @@ struct cmdname cmdnames[] =
 	{ "forw-search",          A_F_SEARCH },
 	{ "forw-window",          A_F_WINDOW },
 	{ "goto-end",             A_GOEND },
+	{ "goto-end-buffered",    A_GOEND_BUF },
 	{ "goto-line",            A_GOLINE },
 	{ "goto-mark",            A_GOMARK },
 	{ "help",                 A_HELP },
@@ -166,6 +167,7 @@ struct cmdname editnames[] =
 	{ "insert",		EC_INSERT },
 	{ "invalid",		EC_UINVALID },
 	{ "kill-line",		EC_LINEKILL },
+	{ "abort",		EC_ABORT },
 	{ "left",		EC_LEFT },
 	{ "literal",		EC_LITERAL },
 	{ "right",		EC_RIGHT },
@@ -448,7 +450,7 @@ tstr(pp, xlate)
 		}
 	case '^':
 		/*
-		 * Carat means CONTROL.
+		 * Caret means CONTROL.
 		 */
 		*pp = p+2;
 		buf[0] = CONTROL(p[1]);
@@ -646,7 +648,7 @@ parse_cmdline(p)
 	do
 	{
 		s = tstr(&p, 1);
-		cmdlen += strlen(s);
+		cmdlen += (int) strlen(s);
 		if (cmdlen > MAX_CMDLEN)
 			error("command too long");
 		else

@@ -139,11 +139,6 @@ static void	amr_setup_ccb(void *arg, bus_dma_segment_t *segs, int nsegments, int
 static void	amr_abort_load(struct amr_command *ac);
 
 /*
- * Status monitoring
- */
-static void	amr_periodic(void *data);
-
-/*
  * Interface-specific shims
  */
 static int	amr_quartz_submit_command(struct amr_command *ac);
@@ -175,7 +170,7 @@ static void	amr_init_sysctl(struct amr_softc *sc);
 static int	amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr,
 		    int32_t flag, struct thread *td);
 
-MALLOC_DEFINE(M_AMR, "amr", "AMR memory");
+static MALLOC_DEFINE(M_AMR, "amr", "AMR memory");
 
 /********************************************************************************
  ********************************************************************************
@@ -221,11 +216,11 @@ amr_attach(struct amr_softc *sc)
 	sc->amr_submit_command = amr_std_submit_command;
 	sc->amr_get_work       = amr_std_get_work;
 	sc->amr_poll_command   = amr_std_poll_command;
-	amr_std_attach_mailbox(sc);;
+	amr_std_attach_mailbox(sc);
     }
 
 #ifdef AMR_BOARD_INIT
-    if ((AMR_IS_QUARTZ(sc) ? amr_quartz_init(sc) : amr_std_init(sc))))
+    if ((AMR_IS_QUARTZ(sc) ? amr_quartz_init(sc) : amr_std_init(sc)))
 	return(ENXIO);
 #endif
 
@@ -348,11 +343,6 @@ amr_startup(void *arg)
     /* interrupts will be enabled before we do anything more */
     sc->amr_state |= AMR_STATE_INTEN;
 
-    /*
-     * Start the timeout routine.
-     */
-/*    sc->amr_timeout = timeout(amr_periodic, sc, hz);*/
-
     return;
 }
 
@@ -391,9 +381,6 @@ amr_free(struct amr_softc *sc)
     if (sc->amr_pass != NULL)
 	device_delete_child(sc->amr_dev, sc->amr_pass);
 
-    /* cancel status timeout */
-    untimeout(amr_periodic, sc, sc->amr_timeout);
-    
     /* throw away any command buffers */
     while ((acc = TAILQ_FIRST(&sc->amr_cmd_clusters)) != NULL) {
 	TAILQ_REMOVE(&sc->amr_cmd_clusters, acc, acc_link);
@@ -535,6 +522,37 @@ shutdown_out:
     amr_startup(sc);
 }
 
+/*
+ * Bug-for-bug compatibility with Linux!
+ * Some apps will send commands with inlen and outlen set to 0,
+ * even though they expect data to be transferred to them from the
+ * card.  Linux accidentally allows this by allocating a 4KB
+ * buffer for the transfer anyways, but it then throws it away
+ * without copying it back to the app.
+ * 
+ * The amr(4) firmware relies on this feature.  In fact, it assumes
+ * the buffer is always a power of 2 up to a max of 64k.  There is
+ * also at least one case where it assumes a buffer less than 16k is
+ * greater than 16k.  However, forcing all buffers to a size of 32k
+ * causes stalls in the firmware.  Force each command smaller than
+ * 64k up to the next power of two except that commands between 8k
+ * and 16k are rounded up to 32k instead of 16k.
+ */
+static unsigned long
+amr_ioctl_buffer_length(unsigned long len)
+{
+
+    if (len <= 4 * 1024)
+	return (4 * 1024);
+    if (len <= 8 * 1024)
+	return (8 * 1024);
+    if (len <= 32 * 1024)
+	return (32 * 1024);
+    if (len <= 64 * 1024)
+	return (64 * 1024);
+    return (len);
+}
+
 int
 amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
     struct thread *td)
@@ -545,7 +563,7 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
     struct amr_linux_ioctl	ali;
     void			*dp, *temp;
     int				error;
-    int				adapter, len, ac_flags = 0;
+    int				len, ac_flags = 0;
     int				logical_drives_changed = 0;
     u_int32_t			linux_version = 0x02100000;
     u_int8_t			status;
@@ -587,8 +605,6 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	    len = max(ali.outlen, ali.inlen);
 	else
 	    len = ali.ui.fcs.length;
-
-	adapter = (ali.ui.fcs.adapno) ^ 'm' << 8;
 
 	mb = (void *)&ali.mbox[0];
 
@@ -664,16 +680,7 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	    error = ENOIOCTL;
 	    break;
 	} else {
-	    /*
-	     * Bug-for-bug compatibility with Linux!
-	     * Some apps will send commands with inlen and outlen set to 0,
-	     * even though they expect data to be transfered to them from the
-	     * card.  Linux accidentally allows this by allocating a 4KB
-	     * buffer for the transfer anyways, but it then throws it away
-	     * without copying it back to the app.
-	     */
-	    if (!len)
-		len = 4096;
+	    len = amr_ioctl_buffer_length(imax(ali.inlen, ali.outlen));
 
 	    dp = malloc(len, M_AMR, M_WAITOK | M_ZERO);
 
@@ -703,7 +710,7 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	    status = ac->ac_status;
 	    error = copyout(&status, &((struct amr_mailbox *)&((struct amr_linux_ioctl *)addr)->mbox[0])->mb_status, sizeof(status));
 	    if (ali.outlen) {
-		error = copyout(dp, (void *)(uintptr_t)mb->mb_physaddr, len);
+		error = copyout(dp, (void *)(uintptr_t)mb->mb_physaddr, ali.outlen);
 		if (error)
 		    break;
 	    }
@@ -750,9 +757,9 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
     struct amr_command		*ac;
     struct amr_mailbox_ioctl	*mbi;
     void			*dp, *au_buffer;
-    unsigned long		au_length;
+    unsigned long		au_length, real_length;
     unsigned char		*au_cmd;
-    int				*au_statusp, au_direction;
+    int				*au_statusp;
     int				error;
     struct amr_passthrough	*ap;	/* 60 bytes */
     int				logical_drives_changed = 0;
@@ -784,7 +791,6 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 	au_cmd = arg.au32->au_cmd;
 	au_buffer = (void *)(u_int64_t)arg.au32->au_buffer;
 	au_length = arg.au32->au_length;
-	au_direction = arg.au32->au_direction;
 	au_statusp = &arg.au32->au_status;
 	break;
 #endif
@@ -794,7 +800,6 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 	au_cmd = arg.au->au_cmd;
 	au_buffer = (void *)arg.au->au_buffer;
 	au_length = arg.au->au_length;
-	au_direction = arg.au->au_direction;
 	au_statusp = &arg.au->au_status;
 	break;
 
@@ -842,11 +847,9 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
     }
 
     /* handle inbound data buffer */
+    real_length = amr_ioctl_buffer_length(au_length);
+    dp = malloc(real_length, M_AMR, M_WAITOK|M_ZERO);
     if (au_length != 0 && au_cmd[0] != 0x06) {
-	if ((dp = malloc(au_length, M_AMR, M_WAITOK|M_ZERO)) == NULL) {
-	    error = ENOMEM;
-	    goto out;
-	}
 	if ((error = copyin(au_buffer, dp, au_length)) != 0) {
 	    free(dp, M_AMR);
 	    return (error);
@@ -902,7 +905,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 
     /* build the command */
     ac->ac_data = dp;
-    ac->ac_length = au_length;
+    ac->ac_length = real_length;
     ac->ac_flags |= AMR_CMD_DATAIN|AMR_CMD_DATAOUT;
 
     /* run the command */
@@ -916,8 +919,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 	error = copyout(dp, au_buffer, au_length);
     }
     debug(2, "copyout %ld bytes from %p -> %p", au_length, dp, au_buffer);
-    if (dp != NULL)
-	debug(2, "%p status 0x%x", dp, ac->ac_status);
+    debug(2, "%p status 0x%x", dp, ac->ac_status);
     *au_statusp = ac->ac_status;
 
 out:
@@ -938,31 +940,6 @@ out:
 #endif
 
     return(error);
-}
-
-/********************************************************************************
- ********************************************************************************
-                                                                Status Monitoring
- ********************************************************************************
- ********************************************************************************/
-
-/********************************************************************************
- * Perform a periodic check of the controller status
- */
-static void
-amr_periodic(void *data)
-{
-    struct amr_softc	*sc = (struct amr_softc *)data;
-
-    debug_called(2);
-
-    /* XXX perform periodic status checks here */
-
-    /* compensate for missed interrupts */
-    amr_done(sc);
-
-    /* reschedule */
-    sc->amr_timeout = timeout(amr_periodic, sc, hz);
 }
 
 /********************************************************************************
@@ -1339,10 +1316,10 @@ amr_bio_command(struct amr_softc *sc, struct amr_command **acp)
     }
     amrd = (struct amrd_softc *)bio->bio_disk->d_drv1;
     driveno = amrd->amrd_drive - sc->amr_drive;
-    blkcount = (bio->bio_bcount + AMR_BLKSIZE - 1) / AMR_BLKSIZE;
+    blkcount = howmany(bio->bio_bcount, AMR_BLKSIZE);
 
     ac->ac_mailbox.mb_command = cmd;
-    if (bio->bio_cmd & (BIO_READ|BIO_WRITE)) {
+    if (bio->bio_cmd == BIO_READ || bio->bio_cmd == BIO_WRITE) {
 	ac->ac_mailbox.mb_blkcount = blkcount;
 	ac->ac_mailbox.mb_lba = bio->bio_pblkno;
 	if ((bio->bio_pblkno + blkcount) > sc->amr_drive[driveno].al_size) {
@@ -1807,7 +1784,7 @@ amr_start(struct amr_command *ac)
     /* Now we have a slot, we can map the command (unmapped in amr_complete). */
     if ((error = amr_mapcmd(ac)) == ENOMEM) {
 	/*
-	 * Memroy resources are short, so free the slot and let this be tried
+	 * Memory resources are short, so free the slot and let this be tried
 	 * later.
 	 */
 	amr_freeslot(ac);

@@ -1,5 +1,5 @@
 /* unwind-ia64.c -- utility routines to dump IA-64 unwind info for readelf.
-   Copyright 2000, 2001, 2003 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
 This file is part of GNU Binutils.
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "unwind-ia64.h"
 #include <stdio.h>
@@ -371,7 +371,7 @@ typedef bfd_vma unw_word;
 #define UNW_DEC_SPILL_SPREL(fmt, t, abreg, spoff, arg)				\
   do										\
     {										\
-      char regname[10];								\
+      char regname[20];								\
 										\
       unw_print_abreg (regname, abreg);						\
       printf ("\t%s:spill_sprel(reg=%s,t=%lu,spoff=0x%lx)\n",			\
@@ -382,7 +382,7 @@ typedef bfd_vma unw_word;
 #define UNW_DEC_SPILL_PSPREL(fmt, t, abreg, pspoff, arg)			\
   do										\
     {										\
-      char regname[10];								\
+      char regname[20];								\
 										\
       unw_print_abreg (regname, abreg);						\
       printf ("\t%s:spill_psprel(reg=%s,t=%lu,pspoff=0x10-0x%lx)\n",		\
@@ -393,7 +393,7 @@ typedef bfd_vma unw_word;
 #define UNW_DEC_RESTORE(fmt, t, abreg, arg)			\
   do								\
     {								\
-      char regname[10];						\
+      char regname[20];						\
 								\
       unw_print_abreg (regname, abreg);				\
       printf ("\t%s:restore(t=%lu,reg=%s)\n",			\
@@ -404,7 +404,7 @@ typedef bfd_vma unw_word;
 #define UNW_DEC_SPILL_REG(fmt, t, abreg, x, ytreg, arg)		\
   do								\
     {								\
-      char abregname[10], tregname[10];				\
+      char abregname[20], tregname[20];				\
 								\
       unw_print_abreg (abregname, abreg);			\
       unw_print_xyreg (tregname, x, ytreg);			\

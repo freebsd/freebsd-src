@@ -63,14 +63,16 @@ static SPACE HS, PS, SS, YS;
 #define	pd		PS.deleted
 #define	ps		PS.space
 #define	psl		PS.len
+#define	psanl		PS.append_newline
 #define	hs		HS.space
 #define	hsl		HS.len
 
-static __inline int	 applies(struct s_command *);
+static inline int	 applies(struct s_command *);
 static void		 do_tr(struct s_tr *);
 static void		 flush_appends(void);
 static void		 lputs(char *, size_t);
-static __inline int	 regexec_e(regex_t *, const char *, int, int, size_t);
+static int		 regexec_e(regex_t *, const char *, int, int, size_t,
+			     size_t);
 static void		 regsub(SPACE *, char *, char *);
 static int		 substitute(struct s_command *);
 
@@ -85,17 +87,22 @@ static regex_t *defpreg;
 size_t maxnsub;
 regmatch_t *match;
 
-#define OUT() do {fwrite(ps, 1, psl, outfile); fputc('\n', outfile);} while (0)
+#define OUT() do {							\
+	fwrite(ps, 1, psl, outfile);					\
+	if (psanl) fputc('\n', outfile);				\
+} while (0)
 
 void
 process(void)
 {
 	struct s_command *cp;
 	SPACE tspace;
-	size_t oldpsl = 0;
+	size_t oldpsl;
 	char *p;
+	int oldpsanl;
 
 	p = NULL;
+	oldpsanl = oldpsl = 0;
 
 	for (linenum = 0; mf_fgets(&PS, REPLACE);) {
 		pd = 0;
@@ -190,11 +197,15 @@ redirect:
 					break;
 				if ((p = memchr(ps, '\n', psl)) != NULL) {
 					oldpsl = psl;
+					oldpsanl = psanl;
 					psl = p - ps;
+					psanl = 1;
 				}
 				OUT();
-				if (p != NULL)
+				if (p != NULL) {
 					psl = oldpsl;
+					psanl = oldpsanl;
+				}
 				break;
 			case 'q':
 				if (!nflag && !pd)
@@ -244,6 +255,7 @@ redirect:
 					cspace(&HS, "", 0, REPLACE);
 				tspace = PS;
 				PS = HS;
+				psanl = tspace.append_newline;
 				HS = tspace;
 				break;
 			case 'y':
@@ -271,14 +283,14 @@ new:		if (!nflag && !pd)
  * (lastline, linenumber, ps).
  */
 #define	MATCH(a)							\
-	((a)->type == AT_RE ? regexec_e((a)->u.r, ps, 0, 1, psl) :	\
+	((a)->type == AT_RE ? regexec_e((a)->u.r, ps, 0, 1, 0, psl) :	\
 	    (a)->type == AT_LINE ? linenum == (a)->u.l : lastline())
 
 /*
  * Return TRUE if the command applies to the current line.  Sets the start
  * line for process ranges.  Interprets the non-select (``!'') flag.
  */
-static __inline int
+static inline int
 applies(struct s_command *cp)
 {
 	int r;
@@ -288,25 +300,33 @@ applies(struct s_command *cp)
 		r = 1;
 	else if (cp->a2)
 		if (cp->startline > 0) {
-			if (MATCH(cp->a2)) {
-				cp->startline = 0;
-				lastaddr = 1;
-				r = 1;
-			} else if (linenum - cp->startline <= cp->a2->u.l)
-				r = 1;
-			else if ((cp->a2->type == AT_LINE &&
-				   linenum > cp->a2->u.l) ||
-				   (cp->a2->type == AT_RELLINE &&
-				   linenum - cp->startline > cp->a2->u.l)) {
-				/*
-				 * We missed the 2nd address due to a branch,
-				 * so just close the range and return false.
-				 */
-				cp->startline = 0;
-				r = 0;
-			} else
-				r = 1;
-		} else if (MATCH(cp->a1)) {
+                        switch (cp->a2->type) {
+                        case AT_RELLINE:
+                                if (linenum - cp->startline <= cp->a2->u.l)
+                                        r = 1;
+                                else {
+				        cp->startline = 0;
+				        r = 0;
+                                }
+                                break;
+                        default:
+                                if (MATCH(cp->a2)) {
+                                        cp->startline = 0;
+                                        lastaddr = 1;
+                                        r = 1;
+                                } else if (cp->a2->type == AT_LINE &&
+                                            linenum > cp->a2->u.l) {
+                                        /*
+                                         * We missed the 2nd address due to a
+                                         * branch, so just close the range and
+                                         * return false.
+                                         */
+                                        cp->startline = 0;
+                                        r = 0;
+                                } else
+                                        r = 1;
+                        }
+		} else if (cp->a1 && MATCH(cp->a1)) {
 			/*
 			 * If the second address is a number less than or
 			 * equal to the line number first selected, only
@@ -361,8 +381,9 @@ substitute(struct s_command *cp)
 {
 	SPACE tspace;
 	regex_t *re;
-	regoff_t re_off, slen;
+	regoff_t slen;
 	int lastempty, n;
+	size_t le = 0;
 	char *s;
 
 	s = ps;
@@ -374,7 +395,7 @@ substitute(struct s_command *cp)
 					linenum, fname, cp->u.s->maxbref);
 		}
 	}
-	if (!regexec_e(re, s, 0, 0, psl))
+	if (!regexec_e(re, ps, 0, 0, 0, psl))
 		return (0);
 
 	SS.len = 0;				/* Clean substitute space. */
@@ -382,61 +403,60 @@ substitute(struct s_command *cp)
 	n = cp->u.s->n;
 	lastempty = 1;
 
-	switch (n) {
-	case 0:					/* Global */
-		do {
-			if (lastempty || match[0].rm_so != match[0].rm_eo) {
-				/* Locate start of replaced string. */
-				re_off = match[0].rm_so;
-				/* Copy leading retained string. */
-				cspace(&SS, s, re_off, APPEND);
-				/* Add in regular expression. */
-				regsub(&SS, s, cp->u.s->new);
-			}
+	do {
+		/* Copy the leading retained string. */
+		if (n <= 1 && (match[0].rm_so > le))
+			cspace(&SS, s, match[0].rm_so - le, APPEND);
 
-			/* Move past this match. */
-			if (match[0].rm_so != match[0].rm_eo) {
-				s += match[0].rm_eo;
-				slen -= match[0].rm_eo;
-				lastempty = 0;
+		/* Skip zero-length matches right after other matches. */
+		if (lastempty || (match[0].rm_so - le) ||
+		    match[0].rm_so != match[0].rm_eo) {
+			if (n <= 1) {
+				/* Want this match: append replacement. */
+				regsub(&SS, ps, cp->u.s->new);
+				if (n == 1)
+					n = -1;
 			} else {
-				if (match[0].rm_so < slen)
-					cspace(&SS, s + match[0].rm_so, 1,
+				/* Want a later match: append original. */
+				if (match[0].rm_eo - le)
+					cspace(&SS, s, match[0].rm_eo - le,
 					    APPEND);
-				s += match[0].rm_so + 1;
-				slen -= match[0].rm_so + 1;
-				lastempty = 1;
+				n--;
 			}
-		} while (slen >= 0 && regexec_e(re, s, REG_NOTBOL, 0, slen));
-		/* Copy trailing retained string. */
-		if (slen > 0)
-			cspace(&SS, s, slen, APPEND);
-		break;
-	default:				/* Nth occurrence */
-		while (--n) {
-			if (match[0].rm_eo == match[0].rm_so)
-				match[0].rm_eo = match[0].rm_so + 1;
-			s += match[0].rm_eo;
-			slen -= match[0].rm_eo;
-			if (slen < 0)
-				return (0);
-			if (!regexec_e(re, s, REG_NOTBOL, 0, slen))
-				return (0);
 		}
-		/* FALLTHROUGH */
-	case 1:					/* 1st occurrence */
-		/* Locate start of replaced string. */
-		re_off = match[0].rm_so + (s - ps);
-		/* Copy leading retained string. */
-		cspace(&SS, ps, re_off, APPEND);
-		/* Add in regular expression. */
-		regsub(&SS, s, cp->u.s->new);
-		/* Copy trailing retained string. */
-		s += match[0].rm_eo;
-		slen -= match[0].rm_eo;
+
+		/* Move past this match. */
+		s = ps + match[0].rm_eo;
+		slen = psl - match[0].rm_eo;
+		le = match[0].rm_eo;
+
+		/*
+		 * After a zero-length match, advance one byte,
+		 * and at the end of the line, terminate.
+		 */
+		if (match[0].rm_so == match[0].rm_eo) {
+			if (*s == '\0' || *s == '\n')
+				slen = -1;
+			else
+				slen--;
+			if (*s != '\0') {
+			 	cspace(&SS, s++, 1, APPEND);
+				le++;
+			}
+			lastempty = 1;
+		} else
+			lastempty = 0;
+
+	} while (n >= 0 && slen >= 0 &&
+	    regexec_e(re, ps, REG_NOTBOL, 0, le, psl));
+
+	/* Did not find the requested number of matches. */
+	if (n > 0)
+		return (0);
+
+	/* Copy the trailing retained string. */
+	if (slen > 0)
 		cspace(&SS, s, slen, APPEND);
-		break;
-	}
 
 	/*
 	 * Swap the substitute space and the pattern space, and make sure
@@ -444,6 +464,7 @@ substitute(struct s_command *cp)
 	 */
 	tspace = PS;
 	PS = SS;
+	psanl = tspace.append_newline;
 	SS = tspace;
 	SS.space = SS.back;
 
@@ -513,6 +534,7 @@ do_tr(struct s_tr *y)
 		/* Swap the translation space and the pattern space. */
 		tmp = PS;
 		PS = YS;
+		psanl = tmp.append_newline;
 		YS = tmp;
 		YS.space = YS.back;
 	}
@@ -636,9 +658,9 @@ lputs(char *s, size_t len)
 		errx(1, "%s: %s", outfname, strerror(errno ? errno : EIO));
 }
 
-static __inline int
+static int
 regexec_e(regex_t *preg, const char *string, int eflags, int nomatch,
-	size_t slen)
+	size_t start, size_t stop)
 {
 	int eval;
 
@@ -649,8 +671,8 @@ regexec_e(regex_t *preg, const char *string, int eflags, int nomatch,
 		defpreg = preg;
 
 	/* Set anchors */
-	match[0].rm_so = 0;
-	match[0].rm_eo = slen;
+	match[0].rm_so = start;
+	match[0].rm_eo = stop;
 
 	eval = regexec(defpreg, string,
 	    nomatch ? 0 : maxnsub + 1, match, eflags | REG_STARTEND);

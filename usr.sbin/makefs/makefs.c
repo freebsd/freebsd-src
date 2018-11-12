@@ -1,4 +1,4 @@
-/*	$NetBSD: makefs.c,v 1.20 2004/06/20 22:20:18 jmc Exp $	*/
+/*	$NetBSD: makefs.c,v 1.26 2006/10/22 21:11:56 christos Exp $	*/
 
 /*
  * Copyright (c) 2001-2003 Wasabi Systems, Inc.
@@ -38,6 +38,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -45,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "makefs.h"
@@ -55,31 +58,43 @@ __FBSDID("$FreeBSD$");
  */
 typedef struct {
 	const char	*type;
+	void		(*prepare_options)(fsinfo_t *);
 	int		(*parse_options)(const char *, fsinfo_t *);
+	void		(*cleanup_options)(fsinfo_t *);
 	void		(*make_fs)(const char *, const char *, fsnode *,
 				fsinfo_t *);
 } fstype_t;
 
 static fstype_t fstypes[] = {
-	{ "ffs",	ffs_parse_opts,		ffs_makefs },
-	{ NULL	},
+#define ENTRY(name) { \
+	# name, name ## _prep_opts, name ## _parse_opts, \
+	name ## _cleanup_opts, name ## _makefs  \
+}
+	ENTRY(ffs),
+	ENTRY(cd9660),
+	{ .type = NULL	},
 };
 
 u_int		debug;
+int		dupsok;
 struct timespec	start_time;
+struct stat stampst;
 
 static	fstype_t *get_fstype(const char *);
+static int get_tstamp(const char *, struct stat *);
 static	void	usage(void);
 int		main(int, char *[]);
 
 int
 main(int argc, char *argv[])
 {
+	struct stat	 sb;
 	struct timeval	 start;
 	fstype_t	*fstype;
 	fsinfo_t	 fsoptions;
 	fsnode		*root;
-	int	 	 ch, len;
+	int	 	 ch, i, len;
+	char		*subtree;
 	char		*specfile;
 
 	setprogname(argv[0]);
@@ -92,26 +107,20 @@ main(int argc, char *argv[])
 	(void)memset(&fsoptions, 0, sizeof(fsoptions));
 	fsoptions.fd = -1;
 	fsoptions.sectorsize = -1;
-	fsoptions.bsize= -1;
-	fsoptions.fsize= -1;
-	fsoptions.cpg= -1;
-	fsoptions.density= -1;
-	fsoptions.minfree= -1;
-	fsoptions.optimization= -1;
-	fsoptions.maxcontig= -1;
-	fsoptions.maxbpg= -1;
-	fsoptions.avgfilesize= -1;
-	fsoptions.avgfpdir= -1;
-	fsoptions.version = 1;
+
+	if (fstype->prepare_options)
+		fstype->prepare_options(&fsoptions);
 
 	specfile = NULL;
-	if (gettimeofday(&start, NULL) == -1)
-		err(1, "Unable to get system time");
-
+	ch = gettimeofday(&start, NULL);
 	start_time.tv_sec = start.tv_sec;
 	start_time.tv_nsec = start.tv_usec * 1000;
 
-	while ((ch = getopt(argc, argv, "B:b:d:f:F:M:m:N:o:s:S:t:x")) != -1) {
+	if (ch == -1)
+		err(1, "Unable to get system time");
+
+
+	while ((ch = getopt(argc, argv, "B:b:Dd:f:F:M:m:N:o:pR:s:S:t:T:xZ")) != -1) {
 		switch (ch) {
 
 		case 'B':
@@ -147,9 +156,12 @@ main(int argc, char *argv[])
 			}
 			break;
 
+		case 'D':
+			dupsok = 1;
+			break;
+
 		case 'd':
-			debug =
-			    (int)strsuftoll("debug mask", optarg, 0, UINT_MAX);
+			debug = strtoll(optarg, NULL, 0);
 			break;
 
 		case 'f':
@@ -199,6 +211,16 @@ main(int argc, char *argv[])
 			}
 			break;
 		}
+		case 'p':
+			/* Deprecated in favor of 'Z' */
+			fsoptions.sparse = 1;
+			break;
+
+		case 'R':
+			/* Round image size up to specified block size */
+			fsoptions.roundup =
+			    strsuftoll("roundup-size", optarg, 0, LLONG_MAX);
+			break;
 
 		case 's':
 			fsoptions.minsize = fsoptions.maxsize =
@@ -212,12 +234,28 @@ main(int argc, char *argv[])
 			break;
 
 		case 't':
+			/* Check current one and cleanup if necessary. */
+			if (fstype->cleanup_options)
+				fstype->cleanup_options(&fsoptions);
+			fsoptions.fs_specific = NULL;
 			if ((fstype = get_fstype(optarg)) == NULL)
 				errx(1, "Unknown fs type `%s'.", optarg);
+			fstype->prepare_options(&fsoptions);
+			break;
+
+		case 'T':
+			if (get_tstamp(optarg, &stampst) == -1)
+				errx(1, "Cannot get timestamp from `%s'",
+				    optarg);
 			break;
 
 		case 'x':
 			fsoptions.onlyspec = 1;
+			break;
+
+		case 'Z':
+			/* Superscedes 'p' for compatibility with NetBSD makefs(8) */
+			fsoptions.sparse = 1;
 			break;
 
 		case '?':
@@ -236,34 +274,68 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 2)
+	if (argc < 2)
 		usage();
 
 	/* -x must be accompanied by -F */
 	if (fsoptions.onlyspec != 0 && specfile == NULL)
 		errx(1, "-x requires -F mtree-specfile.");
 
-				/* walk the tree */
-	TIMER_START(start);
-	root = walk_dir(argv[1], NULL);
-	TIMER_RESULTS(start, "walk_dir");
+	/* Accept '-' as meaning "read from standard input". */
+	if (strcmp(argv[1], "-") == 0)
+		sb.st_mode = S_IFREG;
+	else {
+		if (stat(argv[1], &sb) == -1)
+			err(1, "Can't stat `%s'", argv[1]);
+	}
+
+	switch (sb.st_mode & S_IFMT) {
+	case S_IFDIR:		/* walk the tree */
+		subtree = argv[1];
+		TIMER_START(start);
+		root = walk_dir(subtree, ".", NULL, NULL);
+		TIMER_RESULTS(start, "walk_dir");
+		break;
+	case S_IFREG:		/* read the manifest file */
+		subtree = ".";
+		TIMER_START(start);
+		root = read_mtree(argv[1], NULL);
+		TIMER_RESULTS(start, "manifest");
+		break;
+	default:
+		errx(1, "%s: not a file or directory", argv[1]);
+		/* NOTREACHED */
+	}
+
+	/* append extra directory */
+	for (i = 2; i < argc; i++) {
+		if (stat(argv[i], &sb) == -1)
+			err(1, "Can't stat `%s'", argv[i]);
+		if (!S_ISDIR(sb.st_mode))
+			errx(1, "%s: not a directory", argv[i]);
+		TIMER_START(start);
+		root = walk_dir(argv[i], ".", NULL, root);
+		TIMER_RESULTS(start, "walk_dir2");
+	}
 
 	if (specfile) {		/* apply a specfile */
 		TIMER_START(start);
-		apply_specfile(specfile, argv[1], root);
+		apply_specfile(specfile, subtree, root, fsoptions.onlyspec);
 		TIMER_RESULTS(start, "apply_specfile");
 	}
 
 	if (debug & DEBUG_DUMP_FSNODES) {
-		printf("\nparent: %s\n", argv[1]);
-		dump_fsnodes(".", root);
+		printf("\nparent: %s\n", subtree);
+		dump_fsnodes(root);
 		putchar('\n');
 	}
 
 				/* build the file system */
 	TIMER_START(start);
-	fstype->make_fs(argv[0], argv[1], root, &fsoptions);
+	fstype->make_fs(argv[0], subtree, root, &fsoptions);
 	TIMER_RESULTS(start, "make_fs");
+
+	free_fsnodes(root);
 
 	exit(0);
 	/* NOTREACHED */
@@ -298,6 +370,32 @@ get_fstype(const char *type)
 	return (NULL);
 }
 
+static int
+get_tstamp(const char *b, struct stat *st)
+{
+	time_t when;
+	char *eb;
+	long long l;
+
+	if (stat(b, st) != -1)
+		return 0;
+
+	{
+		errno = 0;
+		l = strtoll(b, &eb, 0);
+		if (b == eb || *eb || errno)
+			return -1;
+		when = (time_t)l;
+	}
+
+	st->st_ino = 1;
+#ifdef HAVE_STRUCT_STAT_BIRTHTIME
+	st->st_birthtime =
+#endif
+	st->st_mtime = st->st_ctime = st->st_atime = when;
+	return 0;
+}
+
 static void
 usage(void)
 {
@@ -305,10 +403,11 @@ usage(void)
 
 	prog = getprogname();
 	fprintf(stderr,
-"usage: %s [-t fs-type] [-o fs-options] [-d debug-mask] [-B endian]\n"
-"\t[-S sector-size] [-M minimum-size] [-m maximum-size] [-s image-size]\n"
-"\t[-b free-blocks] [-f free-files] [-F mtree-specfile] [-x]\n"
-"\t[-N userdb-dir] image-file directory\n",
+"usage: %s [-xZ] [-B endian] [-b free-blocks] [-d debug-mask]\n"
+"\t[-F mtree-specfile] [-f free-files] [-M minimum-size] [-m maximum-size]\n"
+"\t[-N userdb-dir] [-o fs-options] [-R roundup-size] [-S sector-size]\n"
+"\t[-s image-size] [-T <timestamp/file>] [-t fs-type]\n"
+"\timage-file directory | manifest [extra-directory ...]\n",
 	    prog);
 	exit(1);
 }

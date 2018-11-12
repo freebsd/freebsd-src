@@ -22,7 +22,8 @@
 
 /*
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2013, Joyent Inc. All rights reserved.
+ * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
  */
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
@@ -96,11 +97,12 @@
  */
 
 #include <sys/param.h>
+#include <sys/sysmacros.h>
 #include <limits.h>
 #include <setjmp.h>
 #include <strings.h>
 #include <assert.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <stdlib.h>
@@ -195,7 +197,7 @@ dt_type_lookup(const char *s, dtrace_typeinfo_t *tip)
 {
 	static const char delimiters[] = " \t\n\r\v\f*`";
 	dtrace_hdl_t *dtp = yypcb->pcb_hdl;
-	const char *p, *q, *end, *obj;
+	const char *p, *q, *r, *end, *obj;
 
 	for (p = s, end = s + strlen(s); *p != '\0'; p = q) {
 		while (isspace(*p))
@@ -223,8 +225,23 @@ dt_type_lookup(const char *s, dtrace_typeinfo_t *tip)
 			bcopy(s, type, (size_t)(p - s));
 			bcopy(q + 1, type + (size_t)(p - s), strlen(q + 1) + 1);
 
-			if (strchr(q + 1, '`') != NULL)
-				return (dt_set_errno(dtp, EDT_BADSCOPE));
+			/*
+			 * There may be at most three delimeters. The second
+			 * delimeter is usually used to distinguish the type
+			 * within a given module, however, there could be a link
+			 * map id on the scene in which case that delimeter
+			 * would be the third. We determine presence of the lmid
+			 * if it rouglhly meets the from LM[0-9]
+			 */
+			if ((r = strchr(q + 1, '`')) != NULL &&
+			    ((r = strchr(r + 1, '`')) != NULL)) {
+				if (strchr(r + 1, '`') != NULL)
+					return (dt_set_errno(dtp,
+					    EDT_BADSCOPE));
+				if (q[1] != 'L' || q[2] != 'M')
+					return (dt_set_errno(dtp,
+					    EDT_BADSCOPE));
+			}
 
 			return (dtrace_lookup_by_type(dtp, object, type, tip));
 		}
@@ -254,6 +271,7 @@ dt_type_pointer(dtrace_typeinfo_t *tip)
 	ctf_file_t *ctfp = tip->dtt_ctfp;
 	ctf_id_t type = tip->dtt_type;
 	ctf_id_t base = ctf_type_resolve(ctfp, type);
+	uint_t bflags = tip->dtt_flags;
 
 	dt_module_t *dmp;
 	ctf_id_t ptr;
@@ -285,6 +303,7 @@ dt_type_pointer(dtrace_typeinfo_t *tip)
 	tip->dtt_object = dmp->dm_name;
 	tip->dtt_ctfp = dmp->dm_ctfp;
 	tip->dtt_type = ptr;
+	tip->dtt_flags = bflags;
 
 	return (0);
 }
@@ -388,7 +407,7 @@ void
 dt_node_promote(dt_node_t *lp, dt_node_t *rp, dt_node_t *dnp)
 {
 	dt_type_promote(lp, rp, &dnp->dn_ctfp, &dnp->dn_type);
-	dt_node_type_assign(dnp, dnp->dn_ctfp, dnp->dn_type);
+	dt_node_type_assign(dnp, dnp->dn_ctfp, dnp->dn_type, B_FALSE);
 	dt_node_attr_assign(dnp, dt_attr_min(lp->dn_attr, rp->dn_attr));
 }
 
@@ -657,7 +676,8 @@ dt_node_attr_assign(dt_node_t *dnp, dtrace_attribute_t attr)
 }
 
 void
-dt_node_type_assign(dt_node_t *dnp, ctf_file_t *fp, ctf_id_t type)
+dt_node_type_assign(dt_node_t *dnp, ctf_file_t *fp, ctf_id_t type,
+    boolean_t user)
 {
 	ctf_id_t base = ctf_type_resolve(fp, type);
 	uint_t kind = ctf_type_kind(fp, base);
@@ -688,6 +708,9 @@ dt_node_type_assign(dt_node_t *dnp, ctf_file_t *fp, ctf_id_t type)
 	else if (yypcb != NULL && fp == DT_DYN_CTFP(yypcb->pcb_hdl) &&
 	    type == DT_DYN_TYPE(yypcb->pcb_hdl))
 		dnp->dn_flags |= DT_NF_REF;
+
+	if (user)
+		dnp->dn_flags |= DT_NF_USERLAND;
 
 	dnp->dn_flags |= DT_NF_COOKED;
 	dnp->dn_ctfp = fp;
@@ -725,11 +748,33 @@ dt_node_type_name(const dt_node_t *dnp, char *buf, size_t len)
 size_t
 dt_node_type_size(const dt_node_t *dnp)
 {
+	ctf_id_t base;
+	dtrace_hdl_t *dtp = yypcb->pcb_hdl;
+
 	if (dnp->dn_kind == DT_NODE_STRING)
 		return (strlen(dnp->dn_string) + 1);
 
 	if (dt_node_is_dynamic(dnp) && dnp->dn_ident != NULL)
 		return (dt_ident_size(dnp->dn_ident));
+
+	base = ctf_type_resolve(dnp->dn_ctfp, dnp->dn_type);
+
+	if (ctf_type_kind(dnp->dn_ctfp, base) == CTF_K_FORWARD)
+		return (0);
+
+	/*
+	 * Here we have a 32-bit user pointer that is being used with a 64-bit
+	 * kernel. When we're using it and its tagged as a userland reference --
+	 * then we need to keep it as a 32-bit pointer. However, if we are
+	 * referring to it as a kernel address, eg. being used after a copyin()
+	 * then we need to make sure that we actually return the kernel's size
+	 * of a pointer, 8 bytes.
+	 */
+	if (ctf_type_kind(dnp->dn_ctfp, base) == CTF_K_POINTER &&
+	    ctf_getmodel(dnp->dn_ctfp) == CTF_MODEL_ILP32 &&
+	    !(dnp->dn_flags & DT_NF_USERLAND) &&
+	    dtp->dt_conf.dtc_ctfmodel == CTF_MODEL_LP64)
+			return (8);
 
 	return (ctf_type_size(dnp->dn_ctfp, dnp->dn_type));
 }
@@ -1217,7 +1262,7 @@ dt_node_int(uintmax_t value)
 		if (value <= dtp->dt_ints[i].did_limit) {
 			dt_node_type_assign(dnp,
 			    dtp->dt_ints[i].did_ctfp,
-			    dtp->dt_ints[i].did_type);
+			    dtp->dt_ints[i].did_type, B_FALSE);
 
 			/*
 			 * If a prefix character is present in macro text, add
@@ -1252,7 +1297,7 @@ dt_node_string(char *string)
 	dnp = dt_node_alloc(DT_NODE_STRING);
 	dnp->dn_op = DT_TOK_STRING;
 	dnp->dn_string = string;
-	dt_node_type_assign(dnp, DT_STR_CTFP(dtp), DT_STR_TYPE(dtp));
+	dt_node_type_assign(dnp, DT_STR_CTFP(dtp), DT_STR_TYPE(dtp), B_FALSE);
 
 	return (dnp);
 }
@@ -1328,7 +1373,8 @@ dt_node_type(dt_decl_t *ddp)
 	dnp = dt_node_alloc(DT_NODE_TYPE);
 	dnp->dn_op = DT_TOK_IDENT;
 	dnp->dn_string = name;
-	dt_node_type_assign(dnp, dtt.dtt_ctfp, dtt.dtt_type);
+
+	dt_node_type_assign(dnp, dtt.dtt_ctfp, dtt.dtt_type, dtt.dtt_flags);
 
 	if (dtt.dtt_ctfp == dtp->dt_cdefs->dm_ctfp ||
 	    dtt.dtt_ctfp == dtp->dt_ddefs->dm_ctfp)
@@ -1572,7 +1618,8 @@ dt_node_decl(void)
 		bzero(&idn, sizeof (dt_node_t));
 
 		if (idp != NULL && idp->di_type != CTF_ERR)
-			dt_node_type_assign(&idn, idp->di_ctfp, idp->di_type);
+			dt_node_type_assign(&idn, idp->di_ctfp, idp->di_type,
+			    B_FALSE);
 		else if (idp != NULL)
 			(void) dt_ident_cook(&idn, idp, NULL);
 
@@ -1782,7 +1829,7 @@ dt_node_offsetof(dt_decl_t *ddp, char *s)
 	}
 
 	bzero(&dn, sizeof (dn));
-	dt_node_type_assign(&dn, dtt.dtt_ctfp, ctm.ctm_type);
+	dt_node_type_assign(&dn, dtt.dtt_ctfp, ctm.ctm_type, B_FALSE);
 
 	if (dn.dn_flags & DT_NF_BITFIELD) {
 		xyerror(D_OFFSETOF_BITFIELD,
@@ -1838,7 +1885,8 @@ dt_node_op1(int op, dt_node_t *cp)
 		}
 
 		dt_node_type_assign(cp, dtp->dt_ddefs->dm_ctfp,
-		    ctf_lookup_by_name(dtp->dt_ddefs->dm_ctfp, "size_t"));
+		    ctf_lookup_by_name(dtp->dt_ddefs->dm_ctfp, "size_t"),
+		    B_FALSE);
 
 		cp->dn_kind = DT_NODE_INT;
 		cp->dn_op = DT_TOK_INT;
@@ -1853,6 +1901,38 @@ dt_node_op1(int op, dt_node_t *cp)
 	dnp->dn_child = cp;
 
 	return (dnp);
+}
+
+/*
+ * If an integer constant is being cast to another integer type, we can
+ * perform the cast as part of integer constant folding in this pass. We must
+ * take action when the integer is being cast to a smaller type or if it is
+ * changing signed-ness. If so, we first shift rp's bits bits high (losing
+ * excess bits if narrowing) and then shift them down with either a logical
+ * shift (unsigned) or arithmetic shift (signed).
+ */
+static void
+dt_cast(dt_node_t *lp, dt_node_t *rp)
+{
+	size_t srcsize = dt_node_type_size(rp);
+	size_t dstsize = dt_node_type_size(lp);
+
+	if (dstsize < srcsize) {
+		int n = (sizeof (uint64_t) - dstsize) * NBBY;
+		rp->dn_value <<= n;
+		rp->dn_value >>= n;
+	} else if (dstsize > srcsize) {
+		int n = (sizeof (uint64_t) - srcsize) * NBBY;
+		int s = (dstsize - srcsize) * NBBY;
+
+		rp->dn_value <<= n;
+		if (rp->dn_flags & DT_NF_SIGNED) {
+			rp->dn_value = (intmax_t)rp->dn_value >> s;
+			rp->dn_value >>= n - s;
+		} else {
+			rp->dn_value >>= n;
+		}
+	}
 }
 
 dt_node_t *
@@ -1884,17 +1964,17 @@ dt_node_op2(int op, dt_node_t *lp, dt_node_t *rp)
 		case DT_TOK_LOR:
 			dnp->dn_value = l || r;
 			dt_node_type_assign(dnp,
-			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp));
+			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp), B_FALSE);
 			break;
 		case DT_TOK_LXOR:
 			dnp->dn_value = (l != 0) ^ (r != 0);
 			dt_node_type_assign(dnp,
-			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp));
+			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp), B_FALSE);
 			break;
 		case DT_TOK_LAND:
 			dnp->dn_value = l && r;
 			dt_node_type_assign(dnp,
-			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp));
+			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp), B_FALSE);
 			break;
 		case DT_TOK_BOR:
 			dnp->dn_value = l | r;
@@ -1911,12 +1991,12 @@ dt_node_op2(int op, dt_node_t *lp, dt_node_t *rp)
 		case DT_TOK_EQU:
 			dnp->dn_value = l == r;
 			dt_node_type_assign(dnp,
-			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp));
+			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp), B_FALSE);
 			break;
 		case DT_TOK_NEQ:
 			dnp->dn_value = l != r;
 			dt_node_type_assign(dnp,
-			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp));
+			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp), B_FALSE);
 			break;
 		case DT_TOK_LT:
 			dt_node_promote(lp, rp, dnp);
@@ -1925,7 +2005,7 @@ dt_node_op2(int op, dt_node_t *lp, dt_node_t *rp)
 			else
 				dnp->dn_value = l < r;
 			dt_node_type_assign(dnp,
-			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp));
+			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp), B_FALSE);
 			break;
 		case DT_TOK_LE:
 			dt_node_promote(lp, rp, dnp);
@@ -1934,7 +2014,7 @@ dt_node_op2(int op, dt_node_t *lp, dt_node_t *rp)
 			else
 				dnp->dn_value = l <= r;
 			dt_node_type_assign(dnp,
-			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp));
+			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp), B_FALSE);
 			break;
 		case DT_TOK_GT:
 			dt_node_promote(lp, rp, dnp);
@@ -1943,7 +2023,7 @@ dt_node_op2(int op, dt_node_t *lp, dt_node_t *rp)
 			else
 				dnp->dn_value = l > r;
 			dt_node_type_assign(dnp,
-			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp));
+			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp), B_FALSE);
 			break;
 		case DT_TOK_GE:
 			dt_node_promote(lp, rp, dnp);
@@ -1952,7 +2032,7 @@ dt_node_op2(int op, dt_node_t *lp, dt_node_t *rp)
 			else
 				dnp->dn_value = l >= r;
 			dt_node_type_assign(dnp,
-			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp));
+			    DT_INT_CTFP(dtp), DT_INT_TYPE(dtp), B_FALSE);
 			break;
 		case DT_TOK_LSH:
 			dnp->dn_value = l << r;
@@ -2004,32 +2084,9 @@ dt_node_op2(int op, dt_node_t *lp, dt_node_t *rp)
 		}
 	}
 
-	/*
-	 * If an integer constant is being cast to another integer type, we can
-	 * perform the cast as part of integer constant folding in this pass.
-	 * We must take action when the integer is being cast to a smaller type
-	 * or if it is changing signed-ness.  If so, we first shift rp's bits
-	 * bits high (losing excess bits if narrowing) and then shift them down
-	 * with either a logical shift (unsigned) or arithmetic shift (signed).
-	 */
 	if (op == DT_TOK_LPAR && rp->dn_kind == DT_NODE_INT &&
 	    dt_node_is_integer(lp)) {
-		size_t srcsize = dt_node_type_size(rp);
-		size_t dstsize = dt_node_type_size(lp);
-
-		if ((dstsize < srcsize) || ((lp->dn_flags & DT_NF_SIGNED) ^
-		    (rp->dn_flags & DT_NF_SIGNED))) {
-			int n = dstsize < srcsize ?
-			    (sizeof (uint64_t) * NBBY - dstsize * NBBY) :
-			    (sizeof (uint64_t) * NBBY - srcsize * NBBY);
-
-			rp->dn_value <<= n;
-			if (lp->dn_flags & DT_NF_SIGNED)
-				rp->dn_value = (intmax_t)rp->dn_value >> n;
-			else
-				rp->dn_value = rp->dn_value >> n;
-		}
-
+		dt_cast(lp, rp);
 		dt_node_type_propagate(lp, rp);
 		dt_node_attr_assign(rp, dt_attr_min(lp->dn_attr, rp->dn_attr));
 		dt_node_free(lp);
@@ -2082,6 +2139,17 @@ dt_node_statement(dt_node_t *expr)
 		dnp = dt_node_alloc(DT_NODE_DEXPR);
 
 	dnp->dn_expr = expr;
+	return (dnp);
+}
+
+dt_node_t *
+dt_node_if(dt_node_t *pred, dt_node_t *acts, dt_node_t *else_acts)
+{
+	dt_node_t *dnp = dt_node_alloc(DT_NODE_IF);
+	dnp->dn_conditional = pred;
+	dnp->dn_body = acts;
+	dnp->dn_alternate_body = else_acts;
+
 	return (dnp);
 }
 
@@ -2154,7 +2222,6 @@ dt_node_clause(dt_node_t *pdescs, dt_node_t *pred, dt_node_t *acts)
 	dnp->dn_pred = pred;
 	dnp->dn_acts = acts;
 
-	yybegin(YYS_CLAUSE);
 	return (dnp);
 }
 
@@ -2216,7 +2283,7 @@ dt_node_inline(dt_node_t *expr)
 	 * until we have successfully cooked the right-hand expression, below.
 	 */
 	dnp = dt_node_alloc(DT_NODE_INLINE);
-	dt_node_type_assign(dnp, dtt.dtt_ctfp, dtt.dtt_type);
+	dt_node_type_assign(dnp, dtt.dtt_ctfp, dtt.dtt_type, B_FALSE);
 	dt_node_attr_assign(dnp, _dtrace_defattr);
 
 	if (dt_node_is_void(dnp)) {
@@ -2371,7 +2438,8 @@ dt_node_member(dt_decl_t *ddp, char *name, dt_node_t *expr)
 	dnp->dn_membexpr = expr;
 
 	if (ddp != NULL)
-		dt_node_type_assign(dnp, dtt.dtt_ctfp, dtt.dtt_type);
+		dt_node_type_assign(dnp, dtt.dtt_ctfp, dtt.dtt_type,
+		    dtt.dtt_flags);
 
 	return (dnp);
 }
@@ -2402,10 +2470,10 @@ dt_node_xlator(dt_decl_t *ddp, dt_decl_t *sdp, char *name, dt_node_t *members)
 	}
 
 	bzero(&sn, sizeof (sn));
-	dt_node_type_assign(&sn, src.dtt_ctfp, src.dtt_type);
+	dt_node_type_assign(&sn, src.dtt_ctfp, src.dtt_type, B_FALSE);
 
 	bzero(&dn, sizeof (dn));
-	dt_node_type_assign(&dn, dst.dtt_ctfp, dst.dtt_type);
+	dt_node_type_assign(&dn, dst.dtt_ctfp, dst.dtt_type, B_FALSE);
 
 	if (dt_xlator_lookup(dtp, &sn, &dn, DT_XLATE_EXACT) != NULL) {
 		xyerror(D_XLATE_REDECL,
@@ -2651,7 +2719,7 @@ dt_xcook_ident(dt_node_t *dnp, dt_idhash_t *dhp, uint_t idkind, int create)
 			attr = dt_ident_cook(dnp, idp, NULL);
 		else {
 			dt_node_type_assign(dnp,
-			    DT_DYN_CTFP(dtp), DT_DYN_TYPE(dtp));
+			    DT_DYN_CTFP(dtp), DT_DYN_TYPE(dtp), B_FALSE);
 			attr = idp->di_attr;
 		}
 
@@ -2727,7 +2795,8 @@ dt_xcook_ident(dt_node_t *dnp, dt_idhash_t *dhp, uint_t idkind, int create)
 		dnp->dn_ident = idp;
 		dnp->dn_flags |= DT_NF_LVALUE;
 
-		dt_node_type_assign(dnp, dtt.dtt_ctfp, dtt.dtt_type);
+		dt_node_type_assign(dnp, dtt.dtt_ctfp, dtt.dtt_type,
+		    dtt.dtt_flags);
 		dt_node_attr_assign(dnp, _dtrace_symattr);
 
 		if (uref) {
@@ -2775,7 +2844,7 @@ dt_xcook_ident(dt_node_t *dnp, dt_idhash_t *dhp, uint_t idkind, int create)
 			attr = dt_ident_cook(dnp, idp, NULL);
 		else {
 			dt_node_type_assign(dnp,
-			    DT_DYN_CTFP(dtp), DT_DYN_TYPE(dtp));
+			    DT_DYN_CTFP(dtp), DT_DYN_TYPE(dtp), B_FALSE);
 			attr = idp->di_attr;
 		}
 
@@ -2878,7 +2947,8 @@ dt_cook_op1(dt_node_t *dnp, uint_t idflags)
 			xyerror(D_TYPE_ERR, "failed to lookup int64_t\n");
 
 		dt_ident_type_assign(cp->dn_ident, dtt.dtt_ctfp, dtt.dtt_type);
-		dt_node_type_assign(cp, dtt.dtt_ctfp, dtt.dtt_type);
+		dt_node_type_assign(cp, dtt.dtt_ctfp, dtt.dtt_type,
+		    dtt.dtt_flags);
 	}
 
 	if (cp->dn_kind == DT_NODE_VAR)
@@ -2888,14 +2958,15 @@ dt_cook_op1(dt_node_t *dnp, uint_t idflags)
 	case DT_TOK_DEREF:
 		/*
 		 * If the deref operator is applied to a translated pointer,
-		 * we can just set our output type to the base translation.
+		 * we set our output type to the output of the translation.
 		 */
 		if ((idp = dt_node_resolve(cp, DT_IDENT_XLPTR)) != NULL) {
 			dt_xlator_t *dxp = idp->di_data;
 
 			dnp->dn_ident = &dxp->dx_souid;
 			dt_node_type_assign(dnp,
-			    DT_DYN_CTFP(dtp), DT_DYN_TYPE(dtp));
+			    dnp->dn_ident->di_ctfp, dnp->dn_ident->di_type,
+			    cp->dn_flags & DT_NF_USERLAND);
 			break;
 		}
 
@@ -2915,7 +2986,8 @@ dt_cook_op1(dt_node_t *dnp, uint_t idflags)
 			    "cannot dereference non-pointer type\n");
 		}
 
-		dt_node_type_assign(dnp, cp->dn_ctfp, type);
+		dt_node_type_assign(dnp, cp->dn_ctfp, type,
+		    cp->dn_flags & DT_NF_USERLAND);
 		base = ctf_type_resolve(cp->dn_ctfp, type);
 		kind = ctf_type_kind(cp->dn_ctfp, base);
 
@@ -2972,7 +3044,8 @@ dt_cook_op1(dt_node_t *dnp, uint_t idflags)
 			xyerror(D_OP_SCALAR, "operator %s requires an operand "
 			    "of scalar type\n", opstr(dnp->dn_op));
 		}
-		dt_node_type_assign(dnp, DT_INT_CTFP(dtp), DT_INT_TYPE(dtp));
+		dt_node_type_assign(dnp, DT_INT_CTFP(dtp), DT_INT_TYPE(dtp),
+		    B_FALSE);
 		break;
 
 	case DT_TOK_ADDROF:
@@ -3005,10 +3078,8 @@ dt_cook_op1(dt_node_t *dnp, uint_t idflags)
 			    dt_node_type_name(cp, n, sizeof (n)));
 		}
 
-		dt_node_type_assign(dnp, dtt.dtt_ctfp, dtt.dtt_type);
-
-		if (cp->dn_flags & DT_NF_USERLAND)
-			dnp->dn_flags |= DT_NF_USERLAND;
+		dt_node_type_assign(dnp, dtt.dtt_ctfp, dtt.dtt_type,
+		    cp->dn_flags & DT_NF_USERLAND);
 		break;
 
 	case DT_TOK_SIZEOF:
@@ -3023,7 +3094,8 @@ dt_cook_op1(dt_node_t *dnp, uint_t idflags)
 		}
 
 		dt_node_type_assign(dnp, dtp->dt_ddefs->dm_ctfp,
-		    ctf_lookup_by_name(dtp->dt_ddefs->dm_ctfp, "size_t"));
+		    ctf_lookup_by_name(dtp->dt_ddefs->dm_ctfp, "size_t"),
+		    B_FALSE);
 		break;
 
 	case DT_TOK_STRINGOF:
@@ -3033,7 +3105,8 @@ dt_cook_op1(dt_node_t *dnp, uint_t idflags)
 			    "cannot apply stringof to a value of type %s\n",
 			    dt_node_type_name(cp, n, sizeof (n)));
 		}
-		dt_node_type_assign(dnp, DT_STR_CTFP(dtp), DT_STR_TYPE(dtp));
+		dt_node_type_assign(dnp, DT_STR_CTFP(dtp), DT_STR_TYPE(dtp),
+		    cp->dn_flags & DT_NF_USERLAND);
 		break;
 
 	case DT_TOK_PREINC:
@@ -3069,6 +3142,31 @@ dt_cook_op1(dt_node_t *dnp, uint_t idflags)
 
 	dt_node_attr_assign(dnp, cp->dn_attr);
 	return (dnp);
+}
+
+static void
+dt_assign_common(dt_node_t *dnp)
+{
+	dt_node_t *lp = dnp->dn_left;
+	dt_node_t *rp = dnp->dn_right;
+	int op = dnp->dn_op;
+
+	if (rp->dn_kind == DT_NODE_INT)
+		dt_cast(lp, rp);
+
+	if (!(lp->dn_flags & DT_NF_LVALUE)) {
+		xyerror(D_OP_LVAL, "operator %s requires modifiable "
+		    "lvalue as an operand\n", opstr(op));
+		/* see K&R[A7.17] */
+	}
+
+	if (!(lp->dn_flags & DT_NF_WRITABLE)) {
+		xyerror(D_OP_WRITE, "operator %s can only be applied "
+		    "to a writable variable\n", opstr(op));
+	}
+
+	dt_node_type_propagate(lp, dnp); /* see K&R[A7.17] */
+	dt_node_attr_assign(dnp, dt_attr_min(lp->dn_attr, rp->dn_attr));
 }
 
 static dt_node_t *
@@ -3115,8 +3213,9 @@ dt_cook_op2(dt_node_t *dnp, uint_t idflags)
 				dt_xcook_ident(lp, dhp, idkind, B_TRUE);
 			else
 				dt_xcook_ident(lp, dhp, idp->di_kind, B_FALSE);
-		} else
+		} else {
 			lp = dnp->dn_left = dt_node_cook(lp, 0);
+		}
 
 		/*
 		 * Switch op to '+' for *(E1 + E2) array mode in these cases:
@@ -3130,10 +3229,12 @@ dt_cook_op2(dt_node_t *dnp, uint_t idflags)
 			if (lp->dn_ident->di_kind == DT_IDENT_ARRAY) {
 				if (lp->dn_args != NULL)
 					op = DT_TOK_ADD;
-			} else if (!dt_ident_unref(lp->dn_ident))
+			} else if (!dt_ident_unref(lp->dn_ident)) {
 				op = DT_TOK_ADD;
-		} else if (lp->dn_kind != DT_NODE_AGG)
+			}
+		} else if (lp->dn_kind != DT_NODE_AGG) {
 			op = DT_TOK_ADD;
+		}
 	}
 
 	switch (op) {
@@ -3201,7 +3302,8 @@ dt_cook_op2(dt_node_t *dnp, uint_t idflags)
 			    "of scalar type\n", opstr(op));
 		}
 
-		dt_node_type_assign(dnp, DT_INT_CTFP(dtp), DT_INT_TYPE(dtp));
+		dt_node_type_assign(dnp, DT_INT_CTFP(dtp), DT_INT_TYPE(dtp),
+		    B_FALSE);
 		dt_node_attr_assign(dnp, dt_attr_min(lp->dn_attr, rp->dn_attr));
 		break;
 
@@ -3245,7 +3347,8 @@ dt_cook_op2(dt_node_t *dnp, uint_t idflags)
 			rp->dn_op = DT_TOK_INT;
 			rp->dn_value = (intmax_t)val;
 
-			dt_node_type_assign(rp, lp->dn_ctfp, lp->dn_type);
+			dt_node_type_assign(rp, lp->dn_ctfp, lp->dn_type,
+			    B_FALSE);
 			dt_node_attr_assign(rp, _dtrace_symattr);
 		}
 
@@ -3277,7 +3380,8 @@ dt_cook_op2(dt_node_t *dnp, uint_t idflags)
 			    dt_node_type_name(rp, n2, sizeof (n2)));
 		}
 
-		dt_node_type_assign(dnp, DT_INT_CTFP(dtp), DT_INT_TYPE(dtp));
+		dt_node_type_assign(dnp, DT_INT_CTFP(dtp), DT_INT_TYPE(dtp),
+		    B_FALSE);
 		dt_node_attr_assign(dnp, dt_attr_min(lp->dn_attr, rp->dn_attr));
 		break;
 
@@ -3325,7 +3429,7 @@ dt_cook_op2(dt_node_t *dnp, uint_t idflags)
 			    dt_node_type_name(rp, n2, sizeof (n2)));
 		}
 
-		dt_node_type_assign(dnp, ctfp, type);
+		dt_node_type_assign(dnp, ctfp, type, B_FALSE);
 		dt_node_attr_assign(dnp, dt_attr_min(lp->dn_attr, rp->dn_attr));
 
 		if (uref)
@@ -3466,7 +3570,7 @@ dt_cook_op2(dt_node_t *dnp, uint_t idflags)
 		 */
 		if (lp->dn_kind == DT_NODE_VAR &&
 		    dt_ident_unref(lp->dn_ident)) {
-			dt_node_type_assign(lp, ctfp, type);
+			dt_node_type_assign(lp, ctfp, type, B_FALSE);
 			dt_ident_type_assign(lp->dn_ident, ctfp, type);
 
 			if (uref) {
@@ -3549,62 +3653,39 @@ dt_cook_op2(dt_node_t *dnp, uint_t idflags)
 			}
 		}
 asgn_common:
-		if (!(lp->dn_flags & DT_NF_LVALUE)) {
-			xyerror(D_OP_LVAL, "operator %s requires modifiable "
-			    "lvalue as an operand\n", opstr(op));
-			/* see K&R[A7.17] */
-		}
-
-		if (!(lp->dn_flags & DT_NF_WRITABLE)) {
-			xyerror(D_OP_WRITE, "operator %s can only be applied "
-			    "to a writable variable\n", opstr(op));
-		}
-
-		dt_node_type_propagate(lp, dnp); /* see K&R[A7.17] */
-		dt_node_attr_assign(dnp, dt_attr_min(lp->dn_attr, rp->dn_attr));
+		dt_assign_common(dnp);
 		break;
 
 	case DT_TOK_PTR:
 		/*
-		 * If the left-hand side of operator -> is the name "self",
-		 * then we permit a TLS variable to be created or referenced.
+		 * If the left-hand side of operator -> is one of the scoping
+		 * keywords, permit a local or thread variable to be created or
+		 * referenced.
 		 */
-		if (lp->dn_kind == DT_NODE_IDENT &&
-		    strcmp(lp->dn_string, "self") == 0) {
-			if (rp->dn_kind != DT_NODE_VAR) {
-				dt_xcook_ident(rp, dtp->dt_tls,
-				    DT_IDENT_SCALAR, B_TRUE);
+		if (lp->dn_kind == DT_NODE_IDENT) {
+			dt_idhash_t *dhp = NULL;
+
+			if (strcmp(lp->dn_string, "self") == 0) {
+				dhp = dtp->dt_tls;
+			} else if (strcmp(lp->dn_string, "this") == 0) {
+				dhp = yypcb->pcb_locals;
 			}
+			if (dhp != NULL) {
+				if (rp->dn_kind != DT_NODE_VAR) {
+					dt_xcook_ident(rp, dhp,
+					    DT_IDENT_SCALAR, B_TRUE);
+				}
 
-			if (idflags != 0)
-				rp = dt_node_cook(rp, idflags);
+				if (idflags != 0)
+					rp = dt_node_cook(rp, idflags);
 
-			dnp->dn_right = dnp->dn_left; /* avoid freeing rp */
-			dt_node_free(dnp);
-			return (rp);
-		}
-
-		/*
-		 * If the left-hand side of operator -> is the name "this",
-		 * then we permit a local variable to be created or referenced.
-		 */
-		if (lp->dn_kind == DT_NODE_IDENT &&
-		    strcmp(lp->dn_string, "this") == 0) {
-			if (rp->dn_kind != DT_NODE_VAR) {
-				dt_xcook_ident(rp, yypcb->pcb_locals,
-				    DT_IDENT_SCALAR, B_TRUE);
+				/* avoid freeing rp */
+				dnp->dn_right = dnp->dn_left;
+				dt_node_free(dnp);
+				return (rp);
 			}
-
-			if (idflags != 0)
-				rp = dt_node_cook(rp, idflags);
-
-			dnp->dn_right = dnp->dn_left; /* avoid freeing rp */
-			dt_node_free(dnp);
-			return (rp);
 		}
-
 		/*FALLTHRU*/
-
 	case DT_TOK_DOT:
 		lp = dnp->dn_left = dt_node_cook(lp, DT_IDFLG_REF);
 
@@ -3692,7 +3773,7 @@ asgn_common:
 		type = ctf_type_resolve(ctfp, m.ctm_type);
 		kind = ctf_type_kind(ctfp, type);
 
-		dt_node_type_assign(dnp, ctfp, m.ctm_type);
+		dt_node_type_assign(dnp, ctfp, m.ctm_type, B_FALSE);
 		dt_node_attr_assign(dnp, lp->dn_attr);
 
 		if (op == DT_TOK_PTR && (kind != CTF_K_ARRAY ||
@@ -3818,7 +3899,8 @@ asgn_common:
 		}
 
 		dnp->dn_ident = dt_xlator_ident(dxp, lp->dn_ctfp, lp->dn_type);
-		dt_node_type_assign(dnp, DT_DYN_CTFP(dtp), DT_DYN_TYPE(dtp));
+		dt_node_type_assign(dnp, DT_DYN_CTFP(dtp), DT_DYN_TYPE(dtp),
+		    B_FALSE);
 		dt_node_attr_assign(dnp,
 		    dt_attr_min(rp->dn_attr, dnp->dn_ident->di_attr));
 		break;
@@ -3866,6 +3948,14 @@ asgn_common:
 
 		dt_node_type_propagate(lp, dnp); /* see K&R[A7.5] */
 		dt_node_attr_assign(dnp, dt_attr_min(lp->dn_attr, rp->dn_attr));
+
+		/*
+		 * If it's a pointer then should be able to (attempt to)
+		 * assign to it.
+		 */
+		if (lkind == CTF_K_POINTER)
+			dnp->dn_flags |= DT_NF_WRITABLE;
+
 		break;
 	}
 
@@ -3975,7 +4065,7 @@ dt_cook_op3(dt_node_t *dnp, uint_t idflags)
 		    "used in a conditional context\n");
 	}
 
-	dt_node_type_assign(dnp, ctfp, type);
+	dt_node_type_assign(dnp, ctfp, type, B_FALSE);
 	dt_node_attr_assign(dnp, dt_attr_min(dnp->dn_expr->dn_attr,
 	    dt_attr_min(lp->dn_attr, rp->dn_attr)));
 
@@ -4008,7 +4098,8 @@ dt_cook_aggregation(dt_node_t *dnp, uint_t idflags)
 		dt_node_attr_assign(dnp, dt_ident_cook(dnp,
 		    dnp->dn_ident, &dnp->dn_aggtup));
 	} else {
-		dt_node_type_assign(dnp, DT_DYN_CTFP(dtp), DT_DYN_TYPE(dtp));
+		dt_node_type_assign(dnp, DT_DYN_CTFP(dtp), DT_DYN_TYPE(dtp),
+		    B_FALSE);
 		dt_node_attr_assign(dnp, dnp->dn_ident->di_attr);
 	}
 
@@ -4210,7 +4301,8 @@ dt_cook_xlator(dt_node_t *dnp, uint_t idflags)
 		}
 
 		(void) dt_node_cook(mnp, DT_IDFLG_REF);
-		dt_node_type_assign(mnp, dxp->dx_dst_ctfp, ctm.ctm_type);
+		dt_node_type_assign(mnp, dxp->dx_dst_ctfp, ctm.ctm_type,
+		    B_FALSE);
 		attr = dt_attr_min(attr, mnp->dn_attr);
 
 		if (dt_node_is_argcompat(mnp, mnp->dn_membexpr) == 0) {
@@ -4229,7 +4321,7 @@ dt_cook_xlator(dt_node_t *dnp, uint_t idflags)
 	dxp->dx_souid.di_attr = attr;
 	dxp->dx_ptrid.di_attr = attr;
 
-	dt_node_type_assign(dnp, DT_DYN_CTFP(dtp), DT_DYN_TYPE(dtp));
+	dt_node_type_assign(dnp, DT_DYN_CTFP(dtp), DT_DYN_TYPE(dtp), B_FALSE);
 	dt_node_attr_assign(dnp, _dtrace_defattr);
 
 	return (dnp);
@@ -4412,7 +4504,8 @@ static dt_node_t *(*dt_cook_funcs[])(dt_node_t *, uint_t) = {
 	dt_cook_xlator,		/* DT_NODE_XLATOR */
 	dt_cook_none,		/* DT_NODE_PROBE */
 	dt_cook_provider,	/* DT_NODE_PROVIDER */
-	dt_cook_none		/* DT_NODE_PROG */
+	dt_cook_none,		/* DT_NODE_PROG */
+	dt_cook_none,		/* DT_NODE_IF */
 };
 
 /*
@@ -4427,6 +4520,8 @@ dt_node_cook(dt_node_t *dnp, uint_t idflags)
 
 	yylineno = dnp->dn_line;
 
+	assert(dnp->dn_kind <
+	    sizeof (dt_cook_funcs) / sizeof (dt_cook_funcs[0]));
 	dnp = dt_cook_funcs[dnp->dn_kind](dnp, idflags);
 	dnp->dn_flags |= DT_NF_COOKED;
 
@@ -4522,9 +4617,186 @@ dt_node_diftype(dtrace_hdl_t *dtp, const dt_node_t *dnp, dtrace_diftype_t *tp)
 		    ctf_type_resolve(dnp->dn_ctfp, dnp->dn_type));
 	}
 
-	tp->dtdt_flags = (dnp->dn_flags & DT_NF_REF) ? DIF_TF_BYREF : 0;
+	tp->dtdt_flags = (dnp->dn_flags & DT_NF_REF) ?
+	    (dnp->dn_flags & DT_NF_USERLAND) ? DIF_TF_BYUREF :
+	    DIF_TF_BYREF : 0;
 	tp->dtdt_pad = 0;
 	tp->dtdt_size = ctf_type_size(dnp->dn_ctfp, dnp->dn_type);
+}
+
+/*
+ * Output the parse tree as D.  The "-xtree=8" argument will call this
+ * function to print out the program after any syntactic sugar
+ * transformations have been applied (e.g. to implement "if").  The
+ * resulting output can be used to understand the transformations
+ * applied by these features, or to run such a script on a system that
+ * does not support these features
+ *
+ * Note that the output does not express precisely the same program as
+ * the input.  In particular:
+ *  - Only the clauses are output.  #pragma options, variable
+ *    declarations, etc. are excluded.
+ *  - Command argument substitution has already been done, so the output
+ *    will not contain e.g. $$1, but rather the substituted string.
+ */
+void
+dt_printd(dt_node_t *dnp, FILE *fp, int depth)
+{
+	dt_node_t *arg;
+
+	switch (dnp->dn_kind) {
+	case DT_NODE_INT:
+		(void) fprintf(fp, "0x%llx", (u_longlong_t)dnp->dn_value);
+		if (!(dnp->dn_flags & DT_NF_SIGNED))
+			(void) fprintf(fp, "u");
+		break;
+
+	case DT_NODE_STRING: {
+		char *escd = strchr2esc(dnp->dn_string, strlen(dnp->dn_string));
+		(void) fprintf(fp, "\"%s\"", escd);
+		free(escd);
+		break;
+	}
+
+	case DT_NODE_IDENT:
+		(void) fprintf(fp, "%s", dnp->dn_string);
+		break;
+
+	case DT_NODE_VAR:
+		(void) fprintf(fp, "%s%s",
+		    (dnp->dn_ident->di_flags & DT_IDFLG_LOCAL) ? "this->" :
+		    (dnp->dn_ident->di_flags & DT_IDFLG_TLS) ? "self->" : "",
+		    dnp->dn_ident->di_name);
+
+		if (dnp->dn_args != NULL) {
+			(void) fprintf(fp, "[");
+
+			for (arg = dnp->dn_args; arg != NULL;
+			    arg = arg->dn_list) {
+				dt_printd(arg, fp, 0);
+				if (arg->dn_list != NULL)
+					(void) fprintf(fp, ", ");
+			}
+
+			(void) fprintf(fp, "]");
+		}
+		break;
+
+	case DT_NODE_SYM: {
+		const dtrace_syminfo_t *dts = dnp->dn_ident->di_data;
+		(void) fprintf(fp, "%s`%s", dts->dts_object, dts->dts_name);
+		break;
+	}
+	case DT_NODE_FUNC:
+		(void) fprintf(fp, "%s(", dnp->dn_ident->di_name);
+
+		for (arg = dnp->dn_args; arg != NULL; arg = arg->dn_list) {
+			dt_printd(arg, fp, 0);
+			if (arg->dn_list != NULL)
+				(void) fprintf(fp, ", ");
+		}
+		(void) fprintf(fp, ")");
+		break;
+
+	case DT_NODE_OP1:
+		(void) fprintf(fp, "%s(", opstr(dnp->dn_op));
+		dt_printd(dnp->dn_child, fp, 0);
+		(void) fprintf(fp, ")");
+		break;
+
+	case DT_NODE_OP2:
+		(void) fprintf(fp, "(");
+		dt_printd(dnp->dn_left, fp, 0);
+		if (dnp->dn_op == DT_TOK_LPAR) {
+			(void) fprintf(fp, ")");
+			dt_printd(dnp->dn_right, fp, 0);
+			break;
+		}
+		if (dnp->dn_op == DT_TOK_PTR || dnp->dn_op == DT_TOK_DOT ||
+		    dnp->dn_op == DT_TOK_LBRAC)
+			(void) fprintf(fp, "%s", opstr(dnp->dn_op));
+		else
+			(void) fprintf(fp, " %s ", opstr(dnp->dn_op));
+		dt_printd(dnp->dn_right, fp, 0);
+		if (dnp->dn_op == DT_TOK_LBRAC) {
+			dt_node_t *ln = dnp->dn_right;
+			while (ln->dn_list != NULL) {
+				(void) fprintf(fp, ", ");
+				dt_printd(ln->dn_list, fp, depth);
+				ln = ln->dn_list;
+			}
+			(void) fprintf(fp, "]");
+		}
+		(void) fprintf(fp, ")");
+		break;
+
+	case DT_NODE_OP3:
+		(void) fprintf(fp, "(");
+		dt_printd(dnp->dn_expr, fp, 0);
+		(void) fprintf(fp, " ? ");
+		dt_printd(dnp->dn_left, fp, 0);
+		(void) fprintf(fp, " : ");
+		dt_printd(dnp->dn_right, fp, 0);
+		(void) fprintf(fp, ")");
+		break;
+
+	case DT_NODE_DEXPR:
+	case DT_NODE_DFUNC:
+		(void) fprintf(fp, "%*s", depth * 8, "");
+		dt_printd(dnp->dn_expr, fp, depth + 1);
+		(void) fprintf(fp, ";\n");
+		break;
+
+	case DT_NODE_PDESC:
+		(void) fprintf(fp, "%s:%s:%s:%s",
+		    dnp->dn_desc->dtpd_provider, dnp->dn_desc->dtpd_mod,
+		    dnp->dn_desc->dtpd_func, dnp->dn_desc->dtpd_name);
+		break;
+
+	case DT_NODE_CLAUSE:
+		for (arg = dnp->dn_pdescs; arg != NULL; arg = arg->dn_list) {
+			dt_printd(arg, fp, 0);
+			if (arg->dn_list != NULL)
+				(void) fprintf(fp, ",");
+			(void) fprintf(fp, "\n");
+		}
+
+		if (dnp->dn_pred != NULL) {
+			(void) fprintf(fp, "/");
+			dt_printd(dnp->dn_pred, fp, 0);
+			(void) fprintf(fp, "/\n");
+		}
+			(void) fprintf(fp, "{\n");
+
+		for (arg = dnp->dn_acts; arg != NULL; arg = arg->dn_list)
+			dt_printd(arg, fp, depth + 1);
+		(void) fprintf(fp, "}\n");
+		(void) fprintf(fp, "\n");
+		break;
+
+	case DT_NODE_IF:
+		(void) fprintf(fp, "%*sif (", depth * 8, "");
+		dt_printd(dnp->dn_conditional, fp, 0);
+		(void) fprintf(fp, ") {\n");
+
+		for (arg = dnp->dn_body; arg != NULL; arg = arg->dn_list)
+			dt_printd(arg, fp, depth + 1);
+		if (dnp->dn_alternate_body == NULL) {
+			(void) fprintf(fp, "%*s}\n", depth * 8, "");
+		} else {
+			(void) fprintf(fp, "%*s} else {\n", depth * 8, "");
+			for (arg = dnp->dn_alternate_body; arg != NULL;
+			    arg = arg->dn_list)
+				dt_printd(arg, fp, depth + 1);
+			(void) fprintf(fp, "%*s}\n", depth * 8, "");
+		}
+
+		break;
+
+	default:
+		(void) fprintf(fp, "/* bad node %p, kind %d */\n",
+		    (void *)dnp, dnp->dn_kind);
+	}
 }
 
 void
@@ -4637,6 +4909,13 @@ dt_node_printr(dt_node_t *dnp, FILE *fp, int depth)
 		(void) fprintf(fp, "OP2 %s (%s)\n", opstr(dnp->dn_op), buf);
 		dt_node_printr(dnp->dn_left, fp, depth + 1);
 		dt_node_printr(dnp->dn_right, fp, depth + 1);
+		if (dnp->dn_op == DT_TOK_LBRAC) {
+			dt_node_t *ln = dnp->dn_right;
+			while (ln->dn_list != NULL) {
+				dt_node_printr(ln->dn_list, fp, depth + 1);
+				ln = ln->dn_list;
+			}
+		}
 		break;
 
 	case DT_NODE_OP3:
@@ -4698,6 +4977,7 @@ dt_node_printr(dt_node_t *dnp, FILE *fp, int depth)
 
 		for (arg = dnp->dn_acts; arg != NULL; arg = arg->dn_list)
 			dt_node_printr(arg, fp, depth + 1);
+		(void) fprintf(fp, "\n");
 		break;
 
 	case DT_NODE_INLINE:
@@ -4746,6 +5026,24 @@ dt_node_printr(dt_node_t *dnp, FILE *fp, int depth)
 		(void) fprintf(fp, "PROGRAM attr=%s\n", a);
 		for (arg = dnp->dn_list; arg != NULL; arg = arg->dn_list)
 			dt_node_printr(arg, fp, depth + 1);
+		break;
+
+	case DT_NODE_IF:
+		(void) fprintf(fp, "IF attr=%s CONDITION:\n", a);
+
+		dt_node_printr(dnp->dn_conditional, fp, depth + 1);
+
+		(void) fprintf(fp, "%*sIF BODY: \n", depth * 2, "");
+		for (arg = dnp->dn_body; arg != NULL; arg = arg->dn_list)
+			dt_node_printr(arg, fp, depth + 1);
+
+		if (dnp->dn_alternate_body != NULL) {
+			(void) fprintf(fp, "%*sIF ELSE: \n", depth * 2, "");
+			for (arg = dnp->dn_alternate_body; arg != NULL;
+			    arg = arg->dn_list)
+				dt_node_printr(arg, fp, depth + 1);
+		}
+
 		break;
 
 	default:

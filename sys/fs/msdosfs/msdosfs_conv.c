@@ -61,9 +61,9 @@
 extern struct iconv_functions *msdosfs_iconv;
 
 static int mbsadjpos(const char **, size_t, size_t, int, int, void *handle);
-static u_int16_t dos2unixchr(const u_char **, size_t *, int, struct msdosfsmount *);
+static u_char * dos2unixchr(u_char *, const u_char **, size_t *, int, struct msdosfsmount *);
 static u_int16_t unix2doschr(const u_char **, size_t *, struct msdosfsmount *);
-static u_int16_t win2unixchr(u_int16_t, struct msdosfsmount *);
+static u_char * win2unixchr(u_char *, u_int16_t, struct msdosfsmount *);
 static u_int16_t unix2winchr(const u_char **, size_t *, int, struct msdosfsmount *);
 
 /*
@@ -234,15 +234,11 @@ l2u[256] = {
  * null.
  */
 int
-dos2unixfn(dn, un, lower, pmp)
-	u_char dn[11];
-	u_char *un;
-	int lower;
-	struct msdosfsmount *pmp;
+dos2unixfn(u_char dn[11], u_char *un, int lower, struct msdosfsmount *pmp)
 {
 	size_t i;
 	int thislong = 0;
-	u_int16_t c;
+	u_char *c, tmpbuf[5];
 
 	/*
 	 * If first char of the filename is SLOT_E5 (0x05), then the real
@@ -257,14 +253,12 @@ dos2unixfn(dn, un, lower, pmp)
 	 * Copy the name portion into the unix filename string.
 	 */
 	for (i = 8; i > 0 && *dn != ' ';) {
-		c = dos2unixchr((const u_char **)&dn, &i, lower & LCASE_BASE,
-		    pmp);
-		if (c & 0xff00) {
-			*un++ = c >> 8;
+		c = dos2unixchr(tmpbuf, __DECONST(const u_char **, &dn), &i,
+		    lower & LCASE_BASE, pmp);
+		while (*c != '\0') {
+			*un++ = *c++;
 			thislong++;
 		}
-		*un++ = c;
-		thislong++;
 	}
 	dn += i;
 
@@ -276,14 +270,12 @@ dos2unixfn(dn, un, lower, pmp)
 		*un++ = '.';
 		thislong++;
 		for (i = 3; i > 0 && *dn != ' ';) {
-			c = dos2unixchr((const u_char **)&dn, &i,
-			    lower & LCASE_EXT, pmp);
-			if (c & 0xff00) {
-				*un++ = c >> 8;
+			c = dos2unixchr(tmpbuf, __DECONST(const u_char **, &dn),
+			    &i, lower & LCASE_EXT, pmp);
+			while (*c != '\0') {
+				*un++ = *c++;
 				thislong++;
 			}
-			*un++ = c;
-			thislong++;
 		}
 	}
 	*un++ = 0;
@@ -303,12 +295,8 @@ dos2unixfn(dn, un, lower, pmp)
  *	3 if conversion was successful and generation number was inserted
  */
 int
-unix2dosfn(un, dn, unlen, gen, pmp)
-	const u_char *un;
-	u_char dn[12];
-	size_t unlen;
-	u_int gen;
-	struct msdosfsmount *pmp;
+unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
+    struct msdosfsmount *pmp)
 {
 	ssize_t i, j;
 	int l;
@@ -365,7 +353,7 @@ unix2dosfn(un, dn, unlen, gen, pmp)
 	 *	 ignores all dots before extension, and use all
 	 * 	 chars as filename except for dots.
 	 */
-	dp = dp1 = 0;
+	dp = dp1 = NULL;
 	for (cp = un + 1, i = unlen - 1; --i >= 0;) {
 		switch (*cp++) {
 		case '.':
@@ -377,7 +365,7 @@ unix2dosfn(un, dn, unlen, gen, pmp)
 		default:
 			if (dp1)
 				dp = dp1;
-			dp1 = 0;
+			dp1 = NULL;
 			break;
 		}
 	}
@@ -527,13 +515,8 @@ done:
  *	 i.e. doesn't consist solely of blanks and dots
  */
 int
-unix2winfn(un, unlen, wep, cnt, chksum, pmp)
-	const u_char *un;
-	size_t unlen;
-	struct winentry *wep;
-	int cnt;
-	int chksum;
-	struct msdosfsmount *pmp;
+unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
+    int chksum, struct msdosfsmount *pmp)
 {
 	u_int8_t *wcp;
 	int i, end;
@@ -596,12 +579,8 @@ unix2winfn(un, unlen, wep, cnt, chksum, pmp)
  * Returns the checksum or -1 if no match
  */
 int
-winChkName(nbp, un, unlen, chksum, pmp)
-	struct mbnambuf *nbp;
-	const u_char *un;
-	size_t unlen;
-	int chksum;
-	struct msdosfsmount *pmp;
+winChkName(struct mbnambuf *nbp, const u_char *un, size_t unlen, int chksum,
+    struct msdosfsmount *pmp)
 {
 	size_t len;
 	u_int16_t c1, c2;
@@ -633,7 +612,8 @@ winChkName(nbp, un, unlen, chksum, pmp)
 		 * to look up or create files in case sensitive even when
 		 * it's a long file name.
 		 */
-		c1 = unix2winchr((const u_char **)&np, &len, LCASE_BASE, pmp);
+		c1 = unix2winchr(__DECONST(const u_char **, &np), &len,
+		    LCASE_BASE, pmp);
 		c2 = unix2winchr(&un, &unlen, LCASE_BASE, pmp);
 		if (c1 != c2)
 			return -2;
@@ -646,14 +626,12 @@ winChkName(nbp, un, unlen, chksum, pmp)
  * Returns the checksum or -1 if impossible
  */
 int
-win2unixfn(nbp, wep, chksum, pmp)
-	struct mbnambuf *nbp;
-	struct winentry *wep;
-	int chksum;
-	struct msdosfsmount *pmp;
+win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
+    struct msdosfsmount *pmp)
 {
+	u_char *c, tmpbuf[5];
 	u_int8_t *cp;
-	u_int8_t *np, name[WIN_CHARS * 2 + 1];
+	u_int8_t *np, name[WIN_CHARS * 3 + 1];
 	u_int16_t code;
 	int i;
 
@@ -680,16 +658,17 @@ win2unixfn(nbp, wep, chksum, pmp)
 		switch (code) {
 		case 0:
 			*np = '\0';
-			mbnambuf_write(nbp, name, (wep->weCnt & WIN_CNT) - 1);
+			if (mbnambuf_write(nbp, name,
+			    (wep->weCnt & WIN_CNT) - 1) != 0)
+				return -1;
 			return chksum;
 		case '/':
 			*np = '\0';
 			return -1;
 		default:
-			code = win2unixchr(code, pmp);
-			if (code & 0xff00)
-				*np++ = code >> 8;
-			*np++ = code;
+			c = win2unixchr(tmpbuf, code, pmp);
+			while (*c != '\0')
+				*np++ = *c++;
 			break;
 		}
 		cp += 2;
@@ -699,16 +678,17 @@ win2unixfn(nbp, wep, chksum, pmp)
 		switch (code) {
 		case 0:
 			*np = '\0';
-			mbnambuf_write(nbp, name, (wep->weCnt & WIN_CNT) - 1);
+			if (mbnambuf_write(nbp, name,
+			    (wep->weCnt & WIN_CNT) - 1) != 0)
+				return -1;
 			return chksum;
 		case '/':
 			*np = '\0';
 			return -1;
 		default:
-			code = win2unixchr(code, pmp);
-			if (code & 0xff00)
-				*np++ = code >> 8;
-			*np++ = code;
+			c = win2unixchr(tmpbuf, code, pmp);
+			while (*c != '\0')
+				*np++ = *c++;
 			break;
 		}
 		cp += 2;
@@ -718,22 +698,24 @@ win2unixfn(nbp, wep, chksum, pmp)
 		switch (code) {
 		case 0:
 			*np = '\0';
-			mbnambuf_write(nbp, name, (wep->weCnt & WIN_CNT) - 1);
+			if (mbnambuf_write(nbp, name,
+			    (wep->weCnt & WIN_CNT) - 1) != 0)
+				return -1;
 			return chksum;
 		case '/':
 			*np = '\0';
 			return -1;
 		default:
-			code = win2unixchr(code, pmp);
-			if (code & 0xff00)
-				*np++ = code >> 8;
-			*np++ = code;
+			c = win2unixchr(tmpbuf, code, pmp);
+			while (*c != '\0')
+				*np++ = *c++;
 			break;
 		}
 		cp += 2;
 	}
 	*np = '\0';
-	mbnambuf_write(nbp, name, (wep->weCnt & WIN_CNT) - 1);
+	if (mbnambuf_write(nbp, name, (wep->weCnt & WIN_CNT) - 1) != 0)
+		return -1;
 	return chksum;
 }
 
@@ -741,22 +723,13 @@ win2unixfn(nbp, wep, chksum, pmp)
  * Compute the unrolled checksum of a DOS filename for Win95 LFN use.
  */
 u_int8_t
-winChksum(struct direntry *dep)
+winChksum(u_int8_t *name)
 {
+	int i;
 	u_int8_t s;
 
-	s = dep->deName[0];
-	s = ((s << 7) | (s >> 1)) + dep->deName[1];
-	s = ((s << 7) | (s >> 1)) + dep->deName[2];
-	s = ((s << 7) | (s >> 1)) + dep->deName[3];
-	s = ((s << 7) | (s >> 1)) + dep->deName[4];
-	s = ((s << 7) | (s >> 1)) + dep->deName[5];
-	s = ((s << 7) | (s >> 1)) + dep->deName[6];
-	s = ((s << 7) | (s >> 1)) + dep->deName[7];
-	s = ((s << 7) | (s >> 1)) + dep->deExtension[0];
-	s = ((s << 7) | (s >> 1)) + dep->deExtension[1];
-	s = ((s << 7) | (s >> 1)) + dep->deExtension[2];
-
+	for (s = 0, i = 11; --i >= 0; s += *name++)
+		s = (s << 7)|(s >> 1);
 	return (s);
 }
 
@@ -764,10 +737,7 @@ winChksum(struct direntry *dep)
  * Determine the number of slots necessary for Win95 names
  */
 int
-winSlotCnt(un, unlen, pmp)
-	const u_char *un;
-	size_t unlen;
-	struct msdosfsmount *pmp;
+winSlotCnt(const u_char *un, size_t unlen, struct msdosfsmount *pmp)
 {
 	size_t wlen;
 	char wn[WIN_MAXLEN * 2 + 1], *wnp;
@@ -789,12 +759,10 @@ winSlotCnt(un, unlen, pmp)
 }
 
 /*
- * Determine the number of bytes neccesary for Win95 names
+ * Determine the number of bytes necessary for Win95 names
  */
 size_t
-winLenFixup(un, unlen)
-	const u_char* un;
-	size_t unlen;
+winLenFixup(const u_char *un, size_t unlen)
 {
 	for (un += unlen; unlen > 0; unlen--)
 		if (*--un != ' ' && *un != '.')
@@ -803,7 +771,7 @@ winLenFixup(un, unlen)
 }
 
 /*
- * Store an area with multi byte string instr, and reterns left
+ * Store an area with multi byte string instr, and returns left
  * byte of instr and moves pointer forward. The area's size is
  * inlen or outlen.
  */
@@ -826,24 +794,22 @@ mbsadjpos(const char **instr, size_t inlen, size_t outlen, int weight, int flag,
 /*
  * Convert DOS char to Local char
  */
-static u_int16_t
-dos2unixchr(const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *pmp)
+static u_char *
+dos2unixchr(u_char *outbuf, const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *pmp)
 {
-	u_char c;
-	char *outp, outbuf[3];
-	u_int16_t wc;
+	u_char c, *outp;
 	size_t len, olen;
 
+	outp = outbuf;
 	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
-		olen = len = 2;
-		outp = outbuf;
+		olen = len = 4;
 
 		if (lower & (LCASE_BASE | LCASE_EXT))
 			msdosfs_iconv->convchr_case(pmp->pm_d2u, (const char **)instr,
-						  ilen, &outp, &olen, KICONV_LOWER);
+						  ilen, (char **)&outp, &olen, KICONV_LOWER);
 		else
 			msdosfs_iconv->convchr(pmp->pm_d2u, (const char **)instr,
-					     ilen, &outp, &olen);
+					     ilen, (char **)&outp, &olen);
 		len -= olen;
 
 		/*
@@ -852,21 +818,21 @@ dos2unixchr(const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *
 		if (len == 0) {
 			(*ilen)--;
 			(*instr)++;
-			return ('?');
+			*outp++ = '?';
 		}
-
-		wc = 0;
-		while(len--)
-			wc |= (*(outp - len - 1) & 0xff) << (len << 3);
-		return (wc);
+	} else {
+		(*ilen)--;
+		c = *(*instr)++;
+		c = dos2unix[c];
+		if (lower & (LCASE_BASE | LCASE_EXT))
+			c = u2l[c];
+		*outp++ = c;
+		outbuf[1] = '\0';
 	}
 
-	(*ilen)--;
-	c = *(*instr)++;
-	c = dos2unix[c];
-	if (lower & (LCASE_BASE | LCASE_EXT))
-		c = u2l[c];
-	return ((u_int16_t)c);
+	*outp = '\0';
+	outp = outbuf;
+	return (outp);
 }
 
 /*
@@ -949,45 +915,37 @@ unix2doschr(const u_char **instr, size_t *ilen, struct msdosfsmount *pmp)
 /*
  * Convert Windows char to Local char
  */
-static u_int16_t
-win2unixchr(u_int16_t wc, struct msdosfsmount *pmp)
+static u_char *
+win2unixchr(u_char *outbuf, u_int16_t wc, struct msdosfsmount *pmp)
 {
-	u_char *inp, *outp, inbuf[3], outbuf[3];
+	u_char *inp, *outp, inbuf[3];
 	size_t ilen, olen, len;
 
-	if (wc == 0)
-		return (0);
-
+	outp = outbuf;
 	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
 		inbuf[0] = (u_char)(wc>>8);
 		inbuf[1] = (u_char)wc;
 		inbuf[2] = '\0';
 
-		ilen = olen = len = 2;
+		ilen = 2;
+		olen = len = 4;
 		inp = inbuf;
-		outp = outbuf;
-		msdosfs_iconv->convchr(pmp->pm_w2u, (const char **)&inp, &ilen,
-				     (char **)&outp, &olen);
+		msdosfs_iconv->convchr(pmp->pm_w2u, __DECONST(const char **,
+		    &inp), &ilen, (char **)&outp, &olen);
 		len -= olen;
 
 		/*
 		 * return '?' if failed to convert
 		 */
-		if (len == 0) {
-			wc = '?';
-			return (wc);
-		}
-
-		wc = 0;
-		while(len--)
-			wc |= (*(outp - len - 1) & 0xff) << (len << 3);
-		return (wc);
+		if (len == 0)
+			*outp++ = '?';
+	} else {
+		*outp++ = (wc & 0xff00) ? '?' : (u_char)(wc & 0xff);
 	}
 
-	if (wc & 0xff00)
-		wc = '?';
-
-	return (wc);
+	*outp = '\0';
+	outp = outbuf;
+	return (outp);
 }
 
 /*
@@ -1054,16 +1012,18 @@ mbnambuf_init(struct mbnambuf *nbp)
  * This only penalizes portions of substrings that contain more than
  * WIN_CHARS bytes when they are first encountered.
  */
-void
+int
 mbnambuf_write(struct mbnambuf *nbp, char *name, int id)
 {
 	char *slot;
 	size_t count, newlen;
 
 	if (nbp->nb_len != 0 && id != nbp->nb_last_id - 1) {
+#ifdef MSDOSFS_DEBUG
 		printf("msdosfs: non-decreasing id: id %d, last id %d\n",
 		    id, nbp->nb_last_id);
-		return;
+#endif
+		return (EINVAL);
 	}
 
 	/* Will store this substring in a WIN_CHARS-aligned slot. */
@@ -1071,18 +1031,27 @@ mbnambuf_write(struct mbnambuf *nbp, char *name, int id)
 	count = strlen(name);
 	newlen = nbp->nb_len + count;
 	if (newlen > WIN_MAXLEN || newlen > MAXNAMLEN) {
+#ifdef MSDOSFS_DEBUG
 		printf("msdosfs: file name length %zu too large\n", newlen);
-		return;
+#endif
+		return (ENAMETOOLONG);
 	}
 
 	/* Shift suffix upwards by the amount length exceeds WIN_CHARS. */
-	if (count > WIN_CHARS && nbp->nb_len != 0)
+	if (count > WIN_CHARS && nbp->nb_len != 0) {
+		if ((id * WIN_CHARS + count + nbp->nb_len) >
+		    sizeof(nbp->nb_buf))
+			return (ENAMETOOLONG);
+
 		bcopy(slot + WIN_CHARS, slot + count, nbp->nb_len);
+	}
 
 	/* Copy in the substring to its slot and update length so far. */
 	bcopy(name, slot, count);
 	nbp->nb_len = newlen;
 	nbp->nb_last_id = id;
+
+	return (0);
 }
 
 /*

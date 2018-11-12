@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.c,v 1.8 2009/03/07 11:22:35 dtucker Exp $ */
+/* $Id: openssl-compat.c,v 1.19 2014/07/02 05:28:07 djm Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -16,56 +16,69 @@
  * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define SSH_DONT_OVERLOAD_OPENSSL_FUNCS
 #include "includes.h"
+
+#ifdef WITH_OPENSSL
+
+#include <stdarg.h>
+#include <string.h>
 
 #ifdef USE_OPENSSL_ENGINE
 # include <openssl/engine.h>
+# include <openssl/conf.h>
 #endif
 
-#define SSH_DONT_OVERLOAD_OPENSSL_FUNCS
+#include "log.h"
+
 #include "openssl-compat.h"
 
-#ifdef SSH_OLD_EVP
-int
-ssh_EVP_CipherInit(EVP_CIPHER_CTX *evp, const EVP_CIPHER *type,
-    unsigned char *key, unsigned char *iv, int enc)
-{
-	EVP_CipherInit(evp, type, key, iv, enc);
-	return 1;
-}
+/*
+ * OpenSSL version numbers: MNNFFPPS: major minor fix patch status
+ * We match major, minor, fix and status (not patch) for <1.0.0.
+ * After that, we acceptable compatible fix versions (so we
+ * allow 1.0.1 to work with 1.0.0). Going backwards is only allowed
+ * within a patch series.
+ */
 
 int
-ssh_EVP_Cipher(EVP_CIPHER_CTX *evp, char *dst, char *src, int len)
+ssh_compatible_openssl(long headerver, long libver)
 {
-	EVP_Cipher(evp, dst, src, len);
-	return 1;
-}
+	long mask, hfix, lfix;
 
-int
-ssh_EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *evp)
-{
-	EVP_CIPHER_CTX_cleanup(evp);
-	return 1;
-}
-#endif
+	/* exact match is always OK */
+	if (headerver == libver)
+		return 1;
 
-#ifdef OPENSSL_EVP_DIGESTUPDATE_VOID
-int
-ssh_EVP_DigestUpdate(EVP_MD_CTX *ctx, const void *d, unsigned int cnt)
-{
-	EVP_DigestUpdate(ctx, d, cnt);
-	return 1;
+	/* for versions < 1.0.0, major,minor,fix,status must match */
+	if (headerver < 0x1000000f) {
+		mask = 0xfffff00fL; /* major,minor,fix,status */
+		return (headerver & mask) == (libver & mask);
+	}
+	
+	/*
+	 * For versions >= 1.0.0, major,minor,status must match and library
+	 * fix version must be equal to or newer than the header.
+	 */
+	mask = 0xfff0000fL; /* major,minor,status */
+	hfix = (headerver & 0x000ff000) >> 12;
+	lfix = (libver & 0x000ff000) >> 12;
+	if ( (headerver & mask) == (libver & mask) && lfix >= hfix)
+		return 1;
+	return 0;
 }
-#endif
 
 #ifdef	USE_OPENSSL_ENGINE
 void
-ssh_SSLeay_add_all_algorithms(void)
+ssh_OpenSSL_add_all_algorithms(void)
 {
-	SSLeay_add_all_algorithms();
+	OpenSSL_add_all_algorithms();
 
 	/* Enable use of crypto hardware */
 	ENGINE_load_builtin_engines();
 	ENGINE_register_all_complete();
+	OPENSSL_config(NULL);
 }
 #endif
+
+#endif /* WITH_OPENSSL */

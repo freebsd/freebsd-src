@@ -29,7 +29,13 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <machine/npx.h>
+
+#define	__fenv_static
 #include "fenv.h"
+
+#ifdef __GNUC_GNU_INLINE__
+#error "This file must be compiled with C99 'inline' semantics"
+#endif
 
 const fenv_t __fe_dfl_env = {
 	__INITIAL_NPXCW__,
@@ -83,11 +89,14 @@ __test_sse(void)
 	return (0);
 }
 
+extern inline int feclearexcept(int __excepts);
+extern inline int fegetexceptflag(fexcept_t *__flagp, int __excepts);
+
 int
 fesetexceptflag(const fexcept_t *flagp, int excepts)
 {
 	fenv_t env;
-	int mxcsr;
+	__uint32_t mxcsr;
 
 	__fnstenv(&env);
 	env.__status &= ~excepts;
@@ -114,10 +123,14 @@ feraiseexcept(int excepts)
 	return (0);
 }
 
+extern inline int fetestexcept(int __excepts);
+extern inline int fegetround(void);
+extern inline int fesetround(int __round);
+
 int
 fegetenv(fenv_t *envp)
 {
-	int mxcsr;
+	__uint32_t mxcsr;
 
 	__fnstenv(envp);
 	/*
@@ -135,7 +148,7 @@ fegetenv(fenv_t *envp)
 int
 feholdexcept(fenv_t *envp)
 {
-	int mxcsr;
+	__uint32_t mxcsr;
 
 	__fnstenv(envp);
 	__fnclex();
@@ -149,10 +162,13 @@ feholdexcept(fenv_t *envp)
 	return (0);
 }
 
+extern inline int fesetenv(const fenv_t *__envp);
+
 int
 feupdateenv(const fenv_t *envp)
 {
-	int mxcsr, status;
+	__uint32_t mxcsr;
+	__uint16_t status;
 
 	__fnstsw(&status);
 	if (__HAS_SSE())
@@ -167,7 +183,8 @@ feupdateenv(const fenv_t *envp)
 int
 __feenableexcept(int mask)
 {
-	int mxcsr, control, omask;
+	__uint32_t mxcsr, omask;
+	__uint16_t control;
 
 	mask &= FE_ALL_EXCEPT;
 	__fnstcw(&control);
@@ -175,20 +192,21 @@ __feenableexcept(int mask)
 		__stmxcsr(&mxcsr);
 	else
 		mxcsr = 0;
-	omask = (control | mxcsr >> _SSE_EMASK_SHIFT) & FE_ALL_EXCEPT;
+	omask = ~(control | mxcsr >> _SSE_EMASK_SHIFT) & FE_ALL_EXCEPT;
 	control &= ~mask;
 	__fldcw(control);
 	if (__HAS_SSE()) {
 		mxcsr &= ~(mask << _SSE_EMASK_SHIFT);
 		__ldmxcsr(mxcsr);
 	}
-	return (~omask);
+	return (omask);
 }
 
 int
 __fedisableexcept(int mask)
 {
-	int mxcsr, control, omask;
+	__uint32_t mxcsr, omask;
+	__uint16_t control;
 
 	mask &= FE_ALL_EXCEPT;
 	__fnstcw(&control);
@@ -196,14 +214,14 @@ __fedisableexcept(int mask)
 		__stmxcsr(&mxcsr);
 	else
 		mxcsr = 0;
-	omask = (control | mxcsr >> _SSE_EMASK_SHIFT) & FE_ALL_EXCEPT;
+	omask = ~(control | mxcsr >> _SSE_EMASK_SHIFT) & FE_ALL_EXCEPT;
 	control |= mask;
 	__fldcw(control);
 	if (__HAS_SSE()) {
 		mxcsr |= mask << _SSE_EMASK_SHIFT;
 		__ldmxcsr(mxcsr);
 	}
-	return (~omask);
+	return (omask);
 }
 
 __weak_reference(__feenableexcept, feenableexcept);

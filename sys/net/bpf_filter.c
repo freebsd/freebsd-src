@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
+#if !defined(_KERNEL)
+#include <strings.h>
+#endif
 #if !defined(_KERNEL) || defined(sun)
 #include <netinet/in.h>
 #endif
@@ -96,7 +99,7 @@ m_xword(struct mbuf *m, bpf_u_int32 k, int *err)
 	while (k >= len) {
 		k -= len;
 		m = m->m_next;
-		if (m == 0)
+		if (m == NULL)
 			goto bad;
 		len = m->m_len;
 	}
@@ -106,7 +109,7 @@ m_xword(struct mbuf *m, bpf_u_int32 k, int *err)
 		return (EXTRACT_LONG(cp));
 	}
 	m0 = m->m_next;
-	if (m0 == 0 || m0->m_len + len - k < 4)
+	if (m0 == NULL || m0->m_len + len - k < 4)
 		goto bad;
 	*err = 0;
 	np = mtod(m0, u_char *);
@@ -145,7 +148,7 @@ m_xhalf(struct mbuf *m, bpf_u_int32 k, int *err)
 	while (k >= len) {
 		k -= len;
 		m = m->m_next;
-		if (m == 0)
+		if (m == NULL)
 			goto bad;
 		len = m->m_len;
 	}
@@ -155,7 +158,7 @@ m_xhalf(struct mbuf *m, bpf_u_int32 k, int *err)
 		return (EXTRACT_SHORT(cp));
 	}
 	m0 = m->m_next;
-	if (m0 == 0)
+	if (m0 == NULL)
 		goto bad;
 	*err = 0;
 	return ((cp[0] << 8) | mtod(m0, u_char *)[0]);
@@ -176,6 +179,8 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 	u_int32_t A = 0, X = 0;
 	bpf_u_int32 k;
 	u_int32_t mem[BPF_MEMWORDS];
+
+	bzero(mem, sizeof(mem));
 
 	if (pc == NULL)
 		/*

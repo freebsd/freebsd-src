@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #define MOUNT_META_OPTION_FSTAB		"fstab"
 #define MOUNT_META_OPTION_CURRENT	"current"
 
-int debug, fstab_style, verbose;
+static int debug, fstab_style, verbose;
 
 struct cpa {
 	char	**a;
@@ -91,7 +91,7 @@ char   *flags2opts(int);
 
 /* Map from mount options to printable formats. */
 static struct opt {
-	int o_opt;
+	uint64_t o_opt;
 	const char *o_name;
 } optnames[] = {
 	{ MNT_ASYNC,		"asynchronous" },
@@ -109,9 +109,12 @@ static struct opt {
 	{ MNT_NOCLUSTERW,	"noclusterw" },
 	{ MNT_SUIDDIR,		"suiddir" },
 	{ MNT_SOFTDEP,		"soft-updates" },
+	{ MNT_SUJ,		"journaled soft-updates" },
 	{ MNT_MULTILABEL,	"multilabel" },
 	{ MNT_ACLS,		"acls" },
+	{ MNT_NFS4ACLS,		"nfsv4acls" },
 	{ MNT_GJOURNAL,		"gjournal" },
+	{ MNT_AUTOMOUNTED,	"automounted" },
 	{ 0, NULL }
 };
 
@@ -140,8 +143,8 @@ use_mountprog(const char *vfstype)
 	 */
 	unsigned int i;
 	const char *fs[] = {
-	"cd9660", "mfs", "msdosfs", "newnfs", "nfs", "ntfs",
-	"nwfs", "nullfs", "portalfs", "smbfs", "udf", "unionfs",
+	"cd9660", "mfs", "msdosfs", "nfs",
+	"nullfs", "smbfs", "udf", "unionfs",
 	NULL
 	};
 
@@ -242,15 +245,16 @@ main(int argc, char *argv[])
 	const char *mntfromname, **vfslist, *vfstype;
 	struct fstab *fs;
 	struct statfs *mntbuf;
-	int all, ch, i, init_flags, late, mntsize, rval, have_fstab, ro;
+	int all, ch, i, init_flags, late, failok, mntsize, rval, have_fstab, ro;
+	int onlylate;
 	char *cp, *ep, *options;
 
-	all = init_flags = late = 0;
+	all = init_flags = late = onlylate = 0;
 	ro = 0;
 	options = NULL;
 	vfslist = NULL;
 	vfstype = "ufs";
-	while ((ch = getopt(argc, argv, "adF:flo:prt:uvw")) != -1)
+	while ((ch = getopt(argc, argv, "adF:fLlno:prt:uvw")) != -1)
 		switch (ch) {
 		case 'a':
 			all = 1;
@@ -264,8 +268,15 @@ main(int argc, char *argv[])
 		case 'f':
 			init_flags |= MNT_FORCE;
 			break;
+		case 'L':
+			onlylate = 1;
+			late = 1;
+			break;
 		case 'l':
 			late = 1;
+			break;
+		case 'n':
+			/* For compatibility with the Linux version of mount. */
 			break;
 		case 'o':
 			if (*optarg) {
@@ -325,8 +336,14 @@ main(int argc, char *argv[])
 					continue;
 				if (hasopt(fs->fs_mntops, "noauto"))
 					continue;
+				if (!hasopt(fs->fs_mntops, "late") && onlylate)
+					continue;
 				if (hasopt(fs->fs_mntops, "late") && !late)
 					continue;
+				if (hasopt(fs->fs_mntops, "failok"))
+					failok = 1;
+				else
+					failok = 0;
 				if (!(init_flags & MNT_UPDATE) &&
 				    ismounted(fs, mntbuf, mntsize))
 					continue;
@@ -334,7 +351,7 @@ main(int argc, char *argv[])
 				    mntbuf->f_flags);
 				if (mountfs(fs->fs_vfstype, fs->fs_spec,
 				    fs->fs_file, init_flags, options,
-				    fs->fs_mntops))
+				    fs->fs_mntops) && !failok)
 					rval = 1;
 			}
 		} else if (fstab_style) {
@@ -468,10 +485,18 @@ ismounted(struct fstab *fs, struct statfs *mntbuf, int mntsize)
 		strlcpy(realfsfile, fs->fs_file, sizeof(realfsfile));
 	}
 
+	/* 
+	 * Consider the filesystem to be mounted if:
+	 * It has the same mountpoint as a mounted filesytem, and
+	 * It has the same type as that same mounted filesystem, and
+	 * It has the same device name as that same mounted filesystem, OR
+	 *     It is a nonremountable filesystem
+	 */
 	for (i = mntsize - 1; i >= 0; --i)
 		if (strcmp(realfsfile, mntbuf[i].f_mntonname) == 0 &&
+		    strcmp(fs->fs_vfstype, mntbuf[i].f_fstypename) == 0 && 
 		    (!isremountable(fs->fs_vfstype) ||
-		     strcmp(fs->fs_spec, mntbuf[i].f_mntfromname) == 0))
+		     (strcmp(fs->fs_spec, mntbuf[i].f_mntfromname) == 0)))
 			return (1);
 	return (0);
 }
@@ -516,7 +541,7 @@ append_arg(struct cpa *sa, char *arg)
 {
 	if (sa->c + 1 == sa->sz) {
 		sa->sz = sa->sz == 0 ? 8 : sa->sz * 2;
-		sa->a = realloc(sa->a, sizeof(sa->a) * sa->sz);
+		sa->a = realloc(sa->a, sizeof(*sa->a) * sa->sz);
 		if (sa->a == NULL)
 			errx(1, "realloc failed");
 	}
@@ -533,7 +558,10 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	static struct cpa mnt_argv;
 
 	/* resolve the mountpoint with realpath(3) */
-	(void)checkpath(name, mntpath);
+	if (checkpath(name, mntpath) != 0) {
+		warn("%s", mntpath);
+		return (1);
+	}
 	name = mntpath;
 
 	if (mntopts == NULL)
@@ -583,6 +611,9 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 		for (i = 1; i < mnt_argv.c; i++)
 			(void)printf(" %s", mnt_argv.a[i]);
 		(void)printf("\n");
+		free(optbuf);
+		free(mountprog);
+		mountprog = NULL;
 		return (0);
 	}
 
@@ -593,6 +624,8 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	}
 
 	free(optbuf);
+	free(mountprog);
+	mountprog = NULL;
 
 	if (verbose) {
 		if (statfs(name, &sf) < 0) {
@@ -611,7 +644,7 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 void
 prmount(struct statfs *sfp)
 {
-	int flags;
+	uint64_t flags;
 	unsigned int i;
 	struct opt *o;
 	struct passwd *pw;
@@ -620,7 +653,7 @@ prmount(struct statfs *sfp)
 	    sfp->f_fstypename);
 
 	flags = sfp->f_flags & MNT_VISFLAGMASK;
-	for (o = optnames; flags && o->o_opt; o++)
+	for (o = optnames; flags != 0 && o->o_opt != 0; o++)
 		if (flags & o->o_opt) {
 			(void)printf(", %s", o->o_name);
 			flags &= ~o->o_opt;
@@ -672,17 +705,14 @@ getmntpt(const char *name)
 char *
 catopt(char *s0, const char *s1)
 {
-	size_t i;
 	char *cp;
 
 	if (s1 == NULL || *s1 == '\0')
 		return (s0);
 
 	if (s0 && *s0) {
-		i = strlen(s0) + strlen(s1) + 1 + 1;
-		if ((cp = malloc(i)) == NULL)
-			errx(1, "malloc failed");
-		(void)snprintf(cp, i, "%s,%s", s0, s1);
+		if (asprintf(&cp, "%s,%s", s0, s1) == -1)
+			errx(1, "asprintf failed");
 	} else
 		cp = strdup(s1);
 
@@ -714,6 +744,14 @@ mangle(char *options, struct cpa *a)
 				 * in the boot cycle; for instance,
 				 * loopback NFS mounts can't be mounted
 				 * before mountd starts.
+				 */
+				continue;
+			} else if (strcmp(p, "failok") == 0) {
+				/*
+				 * "failok" is used to prevent certain file
+				 * systems from being causing the system to
+				 * drop into single user mode in the boot
+				 * cycle, and is not a real mount option.
 				 */
 				continue;
 			} else if (strncmp(p, "mountprog", 9) == 0) {
@@ -849,10 +887,18 @@ void
 putfsent(struct statfs *ent)
 {
 	struct fstab *fst;
-	char *opts;
+	char *opts, *rw;
 	int l;
 
+	opts = NULL;
+	/* flags2opts() doesn't return the "rw" option. */
+	if ((ent->f_flags & MNT_RDONLY) != 0)
+		rw = NULL;
+	else
+		rw = catopt(NULL, "rw");
+
 	opts = flags2opts(ent->f_flags);
+	opts = catopt(rw, opts);
 
 	if (strncmp(ent->f_mntfromname, "<below>", 7) == 0 ||
 	    strncmp(ent->f_mntfromname, "<above>", 7) == 0) {
@@ -860,10 +906,6 @@ putfsent(struct statfs *ent)
 		    +1));
 	}
 
-	/*
-	 * "rw" is not a real mount option; this is why we print NULL as "rw"
-	 * if opts is still NULL here.
-	 */
 	l = strlen(ent->f_mntfromname);
 	printf("%s%s%s%s", ent->f_mntfromname,
 	    l < 8 ? "\t" : "",
@@ -875,13 +917,9 @@ putfsent(struct statfs *ent)
 	    l < 16 ? "\t" : "",
 	    l < 24 ? "\t" : " ");
 	printf("%s\t", ent->f_fstypename);
-	if (opts == NULL) {
-		printf("%s\t", "rw");
-	} else {
-		l = strlen(opts);
-		printf("%s%s", opts,
-		    l < 8 ? "\t" : " ");
-	}
+	l = strlen(opts);
+	printf("%s%s", opts,
+	    l < 8 ? "\t" : " ");
 	free(opts);
 
 	if ((fst = getfsspec(ent->f_mntfromname)))
@@ -918,6 +956,7 @@ flags2opts(int flags)
 	if (flags & MNT_SUIDDIR)	res = catopt(res, "suiddir");
 	if (flags & MNT_MULTILABEL)	res = catopt(res, "multilabel");
 	if (flags & MNT_ACLS)		res = catopt(res, "acls");
+	if (flags & MNT_NFS4ACLS)	res = catopt(res, "nfsv4acls");
 
 	return (res);
 }

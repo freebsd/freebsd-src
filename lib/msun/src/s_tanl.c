@@ -28,36 +28,32 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Compute tan(x) for x where x is reduced to y = x - k * pi / 2.
  * Limited testing on pseudorandom numbers drawn within [0:4e8] shows
  * an accuracy of <= 1.5 ULP where 247024 values of x out of 40 million
  * possibles resulted in tan(x) that exceeded 0.5 ULP (ie., 0.6%).
  */
 
 #include <float.h>
+#ifdef __i386__
+#include <ieeefp.h>
+#endif
 
 #include "math.h"
 #include "math_private.h"
-#include "fpmath.h"
-
 #if LDBL_MANT_DIG == 64
-#define	NX	3
-#define	PREC	2
+#include "../ld80/e_rem_pio2l.h"
 #elif LDBL_MANT_DIG == 113
-#define	NX	5
-#define	PREC	3
+#include "../ld128/e_rem_pio2l.h"
 #else
 #error "Unsupported long double format"
 #endif
-
-static const long double two24 = 1.67772160000000000000e+07L;
 
 long double
 tanl(long double x)
 {
 	union IEEEl2bits z;
-	int i, e0, s;
-	double xd[NX], yd[PREC];
+	int e0, s;
+	long double y[2];
 	long double hi, lo;
 
 	z.e = x;
@@ -72,32 +68,17 @@ tanl(long double x)
 	if (z.bits.exp == 32767)
 		return ((x - x) / (x - x));
 
+	ENTERI();
+
 	/* Optimize the case where x is already within range. */
 	if (z.e < M_PI_4) {
 		hi = __kernel_tanl(z.e, 0, 0);
-		return (s ? -hi : hi);
+		RETURNI(s ? -hi : hi);
 	}
 
-	/* Split z.e into a 24-bit representation. */
-	e0 = ilogbl(z.e) - 23;
-	z.e = scalbnl(z.e, -e0);
-	for (i = 0; i < NX; i++) {
-		xd[i] = (double)((int32_t)z.e);
-		z.e = (z.e - xd[i]) * two24;
-	}
-	
-	/* yd contains the pieces of xd rem pi/2 such that |yd| < pi/4. */
-	e0 = __kernel_rem_pio2(xd, yd, e0, NX, PREC);
-
-#if PREC == 2
-	hi = (long double)yd[0] + yd[1];
-	lo = yd[1] - (hi - yd[0]);
-#else /* PREC == 3 */
-	long double t;
-	t = (long double)yd[2] + yd[1];
-	hi = t + yd[0];
-	lo = yd[0] - (hi - t);
-#endif
+	e0 = __ieee754_rem_pio2l(x, y);
+	hi = y[0];
+	lo = y[1];
 
 	switch (e0 & 3) {
 	case 0:
@@ -110,5 +91,5 @@ tanl(long double x)
 	    break;
 	}
 
-	return (s ? -hi : hi);
+	RETURNI(hi);
 }

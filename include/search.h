@@ -1,8 +1,8 @@
 /*-
- * Written by J.T. Conklin <jtc@netbsd.org>
+ * Written by J.T. Conklin <jtc@NetBSD.org>
  * Public domain.
  *
- *	$NetBSD: search.h,v 1.12 1999/02/22 10:34:28 christos Exp $
+ *	$NetBSD: search.h,v 1.16 2005/02/03 04:39:32 perry Exp $
  * $FreeBSD$
  */
 
@@ -35,13 +35,20 @@ typedef	enum {
 
 #ifdef _SEARCH_PRIVATE
 typedef	struct node {
-	char         *key;
+	void         *key;
 	struct node  *llink, *rlink;
+	signed char   balance;
 } node_t;
 
 struct que_elem {
 	struct que_elem *next;
 	struct que_elem *prev;
+};
+#endif
+
+#if __BSD_VISIBLE
+struct hsearch_data {
+	struct __hsearch *__hsearch;
 };
 #endif
 
@@ -61,6 +68,13 @@ void	*tfind(const void *, void * const *,
 	    int (*)(const void *, const void *));
 void	*tsearch(const void *, void **, int (*)(const void *, const void *));
 void	 twalk(const void *, void (*)(const void *, VISIT, int));
+
+#if __BSD_VISIBLE
+int	 hcreate_r(size_t, struct hsearch_data *);
+void	 hdestroy_r(struct hsearch_data *);
+int	 hsearch_r(ENTRY, ACTION, ENTRY **, struct hsearch_data *);
+#endif
+
 __END_DECLS
 
 #endif /* !_SEARCH_H_ */

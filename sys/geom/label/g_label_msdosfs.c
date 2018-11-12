@@ -48,7 +48,6 @@ g_label_msdosfs_taste(struct g_consumer *cp, char *label, size_t size)
 	FAT32_BSBPB *pfat32_bsbpb;
 	FAT_DES *pfat_entry;
 	uint8_t *sector0, *sector;
-	uint32_t i;
 
 	g_topology_assert_not();
 	pp = cp->provider;
@@ -200,14 +199,7 @@ g_label_msdosfs_taste(struct g_consumer *cp, char *label, size_t size)
 	}
 
 endofchecks:
-	for (i = size - 1; i > 0; i--) {
-		if (label[i] == '\0')
-			continue;
-		else if (label[i] == ' ')
-			label[i] = '\0';
-		else
-			break;
-	}
+	g_label_rtrim(label, size);
 
 error:
 	if (sector0 != NULL)
@@ -216,7 +208,10 @@ error:
 		g_free(sector);
 }
 
-const struct g_label_desc g_label_msdosfs = {
+struct g_label_desc g_label_msdosfs = {
 	.ld_taste = g_label_msdosfs_taste,
-	.ld_dir = G_LABEL_MSDOSFS_DIR
+	.ld_dir = G_LABEL_MSDOSFS_DIR,
+	.ld_enabled = 1
 };
+
+G_LABEL_INIT(msdosfs, g_label_msdosfs, "Create device nodes for MSDOSFS volumes");

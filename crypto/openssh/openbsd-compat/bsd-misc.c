@@ -28,9 +28,8 @@
 #include <string.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
-
-#include "xmalloc.h"
 
 #ifndef HAVE___PROGNAME
 char *__progname;
@@ -42,13 +41,12 @@ char *__progname;
  */
 char *ssh_get_progname(char *argv0)
 {
+	char *p, *q;
 #ifdef HAVE___PROGNAME
 	extern char *__progname;
 
-	return xstrdup(__progname);
+	p = __progname;
 #else
-	char *p;
-
 	if (argv0 == NULL)
 		return ("unknown");	/* XXX */
 	p = strrchr(argv0, '/');
@@ -56,9 +54,12 @@ char *ssh_get_progname(char *argv0)
 		p = argv0;
 	else
 		p++;
-
-	return (xstrdup(p));
 #endif
+	if ((q = strdup(p)) == NULL) {
+		perror("strdup");
+		exit(1);
+	}
+	return q;
 }
 
 #ifndef HAVE_SETLOGIN
@@ -165,6 +166,17 @@ int nanosleep(const struct timespec *req, struct timespec *rem)
 }
 #endif
 
+#if !defined(HAVE_USLEEP)
+int usleep(unsigned int useconds)
+{
+	struct timespec ts;
+
+	ts.tv_sec = useconds / 1000000;
+	ts.tv_nsec = (useconds % 1000000) * 1000;
+	return nanosleep(&ts, NULL);
+}
+#endif
+
 #ifndef HAVE_TCGETPGRP
 pid_t
 tcgetpgrp(int fd)
@@ -238,5 +250,37 @@ strdup(const char *str)
 	if (cp != NULL)
 		return(memcpy(cp, str, len));
 	return NULL;
+}
+#endif
+
+#ifndef HAVE_ISBLANK
+int
+isblank(int c)
+{
+	return (c == ' ' || c == '\t');
+}
+#endif
+
+#ifndef HAVE_GETPGID
+pid_t
+getpgid(pid_t pid)
+{
+#if defined(HAVE_GETPGRP) && !defined(GETPGRP_VOID)
+	return getpgrp(pid);
+#elif defined(HAVE_GETPGRP)
+	if (pid == 0)
+		return getpgrp();
+#endif
+
+	errno = ESRCH;
+	return -1;
+}
+#endif
+
+#ifndef HAVE_PLEDGE
+int
+pledge(const char *promises, const char *paths[])
+{
+	return 0;
 }
 #endif

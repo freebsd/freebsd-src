@@ -41,13 +41,6 @@ __FBSDID("$FreeBSD$");
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -70,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -93,11 +85,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/serial/usb_serial.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ubsa_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ubsa, CTLFLAG_RW, 0, "USB ubsa");
-SYSCTL_INT(_hw_usb_ubsa, OID_AUTO, debug, CTLFLAG_RW,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ubsa, CTLFLAG_RW, 0, "USB ubsa");
+SYSCTL_INT(_hw_usb_ubsa, OID_AUTO, debug, CTLFLAG_RWTUN,
     &ubsa_debug, 0, "ubsa debug level");
 #endif
 
@@ -177,12 +169,14 @@ struct ubsa_softc {
 static device_probe_t ubsa_probe;
 static device_attach_t ubsa_attach;
 static device_detach_t ubsa_detach;
+static void ubsa_free_softc(struct ubsa_softc *);
 
 static usb_callback_t ubsa_write_callback;
 static usb_callback_t ubsa_read_callback;
 static usb_callback_t ubsa_intr_callback;
 
 static void	ubsa_cfg_request(struct ubsa_softc *, uint8_t, uint16_t);
+static void	ubsa_free(struct ucom_softc *);
 static void	ubsa_cfg_set_dtr(struct ucom_softc *, uint8_t);
 static void	ubsa_cfg_set_rts(struct ucom_softc *, uint8_t);
 static void	ubsa_cfg_set_break(struct ucom_softc *, uint8_t);
@@ -238,9 +232,10 @@ static const struct ucom_callback ubsa_callback = {
 	.ucom_start_write = &ubsa_start_write,
 	.ucom_stop_write = &ubsa_stop_write,
 	.ucom_poll = &ubsa_poll,
+	.ucom_free = &ubsa_free,
 };
 
-static const struct usb_device_id ubsa_devs[] = {
+static const STRUCT_USB_HOST_ID ubsa_devs[] = {
 	/* AnyData ADU-500A */
 	{USB_VPI(USB_VENDOR_ANYDATA, USB_PRODUCT_ANYDATA_ADU_500A, 0)},
 	/* AnyData ADU-E100A/H */
@@ -263,7 +258,7 @@ static device_method_t ubsa_methods[] = {
 	DEVMETHOD(device_probe, ubsa_probe),
 	DEVMETHOD(device_attach, ubsa_attach),
 	DEVMETHOD(device_detach, ubsa_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t ubsa_devclass;
@@ -277,6 +272,8 @@ static driver_t ubsa_driver = {
 DRIVER_MODULE(ubsa, uhub, ubsa_driver, ubsa_devclass, NULL, 0);
 MODULE_DEPEND(ubsa, ucom, 1, 1, 1);
 MODULE_DEPEND(ubsa, usb, 1, 1, 1);
+MODULE_VERSION(ubsa, 1);
+USB_PNP_HOST_INFO(ubsa_devs);
 
 static int
 ubsa_probe(device_t dev)
@@ -306,6 +303,7 @@ ubsa_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "ubsa", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_udev = uaa->device;
 	sc->sc_iface_no = uaa->info.bIfaceNum;
@@ -330,6 +328,8 @@ ubsa_attach(device_t dev)
 		DPRINTF("ucom_attach failed\n");
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	return (0);
 
 detach:
@@ -344,11 +344,31 @@ ubsa_detach(device_t dev)
 
 	DPRINTF("sc=%p\n", sc);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UBSA_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	ubsa_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(ubsa);
+
+static void
+ubsa_free_softc(struct ubsa_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+ubsa_free(struct ucom_softc *ucom)
+{
+	ubsa_free_softc(ucom->sc_parent);
 }
 
 static void
@@ -405,9 +425,8 @@ ubsa_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 static int
 ubsa_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
-	struct ubsa_softc *sc = ucom->sc_parent;
 
-	DPRINTF("sc = %p\n", sc);
+	DPRINTF("sc = %p\n", ucom->sc_parent);
 
 	switch (t->c_ospeed) {
 	case B0:
@@ -626,16 +645,24 @@ ubsa_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		if (actlen >= sizeof(buf)) {
+		if (actlen >= (int)sizeof(buf)) {
 			pc = usbd_xfer_get_frame(xfer, 0);
 			usbd_copy_out(pc, 0, buf, sizeof(buf));
 
 			/*
-			 * incidentally, Belkin adapter status bits match
-			 * UART 16550 bits
+			 * MSR bits need translation from ns16550 to SER_* values.
+			 * LSR bits are ns16550 in hardware and ucom.
 			 */
+			sc->sc_msr = 0;
+			if (buf[3] & UBSA_MSR_CTS)
+				sc->sc_msr |= SER_CTS;
+			if (buf[3] & UBSA_MSR_DCD)
+				sc->sc_msr |= SER_DCD;
+			if (buf[3] & UBSA_MSR_RI)
+				sc->sc_msr |= SER_RI;
+			if (buf[3] & UBSA_MSR_DSR)
+				sc->sc_msr |= SER_DSR;
 			sc->sc_lsr = buf[2];
-			sc->sc_msr = buf[3];
 
 			DPRINTF("lsr = 0x%02x, msr = 0x%02x\n",
 			    sc->sc_lsr, sc->sc_msr);
@@ -644,7 +671,7 @@ ubsa_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		} else {
 			DPRINTF("ignoring short packet, %d bytes\n", actlen);
 		}
-
+		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));

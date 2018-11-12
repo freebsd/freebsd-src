@@ -1,7 +1,7 @@
 #	$NetBSD: Makefile,v 1.3 2000/06/20 13:56:43 fvdl Exp $
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	rpcbind
 MAN=	rpcbind.8
@@ -14,7 +14,12 @@ CFLAGS+= -DPORTMAP -DLIBWRAP
 CFLAGS+= -DINET6
 .endif
 
-DPADD=	${LIBWRAP} ${LIBUTIL}
-LDADD=	-lwrap -lutil
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
+
+WARNS?=	1
+
+LIBADD=	wrap
 
 .include <bsd.prog.mk>

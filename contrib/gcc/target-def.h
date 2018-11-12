@@ -337,9 +337,12 @@ Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
    TARGET_SCHED_SET_SCHED_FLAGS}
 
 #define TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD 0
+#define TARGET_VECTOR_ALIGNMENT_REACHABLE \
+  default_builtin_vector_alignment_reachable
 
 #define TARGET_VECTORIZE                                                \
-  {TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD}
+  {TARGET_VECTORIZE_BUILTIN_MASK_FOR_LOAD,				\
+   TARGET_VECTOR_ALIGNMENT_REACHABLE}
 
 #define TARGET_DEFAULT_TARGET_FLAGS 0
 
@@ -584,6 +587,10 @@ Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #define TARGET_CXX_CLASS_DATA_ALWAYS_COMDAT hook_bool_void_true
 #endif
 
+#ifndef TARGET_CXX_LIBRARY_RTTI_COMDAT
+#define TARGET_CXX_LIBRARY_RTTI_COMDAT hook_bool_void_true
+#endif
+
 #ifndef TARGET_CXX_USE_AEABI_ATEXIT
 #define TARGET_CXX_USE_AEABI_ATEXIT hook_bool_void_false
 #endif
@@ -603,6 +610,7 @@ Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
     TARGET_CXX_KEY_METHOD_MAY_BE_INLINE,	\
     TARGET_CXX_DETERMINE_CLASS_DATA_VISIBILITY,	\
     TARGET_CXX_CLASS_DATA_ALWAYS_COMDAT,        \
+    TARGET_CXX_LIBRARY_RTTI_COMDAT,	        \
     TARGET_CXX_USE_AEABI_ATEXIT,		\
     TARGET_CXX_ADJUST_CLASS_AT_DEFINITION	\
   }

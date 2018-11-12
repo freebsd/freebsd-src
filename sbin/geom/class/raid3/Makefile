@@ -1,10 +1,10 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 .PATH:	${.CURDIR}/../../misc
 
-CLASS=	raid3
+GEOM_CLASS=	raid3
 
-DPADD=	${LIBMD}
-LDADD=	-lmd
+LIBADD=	md
 
 .include <bsd.lib.mk>

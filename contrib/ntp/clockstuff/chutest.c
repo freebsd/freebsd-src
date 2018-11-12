@@ -2,36 +2,48 @@
  * chutest - test the CHU clock
  */
 
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 #include <stdio.h>
+#include <fcntl.h>
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+#ifdef HAVE_STROPTS_H
+# include <stropts.h>
+#else
+# ifdef HAVE_SYS_STROPTS_H
+#  include <sys/stropts.h>
+# endif
+#endif
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/file.h>
-#include <sgtty.h>
+#ifdef HAVE_TERMIOS_H
+# include <termios.h>
+#else
+# ifdef HAVE_SGTTY_H
+#  include <sgtty.h>
+# endif
+#endif
 
-#include "../include/ntp_fp.h"
-#include "../include/ntp.h"
-#include "../include/ntp_unixtime.h"
-
-#ifdef CHULDISC
-#ifdef STREAM
-# ifdef HAVE_SYS_CHUDEFS_H
-#include <sys/chudefs.h>
-#endif
-#include <stropts.h>
-#endif
-#endif
+#include "ntp_fp.h"
+#include "ntp.h"
+#include "ntp_unixtime.h"
+#include "ntp_calendar.h"
 
 #ifdef CHULDISC
 # ifdef HAVE_SYS_CHUDEFS_H
-#include <sys/chudefs.h>
+#  include <sys/chudefs.h>
+# endif
 #endif
-#endif
+
 
 #ifndef CHULDISC
-#ifndef STREAM
 #define	NCHUCHARS	(10)
 
 struct chucode {
@@ -41,12 +53,10 @@ struct chucode {
 	struct timeval codetimes[NCHUCHARS];	/* arrival times */
 };
 #endif
-#endif
 
 #define	STREQ(a, b)	(*(a) == *(b) && strcmp((a), (b)) == 0)
 
-char *progname;
-int debug;
+char const *progname;
 
 int dofilter = 0;	/* set to 1 when we should run filter algorithm */
 int showtimes = 0;	/* set to 1 when we should show char arrival times */
@@ -61,9 +71,14 @@ int usechuldisc = 0;	/* set to 1 when CHU line discipline should be used */
 struct timeval lasttv;
 struct chucode chudata;
 
-extern u_long ustotslo[];
-extern u_long ustotsmid[];
-extern u_long ustotshi[];
+void	error(char *fmt, char *s1, char *s2);
+void	init_chu(void);
+int	openterm(char *dev);
+int	process_raw(int s);
+int	process_ldisc(int s);
+void	raw_filter(unsigned int c, struct timeval *tv);
+void	chufilter(struct chucode *chuc,	l_fp *rtime);
+
 
 /*
  * main - parse arguments and handle options
@@ -77,8 +92,6 @@ main(
 	int c;
 	int errflg = 0;
 	extern int ntp_optind;
-	extern char *ntp_optarg;
-	void init_chu();
 
 	progname = argv[0];
 	while ((c = ntp_getopt(argc, argv, "cdfpt")) != EOF)
@@ -261,21 +274,20 @@ process_raw(
 /*
  * raw_filter - run the line discipline filter over raw data
  */
-int
+void
 raw_filter(
 	unsigned int c,
 	struct timeval *tv
 	)
 {
-	static struct timeval diffs[10] = { 0 };
+	static struct timeval diffs[10];
 	struct timeval diff;
 	l_fp ts;
-	void chufilter();
 
 	if ((c & 0xf) > 9 || ((c>>4)&0xf) > 9) {
 		if (debug)
 		    (void) fprintf(stderr,
-				   "character %02x failed BCD test\n");
+				   "character %02x failed BCD test\n", c);
 		chudata.ncodechars = 0;
 		return;
 	}
@@ -497,14 +509,6 @@ extern u_long current_time;
 extern struct event timerqueue[];
 
 /*
- * Time conversion tables imported from the library
- */
-extern u_long ustotslo[];
-extern u_long ustotsmid[];
-extern u_long ustotshi[];
-
-
-/*
  * init_chu - initialize internal chu driver data
  */
 void
@@ -543,10 +547,6 @@ chufilter(
 	l_fp ts;
 	int day, hour, minute, second;
 	static u_char lastcode[NCHUCHARS];
-	extern u_long calyearstart();
-	extern char *mfptoa();
-	void chu_process();
-	extern char *prettydate();
 
 	/*
 	 * We'll skip the checks made in the kernel, but assume they've
@@ -632,6 +632,7 @@ chufilter(
 	 * work most of the time.
 	 */
 	date_ui = tmp + yearstart;
+#define CLOCK_WAYTOOBIG 1000 /* revived from ancient sources */
 	if (date_ui < (rtime->l_ui + CLOCK_WAYTOOBIG)
 	    && date_ui > (rtime->l_ui - CLOCK_WAYTOOBIG))
 	    goto codeokay;	/* looks good */
@@ -640,7 +641,7 @@ chufilter(
 	 * Trouble.  Next check is to see if the year rolled over and, if
 	 * so, try again with the new year's start.
 	 */
-	date_ui = calyearstart(rtime->l_ui);
+	date_ui = calyearstart(rtime->l_ui, NULL);
 	if (date_ui != yearstart) {
 		yearstart = date_ui;
 		date_ui += tmp;
@@ -666,7 +667,9 @@ chufilter(
 	 * than CLOCK_WAYTOOBIG seconds into the new year.
 	 */
 	if ((rtime->l_ui - yearstart) < CLOCK_WAYTOOBIG) {
-		date_ui = tmp + calyearstart(yearstart - CLOCK_WAYTOOBIG);
+		date_ui = tmp; 
+		date_ui += calyearstart(yearstart - CLOCK_WAYTOOBIG,
+					NULL);
 		if ((rtime->l_ui - date_ui) < CLOCK_WAYTOOBIG)
 		    goto codeokay;
 	}
@@ -676,7 +679,9 @@ chufilter(
 	 * following the year the system is in.  Try this one before
 	 * giving up.
 	 */
-	date_ui = tmp + calyearstart(yearstart + (400*24*60*60)); /* 400 days */
+	date_ui = tmp;
+	date_ui += calyearstart(yearstart + (400 * SECSPERDAY),
+				NULL);
 	if ((date_ui - rtime->l_ui) >= CLOCK_WAYTOOBIG) {
 		printf("Date hopelessly off\n");
 		return;		/* hopeless, let it sync to other peers */

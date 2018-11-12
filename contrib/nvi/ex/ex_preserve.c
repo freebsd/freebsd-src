@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_preserve.c	10.12 (Berkeley) 4/27/96";
+static const char sccsid[] = "$Id: ex_preserve.c,v 10.15 2001/06/25 15:19:18 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <errno.h>
@@ -28,12 +29,10 @@ static const char sccsid[] = "@(#)ex_preserve.c	10.12 (Berkeley) 4/27/96";
  * ex_preserve -- :pre[serve]
  *	Push the file to recovery.
  *
- * PUBLIC: int ex_preserve __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_preserve(SCR *, EXCMD *);
  */
 int
-ex_preserve(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_preserve(SCR *sp, EXCMD *cmdp)
 {
 	recno_t lno;
 
@@ -64,20 +63,21 @@ ex_preserve(sp, cmdp)
  * ex_recover -- :rec[over][!] file
  *	Recover the file.
  *
- * PUBLIC: int ex_recover __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_recover(SCR *, EXCMD *);
  */
 int
-ex_recover(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_recover(SCR *sp, EXCMD *cmdp)
 {
 	ARGS *ap;
 	FREF *frp;
+	char *np;
+	size_t nlen;
 
 	ap = cmdp->argv[0];
 
 	/* Set the alternate file name. */
-	set_alt_name(sp, ap->bp);
+	INT2CHAR(sp, ap->bp, ap->len+1, np, nlen);
+	set_alt_name(sp, np);
 
 	/*
 	 * Check for modifications.  Autowrite did not historically
@@ -87,7 +87,8 @@ ex_recover(sp, cmdp)
 		return (1);
 
 	/* Get a file structure for the file. */
-	if ((frp = file_add(sp, ap->bp)) == NULL)
+	INT2CHAR(sp, ap->bp, ap->len+1, np, nlen);
+	if ((frp = file_add(sp, np)) == NULL)
 		return (1);
 
 	/* Set the recover bit. */

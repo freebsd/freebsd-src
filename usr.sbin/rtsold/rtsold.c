@@ -32,7 +32,7 @@
  */
 
 #include <sys/types.h>
-#include <sys/time.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/param.h>
 
@@ -41,6 +41,10 @@
 
 #include <netinet/in.h>
 #include <netinet/icmp6.h>
+#include <netinet/in_var.h>
+#include <arpa/inet.h>
+
+#include <netinet6/nd6.h>
 
 #include <signal.h>
 #include <unistd.h>
@@ -48,26 +52,29 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 #include <errno.h>
 #include <err.h>
 #include <stdarg.h>
 #include <ifaddrs.h>
-#ifdef HAVE_POLL_H
 #include <poll.h>
-#endif
 
 #include "rtsold.h"
 
-struct ifinfo *iflist;
-struct timeval tm_max =	{0x7fffffff, 0x7fffffff};
+#define RTSOL_DUMPFILE	"/var/run/rtsold.dump";
+#define RTSOL_PIDFILE	"/var/run/rtsold.pid";
+
+struct timespec tm_max;
 static int log_upto = 999;
 static int fflag = 0;
 
 int Fflag = 0;	/* force setting sysctl parameters */
 int aflag = 0;
 int dflag = 0;
+int uflag = 0;
 
-char *otherconf_script;
+const char *otherconf_script;
+const char *resolvconf_script = "/sbin/resolvconf";
 
 /* protocol constants */
 #define MAX_RTR_SOLICITATION_DELAY	1 /* second */
@@ -80,56 +87,47 @@ char *otherconf_script;
  */
 #define PROBE_INTERVAL 60
 
-int main(int, char **);
-
 /* static variables and functions */
 static int mobile_node = 0;
+static const char *pidfilename = RTSOL_PIDFILE;
+
 #ifndef SMALL
 static int do_dump;
-static char *dumpfilename = "/var/run/rtsold.dump"; /* XXX: should be configurable */
-#endif
-#if 1
-static char *pidfilename = "/var/run/rtsold.pid"; /* should be configurable */
+static const char *dumpfilename = RTSOL_DUMPFILE;
 #endif
 
 #if 0
 static int ifreconfig(char *);
 #endif
+
 static int make_packet(struct ifinfo *);
-static struct timeval *rtsol_check_timer(void);
+static struct timespec *rtsol_check_timer(void);
 
 #ifndef SMALL
 static void rtsold_set_dump_file(int);
 #endif
-static void usage(char *);
+static void usage(void);
 
 int
 main(int argc, char **argv)
 {
 	int s, ch, once = 0;
-	struct timeval *timeout;
-	char *argv0, *opts;
-#ifdef HAVE_POLL_H
+	struct timespec *timeout;
+	const char *opts;
 	struct pollfd set[2];
-#else
-	fd_set *fdsetp, *selectfdp;
-	int fdmasks;
-	int maxfd;
-#endif
 	int rtsock;
+	char *argv0;
 
-	/*
-	 * Initialization
-	 */
+#ifndef SMALL
+	/* rtsold */
+	opts = "adDfFm1O:p:R:u";
+#else
+	/* rtsol */
+	opts = "adDFO:R:u";
+	fflag = 1;
+	once = 1;
+#endif
 	argv0 = argv[0];
-
-	/* get option */
-	if (argv0 && argv0[strlen(argv0) - 1] != 'd') {
-		fflag = 1;
-		once = 1;
-		opts = "adDFO:";
-	} else
-		opts = "adDfFm1O:";
 
 	while ((ch = getopt(argc, argv, opts)) != -1) {
 		switch (ch) {
@@ -137,10 +135,10 @@ main(int argc, char **argv)
 			aflag = 1;
 			break;
 		case 'd':
-			dflag = 1;
+			dflag += 1;
 			break;
 		case 'D':
-			dflag = 2;
+			dflag += 2;
 			break;
 		case 'f':
 			fflag = 1;
@@ -157,22 +155,40 @@ main(int argc, char **argv)
 		case 'O':
 			otherconf_script = optarg;
 			break;
+		case 'p':
+			pidfilename = optarg;
+			break;
+		case 'R':
+			resolvconf_script = optarg;
+			break;
+		case 'u':
+			uflag = 1;
+			break;
 		default:
-			usage(argv0);
-			/*NOTREACHED*/
+			usage();
+			exit(1);
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
 	if ((!aflag && argc == 0) || (aflag && argc != 0)) {
-		usage(argv0);
-		/*NOTREACHED*/
+		usage();
+		exit(1);
 	}
 
+	/* Generate maximum time in timespec. */
+	tm_max.tv_sec = (-1) & ~((time_t)1 << ((sizeof(tm_max.tv_sec) * 8) - 1));
+	tm_max.tv_nsec = (-1) & ~((long)1 << ((sizeof(tm_max.tv_nsec) * 8) - 1));
+
 	/* set log level */
-	if (dflag == 0)
+	if (dflag > 1)
+		log_upto = LOG_DEBUG;
+	else if (dflag > 0)
+		log_upto = LOG_INFO;
+	else
 		log_upto = LOG_NOTICE;
+
 	if (!fflag) {
 		char *ident;
 
@@ -190,12 +206,16 @@ main(int argc, char **argv)
 		errx(1, "configuration script (%s) must be an absolute path",
 		    otherconf_script);
 	}
+	if (resolvconf_script && *resolvconf_script != '/') {
+		errx(1, "configuration script (%s) must be an absolute path",
+		    resolvconf_script);
+	}
+	if (pidfilename && *pidfilename != '/') {
+		errx(1, "pid filename (%s) must be an absolute path",
+		    pidfilename);
+	}
 
-#ifndef HAVE_ARC4RANDOM
-	/* random value initialization */
-	srandom((u_long)time(NULL));
-#endif
-
+#if (__FreeBSD_version < 900000)
 	if (Fflag) {
 		setinet6sysctl(IPV6CTL_FORWARDING, 0);
 	} else {
@@ -203,6 +223,7 @@ main(int argc, char **argv)
 		if (getinet6sysctl(IPV6CTL_FORWARDING))
 			warnx("kernel is configured as a router, not a host");
 	}
+#endif
 
 #ifndef SMALL
 	/* initialization to dump internal status to a file */
@@ -220,50 +241,23 @@ main(int argc, char **argv)
 	if ((s = sockopen()) < 0) {
 		warnmsg(LOG_ERR, __func__, "failed to open a socket");
 		exit(1);
-		/*NOTREACHED*/
 	}
-#ifdef HAVE_POLL_H
 	set[0].fd = s;
 	set[0].events = POLLIN;
-#else
-	maxfd = s;
-#endif
-
-#ifdef HAVE_POLL_H
 	set[1].fd = -1;
-#endif
 
 	if ((rtsock = rtsock_open()) < 0) {
 		warnmsg(LOG_ERR, __func__, "failed to open a socket");
 		exit(1);
-		/*NOTREACHED*/
 	}
-#ifdef HAVE_POLL_H
 	set[1].fd = rtsock;
 	set[1].events = POLLIN;
-#else
-	if (rtsock > maxfd)
-		maxfd = rtsock;
-#endif
-
-#ifndef HAVE_POLL_H
-	fdmasks = howmany(maxfd + 1, NFDBITS) * sizeof(fd_mask);
-	if ((fdsetp = malloc(fdmasks)) == NULL) {
-		err(1, "malloc");
-		/*NOTREACHED*/
-	}
-	if ((selectfdp = malloc(fdmasks)) == NULL) {
-		err(1, "malloc");
-		/*NOTREACHED*/
-	}
-#endif
 
 	/* configuration per interface */
 	if (ifinit()) {
 		warnmsg(LOG_ERR, __func__,
 		    "failed to initialize interfaces");
 		exit(1);
-		/*NOTREACHED*/
 	}
 	if (aflag)
 		argv = autoifprobe();
@@ -272,7 +266,6 @@ main(int argc, char **argv)
 			warnmsg(LOG_ERR, __func__,
 			    "failed to initialize %s", *argv);
 			exit(1);
-			/*NOTREACHED*/
 		}
 		argv++;
 	}
@@ -285,7 +278,6 @@ main(int argc, char **argv)
 		/*NOTREACHED*/
 	}
 
-#if 1
 	/* dump the current pid */
 	if (!once) {
 		pid_t pid = getpid();
@@ -300,20 +292,8 @@ main(int argc, char **argv)
 			fclose(fp);
 		}
 	}
-#endif
-
-#ifndef HAVE_POLL_H
-	memset(fdsetp, 0, fdmasks);
-	FD_SET(s, fdsetp);
-	FD_SET(rtsock, fdsetp);
-#endif
 	while (1) {		/* main loop */
 		int e;
-
-#ifndef HAVE_POLL_H
-		memcpy(selectfdp, fdsetp, fdmasks);
-#endif
-
 #ifndef SMALL
 		if (do_dump) {	/* SIGUSR1 */
 			do_dump = 0;
@@ -331,18 +311,14 @@ main(int argc, char **argv)
 				break;
 
 			/* if all interfaces have got RA packet, we are done */
-			for (ifi = iflist; ifi; ifi = ifi->next) {
+			TAILQ_FOREACH(ifi, &ifinfo_head, ifi_next) {
 				if (ifi->state != IFS_DOWN && ifi->racnt == 0)
 					break;
 			}
 			if (ifi == NULL)
 				break;
 		}
-#ifdef HAVE_POLL_H
-		e = poll(set, 2, timeout ? (timeout->tv_sec * 1000 + timeout->tv_usec / 1000) : INFTIM);
-#else
-		e = select(maxfd + 1, selectfdp, NULL, NULL, timeout);
-#endif
+		e = poll(set, 2, timeout ? (timeout->tv_sec * 1000 + timeout->tv_nsec / 1000 / 1000) : INFTIM);
 		if (e < 1) {
 			if (e < 0 && errno != EINTR) {
 				warnmsg(LOG_ERR, __func__, "select: %s",
@@ -352,117 +328,132 @@ main(int argc, char **argv)
 		}
 
 		/* packet reception */
-#ifdef HAVE_POLL_H
 		if (set[1].revents & POLLIN)
-#else
-		if (FD_ISSET(rtsock, selectfdp))
-#endif
 			rtsock_input(rtsock);
-#ifdef HAVE_POLL_H
 		if (set[0].revents & POLLIN)
-#else
-		if (FD_ISSET(s, selectfdp))
-#endif
 			rtsol_input(s);
 	}
 	/* NOTREACHED */
 
-	return 0;
+	return (0);
 }
 
 int
 ifconfig(char *ifname)
 {
-	struct ifinfo *ifinfo;
+	struct ifinfo *ifi;
 	struct sockaddr_dl *sdl;
 	int flags;
 
 	if ((sdl = if_nametosdl(ifname)) == NULL) {
 		warnmsg(LOG_ERR, __func__,
 		    "failed to get link layer information for %s", ifname);
-		return(-1);
+		return (-1);
 	}
 	if (find_ifinfo(sdl->sdl_index)) {
 		warnmsg(LOG_ERR, __func__,
 		    "interface %s was already configured", ifname);
 		free(sdl);
-		return(-1);
+		return (-1);
 	}
 
-	if ((ifinfo = malloc(sizeof(*ifinfo))) == NULL) {
+	if (Fflag) {
+		struct in6_ndireq nd;
+		int s;
+
+		if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+			warnmsg(LOG_ERR, __func__, "socket() failed.");
+			return (-1);
+		}
+		memset(&nd, 0, sizeof(nd));
+		strlcpy(nd.ifname, ifname, sizeof(nd.ifname));
+		if (ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&nd) < 0) {
+			warnmsg(LOG_ERR, __func__,
+			    "cannot get accept_rtadv flag");
+			close(s);
+			return (-1);
+		}
+		nd.ndi.flags |= ND6_IFF_ACCEPT_RTADV;
+		if (ioctl(s, SIOCSIFINFO_IN6, (caddr_t)&nd) < 0) {
+			warnmsg(LOG_ERR, __func__,
+			    "cannot set accept_rtadv flag");
+			close(s);
+			return (-1);
+		}
+		close(s);
+	}
+
+	if ((ifi = malloc(sizeof(*ifi))) == NULL) {
 		warnmsg(LOG_ERR, __func__, "memory allocation failed");
 		free(sdl);
-		return(-1);
+		return (-1);
 	}
-	memset(ifinfo, 0, sizeof(*ifinfo));
-	ifinfo->sdl = sdl;
-
-	strlcpy(ifinfo->ifname, ifname, sizeof(ifinfo->ifname));
+	memset(ifi, 0, sizeof(*ifi));
+	ifi->sdl = sdl;
+	ifi->ifi_rdnss = IFI_DNSOPT_STATE_NOINFO;
+	ifi->ifi_dnssl = IFI_DNSOPT_STATE_NOINFO;
+	TAILQ_INIT(&ifi->ifi_rainfo);
+	strlcpy(ifi->ifname, ifname, sizeof(ifi->ifname));
 
 	/* construct a router solicitation message */
-	if (make_packet(ifinfo))
+	if (make_packet(ifi))
 		goto bad;
 
 	/* set link ID of this interface. */
 #ifdef HAVE_SCOPELIB
-	if (inet_zoneid(AF_INET6, 2, ifname, &ifinfo->linkid))
+	if (inet_zoneid(AF_INET6, 2, ifname, &ifi->linkid))
 		goto bad;
 #else
 	/* XXX: assume interface IDs as link IDs */
-	ifinfo->linkid = ifinfo->sdl->sdl_index;
+	ifi->linkid = ifi->sdl->sdl_index;
 #endif
 
 	/*
 	 * check if the interface is available.
 	 * also check if SIOCGIFMEDIA ioctl is OK on the interface.
 	 */
-	ifinfo->mediareqok = 1;
-	ifinfo->active = interface_status(ifinfo);
-	if (!ifinfo->mediareqok) {
+	ifi->mediareqok = 1;
+	ifi->active = interface_status(ifi);
+	if (!ifi->mediareqok) {
 		/*
 		 * probe routers periodically even if the link status
 		 * does not change.
 		 */
-		ifinfo->probeinterval = PROBE_INTERVAL;
+		ifi->probeinterval = PROBE_INTERVAL;
 	}
 
 	/* activate interface: interface_up returns 0 on success */
-	flags = interface_up(ifinfo->ifname);
+	flags = interface_up(ifi->ifname);
 	if (flags == 0)
-		ifinfo->state = IFS_DELAY;
+		ifi->state = IFS_DELAY;
 	else if (flags == IFS_TENTATIVE)
-		ifinfo->state = IFS_TENTATIVE;
+		ifi->state = IFS_TENTATIVE;
 	else
-		ifinfo->state = IFS_DOWN;
+		ifi->state = IFS_DOWN;
 
-	rtsol_timer_update(ifinfo);
+	rtsol_timer_update(ifi);
 
-	/* link into chain */
-	if (iflist)
-		ifinfo->next = iflist;
-	iflist = ifinfo;
-
-	return(0);
+	TAILQ_INSERT_TAIL(&ifinfo_head, ifi, ifi_next);
+	return (0);
 
 bad:
-	free(ifinfo->sdl);
-	free(ifinfo);
-	return(-1);
+	free(ifi->sdl);
+	free(ifi);
+	return (-1);
 }
 
 void
 iflist_init(void)
 {
-	struct ifinfo *ifi, *next;
+	struct ifinfo *ifi;
 
-	for (ifi = iflist; ifi; ifi = next) {
-		next = ifi->next;
-		if (ifi->sdl)
+	while ((ifi = TAILQ_FIRST(&ifinfo_head)) != NULL) {
+		TAILQ_REMOVE(&ifinfo_head, ifi, ifi_next);
+		if (ifi->sdl != NULL)
 			free(ifi->sdl);
-		if (ifi->rs_data)
+		if (ifi->rs_data != NULL)
 			free(ifi->rs_data);
 		free(ifi);
-		iflist = NULL;
 	}
 }
 
@@ -474,7 +465,7 @@ ifreconfig(char *ifname)
 	int rv;
 
 	prev = NULL;
-	for (ifi = iflist; ifi; ifi = ifi->next) {
+	TAILQ_FOREACH(ifi, &ifinfo_head, ifi_next) {
 		if (strncmp(ifi->ifname, ifname, sizeof(ifi->ifname)) == 0)
 			break;
 		prev = ifi;
@@ -488,43 +479,58 @@ ifreconfig(char *ifname)
 		free(ifi->rs_data);
 	free(ifi->sdl);
 	free(ifi);
-	return rv;
+
+	return (rv);
 }
 #endif
+
+struct rainfo *
+find_rainfo(struct ifinfo *ifi, struct sockaddr_in6 *sin6)
+{
+	struct rainfo *rai;
+
+	TAILQ_FOREACH(rai, &ifi->ifi_rainfo, rai_next)
+		if (memcmp(&rai->rai_saddr.sin6_addr, &sin6->sin6_addr,
+		    sizeof(rai->rai_saddr.sin6_addr)) == 0)
+			return (rai);
+
+	return (NULL);
+}
 
 struct ifinfo *
 find_ifinfo(int ifindex)
 {
 	struct ifinfo *ifi;
 
-	for (ifi = iflist; ifi; ifi = ifi->next)
+	TAILQ_FOREACH(ifi, &ifinfo_head, ifi_next) {
 		if (ifi->sdl->sdl_index == ifindex)
-			return(ifi);
-	return(NULL);
+			return (ifi);
+	}
+	return (NULL);
 }
 
 static int
-make_packet(struct ifinfo *ifinfo)
+make_packet(struct ifinfo *ifi)
 {
 	size_t packlen = sizeof(struct nd_router_solicit), lladdroptlen = 0;
 	struct nd_router_solicit *rs;
 	char *buf;
 
-	if ((lladdroptlen = lladdropt_length(ifinfo->sdl)) == 0) {
+	if ((lladdroptlen = lladdropt_length(ifi->sdl)) == 0) {
 		warnmsg(LOG_INFO, __func__,
 		    "link-layer address option has null length"
-		    " on %s. Treat as not included.", ifinfo->ifname);
+		    " on %s. Treat as not included.", ifi->ifname);
 	}
 	packlen += lladdroptlen;
-	ifinfo->rs_datalen = packlen;
+	ifi->rs_datalen = packlen;
 
 	/* allocate buffer */
 	if ((buf = malloc(packlen)) == NULL) {
 		warnmsg(LOG_ERR, __func__,
-		    "memory allocation failed for %s", ifinfo->ifname);
-		return(-1);
+		    "memory allocation failed for %s", ifi->ifname);
+		return (-1);
 	}
-	ifinfo->rs_data = buf;
+	ifi->rs_data = buf;
 
 	/* fill in the message */
 	rs = (struct nd_router_solicit *)buf;
@@ -536,66 +542,78 @@ make_packet(struct ifinfo *ifinfo)
 
 	/* fill in source link-layer address option */
 	if (lladdroptlen)
-		lladdropt_fill(ifinfo->sdl, (struct nd_opt_hdr *)buf);
+		lladdropt_fill(ifi->sdl, (struct nd_opt_hdr *)buf);
 
-	return(0);
+	return (0);
 }
 
-static struct timeval *
+static struct timespec *
 rtsol_check_timer(void)
 {
-	static struct timeval returnval;
-	struct timeval now, rtsol_timer;
-	struct ifinfo *ifinfo;
+	static struct timespec returnval;
+	struct timespec now, rtsol_timer;
+	struct ifinfo *ifi;
+	struct rainfo *rai;
+	struct ra_opt *rao, *raotmp;
 	int flags;
 
-	gettimeofday(&now, NULL);
+	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
 
 	rtsol_timer = tm_max;
 
-	for (ifinfo = iflist; ifinfo; ifinfo = ifinfo->next) {
-		if (timercmp(&ifinfo->expire, &now, <=)) {
-			if (dflag > 1)
-				warnmsg(LOG_DEBUG, __func__,
-				    "timer expiration on %s, "
-				    "state = %d", ifinfo->ifname,
-				    ifinfo->state);
+	TAILQ_FOREACH(ifi, &ifinfo_head, ifi_next) {
+		if (TS_CMP(&ifi->expire, &now, <=)) {
+			warnmsg(LOG_DEBUG, __func__, "timer expiration on %s, "
+			    "state = %d", ifi->ifname, ifi->state);
 
-			switch (ifinfo->state) {
+			while((rai = TAILQ_FIRST(&ifi->ifi_rainfo)) != NULL) {
+				/* Remove all RA options. */
+				TAILQ_REMOVE(&ifi->ifi_rainfo, rai, rai_next);
+				while ((rao = TAILQ_FIRST(&rai->rai_ra_opt)) !=
+				    NULL) {
+					TAILQ_REMOVE(&rai->rai_ra_opt, rao,
+					    rao_next);
+					if (rao->rao_msg != NULL)
+						free(rao->rao_msg);
+					free(rao);
+				}
+				free(rai);
+			}
+			switch (ifi->state) {
 			case IFS_DOWN:
 			case IFS_TENTATIVE:
 				/* interface_up returns 0 on success */
-				flags = interface_up(ifinfo->ifname);
+				flags = interface_up(ifi->ifname);
 				if (flags == 0)
-					ifinfo->state = IFS_DELAY;
+					ifi->state = IFS_DELAY;
 				else if (flags == IFS_TENTATIVE)
-					ifinfo->state = IFS_TENTATIVE;
+					ifi->state = IFS_TENTATIVE;
 				else
-					ifinfo->state = IFS_DOWN;
+					ifi->state = IFS_DOWN;
 				break;
 			case IFS_IDLE:
 			{
-				int oldstatus = ifinfo->active;
+				int oldstatus = ifi->active;
 				int probe = 0;
 
-				ifinfo->active = interface_status(ifinfo);
+				ifi->active = interface_status(ifi);
 
-				if (oldstatus != ifinfo->active) {
+				if (oldstatus != ifi->active) {
 					warnmsg(LOG_DEBUG, __func__,
 					    "%s status is changed"
 					    " from %d to %d",
-					    ifinfo->ifname,
-					    oldstatus, ifinfo->active);
+					    ifi->ifname,
+					    oldstatus, ifi->active);
 					probe = 1;
-					ifinfo->state = IFS_DELAY;
-				} else if (ifinfo->probeinterval &&
-				    (ifinfo->probetimer -=
-				    ifinfo->timer.tv_sec) <= 0) {
+					ifi->state = IFS_DELAY;
+				} else if (ifi->probeinterval &&
+				    (ifi->probetimer -=
+				    ifi->timer.tv_sec) <= 0) {
 					/* probe timer expired */
-					ifinfo->probetimer =
-					    ifinfo->probeinterval;
+					ifi->probetimer =
+					    ifi->probeinterval;
 					probe = 1;
-					ifinfo->state = IFS_PROBE;
+					ifi->state = IFS_PROBE;
 				}
 
 				/*
@@ -603,90 +621,114 @@ rtsol_check_timer(void)
 				 * status wrt the "other" configuration.
 				 */
 				if (probe)
-					ifinfo->otherconfig = 0;
+					ifi->otherconfig = 0;
 
 				if (probe && mobile_node)
-					defrouter_probe(ifinfo);
+					defrouter_probe(ifi);
 				break;
 			}
 			case IFS_DELAY:
-				ifinfo->state = IFS_PROBE;
-				sendpacket(ifinfo);
+				ifi->state = IFS_PROBE;
+				sendpacket(ifi);
 				break;
 			case IFS_PROBE:
-				if (ifinfo->probes < MAX_RTR_SOLICITATIONS)
-					sendpacket(ifinfo);
+				if (ifi->probes < MAX_RTR_SOLICITATIONS)
+					sendpacket(ifi);
 				else {
 					warnmsg(LOG_INFO, __func__,
 					    "No answer after sending %d RSs",
-					    ifinfo->probes);
-					ifinfo->probes = 0;
-					ifinfo->state = IFS_IDLE;
+					    ifi->probes);
+					ifi->probes = 0;
+					ifi->state = IFS_IDLE;
 				}
 				break;
 			}
-			rtsol_timer_update(ifinfo);
-		}
+			rtsol_timer_update(ifi);
+		} else {
+			/* Expiration check for RA options. */
+			int expire = 0;
 
-		if (timercmp(&ifinfo->expire, &rtsol_timer, <))
-			rtsol_timer = ifinfo->expire;
+			TAILQ_FOREACH(rai, &ifi->ifi_rainfo, rai_next) {
+				TAILQ_FOREACH_SAFE(rao, &rai->rai_ra_opt,
+				    rao_next, raotmp) {
+					warnmsg(LOG_DEBUG, __func__,
+					    "RA expiration timer: "
+					    "type=%d, msg=%s, expire=%s",
+					    rao->rao_type, (char *)rao->rao_msg,
+						sec2str(&rao->rao_expire));
+					if (TS_CMP(&now, &rao->rao_expire,
+					    >=)) {
+						warnmsg(LOG_DEBUG, __func__,
+						    "RA expiration timer: "
+						    "expired.");
+						TAILQ_REMOVE(&rai->rai_ra_opt,
+						    rao, rao_next);
+						if (rao->rao_msg != NULL)
+							free(rao->rao_msg);
+						free(rao);
+						expire = 1;
+					}
+				}
+			}
+			if (expire)
+				ra_opt_handler(ifi);
+		}
+		if (TS_CMP(&ifi->expire, &rtsol_timer, <))
+			rtsol_timer = ifi->expire;
 	}
 
-	if (timercmp(&rtsol_timer, &tm_max, ==)) {
+	if (TS_CMP(&rtsol_timer, &tm_max, ==)) {
 		warnmsg(LOG_DEBUG, __func__, "there is no timer");
-		return(NULL);
-	} else if (timercmp(&rtsol_timer, &now, <))
+		return (NULL);
+	} else if (TS_CMP(&rtsol_timer, &now, <))
 		/* this may occur when the interval is too small */
-		returnval.tv_sec = returnval.tv_usec = 0;
+		returnval.tv_sec = returnval.tv_nsec = 0;
 	else
-		timersub(&rtsol_timer, &now, &returnval);
+		TS_SUB(&rtsol_timer, &now, &returnval);
 
-	if (dflag > 1)
-		warnmsg(LOG_DEBUG, __func__, "New timer is %ld:%08ld",
-		    (long)returnval.tv_sec, (long)returnval.tv_usec);
+	now.tv_sec += returnval.tv_sec;
+	now.tv_nsec += returnval.tv_nsec;
+	warnmsg(LOG_DEBUG, __func__, "New timer is %s",
+	    sec2str(&now));
 
-	return(&returnval);
+	return (&returnval);
 }
 
 void
-rtsol_timer_update(struct ifinfo *ifinfo)
+rtsol_timer_update(struct ifinfo *ifi)
 {
 #define MILLION 1000000
 #define DADRETRY 10		/* XXX: adhoc */
 	long interval;
-	struct timeval now;
+	struct timespec now;
 
-	bzero(&ifinfo->timer, sizeof(ifinfo->timer));
+	bzero(&ifi->timer, sizeof(ifi->timer));
 
-	switch (ifinfo->state) {
+	switch (ifi->state) {
 	case IFS_DOWN:
 	case IFS_TENTATIVE:
-		if (++ifinfo->dadcount > DADRETRY) {
-			ifinfo->dadcount = 0;
-			ifinfo->timer.tv_sec = PROBE_INTERVAL;
+		if (++ifi->dadcount > DADRETRY) {
+			ifi->dadcount = 0;
+			ifi->timer.tv_sec = PROBE_INTERVAL;
 		} else
-			ifinfo->timer.tv_sec = 1;
+			ifi->timer.tv_sec = 1;
 		break;
 	case IFS_IDLE:
 		if (mobile_node) {
 			/* XXX should be configurable */
-			ifinfo->timer.tv_sec = 3;
+			ifi->timer.tv_sec = 3;
 		}
 		else
-			ifinfo->timer = tm_max;	/* stop timer(valid?) */
+			ifi->timer = tm_max;	/* stop timer(valid?) */
 		break;
 	case IFS_DELAY:
-#ifndef HAVE_ARC4RANDOM
-		interval = random() % (MAX_RTR_SOLICITATION_DELAY * MILLION);
-#else
 		interval = arc4random_uniform(MAX_RTR_SOLICITATION_DELAY * MILLION);
-#endif
-		ifinfo->timer.tv_sec = interval / MILLION;
-		ifinfo->timer.tv_usec = interval % MILLION;
+		ifi->timer.tv_sec = interval / MILLION;
+		ifi->timer.tv_nsec = (interval % MILLION) * 1000;
 		break;
 	case IFS_PROBE:
-		if (ifinfo->probes < MAX_RTR_SOLICITATIONS)
-			ifinfo->timer.tv_sec = RTR_SOLICITATION_INTERVAL;
+		if (ifi->probes < MAX_RTR_SOLICITATIONS)
+			ifi->timer.tv_sec = RTR_SOLICITATION_INTERVAL;
 		else {
 			/*
 			 * After sending MAX_RTR_SOLICITATIONS solicitations,
@@ -695,30 +737,29 @@ rtsol_timer_update(struct ifinfo *ifinfo)
 			 * the timer value to MAX_RTR_SOLICITATION_DELAY based
 			 * on RFC 2461, Section 6.3.7.
 			 */
-			ifinfo->timer.tv_sec = MAX_RTR_SOLICITATION_DELAY;
+			ifi->timer.tv_sec = MAX_RTR_SOLICITATION_DELAY;
 		}
 		break;
 	default:
 		warnmsg(LOG_ERR, __func__,
 		    "illegal interface state(%d) on %s",
-		    ifinfo->state, ifinfo->ifname);
+		    ifi->state, ifi->ifname);
 		return;
 	}
 
 	/* reset the timer */
-	if (timercmp(&ifinfo->timer, &tm_max, ==)) {
-		ifinfo->expire = tm_max;
+	if (TS_CMP(&ifi->timer, &tm_max, ==)) {
+		ifi->expire = tm_max;
 		warnmsg(LOG_DEBUG, __func__,
-		    "stop timer for %s", ifinfo->ifname);
+		    "stop timer for %s", ifi->ifname);
 	} else {
-		gettimeofday(&now, NULL);
-		timeradd(&now, &ifinfo->timer, &ifinfo->expire);
+		clock_gettime(CLOCK_MONOTONIC_FAST, &now);
+		TS_ADD(&now, &ifi->timer, &ifi->expire);
 
-		if (dflag > 1)
-			warnmsg(LOG_DEBUG, __func__,
-			    "set timer for %s to %d:%d", ifinfo->ifname,
-			    (int)ifinfo->timer.tv_sec,
-			    (int)ifinfo->timer.tv_usec);
+		now.tv_sec += ifi->timer.tv_sec;
+		now.tv_nsec += ifi->timer.tv_nsec;
+		warnmsg(LOG_DEBUG, __func__, "set timer for %s to %s",
+		    ifi->ifname, sec2str(&now));
 	}
 
 #undef MILLION
@@ -729,35 +770,30 @@ rtsol_timer_update(struct ifinfo *ifinfo)
 
 #ifndef SMALL
 static void
-rtsold_set_dump_file(int sig)
+rtsold_set_dump_file(int sig __unused)
 {
 	do_dump = 1;
 }
 #endif
 
 static void
-usage(char *progname)
+usage(void)
 {
-	if (progname && progname[strlen(progname) - 1] != 'd') {
-		fprintf(stderr, "usage: rtsol [-dDF] interfaces...\n");
-		fprintf(stderr, "usage: rtsol [-dDF] -a\n");
-	} else {
-		fprintf(stderr, "usage: rtsold [-adDfFm1] interfaces...\n");
-		fprintf(stderr, "usage: rtsold [-dDfFm1] -a\n");
-	}
-	exit(1);
+#ifndef SMALL
+	fprintf(stderr, "usage: rtsold [-dDfFm1] [-O script-name] "
+	    "[-p pidfile] [-R script-name] interface ...\n");
+	fprintf(stderr, "usage: rtsold [-dDfFm1] [-O script-name] "
+	    "[-p pidfile] [-R script-name] -a\n");
+#else
+	fprintf(stderr, "usage: rtsol [-dDF] [-O script-name] "
+	    "[-p pidfile] [-R script-name] interface ...\n");
+	fprintf(stderr, "usage: rtsol [-dDF] [-O script-name] "
+	    "[-p pidfile] [-R script-name] -a\n");
+#endif
 }
 
 void
-#if __STDC__
 warnmsg(int priority, const char *func, const char *msg, ...)
-#else
-warnmsg(priority, func, msg, va_alist)
-	int priority;
-	const char *func;
-	const char *msg;
-	va_dcl
-#endif
 {
 	va_list ap;
 	char buf[BUFSIZ];
@@ -785,8 +821,9 @@ autoifprobe(void)
 	static char **argv = NULL;
 	static int n = 0;
 	char **a;
-	int i, found;
-	struct ifaddrs *ifap, *ifa, *target;
+	int s = 0, i, found;
+	struct ifaddrs *ifap, *ifa;
+	struct in6_ndireq nd;
 
 	/* initialize */
 	while (n--)
@@ -798,9 +835,13 @@ autoifprobe(void)
 	n = 0;
 
 	if (getifaddrs(&ifap) != 0)
-		return NULL;
+		return (NULL);
 
-	target = NULL;
+	if (!Fflag && (s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+		warnmsg(LOG_ERR, __func__, "socket");
+		exit(1);
+	}
+
 	/* find an ethernet */
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		if ((ifa->ifa_flags & IFF_UP) == 0)
@@ -825,33 +866,60 @@ autoifprobe(void)
 		if (found)
 			continue;
 
+		/*
+		 * Skip the interfaces which IPv6 and/or accepting RA
+		 * is disabled.
+		 */
+		if (!Fflag) {
+			memset(&nd, 0, sizeof(nd));
+			strlcpy(nd.ifname, ifa->ifa_name, sizeof(nd.ifname));
+			if (ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&nd) < 0) {
+				warnmsg(LOG_ERR, __func__,
+					"ioctl(SIOCGIFINFO_IN6)");
+				exit(1);
+			}
+			if ((nd.ndi.flags & ND6_IFF_IFDISABLED))
+				continue;
+			if (!(nd.ndi.flags & ND6_IFF_ACCEPT_RTADV))
+				continue;
+		}
+
 		/* if we find multiple candidates, just warn. */
 		if (n != 0 && dflag > 1)
-			warnx("multiple interfaces found");
+			warnmsg(LOG_WARNING, __func__,
+				"multiple interfaces found");
 
-		a = (char **)realloc(argv, (n + 1) * sizeof(char **));
-		if (a == NULL)
-			err(1, "realloc");
+		a = realloc(argv, (n + 1) * sizeof(char *));
+		if (a == NULL) {
+			warnmsg(LOG_ERR, __func__, "realloc");
+			exit(1);
+		}
 		argv = a;
 		argv[n] = strdup(ifa->ifa_name);
-		if (!argv[n])
-			err(1, "malloc");
+		if (!argv[n]) {
+			warnmsg(LOG_ERR, __func__, "malloc");
+			exit(1);
+		}
 		n++;
-		argv[n] = NULL;
 	}
 
 	if (n) {
-		a = (char **)realloc(argv, (n + 1) * sizeof(char **));
-		if (a == NULL)
-			err(1, "realloc");
+		a = realloc(argv, (n + 1) * sizeof(char *));
+		if (a == NULL) {
+			warnmsg(LOG_ERR, __func__, "realloc");
+			exit(1);
+		}
 		argv = a;
 		argv[n] = NULL;
 
 		if (dflag > 0) {
 			for (i = 0; i < n; i++)
-				warnx("probing %s", argv[i]);
+				warnmsg(LOG_WARNING, __func__, "probing %s",
+					argv[i]);
 		}
 	}
+	if (!Fflag)
+		close(s);
 	freeifaddrs(ifap);
-	return argv;
+	return (argv);
 }

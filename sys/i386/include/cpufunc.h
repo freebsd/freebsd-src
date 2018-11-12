@@ -42,26 +42,15 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
-#ifdef XEN
-extern void xen_cli(void);
-extern void xen_sti(void);
-extern u_int xen_rcr2(void);
-extern void xen_load_cr3(u_int data);
-extern void xen_tlb_flush(void);
-extern void xen_invlpg(u_int addr);
-extern int xen_save_and_cli(void);
-extern void xen_restore_flags(u_int eflags);
-#endif
-
 struct region_descriptor;
 
-#define readb(va)	(*(volatile u_int8_t *) (va))
-#define readw(va)	(*(volatile u_int16_t *) (va))
-#define readl(va)	(*(volatile u_int32_t *) (va))
+#define readb(va)	(*(volatile uint8_t *) (va))
+#define readw(va)	(*(volatile uint16_t *) (va))
+#define readl(va)	(*(volatile uint32_t *) (va))
 
-#define writeb(va, d)	(*(volatile u_int8_t *) (va) = (d))
-#define writew(va, d)	(*(volatile u_int16_t *) (va) = (d))
-#define writel(va, d)	(*(volatile u_int32_t *) (va) = (d))
+#define writeb(va, d)	(*(volatile uint8_t *) (va) = (d))
+#define writew(va, d)	(*(volatile uint16_t *) (va) = (d))
+#define writel(va, d)	(*(volatile uint32_t *) (va) = (d))
 
 #if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE)
 
@@ -97,13 +86,24 @@ clflush(u_long addr)
 }
 
 static __inline void
+clflushopt(u_long addr)
+{
+
+	__asm __volatile(".byte 0x66;clflush %0" : : "m" (*(char *)addr));
+}
+
+static __inline void
+clts(void)
+{
+
+	__asm __volatile("clts");
+}
+
+static __inline void
 disable_intr(void)
 {
-#ifdef XEN
-	xen_cli();
-#else	
+
 	__asm __volatile("cli" : : : "memory");
-#endif
 }
 
 static __inline void
@@ -125,24 +125,30 @@ cpuid_count(u_int ax, u_int cx, u_int *p)
 static __inline void
 enable_intr(void)
 {
-#ifdef XEN
-	xen_sti();
-#else
+
 	__asm __volatile("sti");
-#endif
 }
 
 static __inline void
-cpu_monitor(const void *addr, int extensions, int hints)
+cpu_monitor(const void *addr, u_long extensions, u_int hints)
 {
-	__asm __volatile("monitor;"
-	    : :"a" (addr), "c" (extensions), "d"(hints));
+
+	__asm __volatile("monitor"
+	    : : "a" (addr), "c" (extensions), "d" (hints));
 }
 
 static __inline void
-cpu_mwait(int extensions, int hints)
+cpu_mwait(u_long extensions, u_int hints)
 {
-	__asm __volatile("mwait;" : :"a" (hints), "c" (extensions));
+
+	__asm __volatile("mwait" : : "a" (hints), "c" (extensions));
+}
+
+static __inline void
+lfence(void)
+{
+
+	__asm __volatile("lfence" : : : "memory");
 }
 
 static __inline void
@@ -168,12 +174,28 @@ ffs(int mask)
 	 return (mask == 0 ? mask : (int)bsfl((u_int)mask) + 1);
 }
 
+#define	HAVE_INLINE_FFSL
+
+static __inline int
+ffsl(long mask)
+{
+	return (ffs((int)mask));
+}
+
 #define	HAVE_INLINE_FLS
 
 static __inline int
 fls(int mask)
 {
 	return (mask == 0 ? mask : (int)bsrl((u_int)mask) + 1);
+}
+
+#define	HAVE_INLINE_FLSL
+
+static __inline int
+flsl(long mask)
+{
+	return (fls((int)mask));
 }
 
 #endif /* _KERNEL */
@@ -189,7 +211,7 @@ inb(u_int port)
 {
 	u_char	data;
 
-	__asm volatile("inb %w1, %0" : "=a" (data) : "Nd" (port));
+	__asm __volatile("inb %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
@@ -198,33 +220,33 @@ inl(u_int port)
 {
 	u_int	data;
 
-	__asm volatile("inl %w1, %0" : "=a" (data) : "Nd" (port));
+	__asm __volatile("inl %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
 static __inline void
-insb(u_int port, void *addr, size_t cnt)
+insb(u_int port, void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; insb"
-			 : "+D" (addr), "+c" (cnt)
+			 : "+D" (addr), "+c" (count)
 			 : "d" (port)
 			 : "memory");
 }
 
 static __inline void
-insw(u_int port, void *addr, size_t cnt)
+insw(u_int port, void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; insw"
-			 : "+D" (addr), "+c" (cnt)
+			 : "+D" (addr), "+c" (count)
 			 : "d" (port)
 			 : "memory");
 }
 
 static __inline void
-insl(u_int port, void *addr, size_t cnt)
+insl(u_int port, void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; insl"
-			 : "+D" (addr), "+c" (cnt)
+			 : "+D" (addr), "+c" (count)
 			 : "d" (port)
 			 : "memory");
 }
@@ -240,7 +262,7 @@ inw(u_int port)
 {
 	u_short	data;
 
-	__asm volatile("inw %w1, %0" : "=a" (data) : "Nd" (port));
+	__asm __volatile("inw %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
@@ -253,37 +275,37 @@ outb(u_int port, u_char data)
 static __inline void
 outl(u_int port, u_int data)
 {
-	__asm volatile("outl %0, %w1" : : "a" (data), "Nd" (port));
+	__asm __volatile("outl %0, %w1" : : "a" (data), "Nd" (port));
 }
 
 static __inline void
-outsb(u_int port, const void *addr, size_t cnt)
+outsb(u_int port, const void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; outsb"
-			 : "+S" (addr), "+c" (cnt)
+			 : "+S" (addr), "+c" (count)
 			 : "d" (port));
 }
 
 static __inline void
-outsw(u_int port, const void *addr, size_t cnt)
+outsw(u_int port, const void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; outsw"
-			 : "+S" (addr), "+c" (cnt)
+			 : "+S" (addr), "+c" (count)
 			 : "d" (port));
 }
 
 static __inline void
-outsl(u_int port, const void *addr, size_t cnt)
+outsl(u_int port, const void *addr, size_t count)
 {
 	__asm __volatile("cld; rep; outsl"
-			 : "+S" (addr), "+c" (cnt)
+			 : "+S" (addr), "+c" (count)
 			 : "d" (port));
 }
 
 static __inline void
 outw(u_int port, u_short data)
 {
-	__asm volatile("outw %0, %w1" : : "a" (data), "Nd" (port));
+	__asm __volatile("outw %0, %w1" : : "a" (data), "Nd" (port));
 }
 
 static __inline void
@@ -310,6 +332,15 @@ rdmsr(u_int msr)
 	return (rv);
 }
 
+static __inline uint32_t
+rdmsr32(u_int msr)
+{
+	uint32_t low;
+
+	__asm __volatile("rdmsr" : "=a" (low) : "c" (msr) : "edx");
+	return (low);
+}
+
 static __inline uint64_t
 rdpmc(u_int pmc)
 {
@@ -325,6 +356,15 @@ rdtsc(void)
 	uint64_t rv;
 
 	__asm __volatile("rdtsc" : "=A" (rv));
+	return (rv);
+}
+
+static __inline uint32_t
+rdtsc32(void)
+{
+	uint32_t rv;
+
+	__asm __volatile("rdtsc" : "=a" (rv) : : "edx");
 	return (rv);
 }
 
@@ -367,9 +407,6 @@ rcr2(void)
 {
 	u_int	data;
 
-#ifdef XEN
-	return (xen_rcr2());
-#endif
 	__asm __volatile("movl %%cr2,%0" : "=r" (data));
 	return (data);
 }
@@ -377,11 +414,8 @@ rcr2(void)
 static __inline void
 load_cr3(u_int data)
 {
-#ifdef XEN
-	xen_load_cr3(data);
-#else
+
 	__asm __volatile("movl %0,%%cr3" : : "r" (data) : "memory");
-#endif
 }
 
 static __inline u_int
@@ -408,17 +442,33 @@ rcr4(void)
 	return (data);
 }
 
+static __inline uint64_t
+rxcr(u_int reg)
+{
+	u_int low, high;
+
+	__asm __volatile("xgetbv" : "=a" (low), "=d" (high) : "c" (reg));
+	return (low | ((uint64_t)high << 32));
+}
+
+static __inline void
+load_xcr(u_int reg, uint64_t val)
+{
+	u_int low, high;
+
+	low = val;
+	high = val >> 32;
+	__asm __volatile("xsetbv" : : "c" (reg), "a" (low), "d" (high));
+}
+
 /*
  * Global TLB flush (except for thise for pages marked PG_G)
  */
 static __inline void
 invltlb(void)
 {
-#ifdef XEN
-	xen_tlb_flush();
-#else	
+
 	load_cr3(rcr3());
-#endif
 }
 
 /*
@@ -429,18 +479,14 @@ static __inline void
 invlpg(u_int addr)
 {
 
-#ifdef XEN
-	xen_invlpg(addr);
-#else
 	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
-#endif
 }
 
-static __inline u_int
+static __inline u_short
 rfs(void)
 {
-	u_int sel;
-	__asm __volatile("mov %%fs,%0" : "=rm" (sel));
+	u_short sel;
+	__asm __volatile("movw %%fs,%0" : "=rm" (sel));
 	return (sel);
 }
 
@@ -452,11 +498,11 @@ rgdt(void)
 	return (gdtr);
 }
 
-static __inline u_int
+static __inline u_short
 rgs(void)
 {
-	u_int sel;
-	__asm __volatile("mov %%gs,%0" : "=rm" (sel));
+	u_short sel;
+	__asm __volatile("movw %%gs,%0" : "=rm" (sel));
 	return (sel);
 }
 
@@ -476,11 +522,11 @@ rldt(void)
 	return (ldtr);
 }
 
-static __inline u_int
+static __inline u_short
 rss(void)
 {
-	u_int sel;
-	__asm __volatile("mov %%ss,%0" : "=rm" (sel));
+	u_short sel;
+	__asm __volatile("movw %%ss,%0" : "=rm" (sel));
 	return (sel);
 }
 
@@ -493,15 +539,15 @@ rtr(void)
 }
 
 static __inline void
-load_fs(u_int sel)
+load_fs(u_short sel)
 {
-	__asm __volatile("mov %0,%%fs" : : "rm" (sel));
+	__asm __volatile("movw %0,%%fs" : : "rm" (sel));
 }
 
 static __inline void
-load_gs(u_int sel)
+load_gs(u_short sel)
 {
-	__asm __volatile("mov %0,%%gs" : : "rm" (sel));
+	__asm __volatile("movw %0,%%gs" : : "rm" (sel));
 }
 
 static __inline void
@@ -653,23 +699,15 @@ intr_disable(void)
 {
 	register_t eflags;
 
-#ifdef XEN
-	eflags = xen_save_and_cli();
-#else 	
 	eflags = read_eflags();
 	disable_intr();
-#endif	
 	return (eflags);
 }
 
 static __inline void
 intr_restore(register_t eflags)
 {
-#ifdef XEN
-	xen_restore_flags(eflags);
-#else
 	write_eflags(eflags);
-#endif
 }
 
 #else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
@@ -677,6 +715,9 @@ intr_restore(register_t eflags)
 int	breakpoint(void);
 u_int	bsfl(u_int mask);
 u_int	bsrl(u_int mask);
+void	clflush(u_long addr);
+void	clts(void);
+void	cpuid_count(u_int ax, u_int cx, u_int *p);
 void	disable_intr(void);
 void	do_cpuid(u_int ax, u_int *p);
 void	enable_intr(void);
@@ -684,9 +725,9 @@ void	halt(void);
 void	ia32_pause(void);
 u_char	inb(u_int port);
 u_int	inl(u_int port);
-void	insb(u_int port, void *addr, size_t cnt);
-void	insl(u_int port, void *addr, size_t cnt);
-void	insw(u_int port, void *addr, size_t cnt);
+void	insb(u_int port, void *addr, size_t count);
+void	insl(u_int port, void *addr, size_t count);
+void	insw(u_int port, void *addr, size_t count);
 register_t	intr_disable(void);
 void	intr_restore(register_t ef);
 void	invd(void);
@@ -706,14 +747,14 @@ void	load_dr4(u_int dr4);
 void	load_dr5(u_int dr5);
 void	load_dr6(u_int dr6);
 void	load_dr7(u_int dr7);
-void	load_fs(u_int sel);
-void	load_gs(u_int sel);
+void	load_fs(u_short sel);
+void	load_gs(u_short sel);
 void	ltr(u_short sel);
 void	outb(u_int port, u_char data);
 void	outl(u_int port, u_int data);
-void	outsb(u_int port, const void *addr, size_t cnt);
-void	outsl(u_int port, const void *addr, size_t cnt);
-void	outsw(u_int port, const void *addr, size_t cnt);
+void	outsb(u_int port, const void *addr, size_t count);
+void	outsl(u_int port, const void *addr, size_t count);
+void	outsw(u_int port, const void *addr, size_t count);
 void	outw(u_int port, u_short data);
 u_int	rcr0(void);
 u_int	rcr2(void);

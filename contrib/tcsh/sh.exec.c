@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.exec.c,v 3.75 2009/06/25 21:15:37 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.exec.c,v 3.79 2011/02/25 23:58:34 christos Exp $ */
 /*
  * sh.exec.c: Search, find, and execute a command!
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.exec.c,v 3.75 2009/06/25 21:15:37 christos Exp $")
+RCSID("$tcsh: sh.exec.c,v 3.79 2011/02/25 23:58:34 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -77,7 +77,7 @@ static Char *expath;		/* Path for exerr */
 /*
  * xhash is an array of hash buckets which are used to hash execs.  If
  * it is allocated (havhash true), then to tell if ``name'' is
- * (possibly) presend in the i'th component of the variable path, look
+ * (possibly) present in the i'th component of the variable path, look
  * at the [hashname(name)] bucket of size [hashwidth] bytes, in the [i
  * mod size*8]'th bit.  The cache size is defaults to a length of 1024
  * buckets, each 1 byte wide.  This implementation guarantees that
@@ -141,7 +141,7 @@ static int hits, misses;
 /* Dummy search path for just absolute search when no path */
 static Char *justabs[] = {STRNULL, 0};
 
-static	void	pexerr		(void);
+static	void	pexerr		(void) __attribute__((__noreturn__));
 static	void	texec		(Char *, Char **);
 int	hashname	(Char *);
 static	int 	iscommand	(Char *);
@@ -149,9 +149,9 @@ static	int 	iscommand	(Char *);
 void
 doexec(struct command *t, int do_glob)
 {
-    Char *dp, **pv, **av, *sav;
+    Char *dp, **pv, **opv, **av, *sav;
     struct varent *v;
-    int slash, gflag;
+    int slash, gflag, rehashed;
     int hashval, i;
     Char   *blk[2];
 
@@ -253,9 +253,9 @@ doexec(struct command *t, int do_glob)
      * command search.
      */
     if (v == NULL || v->vec == NULL || v->vec[0] == NULL || slash)
-	pv = justabs;
+	opv = justabs;
     else
-	pv = v->vec;
+	opv = v->vec;
     sav = Strspl(STRslash, *av);/* / command name for postpending */
 #ifndef VFORK
     cleanup_push(sav, xfree);
@@ -264,6 +264,9 @@ doexec(struct command *t, int do_glob)
 #endif /* VFORK */
     hashval = havhash ? hashname(*av) : 0;
 
+    rehashed = 0;
+retry:
+    pv = opv;
     i = 0;
 #ifdef VFORK
     hits++;
@@ -313,6 +316,11 @@ cont:
 #ifdef VFORK
     hits--;
 #endif /* VFORK */
+    if (adrof(STRautorehash) && !rehashed && havhash && opv != justabs) {
+	dohash(NULL, NULL);
+	rehashed = 1;
+	goto retry;
+    }
 #ifndef VFORK
     cleanup_until(sav);
 #else /* VFORK */
@@ -719,11 +727,15 @@ dohash(Char **vv, struct command *c)
 #if defined(_UWIN) || defined(__CYGWIN__)
 	    /* Turn foo.{exe,com,bat} into foo since UWIN's readdir returns
 	     * the file with the .exe, .com, .bat extension
+	     *
+	     * Same for Cygwin, but only for .exe and .com extension.
 	     */
 	    {
 		ssize_t	ext = strlen(dp->d_name) - 4;
 		if ((ext > 0) && (strcasecmp(&dp->d_name[ext], ".exe") == 0 ||
+#ifndef __CYGWIN__
 				  strcasecmp(&dp->d_name[ext], ".bat") == 0 ||
+#endif
 				  strcasecmp(&dp->d_name[ext], ".com") == 0)) {
 #ifdef __CYGWIN__
 		    /* Also store the variation with extension. */
@@ -801,19 +813,23 @@ hashname(Char *cp)
 static int
 iscommand(Char *name)
 {
-    Char **pv;
+    Char **opv, **pv;
     Char *sav;
     struct varent *v;
     int slash = any(short2str(name), '/');
-    int hashval, i;
+    int hashval, rehashed, i;
 
     v = adrof(STRpath);
     if (v == NULL || v->vec == NULL || v->vec[0] == NULL || slash)
-	pv = justabs;
+	opv = justabs;
     else
-	pv = v->vec;
+	opv = v->vec;
     sav = Strspl(STRslash, name);	/* / command name for postpending */
     hashval = havhash ? hashname(name) : 0;
+
+    rehashed = 0;
+retry:
+    pv = opv;
     i = 0;
     do {
 	if (!slash && ABSOLUTEP(pv[0]) && havhash) {
@@ -842,6 +858,11 @@ cont:
 	pv++;
 	i++;
     } while (*pv);
+    if (adrof(STRautorehash) && !rehashed && havhash && opv != justabs) {
+	dohash(NULL, NULL);
+	rehashed = 1;
+	goto retry;
+    }
     xfree(sav);
     return 0;
 }
@@ -1063,7 +1084,7 @@ find_cmd(Char *cmd, int prt)
     const struct biltins *bptr;
     Char **pv;
     Char *sv;
-    int hashval, i, ex, rval = 0;
+    int hashval, rehashed, i, ex, rval = 0;
 
     if (prt && any(short2str(cmd), '/')) {
 	xprintf("%s", CGETS(13, 7, "where: / in command makes no sense\n"));
@@ -1115,6 +1136,8 @@ find_cmd(Char *cmd, int prt)
     sv = Strspl(STRslash, cmd);
     cleanup_push(sv, xfree);
 
+    rehashed = 0;
+retry:
     for (pv = var->vec, i = 0; pv && *pv; pv++, i++) {
 	if (havhash && !eq(*pv, STRdot)) {
 #ifdef FASTHASH
@@ -1142,6 +1165,11 @@ find_cmd(Char *cmd, int prt)
 	    else
 		return rval;
 	}
+    }
+    if (adrof(STRautorehash) && !rehashed && havhash) {
+	dohash(NULL, NULL);
+	rehashed = 1;
+	goto retry;
     }
     cleanup_until(sv);
     return rval;

@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -48,8 +44,7 @@ __FBSDID("$FreeBSD$");
      *	    entry point.
      */
 nltype *
-nllookup( address )
-    unsigned long	address;
+nllookup(unsigned long address)
 {
     register long	low;
     register long	middle;
@@ -70,6 +65,12 @@ nllookup( address )
 		    printf( "[nllookup] %d (%d) probes\n" , probes , nname-1 );
 		}
 #	    endif /* DEBUG */
+#if defined(__arm__)
+	if (nl[middle].name[0] == '$' &&
+	    nl[middle-1].value == nl[middle].value)
+		middle--;
+#endif
+
 	    return &nl[ middle ];
 	}
 	if ( nl[ middle ].value > address ) {
@@ -88,9 +89,7 @@ nllookup( address )
 }
 
 arctype *
-arclookup( parentp , childp )
-    nltype	*parentp;
-    nltype	*childp;
+arclookup(nltype *parentp, nltype *childp)
 {
     arctype	*arcp;
 

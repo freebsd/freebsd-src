@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1995-1996 Søren Schmidt
+ * Copyright (c) 1995-1996 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,10 +37,11 @@
 
 #define	AUXARGS_ENTRY(pos, id, val) {suword(pos++, id); suword(pos++, val);}
 
+struct image_params;
 struct thread;
 
 /*
- * Structure used to pass infomation from the loader to the
+ * Structure used to pass information from the loader to the
  * stack fixup routine.
  */
 typedef struct {
@@ -52,6 +53,7 @@ typedef struct {
 	Elf_Size	base;
 	Elf_Size	flags;
 	Elf_Size	entry;
+	Elf_Word	hdr_eflags;		/* e_flags field from ehdr */
 } __ElfN(Auxargs);
 
 typedef struct {
@@ -60,8 +62,8 @@ typedef struct {
 	int		flags;
 	boolean_t	(*trans_osrel)(const Elf_Note *, int32_t *);
 #define	BN_CAN_FETCH_OSREL	0x0001	/* Deprecated. */
-#define	BN_TRANSLATE_OSREL	0x0002	/* Use trans_osrel fetch osrel after */
-					/* checking ABI contraint if needed. */
+#define	BN_TRANSLATE_OSREL	0x0002	/* Use trans_osrel to fetch osrel */
+		/* after checking the image ABI specification, if needed. */
 } Elf_Brandnote;
 
 typedef struct {
@@ -74,6 +76,7 @@ typedef struct {
 	const char *interp_newpath;
 	int flags;
 	Elf_Brandnote *brand_note;
+	boolean_t	(*header_supported)(struct image_params *);
 #define	BI_CAN_EXEC_DYN		0x0001
 #define	BI_BRAND_NOTE		0x0002	/* May have note.ABI-tag section. */
 #define	BI_BRAND_NOTE_MANDATORY	0x0004	/* Must have note.ABI-tag section. */
@@ -88,7 +91,8 @@ int	__elfN(brand_inuse)(Elf_Brandinfo *entry);
 int	__elfN(insert_brand_entry)(Elf_Brandinfo *entry);
 int	__elfN(remove_brand_entry)(Elf_Brandinfo *entry);
 int	__elfN(freebsd_fixup)(register_t **, struct image_params *);
-int	__elfN(coredump)(struct thread *, struct vnode *, off_t);
+int	__elfN(coredump)(struct thread *, struct vnode *, off_t, int);
+size_t	__elfN(populate_note)(int, void *, void *, size_t, void **);
 
 /* Machine specific function to dump per-thread information. */
 void	__elfN(dump_thread)(struct thread *, void *, size_t *);

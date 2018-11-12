@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -97,6 +93,10 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_appl.h>
 #endif
 
+#ifdef USE_BLACKLIST
+#include "blacklist_client.h"
+#endif
+
 #include "pathnames.h"
 #include "extern.h"
 
@@ -173,8 +173,7 @@ static struct ftphost {
 char	remotehost[NI_MAXHOST];
 char	*ident = NULL;
 
-static char	ttyline[20];
-char		*tty = ttyline;		/* for klogin */
+static char	wtmpid[20];
 
 #ifdef USE_PAM
 static int	auth_pam(struct passwd**, const char*);
@@ -245,7 +244,7 @@ static void	 sigurg(int);
 static void	 maskurg(int);
 static void	 flagxfer(int);
 static int	 myoob(void);
-static int	 checkuser(char *, char *, int, char **);
+static int	 checkuser(char *, char *, int, char **, int *);
 static FILE	*dataconn(char *, off_t, char *);
 static void	 dolog(struct sockaddr *);
 static void	 end_login(void);
@@ -269,7 +268,7 @@ int
 main(int argc, char *argv[], char **envp)
 {
 	socklen_t addrlen;
-	int ch, on = 1, tos;
+	int ch, on = 1, tos, s = STDIN_FILENO;
 	char *cp, line[LINE_MAX];
 	FILE *fd;
 	char	*bindname = NULL;
@@ -505,8 +504,8 @@ main(int argc, char *argv[], char **envp)
 					switch (pid = fork()) {
 					case 0:
 						/* child */
-						(void) dup2(fd, 0);
-						(void) dup2(fd, 1);
+						(void) dup2(fd, s);
+						(void) dup2(fd, STDOUT_FILENO);
 						(void) close(fd);
 						for (i = 1; i <= *ctl_sock; i++)
 							close(ctl_sock[i]);
@@ -523,7 +522,7 @@ main(int argc, char *argv[], char **envp)
 		}
 	} else {
 		addrlen = sizeof(his_addr);
-		if (getpeername(0, (struct sockaddr *)&his_addr, &addrlen) < 0) {
+		if (getpeername(s, (struct sockaddr *)&his_addr, &addrlen) < 0) {
 			syslog(LOG_ERR, "getpeername (%s): %m",argv[0]);
 			exit(1);
 		}
@@ -558,7 +557,7 @@ gotchild:
 	(void)sigaction(SIGPIPE, &sa, NULL);
 
 	addrlen = sizeof(ctrl_addr);
-	if (getsockname(0, (struct sockaddr *)&ctrl_addr, &addrlen) < 0) {
+	if (getsockname(s, (struct sockaddr *)&ctrl_addr, &addrlen) < 0) {
 		syslog(LOG_ERR, "getsockname (%s): %m",argv[0]);
 		exit(1);
 	}
@@ -571,7 +570,7 @@ gotchild:
 	if (ctrl_addr.su_family == AF_INET)
       {
 	tos = IPTOS_LOWDELAY;
-	if (setsockopt(0, IPPROTO_IP, IP_TOS, &tos, sizeof(int)) < 0)
+	if (setsockopt(s, IPPROTO_IP, IP_TOS, &tos, sizeof(int)) < 0)
 		syslog(LOG_WARNING, "control setsockopt (IP_TOS): %m");
       }
 #endif
@@ -579,22 +578,21 @@ gotchild:
 	 * Disable Nagle on the control channel so that we don't have to wait
 	 * for peer's ACK before issuing our next reply.
 	 */
-	if (setsockopt(0, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
+	if (setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
 		syslog(LOG_WARNING, "control setsockopt (TCP_NODELAY): %m");
 
 	data_source.su_port = htons(ntohs(ctrl_addr.su_port) - 1);
 
-	/* set this here so klogin can use it... */
-	(void)snprintf(ttyline, sizeof(ttyline), "ftp%d", getpid());
+	(void)snprintf(wtmpid, sizeof(wtmpid), "%xftpd", getpid());
 
 	/* Try to handle urgent data inline */
 #ifdef SO_OOBINLINE
-	if (setsockopt(0, SOL_SOCKET, SO_OOBINLINE, &on, sizeof(on)) < 0)
+	if (setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &on, sizeof(on)) < 0)
 		syslog(LOG_WARNING, "control setsockopt (SO_OOBINLINE): %m");
 #endif
 
 #ifdef	F_SETOWN
-	if (fcntl(fileno(stdin), F_SETOWN, getpid()) == -1)
+	if (fcntl(s, F_SETOWN, getpid()) == -1)
 		syslog(LOG_ERR, "fcntl F_SETOWN: %m");
 #endif
 	dolog((struct sockaddr *)&his_addr);
@@ -646,6 +644,9 @@ gotchild:
 		reply(220, "%s FTP server (%s) ready.", hostname, version);
 	else
 		reply(220, "FTP server ready.");
+#ifdef USE_BLACKLIST
+	blacklist_init();
+#endif
 	for (;;)
 		(void) yyparse();
 	/* NOTREACHED */
@@ -967,6 +968,7 @@ sgetpwnam(char *name)
 	if (save.pw_name) {
 		free(save.pw_name);
 		free(save.pw_passwd);
+		free(save.pw_class);
 		free(save.pw_gecos);
 		free(save.pw_dir);
 		free(save.pw_shell);
@@ -974,6 +976,7 @@ sgetpwnam(char *name)
 	save = *p;
 	save.pw_name = sgetsave(p->pw_name);
 	save.pw_passwd = sgetsave(p->pw_passwd);
+	save.pw_class = sgetsave(p->pw_class);
 	save.pw_gecos = sgetsave(p->pw_gecos);
 	save.pw_dir = sgetsave(p->pw_dir);
 	save.pw_shell = sgetsave(p->pw_shell);
@@ -998,6 +1001,7 @@ static char curname[MAXLOGNAME];	/* current USER name */
 void
 user(char *name)
 {
+	int ecode;
 	char *cp, *shell;
 
 	if (logged_in) {
@@ -1018,8 +1022,11 @@ user(char *name)
 	pw = sgetpwnam("ftp");
 #endif
 	if (strcmp(name, "ftp") == 0 || strcmp(name, "anonymous") == 0) {
-		if (checkuser(_PATH_FTPUSERS, "ftp", 0, NULL) ||
-		    checkuser(_PATH_FTPUSERS, "anonymous", 0, NULL))
+		if (checkuser(_PATH_FTPUSERS, "ftp", 0, NULL, &ecode) ||
+		    (ecode != 0 && ecode != ENOENT))
+			reply(530, "User %s access denied.", name);
+		else if (checkuser(_PATH_FTPUSERS, "anonymous", 0, NULL, &ecode) ||
+		    (ecode != 0 && ecode != ENOENT))
 			reply(530, "User %s access denied.", name);
 		else if (pw != NULL) {
 			guest = 1;
@@ -1047,7 +1054,9 @@ user(char *name)
 				break;
 		endusershell();
 
-		if (cp == NULL || checkuser(_PATH_FTPUSERS, name, 1, NULL)) {
+		if (cp == NULL || 
+		    (checkuser(_PATH_FTPUSERS, name, 1, NULL, &ecode) ||
+		    (ecode != 0 && ecode != ENOENT))) {
 			reply(530, "User %s access denied.", name);
 			if (logging)
 				syslog(LOG_NOTICE,
@@ -1089,13 +1098,15 @@ user(char *name)
  * of the matching line in "residue" if not NULL.
  */
 static int
-checkuser(char *fname, char *name, int pwset, char **residue)
+checkuser(char *fname, char *name, int pwset, char **residue, int *ecode)
 {
 	FILE *fd;
 	int found = 0;
 	size_t len;
 	char *line, *mp, *p;
 
+	if (ecode != NULL)
+		*ecode = 0;
 	if ((fd = fopen(fname, "r")) != NULL) {
 		while (!found && (line = fgetln(fd, &len)) != NULL) {
 			/* skip comments */
@@ -1164,7 +1175,8 @@ nextline:
 				free(mp);
 		}
 		(void) fclose(fd);
-	}
+	} else if (ecode != NULL)
+		*ecode = errno;
 	return (found);
 }
 
@@ -1181,12 +1193,12 @@ end_login(void)
 
 	(void) seteuid(0);
 	if (logged_in && dowtmp)
-		ftpd_logwtmp(ttyline, "", NULL);
+		ftpd_logwtmp(wtmpid, NULL, NULL);
 	pw = NULL;
 #ifdef	LOGIN_CAP
-	setusercontext(NULL, getpwuid(0), 0,
-		       LOGIN_SETPRIORITY|LOGIN_SETRESOURCES|LOGIN_SETUMASK|
-		       LOGIN_SETMAC);
+	setusercontext(NULL, getpwuid(0), 0, LOGIN_SETALL & ~(LOGIN_SETLOGIN |
+		       LOGIN_SETUSER | LOGIN_SETGROUP | LOGIN_SETPATH |
+		       LOGIN_SETENV));
 #endif
 #ifdef USE_PAM
 	if (pamh) {
@@ -1361,7 +1373,7 @@ auth_pam(struct passwd **ppw, const char *pass)
 void
 pass(char *passwd)
 {
-	int rval;
+	int rval, ecode;
 	FILE *fd;
 #ifdef	LOGIN_CAP
 	login_cap_t *lc = NULL;
@@ -1410,6 +1422,9 @@ skip:
 		 */
 		if (rval) {
 			reply(530, "Login incorrect.");
+#ifdef USE_BLACKLIST
+			blacklist_notify(1, STDIN_FILENO, "Login incorrect");
+#endif
 			if (logging) {
 				syslog(LOG_NOTICE,
 				    "FTP LOGIN FAILED FROM %s",
@@ -1427,6 +1442,11 @@ skip:
 			}
 			return;
 		}
+#ifdef USE_BLACKLIST
+		 else {
+			blacklist_notify(0, STDIN_FILENO, "Login successful");
+		}
+#endif
 	}
 	login_attempts = 0;		/* this time successful */
 	if (setegid(pw->pw_gid) < 0) {
@@ -1458,9 +1478,8 @@ skip:
 			return;
 		}
 	}
-	setusercontext(lc, pw, 0,
-		LOGIN_SETLOGIN|LOGIN_SETGROUP|LOGIN_SETPRIORITY|
-		LOGIN_SETRESOURCES|LOGIN_SETUMASK|LOGIN_SETMAC);
+	setusercontext(lc, pw, 0, LOGIN_SETALL &
+		       ~(LOGIN_SETUSER | LOGIN_SETPATH | LOGIN_SETENV));
 #else
 	setlogin(pw->pw_name);
 	(void) initgroups(pw->pw_name, pw->pw_gid);
@@ -1476,9 +1495,29 @@ skip:
 	}
 #endif
 
-	/* open wtmp before chroot */
+	dochroot =
+		checkuser(_PATH_FTPCHROOT, pw->pw_name, 1, &residue, &ecode)
+#ifdef	LOGIN_CAP	/* Allow login.conf configuration as well */
+		|| login_getcapbool(lc, "ftp-chroot", 0)
+#endif
+	;
+	/*
+	 * It is possible that checkuser() failed to open the chroot file.
+	 * If this is the case, report that logins are un-available, since we
+	 * have no way of checking whether or not the user should be chrooted.
+	 * We ignore ENOENT since it is not required that this file be present.
+	 */
+	if (ecode != 0 && ecode != ENOENT) {
+		reply(530, "Login not available right now.");
+		return;
+	}
+	chrootdir = NULL;
+
+	/* Disable wtmp logging when chrooting. */
+	if (dochroot || guest)
+		dowtmp = 0;
 	if (dowtmp)
-		ftpd_logwtmp(ttyline, pw->pw_name,
+		ftpd_logwtmp(wtmpid, pw->pw_name,
 		    (struct sockaddr *)&his_addr);
 	logged_in = 1;
 
@@ -1491,13 +1530,6 @@ skip:
 		if (statfd < 0)
 			stats = 0;
 
-	dochroot =
-		checkuser(_PATH_FTPCHROOT, pw->pw_name, 1, &residue)
-#ifdef	LOGIN_CAP	/* Allow login.conf configuration as well */
-		|| login_getcapbool(lc, "ftp-chroot", 0)
-#endif
-	;
-	chrootdir = NULL;
 	/*
 	 * For a chrooted local user,
 	 * a) see whether ftpchroot(5) specifies a chroot directory,
@@ -1543,6 +1575,7 @@ skip:
 			reply(550, "Can't change root.");
 			goto bad;
 		}
+		__FreeBSD_libc_enter_restricted_mode();
 	} else	/* real user w/o chroot */
 		homedir = pw->pw_dir;
 	/*
@@ -1653,14 +1686,14 @@ retrieve(char *cmd, char *name)
 	struct stat st;
 	int (*closefunc)(FILE *);
 	time_t start;
+	char line[BUFSIZ];
 
 	if (cmd == 0) {
 		fin = fopen(name, "r"), closefunc = fclose;
 		st.st_size = 0;
 	} else {
-		char line[BUFSIZ];
-
-		(void) snprintf(line, sizeof(line), cmd, name), name = line;
+		(void) snprintf(line, sizeof(line), cmd, name);
+		name = line;
 		fin = ftpd_popen(line, "r"), closefunc = ftpd_pclose;
 		st.st_size = -1;
 		st.st_blksize = BUFSIZ;
@@ -2030,7 +2063,7 @@ pdata_err:
 	} while (0)
 
 /*
- * Tranfer the contents of "instr" to "outstr" peer using the appropriate
+ * Transfer the contents of "instr" to "outstr" peer using the appropriate
  * encapsulation of the data subject to Mode, Structure, and Type.
  *
  * NB: Form isn't handled.
@@ -2133,7 +2166,7 @@ send_data(FILE *instr, FILE *outstr, size_t blksize, off_t filesize, int isreg)
 				}
 			}
 			ENDXFER;
-			reply(226, msg);
+			reply(226, "%s", msg);
 			return (0);
 		}
 
@@ -2330,6 +2363,10 @@ statfilecmd(char *filename)
 	code = lstat(filename, &st) == 0 && S_ISDIR(st.st_mode) ? 212 : 213;
 	(void)snprintf(line, sizeof(line), _PATH_LS " -lgA %s", filename);
 	fin = ftpd_popen(line, "r");
+	if (fin == NULL) {
+		perror_reply(551, filename);
+		return;
+	}
 	lreply(code, "Status of %s:", filename);
 	atstart = 1;
 	while ((c = getc(fin)) != EOF) {
@@ -2734,7 +2771,7 @@ dologout(int status)
 
 	if (logged_in && dowtmp) {
 		(void) seteuid(0);
-		ftpd_logwtmp(ttyline, "", NULL);
+		ftpd_logwtmp(wtmpid, NULL, NULL);
 	}
 	/* beware of flushing buffers after a SIGPIPE */
 	_exit(status);
@@ -2798,7 +2835,7 @@ myoob(void)
 		return (0);
 	}
 	cp = tmpline;
-	ret = getline(cp, 7, stdin);
+	ret = get_line(cp, 7, stdin);
 	if (ret == -1) {
 		reply(221, "You could at least say goodbye.");
 		dologout(0);

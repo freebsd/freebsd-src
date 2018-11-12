@@ -51,15 +51,17 @@ struct sample_softc {
 	int	max_successive_failures;
 	int	stale_failure_timeout;	/* how long to honor max_successive_failures */
 	int	min_switch;		/* min time between rate changes */
+	int	min_good_pct;		/* min good percentage for a rate to be considered */
 };
 #define	ATH_SOFTC_SAMPLE(sc)	((struct sample_softc *)sc->sc_rc)
 
 struct rate_stats {	
 	unsigned average_tx_time;
 	int successive_failures;
-	int tries;
-	int total_packets;
-	int packets_acked;
+	uint64_t tries;
+	uint64_t total_packets;	/* pkts total since assoc */
+	uint64_t packets_acked;	/* pkts acked since assoc */
+	int ewma_pct;	/* EWMA percentage */
 	unsigned perfect_tx_time; /* transmit time for 0 retries */
 	int last_tx;
 };
@@ -77,12 +79,22 @@ struct txschedule {
  */
 #define NUM_PACKET_SIZE_BINS 2
 
+static const int packet_size_bins[NUM_PACKET_SIZE_BINS]  = { 250, 1600 };
+
+static inline int
+bin_to_size(int index)
+{
+	return packet_size_bins[index];
+}
+
 /* per-node state */
 struct sample_node {
 	int static_rix;			/* rate index of fixed tx rate */
-#define	SAMPLE_MAXRATES	32		/* NB: corresponds to hal info[32] */
-	uint32_t ratemask;		/* bit mask of valid rate indices */
+#define	SAMPLE_MAXRATES	64		/* NB: corresponds to hal info[32] */
+	uint64_t ratemask;		/* bit mask of valid rate indices */
 	const struct txschedule *sched;	/* tx schedule table */
+
+	const HAL_RATE_TABLE *currates;
 
 	struct rate_stats stats[NUM_PACKET_SIZE_BINS][SAMPLE_MAXRATES];
 	int last_sample_rix[NUM_PACKET_SIZE_BINS];
@@ -97,8 +109,11 @@ struct sample_node {
 	int packets_since_sample[NUM_PACKET_SIZE_BINS];
 	unsigned sample_tt[NUM_PACKET_SIZE_BINS];
 };
+
+#ifdef	_KERNEL
+
 #define	ATH_NODE_SAMPLE(an)	((struct sample_node *)&(an)[1])
-#define	IS_RATE_DEFINED(sn, rix)	(((sn)->ratemask & (1<<(rix))) != 0)
+#define	IS_RATE_DEFINED(sn, rix)	(((uint64_t) (sn)->ratemask & (1ULL<<((uint64_t) rix))) != 0)
 
 #ifndef MIN
 #define	MIN(a,b)	((a) < (b) ? (a) : (b))
@@ -111,55 +126,15 @@ struct sample_node {
 #define WIFI_CW_MAX 1023
 
 /*
- * Definitions for pulling the rate and trie counts from
- * a 5212 h/w descriptor.  These Don't belong here; the
- * driver should record this information so the rate control
- * code doesn't go groveling around in the descriptor bits.
- */
-#define	ds_ctl2		ds_hw[0]
-#define	ds_ctl3		ds_hw[1]
-
-/* TX ds_ctl2 */
-#define	AR_XmitDataTries0	0x000f0000	/* series 0 max attempts */
-#define	AR_XmitDataTries0_S	16
-#define	AR_XmitDataTries1	0x00f00000	/* series 1 max attempts */
-#define	AR_XmitDataTries1_S	20
-#define	AR_XmitDataTries2	0x0f000000	/* series 2 max attempts */
-#define	AR_XmitDataTries2_S	24
-#define	AR_XmitDataTries3	0xf0000000	/* series 3 max attempts */
-#define	AR_XmitDataTries3_S	28
-
-/* TX ds_ctl3 */
-#define	AR_XmitRate0		0x0000001f	/* series 0 tx rate */
-#define	AR_XmitRate0_S		0
-#define	AR_XmitRate1		0x000003e0	/* series 1 tx rate */
-#define	AR_XmitRate1_S		5
-#define	AR_XmitRate2		0x00007c00	/* series 2 tx rate */
-#define	AR_XmitRate2_S		10
-#define	AR_XmitRate3		0x000f8000	/* series 3 tx rate */
-#define	AR_XmitRate3_S		15
-
-/* TX ds_ctl3 for 5416 */
-#define	AR5416_XmitRate0	0x000000ff	/* series 0 tx rate */
-#define	AR5416_XmitRate0_S	0
-#define	AR5416_XmitRate1	0x0000ff00	/* series 1 tx rate */
-#define	AR5416_XmitRate1_S	8
-#define	AR5416_XmitRate2	0x00ff0000	/* series 2 tx rate */
-#define	AR5416_XmitRate2_S	16
-#define	AR5416_XmitRate3	0xff000000	/* series 3 tx rate */
-#define	AR5416_XmitRate3_S	24
-
-#define MS(_v, _f)	(((_v) & (_f)) >> _f##_S)
-
-/*
  * Calculate the transmit duration of a frame.
  */
 static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
-				int length, 
-				int rix, int short_retries, int long_retries) {
+				int length,
+				int rix, int short_retries,
+				int long_retries, int is_ht40)
+{
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	int rts, cts;
 	
 	unsigned t_slot = 20;
@@ -194,6 +169,11 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 		t_sifs = 8;
 		t_difs = 28;
 		break;
+	case IEEE80211_T_HT:
+		t_slot = 9;
+		t_sifs = 8;
+		t_difs = 28;
+		break;
 	case IEEE80211_T_DS:
 		/* fall through to default */
 	default:
@@ -213,7 +193,6 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 			cts = 1;
 
 		cix = rt->info[sc->sc_protrix].controlRate;
-
 	}
 
 	if (0 /*length > ic->ic_rtsthreshold */) {
@@ -233,8 +212,9 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 		if (rts)		/* SIFS + CTS */
 			ctsduration += rt->info[cix].spAckDuration;
 
-		ctsduration += ath_hal_computetxtime(sc->sc_ah,
-						     rt, length, rix, AH_TRUE);
+		/* XXX assumes short preamble, include SIFS */
+		ctsduration += ath_hal_pkt_txtime(sc->sc_ah, rt, length, rix,
+		    is_ht40, 0, 1);
 
 		if (cts)	/* SIFS + ACK */
 			ctsduration += rt->info[cix].spAckDuration;
@@ -242,13 +222,20 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 		tt += (short_retries + 1) * ctsduration;
 	}
 	tt += t_difs;
+
+	/* XXX assumes short preamble, include SIFS */
+	tt += (long_retries+1)*ath_hal_pkt_txtime(sc->sc_ah, rt, length, rix,
+	    is_ht40, 0, 1);
+
 	tt += (long_retries+1)*(t_sifs + rt->info[rix].spAckDuration);
-	tt += (long_retries+1)*ath_hal_computetxtime(sc->sc_ah, rt, length, 
-						rix, AH_TRUE);
+
 	for (x = 0; x <= short_retries + long_retries; x++) {
 		cw = MIN(WIFI_CW_MAX, (cw + 1) * 2);
 		tt += (t_slot * cw/2);
 	}
 	return tt;
 }
+
+#endif	/* _KERNEL */
+
 #endif /* _DEV_ATH_RATE_SAMPLE_H */

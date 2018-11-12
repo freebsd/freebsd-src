@@ -1,5 +1,6 @@
 /* itbl-ops.c
-   Copyright 1997, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1997, 1999, 2000, 2001, 2002, 2003, 2005, 2006
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -15,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /*======================================================================*/
 /*
@@ -88,9 +89,7 @@
  *
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "as.h"
 #include "itbl-ops.h"
 #include <itbl-parse.h>
 
@@ -146,12 +145,7 @@ struct itbl_entry {
 
 static int itbl_num_opcodes = 0;
 /* Array of entries for each processor and entry type */
-static struct itbl_entry *entries[e_nprocs][e_ntypes] = {
-  {0, 0, 0, 0, 0, 0},
-  {0, 0, 0, 0, 0, 0},
-  {0, 0, 0, 0, 0, 0},
-  {0, 0, 0, 0, 0, 0}
-};
+static struct itbl_entry *entries[e_nprocs][e_ntypes];
 
 /* local prototypes */
 static unsigned long build_opcode (struct itbl_entry *e);
@@ -204,18 +198,6 @@ struct itbl_entry *
 itbl_add_reg (int yyprocessor, int yytype, char *regname,
 	      int regnum)
 {
-#if 0
-#include "as.h"
-#include "symbols.h"
-  /* Since register names don't have a prefix, we put them in the symbol table so
-     they can't be used as symbols.  This also simplifies argument parsing as
-     we can let gas parse registers for us.  The recorded register number is
-     regnum.  */
-  /* Use symbol_create here instead of symbol_new so we don't try to
-     output registers into the object file's symbol table.  */
-  symbol_table_insert (symbol_create (regname, reg_section,
-				      regnum, &zero_address_frag));
-#endif
   return alloc_entry (get_processor (yyprocessor), get_type (yytype), regname,
 		      (unsigned long) regnum);
 }
@@ -264,8 +246,6 @@ itbl_add_operand (struct itbl_entry *e, int yytype, int sbit,
 /* Interfaces for assembler and disassembler */
 
 #ifndef STAND_ALONE
-#include "as.h"
-#include "symbols.h"
 static void append_insns_as_macros (void);
 
 /* Initialize for gas.  */

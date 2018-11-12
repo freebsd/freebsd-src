@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GLD; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef LD_SYSDEP_H
 #define LD_SYSDEP_H
@@ -54,6 +54,9 @@ extern char *strrchr ();
 /* for MAXPATHLEN */
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
+#ifndef __PAST_END
+# define __PAST_END(array, offset) (((typeof(*(array)) *)(array))[offset])
+#endif
 #endif
 #ifdef PATH_MAX
 # define LD_PATHMAX PATH_MAX
@@ -77,19 +80,19 @@ extern char *strrchr ();
 #include "fopen-same.h"
 #endif
 
-#ifdef NEED_DECLARATION_STRSTR
+#if !HAVE_DECL_STRSTR
 extern char *strstr ();
 #endif
 
-#ifdef NEED_DECLARATION_FREE
+#if !HAVE_DECL_FREE
 extern void free ();
 #endif
 
-#ifdef NEED_DECLARATION_GETENV
+#if !HAVE_DECL_GETENV
 extern char *getenv ();
 #endif
 
-#ifdef NEED_DECLARATION_ENVIRON
+#if !HAVE_DECL_ENVIRON
 extern char **environ;
 #endif
 

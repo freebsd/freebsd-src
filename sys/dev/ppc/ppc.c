@@ -74,6 +74,22 @@ static void ppcintr(void *arg);
 
 #define DEVTOSOFTC(dev) ((struct ppc_data *)device_get_softc(dev))
 
+/*
+ * We use critical enter/exit for the simple config locking needed to
+ * detect the devices. We just want to make sure that both of our writes
+ * happen without someone else also writing to those config registers. Since
+ * we just do this at startup, Giant keeps multiple threads from executing,
+ * and critical_enter() then is all that's needed to keep us from being preempted
+ * during the critical sequences with the hardware.
+ *
+ * Note: this doesn't prevent multiple threads from putting the chips into
+ * config mode, but since we only do that to detect the type at startup the
+ * extra overhead isn't needed since Giant protects us from multiple entry
+ * and no other code changes these registers.
+ */
+#define PPC_CONFIG_LOCK(ppc)		critical_enter()
+#define PPC_CONFIG_UNLOCK(ppc)		critical_exit()
+
 devclass_t ppc_devclass;
 const char ppc_driver_name[] = "ppc";
 
@@ -689,7 +705,7 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 static int
 ppc_smc37c66xgt_detect(struct ppc_data *ppc, int chipset_mode)
 {
-	int s, i;
+	int i;
 	u_char r;
 	int type = -1;
 	int csr = SMC66x_CSR;	/* initial value is 0x3F0 */
@@ -702,11 +718,10 @@ ppc_smc37c66xgt_detect(struct ppc_data *ppc, int chipset_mode)
 	/*
 	 * Detection: enter configuration mode and read CRD register.
 	 */
-
-	s = splhigh();
+	PPC_CONFIG_LOCK(ppc);
 	outb(csr, SMC665_iCODE);
 	outb(csr, SMC665_iCODE);
-	splx(s);
+	PPC_CONFIG_UNLOCK(ppc);
 
 	outb(csr, 0xd);
 	if (inb(cio) == 0x65) {
@@ -715,10 +730,10 @@ ppc_smc37c66xgt_detect(struct ppc_data *ppc, int chipset_mode)
 	}
 
 	for (i = 0; i < 2; i++) {
-		s = splhigh();
+		PPC_CONFIG_LOCK(ppc);
 		outb(csr, SMC666_iCODE);
 		outb(csr, SMC666_iCODE);
-		splx(s);
+		PPC_CONFIG_UNLOCK(ppc);
 
 		outb(csr, 0xd);
 		if (inb(cio) == 0x66) {
@@ -734,16 +749,20 @@ config:
 	/*
 	 * If chipset not found, do not continue.
 	 */
-	if (type == -1)
+	if (type == -1) {
+		outb(csr, 0xaa);	/* end config mode */
 		return (-1);
+	}
 
 	/* select CR1 */
 	outb(csr, 0x1);
 
 	/* read the port's address: bits 0 and 1 of CR1 */
 	r = inb(cio) & SMC_CR1_ADDR;
-	if (port_address[(int)r] != ppc->ppc_base)
+	if (port_address[(int)r] != ppc->ppc_base) {
+		outb(csr, 0xaa);	/* end config mode */
 		return (-1);
+	}
 
 	ppc->ppc_model = type;
 
@@ -881,8 +900,7 @@ end_detect:
 			outb(cio, (r | SMC_CR4_EPPTYPE));
 	}
 
-	/* end config mode */
-	outb(csr, 0xaa);
+	outb(csr, 0xaa);	/* end config mode */
 
 	ppc->ppc_type = PPC_TYPE_SMCLIKE;
 	ppc_smclike_setmode(ppc, chipset_mode);
@@ -897,13 +915,12 @@ end_detect:
 static int
 ppc_smc37c935_detect(struct ppc_data *ppc, int chipset_mode)
 {
-	int s;
 	int type = -1;
 
-	s = splhigh();
+	PPC_CONFIG_LOCK(ppc);
 	outb(SMC935_CFG, 0x55); /* enter config mode */
 	outb(SMC935_CFG, 0x55);
-	splx(s);
+	PPC_CONFIG_UNLOCK(ppc);
 
 	outb(SMC935_IND, SMC935_ID); /* check device id */
 	if (inb(SMC935_DAT) == 0x2)
@@ -1657,7 +1674,7 @@ ppc_probe(device_t dev, int rid)
 #endif
 	struct ppc_data *ppc;
 	int error;
-	u_long port;
+	rman_res_t port;
 
 	/*
 	 * Allocate the ppc_data structure.
@@ -1682,7 +1699,7 @@ ppc_probe(device_t dev, int rid)
 			next_bios_ppc += 1;
 			if (bootverbose)
 				device_printf(dev,
-				    "parallel port found at 0x%lx\n", port);
+				    "parallel port found at 0x%jx\n", port);
 		}
 #else
 		if ((next_bios_ppc < BIOS_MAX_PPC) &&
@@ -1690,7 +1707,7 @@ ppc_probe(device_t dev, int rid)
 			port = *(BIOS_PORTS + next_bios_ppc++);
 			if (bootverbose)
 				device_printf(dev,
-				    "parallel port found at 0x%lx\n", port);
+				    "parallel port found at 0x%jx\n", port);
 		} else {
 			device_printf(dev, "parallel port not found.\n");
 			return (ENXIO);
@@ -1704,19 +1721,21 @@ ppc_probe(device_t dev, int rid)
 	/* IO port is mandatory */
 
 	/* Try "extended" IO port range...*/
-	ppc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
-					     &ppc->rid_ioport, 0, ~0,
-					     IO_LPTSIZE_EXTENDED, RF_ACTIVE);
+	ppc->res_ioport = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+						      &ppc->rid_ioport,
+						      IO_LPTSIZE_EXTENDED,
+						      RF_ACTIVE);
 
 	if (ppc->res_ioport != 0) {
 		if (bootverbose)
 			device_printf(dev, "using extended I/O port range\n");
 	} else {
 		/* Failed? If so, then try the "normal" IO port range... */
-		 ppc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
-						      &ppc->rid_ioport, 0, ~0,
-						      IO_LPTSIZE_NORMAL,
-						      RF_ACTIVE);
+		 ppc->res_ioport = bus_alloc_resource_anywhere(dev,
+		 	 				       SYS_RES_IOPORT,
+							       &ppc->rid_ioport,
+							       IO_LPTSIZE_NORMAL,
+							       RF_ACTIVE);
 		if (ppc->res_ioport != 0) {
 			if (bootverbose)
 				device_printf(dev, "using normal I/O port range\n");
@@ -1851,20 +1870,13 @@ int
 ppc_detach(device_t dev)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
-	device_t *children;
-	int nchildren, i;
 
 	if (ppc->res_irq == 0) {
 		return (ENXIO);
 	}
 
 	/* detach & delete all children */
-	if (!device_get_children(dev, &children, &nchildren)) {
-		for (i = 0; i < nchildren; i++)
-			if (children[i])
-				device_delete_child(dev, children[i]);
-		free(children, M_TEMP);
-	}
+	device_delete_children(dev);
 
 	if (ppc->res_irq != 0) {
 		bus_teardown_intr(dev, ppc->res_irq, ppc->intr_cookie);
@@ -2005,7 +2017,7 @@ ppc_write_ivar(device_t bus, device_t dev, int index, uintptr_t val)
  */
 struct resource *
 ppc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(bus);
 

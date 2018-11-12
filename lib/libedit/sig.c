@@ -1,3 +1,5 @@
+/*	$NetBSD: sig.c,v 1.17 2011/07/28 20:50:55 christos Exp $	*/
+
 /*-
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -28,12 +30,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$NetBSD: sig.c,v 1.11 2003/08/07 16:44:33 agc Exp $
  */
 
+#include "config.h"
 #if !defined(lint) && !defined(SCCSID)
+#if 0
 static char sccsid[] = "@(#)sig.c	8.1 (Berkeley) 6/4/93";
+#else
+__RCSID("$NetBSD: sig.c,v 1.17 2011/07/28 20:50:55 christos Exp $");
+#endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -43,7 +48,6 @@ __FBSDID("$FreeBSD$");
  *	  our policy is to trap all signals, set a good state
  *	  and pass the ball to our caller.
  */
-#include "sys.h"
 #include "el.h"
 #include <stdlib.h>
 
@@ -73,12 +77,14 @@ sig_handler(int signo)
 	(void) sigaddset(&nset, signo);
 	(void) sigprocmask(SIG_BLOCK, &nset, &oset);
 
+	sel->el_signal->sig_no = signo;
+
 	switch (signo) {
 	case SIGCONT:
 		tty_rawmode(sel);
 		if (ed_redisplay(sel, 0) == CC_REFRESH)
 			re_refresh(sel);
-		term__flush();
+		terminal__flush(sel);
 		break;
 
 	case SIGWINCH:
@@ -94,7 +100,10 @@ sig_handler(int signo)
 		if (signo == sighdl[i])
 			break;
 
-	(void) signal(signo, sel->el_signal[i]);
+	(void) sigaction(signo, &sel->el_signal->sig_action[i], NULL);
+	sel->el_signal->sig_action[i].sa_handler = SIG_ERR;
+	sel->el_signal->sig_action[i].sa_flags = 0;
+	sigemptyset(&sel->el_signal->sig_action[i].sa_mask);
 	(void) sigprocmask(SIG_SETMASK, &oset, NULL);
 	(void) kill(0, signo);
 }
@@ -106,26 +115,29 @@ sig_handler(int signo)
 protected int
 sig_init(EditLine *el)
 {
-	int i;
-	sigset_t nset, oset;
+	size_t i;
+	sigset_t *nset, oset;
 
-	(void) sigemptyset(&nset);
-#define	_DO(a) (void) sigaddset(&nset, a);
+	el->el_signal = el_malloc(sizeof(*el->el_signal));
+	if (el->el_signal == NULL)
+		return -1;
+
+	nset = &el->el_signal->sig_set;
+	(void) sigemptyset(nset);
+#define	_DO(a) (void) sigaddset(nset, a);
 	ALLSIGS
 #undef	_DO
-	    (void) sigprocmask(SIG_BLOCK, &nset, &oset);
+	(void) sigprocmask(SIG_BLOCK, nset, &oset);
 
-#define	SIGSIZE (sizeof(sighdl) / sizeof(sighdl[0]) * sizeof(el_signalhandler_t))
-
-	el->el_signal = (el_signalhandler_t *) el_malloc(SIGSIZE);
-	if (el->el_signal == NULL)
-		return (-1);
-	for (i = 0; sighdl[i] != -1; i++)
-		el->el_signal[i] = SIG_ERR;
+	for (i = 0; sighdl[i] != -1; i++) {
+		el->el_signal->sig_action[i].sa_handler = SIG_ERR;
+		el->el_signal->sig_action[i].sa_flags = 0;
+		sigemptyset(&el->el_signal->sig_action[i].sa_mask);
+	}
 
 	(void) sigprocmask(SIG_SETMASK, &oset, NULL);
 
-	return (0);
+	return 0;
 }
 
 
@@ -136,7 +148,7 @@ protected void
 sig_end(EditLine *el)
 {
 
-	el_free((ptr_t) el->el_signal);
+	el_free(el->el_signal);
 	el->el_signal = NULL;
 }
 
@@ -147,20 +159,21 @@ sig_end(EditLine *el)
 protected void
 sig_set(EditLine *el)
 {
-	int i;
-	sigset_t nset, oset;
+	size_t i;
+	sigset_t oset;
+	struct sigaction osa, nsa;
 
-	(void) sigemptyset(&nset);
-#define	_DO(a) (void) sigaddset(&nset, a);
-	ALLSIGS
-#undef	_DO
-	    (void) sigprocmask(SIG_BLOCK, &nset, &oset);
+	nsa.sa_handler = sig_handler;
+	nsa.sa_flags = 0;
+	sigemptyset(&nsa.sa_mask);
+
+	(void) sigprocmask(SIG_BLOCK, &el->el_signal->sig_set, &oset);
 
 	for (i = 0; sighdl[i] != -1; i++) {
-		el_signalhandler_t s;
 		/* This could happen if we get interrupted */
-		if ((s = signal(sighdl[i], sig_handler)) != sig_handler)
-			el->el_signal[i] = s;
+		if (sigaction(sighdl[i], &nsa, &osa) != -1 &&
+		    osa.sa_handler != sig_handler)
+			el->el_signal->sig_action[i] = osa;
 	}
 	sel = el;
 	(void) sigprocmask(SIG_SETMASK, &oset, NULL);
@@ -173,20 +186,17 @@ sig_set(EditLine *el)
 protected void
 sig_clr(EditLine *el)
 {
-	int i;
-	sigset_t nset, oset;
+	size_t i;
+	sigset_t oset;
 
-	(void) sigemptyset(&nset);
-#define	_DO(a) (void) sigaddset(&nset, a);
-	ALLSIGS
-#undef	_DO
-	    (void) sigprocmask(SIG_BLOCK, &nset, &oset);
+	(void) sigprocmask(SIG_BLOCK, &el->el_signal->sig_set, &oset);
 
 	for (i = 0; sighdl[i] != -1; i++)
-		if (el->el_signal[i] != SIG_ERR)
-			(void) signal(sighdl[i], el->el_signal[i]);
+		if (el->el_signal->sig_action[i].sa_handler != SIG_ERR)
+			(void)sigaction(sighdl[i],
+			    &el->el_signal->sig_action[i], NULL);
 
 	sel = NULL;		/* we are going to die if the handler is
 				 * called */
-	(void) sigprocmask(SIG_SETMASK, &oset, NULL);
+	(void)sigprocmask(SIG_SETMASK, &oset, NULL);
 }

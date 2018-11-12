@@ -27,9 +27,9 @@
 .\"	$FreeBSD$
 .\"
 .\" The following commands are required for all man pages.
-.Dd October 30, 2007
-.Os
+.Dd January 26, 2010
 .Dt GSS_CREATE_EMPTY_OID_SET 3 PRM
+.Os
 .Sh NAME
 .Nm gss_create_empty_oid_set
 .Nd Create a set containing no object identifiers
@@ -51,7 +51,7 @@ These routines are intended to be used to construct sets of mechanism
 object identifiers for input to
 .Fn gss_acquire_cred .
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It minor_status"
 .It minor_status
 Mechanism specific status code.
 .It oid_set
@@ -61,15 +61,15 @@ which the application must free after use with a call to
 .Fn gss_release_oid_set .
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_COMPLETE"
 .It GSS_S_COMPLETE
 Successful completion
 .El
 .Sh SEE ALSO
-.Xr gss_add_oid_set_member 3 ,
-.Xr gss_acquire_cred 3
+.Xr gss_acquire_cred 3 ,
+.Xr gss_add_oid_set_member 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744
@@ -78,7 +78,7 @@ Generic Security Service API Version 2 : C-bindings
 .Sh HISTORY
 The
 .Nm
-manual page example first appeared in
+function first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
 John Wray, Iris Associates

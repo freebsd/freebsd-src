@@ -29,6 +29,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
 #include <sys/param.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -88,7 +90,9 @@ static struct {
 	  { "  sbsize%-4s           %8s", " bytes\n", 1    },
 	  { "  vmemoryuse%-4s       %8s", " kB\n",    1024 },
 	  { "  pseudo-terminals%-4s %8s", "\n",       1    },
-	  { "  swapuse%-4s          %8s", " kB\n",    1024 }
+	  { "  swapuse%-4s          %8s", " kB\n",    1024 },
+	  { "  kqueues%-4s          %8s", "\n",       1    },
+	  { "  umtxp%-4s            %8s", "\n",       1    },
       }
     },
     { "sh", "unlimited", "", " -H", " -S", "",
@@ -105,7 +109,9 @@ static struct {
 	  { "ulimit%s -b %s", ";\n",  1    },
 	  { "ulimit%s -v %s", ";\n",  1024 },
 	  { "ulimit%s -p %s", ";\n",  1    },
-	  { "ulimit%s -w %s", ";\n",  1024 }
+	  { "ulimit%s -w %s", ";\n",  1024 },
+	  { "ulimit%s -k %s", ";\n",  1    },
+	  { "ulimit%s -o %s", ";\n",  1    },
       }
     },
     { "csh", "unlimited", "", " -h", "", NULL,
@@ -122,7 +128,9 @@ static struct {
 	  { "limit%s sbsize %s",          ";\n",  1    },
 	  { "limit%s vmemoryuse %s",      ";\n",  1024 },
 	  { "limit%s pseudoterminals %s", ";\n",  1    },
-	  { "limit%s swapuse %s",         ";\n",  1024 }
+	  { "limit%s swapsize %s",        ";\n",  1024 },
+	  { "limit%s kqueues %s",         ";\n",  1    },
+	  { "limit%s umtxp %s",           ";\n",  1    },
       }
     },
     { "bash|bash2", "unlimited", "", " -H", " -S", "",
@@ -156,7 +164,9 @@ static struct {
 	  { "limit%s sbsize %s",          ";\n",  1    },
 	  { "limit%s vmemoryuse %s",      ";\n",  1024 },
 	  { "limit%s pseudoterminals %s", ";\n",  1    },
-	  { "limit%s swapuse %s",         ";\n",  1024 }
+	  { "limit%s swapsize %s",        ";\n",  1024 },
+	  { "limit%s kqueues %s",         ";\n",  1    },
+	  { "limit%s umtxp %s",           ";\n",  1    },
       }
     },
     { "ksh|pdksh", "unlimited", "", " -H", " -S", "",
@@ -231,24 +241,28 @@ static struct {
     { "sbsize",		login_getcapsize },
     { "vmemoryuse",	login_getcapsize },
     { "pseudoterminals",login_getcapnum  },
-    { "swapuse",	login_getcapsize }
+    { "swapuse",	login_getcapsize },
+    { "kqueues",	login_getcapnum  },
+    { "umtxp",		login_getcapnum  },
 };
 
 /*
  * One letter for each resource levels.
- * NOTE: There is a dependancy on the corresponding
+ * NOTE: There is a dependency on the corresponding
  * letter index being equal to the resource number.
  * If sys/resource.h defines are changed, this needs
  * to be modified accordingly!
  */
 
-#define RCS_STRING  "tfdscmlunbvpw"
+#define RCS_STRING  "tfdscmlunbvpwko"
 
 static rlim_t resource_num(int which, int ch, const char *str);
 static void usage(void);
 static int getshelltype(void);
 static void print_limit(rlim_t limit, unsigned divisor, const char *inf,
 			const char *pfx, const char *sfx, const char *which);
+static void getrlimit_proc(pid_t pid, int resource, struct rlimit *rlp);
+static void setrlimit_proc(pid_t pid, int resource, const struct rlimit *rlp);
 extern char **environ;
 
 static const char rcs_string[] = RCS_STRING;
@@ -262,24 +276,25 @@ main(int argc, char *argv[])
     int rcswhich, shelltype;
     int i, num_limits = 0;
     int ch, doeval = 0, doall = 0;
-    int rtrn;
+    int rtrn, setproc;
     login_cap_t * lc = NULL;
     enum { ANY=0, SOFT=1, HARD=2, BOTH=3, DISPLAYONLY=4 } type = ANY;
     enum { RCSUNKNOWN=0, RCSSET=1, RCSSEL=2 } todo = RCSUNKNOWN;
     int which_limits[RLIM_NLIMITS];
     rlim_t set_limits[RLIM_NLIMITS];
     struct rlimit limits[RLIM_NLIMITS];
+    pid_t pid;
 
     /* init resource tables */
     for (i = 0; i < RLIM_NLIMITS; i++) {
 	which_limits[i] = 0; /* Don't set/display any */
 	set_limits[i] = RLIM_INFINITY;
-	/* Get current resource values */
-	getrlimit(i, &limits[i]);
     }
 
+    pid = -1;
     optarg = NULL;
-    while ((ch = getopt(argc, argv, ":EeC:U:BSHab:c:d:f:l:m:n:s:t:u:v:p:w:")) != -1) {
+    while ((ch = getopt(argc, argv,
+      ":EeC:U:BSHP:ab:c:d:f:l:m:n:s:t:u:v:p:w:k:o:")) != -1) {
 	switch(ch) {
 	case 'a':
 	    doall = 1;
@@ -312,6 +327,12 @@ main(int argc, char *argv[])
 	case 'B':
 	    type = SOFT|HARD;
 	    break;
+	case 'P':
+	    if (!isdigit(*optarg) || (pid = atoi(optarg)) < 0) {
+		warnx("invalid pid `%s'", optarg);
+		usage();
+	    }
+	    break;
 	default:
 	case ':': /* Without arg */
 	    if ((p = strchr(rcs_string, optopt)) != NULL) {
@@ -333,6 +354,30 @@ main(int argc, char *argv[])
 	    usage();
 	}
 	optarg = NULL;
+    }
+
+    if (pid != -1) {
+	if (cls != NULL) {
+	    warnx("-C cannot be used with -P option");
+	    usage();
+	}
+	if (pwd != NULL) {
+	    warnx("-U cannot be used with -P option");
+	    usage();
+	}
+    }
+
+    /* Get current resource values */
+    setproc = 0;
+    for (i = 0; i < RLIM_NLIMITS; i++) {
+	if (pid == -1) {
+	    getrlimit(i, &limits[i]);
+	} else if (doall || num_limits == 0) {
+	    getrlimit_proc(pid, i, &limits[i]);
+	} else if (which_limits[i] != 0) {
+	    getrlimit_proc(pid, i, &limits[i]);
+	    setproc = 1;
+	}
     }
 
     /* If user was specified, get class from that */
@@ -414,6 +459,10 @@ main(int argc, char *argv[])
 	    warnx("-e cannot be used with `cmd' option");
 	    usage();
 	}
+	if (pid != -1) {
+	    warnx("-P cannot be used with `cmd' option");
+	    usage();
+	}
 
 	login_close(lc);
 
@@ -438,6 +487,14 @@ main(int argc, char *argv[])
 
 	execvp(*argv, argv);
 	err(1, "%s", *argv);
+    }
+
+    if (setproc) {
+	for (rcswhich = 0; rcswhich < RLIM_NLIMITS; rcswhich++) {
+	    if (which_limits[rcswhich] != 0)
+		setrlimit_proc(pid, rcswhich, &limits[rcswhich]);
+	}
+	exit(EXIT_SUCCESS);
     }
 
     shelltype = doeval ? getshelltype() : SH_NONE;
@@ -493,7 +550,8 @@ static void
 usage(void)
 {
     (void)fprintf(stderr,
-"usage: limits [-C class|-U user] [-eaSHBE] [-bcdflmnstuvpw [val]] [[name=val ...] cmd]\n");
+	"usage: limits [-C class|-P pid|-U user] [-eaSHBE] "
+	"[-bcdfklmnostuvpw [val]] [[name=val ...] cmd]\n");
     exit(EXIT_FAILURE);
 }
 
@@ -601,6 +659,8 @@ resource_num(int which, int ch, const char *str)
 	case RLIMIT_NPROC:
 	case RLIMIT_NOFILE:
 	case RLIMIT_NPTS:
+	case RLIMIT_KQUEUES:
+	case RLIMIT_UMTXP:
 	    res = strtoq(s, &e, 0);
 	    s = e;
 	    break;
@@ -652,28 +712,68 @@ getshelltype(void)
     pid_t ppid = getppid();
 
     if (ppid != 1) {
-	FILE * fp;
+	struct kinfo_proc kp;
 	struct stat st;
-	char procdir[MAXPATHLEN], buf[128];
-	int l = sprintf(procdir, "/proc/%ld/", (long)ppid);
+	char path[MAXPATHLEN];
 	char * shell = getenv("SHELL");
+	int mib[4];
+	size_t len;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[3] = ppid;
 
 	if (shell != NULL && stat(shell, &st) != -1) {
 	    struct stat st1;
 
-	    strcpy(procdir+l, "file");
-	    /* $SHELL is actual shell? */
-	    if (stat(procdir, &st1) != -1 && memcmp(&st, &st1, sizeof st) == 0)
-		return getshellbyname(shell);
+	    mib[2] = KERN_PROC_PATHNAME;
+	    len = sizeof(path);
+	    if (sysctl(mib, 4, path, &len, NULL, 0) != -1) {
+		/* $SHELL is actual shell? */
+		if (stat(path, &st1) != -1 && memcmp(&st, &st1, sizeof st) == 0)
+		    return getshellbyname(shell);
+	    }
 	}
-	strcpy(procdir+l, "status");
-	if (stat(procdir, &st) == 0 && (fp = fopen(procdir, "r")) != NULL) {
-	    char * p = fgets(buf, sizeof buf, fp)==NULL ? NULL : strtok(buf, " \t");
-	    fclose(fp);
-	    if (p != NULL)
-		return getshellbyname(p);
-	}
+	mib[2] = KERN_PROC_PID;
+	len = sizeof(kp);
+	if (sysctl(mib, 4, &kp, &len, NULL, 0) != -1)
+	    return getshellbyname(kp.ki_comm);
     }
     return SH_SH;
 }
 
+static void
+getrlimit_proc(pid_t pid, int resource, struct rlimit *rlp)
+{
+    int error;
+    int name[5];
+    size_t len;
+
+    name[0] = CTL_KERN;
+    name[1] = KERN_PROC;
+    name[2] = KERN_PROC_RLIMIT;
+    name[3] = pid;
+    name[4] = resource;
+    len = sizeof(*rlp);
+    error = sysctl(name, 5, rlp, &len, NULL, 0);
+    if (error == -1)
+	err(EXIT_FAILURE, "sysctl: kern.proc.rlimit: %d", pid);
+    if (len != sizeof(*rlp))
+	errx(EXIT_FAILURE, "sysctl() returns wrong size");
+}
+
+static void
+setrlimit_proc(pid_t pid, int resource, const struct rlimit *rlp)
+{
+    int error;
+    int name[5];
+
+    name[0] = CTL_KERN;
+    name[1] = KERN_PROC;
+    name[2] = KERN_PROC_RLIMIT;
+    name[3] = pid;
+    name[4] = resource;
+    error = sysctl(name, 5, NULL, 0, rlp, sizeof(*rlp));
+    if (error == -1)
+	err(EXIT_FAILURE, "sysctl: kern.proc.rlimit: %d", pid);
+}

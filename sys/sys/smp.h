@@ -16,10 +16,53 @@
 
 #ifndef LOCORE
 
-#ifdef SMP
+#include <sys/cpuset.h>
+#include <sys/queue.h>
 
 /*
- * Topology of a NUMA or HTT system.
+ * Types of nodes in the topological tree.
+ */
+typedef enum {
+	/* No node has this type; can be used in topo API calls. */
+	TOPO_TYPE_DUMMY,
+	/* Processing unit aka computing unit aka logical CPU. */
+	TOPO_TYPE_PU,
+	/* Physical subdivision of a package. */
+	TOPO_TYPE_CORE,
+	/* CPU L1/L2/L3 cache. */
+	TOPO_TYPE_CACHE,
+	/* Package aka chip, equivalent to socket. */
+	TOPO_TYPE_PKG,
+	/* NUMA node. */
+	TOPO_TYPE_NODE,
+	/* Other logical or physical grouping of PUs. */
+	/* E.g. PUs on the same dye, or PUs sharing an FPU. */
+	TOPO_TYPE_GROUP,
+	/* The whole system. */
+	TOPO_TYPE_SYSTEM
+} topo_node_type;
+
+/* Hardware indenitifier of a topology component. */
+typedef	unsigned int hwid_t;
+/* Logical CPU idenitifier. */
+typedef	int cpuid_t;
+
+/* A node in the topology. */
+struct topo_node {
+	struct topo_node			*parent;
+	TAILQ_HEAD(topo_children, topo_node)	children;
+	TAILQ_ENTRY(topo_node)			siblings;
+	cpuset_t				cpuset;
+	topo_node_type				type;
+	uintptr_t				subtype;
+	hwid_t					hwid;
+	cpuid_t					id;
+	int					nchildren;
+	int					cpu_count;
+};
+
+/*
+ * Scheduling topology of a NUMA or SMP system.
  *
  * The top level topology is an array of pointers to groups.  Each group
  * contains a bitmask of cpus in its group or subgroups.  It may also
@@ -34,12 +77,14 @@
 struct cpu_group {
 	struct cpu_group *cg_parent;	/* Our parent group. */
 	struct cpu_group *cg_child;	/* Optional children groups. */
-	cpumask_t	cg_mask;	/* Mask of cpus in this group. */
-	int8_t		cg_count;	/* Count of cpus in this group. */
-	int8_t		cg_children;	/* Number of children groups. */
+	cpuset_t	cg_mask;	/* Mask of cpus in this group. */
+	int32_t		cg_count;	/* Count of cpus in this group. */
+	int16_t		cg_children;	/* Number of children groups. */
 	int8_t		cg_level;	/* Shared cache level. */
 	int8_t		cg_flags;	/* Traversal modifiers. */
 };
+
+typedef struct cpu_group *cpu_group_t;
 
 /*
  * Defines common resources for CPUs in the group.  The highest level
@@ -50,6 +95,8 @@ struct cpu_group {
 #define	CG_SHARE_L2	2
 #define	CG_SHARE_L3	3
 
+#define MAX_CACHE_LEVELS	CG_SHARE_L3
+
 /*
  * Behavior modifiers for load balancing and affinity.
  */
@@ -58,9 +105,29 @@ struct cpu_group {
 #define	CG_FLAG_THREAD	(CG_FLAG_HTT | CG_FLAG_SMT)	/* Any threading. */
 
 /*
- * Convenience routines for building topologies.
+ * Convenience routines for building and traversing topologies.
  */
+#ifdef SMP
+void topo_init_node(struct topo_node *node);
+void topo_init_root(struct topo_node *root);
+struct topo_node * topo_add_node_by_hwid(struct topo_node *parent, int hwid,
+    topo_node_type type, uintptr_t subtype);
+struct topo_node * topo_find_node_by_hwid(struct topo_node *parent, int hwid,
+    topo_node_type type, uintptr_t subtype);
+void topo_promote_child(struct topo_node *child);
+struct topo_node * topo_next_node(struct topo_node *top,
+    struct topo_node *node);
+struct topo_node * topo_next_nonchild_node(struct topo_node *top,
+    struct topo_node *node);
+void topo_set_pu_id(struct topo_node *node, cpuid_t id);
+int topo_analyze(struct topo_node *topo_root, int all, int *pkg_count,
+    int *cores_per_pkg, int *thrs_per_core);
+
+#define	TOPO_FOREACH(i, root)	\
+	for (i = root; i != NULL; i = topo_next_node(root, i))
+
 struct cpu_group *smp_topo(void);
+struct cpu_group *smp_topo_alloc(u_int count);
 struct cpu_group *smp_topo_none(void);
 struct cpu_group *smp_topo_1level(int l1share, int l1count, int l1flags);
 struct cpu_group *smp_topo_2level(int l2share, int l2count, int l1share,
@@ -68,13 +135,12 @@ struct cpu_group *smp_topo_2level(int l2share, int l2count, int l1share,
 struct cpu_group *smp_topo_find(struct cpu_group *top, int cpu);
 
 extern void (*cpustop_restartfunc)(void);
-extern int smp_active;
 extern int smp_cpus;
-extern volatile cpumask_t started_cpus;
-extern volatile cpumask_t stopped_cpus;
-extern cpumask_t idle_cpus_mask;
-extern cpumask_t hlt_cpus_mask;
-extern cpumask_t logical_cpus_mask;
+extern volatile cpuset_t started_cpus;
+extern volatile cpuset_t stopped_cpus;
+extern volatile cpuset_t suspended_cpus;
+extern cpuset_t hlt_cpus_mask;
+extern cpuset_t logical_cpus_mask;
 #endif /* SMP */
 
 extern u_int mp_maxid;
@@ -82,14 +148,53 @@ extern int mp_maxcpus;
 extern int mp_ncpus;
 extern volatile int smp_started;
 
-extern cpumask_t all_cpus;
+extern cpuset_t all_cpus;
+extern cpuset_t cpuset_domain[MAXMEMDOM]; 	/* CPUs in each NUMA domain. */
 
 /*
  * Macro allowing us to determine whether a CPU is absent at any given
  * time, thus permitting us to configure sparse maps of cpuid-dependent
  * (per-CPU) structures.
  */
-#define	CPU_ABSENT(x_cpu)	((all_cpus & (1 << (x_cpu))) == 0)
+#define	CPU_ABSENT(x_cpu)	(!CPU_ISSET(x_cpu, &all_cpus))
+
+/*
+ * Macros to iterate over non-absent CPUs.  CPU_FOREACH() takes an
+ * integer iterator and iterates over the available set of CPUs.
+ * CPU_FIRST() returns the id of the first non-absent CPU.  CPU_NEXT()
+ * returns the id of the next non-absent CPU.  It will wrap back to
+ * CPU_FIRST() once the end of the list is reached.  The iterators are
+ * currently implemented via inline functions.
+ */
+#define	CPU_FOREACH(i)							\
+	for ((i) = 0; (i) <= mp_maxid; (i)++)				\
+		if (!CPU_ABSENT((i)))
+
+static __inline int
+cpu_first(void)
+{
+	int i;
+
+	for (i = 0;; i++)
+		if (!CPU_ABSENT(i))
+			return (i);
+}
+
+static __inline int
+cpu_next(int i)
+{
+
+	for (;;) {
+		i++;
+		if (i > mp_maxid)
+			i = 0;
+		if (!CPU_ABSENT(i))
+			return (i);
+	}
+}
+
+#define	CPU_FIRST()	cpu_first()
+#define	CPU_NEXT(i)	cpu_next((i))
 
 #ifdef SMP
 /*
@@ -100,7 +205,7 @@ extern cpumask_t all_cpus;
  * cpu_mp_start() will be called so that MP can be enabled.  This function
  * should do things such as startup secondary processors.  It should also
  * setup mp_ncpus, all_cpus, and smp_cpus.  It should also ensure that
- * smp_active and smp_started are initialized at the appropriate time.
+ * smp_started is initialized at the appropriate time.
  * Once cpu_mp_start() returns, machine independent MP startup code will be
  * executed and a simple message will be output to the console.  Finally,
  * cpu_mp_announce() will be called so that machine dependent messages about
@@ -120,22 +225,27 @@ void	cpu_mp_setmaxid(void);
 void	cpu_mp_start(void);
 
 void	forward_signal(struct thread *);
-int	restart_cpus(cpumask_t);
-int	stop_cpus(cpumask_t);
-int	stop_cpus_hard(cpumask_t);
-#if defined(__amd64__)
-int	suspend_cpus(cpumask_t);
+int	restart_cpus(cpuset_t);
+int	stop_cpus(cpuset_t);
+int	stop_cpus_hard(cpuset_t);
+#if defined(__amd64__) || defined(__i386__)
+int	suspend_cpus(cpuset_t);
+int	resume_cpus(cpuset_t);
 #endif
+
 void	smp_rendezvous_action(void);
 extern	struct mtx smp_ipi_mtx;
 
 #endif /* SMP */
+
+int	quiesce_all_cpus(const char *, int);
+int	quiesce_cpus(cpuset_t, const char *, int);
 void	smp_no_rendevous_barrier(void *);
 void	smp_rendezvous(void (*)(void *), 
 		       void (*)(void *),
 		       void (*)(void *),
 		       void *arg);
-void	smp_rendezvous_cpus(cpumask_t,
+void	smp_rendezvous_cpus(cpuset_t,
 		       void (*)(void *), 
 		       void (*)(void *),
 		       void (*)(void *),

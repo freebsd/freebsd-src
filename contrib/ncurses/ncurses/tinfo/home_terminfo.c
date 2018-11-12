@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 #include <curses.priv.h>
 #include <tic.h>
 
-MODULE_ID("$Id: home_terminfo.c,v 1.11 2008/08/03 23:43:11 tom Exp $")
+MODULE_ID("$Id: home_terminfo.c,v 1.15 2012/10/27 21:49:14 tom Exp $")
 
 /* ncurses extension...fall back on user's private directory */
 
@@ -53,11 +53,9 @@ _nc_home_terminfo(void)
     if (use_terminfo_vars()) {
 	if (MyBuffer == 0) {
 	    if ((home = getenv("HOME")) != 0) {
-		unsigned want = (strlen(home) + sizeof(PRIVATE_INFO));
-		MyBuffer = typeMalloc(char, want);
-		if (MyBuffer == 0)
-		    _nc_err_abort(MSG_NO_MEMORY);
-		(void) sprintf(MyBuffer, PRIVATE_INFO, home);
+		size_t want = (strlen(home) + sizeof(PRIVATE_INFO));
+		TYPE_MALLOC(char, want, MyBuffer);
+		_nc_SPRINTF(MyBuffer, _nc_SLIMIT(want) PRIVATE_INFO, home);
 	    }
 	}
 	result = MyBuffer;

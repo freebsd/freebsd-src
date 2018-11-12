@@ -1,32 +1,31 @@
 /*	$NetBSD: clnt_raw.c,v 1.20 2000/12/10 04:12:03 christos Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
  *
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- *
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- *
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- *
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- *
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice, 
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, 
+ *   this list of conditions and the following disclaimer in the documentation 
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its 
+ *   contributors may be used to endorse or promote products derived 
+ *   from this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -88,17 +87,15 @@ static struct clnt_ops *clnt_raw_ops(void);
  * Create a client handle for memory based rpc.
  */
 CLIENT *
-clnt_raw_create(prog, vers)
-	rpcprog_t prog;
-	rpcvers_t vers;
+clnt_raw_create(rpcprog_t prog, rpcvers_t vers)
 {
-	struct clntraw_private *clp = clntraw_private;
+	struct clntraw_private *clp;
 	struct rpc_msg call_msg;
-	XDR *xdrs = &clp->xdr_stream;
-	CLIENT	*client = &clp->client_object;
+	XDR *xdrs;
+	CLIENT	*client;
 
 	mutex_lock(&clntraw_lock);
-	if (clp == NULL) {
+	if ((clp = clntraw_private) == NULL) {
 		clp = (struct clntraw_private *)calloc(1, sizeof (*clp));
 		if (clp == NULL) {
 			mutex_unlock(&clntraw_lock);
@@ -110,6 +107,9 @@ clnt_raw_create(prog, vers)
 		clp->_raw_buf = __rpc_rawcombuf;
 		clntraw_private = clp;
 	}
+	xdrs = &clp->xdr_stream;
+	client = &clp->client_object;
+
 	/*
 	 * pre-serialize the static part of the call msg and stash it away
 	 */
@@ -140,14 +140,8 @@ clnt_raw_create(prog, vers)
 
 /* ARGSUSED */
 static enum clnt_stat 
-clnt_raw_call(h, proc, xargs, argsp, xresults, resultsp, timeout)
-	CLIENT *h;
-	rpcproc_t proc;
-	xdrproc_t xargs;
-	void *argsp;
-	xdrproc_t xresults;
-	void *resultsp;
-	struct timeval timeout;
+clnt_raw_call(CLIENT *h, rpcproc_t proc, xdrproc_t xargs, void *argsp,
+    xdrproc_t xresults, void *resultsp, struct timeval timeout)
 {
 	struct clntraw_private *clp = clntraw_private;
 	XDR *xdrs = &clp->xdr_stream;
@@ -238,19 +232,14 @@ call_again:
 
 /*ARGSUSED*/
 static void
-clnt_raw_geterr(cl, err)
-	CLIENT *cl;
-	struct rpc_err *err;
+clnt_raw_geterr(CLIENT *cl, struct rpc_err *err)
 {
 }
 
 
 /* ARGSUSED */
 static bool_t
-clnt_raw_freeres(cl, xdr_res, res_ptr)
-	CLIENT *cl;
-	xdrproc_t xdr_res;
-	void *res_ptr;
+clnt_raw_freeres(CLIENT *cl, xdrproc_t xdr_res, void *res_ptr)
 {
 	struct clntraw_private *clp = clntraw_private;
 	XDR *xdrs = &clp->xdr_stream;
@@ -269,30 +258,25 @@ clnt_raw_freeres(cl, xdr_res, res_ptr)
 
 /*ARGSUSED*/
 static void
-clnt_raw_abort(cl)
-	CLIENT *cl;
+clnt_raw_abort(CLIENT *cl)
 {
 }
 
 /*ARGSUSED*/
 static bool_t
-clnt_raw_control(cl, ui, str)
-	CLIENT *cl;
-	u_int ui;
-	void *str;
+clnt_raw_control(CLIENT *cl, u_int ui, void *str)
 {
 	return (FALSE);
 }
 
 /*ARGSUSED*/
 static void
-clnt_raw_destroy(cl)
-	CLIENT *cl;
+clnt_raw_destroy(CLIENT *cl)
 {
 }
 
 static struct clnt_ops *
-clnt_raw_ops()
+clnt_raw_ops(void)
 {
 	static struct clnt_ops ops;
 

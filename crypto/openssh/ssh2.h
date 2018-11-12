@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh2.h,v 1.11 2008/11/04 08:22:13 djm Exp $ */
+/* $OpenBSD: ssh2.h,v 1.17 2016/01/14 16:17:40 markus Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -80,6 +80,7 @@
 #define SSH2_MSG_DEBUG					4
 #define SSH2_MSG_SERVICE_REQUEST			5
 #define SSH2_MSG_SERVICE_ACCEPT				6
+#define SSH2_MSG_EXT_INFO				7
 
 /* transport layer: alg negotiation */
 
@@ -98,6 +99,10 @@
 #define SSH2_MSG_KEX_DH_GEX_REPLY			33
 #define SSH2_MSG_KEX_DH_GEX_REQUEST			34
 
+/* ecdh */
+#define SSH2_MSG_KEX_ECDH_INIT				30
+#define SSH2_MSG_KEX_ECDH_REPLY				31
+
 /* user authentication: generic */
 
 #define SSH2_MSG_USERAUTH_REQUEST			50
@@ -111,12 +116,6 @@
 #define SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ		60
 #define SSH2_MSG_USERAUTH_INFO_REQUEST			60
 #define SSH2_MSG_USERAUTH_INFO_RESPONSE			61
-#define SSH2_MSG_USERAUTH_JPAKE_CLIENT_STEP1		60
-#define SSH2_MSG_USERAUTH_JPAKE_SERVER_STEP1		61
-#define SSH2_MSG_USERAUTH_JPAKE_CLIENT_STEP2		62
-#define SSH2_MSG_USERAUTH_JPAKE_SERVER_STEP2		63
-#define SSH2_MSG_USERAUTH_JPAKE_CLIENT_CONFIRM		64
-#define SSH2_MSG_USERAUTH_JPAKE_SERVER_CONFIRM		65
 
 /* connection protocol: generic */
 
@@ -166,3 +165,6 @@
 
 #define SSH2_EXTENDED_DATA_STDERR			1
 
+/* Certificate types for OpenSSH certificate keys extension */
+#define SSH2_CERT_TYPE_USER				1
+#define SSH2_CERT_TYPE_HOST				2

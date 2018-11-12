@@ -3,4 +3,4 @@
 
 files	"../idt/files.idt"
 
-options		ISA_MIPS32
+machine		mips mipsel

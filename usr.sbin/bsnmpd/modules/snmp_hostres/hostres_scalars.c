@@ -41,14 +41,11 @@
 #include <stdint.h>
 #include <string.h>
 #include <syslog.h>
-#include <utmp.h>
+#include <utmpx.h>
 
 #include "hostres_snmp.h"
 #include "hostres_oid.h"
 #include "hostres_tree.h"
-
-/* file pointer to keep an open instance of utmp */
-static FILE *utmp_fp;
 
 /* boot timestamp in centi-seconds */
 static uint64_t kernel_boot;
@@ -70,9 +67,6 @@ fini_scalars(void)
 {
 
 	free(boot_line);
-
-	if (utmp_fp != NULL)
-		(void)fclose(utmp_fp);
 }
 
 /**
@@ -176,8 +170,8 @@ OS_getSystemDate(struct snmp_value *value)
 
 /**
  * Get kernel boot path. For FreeBSD it seems that no arguments are
- * present. Returns NULL if an error occured. The returned data is a
- * pointer to a global strorage.
+ * present. Returns NULL if an error occurred. The returned data is a
+ * pointer to a global storage.
  */
 int
 OS_getSystemInitialLoadParameters(u_char **params)
@@ -220,30 +214,15 @@ OS_getSystemInitialLoadParameters(u_char **params)
 static int
 OS_getSystemNumUsers(uint32_t *nu)
 {
-	struct utmp utmp;
-	static int first_time = 1;
+	struct utmpx *utmp;
 
-	if (utmp_fp == NULL) {
-		if (!first_time)
-			return (SNMP_ERR_GENERR);
-		first_time = 0;
-		if ((utmp_fp = fopen(_PATH_UTMP, "r")) == NULL) {
-			syslog(LOG_ERR, "fopen(%s) failed: %m", _PATH_UTMP);
-			return (SNMP_ERR_GENERR);
-		}
-	}
-
-	/* start with the begining of the utmp file */
-	(void)rewind(utmp_fp);
-
+	setutxent();
 	*nu = 0;
-	while (fread(&utmp, sizeof(utmp), 1, utmp_fp) == 1) {
-		if (utmp.ut_name[0] != '\0' && utmp.ut_line[0] != '\0') {
-			if (getpwnam(utmp.ut_name) == NULL)
-				continue;
+	while ((utmp = getutxent()) != NULL) {
+		if (utmp->ut_type == USER_PROCESS)
 			(*nu)++;
-		}
 	}
+	endutxent();
 
 	return (SNMP_ERR_NOERROR);
 }
@@ -259,7 +238,7 @@ OS_getSystemProcesses(uint32_t *proc_count)
 	if (hr_kd == NULL)
 		return (SNMP_ERR_GENERR);
 
-	if (kvm_getprocs(hr_kd, KERN_PROC_ALL, 0, &pc) == NULL) {
+	if (kvm_getprocs(hr_kd, KERN_PROC_PROC, 0, &pc) == NULL) {
 		syslog(LOG_ERR, "kvm_getprocs failed: %m");
 		return (SNMP_ERR_GENERR);
 	}

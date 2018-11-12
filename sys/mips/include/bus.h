@@ -16,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -707,17 +700,35 @@ void	__bs_c(f,_bs_c_8) (void *t, bus_space_handle_t bsh1,	\
 #define BUS_SPACE_ALIGNED_POINTER(p, t) ALIGNED_POINTER(p, t)
 
 #define BUS_SPACE_MAXADDR_24BIT	0xFFFFFF
-#define BUS_SPACE_MAXADDR_32BIT 0xFFFFFFFF
-#define BUS_SPACE_MAXADDR 	0xFFFFFFFF
 #define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
+
+#define BUS_SPACE_MAXADDR_32BIT 0xFFFFFFFF
 #define BUS_SPACE_MAXSIZE_32BIT	0xFFFFFFFF
-#define BUS_SPACE_MAXSIZE 	0xFFFFFFFF
+
+#if defined(__mips_n64)
+#define BUS_SPACE_MAXADDR 	0xFFFFFFFFFFFFFFFFUL
+#define BUS_SPACE_MAXSIZE 	0xFFFFFFFFFFFFFFFFUL
+#else
+#define BUS_SPACE_MAXADDR 	0xFFFFFFFFUL
+#define BUS_SPACE_MAXSIZE 	0xFFFFFFFFUL
+#endif
+
+
+#define BUS_SPACE_UNRESTRICTED	(~0)
 
 /* 
  * declare generic bus space, it suits all needs in 
  */
 DECLARE_BUS_SPACE_PROTOTYPES(generic);
 extern bus_space_tag_t mips_bus_space_generic;
+
+/* Special bus space for RMI processors */
+#if defined(CPU_RMI) || defined (CPU_NLM)
+extern bus_space_tag_t rmi_bus_space;
+extern bus_space_tag_t rmi_pci_bus_space;
+extern bus_space_tag_t rmi_uart_bus_space;
+#endif
+
 #include <machine/bus_dma.h>
 
 #endif /* _MACHINE_BUS_H_ */

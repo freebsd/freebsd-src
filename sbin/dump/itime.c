@@ -37,7 +37,6 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/queue.h>
-#include <sys/time.h>
 
 #include <ufs/ufs/dinode.h>
 
@@ -49,6 +48,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <timeconv.h>
 
 #include "dump.h"
@@ -58,7 +58,7 @@ struct dumptime {
 	SLIST_ENTRY(dumptime) dt_list;
 };
 SLIST_HEAD(dthead, dumptime) dthead = SLIST_HEAD_INITIALIZER(dthead);
-struct	dumpdates **ddatev = 0;
+struct	dumpdates **ddatev = NULL;
 int	nddates = 0;
 
 static	void dumprecout(FILE *, const struct dumpdates *);
@@ -106,8 +106,10 @@ readdumptimes(FILE *df)
 
 	for (;;) {
 		dtwalk = (struct dumptime *)calloc(1, sizeof (struct dumptime));
-		if (getrecord(df, &(dtwalk->dt_value)) < 0)
+		if (getrecord(df, &(dtwalk->dt_value)) < 0) {
+			free(dtwalk);
 			break;
+		}
 		nddates++;
 		SLIST_INSERT_HEAD(&dthead, dtwalk, dt_list);
 	}
@@ -116,8 +118,7 @@ readdumptimes(FILE *df)
 	 *	arrayify the list, leaving enough room for the additional
 	 *	record that we may have to add to the ddate structure
 	 */
-	ddatev = (struct dumpdates **)
-		calloc((unsigned) (nddates + 1), sizeof (struct dumpdates *));
+	ddatev = calloc((unsigned) (nddates + 1), sizeof (struct dumpdates *));
 	dtwalk = SLIST_FIRST(&dthead);
 	for (i = nddates - 1; i >= 0; i--, dtwalk = SLIST_NEXT(dtwalk, dt_list))
 		ddatev[i] = &dtwalk->dt_value;
@@ -172,8 +173,8 @@ putdumptime(void)
 	fd = fileno(df);
 	(void) flock(fd, LOCK_EX);
 	fname = disk;
-	free((char *)ddatev);
-	ddatev = 0;
+	free(ddatev);
+	ddatev = NULL;
 	nddates = 0;
 	readdumptimes(df);
 	if (fseek(df, 0L, 0) < 0)
@@ -220,7 +221,10 @@ static void
 dumprecout(FILE *file, const struct dumpdates *what)
 {
 
-	if (fprintf(file, DUMPOUTFMT, what->dd_name,
+	if (strlen(what->dd_name) > DUMPFMTLEN)
+		quit("Name '%s' exceeds DUMPFMTLEN (%d) bytes\n",
+		    what->dd_name, DUMPFMTLEN);
+	if (fprintf(file, DUMPOUTFMT, DUMPFMTLEN, what->dd_name,
 	      what->dd_level, ctime(&what->dd_ddate)) < 0)
 		quit("%s: %s\n", dumpdates, strerror(errno));
 }

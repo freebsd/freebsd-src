@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	priv
 SRCS=	main.c				\
@@ -45,11 +45,10 @@ SRCS=	main.c				\
 	priv_vm_mlock.c			\
 	priv_vm_munlock.c
 
-NO_MAN=
-WARNS=	3
+MAN=
+WARNS?=	3
 
-DPADD+= ${LIBIPSEC}
-LDADD+= -lipsec
+LIBADD+=	ipsec
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6

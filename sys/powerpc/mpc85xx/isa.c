@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 
+#include <machine/intr_machdep.h>
 #include <machine/resource.h>
 
 #include <isa/isareg.h>
@@ -51,7 +52,7 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource_list *rl = &idev->id_resources;
 	int isdefault, passthrough, rids;
 
-	isdefault = (start == 0UL && end == ~0UL) ? 1 : 0;
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end) ? 1 : 0;
 	passthrough = (device_get_parent(child) != bus) ? 1 : 0;
 
 	if (!passthrough && !isdefault &&
@@ -80,21 +81,4 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 	struct resource_list *rl = &idev->id_resources;
 
 	return (resource_list_release(rl, bus, child, type, rid, r));
-}
-
-int
-isa_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
-    driver_filter_t filter, void (*ihand)(void *), void *arg, void **cookiep)
-{
-
-	return (BUS_SETUP_INTR(device_get_parent(bus), child, r, flags,
-	    filter, ihand, arg, cookiep));
-}
-
-int
-isa_teardown_intr(device_t bus, device_t child, struct resource *r,
-    void *cookie)
-{
-
-	return (BUS_TEARDOWN_INTR(device_get_parent(bus), child, r, cookie));
 }

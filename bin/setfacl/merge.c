@@ -14,14 +14,14 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR THE VOICES IN HIS HEAD BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -94,17 +94,16 @@ merge_acl(acl_t acl, acl_t *prev_acl, const char *filename)
 	acl_tag_t tag, tag_new;
 	acl_entry_type_t entry_type, entry_type_new;
 	acl_flagset_t flagset;
-	int entry_id, entry_id_new, have_entry, entry_number = 0;
+	int entry_id, entry_id_new, have_entry, had_entry, entry_number = 0;
 	int acl_brand, prev_acl_brand;
 
 	acl_get_brand_np(acl, &acl_brand);
 	acl_get_brand_np(*prev_acl, &prev_acl_brand);
 
-	if (acl_brand != prev_acl_brand) {
+	if (branding_mismatch(acl_brand, prev_acl_brand)) {
 		warnx("%s: branding mismatch; existing ACL is %s, "
 		    "entry to be merged is %s", filename,
-		    prev_acl_brand == ACL_BRAND_NFS4 ? "NFSv4" : "POSIX.1e",
-		    acl_brand == ACL_BRAND_NFS4 ? "NFSv4" : "POSIX.1e");
+		    brand_name(prev_acl_brand), brand_name(acl_brand));
 		return (-1);
 	}
 
@@ -117,6 +116,7 @@ merge_acl(acl_t acl, acl_t *prev_acl, const char *filename)
 	while (acl_get_entry(acl, entry_id, &entry) == 1) {
 		entry_id = ACL_NEXT_ENTRY;
 		have_entry = 0;
+		had_entry = 0;
 
 		/* keep track of existing ACL_MASK entries */
 		if (acl_get_tag_type(entry, &tag) == -1)
@@ -188,7 +188,7 @@ merge_acl(acl_t acl, acl_t *prev_acl, const char *filename)
 						err(1, "%s: acl_set_flagset_np() failed",
 						    filename);
 				}
-				have_entry = 1;
+				had_entry = have_entry = 1;
 				break;
 			default:
 				/* should never be here */
@@ -198,7 +198,7 @@ merge_acl(acl_t acl, acl_t *prev_acl, const char *filename)
 		}
 
 		/* if this entry has not been found, it must be new */
-		if (have_entry == 0) {
+		if (had_entry == 0) {
 
 			/*
 			 * NFSv4 ACL entries must be prepended to the ACL.
@@ -252,9 +252,10 @@ add_acl(acl_t acl, uint entry_number, acl_t *prev_acl, const char *filename)
 		return (-1);
 	}
 
-	if (acl_brand != ACL_BRAND_NFS4) {
+	if (branding_mismatch(acl_brand, ACL_BRAND_NFS4)) {
 		warnx("%s: branding mismatch; existing ACL is NFSv4, "
-		    "entry to be added is POSIX.1e", filename);
+		    "entry to be added is %s", filename,
+		    brand_name(acl_brand));
 		return (-1);
 	}
 

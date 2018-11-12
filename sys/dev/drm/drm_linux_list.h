@@ -32,12 +32,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifndef _DRM_LINUX_LIST_H_
+#define _DRM_LINUX_LIST_H_
+
 struct list_head {
 	struct list_head *next, *prev;
 };
 
-/* Cheat, assume the list_head is at the start of the struct */
-#define list_entry(entry, type, member)	(type *)(entry)
+#define list_entry(ptr, type, member) container_of(ptr,type,member)
+#define hlist_entry(ptr, type, member) container_of(ptr,type,member)
 
 static __inline__ void
 INIT_LIST_HEAD(struct list_head *head) {
@@ -48,6 +51,14 @@ INIT_LIST_HEAD(struct list_head *head) {
 static __inline__ int
 list_empty(struct list_head *head) {
 	return (head)->next == head;
+}
+
+static __inline__ void
+list_add(struct list_head *new, struct list_head *head) {
+        (head)->next->prev = new;
+        (new)->next = (head)->next;
+        (new)->prev = head;
+        (head)->next = new;
 }
 
 static __inline__ void
@@ -64,6 +75,13 @@ list_del(struct list_head *entry) {
 	(entry)->prev->next = (entry)->next;
 }
 
+static __inline__ void
+list_del_init(struct list_head *entry) {
+	(entry)->next->prev = (entry)->prev;
+	(entry)->prev->next = (entry)->next;
+	INIT_LIST_HEAD(entry);
+}
+
 #define list_for_each(entry, head)				\
     for (entry = (head)->next; entry != head; entry = (entry)->next)
 
@@ -76,3 +94,17 @@ list_del(struct list_head *entry) {
 	entry != head; 						\
 	entry = temp, temp = entry->next)
 
+/**
+ * list_for_each_entry_safe - iterate over list of given type safe against removal of list entry
+ * @pos:        the type * to use as a loop cursor.
+ * @n:          another type * to use as temporary storage
+ * @head:       the head for your list.
+ * @member:     the name of the list_struct within the struct.
+ */
+#define list_for_each_entry_safe(pos, n, head, member)			\
+	for (pos = list_entry((head)->next, __typeof(*pos), member),	\
+	    n = list_entry(pos->member.next, __typeof(*pos), member);	\
+	    &pos->member != (head);					\
+	    pos = n, n = list_entry(n->member.next, __typeof(*n), member))
+
+#endif /* _DRM_LINUX_LIST_H_ */

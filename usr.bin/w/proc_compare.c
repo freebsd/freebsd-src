@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -66,11 +62,11 @@ __FBSDID("$FreeBSD$");
  * TODO - consider whether pctcpu should be used.
  */
 
-#define ISRUN(p)	(((p)->ki_stat == SRUN) || ((p)->ki_stat == SIDL))
-#define TESTAB(a, b)    ((a)<<1 | (b))
-#define ONLYA   2
-#define ONLYB   1
-#define BOTH    3
+#define	ISRUN(p)	(((p)->ki_stat == SRUN) || ((p)->ki_stat == SIDL))
+#define	TESTAB(a, b)    ((a)<<1 | (b))
+#define	ONLYA   2
+#define	ONLYB   1
+#define	BOTH    3
 
 int
 proc_compare(struct kinfo_proc *p1, struct kinfo_proc *p2)
@@ -97,7 +93,7 @@ proc_compare(struct kinfo_proc *p1, struct kinfo_proc *p2)
 		return (p2->ki_pid > p1->ki_pid); /* tie - return highest pid */
 	}
 	/*
- 	 * weed out zombies
+	 * weed out zombies
 	 */
 	switch (TESTAB(p1->ki_stat == SZOMB, p2->ki_stat == SZOMB)) {
 	case ONLYA:

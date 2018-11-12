@@ -26,6 +26,9 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
 
+/* Define if pthread_{,attr_}{g,s}etaffinity_np is supported. */
+#undef HAVE_PTHREAD_AFFINITY_NP
+
 /* Define to 1 if you have the <semaphore.h> header file. */
 #define HAVE_SEMAPHORE_H 1
 
@@ -52,6 +55,9 @@
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
 
+/* Define to 1 if you have the <sys/sysctl.h> header file. */
+#define HAVE_SYS_SYSCTL_H 1
+
 /* Define to 1 if you have the <sys/time.h> header file. */
 #define HAVE_SYS_TIME_H 1
 
@@ -59,7 +65,7 @@
 #define HAVE_SYS_TYPES_H 1
 
 /* Define to 1 if the target supports thread-local storage. */
-#if !defined(__sparc64__) && !defined(__arm__) && !defined(__mips__)
+#if !defined(__mips__)
 #define HAVE_TLS 1
 #endif
 

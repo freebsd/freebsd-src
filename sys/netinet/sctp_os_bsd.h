@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2006-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,10 +29,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#ifndef __sctp_os_bsd_h__
-#define __sctp_os_bsd_h__
+
+#ifndef _NETINET_SCTP_OS_BSD_H_
+#define _NETINET_SCTP_OS_BSD_H_
 /*
  * includes
  */
@@ -78,8 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp_var.h>
 
-#include <net/vnet.h>
-
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
@@ -93,7 +95,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_pcb.h>
-#include <netinet/icmp6.h>
 #include <netinet6/ip6protosw.h>
 #include <netinet6/nd6.h>
 #include <netinet6/scope6_var.h>
@@ -101,6 +102,9 @@ __FBSDID("$FreeBSD$");
 
 
 #include <netinet/ip_options.h>
+
+#include <crypto/sha1.h>
+#include <crypto/sha2/sha256.h>
 
 #ifndef in6pcb
 #define in6pcb		inpcb
@@ -125,6 +129,7 @@ MALLOC_DECLARE(SCTP_M_TIMW);
 MALLOC_DECLARE(SCTP_M_MVRF);
 MALLOC_DECLARE(SCTP_M_ITER);
 MALLOC_DECLARE(SCTP_M_SOCKOPT);
+MALLOC_DECLARE(SCTP_M_MCORE);
 
 #if defined(SCTP_LOCAL_TRACE_BUF)
 
@@ -146,48 +151,32 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #define V_system_base_info VNET(system_base_info)
 #define SCTP_BASE_INFO(__m) V_system_base_info.sctppcbinfo.__m
 #define SCTP_BASE_STATS V_system_base_info.sctpstat
-#define SCTP_BASE_STATS_SYSCTL VNET_NAME(system_base_info.sctpstat)
-#define SCTP_BASE_STAT(__m)     V_system_base_info.sctpstat.__m
-#define SCTP_BASE_SYSCTL(__m) VNET_NAME(system_base_info.sctpsysctl.__m)
+#define SCTP_BASE_STAT(__m) V_system_base_info.sctpstat.__m
+#define SCTP_BASE_SYSCTL(__m) V_system_base_info.sctpsysctl.__m
 #define SCTP_BASE_VAR(__m) V_system_base_info.__m
 
-/*
- *
- */
-#define USER_ADDR_NULL	(NULL)	/* FIX ME: temp */
-#define SCTP_LIST_EMPTY(list)	LIST_EMPTY(list)
-
+#define SCTP_PRINTF(params...)	printf(params)
 #if defined(SCTP_DEBUG)
 #define SCTPDBG(level, params...)					\
 {									\
-    do {								\
-	if (SCTP_BASE_SYSCTL(sctp_debug_on) & level ) {			\
-	    printf(params);						\
-	}								\
-    } while (0);							\
+	do {								\
+		if (SCTP_BASE_SYSCTL(sctp_debug_on) & level ) {		\
+			SCTP_PRINTF(params);				\
+		}							\
+	} while (0);							\
 }
 #define SCTPDBG_ADDR(level, addr)					\
 {									\
-    do {								\
-	if (SCTP_BASE_SYSCTL(sctp_debug_on) & level ) {			\
-	    sctp_print_address(addr);					\
-	}								\
-    } while (0);							\
-}
-#define SCTPDBG_PKT(level, iph, sh)					\
-{									\
-    do {								\
-	    if (SCTP_BASE_SYSCTL(sctp_debug_on) & level) {		\
-		    sctp_print_address_pkt(iph, sh);			\
-	    }								\
-    } while (0);							\
+	do {								\
+		if (SCTP_BASE_SYSCTL(sctp_debug_on) & level ) {		\
+			sctp_print_address(addr);			\
+		}							\
+	} while (0);							\
 }
 #else
 #define SCTPDBG(level, params...)
 #define SCTPDBG_ADDR(level, addr)
-#define SCTPDBG_PKT(level, iph, sh)
 #endif
-#define SCTP_PRINTF(params...)	printf(params)
 
 #ifdef SCTP_LTRACE_CHUNKS
 #define SCTP_LTRACE_CHK(a, b, c, d) if(SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LTRACE_CHUNK_ENABLE) SCTP_CTR6(KTR_SUBSYS, "SCTP:%d[%d]:%x-%x-%x-%x", SCTP_LOG_CHUNK_PROC, 0, a, b, c, d)
@@ -196,12 +185,14 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #endif
 
 #ifdef SCTP_LTRACE_ERRORS
-#define SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, file, err) if(SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LTRACE_ERROR_ENABLE) \
-                                                         printf("mbuf:%p inp:%p stcb:%p net:%p file:%x line:%d error:%d\n", \
-								     m, inp, stcb, net, file, __LINE__, err);
-#define SCTP_LTRACE_ERR_RET(inp, stcb, net, file, err) if(SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LTRACE_ERROR_ENABLE) \
-                                                          printf("inp:%p stcb:%p net:%p file:%x line:%d error:%d\n", \
-								     inp, stcb, net, file, __LINE__, err);
+#define SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, file, err) \
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LTRACE_ERROR_ENABLE) \
+		SCTP_PRINTF("mbuf:%p inp:%p stcb:%p net:%p file:%x line:%d error:%d\n", \
+		            m, inp, stcb, net, file, __LINE__, err);
+#define SCTP_LTRACE_ERR_RET(inp, stcb, net, file, err) \
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LTRACE_ERROR_ENABLE) \
+		SCTP_PRINTF("inp:%p stcb:%p net:%p file:%x line:%d error:%d\n", \
+		            inp, stcb, net, file, __LINE__, err);
 #else
 #define SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, file, err)
 #define SCTP_LTRACE_ERR_RET(inp, stcb, net, file, err)
@@ -234,16 +225,16 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
  * general memory allocation
  */
 #define SCTP_MALLOC(var, type, size, name) \
-    do { \
-	var = (type)malloc(size, name, M_NOWAIT); \
-    } while (0)
+	do { \
+		var = (type)malloc(size, name, M_NOWAIT); \
+	} while (0)
 
 #define SCTP_FREE(var, type)	free(var, type)
 
 #define SCTP_MALLOC_SONAME(var, type, size) \
-    do { \
-	var = (type)malloc(size, M_SONAME, M_WAITOK | M_ZERO); \
-    } while (0)
+	do { \
+		var = (type)malloc(size, M_SONAME, M_WAITOK | M_ZERO); \
+	} while (0)
 
 #define SCTP_FREE_SONAME(var)	free(var, M_SONAME)
 
@@ -257,10 +248,9 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 /* SCTP_ZONE_INIT: initialize the zone */
 typedef struct uma_zone *sctp_zone_t;
 
-#define UMA_ZFLAG_FULL	0x0020
 #define SCTP_ZONE_INIT(zone, name, size, number) { \
 	zone = uma_zcreate(name, size, NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,\
-		UMA_ZFLAG_FULL); \
+		0); \
 	uma_zone_set_max(zone, number); \
 }
 
@@ -308,19 +298,15 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_BUF_RESV_UF(m, size) m->m_data += size
 #define SCTP_BUF_AT(m, size) m->m_data + size
 #define SCTP_BUF_IS_EXTENDED(m) (m->m_flags & M_EXT)
-#define SCTP_BUF_EXTEND_SIZE(m) (m->m_ext.ext_size)
+#define SCTP_BUF_SIZE M_SIZE
 #define SCTP_BUF_TYPE(m) (m->m_type)
 #define SCTP_BUF_RECVIF(m) (m->m_pkthdr.rcvif)
 #define SCTP_BUF_PREPEND	M_PREPEND
 
-#define SCTP_ALIGN_TO_END(m, len) if(m->m_flags & M_PKTHDR) { \
-                                     MH_ALIGN(m, len); \
-                                  } else if ((m->m_flags & M_EXT) == 0) { \
-                                     M_ALIGN(m, len); \
-                                  }
+#define SCTP_ALIGN_TO_END(m, len) M_ALIGN(m, len)
 
 /* We make it so if you have up to 4 threads
- * writting based on the default size of
+ * writing based on the default size of
  * the packet log 65 k, that would be
  * 4 16k packets before we would hit
  * a problem.
@@ -331,11 +317,11 @@ typedef struct callout sctp_os_timer_t;
 /*      MTU              */
 /*************************/
 #define SCTP_GATHER_MTU_FROM_IFN_INFO(ifn, ifn_index, af) ((struct ifnet *)ifn)->if_mtu
-#define SCTP_GATHER_MTU_FROM_ROUTE(sctp_ifa, sa, rt) ((rt != NULL) ? rt->rt_rmx.rmx_mtu : 0)
+#define SCTP_GATHER_MTU_FROM_ROUTE(sctp_ifa, sa, rt) ((uint32_t)((rt != NULL) ? rt->rt_mtu : 0))
 #define SCTP_GATHER_MTU_FROM_INTFC(sctp_ifn) ((sctp_ifn->ifn_p != NULL) ? ((struct ifnet *)(sctp_ifn->ifn_p))->if_mtu : 0)
 #define SCTP_SET_MTU_OF_ROUTE(sa, rt, mtu) do { \
                                               if (rt != NULL) \
-                                                 rt->rt_rmx.rmx_mtu = mtu; \
+                                                 rt->rt_mtu = mtu; \
                                            } while(0)
 
 /* (de-)register interface event notifications */
@@ -349,7 +335,7 @@ typedef struct callout sctp_os_timer_t;
 /* return the base ext data pointer */
 #define SCTP_BUF_EXTEND_BASE(m) (m->m_ext.ext_buf)
  /* return the refcnt of the data pointer */
-#define SCTP_BUF_EXTEND_REFCNT(m) (*m->m_ext.ref_cnt)
+#define SCTP_BUF_EXTEND_REFCNT(m) (*m->m_ext.ext_cnt)
 /* return any buffer related flags, this is
  * used beyond logging for apple only.
  */
@@ -357,12 +343,12 @@ typedef struct callout sctp_os_timer_t;
 
 /* For BSD this just accesses the M_PKTHDR length
  * so it operates on an mbuf with hdr flag. Other
- * O/S's may have seperate packet header and mbuf
+ * O/S's may have separate packet header and mbuf
  * chain pointers.. thus the macro.
  */
 #define SCTP_HEADER_TO_CHAIN(m) (m)
 #define SCTP_DETACH_HEADER_FROM_CHAIN(m)
-#define SCTP_HEADER_LEN(m) (m->m_pkthdr.len)
+#define SCTP_HEADER_LEN(m) ((m)->m_pkthdr.len)
 #define SCTP_GET_HEADER_FOR_OUTPUT(o_pak) 0
 #define SCTP_RELEASE_HEADER(m)
 #define SCTP_RELEASE_PKT(m)	sctp_m_freem(m)
@@ -391,10 +377,6 @@ typedef struct callout sctp_os_timer_t;
  * its a NOP.
  */
 
-/* Macro's for getting length from V6/V4 header */
-#define SCTP_GET_IPV4_LENGTH(iph) (iph->ip_len)
-#define SCTP_GET_IPV6_LENGTH(ip6) (ntohs(ip6->ip6_plen))
-
 /* get the v6 hop limit */
 #define SCTP_GET_HLIM(inp, ro)	in6_selecthlim((struct in6pcb *)&inp->ip_inp.inp, (ro ? (ro->ro_rt ? (ro->ro_rt->rt_ifp) : (NULL)) : (NULL)));
 
@@ -406,6 +388,11 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_CLEAR_SO_NBIO(so)	((so)->so_state &= ~SS_NBIO)
 /* get the socket type */
 #define SCTP_SO_TYPE(so)	((so)->so_type)
+/* Use a macro for renaming sb_cc to sb_acc.
+ * Initially sb_ccc was used, but this broke select() when used
+ * with SCTP sockets.
+ */
+#define sb_cc sb_acc
 /* reserve sb space for a socket */
 #define SCTP_SORESERVE(so, send, recv)	soreserve(so, send, recv)
 /* wakeup a socket */
@@ -425,7 +412,8 @@ typedef struct callout sctp_os_timer_t;
 typedef struct route sctp_route_t;
 typedef struct rtentry sctp_rtentry_t;
 
-#define SCTP_RTALLOC(ro, vrf_id) rtalloc_ign((struct route *)ro, 0UL)
+#define SCTP_RTALLOC(ro, vrf_id, fibnum) \
+	rtalloc_ign_fib((struct route *)ro, 0UL, fibnum)
 
 /* Future zero copy wakeup/send  function */
 #define SCTP_ZERO_COPY_EVENT(inp, so)
@@ -433,24 +421,32 @@ typedef struct rtentry sctp_rtentry_t;
 #define SCTP_ZERO_COPY_SENDQ_EVENT(inp, so)
 
 /*
+ * SCTP protocol specific mbuf flags.
+ */
+#define	M_NOTIFICATION		M_PROTO1	/* SCTP notification */
+
+/*
  * IP output routines
  */
 #define SCTP_IP_OUTPUT(result, o_pak, ro, stcb, vrf_id) \
 { \
-	int o_flgs = 0; \
-	if (stcb && stcb->sctp_ep && stcb->sctp_ep->sctp_socket) { \
-		o_flgs = IP_RAWOUTPUT | (stcb->sctp_ep->sctp_socket->so_options & SO_DONTROUTE); \
-	} else { \
-		o_flgs = IP_RAWOUTPUT; \
-	} \
+	int o_flgs = IP_RAWOUTPUT; \
+	struct sctp_tcb *local_stcb = stcb; \
+	if (local_stcb && \
+	    local_stcb->sctp_ep && \
+	    local_stcb->sctp_ep->sctp_socket) \
+		o_flgs |= local_stcb->sctp_ep->sctp_socket->so_options & SO_DONTROUTE; \
+	m_clrprotoflags(o_pak); \
 	result = ip_output(o_pak, NULL, ro, o_flgs, 0, NULL); \
 }
 
 #define SCTP_IP6_OUTPUT(result, o_pak, ro, ifp, stcb, vrf_id) \
 { \
- 	if (stcb && stcb->sctp_ep) \
+	struct sctp_tcb *local_stcb = stcb; \
+	m_clrprotoflags(o_pak); \
+	if (local_stcb && local_stcb->sctp_ep) \
 		result = ip6_output(o_pak, \
-				    ((struct in6pcb *)(stcb->sctp_ep))->in6p_outputopts, \
+				    ((struct in6pcb *)(local_stcb->sctp_ep))->in6p_outputopts, \
 				    (ro), 0, 0, ifp, NULL); \
 	else \
 		result = ip6_output(o_pak, NULL, (ro), 0, 0, ifp, NULL); \
@@ -464,29 +460,18 @@ sctp_get_mbuf_for_msg(unsigned int space_needed,
 /*
  * SCTP AUTH
  */
-#define HAVE_SHA2
-
 #define SCTP_READ_RANDOM(buf, len)	read_random(buf, len)
 
-#ifdef USE_SCTP_SHA1
-#include <netinet/sctp_sha1.h>
-#else
-#include <crypto/sha1.h>
 /* map standard crypto API names */
-#define SHA1_Init	SHA1Init
-#define SHA1_Update	SHA1Update
-#define SHA1_Final(x,y)	SHA1Final((caddr_t)x, y)
-#endif
+#define SCTP_SHA1_CTX		SHA1_CTX
+#define SCTP_SHA1_INIT		SHA1Init
+#define SCTP_SHA1_UPDATE	SHA1Update
+#define SCTP_SHA1_FINAL(x,y)	SHA1Final((caddr_t)x, y)
 
-#if defined(HAVE_SHA2)
-#include <crypto/sha2/sha2.h>
-#endif
-
-#include <sys/md5.h>
-/* map standard crypto API names */
-#define MD5_Init	MD5Init
-#define MD5_Update	MD5Update
-#define MD5_Final	MD5Final
+#define SCTP_SHA256_CTX		SHA256_CTX
+#define SCTP_SHA256_INIT	SHA256_Init
+#define SCTP_SHA256_UPDATE	SHA256_Update
+#define SCTP_SHA256_FINAL(x,y)	SHA256_Final((caddr_t)x, y)
 
 #endif
 

@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2014 by Delphix. All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/zfs_context.h>
 #include <sys/uberblock_impl.h>
@@ -36,16 +34,16 @@ uberblock_verify(uberblock_t *ub)
 		byteswap_uint64_array(ub, sizeof (uberblock_t));
 
 	if (ub->ub_magic != UBERBLOCK_MAGIC)
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 
 	return (0);
 }
 
 /*
- * Update the uberblock and return a boolean value indicating whether
- * anything changed in this transaction group.
+ * Update the uberblock and return TRUE if anything changed in this
+ * transaction group.
  */
-int
+boolean_t
 uberblock_update(uberblock_t *ub, vdev_t *rvd, uint64_t txg)
 {
 	ASSERT(ub->ub_txg < txg);
@@ -58,6 +56,7 @@ uberblock_update(uberblock_t *ub, vdev_t *rvd, uint64_t txg)
 	ub->ub_txg = txg;
 	ub->ub_guid_sum = rvd->vdev_guid_sum;
 	ub->ub_timestamp = gethrestime_sec();
+	ub->ub_software_version = SPA_VERSION;
 
 	return (ub->ub_rootbp.blk_birth == txg);
 }

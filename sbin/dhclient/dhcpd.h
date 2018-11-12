@@ -37,9 +37,11 @@
  * Enterprises.  To learn more about the Internet Software Consortium,
  * see ``http://www.vix.com/isc''.  To learn more about Vixie
  * Enterprises, see ``http://www.vix.com''.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -58,6 +60,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <limits.h>
 #include <netdb.h>
 #include <paths.h>
@@ -118,6 +121,7 @@ struct client_lease {
 	struct client_lease	*next;
 	time_t			 expiry, renewal, rebind;
 	struct iaddr		 address;
+	struct iaddr		 nextserver;
 	char			*server_name;
 	char			*filename;
 	struct string_list	*medium;
@@ -194,6 +198,7 @@ struct interface_info {
 	char			 name[IFNAMSIZ];
 	int			 rfdesc;
 	int			 wfdesc;
+	int			 ufdesc;
 	unsigned char		*rbuf;
 	size_t			 rbuf_max;
 	size_t			 rbuf_offset;
@@ -204,6 +209,7 @@ struct interface_info {
 	int			 errors;
 	int			 dead;
 	u_int16_t		 index;
+	int			 linkstat;
 };
 
 struct timeout {
@@ -291,11 +297,13 @@ struct hash_table	*new_hash_table(int);
 struct hash_bucket	*new_hash_bucket(void);
 
 /* bpf.c */
-int if_register_bpf(struct interface_info *);
+int if_register_bpf(struct interface_info *, int);
 void if_register_send(struct interface_info *);
 void if_register_receive(struct interface_info *);
-ssize_t send_packet(struct interface_info *, struct dhcp_packet *, size_t,
-    struct in_addr, struct sockaddr_in *, struct hardware *);
+void send_packet_unpriv(int, struct dhcp_packet *, size_t, struct in_addr,
+    struct in_addr);
+struct imsg_hdr;
+void send_packet_priv(struct interface_info *, struct imsg_hdr *, int);
 ssize_t receive_packet(struct interface_info *, unsigned char *, size_t,
     struct sockaddr_in *, struct hardware *);
 
@@ -311,6 +319,8 @@ void cancel_timeout(void (*)(void *), void *);
 void add_protocol(char *, int, void (*)(struct protocol *), void *);
 void remove_protocol(struct protocol *);
 int interface_link_status(char *);
+void interface_set_mtu_unpriv(int, u_int16_t);
+void interface_set_mtu_priv(char *, u_int16_t); 
 
 /* hash.c */
 struct hash_table *new_hash(void);
@@ -349,6 +359,8 @@ extern int log_priority;
 extern int log_perror;
 
 extern struct client_config top_level_config;
+
+extern struct pidfh *pidfile;
 
 void dhcpoffer(struct packet *);
 void dhcpack(struct packet *);
@@ -397,19 +409,12 @@ void bootp(struct packet *);
 void dhcp(struct packet *);
 
 /* packet.c */
-void assemble_hw_header(struct interface_info *, unsigned char *,
-    int *, struct hardware *);
+void assemble_hw_header(struct interface_info *, unsigned char *, int *);
 void assemble_udp_ip_header(unsigned char *, int *, u_int32_t, u_int32_t,
     unsigned int, unsigned char *, int);
 ssize_t decode_hw_header(unsigned char *, int, struct hardware *);
 ssize_t decode_udp_ip_header(unsigned char *, int, struct sockaddr_in *,
     unsigned char *, int);
-
-/* ethernet.c */
-void assemble_ethernet_header(struct interface_info *, unsigned char *,
-    int *, struct hardware *);
-ssize_t decode_ethernet_header(struct interface_info *, unsigned char *,
-    int, struct hardware *);
 
 /* clparse.c */
 int read_client_conf(void);
@@ -434,4 +439,4 @@ struct buf	*buf_open(size_t);
 int		 buf_add(struct buf *, void *, size_t);
 int		 buf_close(int, struct buf *);
 ssize_t		 buf_read(int, void *, size_t);
-void		 dispatch_imsg(int);
+void		 dispatch_imsg(struct interface_info *, int);

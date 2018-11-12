@@ -432,11 +432,6 @@ fi
 echo -n "	Building kernel module... "
 echo "" > bus_if.h
 echo "" > device_if.h
-if ! ${MAKE} -f ${MAKEFILE} depend > /dev/null; then
-	echo "build failed. Exiting."
-	echo ""
-	exit
-fi
 if ! ${MAKE} -f ${MAKEFILE} all > /dev/null; then
 	echo "build failed. Exiting."
 	echo ""
@@ -493,7 +488,7 @@ convert_driver () {
 	return
 }
 
-ICONVPATH=/usr/local/bin/iconv
+ICONVPATH=/usr/bin/iconv
 NDISCVT=/usr/sbin/ndiscvt
 STUBPATH=/usr/share/misc
 STUBFILE=windrv_stub.c

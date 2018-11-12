@@ -38,10 +38,6 @@ __FBSDID("$FreeBSD$");
 #include "assym.s"
 
 ENTRY(__sparc_utrap_gen)
-#ifdef SUN4V
-	save
-	ta	%xcc, ST_FPEMU_CONTEXT
-#endif	
 	sub	%sp, UF_SIZEOF, %sp
 
 	stx	%o0, [%sp + SPOFF + CCFSZ + UF_TYPE]

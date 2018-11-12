@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2010 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,10 +13,10 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.734 2008/01/24 23:42:01 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.762 2013-11-22 20:51:13 ca Exp $')
 
 # level CF_LEVEL config file format
-V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
+V`'CF_LEVEL`'ifdef(`NO_VENDOR',`', `/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')')
 divert(-1)
 
 dnl if MAILER(`local') not defined: do it ourself; be nice
@@ -149,7 +149,7 @@ DL`'LUSER_RELAY',
 `dnl')
 
 # operators that cannot be in local usernames (i.e., network indicators)
-CO @ % ifdef(`_NO_UUCP_', `', `!')
+CO @ ifdef(`_NO_PERCENTHACK_', `', `%') ifdef(`_NO_UUCP_', `', `!')
 
 # a class with just dot (for identifying canonical names)
 C..
@@ -326,6 +326,9 @@ _OPTION(SingleThreadDelivery, `confSINGLE_THREAD_DELIVERY', `False')
 # use Errors-To: header?
 _OPTION(UseErrorsTo, `confUSE_ERRORS_TO', `False')
 
+# use compressed IPv6 address format?
+_OPTION(UseCompressedIPv6Addresses, `confUSE_COMPRESSED_IPV6_ADDRESSES', `')
+
 # log level
 _OPTION(LogLevel, `confLOG_LEVEL', `10')
 
@@ -386,6 +389,9 @@ _OPTION(QueueSortOrder, `confQUEUE_SORT_ORDER', `priority')
 
 # minimum time in queue before retry
 _OPTION(MinQueueAge, `confMIN_QUEUE_AGE', `30m')
+
+# maximum time in queue before retry (if > 0; only for exponential delay)
+_OPTION(MaxQueueAge, `confMAX_QUEUE_AGE', `')
 
 # how many jobs can you process in the queue?
 _OPTION(MaxQueueRunSize, `confMAX_QUEUE_RUN_SIZE', `0')
@@ -580,6 +586,7 @@ _OPTION(MaxRecipientsPerMessage, `confMAX_RCPTS_PER_MESSAGE', `0')
 # once the threshold number of recipients have been rejected
 _OPTION(BadRcptThrottle, `confBAD_RCPT_THROTTLE', `0')
 
+
 # shall we get local names from our installed interfaces?
 _OPTION(DontProbeInterfaces, `confDONT_PROBE_INTERFACES', `False')
 
@@ -640,6 +647,13 @@ _OPTION(AuthMaxBits, `confAUTH_MAX_BITS', `')
 # SMTP STARTTLS server options
 _OPTION(TLSSrvOptions, `confTLS_SRV_OPTIONS', `')
 
+# SSL cipherlist
+_OPTION(CipherList, `confCIPHER_LIST', `')
+# server side SSL options
+_OPTION(ServerSSLOptions, `confSERVER_SSL_OPTIONS', `')
+# client side SSL options
+_OPTION(ClientSSLOptions, `confCLIENT_SSL_OPTIONS', `')
+
 # Input mail filters
 _OPTION(InputMailFilters, `confINPUT_MAIL_FILTERS', `')
 
@@ -672,12 +686,18 @@ _OPTION(CRLFile, `confCRL', `')
 _OPTION(DHParameters, `confDH_PARAMETERS', `')
 # Random data source (required for systems without /dev/urandom under OpenSSL)
 _OPTION(RandFile, `confRAND_FILE', `')
+# fingerprint algorithm (digest) to use for the presented cert
+_OPTION(CertFingerprintAlgorithm, `confCERT_FINGERPRINT_ALGORITHM', `')
 
 # Maximum number of "useless" commands before slowing down
 _OPTION(MaxNOOPCommands, `confMAX_NOOP_COMMANDS', `20')
 
 # Name to use for EHLO (defaults to $j)
 _OPTION(HeloName, `confHELO_NAME')
+
+ifdef(`_NEED_SMTPOPMODES_', `dnl
+# SMTP operation modes
+C{SMTPOpModes} s d D')
 
 ############################
 `# QUEUE GROUP DEFINITIONS  #'
@@ -806,9 +826,11 @@ R$- :: $+		$@ $>Canonify2 $2 < @ $1 .DECNET >	resolve DECnet names
 R$- . $- :: $+		$@ $>Canonify2 $3 < @ $1.$2 .DECNET >	numeric DECnet addr
 ',
 	`dnl')
-# if we have % signs, take the rightmost one
+ifdef(`_NO_PERCENTHACK_', `dnl',
+`# if we have % signs, take the rightmost one
 R$* % $*		$1 @ $2				First make them all @s.
 R$* @ $* @ $*		$1 % $2 @ $3			Undo all but the last.
+')
 R$* @ $*		$@ $>Canonify2 $1 < @ $2 >	Insert < > and finish
 
 # else we must be a local name
@@ -1034,6 +1056,13 @@ R$* $=O $* < @ *LOCAL* >
 			$@ $>Parse0 $>canonify $1 $2 $3	...@*LOCAL* -> ...
 R$* < @ *LOCAL* >	$: $1
 
+ifdef(`_ADD_BCC_', `dnl
+R$+			$: $>ParseBcc $1', `dnl')
+ifdef(`_PREFIX_MOD_', `dnl
+dnl do this only for addr_type=e r?
+R _PREFIX_MOD_ $+	$: $1 $(macro {rcpt_flags} $@ _PREFIX_FLAGS_ $)
+')dnl
+
 #
 #  Parse1 -- the bottom half of ruleset 0.
 #
@@ -1195,6 +1224,13 @@ ifdef(`_MAILER_smtp_',
 # handle locally delivered names
 R$=L			$#_LOCAL_ $: @ $1		special local names
 R$+			$#_LOCAL_ $: $1			regular local names
+
+ifdef(`_ADD_BCC_', `dnl
+SParseBcc
+R$+			$: $&{addr_type} $| $&A $| $1
+Re b $| $+ $| $+	$>MailerToTriple < $1 > $2	copy?
+R$* $| $* $| $+		$@ $3				no copy
+')
 
 ###########################################################################
 ###   Ruleset 5 -- special rewriting after aliases have been expanded   ###
@@ -1455,9 +1491,6 @@ ifdef(`_LDAP_ROUTING_', `dnl
 ###		Parsed address (user < @ domain . >)
 ######################################################################
 
-# SMTP operation modes
-C{SMTPOpModes} s d D
-
 SLDAPExpand
 # do the LDAP lookups
 R<$+><$+><$*>	$: <$(ldapmra $2 $: $)> <$(ldapmh $2 $: $)> <$1> <$2> <$3>
@@ -1509,7 +1542,9 @@ ifdef(`_LDAP_ROUTE_DETAIL_',
 # try without +detail
 R<> <> <$+> <$+ + $* @ $+> <>	$@ $>LDAPExpand <$1> <$2 @ $4> <+$3>')dnl
 
-ifdef(`_LDAP_ROUTE_NODOMAIN_', `dnl', `
+ifdef(`_LDAP_ROUTE_NODOMAIN_', `
+# pretend we did the @domain lookup
+R<> <> <$+> <$+ @ $+> <$*>	$: <> <> <$1> <@ $3> <$4>', `
 # if still no mailRoutingAddress and no mailHost,
 # try @domain
 ifelse(_LDAP_ROUTE_DETAIL_, `_PRESERVE_', `dnl
@@ -1528,8 +1563,9 @@ R<?> <e s> <$+>			$#error $@ nouser $: "550 User unknown"')
 R<?> <$*> <$+>			$@ $2',
 `dnl
 # return the original address
-R<> <> <$+> <@ $+> <$*>		$@ $1')',
-`dnl')
+R<> <> <$+> <@ $+> <$*>		$@ $1')
+')
+
 
 ifelse(substr(confDELIVERY_MODE,0,1), `d', `errprint(`WARNING: Antispam rules not available in deferred delivery mode.
 ')')
@@ -1791,7 +1827,7 @@ ifdef(`_CONN_CONTROL_',`dnl
 ifdef(`_CONN_CONTROL_IMMEDIATE_',`',`dnl
 dnl workspace: ignored...
 R$*		$: $>"ConnControl" dummy')', `dnl')
-undivert(8)
+undivert(8)dnl LOCAL_DNSBL
 ifdef(`_REQUIRE_RDNS_', `dnl
 R$*			$: $&{client_addr} $| $&{client_resolve}
 R$=R $*			$@ RELAY		We relay for these
@@ -1856,6 +1892,10 @@ R$* $| $*		$: $2
 R<@> < $* @ localhost >	$: < ? $&{client_name} > < $1 @ localhost >
 R<@> < $* @ [127.0.0.1] >
 			$: < ? $&{client_name} > < $1 @ [127.0.0.1] >
+R<@> < $* @ [IPv6:0:0:0:0:0:0:0:1] >
+			$: < ? $&{client_name} > < $1 @ [IPv6:0:0:0:0:0:0:0:1] >
+R<@> < $* @ [IPv6:::1] >
+			$: < ? $&{client_name} > < $1 @ [IPv6:::1] >
 R<@> < $* @ localhost.$m >
 			$: < ? $&{client_name} > < $1 @ localhost.$m >
 ifdef(`_NO_UUCP_', `dnl',
@@ -2132,6 +2172,9 @@ dnl workspace: localpart<@domain> | localpart
 ifelse(defn(`_NO_UUCP_'), `r',
 `R$* ! $* < @ $* >	$: <REMOTE> $2 < @ BANG_PATH >
 R$* ! $* 		$: <REMOTE> $2 < @ BANG_PATH >', `dnl')
+ifelse(defn(`_NO_PERCENTHACK_'), `r',
+`R$* % $* < @ $* >	$: <REMOTE> $1 < @ PERCENT_HACK >
+R$* % $* 		$: <REMOTE> $1 < @ PERCENT_HACK >', `dnl')
 # anything terminating locally is ok
 ifdef(`_RELAY_ENTIRE_DOMAIN_', `dnl
 R$+ < @ $* $=m >	$@ RELAY', `dnl')
@@ -2139,7 +2182,10 @@ R$+ < @ $=w >		$@ RELAY
 ifdef(`_RELAY_HOSTS_ONLY_',
 `R$+ < @ $=R >		$@ RELAY
 ifdef(`_ACCESS_TABLE_', `dnl
-R$+ < @ $+ >		$: <$(access To:$2 $: ? $)> <$1 < @ $2 >>
+ifdef(`_RELAY_FULL_ADDR_', `dnl
+R$+ < @ $+ >		$: <$(access To:$1@$2 $: ? $)> <$1 < @ $2 >>
+R<?> <$+ < @ $+ >>	$: <$(access To:$2 $: ? $)> <$1 < @ $2 >>',`
+R$+ < @ $+ >		$: <$(access To:$2 $: ? $)> <$1 < @ $2 >>')
 dnl workspace: <Result-of-lookup | ?> <localpart<@domain>>
 R<?> <$+ < @ $+ >>	$: <$(access $2 $: ? $)> <$1 < @ $2 >>',`dnl')',
 `R$+ < @ $* $=R >	$@ RELAY
@@ -2209,6 +2255,8 @@ R$*			$: $&{client_addr}
 R$@			$@ RELAY		originated locally
 R0			$@ RELAY		originated locally
 R127.0.0.1		$@ RELAY		originated locally
+RIPv6:0:0:0:0:0:0:0:1	$@ RELAY		originated locally
+dnl if compiled with IPV6_FULL=0
 RIPv6:::1		$@ RELAY		originated locally
 R$=R $*			$@ RELAY		relayable IP address
 ifdef(`_ACCESS_TABLE_', `dnl
@@ -2387,6 +2435,8 @@ dnl Reject our hostname
 R$* $| <$*> [$=w]	$#error $@ 5.7.1 $:"550 bogus HELO name used: " $&s
 dnl Pass anything else with a "." in the domain parameter
 R$* $| <$*> [$+.$+]	$: $1				qualified domain ok
+dnl Pass IPv6: address literals
+R$* $| <$*> [IPv6:$+]	$: $1				qualified domain ok
 dnl Reject if there was no "." or only an initial or final "."
 R$* $| <$*> [$*]	$#error $@ 5.7.1 $:"550 bogus HELO name used: " $&s
 dnl Clean up the workspace
@@ -2691,7 +2741,7 @@ R$* <?> $#$*		$#$2
 R$* <?> $*		$: $1', `dnl')
 ifdef(`_ACCESS_TABLE_', `dnl
 dnl store name of other side
-R$*		$: $(macro {TLS_Name} $@ $&{server_name} $) $1
+R$*		$: $(macro {TLS_Name} $@ $&{client_name} $) $1
 dnl ignore second arg for now
 dnl maybe use it to distinguish permanent/temporary error?
 dnl if MAIL: permanent (STARTTLS has not been offered)
@@ -2878,6 +2928,26 @@ RTRUE:$-:$-	$: $2
 R$-:$-:$-	$: $2
 dnl endif _ACCESS_TABLE_
 divert(0)
+
+ifdef(`_TLS_SESSION_FEATURES_', `dnl
+Stls_srv_features
+ifdef(`_ACCESS_TABLE_', `dnl
+R$* $| $*		$: $>D <$1> <?> <! TLS_Srv_Features> <$2>
+R<?> <$*> 		$: $>A <$1> <?> <! TLS_Srv_Features> <$1>
+R<?> <$*> 		$@ ""
+R<$+> <$*> 		$@ $1
+', `dnl
+R$* 		$@ ""')
+
+Stls_clt_features
+ifdef(`_ACCESS_TABLE_', `dnl
+R$* $| $*		$: $>D <$1> <?> <! TLS_Clt_Features> <$2>
+R<?> <$*> 		$: $>A <$1> <?> <! TLS_Clt_Features> <$1>
+R<?> <$*> 		$@ ""
+R<$+> <$*> 		$@ $1
+', `dnl
+R$* 		$@ ""')
+')
 
 ######################################################################
 ###  RelayTLS: allow relaying based on TLS authentication

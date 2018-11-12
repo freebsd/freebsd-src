@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1996 Søren Schmidt
+ * Copyright (c) 1994-1996 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 
 #include <sys/signal.h>	/* for sigval union */
 
+#include <compat/linux/linux.h>
 #include <i386/linux/linux_syscall.h>
 
 /*
@@ -40,15 +41,22 @@
  */
 extern u_char linux_debug_map[];
 #define	ldebug(name)	isclr(linux_debug_map, LINUX_SYS_linux_ ## name)
-#define	ARGS(nm, fmt)	"linux(%ld): "#nm"("fmt")\n", (long)td->td_proc->p_pid
-#define	LMSG(fmt)	"linux(%ld): "fmt"\n", (long)td->td_proc->p_pid
+#define	ARGS(nm, fmt)	"linux(%ld/%ld): "#nm"("fmt")\n",			\
+			(long)td->td_proc->p_pid, (long)td->td_tid
+#define	LMSG(fmt)	"linux(%ld/%ld): "fmt"\n",				\
+			(long)td->td_proc->p_pid, (long)td->td_tid
+#define	LINUX_DTRACE	linuxulator
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_LINUX);
-#endif
+#define	LINUX_SHAREDPAGE	(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+#define	LINUX_USRSTACK		LINUX_SHAREDPAGE
 
 #define	PTRIN(v)	(void *)(v)
 #define	PTROUT(v)	(l_uintptr_t)(v)
+
+#define	CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
+#define	CP2(src,dst,sfld,dfld) do { (dst).dfld = (src).sfld; } while (0)
+#define	PTRIN_CP(src,dst,fld) \
+	do { (dst).fld = PTRIN((src).fld); } while (0)
 
 /*
  * Provide a separate set of types for the Linux types.
@@ -82,6 +90,7 @@ typedef l_uint		l_uid_t;
 typedef l_ushort	l_uid16_t;
 typedef l_int		l_timer_t;
 typedef l_int		l_mqd_t;
+typedef	l_ulong		l_fd_mask;
 
 typedef struct {
 	l_int		val[2];
@@ -97,12 +106,7 @@ typedef struct {
 /*
  * Miscellaneous
  */
-#define	LINUX_NAME_MAX		255
-#define	LINUX_MAX_UTSNAME	65
-
-#define	LINUX_CTL_MAXNAME	10
-
-#define LINUX_AT_COUNT		16	/* Count of used aux entry types.
+#define LINUX_AT_COUNT		20	/* Count of used aux entry types.
 					 * Keep this synchronized with
 					 * elf_linux_fixup() code.
 					 */
@@ -116,11 +120,6 @@ struct l___sysctl_args
 	l_size_t	newlen;
 	l_ulong		__spare[4];
 };
-
-/* Scheduling policies */
-#define	LINUX_SCHED_OTHER	0
-#define	LINUX_SCHED_FIFO	1
-#define	LINUX_SCHED_RR		2
 
 /* Resource limits */
 #define	LINUX_RLIMIT_CPU	0
@@ -140,13 +139,6 @@ struct l_rlimit {
 	l_ulong rlim_cur;
 	l_ulong rlim_max;
 };
-
-/* mmap options */
-#define	LINUX_MAP_SHARED	0x0001
-#define	LINUX_MAP_PRIVATE	0x0002
-#define	LINUX_MAP_FIXED		0x0010
-#define	LINUX_MAP_ANON		0x0020
-#define	LINUX_MAP_GROWSDOWN	0x0100
 
 struct l_mmap_argv {
 	l_uintptr_t	addr;
@@ -178,9 +170,9 @@ struct l_newstat {
 	l_ulong		st_size;
 	l_ulong		st_blksize;
 	l_ulong		st_blocks;
-	struct l_timespec	st_atimespec;
-	struct l_timespec	st_mtimespec;
-	struct l_timespec	st_ctimespec;
+	struct l_timespec	st_atim;
+	struct l_timespec	st_mtim;
+	struct l_timespec	st_ctim;
 	l_ulong		__unused4;
 	l_ulong		__unused5;
 };
@@ -194,9 +186,9 @@ struct l_stat {
 	l_ushort	st_gid;
 	l_ushort	st_rdev;
 	l_long		st_size;
-	struct l_timespec	st_atimespec;
-	struct l_timespec	st_mtimespec;
-	struct l_timespec	st_ctimespec;
+	struct l_timespec	st_atim;
+	struct l_timespec	st_mtim;
+	struct l_timespec	st_ctim;
 	l_long		st_blksize;
 	l_long		st_blocks;
 	l_ulong		st_flags;
@@ -217,9 +209,9 @@ struct l_stat64 {
 	l_ulong		st_blksize;
 	l_ulong		st_blocks;
 	l_ulong		__pad4;
-	struct l_timespec	st_atimespec;
-	struct l_timespec	st_mtimespec;
-	struct l_timespec	st_ctimespec;
+	struct l_timespec	st_atim;
+	struct l_timespec	st_mtim;
+	struct l_timespec	st_ctim;
 	l_ulonglong	st_ino;
 };
 
@@ -236,56 +228,7 @@ struct l_statfs64 {
         l_int           f_spare[6];
 };
 
-struct l_new_utsname {
-	char	sysname[LINUX_MAX_UTSNAME];
-	char	nodename[LINUX_MAX_UTSNAME];
-	char	release[LINUX_MAX_UTSNAME];
-	char	version[LINUX_MAX_UTSNAME];
-	char	machine[LINUX_MAX_UTSNAME];
-	char	domainname[LINUX_MAX_UTSNAME];
-};
-
-/*
- * Signalling
- */
-#define	LINUX_SIGHUP		1
-#define	LINUX_SIGINT		2
-#define	LINUX_SIGQUIT		3
-#define	LINUX_SIGILL		4
-#define	LINUX_SIGTRAP		5
-#define	LINUX_SIGABRT		6
-#define	LINUX_SIGIOT		LINUX_SIGABRT
-#define	LINUX_SIGBUS		7
-#define	LINUX_SIGFPE		8
-#define	LINUX_SIGKILL		9
-#define	LINUX_SIGUSR1		10
-#define	LINUX_SIGSEGV		11
-#define	LINUX_SIGUSR2		12
-#define	LINUX_SIGPIPE		13
-#define	LINUX_SIGALRM		14
-#define	LINUX_SIGTERM		15
-#define	LINUX_SIGSTKFLT		16
-#define	LINUX_SIGCHLD		17
-#define	LINUX_SIGCONT		18
-#define	LINUX_SIGSTOP		19
-#define	LINUX_SIGTSTP		20
-#define	LINUX_SIGTTIN		21
-#define	LINUX_SIGTTOU		22
-#define	LINUX_SIGURG		23
-#define	LINUX_SIGXCPU		24
-#define	LINUX_SIGXFSZ		25
-#define	LINUX_SIGVTALRM		26
-#define	LINUX_SIGPROF		27
-#define	LINUX_SIGWINCH		28
-#define	LINUX_SIGIO		29
-#define	LINUX_SIGPOLL		LINUX_SIGIO
-#define	LINUX_SIGPWR		30
-#define	LINUX_SIGSYS		31
-
-#define	LINUX_SIGTBLSZ		31
 #define	LINUX_NSIG_WORDS	2
-#define	LINUX_NBPW		32
-#define	LINUX_NSIG		(LINUX_NBPW * LINUX_NSIG_WORDS)
 
 /* sigaction flags */
 #define	LINUX_SA_NOCLDSTOP	0x00000001
@@ -303,25 +246,11 @@ struct l_new_utsname {
 #define	LINUX_SIG_UNBLOCK	1
 #define	LINUX_SIG_SETMASK	2
 
-/* sigset_t macros */
-#define	LINUX_SIGEMPTYSET(set)		(set).__bits[0] = (set).__bits[1] = 0
-#define	LINUX_SIGISMEMBER(set, sig)	SIGISMEMBER(set, sig)
-#define	LINUX_SIGADDSET(set, sig)	SIGADDSET(set, sig)
-
 /* sigaltstack */
 #define	LINUX_MINSIGSTKSZ	2048
-#define	LINUX_SS_ONSTACK	1
-#define	LINUX_SS_DISABLE	2
-
-int linux_to_bsd_sigaltstack(int lsa);
-int bsd_to_linux_sigaltstack(int bsa);
 
 typedef void	(*l_handler_t)(l_int);
 typedef l_ulong	l_osigset_t;
-
-typedef struct {
-	l_uint	__bits[LINUX_NSIG_WORDS];
-} l_sigset_t;
 
 typedef struct {
 	l_handler_t	lsa_handler;
@@ -505,117 +434,14 @@ struct l_rt_sigframe {
 	l_handler_t 		sf_handler;
 };
 
-extern int bsd_to_linux_signal[];
-extern int linux_to_bsd_signal[];
 extern struct sysentvec linux_sysvec;
-extern struct sysentvec elf_linux_sysvec;
 
 /*
- * Pluggable ioctl handlers
+ * arch specific open/fcntl flags
  */
-struct linux_ioctl_args;
-struct thread;
-
-typedef int linux_ioctl_function_t(struct thread *, struct linux_ioctl_args *);
-
-struct linux_ioctl_handler {
-	linux_ioctl_function_t *func;
-	int	low, high;
-};
-
-int	linux_ioctl_register_handler(struct linux_ioctl_handler *h);
-int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
-
-/*
- * open/fcntl flags
- */
-#define	LINUX_O_RDONLY		00000000
-#define	LINUX_O_WRONLY		00000001
-#define	LINUX_O_RDWR		00000002
-#define	LINUX_O_ACCMODE		00000003
-#define	LINUX_O_CREAT		00000100
-#define	LINUX_O_EXCL		00000200
-#define	LINUX_O_NOCTTY		00000400
-#define	LINUX_O_TRUNC		00001000
-#define	LINUX_O_APPEND		00002000
-#define	LINUX_O_NONBLOCK	00004000
-#define	LINUX_O_NDELAY		LINUX_O_NONBLOCK
-#define	LINUX_O_SYNC		00010000
-#define	LINUX_FASYNC		00020000
-#define	LINUX_O_DIRECT		00040000	/* Direct disk access hint */
-#define	LINUX_O_LARGEFILE	00100000
-#define	LINUX_O_DIRECTORY	00200000	/* Must be a directory */
-#define	LINUX_O_NOFOLLOW	00400000	/* Do not follow links */
-#define	LINUX_O_NOATIME		01000000
-#define	LINUX_O_CLOEXEC		02000000
-
-#define	LINUX_F_DUPFD		0
-#define	LINUX_F_GETFD		1
-#define	LINUX_F_SETFD		2
-#define	LINUX_F_GETFL		3
-#define	LINUX_F_SETFL		4
-#define	LINUX_F_GETLK		5
-#define	LINUX_F_SETLK		6
-#define	LINUX_F_SETLKW		7
-#define	LINUX_F_SETOWN		8
-#define	LINUX_F_GETOWN		9
-
 #define	LINUX_F_GETLK64		12
 #define	LINUX_F_SETLK64		13
 #define	LINUX_F_SETLKW64	14
-
-#define	LINUX_F_RDLCK		0
-#define	LINUX_F_WRLCK		1
-#define	LINUX_F_UNLCK		2
-
-/*
- * mount flags
- */
-#define	LINUX_MS_RDONLY		0x0001
-#define	LINUX_MS_NOSUID		0x0002
-#define	LINUX_MS_NODEV		0x0004
-#define	LINUX_MS_NOEXEC		0x0008
-#define	LINUX_MS_REMOUNT	0x0020
-
-/*
- * SystemV IPC defines
- */
-#define	LINUX_SEMOP		1
-#define	LINUX_SEMGET		2
-#define	LINUX_SEMCTL		3
-#define	LINUX_MSGSND		11
-#define	LINUX_MSGRCV		12
-#define	LINUX_MSGGET		13
-#define	LINUX_MSGCTL		14
-#define	LINUX_SHMAT		21
-#define	LINUX_SHMDT		22
-#define	LINUX_SHMGET		23
-#define	LINUX_SHMCTL		24
-
-#define	LINUX_IPC_RMID		0
-#define	LINUX_IPC_SET		1
-#define	LINUX_IPC_STAT		2
-#define	LINUX_IPC_INFO		3
-
-#define	LINUX_SHM_LOCK		11
-#define	LINUX_SHM_UNLOCK	12
-#define	LINUX_SHM_STAT		13
-#define	LINUX_SHM_INFO		14
-
-#define	LINUX_SHM_RDONLY	0x1000
-#define	LINUX_SHM_RND		0x2000
-#define	LINUX_SHM_REMAP		0x4000
-
-/* semctl commands */
-#define	LINUX_GETPID		11
-#define	LINUX_GETVAL		12
-#define	LINUX_GETALL		13
-#define	LINUX_GETNCNT		14
-#define	LINUX_GETZCNT		15
-#define	LINUX_SETVAL		16
-#define	LINUX_SETALL		17
-#define	LINUX_SEM_STAT		18
-#define	LINUX_SEM_INFO		19
 
 union l_semun {
 	l_int		val;
@@ -625,28 +451,19 @@ union l_semun {
 	void		*__pad;
 };
 
+struct l_ipc_perm {
+	l_key_t		key;
+	l_uid16_t	uid;
+	l_gid16_t	gid;
+	l_uid16_t	cuid;
+	l_gid16_t	cgid;
+	l_ushort	mode;
+	l_ushort	seq;
+};
+
 /*
  * Socket defines
  */
-#define	LINUX_SOCKET 		1
-#define	LINUX_BIND		2
-#define	LINUX_CONNECT 		3
-#define	LINUX_LISTEN 		4
-#define	LINUX_ACCEPT 		5
-#define	LINUX_GETSOCKNAME	6
-#define	LINUX_GETPEERNAME	7
-#define	LINUX_SOCKETPAIR	8
-#define	LINUX_SEND		9
-#define	LINUX_RECV		10
-#define	LINUX_SENDTO 		11
-#define	LINUX_RECVFROM 		12
-#define	LINUX_SHUTDOWN 		13
-#define	LINUX_SETSOCKOPT	14
-#define	LINUX_GETSOCKOPT	15
-#define	LINUX_SENDMSG		16
-#define	LINUX_RECVMSG		17
-#define	LINUX_ACCEPT4		18
-
 #define	LINUX_SOL_SOCKET	1
 #define	LINUX_SOL_IP		0
 #define	LINUX_SOL_IPX		256
@@ -675,36 +492,9 @@ union l_semun {
 #define	LINUX_SO_TIMESTAMP	29
 #define	LINUX_SO_ACCEPTCONN	30
 
-#define	LINUX_IP_TOS		1
-#define	LINUX_IP_TTL		2
-#define	LINUX_IP_HDRINCL	3
-#define	LINUX_IP_OPTIONS	4
-
-#define	LINUX_IP_MULTICAST_IF		32
-#define	LINUX_IP_MULTICAST_TTL		33
-#define	LINUX_IP_MULTICAST_LOOP		34
-#define	LINUX_IP_ADD_MEMBERSHIP		35
-#define	LINUX_IP_DROP_MEMBERSHIP	36
-
 struct l_sockaddr {
 	l_ushort	sa_family;
 	char		sa_data[14];
-};
-
-struct l_msghdr {
-	l_uintptr_t	msg_name;
-	l_int		msg_namelen;
-	l_uintptr_t	msg_iov;
-	l_size_t	msg_iovlen;
-	l_uintptr_t	msg_control;
-	l_size_t	msg_controllen;
-	l_uint		msg_flags;
-};
-
-struct l_cmsghdr {
-	l_size_t	cmsg_len;
-	l_int		cmsg_level;
-	l_int		cmsg_type;
 };
 
 struct l_ifmap {
@@ -845,29 +635,7 @@ struct l_desc_struct {
 #define	LINUX_GET_USEABLE(desc)		\
 	(((desc)->b >> LINUX_ENTRY_B_USEABLE) & 1)
 
-#define	LINUX_CLOCK_REALTIME		0
-#define	LINUX_CLOCK_MONOTONIC		1
-#define	LINUX_CLOCK_PROCESS_CPUTIME_ID	2
-#define	LINUX_CLOCK_THREAD_CPUTIME_ID	3
-#define	LINUX_CLOCK_REALTIME_HR		4
-#define	LINUX_CLOCK_MONOTONIC_HR	5
-
-#define	LINUX_CLONE_VM			0x00000100
-#define	LINUX_CLONE_FS			0x00000200
-#define	LINUX_CLONE_FILES		0x00000400
-#define	LINUX_CLONE_SIGHAND		0x00000800
-#define	LINUX_CLONE_PID			0x00001000	/* No longer exist in Linux */
-#define	LINUX_CLONE_VFORK		0x00004000
-#define	LINUX_CLONE_PARENT		0x00008000
-#define	LINUX_CLONE_THREAD		0x00010000
-#define	LINUX_CLONE_SETTLS		0x00080000
-#define	LINUX_CLONE_PARENT_SETTID	0x00100000
-#define	LINUX_CLONE_CHILD_CLEARTID	0x00200000
-#define	LINUX_CLONE_CHILD_SETTID	0x01000000
-
-#define	LINUX_THREADING_FLAGS					\
-	(LINUX_CLONE_VM | LINUX_CLONE_FS | LINUX_CLONE_FILES |	\
-	LINUX_CLONE_SIGHAND | LINUX_CLONE_THREAD)
+#define	linux_copyout_rusage(r, u)	copyout(r, u, sizeof(*r))
 
 /* robust futexes */
 struct linux_robust_list {

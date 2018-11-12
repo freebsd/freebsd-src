@@ -23,6 +23,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef __MX25LREG_H__
@@ -41,6 +43,10 @@
 #define CMD_PAGE_PROGRAM	0x02
 #define CMD_SECTOR_ERASE	0xD8
 #define CMD_BULK_ERASE		0xC7
+#define	CMD_BLOCK_4K_ERASE	0x20
+#define	CMD_BLOCK_32K_ERASE	0x52
+#define	CMD_ENTER_4B_MODE	0xB7
+#define	CMD_EXIT_4B_MODE	0xE9
 
 /*
  * Status register flags
@@ -51,6 +57,8 @@
 #define	STATUS_BP0	(1 << 2)
 #define	STATUS_WEL	(1 << 1)
 #define	STATUS_WIP	(1 << 0)
+
+#define	FLASH_PAGE_SIZE	256
 
 #endif /* __MX25LREG_H__ */
 

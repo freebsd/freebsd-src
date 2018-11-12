@@ -1,7 +1,9 @@
 # $FreeBSD$
 
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/libvgl
 PROG=	demo
-NO_MAN=
+MAN=
 DPADD=	${LIBVGL}
 LDADD=	-lvgl
 

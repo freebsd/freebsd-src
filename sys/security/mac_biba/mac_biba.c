@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2011 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
@@ -13,6 +13,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -89,7 +92,7 @@
 
 SYSCTL_DECL(_security_mac);
 
-SYSCTL_NODE(_security_mac, OID_AUTO, biba, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, biba, CTLFLAG_RW, 0,
     "TrustedBSD mac_biba policy controls");
 
 static int	biba_label_size = sizeof(struct mac_biba);
@@ -97,43 +100,36 @@ SYSCTL_INT(_security_mac_biba, OID_AUTO, label_size, CTLFLAG_RD,
     &biba_label_size, 0, "Size of struct mac_biba");
 
 static int	biba_enabled = 1;
-SYSCTL_INT(_security_mac_biba, OID_AUTO, enabled, CTLFLAG_RW, &biba_enabled,
+SYSCTL_INT(_security_mac_biba, OID_AUTO, enabled, CTLFLAG_RWTUN, &biba_enabled,
     0, "Enforce MAC/Biba policy");
-TUNABLE_INT("security.mac.biba.enabled", &biba_enabled);
 
 static int	destroyed_not_inited;
 SYSCTL_INT(_security_mac_biba, OID_AUTO, destroyed_not_inited, CTLFLAG_RD,
     &destroyed_not_inited, 0, "Count of labels destroyed but not inited");
 
 static int	trust_all_interfaces = 0;
-SYSCTL_INT(_security_mac_biba, OID_AUTO, trust_all_interfaces, CTLFLAG_RD,
+SYSCTL_INT(_security_mac_biba, OID_AUTO, trust_all_interfaces, CTLFLAG_RDTUN,
     &trust_all_interfaces, 0, "Consider all interfaces 'trusted' by MAC/Biba");
-TUNABLE_INT("security.mac.biba.trust_all_interfaces", &trust_all_interfaces);
 
 static char	trusted_interfaces[128];
-SYSCTL_STRING(_security_mac_biba, OID_AUTO, trusted_interfaces, CTLFLAG_RD,
+SYSCTL_STRING(_security_mac_biba, OID_AUTO, trusted_interfaces, CTLFLAG_RDTUN,
     trusted_interfaces, 0, "Interfaces considered 'trusted' by MAC/Biba");
-TUNABLE_STR("security.mac.biba.trusted_interfaces", trusted_interfaces,
-    sizeof(trusted_interfaces));
 
 static int	max_compartments = MAC_BIBA_MAX_COMPARTMENTS;
 SYSCTL_INT(_security_mac_biba, OID_AUTO, max_compartments, CTLFLAG_RD,
     &max_compartments, 0, "Maximum supported compartments");
 
 static int	ptys_equal = 0;
-SYSCTL_INT(_security_mac_biba, OID_AUTO, ptys_equal, CTLFLAG_RW, &ptys_equal,
+SYSCTL_INT(_security_mac_biba, OID_AUTO, ptys_equal, CTLFLAG_RWTUN, &ptys_equal,
     0, "Label pty devices as biba/equal on create");
-TUNABLE_INT("security.mac.biba.ptys_equal", &ptys_equal);
 
 static int	interfaces_equal = 1;
-SYSCTL_INT(_security_mac_biba, OID_AUTO, interfaces_equal, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_biba, OID_AUTO, interfaces_equal, CTLFLAG_RWTUN,
     &interfaces_equal, 0, "Label network interfaces as biba/equal on create");
-TUNABLE_INT("security.mac.biba.interfaces_equal", &interfaces_equal);
 
 static int	revocation_enabled = 0;
-SYSCTL_INT(_security_mac_biba, OID_AUTO, revocation_enabled, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_biba, OID_AUTO, revocation_enabled, CTLFLAG_RWTUN,
     &revocation_enabled, 0, "Revoke access to objects on relabel");
-TUNABLE_INT("security.mac.biba.revocation_enabled", &revocation_enabled);
 
 static int	biba_slot;
 #define	SLOT(l)	((struct mac_biba *)mac_label_get((l), biba_slot))
@@ -945,17 +941,20 @@ biba_devfs_create_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
 {
 	struct mac_biba *mb;
+	const char *dn;
 	int biba_type;
 
 	mb = SLOT(delabel);
-	if (strcmp(dev->si_name, "null") == 0 ||
-	    strcmp(dev->si_name, "zero") == 0 ||
-	    strcmp(dev->si_name, "random") == 0 ||
-	    strncmp(dev->si_name, "fd/", strlen("fd/")) == 0)
+	dn = devtoname(dev);
+	if (strcmp(dn, "null") == 0 ||
+	    strcmp(dn, "zero") == 0 ||
+	    strcmp(dn, "random") == 0 ||
+	    strncmp(dn, "fd/", strlen("fd/")) == 0)
 		biba_type = MAC_BIBA_TYPE_EQUAL;
 	else if (ptys_equal &&
-	    (strncmp(dev->si_name, "ttyp", strlen("ttyp")) == 0 ||
-	    strncmp(dev->si_name, "ptyp", strlen("ptyp")) == 0))
+	    (strncmp(dn, "ttyp", strlen("ttyp")) == 0 ||
+	    strncmp(dn, "pts/", strlen("pts/")) == 0 ||
+	    strncmp(dn, "ptyp", strlen("ptyp")) == 0))
 		biba_type = MAC_BIBA_TYPE_EQUAL;
 	else
 		biba_type = MAC_BIBA_TYPE_HIGH;
@@ -1352,17 +1351,6 @@ biba_mount_create(struct ucred *cred, struct mount *mp,
 }
 
 static void
-biba_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_biba *dest;
-
-	dest = SLOT(mlabel);
-
-	biba_set_effective(dest, MAC_BIBA_TYPE_EQUAL, 0, NULL);
-}
-
-static void
 biba_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
@@ -1621,6 +1609,42 @@ biba_posixsem_check_openunlink(struct ucred *cred, struct ksem *ks,
 }
 
 static int
+biba_posixsem_check_setmode(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel, mode_t mode)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(kslabel);
+
+	if (!biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+biba_posixsem_check_setowner(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel, uid_t uid, gid_t gid)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(kslabel);
+
+	if (!biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
 biba_posixsem_check_write(struct ucred *active_cred, struct ucred *file_cred,
     struct ksem *ks, struct label *kslabel)
 {
@@ -1664,6 +1688,192 @@ biba_posixsem_create(struct ucred *cred, struct ksem *ks,
 
 	source = SLOT(cred->cr_label);
 	dest = SLOT(kslabel);
+
+	biba_copy_effective(source, dest);
+}
+
+static int
+biba_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, int prot, int flags)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled || !revocation_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
+		if (!biba_dominate_effective(obj, subj))
+			return (EACCES);
+	}
+	if (((prot & VM_PROT_WRITE) != 0) && ((flags & MAP_SHARED) != 0)) {
+		if (!biba_dominate_effective(subj, obj))
+			return (EACCES);
+	}
+
+	return (0);
+}
+
+static int
+biba_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, accmode_t accmode)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (accmode & (VREAD | VEXEC | VSTAT_PERMS)) {
+		if (!biba_dominate_effective(obj, subj))
+			return (EACCES);
+	}
+	if (accmode & VMODIFY_PERMS) {
+		if (!biba_dominate_effective(subj, obj))
+			return (EACCES);
+	}
+
+	return (0);
+}
+
+static int
+biba_posixshm_check_read(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *vp, struct label *shmlabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled || !revocation_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!biba_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+biba_posixshm_check_setmode(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, mode_t mode)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+biba_posixshm_check_setowner(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, uid_t uid, gid_t gid)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+biba_posixshm_check_stat(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shmfd, struct label *shmlabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!biba_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+biba_posixshm_check_truncate(struct ucred *active_cred,
+    struct ucred *file_cred, struct shmfd *shmfd, struct label *shmlabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+biba_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!biba_dominate_effective(subj, obj))
+		return (EACCES);
+    
+	return (0);
+}
+
+static int
+biba_posixshm_check_write(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *vp, struct label *shmlabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled || !revocation_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!biba_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static void
+biba_posixshm_create(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel)
+{
+	struct mac_biba *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(shmlabel);
 
 	biba_copy_effective(source, dest);
 }
@@ -1837,12 +2047,9 @@ biba_priv_check(struct ucred *cred, int priv)
 	 * Allow some but not all network privileges.  In general, dont allow
 	 * reconfiguring the network stack, just normal use.
 	 */
-	case PRIV_NETATALK_RESERVEDPORT:
 	case PRIV_NETINET_RESERVEDPORT:
 	case PRIV_NETINET_RAW:
 	case PRIV_NETINET_REUSEPORT:
-	case PRIV_NETIPX_RESERVEDPORT:
-	case PRIV_NETIPX_RAW:
 		break;
 
 	/*
@@ -3426,8 +3633,6 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_mount_destroy_label = biba_destroy_label,
 	.mpo_mount_init_label = biba_init_label,
 
-	.mpo_netatalk_aarp_send = biba_netatalk_aarp_send,
-
 	.mpo_netinet_arp_send = biba_netinet_arp_send,
 	.mpo_netinet_firewall_reply = biba_netinet_firewall_reply,
 	.mpo_netinet_firewall_send = biba_netinet_firewall_send,
@@ -3454,12 +3659,27 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_posixsem_check_getvalue = biba_posixsem_check_rdonly,
 	.mpo_posixsem_check_open = biba_posixsem_check_openunlink,
 	.mpo_posixsem_check_post = biba_posixsem_check_write,
+	.mpo_posixsem_check_setmode = biba_posixsem_check_setmode,
+	.mpo_posixsem_check_setowner = biba_posixsem_check_setowner,
 	.mpo_posixsem_check_stat = biba_posixsem_check_rdonly,
 	.mpo_posixsem_check_unlink = biba_posixsem_check_openunlink,
 	.mpo_posixsem_check_wait = biba_posixsem_check_write,
 	.mpo_posixsem_create = biba_posixsem_create,
 	.mpo_posixsem_destroy_label = biba_destroy_label,
 	.mpo_posixsem_init_label = biba_init_label,
+
+	.mpo_posixshm_check_mmap = biba_posixshm_check_mmap,
+	.mpo_posixshm_check_open = biba_posixshm_check_open,
+	.mpo_posixshm_check_read = biba_posixshm_check_read,
+	.mpo_posixshm_check_setmode = biba_posixshm_check_setmode,
+	.mpo_posixshm_check_setowner = biba_posixshm_check_setowner,
+	.mpo_posixshm_check_stat = biba_posixshm_check_stat,
+	.mpo_posixshm_check_truncate = biba_posixshm_check_truncate,
+	.mpo_posixshm_check_unlink = biba_posixshm_check_unlink,
+	.mpo_posixshm_check_write = biba_posixshm_check_write,
+	.mpo_posixshm_create = biba_posixshm_create,
+	.mpo_posixshm_destroy_label = biba_destroy_label,
+	.mpo_posixshm_init_label = biba_init_label,
 
 	.mpo_priv_check = biba_priv_check,
 

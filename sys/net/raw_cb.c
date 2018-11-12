@@ -44,8 +44,8 @@
 #include <sys/systm.h>
 
 #include <net/if.h>
-#include <net/raw_cb.h>
 #include <net/vnet.h>
+#include <net/raw_cb.h>
 
 /*
  * Routines to manage the raw protocol control blocks.
@@ -59,7 +59,8 @@
 struct mtx rawcb_mtx;
 VNET_DEFINE(struct rawcb_list_head, rawcb_list);
 
-SYSCTL_NODE(_net, OID_AUTO, raw, CTLFLAG_RW, 0, "Raw socket infrastructure");
+static SYSCTL_NODE(_net, OID_AUTO, raw, CTLFLAG_RW, 0,
+    "Raw socket infrastructure");
 
 static u_long	raw_sendspace = RAWSNDQ;
 SYSCTL_ULONG(_net_raw, OID_AUTO, sendspace, CTLFLAG_RW, &raw_sendspace, 0,

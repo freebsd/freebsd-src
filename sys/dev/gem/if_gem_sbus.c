@@ -78,16 +78,12 @@ static device_method_t gem_sbus_methods[] = {
 	/* Use the suspend handler here, it is all that is required. */
 	DEVMETHOD(device_shutdown,	gem_sbus_suspend),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	gem_mii_readreg),
 	DEVMETHOD(miibus_writereg,	gem_mii_writereg),
 	DEVMETHOD(miibus_statchg,	gem_mii_statchg),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t gem_sbus_driver = {
@@ -131,6 +127,8 @@ gem_sbus_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_variant = GEM_SUN_GEM;
 	sc->sc_dev = dev;
+	/* All known SBus models use a SERDES. */
+	sc->sc_flags = GEM_SERDES;
 
 	if (bus_alloc_resources(dev, gem_sbus_res_spec, sc->sc_res)) {
 		device_printf(dev, "failed to allocate resources\n");

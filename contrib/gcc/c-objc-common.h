@@ -140,4 +140,10 @@ extern void c_initialize_diagnostics (diagnostic_context *);
 #undef LANG_HOOKS_TREE_INLINING_VAR_MOD_TYPE_P
 #define LANG_HOOKS_TREE_INLINING_VAR_MOD_TYPE_P c_vla_unspec_p
 
+/* APPLE LOCAL begin radar 6353006  */
+#undef LANG_HOOKS_BUILD_GENERIC_BLOCK_STRUCT_TYPE
+#define LANG_HOOKS_BUILD_GENERIC_BLOCK_STRUCT_TYPE \
+c_build_generic_block_struct_type
+/* APPLE LOCAL end radar 6353006  */
+
 #endif /* GCC_C_OBJC_COMMON */

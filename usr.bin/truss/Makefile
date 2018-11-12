@@ -1,57 +1,42 @@
 # $FreeBSD$
 
-WARNS?= 6
 NO_WERROR=
 PROG=	truss
-SRCS=	main.c setup.c syscalls.c syscalls.h ioctl.c ${MACHINE_ARCH}-fbsd.c
+SRCS=	main.c setup.c syscalls.c
 
-CFLAGS+= -I${.CURDIR} -I.
-CLEANFILES= syscalls.master syscalls.h ioctl.c
+LIBADD=	sysdecode
 
-.SUFFIXES: .master
+CFLAGS+= -I${.CURDIR} -I. -I${.CURDIR}/../../sys
 
-syscalls.master:	${.CURDIR}/../../sys/kern/syscalls.master
-	cat ${.ALLSRC} > syscalls.master
-
-syscalls.h:	syscalls.master
-	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh syscalls.master \
-		${.CURDIR}/i386.conf
-
-ioctl.c: ${.CURDIR}/../kdump/mkioctls
-	sh ${.CURDIR}/../kdump/mkioctls ${DESTDIR}/usr/include > ${.TARGET}
-
-.if ${MACHINE_ARCH} == "i386"
-SRCS+=	i386-linux.c linux_syscalls.h
-CLEANFILES+=i386l-syscalls.master linux_syscalls.h
-
-i386l-syscalls.master:	${.CURDIR}/../../sys/i386/linux/syscalls.master
-	cat ${.ALLSRC} > ${.TARGET}
-
-linux_syscalls.h:	i386l-syscalls.master
-	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh ${.ALLSRC} \
-		${.CURDIR}/i386linux.conf
+ABIS+=		freebsd
+# Each ABI is expected to have an ABI.c, MACHINE_ARCH-ABI.c or
+# MACHINE_CPUARCH-ABI.c file that will be used to map the syscall arguments.
+.if ${MACHINE_ARCH} == "aarch64"
+ABIS+=		cloudabi64
+.endif
+.if ${MACHINE_CPUARCH} == "i386"
+ABIS+=		i386-linux
+.endif
+.if ${MACHINE_CPUARCH} == "amd64"
+ABIS+=		amd64-linux
+ABIS+=		amd64-linux32
+ABIS+=		freebsd32
+ABIS+=		cloudabi64
+.endif
+.if ${MACHINE_ARCH} == "powerpc64"
+ABIS+=		freebsd32
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
-SRCS+=	amd64-linux32.c linux32_syscalls.h
-CLEANFILES+=amd64l32-syscalls.master linux32_syscalls.h
-
-amd64l32-syscalls.master: ${.CURDIR}/../../sys/amd64/linux32/syscalls.master
-	cat ${.ALLSRC} > ${.TARGET}
-
-linux32_syscalls.h:	amd64l32-syscalls.master
-	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh ${.ALLSRC} \
-		${.CURDIR}/amd64linux32.conf
-
-SRCS+=	amd64-fbsd32.c freebsd32_syscalls.h
-CLEANFILES+=fbsd32-syscalls.master freebsd32_syscalls.h
-
-fbsd32-syscalls.master: ${.CURDIR}/../../sys/compat/freebsd32/syscalls.master
-	cat ${.ALLSRC} > ${.TARGET}
-
-freebsd32_syscalls.h:	fbsd32-syscalls.master
-	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh ${.ALLSRC} \
-		${.CURDIR}/fbsd32.conf
+.for abi in ${ABIS}
+# Find the right file to handle this ABI.
+abi_src=
+ABI_SRCS=	${abi}.c ${MACHINE_ARCH}-${abi}.c ${MACHINE_CPUARCH}-${abi}.c
+.for f in ${ABI_SRCS}
+.if exists(${.CURDIR}/${f}) && empty(abi_src)
+abi_src=	${f}
 .endif
+.endfor
+SRCS:=		${SRCS} ${abi_src}
+.endfor
 
 .include <bsd.prog.mk>

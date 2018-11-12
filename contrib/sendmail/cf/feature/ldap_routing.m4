@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1999-2002, 2004, 2007 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1999-2002, 2004, 2007 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: ldap_routing.m4,v 8.15 2007/05/01 17:38:25 ca Exp $')
+VERSIONID(`$Id: ldap_routing.m4,v 8.21 2013-11-22 20:51:11 ca Exp $')
 divert(-1)
 
 # Check first two arguments.  If they aren't set, may need to warn in proto.m4
@@ -34,6 +34,8 @@ ifelse(len(X`'_ARG4_), `1', `',
 ifelse(len(X`'_ARG6_), `1', `define(`_LDAP_ROUTE_MAPTEMP_', `_QUEUE_')',
        _ARG6_, `tempfail', `define(`_LDAP_ROUTE_MAPTEMP_', `_TEMPFAIL_')',
        _ARG6_, `queue', `define(`_LDAP_ROUTE_MAPTEMP_', `_QUEUE_')')
+
+define(`_NEED_SMTPOPMODES_', `1')
 
 LOCAL_CONFIG
 # LDAP routing maps

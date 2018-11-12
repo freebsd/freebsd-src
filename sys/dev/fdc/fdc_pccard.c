@@ -38,8 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <machine/bus.h>
 
-#include <machine/bus.h>
-
 #include <dev/fdc/fdcvar.h>
 #include <dev/pccard/pccardvar.h>
 #include "pccarddevs.h"
@@ -58,8 +56,7 @@ fdc_pccard_alloc_resources(device_t dev, struct fdc_data *fdc)
 	int rid, i;
 
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0ul, ~0ul, 1,
-	    RF_ACTIVE);
+	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(dev, "cannot alloc I/O port range\n");
 		return (ENXIO);
@@ -111,7 +108,9 @@ fdc_pccard_attach(device_t dev)
 		device_set_flags(child, 0x24);
 		error = bus_generic_attach(dev);
 	}
-	if (error)
+	if (error == 0)
+		fdc_start_worker(dev);
+	else
 		fdc_release_resources(fdc);
 	return (error);
 }
@@ -141,3 +140,4 @@ static driver_t fdc_pccard_driver = {
 };
 
 DRIVER_MODULE(fdc, pccard, fdc_pccard_driver, fdc_devclass, 0, 0);
+PCCARD_PNP_INFO(fdc_pccard_products);

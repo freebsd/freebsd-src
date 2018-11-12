@@ -4,13 +4,14 @@
 #
 
 # PROVIDE: inetd
-# REQUIRE: DAEMON LOGIN cleanvar
+# REQUIRE: DAEMON LOGIN FILESYSTEMS
 # KEYWORD: shutdown
 
 . /etc/rc.subr
 
 name="inetd"
-rcvar=`set_rcvar`
+desc="Internet \"super-server\""
+rcvar="inetd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 required_files="/etc/${name}.conf"

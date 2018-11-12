@@ -5,7 +5,9 @@
 
 .include "fpu/Makefile.inc"
 
+SRCS+=	trivial-vdso_tc.c
+
 # Long double is quad precision
 GDTOASRCS+=strtorQ.c
 MDSRCS+=machdep_ldisQ.c
-SYM_MAPS+=${.CURDIR}/sparc64/Symbol.map
+SYM_MAPS+=${LIBC_SRCTOP}/sparc64/Symbol.map

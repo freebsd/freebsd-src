@@ -36,6 +36,9 @@ loginrestrictions() function, in particular that the user has the
 "rlogin" attribute set.  This check is not done for the root account,
 instead the PermitRootLogin setting in sshd_config is used.
 
+If you are using the IBM compiler you probably want to use CC=xlc rather
+than the default of cc.
+
 
 Cygwin
 ------

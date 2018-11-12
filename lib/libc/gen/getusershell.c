@@ -58,12 +58,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include "un-namespace.h"
 
-/*
- * Local shells should NOT be added here.  They should be added in
- * /etc/shells.
- */
-
-static const char *const okshells[] = { _PATH_BSHELL, _PATH_CSHELL, NULL };
 static const char *const *curshell;
 static StringList	 *sl;
 
@@ -108,10 +102,7 @@ static int	_local_initshells(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
-_local_initshells(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
+_local_initshells(void	*rv, void *cb_data, va_list ap)
 {
 	char	*sp, *cp;
 	FILE	*fp;
@@ -121,10 +112,10 @@ _local_initshells(rv, cb_data, ap)
 		sl_free(sl, 1);
 	sl = sl_init();
 
-	if ((fp = fopen(_PATH_SHELLS, "r")) == NULL)
+	if ((fp = fopen(_PATH_SHELLS, "re")) == NULL)
 		return NS_UNAVAIL;
 
-	sp = cp = line;
+	cp = line;
 	while (fgets(cp, MAXPATHLEN + 1, fp) != NULL) {
 		while (*cp != '#' && *cp != '/' && *cp != '\0')
 			cp++;
@@ -145,10 +136,7 @@ static int	_dns_initshells(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
-_dns_initshells(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
+_dns_initshells(void *rv, void *cb_data, va_list ap)
 {
 	char	  shellname[] = "shells-XXXXX";
 	int	  hsindex, hpi, r;
@@ -189,10 +177,7 @@ static int	_nis_initshells(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
-_nis_initshells(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
+_nis_initshells(void *rv, void *cb_data, va_list ap)
 {
 	static char *ypdomain;
 	char	*key, *data;
@@ -245,7 +230,7 @@ _nis_initshells(rv, cb_data, ap)
 #endif /* YP */
 
 static const char *const *
-initshells()
+initshells(void)
 {
 	static const ns_dtab dtab[] = {
 		NS_FILES_CB(_local_initshells, NULL)
@@ -261,8 +246,13 @@ initshells()
 	    != NS_SUCCESS) {
 		if (sl)
 			sl_free(sl, 1);
-		sl = NULL;
-		return (okshells);
+		sl = sl_init();
+		/*
+		 * Local shells should NOT be added here.  They should be
+		 * added in /etc/shells.
+		 */
+		sl_add(sl, strdup(_PATH_BSHELL));
+		sl_add(sl, strdup(_PATH_CSHELL));
 	}
 	sl_add(sl, NULL);
 

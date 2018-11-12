@@ -858,7 +858,7 @@
 	    Bernardo Innocenti  <bernie@develer.com>
 
 	* archures.c: Add MCF528x (MCFv4) support.
-	* bfd/cpu-m68k.c (arch_info_struct): Likewise.
+	* cpu-m68k.c (arch_info_struct): Likewise.
 	* bfd-in2.h: Regenerate.
 
 2003-10-20  Andrew Cagney  <cagney@redhat.com>
@@ -1953,10 +1953,10 @@
 
 2003-07-12  Jeff Baker  <jbaker@qnx.com>
 
-	* bfd/config.bfd (__QNXTARGET__): Define for Neutrino architectures.
-	* bfd/elf32-arm.h (ELF_MAXPAGESIZE): Set to 4k for Neutrino.
-	* bfd/elf32-sh.c (ELF_MAXPAGESIZE): Set to 4k for Neutrino.
-	* bfd/elf32-ppc.c (ELF_MAXPAGESIZE): Set to 4k for Neutrino.
+	* config.bfd (__QNXTARGET__): Define for Neutrino architectures.
+	* elf32-arm.h (ELF_MAXPAGESIZE): Set to 4k for Neutrino.
+	* elf32-sh.c (ELF_MAXPAGESIZE): Set to 4k for Neutrino.
+	* elf32-ppc.c (ELF_MAXPAGESIZE): Set to 4k for Neutrino.
 
 2003-07-12  Jeff Muizelaar  <muizelaar@rogers.com>
 
@@ -2196,13 +2196,13 @@
 
 2003-07-09  Richard Sandiford  <rsandifo@redhat.com>
 
-	* bfd/elfxx-mips.c (mips_elf_create_dynamic_relocation): Treat
+	* elfxx-mips.c (mips_elf_create_dynamic_relocation): Treat
 	forced-local symbols like other locals.  Don't create relocations
 	against STN_UNDEF in irix objects.
 
 2003-07-09  Richard Sandiford  <rsandifo@redhat.com>
 
-	* bfd/elfxx-mips.c (mips_elf_create_dynamic_relocation): In SGI-
+	* elfxx-mips.c (mips_elf_create_dynamic_relocation): In SGI-
 	compatible objects, add the values of defined external symbols
 	to the addend.
 

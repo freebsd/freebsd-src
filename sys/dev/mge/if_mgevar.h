@@ -34,6 +34,8 @@
 #ifndef __IF_MGE_H__
 #define __IF_MGE_H__
 
+#include <arm/mv/mvvar.h>
+
 #define MGE_INTR_COUNT		5	/* ETH controller occupies 5 IRQ lines */
 #define MGE_TX_DESC_NUM		256
 #define MGE_RX_DESC_NUM		256
@@ -64,9 +66,14 @@ struct mge_desc_wrapper {
 
 struct mge_softc {
 	struct ifnet	*ifp;		/* per-interface network data */
+
+	phandle_t	node;
+
 	device_t	dev;
 	device_t	miibus;
+
 	struct mii_data	*mii;
+	struct ifmedia	mge_ifmedia;
 	struct resource	*res[1 + MGE_INTR_COUNT];	/* resources */
 	void		*ih_cookie[MGE_INTR_COUNT];	/* interrupt handlers cookies */
 	struct mtx	transmit_lock;			/* transmitter lock */
@@ -99,6 +106,12 @@ struct mge_softc {
 	uint32_t	mge_tx_tok_cnt;
 	uint16_t	mge_mtu;
 	int		mge_ver;
+	int		mge_intr_cnt;
+	uint8_t		mge_hw_csum;
+
+	int		phy_attached;
+	int		switch_attached;
+	struct mge_softc *phy_sc;
 };
 
 
@@ -124,10 +137,8 @@ struct mge_softc {
 #define MGE_RECEIVE_LOCK_ASSERT(sc)	mtx_assert(&(sc)->receive_lock, MA_OWNED)
 
 #define MGE_GLOBAL_LOCK(sc) do {						\
-			if ((mtx_owned(&(sc)->transmit_lock) ? 1 : 0) !=	\
-			    (mtx_owned(&(sc)->receive_lock) ? 1 : 0)) {		\
-				panic("mge deadlock possibility detection!");	\
-			}							\
+			mtx_assert(&(sc)->transmit_lock, MA_NOTOWNED);		\
+			mtx_assert(&(sc)->receive_lock, MA_NOTOWNED);		\
 			mtx_lock(&(sc)->transmit_lock);				\
 			mtx_lock(&(sc)->receive_lock);				\
 } while (0)
@@ -142,6 +153,14 @@ struct mge_softc {
 			MGE_RECEIVE_LOCK_ASSERT(sc); 				\
 } while (0)
 
+#define MGE_SMI_LOCK() do {				\
+    sx_assert(&sx_smi, SA_UNLOCKED);			\
+    sx_xlock(&sx_smi);					\
+} while (0)
+
+#define MGE_SMI_UNLOCK()		sx_unlock(&sx_smi)
+#define MGE_SMI_LOCK_ASSERT()		sx_assert(&sx_smi, SA_XLOCKED)
+
 /* SMI-related macros */
 #define MGE_REG_PHYDEV		0x000
 #define MGE_REG_SMI		0x004
@@ -149,6 +168,17 @@ struct mge_softc {
 #define MGE_SMI_WRITE		(0 << 26)
 #define MGE_SMI_READVALID	(1 << 27)
 #define MGE_SMI_BUSY		(1 << 28)
+
+#define	MGE_SMI_MASK		0x1fffffff
+#define	MGE_SMI_DATA_MASK	0xffff
+#define	MGE_SMI_DELAY		1000
+
+#define	MGE_SWITCH_PHYDEV	6
+
+/* Internal Switch SMI Command */
+
+#define SW_SMI_READ_CMD(phy, reg)		((1 << 15) | (1 << 12) | (1 << 11) | (phy << 5) | reg)
+#define SW_SMI_WRITE_CMD(phy, reg)		((1 << 15) | (1 << 12) | (1 << 10) | (phy << 5) | reg)
 
 /* TODO verify the timings and retries count w/specs */
 #define MGE_SMI_READ_RETRIES		1000
@@ -254,7 +284,7 @@ struct mge_softc {
 #define MGE_PORT_INT_RXQ0	(1 << 2)
 #define MGE_PORT_INT_RXERR	(1 << 10)
 #define MGE_PORT_INT_RXERRQ0	(1 << 11)
-#define MGE_PORT_INT_SUM	(1 << 31)
+#define MGE_PORT_INT_SUM	(1U << 31)
 
 #define MGE_PORT_INT_CAUSE_EXT	0x464
 #define MGE_PORT_INT_MASK_EXT	0x46C
@@ -265,7 +295,7 @@ struct mge_softc {
 #define MGE_PORT_INT_EXT_TXUR	(1 << 19)
 #define MGE_PORT_INT_EXT_LC	(1 << 20)
 #define MGE_PORT_INT_EXT_IAR	(1 << 23)
-#define MGE_PORT_INT_EXT_SUM	(1 << 31)
+#define MGE_PORT_INT_EXT_SUM	(1U << 31)
 
 #define MGE_RX_FIFO_URGENT_TRSH		0x470
 #define MGE_TX_FIFO_URGENT_TRSH		0x474
@@ -322,7 +352,7 @@ struct mge_softc {
 #define MGE_RX_DESC_FIRST	(1 << 27)
 #define MGE_RX_ENABLE_INT	(1 << 29)
 #define MGE_RX_L4_CSUM_OK	(1 << 30)
-#define MGE_DMA_OWNED		(1 << 31)
+#define MGE_DMA_OWNED		(1U << 31)
 
 #define MGE_RX_IP_FRAGMENT	(1 << 2)
 
@@ -340,7 +370,7 @@ struct mge_softc {
 /* RX error codes */
 #define MGE_RX_ERROR_CE		(0 << 1)	/* CRC error */
 #define MGE_RX_ERROR_OR		(1 << 1)	/* Overrun error */
-#define MGE_RX_ERROR_MF		(2 << 1)	/* Max frame lenght error */
+#define	MGE_RX_ERROR_MF		(2 << 1)	/* Max frame length error */
 #define MGE_RX_ERROR_RE		(3 << 1)	/* Resource error */
 
 #endif /* __IF_MGE_H__ */

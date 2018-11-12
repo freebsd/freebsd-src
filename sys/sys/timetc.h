@@ -28,8 +28,14 @@
  */
 
 struct timecounter;
+struct vdso_timehands;
+struct vdso_timehands32;
 typedef u_int timecounter_get_t(struct timecounter *);
 typedef void timecounter_pps_t(struct timecounter *);
+typedef uint32_t timecounter_fill_vdso_timehands_t(struct vdso_timehands *,
+    struct timecounter *);
+typedef uint32_t timecounter_fill_vdso_timehands32_t(struct vdso_timehands32 *,
+    struct timecounter *);
 
 struct timecounter {
 	timecounter_get_t	*tc_get_timecount;
@@ -47,9 +53,9 @@ struct timecounter {
 		 */
 	u_int 			tc_counter_mask;
 		/* This mask should mask off any unimplemented bits. */
-	u_int64_t		tc_frequency;
+	uint64_t		tc_frequency;
 		/* Frequency of the counter in Hz. */
-	char			*tc_name;
+	const char		*tc_name;
 		/* Name of the timecounter. */
 	int			tc_quality;
 		/*
@@ -57,19 +63,32 @@ struct timecounter {
 		 * another timecounter higher means better.  Negative
 		 * means "only use at explicit request".
 		 */
+	u_int			tc_flags;
+#define	TC_FLAGS_C2STOP		1	/* Timer dies in C2+. */
+#define	TC_FLAGS_SUSPEND_SAFE	2	/*
+					 * Timer functional across
+					 * suspend/resume.
+					 */
 
 	void			*tc_priv;
 		/* Pointer to the timecounter's private parts. */
 	struct timecounter	*tc_next;
 		/* Pointer to the next timecounter. */
+	timecounter_fill_vdso_timehands_t *tc_fill_vdso_timehands;
+	timecounter_fill_vdso_timehands32_t *tc_fill_vdso_timehands32;
 };
 
 extern struct timecounter *timecounter;
+extern int tc_min_ticktock_freq; /*
+				  * Minimal tc_ticktock() call frequency,
+				  * required to handle counter wraps.
+				  */
 
 u_int64_t tc_getfrequency(void);
 void	tc_init(struct timecounter *tc);
 void	tc_setclock(struct timespec *ts);
-void	tc_ticktock(void);
+void	tc_ticktock(int cnt);
+void	cpu_tick_calibration(void);
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_kern_timecounter);

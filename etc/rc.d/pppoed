@@ -11,7 +11,8 @@
 . /etc/rc.subr
 
 name="pppoed"
-rcvar="`set_rcvar`"
+desc="Handle incoming PPP over Ethernet connections"
+rcvar="pppoed_enable"
 start_cmd="pppoed_start"
 # XXX stop_cmd will not be straightforward
 stop_cmd=":"

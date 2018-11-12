@@ -1,7 +1,11 @@
 /*-
  * Copyright (c) 2006-2008, Juniper Networks, Inc.
  * Copyright (c) 2008 Semihalf, Rafal Czubak
+ * Copyright (c) 2009 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Semihalf
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,6 +31,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -39,70 +45,42 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <machine/bus.h>
-#include <machine/ocpbus.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <powerpc/mpc85xx/lbc.h>
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include <powerpc/mpc85xx/mpc85xx.h>
-#include <powerpc/mpc85xx/ocpbus.h>
 
-struct lbc_softc {
-	device_t		sc_dev;
+#include "ofw_bus_if.h"
+#include "lbc.h"
 
-	struct resource		*sc_res;
-	bus_space_handle_t	sc_bsh;
-	bus_space_tag_t		sc_bst;
-	int			sc_rid;
+#ifdef DEBUG
+#define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
+    printf(fmt,##args); } while (0)
+#else
+#define debugf(fmt, args...)
+#endif
 
-	struct rman		sc_rman;
-	vm_offset_t		sc_kva[LBC_DEV_MAX];
-};
-
-struct lbc_devinfo {
-	int		lbc_devtype;
-	/* LBC child unit. It also represents resource table entry number */
-	int		lbc_unit;
-};
-
-/* Resources for MPC8555CDS system */
-const struct lbc_resource mpc85xx_lbc_resources[] = {
-	/* Boot flash bank */
-	{
-		LBC_DEVTYPE_CFI, 0, 0xff800000, 0x00800000, 16,
-		LBCRES_MSEL_GPCM, LBCRES_DECC_DISABLED,
-		LBCRES_ATOM_DISABLED, 0
-	},
-
-	/* Second flash bank */
-	{
-		LBC_DEVTYPE_CFI, 1, 0xff000000, 0x00800000, 16,
-		LBCRES_MSEL_GPCM, LBCRES_DECC_DISABLED,
-		LBCRES_ATOM_DISABLED, 0
-	},
-
-	/* DS1553 RTC/NVRAM */
-	{
-		LBC_DEVTYPE_RTC, 2, 0xf8000000, 0x8000, 8,
-		LBCRES_MSEL_GPCM, LBCRES_DECC_DISABLED,
-		LBCRES_ATOM_DISABLED, 0
-	},
-
-	{0}
-};
+static MALLOC_DEFINE(M_LBC, "localbus", "localbus devices information");
 
 static int lbc_probe(device_t);
 static int lbc_attach(device_t);
 static int lbc_shutdown(device_t);
-static int lbc_get_resource(device_t, device_t, int, int, u_long *,
-    u_long *);
+static int lbc_activate_resource(device_t bus __unused, device_t child __unused,
+    int type, int rid __unused, struct resource *r);
+static int lbc_deactivate_resource(device_t bus __unused,
+    device_t child __unused, int type __unused, int rid __unused,
+    struct resource *r);
 static struct resource *lbc_alloc_resource(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
+    rman_res_t, rman_res_t, rman_res_t, u_int);
 static int lbc_print_child(device_t, device_t);
 static int lbc_release_resource(device_t, device_t, int, int,
     struct resource *);
-static int lbc_read_ivar(device_t, device_t, int, uintptr_t *);
+static const struct ofw_bus_devinfo *lbc_get_devinfo(device_t, device_t);
 
 /*
  * Bus interface definition
@@ -115,15 +93,21 @@ static device_method_t lbc_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	lbc_print_child),
-	DEVMETHOD(bus_read_ivar,	lbc_read_ivar),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	NULL),
 
-	DEVMETHOD(bus_get_resource,	NULL),
 	DEVMETHOD(bus_alloc_resource,	lbc_alloc_resource),
 	DEVMETHOD(bus_release_resource,	lbc_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_activate_resource, lbc_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, lbc_deactivate_resource),
+
+	/* OFW bus interface */
+	DEVMETHOD(ofw_bus_get_devinfo,	lbc_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
 	{ 0, 0 }
 };
@@ -133,22 +117,11 @@ static driver_t lbc_driver = {
 	lbc_methods,
 	sizeof(struct lbc_softc)
 };
+
 devclass_t lbc_devclass;
-DRIVER_MODULE(lbc, ocpbus, lbc_driver, lbc_devclass, 0, 0);
 
-static __inline void
-lbc_write_reg(struct lbc_softc *sc, bus_size_t off, uint32_t val)
-{
-
-	bus_space_write_4(sc->sc_bst, sc->sc_bsh, off, val);
-}
-
-static __inline uint32_t
-lbc_read_reg(struct lbc_softc *sc, bus_size_t off)
-{
-
-	return (bus_space_read_4(sc->sc_bst, sc->sc_bsh, off));
-}
+EARLY_DRIVER_MODULE(lbc, ofwbus, lbc_driver, lbc_devclass,
+    0, 0, BUS_PASS_BUS);
 
 /*
  * Calculate address mask used by OR(n) registers. Use memory region size to
@@ -161,11 +134,11 @@ lbc_address_mask(uint32_t size)
 {
 	int n = 15;
 
-	if (size == ~0UL)
+	if (size == ~0)
 		return (0);
 
 	while (n < 32) {
-		if (size == (1UL << n))
+		if (size == (1U << n))
 			break;
 		n++;
 	}
@@ -176,108 +149,180 @@ lbc_address_mask(uint32_t size)
 	return (0xffff8000 << (n - 15));
 }
 
-static device_t
-lbc_mk_child(device_t dev, const struct lbc_resource *lbcres)
+static void
+lbc_banks_unmap(struct lbc_softc *sc)
 {
-	struct lbc_devinfo *dinfo;
-	device_t child;
+	int r;
 
-	if (lbcres->lbr_unit > LBC_DEV_MAX - 1)
-		return (NULL);
+	r = 0;
+	while (r < LBC_DEV_MAX) {
+		if (sc->sc_range[r].size == 0)
+			return;
 
-	child = device_add_child(dev, NULL, -1);
-	if (child == NULL) {
-		device_printf(dev, "could not add LBC child device\n");
-		return (NULL);
+		pmap_unmapdev(sc->sc_range[r].kva, sc->sc_range[r].size);
+		law_disable(OCP85XX_TGTIF_LBC, sc->sc_range[r].addr,
+		    sc->sc_range[r].size);
+		r++;
 	}
-	dinfo = malloc(sizeof(struct lbc_devinfo), M_DEVBUF, M_WAITOK | M_ZERO);
-	dinfo->lbc_devtype = lbcres->lbr_devtype;
-	dinfo->lbc_unit = lbcres->lbr_unit;
-	device_set_ivars(child, dinfo);
-	return (child);
 }
 
 static int
-lbc_init_child(device_t dev, device_t child)
+lbc_banks_map(struct lbc_softc *sc)
 {
-	struct lbc_softc *sc;
-	struct lbc_devinfo *dinfo;
-	const struct lbc_resource *res;
-	u_long start, size;
-	uint32_t regbuff;
-	int error, unit;
+	vm_paddr_t end, start;
+	vm_size_t size;
+	u_int i, r, ranges, s;
+	int error;
 
-	sc = device_get_softc(dev);
-	dinfo = device_get_ivars(child);
+	bzero(sc->sc_range, sizeof(sc->sc_range));
 
-	res = mpc85xx_lbc_resources;
-
-	regbuff = 0;
-	unit = -1;
-	for (; res->lbr_devtype; res++) {
-		if (res->lbr_unit != dinfo->lbc_unit)
+	/*
+	 * Determine number of discontiguous address ranges to program.
+	 */
+	ranges = 0;
+	for (i = 0; i < LBC_DEV_MAX; i++) {
+		size = sc->sc_banks[i].size;
+		if (size == 0)
 			continue;
 
-		start = res->lbr_base_addr;
-		size = res->lbr_size;
-		unit = res->lbr_unit;
+		start = sc->sc_banks[i].addr;
+		for (r = 0; r < ranges; r++) {
+			/* Avoid wrap-around bugs. */
+			end = sc->sc_range[r].addr - 1 + sc->sc_range[r].size;
+			if (start > 0 && end == start - 1) {
+				sc->sc_range[r].size += size;
+				break;
+			}
+			/* Avoid wrap-around bugs. */
+			end = start - 1 + size;
+			if (sc->sc_range[r].addr > 0 &&
+			    end == sc->sc_range[r].addr - 1) {
+				sc->sc_range[r].addr = start;
+				sc->sc_range[r].size += size;
+				break;
+			}
+		}
+		if (r == ranges) {
+			/* New range; add using insertion sort */
+			r = 0;
+			while (r < ranges && sc->sc_range[r].addr < start)
+				r++;
+			for (s = ranges; s > r; s--)
+				sc->sc_range[s] = sc->sc_range[s-1];
+			sc->sc_range[r].addr = start;
+			sc->sc_range[r].size = size;
+			ranges++;
+		}
+	}
 
-		/*
-		 * Configure LAW for this LBC device and map its physical
-		 * memory region into KVA
-		 */
+	/*
+	 * Ranges are sorted so quickly go over the list to merge ranges
+	 * that grew toward each other while building the ranges.
+	 */
+	r = 0;
+	while (r < ranges - 1) {
+		end = sc->sc_range[r].addr + sc->sc_range[r].size;
+		if (end != sc->sc_range[r+1].addr) {
+			r++;
+			continue;
+		}
+		sc->sc_range[r].size += sc->sc_range[r+1].size;
+		for (s = r + 1; s < ranges - 1; s++)
+			sc->sc_range[s] = sc->sc_range[s+1];
+		bzero(&sc->sc_range[s], sizeof(sc->sc_range[s]));
+		ranges--;
+	}
+
+	/*
+	 * Configure LAW for the LBC ranges and map the physical memory
+	 * range into KVA.
+	 */
+	for (r = 0; r < ranges; r++) {
+		start = sc->sc_range[r].addr;
+		size = sc->sc_range[r].size;
 		error = law_enable(OCP85XX_TGTIF_LBC, start, size);
 		if (error)
 			return (error);
+		sc->sc_range[r].kva = (vm_offset_t)pmap_mapdev(start, size);
+	}
 
-		sc->sc_kva[unit] = (vm_offset_t)pmap_mapdev(start, size);
-		if (sc->sc_kva[unit] == 0) {
-			law_disable(OCP85XX_TGTIF_LBC, start, size);
-			return (ENOSPC);
+	/* XXX: need something better here? */
+	if (ranges == 0)
+		return (EINVAL);
+
+	/* Assign KVA to banks based on the enclosing range. */
+	for (i = 0; i < LBC_DEV_MAX; i++) {
+		size = sc->sc_banks[i].size;
+		if (size == 0)
+			continue;
+
+		start = sc->sc_banks[i].addr;
+		for (r = 0; r < ranges; r++) {
+			end = sc->sc_range[r].addr - 1 + sc->sc_range[r].size;
+			if (start >= sc->sc_range[r].addr &&
+			    start - 1 + size <= end)
+				break;
 		}
+		if (r < ranges) {
+			sc->sc_banks[i].kva = sc->sc_range[r].kva +
+			    (start - sc->sc_range[r].addr);
+		}
+	}
+
+	return (0);
+}
+
+static int
+lbc_banks_enable(struct lbc_softc *sc)
+{
+	uint32_t size;
+	uint32_t regval;
+	int error, i;
+
+	for (i = 0; i < LBC_DEV_MAX; i++) {
+		size = sc->sc_banks[i].size;
+		if (size == 0)
+			continue;
 
 		/*
-		 * Compute and program BR value
+		 * Compute and program BR value.
 		 */
-		regbuff |= start;
-
-		switch (res->lbr_port_size) {
+		regval = sc->sc_banks[i].addr;
+		switch (sc->sc_banks[i].width) {
 		case 8:
-			regbuff |= (1 << 11);
+			regval |= (1 << 11);
 			break;
 		case 16:
-			regbuff |= (2 << 11);
+			regval |= (2 << 11);
 			break;
 		case 32:
-			regbuff |= (3 << 11);
+			regval |= (3 << 11);
 			break;
 		default:
 			error = EINVAL;
 			goto fail;
 		}
-		regbuff |= (res->lbr_decc << 9);
-		regbuff |= (res->lbr_wp << 8);
-		regbuff |= (res->lbr_msel << 5);
-		regbuff |= (res->lbr_atom << 2);
-		regbuff |= 1;
-
-		lbc_write_reg(sc, LBC85XX_BR(unit), regbuff);
+		regval |= (sc->sc_banks[i].decc << 9);
+		regval |= (sc->sc_banks[i].wp << 8);
+		regval |= (sc->sc_banks[i].msel << 5);
+		regval |= (sc->sc_banks[i].atom << 2);
+		regval |= 1;
+		bus_space_write_4(sc->sc_bst, sc->sc_bsh,
+		    LBC85XX_BR(i), regval);
 
 		/*
-		 * Compute and program OR value
+		 * Compute and program OR value.
 		 */
-		regbuff = 0;
-		regbuff |= lbc_address_mask(size);
-
-		switch (res->lbr_msel) {
+		regval = lbc_address_mask(size);
+		switch (sc->sc_banks[i].msel) {
 		case LBCRES_MSEL_GPCM:
 			/* TODO Add flag support for option registers */
-			regbuff |= 0x00000ff7;
+			regval |= 0x0ff7;
 			break;
 		case LBCRES_MSEL_FCM:
-			printf("FCM mode not supported yet!");
-			error = ENOSYS;
-			goto fail;
+			/* TODO Add flag support for options register */
+			regval |= 0x0796;
+			break;
 		case LBCRES_MSEL_UPMA:
 		case LBCRES_MSEL_UPMB:
 		case LBCRES_MSEL_UPMC:
@@ -285,35 +330,111 @@ lbc_init_child(device_t dev, device_t child)
 			error = ENOSYS;
 			goto fail;
 		}
-
-		lbc_write_reg(sc, LBC85XX_OR(unit), regbuff);
-
-		return (0);
+		bus_space_write_4(sc->sc_bst, sc->sc_bsh,
+		    LBC85XX_OR(i), regval);
 	}
+
+	return (0);
+
 fail:
-	if (unit != -1) {
-		law_disable(OCP85XX_TGTIF_LBC, start, size);
-		pmap_unmapdev(sc->sc_kva[unit], size);
-		return (error);
-	} else
-		return (ENOENT);
+	lbc_banks_unmap(sc);
+	return (error);
+}
+
+static void
+fdt_lbc_fixup(phandle_t node, struct lbc_softc *sc, struct lbc_devinfo *di)
+{
+	pcell_t width;
+	int bank;
+
+	if (OF_getprop(node, "bank-width", (void *)&width, sizeof(width)) <= 0)
+		return;
+
+	bank = di->di_bank;
+	if (sc->sc_banks[bank].size == 0)
+		return;
+
+	/* Express width in bits. */
+	sc->sc_banks[bank].width = width * 8;
+}
+
+static int
+fdt_lbc_reg_decode(phandle_t node, struct lbc_softc *sc,
+    struct lbc_devinfo *di)
+{
+	rman_res_t start, end, count;
+	pcell_t *reg, *regptr;
+	pcell_t addr_cells, size_cells;
+	int tuple_size, tuples;
+	int i, j, rv, bank;
+
+	if (fdt_addrsize_cells(OF_parent(node), &addr_cells, &size_cells) != 0)
+		return (ENXIO);
+
+	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
+	tuples = OF_getencprop_alloc(node, "reg", tuple_size, (void **)&reg);
+	debugf("addr_cells = %d, size_cells = %d\n", addr_cells, size_cells);
+	debugf("tuples = %d, tuple size = %d\n", tuples, tuple_size);
+	if (tuples <= 0)
+		/* No 'reg' property in this node. */
+		return (0);
+
+	regptr = reg;
+	for (i = 0; i < tuples; i++) {
+
+		bank = fdt_data_get((void *)reg, 1);
+		di->di_bank = bank;
+		reg += 1;
+
+		/* Get address/size. */
+		start = count = 0;
+		for (j = 0; j < addr_cells; j++) {
+			start <<= 32;
+			start |= reg[j];
+		}
+		for (j = 0; j < size_cells; j++) {
+			count <<= 32;
+			count |= reg[addr_cells + j - 1];
+		}
+		reg += addr_cells - 1 + size_cells;
+
+		/* Calculate address range relative to VA base. */
+		start = sc->sc_banks[bank].kva + start;
+		end = start + count - 1;
+
+		debugf("reg addr bank = %d, start = %jx, end = %jx, "
+		    "count = %jx\n", bank, start, end, count);
+
+		/* Use bank (CS) cell as rid. */
+		resource_list_add(&di->di_res, SYS_RES_MEMORY, bank, start,
+		    end, count);
+	}
+	rv = 0;
+	OF_prop_free(regptr);
+	return (rv);
+}
+
+static void
+lbc_intr(void *arg)
+{
+	struct lbc_softc *sc = arg;
+	uint32_t ltesr;
+
+	ltesr = bus_space_read_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LTESR);
+	sc->sc_ltesr = ltesr;
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LTESR, ltesr);
+	wakeup(sc->sc_dev);
 }
 
 static int
 lbc_probe(device_t dev)
 {
-	device_t parent;
-	uintptr_t devtype;
-	int error;
 
-	parent = device_get_parent(dev);
-	error = BUS_READ_IVAR(parent, dev, OCPBUS_IVAR_DEVTYPE, &devtype);
-	if (error)
-		return (error);
-	if (devtype != OCPBUS_DEVTYPE_LBC)
+	if (!(ofw_bus_is_compatible(dev, "fsl,lbc") ||
+	    ofw_bus_is_compatible(dev, "fsl,elbc")))
 		return (ENXIO);
 
-	device_set_desc(dev, "Freescale MPC85xx Local Bus Controller");
+	device_set_desc(dev, "Freescale Local Bus Controller");
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -321,27 +442,78 @@ static int
 lbc_attach(device_t dev)
 {
 	struct lbc_softc *sc;
+	struct lbc_devinfo *di;
 	struct rman *rm;
-	const struct lbc_resource *lbcres;
-	int error;
+	uintmax_t offset, size;
+	vm_paddr_t start;
+	device_t cdev;
+	phandle_t node, child;
+	pcell_t *ranges, *rangesptr;
+	int tuple_size, tuples;
+	int par_addr_cells;
+	int bank, error, i, j;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
-	sc->sc_rid = 0;
-	sc->sc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rid,
+	sc->sc_mrid = 0;
+	sc->sc_mres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_mrid,
 	    RF_ACTIVE);
-	if (sc->sc_res == NULL)
+	if (sc->sc_mres == NULL)
 		return (ENXIO);
 
-	sc->sc_bst = rman_get_bustag(sc->sc_res);
-	sc->sc_bsh = rman_get_bushandle(sc->sc_res);
+	sc->sc_bst = rman_get_bustag(sc->sc_mres);
+	sc->sc_bsh = rman_get_bushandle(sc->sc_mres);
+
+	for (bank = 0; bank < LBC_DEV_MAX; bank++) {
+		bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_BR(bank), 0);
+		bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_OR(bank), 0);
+	}
+
+	/*
+	 * Initialize configuration register:
+	 * - enable Local Bus
+	 * - set data buffer control signal function
+	 * - disable parity byte select
+	 * - set ECC parity type
+	 * - set bus monitor timing and timer prescale
+	 */
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LBCR, 0);
+
+	/*
+	 * Initialize clock ratio register:
+	 * - disable PLL bypass mode
+	 * - configure LCLK delay cycles for the assertion of LALE
+	 * - set system clock divider
+	 */
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LCRR, 0x00030008);
+
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LTEDR, 0);
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LTESR, ~0);
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LTEIR, 0x64080001);
+
+	sc->sc_irid = 0;
+	sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_irid,
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (sc->sc_ires != NULL) {
+		error = bus_setup_intr(dev, sc->sc_ires,
+		    INTR_TYPE_MISC | INTR_MPSAFE, NULL, lbc_intr, sc,
+		    &sc->sc_icookie);
+		if (error) {
+			device_printf(dev, "could not activate interrupt\n");
+			bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irid,
+			    sc->sc_ires);
+			sc->sc_ires = NULL;
+		}
+	}
+
+	sc->sc_ltesr = ~0;
+
+	rangesptr = NULL;
 
 	rm = &sc->sc_rman;
 	rm->rm_type = RMAN_ARRAY;
-	rm->rm_descr = "MPC85XX Local Bus Space";
-	rm->rm_start = 0UL;
-	rm->rm_end = ~0UL;
+	rm->rm_descr = "Local Bus Space";
 	error = rman_init(rm);
 	if (error)
 		goto fail;
@@ -353,35 +525,148 @@ lbc_attach(device_t dev)
 	}
 
 	/*
-	 * Initialize configuration register:
-	 * - enable Local Bus
-	 * - set data buffer control signal function
-	 * - disable parity byte select
-	 * - set ECC parity type
-	 * - set bus monitor timing and timer prescale
+	 * Process 'ranges' property.
 	 */
-	lbc_write_reg(sc, LBC85XX_LBCR, 0x00000000);
+	node = ofw_bus_get_node(dev);
+	if ((fdt_addrsize_cells(node, &sc->sc_addr_cells,
+	    &sc->sc_size_cells)) != 0) {
+		error = ENXIO;
+		goto fail;
+	}
 
-	/*
-	 * Initialize clock ratio register:
-	 * - disable PLL bypass mode
-	 * - configure LCLK delay cycles for the assertion of LALE
-	 * - set system clock divider
-	 */
-	lbc_write_reg(sc, LBC85XX_LCRR, 0x00030008);
+	par_addr_cells = fdt_parent_addr_cells(node);
+	if (par_addr_cells > 2) {
+		device_printf(dev, "unsupported parent #addr-cells\n");
+		error = ERANGE;
+		goto fail;
+	}
+	tuple_size = sizeof(pcell_t) * (sc->sc_addr_cells + par_addr_cells +
+	    sc->sc_size_cells);
 
-	lbcres = mpc85xx_lbc_resources;
+	tuples = OF_getencprop_alloc(node, "ranges", tuple_size,
+	    (void **)&ranges);
+	if (tuples < 0) {
+		device_printf(dev, "could not retrieve 'ranges' property\n");
+		error = ENXIO;
+		goto fail;
+	}
+	rangesptr = ranges;
 
-	for (; lbcres->lbr_devtype; lbcres++)
-		if (!lbc_mk_child(dev, lbcres)) {
-			error = ENXIO;
+	debugf("par addr_cells = %d, addr_cells = %d, size_cells = %d, "
+	    "tuple_size = %d, tuples = %d\n", par_addr_cells,
+	    sc->sc_addr_cells, sc->sc_size_cells, tuple_size, tuples);
+
+	start = 0;
+	size = 0;
+	for (i = 0; i < tuples; i++) {
+
+		/* The first cell is the bank (chip select) number. */
+		bank = fdt_data_get(ranges, 1);
+		if (bank < 0 || bank > LBC_DEV_MAX) {
+			device_printf(dev, "bank out of range: %d\n", bank);
+			error = ERANGE;
 			goto fail;
 		}
+		ranges += 1;
 
+		/*
+		 * Remaining cells of the child address define offset into
+		 * this CS.
+		 */
+		offset = 0;
+		for (j = 0; j < sc->sc_addr_cells - 1; j++) {
+			offset <<= sizeof(pcell_t) * 8;
+			offset |= *ranges;
+			ranges++;
+		}
+
+		/* Parent bus start address of this bank. */
+		start = 0;
+		for (j = 0; j < par_addr_cells; j++) {
+			start <<= sizeof(pcell_t) * 8;
+			start |= *ranges;
+			ranges++;
+		}
+
+		size = fdt_data_get((void *)ranges, sc->sc_size_cells);
+		ranges += sc->sc_size_cells;
+		debugf("bank = %d, start = %jx, size = %jx\n", bank,
+		    (uintmax_t)start, size);
+
+		sc->sc_banks[bank].addr = start + offset;
+		sc->sc_banks[bank].size = size;
+
+		/*
+		 * Attributes for the bank.
+		 *
+		 * XXX Note there are no DT bindings defined for them at the
+		 * moment, so we need to provide some defaults.
+		 */
+		sc->sc_banks[bank].width = 16;
+		sc->sc_banks[bank].msel = LBCRES_MSEL_GPCM;
+		sc->sc_banks[bank].decc = LBCRES_DECC_DISABLED;
+		sc->sc_banks[bank].atom = LBCRES_ATOM_DISABLED;
+		sc->sc_banks[bank].wp = 0;
+	}
+
+	/*
+	 * Initialize mem-mappings for the LBC banks (i.e. chip selects).
+	 */
+	error = lbc_banks_map(sc);
+	if (error)
+		goto fail;
+
+	/*
+	 * Walk the localbus and add direct subordinates as our children.
+	 */
+	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
+
+		di = malloc(sizeof(*di), M_LBC, M_WAITOK | M_ZERO);
+
+		if (ofw_bus_gen_setup_devinfo(&di->di_ofw, child) != 0) {
+			free(di, M_LBC);
+			device_printf(dev, "could not set up devinfo\n");
+			continue;
+		}
+
+		resource_list_init(&di->di_res);
+
+		if (fdt_lbc_reg_decode(child, sc, di)) {
+			device_printf(dev, "could not process 'reg' "
+			    "property\n");
+			ofw_bus_gen_destroy_devinfo(&di->di_ofw);
+			free(di, M_LBC);
+			continue;
+		}
+
+		fdt_lbc_fixup(child, sc, di);
+
+		/* Add newbus device for this FDT node */
+		cdev = device_add_child(dev, NULL, -1);
+		if (cdev == NULL) {
+			device_printf(dev, "could not add child: %s\n",
+			    di->di_ofw.obd_name);
+			resource_list_free(&di->di_res);
+			ofw_bus_gen_destroy_devinfo(&di->di_ofw);
+			free(di, M_LBC);
+			continue;
+		}
+		debugf("added child name='%s', node=%p\n", di->di_ofw.obd_name,
+		    (void *)child);
+		device_set_ivars(cdev, di);
+	}
+
+	/*
+	 * Enable the LBC.
+	 */
+	lbc_banks_enable(sc);
+
+	OF_prop_free(rangesptr);
 	return (bus_generic_attach(dev));
 
 fail:
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid, sc->sc_res);
+	OF_prop_free(rangesptr);
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_mrid, sc->sc_mres);
 	return (error);
 }
 
@@ -394,137 +679,181 @@ lbc_shutdown(device_t dev)
 }
 
 static struct resource *
-lbc_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+lbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct lbc_softc *sc;
-	struct lbc_devinfo *dinfo;
-	struct resource *rv;
+	struct lbc_devinfo *di;
+	struct resource_list_entry *rle;
+	struct resource *res;
 	struct rman *rm;
-	int error;
-
-	sc = device_get_softc(dev);
-	dinfo = device_get_ivars(child);
-
-	if (type != SYS_RES_MEMORY && type != SYS_RES_IRQ)
-		return (NULL);
+	int needactivate;
 
 	/* We only support default allocations. */
-	if (start != 0ul || end != ~0ul)
+	if (!RMAN_IS_DEFAULT_RANGE(start, end))
 		return (NULL);
 
+	sc = device_get_softc(bus);
 	if (type == SYS_RES_IRQ)
-		return (bus_alloc_resource(dev, type, rid, start, end, count,
+		return (bus_alloc_resource(bus, type, rid, start, end, count,
 		    flags));
 
-	if (!sc->sc_kva[dinfo->lbc_unit]) {
-		error = lbc_init_child(dev, child);
-		if (error)
-			return (NULL);
-	}
-
-	error = lbc_get_resource(dev, child, type, *rid, &start, &count);
-	if (error)
+	/*
+	 * Request for the default allocation with a given rid: use resource
+	 * list stored in the local device info.
+	 */
+	if ((di = device_get_ivars(child)) == NULL)
 		return (NULL);
 
-	rm = &sc->sc_rman;
-	end = start + count - 1;
-	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv != NULL) {
-		rman_set_bustag(rv, &bs_be_tag);
-		rman_set_bushandle(rv, rman_get_start(rv));
+	if (type == SYS_RES_IOPORT)
+		type = SYS_RES_MEMORY;
+
+	rid = &di->di_bank;
+
+	rle = resource_list_find(&di->di_res, type, *rid);
+	if (rle == NULL) {
+		device_printf(bus, "no default resources for "
+		    "rid = %d, type = %d\n", *rid, type);
+		return (NULL);
 	}
-	return (rv);
+	start = rle->start;
+	count = rle->count;
+	end = start + count - 1;
+
+	sc = device_get_softc(bus);
+
+	needactivate = flags & RF_ACTIVE;
+	flags &= ~RF_ACTIVE;
+
+	rm = &sc->sc_rman;
+
+	res = rman_reserve_resource(rm, start, end, count, flags, child);
+	if (res == NULL) {
+		device_printf(bus, "failed to reserve resource %#jx - %#jx "
+		    "(%#jx)\n", start, end, count);
+		return (NULL);
+	}
+
+	rman_set_rid(res, *rid);
+	rman_set_bustag(res, &bs_be_tag);
+	rman_set_bushandle(res, rman_get_start(res));
+
+	if (needactivate)
+		if (bus_activate_resource(child, type, *rid, res)) {
+			device_printf(child, "resource activation failed\n");
+			rman_release_resource(res);
+			return (NULL);
+		}
+
+	return (res);
 }
 
 static int
 lbc_print_child(device_t dev, device_t child)
 {
-	u_long size, start;
-	int error, retval, rid;
+	struct lbc_devinfo *di;
+	struct resource_list *rl;
+	int rv;
 
-	retval = bus_print_child_header(dev, child);
+	di = device_get_ivars(child);
+	rl = &di->di_res;
 
-	rid = 0;
-	while (1) {
-		error = lbc_get_resource(dev, child, SYS_RES_MEMORY, rid,
-		    &start, &size);
-		if (error)
-			break;
-		retval += (rid == 0) ? printf(" iomem ") : printf(",");
-		retval += printf("%#lx", start);
-		if (size > 1)
-			retval += printf("-%#lx", start + size - 1);
-		rid++;
-	}
+	rv = 0;
+	rv += bus_print_child_header(dev, child);
+	rv += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	rv += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
+	rv += bus_print_child_footer(dev, child);
 
-	retval += bus_print_child_footer(dev, child);
-	return (retval);
-}
-
-static int
-lbc_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
-{
-	struct lbc_devinfo *dinfo;
-
-	if (device_get_parent(child) != dev)
-		return (EINVAL);
-
-	dinfo = device_get_ivars(child);
-
-	switch (index) {
-	case LBC_IVAR_DEVTYPE:
-		*result = dinfo->lbc_devtype;
-		return (0);
-	default:
-		break;
-	}
-	return (EINVAL);
+	return (rv);
 }
 
 static int
 lbc_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *res)
 {
+	int err;
+
+	if (rman_get_flags(res) & RF_ACTIVE) {
+		err = bus_deactivate_resource(child, type, rid, res);
+		if (err)
+			return (err);
+	}
 
 	return (rman_release_resource(res));
 }
 
 static int
-lbc_get_resource(device_t dev, device_t child, int type, int rid,
-    u_long *startp, u_long *countp)
+lbc_activate_resource(device_t bus __unused, device_t child __unused,
+    int type __unused, int rid __unused, struct resource *r)
 {
+
+	/* Child resources were already mapped, just activate. */
+	return (rman_activate_resource(r));
+}
+
+static int
+lbc_deactivate_resource(device_t bus __unused, device_t child __unused,
+    int type __unused, int rid __unused, struct resource *r)
+{
+
+	return (rman_deactivate_resource(r));
+}
+
+static const struct ofw_bus_devinfo *
+lbc_get_devinfo(device_t bus, device_t child)
+{
+	struct lbc_devinfo *di;
+
+	di = device_get_ivars(child);
+	return (&di->di_ofw);
+}
+
+void
+lbc_write_reg(device_t child, u_int off, uint32_t val)
+{
+	device_t dev;
 	struct lbc_softc *sc;
-	struct lbc_devinfo *dinfo;
-	const struct lbc_resource *lbcres;
 
-	if (type != SYS_RES_MEMORY)
-		return (ENOENT);
+	dev = device_get_parent(child);
 
-	/* Currently all LBC devices have a single RID per type. */
-	if (rid != 0)
-		return (ENOENT);
+	if (off >= 0x1000) {
+		device_printf(dev, "%s(%s): invalid offset %#x\n",
+		    __func__, device_get_nameunit(child), off);
+		return;
+	}
 
 	sc = device_get_softc(dev);
-	dinfo = device_get_ivars(child);
 
-	if ((dinfo->lbc_unit < 0) || (dinfo->lbc_unit > (LBC_DEV_MAX - 1)))
-		return (EINVAL);
-
-	lbcres = mpc85xx_lbc_resources;
-
-	switch (dinfo->lbc_devtype) {
-	case LBC_DEVTYPE_CFI:
-	case LBC_DEVTYPE_RTC:
-		for (; lbcres->lbr_devtype; lbcres++) {
-			if (dinfo->lbc_unit == lbcres->lbr_unit) {
-				*startp = sc->sc_kva[lbcres->lbr_unit];
-				*countp = lbcres->lbr_size;
-				return (0);
-			}
-		}
-	default:
-		return (EDOOFUS);
+	if (off == LBC85XX_LTESR && sc->sc_ltesr != ~0u) {
+		sc->sc_ltesr ^= (val & sc->sc_ltesr);
+		return;
 	}
-	return (0);
+
+	if (off == LBC85XX_LTEATR && (val & 1) == 0)
+		sc->sc_ltesr = ~0u;
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, off, val);
+}
+
+uint32_t
+lbc_read_reg(device_t child, u_int off)
+{
+	device_t dev;
+	struct lbc_softc *sc;
+	uint32_t val;
+
+	dev = device_get_parent(child);
+
+	if (off >= 0x1000) {
+		device_printf(dev, "%s(%s): invalid offset %#x\n",
+		    __func__, device_get_nameunit(child), off);
+		return (~0U);
+	}
+
+	sc = device_get_softc(dev);
+
+	if (off == LBC85XX_LTESR && sc->sc_ltesr != ~0U)
+		val = sc->sc_ltesr;
+	else
+		val = bus_space_read_4(sc->sc_bst, sc->sc_bsh, off);
+	return (val);
 }

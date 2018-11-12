@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "SYS.h"
 
 	.globl HIDENAME(cerror)
+	.hidden HIDENAME(cerror)
 
 	/*
 	 * The __error() function is thread aware. For non-threaded
@@ -48,13 +49,14 @@ __FBSDID("$FreeBSD$");
 	.globl	CNAME(__error)
 	.type	CNAME(__error),@function
 HIDENAME(cerror):
-	pushl	%eax
 #ifdef PIC
-	/* The caller must execute the PIC prologue before jumping to cerror. */
+	PIC_PROLOGUE
+	pushl	%eax
 	call	PIC_PLT(CNAME(__error))
 	popl	%ecx
 	PIC_EPILOGUE
 #else
+	pushl	%eax
 	call	CNAME(__error)
 	popl	%ecx
 #endif
@@ -63,3 +65,4 @@ HIDENAME(cerror):
 	movl	$-1,%edx
 	ret
 
+	.section .note.GNU-stack,"",%progbits

@@ -37,7 +37,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2005
+.Dd September 15, 2014
 .Dt MQ_OPEN 2
 .Os
 .Sh NAME
@@ -223,6 +223,11 @@ The
 and
 .Xr kevent 2
 system calls are supported for message queue descriptor.
+.Pp
+Please see the
+.Xr mqueuefs 5
+man page for instructions on loading the module or compiling the service into
+the kernel.
 .Sh RETURN VALUES
 Upon successful completion, the function returns a message queue
 descriptor; otherwise, the function returns
@@ -294,7 +299,8 @@ There is insufficient space for the creation of the new message queue.
 .Xr mq_setattr 2 ,
 .Xr mq_timedreceive 3 ,
 .Xr mq_timedsend 3 ,
-.Xr mq_unlink 3
+.Xr mq_unlink 3 ,
+.Xr mqueuefs 5
 .Sh STANDARDS
 The
 .Fn mq_open
@@ -320,4 +326,4 @@ Electrical and Electronics Engineers, Inc and The Open Group.  In the
 event of any discrepancy between this version and the original IEEE and
 The Open Group Standard, the original IEEE and The Open Group Standard is
 the referee document.  The original Standard can be obtained online at
-	http://www.opengroup.org/unix/online.html.
+http://www.opengroup.org/unix/online.html.

@@ -2,7 +2,7 @@
 .\" Garrett A. Wollman, September 1994
 .\" This file is in the public domain.
 .\"
-.Dd March 16, 1995
+.Dd June 9, 2013
 .Dt LSVFS 1
 .Os
 .Sh NAME
@@ -36,6 +36,8 @@ and the
 .Fl t
 option to
 .Xr mount 8
+.It Num
+the filesystem type number.
 .It Refs
 the number of references to this VFS; i.e., the number of currently
 mounted file systems of this type
@@ -44,6 +46,7 @@ flag bits.
 .El
 .Sh SEE ALSO
 .Xr mount 2 ,
+.Xr getvfsbyname 3 ,
 .Xr mount 8
 .Sh HISTORY
 A

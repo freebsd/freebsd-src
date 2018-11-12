@@ -39,9 +39,36 @@
 #define	_SYS_BIO_H_
 
 #include <sys/queue.h>
+#include <sys/disk_zone.h>
 
+/* bio_cmd */
+#define BIO_READ	0x01	/* Read I/O data */
+#define BIO_WRITE	0x02	/* Write I/O data */
+#define BIO_DELETE	0x03	/* TRIM or free blocks, i.e. mark as unused */
+#define BIO_GETATTR	0x04	/* Get GEOM attributes of object */
+#define BIO_FLUSH	0x05	/* Commit outstanding I/O now */
+#define BIO_CMD0	0x06	/* Available for local hacks */
+#define BIO_CMD1	0x07	/* Available for local hacks */
+#define BIO_CMD2	0x08	/* Available for local hacks */
+#define BIO_ZONE	0x09	/* Zone command */
+
+/* bio_flags */
+#define BIO_ERROR	0x01	/* An error occurred processing this bio. */
+#define BIO_DONE	0x02	/* This bio is finished. */
+#define BIO_ONQUEUE	0x04	/* This bio is in a queue & not yet taken. */
+/*
+ * This bio must be executed after all previous bios in the queue have been
+ * executed, and before any successive bios can be executed.
+ */
+#define BIO_ORDERED	0x08
+#define	BIO_UNMAPPED	0x10
+#define	BIO_TRANSIENT_MAPPING	0x20
+#define	BIO_VLIST	0x40
+
+#ifdef _KERNEL
 struct disk;
 struct bio;
+struct vm_map;
 
 /* Empty classifier tag, to prevent further classification. */
 #define	BIO_NOTCLASSIFIED		(void *)(~0UL)
@@ -52,15 +79,18 @@ typedef void bio_task_t(void *);
  * The bio structure describes an I/O operation in the kernel.
  */
 struct bio {
-	uint8_t	bio_cmd;		/* I/O operation. */
-	uint8_t	bio_flags;		/* General flags. */
-	uint8_t	bio_cflags;		/* Private use by the consumer. */
-	uint8_t	bio_pflags;		/* Private use by the provider. */
+	uint16_t bio_cmd;		/* I/O operation. */
+	uint16_t bio_flags;		/* General flags. */
+	uint16_t bio_cflags;		/* Private use by the consumer. */
+	uint16_t bio_pflags;		/* Private use by the provider. */
 	struct cdev *bio_dev;		/* Device to do I/O on. */
 	struct disk *bio_disk;		/* Valid below geom_disk.c only */
 	off_t	bio_offset;		/* Offset into file. */
 	long	bio_bcount;		/* Valid bytes in buffer. */
 	caddr_t	bio_data;		/* Memory, superblocks, indirect etc. */
+	struct vm_page **bio_ma;	/* Or unmapped. */
+	int	bio_ma_offset;		/* Offset in the first page of bio_ma. */
+	int	bio_ma_n;		/* Number of pages in bio_ma. */
 	int	bio_error;		/* Errno for BIO_ERROR. */
 	long	bio_resid;		/* Remaining I/O in bytes. */
 	void	(*bio_done)(struct bio *);
@@ -70,6 +100,7 @@ struct bio {
 	void	*bio_caller2;		/* Private use by the consumer. */
 	TAILQ_ENTRY(bio) bio_queue;	/* Disksort queue. */
 	const char *bio_attribute;	/* Attribute for BIO_[GS]ETATTR */
+	struct  disk_zone_args bio_zone;/* Used for BIO_ZONE */
 	struct g_consumer *bio_from;	/* GEOM linkage */
 	struct g_provider *bio_to;	/* GEOM linkage */
 	off_t	bio_length;		/* Like bio_bcount */
@@ -95,23 +126,6 @@ struct bio {
 	daddr_t bio_pblkno;               /* physical block number */
 };
 
-/* bio_cmd */
-#define BIO_READ	0x01
-#define BIO_WRITE	0x02
-#define BIO_DELETE	0x04
-#define BIO_GETATTR	0x08
-#define BIO_FLUSH	0x10
-#define BIO_CMD0	0x20	/* Available for local hacks */
-#define BIO_CMD1	0x40	/* Available for local hacks */
-#define BIO_CMD2	0x80	/* Available for local hacks */
-
-/* bio_flags */
-#define BIO_ERROR	0x01
-#define BIO_DONE	0x02
-#define BIO_ONQUEUE	0x04
-
-#ifdef _KERNEL
-
 struct uio;
 struct devstat;
 
@@ -120,6 +134,9 @@ struct bio_queue_head {
 	off_t last_offset;
 	struct	bio *insert_point;
 };
+
+extern struct vm_map *bio_transient_map;
+extern int bio_transient_maxcnt;
 
 void biodone(struct bio *bp);
 void biofinish(struct bio *bp, struct devstat *stat, int error);
@@ -133,8 +150,6 @@ void bioq_init(struct bio_queue_head *head);
 void bioq_insert_head(struct bio_queue_head *head, struct bio *bp);
 void bioq_insert_tail(struct bio_queue_head *head, struct bio *bp);
 void bioq_remove(struct bio_queue_head *head, struct bio *bp);
-
-void bio_taskqueue(struct bio *bp, bio_task_t *fund, void *arg);
 
 int	physio(struct cdev *dev, struct uio *uio, int ioflag);
 #define physread physio

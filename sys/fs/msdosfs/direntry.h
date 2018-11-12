@@ -47,16 +47,17 @@
  *
  * October 1992
  */
+#ifndef _FS_MSDOSFS_DIRENTRY_H_
+#define	_FS_MSDOSFS_DIRENTRY_H_
 
 /*
  * Structure of a dos directory entry.
  */
 struct direntry {
-	u_int8_t	deName[8];	/* filename, blank filled */
+	u_int8_t	deName[11];	/* filename, blank filled */
 #define	SLOT_EMPTY	0x00		/* slot has never been used */
 #define	SLOT_E5		0x05		/* the real value is 0xe5 */
 #define	SLOT_DELETED	0xe5		/* file in this slot deleted */
-	u_int8_t	deExtension[3];	/* extension, blank filled */
 	u_int8_t	deAttributes;	/* file attributes */
 #define	ATTR_NORMAL	0x00		/* normal file */
 #define	ATTR_READONLY	0x01		/* file is readonly */
@@ -144,7 +145,7 @@ struct msdosfsmount;
 
 char	*mbnambuf_flush(struct mbnambuf *nbp, struct dirent *dp);
 void	mbnambuf_init(struct mbnambuf *nbp);
-void	mbnambuf_write(struct mbnambuf *nbp, char *name, int id);
+int	mbnambuf_write(struct mbnambuf *nbp, char *name, int id);
 int	dos2unixfn(u_char dn[11], u_char *un, int lower,
 	    struct msdosfsmount *pmp);
 int	unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
@@ -155,7 +156,8 @@ int	winChkName(struct mbnambuf *nbp, const u_char *un, size_t unlen,
 	    int chksum, struct msdosfsmount *pmp);
 int	win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 	    struct msdosfsmount *pmp);
-u_int8_t winChksum(struct direntry *dep);
+u_int8_t winChksum(u_int8_t *name);
 int	winSlotCnt(const u_char *un, size_t unlen, struct msdosfsmount *pmp);
 size_t	winLenFixup(const u_char *un, size_t unlen);
 #endif	/* _KERNEL */
+#endif	/* !_FS_MSDOSFS_DIRENTRY_H_ */

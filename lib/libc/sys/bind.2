@@ -28,7 +28,7 @@
 .\"     @(#)bind.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd August 18, 2016
 .Dt BIND 2
 .Os
 .Sh NAME
@@ -37,7 +37,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
 .In sys/socket.h
 .Ft int
 .Fn bind "int s" "const struct sockaddr *addr" "socklen_t addrlen"
@@ -85,6 +84,10 @@ is not a valid descriptor.
 .It Bq Er EINVAL
 The socket is already bound to an address, and the protocol does not support
 binding to a new address; or the socket has been shut down.
+.It Bq Er EINVAL
+The
+.Fa addrlen
+argument is not a valid length for the address family.
 .It Bq Er ENOTSOCK
 The
 .Fa s
@@ -94,6 +97,8 @@ is not a socket.
 The specified address is not available from the local machine.
 .It Bq Er EADDRINUSE
 The specified address is already in use.
+.It Bq Er EAFNOSUPPORT
+Addresses in the specified address family cannot be used with this socket.
 .It Bq Er EACCES
 The requested address is protected, and the current user
 has inadequate permission to access it.

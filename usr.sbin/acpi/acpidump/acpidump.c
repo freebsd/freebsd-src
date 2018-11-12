@@ -55,7 +55,8 @@ int
 main(int argc, char *argv[])
 {
 	ACPI_TABLE_HEADER *rsdt, *sdt;
-	char	c, *progname;
+	int	c;
+	char	*progname;
 	char	*dsdt_input_file, *dsdt_output_file;
 
 	dsdt_input_file = dsdt_output_file = NULL;

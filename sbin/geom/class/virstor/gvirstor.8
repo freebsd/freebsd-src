@@ -1,4 +1,4 @@
-.\" Copyright (c) 2006-2008 Ivan Voras <ivoras@FreeBSD.org>
+.\" Copyright (c) 2006-2011 Ivan Voras <ivoras@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2008
+.Dd October 1, 2013
 .Dt GVIRSTOR 8
 .Os
 .Sh NAME
@@ -40,6 +40,10 @@
 .Ar prov ...
 .Nm
 .Cm stop
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm destroy
 .Op Fl fv
 .Ar name ...
 .Nm
@@ -80,6 +84,10 @@ The idea behind
 is similar to the concept of Virtual Memory in operating systems,
 effectively allowing users to overcommit on storage
 .Pq free file system space .
+The concept is also known as "thin provisioning" in virtualization
+environments, only here it is implemented on the level of physical storage
+devices.
+.Pp
 The first argument to
 .Nm
 indicates an action to be performed:
@@ -103,13 +111,16 @@ Turn off an existing virtual device with the given
 .Ar name .
 This command does not touch on-disk metadata.
 As with other GEOM classes, stopped geoms cannot be started manually.
+.It Cm destroy
+Same as
+.Cm stop.
 .It Cm add
 Adds new components to existing virtual device with the given
 .Ar name .
 The specified virstor device must exist and be active
 .Pq i.e. module loaded, device present in Pa /dev .
 This action can be safely performed while the virstor device is in use
-.Pq Qo hot Qc operation
+.Pq Qo hot Qc operation .
 .It Cm remove
 Removes components from existing virtual device with the given
 .Ar name .
@@ -150,7 +161,7 @@ size
 .Pq 4 MiB ,
 with two physical devices for backing storage.
 .Bd -literal -offset indent
-.No gvirstor label -v Ar mydata Ar /dev/ad4 Ar /dev/ad6
+.No gvirstor label -v Ar mydata Ar /dev/ada4 Ar /dev/ada6
 .No newfs Ar /dev/virstor/mydata
 .Ed
 .Pp
@@ -159,11 +170,11 @@ From now on, the virtual device will be available via the
 device entry.
 To add a new physical device / component to an active virstor device:
 .Bd -literal -offset indent
-.No gvirstor add Ar mydata Ar ad8
+.No gvirstor add Ar mydata Ar ada8
 .Ed
 .Pp
 This will add physical storage of
-.Ar ad8
+.Ar ada8
 to
 .Pa /dev/virstor/mydata
 device.
@@ -246,6 +257,10 @@ The
 .Nm
 utility first appeared in
 .Fx 7.0 .
+.Sh AUTHORS
+.An Ivan Voras Aq Mt ivoras@FreeBSD.org
+.Pp
+Sponsored by Google Summer of Code 2006.
 .Sh BUGS
 Commands
 .Cm add
@@ -264,7 +279,8 @@ change once it is set, and that the sizes of individual physical storage
 components will always remain constant during their existence.
 For alternative ways to implement virtual or resizable file systems see
 .Xr zfs 1M ,
-.Xr gconcat 8 and
+.Xr gconcat 8
+and
 .Xr growfs 8 .
 .Pp
 Note that
@@ -281,7 +297,3 @@ and all their structures will be physically allocated at the start
 of the first virstor component.
 This could have a significant impact on file system performance
 .Pq which can in some rare cases be even positive .
-.Sh AUTHOR
-.An Ivan Voras Aq ivoras@FreeBSD.org
-.Pp
-Sponsored by Google Summer of Code 2006.

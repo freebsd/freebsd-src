@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2005
+.Dd November 14, 2014
 .Dt BOOT 8 i386
 .Os
 .Sh NAME
@@ -55,6 +55,11 @@ known as drive C:, or as drive 0x80 to the BIOS).
 Some BIOSes allow
 you to change this default sequence, and may also include a CD-ROM
 drive as a boot device.
+.Pp
+Some newer PCs boot using UEFI firmware, not BIOS.
+That process is described
+in
+.Xr uefi 8 .
 .Pp
 By default, a three-stage bootstrap is employed, and control is
 automatically passed from the boot blocks (bootstrap stages one and
@@ -113,7 +118,6 @@ boot device, as a hint about available boot files.
 .Ic ?\&
 may also be specified as the last segment of a path, in which case
 the listing will be of the relevant subdirectory.)
-.Pp
 .It Xo
 .Sm off
 .Ar bios_drive : interface ( unit , Oo Ar slice , Oc Ar part )
@@ -221,14 +225,13 @@ option to force the kernel to use the serial port as its
 console device.
 The serial port driver
 .Xr sio 4
+(but not
+.Xr uart 4 )
 has a flag (0x20) to override this option.
 If that flag is set, the serial port will always be used as the console,
 regardless of the
 .Fl h
 option described here.
-See the man page for
-.Xr sio 4
-for more details.
 .It Fl m
 mute the console to suppress all console input and output during the
 boot.
@@ -349,18 +352,18 @@ requirement has not been adhered to.
 .Xr make.conf 5 ,
 .Xr ttys 5 ,
 .Xr boot0cfg 8 ,
-.Xr bsdlabel 8 ,
 .Xr btxld 8 ,
 .Xr config 8 ,
+.Xr gpart 8 ,
+.Xr gptboot 8 ,
 .Xr halt 8 ,
 .Xr loader 8 ,
 .Xr nextboot 8 ,
 .Xr reboot 8 ,
-.Xr shutdown 8
+.Xr shutdown 8 ,
+.Xr uefi 8
 .Sh BUGS
-The
-.Xr bsdlabel 5
-format used by this version of
+The bsdlabel format used by this version of
 .Bx
 is quite
 different from that of other architectures.

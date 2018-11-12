@@ -35,70 +35,70 @@
 #ifndef _MACHINE_VMPARAM_H_
 #define	_MACHINE_VMPARAM_H_
 
-#define	USRSTACK	VM_MAXUSER_ADDRESS
+#define	USRSTACK	SHAREDPAGE
 
 #ifndef	MAXTSIZ
-#define	MAXTSIZ		(16*1024*1024)		/* max text size */
+#define	MAXTSIZ		(1*1024*1024*1024)		/* max text size */
 #endif
 
 #ifndef	DFLDSIZ
-#define	DFLDSIZ		(32*1024*1024)		/* default data size */
+#define	DFLDSIZ		(128*1024*1024)		/* default data size */
 #endif
 
 #ifndef	MAXDSIZ
-#define	MAXDSIZ		(512*1024*1024)		/* max data size */
+#define	MAXDSIZ		(1*1024*1024*1024)	/* max data size */
 #endif
 
 #ifndef	DFLSSIZ
-#define	DFLSSIZ		(1*1024*1024)		/* default stack size */
+#define	DFLSSIZ		(8*1024*1024)		/* default stack size */
 #endif
 
 #ifndef	MAXSSIZ
-#define	MAXSSIZ		(32*1024*1024)		/* max stack size */
+#define	MAXSSIZ		(64*1024*1024)		/* max stack size */
 #endif
 
-/*
- * Size of shared memory map
- */
-#ifndef	SHMMAXPGS
-#define	SHMMAXPGS	1024
+#ifdef AIM
+#define	VM_MAXUSER_ADDRESS32	((vm_offset_t)0xfffff000)
+#else
+#define	VM_MAXUSER_ADDRESS32	((vm_offset_t)0x7ffff000)
 #endif
-
-/*
- * The time for a process to be blocked before being very swappable.
- * This is a number of seconds which the system takes as being a non-trivial
- * amount of real time.  You probably shouldn't change this;
- * it is used in subtle ways (fractions and multiples of it are, that is, like
- * half of a ``long time'', almost a long time, etc.)
- * It is related to human patience and other factors which don't really
- * change over time.
- */
-#define	MAXSLP 		20
 
 /*
  * Would like to have MAX addresses = 0, but this doesn't (currently) work
  */
 #if !defined(LOCORE)
-#define	VM_MIN_ADDRESS		((vm_offset_t)0)
-
-#define	VM_MAXUSER_ADDRESS	((vm_offset_t)0x7ffff000)
-
+#ifdef __powerpc64__
+#define	VM_MIN_ADDRESS		(0x0000000000000000UL)
+#define	VM_MAXUSER_ADDRESS	(0xfffffffffffff000UL)
+#define	VM_MAX_ADDRESS		(0xffffffffffffffffUL)
 #else
+#define	VM_MIN_ADDRESS		((vm_offset_t)0)
+#define	VM_MAXUSER_ADDRESS	VM_MAXUSER_ADDRESS32
+#define	VM_MAX_ADDRESS		((vm_offset_t)0xffffffff)
+#endif
+#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+#else /* LOCORE */
+#if !defined(__powerpc64__) && defined(BOOKE)
 #define	VM_MIN_ADDRESS		0
-
 #define	VM_MAXUSER_ADDRESS	0x7ffff000
-
+#endif
 #endif /* LOCORE */
 
-#define	VM_MAX_ADDRESS		VM_MAXUSER_ADDRESS
+#define	FREEBSD32_SHAREDPAGE	(VM_MAXUSER_ADDRESS32 - PAGE_SIZE)
+#define	FREEBSD32_USRSTACK	FREEBSD32_SHAREDPAGE
 
+#ifdef AIM
+#define	KERNBASE		0x00100000UL	/* start of kernel virtual */
 
-#if defined(AIM)	/* AIM */
-
-#define	KERNBASE		0x00100000	/* start of kernel virtual */
-
-#define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)(KERNEL_SR << ADDR_SR_SHFT))
-#define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + 2*SEGMENT_LENGTH - 1)
+#ifdef __powerpc64__
+#define	VM_MIN_KERNEL_ADDRESS		0xc000000000000000UL
+#define	VM_MAX_KERNEL_ADDRESS		0xc0000001c7ffffffUL
+#define	VM_MAX_SAFE_KERNEL_ADDRESS	VM_MAX_KERNEL_ADDRESS
+#else
+#define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)KERNEL_SR << ADDR_SR_SHFT)
+#define	VM_MAX_SAFE_KERNEL_ADDRESS (VM_MIN_KERNEL_ADDRESS + 2*SEGMENT_LENGTH -1)
+#define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + 3*SEGMENT_LENGTH - 1)
+#endif
 
 /*
  * Use the direct-mapped BAT registers for UMA small allocs. This
@@ -106,32 +106,15 @@
  */
 #define UMA_MD_SMALL_ALLOC
 
-/*
- * On 64-bit systems in bridge mode, we have no direct map, so we fake
- * the small_alloc() calls. But we need the VM to be in a reasonable
- * state first.
- */
-#define UMA_MD_SMALL_ALLOC_NEEDS_VM
-
-#else
-
-/*
- * Kernel CCSRBAR location. We make this the reset location.
- */
-#define	CCSRBAR_VA		0xfef00000
-#define	CCSRBAR_SIZE		0x00100000
+#else /* Book-E */
 
 #define	KERNBASE		0xc0000000	/* start of kernel virtual */
 
 #define	VM_MIN_KERNEL_ADDRESS	KERNBASE
-#define	VM_MAX_KERNEL_ADDRESS	0xf8000000
+#define	VM_MAX_KERNEL_ADDRESS	0xffffffff
+#define	VM_MAX_SAFE_KERNEL_ADDRESS	VM_MAX_KERNEL_ADDRESS
 
 #endif /* AIM/E500 */
-
-/* XXX max. amount of KVM to be used by buffers. */
-#ifndef VM_MAX_KERNEL_BUF
-#define	VM_MAX_KERNEL_BUF	(SEGMENT_LENGTH * 7 / 10)
-#endif
 
 #if !defined(LOCORE)
 struct pmap_physseg {
@@ -143,18 +126,22 @@ struct pmap_physseg {
 #define	VM_PHYSSEG_MAX		16	/* 1? */
 
 /*
- * The physical address space is densely populated.
+ * The physical address space is densely populated on 32-bit systems,
+ * but may not be on 64-bit ones.
  */
+#ifdef __powerpc64__
+#define	VM_PHYSSEG_SPARSE
+#else
 #define	VM_PHYSSEG_DENSE
+#endif
 
 /*
- * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool
+ * Create two free page pools: VM_FREEPOOL_DEFAULT is the default pool
  * from which physical pages are allocated and VM_FREEPOOL_DIRECT is
  * the pool from which physical pages for small UMA objects are
  * allocated.
  */
-#define	VM_NFREEPOOL		3
-#define	VM_FREEPOOL_CACHE	2
+#define	VM_NFREEPOOL		2
 #define	VM_FREEPOOL_DEFAULT	0
 #define	VM_FREEPOOL_DIRECT	1
 
@@ -184,8 +171,44 @@ struct pmap_physseg {
 #define	SGROWSIZ	(128UL*1024)		/* amount to grow stack */
 #endif
 
-#ifndef VM_KMEM_SIZE
-#define	VM_KMEM_SIZE		(12 * 1024 * 1024)
+/*
+ * How many physical pages per kmem arena virtual page.
+ */
+#ifndef VM_KMEM_SIZE_SCALE
+#define	VM_KMEM_SIZE_SCALE	(3)
 #endif
 
+/*
+ * Optional floor (in bytes) on the size of the kmem arena.
+ */
+#ifndef VM_KMEM_SIZE_MIN
+#define	VM_KMEM_SIZE_MIN	(12 * 1024 * 1024)
+#endif
+
+/*
+ * Optional ceiling (in bytes) on the size of the kmem arena: 40% of the
+ * usable KVA space.
+ */
+#ifndef VM_KMEM_SIZE_MAX
+#define VM_KMEM_SIZE_MAX	((VM_MAX_SAFE_KERNEL_ADDRESS - \
+    VM_MIN_KERNEL_ADDRESS + 1) * 2 / 5)
+#endif
+
+#define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
+
+/*
+ * On 32-bit OEA, the only purpose for which sf_buf is used is to implement
+ * an opaque pointer required by the machine-independent parts of the kernel.
+ * That pointer references the vm_page that is "mapped" by the sf_buf.  The
+ * actual mapping is provided by the direct virtual-to-physical mapping.
+ *
+ * On OEA64 and Book-E, we need to do something a little more complicated. Use
+ * the runtime-detected hw_direct_map to pick between the two cases. Our
+ * friends in vm_machdep.c will do the same to ensure nothing gets confused.
+ */
+#define	SFBUF
+#define	SFBUF_NOMD
+#define	SFBUF_OPTIONAL_DIRECT_MAP	hw_direct_map
+#define	SFBUF_PHYS_DMAP(x)		(x)
+ 
 #endif /* _MACHINE_VMPARAM_H_ */

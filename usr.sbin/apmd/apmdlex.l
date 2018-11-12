@@ -30,6 +30,7 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
 #include <string.h>
 #include <syslog.h>
 #include <bitstring.h>
@@ -39,6 +40,10 @@
 int lineno;
 int first_time;
 %}
+
+/* We don't need it, avoid the warning. */
+%option nounput
+%option noinput
 
 %s TOP
 

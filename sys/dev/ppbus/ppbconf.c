@@ -90,7 +90,7 @@ ppbus_probe(device_t dev)
  * Add a ppbus device, allocate/initialize the ivars
  */
 static device_t
-ppbus_add_child(device_t dev, int order, const char *name, int unit)
+ppbus_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	struct ppb_device *ppbdev;
 	device_t child;
@@ -172,7 +172,7 @@ static char *pnp_classes[] = {
 /*
  * search_token()
  *
- * Search the first occurence of a token within a string
+ * Search the first occurrence of a token within a string
  */
 static char *
 search_token(char *str, int slen, char *token)
@@ -422,20 +422,14 @@ ppbus_attach(device_t dev)
 static int
 ppbus_detach(device_t dev)
 {
-	device_t *children;
-	int error, nchildren, i;
+	int error;
 
 	error = bus_generic_detach(dev);
 	if (error)
 		return (error);
 
 	/* detach & delete all children */
-	if (!device_get_children(dev, &children, &nchildren)) {
-		for (i = 0; i < nchildren; i++)
-			if (children[i])
-				device_delete_child(dev, children[i]);
-		free(children, M_TEMP);
-	}
+	device_delete_children(dev);
 
 	return (0);
 }
@@ -537,7 +531,7 @@ ppb_request_bus(device_t bus, device_t dev, int how)
 
 			/* restore the context of the device
 			 * The first time, ctx.valid is certainly false
-			 * then do not change anything. This is usefull for
+			 * then do not change anything. This is useful for
 			 * drivers that do not set there operating mode
 			 * during attachement
 			 */

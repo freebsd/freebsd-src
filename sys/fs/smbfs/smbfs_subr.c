@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2001, Boris Popov
+ * Copyright (c) 2000-2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,12 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Boris Popov.
- * 4. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -52,6 +46,7 @@
 #include <fs/smbfs/smbfs_subr.h>
 
 MALLOC_DEFINE(M_SMBFSDATA, "smbfs_data", "SMBFS private data");
+MALLOC_DEFINE(M_SMBFSCRED, "smbfs_cred", "SMBFS cred data");
 
 void
 smb_time_local2server(struct timespec *tsp, int tzoff, u_long *seconds)
@@ -64,7 +59,6 @@ void
 smb_time_server2local(u_long seconds, int tzoff, struct timespec *tsp)
 {
 	tsp->tv_sec = seconds + tzoff * 60;
-	    /*+ tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0)*/;
 }
 
 /*
@@ -112,41 +106,6 @@ smb_dos2unixtime(u_int dd, u_int dt, u_int dh, int tzoff,
 	smb_time_server2local(tsp->tv_sec, tzoff, tsp);
 }
 
-static int
-smb_fphelp(struct mbchain *mbp, struct smb_vc *vcp, struct smbnode *np,
-	int caseopt)
-{
-	struct smbmount *smp= np->n_mount;
-	struct smbnode **npp = smp->sm_npstack;
-	int i, error = 0;
-
-/*	simple_lock(&smp->sm_npslock);*/
-	i = 0;
-	while (np->n_parent) {
-		if (i++ == SMBFS_MAXPATHCOMP) {
-/*			simple_unlock(&smp->sm_npslock);*/
-			return ENAMETOOLONG;
-		}
-		*npp++ = np;
-		if ((np->n_flag & NREFPARENT) == 0)
-			break;
-		np = VTOSMB(np->n_parent);
-	}
-/*	if (i == 0)
-		return smb_put_dmem(mbp, vcp, "\\", 2, caseopt);*/
-	while (i--) {
-		np = *--npp;
-		error = mb_put_uint8(mbp, '\\');
-		if (error)
-			break;
-		error = smb_put_dmem(mbp, vcp, np->n_name, np->n_nmlen, caseopt);
-		if (error)
-			break;
-	}
-/*	simple_unlock(&smp->sm_npslock);*/
-	return error;
-}
-
 int
 smbfs_fullpath(struct mbchain *mbp, struct smb_vc *vcp, struct smbnode *dnp,
 	const char *name, int nmlen)
@@ -154,22 +113,37 @@ smbfs_fullpath(struct mbchain *mbp, struct smb_vc *vcp, struct smbnode *dnp,
 	int caseopt = SMB_CS_NONE;
 	int error;
 
+	if (SMB_UNICODE_STRINGS(vcp)) {
+		error = mb_put_padbyte(mbp);
+		if (error)
+			return error;
+	}
 	if (SMB_DIALECT(vcp) < SMB_DIALECT_LANMAN1_0)
 		caseopt |= SMB_CS_UPPER;
 	if (dnp != NULL) {
-		error = smb_fphelp(mbp, vcp, dnp, caseopt);
+		error = smb_put_dmem(mbp, vcp, dnp->n_rpath, dnp->n_rplen, 
+		    caseopt);
 		if (error)
 			return error;
+		if (name) {
+			/* Put the separator */
+			if (SMB_UNICODE_STRINGS(vcp))
+				error = mb_put_uint16le(mbp, '\\');
+			else
+				error = mb_put_uint8(mbp, '\\');
+			if (error)
+				return error;
+			/* Put the name */
+			error = smb_put_dmem(mbp, vcp, name, nmlen, caseopt);
+			if (error)
+				return error;
+		}
 	}
-	if (name) {
-		error = mb_put_uint8(mbp, '\\');
-		if (error)
-			return error;
-		error = smb_put_dmem(mbp, vcp, name, nmlen, caseopt);
-		if (error)
-			return error;
-	}
-	error = mb_put_uint8(mbp, 0);
+	/* Put NULL terminator. */
+	if (SMB_UNICODE_STRINGS(vcp))
+		error = mb_put_uint16le(mbp, 0);
+	else
+		error = mb_put_uint8(mbp, 0);
 	return error;
 }
 
@@ -195,12 +169,35 @@ smbfs_fname_tolocal(struct smb_vc *vcp, char *name, int *nmlen, int caseopt)
 		if (error) return error;
 		*/
 
-		error = iconv_conv_case
-			(vcp->vc_tolocal, (const char **)&ibuf, &ilen, &obuf, &olen, copt);
+		error = iconv_conv_case(vcp->vc_tolocal,
+		    __DECONST(const char **, &ibuf), &ilen, &obuf, &olen, copt);
+		if (error && SMB_UNICODE_STRINGS(vcp)) {
+			/*
+			 * If using unicode, leaving a file name as it was when
+			 * convert fails will cause a problem because the file name
+			 * will contain NULL.
+			 * Here, put '?' and give converted file name.
+			 */
+			*obuf = '?';
+			olen--;
+			error = 0;
+		}
 		if (!error) {
 			*nmlen = sizeof(outbuf) - olen;
 			memcpy(name, outbuf, *nmlen);
 		}
 	}
 	return error;
+}
+
+void *
+smbfs_malloc_scred(void)
+{
+	return (malloc(sizeof(struct smb_cred), M_SMBFSCRED, M_WAITOK));
+}
+
+void
+smbfs_free_scred(void *scred)
+{
+	free(scred, M_SMBFSCRED);
 }

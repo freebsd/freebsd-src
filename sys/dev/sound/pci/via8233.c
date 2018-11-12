@@ -1164,7 +1164,7 @@ via_chip_init(device_t dev)
 static int
 via_attach(device_t dev)
 {
-	struct via_info *via = 0;
+	struct via_info *via = NULL;
 	char status[SND_STATUSLEN];
 	int i, via_dxs_disabled, via_dxs_src, via_dxs_chnum, via_sgd_chnum;
 	int nsegs;
@@ -1175,7 +1175,7 @@ via_attach(device_t dev)
 	    "snd_via8233 softc");
 	via->dev = dev;
 
-	callout_init(&via->poll_timer, CALLOUT_MPSAFE);
+	callout_init(&via->poll_timer, 1);
 	via->poll_ticks = 1;
 
 	if (resource_int_value(device_get_name(dev),
@@ -1348,7 +1348,7 @@ via_attach(device_t dev)
 		ac97_setextmode(via->codec, ext);
 	}
 
-	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld %s",
+	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd %s",
 	    rman_get_start(via->reg), rman_get_start(via->irq),
 	    PCM_KLDSTRING(snd_via8233));
 
@@ -1381,7 +1381,7 @@ bad:
 		bus_release_resource(dev, SYS_RES_IRQ, via->irqid, via->irq);
 	if (via->parent_dmat)
 		bus_dma_tag_destroy(via->parent_dmat);
-	if (via->sgd_dmamap)
+	if (via->sgd_addr)
 		bus_dmamap_unload(via->sgd_dmat, via->sgd_dmamap);
 	if (via->sgd_table)
 		bus_dmamem_free(via->sgd_dmat, via->sgd_table, via->sgd_dmamap);

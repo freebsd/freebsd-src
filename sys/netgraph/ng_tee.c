@@ -153,9 +153,7 @@ ng_tee_constructor(node_p node)
 {
 	sc_p privdata;
 
-	privdata = malloc(sizeof(*privdata), M_NETGRAPH, M_NOWAIT|M_ZERO);
-	if (privdata == NULL)
-		return (ENOMEM);
+	privdata = malloc(sizeof(*privdata), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	NG_NODE_SET_PRIVATE(node, privdata);
 	return (0);
@@ -170,7 +168,7 @@ ng_tee_newhook(node_p node, hook_p hook, const char *name)
 	sc_p	privdata = NG_NODE_PRIVATE(node);
 	hi_p	hinfo;
 
-	/* Precalculate internal pathes. */
+	/* Precalculate internal paths. */
 	if (strcmp(name, NG_TEE_HOOK_RIGHT) == 0) {
 		hinfo = &privdata->right;
 		if (privdata->left.dest)
@@ -307,7 +305,7 @@ ng_tee_rcvdata(hook_p hook, item_p item)
 		struct mbuf *m2;
 
 		/* Copy packet (failure will not stop the original)*/
-		m2 = m_dup(m, M_DONTWAIT);
+		m2 = m_dup(m, M_NOWAIT);
 		if (m2) {
 			/* Deliver duplicate */
 			h = hinfo->dup;
@@ -373,7 +371,7 @@ ng_tee_disconnect(hook_p hook)
 	KASSERT(hinfo != NULL, ("%s: null info", __func__));
 	hinfo->hook = NULL;
 
-	/* Recalculate internal pathes. */
+	/* Recalculate internal paths. */
 	if (sc->left.dest == hinfo) {
 		sc->left.dest = sc->left.dup;
 		sc->left.dup = NULL;

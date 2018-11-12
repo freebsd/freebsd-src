@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PROG=	gssd
 MAN=	gssd.8
 SRCS=	gssd.c gssd.h gssd_svc.c gssd_xdr.c gssd_prot.c
@@ -7,13 +9,17 @@ SRCS=	gssd.c gssd.h gssd_svc.c gssd_xdr.c gssd_prot.c
 CFLAGS+= -I.
 WARNS?= 1
 
-DPADD=	${LIBGSSAPI}
-LDADD=	-lgssapi
+LIBADD=	gssapi
+.if ${MK_KERBEROS_SUPPORT} != "no"
+LIBADD+=	krb5 roken
+.else
+CFLAGS+= -DWITHOUT_KERBEROS
+.endif
 
-CLEANFILES= gssd_svc.c gssd.h
+CLEANFILES= gssd_svc.c gssd_xdr.c gssd.h
 
 RPCSRC=	${.CURDIR}/../../sys/kgssapi/gssd.x
-RPCGEN= rpcgen -L -C -M
+RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -L -C -M
 
 gssd_svc.c: ${RPCSRC} gssd.h
 	${RPCGEN} -m -o ${.TARGET} ${RPCSRC}

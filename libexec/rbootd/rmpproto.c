@@ -18,11 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -401,7 +397,7 @@ SendReadRepl(RMPCONN *rconn)
 	int madeconn = 0;
 
 	/*
-	 *  Find the old connection.  If one doesnt exist, create one only
+	 *  Find the old connection.  If one doesn't exist, create one only
 	 *  to return the error code.
 	 */
 	if ((oldconn = FindConn(rconn)) == NULL) {
@@ -515,7 +511,7 @@ BootDone(RMPCONN *rconn)
 	struct rmp_packet *rpl;
 
 	/*
-	 *  If we cant find the connection, ignore the request.
+	 *  If we can't find the connection, ignore the request.
 	 */
 	if ((oldconn = FindConn(rconn)) == NULL) {
 		syslog(LOG_ERR, "BootDone: no existing connection (%s)",
@@ -575,7 +571,7 @@ SendPacket(RMPCONN *rconn)
 	/*
 	 *  Last time this connection was active.
 	 */
-	(void) gettimeofday(&rconn->tstamp, (struct timezone *)0);
+	(void)gettimeofday(&rconn->tstamp, NULL);
 
 	if (DbgFp != NULL)			/* display packet */
 		DispPkt(rconn,DIR_SENT);

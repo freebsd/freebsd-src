@@ -735,7 +735,7 @@ i386_skip_prologue (CORE_ADDR start_pc)
 
       /* addl y,%ebx */
       if (delta > 0 && op == 0x81
-	  && read_memory_unsigned_integer (pc + delta + 1, 1) == 0xc3);
+	  && read_memory_unsigned_integer (pc + delta + 1, 1) == 0xc3)
 	{
 	  pc += delta + 6;
 	}

@@ -1,0 +1,4 @@
+.\" $FreeBSD$
+Set to build and install ELF Tool Chain's elfcopy as
+.Xr objcopy 1 ,
+instead of the one from GNU Binutils.

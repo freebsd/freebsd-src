@@ -1,3 +1,5 @@
+/*	$NetBSD: read.h,v 1.7 2009/12/30 22:37:40 christos Exp $	*/
+
 /*-
  * Copyright (c) 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -13,9 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -29,7 +28,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$NetBSD: read.h,v 1.5 2006/08/21 12:45:30 christos Exp $
  * $FreeBSD$
  */
 
@@ -39,7 +37,7 @@
 #ifndef	_h_el_read
 #define	_h_el_read
 
-typedef int (*el_rfunc_t)(EditLine *, char *);
+typedef int (*el_rfunc_t)(EditLine *, Char *);
 
 typedef struct el_read_t {
 	el_rfunc_t	read_char;	/* Function to read a character */

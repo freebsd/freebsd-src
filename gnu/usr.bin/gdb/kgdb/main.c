@@ -83,7 +83,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-afqv] [-d crashdir] [-c core | -n dumpnr | -r device]\n"
+	    "usage: %s [-afqvw] [-b rate] [-d crashdir] [-c core | -n dumpnr | -r device]\n"
 	    "\t[kernel [core]]\n", getprogname());
 	exit(1);
 }
@@ -129,7 +129,7 @@ kernel_from_dumpnr(int nr)
 	snprintf(path, sizeof(path), "%s/info.%d", crashdir, nr);
 	info = fopen(path, "r");
 	if (info == NULL) {
-		warn(path);
+		warn("%s", path);
 		return;
 	}
 	while (fgets(path, sizeof(path), info) != NULL) {
@@ -222,11 +222,13 @@ kgdb_dmesg(void)
 		return;
 	bufp = kgdb_parse("msgbufp->msg_ptr");
 	size = (int)kgdb_parse("msgbufp->msg_size");
+	if (bufp == 0 || size == 0)
+		return;
 	rseq = (int)kgdb_parse("msgbufp->msg_rseq");
 	wseq = (int)kgdb_parse("msgbufp->msg_wseq");
 	rseq = MSGBUF_SEQ_TO_POS(size, rseq);
 	wseq = MSGBUF_SEQ_TO_POS(size, wseq);
-	if (bufp == 0 || size == 0 || rseq == wseq)
+	if (rseq == wseq)
 		return;
 
 	printf("\nUnread portion of the kernel message buffer:\n");
@@ -331,11 +333,23 @@ main(int argc, char *argv[])
 	args.argv = malloc(sizeof(char *));
 	args.argv[0] = argv[0];
 
-	while ((ch = getopt(argc, argv, "ac:d:fn:qr:vw")) != -1) {
+	while ((ch = getopt(argc, argv, "ab:c:d:fn:qr:vw")) != -1) {
 		switch (ch) {
 		case 'a':
 			annotation_level++;
 			break;
+		case 'b': {
+			int i;
+			char *p;
+
+			i = strtol(optarg, &p, 0);
+			if (*p != '\0' || p == optarg)
+				warnx("warning: could not set baud rate to `%s'.\n",
+				    optarg);
+			else
+				baud_rate = i;
+			break;
+		}
 		case 'c':	/* use given core file. */
 			if (vmcore != NULL) {
 				warnx("option %c: can only be specified once",
@@ -406,7 +420,7 @@ main(int argc, char *argv[])
 	if (dumpnr >= 0) {
 		snprintf(path, sizeof(path), "%s/vmcore.%d", crashdir, dumpnr);
 		if (stat(path, &st) == -1)
-			err(1, path);
+			err(1, "%s", path);
 		if (!S_ISREG(st.st_mode))
 			errx(1, "%s: not a regular file", path);
 		vmcore = strdup(path);
@@ -460,7 +474,7 @@ main(int argc, char *argv[])
 	add_arg(&args, NULL);
 
 	init_ui_hook = kgdb_init;
-
+	frame_tdep_pc_fixup = kgdb_trgt_pc_fixup;
 	kgdb_sniffer_kluge = kgdb_trgt_trapframe_sniffer;
 
 	return (gdb_main(&args));

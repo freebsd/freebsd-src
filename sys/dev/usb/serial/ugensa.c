@@ -16,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -50,7 +43,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -102,10 +94,12 @@ struct ugensa_softc {
 static device_probe_t ugensa_probe;
 static device_attach_t ugensa_attach;
 static device_detach_t ugensa_detach;
+static void ugensa_free_softc(struct ugensa_softc *);
 
 static usb_callback_t ugensa_bulk_write_callback;
 static usb_callback_t ugensa_bulk_read_callback;
 
+static void	ugensa_free(struct ucom_softc *);
 static void	ugensa_start_read(struct ucom_softc *);
 static void	ugensa_stop_read(struct ucom_softc *);
 static void	ugensa_start_write(struct ucom_softc *);
@@ -139,6 +133,7 @@ static const struct ucom_callback ugensa_callback = {
 	.ucom_start_write = &ugensa_start_write,
 	.ucom_stop_write = &ugensa_stop_write,
 	.ucom_poll = &ugensa_poll,
+	.ucom_free = &ugensa_free,
 };
 
 static device_method_t ugensa_methods[] = {
@@ -146,7 +141,7 @@ static device_method_t ugensa_methods[] = {
 	DEVMETHOD(device_probe, ugensa_probe),
 	DEVMETHOD(device_attach, ugensa_attach),
 	DEVMETHOD(device_detach, ugensa_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t ugensa_devclass;
@@ -157,17 +152,19 @@ static driver_t ugensa_driver = {
 	.size = sizeof(struct ugensa_softc),
 };
 
-DRIVER_MODULE(ugensa, uhub, ugensa_driver, ugensa_devclass, NULL, 0);
-MODULE_DEPEND(ugensa, ucom, 1, 1, 1);
-MODULE_DEPEND(ugensa, usb, 1, 1, 1);
-
-static const struct usb_device_id ugensa_devs[] = {
+static const STRUCT_USB_HOST_ID ugensa_devs[] = {
 	{USB_VPI(USB_VENDOR_AIRPRIME, USB_PRODUCT_AIRPRIME_PC5220, 0)},
 	{USB_VPI(USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_CDMA_MODEM1, 0)},
 	{USB_VPI(USB_VENDOR_KYOCERA2, USB_PRODUCT_KYOCERA2_CDMA_MSM_K, 0)},
 	{USB_VPI(USB_VENDOR_HP, USB_PRODUCT_HP_49GPLUS, 0)},
 	{USB_VPI(USB_VENDOR_NOVATEL2, USB_PRODUCT_NOVATEL2_FLEXPACKGPS, 0)},
 };
+
+DRIVER_MODULE(ugensa, uhub, ugensa_driver, ugensa_devclass, NULL, 0);
+MODULE_DEPEND(ugensa, ucom, 1, 1, 1);
+MODULE_DEPEND(ugensa, usb, 1, 1, 1);
+MODULE_VERSION(ugensa, 1);
+USB_PNP_HOST_INFO(ugensa_devs);
 
 static int
 ugensa_probe(device_t dev)
@@ -199,6 +196,7 @@ ugensa_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "ugensa", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	/* Figure out how many interfaces this device has got */
 	for (cnt = 0; cnt < UGENSA_IFACE_MAX; cnt++) {
@@ -210,7 +208,7 @@ ugensa_attach(device_t dev)
 	}
 
 	if (cnt == 0) {
-		device_printf(dev, "No interfaces!\n");
+		device_printf(dev, "No interfaces\n");
 		goto detach;
 	}
 	for (x = 0; x < cnt; x++) {
@@ -229,7 +227,7 @@ ugensa_attach(device_t dev)
 
 		if (error) {
 			device_printf(dev, "allocating USB "
-			    "transfers failed!\n");
+			    "transfers failed\n");
 			goto detach;
 		}
 		/* clear stall at first run */
@@ -253,6 +251,8 @@ ugensa_attach(device_t dev)
 		DPRINTF("attach failed\n");
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	return (0);			/* success */
 
 detach:
@@ -266,14 +266,34 @@ ugensa_detach(device_t dev)
 	struct ugensa_softc *sc = device_get_softc(dev);
 	uint8_t x;
 
-	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom, sc->sc_niface);
+	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom);
 
 	for (x = 0; x < sc->sc_niface; x++) {
 		usbd_transfer_unsetup(sc->sc_sub[x].sc_xfer, UGENSA_N_TRANSFER);
 	}
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	ugensa_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(ugensa);
+
+static void
+ugensa_free_softc(struct ugensa_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+ugensa_free(struct ucom_softc *ucom)
+{
+	ugensa_free_softc(ucom->sc_parent);
 }
 
 static void

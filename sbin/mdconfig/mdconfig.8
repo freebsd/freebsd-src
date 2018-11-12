@@ -16,11 +16,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -41,12 +37,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2008
+.Dd October 10, 2015
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
 .Nm mdconfig
-.Nd configure and enable memory disks
+.Nd create and control memory disks
 .Sh SYNOPSIS
 .Nm
 .Fl a
@@ -58,20 +54,28 @@
 .Op Fl S Ar sectorsize
 .Op Fl u Ar unit
 .Op Fl x Ar sectors/track
-.Op Fl y Ar heads/cyl
+.Op Fl y Ar heads/cylinder
 .Nm
 .Fl d
 .Fl u Ar unit
 .Op Fl o Oo Cm no Oc Ns Ar force
 .Nm
+.Fl r
+.Fl u Ar unit
+.Fl s Ar size
+.Op Fl o Oo Cm no Oc Ns Ar force
+.Nm
 .Fl l
 .Op Fl n
 .Op Fl v
+.Op Fl f Ar file
 .Op Fl u Ar unit
+.Nm
+.Ar file
 .Sh DESCRIPTION
 The
 .Nm
-utility configures and enables
+utility creates and controls
 .Xr md 4
 devices.
 .Pp
@@ -81,11 +85,16 @@ Options indicate an action to be performed:
 Attach a memory disk.
 This will configure and attach a memory disk with the
 parameters specified and attach it to the system.
+If the
+.Fl u Ar unit
+option is not provided, the newly created device name will be printed on stdout.
 .It Fl d
 Detach a memory disk from the system and release all resources.
+.It Fl r
+Resize a memory disk.
 .It Fl t Ar type
 Select the type of the memory disk.
-.Bl -tag -width "preload"
+.Bl -tag -width "malloc"
 .It Cm malloc
 Storage for this type of memory disk is allocated with
 .Xr malloc 9 .
@@ -94,7 +103,7 @@ If the
 .Fl o Cm reserve
 option is not set, creating and filling a large
 malloc-backed memory disk is a very easy way to
-panic a system.
+panic the system.
 .It Cm vnode
 A file specified with
 .Fl f Ar file
@@ -102,46 +111,68 @@ becomes the backing store for this memory disk.
 .It Cm swap
 Storage for this type of memory disk is allocated from buffer
 memory.
-Pages get pushed out to the swap when the system is under memory
+Pages get pushed out to swap when the system is under memory
 pressure, otherwise they stay in the operating memory.
 Using
 .Cm swap
-backing is generally preferable over
+backing is generally preferred instead of using
 .Cm malloc
 backing.
+.It Cm null
+Bitsink; all writes do nothing, all reads return zeroes.
 .El
 .It Fl f Ar file
-Filename to use for the vnode type memory disk. Options
+Filename to use for the vnode type memory disk.
+The
 .Fl a
 and
 .Fl t Ar vnode
-are implied if not specified.
+options are implied if not specified.
 .It Fl l
 List configured devices.
 If given with
 .Fl u ,
 display details about that particular device.
-If
+If given with
+.Fl f Ar file ,
+display
+.Xr md 4
+device names of which
+.Ar file
+is used as the backing store.
+If both of
+.Fl u
+and
+.Fl f
+options are specified,
+display devices which match the two conditions.
+If the
 .Fl v
-option specified, show all details.
+option is specified, show all details.
 .It Fl n
-When printing md device names, print only the unit number without the
-md prefix.
+When printing
+.Xr md 4
+device names, print only the unit number without the
+.Xr md 4
+prefix.
 .It Fl s Ar size
 Size of the memory disk.
 .Ar Size
 is the number of 512 byte sectors unless suffixed with a
-.Cm b , k , m , g ,
+.Cm b , k , m , g , t ,
 or
-.Cm t
+.Cm p
 which
-denotes byte, kilobyte, megabyte, gigabyte and terabyte respectively. Options
+denotes byte, kilobyte, megabyte, gigabyte, terabyte and petabyte respectively.
+When used without the
+.Fl r
+option, the
 .Fl a
 and
 .Fl t Ar swap
-are implied if not specified.
+options are implied if not specified.
 .It Fl S Ar sectorsize
-Sectorsize to use for malloc backed device.
+Sectorsize to use for the memory disk, in bytes.
 .It Fl x Ar sectors/track
 See the description of the
 .Fl y
@@ -173,81 +204,103 @@ Allocate and reserve all needed storage from the start, rather than as needed.
 .It Oo Cm no Oc Ns Cm cluster
 Enable clustering on this disk.
 .It Oo Cm no Oc Ns Cm compress
-Enable/Disable compression features to reduce memory usage.
+Enable/disable compression features to reduce memory usage.
 .It Oo Cm no Oc Ns Cm force
-Disable/Enable extra sanity checks to prevent the user from doing something
+Disable/enable extra sanity checks to prevent the user from doing something
 that might adversely affect the system.
+This can be used with the
+.Fl d
+flag to forcibly destroy an
+.Xr md 4
+disk that is still in use.
 .It Oo Cm no Oc Ns Cm readonly
-Enable/Disable readonly mode.
+Enable/disable readonly mode.
 .El
 .It Fl u Ar unit
-Request a specific unit number for the
+Request a specific unit number or device name for the
 .Xr md 4
 device instead of automatic allocation.
+If a device name is specified, it must be start with
+.Dq md
+followed by the unit number.
 .El
+.Pp
+The last form,
+.Nm
+.Ar file ,
+is provided for convenience as an abbreviation of
+.Nm
+.Fl a
+.Fl t Ar vnode
+.Fl f Ar file .
 .Sh EXAMPLES
-To create a 4 megabyte
-.Xr malloc 9
-backed memory disk.
-The name of the allocated unit will be output on stdout like
-.Dq Li md3 :
-.Pp
-.Dl mdconfig -a -t malloc -s 4m
-.Pp
-To create a disk named
-.Pa /dev/md4
-with
+Create a disk with
 .Pa /tmp/boot.flp
-as backing storage:
+as backing storage.
+The name of the allocated unit will be printed on stdout, such as
+.Dq Li md0 :
+.Bd -literal -offset indent
+mdconfig /tmp/boot.flp
+.Ed
 .Pp
-.Dl mdconfig -a -t vnode -f /tmp/boot.flp -u 4
+Create a 1 gigabyte swap backed memory disk named
+.Dq Li md3 :
+.Bd -literal -offset indent
+mdconfig -s 1g -u md3
+.Ed
 .Pp
-To detach and free all resources used by
-.Pa /dev/md4 :
+Detach and free all resources used by
+.Pa /dev/md3 :
+.Bd -literal -offset indent
+mdconfig -du md3
+.Ed
 .Pp
-.Dl mdconfig -d -u 4
+Show detailed information on current memory disks:
+.Bd -literal -offset indent
+mdconfig -lv
+.Ed
 .Pp
-To create a 128MByte swap backed disk, initialize an
+Resize the
+.Dq Li md3
+memory disk to 2 gigabytes:
+.Bd -literal -offset indent
+mdconfig -rs 2g -u md3
+.Ed
+.Pp
+Create a 1 gigabyte swap backed disk, initialize an
 .Xr ffs 7
 file system on it, and mount it on
 .Pa /tmp :
 .Bd -literal -offset indent
-mdconfig -a -t swap -s 128M -u 10
+mdconfig -s 1g -u md10
 newfs -U /dev/md10
 mount /dev/md10 /tmp
 chmod 1777 /tmp
 .Ed
 .Pp
-To create a 5MB file-backed disk
-.Ns ( Fl a
-and
-.Fl t Ar vnode
-are implied):
-.Bd -literal -offset indent
-dd if=/dev/zero of=somebackingfile bs=1k count=5k
-mdconfig -f somebackingfile -u 0
-bsdlabel -w md0 auto
-newfs md0c
-mount /dev/md0c /mnt
-.Ed
-.Pp
-To create an
+Create a memory disk out of an ISO 9660 CD image file,
+using the first available
 .Xr md 4
-device out of an ISO 9660 CD image file
-.Ns ( Fl a
-and
-.Fl t Ar vnode
-are implied), using the first available
-.Xr md 4
-device, and then mount the new memory disk:
+device, and then mount it:
 .Bd -literal -offset indent
 mount -t cd9660 /dev/`mdconfig -f cdimage.iso` /mnt
+.Ed
+.Pp
+Create a file-backed device from a hard disk image that begins
+with 512K of raw header information.
+.Xr gnop 8
+is used to skip over the header information, positioning
+.Pa md1.nop
+to the start of the filesystem in the image.
+.Bd -literal -offset indent
+mdconfig -u md1 -f diskimage.img
+gnop create -o 512K md1
+mount /dev/md1.nop /mnt
 .Ed
 .Sh SEE ALSO
 .Xr md 4 ,
 .Xr ffs 7 ,
-.Xr bsdlabel 8 ,
-.Xr fdisk 8 ,
+.Xr gpart 8 ,
 .Xr mdmfs 8 ,
 .Xr malloc 9
 .Sh HISTORY
@@ -264,5 +317,4 @@ combo.
 The
 .Nm
 utility was written by
-.An Poul-Henning Kamp
-.Aq phk@FreeBSD.org .
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .

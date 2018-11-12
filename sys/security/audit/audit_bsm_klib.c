@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/libkern.h>
@@ -94,7 +95,6 @@ static const struct aue_open_event aue_open[] = {
 	{ (O_WRONLY | O_CREAT | O_TRUNC),		AUE_OPEN_WTC },
 	{ (O_WRONLY | O_TRUNC),				AUE_OPEN_WT },
 };
-static const int aue_open_count = sizeof(aue_open) / sizeof(aue_open[0]);
 
 static const struct aue_open_event aue_openat[] = {
 	{ O_RDONLY,					AUE_OPENAT_R },
@@ -110,7 +110,6 @@ static const struct aue_open_event aue_openat[] = {
 	{ (O_WRONLY | O_CREAT | O_TRUNC),		AUE_OPENAT_WTC },
 	{ (O_WRONLY | O_TRUNC),				AUE_OPENAT_WT },
 };
-static const int aue_openat_count = sizeof(aue_openat) / sizeof(aue_openat[0]);
 
 /*
  * Look up the class for an audit event in the class mapping table.
@@ -273,7 +272,6 @@ audit_ctlname_to_sysctlevent(int name[], uint64_t valid_arg)
 	case KERN_USRSTACK:
 	case KERN_LOGSIGEXIT:
 	case KERN_IOV_MAX:
-	case KERN_MAXID:
 		return ((valid_arg & ARG_VALUE) ?
 		    AUE_SYSCTL : AUE_SYSCTL_NONADMIN);
 
@@ -296,7 +294,7 @@ audit_flags_and_error_to_openevent(int oflags, int error)
 	 * Need to check only those flags we care about.
 	 */
 	oflags = oflags & (O_RDONLY | O_CREAT | O_TRUNC | O_RDWR | O_WRONLY);
-	for (i = 0; i < aue_open_count; i++) {
+	for (i = 0; i < nitems(aue_open); i++) {
 		if (aue_open[i].aoe_flags == oflags)
 			return (aue_open[i].aoe_event);
 	}
@@ -312,7 +310,7 @@ audit_flags_and_error_to_openatevent(int oflags, int error)
 	 * Need to check only those flags we care about.
 	 */
 	oflags = oflags & (O_RDONLY | O_CREAT | O_TRUNC | O_RDWR | O_WRONLY);
-	for (i = 0; i < aue_openat_count; i++) {
+	for (i = 0; i < nitems(aue_openat); i++) {
 		if (aue_openat[i].aoe_flags == oflags)
 			return (aue_openat[i].aoe_event);
 	}
@@ -462,13 +460,14 @@ auditon_command_event(int cmd)
  * leave the filename starting with '/' in the audit log in this case.
  */
 void
-audit_canon_path(struct thread *td, char *path, char *cpath)
+audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 {
 	struct vnode *cvnp, *rvnp;
 	char *rbuf, *fbuf, *copy;
 	struct filedesc *fdp;
 	struct sbuf sbf;
-	int error, cwir;
+	cap_rights_t rights;
+	int error, needslash;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s: at %s:%d",
 	    __func__,  __FILE__, __LINE__);
@@ -491,10 +490,26 @@ audit_canon_path(struct thread *td, char *path, char *cpath)
 	 * path.
 	 */
 	if (*path != '/') {
-		cvnp = fdp->fd_cdir;
-		vhold(cvnp);
+		if (dirfd == AT_FDCWD) {
+			cvnp = fdp->fd_cdir;
+			vhold(cvnp);
+		} else {
+			/* XXX: fgetvp() that vhold()s vnode instead of vref()ing it would be better */
+			error = fgetvp(td, dirfd, cap_rights_init(&rights), &cvnp);
+			if (error) {
+				FILEDESC_SUNLOCK(fdp);
+				cpath[0] = '\0';
+				if (rvnp != NULL)
+					vdrop(rvnp);
+				return;
+			}
+			vhold(cvnp);
+			vrele(cvnp);
+		}
+		needslash = (fdp->fd_rdir != cvnp);
+	} else {
+		needslash = 1;
 	}
-	cwir = (fdp->fd_rdir == fdp->fd_cdir);
 	FILEDESC_SUNLOCK(fdp);
 	/*
 	 * NB: We require that the supplied array be at least MAXPATHLEN bytes
@@ -536,7 +551,7 @@ audit_canon_path(struct thread *td, char *path, char *cpath)
 		(void) sbuf_cat(&sbf, rbuf);
 		free(fbuf, M_TEMP);
 	}
-	if (cwir == 0 || (cwir != 0 && cvnp == NULL))
+	if (needslash)
 		(void) sbuf_putc(&sbf, '/');
 	/*
 	 * Now that we have processed any alternate root and relative path
@@ -548,7 +563,7 @@ audit_canon_path(struct thread *td, char *path, char *cpath)
 	 * the supplied buffer being overflowed.  Check to see if this is the
 	 * case.
 	 */
-	if (sbuf_overflowed(&sbf) != 0) {
+	if (sbuf_error(&sbf) != 0) {
 		cpath[0] = '\0';
 		return;
 	}

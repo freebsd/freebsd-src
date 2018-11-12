@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 
 #define	_ARM32_BUS_DMA_PRIVATE
+#include <machine/armreg.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
 
@@ -248,7 +249,7 @@ void
 cpu_reset(void)
 {
 
-	disable_interrupts(I32_bit);
+	disable_interrupts(PSR_I);
 	/* XXX: Use the watchdog to reset for now */
 	__asm __volatile("mcr p6, 0, %0, c8, c9, 0\n"
 	    		 "mcr p6, 0, %1, c7, c9, 0\n"
@@ -408,7 +409,7 @@ i81342_attach(device_t dev)
 
 static struct resource *
 i81342_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct i81342_softc *sc = device_get_softc(dev);
 	struct resource *rv;
@@ -425,15 +426,16 @@ i81342_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-i81342_setup_intr(device_t dev, device_t child, struct resource *ires, 
-    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, 
+i81342_setup_intr(device_t dev, device_t child, struct resource *ires,
+    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg,
     void **cookiep)
 {
-	
+	int error;
 
-	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, intr,
-	    arg, cookiep);
-	arm_unmask_irq(rman_get_start(ires));
+	error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
+	    filt, intr, arg, cookiep);
+	if (error)
+		return (error);
 	return (0);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2004, 2006, 2008 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2004, 2006, 2008, 2012 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfapi.h,v 8.78 2008/02/27 22:30:34 ca Exp $
+ *	$Id: mfapi.h,v 8.83 2013-11-22 20:51:27 ca Exp $
  */
 
 /*
@@ -18,7 +18,14 @@
 # define _LIBMILTER_MFAPI_H	1
 
 #ifndef SMFI_VERSION
-# define SMFI_VERSION	0x01000001	/* libmilter version number */
+# if _FFR_MDS_NEGOTIATE
+#  define SMFI_VERSION	0x01000002	/* libmilter version number */
+
+   /* first libmilter version that has MDS support */
+#  define SMFI_VERSION_MDS	0x01000002
+# else /* _FFR_MDS_NEGOTIATE */
+#  define SMFI_VERSION	0x01000001	/* libmilter version number */
+# endif /* _FFR_MDS_NEGOTIATE */
 #endif /* ! SMFI_VERSION */
 
 #define SM_LM_VRS_MAJOR(v)	(((v) & 0x7f000000) >> 24)
@@ -89,6 +96,8 @@ typedef int	sfsistat;
 #  ifndef bool
 #   ifndef __bool_true_false_are_defined
 typedef int	bool;
+#    define false	0
+#    define true	1
 #    define __bool_true_false_are_defined	1
 #   endif /* ! __bool_true_false_are_defined */
 #  endif /* bool */
@@ -163,9 +172,7 @@ LIBMILTER_API int smfi_setdbg __P((int));
 LIBMILTER_API int smfi_settimeout __P((int));
 LIBMILTER_API int smfi_setconn __P((char *));
 LIBMILTER_API int smfi_stop __P((void));
-#if _FFR_MAXDATASIZE
 LIBMILTER_API size_t smfi_setmaxdatasize __P((size_t));
-#endif /* _FFR_MAXDATASIZE */
 LIBMILTER_API int smfi_version __P((unsigned int *, unsigned int *, unsigned int *));
 
 /*
@@ -199,6 +206,7 @@ LIBMILTER_API int smfi_version __P((unsigned int *, unsigned int *, unsigned int
 **	(hence the list is not sorted by the SMT protocol steps).
 */
 
+#define SMFIM_NOMACROS	(-1)	/* Do NOT use, internal only */
 #define SMFIM_FIRST	0	/* Do NOT use, internal marker only */
 #define SMFIM_CONNECT	0	/* connect */
 #define SMFIM_HELO	1	/* HELO/EHLO */

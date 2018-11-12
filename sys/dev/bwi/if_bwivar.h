@@ -533,25 +533,19 @@ struct bwi_rx_radiotap_hdr {
 	/* TODO: sq */
 };
 
-struct bwi_node {
-	struct ieee80211_node		ni;	/* must be the first */
-	struct ieee80211_amrr_node	amn;
-};
-#define	BWI_NODE(ni)	((struct bwi_node *)(ni))
-
 struct bwi_vap {
 	struct ieee80211vap	bv_vap;
-	struct ieee80211_amrr	bv_amrr;
 	int			(*bv_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
 };
 #define	BWI_VAP(vap)	((struct bwi_vap *)(vap))
 
 struct bwi_softc {
-	struct ifnet		*sc_ifp;
 	uint32_t		sc_flags;	/* BWI_F_ */
 	device_t		sc_dev;
 	struct mtx		sc_mtx;
+	struct ieee80211com	sc_ic;
+	struct mbufq		sc_snd;
 	int			sc_invalid;
 
 	uint32_t		sc_cap;		/* BWI_CAP_ */
@@ -578,6 +572,7 @@ struct bwi_softc {
 	bus_space_handle_t	sc_mem_bh;
 
 	struct callout		sc_calib_ch;
+	struct callout		sc_watchdog_timer;
 
 	struct bwi_regwin	*sc_cur_regwin;
 	struct bwi_regwin	sc_com_regwin;
@@ -653,6 +648,7 @@ struct bwi_softc {
 #define BWI_F_BUS_INITED	0x1
 #define BWI_F_PROMISC		0x2
 #define BWI_F_STOP		0x4
+#define	BWI_F_RUNNING		0x8
 
 #define BWI_DBG_MAC		0x00000001
 #define BWI_DBG_RF		0x00000002

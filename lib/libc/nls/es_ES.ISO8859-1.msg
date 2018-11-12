@@ -62,7 +62,7 @@ $ EFBIG
 $ ENOSPC
 28 No queda espacio libre en el dispositivo
 $ ESPIPE
-29 Illegal seek
+29 Búsqueda ilegal
 $ EROFS
 30 Sistema de ficheros de solo lectura
 $ EMLINK
@@ -88,7 +88,7 @@ $ EMSGSIZE
 $ EPROTOTYPE
 41 Tipo erróneo de protocolo para el socket
 $ ENOPROTOOPT
-42 protocolo no disponible
+42 Protocolo no disponible
 $ EPROTONOSUPPORT
 43 Protocolo no contemplado
 $ ESOCKTNOSUPPORT
@@ -176,23 +176,33 @@ $ EOVERFLOW
 $ ECANCELED
 85 Operación cancelada
 $ EILSEQ
-86 Illegal byte sequence
+86 Secuencia de bytes ilegal
 $ ENOATTR
 87 Atributo no encontrado
 $ EDOOFUS
 88 Error de programación
+$ EBADMSG
+89 Mensaje inválido
+$ EMULTIHOP
+90 Intento de hop multiple
+$ ENOLINK
+91 El enlace se ha roto
+$ EPROTO
+92 Fallo de protocolo
+$ ENOTCAPABLE
+93 Habilidades insuficientes
 $
 $ strsignal() support catalog
 $
 $set 2
 $ SIGHUP
-1 Fín de línea (Hangup)
+1 Fin de línea (Hangup)
 $ SIGINT
 2 Interrumpido
 $ SIGQUIT
 3 Terminado
 $ SIGILL
-4 Illegal instruction
+4 Instrucción ilegal
 $ SIGTRAP
 5 Trace/BPT trap
 $ SIGABRT
@@ -247,3 +257,39 @@ $ SIGUSR1
 30 Señal definida por el usuario n1
 $ SIGUSR2
 31 Señal definida por el usuario n2
+$
+$ gai_strerror() support catalog
+$
+$set 3
+$ 1 (obsoleto)
+1 Tipo de dirección no contemplado
+$ EAI_AGAIN
+2 Error transitorio en la resolución de nombres
+$ EAI_BADFLAGS
+3 Valor inválido de ai_flags
+$ EAI_FAIL
+4 Error no recuperable en la resolución de nombres
+$ EAI_FAMILY
+5 ai_family no contemplado
+$ EAI_MEMORY
+6 Error en la asignación de memoria
+$ 7 (obsoleto)
+7 No hay dirección asociada con el nombre de máquina
+$ EAI_NONAME
+8 No se dispone nombre de máquina, ni nombre de servicio
+$ EAI_SERVICE
+9 Nombre de servicio no contemplado en ai_socktype
+$ EAI_SOCKTYPE
+10 ai_socktype no contemplado
+$ EAI_SYSTEM
+11 Error de sistema devuelto en errno
+$ EAI_BADHINTS
+12 Valor inválido de hints
+$ EAI_PROTOCOL
+13 Protocolo resuelto desconocido
+$ EAI_OVERFLOW
+14 Búfer de argumentos sobrepasado
+$ 0
+32766 Éxito
+$ NL_MSGMAX
+32767 Error desconocido

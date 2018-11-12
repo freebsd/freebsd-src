@@ -47,7 +47,7 @@
 #include <sys/md5.h>
 
 #include <crypto/rijndael/rijndael-api-fst.h>
-#include <crypto/sha2/sha2.h>
+#include <crypto/sha2/sha512.h>
 
 #include <geom/geom.h>
 #include <geom/bde/g_bde.h>
@@ -311,7 +311,7 @@ g_bde_map_sector(struct g_bde_work *wp)
 	/* Compensate for lock sectors */
 	for (u = 0; u < G_BDE_MAXKEYS; u++) {
 		/* Find the start of this lock sector */
-		ko = kp->lsector[u] & ~((uint64_t)kp->sectorsize - 1);
+		ko = rounddown2(kp->lsector[u], (uint64_t)kp->sectorsize);
 
 		if (wp->kso >= ko)
 			wp->kso += kp->sectorsize;

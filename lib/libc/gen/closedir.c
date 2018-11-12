@@ -42,20 +42,19 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 #include "libc_private.h"
+#include "gen-private.h"
 #include "telldir.h"
 
 /*
  * close a directory.
  */
 int
-closedir(dirp)
-	DIR *dirp;
+fdclosedir(DIR *dirp)
 {
 	int fd;
 
 	if (__isthreaded)
 		_pthread_mutex_lock(&dirp->dd_lock);
-	_seekdir(dirp, dirp->dd_rewind);	/* free seekdir storage */
 	fd = dirp->dd_fd;
 	dirp->dd_fd = -1;
 	dirp->dd_loc = 0;
@@ -66,5 +65,12 @@ closedir(dirp)
 		_pthread_mutex_destroy(&dirp->dd_lock);
 	}
 	free((void *)dirp);
-	return(_close(fd));
+	return (fd);
+}
+
+int
+closedir(DIR *dirp)
+{
+
+	return (_close(fdclosedir(dirp)));
 }

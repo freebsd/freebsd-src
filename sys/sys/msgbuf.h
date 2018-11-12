@@ -33,15 +33,22 @@
 #ifndef _SYS_MSGBUF_H_
 #define	_SYS_MSGBUF_H_
 
+#include <sys/lock.h>
+#include <sys/mutex.h>
+
 struct msgbuf {
-	char	*msg_ptr;		/* pointer to buffer */
+	char	   *msg_ptr;		/* pointer to buffer */
 #define	MSG_MAGIC	0x063062
-	u_int	msg_magic;
-	u_int	msg_size;		/* size of buffer area */
-	u_int	msg_wseq;		/* write sequence number */
-	u_int	msg_rseq;		/* read sequence number */
-	u_int	msg_cksum;		/* checksum of contents */
-	u_int	msg_seqmod;		/* range for sequence numbers */
+	u_int	   msg_magic;
+	u_int	   msg_size;		/* size of buffer area */
+	u_int	   msg_wseq;		/* write sequence number */
+	u_int	   msg_rseq;		/* read sequence number */
+	u_int	   msg_cksum;		/* checksum of contents */
+	u_int	   msg_seqmod;		/* range for sequence numbers */
+	int	   msg_lastpri;		/* saved priority value */
+	u_int      msg_flags;
+#define MSGBUF_NEEDNL	0x01	/* set when newline needed */
+	struct mtx msg_lock;		/* mutex to protect the buffer */
 };
 
 /* Normalise a sequence number or a difference between sequence numbers. */
@@ -52,11 +59,14 @@ struct msgbuf {
 #define	MSGBUF_SEQSUB(mbp, seq1, seq2)	(MSGBUF_SEQNORM((mbp), (seq1) - (seq2)))
 
 #ifdef _KERNEL
+extern int	msgbufsize;
 extern int	msgbuftrigger;
 extern struct	msgbuf *msgbufp;
+extern struct	mtx msgbuf_lock;
 
 void	msgbufinit(void *ptr, int size);
 void	msgbuf_addchar(struct msgbuf *mbp, int c);
+void	msgbuf_addstr(struct msgbuf *mbp, int pri, char *str, int filter_cr);
 void	msgbuf_clear(struct msgbuf *mbp);
 void	msgbuf_copy(struct msgbuf *src, struct msgbuf *dst);
 int	msgbuf_getbytes(struct msgbuf *mbp, char *buf, int buflen);
@@ -68,7 +78,7 @@ int	msgbuf_peekbytes(struct msgbuf *mbp, char *buf, int buflen,
 void	msgbuf_reinit(struct msgbuf *mbp, void *ptr, int size);
 
 #ifndef MSGBUF_SIZE
-#define	MSGBUF_SIZE	(32768 * 2)
+#define	MSGBUF_SIZE	(32768 * 3)
 #endif
 #endif /* KERNEL */
 

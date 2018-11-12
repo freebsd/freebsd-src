@@ -1,4 +1,4 @@
-\ Copyright (c) 1999 Daniel C. Sobral <dcs@freebsd.org>
+\ Copyright (c) 1999 Daniel C. Sobral <dcs@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -54,10 +54,9 @@
 \ Exported global variables;
 \
 \ string conf_files		configuration files to be loaded
-\ string password		password
 \ cell modules_options		pointer to first module information
 \ value verbose?		indicates if user wants a verbose loading
-\ value any_conf_read?		indicates if a conf file was succesfully read
+\ value any_conf_read?		indicates if a conf file was successfully read
 \
 \ Other exported words:
 \    note, strlen is internal
@@ -164,7 +163,6 @@ structure: file_metadata
 
 string conf_files
 string nextboot_conf_file
-string password
 create module_options sizeof module.next allot 0 module_options !
 create last_module_option sizeof module.next allot 0 last_module_option !
 0 value verbose?
@@ -202,6 +200,46 @@ create last_module_option sizeof module.next allot 0 last_module_option !
 : 2r@ postpone 2r> postpone 2dup postpone 2>r ; immediate
 
 : getenv?  getenv -1 = if false else drop true then ;
+
+\ determine if a word appears in a string, case-insensitive
+: contains? ( addr1 len1 addr2 len2 -- 0 | -1 )
+	2 pick 0= if 2drop 2drop true exit then
+	dup 0= if 2drop 2drop false exit then
+	begin
+		begin
+			swap dup c@ dup 32 = over 9 = or over 10 = or
+			over 13 = or over 44 = or swap drop
+		while 1+ swap 1- repeat
+		swap 2 pick 1- over <
+	while
+		2over 2over drop over compare-insensitive 0= if
+			2 pick over = if 2drop 2drop true exit then
+			2 pick tuck - -rot + swap over c@ dup 32 =
+			over 9 = or over 10 = or over 13 = or over 44 = or
+			swap drop if 2drop 2drop true exit then
+		then begin
+			swap dup c@ dup 32 = over 9 = or over 10 = or
+			over 13 = or over 44 = or swap drop
+			if false else true then 2 pick 0> and
+		while 1+ swap 1- repeat
+		swap
+	repeat
+	2drop 2drop false
+;
+
+: boot_serial? ( -- 0 | -1 )
+	s" console" getenv dup -1 <> if
+		s" comconsole" 2swap contains?
+	else drop false then
+	s" boot_serial" getenv dup -1 <> if
+		swap drop 0>
+	else drop false then
+	or \ console contains comconsole ( or ) boot_serial
+	s" boot_multicons" getenv dup -1 <> if
+		swap drop 0>
+	else drop false then
+	or \ previous boolean ( or ) boot_multicons
+;
 
 \ Private definitions
 
@@ -277,7 +315,7 @@ string value_buffer
 \	reset_line_reading
 
 vocabulary line-reading
-also line-reading definitions also
+also line-reading definitions
 
 \ File data temporary storage
 
@@ -286,13 +324,13 @@ string read_buffer
 
 \ File's line reading function
 
-support-functions definitions
+get-current ( -- wid ) previous definitions
 
 string line_buffer
 0 value end_of_file?
 variable fd
 
-line-reading definitions
+>search ( wid -- ) definitions
 
 : skip_newlines
   begin
@@ -367,7 +405,7 @@ line-reading definitions
   read_buffer .len !
 ;
 
-support-functions definitions
+get-current ( -- wid ) previous definitions >search ( wid -- )
 
 : reset_line_reading
   0 to read_buffer_ptr
@@ -409,7 +447,7 @@ also file-processing definitions
 \	get_assignment
 
 vocabulary parser
-also parser definitions also
+also parser definitions
 
 0 value parsing_function
 0 value end_of_line
@@ -568,7 +606,7 @@ also parser definitions also
   end_of_line? 0= if ESYNTAX throw then
 ;
 
-file-processing definitions
+get-current ( -- wid ) previous definitions >search ( wid -- )
 
 : get_assignment
   line_buffer strget + to end_of_line
@@ -585,7 +623,7 @@ file-processing definitions
   or or 0= if ESYNTAX throw then
 ;
 
-only forth also support-functions also file-processing definitions also
+only forth also support-functions also file-processing definitions
 
 \ Process line
 
@@ -609,8 +647,6 @@ only forth also support-functions also file-processing definitions also
 : verbose_flag? s" verbose_loading" assignment_type?  ;
 
 : execute? s" exec" assignment_type?  ;
-
-: password? s" password" assignment_type?  ;
 
 : module_load? load_module_suffix suffix_type? ;
 
@@ -648,7 +684,7 @@ only forth also support-functions also file-processing definitions also
   s" loader_conf_files" getenv conf_files string=
 ;
 
-: set_nextboot_conf \ XXX maybe do as set_conf_files ?
+: set_nextboot_conf
   value_buffer strget unquote nextboot_conf_file string=
 ;
 
@@ -752,10 +788,6 @@ only forth also support-functions also file-processing definitions also
   ['] evaluate catch if EEXEC throw then
 ;
 
-: set_password
-  value_buffer strget unquote password string=
-;
-
 : process_assignment
   name_buffer .len @ 0= if exit then
   loader_conf_files?	if set_conf_files exit then
@@ -763,7 +795,6 @@ only forth also support-functions also file-processing definitions also
   nextboot_conf?	if set_nextboot_conf exit then
   verbose_flag?		if set_verbose exit then
   execute?		if execute_command exit then
-  password?		if set_password exit then
   module_load?		if set_module_flag exit then
   module_loadname?	if set_module_loadname exit then
   module_type?		if set_module_type exit then
@@ -787,7 +818,7 @@ only forth also support-functions also file-processing definitions also
 
 \ Higher level file processing
 
-support-functions definitions
+get-current ( -- wid ) previous definitions >search ( wid -- )
 
 : process_conf
   begin
@@ -802,7 +833,7 @@ support-functions definitions
   repeat
 ;
 
-: peek_file
+: peek_file ( addr len -- )
   0 to end_of_file?
   reset_line_reading
   O_RDONLY fopen fd !
@@ -813,6 +844,7 @@ support-functions definitions
   ['] process_assignment catch
   ['] free_buffers catch
   fd @ fclose
+  swap throw throw
 ;
   
 only forth also support-functions definitions
@@ -820,7 +852,6 @@ only forth also support-functions definitions
 \ Interface to loading conf files
 
 : load_conf  ( addr len -- )
-  \ ." ----- Trying conf " 2dup type cr \ debugging
   0 to end_of_file?
   reset_line_reading
   O_RDONLY fopen fd !
@@ -899,20 +930,43 @@ only forth definitions also support-functions
   repeat
 ;
 
+: free-one-module { addr -- addr }
+  addr module.name strfree
+  addr module.loadname strfree
+  addr module.type strfree
+  addr module.args strfree
+  addr module.beforeload strfree
+  addr module.afterload strfree
+  addr module.loaderror strfree
+  addr
+;
+
+: free-module-options
+  module_options @
+  begin
+    ?dup
+  while
+    free-one-module
+    dup module.next @
+    swap free-memory
+  repeat
+  0 module_options !
+  0 last_module_option !
+;
+
 only forth also support-functions definitions
 
 \ Variables used for processing multiple conf files
 
 string current_file_name_ref	\ used to print the file name
 
-\ Indicates if any conf file was succesfully read
+\ Indicates if any conf file was successfully read
 
 0 value any_conf_read?
 
 \ loader_conf_files processing support functions
 
 : get_conf_files ( -- addr len )  \ put addr/len on stack, reset var
-  \ ." -- starting on <" conf_files strtype ." >" cr \ debugging
   conf_files strget 0 0 conf_files strset
 ;
 
@@ -939,7 +993,6 @@ string current_file_name_ref	\ used to print the file name
     pos char+ to pos
   repeat
   addr len pos addr r@ + pos r> -
-  \ 2dup ." get_file_name has " type cr \ debugging
 ;
 
 : get_next_file  ( addr len ptr -- addr len ptr' addr' len' | 0 )
@@ -990,25 +1043,26 @@ string current_file_name_ref	\ used to print the file name
 ;
 
 : get_nextboot_conf_file ( -- addr len )
-  nextboot_conf_file strget strdup	\ XXX is the strdup a leak ?
+  nextboot_conf_file strget
 ;
 
 : rewrite_nextboot_file ( -- )
   get_nextboot_conf_file
   O_WRONLY fopen fd !
   fd @ -1 = if EOPEN throw then
-  fd @ s' nextboot_enable="NO" ' fwrite
+  fd @ s' nextboot_enable="NO" ' fwrite ( fd buf len -- nwritten ) drop
   fd @ fclose
 ;
 
-: include_nextboot_file
+: include_nextboot_file ( -- )
   get_nextboot_conf_file
-  ['] peek_file catch
+  ['] peek_file catch if 2drop then
   nextboot? if
     get_nextboot_conf_file
+    current_file_name_ref strref
     ['] load_conf catch
     process_conf_errors
-    ['] rewrite_nextboot_file catch
+    ['] rewrite_nextboot_file catch if 2drop then
   then
 ;
 
@@ -1079,7 +1133,7 @@ string current_file_name_ref	\ used to print the file name
       then
     else
       after_load
-      load_succesful_message true	\ Succesful, do not retry
+      load_succesful_message true	\ Successful, do not retry
     then
   until
 ;
@@ -1271,7 +1325,7 @@ also builtins
 \   1. /boot/path
 \   2. path
 \
-\ The module_path variable is overridden if load is succesful, by
+\ The module_path variable is overridden if load is successful, by
 \ prepending the successful path.
 
 : load_from_directory ( path len 1 | flags len' path len 2 -- flag )
@@ -1358,7 +1412,7 @@ also builtins
 \ will first be tried as a full path, and, next, search on the
 \ directories pointed by module_path.
 \
-\ The module_path variable is overridden if load is succesful, by
+\ The module_path variable is overridden if load is successful, by
 \ prepending the successful path.
 
 : load_directory_or_file ( path len 1 | flags len' path len 2 -- flag )
@@ -1404,6 +1458,20 @@ also builtins
 : load_kernel  ( -- ) ( throws: abort )
   kernel_options standard_kernel_search
   abort" Unable to load a kernel!"
+;
+
+: load_xen ( -- flag )
+  s" xen_kernel" getenv dup -1 <> if
+    1 1 load ( c-addr/u flag N -- flag )
+  else
+    drop
+    0 ( -1 -- flag )
+  then
+;
+
+: load_xen_throw ( -- ) ( throws: abort )
+  load_xen
+  abort" Unable to load Xen!"
 ;
 
 : set_defaultoptions  ( -- )
@@ -1524,39 +1592,15 @@ also builtins
   else
     drop
   then
-  r> if ( a path was passed )
-    load_directory_or_file
-  else
-    standard_kernel_search
-  then
-  ?dup 0= if ['] load_modules catch then
-;
-
-\ read and store only as many bytes as we need, drop the extra
-: read-password { size | buf len -- }
-  size allocate if ENOMEM throw then
-  to buf
-  0 to len
-  begin
-    key
-    dup backspace = if
-      drop
-      len if
-        backspace emit bl emit backspace emit
-        len 1 - to len
-      else
-        bell emit
-      then
+  load_xen
+  ?dup 0= if ( success )
+    r> if ( a path was passed )
+      load_directory_or_file
     else
-      dup <cr> = if cr drop buf len exit then
-      [char] * emit
-      len size < if buf len chars + c!  else drop then
-      len 1+ to len
+      standard_kernel_search
     then
-  again
+    ?dup 0= if ['] load_modules catch then
+  then
 ;
 
-\ Go back to straight forth vocabulary
-
-only forth also definitions
-
+only forth definitions

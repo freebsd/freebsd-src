@@ -1,4 +1,4 @@
-$ $tcsh: set2,v 1.5 2006/03/02 18:46:46 christos Exp $
+$ $tcsh: set2,v 1.6 2011/02/04 18:19:36 christos Exp $
 $ Signal names
 $set 2
 1 Null signal
@@ -12,7 +12,7 @@ $set 2
 9 Systemabsturz steht bevor
 10 Fehlerhaft beendet
 11 EMT trap
-12 Fließkommafehler
+12 FlieÃŸkommafehler
 13 Abgebrochen
 14 Benutzersignal 1
 15 Benutzersignal 2
@@ -24,15 +24,15 @@ $set 2
 21 Ausgabeweitergabe abgebrochen
 22 Alarm clock
 23 Beendet
-24 Kindprozeß hat Zustand geändert
+24 KindprozeÃŸ hat Zustand geÃ¤ndert
 25 Abbruch eines Kindprozesses
 26 Apollo-spezifischer Fehler
-27 Kindprozeß angehalten oder beendet
-28 Kindprozeß beendet
+27 KindprozeÃŸ angehalten oder beendet
+28 KindprozeÃŸ beendet
 29 Stromunterbrechung
 30 Ressource verloren
 31 Unterbrechung (Ctrl-Break)
-32 Mögliches Ein-/Ausgabesignal
+32 MÃ¶gliches Ein-/Ausgabesignal
 33 Asynchrone I/O (select)
 34 Dringende Anfrage von Ein-/Ausgabekanal
 35 Multitasking wake-up
@@ -40,7 +40,7 @@ $set 2
 37 Fortran asynchrones Ein-Ausgabeende
 38 Wiederaufsetzen
 39 Nicht korrigierbarer Speicherfehler
-40 CPU-Zeitbeschränkung überschritten
+40 CPU-ZeitbeschrÃ¤nkung Ã¼berschritten
 41 Systembeendigung absehbar
 42 micro-tasking group-no wakeup flag set
 43 Thread error - (use cord -T for detailed info)
@@ -55,11 +55,11 @@ $set 2
 52 Angehalten (Tty-Eingabe)
 53 Angehalten (Tty-Ausgabe)
 54 Angehalten (Tty-Ausgabe)
-55 Fensterzustand hat sich geändert
-56 Fenstergröße hat sich geändert
+55 Fensterzustand hat sich geÃ¤ndert
+56 FenstergrÃ¶ÃŸe hat sich geÃ¤ndert
 57 Phone status changed
-58 CPU-Zeitbeschränkung überschritten
-59 Beschränkung der Dateigröße überschritten
+58 CPU-ZeitbeschrÃ¤nkung Ã¼berschritten
+59 BeschrÃ¤nkung der DateigrÃ¶ÃŸe Ã¼berschritten
 60 Virtueller Zeitalarm
 61 Profiling time alarm
 62 DIL signal

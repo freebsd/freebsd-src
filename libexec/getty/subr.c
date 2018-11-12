@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -42,17 +38,16 @@ static const char rcsid[] =
 /*
  * Melbourne getty.
  */
-#ifdef DEBUG
-#include <stdio.h>
-#endif
-#include <stdlib.h>
-#include <string.h>
-#include <termios.h>
-#include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include <sys/time.h>
+
+#include <poll.h>
+#include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
+#include <termios.h>
+#include <unistd.h>
 
 #include "gettytab.h"
 #include "pathnames.h"
@@ -78,7 +73,7 @@ gettable(const char *name, char *buf)
 	static int firsttime = 1;
 
 	dba[0] = _PATH_GETTYTAB;
-	dba[1] = 0;
+	dba[1] = NULL;
 
 	if (firsttime) {
 		/*
@@ -164,17 +159,6 @@ gettable(const char *name, char *buf)
 			fp->value = 1 ^ fp->invrt;
 		}
 	}
-
-#ifdef DEBUG
-	printf("name=\"%s\", buf=\"%s\"\r\n", name, buf);
-	for (sp = gettystrs; sp->field; sp++)
-		printf("cgetstr: %s=%s\r\n", sp->field, sp->value);
-	for (np = gettynums; np->field; np++)
-		printf("cgetnum: %s=%d\r\n", np->field, np->value);
-	for (fp = gettyflags; fp->field; fp++)
-		printf("cgetflags: %s='%c' set='%c'\r\n", fp->field, 
-		       fp->value + '0', fp->set + '0');
-#endif /* DEBUG */
 }
 
 void
@@ -611,7 +595,7 @@ struct	portselect {
 	{ "B4800",	"std.4800" },
 	{ "B9600",	"std.9600" },
 	{ "B19200",	"std.19200" },
-	{ 0 }
+	{ NULL, NULL }
 };
 
 const char *
@@ -620,7 +604,7 @@ portselector(void)
 	char c, baud[20];
 	const char *type = "default";
 	struct portselect *ps;
-	int len;
+	size_t len;
 
 	alarm(5*60);
 	for (len = 0; len < sizeof (baud) - 1; len++) {
@@ -651,24 +635,21 @@ portselector(void)
 const char *
 autobaud(void)
 {
-	int rfds;
-	struct timeval timeout;
+	struct pollfd set[1];
+	struct timespec timeout;
 	char c;
 	const char *type = "9600-baud";
 
 	(void)tcflush(0, TCIOFLUSH);
-	rfds = 1 << 0;
-	timeout.tv_sec = 5;
-	timeout.tv_usec = 0;
-	if (select(32, (fd_set *)&rfds, (fd_set *)NULL,
-	    (fd_set *)NULL, &timeout) <= 0)
+	set[0].fd = STDIN_FILENO;
+	set[0].events = POLLIN;
+	if (poll(set, 1, 5000) <= 0)
 		return (type);
 	if (read(STDIN_FILENO, &c, sizeof(char)) != sizeof(char))
 		return (type);
 	timeout.tv_sec = 0;
-	timeout.tv_usec = 20;
-	(void) select(32, (fd_set *)NULL, (fd_set *)NULL,
-	    (fd_set *)NULL, &timeout);
+	timeout.tv_nsec = 20000;
+	(void)nanosleep(&timeout, NULL);
 	(void)tcflush(0, TCIOFLUSH);
 	switch (c & 0377) {
 

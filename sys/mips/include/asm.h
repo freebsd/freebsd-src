@@ -56,9 +56,7 @@
 #ifndef _MACHINE_ASM_H_
 #define	_MACHINE_ASM_H_
 
-#ifndef NO_REG_DEFS
 #include <machine/regdef.h>
-#endif
 #include <machine/endian.h>
 #include <machine/cdefs.h>
 
@@ -98,23 +96,6 @@
 
 #define	_C_LABEL(x)	x
 
-/* 
- *  Endian-independent assembly-code aliases for unaligned memory accesses.
- */
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define	LWLO	lwl
-#define	LWHI	lwr
-#define	SWLO	swl
-#define	SWHI	swr
-#endif
-
-#if BYTE_ORDER == BIG_ENDIAN
-#define	LWLO	lwr
-#define	LWHI	lwl
-#define	SWLO	swr
-#define	SWHI	swl
-#endif
-
 #ifdef USE_AENT
 #define	AENT(x)		\
 	.aent	x, 0
@@ -127,26 +108,6 @@
  */
 #define	WARN_REFERENCES(_sym,_msg)				\
 	.section .gnu.warning. ## _sym ; .ascii _msg ; .text
-
-/*
- * These are temp registers whose names can be used in either the old
- * or new ABI, although they map to different physical registers.  In
- * the old ABI, they map to t4-t7, and in the new ABI, they map to a4-a7.
- *
- * Because they overlap with the last 4 arg regs in the new ABI, ta0-ta3
- * should be used only when we need more than t0-t3.
- */
-#if defined(__mips_n32) || defined(__mips_n64)
-#define ta0     $8
-#define ta1     $9
-#define ta2     $10
-#define ta3     $11
-#else
-#define ta0     $12
-#define ta1     $13
-#define ta2     $14
-#define ta3     $15
-#endif /* __mips_n32 || __mips_n64 */
 
 #ifdef __ELF__
 # define _C_LABEL(x)    x
@@ -274,10 +235,6 @@ _C_LABEL(x):
 	EXPORT(x ## End);	\
 	END(x)
 
-#define	KSEG0TEXT_START
-#define	KSEG0TEXT_END
-#define	KSEG0TEXT	.text
-
 /*
  * Macros to panic and printf from assembly language.
  */
@@ -296,7 +253,7 @@ _C_LABEL(x):
 	MSG(msg)
 
 #define	MSG(msg)			\
-	.rdata;				\
+	.section .rdata;		\
 9:	.asciiz	msg;			\
 	.text
 
@@ -304,53 +261,86 @@ _C_LABEL(x):
 	.asciiz str;			\
 	.align	3
 
-/*
- * Call ast if required
- */
-#define DO_AST				             \
-44:				                     \
-	PTR_LA	s0, _C_LABEL(disableintr)           ;\
-	jalr	s0                                  ;\
-	nop                                         ;\
-	move	a0, v0                              ;\
-	GET_CPU_PCPU(s1)                            ;\
-	lw	s3, PC_CURPCB(s1)                   ;\
-	lw	s1, PC_CURTHREAD(s1)                ;\
-	lw	s2, TD_FLAGS(s1)                    ;\
-	li	s0, TDF_ASTPENDING | TDF_NEEDRESCHED;\
-	and	s2, s0                              ;\
-	PTR_LA	s0, _C_LABEL(restoreintr)           ;\
-	jalr	s0                                  ;\
-	nop                                         ;\
-	beq	s2, zero, 4f                        ;\
-	nop                                         ;\
-	PTR_LA	s0, _C_LABEL(ast)                   ;\
-	jalr	s0                                  ;\
-	PTR_ADDU a0, s3, U_PCB_REGS                 ;\
-	j 44b			                    ;\
-        nop                                         ;\
-4:
+#if defined(__mips_o32)
+#define	SZREG	4
+#else
+#define	SZREG	8
+#endif
 
-
-/*
- * XXX retain dialects XXX
- */
-#define	ALEAF(x)			XLEAF(x)
-#define	NLEAF(x)			LEAF_NOPROFILE(x)
-#define	NON_LEAF(x, fsize, retpc)	NESTED(x, fsize, retpc)
-#define	NNON_LEAF(x, fsize, retpc)	NESTED_NOPROFILE(x, fsize, retpc)
+#if defined(__mips_o32) || defined(__mips_o64)
+#define	ALSK	7		/* stack alignment */
+#define	ALMASK	-7		/* stack alignment */
+#define	SZFPREG	4
+#define	FP_L	lwc1
+#define	FP_S	swc1
+#else
+#define	ALSK	15		/* stack alignment */
+#define	ALMASK	-15		/* stack alignment */
+#define	SZFPREG	8
+#define	FP_L	ldc1
+#define	FP_S	sdc1
+#endif
 
 /*
  *  standard callframe {
- *  	register_t cf_args[4];		arg0 - arg3
+ *	register_t cf_pad[N];		o32/64 (N=0), n32 (N=1) n64 (N=1)
+ *  	register_t cf_args[4];		arg0 - arg3 (only on o32 and o64)
+ *  	register_t cf_gp;		global pointer (only on n32 and n64)
  *  	register_t cf_sp;		frame pointer
  *  	register_t cf_ra;		return address
  *  };
  */
-#define	CALLFRAME_SIZ	(4 * (4 + 2))
-#define	CALLFRAME_SP	(4 * 4)
-#define	CALLFRAME_RA	(4 * 5)
-#define	START_FRAME	CALLFRAME_SIZ
+#if defined(__mips_o32) || defined(__mips_o64)
+#define	CALLFRAME_SIZ	(SZREG * (4 + 2))
+#define	CALLFRAME_S0	0
+#elif defined(__mips_n32) || defined(__mips_n64)
+#define	CALLFRAME_SIZ	(SZREG * 4)
+#define	CALLFRAME_S0	(CALLFRAME_SIZ - 4 * SZREG)
+#endif
+#ifndef _KERNEL
+#define	CALLFRAME_GP	(CALLFRAME_SIZ - 3 * SZREG)
+#endif
+#define	CALLFRAME_SP	(CALLFRAME_SIZ - 2 * SZREG)
+#define	CALLFRAME_RA	(CALLFRAME_SIZ - 1 * SZREG)
+
+/*
+ *   Endian-independent assembly-code aliases for unaligned memory accesses.
+ */
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+# define LWHI lwr
+# define LWLO lwl
+# define SWHI swr
+# define SWLO swl
+# if SZREG == 4
+#  define REG_LHI   lwr
+#  define REG_LLO   lwl
+#  define REG_SHI   swr
+#  define REG_SLO   swl
+# else
+#  define REG_LHI   ldr
+#  define REG_LLO   ldl
+#  define REG_SHI   sdr
+#  define REG_SLO   sdl
+# endif
+#endif
+
+#if _BYTE_ORDER == _BIG_ENDIAN
+# define LWHI lwl
+# define LWLO lwr
+# define SWHI swl
+# define SWLO swr
+# if SZREG == 4
+#  define REG_LHI   lwl
+#  define REG_LLO   lwr
+#  define REG_SHI   swl
+#  define REG_SLO   swr
+# else
+#  define REG_LHI   ldl
+#  define REG_LLO   ldr
+#  define REG_SHI   sdl
+#  define REG_SLO   sdr
+# endif
+#endif
 
 /*
  * While it would be nice to be compatible with the SGI
@@ -361,153 +351,269 @@ _C_LABEL(x):
  * assembler to prevent the assembler from generating 64-bit style
  * ABI calls.
  */
+#if _MIPS_SZPTR == 32
+#define	PTR_ADD		add
+#define	PTR_ADDI	addi
+#define	PTR_ADDU	addu
+#define	PTR_ADDIU	addiu
+#define	PTR_SUB		add
+#define	PTR_SUBI	subi
+#define	PTR_SUBU	subu
+#define	PTR_SUBIU	subu
+#define	PTR_L		lw
+#define	PTR_LA		la
+#define	PTR_LI		li
+#define	PTR_S		sw
+#define	PTR_SLL		sll
+#define	PTR_SLLV	sllv
+#define	PTR_SRL		srl
+#define	PTR_SRLV	srlv
+#define	PTR_SRA		sra
+#define	PTR_SRAV	srav
+#define	PTR_LL		ll
+#define	PTR_SC		sc
+#define	PTR_WORD	.word
+#define	PTR_SCALESHIFT	2
+#else /* _MIPS_SZPTR == 64 */
+#define	PTR_ADD		dadd
+#define	PTR_ADDI	daddi
+#define	PTR_ADDU	daddu
+#define	PTR_ADDIU	daddiu
+#define	PTR_SUB		dadd
+#define	PTR_SUBI	dsubi
+#define	PTR_SUBU	dsubu
+#define	PTR_SUBIU	dsubu
+#define	PTR_L		ld
+#define	PTR_LA		dla
+#define	PTR_LI		dli
+#define	PTR_S		sd
+#define	PTR_SLL		dsll
+#define	PTR_SLLV	dsllv
+#define	PTR_SRL		dsrl
+#define	PTR_SRLV	dsrlv
+#define	PTR_SRA		dsra
+#define	PTR_SRAV	dsrav
+#define	PTR_LL		lld
+#define	PTR_SC		scd
+#define	PTR_WORD	.dword
+#define	PTR_SCALESHIFT	3
+#endif /* _MIPS_SZPTR == 64 */
 
-#if !defined(_MIPS_BSD_API) || _MIPS_BSD_API == _MIPS_BSD_API_LP32
-/* #if !defined(__mips_n64) */
+#if _MIPS_SZINT == 32
+#define	INT_ADD		add
+#define	INT_ADDI	addi
+#define	INT_ADDU	addu
+#define	INT_ADDIU	addiu
+#define	INT_SUB		add
+#define	INT_SUBI	subi
+#define	INT_SUBU	subu
+#define	INT_SUBIU	subu
+#define	INT_L		lw
+#define	INT_LA		la
+#define	INT_S		sw
+#define	INT_SLL		sll
+#define	INT_SLLV	sllv
+#define	INT_SRL		srl
+#define	INT_SRLV	srlv
+#define	INT_SRA		sra
+#define	INT_SRAV	srav
+#define	INT_LL		ll
+#define	INT_SC		sc
+#define	INT_WORD	.word
+#define	INT_SCALESHIFT	2
+#else
+#define	INT_ADD		dadd
+#define	INT_ADDI	daddi
+#define	INT_ADDU	daddu
+#define	INT_ADDIU	daddiu
+#define	INT_SUB		dadd
+#define	INT_SUBI	dsubi
+#define	INT_SUBU	dsubu
+#define	INT_SUBIU	dsubu
+#define	INT_L		ld
+#define	INT_LA		dla
+#define	INT_S		sd
+#define	INT_SLL		dsll
+#define	INT_SLLV	dsllv
+#define	INT_SRL		dsrl
+#define	INT_SRLV	dsrlv
+#define	INT_SRA		dsra
+#define	INT_SRAV	dsrav
+#define	INT_LL		lld
+#define	INT_SC		scd
+#define	INT_WORD	.dword
+#define	INT_SCALESHIFT	3
+#endif
+
+#if _MIPS_SZLONG == 32
+#define	LONG_ADD	add
+#define	LONG_ADDI	addi
+#define	LONG_ADDU	addu
+#define	LONG_ADDIU	addiu
+#define	LONG_SUB	add
+#define	LONG_SUBI	subi
+#define	LONG_SUBU	subu
+#define	LONG_SUBIU	subu
+#define	LONG_L		lw
+#define	LONG_LA		la
+#define	LONG_S		sw
+#define	LONG_SLL	sll
+#define	LONG_SLLV	sllv
+#define	LONG_SRL	srl
+#define	LONG_SRLV	srlv
+#define	LONG_SRA	sra
+#define	LONG_SRAV	srav
+#define	LONG_LL		ll
+#define	LONG_SC		sc
+#define	LONG_WORD	.word
+#define	LONG_SCALESHIFT	2
+#else
+#define	LONG_ADD	dadd
+#define	LONG_ADDI	daddi
+#define	LONG_ADDU	daddu
+#define	LONG_ADDIU	daddiu
+#define	LONG_SUB	dadd
+#define	LONG_SUBI	dsubi
+#define	LONG_SUBU	dsubu
+#define	LONG_SUBIU	dsubu
+#define	LONG_L		ld
+#define	LONG_LA		dla
+#define	LONG_S		sd
+#define	LONG_SLL	dsll
+#define	LONG_SLLV	dsllv
+#define	LONG_SRL	dsrl
+#define	LONG_SRLV	dsrlv
+#define	LONG_SRA	dsra
+#define	LONG_SRAV	dsrav
+#define	LONG_LL		lld
+#define	LONG_SC		scd
+#define	LONG_WORD	.dword
+#define	LONG_SCALESHIFT	3
+#endif
+
+#if SZREG == 4
 #define	REG_L		lw
 #define	REG_S		sw
 #define	REG_LI		li
-#define	REG_PROLOGUE	.set push
-#define	REG_EPILOGUE	.set pop
-#define	SZREG		4
-#define	PTR_LA		la
-#define	PTR_ADDU	addu
+#define	REG_ADDU	addu
+#define	REG_SLL		sll
+#define	REG_SLLV	sllv
+#define	REG_SRL		srl
+#define	REG_SRLV	srlv
+#define	REG_SRA		sra
+#define	REG_SRAV	srav
+#define	REG_LL		ll
+#define	REG_SC		sc
+#define	REG_SCALESHIFT	2
 #else
 #define	REG_L		ld
 #define	REG_S		sd
 #define	REG_LI		dli
+#define	REG_ADDU	daddu
+#define	REG_SLL		dsll
+#define	REG_SLLV	dsllv
+#define	REG_SRL		dsrl
+#define	REG_SRLV	dsrlv
+#define	REG_SRA		dsra
+#define	REG_SRAV	dsrav
+#define	REG_LL		lld
+#define	REG_SC		scd
+#define	REG_SCALESHIFT	3
+#endif
+
+#if _MIPS_ISA == _MIPS_ISA_MIPS1 || _MIPS_ISA == _MIPS_ISA_MIPS2 || \
+    _MIPS_ISA == _MIPS_ISA_MIPS32
+#define	MFC0		mfc0
+#define	MTC0		mtc0
+#endif
+#if _MIPS_ISA == _MIPS_ISA_MIPS3 || _MIPS_ISA == _MIPS_ISA_MIPS4 || \
+    _MIPS_ISA == _MIPS_ISA_MIPS64
+#define	MFC0		dmfc0
+#define	MTC0		dmtc0
+#endif
+
+#if defined(__mips_o32) || defined(__mips_o64)
+
+#ifdef __ABICALLS__
+#define	CPRESTORE(r)	.cprestore r
+#define	CPLOAD(r)	.cpload r
+#else
+#define	CPRESTORE(r)	/* not needed */
+#define	CPLOAD(r)	/* not needed */
+#endif
+
+#define	SETUP_GP	\
+			.set push;				\
+			.set noreorder;				\
+			.cpload	t9;				\
+			.set pop
+#define	SETUP_GPX(r)	\
+			.set push;				\
+			.set noreorder;				\
+			move	r,ra;	/* save old ra */	\
+			bal	7f;				\
+			nop;					\
+		7:	.cpload	ra;				\
+			move	ra,r;				\
+			.set pop
+#define	SETUP_GPX_L(r,lbl)	\
+			.set push;				\
+			.set noreorder;				\
+			move	r,ra;	/* save old ra */	\
+			bal	lbl;				\
+			nop;					\
+		lbl:	.cpload	ra;				\
+			move	ra,r;				\
+			.set pop
+#define	SAVE_GP(x)	.cprestore x
+
+#define	SETUP_GP64(a,b)		/* n32/n64 specific */
+#define	SETUP_GP64_R(a,b)	/* n32/n64 specific */
+#define	SETUP_GPX64(a,b)	/* n32/n64 specific */
+#define	SETUP_GPX64_L(a,b,c)	/* n32/n64 specific */
+#define	RESTORE_GP64		/* n32/n64 specific */
+#define	USE_ALT_CP(a)		/* n32/n64 specific */
+#endif /* __mips_o32 || __mips_o64 */
+
+#if defined(__mips_o32) || defined(__mips_o64)
+#define	REG_PROLOGUE	.set push
+#define	REG_EPILOGUE	.set pop
+#endif
+#if defined(__mips_n32) || defined(__mips_n64)
 #define	REG_PROLOGUE	.set push ; .set mips3
 #define	REG_EPILOGUE	.set pop
-#define	SZREG		8
-#define	PTR_LA		dla
-#define	PTR_ADDU	daddu
-#endif	/* _MIPS_BSD_API */
-
-#define	mfc0_macro(data, spr)						\
-	__asm __volatile ("mfc0 %0, $%1"				\
-			: "=r" (data)	/* outputs */			\
-			: "i" (spr));	/* inputs */
-
-#define	mtc0_macro(data, spr)						\
-	__asm __volatile ("mtc0 %0, $%1"				\
-			:				/* outputs */	\
-			: "r" (data), "i" (spr));	/* inputs */
-
-#define	cfc0_macro(data, spr)						\
-	__asm __volatile ("cfc0 %0, $%1"				\
-			: "=r" (data)	/* outputs */			\
-			: "i" (spr));	/* inputs */
-
-#define	ctc0_macro(data, spr)						\
-	__asm __volatile ("ctc0 %0, $%1"				\
-			:				/* outputs */	\
-			: "r" (data), "i" (spr));	/* inputs */
-
-
-#define	lbu_macro(data, addr)						\
-	__asm __volatile ("lbu %0, 0x0(%1)"				\
-			: "=r" (data)	/* outputs */			\
-			: "r" (addr));	/* inputs */
-
-#define	lb_macro(data, addr)						\
-	__asm __volatile ("lb %0, 0x0(%1)"				\
-			: "=r" (data)	/* outputs */			\
-			: "r" (addr));	/* inputs */
-
-#define	lwl_macro(data, addr)						\
-	__asm __volatile ("lwl %0, 0x0(%1)"				\
-			: "=r" (data)	/* outputs */			\
-			: "r" (addr));	/* inputs */
-
-#define	lwr_macro(data, addr)						\
-	__asm __volatile ("lwr %0, 0x0(%1)"				\
-			: "=r" (data)	/* outputs */			\
-			: "r" (addr));	/* inputs */
-
-#define	ldl_macro(data, addr)						\
-	__asm __volatile ("ldl %0, 0x0(%1)"				\
-			: "=r" (data)	/* outputs */			\
-			: "r" (addr));	/* inputs */
-
-#define	ldr_macro(data, addr)						\
-	__asm __volatile ("ldr %0, 0x0(%1)"				\
-			: "=r" (data)	/* outputs */			\
-			: "r" (addr));	/* inputs */
-
-#define	sb_macro(data, addr)						\
-	__asm __volatile ("sb %0, 0x0(%1)"				\
-			:				/* outputs */	\
-			: "r" (data), "r" (addr));	/* inputs */
-
-#define	swl_macro(data, addr)						\
-	__asm __volatile ("swl %0, 0x0(%1)"				\
-			: 				/* outputs */	\
-			: "r" (data), "r" (addr));	/* inputs */
-
-#define	swr_macro(data, addr)						\
-	__asm __volatile ("swr %0, 0x0(%1)"				\
-			: 				/* outputs */	\
-			: "r" (data), "r" (addr));	/* inputs */
-
-#define	sdl_macro(data, addr)						\
-	__asm __volatile ("sdl %0, 0x0(%1)"				\
-			: 				/* outputs */	\
-			: "r" (data), "r" (addr));	/* inputs */
-
-#define	sdr_macro(data, addr)						\
-	__asm __volatile ("sdr %0, 0x0(%1)"				\
-			:				/* outputs */	\
-			: "r" (data), "r" (addr));	/* inputs */
-
-#define	mfgr_macro(data, gr)						\
-	__asm __volatile ("move %0, $%1"				\
-			: "=r" (data)	/* outputs */			\
-			: "i" (gr));	/* inputs */
-
-#define	dmfc0_macro(data, spr)						\
-	__asm __volatile ("dmfc0 %0, $%1"				\
-			: "=r" (data)	/* outputs */			\
-			: "i" (spr));	/* inputs */
-
-#define	dmtc0_macro(data, spr, sel)					\
-	__asm __volatile ("dmtc0	%0, $%1, %2"			\
-			:			/* no  outputs */	\
-			: "r" (data), "i" (spr), "i" (sel)); /* inputs */
-
-/*
- * The DYNAMIC_STATUS_MASK option adds an additional masking operation
- * when updating the hardware interrupt mask in the status register.
- *
- * This is useful for platforms that need to at run-time mask
- * interrupts based on motherboard configuration or to handle
- * slowly clearing interrupts.
- *
- * XXX this is only currently implemented for mips3.
- */
-#ifdef MIPS_DYNAMIC_STATUS_MASK
-#define	DYNAMIC_STATUS_MASK(sr,scratch)			\
-	lw	scratch, mips_dynamic_status_mask;	\
-	and	sr, sr, scratch
-
-#define	DYNAMIC_STATUS_MASK_TOUSER(sr,scratch1)		\
-	ori	sr, (MIPS_INT_MASK | MIPS_SR_INT_IE);	\
-	DYNAMIC_STATUS_MASK(sr,scratch1)
-#else
-#define	DYNAMIC_STATUS_MASK(sr,scratch)
-#define	DYNAMIC_STATUS_MASK_TOUSER(sr,scratch1)
 #endif
 
-#ifdef SMP
-	/*
-	 * FREEBSD_DEVELOPERS_FIXME
-	 * In multiprocessor case, store/retrieve the pcpu structure
-	 * address for current CPU in scratch register for fast access.
-	 */
-#error "Write GET_CPU_PCPU for SMP"
-#else
+#if defined(__mips_n32) || defined(__mips_n64)
+#define	SETUP_GP		/* o32 specific */
+#define	SETUP_GPX(r)		/* o32 specific */
+#define	SETUP_GPX_L(r,lbl)	/* o32 specific */
+#define	SAVE_GP(x)		/* o32 specific */
+#define	SETUP_GP64(a,b)		.cpsetup $25, a, b
+#define	SETUP_GPX64(a,b)	\
+				.set push;			\
+				move	b,ra;			\
+				.set noreorder;			\
+				bal	7f;			\
+				nop;				\
+			7:	.set pop;			\
+				.cpsetup ra, a, 7b;		\
+				move	ra,b
+#define	SETUP_GPX64_L(a,b,c)	\
+				.set push;			\
+				move	b,ra;			\
+				.set noreorder;			\
+				bal	c;			\
+				nop;				\
+			c:	.set pop;			\
+				.cpsetup ra, a, c;		\
+				move	ra,b
+#define	RESTORE_GP64		.cpreturn
+#define	USE_ALT_CP(a)		.cplocal a
+#endif	/* __mips_n32 || __mips_n64 */
+
 #define	GET_CPU_PCPU(reg)		\
-	lw	reg, _C_LABEL(pcpup);
-#endif
+	PTR_L	reg, _C_LABEL(pcpup);
 
 /*
  * Description of the setjmp buffer
@@ -524,10 +630,11 @@ _C_LABEL(x):
  *       9	S7
  *       10	SP
  *       11	S8
- *       12	signal mask	(dependant on magic)
- *       13	(con't)
+ *       12	GP		(dependent on ABI)
+ *       13	signal mask	(dependant on magic)
  *       14	(con't)
  *       15	(con't)
+ *       16	(con't)
  *
  * The magic number number identifies the jmp_buf and
  * how the buffer was created as well as providing
@@ -552,9 +659,53 @@ _C_LABEL(x):
 #define _JB_REG_S7		9
 #define _JB_REG_SP		10
 #define _JB_REG_S8		11
+#if defined(__mips_n32) || defined(__mips_n64)
+#define	_JB_REG_GP		12
+#endif
 
 /* Only valid with the _JB_MAGIC_SETJMP magic */
 
-#define _JB_SIGMASK		12
+#define _JB_SIGMASK		13
+#define	__JB_SIGMASK_REMAINDER	14	/* sigmask_t is 128-bits */
+
+#define _JB_FPREG_F20		15
+#define _JB_FPREG_F21		16
+#define _JB_FPREG_F22		17
+#define _JB_FPREG_F23		18
+#define _JB_FPREG_F24		19
+#define _JB_FPREG_F25		20
+#define _JB_FPREG_F26		21
+#define _JB_FPREG_F27		22
+#define _JB_FPREG_F28		23
+#define _JB_FPREG_F29		24
+#define _JB_FPREG_F30		25
+#define _JB_FPREG_F31		26
+#define _JB_FPREG_FCSR		27
+
+/*
+ * Various macros for dealing with TLB hazards
+ * (a) why so many?
+ * (b) when to use?
+ * (c) why not used everywhere?
+ */
+/*
+ * Assume that w alaways need nops to escape CP0 hazard
+ * TODO: Make hazard delays configurable. Stuck with 5 cycles on the moment
+ * For more info on CP0 hazards see Chapter 7 (p.99) of "MIPS32 Architecture 
+ *    For Programmers Volume III: The MIPS32 Privileged Resource Architecture"
+ */
+#if defined(CPU_NLM)
+#define	HAZARD_DELAY	sll $0,3
+#define	ITLBNOPFIX	sll $0,3
+#elif defined(CPU_RMI)
+#define	HAZARD_DELAY
+#define	ITLBNOPFIX
+#elif defined(CPU_MIPS74K)
+#define	HAZARD_DELAY	sll $0,$0,3
+#define	ITLBNOPFIX	sll $0,$0,3
+#else
+#define	ITLBNOPFIX	nop;nop;nop;nop;nop;nop;nop;nop;nop;sll $0,$0,3;
+#define	HAZARD_DELAY	nop;nop;nop;nop;sll $0,$0,3;
+#endif
 
 #endif /* !_MACHINE_ASM_H_ */

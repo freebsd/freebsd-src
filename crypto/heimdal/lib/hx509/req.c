@@ -1,39 +1,38 @@
 /*
- * Copyright (c) 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "hx_locl.h"
 #include <pkcs10_asn1.h>
-RCSID("$Id: req.c 21344 2007-06-26 14:22:34Z lha $");
 
 struct hx509_request_data {
     hx509_name name;
@@ -47,7 +46,7 @@ struct hx509_request_data {
  */
 
 int
-_hx509_request_init(hx509_context context, hx509_request *req)
+hx509_request_init(hx509_context context, hx509_request *req)
 {
     *req = calloc(1, sizeof(**req));
     if (*req == NULL)
@@ -57,7 +56,7 @@ _hx509_request_init(hx509_context context, hx509_request *req)
 }
 
 void
-_hx509_request_free(hx509_request *req)
+hx509_request_free(hx509_request *req)
 {
     if ((*req)->name)
 	hx509_name_free(&(*req)->name);
@@ -70,7 +69,7 @@ _hx509_request_free(hx509_request *req)
 }
 
 int
-_hx509_request_set_name(hx509_context context,
+hx509_request_set_name(hx509_context context,
 			hx509_request req,
 			hx509_name name)
 {
@@ -85,7 +84,7 @@ _hx509_request_set_name(hx509_context context,
 }
 
 int
-_hx509_request_get_name(hx509_context context,
+hx509_request_get_name(hx509_context context,
 			hx509_request req,
 			hx509_name *name)
 {
@@ -97,7 +96,7 @@ _hx509_request_get_name(hx509_context context,
 }
 
 int
-_hx509_request_set_SubjectPublicKeyInfo(hx509_context context,
+hx509_request_set_SubjectPublicKeyInfo(hx509_context context,
 					hx509_request req,
 					const SubjectPublicKeyInfo *key)
 {
@@ -106,7 +105,7 @@ _hx509_request_set_SubjectPublicKeyInfo(hx509_context context,
 }
 
 int
-_hx509_request_get_SubjectPublicKeyInfo(hx509_context context,
+hx509_request_get_SubjectPublicKeyInfo(hx509_context context,
 					hx509_request req,
 					SubjectPublicKeyInfo *key)
 {
@@ -144,7 +143,8 @@ _hx509_request_add_dns_name(hx509_context context,
 
     memset(&name, 0, sizeof(name));
     name.element = choice_GeneralName_dNSName;
-    name.u.dNSName = rk_UNCONST(hostname);
+    name.u.dNSName.data = rk_UNCONST(hostname);
+    name.u.dNSName.length = strlen(hostname);
 
     return add_GeneralNames(&req->san, &name);
 }
@@ -158,7 +158,8 @@ _hx509_request_add_email(hx509_context context,
 
     memset(&name, 0, sizeof(name));
     name.element = choice_GeneralName_rfc822Name;
-    name.u.dNSName = rk_UNCONST(email);
+    name.u.dNSName.data = rk_UNCONST(email);
+    name.u.dNSName.length = strlen(email);
 
     return add_GeneralNames(&req->san, &name);
 }
@@ -195,14 +196,14 @@ _hx509_request_to_pkcs10(hx509_context context,
 				    &r.certificationRequestInfo.subjectPKInfo);
     if (ret)
 	goto out;
-    r.certificationRequestInfo.attributes = 
+    r.certificationRequestInfo.attributes =
 	calloc(1, sizeof(*r.certificationRequestInfo.attributes));
     if (r.certificationRequestInfo.attributes == NULL) {
 	ret = ENOMEM;
 	goto out;
     }
 
-    ASN1_MALLOC_ENCODE(CertificationRequestInfo, data.data, data.length, 
+    ASN1_MALLOC_ENCODE(CertificationRequestInfo, data.data, data.length,
 		       &r.certificationRequestInfo, &size, ret);
     if (ret)
 	goto out;
@@ -237,7 +238,7 @@ out:
 }
 
 int
-_hx509_request_parse(hx509_context context, 
+_hx509_request_parse(hx509_context context,
 		     const char *path,
 		     hx509_request *req)
 {
@@ -257,20 +258,20 @@ _hx509_request_parse(hx509_context context,
 
     /* XXX PEM request */
 
-    ret = _hx509_map_file(path, &p, &len, NULL);
+    ret = rk_undumpdata(path, &p, &len);
     if (ret) {
 	hx509_set_error_string(context, 0, ret, "Failed to map file %s", path);
 	return ret;
     }
 
     ret = decode_CertificationRequest(p, len, &r, &size);
-    _hx509_unmap_file(p, len);
+    rk_xfree(p);
     if (ret) {
 	hx509_set_error_string(context, 0, ret, "Failed to decode %s", path);
 	return ret;
     }
 
-    ret = _hx509_request_init(context, req);
+    ret = hx509_request_init(context, req);
     if (ret) {
 	free_CertificationRequest(&r);
 	return ret;
@@ -278,25 +279,25 @@ _hx509_request_parse(hx509_context context,
 
     rinfo = &r.certificationRequestInfo;
 
-    ret = _hx509_request_set_SubjectPublicKeyInfo(context, *req,
+    ret = hx509_request_set_SubjectPublicKeyInfo(context, *req,
 						  &rinfo->subjectPKInfo);
     if (ret) {
 	free_CertificationRequest(&r);
-	_hx509_request_free(req);
+	hx509_request_free(req);
 	return ret;
     }
 
     ret = _hx509_name_from_Name(&rinfo->subject, &subject);
     if (ret) {
 	free_CertificationRequest(&r);
-	_hx509_request_free(req);
+	hx509_request_free(req);
 	return ret;
     }
-    ret = _hx509_request_set_name(context, *req, subject);
+    ret = hx509_request_set_name(context, *req, subject);
     hx509_name_free(&subject);
     free_CertificationRequest(&r);
     if (ret) {
-	_hx509_request_free(req);
+	hx509_request_free(req);
 	return ret;
     }
 
@@ -319,7 +320,7 @@ _hx509_request_print(hx509_context context, hx509_request req, FILE *f)
         fprintf(f, "name: %s\n", subject);
 	free(subject);
     }
-    
+
     return 0;
 }
 

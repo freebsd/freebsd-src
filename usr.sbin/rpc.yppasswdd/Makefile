@@ -7,25 +7,24 @@ RPCDIR=	${DESTDIR}/usr/include/rpcsvc
 
 PROG=	rpc.yppasswdd
 SCRIPTS=yppwupdate
-SCRIPTSDIR= /usr/libexec
+SCRIPTSDIR= ${LIBEXECDIR}
 MAN=	rpc.yppasswdd.8
 SRCS=	util.c yp_access.c yp_dblookup.c yp_dbwrite.c \
 	yp_error.c yppasswdd_main.c yppasswdd_server.c ypxfr_misc.c ${GENSRCS}
 GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_private.h yppasswd_private_svc.c \
 	yppasswd_private_xdr.c yppasswd_svc.c
 
-WARNS?=	 4
+WARNS?=	 5
 CFLAGS+= -fno-strict-aliasing
 CFLAGS+= -I${.CURDIR}/../../usr.sbin/vipw \
 	 -I${.CURDIR}/../../usr.sbin/ypserv \
 	 -I${.CURDIR}/../../libexec/ypxfr \
 	 -I${.CURDIR} -I.
-DPADD=	${LIBRPCSVC} ${LIBCRYPT} ${LIBUTIL}
-LDADD=	-lrpcsvc -lcrypt -lutil
+LIBADD=	rpcsvc crypt util
 
 CLEANFILES= ${GENSRCS}
 
-RPCGEN=	rpcgen -I -C
+RPCGEN=	RPCGEN_CPP=${CPP:Q} rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that
 # yppasswdd_main.c can see it.

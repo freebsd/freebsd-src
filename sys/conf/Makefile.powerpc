@@ -17,7 +17,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	600004
+%VERSREQ=	600012
 
 STD8X16FONT?=	iso
 
@@ -28,11 +28,19 @@ S=	./@
 S=	../../..
 .endif
 .endif
+
+LDSCRIPT_NAME?= ldscript.${MACHINE_ARCH}
+
 .include "$S/conf/kern.pre.mk"
 
-CFLAGS+= -msoft-float
+INCLUDES+= -I$S/contrib/libfdt
 
-DDB_ENABLED!=	grep DDB opt_ddb.h || true
+CFLAGS+= -msoft-float -Wa,-many
+
+# Build position-independent kernel
+CFLAGS+= -fPIC
+LDFLAGS+= -pie
+
 .if !empty(DDB_ENABLED)
 CFLAGS+=	-fno-omit-frame-pointer
 .endif

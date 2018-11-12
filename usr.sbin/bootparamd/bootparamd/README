@@ -19,7 +19,7 @@ RPC.BOOTPARAMD
 
 
 The rpc.bootparamd program does NOT use the yellow pages for the bootparams
-database. This data should recide in /etc/bootparams on the local host,
+database. This data should reside in /etc/bootparams on the local host,
 or another file given when the server is started.
 
 The default router is set to the address of the machine running the server.
@@ -59,17 +59,3 @@ Cache the date, instead of rereading it.
 Maybe match by comparing the inet address instead. (But beware that caching
 will prevent the server from detecting that a machine has changed name
 or address.)
-
-
-
-
-
-
-
-
-
-
-
-
-
-

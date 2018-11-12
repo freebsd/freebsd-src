@@ -62,8 +62,7 @@ void	ieee80211_ssid_mismatch(struct ieee80211vap *, const char *tag,
 	    memcmp((_ssid) + 2, (_ni)->ni_essid, (_ssid)[1]) != 0)) {	\
 		if (ieee80211_msg_input(vap))				\
 			ieee80211_ssid_mismatch(vap, 			\
-			    ieee80211_mgt_subtype_name[subtype >>	\
-				IEEE80211_FC0_SUBTYPE_SHIFT],		\
+			    ieee80211_mgt_subtype_name(subtype),	\
 				wh->i_addr2, _ssid);			\
 		vap->iv_stats.is_rx_ssidmismatch++;			\
 		_action;						\
@@ -80,66 +79,170 @@ void	ieee80211_ssid_mismatch(struct ieee80211vap *, const char *tag,
 } while (0)
 #endif /* !IEEE80211_DEBUG */
 
-/* unalligned little endian access */     
-#define LE_READ_2(p)					\
-	((uint16_t)					\
-	 ((((const uint8_t *)(p))[0]      ) |		\
-	  (((const uint8_t *)(p))[1] <<  8)))
-#define LE_READ_4(p)					\
-	((uint32_t)					\
-	 ((((const uint8_t *)(p))[0]      ) |		\
-	  (((const uint8_t *)(p))[1] <<  8) |		\
-	  (((const uint8_t *)(p))[2] << 16) |		\
-	  (((const uint8_t *)(p))[3] << 24)))
+#include <sys/endian.h>		/* For le16toh() / le32dec() */
 
 static __inline int
 iswpaoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((WPA_OUI_TYPE<<24)|WPA_OUI);
+	return frm[1] > 3 && le32dec(frm+2) == ((WPA_OUI_TYPE<<24)|WPA_OUI);
 }
 
 static __inline int
 iswmeoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI);
+	return frm[1] > 3 && le32dec(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI);
 }
 
 static __inline int
 iswmeparam(const uint8_t *frm)
 {
-	return frm[1] > 5 && LE_READ_4(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI) &&
+	return frm[1] > 5 && le32dec(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI) &&
 		frm[6] == WME_PARAM_OUI_SUBTYPE;
 }
 
 static __inline int
 iswmeinfo(const uint8_t *frm)
 {
-	return frm[1] > 5 && LE_READ_4(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI) &&
+	return frm[1] > 5 && le32dec(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI) &&
 		frm[6] == WME_INFO_OUI_SUBTYPE;
 }
 
 static __inline int
 isatherosoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((ATH_OUI_TYPE<<24)|ATH_OUI);
+	return frm[1] > 3 && le32dec(frm+2) == ((ATH_OUI_TYPE<<24)|ATH_OUI);
 }
 
 static __inline int
 istdmaoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((TDMA_OUI_TYPE<<24)|TDMA_OUI);
+	return frm[1] > 3 && le32dec(frm+2) == ((TDMA_OUI_TYPE<<24)|TDMA_OUI);
 }
 
 static __inline int
 ishtcapoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((BCM_OUI_HTCAP<<24)|BCM_OUI);
+	return frm[1] > 3 && le32dec(frm+2) == ((BCM_OUI_HTCAP<<24)|BCM_OUI);
 }
 
 static __inline int
 ishtinfooui(const uint8_t *frm)
 {
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((BCM_OUI_HTINFO<<24)|BCM_OUI);
+	return frm[1] > 3 && le32dec(frm+2) == ((BCM_OUI_HTINFO<<24)|BCM_OUI);
+}
+
+/*
+ * Check the current frame sequence number against the current TID
+ * state and return whether it's in sequence or should be dropped.
+ *
+ * Since out of order packet and duplicate packet eliminations should
+ * be done by the AMPDU RX code, this routine blindly accepts all
+ * frames from a HT station w/ a TID that is currently doing AMPDU-RX.
+ * HT stations without WME or where the TID is not doing AMPDU-RX
+ * are checked like non-HT stations.
+ *
+ * The routine only eliminates packets whose sequence/fragment
+ * match or are less than the last seen sequence/fragment number
+ * AND are retransmits It doesn't try to eliminate out of order packets.
+ *
+ * Since all frames after sequence number 4095 will be less than 4095
+ * (as the seqnum wraps), handle that special case so packets aren't
+ * incorrectly dropped - ie, if the next packet is sequence number 0
+ * but a retransmit since the initial packet didn't make it.
+ */
+static __inline int
+ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh,
+    uint8_t *bssid)
+{
+#define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
+#define	SEQ_EQ(a,b)	((int)((a)-(b)) == 0)
+#define	SEQNO(a)	((a) >> IEEE80211_SEQ_SEQ_SHIFT)
+#define	FRAGNO(a)	((a) & IEEE80211_SEQ_FRAG_MASK)
+	struct ieee80211vap *vap = ni->ni_vap;
+	uint16_t rxseq;
+	uint8_t type, subtype;
+	uint8_t tid;
+	struct ieee80211_rx_ampdu *rap;
+
+	rxseq = le16toh(*(uint16_t *)wh->i_seq);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
+
+	/*
+	 * Types with no sequence number (or QoS (+)Null frames)
+	 * are always treated valid.
+	 */
+	if (! IEEE80211_HAS_SEQ(type, subtype))
+		return 1;
+
+	tid = ieee80211_gettid(wh);
+
+	/*
+	 * Only do the HT AMPDU check for WME stations; non-WME HT stations
+	 * shouldn't exist outside of debugging. We should at least
+	 * handle that.
+	 */
+	if (tid < WME_NUM_TID) {
+		rap = &ni->ni_rx_ampdu[tid];
+		/* HT nodes currently doing RX AMPDU are always valid */
+		if ((ni->ni_flags & IEEE80211_NODE_HT) &&
+		    (rap->rxa_flags & IEEE80211_AGGR_RUNNING))
+			goto ok;
+	}
+
+	/*	
+	 * Otherwise, retries for packets below or equal to the last
+	 * seen sequence number should be dropped.
+	 */
+
+	/*
+	 * Treat frame seqnum 4095 as special due to boundary
+	 * wrapping conditions.
+	 */
+	if (SEQNO(ni->ni_rxseqs[tid]) == 4095) {
+		/*
+		 * Drop retransmits on seqnum 4095/current fragment for itself.
+		 */
+		if (SEQ_EQ(rxseq, ni->ni_rxseqs[tid]) &&
+		    (wh->i_fc[1] & IEEE80211_FC1_RETRY))
+			goto fail;
+		/*
+		 * Treat any subsequent frame as fine if the last seen frame
+		 * is 4095 and it's not a retransmit for the same sequence
+		 * number. However, this doesn't capture incorrectly ordered
+	 	 * fragments w/ sequence number 4095. It shouldn't be seen
+		 * in practice, but see the comment above for further info.
+		 */
+		goto ok;
+	}
+
+	/*
+	 * At this point we assume that retransmitted seq/frag numbers below
+	 * the current can simply be eliminated.
+	 */
+	if ((wh->i_fc[1] & IEEE80211_FC1_RETRY) &&
+	    SEQ_LEQ(rxseq, ni->ni_rxseqs[tid]))
+		goto fail;
+
+ok:
+	ni->ni_rxseqs[tid] = rxseq;
+
+	return 1;
+
+fail:
+	/* duplicate, discard */
+	IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT, bssid, "duplicate",
+	    "seqno <%u,%u> fragno <%u,%u> tid %u",
+	     SEQNO(rxseq),  SEQNO(ni->ni_rxseqs[tid]),
+	    FRAGNO(rxseq), FRAGNO(ni->ni_rxseqs[tid]), tid);
+	vap->iv_stats.is_rx_dup++;
+	IEEE80211_NODE_STAT(ni, rx_dup);
+
+	return 0;
+#undef	SEQ_LEQ
+#undef	SEQ_EQ
+#undef	SEQNO
+#undef	FRAGNO
 }
 
 void	ieee80211_deliver_data(struct ieee80211vap *,
@@ -155,6 +258,7 @@ void ieee80211_send_error(struct ieee80211_node *,
 		const uint8_t mac[IEEE80211_ADDR_LEN], int subtype, int arg);
 int	ieee80211_alloc_challenge(struct ieee80211_node *);
 int	ieee80211_parse_beacon(struct ieee80211_node *, struct mbuf *,
+		struct ieee80211_channel *,
 		struct ieee80211_scanparams *);
 int	ieee80211_parse_action(struct ieee80211_node *, struct mbuf *);
 #endif /* _NET80211_IEEE80211_INPUT_H_ */

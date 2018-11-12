@@ -130,7 +130,7 @@ static char *c0_reg[32] = {
 static int md_printins(int ins, int mdbdot);
 
 db_addr_t
-db_disasm(db_addr_t loc, boolean_t altfmt)
+db_disasm(db_addr_t loc, bool altfmt)
 
 {
 	int ins;
@@ -226,7 +226,7 @@ md_printins(int ins, int mdbdot)
 		default:
 			db_printf("\t%s,%s,%s", reg_name[i.RType.rd],
 			    reg_name[i.RType.rs], reg_name[i.RType.rt]);
-		};
+		}
 		break;
 
 	case OP_BCOND:
@@ -288,7 +288,7 @@ md_printins(int ins, int mdbdot)
 
 		default:
 			db_printf("%s", c0_opname[i.FRType.func]);
-		};
+		}
 		break;
 
 	case OP_COP1:
@@ -323,7 +323,7 @@ md_printins(int ins, int mdbdot)
 			db_printf("%s.%s\tf%d,f%d,f%d",
 			    cop1_name[i.FRType.func], fmt_name[i.FRType.fmt],
 			    i.FRType.fd, i.FRType.fs, i.FRType.ft);
-		};
+		}
 		break;
 
 	case OP_J:
@@ -388,5 +388,6 @@ md_printins(int ins, int mdbdot)
 		    reg_name[i.IType.rt], reg_name[i.IType.rs],
 		    (short)i.IType.imm);
 	}
+	db_printf("\n");
 	return (delay);
 }

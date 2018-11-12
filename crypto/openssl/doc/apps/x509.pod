@@ -19,15 +19,19 @@ B<openssl> B<x509>
 [B<-hash>]
 [B<-subject_hash>]
 [B<-issuer_hash>]
+[B<-ocspid>]
 [B<-subject>]
 [B<-issuer>]
 [B<-nameopt option>]
 [B<-email>]
+[B<-ocsp_uri>]
 [B<-startdate>]
 [B<-enddate>]
 [B<-purpose>]
 [B<-dates>]
+[B<-checkend num>]
 [B<-modulus>]
+[B<-pubkey>]
 [B<-fingerprint>]
 [B<-alias>]
 [B<-noout>]
@@ -40,13 +44,16 @@ B<openssl> B<x509>
 [B<-days arg>]
 [B<-set_serial n>]
 [B<-signkey filename>]
+[B<-passin arg>]
 [B<-x509toreq>]
 [B<-req>]
 [B<-CA filename>]
 [B<-CAkey filename>]
 [B<-CAcreateserial>]
 [B<-CAserial filename>]
+[B<-force_pubkey key>]
 [B<-text>]
+[B<-certopt option>]
 [B<-C>]
 [B<-md2|-md5|-sha1|-mdc2>]
 [B<-clrext>]
@@ -103,7 +110,7 @@ then this option has no effect: SHA1 is always used with DSA keys.
 
 =item B<-engine id>
 
-specifying an engine (by it's unique B<id> string) will cause B<req>
+specifying an engine (by its unique B<id> string) will cause B<x509>
 to attempt to obtain a functional reference to the specified engine,
 thus initialising it if needed. The engine will then be set as the default
 for all available algorithms.
@@ -134,6 +141,10 @@ section for more information.
 
 this option prevents output of the encoded version of the request.
 
+=item B<-pubkey>
+
+outputs the certificate's SubjectPublicKeyInfo block in PEM format.
+
 =item B<-modulus>
 
 this option prints out the value of the modulus of the public key
@@ -153,9 +164,23 @@ name.
 
 outputs the "hash" of the certificate issuer name.
 
+=item B<-ocspid>
+
+outputs the OCSP hash values for the subject name and public key.
+
 =item B<-hash>
 
 synonym for "-subject_hash" for backward compatibility reasons.
+
+=item B<-subject_hash_old>
+
+outputs the "hash" of the certificate subject name using the older algorithm
+as used by OpenSSL versions before 1.0.0.
+
+=item B<-issuer_hash_old>
+
+outputs the "hash" of the certificate issuer name using the older algorithm
+as used by OpenSSL versions before 1.0.0.
 
 =item B<-subject>
 
@@ -176,6 +201,10 @@ set multiple options. See the B<NAME OPTIONS> section for more information.
 
 outputs the email address(es) if any.
 
+=item B<-ocsp_uri>
+
+outputs the OCSP responder address(es) if any.
+
 =item B<-startdate>
 
 prints out the start date of the certificate, that is the notBefore date.
@@ -187,6 +216,11 @@ prints out the expiry date of the certificate, that is the notAfter date.
 =item B<-dates>
 
 prints out the start and expiry dates of a certificate.
+
+=item B<-checkend arg>
+
+checks if the certificate expires within the next B<arg> seconds and exits
+non-zero if yes it will expire or zero if not.
 
 =item B<-fingerprint>
 
@@ -293,6 +327,11 @@ If the input is a certificate request then a self signed certificate
 is created using the supplied private key using the subject name in
 the request.
 
+=item B<-passin arg>
+
+the key password source. For more information about the format of B<arg>
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+
 =item B<-clrext>
 
 delete any extensions from a certificate. This option is used when a
@@ -376,7 +415,18 @@ no extensions are added to the certificate.
 the section to add certificate extensions from. If this option is not
 specified then the extensions should either be contained in the unnamed
 (default) section or the default section should contain a variable called
-"extensions" which contains the section to use.
+"extensions" which contains the section to use. See the
+L<x509v3_config(5)|x509v3_config(5)> manual page for details of the
+extension section format.
+
+=item B<-force_pubkey key>
+
+when a certificate is created set its public key to B<key> instead of the
+key in the certificate or certificate request. This option is useful for
+creating certificates where the algorithm can't normally sign requests, for
+example DH.
+
+The format or B<key> can be specified using the B<-keyform> option.
 
 =back
 
@@ -446,7 +496,7 @@ using the format \UXXXX for 16 bits and \WXXXXXXXX for 32 bits.
 Also if this option is off any UTF8Strings will be converted to their
 character form first.
 
-=item B<no_type>
+=item B<ignore_type>
 
 this option does not attempt to interpret multibyte characters in any
 way. That is their content octets are merely dumped as though one octet
@@ -489,7 +539,8 @@ very rare and their use is discouraged). The options ending in
 "space" additionally place a space after the separator to make it
 more readable. The B<sep_multiline> uses a linefeed character for
 the RDN separator and a spaced B<+> for the AVA separator. It also
-indents the fields by four characters.
+indents the fields by four characters. If no field separator is specified
+then B<sep_comma_plus_space> is used by default.
 
 =item B<dn_rev>
 
@@ -591,8 +642,8 @@ hex dump unsupported extensions.
 
 =item B<ca_default>
 
-the value used by the B<ca> utility, equivalent to B<no_issuer>, B<no_pubkey>, B<no_header>,
-B<no_version>, B<no_sigdump> and B<no_signame>.
+the value used by the B<ca> utility, equivalent to B<no_issuer>, B<no_pubkey>,
+B<no_header>, and B<no_version>.
 
 =back
 
@@ -823,10 +874,17 @@ OpenSSL 0.9.5 and later.
 =head1 SEE ALSO
 
 L<req(1)|req(1)>, L<ca(1)|ca(1)>, L<genrsa(1)|genrsa(1)>,
-L<gendsa(1)|gendsa(1)>, L<verify(1)|verify(1)>
+L<gendsa(1)|gendsa(1)>, L<verify(1)|verify(1)>,
+L<x509v3_config(5)|x509v3_config(5)> 
 
 =head1 HISTORY
 
 Before OpenSSL 0.9.8, the default digest for RSA keys was MD5.
+
+The hash algorithm used in the B<-subject_hash> and B<-issuer_hash> options
+before OpenSSL 1.0.0 was based on the deprecated MD5 algorithm and the encoding
+of the distinguished name. In OpenSSL 1.0.0 and later it is based on a
+canonical version of the DN using SHA1. This means that any directories using
+the old form must have their links rebuilt using B<c_rehash> or similar. 
 
 =cut

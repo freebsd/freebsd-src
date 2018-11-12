@@ -18,13 +18,6 @@ __FBSDID("$FreeBSD$");
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -43,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -52,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arc.h>
 
 #include <dev/cm/smc90cx6reg.h>
@@ -68,8 +63,8 @@ cm_isa_probe(dev)
 	int rid;
 
 	rid = 0;
-	sc->port_res = bus_alloc_resource(
-	    dev, SYS_RES_IOPORT, &rid, 0ul, ~0ul, CM_IO_PORTS, RF_ACTIVE);
+	sc->port_res = bus_alloc_resource_anywhere(
+	    dev, SYS_RES_IOPORT, &rid, CM_IO_PORTS, RF_ACTIVE);
 	if (sc->port_res == NULL)
 		return (ENOENT);
 
@@ -79,8 +74,8 @@ cm_isa_probe(dev)
 	}
 
 	rid = 0;
-	sc->mem_res = bus_alloc_resource(
-	    dev, SYS_RES_MEMORY, &rid, 0ul, ~0ul, CM_MEM_SIZE, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_anywhere(
+	    dev, SYS_RES_MEMORY, &rid, CM_MEM_SIZE, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		cm_release_resources(dev);
 		return (ENOENT);

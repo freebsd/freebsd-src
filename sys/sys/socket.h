@@ -84,6 +84,16 @@ typedef	__uid_t		uid_t;
 #endif
 #endif
 
+#ifndef _UINT32_T_DECLARED
+typedef	__uint32_t	uint32_t;
+#define	_UINT32_T_DECLARED
+#endif
+
+#ifndef _UINTPTR_T_DECLARED
+typedef	__uintptr_t	uintptr_t;
+#define	_UINTPTR_T_DECLARED
+#endif
+
 /*
  * Types
  */
@@ -94,6 +104,14 @@ typedef	__uid_t		uid_t;
 #define	SOCK_RDM	4		/* reliably-delivered message */
 #endif
 #define	SOCK_SEQPACKET	5		/* sequenced packet stream */
+
+#if __BSD_VISIBLE
+/*
+ * Creation flags, OR'ed into socket() and socketpair() type argument.
+ */
+#define	SOCK_CLOEXEC	0x10000000
+#define	SOCK_NONBLOCK	0x20000000
+#endif
 
 /*
  * Option flags per-socket.
@@ -137,6 +155,18 @@ typedef	__uid_t		uid_t;
 #define	SO_LISTENQLEN	0x1012		/* socket's complete queue length */
 #define	SO_LISTENINCQLEN	0x1013	/* socket's incomplete queue length */
 #define	SO_SETFIB	0x1014		/* use this FIB to route */
+#define	SO_USER_COOKIE	0x1015		/* user cookie (dummynet etc.) */
+#define	SO_PROTOCOL	0x1016		/* get socket protocol (Linux name) */
+#define	SO_PROTOTYPE	SO_PROTOCOL	/* alias for SO_PROTOCOL (SunOS name) */
+#endif
+
+/*
+ * Space reserved for new socket options added by third-party vendors.
+ * This range applies to all socket option levels.  New socket options
+ * in FreeBSD should always use an option value less than SO_VENDOR.
+ */
+#if __BSD_VISIBLE
+#define	SO_VENDOR	0x80000000
 #endif
 
 /*
@@ -210,7 +240,9 @@ struct accept_filter_arg {
 #define	AF_ARP		35
 #define	AF_BLUETOOTH	36		/* Bluetooth sockets */
 #define	AF_IEEE80211	37		/* IEEE 802.11 protocol */
-#define	AF_MAX		38
+#define	AF_INET_SDP	40		/* OFED Socket Direct Protocol ipv4 */
+#define	AF_INET6_SDP	42		/* OFED Socket Direct Protocol ipv6 */
+#define	AF_MAX		42
 /*
  * When allocating a new AF_ constant, please only allocate
  * even numbered constants for FreeBSD until 134 as odd numbered AF_
@@ -332,6 +364,9 @@ struct sockproto {
 #define PF_SCLUSTER	AF_SCLUSTER
 #define	PF_ARP		AF_ARP
 #define	PF_BLUETOOTH	AF_BLUETOOTH
+#define	PF_IEEE80211	AF_IEEE80211
+#define	PF_INET_SDP	AF_INET_SDP
+#define	PF_INET6_SDP	AF_INET6_SDP
 
 #define	PF_MAX		AF_MAX
 
@@ -341,47 +376,8 @@ struct sockproto {
  * Second level is protocol family.
  * Third level is protocol number.
  *
- * Further levels are defined by the individual families below.
+ * Further levels are defined by the individual families.
  */
-#define NET_MAXID	AF_MAX
-
-#define CTL_NET_NAMES { \
-	{ 0, 0 }, \
-	{ "unix", CTLTYPE_NODE }, \
-	{ "inet", CTLTYPE_NODE }, \
-	{ "implink", CTLTYPE_NODE }, \
-	{ "pup", CTLTYPE_NODE }, \
-	{ "chaos", CTLTYPE_NODE }, \
-	{ "xerox_ns", CTLTYPE_NODE }, \
-	{ "iso", CTLTYPE_NODE }, \
-	{ "emca", CTLTYPE_NODE }, \
-	{ "datakit", CTLTYPE_NODE }, \
-	{ "ccitt", CTLTYPE_NODE }, \
-	{ "ibm_sna", CTLTYPE_NODE }, \
-	{ "decnet", CTLTYPE_NODE }, \
-	{ "dec_dli", CTLTYPE_NODE }, \
-	{ "lat", CTLTYPE_NODE }, \
-	{ "hylink", CTLTYPE_NODE }, \
-	{ "appletalk", CTLTYPE_NODE }, \
-	{ "route", CTLTYPE_NODE }, \
-	{ "link_layer", CTLTYPE_NODE }, \
-	{ "xtp", CTLTYPE_NODE }, \
-	{ "coip", CTLTYPE_NODE }, \
-	{ "cnt", CTLTYPE_NODE }, \
-	{ "rtip", CTLTYPE_NODE }, \
-	{ "ipx", CTLTYPE_NODE }, \
-	{ "sip", CTLTYPE_NODE }, \
-	{ "pip", CTLTYPE_NODE }, \
-	{ "isdn", CTLTYPE_NODE }, \
-	{ "key", CTLTYPE_NODE }, \
-	{ "inet6", CTLTYPE_NODE }, \
-	{ "natm", CTLTYPE_NODE }, \
-	{ "atm", CTLTYPE_NODE }, \
-	{ "hdrcomplete", CTLTYPE_NODE }, \
-	{ "netgraph", CTLTYPE_NODE }, \
-	{ "snp", CTLTYPE_NODE }, \
-	{ "scp", CTLTYPE_NODE }, \
-}
 
 /*
  * PF_ROUTE - Routing table
@@ -395,15 +391,8 @@ struct sockproto {
 #define NET_RT_FLAGS	2		/* by flags, e.g. RESOLVING */
 #define NET_RT_IFLIST	3		/* survey interface list */
 #define	NET_RT_IFMALIST	4		/* return multicast address list */
-#define	NET_RT_MAXID	5
-
-#define CTL_NET_RT_NAMES { \
-	{ 0, 0 }, \
-	{ "dump", CTLTYPE_STRUCT }, \
-	{ "flags", CTLTYPE_STRUCT }, \
-	{ "iflist", CTLTYPE_STRUCT }, \
-	{ "ifmalist", CTLTYPE_STRUCT }, \
-}
+#define	NET_RT_IFLISTL	5		/* Survey interface list, using 'l'en
+					 * versions of msghdr structs. */
 #endif /* __BSD_VISIBLE */
 
 /*
@@ -432,18 +421,20 @@ struct msghdr {
 #define	MSG_TRUNC	0x10		/* data discarded before delivery */
 #define	MSG_CTRUNC	0x20		/* control data lost before delivery */
 #define	MSG_WAITALL	0x40		/* wait for full request or error */
-#define MSG_NOTIFICATION 0x2000         /* SCTP notification */
+#if __POSIX_VISIBLE >= 200809
+#define	MSG_NOSIGNAL	0x20000		/* do not generate SIGPIPE on EOF */
+#endif
 #if __BSD_VISIBLE
 #define	MSG_DONTWAIT	0x80		/* this message should be nonblocking */
 #define	MSG_EOF		0x100		/* data completes connection */
+#define	MSG_NOTIFICATION 0x2000         /* SCTP notification */
 #define	MSG_NBIO	0x4000		/* FIONBIO mode, used by fifofs */
 #define	MSG_COMPAT      0x8000		/* used in sendit() */
+#define	MSG_CMSG_CLOEXEC 0x40000	/* make received fds close-on-exec */
+#define	MSG_WAITFORONE	0x80000		/* for recvmmsg() */
 #endif
 #ifdef _KERNEL
 #define	MSG_SOCALLBCK   0x10000		/* for use by socket callbacks - soreceive (TCP) */
-#endif
-#if __BSD_VISIBLE
-#define	MSG_NOSIGNAL	0x20000		/* do not generate SIGPIPE on EOF */
 #endif
 
 /*
@@ -462,8 +453,8 @@ struct cmsghdr {
 #if __BSD_VISIBLE
 /*
  * While we may have more groups than this, the cmsgcred struct must
- * be able to fit in an mbuf, and NGROUPS_MAX is too large to allow
- * this.
+ * be able to fit in an mbuf and we have historically supported a
+ * maximum of 16 groups.
 */
 #define CMGROUP_MAX 16
 
@@ -509,12 +500,12 @@ struct sockcred {
 
 /* given pointer to struct cmsghdr, return pointer to next cmsghdr */
 #define	CMSG_NXTHDR(mhdr, cmsg)	\
-	((char *)(cmsg) == NULL ? CMSG_FIRSTHDR(mhdr) : \
+	((char *)(cmsg) == (char *)0 ? CMSG_FIRSTHDR(mhdr) : \
 	    ((char *)(cmsg) + _ALIGN(((struct cmsghdr *)(cmsg))->cmsg_len) + \
 	  _ALIGN(sizeof(struct cmsghdr)) > \
 	    (char *)(mhdr)->msg_control + (mhdr)->msg_controllen) ? \
 	    (struct cmsghdr *)0 : \
-	    (struct cmsghdr *)((char *)(cmsg) + \
+	    (struct cmsghdr *)(void *)((char *)(cmsg) + \
 	    _ALIGN(((struct cmsghdr *)(cmsg))->cmsg_len)))
 
 /*
@@ -524,7 +515,7 @@ struct sockcred {
 #define	CMSG_FIRSTHDR(mhdr) \
 	((mhdr)->msg_controllen >= sizeof(struct cmsghdr) ? \
 	 (struct cmsghdr *)(mhdr)->msg_control : \
-	 (struct cmsghdr *)NULL)
+	 (struct cmsghdr *)0)
 
 #if __BSD_VISIBLE
 /* RFC 2292 additions */
@@ -573,10 +564,13 @@ struct omsghdr {
 #define	SHUT_WR		1		/* shut down the writing side */
 #define	SHUT_RDWR	2		/* shut down both sides */
 
+#if __BSD_VISIBLE
+/* for SCTP */
 /* we cheat and use the SHUT_XX defines for these */
 #define PRU_FLUSH_RD     SHUT_RD
 #define PRU_FLUSH_WR     SHUT_WR
 #define PRU_FLUSH_RDWR   SHUT_RDWR
+#endif
 
 
 #if __BSD_VISIBLE
@@ -594,9 +588,23 @@ struct sf_hdtr {
  * Sendfile-specific flag(s)
  */
 #define	SF_NODISKIO     0x00000001
-#define	SF_MNOWAIT	0x00000002
+#define	SF_MNOWAIT	0x00000002	/* obsolete */
 #define	SF_SYNC		0x00000004
-#endif
+#define	SF_NOCACHE	0x00000010
+#define	SF_FLAGS(rh, flags)	(((rh) << 16) | (flags))
+
+#ifdef _KERNEL
+#define	SF_READAHEAD(flags)	((flags) >> 16)
+#endif /* _KERNEL */
+
+/*
+ * Sendmmsg/recvmmsg specific structure(s)
+ */
+struct mmsghdr {
+	struct msghdr	msg_hdr;		/* message header */
+	ssize_t		msg_len;		/* message length */
+};
+#endif /* __BSD_VISIBLE */
 
 #ifndef	_KERNEL
 
@@ -606,6 +614,11 @@ __BEGIN_DECLS
 int	accept(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	bind(int, const struct sockaddr *, socklen_t);
 int	connect(int, const struct sockaddr *, socklen_t);
+#if __BSD_VISIBLE
+int	accept4(int, struct sockaddr * __restrict, socklen_t * __restrict, int);
+int	bindat(int, int, const struct sockaddr *, socklen_t);
+int	connectat(int, int, const struct sockaddr *, socklen_t);
+#endif
 int	getpeername(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	getsockname(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	getsockopt(int, int, int, void * __restrict, socklen_t * __restrict);
@@ -613,12 +626,18 @@ int	listen(int, int);
 ssize_t	recv(int, void *, size_t, int);
 ssize_t	recvfrom(int, void *, size_t, int, struct sockaddr * __restrict, socklen_t * __restrict);
 ssize_t	recvmsg(int, struct msghdr *, int);
+#if __BSD_VISIBLE
+struct timespec;
+ssize_t	recvmmsg(int, struct mmsghdr * __restrict, size_t, int,
+    const struct timespec * __restrict);
+#endif
 ssize_t	send(int, const void *, size_t, int);
 ssize_t	sendto(int, const void *,
 	    size_t, int, const struct sockaddr *, socklen_t);
 ssize_t	sendmsg(int, const struct msghdr *, int);
 #if __BSD_VISIBLE
 int	sendfile(int, int, off_t, size_t, struct sf_hdtr *, off_t *, int);
+ssize_t	sendmmsg(int, struct mmsghdr * __restrict, size_t, int);
 int	setfib(int);
 #endif
 int	setsockopt(int, int, int, const void *, socklen_t);

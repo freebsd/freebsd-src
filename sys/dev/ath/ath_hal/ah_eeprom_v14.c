@@ -84,11 +84,25 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 		return IS_VERS(>=, AR5416_EEP_MINOR_VER_19) ?
 		    pBase->txGainType : AR5416_EEP_TXGAIN_ORIG;
 	case AR_EEP_FSTCLK_5G:
-		return IS_VERS(>, AR5416_EEP_MINOR_VER_16) ?
-		    pBase->fastClk5g : AH_TRUE;
+		/* 5ghz fastclock is always enabled for Merlin minor <= 16 */
+		if (IS_VERS(<=, AR5416_EEP_MINOR_VER_16))
+			return HAL_OK;
+		return pBase->fastClk5g ? HAL_OK : HAL_EIO;
 	case AR_EEP_OL_PWRCTRL:
 		HALASSERT(val == AH_NULL);
 		return pBase->openLoopPwrCntl ?  HAL_OK : HAL_EIO;
+	case AR_EEP_DAC_HPWR_5G:
+		if (IS_VERS(>=, AR5416_EEP_MINOR_VER_20)) {
+			*(uint8_t *) val = pBase->dacHiPwrMode_5G;
+			return HAL_OK;
+		} else
+			return HAL_EIO;
+	case AR_EEP_FRAC_N_5G:
+		if (IS_VERS(>=, AR5416_EEP_MINOR_VER_22)) {
+			*(uint8_t *) val = pBase->frac_n_5g;
+		} else
+			*(uint8_t *) val = 0;
+		return HAL_OK;
 	case AR_EEP_AMODE:
 		HALASSERT(val == AH_NULL);
 		return pBase->opCapFlags & AR5416_OPFLAGS_11A ?
@@ -120,6 +134,19 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 	case AR_EEP_ANTGAINMAX_5:
 		*(int8_t *) val = ee->ee_antennaGainMax[0];
 		return HAL_OK;
+	case AR_EEP_PWR_TABLE_OFFSET:
+		if (IS_VERS(>=, AR5416_EEP_MINOR_VER_21))
+			*(int8_t *) val = pBase->pwr_table_offset;
+		else
+			*(int8_t *) val = AR5416_PWR_TABLE_OFFSET_DB;
+		return HAL_OK;
+	case AR_EEP_PWDCLKIND:
+		if (IS_VERS(>=, AR5416_EEP_MINOR_VER_10)) {
+			*(uint8_t *) val = pBase->pwdclkind;
+			return HAL_OK;
+		}
+		return HAL_EIO;
+		
         default:
 		HALASSERT(0);
 		return HAL_EINVAL;
@@ -129,7 +156,7 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 #undef CHAN_B_IDX
 }
 
-static HAL_BOOL
+static HAL_STATUS
 v14EepromSet(struct ath_hal *ah, int param, int v)
 {
 	HAL_EEPROM_v14 *ee = AH_PRIVATE(ah)->ah_eeprom;
@@ -153,8 +180,8 @@ v14EepromDiag(struct ath_hal *ah, int request,
 
 	switch (request) {
 	case HAL_DIAG_EEPROM:
-		*result = &ee->ee_base;
-		*resultsize = sizeof(ee->ee_base);
+		*result = ee;
+		*resultsize = sizeof(HAL_EEPROM_v14);
 		return AH_TRUE;
 	}
 	return AH_FALSE;
@@ -205,7 +232,10 @@ eepromSwap(struct ar5416eeprom *ee)
 			integer = __bswap32(pModal->antCtrlChain[i]);
 			pModal->antCtrlChain[i] = integer;
 		}
-
+		for (i = 0; i < 3; i++) {
+			word = __bswap16(pModal->xpaBiasLvlFreq[i]);
+			pModal->xpaBiasLvlFreq[i] = word;
+		}
 		for (i = 0; i < AR5416_EEPROM_MODAL_SPURS; i++) {
 			word = __bswap16(pModal->spurChans[i].spurChan);
 			pModal->spurChans[i].spurChan = word;
@@ -294,6 +324,11 @@ v14EepromDetach(struct ath_hal *ah)
 #define owl_get_eep_rev(_ee)   \
     (((_ee)->ee_base.baseEepHeader.version) & 0xFFF)
 
+/*
+ * Howl is (hopefully) a special case where the endian-ness of the EEPROM
+ * matches the native endian-ness; and that supplied EEPROMs don't have
+ * a magic value to check.
+ */
 HAL_STATUS
 ath_hal_v14EepromAttach(struct ath_hal *ah)
 {
@@ -306,16 +341,23 @@ ath_hal_v14EepromAttach(struct ath_hal *ah)
 
 	HALASSERT(ee == AH_NULL);
  
-	if (!ath_hal_eepromRead(ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s Error reading Eeprom MAGIC\n", __func__);
-		return HAL_EEREAD;
-	}
-	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s Eeprom Magic = 0x%x\n",
-	    __func__, magic);
-	if (magic != AR5416_EEPROM_MAGIC) {
-		HALDEBUG(ah, HAL_DEBUG_ANY, "Bad magic number\n");
-		return HAL_EEMAGIC;
+	/*
+	 * Don't check magic if we're supplied with an EEPROM block,
+	 * typically this is from Howl but it may also be from later
+	 * boards w/ an embedded Merlin.
+	 */
+	if (ah->ah_eepromdata == NULL) {
+		if (!ath_hal_eepromRead(ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
+			HALDEBUG(ah, HAL_DEBUG_ANY,
+			    "%s Error reading Eeprom MAGIC\n", __func__);
+			return HAL_EEREAD;
+		}
+		HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s Eeprom Magic = 0x%x\n",
+		    __func__, magic);
+		if (magic != AR5416_EEPROM_MAGIC) {
+			HALDEBUG(ah, HAL_DEBUG_ANY, "Bad magic number\n");
+			return HAL_EEMAGIC;
+		}
 	}
 
 	ee = ath_hal_malloc(sizeof(HAL_EEPROM_v14));
@@ -335,7 +377,8 @@ ath_hal_v14EepromAttach(struct ath_hal *ah)
 		}
 	}
 	/* Convert to eeprom native eeprom endian format */
-	if (isBigEndian()) {
+	/* XXX this is likely incorrect but will do for now to get howl/ap83 working. */
+	if (ah->ah_eepromdata == NULL && isBigEndian()) {
 		for (w = 0; w < NW(struct ar5416eeprom); w++)
 			eep_data[w] = __bswap16(eep_data[w]);
 	}

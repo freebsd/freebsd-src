@@ -5,9 +5,11 @@
 
 /set type=dir uname=root gname=wheel mode=0755
 .
-    altq
-    ..
     arpa
+    ..
+    atf-c
+    ..
+    atf-c++
     ..
     bsm
     ..
@@ -76,21 +78,41 @@
             tr1
             ..
         ..
+        v1
+            experimental
+            ..
+            ext
+            ..
+            tr1
+            ..
+        ..
     ..
     cam
         ata
         ..
+        nvme
+        ..
         scsi
         ..
+    ..
+    casper
     ..
     crypto
     ..
     dev
         acpica
         ..
+        agp
+        ..
         an
         ..
         bktr
+        ..
+        ciss
+        ..
+        evdev
+        ..
+        filemon
         ..
         firewire
         ..
@@ -98,21 +120,27 @@
         ..
         ic
         ..
-        ieee488
-        ..
         iicbus
+        ..
+        io
         ..
         lmc
         ..
-	mfi
-	..
+        mfi
+        ..
         mpt
             mpilib
             ..
         ..
+        nand
+        ..
+        nvme
+        ..
         ofw
         ..
         pbio
+        ..
+        pci
         ..
         powermac_nvram
         ..
@@ -131,24 +159,26 @@
         wi
         ..
     ..
+    devdctl
+    ..
+    edit
+        readline
+        ..
+    ..
     fs
+        cuse
+        ..
         devfs
         ..
         fdescfs
         ..
-        fifofs
-        ..
         msdosfs
+        ..
+        nandfs
         ..
         nfs
         ..
-        ntfs
-        ..
         nullfs
-        ..
-        nwfs
-        ..
-        portalfs
         ..
         procfs
         ..
@@ -157,6 +187,10 @@
         udf
         ..
         unionfs
+        ..
+    ..
+    gcc
+        4.2
         ..
     ..
     geom
@@ -174,9 +208,13 @@
         ..
         mirror
         ..
+        mountver
+        ..
         multipath
         ..
         nop
+        ..
+        raid
         ..
         raid3
         ..
@@ -191,9 +229,17 @@
         posix
         ..
     ..
-    gpib
-    ..
     gssapi
+    ..
+    infiniband
+        complib 
+        ..
+        iba
+        ..
+        opensm
+        ..
+        vendor
+        ..
     ..
     isofs
         cd9660
@@ -201,19 +247,25 @@
     ..
     kadm5
     ..
+    krb5
+    ..
+    lib80211
+    ..
     libmilter
     ..
-    lwres
+    libxo
+    ..
+    lzma
     ..
     machine
         pc
         ..
     ..
     net
+        altq
+        ..
     ..
     net80211
-    ..
-    netatalk
     ..
     netgraph
         atm
@@ -226,12 +278,12 @@
         ..
     ..
     netinet
+        cc
+        ..
     ..
     netinet6
     ..
     netipsec
-    ..
-    netipx
     ..
     netnatm
         api
@@ -243,7 +295,9 @@
         sig
         ..
     ..
-    netncp
+    netpfil
+        pf
+        ..
     ..
     netsmb
     ..
@@ -253,15 +307,13 @@
     ..
     nfsserver
     ..
-    objc
-    ..
     openssl
     ..
     pcap
     ..
     protocols
     ..
-    readline
+    rdma
     ..
     rpc
     ..
@@ -285,6 +337,8 @@
     ..
     sys
     ..
+    teken
+    ..
     ufs
         ffs
         ..
@@ -292,5 +346,7 @@
         ..
     ..
     vm
+    ..
+    xlocale
     ..
 ..

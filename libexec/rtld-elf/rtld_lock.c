@@ -43,7 +43,6 @@
  */
 
 #include <sys/param.h>
-
 #include <signal.h>
 #include <stdlib.h>
 #include <time.h>
@@ -51,6 +50,10 @@
 #include "debug.h"
 #include "rtld.h"
 #include "rtld_machdep.h"
+
+void _rtld_thread_init(struct RtldLockInfo *) __exported;
+void _rtld_atfork_pre(int *) __exported;
+void _rtld_atfork_post(int *) __exported;
 
 #define WAFLAG		0x1	/* A writer holds the lock */
 #define RC_INCR		0x2	/* Adjusts count of readers desiring lock */
@@ -183,44 +186,86 @@ rtld_lock_t	rtld_bind_lock = &rtld_locks[0];
 rtld_lock_t	rtld_libc_lock = &rtld_locks[1];
 rtld_lock_t	rtld_phdr_lock = &rtld_locks[2];
 
-int
-rlock_acquire(rtld_lock_t lock)
+void
+rlock_acquire(rtld_lock_t lock, RtldLockState *lockstate)
 {
+
+	if (lockstate == NULL)
+		return;
+
 	if (thread_mask_set(lock->mask) & lock->mask) {
-	    dbg("rlock_acquire: recursed");
-	    return (0);
+		dbg("rlock_acquire: recursed");
+		lockstate->lockstate = RTLD_LOCK_UNLOCKED;
+		return;
 	}
 	lockinfo.rlock_acquire(lock->handle);
-	return (1);
+	lockstate->lockstate = RTLD_LOCK_RLOCKED;
 }
 
-int
-wlock_acquire(rtld_lock_t lock)
+void
+wlock_acquire(rtld_lock_t lock, RtldLockState *lockstate)
 {
+
+	if (lockstate == NULL)
+		return;
+
 	if (thread_mask_set(lock->mask) & lock->mask) {
-	    dbg("wlock_acquire: recursed");
-	    return (0);
+		dbg("wlock_acquire: recursed");
+		lockstate->lockstate = RTLD_LOCK_UNLOCKED;
+		return;
 	}
 	lockinfo.wlock_acquire(lock->handle);
-	return (1);
+	lockstate->lockstate = RTLD_LOCK_WLOCKED;
 }
 
 void
-rlock_release(rtld_lock_t lock, int locked)
+lock_release(rtld_lock_t lock, RtldLockState *lockstate)
 {
-	if (locked == 0)
-	    return;
-	thread_mask_clear(lock->mask);
-	lockinfo.lock_release(lock->handle);
+
+	if (lockstate == NULL)
+		return;
+
+	switch (lockstate->lockstate) {
+	case RTLD_LOCK_UNLOCKED:
+		break;
+	case RTLD_LOCK_RLOCKED:
+	case RTLD_LOCK_WLOCKED:
+		thread_mask_clear(lock->mask);
+		lockinfo.lock_release(lock->handle);
+		break;
+	default:
+		assert(0);
+	}
 }
 
 void
-wlock_release(rtld_lock_t lock, int locked)
+lock_upgrade(rtld_lock_t lock, RtldLockState *lockstate)
 {
-	if (locked == 0)
-	    return;
-	thread_mask_clear(lock->mask);
-	lockinfo.lock_release(lock->handle);
+
+	if (lockstate == NULL)
+		return;
+
+	lock_release(lock, lockstate);
+	wlock_acquire(lock, lockstate);
+}
+
+void
+lock_restart_for_upgrade(RtldLockState *lockstate)
+{
+
+	if (lockstate == NULL)
+		return;
+
+	switch (lockstate->lockstate) {
+	case RTLD_LOCK_UNLOCKED:
+	case RTLD_LOCK_WLOCKED:
+		break;
+	case RTLD_LOCK_RLOCKED:
+		siglongjmp(lockstate->env, 1);
+		break;
+	default:
+		assert(0);
+	}
 }
 
 void
@@ -322,15 +367,38 @@ _rtld_thread_init(struct RtldLockInfo *pli)
 void
 _rtld_atfork_pre(int *locks)
 {
+	RtldLockState ls[2];
 
-	locks[2] = wlock_acquire(rtld_phdr_lock);
-	locks[0] = rlock_acquire(rtld_bind_lock);
+	if (locks == NULL)
+		return;
+
+	/*
+	 * Warning: this does not work with the rtld compat locks
+	 * above, since the thread signal mask is corrupted (set to
+	 * all signals blocked) if two locks are taken in write mode.
+	 * The caller of the _rtld_atfork_pre() must provide the
+	 * working implementation of the locks, and libthr locks are
+	 * fine.
+	 */
+	wlock_acquire(rtld_phdr_lock, &ls[0]);
+	wlock_acquire(rtld_bind_lock, &ls[1]);
+
+	/* XXXKIB: I am really sorry for this. */
+	locks[0] = ls[1].lockstate;
+	locks[2] = ls[0].lockstate;
 }
 
 void
 _rtld_atfork_post(int *locks)
 {
+	RtldLockState ls[2];
 
-	rlock_release(rtld_bind_lock, locks[0]);
-	wlock_release(rtld_phdr_lock, locks[2]);
+	if (locks == NULL)
+		return;
+
+	bzero(ls, sizeof(ls));
+	ls[0].lockstate = locks[2];
+	ls[1].lockstate = locks[0];
+	lock_release(rtld_bind_lock, &ls[1]);
+	lock_release(rtld_phdr_lock, &ls[0]);
 }

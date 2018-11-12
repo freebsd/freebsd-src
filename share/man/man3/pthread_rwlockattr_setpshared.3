@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 4, 1998
+.Dd May 31, 2016
 .Dt PTHREAD_RWLOCKATTR_SETPSHARED 3
 .Os
 .Sh NAME
@@ -75,9 +75,9 @@ or
 is invalid.
 .El
 .Sh SEE ALSO
+.Xr pthread_rwlock_init 3 ,
 .Xr pthread_rwlockattr_getpshared 3 ,
-.Xr pthread_rwlockattr_init 3 ,
-.Xr pthread_rwlock_init 3
+.Xr pthread_rwlockattr_init 3
 .Sh STANDARDS
 The
 .Fn pthread_rwlockattr_setpshared
@@ -88,7 +88,5 @@ The
 .Fn pthread_rwlockattr_setpshared
 function first appeared in
 .Fx 3.0 .
-.Sh BUGS
-The
-.Dv PTHREAD_PROCESS_SHARED
-attribute is not supported.
+Support for process-shared read/write locks appeared in
+.Fx 11.0 .

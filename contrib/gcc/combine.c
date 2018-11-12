@@ -2370,12 +2370,17 @@ try_combine (rtx i3, rtx i2, rtx i1, int *new_direct_jump_p)
 
   if (i1 && GET_CODE (newpat) != CLOBBER)
     {
-      /* Before we can do this substitution, we must redo the test done
-	 above (see detailed comments there) that ensures  that I1DEST
-	 isn't mentioned in any SETs in NEWPAT that are field assignments.  */
-
-      if (! combinable_i3pat (NULL_RTX, &newpat, i1dest, NULL_RTX,
-			      0, (rtx*) 0))
+      /* Check that an autoincrement side-effect on I1 has not been lost.
+	 This happens if I1DEST is mentioned in I2 and dies there, and
+	 has disappeared from the new pattern.  */
+      if ((FIND_REG_INC_NOTE (i1, NULL_RTX) != 0
+	   && !i1_feeds_i3
+	   && dead_or_set_p (i2, i1dest)
+	   && !reg_overlap_mentioned_p (i1dest, newpat))
+	  /* Before we can do this substitution, we must redo the test done
+	     above (see detailed comments there) that ensures  that I1DEST
+	     isn't mentioned in any SETs in NEWPAT that are field assignments.  */
+          || !combinable_i3pat (NULL_RTX, &newpat, i1dest, NULL_RTX, 0, 0))
 	{
 	  undo_all ();
 	  return 0;
@@ -12442,7 +12447,7 @@ distribute_notes (rtx notes, rtx from_insn, rtx i3, rtx i2, rtx elim_i2,
 	    REG_N_DEATHS (REGNO (XEXP (note, 0)))++;
 
 	  REG_NOTES (place2) = gen_rtx_fmt_ee (GET_CODE (note),
-					       REG_NOTE_KIND (note),
+					       GET_MODE (note),
 					       XEXP (note, 0),
 					       REG_NOTES (place2));
 	}

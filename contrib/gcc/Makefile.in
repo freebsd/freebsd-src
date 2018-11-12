@@ -238,7 +238,7 @@ BISONFLAGS =
 FLEX = @FLEX@
 FLEXFLAGS =
 AR = @AR@
-AR_FLAGS = rc
+ARFLAGS = @ARFLAGS@
 NM = @NM@
 RANLIB = @RANLIB@
 RANLIB_FLAGS = @ranlib_flags@
@@ -822,7 +822,8 @@ REAL_H = real.h $(MACHMODE_H)
 
 # IN_GCC distinguishes between code compiled into GCC itself and other
 # programs built during a bootstrap.
-# autoconf inserts -DCROSS_COMPILE if we are building a cross compiler.
+# autoconf inserts -DCROSS_DIRECTORY_STRUCTURE if we are building a
+# cross compiler which does not use the native headers and libraries.
 INTERNAL_CFLAGS = -DIN_GCC @CROSS@
 
 # This is the variable actually used when we compile. If you change this,
@@ -1303,7 +1304,7 @@ compilations: $(BACKEND)
 # This archive is strictly for the host.
 libbackend.a: $(OBJS@onestep@)
 	-rm -rf libbackend.a
-	$(AR) $(AR_FLAGS) libbackend.a $(OBJS@onestep@)
+	$(AR) $(ARFLAGS) libbackend.a $(OBJS@onestep@)
 	-$(RANLIB) $(RANLIB_FLAGS) libbackend.a
 
 # We call this executable `xgcc' rather than `gcc'

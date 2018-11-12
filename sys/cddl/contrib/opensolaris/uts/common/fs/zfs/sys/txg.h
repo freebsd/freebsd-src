@@ -19,14 +19,15 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ */
+/*
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_TXG_H
 #define	_SYS_TXG_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/spa.h>
 #include <sys/zfs_context.h>
@@ -41,8 +42,8 @@ extern "C" {
 #define	TXG_INITIAL		TXG_SIZE	/* initial txg 		*/
 #define	TXG_IDX			(txg & TXG_MASK)
 
-#define	TXG_WAIT		1ULL
-#define	TXG_NOWAIT		2ULL
+/* Number of txgs worth of frees we defer adding to in-core spacemaps */
+#define	TXG_DEFER_SIZE		2
 
 typedef struct tx_cpu tx_cpu_t;
 
@@ -71,16 +72,11 @@ extern void txg_sync_stop(struct dsl_pool *dp);
 extern uint64_t txg_hold_open(struct dsl_pool *dp, txg_handle_t *txghp);
 extern void txg_rele_to_quiesce(txg_handle_t *txghp);
 extern void txg_rele_to_sync(txg_handle_t *txghp);
-extern void txg_suspend(struct dsl_pool *dp);
-extern void txg_resume(struct dsl_pool *dp);
+extern void txg_register_callbacks(txg_handle_t *txghp, list_t *tx_callbacks);
 
-/*
- * Delay the caller by the specified number of ticks or until
- * the txg closes (whichever comes first).  This is intended
- * to be used to throttle writers when the system nears its
- * capacity.
- */
-extern void txg_delay(struct dsl_pool *dp, uint64_t txg, int ticks);
+extern void txg_delay(struct dsl_pool *dp, uint64_t txg, hrtime_t delta,
+    hrtime_t resolution);
+extern void txg_kick(struct dsl_pool *dp);
 
 /*
  * Wait until the given transaction group has finished syncing.
@@ -115,11 +111,13 @@ extern boolean_t txg_sync_waiting(struct dsl_pool *dp);
 
 extern void txg_list_create(txg_list_t *tl, size_t offset);
 extern void txg_list_destroy(txg_list_t *tl);
-extern int txg_list_empty(txg_list_t *tl, uint64_t txg);
-extern int txg_list_add(txg_list_t *tl, void *p, uint64_t txg);
+extern boolean_t txg_list_empty(txg_list_t *tl, uint64_t txg);
+extern boolean_t txg_all_lists_empty(txg_list_t *tl);
+extern boolean_t txg_list_add(txg_list_t *tl, void *p, uint64_t txg);
+extern boolean_t txg_list_add_tail(txg_list_t *tl, void *p, uint64_t txg);
 extern void *txg_list_remove(txg_list_t *tl, uint64_t txg);
 extern void *txg_list_remove_this(txg_list_t *tl, void *p, uint64_t txg);
-extern int txg_list_member(txg_list_t *tl, void *p, uint64_t txg);
+extern boolean_t txg_list_member(txg_list_t *tl, void *p, uint64_t txg);
 extern void *txg_list_head(txg_list_t *tl, uint64_t txg);
 extern void *txg_list_next(txg_list_t *tl, void *p, uint64_t txg);
 

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2009
+.Dd November 18, 2015
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -207,12 +207,18 @@ returns an error itself (see
 .Op Fl t Ar type
 .Ar file Cm ...
 .Xc
-Loads a kernel, kernel loadable module (kld), or file of opaque
-contents tagged as being of the type
+Loads a kernel, kernel loadable module (kld), disk image,
+or file of opaque contents tagged as being of the type
 .Ar type .
 Kernel and modules can be either in a.out or ELF format.
 Any arguments passed after the name of the file to be loaded
 will be passed as arguments to that file.
+Use the
+.Li md_image
+type to make the kernel create a file-backed
+.Xr md 4
+disk.
+This is useful for booting from a temporary rootfs.
 Currently, argument passing does not work for the kernel.
 .Pp
 .It Ic load_geli Xo
@@ -223,7 +229,7 @@ Loads a
 .Xr geli 8
 encryption keyfile for the given provider name.
 The key index can be specified via
-.Ar keyno 
+.Ar keyno
 or will default to zero.
 .Pp
 .It Ic ls Xo
@@ -334,12 +340,6 @@ Some options may require a value,
 while others define behavior just by being set.
 Both types of builtin variables are described below.
 .Bl -tag -width bootfile
-.It Va acpi_load
-Unset this to disable automatic loading of the ACPI module.
-See also
-.Va hint.acpi.0.disabled
-in
-.Xr device.hints 5 .
 .It Va autoboot_delay
 Number of seconds
 .Ic autoboot
@@ -425,6 +425,43 @@ was compiled.
 Changes to the
 .Va comconsole_speed
 variable take effect immediately.
+.It Va comconsole_port
+Defines the base i/o port used to access console UART
+(i386 and amd64 only).
+If the variable is not set, its assumed value is 0x3F8, which
+corresponds to PC port COM1, unless overridden by
+.Va BOOT_COMCONSOLE_PORT
+variable during the compilation of
+.Nm .
+Setting the
+.Va comconsole_port
+variable automatically set
+.Va hw.uart.console
+environment variable to provide a hint to kernel for location of the console.
+Loader console is changed immediately after variable
+.Va comconsole_port
+is set.
+.It Va comconsole_pcidev
+Defines the location of a PCI device of the 'simple communication'
+class to be used as the serial console UART (i386 and amd64 only).
+The syntax of the variable is
+.Li 'bus:device:function[:bar]' ,
+where all members must be numeric, with possible
+.Li 0x
+prefix to indicate a hexadecimal value.
+The
+.Va bar
+member is optional and assumed to be 0x10 if omitted.
+The bar must decode i/o space.
+Setting the variable
+.Va comconsole_pcidev
+automatically sets the variable
+.Va comconsole_port
+to the base of the selected bar, and hint
+.Va hw.uart.console .
+Loader console is changed immediately after variable
+.Va comconsole_pcidev
+is set.
 .It Va console
 Defines the current console or consoles.
 Multiple consoles may be specified.
@@ -434,6 +471,14 @@ userland output (e.g.\& from
 .It Va currdev
 Selects the default device.
 Syntax for devices is odd.
+.It Va dumpdev
+Sets the device for kernel dumps.
+This can be used to ensure that a device is configured before the corresponding
+.Va dumpdev
+directive from
+.Xr rc.conf 5
+has been processed, allowing kernel panics that happen during the early stages
+of boot to be captured.
 .It Va init_chroot
 If set to a valid directory in the root file system, it causes
 .Xr init 8
@@ -449,7 +494,7 @@ Sets the list of binaries which the kernel will try to run as the initial
 process.
 The first matching binary is used.
 The default list is
-.Dq Li /sbin/init:/sbin/oinit:/sbin/init.bak:\:/rescue/init:/stand/sysinstall .
+.Dq Li /sbin/init:/sbin/oinit:/sbin/init.bak:\:/rescue/init .
 .It Va init_script
 If set to a valid file name in the root file system,
 instructs
@@ -582,17 +627,26 @@ Not all architectures use such buffers; see
 for details.
 .It Va kern.maxswzone
 Limits the amount of KVM to be used to hold swap
-meta information, which directly governs the
-maximum amount of swap the system can support.
-This value is specified in bytes of KVA space
-and defaults to 32MBytes on i386 and amd64.
-Care should be taken
-to not reduce this value such that the actual
-amount of configured swap exceeds 1/2 the
-kernel-supported swap.
-The default of 32MB allows
-the kernel to support a maximum of ~7GB of swap.
-Only change
+metadata, which directly governs the
+maximum amount of swap the system can support,
+at the rate of approximately 200 MB of swap space
+per 1 MB of metadata.
+This value is specified in bytes of KVA space.
+If no value is provided, the system allocates
+enough memory to handle an amount of swap
+that corresponds to eight times the amount of
+physical memory present in the system.
+.Pp
+Note that swap metadata can be fragmented,
+which means that the system can run out of
+space before it reaches the theoretical limit.
+Therefore, care should be taken to not configure
+more swap than approximately half of the
+theoretical maximum.
+.Pp
+Running out of space for swap metadata can leave
+the system in an unrecoverable state.
+Therefore, you should only change
 this parameter if you need to greatly extend the
 KVM reservation for other resources such as the
 buffer cache or
@@ -603,7 +657,7 @@ Modifies kernel option
 Limits the amount of KVM reserved for use by the
 buffer cache, specified in bytes.
 The default maximum is 200MB on i386,
-and 400MB on amd64, sparc64, and sun4v.
+and 400MB on amd64 and sparc64.
 This parameter is used to
 prevent the buffer cache from eating too much
 KVM in large-memory machine configurations.
@@ -615,6 +669,14 @@ Note that
 the NBUF parameter will override this limit.
 Modifies
 .Dv VM_BCACHE_SIZE_MAX .
+.It Va kern.msgbufsize
+Sets the size of the kernel message buffer.
+The default limit of 64KB is usually sufficient unless
+large amounts of trace data need to be collected
+between opportunities to examine the buffer or
+dump it to a file.
+Overrides kernel option
+.Dv MSGBUF_SIZE .
 .It Va machdep.disable_mtrrs
 Disable the use of i686 MTRRs (x86 only).
 .It Va net.inet.tcp.tcbhashsize
@@ -622,6 +684,13 @@ Overrides the compile-time set value of
 .Dv TCBHASHSIZE
 or the preset default of 512.
 Must be a power of 2.
+.It Va twiddle_divisor
+Throttles the output of the
+.Sq twiddle
+I/O progress indicator displayed while loading the kernel and modules.
+This is useful on slow serial consoles where the time spent waiting for
+these characters to be written can add up to many seconds.
+The default is 1 (full speed); a value of 2 spins half as fast, and so on.
 .It Va vm.kmem_size
 Sets the size of kernel memory (bytes).
 This overrides the value determined when the kernel was compiled.
@@ -643,7 +712,6 @@ by it as arguments, and it is processed by a special parser which
 is not used for regular Forth commands.
 .Pp
 This special parser applies the following rules to the parsed text:
-.Pp
 .Bl -enum
 .It
 All backslash characters are preprocessed.
@@ -806,7 +874,7 @@ Evaluates the remainder of the input buffer under a
 exception guard.
 .It Ic .#
 Works like
-.Ic .
+.Ic "."
 but without outputting a trailing space.
 .It Ic fclose Pq Ar fd --
 Closes a file.
@@ -925,10 +993,10 @@ autoboot 5
 .Pp
 Set the disk unit of the root device to 2, and then boot.
 This would be needed in a system with two IDE disks,
-with the second IDE disk hardwired to wd2 instead of wd1.
+with the second IDE disk hardwired to ada2 instead of ada1.
 .Bd -literal -offset indent
 set root_disk_unit=2
-boot /kernel
+boot /boot/kernel/kernel
 .Ed
 .Pp
 See also:

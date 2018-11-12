@@ -1,119 +1,45 @@
-
 /******************************************************************************
  *
  * Module Name: asltransform - Parse tree transforms
  *
  *****************************************************************************/
 
-/******************************************************************************
- *
- * 1. Copyright Notice
- *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+/*
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
- * 2. License
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
- * 2.1. This is your license from Intel Corp. under its intellectual property
- * rights.  You may have additional license terms from the party that provided
- * you this software, covering your right to use that party's intellectual
- * property rights.
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
  *
- * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
- * copy of the source code appearing in this file ("Covered Code") an
- * irrevocable, perpetual, worldwide license under Intel's copyrights in the
- * base code distributed originally by Intel ("Original Intel Code") to copy,
- * make derivatives, distribute, use and display any portion of the Covered
- * Code in any form, with the right to sublicense such rights; and
- *
- * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
- * license (with the right to sublicense), under only those claims of Intel
- * patents that are infringed by the Original Intel Code, to make, use, sell,
- * offer to sell, and import the Covered Code and derivative works thereof
- * solely to the minimum extent necessary to exercise the above copyright
- * license, and in no event shall the patent license extend to any additions
- * to or modifications of the Original Intel Code.  No other license or right
- * is granted directly or by implication, estoppel or otherwise;
- *
- * The above copyright and patent license is granted only if the following
- * conditions are met:
- *
- * 3. Conditions
- *
- * 3.1. Redistribution of Source with Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification with rights to further distribute source must include
- * the above Copyright Notice, the above License, this list of Conditions,
- * and the following Disclaimer and Export Compliance provision.  In addition,
- * Licensee must cause all Covered Code to which Licensee contributes to
- * contain a file documenting the changes Licensee made to create that Covered
- * Code and the date of any change.  Licensee must include in that file the
- * documentation of any changes made by any predecessor Licensee.  Licensee
- * must include a prominent statement that the modification is derived,
- * directly or indirectly, from Original Intel Code.
- *
- * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification without rights to further distribute source must
- * include the following Disclaimer and Export Compliance provision in the
- * documentation and/or other materials provided with distribution.  In
- * addition, Licensee may not authorize further sublicense of source of any
- * portion of the Covered Code, and must include terms to the effect that the
- * license from Licensee to its licensee is limited to the intellectual
- * property embodied in the software Licensee provides to its licensee, and
- * not to intellectual property embodied in modifications its licensee may
- * make.
- *
- * 3.3. Redistribution of Executable. Redistribution in executable form of any
- * substantial portion of the Covered Code or modification must reproduce the
- * above Copyright Notice, and the following Disclaimer and Export Compliance
- * provision in the documentation and/or other materials provided with the
- * distribution.
- *
- * 3.4. Intel retains all right, title, and interest in and to the Original
- * Intel Code.
- *
- * 3.5. Neither the name Intel nor any other trademark owned or controlled by
- * Intel shall be used in advertising or otherwise to promote the sale, use or
- * other dealings in products derived from or relating to the Covered Code
- * without prior written authorization from Intel.
- *
- * 4. Disclaimer and Export Compliance
- *
- * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
- * HERE.  ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
- * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT,  ASSISTANCE,
- * INSTALLATION, TRAINING OR OTHER SERVICES.  INTEL WILL NOT PROVIDE ANY
- * UPDATES, ENHANCEMENTS OR EXTENSIONS.  INTEL SPECIFICALLY DISCLAIMS ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
- * PARTICULAR PURPOSE.
- *
- * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
- * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
- * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
- * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
- * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
- * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.  THESE LIMITATIONS
- * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
- * LIMITED REMEDY.
- *
- * 4.3. Licensee shall not export, either directly or indirectly, any of this
- * software or system incorporating such software without first obtaining any
- * required license or other approval from the U. S. Department of Commerce or
- * any other agency or department of the United States Government.  In the
- * event Licensee exports any such software from the United States or
- * re-exports any such software from a foreign destination, Licensee shall
- * ensure that the distribution and export/re-export of the software is in
- * compliance with all laws, regulations, orders, or other restrictions of the
- * U.S. Export Administration Regulations. Licensee agrees that neither it nor
- * any of its subsidiaries will export/re-export any technical data, process,
- * software, or service, directly or indirectly, to any country for which the
- * United States government or any agency thereof requires an export license,
- * other governmental approval, or letter of assurance, without first obtaining
- * such license, approval or letter.
- *
- *****************************************************************************/
-
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ */
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -172,7 +98,7 @@ TrDoSwitch (
  *
  * RETURN:      A pointer to name (allocated here).
  *
- * DESCRIPTION: Generate an ACPI name of the form _T_x.  These names are
+ * DESCRIPTION: Generate an ACPI name of the form _T_x. These names are
  *              reserved for use by the ASL compiler. (_T_0 through _T_Z)
  *
  ******************************************************************************/
@@ -185,7 +111,7 @@ TrAmlGetNextTempName (
     char                    *TempName;
 
 
-    if (*TempCount >= (10+26))  /* 0-35 valid: 0-9 and A-Z for TempName[3] */
+    if (*TempCount >= (10 + 26))  /* 0-35 valid: 0-9 and A-Z for TempName[3] */
     {
         /* Too many temps */
 
@@ -203,6 +129,7 @@ TrAmlGetNextTempName (
     {
         TempName[3] = (char) (*TempCount + ('A' - 10));
     }
+
     (*TempCount)++;
 
     /* First three characters are always "_T_" */
@@ -291,7 +218,7 @@ TrAmlSetSubtreeParent (
     while (Next)
     {
         Next->Asl.Parent = Parent;
-        Next             = Next->Asl.Next;
+        Next = Next->Asl.Next;
     }
 }
 
@@ -316,13 +243,13 @@ TrAmlInsertPeer (
 {
 
     NewPeer->Asl.Next = Op->Asl.Next;
-    Op->Asl.Next      = NewPeer;
+    Op->Asl.Next = NewPeer;
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    TrAmlTransformWalk
+ * FUNCTION:    TrAmlTransformWalkBegin
  *
  * PARAMETERS:  ASL_WALK_CALLBACK
  *
@@ -334,7 +261,7 @@ TrAmlInsertPeer (
  ******************************************************************************/
 
 ACPI_STATUS
-TrAmlTransformWalk (
+TrAmlTransformWalkBegin (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Level,
     void                    *Context)
@@ -347,13 +274,45 @@ TrAmlTransformWalk (
 
 /*******************************************************************************
  *
+ * FUNCTION:    TrAmlTransformWalkEnd
+ *
+ * PARAMETERS:  ASL_WALK_CALLBACK
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Parse tree walk to generate both the AML opcodes and the AML
+ *              operands.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+TrAmlTransformWalkEnd (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Level,
+    void                    *Context)
+{
+
+    /* Save possible Externals list in the DefintionBlock Op */
+
+    if (Op->Asl.ParseOpcode == PARSEOP_DEFINITION_BLOCK)
+    {
+        Op->Asl.Value.Arg = Gbl_ExternalsListHead;
+        Gbl_ExternalsListHead = NULL;
+    }
+
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    TrTransformSubtree
  *
  * PARAMETERS:  Op        - The parent parse node
  *
  * RETURN:      None
  *
- * DESCRIPTION: Prepare nodes to be output as AML data and operands.  The more
+ * DESCRIPTION: Prepare nodes to be output as AML data and operands. The more
  *              complex AML opcodes require processing of the child nodes
  *              (arguments/operands).
  *
@@ -371,16 +330,17 @@ TrTransformSubtree (
 
     switch (Op->Asl.ParseOpcode)
     {
-    case PARSEOP_DEFINITIONBLOCK:
+    case PARSEOP_DEFINITION_BLOCK:
+
         TrDoDefinitionBlock (Op);
         break;
 
     case PARSEOP_SWITCH:
+
         TrDoSwitch (Op);
         break;
 
     case PARSEOP_METHOD:
-
         /*
          * TBD: Zero the tempname (_T_x) count. Probably shouldn't be a global,
          * however
@@ -388,8 +348,19 @@ TrTransformSubtree (
         Gbl_TempCount = 0;
         break;
 
+    case PARSEOP_EXTERNAL:
+
+        if (Gbl_DoExternals == TRUE)
+        {
+            ExDoExternal (Op);
+        }
+
+        break;
+
     default:
+
         /* Nothing to do here for other opcodes */
+
         break;
     }
 }
@@ -404,7 +375,7 @@ TrTransformSubtree (
  * RETURN:      None
  *
  * DESCRIPTION: Find the end of the definition block and set a global to this
- *              node.  It is used by the compiler to insert compiler-generated
+ *              node. It is used by the compiler to insert compiler-generated
  *              names at the root level of the namespace.
  *
  ******************************************************************************/
@@ -416,6 +387,10 @@ TrDoDefinitionBlock (
     ACPI_PARSE_OBJECT       *Next;
     UINT32                  i;
 
+
+    /* Reset external list when starting a definition block */
+
+    Gbl_ExternalsListHead = NULL;
 
     Next = Op->Asl.Child;
     for (i = 0; i < 5; i++)
@@ -447,8 +422,7 @@ TrDoDefinitionBlock (
  *
  * RETURN:      None
  *
- *
- * DESCRIPTION: Translate ASL SWITCH statement to if/else pairs.  There is
+ * DESCRIPTION: Translate ASL SWITCH statement to if/else pairs. There is
  *              no actual AML opcode for SWITCH -- it must be simulated.
  *
  ******************************************************************************/
@@ -468,6 +442,9 @@ TrDoSwitch (
     ACPI_PARSE_OBJECT       *NewOp;
     ACPI_PARSE_OBJECT       *NewOp2;
     ACPI_PARSE_OBJECT       *MethodOp;
+    ACPI_PARSE_OBJECT       *StoreOp;
+    ACPI_PARSE_OBJECT       *BreakOp;
+    ACPI_PARSE_OBJECT       *BufferOp;
     char                    *PredicateValueName;
     UINT16                  Index;
     UINT32                  Btype;
@@ -517,11 +494,7 @@ TrDoSwitch (
             {
                 /* Add an ELSE to complete the previous CASE */
 
-                if (!Conditional)
-                {
-                    return;
-                }
-                NewOp             = TrCreateLeafNode (PARSEOP_ELSE);
+                NewOp = TrCreateLeafNode (PARSEOP_ELSE);
                 NewOp->Asl.Parent = Conditional->Asl.Parent;
                 TrAmlInitLineNumbers (NewOp, NewOp->Asl.Parent);
 
@@ -531,9 +504,9 @@ TrDoSwitch (
                 CurrentParentNode = NewOp;
             }
 
-            CaseOp      = Next;
+            CaseOp = Next;
             Conditional = CaseOp;
-            CaseBlock   = CaseOp->Asl.Child->Asl.Next;
+            CaseBlock = CaseOp->Asl.Child->Asl.Next;
             Conditional->Asl.Child->Asl.Next = NULL;
             Predicate = CaseOp->Asl.Child;
 
@@ -552,7 +525,7 @@ TrDoSwitch (
 
                 NewOp               = NewOp2;
                 NewOp2              = TrCreateValuedLeafNode (PARSEOP_NAMESTRING,
-                                        (ACPI_INTEGER) ACPI_TO_INTEGER (PredicateValueName));
+                                        (UINT64) ACPI_TO_INTEGER (PredicateValueName));
                 NewOp->Asl.Next     = NewOp2;
                 TrAmlInitLineNumbers (NewOp2, Predicate);
 
@@ -610,7 +583,7 @@ TrDoSwitch (
                  * CaseOp->Child->Peer is the beginning of the case block
                  */
                 NewOp = TrCreateValuedLeafNode (PARSEOP_NAMESTRING,
-                            (ACPI_INTEGER) ACPI_TO_INTEGER (PredicateValueName));
+                    (UINT64) ACPI_TO_INTEGER (PredicateValueName));
                 NewOp->Asl.Next = Predicate;
                 TrAmlInitLineNumbers (NewOp, Predicate);
 
@@ -638,16 +611,12 @@ TrDoSwitch (
              */
             if (CurrentParentNode == StartNode)
             {
-                Conditional->Asl.Parent = CurrentParentNode->Asl.Parent;
-
-                /* Link IF into the peer list */
-
-                TrAmlInsertPeer (CurrentParentNode, Conditional);
+                Conditional->Asl.Next = NULL;
             }
             else
             {
                 /*
-                 * The IF is a child of previous IF/ELSE.  It
+                 * The IF is a child of previous IF/ELSE. It
                  * is therefore without peer.
                  */
                 CurrentParentNode->Asl.Child = Conditional;
@@ -676,8 +645,8 @@ TrDoSwitch (
         {
             /* Unknown peer opcode */
 
-            AcpiOsPrintf ("Unknown parse opcode for switch statement: %s (%d)\n",
-                        Next->Asl.ParseOpName, Next->Asl.ParseOpcode);
+            AcpiOsPrintf ("Unknown parse opcode for switch statement: %s (%u)\n",
+                Next->Asl.ParseOpName, Next->Asl.ParseOpcode);
         }
     }
 
@@ -691,10 +660,6 @@ TrDoSwitch (
         {
             /* Convert the DEFAULT node to an ELSE */
 
-            if (!Conditional)
-            {
-                return;
-            }
             TrAmlInitNode (DefaultOp, PARSEOP_ELSE);
             DefaultOp->Asl.Parent = Conditional->Asl.Parent;
 
@@ -720,12 +685,13 @@ TrDoSwitch (
 
     Predicate = StartNode->Asl.Child;
     NewOp = TrCreateLeafNode (PARSEOP_NAME);
+    TrAmlInitLineNumbers (NewOp, StartNode);
 
     /* Find the parent method */
 
     Next = StartNode;
     while ((Next->Asl.ParseOpcode != PARSEOP_METHOD) &&
-           (Next->Asl.ParseOpcode != PARSEOP_DEFINITIONBLOCK))
+           (Next->Asl.ParseOpcode != PARSEOP_DEFINITION_BLOCK))
     {
         Next = Next->Asl.Parent;
     }
@@ -748,7 +714,8 @@ TrDoSwitch (
      */
     if (Next->Asl.ParseOpcode != PARSEOP_SERIALIZERULE_SERIAL)
     {
-        AslError (ASL_REMARK, ASL_MSG_SERIALIZED, MethodOp, "Due to use of Switch operator");
+        AslError (ASL_REMARK, ASL_MSG_SERIALIZED, MethodOp,
+            "Due to use of Switch operator");
         Next->Asl.ParseOpcode = PARSEOP_SERIALIZERULE_SERIAL;
     }
 
@@ -762,7 +729,8 @@ TrDoSwitch (
     /* Create the NameSeg child for the Name node */
 
     NewOp2 = TrCreateValuedLeafNode (PARSEOP_NAMESEG,
-                (ACPI_INTEGER) ACPI_TO_INTEGER (PredicateValueName));
+        (UINT64) ACPI_TO_INTEGER (PredicateValueName));
+    TrAmlInitLineNumbers (NewOp2, NewOp);
     NewOp2->Asl.CompileFlags |= NODE_IS_NAME_DECLARATION;
     NewOp->Asl.Child  = NewOp2;
 
@@ -771,50 +739,84 @@ TrDoSwitch (
     switch (Btype)
     {
     case ACPI_BTYPE_INTEGER:
+
         NewOp2->Asl.Next = TrCreateValuedLeafNode (PARSEOP_ZERO,
-                                (ACPI_INTEGER) 0);
+            (UINT64) 0);
+        TrAmlInitLineNumbers (NewOp2->Asl.Next, NewOp);
         break;
 
     case ACPI_BTYPE_STRING:
+
         NewOp2->Asl.Next = TrCreateValuedLeafNode (PARSEOP_STRING_LITERAL,
-                                (ACPI_INTEGER) ACPI_TO_INTEGER (""));
+            (UINT64) ACPI_TO_INTEGER (""));
+        TrAmlInitLineNumbers (NewOp2->Asl.Next, NewOp);
         break;
 
     case ACPI_BTYPE_BUFFER:
+
         (void) TrLinkPeerNode (NewOp2, TrCreateValuedLeafNode (PARSEOP_BUFFER,
-                                    (ACPI_INTEGER) 0));
+            (UINT64) 0));
         Next = NewOp2->Asl.Next;
+        TrAmlInitLineNumbers (Next, NewOp2);
         (void) TrLinkChildren (Next, 1, TrCreateValuedLeafNode (PARSEOP_ZERO,
-                                    (ACPI_INTEGER) 1));
-        (void) TrLinkPeerNode (Next->Asl.Child,
-            TrCreateValuedLeafNode (PARSEOP_DEFAULT_ARG, (ACPI_INTEGER) 0));
+            (UINT64) 1));
+        TrAmlInitLineNumbers (Next->Asl.Child, Next);
+
+        BufferOp = TrCreateValuedLeafNode (PARSEOP_DEFAULT_ARG, (UINT64) 0);
+        TrAmlInitLineNumbers (BufferOp, Next->Asl.Child);
+        (void) TrLinkPeerNode (Next->Asl.Child, BufferOp);
 
         TrAmlSetSubtreeParent (Next->Asl.Child, Next);
         break;
 
     default:
+
         break;
     }
 
     TrAmlSetSubtreeParent (NewOp2, NewOp);
 
     /*
-     * Transform the Switch() into a Store() node which will be used to save the
-     * Switch() value.  The store is of the form: Store (Value, _T_x)
+     * Transform the Switch() into a While(One)-Break node.
+     * And create a Store() node which will be used to save the
+     * Switch() value. The store is of the form: Store (Value, _T_x)
      * where _T_x is the temp variable.
      */
-    TrAmlInitNode (StartNode, PARSEOP_STORE);
-    StartNode->Asl.Child = NULL;
+    TrAmlInitNode (StartNode, PARSEOP_WHILE);
+    NewOp = TrCreateLeafNode (PARSEOP_ONE);
+    TrAmlInitLineNumbers (NewOp, StartNode);
+    NewOp->Asl.Next = Predicate->Asl.Next;
+    NewOp->Asl.Parent = StartNode;
+    StartNode->Asl.Child = NewOp;
+
+    /* Create a Store() node */
+
+    StoreOp = TrCreateLeafNode (PARSEOP_STORE);
+    TrAmlInitLineNumbers (StoreOp, NewOp);
+    StoreOp->Asl.Parent = StartNode;
+    TrAmlInsertPeer (NewOp, StoreOp);
 
     /* Complete the Store subtree */
 
-    StartNode->Asl.Child = Predicate;
-    Predicate->Asl.Parent = StartNode;
+    StoreOp->Asl.Child = Predicate;
+    Predicate->Asl.Parent = StoreOp;
 
     NewOp = TrCreateValuedLeafNode (PARSEOP_NAMESEG,
-                (ACPI_INTEGER) ACPI_TO_INTEGER (PredicateValueName));
-    NewOp->Asl.Parent    = StartNode;
+        (UINT64) ACPI_TO_INTEGER (PredicateValueName));
+    TrAmlInitLineNumbers (NewOp, StoreOp);
+    NewOp->Asl.Parent    = StoreOp;
     Predicate->Asl.Next  = NewOp;
+
+    /* Create a Break() node and insert it into the end of While() */
+
+    Conditional = StartNode->Asl.Child;
+    while (Conditional->Asl.Next)
+    {
+        Conditional = Conditional->Asl.Next;
+    }
+
+    BreakOp = TrCreateLeafNode (PARSEOP_BREAK);
+    TrAmlInitLineNumbers (BreakOp, NewOp);
+    BreakOp->Asl.Parent = StartNode;
+    TrAmlInsertPeer (Conditional, BreakOp);
 }
-
-

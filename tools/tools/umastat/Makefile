@@ -1,11 +1,9 @@
 # $FreeBSD$
 
 PROG=	umastat
-NO_MAN=
+MAN=
+WARNS?=	3
 
-DPADD=	${LIBKVM}
-LDADD=	-lkvm
-
-WARNS=	3
+LIBADD=	kvm
 
 .include <bsd.prog.mk>

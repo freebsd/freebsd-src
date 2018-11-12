@@ -1,0 +1,64 @@
+2007-07-11  Hal Rosenstock <halr@voltaire.com>
+
+	* configure.in: Bump version to 2.2.1
+
+2007-07-10  Sean Hefty <sean.hefty@intel.com>
+
+	* osm_vendor_ibumad.c:  Use pkey index, rather than pkey
+	  on umad_set_pkey call. Using index 0 for now.
+
+2007-05-07  Hal Rosenstock <halr@voltaire.com>
+
+	* osm_vendor_ibumad.(h c): Remove support for issmdisabled
+
+2007-03-29  Hal Rosenstock <halr@voltaire.com>
+
+	* configure.in: Bump version to 2.2.0
+
+2007-03-27  Hal Rosenstock <halr@voltaire.com>
+
+	* osm_vendor_ibumad.(h c): Add support for issmdisabled
+
+2007-03-13  Hal Rosenstock <halr@voltaire.com>
+
+	* osm_vendor_ibumad.c: In osm_vendor_set_sm, set issmfd to
+	  -1 on open error
+
+2007-03-12  Hal Rosenstock <halr@voltaire.com>
+
+	* osm_vendor_ibumad.c: In umad_receiver, display DR path of
+	  sent MAD when it times out. In osm_vendor_send, simplify redundant
+	  code. Cosmetic change to osm_log message in osm_vendor_bind.
+
+2007-02-20  Hal Rosenstock <halr@voltaire.com>
+
+	* configure.in: Bump version to 2.1.1
+
+2007-02-20  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* osm_vendor_ibumad.(h c): Fix termination crash associated
+	  with umad_receiver thread termination.
+
+	* osm_vendor_mlx_sa.c, osm_vendor_mlx_sim.c: Changes for
+	  compilation failures detected during ibutils/ibmgtsim building
+
+2007=01-10  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* osm_vendor_ibumad.c: Close umad port in
+	  osm_vendor_delete so same process can reinitialize
+	  and resuse vendor layer.
+
+2006-10-12  Hal Rosenstock <halr@voltaire.com>
+
+	* osm_vendor_ibumad.c (umad_receiver): Fix endian of LID
+	  displayed in send timeout error message.
+
+2006-10-10  Hal Rosenstock <halr@voltaire.com>
+
+	* osm_vendor_ibumad.c: Print errors to stderr rather than
+	  stdout.
+
+2006-09-28  Eitan Zahavi <eitan@mellanox.co.il>
+
+	* osm_vendor_mlx_sa.c: Missing status on timeout SA query.
+

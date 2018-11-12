@@ -234,7 +234,7 @@ NgDeliverMsg(int cs, const char *path,
 	}
 
 	/* Wait for reply if there should be one. */
-	if (msg->header.cmd & NGM_HASREPLY) {
+	if (msg->header.cmd & NGM_HASREPLY && !(msg->header.flags & NGF_RESP)) {
 		struct pollfd rfds;
 		int n;
 

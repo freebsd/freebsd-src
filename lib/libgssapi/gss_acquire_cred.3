@@ -27,9 +27,9 @@
 .\"	$FreeBSD$
 .\"
 .\" The following commands are required for all man pages.
-.Dd October 30, 2007
-.Os
+.Dd January 26, 2010
 .Dt GSS_ACQUIRE_CRED 3 PRM
+.Os
 .Sh NAME
 .Nm gss_acquire_cred
 .Nd Obtain a GSS-API credential handle for pre-existing credentials
@@ -126,7 +126,7 @@ immediately following the call of
 must return valid credential data,
 and may therefore incur the overhead of a deferred credential acquisition.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It output_cred_handle"
 .It desired_name
 Name of principal whose credential should be acquired.
 .It time_req
@@ -174,7 +174,7 @@ Specify NULL if not required.
 Mechanism specific status code.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_CREDENTIALS_EXPIRED"
 .It GSS_S_COMPLETE
 Successful completion.
 .It GSS_S_BAD_MECH
@@ -184,19 +184,19 @@ Type contained within desired_name parameter is not supported.
 .It GSS_S_BAD_NAME
 Value supplied for desired_name parameter is ill formed.
 .It GSS_S_CREDENTIALS_EXPIRED
-The credentials could not be acquired Because they have expired.
+The credentials could not be acquired because they have expired.
 .It GSS_S_NO_CRED
 No credentials were found for the specified name.
 .El
 .Sh SEE ALSO
-.Xr gss_init_sec_context 3 ,
 .Xr gss_accept_sec_context 3 ,
-.Xr gss_inquire_cred 3 ,
+.Xr gss_init_sec_context 3 ,
 .Xr gss_inquire_context 3 ,
+.Xr gss_inquire_cred 3 ,
 .Xr gss_release_cred 3 ,
 .Xr gss_release_oid_set 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744
@@ -205,7 +205,7 @@ Generic Security Service API Version 2 : C-bindings
 .Sh HISTORY
 The
 .Nm
-manual page example first appeared in
+function first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
 John Wray, Iris Associates

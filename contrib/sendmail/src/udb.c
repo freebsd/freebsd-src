@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003, 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003, 2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -15,9 +15,9 @@
 #include "map.h"
 
 #if USERDB
-SM_RCSID("@(#)$Id: udb.c,v 8.164 2006/12/19 19:49:51 ca Exp $ (with USERDB)")
+SM_RCSID("@(#)$Id: udb.c,v 8.166 2013-11-22 20:51:57 ca Exp $ (with USERDB)")
 #else /* USERDB */
-SM_RCSID("@(#)$Id: udb.c,v 8.164 2006/12/19 19:49:51 ca Exp $ (without USERDB)")
+SM_RCSID("@(#)$Id: udb.c,v 8.166 2013-11-22 20:51:57 ca Exp $ (without USERDB)")
 #endif /* USERDB */
 
 #if USERDB
@@ -1219,7 +1219,7 @@ _udbx_close()
 #  endif /* DB_VERSION_MAJOR < 2 */
 		}
 		if (tTd(28, 1))
-			sm_dprintf("_udbx_init: db->close(%s)\n",
+			sm_dprintf("_udbx_close: db->close(%s)\n",
 				up->udb_dbname);
 # endif /* NEWDB */
 	}

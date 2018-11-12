@@ -10,12 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Boris Popov.
- * 4. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -64,9 +58,9 @@
 
 struct smbioc_ossn {
 	int		ioc_opt;
-	int		ioc_svlen;	/* size of ioc_server address */
+	uint32_t	ioc_svlen;	/* size of ioc_server address */
 	struct sockaddr*ioc_server;
-	int		ioc_lolen;	/* size of ioc_local address */
+	uint32_t	ioc_lolen;	/* size of ioc_local address */
 	struct sockaddr*ioc_local;
 	char		ioc_srvname[SMB_MAXSRVNAMELEN + 1];
 	int		ioc_timeout;
@@ -161,22 +155,28 @@ struct smbioc_rw {
 STAILQ_HEAD(smbrqh, smb_rq);
 
 struct smb_dev {
+	struct cdev *	dev;
 	int		sd_opened;
 	int		sd_level;
 	struct smb_vc * sd_vc;		/* reference to VC */
 	struct smb_share *sd_share;	/* reference to share if any */
 	int		sd_poll;
 	int		sd_seq;
-/*	struct ifqueue	sd_rdqueue;
-	struct ifqueue	sd_wrqueue;
-	struct selinfo	sd_pollinfo;
-	struct smbrqh	sd_rqlist;
-	struct smbrqh	sd_rplist;
-	struct ucred 	*sd_owner;*/
 	int		sd_flags;
+	int		refcount;
+	int		usecount;
 };
 
+extern struct sx smb_lock;
+#define	SMB_LOCK()		sx_xlock(&smb_lock)
+#define	SMB_UNLOCK() 		sx_unlock(&smb_lock)
+#define	SMB_LOCKASSERT()	sx_assert(&smb_lock, SA_XLOCKED)
+
 struct smb_cred;
+
+void sdp_dtor(void *arg);
+void sdp_trydestroy(struct smb_dev *dev);
+
 /*
  * Compound user interface
  */
@@ -191,7 +191,7 @@ int  smb_usr_simplerequest(struct smb_share *ssp, struct smbioc_rq *data,
 int  smb_usr_t2request(struct smb_share *ssp, struct smbioc_t2rq *data,
 	struct smb_cred *scred);
 int  smb_dev2share(int fd, int mode, struct smb_cred *scred,
-	struct smb_share **sspp);
+	struct smb_share **sspp, struct smb_dev **ssdp);
 
 
 #endif /* _KERNEL */

@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_atm.h>
 #include <net/route.h>
@@ -261,7 +262,7 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
  * Free an mbuf and put it onto the free list.
  */
 static void
-hatm_mbuf0_free(void *buf, void *args)
+hatm_mbuf0_free(struct mbuf *m, void *buf, void *args)
 {
 	struct hatm_softc *sc = args;
 	struct mbuf0_chunk *c = buf;
@@ -272,7 +273,7 @@ hatm_mbuf0_free(void *buf, void *args)
 	hatm_ext_free(&sc->mbuf_list[0], (struct mbufx_free *)c);
 }
 static void
-hatm_mbuf1_free(void *buf, void *args)
+hatm_mbuf1_free(struct mbuf *m, void *buf, void *args)
 {
 	struct hatm_softc *sc = args;
 	struct mbuf1_chunk *c = buf;
@@ -330,7 +331,7 @@ he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
 
 		if (large) {
 			/* allocate the MBUF */
-			if ((m = m_getcl(M_DONTWAIT, MT_DATA,
+			if ((m = m_getcl(M_NOWAIT, MT_DATA,
 			    M_PKTHDR)) == NULL) {
 				if_printf(sc->ifp,
 				    "no mbuf clusters\n");
@@ -437,7 +438,7 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 	DBG(sc, RX, ("RX group=%u handle=%x page=%u chunk=%u", group, handle,
 	    pageno, chunkno));
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 
 	if (group == 0) {
 		struct mbuf0_chunk *c0;
@@ -456,12 +457,12 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 		c0->hdr.flags &= ~MBUF_CARD;
 
 		if (m != NULL) {
-			m->m_ext.ref_cnt = &c0->hdr.ref_cnt;
+			m->m_ext.ext_cnt = &c0->hdr.ref_cnt;
 			MEXTADD(m, (void *)c0, MBUF0_SIZE,
 			    hatm_mbuf0_free, c0, sc, M_PKTHDR, EXT_EXTREF);
 			m->m_data += MBUF0_OFFSET;
 		} else
-			hatm_mbuf0_free(c0, sc);
+			(void)hatm_mbuf0_free(NULL, c0, sc);
 
 	} else {
 		struct mbuf1_chunk *c1;
@@ -480,12 +481,12 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 		c1->hdr.flags &= ~MBUF_CARD;
 
 		if (m != NULL) {
-			m->m_ext.ref_cnt = &c1->hdr.ref_cnt;
+			m->m_ext.ext_cnt = &c1->hdr.ref_cnt;
 			MEXTADD(m, (void *)c1, MBUF1_SIZE,
 			    hatm_mbuf1_free, c1, sc, M_PKTHDR, EXT_EXTREF);
 			m->m_data += MBUF1_OFFSET;
 		} else
-			hatm_mbuf1_free(c1, sc);
+			(void)hatm_mbuf1_free(NULL, c1, sc);
 	}
 
 	return (m);

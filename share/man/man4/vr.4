@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2008
+.Dd February 25, 2012
 .Dt VR 4
 .Os
 .Sh NAME
@@ -77,7 +77,6 @@ They support both
 The
 .Nm
 driver supports the following media types:
-.Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It autoselect
 Enable autoselection of the media type and options.
@@ -95,7 +94,7 @@ or
 .Ar half-duplex
 modes.
 .It 100baseTX
-Set 100Mbps (Fast Fthernet) operation.
+Set 100Mbps (Fast Ethernet) operation.
 The
 .Ar mediaopt
 option can also be used to select either
@@ -108,10 +107,9 @@ modes.
 The
 .Nm
 driver supports the following media options:
-.Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It full-duplex
-Force full duplex operation
+Force full duplex operation.
 .It half-duplex
 Force half duplex operation.
 .El
@@ -129,6 +127,8 @@ Fast Ethernet adapters including:
 .Bl -bullet -compact
 .It
 AOpen/Acer ALN-320
+.It
+D-Link DFE520-TX
 .It
 D-Link DFE530-TX
 .It
@@ -192,7 +192,7 @@ the card should be configured correctly.
 .Xr ifconfig 8
 .Rs
 .%T The VIA Technologies VT86C100A data sheet
-.%O http://www.via.com.tw
+.%U http://www.via.com.tw
 .Re
 .Sh HISTORY
 The
@@ -203,7 +203,7 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An Bill Paul Aq wpaul@ctr.columbia.edu .
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu .
 .Sh BUGS
 The
 .Nm

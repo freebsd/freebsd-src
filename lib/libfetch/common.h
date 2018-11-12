@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998-2004 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1998-2014 Dag-Erling SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@ struct fetchconn {
 	SSL		*ssl;		/* SSL handle */
 	SSL_CTX		*ssl_ctx;	/* SSL context */
 	X509		*ssl_cert;	/* server certificate */
-	SSL_METHOD	*ssl_meth;	/* SSL method */
+	const SSL_METHOD *ssl_meth;	/* SSL method */
 #endif
 	int		 ref;		/* reference count */
 };
@@ -80,7 +80,10 @@ int		 fetch_bind(int, int, const char *);
 conn_t		*fetch_connect(const char *, int, int, int);
 conn_t		*fetch_reopen(int);
 conn_t		*fetch_ref(conn_t *);
-int		 fetch_ssl(conn_t *, int);
+#ifdef WITH_SSL
+int		 fetch_ssl_cb_verify_crt(int, X509_STORE_CTX*);
+#endif
+int		 fetch_ssl(conn_t *, const struct url *, int);
 ssize_t		 fetch_read(conn_t *, char *, size_t);
 int		 fetch_getln(conn_t *);
 ssize_t		 fetch_write(conn_t *, const char *, size_t);
@@ -114,6 +117,9 @@ int		 fetch_no_proxy_match(const char *);
  */
 FILE		*http_request(struct url *, const char *,
 		     struct url_stat *, struct url *, const char *);
+FILE		*http_request_body(struct url *, const char *,
+		     struct url_stat *, struct url *, const char *,
+		     const char *, const char *);
 FILE		*ftp_request(struct url *, const char *,
 		     struct url_stat *, struct url *, const char *);
 

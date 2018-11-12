@@ -6,7 +6,7 @@
 CARD=sr0
 
 # create an interface "ng0" and attach it to the sync port.
-# The packets had jolly well better be ip because we are not discriminating.
+# The packets had jolly well better be IP because we are not discriminating.
 ngctl mkpeer ${CARD}: iface rawdata inet
 
 # if ng0 already exists, use a CONNECT command instead of a mkpeer. e.g.

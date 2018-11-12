@@ -70,6 +70,7 @@ struct vnet {
 	u_int			 vnet_magic_n;
 	u_int			 vnet_ifcnt;
 	u_int			 vnet_sockcnt;
+	u_int			 vnet_state;	/* SI_SUB_* */
 	void			*vnet_data_mem;
 	uintptr_t		 vnet_data_base;
 };
@@ -85,11 +86,77 @@ struct vnet {
 
 #ifdef _KERNEL
 
+#define	VNET_PCPUSTAT_DECLARE(type, name)	\
+    VNET_DECLARE(counter_u64_t, name[sizeof(type) / sizeof(uint64_t)])
+
+#define	VNET_PCPUSTAT_DEFINE(type, name)	\
+    VNET_DEFINE(counter_u64_t, name[sizeof(type) / sizeof(uint64_t)])
+
+#define	VNET_PCPUSTAT_ALLOC(name, wait)	\
+    COUNTER_ARRAY_ALLOC(VNET(name), \
+	sizeof(VNET(name)) / sizeof(counter_u64_t), (wait))
+
+#define	VNET_PCPUSTAT_FREE(name)	\
+    COUNTER_ARRAY_FREE(VNET(name), sizeof(VNET(name)) / sizeof(counter_u64_t))
+
+#define	VNET_PCPUSTAT_ADD(type, name, f, v)	\
+    counter_u64_add(VNET(name)[offsetof(type, f) / sizeof(uint64_t)], (v))
+
+#define	VNET_PCPUSTAT_FETCH(type, name, f)	\
+    counter_u64_fetch(VNET(name)[offsetof(type, f) / sizeof(uint64_t)])
+
+#define	VNET_PCPUSTAT_SYSINIT(name)	\
+static void				\
+vnet_##name##_init(const void *unused)	\
+{					\
+	VNET_PCPUSTAT_ALLOC(name, M_WAITOK);	\
+}					\
+VNET_SYSINIT(vnet_ ## name ## _init, SI_SUB_INIT_IF,			\
+    SI_ORDER_FIRST, vnet_ ## name ## _init, NULL)
+
+#define	VNET_PCPUSTAT_SYSUNINIT(name)					\
+static void								\
+vnet_##name##_uninit(const void *unused)				\
+{									\
+	VNET_PCPUSTAT_FREE(name);					\
+}									\
+VNET_SYSUNINIT(vnet_ ## name ## _uninit, SI_SUB_INIT_IF,		\
+    SI_ORDER_FIRST, vnet_ ## name ## _uninit, NULL)
+
+#ifdef SYSCTL_OID
+#define	SYSCTL_VNET_PCPUSTAT(parent, nbr, name, type, array, desc)	\
+static int								\
+array##_sysctl(SYSCTL_HANDLER_ARGS)					\
+{									\
+	type s;								\
+	CTASSERT((sizeof(type) / sizeof(uint64_t)) ==			\
+	    (sizeof(VNET(array)) / sizeof(counter_u64_t)));		\
+	COUNTER_ARRAY_COPY(VNET(array), &s, sizeof(type) / sizeof(uint64_t));\
+	if (req->newptr)						\
+		COUNTER_ARRAY_ZERO(VNET(array),				\
+		    sizeof(type) / sizeof(uint64_t));			\
+	return (SYSCTL_OUT(req, &s, sizeof(type)));			\
+}									\
+SYSCTL_PROC(parent, nbr, name, CTLFLAG_VNET | CTLTYPE_OPAQUE | CTLFLAG_RW, \
+    NULL, 0, array ## _sysctl, "I", desc)
+#endif /* SYSCTL_OID */
+
 #ifdef VIMAGE
 #include <sys/lock.h>
 #include <sys/proc.h>			/* for struct thread */
 #include <sys/rwlock.h>
 #include <sys/sx.h>
+
+/*
+ * Location of the kernel's 'set_vnet' linker set.
+ */
+extern uintptr_t	*__start_set_vnet;
+__GLOBL(__start_set_vnet);
+extern uintptr_t	*__stop_set_vnet;
+__GLOBL(__stop_set_vnet);
+
+#define	VNET_START	(uintptr_t)&__start_set_vnet
+#define	VNET_STOP	(uintptr_t)&__stop_set_vnet
 
 /*
  * Functions to allocate and destroy virtual network stacks.
@@ -107,46 +174,61 @@ void	vnet_destroy(struct vnet *vnet);
  * Various macros -- get and set the current network stack, but also
  * assertions.
  */
+#if defined(INVARIANTS) || defined(VNET_DEBUG)
+#define	VNET_ASSERT(exp, msg)	do {					\
+	if (!(exp))							\
+		panic msg;						\
+} while (0)
+#else
+#define	VNET_ASSERT(exp, msg)	do {					\
+} while (0)
+#endif
+
 #ifdef VNET_DEBUG
-#define	VNET_ASSERT(condition)						\
-	if (!(condition)) {						\
-		printf("VNET_ASSERT @ %s:%d %s():\n",			\
-			__FILE__, __LINE__, __FUNCTION__);		\
-		panic(#condition);					\
-	}
+void vnet_log_recursion(struct vnet *, const char *, int);
 
 #define	CURVNET_SET_QUIET(arg)						\
-	VNET_ASSERT((arg)->vnet_magic_n == VNET_MAGIC_N);		\
+	VNET_ASSERT((arg) != NULL && (arg)->vnet_magic_n == VNET_MAGIC_N, \
+	    ("CURVNET_SET at %s:%d %s() curvnet=%p vnet=%p",		\
+	    __FILE__, __LINE__, __func__, curvnet, (arg)));		\
 	struct vnet *saved_vnet = curvnet;				\
 	const char *saved_vnet_lpush = curthread->td_vnet_lpush;	\
 	curvnet = arg;							\
-	curthread->td_vnet_lpush = __FUNCTION__;
+	curthread->td_vnet_lpush = __func__;
  
 #define	CURVNET_SET_VERBOSE(arg)					\
 	CURVNET_SET_QUIET(arg)						\
 	if (saved_vnet)							\
-		printf("CURVNET_SET(%p) in %s() on cpu %d, prev %p in %s()\n", \
-		       curvnet,	curthread->td_vnet_lpush, curcpu,	\
-		       saved_vnet, saved_vnet_lpush);
+		vnet_log_recursion(saved_vnet, saved_vnet_lpush, __LINE__);
 
 #define	CURVNET_SET(arg)	CURVNET_SET_VERBOSE(arg)
  
 #define	CURVNET_RESTORE()						\
-	VNET_ASSERT(saved_vnet == NULL ||				\
-		    saved_vnet->vnet_magic_n == VNET_MAGIC_N);		\
+	VNET_ASSERT(curvnet != NULL && (saved_vnet == NULL ||		\
+	    saved_vnet->vnet_magic_n == VNET_MAGIC_N),			\
+	    ("CURVNET_RESTORE at %s:%d %s() curvnet=%p saved_vnet=%p",	\
+	    __FILE__, __LINE__, __func__, curvnet, saved_vnet));	\
 	curvnet = saved_vnet;						\
 	curthread->td_vnet_lpush = saved_vnet_lpush;
 #else /* !VNET_DEBUG */
-#define	VNET_ASSERT(condition)
 
-#define	CURVNET_SET(arg)						\
+#define	CURVNET_SET_QUIET(arg)						\
+	VNET_ASSERT((arg) != NULL && (arg)->vnet_magic_n == VNET_MAGIC_N, \
+	    ("CURVNET_SET at %s:%d %s() curvnet=%p vnet=%p",		\
+	    __FILE__, __LINE__, __func__, curvnet, (arg)));		\
 	struct vnet *saved_vnet = curvnet;				\
 	curvnet = arg;	
  
-#define	CURVNET_SET_VERBOSE(arg)	CURVNET_SET(arg)
-#define	CURVNET_SET_QUIET(arg)		CURVNET_SET(arg)
+#define	CURVNET_SET_VERBOSE(arg)					\
+	CURVNET_SET_QUIET(arg)
+
+#define	CURVNET_SET(arg)	CURVNET_SET_VERBOSE(arg)
  
 #define	CURVNET_RESTORE()						\
+	VNET_ASSERT(curvnet != NULL && (saved_vnet == NULL ||		\
+	    saved_vnet->vnet_magic_n == VNET_MAGIC_N),			\
+	    ("CURVNET_RESTORE at %s:%d %s() curvnet=%p saved_vnet=%p",	\
+	    __FILE__, __LINE__, __func__, curvnet, saved_vnet));	\
 	curvnet = saved_vnet;
 #endif /* VNET_DEBUG */
 
@@ -182,15 +264,6 @@ extern struct sx vnet_sxlock;
  * Virtual network stack memory allocator, which allows global variables to
  * be automatically instantiated for each network stack instance.
  */
-__asm__(
-#if defined(__arm__)
-	".section " VNET_SETNAME ", \"aw\", %progbits\n"
-#else
-	".section " VNET_SETNAME ", \"aw\", @progbits\n"
-#endif
-	"\t.p2align " __XSTRING(CACHE_LINE_SHIFT) "\n"
-	"\t.previous");
-
 #define	VNET_NAME(n)		vnet_entry_##n
 #define	VNET_DECLARE(t, n)	extern t VNET_NAME(n)
 #define	VNET_DEFINE(t, n)	t VNET_NAME(n) __section(VNET_SETNAME) __used
@@ -214,47 +287,6 @@ __asm__(
 void	*vnet_data_alloc(int size);
 void	 vnet_data_copy(void *start, int size);
 void	 vnet_data_free(void *start_arg, int size);
-
-/*
- * Sysctl variants for vnet-virtualized global variables.  Include
- * <sys/sysctl.h> to expose these definitions.
- *
- * Note: SYSCTL_PROC() handler functions will need to resolve pointer
- * arguments themselves, if required.
- */
-#ifdef SYSCTL_OID
-int	vnet_sysctl_handle_int(SYSCTL_HANDLER_ARGS);
-int	vnet_sysctl_handle_opaque(SYSCTL_HANDLER_ARGS);
-int	vnet_sysctl_handle_string(SYSCTL_HANDLER_ARGS);
-int	vnet_sysctl_handle_uint(SYSCTL_HANDLER_ARGS);
-
-#define	SYSCTL_VNET_INT(parent, nbr, name, access, ptr, val, descr)	\
-	SYSCTL_OID(parent, nbr, name,					\
-	    CTLTYPE_INT|CTLFLAG_MPSAFE|CTLFLAG_VNET|(access),		\
-	    ptr, val, vnet_sysctl_handle_int, "I", descr)
-#define	SYSCTL_VNET_PROC(parent, nbr, name, access, ptr, arg, handler,	\
-	    fmt, descr)							\
-	SYSCTL_OID(parent, nbr, name, CTLFLAG_VNET|(access), ptr, arg, 	\
-	    handler, fmt, descr)
-#define	SYSCTL_VNET_STRING(parent, nbr, name, access, arg, len, descr)	\
-	SYSCTL_OID(parent, nbr, name,					\
-	    CTLTYPE_STRING|CTLFLAG_VNET|(access),			\
-	    arg, len, vnet_sysctl_handle_string, "A", descr)
-#define	SYSCTL_VNET_STRUCT(parent, nbr, name, access, ptr, type, descr)	\
-	SYSCTL_OID(parent, nbr, name,					\
-	    CTLTYPE_OPAQUE|CTLFLAG_VNET|(access), ptr,			\
-	    sizeof(struct type), vnet_sysctl_handle_opaque, "S," #type,	\
-	    descr)
-#define	SYSCTL_VNET_UINT(parent, nbr, name, access, ptr, val, descr)	\
-	SYSCTL_OID(parent, nbr, name,					\
-	    CTLTYPE_UINT|CTLFLAG_MPSAFE|CTLFLAG_VNET|(access),		\
-	    ptr, val, vnet_sysctl_handle_uint, "IU", descr)
-#define	VNET_SYSCTL_ARG(req, arg1) do {					\
-	if (arg1 != NULL)						\
-		arg1 = (void *)(TD_TO_VNET((req)->td)->vnet_data_base +	\
-		    (uintptr_t)(arg1));					\
-} while (0)
-#endif /* SYSCTL_OID */
 
 /*
  * Virtual sysinit mechanism, allowing network stack components to declare
@@ -313,6 +345,29 @@ void	vnet_register_sysuninit(void *arg);
 void	vnet_deregister_sysinit(void *arg);
 void	vnet_deregister_sysuninit(void *arg);
 
+/*
+ * EVENTHANDLER(9) extensions.
+ */
+#include <sys/eventhandler.h>
+
+void	vnet_global_eventhandler_iterator_func(void *, ...);
+#define VNET_GLOBAL_EVENTHANDLER_REGISTER_TAG(tag, name, func, arg, priority) \
+do {									\
+	if (IS_DEFAULT_VNET(curvnet)) {					\
+		(tag) = vimage_eventhandler_register(NULL, #name, func,	\
+		    arg, priority,					\
+		    vnet_global_eventhandler_iterator_func);		\
+	}								\
+} while(0)
+#define VNET_GLOBAL_EVENTHANDLER_REGISTER(name, func, arg, priority)	\
+do {									\
+	if (IS_DEFAULT_VNET(curvnet)) {					\
+		vimage_eventhandler_register(NULL, #name, func,		\
+		    arg, priority,					\
+		    vnet_global_eventhandler_iterator_func);		\
+	}								\
+} while(0)
+
 #else /* !VIMAGE */
 
 /*
@@ -320,7 +375,7 @@ void	vnet_deregister_sysuninit(void *arg);
  */
 #define	curvnet			NULL
 
-#define	VNET_ASSERT(condition)
+#define	VNET_ASSERT(exp, msg)
 #define	CURVNET_SET(arg)
 #define	CURVNET_SET_QUIET(arg)
 #define	CURVNET_RESTORE()
@@ -356,26 +411,6 @@ void	vnet_deregister_sysuninit(void *arg);
 #define	VNET(n)			(n)
 
 /*
- * When VIMAGE isn't compiled into the kernel, virtaulized SYSCTLs simply
- * become normal SYSCTLs.
- */
-#ifdef SYSCTL_OID
-#define	SYSCTL_VNET_INT(parent, nbr, name, access, ptr, val, descr)	\
-	SYSCTL_INT(parent, nbr, name, access, ptr, val, descr)
-#define	SYSCTL_VNET_PROC(parent, nbr, name, access, ptr, arg, handler,	\
-	    fmt, descr)							\
-	SYSCTL_PROC(parent, nbr, name, access, ptr, arg, handler, fmt,	\
-	    descr)
-#define	SYSCTL_VNET_STRING(parent, nbr, name, access, arg, len, descr)	\
-	SYSCTL_STRING(parent, nbr, name, access, arg, len, descr)
-#define	SYSCTL_VNET_STRUCT(parent, nbr, name, access, ptr, type, descr)	\
-	SYSCTL_STRUCT(parent, nbr, name, access, ptr, type, descr)
-#define	SYSCTL_VNET_UINT(parent, nbr, name, access, ptr, val, descr)	\
-	SYSCTL_UINT(parent, nbr, name, access, ptr, val, descr)
-#define	VNET_SYSCTL_ARG(req, arg1)
-#endif /* SYSCTL_OID */
-
-/*
  * When VIMAGE isn't compiled into the kernel, VNET_SYSINIT/VNET_SYSUNINIT
  * map into normal sysinits, which have the same ordering properties.
  */
@@ -384,6 +419,13 @@ void	vnet_deregister_sysuninit(void *arg);
 #define	VNET_SYSUNINIT(ident, subsystem, order, func, arg)		\
 	SYSUNINIT(ident, subsystem, order, func, arg)
 
+/*
+ * Without VIMAGE revert to the default implementation.
+ */
+#define VNET_GLOBAL_EVENTHANDLER_REGISTER_TAG(tag, name, func, arg, priority) \
+	(tag) = eventhandler_register(NULL, #name, func, arg, priority)
+#define VNET_GLOBAL_EVENTHANDLER_REGISTER(name, func, arg, priority)	\
+	eventhandler_register(NULL, #name, func, arg, priority)
 #endif /* VIMAGE */
 #endif /* _KERNEL */
 

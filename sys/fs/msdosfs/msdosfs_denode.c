@@ -92,11 +92,8 @@ de_vncmpf(struct vnode *vp, void *arg)
  * depp	     - returns the address of the gotten denode.
  */
 int
-deget(pmp, dirclust, diroffset, depp)
-	struct msdosfsmount *pmp;	/* so we know the maj/min number */
-	u_long dirclust;		/* cluster this dir entry came from */
-	u_long diroffset;		/* index of entry within the cluster */
-	struct denode **depp;		/* returns the addr of the gotten denode */
+deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
+    struct denode **depp)
 {
 	int error;
 	uint64_t inode;
@@ -142,13 +139,7 @@ deget(pmp, dirclust, diroffset, depp)
 		KASSERT((*depp)->de_diroffset == diroffset, ("wrong diroffset"));
 		return (0);
 	}
-
-	/*
-	 * Do the MALLOC before the getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if MALLOC should block.
-	 */
-	ldep = malloc(sizeof(struct denode), M_MSDOSFSNODE, M_WAITOK);
+	ldep = malloc(sizeof(struct denode), M_MSDOSFSNODE, M_WAITOK | M_ZERO);
 
 	/*
 	 * Directory entry was not in cache, have to create a vnode and
@@ -161,16 +152,14 @@ deget(pmp, dirclust, diroffset, depp)
 		free(ldep, M_MSDOSFSNODE);
 		return error;
 	}
-	bzero((caddr_t)ldep, sizeof *ldep);
 	nvp->v_data = ldep;
 	ldep->de_vnode = nvp;
 	ldep->de_flag = 0;
 	ldep->de_dirclust = dirclust;
 	ldep->de_diroffset = diroffset;
 	ldep->de_inode = inode;
-	fc_purge(ldep, 0);	/* init the fat cache for this denode */
-
 	lockmgr(nvp->v_vnlock, LK_EXCLUSIVE, NULL);
+	fc_purge(ldep, 0);	/* init the fat cache for this denode */
 	error = insmntque(nvp, mntp);
 	if (error != 0) {
 		free(ldep, M_MSDOSFSNODE);
@@ -184,9 +173,8 @@ deget(pmp, dirclust, diroffset, depp)
 		return (error);
 	}
 	if (xvp != NULL) {
-		/* XXX: Not sure this is right */
-		nvp = xvp;
-		ldep->de_vnode = nvp;
+		*depp = xvp->v_data;
+		return (0);
 	}
 
 	ldep->de_pmp = pmp;
@@ -243,7 +231,7 @@ deget(pmp, dirclust, diroffset, depp)
 			*depp = NULL;
 			return (error);
 		}
-		DE_INTERNALIZE(ldep, direntptr);
+		(void)DE_INTERNALIZE(ldep, direntptr);
 		brelse(bp);
 	}
 
@@ -266,8 +254,10 @@ deget(pmp, dirclust, diroffset, depp)
 		 * instead of what is written in directory entry.
 		 */
 		if (diroffset == 0 && ldep->de_StartCluster != dirclust) {
+#ifdef MSDOSFS_DEBUG
 			printf("deget(): \".\" entry at clust %lu != %lu\n",
 			    dirclust, ldep->de_StartCluster);
+#endif
 			ldep->de_StartCluster = dirclust;
 		}
 
@@ -277,8 +267,11 @@ deget(pmp, dirclust, diroffset, depp)
 			if (error == E2BIG) {
 				ldep->de_FileSize = de_cn2off(pmp, size);
 				error = 0;
-			} else
+			} else {
+#ifdef MSDOSFS_DEBUG
 				printf("deget(): pcbmap returned %d\n", error);
+#endif
+			}
 		}
 	} else
 		nvp->v_type = VREG;
@@ -288,48 +281,55 @@ deget(pmp, dirclust, diroffset, depp)
 }
 
 int
-deupdat(dep, waitfor)
-	struct denode *dep;
-	int waitfor;
+deupdat(struct denode *dep, int waitfor)
 {
-	int error;
+	struct direntry dir;
+	struct timespec ts;
 	struct buf *bp;
 	struct direntry *dirp;
-	struct timespec ts;
+	int error;
 
-	if (DETOV(dep)->v_mount->mnt_flag & MNT_RDONLY)
+	if (DETOV(dep)->v_mount->mnt_flag & MNT_RDONLY) {
+		dep->de_flag &= ~(DE_UPDATE | DE_CREATE | DE_ACCESS |
+		    DE_MODIFIED);
 		return (0);
+	}
 	getnanotime(&ts);
 	DETIMES(dep, &ts, &ts, &ts);
-	if ((dep->de_flag & DE_MODIFIED) == 0)
+	if ((dep->de_flag & DE_MODIFIED) == 0 && waitfor == 0)
 		return (0);
 	dep->de_flag &= ~DE_MODIFIED;
-	if (dep->de_Attributes & ATTR_DIRECTORY)
-		return (0);
+	if (DETOV(dep)->v_vflag & VV_ROOT)
+		return (EINVAL);
 	if (dep->de_refcnt <= 0)
 		return (0);
 	error = readde(dep, &bp, &dirp);
 	if (error)
 		return (error);
-	DE_EXTERNALIZE(dirp, dep);
+	DE_EXTERNALIZE(&dir, dep);
+	if (bcmp(dirp, &dir, sizeof(dir)) == 0) {
+		if (waitfor == 0 || (bp->b_flags & B_DELWRI) == 0) {
+			brelse(bp);
+			return (0);
+		}
+	} else
+		*dirp = dir;
+	if ((DETOV(dep)->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0)
+		bp->b_flags |= B_CLUSTEROK;
 	if (waitfor)
-		return (bwrite(bp));
-	else {
+		error = bwrite(bp);
+	else if (vm_page_count_severe() || buf_dirty_count_severe())
+		bawrite(bp);
+	else
 		bdwrite(bp);
-		return (0);
-	}
+	return (error);
 }
 
 /*
  * Truncate the file described by dep to the length specified by length.
  */
 int
-detrunc(dep, length, flags, cred, td)
-	struct denode *dep;
-	u_long length;
-	int flags;
-	struct ucred *cred;
-	struct thread *td;
+detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 {
 	int error;
 	int allerror;
@@ -354,8 +354,10 @@ detrunc(dep, length, flags, cred, td)
 	 * directory's life.
 	 */
 	if ((DETOV(dep)->v_vflag & VV_ROOT) && !FAT32(pmp)) {
+#ifdef MSDOSFS_DEBUG
 		printf("detrunc(): can't truncate root directory, clust %ld, offset %ld\n",
 		    dep->de_dirclust, dep->de_diroffset);
+#endif
 		return (EINVAL);
 	}
 
@@ -422,12 +424,12 @@ detrunc(dep, length, flags, cred, td)
 	dep->de_FileSize = length;
 	if (!isadir)
 		dep->de_flag |= DE_UPDATE | DE_MODIFIED;
-	allerror = vtruncbuf(DETOV(dep), cred, td, length, pmp->pm_bpcluster);
+	allerror = vtruncbuf(DETOV(dep), cred, length, pmp->pm_bpcluster);
 #ifdef MSDOSFS_DEBUG
 	if (allerror)
 		printf("detrunc(): vtruncbuf error %d\n", allerror);
 #endif
-	error = deupdat(dep, !(DETOV(dep)->v_mount->mnt_flag & MNT_ASYNC));
+	error = deupdat(dep, !DOINGASYNC((DETOV(dep))));
 	if (error != 0 && allerror == 0)
 		allerror = error;
 #ifdef MSDOSFS_DEBUG
@@ -466,10 +468,7 @@ detrunc(dep, length, flags, cred, td)
  * Extend the file described by dep to length specified by length.
  */
 int
-deextend(dep, length, cred)
-	struct denode *dep;
-	u_long length;
-	struct ucred *cred;
+deextend(struct denode *dep, u_long length, struct ucred *cred)
 {
 	struct msdosfsmount *pmp = dep->de_pmp;
 	u_long count;
@@ -500,13 +499,13 @@ deextend(dep, length, cred)
 		error = extendfile(dep, count, NULL, NULL, DE_CLEAR);
 		if (error) {
 			/* truncate the added clusters away again */
-			(void) detrunc(dep, dep->de_FileSize, 0, cred, NULL);
+			(void) detrunc(dep, dep->de_FileSize, 0, cred);
 			return (error);
 		}
 	}
 	dep->de_FileSize = length;
 	dep->de_flag |= DE_UPDATE | DE_MODIFIED;
-	return (deupdat(dep, !(DETOV(dep)->v_mount->mnt_flag & MNT_ASYNC)));
+	return (deupdat(dep, !DOINGASYNC(DETOV(dep))));
 }
 
 /*
@@ -514,8 +513,7 @@ deextend(dep, length, cred)
  * been moved to a new directory.
  */
 void
-reinsert(dep)
-	struct denode *dep;
+reinsert(struct denode *dep)
 {
 	struct vnode *vp;
 
@@ -538,10 +536,7 @@ reinsert(dep)
 }
 
 int
-msdosfs_reclaim(ap)
-	struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+msdosfs_reclaim(struct vop_reclaim_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
@@ -551,8 +546,6 @@ msdosfs_reclaim(ap)
 	    dep, dep->de_Name, dep->de_refcnt);
 #endif
 
-	if (prtactive && vrefcnt(vp) != 0)
-		vprint("msdosfs_reclaim(): pushing active", vp);
 	/*
 	 * Destroy the vm object and flush associated pages.
 	 */
@@ -574,28 +567,20 @@ msdosfs_reclaim(ap)
 }
 
 int
-msdosfs_inactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
+msdosfs_inactive(struct vop_inactive_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
-	struct thread *td = ap->a_td;
 	int error = 0;
 
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_inactive(): dep %p, de_Name[0] %x\n", dep, dep->de_Name[0]);
 #endif
 
-	if (prtactive && vrefcnt(vp) != 0)
-		vprint("msdosfs_inactive(): pushing active", vp);
-
 	/*
 	 * Ignore denodes related to stale file handles.
 	 */
-	if (dep->de_Name[0] == SLOT_DELETED)
+	if (dep->de_Name[0] == SLOT_DELETED || dep->de_Name[0] == SLOT_EMPTY)
 		goto out;
 
 	/*
@@ -608,7 +593,7 @@ msdosfs_inactive(ap)
 	       dep, dep->de_refcnt, vp->v_mount->mnt_flag, MNT_RDONLY);
 #endif
 	if (dep->de_refcnt <= 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
-		error = detrunc(dep, (u_long) 0, 0, NOCRED, td);
+		error = detrunc(dep, (u_long) 0, 0, NOCRED);
 		dep->de_flag |= DE_UPDATE;
 		dep->de_Name[0] = SLOT_DELETED;
 	}
@@ -623,7 +608,7 @@ out:
 	printf("msdosfs_inactive(): v_usecount %d, de_Name[0] %x\n",
 	       vrefcnt(vp), dep->de_Name[0]);
 #endif
-	if (dep->de_Name[0] == SLOT_DELETED)
-		vrecycle(vp, td);
+	if (dep->de_Name[0] == SLOT_DELETED || dep->de_Name[0] == SLOT_EMPTY)
+		vrecycle(vp);
 	return (error);
 }

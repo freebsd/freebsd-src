@@ -29,6 +29,7 @@
  * SUCH DAMAGE.
  */
 
+#include <machine/armreg.h>
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
@@ -42,12 +43,12 @@ __FBSDID("$FreeBSD$");
 ENTRY(sheeva_setttb)
 	/* Disable irqs */
 	mrs	r2, cpsr
-	orr	r3, r2, #I32_bit | F32_bit
+	orr	r3, r2, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 
 	mov	r1, #0
 	mcr	p15, 0, r1, c7, c5, 0	/* Invalidate ICache */
-1:	mrc	p15, 0, r15, c7, c14, 3	/* Test, clean and invalidate DCache */
+1:	mrc	p15, 0, APSR_nzcv, c7, c14, 3	/* Test, clean and invalidate DCache */
 	bne	1b			/* More to do? */
 
 	mcr	p15, 1, r1, c15, c9, 0	/* Clean L2 */
@@ -62,6 +63,7 @@ ENTRY(sheeva_setttb)
 
 	mcr	p15, 0, r0, c8, c7, 0	/* invalidate I+D TLBs */
 	RET
+END(sheeva_setttb)
 
 ENTRY(sheeva_dcache_wbinv_range)
 	str	lr, [sp, #-4]!
@@ -86,7 +88,7 @@ ENTRY(sheeva_dcache_wbinv_range)
 	add	r3, r0, ip
 	sub	r2, r3, #1
 	/* Disable irqs */
-	orr	r3, lr, #I32_bit | F32_bit
+	orr	r3, lr, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 	mcr	p15, 5, r0, c15, c15, 0	/* Clean and inv zone start address */
 	mcr	p15, 5, r2, c15, c15, 1	/* Clean and inv zone end address */
@@ -104,6 +106,7 @@ ENTRY(sheeva_dcache_wbinv_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	ldr	lr, [sp], #4
 	RET
+END(sheeva_dcache_wbinv_range)
 
 ENTRY(sheeva_idcache_wbinv_range)
 	str	lr, [sp, #-4]!
@@ -128,7 +131,7 @@ ENTRY(sheeva_idcache_wbinv_range)
 	add	r3, r0, ip
 	sub	r2, r3, #1
 	/* Disable irqs */
-	orr	r3, lr, #I32_bit | F32_bit
+	orr	r3, lr, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 	mcr	p15, 5, r0, c15, c15, 0	/* Clean and inv zone start address */
 	mcr	p15, 5, r2, c15, c15, 1	/* Clean and inv zone end address */
@@ -155,6 +158,7 @@ ENTRY(sheeva_idcache_wbinv_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	ldr	lr, [sp], #4
 	RET
+END(sheeva_idcache_wbinv_range)
 
 ENTRY(sheeva_dcache_inv_range)
 	str	lr, [sp, #-4]!
@@ -179,7 +183,7 @@ ENTRY(sheeva_dcache_inv_range)
 	add	r3, r0, ip
 	sub	r2, r3, #1
 	/* Disable irqs */
-	orr	r3, lr, #I32_bit | F32_bit
+	orr	r3, lr, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 	mcr	p15, 5, r0, c15, c14, 0	/* Inv zone start address */
 	mcr	p15, 5, r2, c15, c14, 1	/* Inv zone end address */
@@ -197,6 +201,7 @@ ENTRY(sheeva_dcache_inv_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	ldr	lr, [sp], #4
 	RET
+END(sheeva_dcache_inv_range)
 
 ENTRY(sheeva_dcache_wb_range)
 	str	lr, [sp, #-4]!
@@ -221,7 +226,7 @@ ENTRY(sheeva_dcache_wb_range)
 	add	r3, r0, ip
 	sub	r2, r3, #1
 	/* Disable irqs */
-	orr	r3, lr, #I32_bit | F32_bit
+	orr	r3, lr, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 	mcr	p15, 5, r0, c15, c13, 0	/* Clean zone start address */
 	mcr	p15, 5, r2, c15, c13, 1	/* Clean zone end address */
@@ -239,6 +244,7 @@ ENTRY(sheeva_dcache_wb_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	ldr	lr, [sp], #4
 	RET
+END(sheeva_dcache_wb_range)
 
 ENTRY(sheeva_l2cache_wbinv_range)
 	str	lr, [sp, #-4]!
@@ -263,7 +269,7 @@ ENTRY(sheeva_l2cache_wbinv_range)
 	add	r3, r0, ip
 	sub	r2, r3, #1
 	/* Disable irqs */
-	orr	r3, lr, #I32_bit | F32_bit
+	orr	r3, lr, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 	mcr	p15, 1, r0, c15, c9, 4	/* Clean L2 zone start address */
 	mcr	p15, 1, r2, c15, c9, 5	/* Clean L2 zone end address */
@@ -283,6 +289,7 @@ ENTRY(sheeva_l2cache_wbinv_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	ldr	lr, [sp], #4
 	RET
+END(sheeva_l2cache_wbinv_range)
 
 ENTRY(sheeva_l2cache_inv_range)
 	str	lr, [sp, #-4]!
@@ -307,7 +314,7 @@ ENTRY(sheeva_l2cache_inv_range)
 	add	r3, r0, ip
 	sub	r2, r3, #1
 	/* Disable irqs */
-	orr	r3, lr, #I32_bit | F32_bit
+	orr	r3, lr, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 	mcr	p15, 1, r0, c15, c11, 4	/* Inv L2 zone start address */
 	mcr	p15, 1, r2, c15, c11, 5	/* Inv L2 zone end address */
@@ -325,6 +332,7 @@ ENTRY(sheeva_l2cache_inv_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	ldr	lr, [sp], #4
 	RET
+END(sheeva_l2cache_inv_range)
 
 ENTRY(sheeva_l2cache_wb_range)
 	str	lr, [sp, #-4]!
@@ -349,7 +357,7 @@ ENTRY(sheeva_l2cache_wb_range)
 	add	r3, r0, ip
 	sub	r2, r3, #1
 	/* Disable irqs */
-	orr	r3, lr, #I32_bit | F32_bit
+	orr	r3, lr, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 	mcr	p15, 1, r0, c15, c9, 4	/* Clean L2 zone start address */
 	mcr	p15, 1, r2, c15, c9, 5	/* Clean L2 zone end address */
@@ -367,13 +375,23 @@ ENTRY(sheeva_l2cache_wb_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	ldr	lr, [sp], #4
 	RET
+END(sheeva_l2cache_wb_range)
 
 ENTRY(sheeva_l2cache_wbinv_all)
+	/* Disable irqs */
+	mrs	r1, cpsr
+	orr	r2, r1, #PSR_I | PSR_F
+	msr	cpsr_c, r2
+
 	mov	r0, #0
 	mcr	p15, 1, r0, c15, c9, 0	/* Clean L2 */
 	mcr	p15, 1, r0, c15, c11, 0	/* Invalidate L2 */
+
+	msr	cpsr_c, r1		/* Reenable irqs */
+
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(sheeva_l2cache_wbinv_all)
 
 /* This function modifies register value as follows:
  *
@@ -392,3 +410,12 @@ ENTRY(sheeva_control_ext)
 	mcrne	p15, 1, r2, c15, c1, 0	/* Write new control register */
 	mov	r0, r3			/* Return old value */
 	RET
+END(sheeva_control_ext)
+
+ENTRY(sheeva_cpu_sleep)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c10, 4	/* Drain write buffer */
+	mcr	p15, 0, r0, c7, c0, 4	/* Wait for interrupt */
+	mov	pc, lr
+END(sheeva_cpu_sleep)
+

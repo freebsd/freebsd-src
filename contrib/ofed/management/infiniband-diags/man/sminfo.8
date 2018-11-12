@@ -1,0 +1,105 @@
+.TH SMINFO 8 "July 25, 2006" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+sminfo \- query InfiniBand SMInfo attribute
+
+.SH SYNOPSIS
+.B sminfo
+[\-d(ebug)] [\-e(rr_show)] -s state -p prio -a activity [\-D(irect)] [\-G(uid)]  [\-C ca_name] [\-P ca_port] [\-t(imeout) timeout_ms] [\-V(ersion)] [\-h(elp)] sm_lid | sm_dr_path [modifier]
+
+.SH DESCRIPTION
+.PP
+Optionally set and display the output of a sminfo query in human readable
+format. The target SM is the one listed in the local port info, or the SM
+specified by the optional SM lid or by the SM direct routed path.
+.PP
+Note: using sminfo for any purposes other then simple query may be very
+dangerous, and may result in a malfunction of the target SM.
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-s\fR
+set SM state
+ 0 - not active
+ 1 - discovering
+ 2 - standby
+ 3 - master
+.TP
+\fB\-p\fR
+set priority (0-15)
+.TP
+\fB\-a\fR
+set activity count
+
+.SH COMMON OPTIONS
+
+Most OpenIB diagnostics take the following common flags. The exact list of
+supported flags per utility can be found in the usage message and can be shown
+using the util_name -h syntax.
+
+# Debugging flags
+.PP
+\-d      raise the IB debugging level.
+        May be used several times (-ddd or -d -d -d).
+.PP
+\-e      show send and receive errors (timeouts and others)
+.PP
+\-h      show the usage message
+.PP
+\-v      increase the application verbosity level.
+        May be used several times (-vv or -v -v -v)
+.PP
+\-V      show the version info.
+
+# Addressing flags
+.PP
+\-D      use directed path address arguments. The path
+        is a comma separated list of out ports.
+        Examples:
+        "0"             # self port
+        "0,1,2,1,4"     # out via port 1, then 2, ...
+.PP
+\-G      use GUID address argument. In most cases, it is the Port GUID.
+        Example:
+        "0x08f1040023"
+.PP
+\-s <smlid>      use 'smlid' as the target lid for SM/SA queries.
+
+# Other common flags:
+.PP
+\-C <ca_name>    use the specified ca_name.
+.PP
+\-P <ca_port>    use the specified ca_port.
+.PP
+\-t <timeout_ms> override the default timeout for the solicited mads.
+
+Multiple CA/Multiple Port Support
+
+When no IB device or port is specified, the port to use is selected
+by the following criteria:
+.PP
+1. the first port that is ACTIVE.
+.PP
+2. if not found, the first port that is UP (physical link up).
+
+If a port and/or CA name is specified, the user request is
+attempted to be fulfilled, and will fail if it is not possible.
+
+.SH EXAMPLES
+
+.PP
+sminfo                  # local port\'s sminfo
+.PP
+sminfo 32               # show sminfo of lid 32
+.PP
+sminfo  -G 0x8f1040023  # same but using guid address
+
+.SH SEE ALSO
+.BR smpdump (8)
+
+.SH AUTHOR
+.TP
+Hal Rosenstock
+.RI < halr@voltaire.com >

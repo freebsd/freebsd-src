@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -179,13 +175,14 @@ find_execute(PLAN *plan, char *paths[])
 {
 	FTSENT *entry;
 	PLAN *p;
-	int rval;
+	int e;
 
 	tree = fts_open(paths, ftsoptions, (issort ? find_compare : NULL));
 	if (tree == NULL)
 		err(1, "ftsopen");
 
-	for (rval = 0; (entry = fts_read(tree)) != NULL;) {
+	exitstatus = 0;
+	while (errno = 0, (entry = fts_read(tree)) != NULL) {
 		if (maxdepth != -1 && entry->fts_level >= maxdepth) {
 			if (fts_set(tree, entry, FTS_SKIP))
 				err(1, "%s", entry->fts_path);
@@ -201,12 +198,16 @@ find_execute(PLAN *plan, char *paths[])
 				continue;
 			break;
 		case FTS_DNR:
-		case FTS_ERR:
 		case FTS_NS:
+			if (ignore_readdir_race &&
+			    entry->fts_errno == ENOENT && entry->fts_level > 0)
+				continue;
+			/* FALLTHROUGH */
+		case FTS_ERR:
 			(void)fflush(stdout);
 			warnx("%s: %s",
 			    entry->fts_path, strerror(entry->fts_errno));
-			rval = 1;
+			exitstatus = 1;
 			continue;
 #ifdef FTS_W
 		case FTS_W:
@@ -217,7 +218,7 @@ find_execute(PLAN *plan, char *paths[])
 		if (isxargs && strpbrk(entry->fts_path, BADCH)) {
 			(void)fflush(stdout);
 			warnx("%s: illegal path", entry->fts_path);
-			rval = 1;
+			exitstatus = 1;
 			continue;
 		}
 
@@ -231,8 +232,9 @@ find_execute(PLAN *plan, char *paths[])
 		 */
 		for (p = plan; p && (p->execute)(p, entry); p = p->next);
 	}
+	e = errno;
 	finish_execplus();
-	if (errno)
-		err(1, "fts_read");
-	return (rval);
+	if (e && (!ignore_readdir_race || e != ENOENT))
+		errc(1, e, "fts_read");
+	return (exitstatus);
 }

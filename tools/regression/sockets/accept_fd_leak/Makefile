@@ -3,9 +3,7 @@
 #
 
 PROG=	accept_fd_leak
-NO_MAN=
-
-regress:
-	./accept_fd_leak
+MAN=
+WARNS?=	6
 
 .include <bsd.prog.mk>

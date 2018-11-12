@@ -36,25 +36,101 @@
  */
 #define	IPFW_DEFAULT_RULE	65535
 
+#define	RESVD_SET		31	/*set for default and persistent rules*/
+#define	IPFW_MAX_SETS		32	/* Number of sets supported by ipfw*/
+
 /*
- * The number of ipfw tables.  The maximum allowed table number is the
- * (IPFW_TABLES_MAX - 1).
+ * Compat values for old clients
  */
-#define	IPFW_TABLES_MAX		128
+#ifndef	_KERNEL
+#define	IPFW_TABLES_MAX		65535
+#define	IPFW_TABLES_DEFAULT	128
+#endif
 
 /*
  * Most commands (queue, pipe, tag, untag, limit...) can have a 16-bit
- * argument between 1 and 65534. The value 0 is unused, the value
- * 65535 (IP_FW_TABLEARG) is used to represent 'tablearg', i.e. the
- * can be 1..65534, or 65535 to indicate the use of a 'tablearg'
+ * argument between 1 and 65534. The value 0 (IP_FW_TARG) is used
+ * to represent 'tablearg' value, e.g.  indicate the use of a 'tablearg'
  * result of the most recent table() lookup.
  * Note that 16bit is only a historical limit, resulting from
  * the use of a 16-bit fields for that value. In reality, we can have
- * 2^32 pipes, queues, tag values and so on, and use 0 as a tablearg.
+ * 2^32 pipes, queues, tag values and so on.
  */
 #define	IPFW_ARG_MIN		1
 #define	IPFW_ARG_MAX		65534
-#define IP_FW_TABLEARG		65535	/* XXX should use 0 */
+#define IP_FW_TABLEARG		65535	/* Compat value for old clients */
+#define	IP_FW_TARG		0	/* Current tablearg value */
+#define	IP_FW_NAT44_GLOBAL	65535	/* arg1 value for "nat global" */
+
+/*
+ * Number of entries in the call stack of the call/return commands.
+ * Call stack currently is an uint16_t array with rule numbers.
+ */
+#define	IPFW_CALLSTACK_SIZE	16
+
+/* IP_FW3 header/opcodes */
+typedef struct _ip_fw3_opheader {
+	uint16_t opcode;	/* Operation opcode */
+	uint16_t version;	/* Opcode version */
+	uint16_t reserved[2];	/* Align to 64-bit boundary */
+} ip_fw3_opheader;
+
+/* IP_FW3 opcodes */
+#define	IP_FW_TABLE_XADD	86	/* add entry */
+#define	IP_FW_TABLE_XDEL	87	/* delete entry */
+#define	IP_FW_TABLE_XGETSIZE	88	/* get table size (deprecated) */
+#define	IP_FW_TABLE_XLIST	89	/* list table contents */
+#define	IP_FW_TABLE_XDESTROY	90	/* destroy table */
+#define	IP_FW_TABLES_XLIST	92	/* list all tables  */
+#define	IP_FW_TABLE_XINFO	93	/* request info for one table */
+#define	IP_FW_TABLE_XFLUSH	94	/* flush table data */
+#define	IP_FW_TABLE_XCREATE	95	/* create new table  */
+#define	IP_FW_TABLE_XMODIFY	96	/* modify existing table */
+#define	IP_FW_XGET		97	/* Retrieve configuration */
+#define	IP_FW_XADD		98	/* add rule */
+#define	IP_FW_XDEL		99	/* del rule */
+#define	IP_FW_XMOVE		100	/* move rules to different set  */
+#define	IP_FW_XZERO		101	/* clear accounting */
+#define	IP_FW_XRESETLOG		102	/* zero rules logs */
+#define	IP_FW_SET_SWAP		103	/* Swap between 2 sets */
+#define	IP_FW_SET_MOVE		104	/* Move one set to another one */
+#define	IP_FW_SET_ENABLE	105	/* Enable/disable sets */
+#define	IP_FW_TABLE_XFIND	106	/* finds an entry */
+#define	IP_FW_XIFLIST		107	/* list tracked interfaces */
+#define	IP_FW_TABLES_ALIST	108	/* list table algorithms */
+#define	IP_FW_TABLE_XSWAP	109	/* swap two tables */
+#define	IP_FW_TABLE_VLIST	110	/* dump table value hash */
+
+#define	IP_FW_NAT44_XCONFIG	111	/* Create/modify NAT44 instance */
+#define	IP_FW_NAT44_DESTROY	112	/* Destroys NAT44 instance */
+#define	IP_FW_NAT44_XGETCONFIG	113	/* Get NAT44 instance config */
+#define	IP_FW_NAT44_LIST_NAT	114	/* List all NAT44 instances */
+#define	IP_FW_NAT44_XGETLOG	115	/* Get log from NAT44 instance */
+
+#define	IP_FW_DUMP_SOPTCODES	116	/* Dump available sopts/versions */
+#define	IP_FW_DUMP_SRVOBJECTS	117	/* Dump existing named objects */
+
+#define	IP_FW_NAT64STL_CREATE	130	/* Create stateless NAT64 instance */
+#define	IP_FW_NAT64STL_DESTROY	131	/* Destroy stateless NAT64 instance */
+#define	IP_FW_NAT64STL_CONFIG	132	/* Modify stateless NAT64 instance */
+#define	IP_FW_NAT64STL_LIST	133	/* List stateless NAT64 instances */
+#define	IP_FW_NAT64STL_STATS	134	/* Get NAT64STL instance statistics */
+#define	IP_FW_NAT64STL_RESET_STATS 135	/* Reset NAT64STL instance statistics */
+
+#define	IP_FW_NAT64LSN_CREATE	140	/* Create stateful NAT64 instance */
+#define	IP_FW_NAT64LSN_DESTROY	141	/* Destroy stateful NAT64 instance */
+#define	IP_FW_NAT64LSN_CONFIG	142	/* Modify stateful NAT64 instance */
+#define	IP_FW_NAT64LSN_LIST	143	/* List stateful NAT64 instances */
+#define	IP_FW_NAT64LSN_STATS	144	/* Get NAT64LSN instance statistics */
+#define	IP_FW_NAT64LSN_LIST_STATES 145	/* Get stateful NAT64 states */
+#define	IP_FW_NAT64LSN_RESET_STATS 146	/* Reset NAT64LSN instance statistics */
+
+#define	IP_FW_NPTV6_CREATE	150	/* Create NPTv6 instance */
+#define	IP_FW_NPTV6_DESTROY	151	/* Destroy NPTv6 instance */
+#define	IP_FW_NPTV6_CONFIG	152	/* Modify NPTv6 instance */
+#define	IP_FW_NPTV6_LIST	153	/* List NPTv6 instances */
+#define	IP_FW_NPTV6_STATS	154	/* Get NPTv6 instance statistics */
+#define	IP_FW_NPTV6_RESET_STATS	155	/* Reset NPTv6 instance statistics */
 
 /*
  * The kernel representation of ipfw rules is made of a list of
@@ -192,6 +268,19 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_SETFIB,		/* arg1=FIB number */
 	O_FIB,			/* arg1=FIB desired fib number */
+	
+	O_SOCKARG,		/* socket argument */
+
+	O_CALLRETURN,		/* arg1=called rule number */
+
+	O_FORWARD_IP6,		/* fwd sockaddr_in6             */
+
+	O_DSCP,			/* 2 u32 = DSCP mask */
+	O_SETDSCP,		/* arg1=DSCP value */
+	O_IP_FLOW_LOOKUP,	/* arg1=table number, u32=value	*/
+
+	O_EXTERNAL_ACTION,	/* arg1=id of external action handler */
+	O_EXTERNAL_INSTANCE,	/* arg1=id of eaction handler instance */
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
@@ -237,7 +326,7 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
  *
  */
 typedef struct	_ipfw_insn {	/* template for instructions */
-	enum ipfw_opcodes	opcode:8;
+	u_int8_t 	opcode;
 	u_int8_t	len;	/* number of 32-bit words */
 #define	F_NOT		0x80
 #define	F_OR		0x40
@@ -288,6 +377,14 @@ typedef struct  _ipfw_insn_sa {
 } ipfw_insn_sa;
 
 /*
+ * This is used to forward to a given address (ipv6).
+ */
+typedef struct _ipfw_insn_sa6 {
+	ipfw_insn o;
+	struct sockaddr_in6 sa;
+} ipfw_insn_sa6;
+
+/*
  * This is used for MAC addr-mask pairs.
  */
 typedef struct	_ipfw_insn_mac {
@@ -304,6 +401,7 @@ typedef struct	_ipfw_insn_if {
 	union {
 		struct in_addr ip;
 		int glob;
+		uint16_t kidx;
 	} p;
 	char name[IFNAMSIZ];
 } ipfw_insn_if;
@@ -340,6 +438,8 @@ typedef struct  _ipfw_insn_log {
 	u_int32_t log_left;	/* how many left to log 	*/
 } ipfw_insn_log;
 
+/* Legacy NAT structures, compat only */
+#ifndef	_KERNEL
 /*
  * Data structures required by both ipfw(8) and ipfw(4) but not part of the
  * management API are protected by IPFW_INTERNAL.
@@ -380,8 +480,6 @@ struct cfg_redir {
 };
 #endif
 
-#define NAT_BUF_LEN     1024
-
 #ifdef IPFW_INTERNAL
 /* Nat configuration data struct. */
 struct cfg_nat {
@@ -402,6 +500,44 @@ struct cfg_nat {
 #define SOF_NAT         sizeof(struct cfg_nat)
 #define SOF_REDIR       sizeof(struct cfg_redir)
 #define SOF_SPOOL       sizeof(struct cfg_spool)
+
+#endif	/* ifndef _KERNEL */
+
+
+struct nat44_cfg_spool {
+	struct in_addr	addr;
+	uint16_t	port;
+	uint16_t	spare;
+};
+#define NAT44_REDIR_ADDR	0x01
+#define NAT44_REDIR_PORT	0x02
+#define NAT44_REDIR_PROTO	0x04
+
+/* Nat redirect configuration. */
+struct nat44_cfg_redir {
+	struct in_addr	laddr;		/* local ip address */
+	struct in_addr	paddr;		/* public ip address */
+	struct in_addr	raddr;		/* remote ip address */
+	uint16_t	lport;		/* local port */
+	uint16_t	pport;		/* public port */
+	uint16_t	rport;		/* remote port  */
+	uint16_t	pport_cnt;	/* number of public ports */
+	uint16_t	rport_cnt;	/* number of remote ports */
+	uint16_t	mode;		/* type of redirect mode */
+	uint16_t	spool_cnt;	/* num of entry in spool chain */ 
+	uint16_t	spare;
+	uint32_t	proto;		/* protocol: tcp/udp */
+};
+
+/* Nat configuration data struct. */
+struct nat44_cfg_nat {
+	char		name[64];	/* nat name */
+	char		if_name[64];	/* interface name */
+	uint32_t	size;		/* structure size incl. redirs */
+	struct in_addr	ip;		/* nat IPv4 address */
+	uint32_t	mode;		/* aliasing mode */
+	uint32_t	redir_cnt;	/* number of entry in spool chain */
+};
 
 /* Nat command. */
 typedef struct	_ipfw_insn_nat {
@@ -436,15 +572,17 @@ typedef struct _ipfw_insn_icmp6 {
 /*
  * Here we have the structure representing an ipfw rule.
  *
- * It starts with a general area (with link fields and counters)
+ * Layout:
+ * struct ip_fw_rule
+ * [ counter block, size = rule->cntr_len ]
+ * [ one or more instructions, size = rule->cmd_len * 4 ]
+ *
+ * It starts with a general area (with link fields).
+ * Counter block may be next (if rule->cntr_len > 0),
  * followed by an array of one or more instructions, which the code
- * accesses as an array of 32-bit values.
- *
- * Given a rule pointer  r:
- *
- *  r->cmd		is the start of the first instruction.
- *  ACTION_PTR(r)	is the start of the first action (things to do
- *			once a rule matched).
+ * accesses as an array of 32-bit values. rule->cmd_len represents
+ * the total instructions legth in u32 worrd, while act_ofs represents
+ * rule action offset in u32 words.
  *
  * When assembling instruction, remember the following:
  *
@@ -455,21 +593,50 @@ typedef struct _ipfw_insn_icmp6 {
  *  + if a rule has an "altq" option, it comes after "log"
  *  + if a rule has an O_TAG option, it comes after "log" and "altq"
  *
- * NOTE: we use a simple linked list of rules because we never need
- * 	to delete a rule without scanning the list. We do not use
- *	queue(3) macros for portability and readability.
+ *
+ * All structures (excluding instructions) are u64-aligned.
+ * Please keep this.
  */
 
+struct ip_fw_rule {
+	uint16_t	act_ofs;	/* offset of action in 32-bit units */
+	uint16_t	cmd_len;	/* # of 32-bit words in cmd	*/
+	uint16_t	spare;
+	uint8_t		set;		/* rule set (0..31)		*/
+	uint8_t		flags;		/* rule flags			*/
+	uint32_t	rulenum;	/* rule number			*/
+	uint32_t	id;		/* rule id			*/
+
+	ipfw_insn	cmd[1];		/* storage for commands		*/
+};
+#define	IPFW_RULE_NOOPT		0x01	/* Has no options in body	*/
+
+/* Unaligned version */
+
+/* Base ipfw rule counter block. */
+struct ip_fw_bcounter {
+	uint16_t	size;		/* Size of counter block, bytes	*/
+	uint8_t		flags;		/* flags for given block	*/
+	uint8_t		spare;
+	uint32_t	timestamp;	/* tv_sec of last match		*/
+	uint64_t	pcnt;		/* Packet counter		*/
+	uint64_t	bcnt;		/* Byte counter			*/
+};
+
+
+#ifndef	_KERNEL
+/*
+ * Legacy rule format
+ */
 struct ip_fw {
-	struct ip_fw	*next;		/* linked list of rules		*/
+	struct ip_fw	*x_next;	/* linked list of rules		*/
 	struct ip_fw	*next_rule;	/* ptr to next [skipto] rule	*/
 	/* 'next_rule' is used to pass up 'set_disable' status		*/
 
 	uint16_t	act_ofs;	/* offset of action in 32-bit units */
 	uint16_t	cmd_len;	/* # of 32-bit words in cmd	*/
 	uint16_t	rulenum;	/* rule number			*/
-	uint8_t	set;		/* rule set (0..31)		*/
-#define	RESVD_SET	31	/* set for default and persistent rules */
+	uint8_t		set;		/* rule set (0..31)		*/
 	uint8_t		_pad;		/* padding			*/
 	uint32_t	id;		/* rule id */
 
@@ -480,31 +647,37 @@ struct ip_fw {
 
 	ipfw_insn	cmd[1];		/* storage for commands		*/
 };
+#endif
 
 #define ACTION_PTR(rule)				\
 	(ipfw_insn *)( (u_int32_t *)((rule)->cmd) + ((rule)->act_ofs) )
 
-#define RULESIZE(rule)  (sizeof(struct ip_fw) + \
-	((struct ip_fw *)(rule))->cmd_len * 4 - 4)
+#define RULESIZE(rule)  (sizeof(*(rule)) + (rule)->cmd_len * 4 - 4)
 
+
+#if 1 // should be moved to in.h
 /*
  * This structure is used as a flow mask and a flow id for various
  * parts of the code.
+ * addr_type is used in userland and kernel to mark the address type.
+ * fib is used in the kernel to record the fib in use.
+ * _flags is used in the kernel to store tcp flags for dynamic rules.
  */
 struct ipfw_flow_id {
-	u_int32_t	dst_ip;
-	u_int32_t	src_ip;
-	u_int16_t	dst_port;
-	u_int16_t	src_port;
-	u_int8_t	fib;
-	u_int8_t	proto;
-	u_int8_t	flags;	/* protocol-specific flags */
-	uint8_t		addr_type; /* 4 = ipv4, 6 = ipv6, 1=ether ? */
-	struct in6_addr dst_ip6;	/* could also store MAC addr! */
+	uint32_t	dst_ip;
+	uint32_t	src_ip;
+	uint16_t	dst_port;
+	uint16_t	src_port;
+	uint8_t		fib;
+	uint8_t		proto;
+	uint8_t		_flags;	/* protocol-specific flags */
+	uint8_t		addr_type; /* 4=ip4, 6=ip6, 1=ether ? */
+	struct in6_addr dst_ip6;
 	struct in6_addr src_ip6;
-	u_int32_t	flow_id6;
-	u_int32_t	frag_id6;
+	uint32_t	flow_id6;
+	uint32_t	extra; /* queue/pipe or frag_id */
 };
+#endif
 
 #define IS_IP6_FLOW_ID(id)	((id)->addr_type == 6)
 
@@ -532,7 +705,8 @@ struct _ipfw_dyn_rule {
 					/* to generate keepalives)	*/
 	u_int16_t	dyn_type;	/* rule type			*/
 	u_int16_t	count;		/* refcount			*/
-};
+	u_int16_t	kidx;		/* index of named object */
+} __packed __aligned(8);
 
 /*
  * Definitions for IP option names.
@@ -557,12 +731,50 @@ struct _ipfw_dyn_rule {
 /*
  * These are used for lookup tables.
  */
+
+#define	IPFW_TABLE_ADDR		1	/* Table for holding IPv4/IPv6 prefixes */
+#define	IPFW_TABLE_INTERFACE	2	/* Table for holding interface names */
+#define	IPFW_TABLE_NUMBER	3	/* Table for holding ports/uid/gid/etc */
+#define	IPFW_TABLE_FLOW		4	/* Table for holding flow data */
+#define	IPFW_TABLE_MAXTYPE	4	/* Maximum valid number */
+
+#define	IPFW_TABLE_CIDR	IPFW_TABLE_ADDR	/* compat */
+
+/* Value types */
+#define	IPFW_VTYPE_LEGACY	0xFFFFFFFF	/* All data is filled in */
+#define	IPFW_VTYPE_SKIPTO	0x00000001	/* skipto/call/callreturn */
+#define	IPFW_VTYPE_PIPE		0x00000002	/* pipe/queue */
+#define	IPFW_VTYPE_FIB		0x00000004	/* setfib */
+#define	IPFW_VTYPE_NAT		0x00000008	/* nat */
+#define	IPFW_VTYPE_DSCP		0x00000010	/* dscp */
+#define	IPFW_VTYPE_TAG		0x00000020	/* tag/untag */
+#define	IPFW_VTYPE_DIVERT	0x00000040	/* divert/tee */
+#define	IPFW_VTYPE_NETGRAPH	0x00000080	/* netgraph/ngtee */
+#define	IPFW_VTYPE_LIMIT	0x00000100	/* limit */
+#define	IPFW_VTYPE_NH4		0x00000200	/* IPv4 nexthop */
+#define	IPFW_VTYPE_NH6		0x00000400	/* IPv6 nexthop */
+
 typedef struct	_ipfw_table_entry {
 	in_addr_t	addr;		/* network address		*/
 	u_int32_t	value;		/* value			*/
 	u_int16_t	tbl;		/* table number			*/
 	u_int8_t	masklen;	/* mask length			*/
 } ipfw_table_entry;
+
+typedef struct	_ipfw_table_xentry {
+	uint16_t	len;		/* Total entry length		*/
+	uint8_t		type;		/* entry type			*/
+	uint8_t		masklen;	/* mask length			*/
+	uint16_t	tbl;		/* table number			*/
+	uint16_t	flags;		/* record flags			*/
+	uint32_t	value;		/* value			*/
+	union {
+		/* Longest field needs to be aligned by 4-byte boundary	*/
+		struct in6_addr	addr6;	/* IPv6 address 		*/
+		char	iface[IF_NAMESIZE];	/* interface name	*/
+	} k;
+} ipfw_table_xentry;
+#define	IPFW_TCF_INET	0x01		/* CIDR flags: IPv4 record	*/
 
 typedef struct	_ipfw_table {
 	u_int32_t	size;		/* size of entries in bytes	*/
@@ -571,133 +783,268 @@ typedef struct	_ipfw_table {
 	ipfw_table_entry ent[0];	/* entries			*/
 } ipfw_table;
 
-/*
- * Main firewall chains definitions and global var's definitions.
- */
-#ifdef _KERNEL
+typedef struct	_ipfw_xtable {
+	ip_fw3_opheader	opheader;	/* IP_FW3 opcode */
+	uint32_t	size;		/* size of entries in bytes	*/
+	uint32_t	cnt;		/* # of entries			*/
+	uint16_t	tbl;		/* table number			*/
+	uint8_t		type;		/* table type			*/
+	ipfw_table_xentry xent[0];	/* entries			*/
+} ipfw_xtable;
 
-#define MTAG_IPFW	1148380143	/* IPFW-tagged cookie */
+typedef struct  _ipfw_obj_tlv {
+	uint16_t        type;		/* TLV type */
+	uint16_t	flags;		/* TLV-specific flags		*/
+	uint32_t        length;		/* Total length, aligned to u64	*/
+} ipfw_obj_tlv;
+#define	IPFW_TLV_TBL_NAME	1
+#define	IPFW_TLV_TBLNAME_LIST	2
+#define	IPFW_TLV_RULE_LIST	3
+#define	IPFW_TLV_DYNSTATE_LIST	4
+#define	IPFW_TLV_TBL_ENT	5
+#define	IPFW_TLV_DYN_ENT	6
+#define	IPFW_TLV_RULE_ENT	7
+#define	IPFW_TLV_TBLENT_LIST	8
+#define	IPFW_TLV_RANGE		9
+#define	IPFW_TLV_EACTION	10
+#define	IPFW_TLV_COUNTERS	11
+#define	IPFW_TLV_OBJDATA	12
+#define	IPFW_TLV_STATE_NAME	14
 
-/* Return values from ipfw_chk() */
-enum {
-	IP_FW_PASS = 0,
-	IP_FW_DENY,
-	IP_FW_DIVERT,
-	IP_FW_TEE,
-	IP_FW_DUMMYNET,
-	IP_FW_NETGRAPH,
-	IP_FW_NGTEE,
-	IP_FW_NAT,
-	IP_FW_REASS,
+#define	IPFW_TLV_EACTION_BASE	1000
+#define	IPFW_TLV_EACTION_NAME(arg)	(IPFW_TLV_EACTION_BASE + (arg))
+
+typedef struct _ipfw_obj_data {
+	ipfw_obj_tlv	head;
+	void		*data[0];
+} ipfw_obj_data;
+
+/* Object name TLV */
+typedef struct _ipfw_obj_ntlv {
+	ipfw_obj_tlv	head;		/* TLV header			*/
+	uint16_t	idx;		/* Name index			*/
+	uint8_t		set;		/* set, if applicable		*/
+	uint8_t		type;		/* object type, if applicable	*/
+	uint32_t	spare;		/* unused			*/
+	char		name[64];	/* Null-terminated name		*/
+} ipfw_obj_ntlv;
+
+/* IPv4/IPv6 L4 flow description */
+struct tflow_entry {
+	uint8_t		af;
+	uint8_t		proto;
+	uint16_t	spare;
+	uint16_t	sport;
+	uint16_t	dport;
+	union {
+		struct {
+			struct in_addr	sip;
+			struct in_addr	dip;
+		} a4;
+		struct {
+			struct in6_addr	sip6;
+			struct in6_addr	dip6;
+		} a6;
+	} a;
 };
 
-/* flags for divert mtag */
-#define	IP_FW_DIVERT_LOOPBACK_FLAG	0x00080000
-#define	IP_FW_DIVERT_OUTPUT_FLAG	0x00100000
+typedef struct _ipfw_table_value {
+	uint32_t	tag;		/* O_TAG/O_TAGGED */
+	uint32_t	pipe;		/* O_PIPE/O_QUEUE */
+	uint16_t	divert;		/* O_DIVERT/O_TEE */
+	uint16_t	skipto;		/* skipto, CALLRET */
+	uint32_t	netgraph;	/* O_NETGRAPH/O_NGTEE */
+	uint32_t	fib;		/* O_SETFIB */
+	uint32_t	nat;		/* O_NAT */
+	uint32_t	nh4;
+	uint8_t		dscp;
+	uint8_t		spare0;
+	uint16_t	spare1;
+	struct in6_addr	nh6;
+	uint32_t	limit;		/* O_LIMIT */
+	uint32_t	zoneid;		/* scope zone id for nh6 */
+	uint64_t	reserved;
+} ipfw_table_value;
 
-/*
- * Structure for collecting parameters to dummynet for ip6_output forwarding
- */
-struct _ip6dn_args {
-       struct ip6_pktopts *opt_or;
-       struct route_in6 ro_or;
-       int flags_or;
-       struct ip6_moptions *im6o_or;
-       struct ifnet *origifp_or;
-       struct ifnet *ifp_or;
-       struct sockaddr_in6 dst_or;
-       u_long mtu_or;
-       struct route_in6 ro_pmtu_or;
-};
+/* Table entry TLV */
+typedef struct	_ipfw_obj_tentry {
+	ipfw_obj_tlv	head;		/* TLV header			*/
+	uint8_t		subtype;	/* subtype (IPv4,IPv6)		*/
+	uint8_t		masklen;	/* mask length			*/
+	uint8_t		result;		/* request result		*/
+	uint8_t		spare0;
+	uint16_t	idx;		/* Table name index		*/
+	uint16_t	spare1;
+	union {
+		/* Longest field needs to be aligned by 8-byte boundary	*/
+		struct in_addr		addr;	/* IPv4 address		*/
+		uint32_t		key;		/* uid/gid/port	*/
+		struct in6_addr		addr6;	/* IPv6 address 	*/
+		char	iface[IF_NAMESIZE];	/* interface name	*/
+		struct tflow_entry	flow;	
+	} k;
+	union {
+		ipfw_table_value	value;	/* value data */
+		uint32_t		kidx;	/* value kernel index */
+	} v;
+} ipfw_obj_tentry;
+#define	IPFW_TF_UPDATE	0x01		/* Update record if exists	*/
+/* Container TLV */
+#define	IPFW_CTF_ATOMIC	0x01		/* Perform atomic operation	*/
+/* Operation results */
+#define	IPFW_TR_IGNORED		0	/* Entry was ignored (rollback)	*/
+#define	IPFW_TR_ADDED		1	/* Entry was successfully added	*/
+#define	IPFW_TR_UPDATED		2	/* Entry was successfully updated*/
+#define	IPFW_TR_DELETED		3	/* Entry was successfully deleted*/
+#define	IPFW_TR_LIMIT		4	/* Entry was ignored (limit)	*/
+#define	IPFW_TR_NOTFOUND	5	/* Entry was not found		*/
+#define	IPFW_TR_EXISTS		6	/* Entry already exists		*/
+#define	IPFW_TR_ERROR		7	/* Request has failed (unknown)	*/
 
-/*
- * Arguments for calling ipfw_chk() and dummynet_io(). We put them
- * all into a structure because this way it is easier and more
- * efficient to pass variables around and extend the interface.
- */
-struct ip_fw_args {
-	struct mbuf	*m;		/* the mbuf chain		*/
-	struct ifnet	*oif;		/* output interface		*/
-	struct sockaddr_in *next_hop;	/* forward address		*/
-	struct ip_fw	*rule;		/* matching rule		*/
-	uint32_t	rule_id;	/* matching rule id */
-	uint32_t	chain_id;	/* ruleset id */
-	struct ether_header *eh;	/* for bridged packets		*/
+typedef struct _ipfw_obj_dyntlv {
+	ipfw_obj_tlv	head;
+	ipfw_dyn_rule	state;
+} ipfw_obj_dyntlv;
+#define	IPFW_DF_LAST	0x01		/* Last state in chain		*/
 
-	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
-	uint32_t	cookie;		/* a cookie depending on rule action */
-	struct inpcb	*inp;
+/* Containter TLVs */
+typedef struct _ipfw_obj_ctlv {
+	ipfw_obj_tlv	head;		/* TLV header			*/
+	uint32_t	count;		/* Number of sub-TLVs		*/
+	uint16_t	objsize;	/* Single object size		*/
+	uint8_t		version;	/* TLV version			*/
+	uint8_t		flags;		/* TLV-specific flags		*/
+} ipfw_obj_ctlv;
 
-	struct _ip6dn_args	dummypar; /* dummynet->ip6_output */
-	struct sockaddr_in hopstore;	/* store here if cannot use a pointer */
-};
+/* Range TLV */
+typedef struct _ipfw_range_tlv {
+	ipfw_obj_tlv	head;		/* TLV header			*/
+	uint32_t	flags;		/* Range flags			*/
+	uint16_t	start_rule;	/* Range start			*/
+	uint16_t	end_rule;	/* Range end			*/
+	uint32_t	set;		/* Range set to match		 */
+	uint32_t	new_set;	/* New set to move/swap to	*/
+} ipfw_range_tlv;
+#define	IPFW_RCFLAG_RANGE	0x01	/* rule range is set		*/
+#define	IPFW_RCFLAG_ALL		0x02	/* match ALL rules		*/
+#define	IPFW_RCFLAG_SET		0x04	/* match rules in given set	*/
+/* User-settable flags */
+#define	IPFW_RCFLAG_USER	(IPFW_RCFLAG_RANGE | IPFW_RCFLAG_ALL | \
+	IPFW_RCFLAG_SET)
+/* Internally used flags */
+#define	IPFW_RCFLAG_DEFAULT	0x0100	/* Do not skip defaul rule	*/
 
-/*
- * Function definitions.
- */
+typedef struct _ipfw_ta_tinfo {
+	uint32_t	flags;		/* Format flags			*/
+	uint32_t	spare;
+	uint8_t		taclass4;	/* algorithm class		*/
+	uint8_t		spare4;
+	uint16_t	itemsize4;	/* item size in runtime		*/
+	uint32_t	size4;		/* runtime structure size	*/
+	uint32_t	count4;		/* number of items in runtime	*/
+	uint8_t		taclass6;	/* algorithm class		*/
+	uint8_t		spare6;
+	uint16_t	itemsize6;	/* item size in runtime		*/
+	uint32_t	size6;		/* runtime structure size	*/
+	uint32_t	count6;		/* number of items in runtime	*/
+} ipfw_ta_tinfo;
+#define	IPFW_TACLASS_HASH	1	/* algo is based on hash	*/
+#define	IPFW_TACLASS_ARRAY	2	/* algo is based on array	*/
+#define	IPFW_TACLASS_RADIX	3	/* algo is based on radix tree	*/
 
-/* Firewall hooks */
-struct sockopt;
-struct dn_flow_set;
+#define	IPFW_TATFLAGS_DATA	0x0001		/* Has data filled in	*/
+#define	IPFW_TATFLAGS_AFDATA	0x0002		/* Separate data per AF	*/
+#define	IPFW_TATFLAGS_AFITEM	0x0004		/* diff. items per AF	*/
 
-int ipfw_check_in(void *, struct mbuf **, struct ifnet *, int, struct inpcb *inp);
-int ipfw_check_out(void *, struct mbuf **, struct ifnet *, int, struct inpcb *inp);
+typedef struct _ipfw_xtable_info {
+	uint8_t		type;		/* table type (addr,iface,..)	*/
+	uint8_t		tflags;		/* type flags			*/
+	uint16_t	mflags;		/* modification flags		*/
+	uint16_t	flags;		/* generic table flags		*/
+	uint16_t	spare[3];
+	uint32_t	vmask;		/* bitmask with value types 	*/
+	uint32_t	set;		/* set table is in		*/
+	uint32_t	kidx;		/* kernel index			*/
+	uint32_t	refcnt;		/* number of references		*/
+	uint32_t	count;		/* Number of records		*/
+	uint32_t	size;		/* Total size of records(export)*/
+	uint32_t	limit;		/* Max number of records	*/
+	char		tablename[64];	/* table name */
+	char		algoname[64];	/* algorithm name		*/
+	ipfw_ta_tinfo	ta_info;	/* additional algo stats	*/
+} ipfw_xtable_info;
+/* Generic table flags */
+#define	IPFW_TGFLAGS_LOCKED	0x01	/* Tables is locked from changes*/
+/* Table type-specific flags */
+#define	IPFW_TFFLAG_SRCIP	0x01
+#define	IPFW_TFFLAG_DSTIP	0x02
+#define	IPFW_TFFLAG_SRCPORT	0x04
+#define	IPFW_TFFLAG_DSTPORT	0x08
+#define	IPFW_TFFLAG_PROTO	0x10
+/* Table modification flags */
+#define	IPFW_TMFLAGS_LIMIT	0x0002	/* Change limit value		*/
+#define	IPFW_TMFLAGS_LOCK	0x0004	/* Change table lock state	*/
 
-int ipfw_chk(struct ip_fw_args *);
+typedef struct _ipfw_iface_info {
+	char		ifname[64];	/* interface name		*/
+	uint32_t	ifindex;	/* interface index		*/
+	uint32_t	flags;		/* flags			*/
+	uint32_t	refcnt;		/* number of references		*/
+	uint32_t	gencnt;		/* number of changes		*/
+	uint64_t	spare;
+} ipfw_iface_info;
+#define	IPFW_IFFLAG_RESOLVED	0x01	/* Interface exists		*/
 
-int ipfw_hook(void);
-int ipfw6_hook(void);
-int ipfw_unhook(void);
-int ipfw6_unhook(void);
-#ifdef NOTYET
-void ipfw_nat_destroy(void);
-#endif
+typedef struct _ipfw_ta_info {
+	char		algoname[64];	/* algorithm name		*/
+	uint32_t	type;		/* lookup type			*/
+	uint32_t	flags;
+	uint32_t	refcnt;
+	uint32_t	spare0;
+	uint64_t	spare1;
+} ipfw_ta_info;
 
-VNET_DECLARE(int, fw_one_pass);
-VNET_DECLARE(int, fw_enable);
-#define	V_fw_one_pass		VNET(fw_one_pass)
-#define	V_fw_enable		VNET(fw_enable)
+typedef struct _ipfw_obj_header {
+	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
+	uint32_t	spare;
+	uint16_t	idx;		/* object name index		*/
+	uint8_t		objtype;	/* object type			*/
+	uint8_t		objsubtype;	/* object subtype		*/
+	ipfw_obj_ntlv	ntlv;		/* object name tlv		*/
+} ipfw_obj_header;
 
-#ifdef INET6
-VNET_DECLARE(int, fw6_enable);
-#define	V_fw6_enable		VNET(fw6_enable)
-#endif
+typedef struct _ipfw_obj_lheader {
+	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
+	uint32_t	set_mask;	/* disabled set mask		*/
+	uint32_t	count;		/* Total objects count		*/
+	uint32_t	size;		/* Total size (incl. header)	*/
+	uint32_t	objsize;	/* Size of one object		*/
+} ipfw_obj_lheader;
 
-struct ip_fw_chain {
-	struct ip_fw	*rules;		/* list of rules */
-	struct ip_fw	*reap;		/* list of rules to reap */
-	LIST_HEAD(, cfg_nat) nat;       /* list of nat entries */
-	struct radix_node_head *tables[IPFW_TABLES_MAX];
-	struct rwlock	rwmtx;
-	uint32_t	id;		/* ruleset id */
-};
+#define	IPFW_CFG_GET_STATIC	0x01
+#define	IPFW_CFG_GET_STATES	0x02
+#define	IPFW_CFG_GET_COUNTERS	0x04
+typedef struct _ipfw_cfg_lheader {
+	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
+	uint32_t	set_mask;	/* enabled set mask		*/
+	uint32_t	spare;
+	uint32_t	flags;		/* Request flags		*/
+	uint32_t	size;		/* neded buffer size		*/
+	uint32_t	start_rule;
+	uint32_t	end_rule;
+} ipfw_cfg_lheader;
 
-#ifdef IPFW_INTERNAL
+typedef struct _ipfw_range_header {
+	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
+	ipfw_range_tlv	range;
+} ipfw_range_header;
 
-#define	IPFW_LOCK_INIT(_chain) \
-	rw_init(&(_chain)->rwmtx, "IPFW static rules")
-#define	IPFW_LOCK_DESTROY(_chain)	rw_destroy(&(_chain)->rwmtx)
-#define	IPFW_WLOCK_ASSERT(_chain)	rw_assert(&(_chain)->rwmtx, RA_WLOCKED)
+typedef struct _ipfw_sopt_info {
+	uint16_t	opcode;
+	uint8_t		version;
+	uint8_t		dir;
+	uint8_t		spare;
+	uint64_t	refcnt;
+} ipfw_sopt_info;
 
-#define IPFW_RLOCK(p) rw_rlock(&(p)->rwmtx)
-#define IPFW_RUNLOCK(p) rw_runlock(&(p)->rwmtx)
-#define IPFW_WLOCK(p) rw_wlock(&(p)->rwmtx)
-#define IPFW_WUNLOCK(p) rw_wunlock(&(p)->rwmtx)
-
-#define LOOKUP_NAT(l, i, p) do {					\
-		LIST_FOREACH((p), &(l.nat), _next) {			\
-			if ((p)->id == (i)) {				\
-				break;					\
-			} 						\
-		}							\
-	} while (0)
-
-typedef int ipfw_nat_t(struct ip_fw_args *, struct cfg_nat *, struct mbuf *);
-typedef int ipfw_nat_cfg_t(struct sockopt *);
-#endif
-
-VNET_DECLARE(struct ip_fw_chain, layer3_chain);
-#define	V_layer3_chain		VNET(layer3_chain)
-
-#endif /* _KERNEL */
 #endif /* _IPFW2_H */

@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)bt_split.c	8.10 (Berkeley) 1/9/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 
 #include <limits.h>
 #include <stdio.h>
@@ -235,9 +235,12 @@ __bt_split(BTREE *t, PAGE *sp, const DBT *key, const DBT *data, int flags,
 			WR_BINTERNAL(dest, nksize ? nksize : bl->ksize,
 			    rchild->pgno, bl->flags & P_BIGKEY);
 			memmove(dest, bl->bytes, nksize ? nksize : bl->ksize);
-			if (bl->flags & P_BIGKEY &&
-			    bt_preserve(t, *(pgno_t *)bl->bytes) == RET_ERROR)
-				goto err1;
+			if (bl->flags & P_BIGKEY) {
+				pgno_t pgno;
+				memcpy(&pgno, bl->bytes, sizeof(pgno));
+				if (bt_preserve(t, pgno) == RET_ERROR)
+					goto err1;
+			}
 			break;
 		case P_RINTERNAL:
 			/*
@@ -482,7 +485,7 @@ bt_rroot(BTREE *t, PAGE *h, PAGE *l, PAGE *r)
 	WR_RINTERNAL(dest,
 	    l->flags & P_RLEAF ? NEXTINDEX(l) : rec_total(l), l->pgno);
 
-	h->linp[1] = h->upper -= NRINTERNAL;
+	__PAST_END(h->linp, 1) = h->upper -= NRINTERNAL;
 	dest = (char *)h + h->upper;
 	WR_RINTERNAL(dest,
 	    r->flags & P_RLEAF ? NEXTINDEX(r) : rec_total(r), r->pgno);
@@ -534,7 +537,7 @@ bt_broot(BTREE *t, PAGE *h, PAGE *l, PAGE *r)
 	case P_BLEAF:
 		bl = GETBLEAF(r, 0);
 		nbytes = NBINTERNAL(bl->ksize);
-		h->linp[1] = h->upper -= nbytes;
+		__PAST_END(h->linp, 1) = h->upper -= nbytes;
 		dest = (char *)h + h->upper;
 		WR_BINTERNAL(dest, bl->ksize, r->pgno, 0);
 		memmove(dest, bl->bytes, bl->ksize);
@@ -543,14 +546,17 @@ bt_broot(BTREE *t, PAGE *h, PAGE *l, PAGE *r)
 		 * If the key is on an overflow page, mark the overflow chain
 		 * so it isn't deleted when the leaf copy of the key is deleted.
 		 */
-		if (bl->flags & P_BIGKEY &&
-		    bt_preserve(t, *(pgno_t *)bl->bytes) == RET_ERROR)
-			return (RET_ERROR);
+	if (bl->flags & P_BIGKEY) {
+			pgno_t pgno;
+			memcpy(&pgno, bl->bytes, sizeof(pgno));
+			if (bt_preserve(t, pgno) == RET_ERROR)
+				return (RET_ERROR);
+		}
 		break;
 	case P_BINTERNAL:
 		bi = GETBINTERNAL(r, 0);
 		nbytes = NBINTERNAL(bi->ksize);
-		h->linp[1] = h->upper -= nbytes;
+		__PAST_END(h->linp, 1) = h->upper -= nbytes;
 		dest = (char *)h + h->upper;
 		memmove(dest, bi, nbytes);
 		((BINTERNAL *)dest)->pgno = r->pgno;

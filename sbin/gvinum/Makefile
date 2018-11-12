@@ -1,13 +1,14 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	gvinum
 SRCS=	gvinum.c gvinum.h geom_vinum_share.c
 MAN=	gvinum.8
 
-CFLAGS+=	-I${.CURDIR}/../../sys
+WARNS?=	2
+CFLAGS+=	-I${.CURDIR}/../../sys -I${DESTDIR}/${INCLUDEDIR}/edit
 
-DPADD=	${LIBREADLINE} ${LIBTERMCAP} ${LIBDEVSTAT} ${LIBKVM} ${LIBGEOM}
-LDADD=	-lreadline -ltermcap -ldevstat -lkvm -lgeom
+LIBADD=	edit geom
 
 .PATH: ${.CURDIR}/../../sys/geom/vinum
 

@@ -36,11 +36,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
+#include <sys/pcpu.h>
+#include <sys/proc.h>
+#include <sys/pmc.h>
+#include <sys/pmckern.h>
 
 #include <machine/bus.h>
+#include <machine/intr_machdep.h>
 
 #include <mips/atheros/apbvar.h>
 #include <mips/atheros/ar71xxreg.h>
+#include <mips/atheros/ar71xx_setup.h>
+
+#define	APB_INTR_PMC	5
 
 #undef APB_DEBUG
 #ifdef APB_DEBUG
@@ -49,19 +57,21 @@ __FBSDID("$FreeBSD$");
 #define dprintf(x, arg...)
 #endif  /* APB_DEBUG */
 
+#define	DEVTOAPB(dev)	((struct apb_ivar *) device_get_ivars(dev))
+
 static int	apb_activate_resource(device_t, device_t, int, int,
 		    struct resource *);
-static device_t	apb_add_child(device_t, int, const char *, int);
+static device_t	apb_add_child(device_t, u_int, const char *, int);
 static struct resource *
-		apb_alloc_resource(device_t, device_t, int, int *, u_long,
-		    u_long, u_long, u_int);
+		apb_alloc_resource(device_t, device_t, int, int *, rman_res_t,
+		    rman_res_t, rman_res_t, u_int);
 static int	apb_attach(device_t);
 static int	apb_deactivate_resource(device_t, device_t, int, int,
 		    struct resource *);
 static struct resource_list *
 		apb_get_resource_list(device_t, device_t);
 static void	apb_hinted_child(device_t, const char *, int);
-static int	apb_intr(void *);
+static int	apb_filter(void *);
 static int	apb_probe(device_t);
 static int	apb_release_resource(device_t, device_t, int, int,
 		    struct resource *);
@@ -95,7 +105,7 @@ static int
 apb_probe(device_t dev)
 {
 
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
@@ -130,7 +140,7 @@ apb_attach(device_t dev)
 	}
 
 	if ((bus_setup_intr(dev, sc->sc_misc_irq, INTR_TYPE_MISC, 
-	    apb_intr, NULL, sc, &sc->sc_misc_ih))) {
+	    apb_filter, NULL, sc, &sc->sc_misc_ih))) {
 		device_printf(dev,
 		    "WARNING: unable to register interrupt handler\n");
 		return (ENXIO);
@@ -140,12 +150,18 @@ apb_attach(device_t dev)
 	bus_enumerate_hinted_children(dev);
 	bus_generic_attach(dev);
 
+	/*
+	 * Unmask performance counter IRQ
+	 */
+	apb_unmask_irq((void*)APB_INTR_PMC);
+	sc->sc_intr_counter[APB_INTR_PMC] = mips_intrcnt_create("apb irq5: pmc");
+
 	return (0);
 }
 
 static struct resource *
 apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct apb_softc		*sc = device_get_softc(bus);
 	struct apb_ivar			*ivar = device_get_ivars(child);
@@ -154,7 +170,7 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct rman			*rm;
 	int				 isdefault, needactivate, passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = (RMAN_IS_DEFAULT_RANGE(start, end));
 	needactivate = flags & RF_ACTIVE;
 	/*
 	 * Pass memory requests to nexus device
@@ -162,7 +178,7 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	passthrough = (device_get_parent(child) != bus);
 	rle = NULL;
 
-	dprintf("%s: entry (%p, %p, %d, %d, %p, %p, %ld, %d)\n",
+	dprintf("%s: entry (%p, %p, %d, %d, %p, %p, %jd, %d)\n",
 	    __func__, bus, child, type, *rid, (void *)(intptr_t)start,
 	    (void *)(intptr_t)end, count, flags);
 
@@ -207,7 +223,7 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == 0) {
+	if (rv == NULL) {
 		printf("%s: could not reserve resource\n", __func__);
 		return (0);
 	}
@@ -285,11 +301,18 @@ apb_setup_intr(device_t bus, device_t child, struct resource *ires,
 		    NULL, NULL,
 		    "apb intr%d:", irq);
 
-		sc->sc_eventstab[irq] = event;
+		if (error == 0) {
+			sc->sc_eventstab[irq] = event;
+			sc->sc_intr_counter[irq] =
+			    mips_intrcnt_create(event->ie_name);
+		}
+		else
+			return (error);
 	}
 
 	intr_event_add_handler(event, device_get_nameunit(child), filt,
 	    handler, arg, intr_priority(flags), flags, cookiep);
+	mips_intrcnt_setname(sc->sc_intr_counter[irq], event->ie_fullname);
 
 	apb_unmask_irq((void*)irq);
 
@@ -320,25 +343,59 @@ apb_teardown_intr(device_t dev, device_t child, struct resource *ires,
 }
 
 static int
-apb_intr(void *arg)
+apb_filter(void *arg)
 {
 	struct apb_softc *sc = arg;
 	struct intr_event *event;
 	uint32_t reg, irq;
+	struct thread *td;
+	struct trapframe *tf;
 
 	reg = ATH_READ_REG(AR71XX_MISC_INTR_STATUS);
 	for (irq = 0; irq < APB_NIRQS; irq++) {
 		if (reg & (1 << irq)) {
+
+			switch (ar71xx_soc) {
+			case AR71XX_SOC_AR7240:
+			case AR71XX_SOC_AR7241:
+			case AR71XX_SOC_AR7242:
+			case AR71XX_SOC_AR9330:
+			case AR71XX_SOC_AR9331:
+			case AR71XX_SOC_AR9341:
+			case AR71XX_SOC_AR9342:
+			case AR71XX_SOC_AR9344:
+			case AR71XX_SOC_QCA9533:
+			case AR71XX_SOC_QCA9533_V2:
+			case AR71XX_SOC_QCA9556:
+			case AR71XX_SOC_QCA9558:
+				/* ACK/clear the given interrupt */
+				ATH_WRITE_REG(AR71XX_MISC_INTR_STATUS,
+				    (1 << irq));
+				break;
+			default:
+				/* fallthrough */
+				break;
+			}
+
 			event = sc->sc_eventstab[irq];
+			/* always count interrupts; spurious or otherwise */
+			mips_intrcnt_inc(sc->sc_intr_counter[irq]);
 			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+				if (irq == APB_INTR_PMC) {
+					td = PCPU_GET(curthread);
+					tf = td->td_intr_frame;
+
+					if (pmc_intr)
+						(*pmc_intr)(PCPU_GET(cpuid), tf);
+					continue;
+				}
 				/* Ignore timer interrupts */
-				if (irq != 0)
-					printf("Stray IRQ %d\n", irq);
+				if (irq != 0 && irq != 8 && irq != 9 && irq != 10)
+					printf("Stray APB IRQ %d\n", irq);
 				continue;
 			}
 
-			/* TODO: frame instead of NULL? */
-			intr_event_handle(event, NULL);
+			intr_event_handle(event, PCPU_GET(curthread)->td_intr_frame);
 		}
 	}
 
@@ -388,16 +445,12 @@ apb_hinted_child(device_t bus, const char *dname, int dunit)
 }
 
 static device_t
-apb_add_child(device_t bus, int order, const char *name, int unit)
+apb_add_child(device_t bus, u_int order, const char *name, int unit)
 {
 	device_t		child;
 	struct apb_ivar	*ivar;
 
 	ivar = malloc(sizeof(struct apb_ivar), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (ivar == NULL) {
-		printf("Failed to allocate ivar\n");
-		return (0);
-	}
 	resource_list_init(&ivar->resources);
 
 	child = device_add_child_ordered(bus, order, name, unit);
@@ -424,6 +477,37 @@ apb_get_resource_list(device_t dev, device_t child)
 	return (&(ivar->resources));
 }
 
+static int
+apb_print_all_resources(device_t dev)
+{
+	struct apb_ivar *ndev = DEVTOAPB(dev);
+	struct resource_list *rl = &ndev->resources;
+	int retval = 0;
+
+	if (STAILQ_FIRST(rl))
+		retval += printf(" at");
+
+	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
+
+	return (retval);
+}
+
+static int
+apb_print_child(device_t bus, device_t child)
+{
+	int retval = 0;
+
+	retval += bus_print_child_header(bus, child);
+	retval += apb_print_all_resources(child);
+	if (device_get_flags(child))
+		retval += printf(" flags %#x", device_get_flags(child));
+	retval += printf(" on %s\n", device_get_nameunit(bus));
+
+	return (retval);
+}
+
+
 static device_method_t apb_methods[] = {
 	DEVMETHOD(bus_activate_resource,	apb_activate_resource),
 	DEVMETHOD(bus_add_child,		apb_add_child),
@@ -431,7 +515,6 @@ static device_method_t apb_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	apb_deactivate_resource),
 	DEVMETHOD(bus_get_resource_list,	apb_get_resource_list),
 	DEVMETHOD(bus_hinted_child,		apb_hinted_child),
-	DEVMETHOD(bus_print_child,		bus_generic_print_child),
 	DEVMETHOD(bus_release_resource,		apb_release_resource),
 	DEVMETHOD(bus_setup_intr,		apb_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		apb_teardown_intr),
@@ -439,8 +522,9 @@ static device_method_t apb_methods[] = {
 	DEVMETHOD(device_probe,			apb_probe),
 	DEVMETHOD(bus_get_resource,		bus_generic_rl_get_resource),
 	DEVMETHOD(bus_set_resource,		bus_generic_rl_set_resource),
+	DEVMETHOD(bus_print_child,		apb_print_child),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t apb_driver = {

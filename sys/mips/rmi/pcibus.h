@@ -23,27 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: src/sys/alpha/pci/pcibus.h,v 1.5 2002/02/28 18:18:41 gallatin Exp $
+ * $FreeBSD$
  */
-#define DEFAULT_PCI_CONFIG_BASE         0x18000000
+#define DEFAULT_PCI_CONFIG_BASE		0x18000000
+#define MSI_MIPS_ADDR_BASE		0xfee00000
 
-#define MSI_MIPS_ADDR_BASE             0xfee00000
+#define PCIE_LINK0_MSI_STATUS		0x90
+#define PCIE_LINK1_MSI_STATUS		0x94
+#define PCIE_LINK2_MSI_STATUS		0x190
+#define PCIE_LINK3_MSI_STATUS		0x194
 
-
-#define PCIE_LINK0_MSI_STATUS        0x90
-#define PCIE_LINK1_MSI_STATUS        0x94
-#define PCIE_LINK2_MSI_STATUS        0x190
-#define PCIE_LINK3_MSI_STATUS        0x194
-
-void pci_init_resources(void);
-struct resource *xlr_pci_alloc_resource(device_t bus, device_t child,
-				    int type, int *rid,
-				    u_long start, u_long end, u_long count,
-				    u_int flags);
-int pci_activate_resource(device_t bus, device_t child, int type, int rid,
-			  struct resource *r);
-int pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
-			    struct resource *r);
-int pci_release_resource(device_t bus, device_t child, int type, int rid,
-			 struct resource *r);
-struct rman *pci_get_rman(device_t dev, int type);

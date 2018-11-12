@@ -20,8 +20,13 @@
 #
 
 #
-# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
-# Use is subject to license terms.
+# Copyright (c) 1991, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012 Nexenta Systems, Inc. All rights reserved.
+# Copyright (c) 2012 Nexenta Systems, Inc. All rights reserved.
+# Copyright (c) 2012 Joyent, Inc.  All rights reserved.
+# Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+# Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+#
 #
 # This Makefile defines all file modules for the directory uts/common
 # and its children. These are the source files which may be considered
@@ -30,8 +35,15 @@
 ZFS_COMMON_OBJS +=		\
 	arc.o			\
 	bplist.o		\
+	blkptr.o		\
+	bpobj.o			\
+	bptree.o		\
+	bqueue.o		\
 	dbuf.o			\
+	ddt.o			\
+	ddt_zap.o		\
 	dmu.o			\
+	dmu_diff.o		\
 	dmu_send.o		\
 	dmu_object.o		\
 	dmu_objset.o		\
@@ -39,26 +51,37 @@ ZFS_COMMON_OBJS +=		\
 	dmu_tx.o		\
 	dnode.o			\
 	dnode_sync.o		\
+	dsl_bookmark.o		\
 	dsl_dir.o		\
 	dsl_dataset.o		\
+	dsl_deadlist.o		\
+	dsl_destroy.o		\
 	dsl_pool.o		\
 	dsl_synctask.o		\
+	dsl_userhold.o		\
 	dmu_zfetch.o		\
 	dsl_deleg.o		\
 	dsl_prop.o		\
-	dsl_scrub.o		\
-	fletcher.o		\
+	dsl_scan.o		\
+	zfeature.o		\
 	gzip.o			\
+	lz4.o			\
 	lzjb.o			\
 	metaslab.o		\
+	multilist.o		\
+	range_tree.o		\
 	refcount.o		\
+	rrwlock.o		\
+	sa.o			\
 	sha256.o		\
+	skein_zfs.o		\
 	spa.o			\
 	spa_config.o		\
 	spa_errlog.o		\
 	spa_history.o		\
 	spa_misc.o		\
 	space_map.o		\
+	space_reftree.o		\
 	txg.o			\
 	uberblock.o		\
 	unique.o		\
@@ -75,20 +98,26 @@ ZFS_COMMON_OBJS +=		\
 	zap_leaf.o		\
 	zap_micro.o		\
 	zfs_byteswap.o		\
+	zfs_debug.o		\
 	zfs_fm.o		\
 	zfs_fuid.o		\
+	zfs_sa.o		\
 	zfs_znode.o		\
 	zil.o			\
 	zio.o			\
 	zio_checksum.o		\
 	zio_compress.o		\
-	zio_inject.o
+	zio_inject.o		\
+	zle.o			\
+	zrlock.o
 
 ZFS_SHARED_OBJS +=		\
-	zfs_namecheck.o		\
-	zfs_deleg.o		\
-	zfs_prop.o		\
+	zfeature_common.o	\
 	zfs_comutil.o		\
+	zfs_deleg.o		\
+	zfs_fletcher.o		\
+	zfs_namecheck.o		\
+	zfs_prop.o		\
 	zpool_prop.o		\
 	zprop_common.o
 
@@ -99,10 +128,11 @@ ZFS_OBJS +=			\
 	zfs_ctldir.o		\
 	zfs_dir.o		\
 	zfs_ioctl.o		\
+	zfs_ioctl_compat.o	\
 	zfs_log.o		\
+	zfs_onexit.o		\
 	zfs_replay.o		\
 	zfs_rlock.o		\
-	rrwlock.o		\
 	zfs_vfsops.o		\
 	zfs_vnops.o		\
 	zvol.o

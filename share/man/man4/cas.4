@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 15, 2009
+.Dd March 24, 2012
 .Dt CAS 4
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@ Alternatively, to load the driver as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-if_cas="YES"
+if_cas_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
@@ -70,7 +70,6 @@ Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
 utility configures the adapter to receive and transmit Jumbo Frames.
 .Sh HARDWARE
-.Pp
 The chips supported by the
 .Nm
 driver are:
@@ -91,6 +90,9 @@ driver at this time:
 .Pp
 .Bl -bullet -compact
 .It
+Sun GigaSwift Ethernet 1.0 MMF (Cassini Kuheen)
+(part no.\& 501-5524)
+.It
 Sun GigaSwift Ethernet 1.0 UTP (Cassini)
 (part no.\& 501-5902)
 .It
@@ -99,6 +101,9 @@ Sun GigaSwift Ethernet UTP (GCS)
 .It
 Sun Quad GigaSwift Ethernet UTP (QGE)
 (part no.\& 501-6522)
+.It
+Sun Quad GigaSwift Ethernet PCI-X (QGE-X)
+(part no.\& 501-6738)
 .El
 .Sh NOTES
 On sparc64 the
@@ -147,8 +152,7 @@ and supports the same set of controllers but is otherwise unrelated.
 The
 .Nm
 driver was written by
-.An Marius Strobl
-.Aq marius@FreeBSD.org
+.An Marius Strobl Aq Mt marius@FreeBSD.org
 based on the
 .Xr gem 4
 driver.

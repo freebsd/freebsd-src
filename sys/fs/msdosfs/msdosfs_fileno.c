@@ -51,16 +51,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/mutex.h>
 
 #include <fs/msdosfs/bpb.h>
 #include <fs/msdosfs/direntry.h>
 #include <fs/msdosfs/msdosfsmount.h>
 
 static MALLOC_DEFINE(M_MSDOSFSFILENO, "msdosfs_fileno", "MSDOSFS fileno mapping node");
-
-static struct mtx fileno_mtx;
-MTX_SYSINIT(fileno, &fileno_mtx, "MSDOSFS fileno", MTX_DEF);
 
 RB_PROTOTYPE(msdosfs_filenotree, msdosfs_fileno, mf_tree,
     msdosfs_fileno_compare)
@@ -72,22 +68,20 @@ static int msdosfs_fileno_compare(struct msdosfs_fileno *,
 
 /* Initialize file number mapping structures. */
 void
-msdosfs_fileno_init(mp)
-	struct mount *mp;
+msdosfs_fileno_init(struct mount *mp)
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 
 	RB_INIT(&pmp->pm_filenos);
 	pmp->pm_nfileno = FILENO_FIRST_DYN;
-        if (pmp->pm_HugeSectors > 0xffffffff /
+	if (pmp->pm_HugeSectors > 0xffffffff /
 	    (pmp->pm_BytesPerSec / sizeof(struct direntry)) + 1)
 		pmp->pm_flags |= MSDOSFS_LARGEFS;
 }
 
 /* Free 32-bit file number generation structures. */
 void
-msdosfs_fileno_free(mp)
-	struct mount *mp;
+msdosfs_fileno_free(struct mount *mp)
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 	struct msdosfs_fileno *mf, *next;
@@ -102,9 +96,7 @@ msdosfs_fileno_free(mp)
 
 /* Map a 64-bit file number into a 32-bit one. */
 uint32_t
-msdosfs_fileno_map(mp, fileno)
-	struct mount *mp;
-	uint64_t fileno;
+msdosfs_fileno_map(struct mount *mp, uint64_t fileno)
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 	struct msdosfs_fileno key, *mf, *tmf;
@@ -117,37 +109,36 @@ msdosfs_fileno_map(mp, fileno)
 	}
 	if (fileno < FILENO_FIRST_DYN)
 		return ((uint32_t)fileno);
-	mtx_lock(&fileno_mtx);
+	MSDOSFS_LOCK_MP(pmp);
 	key.mf_fileno64 = fileno;
 	mf = RB_FIND(msdosfs_filenotree, &pmp->pm_filenos, &key);
 	if (mf != NULL) {
 		mapped = mf->mf_fileno32;
-		mtx_unlock(&fileno_mtx);
+		MSDOSFS_UNLOCK_MP(pmp);
 		return (mapped);
 	}
 	if (pmp->pm_nfileno < FILENO_FIRST_DYN)
 		panic("msdosfs_fileno_map: wraparound");
-	mtx_unlock(&fileno_mtx);
+	MSDOSFS_UNLOCK_MP(pmp);
 	mf = malloc(sizeof(*mf), M_MSDOSFSFILENO, M_WAITOK);
-	mtx_lock(&fileno_mtx);
+	MSDOSFS_LOCK_MP(pmp);
 	tmf = RB_FIND(msdosfs_filenotree, &pmp->pm_filenos, &key);
 	if (tmf != NULL) {
 		mapped = tmf->mf_fileno32;
-		mtx_unlock(&fileno_mtx);
+		MSDOSFS_UNLOCK_MP(pmp);
 		free(mf, M_MSDOSFSFILENO);
 		return (mapped);
 	}
 	mf->mf_fileno64 = fileno;
 	mapped = mf->mf_fileno32 = pmp->pm_nfileno++;
 	RB_INSERT(msdosfs_filenotree, &pmp->pm_filenos, mf);
-	mtx_unlock(&fileno_mtx);
+	MSDOSFS_UNLOCK_MP(pmp);
 	return (mapped);
 }
 
 /* Compare by 64-bit file number. */
 static int
-msdosfs_fileno_compare(fa, fb)
-	struct msdosfs_fileno *fa, *fb;
+msdosfs_fileno_compare(struct msdosfs_fileno *fa, struct msdosfs_fileno *fb)
 {
 
 	if (fa->mf_fileno64 > fb->mf_fileno64)

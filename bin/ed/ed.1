@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd July 3, 2004
+.Dd October 2, 2016
 .Dt ED 1
 .Os
 .Sh NAME
@@ -231,7 +231,7 @@ The current line (address) in the buffer.
 The last line in the buffer.
 .It n
 The
-.Em n Ns th,
+.Em n Ns th
 line in the buffer
 where
 .Em n
@@ -649,7 +649,7 @@ The mark is not cleared until the line is
 deleted or otherwise modified.
 .It (.,.)l
 Print the addressed lines unambiguously.
-If a single line fills for than one screen (as might be the case
+If a single line fills more than one screen (as might be the case
 when viewing a binary file, for instance), a
 .Dq Li --More--
 prompt is printed on the last line.
@@ -738,7 +738,7 @@ It is an error if no substitutions are performed on any of the addressed
 lines.
 The current address is set the last line affected.
 .Pp
-.Ar Re
+.Ar \&Re
 and
 .Ar replacement
 may be delimited by any character other than space and newline
@@ -914,9 +914,9 @@ that line.
 .El
 .Sh FILES
 .Bl -tag -width /tmp/ed.* -compact
-.It /tmp/ed.*
+.It Pa /tmp/ed.*
 buffer file
-.It ed.hup
+.It Pa ed.hup
 the file to which
 .Nm
 attempts to write the buffer if the terminal hangs up
@@ -998,7 +998,7 @@ per line overhead: 4 ints
 An
 .Nm
 command appeared in
-Version 1 AT&T UNIX.
+.At v1 .
 .Sh BUGS
 The
 .Nm

@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_comconsole.h"
-
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -64,10 +62,9 @@ static struct ttydevsw cfe_ttydevsw = {
 static int			conhandle = -1;
 /* XXX does cfe have to poll? */
 static int			polltime;
-static struct callout_handle	cfe_timeouthandle
-    = CALLOUT_HANDLE_INITIALIZER(&cfe_timeouthandle);
+static struct callout		cfe_timer;
 
-#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
+#if defined(KDB)
 static int			alt_break_state;
 #endif
 
@@ -78,6 +75,8 @@ static cn_init_t	cfe_cninit;
 static cn_term_t	cfe_cnterm;
 static cn_getc_t	cfe_cngetc;
 static cn_putc_t	cfe_cnputc;
+static cn_grab_t	cfe_cngrab;
+static cn_ungrab_t	cfe_cnungrab;
 
 CONSOLE_DRIVER(cfe);
 
@@ -89,6 +88,7 @@ cn_drvinit(void *unused)
 	if (cfe_consdev.cn_pri != CN_DEAD &&
 	    cfe_consdev.cn_name[0] != '\0') {
 		tp = tty_alloc(&cfe_ttydevsw, NULL);
+		callout_init_mtx(&cfe_timer, tty_getlock(tp), 0);
 		tty_makedev(tp, NULL, "cfecons");
 	}
 }
@@ -99,7 +99,7 @@ cfe_tty_open(struct tty *tp)
 	polltime = hz / CFECONS_POLL_HZ;
 	if (polltime < 1)
 		polltime = 1;
-	cfe_timeouthandle = timeout(cfe_timeout, tp, polltime);
+	callout_reset(&cfe_timer, polltime, cfe_timeout, tp);
 
 	return (0);
 }
@@ -108,8 +108,7 @@ static void
 cfe_tty_close(struct tty *tp)
 {
 
-	/* XXX Should be replaced with callout_stop(9) */
-	untimeout(cfe_timeout, tp, cfe_timeouthandle);
+	callout_stop(&cfe_timer);
 }
 
 static void
@@ -141,13 +140,12 @@ cfe_timeout(void *v)
 
 	tp = (struct tty *)v;
 
-	tty_lock(tp);
+	tty_lock_assert(tp, MA_OWNED);
 	while ((c = cfe_cngetc(NULL)) != -1)
 		ttydisc_rint(tp, c, 0);
 	ttydisc_rint_done(tp);
-	tty_unlock(tp);
 
-	cfe_timeouthandle = timeout(cfe_timeout, tp, polltime);
+	callout_reset(&cfe_timer, polltime, cfe_timeout, tp);
 }
 
 static void
@@ -185,30 +183,26 @@ cfe_cnterm(struct consdev *cp)
 
 }
 
+static void
+cfe_cngrab(struct consdev *cp)
+{
+
+}
+
+static void
+cfe_cnungrab(struct consdev *cp)
+{
+
+}
+
 static int
 cfe_cngetc(struct consdev *cp)
 {
 	unsigned char ch;
 
 	if (cfe_read(conhandle, &ch, 1) == 1) {
-#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
-		int kdb_brk;
-
-		if ((kdb_brk = kdb_alt_break(ch, &alt_break_state)) != 0) {
-			switch (kdb_brk) {
-			case KDB_REQ_DEBUGGER:
-				kdb_enter(KDB_WHY_BREAK,
-				    "Break sequence on console");
-				break;
-			case KDB_REQ_PANIC:
-				kdb_panic("Panic sequence on console");
-				break;
-			case KDB_REQ_REBOOT:
-				kdb_reboot();
-				break;
-
-			}
-		}
+#if defined(KDB)
+		kdb_alt_break(ch, &alt_break_state);
 #endif
 		return (ch);
 	}

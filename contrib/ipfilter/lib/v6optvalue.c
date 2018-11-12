@@ -1,18 +1,18 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2003 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: v6optvalue.c,v 1.1.4.1 2006/06/16 17:21:18 darrenr Exp $
+ * $Id$
  */
 #include "ipf.h"
 
 
 
 u_32_t getv6optbyname(optname)
-char *optname;
+	char *optname;
 {
 #ifdef	USE_INET6
 	struct ipopt_names *io;
@@ -26,7 +26,7 @@ char *optname;
 
 
 u_32_t getv6optbyvalue(optval)
-int optval;
+	int optval;
 {
 #ifdef	USE_INET6
 	struct ipopt_names *io;

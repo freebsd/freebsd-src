@@ -1,6 +1,6 @@
 /* ppc.h -- Header file for PowerPC opcode table
-   Copyright 1994, 1995, 1999, 2000, 2001, 2002, 2003, 2004
-   Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
+   2007 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support
 
 This file is part of GDB, GAS, and the GNU binutils.
@@ -17,7 +17,7 @@ the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this file; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef PPC_H
 #define PPC_H
@@ -134,6 +134,18 @@ extern const int powerpc_num_opcodes;
 /* Opcode is supported by machine check APU.  */
 #define PPC_OPCODE_RFMCI	  0x800000
 
+/* Opcode is only supported by Power5 architecture.  */
+#define PPC_OPCODE_POWER5	 0x1000000
+
+/* Opcode is supported by PowerPC e300 family.  */
+#define PPC_OPCODE_E300          0x2000000
+
+/* Opcode is only supported by Power6 architecture.  */
+#define PPC_OPCODE_POWER6	 0x4000000
+
+/* Opcode is only supported by PowerPC Cell family.  */
+#define PPC_OPCODE_CELL		 0x8000000
+
 /* A macro to extract the major opcode from an instruction.  */
 #define PPC_OP(i) (((i) >> 26) & 0x3f)
 
@@ -141,20 +153,21 @@ extern const int powerpc_num_opcodes;
 
 struct powerpc_operand
 {
-  /* The number of bits in the operand.  */
-  int bits;
+  /* A bitmask of bits in the operand.  */
+  unsigned int bitm;
 
-  /* How far the operand is left shifted in the instruction.  */
+  /* How far the operand is left shifted in the instruction.
+     -1 to indicate that BITM and SHIFT cannot be used to determine
+     where the operand goes in the insn.  */
   int shift;
 
   /* Insertion function.  This is used by the assembler.  To insert an
      operand value into an instruction, check this field.
 
      If it is NULL, execute
-	 i |= (op & ((1 << o->bits) - 1)) << o->shift;
+	 i |= (op & o->bitm) << o->shift;
      (i is the instruction which we are filling in, o is a pointer to
-     this structure, and op is the opcode value; this assumes twos
-     complement arithmetic).
+     this structure, and op is the operand value).
 
      If this field is not NULL, then simply call it with the
      instruction and the operand value.  It will return the new value
@@ -170,12 +183,11 @@ struct powerpc_operand
      extract this operand type from an instruction, check this field.
 
      If it is NULL, compute
-	 op = ((i) >> o->shift) & ((1 << o->bits) - 1);
-	 if ((o->flags & PPC_OPERAND_SIGNED) != 0
-	     && (op & (1 << (o->bits - 1))) != 0)
-	   op -= 1 << o->bits;
+	 op = (i >> o->shift) & o->bitm;
+	 if ((o->flags & PPC_OPERAND_SIGNED) != 0)
+	   sign_extend (op);
      (i is the instruction, o is a pointer to this structure, and op
-     is the result; this assumes twos complement arithmetic).
+     is the result).
 
      If this field is not NULL, then simply call it with the
      instruction value.  It will return the value of the operand.  If
@@ -193,17 +205,18 @@ struct powerpc_operand
    the operands field of the powerpc_opcodes table.  */
 
 extern const struct powerpc_operand powerpc_operands[];
+extern const unsigned int num_powerpc_operands;
 
 /* Values defined for the flags field of a struct powerpc_operand.  */
 
 /* This operand takes signed values.  */
-#define PPC_OPERAND_SIGNED (01)
+#define PPC_OPERAND_SIGNED (0x1)
 
 /* This operand takes signed values, but also accepts a full positive
    range of values when running in 32 bit mode.  That is, if bits is
    16, it takes any value from -0x8000 to 0xffff.  In 64 bit mode,
    this flag is ignored.  */
-#define PPC_OPERAND_SIGNOPT (02)
+#define PPC_OPERAND_SIGNOPT (0x2)
 
 /* This operand does not actually exist in the assembler input.  This
    is used to support extended mnemonics such as mr, for which two
@@ -211,14 +224,14 @@ extern const struct powerpc_operand powerpc_operands[];
    insert function with any op value.  The disassembler should call
    the extract function, ignore the return value, and check the value
    placed in the valid argument.  */
-#define PPC_OPERAND_FAKE (04)
+#define PPC_OPERAND_FAKE (0x4)
 
 /* The next operand should be wrapped in parentheses rather than
    separated from this one by a comma.  This is used for the load and
    store instructions which want their operands to look like
        reg,displacement(reg)
    */
-#define PPC_OPERAND_PARENS (010)
+#define PPC_OPERAND_PARENS (0x8)
 
 /* This operand may use the symbolic names for the CR fields, which
    are
@@ -227,34 +240,34 @@ extern const struct powerpc_operand powerpc_operands[];
        cr4 4	cr5 5	cr6 6	cr7 7
    These may be combined arithmetically, as in cr2*4+gt.  These are
    only supported on the PowerPC, not the POWER.  */
-#define PPC_OPERAND_CR (020)
+#define PPC_OPERAND_CR (0x10)
 
 /* This operand names a register.  The disassembler uses this to print
    register names with a leading 'r'.  */
-#define PPC_OPERAND_GPR (040)
+#define PPC_OPERAND_GPR (0x20)
 
 /* Like PPC_OPERAND_GPR, but don't print a leading 'r' for r0.  */
-#define PPC_OPERAND_GPR_0 (0100)
+#define PPC_OPERAND_GPR_0 (0x40)
 
 /* This operand names a floating point register.  The disassembler
    prints these with a leading 'f'.  */
-#define PPC_OPERAND_FPR (0200)
+#define PPC_OPERAND_FPR (0x80)
 
 /* This operand is a relative branch displacement.  The disassembler
    prints these symbolically if possible.  */
-#define PPC_OPERAND_RELATIVE (0400)
+#define PPC_OPERAND_RELATIVE (0x100)
 
 /* This operand is an absolute branch address.  The disassembler
    prints these symbolically if possible.  */
-#define PPC_OPERAND_ABSOLUTE (01000)
+#define PPC_OPERAND_ABSOLUTE (0x200)
 
 /* This operand is optional, and is zero if omitted.  This is used for
-   the optional BF and L fields in the comparison instructions.  The
+   example, in the optional BF field in the comparison instructions.  The
    assembler must count the number of operands remaining on the line,
    and the number of operands remaining for the opcode, and decide
    whether this operand is present or not.  The disassembler should
    print this operand out only if it is not zero.  */
-#define PPC_OPERAND_OPTIONAL (02000)
+#define PPC_OPERAND_OPTIONAL (0x400)
 
 /* This flag is only used with PPC_OPERAND_OPTIONAL.  If this operand
    is omitted, then for the next operand use this operand value plus
@@ -262,24 +275,27 @@ extern const struct powerpc_operand powerpc_operands[];
    hack is needed because the Power rotate instructions can take
    either 4 or 5 operands.  The disassembler should print this operand
    out regardless of the PPC_OPERAND_OPTIONAL field.  */
-#define PPC_OPERAND_NEXT (04000)
+#define PPC_OPERAND_NEXT (0x800)
 
 /* This operand should be regarded as a negative number for the
    purposes of overflow checking (i.e., the normal most negative
    number is disallowed and one more than the normal most positive
    number is allowed).  This flag will only be set for a signed
    operand.  */
-#define PPC_OPERAND_NEGATIVE (010000)
+#define PPC_OPERAND_NEGATIVE (0x1000)
 
 /* This operand names a vector unit register.  The disassembler
    prints these with a leading 'v'.  */
-#define PPC_OPERAND_VR (020000)
+#define PPC_OPERAND_VR (0x2000)
 
 /* This operand is for the DS field in a DS form instruction.  */
-#define PPC_OPERAND_DS (040000)
+#define PPC_OPERAND_DS (0x4000)
 
 /* This operand is for the DQ field in a DQ form instruction.  */
-#define PPC_OPERAND_DQ (0100000)
+#define PPC_OPERAND_DQ (0x8000)
+
+/* Valid range of operand is 0..n rather than 0..n-1.  */
+#define PPC_OPERAND_PLUS1 (0x10000)
 
 /* The POWER and PowerPC assemblers use a few macros.  We keep them
    with the operands table for simplicity.  The macro table is an

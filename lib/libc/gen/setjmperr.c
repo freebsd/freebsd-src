@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 void
-longjmperror()
+longjmperror(void)
 {
 #define	ERRMSG	"longjmp botch.\n"
 	(void)_write(STDERR_FILENO, ERRMSG, sizeof(ERRMSG) - 1);

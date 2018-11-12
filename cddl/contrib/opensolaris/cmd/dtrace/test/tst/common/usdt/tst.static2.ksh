@@ -72,13 +72,13 @@ if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.c"
 	exit 1
 fi
-$dtrace -G -32 -s prov.d test.o
+$dtrace -G -s prov.d test.o
 if [ $? -ne 0 ]; then
 	print -u2 "failed to create initial DOF"
 	exit 1
 fi
 rm -f prov.o
-$dtrace -G -32 -s prov.d test.o
+$dtrace -G -s prov.d test.o
 if [ $? -ne 0 ]; then
 	print -u2 "failed to create final DOF"
 	exit 1
@@ -103,6 +103,6 @@ script
 status=$?
 
 cd /
-/usr/bin/rm -rf $DIR
+/bin/rm -rf $DIR
 
 exit $status

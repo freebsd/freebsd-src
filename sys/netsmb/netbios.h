@@ -10,12 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Boris Popov.
- * 4. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -39,10 +33,6 @@
  */
 #ifndef _NETINET_IN_H_
 #include <netinet/in.h>
-#endif
-
-#ifndef _NETIPX_IPX_H_
-#include <netipx/ipx.h>
 #endif
 
 #define	NMB_TCP_PORT	137
@@ -120,7 +110,7 @@
  */
 union nb_tran {
 	struct sockaddr_in	x_in;
-	struct sockaddr_ipx	x_ipx;
+	/* struct sockaddr_ipx was here. */
 };
 
 struct nb_name {

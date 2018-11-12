@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PROG=	phttpget
-NO_MAN=
-WARNS?=	6
+MAN=	phttpget.8
 
 BINDIR=	${LIBEXECDIR}
 

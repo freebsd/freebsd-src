@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)search.c	10.25 (Berkeley) 6/30/96";
+static const char sccsid[] = "$Id: search.c,v 10.27 2015/03/13 18:41:35 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
@@ -29,24 +30,25 @@ static const char sccsid[] = "@(#)search.c	10.25 (Berkeley) 6/30/96";
 
 typedef enum { S_EMPTY, S_EOF, S_NOPREV, S_NOTFOUND, S_SOF, S_WRAP } smsg_t;
 
-static void	search_msg __P((SCR *, smsg_t));
-static int	search_init __P((SCR *, dir_t, char *, size_t, char **, u_int));
+static void	search_msg(SCR *, smsg_t);
+static int	search_init(SCR *, dir_t, CHAR_T *, size_t, CHAR_T **, u_int);
 
 /*
  * search_init --
  *	Set up a search.
  */
 static int
-search_init(sp, dir, ptrn, plen, epp, flags)
-	SCR *sp;
-	dir_t dir;
-	char *ptrn, **epp;
-	size_t plen;
-	u_int flags;
+search_init(
+	SCR *sp,
+	dir_t dir,
+	CHAR_T *ptrn,
+	size_t plen,
+	CHAR_T **epp,
+	u_int flags)
 {
 	recno_t lno;
 	int delim;
-	char *p, *t;
+	CHAR_T *p, *t;
 
 	/* If the file is empty, it's a fast search. */
 	if (sp->lno <= 1) {
@@ -140,23 +142,25 @@ prev:			if (sp->re == NULL) {
  * f_search --
  *	Do a forward search.
  *
- * PUBLIC: int f_search __P((SCR *,
- * PUBLIC:    MARK *, MARK *, char *, size_t, char **, u_int));
+ * PUBLIC: int f_search(SCR *,
+ * PUBLIC:    MARK *, MARK *, CHAR_T *, size_t, CHAR_T **, u_int);
  */
 int
-f_search(sp, fm, rm, ptrn, plen, eptrn, flags)
-	SCR *sp;
-	MARK *fm, *rm;
-	char *ptrn, **eptrn;
-	size_t plen;
-	u_int flags;
+f_search(
+	SCR *sp,
+	MARK *fm,
+	MARK *rm,
+	CHAR_T *ptrn,
+	size_t plen,
+	CHAR_T **eptrn,
+	u_int flags)
 {
 	busy_t btype;
 	recno_t lno;
 	regmatch_t match[1];
 	size_t coff, len;
-	int cnt, eval, rval, wrapped;
-	char *l;
+	int cnt, eval, rval, wrapped = 0;
+	CHAR_T *l;
 
 	if (search_init(sp, FORWARD, ptrn, plen, eptrn, flags))
 		return (1);
@@ -194,13 +198,14 @@ f_search(sp, fm, rm, ptrn, plen, eptrn, flags)
 					return (1);
 				}
 				lno = 1;
+				wrapped = 1;
 			}
 		} else
 			coff = fm->cno + 1;
 	}
 
 	btype = BUSY_ON;
-	for (cnt = INTERRUPT_CHECK, rval = 1, wrapped = 0;; ++lno, coff = 0) {
+	for (cnt = INTERRUPT_CHECK, rval = 1;; ++lno, coff = 0) {
 		if (cnt-- == 0) {
 			if (INTERRUPTED(sp))
 				break;
@@ -210,7 +215,7 @@ f_search(sp, fm, rm, ptrn, plen, eptrn, flags)
 			}
 			cnt = INTERRUPT_CHECK;
 		}
-		if (wrapped && lno > fm->lno || db_get(sp, lno, 0, &l, &len)) {
+		if ((wrapped && lno > fm->lno) || db_get(sp, lno, 0, &l, &len)) {
 			if (wrapped) {
 				if (LF_ISSET(SEARCH_MSG))
 					search_msg(sp, S_NOTFOUND);
@@ -284,23 +289,25 @@ f_search(sp, fm, rm, ptrn, plen, eptrn, flags)
  * b_search --
  *	Do a backward search.
  *
- * PUBLIC: int b_search __P((SCR *,
- * PUBLIC:    MARK *, MARK *, char *, size_t, char **, u_int));
+ * PUBLIC: int b_search(SCR *,
+ * PUBLIC:    MARK *, MARK *, CHAR_T *, size_t, CHAR_T **, u_int);
  */
 int
-b_search(sp, fm, rm, ptrn, plen, eptrn, flags)
-	SCR *sp;
-	MARK *fm, *rm;
-	char *ptrn, **eptrn;
-	size_t plen;
-	u_int flags;
+b_search(
+	SCR *sp,
+	MARK *fm,
+	MARK *rm,
+	CHAR_T *ptrn,
+	size_t plen,
+	CHAR_T **eptrn,
+	u_int flags)
 {
 	busy_t btype;
 	recno_t lno;
 	regmatch_t match[1];
 	size_t coff, last, len;
 	int cnt, eval, rval, wrapped;
-	char *l;
+	CHAR_T *l;
 
 	if (search_init(sp, BACKWARD, ptrn, plen, eptrn, flags))
 		return (1);
@@ -342,7 +349,7 @@ b_search(sp, fm, rm, ptrn, plen, eptrn, flags)
 			}
 			cnt = INTERRUPT_CHECK;
 		}
-		if (wrapped && lno < fm->lno || lno == 0) {
+		if ((wrapped && lno < fm->lno) || lno == 0) {
 			if (wrapped) {
 				if (LF_ISSET(SEARCH_MSG))
 					search_msg(sp, S_NOTFOUND);
@@ -447,9 +454,9 @@ err:	if (LF_ISSET(SEARCH_MSG))
  *	Display one of the search messages.
  */
 static void
-search_msg(sp, msg)
-	SCR *sp;
-	smsg_t msg;
+search_msg(
+	SCR *sp,
+	smsg_t msg)
 {
 	switch (msg) {
 	case S_EMPTY:
@@ -481,12 +488,12 @@ search_msg(sp, msg)
  * search_busy --
  *	Put up the busy searching message.
  *
- * PUBLIC: void search_busy __P((SCR *, busy_t));
+ * PUBLIC: void search_busy(SCR *, busy_t);
  */
 void
-search_busy(sp, btype)
-	SCR *sp;
-	busy_t btype;
+search_busy(
+	SCR *sp,
+	busy_t btype)
 {
 	sp->gp->scr_busy(sp, "078|Searching...", btype);
 }

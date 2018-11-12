@@ -16,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -60,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 
 #include <sparc64/sbus/lsi64854reg.h>
@@ -394,7 +388,7 @@ le_dma_attach(device_t dev)
 	sc->sc_mediachange = le_dma_supmediachange;
 	sc->sc_mediastatus = le_dma_supmediastatus;
 	sc->sc_supmedia = le_dma_supmedia;
-	sc->sc_nsupmedia = sizeof(le_dma_supmedia) / sizeof(le_dma_supmedia[0]);
+	sc->sc_nsupmedia = nitems(le_dma_supmedia);
 	sc->sc_defaultmedia = le_dma_supmedia[0];
 
 	OF_getetheraddr(dev, sc->sc_enaddr);

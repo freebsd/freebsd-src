@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -169,6 +165,10 @@ int		 getpwuid_r(uid_t, struct passwd *, char *, size_t,
 int		 getpwent_r(struct passwd *, char *, size_t, struct passwd **);
 int		 setpassent(int);
 const char	*user_from_uid(uid_t, int);
+int		 uid_from_user(const char *, uid_t *);
+int		 pwcache_userdb(int (*)(int), void (*)(void),
+		    struct passwd * (*)(const char *),
+		    struct passwd * (*)(uid_t));
 #endif
 __END_DECLS
 

@@ -38,23 +38,26 @@
  * Created      : 16/05/95
  */
 
-	
 #include "assym.s"
 #include <machine/asm.h>
 #include <machine/armreg.h>
-#include <machine/asmacros.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/errno.h>
 
 	.text
-	.align	0
-#ifdef MULTIPROCESSOR
-.Lcpu_info:
-	.word	_C_LABEL(cpu_info)
+	.align	2
+
+#if __ARM_ARCH >= 6
+#define GET_PCB(tmp) \
+	mrc p15, 0, tmp, c13, c0, 4; \
+	add	tmp, tmp, #(TD_PCB)
 #else
 .Lpcb:
 	.word	_C_LABEL(__pcpu) + PC_CURPCB
+
+#define GET_PCB(tmp) \
+	ldr	tmp, .Lpcb
 #endif
 
 /*
@@ -88,6 +91,7 @@ ENTRY(copystr)
 
 	ldmfd	sp!, {r4-r5}			/* stack is 8 byte aligned */
 	RET
+END(copystr)
 
 #define SAVE_REGS	stmfd	sp!, {r4-r6}
 #define RESTORE_REGS	ldmfd	sp!, {r4-r6}
@@ -108,18 +112,10 @@ ENTRY(copyinstr)
 	moveq	r0, #ENAMETOOLONG
 	beq	2f
 
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0-r3, r14}
-	bl	_C_LABEL(cpu_number)
-	ldr	r4, .Lcpu_info
-	ldr	r4, [r4, r0, lsl #2]
-	ldr	r4, [r4, #CI_CURPCB]
-	ldmfd	sp!, {r0-r3, r14}
-#else
-	ldr	r4, .Lpcb
+	ldr	r12, =VM_MAXUSER_ADDRESS
+
+	GET_PCB(r4)
 	ldr	r4, [r4]
-#endif
 
 #ifdef DIAGNOSTIC
 	teq	r4, #0x00000000
@@ -129,7 +125,10 @@ ENTRY(copyinstr)
 	adr	r5, .Lcopystrfault
 	str	r5, [r4, #PCB_ONFAULT]
 
-1:	ldrbt	r5, [r0], #0x0001
+1:
+	cmp	r0, r12
+	bcs	.Lcopystrfault
+	ldrbt	r5, [r0], #0x0001
 	add	r6, r6, #0x00000001
 	teq	r5, #0x00000000
 	strb	r5, [r1], #0x0001
@@ -148,6 +147,7 @@ ENTRY(copyinstr)
 
 	RESTORE_REGS
 	RET
+END(copyinstr)
 
 /*
  * r0 - kernel space address
@@ -165,18 +165,10 @@ ENTRY(copyoutstr)
 	moveq	r0, #ENAMETOOLONG
 	beq	2f
 
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0-r3, r14}
-	bl	_C_LABEL(cpu_number)
-	ldr	r4, .Lcpu_info
-	ldr	r4, [r4, r0, lsl #2]
-	ldr	r4, [r4, #CI_CURPCB]
-	ldmfd	sp!, {r0-r3, r14}
-#else
-	ldr	r4, .Lpcb
+	ldr	r12, =VM_MAXUSER_ADDRESS
+
+	GET_PCB(r4)
 	ldr	r4, [r4]
-#endif
 
 #ifdef DIAGNOSTIC
 	teq	r4, #0x00000000
@@ -186,7 +178,10 @@ ENTRY(copyoutstr)
 	adr	r5, .Lcopystrfault
 	str	r5, [r4, #PCB_ONFAULT]
 
-1:	ldrb	r5, [r0], #0x0001
+1:
+	cmp	r0, r12
+	bcs	.Lcopystrfault
+	ldrb	r5, [r0], #0x0001
 	add	r6, r6, #0x00000001
 	teq	r5, #0x00000000
 	strbt	r5, [r1], #0x0001
@@ -205,11 +200,13 @@ ENTRY(copyoutstr)
 
 	RESTORE_REGS
 	RET
+END(copyoutstr)
 
 /* A fault occurred during the copy */
 .Lcopystrfault:
 	mov	r1, #0x00000000
 	str	r1, [r4, #PCB_ONFAULT]
+	mov	r0, #EFAULT
 	RESTORE_REGS
 	RET
 
@@ -223,5 +220,5 @@ ENTRY(copyoutstr)
 
 Lcopystrpcbfaulttext:
 	.asciz	"No valid PCB during copyinoutstr() addr1=%08x addr2=%08x\n"
-	.align	0
+	.align	2
 #endif

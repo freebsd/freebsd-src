@@ -17,9 +17,6 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * $FreeBSD$
- * @(#) $Header: /tcpdump/master/libpcap/gencode.h,v 1.70.2.1 2007/11/18 02:04:55 guy Exp $ (LBL)
  */
 
 /*
@@ -127,6 +124,8 @@
 
 #define Q_RADIO		40
 
+#define Q_CARP		41
+
 /* Directional qualifiers. */
 
 #define Q_SRC		1
@@ -137,6 +136,8 @@
 #define Q_ADDR2		6
 #define Q_ADDR3		7
 #define Q_ADDR4		8
+#define Q_RA		9
+#define Q_TA		10
 
 #define Q_DEFAULT	0
 #define Q_UNDEF		255
@@ -183,11 +184,22 @@
 #define M_LSSU		23	/* LSSU */
 #define M_MSU		24	/* MSU */
 
+/* MTP2 HSL types */
+#define MH_FISU		25	/* FISU for HSL */
+#define MH_LSSU		26	/* LSSU */
+#define MH_MSU		27	/* MSU */
+
 /* MTP3 field types */
 #define M_SIO		1
 #define M_OPC		2
 #define M_DPC		3
 #define M_SLS		4
+
+/* MTP3 field types in case of MTP2 HSL */
+#define MH_SIO		5
+#define MH_OPC		6
+#define MH_DPC		7
+#define MH_SLS		8
 
 
 struct slist;
@@ -237,8 +249,8 @@ struct block {
 	struct slist *stmts;	/* side effect stmts */
 	struct stmt s;		/* branch stmt */
 	int mark;
-	int longjt;		/* jt branch requires long jump */
-	int longjf;		/* jf branch requires long jump */
+	u_int longjt;		/* jt branch requires long jump */
+	u_int longjf;		/* jf branch requires long jump */
 	int level;
 	int offset;
 	int sense;
@@ -296,11 +308,18 @@ struct block *gen_broadcast(int);
 struct block *gen_multicast(int);
 struct block *gen_inbound(int);
 
+struct block *gen_llc(void);
+struct block *gen_llc_i(void);
+struct block *gen_llc_s(void);
+struct block *gen_llc_u(void);
+struct block *gen_llc_s_subtype(bpf_u_int32);
+struct block *gen_llc_u_subtype(bpf_u_int32);
+
 struct block *gen_vlan(int);
 struct block *gen_mpls(int);
 
 struct block *gen_pppoed(void);
-struct block *gen_pppoes(void);
+struct block *gen_pppoes(int);
 
 struct block *gen_atmfield_code(int atmfield, bpf_int32 jvalue, bpf_u_int32 jtype, int reverse);
 struct block *gen_atmtype_abbrev(int type);
@@ -322,12 +341,16 @@ struct block *gen_p80211_fcdir(int);
 
 void bpf_optimize(struct block **);
 void bpf_error(const char *, ...)
-    __attribute__((noreturn, format (printf, 1, 2)));
+    __attribute__((noreturn))
+#ifdef __ATTRIBUTE___FORMAT_OK
+    __attribute__((format (printf, 1, 2)))
+#endif /* __ATTRIBUTE___FORMAT_OK */
+    ;
 
 void finish_parse(struct block *);
 char *sdup(const char *);
 
-struct bpf_insn *icode_to_fcode(struct block *, int *);
+struct bpf_insn *icode_to_fcode(struct block *, u_int *);
 int pcap_parse(void);
 void lex_init(const char *);
 void lex_cleanup(void);

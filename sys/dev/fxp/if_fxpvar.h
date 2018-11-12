@@ -143,10 +143,35 @@ struct fxp_desc_list {
 };
 
 struct fxp_ident {
-	uint16_t	devid;
+	uint16_t	vendor;
+	uint16_t	device;
 	int16_t		revid;		/* -1 matches anything */
 	uint8_t		ich;
-	char 		*name;
+	const char	*name;
+};
+
+struct fxp_hwstats {
+	uint32_t tx_good;
+	uint32_t tx_maxcols;
+	uint32_t tx_latecols;
+	uint32_t tx_underruns;
+	uint32_t tx_lostcrs;
+	uint32_t tx_deffered;
+	uint32_t tx_single_collisions;
+	uint32_t tx_multiple_collisions;
+	uint32_t tx_total_collisions;
+	uint32_t tx_pause;
+	uint32_t tx_tco;
+	uint32_t rx_good;
+	uint32_t rx_crc_errors;
+	uint32_t rx_alignment_errors;
+	uint32_t rx_rnr_errors;
+	uint32_t rx_overrun_errors;
+	uint32_t rx_cdt_errors;
+	uint32_t rx_shortframes;
+	uint32_t rx_pause;
+	uint32_t rx_controls;
+	uint32_t rx_tco;
 };
 
 /*
@@ -154,11 +179,11 @@ struct fxp_ident {
  *	 for functional grouping.
  */
 struct fxp_softc {
-	struct ifnet *ifp;		/* per-interface network data */
+	void *ifp;			/* per-interface network data */
 	struct resource	*fxp_res[2];	/* I/O and IRQ resources */
 	struct resource_spec *fxp_spec;	/* the resource spec we used */
 	void *ih;			/* interrupt handler cookie */
-	struct fxp_ident *ident;
+	const struct fxp_ident *ident;
 	struct mtx sc_mtx;
 	bus_dma_tag_t fxp_txmtag;	/* bus DMA tag for Tx mbufs */
 	bus_dma_tag_t fxp_rxmtag;	/* bus DMA tag for Rx mbufs */
@@ -175,6 +200,7 @@ struct fxp_softc {
 	int tx_queued;			/* # of active TxCB's */
 	struct fxp_stats *fxp_stats;	/* Pointer to interface stats */
 	uint32_t stats_addr;		/* DMA address of the stats structure */
+	struct fxp_hwstats fxp_hwstats;
 	int rx_idle_secs;		/* # of seconds RX has been idle */
 	struct callout stat_ch;		/* stat callout */
 	int watchdog_timer;		/* seconds until chip reset */
@@ -185,7 +211,6 @@ struct fxp_softc {
 	device_t dev;
 	int tunable_int_delay;		/* interrupt delay value for ucode */
 	int tunable_bundle_max;		/* max # frames per interrupt (ucode) */
-	int tunable_noflow;		/* flow control disabled */
 	int rnr;			/* RNR events */
 	int eeprom_size;		/* size of serial EEPROM */
 	int suspended;			/* 0 = normal  1 = suspended or dead */
@@ -195,6 +220,7 @@ struct fxp_softc {
 	int if_flags;
 	uint8_t rfa_size;
 	uint32_t tx_cmd;
+	uint16_t eeprom[256];
 };
 
 #define FXP_FLAG_MWI_ENABLE	0x0001	/* MWI enable */
@@ -212,6 +238,7 @@ struct fxp_softc {
 #define FXP_FLAG_WOLCAP		0x2000	/* WOL capability */
 #define FXP_FLAG_WOL		0x4000	/* WOL active */
 #define FXP_FLAG_RXBUG		0x8000	/* Rx lock-up bug */
+#define FXP_FLAG_NO_UCODE	0x10000	/* ucode is not applicable */
 
 /* Macros to ease CSR access. */
 #define	CSR_READ_1(sc, reg)		bus_read_1(sc->fxp_res[0], reg)

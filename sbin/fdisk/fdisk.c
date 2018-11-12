@@ -47,9 +47,12 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-int iotest;
+static int iotest;
 
-#define NOSECTORS ((u_int32_t)-1)
+#define NO_DISK_SECTORS ((u_int32_t)-1)
+#define NO_TRACK_CYLINDERS 1023
+#define NO_TRACK_HEADS 255
+#define NO_TRACK_SECTORS 63
 #define LBUF 100
 static char lbuf[LBUF];
 
@@ -62,9 +65,7 @@ static char lbuf[LBUF];
  *	Created.
  */
 
-#define Decimal(str, ans, tmp) if (decimal(str, &tmp, ans)) ans = tmp
-
-#define RoundCyl(x) ((((x) + cylsecs - 1) / cylsecs) * cylsecs)
+#define Decimal(str, ans, tmp, maxval) if (decimal(str, &tmp, ans, maxval)) ans = tmp
 
 #define MAX_SEC_SIZE 2048	/* maximum section size that is supported */
 #define MIN_SEC_SIZE 512	/* the sector size to start sensing at */
@@ -72,7 +73,8 @@ static int secsize = 0;		/* the sensed sector size */
 
 static char *disk;
 
-static int cyls, sectors, heads, cylsecs, disksecs;
+static int cyls, sectors, heads, cylsecs;
+static u_int32_t disksecs;
 
 struct mboot {
 	unsigned char *bootinst;  /* boot code */
@@ -105,9 +107,9 @@ typedef struct cmd {
     char		cmd;
     int			n_args;
     struct arg {
-	char	argtype;
-	int	arg_val;
-	char	*arg_str;
+	char		argtype;
+	unsigned long	arg_val;
+	char *		arg_str;
     }			args[MAX_ARGS];
 } CMD;
 
@@ -215,6 +217,7 @@ static const char *const part_types[256] = {
 	[0xF1] = "SpeedStor",
 	[0xF2] = "DOS 3.3+ Secondary",
 	[0xF4] = "SpeedStor large partition",
+	[0xFB] = "VMware VMFS",
 	[0xFE] = "SpeedStor >1024 cyl. or LANstep",
 	[0xFF] = "Xenix bad blocks table",
 };
@@ -229,6 +232,7 @@ get_type(int t)
 }
 
 
+static int geom_class_available(const char *);
 static void print_s0(void);
 static void print_part(const struct dos_partition *);
 static void init_sector0(unsigned long start);
@@ -247,7 +251,7 @@ static int get_params(void);
 static int read_s0(void);
 static int write_s0(void);
 static int ok(const char *str);
-static int decimal(const char *str, int *num, int deflt);
+static int decimal(const char *str, int *num, int deflt, uint32_t maxval);
 static int read_config(char *config_file);
 static void reset_boot(void);
 static int sanitize_partition(struct dos_partition *);
@@ -381,7 +385,7 @@ main(int argc, char *argv[])
 		partp->dp_typ = DOSPTYP_386BSD;
 		partp->dp_flag = ACTIVE;
 		partp->dp_start = dos_sectors;
-		partp->dp_size = (disksecs / dos_cylsecs) * dos_cylsecs -
+		partp->dp_size = rounddown(disksecs, dos_cylsecs) -
 		    dos_sectors;
 		dos(partp);
 		if (v_flag)
@@ -484,7 +488,7 @@ print_part(const struct dos_partition *partp)
 	    get_type(partp->dp_typ));
 	printf("    start %lu, size %lu (%ju Meg), flag %x%s\n",
 		(u_long)partp->dp_start,
-		(u_long)partp->dp_size, 
+		(u_long)partp->dp_size,
 		(uintmax_t)part_mb,
 		partp->dp_flag,
 		partp->dp_flag == ACTIVE ? " (active)" : "");
@@ -501,7 +505,6 @@ print_part(const struct dos_partition *partp)
 static void
 init_boot(void)
 {
-#ifndef __ia64__
 	const char *fname;
 	int fdesc, n;
 	struct stat sb;
@@ -510,6 +513,8 @@ init_boot(void)
 	if ((fdesc = open(fname, O_RDONLY)) == -1 ||
 	    fstat(fdesc, &sb) == -1)
 		err(1, "%s", fname);
+	if (sb.st_size == 0)
+		errx(1, "%s is empty, must not be.", fname);
 	if ((mboot.bootinst_size = sb.st_size) % secsize != 0)
 		errx(1, "%s: length must be a multiple of sector size", fname);
 	if (mboot.bootinst != NULL)
@@ -521,15 +526,6 @@ init_boot(void)
 		err(1, "%s", fname);
 	if (n != mboot.bootinst_size)
 		errx(1, "%s: short read", fname);
-#else
-	if (mboot.bootinst != NULL)
-		free(mboot.bootinst);
-	mboot.bootinst_size = secsize;
-	if ((mboot.bootinst = malloc(mboot.bootinst_size)) == NULL)
-		errx(1, "unable to allocate boot block buffer");
-	memset(mboot.bootinst, 0, mboot.bootinst_size);
-	le16enc(&mboot.bootinst[DOSMAGICOFFSET], DOSMAGIC);
-#endif
 }
 
 
@@ -542,11 +538,11 @@ init_sector0(unsigned long start)
 
 	partp->dp_typ = DOSPTYP_386BSD;
 	partp->dp_flag = ACTIVE;
-	start = ((start + dos_sectors - 1) / dos_sectors) * dos_sectors;
+	start = roundup(start, dos_sectors);
 	if(start == 0)
 		start = dos_sectors;
 	partp->dp_start = start;
-	partp->dp_size = (disksecs / dos_cylsecs) * dos_cylsecs - start;
+	partp->dp_size = rounddown(disksecs, dos_cylsecs) - start;
 
 	dos(partp);
 }
@@ -572,9 +568,9 @@ change_part(int i)
 	}
 
 	do {
-		Decimal("sysid (165=FreeBSD)", partp->dp_typ, tmp);
-		Decimal("start", partp->dp_start, tmp);
-		Decimal("size", partp->dp_size, tmp);
+		Decimal("sysid (165=FreeBSD)", partp->dp_typ, tmp, 255);
+		Decimal("start", partp->dp_start, tmp, NO_DISK_SECTORS);
+		Decimal("size", partp->dp_size, tmp, NO_DISK_SECTORS);
 		if (!sanitize_partition(partp)) {
 			warnx("ERROR: failed to adjust; setting sysid to 0");
 			partp->dp_typ = 0;
@@ -586,9 +582,9 @@ change_part(int i)
 			tcyl = DPCYL(partp->dp_scyl,partp->dp_ssect);
 			thd = partp->dp_shd;
 			tsec = DPSECT(partp->dp_ssect);
-			Decimal("beginning cylinder", tcyl, tmp);
-			Decimal("beginning head", thd, tmp);
-			Decimal("beginning sector", tsec, tmp);
+			Decimal("beginning cylinder", tcyl, tmp, NO_TRACK_CYLINDERS);
+			Decimal("beginning head", thd, tmp, NO_TRACK_HEADS);
+			Decimal("beginning sector", tsec, tmp, NO_TRACK_SECTORS);
 			partp->dp_scyl = DOSCYL(tcyl);
 			partp->dp_ssect = DOSSECT(tsec,tcyl);
 			partp->dp_shd = thd;
@@ -596,9 +592,9 @@ change_part(int i)
 			tcyl = DPCYL(partp->dp_ecyl,partp->dp_esect);
 			thd = partp->dp_ehd;
 			tsec = DPSECT(partp->dp_esect);
-			Decimal("ending cylinder", tcyl, tmp);
-			Decimal("ending head", thd, tmp);
-			Decimal("ending sector", tsec, tmp);
+			Decimal("ending cylinder", tcyl, tmp, NO_TRACK_CYLINDERS);
+			Decimal("ending head", thd, tmp, NO_TRACK_HEADS);
+			Decimal("ending sector", tsec, tmp, NO_TRACK_SECTORS);
 			partp->dp_ecyl = DOSCYL(tcyl);
 			partp->dp_esect = DOSSECT(tsec,tcyl);
 			partp->dp_ehd = thd;
@@ -647,7 +643,7 @@ change_active(int which)
 setactive:
 	do {
 		new = active;
-		Decimal("active partition", new, tmp);
+		Decimal("active partition", new, tmp, 0);
 		if (new < 1 || new > 4) {
 			printf("Active partition number must be in range 1-4."
 					"  Try again.\n");
@@ -677,9 +673,9 @@ get_params_to_use()
 	{
 		do
 		{
-			Decimal("BIOS's idea of #cylinders", dos_cyls, tmp);
-			Decimal("BIOS's idea of #heads", dos_heads, tmp);
-			Decimal("BIOS's idea of #sectors", dos_sectors, tmp);
+			Decimal("BIOS's idea of #cylinders", dos_cyls, tmp, 0);
+			Decimal("BIOS's idea of #heads", dos_heads, tmp, 0);
+			Decimal("BIOS's idea of #sectors", dos_sectors, tmp, 0);
 			dos_cylsecs = dos_heads * dos_sectors;
 			print_params();
 		}
@@ -764,49 +760,76 @@ read_disk(off_t sector, void *buf)
 }
 
 static int
+geom_class_available(const char *name)
+{
+	struct gclass *class;
+	struct gmesh mesh;
+	int error;
+
+	error = geom_gettree(&mesh);
+	if (error != 0)
+		errc(1, error, "Cannot get GEOM tree");
+
+	LIST_FOREACH(class, &mesh.lg_class, lg_class) {
+		if (strcmp(class->lg_name, name) == 0) {
+			geom_deletetree(&mesh);
+			return (1);
+		}
+	}
+
+	geom_deletetree(&mesh);
+
+	return (0);
+}
+
+static int
 write_disk(off_t sector, void *buf)
 {
-	int error;
 	struct gctl_req *grq;
 	const char *errmsg;
-	char fbuf[BUFSIZ], *pname;
-	int i, fdw;
+	char *pname;
+	int error;
 
-	grq = gctl_get_handle();
-	gctl_ro_param(grq, "verb", -1, "write MBR");
-	gctl_ro_param(grq, "class", -1, "MBR");
-	pname = g_providername(fd);
-	if (pname == NULL) {
-		warn("Error getting providername for %s", disk);
-		return (-1);
-	}
-	gctl_ro_param(grq, "geom", -1, pname);
-	gctl_ro_param(grq, "data", secsize, buf);
-	errmsg = gctl_issue(grq);
-	free(pname);
-	if (errmsg == NULL) {
+	/* Check that GEOM_MBR is available */
+	if (geom_class_available("MBR") != 0) {
+		grq = gctl_get_handle();
+		gctl_ro_param(grq, "verb", -1, "write MBR");
+		gctl_ro_param(grq, "class", -1, "MBR");
+		pname = g_providername(fd);
+		if (pname == NULL) {
+			warn("Error getting providername for %s", disk);
+			return (-1);
+		}
+		gctl_ro_param(grq, "geom", -1, pname);
+		gctl_ro_param(grq, "data", secsize, buf);
+		errmsg = gctl_issue(grq);
+		free(pname);
+		if (errmsg == NULL) {
+			gctl_free(grq);
+			return(0);
+		}
+		if (!q_flag)
+			warnx("GEOM_MBR: %s", errmsg);
 		gctl_free(grq);
-		return(0);
-	}
-	if (!q_flag)	/* GEOM errors are benign, not all devices supported */
-		warnx("%s", errmsg);
-	gctl_free(grq);
-
-	error = pwrite(fd, buf, secsize, (sector * 512));
-	if (error == secsize)
-		return (0);
-
-	for (i = 1; i < 5; i++) {
-		sprintf(fbuf, "%ss%d", disk, i);
-		fdw = open(fbuf, O_RDWR, 0);
-		if (fdw < 0)
-			continue;
-		error = ioctl(fdw, DIOCSMBR, buf);
-		close(fdw);
-		if (error == 0)
+	} else {
+		/*
+		 * Try to write MBR directly. This may help when disk
+		 * is not in use.
+		 * XXX: hardcoded sectorsize
+		 */
+		error = pwrite(fd, buf, secsize, (sector * 512));
+		if (error == secsize)
 			return (0);
 	}
-	warnx("Failed to write sector zero");
+
+	/*
+	 * GEOM_MBR is not available or failed to write MBR.
+	 * Now check that we have GEOM_PART and recommend to use gpart (8).
+	 */
+	if (geom_class_available("PART") != 0)
+		warnx("Failed to write MBR. Try to use gpart(8).");
+	else
+		warnx("Failed to write sector zero");
 	return(EINVAL);
 }
 
@@ -839,10 +862,13 @@ get_params()
 	o = g_mediasize(fd);
 	if (o < 0)
 		return (-1);
-	disksecs = o / u;
+	if (o / u <= NO_DISK_SECTORS)
+		disksecs = o / u;
+	else
+		disksecs = NO_DISK_SECTORS;
 	cyls = dos_cyls = o / (u * dos_heads * dos_sectors);
 
-	return (disksecs);
+	return (0);
 }
 
 static int
@@ -887,7 +913,7 @@ write_s0()
 		dos_partition_enc(&mboot.bootinst[DOSPARTOFF + i * DOSPARTSIZE],
 		    &mboot.parts[i]);
 	le16enc(&mboot.bootinst[DOSMAGICOFFSET], DOSMAGIC);
-	for(sector = 0; sector < mboot.bootinst_size / secsize; sector++) 
+	for(sector = 0; sector < mboot.bootinst_size / secsize; sector++)
 		if (write_disk(sector,
 			       &mboot.bootinst[sector * secsize]) == -1) {
 			warn("can't write fdisk partition table");
@@ -915,12 +941,14 @@ ok(const char *str)
 }
 
 static int
-decimal(const char *str, int *num, int deflt)
+decimal(const char *str, int *num, int deflt, uint32_t maxval)
 {
-	int acc = 0, c;
+	long long acc;
+	int c;
 	char *cp;
 
 	while (1) {
+		acc = 0;
 		printf("Supply a decimal value for \"%s\" [%d] ", str, deflt);
 		fflush(stdout);
 		if (fgets(lbuf, LBUF, stdin) == NULL)
@@ -935,21 +963,27 @@ decimal(const char *str, int *num, int deflt)
 		if (!c)
 			return 0;
 		while ((c = *cp++)) {
-			if (c <= '9' && c >= '0')
-				acc = acc * 10 + c - '0';
-			else
+			if (c <= '9' && c >= '0') {
+				if (acc <= maxval || maxval == 0)
+					acc = acc * 10 + c - '0';
+			} else
 				break;
 		}
 		if (c == ' ' || c == '\t')
 			while ((c = *cp) && (c == ' ' || c == '\t')) cp++;
 		if (!c) {
+			if (maxval > 0 && acc > maxval) {
+				acc = maxval;
+				printf("%s exceeds maximum value allowed for "
+				  "this field. The value has been reduced "
+				  "to %lld\n", lbuf, acc);
+			}
 			*num = acc;
 			return 1;
 		} else
 			printf("%s is an invalid decimal number.  Try again.\n",
 				lbuf);
 	}
-
 }
 
 
@@ -979,7 +1013,7 @@ parse_config_line(char *line, CMD *command)
 	    if (isalpha(*cp))
 		command->args[command->n_args].argtype = *cp++;
 	    end = NULL;
-	    command->args[command->n_args].arg_val = strtol(cp, &end, 0);
+	    command->args[command->n_args].arg_val = strtoul(cp, &end, 0);
  	    if (cp == end || (!isspace(*end) && *end != '\0')) {
  		char ch;
  		end = cp;
@@ -1097,10 +1131,10 @@ str2sectors(const char *str)
 	if (str == end || *end == '\0') {
 		warnx("ERROR line %d: unexpected size: \'%s\'",
 		    current_line_number, str);
-		return NOSECTORS;
+		return NO_DISK_SECTORS;
 	}
 
-	if (*end == 'K') 
+	if (*end == 'K')
 		val *= 1024UL / secsize;
 	else if (*end == 'M')
 		val *= 1024UL * 1024UL / secsize;
@@ -1109,7 +1143,7 @@ str2sectors(const char *str)
 	else {
 		warnx("ERROR line %d: unexpected modifier: %c "
 		    "(not K/M/G)", current_line_number, *end);
-		return NOSECTORS;
+		return NO_DISK_SECTORS;
 	}
 
 	return val;
@@ -1152,14 +1186,14 @@ process_partition(CMD *command)
 					    prev_partp->dp_size;
 			}
 			if (partp->dp_start % dos_sectors != 0) {
-		    		prev_head_boundary = partp->dp_start /
-				    dos_sectors * dos_sectors;
+				prev_head_boundary = rounddown(partp->dp_start,
+				    dos_sectors);
 		    		partp->dp_start = prev_head_boundary +
 				    dos_sectors;
 			}
 		} else {
 			partp->dp_start = str2sectors(command->args[2].arg_str);
-			if (partp->dp_start == NOSECTORS)
+			if (partp->dp_start == NO_DISK_SECTORS)
 				break;
 		}
 	} else
@@ -1167,15 +1201,15 @@ process_partition(CMD *command)
 
 	if (command->args[3].arg_str != NULL) {
 		if (strcmp(command->args[3].arg_str, "*") == 0)
-			partp->dp_size = ((disksecs / dos_cylsecs) *
-			    dos_cylsecs) - partp->dp_start;
+			partp->dp_size = rounddown(disksecs, dos_cylsecs) -
+			    partp->dp_start;
 		else {
 			partp->dp_size = str2sectors(command->args[3].arg_str);
-			if (partp->dp_size == NOSECTORS)
+			if (partp->dp_size == NO_DISK_SECTORS)
 				break;
 		}
-		prev_cyl_boundary = ((partp->dp_start + partp->dp_size) /
-		    dos_cylsecs) * dos_cylsecs;
+		prev_cyl_boundary = rounddown(partp->dp_start + partp->dp_size,
+		    dos_cylsecs);
 		if (prev_cyl_boundary > partp->dp_start)
 			partp->dp_size = prev_cyl_boundary - partp->dp_start;
 	} else
@@ -1199,7 +1233,7 @@ process_partition(CMD *command)
 	 * Adjust start upwards, if necessary, to fall on a head boundary.
 	 */
 		if (partp->dp_start % dos_sectors != 0) {
-	    prev_head_boundary = partp->dp_start / dos_sectors * dos_sectors;
+	    prev_head_boundary = rounddown(partp->dp_start, dos_sectors);
 	    if (max_end < dos_sectors ||
 			    prev_head_boundary > max_end - dos_sectors) {
 		/*
@@ -1223,8 +1257,8 @@ process_partition(CMD *command)
 	 * Adjust size downwards, if necessary, to fall on a cylinder
 	 * boundary.
 	 */
-	prev_cyl_boundary =
-	    ((partp->dp_start + partp->dp_size) / dos_cylsecs) * dos_cylsecs;
+	prev_cyl_boundary = rounddown(partp->dp_start + partp->dp_size,
+	    dos_cylsecs);
 	if (prev_cyl_boundary > partp->dp_start)
 	    adj_size = prev_cyl_boundary - partp->dp_start;
 		else {
@@ -1415,7 +1449,7 @@ sanitize_partition(struct dos_partition *partp)
      * Adjust start upwards, if necessary, to fall on a head boundary.
      */
     if (start % dos_sectors != 0) {
-	prev_head_boundary = start / dos_sectors * dos_sectors;
+	prev_head_boundary = rounddown(start, dos_sectors);
 	if (max_end < dos_sectors ||
 	    prev_head_boundary >= max_end - dos_sectors) {
 	    /*
@@ -1432,7 +1466,7 @@ sanitize_partition(struct dos_partition *partp)
      * Adjust size downwards, if necessary, to fall on a cylinder
      * boundary.
      */
-    prev_cyl_boundary = ((start + size) / dos_cylsecs) * dos_cylsecs;
+    prev_cyl_boundary = rounddown(start + size, dos_cylsecs);
     if (prev_cyl_boundary > start)
 	size = prev_cyl_boundary - start;
     else {
@@ -1461,6 +1495,8 @@ sanitize_partition(struct dos_partition *partp)
  *   /dev/ad0s1a     => /dev/ad0
  *   /dev/da0a       => /dev/da0
  *   /dev/vinum/root => /dev/vinum/root
+ * A ".eli" part is removed if it exists (see geli(8)).
+ * A ".journal" ending is removed if it exists (see gjournal(8)).
  */
 static char *
 get_rootdisk(void)
@@ -1469,16 +1505,20 @@ get_rootdisk(void)
 	regex_t re;
 #define NMATCHES 2
 	regmatch_t rm[NMATCHES];
-	char *s;
+	char dev[PATH_MAX], *s;
 	int rv;
 
 	if (statfs("/", &rootfs) == -1)
 		err(1, "statfs(\"/\")");
 
-	if ((rv = regcomp(&re, "^(/dev/[a-z/]+[0-9]+)([sp][0-9]+)?[a-h]?$",
+	if ((rv = regcomp(&re, "^(/dev/[a-z/]+[0-9]*)([sp][0-9]+)?[a-h]?(\\.journal)?$",
 		    REG_EXTENDED)) != 0)
 		errx(1, "regcomp() failed (%d)", rv);
-	if ((rv = regexec(&re, rootfs.f_mntfromname, NMATCHES, rm, 0)) != 0)
+	strlcpy(dev, rootfs.f_mntfromname, sizeof (dev));
+	if ((s = strstr(dev, ".eli")) != NULL)
+	    memmove(s, s+4, strlen(s + 4) + 1);
+
+	if ((rv = regexec(&re, dev, NMATCHES, rm, 0)) != 0)
 		errx(1,
 "mounted root fs resource doesn't match expectations (regexec returned %d)",
 		    rv);

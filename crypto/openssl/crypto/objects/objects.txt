@@ -20,7 +20,7 @@ identified-organization 132	: certicom-arc
 joint-iso-itu-t 23	: international-organizations	: International Organizations
 
 international-organizations 43	: wap
-wap 13			: wap-wsg
+wap 1			: wap-wsg
 
 joint-iso-itu-t 5 1 5	: selected-attribute-types	: Selected Attribute Types
 
@@ -166,6 +166,11 @@ pkcs1 3			: RSA-MD4		: md4WithRSAEncryption
 pkcs1 4			: RSA-MD5		: md5WithRSAEncryption
 pkcs1 5			: RSA-SHA1		: sha1WithRSAEncryption
 # According to PKCS #1 version 2.1
+pkcs1 7			: RSAES-OAEP		: rsaesOaep
+pkcs1 8			: MGF1			: mgf1
+pkcs1 9			: PSPECIFIED		: pSpecified
+pkcs1 10		: RSASSA-PSS		: rsassaPss
+
 pkcs1 11		: RSA-SHA256		: sha256WithRSAEncryption
 pkcs1 12		: RSA-SHA384		: sha384WithRSAEncryption
 pkcs1 13		: RSA-SHA512		: sha512WithRSAEncryption
@@ -299,6 +304,7 @@ id-smime-alg 4		: id-smime-alg-RC2wrap
 id-smime-alg 5		: id-smime-alg-ESDH
 id-smime-alg 6		: id-smime-alg-CMS3DESwrap
 id-smime-alg 7		: id-smime-alg-CMSRC2wrap
+id-smime-alg 9		: id-alg-PWRI-KEK
 
 # S/MIME Certificate Distribution
 id-smime-cd 1		: id-smime-cd-ldap
@@ -664,18 +670,52 @@ X509 5			: 			: serialNumber
 X509 6			: C			: countryName
 X509 7			: L			: localityName
 X509 8			: ST			: stateOrProvinceName
-X509 9			:			: streetAddress
+X509 9			: street		: streetAddress
 X509 10			: O			: organizationName
 X509 11			: OU			: organizationalUnitName
-X509 12			: 			: title
+X509 12			: title			: title
 X509 13			: 			: description
-X509 17			:			: postalCode
+X509 14			: 			: searchGuide
+X509 15			: 			: businessCategory
+X509 16			: 			: postalAddress
+X509 17			: 			: postalCode
+X509 18			: 			: postOfficeBox
+X509 19			: 			: physicalDeliveryOfficeName
+X509 20			: 			: telephoneNumber
+X509 21			: 			: telexNumber
+X509 22			: 			: teletexTerminalIdentifier
+X509 23			: 			: facsimileTelephoneNumber
+X509 24			: 			: x121Address
+X509 25			: 			: internationaliSDNNumber
+X509 26			: 			: registeredAddress
+X509 27			: 			: destinationIndicator
+X509 28			: 			: preferredDeliveryMethod
+X509 29			: 			: presentationAddress
+X509 30			: 			: supportedApplicationContext
+X509 31			: member		:
+X509 32			: owner			:
+X509 33			: 			: roleOccupant
+X509 34			: seeAlso		:
+X509 35			: 			: userPassword
+X509 36			: 			: userCertificate
+X509 37			: 			: cACertificate
+X509 38			: 			: authorityRevocationList
+X509 39			: 			: certificateRevocationList
+X509 40			: 			: crossCertificatePair
 X509 41			: name			: name
 X509 42			: GN			: givenName
-X509 43			: 			: initials
+X509 43			: initials		: initials
 X509 44			: 			: generationQualifier
 X509 45			: 			: x500UniqueIdentifier
 X509 46			: dnQualifier		: dnQualifier
+X509 47			: 			: enhancedSearchGuide
+X509 48			: 			: protocolInformation
+X509 49			: 			: distinguishedName
+X509 50			: 			: uniqueMember
+X509 51			: 			: houseIdentifier
+X509 52			: 			: supportedAlgorithms
+X509 53			: 			: deltaRevocationList
+X509 54			: dmdName		:
 X509 65			:			: pseudonym
 X509 72			: role			: role
 
@@ -735,6 +775,10 @@ id-ce 54		: inhibitAnyPolicy	: X509v3 Inhibit Any Policy
 id-ce 55		: targetInformation	: X509v3 AC Targeting
 !Cname no-rev-avail
 id-ce 56		: noRevAvail		: X509v3 No Revocation Available
+
+# From RFC5280
+ext-key-usage 0		: anyExtendedKeyUsage	: Any Extended Key Usage
+
 
 !Cname netscape
 2 16 840 1 113730	: Netscape		: Netscape Communications Corp.
@@ -812,6 +856,10 @@ aes 2			: AES-128-CBC		: aes-128-cbc
 aes 3			: AES-128-OFB		: aes-128-ofb
 !Cname aes-128-cfb128
 aes 4			: AES-128-CFB		: aes-128-cfb
+aes 5			: id-aes128-wrap
+aes 6			: id-aes128-GCM		: aes-128-gcm
+aes 7			: id-aes128-CCM		: aes-128-ccm
+aes 8			: id-aes128-wrap-pad
 
 aes 21			: AES-192-ECB		: aes-192-ecb
 aes 22			: AES-192-CBC		: aes-192-cbc
@@ -819,6 +867,10 @@ aes 22			: AES-192-CBC		: aes-192-cbc
 aes 23			: AES-192-OFB		: aes-192-ofb
 !Cname aes-192-cfb128
 aes 24			: AES-192-CFB		: aes-192-cfb
+aes 25			: id-aes192-wrap
+aes 26			: id-aes192-GCM		: aes-192-gcm
+aes 27			: id-aes192-CCM		: aes-192-ccm
+aes 28			: id-aes192-wrap-pad
 
 aes 41			: AES-256-ECB		: aes-256-ecb
 aes 42			: AES-256-CBC		: aes-256-cbc
@@ -826,6 +878,10 @@ aes 42			: AES-256-CBC		: aes-256-cbc
 aes 43			: AES-256-OFB		: aes-256-ofb
 !Cname aes-256-cfb128
 aes 44			: AES-256-CFB		: aes-256-cfb
+aes 45			: id-aes256-wrap
+aes 46			: id-aes256-GCM		: aes-256-gcm
+aes 47			: id-aes256-CCM		: aes-256-ccm
+aes 48			: id-aes256-wrap-pad
 
 # There are no OIDs for these modes...
 
@@ -835,14 +891,15 @@ aes 44			: AES-256-CFB		: aes-256-cfb
 			: AES-128-CFB8		: aes-128-cfb8
 			: AES-192-CFB8		: aes-192-cfb8
 			: AES-256-CFB8		: aes-256-cfb8
+			: AES-128-CTR		: aes-128-ctr
+			: AES-192-CTR		: aes-192-ctr
+			: AES-256-CTR		: aes-256-ctr
+			: AES-128-XTS		: aes-128-xts
+			: AES-256-XTS		: aes-256-xts
 			: DES-CFB1		: des-cfb1
 			: DES-CFB8		: des-cfb8
 			: DES-EDE3-CFB1		: des-ede3-cfb1
 			: DES-EDE3-CFB8		: des-ede3-cfb8
-
-aes 5			: id-aes128-wrap 
-aes 25			: id-aes192-wrap 
-aes 45			: id-aes256-wrap 
 
 # OIDs for SHA224, SHA256, SHA385 and SHA512, according to x9.84.
 !Alias nist_hashalgs nistAlgorithms 2
@@ -1177,6 +1234,9 @@ cryptocom 1 8 1		: id-GostR3410-2001-ParamSet-cc : GOST R 3410-2001 Parameter Se
 1 2 392 200011 61 1 1 1 2 : CAMELLIA-128-CBC		: camellia-128-cbc
 1 2 392 200011 61 1 1 1 3 : CAMELLIA-192-CBC		: camellia-192-cbc
 1 2 392 200011 61 1 1 1 4 : CAMELLIA-256-CBC		: camellia-256-cbc
+1 2 392 200011 61 1 1 3 2 : id-camellia128-wrap
+1 2 392 200011 61 1 1 3 3 : id-camellia192-wrap
+1 2 392 200011 61 1 1 3 4 : id-camellia256-wrap
 
 # Definitions for Camellia cipher - ECB, CFB, OFB MODE
 
@@ -1223,3 +1283,68 @@ kisa 1 6                : SEED-OFB      : seed-ofb
 # There is no OID that just denotes "HMAC" oddly enough...
 
 			: HMAC				: hmac
+# Nor CMAC either
+			: CMAC				: cmac
+
+# Synthetic composite ciphersuites
+			: RC4-HMAC-MD5			: rc4-hmac-md5
+			: AES-128-CBC-HMAC-SHA1		: aes-128-cbc-hmac-sha1
+			: AES-192-CBC-HMAC-SHA1		: aes-192-cbc-hmac-sha1
+			: AES-256-CBC-HMAC-SHA1		: aes-256-cbc-hmac-sha1
+			: AES-128-CBC-HMAC-SHA256	: aes-128-cbc-hmac-sha256
+			: AES-192-CBC-HMAC-SHA256	: aes-192-cbc-hmac-sha256
+			: AES-256-CBC-HMAC-SHA256	: aes-256-cbc-hmac-sha256
+
+ISO-US 10046 2 1	: dhpublicnumber		: X9.42 DH
+
+# RFC 5639 curve OIDs (see http://www.ietf.org/rfc/rfc5639.txt)
+# versionOne OBJECT IDENTIFIER ::= {
+# iso(1) identifified-organization(3) teletrust(36) algorithm(3)
+# signature-algorithm(3) ecSign(2) ecStdCurvesAndGeneration(8)
+# ellipticCurve(1) 1 }
+1 3 36 3 3 2 8 1 1 1 : brainpoolP160r1
+1 3 36 3 3 2 8 1 1 2 : brainpoolP160t1
+1 3 36 3 3 2 8 1 1 3 : brainpoolP192r1
+1 3 36 3 3 2 8 1 1 4 : brainpoolP192t1
+1 3 36 3 3 2 8 1 1 5 : brainpoolP224r1
+1 3 36 3 3 2 8 1 1 6 : brainpoolP224t1
+1 3 36 3 3 2 8 1 1 7 : brainpoolP256r1
+1 3 36 3 3 2 8 1 1 8 : brainpoolP256t1
+1 3 36 3 3 2 8 1 1 9 : brainpoolP320r1
+1 3 36 3 3 2 8 1 1 10 : brainpoolP320t1
+1 3 36 3 3 2 8 1 1 11 : brainpoolP384r1
+1 3 36 3 3 2 8 1 1 12 : brainpoolP384t1
+1 3 36 3 3 2 8 1 1 13 : brainpoolP512r1
+1 3 36 3 3 2 8 1 1 14 : brainpoolP512t1            
+
+# ECDH schemes from RFC5753
+!Alias x9-63-scheme 1 3 133 16 840 63 0
+!Alias secg-scheme certicom-arc 1
+
+x9-63-scheme 2   : dhSinglePass-stdDH-sha1kdf-scheme
+secg-scheme 11 0 : dhSinglePass-stdDH-sha224kdf-scheme
+secg-scheme 11 1 : dhSinglePass-stdDH-sha256kdf-scheme
+secg-scheme 11 2 : dhSinglePass-stdDH-sha384kdf-scheme
+secg-scheme 11 3 : dhSinglePass-stdDH-sha512kdf-scheme
+
+x9-63-scheme 3   : dhSinglePass-cofactorDH-sha1kdf-scheme
+secg-scheme 14 0 : dhSinglePass-cofactorDH-sha224kdf-scheme
+secg-scheme 14 1 : dhSinglePass-cofactorDH-sha256kdf-scheme
+secg-scheme 14 2 : dhSinglePass-cofactorDH-sha384kdf-scheme
+secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
+# NIDs for use with lookup tables.
+                 : dh-std-kdf
+                 : dh-cofactor-kdf
+
+# RFC 6962 Extension OIDs (see http://www.ietf.org/rfc/rfc6962.txt)
+1 3 6 1 4 1 11129 2 4 2	: ct_precert_scts		: CT Precertificate SCTs
+1 3 6 1 4 1 11129 2 4 3	: ct_precert_poison		: CT Precertificate Poison
+1 3 6 1 4 1 11129 2 4 4	: ct_precert_signer		: CT Precertificate Signer
+1 3 6 1 4 1 11129 2 4 5	: ct_cert_scts			: CT Certificate SCTs
+
+# CABForum EV SSL Certificate Guidelines
+# (see https://cabforum.org/extended-validation/)
+# OIDs for Subject Jurisdiction of Incorporation or Registration
+1 3 6 1 4 1 311 60 2 1 1	: jurisdictionL		: jurisdictionLocalityName
+1 3 6 1 4 1 311 60 2 1 2	: jurisdictionST	: jurisdictionStateOrProvinceName
+1 3 6 1 4 1 311 60 2 1 3	: jurisdictionC		: jurisdictionCountryName

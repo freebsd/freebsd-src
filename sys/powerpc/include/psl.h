@@ -35,64 +35,44 @@
 #ifndef	_MACHINE_PSL_H_
 #define	_MACHINE_PSL_H_
 
-#if defined(E500)
 /*
- * Machine State Register (MSR) - e500 core
- *
- * The PowerPC e500 does not implement the following bits:
- *
- * FP, FE0, FE1 - reserved, always cleared, setting has no effect.
- *
+ * Machine State Register (MSR) - All cores
  */
-#define PSL_UCLE	0x04000000	/* User mode cache lock enable */
-#define PSL_SPE		0x02000000	/* SPE enable */
-#define PSL_WE		0x00040000	/* Wait state enable */
-#define PSL_CE		0x00020000	/* Critical interrupt enable */
-#define PSL_EE		0x00008000	/* External interrupt enable */
-#define PSL_PR		0x00004000	/* User mode */
-#define PSL_FP		0x00002000	/* Floating point available */
-#define PSL_ME		0x00001000	/* Machine check interrupt enable */
-#define PSL_FE0		0x00000800	/* Floating point exception mode 0 */
-#define PSL_UBLE	0x00000400	/* BTB lock enable */
-#define PSL_DE		0x00000200	/* Debug interrupt enable */
-#define PSL_FE1		0x00000100	/* Floating point exception mode 1 */
-#define PSL_IS		0x00000020	/* Instruction address space */
-#define PSL_DS		0x00000010	/* Data address space */
-#define PSL_PMM		0x00000004	/* Performance monitor mark */
+#define	PSL_VEC		0x02000000UL	/* AltiVec/SPE vector unit available */
+#define	PSL_VSX		0x00800000UL	/* Vector-Scalar unit available */
+#define	PSL_EE		0x00008000UL	/* external interrupt enable */
+#define	PSL_PR		0x00004000UL	/* privilege mode (1 == user) */
+#define	PSL_FP		0x00002000UL	/* floating point enable */
+#define	PSL_ME		0x00001000UL	/* machine check enable */
+#define	PSL_FE0		0x00000800UL	/* floating point interrupt mode 0 */
+#define	PSL_BE		0x00000200UL	/* branch trace enable */
+#define	PSL_FE1		0x00000100UL	/* floating point interrupt mode 1 */
+#define	PSL_PMM		0x00000004UL	/* performance monitor mark */
 
-/* Initial kernel MSR, use IS=1 ad DS=1. */
-#define PSL_KERNSET_INIT	(PSL_IS | PSL_DS)
-#define PSL_KERNSET		(PSL_CE | PSL_ME | PSL_EE)
-#define PSL_USERSET		(PSL_KERNSET | PSL_PR)
+/* Machine State Register - Book-E cores */
+#define PSL_UCLE	0x04000000UL	/* User mode cache lock enable */
+#define PSL_WE		0x00040000UL	/* Wait state enable */
+#define PSL_CE		0x00020000UL	/* Critical interrupt enable */
+#define PSL_UBLE	0x00000400UL	/* BTB lock enable - e500 only */
+#define PSL_DWE		0x00000400UL	/* Debug Wait Enable - 440 only*/
+#define PSL_DE		0x00000200UL	/* Debug interrupt enable */
+#define PSL_IS		0x00000020UL	/* Instruction address space */
+#define PSL_DS		0x00000010UL	/* Data address space */
 
-#else	/* if defined(E500) */
-/*
- * Machine State Register (MSR)
- *
- * The PowerPC 601 does not implement the following bits:
- *
- *	VEC, POW, ILE, BE, RI, LE[*]
- *
- * [*] Little-endian mode on the 601 is implemented in the HID0 register.
- */
-#define	PSL_VEC		0x02000000	/* AltiVec vector unit available */
-#define	PSL_POW		0x00040000	/* power management */
-#define	PSL_ILE		0x00010000	/* interrupt endian mode (1 == le) */
-#define	PSL_EE		0x00008000	/* external interrupt enable */
-#define	PSL_PR		0x00004000	/* privilege mode (1 == user) */
-#define	PSL_FP		0x00002000	/* floating point enable */
-#define	PSL_ME		0x00001000	/* machine check enable */
-#define	PSL_FE0		0x00000800	/* floating point interrupt mode 0 */
-#define	PSL_SE		0x00000400	/* single-step trace enable */
-#define	PSL_BE		0x00000200	/* branch trace enable */
-#define	PSL_FE1		0x00000100	/* floating point interrupt mode 1 */
-#define	PSL_IP		0x00000040	/* interrupt prefix */
-#define	PSL_IR		0x00000020	/* instruction address relocation */
-#define	PSL_DR		0x00000010	/* data address relocation */
-#define	PSL_RI		0x00000002	/* recoverable interrupt */
-#define	PSL_LE		0x00000001	/* endian mode (1 == le) */
+/* Machine State Register (MSR) - AIM cores */
+#ifdef __powerpc64__
+#define PSL_SF		0x8000000000000000UL	/* 64-bit addressing */
+#define PSL_HV		0x1000000000000000UL	/* hyper-privileged mode */
+#endif
 
-#define	PSL_601_MASK	~(PSL_POW|PSL_ILE|PSL_BE|PSL_RI|PSL_LE)
+#define	PSL_POW		0x00040000UL	/* power management */
+#define	PSL_ILE		0x00010000UL	/* interrupt endian mode (1 == le) */
+#define	PSL_SE		0x00000400UL	/* single-step trace enable */
+#define	PSL_IP		0x00000040UL	/* interrupt prefix - 601 only */
+#define	PSL_IR		0x00000020UL	/* instruction address relocation */
+#define	PSL_DR		0x00000010UL	/* data address relocation */
+#define	PSL_RI		0x00000002UL	/* recoverable interrupt */
+#define	PSL_LE		0x00000001UL	/* endian mode (1 == le) */
 
 /*
  * Floating-point exception modes:
@@ -103,16 +83,24 @@
 #define	PSL_FE_PREC	(PSL_FE0 | PSL_FE1) /* precise */
 #define	PSL_FE_DFLT	PSL_FE_DIS	/* default == none */
 
-/*
- * Note that PSL_POW and PSL_ILE are not in the saved copy of the MSR
- */
-#define	PSL_MBO		0
-#define	PSL_MBZ		0
-
+#if defined(BOOKE_E500)
+/* Initial kernel MSR, use IS=1 ad DS=1. */
+#define PSL_KERNSET_INIT	(PSL_IS | PSL_DS)
+#define PSL_KERNSET		(PSL_CE | PSL_ME | PSL_EE)
+#define PSL_SRR1_MASK	0x00000000UL	/* No mask on Book-E */
+#elif defined(BOOKE_PPC4XX)
+#define PSL_KERNSET	(PSL_CE | PSL_ME | PSL_EE | PSL_FP)
+#define PSL_SRR1_MASK	0x00000000UL	/* No mask on Book-E */
+#elif defined(AIM)
+#ifdef __powerpc64__
+#define	PSL_KERNSET	(PSL_SF | PSL_EE | PSL_ME | PSL_IR | PSL_DR | PSL_RI)
+#else
 #define	PSL_KERNSET	(PSL_EE | PSL_ME | PSL_IR | PSL_DR | PSL_RI)
+#endif
+#define PSL_SRR1_MASK	0x783f0000UL	/* Bits 1-4, 10-15 (ppc32), 33-36, 42-47 (ppc64) */
+#endif
+
 #define	PSL_USERSET	(PSL_KERNSET | PSL_PR)
+#define	PSL_USERSTATIC	(~(PSL_VEC | PSL_FP | PSL_FE0 | PSL_FE1) & ~PSL_SRR1_MASK)
 
-#define	PSL_USERSTATIC	(PSL_USERSET | PSL_IP | 0x87c0008c)
-
-#endif	/* if defined(E500) */
 #endif	/* _MACHINE_PSL_H_ */

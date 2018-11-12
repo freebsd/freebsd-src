@@ -1,5 +1,4 @@
 /* $FreeBSD$ */
-OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
 OUTPUT_ARCH(arm)
 ENTRY(_start)
 
@@ -57,6 +56,19 @@ SECTIONS
   .init          : { *(.init)	} =0x9090
   .plt      : { *(.plt)	}
 
+  . = ALIGN(4);
+  _extab_start = .;
+  PROVIDE(extab_start = .);
+  .ARM.extab : { *(.ARM.extab) }
+  _extab.end = .;
+  PROVIDE(extab_end = .);
+
+  _exidx_start = .;
+  PROVIDE(exidx_start = .);
+  .ARM.exidx : { *(.ARM.exidx) }
+  _exidx_end = .;
+  PROVIDE(exidx_end = .);
+
   /* Adjust the address for the data segment.  We want to adjust up to
      the same address within the page on the next page up.  */
   . = ALIGN(0x1000) + (. & (0x1000 - 1)) ; 
@@ -64,7 +76,6 @@ SECTIONS
   {
     *(.data)
     *(.gnu.linkonce.d*)
-    CONSTRUCTORS
   }
   .data1   : { *(.data1) }
   . = ALIGN(32 / 8);
@@ -95,6 +106,12 @@ SECTIONS
    *(.dynbss)
    *(.bss)
    *(COMMON)
+   . = ALIGN(32 / 8);
+   _ebss = .;
+   /* A section for the initial page table, it doesn't need to be in the
+      kernel file, however unlike normal .bss entries should not be zeroed
+      out as we use it before the .bss section is cleared. */
+   *(.init_pagetable)
   }
   . = ALIGN(32 / 8);
   _end = . ;

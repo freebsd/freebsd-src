@@ -39,8 +39,9 @@ __FBSDID("$FreeBSD$");
 #define ATI_PCIGART_PAGE_SIZE		4096	/* PCI GART page size */
 #define ATI_PCIGART_PAGE_MASK		(~(ATI_PCIGART_PAGE_SIZE-1))
 
-#define ATI_PCIE_WRITE 0x4
-#define ATI_PCIE_READ 0x8
+#define ATI_GART_NOSNOOP	0x1
+#define ATI_GART_WRITE		0x4
+#define ATI_GART_READ		0x8
 
 static void
 drm_ati_alloc_pcigart_table_cb(void *arg, bus_dma_segment_t *segs,
@@ -115,6 +116,7 @@ drm_ati_free_pcigart_table(struct drm_device *dev,
 {
 	struct drm_dma_handle *dmah = gart_info->dmah;
 
+	bus_dmamap_unload(dmah->tag, dmah->map);
 	bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
 	bus_dma_tag_destroy(dmah->tag);
 	free(dmah, DRM_MEM_DMA);
@@ -196,13 +198,15 @@ drm_ati_pcigart_init(struct drm_device *dev,
 			case DRM_ATI_GART_IGP:
 				page_base |=
 				    (upper_32_bits(entry_addr) & 0xff) << 4;
-				page_base |= 0xc;
+				page_base |= ATI_GART_READ | ATI_GART_WRITE;
+				page_base |= ATI_GART_NOSNOOP;
 				break;
 			case DRM_ATI_GART_PCIE:
 				page_base >>= 8;
 				page_base |=
 				    (upper_32_bits(entry_addr) & 0xff) << 24;
-				page_base |= ATI_PCIE_READ | ATI_PCIE_WRITE;
+				page_base |= ATI_GART_READ | ATI_GART_WRITE;
+				page_base |= ATI_GART_NOSNOOP;
 				break;
 			default:
 			case DRM_ATI_GART_PCI:

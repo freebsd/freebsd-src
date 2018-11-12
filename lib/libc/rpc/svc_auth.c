@@ -1,32 +1,31 @@
 /*	$NetBSD: svc_auth.c,v 1.12 2000/07/06 03:10:35 christos Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice, 
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, 
+ *   this list of conditions and the following disclaimer in the documentation 
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its 
+ *   contributors may be used to endorse or promote products derived 
+ *   from this software without specific prior written permission.
  * 
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- * 
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- * 
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- * 
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
@@ -96,9 +95,7 @@ struct svc_auth_ops svc_auth_null_ops;
  * invalid.
  */
 enum auth_stat
-_authenticate(rqst, msg)
-	struct svc_req *rqst;
-	struct rpc_msg *msg;
+_authenticate(struct svc_req *rqst, struct rpc_msg *msg)
 {
 	int cred_flavor;
 	struct authsvc *asp;
@@ -152,11 +149,7 @@ _authenticate(rqst, msg)
  * that don't need to inspect or modify the message body.
  */
 static bool_t
-svcauth_null_wrap(auth, xdrs, xdr_func, xdr_ptr)
-	SVCAUTH *auth;
-	XDR *xdrs;
-	xdrproc_t xdr_func;
-	caddr_t xdr_ptr;
+svcauth_null_wrap(SVCAUTH *auth, XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr)
 {
 
 	return (xdr_func(xdrs, xdr_ptr));
@@ -169,9 +162,7 @@ struct svc_auth_ops svc_auth_null_ops = {
 
 /*ARGSUSED*/
 enum auth_stat
-_svcauth_null(rqst, msg)
-	struct svc_req *rqst;
-	struct rpc_msg *msg;
+_svcauth_null(struct svc_req *rqst, struct rpc_msg *msg)
 {
 	return (AUTH_OK);
 }
@@ -191,9 +182,8 @@ _svcauth_null(rqst, msg)
  */
 
 int
-svc_auth_reg(cred_flavor, handler)
-	int cred_flavor;
-	enum auth_stat (*handler)(struct svc_req *, struct rpc_msg *);
+svc_auth_reg(int cred_flavor,
+    enum auth_stat (*handler)(struct svc_req *, struct rpc_msg *))
 {
 	struct authsvc *asp;
 

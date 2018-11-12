@@ -51,12 +51,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
-
-#ifdef __linux__
-#include "../queue.h"
-#else
 #include <sys/queue.h>
-#endif
 
 #include "aicasm.h"
 #include "aicasm_symbol.h"
@@ -108,7 +103,6 @@ static void add_version(const char *verstring);
 static int  is_download_const(expression_t *immed);
 
 extern int yylex (void);
-extern int yyparse (void);
 
 #define SRAM_SYMNAME "SRAM_BASE"
 #define SCB_SYMNAME "SCB_BASE"
@@ -1081,7 +1075,7 @@ conditional:
 		last_scope = TAILQ_LAST(&scope_context->inner_scope,
 					scope_tailq);
 		if (last_scope == NULL
-		 || last_scope->type == T_ELSE) {
+		 || last_scope->type == SCOPE_ELSE) {
 
 			stop("'else if' without leading 'if'", EX_DATAERR);
 			/* NOTREACHED */
@@ -1292,8 +1286,8 @@ code:
 ;
 
 	/*
-	 * This grammer differs from the one in the aic7xxx
-	 * reference manual since the grammer listed there is
+	 * This grammar differs from the one in the aic7xxx
+	 * reference manual since the grammar listed there is
 	 * ambiguous and causes a shift/reduce conflict.
 	 * It also seems more logical as the "immediate"
 	 * argument is listed as the second arg like the
@@ -1759,7 +1753,7 @@ format_3_instr(int opcode, symbol_ref_t *src,
 	instr = seq_alloc();
 	f3_instr = &instr->format.format3;
 	if (address->symbol == NULL) {
-		/* 'dot' referrence.  Use the current instruction pointer */
+		/* 'dot' reference.  Use the current instruction pointer */
 		addr = instruction_ptr + address->offset;
 	} else if (address->symbol->type == UNINITIALIZED) {
 		/* forward reference */
@@ -1821,9 +1815,15 @@ type_check(symbol_t *symbol, expression_t *expression, int opcode)
 {
 	symbol_node_t *node;
 	int and_op;
+	uint8_t invalid_bits;
 
 	and_op = FALSE;
-	if (opcode == AIC_OP_AND || opcode == AIC_OP_JNZ || AIC_OP_JZ)
+	if (opcode == AIC_OP_AND
+	 || opcode == AIC_OP_BMOV
+	 || opcode == AIC_OP_JE
+	 || opcode == AIC_OP_JNE
+	 || opcode == AIC_OP_JNZ
+	 || opcode == AIC_OP_JZ)
 		and_op = TRUE;
 
 	/*
@@ -1831,12 +1831,11 @@ type_check(symbol_t *symbol, expression_t *expression, int opcode)
 	 * that hasn't been defined.  If this is an and operation,
 	 * this is a mask, so "undefined" bits are okay.
 	 */
-	if (and_op == FALSE
-	 && (expression->value & ~symbol->info.rinfo->valid_bitmask) != 0) {
+	invalid_bits = expression->value & ~symbol->info.rinfo->valid_bitmask;
+	if (and_op == FALSE && invalid_bits != 0) {
 		snprintf(errbuf, sizeof(errbuf),
 			 "Invalid bit(s) 0x%x in immediate written to %s",
-			 expression->value & ~symbol->info.rinfo->valid_bitmask,
-			 symbol->name);
+			 invalid_bits, symbol->name);
 		stop(errbuf, EX_DATAERR);
 		/* NOTREACHED */
 	}

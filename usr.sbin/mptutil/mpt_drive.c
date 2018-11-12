@@ -129,7 +129,7 @@ mpt_pd_insert(int fd, struct mpt_drive_list *list, U8 PhysDiskNum)
 		list->drives[j + 1] = list->drives[j];
 	list->drives[i] = mpt_pd_info(fd, PhysDiskNum, NULL);
 	if (list->drives[i] == NULL)
-		return (-1);
+		return (errno);
 	list->ndrives++;
 	return (0);
 }
@@ -146,26 +146,32 @@ mpt_pd_list(int fd)
 	CONFIG_PAGE_IOC_5 *ioc5;
 	IOC_5_HOT_SPARE *spare;
 	struct mpt_drive_list *list;
-	int count, i, j;
+	int count, error, i, j;
 
 	ioc2 = mpt_read_ioc_page(fd, 2, NULL);
 	if (ioc2 == NULL) {
+		error = errno;
 		warn("Failed to fetch volume list");
+		errno = error;
 		return (NULL);
 	}
 
 	ioc3 = mpt_read_ioc_page(fd, 3, NULL);
 	if (ioc3 == NULL) {
+		error = errno;
 		warn("Failed to fetch drive list");
 		free(ioc2);
+		errno = error;
 		return (NULL);
 	}
 
 	ioc5 = mpt_read_ioc_page(fd, 5, NULL);
 	if (ioc5 == NULL) {
+		error = errno;
 		warn("Failed to fetch spare list");
 		free(ioc3);
 		free(ioc2);
+		errno = error;
 		return (NULL);
 	}
 
@@ -180,7 +186,9 @@ mpt_pd_list(int fd)
 		volumes[i] = mpt_vol_info(fd, vol->VolumeBus, vol->VolumeID,
 		    NULL);
 		if (volumes[i] == NULL) {
+			error = errno;
 			warn("Failed to read volume info");
+			errno = error;
 			return (NULL);
 		}
 		count += volumes[i]->NumPhysDisks;
@@ -264,13 +272,11 @@ mpt_lookup_drive(struct mpt_drive_list *list, const char *drive,
 				return (0);
 			}
 		}
-		errno = ENOENT;
-		return (-1);
+		return (ENOENT);
 	}
 
 bad:
-	errno = EINVAL;
-	return (-1);
+	return (EINVAL);
 }
 
 /* Borrowed heavily from scsi_all.c:scsi_print_inquiry(). */
@@ -306,12 +312,13 @@ drive_set_state(char *drive, U8 Action, U8 State, const char *name)
 	CONFIG_PAGE_RAID_PHYS_DISK_0 *info;
 	struct mpt_drive_list *list;
 	U8 PhysDiskNum;
-	int fd;
+	int error, fd;
 
 	fd = mpt_open(mpt_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mpt_open");
-		return (errno);
+		return (error);
 	}
 
 	list = mpt_pd_list(fd);
@@ -319,16 +326,18 @@ drive_set_state(char *drive, U8 Action, U8 State, const char *name)
 		return (errno);
 
 	if (mpt_lookup_drive(list, drive, &PhysDiskNum) < 0) {
+		error = errno;
 		warn("Failed to find drive %s", drive);
-		return (errno);
+		return (error);
 	}
 	mpt_free_pd_list(list);
 
 	/* Get the info for this drive. */
 	info = mpt_pd_info(fd, PhysDiskNum, NULL);
 	if (info == NULL) {
+		error = errno;
 		warn("Failed to fetch info for drive %u", PhysDiskNum);
-		return (errno);
+		return (error);
 	}
 
 	/* Try to change the state. */
@@ -337,10 +346,11 @@ drive_set_state(char *drive, U8 Action, U8 State, const char *name)
 		return (EINVAL);
 	}
 
-	if (mpt_raid_action(fd, Action, 0, 0, PhysDiskNum, 0, NULL, 0, NULL,
-	    NULL, 0, NULL, NULL, 0) < 0) {
-		warn("Failed to set drive %u to %s", PhysDiskNum, name);
-		return (errno);
+	error = mpt_raid_action(fd, Action, 0, 0, PhysDiskNum, 0, NULL, 0, NULL,
+	    NULL, 0, NULL, NULL, 0);
+	if (error) {
+		warnc(error, "Failed to set drive %u to %s", PhysDiskNum, name);
+		return (error);
 	}
 
 	free(info);

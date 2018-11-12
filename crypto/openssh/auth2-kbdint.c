@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-kbdint.c,v 1.5 2006/08/03 03:34:41 deraadt Exp $ */
+/* $OpenBSD: auth2-kbdint.c,v 1.7 2014/07/15 15:54:14 millert Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -36,6 +36,7 @@
 #include "auth.h"
 #include "log.h"
 #include "buffer.h"
+#include "misc.h"
 #include "servconf.h"
 
 /* import */
@@ -56,8 +57,8 @@ userauth_kbdint(Authctxt *authctxt)
 	if (options.challenge_response_authentication)
 		authenticated = auth2_challenge(authctxt, devs);
 
-	xfree(devs);
-	xfree(lang);
+	free(devs);
+	free(lang);
 	return authenticated;
 }
 

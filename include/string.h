@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -69,7 +65,7 @@ void	*memmem(const void *, size_t, const void *, size_t) __pure;
 #endif
 void	*memmove(void *, const void *, size_t);
 void	*memset(void *, int, size_t);
-#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
+#if __POSIX_VISIBLE >= 200809
 char	*stpcpy(char * __restrict, const char * __restrict);
 char	*stpncpy(char * __restrict, const char * __restrict, size_t);
 #endif
@@ -78,6 +74,9 @@ char	*strcasestr(const char *, const char *) __pure;
 #endif
 char	*strcat(char * __restrict, const char * __restrict);
 char	*strchr(const char *, int) __pure;
+#if __BSD_VISIBLE
+char	*strchrnul(const char*, int) __pure;
+#endif
 int	 strcmp(const char *, const char *) __pure;
 int	 strcoll(const char *, const char *);
 char	*strcpy(char * __restrict, const char * __restrict);
@@ -100,7 +99,7 @@ void	 strmode(int, char *);
 char	*strncat(char * __restrict, const char * __restrict, size_t);
 int	 strncmp(const char *, const char *, size_t) __pure;
 char	*strncpy(char * __restrict, const char * __restrict, size_t);
-#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
+#if __POSIX_VISIBLE >= 200809
 char	*strndup(const char *, size_t) __malloc_like;
 size_t	 strnlen(const char *, size_t) __pure;
 #endif
@@ -112,7 +111,7 @@ char	*strrchr(const char *, int) __pure;
 #if __BSD_VISIBLE
 char	*strsep(char **, const char *);
 #endif
-#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
+#if __POSIX_VISIBLE >= 200809
 char	*strsignal(int);
 #endif
 size_t	 strspn(const char *, const char *) __pure;
@@ -135,7 +134,13 @@ typedef	__ssize_t	ssize_t;
 void	 swab(const void * __restrict, void * __restrict, ssize_t);
 #endif /* _SWAB_DECLARED */
 
+int	 timingsafe_bcmp(const void *, const void *, size_t);
+int	 timingsafe_memcmp(const void *, const void *, size_t);
 #endif /* __BSD_VISIBLE */
+
+#if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)
+#include <xlocale/_string.h>
+#endif
 __END_DECLS
 
 #endif /* _STRING_H_ */

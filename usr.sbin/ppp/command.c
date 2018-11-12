@@ -184,6 +184,7 @@ static int DeleteCommand(struct cmdargs const *);
 static int NegotiateCommand(struct cmdargs const *);
 static int ClearCommand(struct cmdargs const *);
 static int RunListCommand(struct cmdargs const *);
+static int IfaceNameCommand(struct cmdargs const *arg);
 static int IfaceAddCommand(struct cmdargs const *);
 static int IfaceDeleteCommand(struct cmdargs const *);
 static int IfaceClearCommand(struct cmdargs const *);
@@ -415,7 +416,7 @@ DialCommand(struct cmdargs const *arg)
 static char *
 strstrword(char *big, const char *little)
 {
-  /* Get the first occurance of the word ``little'' in ``big'' */
+  /* Get the first occurrence of the word ``little'' in ``big'' */
   char *pos;
   int len;
 
@@ -650,7 +651,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
   if ((shpid = fork()) == 0) {
     int i, fd;
 
-    if ((shell = getenv("SHELL")) == 0)
+    if ((shell = getenv("SHELL")) == NULL)
       shell = _PATH_BSHELL;
 
     timer_TermService();
@@ -823,6 +824,10 @@ static struct cmdtab const IfaceCommands[] =
    "Delete iface address", "iface delete addr", (void *)1},
   {NULL, "delete!", IfaceDeleteCommand, LOCAL_AUTH,
    "Delete iface address", "iface delete addr", (void *)1},
+  {"name", NULL, IfaceNameCommand, LOCAL_AUTH,
+    "Set iface name", "iface name name", NULL},
+  {"description", NULL, iface_Descr, LOCAL_AUTH,
+    "Set iface description", "iface description text", NULL},
   {"show", NULL, iface_Show, LOCAL_AUTH,
    "Show iface address(es)", "iface show", NULL},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
@@ -1847,13 +1852,13 @@ SetVariable(struct cmdargs const *arg)
       case PHASE_ESTABLISH:
         /* Make sure none of our links are DATALINK_LCP or greater */
         if (bundle_HighestState(arg->bundle) >= DATALINK_LCP) {
-          log_Printf(LogWARN, "mrru: Only changable before LCP negotiations\n");
+          log_Printf(LogWARN, "mrru: Only changeable before LCP negotiations\n");
           res = 1;
           break;
         }
         break;
       default:
-        log_Printf(LogWARN, "mrru: Only changable at phase DEAD/ESTABLISH\n");
+        log_Printf(LogWARN, "mrru: Only changeable at phase DEAD/ESTABLISH\n");
         res = 1;
         break;
     }
@@ -2046,7 +2051,7 @@ SetVariable(struct cmdargs const *arg)
       res = 1;
     } else {
       arg->bundle->radius.alive.interval = atoi(argp);
-      if (arg->bundle->radius.alive.interval && !arg->bundle->radius.cfg.file) {
+      if (arg->bundle->radius.alive.interval && !*arg->bundle->radius.cfg.file) {
         log_Printf(LogWARN, "rad_alive requires radius to be configured\n");
 	res = 1;
       } else if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED) {
@@ -2330,7 +2335,7 @@ SetVariable(struct cmdargs const *arg)
 	   res = 1;
     }
 
-    if (arg->bundle->radius.port_id_type && !arg->bundle->radius.cfg.file) {
+    if (arg->bundle->radius.port_id_type && !*arg->bundle->radius.cfg.file) {
 	    log_Printf(LogWARN, "rad_port_id requires radius to be configured\n");
 	    res = 1;
     }
@@ -2939,13 +2944,13 @@ NegotiateSet(struct cmdargs const *arg)
         case PHASE_ESTABLISH:
           /* Make sure none of our links are DATALINK_LCP or greater */
           if (bundle_HighestState(arg->bundle) >= DATALINK_LCP) {
-            log_Printf(LogWARN, "shortseq: Only changable before"
+            log_Printf(LogWARN, "shortseq: Only changeable before"
                        " LCP negotiations\n");
             return 1;
           }
           break;
         default:
-          log_Printf(LogWARN, "shortseq: Only changable at phase"
+          log_Printf(LogWARN, "shortseq: Only changeable at phase"
                      " DEAD/ESTABLISH\n");
           return 1;
       }
@@ -3172,6 +3177,21 @@ RunListCommand(struct cmdargs const *arg)
   else
     log_Printf(LogWARN, "%s command must have arguments\n", cmd);
 
+  return 0;
+}
+
+static int
+IfaceNameCommand(struct cmdargs const *arg)
+{
+  int n = arg->argn;
+
+  if (arg->argc != n + 1)
+    return -1;
+
+  if (!iface_Name(arg->bundle->iface, arg->argv[n]))
+    return 1;
+
+  log_SetTun(arg->bundle->unit, arg->bundle->iface->name);
   return 0;
 }
 

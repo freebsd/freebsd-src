@@ -51,11 +51,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sysexits.h>
-#ifdef __linux__
-#include "../queue.h"
-#else
 #include <sys/queue.h>
-#endif
 
 #include "aicasm.h"
 #include "aicasm_symbol.h"
@@ -69,6 +65,8 @@ static char msgbuf[255];
 
 extern int mmlex(void);
 %}
+
+%option noinput
 
 WORD		[A-Za-z_][-A-Za-z_0-9]*
 SPACE		[ \t]+
@@ -152,7 +150,7 @@ MCARG		[^(), \t]+
 %%
 
 int
-mmwrap()
+mmwrap(void)
 {
 	stop("EOF encountered in macro call", EX_DATAERR);
 	return (1);

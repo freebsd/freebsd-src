@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 #include <machine/fpu.h>
-#include <compat/ia32/ia32_reg.h>
 #include <machine/psl.h>
 #include <machine/segments.h>
 #include <machine/specialreg.h>
@@ -80,11 +79,9 @@ __FBSDID("$FreeBSD$");
 int
 fill_regs32(struct thread *td, struct reg32 *regs)
 {
-	struct pcb *pcb;
 	struct trapframe *tp;
 
 	tp = td->td_frame;
-	pcb = td->td_pcb;
 	if (tp->tf_flags & TF_HASSEGS) {
 		regs->r_gs = tp->tf_gs;
 		regs->r_fs = tp->tf_fs;
@@ -114,18 +111,16 @@ fill_regs32(struct thread *td, struct reg32 *regs)
 int
 set_regs32(struct thread *td, struct reg32 *regs)
 {
-	struct pcb *pcb;
 	struct trapframe *tp;
 
 	tp = td->td_frame;
 	if (!EFL_SECURE(regs->r_eflags, tp->tf_rflags) || !CS_SECURE(regs->r_cs))
 		return (EINVAL);
-	pcb = td->td_pcb;
 	tp->tf_gs = regs->r_gs;
 	tp->tf_fs = regs->r_fs;
 	tp->tf_es = regs->r_es;
 	tp->tf_ds = regs->r_ds;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	tp->tf_flags = TF_HASSEGS;
 	tp->tf_rdi = regs->r_edi;
 	tp->tf_rsi = regs->r_esi;
@@ -145,13 +140,18 @@ set_regs32(struct thread *td, struct reg32 *regs)
 int
 fill_fpregs32(struct thread *td, struct fpreg32 *regs)
 {
-	struct save87 *sv_87 = (struct save87 *)regs;
-	struct env87 *penv_87 = &sv_87->sv_env;
-	struct savefpu *sv_fpu = &td->td_pcb->pcb_save;
-	struct envxmm *penv_xmm = &sv_fpu->sv_env;
+	struct savefpu *sv_fpu;
+	struct save87 *sv_87;
+	struct env87 *penv_87;
+	struct envxmm *penv_xmm;
 	int i;
 
 	bzero(regs, sizeof(*regs));
+	sv_87 = (struct save87 *)regs;
+	penv_87 = &sv_87->sv_env;
+	fpugetregs(td);
+	sv_fpu = get_pcb_user_save_td(td);
+	penv_xmm = &sv_fpu->sv_env;
 	
 	/* FPU control/status */
 	penv_87->en_cw = penv_xmm->en_cw;
@@ -182,7 +182,7 @@ set_fpregs32(struct thread *td, struct fpreg32 *regs)
 {
 	struct save87 *sv_87 = (struct save87 *)regs;
 	struct env87 *penv_87 = &sv_87->sv_env;
-	struct savefpu *sv_fpu = &td->td_pcb->pcb_save;
+	struct savefpu *sv_fpu = get_pcb_user_save_td(td);
 	struct envxmm *penv_xmm = &sv_fpu->sv_env;
 	int i;
 
@@ -200,6 +200,7 @@ set_fpregs32(struct thread *td, struct fpreg32 *regs)
 		sv_fpu->sv_fp[i].fp_acc = sv_87->sv_ac[i];
 	for (i = 8; i < 16; ++i)
 		bzero(&sv_fpu->sv_fp[i].fp_acc, sizeof(sv_fpu->sv_fp[i].fp_acc));
+	fpuuserinited(td);
 
 	return (0);
 }
@@ -213,8 +214,6 @@ fill_dbregs32(struct thread *td, struct dbreg32 *regs)
 	err = fill_dbregs(td, &dr);
 	for (i = 0; i < 8; i++)
 		regs->dr[i] = dr.dr[i];
-	for (i = 8; i < 16; i++)
-		regs->dr[i] = 0;
 	return (err);
 }
 

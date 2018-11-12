@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,27 +40,35 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkclear.c,v 1.10 2007/12/29 17:51:47 tom Exp $")
+MODULE_ID("$Id: lib_slkclear.c,v 1.14 2009/11/07 16:27:05 tom Exp $")
 
 NCURSES_EXPORT(int)
-slk_clear(void)
+NCURSES_SP_NAME(slk_clear) (NCURSES_SP_DCL0)
 {
     int rc = ERR;
 
-    T((T_CALLED("slk_clear()")));
+    T((T_CALLED("slk_clear(%p)"), (void *) SP_PARM));
 
-    if (SP != NULL && SP->_slk != NULL) {
-	SP->_slk->hidden = TRUE;
+    if (SP_PARM != 0 && SP_PARM->_slk != 0) {
+	SP_PARM->_slk->hidden = TRUE;
 	/* For simulated SLK's it looks much more natural to
 	   inherit those attributes from the standard screen */
-	SP->_slk->win->_nc_bkgd = stdscr->_nc_bkgd;
-	WINDOW_ATTRS(SP->_slk->win) = WINDOW_ATTRS(stdscr);
-	if (SP->_slk->win == stdscr) {
+	SP_PARM->_slk->win->_nc_bkgd = StdScreen(SP_PARM)->_nc_bkgd;
+	WINDOW_ATTRS(SP_PARM->_slk->win) = WINDOW_ATTRS(StdScreen(SP_PARM));
+	if (SP_PARM->_slk->win == StdScreen(SP_PARM)) {
 	    rc = OK;
 	} else {
-	    werase(SP->_slk->win);
-	    rc = wrefresh(SP->_slk->win);
+	    werase(SP_PARM->_slk->win);
+	    rc = wrefresh(SP_PARM->_slk->win);
 	}
     }
     returnCode(rc);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+slk_clear(void)
+{
+    return NCURSES_SP_NAME(slk_clear) (CURRENT_SCREEN);
+}
+#endif

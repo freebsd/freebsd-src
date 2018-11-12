@@ -28,6 +28,8 @@
 #ifndef __XEN_PUBLIC_VERSION_H__
 #define __XEN_PUBLIC_VERSION_H__
 
+#include "xen.h"
+
 /* NB. All ops return zero on success, except XENVER_{version,pagesize} */
 
 /* arg == NULL; returns major:minor (16:16). */
@@ -58,7 +60,7 @@ typedef char xen_changeset_info_t[64];
 
 #define XENVER_platform_parameters 5
 struct xen_platform_parameters {
-    unsigned long virt_start;
+    xen_ulong_t virt_start;
 };
 typedef struct xen_platform_parameters xen_platform_parameters_t;
 
@@ -78,12 +80,15 @@ typedef struct xen_feature_info xen_feature_info_t;
 /* arg == xen_domain_handle_t. */
 #define XENVER_guest_handle 8
 
+#define XENVER_commandline 9
+typedef char xen_commandline_t[1024];
+
 #endif /* __XEN_PUBLIC_VERSION_H__ */
 
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil

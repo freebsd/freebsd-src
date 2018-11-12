@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,7 +38,7 @@
 
 #if !HAVE_VSSCANF
 
-MODULE_ID("$Id: vsscanf.c,v 1.18 2004/04/03 20:27:02 tom Exp $")
+MODULE_ID("$Id: vsscanf.c,v 1.20 2012/02/22 22:26:58 tom Exp $")
 
 #if !(HAVE_VFSCANF || HAVE__DOSCAN)
 
@@ -293,12 +293,12 @@ vsscanf(const char *str, const char *format, va_list ap)
 
 		/* add %n, if the format was not that */
 		if (chunk != cAssigned) {
-		    strcat(my_fmt, "%n");
+		    _nc_STRCAT(my_fmt, "%n", len_fmt);
 		}
 
 		switch (chunk) {
 		case cAssigned:
-		    strcat(my_fmt, "%n");
+		    _nc_STRCAT(my_fmt, "%n", len_fmt);
 		    pointer = &eaten;
 		    break;
 		case cInt:

@@ -92,6 +92,9 @@ ufs_quotactl(mp, cmds, id, arg)
 	void *arg;
 {
 #ifndef QUOTA
+	if ((cmds >> SUBCMDSHIFT) == Q_QUOTAON)
+		vfs_unbusy(mp);
+
 	return (EOPNOTSUPP);
 #else
 	struct thread *td;
@@ -112,11 +115,16 @@ ufs_quotactl(mp, cmds, id, arg)
 			break;
 
 		default:
+			if (cmd == Q_QUOTAON)
+				vfs_unbusy(mp);
 			return (EINVAL);
 		}
 	}
-	if ((u_int)type >= MAXQUOTAS)
+	if ((u_int)type >= MAXQUOTAS) {
+		if (cmd == Q_QUOTAON)
+			vfs_unbusy(mp);
 		return (EINVAL);
+	}
 
 	switch (cmd) {
 	case Q_QUOTAON:
@@ -125,6 +133,18 @@ ufs_quotactl(mp, cmds, id, arg)
 
 	case Q_QUOTAOFF:
 		error = quotaoff(td, mp, type);
+		break;
+
+	case Q_SETQUOTA32:
+		error = setquota32(td, mp, id, type, arg);
+		break;
+
+	case Q_SETUSE32:
+		error = setuse32(td, mp, id, type, arg);
+		break;
+
+	case Q_GETQUOTA32:
+		error = getquota32(td, mp, id, type, arg);
 		break;
 
 	case Q_SETQUOTA:
@@ -137,6 +157,10 @@ ufs_quotactl(mp, cmds, id, arg)
 
 	case Q_GETQUOTA:
 		error = getquota(td, mp, id, type, arg);
+		break;
+
+	case Q_GETQUOTASIZE:
+		error = getquotasize(td, mp, id, type, arg);
 		break;
 
 	case Q_SYNC:
@@ -192,16 +216,17 @@ ufs_uninit(vfsp)
  * Call the VFS_CHECKEXP beforehand to verify access.
  */
 int
-ufs_fhtovp(mp, ufhp, vpp)
+ufs_fhtovp(mp, ufhp, flags, vpp)
 	struct mount *mp;
 	struct ufid *ufhp;
+	int flags;
 	struct vnode **vpp;
 {
 	struct inode *ip;
 	struct vnode *nvp;
 	int error;
 
-	error = VFS_VGET(mp, ufhp->ufid_ino, LK_EXCLUSIVE, &nvp);
+	error = VFS_VGET(mp, ufhp->ufid_ino, flags, &nvp);
 	if (error) {
 		*vpp = NULLVP;
 		return (error);

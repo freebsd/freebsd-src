@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-int	more_than_one = 0;
+static int more_than_one = 0;
 
 static void
 usage(void)

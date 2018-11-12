@@ -28,7 +28,7 @@
 .\"     @(#)getgroups.2	8.2 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd March 5, 1999
+.Dd January 21, 2011
 .Dt GETGROUPS 2
 .Os
 .Sh NAME
@@ -37,7 +37,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
 .In unistd.h
 .Ft int
 .Fn getgroups "int gidsetlen" "gid_t *gidset"
@@ -66,6 +65,12 @@ is zero,
 returns the number of supplementary group IDs associated with
 the calling process without modifying the array pointed to by
 .Fa gidset .
+.Pp
+The value of
+.Dv {NGROUPS_MAX}
+should be obtained using
+.Xr sysconf 3
+to avoid hard-coding it into the executable.
 .Sh RETURN VALUES
 A successful call returns the number of groups in the group set.
 A value of -1 indicates that an error occurred, and the error
@@ -88,7 +93,8 @@ an invalid address.
 .El
 .Sh SEE ALSO
 .Xr setgroups 2 ,
-.Xr initgroups 3
+.Xr initgroups 3 ,
+.Xr sysconf 3
 .Sh STANDARDS
 The
 .Fn getgroups

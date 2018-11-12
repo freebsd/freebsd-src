@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2015 Allan Jude <allanjude@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +33,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <libprocstat.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -39,32 +41,24 @@
 #include "procstat.h"
 
 void
-procstat_bin(pid_t pid, struct kinfo_proc *kipp)
+procstat_bin(struct procstat *prstat, struct kinfo_proc *kipp)
 {
-	char pathname[PATH_MAX];
-	int error, name[4];
-	size_t len;
+	int osrel;
+	static char pathname[PATH_MAX];
 
 	if (!hflag)
-		printf("%5s %-16s %-53s\n", "PID", "COMM", "PATH");
+		xo_emit("{T:/%5s %-16s %8s %s}\n", "PID", "COMM", "OSREL",
+		    "PATH");
 
-	name[0] = CTL_KERN;
-	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_PATHNAME;
-	name[3] = pid;
-
-	len = sizeof(pathname);
-	error = sysctl(name, 4, pathname, &len, NULL, 0);
-	if (error < 0 && errno != ESRCH) {
-		warn("sysctl: kern.proc.pathname: %d", pid);
+	if (procstat_getpathname(prstat, kipp, pathname, sizeof(pathname)) != 0)
 		return;
-	}
-	if (error < 0)
-		return;
-	if (len == 0 || strlen(pathname) == 0)
+	if (strlen(pathname) == 0)
 		strcpy(pathname, "-");
+	if (procstat_getosrel(prstat, kipp, &osrel) != 0)
+		return;
 
-	printf("%5d ", pid);
-	printf("%-16s ", kipp->ki_comm);
-	printf("%s\n", pathname);
+	xo_emit("{k:process_id/%5d/%d} ", kipp->ki_pid);
+	xo_emit("{:command/%-16s/%s} ", kipp->ki_comm);
+	xo_emit("{:osrel/%8d/%d} ", osrel);
+	xo_emit("{:pathname/%s}\n", pathname);
 }

@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <efi.h>
+#include <eficonsctl.h>
 #include <efilib.h>
 #include <stand.h>
 
@@ -43,7 +44,7 @@ static CHAR16 *
 arg_skipsep(CHAR16 *argp)
 {
 
-	while (*argp == ' ' || *argp == '\t')
+	while (*argp == ' ' || *argp == '\t' || *argp == '\n')
 		argp++;
 	return (argp);
 }
@@ -52,7 +53,7 @@ static CHAR16 *
 arg_skipword(CHAR16 *argp)
 {
 
-	while (*argp && *argp != ' ' && *argp != '\t')
+	while (*argp && *argp != ' ' && *argp != '\t' && *argp != '\n')
 		argp++;
 	return (argp);
 }
@@ -82,6 +83,9 @@ void
 efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 {
 	static EFI_GUID image_protocol = LOADED_IMAGE_PROTOCOL;
+	static EFI_GUID console_control_protocol =
+	    EFI_CONSOLE_CONTROL_PROTOCOL_GUID;
+	EFI_CONSOLE_CONTROL_PROTOCOL *console_control = NULL;
 	EFI_LOADED_IMAGE *img;
 	CHAR16 *argp, *args, **argv;
 	EFI_STATUS status;
@@ -92,7 +96,13 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	BS = ST->BootServices;
 	RS = ST->RuntimeServices;
 
-	heapsize = 512*1024;
+	status = BS->LocateProtocol(&console_control_protocol, NULL,
+	    (VOID **)&console_control);
+	if (status == EFI_SUCCESS)
+		(void)console_control->SetMode(console_control,
+		    EfiConsoleControlScreenText);
+
+	heapsize = 64 * 1024 * 1024;
 	status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
 	    EFI_SIZE_TO_PAGES(heapsize), &heap);
 	if (status != EFI_SUCCESS)
@@ -135,7 +145,7 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	 * first count the number of words. Then, after allocating the
 	 * vector, we split the string up. We don't deal with quotes or
 	 * other more advanced shell features.
-	 * The EFI shell will pas the name of the image as the first
+	 * The EFI shell will pass the name of the image as the first
 	 * word in the argument list. This does not happen if we're
 	 * loaded by the boot manager. This is not so easy to figure
 	 * out though. The ParentHandle is not always NULL, because
@@ -169,7 +179,7 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	argv = malloc((argc + 1) * sizeof(CHAR16*));
 	argc = 0;
 	if (addprog)
-		argv[argc++] = L"loader.efi";
+		argv[argc++] = (CHAR16 *)L"loader.efi";
 	argp = args;
 	while (argp != NULL && *argp != 0) {
 		argp = arg_skipsep(argp);

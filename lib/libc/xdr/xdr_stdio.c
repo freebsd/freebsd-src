@@ -1,32 +1,34 @@
 /*	$NetBSD: xdr_stdio.c,v 1.14 2000/01/22 22:19:19 mycroft Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2010, Oracle America, Inc.
  *
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials
+ *       provided with the distribution.
+ *     * Neither the name of the "Oracle America, Inc." nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
  *
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- *
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- *
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *   FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *   COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ *   INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *   WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -38,8 +40,6 @@ __FBSDID("$FreeBSD$");
 
 /*
  * xdr_stdio.c, XDR implementation on standard i/o file.
- *
- * Copyright (C) 1984, Sun Microsystems, Inc.
  *
  * This set of routines implements a XDR on a stdio stream.
  * XDR_ENCODE serializes onto the stream, XDR_DECODE de-serializes
@@ -83,10 +83,7 @@ static const struct xdr_ops	xdrstdio_ops = {
  * Operation flag is set to op.
  */
 void
-xdrstdio_create(xdrs, file, op)
-	XDR *xdrs;
-	FILE *file;
-	enum xdr_op op;
+xdrstdio_create(XDR *xdrs, FILE *file, enum xdr_op op)
 {
 
 	xdrs->x_op = op;
@@ -101,17 +98,14 @@ xdrstdio_create(xdrs, file, op)
  * Cleans up the xdr stream handle xdrs previously set up by xdrstdio_create.
  */
 static void
-xdrstdio_destroy(xdrs)
-	XDR *xdrs;
+xdrstdio_destroy(XDR *xdrs)
 {
 	(void)fflush((FILE *)xdrs->x_private);
 		/* XXX: should we close the file ?? */
 }
 
 static bool_t
-xdrstdio_getlong(xdrs, lp)
-	XDR *xdrs;
-	long *lp;
+xdrstdio_getlong(XDR *xdrs, long *lp)
 {
 	u_int32_t temp;
 
@@ -122,9 +116,7 @@ xdrstdio_getlong(xdrs, lp)
 }
 
 static bool_t
-xdrstdio_putlong(xdrs, lp)
-	XDR *xdrs;
-	const long *lp;
+xdrstdio_putlong(XDR *xdrs, const long *lp)
 {
 	int32_t mycopy = htonl((u_int32_t)*lp);
 
@@ -134,10 +126,7 @@ xdrstdio_putlong(xdrs, lp)
 }
 
 static bool_t
-xdrstdio_getbytes(xdrs, addr, len)
-	XDR *xdrs;
-	char *addr;
-	u_int len;
+xdrstdio_getbytes(XDR *xdrs, char *addr, u_int len)
 {
 
 	if ((len != 0) && (fread(addr, (size_t)len, 1, (FILE *)xdrs->x_private) != 1))
@@ -146,10 +135,7 @@ xdrstdio_getbytes(xdrs, addr, len)
 }
 
 static bool_t
-xdrstdio_putbytes(xdrs, addr, len)
-	XDR *xdrs;
-	const char *addr;
-	u_int len;
+xdrstdio_putbytes(XDR *xdrs, const char *addr, u_int len)
 {
 
 	if ((len != 0) && (fwrite(addr, (size_t)len, 1,
@@ -159,17 +145,14 @@ xdrstdio_putbytes(xdrs, addr, len)
 }
 
 static u_int
-xdrstdio_getpos(xdrs)
-	XDR *xdrs;
+xdrstdio_getpos(XDR *xdrs)
 {
 
 	return ((u_int) ftell((FILE *)xdrs->x_private));
 }
 
 static bool_t
-xdrstdio_setpos(xdrs, pos) 
-	XDR *xdrs;
-	u_int pos;
+xdrstdio_setpos(XDR *xdrs, u_int pos) 
 { 
 
 	return ((fseek((FILE *)xdrs->x_private, (long)pos, 0) < 0) ?
@@ -178,9 +161,7 @@ xdrstdio_setpos(xdrs, pos)
 
 /* ARGSUSED */
 static int32_t *
-xdrstdio_inline(xdrs, len)
-	XDR *xdrs;
-	u_int len;
+xdrstdio_inline(XDR *xdrs, u_int len)
 {
 
 	/*

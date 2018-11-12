@@ -55,11 +55,11 @@
 #include "ggate.h"
 
 
-enum { UNSET, CREATE, DESTROY, LIST, RESCUE } action = UNSET;
+static enum { UNSET, CREATE, DESTROY, LIST, RESCUE } action = UNSET;
 
 static const char *path = NULL;
 static const char *host = NULL;
-static int unit = -1;
+static int unit = G_GATE_UNIT_AUTO;
 static unsigned flags = 0;
 static int force = 0;
 static unsigned queue_size = G_GATE_QUEUE_SIZE;
@@ -447,6 +447,7 @@ g_gatec_create(void)
 	/*
 	 * Ok, got both sockets, time to create provider.
 	 */
+	memset(&ggioc, 0, sizeof(ggioc));
 	ggioc.gctl_version = G_GATE_VERSION;
 	ggioc.gctl_mediasize = mediasize;
 	ggioc.gctl_sectorsize = sectorsize;

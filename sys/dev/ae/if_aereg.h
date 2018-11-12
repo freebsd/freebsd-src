@@ -104,6 +104,8 @@
 #define	AE_RXD_COUNT_MIN	16
 #define	AE_RXD_COUNT_MAX	512
 #define	AE_RXD_COUNT_DEFAULT	64
+/* Padding to align frames on a 128-byte boundary. */
+#define	AE_RXD_PADDING		120
 
 #define	AE_TXD_BUFSIZE_MIN	4096
 #define	AE_TXD_BUFSIZE_MAX	65536

@@ -1,18 +1,31 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 .PATH: ${.CURDIR}/../ktrace
 
 PROG=		kdump
-SRCS=		kdump.c ioctl.c kdump_subr.c subr.c
-CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../..
+SRCS=		kdump_subr.c kdump_subr.h kdump.c subr.c
+CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../.. -I.
 
-CLEANFILES=	ioctl.c kdump_subr.c
+LIBADD=		sysdecode
+.if ${MK_CASPER} != "no"
+LIBADD+=	casper
+LIBADD+=	cap_grp
+LIBADD+=	cap_pwd
+CFLAGS+=-DHAVE_LIBCASPER
+.endif
 
-ioctl.c: mkioctls
-	sh ${.CURDIR}/mkioctls ${DESTDIR}/usr/include > ${.TARGET}
+NO_WERROR?=	YES
 
-kdump_subr.c: mksubr
-	sh ${.CURDIR}/mksubr ${DESTDIR}/usr/include > ${.TARGET}
+CLEANFILES=	kdump_subr.c kdump_subr.h
+
+kdump_subr.h: mksubr
+	sh ${.CURDIR}/mksubr ${DESTDIR}${INCLUDEDIR} | \
+	    sed -n 's/^\([a-z].*)\)$$/void \1;/p' >${.TARGET}
+
+kdump_subr.c: mksubr kdump_subr.h
+	sh ${.CURDIR}/mksubr ${DESTDIR}${INCLUDEDIR} >${.TARGET}
 
 .include <bsd.prog.mk>

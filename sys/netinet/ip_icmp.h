@@ -99,7 +99,7 @@ struct icmp {
 		struct id_ts {			/* ICMP Timestamp */
 			/*
 			 * The next 3 fields are in network format,
-			 * milliseconds since 00:00 GMT
+			 * milliseconds since 00:00 UTC
 			 */
 			uint32_t its_otime;	/* Originate */
 			uint32_t its_rtime;	/* Receive */
@@ -136,6 +136,14 @@ struct icmp {
 #define	ICMP_ADVLENMIN	(8 + sizeof (struct ip) + 8)	/* min */
 #define	ICMP_ADVLEN(p)	(8 + ((p)->icmp_ip.ip_hl << 2) + 8)
 	/* N.B.: must separately check that ip_hl >= 5 */
+	/* This is the minimum length required by RFC 792. */
+/*
+ * ICMP_ADVLENPREF is the preferred number of bytes which should be contiguous.
+ * SCTP needs additional 12 bytes to be able to access the initiate tag
+ * in packets containing an INIT chunk. For also supporting SCTP/UDP,
+ * additional 8 bytes are needed.
+ */
+#define	ICMP_ADVLENPREF(p)	(8 + ((p)->icmp_ip.ip_hl << 2) + 8 + 8 + 12)
 
 /*
  * Definition of type and code field values.
@@ -207,8 +215,7 @@ struct icmp {
 
 #ifdef _KERNEL
 void	icmp_error(struct mbuf *, int, int, uint32_t, int);
-void	icmp_input(struct mbuf *, int);
-void	icmp_init(void);
+int	icmp_input(struct mbuf **, int *, int);
 int	ip_next_mtu(int, int);
 #endif
 

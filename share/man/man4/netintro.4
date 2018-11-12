@@ -9,11 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +28,7 @@
 .\"     @(#)netintro.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2004
+.Dd January 26, 2012
 .Dt NETINTRO 4
 .Os
 .Sh NAME
@@ -204,6 +200,7 @@ struct	ifreq {
         struct    sockaddr ifru_addr;
         struct    sockaddr ifru_dstaddr;
         struct    sockaddr ifru_broadaddr;
+        struct    ifreq_buffer ifru_buffer;
         short     ifru_flags[2];
         short     ifru_index;
         int       ifru_metric;
@@ -216,6 +213,7 @@ struct	ifreq {
 #define ifr_addr      ifr_ifru.ifru_addr      /* address */
 #define ifr_dstaddr   ifr_ifru.ifru_dstaddr   /* other end of p-to-p link */
 #define ifr_broadaddr ifr_ifru.ifru_broadaddr /* broadcast address */
+#define ifr_buffer    ifr_ifru.ifru_buffer    /* user supplied buffer with its length */
 #define ifr_flags     ifr_ifru.ifru_flags[0]  /* flags (low 16 bits) */
 #define ifr_flagshigh ifr_ifru.ifru_flags[1]  /* flags (high 16 bits) */
 #define ifr_metric    ifr_ifru.ifru_metric    /* metric */
@@ -228,19 +226,6 @@ struct	ifreq {
 #define ifr_index     ifr_ifru.ifru_index     /* interface index */
 };
 .Ed
-.Pp
-Calls which are now deprecated are:
-.Bl -tag -width SIOCGIFBRDADDR
-.It Dv SIOCSIFADDR
-Set interface address for protocol family.
-Following the address assignment, the
-.Dq initialization
-routine for the interface is called.
-.It Dv SIOCSIFDSTADDR
-Set point to point address for protocol family and interface.
-.It Dv SIOCSIFBRDADDR
-Set broadcast address for protocol family and interface.
-.El
 .Pp
 .Fn Ioctl
 requests to obtain addresses and requests both to set and
@@ -277,6 +262,36 @@ and
 fields of the
 .Vt ifreq
 structure, respectively.
+.It Dv SIOCGIFDESCR
+Get the interface description, returned in the
+.Va buffer
+field of
+.Va ifru_buffer
+struct.
+The user supplied buffer length should be defined in the
+.Va length
+field of
+.Va ifru_buffer
+struct passed in as parameter, and the length would include
+the terminating nul character.
+If there is not enough space to hold the interface length,
+no copy would be done and the
+.Va buffer
+field of
+.Va ifru_buffer
+would be set to NULL.
+The kernel will store the buffer length in the
+.Va length
+field upon return, regardless whether the buffer itself is
+sufficient to hold the data.
+.It Dv SIOCSIFDESCR
+Set the interface description to the value of the
+.Va buffer
+field of
+.Va ifru_buffer
+struct, with
+.Va length
+field specifying its length (counting the terminating nul).
 .It Dv SIOCSIFFLAGS
 Set interface flags field.
 If the interface is marked down,
@@ -368,7 +383,7 @@ boundaries.
 .El
 .Bd -literal
 /*
-* Structure used in SIOCAIFCONF request.
+* Structure used in SIOCAIFADDR request.
 */
 struct ifaliasreq {
         char    ifra_name[IFNAMSIZ];   /* if name, e.g. "en0" */
@@ -377,7 +392,6 @@ struct ifaliasreq {
         struct  sockaddr        ifra_mask;
 };
 .Ed
-.Pp
 .Bd -literal
 /*
 * Structure used in SIOCGIFCONF request.
@@ -395,13 +409,19 @@ struct ifconf {
 #define ifc_req ifc_ifcu.ifcu_req /* array of structures returned */
 };
 .Ed
-.Pp
 .Bd -literal
 /* Structure used in SIOCIFGCLONERS request. */
 struct if_clonereq {
         int     ifcr_total;     /* total cloners (out) */
         int     ifcr_count;     /* room for this many in user buffer */
         char    *ifcr_buffer;   /* buffer for cloner names */
+};
+.Ed
+.Bd -literal
+/* Structure used in SIOCGIFDESCR and SIOCSIFDESCR requests */
+struct ifreq_buffer {
+        size_t  length;         /* length of the buffer */
+        void   *buffer;         /* pointer to userland space buffer */
 };
 .Ed
 .Sh SEE ALSO

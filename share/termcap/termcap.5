@@ -9,11 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -53,7 +49,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 16, 1994
+.Dd December 13, 2009
 .Dt TERMCAP 5
 .Os
 .Sh NAME
@@ -106,7 +102,6 @@ Therefore, a
 in 132-column mode would be
 .Dq vt100-w .
 The following suffixes should be used where possible:
-.Pp
 .Bl -column indent "With automatic margins (usually default)xx" -offset indent
 .Sy "Suffix	Meaning	Example"
 -w	Wide mode (more than 80 columns)	vt100-w
@@ -121,7 +116,6 @@ The following suffixes should be used where possible:
 The description field attempts to convey the semantics of the
 capability.
 You may find some codes in the description field:
-.Pp
 .Bl -tag -width #[1-9]
 .It (P)
 indicates that padding may be specified.
@@ -714,7 +708,6 @@ The following entry, which describes the Concept\-100, is among the more
 complex entries in the
 .Nm
 file as of this writing.
-.Pp
 .Bd -literal
 ca\||\|concept100\||\|c100\||\|concept\||\|c104\||\|concept100-4p\||\|HDS Concept\-100:\e
 	:al=3*\eE^R:am:bl=^G:cd=16*\eE^C:ce=16\eE^U:cl=2*^L:cm=\eEa%+ %+ :\e
@@ -1038,7 +1031,7 @@ and the Lear Siegler
 .Tn ADM Ns \-3
 is described as
 .Bd -literal -offset indent
-l3\||\|adm3\||\|3\||\|LSI \s-1ADM\s0-3:\e
+l3\||\|adm3\||\|3\||\|LSI ADM-3:\e
 :am:bl=^G:cl=^Z:co#80:cr=^M:do=^J:le=^H:li#24:sf=^J:
 .Ed
 .Ss Parameterized Strings
@@ -1160,7 +1153,6 @@ These are primarily useful if the terminal does not have
 .Sy \&cm ,
 such as the Tektronix 4025.
 .Ss Cursor Motions
-.Pp
 If the terminal has a fast way to home the cursor
 (to the very upper left corner of the screen), this can be given as
 .Sy \&ho .
@@ -1825,7 +1817,7 @@ from the status line can be given as
 .Sy \&ts
 and
 .Sy \&fs .
-.Pf ( Xr \&fs
+.Pf ( Sy \&fs
 must leave the cursor position in the same place that it was before
 .Sy \&ts .
 If necessary, the
@@ -1999,6 +1991,25 @@ Unfortunately, due to lack of a definition for string parameters in
 only
 .Xr terminfo 5
 supports these capabilities.
+.Pp
+For the
+.Xr xterm 1
+terminal emulator the traditional behavior in
+.Fx
+when exiting a pager such as
+.Xr less 1
+or
+.Xr more 1 ,
+or an editor such as
+.Xr vi 1
+is
+.Em NOT
+to clear the screen after the program exits.
+If you prefer to clear the screen there are a number of
+.Dq xterm-clear
+entries that add this capability in the
+.Nm
+file that you can use directly, or as examples.
 .Ss Glitches and Braindamage
 Hazeltine terminals, which do not allow `~' characters to be displayed,
 should indicate
@@ -2052,7 +2063,7 @@ for ^C.
 .Pp
 Other specific terminal problems may be corrected by adding more
 capabilities of the form
-.Sy x Em x .
+.Sy x Ns Em x .
 .Ss Similar Terminals
 If there are two very similar terminals,
 one can be defined as being just like the other with certain exceptions.
@@ -2105,6 +2116,7 @@ Hash database file containing terminal descriptions (see
 .Xr tset 1 ,
 .Xr ul 1 ,
 .Xr vi 1 ,
+.Xr xterm 1 ,
 .Xr ncurses 3 ,
 .Xr printf 3 ,
 .Xr termcap 3 ,

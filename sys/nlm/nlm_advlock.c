@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/unistd.h>
@@ -47,7 +48,6 @@ __FBSDID("$FreeBSD$");
 
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
-#include <nfsclient/nfsnode.h>
 #include <nfsclient/nfsmount.h>
 
 #include <nlm/nlm_prot.h>
@@ -98,6 +98,7 @@ nlm_client_init(void *dummy)
 	int i;
 
 	mtx_init(&nlm_svid_lock, "NLM svid lock", NULL, MTX_DEF);
+	/* pid_max cannot be greater than PID_MAX */
 	nlm_svid_allocator = new_unrhdr(PID_MAX + 2, INT_MAX, &nlm_svid_lock);
 	for (i = 0; i < NLM_SVID_HASH_SIZE; i++)
 		LIST_INIT(&nlm_file_svids[i]);
@@ -196,7 +197,6 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 {
 	struct thread *td = curthread;
 	struct nfsmount *nmp;
-	struct nfsnode *np;
 	off_t size;
 	size_t fhlen;
 	union nfsfh fh;
@@ -210,33 +210,27 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 	struct rpc_callextra ext;
 	struct nlm_feedback_arg nf;
 	AUTH *auth;
-	struct ucred *cred;
+	struct ucred *cred, *cred1;
 	struct nlm_file_svid *ns;
 	int svid;
 	int error;
+	int is_v3;
 
 	ASSERT_VOP_LOCKED(vp, "nlm_advlock_1");
 
+	nmp = VFSTONFS(vp->v_mount);
 	/*
 	 * Push any pending writes to the server and flush our cache
 	 * so that if we are contending with another machine for a
 	 * file, we get whatever they wrote and vice-versa.
 	 */
 	if (op == F_SETLK || op == F_UNLCK)
-		nfs_vinvalbuf(vp, V_SAVE, td, 1);
+		nmp->nm_vinvalbuf(vp, V_SAVE, td, 1);
 
-	np = VTONFS(vp);
-	nmp = VFSTONFS(vp->v_mount);
-	size = np->n_size;
-	sa = nmp->nm_nam;
-	memcpy(&ss, sa, sa->sa_len);
-	sa = (struct sockaddr *) &ss;
 	strcpy(servername, nmp->nm_hostname);
-	fhlen = np->n_fhsize;
-	memcpy(&fh.fh_bytes, np->n_fhp, fhlen);
-	timo.tv_sec = nmp->nm_timeo / NFS_HZ;
-	timo.tv_usec = (nmp->nm_timeo % NFS_HZ) * (1000000 / NFS_HZ);
-	if (NFS_ISV3(vp))
+	nmp->nm_getinfo(vp, fh.fh_bytes, &fhlen, &ss, &is_v3, &size, &timo);
+	sa = (struct sockaddr *) &ss;
+	if (is_v3 != 0)
 		vers = NLM_VERS4;
 	else
 		vers = NLM_VERS;
@@ -246,15 +240,17 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 	else
 		retries = INT_MAX;
 
-	if (unlock_vp)
-		VOP_UNLOCK(vp, 0);
-
 	/*
 	 * We need to switch to mount-point creds so that we can send
-	 * packets from a privileged port.
+	 * packets from a privileged port.  Reference mnt_cred and
+	 * switch to them before unlocking the vnode, since mount
+	 * point could be unmounted right after unlock.
 	 */
 	cred = td->td_ucred;
 	td->td_ucred = vp->v_mount->mnt_cred;
+	crhold(td->td_ucred);
+	if (unlock_vp)
+		VOP_UNLOCK(vp, 0);
 
 	host = nlm_find_host_by_name(servername, sa, vers);
 	auth = authunix_create(cred);
@@ -379,7 +375,9 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 	if (ns)
 		nlm_free_svid(ns);
 
+	cred1 = td->td_ucred;
 	td->td_ucred = cred;
+	crfree(cred1);
 	AUTH_DESTROY(auth);
 
 	nlm_host_release(host);
@@ -699,7 +697,8 @@ nlm_record_lock(struct vnode *vp, int op, struct flock *fl,
 {
 	struct vop_advlockasync_args a;
 	struct flock newfl;
-	int error;
+	struct proc *p;
+	int error, stops_deferred;
 
 	a.a_vp = vp;
 	a.a_id = NULL;
@@ -715,7 +714,42 @@ nlm_record_lock(struct vnode *vp, int op, struct flock *fl,
 	newfl.l_pid = svid;
 	newfl.l_sysid = NLM_SYSID_CLIENT | sysid;
 
-	error = lf_advlockasync(&a, &vp->v_lockf, size);
+	for (;;) {
+		error = lf_advlockasync(&a, &vp->v_lockf, size);
+		if (error == EDEADLK) {
+			/*
+			 * Locks are associated with the processes and
+			 * not with threads.  Suppose we have two
+			 * threads A1 A2 in one process, A1 locked
+			 * file f1, A2 is locking file f2, and A1 is
+			 * unlocking f1. Then remote server may
+			 * already unlocked f1, while local still not
+			 * yet scheduled A1 to make the call to local
+			 * advlock manager. The process B owns lock on
+			 * f2 and issued the lock on f1.  Remote would
+			 * grant B the request on f1, but local would
+			 * return EDEADLK.
+			*/
+			pause("nlmdlk", 1);
+			p = curproc;
+			stops_deferred = sigdeferstop(SIGDEFERSTOP_OFF);
+			PROC_LOCK(p);
+			thread_suspend_check(0);
+			PROC_UNLOCK(p);
+			sigallowstop(stops_deferred);
+		} else if (error == EINTR) {
+			/*
+			 * lf_purgelocks() might wake up the lock
+			 * waiter and removed our lock graph edges.
+			 * There is no sense in re-trying recording
+			 * the lock to the local manager after
+			 * reclaim.
+			 */
+			error = 0;
+			break;
+		} else
+			break;
+	}
 	KASSERT(error == 0 || error == ENOENT,
 	    ("Failed to register NFS lock locally - error=%d", error));
 }

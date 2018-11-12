@@ -185,7 +185,7 @@ struct snd_size {
 #define AFMT_U24_LE	0x00040000	/* Little endian unsigned 24-bit */
 #define AFMT_U24_BE	0x00080000	/* Big endian unsigned 24-bit */
 
-/* Machine dependant AFMT_* definitions. */
+/* Machine dependent AFMT_* definitions. */
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define AFMT_S16_NE	AFMT_S16_LE
 #define AFMT_S24_NE	AFMT_S24_LE
@@ -775,7 +775,8 @@ typedef struct {
  * IOCTL commands for /dev/dsp and /dev/audio
  */
 
-#define SNDCTL_DSP_RESET	_IO  ('P', 0)
+#define SNDCTL_DSP_HALT		_IO  ('P', 0)
+#define SNDCTL_DSP_RESET	SNDCTL_DSP_HALT
 #define SNDCTL_DSP_SYNC		_IO  ('P', 1)
 #define SNDCTL_DSP_SPEED	_IOWR('P', 2, int)
 #define SNDCTL_DSP_STEREO	_IOWR('P', 3, int)
@@ -1260,7 +1261,7 @@ typedef struct mixer_info {
  */
 #define LOCL_STARTAUDIO		1
 
-#if (!defined(_KERNEL) && !defined(INKERNEL)) || defined(USE_SEQ_MACROS)
+#if !defined(_KERNEL) || defined(USE_SEQ_MACROS)
 /*
  *	Some convenience macros to simplify programming of the
  *	/dev/sequencer interface
@@ -1446,7 +1447,7 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 	SEQ_CONTROL(dev, voice, CTL_PAN, (pos+128) / 2)
 
 /*
- * Timing and syncronization macros
+ * Timing and synchronization macros
  */
 
 #define _TIMER_EVENT(ev, parm)		{ \

@@ -28,13 +28,15 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_cpu.h"
+#include "opt_ddb.h"
 #include "opt_kstack_pages.h"
-#include "opt_mp_watchdog.h"
 #include "opt_sched.h"
+#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/cpuset.h>
 #ifdef GPROF 
 #include <sys/gmon.h>
 #endif
@@ -56,18 +58,19 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #include <machine/clock.h>
 #include <machine/cputypes.h>
 #include <machine/cpufunc.h>
-#include <machine/mca.h>
+#include <x86/mca.h>
 #include <machine/md_var.h>
-#include <machine/mp_watchdog.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
 #include <machine/tss.h>
+#include <machine/cpu.h>
+#include <x86/init.h>
 
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(KERNBASE + 0x0467)
@@ -78,39 +81,11 @@ __FBSDID("$FreeBSD$");
 #define BIOS_RESET		(0x0f)
 #define BIOS_WARM		(0x0a)
 
-/* lock region used by kernel profiling */
-int	mcount_lock;
-
-int	mp_naps;		/* # of Applications processors */
-int	boot_cpu_id = -1;	/* designated BSP */
-
-extern  struct pcpu __pcpu[];
-
-/* AP uses this during bootstrap.  Do not staticize.  */
-char *bootSTK;
-static int bootAP;
-
-/* Free these after use */
-void *bootstacks[MAXCPU];
+extern	struct pcpu __pcpu[];
 
 /* Temporary variables for init_secondary()  */
 char *doublefault_stack;
 char *nmi_stack;
-void *dpcpu;
-
-/* Hotwire a 0->4MB V==P mapping */
-extern pt_entry_t *KPTphys;
-
-/* SMP page table page */
-extern pt_entry_t *SMPpt;
-
-struct pcb stoppcbs[MAXCPU];
-struct xpcb *stopxpcbs = NULL;
-
-/* Variables needed for SMP tlb shootdown. */
-vm_offset_t smp_tlb_addr1;
-vm_offset_t smp_tlb_addr2;
-volatile int smp_tlb_wait;
 
 extern inthand_t IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
 
@@ -118,223 +93,10 @@ extern inthand_t IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
  * Local data and functions.
  */
 
-static u_int logical_cpus;
-static volatile cpumask_t ipi_nmi_pending;
-
-/* used to hold the AP's until we are ready to release them */
-static struct mtx ap_boot_mtx;
-
-/* Set to 1 once we're ready to let the APs out of the pen. */
-static volatile int aps_ready = 0;
-
-/*
- * Store data from cpu_add() until later in the boot when we actually setup
- * the APs.
- */
-struct cpu_info {
-	int	cpu_present:1;
-	int	cpu_bsp:1;
-	int	cpu_disabled:1;
-	int	cpu_hyperthread:1;
-} static cpu_info[MAX_APIC_ID + 1];
-int cpu_apic_ids[MAXCPU];
-int apic_cpuids[MAX_APIC_ID + 1];
-
-/* Holds pending bitmap based IPIs per CPU */
-static volatile u_int cpu_ipi_pending[MAXCPU];
-
-static u_int boot_address;
-static int cpu_logical;
-static int cpu_cores;
-
-static void	assign_cpu_ids(void);
-static void	set_interrupt_apic_ids(void);
-static int	start_all_aps(void);
 static int	start_ap(int apic_id);
-static void	release_aps(void *dummy);
 
-static int	hlt_logical_cpus;
-static u_int	hyperthreading_cpus;
-static cpumask_t	hyperthreading_cpus_mask;
-static int	hyperthreading_allowed = 1;
-static struct	sysctl_ctx_list logical_cpu_clist;
 static u_int	bootMP_size;
-
-static void
-mem_range_AP_init(void)
-{
-	if (mem_range_softc.mr_op && mem_range_softc.mr_op->initAP)
-		mem_range_softc.mr_op->initAP(&mem_range_softc);
-}
-
-static void
-topo_probe_0xb(void)
-{
-	int logical;
-	int p[4];
-	int bits;
-	int type;
-	int cnt;
-	int i;
-	int x;
-
-	/* We only support two levels for now. */
-	for (i = 0; i < 3; i++) {
-		cpuid_count(0x0B, i, p);
-		bits = p[0] & 0x1f;
-		logical = p[1] &= 0xffff;
-		type = (p[2] >> 8) & 0xff;
-		if (type == 0 || logical == 0)
-			break;
-		for (cnt = 0, x = 0; x <= MAX_APIC_ID; x++) {
-			if (!cpu_info[x].cpu_present ||
-			    cpu_info[x].cpu_disabled)
-				continue;
-			if (x >> bits == boot_cpu_id >> bits)
-				cnt++;
-		}
-		if (type == CPUID_TYPE_SMT)
-			cpu_logical = cnt;
-		else if (type == CPUID_TYPE_CORE)
-			cpu_cores = cnt;
-	}
-	if (cpu_logical == 0)
-		cpu_logical = 1;
-	cpu_cores /= cpu_logical;
-}
-
-static void
-topo_probe_0x4(void)
-{
-	u_int threads_per_cache, p[4];
-	u_int htt, cmp;
-	int i;
-
-	htt = cmp = 1;
-	/*
-	 * If this CPU supports HTT or CMP then mention the
-	 * number of physical/logical cores it contains.
-	 */
-	if (cpu_feature & CPUID_HTT)
-		htt = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
-	if (cpu_vendor_id == CPU_VENDOR_AMD && (amd_feature2 & AMDID2_CMP))
-		cmp = (cpu_procinfo2 & AMDID_CMP_CORES) + 1;
-	else if (cpu_vendor_id == CPU_VENDOR_INTEL && (cpu_high >= 4)) {
-		cpuid_count(4, 0, p);
-		if ((p[0] & 0x1f) != 0)
-			cmp = ((p[0] >> 26) & 0x3f) + 1;
-	}
-	cpu_cores = cmp;
-	cpu_logical = htt / cmp;
-
-	/* Setup the initial logical CPUs info. */
-	if (cpu_feature & CPUID_HTT)
-		logical_cpus = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
-
-	/*
-	 * Work out if hyperthreading is *really* enabled.  This
-	 * is made really ugly by the fact that processors lie: Dual
-	 * core processors claim to be hyperthreaded even when they're
-	 * not, presumably because they want to be treated the same
-	 * way as HTT with respect to per-cpu software licensing.
-	 * At the time of writing (May 12, 2005) the only hyperthreaded
-	 * cpus are from Intel, and Intel's dual-core processors can be
-	 * identified via the "deterministic cache parameters" cpuid
-	 * calls.
-	 */
-	/*
-	 * First determine if this is an Intel processor which claims
-	 * to have hyperthreading support.
-	 */
-	if ((cpu_feature & CPUID_HTT) && cpu_vendor_id == CPU_VENDOR_INTEL) {
-		/*
-		 * If the "deterministic cache parameters" cpuid calls
-		 * are available, use them.
-		 */
-		if (cpu_high >= 4) {
-			/* Ask the processor about the L1 cache. */
-			for (i = 0; i < 1; i++) {
-				cpuid_count(4, i, p);
-				threads_per_cache = ((p[0] & 0x3ffc000) >> 14) + 1;
-				if (hyperthreading_cpus < threads_per_cache)
-					hyperthreading_cpus = threads_per_cache;
-				if ((p[0] & 0x1f) == 0)
-					break;
-			}
-		}
-
-		/*
-		 * If the deterministic cache parameters are not
-		 * available, or if no caches were reported to exist,
-		 * just accept what the HTT flag indicated.
-		 */
-		if (hyperthreading_cpus == 0)
-			hyperthreading_cpus = logical_cpus;
-	}
-}
-
-static void
-topo_probe(void)
-{
-	static int cpu_topo_probed = 0;
-
-	if (cpu_topo_probed)
-		return;
-
-	logical_cpus = logical_cpus_mask = 0;
-	if (cpu_high >= 0xb)
-		topo_probe_0xb();
-	else if (cpu_high)
-		topo_probe_0x4();
-	if (cpu_cores == 0)
-		cpu_cores = mp_ncpus > 0 ? mp_ncpus : 1;
-	if (cpu_logical == 0)
-		cpu_logical = 1;
-	cpu_topo_probed = 1;
-}
-
-struct cpu_group *
-cpu_topo(void)
-{
-	int cg_flags;
-
-	/*
-	 * Determine whether any threading flags are
-	 * necessry.
-	 */
-	topo_probe();
-	if (cpu_logical > 1 && hyperthreading_cpus)
-		cg_flags = CG_FLAG_HTT;
-	else if (cpu_logical > 1)
-		cg_flags = CG_FLAG_SMT;
-	else
-		cg_flags = 0;
-	if (mp_ncpus % (cpu_cores * cpu_logical) != 0) {
-		printf("WARNING: Non-uniform processors.\n");
-		printf("WARNING: Using suboptimal topology.\n");
-		return (smp_topo_none());
-	}
-	/*
-	 * No multi-core or hyper-threaded.
-	 */
-	if (cpu_logical * cpu_cores == 1)
-		return (smp_topo_none());
-	/*
-	 * Only HTT no multi-core.
-	 */
-	if (cpu_logical > 1 && cpu_cores == 1)
-		return (smp_topo_1level(CG_SHARE_L1, cpu_logical, cg_flags));
-	/*
-	 * Only multi-core no HTT.
-	 */
-	if (cpu_cores > 1 && cpu_logical == 1)
-		return (smp_topo_1level(CG_SHARE_L2, cpu_cores, cg_flags));
-	/*
-	 * Both HTT and multi-core.
-	 */
-	return (smp_topo_2level(CG_SHARE_L2, cpu_cores,
-	    CG_SHARE_L1, cpu_logical, cg_flags));
-}
+static u_int	boot_address;
 
 /*
  * Calculate usable address in base memory for AP trampoline code.
@@ -353,85 +115,6 @@ mp_bootaddress(u_int basemem)
 	return mptramp_pagetables;
 }
 
-void
-cpu_add(u_int apic_id, char boot_cpu)
-{
-
-	if (apic_id > MAX_APIC_ID) {
-		panic("SMP: APIC ID %d too high", apic_id);
-		return;
-	}
-	KASSERT(cpu_info[apic_id].cpu_present == 0, ("CPU %d added twice",
-	    apic_id));
-	cpu_info[apic_id].cpu_present = 1;
-	if (boot_cpu) {
-		KASSERT(boot_cpu_id == -1,
-		    ("CPU %d claims to be BSP, but CPU %d already is", apic_id,
-		    boot_cpu_id));
-		boot_cpu_id = apic_id;
-		cpu_info[apic_id].cpu_bsp = 1;
-	}
-	if (mp_ncpus < MAXCPU) {
-		mp_ncpus++;
-		mp_maxid = mp_ncpus -1;
-	}
-	if (bootverbose)
-		printf("SMP: Added CPU %d (%s)\n", apic_id, boot_cpu ? "BSP" :
-		    "AP");
-}
-
-void
-cpu_mp_setmaxid(void)
-{
-
-	/*
-	 * mp_maxid should be already set by calls to cpu_add().
-	 * Just sanity check its value here.
-	 */
-	if (mp_ncpus == 0)
-		KASSERT(mp_maxid == 0,
-		    ("%s: mp_ncpus is zero, but mp_maxid is not", __func__));
-	else if (mp_ncpus == 1)
-		mp_maxid = 0;
-	else
-		KASSERT(mp_maxid >= mp_ncpus - 1,
-		    ("%s: counters out of sync: max %d, count %d", __func__,
-			mp_maxid, mp_ncpus));		
-}
-
-int
-cpu_mp_probe(void)
-{
-
-	/*
-	 * Always record BSP in CPU map so that the mbuf init code works
-	 * correctly.
-	 */
-	all_cpus = 1;
-	if (mp_ncpus == 0) {
-		/*
-		 * No CPUs were found, so this must be a UP system.  Setup
-		 * the variables to represent a system with a single CPU
-		 * with an id of 0.
-		 */
-		mp_ncpus = 1;
-		return (0);
-	}
-
-	/* At least one CPU was found. */
-	if (mp_ncpus == 1) {
-		/*
-		 * One CPU was found, so this must be a UP system with
-		 * an I/O APIC.
-		 */
-		mp_maxid = 0;
-		return (0);
-	}
-
-	/* At least two CPUs were found. */
-	return (1);
-}
-
 /*
  * Initialize the IPI handlers and start up the AP's.
  */
@@ -447,7 +130,17 @@ cpu_mp_start(void)
 	}
 
 	/* Install an inter-CPU IPI for TLB invalidation */
-	setidt(IPI_INVLTLB, IDTVEC(invltlb), SDT_SYSIGT, SEL_KPL, 0);
+	if (pmap_pcid_enabled) {
+		if (invpcid_works) {
+			setidt(IPI_INVLTLB, IDTVEC(invltlb_invpcid),
+			    SDT_SYSIGT, SEL_KPL, 0);
+		} else {
+			setidt(IPI_INVLTLB, IDTVEC(invltlb_pcid), SDT_SYSIGT,
+			    SEL_KPL, 0);
+		}
+	} else {
+		setidt(IPI_INVLTLB, IDTVEC(invltlb), SDT_SYSIGT, SEL_KPL, 0);
+	}
 	setidt(IPI_INVLPG, IDTVEC(invlpg), SDT_SYSIGT, SEL_KPL, 0);
 	setidt(IPI_INVLRNG, IDTVEC(invlrng), SDT_SYSIGT, SEL_KPL, 0);
 
@@ -481,52 +174,11 @@ cpu_mp_start(void)
 	assign_cpu_ids();
 
 	/* Start each Application Processor */
-	start_all_aps();
+	init_ops.start_all_aps();
 
 	set_interrupt_apic_ids();
 }
 
-
-/*
- * Print various information about the SMP system hardware and setup.
- */
-void
-cpu_mp_announce(void)
-{
-	const char *hyperthread;
-	int i;
-
-	printf("FreeBSD/SMP: %d package(s) x %d core(s)",
-	    mp_ncpus / (cpu_cores * cpu_logical), cpu_cores);
-	if (hyperthreading_cpus > 1)
-	    printf(" x %d HTT threads", cpu_logical);
-	else if (cpu_logical > 1)
-	    printf(" x %d SMT threads", cpu_logical);
-	printf("\n");
-
-	/* List active CPUs first. */
-	printf(" cpu0 (BSP): APIC ID: %2d\n", boot_cpu_id);
-	for (i = 1; i < mp_ncpus; i++) {
-		if (cpu_info[cpu_apic_ids[i]].cpu_hyperthread)
-			hyperthread = "/HT";
-		else
-			hyperthread = "";
-		printf(" cpu%d (AP%s): APIC ID: %2d\n", i, hyperthread,
-		    cpu_apic_ids[i]);
-	}
-
-	/* List disabled CPUs last. */
-	for (i = 0; i <= MAX_APIC_ID; i++) {
-		if (!cpu_info[i].cpu_present || !cpu_info[i].cpu_disabled)
-			continue;
-		if (cpu_info[i].cpu_hyperthread)
-			hyperthread = "/HT";
-		else
-			hyperthread = "";
-		printf("  cpu (AP%s): APIC ID: %2d (disabled)\n", hyperthread,
-		    i);
-	}
-}
 
 /*
  * AP CPU's call this to initialize themselves.
@@ -547,7 +199,7 @@ init_secondary(void)
 	common_tss[cpu] = common_tss[0];
 	common_tss[cpu].tss_rsp0 = 0;   /* not used until after switch */
 	common_tss[cpu].tss_iobase = sizeof(struct amd64tss) +
-	    IOPAGES * PAGE_SIZE;
+	    IOPERM_BITMAP_SIZE;
 	common_tss[cpu].tss_ist1 = (long)&doublefault_stack[PAGE_SIZE];
 
 	/* The NMI stack runs on IST2. */
@@ -585,6 +237,9 @@ init_secondary(void)
 	pc->pc_gs32p = &gdt[NGDT * cpu + GUGS32_SEL];
 	pc->pc_ldt = (struct system_segment_descriptor *)&gdt[NGDT * cpu +
 	    GUSERLDT_SEL];
+	pc->pc_curpmap = kernel_pmap;
+	pc->pc_pcid_gen = 1;
+	pc->pc_pcid_next = PMAP_PCID_KERN + 1;
 
 	/* Save the per-cpu pointer for use by the NMI handler. */
 	np->np_pcpu = (register_t) pc;
@@ -592,6 +247,7 @@ init_secondary(void)
 	wrmsr(MSR_FSBASE, 0);		/* User value */
 	wrmsr(MSR_GSBASE, (u_int64_t)pc);
 	wrmsr(MSR_KGSBASE, (u_int64_t)pc);	/* XXX User value while we're in the kernel */
+	fix_cpuid();
 
 	lidt(&r_idt);
 
@@ -617,95 +273,14 @@ init_secondary(void)
 	wrmsr(MSR_STAR, msr);
 	wrmsr(MSR_SF_MASK, PSL_NT|PSL_T|PSL_I|PSL_C|PSL_D);
 
-	/* Disable local APIC just to be sure. */
-	lapic_disable();
-
 	/* signal our startup to the BSP. */
 	mp_naps++;
 
 	/* Spin until the BSP releases the AP's. */
-	while (!aps_ready)
+	while (atomic_load_acq_int(&aps_ready) == 0)
 		ia32_pause();
 
-	/* Initialize the PAT MSR. */
-	pmap_init_pat();
-
-	/* set up CPU registers and state */
-	cpu_setregs();
-
-	/* set up SSE/NX registers */
-	initializecpu();
-
-	/* set up FPU state on the AP */
-	fpuinit();
-
-	/* A quick check from sanity claus */
-	if (PCPU_GET(apic_id) != lapic_id()) {
-		printf("SMP: cpuid = %d\n", PCPU_GET(cpuid));
-		printf("SMP: actual apic_id = %d\n", lapic_id());
-		printf("SMP: correct apic_id = %d\n", PCPU_GET(apic_id));
-		panic("cpuid mismatch! boom!!");
-	}
-
-	/* Initialize curthread. */
-	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
-	PCPU_SET(curthread, PCPU_GET(idlethread));
-
-	mca_init();
-
-	mtx_lock_spin(&ap_boot_mtx);
-
-	/* Init local apic for irq's */
-	lapic_setup(1);
-
-	/* Set memory range attributes for this CPU to match the BSP */
-	mem_range_AP_init();
-
-	smp_cpus++;
-
-	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", PCPU_GET(cpuid));
-	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
-
-	/* Determine if we are a logical CPU. */
-	if (logical_cpus > 1 && PCPU_GET(apic_id) % logical_cpus != 0)
-		logical_cpus_mask |= PCPU_GET(cpumask);
-	
-	/* Determine if we are a hyperthread. */
-	if (hyperthreading_cpus > 1 &&
-	    PCPU_GET(apic_id) % hyperthreading_cpus != 0)
-		hyperthreading_cpus_mask |= PCPU_GET(cpumask);
-
-	/* Build our map of 'other' CPUs. */
-	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
-
-	if (bootverbose)
-		lapic_dump("AP");
-
-	if (smp_cpus == mp_ncpus) {
-		/* enable IPI's, tlb shootdown, freezes etc */
-		atomic_store_rel_int(&smp_started, 1);
-		smp_active = 1;	 /* historic */
-	}
-
-	/*
-	 * Enable global pages TLB extension
-	 * This also implicitly flushes the TLB 
-	 */
-
-	load_cr4(rcr4() | CR4_PGE);
-	load_ds(_udatasel);
-	load_es(_udatasel);
-	load_fs(_ufssel);
-	mtx_unlock_spin(&ap_boot_mtx);
-
-	/* wait until all the AP's are up */
-	while (smp_started == 0)
-		ia32_pause();
-
-	sched_throw(NULL);
-
-	panic("scheduler returned us to %s", __func__);
-	/* NOTREACHED */
+	init_secondary_tail();
 }
 
 /*******************************************************************
@@ -713,108 +288,10 @@ init_secondary(void)
  */
 
 /*
- * We tell the I/O APIC code about all the CPUs we want to receive
- * interrupts.  If we don't want certain CPUs to receive IRQs we
- * can simply not tell the I/O APIC code about them in this function.
- * We also do not tell it about the BSP since it tells itself about
- * the BSP internally to work with UP kernels and on UP machines.
- */
-static void
-set_interrupt_apic_ids(void)
-{
-	u_int i, apic_id;
-
-	for (i = 0; i < MAXCPU; i++) {
-		apic_id = cpu_apic_ids[i];
-		if (apic_id == -1)
-			continue;
-		if (cpu_info[apic_id].cpu_bsp)
-			continue;
-		if (cpu_info[apic_id].cpu_disabled)
-			continue;
-
-		/* Don't let hyperthreads service interrupts. */
-		if (hyperthreading_cpus > 1 &&
-		    apic_id % hyperthreading_cpus != 0)
-			continue;
-
-		intr_add_cpu(i);
-	}
-}
-
-/*
- * Assign logical CPU IDs to local APICs.
- */
-static void
-assign_cpu_ids(void)
-{
-	u_int i;
-
-	TUNABLE_INT_FETCH("machdep.hyperthreading_allowed",
-	    &hyperthreading_allowed);
-
-	/* Check for explicitly disabled CPUs. */
-	for (i = 0; i <= MAX_APIC_ID; i++) {
-		if (!cpu_info[i].cpu_present || cpu_info[i].cpu_bsp)
-			continue;
-
-		if (hyperthreading_cpus > 1 && i % hyperthreading_cpus != 0) {
-			cpu_info[i].cpu_hyperthread = 1;
-#if defined(SCHED_ULE)
-			/*
-			 * Don't use HT CPU if it has been disabled by a
-			 * tunable.
-			 */
-			if (hyperthreading_allowed == 0) {
-				cpu_info[i].cpu_disabled = 1;
-				continue;
-			}
-#endif
-		}
-
-		/* Don't use this CPU if it has been disabled by a tunable. */
-		if (resource_disabled("lapic", i)) {
-			cpu_info[i].cpu_disabled = 1;
-			continue;
-		}
-	}
-
-	/*
-	 * Assign CPU IDs to local APIC IDs and disable any CPUs
-	 * beyond MAXCPU.  CPU 0 is always assigned to the BSP.
-	 *
-	 * To minimize confusion for userland, we attempt to number
-	 * CPUs such that all threads and cores in a package are
-	 * grouped together.  For now we assume that the BSP is always
-	 * the first thread in a package and just start adding APs
-	 * starting with the BSP's APIC ID.
-	 */
-	mp_ncpus = 1;
-	cpu_apic_ids[0] = boot_cpu_id;
-	apic_cpuids[boot_cpu_id] = 0;
-	for (i = boot_cpu_id + 1; i != boot_cpu_id;
-	     i == MAX_APIC_ID ? i = 0 : i++) {
-		if (!cpu_info[i].cpu_present || cpu_info[i].cpu_bsp ||
-		    cpu_info[i].cpu_disabled)
-			continue;
-
-		if (mp_ncpus < MAXCPU) {
-			cpu_apic_ids[mp_ncpus] = i;
-			apic_cpuids[i] = mp_ncpus;
-			mp_ncpus++;
-		} else
-			cpu_info[i].cpu_disabled = 1;
-	}
-	KASSERT(mp_maxid >= mp_ncpus - 1,
-	    ("%s: counters out of sync: max %d, count %d", __func__, mp_maxid,
-	    mp_ncpus));		
-}
-
-/*
  * start each AP in our list
  */
-static int
-start_all_aps(void)
+int
+native_start_all_aps(void)
 {
 	vm_offset_t va = boot_address + KERNBASE;
 	u_int64_t *pt4, *pt3, *pt2;
@@ -865,12 +342,16 @@ start_all_aps(void)
 		apic_id = cpu_apic_ids[cpu];
 
 		/* allocate and set up an idle stack data page */
-		bootstacks[cpu] = (void *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
-		doublefault_stack = (char *)kmem_alloc(kernel_map, PAGE_SIZE);
-		nmi_stack = (char *)kmem_alloc(kernel_map, PAGE_SIZE);
-		dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+		bootstacks[cpu] = (void *)kmem_malloc(kernel_arena,
+		    kstack_pages * PAGE_SIZE, M_WAITOK | M_ZERO);
+		doublefault_stack = (char *)kmem_malloc(kernel_arena,
+		    PAGE_SIZE, M_WAITOK | M_ZERO);
+		nmi_stack = (char *)kmem_malloc(kernel_arena, PAGE_SIZE,
+		    M_WAITOK | M_ZERO);
+		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+		    M_WAITOK | M_ZERO);
 
-		bootSTK = (char *)bootstacks[cpu] + KSTACK_PAGES * PAGE_SIZE - 8;
+		bootSTK = (char *)bootstacks[cpu] + kstack_pages * PAGE_SIZE - 8;
 		bootAP = cpu;
 
 		/* attempt to start the Application Processor */
@@ -880,11 +361,8 @@ start_all_aps(void)
 			panic("AP #%d (PHY# %d) failed!", cpu, apic_id);
 		}
 
-		all_cpus |= (1 << cpu);		/* record AP in CPU map */
+		CPU_SET(cpu, &all_cpus);	/* record AP in CPU map */
 	}
-
-	/* build our map of 'other' CPUs */
-	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
 
 	/* restore the warmstart vector */
 	*(u_int32_t *) WARMBOOT_OFF = mpbioswarmvec;
@@ -916,56 +394,7 @@ start_ap(int apic_id)
 	/* used as a watchpoint to signal AP startup */
 	cpus = mp_naps;
 
-	/*
-	 * first we do an INIT/RESET IPI this INIT IPI might be run, reseting
-	 * and running the target CPU. OR this INIT IPI might be latched (P5
-	 * bug), CPU waiting for STARTUP IPI. OR this INIT IPI might be
-	 * ignored.
-	 */
-
-	/* do an INIT IPI: assert RESET */
-	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
-	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT, apic_id);
-
-	/* wait for pending status end */
-	lapic_ipi_wait(-1);
-
-	/* do an INIT IPI: deassert RESET */
-	lapic_ipi_raw(APIC_DEST_ALLESELF | APIC_TRIGMOD_LEVEL |
-	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT, 0);
-
-	/* wait for pending status end */
-	DELAY(10000);		/* wait ~10mS */
-	lapic_ipi_wait(-1);
-
-	/*
-	 * next we do a STARTUP IPI: the previous INIT IPI might still be
-	 * latched, (P5 bug) this 1st STARTUP would then terminate
-	 * immediately, and the previously started INIT IPI would continue. OR
-	 * the previous INIT IPI has already run. and this STARTUP IPI will
-	 * run. OR the previous INIT IPI was ignored. and this STARTUP IPI
-	 * will run.
-	 */
-
-	/* do a STARTUP IPI */
-	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
-	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
-	    vector, apic_id);
-	lapic_ipi_wait(-1);
-	DELAY(200);		/* wait ~200uS */
-
-	/*
-	 * finally we do a 2nd STARTUP IPI: this 2nd STARTUP IPI should run IF
-	 * the previous STARTUP IPI was cancelled by a latched INIT IPI. OR
-	 * this STARTUP IPI will be ignored, as only ONE STARTUP IPI is
-	 * recognized after hardware RESET or INIT IPI.
-	 */
-
-	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
-	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
-	    vector, apic_id);
-	lapic_ipi_wait(-1);
-	DELAY(200);		/* wait ~200uS */
+	ipi_startup(apic_id, vector);
 
 	/* Wait up to 5 seconds for it to start. */
 	for (ms = 0; ms < 5000; ms++) {
@@ -976,467 +405,50 @@ start_ap(int apic_id)
 	return 0;		/* return FAILURE */
 }
 
-/*
- * Flush the TLB on all other CPU's
- */
-static void
-smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
+void
+invltlb_invpcid_handler(void)
 {
-	u_int ncpu;
+	struct invpcid_descr d;
 
-	ncpu = mp_ncpus - 1;	/* does not shootdown self */
-	if (ncpu < 1)
-		return;		/* no other cpus */
-	if (!(read_rflags() & PSL_I))
-		panic("%s: interrupts disabled", __func__);
-	mtx_lock_spin(&smp_ipi_mtx);
-	smp_tlb_addr1 = addr1;
-	smp_tlb_addr2 = addr2;
-	atomic_store_rel_int(&smp_tlb_wait, 0);
-	ipi_all_but_self(vector);
-	while (smp_tlb_wait < ncpu)
-		ia32_pause();
-	mtx_unlock_spin(&smp_ipi_mtx);
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_gbl[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+	d.pad = 0;
+	d.addr = 0;
+	invpcid(&d, smp_tlb_pmap == kernel_pmap ? INVPCID_CTXGLOB :
+	    INVPCID_CTX);
+	atomic_add_int(&smp_tlb_wait, 1);
 }
 
-static void
-smp_targeted_tlb_shootdown(cpumask_t mask, u_int vector, vm_offset_t addr1, vm_offset_t addr2)
+void
+invltlb_pcid_handler(void)
 {
-	int ncpu, othercpus;
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_gbl[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
 
-	othercpus = mp_ncpus - 1;
-	if (mask == (u_int)-1) {
-		ncpu = othercpus;
-		if (ncpu < 1)
-			return;
+	if (smp_tlb_pmap == kernel_pmap) {
+		invltlb_glob();
 	} else {
-		mask &= ~PCPU_GET(cpumask);
-		if (mask == 0)
-			return;
-		ncpu = bitcount32(mask);
-		if (ncpu > othercpus) {
-			/* XXX this should be a panic offence */
-			printf("SMP: tlb shootdown to %d other cpus (only have %d)\n",
-			    ncpu, othercpus);
-			ncpu = othercpus;
-		}
-		/* XXX should be a panic, implied by mask == 0 above */
-		if (ncpu < 1)
-			return;
-	}
-	if (!(read_rflags() & PSL_I))
-		panic("%s: interrupts disabled", __func__);
-	mtx_lock_spin(&smp_ipi_mtx);
-	smp_tlb_addr1 = addr1;
-	smp_tlb_addr2 = addr2;
-	atomic_store_rel_int(&smp_tlb_wait, 0);
-	if (mask == (u_int)-1)
-		ipi_all_but_self(vector);
-	else
-		ipi_selected(mask, vector);
-	while (smp_tlb_wait < ncpu)
-		ia32_pause();
-	mtx_unlock_spin(&smp_ipi_mtx);
-}
-
-void
-smp_cache_flush(void)
-{
-
-	if (smp_started)
-		smp_tlb_shootdown(IPI_INVLCACHE, 0, 0);
-}
-
-void
-smp_invltlb(void)
-{
-
-	if (smp_started) {
-		smp_tlb_shootdown(IPI_INVLTLB, 0, 0);
-	}
-}
-
-void
-smp_invlpg(vm_offset_t addr)
-{
-
-	if (smp_started)
-		smp_tlb_shootdown(IPI_INVLPG, addr, 0);
-}
-
-void
-smp_invlpg_range(vm_offset_t addr1, vm_offset_t addr2)
-{
-
-	if (smp_started) {
-		smp_tlb_shootdown(IPI_INVLRNG, addr1, addr2);
-	}
-}
-
-void
-smp_masked_invltlb(cpumask_t mask)
-{
-
-	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, 0, 0);
-	}
-}
-
-void
-smp_masked_invlpg(cpumask_t mask, vm_offset_t addr)
-{
-
-	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, addr, 0);
-	}
-}
-
-void
-smp_masked_invlpg_range(cpumask_t mask, vm_offset_t addr1, vm_offset_t addr2)
-{
-
-	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, addr1, addr2);
-	}
-}
-
-void
-ipi_bitmap_handler(struct trapframe frame)
-{
-	int cpu = PCPU_GET(cpuid);
-	u_int ipi_bitmap;
-
-	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
-
-	if (ipi_bitmap & (1 << IPI_PREEMPT))
-		sched_preempt(curthread);
-
-	/* Nothing to do for AST */
-
-	if (ipi_bitmap & (1 << IPI_HARDCLOCK))
-		hardclockintr(&frame);
-
-	if (ipi_bitmap & (1 << IPI_STATCLOCK))
-		statclockintr(&frame);
-
-	if (ipi_bitmap & (1 << IPI_PROFCLOCK))
-		profclockintr(&frame);
-}
-
-/*
- * send an IPI to a set of cpus.
- */
-void
-ipi_selected(cpumask_t cpus, u_int ipi)
-{
-	int cpu;
-	u_int bitmap = 0;
-	u_int old_pending;
-	u_int new_pending;
-
-	if (IPI_IS_BITMAPED(ipi)) { 
-		bitmap = 1 << ipi;
-		ipi = IPI_BITMAP_VECTOR;
-	}
-
-	/*
-	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
-	 * of help in order to understand what is the source.
-	 * Set the mask of receiving CPUs for this purpose.
-	 */
-	if (ipi == IPI_STOP_HARD)
-		atomic_set_int(&ipi_nmi_pending, cpus);
-
-	CTR3(KTR_SMP, "%s: cpus: %x ipi: %x", __func__, cpus, ipi);
-	while ((cpu = ffs(cpus)) != 0) {
-		cpu--;
-		cpus &= ~(1 << cpu);
-
-		KASSERT(cpu_apic_ids[cpu] != -1,
-		    ("IPI to non-existent CPU %d", cpu));
-
-		if (bitmap) {
-			do {
-				old_pending = cpu_ipi_pending[cpu];
-				new_pending = old_pending | bitmap;
-			} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],old_pending, new_pending));	
-
-			if (old_pending)
-				continue;
-		}
-
-		lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
-	}
-
-}
-
-/*
- * send an IPI to all CPUs EXCEPT myself
- */
-void
-ipi_all_but_self(u_int ipi)
-{
-
-	if (IPI_IS_BITMAPED(ipi)) {
-		ipi_selected(PCPU_GET(other_cpus), ipi);
-		return;
-	}
-
-	/*
-	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
-	 * of help in order to understand what is the source.
-	 * Set the mask of receiving CPUs for this purpose.
-	 */
-	if (ipi == IPI_STOP_HARD)
-		atomic_set_int(&ipi_nmi_pending, PCPU_GET(other_cpus));
-
-	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
-}
-
-int
-ipi_nmi_handler()
-{
-	cpumask_t cpumask;
-
-	/*
-	 * As long as there is not a simple way to know about a NMI's
-	 * source, if the bitmask for the current CPU is present in
-	 * the global pending bitword an IPI_STOP_HARD has been issued
-	 * and should be handled.
-	 */
-	cpumask = PCPU_GET(cpumask);
-	if ((ipi_nmi_pending & cpumask) == 0)
-		return (1);
-
-	atomic_clear_int(&ipi_nmi_pending, cpumask);
-	cpustop_handler();
-	return (0);
-}
-     
-/*
- * Handle an IPI_STOP by saving our current context and spinning until we
- * are resumed.
- */
-void
-cpustop_handler(void)
-{
-	int cpu = PCPU_GET(cpuid);
-	int cpumask = PCPU_GET(cpumask);
-
-	savectx(&stoppcbs[cpu]);
-
-	/* Indicate that we are stopped */
-	atomic_set_int(&stopped_cpus, cpumask);
-
-	/* Wait for restart */
-	while (!(started_cpus & cpumask))
-	    ia32_pause();
-
-	atomic_clear_int(&started_cpus, cpumask);
-	atomic_clear_int(&stopped_cpus, cpumask);
-
-	if (cpu == 0 && cpustop_restartfunc != NULL) {
-		cpustop_restartfunc();
-		cpustop_restartfunc = NULL;
-	}
-}
-
-/*
- * Handle an IPI_SUSPEND by saving our current context and spinning until we
- * are resumed.
- */
-void
-cpususpend_handler(void)
-{
-	struct savefpu *stopfpu;
-	register_t cr3, rf;
-	int cpu = PCPU_GET(cpuid);
-	int cpumask = PCPU_GET(cpumask);
-
-	rf = intr_disable();
-	cr3 = rcr3();
-	stopfpu = &stopxpcbs[cpu].xpcb_pcb.pcb_save;
-	if (savectx2(&stopxpcbs[cpu])) {
-		fpugetregs(curthread, stopfpu);
-		wbinvd();
-		atomic_set_int(&stopped_cpus, cpumask);
-	} else
-		fpusetregs(curthread, stopfpu);
-
-	/* Wait for resume */
-	while (!(started_cpus & cpumask))
-		ia32_pause();
-
-	atomic_clear_int(&started_cpus, cpumask);
-	atomic_clear_int(&stopped_cpus, cpumask);
-
-	/* Restore CR3 and enable interrupts */
-	load_cr3(cr3);
-	lapic_setup(0);
-	intr_restore(rf);
-}
-
-/*
- * This is called once the rest of the system is up and running and we're
- * ready to let the AP's out of the pen.
- */
-static void
-release_aps(void *dummy __unused)
-{
-
-	if (mp_ncpus == 1) 
-		return;
-	atomic_store_rel_int(&aps_ready, 1);
-	while (smp_started == 0)
-		ia32_pause();
-}
-SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
-
-static int
-sysctl_hlt_cpus(SYSCTL_HANDLER_ARGS)
-{
-	cpumask_t mask;
-	int error;
-
-	mask = hlt_cpus_mask;
-	error = sysctl_handle_int(oidp, &mask, 0, req);
-	if (error || !req->newptr)
-		return (error);
-
-	if (logical_cpus_mask != 0 &&
-	    (mask & logical_cpus_mask) == logical_cpus_mask)
-		hlt_logical_cpus = 1;
-	else
-		hlt_logical_cpus = 0;
-
-	if (! hyperthreading_allowed)
-		mask |= hyperthreading_cpus_mask;
-
-	if ((mask & all_cpus) == all_cpus)
-		mask &= ~(1<<0);
-	hlt_cpus_mask = mask;
-	return (error);
-}
-SYSCTL_PROC(_machdep, OID_AUTO, hlt_cpus, CTLTYPE_INT|CTLFLAG_RW,
-    0, 0, sysctl_hlt_cpus, "IU",
-    "Bitmap of CPUs to halt.  101 (binary) will halt CPUs 0 and 2.");
-
-static int
-sysctl_hlt_logical_cpus(SYSCTL_HANDLER_ARGS)
-{
-	int disable, error;
-
-	disable = hlt_logical_cpus;
-	error = sysctl_handle_int(oidp, &disable, 0, req);
-	if (error || !req->newptr)
-		return (error);
-
-	if (disable)
-		hlt_cpus_mask |= logical_cpus_mask;
-	else
-		hlt_cpus_mask &= ~logical_cpus_mask;
-
-	if (! hyperthreading_allowed)
-		hlt_cpus_mask |= hyperthreading_cpus_mask;
-
-	if ((hlt_cpus_mask & all_cpus) == all_cpus)
-		hlt_cpus_mask &= ~(1<<0);
-
-	hlt_logical_cpus = disable;
-	return (error);
-}
-
-static int
-sysctl_hyperthreading_allowed(SYSCTL_HANDLER_ARGS)
-{
-	int allowed, error;
-
-	allowed = hyperthreading_allowed;
-	error = sysctl_handle_int(oidp, &allowed, 0, req);
-	if (error || !req->newptr)
-		return (error);
-
-#ifdef SCHED_ULE
-	/*
-	 * SCHED_ULE doesn't allow enabling/disabling HT cores at
-	 * run-time.
-	 */
-	if (allowed != hyperthreading_allowed)
-		return (ENOTSUP);
-	return (error);
-#endif
-
-	if (allowed)
-		hlt_cpus_mask &= ~hyperthreading_cpus_mask;
-	else
-		hlt_cpus_mask |= hyperthreading_cpus_mask;
-
-	if (logical_cpus_mask != 0 &&
-	    (hlt_cpus_mask & logical_cpus_mask) == logical_cpus_mask)
-		hlt_logical_cpus = 1;
-	else
-		hlt_logical_cpus = 0;
-
-	if ((hlt_cpus_mask & all_cpus) == all_cpus)
-		hlt_cpus_mask &= ~(1<<0);
-
-	hyperthreading_allowed = allowed;
-	return (error);
-}
-
-static void
-cpu_hlt_setup(void *dummy __unused)
-{
-
-	if (logical_cpus_mask != 0) {
-		TUNABLE_INT_FETCH("machdep.hlt_logical_cpus",
-		    &hlt_logical_cpus);
-		sysctl_ctx_init(&logical_cpu_clist);
-		SYSCTL_ADD_PROC(&logical_cpu_clist,
-		    SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
-		    "hlt_logical_cpus", CTLTYPE_INT|CTLFLAG_RW, 0, 0,
-		    sysctl_hlt_logical_cpus, "IU", "");
-		SYSCTL_ADD_UINT(&logical_cpu_clist,
-		    SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
-		    "logical_cpus_mask", CTLTYPE_INT|CTLFLAG_RD,
-		    &logical_cpus_mask, 0, "");
-
-		if (hlt_logical_cpus)
-			hlt_cpus_mask |= logical_cpus_mask;
-
 		/*
-		 * If necessary for security purposes, force
-		 * hyperthreading off, regardless of the value
-		 * of hlt_logical_cpus.
+		 * The current pmap might not be equal to
+		 * smp_tlb_pmap.  The clearing of the pm_gen in
+		 * pmap_invalidate_all() takes care of TLB
+		 * invalidation when switching to the pmap on this
+		 * CPU.
 		 */
-		if (hyperthreading_cpus_mask) {
-			SYSCTL_ADD_PROC(&logical_cpu_clist,
-			    SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
-			    "hyperthreading_allowed", CTLTYPE_INT|CTLFLAG_RW,
-			    0, 0, sysctl_hyperthreading_allowed, "IU", "");
-			if (! hyperthreading_allowed)
-				hlt_cpus_mask |= hyperthreading_cpus_mask;
+		if (PCPU_GET(curpmap) == smp_tlb_pmap) {
+			load_cr3(smp_tlb_pmap->pm_cr3 |
+			    smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid);
 		}
 	}
-}
-SYSINIT(cpu_hlt, SI_SUB_SMP, SI_ORDER_ANY, cpu_hlt_setup, NULL);
-
-int
-mp_grab_cpu_hlt(void)
-{
-	u_int mask = PCPU_GET(cpumask);
-#ifdef MP_WATCHDOG
-	u_int cpuid = PCPU_GET(cpuid);
-#endif
-	int retval;
-
-#ifdef MP_WATCHDOG
-	ap_watchdog(cpuid);
-#endif
-
-	retval = mask & hlt_cpus_mask;
-	while (mask & hlt_cpus_mask)
-		__asm __volatile("sti; hlt" : : : "memory");
-	return (retval);
+	atomic_add_int(&smp_tlb_wait, 1);
 }

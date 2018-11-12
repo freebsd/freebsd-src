@@ -28,7 +28,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -57,7 +57,7 @@ setifgroup(const char *group_name, int d, int s, const struct afswtch *rafp)
 
 	if (strlcpy(ifgr.ifgr_group, group_name, IFNAMSIZ) >= IFNAMSIZ)
 		errx(1, "setifgroup: group name too long");
-	if (ioctl(s, SIOCAIFGROUP, (caddr_t)&ifgr) == -1)
+	if (ioctl(s, SIOCAIFGROUP, (caddr_t)&ifgr) == -1 && errno != EEXIST)
 		err(1," SIOCAIFGROUP");
 }
 
@@ -75,7 +75,7 @@ unsetifgroup(const char *group_name, int d, int s, const struct afswtch *rafp)
 
 	if (strlcpy(ifgr.ifgr_group, group_name, IFNAMSIZ) >= IFNAMSIZ)
 		errx(1, "unsetifgroup: group name too long");
-	if (ioctl(s, SIOCDIFGROUP, (caddr_t)&ifgr) == -1)
+	if (ioctl(s, SIOCDIFGROUP, (caddr_t)&ifgr) == -1 && errno != ENOENT)
 		err(1, "SIOCDIFGROUP");
 }
 
@@ -85,9 +85,6 @@ getifgroups(int s)
 	int			 len, cnt;
 	struct ifgroupreq	 ifgr;
 	struct ifg_req		*ifg;
-
-	if (!verbose)
-		return;
 
 	memset(&ifgr, 0, sizeof(ifgr));
 	strlcpy(ifgr.ifgr_name, name, IFNAMSIZ);
@@ -121,6 +118,8 @@ getifgroups(int s)
 	}
 	if (cnt)
 		printf("\n");
+
+	free(ifgr.ifgr_groups);
 }
 
 static void
@@ -175,12 +174,10 @@ static struct option group_gopt = { "g:", "[-g groupname]", printgroup };
 static __constructor void
 group_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	int i;
 
-	for (i = 0; i < N(group_cmds);  i++)
+	for (i = 0; i < nitems(group_cmds);  i++)
 		cmd_register(&group_cmds[i]);
 	af_register(&af_group);
 	opt_register(&group_gopt);
-#undef N
 }

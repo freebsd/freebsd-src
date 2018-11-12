@@ -65,14 +65,12 @@
 #include <sys/cdefs.h>
 #include <sys/stat.h>
 #include <sys/dirent.h>
+
+/* this header intentionally exports NULL from <string.h> */
 #include <string.h>
 
 #define CHK(fmt, args...)	printf("%s(%d): " fmt "\n", __func__, __LINE__ , ##args)
 #define PCHK(fmt, args...)	{printf("%s(%d): " fmt "\n", __func__, __LINE__ , ##args); getchar();}
-
-#ifndef NULL
-#define	NULL	0
-#endif
 
 /* Avoid unwanted userlandish components */
 #define _KERNEL
@@ -120,11 +118,13 @@ extern struct fs_ops ufs_fsops;
 extern struct fs_ops tftp_fsops;
 extern struct fs_ops nfs_fsops;
 extern struct fs_ops cd9660_fsops;
+extern struct fs_ops nandfs_fsops;
 extern struct fs_ops gzipfs_fsops;
 extern struct fs_ops bzipfs_fsops;
 extern struct fs_ops dosfs_fsops;
 extern struct fs_ops ext2fs_fsops;
 extern struct fs_ops splitfs_fsops;
+extern struct fs_ops pkgfs_fsops;
 
 /* where values for lseek(2) */
 #define	SEEK_SET	0	/* set file offset to offset */
@@ -138,8 +138,8 @@ struct devsw {
     const char	dv_name[8];
     int		dv_type;		/* opaque type constant, arch-dependant */
     int		(*dv_init)(void);	/* early probe call */
-    int		(*dv_strategy)(void *devdata, int rw, daddr_t blk, size_t size,
-			       char *buf, size_t *rsize);
+    int		(*dv_strategy)(void *devdata, int rw, daddr_t blk,
+			size_t offset, size_t size, char *buf, size_t *rsize);
     int		(*dv_open)(struct open_file *f, ...);
     int		(*dv_close)(struct open_file *f);
     int		(*dv_ioctl)(struct open_file *f, u_long cmd, void *data);
@@ -153,6 +153,24 @@ struct devsw {
 extern struct devsw netdev;
 
 extern int errno;
+
+/*
+ * Generic device specifier; architecture-dependent
+ * versions may be larger, but should be allowed to
+ * overlap.
+ */
+struct devdesc
+{
+    struct devsw	*d_dev;
+    int			d_type;
+#define DEVT_NONE	0
+#define DEVT_DISK	1
+#define DEVT_NET	2
+#define DEVT_CD		3
+#define DEVT_ZFS	4
+    int			d_unit;
+    void		*d_opendata;
+};
 
 struct open_file {
     int			f_flags;	/* see F_* below */
@@ -239,9 +257,11 @@ extern void	mallocstats(void);
 extern int	printf(const char *fmt, ...) __printflike(1, 2);
 extern void	vprintf(const char *fmt, __va_list);
 extern int	sprintf(char *buf, const char *cfmt, ...) __printflike(2, 3);
+extern int	snprintf(char *buf, size_t size, const char *cfmt, ...) __printflike(3, 4);
 extern void	vsprintf(char *buf, const char *cfmt, __va_list);
 
-extern void	twiddle(void);
+extern void	twiddle(u_int callerdiv);
+extern void	twiddle_divisor(u_int globaldiv);
 
 extern void	ngets(char *, int);
 #define gets(x)	ngets((x), 0)
@@ -262,6 +282,7 @@ extern u_long	random(void);
     
 /* imports from stdlib, locally modified */
 extern long	strtol(const char *, char **, int);
+extern unsigned long	strtoul(const char *, char **, int);
 extern char	*optarg;			/* getopt(3) external variables */
 extern int	optind, opterr, optopt, optreset;
 extern int	getopt(int, char * const [], const char *);
@@ -332,11 +353,6 @@ static __inline quad_t qmin(quad_t a, quad_t b) { return (a < b ? a : b); }
 static __inline u_long ulmax(u_long a, u_long b) { return (a > b ? a : b); }
 static __inline u_long ulmin(u_long a, u_long b) { return (a < b ? a : b); }
 
-/* swaps (undocumented, useful?) */
-#ifdef __i386__
-extern u_int32_t	bswap32(u_int32_t x);
-extern u_int64_t	bswap64(u_int64_t x);
-#endif
 
 /* null functions for device/filesystem switches (undocumented) */
 extern int	nodev(void);
@@ -363,6 +379,7 @@ extern int		devopen(struct open_file *, const char *, const char **);
 extern int		devclose(struct open_file *f);
 extern void		panic(const char *, ...) __dead2 __printflike(1, 2);
 extern struct fs_ops	*file_system[];
+extern struct fs_ops	*exclusive_file_system;
 extern struct devsw	*devsw[];
 
 /*

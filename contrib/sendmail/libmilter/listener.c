@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2007 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2007 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: listener.c,v 8.124 2007/04/23 22:22:50 ca Exp $")
+SM_RCSID("@(#)$Id: listener.c,v 8.127 2013-11-22 20:51:36 ca Exp $")
 
 /*
 **  listener.c -- threaded network listener
@@ -728,6 +728,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 	int acnt = 0;	/* error count for accept() failures */
 	int scnt = 0;	/* error count for select() failures */
 	int save_errno = 0;
+	int fdflags;
 #if !_FFR_WORKERS_POOL
 	sthread_t thread_id;
 #endif /* !_FFR_WORKERS_POOL */
@@ -777,8 +778,9 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 				continue;
 			scnt++;
 			smi_log(SMI_LOG_ERR,
-				"%s: select() failed (%s), %s",
-				smfi->xxfi_name, sm_errstring(save_errno),
+				"%s: %s() failed (%s), %s",
+				smfi->xxfi_name, MI_POLLSELECT,
+				sm_errstring(save_errno),
 				scnt >= MAX_FAILS_S ? "abort" : "try again");
 			MI_SLEEP(scnt);
 			if (scnt >= MAX_FAILS_S)
@@ -883,6 +885,20 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 			dupfd = INVALID_SOCKET;
 		}
 #endif /* _FFR_DUP_FD */
+
+ 		/*
+		**  Need to set close-on-exec for connfd in case a user's
+		**  filter starts other applications.
+		**  Note: errors will not stop processing (for now).
+		*/
+
+		if ((fdflags = fcntl(connfd, F_GETFD, 0)) == -1 ||
+		    fcntl(connfd, F_SETFD, fdflags | FD_CLOEXEC) == -1)
+		{
+			smi_log(SMI_LOG_ERR,
+				"%s: Unable to set close-on-exec: %s",
+				smfi->xxfi_name, sm_errstring(errno));
+		}
 
 		if (setsockopt(connfd, SOL_SOCKET, SO_KEEPALIVE,
 				(void *) &sockopt, sizeof sockopt) < 0)

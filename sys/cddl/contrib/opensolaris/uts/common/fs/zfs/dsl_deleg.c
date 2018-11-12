@@ -19,8 +19,8 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  */
 
 /*
@@ -66,8 +66,6 @@
  * The ZAP OBJ is referred to as the jump object.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <sys/dmu.h>
 #include <sys/dmu_objset.h>
 #include <sys/dmu_tx.h>
@@ -77,8 +75,6 @@
 #include <sys/dsl_synctask.h>
 #include <sys/dsl_deleg.h>
 #include <sys/spa.h>
-#include <sys/spa_impl.h>
-#include <sys/zio_checksum.h> /* for the default checksum value */
 #include <sys/zap.h>
 #include <sys/fs/zfs.h>
 #include <sys/cred.h>
@@ -111,7 +107,7 @@ dsl_deleg_can_allow(char *ddname, nvlist_t *nvp, cred_t *cr)
 			const char *perm = nvpair_name(permpair);
 
 			if (strcmp(perm, ZFS_DELEG_PERM_ALLOW) == 0)
-				return (EPERM);
+				return (SET_ERROR(EPERM));
 
 			if ((error = dsl_deleg_access(ddname, perm, cr)) != 0)
 				return (error);
@@ -143,42 +139,49 @@ dsl_deleg_can_unallow(char *ddname, nvlist_t *nvp, cred_t *cr)
 
 		if (type != ZFS_DELEG_USER &&
 		    type != ZFS_DELEG_USER_SETS)
-			return (EPERM);
+			return (SET_ERROR(EPERM));
 
 		if (strcmp(idstr, &nvpair_name(whopair)[3]) != 0)
-			return (EPERM);
+			return (SET_ERROR(EPERM));
 	}
 	return (0);
 }
 
-static void
-dsl_deleg_set_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
-{
-	dsl_dir_t *dd = arg1;
-	nvlist_t *nvp = arg2;
-	objset_t *mos = dd->dd_pool->dp_meta_objset;
-	nvpair_t *whopair = NULL;
-	uint64_t zapobj = dd->dd_phys->dd_deleg_zapobj;
+typedef struct dsl_deleg_arg {
+	const char *dda_name;
+	nvlist_t *dda_nvlist;
+} dsl_deleg_arg_t;
 
+static void
+dsl_deleg_set_sync(void *arg, dmu_tx_t *tx)
+{
+	dsl_deleg_arg_t *dda = arg;
+	dsl_dir_t *dd;
+	dsl_pool_t *dp = dmu_tx_pool(tx);
+	objset_t *mos = dp->dp_meta_objset;
+	nvpair_t *whopair = NULL;
+	uint64_t zapobj;
+
+	VERIFY0(dsl_dir_hold(dp, dda->dda_name, FTAG, &dd, NULL));
+
+	zapobj = dsl_dir_phys(dd)->dd_deleg_zapobj;
 	if (zapobj == 0) {
 		dmu_buf_will_dirty(dd->dd_dbuf, tx);
-		zapobj = dd->dd_phys->dd_deleg_zapobj = zap_create(mos,
+		zapobj = dsl_dir_phys(dd)->dd_deleg_zapobj = zap_create(mos,
 		    DMU_OT_DSL_PERMS, DMU_OT_NONE, 0, tx);
 	}
 
-	while (whopair = nvlist_next_nvpair(nvp, whopair)) {
+	while (whopair = nvlist_next_nvpair(dda->dda_nvlist, whopair)) {
 		const char *whokey = nvpair_name(whopair);
 		nvlist_t *perms;
 		nvpair_t *permpair = NULL;
 		uint64_t jumpobj;
 
-		VERIFY(nvpair_value_nvlist(whopair, &perms) == 0);
+		perms = fnvpair_value_nvlist(whopair);
 
 		if (zap_lookup(mos, zapobj, whokey, 8, 1, &jumpobj) != 0) {
-			jumpobj = zap_create(mos, DMU_OT_DSL_PERMS,
-			    DMU_OT_NONE, 0, tx);
-			VERIFY(zap_update(mos, zapobj,
-			    whokey, 8, 1, &jumpobj, tx) == 0);
+			jumpobj = zap_create_link(mos, DMU_OT_DSL_PERMS,
+			    zapobj, whokey, tx);
 		}
 
 		while (permpair = nvlist_next_nvpair(perms, permpair)) {
@@ -187,27 +190,31 @@ dsl_deleg_set_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 
 			VERIFY(zap_update(mos, jumpobj,
 			    perm, 8, 1, &n, tx) == 0);
-			spa_history_internal_log(LOG_DS_PERM_UPDATE,
-			    dd->dd_pool->dp_spa, tx, cr,
-			    "%s %s dataset = %llu", whokey, perm,
-			    dd->dd_phys->dd_head_dataset_obj);
+			spa_history_log_internal_dd(dd, "permission update", tx,
+			    "%s %s", whokey, perm);
 		}
 	}
+	dsl_dir_rele(dd, FTAG);
 }
 
 static void
-dsl_deleg_unset_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
+dsl_deleg_unset_sync(void *arg, dmu_tx_t *tx)
 {
-	dsl_dir_t *dd = arg1;
-	nvlist_t *nvp = arg2;
-	objset_t *mos = dd->dd_pool->dp_meta_objset;
+	dsl_deleg_arg_t *dda = arg;
+	dsl_dir_t *dd;
+	dsl_pool_t *dp = dmu_tx_pool(tx);
+	objset_t *mos = dp->dp_meta_objset;
 	nvpair_t *whopair = NULL;
-	uint64_t zapobj = dd->dd_phys->dd_deleg_zapobj;
+	uint64_t zapobj;
 
-	if (zapobj == 0)
+	VERIFY0(dsl_dir_hold(dp, dda->dda_name, FTAG, &dd, NULL));
+	zapobj = dsl_dir_phys(dd)->dd_deleg_zapobj;
+	if (zapobj == 0) {
+		dsl_dir_rele(dd, FTAG);
 		return;
+	}
 
-	while (whopair = nvlist_next_nvpair(nvp, whopair)) {
+	while (whopair = nvlist_next_nvpair(dda->dda_nvlist, whopair)) {
 		const char *whokey = nvpair_name(whopair);
 		nvlist_t *perms;
 		nvpair_t *permpair = NULL;
@@ -219,10 +226,8 @@ dsl_deleg_unset_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 				(void) zap_remove(mos, zapobj, whokey, tx);
 				VERIFY(0 == zap_destroy(mos, jumpobj, tx));
 			}
-			spa_history_internal_log(LOG_DS_PERM_WHO_REMOVE,
-			    dd->dd_pool->dp_spa, tx, cr,
-			    "%s dataset = %llu", whokey,
-			    dd->dd_phys->dd_head_dataset_obj);
+			spa_history_log_internal_dd(dd, "permission who remove",
+			    tx, "%s", whokey);
 			continue;
 		}
 
@@ -240,41 +245,44 @@ dsl_deleg_unset_sync(void *arg1, void *arg2, cred_t *cr, dmu_tx_t *tx)
 				VERIFY(0 == zap_destroy(mos,
 				    jumpobj, tx));
 			}
-			spa_history_internal_log(LOG_DS_PERM_REMOVE,
-			    dd->dd_pool->dp_spa, tx, cr,
-			    "%s %s dataset = %llu", whokey, perm,
-			    dd->dd_phys->dd_head_dataset_obj);
+			spa_history_log_internal_dd(dd, "permission remove", tx,
+			    "%s %s", whokey, perm);
 		}
 	}
+	dsl_dir_rele(dd, FTAG);
+}
+
+static int
+dsl_deleg_check(void *arg, dmu_tx_t *tx)
+{
+	dsl_deleg_arg_t *dda = arg;
+	dsl_dir_t *dd;
+	int error;
+
+	if (spa_version(dmu_tx_pool(tx)->dp_spa) <
+	    SPA_VERSION_DELEGATED_PERMS) {
+		return (SET_ERROR(ENOTSUP));
+	}
+
+	error = dsl_dir_hold(dmu_tx_pool(tx), dda->dda_name, FTAG, &dd, NULL);
+	if (error == 0)
+		dsl_dir_rele(dd, FTAG);
+	return (error);
 }
 
 int
 dsl_deleg_set(const char *ddname, nvlist_t *nvp, boolean_t unset)
 {
-	dsl_dir_t *dd;
-	int error;
-	nvpair_t *whopair = NULL;
-	int blocks_modified = 0;
+	dsl_deleg_arg_t dda;
 
-	error = dsl_dir_open(ddname, FTAG, &dd, NULL);
-	if (error)
-		return (error);
+	/* nvp must already have been verified to be valid */
 
-	if (spa_version(dmu_objset_spa(dd->dd_pool->dp_meta_objset)) <
-	    SPA_VERSION_DELEGATED_PERMS) {
-		dsl_dir_close(dd, FTAG);
-		return (ENOTSUP);
-	}
+	dda.dda_name = ddname;
+	dda.dda_nvlist = nvp;
 
-	while (whopair = nvlist_next_nvpair(nvp, whopair))
-		blocks_modified++;
-
-	error = dsl_sync_task_do(dd->dd_pool, NULL,
+	return (dsl_sync_task(ddname, dsl_deleg_check,
 	    unset ? dsl_deleg_unset_sync : dsl_deleg_set_sync,
-	    dd, nvp, blocks_modified);
-	dsl_dir_close(dd, FTAG);
-
-	return (error);
+	    &dda, fnvlist_num_pairs(nvp), ZFS_SPACE_CHECK_RESERVED));
 }
 
 /*
@@ -302,34 +310,36 @@ dsl_deleg_get(const char *ddname, nvlist_t **nvp)
 	int error;
 	objset_t *mos;
 
-	error = dsl_dir_open(ddname, FTAG, &startdd, NULL);
-	if (error)
+	error = dsl_pool_hold(ddname, FTAG, &dp);
+	if (error != 0)
 		return (error);
+
+	error = dsl_dir_hold(dp, ddname, FTAG, &startdd, NULL);
+	if (error != 0) {
+		dsl_pool_rele(dp, FTAG);
+		return (error);
+	}
 
 	dp = startdd->dd_pool;
 	mos = dp->dp_meta_objset;
 
 	VERIFY(nvlist_alloc(nvp, NV_UNIQUE_NAME, KM_SLEEP) == 0);
 
-	rw_enter(&dp->dp_config_rwlock, RW_READER);
 	for (dd = startdd; dd != NULL; dd = dd->dd_parent) {
 		zap_cursor_t basezc;
 		zap_attribute_t baseza;
 		nvlist_t *sp_nvp;
 		uint64_t n;
-		char source[MAXNAMELEN];
+		char source[ZFS_MAX_DATASET_NAME_LEN];
 
-		if (dd->dd_phys->dd_deleg_zapobj &&
-		    (zap_count(mos, dd->dd_phys->dd_deleg_zapobj,
-		    &n) == 0) && n) {
-			VERIFY(nvlist_alloc(&sp_nvp,
-			    NV_UNIQUE_NAME, KM_SLEEP) == 0);
-		} else {
+		if (dsl_dir_phys(dd)->dd_deleg_zapobj == 0 ||
+		    zap_count(mos,
+		    dsl_dir_phys(dd)->dd_deleg_zapobj, &n) != 0 || n == 0)
 			continue;
-		}
 
+		sp_nvp = fnvlist_alloc();
 		for (zap_cursor_init(&basezc, mos,
-		    dd->dd_phys->dd_deleg_zapobj);
+		    dsl_dir_phys(dd)->dd_deleg_zapobj);
 		    zap_cursor_retrieve(&basezc, &baseza) == 0;
 		    zap_cursor_advance(&basezc)) {
 			zap_cursor_t zc;
@@ -339,29 +349,26 @@ dsl_deleg_get(const char *ddname, nvlist_t **nvp)
 			ASSERT(baseza.za_integer_length == 8);
 			ASSERT(baseza.za_num_integers == 1);
 
-			VERIFY(nvlist_alloc(&perms_nvp,
-			    NV_UNIQUE_NAME, KM_SLEEP) == 0);
+			perms_nvp = fnvlist_alloc();
 			for (zap_cursor_init(&zc, mos, baseza.za_first_integer);
 			    zap_cursor_retrieve(&zc, &za) == 0;
 			    zap_cursor_advance(&zc)) {
-				VERIFY(nvlist_add_boolean(perms_nvp,
-				    za.za_name) == 0);
+				fnvlist_add_boolean(perms_nvp, za.za_name);
 			}
 			zap_cursor_fini(&zc);
-			VERIFY(nvlist_add_nvlist(sp_nvp, baseza.za_name,
-			    perms_nvp) == 0);
-			nvlist_free(perms_nvp);
+			fnvlist_add_nvlist(sp_nvp, baseza.za_name, perms_nvp);
+			fnvlist_free(perms_nvp);
 		}
 
 		zap_cursor_fini(&basezc);
 
 		dsl_dir_name(dd, source);
-		VERIFY(nvlist_add_nvlist(*nvp, source, sp_nvp) == 0);
+		fnvlist_add_nvlist(*nvp, source, sp_nvp);
 		nvlist_free(sp_nvp);
 	}
-	rw_exit(&dp->dp_config_rwlock);
 
-	dsl_dir_close(startdd, FTAG);
+	dsl_dir_rele(startdd, FTAG);
+	dsl_pool_rele(dp, FTAG);
 	return (0);
 }
 
@@ -410,7 +417,7 @@ dsl_check_access(objset_t *mos, uint64_t zapobj,
 	if (error == 0) {
 		error = zap_lookup(mos, jumpobj, perm, 8, 1, &zero);
 		if (error == ENOENT)
-			error = EPERM;
+			error = SET_ERROR(EPERM);
 	}
 	return (error);
 }
@@ -455,7 +462,7 @@ dsl_check_user_access(objset_t *mos, uint64_t zapobj, const char *perm,
 			return (0);
 	}
 
-	return (EPERM);
+	return (SET_ERROR(EPERM));
 }
 
 /*
@@ -533,40 +540,41 @@ dsl_load_user_sets(objset_t *mos, uint64_t zapobj, avl_tree_t *avl,
  * Check if user has requested permission.
  */
 int
-dsl_deleg_access(const char *dsname, const char *perm, cred_t *cr)
+dsl_deleg_access_impl(dsl_dataset_t *ds, const char *perm, cred_t *cr)
 {
-	dsl_dataset_t *ds;
 	dsl_dir_t *dd;
 	dsl_pool_t *dp;
 	void *cookie;
 	int	error;
-	char	checkflag = ZFS_DELEG_LOCAL;
+	char	checkflag;
 	objset_t *mos;
 	avl_tree_t permsets;
 	perm_set_t *setnode;
 
-	error = dsl_dataset_hold(dsname, FTAG, &ds);
-	if (error)
-		return (error);
-
 	dp = ds->ds_dir->dd_pool;
 	mos = dp->dp_meta_objset;
 
-	if (dsl_delegation_on(mos) == B_FALSE) {
-		dsl_dataset_rele(ds, FTAG);
-		return (ECANCELED);
-	}
+	if (dsl_delegation_on(mos) == B_FALSE)
+		return (SET_ERROR(ECANCELED));
 
 	if (spa_version(dmu_objset_spa(dp->dp_meta_objset)) <
-	    SPA_VERSION_DELEGATED_PERMS) {
-		dsl_dataset_rele(ds, FTAG);
-		return (EPERM);
+	    SPA_VERSION_DELEGATED_PERMS)
+		return (SET_ERROR(EPERM));
+
+	if (ds->ds_is_snapshot) {
+		/*
+		 * Snapshots are treated as descendents only,
+		 * local permissions do not apply.
+		 */
+		checkflag = ZFS_DELEG_DESCENDENT;
+	} else {
+		checkflag = ZFS_DELEG_LOCAL;
 	}
 
 	avl_create(&permsets, perm_set_compare, sizeof (perm_set_t),
 	    offsetof(perm_set_t, p_node));
 
-	rw_enter(&dp->dp_config_rwlock, RW_READER);
+	ASSERT(dsl_pool_config_held(dp));
 	for (dd = ds->ds_dir; dd != NULL; dd = dd->dd_parent,
 	    checkflag = ZFS_DELEG_DESCENDENT) {
 		uint64_t zapobj;
@@ -581,12 +589,12 @@ dsl_deleg_access(const char *dsname, const char *perm, cred_t *cr)
 
 			if (dsl_prop_get_dd(dd,
 			    zfs_prop_to_name(ZFS_PROP_ZONED),
-			    8, 1, &zoned, NULL) != 0)
+			    8, 1, &zoned, NULL, B_FALSE) != 0)
 				break;
 			if (!zoned)
 				break;
 		}
-		zapobj = dd->dd_phys->dd_deleg_zapobj;
+		zapobj = dsl_dir_phys(dd)->dd_deleg_zapobj;
 
 		if (zapobj == 0)
 			continue;
@@ -625,14 +633,32 @@ again:
 		if (error == 0)
 			goto success;
 	}
-	error = EPERM;
+	error = SET_ERROR(EPERM);
 success:
-	rw_exit(&dp->dp_config_rwlock);
-	dsl_dataset_rele(ds, FTAG);
 
 	cookie = NULL;
 	while ((setnode = avl_destroy_nodes(&permsets, &cookie)) != NULL)
 		kmem_free(setnode, sizeof (perm_set_t));
+
+	return (error);
+}
+
+int
+dsl_deleg_access(const char *dsname, const char *perm, cred_t *cr)
+{
+	dsl_pool_t *dp;
+	dsl_dataset_t *ds;
+	int error;
+
+	error = dsl_pool_hold(dsname, FTAG, &dp);
+	if (error != 0)
+		return (error);
+	error = dsl_dataset_hold(dp, dsname, FTAG, &ds);
+	if (error == 0) {
+		error = dsl_deleg_access_impl(ds, perm, cr);
+		dsl_dataset_rele(ds, FTAG);
+	}
+	dsl_pool_rele(dp, FTAG);
 
 	return (error);
 }
@@ -647,7 +673,7 @@ copy_create_perms(dsl_dir_t *dd, uint64_t pzapobj,
 {
 	objset_t *mos = dd->dd_pool->dp_meta_objset;
 	uint64_t jumpobj, pjumpobj;
-	uint64_t zapobj = dd->dd_phys->dd_deleg_zapobj;
+	uint64_t zapobj = dsl_dir_phys(dd)->dd_deleg_zapobj;
 	zap_cursor_t zc;
 	zap_attribute_t za;
 	char whokey[ZFS_MAX_DELEG_NAME];
@@ -660,7 +686,7 @@ copy_create_perms(dsl_dir_t *dd, uint64_t pzapobj,
 
 	if (zapobj == 0) {
 		dmu_buf_will_dirty(dd->dd_dbuf, tx);
-		zapobj = dd->dd_phys->dd_deleg_zapobj = zap_create(mos,
+		zapobj = dsl_dir_phys(dd)->dd_deleg_zapobj = zap_create(mos,
 		    DMU_OT_DSL_PERMS, DMU_OT_NONE, 0, tx);
 	}
 
@@ -698,7 +724,7 @@ dsl_deleg_set_create_perms(dsl_dir_t *sdd, dmu_tx_t *tx, cred_t *cr)
 		return;
 
 	for (dd = sdd->dd_parent; dd != NULL; dd = dd->dd_parent) {
-		uint64_t pzapobj = dd->dd_phys->dd_deleg_zapobj;
+		uint64_t pzapobj = dsl_dir_phys(dd)->dd_deleg_zapobj;
 
 		if (pzapobj == 0)
 			continue;
@@ -731,5 +757,5 @@ dsl_deleg_destroy(objset_t *mos, uint64_t zapobj, dmu_tx_t *tx)
 boolean_t
 dsl_delegation_on(objset_t *os)
 {
-	return (os->os->os_spa->spa_delegation);
+	return (!!spa_delegation(os->os_spa));
 }

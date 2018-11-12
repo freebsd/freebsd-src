@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -107,6 +107,15 @@ function
 deletes all instances of the variable name pointed to by
 .Fa name
 from the list.
+.Pp
+If corruption (e.g., a name without a value) is detected while making a copy of
+environ for internal usage, then
+.Fn setenv ,
+.Fn unsetenv
+and
+.Fn putenv
+will output a warning to stderr about the issue, drop the corrupt entry and
+complete the task without error.
 .Sh RETURN VALUES
 The
 .Fn getenv
@@ -143,7 +152,8 @@ failed because
 is a
 .Dv NULL
 pointer,
-.Fa string is without an
+.Fa string
+is without an
 .Dq Li \&=
 character or
 .Dq Li \&=
@@ -159,15 +169,6 @@ The function
 or
 .Fn putenv
 failed because they were unable to allocate memory for the environment.
-.It Bq Er EFAULT
-The functions
-.Fn setenv ,
-.Fn unsetenv
-or
-.Fn putenv
-failed to make a valid copy of the environment due to the environment being
-corrupt (i.e., a name without a value).  A warning will be output to stderr with
-information about the issue.
 .El
 .Sh SEE ALSO
 .Xr csh 1 ,
@@ -201,7 +202,7 @@ function appeared in
 Until
 .Fx 7.0 ,
 .Fn putenv
-would make a copy of 
+would make a copy of
 .Fa string
 and insert it into the environment using
 .Fn setenv .

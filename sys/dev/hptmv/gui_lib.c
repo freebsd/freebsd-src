@@ -783,8 +783,8 @@ simple:
 			for(i = 0; i < pArray->u.array.bArnMember; i++)
 				if(pArray->u.array.pMember[i]->VDeviceCapacity < capacity)
 					capacity = pArray->u.array.pMember[i]->VDeviceCapacity;
-			pArray->VDeviceCapacity = (capacity & ~(pArray->u.array.bStripeWitch - 1))
-				* (pArray->u.array.bArnMember - 1);
+			pArray->VDeviceCapacity = rounddown2(capacity, pArray->u.array.bStripeWitch) *
+			    (pArray->u.array.bArnMember - 1);
 			break;
 
 		default:

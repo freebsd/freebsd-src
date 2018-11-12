@@ -30,8 +30,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/asi.h>
 #include <machine/asmacros.h>
 #include <machine/intr_machdep.h>
-#include <machine/ktr.h>
 #include <machine/pstate.h>
+#include <machine/ver.h>
 
 #include "assym.s"
 
@@ -83,8 +83,11 @@ ENTRY(intr_vector)
 	 * The 2nd word points to code to execute and the 3rd is an argument
 	 * to pass.  Jump to it.
 	 */
-	brnz,a,pt %g3, 1f
-	 nop
+	brnz,pt %g3, 1f
+	/*
+	 * NB: Zeus CPUs set some undocumented bits in the first data word.
+	 */
+	 and	%g3, IV_MAX - 1, %g3
 	jmpl	%g4, %g0
 	 nop
 	/* NOTREACHED */
@@ -150,6 +153,29 @@ ENTRY(intr_vector)
 	retry
 END(intr_vector)
 
+ENTRY(intr_vector_stray)
+	/*
+	 * SPARC64-VI trigger stray vector interrupts in order to indicate
+	 * uncorrectable errors in interrupt packets, which still need to be
+	 * acknowledged though.
+	 * US-IV occasionally trigger stray vector interrupts for reasons
+	 * unknown accompanied by a state in which they even fault on locked
+	 * TLB entries so we can't even log these here.  Just retrying the
+	 * instruction in that case gets the CPU back on track.
+	 */
+	rdpr	%ver, %g1
+	srlx	%g1, VER_IMPL_SHIFT, %g1
+	sll	%g1, VER_IMPL_SIZE, %g1
+	srl	%g1, VER_IMPL_SIZE, %g1
+	cmp	%g1, CPU_IMPL_SPARC64VI
+	bne,a,pn %icc, 1f
+	 nop
+	stxa	%g0, [%g0] ASI_INTR_RECEIVE
+	membar	#Sync
+
+1:	retry
+END(intr_vector_stray)
+
 ENTRY(intr_fast)
 	save	%sp, -CCFSZ, %sp
 
@@ -176,7 +202,7 @@ ENTRY(intr_fast)
 
 3:	ldx	[%l0 + IR_FUNC], %o0
 	ldx	[%l0 + IR_ARG], %o1
-	lduw	[%l0 + IR_VEC], %o2
+	lduw	[%l0 + IR_VEC], %l2
 
 	ldx	[PCPU(IRFREE)], %l1
 	stx	%l1, [%l0 + IR_NEXT]
@@ -188,17 +214,17 @@ ENTRY(intr_fast)
 	call	%o0
 	 mov	%o1, %o0
 
-	/* intrcnt[intr_countp[%o2]]++ */
-	SET(intrcnt, %l7, %l2)		/* %l2 = intrcnt */
-	prefetcha [%l2] ASI_N, 1
-	SET(intr_countp, %l7, %l3)	/* %l3 = intr_countp */
-	sllx	%o2, 1, %l4		/* %l4 = vec << 1 */
-	lduh	[%l4 + %l3], %l5	/* %l5 = intr_countp[%o2] */
-	sllx	%l5, 3, %l6		/* %l6 = intr_countp[%o2] << 3 */
-	add	%l6, %l2, %l7		/* %l7 = intrcnt[intr_countp[%o2]] */
-	ldx	[%l7], %l2
+	/* intrcnt[intr_countp[%l2]]++ */
+	SET(intrcnt, %l7, %l3)		/* %l3 = intrcnt */
+	prefetcha [%l3] ASI_N, 1
+	SET(intr_countp, %l7, %l4)	/* %l4 = intr_countp */
+	sllx	%l2, 1, %l2		/* %l2 = vec << 1 */
+	lduh	[%l4 + %l2], %l4	/* %l4 = intr_countp[%l2] */
+	sllx	%l4, 3, %l4		/* %l4 = intr_countp[%l2] << 3 */
+	add	%l4, %l3, %l4		/* %l4 = intrcnt[intr_countp[%l2]] */
+	ldx	[%l4], %l2
 	inc	%l2
-	stx	%l2, [%l7]
+	stx	%l2, [%l4]
 
 	ba,a	%xcc, 1b
 	 nop

@@ -38,25 +38,22 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
-#include <dirent.h>
-#include <paths.h>
+
+#include <sys/types.h>
+#include <sys/sysctl.h>
 
 static char zapchar;
 static FILE *tf;
-static int maxpts = -1;
-static int curpts = 0;
 static size_t lbsize;
 static char *line;
 
-#define PTS "pts/"
 #define	MALLOCCHUNK	100
 
 static char *skip(char *);
 static char *value(char *);
 
 struct ttyent *
-getttynam(tty)
-	const char *tty;
+getttynam(const char *tty)
 {
 	struct ttyent *t;
 
@@ -70,11 +67,40 @@ getttynam(tty)
 	return (t);
 }
 
+static int
+auto_tty_status(const char *ty_name)
+{
+	size_t len;
+	char *buf, *cons, *nextcons;
+
+	/* Check if this is an enabled kernel console line */
+	buf = NULL;
+	if (sysctlbyname("kern.console", NULL, &len, NULL, 0) == -1)
+		return (0); /* Errors mean don't enable */
+	buf = malloc(len);
+	if (sysctlbyname("kern.console", buf, &len, NULL, 0) == -1)
+		goto done;
+
+	if ((cons = strchr(buf, '/')) == NULL)
+		goto done;
+	*cons = '\0';
+	nextcons = buf;
+	while ((cons = strsep(&nextcons, ",")) != NULL && strlen(cons) != 0) {
+		if (strcmp(cons, ty_name) == 0) {
+			free(buf);
+			return (TTY_ON);
+		}
+	}
+
+done:
+	free(buf);
+	return (0);
+}
+
 struct ttyent *
-getttyent()
+getttyent(void)
 {
 	static struct ttyent tty;
-	static char devpts_name[] = "pts/4294967295";
 	char *p;
 	int c;
 	size_t i;
@@ -82,21 +108,10 @@ getttyent()
 	if (!tf && !setttyent())
 		return (NULL);
 	for (;;) {
-		if (!fgets(p = line, lbsize, tf)) {
-			if (curpts <= maxpts) {
-				sprintf(devpts_name, "pts/%d", curpts++);
-				tty.ty_name = devpts_name;
-				tty.ty_getty = tty.ty_type = NULL;
-				tty.ty_status = TTY_NETWORK;
-				tty.ty_window = NULL;   
-				tty.ty_comment = NULL;
-				tty.ty_group  = _TTYS_NOGROUP; 	
-				return (&tty);
-			}
+		if (!fgets(p = line, lbsize, tf))
 			return (NULL);
-		}
 		/* extend buffer if line was too big, and retry */
-		while (!index(p, '\n') && !feof(tf)) {
+		while (!strchr(p, '\n') && !feof(tf)) {
 			i = strlen(p);
 			lbsize += MALLOCCHUNK;
 			if ((p = realloc(line, lbsize)) == NULL) {
@@ -144,6 +159,8 @@ getttyent()
 			tty.ty_status &= ~TTY_ON;
 		else if (scmp(_TTYS_ON))
 			tty.ty_status |= TTY_ON;
+		else if (scmp(_TTYS_ONIFCONSOLE))
+			tty.ty_status |= auto_tty_status(tty.ty_name);
 		else if (scmp(_TTYS_SECURE))
 			tty.ty_status |= TTY_SECURE;
 		else if (scmp(_TTYS_INSECURE))
@@ -166,7 +183,7 @@ getttyent()
 	tty.ty_comment = p;
 	if (*p == 0)
 		tty.ty_comment = 0;
-	if ( (p = index(p, '\n')) )
+	if ((p = strchr(p, '\n')))
 		*p = '\0';
 	return (&tty);
 }
@@ -178,8 +195,7 @@ getttyent()
  * the next field.
  */
 static char *
-skip(p)
-	char *p;
+skip(char *p)
 {
 	char *t;
 	int c, q;
@@ -212,53 +228,34 @@ skip(p)
 }
 
 static char *
-value(p)
-	char *p;
+value(char *p)
 {
 
-	return ((p = index(p, '=')) ? ++p : NULL);
+	return ((p = strchr(p, '=')) ? ++p : NULL);
 }
 
 int
-setttyent()
+setttyent(void)
 {
-	DIR *devpts_dir;
 
 	if (line == NULL) {
 		if ((line = malloc(MALLOCCHUNK)) == NULL)
 			return (0);
 		lbsize = MALLOCCHUNK;
 	}
-	devpts_dir = opendir(_PATH_DEV PTS);
-	if (devpts_dir) {
-		struct dirent *dp;
-
-		maxpts = -1;
-		while ((dp = readdir(devpts_dir))) {
-			if (strcmp(dp->d_name, ".") != 0 &&
-			    strcmp(dp->d_name, "..") != 0) {
-				if (atoi(dp->d_name) > maxpts) {
-					maxpts = atoi(dp->d_name);
-					curpts = 0;
-				}
-			}
-		}
-		closedir(devpts_dir);
-	}
 	if (tf) {
 		rewind(tf);
 		return (1);
-	} else if ( (tf = fopen(_PATH_TTYS, "r")) )
+	} else if ( (tf = fopen(_PATH_TTYS, "re")) )
 		return (1);
 	return (0);
 }
 
 int
-endttyent()
+endttyent(void)
 {
 	int rval;
 
-	maxpts = -1;
 	/*
          * NB: Don't free `line' because getttynam()
 	 * may still be referencing it
@@ -272,9 +269,7 @@ endttyent()
 }
 
 static int
-isttystat(tty, flag)
-	const char *tty;
-	int flag;
+isttystat(const char *tty, int flag)
 {
 	struct ttyent *t;
 
@@ -283,15 +278,14 @@ isttystat(tty, flag)
 
 
 int
-isdialuptty(tty)
-	const char *tty;
+isdialuptty(const char *tty)
 {
 
 	return isttystat(tty, TTY_DIALUP);
 }
 
-int isnettty(tty)
-	const char *tty;
+int
+isnettty(const char *tty)
 {
 
 	return isttystat(tty, TTY_NETWORK);

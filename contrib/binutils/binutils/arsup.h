@@ -1,5 +1,6 @@
 /* arsup.h - archive support header file
-   Copyright 1992, 1993, 1994, 1996, 2003 Free Software Foundation, Inc.
+   Copyright 1992, 1993, 1994, 1996, 2001, 2002, 2003
+   Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -15,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 struct list {
 	char *name;

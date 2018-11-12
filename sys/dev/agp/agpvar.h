@@ -122,4 +122,23 @@ int agp_unbind_memory(device_t dev, void *handle);
  */
 void agp_memory_info(device_t dev, void *handle, struct agp_memory_info *mi);
 
+/*
+ * Bind a set of pages at a given offset within the AGP aperture.
+ * Returns EINVAL if the given size or offset is not at an AGP page boundary.
+ */
+int agp_bind_pages(device_t dev, vm_page_t *pages, vm_size_t size,
+		   vm_offset_t offset);
+
+/*
+ * Unbind a set of pages from the AGP aperture.
+ * Returns EINVAL if the given size or offset is not at an AGP page boundary.
+ */
+int agp_unbind_pages(device_t dev, vm_size_t size, vm_offset_t offset);
+
+#define AGP_NORMAL_MEMORY 0
+
+#define AGP_USER_TYPES (1 << 16)
+#define AGP_USER_MEMORY (AGP_USER_TYPES)
+#define AGP_USER_CACHED_MEMORY (AGP_USER_TYPES + 1)
+
 #endif /* !_PCI_AGPVAR_H_ */

@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998, 1999 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@ divert(-1)
 #
 #
 divert(0)
-VERSIONID(`$Id: unspecified-domain.m4,v 8.10 1999/02/07 07:26:07 gshapiro Exp $')
+VERSIONID(`$Id: unspecified-domain.m4,v 8.11 2013-11-22 20:51:10 ca Exp $')
 errprint(`*** ERROR: You are trying to use the Berkeley sample configuration')
 errprint(`	files outside of the Computer Science Division at Berkeley.')
 errprint(`	The configuration (.mc) files must be customized to reference')

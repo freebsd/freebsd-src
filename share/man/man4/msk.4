@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 28, 2009
+.Dd May 23, 2011
 .Dt MSK 4
 .Os
 .Sh NAME
@@ -125,27 +125,6 @@ Force full duplex operation.
 Force half duplex operation.
 .El
 .Pp
-The
-.Nm
-driver also supports one special link option for 1000baseTX cards:
-.Bl -tag -width ".Cm link0"
-.It Cm link0
-With 1000baseTX cards, establishing a link between two ports requires
-that one port is configured as master and the other one as slave.
-With autonegotiation,
-the master/slave settings will be chosen automatically.
-However when manually selecting the link state, it is necessary to
-force one side of the link to be a master and the other a slave.
-The
-.Nm
-driver configures the ports as slaves by default.
-Setting the
-.Cm link0
-flag with
-.Xr ifconfig 8
-will set a port as a master instead.
-.El
-.Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Sh HARDWARE
@@ -190,6 +169,8 @@ Marvell Yukon 88E8040 Fast Ethernet
 .It
 Marvell Yukon 88E8040T Fast Ethernet
 .It
+Marvell Yukon 88E8042 Fast Ethernet
+.It
 Marvell Yukon 88E8048 Fast Ethernet
 .It
 Marvell Yukon 88E8050 Gigabit Ethernet
@@ -202,13 +183,19 @@ Marvell Yukon 88E8055 Gigabit Ethernet
 .It
 Marvell Yukon 88E8056 Gigabit Ethernet
 .It
+Marvell Yukon 88E8057 Gigabit Ethernet
+.It
 Marvell Yukon 88E8058 Gigabit Ethernet
+.It
+Marvell Yukon 88E8059 Gigabit Ethernet
 .It
 Marvell Yukon 88E8070 Gigabit Ethernet
 .It
 Marvell Yukon 88E8071 Gigabit Ethernet
 .It
 Marvell Yukon 88E8072 Gigabit Ethernet
+.It
+Marvell Yukon 88E8075 Gigabit Ethernet
 .It
 SysKonnect SK-9Sxx Gigabit Ethernet
 .It
@@ -231,6 +218,12 @@ variables and
 .Xr loader 8
 tunables:
 .Bl -tag -width indent
+.It Va dev.mskc.%d.int_holdoff
+Maximum number of time to delay interrupts.
+The valid range is 0 to 34359738 for 125MHz clock in units of 1us,
+the default is 100 (100us).
+The interface need to be brought down and up again before a change
+takes effect.
 .It Va dev.mskc.%d.process_limit
 Maximum amount of Rx events to be processed in the event loop before
 rescheduling a taskqueue.
@@ -250,8 +243,7 @@ a change takes effect.
 The
 .Nm
 driver was written by
-.An Pyun YongHyeon
-.Aq yongari@FreeBSD.org
+.An Pyun YongHyeon Aq Mt yongari@FreeBSD.org
 and it is based on
 .Xr sk 4
 and Marvell's

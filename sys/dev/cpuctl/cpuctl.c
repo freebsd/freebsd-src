@@ -63,17 +63,21 @@ static d_ioctl_t cpuctl_ioctl;
 # define	DPRINTF(...)
 #endif
 
-#define	UCODE_SIZE_MAX	(10 * 1024)
+#define	UCODE_SIZE_MAX	(32 * 1024)
 
 static int cpuctl_do_msr(int cpu, cpuctl_msr_args_t *data, u_long cmd,
     struct thread *td);
 static int cpuctl_do_cpuid(int cpu, cpuctl_cpuid_args_t *data,
+    struct thread *td);
+static int cpuctl_do_cpuid_count(int cpu, cpuctl_cpuid_count_args_t *data,
     struct thread *td);
 static int cpuctl_do_update(int cpu, cpuctl_update_args_t *data,
     struct thread *td);
 static int update_intel(int cpu, cpuctl_update_args_t *args,
     struct thread *td);
 static int update_amd(int cpu, cpuctl_update_args_t *args, struct thread *td);
+static int update_via(int cpu, cpuctl_update_args_t *args,
+    struct thread *td);
 
 static struct cdev **cpuctl_devs;
 static MALLOC_DEFINE(M_CPUCTL, "cpuctl", "CPUCTL buffer");
@@ -116,20 +120,20 @@ static void
 set_cpu(int cpu, struct thread *td)
 {
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus && cpu_enabled(cpu),
+	KASSERT(cpu >= 0 && cpu <= mp_maxid && cpu_enabled(cpu),
 	    ("[cpuctl,%d]: bad cpu number %d", __LINE__, cpu));
 	thread_lock(td);
 	sched_bind(td, cpu);
 	thread_unlock(td);
 	KASSERT(td->td_oncpu == cpu,
-	    ("[cpuctl,%d]: cannot bind to target cpu %d", __LINE__, cpu));
+	    ("[cpuctl,%d]: cannot bind to target cpu %d on cpu %d", __LINE__, cpu, td->td_oncpu));
 }
 
 static void
 restore_cpu(int oldcpu, int is_bound, struct thread *td)
 {
 
-	KASSERT(oldcpu >= 0 && oldcpu < mp_ncpus && cpu_enabled(oldcpu),
+	KASSERT(oldcpu >= 0 && oldcpu <= mp_maxid && cpu_enabled(oldcpu),
 	    ("[cpuctl,%d]: bad cpu number %d", __LINE__, oldcpu));
 	thread_lock(td);
 	if (is_bound == 0)
@@ -146,7 +150,7 @@ cpuctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	int ret;
 	int cpu = dev2unit(dev);
 
-	if (cpu >= mp_ncpus || !cpu_enabled(cpu)) {
+	if (cpu > mp_maxid || !cpu_enabled(cpu)) {
 		DPRINTF("[cpuctl,%d]: bad cpu number %d\n", __LINE__, cpu);
 		return (ENXIO);
 	}
@@ -175,6 +179,10 @@ cpuctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 			goto fail;
 		ret = cpuctl_do_update(cpu, (cpuctl_update_args_t *)data, td);
 		break;
+	case CPUCTL_CPUID_COUNT:
+		ret = cpuctl_do_cpuid_count(cpu,
+		    (cpuctl_cpuid_count_args_t *)data, td);
+		break;
 	default:
 		ret = EINVAL;
 		break;
@@ -187,24 +195,43 @@ fail:
  * Actually perform cpuid operation.
  */
 static int
-cpuctl_do_cpuid(int cpu, cpuctl_cpuid_args_t *data, struct thread *td)
+cpuctl_do_cpuid_count(int cpu, cpuctl_cpuid_count_args_t *data,
+    struct thread *td)
 {
 	int is_bound = 0;
 	int oldcpu;
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu <= mp_maxid,
 	    ("[cpuctl,%d]: bad cpu number %d", __LINE__, cpu));
 
 	/* Explicitly clear cpuid data to avoid returning stale info. */
 	bzero(data->data, sizeof(data->data));
-	DPRINTF("[cpuctl,%d]: retriving cpuid level %#0x for %d cpu\n",
-	    __LINE__, data->level, cpu);
+	DPRINTF("[cpuctl,%d]: retrieving cpuid lev %#0x type %#0x for %d cpu\n",
+	    __LINE__, data->level, data->level_type, cpu);
+#ifdef __i386__
+	if (cpu_id == 0)
+		return (ENODEV);
+#endif
 	oldcpu = td->td_oncpu;
 	is_bound = cpu_sched_is_bound(td);
 	set_cpu(cpu, td);
-	do_cpuid(data->level, data->data);
+	cpuid_count(data->level, data->level_type, data->data);
 	restore_cpu(oldcpu, is_bound, td);
 	return (0);
+}
+
+static int
+cpuctl_do_cpuid(int cpu, cpuctl_cpuid_args_t *data, struct thread *td)
+{
+	cpuctl_cpuid_count_args_t cdata;
+	int error;
+
+	cdata.level = data->level;
+	/* Override the level type. */
+	cdata.level_type = 0;
+	error = cpuctl_do_cpuid_count(cpu, &cdata, td);
+	bcopy(cdata.data, data->data, sizeof(data->data)); /* Ignore error */
+	return (error);
 }
 
 /*
@@ -218,7 +245,7 @@ cpuctl_do_msr(int cpu, cpuctl_msr_args_t *data, u_long cmd, struct thread *td)
 	int oldcpu;
 	int ret;
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu <= mp_maxid,
 	    ("[cpuctl,%d]: bad cpu number %d", __LINE__, cpu));
 
 	/*
@@ -227,6 +254,10 @@ cpuctl_do_msr(int cpu, cpuctl_msr_args_t *data, u_long cmd, struct thread *td)
 	 */
 	DPRINTF("[cpuctl,%d]: operating on MSR %#0x for %d cpu\n", __LINE__,
 	    data->msr, cpu);
+#ifdef __i386__
+	if ((cpu_feature & CPUID_MSR) == 0)
+		return (ENODEV);
+#endif
 	oldcpu = td->td_oncpu;
 	is_bound = cpu_sched_is_bound(td);
 	set_cpu(cpu, td);
@@ -265,24 +296,23 @@ cpuctl_do_update(int cpu, cpuctl_update_args_t *data, struct thread *td)
 	char vendor[13];
 	int ret;
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu <= mp_maxid,
 	    ("[cpuctl,%d]: bad cpu number %d", __LINE__, cpu));
 	DPRINTF("[cpuctl,%d]: XXX %d", __LINE__, cpu);
 
 	ret = cpuctl_do_cpuid(cpu, &args, td);
-	if (ret != 0) {
-		DPRINTF("[cpuctl,%d]: cannot retrive cpuid info for cpu %d",
-		    __LINE__, cpu);
-		return (ENXIO);
-	}
+	if (ret != 0)
+		return (ret);
 	((uint32_t *)vendor)[0] = args.data[1];
 	((uint32_t *)vendor)[1] = args.data[3];
 	((uint32_t *)vendor)[2] = args.data[2];
 	vendor[12] = '\0';
 	if (strncmp(vendor, INTEL_VENDOR_ID, sizeof(INTEL_VENDOR_ID)) == 0)
 		ret = update_intel(cpu, data, td);
-	else if(strncmp(vendor, INTEL_VENDOR_ID, sizeof(AMD_VENDOR_ID)) == 0)
+	else if(strncmp(vendor, AMD_VENDOR_ID, sizeof(AMD_VENDOR_ID)) == 0)
 		ret = update_amd(cpu, data, td);
+	else if(strncmp(vendor, CENTAUR_VENDOR_ID, sizeof(CENTAUR_VENDOR_ID)) == 0)
+		ret = update_via(cpu, data, td);
 	else
 		ret = ENXIO;
 	return (ret);
@@ -291,10 +321,10 @@ cpuctl_do_update(int cpu, cpuctl_update_args_t *data, struct thread *td)
 static int
 update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 {
-	void *ptr = NULL;
+	void *ptr;
 	uint64_t rev0, rev1;
 	uint32_t tmp[4];
-	int is_bound = 0;
+	int is_bound;
 	int oldcpu;
 	int ret;
 
@@ -308,10 +338,11 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	}
 
 	/*
-	 * 16 byte alignment required.
+	 * 16 byte alignment required.  Rely on the fact that
+	 * malloc(9) always returns the pointer aligned at least on
+	 * the size of the allocation.
 	 */
 	ptr = malloc(args->size + 16, M_CPUCTL, M_WAITOK);
-	ptr = (void *)(16 + ((intptr_t)ptr & ~0xf));
 	if (copyin(args->data, ptr, args->size) != 0) {
 		DPRINTF("[cpuctl,%d]: copyin %p->%p of %zd bytes failed",
 		    __LINE__, args->data, ptr, args->size);
@@ -322,7 +353,7 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	is_bound = cpu_sched_is_bound(td);
 	set_cpu(cpu, td);
 	critical_enter();
-	rdmsr_safe(MSR_BIOS_SIGN, &rev0); /* Get current micorcode revision. */
+	rdmsr_safe(MSR_BIOS_SIGN, &rev0); /* Get current microcode revision. */
 
 	/*
 	 * Perform update.
@@ -335,15 +366,14 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	 */
 	do_cpuid(0, tmp);
 	critical_exit();
-	rdmsr_safe(MSR_BIOS_SIGN, &rev1); /* Get new micorcode revision. */
+	rdmsr_safe(MSR_BIOS_SIGN, &rev1); /* Get new microcode revision. */
 	restore_cpu(oldcpu, is_bound, td);
 	if (rev1 > rev0)
 		ret = 0;
 	else
 		ret = EEXIST;
 fail:
-	if (ptr != NULL)
-		contigfree(ptr, args->size, M_CPUCTL);
+	free(ptr, M_CPUCTL);
 	return (ret);
 }
 
@@ -402,6 +432,79 @@ fail:
 	return (ret);
 }
 
+static int
+update_via(int cpu, cpuctl_update_args_t *args, struct thread *td)
+{
+	void *ptr;
+	uint64_t rev0, rev1, res;
+	uint32_t tmp[4];
+	int is_bound;
+	int oldcpu;
+	int ret;
+
+	if (args->size == 0 || args->data == NULL) {
+		DPRINTF("[cpuctl,%d]: zero-sized firmware image", __LINE__);
+		return (EINVAL);
+	}
+	if (args->size > UCODE_SIZE_MAX) {
+		DPRINTF("[cpuctl,%d]: firmware image too large", __LINE__);
+		return (EINVAL);
+	}
+
+	/*
+	 * 4 byte alignment required.
+	 */
+	ptr = malloc(args->size, M_CPUCTL, M_WAITOK);
+	if (copyin(args->data, ptr, args->size) != 0) {
+		DPRINTF("[cpuctl,%d]: copyin %p->%p of %zd bytes failed",
+		    __LINE__, args->data, ptr, args->size);
+		ret = EFAULT;
+		goto fail;
+	}
+	oldcpu = td->td_oncpu;
+	is_bound = cpu_sched_is_bound(td);
+	set_cpu(cpu, td);
+	critical_enter();
+	rdmsr_safe(MSR_BIOS_SIGN, &rev0); /* Get current microcode revision. */
+
+	/*
+	 * Perform update.
+	 */
+	wrmsr_safe(MSR_BIOS_UPDT_TRIG, (uintptr_t)(ptr));
+	do_cpuid(1, tmp);
+
+	/*
+	 * Result are in low byte of MSR FCR5:
+	 * 0x00: No update has been attempted since RESET.
+	 * 0x01: The last attempted update was successful.
+	 * 0x02: The last attempted update was unsuccessful due to a bad
+	 *       environment. No update was loaded and any preexisting
+	 *       patches are still active.
+	 * 0x03: The last attempted update was not applicable to this processor.
+	 *       No update was loaded and any preexisting patches are still
+	 *       active.
+	 * 0x04: The last attempted update was not successful due to an invalid
+	 *       update data block. No update was loaded and any preexisting
+	 *       patches are still active
+	 */
+	rdmsr_safe(0x1205, &res);
+	res &= 0xff;
+	critical_exit();
+	rdmsr_safe(MSR_BIOS_SIGN, &rev1); /* Get new microcode revision. */
+	restore_cpu(oldcpu, is_bound, td);
+
+	DPRINTF("[cpu,%d]: rev0=%x rev1=%x res=%x\n", __LINE__,
+	    (unsigned)(rev0 >> 32), (unsigned)(rev1 >> 32), (unsigned)res);
+
+	if (res != 0x01)
+		ret = EINVAL;
+	else
+		ret = 0;
+fail:
+	free(ptr, M_CPUCTL);
+	return (ret);
+}
+
 int
 cpuctl_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 {
@@ -409,7 +512,7 @@ cpuctl_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 	int cpu;
 
 	cpu = dev2unit(dev);
-	if (cpu >= mp_ncpus || !cpu_enabled(cpu)) {
+	if (cpu > mp_maxid || !cpu_enabled(cpu)) {
 		DPRINTF("[cpuctl,%d]: incorrect cpu number %d\n", __LINE__,
 		    cpu);
 		return (ENXIO);
@@ -426,27 +529,17 @@ cpuctl_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch(type) {
 	case MOD_LOAD:
-		if ((cpu_feature & CPUID_MSR) == 0) {
-			if (bootverbose)
-				printf("cpuctl: not available.\n");
-			return (ENODEV);
-		}
 		if (bootverbose)
 			printf("cpuctl: access to MSR registers/cpuid info.\n");
-		cpuctl_devs = (struct cdev **)malloc(sizeof(void *) * mp_ncpus,
-		    M_CPUCTL, M_WAITOK | M_ZERO);
-		if (cpuctl_devs == NULL) {
-			DPRINTF("[cpuctl,%d]: cannot allocate memory\n",
-			    __LINE__);
-			return (ENOMEM);
-		}
-		for (cpu = 0; cpu < mp_ncpus; cpu++)
+		cpuctl_devs = malloc(sizeof(*cpuctl_devs) * (mp_maxid + 1), M_CPUCTL,
+		    M_WAITOK | M_ZERO);
+		CPU_FOREACH(cpu)
 			if (cpu_enabled(cpu))
 				cpuctl_devs[cpu] = make_dev(&cpuctl_cdevsw, cpu,
 				    UID_ROOT, GID_KMEM, 0640, "cpuctl%d", cpu);
 		break;
 	case MOD_UNLOAD:
-		for (cpu = 0; cpu < mp_ncpus; cpu++) {
+		CPU_FOREACH(cpu) {
 			if (cpuctl_devs[cpu] != NULL)
 				destroy_dev(cpuctl_devs[cpu]);
 		}

@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_bus.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -45,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/pmap.h>
 #include <machine/bus.h>
@@ -94,34 +94,35 @@ agp_amd_alloc_gatt(device_t dev)
 
 	/*
 	 * The AMD751 uses a page directory to map a non-contiguous
-	 * gatt so we don't need to use contigmalloc.
-	 * Malloc individual gatt pages and map them into the page
+	 * gatt so we don't need to use kmem_alloc_contig.
+	 * Allocate individual GATT pages and map them into the page
 	 * directory.
 	 */
 	gatt->ag_entries = entries;
-	gatt->ag_virtual = malloc(entries * sizeof(u_int32_t),
-				  M_AGP, M_NOWAIT);
+	gatt->ag_virtual = (void *)kmem_alloc_attr(kernel_arena,
+	    entries * sizeof(u_int32_t), M_NOWAIT | M_ZERO, 0, ~0,
+	    VM_MEMATTR_WRITE_COMBINING);
 	if (!gatt->ag_virtual) {
 		if (bootverbose)
 			device_printf(dev, "allocation failed\n");
 		free(gatt, M_AGP);
 		return 0;
 	}
-	bzero(gatt->ag_virtual, entries * sizeof(u_int32_t));
 
 	/*
 	 * Allocate the page directory.
 	 */
-	gatt->ag_vdir = malloc(AGP_PAGE_SIZE, M_AGP, M_NOWAIT);
+	gatt->ag_vdir = (void *)kmem_alloc_attr(kernel_arena, AGP_PAGE_SIZE,
+	    M_NOWAIT | M_ZERO, 0, ~0, VM_MEMATTR_WRITE_COMBINING);
 	if (!gatt->ag_vdir) {
 		if (bootverbose)
 			device_printf(dev,
 				      "failed to allocate page directory\n");
-		free(gatt->ag_virtual, M_AGP);
+		kmem_free(kernel_arena, (vm_offset_t)gatt->ag_virtual,
+		    entries * sizeof(u_int32_t));
 		free(gatt, M_AGP);
 		return 0;
 	}
-	bzero(gatt->ag_vdir, AGP_PAGE_SIZE);
 
 	gatt->ag_pdir = vtophys((vm_offset_t) gatt->ag_vdir);
 	if(bootverbose)
@@ -160,19 +161,15 @@ agp_amd_alloc_gatt(device_t dev)
 		gatt->ag_vdir[i + pdir_offset] = pa | 1;
 	}
 
-	/*
-	 * Make sure the chipset can see everything.
-	 */
-	agp_flush_cache();
-
 	return gatt;
 }
 
 static void
 agp_amd_free_gatt(struct agp_amd_gatt *gatt)
 {
-	free(gatt->ag_virtual, M_AGP);
-	free(gatt->ag_vdir, M_AGP);
+	kmem_free(kernel_arena, (vm_offset_t)gatt->ag_vdir, AGP_PAGE_SIZE);
+	kmem_free(kernel_arena, (vm_offset_t)gatt->ag_virtual,
+	    gatt->ag_entries * sizeof(u_int32_t));
 	free(gatt, M_AGP);
 }
 
@@ -193,7 +190,7 @@ agp_amd_match(device_t dev)
 		return ("AMD 761 host to AGP bridge");
 	case 0x700c1022:
 		return ("AMD 762 host to AGP bridge");
-	};
+	}
 
 	return NULL;
 }
@@ -350,9 +347,6 @@ agp_amd_bind_page(device_t dev, vm_offset_t offset, vm_offset_t physical)
 		return EINVAL;
 
 	sc->gatt->ag_virtual[offset >> AGP_PAGE_SHIFT] = physical | 1;
-
-	/* invalidate the cache */
-	AGP_FLUSH_TLB(dev);
 	return 0;
 }
 

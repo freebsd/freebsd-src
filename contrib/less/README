@@ -1,7 +1,15 @@
+**************************************************************************
+**************************************************************************
+**                                                                      **
+** The FreeBSD Project has chosen to redistribute and modify Less under **
+** the 'Less License' (as described in the 'LICENSE' file).             **
+**                                                                      **
+**************************************************************************
+**************************************************************************
 
-                            Less, version 436
+                            Less, version 481
 
-    This is the distribution of less, version 436, released 07 Jul 2009.
+    This is the distribution of less, version 481, released 31 Aug 2015.
     This program is part of the GNU project (http://www.gnu.org).
 
     This program is free software.  You may redistribute it and/or
@@ -13,7 +21,7 @@
     or
     2. The Less License, in the file LICENSE.
 
-    Please report any problems to bug-less@gnu.org or markn@greenwoodsoftware.com.
+    Please report any problems to bug-less@gnu.org.
     See http://www.greenwoodsoftware.com/less for the latest info.
 
 =========================================================================
@@ -45,17 +53,19 @@ INSTALLATION (Unix systems only):
      Specifies the regular expression library used by less for pattern
      matching.  The default is "auto", which means the configure program 
      finds a regular expression library automatically.  Other values are:
-        posix          Use the POSIX-compatible regcomp.
+        gnu            Use the GNU regex library.
         pcre           Use the PCRE library.
+        posix          Use the POSIX-compatible regcomp.
         regcmp         Use the regcmp library.
         re_comp        Use the re_comp library.
         regcomp        Use the V8-compatible regcomp.
         regcomp-local  Use Henry Spencer's V8-compatible regcomp
                        (source is supplied with less).
+        none           No regular expressions, only simple string matching.
    --with-secure
      Builds a "secure" version of less, with some features disabled
-	 to prevent users from viewing other files, accessing shell
-	 commands, etc.
+     to prevent users from viewing other files, accessing shell
+     commands, etc.
 
 
 3. It is a good idea to look over the generated Makefile and defines.h
@@ -88,10 +98,14 @@ INSTALLATION (Unix systems only):
    bindir and/or mandir to the appropriate directories.
 
 If you have any problems building or running "less", suggestions, 
-complaints, etc., you may mail to the author at markn@greenwoodsoftware.com.
+complaints, etc., you may mail to bug-less@gnu.org.
 
 Note to hackers: comments noting possible improvements are enclosed
 in double curly brackets {{ like this }}.
+
+(Note that the above note was originally written at a time when 
+"hackers" most commonly meant "enthusiastic and dedicated computer 
+programmers", not "persons who attempt to circumvent computer security".)
 
 
 

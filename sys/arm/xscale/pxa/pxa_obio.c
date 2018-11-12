@@ -50,14 +50,14 @@ static int	pxa_read_ivar(device_t, device_t, int, uintptr_t *);
 
 static struct resource_list *	pxa_get_resource_list(device_t, device_t);
 static struct resource *	pxa_alloc_resource(device_t, device_t, int,
-				    int *, u_long, u_long, u_long, u_int);
+				    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int			pxa_release_resource(device_t, device_t, int,
 				    int, struct resource *);
 static int			pxa_activate_resource(device_t, device_t,
 				    int, int, struct resource *);
 
 static struct resource *	pxa_alloc_gpio_irq(device_t, device_t, int,
-				    int *, u_long, u_long, u_long, u_int);
+				    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 
 struct obio_device {
 	const char	*od_name;
@@ -92,7 +92,7 @@ pxa_probe(device_t dev)
 {
 
 	device_set_desc(dev, "XScale PXA On-board IO");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 int
@@ -159,9 +159,9 @@ pxa_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 
 	retval += resource_list_print_type(&od->od_resources, "at mem",
-	    SYS_RES_MEMORY, "0x%08lx");
+	    SYS_RES_MEMORY, "0x%08jx");
 	retval += resource_list_print_type(&od->od_resources, "irq",
-	    SYS_RES_IRQ, "%ld");
+	    SYS_RES_IRQ, "%jd");
 
 	retval += bus_print_child_footer(dev, child);
 
@@ -173,12 +173,14 @@ pxa_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
     driver_filter_t *filter, driver_intr_t *ithread, void *arg, void **cookiep)
 {
 	struct	obio_softc *sc;
+	int error;
 
 	sc = (struct obio_softc *)device_get_softc(dev);
 
-	BUS_SETUP_INTR(device_get_parent(dev), child, irq, flags, filter,
-	    ithread, arg, cookiep);
-	arm_unmask_irq(rman_get_start(irq));
+	error = BUS_SETUP_INTR(device_get_parent(dev), child, irq, flags,
+	    filter, ithread, arg, cookiep);
+	if (error)
+		return (error);
 	return (0);
 }
 
@@ -222,7 +224,7 @@ pxa_get_resource_list(device_t dev, device_t child)
 
 static struct resource *
 pxa_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct	obio_softc *sc;
 	struct	obio_device *od;
@@ -349,7 +351,7 @@ DRIVER_MODULE(pxa, nexus, pxa_driver, pxa_devclass, 0, 0);
 
 static struct resource *
 pxa_alloc_gpio_irq(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct	obio_softc *sc;
 	struct	obio_device *od;
@@ -388,7 +390,7 @@ pxa_alloc_gpio_irq(device_t dev, device_t child, int type, int *rid,
 	}
 
 	if (bootverbose)
-		device_printf(dev, "lazy allocation of irq %ld for %s\n",
+		device_printf(dev, "lazy allocation of irq %jd for %s\n",
 		    start, device_get_nameunit(child));
 
 	return (rv);

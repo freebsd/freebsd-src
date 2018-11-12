@@ -28,7 +28,7 @@
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2008
+.Dd October 13, 2015
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -106,11 +106,21 @@ a file system mount status from read-write to read-only.
 Also
 forces the R/W mount of an unclean file system (dangerous; use with
 caution).
+.It Fl L
+When used in conjunction with the
+.Fl a
+option, mount
+.Em only
+those file systems which are marked as
+.Dq Li late .
 .It Fl l
 When used in conjunction with the
 .Fl a
 option, also mount those file systems which are marked as
 .Dq Li late .
+.It Fl n
+For compatibility with some other implementations, this flag is
+currently a no-op.
 .It Fl o
 Options are specified with a
 .Fl o
@@ -120,11 +130,14 @@ takes effect.
 The following options are available:
 .Bl -tag -width indent
 .It Cm acls
-Enable Access Control Lists, or ACLS, which can be customized via the
+Enable POSIX.1e Access Control Lists, or ACLs, which can be customized via the
 .Xr setfacl 1
 and
 .Xr getfacl 1
 commands.
+This flag is mutually exclusive with
+.Cm nfsv4acls
+flag.
 .It Cm async
 All
 .Tn I/O
@@ -137,6 +150,11 @@ For this reason, the
 .Cm async
 flag should be used sparingly, and only when some data recovery
 mechanism is present.
+.It Cm automounted
+This flag indicates that the file system was mounted by
+.Xr automountd 8 .
+Automounted file systems are automatically unmounted by
+.Xr autounmountd 8 .
 .It Cm current
 When used with the
 .Fl u
@@ -168,9 +186,10 @@ Force
 .Nm
 to use the specified program to mount the file system, instead of calling
 .Xr nmount 2
-directly.  For example:
+directly.
+For example:
 .Bd -literal
-mount -t foofs -o mountprog=/mydir/fooprog /dev/acd0 /mnt
+mount -t foofs -o mountprog=/mydir/fooprog /dev/cd0 /mnt
 .Ed
 .It Cm multilabel
 Enable multi-label Mandatory Access Control, or MAC, on the specified file
@@ -186,6 +205,15 @@ See
 .Xr mac 4
 for more information, which cause the multilabel mount flag to be set
 automatically at mount-time.
+.It Cm nfsv4acls
+Enable NFSv4 ACLs, which can be customized via the
+.Xr setfacl 1
+and
+.Xr getfacl 1
+commands.
+This flag is mutually exclusive with
+.Cm acls
+flag.
 .It Cm noasync
 Metadata I/O should be done synchronously, while data I/O should be done
 asynchronously.
@@ -293,9 +321,6 @@ When you are done with the mounted snapshot:
 umount /mnt
 mdconfig -d -u 4
 .Ed
-.Pp
-Further details can be found in the file at
-.Pa /usr/src/sys/ufs/ffs/README.snapshot .
 .El
 .It Cm suiddir
 A directory on the mounted file system will respond to the SUID bit
@@ -339,7 +364,6 @@ option) may be passed as a comma separated list; these options are
 distinguished by a leading
 .Dq \&-
 (dash).
-Options that take a value are specified using the syntax -option=value.
 For example, the
 .Nm
 command:
@@ -352,6 +376,16 @@ causes
 to execute the equivalent of:
 .Bd -literal -offset indent
 /sbin/mount_cd9660 -e /dev/cd0 /cdrom
+.Ed
+.Pp
+Options that take a value are specified using the -option=value syntax:
+.Bd -literal -offset indent
+mount -t msdosfs -o -u=fred,-g=wheel /dev/da0s1 /mnt
+.Ed
+.Pp
+is equivalent to
+.Bd -literal -offset indent
+/sbin/mount_msdosfs -u fred -g wheel /dev/da0s1 /mnt
 .Ed
 .Pp
 Additional options specific to file system types
@@ -422,15 +456,11 @@ However, for the following file system types:
 .Cm mfs ,
 .Cm msdosfs ,
 .Cm nfs ,
-.Cm nfs4 ,
-.Cm ntfs ,
-.Cm nwfs ,
 .Cm nullfs ,
-.Cm portalfs ,
 .Cm smbfs ,
 .Cm udf ,
 and
-.Cm unionfs ,
+.Cm unionfs .
 .Nm
 will not call
 .Xr nmount 2
@@ -513,21 +543,29 @@ support for a particular file system might be provided either on a static
 .Xr nmount 2 ,
 .Xr acl 3 ,
 .Xr mac 4 ,
+.Xr devfs 5 ,
 .Xr ext2fs 5 ,
 .Xr fstab 5 ,
 .Xr procfs 5 ,
+.Xr tmpfs 5 ,
+.Xr automount 8 ,
+.Xr fstyp 8 ,
 .Xr kldload 8 ,
 .Xr mount_cd9660 8 ,
 .Xr mount_msdosfs 8 ,
 .Xr mount_nfs 8 ,
-.Xr mount_ntfs 8 ,
 .Xr mount_nullfs 8 ,
-.Xr mount_nwfs 8 ,
-.Xr mount_portalfs 8 ,
 .Xr mount_smbfs 8 ,
 .Xr mount_udf 8 ,
 .Xr mount_unionfs 8 ,
-.Xr umount 8
+.Xr umount 8 ,
+.Xr zfs 8 ,
+.Xr zpool 8
+.Sh HISTORY
+A
+.Nm
+utility appeared in
+.At v1 .
 .Sh CAVEATS
 After a successful
 .Nm ,
@@ -550,10 +588,5 @@ gets a
 signal (that causes an update of the export list)
 only when the file system is mounted via
 .Nm .
-.Sh HISTORY
-A
-.Nm
-utility appeared in
-.At v1 .
 .Sh BUGS
 It is possible for a corrupted file system to cause a crash.

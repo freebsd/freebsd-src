@@ -33,12 +33,14 @@
  */
 
 #include <sys/queue.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <usbhid.h>
@@ -61,7 +63,6 @@
 
 #include "bthid_config.h"
 
-	int	yyparse		(void);
 	int	yylex		(void);
 	void	yyerror		(char const *);
 static	int32_t	check_hid_device(hid_device_p hid_device);

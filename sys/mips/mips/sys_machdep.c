@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,7 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 
+#include <machine/cpufunc.h>
+#include <machine/cpuinfo.h>
 #include <machine/sysarch.h>
+#include <machine/cpuregs.h>
+#include <machine/tls.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -53,25 +53,32 @@ struct sysarch_args {
 #endif
 
 int
-sysarch(td, uap)
-	struct thread *td;
-	register struct sysarch_args *uap;
+sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	int error;
 	void *tlsbase;
 
 	switch (uap->op) {
-	case MIPS_SET_TLS : 
-		td->td_md.md_tls = (void*)uap->parms;
-		error = 0;
-		break;
+	case MIPS_SET_TLS:
+		td->td_md.md_tls = uap->parms;
 
-	case MIPS_GET_TLS : 
+		/*
+		 * If there is an user local register implementation (ULRI)
+		 * update it as well.  Add the TLS and TCB offsets so the
+		 * value in this register is adjusted like in the case of the
+		 * rdhwr trap() instruction handler.
+		 */
+		if (cpuinfo.userlocal_reg == true) {
+			mips_wr_userlocal((unsigned long)(uap->parms +
+			    td->td_md.md_tls_tcb_offset));
+		}
+		return (0);
+	case MIPS_GET_TLS: 
 		tlsbase = td->td_md.md_tls;
 		error = copyout(&tlsbase, uap->parms, sizeof(tlsbase));
-		break;
+		return (error);
 	default:
-		error = EINVAL;
+		break;
 	}
-	return (error);
+	return (EINVAL);
 }

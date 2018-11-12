@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #define MSG_CHANGE	"Snoop device change by user request."
 #define MSG_NOWRITE	"Snoop device change due to write failure."
 
-
 #define DEV_NAME_LEN	1024	/* for /dev/ttyXX++ */
 #define MIN_SIZE	256
 
@@ -65,27 +64,26 @@ static void	detach_snp(void);
 static void	set_dev(const char *);
 static void	ask_dev(char *, const char *);
 
-int             opt_reconn_close = 0;
-int             opt_reconn_oflow = 0;
-int             opt_interactive = 1;
-int             opt_timestamp = 0;
+int		opt_reconn_close = 0;
+int		opt_reconn_oflow = 0;
+int		opt_interactive = 1;
+int		opt_timestamp = 0;
 int		opt_write = 0;
 int		opt_no_switch = 0;
 const char	*opt_snpdev;
 
-char            dev_name[DEV_NAME_LEN];
-int             snp_io;
-int             std_in = 0, std_out = 1;
+char		dev_name[DEV_NAME_LEN];
+int		snp_io;
+int		std_in = 0, std_out = 1;
 
-
-int             clear_ok = 0;
-struct termios  otty;
-char            tbuf[1024], gbuf[1024];
-
+int		clear_ok = 0;
+struct termios	otty;
+char		tbuf[1024], gbuf[1024];
 
 static void
 clear(void)
 {
+
 	if (clear_ok)
 		tputs(gbuf, 1, putchar);
 	fflush(stdout);
@@ -94,8 +92,9 @@ clear(void)
 static void
 timestamp(const char *buf)
 {
-	time_t          t;
-	char            btmp[1024];
+	time_t		t;
+	char		btmp[1024];
+
 	clear();
 	printf("\n---------------------------------------------\n");
 	t = time(NULL);
@@ -109,11 +108,10 @@ timestamp(const char *buf)
 static void
 set_tty(void)
 {
-	struct termios  ntty;
+	struct termios	ntty;
 
-	tcgetattr (std_in, &otty);
 	ntty = otty;
-	ntty.c_lflag &= ~ICANON;    /* disable canonical operation  */
+	ntty.c_lflag &= ~ICANON;	/* disable canonical operation */
 	ntty.c_lflag &= ~ECHO;
 #ifdef FLUSHO
 	ntty.c_lflag &= ~FLUSHO;
@@ -124,24 +122,25 @@ set_tty(void)
 #ifdef IEXTEN
 	ntty.c_lflag &= ~IEXTEN;
 #endif
-	ntty.c_cc[VMIN] = 1;        /* minimum of one character */
-	ntty.c_cc[VTIME] = 0;       /* timeout value        */
+	ntty.c_cc[VMIN] = 1;		/* minimum of one character */
+	ntty.c_cc[VTIME] = 0;		/* timeout value */
 
-	ntty.c_cc[VINTR] = 07;   /* ^G */
-	ntty.c_cc[VQUIT] = 07;   /* ^G */
-	tcsetattr (std_in, TCSANOW, &ntty);
+	ntty.c_cc[VINTR] = 07;		/* ^G */
+	ntty.c_cc[VQUIT] = 07;		/* ^G */
+	tcsetattr(std_in, TCSANOW, &ntty);
 }
 
 static void
 unset_tty(void)
 {
-	tcsetattr (std_in, TCSANOW, &otty);
-}
 
+	tcsetattr(std_in, TCSANOW, &otty);
+}
 
 static void
 fatal(int error, const char *buf)
 {
+
 	unset_tty();
 	if (buf)
 		errx(error, "fatal: %s", buf);
@@ -169,10 +168,10 @@ open_snp(void)
 	return (f);
 }
 
-
 static void
 cleanup(int signo __unused)
 {
+
 	if (opt_timestamp)
 		timestamp("Logging Exited.");
 	close(snp_io);
@@ -180,10 +179,10 @@ cleanup(int signo __unused)
 	exit(EX_OK);
 }
 
-
 static void
 usage(void)
 {
+
 	fprintf(stderr, "usage: watch [-ciotnW] [tty name]\n");
 	exit(EX_USAGE);
 }
@@ -191,7 +190,8 @@ usage(void)
 static void
 setup_scr(void)
 {
-	char           *cbuf = gbuf, *term;
+	char		*cbuf = gbuf, *term;
+
 	if (!opt_interactive)
 		return;
 	if ((term = getenv("TERM")))
@@ -226,11 +226,10 @@ attach_snp(void)
 		timestamp("Logging Started.");
 }
 
-
 static void
 set_dev(const char *name)
 {
-	char            buf[DEV_NAME_LEN];
+	char		buf[DEV_NAME_LEN];
 	struct stat	sb;
 
 	if (strlen(name) > 5 && !strncmp(name, _PATH_DEV, sizeof _PATH_DEV - 1)) {
@@ -248,7 +247,7 @@ set_dev(const char *name)
 	if ((sb.st_mode & S_IFMT) != S_IFCHR)
 		fatal(EX_DATAERR, "must be a character device");
 
-	strncpy(dev_name, buf, DEV_NAME_LEN);
+	strlcpy(dev_name, buf, sizeof(dev_name));
 
 	attach_snp();
 }
@@ -256,8 +255,8 @@ set_dev(const char *name)
 void
 ask_dev(char *dbuf, const char *msg)
 {
-	char            buf[DEV_NAME_LEN];
-	int             len;
+	char		buf[DEV_NAME_LEN];
+	int		len;
 
 	clear();
 	unset_tty();
@@ -284,10 +283,10 @@ ask_dev(char *dbuf, const char *msg)
 int
 main(int ac, char *av[])
 {
-	int             ch, res, rv, nread;
+	int		ch, res, rv, nread;
 	size_t		b_size = MIN_SIZE;
-	char            *buf, chb[READB_LEN];
-	fd_set          fd_s;
+	char		*buf, chb[READB_LEN];
+	fd_set		fd_s;
 
 	(void) setlocale(LC_TIME, "");
 
@@ -295,7 +294,6 @@ main(int ac, char *av[])
 		opt_interactive = 1;
 	else
 		opt_interactive = 0;
-
 
 	while ((ch = getopt(ac, av, "Wciotnf:")) != -1)
 		switch (ch) {
@@ -325,6 +323,8 @@ main(int ac, char *av[])
 			usage();
 		}
 
+	tcgetattr(std_in, &otty);
+
 	if (modfind("snp") == -1)
 		if (kldload("snp") == -1 || modfind("snp") == -1)
 			warn("snp module not available");
@@ -340,7 +340,7 @@ main(int ac, char *av[])
 		else
 			fatal(EX_DATAERR, "no device name given");
 	} else
-		strncpy(dev_name, *av, DEV_NAME_LEN);
+		strlcpy(dev_name, *av, sizeof(dev_name));
 
 	set_dev(dev_name);
 
@@ -349,7 +349,7 @@ main(int ac, char *av[])
 
 	FD_ZERO(&fd_s);
 
-	while (1) {
+	for (;;) {
 		if (opt_interactive)
 			FD_SET(std_in, &fd_s);
 		FD_SET(snp_io, &fd_s);
@@ -382,7 +382,7 @@ main(int ac, char *av[])
 						detach_snp();
 						if (opt_no_switch)
 							fatal(EX_IOERR,
-							  "write failed");
+							    "write failed");
 						ask_dev(dev_name, MSG_NOWRITE);
 						set_dev(dev_name);
 					}
@@ -439,4 +439,3 @@ main(int ac, char *av[])
 	}			/* While */
 	return(0);
 }
-

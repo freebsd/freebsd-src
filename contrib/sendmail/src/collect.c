@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006, 2008 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.282 2008/01/31 18:48:29 ca Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.287 2013-11-22 20:51:55 ca Exp $")
 
 static void	eatfrom __P((char *volatile, ENVELOPE *));
 static void	collect_doheader __P((ENVELOPE *));
@@ -59,7 +59,7 @@ collect_eoh(e, numhdrs, hdrslen)
 		sm_dprintf("collect: rscheck(\"check_eoh\", \"%s $| %s\")\n",
 			   hnum, hsize);
 	(void) rscheck("check_eoh", hnum, hsize, e, RSF_UNSTRUCTURED|RSF_COUNT,
-			3, NULL, e->e_id, NULL);
+			3, NULL, e->e_id, NULL, NULL);
 
 	/*
 	**  Process the header,
@@ -297,9 +297,13 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 	int hdrslen;
 	int numhdrs;
 	int afd;
+	int old_rd_tmo;
 	unsigned char *pbp;
 	unsigned char peekbuf[8];
 	char bufbuf[MAXLINE];
+#if _FFR_REJECT_NUL_BYTE
+	bool hasNUL;		/* has at least one NUL input byte */
+#endif /* _FFR_REJECT_NUL_BYTE */
 
 	df = NULL;
 	ignrdot = smtpmode ? false : IgnrDot;
@@ -308,13 +312,16 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 	dbto = smtpmode ? ((int) TimeOuts.to_datablock * 1000)
 			: SM_TIME_FOREVER;
 	sm_io_setinfo(fp, SM_IO_WHAT_TIMEOUT, &dbto);
-	set_tls_rd_tmo(TimeOuts.to_datablock);
+	old_rd_tmo = set_tls_rd_tmo(TimeOuts.to_datablock);
 	c = SM_IO_EOF;
 	inputerr = false;
 	headeronly = hdrp != NULL;
 	hdrslen = 0;
 	numhdrs = 0;
 	HasEightBits = false;
+#if _FFR_REJECT_NUL_BYTE
+	hasNUL = false;
+#endif /* _FFR_REJECT_NUL_BYTE */
 	buf = bp = bufbuf;
 	buflen = sizeof(bufbuf);
 	pbp = peekbuf;
@@ -403,6 +410,10 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 							SM_TIME_DEFAULT,
 							c);
 				}
+#if _FFR_REJECT_NUL_BYTE
+				if (c == '\0')
+					hasNUL = true;
+#endif /* _FFR_REJECT_NUL_BYTE */
 				if (c == SM_IO_EOF)
 					goto readerr;
 				if (SevenBitInput)
@@ -710,7 +721,7 @@ readerr:
 	}
 
 	if (headeronly)
-		return;
+		goto end;
 
 	if (mstate != MS_BODY)
 	{
@@ -847,6 +858,9 @@ readerr:
 	}
 
 	/* Log collection information. */
+	if (tTd(92, 2))
+		sm_dprintf("collect: e_id=%s, EF_LOGSENDER=%d, LogLevel=%d\n",
+			e->e_id, bitset(EF_LOGSENDER, e->e_flags), LogLevel);
 	if (bitset(EF_LOGSENDER, e->e_flags) && LogLevel > 4)
 	{
 		logsender(e, e->e_msgid);
@@ -866,7 +880,8 @@ readerr:
 			if (LogLevel > 6)
 				sm_syslog(LOG_NOTICE, e->e_id,
 					"message size (%ld) exceeds maximum (%ld)",
-					e->e_msgsize, MaxMessageSize);
+					PRT_NONNEGL(e->e_msgsize),
+					MaxMessageSize);
 		}
 	}
 
@@ -888,6 +903,14 @@ readerr:
 		    sm_strcasecmp(e->e_bodytype, "8BITMIME") == 0)
 			e->e_bodytype = "7BIT";
 	}
+
+#if _FFR_REJECT_NUL_BYTE
+	if (hasNUL && RejectNUL)
+	{
+		e->e_status = "5.6.1";
+		usrerrenh(e->e_status, "554 NUL byte not allowed");
+	}
+#endif /* _FFR_REJECT_NUL_BYTE */
 
 	if (SuperSafe == SAFE_REALLY && !bitset(EF_FATALERRS, e->e_flags))
 	{
@@ -918,6 +941,9 @@ readerr:
 				 + e->e_nrcpts * WkRecipFact;
 		markstats(e, (ADDRESS *) NULL, STATS_NORMAL);
 	}
+
+  end:
+	(void) set_tls_rd_tmo(old_rd_tmo);
 }
 
 /*
@@ -1004,8 +1030,8 @@ dferror(df, msg, e)
 #endif /* 0 */
 	}
 	else
-		syserr("421 4.3.0 collect: Cannot write %s (%s, uid=%d, gid=%d)",
-			dfname, msg, (int) geteuid(), (int) getegid());
+		syserr("421 4.3.0 collect: Cannot write %s (%s, uid=%ld, gid=%ld)",
+			dfname, msg, (long) geteuid(), (long) getegid());
 	if (sm_io_reopen(SmFtStdio, SM_TIME_DEFAULT, SM_PATH_DEVNULL,
 			 SM_IO_WRONLY, NULL, df) == NULL)
 		sm_syslog(LOG_ERR, e->e_id,

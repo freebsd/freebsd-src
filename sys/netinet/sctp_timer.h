@@ -1,15 +1,17 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -28,29 +30,20 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $KAME: sctp_timer.h,v 1.6 2005/03/06 16:04:18 itojun Exp $	 */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef __sctp_timer_h__
-#define __sctp_timer_h__
+#ifndef _NETINET_SCTP_TIMER_H_
+#define _NETINET_SCTP_TIMER_H_
 
 #if defined(_KERNEL) || defined(__Userspace__)
 
 #define SCTP_RTT_SHIFT 3
 #define SCTP_RTT_VAR_SHIFT 2
 
-void
-sctp_early_fr_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-    struct sctp_nets *net);
-
 struct sctp_nets *
 sctp_find_alternate_net(struct sctp_tcb *,
     struct sctp_nets *, int mode);
-
-int
-sctp_threshold_management(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *, uint16_t);
 
 int
 sctp_t3rxt_timer(struct sctp_inpcb *, struct sctp_tcb *,
@@ -63,10 +56,7 @@ sctp_shutdown_timer(struct sctp_inpcb *, struct sctp_tcb *,
     struct sctp_nets *);
 int
 sctp_heartbeat_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *, int);
-
-int sctp_is_hb_timer_running(struct sctp_tcb *stcb);
-int sctp_is_sack_timer_running(struct sctp_tcb *stcb);
+    struct sctp_nets *);
 
 int
 sctp_cookie_timer(struct sctp_inpcb *, struct sctp_tcb *,

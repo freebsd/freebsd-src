@@ -288,6 +288,7 @@ get_keys(struct krb5_context *kc)
 	case ETYPE_DES3_CBC_SHA1:
 	case ETYPE_OLD_DES3_CBC_SHA1:
 		etype = ETYPE_DES3_CBC_SHA1;
+		break;
 
 	default:
 		etype = keydata->kk_type;
@@ -1338,7 +1339,7 @@ krb5_wrap_old(struct krb5_context *kc, int conf_req_flag,
 	 * SND_SEQ:
 	 *
 	 * Take the four bytes of the sequence number least
-	 * significant first (most signficant first for ARCFOUR)
+	 * significant first (most significant first for ARCFOUR)
 	 * followed by four bytes of direction marker (zero for
 	 * initiator and 0xff for acceptor). Encrypt that data using
 	 * the SGN_CKSUM as IV.
@@ -1584,6 +1585,8 @@ m_trim(struct mbuf *m, int len)
 	struct mbuf *n;
 	int off;
 
+	if (m == NULL)
+		return;
 	n = m_getptr(m, len, &off);
 	if (n) {
 		n->m_len = off;
@@ -1599,7 +1602,7 @@ krb5_unwrap_old(struct krb5_context *kc, struct mbuf **mp, int *conf_state,
     uint8_t sgn_alg[2], uint8_t seal_alg[2])
 {
 	OM_uint32 res;
-	struct mbuf *m, *mlast, *hm, *cm;
+	struct mbuf *m, *mlast, *hm, *cm, *n;
 	uint8_t *p, dir;
 	size_t mlen, tlen, elen, datalen, padlen;
 	size_t cklen;
@@ -1701,9 +1704,25 @@ krb5_unwrap_old(struct krb5_context *kc, struct mbuf **mp, int *conf_state,
 
 	/*
 	 * Check the trailing pad bytes.
+	 * RFC1964 specifies between 1<->8 bytes, each with a binary value
+	 * equal to the number of bytes.
 	 */
-	KASSERT(mlast->m_len > 0, ("Unexpected empty mbuf"));
-	padlen = mlast->m_data[mlast->m_len - 1];
+	if (mlast->m_len > 0)
+		padlen = mlast->m_data[mlast->m_len - 1];
+	else {
+		n = m_getptr(m, tlen + datalen - 1, &i);
+		/*
+		 * When the position is exactly equal to the # of data bytes
+		 * in the mbuf list, m_getptr() will return the last mbuf in
+		 * the list and an off == m_len for that mbuf, so that case
+		 * needs to be checked as well as a NULL return.
+		 */
+		if (n == NULL || n->m_len == i)
+			return (GSS_S_DEFECTIVE_TOKEN);
+		padlen = n->m_data[i];
+	}
+	if (padlen < 1 || padlen > 8 || padlen > tlen + datalen)
+		return (GSS_S_DEFECTIVE_TOKEN);
 	m_copydata(m, tlen + datalen - padlen, padlen, buf);
 	for (i = 0; i < padlen; i++) {
 		if (buf[i] != padlen) {

@@ -48,11 +48,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
+#include <net/ethernet.h>
 
 #include <net80211/ieee80211_var.h>
 
-MALLOC_DEFINE(M_80211_DFS, "80211dfs", "802.11 DFS state");
+static MALLOC_DEFINE(M_80211_DFS, "80211dfs", "802.11 DFS state");
 
 static	int ieee80211_nol_timeout = 30*60;		/* 30 minutes */
 SYSCTL_INT(_net_wlan, OID_AUTO, nol_timeout, CTLFLAG_RW,
@@ -64,6 +66,34 @@ SYSCTL_INT(_net_wlan, OID_AUTO, cac_timeout, CTLFLAG_RW,
 	&ieee80211_cac_timeout, 0, "CAC timeout (secs)");
 #define	CAC_TIMEOUT	msecs_to_ticks(ieee80211_cac_timeout*1000)
 
+/*
+ DFS* In order to facilitate  debugging, a couple of operating
+ * modes aside from the default are needed.
+ *
+ * 0 - default CAC/NOL behaviour - ie, start CAC, place
+ *     channel on NOL list.
+ * 1 - send CAC, but don't change channel or add the channel
+ *     to the NOL list.
+ * 2 - just match on radar, don't send CAC or place channel in
+ *     the NOL list.
+ */
+static	int ieee80211_dfs_debug = DFS_DBG_NONE;
+
+/*
+ * This option must not be included in the default kernel
+ * as it allows users to plainly disable CAC/NOL handling.
+ */
+#ifdef	IEEE80211_DFS_DEBUG
+SYSCTL_INT(_net_wlan, OID_AUTO, dfs_debug, CTLFLAG_RW,
+	&ieee80211_dfs_debug, 0, "DFS debug behaviour");
+#endif
+
+static int
+null_set_quiet(struct ieee80211_node *ni, u_int8_t *quiet_elm)
+{
+	return ENOSYS;
+}
+
 void
 ieee80211_dfs_attach(struct ieee80211com *ic)
 {
@@ -71,6 +101,8 @@ ieee80211_dfs_attach(struct ieee80211com *ic)
 
 	callout_init_mtx(&dfs->nol_timer, IEEE80211_LOCK_OBJ(ic), 0);
 	callout_init_mtx(&dfs->cac_timer, IEEE80211_LOCK_OBJ(ic), 0);
+
+	ic->ic_set_quiet = null_set_quiet;
 }
 
 void
@@ -213,7 +245,7 @@ dfs_timeout(void *arg)
 	for (i = 0; i < ic->ic_nchans; i++) {
 		c = &ic->ic_channels[i];
 		if (IEEE80211_IS_CHAN_RADAR(c)) {
-			if (time_after_eq(now, dfs->nol_event[i]+NOL_TIMEOUT)) {
+			if (ieee80211_time_after_eq(now, dfs->nol_event[i]+NOL_TIMEOUT)) {
 				c->ic_state &= ~IEEE80211_CHANSTATE_RADAR;
 				if (c->ic_state & IEEE80211_CHANSTATE_NORADAR) {
 					/*
@@ -221,8 +253,8 @@ dfs_timeout(void *arg)
 					 * msg instead of one for every channel
 					 * table entry.
 					 */
-					if_printf(ic->ic_ifp, "radar on channel"
-					    " %u (%u MHz) cleared after timeout\n",
+					ic_printf(ic, "radar on channel %u "
+					    "(%u MHz) cleared after timeout\n",
 					    c->ic_ieee, c->ic_freq);
 					/* notify user space */
 					c->ic_state &=
@@ -240,14 +272,14 @@ dfs_timeout(void *arg)
 }
 
 static void
-announce_radar(struct ifnet *ifp, const struct ieee80211_channel *curchan,
+announce_radar(struct ieee80211com *ic, const struct ieee80211_channel *curchan,
 	const struct ieee80211_channel *newchan)
 {
 	if (newchan == NULL)
-		if_printf(ifp, "radar detected on channel %u (%u MHz)\n",
+		ic_printf(ic, "radar detected on channel %u (%u MHz)\n",
 		    curchan->ic_ieee, curchan->ic_freq);
 	else
-		if_printf(ifp, "radar detected on channel %u (%u MHz), "
+		ic_printf(ic, "radar detected on channel %u (%u MHz), "
 		    "moving to channel %u (%u MHz)\n",
 		    curchan->ic_ieee, curchan->ic_freq,
 		    newchan->ic_ieee, newchan->ic_freq);
@@ -270,24 +302,44 @@ ieee80211_dfs_notify_radar(struct ieee80211com *ic, struct ieee80211_channel *ch
 	IEEE80211_LOCK_ASSERT(ic);
 
 	/*
-	 * Mark all entries with this frequency.  Notify user
-	 * space and arrange for notification when the radar
-	 * indication is cleared.  Then kick the NOL processing
-	 * thread if not already running.
+	 * If doing DFS debugging (mode 2), don't bother
+	 * running the rest of this function.
+	 *
+	 * Simply announce the presence of the radar and continue
+	 * along merrily.
 	 */
-	now = ticks;
-	for (i = 0; i < ic->ic_nchans; i++) {
-		struct ieee80211_channel *c = &ic->ic_channels[i];
-		if (c->ic_freq == chan->ic_freq) {
-			c->ic_state &= ~IEEE80211_CHANSTATE_CACDONE;
-			c->ic_state |= IEEE80211_CHANSTATE_RADAR;
-			dfs->nol_event[i] = now;
-		}
+	if (ieee80211_dfs_debug == DFS_DBG_NOCSANOL) {
+		announce_radar(ic, chan, chan);
+		ieee80211_notify_radar(ic, chan);
+		return;
 	}
-	ieee80211_notify_radar(ic, chan);
-	chan->ic_state |= IEEE80211_CHANSTATE_NORADAR;
-	if (!callout_pending(&dfs->nol_timer))
-		callout_reset(&dfs->nol_timer, NOL_TIMEOUT, dfs_timeout, ic);
+
+	/*
+	 * Don't mark the channel and don't put it into NOL
+	 * if we're doing DFS debugging.
+	 */
+	if (ieee80211_dfs_debug == DFS_DBG_NONE) {
+		/*
+		 * Mark all entries with this frequency.  Notify user
+		 * space and arrange for notification when the radar
+		 * indication is cleared.  Then kick the NOL processing
+		 * thread if not already running.
+		 */
+		now = ticks;
+		for (i = 0; i < ic->ic_nchans; i++) {
+			struct ieee80211_channel *c = &ic->ic_channels[i];
+			if (c->ic_freq == chan->ic_freq) {
+				c->ic_state &= ~IEEE80211_CHANSTATE_CACDONE;
+				c->ic_state |= IEEE80211_CHANSTATE_RADAR;
+				dfs->nol_event[i] = now;
+			}
+		}
+		ieee80211_notify_radar(ic, chan);
+		chan->ic_state |= IEEE80211_CHANSTATE_NORADAR;
+		if (!callout_pending(&dfs->nol_timer))
+			callout_reset(&dfs->nol_timer, NOL_TIMEOUT,
+			    dfs_timeout, ic);
+	}
 
 	/*
 	 * If radar is detected on the bss channel while
@@ -302,9 +354,17 @@ ieee80211_dfs_notify_radar(struct ieee80211com *ic, struct ieee80211_channel *ch
 	 */
 	if (chan == ic->ic_bsschan) {
 		/* XXX need a way to defer to user app */
-		dfs->newchan = ieee80211_dfs_pickchannel(ic);
 
-		announce_radar(ic->ic_ifp, chan, dfs->newchan);
+		/*
+		 * Don't flip over to a new channel if
+		 * we are currently doing DFS debugging.
+		 */
+		if (ieee80211_dfs_debug == DFS_DBG_NONE)
+			dfs->newchan = ieee80211_dfs_pickchannel(ic);
+		else
+			dfs->newchan = chan;
+
+		announce_radar(ic, chan, dfs->newchan);
 
 		if (callout_pending(&dfs->cac_timer))
 			callout_schedule(&dfs->cac_timer, 0);
@@ -320,6 +380,8 @@ ieee80211_dfs_notify_radar(struct ieee80211com *ic, struct ieee80211_channel *ch
 			 * on the NOL to expire.
 			 */
 			/*XXX*/
+			ic_printf(ic, "%s: No free channels; waiting for entry "
+			    "on NOL to expire\n", __func__);
 		}
 	} else {
 		/*
@@ -328,9 +390,9 @@ ieee80211_dfs_notify_radar(struct ieee80211com *ic, struct ieee80211_channel *ch
 		if (dfs->lastchan != chan) {
 			dfs->lastchan = chan;
 			dfs->cureps = 0;
-			announce_radar(ic->ic_ifp, chan, NULL);
+			announce_radar(ic, chan, NULL);
 		} else if (ppsratecheck(&dfs->lastevent, &dfs->cureps, 1)) {
-			announce_radar(ic->ic_ifp, chan, NULL);
+			announce_radar(ic, chan, NULL);
 		}
 	}
 }
@@ -372,6 +434,6 @@ ieee80211_dfs_pickchannel(struct ieee80211com *ic)
 		   (c->ic_flags & flags) == flags)
 			return c;
 	}
-	if_printf(ic->ic_ifp, "HELP, no channel located to switch to!\n");
+	ic_printf(ic, "HELP, no channel located to switch to!\n");
 	return NULL;
 }

@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "extern.h"
@@ -77,7 +76,7 @@ egetopt(int nargc, char * const *nargv, const char *ostr)
 {
 	static char *place = emsg;	/* option letter processing */
 	char *oli;			/* option letter list index */
-	static int delim;		/* which option delimeter */
+	static int delim;		/* which option delimiter */
 	char *p;
 	static char savec = '\0';
 

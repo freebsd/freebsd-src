@@ -59,7 +59,7 @@ static	int lineno = 0;
 static	int verbose = 0;
 static	const char *ccdconf = _PATH_CCDCONF;
 
-struct	flagval {
+static struct flagval {
 	const char	*fv_flag;
 	int		fv_val;
 } flagvaltab[] = {
@@ -177,11 +177,10 @@ do_single(int argc, char **argv, int action)
 	 */
 	if (action == CCD_UNCONFIG || action == CCD_UNCONFIGALL) {
 		ex = 0;
-		for (i = 0; argc != 0; ) {
+		for (; argc != 0;) {
 			cp = *argv++; --argc;
 			if ((ccd = resolve_ccdname(cp)) < 0) {
 				warnx("invalid ccd name: %s", cp);
-				i = 1;
 				continue;
 			}
 			grq = gctl_get_handle();
@@ -289,13 +288,16 @@ do_all(int action)
 
 	rval = 0;
 	egid = getegid();
-	setegid(getgid());
+	if (setegid(getgid()) != 0)
+		err(1, "setegid failed");
 	if ((f = fopen(ccdconf, "r")) == NULL) {
-		setegid(egid);
+		if (setegid(egid) != 0)
+			err(1, "setegid failed");
 		warn("fopen: %s", ccdconf);
 		return (1);
 	}
-	setegid(egid);
+	if (setegid(egid) != 0)
+		err(1, "setegid failed");
 
 	while (fgets(line, sizeof(line), f) != NULL) {
 		argc = 0;

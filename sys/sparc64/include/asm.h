@@ -76,7 +76,7 @@
 	_ALIGN_TEXT
 
 /*
- * Define a function entry point.
+ * Define function entry and alternate entry points.
  *
  * The compiler produces #function for the .type pseudo-op, but the '#'
  * character has special meaning in cpp macros, so we use @function like
@@ -86,14 +86,31 @@
  * value.  Since this is difficult to predict and its expected that
  * assembler code is already optimized, we leave it out.
  */
+
+#define	_ALTENTRY(x) \
+	.globl	CNAME(x) ; \
+	.type	CNAME(x),@function ; \
+CNAME(x):
+
 #define	_ENTRY(x) \
 	_START_ENTRY ; \
 	.globl	CNAME(x) ; \
 	.type	CNAME(x),@function ; \
 CNAME(x):
 
+#define	ALTENTRY(x)	_ALTENTRY(x)
 #define	ENTRY(x)	_ENTRY(x)
 #define	END(x)		.size x, . - x
+
+/*
+ * WEAK_REFERENCE(): create a weak reference alias from sym.
+ * The macro is not a general asm macro that takes arbitrary names,
+ * but one that takes only C names.  It does the non-null name
+ * translation inside the macro.
+ */
+#define	WEAK_REFERENCE(sym, alias) \
+	.weak	CNAME(alias); \
+	.equ	CNAME(alias),CNAME(sym)
 
 /*
  * Kernel RCS ID tag and copyright macros

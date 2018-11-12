@@ -50,7 +50,7 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <gnu/dev/sound/pci/csaimg.h>
+#include <dev/sound/pci/cs461x_dsp.h>
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -81,20 +81,20 @@ typedef struct csa_softc *sc_p;
 static int csa_probe(device_t dev);
 static int csa_attach(device_t dev);
 static struct resource *csa_alloc_resource(device_t bus, device_t child, int type, int *rid,
-					      u_long start, u_long end, u_long count, u_int flags);
+					      rman_res_t start, rman_res_t end,
+					      rman_res_t count, u_int flags);
 static int csa_release_resource(device_t bus, device_t child, int type, int rid,
 				   struct resource *r);
 static int csa_setup_intr(device_t bus, device_t child,
 			  struct resource *irq, int flags,
-#if __FreeBSD_version >= 700031
 			  driver_filter_t *filter,
-#endif
 			  driver_intr_t *intr,  void *arg, void **cookiep);
 static int csa_teardown_intr(device_t bus, device_t child,
 			     struct resource *irq, void *cookie);
 static driver_intr_t csa_intr;
 static int csa_initialize(sc_p scp);
 static int csa_downloadimage(csa_res *resp);
+static int csa_transferimage(csa_res *resp, u_int32_t *src, u_long dest, u_long len);
 
 static devclass_t csa_devclass;
 
@@ -133,7 +133,7 @@ clkrun_hack(int run)
 			if (pci_get_vendor(*childp) == 0x8086 && pci_get_device(*childp) == 0x7113) {
 				port = (pci_read_config(*childp, 0x41, 1) << 8) + 0x10;
 				/* XXX */
-				btag = I386_BUS_SPACE_IO;
+				btag = X86_BUS_SPACE_IO;
 
 				control = bus_space_read_2(btag, 0x0, port);
 				control &= ~0x2000;
@@ -241,7 +241,6 @@ csa_probe(device_t dev)
 static int
 csa_attach(device_t dev)
 {
-	u_int32_t stcmd;
 	sc_p scp;
 	csa_res *resp;
 	struct sndcard_func *func;
@@ -253,12 +252,7 @@ csa_attach(device_t dev)
 	bzero(scp, sizeof(*scp));
 	scp->dev = dev;
 
-	/* Wake up the device. */
-	stcmd = pci_read_config(dev, PCIR_COMMAND, 2);
-	if ((stcmd & PCIM_CMD_MEMEN) == 0 || (stcmd & PCIM_CMD_BUSMASTEREN) == 0) {
-		stcmd |= (PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
-		pci_write_config(dev, PCIR_COMMAND, stcmd, 2);
-	}
+	pci_enable_busmaster(dev);
 
 	/* Allocate the resources. */
 	resp = &scp->res;
@@ -403,7 +397,7 @@ csa_resume(device_t dev)
 
 static struct resource *
 csa_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		      u_long start, u_long end, u_long count, u_int flags)
+		   rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	sc_p scp;
 	csa_res *resp;
@@ -455,21 +449,17 @@ csa_release_resource(device_t bus, device_t child, int type, int rid,
 static int
 csa_setup_intr(device_t bus, device_t child,
 	       struct resource *irq, int flags,
-#if __FreeBSD_version >= 700031
 	       driver_filter_t *filter,
-#endif
 	       driver_intr_t *intr, void *arg, void **cookiep)
 {
 	sc_p scp;
 	csa_res *resp;
 	struct sndcard_func *func;
 
-#if __FreeBSD_version >= 700031
 	if (filter != NULL) {
 		printf("ata-csa.c: we cannot use a filter here\n");
 		return (EINVAL);
 	}
-#endif
 	scp = device_get_softc(bus);
 	resp = &scp->res;
 
@@ -860,27 +850,46 @@ csa_resetdsp(csa_res *resp)
 static int
 csa_downloadimage(csa_res *resp)
 {
-	int i;
-	u_int32_t tmp, src, dst, count, data;
+	int ret;
+	u_long ul, offset;
 
-	for (i = 0; i < CLEAR__COUNT; i++) {
-		dst = ClrStat[i].BA1__DestByteOffset;
-		count = ClrStat[i].BA1__SourceSize;
-		for (tmp = 0; tmp < count; tmp += 4)
-			csa_writemem(resp, dst + tmp, 0x00000000);
+	for (ul = 0, offset = 0 ; ul < INKY_MEMORY_COUNT ; ul++) {
+	        /*
+	         * DMA this block from host memory to the appropriate
+	         * memory on the CSDevice.
+	         */
+		ret = csa_transferimage(resp,
+		    cs461x_firmware.BA1Array + offset,
+		    cs461x_firmware.MemoryStat[ul].ulDestAddr,
+		    cs461x_firmware.MemoryStat[ul].ulSourceSize);
+		if (ret)
+			return (ret);
+		offset += cs461x_firmware.MemoryStat[ul].ulSourceSize >> 2;
 	}
+	return (0);
+}
 
-	for (i = 0; i < FILL__COUNT; i++) {
-		src = 0;
-		dst = FillStat[i].Offset;
-		count = FillStat[i].Size;
-		for (tmp = 0; tmp < count; tmp += 4) {
-			data = FillStat[i].pFill[src];
-			csa_writemem(resp, dst + tmp, data);
-			src++;
-		}
-	}
+static int
+csa_transferimage(csa_res *resp, u_int32_t *src, u_long dest, u_long len)
+{
+	u_long ul;
+	
+	/*
+	 * We do not allow DMAs from host memory to host memory (although the DMA
+	 * can do it) and we do not allow DMAs which are not a multiple of 4 bytes
+	 * in size (because that DMA can not do that).  Return an error if either
+	 * of these conditions exist.
+	 */
+	if ((len & 0x3) != 0)
+		return (EINVAL);
 
+	/* Check the destination address that it is a multiple of 4 */
+	if ((dest & 0x3) != 0)
+		return (EINVAL);
+
+	/* Write the buffer out. */
+	for (ul = 0 ; ul < len ; ul += 4)
+		csa_writemem(resp, dest + ul, src[ul >> 2]);
 	return (0);
 }
 
@@ -1076,7 +1085,6 @@ static device_method_t csa_methods[] = {
 	DEVMETHOD(device_resume,	csa_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	csa_alloc_resource),
 	DEVMETHOD(bus_release_resource,	csa_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
@@ -1084,7 +1092,7 @@ static device_method_t csa_methods[] = {
 	DEVMETHOD(bus_setup_intr,	csa_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	csa_teardown_intr),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t csa_driver = {

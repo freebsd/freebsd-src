@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -72,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -91,10 +94,12 @@ static int ep_media2if_media[] =
 static void epinit(void *);
 static int epioctl(struct ifnet *, u_long, caddr_t);
 static void epstart(struct ifnet *);
-static void epwatchdog(struct ifnet *);
 
+static void ep_intr_locked(struct ep_softc *);
 static void epstart_locked(struct ifnet *);
 static void epinit_locked(struct ep_softc *);
+static void eptick(void *);
+static void epwatchdog(struct ep_softc *);
 
 /* if_media functions */
 static int ep_ifmedia_upd(struct ifnet *);
@@ -298,16 +303,15 @@ ep_attach(struct ep_softc *sc)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = epstart;
 	ifp->if_ioctl = epioctl;
-	ifp->if_watchdog = epwatchdog;
 	ifp->if_init = epinit;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
+	callout_init_mtx(&sc->watchdog_timer, &sc->sc_mtx, 0);
 	if (!sc->epb.mii_trans) {
 		ifmedia_init(&sc->ifmedia, 0, ep_ifmedia_upd, ep_ifmedia_sts);
 
@@ -340,7 +344,9 @@ ep_attach(struct ep_softc *sc)
 	EP_FSET(sc, F_RX_FIRST);
 	sc->top = sc->mcur = 0;
 
+	EP_LOCK(sc);
 	epstop(sc);
+	EP_UNLOCK(sc);
 
 	return (0);
 }
@@ -361,6 +367,7 @@ ep_detach(device_t dev)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	EP_UNLOCK(sc);
 	ether_ifdetach(ifp);
+	callout_drain(&sc->watchdog_timer);
 	ep_free(dev);
 
 	if_free(ifp);
@@ -457,6 +464,7 @@ epinit_locked(struct ep_softc *sc)
 
 	GO_WINDOW(sc, 1);
 	epstart_locked(ifp);
+	callout_reset(&sc->watchdog_timer, hz, eptick, sc);
 }
 
 static void
@@ -505,7 +513,7 @@ startagain:
 	 */
 	if (len + pad > ETHER_MAX_LEN) {
 		/* packet is obviously too large: toss it */
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m0);
 		goto readcheck;
 	}
@@ -556,8 +564,8 @@ startagain:
 
 	BPF_MTAP(ifp, m0);
 
-	ifp->if_timer = 2;
-	ifp->if_opackets++;
+	sc->tx_timer = 2;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	m_freem(m0);
 
 	/*
@@ -583,20 +591,26 @@ void
 ep_intr(void *arg)
 {
 	struct ep_softc *sc;
-	int status;
-	struct ifnet *ifp;
 
 	sc = (struct ep_softc *) arg;
 	EP_LOCK(sc);
+	ep_intr_locked(sc);
+	EP_UNLOCK(sc);
+}
+
+static void
+ep_intr_locked(struct ep_softc *sc)
+{
+	int status;
+	struct ifnet *ifp;
+
 	/* XXX 4.x splbio'd here to reduce interruptability */
 
 	/*
 	 * quick fix: Try to detect an interrupt when the card goes away.
 	 */
-	if (sc->gone || CSR_READ_2(sc, EP_STATUS) == 0xffff) {
-		EP_UNLOCK(sc);
+	if (sc->gone || CSR_READ_2(sc, EP_STATUS) == 0xffff)
 		return;
-	}
 	ifp = sc->ifp;
 
 	CSR_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK);	/* disable all Ints */
@@ -612,14 +626,14 @@ rescan:
 			epread(sc);
 		if (status & S_TX_AVAIL) {
 			/* we need ACK */
-			ifp->if_timer = 0;
+			sc->tx_timer = 0;
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			GO_WINDOW(sc, 1);
 			CSR_READ_2(sc, EP_W1_FREE_TX);
 			epstart_locked(ifp);
 		}
 		if (status & S_CARD_FAILURE) {
-			ifp->if_timer = 0;
+			sc->tx_timer = 0;
 #ifdef EP_LOCAL_STATS
 			device_printf(sc->dev, "\n\tStatus: %x\n", status);
 			GO_WINDOW(sc, 4);
@@ -627,7 +641,8 @@ rescan:
 			    CSR_READ_2(sc, EP_W4_FIFO_DIAG));
 			printf("\tStat: %x\n", sc->stat);
 			printf("\tIpackets=%d, Opackets=%d\n",
-			    ifp->if_ipackets, ifp->if_opackets);
+			    ifp->if_get_counter(ifp, IFCOUNTER_IPACKETS),
+			    ifp->if_get_counter(ifp, IFCOUNTER_OPACKETS));
 			printf("\tNOF=%d, NOMB=%d, RXOF=%d, RXOL=%d, TXU=%d\n",
 			    sc->rx_no_first, sc->rx_no_mbuf, sc->rx_overrunf,
 			    sc->rx_overrunl, sc->tx_underrun);
@@ -637,16 +652,15 @@ rescan:
 			device_printf(sc->dev,
 			    "Status: %x (input buffer overflow)\n", status);
 #else
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 #endif
 
 #endif
 			epinit_locked(sc);
-			EP_UNLOCK(sc);
 			return;
 		}
 		if (status & S_TX_COMPLETE) {
-			ifp->if_timer = 0;
+			sc->tx_timer = 0;
 			/*
 			 * We need ACK. We do it at the end.
 			 *
@@ -671,9 +685,9 @@ rescan:
 						 * TXS_MAX_COLLISION we
 						 * shouldn't get here
 						 */
-						++ifp->if_collisions;
+						if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 					}
-					++ifp->if_oerrors;
+					if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 					CSR_WRITE_2(sc, EP_COMMAND, TX_ENABLE);
 					/*
 				         * To have a tx_avail_int but giving
@@ -700,7 +714,6 @@ rescan:
 
 	/* re-enable Ints */
 	CSR_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK | S_5_INTS);
-	EP_UNLOCK(sc);
 }
 
 static void
@@ -720,7 +733,7 @@ epread(struct ep_softc *sc)
 read_again:
 
 	if (status & ERR_RX) {
-		++ifp->if_ierrors;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		if (status & ERR_RX_OVERRUN) {
 			/*
 		         * We can think the rx latency is actually
@@ -738,11 +751,11 @@ read_again:
 	rx_fifo = rx_fifo2 = status & RX_BYTES_MASK;
 
 	if (EP_FTST(sc, F_RX_FIRST)) {
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (!m)
 			goto out;
 		if (rx_fifo >= MINCLSIZE)
-			MCLGET(m, M_DONTWAIT);
+			MCLGET(m, M_NOWAIT);
 		sc->top = sc->mcur = top = m;
 #define EROUND  ((sizeof(struct ether_header) + 3) & ~3)
 #define EOFF    (EROUND - sizeof(struct ether_header))
@@ -766,11 +779,11 @@ read_again:
 		lenthisone = min(rx_fifo, M_TRAILINGSPACE(m));
 		if (lenthisone == 0) {	/* no room in this one */
 			mcur = m;
-			MGET(m, M_DONTWAIT, MT_DATA);
+			MGET(m, M_NOWAIT, MT_DATA);
 			if (!m)
 				goto out;
 			if (rx_fifo >= MINCLSIZE)
-				MCLGET(m, M_DONTWAIT);
+				MCLGET(m, M_NOWAIT);
 			m->m_len = 0;
 			mcur->m_next = m;
 			lenthisone = min(rx_fifo, M_TRAILINGSPACE(m));
@@ -806,7 +819,7 @@ read_again:
 #endif
 		EP_FRST(sc, F_RX_FIRST);
 		status = CSR_READ_2(sc, EP_W1_RX_STATUS);
-		if (!status & ERR_RX_INCOMPLETE) {
+		if (!(status & ERR_RX_INCOMPLETE)) {
 			/*
 			 * We see if by now, the packet has completly
 			 * arrived
@@ -818,7 +831,7 @@ read_again:
 		return;
 	}
 	CSR_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
-	++ifp->if_ipackets;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	EP_FSET(sc, F_RX_FIRST);
 	top->m_pkthdr.rcvif = sc->ifp;
 	top->m_pkthdr.len = sc->cur_len;
@@ -933,7 +946,6 @@ epioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		EP_LOCK(sc);
 		if (((ifp->if_flags & IFF_UP) == 0) &&
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			epstop(sc);
 		} else
 			/* reinitialize card on any parameter change */
@@ -966,20 +978,35 @@ epioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static void
-epwatchdog(struct ifnet *ifp)
+eptick(void *arg)
 {
-	struct ep_softc *sc = ifp->if_softc;
+	struct ep_softc *sc;
 
+	sc = arg;
+	if (sc->tx_timer != 0 && --sc->tx_timer == 0)
+		epwatchdog(sc);
+	callout_reset(&sc->watchdog_timer, hz, eptick, sc);
+}
+
+static void
+epwatchdog(struct ep_softc *sc)
+{
+	struct ifnet *ifp;
+
+	ifp = sc->ifp;
 	if (sc->gone)
 		return;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	epstart(ifp);
-	ep_intr(ifp->if_softc);
+	epstart_locked(ifp);
+	ep_intr_locked(sc);
 }
 
 static void
 epstop(struct ep_softc *sc)
 {
+
+	EP_ASSERT_LOCKED(sc);
+
 	CSR_WRITE_2(sc, EP_COMMAND, RX_DISABLE);
 	CSR_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
 	EP_BUSY_WAIT(sc);
@@ -997,4 +1024,7 @@ epstop(struct ep_softc *sc)
 	CSR_WRITE_2(sc, EP_COMMAND, SET_RD_0_MASK);
 	CSR_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK);
 	CSR_WRITE_2(sc, EP_COMMAND, SET_RX_FILTER);
+
+	sc->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	callout_stop(&sc->watchdog_timer);
 }

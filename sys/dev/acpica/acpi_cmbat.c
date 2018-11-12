@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
-MALLOC_DEFINE(M_ACPICMBAT, "acpicmbat", "ACPI control method battery data");
+static MALLOC_DEFINE(M_ACPICMBAT, "acpicmbat",
+    "ACPI control method battery data");
 
 /* Number of times to retry initialization before giving up. */
 #define ACPI_CMBAT_RETRY_MAX	6
@@ -98,7 +99,7 @@ static device_method_t acpi_cmbat_methods[] = {
     DEVMETHOD(acpi_batt_get_info, acpi_cmbat_bif),
     DEVMETHOD(acpi_batt_get_status, acpi_cmbat_bst),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_cmbat_driver = {
@@ -278,6 +279,12 @@ acpi_cmbat_get_bst(void *arg)
     if (acpi_PkgInt32(res, 3, &sc->bst.volt) != 0)
 	goto end;
     acpi_cmbat_info_updated(&sc->bst_lastupdated);
+
+    /* Clear out undefined/extended bits that might be set by hardware. */
+    sc->bst.state &= ACPI_BATT_STAT_BST_MASK;
+    if ((sc->bst.state & ACPI_BATT_STAT_INVALID) == ACPI_BATT_STAT_INVALID)
+	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+	    "battery reports simultaneous charging and discharging\n");
 
     /* XXX If all batteries are critical, perhaps we should suspend. */
     if (sc->bst.state & ACPI_BATT_STAT_CRITICAL) {

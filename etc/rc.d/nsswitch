@@ -33,6 +33,7 @@
 . /etc/rc.subr
 
 name="nsswitch"
+desc="Name-service switch"
 start_cmd="nsswitch_start"
 stop_cmd=":"
 
@@ -77,10 +78,10 @@ generate_host_conf()
 	nis)
 		echo "nis" >> $host_conf
 		;;
-	*=*)
+	cache | *=*)
 		;;
 	*)
-		printf "Warning: unrecognized source [%s]", $_s > "/dev/stderr"
+		echo "Warning: unrecognized source [$_s]" >&2
 		;;
 	esac
     done

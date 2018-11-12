@@ -32,14 +32,26 @@
 
 #include <dev/sound/pcm/sound.h>
 #include <sys/ctype.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
 #include <sys/sysent.h>
+
+#include <vm/vm.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 
 SND_DECLARE_FILE("$FreeBSD$");
 
 static int dsp_mmap_allow_prot_exec = 0;
-SYSCTL_INT(_hw_snd, OID_AUTO, compat_linux_mmap, CTLFLAG_RW,
+SYSCTL_INT(_hw_snd, OID_AUTO, compat_linux_mmap, CTLFLAG_RWTUN,
     &dsp_mmap_allow_prot_exec, 0,
     "linux mmap compatibility (-1=force disable 0=auto 1=force enable)");
+
+static int dsp_basename_clone = 1;
+SYSCTL_INT(_hw_snd, OID_AUTO, basename_clone, CTLFLAG_RWTUN,
+    &dsp_basename_clone, 0,
+    "DSP basename cloning (0: Disable; 1: Enabled)");
 
 struct dsp_cdevinfo {
 	struct pcm_channel *rdch, *wrch;
@@ -67,6 +79,7 @@ static d_write_t dsp_write;
 static d_ioctl_t dsp_ioctl;
 static d_poll_t dsp_poll;
 static d_mmap_t dsp_mmap;
+static d_mmap_single_t dsp_mmap_single;
 
 struct cdevsw dsp_cdevsw = {
 	.d_version =	D_VERSION,
@@ -77,6 +90,7 @@ struct cdevsw dsp_cdevsw = {
 	.d_ioctl =	dsp_ioctl,
 	.d_poll =	dsp_poll,
 	.d_mmap =	dsp_mmap,
+	.d_mmap_single = dsp_mmap_single,
 	.d_name =	"dsp",
 };
 
@@ -1003,7 +1017,7 @@ dsp_ioctl_channel(struct cdev *dev, struct pcm_channel *volch, u_long cmd,
 	if (volch != NULL &&
 	    ((j == SOUND_MIXER_PCM && volch->direction == PCMDIR_PLAY) ||
 	    (j == SOUND_MIXER_RECLEV && volch->direction == PCMDIR_REC))) {
-		if ((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0)) {
+		if ((cmd & ~0xff) == MIXER_WRITE(0)) {
 			int left, right, center;
 
 			left = *(int *)arg & 0x7f;
@@ -1011,7 +1025,7 @@ dsp_ioctl_channel(struct cdev *dev, struct pcm_channel *volch, u_long cmd,
 			center = (left + right) >> 1;
 			chn_setvolume_multi(volch, SND_VOL_C_PCM, left, right,
 			    center);
-		} else if ((cmd & MIXER_READ(0)) == MIXER_READ(0)) {
+		} else if ((cmd & ~0xff) == MIXER_READ(0)) {
 			*(int *)arg = CHN_GETVOLUME(volch,
 				SND_VOL_C_PCM, SND_CHN_T_FL);
 			*(int *)arg |= CHN_GETVOLUME(volch,
@@ -1023,7 +1037,7 @@ dsp_ioctl_channel(struct cdev *dev, struct pcm_channel *volch, u_long cmd,
 		case SOUND_MIXER_DEVMASK:
 		case SOUND_MIXER_CAPS:
 		case SOUND_MIXER_STEREODEVS:
-			if ((cmd & MIXER_READ(0)) == MIXER_READ(0)) {
+			if ((cmd & ~0xff) == MIXER_READ(0)) {
 				*(int *)arg = 0;
 				if (rdch != NULL)
 					*(int *)arg |= SOUND_MASK_RECLEV;
@@ -1034,7 +1048,7 @@ dsp_ioctl_channel(struct cdev *dev, struct pcm_channel *volch, u_long cmd,
 			break;
 		case SOUND_MIXER_RECMASK:
 		case SOUND_MIXER_RECSRC:
-			if ((cmd & MIXER_READ(0)) == MIXER_READ(0))
+			if ((cmd & ~0xff) == MIXER_READ(0))
 				*(int *)arg = 0;
 			ret = 0;
 			break;
@@ -1055,7 +1069,8 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 {
     	struct pcm_channel *chn, *rdch, *wrch;
 	struct snddev_info *d;
-	int *arg_i, ret, tmp, xcmd;
+	u_long xcmd;
+	int *arg_i, ret, tmp;
 
 	d = dsp_get_info(i_dev);
 	if (!DSP_REGISTERED(d, i_dev))
@@ -1069,6 +1084,11 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	chn = NULL;
 
 	if (IOCGROUP(cmd) == 'M') {
+		if (cmd == OSS_GETVERSION) {
+			*arg_i = SOUND_VERSION;
+			PCM_GIANT_EXIT(d);
+			return (0);
+		}
 		ret = dsp_ioctl_channel(i_dev, PCM_VOLCH(i_dev), cmd, arg);
 		if (ret != -1) {
 			PCM_GIANT_EXIT(d);
@@ -1650,7 +1670,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 				/* XXX abusive DMA update: chn_rdupdate(rdch); */
 	        		a->bytes = sndbuf_gettotal(bs);
 	        		a->blocks = sndbuf_getblocks(bs) - rdch->blocks;
-	        		a->ptr = sndbuf_getreadyptr(bs);
+	        		a->ptr = sndbuf_getfreeptr(bs);
 				rdch->blocks = sndbuf_getblocks(bs);
 				CHN_UNLOCK(rdch);
 	    		} else
@@ -1996,7 +2016,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	 * OSSv4 docs:  "All errors and counters will automatically be
 	 * cleared to zeroes after the call so each call will return only
 	 * the errors that occurred after the previous invocation. ... The
-	 * play_underruns and rec_overrun fields are the only usefull fields
+	 * play_underruns and rec_overrun fields are the only useful fields
 	 * returned by OSS 4.0."
 	 */
 		{
@@ -2179,7 +2199,18 @@ dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 }
 
 static int
-dsp_mmap(struct cdev *i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+dsp_mmap(struct cdev *i_dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
+{
+
+	/* XXX memattr is not honored */
+	*paddr = vtophys(offset);
+	return (0);
+}
+
+static int
+dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
+    vm_size_t size, struct vm_object **object, int nprot)
 {
 	struct snddev_info *d;
 	struct pcm_channel *wrch, *rdch, *c;
@@ -2199,51 +2230,48 @@ dsp_mmap(struct cdev *i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 #else
 	if ((nprot & PROT_EXEC) && dsp_mmap_allow_prot_exec < 1)
 #endif
-		return (-1);
+		return (EINVAL);
+
+	/*
+	 * PROT_READ (alone) selects the input buffer.
+	 * PROT_WRITE (alone) selects the output buffer.
+	 * PROT_WRITE|PROT_READ together select the output buffer.
+	 */
+	if ((nprot & (PROT_READ | PROT_WRITE)) == 0)
+		return (EINVAL);
 
 	d = dsp_get_info(i_dev);
 	if (!DSP_REGISTERED(d, i_dev))
-		return (-1);
+		return (EINVAL);
 
 	PCM_GIANT_ENTER(d);
 
 	getchns(i_dev, &rdch, &wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 
-	/*
-	 * XXX The linux api uses the nprot to select read/write buffer
-	 *     our vm system doesn't allow this, so force write buffer.
-	 *
-	 *     This is just a quack to fool full-duplex mmap, so that at
-	 *     least playback _or_ recording works. If you really got the
-	 *     urge to make _both_ work at the same time, avoid O_RDWR.
-	 *     Just open each direction separately and mmap() it.
-	 *
-	 *     Failure is not an option due to INVARIANTS check within
-	 *     device_pager.c, which means, we have to give up one over
-	 *     another.
-	 */
-	c = (wrch != NULL) ? wrch : rdch;
-
+	c = ((nprot & PROT_WRITE) != 0) ? wrch : rdch;
 	if (c == NULL || (c->flags & CHN_F_MMAP_INVALID) ||
-	    offset >= sndbuf_getsize(c->bufsoft) ||
+	    (*offset  + size) > sndbuf_getsize(c->bufsoft) ||
 	    (wrch != NULL && (wrch->flags & CHN_F_MMAP_INVALID)) ||
 	    (rdch != NULL && (rdch->flags & CHN_F_MMAP_INVALID))) {
 		relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 		PCM_GIANT_EXIT(d);
-		return (-1);
+		return (EINVAL);
 	}
 
-	/* XXX full-duplex quack. */
 	if (wrch != NULL)
 		wrch->flags |= CHN_F_MMAP;
 	if (rdch != NULL)
 		rdch->flags |= CHN_F_MMAP;
 
-	*paddr = vtophys(sndbuf_getbufofs(c->bufsoft, offset));
+	*offset = (uintptr_t)sndbuf_getbufofs(c->bufsoft, *offset);
 	relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	*object = vm_pager_allocate(OBJT_DEVICE, i_dev,
+	    size, nprot, *offset, curthread->td_ucred);
 
 	PCM_GIANT_LEAVE(d);
 
+	if (*object == NULL)
+		 return (EINVAL);
 	return (0);
 }
 
@@ -2301,9 +2329,7 @@ dsp_stdclone(char *name, char *namep, char *sep, int use_sep, int *u, int *c)
 
 static void
 dsp_clone(void *arg,
-#if __FreeBSD_version >= 600034
     struct ucred *cred,
-#endif
     char *name, int namelen, struct cdev **dev)
 {
 	struct snddev_info *d;
@@ -2336,9 +2362,10 @@ dsp_clone(void *arg,
 			devname = devcmp;
 		devhw = dsp_cdevs[i].hw;
 		devcmax = dsp_cdevs[i].max - 1;
-		if (strcmp(name, devcmp) == 0)
-			unit = snd_unit;
-		else if (dsp_stdclone(name, devcmp, devsep,
+		if (strcmp(name, devcmp) == 0) {
+			if (dsp_basename_clone != 0)
+				unit = snd_unit;
+		} else if (dsp_stdclone(name, devcmp, devsep,
 		    dsp_cdevs[i].use_sep, &unit, &cunit) != 0) {
 			unit = -1;
 			cunit = -1;

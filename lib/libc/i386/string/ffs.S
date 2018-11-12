@@ -52,3 +52,5 @@ ENTRY(ffs)
 L1:	xorl	%eax,%eax		/* clear result */
 	ret
 END(ffs)
+
+	.section .note.GNU-stack,"",%progbits

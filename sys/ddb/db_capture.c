@@ -90,7 +90,7 @@ SYSCTL_UINT(_debug_ddb_capture, OID_AUTO, maxbufsize, CTLFLAG_RD,
     &db_capture_maxbufsize, 0,
     "Maximum value for debug.ddb.capture.bufsize");
 
-SYSCTL_UINT(_debug_ddb_capture, OID_AUTO, inprogress, CTLFLAG_RD,
+SYSCTL_INT(_debug_ddb_capture, OID_AUTO, inprogress, CTLFLAG_RD,
     &db_capture_inprogress, 0, "DDB output capture in progress");
 
 /*
@@ -331,8 +331,7 @@ db_capture_usage(void)
 }
 
 void
-db_capture_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
-    char *modif)
+db_capture_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
 	int t;
 

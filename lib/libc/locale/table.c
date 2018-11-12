@@ -5,6 +5,11 @@
  * This code is derived from software contributed to Berkeley by
  * Paul Borman at Krystal Technologies.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -41,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include "mblocal.h"
 
-_RuneLocale _DefaultRuneLocale = {
+const _RuneLocale _DefaultRuneLocale = {
     _RUNE_MAGIC_1,
     "NONE",
     NULL,
@@ -96,16 +101,16 @@ _RuneLocale _DefaultRuneLocale = {
 		_CTYPE_P|_CTYPE_R|_CTYPE_G,
 		_CTYPE_P|_CTYPE_R|_CTYPE_G,
 		_CTYPE_P|_CTYPE_R|_CTYPE_G,
-	/*30*/	_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|0,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|1,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|2,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|3,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|4,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|5,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|6,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|7,
-	/*38*/	_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|8,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|9,
+	/*30*/	_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|0,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|1,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|2,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|3,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|4,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|5,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|6,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|7,
+	/*38*/	_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|8,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|9,
 		_CTYPE_P|_CTYPE_R|_CTYPE_G,
 		_CTYPE_P|_CTYPE_R|_CTYPE_G,
 		_CTYPE_P|_CTYPE_R|_CTYPE_G,
@@ -245,5 +250,14 @@ _RuneLocale _DefaultRuneLocale = {
     },
 };
 
-_RuneLocale *_CurrentRuneLocale = &_DefaultRuneLocale;
+#undef _CurrentRuneLocale
+const _RuneLocale *_CurrentRuneLocale = &_DefaultRuneLocale;
 
+_RuneLocale *
+__runes_for_locale(locale_t locale, int *mb_sb_limit)
+{
+	FIX_LOCALE(locale);
+	struct xlocale_ctype *c = XLOCALE_CTYPE(locale);
+	*mb_sb_limit = c->__mb_sb_limit;
+	return c->runes;
+}

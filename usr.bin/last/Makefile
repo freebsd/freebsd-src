@@ -3,4 +3,6 @@
 
 PROG=	last
 
+NO_WFORMAT=
+
 .include <bsd.prog.mk>

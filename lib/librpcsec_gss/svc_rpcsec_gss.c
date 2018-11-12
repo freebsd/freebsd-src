@@ -90,7 +90,7 @@ struct svc_rpc_gss_callback {
 	rpc_gss_callback_t	cb_callback;
 };
 static SLIST_HEAD(svc_rpc_gss_callback_list, svc_rpc_gss_callback)
-	svc_rpc_gss_callbacks = SLIST_HEAD_INITIALIZER(&svc_rpc_gss_callbacks);
+	svc_rpc_gss_callbacks = SLIST_HEAD_INITIALIZER(svc_rpc_gss_callbacks);
 
 struct svc_rpc_gss_svc_name {
 	SLIST_ENTRY(svc_rpc_gss_svc_name) sn_link;
@@ -102,7 +102,7 @@ struct svc_rpc_gss_svc_name {
 	u_int			sn_version;
 };
 static SLIST_HEAD(svc_rpc_gss_svc_name_list, svc_rpc_gss_svc_name)
-	svc_rpc_gss_svc_names = SLIST_HEAD_INITIALIZER(&svc_rpc_gss_svc_names);
+	svc_rpc_gss_svc_names = SLIST_HEAD_INITIALIZER(svc_rpc_gss_svc_names);
 
 enum svc_rpc_gss_client_state {
 	CLIENT_NEW,				/* still authenticating */
@@ -140,8 +140,8 @@ TAILQ_HEAD(svc_rpc_gss_client_list, svc_rpc_gss_client);
 
 #define CLIENT_HASH_SIZE	256
 #define CLIENT_MAX		128
-struct svc_rpc_gss_client_list svc_rpc_gss_client_hash[CLIENT_HASH_SIZE];
-struct svc_rpc_gss_client_list svc_rpc_gss_clients;
+static struct svc_rpc_gss_client_list svc_rpc_gss_client_hash[CLIENT_HASH_SIZE];
+static struct svc_rpc_gss_client_list svc_rpc_gss_clients;
 static size_t svc_rpc_gss_client_count;
 static uint32_t svc_rpc_gss_next_clientid = 1;
 
@@ -631,11 +631,6 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 					&ret_flags,
 					&cred_lifetime,
 					&client->cl_creds);
-				if (gr->gr_major == GSS_S_COMPLETE
-				    || gr->gr_major == GSS_S_CONTINUE_NEEDED) {
-					client->cl_sname = sname;
-					break;
-				}
 				client->cl_sname = sname;
 				break;
 			}

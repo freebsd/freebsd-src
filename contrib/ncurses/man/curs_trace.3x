@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2000-2005,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2000-2009,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_trace.3x,v 1.8 2007/02/24 17:33:49 tom Exp $
+.\" $Id: curs_trace.3x,v 1.12 2010/12/04 18:40:45 tom Exp $
 .TH curs_trace 3X ""
 .na
 .hy 0
@@ -36,11 +36,13 @@
 \fB_traceattr\fR,
 \fB_traceattr2\fR,
 \fB_nc_tracebits\fR,
+\fB_tracecchar_t\fR,
+\fB_tracecchar_t2\fR,
 \fB_tracechar\fR,
 \fB_tracechtype\fR,
 \fB_tracechtype2\fR,
 \fB_tracemouse\fR,
-\fBtrace\fR - \fBcurses\fR debugging routines
+\fBtrace\fR \- \fBcurses\fR debugging routines
 .ad
 .hy
 .SH SYNOPSIS
@@ -56,7 +58,11 @@
 .br
 \fBchar *_nc_tracebits(void);\fR
 .br
-\fBchar *_tracechar(int);\fR
+\fBchar * _tracecchar_t(const cchar_t *string);\fR
+.br
+\fBchar * _tracecchar_t2(int buffer, const cchar_t *string);\fR
+.br
+\fBchar *_tracechar(int ch);\fR
 .br
 \fBchar *_tracechtype(chtype ch);\fR
 .br
@@ -71,6 +77,8 @@ as well as applications which use the ncurses libraries.
 These functions are normally available only with the debugging library
 \fIlibncurses_g.a\fR, but may be compiled into any model (shared, static,
 profile) by defining the symbol \fBTRACE\fR.
+Additionally, some functions are only available with the wide-character
+configuration of the libraries.
 .PP
 The principal parts of this interface are the \fBtrace\fR routine which
 selectively enables different tracing features, and the \fB_tracef\fR
@@ -135,6 +143,21 @@ maximum trace level, enables all of the separate trace features.
 Some tracing features are enabled whenever the \fBtrace\fR parameter
 is nonzero.  Some features overlap.
 The specific names are used as a guideline.
+.PP
+These functions check the \fBNCURSES_TRACE\fP environment variable,
+to set the tracing feature as if \fBtrace\fP was called:
+.RS
+filter,
+initscr,
+new_prescr,
+newterm,
+nofilter,
+ripoffline,
+setupterm,
+slk_init,
+tgetent
+.RE
+
 .SH RETURN VALUE
 Routines which return a value are designed to be used as parameters
 to the \fB_tracef\fR routine.
@@ -145,9 +168,3 @@ have similar, undocumented features,
 but they are not compatible with ncurses.
 .SH SEE ALSO
 \fBcurses\fR(3X).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

@@ -67,7 +67,8 @@ static size_t argv_env_len = 0;
 void
 compat_init_setproctitle(int argc, char *argv[])
 {
-#if defined(SPT_TYPE) && SPT_TYPE == SPT_REUSEARGV
+#if !defined(HAVE_SETPROCTITLE) && \
+    defined(SPT_TYPE) && SPT_TYPE == SPT_REUSEARGV
 	extern char **environ;
 	char *lastargv = NULL;
 	char **envp = environ;
@@ -125,6 +126,7 @@ setproctitle(const char *fmt, ...)
 	va_list ap;
 	char buf[1024], ptitle[1024];
 	size_t len;
+	int r;
 	extern char *__progname;
 #if SPT_TYPE == SPT_PSTAT
 	union pstun pst;
@@ -137,13 +139,16 @@ setproctitle(const char *fmt, ...)
 
 	strlcpy(buf, __progname, sizeof(buf));
 
+	r = -1;
 	va_start(ap, fmt);
 	if (fmt != NULL) {
 		len = strlcat(buf, ": ", sizeof(buf));
 		if (len < sizeof(buf))
-			vsnprintf(buf + len, sizeof(buf) - len , fmt, ap);
+			r = vsnprintf(buf + len, sizeof(buf) - len , fmt, ap);
 	}
 	va_end(ap);
+	if (r == -1 || (size_t)r >= sizeof(buf) - len)
+		return;
 	strnvis(ptitle, buf, sizeof(ptitle),
 	    VIS_CSTYLE|VIS_NL|VIS_TAB|VIS_OCTAL);
 

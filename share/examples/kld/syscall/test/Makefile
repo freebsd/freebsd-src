@@ -1,7 +1,10 @@
 # Makefile for simple caller of syscall
 # $FreeBSD$
 
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/kld/test
 PROG=	call
-NO_MAN=
+MAN=
+WARNS?=	5
 
 .include <bsd.prog.mk>

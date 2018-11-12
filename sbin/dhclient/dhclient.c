@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include "dhcpd.h"
 #include "privsep.h"
 
+#include <sys/capsicum.h>
+#include <sys/endian.h>
+
 #include <net80211/ieee80211_freebsd.h>
 
 #ifndef _PATH_VAREMPTY
@@ -91,9 +94,13 @@ int log_perror = 1;
 int privfd;
 int nullfd = -1;
 
+char hostname[_POSIX_HOST_NAME_MAX + 1];
+
 struct iaddr iaddr_broadcast = { 4, { 255, 255, 255, 255 } };
-struct in_addr inaddr_any;
-struct sockaddr_in sockaddr_broadcast;
+struct in_addr inaddr_any, inaddr_broadcast;
+
+char *path_dhclient_pidfile;
+struct pidfh *pidfile;
 
 /*
  * ASSERT_STATE() does nothing now; it used to be
@@ -126,7 +133,10 @@ int		 fork_privchld(int, int);
 	    ((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 #define	ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 
-time_t	scripttime;
+/* Minimum MTU is 68 as per RFC791, p. 24 */
+#define MIN_MTU 68
+
+static time_t	scripttime;
 
 int
 findproto(char *cp, int n)
@@ -204,7 +214,7 @@ disassoc(void *arg)
 void
 routehandler(struct protocol *p)
 {
-	char msg[2048];
+	char msg[2048], *addr;
 	struct rt_msghdr *rtm;
 	struct if_msghdr *ifm;
 	struct ifa_msghdr *ifam;
@@ -215,6 +225,7 @@ routehandler(struct protocol *p)
 	struct sockaddr *sa;
 	struct iaddr a;
 	ssize_t n;
+	int linkstat;
 
 	n = read(routefd, &msg, sizeof(msg));
 	rtm = (struct rt_msghdr *)msg;
@@ -224,13 +235,6 @@ routehandler(struct protocol *p)
 
 	switch (rtm->rtm_type) {
 	case RTM_NEWADDR:
-		/*
-		 * XXX: If someone other than us adds our address,
-		 * we should assume they are taking over from us,
-		 * delete the lease record, and exit without modifying
-		 * the interface.
-		 */
-		break;
 	case RTM_DELADDR:
 		ifam = (struct ifa_msghdr *)rtm;
 
@@ -243,7 +247,7 @@ routehandler(struct protocol *p)
 
 		sa = get_ifa((char *)(ifam + 1), ifam->ifam_addrs);
 		if (sa == NULL)
-			goto die;
+			break;
 
 		if ((a.len = sizeof(struct in_addr)) > sizeof(a.iabuf))
 			error("king bula sez: len mismatch");
@@ -255,21 +259,51 @@ routehandler(struct protocol *p)
 			if (addr_eq(a, l->address))
 				break;
 
-		if (l == NULL)	/* deleted addr is not the one we set */
+		if (l == NULL)	/* added/deleted addr is not the one we set */
 			break;
-		goto die;
+
+		addr = inet_ntoa(((struct sockaddr_in *)sa)->sin_addr);
+		if (rtm->rtm_type == RTM_NEWADDR)  {
+			/*
+			 * XXX: If someone other than us adds our address,
+			 * should we assume they are taking over from us,
+			 * delete the lease record, and exit without modifying
+			 * the interface?
+			 */
+			warning("My address (%s) was re-added", addr);
+		} else {
+			warning("My address (%s) was deleted, dhclient exiting",
+			    addr);
+			goto die;
+		}
+		break;
 	case RTM_IFINFO:
 		ifm = (struct if_msghdr *)rtm;
 		if (ifm->ifm_index != ifi->index)
 			break;
-		if ((rtm->rtm_flags & RTF_UP) == 0)
+		if ((rtm->rtm_flags & RTF_UP) == 0) {
+			warning("Interface %s is down, dhclient exiting",
+			    ifi->name);
 			goto die;
+		}
+		linkstat = interface_link_status(ifi->name);
+		if (linkstat != ifi->linkstat) {
+			debug("%s link state %s -> %s", ifi->name,
+			    ifi->linkstat ? "up" : "down",
+			    linkstat ? "up" : "down");
+			ifi->linkstat = linkstat;
+			if (linkstat)
+				state_reboot(ifi);
+		}
 		break;
 	case RTM_IFANNOUNCE:
 		ifan = (struct if_announcemsghdr *)rtm;
 		if (ifan->ifan_what == IFAN_DEPARTURE &&
-		    ifan->ifan_index == ifi->index)
+		    ifan->ifan_index == ifi->index) {
+			warning("Interface %s is gone, dhclient exiting",
+			    ifi->name);
 			goto die;
+		}
 		break;
 	case RTM_IEEE80211:
 		ifan = (struct if_announcemsghdr *)rtm;
@@ -302,6 +336,8 @@ die:
 	if (ifi->client->alias)
 		script_write_params("alias_", ifi->client->alias);
 	script_go();
+	if (pidfile != NULL)
+		pidfile_remove(pidfile);
 	exit(1);
 }
 
@@ -313,12 +349,14 @@ main(int argc, char *argv[])
 	int			 pipe_fd[2];
 	int			 immediate_daemon = 0;
 	struct passwd		*pw;
+	pid_t			 otherpid;
+	cap_rights_t		 rights;
 
 	/* Initially, log errors to stderr as well as to syslogd. */
 	openlog(__progname, LOG_PID | LOG_NDELAY, DHCPD_LOG_FACILITY);
 	setlogmask(LOG_UPTO(LOG_DEBUG));
 
-	while ((ch = getopt(argc, argv, "bc:dl:qu")) != -1)
+	while ((ch = getopt(argc, argv, "bc:dl:p:qu")) != -1)
 		switch (ch) {
 		case 'b':
 			immediate_daemon = 1;
@@ -331,6 +369,9 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			path_dhclient_db = optarg;
+			break;
+		case 'p':
+			path_dhclient_pidfile = optarg;
 			break;
 		case 'q':
 			quiet = 1;
@@ -348,6 +389,21 @@ main(int argc, char *argv[])
 	if (argc != 1)
 		usage();
 
+	if (path_dhclient_pidfile == NULL) {
+		asprintf(&path_dhclient_pidfile,
+		    "%sdhclient.%s.pid", _PATH_VARRUN, *argv);
+		if (path_dhclient_pidfile == NULL)
+			error("asprintf");
+	}
+	pidfile = pidfile_open(path_dhclient_pidfile, 0644, &otherpid);
+	if (pidfile == NULL) {
+		if (errno == EEXIST)
+			error("dhclient already running, pid: %d.", otherpid);
+		if (errno == EAGAIN)
+			error("dhclient already running.");
+		warning("Cannot open or create pidfile: %m");
+	}
+
 	if ((ifi = calloc(1, sizeof(struct interface_info))) == NULL)
 		error("calloc");
 	if (strlcpy(ifi->name, argv[0], IFNAMSIZ) >= IFNAMSIZ)
@@ -362,14 +418,16 @@ main(int argc, char *argv[])
 	tzset();
 	time(&cur_time);
 
-	memset(&sockaddr_broadcast, 0, sizeof(sockaddr_broadcast));
-	sockaddr_broadcast.sin_family = AF_INET;
-	sockaddr_broadcast.sin_port = htons(REMOTE_PORT);
-	sockaddr_broadcast.sin_addr.s_addr = INADDR_BROADCAST;
-	sockaddr_broadcast.sin_len = sizeof(sockaddr_broadcast);
+	inaddr_broadcast.s_addr = INADDR_BROADCAST;
 	inaddr_any.s_addr = INADDR_ANY;
 
 	read_client_conf();
+
+	/* The next bit is potentially very time-consuming, so write out
+	   the pidfile right away.  We will write it out again with the
+	   correct pid after daemonizing. */
+	if (pidfile != NULL)
+		pidfile_write(pidfile);
 
 	if (!interface_link_status(ifi->name)) {
 		fprintf(stderr, "%s: no link ...", ifi->name);
@@ -386,6 +444,7 @@ main(int argc, char *argv[])
 		}
 		fprintf(stderr, " got link\n");
 	}
+	ifi->linkstat = 1;
 
 	if ((nullfd = open(_PATH_DEVNULL, O_RDWR, 0)) == -1)
 		error("cannot open %s: %m", _PATH_DEVNULL);
@@ -396,13 +455,36 @@ main(int argc, char *argv[])
 			error("no such user: nobody");
 	}
 
+	/*
+	 * Obtain hostname before entering capability mode - it won't be
+	 * possible then, as reading kern.hostname is not permitted.
+	 */
+	if (gethostname(hostname, sizeof(hostname)) < 0)
+		hostname[0] = '\0';
+
+	priv_script_init("PREINIT", NULL);
+	if (ifi->client->alias)
+		priv_script_write_params("alias_", ifi->client->alias);
+	priv_script_go();
+
+	/* set up the interface */
+	discover_interfaces(ifi);
+
 	if (pipe(pipe_fd) == -1)
 		error("pipe");
 
 	fork_privchld(pipe_fd[0], pipe_fd[1]);
 
+	close(ifi->ufdesc);
+	ifi->ufdesc = -1;
+	close(ifi->wfdesc);
+	ifi->wfdesc = -1;
+
 	close(pipe_fd[0]);
 	privfd = pipe_fd[1];
+	cap_rights_init(&rights, CAP_READ, CAP_WRITE);
+	if (cap_rights_limit(privfd, &rights) < 0 && errno != ENOSYS)
+		error("can't limit private descriptor: %m");
 
 	if ((fd = open(path_dhclient_db, O_RDONLY|O_EXLOCK|O_CREAT, 0)) == -1)
 		error("can't open and lock %s: %m", path_dhclient_db);
@@ -410,16 +492,13 @@ main(int argc, char *argv[])
 	rewrite_client_leases();
 	close(fd);
 
-	priv_script_init("PREINIT", NULL);
-	if (ifi->client->alias)
-		priv_script_write_params("alias_", ifi->client->alias);
-	priv_script_go();
-
 	if ((routefd = socket(PF_ROUTE, SOCK_RAW, 0)) != -1)
 		add_protocol("AF_ROUTE", routefd, routehandler, ifi);
-
-	/* set up the interface */
-	discover_interfaces(ifi);
+	if (shutdown(routefd, SHUT_WR) < 0)
+		error("can't shutdown route socket: %m");
+	cap_rights_init(&rights, CAP_EVENT, CAP_READ);
+	if (cap_rights_limit(routefd, &rights) < 0 && errno != ENOSYS)
+		error("can't limit route socket: %m");
 
 	if (chroot(_PATH_VAREMPTY) == -1)
 		error("chroot");
@@ -434,6 +513,9 @@ main(int argc, char *argv[])
 	endpwent();
 
 	setproctitle("%s", ifi->name);
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		error("can't enter capability mode: %m");
 
 	if (immediate_daemon)
 		go_daemon();
@@ -720,8 +802,19 @@ dhcpack(struct packet *packet)
 void
 bind_lease(struct interface_info *ip)
 {
+	struct option_data *opt;
+
 	/* Remember the medium. */
 	ip->client->new->medium = ip->client->medium;
+
+	opt = &ip->client->new->options[DHO_INTERFACE_MTU];
+	if (opt->len == sizeof(u_int16_t)) {
+		u_int16_t mtu = be16dec(opt->data);
+		if (mtu < MIN_MTU)
+			warning("mtu size %u < %d: ignored", (unsigned)mtu, MIN_MTU);
+		else
+			interface_set_mtu_unpriv(privfd, mtu);
+	}
 
 	/* Write out the new lease. */
 	write_client_lease(ip, ip->client->new, 0);
@@ -1008,6 +1101,9 @@ packet_to_lease(struct packet *packet)
 	lease->address.len = sizeof(packet->raw->yiaddr);
 	memcpy(lease->address.iabuf, &packet->raw->yiaddr, lease->address.len);
 
+	lease->nextserver.len = sizeof(packet->raw->siaddr);
+	memcpy(lease->nextserver.iabuf, &packet->raw->siaddr, lease->nextserver.len);
+
 	/* If the server name was filled out, copy it.
 	   Do not attempt to validate the server name as a host name.
 	   RFC 2131 merely states that sname is NUL-terminated (which do
@@ -1168,13 +1264,12 @@ again:
 	ip->client->secs = ip->client->packet.secs;
 
 	note("DHCPDISCOVER on %s to %s port %d interval %d",
-	    ip->name, inet_ntoa(sockaddr_broadcast.sin_addr),
-	    ntohs(sockaddr_broadcast.sin_port),
+	    ip->name, inet_ntoa(inaddr_broadcast), REMOTE_PORT,
 	    (int)ip->client->interval);
 
 	/* Send out a packet. */
-	(void)send_packet(ip, &ip->client->packet, ip->client->packet_length,
-	    inaddr_any, &sockaddr_broadcast, NULL);
+	send_packet_unpriv(privfd, &ip->client->packet,
+	    ip->client->packet_length, inaddr_any, inaddr_broadcast);
 
 	add_timeout(cur_time + ip->client->interval, send_discover, ip);
 }
@@ -1282,8 +1377,7 @@ void
 send_request(void *ipp)
 {
 	struct interface_info *ip = ipp;
-	struct sockaddr_in destination;
-	struct in_addr from;
+	struct in_addr from, to;
 	int interval;
 
 	/* Figure out how long it's been since we started transmitting. */
@@ -1371,18 +1465,13 @@ cancel:
 
 	/* If the lease T2 time has elapsed, or if we're not yet bound,
 	   broadcast the DHCPREQUEST rather than unicasting. */
-	memset(&destination, 0, sizeof(destination));
 	if (ip->client->state == S_REQUESTING ||
 	    ip->client->state == S_REBOOTING ||
 	    cur_time > ip->client->active->rebind)
-		destination.sin_addr.s_addr = INADDR_BROADCAST;
+		to.s_addr = INADDR_BROADCAST;
 	else
-		memcpy(&destination.sin_addr.s_addr,
-		    ip->client->destination.iabuf,
-		    sizeof(destination.sin_addr.s_addr));
-	destination.sin_port = htons(REMOTE_PORT);
-	destination.sin_family = AF_INET;
-	destination.sin_len = sizeof(destination);
+		memcpy(&to.s_addr, ip->client->destination.iabuf,
+		    sizeof(to.s_addr));
 
 	if (ip->client->state != S_REQUESTING)
 		memcpy(&from, ip->client->active->address.iabuf,
@@ -1400,12 +1489,12 @@ cancel:
 			ip->client->packet.secs = htons(65535);
 	}
 
-	note("DHCPREQUEST on %s to %s port %d", ip->name,
-	    inet_ntoa(destination.sin_addr), ntohs(destination.sin_port));
+	note("DHCPREQUEST on %s to %s port %d", ip->name, inet_ntoa(to),
+	    REMOTE_PORT);
 
 	/* Send out a packet. */
-	(void) send_packet(ip, &ip->client->packet, ip->client->packet_length,
-	    from, &destination, NULL);
+	send_packet_unpriv(privfd, &ip->client->packet,
+	    ip->client->packet_length, from, to);
 
 	add_timeout(cur_time + ip->client->interval, send_request, ip);
 }
@@ -1416,12 +1505,11 @@ send_decline(void *ipp)
 	struct interface_info *ip = ipp;
 
 	note("DHCPDECLINE on %s to %s port %d", ip->name,
-	    inet_ntoa(sockaddr_broadcast.sin_addr),
-	    ntohs(sockaddr_broadcast.sin_port));
+	    inet_ntoa(inaddr_broadcast), REMOTE_PORT);
 
 	/* Send out a packet. */
-	(void) send_packet(ip, &ip->client->packet, ip->client->packet_length,
-	    inaddr_any, &sockaddr_broadcast, NULL);
+	send_packet_unpriv(privfd, &ip->client->packet,
+	    ip->client->packet_length, inaddr_any, inaddr_broadcast);
 }
 
 void
@@ -1478,11 +1566,10 @@ make_discover(struct interface_info *ip, struct client_lease *lease)
 			    ip->client->config->send_options[i].len;
 			options[i]->timeout = 0xFFFFFFFF;
 		}
-		
+
 	/* send host name if not set via config file. */
-	char hostname[_POSIX_HOST_NAME_MAX+1];
 	if (!options[DHO_HOST_NAME]) {
-		if (gethostname(hostname, sizeof(hostname)) == 0) {
+		if (hostname[0] != '\0') {
 			size_t len;
 			char* posDot = strchr(hostname, '.');
 			if (posDot != NULL)
@@ -1498,12 +1585,12 @@ make_discover(struct interface_info *ip, struct client_lease *lease)
 	}
 
 	/* set unique client identifier */
-	char client_ident[sizeof(struct hardware)];
+	char client_ident[sizeof(ip->hw_address.haddr) + 1];
 	if (!options[DHO_DHCP_CLIENT_IDENTIFIER]) {
 		int hwlen = (ip->hw_address.hlen < sizeof(client_ident)-1) ?
 				ip->hw_address.hlen : sizeof(client_ident)-1;
 		client_ident[0] = ip->hw_address.htype;
-		memcpy(&client_ident[1], ip->hw_address.haddr, hwlen); 
+		memcpy(&client_ident[1], ip->hw_address.haddr, hwlen);
 		options[DHO_DHCP_CLIENT_IDENTIFIER] = &option_elements[DHO_DHCP_CLIENT_IDENTIFIER];
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->value = client_ident;
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->len = hwlen+1;
@@ -1602,11 +1689,10 @@ make_request(struct interface_info *ip, struct client_lease * lease)
 			    ip->client->config->send_options[i].len;
 			options[i]->timeout = 0xFFFFFFFF;
 		}
-		
+
 	/* send host name if not set via config file. */
-	char hostname[_POSIX_HOST_NAME_MAX+1];
 	if (!options[DHO_HOST_NAME]) {
-		if (gethostname(hostname, sizeof(hostname)) == 0) {
+		if (hostname[0] != '\0') {
 			size_t len;
 			char* posDot = strchr(hostname, '.');
 			if (posDot != NULL)
@@ -1627,7 +1713,7 @@ make_request(struct interface_info *ip, struct client_lease * lease)
 		int hwlen = (ip->hw_address.hlen < sizeof(client_ident)-1) ?
 				ip->hw_address.hlen : sizeof(client_ident)-1;
 		client_ident[0] = ip->hw_address.htype;
-		memcpy(&client_ident[1], ip->hw_address.haddr, hwlen); 
+		memcpy(&client_ident[1], ip->hw_address.haddr, hwlen);
 		options[DHO_DHCP_CLIENT_IDENTIFIER] = &option_elements[DHO_DHCP_CLIENT_IDENTIFIER];
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->value = client_ident;
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->len = hwlen+1;
@@ -1768,11 +1854,22 @@ void
 rewrite_client_leases(void)
 {
 	struct client_lease *lp;
+	cap_rights_t rights;
 
 	if (!leaseFile) {
 		leaseFile = fopen(path_dhclient_db, "w");
 		if (!leaseFile)
 			error("can't create %s: %m", path_dhclient_db);
+		cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_FSYNC,
+		    CAP_FTRUNCATE, CAP_SEEK, CAP_WRITE);
+		if (cap_rights_limit(fileno(leaseFile), &rights) < 0 &&
+		    errno != ENOSYS) {
+			error("can't limit lease descriptor: %m");
+		}
+		if (cap_fcntls_limit(fileno(leaseFile), CAP_FCNTL_GETFL) < 0 &&
+		    errno != ENOSYS) {
+			error("can't limit lease descriptor fcntls: %m");
+		}
 	} else {
 		fflush(leaseFile);
 		rewind(leaseFile);
@@ -1819,6 +1916,11 @@ write_client_lease(struct interface_info *ip, struct client_lease *lease,
 		fprintf(leaseFile, "  bootp;\n");
 	fprintf(leaseFile, "  interface \"%s\";\n", ip->name);
 	fprintf(leaseFile, "  fixed-address %s;\n", piaddr(lease->address));
+	if (lease->nextserver.len == sizeof(inaddr_any) &&
+	    0 != memcmp(lease->nextserver.iabuf, &inaddr_any,
+	    sizeof(inaddr_any)))
+		fprintf(leaseFile, "  next-server %s;\n",
+		    piaddr(lease->nextserver));
 	if (lease->filename)
 		fprintf(leaseFile, "  filename \"%s\";\n", lease->filename);
 	if (lease->server_name)
@@ -2110,8 +2212,6 @@ script_go(void)
 	struct buf	*buf;
 	int		 ret;
 
-	scripttime = time(NULL);
-
 	hdr.code = IMSG_SCRIPT_GO;
 	hdr.len = sizeof(struct imsg_hdr);
 
@@ -2131,6 +2231,8 @@ script_go(void)
 	if (hdr.len != sizeof(hdr) + sizeof(int))
 		error("received corrupted message");
 	buf_read(privfd, &ret, sizeof(ret));
+
+	scripttime = time(NULL);
 
 	return (ret);
 }
@@ -2188,6 +2290,17 @@ script_set_env(struct client_state *client, const char *prefix,
 {
 	int i, j, namelen;
 
+	/* No `` or $() command substitution allowed in environment values! */
+	for (j=0; j < strlen(value); j++)
+		switch (value[j]) {
+		case '`':
+		case '$':
+			warning("illegal character (%c) in value '%s'",
+			    value[j], value);
+			/* Ignore this option */
+			return;
+		}
+
 	namelen = strlen(name);
 
 	for (i = 0; client->scriptEnv[i]; i++)
@@ -2224,16 +2337,6 @@ script_set_env(struct client_state *client, const char *prefix,
 	    strlen(value) + 1);
 	if (client->scriptEnv[i] == NULL)
 		error("script_set_env: no memory for variable assignment");
-
-	/* No `` or $() command substitution allowed in environment values! */
-	for (j=0; j < strlen(value); j++)
-		switch (value[j]) {
-		case '`':
-		case '$':
-			error("illegal character (%c) in value '%s'", value[j],
-			    value);
-			/* not reached */
-		}
 	snprintf(client->scriptEnv[i], strlen(prefix) + strlen(name) +
 	    1 + strlen(value) + 1, "%s%s=%s", prefix, name, value);
 }
@@ -2272,6 +2375,7 @@ void
 go_daemon(void)
 {
 	static int state = 0;
+	cap_rights_t rights;
 
 	if (no_daemon || state)
 		return;
@@ -2284,6 +2388,16 @@ go_daemon(void)
 	if (daemon(1, 0) == -1)
 		error("daemon");
 
+	cap_rights_init(&rights);
+
+	if (pidfile != NULL) {
+		pidfile_write(pidfile);
+		if (cap_rights_limit(pidfile_fileno(pidfile), &rights) < 0 &&
+		    errno != ENOSYS) {
+			error("can't limit pidfile descriptor: %m");
+		}
+	}
+
 	/* we are chrooted, daemon(3) fails to open /dev/null */
 	if (nullfd != -1) {
 		dup2(nullfd, STDIN_FILENO);
@@ -2292,6 +2406,14 @@ go_daemon(void)
 		close(nullfd);
 		nullfd = -1;
 	}
+
+	if (cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS)
+		error("can't limit stdin: %m");
+	cap_rights_init(&rights, CAP_WRITE);
+	if (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS)
+		error("can't limit stdout: %m");
+	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
+		error("can't limit stderr: %m");
 }
 
 int
@@ -2354,6 +2476,7 @@ check_option(struct client_lease *l, int option)
 		}
 		return (1);
 	case DHO_DOMAIN_NAME:
+	case DHO_DOMAIN_SEARCH:
 		if (!res_hnok(sbuf)) {
 			if (!check_search(sbuf)) {
 				warning("Bogus domain search list %d: %s (%s)",
@@ -2435,19 +2558,19 @@ check_classless_option(unsigned char *data, int len)
 			i += 4;
 			continue;
 		} else if (width < 9) {
-			addr =  (in_addr_t)(data[i] 	<< 24);
+			addr =  (in_addr_t)(data[i]	<< 24);
 			i += 1;
 		} else if (width < 17) {
-			addr =  (in_addr_t)(data[i] 	<< 24) +
+			addr =  (in_addr_t)(data[i]	<< 24) +
 				(in_addr_t)(data[i + 1]	<< 16);
 			i += 2;
 		} else if (width < 25) {
-			addr =  (in_addr_t)(data[i] 	<< 24) +
+			addr =  (in_addr_t)(data[i]	<< 24) +
 				(in_addr_t)(data[i + 1]	<< 16) +
 				(in_addr_t)(data[i + 2]	<< 8);
 			i += 3;
 		} else if (width < 33) {
-			addr =  (in_addr_t)(data[i] 	<< 24) +
+			addr =  (in_addr_t)(data[i]	<< 24) +
 				(in_addr_t)(data[i + 1]	<< 16) +
 				(in_addr_t)(data[i + 2]	<< 8)  +
 				data[i + 3];
@@ -2471,7 +2594,7 @@ check_classless_option(unsigned char *data, int len)
 			addr &= mask;
 			data[i - 1] = (unsigned char)(
 				(addr >> (((32 - width)/8)*8)) & 0xFF);
-		} 
+		}
 		i += 4;
 	}
 	if (i > len) {
@@ -2635,6 +2758,8 @@ fork_privchld(int fd, int fd2)
 	dup2(nullfd, STDERR_FILENO);
 	close(nullfd);
 	close(fd2);
+	close(ifi->rfdesc);
+	ifi->rfdesc = -1;
 
 	for (;;) {
 		pfd[0].fd = fd;
@@ -2646,6 +2771,6 @@ fork_privchld(int fd, int fd2)
 		if (nfds == 0 || !(pfd[0].revents & POLLIN))
 			continue;
 
-		dispatch_imsg(fd);
+		dispatch_imsg(ifi, fd);
 	}
 }

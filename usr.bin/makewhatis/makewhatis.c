@@ -693,7 +693,7 @@ enum { STATE_UNKNOWN, STATE_MANSTYLE, STATE_MDOCNAME, STATE_MDOCDESC };
 static void
 process_page(struct page_info *page, char *section_dir)
 {
-	gzFile *in;
+	gzFile in;
 	char buffer[4096];
 	char *line;
 	StringList *names;
@@ -879,9 +879,9 @@ process_section(char *section_dir)
  * Returns whether the directory entry is a man page section.
  */
 static int
-select_sections(struct dirent *entry)
+select_sections(const struct dirent *entry)
 {
-	char *p = &entry->d_name[3];
+	const char *p = &entry->d_name[3];
 
 	if (strncmp(entry->d_name, "man", 3) != 0)
 		return 0;

@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <langinfo.h>
+#include <locale.h>
 
 #include "defs.h"
 #include "pathnames.h"
@@ -81,13 +83,14 @@ static	int do_status(const char *, int, char **);
 static	int do_ielem(const char *, int, char **);
 static	int do_return(const char *, int, char **);
 static	int do_voltag(const char *, int, char **);
+static	void print_designator(const char *, u_int8_t, u_int8_t);
 
 #ifndef CHET_VT
 #define	CHET_VT		10			/* Completely Arbitrary */
 #endif
 
 /* Valid changer element types. */
-const struct element_type elements[] = {
+static	const struct element_type elements[] = {
 	{ "drive",		CHET_DT },
 	{ "picker",		CHET_MT },
 	{ "portal",		CHET_IE },
@@ -97,7 +100,7 @@ const struct element_type elements[] = {
 };
 
 /* Valid commands. */
-const struct changer_command commands[] = {
+static	const struct changer_command commands[] = {
 	{ "exchange",		do_exchange },
 	{ "getpicker",		do_getpicker },
 	{ "ielem", 		do_ielem },
@@ -112,7 +115,7 @@ const struct changer_command commands[] = {
 };
 
 /* Valid special words. */
-const struct special_word specials[] = {
+static	const struct special_word specials[] = {
 	{ "inv",		SW_INVERT },
 	{ "inv1",		SW_INVERT1 },
 	{ "inv2",		SW_INVERT2 },
@@ -723,6 +726,10 @@ do_status(const char *cname, int argc, char **argv)
 					putchar('?');
 				putchar('>');
 			}
+			if (ces->ces_designator_length > 0)
+				print_designator(ces->ces_designator,
+						 ces->ces_code_set,
+						 ces->ces_designator_length);
 			putchar('\n');
 		}
 
@@ -1072,6 +1079,7 @@ find_element(char *voltag, uint16_t *et, uint16_t *eu)
 
 	/* Read in the changer slots */
 	if (cp.cp_nslots > 0) {
+		(void) memset(&cesr, 0, sizeof(cesr));
 		cesr.cesr_element_type = CHET_ST;
 		cesr.cesr_element_base = 0;
 		cesr.cesr_element_count = cp.cp_nslots;
@@ -1175,4 +1183,67 @@ usage(void)
 	(void)fprintf(stderr, "usage: %s [-f changer] command [-<flags>] "
 		"arg1 arg2 [arg3 [...]]\n", getprogname());
 	exit(1);
+}
+
+#define	UTF8CODESET	"UTF-8"
+
+static void
+print_designator(const char *designator, u_int8_t code_set,
+    u_int8_t designator_length)
+{
+	printf(" serial number: <");
+	switch (code_set) {
+	case CES_CODE_SET_ASCII: {
+		/*
+		 * The driver insures that the string is always NUL terminated.
+		 */
+		printf("%s", designator);
+		break;
+	}
+	case CES_CODE_SET_UTF_8: {
+		char *cs_native;
+
+		setlocale(LC_ALL, "");
+		cs_native = nl_langinfo(CODESET);
+
+		/* See if we can natively print UTF-8 */
+		if (strcmp(cs_native, UTF8CODESET) == 0)
+			cs_native = NULL;
+
+		if (cs_native == NULL) {
+			/* We can natively print UTF-8, so use printf. */
+			printf("%s", designator);
+		} else {
+			int i;
+
+			/*
+			 * We can't natively print UTF-8.  We should
+			 * convert it to the terminal's codeset, but that
+			 * requires iconv(3) and FreeBSD doesn't have
+			 * iconv(3) in the base system yet.  So we use %XX
+			 * notation for non US-ASCII characters instead.
+			 */
+			for (i = 0; i < designator_length &&
+			    designator[i] != '\0'; i++) {
+				if ((unsigned char)designator[i] < 0x80)
+					printf("%c", designator[i]);
+				else
+					printf("%%%02x",
+					    (unsigned char)designator[i]);
+			}
+		}
+		break;
+	}
+	case CES_CODE_SET_BINARY: {
+		int i;
+
+		for (i = 0; i < designator_length; i++)
+			printf("%02X%s", designator[i],
+			    (i == designator_length - 1) ? "" : " ");
+		break;
+	}
+	default:
+		break;
+	}
+	printf(">");
 }

@@ -3,7 +3,8 @@
 PROG=	pppctl
 MAN=	pppctl.8
 
-DPADD=	${LIBPTHREAD} ${LIBEDIT} ${LIBTERMCAP}
-LDADD=	-lpthread -ledit -ltermcap
+WARNS?=	2
+
+LIBADD=	edit pthread
 
 .include <bsd.prog.mk>

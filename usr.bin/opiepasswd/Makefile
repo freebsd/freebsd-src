@@ -8,8 +8,9 @@ CFLAGS+=-I${.CURDIR}/../../lib/libopie
 CFLAGS+=-I${OPIE_DIST}
 CFLAGS+=-DINSECURE_OVERRIDE
 
-DPADD=	${LIBOPIE} ${LIBMD}
-LDADD=	-lopie -lmd
+WARNS?=	0
+
+LIBADD=	opie
 
 BINOWN=	root
 BINMODE=4555

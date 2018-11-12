@@ -44,14 +44,13 @@
 .Ft void
 .Fn MD5Init "MD5_CTX *buf"
 .Ft void
-.Fn MD5Transform "u_int32_t buf[4]" "const unsigned char block[64]"
+.Fn MD5Transform "uint32_t buf[4]" "const unsigned char block[64]"
 .Sh DESCRIPTION
 The
 .Nm
 module implements the RSA Data Security, Inc.\& MD5 Message-Digest Algorithm
 (MD5).
 It produces 128-bit MD5 Digest of data.
-.Pp
 .Bl -hang -width MD5Transformxxx
 .It Pa MD5Init
 must be called just before

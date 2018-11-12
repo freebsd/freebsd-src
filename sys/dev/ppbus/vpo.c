@@ -83,9 +83,6 @@ struct vpo_data {
 /* cam related functions */
 static void	vpo_action(struct cam_sim *sim, union ccb *ccb);
 static void	vpo_poll(struct cam_sim *sim);
-static void	vpo_cam_rescan_callback(struct cam_periph *periph,
-					union ccb *ccb);
-static void	vpo_cam_rescan(struct vpo_data *vpo);
 
 static void
 vpo_identify(driver_t *driver, device_t parent)
@@ -176,42 +173,8 @@ vpo_attach(device_t dev)
 		return (ENXIO);
 	}
 	ppb_unlock(ppbus);
-	vpo_cam_rescan(vpo);	/* have CAM rescan the bus */
 
 	return (0);
-}
-
-static void
-vpo_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
-{
-
-	free(ccb, M_TEMP);
-}
-
-static void
-vpo_cam_rescan(struct vpo_data *vpo)
-{
-	device_t ppbus = device_get_parent(vpo->vpo_dev);
-	struct cam_path *path;
-	union ccb *ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO);
-
-	ppb_lock(ppbus);
-	if (xpt_create_path(&path, xpt_periph, cam_sim_path(vpo->sim), 0, 0)
-	    != CAM_REQ_CMP) {
-		/* A failure is benign as the user can do a manual rescan */
-		ppb_unlock(ppbus);
-		free(ccb, M_TEMP);
-		return;
-	}
-
-	xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
-	ccb->ccb_h.func_code = XPT_SCAN_BUS;
-	ccb->ccb_h.cbfcnp = vpo_cam_rescan_callback;
-	ccb->crcn.flags = CAM_FLAG_NONE;
-	xpt_action(ccb);
-	ppb_unlock(ppbus);
-
-	/* The scan is in progress now. */
 }
 
 /*
@@ -224,17 +187,19 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 #ifdef VP0_DEBUG
 	int i;
 #endif
+	uint8_t *ptr;
 
+	ptr = scsiio_cdb_ptr(csio);
 	if (vpo->vpo_isplus) {
 		errno = imm_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
 			csio->ccb_h.target_id,
-			(char *)&csio->cdb_io.cdb_bytes, csio->cdb_len,
+			ptr, csio->cdb_len,
 			(char *)csio->data_ptr, csio->dxfer_len,
 			&vpo->vpo_stat, &vpo->vpo_count, &vpo->vpo_error);
 	} else {
 		errno = vpoio_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
 			csio->ccb_h.target_id,
-			(char *)&csio->cdb_io.cdb_bytes, csio->cdb_len,
+			ptr, csio->cdb_len,
 			(char *)csio->data_ptr, csio->dxfer_len,
 			&vpo->vpo_stat, &vpo->vpo_count, &vpo->vpo_error);
 	}
@@ -245,7 +210,7 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 
 	/* dump of command */
 	for (i=0; i<csio->cdb_len; i++)
-		printf("%x ", ((char *)&csio->cdb_io.cdb_bytes)[i]);
+		printf("%x ", ((char *)ptr)[i]);
 
 	printf("\n");
 #endif
@@ -256,7 +221,7 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 		return;
 	}
 
-	/* if a timeout occured, no sense */
+	/* if a timeout occurred, no sense */
 	if (vpo->vpo_error) {
 		if (vpo->vpo_error != VP0_ESELECT_TIMEOUT)
 			device_printf(vpo->vpo_dev, "VP0 error/timeout (%d)\n",
@@ -335,11 +300,8 @@ static void
 vpo_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct vpo_data *vpo = (struct vpo_data *)sim->softc;
-#ifdef INVARIANTS
-	device_t ppbus = device_get_parent(vpo->vpo_dev);
 
-	ppb_assert_locked(ppbus);
-#endif
+	ppb_assert_locked(device_get_parent(vpo->vpo_dev));
 	switch (ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
 	{
@@ -347,11 +309,15 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 
 		csio = &ccb->csio;
 
+		if (ccb->ccb_h.flags & CAM_CDB_PHYS) {
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			xpt_done(ccb);
+			break;
+		}
 #ifdef VP0_DEBUG
 		device_printf(vpo->vpo_dev, "XPT_SCSI_IO (0x%x) request\n",
-			csio->cdb_io.cdb_bytes[0]);
+		    *scsiio_cdb_ptr(csio));
 #endif
-
 		vpo_intr(vpo, csio);
 
 		xpt_done(ccb);

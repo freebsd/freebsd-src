@@ -40,7 +40,7 @@
 #include <unistd.h>
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	int sock, socks[2];
 
@@ -59,7 +59,7 @@ main(int argc, char *argv[])
 		close(sock);
 		errx(-1, "socket(PF_LOCAL, SOCK_RAW, 0) returned %d", sock);
 	}
-	if (errno != EPROTONOSUPPORT)
+	if (errno != EPROTOTYPE)
 		err(-1, "socket(PF_LOCAL, SOCK_RAW, 0)");
 
 	if (socketpair(PF_LOCAL, SOCK_STREAM, 0, socks) < 0)

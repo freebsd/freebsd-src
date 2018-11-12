@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -44,6 +40,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/times.h>
 #include <setjmp.h>
+#include <utmpx.h>
 #include "pathnames.h"
 
 extern int measure_delta;
@@ -56,8 +53,6 @@ static int slvcount;			/* slaves listening to our clock */
 
 static void mchgdate(struct tsp *);
 
-extern void logwtmp(char *, char *, char *);
-
 /*
  * The main function of `master' is to periodically compute the differences
  * (deltas) between its clock and the clocks of the slaves, to compute the
@@ -68,7 +63,7 @@ extern void logwtmp(char *, char *, char *);
  * takes the appropriate action.
  */
 int
-master()
+master(void)
 {
 	struct hosttbl *htp;
 	long pollingtime;
@@ -90,7 +85,7 @@ master()
 		if (ntp->status == MASTER)
 			masterup(ntp);
 	}
-	(void)gettimeofday(&ntime, 0);
+	(void)gettimeofday(&ntime, NULL);
 	pollingtime = ntime.tv_sec+3;
 	if (justquit)
 		polls = 0;
@@ -101,14 +96,14 @@ master()
  *	to update all timers.
  */
 loop:
-	(void)gettimeofday(&ntime, 0);
+	(void)gettimeofday(&ntime, NULL);
 	wait.tv_sec = pollingtime - ntime.tv_sec;
 	if (wait.tv_sec < 0)
 		wait.tv_sec = 0;
 	wait.tv_usec = 0;
 	msg = readmsg(TSP_ANY, ANYADDR, &wait, 0);
 	if (!msg) {
-		(void)gettimeofday(&ntime, 0);
+		(void)gettimeofday(&ntime, NULL);
 		if (ntime.tv_sec >= pollingtime) {
 			pollingtime = ntime.tv_sec + SAMPLEINTVL;
 			get_goodgroup(0);
@@ -170,7 +165,8 @@ loop:
 			 * XXX check to see it is from ourself
 			 */
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 			if (!good_host_name(msg->tsp_name)) {
 				syslog(LOG_NOTICE,
 				       "attempted date change by %s to %s",
@@ -180,7 +176,7 @@ loop:
 			}
 
 			mchgdate(msg);
-			(void)gettimeofday(&ntime, 0);
+			(void)gettimeofday(&ntime, NULL);
 			pollingtime = ntime.tv_sec + SAMPLEINTVL;
 			break;
 
@@ -188,9 +184,10 @@ loop:
 			if (!fromnet || fromnet->status != MASTER)
 				break;
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 			htp = findhost(msg->tsp_name);
-			if (htp == 0) {
+			if (htp == NULL) {
 				syslog(LOG_ERR,
 				       "attempted SET DATEREQ by uncontrolled %s to %s",
 				       msg->tsp_name, newdate);
@@ -208,7 +205,7 @@ loop:
 			}
 
 			mchgdate(msg);
-			(void)gettimeofday(&ntime, 0);
+			(void)gettimeofday(&ntime, NULL);
 			pollingtime = ntime.tv_sec + SAMPLEINTVL;
 			break;
 
@@ -289,7 +286,7 @@ loop:
 			 * do not want to call synch() while waiting
 			 * to be killed!
 			 */
-			(void)gettimeofday(&ntime, (struct timezone *)0);
+			(void)gettimeofday(&ntime, NULL);
 			pollingtime = ntime.tv_sec + SAMPLEINTVL;
 			break;
 
@@ -344,21 +341,21 @@ loop:
  * change the system date on the master
  */
 static void
-mchgdate(msg)
-	struct tsp *msg;
+mchgdate(struct tsp *msg)
 {
 	char tname[MAXHOSTNAMELEN];
 	char olddate[32];
 	struct timeval otime, ntime, tmptv;
+	struct utmpx utx;
 
 	(void)strcpy(tname, msg->tsp_name);
 
 	xmit(TSP_DATEACK, msg->tsp_seq, &from);
 
-	(void)strcpy(olddate, date());
+	(void)strlcpy(olddate, date(), sizeof(olddate));
 
 	/* adjust time for residence on the queue */
-	(void)gettimeofday(&otime, 0);
+	(void)gettimeofday(&otime, NULL);
 	adj_msg_time(msg,&otime);
 
  	tmptv.tv_sec = msg->tsp_time.tv_sec;
@@ -371,9 +368,13 @@ mchgdate(msg)
 		dictate = 3;
 		synch(tvtomsround(ntime));
 	} else {
-		logwtmp("|", "date", "");
+		utx.ut_type = OLD_TIME;
+		(void)gettimeofday(&utx.ut_tv, NULL);
+		pututxline(&utx);
  		(void)settimeofday(&tmptv, 0);
-		logwtmp("{", "date", "");
+		utx.ut_type = NEW_TIME;
+		(void)gettimeofday(&utx.ut_tv, NULL);
+		pututxline(&utx);
 		spreadtime();
 	}
 
@@ -386,8 +387,7 @@ mchgdate(msg)
  * synchronize all of the slaves
  */
 void
-synch(mydelta)
-	long mydelta;
+synch(long mydelta)
 {
 	struct hosttbl *htp;
 	int measure_status;
@@ -396,7 +396,7 @@ synch(mydelta)
 	if (slvcount > 0) {
 		if (trace)
 			fprintf(fd, "measurements starting at %s\n", date());
-		(void)gettimeofday(&check, 0);
+		(void)gettimeofday(&check, NULL);
 		for (htp = self.l_fwd; htp != &self; htp = htp->l_fwd) {
 			if (htp->noanswer != 0) {
 				measure_status = measure(500, 100,
@@ -424,7 +424,7 @@ synch(mydelta)
 			} else {
 				htp->delta = measure_delta;
 			}
-			(void)gettimeofday(&stop, 0);
+			(void)gettimeofday(&stop, NULL);
 			timevalsub(&stop, &stop, &check);
 			if (stop.tv_sec >= 1) {
 				if (trace)
@@ -437,7 +437,7 @@ synch(mydelta)
 				if (0 != readmsg(TSP_TRACEON,ANYADDR,
 						 &wait,0))
 					traceon();
-				(void)gettimeofday(&check, 0);
+				(void)gettimeofday(&check, NULL);
 			}
 		}
 		if (trace)
@@ -460,7 +460,7 @@ synch(mydelta)
  * has received the command to set the network time
  */
 void
-spreadtime()
+spreadtime(void)
 {
 	struct hosttbl *htp;
 	struct tsp to;
@@ -474,12 +474,12 @@ spreadtime()
 	for (htp = self.l_fwd; htp != &self; htp = htp->l_fwd) {
 		to.tsp_type = TSP_SETTIME;
 		(void)strcpy(to.tsp_name, hostname);
-		(void)gettimeofday(&tmptv, 0);
+		(void)gettimeofday(&tmptv, NULL);
 		to.tsp_time.tv_sec = tmptv.tv_sec;
 		to.tsp_time.tv_usec = tmptv.tv_usec;
 		answer = acksend(&to, &htp->addr, htp->name,
 				 TSP_ACK, 0, htp->noanswer);
-		if (answer == 0) {
+		if (answer == NULL) {
 			/* We client does not respond, then we have
 			 * just wasted lots of time on it.
 			 */
@@ -499,8 +499,7 @@ spreadtime()
 }
 
 void
-prthp(delta)
-	clock_t delta;
+prthp(clock_t delta)
 {
 	static time_t next_time;
 	time_t this_time;
@@ -538,8 +537,7 @@ static struct hosttbl *lasthfree = &hosttbl[0];
 
 
 struct hosttbl *			/* answer or 0 */
-findhost(name)
-	char *name;
+findhost(char *name)
 {
 	int i, j;
 	struct hosttbl *htp;
@@ -565,15 +563,12 @@ findhost(name)
  * add a host to the list of controlled machines if not already there
  */
 struct hosttbl *
-addmach(name, addr, ntp)
-	char *name;
-	struct sockaddr_in *addr;
-	struct netinfo *ntp;
+addmach(char *name, struct sockaddr_in *addr, struct netinfo *ntp)
 {
 	struct hosttbl *ret, *p, *b, *f;
 
 	ret = findhost(name);
-	if (ret == 0) {
+	if (ret == NULL) {
 		if (slvcount >= NHOSTS) {
 			if (trace) {
 				fprintf(fd, "no more slots in host table\n");
@@ -630,7 +625,7 @@ addmach(name, addr, ntp)
 		}
 		ret->addr = *addr;
 		ret->ntp = ntp;
-		(void)strncpy(ret->name, name, sizeof(ret->name));
+		(void)strlcpy(ret->name, name, sizeof(ret->name));
 		ret->good = good_host_name(name);
 		ret->l_fwd = &self;
 		ret->l_bak = self.l_bak;
@@ -654,8 +649,7 @@ addmach(name, addr, ntp)
  * remove the machine with the given index in the host table.
  */
 struct hosttbl *
-remmach(htp)
-	struct hosttbl *htp;
+remmach(struct hosttbl *htp)
 {
 	struct hosttbl *lprv, *hnxt, *f, *b;
 
@@ -692,8 +686,8 @@ remmach(htp)
 	}
 
 	lasthfree->name[0] = '\0';
-	lasthfree->h_fwd = 0;
-	lasthfree->l_fwd = 0;
+	lasthfree->h_fwd = NULL;
+	lasthfree->l_fwd = NULL;
 	slvcount--;
 
 	return lprv;
@@ -706,8 +700,7 @@ remmach(htp)
  * given network.
  */
 void
-rmnetmachs(ntp)
-	struct netinfo *ntp;
+rmnetmachs(struct netinfo *ntp)
 {
 	struct hosttbl *htp;
 
@@ -722,8 +715,7 @@ rmnetmachs(ntp)
 }
 
 void
-masterup(net)
-	struct netinfo *net;
+masterup(struct netinfo *net)
 {
 	xmit(TSP_MASTERUP, 0, &net->dest_addr);
 
@@ -732,12 +724,11 @@ masterup(net)
 	 * we do not tell them to start using our time, before we have
 	 * found a good master.
 	 */
-	(void)gettimeofday(&net->slvwait, 0);
+	(void)gettimeofday(&net->slvwait, NULL);
 }
 
 void
-newslave(msg)
-	struct tsp *msg;
+newslave(struct tsp *msg)
 {
 	struct hosttbl *htp;
 	struct tsp *answer, to;
@@ -755,12 +746,12 @@ newslave(msg)
 	 * If we are stable, send our time to the slave.
 	 * Do not go crazy if the date has been changed.
 	 */
-	(void)gettimeofday(&now, 0);
+	(void)gettimeofday(&now, NULL);
 	if (now.tv_sec >= fromnet->slvwait.tv_sec+3
 	    || now.tv_sec < fromnet->slvwait.tv_sec) {
 		to.tsp_type = TSP_SETTIME;
 		(void)strcpy(to.tsp_name, hostname);
-		(void)gettimeofday(&tmptv, 0);
+		(void)gettimeofday(&tmptv, NULL);
 		to.tsp_time.tv_sec = tmptv.tv_sec;
 		to.tsp_time.tv_usec = tmptv.tv_usec;
 		answer = acksend(&to, &htp->addr,
@@ -782,8 +773,7 @@ newslave(msg)
  * react to a TSP_QUIT:
  */
 void
-doquit(msg)
-	struct tsp *msg;
+doquit(struct tsp *msg)
 {
 	if (fromnet->status == MASTER) {
 		if (!good_host_name(msg->tsp_name)) {
@@ -814,7 +804,7 @@ doquit(msg)
 }
 
 void
-traceon()
+traceon(void)
 {
 	if (!fd) {
 		fd = fopen(_PATH_TIMEDLOG, "w");
@@ -832,8 +822,7 @@ traceon()
 
 
 void
-traceoff(msg)
-	char *msg;
+traceoff(char *msg)
 {
 	get_goodgroup(1);
 	setstatus();
@@ -841,7 +830,7 @@ traceoff(msg)
 	if (trace) {
 		fprintf(fd, msg, date());
 		(void)fclose(fd);
-		fd = 0;
+		fd = NULL;
 	}
 #ifdef GPROF
 	moncontrol(0);

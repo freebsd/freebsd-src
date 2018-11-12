@@ -1,45 +1,45 @@
-$ $tcsh: set4,v 1.2 2006/03/02 18:46:48 christos Exp $
+$ $tcsh: set4,v 1.3 2011/02/04 18:19:43 christos Exp $
 $ cadenas de Termcap
 $set 4
-1 añade una línea vacía
+1 aÃ±ade una lÃ­nea vacÃ­a
 2 timbre audible
 3 borra hasta abajo
-4 borra hasta el final de la línea
-5 cursor hasta posición horizontal
+4 borra hasta el final de la lÃ­nea
+5 cursor hasta posiciÃ³n horizontal
 6 borra la pantalla
-7 borra un carácter
-8 borra una línea
+7 borra un carÃ¡cter
+8 borra una lÃ­nea
 9 entra en modo de borrado
 10 termina modo de borrado
-11 termina modo de inserción
-12 cursor de línea de estado
-13 cursor en posición inicial
-14 insertar carácter
-15 entra en modo de inserción
-16 inserta carácter de relleno
-17 envía cursor hacia abajo
-18 envía cursor hacia la izquierda
-19 envía cursor hacia la derecha
-20 envía cursor hacia arriba
+11 termina modo de inserciÃ³n
+12 cursor de lÃ­nea de estado
+13 cursor en posiciÃ³n inicial
+14 insertar carÃ¡cter
+15 entra en modo de inserciÃ³n
+16 inserta carÃ¡cter de relleno
+17 envÃ­a cursor hacia abajo
+18 envÃ­a cursor hacia la izquierda
+19 envÃ­a cursor hacia la derecha
+20 envÃ­a cursor hacia arriba
 21 comienza negrita
 22 fin de atributos
 23 espacio no destructivo
-24 fin de énfasis
-25 comienzo de énfasis
-26 cursor a la línea de estado
-27 mueve el cursor hacia arriba una línea
+24 fin de Ã©nfasis
+25 comienzo de Ã©nfasis
+26 cursor a la lÃ­nea de estado
+27 mueve el cursor hacia arriba una lÃ­nea
 28 comienza subrayado
 29 fin de subrayado
 30 timbre visible
-31 borra múltiples caracteres
-32 mueve el cursor varias líneas hacia abajo
-33 inserta múltiples caracteres
-34 mueve el cursor varias líneas hacia la izquierda
-35 mueve el cursor varias líneas hacia la derecha
-36 mueve el cursor varias líneas hacia arriba
-37 Tiene márgenes automáticos
-38 Puede usar tabuladores físicos
-39 Número de líneas
-40 Número de columnas
+31 borra mÃºltiples caracteres
+32 mueve el cursor varias lÃ­neas hacia abajo
+33 inserta mÃºltiples caracteres
+34 mueve el cursor varias lÃ­neas hacia la izquierda
+35 mueve el cursor varias lÃ­neas hacia la derecha
+36 mueve el cursor varias lÃ­neas hacia arriba
+37 Tiene mÃ¡rgenes automÃ¡ticos
+38 Puede usar tabuladores fÃ­sicos
+39 NÃºmero de lÃ­neas
+40 NÃºmero de columnas
 41 Tiene teclas alternativa
 42 Ignorando retorno de carro en el margen derecho

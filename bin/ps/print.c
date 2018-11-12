@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mac.h>
 #include <sys/user.h>
 #include <sys/sysctl.h>
+#include <sys/vmmeter.h>
 
 #include <err.h>
 #include <grp.h>
@@ -54,13 +55,18 @@ __FBSDID("$FreeBSD$");
 #include <nlist.h>
 #include <pwd.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <vis.h>
+#include <libxo/xo.h>
 
 #include "ps.h"
+
+#define	COMMAND_WIDTH	16
+#define	ARGUMENTS_WIDTH	16
 
 #define	ps_pgtok(a)	(((a) * getpagesize()) / 1024)
 
@@ -80,67 +86,52 @@ printheader(void)
 		v = vent->var;
 		if (v->flag & LJUST) {
 			if (STAILQ_NEXT(vent, next_ve) == NULL)	/* last one */
-				(void)printf("%s", vent->header);
+				xo_emit("{T:/%s}", vent->header);
 			else
-				(void)printf("%-*s", v->width, vent->header);
+				xo_emit("{T:/%-*s}", v->width, vent->header);
 		} else
-			(void)printf("%*s", v->width, vent->header);
+			xo_emit("{T:/%*s}", v->width, vent->header);
 		if (STAILQ_NEXT(vent, next_ve) != NULL)
-			(void)putchar(' ');
+			xo_emit("{P: }");
 	}
-	(void)putchar('\n');
+	xo_emit("\n");
 }
 
-void
+char *
 arguments(KINFO *k, VARENT *ve)
 {
-	VAR *v;
-	int left;
-	char *cp, *vis_args;
+	char *vis_args;
 
-	v = ve->var;
 	if ((vis_args = malloc(strlen(k->ki_args) * 4 + 1)) == NULL)
-		errx(1, "malloc failed");
+		xo_errx(1, "malloc failed");
 	strvis(vis_args, k->ki_args, VIS_TAB | VIS_NL | VIS_NOSLASH);
-	if (STAILQ_NEXT(ve, next_ve) == NULL) {
-		/* last field */
-		if (termwidth == UNLIMITED) {
-			(void)printf("%s", vis_args);
-		} else {
-			left = termwidth - (totwidth - v->width);
-			if (left < 1) /* already wrapped, just use std width */
-				left = v->width;
-			for (cp = vis_args; --left >= 0 && *cp != '\0';)
-				(void)putchar(*cp++);
-		}
-	} else {
-		(void)printf("%-*.*s", v->width, v->width, vis_args);
-	}
-	free(vis_args);
+
+	if (STAILQ_NEXT(ve, next_ve) != NULL && strlen(vis_args) > ARGUMENTS_WIDTH)
+		vis_args[ARGUMENTS_WIDTH] = '\0';
+
+	return (vis_args);
 }
 
-void
+char *
 command(KINFO *k, VARENT *ve)
 {
-	VAR *v;
-	int left;
-	char *cp, *vis_env, *vis_args;
+	char *vis_args, *vis_env, *str;
 
-	v = ve->var;
 	if (cflag) {
 		/* If it is the last field, then don't pad */
 		if (STAILQ_NEXT(ve, next_ve) == NULL) {
-			if (k->ki_d.prefix)
-				(void)printf("%s", k->ki_d.prefix);
-			(void)printf("%s", k->ki_p->ki_comm);
-			if (showthreads && k->ki_p->ki_numthreads > 1)
-				(void)printf("/%s", k->ki_p->ki_ocomm);
+			asprintf(&str, "%s%s%s%s",
+			    k->ki_d.prefix ? k->ki_d.prefix : "",
+			    k->ki_p->ki_comm,
+			    (showthreads && k->ki_p->ki_numthreads > 1) ? "/" : "",
+			    (showthreads && k->ki_p->ki_numthreads > 1) ? k->ki_p->ki_tdname : "");
 		} else
-			(void)printf("%-*s", v->width, k->ki_p->ki_comm);
-		return;
+			str = strdup(k->ki_p->ki_comm);
+
+		return (str);
 	}
 	if ((vis_args = malloc(strlen(k->ki_args) * 4 + 1)) == NULL)
-		errx(1, "malloc failed");
+		xo_errx(1, "malloc failed");
 	strvis(vis_args, k->ki_args, VIS_TAB | VIS_NL | VIS_NOSLASH);
 
 	if (STAILQ_NEXT(ve, next_ve) == NULL) {
@@ -149,97 +140,84 @@ command(KINFO *k, VARENT *ve)
 		if (k->ki_env) {
 			if ((vis_env = malloc(strlen(k->ki_env) * 4 + 1))
 			    == NULL)
-				errx(1, "malloc failed");
+				xo_errx(1, "malloc failed");
 			strvis(vis_env, k->ki_env,
 			    VIS_TAB | VIS_NL | VIS_NOSLASH);
 		} else
 			vis_env = NULL;
 
-		if (termwidth == UNLIMITED) {
-			if (k->ki_d.prefix)
-				(void)printf("%s", k->ki_d.prefix);
-			if (vis_env)
-				(void)printf("%s ", vis_env);
-			(void)printf("%s", vis_args);
-		} else {
-			left = termwidth - (totwidth - v->width);
-			if (left < 1) /* already wrapped, just use std width */
-				left = v->width;
-			if ((cp = k->ki_d.prefix) != NULL)
-				while (--left >= 0 && *cp)
-					(void)putchar(*cp++);
-			if ((cp = vis_env) != NULL) {
-				while (--left >= 0 && *cp)
-					(void)putchar(*cp++);
-				if (--left >= 0)
-					putchar(' ');
-			}
-			for (cp = vis_args; --left >= 0 && *cp != '\0';)
-				(void)putchar(*cp++);
-		}
+		asprintf(&str, "%s%s%s%s",
+		    k->ki_d.prefix ? k->ki_d.prefix : "",
+		    vis_env ? vis_env : "",
+		    vis_env ? " " : "",
+		    vis_args);
+
 		if (vis_env != NULL)
 			free(vis_env);
-	} else
+		free(vis_args);
+	} else {
 		/* ki_d.prefix & ki_env aren't shown for interim fields */
-		(void)printf("%-*.*s", v->width, v->width, vis_args);
-	free(vis_args);
+		str = vis_args;
+
+		if (strlen(str) > COMMAND_WIDTH)
+			str[COMMAND_WIDTH] = '\0';
+	}
+
+	return (str);
 }
 
-void
+char *
 ucomm(KINFO *k, VARENT *ve)
 {
-	char tmpbuff[COMMLEN + OCOMMLEN + 2];
-	VAR *v;
+	char *str;
 
-	v = ve->var;
 	if (STAILQ_NEXT(ve, next_ve) == NULL) {	/* last field, don't pad */
-		if (k->ki_d.prefix)
-			(void)printf("%s", k->ki_d.prefix);
-		(void)printf("%s", k->ki_p->ki_comm);
-		if (showthreads && k->ki_p->ki_numthreads > 1)
-			printf("/%s", k->ki_p->ki_ocomm);
+		asprintf(&str, "%s%s%s%s",
+		    k->ki_d.prefix ? k->ki_d.prefix : "",
+		    k->ki_p->ki_comm,
+		    (showthreads && k->ki_p->ki_numthreads > 1) ? "/" : "",
+		    (showthreads && k->ki_p->ki_numthreads > 1) ? k->ki_p->ki_tdname : "");
 	} else {
-		bzero(tmpbuff, sizeof(tmpbuff));
 		if (showthreads && k->ki_p->ki_numthreads > 1)
-			sprintf(tmpbuff, "%s/%s", k->ki_p->ki_comm,
-			    k->ki_p->ki_ocomm);
+			asprintf(&str, "%s/%s", k->ki_p->ki_comm, k->ki_p->ki_tdname);
 		else
-			sprintf(tmpbuff, "%s", k->ki_p->ki_comm);
-		(void)printf("%-*s", v->width, tmpbuff);
+			str = strdup(k->ki_p->ki_comm);
 	}
+	return (str);
 }
 
-void
-tdnam(KINFO *k, VARENT *ve)
+char *
+tdnam(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
 	if (showthreads && k->ki_p->ki_numthreads > 1)
-		(void)printf("%-*s", v->width, k->ki_p->ki_ocomm);
+		str = strdup(k->ki_p->ki_tdname);
 	else
-		(void)printf("%-*s", v->width, "      ");
+		str = strdup("      ");
+
+	return (str);
 }
 
-void
-logname(KINFO *k, VARENT *ve)
+char *
+logname(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
-	char *s;
 
-	v = ve->var;
-	(void)printf("%-*s", v->width, (s = k->ki_p->ki_login, *s) ? s : "-");
+	if (*k->ki_p->ki_login == '\0')
+		return (NULL);
+	return (strdup(k->ki_p->ki_login));
 }
 
-void
-state(KINFO *k, VARENT *ve)
+char *
+state(KINFO *k, VARENT *ve __unused)
 {
-	int flag, tdflags;
-	char *cp;
-	VAR *v;
-	char buf[16];
+	long flag, tdflags;
+	char *cp, *buf;
 
-	v = ve->var;
+	buf = malloc(16);
+	if (buf == NULL)
+		xo_errx(1, "malloc failed");
+
 	flag = k->ki_p->ki_flag;
 	tdflags = k->ki_p->ki_tdflags;	/* XXXKSE */
 	cp = buf;
@@ -299,307 +277,307 @@ state(KINFO *k, VARENT *ve)
 	if (flag & P_JAILED)
 		*cp++ = 'J';
 	*cp = '\0';
-	(void)printf("%-*s", v->width, buf);
+	return (buf);
 }
 
 #define	scalepri(x)	((x) - PZERO)
 
-void
-pri(KINFO *k, VARENT *ve)
+char *
+pri(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
-	(void)printf("%*d", v->width, scalepri(k->ki_p->ki_pri.pri_level));
+	asprintf(&str, "%d", scalepri(k->ki_p->ki_pri.pri_level));
+	return (str);
 }
 
-void
-upr(KINFO *k, VARENT *ve)
+char *
+upr(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
-	(void)printf("%*d", v->width, scalepri(k->ki_p->ki_pri.pri_user));
+	asprintf(&str, "%d", scalepri(k->ki_p->ki_pri.pri_user));
+	return (str);
 }
 #undef scalepri
 
-void
-uname(KINFO *k, VARENT *ve)
+char *
+uname(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 
-	v = ve->var;
-	(void)printf("%-*s", v->width, user_from_uid(k->ki_p->ki_uid, 0));
+	return (strdup(user_from_uid(k->ki_p->ki_uid, 0)));
 }
 
-int
-s_uname(KINFO *k)
+char *
+egroupname(KINFO *k, VARENT *ve __unused)
 {
-	return (strlen(user_from_uid(k->ki_p->ki_uid, 0)));
+
+	return (strdup(group_from_gid(k->ki_p->ki_groups[0], 0)));
 }
 
-void
-rgroupname(KINFO *k, VARENT *ve)
+char *
+rgroupname(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 
-	v = ve->var;
-	(void)printf("%-*s", v->width, group_from_gid(k->ki_p->ki_rgid, 0));
+	return (strdup(group_from_gid(k->ki_p->ki_rgid, 0)));
 }
 
-int
-s_rgroupname(KINFO *k)
+char *
+runame(KINFO *k, VARENT *ve __unused)
 {
-	return (strlen(group_from_gid(k->ki_p->ki_rgid, 0)));
+
+	return (strdup(user_from_uid(k->ki_p->ki_ruid, 0)));
 }
 
-void
-runame(KINFO *k, VARENT *ve)
+char *
+tdev(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
-
-	v = ve->var;
-	(void)printf("%-*s", v->width, user_from_uid(k->ki_p->ki_ruid, 0));
-}
-
-int
-s_runame(KINFO *k)
-{
-	return (strlen(user_from_uid(k->ki_p->ki_ruid, 0)));
-}
-
-
-void
-tdev(KINFO *k, VARENT *ve)
-{
-	VAR *v;
 	dev_t dev;
-	char buff[16];
+	char *str;
 
-	v = ve->var;
 	dev = k->ki_p->ki_tdev;
 	if (dev == NODEV)
-		(void)printf("%*s", v->width, "??");
-	else {
-		(void)snprintf(buff, sizeof(buff),
-		    "%d/%d", major(dev), minor(dev));
-		(void)printf("%*s", v->width, buff);
-	}
+		str = strdup("-");
+	else
+		asprintf(&str, "%#jx", (uintmax_t)dev);
+
+	return (str);
 }
 
-void
-tname(KINFO *k, VARENT *ve)
+char *
+tname(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 	dev_t dev;
-	char *ttname;
+	char *ttname, *str;
 
-	v = ve->var;
 	dev = k->ki_p->ki_tdev;
 	if (dev == NODEV || (ttname = devname(dev, S_IFCHR)) == NULL)
-		(void)printf("%*s ", v->width - 1, "??");
+		str = strdup("- ");
 	else {
 		if (strncmp(ttname, "tty", 3) == 0 ||
 		    strncmp(ttname, "cua", 3) == 0)
 			ttname += 3;
 		if (strncmp(ttname, "pts/", 4) == 0)
 			ttname += 4;
-		(void)printf("%*.*s%c", v->width - 1, v->width - 1, ttname,
+		asprintf(&str, "%s%c", ttname,
 		    k->ki_p->ki_kiflag & KI_CTTY ? ' ' : '-');
 	}
+
+	return (str);
 }
 
-void
-longtname(KINFO *k, VARENT *ve)
+char *
+longtname(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 	dev_t dev;
-	char *ttname;
+	const char *ttname;
 
-	v = ve->var;
 	dev = k->ki_p->ki_tdev;
 	if (dev == NODEV || (ttname = devname(dev, S_IFCHR)) == NULL)
-		(void)printf("%-*s", v->width, "??");
-	else
-		(void)printf("%-*s", v->width, ttname);
+		ttname = "-";
+
+	return (strdup(ttname));
 }
 
-void
-started(KINFO *k, VARENT *ve)
+char *
+started(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 	time_t then;
 	struct tm *tp;
-	static int use_ampm = -1;
-	char buf[100];
+	size_t buflen = 100;
+	char *buf;
 
-	v = ve->var;
-	if (!k->ki_valid) {
-		(void)printf("%-*s", v->width, "-");
-		return;
-	}
-	if (use_ampm < 0)
-		use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
+	if (!k->ki_valid)
+		return (NULL);
+
+	buf = malloc(buflen);
+	if (buf == NULL)
+		xo_errx(1, "malloc failed");
+
 	then = k->ki_p->ki_start.tv_sec;
 	tp = localtime(&then);
 	if (now - k->ki_p->ki_start.tv_sec < 24 * 3600) {
-		(void)strftime(buf, sizeof(buf),
-		    use_ampm ? "%l:%M%p" : "%k:%M  ", tp);
+		(void)strftime(buf, buflen, "%H:%M  ", tp);
 	} else if (now - k->ki_p->ki_start.tv_sec < 7 * 86400) {
-		(void)strftime(buf, sizeof(buf),
-		    use_ampm ? "%a%I%p" : "%a%H  ", tp);
+		(void)strftime(buf, buflen, "%a%H  ", tp);
 	} else
-		(void)strftime(buf, sizeof(buf), "%e%b%y", tp);
-	(void)printf("%-*s", v->width, buf);
+		(void)strftime(buf, buflen, "%e%b%y", tp);
+	return (buf);
 }
 
-void
-lstarted(KINFO *k, VARENT *ve)
+char *
+lstarted(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 	time_t then;
-	char buf[100];
+	char *buf;
+	size_t buflen = 100;
 
-	v = ve->var;
-	if (!k->ki_valid) {
-		(void)printf("%-*s", v->width, "-");
-		return;
-	}
+	if (!k->ki_valid)
+		return (NULL);
+
+	buf = malloc(buflen);
+	if (buf == NULL)
+		xo_errx(1, "malloc failed");
+
 	then = k->ki_p->ki_start.tv_sec;
-	(void)strftime(buf, sizeof(buf), "%c", localtime(&then));
-	(void)printf("%-*s", v->width, buf);
+	(void)strftime(buf, buflen, "%c", localtime(&then));
+	return (buf);
 }
 
-void
-lockname(KINFO *k, VARENT *ve)
+char *
+lockname(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
 	if (k->ki_p->ki_kiflag & KI_LOCKBLOCK) {
 		if (k->ki_p->ki_lockname[0] != 0)
-			(void)printf("%-*.*s", v->width, v->width,
-			    k->ki_p->ki_lockname);
+			str = strdup(k->ki_p->ki_lockname);
 		else
-			(void)printf("%-*s", v->width, "???");
+			str = strdup("???");
 	} else
-		(void)printf("%-*s", v->width, "-");
+		str = NULL;
+
+	return (str);
 }
 
-void
-wchan(KINFO *k, VARENT *ve)
+char *
+wchan(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
 	if (k->ki_p->ki_wchan) {
 		if (k->ki_p->ki_wmesg[0] != 0)
-			(void)printf("%-*.*s", v->width, v->width,
-			    k->ki_p->ki_wmesg);
+			str = strdup(k->ki_p->ki_wmesg);
 		else
-			(void)printf("%-*lx", v->width,
-			    (long)k->ki_p->ki_wchan);
+			asprintf(&str, "%lx", (long)k->ki_p->ki_wchan);
 	} else
-		(void)printf("%-*s", v->width, "-");
+		str = NULL;
+
+	return (str);
 }
 
-void
-nwchan(KINFO *k, VARENT *ve)
+char *
+nwchan(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
-	if (k->ki_p->ki_wchan) {
-		(void)printf("%0*lx", v->width,
-		    (long)k->ki_p->ki_wchan);
-	} else
-		(void)printf("%-*s", v->width, "-");
+	if (k->ki_p->ki_wchan)
+		asprintf(&str, "%0lx", (long)k->ki_p->ki_wchan);
+	else
+		str = NULL;
+
+	return (str);
 }
 
-void
-mwchan(KINFO *k, VARENT *ve)
+char *
+mwchan(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
 	if (k->ki_p->ki_wchan) {
 		if (k->ki_p->ki_wmesg[0] != 0)
-			(void)printf("%-*.*s", v->width, v->width,
-			    k->ki_p->ki_wmesg);
+			str = strdup(k->ki_p->ki_wmesg);
 		else
-			(void)printf("%-*lx", v->width,
-			    (long)k->ki_p->ki_wchan);
+                        asprintf(&str, "%lx", (long)k->ki_p->ki_wchan);
 	} else if (k->ki_p->ki_kiflag & KI_LOCKBLOCK) {
 		if (k->ki_p->ki_lockname[0]) {
-			(void)printf("%-*.*s", v->width, v->width,
-			    k->ki_p->ki_lockname);
+			str = strdup(k->ki_p->ki_lockname);
 		} else
-			(void)printf("%-*s", v->width, "???");
+			str = strdup("???");
 	} else
-		(void)printf("%-*s", v->width, "-");
+		str = NULL;
+
+	return (str);
 }
 
-void
-vsize(KINFO *k, VARENT *ve)
+char *
+vsize(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
-	(void)printf("%*lu", v->width, (u_long)(k->ki_p->ki_size / 1024));
+	asprintf(&str, "%lu", (u_long)(k->ki_p->ki_size / 1024));
+	return (str);
 }
 
-void
-cputime(KINFO *k, VARENT *ve)
+static char *
+printtime(KINFO *k, VARENT *ve __unused, long secs, long psecs)
+/* psecs is "parts" of a second. first micro, then centi */
 {
-	VAR *v;
-	long secs;
-	long psecs;	/* "parts" of a second. first micro, then centi */
-	char obuff[128];
 	static char decimal_point;
+	char *str;
 
 	if (decimal_point == '\0')
 		decimal_point = localeconv()->decimal_point[0];
-	v = ve->var;
 	if (!k->ki_valid) {
 		secs = 0;
 		psecs = 0;
 	} else {
-		/*
-		 * This counts time spent handling interrupts.  We could
-		 * fix this, but it is not 100% trivial (and interrupt
-		 * time fractions only work on the sparc anyway).	XXX
-		 */
-		secs = k->ki_p->ki_runtime / 1000000;
-		psecs = k->ki_p->ki_runtime % 1000000;
-		if (sumrusage) {
-			secs += k->ki_p->ki_childtime.tv_sec;
-			psecs += k->ki_p->ki_childtime.tv_usec;
-		}
-		/*
-		 * round and scale to 100's
-		 */
+		/* round and scale to 100's */
 		psecs = (psecs + 5000) / 10000;
 		secs += psecs / 100;
 		psecs = psecs % 100;
 	}
-	(void)snprintf(obuff, sizeof(obuff), "%3ld:%02ld%c%02ld",
+	asprintf(&str, "%ld:%02ld%c%02ld",
 	    secs / 60, secs % 60, decimal_point, psecs);
-	(void)printf("%*s", v->width, obuff);
+	return (str);
 }
 
-void
-elapsed(KINFO *k, VARENT *ve)
+char *
+cputime(KINFO *k, VARENT *ve)
 {
-	VAR *v;
+	long secs, psecs;
+
+	/*
+	 * This counts time spent handling interrupts.  We could
+	 * fix this, but it is not 100% trivial (and interrupt
+	 * time fractions only work on the sparc anyway).	XXX
+	 */
+	secs = k->ki_p->ki_runtime / 1000000;
+	psecs = k->ki_p->ki_runtime % 1000000;
+	if (sumrusage) {
+		secs += k->ki_p->ki_childtime.tv_sec;
+		psecs += k->ki_p->ki_childtime.tv_usec;
+	}
+	return (printtime(k, ve, secs, psecs));
+}
+
+char *
+systime(KINFO *k, VARENT *ve)
+{
+	long secs, psecs;
+
+	secs = k->ki_p->ki_rusage.ru_stime.tv_sec;
+	psecs = k->ki_p->ki_rusage.ru_stime.tv_usec;
+	if (sumrusage) {
+		secs += k->ki_p->ki_childstime.tv_sec;
+		psecs += k->ki_p->ki_childstime.tv_usec;
+	}
+	return (printtime(k, ve, secs, psecs));
+}
+
+char *
+usertime(KINFO *k, VARENT *ve)
+{
+	long secs, psecs;
+
+	secs = k->ki_p->ki_rusage.ru_utime.tv_sec;
+	psecs = k->ki_p->ki_rusage.ru_utime.tv_usec;
+	if (sumrusage) {
+		secs += k->ki_p->ki_childutime.tv_sec;
+		psecs += k->ki_p->ki_childutime.tv_usec;
+	}
+	return (printtime(k, ve, secs, psecs));
+}
+
+char *
+elapsed(KINFO *k, VARENT *ve __unused)
+{
 	time_t val;
 	int days, hours, mins, secs;
-	char obuff[128];
+	char *str;
 
-	v = ve->var;
-	if (!k->ki_valid) {
-		(void)printf("%-*s", v->width, "-");
-		return;
-	}
+	if (!k->ki_valid)
+		return (NULL);
 	val = now - k->ki_p->ki_start.tv_sec;
 	days = val / (24 * 60 * 60);
 	val %= 24 * 60 * 60;
@@ -608,14 +586,26 @@ elapsed(KINFO *k, VARENT *ve)
 	mins = val / 60;
 	secs = val % 60;
 	if (days != 0)
-		(void)snprintf(obuff, sizeof(obuff), "%3d-%02d:%02d:%02d",
-		    days, hours, mins, secs);
+		asprintf(&str, "%3d-%02d:%02d:%02d", days, hours, mins, secs);
 	else if (hours != 0)
-		(void)snprintf(obuff, sizeof(obuff), "%02d:%02d:%02d",
-		    hours, mins, secs);
+		asprintf(&str, "%02d:%02d:%02d", hours, mins, secs);
 	else
-		(void)snprintf(obuff, sizeof(obuff), "%02d:%02d", mins, secs);
-	(void)printf("%*s", v->width, obuff);
+		asprintf(&str, "%02d:%02d", mins, secs);
+
+	return (str);
+}
+
+char *
+elapseds(KINFO *k, VARENT *ve __unused)
+{
+	time_t val;
+	char *str;
+
+	if (!k->ki_valid)
+		return (NULL);
+	val = now - k->ki_p->ki_start.tv_sec;
+	asprintf(&str, "%jd", (intmax_t)val);
+	return (str);
 }
 
 double
@@ -639,13 +629,13 @@ getpcpu(const KINFO *k)
 		(1.0 - exp(k->ki_p->ki_swtime * log(fxtofl(ccpu)))));
 }
 
-void
-pcpu(KINFO *k, VARENT *ve)
+char *
+pcpu(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
-	(void)printf("%*.1f", v->width, getpcpu(k));
+	asprintf(&str, "%.1f", getpcpu(k));
+	return (str);
 }
 
 static double
@@ -667,167 +657,155 @@ getpmem(KINFO *k)
 	return (100.0 * fracmem);
 }
 
-void
-pmem(KINFO *k, VARENT *ve)
+char *
+pmem(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
-	(void)printf("%*.1f", v->width, getpmem(k));
+	asprintf(&str, "%.1f", getpmem(k));
+	return (str);
 }
 
-void
-pagein(KINFO *k, VARENT *ve)
+char *
+pagein(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
-	(void)printf("%*ld", v->width,
-	    k->ki_valid ? k->ki_p->ki_rusage.ru_majflt : 0);
+	asprintf(&str, "%ld", k->ki_valid ? k->ki_p->ki_rusage.ru_majflt : 0);
+	return (str);
 }
 
 /* ARGSUSED */
-void
-maxrss(KINFO *k __unused, VARENT *ve)
+char *
+maxrss(KINFO *k __unused, VARENT *ve __unused)
 {
-	VAR *v;
 
-	v = ve->var;
 	/* XXX not yet */
-	(void)printf("%*s", v->width, "-");
+	return (NULL);
 }
 
-void
-priorityr(KINFO *k, VARENT *ve)
+char *
+priorityr(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 	struct priority *lpri;
-	char str[8];
+	char *str;
 	unsigned class, level;
 
-	v = ve->var;
 	lpri = &k->ki_p->ki_pri;
 	class = lpri->pri_class;
 	level = lpri->pri_level;
 	switch (class) {
 	case PRI_ITHD:
-		snprintf(str, sizeof(str), "intr:%u", level);
+		asprintf(&str, "intr:%u", level);
 		break;
 	case PRI_REALTIME:
-		snprintf(str, sizeof(str), "real:%u", level);
+		asprintf(&str, "real:%u", level);
 		break;
 	case PRI_TIMESHARE:
-		strncpy(str, "normal", sizeof(str));
+		asprintf(&str, "normal");
 		break;
 	case PRI_IDLE:
-		snprintf(str, sizeof(str), "idle:%u", level);
+		asprintf(&str, "idle:%u", level);
 		break;
 	default:
-		snprintf(str, sizeof(str), "%u:%u", class, level);
+		asprintf(&str, "%u:%u", class, level);
 		break;
 	}
-	str[sizeof(str) - 1] = '\0';
-	(void)printf("%*s", v->width, str);
+	return (str);
 }
 
 /*
  * Generic output routines.  Print fields from various prototype
  * structures.
  */
-static void
+static char *
 printval(void *bp, VAR *v)
 {
 	static char ofmt[32] = "%";
 	const char *fcp;
-	char *cp;
+	char *cp, *str;
 
 	cp = ofmt + 1;
 	fcp = v->fmt;
-	if (v->flag & LJUST)
-		*cp++ = '-';
-	*cp++ = '*';
 	while ((*cp++ = *fcp++));
 
 #define	CHKINF127(n)	(((n) > 127) && (v->flag & INF127) ? 127 : (n))
 
 	switch (v->type) {
 	case CHAR:
-		(void)printf(ofmt, v->width, *(char *)bp);
+		(void)asprintf(&str, ofmt, *(char *)bp);
 		break;
 	case UCHAR:
-		(void)printf(ofmt, v->width, *(u_char *)bp);
+		(void)asprintf(&str, ofmt, *(u_char *)bp);
 		break;
 	case SHORT:
-		(void)printf(ofmt, v->width, *(short *)bp);
+		(void)asprintf(&str, ofmt, *(short *)bp);
 		break;
 	case USHORT:
-		(void)printf(ofmt, v->width, *(u_short *)bp);
+		(void)asprintf(&str, ofmt, *(u_short *)bp);
 		break;
 	case INT:
-		(void)printf(ofmt, v->width, *(int *)bp);
+		(void)asprintf(&str, ofmt, *(int *)bp);
 		break;
 	case UINT:
-		(void)printf(ofmt, v->width, CHKINF127(*(u_int *)bp));
+		(void)asprintf(&str, ofmt, CHKINF127(*(u_int *)bp));
 		break;
 	case LONG:
-		(void)printf(ofmt, v->width, *(long *)bp);
+		(void)asprintf(&str, ofmt, *(long *)bp);
 		break;
 	case ULONG:
-		(void)printf(ofmt, v->width, *(u_long *)bp);
+		(void)asprintf(&str, ofmt, *(u_long *)bp);
 		break;
 	case KPTR:
-		(void)printf(ofmt, v->width, *(u_long *)bp);
+		(void)asprintf(&str, ofmt, *(u_long *)bp);
 		break;
 	case PGTOK:
-		(void)printf(ofmt, v->width, ps_pgtok(*(u_long *)bp));
+		(void)asprintf(&str, ofmt, ps_pgtok(*(u_long *)bp));
 		break;
 	default:
-		errx(1, "unknown type %d", v->type);
+		xo_errx(1, "unknown type %d", v->type);
 	}
+
+	return (str);
 }
 
-void
+char *
 kvar(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
 	v = ve->var;
-	printval((char *)((char *)k->ki_p + v->off), v);
+	return (printval((char *)((char *)k->ki_p + v->off), v));
 }
 
-void
+char *
 rvar(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
 	v = ve->var;
-	if (k->ki_valid)
-		printval((char *)((char *)(&k->ki_p->ki_rusage) + v->off), v);
-	else
-		(void)printf("%*s", v->width, "-");
+	if (!k->ki_valid)
+		return (NULL);
+	return (printval((char *)((char *)(&k->ki_p->ki_rusage) + v->off), v));
 }
 
-void
-emulname(KINFO *k, VARENT *ve)
+char *
+emulname(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 
-	v = ve->var;
-	printf("%-*s", v->width, *k->ki_p->ki_emul ? k->ki_p->ki_emul : "-");
+	return (strdup(k->ki_p->ki_emul));
 }
 
-void
-label(KINFO *k, VARENT *ve)
+char *
+label(KINFO *k, VARENT *ve __unused)
 {
 	char *string;
-	VAR *v;
 	mac_t proclabel;
 	int error;
 
-	v = ve->var;
 	string = NULL;
 	if (mac_prepare_process_label(&proclabel) == -1) {
-		warn("mac_prepare_process_label");
+		xo_warn("mac_prepare_process_label");
 		goto out;
 	}
 	error = mac_get_pid(k->ki_p->ki_pid, proclabel);
@@ -837,44 +815,20 @@ label(KINFO *k, VARENT *ve)
 	}
 	mac_free(proclabel);
 out:
-	if (string != NULL) {
-		(void)printf("%-*s", v->width, string);
-		free(string);
-	} else
-		(void)printf("%-*s", v->width, "  -");
-	return;
+	return (string);
 }
 
-int
-s_comm(KINFO *k)
+char *
+loginclass(KINFO *k, VARENT *ve __unused)
 {
-	char tmpbuff[COMMLEN + OCOMMLEN + 2];
 
-	bzero(tmpbuff, sizeof(tmpbuff));
-	if (showthreads && k->ki_p->ki_numthreads > 1)
-		sprintf(tmpbuff, "%s/%s", k->ki_p->ki_comm,
-		    k->ki_p->ki_ocomm);
-	else
-		sprintf(tmpbuff, "%s", k->ki_p->ki_comm);
-	return (strlen(tmpbuff));
-}
-
-int
-s_label(KINFO *k)
-{
-	char *string = NULL;
-	mac_t proclabel;
-	int error, size = 0;
-
-	if (mac_prepare_process_label(&proclabel) == -1) {
-		warn("mac_prepare_process_label");
-		return (0);
+	/*
+	 * Don't display login class for system processes;
+	 * login classes are used for resource limits,
+	 * and limits don't apply to system processes.
+	 */
+	if (k->ki_p->ki_flag & P_SYSTEM) {
+		return (strdup("-"));
 	}
-	error = mac_get_pid(k->ki_p->ki_pid, proclabel);
-	if (error == 0 && mac_to_text(proclabel, &string) == 0) {
-		size = strlen(string);
-		free(string);
-	}
-	mac_free(proclabel);
-	return (size);
+	return (strdup(k->ki_p->ki_loginclass));
 }

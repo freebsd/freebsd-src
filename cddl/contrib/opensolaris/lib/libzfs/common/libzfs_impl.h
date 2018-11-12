@@ -20,23 +20,26 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 Pawel Jakub Dawidek. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
-#ifndef	_LIBFS_IMPL_H
-#define	_LIBFS_IMPL_H
+#ifndef	_LIBZFS_IMPL_H
+#define	_LIBZFS_IMPL_H
 
-#include <sys/dmu.h>
 #include <sys/fs/zfs.h>
-#include <sys/zfs_ioctl.h>
-#include <sys/zfs_acl.h>
 #include <sys/spa.h>
 #include <sys/nvpair.h>
+#include <sys/dmu.h>
+#include <sys/zfs_ioctl.h>
 
 #include <libshare.h>
 #include <libuutil.h>
 #include <libzfs.h>
+#include <libzfs_core.h>
+#include <libzfs_compat.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -46,6 +49,13 @@ extern "C" {
 #undef	VERIFY
 #endif
 #define	VERIFY	verify
+
+typedef struct libzfs_fru {
+	char *zf_device;
+	char *zf_fru;
+	struct libzfs_fru *zf_chain;
+	struct libzfs_fru *zf_next;
+} libzfs_fru_t;
 
 struct libzfs_handle {
 	int libzfs_error;
@@ -59,24 +69,33 @@ struct libzfs_handle {
 	int libzfs_desc_active;
 	char libzfs_action[1024];
 	char libzfs_desc[1024];
-	char *libzfs_log_str;
 	int libzfs_printerr;
+	int libzfs_storeerr; /* stuff error messages into buffer */
 	void *libzfs_sharehdl; /* libshare handle */
 	uint_t libzfs_shareflags;
+	boolean_t libzfs_mnttab_enable;
+	avl_tree_t libzfs_mnttab_cache;
+	int libzfs_pool_iter;
+	libzfs_fru_t **libzfs_fru_hash;
+	libzfs_fru_t *libzfs_fru_list;
+	char libzfs_chassis_id[256];
 };
+
 #define	ZFSSHARE_MISS	0x01	/* Didn't find entry in cache */
 
 struct zfs_handle {
 	libzfs_handle_t *zfs_hdl;
 	zpool_handle_t *zpool_hdl;
-	char zfs_name[ZFS_MAXNAMELEN];
+	char zfs_name[ZFS_MAX_DATASET_NAME_LEN];
 	zfs_type_t zfs_type; /* type including snapshot */
 	zfs_type_t zfs_head_type; /* type excluding snapshot */
 	dmu_objset_stats_t zfs_dmustats;
 	nvlist_t *zfs_props;
 	nvlist_t *zfs_user_props;
+	nvlist_t *zfs_recvd_props;
 	boolean_t zfs_mntcheck;
 	char *zfs_mntopts;
+	uint8_t *zfs_props_table;
 };
 
 /*
@@ -88,7 +107,7 @@ struct zfs_handle {
 struct zpool_handle {
 	libzfs_handle_t *zpool_hdl;
 	zpool_handle_t *zpool_next;
-	char zpool_name[ZPOOL_MAXNAMELEN];
+	char zpool_name[ZFS_MAX_DATASET_NAME_LEN];
 	int zpool_state;
 	size_t zpool_config_size;
 	nvlist_t *zpool_config;
@@ -97,7 +116,7 @@ struct zpool_handle {
 	diskaddr_t zpool_start_block;
 };
 
-typedef  enum {
+typedef enum {
 	PROTO_NFS = 0,
 	PROTO_SMB = 1,
 	PROTO_END = 2
@@ -109,7 +128,6 @@ typedef  enum {
  */
 typedef enum {
 	SHARED_NOT_SHARED = 0x0,
-	SHARED_ISCSI = 0x1,
 	SHARED_NFS = 0x2,
 	SHARED_SMB = 0x4
 } zfs_share_type_t;
@@ -119,6 +137,7 @@ int zfs_error_fmt(libzfs_handle_t *, int, const char *, ...);
 void zfs_error_aux(libzfs_handle_t *, const char *, ...);
 void *zfs_alloc(libzfs_handle_t *, size_t);
 void *zfs_realloc(libzfs_handle_t *, void *, size_t, size_t);
+char *zfs_asprintf(libzfs_handle_t *, const char *, ...);
 char *zfs_strdup(libzfs_handle_t *, const char *);
 int no_memory(libzfs_handle_t *);
 
@@ -129,7 +148,8 @@ int zpool_standard_error_fmt(libzfs_handle_t *, int, const char *, ...);
 
 int get_dependents(libzfs_handle_t *, boolean_t, const char *, char ***,
     size_t *);
-
+zfs_handle_t *make_dataset_handle_zc(libzfs_handle_t *, zfs_cmd_t *);
+zfs_handle_t *make_dataset_simple_handle_zc(zfs_handle_t *, zfs_cmd_t *);
 
 int zprop_parse_value(libzfs_handle_t *, nvpair_t *, int, zfs_type_t,
     nvlist_t *, char **, uint64_t *, const char *);
@@ -141,7 +161,11 @@ int zprop_expand_list(libzfs_handle_t *hdl, zprop_list_t **plp,
  * on each change node regardless of whether or not it is currently
  * mounted.
  */
-#define	CL_GATHER_MOUNT_ALWAYS	1
+#define	CL_GATHER_MOUNT_ALWAYS	0x01
+/*
+ * Use this changelist_gather() flag to prevent unmounting of file systems.
+ */
+#define	CL_GATHER_DONT_UNMOUNT	0x02
 
 typedef struct prop_changelist prop_changelist_t;
 
@@ -166,13 +190,15 @@ int create_parents(libzfs_handle_t *, char *, int);
 boolean_t isa_child_of(const char *dataset, const char *parent);
 
 zfs_handle_t *make_dataset_handle(libzfs_handle_t *, const char *);
+zfs_handle_t *make_bookmark_handle(zfs_handle_t *, const char *,
+    nvlist_t *props);
 
 int zpool_open_silent(libzfs_handle_t *, const char *, zpool_handle_t **);
 
-int zvol_create_link(libzfs_handle_t *, const char *);
-int zvol_remove_link(libzfs_handle_t *, const char *);
-int zpool_iter_zvol(zpool_handle_t *, int (*)(const char *, void *), void *);
 boolean_t zpool_name_valid(libzfs_handle_t *, boolean_t, const char *);
+
+int zfs_validate_name(libzfs_handle_t *hdl, const char *path, int type,
+    boolean_t modifying);
 
 void namespace_clear(libzfs_handle_t *);
 
@@ -184,36 +210,13 @@ extern int zfs_init_libshare(libzfs_handle_t *, int);
 extern void zfs_uninit_libshare(libzfs_handle_t *);
 extern int zfs_parse_options(char *, zfs_share_proto_t);
 
-extern int zfs_unshare_proto(zfs_handle_t *zhp,
+extern int zfs_unshare_proto(zfs_handle_t *,
     const char *, zfs_share_proto_t *);
 
-#ifdef	__FreeBSD__
-
-/*
- * This is FreeBSD version of ioctl, because Solaris' ioctl() updates
- * zc_nvlist_dst_size even if an error is returned, on FreeBSD if an
- * error is returned zc_nvlist_dst_size won't be updated.
- */
-static __inline int
-zcmd_ioctl(int fd, unsigned long cmd, zfs_cmd_t *zc)
-{
-	size_t oldsize;
-	int ret;
-
-	oldsize = zc->zc_nvlist_dst_size;
-	ret = ioctl(fd, cmd, zc);
-	if (ret == 0 && oldsize < zc->zc_nvlist_dst_size) {
-		ret = -1;
-		errno = ENOMEM;
-	}
-
-	return (ret);
-}
-#define	ioctl(fd, cmd, zc)	zcmd_ioctl((fd), (cmd), (zc))
-#endif
+extern void libzfs_fru_clear(libzfs_handle_t *, boolean_t);
 
 #ifdef	__cplusplus
 }
 #endif
 
-#endif	/* _LIBFS_IMPL_H */
+#endif	/* _LIBZFS_IMPL_H */

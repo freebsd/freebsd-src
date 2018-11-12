@@ -4,10 +4,9 @@ PROG=	fifolog_writer
 
 CFLAGS+= -I${.CURDIR}/../lib
 
-NO_MAN=	# see ../fifolog_create/fifolog.1
+MAN=
 
-DPADD=	${LIBFIFOLOG} ${LIBUTIL} ${LIBZ}
-LDADD=	${LIBFIFOLOG} -lutil -lz
+LIBADD=	fifolog
 
 regress:
 	date | ./${PROG} -z 0 /tmp/fifolog.0

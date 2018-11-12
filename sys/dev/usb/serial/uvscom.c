@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -68,11 +67,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/serial/usb_serial.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int uvscom_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uvscom, CTLFLAG_RW, 0, "USB uvscom");
-SYSCTL_INT(_hw_usb_uvscom, OID_AUTO, debug, CTLFLAG_RW,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uvscom, CTLFLAG_RW, 0, "USB uvscom");
+SYSCTL_INT(_hw_usb_uvscom, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uvscom_debug, 0, "Debug level");
 #endif
 
@@ -164,11 +163,13 @@ struct uvscom_softc {
 static device_probe_t uvscom_probe;
 static device_attach_t uvscom_attach;
 static device_detach_t uvscom_detach;
+static void uvscom_free_softc(struct uvscom_softc *);
 
 static usb_callback_t uvscom_write_callback;
 static usb_callback_t uvscom_read_callback;
 static usb_callback_t uvscom_intr_callback;
 
+static void	uvscom_free(struct ucom_softc *);
 static void	uvscom_cfg_set_dtr(struct ucom_softc *, uint8_t);
 static void	uvscom_cfg_set_rts(struct ucom_softc *, uint8_t);
 static void	uvscom_cfg_set_break(struct ucom_softc *, uint8_t);
@@ -232,9 +233,10 @@ static const struct ucom_callback uvscom_callback = {
 	.ucom_start_write = &uvscom_start_write,
 	.ucom_stop_write = &uvscom_stop_write,
 	.ucom_poll = &uvscom_poll,
+	.ucom_free = &uvscom_free,
 };
 
-static const struct usb_device_id uvscom_devs[] = {
+static const STRUCT_USB_HOST_ID uvscom_devs[] = {
 	/* SUNTAC U-Cable type A4 */
 	{USB_VPI(USB_VENDOR_SUNTAC, USB_PRODUCT_SUNTAC_AS144L4, 0)},
 	/* SUNTAC U-Cable type D2 */
@@ -251,7 +253,7 @@ static device_method_t uvscom_methods[] = {
 	DEVMETHOD(device_probe, uvscom_probe),
 	DEVMETHOD(device_attach, uvscom_attach),
 	DEVMETHOD(device_detach, uvscom_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t uvscom_devclass;
@@ -266,6 +268,7 @@ DRIVER_MODULE(uvscom, uhub, uvscom_driver, uvscom_devclass, NULL, 0);
 MODULE_DEPEND(uvscom, ucom, 1, 1, 1);
 MODULE_DEPEND(uvscom, usb, 1, 1, 1);
 MODULE_VERSION(uvscom, UVSCOM_MODVER);
+USB_PNP_HOST_INFO(uvscom_devs);
 
 static int
 uvscom_probe(device_t dev)
@@ -293,6 +296,7 @@ uvscom_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uvscom", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_udev = uaa->device;
 
@@ -321,6 +325,8 @@ uvscom_attach(device_t dev)
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	/* start interrupt pipe */
 	mtx_lock(&sc->sc_mtx);
 	usbd_transfer_start(sc->sc_xfer[UVSCOM_INTR_DT_RD]);
@@ -345,11 +351,31 @@ uvscom_detach(device_t dev)
 	if (sc->sc_xfer[UVSCOM_INTR_DT_RD])
 		usbd_transfer_stop(sc->sc_xfer[UVSCOM_INTR_DT_RD]);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UVSCOM_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	uvscom_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(uvscom);
+
+static void
+uvscom_free_softc(struct uvscom_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+uvscom_free(struct ucom_softc *ucom)
+{
+	uvscom_free_softc(ucom->sc_parent);
 }
 
 static void

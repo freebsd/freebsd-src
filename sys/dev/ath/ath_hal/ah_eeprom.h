@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah_eeprom.h,v 1.11 2008/11/27 22:32:48 sam Exp $
+ * $FreeBSD$
  */
 #ifndef _ATH_AH_EEPROM_H_
 #define _ATH_AH_EEPROM_H_
@@ -94,11 +94,21 @@ enum {
 	AR_EEP_RXMASK,		/* uint8_t* */
 	AR_EEP_RXGAIN_TYPE,	/* uint8_t* */
 	AR_EEP_TXGAIN_TYPE,	/* uint8_t* */
+	AR_EEP_DAC_HPWR_5G,	/* uint8_t* */
 	AR_EEP_OL_PWRCTRL,	/* use ath_hal_eepromGetFlag */
 	AR_EEP_FSTCLK_5G,	/* use ath_hal_eepromGetFlag */
 	AR_EEP_ANTGAINMAX_5,	/* int8_t* */
 	AR_EEP_ANTGAINMAX_2,	/* int8_t* */
 	AR_EEP_WRITEPROTECT,	/* use ath_hal_eepromGetFlag */
+	AR_EEP_PWR_TABLE_OFFSET,/* int8_t* */
+	AR_EEP_PWDCLKIND,	/* uint8_t* */
+	AR_EEP_TEMPSENSE_SLOPE,	/* int8_t* */
+	AR_EEP_TEMPSENSE_SLOPE_PAL_ON,	/* int8_t* */
+	AR_EEP_FRAC_N_5G,	/* uint8_t* */
+
+	/* New fields for AR9300 and later */
+	AR_EEP_DRIVE_STRENGTH,
+	AR_EEP_PAPRD_ENABLED,
 };
 
 typedef struct {
@@ -121,6 +131,30 @@ typedef struct {
 #define	CTL_2GHT40		7
 #define	CTL_5GHT40		8
 
+/* XXX must match what FCC/MKK/ETSI are defined as in ah_regdomain.h */
+#define	HAL_REG_DMN_MASK	0xf0
+#define	HAL_REGDMN_FCC		0x10
+#define	HAL_REGDMN_MKK		0x40
+#define	HAL_REGDMN_ETSI		0x30
+
+#define	is_reg_dmn_fcc(reg_dmn)	\
+	   (((reg_dmn & HAL_REG_DMN_MASK) == HAL_REGDMN_FCC) ? 1 : 0)
+#define	is_reg_dmn_etsi(reg_dmn)	\
+	    (((reg_dmn & HAL_REG_DMN_MASK) == HAL_REGDMN_ETSI) ? 1 : 0)
+#define	is_reg_dmn_mkk(reg_dmn)	\
+	    (((reg_dmn & HAL_REG_DMN_MASK) == HAL_REGDMN_MKK) ? 1 : 0)
+
+#define	AR_EEPROM_EEREGCAP_EN_FCC_MIDBAND	0x0040
+#define	AR_EEPROM_EEREGCAP_EN_KK_U1_EVEN	0x0080
+#define	AR_EEPROM_EEREGCAP_EN_KK_U2		0x0100
+#define	AR_EEPROM_EEREGCAP_EN_KK_MIDBAND	0x0200
+#define	AR_EEPROM_EEREGCAP_EN_KK_U1_ODD		0x0400
+#define	AR_EEPROM_EEREGCAP_EN_KK_NEW_11A	0x0800
+
+/* regulatory capabilities prior to eeprom version 4.0 */
+#define	AR_EEPROM_EEREGCAP_EN_KK_U1_ODD_PRE4_0  0x4000
+#define	AR_EEPROM_EEREGCAP_EN_KK_NEW_11A_PRE4_0 0x8000
+
 #define	AR_NO_SPUR		0x8000
 
 /* XXX exposed to chip code */
@@ -130,4 +164,5 @@ HAL_STATUS	ath_hal_v1EepromAttach(struct ath_hal *ah);
 HAL_STATUS	ath_hal_legacyEepromAttach(struct ath_hal *ah);
 HAL_STATUS	ath_hal_v14EepromAttach(struct ath_hal *ah);
 HAL_STATUS	ath_hal_v4kEepromAttach(struct ath_hal *ah);
+HAL_STATUS	ath_hal_9287EepromAttach(struct ath_hal *ah);
 #endif /* _ATH_AH_EEPROM_H_ */

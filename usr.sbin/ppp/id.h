@@ -27,7 +27,7 @@
  */
 
 #ifndef NOSUID
-struct utmp;
+struct utmpx;
 struct sockaddr_un;
 
 extern void ID0init(void);
@@ -41,8 +41,8 @@ extern int ID0write(int, const void *, size_t);
 extern int ID0uu_lock(const char *);
 extern int ID0uu_lock_txfr(const char *, pid_t);
 extern int ID0uu_unlock(const char *);
-extern void ID0login(struct utmp *);
-extern void ID0logout(const char *, int);
+extern void ID0login(const struct utmpx *);
+extern void ID0logout(const struct utmpx *);
 extern int ID0bind_un(int, const struct sockaddr_un *);
 extern int ID0connect_un(int, const struct sockaddr_un *);
 extern int ID0kill(pid_t, int);
@@ -64,20 +64,8 @@ extern int ID0NgMkSockNode(const char *, int *, int *);
 #define ID0uu_lock uu_lock
 #define ID0uu_lock_txfr uu_lock_txfr
 #define ID0uu_unlock uu_unlock
-#define ID0login(u)			\
-  do {					\
-    if (logout((u)->ut_line))		\
-      logwtmp((u)->ut_line, "", "");	\
-    login(u);				\
-  } while (0)
-#define ID0logout(dev, no)				\
-  do {							\
-    struct utmp ut;					\
-    strncpy(ut.ut_line, dev, sizeof ut.ut_line - 1);	\
-    ut.ut_line[sizeof ut.ut_line - 1] = '\0';		\
-    if (no || logout(ut.ut_line))			\
-      logwtmp(ut.ut_line, "", ""); 			\
-  } while (0)
+#define ID0login pututxline
+#define ID0logout pututxline
 #define ID0bind_un(s, n) bind(s, (const struct sockaddr *)(n), sizeof *(n))
 #define ID0connect_un(s, n) \
 	connect(s, (const struct sockaddr *)(n), sizeof *(n))

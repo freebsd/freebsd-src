@@ -70,7 +70,7 @@
  *
  * Packets received on the "gif" hook have their type header removed
  * and are passed to the appropriate hook protocol hook.  Packets
- * recieved on a protocol hook have a type header added back and are
+ * received on a protocol hook have a type header added back and are
  * passed out the gif hook. The currently supported protocol hooks are:
  */
 
@@ -89,7 +89,7 @@
 #include <netgraph/ng_gif_demux.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_GIF_DEMUX, "netgraph_gif_demux",
+static MALLOC_DEFINE(M_NETGRAPH_GIF_DEMUX, "netgraph_gif_demux",
     "netgraph gif demux node");
 #else
 #define M_NETGRAPH_GIF_DEMUX M_NETGRAPH
@@ -111,7 +111,7 @@ const static struct iffam gFamilies[] = {
 	{ AF_ATM,	NG_GIF_DEMUX_HOOK_ATM	},
 	{ AF_NATM,	NG_GIF_DEMUX_HOOK_NATM	},
 };
-#define NUM_FAMILIES		(sizeof(gFamilies) / sizeof(*gFamilies))
+#define	NUM_FAMILIES		nitems(gFamilies)
 
 /* Per-node private data */
 struct ng_gif_demux_private {
@@ -233,10 +233,7 @@ ng_gif_demux_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate and initialize private info */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_GIF_DEMUX,
-	    M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_GIF_DEMUX, M_WAITOK | M_ZERO);
 	priv->node = node;
 
 	NG_NODE_SET_PRIVATE(node, priv);
@@ -344,7 +341,7 @@ ng_gif_demux_rcvdata(hook_p hook, item_p item)
 		 * Add address family header and set the output hook.
 		 */
 		iffam = get_iffam_from_hook(priv, hook);
-		M_PREPEND(m, sizeof (iffam->family), M_DONTWAIT);
+		M_PREPEND(m, sizeof (iffam->family), M_NOWAIT);
 		if (m == NULL) {
 			NG_FREE_M(m);
 			NG_FREE_ITEM(item);
@@ -391,7 +388,7 @@ ng_gif_demux_disconnect(hook_p hook)
 	else {
 		iffam = get_iffam_from_hook(priv, hook);
 		if (iffam == NULL)
-			panic(__func__);
+			panic("%s", __func__);
 		*get_hook_from_iffam(priv, iffam) = NULL;
 	}
 

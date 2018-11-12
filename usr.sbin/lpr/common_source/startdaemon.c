@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -53,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include "lp.h"
 #include "pathnames.h"
 
-extern uid_t	uid, euid;
-
 /*
  * Tell the printer daemon that there are new files in the spool directory.
  */
@@ -78,9 +72,9 @@ startdaemon(const struct printer *pp)
 #ifndef SUN_LEN
 #define SUN_LEN(unp) (strlen((unp)->sun_path) + 2)
 #endif
-	seteuid(euid);
+	PRIV_START
 	connectres = connect(s, (struct sockaddr *)&un, SUN_LEN(&un));
-	seteuid(uid);
+	PRIV_END
 	if (connectres < 0) {
 		warn("Unable to connect to %s", _PATH_SOCKETNAME);
 		warnx("Check to see if the master 'lpd' process is running.");

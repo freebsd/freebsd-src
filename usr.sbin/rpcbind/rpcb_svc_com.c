@@ -1,33 +1,32 @@
 /*	$NetBSD: rpcb_svc_com.c,v 1.9 2002/11/08 00:16:39 fvdl Exp $	*/
 /*	$FreeBSD$ */
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
- * 
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- * 
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- * 
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- * 
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice,
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
+ *   from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  * Copyright (c) 1986 - 1991 by Sun Microsystems, Inc.
@@ -48,6 +47,7 @@
 #include <rpc/rpc.h>
 #include <rpc/rpcb_prot.h>
 #include <rpc/svc_dg.h>
+#include <assert.h>
 #include <netconfig.h>
 #include <errno.h>
 #include <syslog.h>
@@ -429,9 +429,9 @@ static bool_t
 xdr_rmtcall_args(XDR *xdrs, struct r_rmtcall_args *cap)
 {
 	/* does not get the address or the arguments */
-	if (xdr_u_int32_t(xdrs, &(cap->rmt_prog)) &&
-	    xdr_u_int32_t(xdrs, &(cap->rmt_vers)) &&
-	    xdr_u_int32_t(xdrs, &(cap->rmt_proc))) {
+	if (xdr_rpcprog(xdrs, &(cap->rmt_prog)) &&
+	    xdr_rpcvers(xdrs, &(cap->rmt_vers)) &&
+	    xdr_rpcproc(xdrs, &(cap->rmt_proc))) {
 		return (xdr_encap_parms(xdrs, &(cap->rmt_args)));
 	}
 	return (FALSE);
@@ -634,7 +634,7 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
 	/*
 	 * Should be multiple of 4 for XDR.
 	 */
-	sendsz = ((sendsz + 3) / 4) * 4;
+	sendsz = roundup(sendsz, 4);
 	if (sendsz > RPC_BUF_MAX) {
 #ifdef	notyet
 		buf_alloc = alloca(sendsz);		/* not in IDR2? */
@@ -1048,19 +1048,36 @@ netbufcmp(struct netbuf *n1, struct netbuf *n2)
 	return ((n1->len != n2->len) || memcmp(n1->buf, n2->buf, n1->len));
 }
 
+static bool_t
+netbuf_copybuf(struct netbuf *dst, const struct netbuf *src)
+{
+	assert(src->len <= src->maxlen);
+
+	if (dst->maxlen < src->len || dst->buf == NULL) {
+		if (dst->buf != NULL)
+			free(dst->buf);
+		if ((dst->buf = calloc(1, src->maxlen)) == NULL)
+			return (FALSE);
+		dst->maxlen = src->maxlen;
+	}
+
+	dst->len = src->len;
+	memcpy(dst->buf, src->buf, src->len);
+
+	return (TRUE);
+}
+
 static struct netbuf *
 netbufdup(struct netbuf *ap)
 {
 	struct netbuf  *np;
 
-	if ((np = malloc(sizeof(struct netbuf))) == NULL)
+	if ((np = calloc(1, sizeof(struct netbuf))) == NULL)
 		return (NULL);
-	if ((np->buf = malloc(ap->len)) == NULL) {
+	if (netbuf_copybuf(np, ap) == FALSE) {
 		free(np);
 		return (NULL);
 	}
-	np->maxlen = np->len = ap->len;
-	memcpy(np->buf, ap->buf, ap->len);
 	return (np);
 }
 
@@ -1068,6 +1085,7 @@ static void
 netbuffree(struct netbuf *ap)
 {
 	free(ap->buf);
+	ap->buf = NULL;
 	free(ap);
 }
 
@@ -1076,7 +1094,7 @@ netbuffree(struct netbuf *ap)
 extern bool_t __svc_clean_idle(fd_set *, int, bool_t);
 
 void
-my_svc_run()
+my_svc_run(void)
 {
 	size_t nfds;
 	struct pollfd pollfds[FD_SETSIZE];
@@ -1185,7 +1203,7 @@ xprt_set_caller(SVCXPRT *xprt, struct finfo *fi)
 {
 	u_int32_t *xidp;
 
-	*(svc_getrpccaller(xprt)) = *(fi->caller_addr);
+	netbuf_copybuf(svc_getrpccaller(xprt), fi->caller_addr);
 	xidp = __rpcb_get_dg_xidp(xprt);
 	*xidp = fi->caller_xid;
 }
@@ -1224,6 +1242,7 @@ handle_reply(int fd, SVCXPRT *xprt)
 		goto done;
 
 	do {
+		fromlen = sizeof(ss);
 		inlen = recvfrom(fd, buffer, RPC_BUF_MAX, 0,
 			    (struct sockaddr *)&ss, &fromlen);
 	} while (inlen < 0 && errno == EINTR);

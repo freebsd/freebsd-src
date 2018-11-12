@@ -1,6 +1,4 @@
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2009 Hans Petter Selasky. All rights reserved.
  *
@@ -36,6 +34,9 @@ __FBSDID("$FreeBSD$");
  * endpoints, Function-address and more.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -44,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
+
 #include <dev/usb/controller/atmegadci.h>
 
 #define	ATMEGA_BUS2SC(bus) \
@@ -84,8 +86,9 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int atmegadci_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, atmegadci, CTLFLAG_RW, 0, "USB ATMEGA DCI");
-SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, atmegadci, CTLFLAG_RW, 0,
+    "USB ATMEGA DCI");
+SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RWTUN,
     &atmegadci_debug, 0, "ATMEGA DCI debug level");
 #endif
 
@@ -93,9 +96,9 @@ SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb_bus_methods atmegadci_bus_methods;
-struct usb_pipe_methods atmegadci_device_non_isoc_methods;
-struct usb_pipe_methods atmegadci_device_isoc_fs_methods;
+static const struct usb_bus_methods atmegadci_bus_methods;
+static const struct usb_pipe_methods atmegadci_device_non_isoc_methods;
+static const struct usb_pipe_methods atmegadci_device_isoc_fs_methods;
 
 static atmegadci_cmd_t atmegadci_setup_rx;
 static atmegadci_cmd_t atmegadci_data_rx;
@@ -797,10 +800,12 @@ atmegadci_setup_standard_chain(struct usb_xfer *xfer)
 
 	/* setup temp */
 
+	temp.pc = NULL;
 	temp.td = NULL;
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
-	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
+	temp.setup_alt_next = xfer->flags_int.short_frames_ok ||
+	    xfer->flags_int.isochronous_xfr;
 	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = ATMEGA_BUS2SC(xfer->xroot->bus);
@@ -1006,7 +1011,8 @@ atmegadci_standard_done_sub(struct usb_xfer *xfer)
 		}
 		/* Check for short transfer */
 		if (len > 0) {
-			if (xfer->flags_int.short_frames_ok) {
+			if (xfer->flags_int.short_frames_ok ||
+			    xfer->flags_int.isochronous_xfr) {
 				/* follow alt next */
 				if (td->alt_next) {
 					td = td->obj_next;
@@ -1112,7 +1118,13 @@ atmegadci_device_done(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static void
-atmegadci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+atmegadci_xfer_stall(struct usb_xfer *xfer)
+{
+	atmegadci_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+atmegadci_set_stall(struct usb_device *udev,
     struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct atmegadci_softc *sc;
@@ -1122,10 +1134,6 @@ atmegadci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	DPRINTFN(5, "endpoint=%p\n", ep);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		atmegadci_device_done(xfer, USB_ERR_STALLED);
-	}
 	sc = ATMEGA_BUS2SC(udev->bus);
 	/* get endpoint number */
 	ep_no = (ep->edesc->bEndpointAddress & UE_ADDR);
@@ -1191,7 +1199,8 @@ atmegadci_clear_stall_sub(struct atmegadci_softc *sc, uint8_t ep_no,
 
 		temp = ATMEGA_READ_1(sc, ATMEGA_UESTA0X);
 		if (!(temp & ATMEGA_UESTA0X_CFGOK)) {
-			DPRINTFN(0, "Chip rejected configuration\n");
+			device_printf(sc->sc_bus.bdev,
+			    "Chip rejected configuration\n");
 		}
 	} while (0);
 }
@@ -1350,16 +1359,16 @@ atmegadci_uninit(struct atmegadci_softc *sc)
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
-void
+static void
 atmegadci_suspend(struct atmegadci_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
-void
+static void
 atmegadci_resume(struct atmegadci_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
 static void
@@ -1373,9 +1382,9 @@ atmegadci_do_poll(struct usb_bus *bus)
 }
 
 /*------------------------------------------------------------------------*
- * at91dci bulk support
- * at91dci control support
- * at91dci interrupt support
+ * atmegadci bulk support
+ * atmegadci control support
+ * atmegadci interrupt support
  *------------------------------------------------------------------------*/
 static void
 atmegadci_device_non_isoc_open(struct usb_xfer *xfer)
@@ -1403,7 +1412,7 @@ atmegadci_device_non_isoc_start(struct usb_xfer *xfer)
 	atmegadci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods atmegadci_device_non_isoc_methods =
+static const struct usb_pipe_methods atmegadci_device_non_isoc_methods =
 {
 	.open = atmegadci_device_non_isoc_open,
 	.close = atmegadci_device_non_isoc_close,
@@ -1412,7 +1421,7 @@ struct usb_pipe_methods atmegadci_device_non_isoc_methods =
 };
 
 /*------------------------------------------------------------------------*
- * at91dci full speed isochronous support
+ * atmegadci full speed isochronous support
  *------------------------------------------------------------------------*/
 static void
 atmegadci_device_isoc_fs_open(struct usb_xfer *xfer)
@@ -1489,7 +1498,7 @@ atmegadci_device_isoc_fs_start(struct usb_xfer *xfer)
 	atmegadci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods atmegadci_device_isoc_fs_methods =
+static const struct usb_pipe_methods atmegadci_device_isoc_fs_methods =
 {
 	.open = atmegadci_device_isoc_fs_open,
 	.close = atmegadci_device_isoc_fs_close,
@@ -1498,7 +1507,7 @@ struct usb_pipe_methods atmegadci_device_isoc_fs_methods =
 };
 
 /*------------------------------------------------------------------------*
- * at91dci root control support
+ * atmegadci root control support
  *------------------------------------------------------------------------*
  * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/
@@ -1509,23 +1518,12 @@ static const struct usb_device_descriptor atmegadci_devd = {
 	.bcdUSB = {0x00, 0x02},
 	.bDeviceClass = UDCLASS_HUB,
 	.bDeviceSubClass = UDSUBCLASS_HUB,
-	.bDeviceProtocol = UDPROTO_HSHUBSTT,
+	.bDeviceProtocol = UDPROTO_FSHUB,
 	.bMaxPacketSize = 64,
 	.bcdDevice = {0x00, 0x01},
 	.iManufacturer = 1,
 	.iProduct = 2,
 	.bNumConfigurations = 1,
-};
-
-static const struct usb_device_qualifier atmegadci_odevd = {
-	.bLength = sizeof(struct usb_device_qualifier),
-	.bDescriptorType = UDESC_DEVICE_QUALIFIER,
-	.bcdUSB = {0x00, 0x02},
-	.bDeviceClass = UDCLASS_HUB,
-	.bDeviceSubClass = UDSUBCLASS_HUB,
-	.bDeviceProtocol = UDPROTO_FSHUB,
-	.bMaxPacketSize0 = 0,
-	.bNumConfigurations = 0,
 };
 
 static const struct atmegadci_config_desc atmegadci_confd = {
@@ -1545,7 +1543,7 @@ static const struct atmegadci_config_desc atmegadci_confd = {
 		.bNumEndpoints = 1,
 		.bInterfaceClass = UICLASS_HUB,
 		.bInterfaceSubClass = UISUBCLASS_HUB,
-		.bInterfaceProtocol = UIPROTO_HSHUBSTT,
+		.bInterfaceProtocol = 0,
 	},
 	.endpd = {
 		.bLength = sizeof(struct usb_endpoint_descriptor),
@@ -1557,31 +1555,24 @@ static const struct atmegadci_config_desc atmegadci_confd = {
 	},
 };
 
+#define	HSETW(ptr, val) ptr = { (uint8_t)(val), (uint8_t)((val) >> 8) }
+
 static const struct usb_hub_descriptor_min atmegadci_hubd = {
 	.bDescLength = sizeof(atmegadci_hubd),
 	.bDescriptorType = UDESC_HUB,
 	.bNbrPorts = 1,
-	.wHubCharacteristics[0] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) & 0xFF,
-	.wHubCharacteristics[1] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) >> 8,
+	HSETW(.wHubCharacteristics, (UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL)),
 	.bPwrOn2PwrGood = 50,
 	.bHubContrCurrent = 0,
 	.DeviceRemovable = {0},		/* port is removable */
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_VENDOR \
-  'A', 0, 'T', 0, 'M', 0, 'E', 0, 'G', 0, 'A', 0
+  "A\0T\0M\0E\0G\0A"
 
 #define	STRING_PRODUCT \
-  'D', 0, 'C', 0, 'I', 0, ' ', 0, 'R', 0, \
-  'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
-  'U', 0, 'B', 0,
+  "D\0C\0I\0 \0R\0o\0o\0t\0 \0H\0U\0B"
 
-USB_MAKE_STRING_DESC(STRING_LANG, atmegadci_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, atmegadci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, atmegadci_product);
 
@@ -1784,8 +1775,8 @@ tr_handle_get_descriptor:
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			len = sizeof(atmegadci_langtab);
-			ptr = (const void *)&atmegadci_langtab;
+			len = sizeof(usb_string_lang_en);
+			ptr = (const void *)&usb_string_lang_en;
 			goto tr_valid;
 
 		case 1:		/* Vendor */
@@ -1913,7 +1904,8 @@ tr_handle_clear_port_feature:
 		/* check valid config */
 		temp = ATMEGA_READ_1(sc, ATMEGA_UESTA0X);
 		if (!(temp & ATMEGA_UESTA0X_CFGOK)) {
-			DPRINTFN(0, "Chip rejected EP0 configuration\n");
+			device_printf(sc->sc_bus.bdev,
+			    "Chip rejected EP0 configuration\n");
 		}
 		break;
 	case UHF_C_PORT_SUSPEND:
@@ -2119,10 +2111,6 @@ atmegadci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
-			/* not supported */
-			return;
-		}
 		if (udev->speed != USB_SPEED_FULL) {
 			/* not supported */
 			return;
@@ -2134,14 +2122,36 @@ atmegadci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc
 	}
 }
 
-struct usb_bus_methods atmegadci_bus_methods =
+static void
+atmegadci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
+{
+	struct atmegadci_softc *sc = ATMEGA_BUS2SC(bus);
+
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+		atmegadci_suspend(sc);
+		break;
+	case USB_HW_POWER_SHUTDOWN:
+		atmegadci_uninit(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		atmegadci_resume(sc);
+		break;
+	default:
+		break;
+	}
+}
+
+static const struct usb_bus_methods atmegadci_bus_methods =
 {
 	.endpoint_init = &atmegadci_ep_init,
 	.xfer_setup = &atmegadci_xfer_setup,
 	.xfer_unsetup = &atmegadci_xfer_unsetup,
 	.get_hw_ep_profile = &atmegadci_get_hw_ep_profile,
+	.xfer_stall = &atmegadci_xfer_stall,
 	.set_stall = &atmegadci_set_stall,
 	.clear_stall = &atmegadci_clear_stall,
 	.roothub_exec = &atmegadci_roothub_exec,
 	.xfer_poll = &atmegadci_do_poll,
+	.set_hw_power_sleep = &atmegadci_set_hw_power_sleep,
 };

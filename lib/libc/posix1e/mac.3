@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2009
+.Dd July 25, 2015
 .Dt MAC 3
 .Os
 .Sh NAME
@@ -74,7 +74,7 @@ When querying a label on an object, a
 .Vt mac_t
 must first be prepared using the interfaces described in
 .Xr mac_prepare 3 ,
-allowing the application to declare which policies it wishes to interogate.
+allowing the application to declare which policies it wishes to interrogate.
 The application writer can also rely on default label names declared in
 .Xr mac.conf 5 .
 .Pp
@@ -109,7 +109,7 @@ This function, described in
 .Xr mac_set 3 ,
 sets the MAC label associated with the current process.
 .It Fn mac_free
-This function, desribed in
+This function, described in
 .Xr mac_free 3 ,
 frees working MAC label storage.
 .It Fn mac_from_text
@@ -154,8 +154,8 @@ system objects, but without policy-specific knowledge.
 .Sh STANDARDS
 These APIs are loosely based on the APIs described in POSIX.1e, as described
 in IEEE POSIX.1e draft 17.
-However, the resemblence of these APIS to the POSIX APIs is loose, as the
-PSOXI APIS were unable to express some notinos required for flexible and
+However, the resemblance of these APIs to the POSIX APIs is loose, as the
+POSIX APIs were unable to express some notions required for flexible and
 extensible access control.
 .Sh HISTORY
 Support for Mandatory Access Control was introduced in
@@ -163,14 +163,3 @@ Support for Mandatory Access Control was introduced in
 as part of the
 .Tn TrustedBSD
 Project.
-.Sh BUGS
-The
-.Tn TrustedBSD
-MAC Framework and associated policies, interfaces, and
-applications are considered to be an experimental feature in
-.Fx .
-Sites considering production deployment should keep the experimental
-status of these services in mind during any deployment process.
-See also
-.Xr mac 9
-for related considerations regarding the kernel framework.

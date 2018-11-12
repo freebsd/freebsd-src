@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: alias.c,v 8.219 2006/10/24 18:04:09 ca Exp $")
+SM_RCSID("@(#)$Id: alias.c,v 8.221 2013-11-22 20:51:54 ca Exp $")
 
 #define SEPARATOR ':'
 # define ALIAS_SPEC_SEPARATORS	" ,/:"
@@ -657,7 +657,7 @@ readaliases(map, af, announcestats, logstats)
 	LineNumber = 0;
 	naliases = bytes = longest = 0;
 	skipping = false;
-	while (sm_io_fgets(af, SM_TIME_DEFAULT, line, sizeof(line)) != NULL)
+	while (sm_io_fgets(af, SM_TIME_DEFAULT, line, sizeof(line)) >= 0)
 	{
 		int lhssize, rhssize;
 		int c;
@@ -670,7 +670,7 @@ readaliases(map, af, announcestats, logstats)
 		{
 			p--;
 			if (sm_io_fgets(af, SM_TIME_DEFAULT, p,
-					SPACELEFT(line, p)) == NULL)
+					SPACELEFT(line, p)) < 0)
 				break;
 			LineNumber++;
 			p = strchr(p, '\n');
@@ -780,7 +780,7 @@ readaliases(map, af, announcestats, logstats)
 
 			/* read continuation line */
 			if (sm_io_fgets(af, SM_TIME_DEFAULT, p,
-					sizeof(line) - (p-line)) == NULL)
+					sizeof(line) - (p-line)) < 0)
 				break;
 			LineNumber++;
 

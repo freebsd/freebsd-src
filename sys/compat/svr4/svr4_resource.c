@@ -13,13 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -137,9 +130,7 @@ svr4_sys_getrlimit(td, uap)
 	if (rl == -1)
 		return EINVAL;
 
-	PROC_LOCK(td->td_proc);
-	lim_rlimit(td->td_proc, rl, &blim);
-	PROC_UNLOCK(td->td_proc);
+	lim_rlimit(td, rl, &blim);
 
 	/*
 	 * Our infinity, is their maxfiles.
@@ -188,9 +179,7 @@ svr4_sys_setrlimit(td, uap)
 	if ((error = copyin(uap->rlp, &slim, sizeof(slim))) != 0)
 		return error;
 
-	PROC_LOCK(td->td_proc);
-	lim_rlimit(td->td_proc, rl, &curlim);
-	PROC_UNLOCK(td->td_proc);
+	lim_rlimit(td, rl, &curlim);
 
 	/*
 	 * if the limit is SVR4_RLIM_INFINITY, then we set it to our
@@ -235,9 +224,7 @@ svr4_sys_getrlimit64(td, uap)
 	if (rl == -1)
 		return EINVAL;
 
-	PROC_LOCK(td->td_proc);
-	lim_rlimit(td->td_proc, rl, &blim);
-	PROC_UNLOCK(td->td_proc);
+	lim_rlimit(td, rl, &blim);
 
 	/*
 	 * Our infinity, is their maxfiles.
@@ -286,9 +273,7 @@ svr4_sys_setrlimit64(td, uap)
 	if ((error = copyin(uap->rlp, &slim, sizeof(slim))) != 0)
 		return error;
 
-	PROC_LOCK(td->td_proc);
-	lim_rlimit(td->td_proc, rl, &curlim);
-	PROC_UNLOCK(td->td_proc);
+	lim_rlimit(td, rl, &curlim);
 
 	/*
 	 * if the limit is SVR4_RLIM64_INFINITY, then we set it to our

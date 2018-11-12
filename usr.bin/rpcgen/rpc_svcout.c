@@ -54,7 +54,7 @@ static char RESULT[] = "result";
 static char ROUTINE[] = "local";
 static char RETVAL[] = "retval";
 
-char _errbuf[256];	/* For all messages */
+static char _errbuf[256];	/* For all messages */
 
 void internal_proctype( proc_list * );
 static void write_real_program( definition * );
@@ -325,7 +325,7 @@ write_programs(const char *storage)
 
 /*
  * write out definition of internal function (e.g. _printmsg_1(...))
- *  which calls server's defintion of actual function (e.g. printmsg_1(...)).
+ *  which calls server's definition of actual function (e.g. printmsg_1(...)).
  *  Unpacks single user argument of printmsg_1 to call-by-value format
  *  expected by printmsg_1.
  */
@@ -349,7 +349,7 @@ write_real_program(definition *def)
 			f_print(fout, "(");
 			/* arg name */
 			if (proc->arg_num > 1)
-				f_print(fout, proc->args.argname);
+				fputs(proc->args.argname, fout);
 			else
 				ptype(proc->args.decls->decl.prefix,
 				      proc->args.decls->decl.type, 0);
@@ -551,7 +551,7 @@ write_program(definition *def, const char *storage)
 			(void) sprintf(_errbuf, "unable to free results");
 			print_err_message("\t\t");
 			f_print(fout, "\n");
-		};
+		}
 		print_return("\t");
 		f_print(fout, "}\n");
 	}

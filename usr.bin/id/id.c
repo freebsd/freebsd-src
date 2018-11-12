@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -56,21 +52,24 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <grp.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-void	id_print(struct passwd *, int, int, int);
-void	pline(struct passwd *);
-void	pretty(struct passwd *);
-void	auditid(void);
-void	group(struct passwd *, int);
-void	maclabel(void);
-void	usage(void);
-struct passwd *who(char *);
+static void	id_print(struct passwd *, int, int, int);
+static void	pline(struct passwd *);
+static void	pretty(struct passwd *);
+#ifdef USE_BSM_AUDIT
+static void	auditid(void);
+#endif
+static void	group(struct passwd *, int);
+static void	maclabel(void);
+static void	usage(void);
+static struct passwd *who(char *);
 
-int isgroups, iswhoami;
+static int isgroups, iswhoami;
 
 int
 main(int argc, char *argv[])
@@ -78,11 +77,13 @@ main(int argc, char *argv[])
 	struct group *gr;
 	struct passwd *pw;
 	int Gflag, Mflag, Pflag, ch, gflag, id, nflag, pflag, rflag, uflag;
-	int Aflag;
+	int Aflag, cflag;
+	int error;
 	const char *myname;
+	char loginclass[MAXLOGNAME];
 
 	Gflag = Mflag = Pflag = gflag = nflag = pflag = rflag = uflag = 0;
-	Aflag = 0;
+	Aflag = cflag = 0;
 
 	myname = strrchr(argv[0], '/');
 	myname = (myname != NULL) ? myname + 1 : argv[0];
@@ -96,7 +97,7 @@ main(int argc, char *argv[])
 	}
 
 	while ((ch = getopt(argc, argv,
-	    (isgroups || iswhoami) ? "" : "APGMagnpru")) != -1)
+	    (isgroups || iswhoami) ? "" : "APGMacgnpru")) != -1)
 		switch(ch) {
 #ifdef USE_BSM_AUDIT
 		case 'A':
@@ -113,6 +114,9 @@ main(int argc, char *argv[])
 			Pflag = 1;
 			break;
 		case 'a':
+			break;
+		case 'c':
+			cflag = 1;
 			break;
 		case 'g':
 			gflag = 1;
@@ -161,6 +165,14 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 #endif
+
+	if (cflag) {
+		error = getloginclass(loginclass, sizeof(loginclass));
+		if (error != 0)
+			err(1, "loginclass");
+		(void)printf("%s\n", loginclass);
+		exit(0);
+	}
 
 	if (gflag) {
 		id = pw ? pw->pw_gid : rflag ? getgid() : getegid();
@@ -211,7 +223,7 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
-void
+static void
 pretty(struct passwd *pw)
 {
 	struct group *gr;
@@ -251,7 +263,7 @@ pretty(struct passwd *pw)
 	}
 }
 
-void
+static void
 id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 {
 	struct group *gr;
@@ -315,7 +327,7 @@ id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 }
 
 #ifdef USE_BSM_AUDIT
-void
+static void
 auditid(void)
 {
 	auditinfo_t auditinfo;
@@ -335,14 +347,14 @@ auditid(void)
 		    "mask.success=0x%08x\n"
 		    "mask.failure=0x%08x\n"
 		    "asid=%d\n"
-		    "termid_addr.port=0x%08x\n"
+		    "termid_addr.port=0x%08jx\n"
 		    "termid_addr.addr[0]=0x%08x\n"
 		    "termid_addr.addr[1]=0x%08x\n"
 		    "termid_addr.addr[2]=0x%08x\n"
 		    "termid_addr.addr[3]=0x%08x\n",
 			ainfo_addr.ai_auid, ainfo_addr.ai_mask.am_success,
 			ainfo_addr.ai_mask.am_failure, ainfo_addr.ai_asid,
-			ainfo_addr.ai_termid.at_port,
+			(uintmax_t)ainfo_addr.ai_termid.at_port,
 			ainfo_addr.ai_termid.at_addr[0],
 			ainfo_addr.ai_termid.at_addr[1],
 			ainfo_addr.ai_termid.at_addr[2],
@@ -352,17 +364,17 @@ auditid(void)
 		    "mask.success=0x%08x\n"
 		    "mask.failure=0x%08x\n"
 		    "asid=%d\n"
-		    "termid.port=0x%08x\n"
+		    "termid.port=0x%08jx\n"
 		    "termid.machine=0x%08x\n",
 			auditinfo.ai_auid, auditinfo.ai_mask.am_success,
 			auditinfo.ai_mask.am_failure,
-			auditinfo.ai_asid, auditinfo.ai_termid.port,
+			auditinfo.ai_asid, (uintmax_t)auditinfo.ai_termid.port,
 			auditinfo.ai_termid.machine);
 	}
 }
 #endif
 
-void
+static void
 group(struct passwd *pw, int nflag)
 {
 	struct group *gr;
@@ -402,7 +414,7 @@ group(struct passwd *pw, int nflag)
 	free(groups);
 }
 
-void
+static void
 maclabel(void)
 {
 	char *string;
@@ -426,7 +438,7 @@ maclabel(void)
 	free(string);
 }
 
-struct passwd *
+static struct passwd *
 who(char *u)
 {
 	struct passwd *pw;
@@ -446,7 +458,7 @@ who(char *u)
 	/* NOTREACHED */
 }
 
-void
+static void
 pline(struct passwd *pw)
 {
 
@@ -462,7 +474,7 @@ pline(struct passwd *pw)
 }
 
 
-void
+static void
 usage(void)
 {
 
@@ -471,7 +483,7 @@ usage(void)
 	else if (iswhoami)
 		(void)fprintf(stderr, "usage: whoami\n");
 	else
-		(void)fprintf(stderr, "%s\n%s%s\n%s\n%s\n%s\n%s\n%s\n",
+		(void)fprintf(stderr, "%s\n%s%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 		    "usage: id [user]",
 #ifdef USE_BSM_AUDIT
 		    "       id -A\n",
@@ -481,6 +493,7 @@ usage(void)
 		    "       id -G [-n] [user]",
 		    "       id -M",
 		    "       id -P [user]",
+		    "       id -c",
 		    "       id -g [-nr] [user]",
 		    "       id -p [user]",
 		    "       id -u [-nr] [user]");

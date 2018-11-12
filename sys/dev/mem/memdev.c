@@ -34,8 +34,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/memrange.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>
@@ -50,7 +52,7 @@ static struct cdev *memdev, *kmemdev;
 
 static struct cdevsw mem_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_MEM|D_NEEDGIANT,
+	.d_flags =	D_MEM,
 	.d_open =	memopen,
 	.d_read =	memrw,
 	.d_write =	memrw,
@@ -66,8 +68,14 @@ memopen(struct cdev *dev __unused, int flags, int fmt __unused,
 {
 	int error = 0;
 
-	if (flags & FWRITE)
-		error = securelevel_gt(td->td_ucred, 0);
+	if (flags & FREAD)
+		error = priv_check(td, PRIV_KMEM_READ);
+	if (flags & FWRITE) {
+		if (error == 0)
+			error = priv_check(td, PRIV_KMEM_WRITE);
+		if (error == 0)
+			error = securelevel_gt(td->td_ucred, 0);
+	}
 
 	return (error);
 }
@@ -80,7 +88,7 @@ mem_modevent(module_t mod __unused, int type, void *data __unused)
 	case MOD_LOAD:
 		if (bootverbose)
 			printf("mem: <memory>\n");
-		dev_mem_md_init(); /* Machine dependant bit */
+		mem_range_init();
 		memdev = make_dev(&mem_cdevsw, CDEV_MINOR_MEM,
 			UID_ROOT, GID_KMEM, 0640, "mem");
 		kmemdev = make_dev(&mem_cdevsw, CDEV_MINOR_KMEM,
@@ -88,6 +96,7 @@ mem_modevent(module_t mod __unused, int type, void *data __unused)
 		break;
 
 	case MOD_UNLOAD:
+		mem_range_destroy();
 		destroy_dev(memdev);
 		destroy_dev(kmemdev);
 		break;

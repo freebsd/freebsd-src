@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #ifndef _KERNEL
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
-#include "fsck.h"
 #else
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -55,10 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/ufs_extern.h>
 #include <ufs/ffs/ffs_extern.h>
 #include <ufs/ffs/fs.h>
-
-#ifdef KDB
-void	ffs_checkoverlap(struct buf *, struct inode *);
-#endif
 
 /*
  * Return buffer with the contents of block "offset" from the beginning of
@@ -79,7 +74,7 @@ ffs_blkatoff(vp, offset, res, bpp)
 	int bsize, error;
 
 	ip = VTOI(vp);
-	fs = ip->i_fs;
+	fs = ITOFS(ip);
 	lbn = lblkno(fs, offset);
 	bsize = blksize(fs, ip, lbn);
 
@@ -107,7 +102,7 @@ ffs_load_inode(bp, ip, fs, ino)
 	ino_t ino;
 {
 
-	if (ip->i_ump->um_fstype == UFS1) {
+	if (I_IS_UFS1(ip)) {
 		*ip->i_din1 =
 		    *((struct ufs1_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
 		ip->i_mode = ip->i_din1->di_mode;
@@ -166,37 +161,6 @@ ffs_fragacct(fs, fragmap, fraglist, cnt)
 	}
 }
 
-#ifdef KDB
-void
-ffs_checkoverlap(bp, ip)
-	struct buf *bp;
-	struct inode *ip;
-{
-	struct buf *ebp, *ep;
-	ufs2_daddr_t start, last;
-	struct vnode *vp;
-
-	ebp = &buf[nbuf];
-	start = bp->b_blkno;
-	last = start + btodb(bp->b_bcount) - 1;
-	for (ep = buf; ep < ebp; ep++) {
-		if (ep == bp || (ep->b_flags & B_INVAL) ||
-		    ep->b_vp == NULLVP)
-			continue;
-		vp = ip->i_devvp;
-		/* look for overlap */
-		if (ep->b_bcount == 0 || ep->b_blkno > last ||
-		    ep->b_blkno + btodb(ep->b_bcount) <= start)
-			continue;
-		vprint("Disk overlap", vp);
-		printf("\tstart %jd, end %jd overlap start %jd, end %jd\n",
-		    (intmax_t)start, (intmax_t)last, (intmax_t)ep->b_blkno,
-		    (intmax_t)(ep->b_blkno + btodb(ep->b_bcount) - 1));
-		panic("ffs_checkoverlap: Disk buffer overlap");
-	}
-}
-#endif /* KDB */
-
 /*
  * block operations
  *
@@ -223,7 +187,38 @@ ffs_isblock(fs, cp, h)
 		mask = 0x01 << (h & 0x7);
 		return ((cp[h >> 3] & mask) == mask);
 	default:
+#ifdef _KERNEL
 		panic("ffs_isblock");
+#endif
+		break;
+	}
+	return (0);
+}
+
+/*
+ * check if a block is free
+ */
+int
+ffs_isfreeblock(fs, cp, h)
+	struct fs *fs;
+	u_char *cp;
+	ufs1_daddr_t h;
+{
+ 
+	switch ((int)fs->fs_frag) {
+	case 8:
+		return (cp[h] == 0);
+	case 4:
+		return ((cp[h >> 1] & (0x0f << ((h & 0x1) << 2))) == 0);
+	case 2:
+		return ((cp[h >> 2] & (0x03 << ((h & 0x3) << 1))) == 0);
+	case 1:
+		return ((cp[h >> 3] & (0x01 << (h & 0x7))) == 0);
+	default:
+#ifdef _KERNEL
+		panic("ffs_isfreeblock");
+#endif
+		break;
 	}
 	return (0);
 }
@@ -252,7 +247,10 @@ ffs_clrblock(fs, cp, h)
 		cp[h >> 3] &= ~(0x01 << (h & 0x7));
 		return;
 	default:
+#ifdef _KERNEL
 		panic("ffs_clrblock");
+#endif
+		break;
 	}
 }
 
@@ -281,6 +279,101 @@ ffs_setblock(fs, cp, h)
 		cp[h >> 3] |= (0x01 << (h & 0x7));
 		return;
 	default:
+#ifdef _KERNEL
 		panic("ffs_setblock");
+#endif
+		break;
 	}
+}
+
+/*
+ * Update the cluster map because of an allocation or free.
+ *
+ * Cnt == 1 means free; cnt == -1 means allocating.
+ */
+void
+ffs_clusteracct(fs, cgp, blkno, cnt)
+	struct fs *fs;
+	struct cg *cgp;
+	ufs1_daddr_t blkno;
+	int cnt;
+{
+	int32_t *sump;
+	int32_t *lp;
+	u_char *freemapp, *mapp;
+	int i, start, end, forw, back, map, bit;
+
+	if (fs->fs_contigsumsize <= 0)
+		return;
+	freemapp = cg_clustersfree(cgp);
+	sump = cg_clustersum(cgp);
+	/*
+	 * Allocate or clear the actual block.
+	 */
+	if (cnt > 0)
+		setbit(freemapp, blkno);
+	else
+		clrbit(freemapp, blkno);
+	/*
+	 * Find the size of the cluster going forward.
+	 */
+	start = blkno + 1;
+	end = start + fs->fs_contigsumsize;
+	if (end >= cgp->cg_nclusterblks)
+		end = cgp->cg_nclusterblks;
+	mapp = &freemapp[start / NBBY];
+	map = *mapp++;
+	bit = 1 << (start % NBBY);
+	for (i = start; i < end; i++) {
+		if ((map & bit) == 0)
+			break;
+		if ((i & (NBBY - 1)) != (NBBY - 1)) {
+			bit <<= 1;
+		} else {
+			map = *mapp++;
+			bit = 1;
+		}
+	}
+	forw = i - start;
+	/*
+	 * Find the size of the cluster going backward.
+	 */
+	start = blkno - 1;
+	end = start - fs->fs_contigsumsize;
+	if (end < 0)
+		end = -1;
+	mapp = &freemapp[start / NBBY];
+	map = *mapp--;
+	bit = 1 << (start % NBBY);
+	for (i = start; i > end; i--) {
+		if ((map & bit) == 0)
+			break;
+		if ((i & (NBBY - 1)) != 0) {
+			bit >>= 1;
+		} else {
+			map = *mapp--;
+			bit = 1 << (NBBY - 1);
+		}
+	}
+	back = start - i;
+	/*
+	 * Account for old cluster and the possibly new forward and
+	 * back clusters.
+	 */
+	i = back + forw + 1;
+	if (i > fs->fs_contigsumsize)
+		i = fs->fs_contigsumsize;
+	sump[i] += cnt;
+	if (back > 0)
+		sump[back] -= cnt;
+	if (forw > 0)
+		sump[forw] -= cnt;
+	/*
+	 * Update cluster summary information.
+	 */
+	lp = &sump[fs->fs_contigsumsize];
+	for (i = fs->fs_contigsumsize; i > 0; i--)
+		if (*lp-- > 0)
+			break;
+	fs->fs_maxcluster[cgp->cg_cgx] = i;
 }

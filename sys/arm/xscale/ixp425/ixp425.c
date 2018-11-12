@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
+#include <machine/armreg.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
 
@@ -65,6 +66,8 @@ volatile uint32_t intr_enabled2;
 uint32_t intr_steer2 = 0;
 
 struct	ixp425_softc *ixp425_softc = NULL;
+
+struct mtx ixp425_gpio_mtx;
 
 static int	ixp425_probe(device_t);
 static void	ixp425_identify(driver_t *, device_t);
@@ -164,6 +167,7 @@ ixp425_set_gpio(struct ixp425_softc *sc, int pin, int type)
 {
 	uint32_t gpiotr = GPIO_CONF_READ_4(sc, GPIO_TYPE_REG(pin));
 
+	IXP4XX_GPIO_LOCK();
 	/* clear interrupt type */
 	GPIO_CONF_WRITE_4(sc, GPIO_TYPE_REG(pin),
 	    gpiotr &~ GPIO_TYPE(pin, GPIO_TYPE_MASK));
@@ -174,8 +178,9 @@ ixp425_set_gpio(struct ixp425_softc *sc, int pin, int type)
 	    gpiotr | GPIO_TYPE(pin, type));
 
 	/* configure gpio line as an input */
-	GPIO_CONF_WRITE_4(sc, IXP425_GPIO_GPOER, 
+	GPIO_CONF_WRITE_4(sc, IXP425_GPIO_GPOER,
 	    GPIO_CONF_READ_4(sc, IXP425_GPIO_GPOER) | (1<<pin));
+	IXP4XX_GPIO_UNLOCK();
 }
 
 static __inline void
@@ -198,7 +203,7 @@ arm_mask_irq(uintptr_t nb)
 {
 	int i;
 
-	i = disable_interrupts(I32_bit);
+	i = disable_interrupts(PSR_I);
 	if (nb < 32) {
 		intr_enabled &= ~(1 << nb);
 		ixp425_set_intrmask();
@@ -216,7 +221,7 @@ arm_unmask_irq(uintptr_t nb)
 {
 	int i;
 
-	i = disable_interrupts(I32_bit);
+	i = disable_interrupts(PSR_I);
 	if (nb < 32) {
 		intr_enabled |= (1 << nb);
 		ixp425_set_intrmask();
@@ -313,6 +318,7 @@ ixp425_attach(device_t dev)
 	}
 	arm_post_filter = ixp425_post_filter;
 
+	mtx_init(&ixp425_gpio_mtx, "gpio", NULL, MTX_DEF);
 	if (bus_space_map(sc->sc_iot, IXP425_GPIO_HWBASE, IXP425_GPIO_SIZE,
 	    0, &sc->sc_gpio_ioh))
 		panic("%s: unable to map GPIO registers", __func__);
@@ -325,7 +331,7 @@ ixp425_attach(device_t dev)
 		cambria_exp_bus_init(sc);
 
 	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL,  0xffffffff, 0xff, 0xffffffff, 0, 
+	    BUS_SPACE_MAXADDR, NULL, NULL,  0xffffffff, 0xff, 0xffffffff, 0,
 	    NULL, NULL, &sc->sc_dmat))
 		panic("%s: failed to create dma tag", __func__);
 
@@ -369,7 +375,7 @@ ixp425_hinted_child(device_t bus, const char *dname, int dunit)
 }
 
 static device_t
-ixp425_add_child(device_t dev, int order, const char *name, int unit)
+ixp425_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct ixp425_ivar *ivar;
@@ -467,7 +473,7 @@ gethwvtrans(uint32_t hwbase, uint32_t size)
 	};
 	int i;
 
-	for (i = 0; i < sizeof hwvtrans / sizeof *hwvtrans; i++) {
+	for (i = 0; i < nitems(hwvtrans); i++) {
 		if (hwbase >= hwvtrans[i].hwbase &&
 		    hwbase + size <= hwvtrans[i].hwbase + hwvtrans[i].size)
 			return &hwvtrans[i];
@@ -490,7 +496,7 @@ getvbase(uint32_t hwbase, uint32_t size, uint32_t *vbase)
 
 static struct resource *
 ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ixp425_softc *sc = device_get_softc(dev);
 	const struct hwvtrans *vtrans;
@@ -527,23 +533,23 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 				    (start - vtrans->hwbase);
 				if (bootverbose)
 					device_printf(child,
-					    "%s: assign 0x%lx:0x%lx%s\n",
+					    "%s: assign 0x%jx:0x%jx%s\n",
 					    __func__, start, end - start,
-					    vtrans->isa4x ? " A4X" : 
+					    vtrans->isa4x ? " A4X" :
 					    vtrans->isslow ? " SLOW" : "");
 			}
 		} else
 			vtrans = gethwvtrans(start, end - start);
 		if (vtrans == NULL) {
 			/* likely means above table needs to be updated */
-			device_printf(child, "%s: no mapping for 0x%lx:0x%lx\n",
+			device_printf(child, "%s: no mapping for 0x%jx:0x%jx\n",
 			    __func__, start, end - start);
 			return NULL;
 		}
 		rv = rman_reserve_resource(&sc->sc_mem_rman, start, end,
 		    end - start, flags, child);
 		if (rv == NULL) {
-			device_printf(child, "%s: cannot reserve 0x%lx:0x%lx\n",
+			device_printf(child, "%s: cannot reserve 0x%jx:0x%jx\n",
 			    __func__, start, end - start);
 			return NULL;
 		}
@@ -580,7 +586,7 @@ ixp425_activate_resource(device_t dev, device_t child, int type, int rid,
 	if (type == SYS_RES_MEMORY) {
 		vtrans = gethwvtrans(rman_get_start(r), rman_get_size(r));
 		if (vtrans == NULL) {		/* NB: should not happen */
-			device_printf(child, "%s: no mapping for 0x%lx:0x%lx\n",
+			device_printf(child, "%s: no mapping for 0x%jx:0x%jx\n",
 			    __func__, rman_get_start(r), rman_get_size(r));
 			return (ENOENT);
 		}
@@ -597,7 +603,7 @@ ixp425_activate_resource(device_t dev, device_t child, int type, int rid,
 
 static int
 ixp425_deactivate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r) 
+    struct resource *r)
 {
 	/* NB: no private resources, just deactive */
 	return (rman_deactivate_resource(r));
@@ -630,13 +636,16 @@ update_masks(uint32_t mask, uint32_t mask2)
 
 static int
 ixp425_setup_intr(device_t dev, device_t child,
-    struct resource *res, int flags, driver_filter_t *filt, 
-    driver_intr_t *intr, void *arg, void **cookiep)    
+    struct resource *res, int flags, driver_filter_t *filt,
+    driver_intr_t *intr, void *arg, void **cookiep)
 {
 	uint32_t mask, mask2;
+	int error;
 
-	BUS_SETUP_INTR(device_get_parent(dev), child, res, flags, filt, intr,
-	     arg, cookiep);
+	error = BUS_SETUP_INTR(device_get_parent(dev), child, res, flags,
+	    filt, intr, arg, cookiep);
+	if (error)
+		return (error);
 
 	get_masks(res, &mask, &mask2);
 	update_masks(intr_enabled | mask, intr_enabled2 | mask2);

@@ -65,13 +65,11 @@ __FBSDID("$FreeBSD$");
 #ifdef KDB
 #include <sys/kdb.h>
 #endif
-#ifdef FAST_FPE
-#include <sys/acct.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
+#include <machine/armreg.h>
 #include <machine/asm.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
@@ -88,10 +86,20 @@ __FBSDID("$FreeBSD$");
 #include <machine/db_machdep.h>
 #endif
 
+#define	ARM_COPROC_INSN(insn)	(((insn) & (1 << 27)) != 0)
+#define	ARM_VFP_INSN(insn)	((((insn) & 0xfe000000) == 0xf2000000) || \
+    (((insn) & 0xff100000) == 0xf4000000))
+#define	ARM_COPROC(insn)	(((insn) >> 8) & 0xf)
+
+#define	THUMB_32BIT_INSN(insn)	((insn) >= 0xe800)
+#define	THUMB_COPROC_INSN(insn)	(((insn) & (3 << 26)) == (3 << 26))
+#define	THUMB_COPROC_UNDEFINED(insn) (((insn) & 0x3e << 20) == 0)
+#define	THUMB_VFP_INSN(insn)	(((insn) & (3 << 24)) == (3 << 24))
+#define	THUMB_COPROC(insn)	(((insn) >> 8) & 0xf)
+
+#define	COPROC_VFP	10
+
 static int gdb_trapper(u_int, u_int, struct trapframe *, int);
-#ifdef FAST_FPE
-extern int want_resched;
-#endif
 
 LIST_HEAD(, undefined_handler) undefined_handlers[MAX_COPROCS];
 
@@ -172,7 +180,7 @@ undefined_init()
 
 
 void
-undefinedinstruction(trapframe_t *frame)
+undefinedinstruction(struct trapframe *frame)
 {
 	struct thread *td;
 	u_int fault_pc;
@@ -180,31 +188,94 @@ undefinedinstruction(trapframe_t *frame)
 	int fault_code;
 	int coprocessor;
 	struct undefined_handler *uh;
+	int error;
 #ifdef VERBOSE_ARM32
 	int s;
 #endif
 	ksiginfo_t ksi;
 
 	/* Enable interrupts if they were enabled before the exception. */
-	if (!(frame->tf_spsr & I32_bit))
-		enable_interrupts(I32_bit|F32_bit);
+	if (__predict_true(frame->tf_spsr & PSR_I) == 0)
+		enable_interrupts(PSR_I);
+	if (__predict_true(frame->tf_spsr & PSR_F) == 0)
+		enable_interrupts(PSR_F);
 
-	frame->tf_pc -= INSN_SIZE;
 	PCPU_INC(cnt.v_trap);
 
 	fault_pc = frame->tf_pc;
 
-	/* 
-	 * Get the current thread/proc structure or thread0/proc0 if there is 
+	/*
+	 * Get the current thread/proc structure or thread0/proc0 if there is
 	 * none.
 	 */
 	td = curthread == NULL ? &thread0 : curthread;
 
-	/*
-	 * Make sure the program counter is correctly aligned so we
-	 * don't take an alignment fault trying to read the opcode.
-	 */
-	if (__predict_false((fault_pc & 3) != 0)) {
+	coprocessor = 0;
+	if ((frame->tf_spsr & PSR_T) == 0) {
+		/*
+		 * Make sure the program counter is correctly aligned so we
+		 * don't take an alignment fault trying to read the opcode.
+		 */
+		if (__predict_false((fault_pc & 3) != 0)) {
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGILL;
+			ksi.ksi_code = ILL_ILLADR;
+			ksi.ksi_addr = (u_int32_t *)(intptr_t) fault_pc;
+			trapsignal(td, &ksi);
+			userret(td, frame);
+			return;
+		}
+
+		/*
+		 * Should use fuword() here .. but in the interests of
+		 * squeezing every bit of speed we will just use ReadWord().
+		 * We know the instruction can be read as was just executed
+		 * so this will never fail unless the kernel is screwed up
+		 * in which case it does not really matter does it ?
+		 */
+
+		fault_instruction = *(u_int32_t *)fault_pc;
+
+		/* Check for coprocessor instruction */
+
+		/*
+		 * According to the datasheets you only need to look at bit
+		 * 27 of the instruction to tell the difference between and
+		 * undefined instruction and a coprocessor instruction
+		 * following an undefined instruction trap.
+		 */
+
+		if (ARM_COPROC_INSN(fault_instruction))
+			coprocessor = ARM_COPROC(fault_instruction);
+		else {          /* check for special instructions */
+			if (ARM_VFP_INSN(fault_instruction))
+				coprocessor = COPROC_VFP; /* vfp / simd */
+		}
+	} else {
+#if __ARM_ARCH >= 7
+		fault_instruction = *(uint16_t *)fault_pc;
+		if (THUMB_32BIT_INSN(fault_instruction)) {
+			fault_instruction <<= 16;
+			fault_instruction |= *(uint16_t *)(fault_pc + 2);
+
+			/*
+			 * Is it a Coprocessor, Advanced SIMD, or
+			 * Floating-point instruction.
+			 */
+			if (THUMB_COPROC_INSN(fault_instruction)) {
+				if (THUMB_COPROC_UNDEFINED(fault_instruction)) {
+					/* undefined insn */
+				} else if (THUMB_VFP_INSN(fault_instruction))
+					coprocessor = COPROC_VFP;
+				else
+					coprocessor =
+					    THUMB_COPROC(fault_instruction);
+			}
+		}
+#else
+		/*
+		 * No support for Thumb-2 on this cpu
+		 */
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGILL;
 		ksi.ksi_code = ILL_ILLADR;
@@ -212,35 +283,8 @@ undefinedinstruction(trapframe_t *frame)
 		trapsignal(td, &ksi);
 		userret(td, frame);
 		return;
-	}
-
-	/*
-	 * Should use fuword() here .. but in the interests of squeezing every
-	 * bit of speed we will just use ReadWord(). We know the instruction
-	 * can be read as was just executed so this will never fail unless the
-	 * kernel is screwed up in which case it does not really matter does
-	 * it ?
-	 */
-
-	fault_instruction = *(u_int32_t *)fault_pc;
-
-	/* Update vmmeter statistics */
-#if 0
-	uvmexp.traps++;
 #endif
-	/* Check for coprocessor instruction */
-
-	/*
-	 * According to the datasheets you only need to look at bit 27 of the
-	 * instruction to tell the difference between and undefined
-	 * instruction and a coprocessor instruction following an undefined
-	 * instruction trap.
-	 */
-
-	if ((fault_instruction & (1 << 27)) != 0)
-		coprocessor = (fault_instruction >> 8) & 0x0f;
-	else
-		coprocessor = 0;
+	}
 
 	if ((frame->tf_spsr & PSR_MODE) == PSR_USR32_MODE) {
 		/*
@@ -258,13 +302,24 @@ undefinedinstruction(trapframe_t *frame)
 			       fault_code) == 0)
 		    break;
 
-	if (fault_code & FAULT_USER && fault_instruction == PTRACE_BREAKPOINT) {
-		PROC_LOCK(td->td_proc);
-		_PHOLD(td->td_proc);
-		ptrace_clear_single_step(td);
-		_PRELE(td->td_proc);
-		PROC_UNLOCK(td->td_proc);
-		return;
+	if (fault_code & FAULT_USER) {
+		/* TODO: No support for ptrace from Thumb-2 */
+		if ((frame->tf_spsr & PSR_T) == 0 &&
+		    fault_instruction == PTRACE_BREAKPOINT) {
+			PROC_LOCK(td->td_proc);
+			_PHOLD(td->td_proc);
+			error = ptrace_clear_single_step(td);
+			_PRELE(td->td_proc);
+			PROC_UNLOCK(td->td_proc);
+			if (error != 0) {
+				ksiginfo_init_trap(&ksi);
+				ksi.ksi_signo = SIGILL;
+				ksi.ksi_code = ILL_ILLOPC;
+				ksi.ksi_addr = (u_int32_t *)(intptr_t) fault_pc;
+				trapsignal(td, &ksi);
+			}
+			return;
+		}
 	}
 
 	if (uh == NULL && (fault_code & FAULT_USER)) {
@@ -284,37 +339,10 @@ undefinedinstruction(trapframe_t *frame)
 			printf("No debugger in kernel.\n");
 #endif
 			return;
-		} else
+		}
+		else
 			panic("Undefined instruction in kernel.\n");
 	}
 
-#ifdef FAST_FPE
-	/* Optimised exit code */
-	{
-
-		/*
-		 * Check for reschedule request, at the moment there is only
-		 * 1 ast so this code should always be run
-		 */
-
-		if (want_resched) {
-			/*
-			 * We are being preempted.
-			 */
-			preempt(0);
-		}
-
-		/* Invoke MI userret code */
-		mi_userret(td);
-
-#if 0
-		l->l_priority = l->l_usrpri;
-
-		curcpu()->ci_schedstate.spc_curpriority = l->l_priority;
-#endif
-	}
-
-#else
 	userret(td, frame);
-#endif
 }

@@ -14,13 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -57,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -81,6 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/usb_pci.h>
 #include <dev/usb/controller/ohci.h>
+#include <dev/usb/controller/ohcireg.h>
+#include "usb_if.h"
 
 #define	PCI_OHCI_VENDORID_ACERLABS	0x10b9
 #define	PCI_OHCI_VENDORID_AMD		0x1022
@@ -99,28 +93,13 @@ __FBSDID("$FreeBSD$");
 static device_probe_t ohci_pci_probe;
 static device_attach_t ohci_pci_attach;
 static device_detach_t ohci_pci_detach;
-static device_suspend_t ohci_pci_suspend;
-static device_resume_t ohci_pci_resume;
+static usb_take_controller_t ohci_pci_take_controller;
 
 static int
-ohci_pci_suspend(device_t self)
+ohci_pci_take_controller(device_t self)
 {
-	ohci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_suspend(self);
-	if (err) {
-		return (err);
-	}
-	ohci_suspend(sc);
-	return (0);
-}
-
-static int
-ohci_pci_resume(device_t self)
-{
-	ohci_softc_t *sc = device_get_softc(self);
-	uint32_t reg, int_line;
+	uint32_t reg;
+	uint32_t int_line;
 
 	if (pci_get_powerstate(self) != PCI_POWERSTATE_D0) {
 		device_printf(self, "chip is in D%d mode "
@@ -131,9 +110,6 @@ ohci_pci_resume(device_t self)
 		pci_write_config(self, PCI_CBMEM, reg, 4);
 		pci_write_config(self, PCIR_INTLINE, int_line, 4);
 	}
-	ohci_resume(sc);
-
-	bus_generic_resume(self);
 	return (0);
 }
 
@@ -148,14 +124,21 @@ ohci_pci_match(device_t self)
 
 	case 0x740c1022:
 		return ("AMD-756 USB Controller");
-
 	case 0x74141022:
 		return ("AMD-766 USB Controller");
+	case 0x78071022:
+		return ("AMD FCH USB Controller");
 
 	case 0x43741002:
 		return "ATI SB400 USB Controller";
 	case 0x43751002:
 		return "ATI SB400 USB Controller";
+	case 0x43971002:
+		return ("AMD SB7x0/SB8x0/SB9x0 USB controller");
+	case 0x43981002:
+		return ("AMD SB7x0/SB8x0/SB9x0 USB controller");
+	case 0x43991002:
+		return ("AMD SB7x0/SB8x0/SB9x0 USB controller");
 
 	case 0x06701095:
 		return ("CMD Tech 670 (USB0670) USB controller");
@@ -172,8 +155,18 @@ ohci_pci_match(device_t self)
 	case 0x00d710de:
 		return ("nVidia nForce3 USB Controller");
 
+	case 0x005a10de:
+		return ("nVidia nForce CK804 USB Controller");
+	case 0x036c10de:
+		return ("nVidia nForce MCP55 USB Controller");
 	case 0x03f110de:
 		return ("nVidia nForce MCP61 USB Controller");
+	case 0x0aa510de:
+		return ("nVidia nForce MCP79 USB Controller");
+	case 0x0aa710de:
+		return ("nVidia nForce MCP79 USB Controller");
+	case 0x0aa810de:
+		return ("nVidia nForce MCP79 USB Controller");
 
 	case 0x70011039:
 		return ("SiS 5571 USB controller");
@@ -183,6 +176,8 @@ ohci_pci_match(device_t self)
 
 	case 0x0019106b:
 		return ("Apple KeyLargo USB controller");
+	case 0x003f106b:
+		return ("Apple KeyLargo/Intrepid USB controller");
 
 	default:
 		break;
@@ -219,6 +214,7 @@ ohci_pci_attach(device_t self)
 	sc->sc_bus.parent = self;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = OHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus, USB_GET_DMA_TAG(self),
@@ -347,7 +343,7 @@ ohci_pci_detach(device_t self)
 		device_delete_child(self, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(self);
+	device_delete_children(self);
 
 	pci_disable_busmaster(self);
 
@@ -380,23 +376,22 @@ ohci_pci_detach(device_t self)
 	return (0);
 }
 
-static driver_t ohci_driver =
-{
+static device_method_t ohci_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe, ohci_pci_probe),
+	DEVMETHOD(device_attach, ohci_pci_attach),
+	DEVMETHOD(device_detach, ohci_pci_detach),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(usb_take_controller, ohci_pci_take_controller),
+
+	DEVMETHOD_END
+};
+
+static driver_t ohci_driver = {
 	.name = "ohci",
-	.methods = (device_method_t[]){
-		/* device interface */
-		DEVMETHOD(device_probe, ohci_pci_probe),
-		DEVMETHOD(device_attach, ohci_pci_attach),
-		DEVMETHOD(device_detach, ohci_pci_detach),
-		DEVMETHOD(device_suspend, ohci_pci_suspend),
-		DEVMETHOD(device_resume, ohci_pci_resume),
-		DEVMETHOD(device_shutdown, bus_generic_shutdown),
-
-		/* bus interface */
-		DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-		{0, 0}
-	},
+	.methods = ohci_pci_methods,
 	.size = sizeof(struct ohci_softc),
 };
 

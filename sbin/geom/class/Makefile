@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR=	cache
 SUBDIR+=concat
@@ -10,10 +10,13 @@ SUBDIR+=eli
 SUBDIR+=journal
 SUBDIR+=label
 SUBDIR+=mirror
+SUBDIR+=mountver
 SUBDIR+=multipath
 SUBDIR+=nop
 SUBDIR+=part
+SUBDIR+=raid
 SUBDIR+=raid3
+SUBDIR+=sched
 SUBDIR+=shsec
 SUBDIR+=stripe
 SUBDIR+=virstor

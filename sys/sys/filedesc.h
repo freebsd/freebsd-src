@@ -33,13 +33,40 @@
 #ifndef _SYS_FILEDESC_H_
 #define	_SYS_FILEDESC_H_
 
+#include <sys/caprights.h>
 #include <sys/queue.h>
 #include <sys/event.h>
 #include <sys/lock.h>
 #include <sys/priority.h>
+#include <sys/seq.h>
 #include <sys/sx.h>
 
 #include <machine/_limits.h>
+
+struct filecaps {
+	cap_rights_t	 fc_rights;	/* per-descriptor capability rights */
+	u_long		*fc_ioctls;	/* per-descriptor allowed ioctls */
+	int16_t		 fc_nioctls;	/* fc_ioctls array size */
+	uint32_t	 fc_fcntls;	/* per-descriptor allowed fcntls */
+};
+
+struct filedescent {
+	struct file	*fde_file;	/* file structure for open file */
+	struct filecaps	 fde_caps;	/* per-descriptor rights */
+	uint8_t		 fde_flags;	/* per-process open file flags */
+	seq_t		 fde_seq;	/* keep file and caps in sync */
+};
+#define	fde_rights	fde_caps.fc_rights
+#define	fde_fcntls	fde_caps.fc_fcntls
+#define	fde_ioctls	fde_caps.fc_ioctls
+#define	fde_nioctls	fde_caps.fc_nioctls
+#define	fde_change_size	(offsetof(struct filedescent, fde_seq))
+
+struct fdescenttbl {
+	int	fdt_nfiles;		/* number of open files allocated */
+	struct	filedescent fdt_ofiles[0];	/* open files */
+};
+#define	fd_seq(fdt, fd)	(&(fdt)->fdt_ofiles[(fd)].fde_seq)
 
 /*
  * This structure is used for the management of descriptors.  It may be
@@ -48,18 +75,16 @@
 #define NDSLOTTYPE	u_long
 
 struct filedesc {
-	struct	file **fd_ofiles;	/* file structures for open files */
-	char	*fd_ofileflags;		/* per-process open file flags */
+	struct	fdescenttbl *fd_files;	/* open files table */
 	struct	vnode *fd_cdir;		/* current directory */
 	struct	vnode *fd_rdir;		/* root directory */
 	struct	vnode *fd_jdir;		/* jail root directory */
-	int	fd_nfiles;		/* number of open files allocated */
 	NDSLOTTYPE *fd_map;		/* bitmap of free fds */
 	int	fd_lastfile;		/* high-water mark of fd_ofiles */
 	int	fd_freefile;		/* approx. next free file */
 	u_short	fd_cmask;		/* mask for file creation */
-	u_short	fd_refcnt;		/* thread reference count */
-	u_short	fd_holdcnt;		/* hold count on structure + mutex */
+	int	fd_refcnt;		/* thread reference count */
+	int	fd_holdcnt;		/* hold count on structure + mutex */
 	struct	sx fd_sx;		/* protects members of this struct */
 	struct	kqlist fd_kqlist;	/* list of kqueues on this filedesc */
 	int	fd_holdleaderscount;	/* block fdfree() for shared close() */
@@ -84,11 +109,13 @@ struct filedesc_to_leader {
 	struct filedesc_to_leader *fdl_prev;
 	struct filedesc_to_leader *fdl_next;
 };
+#define	fd_nfiles	fd_files->fdt_nfiles
+#define	fd_ofiles	fd_files->fdt_ofiles
 
 /*
  * Per-process open flags.
  */
-#define	UF_EXCLOSE 	0x01		/* auto-close on exec */
+#define	UF_EXCLOSE	0x01		/* auto-close on exec */
 
 #ifdef _KERNEL
 
@@ -105,40 +132,116 @@ struct filedesc_to_leader {
 					    SX_NOTRECURSED)
 #define	FILEDESC_XLOCK_ASSERT(fdp)	sx_assert(&(fdp)->fd_sx, SX_XLOCKED | \
 					    SX_NOTRECURSED)
+#define	FILEDESC_UNLOCK_ASSERT(fdp)	sx_assert(&(fdp)->fd_sx, SX_UNLOCKED)
+
+/* Operation types for kern_dup(). */
+enum {
+	FDDUP_NORMAL,		/* dup() behavior. */
+	FDDUP_FCNTL,		/* fcntl()-style errors. */
+	FDDUP_FIXED,		/* Force fixed allocation. */
+	FDDUP_MUSTREPLACE,	/* Target must exist. */
+	FDDUP_LASTMODE,
+};
+
+/* Flags for kern_dup(). */
+#define	FDDUP_FLAG_CLOEXEC	0x1	/* Atomically set UF_EXCLOSE. */
+
+/* For backward compatibility. */
+#define	falloc(td, resultfp, resultfd, flags) \
+	falloc_caps(td, resultfp, resultfd, flags, NULL)
 
 struct thread;
 
+void	filecaps_init(struct filecaps *fcaps);
+int	filecaps_copy(const struct filecaps *src, struct filecaps *dst,
+	    bool locked);
+void	filecaps_move(struct filecaps *src, struct filecaps *dst);
+void	filecaps_free(struct filecaps *fcaps);
+
 int	closef(struct file *fp, struct thread *td);
-int	dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd,
-	    int mode, int error);
-int	falloc(struct thread *td, struct file **resultfp, int *resultfd);
+int	dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
+	    int openerror, int *indxp);
+int	falloc_caps(struct thread *td, struct file **resultfp, int *resultfd,
+	    int flags, struct filecaps *fcaps);
+int	falloc_noinstall(struct thread *td, struct file **resultfp);
+void	_finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
+	    struct filecaps *fcaps);
+int	finstall(struct thread *td, struct file *fp, int *resultfd, int flags,
+	    struct filecaps *fcaps);
 int	fdalloc(struct thread *td, int minfd, int *result);
-int	fdavail(struct thread *td, int n);
+int	fdallocn(struct thread *td, int minfd, int *fds, int n);
 int	fdcheckstd(struct thread *td);
-void	fdclose(struct filedesc *fdp, struct file *fp, int idx, struct thread *td);
+void	fdclose(struct thread *td, struct file *fp, int idx);
 void	fdcloseexec(struct thread *td);
+void	fdsetugidsafety(struct thread *td);
 struct	filedesc *fdcopy(struct filedesc *fdp);
-void	fdunshare(struct proc *p, struct thread *td);
-void	fdfree(struct thread *td);
-struct	filedesc *fdinit(struct filedesc *fdp);
+int	fdcopy_remapped(struct filedesc *fdp, const int *fds, size_t nfds,
+	    struct filedesc **newfdp);
+void	fdinstall_remapped(struct thread *td, struct filedesc *fdp);
+void	fdunshare(struct thread *td);
+void	fdescfree(struct thread *td);
+void	fdescfree_remapped(struct filedesc *fdp);
+struct	filedesc *fdinit(struct filedesc *fdp, bool prepfiles);
 struct	filedesc *fdshare(struct filedesc *fdp);
 struct filedesc_to_leader *
 	filedesc_to_leader_alloc(struct filedesc_to_leader *old,
 	    struct filedesc *fdp, struct proc *leader);
-int	getvnode(struct filedesc *fdp, int fd, struct file **fpp);
+int	getvnode(struct thread *td, int fd, cap_rights_t *rightsp,
+	    struct file **fpp);
 void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
-void	setugidsafety(struct thread *td);
+
+int	fget_cap_locked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+	    struct file **fpp, struct filecaps *havecapsp);
+int	fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
+	    struct file **fpp, struct filecaps *havecapsp);
 
 /* Return a referenced file from an unlocked descriptor. */
-struct file *fget_unlocked(struct filedesc *fdp, int fd);
+int	fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+	    struct file **fpp, seq_t *seqp);
 
 /* Requires a FILEDESC_{S,X}LOCK held and returns without a ref. */
 static __inline struct file *
 fget_locked(struct filedesc *fdp, int fd)
 {
 
-	return (fd < 0 || fd >= fdp->fd_nfiles ? NULL : fdp->fd_ofiles[fd]);
+	FILEDESC_LOCK_ASSERT(fdp);
+
+	if (fd < 0 || fd > fdp->fd_lastfile)
+		return (NULL);
+
+	return (fdp->fd_ofiles[fd].fde_file);
 }
+
+static __inline struct filedescent *
+fdeget_locked(struct filedesc *fdp, int fd)
+{
+	struct filedescent *fde;
+
+	FILEDESC_LOCK_ASSERT(fdp);
+
+	if (fd < 0 || fd > fdp->fd_lastfile)
+		return (NULL);
+
+	fde = &fdp->fd_ofiles[fd];
+	if (fde->fde_file == NULL)
+		return (NULL);
+
+	return (fde);
+}
+
+#ifdef CAPABILITIES
+static __inline bool
+fd_modified(struct filedesc *fdp, int fd, seq_t seq)
+{
+
+	return (!seq_consistent(fd_seq(fdp->fd_files, fd), seq));
+}
+#endif
+
+/* cdir/rdir/jdir manipulation functions. */
+void	pwd_chdir(struct thread *td, struct vnode *vp);
+int	pwd_chroot(struct thread *td, struct vnode *vp);
+void	pwd_ensure_dirs(void);
 
 #endif /* _KERNEL */
 

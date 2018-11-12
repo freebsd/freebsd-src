@@ -1,15 +1,9 @@
 /*
  * Base64 encoding/decoding (RFC1341)
- * Copyright (c) 2005, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2005-2011, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -43,6 +37,8 @@ unsigned char * base64_encode(const unsigned char *src, size_t len,
 	olen = len * 4 / 3 + 4; /* 3-byte blocks to 4-byte */
 	olen += olen / 72; /* line feeds */
 	olen++; /* nul termination */
+	if (olen < len)
+		return NULL; /* integer overflow */
 	out = os_malloc(olen);
 	if (out == NULL)
 		return NULL;
@@ -52,9 +48,11 @@ unsigned char * base64_encode(const unsigned char *src, size_t len,
 	pos = out;
 	line_len = 0;
 	while (end - in >= 3) {
-		*pos++ = base64_table[in[0] >> 2];
-		*pos++ = base64_table[((in[0] & 0x03) << 4) | (in[1] >> 4)];
-		*pos++ = base64_table[((in[1] & 0x0f) << 2) | (in[2] >> 6)];
+		*pos++ = base64_table[(in[0] >> 2) & 0x3f];
+		*pos++ = base64_table[(((in[0] & 0x03) << 4) |
+				       (in[1] >> 4)) & 0x3f];
+		*pos++ = base64_table[(((in[1] & 0x0f) << 2) |
+				       (in[2] >> 6)) & 0x3f];
 		*pos++ = base64_table[in[2] & 0x3f];
 		in += 3;
 		line_len += 4;
@@ -65,14 +63,14 @@ unsigned char * base64_encode(const unsigned char *src, size_t len,
 	}
 
 	if (end - in) {
-		*pos++ = base64_table[in[0] >> 2];
+		*pos++ = base64_table[(in[0] >> 2) & 0x3f];
 		if (end - in == 1) {
-			*pos++ = base64_table[(in[0] & 0x03) << 4];
+			*pos++ = base64_table[((in[0] & 0x03) << 4) & 0x3f];
 			*pos++ = '=';
 		} else {
-			*pos++ = base64_table[((in[0] & 0x03) << 4) |
-					      (in[1] >> 4)];
-			*pos++ = base64_table[(in[1] & 0x0f) << 2];
+			*pos++ = base64_table[(((in[0] & 0x03) << 4) |
+					       (in[1] >> 4)) & 0x3f];
+			*pos++ = base64_table[((in[1] & 0x0f) << 2) & 0x3f];
 		}
 		*pos++ = '=';
 		line_len += 4;
@@ -101,8 +99,9 @@ unsigned char * base64_encode(const unsigned char *src, size_t len,
 unsigned char * base64_decode(const unsigned char *src, size_t len,
 			      size_t *out_len)
 {
-	unsigned char dtable[256], *out, *pos, in[4], block[4], tmp;
+	unsigned char dtable[256], *out, *pos, block[4], tmp;
 	size_t i, count, olen;
+	int pad = 0;
 
 	os_memset(dtable, 0x80, 256);
 	for (i = 0; i < sizeof(base64_table) - 1; i++)
@@ -129,7 +128,8 @@ unsigned char * base64_decode(const unsigned char *src, size_t len,
 		if (tmp == 0x80)
 			continue;
 
-		in[count] = src[i];
+		if (src[i] == '=')
+			pad++;
 		block[count] = tmp;
 		count++;
 		if (count == 4) {
@@ -137,51 +137,21 @@ unsigned char * base64_decode(const unsigned char *src, size_t len,
 			*pos++ = (block[1] << 4) | (block[2] >> 2);
 			*pos++ = (block[2] << 6) | block[3];
 			count = 0;
+			if (pad) {
+				if (pad == 1)
+					pos--;
+				else if (pad == 2)
+					pos -= 2;
+				else {
+					/* Invalid padding */
+					os_free(out);
+					return NULL;
+				}
+				break;
+			}
 		}
-	}
-
-	if (pos > out) {
-		if (in[2] == '=')
-			pos -= 2;
-		else if (in[3] == '=')
-			pos--;
 	}
 
 	*out_len = pos - out;
 	return out;
 }
-
-
-#ifdef TEST_MAIN
-
-int main(int argc, char *argv[])
-{
-	FILE *f;
-	size_t len, elen;
-	unsigned char *buf, *e;
-
-	if (argc != 4) {
-		printf("Usage: base64 <encode|decode> <in file> <out file>\n");
-		return -1;
-	}
-
-	buf = os_readfile(argv[2], &len);
-	if (buf == NULL)
-		return -1;
-
-	if (strcmp(argv[1], "encode") == 0)
-		e = base64_encode(buf, len, &elen);
-	else
-		e = base64_decode(buf, len, &elen);
-	if (e == NULL)
-		return -2;
-	f = fopen(argv[3], "w");
-	if (f == NULL)
-		return -3;
-	fwrite(e, 1, elen, f);
-	fclose(f);
-	free(e);
-
-	return 0;
-}
-#endif /* TEST_MAIN */

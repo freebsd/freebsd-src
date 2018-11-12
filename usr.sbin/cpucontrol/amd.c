@@ -92,9 +92,7 @@ amd_update(const char *dev, const char *path)
 	assert(dev);
 
 	fd  = -1;
-	devfd = -1;
 	fw_image = MAP_FAILED;
-	error = 0;
 	devfd = open(dev, O_RDWR);
 	if (devfd < 0) {
 		WARN(0, "could not open %s for writing", dev);
@@ -162,7 +160,7 @@ amd_update(const char *dev, const char *path)
 
 		args.data = fw_image;
 		args.size = st.st_size;
-		error = ioctl(fd, CPUCTL_UPDATE, &args);
+		error = ioctl(devfd, CPUCTL_UPDATE, &args);
 		if (error < 0) {
 			fprintf(stderr, "failed.\n");
 			warn("ioctl()");

@@ -70,6 +70,7 @@ enum ieee80211_phymode {
 	IEEE80211_MODE_QUARTER	= 11,	/* OFDM, 1/4x clock */
 };
 #define	IEEE80211_MODE_MAX	(IEEE80211_MODE_QUARTER+1)
+#define	IEEE80211_MODE_BYTES	howmany(IEEE80211_MODE_MAX, NBBY)
 
 /*
  * Operating mode.  Devices do not necessarily support
@@ -133,7 +134,7 @@ enum ieee80211_roamingmode {
  */
 struct ieee80211_channel {
 	uint32_t	ic_flags;	/* see below */
-	uint16_t	ic_freq;	/* setting in Mhz */
+	uint16_t	ic_freq;	/* setting in MHz */
 	uint8_t		ic_ieee;	/* IEEE channel number */
 	int8_t		ic_maxregpower;	/* maximum regulatory tx power in dBm */
 	int8_t		ic_maxpower;	/* maximum tx power in .5 dBm */
@@ -146,7 +147,7 @@ struct ieee80211_channel {
 };
 
 #define	IEEE80211_CHAN_MAX	256
-#define	IEEE80211_CHAN_BYTES	32	/* howmany(IEEE80211_CHAN_MAX, NBBY) */
+#define	IEEE80211_CHAN_BYTES	howmany(IEEE80211_CHAN_MAX, NBBY)
 #define	IEEE80211_CHAN_ANY	0xffff	/* token for ``any channel'' */
 #define	IEEE80211_CHAN_ANYC \
 	((struct ieee80211_channel *) IEEE80211_CHAN_ANY)
@@ -242,6 +243,8 @@ struct ieee80211_channel {
 	(((_c)->ic_flags & (IEEE80211_CHAN_OFDM | IEEE80211_CHAN_DYN)) != 0)
 #define	IEEE80211_IS_CHAN_CCK(_c) \
 	(((_c)->ic_flags & (IEEE80211_CHAN_CCK | IEEE80211_CHAN_DYN)) != 0)
+#define	IEEE80211_IS_CHAN_DYN(_c) \
+	(((_c)->ic_flags & IEEE80211_CHAN_DYN) == IEEE80211_CHAN_DYN)
 #define	IEEE80211_IS_CHAN_GFSK(_c) \
 	(((_c)->ic_flags & IEEE80211_CHAN_GFSK) != 0)
 #define	IEEE80211_IS_CHAN_TURBO(_c) \
@@ -335,7 +338,7 @@ struct ieee80211_rateset {
  * the structure such that it can be used interchangeably
  * with an ieee80211_rateset (modulo structure size).
  */
-#define	IEEE80211_HTRATE_MAXSIZE 127
+#define	IEEE80211_HTRATE_MAXSIZE	77
 
 struct ieee80211_htrateset {
 	uint8_t		rs_nrates;
@@ -386,6 +389,12 @@ struct ieee80211_regdomain {
 
 /*
  * MIMO antenna/radio state.
+ */
+
+/*
+ * XXX This doesn't yet export both ctl/ext chain details
+ * XXX TODO: IEEE80211_MAX_CHAINS is defined in _freebsd.h, not here;
+ * figure out how to pull it in!
  */
 struct ieee80211_mimo_info {
 	int8_t		rssi[3];	/* per-antenna rssi */

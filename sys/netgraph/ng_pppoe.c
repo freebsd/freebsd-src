@@ -58,7 +58,7 @@
 #include <netgraph/ng_ether.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_PPPOE, "netgraph_pppoe", "netgraph pppoe node");
+static MALLOC_DEFINE(M_NETGRAPH_PPPOE, "netgraph_pppoe", "netgraph pppoe node");
 #else
 #define M_NETGRAPH_PPPOE M_NETGRAPH
 #endif
@@ -168,6 +168,13 @@ static const struct ng_cmdlist ng_pppoe_cmds[] = {
 	  &ng_parse_enaddr_type,
 	  NULL
 	},
+	{
+	  NGM_PPPOE_COOKIE,
+	  NGM_PPPOE_SETMAXP,
+	  "setmaxp",
+	  &ng_parse_uint16_type,
+	  NULL
+	},
 	{ 0 }
 };
 
@@ -262,6 +269,7 @@ struct PPPoE {
 	struct ether_header	eh;
 	LIST_HEAD(, sess_con) listeners;
 	struct sess_hash_entry	sesshash[SESSHASHSIZE];
+	struct maxptag	max_payload;	/* PPP-Max-Payload (RFC4638) */
 };
 typedef struct PPPoE *priv_p;
 
@@ -460,7 +468,7 @@ pppoe_broadcast_padi(node_p node, struct mbuf *m0)
 	LIST_FOREACH(sp, &privp->listeners, sessions) {
 		struct mbuf *m;
 
-		m = m_dup(m0, M_DONTWAIT);
+		m = m_dup(m0, M_NOWAIT);
 		if (m == NULL)
 			return (ENOMEM);
 		NG_SEND_DATA_ONLY(error, sp->hook, m);
@@ -611,9 +619,7 @@ ng_pppoe_constructor(node_p node)
 	int	i;
 
 	/* Initialize private descriptor. */
-	privp = malloc(sizeof(*privp), M_NETGRAPH_PPPOE, M_NOWAIT | M_ZERO);
-	if (privp == NULL)
-		return (ENOMEM);
+	privp = malloc(sizeof(*privp), M_NETGRAPH_PPPOE, M_WAITOK | M_ZERO);
 
 	/* Link structs together; this counts as our one reference to *node. */
 	NG_NODE_SET_PRIVATE(node, privp);
@@ -782,7 +788,7 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 
 			/*
-			 * PPPOE_SERVICE advertisments are set up
+			 * PPPOE_SERVICE advertisements are set up
 			 * on sessions that are in PRIMED state.
 			 */
 			if (msg->header.cmd == NGM_PPPOE_SERVICE)
@@ -803,7 +809,7 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (neg == NULL)
 				LEAVE(ENOMEM);
 
-			neg->m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+			neg->m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 			if (neg->m == NULL) {
 				free(neg, M_NETGRAPH_PPPOE);
 				LEAVE(ENOBUFS);
@@ -1006,6 +1012,13 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			bcopy(msg->data, &privp->eh.ether_shost,
 			    ETHER_ADDR_LEN);
 			break;
+		case NGM_PPPOE_SETMAXP:
+			if (msg->header.arglen != sizeof(uint16_t))
+				LEAVE(EINVAL);
+			privp->max_payload.hdr.tag_type = PTT_MAX_PAYL;
+			privp->max_payload.hdr.tag_len = htons(sizeof(uint16_t));
+			privp->max_payload.data = htons(*((uint16_t *)msg->data));
+			break;
 		default:
 			LEAVE(EINVAL);
 		}
@@ -1073,6 +1086,8 @@ pppoe_start(sessp sp)
 	init_tags(sp);
 	insert_tag(sp, &uniqtag.hdr);
 	insert_tag(sp, &neg->service.hdr);
+	if (privp->max_payload.data != 0)
+		insert_tag(sp, &privp->max_payload.hdr);
 	make_packet(sp);
 	/*
 	 * Send packet and prepare to retransmit it after timeout.
@@ -1080,7 +1095,7 @@ pppoe_start(sessp sp)
 	ng_callout(&neg->handle, node, hook, PPPOE_INITIAL_TIMEOUT * hz,
 	    pppoe_ticker, NULL, 0);
 	neg->timeout = PPPOE_INITIAL_TIMEOUT * 2;
-	m0 = m_copypacket(neg->m, M_DONTWAIT);
+	m0 = m_copypacket(neg->m, M_NOWAIT);
 	NG_SEND_DATA_ONLY(error, privp->ethernet_hook, m0);
 }
 
@@ -1126,6 +1141,28 @@ send_sessionid(sessp sp)
 	return (error);
 }
 
+static int
+send_maxp(sessp sp, const struct pppoe_tag *tag)
+{
+	int error;
+	struct ng_mesg *msg;
+	struct ngpppoe_maxp *maxp;
+
+	CTR2(KTR_NET, "%20s: called %d", __func__, sp->Session_ID);
+
+	NG_MKMESSAGE(msg, NGM_PPPOE_COOKIE, NGM_PPPOE_SETMAXP,
+	    sizeof(struct ngpppoe_maxp), M_NOWAIT);
+	if (msg == NULL)
+		return (ENOMEM);
+
+	maxp = (struct ngpppoe_maxp *)msg->data;
+	strncpy(maxp->hook, NG_HOOK_NAME(sp->hook), NG_HOOKSIZ);
+	maxp->data = ntohs(((const struct maxptag *)tag)->data);
+	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, 0);
+
+	return (error);
+}
+
 /*
  * Receive data from session hook and do something with it.
  */
@@ -1163,7 +1200,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 		 * Bang in a pre-made header, and set the length up
 		 * to be correct. Then send it to the ethernet driver.
 		 */
-		M_PREPEND(m, sizeof(*wh), M_DONTWAIT);
+		M_PREPEND(m, sizeof(*wh), M_NOWAIT);
 		if (m == NULL)
 			LEAVE(ENOBUFS);
 
@@ -1253,7 +1290,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 		 */
 		ng_callout(&neg->handle, node, hook, PPPOE_OFFER_TIMEOUT * hz,
 		    pppoe_ticker, NULL, 0);
-		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
+		m0 = m_copypacket(sp->neg->m, M_NOWAIT);
 		NG_FWD_NEW_DATA(error, item, privp->ethernet_hook, m0);
 		privp->packets_out++;
 		break;
@@ -1281,7 +1318,7 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 {
 	node_p			node = NG_HOOK_NODE(hook);
 	const priv_p		privp = NG_NODE_PRIVATE(node);
-	sessp			sp = NG_HOOK_PRIVATE(hook);
+	sessp			sp;
 	const struct pppoe_tag	*utag = NULL, *tag = NULL;
 	const struct pppoe_full_hdr *wh;
 	const struct pppoe_hdr	*ph;
@@ -1340,7 +1377,7 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 			 * Put it into a cluster.
 			 */
 			struct mbuf *n;
-			n = m_dup(m, M_DONTWAIT);
+			n = m_dup(m, M_NOWAIT);
 			m_freem(m);
 			m = n;
 			if (m) {
@@ -1466,6 +1503,9 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 				insert_tag(sp, tag); 	/* return it */
 				send_acname(sp, tag);
 			}
+			if ((tag = get_tag(ph, PTT_MAX_PAYL)) &&
+			    (privp->max_payload.data != 0))
+				insert_tag(sp, tag);	/* return it */
 			insert_tag(sp, &neg->service.hdr); /* Service */
 			scan_tags(sp, ph);
 			make_packet(sp);
@@ -1474,7 +1514,7 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 			    PPPOE_INITIAL_TIMEOUT * hz,
 			    pppoe_ticker, NULL, 0);
 			neg->timeout = PPPOE_INITIAL_TIMEOUT * 2;
-			m0 = m_copypacket(neg->m, M_DONTWAIT);
+			m0 = m_copypacket(neg->m, M_NOWAIT);
 			NG_FWD_NEW_DATA(error, item, privp->ethernet_hook, m0);
 			break;
 		case	PADR_CODE:
@@ -1532,7 +1572,7 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 			sp->state = PPPOE_NEWCONNECTED;
 
 			/* Send the PADS without a timeout - we're now connected. */
-			m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
+			m0 = m_copypacket(sp->neg->m, M_NOWAIT);
 			NG_FWD_NEW_DATA(error, item, privp->ethernet_hook, m0);
 
 			/*
@@ -1604,6 +1644,9 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 			m_freem(neg->m);
 			free(sp->neg, M_NETGRAPH_PPPOE);
 			sp->neg = NULL;
+			if ((tag = get_tag(ph, PTT_MAX_PAYL)) &&
+			    (privp->max_payload.data != 0))
+				send_maxp(sp, tag);
 			pppoe_send_event(sp, NGM_PPPOE_SUCCESS);
 			break;
 		case	PADT_CODE:
@@ -1686,7 +1729,7 @@ ng_pppoe_rcvdata_debug(hook_p hook, item_p item)
 
 /*
  * Do local shutdown processing..
- * If we are a persistant device, we might refuse to go away, and
+ * If we are a persistent device, we might refuse to go away, and
  * we'd only remove our links and reset ourself.
  */
 static int
@@ -1738,7 +1781,7 @@ ng_pppoe_disconnect(hook_p hook)
 			struct mbuf *m;
 
 			/* Generate a packet of that type. */
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m == NULL)
 				log(LOG_NOTICE, "ng_pppoe[%x]: session out of "
 				    "mbufs\n", node->nd_ID);
@@ -1825,7 +1868,7 @@ pppoe_ticker(node_p node, hook_p hook, void *arg1, int arg2)
 	case	PPPOE_SINIT:
 	case	PPPOE_SREQ:
 		/* Timeouts on these produce resends. */
-		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
+		m0 = m_copypacket(sp->neg->m, M_NOWAIT);
 		NG_SEND_DATA_ONLY( error, privp->ethernet_hook, m0);
 		ng_callout(&neg->handle, node, hook, neg->timeout * hz,
 		    pppoe_ticker, NULL, 0);
@@ -1889,6 +1932,7 @@ scan_tags(sessp	sp, const struct pppoe_hdr* ph)
 		case	PTT_SRV_ERR:
 		case	PTT_SYS_ERR:
 		case	PTT_GEN_ERR:
+		case	PTT_MAX_PAYL:
 			break;
 		}
 		pt = (const struct pppoe_tag*)ptn;

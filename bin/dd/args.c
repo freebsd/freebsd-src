@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -65,6 +66,8 @@ static void	f_obs(char *);
 static void	f_of(char *);
 static void	f_seek(char *);
 static void	f_skip(char *);
+static void	f_speed(char *);
+static void	f_status(char *);
 static uintmax_t get_num(const char *);
 static off_t	get_off_t(const char *);
 
@@ -87,6 +90,8 @@ static const struct arg {
 	{ "oseek",	f_seek,		C_SEEK,	 C_SEEK },
 	{ "seek",	f_seek,		C_SEEK,	 C_SEEK },
 	{ "skip",	f_skip,		C_SKIP,	 C_SKIP },
+	{ "speed",	f_speed,	0,	 0 },
+	{ "status",	f_status,	C_STATUS,C_STATUS },
 };
 
 static char *oper;
@@ -162,14 +167,6 @@ jcl(char **argv)
 			errx(1, "cbs meaningless if not doing record operations");
 	} else
 		cfunc = def;
-
-	/*
-	 * Bail out if the calculation of a file offset would overflow.
-	 */
-	if (in.offset > OFF_MAX / (ssize_t)in.dbsz ||
-	    out.offset > OFF_MAX / (ssize_t)out.dbsz)
-		errx(1, "seek offsets cannot be larger than %jd",
-		    (intmax_t)OFF_MAX);
 }
 
 static int
@@ -291,6 +288,25 @@ f_skip(char *arg)
 	in.offset = get_off_t(arg);
 }
 
+static void
+f_speed(char *arg)
+{
+
+	speed = get_num(arg);
+}
+
+static void
+f_status(char *arg)
+{
+
+	if (strcmp(arg, "none") == 0)
+		ddflags |= C_NOINFO;
+	else if (strcmp(arg, "noxfer") == 0)
+		ddflags |= C_NOXFER;
+	else
+		errx(1, "unknown status %s", arg);
+}
+ 
 static const struct conv {
 	const char *name;
 	u_int set, noset;
@@ -345,34 +361,13 @@ c_conv(const void *a, const void *b)
 	    ((const struct conv *)b)->name));
 }
 
-/*
- * Convert an expression of the following forms to a uintmax_t.
- * 	1) A positive decimal number.
- *	2) A positive decimal number followed by a 'b' or 'B' (mult by 512).
- *	3) A positive decimal number followed by a 'k' or 'K' (mult by 1 << 10).
- *	4) A positive decimal number followed by a 'm' or 'M' (mult by 1 << 20).
- *	5) A positive decimal number followed by a 'g' or 'G' (mult by 1 << 30).
- *	5) A positive decimal number followed by a 'w' or 'W' (mult by sizeof int).
- *	6) Two or more positive decimal numbers (with/without [BbKkMmGgWw])
- *	   separated by 'x' or 'X' (also '*' for backwards compatibility),
- *	   specifying the product of the indicated values.
- */
-static uintmax_t
-get_num(const char *val)
+static intmax_t
+postfix_to_mult(const char expr)
 {
-	uintmax_t num, mult, prevnum;
-	char *expr;
-
-	errno = 0;
-	num = strtouq(val, &expr, 0);
-	if (errno != 0)				/* Overflow or underflow. */
-		err(1, "%s", oper);
-	
-	if (expr == val)			/* No valid digits. */
-		errx(1, "%s: illegal numeric value", oper);
+	intmax_t mult;
 
 	mult = 0;
-	switch (*expr) {
+	switch (expr) {
 	case 'B':
 	case 'b':
 		mult = 512;
@@ -389,13 +384,51 @@ get_num(const char *val)
 	case 'g':
 		mult = 1 << 30;
 		break;
+	case 'T':
+	case 't':
+		mult = (uintmax_t)1 << 40;
+		break;
+	case 'P':
+	case 'p':
+		mult = (uintmax_t)1 << 50;
+		break;
 	case 'W':
 	case 'w':
 		mult = sizeof(int);
 		break;
-	default:
-		;
 	}
+
+	return (mult);
+}
+
+/*
+ * Convert an expression of the following forms to a uintmax_t.
+ * 	1) A positive decimal number.
+ *	2) A positive decimal number followed by a 'b' or 'B' (mult by 512).
+ *	3) A positive decimal number followed by a 'k' or 'K' (mult by 1 << 10).
+ *	4) A positive decimal number followed by a 'm' or 'M' (mult by 1 << 20).
+ *	5) A positive decimal number followed by a 'g' or 'G' (mult by 1 << 30).
+ *	6) A positive decimal number followed by a 't' or 'T' (mult by 1 << 40).
+ *	7) A positive decimal number followed by a 'p' or 'P' (mult by 1 << 50).
+ *	8) A positive decimal number followed by a 'w' or 'W' (mult by sizeof int).
+ *	9) Two or more positive decimal numbers (with/without [BbKkMmGgWw])
+ *	   separated by 'x' or 'X' (also '*' for backwards compatibility),
+ *	   specifying the product of the indicated values.
+ */
+static uintmax_t
+get_num(const char *val)
+{
+	uintmax_t num, mult, prevnum;
+	char *expr;
+
+	errno = 0;
+	num = strtoumax(val, &expr, 0);
+	if (expr == val)			/* No valid digits. */
+		errx(1, "%s: invalid numeric value", oper);
+	if (errno != 0)
+		err(1, "%s", oper);
+
+	mult = postfix_to_mult(*expr);
 
 	if (mult != 0) {
 		prevnum = num;
@@ -438,36 +471,13 @@ get_off_t(const char *val)
 	char *expr;
 
 	errno = 0;
-	num = strtoq(val, &expr, 0);
-	if (errno != 0)				/* Overflow or underflow. */
-		err(1, "%s", oper);
-	
+	num = strtoimax(val, &expr, 0);
 	if (expr == val)			/* No valid digits. */
-		errx(1, "%s: illegal numeric value", oper);
+		errx(1, "%s: invalid numeric value", oper);
+	if (errno != 0)
+		err(1, "%s", oper);
 
-	mult = 0;
-	switch (*expr) {
-	case 'B':
-	case 'b':
-		mult = 512;
-		break;
-	case 'K':
-	case 'k':
-		mult = 1 << 10;
-		break;
-	case 'M':
-	case 'm':
-		mult = 1 << 20;
-		break;
-	case 'G':
-	case 'g':
-		mult = 1 << 30;
-		break;
-	case 'W':
-	case 'w':
-		mult = sizeof(int);
-		break;
-	}
+	mult = postfix_to_mult(*expr);
 
 	if (mult != 0) {
 		prevnum = num;

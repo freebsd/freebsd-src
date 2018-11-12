@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 MODULES		 =
 MODULES		+= pam_chroot
@@ -21,7 +21,9 @@ MODULES		+= pam_opie
 MODULES		+= pam_opieaccess
 MODULES		+= pam_passwdqc
 MODULES		+= pam_permit
+.if ${MK_RADIUS_SUPPORT} != "no"
 MODULES		+= pam_radius
+.endif
 MODULES		+= pam_rhosts
 MODULES		+= pam_rootok
 MODULES		+= pam_securetty

@@ -54,25 +54,25 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-int	tape = -1;
+static int	tape = -1;
 
-char	*record;
-int	maxrecsize = -1;
+static char	*record;
+static int	maxrecsize = -1;
 
 #define	SSIZE	64
-char	device[SSIZE];
-char	count[SSIZE], mode[SSIZE], pos[SSIZE], op[SSIZE];
+static char	device[SSIZE];
+static char	count[SSIZE], mode[SSIZE], pos[SSIZE], op[SSIZE];
 
-char	resp[BUFSIZ];
+static char	resp[BUFSIZ];
 
-FILE	*debug;
+static FILE	*debug;
 #define	DEBUG(f)	if (debug) fprintf(debug, f)
 #define	DEBUG1(f,a)	if (debug) fprintf(debug, f, a)
 #define	DEBUG2(f,a1,a2)	if (debug) fprintf(debug, f, a1, a2)
 
-char	*checkbuf(char *, int);
-void	 error(int);
-void	 getstring(char *);
+static char	*checkbuf(char *, int);
+static void	 error(int);
+static void	 getstring(char *);
 
 int
 main(int argc, char **argv)
@@ -84,8 +84,10 @@ main(int argc, char **argv)
 	argc--, argv++;
 	if (argc > 0) {
 		debug = fopen(*argv, "w");
-		if (debug == 0)
+		if (debug == NULL) {
+			DEBUG1("rmtd: error to open %s\n", *argv);
 			exit(1);
+		}
 		(void)setbuf(debug, (char *)0);
 	}
 top:
@@ -206,8 +208,7 @@ ioerror:
 }
 
 void
-getstring(bp)
-	char *bp;
+getstring(char *bp)
 {
 	int i;
 	char *cp = bp;
@@ -221,18 +222,16 @@ getstring(bp)
 	cp[i] = '\0';
 }
 
-char *
-checkbuf(rec, size)
-	char *rec;
-	int size;
+static char *
+checkbuf(char *rec, int size)
 {
 
 	if (size <= maxrecsize)
 		return (rec);
-	if (rec != 0)
+	if (rec != NULL)
 		free(rec);
 	rec = malloc(size);
-	if (rec == 0) {
+	if (rec == NULL) {
 		DEBUG("rmtd: cannot allocate buffer space\n");
 		exit(4);
 	}
@@ -243,9 +242,8 @@ checkbuf(rec, size)
 	return (rec);
 }
 
-void
-error(num)
-	int num;
+static void
+error(int num)
 {
 
 	DEBUG2("rmtd: E %d (%s)\n", num, strerror(num));

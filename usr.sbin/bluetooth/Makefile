@@ -1,11 +1,10 @@
 # $Id: Makefile,v 1.5 2003/09/08 02:28:35 max Exp $
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 SUBDIR= \
-	bcmfw \
 	bt3cfw \
-	bthidcontrol \
-	bthidd \
 	btpand \
 	hccontrol \
 	hcsecd \
@@ -15,6 +14,13 @@ SUBDIR= \
 	rfcomm_pppd \
 	sdpcontrol \
 	sdpd
+
+.if ${MK_USB} != "no"
+SUBDIR+=	ath3kfw
+SUBDIR+=	bcmfw
+SUBDIR+=	bthidcontrol
+SUBDIR+=	bthidd
+.endif
 
 .include <bsd.subdir.mk>
 

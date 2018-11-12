@@ -130,7 +130,9 @@ rest(int centisecs)
  * except possibly at physical block boundaries.
  */
 
+#ifndef  __bool_true_false_are_defined
 typedef int	bool;
+#endif
 #define TRUE	1
 #define FALSE	0
 
@@ -325,15 +327,13 @@ playstring(char *cp, size_t slen)
 				slen--;
 			} else {
 				GETNUM(cp, octave);
-				if (octave >= sizeof(pitchtab) / sizeof(pitchtab[0]) /
-					OCTAVE_NOTES)
+				if (octave >= nitems(pitchtab) / OCTAVE_NOTES)
 					octave = DFLT_OCTAVE;
 				octprefix = TRUE;
 			}
 			break;
 		case '>':
-			if (octave < sizeof(pitchtab) / sizeof(pitchtab[0]) / 
-				OCTAVE_NOTES - 1)
+			if (octave < nitems(pitchtab) / OCTAVE_NOTES - 1)
 				octave++;
 			octprefix = TRUE;
 			break;

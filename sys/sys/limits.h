@@ -88,7 +88,7 @@
 #define	QUAD_MIN	(__QUAD_MIN)	/* min value for a quad_t */
 #endif
 
-#if __XSI_VISIBLE
+#if __XSI_VISIBLE || __POSIX_VISIBLE >= 200809
 #define	LONG_BIT	__LONG_BIT
 #define	WORD_BIT	__WORD_BIT
 #endif

@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -56,14 +56,19 @@ int	__isthreaded	= 0;
  * Exit, flushing stdio buffers if necessary.
  */
 void
-exit(status)
-	int status;
+exit(int status)
 {
 	/* Ensure that the auto-initialization routine is linked in: */
 	extern int _thread_autoinit_dummy_decl;
 
 	_thread_autoinit_dummy_decl = 1;
 
+	/*
+	 * We're dealing with cleaning up thread_local destructors in the case of
+	 * the process termination through main() exit.
+	 * Other cases are handled elsewhere.
+	 */
+	__cxa_thread_call_dtors();
 	__cxa_finalize(NULL);
 	if (__cleanup)
 		(*__cleanup)();

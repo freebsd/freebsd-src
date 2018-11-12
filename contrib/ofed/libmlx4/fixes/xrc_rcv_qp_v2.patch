@@ -1,0 +1,113 @@
+Added support for XRC receive-only QPs (version 2).
+
+Signed-off-by: Jack Morgenstein <jackm@dev.mellanox.co.il>
+---
+V2:
+1. xrc_ops changed to more_ops
+
+diff --git a/src/mlx4.c b/src/mlx4.c
+index 27ca75d..e5ded78 100644
+--- a/src/mlx4.c
++++ b/src/mlx4.c
+@@ -74,6 +74,11 @@ static struct ibv_more_ops mlx4_more_ops = {
+ 	.create_xrc_srq   = mlx4_create_xrc_srq,
+ 	.open_xrc_domain  = mlx4_open_xrc_domain,
+ 	.close_xrc_domain = mlx4_close_xrc_domain,
++	.create_xrc_rcv_qp = mlx4_create_xrc_rcv_qp,
++	.modify_xrc_rcv_qp = mlx4_modify_xrc_rcv_qp,
++	.query_xrc_rcv_qp = mlx4_query_xrc_rcv_qp,
++	.reg_xrc_rcv_qp   = mlx4_reg_xrc_rcv_qp,
++	.unreg_xrc_rcv_qp = mlx4_unreg_xrc_rcv_qp,
+ #endif
+ };
+ #endif
+diff --git a/src/mlx4.h b/src/mlx4.h
+index 3eadb98..6307a2d 100644
+--- a/src/mlx4.h
++++ b/src/mlx4.h
+@@ -429,6 +429,21 @@ struct ibv_xrc_domain *mlx4_open_xrc_domain(struct ibv_context *context,
+ 					    int fd, int oflag);
+ 
+ int mlx4_close_xrc_domain(struct ibv_xrc_domain *d);
++int mlx4_create_xrc_rcv_qp(struct ibv_qp_init_attr *init_attr,
++			   uint32_t *xrc_qp_num);
++int mlx4_modify_xrc_rcv_qp(struct ibv_xrc_domain *xrc_domain,
++			   uint32_t xrc_qp_num,
++			   struct ibv_qp_attr *attr,
++			   int attr_mask);
++int mlx4_query_xrc_rcv_qp(struct ibv_xrc_domain *xrc_domain,
++			  uint32_t xrc_qp_num,
++			  struct ibv_qp_attr *attr,
++			  int attr_mask,
++			  struct ibv_qp_init_attr *init_attr);
++int mlx4_reg_xrc_rcv_qp(struct ibv_xrc_domain *xrc_domain,
++			uint32_t xrc_qp_num);
++int mlx4_unreg_xrc_rcv_qp(struct ibv_xrc_domain *xrc_domain,
++			uint32_t xrc_qp_num);
+ #endif
+ 
+ 
+diff --git a/src/verbs.c b/src/verbs.c
+index b7c9c8e..8261eae 100644
+--- a/src/verbs.c
++++ b/src/verbs.c
+@@ -778,4 +778,59 @@ int mlx4_close_xrc_domain(struct ibv_xrc_domain *d)
+ 	free(d);
+ 	return 0;
+ }
++
++int mlx4_create_xrc_rcv_qp(struct ibv_qp_init_attr *init_attr,
++			   uint32_t *xrc_qp_num)
++{
++
++	return ibv_cmd_create_xrc_rcv_qp(init_attr, xrc_qp_num);
++}
++
++int mlx4_modify_xrc_rcv_qp(struct ibv_xrc_domain *xrc_domain,
++			   uint32_t xrc_qp_num,
++			   struct ibv_qp_attr *attr,
++			   int attr_mask)
++{
++	return ibv_cmd_modify_xrc_rcv_qp(xrc_domain, xrc_qp_num,
++					 attr, attr_mask);
++}
++
++int mlx4_query_xrc_rcv_qp(struct ibv_xrc_domain *xrc_domain,
++			  uint32_t xrc_qp_num,
++			  struct ibv_qp_attr *attr,
++			  int attr_mask,
++			  struct ibv_qp_init_attr *init_attr)
++{
++	int ret;
++
++	ret = ibv_cmd_query_xrc_rcv_qp(xrc_domain, xrc_qp_num,
++				       attr, attr_mask, init_attr);
++	if (ret)
++		return ret;
++
++	init_attr->cap.max_send_wr = init_attr->cap.max_send_sge = 1;
++	init_attr->cap.max_recv_sge = init_attr->cap.max_recv_wr = 0;
++	init_attr->cap.max_inline_data = 0;
++	init_attr->recv_cq = init_attr->send_cq = NULL;
++	init_attr->srq = NULL;
++	init_attr->xrc_domain = xrc_domain;
++	init_attr->qp_type = IBV_QPT_XRC;
++	init_attr->qp_context = NULL;
++	attr->cap = init_attr->cap;
++
++	return 0;
++}
++
++int mlx4_reg_xrc_rcv_qp(struct ibv_xrc_domain *xrc_domain,
++			uint32_t xrc_qp_num)
++{
++	return ibv_cmd_reg_xrc_rcv_qp(xrc_domain, xrc_qp_num);
++}
++
++int mlx4_unreg_xrc_rcv_qp(struct ibv_xrc_domain *xrc_domain,
++			  uint32_t xrc_qp_num)
++{
++	return ibv_cmd_unreg_xrc_rcv_qp(xrc_domain, xrc_qp_num);
++}
++
+ #endif

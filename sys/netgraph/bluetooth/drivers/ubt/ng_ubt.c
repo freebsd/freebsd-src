@@ -58,7 +58,7 @@
  * 2) Netgraph context. This is where all the Netgraph related stuff happens.
  *    Since we mark node as WRITER, the Netgraph node will be "locked" (from
  *    Netgraph point of view). Any variable that is only modified from the
- *    Netgraph context does not require any additonal locking. It is generally
+ *    Netgraph context does not require any additional locking. It is generally
  *    *NOT* allowed to grab *ANY* additional locks. Whatever you do, *DO NOT*
  *    grab any lock in the Netgraph context that could cause de-scheduling of
  *    the Netgraph thread for significant amount of time. In fact, the only
@@ -100,7 +100,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -383,14 +382,47 @@ static const struct usb_config		ubt_config[UBT_N_TRANSFER] =
  * where VENDOR_ID and PRODUCT_ID are hex numbers.
  */
 
-static const struct usb_device_id ubt_ignore_devs[] = 
+static const STRUCT_USB_HOST_ID ubt_ignore_devs[] = 
 {
 	/* AVM USB Bluetooth-Adapter BlueFritz! v1.0 */
 	{ USB_VPI(USB_VENDOR_AVM, 0x2200, 0) },
+
+	/* Atheros 3011 with sflash firmware */
+	{ USB_VPI(0x0cf3, 0x3002, 0) },
+	{ USB_VPI(0x0cf3, 0xe019, 0) },
+	{ USB_VPI(0x13d3, 0x3304, 0) },
+	{ USB_VPI(0x0930, 0x0215, 0) },
+	{ USB_VPI(0x0489, 0xe03d, 0) },
+	{ USB_VPI(0x0489, 0xe027, 0) },
+
+	/* Atheros AR9285 Malbec with sflash firmware */
+	{ USB_VPI(0x03f0, 0x311d, 0) },
+
+	/* Atheros 3012 with sflash firmware */
+	{ USB_VPI(0x0cf3, 0x3004, 0), USB_DEV_BCD_LTEQ(1) },
+	{ USB_VPI(0x0cf3, 0x311d, 0), USB_DEV_BCD_LTEQ(1) },
+	{ USB_VPI(0x13d3, 0x3375, 0), USB_DEV_BCD_LTEQ(1) },
+	{ USB_VPI(0x04ca, 0x3005, 0), USB_DEV_BCD_LTEQ(1) },
+	{ USB_VPI(0x04ca, 0x3006, 0), USB_DEV_BCD_LTEQ(1) },
+	{ USB_VPI(0x04ca, 0x3008, 0), USB_DEV_BCD_LTEQ(1) },
+	{ USB_VPI(0x13d3, 0x3362, 0), USB_DEV_BCD_LTEQ(1) },
+	{ USB_VPI(0x0cf3, 0xe004, 0), USB_DEV_BCD_LTEQ(1) },
+	{ USB_VPI(0x0930, 0x0219, 0), USB_DEV_BCD_LTEQ(1) },
+	{ USB_VPI(0x0489, 0xe057, 0), USB_DEV_BCD_LTEQ(1) },
+	{ USB_VPI(0x13d3, 0x3393, 0), USB_DEV_BCD_LTEQ(1) },
+	{ USB_VPI(0x0489, 0xe04e, 0), USB_DEV_BCD_LTEQ(1) },
+	{ USB_VPI(0x0489, 0xe056, 0), USB_DEV_BCD_LTEQ(1) },
+
+	/* Atheros AR5BBU12 with sflash firmware */
+	{ USB_VPI(0x0489, 0xe02c, 0), USB_DEV_BCD_LTEQ(1) },
+
+	/* Atheros AR5BBU12 with sflash firmware */
+	{ USB_VPI(0x0489, 0xe03c, 0), USB_DEV_BCD_LTEQ(1) },
+	{ USB_VPI(0x0489, 0xe036, 0), USB_DEV_BCD_LTEQ(1) },
 };
 
 /* List of supported bluetooth devices */
-static const struct usb_device_id ubt_devs[] =
+static const STRUCT_USB_HOST_ID ubt_devs[] =
 {
 	/* Generic Bluetooth class devices */
 	{ USB_IFACE_CLASS(UDCLASS_WIRELESS),
@@ -399,6 +431,73 @@ static const struct usb_device_id ubt_devs[] =
 
 	/* AVM USB Bluetooth-Adapter BlueFritz! v2.0 */
 	{ USB_VPI(USB_VENDOR_AVM, 0x3800, 0) },
+
+	/* Broadcom USB dongles, mostly BCM20702 and BCM20702A0 */
+	{ USB_VENDOR(USB_VENDOR_BROADCOM),
+	  USB_IFACE_CLASS(UICLASS_VENDOR),
+	  USB_IFACE_SUBCLASS(UDSUBCLASS_RF),
+	  USB_IFACE_PROTOCOL(UDPROTO_BLUETOOTH) },
+
+	/* Apple-specific (Broadcom) devices */
+	{ USB_VENDOR(USB_VENDOR_APPLE),
+	  USB_IFACE_CLASS(UICLASS_VENDOR),
+	  USB_IFACE_SUBCLASS(UDSUBCLASS_RF),
+	  USB_IFACE_PROTOCOL(UDPROTO_BLUETOOTH) },
+
+	/* Foxconn - Hon Hai */
+	{ USB_VENDOR(USB_VENDOR_FOXCONN),
+	  USB_IFACE_CLASS(UICLASS_VENDOR),
+	  USB_IFACE_SUBCLASS(UDSUBCLASS_RF),
+	  USB_IFACE_PROTOCOL(UDPROTO_BLUETOOTH) },
+
+	/* MediaTek MT76x0E */
+	{ USB_VPI(USB_VENDOR_MEDIATEK, 0x763f, 0) },
+
+	/* Broadcom SoftSailing reporting vendor specific */
+	{ USB_VPI(USB_VENDOR_BROADCOM, 0x21e1, 0) },
+
+	/* Apple MacBookPro 7,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x8213, 0) },
+
+	/* Apple iMac11,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x8215, 0) },
+
+	/* Apple MacBookPro6,2 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x8218, 0) },
+
+	/* Apple MacBookAir3,1, MacBookAir3,2 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x821b, 0) },
+
+	/* Apple MacBookAir4,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x821f, 0) },
+
+	/* MacBookAir6,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x828f, 0) },
+
+	/* Apple MacBookPro8,2 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x821a, 0) },
+
+	/* Apple MacMini5,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x8281, 0) },
+
+	/* Bluetooth Ultraport Module from IBM */
+	{ USB_VPI(USB_VENDOR_TDK, 0x030a, 0) },
+
+	/* ALPS Modules with non-standard ID */
+	{ USB_VPI(USB_VENDOR_ALPS, 0x3001, 0) },
+	{ USB_VPI(USB_VENDOR_ALPS, 0x3002, 0) },
+
+	{ USB_VPI(USB_VENDOR_ERICSSON2, 0x1002, 0) },
+
+	/* Canyon CN-BTU1 with HID interfaces */
+	{ USB_VPI(USB_VENDOR_CANYON, 0x0000, 0) },
+
+	/* Broadcom BCM20702A0 */
+	{ USB_VPI(USB_VENDOR_ASUS, 0x17b5, 0) },
+	{ USB_VPI(USB_VENDOR_ASUS, 0x17cb, 0) },
+	{ USB_VPI(USB_VENDOR_LITEON, 0x2003, 0) },
+	{ USB_VPI(USB_VENDOR_FOXCONN, 0xe042, 0) },
+	{ USB_VPI(USB_VENDOR_DELL, 0x8197, 0) },
 };
 
 /*
@@ -410,6 +509,7 @@ static int
 ubt_probe(device_t dev)
 {
 	struct usb_attach_arg	*uaa = device_get_ivars(dev);
+	int error;
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -417,14 +517,14 @@ ubt_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != 0)
 		return (ENXIO);
 
-	if (uaa->use_generic == 0)
-		return (ENXIO);
-
 	if (usbd_lookup_id_by_uaa(ubt_ignore_devs,
 			sizeof(ubt_ignore_devs), uaa) == 0)
 		return (ENXIO);
 
-	return (usbd_lookup_id_by_uaa(ubt_devs, sizeof(ubt_devs), uaa));
+	error = usbd_lookup_id_by_uaa(ubt_devs, sizeof(ubt_devs), uaa);
+	if (error == 0)
+		return (BUS_PROBE_GENERIC);
+	return (error);
 } /* ubt_probe */
 
 /*
@@ -439,6 +539,7 @@ ubt_attach(device_t dev)
 	struct ubt_softc		*sc = device_get_softc(dev);
 	struct usb_endpoint_descriptor	*ed;
 	struct usb_interface_descriptor *id;
+	struct usb_interface		*iface;
 	uint16_t			wMaxPacketSize;
 	uint8_t				alt_index, i, j;
 	uint8_t				iface_index[2] = { 0, 1 };
@@ -554,10 +655,21 @@ ubt_attach(device_t dev)
 		goto detach;
 	}
 
-	/* Claim all interfaces on the device */
-	for (i = 1; usbd_get_iface(uaa->device, i) != NULL; i ++)
-		usbd_set_parent_iface(uaa->device, i, uaa->info.bIfaceIndex);
+	/* Claim all interfaces belonging to the Bluetooth part */
+	for (i = 1;; i++) {
+		iface = usbd_get_iface(uaa->device, i);
+		if (iface == NULL)
+			break;
+		id = usbd_get_interface_descriptor(iface);
 
+		if ((id != NULL) &&
+		    (id->bInterfaceClass == UICLASS_WIRELESS) &&
+		    (id->bInterfaceSubClass == UISUBCLASS_RF) &&
+		    (id->bInterfaceProtocol == UIPROTO_BLUETOOTH)) {
+			usbd_set_parent_iface(uaa->device, i,
+			    uaa->info.bIfaceIndex);
+		}
+	}
 	return (0); /* success */
 
 detach:
@@ -698,14 +810,13 @@ ubt_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		/* Allocate a new mbuf */
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			UBT_STAT_IERROR(sc);
 			goto submit_next;
 		}
 
-		MCLGET(m, M_DONTWAIT);
-		if (!(m->m_flags & M_EXT)) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			UBT_STAT_IERROR(sc);
 			goto submit_next;
 		}
@@ -726,7 +837,7 @@ ubt_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			actlen);
 
 		/* Validate packet and send it up the stack */
-		if (m->m_pkthdr.len < sizeof(*hdr)) {
+		if (m->m_pkthdr.len < (int)sizeof(*hdr)) {
 			UBT_INFO(sc, "HCI event packet is too short\n");
 
 			UBT_STAT_IERROR(sc);
@@ -788,8 +899,8 @@ ubt_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct mbuf		*m;
 	ng_hci_acldata_pkt_t	*hdr;
 	struct usb_page_cache	*pc;
-	uint16_t		len;
-	int			actlen;
+	int len;
+	int actlen;
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
@@ -798,14 +909,13 @@ ubt_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		/* Allocate new mbuf */
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			UBT_STAT_IERROR(sc);
 			goto submit_next;
 		}
 
-		MCLGET(m, M_DONTWAIT);
-		if (!(m->m_flags & M_EXT)) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			UBT_STAT_IERROR(sc);
 			goto submit_next;
 		}
@@ -826,7 +936,7 @@ ubt_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			actlen);
 
 		/* Validate packet and send it up the stack */
-		if (m->m_pkthdr.len < sizeof(*hdr)) {
+		if (m->m_pkthdr.len < (int)sizeof(*hdr)) {
 			UBT_INFO(sc, "HCI ACL packet is too short\n");
 
 			UBT_STAT_IERROR(sc);
@@ -835,7 +945,7 @@ ubt_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		hdr = mtod(m, ng_hci_acldata_pkt_t *);
 		len = le16toh(hdr->length);
-		if (len != (m->m_pkthdr.len - sizeof(*hdr))) {
+		if (len != (int)(m->m_pkthdr.len - sizeof(*hdr))) {
 			UBT_ERR(sc, "Invalid ACL packet size, length=%d, " \
 				"pktlen=%d\n", len, m->m_pkthdr.len);
 
@@ -1008,14 +1118,13 @@ ubt_isoc_read_one_frame(struct usb_xfer *xfer, int frame_no)
 	while (total > 0) {
 		if (m == NULL) {
 			/* Start new reassembly buffer */
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m == NULL) {
 				UBT_STAT_IERROR(sc);
 				return (-1);	/* XXX out of sync! */
 			}
 
-			MCLGET(m, M_DONTWAIT);
-			if (!(m->m_flags & M_EXT)) {
+			if (!(MCLGET(m, M_NOWAIT))) {
 				UBT_STAT_IERROR(sc);
 				NG_FREE_M(m);
 				return (-1);	/* XXX out of sync! */
@@ -1354,7 +1463,7 @@ ng_ubt_shutdown(node_p node)
 	if (node->nd_flags & NGF_REALLY_DIE) {
 		/*
                  * We came here because the USB device is being
-		 * detached, so stop being persistant.
+		 * detached, so stop being persistent.
                  */
 		NG_NODE_SET_PRIVATE(node, NULL);
 		NG_NODE_UNREF(node);
@@ -1650,7 +1759,7 @@ ng_ubt_rcvdata(hook_p hook, item_p item)
 	/* Process HCI frame */
 	switch (*mtod(m, uint8_t *)) {	/* XXX call m_pullup ? */
 	case NG_HCI_CMD_PKT:
-		if (m->m_pkthdr.len - 1 > UBT_CTRL_BUFFER_SIZE)
+		if (m->m_pkthdr.len - 1 > (int)UBT_CTRL_BUFFER_SIZE)
 			panic("HCI command frame size is too big! " \
 				"buffer size=%zd, packet len=%d\n",
 				UBT_CTRL_BUFFER_SIZE, m->m_pkthdr.len);
@@ -1748,7 +1857,7 @@ static device_method_t	ubt_methods[] =
 	DEVMETHOD(device_probe,	ubt_probe),
 	DEVMETHOD(device_attach, ubt_attach),
 	DEVMETHOD(device_detach, ubt_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t		ubt_driver =
@@ -1763,4 +1872,4 @@ MODULE_VERSION(ng_ubt, NG_BLUETOOTH_VERSION);
 MODULE_DEPEND(ng_ubt, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 MODULE_DEPEND(ng_ubt, ng_hci, NG_BLUETOOTH_VERSION, NG_BLUETOOTH_VERSION, NG_BLUETOOTH_VERSION);
 MODULE_DEPEND(ng_ubt, usb, 1, 1, 1);
-
+USB_PNP_HOST_INFO(ubt_devs);

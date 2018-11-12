@@ -42,9 +42,7 @@ __FBSDID("$FreeBSD$");
  * Return information about mounted filesystems.
  */
 int
-getmntinfo(mntbufp, flags)
-	struct statfs **mntbufp;
-	int flags;
+getmntinfo(struct statfs **mntbufp, int flags)
 {
 	static struct statfs *mntbuf;
 	static int mntsize;
@@ -58,7 +56,7 @@ getmntinfo(mntbufp, flags)
 		if (mntbuf)
 			free(mntbuf);
 		bufsize = (mntsize + 1) * sizeof(struct statfs);
-		if ((mntbuf = (struct statfs *)malloc(bufsize)) == 0)
+		if ((mntbuf = malloc(bufsize)) == NULL)
 			return (0);
 		if ((mntsize = getfsstat(mntbuf, bufsize, flags)) < 0)
 			return (0);

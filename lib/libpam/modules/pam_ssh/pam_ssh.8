@@ -1,6 +1,6 @@
 .\" Copyright (c) 2001 Mark R V Murray
-.\" All rights reserved.
 .\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+.\" Copyright (c) 2004-2011 Dag-Erling Smørgrav
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2001
+.Dd October 7, 2011
 .Dt PAM_SSH 8
 .Os
 .Sh NAME
@@ -128,13 +128,15 @@ Start an agent even if no keys were decrypted during the
 authentication phase.
 .El
 .Sh FILES
-.Bl -tag -width ".Pa $HOME/.ssh/identity" -compact
-.It Pa $HOME/.ssh/identity
-SSH1 RSA key
+.Bl -tag -width ".Pa $HOME/.ssh/id_ed25519" -compact
 .It Pa $HOME/.ssh/id_rsa
 SSH2 RSA key
 .It Pa $HOME/.ssh/id_dsa
 SSH2 DSA key
+.It Pa $HOME/.ssh/id_ecdsa
+SSH2 ECDSA key
+.It Pa $HOME/.ssh/id_ed25519
+SSH2 Ed25519 key
 .El
 .Sh SEE ALSO
 .Xr ssh-agent 1 ,
@@ -145,7 +147,7 @@ The
 .Nm
 module was originally written by
 .An -nosplit
-.An "Andrew J. Korty" Aq ajk@iu.edu .
+.An Andrew J. Korty Aq Mt ajk@iu.edu .
 The current implementation was developed for the
 .Fx
 Project by
@@ -154,4 +156,4 @@ Associates, Inc.\& under DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
 This manual page was written by
-.An "Mark R V Murray" Aq markm@FreeBSD.org .
+.An Mark R V Murray Aq Mt markm@FreeBSD.org .

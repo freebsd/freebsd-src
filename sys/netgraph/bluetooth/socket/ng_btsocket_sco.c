@@ -50,6 +50,9 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+
+#include <net/vnet.h>
+
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/bluetooth/include/ng_bluetooth.h>
@@ -60,7 +63,7 @@
 
 /* MALLOC define */
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_SCO, "netgraph_btsocks_sco",
+static MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_SCO, "netgraph_btsocks_sco",
 		"Netgraph Bluetooth SCO sockets");
 #else
 #define M_NETGRAPH_BTSOCKET_SCO M_NETGRAPH
@@ -107,21 +110,21 @@ static int					ng_btsocket_sco_curpps;
 
 /* Sysctl tree */
 SYSCTL_DECL(_net_bluetooth_sco_sockets);
-SYSCTL_NODE(_net_bluetooth_sco_sockets, OID_AUTO, seq, CTLFLAG_RW,
+static SYSCTL_NODE(_net_bluetooth_sco_sockets, OID_AUTO, seq, CTLFLAG_RW,
 	0, "Bluetooth SEQPACKET SCO sockets family");
-SYSCTL_INT(_net_bluetooth_sco_sockets_seq, OID_AUTO, debug_level,
+SYSCTL_UINT(_net_bluetooth_sco_sockets_seq, OID_AUTO, debug_level,
 	CTLFLAG_RW,
 	&ng_btsocket_sco_debug_level, NG_BTSOCKET_WARN_LEVEL,
 	"Bluetooth SEQPACKET SCO sockets debug level");
-SYSCTL_INT(_net_bluetooth_sco_sockets_seq, OID_AUTO, queue_len, 
+SYSCTL_UINT(_net_bluetooth_sco_sockets_seq, OID_AUTO, queue_len,
 	CTLFLAG_RD,
 	&ng_btsocket_sco_queue.len, 0,
 	"Bluetooth SEQPACKET SCO sockets input queue length");
-SYSCTL_INT(_net_bluetooth_sco_sockets_seq, OID_AUTO, queue_maxlen, 
+SYSCTL_UINT(_net_bluetooth_sco_sockets_seq, OID_AUTO, queue_maxlen,
 	CTLFLAG_RD,
 	&ng_btsocket_sco_queue.maxlen, 0,
 	"Bluetooth SEQPACKET SCO sockets input queue max. length");
-SYSCTL_INT(_net_bluetooth_sco_sockets_seq, OID_AUTO, queue_drops, 
+SYSCTL_UINT(_net_bluetooth_sco_sockets_seq, OID_AUTO, queue_drops,
 	CTLFLAG_RD,
 	&ng_btsocket_sco_queue.drops, 0,
 	"Bluetooth SEQPACKET SCO sockets input queue drops");
@@ -477,8 +480,11 @@ ng_btsocket_sco_process_lp_con_ind(struct ng_mesg *msg,
 		 * space then create new socket and set proper source address.
 		 */
 
-		if (pcb->so->so_qlen <= pcb->so->so_qlimit)
+		if (pcb->so->so_qlen <= pcb->so->so_qlimit) {
+			CURVNET_SET(pcb->so->so_vnet);
 			so1 = sonewconn(pcb->so, 0);
+			CURVNET_RESTORE();
+		}
 
 		if (so1 == NULL) {
 			status = 0x0d; /* Rejected due to limited resources */
@@ -900,7 +906,7 @@ ng_btsocket_sco_default_msg_input(struct ng_mesg *msg, hook_p hook)
 				sbdroprecord(&pcb->so->so_snd);
 
 			/* Send more if we have any */
-			if (pcb->so->so_snd.sb_cc > 0)
+			if (sbavail(&pcb->so->so_snd) > 0)
 				if (ng_btsocket_sco_send2(pcb) == 0)
 					ng_btsocket_sco_timeout(pcb);
 
@@ -1101,6 +1107,10 @@ ng_btsocket_sco_init(void)
 {
 	int	error = 0;
 
+	/* Skip initialization of globals for non-default instances. */
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+
 	ng_btsocket_sco_node = NULL;
 	ng_btsocket_sco_debug_level = NG_BTSOCKET_WARN_LEVEL;
 
@@ -1251,10 +1261,10 @@ ng_btsocket_sco_attach(struct socket *so, int proto, struct thread *td)
 	 * This is totally FUBAR. We could get here in two cases:
 	 *
 	 * 1) When user calls socket()
-	 * 2) When we need to accept new incomming connection and call
+	 * 2) When we need to accept new incoming connection and call
 	 *    sonewconn()
 	 *
-	 * In the first case we must aquire ng_btsocket_sco_sockets_mtx.
+	 * In the first case we must acquire ng_btsocket_sco_sockets_mtx.
 	 * In the second case we hold ng_btsocket_sco_sockets_mtx already.
 	 * So we now need to distinguish between these cases. From reading
 	 * /sys/kern/uipc_socket2.c we can find out that sonewconn() calls
@@ -1738,16 +1748,16 @@ ng_btsocket_sco_send2(ng_btsocket_sco_pcb_p pcb)
 	mtx_assert(&pcb->pcb_mtx, MA_OWNED);
 
 	while (pcb->rt->pending < pcb->rt->num_pkts &&
-	       pcb->so->so_snd.sb_cc > 0) {
+	       sbavail(&pcb->so->so_snd) > 0) {
 		/* Get a copy of the first packet on send queue */
-		m = m_dup(pcb->so->so_snd.sb_mb, M_DONTWAIT);
+		m = m_dup(pcb->so->so_snd.sb_mb, M_NOWAIT);
 		if (m == NULL) {
 			error = ENOBUFS;
 			break;
 		}
 
 		/* Create SCO packet header */
-		M_PREPEND(m, sizeof(*hdr), M_DONTWAIT);
+		M_PREPEND(m, sizeof(*hdr), M_NOWAIT);
 		if (m != NULL)
 			if (m->m_len < sizeof(*hdr))
 				m = m_pullup(m, sizeof(*hdr));

@@ -108,6 +108,7 @@ static const struct pccard_product an_pccard_products[] = {
 	PCMCIA_CARD(XIRCOM, CWE1130), 
 	{ NULL }
 };
+PCCARD_PNP_INFO(an_pccard_products);
 
 static int
 an_pccard_probe(device_t dev)
@@ -141,11 +142,7 @@ an_pccard_attach(device_t dev)
 
 	an_alloc_irq(dev, sc->irq_rid, 0);
 
-	sc->an_bhandle = rman_get_bushandle(sc->port_res);
-	sc->an_btag = rman_get_bustag(sc->port_res);
-	sc->an_dev = dev;
-
-	error = an_attach(sc, device_get_unit(dev), flags);
+	error = an_attach(sc, flags);
 	if (error)
 		goto fail;
 	

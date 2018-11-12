@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*-
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  *
@@ -24,6 +23,9 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -32,7 +34,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -61,7 +62,6 @@
 static device_probe_t musbotg_probe;
 static device_attach_t musbotg_attach;
 static device_detach_t musbotg_detach;
-static device_shutdown_t musbotg_shutdown;
 
 struct musbotg_super_softc {
 	struct musbotg_softc sc_otg;	/* must be first */
@@ -94,6 +94,26 @@ musbotg_clocks_off(void *arg)
 #endif
 }
 
+static void
+musbotg_wrapper_interrupt(void *arg)
+{
+
+	/* 
+	 * Nothing to do.
+	 * Main driver takes care about everything 
+	 */
+	musbotg_interrupt(arg, 0, 0, 0);
+}
+
+static void
+musbotg_ep_int_set(struct musbotg_softc *sc, int ep, int on)
+{
+	/* 
+	 * Nothing to do.
+	 * Main driver takes care about everything 
+	 */
+}
+
 static int
 musbotg_probe(device_t dev)
 {
@@ -117,6 +137,7 @@ musbotg_attach(device_t dev)
 	sc->sc_otg.sc_bus.parent = dev;
 	sc->sc_otg.sc_bus.devices = sc->sc_otg.sc_devices;
 	sc->sc_otg.sc_bus.devices_max = MUSB2_MAX_DEVICES;
+	sc->sc_otg.sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_otg.sc_bus,
@@ -147,12 +168,16 @@ musbotg_attach(device_t dev)
 	}
 	device_set_ivars(sc->sc_otg.sc_bus.bdev, &sc->sc_otg.sc_bus);
 
+	sc->sc_otg.sc_id = 0;
+	sc->sc_otg.sc_platform_data = sc;
+	sc->sc_otg.sc_mode = MUSB2_DEVICE_MODE;
+
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_otg.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)musbotg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
+	    NULL, (driver_intr_t *)musbotg_wrapper_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
 #else
 	err = bus_setup_intr(dev, sc->sc_otg.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (driver_intr_t *)musbotg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
+	    (driver_intr_t *)musbotg_wrapper_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
 #endif
 	if (err) {
 		sc->sc_otg.sc_intr_hdl = NULL;
@@ -188,7 +213,7 @@ musbotg_detach(device_t dev)
 		device_delete_child(dev, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(dev);
+	device_delete_children(dev);
 
 	if (sc->sc_otg.sc_irq_res && sc->sc_otg.sc_intr_hdl) {
 		/*
@@ -217,38 +242,22 @@ musbotg_detach(device_t dev)
 	return (0);
 }
 
-static int
-musbotg_shutdown(device_t dev)
-{
-	struct musbotg_super_softc *sc = device_get_softc(dev);
-	int err;
-
-	err = bus_generic_shutdown(dev);
-	if (err)
-		return (err);
-
-	musbotg_uninit(&sc->sc_otg);
-
-	return (0);
-}
-
 static device_method_t musbotg_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, musbotg_probe),
 	DEVMETHOD(device_attach, musbotg_attach),
 	DEVMETHOD(device_detach, musbotg_detach),
-	DEVMETHOD(device_shutdown, musbotg_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t musbotg_driver = {
-	"musbotg",
-	musbotg_methods,
-	sizeof(struct musbotg_super_softc),
+	.name = "musbotg",
+	.methods = musbotg_methods,
+	.size = sizeof(struct musbotg_super_softc),
 };
 
 static devclass_t musbotg_devclass;

@@ -139,7 +139,8 @@ begemotSnmpdVersionEnable OBJECT-TYPE
 	    bits are defined:
 
 	    0x00000001	- SNMPv1
-	    0x00000002	- SNMPv2c"
+	    0x00000002	- SNMPv2c
+	    0x00000004	- SNMPv3"
     DEFVAL	{ 3 }
     ::= { begemotSnmpdConfig 5 }
 

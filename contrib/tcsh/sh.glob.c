@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.glob.c,v 3.76 2008/06/19 15:20:56 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.glob.c,v 3.82 2011/02/27 00:15:17 christos Exp $ */
 /*
  * sh.glob.c: Regular expression expansion
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.glob.c,v 3.76 2008/06/19 15:20:56 christos Exp $")
+RCSID("$tcsh: sh.glob.c,v 3.82 2011/02/27 00:15:17 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -431,6 +431,12 @@ libglob(Char **vl)
     char   *ptr;
     int     nonomatch = adrof(STRnonomatch) != 0, magic = 0, match = 0;
 
+    if (adrof(STRglobdot))
+       gflgs |= GLOB_DOT;
+
+    if (adrof(STRglobstar))
+       gflgs |= GLOB_STAR;
+
     if (!vl || !vl[0])
 	return(vl);
 
@@ -510,11 +516,11 @@ globone(Char *str, int action)
 	stderror(ERR_NAME | ERR_NOMATCH);
     }
  result:
-    if (vl[0] == NULL) {
+    if (vl && vl[0] == NULL) {
 	xfree(vl);
 	return (Strsave(STRNULL));
     }
-    if (vl[1]) 
+    if (vl && vl[1]) 
 	return (handleone(str, vl, action));
     else {
 	str = strip(*vl);
@@ -687,7 +693,7 @@ dobackp(Char *cp, int literal)
 static void
 backeval(struct blk_buf *bb, struct Strbuf *word, Char *cp, int literal)
 {
-    int icnt;
+    ssize_t icnt;
     Char c, *ip;
     struct command faket;
     int    hadnl;
@@ -775,7 +781,13 @@ backeval(struct blk_buf *bb, struct Strbuf *word, Char *cp, int literal)
 		stderror(ERR_OLD);
 	    alias(&paraml);
 	    t = syntax(paraml.next, &paraml, 0);
+	    if (t == NULL)
+		return;
 	    cleanup_push(t, syntax_cleanup);
+	    /* The F_BACKQ flag must set so the job output is correct if
+	     * printexitvalue is set.  If it's not set, the job output
+	     * will have "Exit N" appended where N is the exit status. */
+	    t->t_dflg = F_BACKQ|F_NOFORK;
 	    if (seterr)
 		stderror(ERR_OLD);
 #ifdef SIGTSTP
@@ -796,7 +808,7 @@ backeval(struct blk_buf *bb, struct Strbuf *word, Char *cp, int literal)
     c = 0;
     ip = NULL;
     do {
-	int     cnt = 0;
+	ssize_t     cnt = 0;
 	char   *tmp;
 
 	tmp = tibuf;

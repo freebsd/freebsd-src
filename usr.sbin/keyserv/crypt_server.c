@@ -180,12 +180,13 @@ void load_des(warn, libpath)
 {
 	char dlpath[MAXPATHLEN];
 
-	if (libpath == NULL) {
-		snprintf(dlpath, sizeof(dlpath), "%s/%s", _PATH_USRLIB, LIBCRYPTO);
-	} else
+	if (libpath == NULL)
+		snprintf(dlpath, sizeof(dlpath), "%s/%s", _PATH_USRLIB,
+		    LIBCRYPTO);
+	else
 		snprintf(dlpath, sizeof(dlpath), "%s", libpath);
 
-	if (dlpath != NULL && (dlhandle = dlopen(dlpath, 0444)) != NULL)
+	if ((dlhandle = dlopen(dlpath, 0444)) != NULL)
 		_my_crypt = (int (*)())dlsym(dlhandle, "_des_crypt");
 
 	if (_my_crypt == NULL) {
@@ -223,8 +224,8 @@ des_crypt_1_svc(desargs *argp, struct svc_req *rqstp)
 
 	bcopy(argp->des_key, dparm.des_key, 8);
 	bcopy(argp->des_ivec, dparm.des_ivec, 8);
-	dparm.des_mode = argp->des_mode;
-	dparm.des_dir = argp->des_dir;
+	dparm.des_mode = (argp->des_mode == CBC_DES) ? CBC : ECB;
+	dparm.des_dir = (argp->des_dir == ENCRYPT_DES) ? ENCRYPT : DECRYPT;
 #ifdef BROKEN_DES
 	dparm.UDES.UDES_buf = argp->desbuf.desbuf_val;
 #endif

@@ -1,70 +1,37 @@
 /* BFD back-end for MIPS PE COFF files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   2000, 2001, 2002, 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
    Modified from coff-i386.c by DJ Delorie, dj@cygnus.com
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #define COFF_WITH_PE
 #define COFF_LONG_SECTION_NAMES
 #define PCRELOFFSET TRUE
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
-
 #include "coff/mipspe.h"
-
 #include "coff/internal.h"
-
 #include "coff/pe.h"
-
 #include "libcoff.h"
 
-static bfd_reloc_status_type coff_mips_reloc
-  PARAMS ((bfd *, arelent *, asymbol *, PTR, asection *, bfd *, char **));
-static reloc_howto_type *coff_mips_rtype_to_howto
-  PARAMS ((bfd *, asection *, struct internal_reloc *,
-	   struct coff_link_hash_entry *, struct internal_syment *,
-	   bfd_vma *));
-#if 0
-static void mips_ecoff_swap_reloc_in
-  PARAMS ((bfd *, PTR, struct internal_reloc *));
-static void mips_ecoff_swap_reloc_out
-  PARAMS ((bfd *, const struct internal_reloc *, PTR));
-static void mips_adjust_reloc_in
-  PARAMS ((bfd *, const struct internal_reloc *, arelent *));
-static void mips_adjust_reloc_out
-  PARAMS ((bfd *, const arelent *, struct internal_reloc *));
-#endif
-
-static bfd_boolean in_reloc_p
-  PARAMS ((bfd *, reloc_howto_type *));
-static reloc_howto_type * coff_mips_reloc_type_lookup
-  PARAMS ((bfd *, bfd_reloc_code_real_type));
-static void mips_swap_reloc_in
-  PARAMS ((bfd *, PTR, PTR));
-static unsigned int mips_swap_reloc_out
-  PARAMS ((bfd *, PTR, PTR));
-static bfd_boolean coff_pe_mips_relocate_section
-  PARAMS ((bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *,
-	   struct internal_reloc *, struct internal_syment *, asection **));
-
-#define COFF_DEFAULT_SECTION_ALIGNMENT_POWER (2)
+#define COFF_DEFAULT_SECTION_ALIGNMENT_POWER 2
 /* The page size is a guess based on ELF.  */
 
 #define COFF_PAGE_SIZE 0x1000
@@ -79,19 +46,17 @@ static bfd_boolean coff_pe_mips_relocate_section
    reloc type to make any required adjustments.  */
 
 static bfd_reloc_status_type
-coff_mips_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
-		 error_message)
-     bfd *abfd;
-     arelent *reloc_entry;
-     asymbol *symbol;
-     PTR data;
-     asection *input_section ATTRIBUTE_UNUSED;
-     bfd *output_bfd;
-     char **error_message ATTRIBUTE_UNUSED;
+coff_mips_reloc (bfd *abfd,
+		 arelent *reloc_entry,
+		 asymbol *symbol,
+		 void * data,
+		 asection *input_section ATTRIBUTE_UNUSED,
+		 bfd *output_bfd,
+		 char **error_message ATTRIBUTE_UNUSED)
 {
   symvalue diff;
 
-  if (output_bfd == (bfd *) NULL)
+  if (output_bfd == NULL)
     return bfd_reloc_continue;
 
   if (bfd_is_com_section (symbol->section))
@@ -115,22 +80,11 @@ coff_mips_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
 #endif
     }
   else
-    {
-      /* For some reason bfd_perform_relocation always effectively
-	 ignores the addend for a COFF target when producing
-	 relocatable output.  This seems to be always wrong for 386
-	 COFF, so we handle the addend here instead.  */
-      diff = reloc_entry->addend;
-    }
-
-#ifdef COFF_WITH_PE
-#if 0
-  /* dj - handle it like any other reloc? */
-  /* FIXME: How should this case be handled?  */
-  if (reloc_entry->howto->type == MIPS_R_RVA && diff != 0)
-    abort ();
-#endif
-#endif
+    /* For some reason bfd_perform_relocation always effectively
+       ignores the addend for a COFF target when producing
+       relocatable output.  This seems to be always wrong for 386
+       COFF, so we handle the addend here instead.  */
+    diff = reloc_entry->addend;
 
 #define DOIT(x) \
   x = ((x & ~howto->dst_mask) | (((x & howto->src_mask) + (diff >> howto->rightshift)) & howto->dst_mask))
@@ -145,6 +99,7 @@ coff_mips_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
 	  case 0:
 	    {
 	      char x = bfd_get_8 (abfd, addr);
+
 	      DOIT (x);
 	      bfd_put_8 (abfd, x, addr);
 	    }
@@ -153,6 +108,7 @@ coff_mips_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
 	  case 1:
 	    {
 	      short x = bfd_get_16 (abfd, addr);
+
 	      DOIT (x);
 	      bfd_put_16 (abfd, (bfd_vma) x, addr);
 	    }
@@ -161,6 +117,7 @@ coff_mips_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
 	  case 2:
 	    {
 	      long x = bfd_get_32 (abfd, addr);
+
 	      DOIT (x);
 	      bfd_put_32 (abfd, (bfd_vma) x, addr);
 	    }
@@ -180,9 +137,7 @@ coff_mips_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
    appear in the output .reloc section.  */
 
 static bfd_boolean
-in_reloc_p (abfd, howto)
-     bfd * abfd ATTRIBUTE_UNUSED;
-     reloc_howto_type *howto;
+in_reloc_p (bfd * abfd ATTRIBUTE_UNUSED, reloc_howto_type *howto)
 {
   return ! howto->pc_relative && howto->type != MIPS_R_RVA;
 }
@@ -197,130 +152,130 @@ static reloc_howto_type howto_table[] =
   /* Reloc type 0 is ignored.  The reloc reading code ensures that
      this is a reference to the .abs section, which will cause
      bfd_perform_relocation to do nothing.  */
-  HOWTO (MIPS_R_ABSOLUTE,	/* type */
-	 0,			/* rightshift */
-	 0,			/* size (0 = byte, 1 = short, 2 = long) */
-	 8,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 0,			/* special_function */
-	 "IGNORE",		/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0,			/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (MIPS_R_ABSOLUTE,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 0,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 8,			/* Bitsize.  */
+	 FALSE,			/* PC_relative.  */
+	 0,			/* Bitpos. */
+	 complain_overflow_dont, /* Complain_on_overflow. */
+	 0,			/* Special_function. */
+	 "IGNORE",		/* Name. */
+	 FALSE,			/* Partial_inplace. */
+	 0,			/* Src_mask. */
+	 0,			/* Dst_mask. */
+	 FALSE),		/* Pcrel_offset. */
 
   /* A 16 bit reference to a symbol, normally from a data section.  */
-  HOWTO (MIPS_R_REFHALF,	/* type */
-	 0,			/* rightshift */
-	 1,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
-	 coff_mips_reloc,	/* special_function */
-	 "REFHALF",		/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffff,		/* src_mask */
-	 0xffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (MIPS_R_REFHALF,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 1,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 16,			/* Bitsize.  */
+	 FALSE,			/* PC_relative.  */
+	 0,			/* Bitpos. */
+	 complain_overflow_bitfield, /* Complain_on_overflow. */
+	 coff_mips_reloc,	/* Special_function. */
+	 "REFHALF",		/* Name. */
+	 TRUE,			/* Partial_inplace. */
+	 0xffff,		/* Src_mask. */
+	 0xffff,		/* Dst_mask. */
+	 FALSE),		/* Pcrel_offset. */
 
   /* A 32 bit reference to a symbol, normally from a data section.  */
-  HOWTO (MIPS_R_REFWORD,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
-	 coff_mips_reloc,	/* special_function */
-	 "REFWORD",		/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffffffff,		/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (MIPS_R_REFWORD,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 2,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 32,			/* Bitsize.  */
+	 FALSE,			/* PC_relative.  */
+	 0,			/* Bitpos. */
+	 complain_overflow_bitfield, /* Complain_on_overflow. */
+	 coff_mips_reloc,	/* Special_function. */
+	 "REFWORD",		/* Name. */
+	 TRUE,			/* Partial_inplace. */
+	 0xffffffff,		/* Src_mask. */
+	 0xffffffff,		/* Dst_mask. */
+	 FALSE),		/* Pcrel_offset. */
 
   /* A 26 bit absolute jump address.  */
-  HOWTO (MIPS_R_JMPADDR,	/* type */
-	 2,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 26,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
+  HOWTO (MIPS_R_JMPADDR,	/* Type.  */
+	 2,			/* Rightshift.  */
+	 2,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 26,			/* Bitsize.  */
+	 FALSE,			/* PC_relative.  */
+	 0,			/* Bitpos. */
+	 complain_overflow_dont, /* Complain_on_overflow. */
 	 			/* This needs complex overflow
 				   detection, because the upper four
 				   bits must match the PC.  */
-	 coff_mips_reloc,	/* special_function */
-	 "JMPADDR",		/* name */
-	 TRUE,			/* partial_inplace */
-	 0x3ffffff,		/* src_mask */
-	 0x3ffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+	 coff_mips_reloc,	/* Special_function. */
+	 "JMPADDR",		/* Name. */
+	 TRUE,			/* Partial_inplace. */
+	 0x3ffffff,		/* Src_mask. */
+	 0x3ffffff,		/* Dst_mask. */
+	 FALSE),		/* Pcrel_offset. */
 
   /* The high 16 bits of a symbol value.  Handled by the function
      mips_refhi_reloc.  */
-  HOWTO (MIPS_R_REFHI,		/* type */
-	 16,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
-	 coff_mips_reloc,	/* special_function */
-	 "REFHI",		/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffff,		/* src_mask */
-	 0xffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (MIPS_R_REFHI,		/* Type.  */
+	 16,			/* Rightshift.  */
+	 2,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 16,			/* Bitsize.  */
+	 FALSE,			/* PC_relative.  */
+	 0,			/* Bitpos. */
+	 complain_overflow_bitfield, /* Complain_on_overflow. */
+	 coff_mips_reloc,	/* Special_function. */
+	 "REFHI",		/* Name. */
+	 TRUE,			/* Partial_inplace. */
+	 0xffff,		/* Src_mask. */
+	 0xffff,		/* Dst_mask. */
+	 FALSE),		/* Pcrel_offset. */
 
   /* The low 16 bits of a symbol value.  */
-  HOWTO (MIPS_R_REFLO,		/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 coff_mips_reloc,	/* special_function */
-	 "REFLO",		/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffff,		/* src_mask */
-	 0xffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (MIPS_R_REFLO,		/* Type.  */
+	 0,			/* Rightshift.  */
+	 2,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 16,			/* Bitsize.  */
+	 FALSE,			/* PC_relative.  */
+	 0,			/* Bitpos. */
+	 complain_overflow_dont, /* Complain_on_overflow. */
+	 coff_mips_reloc,	/* Special_function. */
+	 "REFLO",		/* Name. */
+	 TRUE,			/* Partial_inplace. */
+	 0xffff,		/* Src_mask. */
+	 0xffff,		/* Dst_mask. */
+	 FALSE),		/* Pcrel_offset. */
 
   /* A reference to an offset from the gp register.  Handled by the
      function mips_gprel_reloc.  */
-  HOWTO (MIPS_R_GPREL,		/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 coff_mips_reloc,	/* special_function */
-	 "GPREL",		/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffff,		/* src_mask */
-	 0xffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (MIPS_R_GPREL,		/* Type.  */
+	 0,			/* Rightshift.  */
+	 2,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 16,			/* Bitsize.  */
+	 FALSE,			/* PC_relative.  */
+	 0,			/* Bitpos. */
+	 complain_overflow_signed, /* Complain_on_overflow. */
+	 coff_mips_reloc,	/* Special_function. */
+	 "GPREL",		/* Name. */
+	 TRUE,			/* Partial_inplace. */
+	 0xffff,		/* Src_mask. */
+	 0xffff,		/* Dst_mask. */
+	 FALSE),		/* Pcrel_offset. */
 
   /* A reference to a literal using an offset from the gp register.
      Handled by the function mips_gprel_reloc.  */
-  HOWTO (MIPS_R_LITERAL,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 coff_mips_reloc,	/* special_function */
-	 "LITERAL",		/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffff,		/* src_mask */
-	 0xffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (MIPS_R_LITERAL,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 2,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 16,			/* Bitsize.  */
+	 FALSE,			/* PC_relative.  */
+	 0,			/* Bitpos. */
+	 complain_overflow_signed, /* Complain_on_overflow. */
+	 coff_mips_reloc,	/* Special_function. */
+	 "LITERAL",		/* Name. */
+	 TRUE,			/* Partial_inplace. */
+	 0xffff,		/* Src_mask. */
+	 0xffff,		/* Dst_mask. */
+	 FALSE),		/* Pcrel_offset. */
 
   EMPTY_HOWTO (8),
   EMPTY_HOWTO (9),
@@ -348,41 +303,43 @@ static reloc_howto_type howto_table[] =
   EMPTY_HOWTO (31),
   EMPTY_HOWTO (32),
   EMPTY_HOWTO (33),
-  HOWTO (MIPS_R_RVA,            /* type */
-	 0,	                /* rightshift */
-	 2,	                /* size (0 = byte, 1 = short, 2 = long) */
-	 32,	                /* bitsize */
-	 FALSE,	                /* pc_relative */
-	 0,	                /* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
-	 coff_mips_reloc,       /* special_function */
-	 "rva32",	        /* name */
-	 TRUE,	                /* partial_inplace */
-	 0xffffffff,            /* src_mask */
-	 0xffffffff,            /* dst_mask */
-	 FALSE),                /* pcrel_offset */
+  HOWTO (MIPS_R_RVA,            /* Type.  */
+	 0,	                /* Rightshift.  */
+	 2,	                /* Size (0 = byte, 1 = short, 2 = long).  */
+	 32,	                /* Bitsize.  */
+	 FALSE,	                /* PC_relative.  */
+	 0,	                /* Bitpos. */
+	 complain_overflow_bitfield, /* Complain_on_overflow. */
+	 coff_mips_reloc,       /* Special_function. */
+	 "rva32",	        /* Name. */
+	 TRUE,	                /* Partial_inplace. */
+	 0xffffffff,            /* Src_mask. */
+	 0xffffffff,            /* Dst_mask. */
+	 FALSE),                /* Pcrel_offset. */
   EMPTY_HOWTO (35),
   EMPTY_HOWTO (36),
-  HOWTO (MIPS_R_PAIR,           /* type */
-	 0,	                /* rightshift */
-	 2,	                /* size (0 = byte, 1 = short, 2 = long) */
-	 32,	                /* bitsize */
-	 FALSE,	                /* pc_relative */
-	 0,	                /* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
-	 coff_mips_reloc,       /* special_function */
-	 "PAIR",	        /* name */
-	 TRUE,	                /* partial_inplace */
-	 0xffffffff,            /* src_mask */
-	 0xffffffff,            /* dst_mask */
-	 FALSE),                /* pcrel_offset */
+  HOWTO (MIPS_R_PAIR,           /* Type.  */
+	 0,	                /* Rightshift.  */
+	 2,	                /* Size (0 = byte, 1 = short, 2 = long).  */
+	 32,	                /* Bitsize.  */
+	 FALSE,	                /* PC_relative.  */
+	 0,	                /* Bitpos. */
+	 complain_overflow_bitfield, /* Complain_on_overflow. */
+	 coff_mips_reloc,       /* Special_function. */
+	 "PAIR",	        /* Name. */
+	 TRUE,	                /* Partial_inplace. */
+	 0xffffffff,            /* Src_mask. */
+	 0xffffffff,            /* Dst_mask. */
+	 FALSE),                /* Pcrel_offset. */
 };
 
-/* Turn a howto into a reloc  nunmber */
+/* Turn a howto into a reloc nunmber.  */
 
-#define SELECT_RELOC(x,howto) { x.r_type = howto->type; }
-#define BADMAG(x) MIPSBADMAG(x)
-#define MIPS 1			/* Customize coffcode.h */
+#define SELECT_RELOC(x, howto) { x.r_type = howto->type; }
+#define BADMAG(x)              MIPSBADMAG (x)
+
+/* Customize coffcode.h.  */
+#define MIPS 1
 
 #define RTYPE2HOWTO(cache_ptr, dst) \
 	    (cache_ptr)->howto = howto_table + (dst)->r_type;
@@ -402,17 +359,17 @@ static reloc_howto_type howto_table[] =
 
 #define CALC_ADDEND(abfd, ptr, reloc, cache_ptr)		\
   {								\
-    coff_symbol_type *coffsym = (coff_symbol_type *) NULL;	\
+    coff_symbol_type *coffsym = NULL;				\
     if (ptr && bfd_asymbol_bfd (ptr) != abfd)			\
       coffsym = (obj_symbols (abfd)				\
 	         + (cache_ptr->sym_ptr_ptr - symbols));		\
     else if (ptr)						\
       coffsym = coff_symbol_from (abfd, ptr);			\
-    if (coffsym != (coff_symbol_type *) NULL			\
+    if (coffsym != NULL						\
 	&& coffsym->native->u.syment.n_scnum == 0)		\
       cache_ptr->addend = - coffsym->native->u.syment.n_value;	\
     else if (ptr && bfd_asymbol_bfd (ptr) == abfd		\
-	     && ptr->section != (asection *) NULL)		\
+	     && ptr->section != NULL)				\
       cache_ptr->addend = - (ptr->section->vma + ptr->value);	\
     else							\
       cache_ptr->addend = 0;					\
@@ -423,13 +380,12 @@ static reloc_howto_type howto_table[] =
 /* Convert an rtype to howto for the COFF backend linker.  */
 
 static reloc_howto_type *
-coff_mips_rtype_to_howto (abfd, sec, rel, h, sym, addendp)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     asection *sec;
-     struct internal_reloc *rel;
-     struct coff_link_hash_entry *h;
-     struct internal_syment *sym;
-     bfd_vma *addendp;
+coff_mips_rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
+			  asection *sec,
+			  struct internal_reloc *rel,
+			  struct coff_link_hash_entry *h,
+			  struct internal_syment *sym,
+			  bfd_vma *addendp)
 {
 
   reloc_howto_type *howto;
@@ -489,24 +445,21 @@ coff_mips_rtype_to_howto (abfd, sec, rel, h, sym, addendp)
     }
 
   if (rel->r_type == MIPS_R_RVA)
-    {
-      *addendp -= pe_data(sec->output_section->owner)->pe_opthdr.ImageBase;
-    }
+    *addendp -= pe_data (sec->output_section->owner)->pe_opthdr.ImageBase;
 #endif
 
   return howto;
 }
 
-#define coff_rtype_to_howto coff_mips_rtype_to_howto
-
-#define coff_bfd_reloc_type_lookup coff_mips_reloc_type_lookup
+#define coff_rtype_to_howto         coff_mips_rtype_to_howto
+#define coff_bfd_reloc_type_lookup  coff_mips_reloc_type_lookup
+#define coff_bfd_reloc_name_lookup coff_mips_reloc_name_lookup
 
 /* Get the howto structure for a generic reloc type.  */
 
 static reloc_howto_type *
-coff_mips_reloc_type_lookup (abfd, code)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     bfd_reloc_code_real_type code;
+coff_mips_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			     bfd_reloc_code_real_type code)
 {
   int mips_type;
 
@@ -534,35 +487,34 @@ coff_mips_reloc_type_lookup (abfd, code)
     case BFD_RELOC_MIPS_LITERAL:
       mips_type = MIPS_R_LITERAL;
       break;
-/* FIXME?
-    case BFD_RELOC_16_PCREL_S2:
-      mips_type = MIPS_R_PCREL16;
-      break;
-    case BFD_RELOC_PCREL_HI16_S:
-      mips_type = MIPS_R_RELHI;
-      break;
-    case BFD_RELOC_PCREL_LO16:
-      mips_type = MIPS_R_RELLO;
-      break;
-    case BFD_RELOC_GPREL32:
-      mips_type = MIPS_R_SWITCH;
-      break;
-*/
     case BFD_RELOC_RVA:
       mips_type = MIPS_R_RVA;
       break;
     default:
-      return (reloc_howto_type *) NULL;
+      return NULL;
     }
 
-  return &howto_table[mips_type];
+  return & howto_table [mips_type];
+}
+
+static reloc_howto_type *
+coff_mips_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			     const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (howto_table) / sizeof (howto_table[0]);
+       i++)
+    if (howto_table[i].name != NULL
+	&& strcasecmp (howto_table[i].name, r_name) == 0)
+      return &howto_table[i];
+
+  return NULL;
 }
 
 static void
-mips_swap_reloc_in (abfd, src, dst)
-     bfd *abfd;
-     PTR src;
-     PTR dst;
+mips_swap_reloc_in (bfd * abfd, void * src, void * dst)
 {
   static struct internal_reloc pair_prev;
   RELOC *reloc_src = (RELOC *) src;
@@ -584,17 +536,13 @@ mips_swap_reloc_in (abfd, src, dst)
     reloc_dst->r_offset = reloc_dst->r_symndx;
     if (reloc_dst->r_offset & 0x8000)
       reloc_dst->r_offset -= 0x10000;
-    /*printf ("dj: pair offset is %08x\n", reloc_dst->r_offset);*/
     reloc_dst->r_symndx = pair_prev.r_symndx;
     break;
   }
 }
 
 static unsigned int
-mips_swap_reloc_out (abfd, src, dst)
-     bfd       *abfd;
-     PTR	src;
-     PTR	dst;
+mips_swap_reloc_out (bfd * abfd, void * src, void * dst)
 {
   static int prev_offset = 1;
   static bfd_vma prev_addr = 0;
@@ -629,22 +577,19 @@ mips_swap_reloc_out (abfd, src, dst)
   return RELSZ;
 }
 
-#define coff_swap_reloc_in mips_swap_reloc_in
-#define coff_swap_reloc_out mips_swap_reloc_out
+#define coff_swap_reloc_in   mips_swap_reloc_in
+#define coff_swap_reloc_out  mips_swap_reloc_out
 #define NO_COFF_RELOCS
 
 static bfd_boolean
-coff_pe_mips_relocate_section (output_bfd, info, input_bfd,
-			       input_section, contents, relocs, syms,
-			       sections)
-     bfd *output_bfd;
-     struct bfd_link_info *info;
-     bfd *input_bfd;
-     asection *input_section;
-     bfd_byte *contents;
-     struct internal_reloc *relocs;
-     struct internal_syment *syms;
-     asection **sections;
+coff_pe_mips_relocate_section (bfd *output_bfd,
+			       struct bfd_link_info *info,
+			       bfd *input_bfd,
+			       asection *input_section,
+			       bfd_byte *contents,
+			       struct internal_reloc *relocs,
+			       struct internal_syment *syms,
+			       asection **sections)
 {
   bfd_vma gp;
   bfd_boolean gp_undefined;
@@ -655,35 +600,23 @@ coff_pe_mips_relocate_section (output_bfd, info, input_bfd,
   bfd_boolean got_lo;
 
   if (info->relocatable)
-  {
-    (*_bfd_error_handler) (_("\
-%s: `ld -r' not supported with PE MIPS objects\n"),
-			   bfd_archive_filename (input_bfd));
-    bfd_set_error (bfd_error_bad_value);
-    return FALSE;
-  }
+    {
+      (*_bfd_error_handler)
+	(_("%B: `ld -r' not supported with PE MIPS objects\n"), input_bfd);
+      bfd_set_error (bfd_error_bad_value);
+      return FALSE;
+    }
 
   BFD_ASSERT (input_bfd->xvec->byteorder
 	      == output_bfd->xvec->byteorder);
 
-#if 0
-  printf ("dj: relocate %s(%s) %08x\n",
-	 input_bfd->filename, input_section->name,
-	 input_section->output_section->vma + input_section->output_offset);
-#endif
-
   gp = _bfd_get_gp_value (output_bfd);
-  if (gp == 0)
-    gp_undefined = TRUE;
-  else
-    gp_undefined = FALSE;
-
+  gp_undefined = (gp == 0) ? TRUE : FALSE;
   got_lo = FALSE;
-
   adjust = 0;
-
   rel = relocs;
   rel_end = rel + input_section->reloc_count;
+
   for (i = 0; rel < rel_end; rel++, i++)
     {
       long symndx;
@@ -779,57 +712,49 @@ coff_pe_mips_relocate_section (output_bfd, info, input_bfd,
 
       src = rel->r_vaddr + input_section->output_section->vma
 	+ input_section->output_offset;
-#if 0
-      printf ("dj: reloc %02x %-8s a=%08x/%08x(%08x) v=%08x+%08x %s\n",
-	     rel->r_type, howto_table[rel->r_type].name,
-	     src, rel->r_vaddr, *(unsigned long *)mem, val, rel->r_offset,
-	     h?h->root.root.string:"(none)");
-#endif
 
       /* OK, at this point the following variables are set up:
 	   src = VMA of the memory we're fixing up
 	   mem = pointer to memory we're fixing up
-	   val = VMA of what we need to refer to
-      */
+	   val = VMA of what we need to refer to.  */
 
-#define UI(x) (*_bfd_error_handler) (_("%s: unimplemented %s\n"), \
-				     bfd_archive_filename (input_bfd), x); \
+#define UI(x) (*_bfd_error_handler) (_("%B: unimplemented %s\n"), \
+				     input_bfd, x); \
 	      bfd_set_error (bfd_error_bad_value);
 
       switch (rel->r_type)
 	{
 	case MIPS_R_ABSOLUTE:
-	  /* ignore these */
+	  /* Ignore these.  */
 	  break;
 
 	case MIPS_R_REFHALF:
-	  UI("refhalf");
+	  UI ("refhalf");
 	  break;
 
 	case MIPS_R_REFWORD:
-	  tmp = bfd_get_32(input_bfd, mem);
+	  tmp = bfd_get_32 (input_bfd, mem);
 	  /* printf ("refword: src=%08x targ=%08x+%08x\n", src, tmp, val); */
 	  tmp += val;
-	  bfd_put_32(input_bfd, tmp, mem);
+	  bfd_put_32 (input_bfd, tmp, mem);
 	  break;
 
 	case MIPS_R_JMPADDR:
-	  tmp = bfd_get_32(input_bfd, mem);
-	  targ = val + (tmp&0x03ffffff)*4;
+	  tmp = bfd_get_32 (input_bfd, mem);
+	  targ = val + (tmp & 0x03ffffff) * 4;
 	  if ((src & 0xf0000000) != (targ & 0xf0000000))
 	    {
-	      (*_bfd_error_handler) (_("%s: jump too far away\n"),
-				     bfd_archive_filename (input_bfd));
+	      (*_bfd_error_handler) (_("%B: jump too far away\n"), input_bfd);
 	      bfd_set_error (bfd_error_bad_value);
 	      return FALSE;
 	    }
 	  tmp &= 0xfc000000;
-	  tmp |= (targ/4) & 0x3ffffff;
-	  bfd_put_32(input_bfd, tmp, mem);
+	  tmp |= (targ / 4) & 0x3ffffff;
+	  bfd_put_32 (input_bfd, tmp, mem);
 	  break;
 
 	case MIPS_R_REFHI:
-	  tmp = bfd_get_32(input_bfd, mem);
+	  tmp = bfd_get_32 (input_bfd, mem);
 	  switch (rel[1].r_type)
 	    {
 	    case MIPS_R_PAIR:
@@ -838,51 +763,51 @@ coff_pe_mips_relocate_section (output_bfd, info, input_bfd,
 	      break;
 	    case MIPS_R_REFLO:
 	      /* GNU COFF object */
-	      low = bfd_get_32(input_bfd, contents + rel[1].r_vaddr);
+	      low = bfd_get_32 (input_bfd, contents + rel[1].r_vaddr);
 	      low &= 0xffff;
 	      if (low & 0x8000)
 		low -= 0x10000;
 	      targ = val + low + ((tmp & 0xffff) << 16);
 	      break;
 	    default:
-	      (*_bfd_error_handler) (_("%s: bad pair/reflo after refhi\n"),
-				     bfd_archive_filename (input_bfd));
+	      (*_bfd_error_handler) (_("%B: bad pair/reflo after refhi\n"),
+				     input_bfd);
 	      bfd_set_error (bfd_error_bad_value);
 	      return FALSE;
 	    }
 	  tmp &= 0xffff0000;
 	  tmp |= (targ >> 16) & 0xffff;
-	  bfd_put_32(input_bfd, tmp, mem);
+	  bfd_put_32 (input_bfd, tmp, mem);
 	  break;
 
 	case MIPS_R_REFLO:
-	  tmp = bfd_get_32(input_bfd, mem);
+	  tmp = bfd_get_32 (input_bfd, mem);
 	  targ = val + (tmp & 0xffff);
 	  /* printf ("refword: src=%08x targ=%08x\n", src, targ); */
 	  tmp &= 0xffff0000;
 	  tmp |= targ & 0xffff;
-	  bfd_put_32(input_bfd, tmp, mem);
+	  bfd_put_32 (input_bfd, tmp, mem);
 	  break;
 
 	case MIPS_R_GPREL:
 	case MIPS_R_LITERAL:
-	  UI("gprel");
+	  UI ("gprel");
 	  break;
 
 	case MIPS_R_SECTION:
-	  UI("section");
+	  UI ("section");
 	  break;
 
 	case MIPS_R_SECREL:
-	  UI("secrel");
+	  UI ("secrel");
 	  break;
 
 	case MIPS_R_SECRELLO:
-	  UI("secrello");
+	  UI ("secrello");
 	  break;
 
 	case MIPS_R_SECRELHI:
-	  UI("secrelhi");
+	  UI ("secrelhi");
 	  break;
 
 	case MIPS_R_RVA:
@@ -910,13 +835,8 @@ coff_pe_mips_relocate_section (output_bfd, info, input_bfd,
    a leading dot for local labels, so if TARGET_UNDERSCORE is defined
    we treat all symbols starting with L as local.  */
 
-static bfd_boolean coff_mips_is_local_label_name
-   PARAMS ((bfd *, const char *));
-
 static bfd_boolean
-coff_mips_is_local_label_name (abfd, name)
-     bfd *abfd;
-     const char *name;
+coff_mips_is_local_label_name (bfd *abfd, const char *name)
 {
   if (name[0] == 'L')
     return TRUE;
@@ -942,57 +862,57 @@ const bfd_target
 #ifdef TARGET_NAME
   TARGET_NAME,
 #else
-  "pe-mips",			/* name */
+  "pe-mips",			/* Name.  */
 #endif
   bfd_target_coff_flavour,
-  BFD_ENDIAN_LITTLE,		/* data byte order is little */
-  BFD_ENDIAN_LITTLE,		/* header byte order is little */
+  BFD_ENDIAN_LITTLE,		/* Data byte order is little.  */
+  BFD_ENDIAN_LITTLE,		/* Header byte order is little.  */
 
-  (HAS_RELOC | EXEC_P |		/* object flags */
+  (HAS_RELOC | EXEC_P |		/* Object flags.  */
    HAS_LINENO | HAS_DEBUG |
    HAS_SYMS | HAS_LOCALS | WP_TEXT | D_PAGED),
 
 #ifndef COFF_WITH_PE
-  (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC /* section flags */
+  (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC /* Section flags.  */
    | SEC_CODE | SEC_DATA),
 #else
-  (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC /* section flags */
+  (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC /* Section flags.  */
    | SEC_CODE | SEC_DATA
    | SEC_LINK_ONCE | SEC_LINK_DUPLICATES),
 #endif
 
 #ifdef TARGET_UNDERSCORE
-  TARGET_UNDERSCORE,		/* leading underscore */
+  TARGET_UNDERSCORE,		/* Leading underscore.  */
 #else
   0,				/* leading underscore */
 #endif
-  '/',				/* ar_pad_char */
-  15,				/* ar_max_namelen */
+  '/',				/* AR_pad_char.  */
+  15,				/* AR_max_namelen.  */
 
   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
      bfd_getl32, bfd_getl_signed_32, bfd_putl32,
-     bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* data */
+     bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* Data.  */
   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
      bfd_getl32, bfd_getl_signed_32, bfd_putl32,
-     bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* hdrs */
+     bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* Headers.  */
 
-/* Note that we allow an object file to be treated as a core file as well.  */
-    {_bfd_dummy_target, coff_object_p, /* bfd_check_format */
-       bfd_generic_archive_p, coff_object_p},
-    {bfd_false, coff_mkobject, _bfd_generic_mkarchive, /* bfd_set_format */
-       bfd_false},
-    {bfd_false, coff_write_object_contents, /* bfd_write_contents */
-       _bfd_write_archive_contents, bfd_false},
+  /* Note that we allow an object file to be treated as a core file as well.  */
+  {_bfd_dummy_target, coff_object_p, /* bfd_check_format.  */
+   bfd_generic_archive_p, coff_object_p},
+  {bfd_false, coff_mkobject, _bfd_generic_mkarchive, /* bfd_set_format.  */
+   bfd_false},
+  {bfd_false, coff_write_object_contents, /* bfd_write_contents.  */
+   _bfd_write_archive_contents, bfd_false},
 
-     BFD_JUMP_TABLE_GENERIC (coff),
-     BFD_JUMP_TABLE_COPY (coff),
-     BFD_JUMP_TABLE_CORE (_bfd_nocore),
-     BFD_JUMP_TABLE_ARCHIVE (_bfd_archive_coff),
-     BFD_JUMP_TABLE_SYMBOLS (coff),
-     BFD_JUMP_TABLE_RELOCS (coff),
-     BFD_JUMP_TABLE_WRITE (coff),
-     BFD_JUMP_TABLE_LINK (coff),
-     BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
+  BFD_JUMP_TABLE_GENERIC (coff),
+  BFD_JUMP_TABLE_COPY (coff),
+  BFD_JUMP_TABLE_CORE (_bfd_nocore),
+  BFD_JUMP_TABLE_ARCHIVE (_bfd_archive_coff),
+  BFD_JUMP_TABLE_SYMBOLS (coff),
+  BFD_JUMP_TABLE_RELOCS (coff),
+  BFD_JUMP_TABLE_WRITE (coff),
+  BFD_JUMP_TABLE_LINK (coff),
+  BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
   NULL,
 

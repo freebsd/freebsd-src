@@ -1,6 +1,6 @@
 /* mri.c -- handle MRI style linker scripts
-   Copyright 1991, 1992, 1993, 1994, 1996, 1997, 1998, 1999, 2000, 2002,
-   2003, 2004 Free Software Foundation, Inc.
+   Copyright 1991, 1992, 1993, 1994, 1996, 1997, 1998, 1999, 2000, 2001,
+   2002, 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 
@@ -16,16 +16,16 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GLD; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.
+Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+02110-1301, USA.
 
    This bit does the tree decoration when MRI style link scripts
    are parsed.
 
    Contributed by Steve Chamberlain <sac@cygnus.com>.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "ld.h"
 #include "ldexp.h"
 #include "ldlang.h"
@@ -44,14 +44,14 @@ struct section_name_struct {
   int ok_to_load;
 };
 
-unsigned int symbol_truncate = 10000;
-struct section_name_struct *order;
-struct section_name_struct *only_load;
-struct section_name_struct *address;
-struct section_name_struct *alias;
+static unsigned int symbol_truncate = 10000;
+static struct section_name_struct *order;
+static struct section_name_struct *only_load;
+static struct section_name_struct *address;
+static struct section_name_struct *alias;
 
-struct section_name_struct *alignment;
-struct section_name_struct *subalignment;
+static struct section_name_struct *alignment;
+static struct section_name_struct *subalignment;
 
 static struct section_name_struct **
 lookup (const char *name, struct section_name_struct **list)
@@ -119,19 +119,6 @@ mri_draw_tree (void)
 {
   if (done_tree)
     return;
-
-#if 0   /* We don't bother with memory regions.  */
-  /* Create the regions.  */
-  {
-    lang_memory_region_type *r;
-
-    r = lang_memory_region_lookup("long");
-    r->current = r->origin = exp_get_vma (base, (bfd_vma)0, "origin",
-					  lang_first_phase_enum);
-    r->length = (bfd_size_type) exp_get_vma (0, ~(bfd_vma) 0, "length",
-					     lang_first_phase_enum);
-  }
-#endif
 
   /* Now build the statements for the ldlang machine.  */
 
@@ -220,13 +207,13 @@ mri_draw_tree (void)
 
 	  lang_enter_output_section_statement (p->name, base,
 					       p->ok_to_load ? 0 : noload_section,
-					       align, subalign, NULL);
+					       align, subalign, NULL, 0);
 	  base = 0;
 	  tmp = xmalloc (sizeof *tmp);
 	  tmp->next = NULL;
 	  tmp->spec.name = p->name;
 	  tmp->spec.exclude_name_list = NULL;
-	  tmp->spec.sorted = FALSE;
+	  tmp->spec.sorted = none;
 	  lang_add_wild (NULL, tmp, FALSE);
 
 	  /* If there is an alias for this section, add it too.  */
@@ -237,7 +224,7 @@ mri_draw_tree (void)
 		tmp->next = NULL;
 		tmp->spec.name = aptr->name;
 		tmp->spec.exclude_name_list = NULL;
-		tmp->spec.sorted = FALSE;
+		tmp->spec.sorted = none;
 		lang_add_wild (NULL, tmp, FALSE);
 	      }
 
@@ -255,9 +242,6 @@ mri_load (const char *name)
 {
   base = 0;
   lang_add_input_file (name, lang_input_file_is_file_enum, NULL);
-#if 0
-  lang_leave_output_section_statement (0, "*default*");
-#endif
 }
 
 void

@@ -37,7 +37,6 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 
@@ -54,6 +53,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "dump.h"

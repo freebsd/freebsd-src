@@ -8,9 +8,9 @@ CFLAGS+=-Wall -I../../../include
 
 CLEANFILES=	${PROG}.core
 
-NO_MAN=	yes
+MAN=
 
 .include <bsd.prog.mk>
 
 test: ${PROG}
-	@sh envtest.t
+	@env -i sh envtest.t

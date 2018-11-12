@@ -9,10 +9,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -32,7 +28,7 @@
 .\"     From: @(#)nfsstat.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd October 18, 2007
+.Dd August 13, 2016
 .Dt NFSSTAT 1
 .Os
 .Sh NAME
@@ -42,7 +38,7 @@
 statistics
 .Sh SYNOPSIS
 .Nm
-.Op Fl ceszW
+.Op Fl cdemszW
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl w Ar wait
@@ -52,15 +48,50 @@ The
 command displays statistics kept about
 .Tn NFS
 client and server activity.
+For the NFSv4 server, the statistics are for operations within the Compound
+RPCs and not the count of RPCs.
+If you wish to compare RPC counts between NFSv3 and NFSv4, you must use
+statistics in the client(s).
 .Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl c
 Only display client side statistics.
+.It Fl d
+Display statistics for the new NFS server that are similar to those
+displayed by
+.Xr iostat 8 .
+This includes kilobytes per transfer, transfers per second, and megabytes per
+second for read, write, and all operations.
+It also includes the current queue depth, the busy percentage, and latency
+for all operations.
+If the
+.Fl W
+flag is added, commits per second, commit latency, read latency, and write
+latency are also added to the display.
+The busy percentage shown can exceed 100 at times.
+This is because of the way busy percentages are calculated.
+The busy time is calculated by adding the elapsed time between the
+last time an operation started or finished,
+and the current time.
+If there is only one operation outstanding, the "busy time" time
+will get updated with the total time of that operation.
+That means that the difference in the busy time between the two
+measurement intervals (often 1 second)
+will increase by more than the measurement interval.
+.It Fl e
+Report the extra statistics collected by the NFS client and
+server for NFSv4.
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the default
 .Pa /dev/kmem .
+.It Fl m
+Report the mount options for all new NFS client mounts.
+This option overrides all others and
+.Nm
+will exit after completing the report.
+This option is only supported by the new NFS client.
 .It Fl N
 Extract the name list from the specified system instead of the default
 .Pa /boot/kernel/kernel .
@@ -70,7 +101,8 @@ Only display server side statistics.
 Use wide format with interval short summary.
 This option is especially
 useful when combined with
-.Fl c
+.Fl c ,
+.Fl d ,
 or
 .Fl s
 and a time delay.
@@ -82,10 +114,6 @@ activity for both the client and server at
 second intervals.
 .It Fl z
 Reset statistics after displaying them.
-(Not currently supported by the experimental nfs subsystem.)
-.It Fl e
-Gather statistics from the experimental nfs subsystem that includes
-support for NFSv4 instead of the regular nfs subsystem.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /boot/kernel/kernel" -compact

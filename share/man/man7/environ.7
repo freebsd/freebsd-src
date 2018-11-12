@@ -9,11 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -56,13 +52,9 @@ The size of the block units used by several commands, most notably
 .Xr du 1
 and
 .Xr ls 1 .
-.Ev BLOCKSIZE
-may be specified in units of a byte by specifying a number,
-in units of a kilobyte by specifying a number followed by ``K'' or
-``k'', in units of a megabyte by specifying a number followed by ``M''
-or ``m'' and in units of a gigabyte by specifying a number followed
-by ``G'' or ``g''.
-Sizes less than 512 bytes or greater than a gigabyte are ignored.
+This variable is processed by the
+.Xr getbsize 3
+function.
 .It Ev COLUMNS
 The user's preferred width in column positions for the terminal.
 Utilities such as
@@ -258,6 +250,7 @@ built-in command in
 .Xr sh 1 ,
 .Xr execve 2 ,
 .Xr execle 3 ,
+.Xr getbsize 3 ,
 .Xr getenv 3 ,
 .Xr setenv 3 ,
 .Xr setlocale 3 ,

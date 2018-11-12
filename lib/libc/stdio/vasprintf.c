@@ -4,6 +4,11 @@
  * Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com>
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -33,29 +38,25 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include "xlocale_private.h"
 #include "local.h"
 
 int
-vasprintf(str, fmt, ap)
-	char **str;
-	const char *fmt;
-	__va_list ap;
+vasprintf_l(char **str, locale_t locale, const char *fmt, __va_list ap)
 {
+	FILE f = FAKE_FILE;
 	int ret;
-	FILE f;
+	FIX_LOCALE(locale);
 
-	f._file = -1;
 	f._flags = __SWR | __SSTR | __SALC;
-	f._bf._base = f._p = (unsigned char *)malloc(128);
+	f._bf._base = f._p = malloc(128);
 	if (f._bf._base == NULL) {
 		*str = NULL;
 		errno = ENOMEM;
 		return (-1);
 	}
 	f._bf._size = f._w = 127;		/* Leave room for the NUL */
-	f._orientation = 0;
-	memset(&f._mbstate, 0, sizeof(mbstate_t));
-	ret = __vfprintf(&f, fmt, ap);
+	ret = __vfprintf(&f, locale, fmt, ap);
 	if (ret < 0) {
 		free(f._bf._base);
 		*str = NULL;
@@ -65,4 +66,9 @@ vasprintf(str, fmt, ap)
 	*f._p = '\0';
 	*str = (char *)f._bf._base;
 	return (ret);
+}
+int
+vasprintf(char **str, const char *fmt, __va_list ap)
+{
+	return vasprintf_l(str, __get_locale(), fmt, ap);
 }

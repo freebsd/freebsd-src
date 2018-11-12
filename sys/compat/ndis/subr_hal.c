@@ -102,8 +102,7 @@ hal_libinit()
 		patch++;
 	}
 
-
-	return(0);
+	return (0);
 }
 
 int
@@ -121,7 +120,7 @@ hal_libfini()
 		patch++;
 	}
 
-	return(0);
+	return (0);
 }
 
 static void
@@ -129,7 +128,6 @@ KeStallExecutionProcessor(usecs)
 	uint32_t		usecs;
 {
 	DELAY(usecs);
-	return;
 }
 
 static void
@@ -138,21 +136,18 @@ WRITE_PORT_ULONG(port, val)
 	uint32_t		val;
 {
 	bus_space_write_4(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port, val);
-	return;
 }
 
 static void
 WRITE_PORT_USHORT(uint16_t *port, uint16_t val)
 {
 	bus_space_write_2(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port, val);
-	return;
 }
 
 static void
 WRITE_PORT_UCHAR(uint8_t *port, uint8_t val)
 {
 	bus_space_write_1(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port, val);
-	return;
 }
 
 static void
@@ -163,7 +158,6 @@ WRITE_PORT_BUFFER_ULONG(port, val, cnt)
 {
 	bus_space_write_multi_4(NDIS_BUS_SPACE_IO, 0x0,
 	    (bus_size_t)port, val, cnt);
-	return;
 }
 
 static void
@@ -174,7 +168,6 @@ WRITE_PORT_BUFFER_USHORT(port, val, cnt)
 {
 	bus_space_write_multi_2(NDIS_BUS_SPACE_IO, 0x0,
 	    (bus_size_t)port, val, cnt);
-	return;
 }
 
 static void
@@ -185,28 +178,27 @@ WRITE_PORT_BUFFER_UCHAR(port, val, cnt)
 {
 	bus_space_write_multi_1(NDIS_BUS_SPACE_IO, 0x0,
 	    (bus_size_t)port, val, cnt);
-	return;
 }
 
 static uint16_t
 READ_PORT_USHORT(port)
 	uint16_t		*port;
 {
-	return(bus_space_read_2(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port));
+	return (bus_space_read_2(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port));
 }
 
 static uint32_t
 READ_PORT_ULONG(port)
 	uint32_t		*port;
 {
-	return(bus_space_read_4(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port));
+	return (bus_space_read_4(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port));
 }
 
 static uint8_t
 READ_PORT_UCHAR(port)
 	uint8_t			*port;
 {
-	return(bus_space_read_1(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port));
+	return (bus_space_read_1(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port));
 }
 
 static void
@@ -217,7 +209,6 @@ READ_PORT_BUFFER_ULONG(port, val, cnt)
 {
 	bus_space_read_multi_4(NDIS_BUS_SPACE_IO, 0x0,
 	    (bus_size_t)port, val, cnt);
-	return;
 }
 
 static void
@@ -228,7 +219,6 @@ READ_PORT_BUFFER_USHORT(port, val, cnt)
 {
 	bus_space_read_multi_2(NDIS_BUS_SPACE_IO, 0x0,
 	    (bus_size_t)port, val, cnt);
-	return;
 }
 
 static void
@@ -239,7 +229,6 @@ READ_PORT_BUFFER_UCHAR(port, val, cnt)
 {
 	bus_space_read_multi_1(NDIS_BUS_SPACE_IO, 0x0,
 	    (bus_size_t)port, val, cnt);
-	return;
 }
 
 /*
@@ -285,7 +274,7 @@ READ_PORT_BUFFER_UCHAR(port, val, cnt)
  * KeAcquireSpinLock() and KeReleaseSpinLock(), but these are just
  * macros that call KfAcquireSpinLock() and KfReleaseSpinLock().
  * KefAcquireSpinLockAtDpcLevel() and KefReleaseSpinLockFromDpcLevel()
- * perform the lock aquisition/release functions without doing the
+ * perform the lock acquisition/release functions without doing the
  * IRQL manipulation, and are used when one is already running at
  * DISPATCH_LEVEL. Make sense? Good.
  *
@@ -370,7 +359,7 @@ KfAcquireSpinLock(lock)
 	KeRaiseIrql(DISPATCH_LEVEL, &oldirql);
 	KeAcquireSpinLockAtDpcLevel(lock);
 
-	return(oldirql);
+	return (oldirql);
 }
 
 void
@@ -378,16 +367,14 @@ KfReleaseSpinLock(kspin_lock *lock, uint8_t newirql)
 {
 	KeReleaseSpinLockFromDpcLevel(lock);
 	KeLowerIrql(newirql);
-
-	return;
 }
 
 uint8_t
 KeGetCurrentIrql()
 {
 	if (mtx_owned(&disp_lock[curthread->td_oncpu]))
-		return(DISPATCH_LEVEL);
-	return(PASSIVE_LEVEL);
+		return (DISPATCH_LEVEL);
+	return (PASSIVE_LEVEL);
 }
 
 static uint64_t
@@ -397,7 +384,7 @@ KeQueryPerformanceCounter(freq)
 	if (freq != NULL)
 		*freq = hz;
 
-	return((uint64_t)ticks);
+	return ((uint64_t)ticks);
 }
 
 uint8_t
@@ -405,19 +392,21 @@ KfRaiseIrql(uint8_t irql)
 {
 	uint8_t			oldirql;
 
+	sched_pin();
 	oldirql = KeGetCurrentIrql();
 
 	/* I am so going to hell for this. */
 	if (oldirql > irql)
-		panic("IRQL_NOT_LESS_THAN");
+		panic("IRQL_NOT_LESS_THAN_OR_EQUAL");
 
-	if (oldirql != DISPATCH_LEVEL) {
-		sched_pin();
+	if (oldirql != DISPATCH_LEVEL) 
 		mtx_lock(&disp_lock[curthread->td_oncpu]);
-	}
+	else
+		sched_unpin();	
+
 /*printf("RAISE IRQL: %d %d\n", irql, oldirql);*/
 
-	return(oldirql);
+	return (oldirql);
 }
 
 void
@@ -431,8 +420,6 @@ KfLowerIrql(uint8_t oldirql)
 
 	mtx_unlock(&disp_lock[curthread->td_oncpu]);
 	sched_unpin();
-
-	return;
 }
 
 static uint8_t
@@ -441,20 +428,18 @@ KeRaiseIrqlToDpcLevel(void)
 	uint8_t			irql;
 
 	KeRaiseIrql(DISPATCH_LEVEL, &irql);
-	return(irql);
+	return (irql);
 }
 
 static void
 _KeLowerIrql(uint8_t oldirql)
 {
 	KeLowerIrql(oldirql);
-	return;
 }
 
 static void dummy()
 {
-	printf ("hal dummy called...\n");
-	return;
+	printf("hal dummy called...\n");
 }
 
 image_patch_table hal_functbl[] = {

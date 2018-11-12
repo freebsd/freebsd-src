@@ -73,14 +73,14 @@ au_login_success(void)
  	if (auditon(A_GETCOND, &au_cond, sizeof(au_cond)) < 0) {
 		if (errno == ENOSYS)
 			return;
-		errx(1, "login: Could not determine audit condition");
+		errx(1, "Could not determine audit condition");
 	}
 	if (au_cond == AUC_NOAUDIT)
 		return;
 
 	/* Compute and set the user's preselection mask. */
 	if (au_user_mask(pwd->pw_name, &aumask) == -1)
-		errx(1, "login: Could not set audit mask\n");
+		errx(1, "Could not set audit mask");
 
 	/* Set the audit info for the user. */
 	auinfo.ai_auid = uid;
@@ -88,22 +88,22 @@ au_login_success(void)
 	bcopy(&tid, &auinfo.ai_termid, sizeof(auinfo.ai_termid));
 	bcopy(&aumask, &auinfo.ai_mask, sizeof(auinfo.ai_mask));
 	if (setaudit(&auinfo) != 0)
-		err(1, "login: setaudit failed");
+		err(1, "setaudit failed");
 
 	if ((aufd = au_open()) == -1)
-		errx(1,"login: Audit Error: au_open() failed");
+		errx(1, "Audit Error: au_open() failed");
 
 	if ((tok = au_to_subject32(uid, geteuid(), getegid(), uid, gid, pid,
 	    pid, &tid)) == NULL)
-		errx(1, "login: Audit Error: au_to_subject32() failed");
+		errx(1, "Audit Error: au_to_subject32() failed");
 	au_write(aufd, tok);
 
 	if ((tok = au_to_return32(0, 0)) == NULL)
-		errx(1, "login: Audit Error: au_to_return32() failed");
+		errx(1, "Audit Error: au_to_return32() failed");
 	au_write(aufd, tok);
 
 	if (au_close(aufd, 1, AUE_login) == -1)
-		errx(1, "login: Audit Record was not committed.");
+		errx(1, "Audit Record was not committed.");
 }
 
 /*
@@ -124,13 +124,13 @@ au_login_fail(const char *errmsg, int na)
  	if (auditon(A_GETCOND, &au_cond, sizeof(au_cond)) < 0) {
 		if (errno == ENOSYS)
 			return;
-		errx(1, "login: Could not determine audit condition");
+		errx(1, "Could not determine audit condition");
 	}
 	if (au_cond == AUC_NOAUDIT)
 		return;
 
 	if ((aufd = au_open()) == -1)
-		errx(1, "login: Audit Error: au_open() failed");
+		errx(1, "Audit Error: au_open() failed");
 
 	if (na) {
 		/*
@@ -139,28 +139,28 @@ au_login_fail(const char *errmsg, int na)
 		 */
 		if ((tok = au_to_subject32(-1, geteuid(), getegid(), -1, -1,
 		    pid, -1, &tid)) == NULL)
-			errx(1, "login: Audit Error: au_to_subject32() failed");
+			errx(1, "Audit Error: au_to_subject32() failed");
 	} else {
 		/* We know the subject -- so use its value instead. */
 		uid = pwd->pw_uid;
 		gid = pwd->pw_gid;
 		if ((tok = au_to_subject32(uid, geteuid(), getegid(), uid,
 		    gid, pid, pid, &tid)) == NULL)
-			errx(1, "login: Audit Error: au_to_subject32() failed");
+			errx(1, "Audit Error: au_to_subject32() failed");
 	}
 	au_write(aufd, tok);
 
 	/* Include the error message. */
 	if ((tok = au_to_text(errmsg)) == NULL)
-		errx(1, "login: Audit Error: au_to_text() failed");
+		errx(1, "Audit Error: au_to_text() failed");
 	au_write(aufd, tok);
 
 	if ((tok = au_to_return32(1, errno)) == NULL)
-		errx(1, "login: Audit Error: au_to_return32() failed");
+		errx(1, "Audit Error: au_to_return32() failed");
 	au_write(aufd, tok);
 
 	if (au_close(aufd, 1, AUE_login) == -1)
-		errx(1, "login: Audit Error: au_close() was not committed");
+		errx(1, "Audit Error: au_close() was not committed");
 }
 
 /*
@@ -181,24 +181,24 @@ audit_logout(void)
  	if (auditon(A_GETCOND, &au_cond, sizeof(int)) < 0) {
 		if (errno == ENOSYS)
 			return;
-		errx(1, "login: Could not determine audit condition");
+		errx(1, "Could not determine audit condition");
 	}
 	if (au_cond == AUC_NOAUDIT)
 		return;
 
 	if ((aufd = au_open()) == -1)
-		errx(1, "login: Audit Error: au_open() failed");
+		errx(1, "Audit Error: au_open() failed");
 
 	/* The subject that is created (euid, egid of the current process). */
 	if ((tok = au_to_subject32(uid, geteuid(), getegid(), uid, gid, pid,
 	    pid, &tid)) == NULL)
-		errx(1, "login: Audit Error: au_to_subject32() failed");
+		errx(1, "Audit Error: au_to_subject32() failed");
 	au_write(aufd, tok);
 
 	if ((tok = au_to_return32(0, 0)) == NULL)
-		errx(1, "login: Audit Error: au_to_return32() failed");
+		errx(1, "Audit Error: au_to_return32() failed");
 	au_write(aufd, tok);
 
 	if (au_close(aufd, 1, AUE_logout) == -1)
-		errx(1, "login: Audit Record was not committed.");
+		errx(1, "Audit Record was not committed.");
 }

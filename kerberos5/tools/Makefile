@@ -1,5 +1,6 @@
 # $FreeBSD$
 
-SUBDIR=	make-print-version make-roken asn1_compile slc
+SUBDIR=	make-roken asn1_compile slc
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

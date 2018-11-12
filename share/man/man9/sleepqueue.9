@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2007
+.Dd September 22, 2014
 .Dt SLEEPQUEUE 9
 .Os
 .Sh NAME
@@ -32,8 +32,6 @@
 .Nm sleepq_add ,
 .Nm sleepq_alloc ,
 .Nm sleepq_broadcast ,
-.Nm sleepq_calc_signal_retval ,
-.Nm sleepq_catch_signals ,
 .Nm sleepq_free ,
 .Nm sleepq_lock ,
 .Nm sleepq_lookup ,
@@ -41,8 +39,11 @@
 .Nm sleepq_remove ,
 .Nm sleepq_signal ,
 .Nm sleepq_set_timeout ,
+.Nm sleepq_set_timeout_sbt ,
+.Nm sleepq_sleepcnt ,
 .Nm sleepq_timedwait ,
 .Nm sleepq_timedwait_sig ,
+.Nm sleepq_type ,
 .Nm sleepq_wait ,
 .Nm sleepq_wait_sig
 .Nd manage the queues of sleeping threads
@@ -59,10 +60,6 @@
 .Fn sleepq_alloc "void"
 .Ft int
 .Fn sleepq_broadcast "void *wchan" "int flags" "int pri" "int queue"
-.Ft int
-.Fn sleepq_calc_signal_retval "int sig"
-.Ft int
-.Fn sleepq_catch_signals "void *wchan"
 .Ft void
 .Fn sleepq_free "struct sleepqueue *sq"
 .Ft struct sleepqueue *
@@ -77,14 +74,21 @@
 .Fn sleepq_signal "void *wchan" "int flags" "int pri" "int queue"
 .Ft void
 .Fn sleepq_set_timeout "void *wchan" "int timo"
-.Ft int
-.Fn sleepq_timedwait "void *wchan"
-.Ft int
-.Fn sleepq_timedwait_sig "void *wchan" "int signal_caught"
 .Ft void
-.Fn sleepq_wait "void *wchan"
+.Fn sleepq_set_timeout_sbt "void *wchan" "sbintime_t sbt" \
+"sbintime_t pr" "int flags"
+.Ft u_int
+.Fn sleepq_sleepcnt "void *wchan" "int queue"
 .Ft int
-.Fn sleepq_wait_sig "void *wchan"
+.Fn sleepq_timedwait "void *wchan" "int pri"
+.Ft int
+.Fn sleepq_timedwait_sig "void *wchan" "int pri"
+.Ft int
+.Fn sleepq_type "void *wchan"
+.Ft void
+.Fn sleepq_wait "void *wchan" "int pri"
+.Ft int
+.Fn sleepq_wait_sig "void *wchan" "int pri"
 .Sh DESCRIPTION
 Sleep queues provide a mechanism for suspending execution of a thread until
 some condition is met.
@@ -195,11 +199,18 @@ A sleep queue used to implement
 .Xr pause 9 .
 .El
 .Pp
-There is currently only one optional flag:
+There are currently two optional flag:
 .Pp
 .Bl -tag -width ".Dv SLEEPQ_INTERRUPTIBLE" -compact
 .It Dv SLEEPQ_INTERRUPTIBLE
 The current thread is entering an interruptible sleep.
+.El
+.Bl -tag -width ".Dv SLEEPQ_STOP_ON_BDRY" -compact
+.It Dv SLEEPQ_STOP_ON_BDRY
+When thread is entering an interruptible sleep, do not stop it upon
+arrival of stop action, like
+.Dv SIGSTOP .
+Wake it up instead.
 .El
 .Pp
 A timeout on the sleep may be specified by calling
@@ -218,17 +229,22 @@ The
 .Fa timo
 parameter should specify the timeout value in ticks.
 .Pp
-The current thread may be marked interruptible by calling
-.Fn sleepq_catch_signals
-with
-.Fa wchan
-set to the wait channel.
-This function returns a signal number if there are any pending signals for
-the current thread and 0 if there is not a pending signal.
-The sleep queue chain associated with argument
-.Fa wchan
-should have been locked by a prior call to
-.Fn sleepq_lock .
+.Fn sleepq_set_timeout_sbt
+function takes
+.Fa sbt
+argument instead of
+.Fa timo .
+It allows to specify relative or absolute wakeup time with higher resolution
+in form of
+.Vt sbintime_t .
+The parameter
+.Fa pr
+allows to specify wanted absolute event precision.
+The parameter
+.Fa flags
+allows to pass additional
+.Fn callout_reset_sbt
+flags.
 .Pp
 Once the thread is ready to suspend,
 one of the wait functions is called to put the current thread to sleep
@@ -255,12 +271,9 @@ The sleep queue chain associated with argument
 needs to have been locked with a prior call to
 .Fn sleepq_lock .
 The
-.Fa signal_caught
-parameter to
-.Fn sleepq_timedwait_sig
-specifies if a previous call to
-.Fn sleepq_catch_signals
-found a pending signal.
+.Fa pri
+argument is used to set the priority of the thread when it is awakened.
+If it is set to zero, the thread's priority is left alone.
 .Pp
 When the thread is resumed,
 the wait functions return a non-zero value if the thread was awakened due to
@@ -270,20 +283,6 @@ If the sleep timed out, then
 is returned.
 If the sleep was interrupted by something other than a signal,
 then some other return value will be returned.
-If zero is returned after resuming from an interruptible sleep,
-then
-.Fn sleepq_calc_signal_retval
-should be called to determine if the sleep was interrupted by a signal.
-If so,
-.Fn sleepq_calc_signal_retval
-returns
-.Er ERESTART
-if the interrupting signal is restartable and
-.Er EINTR
-otherwise.
-If the sleep was not interrupted by a signal,
-.Fn sleepq_calc_signal_retval
-will return 0.
 .Pp
 A sleeping thread is normally resumed by the
 .Fn sleepq_broadcast
@@ -338,7 +337,7 @@ argument specifies the thread to awaken and the
 argument specifies the wait channel to awaken it from.
 If the thread
 .Fa td
-is not blocked on the the wait channel
+is not blocked on the wait channel
 .Fa wchan
 then this function will not do anything,
 even if the thread is asleep on a different wait channel.
@@ -346,6 +345,20 @@ This function should only be used if one of the other functions above is not
 sufficient.
 One possible use is waking up a specific thread from a widely shared sleep
 channel.
+.Pp
+The
+.Fn sleepq_sleepcnt
+function offer a simple way to retrieve the number of threads sleeping for
+the specified
+.Fa queue ,
+given a
+.Fa wchan .
+.Pp
+The
+.Fn sleepq_type
+function returns the type of
+.Fa wchan
+associated to a sleepqueue.
 .Pp
 The
 .Fn sleepq_abort ,
@@ -373,4 +386,5 @@ than manipulating sleep queues directly.
 .Xr condvar 9 ,
 .Xr runqueue 9 ,
 .Xr scheduler 9 ,
-.Xr sleep 9
+.Xr sleep 9 ,
+.Xr timeout 9

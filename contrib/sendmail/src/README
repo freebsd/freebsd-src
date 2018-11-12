@@ -1,4 +1,4 @@
-# Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2004 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988
@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.391 2008/02/12 16:38:21 ca Exp $
+#	$Id: README,v 8.393 2013-11-22 20:51:54 ca Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -31,7 +31,8 @@ For detailed instructions, please read the document ../doc/op/op.me:
 
 	cd ../doc/op ; make op.ps op.txt
 
-Sendmail is a trademark of Sendmail, Inc.
+Sendmail is a trademark of Proofpoint, Inc.
+US Patent Numbers 6865671, 6986037.
 
 
 +-------------------+
@@ -188,9 +189,10 @@ replies are text based and encoded as netstrings.  The socket map
 uses the same syntax as milters the specify the remote endpoint,
 e.g.:
 
-Ksocket mySocketMap inet:12345@127.0.0.1
+KmySocketMap socket inet:12345@127.0.0.1
 
 See doc/op/op.me for details.
+
 
 +---------------+
 | COMPILE FLAGS |
@@ -629,8 +631,7 @@ EGD		Define this if your system has EGD installed, see
 		http://egd.sourceforge.net/ .  It should be used to
 		seed the PRNG for STARTTLS if HASURANDOMDEV is not defined.
 STARTTLS	Enables SMTP STARTTLS (RFC 2487).  This requires OpenSSL
-		(http://www.OpenSSL.org/); use OpenSSL 0.9.5a or later
-		(if compatible with this version), do not use 0.9.3.
+		(http://www.OpenSSL.org/); use OpenSSL 0.9.8zc or later.
 		See STARTTLS COMPILATION AND CONFIGURATION for further
 		information.
 TLS_NO_RSA	Turn off support for RSA algorithms in STARTTLS.
@@ -652,6 +653,9 @@ REQUIRES_DIR_FSYNC	Turn on support for file systems that require to
 		chattr +S on Linux.
 DBMMODE		The default file permissions to use when creating new
 		database files for maps and aliases.  Defaults to 0640.
+IPV6_FULL	Use uncompressed IPv6 addresses (set by default).  This
+		permits a zero subnet to have a more specific match,
+		such as different map entries for IPv6:0:0 vs IPv6:0.
 
 Generic notice: If you enable a compile time option that needs
 libraries or include files that don't come with sendmail or are
@@ -1732,6 +1736,7 @@ Fedora Core 5, 64 bit version
 	Problem noted by Daniel Krones, solution suggested by
 	Anthony Howe.
 
+
 +--------------+
 | MANUAL PAGES |
 +--------------+
@@ -1847,4 +1852,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.391 $, last update $Date: 2008/02/12 16:38:21 $ )
+(Version $Revision: 8.393 $, last update $Date: 2013-11-22 20:51:54 $ )

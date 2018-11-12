@@ -124,8 +124,6 @@ only one of these two forms, whichever one is not the default.
 * Invoking G++::	Compiling C++ programs.
 * C Dialect Options::   Controlling the variant of C language compiled.
 * C++ Dialect Options:: Variations on C++.
-* Objective-C and Objective-C++ Dialect Options:: Variations on Objective-C
-                        and Objective-C++.
 * Language Independent Options:: Controlling how diagnostics should be
                         formatted.
 * Warning Options::     How picky should the compiler be?
@@ -166,11 +164,16 @@ in the following sections.
 @xref{C Dialect Options,,Options Controlling C Dialect}.
 @gccoptlist{-ansi  -std=@var{standard}  -fgnu89-inline @gol
 -aux-info @var{filename} @gol
--fno-asm  -fno-builtin  -fno-builtin-@var{function} @gol
+@c APPLE LOCAL blocks 7205047 5811887
+-fno-asm  -fno-blocks -fno-builtin  -fno-builtin-@var{function} @gol
 -fhosted  -ffreestanding -fopenmp -fms-extensions @gol
 -trigraphs  -no-integrated-cpp  -traditional  -traditional-cpp @gol
--fallow-single-precision  -fcond-mismatch @gol
+-fallow-single-precision  -fcond-mismatch -flax-vector-conversions @gol
+@c APPLE LOCAL nested functions 4357979 */
+-fno-nested-functions @gol
 -fsigned-bitfields  -fsigned-char @gol
+@c APPLE LOCAL -Wnewline-eof 2001-08-23 --sts **
+-Wnewline-eof (Apple compatible) @gol
 -funsigned-bitfields  -funsigned-char}
 
 @item C++ Language Options
@@ -188,30 +191,13 @@ in the following sections.
 -frepo  -fno-rtti  -fstats  -ftemplate-depth-@var{n} @gol
 -fno-threadsafe-statics -fuse-cxa-atexit  -fno-weak  -nostdinc++ @gol
 -fno-default-inline  -fvisibility-inlines-hidden @gol
+-fvisibility-ms-compat @gol
 -Wabi  -Wctor-dtor-privacy @gol
 -Wnon-virtual-dtor  -Wreorder @gol
 -Weffc++  -Wno-deprecated  -Wstrict-null-sentinel @gol
 -Wno-non-template-friend  -Wold-style-cast @gol
 -Woverloaded-virtual  -Wno-pmf-conversions @gol
 -Wsign-promo}
-
-@item Objective-C and Objective-C++ Language Options
-@xref{Objective-C and Objective-C++ Dialect Options,,Options Controlling
-Objective-C and Objective-C++ Dialects}.
-@gccoptlist{-fconstant-string-class=@var{class-name} @gol
--fgnu-runtime  -fnext-runtime @gol
--fno-nil-receivers @gol
--fobjc-call-cxx-cdtors @gol
--fobjc-direct-dispatch @gol
--fobjc-exceptions @gol
--fobjc-gc @gol
--freplace-objc-classes @gol
--fzero-link @gol
--gen-decls @gol
--Wassign-intercept @gol
--Wno-protocol  -Wselector @gol
--Wstrict-selector-match @gol
--Wundeclared-selector}
 
 @item Language Independent Options
 @xref{Language Independent Options,,Options to Control Diagnostic Messages Formatting}.
@@ -234,10 +220,15 @@ Objective-C and Objective-C++ Dialects}.
 -Wimport  -Wno-import  -Winit-self  -Winline @gol
 -Wno-int-to-pointer-cast @gol
 -Wno-invalid-offsetof  -Winvalid-pch @gol
--Wlarger-than-@var{len}  -Wunsafe-loop-optimizations  -Wlong-long @gol
+-Wlarger-than-@var{len}  -Wframe-larger-than-@var{len} @gol
+-Wunsafe-loop-optimizations  -Wlong-long @gol
 -Wmain  -Wmissing-braces  -Wmissing-field-initializers @gol
 -Wmissing-format-attribute  -Wmissing-include-dirs @gol
 -Wmissing-noreturn @gol
+@c APPLE LOCAL warn missing prototype 6261539
+-Wmissing-prototypes @gol
+@c APPLE LOCAL -Wmost
+-Wmost (APPLE ONLY) @gol
 -Wno-multichar  -Wnonnull  -Wno-overflow @gol
 -Woverlength-strings  -Wpacked  -Wpadded @gol
 -Wparentheses  -Wpointer-arith  -Wno-pointer-to-int-cast @gol
@@ -250,12 +241,14 @@ Objective-C and Objective-C++ Dialects}.
 -Wsystem-headers  -Wtrigraphs  -Wundef  -Wuninitialized @gol
 -Wunknown-pragmas  -Wno-pragmas -Wunreachable-code @gol
 -Wunused  -Wunused-function  -Wunused-label  -Wunused-parameter @gol
--Wunused-value  -Wunused-variable  -Wvariadic-macros @gol
+-Wunused-value  -Wunused-variable @gol
+-Wvariadic-macros -Wvla @gol
 -Wvolatile-register-var  -Wwrite-strings}
 
 @item C-only Warning Options
 @gccoptlist{-Wbad-function-cast  -Wmissing-declarations @gol
--Wmissing-prototypes  -Wnested-externs  -Wold-style-definition @gol
+@c APPLE LOCAL warn missing prototype 6261539
+-Wnested-externs  -Wold-style-definition @gol
 -Wstrict-prototypes  -Wtraditional @gol
 -Wdeclaration-after-statement -Wpointer-sign}
 
@@ -294,6 +287,8 @@ Objective-C and Objective-C++ Dialects}.
 -ftest-coverage  -ftime-report -fvar-tracking @gol
 -g  -g@var{level}  -gcoff -gdwarf-2 @gol
 -ggdb  -gstabs  -gstabs+  -gvms  -gxcoff  -gxcoff+ @gol
+-femit-struct-debug-baseonly -femit-struct-debug-reduced @gol
+-femit-struct-debug-detailed@r{[}=@var{spec-list}@r{]} @gol
 -p  -pg  -print-file-name=@var{library}  -print-libgcc-file-name @gol
 -print-multi-directory  -print-multi-lib @gol
 -print-prog-name=@var{program}  -print-search-dirs  -Q @gol
@@ -336,7 +331,7 @@ Objective-C and Objective-C++ Dialects}.
 -fsched2-use-superblocks @gol
 -fsched2-use-traces -fsee -freschedule-modulo-scheduled-loops @gol
 -fsection-anchors  -fsignaling-nans  -fsingle-precision-constant @gol
--fstack-protector  -fstack-protector-all @gol
+-fstack-protector  -fstack-protector-all  -fstack-protector-strong @gol
 -fstrict-aliasing  -fstrict-overflow  -ftracer  -fthread-jumps @gol
 -funroll-all-loops  -funroll-loops  -fpeel-loops @gol
 -fsplit-ivs-in-unroller -funswitch-loops @gol
@@ -533,7 +528,7 @@ Objective-C and Objective-C++ Dialects}.
 -mno-fp-ret-in-387  -msoft-float  -msvr3-shlib @gol
 -mno-wide-multiply  -mrtd  -malign-double @gol
 -mpreferred-stack-boundary=@var{num} @gol
--mmmx  -msse  -msse2 -msse3 -m3dnow @gol
+-mmmx  -msse  -msse2 -msse3 -mssse3 -msse4a -m3dnow -mpopcnt -mabm -maes @gol
 -mthreads  -mno-align-stringops  -minline-all-stringops @gol
 -mpush-args  -maccumulate-outgoing-args  -m128bit-long-double @gol
 -m96bit-long-double  -mregparm=@var{num}  -msseregparm @gol
@@ -775,6 +770,8 @@ See S/390 and zSeries Options.
 -fnon-call-exceptions  -funwind-tables @gol
 -fasynchronous-unwind-tables @gol
 -finhibit-size-directive  -finstrument-functions @gol
+-finstrument-functions-exclude-function-list=@var{sym},@var{sym},@dots{} @gol
+-finstrument-functions-exclude-file-list=@var{file},@var{file},@dots{} @gol
 -fno-common  -fno-ident @gol
 -fpcc-struct-return  -fpic  -fPIC -fpie -fPIE @gol
 -fno-jump-tables @gol
@@ -795,8 +792,6 @@ See S/390 and zSeries Options.
                         or preprocessed source.
 * C Dialect Options::   Controlling the variant of C language compiled.
 * C++ Dialect Options:: Variations on C++.
-* Objective-C and Objective-C++ Dialect Options:: Variations on Objective-C
-                        and Objective-C++.
 * Language Independent Options:: Controlling how diagnostics should be
                         formatted.
 * Warning Options::     How picky should the compiler be?
@@ -837,25 +832,8 @@ C source code which should not be preprocessed.
 @item @var{file}.ii
 C++ source code which should not be preprocessed.
 
-@item @var{file}.m
-Objective-C source code.  Note that you must link with the @file{libobjc}
-library to make an Objective-C program work.
-
-@item @var{file}.mi
-Objective-C source code which should not be preprocessed.
-
-@item @var{file}.mm
-@itemx @var{file}.M
-Objective-C++ source code.  Note that you must link with the @file{libobjc}
-library to make an Objective-C++ program work.  Note that @samp{.M} refers
-to a literal capital M@.
-
-@item @var{file}.mii
-Objective-C++ source code which should not be preprocessed.
-
 @item @var{file}.h
-C, C++, Objective-C or Objective-C++ header file to be turned into a
-precompiled header.
+C, or C++ header file to be turned into a precompiled header.
 
 @item @var{file}.cc
 @itemx @var{file}.cp
@@ -867,13 +845,6 @@ precompiled header.
 C++ source code which must be preprocessed.  Note that in @samp{.cxx},
 the last two letters must both be literally @samp{x}.  Likewise,
 @samp{.C} refers to a literal capital C@.
-
-@item @var{file}.mm
-@itemx @var{file}.M
-Objective-C++ source code which must be preprocessed.
-
-@item @var{file}.mii
-Objective-C++ source code which should not be preprocessed.
 
 @item @var{file}.hh
 @itemx @var{file}.H
@@ -946,8 +917,6 @@ the next @option{-x} option.  Possible values for @var{language} are:
 @smallexample
 c  c-header  c-cpp-output
 c++  c++-header  c++-cpp-output
-objective-c  objective-c-header  objective-c-cpp-output
-objective-c++ objective-c++-header objective-c++-cpp-output
 assembler  assembler-with-cpp
 ada
 f95  f95-cpp-input
@@ -1121,8 +1090,7 @@ explanations of options that are meaningful only for C++ programs.
 @cindex options, dialect
 
 The following options control the dialect of C (or languages derived
-from C, such as C++, Objective-C and Objective-C++) that the compiler
-accepts:
+from C, such as C++) that the compiler accepts:
 
 @table @gcctabopt
 @cindex ANSI support
@@ -1268,6 +1236,16 @@ effect.  In C99 mode (@option{-std=c99} or @option{-std=gnu99}), this
 switch only affects the @code{asm} and @code{typeof} keywords, since
 @code{inline} is a standard keyword in ISO C99.
 
+@c APPLE LOCAL begin blocks 7205047 5811887
+@item -fno-blocks
+@opindex fno-blocks
+Disable the use of blocks.  In @option{-std=c99} mode, blocks are
+turned off by default.  @option{-fblocks} can be used to re-enable the
+feature, if off.  Runtime support for blocks first appeared in Mac OS
+X 10.6.  When targeting 10.6 (see @option{-mmacosx-version-min}) and
+later, the extension is on by default.
+@c APPLE LOCAL end blocks 7205047 5811887
+
 @item -fno-builtin
 @itemx -fno-builtin-@var{function}
 @opindex fno-builtin
@@ -1374,11 +1352,24 @@ C compiler.  They are now only supported with the @option{-E} switch.
 The preprocessor continues to support a pre-standard mode.  See the GNU
 CPP manual for details.
 
+@c APPLE LOCAL begin nested functions 4357979
+@item -fno-nested-functions
+@opindex fno-nested-functions
+Disable nested functions.  This option is not supported for C++ or
+Objective-C++.  On FreeBSD, nested functions are disabled by default.
+@c APPLE LOCAL end nested functions 4357979
+
 @item -fcond-mismatch
 @opindex fcond-mismatch
 Allow conditional expressions with mismatched types in the second and
 third arguments.  The value of such an expression is void.  This option
 is not supported for C++.
+
+@item -flax-vector-conversions
+@opindex flax-vector-conversions
+Allow implicit conversions between vectors with differing numbers of
+elements and/or incompatible element types.  This option should not be
+used for new code.
 
 @item -funsigned-char
 @opindex funsigned-char
@@ -1662,6 +1653,40 @@ visibility will have no effect.
 Explicitly instantiated inline methods are unaffected by this option
 as their linkage might otherwise cross a shared library boundary.
 @xref{Template Instantiation}.
+
+@item -fvisibility-ms-compat
+@opindex fvisibility-ms-compat
+This flag attempts to use visibility settings to make GCC's C++
+linkage model compatible with that of Microsoft Visual Studio.
+
+The flag makes these changes to GCC's linkage model:
+
+@enumerate
+@item
+It sets the default visibility to @code{hidden}, like
+@option{-fvisibility=hidden}.
+
+@item
+Types, but not their members, are not hidden by default.
+
+@item
+The One Definition Rule is relaxed for types without explicit
+visibility specifications which are defined in more than one different
+shared object: those declarations are permitted if they would have
+been permitted when this option was not used.
+@end enumerate
+
+In new code it is better to use @option{-fvisibility=hidden} and
+export those classes which are intended to be externally visible.
+Unfortunately it is possible for code to rely, perhaps accidentally,
+on the Visual Studio behaviour.
+
+Among the consequences of these changes are that static data members
+of the same type with the same name but defined in different shared
+objects will be different, so changing one will not change the other;
+and that pointers to function members defined in different shared
+objects may not compare equal.  When this flag is given, it is a
+violation of the ODR to define types with the same name differently.
 
 @item -fno-weak
 @opindex fno-weak
@@ -1955,278 +1980,6 @@ In this example, G++ will synthesize a default @samp{A& operator =
 (const A&);}, while cfront will use the user-defined @samp{operator =}.
 @end table
 
-@node Objective-C and Objective-C++ Dialect Options
-@section Options Controlling Objective-C and Objective-C++ Dialects
-
-@cindex compiler options, Objective-C and Objective-C++
-@cindex Objective-C and Objective-C++ options, command line
-@cindex options, Objective-C and Objective-C++
-(NOTE: This manual does not describe the Objective-C and Objective-C++
-languages themselves.  See @xref{Standards,,Language Standards
-Supported by GCC}, for references.)
-
-This section describes the command-line options that are only meaningful
-for Objective-C and Objective-C++ programs, but you can also use most of
-the language-independent GNU compiler options.
-For example, you might compile a file @code{some_class.m} like this:
-
-@smallexample
-gcc -g -fgnu-runtime -O -c some_class.m
-@end smallexample
-
-@noindent
-In this example, @option{-fgnu-runtime} is an option meant only for
-Objective-C and Objective-C++ programs; you can use the other options with
-any language supported by GCC@.
-
-Note that since Objective-C is an extension of the C language, Objective-C
-compilations may also use options specific to the C front-end (e.g.,
-@option{-Wtraditional}).  Similarly, Objective-C++ compilations may use
-C++-specific options (e.g., @option{-Wabi}).
-
-Here is a list of options that are @emph{only} for compiling Objective-C
-and Objective-C++ programs:
-
-@table @gcctabopt
-@item -fconstant-string-class=@var{class-name}
-@opindex fconstant-string-class
-Use @var{class-name} as the name of the class to instantiate for each
-literal string specified with the syntax @code{@@"@dots{}"}.  The default
-class name is @code{NXConstantString} if the GNU runtime is being used, and
-@code{NSConstantString} if the NeXT runtime is being used (see below).  The
-@option{-fconstant-cfstrings} option, if also present, will override the
-@option{-fconstant-string-class} setting and cause @code{@@"@dots{}"} literals
-to be laid out as constant CoreFoundation strings.
-
-@item -fgnu-runtime
-@opindex fgnu-runtime
-Generate object code compatible with the standard GNU Objective-C
-runtime.  This is the default for most types of systems.
-
-@item -fnext-runtime
-@opindex fnext-runtime
-Generate output compatible with the NeXT runtime.  This is the default
-for NeXT-based systems, including Darwin and Mac OS X@.  The macro
-@code{__NEXT_RUNTIME__} is predefined if (and only if) this option is
-used.
-
-@item -fno-nil-receivers
-@opindex fno-nil-receivers
-Assume that all Objective-C message dispatches (e.g.,
-@code{[receiver message:arg]}) in this translation unit ensure that the receiver
-is not @code{nil}.  This allows for more efficient entry points in the runtime
-to be used.  Currently, this option is only available in conjunction with
-the NeXT runtime on Mac OS X 10.3 and later.
-
-@item -fobjc-call-cxx-cdtors
-@opindex fobjc-call-cxx-cdtors
-For each Objective-C class, check if any of its instance variables is a
-C++ object with a non-trivial default constructor.  If so, synthesize a
-special @code{- (id) .cxx_construct} instance method that will run
-non-trivial default constructors on any such instance variables, in order,
-and then return @code{self}.  Similarly, check if any instance variable
-is a C++ object with a non-trivial destructor, and if so, synthesize a
-special @code{- (void) .cxx_destruct} method that will run
-all such default destructors, in reverse order.
-
-The @code{- (id) .cxx_construct} and/or @code{- (void) .cxx_destruct} methods
-thusly generated will only operate on instance variables declared in the
-current Objective-C class, and not those inherited from superclasses.  It
-is the responsibility of the Objective-C runtime to invoke all such methods
-in an object's inheritance hierarchy.  The @code{- (id) .cxx_construct} methods
-will be invoked by the runtime immediately after a new object
-instance is allocated; the @code{- (void) .cxx_destruct} methods will
-be invoked immediately before the runtime deallocates an object instance.
-
-As of this writing, only the NeXT runtime on Mac OS X 10.4 and later has
-support for invoking the @code{- (id) .cxx_construct} and
-@code{- (void) .cxx_destruct} methods.
-
-@item -fobjc-direct-dispatch
-@opindex fobjc-direct-dispatch
-Allow fast jumps to the message dispatcher.  On Darwin this is
-accomplished via the comm page.
-
-@item -fobjc-exceptions
-@opindex fobjc-exceptions
-Enable syntactic support for structured exception handling in Objective-C,
-similar to what is offered by C++ and Java.  This option is
-unavailable in conjunction with the NeXT runtime on Mac OS X 10.2 and
-earlier.
-
-@smallexample
-  @@try @{
-    @dots{}
-       @@throw expr;
-    @dots{}
-  @}
-  @@catch (AnObjCClass *exc) @{
-    @dots{}
-      @@throw expr;
-    @dots{}
-      @@throw;
-    @dots{}
-  @}
-  @@catch (AnotherClass *exc) @{
-    @dots{}
-  @}
-  @@catch (id allOthers) @{
-    @dots{}
-  @}
-  @@finally @{
-    @dots{}
-      @@throw expr;
-    @dots{}
-  @}
-@end smallexample
-
-The @code{@@throw} statement may appear anywhere in an Objective-C or
-Objective-C++ program; when used inside of a @code{@@catch} block, the
-@code{@@throw} may appear without an argument (as shown above), in which case
-the object caught by the @code{@@catch} will be rethrown.
-
-Note that only (pointers to) Objective-C objects may be thrown and
-caught using this scheme.  When an object is thrown, it will be caught
-by the nearest @code{@@catch} clause capable of handling objects of that type,
-analogously to how @code{catch} blocks work in C++ and Java.  A
-@code{@@catch(id @dots{})} clause (as shown above) may also be provided to catch
-any and all Objective-C exceptions not caught by previous @code{@@catch}
-clauses (if any).
-
-The @code{@@finally} clause, if present, will be executed upon exit from the
-immediately preceding @code{@@try @dots{} @@catch} section.  This will happen
-regardless of whether any exceptions are thrown, caught or rethrown
-inside the @code{@@try @dots{} @@catch} section, analogously to the behavior
-of the @code{finally} clause in Java.
-
-There are several caveats to using the new exception mechanism:
-
-@itemize @bullet
-@item
-Although currently designed to be binary compatible with @code{NS_HANDLER}-style
-idioms provided by the @code{NSException} class, the new
-exceptions can only be used on Mac OS X 10.3 (Panther) and later
-systems, due to additional functionality needed in the (NeXT) Objective-C
-runtime.
-
-@item
-As mentioned above, the new exceptions do not support handling
-types other than Objective-C objects.   Furthermore, when used from
-Objective-C++, the Objective-C exception model does not interoperate with C++
-exceptions at this time.  This means you cannot @code{@@throw} an exception
-from Objective-C and @code{catch} it in C++, or vice versa
-(i.e., @code{throw @dots{} @@catch}).
-@end itemize
-
-The @option{-fobjc-exceptions} switch also enables the use of synchronization
-blocks for thread-safe execution:
-
-@smallexample
-  @@synchronized (ObjCClass *guard) @{
-    @dots{}
-  @}
-@end smallexample
-
-Upon entering the @code{@@synchronized} block, a thread of execution shall
-first check whether a lock has been placed on the corresponding @code{guard}
-object by another thread.  If it has, the current thread shall wait until
-the other thread relinquishes its lock.  Once @code{guard} becomes available,
-the current thread will place its own lock on it, execute the code contained in
-the @code{@@synchronized} block, and finally relinquish the lock (thereby
-making @code{guard} available to other threads).
-
-Unlike Java, Objective-C does not allow for entire methods to be marked
-@code{@@synchronized}.  Note that throwing exceptions out of
-@code{@@synchronized} blocks is allowed, and will cause the guarding object
-to be unlocked properly.
-
-@item -fobjc-gc
-@opindex fobjc-gc
-Enable garbage collection (GC) in Objective-C and Objective-C++ programs.
-
-@item -freplace-objc-classes
-@opindex freplace-objc-classes
-Emit a special marker instructing @command{ld(1)} not to statically link in
-the resulting object file, and allow @command{dyld(1)} to load it in at
-run time instead.  This is used in conjunction with the Fix-and-Continue
-debugging mode, where the object file in question may be recompiled and
-dynamically reloaded in the course of program execution, without the need
-to restart the program itself.  Currently, Fix-and-Continue functionality
-is only available in conjunction with the NeXT runtime on Mac OS X 10.3
-and later.
-
-@item -fzero-link
-@opindex fzero-link
-When compiling for the NeXT runtime, the compiler ordinarily replaces calls
-to @code{objc_getClass("@dots{}")} (when the name of the class is known at
-compile time) with static class references that get initialized at load time,
-which improves run-time performance.  Specifying the @option{-fzero-link} flag
-suppresses this behavior and causes calls to @code{objc_getClass("@dots{}")}
-to be retained.  This is useful in Zero-Link debugging mode, since it allows
-for individual class implementations to be modified during program execution.
-
-@item -gen-decls
-@opindex gen-decls
-Dump interface declarations for all classes seen in the source file to a
-file named @file{@var{sourcename}.decl}.
-
-@item -Wassign-intercept
-@opindex Wassign-intercept
-Warn whenever an Objective-C assignment is being intercepted by the
-garbage collector.
-
-@item -Wno-protocol
-@opindex Wno-protocol
-If a class is declared to implement a protocol, a warning is issued for
-every method in the protocol that is not implemented by the class.  The
-default behavior is to issue a warning for every method not explicitly
-implemented in the class, even if a method implementation is inherited
-from the superclass.  If you use the @option{-Wno-protocol} option, then
-methods inherited from the superclass are considered to be implemented,
-and no warning is issued for them.
-
-@item -Wselector
-@opindex Wselector
-Warn if multiple methods of different types for the same selector are
-found during compilation.  The check is performed on the list of methods
-in the final stage of compilation.  Additionally, a check is performed
-for each selector appearing in a @code{@@selector(@dots{})}
-expression, and a corresponding method for that selector has been found
-during compilation.  Because these checks scan the method table only at
-the end of compilation, these warnings are not produced if the final
-stage of compilation is not reached, for example because an error is
-found during compilation, or because the @option{-fsyntax-only} option is
-being used.
-
-@item -Wstrict-selector-match
-@opindex Wstrict-selector-match
-Warn if multiple methods with differing argument and/or return types are
-found for a given selector when attempting to send a message using this
-selector to a receiver of type @code{id} or @code{Class}.  When this flag
-is off (which is the default behavior), the compiler will omit such warnings
-if any differences found are confined to types which share the same size
-and alignment.
-
-@item -Wundeclared-selector
-@opindex Wundeclared-selector
-Warn if a @code{@@selector(@dots{})} expression referring to an
-undeclared selector is found.  A selector is considered undeclared if no
-method with that name has been declared before the
-@code{@@selector(@dots{})} expression, either explicitly in an
-@code{@@interface} or @code{@@protocol} declaration, or implicitly in
-an @code{@@implementation} section.  This option always performs its
-checks as soon as a @code{@@selector(@dots{})} expression is found,
-while @option{-Wselector} only performs its checks in the final stage of
-compilation.  This also enforces the coding style convention
-that methods and selectors must be declared before being used.
-
-@item -print-objc-runtime-info
-@opindex print-objc-runtime-info
-Generate C header describing the largest structure that is passed by
-value, if any.
-
-@end table
-
 @node Language Independent Options
 @section Options to Control Diagnostic Messages Formatting
 @cindex options to control diagnostics formatting
@@ -2294,8 +2047,7 @@ two forms, whichever is not the default.
 
 The following options control the amount and kinds of warnings produced
 by GCC; for further, language-specific options also refer to
-@ref{C++ Dialect Options} and @ref{Objective-C and Objective-C++ Dialect
-Options}.
+@ref{C++ Dialect Options}.
 
 @table @gcctabopt
 @cindex syntax checking
@@ -2356,6 +2108,12 @@ Inhibit all warning messages.
 @item -Wno-import
 @opindex Wno-import
 Inhibit warning messages about the use of @samp{#import}.
+
+@c APPLE LOCAL begin -Wnewline-eof 2001-08-23 --sts **
+@item -Wnewline-eof
+@opindex Wnewline-eof
+Warn about files missing a newline at the end of the file.  (Apple compatible)
+@c APPLE LOCAL end -Wnewline-eof 2001-08-23 --sts **
 
 @item -Wchar-subscripts
 @opindex Wchar-subscripts
@@ -2468,7 +2226,7 @@ requiring a non-null value by the @code{nonnull} function attribute.
 @option{-Wnonnull} is included in @option{-Wall} and @option{-Wformat}.  It
 can be disabled with the @option{-Wno-nonnull} option.
 
-@item -Winit-self @r{(C, C++, Objective-C and Objective-C++ only)}
+@item -Winit-self @r{(C and C++ only)}
 @opindex Winit-self
 Warn about uninitialized variables which are initialized with themselves.
 Note this option can only be used with the @option{-Wuninitialized} option,
@@ -2525,7 +2283,7 @@ int b[2][2] = @{ @{ 0, 1 @}, @{ 2, 3 @} @};
 
 This warning is enabled by @option{-Wall}.
 
-@item -Wmissing-include-dirs @r{(C, C++, Objective-C and Objective-C++ only)}
+@item -Wmissing-include-dirs @r{(C and C++ only)}
 @opindex Wmissing-include-dirs
 Warn if a user-supplied include directory does not exist.
 
@@ -2534,9 +2292,7 @@ Warn if a user-supplied include directory does not exist.
 Warn if parentheses are omitted in certain contexts, such
 as when there is an assignment in a context where a truth value
 is expected, or when operators are nested whose precedence people
-often get confused about.  Only the warning for an assignment used as
-a truth value is supported when compiling C++; the other warnings are
-only supported when compiling C@.
+often get confused about.
 
 Also warn if a comparison like @samp{x<=y<=z} appears; this is
 equivalent to @samp{(x<=y ? 1 : 0) <= z}, which is a different
@@ -2558,14 +2314,15 @@ such a case:
 @end group
 @end smallexample
 
-In C, every @code{else} branch belongs to the innermost possible @code{if}
-statement, which in this example is @code{if (b)}.  This is often not
-what the programmer expected, as illustrated in the above example by
-indentation the programmer chose.  When there is the potential for this
-confusion, GCC will issue a warning when this flag is specified.
-To eliminate the warning, add explicit braces around the innermost
-@code{if} statement so there is no way the @code{else} could belong to
-the enclosing @code{if}.  The resulting code would look like this:
+In C/C++, every @code{else} branch belongs to the innermost possible
+@code{if} statement, which in this example is @code{if (b)}.  This is
+often not what the programmer expected, as illustrated in the above
+example by indentation the programmer chose.  When there is the
+potential for this confusion, GCC will issue a warning when this flag
+is specified.  To eliminate the warning, add explicit braces around
+the innermost @code{if} statement so there is no way the @code{else}
+could belong to the enclosing @code{if}.  The resulting code would
+look like this:
 
 @smallexample
 @group
@@ -2825,14 +2582,40 @@ It warns about code which might break the strict aliasing rules that the
 compiler is using for optimization.  The warning does not catch all
 cases, but does attempt to catch the more common pitfalls.  It is
 included in @option{-Wall}.
+It is equivalent to -Wstrict-aliasing=3
 
-@item -Wstrict-aliasing=2
-@opindex Wstrict-aliasing=2
+@item -Wstrict-aliasing=n
+@opindex Wstrict-aliasing=n
 This option is only active when @option{-fstrict-aliasing} is active.
 It warns about code which might break the strict aliasing rules that the
-compiler is using for optimization.  This warning catches more cases than
-@option{-Wstrict-aliasing}, but it will also give a warning for some ambiguous
-cases that are safe.
+compiler is using for optimization.
+Higher levels correspond to higher accuracy (fewer false positives).
+Higher levels also correspond to more effort, similar to the way -O works.
+@option{-Wstrict-aliasing} is equivalent to @option{-Wstrict-aliasing=n},
+with n=3.
+
+Level 1: Most aggressive, quick, least accurate.
+Possibly useful when higher levels
+do not warn but -fstrict-aliasing still breaks the code, as it has very few 
+false negatives.  However, it has many false positives.
+Warns for all pointer conversions between possibly incompatible types, 
+even if never dereferenced.  Runs in the frontend only.
+
+Level 2: Aggressive, quick, not too precise.
+May still have many false positives (not as many as level 1 though),
+and few false negatives (but possibly more than level 1).
+Unlike level 1, it only warns when an address is taken.  Warns about
+incomplete types.  Runs in the frontend only.
+
+Level 3 (default for @option{-Wstrict-aliasing}): 
+Should have very few false positives and few false 
+negatives.  Slightly slower than levels 1 or 2 when optimization is enabled.
+Takes care of the common punn+dereference pattern in the frontend:
+@code{*(int*)&some_float}.
+If optimization is enabled, it also runs in the backend, where it deals 
+with multiple statement cases using flow-sensitive points-to information.
+Only warns when the converted pointer is dereferenced.
+Does not warn about incomplete types.
 
 @item -Wstrict-overflow
 @item -Wstrict-overflow=@var{n}
@@ -2893,9 +2676,13 @@ All of the above @samp{-W} options combined.  This enables all the
 warnings about constructions that some users consider questionable, and
 that are easy to avoid (or modify to prevent the warning), even in
 conjunction with macros.  This also enables some language-specific
-warnings described in @ref{C++ Dialect Options} and
-@ref{Objective-C and Objective-C++ Dialect Options}.
+warnings described in @ref{C++ Dialect Options}.
+@c APPLE LOCAL begin -Wmost
+@item -Wmost
+@opindex Wmost
+This is equivalent to -Wall -Wno-parentheses.  (Apple compatible)
 @end table
+@c APPLE LOCAL end -Wmost
 
 The following @option{-W@dots{}} options are not implied by @option{-Wall}.
 Some of them warn about constructions that users generally do not
@@ -3149,6 +2936,10 @@ global variable or whenever a built-in function is shadowed.
 @opindex Wlarger-than
 Warn whenever an object of larger than @var{len} bytes is defined.
 
+@item -Wframe-larger-than-@var{len}
+@opindex Wframe-larger-than
+Warn whenever the frame size of a function is larger than @var{len} bytes.
+
 @item -Wunsafe-loop-optimizations
 @opindex Wunsafe-loop-optimizations
 Warn if the loop cannot be optimized because the compiler could not
@@ -3264,7 +3055,8 @@ types.)
 Warn if an old-style function definition is used.  A warning is given
 even if there is a previous prototype.
 
-@item -Wmissing-prototypes @r{(C only)}
+@c APPLE LOCAL warn missing prototype 6261539
+@item -Wmissing-prototypes
 @opindex Wmissing-prototypes
 Warn if a global function is defined without a previous prototype
 declaration.  This warning is issued even if the definition itself
@@ -3525,6 +3317,13 @@ Warn if variadic macros are used in pedantic ISO C90 mode, or the GNU
 alternate syntax when in pedantic ISO C99 mode.  This is default.
 To inhibit the warning messages, use @option{-Wno-variadic-macros}.
 
+@item -Wvla
+@opindex Wvla
+@opindex Wno-vla
+Warn if variable length array is used in the code.
+@option{-Wno-vla} will prevent the @option{-pedantic} warning of
+the variable length array.
+
 @item -Wvolatile-register-var
 @opindex Wvolatile-register-var
 @opindex Wno-volatile-register-var
@@ -3545,8 +3344,8 @@ itself is likely to take inordinate amounts of time.
 @opindex Wpointer-sign
 @opindex Wno-pointer-sign
 Warn for pointer argument passing or assignment with different signedness.
-This option is only supported for C and Objective-C@.  It is implied by
-@option{-Wall} and by @option{-pedantic}, which can be disabled with
+This option is only supported for C.  It is implied by @option{-Wall}
+and by @option{-pedantic}, which can be disabled with
 @option{-Wno-pointer-sign}.
 
 @item -Werror
@@ -3727,6 +3526,78 @@ Compress DWARF2 debugging information by eliminating duplicated
 information about each symbol.  This option only makes sense when
 generating DWARF2 debugging information with @option{-gdwarf-2}.
 
+@item -femit-struct-debug-baseonly
+Emit debug information for struct-like types
+only when the base name of the compilation source file
+matches the base name of file in which the struct was defined.
+
+This option substantially reduces the size of debugging information,
+but at significant potential loss in type information to the debugger.
+See @option{-femit-struct-debug-reduced} for a less aggressive option.
+See @option{-femit-struct-debug-detailed} for more detailed control.
+
+This option works only with DWARF 2.
+
+@item -femit-struct-debug-reduced
+Emit debug information for struct-like types
+only when the base name of the compilation source file
+matches the base name of file in which the type was defined,
+unless the struct is a template or defined in a system header.
+
+This option significantly reduces the size of debugging information,
+with some potential loss in type information to the debugger.
+See @option{-femit-struct-debug-baseonly} for a more aggressive option.
+See @option{-femit-struct-debug-detailed} for more detailed control.
+
+This option works only with DWARF 2.
+
+@item -femit-struct-debug-detailed@r{[}=@var{spec-list}@r{]}
+Specify the struct-like types
+for which the compiler will generate debug information.
+The intent is to reduce duplicate struct debug information
+between different object files within the same program.
+
+This option is a detailed version of
+@option{-femit-struct-debug-reduced} and @option{-femit-struct-debug-baseonly},
+which will serve for most needs.
+
+A specification has the syntax
+[@samp{dir:}|@samp{ind:}][@samp{ord:}|@samp{gen:}](@samp{any}|@samp{sys}|@samp{base}|@samp{none})
+
+The optional first word limits the specification to
+structs that are used directly (@samp{dir:}) or used indirectly (@samp{ind:}).
+A struct type is used directly when it is the type of a variable, member.
+Indirect uses arise through pointers to structs.
+That is, when use of an incomplete struct would be legal, the use is indirect.
+An example is
+@samp{struct one direct; struct two * indirect;}.
+
+The optional second word limits the specification to
+ordinary structs (@samp{ord:}) or generic structs (@samp{gen:}).
+Generic structs are a bit complicated to explain.
+For C++, these are non-explicit specializations of template classes,
+or non-template classes within the above.
+Other programming languages have generics,
+but @samp{-femit-struct-debug-detailed} does not yet implement them.
+
+The third word specifies the source files for those
+structs for which the compiler will emit debug information.
+The values @samp{none} and @samp{any} have the normal meaning.
+The value @samp{base} means that
+the base of name of the file in which the type declaration appears
+must match the base of the name of the main compilation file.
+In practice, this means that
+types declared in @file{foo.c} and @file{foo.h} will have debug information,
+but types declared in other header will not.
+The value @samp{sys} means those types satisfying @samp{base}
+or declared in system or compiler headers.
+
+You may need to experiment to determine the best settings for your application.
+
+The default is @samp{-femit-struct-debug-detailed=all}.
+
+This option works only with DWARF 2.
+
 @cindex @command{prof}
 @item -p
 @opindex p
@@ -3843,7 +3714,9 @@ Says to make debugging dumps during compilation at times specified by
 compiler.  The file names for most of the dumps are made by appending a
 pass number and a word to the @var{dumpname}.  @var{dumpname} is generated
 from the name of the output file, if explicitly specified and it is not
-an executable, otherwise it is the basename of the source file.
+an executable, otherwise it is the basename of the source file. These
+switches may have different effects when @option{-E} is used for
+preprocessing.
 
 Most debug dumps can be enabled either passing a letter to the @option{-d}
 option, or with a long @option{-fdump-rtl} switch; here are the possible
@@ -3978,7 +3851,7 @@ Dump after modulo scheduling, to @file{@var{file}.136r.sms}.
 @opindex dM
 @opindex fdump-rtl-mach
 Dump after performing the machine dependent reorganization pass, to
-@file{@var{file}.155r.mach}.
+@file{@var{file}.155r.mach} if that pass exists.
 
 @item -dn
 @itemx -fdump-rtl-rnreg
@@ -5937,6 +5810,11 @@ If a guard check fails, an error message is printed and the program exits.
 @item -fstack-protector-all
 Like @option{-fstack-protector} except that all functions are protected.
 
+@item -fstack-protector-strong
+Like @option{-fstack-protector} but includes additional functions to
+be protected --- those that have local array definitions, or have
+references to local frame addresses.
+
 @item -fsection-anchors
 @opindex fsection-anchors
 Try to reduce the number of symbolic address calculations by using
@@ -6537,11 +6415,6 @@ ordinary object file, it is linked in the usual fashion.  The only
 difference between using an @option{-l} option and specifying a file name
 is that @option{-l} surrounds @var{library} with @samp{lib} and @samp{.a}
 and searches several directories.
-
-@item -lobjc
-@opindex lobjc
-You need this special case of the @option{-l} option in order to
-link an Objective-C or Objective-C++ program.
 
 @item -nostartfiles
 @opindex nostartfiles
@@ -7218,7 +7091,9 @@ first argument in the outfiles array and replaces it with the second argument.  
 is a small example of its usage:
 
 @smallexample
-%@{fgnu-runtime:%:replace-outfile(-lobjc -lobjc-gnu)@}
+%@{static|static-libgcc|static-libstdc++:%:replace-outfile(-lstdc++ \
+libstdc++.a%s)@}
+
 @end smallexample
 
 @end table
@@ -9369,6 +9244,9 @@ set support.
 @item nocona
 Improved version of Intel Pentium4 CPU with 64-bit extensions, MMX, SSE,
 SSE2 and SSE3 instruction set support.
+@item core2
+Intel Core2 CPU with 64-bit extensions, MMX, SSE, SSE2, SSE3 and SSSE3
+instruction set support.
 @item k6
 AMD K6 CPU with MMX instruction set support.
 @item k6-2, k6-3
@@ -9382,6 +9260,12 @@ instruction set support.
 @item k8, opteron, athlon64, athlon-fx
 AMD K8 core based CPUs with x86-64 instruction set support.  (This supersets
 MMX, SSE, SSE2, 3dNOW!, enhanced 3dNOW! and 64-bit instruction set extensions.)
+@item k8-sse3, opteron-sse3, athlon64-sse3
+Improved versions of k8, opteron and athlon64 with SSE3 instruction set support.
+@item amdfam10, barcelona
+AMD Family 10h core based CPUs with x86-64 instruction set support.  (This
+supersets MMX, SSE, SSE2, SSE3, SSE4A, 3dNOW!, enhanced 3dNOW!, ABM and 64-bit
+instruction set extensions.)
 @item winchip-c6
 IDT Winchip C6 CPU, dealt in same way as i486 with additional MMX instruction
 set support.
@@ -9394,6 +9278,8 @@ implemented for this chip.)
 @item c3-2
 Via C3-2 CPU with MMX and SSE instruction set support.  (No scheduling is
 implemented for this chip.)
+@item geode
+Embedded AMD CPU with MMX and 3dNOW! instruction set support.
 @end table
 
 While picking a specific @var{cpu-type} will schedule things appropriately
@@ -9672,8 +9558,18 @@ preferred alignment to @option{-mpreferred-stack-boundary=2}.
 @itemx -mno-sse2
 @item -msse3
 @itemx -mno-sse3
+@item -mssse3
+@itemx -mno-ssse3
+@item -msse4a
+@item -mno-sse4a
 @item -m3dnow
 @itemx -mno-3dnow
+@item -mpopcnt
+@itemx -mno-popcnt
+@item -mabm
+@itemx -mno-abm
+@item -maes
+@itemx -mno-aes
 @opindex mmmx
 @opindex mno-mmx
 @opindex msse
@@ -9681,9 +9577,10 @@ preferred alignment to @option{-mpreferred-stack-boundary=2}.
 @opindex m3dnow
 @opindex mno-3dnow
 These switches enable or disable the use of instructions in the MMX,
-SSE, SSE2 or 3DNow! extended instruction sets.  These extensions are
-also available as built-in functions: see @ref{X86 Built-in Functions},
-for details of the functions enabled and disabled by these switches.
+SSE, SSE2, SSE3, SSSE3, SSE4A, ABM, AES or 3DNow! extended
+instruction sets.  These extensions are also available as built-in
+functions: see @ref{X86 Built-in Functions}, for details of the functions
+enabled and disabled by these switches.
 
 To have SSE/SSE2 instructions generated automatically from floating-point
 code (as opposed to 387 instructions), see @option{-mfpmath=sse}.
@@ -13578,6 +13475,37 @@ interrupt routines, and any functions from which the profiling functions
 cannot safely be called (perhaps signal handlers, if the profiling
 routines generate output or allocate memory).
 
+@item -finstrument-functions-exclude-file-list=@var{file},@var{file},@dots{}
+@opindex finstrument-functions-exclude-file-list
+
+Set the list of functions that are excluded from instrumentation (see
+the description of @code{-finstrument-functions}).  If the file that
+contains a function definition matches with one of @var{file}, then
+that function is not instrumented.  The match is done on substrings:
+if the @var{file} parameter is a substring of the file name, it is
+considered to be a match.
+
+For example,
+@code{-finstrument-functions-exclude-file-list=/bits/stl,include/sys}
+will exclude any inline function defined in files whose pathnames
+contain @code{/bits/stl} or @code{include/sys}.
+
+If, for some reason, you want to include letter @code{','} in one of
+@var{sym}, write @code{'\,'}. For example,
+@code{-finstrument-functions-exclude-file-list='\,\,tmp'}
+(note the single quote surrounding the option).
+
+@item -finstrument-functions-exclude-function-list=@var{sym},@var{sym},@dots{}
+@opindex finstrument-functions-exclude-function-list
+
+This is similar to @code{-finstrument-functions-exclude-file-list},
+but this option sets the list of function names to be excluded from
+instrumentation.  The function name to be matched is its user-visible
+name, such as @code{vector<int> blah(const vector<int> &)}, not the
+internal mangled name (e.g., @code{_Z4blahRSt6vectorIiSaIiEE}).  The
+match is done on substrings: if the @var{sym} parameter is a substring
+of the function name, it is considered to be a match.
+
 @item -fstack-check
 @opindex fstack-check
 Generate code to verify that you do not go beyond the boundary of the
@@ -14155,3 +14083,4 @@ exist, because otherwise they won't get converted.
 
 @xref{Protoize Caveats}, for more information on how to use
 @code{protoize} successfully.
+

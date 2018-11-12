@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -61,8 +57,7 @@ static int      genrange(STR *, int);
 static void	genseq(STR *);
 
 wint_t
-next(s)
-	STR *s;
+next(STR *s)
 {
 	int is_octal;
 	wint_t ch;
@@ -139,8 +134,7 @@ next(s)
 }
 
 static int
-bracket(s)
-	STR *s;
+bracket(STR *s)
 {
 	char *p;
 
@@ -156,7 +150,7 @@ bracket(s)
 		s->str = p + 1;
 		return (1);
 	case '=':				/* "[=equiv=]" */
-		if ((p = strchr(s->str + 2, ']')) == NULL)
+		if (s->str[2] == '\0' || (p = strchr(s->str + 3, ']')) == NULL)
 			return (0);
 		if (*(p - 1) != '=' || p - s->str < 4)
 			goto repeat;
@@ -167,7 +161,7 @@ bracket(s)
 	repeat:
 		if ((p = strpbrk(s->str + 2, "*]")) == NULL)
 			return (0);
-		if (p[0] != '*' || index(p, ']') == NULL)
+		if (p[0] != '*' || strchr(p, ']') == NULL)
 			return (0);
 		s->str += 1;
 		genseq(s);
@@ -177,8 +171,7 @@ bracket(s)
 }
 
 static void
-genclass(s)
-	STR *s;
+genclass(STR *s)
 {
 
 	if ((s->cclass = wctype(s->str)) == 0)
@@ -194,8 +187,7 @@ genclass(s)
 }
 
 static void
-genequiv(s)
-	STR *s;
+genequiv(STR *s)
 {
 	int i, p, pri;
 	char src[2], dst[3];
@@ -299,8 +291,7 @@ genrange(STR *s, int was_octal)
 }
 
 static void
-genseq(s)
-	STR *s;
+genseq(STR *s)
 {
 	char *ep;
 	wchar_t wc;

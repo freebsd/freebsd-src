@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -53,10 +52,11 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_ali_chipinit(device_t dev);
+static int ata_ali_chipdeinit(device_t dev);
 static int ata_ali_ch_attach(device_t dev);
 static int ata_ali_sata_ch_attach(device_t dev);
 static void ata_ali_reset(device_t dev);
-static void ata_ali_setmode(device_t dev, int mode);
+static int ata_ali_setmode(device_t dev, int target, int mode);
 
 /* misc defines */
 #define ALI_OLD		0x01
@@ -74,11 +74,12 @@ static int
 ata_ali_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static struct ata_chip_id ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_ALI_5289, 0x00, 2, ALI_SATA, ATA_SA150, "M5289" },
      { ATA_ALI_5288, 0x00, 4, ALI_SATA, ATA_SA300, "M5288" },
      { ATA_ALI_5287, 0x00, 4, ALI_SATA, ATA_SA150, "M5287" },
      { ATA_ALI_5281, 0x00, 2, ALI_SATA, ATA_SA150, "M5281" },
+     { ATA_ALI_5228, 0xc5, 0, ALI_NEW,  ATA_UDMA6, "M5228" },
      { ATA_ALI_5229, 0xc5, 0, ALI_NEW,  ATA_UDMA6, "M5229" },
      { ATA_ALI_5229, 0xc4, 0, ALI_NEW,  ATA_UDMA5, "M5229" },
      { ATA_ALI_5229, 0xc2, 0, ALI_NEW,  ATA_UDMA4, "M5229" },
@@ -94,7 +95,8 @@ ata_ali_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_ali_chipinit;
-    return (BUS_PROBE_DEFAULT);
+    ctlr->chipdeinit = ata_ali_chipdeinit;
+    return (BUS_PROBE_LOW_PRIORITY);
 }
 
 static int
@@ -113,14 +115,10 @@ ata_ali_chipinit(device_t dev)
 	ctlr->ch_attach = ata_ali_sata_ch_attach;
 	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->setmode = ata_sata_setmode;
-
-	/* AHCI mode is correctly supported only on the ALi 5288. */
-	if ((ctlr->chip->chipid == ATA_ALI_5288) &&
-	    (ata_ahci_chipinit(dev) != ENXIO))
-            return 0;
+	ctlr->getrev = ata_sata_getrev;
 
 	/* Allocate resources for later use by channel attach routines. */
-	res = malloc(sizeof(struct ali_sata_resources), M_TEMP, M_WAITOK);
+	res = malloc(sizeof(struct ali_sata_resources), M_ATAPCI, M_WAITOK);
 	for (i = 0; i < 4; i++) {
 		rid = PCIR_BAR(i);
 		res->bars[i] = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
@@ -130,7 +128,8 @@ ata_ali_chipinit(device_t dev)
 			for (i--; i >=0; i--)
 				bus_release_resource(dev, SYS_RES_IOPORT,
 				    PCIR_BAR(i), res->bars[i]);
-			free(res, M_TEMP);
+			free(res, M_ATAPCI);
+			return ENXIO;
 		}
 	}
 	ctlr->chipset_data = res;
@@ -140,11 +139,14 @@ ata_ali_chipinit(device_t dev)
 	/* use device interrupt as byte count end */
 	pci_write_config(dev, 0x4a, pci_read_config(dev, 0x4a, 1) | 0x20, 1);
 
-	/* enable cable detection and UDMA support on newer chips */
-	pci_write_config(dev, 0x4b, pci_read_config(dev, 0x4b, 1) | 0x09, 1);
+	/* enable cable detection and UDMA support on revisions < 0xc7 */
+	if (ctlr->chip->chiprev < 0xc7)
+	    pci_write_config(dev, 0x4b, pci_read_config(dev, 0x4b, 1) |
+		0x09, 1);
 
-	/* enable ATAPI UDMA mode */
-	pci_write_config(dev, 0x53, pci_read_config(dev, 0x53, 1) | 0x01, 1);
+	/* enable ATAPI UDMA mode (even if we are going to do PIO) */
+	pci_write_config(dev, 0x53, pci_read_config(dev, 0x53, 1) |
+	    (ctlr->chip->chiprev >= 0xc7 ? 0x03 : 0x01), 1);
 
 	/* only chips with revision > 0xc4 can do 48bit DMA */
 	if (ctlr->chip->chiprev <= 0xc4)
@@ -167,6 +169,27 @@ ata_ali_chipinit(device_t dev)
 }
 
 static int
+ata_ali_chipdeinit(device_t dev)
+{
+	struct ata_pci_controller *ctlr = device_get_softc(dev);
+	struct ali_sata_resources *res;
+	int i;
+
+	if (ctlr->chip->cfg2 == ALI_SATA) {
+		res = ctlr->chipset_data;
+		for (i = 0; i < 4; i++) {
+			if (res->bars[i] != NULL) {
+				bus_release_resource(dev, SYS_RES_IOPORT,
+				    PCIR_BAR(i), res->bars[i]);
+			}
+		}
+		free(res, M_ATAPCI);
+		ctlr->chipset_data = NULL;
+	}
+	return (0);
+}
+
+static int
 ata_ali_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
@@ -176,9 +199,16 @@ ata_ali_ch_attach(device_t dev)
     if (ata_pci_ch_attach(dev))
 	return ENXIO;
 
+    if (ctlr->chip->cfg2 & ALI_NEW && ctlr->chip->chiprev < 0xc7)
+	ch->flags |= ATA_CHECKS_CABLE;
     /* older chips can't do 48bit DMA transfers */
-    if (ctlr->chip->chiprev <= 0xc4)
+    if (ctlr->chip->chiprev <= 0xc4) {
 	ch->flags |= ATA_NO_48BIT_DMA;
+	if (ch->dma.max_iosize > 256 * 512)
+		ch->dma.max_iosize = 256 * 512;
+    }
+	if (ctlr->chip->cfg2 & ALI_NEW)
+		ch->flags |= ATA_NO_ATAPI_DMA;
 
     return 0;
 }
@@ -202,7 +232,7 @@ ata_ali_sata_ch_attach(device_t dev)
 	    io = res->bars[0];
 	    ctlio = res->bars[1];
     }
-		
+    ata_pci_dmainit(dev);
     for (i = ATA_DATA; i <= ATA_COMMAND; i ++) {
 	ch->r_io[i].res = io;
 	ch->r_io[i].offset = i + (unit10 ? 8 : 0);
@@ -218,6 +248,7 @@ ata_ali_sata_ch_attach(device_t dev)
 	}
     }
     ch->flags |= ATA_NO_SLAVE;
+    ch->flags |= ATA_SATA;
 
     /* XXX SOS PHY handling awkward in ALI chip not supported yet */
     ata_pci_hw(dev);
@@ -257,68 +288,57 @@ ata_ali_reset(device_t dev)
     }
 }
 
-static void
-ata_ali_setmode(device_t dev, int mode)
+static int
+ata_ali_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int devno = (ch->unit << 1) + atadev->unit;
-    int error;
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
+	struct ata_channel *ch = device_get_softc(dev);
+	int devno = (ch->unit << 1) + target;
+	int piomode;
+	static const uint32_t piotimings[] =
+		{ 0x006d0003, 0x00580002, 0x00440001, 0x00330001,
+		  0x00310001, 0x006d0003, 0x00330001, 0x00310001 };
+	static const uint8_t udma[] = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x0f,
+	    0x0d};
+	uint32_t word54;
 
-    mode = ata_limit_mode(dev, mode, ctlr->chip->max_dma);
+        mode = min(mode, ctlr->chip->max_dma);
 
-    if (ctlr->chip->cfg2 & ALI_NEW) {
-	if (mode > ATA_UDMA2 &&
-	    pci_read_config(gparent, 0x4a, 1) & (1 << ch->unit)) {
-	    ata_print_cable(dev, "controller");
-	    mode = ATA_UDMA2;
+	if (ctlr->chip->cfg2 & ALI_NEW && ctlr->chip->chiprev < 0xc7) {
+		if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
+		    pci_read_config(parent, 0x4a, 1) & (1 << ch->unit)) {
+			ata_print_cable(dev, "controller");
+			mode = ATA_UDMA2;
+		}
 	}
-    }
-    else
-	mode = ata_check_80pin(dev, mode);
-
-    if (ctlr->chip->cfg2 & ALI_OLD) {
-	/* doesn't support ATAPI DMA on write */
-	ch->flags |= ATA_ATAPI_DMA_RO;
-	if (ch->devices & ATA_ATAPI_MASTER && ch->devices & ATA_ATAPI_SLAVE) {
-	    /* doesn't support ATAPI DMA on two ATAPI devices */
-	    device_printf(dev, "two atapi devices on this channel, no DMA\n");
-	    mode = ata_limit_mode(dev, mode, ATA_PIO_MAX);
+	if (ctlr->chip->cfg2 & ALI_OLD) {
+		/* doesn't support ATAPI DMA on write */
+		ch->flags |= ATA_ATAPI_DMA_RO;
+		if (ch->devices & ATA_ATAPI_MASTER &&
+		    ch->devices & ATA_ATAPI_SLAVE) {
+		        /* doesn't support ATAPI DMA on two ATAPI devices */
+		        device_printf(dev, "two atapi devices on this channel,"
+			    " no DMA\n");
+		        mode = min(mode, ATA_PIO_MAX);
+		}
 	}
-    }
-
-    error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-
-    if (bootverbose)
-	device_printf(dev, "%ssetting %s on %s chip\n",
-		   (error) ? "FAILURE " : "", 
-		   ata_mode2str(mode), ctlr->chip->text);
-    if (!error) {
+	/* Set UDMA mode */
+	word54 = pci_read_config(parent, 0x54, 4);
 	if (mode >= ATA_UDMA0) {
-	    u_int8_t udma[] = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x0f, 0x0d};
-	    u_int32_t word54 = pci_read_config(gparent, 0x54, 4);
-
 	    word54 &= ~(0x000f000f << (devno << 2));
 	    word54 |= (((udma[mode&ATA_MODE_MASK]<<16)|0x05)<<(devno<<2));
-	    pci_write_config(gparent, 0x54, word54, 4);
-	    pci_write_config(gparent, 0x58 + (ch->unit << 2),
-			     0x00310001, 4);
+	    piomode = ATA_PIO4;
 	}
 	else {
-	    u_int32_t piotimings[] =
-		{ 0x006d0003, 0x00580002, 0x00440001, 0x00330001,
-		  0x00310001, 0x00440001, 0x00330001, 0x00310001};
-
-	    pci_write_config(gparent, 0x54, pci_read_config(gparent, 0x54, 4) &
-					    ~(0x0008000f << (devno << 2)), 4);
-	    pci_write_config(gparent, 0x58 + (ch->unit << 2),
-			     piotimings[ata_mode2idx(mode)], 4);
+	    word54 &= ~(0x0008000f << (devno << 2));
+	    piomode = mode;
 	}
-	atadev->mode = mode;
-    }
+	pci_write_config(parent, 0x54, word54, 4);
+	/* Set PIO/WDMA mode */
+	pci_write_config(parent, 0x58 + (ch->unit << 2),
+	    piotimings[ata_mode2idx(piomode)], 4);
+	return (mode);
 }
 
 ATA_DECLARE_DRIVER(ata_ali);
-MODULE_DEPEND(ata_ali, ata_ahci, 1, 1, 1);

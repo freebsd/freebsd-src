@@ -46,6 +46,8 @@
 .ident "des_enc.m4 2.1"
 .file  "des_enc-sparc.S"
 
+#include <openssl/opensslconf.h>
+
 #if defined(__SUNPRO_C) && defined(__sparcv9)
 # define ABI64  /* They've said -xarch=v9 at command line */
 #elif defined(__GNUC__) && defined(__arch64__)
@@ -1954,9 +1956,11 @@ DES_ede3_cbc_encrypt:
 	.word	LOOPS                     ! 280
 	.word	0x0000FC00                ! 284
 
-	.type	.PIC.DES_SPtrans,#object
-	.size	.PIC.DES_SPtrans,2048
+	.global	DES_SPtrans
+	.type	DES_SPtrans,#object
+	.size	DES_SPtrans,2048
 .align	64
+DES_SPtrans:
 .PIC.DES_SPtrans:
 	! nibble 0
 	.word	0x02080800, 0x00080000, 0x02000002, 0x02080802

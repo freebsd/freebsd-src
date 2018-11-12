@@ -1,17 +1,21 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PROG=	ssh-add
 SRCS+=	ssh-add.c
+PACKAGE=	ssh
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
+SRCS+=	ssh_namespace.h
 
-# required when linking with a dynamic libssh 
-SRCS+=	roaming_dummy.c
+LIBADD=	ssh
 
-DPADD=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
-LDADD=	-lssh -lcrypt -lcrypto -lz
+.if ${MK_LDNS} != "no"
+CFLAGS+=	-DHAVE_LDNS=1
+#DPADD+=	${LIBLDNS}
+#LDADD+=	-lldns
+.endif
 
 .include <bsd.prog.mk>
 
 .PATH:	${SSHDIR}
-
-${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h

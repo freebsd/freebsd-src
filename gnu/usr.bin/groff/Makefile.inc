@@ -2,6 +2,7 @@
 
 BINDIR?=	/usr/bin
 SHELL=		/bin/sh
+PACKAGE=	groff
 
 # Define `page' to be letter if your PostScript printer uses 8.5x11
 # paper (USA) and define it to be A4, if it uses A4 paper (rest of the
@@ -127,6 +128,7 @@ revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' $(GROFF_DIST)/REVISION`
 
 .sh .pl:
 	@${ECHO} Making ${.TARGET} from ${.IMPSRC}
+	@rm -f ${.TARGET}
 	@sed -e "s|@BINDIR@|${BINDIR}|g" \
 	     -e 's|@GROFF_BIN_PATH_SETUP@|GROFF_RUNTIME="$${GROFF_BIN_PATH=${BINDIR}}:"|g' \
 	     -e "s;@FONTDIR@;$(fontdir);g" \

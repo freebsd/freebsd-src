@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -55,7 +54,7 @@ struct buf {
  * The file state is maintained in a filestate structure.
  * A pointer to the filestate is kept in the ifile structure.
  */
-#define	BUFHASH_SIZE	64
+#define	BUFHASH_SIZE	1024
 struct filestate {
 	struct bufnode buflist;
 	struct bufnode hashtbl[BUFHASH_SIZE];
@@ -324,13 +323,16 @@ ch_get()
 #if HAVE_STAT_INO
 			if (follow_mode == FOLLOW_NAME)
 			{
-				/* See whether the file's i-number has changed.
+				/* See whether the file's i-number has changed,
+				 * or the file has shrunk.
 				 * If so, force the file to be closed and
 				 * reopened. */
 				struct stat st;
+				POSITION curr_pos = ch_tell();
 				int r = stat(get_filename(curr_ifile), &st);
 				if (r == 0 && (st.st_ino != curr_ino ||
-					st.st_dev != curr_dev))
+					st.st_dev != curr_dev ||
+					(curr_pos != NULL_POSITION && st.st_size < curr_pos)))
 				{
 					/* screen_trashed=2 causes
 					 * make_display to reopen the file. */
@@ -537,6 +539,32 @@ ch_end_seek()
 }
 
 /*
+ * Seek to the last position in the file that is currently buffered.
+ */
+	public int
+ch_end_buffer_seek()
+{
+	register struct buf *bp;
+	register struct bufnode *bn;
+	POSITION buf_pos;
+	POSITION end_pos;
+
+	if (thisfile == NULL || (ch_flags & CH_CANSEEK))
+		return (ch_end_seek());
+
+	end_pos = 0;
+	FOR_BUFS(bn)
+	{
+		bp = bufnode_buf(bn);
+		buf_pos = (bp->block * LBUFSIZE) + bp->datasize;
+		if (buf_pos > end_pos)
+			end_pos = buf_pos;
+	}
+
+	return (ch_seek(end_pos));
+}
+
+/*
  * Seek to the beginning of the file, or as close to it as we can get.
  * We may not be able to seek there if input is a pipe and the
  * beginning of the pipe is no longer buffered.
@@ -582,6 +610,8 @@ ch_length()
 		return (NULL_POSITION);
 	if (ch_flags & CH_HELPFILE)
 		return (size_helpdata);
+	if (ch_flags & CH_NODATA)
+		return (0);
 	return (ch_fsize);
 }
 
@@ -804,6 +834,17 @@ seekable(f)
 #endif
 	return (lseek(f, (off_t)1, SEEK_SET) != BAD_LSEEK);
 }
+
+/*
+ * Force EOF to be at the current read position.
+ * This is used after an ignore_eof read, during which the EOF may change.
+ */
+	public void
+ch_set_eof()
+{
+	ch_fsize = ch_fpos;
+}
+
 
 /*
  * Initialize file state for a new file.

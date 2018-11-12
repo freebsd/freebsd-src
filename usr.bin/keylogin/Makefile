@@ -2,7 +2,6 @@
 
 PROG=	keylogin
 
-DPADD=	${LIBRPCSVC}
-LDADD=	-lrpcsvc
+LIBADD=	rpcsvc
 
 .include <bsd.prog.mk>

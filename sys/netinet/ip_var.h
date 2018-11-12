@@ -75,7 +75,7 @@ struct ipq {
 
 struct ipoption {
 	struct	in_addr ipopt_dst;	/* first-hop dst if source routed */
-	char	ipopt_list[MAX_IPOPTLEN];	/* options proper */
+	uint8_t	ipopt_list[MAX_IPOPTLEN];	/* options proper */
 };
 
 /*
@@ -93,50 +93,54 @@ struct ip_moptions {
 	u_short	imo_max_memberships;	/* max memberships this socket */
 	struct	in_multi **imo_membership;	/* group memberships */
 	struct	in_mfilter *imo_mfilters;	/* source filters */
+	STAILQ_ENTRY(ip_moptions) imo_link;
 };
 
 struct	ipstat {
-	u_long	ips_total;		/* total packets received */
-	u_long	ips_badsum;		/* checksum bad */
-	u_long	ips_tooshort;		/* packet too short */
-	u_long	ips_toosmall;		/* not enough data */
-	u_long	ips_badhlen;		/* ip header length < data size */
-	u_long	ips_badlen;		/* ip length < ip header length */
-	u_long	ips_fragments;		/* fragments received */
-	u_long	ips_fragdropped;	/* frags dropped (dups, out of space) */
-	u_long	ips_fragtimeout;	/* fragments timed out */
-	u_long	ips_forward;		/* packets forwarded */
-	u_long	ips_fastforward;	/* packets fast forwarded */
-	u_long	ips_cantforward;	/* packets rcvd for unreachable dest */
-	u_long	ips_redirectsent;	/* packets forwarded on same net */
-	u_long	ips_noproto;		/* unknown or unsupported protocol */
-	u_long	ips_delivered;		/* datagrams delivered to upper level*/
-	u_long	ips_localout;		/* total ip packets generated here */
-	u_long	ips_odropped;		/* lost packets due to nobufs, etc. */
-	u_long	ips_reassembled;	/* total packets reassembled ok */
-	u_long	ips_fragmented;		/* datagrams successfully fragmented */
-	u_long	ips_ofragments;		/* output fragments created */
-	u_long	ips_cantfrag;		/* don't fragment flag was set, etc. */
-	u_long	ips_badoptions;		/* error in option processing */
-	u_long	ips_noroute;		/* packets discarded due to no route */
-	u_long	ips_badvers;		/* ip version != 4 */
-	u_long	ips_rawout;		/* total raw ip packets generated */
-	u_long	ips_toolong;		/* ip length > max ip packet size */
-	u_long	ips_notmember;		/* multicasts for unregistered grps */
-	u_long	ips_nogif;		/* no match gif found */
-	u_long	ips_badaddr;		/* invalid address on header */
+	uint64_t ips_total;		/* total packets received */
+	uint64_t ips_badsum;		/* checksum bad */
+	uint64_t ips_tooshort;		/* packet too short */
+	uint64_t ips_toosmall;		/* not enough data */
+	uint64_t ips_badhlen;		/* ip header length < data size */
+	uint64_t ips_badlen;		/* ip length < ip header length */
+	uint64_t ips_fragments;		/* fragments received */
+	uint64_t ips_fragdropped;	/* frags dropped (dups, out of space) */
+	uint64_t ips_fragtimeout;	/* fragments timed out */
+	uint64_t ips_forward;		/* packets forwarded */
+	uint64_t ips_fastforward;	/* packets fast forwarded */
+	uint64_t ips_cantforward;	/* packets rcvd for unreachable dest */
+	uint64_t ips_redirectsent;	/* packets forwarded on same net */
+	uint64_t ips_noproto;		/* unknown or unsupported protocol */
+	uint64_t ips_delivered;		/* datagrams delivered to upper level*/
+	uint64_t ips_localout;		/* total ip packets generated here */
+	uint64_t ips_odropped;		/* lost packets due to nobufs, etc. */
+	uint64_t ips_reassembled;	/* total packets reassembled ok */
+	uint64_t ips_fragmented;	/* datagrams successfully fragmented */
+	uint64_t ips_ofragments;	/* output fragments created */
+	uint64_t ips_cantfrag;		/* don't fragment flag was set, etc. */
+	uint64_t ips_badoptions;		/* error in option processing */
+	uint64_t ips_noroute;		/* packets discarded due to no route */
+	uint64_t ips_badvers;		/* ip version != 4 */
+	uint64_t ips_rawout;		/* total raw ip packets generated */
+	uint64_t ips_toolong;		/* ip length > max ip packet size */
+	uint64_t ips_notmember;		/* multicasts for unregistered grps */
+	uint64_t ips_nogif;		/* no match gif found */
+	uint64_t ips_badaddr;		/* invalid address on header */
 };
 
 #ifdef _KERNEL
 
+#include <sys/counter.h>
 #include <net/vnet.h>
 
+VNET_PCPUSTAT_DECLARE(struct ipstat, ipstat);
 /*
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	IPSTAT_ADD(name, val)	V_ipstat.name += (val)
-#define	IPSTAT_SUB(name, val)	V_ipstat.name -= (val)
+#define	IPSTAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct ipstat, ipstat, name, (val))
+#define	IPSTAT_SUB(name, val)	IPSTAT_ADD(name, -(val))
 #define	IPSTAT_INC(name)	IPSTAT_ADD(name, 1)
 #define	IPSTAT_DEC(name)	IPSTAT_SUB(name, 1)
 
@@ -144,11 +148,11 @@ struct	ipstat {
  * Kernel module consumers must use this accessor macro.
  */
 void	kmod_ipstat_inc(int statnum);
-#define	KMOD_IPSTAT_INC(name)						\
-	kmod_ipstat_inc(offsetof(struct ipstat, name) / sizeof(u_long))
+#define	KMOD_IPSTAT_INC(name)	\
+    kmod_ipstat_inc(offsetof(struct ipstat, name) / sizeof(uint64_t))
 void	kmod_ipstat_dec(int statnum);
-#define	KMOD_IPSTAT_DEC(name)						\
-	kmod_ipstat_dec(offsetof(struct ipstat, name) / sizeof(u_long))
+#define	KMOD_IPSTAT_DEC(name)	\
+    kmod_ipstat_dec(offsetof(struct ipstat, name) / sizeof(uint64_t))
 
 /* flags passed to ip_output as last parameter */
 #define	IP_FORWARDING		0x1		/* most of ip header exists */
@@ -157,11 +161,7 @@ void	kmod_ipstat_dec(int statnum);
 #define	IP_SENDTOIF		0x8		/* send on specific ifnet */
 #define IP_ROUTETOIF		SO_DONTROUTE	/* 0x10 bypass routing tables */
 #define IP_ALLOWBROADCAST	SO_BROADCAST	/* 0x20 can send broadcast packets */
-
-/*
- * mbuf flag used by ip_fastfwd
- */
-#define	M_FASTFWD_OURS		M_PROTO1	/* changed dst to local */
+#define	IP_NODEFAULTFLOWID	0x40		/* Don't set the flowid from inp */
 
 #ifdef __NO_STRICT_ALIGNMENT
 #define IP_HDR_ALIGNED_P(ip)	1
@@ -174,32 +174,30 @@ struct inpcb;
 struct route;
 struct sockopt;
 
-VNET_DECLARE(struct ipstat, ipstat);
-VNET_DECLARE(u_short, ip_id);			/* ip packet ctr, for ids */
 VNET_DECLARE(int, ip_defttl);			/* default IP ttl */
 VNET_DECLARE(int, ipforwarding);		/* ip forwarding */
 #ifdef IPSTEALTH
 VNET_DECLARE(int, ipstealth);			/* stealth forwarding */
 #endif
-VNET_DECLARE(int, rsvp_on);
+extern u_char	ip_protox[];
 VNET_DECLARE(struct socket *, ip_rsvpd);	/* reservation protocol daemon*/
 VNET_DECLARE(struct socket *, ip_mrouter);	/* multicast routing daemon */
+extern int	(*legal_vif_num)(int);
+extern u_long	(*ip_mcast_src)(int);
+VNET_DECLARE(int, rsvp_on);
+VNET_DECLARE(int, drop_redirect);
+extern struct	pr_usrreqs rip_usrreqs;
 
-#define	V_ipstat		VNET(ipstat)
 #define	V_ip_id			VNET(ip_id)
 #define	V_ip_defttl		VNET(ip_defttl)
 #define	V_ipforwarding		VNET(ipforwarding)
 #ifdef IPSTEALTH
 #define	V_ipstealth		VNET(ipstealth)
 #endif
-#define	V_rsvp_on		VNET(rsvp_on)
 #define	V_ip_rsvpd		VNET(ip_rsvpd)
 #define	V_ip_mrouter		VNET(ip_mrouter)
-
-extern u_char	ip_protox[];
-extern int	(*legal_vif_num)(int);
-extern u_long	(*ip_mcast_src)(int);
-extern struct	pr_usrreqs rip_usrreqs;
+#define	V_rsvp_on		VNET(rsvp_on)
+#define	V_drop_redirect		VNET(drop_redirect)
 
 void	inp_freemoptions(struct ip_moptions *);
 int	inp_getmoptions(struct inpcb *, struct sockopt *);
@@ -207,9 +205,8 @@ int	inp_setmoptions(struct inpcb *, struct sockopt *);
 
 int	ip_ctloutput(struct socket *, struct sockopt *sopt);
 void	ip_drain(void);
-void	ip_fini(void *xtp);
 int	ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
-	    u_long if_hwassist_flags, int sw_csum);
+	    u_long if_hwassist_flags);
 void	ip_forward(struct mbuf *m, int srcrt);
 void	ip_init(void);
 extern int
@@ -218,49 +215,84 @@ extern int
 int	ip_output(struct mbuf *,
 	    struct mbuf *, struct route *, int, struct ip_moptions *,
 	    struct inpcb *);
-int	ipproto_register(u_char);
-int	ipproto_unregister(u_char);
+int	ipproto_register(short);
+int	ipproto_unregister(short);
 struct mbuf *
 	ip_reass(struct mbuf *);
-struct in_ifaddr *
-	ip_rtaddr(struct in_addr, u_int fibnum);
 void	ip_savecontrol(struct inpcb *, struct mbuf **, struct ip *,
 	    struct mbuf *);
 void	ip_slowtimo(void);
-u_int16_t	ip_randomid(void);
+void	ip_fillid(struct ip *);
 int	rip_ctloutput(struct socket *, struct sockopt *);
 void	rip_ctlinput(int, struct sockaddr *, void *);
 void	rip_init(void);
-#ifdef VIMAGE
-void	rip_destroy(void);
-#endif
-void	rip_input(struct mbuf *, int);
-int	rip_output(struct mbuf *, struct socket *, u_long);
-void	ipip_input(struct mbuf *, int);
-void	rsvp_input(struct mbuf *, int);
+int	rip_input(struct mbuf **, int *, int);
+int	rip_output(struct mbuf *, struct socket *, ...);
+int	ipip_input(struct mbuf **, int *, int);
+int	rsvp_input(struct mbuf **, int *, int);
 int	ip_rsvp_init(struct socket *);
 int	ip_rsvp_done(void);
 extern int	(*ip_rsvp_vif)(struct socket *, struct sockopt *);
 extern void	(*ip_rsvp_force_done)(struct socket *);
-extern void	(*rsvp_input_p)(struct mbuf *m, int off);
+extern int	(*rsvp_input_p)(struct mbuf **, int *, int);
 
-extern	struct pfil_head inet_pfil_hook;	/* packet filter hooks */
+VNET_DECLARE(struct pfil_head, inet_pfil_hook);	/* packet filter hooks */
+#define	V_inet_pfil_hook	VNET(inet_pfil_hook)
 
 void	in_delayed_cksum(struct mbuf *m);
 
-/* ipfw and dummynet hooks. Most are declared in raw_ip.c */
+/* Hooks for ipfw, dummynet, divert etc. Most are declared in raw_ip.c */
+/*
+ * Reference to an ipfw or packet filter rule that can be carried
+ * outside critical sections.
+ * A rule is identified by rulenum:rule_id which is ordered.
+ * In version chain_id the rule can be found in slot 'slot', so
+ * we don't need a lookup if chain_id == chain->id.
+ *
+ * On exit from the firewall this structure refers to the rule after
+ * the matching one (slot points to the new rule; rulenum:rule_id-1
+ * is the matching rule), and additional info (e.g. info often contains
+ * the insn argument or tablearg in the low 16 bits, in host format).
+ * On entry, the structure is valid if slot>0, and refers to the starting
+ * rules. 'info' contains the reason for reinject, e.g. divert port,
+ * divert direction, and so on.
+ */
+struct ipfw_rule_ref {
+	uint32_t	slot;		/* slot for matching rule	*/
+	uint32_t	rulenum;	/* matching rule number		*/
+	uint32_t	rule_id;	/* matching rule id		*/
+	uint32_t	chain_id;	/* ruleset id			*/
+	uint32_t	info;		/* see below			*/
+};
+
+enum {
+	IPFW_INFO_MASK	= 0x0000ffff,
+	IPFW_INFO_OUT	= 0x00000000,	/* outgoing, just for convenience */
+	IPFW_INFO_IN	= 0x80000000,	/* incoming, overloads dir */
+	IPFW_ONEPASS	= 0x40000000,	/* One-pass, do not reinject */
+	IPFW_IS_MASK	= 0x30000000,	/* which source ? */
+	IPFW_IS_DIVERT	= 0x20000000,
+	IPFW_IS_DUMMYNET =0x10000000,
+	IPFW_IS_PIPE	= 0x08000000,	/* pipe=1, queue = 0 */
+};
+#define MTAG_IPFW	1148380143	/* IPFW-tagged cookie */
+#define MTAG_IPFW_RULE	1262273568	/* rule reference */
+#define	MTAG_IPFW_CALL	1308397630	/* call stack */
+
 struct ip_fw_args;
-extern int	(*ip_fw_chk_ptr)(struct ip_fw_args *args);
-extern int	(*ip_fw_ctl_ptr)(struct sockopt *);
+typedef int	(*ip_fw_chk_ptr_t)(struct ip_fw_args *args);
+typedef int	(*ip_fw_ctl_ptr_t)(struct sockopt *);
+VNET_DECLARE(ip_fw_ctl_ptr_t, ip_fw_ctl_ptr);
+#define	V_ip_fw_ctl_ptr		VNET(ip_fw_ctl_ptr)
+
+/* Divert hooks. */
+extern void	(*ip_divert_ptr)(struct mbuf *m, int incoming);
+/* ng_ipfw hooks -- XXX make it the same as divert and dummynet */
+extern int	(*ng_ipfw_input_p)(struct mbuf **, int,
+			struct ip_fw_args *, int);
+
 extern int	(*ip_dn_ctl_ptr)(struct sockopt *);
-extern int	(*ip_dn_io_ptr)(struct mbuf **m, int dir, struct ip_fw_args *fwa);
-extern void	(*ip_dn_ruledel_ptr)(void *);		/* in ip_fw2.c */
-
-VNET_DECLARE(int, ip_do_randomid);
-#define	V_ip_do_randomid	VNET(ip_do_randomid)
-#define	ip_newid()	((V_ip_do_randomid != 0) ? ip_randomid() : \
-			    htons(V_ip_id++))
-
+extern int	(*ip_dn_io_ptr)(struct mbuf **, int, struct ip_fw_args *);
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IP_VAR_H_ */

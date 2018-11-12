@@ -18,18 +18,14 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/bpf_dump.c,v 1.16.4.1 2008-02-14 20:54:53 guy Exp $ (LBL)";
-#endif
 
+#define NETDISSECT_REWORKED
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include <tcpdump-stdinc.h>
 
-#include <pcap.h>
 #include <stdio.h>
 
 #include "interface.h"

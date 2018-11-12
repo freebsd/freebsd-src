@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 1998-2001, 2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001, 2003 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: errstring.h,v 1.10 2007/03/21 23:56:19 ca Exp $
+ *	$Id: errstring.h,v 1.11 2013-11-22 20:51:31 ca Exp $
  */
 
 /*
@@ -49,9 +49,17 @@ extern int errno;
 #define E_SM_WRFILE	(E_PSEUDOBASE + 11)	/* o readable file */
 #define E_DNSBASE	(E_PSEUDOBASE + 20)	/* base for DNS h_errno */
 #define E_SMDBBASE	(E_PSEUDOBASE + 40)	/* base for libsmdb errors */
-#define E_LDAPBASE	(E_PSEUDOBASE + 70)	/* base for LDAP errors */
-#define E_LDAPURLBASE	(E_PSEUDOBASE + 200)	/* base for LDAP URL errors */
+#define E_LDAPREALBASE	(E_PSEUDOBASE + 70)	/* start of range for LDAP */
+#define E_LDAPBASE	(E_LDAPREALBASE + E_LDAP_SHIM)	/* LDAP error zero */
+#define E_LDAPURLBASE	(E_PSEUDOBASE + 230)	/* base for LDAP URL errors */
 
+/*
+**  OpenLDAP uses small negative errors for internal (non-protocol)
+**  errors.  We expect them to be between zero and -E_LDAP_SHIM
+**  (and then offset by E_LDAPBASE).
+*/
+
+#define E_LDAP_SHIM	30
 
 /* libsmdb */
 #define SMDBE_OK			0

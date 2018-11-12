@@ -11,7 +11,8 @@
 . /etc/rc.subr
 
 name="bootparamd"
-rcvar=`set_rcvar`
+desc="Boot parameter daemon"
+rcvar="bootparamd_enable"
 required_files="/etc/bootparams"
 command="/usr/sbin/${name}"
 

@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 LIB=	gssapi_spnego
-LDFLAGS= -Wl,-Bsymbolic
-LDADD=	-lasn1
-DPADD=	${LIBASN1}
+LDFLAGS= -Wl,-Bsymbolic -Wl,--no-undefined
+LIBADD=	gssapi heimbase asn1 roken
+SHLIB_MAJOR=	10
 
 SRCS=	accept_sec_context.c \
 	compat.c \
@@ -11,9 +11,9 @@ SRCS=	accept_sec_context.c \
 	cred_stubs.c \
 	external.c \
 	init_sec_context.c \
-	prefix.c \
-	spnego_asn1.h \
-	${GEN:S/.x$/.c/}
+	freebsd_compat.c \
+	${GEN:S/.x$/.c/:S/.hx$/.h/} \
+	gss_oid.c
 
 GEN=	asn1_ContextFlags.x \
 	asn1_MechType.x \
@@ -23,26 +23,36 @@ GEN=	asn1_ContextFlags.x \
 	asn1_NegHints.x \
 	asn1_NegTokenInit.x \
 	asn1_NegTokenInitWin.x \
-	asn1_NegTokenResp.x
+	asn1_NegTokenResp.x \
+	spnego_asn1.hx \
+	spnego_asn1-priv.hx
 
 CFLAGS+=-I${KRB5DIR}/lib/gssapi
+CFLAGS+=-I${KRB5DIR}/lib/gssapi/gssapi
+CFLAGS+=-I${KRB5DIR}/lib/gssapi/spnego
 CFLAGS+=-I${KRB5DIR}/lib/asn1
+CFLAGS+=-I${.CURDIR}/../../../lib/libgssapi
 CFLAGS+=-I${KRB5DIR}/lib/roken -I.
 
-CLEANFILES= ${GEN} ${GEN:S/.x$/.c/} spnego_asn1.h asn1_files
+CLEANFILES=	${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} \
+		spnego_asn1_files spnego_asn1-template.c
 
-.ORDER: ${GEN} spnego_asn1.h
-${GEN} spnego_asn1.h: spnego.asn1 ../../tools/asn1_compile/asn1_compile
-	../../tools/asn1_compile/asn1_compile --sequence=MechTypeList ${.ALLSRC:M*.asn1} spnego_asn1
+.ORDER: ${GEN}
+${GEN:[2..-1]}: .NOMETA
+${GEN}: spnego.asn1 spnego.opt
+	${ASN1_COMPILE} --option-file=${.ALLSRC:M*.opt} \
+		${.ALLSRC:M*.asn1} spnego_asn1
 
-../../tools/asn1_compile/asn1_compile:
-	cd ${.CURDIR}/../../tools/asn1_compile && ${MAKE}
+.SUFFIXES: .h .c .x .hx
 
-.for I in ${GEN}
-${I:R}.c: ${I}
-	cat ${.ALLSRC} > ${.TARGET}
-.endfor
+.x.c:   
+	${CP} ${.IMPSRC} ${.TARGET}
+
+.hx.h:
+	${CP} ${.IMPSRC} ${.TARGET}
 
 .include <bsd.lib.mk>
 
-.PATH: ${KRB5DIR}/lib/gssapi/spnego ${.CURDIR}/../../../lib/libgssapi
+.SUFFIXES: .h .c .x .hx
+
+.PATH: ${KRB5DIR}/lib/gssapi/spnego ${.CURDIR}/../../../lib/libgssapi ${.CURDIR}/../libgssapi_krb5

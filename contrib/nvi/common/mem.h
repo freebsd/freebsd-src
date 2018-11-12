@@ -6,13 +6,21 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	@(#)mem.h	10.7 (Berkeley) 3/30/96
+ *	$Id: mem.h,v 10.17 2012/10/07 00:40:29 zy Exp $
  */
+
+#ifdef DEBUG
+#define CHECK_TYPE(type, var)						\
+	type L__lp __attribute__((unused)) = var;
+#else
+#define CHECK_TYPE(type, var)
+#endif
 
 /* Increase the size of a malloc'd buffer.  Two versions, one that
  * returns, one that jumps to an error label.
  */
-#define	BINC_GOTO(sp, lp, llen, nlen) {					\
+#define	BINC_GOTO(sp, type, lp, llen, nlen) {				\
+	CHECK_TYPE(type *, lp)						\
 	void *L__bincp;							\
 	if ((nlen) > llen) {						\
 		if ((L__bincp = binc(sp, lp, &(llen), nlen)) == NULL)	\
@@ -24,7 +32,12 @@
 		lp = L__bincp;						\
 	}								\
 }
-#define	BINC_RET(sp, lp, llen, nlen) {					\
+#define	BINC_GOTOC(sp, lp, llen, nlen)					\
+	BINC_GOTO(sp, char, lp, llen, nlen)
+#define	BINC_GOTOW(sp, lp, llen, nlen)					\
+	BINC_GOTO(sp, CHAR_T, lp, llen, (nlen) * sizeof(CHAR_T))
+#define	BINC_RET(sp, type, lp, llen, nlen) {				\
+	CHECK_TYPE(type *, lp)						\
 	void *L__bincp;							\
 	if ((nlen) > llen) {						\
 		if ((L__bincp = binc(sp, lp, &(llen), nlen)) == NULL)	\
@@ -36,65 +49,89 @@
 		lp = L__bincp;						\
 	}								\
 }
+#define	BINC_RETC(sp, lp, llen, nlen)					\
+	BINC_RET(sp, char, lp, llen, nlen)
+#define	BINC_RETW(sp, lp, llen, nlen)					\
+	BINC_RET(sp, CHAR_T, lp, llen, (nlen) * sizeof(CHAR_T))
 
 /*
  * Get some temporary space, preferably from the global temporary buffer,
  * from a malloc'd buffer otherwise.  Two versions, one that returns, one
  * that jumps to an error label.
  */
-#define	GET_SPACE_GOTO(sp, bp, blen, nlen) {				\
+#define	GET_SPACE_GOTO(sp, type, bp, blen, nlen) {			\
+	CHECK_TYPE(type *, bp)						\
 	GS *L__gp = (sp) == NULL ? NULL : (sp)->gp;			\
 	if (L__gp == NULL || F_ISSET(L__gp, G_TMP_INUSE)) {		\
 		bp = NULL;						\
 		blen = 0;						\
-		BINC_GOTO(sp, bp, blen, nlen); 				\
+		BINC_GOTO(sp, type, bp, blen, nlen); 			\
 	} else {							\
-		BINC_GOTO(sp, L__gp->tmp_bp, L__gp->tmp_blen, nlen);	\
-		bp = L__gp->tmp_bp;					\
+		BINC_GOTOC(sp, L__gp->tmp_bp, L__gp->tmp_blen, nlen);	\
+		bp = (type *) L__gp->tmp_bp;				\
 		blen = L__gp->tmp_blen;					\
 		F_SET(L__gp, G_TMP_INUSE);				\
 	}								\
 }
-#define	GET_SPACE_RET(sp, bp, blen, nlen) {				\
+#define	GET_SPACE_GOTOC(sp, bp, blen, nlen)				\
+	GET_SPACE_GOTO(sp, char, bp, blen, nlen)
+#define	GET_SPACE_GOTOW(sp, bp, blen, nlen)				\
+	GET_SPACE_GOTO(sp, CHAR_T, bp, blen, (nlen) * sizeof(CHAR_T))
+#define	GET_SPACE_RET(sp, type, bp, blen, nlen) {			\
+	CHECK_TYPE(type *, bp)						\
 	GS *L__gp = (sp) == NULL ? NULL : (sp)->gp;			\
 	if (L__gp == NULL || F_ISSET(L__gp, G_TMP_INUSE)) {		\
 		bp = NULL;						\
 		blen = 0;						\
-		BINC_RET(sp, bp, blen, nlen);				\
+		BINC_RET(sp, type, bp, blen, nlen);			\
 	} else {							\
-		BINC_RET(sp, L__gp->tmp_bp, L__gp->tmp_blen, nlen);	\
-		bp = L__gp->tmp_bp;					\
+		BINC_RETC(sp, L__gp->tmp_bp, L__gp->tmp_blen, nlen);	\
+		bp = (type *) L__gp->tmp_bp;				\
 		blen = L__gp->tmp_blen;					\
 		F_SET(L__gp, G_TMP_INUSE);				\
 	}								\
 }
+#define	GET_SPACE_RETC(sp, bp, blen, nlen)				\
+	GET_SPACE_RET(sp, char, bp, blen, nlen)
+#define	GET_SPACE_RETW(sp, bp, blen, nlen)				\
+	GET_SPACE_RET(sp, CHAR_T, bp, blen, (nlen) * sizeof(CHAR_T))
 
 /*
  * Add space to a GET_SPACE returned buffer.  Two versions, one that
  * returns, one that jumps to an error label.
  */
-#define	ADD_SPACE_GOTO(sp, bp, blen, nlen) {				\
+#define	ADD_SPACE_GOTO(sp, type, bp, blen, nlen) {			\
+	CHECK_TYPE(type *, bp)						\
 	GS *L__gp = (sp) == NULL ? NULL : (sp)->gp;			\
-	if (L__gp == NULL || bp == L__gp->tmp_bp) {			\
+	if (L__gp == NULL || bp == (type *)L__gp->tmp_bp) {		\
 		F_CLR(L__gp, G_TMP_INUSE);				\
-		BINC_GOTO(sp, L__gp->tmp_bp, L__gp->tmp_blen, nlen);	\
-		bp = L__gp->tmp_bp;					\
+		BINC_GOTOC(sp, L__gp->tmp_bp, L__gp->tmp_blen, nlen);	\
+		bp = (type *) L__gp->tmp_bp;				\
 		blen = L__gp->tmp_blen;					\
 		F_SET(L__gp, G_TMP_INUSE);				\
 	} else								\
-		BINC_GOTO(sp, bp, blen, nlen);				\
+		BINC_GOTO(sp, type, bp, blen, nlen);			\
 }
-#define	ADD_SPACE_RET(sp, bp, blen, nlen) {				\
+#define	ADD_SPACE_GOTOC(sp, bp, blen, nlen)				\
+	ADD_SPACE_GOTO(sp, char, bp, blen, nlen)
+#define	ADD_SPACE_GOTOW(sp, bp, blen, nlen)				\
+	ADD_SPACE_GOTO(sp, CHAR_T, bp, blen, (nlen) * sizeof(CHAR_T))
+#define	ADD_SPACE_RET(sp, type, bp, blen, nlen) {			\
+	CHECK_TYPE(type *, bp)						\
 	GS *L__gp = (sp) == NULL ? NULL : (sp)->gp;			\
-	if (L__gp == NULL || bp == L__gp->tmp_bp) {			\
+	if (L__gp == NULL || bp == (type *)L__gp->tmp_bp) {		\
 		F_CLR(L__gp, G_TMP_INUSE);				\
-		BINC_RET(sp, L__gp->tmp_bp, L__gp->tmp_blen, nlen);	\
-		bp = L__gp->tmp_bp;					\
+		BINC_RETC(sp, L__gp->tmp_bp, L__gp->tmp_blen, nlen);	\
+		bp = (type *) L__gp->tmp_bp;				\
 		blen = L__gp->tmp_blen;					\
 		F_SET(L__gp, G_TMP_INUSE);				\
 	} else								\
-		BINC_RET(sp, bp, blen, nlen);				\
+		BINC_RET(sp, type, bp, blen, nlen);			\
 }
+#define	ADD_SPACE_RETC(sp, bp, blen, nlen)				\
+	ADD_SPACE_RET(sp, char, bp, blen, nlen)
+#define	ADD_SPACE_RETW(sp, bp, blen, nlen)				\
+	ADD_SPACE_RET(sp, CHAR_T, bp, blen, (nlen) * sizeof(CHAR_T))
 
 /* Free a GET_SPACE returned buffer. */
 #define	FREE_SPACE(sp, bp, blen) {					\
@@ -103,6 +140,10 @@
 		F_CLR(L__gp, G_TMP_INUSE);				\
 	else								\
 		free(bp);						\
+}
+#define	FREE_SPACEW(sp, bp, blen) {					\
+	CHECK_TYPE(CHAR_T *, bp)					\
+	FREE_SPACE(sp, (char *)bp, blen);				\
 }
 
 /*
@@ -150,19 +191,50 @@
 		return (1);						\
 	}								\
 }
+
 /*
- * XXX
- * Don't depend on realloc(NULL, size) working.
+ * Resize a buffer, free any already held memory if we can't get more.
+ * FreeBSD's reallocf(3) does the same thing, but it's not portable yet.
  */
 #define	REALLOC(sp, p, cast, size) {					\
-	if ((p = (cast)(p == NULL ?					\
-	    malloc(size) : realloc(p, size))) == NULL)			\
+	cast newp;							\
+	if ((newp = (cast)realloc(p, size)) == NULL) {			\
+		if (p != NULL)						\
+			free(p);					\
 		msgq(sp, M_SYSERR, NULL);				\
+	}								\
+	p = newp;							\
 }
 
 /*
- * Versions of memmove(3) and memset(3) that use the size of the
+ * Versions of bcopy(3) and bzero(3) that use the size of the
  * initial pointer to figure out how much memory to manipulate.
  */
-#define	MEMMOVE(p, t, len)	memmove(p, t, (len) * sizeof(*(p)))
-#define	MEMSET(p, value, len)	memset(p, value, (len) * sizeof(*(p)))
+#define	BCOPY(p, t, len)	bcopy(p, t, (len) * sizeof(*(p)))
+#define	BZERO(p, len)		bzero(p, (len) * sizeof(*(p)))
+
+/* 
+ * p2roundup --
+ *	Get next power of 2; convenient for realloc.
+ *
+ * Reference: FreeBSD /usr/src/lib/libc/stdio/getdelim.c
+ */
+static __inline size_t
+p2roundup(size_t n)
+{
+	n--;
+	n |= n >> 1;
+	n |= n >> 2;
+	n |= n >> 4;
+	n |= n >> 8;
+	n |= n >> 16;
+#if SIZE_T_MAX > 0xffffffffU
+	n |= n >> 32;
+#endif
+	n++;
+	return (n);
+}
+
+/* Additional TAILQ helper. */
+#define TAILQ_ENTRY_ISVALID(elm, field)					\
+	((elm)->field.tqe_prev != NULL)

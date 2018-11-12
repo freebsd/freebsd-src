@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2009 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,12 +24,17 @@
  * SUCH DAMAGE.
  */
 
+#ifdef LIBUSB_GLOBAL_INCLUDE_FILE
+#include LIBUSB_GLOBAL_INCLUDE_FILE
+#else
+#include <ctype.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <poll.h>
-#include <ctype.h>
+#include <time.h>
 #include <sys/queue.h>
+#endif
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
@@ -67,8 +72,11 @@ dummy_callback(struct libusb20_transfer *xfer)
 #define	dummy_set_config_index (void *)dummy_int
 #define	dummy_set_alt_index (void *)dummy_int
 #define	dummy_reset_device (void *)dummy_int
+#define	dummy_check_connected (void *)dummy_int
 #define	dummy_set_power_mode (void *)dummy_int
 #define	dummy_get_power_mode (void *)dummy_int
+#define	dummy_get_port_path (void *)dummy_int
+#define	dummy_get_power_usage (void *)dummy_int
 #define	dummy_kernel_driver_active (void *)dummy_int
 #define	dummy_detach_kernel_driver (void *)dummy_int
 #define	dummy_do_request_sync (void *)dummy_int
@@ -130,8 +138,19 @@ libusb20_tr_close(struct libusb20_transfer *xfer)
 	if (xfer->ppBuffer) {
 		free(xfer->ppBuffer);
 	}
-	/* clear some fields */
+	/* reset variable fields in case the transfer is opened again */
+	xfer->priv_sc0 = NULL;
+	xfer->priv_sc1 = NULL;
 	xfer->is_opened = 0;
+	xfer->is_pending = 0;
+	xfer->is_cancel = 0;
+	xfer->is_draining = 0;
+	xfer->is_restart = 0;
+	xfer->status = 0;
+	xfer->flags = 0;
+	xfer->nFrames = 0;
+	xfer->aFrames = 0;
+	xfer->timeout = 0;
 	xfer->maxFrames = 0;
 	xfer->maxTotalLength = 0;
 	xfer->maxPacketLen = 0;
@@ -142,15 +161,34 @@ int
 libusb20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
     uint32_t MaxFrameCount, uint8_t ep_no)
 {
+	return (libusb20_tr_open_stream(xfer, MaxBufSize, MaxFrameCount, ep_no, 0));
+}
+
+int
+libusb20_tr_open_stream(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
+    uint32_t MaxFrameCount, uint8_t ep_no, uint16_t stream_id)
+{
 	uint32_t size;
+	uint8_t pre_scale;
 	int error;
 
-	if (xfer->is_opened) {
+	if (xfer->is_opened)
 		return (LIBUSB20_ERROR_BUSY);
+	if (MaxFrameCount & LIBUSB20_MAX_FRAME_PRE_SCALE) {
+		MaxFrameCount &= ~LIBUSB20_MAX_FRAME_PRE_SCALE;
+		/*
+		 * The kernel can setup 8 times more frames when
+		 * pre-scaling ISOCHRONOUS transfers. Make sure the
+		 * length and pointer buffers are big enough:
+		 */
+		MaxFrameCount *= 8;
+		pre_scale = 1;
+	} else {
+		pre_scale = 0;
 	}
-	if (MaxFrameCount == 0) {
+	if (MaxFrameCount == 0)
 		return (LIBUSB20_ERROR_INVALID_PARAM);
-	}
+
 	xfer->maxFrames = MaxFrameCount;
 
 	size = MaxFrameCount * sizeof(xfer->pLength[0]);
@@ -168,8 +206,13 @@ libusb20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
 	}
 	memset(xfer->ppBuffer, 0, size);
 
-	error = xfer->pdev->methods->tr_open(xfer, MaxBufSize,
-	    MaxFrameCount, ep_no);
+	if (pre_scale) {
+		error = xfer->pdev->methods->tr_open(xfer, MaxBufSize,
+		    MaxFrameCount / 8, ep_no, stream_id, 1);
+	} else {
+		error = xfer->pdev->methods->tr_open(xfer, MaxBufSize,
+		    MaxFrameCount, ep_no, stream_id, 0);
+	}
 
 	if (error) {
 		free(xfer->ppBuffer);
@@ -263,6 +306,10 @@ libusb20_tr_get_priv_sc1(struct libusb20_transfer *xfer)
 void
 libusb20_tr_stop(struct libusb20_transfer *xfer)
 {
+	if (!xfer->is_opened) {
+		/* transfer is not opened */
+		return;
+	}
 	if (!xfer->is_pending) {
 		/* transfer not pending */
 		return;
@@ -280,6 +327,10 @@ libusb20_tr_stop(struct libusb20_transfer *xfer)
 void
 libusb20_tr_drain(struct libusb20_transfer *xfer)
 {
+	if (!xfer->is_opened) {
+		/* transfer is not opened */
+		return;
+	}
 	/* make sure that we are cancelling */
 	libusb20_tr_stop(xfer);
 
@@ -299,7 +350,7 @@ libusb20_tr_clear_stall_sync(struct libusb20_transfer *xfer)
 void
 libusb20_tr_set_buffer(struct libusb20_transfer *xfer, void *buffer, uint16_t frIndex)
 {
-	xfer->ppBuffer[frIndex] = buffer;
+	xfer->ppBuffer[frIndex] = libusb20_pass_ptr(buffer);
 	return;
 }
 
@@ -365,7 +416,7 @@ libusb20_tr_set_total_frames(struct libusb20_transfer *xfer, uint32_t nFrames)
 void
 libusb20_tr_setup_bulk(struct libusb20_transfer *xfer, void *pBuf, uint32_t length, uint32_t timeout)
 {
-	xfer->ppBuffer[0] = pBuf;
+	xfer->ppBuffer[0] = libusb20_pass_ptr(pBuf);
 	xfer->pLength[0] = length;
 	xfer->timeout = timeout;
 	xfer->nFrames = 1;
@@ -377,7 +428,7 @@ libusb20_tr_setup_control(struct libusb20_transfer *xfer, void *psetup, void *pB
 {
 	uint16_t len;
 
-	xfer->ppBuffer[0] = psetup;
+	xfer->ppBuffer[0] = libusb20_pass_ptr(psetup);
 	xfer->pLength[0] = 8;		/* fixed */
 	xfer->timeout = timeout;
 
@@ -385,7 +436,7 @@ libusb20_tr_setup_control(struct libusb20_transfer *xfer, void *psetup, void *pB
 
 	if (len != 0) {
 		xfer->nFrames = 2;
-		xfer->ppBuffer[1] = pBuf;
+		xfer->ppBuffer[1] = libusb20_pass_ptr(pBuf);
 		xfer->pLength[1] = len;
 	} else {
 		xfer->nFrames = 1;
@@ -396,7 +447,7 @@ libusb20_tr_setup_control(struct libusb20_transfer *xfer, void *psetup, void *pB
 void
 libusb20_tr_setup_intr(struct libusb20_transfer *xfer, void *pBuf, uint32_t length, uint32_t timeout)
 {
-	xfer->ppBuffer[0] = pBuf;
+	xfer->ppBuffer[0] = libusb20_pass_ptr(pBuf);
 	xfer->pLength[0] = length;
 	xfer->timeout = timeout;
 	xfer->nFrames = 1;
@@ -410,14 +461,84 @@ libusb20_tr_setup_isoc(struct libusb20_transfer *xfer, void *pBuf, uint32_t leng
 		/* should not happen */
 		return;
 	}
-	xfer->ppBuffer[frIndex] = pBuf;
+	xfer->ppBuffer[frIndex] = libusb20_pass_ptr(pBuf);
 	xfer->pLength[frIndex] = length;
 	return;
+}
+
+uint8_t
+libusb20_tr_bulk_intr_sync(struct libusb20_transfer *xfer,
+    void *pbuf, uint32_t length, uint32_t *pactlen,
+    uint32_t timeout)
+{
+	struct libusb20_device *pdev = xfer->pdev;
+	uint32_t transfer_max;
+	uint32_t transfer_act;
+	uint8_t retval;
+
+	/* set some sensible default value */
+	if (pactlen != NULL)
+		*pactlen = 0;
+
+	/* check for error condition */
+	if (libusb20_tr_pending(xfer))
+		return (LIBUSB20_ERROR_OTHER);
+
+	do {
+		/* compute maximum transfer length */
+		transfer_max = 
+		    libusb20_tr_get_max_total_length(xfer);
+
+		if (transfer_max > length)
+			transfer_max = length;
+
+		/* setup bulk or interrupt transfer */
+		libusb20_tr_setup_bulk(xfer, pbuf, 
+		    transfer_max, timeout);
+
+		/* start the transfer */
+		libusb20_tr_start(xfer);
+
+		/* wait for transfer completion */
+		while (libusb20_dev_process(pdev) == 0) {
+
+			if (libusb20_tr_pending(xfer) == 0)
+				break;
+
+			libusb20_dev_wait_process(pdev, -1);
+		}
+
+		transfer_act = libusb20_tr_get_actual_length(xfer);
+
+		/* update actual length, if any */
+		if (pactlen != NULL)
+			pactlen[0] += transfer_act;
+
+		/* check transfer status */
+		retval = libusb20_tr_get_status(xfer);
+		if (retval)
+			break;
+
+		/* check for short transfer */
+		if (transfer_act != transfer_max)
+			break;
+
+		/* update buffer pointer and length */
+		pbuf = ((uint8_t *)pbuf) + transfer_max;
+		length = length - transfer_max;
+
+	} while (length != 0);
+
+	return (retval);
 }
 
 void
 libusb20_tr_submit(struct libusb20_transfer *xfer)
 {
+	if (!xfer->is_opened) {
+		/* transfer is not opened */
+		return;
+	}
 	if (xfer->is_pending) {
 		/* should not happen */
 		return;
@@ -433,6 +554,10 @@ libusb20_tr_submit(struct libusb20_transfer *xfer)
 void
 libusb20_tr_start(struct libusb20_transfer *xfer)
 {
+	if (!xfer->is_opened) {
+		/* transfer is not opened */
+		return;
+	}
 	if (xfer->is_pending) {
 		if (xfer->is_cancel) {
 			/* cancelling - restart */
@@ -461,7 +586,14 @@ libusb20_dev_close(struct libusb20_device *pdev)
 	for (x = 0; x != pdev->nTransfer; x++) {
 		xfer = pdev->pTransfer + x;
 
+		if (!xfer->is_opened) {
+			/* transfer is not opened */
+			continue;
+		}
+
 		libusb20_tr_drain(xfer);
+
+		libusb20_tr_close(xfer);
 	}
 
 	if (pdev->pTransfer != NULL) {
@@ -479,6 +611,12 @@ libusb20_dev_close(struct libusb20_device *pdev)
 	 * compat layer:
 	 */
 	pdev->claimed_interface = 0;
+
+	/*
+	 * The following variable is only used by the libusb v1.0
+	 * compat layer:
+	 */
+	pdev->auto_detach = 0;
 
 	return (error);
 }
@@ -573,6 +711,15 @@ libusb20_dev_reset(struct libusb20_device *pdev)
 }
 
 int
+libusb20_dev_check_connected(struct libusb20_device *pdev)
+{
+	int error;
+
+	error = pdev->methods->check_connected(pdev);
+	return (error);
+}
+
+int
 libusb20_dev_set_power_mode(struct libusb20_device *pdev, uint8_t power_mode)
 {
 	int error;
@@ -591,6 +738,24 @@ libusb20_dev_get_power_mode(struct libusb20_device *pdev)
 	if (error)
 		power_mode = LIBUSB20_POWER_ON;	/* fake power mode */
 	return (power_mode);
+}
+
+int
+libusb20_dev_get_port_path(struct libusb20_device *pdev, uint8_t *buf, uint8_t bufsize)
+{
+	return (pdev->methods->get_port_path(pdev, buf, bufsize));
+}
+
+uint16_t
+libusb20_dev_get_power_usage(struct libusb20_device *pdev)
+{
+	int error;
+	uint16_t power_usage;
+
+	error = pdev->methods->get_power_usage(pdev, &power_usage);
+	if (error)
+		power_usage = 0;
+	return (power_usage);
 }
 
 int
@@ -629,6 +794,9 @@ libusb20_dev_req_string_sync(struct libusb20_device *pdev,
 {
 	struct LIBUSB20_CONTROL_SETUP_DECODED req;
 	int error;
+
+	/* make sure memory is initialised */
+	memset(ptr, 0, len);
 
 	if (len < 4) {
 		/* invalid length */
@@ -828,9 +996,8 @@ libusb20_dev_get_config_index(struct libusb20_device *pdev)
 	}
 
 	error = pdev->methods->get_config_index(pdev, &cfg_index);
-	if (error) {
-		cfg_index = 0 - 1;	/* current config index */
-	}
+	if (error)
+		cfg_index = 0xFF;	/* current config index */
 	if (do_close) {
 		if (libusb20_dev_close(pdev)) {
 			/* ignore */
@@ -937,6 +1104,18 @@ libusb20_dev_get_address(struct libusb20_device *pdev)
 }
 
 uint8_t
+libusb20_dev_get_parent_address(struct libusb20_device *pdev)
+{
+	return (pdev->parent_address);
+}
+
+uint8_t
+libusb20_dev_get_parent_port(struct libusb20_device *pdev)
+{
+	return (pdev->parent_port);
+}
+
+uint8_t
 libusb20_dev_get_bus_number(struct libusb20_device *pdev)
 {
 	return (pdev->bus_number);
@@ -948,6 +1127,8 @@ libusb20_dev_get_iface_desc(struct libusb20_device *pdev,
 {
 	if ((buf == NULL) || (len == 0))
 		return (LIBUSB20_ERROR_INVALID_PARAM);
+
+	buf[0] = 0;		/* set default string value */
 
 	return (pdev->beMethods->dev_get_iface_desc(
 	    pdev, iface_index, buf, len));
@@ -1038,27 +1219,13 @@ libusb20_be_alloc(const struct libusb20_backend_methods *methods)
 struct libusb20_backend *
 libusb20_be_alloc_linux(void)
 {
-	struct libusb20_backend *pbe;
-
-#ifdef __linux__
-	pbe = libusb20_be_alloc(&libusb20_linux_backend);
-#else
-	pbe = NULL;
-#endif
-	return (pbe);
+	return (NULL);
 }
 
 struct libusb20_backend *
 libusb20_be_alloc_ugen20(void)
 {
-	struct libusb20_backend *pbe;
-
-#ifdef __FreeBSD__
-	pbe = libusb20_be_alloc(&libusb20_ugen20_backend);
-#else
-	pbe = NULL;
-#endif
-	return (pbe);
+	return (libusb20_be_alloc(&libusb20_ugen20_backend));
 }
 
 struct libusb20_backend *
@@ -1066,10 +1233,12 @@ libusb20_be_alloc_default(void)
 {
 	struct libusb20_backend *pbe;
 
+#ifdef __linux__
 	pbe = libusb20_be_alloc_linux();
 	if (pbe) {
 		return (pbe);
 	}
+#endif
 	pbe = libusb20_be_alloc_ugen20();
 	if (pbe) {
 		return (pbe);
@@ -1093,7 +1262,8 @@ libusb20_be_free(struct libusb20_backend *pbe)
 	if (pbe->methods->exit_backend) {
 		pbe->methods->exit_backend(pbe);
 	}
-	return;
+	/* free backend */
+	free(pbe);
 }
 
 void
@@ -1101,7 +1271,6 @@ libusb20_be_enqueue_device(struct libusb20_backend *pbe, struct libusb20_device 
 {
 	pdev->beMethods = pbe->methods;	/* copy backend methods */
 	TAILQ_INSERT_TAIL(&(pbe->usb_devs), pdev, dev_entry);
-	return;
 }
 
 void
@@ -1109,5 +1278,78 @@ libusb20_be_dequeue_device(struct libusb20_backend *pbe,
     struct libusb20_device *pdev)
 {
 	TAILQ_REMOVE(&(pbe->usb_devs), pdev, dev_entry);
-	return;
+}
+
+const char *
+libusb20_strerror(int code)
+{
+	switch (code) {
+	case LIBUSB20_SUCCESS:
+		return ("Success");
+	case LIBUSB20_ERROR_IO:
+		return ("I/O error");
+	case LIBUSB20_ERROR_INVALID_PARAM:
+		return ("Invalid parameter");
+	case LIBUSB20_ERROR_ACCESS:
+		return ("Permissions error");
+	case LIBUSB20_ERROR_NO_DEVICE:
+		return ("No device");
+	case LIBUSB20_ERROR_NOT_FOUND:
+		return ("Not found");
+	case LIBUSB20_ERROR_BUSY:
+		return ("Device busy");
+	case LIBUSB20_ERROR_TIMEOUT:
+		return ("Timeout");
+	case LIBUSB20_ERROR_OVERFLOW:
+		return ("Overflow");
+	case LIBUSB20_ERROR_PIPE:
+		return ("Pipe error");
+	case LIBUSB20_ERROR_INTERRUPTED:
+		return ("Interrupted");
+	case LIBUSB20_ERROR_NO_MEM:
+		return ("Out of memory");
+	case LIBUSB20_ERROR_NOT_SUPPORTED:
+		return ("Not supported");
+	case LIBUSB20_ERROR_OTHER:
+		return ("Other error");
+	default:
+		return ("Unknown error");
+	}
+}
+
+const char *
+libusb20_error_name(int code)
+{
+	switch (code) {
+	case LIBUSB20_SUCCESS:
+		return ("LIBUSB20_SUCCESS");
+	case LIBUSB20_ERROR_IO:
+		return ("LIBUSB20_ERROR_IO");
+	case LIBUSB20_ERROR_INVALID_PARAM:
+		return ("LIBUSB20_ERROR_INVALID_PARAM");
+	case LIBUSB20_ERROR_ACCESS:
+		return ("LIBUSB20_ERROR_ACCESS");
+	case LIBUSB20_ERROR_NO_DEVICE:
+		return ("LIBUSB20_ERROR_NO_DEVICE");
+	case LIBUSB20_ERROR_NOT_FOUND:
+		return ("LIBUSB20_ERROR_NOT_FOUND");
+	case LIBUSB20_ERROR_BUSY:
+		return ("LIBUSB20_ERROR_BUSY");
+	case LIBUSB20_ERROR_TIMEOUT:
+		return ("LIBUSB20_ERROR_TIMEOUT");
+	case LIBUSB20_ERROR_OVERFLOW:
+		return ("LIBUSB20_ERROR_OVERFLOW");
+	case LIBUSB20_ERROR_PIPE:
+		return ("LIBUSB20_ERROR_PIPE");
+	case LIBUSB20_ERROR_INTERRUPTED:
+		return ("LIBUSB20_ERROR_INTERRUPTED");
+	case LIBUSB20_ERROR_NO_MEM:
+		return ("LIBUSB20_ERROR_NO_MEM");
+	case LIBUSB20_ERROR_NOT_SUPPORTED:
+		return ("LIBUSB20_ERROR_NOT_SUPPORTED");
+	case LIBUSB20_ERROR_OTHER:
+		return ("LIBUSB20_ERROR_OTHER");
+	default:
+		return ("LIBUSB20_ERROR_UNKNOWN");
+	}
 }

@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
  * RX filter uses a 512-bit multicast hash table, single perfect entry
  * for the station address, and promiscuous mode. Unlike the ADMtek
  * and KLSI chips, the CATC ASIC supports read and write combining
- * mode where multiple packets can be transfered using a single bulk
+ * mode where multiple packets can be transferred using a single bulk
  * transaction, which helps performance a great deal.
  */
 
@@ -57,9 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/systm.h>
+#include <sys/socket.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -70,6 +70,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+
+#include <net/if.h>
+#include <net/if_var.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -89,10 +92,12 @@ __FBSDID("$FreeBSD$");
 
 /* Belkin F5U111 adapter covered by NETMATE entry */
 
-static const struct usb_device_id cue_devs[] = {
-	{USB_VPI(USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE, 0)},
-	{USB_VPI(USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE2, 0)},
-	{USB_VPI(USB_VENDOR_SMARTBRIDGES, USB_PRODUCT_SMARTBRIDGES_SMARTLINK, 0)},
+static const STRUCT_USB_HOST_ID cue_devs[] = {
+#define	CUE_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
+	CUE_DEV(CATC, NETMATE),
+	CUE_DEV(CATC, NETMATE2),
+	CUE_DEV(SMARTBRIDGES, SMARTLINK),
+#undef CUE_DEV
 };
 
 /* prototypes */
@@ -120,11 +125,11 @@ static int	cue_getmac(struct cue_softc *, void *);
 static uint32_t	cue_mchash(const uint8_t *);
 static void	cue_reset(struct cue_softc *);
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int cue_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, cue, CTLFLAG_RW, 0, "USB cue");
-SYSCTL_INT(_hw_usb_cue, OID_AUTO, debug, CTLFLAG_RW, &cue_debug, 0,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, cue, CTLFLAG_RW, 0, "USB cue");
+SYSCTL_INT(_hw_usb_cue, OID_AUTO, debug, CTLFLAG_RWTUN, &cue_debug, 0,
     "Debug level");
 #endif
 
@@ -156,7 +161,7 @@ static device_method_t cue_methods[] = {
 	DEVMETHOD(device_attach, cue_attach),
 	DEVMETHOD(device_detach, cue_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t cue_driver = {
@@ -171,6 +176,8 @@ DRIVER_MODULE(cue, uhub, cue_driver, cue_devclass, NULL, 0);
 MODULE_DEPEND(cue, uether, 1, 1, 1);
 MODULE_DEPEND(cue, usb, 1, 1, 1);
 MODULE_DEPEND(cue, ether, 1, 1, 1);
+MODULE_VERSION(cue, 1);
+USB_PNP_HOST_INFO(cue_devs);
 
 static const struct usb_ether_methods cue_ue_methods = {
 	.ue_attach_post = cue_attach_post,
@@ -404,7 +411,7 @@ cue_attach(device_t dev)
 	error = usbd_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, cue_config, CUE_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
-		device_printf(dev, "allocating USB transfers failed!\n");
+		device_printf(dev, "allocating USB transfers failed\n");
 		goto detach;
 	}
 
@@ -455,8 +462,8 @@ cue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		if (actlen <= (2 + sizeof(struct ether_header))) {
-			ifp->if_ierrors++;
+		if (actlen <= (int)(2 + sizeof(struct ether_header))) {
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		pc = usbd_xfer_get_frame(xfer, 0);
@@ -500,7 +507,7 @@ cue_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete\n");
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -538,7 +545,7 @@ tr_setup:
 		DPRINTFN(11, "transfer error, %s\n",
 		    usbd_errstr(error));
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
@@ -557,12 +564,12 @@ cue_tick(struct usb_ether *ue)
 
 	CUE_LOCK_ASSERT(sc, MA_OWNED);
 
-	ifp->if_collisions += cue_csr_read_2(sc, CUE_TX_SINGLECOLL);
-	ifp->if_collisions += cue_csr_read_2(sc, CUE_TX_MULTICOLL);
-	ifp->if_collisions += cue_csr_read_2(sc, CUE_TX_EXCESSCOLL);
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, cue_csr_read_2(sc, CUE_TX_SINGLECOLL));
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, cue_csr_read_2(sc, CUE_TX_MULTICOLL));
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, cue_csr_read_2(sc, CUE_TX_EXCESSCOLL));
 
 	if (cue_csr_read_2(sc, CUE_RX_FRAMEERR))
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 }
 
 static void

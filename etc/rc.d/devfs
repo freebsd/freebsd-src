@@ -11,12 +11,14 @@
 . /etc/rc.subr
 
 name="devfs"
+desc="Device filesystem"
 start_cmd='devfs_start'
 stop_cmd=':'
 
 devfs_start()
 {
-	if [ -n "$devfs_system_ruleset" -o -n "$devfs_set_rulesets" ]; then
+	if [ -n "$devfs_system_ruleset" -o -n "$devfs_set_rulesets" ] ||
+	    checkyesno devfs_load_rulesets; then
 		devfs_init_rulesets
 		if [ -n "$devfs_system_ruleset" ]; then
 			devfs_set_ruleset $devfs_system_ruleset /dev
@@ -44,7 +46,7 @@ read_devfs_conf()
 		while read action devicelist parameter; do
 			case "${action}" in
 			l*)	for device in ${devicelist}; do
-					if [ -c ${device} -a ! -e ${parameter} ]; then
+					if [ ! -e ${parameter} ]; then
 						ln -fs ${device} ${parameter}
 					fi
 				done

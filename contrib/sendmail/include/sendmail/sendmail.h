@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: sendmail.h,v 8.68 2002/07/01 22:18:53 gshapiro Exp $
+ *	$Id: sendmail.h,v 8.69 2013-11-22 20:51:30 ca Exp $
  */
 
 /*
@@ -117,9 +117,7 @@ extern bool	filechanged __P((char *, int, struct stat *));
 #define DBS_WORLDWRITABLEFORWARDFILE			39
 #define DBS_WORLDWRITABLEINCLUDEFILE			40
 #define DBS_GROUPREADABLEKEYFILE			41
-#if _FFR_GROUPREADABLEAUTHINFOFILE
-# define DBS_GROUPREADABLEAUTHINFOFILE			42
-#endif /* _FFR_GROUPREADABLEAUTHINFOFILE */
+#define DBS_GROUPREADABLEAUTHINFOFILE			42
 
 /* struct defining such things */
 struct dbsval

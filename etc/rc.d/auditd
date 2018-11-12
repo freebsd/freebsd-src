@@ -8,11 +8,12 @@
 # PROVIDE: auditd
 # REQUIRE: syslogd
 # BEFORE:  DAEMON
-# KEYWORD: shutdown
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 
 name="auditd"
+desc="Audit daemon"
 stop_cmd="auditd_stop"
 command="/usr/sbin/${name}"
 rcvar="auditd_enable"

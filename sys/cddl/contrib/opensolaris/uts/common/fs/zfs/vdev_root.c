@@ -19,8 +19,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ */
+
+/*
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -50,26 +54,25 @@ too_many_errors(vdev_t *vd, int numerrors)
 }
 
 static int
-vdev_root_open(vdev_t *vd, uint64_t *asize, uint64_t *ashift)
+vdev_root_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
+    uint64_t *logical_ashift, uint64_t *physical_ashift)
 {
-	int c;
 	int lasterror = 0;
 	int numerrors = 0;
 
 	if (vd->vdev_children == 0) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_BAD_LABEL;
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 	}
 
-	for (c = 0; c < vd->vdev_children; c++) {
-		vdev_t *cvd = vd->vdev_child[c];
-		int error;
+	vdev_open_children(vd);
 
-		if ((error = vdev_open(cvd)) != 0 &&
-		    !cvd->vdev_islog) {
-			lasterror = error;
+	for (int c = 0; c < vd->vdev_children; c++) {
+		vdev_t *cvd = vd->vdev_child[c];
+
+		if (cvd->vdev_open_error && !cvd->vdev_islog) {
+			lasterror = cvd->vdev_open_error;
 			numerrors++;
-			continue;
 		}
 	}
 
@@ -79,7 +82,9 @@ vdev_root_open(vdev_t *vd, uint64_t *asize, uint64_t *ashift)
 	}
 
 	*asize = 0;
-	*ashift = 0;
+	*max_asize = 0;
+	*logical_ashift = 0;
+	*physical_ashift = 0;
 
 	return (0);
 }
@@ -87,9 +92,7 @@ vdev_root_open(vdev_t *vd, uint64_t *asize, uint64_t *ashift)
 static void
 vdev_root_close(vdev_t *vd)
 {
-	int c;
-
-	for (c = 0; c < vd->vdev_children; c++)
+	for (int c = 0; c < vd->vdev_children; c++)
 		vdev_close(vd->vdev_child[c]);
 }
 
@@ -113,6 +116,8 @@ vdev_ops_t vdev_root_ops = {
 	NULL,			/* io_start - not applicable to the root */
 	NULL,			/* io_done - not applicable to the root */
 	vdev_root_state_change,
+	NULL,
+	NULL,
 	VDEV_TYPE_ROOT,		/* name of this vdev type */
 	B_FALSE			/* not a leaf vdev */
 };

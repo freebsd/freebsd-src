@@ -35,11 +35,14 @@
 #ifndef _NFSCLIENT_NFSNODE_H_
 #define	_NFSCLIENT_NFSNODE_H_
 
+#include <sys/_task.h>
+
 /*
  * Silly rename structure that hangs off the nfsnode until the name
  * can be removed by nfs_inactive()
  */
 struct sillyrename {
+	struct	task s_task;
 	struct	ucred *s_cred;
 	struct	vnode *s_dvp;
 	long	s_namlen;
@@ -67,16 +70,6 @@ struct nfsdmap {
 
 #define	ndm_cookies	ndm_un1.ndmu3_cookies
 #define	ndm4_cookies	ndm_un1.ndmu4_cookies
-
-#define	n_ac_ts_tid		n_ac_ts.nfs_ac_ts_tid
-#define	n_ac_ts_pid		n_ac_ts.nfs_ac_ts_pid
-#define	n_ac_ts_syscalls	n_ac_ts.nfs_ac_ts_syscalls
-
-struct nfs_attrcache_timestamp {
-	lwpid_t		nfs_ac_ts_tid;
-	pid_t		nfs_ac_ts_pid;
-	unsigned long	nfs_ac_ts_syscalls;	
-};
 
 struct nfs_accesscache {
 	u_int32_t		mode;	/* ACCESS mode cache */
@@ -106,9 +99,6 @@ struct nfsnode {
 	time_t			n_attrstamp;	/* Attr. cache timestamp */
 	struct nfs_accesscache	n_accesscache[NFS_ACCESSCACHESIZE];
 	struct timespec		n_mtime;	/* Prev modify time. */
-	time_t			n_ctime;	/* Prev create time. */
-	time_t			n_dmtime;	/* Prev dir modify time. */
-	time_t			n_expiry;	/* Lease expiry time */
 	struct nfsfh		*n_fhp;		/* NFS File Handle */
 	struct vnode		*n_vnode;	/* associated vnode */
 	struct vnode		*n_dvp;		/* parent vnode */
@@ -131,9 +121,9 @@ struct nfsnode {
 	u_int32_t		n_flag;		/* Flag for locking.. */
 	int			n_directio_opens;
 	int                     n_directio_asyncwr;
-	struct nfs_attrcache_timestamp n_ac_ts;
 	u_int64_t		 n_change;	/* old Change attribute */
 	struct nfsv4node	*n_v4;		/* extra V4 stuff */
+	struct ucred		*n_writecred;	/* Cred. for putpages */
 };
 
 #define	n_atim		n_un1.nf_atim
@@ -165,6 +155,9 @@ struct nfsnode {
 #define	NREMOVEWANT	0x00004000  /* Want notification that remove is done */
 #define	NLOCK		0x00008000  /* Sleep lock the node */
 #define	NLOCKWANT	0x00010000  /* Want the sleep lock */
+#define	NNOLAYOUT	0x00020000  /* Can't get a layout for this file */
+#define	NWRITEOPENED	0x00040000  /* Has been opened for writing */
+#define	NHASBEENLOCKED	0x00080000  /* Has been file locked. */
 
 /*
  * Convert between nfsnode pointers and vnode pointers
@@ -187,12 +180,11 @@ int	ncl_reclaim(struct vop_reclaim_args *);
 
 /* other stuff */
 int	ncl_removeit(struct sillyrename *, struct vnode *);
-int	ncl_nget(struct mount *, u_int8_t *, int, struct nfsnode **);
+int	ncl_nget(struct mount *, u_int8_t *, int, struct nfsnode **, int);
 nfsuint64 *ncl_getcookie(struct nfsnode *, off_t, int);
 void	ncl_invaldir(struct vnode *);
 int	ncl_upgrade_vnlock(struct vnode *);
 void	ncl_downgrade_vnlock(struct vnode *, int);
-void	ncl_printf(const char *, ...);
 void	ncl_dircookie_lock(struct nfsnode *);
 void	ncl_dircookie_unlock(struct nfsnode *);
 

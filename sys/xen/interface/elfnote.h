@@ -28,6 +28,8 @@
 #define __XEN_PUBLIC_ELFNOTE_H__
 
 /*
+ * `incontents 200 elfnotes ELF notes
+ *
  * The notes should live in a PT_NOTE segment and have "Xen" in the
  * name field.
  *
@@ -36,6 +38,9 @@
  *
  * LEGACY indicated the fields in the legacy __xen_guest string which
  * this a note type replaces.
+ *
+ * String values (for non-legacy) are NULL terminated ASCII, also known
+ * as ASCIZ type.
  */
 
 /*
@@ -66,8 +71,8 @@
 #define XEN_ELFNOTE_VIRT_BASE      3
 
 /*
- * The offset of the ELF paddr field from the acutal required
- * psuedo-physical address (numeric).
+ * The offset of the ELF paddr field from the actual required
+ * pseudo-physical address (numeric).
  *
  * This is used to maintain backwards compatibility with older kernels
  * which wrote __PAGE_OFFSET into that field. This field defaults to 0
@@ -158,13 +163,46 @@
 
 /*
  * Whether or not the guest supports cooperative suspend cancellation.
+ * This is a numeric value.
+ *
+ * Default is 0
  */
 #define XEN_ELFNOTE_SUSPEND_CANCEL 14
 
 /*
+ * The (non-default) location the initial phys-to-machine map should be
+ * placed at by the hypervisor (Dom0) or the tools (DomU).
+ * The kernel must be prepared for this mapping to be established using
+ * large pages, despite such otherwise not being available to guests.
+ * The kernel must also be able to handle the page table pages used for
+ * this mapping not being accessible through the initial mapping.
+ * (Only x86-64 supports this at present.)
+ */
+#define XEN_ELFNOTE_INIT_P2M      15
+
+/*
+ * Whether or not the guest can deal with being passed an initrd not
+ * mapped through its initial page tables.
+ */
+#define XEN_ELFNOTE_MOD_START_PFN 16
+
+/*
+ * The features supported by this kernel (numeric).
+ *
+ * Other than XEN_ELFNOTE_FEATURES on pre-4.2 Xen, this note allows a
+ * kernel to specify support for features that older hypervisors don't
+ * know about. The set of features 4.2 and newer hypervisors will
+ * consider supported by the kernel is the combination of the sets
+ * specified through this and the string note.
+ *
+ * LEGACY: FEATURES
+ */
+#define XEN_ELFNOTE_SUPPORTED_FEATURES 17
+
+/*
  * The number of the highest elfnote defined.
  */
-#define XEN_ELFNOTE_MAX XEN_ELFNOTE_SUSPEND_CANCEL
+#define XEN_ELFNOTE_MAX XEN_ELFNOTE_SUPPORTED_FEATURES
 
 /*
  * System information exported through crash notes.
@@ -225,7 +263,7 @@
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil

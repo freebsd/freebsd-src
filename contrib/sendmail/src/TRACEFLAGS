@@ -1,4 +1,4 @@
-#	$Id: TRACEFLAGS,v 8.47 2006/09/11 22:36:32 ca Exp $
+#	$Id: TRACEFLAGS,v 8.53 2013-11-27 01:27:03 gshapiro Exp $
 0, 4	main.c		main	canonical name, UUCP node name, a.k.a.s
 0, 15	main.c		main	print configuration
 0, 44	util.c		printav	print address of each string
@@ -77,26 +77,34 @@
 63	queue.c		runqueue process watching
 64	multiple	Milter
 65	main.c		permission checks
-#if _FFR_ADAPTIVE_EOL 
-66	srvrsmtp.c	conformance checks 
-#endif /* _FFR_ADAPTIVE_EOL */ 
-#if _FFR_QUEUE_SCHED_DBG 
-69	queue.c		scheduling 
-#endif /* _FFR_QUEUE_SCHED_DBG */ 
+#if _FFR_ADAPTIVE_EOL
+66	srvrsmtp.c	conformance checks
+#endif /* _FFR_ADAPTIVE_EOL */
+#if _FFR_QUEUE_SCHED_DBG
+69	queue.c		scheduling
+#endif /* _FFR_QUEUE_SCHED_DBG */
 70	queue.c		quarantining
 71,>99	milter.c	quarantine on errors
 73	queue.c		shared memory updates
+74,>99	map.c		LDAP map defer
+#if _FFR_XCNCT
+75			debug FFR_XC*
+#endif /* _FFR_XCNCT */
 80			content length
 81			sun remote mode
 83	collect.c	timeout
 84	deliver.c	timeout
 85	map.c		dprintf map
+#if _FFR_PROXY
+87	srvrsmtp.c	proxy mode
+#endif
+89	conf.c		>=8 use sm_dprintf() instead of syslog()
 91	mci.c		syslogging of MCI cache information
 93,>99	*		Prevent daemon connection fork for profiling/debugging
 94,>99	srvrsmtp.c	cause commands to fail (for protocol testing)
 95	srvrsmtp.c	AUTH
 95	usersmtp.c	AUTH
-96	tls.c		Activate SSL_CTX_set_info_callback()
+96	tls.c		DHparam info, Activate SSL_CTX_set_info_callback()
 97	srvrsmtp.c	Trace automode settings for I/O
 98	*		timers
 99	main.c		avoid backgrounding (no printed output)

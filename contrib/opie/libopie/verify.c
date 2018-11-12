@@ -24,6 +24,7 @@ you didn't get a copy, you may request one from <license@inner.net>.
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif /* HAVE_STRING_H */
+#include <ctype.h>
 #include "opie.h"
 
 #define RESPONSE_STANDARD  0

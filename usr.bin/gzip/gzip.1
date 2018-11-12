@@ -1,4 +1,4 @@
-.\"	$NetBSD: gzip.1,v 1.20 2009/04/01 08:15:37 mrg Exp $
+.\"	$NetBSD: gzip.1,v 1.26 2015/10/27 07:36:18 mrg Exp $
 .\"
 .\" Copyright (c) 1997, 2003, 2004 Matthew R. Green
 .\" All rights reserved.
@@ -25,7 +25,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd June 24, 2009
+.Dd October 26, 2015
 .Dt GZIP 1
 .Os
 .Sh NAME
@@ -105,9 +105,10 @@ options are enabled.
 This version of
 .Nm
 is also capable of decompressing files compressed using
-.Xr compress 1
+.Xr compress 1 ,
+.Xr bzip2 1 ,
 or
-.Xr bzip2 1 .
+.Xr xz 1 .
 .Sh OPTIONS
 The following options are available:
 .Bl -tag -width XXrXXXrecursiveX
@@ -127,15 +128,15 @@ stream, leaving files intact.
 This option selects decompression rather than compression.
 .It Fl f , -force
 This option turns on force mode.
-This allows files with multiple links, overwriting of pre-existing
-files, reading from or writing to a terminal, and when combined
-with the
+This allows files with multiple links, symbolic links to regular files,
+overwriting of pre-existing files, reading from or writing to a terminal,
+and when combined with the
 .Fl c
 option, allowing non-compressed data to pass through unchanged.
 .It Fl h , -help
 This option prints a usage summary and exits.
 .It Fl k , -keep
-Keep (don't delete) input files during compression
+Keep (do not delete) input files during compression
 or decompression.
 .It Fl L , -license
 This option prints
@@ -182,9 +183,16 @@ is set, it is parsed as a white-space separated list of options
 handled before any options on the command line.
 Options on the command line will override anything in
 .Ev GZIP .
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success,
+1 on errors,
+and 2 if a warning occurs.
 .Sh SEE ALSO
 .Xr bzip2 1 ,
 .Xr compress 1 ,
+.Xr xz 1 ,
 .Xr fts 3 ,
 .Xr zlib 3
 .Sh HISTORY
@@ -205,18 +213,21 @@ This implementation of
 .Nm
 was ported based on the
 .Nx
-.Nm
-20090412, and first appeared in
+.Nm ,
+and first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
+.An -nosplit
 This implementation of
 .Nm
 was written by
-.An Matthew R. Green Aq mrg@eterna.com.au .
+.An Matthew R. Green Aq Mt mrg@eterna.com.au
+with unpack support written by
+.An Xin LI Aq Mt delphij@FreeBSD.org .
 .Sh BUGS
 According to RFC 1952, the recorded file size is stored in a 32-bit
-integer and therefore it can not represent files that is bigger than
-4GB in size.  This limitation also applies to
+integer, therefore, it cannot represent files larger than 4GB.
+This limitation also applies to
 .Fl l
 option of
 .Nm

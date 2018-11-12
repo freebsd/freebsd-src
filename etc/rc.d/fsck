@@ -4,12 +4,13 @@
 #
 
 # PROVIDE: fsck
-# REQUIRE: localswap
+# REQUIRE: swap
 # KEYWORD: nojail
 
 . /etc/rc.subr
 
 name="fsck"
+desc="Run file system checks"
 start_cmd="fsck_start"
 stop_cmd=":"
 
@@ -20,17 +21,31 @@ fsck_start()
 	elif [ ! -r /etc/fstab ]; then
 		echo "Warning! No /etc/fstab: skipping disk checks."
 	elif [ "$autoboot" = yes ]; then
-					# During fsck ignore SIGQUIT
+		# During fsck ignore SIGQUIT
 		trap : 3
 
-		[ -z "${rc_quiet}" ] && echo "Starting file system checks:"
+		check_startmsgs && echo "Starting file system checks:"
 		if checkyesno background_fsck; then
 			fsck -F -p
 		else
 			fsck -p
 		fi
 
-		case $? in
+		err=$?
+		if [ ${err} -eq 3 ]; then
+			echo "Warning! Some of the devices might not be" \
+			    "available; retrying"
+			root_hold_wait
+			check_startmsgs && echo "Restarting file system checks:"
+			if checkyesno background_fsck; then
+				fsck -F -p
+			else
+				fsck -p
+			fi
+			err=$?
+		fi
+
+		case ${err} in
 		0)
 			;;
 		2)
@@ -67,7 +82,7 @@ fsck_start()
 			stop_boot
 			;;
 		*)
-			echo "Unknown error; help!"
+			echo "Unknown error ${err}; help!"
 			stop_boot
 			;;
 		esac

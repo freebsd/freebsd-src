@@ -27,22 +27,26 @@ __FBSDID("$FreeBSD$");
 #include <machine/asm.h>
 #include <sys/param.h>
 
-#ifdef __mips_n64
+#if ELFSIZE == 64
 #include <sys/elf64.h>
 #else
 #include <sys/elf32.h>
 #endif
-#include <sys/inflate.h>
-#include <machine/elf.h>
-#include <machine/cpufunc.h>
-#include <machine/stdarg.h>
 
 /*
  * Since we are compiled outside of the normal kernel build process, we
  * need to include opt_global.h manually.
  */
 #include "opt_global.h"
-#include "opt_kernname.h"
+
+#include <sys/inflate.h>
+#include <machine/elf.h>
+#include <machine/cpufunc.h>
+#include <machine/stdarg.h>
+
+#ifndef KERNNAME
+#error Kernel name not provided
+#endif
 
 extern char kernel_start[];
 extern char kernel_end[];
@@ -87,43 +91,116 @@ bzero(void *addr, size_t count)
 }
 
 /*
+ * Convert number to pointer, truncate on 64->32 case, sign extend
+ * in 32->64 case
+ */
+#define	mkptr(x)	((void *)(intptr_t)(int)(x))
+
+/*
  * Relocate PT_LOAD segements of kernel ELF image to their respective
  * virtual addresses and return entry point
  */
 void *
 load_kernel(void * kstart)
 {
-#ifdef __mips_n64
+#if ELFSIZE == 64
 	Elf64_Ehdr *eh;
 	Elf64_Phdr phdr[64] /* XXX */;
+	Elf64_Shdr shdr[64] /* XXX */;
 #else
 	Elf32_Ehdr *eh;
 	Elf32_Phdr phdr[64] /* XXX */;
+	Elf32_Shdr shdr[64] /* XXX */;
 #endif
-	int i;
+	int i, j;
 	void *entry_point;
+	vm_offset_t loadend = 0;
+	intptr_t lastaddr;
+	int symtabindex = -1;
+	int symstrindex = -1;
+	Elf_Size tmp;
 	
-#ifdef __mips_n64
+#if ELFSIZE == 64
 	eh = (Elf64_Ehdr *)kstart;
 #else
 	eh = (Elf32_Ehdr *)kstart;
 #endif
-	entry_point = (void*)eh->e_entry;
-	memcpy(phdr, (void *)(kstart + eh->e_phoff ),
+	entry_point = mkptr(eh->e_entry);
+	memcpy(phdr, (void *)(kstart + eh->e_phoff),
 	    eh->e_phnum * sizeof(phdr[0]));
 
+	memcpy(shdr, (void *)(kstart + eh->e_shoff),
+	    sizeof(*shdr) * eh->e_shnum);
+
+	if (eh->e_shnum * eh->e_shentsize != 0 && eh->e_shoff != 0) {
+		for (i = 0; i < eh->e_shnum; i++) {
+			if (shdr[i].sh_type == SHT_SYMTAB) {
+				/*
+				 * XXX: check if .symtab is in PT_LOAD?
+				 */
+				if (shdr[i].sh_offset != 0 && 
+				    shdr[i].sh_size != 0) {
+					symtabindex = i;
+					symstrindex = shdr[i].sh_link;
+				}
+			}
+		}
+	}
+
+	/*
+	 * Copy loadable segments
+	 */
 	for (i = 0; i < eh->e_phnum; i++) {
 		volatile char c;
 
 		if (phdr[i].p_type != PT_LOAD)
 			continue;
 		
-		memcpy((void *)(phdr[i].p_vaddr),
+		memcpy(mkptr(phdr[i].p_vaddr),
 		    (void*)(kstart + phdr[i].p_offset), phdr[i].p_filesz);
+
 		/* Clean space from oversized segments, eg: bss. */
 		if (phdr[i].p_filesz < phdr[i].p_memsz)
-			bzero((void *)(phdr[i].p_vaddr + phdr[i].p_filesz), 
+			bzero(mkptr(phdr[i].p_vaddr + phdr[i].p_filesz),
 			    phdr[i].p_memsz - phdr[i].p_filesz);
+
+		if (loadend < phdr[i].p_vaddr + phdr[i].p_memsz)
+			loadend = phdr[i].p_vaddr + phdr[i].p_memsz;
+	}
+
+	/* Now grab the symbol tables. */
+	lastaddr = (intptr_t)(int)loadend;
+	if (symtabindex >= 0 && symstrindex >= 0) {
+		tmp = SYMTAB_MAGIC;
+		memcpy((void *)lastaddr, &tmp, sizeof(tmp));
+		lastaddr += sizeof(Elf_Size);
+		tmp = shdr[symtabindex].sh_size +
+		    shdr[symstrindex].sh_size + 2*sizeof(Elf_Size);
+		memcpy((void *)lastaddr, &tmp, sizeof(tmp));
+		lastaddr += sizeof(Elf_Size);
+		/* .symtab size */
+		tmp = shdr[symtabindex].sh_size;
+		memcpy((void *)lastaddr, &tmp, sizeof(tmp));
+		lastaddr += sizeof(shdr[symtabindex].sh_size);
+		/* .symtab data */
+		memcpy((void*)lastaddr,
+		    shdr[symtabindex].sh_offset + kstart,
+		    shdr[symtabindex].sh_size);
+		lastaddr += shdr[symtabindex].sh_size;
+
+		/* .strtab size */
+		tmp = shdr[symstrindex].sh_size;
+		memcpy((void *)lastaddr, &tmp, sizeof(tmp));
+		lastaddr += sizeof(shdr[symstrindex].sh_size);
+
+		/* .strtab data */
+		memcpy((void*)lastaddr,
+		    shdr[symstrindex].sh_offset + kstart,
+		    shdr[symstrindex].sh_size);
+	} else {
+		/* Do not take any chances */
+		tmp = 0;
+		memcpy((void *)lastaddr, &tmp, sizeof(tmp));
 	}
 
 	return entry_point;

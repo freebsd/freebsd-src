@@ -1,4 +1,4 @@
--- $Id: hdb.asn1 20236 2007-02-16 23:52:29Z lha $
+-- $Id$
 HDB DEFINITIONS ::=
 BEGIN
 
@@ -13,7 +13,8 @@ hdb-afs3-salt	INTEGER	::= 10
 
 Salt ::= SEQUENCE {
 	type[0]		INTEGER (0..4294967295),
-	salt[1]		OCTET STRING
+	salt[1]		OCTET STRING,
+	opaque[2]	OCTET STRING OPTIONAL
 }
 
 Key ::= SEQUENCE {
@@ -44,7 +45,9 @@ HDBFlags ::= BIT STRING {
 	immutable(13),			-- may not be deleted
 	trusted-for-delegation(14),	-- Trusted to print forwardabled tickets
 	allow-kerberos4(15),		-- Allow Kerberos 4 requests
-	allow-digest(16)		-- Allow digest requests
+	allow-digest(16),		-- Allow digest requests
+	locked-out(17)			-- Account is locked out,
+					-- authentication will be denied
 }
 
 GENERATION ::= SEQUENCE {
@@ -62,6 +65,10 @@ HDB-Ext-PKINIT-acl ::= SEQUENCE OF SEQUENCE {
 HDB-Ext-PKINIT-hash ::= SEQUENCE OF SEQUENCE {
 	digest-type[0] OBJECT IDENTIFIER,
 	digest[1] OCTET STRING
+}
+
+HDB-Ext-PKINIT-cert ::= SEQUENCE OF SEQUENCE {
+	cert[0] OCTET STRING
 }
 
 HDB-Ext-Constrained-delegation-acl ::= SEQUENCE OF Principal
@@ -94,6 +101,7 @@ HDB-extension ::= SEQUENCE {
 		password[5]			HDB-Ext-Password,
 		aliases[6]			HDB-Ext-Aliases,
 		last-pw-change[7]		KerberosTime,
+	        pkinit-cert[8]  		HDB-Ext-PKINIT-cert,
 		...
 	},
 	...
@@ -101,6 +109,10 @@ HDB-extension ::= SEQUENCE {
 
 HDB-extensions ::= SEQUENCE OF HDB-extension
 
+hdb_keyset ::= SEQUENCE {
+	kvno[1]		INTEGER (0..4294967295),
+	keys[0]		SEQUENCE OF Key
+}
 
 hdb_entry ::= SEQUENCE {
 	principal[0]	Principal  OPTIONAL, -- this is optional only 

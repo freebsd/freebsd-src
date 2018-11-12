@@ -1,5 +1,6 @@
+'\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +27,15 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_util.3x,v 1.27 2008/10/25 23:45:41 tom Exp $
+.\" $Id: curs_util.3x,v 1.37 2013/07/20 19:43:45 tom Exp $
 .TH curs_util 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.IP \(bu 4
+..
 .na
 .hy 0
 .SH NAME
@@ -41,7 +49,8 @@
 \fBputwin\fR,
 \fBunctrl\fR,
 \fBuse_env\fR,
-\fBwunctrl\fR - miscellaneous \fBcurses\fR utility routines
+\fBuse_tioctl\fR,
+\fBwunctrl\fR \- miscellaneous \fBcurses\fR utility routines
 .ad
 .hy
 .SH SYNOPSIS
@@ -61,6 +70,8 @@
 .br
 \fBvoid use_env(bool f);\fR
 .br
+\fBvoid use_tioctl(bool f);\fR
+.br
 \fBint putwin(WINDOW *win, FILE *filep);\fR
 .br
 \fBWINDOW *getwin(FILE *filep);\fR
@@ -75,33 +86,29 @@ representation of the character \fIc\fR, ignoring attributes.
 Control characters are displayed in the \fB^\fR\fIX\fR notation.
 Printing characters are displayed as is.
 The corresponding \fBwunctrl\fR returns a printable representation of
-a wide-character.
+a wide character.
 .PP
-The \fBkeyname\fR routine returns a character string corresponding to the key \fIc\fR:
+The \fBkeyname\fR routine returns a character string
+corresponding to the key \fIc\fR:
 .RS 3
-.TP 3
--
-Printable characters are displayed as themselves, e.g., a one-character string containing the key.
-.TP 3
--
+.bP
+Printable characters are displayed as themselves,
+e.g., a one-character string containing the key.
+.bP
 Control characters are displayed in the \fB^\fR\fIX\fR notation.
-.TP 3
--
+.bP
 DEL (character 127) is displayed as \fB^?\fP.
-.TP 3
--
+.bP
 Values above 128 are either meta characters
 (if the screen has not been initialized,
 or if \fBmeta\fP has been called with a TRUE parameter),
-shown in the \fBM-\fR\fIX\fR notation,
+shown in the \fBM\-\fR\fIX\fR notation,
 or are displayed as themselves.
 In the latter case, the values may not be printable;
 this follows the X/Open specification.
-.TP 3
--
+.bP
 Values above 256 may be the names of the names of function keys.
-.TP 3
--
+.bP
 Otherwise (if there is no corresponding name) the function returns null,
 to denote an error.
 X/Open also lists an "UNKNOWN KEY" return value, which some implementations
@@ -126,16 +133,70 @@ using a different value of \fB$TERM\fP.
 The limitation arises because the \fBfilter\fP routine modifies the
 in-memory copy of the terminal information.
 .PP
-The \fBuse_env\fR routine, if used, is called before \fBinitscr\fR or
-\fBnewterm\fR are called.  When called with \fBFALSE\fR as an
-argument, the values of \fBlines\fR and \fBcolumns\fR specified in the
-\fIterminfo\fR database will be used, even if environment variables
-\fBLINES\fR and \fBCOLUMNS\fR (used by default) are set, or if
-\fBcurses\fR is running in a window (in which case default behavior
-would be to use the window size if \fBLINES\fR and \fBCOLUMNS\fR are
-not set).
-Note that setting \fBLINES\fR or \fBCOLUMNS\fR overrides the
-corresponding size which may be obtained from the operating system.
+The \fBuse_env\fR routine, if used,
+should be called before \fBinitscr\fR or
+\fBnewterm\fR are called
+(because those compute the screen size).
+It modifies the way \fBncurses\fP treats environment variables
+when determining the screen size.
+.bP
+Normally ncurses looks first at the terminal database for the screen size.
+.IP
+If \fBuse_env\fP was called with \fBFALSE\fP for parameter,
+it stops here unless
+If \fBuse_tioctl\fP was also called with \fBTRUE\fP for parameter.
+.bP
+Then it asks for the screen size via operating system calls.
+If successful,
+it overrides the values from the terminal database.
+.bP
+Finally (unless \fBuse_env\fP was called with \fBFALSE\fP parameter),
+ncurses examines the \fBLINES\fR or \fBCOLUMNS\fR environment variables,
+using a value in those to override the results
+from the operating system or terminal database.
+.IP
+Ncurses also updates the screen size in response to SIGWINCH,
+unless overridden by the \fBLINES\fR or \fBCOLUMNS\fR environment variables,
+.PP
+The \fBuse_tioctl\fR routine, if used,
+should be called before \fBinitscr\fR or \fBnewterm\fR are called
+(because those compute the screen size).
+After \fBuse_tioctl\fR is called with \fBTRUE\fR as an argument,
+ncurses modifies the last step in its computation of screen size as follows:
+.bP
+checks if the \fBLINES\fR and \fBCOLUMNS\fR environment variables
+are set to a number greater than zero.
+.bP
+for each, ncurses updates the corresponding environment variable
+with the value that it has obtained via operating system call
+or from the terminal database.
+.bP
+ncurses re-fetches the value of the environment variables so that
+it is still the environment variables which set the screen size.
+.PP
+The \fBuse_env\fP and \fBuse_tioctl\fP routines combine as
+summarized here:
+.TS
+center tab(/);
+l l l
+_ _ _
+lw7 lw7 lw40.
+\fIuse_env\fR/\fIuse_tioctl\fR/\fISummary\fR
+TRUE/FALSE/T{
+This is the default behavior.
+ncurses uses operating system calls
+unless overridden by $LINES or $COLUMNS environment variables.
+T}
+TRUE/TRUE/T{
+ncurses updates $LINES and $COLUMNS based on operating system calls.
+T}
+FALSE/TRUE/T{
+ncurses ignores $LINES and $COLUMNS, uses operating system calls to obtain size.
+T}
+FALSE/FALSE/T{
+ncurses relies on the terminal database to determine size.
+T}
+.TE
 .PP
 The \fBputwin\fR routine writes all data associated with window \fIwin\fR into
 the file to which \fIfilep\fR points.  This information can be later retrieved
@@ -148,7 +209,8 @@ data.  It returns a pointer to the new window.
 The \fBdelay_output\fR routine inserts an \fIms\fR millisecond pause
 in output.  This routine should not be used extensively because
 padding characters are used rather than a CPU pause.
-If no padding character is specified, this uses \fBnapms\fR to perform the delay.
+If no padding character is specified,
+this uses \fBnapms\fR to perform the delay.
 .PP
 The \fBflushinp\fR routine throws away any typeahead that has been typed by the
 user and has not yet been read by the program.
@@ -177,25 +239,23 @@ The XSI Curses standard, Issue 4 describes these functions.
 It states that \fBunctrl\fR and \fBwunctrl\fR will return a null pointer if
 unsuccessful, but does not define any error conditions.
 This implementation checks for three cases:
-.RS
-.TP 5
--
-the parameter is a 7-bit US-ASCII code.
+.RS 3
+.bP
+the parameter is a 7-bit US\-ASCII code.
 This is the case that X/Open Curses documented.
-.TP 5
--
-the parameter is in the range 128-159, i.e., a C1 control code.
+.bP
+the parameter is in the range 128\-159, i.e., a C1 control code.
 If \fBuse_legacy_coding\fP has been called with a \fB2\fP parameter,
 \fBunctrl\fP returns the parameter, i.e., a one-character string with
 the parameter as the first character.
-Otherwise, it returns ``~@'', ``~A'', etc., analogous to ``^@'', ``^A'', C0 controls.
+Otherwise, it returns \*(``~@\*('', \*(``~A\*('', etc.,
+analogous to \*(``^@\*('', \*(``^A\*('', C0 controls.
 .IP
 X/Open Curses does not document whether \fBunctrl\fP can be called before
 initializing curses.
 This implementation permits that,
-and returns the ``~@'', etc., values in that case.
-.TP 5
--
+and returns the \*(``~@\*('', etc., values in that case.
+.bP
 parameter values outside the 0 to 255 range.
 \fBunctrl\fP returns a null pointer.
 .RE
@@ -219,18 +279,18 @@ change the output of \fBunctrl\fP.
 .PP
 Likewise, the \fBmeta\fP function allows the caller to change the
 output of \fBkeyname\fP, i.e.,
-it determines whether to use the `M-' prefix
-for ``meta'' keys (codes in the range 128 to 255).
+it determines whether to use the `M\-' prefix
+for \*(``meta\*('' keys (codes in the range 128 to 255).
 Both \fBuse_legacy_coding\fP and \fBmeta\fP succeed only after
 curses is initialized. 
 X/Open Curses does not document the treatment of codes 128 to 159.
-When treating them as ``meta'' keys
+When treating them as \*(``meta\*('' keys
 (or if \fBkeyname\fP is called before initializing curses),
-this implementation returns strings ``M-^@'', ``M-^A'', etc.
+this implementation returns strings \*(``M\-^@\*('', \*(``M\-^A\*('', etc.
 .PP
 The \fBkeyname\fP function may return the names of user-defined
-string capabilities which are defined in the terminfo entry via the \fB-x\fP
-option of \fBtic\fP.
+string capabilities which are defined in the terminfo entry via the \fB\-x\fP
+option of \fB@TIC@\fP.
 This implementation automatically assigns at run-time keycodes to 
 user-defined strings which begin with "k".
 The keycodes start at KEY_MAX, but are not guaranteed to be 
@@ -239,8 +299,8 @@ merged from all terminal descriptions which have been loaded.
 The \fBuse_extended_names\fP function controls whether this data is
 loaded when the terminal description is read by the library.
 .PP
-The \fBnofilter\fP routine is specific to ncurses.
-It was not supported on Version 7, BSD or System V implementations.
+The \fBnofilter\fP and \fBuse_tioctl\fP routines are specific to ncurses.
+They were not supported on Version 7, BSD or System V implementations.
 It is recommended that any code depending on ncurses extensions
 be conditioned using NCURSES_VERSION.
 .SH SEE ALSO
@@ -249,10 +309,5 @@ be conditioned using NCURSES_VERSION.
 \fBcurs_initscr\fR(3X),
 \fBcurs_kernel\fR(3X),
 \fBcurs_scr_dump\fR(3X),
+\fBcurs_variables\fR(3X),
 \fBlegacy_coding\fR(3X).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

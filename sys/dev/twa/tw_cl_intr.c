@@ -75,22 +75,16 @@ tw_cl_interrupt(struct tw_cl_ctlr_handle *ctlr_handle)
 	if (ctlr == NULL)
 		goto out;
 
-	/* If we get an interrupt while resetting, it is a shared
-	   one for another device, so just bail */
-	if (ctlr->state & TW_CLI_CTLR_STATE_RESET_IN_PROGRESS)
-		goto out;
-
 	/*
-	 * Synchronize access between writes to command and control registers
-	 * in 64-bit environments, on G66.
+	 * Bail If we get an interrupt while resetting, or shutting down.
 	 */
-	if (ctlr->state & TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED)
-		tw_osl_get_lock(ctlr_handle, ctlr->io_lock);
+	if (ctlr->reset_in_progress || !(ctlr->active))
+		goto out;
 
 	/* Read the status register to determine the type of interrupt. */
 	status_reg = TW_CLI_READ_STATUS_REGISTER(ctlr_handle);
 	if (tw_cli_check_ctlr_state(ctlr, status_reg))
-		goto out_unlock;
+		goto out;
 
 	/* Clear the interrupt. */
 	if (status_reg & TWA_STATUS_HOST_INTERRUPT) {
@@ -98,84 +92,32 @@ tw_cl_interrupt(struct tw_cl_ctlr_handle *ctlr_handle)
 			"Host interrupt");
 		TW_CLI_WRITE_CONTROL_REGISTER(ctlr_handle,
 			TWA_CONTROL_CLEAR_HOST_INTERRUPT);
-		ctlr->host_intr_pending = 0; /* we don't use this */
-		rc |= TW_CL_FALSE; /* don't request for a deferred isr call */
 	}
 	if (status_reg & TWA_STATUS_ATTENTION_INTERRUPT) {
 		tw_cli_dbg_printf(6, ctlr_handle, tw_osl_cur_func(),
 			"Attention interrupt");
+		rc |= TW_CL_TRUE; /* request for a deferred isr call */
+		tw_cli_process_attn_intr(ctlr);
 		TW_CLI_WRITE_CONTROL_REGISTER(ctlr_handle,
 			TWA_CONTROL_CLEAR_ATTENTION_INTERRUPT);
-		ctlr->attn_intr_pending = 1;
-		rc |= TW_CL_TRUE; /* request for a deferred isr call */
 	}
 	if (status_reg & TWA_STATUS_COMMAND_INTERRUPT) {
 		tw_cli_dbg_printf(6, ctlr_handle, tw_osl_cur_func(),
 			"Command interrupt");
-		TW_CLI_WRITE_CONTROL_REGISTER(ctlr_handle,
-			TWA_CONTROL_MASK_COMMAND_INTERRUPT);
-		ctlr->cmd_intr_pending = 1;
 		rc |= TW_CL_TRUE; /* request for a deferred isr call */
+		tw_cli_process_cmd_intr(ctlr);
+		if ((TW_CL_Q_FIRST_ITEM(&(ctlr->req_q_head[TW_CLI_PENDING_Q]))) == TW_CL_NULL)
+			TW_CLI_WRITE_CONTROL_REGISTER(ctlr_handle,
+				TWA_CONTROL_MASK_COMMAND_INTERRUPT);
 	}
 	if (status_reg & TWA_STATUS_RESPONSE_INTERRUPT) {
 		tw_cli_dbg_printf(10, ctlr_handle, tw_osl_cur_func(),
 			"Response interrupt");
-		TW_CLI_WRITE_CONTROL_REGISTER(ctlr_handle,
-			TWA_CONTROL_MASK_RESPONSE_INTERRUPT);
-		ctlr->resp_intr_pending = 1;
 		rc |= TW_CL_TRUE; /* request for a deferred isr call */
-	}
-out_unlock:
-	if (ctlr->state & TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED)
-		tw_osl_free_lock(ctlr_handle, ctlr->io_lock);
-out:
-	return(rc);
-}
-
-
-
-/*
- * Function name:	tw_cl_deferred_interrupt
- * Description:		Deferred interrupt handler.  Does most of the processing
- *			related to an interrupt.
- *
- * Input:		ctlr_handle	-- controller handle
- * Output:		None
- * Return value:	None
- */
-TW_VOID
-tw_cl_deferred_interrupt(struct tw_cl_ctlr_handle *ctlr_handle)
-{
-	struct tw_cli_ctlr_context	*ctlr =
-		(struct tw_cli_ctlr_context *)(ctlr_handle->cl_ctlr_ctxt);
-
-	tw_cli_dbg_printf(10, ctlr_handle, tw_osl_cur_func(), "entered");
-
-	/* Dispatch based on the kind of interrupt. */
-	if (ctlr->host_intr_pending) {
-		tw_cli_dbg_printf(6, ctlr_handle, tw_osl_cur_func(),
-			"Processing Host interrupt");
-		ctlr->host_intr_pending = 0;
-		tw_cli_process_host_intr(ctlr);
-	}
-	if (ctlr->attn_intr_pending) {
-		tw_cli_dbg_printf(6, ctlr_handle, tw_osl_cur_func(),
-			"Processing Attention interrupt");
-		ctlr->attn_intr_pending = 0;
-		tw_cli_process_attn_intr(ctlr);
-	}
-	if (ctlr->cmd_intr_pending) {
-		tw_cli_dbg_printf(6, ctlr_handle, tw_osl_cur_func(),
-			"Processing Command interrupt");
-		ctlr->cmd_intr_pending = 0;
-		tw_cli_process_cmd_intr(ctlr);
-	}
-	if (ctlr->resp_intr_pending) {
-		tw_cli_dbg_printf(10, ctlr_handle, tw_osl_cur_func(),
-			"Processing Response interrupt");
-		ctlr->resp_intr_pending = 0;
 		tw_cli_process_resp_intr(ctlr);
 	}
+out:
+	return(rc);
 }
 
 
@@ -248,12 +190,6 @@ tw_cli_process_cmd_intr(struct tw_cli_ctlr_context *ctlr)
 {
 	tw_cli_dbg_printf(6, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 
-	/*
-	 * Let the OS Layer submit any requests in its pending queue,
-	 * if it has one.
-	 */
-	tw_osl_ctlr_ready(ctlr->ctlr_handle);
-
 	/* Start any requests that might be in the pending queue. */
 	tw_cli_submit_pending_queue(ctlr);
 
@@ -286,9 +222,6 @@ tw_cli_process_resp_intr(struct tw_cli_ctlr_context *ctlr)
     
 	tw_cli_dbg_printf(10, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 
-	/* Serialize access to the controller response queue. */
-	tw_osl_get_lock(ctlr->ctlr_handle, ctlr->intr_lock);
-
 	for (;;) {
 		status_reg = TW_CLI_READ_STATUS_REGISTER(ctlr->ctlr_handle);
 		if ((error = tw_cli_check_ctlr_state(ctlr, status_reg)))
@@ -315,9 +248,7 @@ tw_cli_process_resp_intr(struct tw_cli_ctlr_context *ctlr)
 #ifdef TW_OSL_DEBUG
 			tw_cl_print_ctlr_stats(ctlr->ctlr_handle);
 #endif /* TW_OSL_DEBUG */
-			tw_osl_free_lock(ctlr->ctlr_handle, ctlr->intr_lock);
-			tw_cl_reset_ctlr(ctlr->ctlr_handle);
-			return(TW_OSL_EIO);
+			continue;
 		}
 
 		/*
@@ -329,12 +260,6 @@ tw_cli_process_resp_intr(struct tw_cli_ctlr_context *ctlr)
 		tw_cli_req_q_insert_tail(req, TW_CLI_COMPLETE_Q);
 
 	}
-
-	/* Unmask the response interrupt. */
-	TW_CLI_WRITE_CONTROL_REGISTER(ctlr->ctlr_handle,
-		TWA_CONTROL_UNMASK_RESPONSE_INTERRUPT);
-
-	tw_osl_free_lock(ctlr->ctlr_handle, ctlr->intr_lock);
 
 	/* Complete this, and other requests in the complete queue. */
 	tw_cli_process_complete_queue(ctlr);
@@ -476,9 +401,7 @@ tw_cli_complete_io(struct tw_cli_req_context *req)
 #ifdef TW_OSL_DEBUG
 		tw_cl_print_ctlr_stats(ctlr->ctlr_handle);
 #endif /* TW_OSL_DEBUG */
-		tw_cl_reset_ctlr(ctlr->ctlr_handle);
-		req_pkt->status = TW_CL_ERR_REQ_BUS_RESET;
-		goto out;
+		return;
 	}
 
 	if (req->flags & TW_CLI_REQ_FLAGS_PASSTHRU) {
@@ -557,6 +480,7 @@ tw_cli_scsi_complete(struct tw_cli_req_context *req)
 			cdb[8], cdb[9], cdb[10], cdb[11],
 			cdb[12], cdb[13], cdb[14], cdb[15]);
 
+#if       0
 		/* 
 		 * Print the error. Firmware doesn't yet support
 		 * the 'Mode Sense' cmd.  Don't print if the cmd
@@ -567,6 +491,7 @@ tw_cli_scsi_complete(struct tw_cli_req_context *req)
 			tw_cli_create_ctlr_event(req->ctlr,
 				TW_CL_MESSAGE_SOURCE_CONTROLLER_ERROR,
 				cmd_hdr);
+#endif // 0
 	}
 
 	if (scsi_req->sense_data) {
@@ -604,9 +529,11 @@ tw_cli_param_callback(struct tw_cli_req_context *req)
 	 */
 	if (! req->error_code)
 		if (cmd->param.status) {
+#if       0
 			tw_cli_create_ctlr_event(ctlr,
 				TW_CL_MESSAGE_SOURCE_CONTROLLER_ERROR,
 				&(req->cmd_pkt->cmd_hdr));
+#endif // 0
 			tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
 				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
 				0x1204, 0x1, TW_CL_SEVERITY_ERROR_STRING,
@@ -614,12 +541,11 @@ tw_cli_param_callback(struct tw_cli_req_context *req)
 				"status = %d", cmd->param.status);
 		}
 
-	ctlr->state &= ~TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+	ctlr->internal_req_busy = TW_CL_FALSE;
 	tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 
-	if ((ctlr->state & TW_CLI_CTLR_STATE_GET_MORE_AENS) &&
-		(!(ctlr->state & TW_CLI_CTLR_STATE_RESET_IN_PROGRESS))) {
-		ctlr->state &= ~TW_CLI_CTLR_STATE_GET_MORE_AENS;
+	if ((ctlr->get_more_aens) && (!(ctlr->reset_in_progress))) {
+		ctlr->get_more_aens = TW_CL_FALSE;
 		tw_cli_dbg_printf(4, ctlr->ctlr_handle, tw_osl_cur_func(),
 			"Fetching more AEN's");
 		if ((error = tw_cli_get_aen(ctlr)))
@@ -665,9 +591,11 @@ tw_cli_aen_callback(struct tw_cli_req_context *req)
 		if ((error = cmd->status)) {
 			cmd_hdr = (struct tw_cl_command_header *)
 				(&(req->cmd_pkt->cmd_hdr));
+#if       0
 			tw_cli_create_ctlr_event(ctlr,
 				TW_CL_MESSAGE_SOURCE_CONTROLLER_ERROR,
 				cmd_hdr);
+#endif // 0
 			tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
 				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
 				0x1206, 0x1, TW_CL_SEVERITY_ERROR_STRING,
@@ -677,7 +605,7 @@ tw_cli_aen_callback(struct tw_cli_req_context *req)
 		}
 
 	if (error) {
-		ctlr->state &= ~TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+		ctlr->internal_req_busy = TW_CL_FALSE;
 		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 		return;
 	}
@@ -688,7 +616,7 @@ tw_cli_aen_callback(struct tw_cli_req_context *req)
 	aen_code = tw_cli_manage_aen(ctlr, req);
 
 	if (aen_code != TWA_AEN_SYNC_TIME_WITH_HOST) {
-		ctlr->state &= ~TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+		ctlr->internal_req_busy = TW_CL_FALSE;
 		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 		if (aen_code != TWA_AEN_QUEUE_EMPTY)
 			if ((error = tw_cli_get_aen(ctlr)))
@@ -736,25 +664,25 @@ tw_cli_manage_aen(struct tw_cli_ctlr_context *ctlr,
 		 * Free the internal req pkt right here, since
 		 * tw_cli_set_param will need it.
 		 */
-		ctlr->state &= ~TW_CLI_CTLR_STATE_INTERNAL_REQ_BUSY;
+		ctlr->internal_req_busy = TW_CL_FALSE;
 		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 
 		/*
 		 * We will use a callback in tw_cli_set_param only when
 		 * interrupts are enabled and we can expect our callback
-		 * to get called.  Setting the TW_CLI_CTLR_STATE_GET_MORE_AENS
+		 * to get called.  Setting the get_more_aens
 		 * flag will make the callback continue to try to retrieve
 		 * more AEN's.
 		 */
-		if (ctlr->state & TW_CLI_CTLR_STATE_INTR_ENABLED)
-			ctlr->state |= TW_CLI_CTLR_STATE_GET_MORE_AENS;
+		if (ctlr->interrupts_enabled)
+			ctlr->get_more_aens = TW_CL_TRUE;
 		/* Calculate time (in seconds) since last Sunday 12.00 AM. */
 		local_time = tw_osl_get_local_time();
 		sync_time = (local_time - (3 * 86400)) % 604800;
 		if ((error = tw_cli_set_param(ctlr, TWA_PARAM_TIME_TABLE,
 				TWA_PARAM_TIME_SCHED_TIME, 4,
 				&sync_time,
-				(ctlr->state & TW_CLI_CTLR_STATE_INTR_ENABLED)
+				(ctlr->interrupts_enabled)
 				? tw_cli_param_callback : TW_CL_NULL)))
 			tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
 				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
@@ -799,7 +727,7 @@ tw_cli_enable_interrupts(struct tw_cli_ctlr_context *ctlr)
 {
 	tw_cli_dbg_printf(3, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 
-	ctlr->state |= TW_CLI_CTLR_STATE_INTR_ENABLED;
+	ctlr->interrupts_enabled = TW_CL_TRUE;
 	TW_CLI_WRITE_CONTROL_REGISTER(ctlr->ctlr_handle,
 		TWA_CONTROL_CLEAR_ATTENTION_INTERRUPT |
 		TWA_CONTROL_UNMASK_RESPONSE_INTERRUPT |
@@ -823,6 +751,6 @@ tw_cli_disable_interrupts(struct tw_cli_ctlr_context *ctlr)
 
 	TW_CLI_WRITE_CONTROL_REGISTER(ctlr->ctlr_handle,
 		TWA_CONTROL_DISABLE_INTERRUPTS);
-	ctlr->state &= ~TW_CLI_CTLR_STATE_INTR_ENABLED;
+	ctlr->interrupts_enabled = TW_CL_FALSE;
 }
 

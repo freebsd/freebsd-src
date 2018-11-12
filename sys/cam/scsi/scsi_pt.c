@@ -66,7 +66,6 @@ typedef enum {
 
 typedef enum {
 	PT_CCB_BUFFER_IO	= 0x01,
-	PT_CCB_WAITING		= 0x02,
 	PT_CCB_RETRY_UA		= 0x04,
 	PT_CCB_BUFFER_IO_UA	= PT_CCB_BUFFER_IO|PT_CCB_RETRY_UA
 } pt_ccb_state;
@@ -148,8 +147,8 @@ ptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	cam_periph_lock(periph);
 	if (softc->flags & PT_FLAG_DEVICE_INVALID) {
+		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		cam_periph_release(periph);
 		return(ENXIO);
 	}
 
@@ -174,16 +173,13 @@ ptclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	struct	pt_softc *softc;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);	
-
 	softc = (struct pt_softc *)periph->softc;
 
 	cam_periph_lock(periph);
 
 	softc->flags &= ~PT_FLAG_OPEN;
+	cam_periph_release_locked(periph);
 	cam_periph_unlock(periph);
-	cam_periph_release(periph);
 	return (0);
 }
 
@@ -224,7 +220,7 @@ ptstrategy(struct bio *bp)
 	/*
 	 * Schedule ourselves for performing the work.
 	 */
-	xpt_schedule(periph, /* XXX priority */1);
+	xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	cam_periph_unlock(periph);
 
 	return;
@@ -252,13 +248,11 @@ ptctor(struct cam_periph *periph, void *arg)
 {
 	struct pt_softc *softc;
 	struct ccb_getdev *cgd;
+	struct ccb_pathinq cpi;
+	struct make_dev_args args;
+	int error;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("ptregister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("ptregister: no getdev CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
@@ -280,19 +274,36 @@ ptctor(struct cam_periph *periph, void *arg)
 	softc->io_timeout = SCSI_PT_DEFAULT_TIMEOUT * 1000;
 
 	periph->softc = softc;
-	
+
+	bzero(&cpi, sizeof(cpi));
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+
 	cam_periph_unlock(periph);
+
+	make_dev_args_init(&args);
+	args.mda_devsw = &pt_cdevsw;
+	args.mda_unit = periph->unit_number;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_OPERATOR;
+	args.mda_mode = 0600;
+	args.mda_si_drv1 = periph;
+	error = make_dev_s(&args, &softc->dev, "%s%d", periph->periph_name,
+	    periph->unit_number);
+	if (error != 0) {
+		cam_periph_lock(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
+
 	softc->device_stats = devstat_new_entry("pt",
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE,
-			  SID_TYPE(&cgd->inq_data) | DEVSTAT_TYPE_IF_SCSI,
+			  SID_TYPE(&cgd->inq_data) |
+			  XPORT_DEVSTAT_TYPE(cpi.transport),
 			  DEVSTAT_PRIORITY_OTHER);
 
-	softc->dev = make_dev(&pt_cdevsw, periph->unit_number, UID_ROOT,
-			      GID_OPERATOR, 0600, "%s%d", periph->periph_name,
-			      periph->unit_number);
 	cam_periph_lock(periph);
-	softc->dev->si_drv1 = periph;
 
 	/*
 	 * Add async callbacks for bus reset and
@@ -331,8 +342,6 @@ ptoninvalidate(struct cam_periph *periph)
 	 *     with XPT_ABORT_CCB.
 	 */
 	bioq_flush(&softc->bio_queue, NULL, ENXIO);
-
-	xpt_print(periph->path, "lost device\n");
 }
 
 static void
@@ -342,7 +351,6 @@ ptdtor(struct cam_periph *periph)
 
 	softc = (struct pt_softc *)periph->softc;
 
-	xpt_print(periph->path, "removing device entry\n");
 	devstat_remove_entry(softc->device_stats);
 	cam_periph_unlock(periph);
 	destroy_dev(softc->dev);
@@ -368,7 +376,8 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 
 		if (cgd->protocol != PROTO_SCSI)
 			break;
-
+		if (SID_QUAL(&cgd->inq_data) != SID_QUAL_LU_CONNECTED)
+			break;
 		if (SID_TYPE(&cgd->inq_data) != T_PROCESSOR)
 			break;
 
@@ -379,7 +388,7 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		 */
 		status = cam_periph_alloc(ptctor, ptoninvalidate, ptdtor,
 					  ptstart, "pt", CAM_PERIPH_BIO,
-					  cgd->ccb_h.path, ptasync,
+					  path, ptasync,
 					  AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
@@ -418,19 +427,13 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 
 	softc = (struct pt_softc *)periph->softc;
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("ptstart\n"));
+
 	/*
 	 * See if there is a buf with work for us to do..
 	 */
 	bp = bioq_first(&softc->bio_queue);
-	if (periph->immediate_priority <= periph->pinfo.priority) {
-		CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
-				("queuing for immediate ccb\n"));
-		start_ccb->ccb_h.ccb_state = PT_CCB_WAITING;
-		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-				  periph_links.sle);
-		periph->immediate_priority = CAM_PRIORITY_NONE;
-		wakeup(&periph->ccb_list);
-	} else if (bp == NULL) {
+	if (bp == NULL) {
 		xpt_release_ccb(start_ccb);
 	} else {
 		bioq_remove(&softc->bio_queue, bp);
@@ -451,7 +454,7 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 		start_ccb->ccb_h.ccb_state = PT_CCB_BUFFER_IO_UA;
 
 		/*
-		 * Block out any asyncronous callbacks
+		 * Block out any asynchronous callbacks
 		 * while we touch the pending ccb list.
 		 */
 		LIST_INSERT_HEAD(&softc->pending_ccbs, &start_ccb->ccb_h,
@@ -464,7 +467,7 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 		
 		if (bp != NULL) {
 			/* Have more work to do, so ensure we stay scheduled */
-			xpt_schedule(periph, /* XXX priority */1);
+			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 		}
 	}
 }
@@ -476,6 +479,9 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 	struct ccb_scsiio *csio;
 
 	softc = (struct pt_softc *)periph->softc;
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("ptdone\n"));
+
 	csio = &done_ccb->csio;
 	switch (csio->ccb_h.ccb_state) {
 	case PT_CCB_BUFFER_IO:
@@ -542,7 +548,7 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 
 		/*
-		 * Block out any asyncronous callbacks
+		 * Block out any asynchronous callbacks
 		 * while we touch the pending ccb list.
 		 */
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
@@ -550,10 +556,6 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 		biofinish(bp, softc->device_stats, 0);
 		break;
 	}
-	case PT_CCB_WAITING:
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
-		return;
 	}
 	xpt_release_ccb(done_ccb);
 }
@@ -579,9 +581,6 @@ ptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	int error = 0;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return(ENXIO);
-
 	softc = (struct pt_softc *)periph->softc;
 
 	cam_periph_lock(periph);

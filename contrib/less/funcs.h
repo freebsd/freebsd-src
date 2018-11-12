@@ -38,6 +38,7 @@
 	public void sync_logfile ();
 	public int ch_seek ();
 	public int ch_end_seek ();
+	public int ch_end_buffer_seek ();
 	public int ch_beg_seek ();
 	public POSITION ch_length ();
 	public POSITION ch_tell ();
@@ -46,6 +47,7 @@
 	public void ch_setbufspace ();
 	public void ch_flush ();
 	public int seekable ();
+	public void ch_set_eof ();
 	public void ch_init ();
 	public void ch_close ();
 	public int ch_getflags ();
@@ -57,6 +59,7 @@
 	public char * prutfchar ();
 	public int utf_len ();
 	public int is_utf8_well_formed ();
+	public int utf_bin_count ();
 	public LWCHAR get_wchar ();
 	public void put_wchar ();
 	public LWCHAR step_char ();
@@ -127,6 +130,7 @@
 	public char * bad_file ();
 	public POSITION filesize ();
 	public char * shell_coption ();
+	public char * last_component ();
 	public int eof_displayed ();
 	public int entire_file_displayed ();
 	public void squish_check ();
@@ -156,6 +160,7 @@
 	public POSITION back_line ();
 	public void set_attnpos ();
 	public void jump_forw ();
+	public void jump_forw_buffered ();
 	public void jump_back ();
 	public void repaint ();
 	public void jump_percent ();
@@ -193,7 +198,6 @@
 	public void unmark ();
 	public void opt_o ();
 	public void opt__O ();
-	public void opt_l ();
 	public void opt_j ();
 	public void calc_jump_sline ();
 	public void opt_shift ();
@@ -211,9 +215,10 @@
 	public void opt_quote ();
 	public void opt_query ();
 	public int get_swindow ();
+	public char * propt ();
 	public void scan_option ();
 	public void toggle_option ();
-	public int single_char_option ();
+	public int opt_has_param ();
 	public char * opt_prompt ();
 	public int isoptpending ();
 	public void nopendopt ();
@@ -225,7 +230,7 @@
 	public struct loption * findopt_name ();
 	public int iread ();
 	public void intread ();
-	public long get_time ();
+	public time_type get_time ();
 	public char * errno_message ();
 	public int percentage ();
 	public POSITION percent_pos ();
@@ -240,6 +245,7 @@
 	public int query ();
 	public int compile_pattern ();
 	public void uncompile_pattern ();
+	public int valid_pattern ();
 	public int is_null_pattern ();
 	public int match_pattern ();
 	public POSITION position ();
@@ -265,6 +271,8 @@
 	public void clr_hilite ();
 	public void clr_filter ();
 	public int is_filtered ();
+	public POSITION next_unfiltered ();
+	public POSITION prev_unfiltered ();
 	public int is_hilited ();
 	public void chg_caseless ();
 	public void chg_hilite ();

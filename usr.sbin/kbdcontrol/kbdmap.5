@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 29, 2008
+.Dd January 2, 2016
 .Dt KBDMAP 5
 .Os
 .Sh NAME
@@ -111,9 +111,9 @@ ack,
 bel,
 bs,
 ht,
-nl,
+lf,
 vt,
-np,
+ff,
 cr,
 so,
 si,
@@ -132,10 +132,16 @@ esc,
 fs,
 gs,
 rs,
-ns,
 us,
 sp,
 del.
+.It Ar control-alias
+One of the historical aliases for certain
+.Tn ASCII
+control characters:
+nl,
+np,
+ns.
 .It Ar accentname
 By giving one of the accent names,
 the next key pressed will produce
@@ -313,13 +319,16 @@ for that vowel with a grave accent.
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/keymaps/* -compact
 .It Pa /usr/share/syscons/keymaps/*
-standard keyboard map files
+standard keyboard map files for syscons
+.It Pa /usr/share/vt/keymaps/*
+standard keyboard map files for vt
 .El
 .Sh SEE ALSO
 .Xr kbdcontrol 1 ,
 .Xr kbdmap 1 ,
 .Xr keyboard 4 ,
 .Xr syscons 4 ,
+.Xr vt 4 ,
 .Xr ascii 7
 .Sh HISTORY
 This manual page first appeared in

@@ -36,13 +36,10 @@ in_addr_t route_addr = -1;
 struct sockaddr_in my_addr;
 char *bootpfile = "/etc/bootparams";
 
-extern  void bootparamprog_1();
 static void usage(void);
 
 int
-main(argc, argv)
-int argc;
-char **argv;
+main(int argc, char **argv)
 {
 	SVCXPRT *transp;
 	struct hostent *he;
@@ -86,7 +83,7 @@ char **argv;
 	if ( stat(bootpfile, &buf ) )
 	  err(1, "%s", bootpfile);
 
-	if (route_addr == -1) {
+	if (route_addr == INADDR_NONE) {
 	  get_myaddress(&my_addr);
 	  bcopy(&my_addr.sin_addr.s_addr, &route_addr, sizeof (route_addr));
 	}
@@ -110,7 +107,7 @@ char **argv;
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 		"usage: bootparamd [-d] [-s] [-r router] [-f bootparmsfile]\n");

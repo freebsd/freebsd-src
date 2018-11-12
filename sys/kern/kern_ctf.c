@@ -68,8 +68,6 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	int flags;
 	int i;
 	int nbytes;
-	int resid;
-	int vfslocked;
 	size_t sz;
 	struct nameidata nd;
 	struct thread *td = curthread;
@@ -90,7 +88,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	 * ctfcnt to -1. See below.
 	 */
 	if (ef->ctfcnt < 0)
-		return (0);
+		return (EFTYPE);
 
 	/* Now check if we've already loaded the CTF data.. */
 	if (ef->ctfcnt > 0) {
@@ -114,23 +112,19 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	 */
 	ef->ctfcnt = -1;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, lf->pathname, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, lf->pathname, td);
 	flags = FREAD;
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error)
 		return (error);
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	/* Allocate memory for the FLF header. */
-	if ((hdr = malloc(sizeof(*hdr), M_LINKER, M_WAITOK)) == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
+	hdr = malloc(sizeof(*hdr), M_LINKER, M_WAITOK);
 
 	/* Read the ELF header. */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, hdr, sizeof(*hdr),
-	    0, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, &resid,
+	    0, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, NULL,
 	    td)) != 0)
 		goto out;
 
@@ -148,15 +142,12 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	}
 
 	/* Allocate memory for all the section headers */
-	if ((shdr = malloc(nbytes, M_LINKER, M_WAITOK)) == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
+	shdr = malloc(nbytes, M_LINKER, M_WAITOK);
 
 	/* Read all the section headers */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t)shdr, nbytes,
 	    hdr->e_shoff, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
-	    &resid, td)) != 0)
+	    NULL, td)) != 0)
 		goto out;
 
 	/*
@@ -164,21 +155,21 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	 * section names aren't present, then we can't locate the
 	 * .SUNW_ctf section containing the CTF data.
 	 */
-	if (hdr->e_shstrndx == 0 || shdr[hdr->e_shstrndx].sh_type != SHT_STRTAB)
-		goto out;
-
-	/* Allocate memory to buffer the section header strings. */
-	if ((shstrtab = malloc(shdr[hdr->e_shstrndx].sh_size, M_LINKER,
-	    M_WAITOK)) == NULL) {
-		error = ENOMEM;
+	if (hdr->e_shstrndx == 0 || shdr[hdr->e_shstrndx].sh_type != SHT_STRTAB) {
+		printf("%s(%d): module %s e_shstrndx is %d, sh_type is %d\n",
+		    __func__, __LINE__, lf->pathname, hdr->e_shstrndx,
+		    shdr[hdr->e_shstrndx].sh_type);
+		error = EFTYPE;
 		goto out;
 	}
+
+	/* Allocate memory to buffer the section header strings. */
+	shstrtab = malloc(shdr[hdr->e_shstrndx].sh_size, M_LINKER, M_WAITOK);
 
 	/* Read the section header strings. */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, shstrtab,
 	    shdr[hdr->e_shstrndx].sh_size, shdr[hdr->e_shstrndx].sh_offset,
-	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, &resid,
-	    td)) != 0)
+	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, NULL, td)) != 0)
 		goto out;
 
 	/* Search for the section containing the CTF data. */
@@ -187,22 +178,35 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 			break;
 
 	/* Check if the CTF section wasn't found. */
-	if (i >= hdr->e_shnum)
+	if (i >= hdr->e_shnum) {
+		printf("%s(%d): module %s has no .SUNW_ctf section\n",
+		    __func__, __LINE__, lf->pathname);
+		error = EFTYPE;
 		goto out;
+	}
 
 	/* Read the CTF header. */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, ctf_hdr, sizeof(ctf_hdr),
 	    shdr[i].sh_offset, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred,
-	    NOCRED, &resid, td)) != 0)
+	    NOCRED, NULL, td)) != 0)
 		goto out;
 
 	/* Check the CTF magic number. (XXX check for big endian!) */
-	if (ctf_hdr[0] != 0xf1 || ctf_hdr[1] != 0xcf)
+	if (ctf_hdr[0] != 0xf1 || ctf_hdr[1] != 0xcf) {
+		printf("%s(%d): module %s has invalid format\n",
+		    __func__, __LINE__, lf->pathname);
+		error = EFTYPE;
 		goto out;
+	}
 
 	/* Check if version 2. */
-	if (ctf_hdr[2] != 2)
+	if (ctf_hdr[2] != 2) {
+		printf("%s(%d): module %s CTF format version is %d "
+		    "(2 expected)\n",
+		    __func__, __LINE__, lf->pathname, ctf_hdr[2]);
+		error = EFTYPE;
 		goto out;
+	}
 
 	/* Check if the data is compressed. */
 	if ((ctf_hdr[3] & 0x1) != 0) {
@@ -222,10 +226,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 		 * Allocate memory for the compressed CTF data, including
 		 * the header (which isn't compressed).
 		 */
-		if ((raw = malloc(shdr[i].sh_size, M_LINKER, M_WAITOK)) == NULL) {
-			error = ENOMEM;
-			goto out;
-		}
+		raw = malloc(shdr[i].sh_size, M_LINKER, M_WAITOK);
 	} else {
 		/*
 		 * The CTF data is not compressed, so the ELF section
@@ -238,10 +239,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	 * Allocate memory to buffer the CTF data in it's decompressed
 	 * form.
 	 */
-	if ((ctftab = malloc(sz, M_LINKER, M_WAITOK)) == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
+	ctftab = malloc(sz, M_LINKER, M_WAITOK);
 
 	/*
 	 * Read the CTF data into the raw buffer if compressed, or
@@ -249,7 +247,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	 */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, raw == NULL ? ctftab : raw,
 	    shdr[i].sh_size, shdr[i].sh_offset, UIO_SYSSPACE, IO_NODELOCKED,
-	    td->td_ucred, NOCRED, &resid, td)) != 0)
+	    td->td_ucred, NOCRED, NULL, td)) != 0)
 		goto out;
 
 	/* Check if decompression is required. */
@@ -277,7 +275,9 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 		zs.next_in = ((uint8_t *) raw) + sizeof(ctf_hdr);
 		zs.avail_out = sz - sizeof(ctf_hdr);
 		zs.next_out = ((uint8_t *) ctftab) + sizeof(ctf_hdr);
-		if ((ret = inflate(&zs, Z_FINISH)) != Z_STREAM_END) {
+		ret = inflate(&zs, Z_FINISH);
+		inflateEnd(&zs);
+		if (ret != Z_STREAM_END) {
 			printf("%s(%d): zlib inflate returned %d\n", __func__, __LINE__, ret);
 			error = EIO;
 			goto out;
@@ -305,7 +305,6 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 out:
 	VOP_UNLOCK(nd.ni_vp, 0);
 	vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	if (hdr != NULL)
 		free(hdr, M_LINKER);

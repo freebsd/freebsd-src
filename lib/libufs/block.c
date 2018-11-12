@@ -139,10 +139,56 @@ bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 	return (cnt);
 }
 
+#ifdef __FreeBSD_kernel__
+
+static int
+berase_helper(struct uufsd *disk, ufs2_daddr_t blockno, ufs2_daddr_t size)
+{
+	off_t ioarg[2];
+
+	ioarg[0] = blockno * disk->d_bsize;
+	ioarg[1] = size;
+	return (ioctl(disk->d_fd, DIOCGDELETE, ioarg));
+}
+
+#else
+
+static int
+berase_helper(struct uufsd *disk, ufs2_daddr_t blockno, ufs2_daddr_t size)
+{
+	char *zero_chunk;
+	off_t offset, zero_chunk_size, pwrite_size;
+	int rv;
+
+	offset = blockno * disk->d_bsize;
+	zero_chunk_size = 65536 * disk->d_bsize;
+	zero_chunk = calloc(1, zero_chunk_size);
+	if (zero_chunk == NULL) {
+		ERROR(disk, "failed to allocate memory");
+		return (-1);
+	}
+	while (size > 0) { 
+		pwrite_size = size;
+		if (pwrite_size > zero_chunk_size)
+			pwrite_size = zero_chunk_size;
+		rv = pwrite(disk->d_fd, zero_chunk, pwrite_size, offset);
+		if (rv == -1) {
+			ERROR(disk, "failed writing to disk");
+			break;
+		}
+		size -= rv;
+		offset += rv;
+		rv = 0;
+	}
+	free(zero_chunk);
+	return (rv);
+}
+
+#endif
+
 int
 berase(struct uufsd *disk, ufs2_daddr_t blockno, ufs2_daddr_t size)
 {
-	off_t ioarg[2];
 	int rv;
 
 	ERROR(disk, NULL);
@@ -151,8 +197,5 @@ berase(struct uufsd *disk, ufs2_daddr_t blockno, ufs2_daddr_t size)
 		ERROR(disk, "failed to open disk for writing");
 		return(rv);
 	}
-	ioarg[0] = blockno * disk->d_bsize;
-	ioarg[1] = size;
-	rv = ioctl(disk->d_fd, DIOCGDELETE, ioarg);
-	return (rv);
+	return (berase_helper(disk, blockno, size));
 }

@@ -100,6 +100,10 @@ read_client_conf(void)
 	    DHO_DOMAIN_NAME_SERVERS;
 	top_level_config.requested_options
 	    [top_level_config.requested_option_count++] = DHO_HOST_NAME;
+	top_level_config.requested_options
+	    [top_level_config.requested_option_count++] = DHO_DOMAIN_SEARCH;
+	top_level_config.requested_options
+	    [top_level_config.requested_option_count++] = DHO_INTERFACE_MTU;
 
 	if ((cfile = fopen(path_dhclient_conf, "r")) != NULL) {
 		do {
@@ -640,6 +644,10 @@ parse_client_lease_declaration(FILE *cfile, struct client_lease *lease,
 	case FILENAME:
 		lease->filename = parse_string(cfile);
 		return;
+	case NEXT_SERVER:
+		if (!parse_ip_addr(cfile, &lease->nextserver))
+			return;
+		break;
 	case SERVER_NAME:
 		lease->server_name = parse_string(cfile);
 		return;
@@ -871,6 +879,7 @@ parse_string_list(FILE *cfile, struct string_list **lp, int multiple)
 {
 	int			 token;
 	char			*val;
+	size_t			 valsize;
 	struct string_list	*cur, *tmp;
 
 	/* Find the last medium in the media list. */
@@ -888,10 +897,11 @@ parse_string_list(FILE *cfile, struct string_list **lp, int multiple)
 			return;
 		}
 
-		tmp = new_string_list(strlen(val) + 1);
+		valsize = strlen(val) + 1;
+		tmp = new_string_list(valsize);
 		if (tmp == NULL)
 			error("no memory for string list entry.");
-		strlcpy(tmp->string, val, strlen(val) + 1);
+		memcpy(tmp->string, val, valsize);
 		tmp->next = NULL;
 
 		/* Store this medium at the end of the media list. */

@@ -1,6 +1,8 @@
 # $FreeBSD$
 
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/${PROG}
 PROG=	find_interface
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

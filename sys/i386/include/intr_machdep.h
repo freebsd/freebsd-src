@@ -44,12 +44,25 @@
  * allocate IDT vectors.
  *
  * The first 255 IRQs (0 - 254) are reserved for ISA IRQs and PCI intline IRQs.
- * IRQ values beyond 256 are used by MSI.  We leave 255 unused to avoid
- * confusion since 255 is used in PCI to indicate an invalid IRQ.
+ * IRQ values from 256 to 767 are used by MSI.  When running under the Xen
+ * Hypervisor, IRQ values from 768 to 4863 are available for binding to
+ * event channel events.  We leave 255 unused to avoid confusion since 255 is
+ * used in PCI to indicate an invalid IRQ.
  */
 #define	NUM_MSI_INTS	512
 #define	FIRST_MSI_INT	256
-#define	NUM_IO_INTS	(FIRST_MSI_INT + NUM_MSI_INTS)
+#ifdef XENHVM
+#include <xen/xen-os.h>
+#include <xen/interface/event_channel.h>
+#define	NUM_EVTCHN_INTS	NR_EVENT_CHANNELS
+#define	FIRST_EVTCHN_INT \
+    (FIRST_MSI_INT + NUM_MSI_INTS)
+#define	LAST_EVTCHN_INT \
+    (FIRST_EVTCHN_INT + NUM_EVTCHN_INTS - 1)
+#else /* !XENHVM */
+#define	NUM_EVTCHN_INTS	0
+#endif
+#define	NUM_IO_INTS	(FIRST_MSI_INT + NUM_MSI_INTS + NUM_EVTCHN_INTS)
 
 /*
  * Default base address for MSI messages on x86 platforms.
@@ -60,17 +73,17 @@
  * - 1 ??? dummy counter.
  * - 2 counters for each I/O interrupt.
  * - 1 counter for each CPU for lapic timer.
- * - 7 counters for each CPU for IPI counters for SMP.
+ * - 9 counters for each CPU for IPI counters for SMP.
  */
 #ifdef SMP
-#define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + (1 + 7) * MAXCPU)
+#define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + (1 + 9) * MAXCPU)
 #else
 #define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + 1)
 #endif
 
 #ifndef LOCORE
 
-typedef void inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
+typedef void inthand_t(void);
 
 #define	IDTVEC(name)	__CONCAT(X,name)
 
@@ -90,11 +103,12 @@ struct pic {
 	int (*pic_vector)(struct intsrc *);
 	int (*pic_source_pending)(struct intsrc *);
 	void (*pic_suspend)(struct pic *);
-	void (*pic_resume)(struct pic *);
+	void (*pic_resume)(struct pic *, bool suspend_cancelled);
 	int (*pic_config_intr)(struct intsrc *, enum intr_trigger,
 	    enum intr_polarity);
 	int (*pic_assign_cpu)(struct intsrc *, u_int apic_id);
-	STAILQ_ENTRY(pic) pics;
+	void (*pic_reprogram_pin)(struct intsrc *);
+	TAILQ_ENTRY(pic) pics;
 };
 
 /* Flags for pic_disable_source() */
@@ -120,9 +134,18 @@ struct intsrc {
 
 struct trapframe;
 
+#ifdef SMP
+extern cpuset_t intr_cpus;
+#endif
 extern struct mtx icu_lock;
 extern int elcr_found;
+#ifdef SMP
+extern int msix_disable_migration;
+#endif
 
+#ifndef DEV_ATPIC
+void	atpic_reset(void);
+#endif
 /* XXX: The elcr_* prototypes probably belong somewhere else. */
 int	elcr_probe(void);
 enum intr_trigger elcr_read_trigger(u_int irq);
@@ -138,14 +161,16 @@ int	intr_bind(u_int vector, u_char cpu);
 #endif
 int	intr_config_intr(int vector, enum intr_trigger trig,
     enum intr_polarity pol);
+int	intr_describe(u_int vector, void *ih, const char *descr);
 void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
 u_int	intr_next_cpu(void);
 struct intsrc *intr_lookup_source(int vector);
 int	intr_register_pic(struct pic *pic);
 int	intr_register_source(struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);
-void	intr_resume(void);
+void	intr_resume(bool suspend_cancelled);
 void	intr_suspend(void);
+void	intr_reprogram(void);
 void	intrcnt_add(const char *name, u_long **countp);
 void	nexus_add_irq(u_long irq);
 int	msi_alloc(device_t dev, int count, int maxcount, int *irqs);

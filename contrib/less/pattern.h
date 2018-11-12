@@ -1,12 +1,18 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
+
+#if HAVE_GNU_REGEX
+#define __USE_GNU 1
+#include <regex.h>
+#define DEFINE_PATTERN(name)  struct re_pattern_buffer *name
+#define CLEAR_PATTERN(name)   name = NULL
+#endif
 
 #if HAVE_POSIX_REGCOMP
 #include <regex.h>
@@ -43,7 +49,12 @@ extern char *__loc1;
 
 #if HAVE_V8_REGCOMP
 #include "regexp.h"
+extern int reg_show_error;
 #define DEFINE_PATTERN(name)  struct regexp *name
 #define CLEAR_PATTERN(name)   name = NULL
 #endif
 
+#if NO_REGEX
+#define DEFINE_PATTERN(name)  
+#define CLEAR_PATTERN(name)   
+#endif

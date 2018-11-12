@@ -1,0 +1,2101 @@
+/*	$OpenBSD: if_rtwnreg.h,v 1.3 2015/06/14 08:02:47 stsp Exp $	*/
+
+/*-
+ * Copyright (c) 2010 Damien Bergamini <damien.bergamini@free.fr>
+ * Copyright (c) 2015 Stefan Sperling <stsp@openbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * 
+ * $FreeBSD$
+ */
+
+#define R92C_MAX_CHAINS	2
+
+/* Maximum number of output pipes is 3. */
+#define R92C_MAX_EPOUT	3
+
+#define R92C_MAX_TX_PWR	0x3f
+
+#define R92C_PUBQ_NPAGES	176
+#define R92C_HPQ_NPAGES		41
+#define R92C_LPQ_NPAGES		28
+#define R92C_TXPKTBUF_COUNT	256
+#define R92C_TX_PAGE_COUNT	\
+	(R92C_PUBQ_NPAGES + R92C_HPQ_NPAGES + R92C_LPQ_NPAGES)
+#define R92C_TX_PAGE_BOUNDARY	(R92C_TX_PAGE_COUNT + 1)
+
+#define R92C_H2C_NBOX	4
+
+/* USB Requests. */
+#define R92C_REQ_REGS	0x05
+
+/*
+ * MAC registers.
+ */
+/* System Configuration. */
+#define R92C_SYS_ISO_CTRL		0x000
+#define R92C_SYS_FUNC_EN		0x002
+#define R92C_APS_FSMCO			0x004
+#define R92C_SYS_CLKR			0x008
+#define R92C_AFE_MISC			0x010
+#define R92C_SPS0_CTRL			0x011
+#define R92C_SPS_OCP_CFG		0x018
+#define R92C_RSV_CTRL			0x01c
+#define R92C_RF_CTRL			0x01f
+#define R92C_LDOA15_CTRL		0x020
+#define R92C_LDOV12D_CTRL		0x021
+#define R92C_LDOHCI12_CTRL		0x022
+#define R92C_LPLDO_CTRL			0x023
+#define R92C_AFE_XTAL_CTRL		0x024
+#define R92C_AFE_PLL_CTRL		0x028
+#define R92C_EFUSE_CTRL			0x030
+#define R92C_EFUSE_TEST			0x034
+#define R92C_PWR_DATA			0x038
+#define R92C_CAL_TIMER			0x03c
+#define R92C_ACLK_MON			0x03e
+#define R92C_GPIO_MUXCFG		0x040
+#define R92C_GPIO_IO_SEL		0x042
+#define R92C_MAC_PINMUX_CFG		0x043
+#define R92C_GPIO_PIN_CTRL		0x044
+#define R92C_GPIO_INTM			0x048
+#define R92C_LEDCFG0			0x04c
+#define R92C_LEDCFG1			0x04d
+#define R92C_LEDCFG2			0x04e
+#define R92C_LEDCFG3			0x04f
+#define R92C_FSIMR			0x050
+#define R92C_FSISR			0x054
+#define R92C_HSIMR			0x058
+#define R92C_HSISR			0x05c
+#define R92C_MCUFWDL			0x080
+#define R92C_HMEBOX_EXT(idx)		(0x088 + (idx) * 2)
+#define R92C_BIST_SCAN			0x0d0
+#define R92C_BIST_RPT			0x0d4
+#define R92C_BIST_ROM_RPT		0x0d8
+#define R92C_USB_SIE_INTF		0x0e0
+#define R92C_PCIE_MIO_INTF		0x0e4
+#define R92C_PCIE_MIO_INTD		0x0e8
+#define R92C_HPON_FSM			0x0ec
+#define R92C_SYS_CFG			0x0f0
+/* MAC General Configuration. */
+#define R92C_CR				0x100
+#define R92C_PBP			0x104
+#define R92C_TRXDMA_CTRL		0x10c
+#define R92C_TRXFF_BNDY			0x114
+#define R92C_TRXFF_STATUS		0x118
+#define R92C_RXFF_PTR			0x11c
+#define R92C_HIMR			0x120
+#define R92C_HISR			0x124
+#define R92C_HIMRE			0x128
+#define R92C_HISRE			0x12c
+#define R92C_CPWM			0x12f
+#define R92C_FWIMR			0x130
+#define R92C_FWISR			0x134
+#define R92C_PKTBUF_DBG_CTRL		0x140
+#define R92C_PKTBUF_DBG_DATA_L		0x144
+#define R92C_PKTBUF_DBG_DATA_H		0x148
+#define R92C_TC0_CTRL(i)		(0x150 + (i) * 4)
+#define R92C_TCUNIT_BASE		0x164
+#define R92C_MBIST_START		0x174
+#define R92C_MBIST_DONE			0x178
+#define R92C_MBIST_FAIL			0x17c
+#define R92C_C2HEVT_MSG_NORMAL		0x1a0
+#define R92C_C2HEVT_MSG_TEST		0x1b8
+#define R92C_C2HEVT_CLEAR		0x1bf
+#define R92C_MCUTST_1			0x1c0
+#define R92C_FMETHR			0x1c8
+#define R92C_HMETFR			0x1cc
+#define R92C_HMEBOX(idx)		(0x1d0 + (idx) * 4)
+#define R92C_LLT_INIT			0x1e0
+#define R92C_BB_ACCESS_CTRL		0x1e8
+#define R92C_BB_ACCESS_DATA		0x1ec
+/* Tx DMA Configuration. */
+#define R92C_RQPN			0x200
+#define R92C_FIFOPAGE			0x204
+#define R92C_TDECTRL			0x208
+#define R92C_TXDMA_OFFSET_CHK		0x20c
+#define R92C_TXDMA_STATUS		0x210
+#define R92C_RQPN_NPQ			0x214
+/* Rx DMA Configuration. */
+#define R92C_RXDMA_AGG_PG_TH		0x280
+#define R92C_RXPKT_NUM			0x284
+#define R92C_RXDMA_STATUS		0x288
+
+#define R92C_PCIE_CTRL_REG		0x300
+#define R92C_INT_MIG			0x304
+#define R92C_BCNQ_DESA			0x308
+#define R92C_HQ_DESA			0x310
+#define R92C_MGQ_DESA			0x318
+#define R92C_VOQ_DESA			0x320
+#define R92C_VIQ_DESA			0x328
+#define R92C_BEQ_DESA			0x330
+#define R92C_BKQ_DESA			0x338
+#define R92C_RX_DESA			0x340
+#define R92C_DBI			0x348
+#define R92C_MDIO			0x354
+#define R92C_DBG_SEL			0x360
+#define R92C_PCIE_HRPWM			0x361
+#define R92C_PCIE_HCPWM			0x363
+#define R92C_UART_CTRL			0x364
+#define R92C_UART_TX_DES		0x370
+#define R92C_UART_RX_DES		0x378
+
+#define R92C_VOQ_INFORMATION			0x0400
+#define R92C_VIQ_INFORMATION			0x0404
+#define R92C_BEQ_INFORMATION			0x0408
+#define R92C_BKQ_INFORMATION			0x040C
+#define R92C_MGQ_INFORMATION			0x0410
+#define R92C_HGQ_INFORMATION			0x0414
+#define R92C_BCNQ_INFORMATION			0x0418
+#define R92C_CPU_MGQ_INFORMATION		0x041C
+
+/* Protocol Configuration. */
+#define R92C_FWHW_TXQ_CTRL		0x420
+#define R92C_HWSEQ_CTRL			0x423
+#define R92C_TXPKTBUF_BCNQ_BDNY		0x424
+#define R92C_TXPKTBUF_MGQ_BDNY		0x425
+#define R92C_SPEC_SIFS			0x428
+#define R92C_RL				0x42a
+#define R92C_DARFRC			0x430
+#define R92C_RARFRC			0x438
+#define R92C_RRSR			0x440
+#define R92C_ARFR(i)			(0x444 + (i) * 4)
+#define R92C_AGGLEN_LMT			0x458
+#define R92C_AMPDU_MIN_SPACE		0x45c
+#define R92C_TXPKTBUF_WMAC_LBK_BF_HD	0x45d
+#define R92C_FAST_EDCA_CTRL		0x460
+#define R92C_RD_RESP_PKT_TH		0x463
+#define R92C_INIRTS_RATE_SEL		0x480
+#define R92C_INIDATA_RATE_SEL(macid)	(0x484 + (macid))
+/* EDCA Configuration. */
+#define R92C_EDCA_VO_PARAM		0x500
+#define R92C_EDCA_VI_PARAM		0x504
+#define R92C_EDCA_BE_PARAM		0x508
+#define R92C_EDCA_BK_PARAM		0x50c
+#define R92C_BCNTCFG			0x510
+#define R92C_PIFS			0x512
+#define R92C_RDG_PIFS			0x513
+#define R92C_SIFS_CCK			0x514
+#define R92C_SIFS_OFDM			0x516
+#define R92C_AGGR_BREAK_TIME		0x51a
+#define R92C_SLOT			0x51b
+#define R92C_TX_PTCL_CTRL		0x520
+#define R92C_TXPAUSE			0x522
+#define R92C_DIS_TXREQ_CLR		0x523
+#define R92C_RD_CTRL			0x524
+#define R92C_TBTT_PROHIBIT		0x540
+#define R92C_RD_NAV_NXT			0x544
+#define R92C_NAV_PROT_LEN		0x546
+#define R92C_BCN_CTRL			0x550
+#define R92C_USTIME_TSF			0x551
+#define R92C_MBID_NUM			0x552
+#define R92C_DUAL_TSF_RST		0x553
+#define R92C_BCN_INTERVAL		0x554
+#define R92C_DRVERLYINT			0x558
+#define R92C_BCNDMATIM			0x559
+#define R92C_ATIMWND			0x55a
+#define R92C_BCN_MAX_ERR		0x55d
+#define R92C_RXTSF_OFFSET_CCK		0x55e
+#define R92C_RXTSF_OFFSET_OFDM		0x55f
+#define R92C_TSFTR			0x560
+#define R92C_INIT_TSFTR			0x564
+#define R92C_PSTIMER			0x580
+#define R92C_TIMER0			0x584
+#define R92C_TIMER1			0x588
+#define R92C_ACMHWCTRL			0x5c0
+#define R92C_ACMRSTCTRL			0x5c1
+#define R92C_ACMAVG			0x5c2
+#define R92C_VO_ADMTIME			0x5c4
+#define R92C_VI_ADMTIME			0x5c6
+#define R92C_BE_ADMTIME			0x5c8
+#define R92C_EDCA_RANDOM_GEN		0x5cc
+#define R92C_SCH_TXCMD			0x5d0
+/* WMAC Configuration. */
+#define R92C_APSD_CTRL			0x600
+#define R92C_BWOPMODE			0x603
+#define R92C_TCR			0x604
+#define R92C_RCR			0x608
+#define R92C_RX_DRVINFO_SZ		0x60f
+#define R92C_MACID			0x610
+#define R92C_BSSID			0x618
+#define R92C_MAR			0x620
+#define R92C_MAC_SPEC_SIFS		0x63a
+#define R92C_R2T_SIFS			0x63c
+#define R92C_T2T_SIFS			0x63e
+#define R92C_ACKTO			0x640
+#define R92C_CAMCMD			0x670
+#define R92C_CAMWRITE			0x674
+#define R92C_CAMREAD			0x678
+#define R92C_CAMDBG			0x67c
+#define R92C_SECCFG			0x680
+#define R92C_RXFLTMAP0			0x6a0
+#define R92C_RXFLTMAP1			0x6a2
+#define R92C_RXFLTMAP2			0x6a4
+
+/* Bits for R92C_SYS_ISO_CTRL. */
+#define R92C_SYS_ISO_CTRL_MD2PP		0x0001
+#define R92C_SYS_ISO_CTRL_UA2USB	0x0002
+#define R92C_SYS_ISO_CTRL_UD2CORE	0x0004
+#define R92C_SYS_ISO_CTRL_PA2PCIE	0x0008
+#define R92C_SYS_ISO_CTRL_PD2CORE	0x0010
+#define R92C_SYS_ISO_CTRL_IP2MAC	0x0020
+#define R92C_SYS_ISO_CTRL_DIOP		0x0040
+#define R92C_SYS_ISO_CTRL_DIOE		0x0080
+#define R92C_SYS_ISO_CTRL_EB2CORE	0x0100
+#define R92C_SYS_ISO_CTRL_DIOR		0x0200
+#define R92C_SYS_ISO_CTRL_PWC_EV25V	0x4000
+#define R92C_SYS_ISO_CTRL_PWC_EV12V	0x8000
+
+/* Bits for R92C_SYS_FUNC_EN. */
+#define R92C_SYS_FUNC_EN_BBRSTB		0x0001
+#define R92C_SYS_FUNC_EN_BB_GLB_RST	0x0002
+#define R92C_SYS_FUNC_EN_USBA		0x0004
+#define R92C_SYS_FUNC_EN_UPLL		0x0008
+#define R92C_SYS_FUNC_EN_USBD		0x0010
+#define R92C_SYS_FUNC_EN_DIO_PCIE	0x0020
+#define R92C_SYS_FUNC_EN_PCIEA		0x0040
+#define R92C_SYS_FUNC_EN_PPLL		0x0080
+#define R92C_SYS_FUNC_EN_PCIED		0x0100
+#define R92C_SYS_FUNC_EN_DIOE		0x0200
+#define R92C_SYS_FUNC_EN_CPUEN		0x0400
+#define R92C_SYS_FUNC_EN_DCORE		0x0800
+#define R92C_SYS_FUNC_EN_ELDR		0x1000
+#define R92C_SYS_FUNC_EN_DIO_RF		0x2000
+#define R92C_SYS_FUNC_EN_HWPDN		0x4000
+#define R92C_SYS_FUNC_EN_MREGEN		0x8000
+
+/* Bits for R92C_APS_FSMCO. */
+#define R92C_APS_FSMCO_PFM_LDALL	0x00000001
+#define R92C_APS_FSMCO_PFM_ALDN		0x00000002
+#define R92C_APS_FSMCO_PFM_LDKP		0x00000004
+#define R92C_APS_FSMCO_PFM_WOWL		0x00000008
+#define R92C_APS_FSMCO_PDN_EN		0x00000010
+#define R92C_APS_FSMCO_PDN_PL		0x00000020
+#define R92C_APS_FSMCO_APFM_ONMAC	0x00000100
+#define R92C_APS_FSMCO_APFM_OFF		0x00000200
+#define R92C_APS_FSMCO_APFM_RSM		0x00000400
+#define R92C_APS_FSMCO_AFSM_HSUS	0x00000800
+#define R92C_APS_FSMCO_AFSM_PCIE	0x00001000
+#define R92C_APS_FSMCO_APDM_MAC		0x00002000
+#define R92C_APS_FSMCO_APDM_HOST	0x00004000
+#define R92C_APS_FSMCO_APDM_HPDN	0x00008000
+#define R92C_APS_FSMCO_RDY_MACON	0x00010000
+#define R92C_APS_FSMCO_SUS_HOST		0x00020000
+#define R92C_APS_FSMCO_ROP_ALD		0x00100000
+#define R92C_APS_FSMCO_ROP_PWR		0x00200000
+#define R92C_APS_FSMCO_ROP_SPS		0x00400000
+#define R92C_APS_FSMCO_SOP_MRST		0x02000000
+#define R92C_APS_FSMCO_SOP_FUSE		0x04000000
+#define R92C_APS_FSMCO_SOP_ABG		0x08000000
+#define R92C_APS_FSMCO_SOP_AMB		0x10000000
+#define R92C_APS_FSMCO_SOP_RCK		0x20000000
+#define R92C_APS_FSMCO_SOP_A8M		0x40000000
+#define R92C_APS_FSMCO_XOP_BTCK		0x80000000
+
+/* Bits for R92C_SYS_CLKR. */
+#define R92C_SYS_CLKR_ANAD16V_EN	0x00000001
+#define R92C_SYS_CLKR_ANA8M		0x00000002
+#define R92C_SYS_CLKR_MACSLP		0x00000010
+#define R92C_SYS_CLKR_LOADER_EN		0x00000020
+#define R92C_SYS_CLKR_80M_SSC_DIS	0x00000080
+#define R92C_SYS_CLKR_80M_SSC_EN_HO	0x00000100
+#define R92C_SYS_CLKR_PHY_SSC_RSTB	0x00000200
+#define R92C_SYS_CLKR_SEC_EN		0x00000400
+#define R92C_SYS_CLKR_MAC_EN		0x00000800
+#define R92C_SYS_CLKR_SYS_EN		0x00001000
+#define R92C_SYS_CLKR_RING_EN		0x00002000
+
+/* Bits for R92C_RF_CTRL. */
+#define R92C_RF_CTRL_EN		0x01
+#define R92C_RF_CTRL_RSTB	0x02
+#define R92C_RF_CTRL_SDMRSTB	0x04
+
+/* Bits for R92C_LDOV12D_CTRL. */
+#define R92C_LDOV12D_CTRL_LDV12_EN	0x01
+
+/* Bits for R92C_EFUSE_CTRL. */
+#define R92C_EFUSE_CTRL_DATA_M	0x000000ff
+#define R92C_EFUSE_CTRL_DATA_S	0
+#define R92C_EFUSE_CTRL_ADDR_M	0x0003ff00
+#define R92C_EFUSE_CTRL_ADDR_S	8
+#define R92C_EFUSE_CTRL_VALID	0x80000000
+
+/* Bits for R92C_GPIO_MUXCFG. */
+#define R92C_GPIO_MUXCFG_RFKILL	0x0008
+#define R92C_GPIO_MUXCFG_ENBT	0x0020
+
+/* Bits for R92C_GPIO_IO_SEL. */
+#define R92C_GPIO_IO_SEL_RFKILL	0x0008
+
+/* Bits for R92C_LEDCFG0. */
+#define R92C_LEDCFG0_DIS	0x08
+
+/* Bits for R92C_LEDCFG2. */
+#define R92C_LEDCFG2_EN		0x60
+#define R92C_LEDCFG2_DIS	0x68
+
+/* Bits for R92C_MCUFWDL. */
+#define R92C_MCUFWDL_EN			0x00000001
+#define R92C_MCUFWDL_RDY		0x00000002
+#define R92C_MCUFWDL_CHKSUM_RPT		0x00000004
+#define R92C_MCUFWDL_MACINI_RDY		0x00000008
+#define R92C_MCUFWDL_BBINI_RDY		0x00000010
+#define R92C_MCUFWDL_RFINI_RDY		0x00000020
+#define R92C_MCUFWDL_WINTINI_RDY	0x00000040
+#define R92C_MCUFWDL_RAM_DL_SEL		0x00000080 /* 1: RAM, 0: ROM */
+#define R92C_MCUFWDL_PAGE_M		0x00070000
+#define R92C_MCUFWDL_PAGE_S		16
+#define R92C_MCUFWDL_CPRST		0x00800000
+
+/* Bits for R92C_HPON_FSM. */
+#define R92C_HPON_FSM_CHIP_BONDING_ID_S		22
+#define R92C_HPON_FSM_CHIP_BONDING_ID_M		0x00c00000
+#define R92C_HPON_FSM_CHIP_BONDING_ID_92C_1T2R	1
+
+/* Bits for R92C_SYS_CFG. */
+#define R92C_SYS_CFG_XCLK_VLD		0x00000001
+#define R92C_SYS_CFG_ACLK_VLD		0x00000002
+#define R92C_SYS_CFG_UCLK_VLD		0x00000004
+#define R92C_SYS_CFG_PCLK_VLD		0x00000008
+#define R92C_SYS_CFG_PCIRSTB		0x00000010
+#define R92C_SYS_CFG_V15_VLD		0x00000020
+#define R92C_SYS_CFG_TRP_B15V_EN	0x00000080
+#define R92C_SYS_CFG_SIC_IDLE		0x00000100
+#define R92C_SYS_CFG_BD_MAC2		0x00000200
+#define R92C_SYS_CFG_BD_MAC1		0x00000400
+#define R92C_SYS_CFG_IC_MACPHY_MODE	0x00000800
+#define R92C_SYS_CFG_CHIP_VER_RTL_M	0x0000f000
+#define R92C_SYS_CFG_CHIP_VER_RTL_S	12
+#define R92C_SYS_CFG_BT_FUNC		0x00010000
+#define R92C_SYS_CFG_VENDOR_UMC		0x00080000
+#define R92C_SYS_CFG_PAD_HWPD_IDN	0x00400000
+#define R92C_SYS_CFG_TRP_VAUX_EN	0x00800000
+#define R92C_SYS_CFG_TRP_BT_EN		0x01000000
+#define R92C_SYS_CFG_BD_PKG_SEL		0x02000000
+#define R92C_SYS_CFG_BD_HCI_SEL		0x04000000
+#define R92C_SYS_CFG_TYPE_92C		0x08000000
+
+/* Bits for R92C_CR. */
+#define R92C_CR_HCI_TXDMA_EN	0x00000001
+#define R92C_CR_HCI_RXDMA_EN	0x00000002
+#define R92C_CR_TXDMA_EN	0x00000004
+#define R92C_CR_RXDMA_EN	0x00000008
+#define R92C_CR_PROTOCOL_EN	0x00000010
+#define R92C_CR_SCHEDULE_EN	0x00000020
+#define R92C_CR_MACTXEN		0x00000040
+#define R92C_CR_MACRXEN		0x00000080
+#define R92C_CR_ENSEC		0x00000200
+#define R92C_CR_NETTYPE_S	16
+#define R92C_CR_NETTYPE_M	0x00030000
+#define R92C_CR_NETTYPE_NOLINK	0
+#define R92C_CR_NETTYPE_ADHOC	1
+#define R92C_CR_NETTYPE_INFRA	2
+#define R92C_CR_NETTYPE_AP	3
+
+/* Bits for R92C_PBP. */
+#define R92C_PBP_PSRX_M		0x0f
+#define R92C_PBP_PSRX_S		0
+#define R92C_PBP_PSTX_M		0xf0
+#define R92C_PBP_PSTX_S		4
+#define R92C_PBP_64		0
+#define R92C_PBP_128		1
+#define R92C_PBP_256		2
+#define R92C_PBP_512		3
+#define R92C_PBP_1024		4
+
+/* Bits for R92C_TRXDMA_CTRL. */
+#define R92C_TRXDMA_CTRL_RXDMA_AGG_EN		0x0004
+#define R92C_TRXDMA_CTRL_TXDMA_VOQ_MAP_M	0x0030
+#define R92C_TRXDMA_CTRL_TXDMA_VOQ_MAP_S	4
+#define R92C_TRXDMA_CTRL_TXDMA_VIQ_MAP_M	0x00c0
+#define R92C_TRXDMA_CTRL_TXDMA_VIQ_MAP_S	6
+#define R92C_TRXDMA_CTRL_TXDMA_BEQ_MAP_M	0x0300
+#define R92C_TRXDMA_CTRL_TXDMA_BEQ_MAP_S	8
+#define R92C_TRXDMA_CTRL_TXDMA_BKQ_MAP_M	0x0c00
+#define R92C_TRXDMA_CTRL_TXDMA_BKQ_MAP_S	10
+#define R92C_TRXDMA_CTRL_TXDMA_MGQ_MAP_M	0x3000
+#define R92C_TRXDMA_CTRL_TXDMA_MGQ_MAP_S	12
+#define R92C_TRXDMA_CTRL_TXDMA_HIQ_MAP_M	0xc000
+#define R92C_TRXDMA_CTRL_TXDMA_HIQ_MAP_S	14
+#define R92C_TRXDMA_CTRL_QUEUE_LOW		1
+#define R92C_TRXDMA_CTRL_QUEUE_NORMAL		2
+#define R92C_TRXDMA_CTRL_QUEUE_HIGH		3
+#define R92C_TRXDMA_CTRL_QMAP_M			0xfff0
+#define R92C_TRXDMA_CTRL_QMAP_S			4
+/* Shortcuts. */
+#define R92C_TRXDMA_CTRL_QMAP_3EP		0xf5b0
+#define R92C_TRXDMA_CTRL_QMAP_HQ_LQ		0xf5f0
+#define R92C_TRXDMA_CTRL_QMAP_HQ_NQ		0xfaf0
+#define R92C_TRXDMA_CTRL_QMAP_LQ		0x5550
+#define R92C_TRXDMA_CTRL_QMAP_NQ		0xaaa0
+#define R92C_TRXDMA_CTRL_QMAP_HQ		0xfff0
+
+/* Bits for R92C_LLT_INIT. */
+#define R92C_LLT_INIT_DATA_M		0x000000ff
+#define R92C_LLT_INIT_DATA_S		0
+#define R92C_LLT_INIT_ADDR_M		0x0000ff00
+#define R92C_LLT_INIT_ADDR_S		8
+#define R92C_LLT_INIT_OP_M		0xc0000000
+#define R92C_LLT_INIT_OP_S		30
+#define R92C_LLT_INIT_OP_NO_ACTIVE	0
+#define R92C_LLT_INIT_OP_WRITE		1
+
+/* Bits for R92C_RQPN. */
+#define R92C_RQPN_HPQ_M		0x000000ff
+#define R92C_RQPN_HPQ_S		0
+#define R92C_RQPN_LPQ_M		0x0000ff00
+#define R92C_RQPN_LPQ_S		8
+#define R92C_RQPN_PUBQ_M	0x00ff0000
+#define R92C_RQPN_PUBQ_S	16
+#define R92C_RQPN_LD		0x80000000
+
+/* Bits for R92C_TDECTRL. */
+#define R92C_TDECTRL_BLK_DESC_NUM_M	0x0000000f
+#define R92C_TDECTRL_BLK_DESC_NUM_S	4
+
+/* Bits for R92C_FWHW_TXQ_CTRL. */
+#define R92C_FWHW_TXQ_CTRL_AMPDU_RTY_NEW	0x80
+
+/* Bits for R92C_SPEC_SIFS. */
+#define R92C_SPEC_SIFS_CCK_M	0x00ff
+#define R92C_SPEC_SIFS_CCK_S	0
+#define R92C_SPEC_SIFS_OFDM_M	0xff00
+#define R92C_SPEC_SIFS_OFDM_S	8
+
+/* Bits for R92C_RL. */
+#define R92C_RL_LRL_M		0x003f
+#define R92C_RL_LRL_S		0
+#define R92C_RL_SRL_M		0x3f00
+#define R92C_RL_SRL_S		8
+
+/* Bits for R92C_RRSR. */
+#define R92C_RRSR_RATE_BITMAP_M		0x000fffff
+#define R92C_RRSR_RATE_BITMAP_S		0
+#define R92C_RRSR_RATE_CCK_ONLY_1M	0xffff1
+#define R92C_RRSR_RATE_ALL		0xfffff
+#define R92C_RRSR_RSC_LOWSUBCHNL	0x00200000
+#define R92C_RRSR_RSC_UPSUBCHNL		0x00400000
+#define R92C_RRSR_SHORT			0x00800000
+
+/* Bits for R92C_EDCA_XX_PARAM. */
+#define R92C_EDCA_PARAM_AIFS_M		0x000000ff
+#define R92C_EDCA_PARAM_AIFS_S		0
+#define R92C_EDCA_PARAM_ECWMIN_M	0x00000f00
+#define R92C_EDCA_PARAM_ECWMIN_S	8
+#define R92C_EDCA_PARAM_ECWMAX_M	0x0000f000
+#define R92C_EDCA_PARAM_ECWMAX_S	12
+#define R92C_EDCA_PARAM_TXOP_M		0xffff0000
+#define R92C_EDCA_PARAM_TXOP_S		16
+
+/* Bits for R92C_TXPAUSE. */
+#define R92C_TXPAUSE_AC_VO		0x01
+#define R92C_TXPAUSE_AC_VI		0x02
+#define R92C_TXPAUSE_AC_BE		0x04
+#define R92C_TXPAUSE_AC_BK		0x08
+
+/* Bits for R92C_BCN_CTRL. */
+#define R92C_BCN_CTRL_EN_MBSSID		0x02
+#define R92C_BCN_CTRL_TXBCN_RPT		0x04
+#define R92C_BCN_CTRL_EN_BCN		0x08
+#define R92C_BCN_CTRL_DIS_TSF_UDT0	0x10
+
+/* Bits for R92C_APSD_CTRL. */
+#define R92C_APSD_CTRL_OFF		0x40
+#define R92C_APSD_CTRL_OFF_STATUS	0x80
+
+/* Bits for R92C_BWOPMODE. */
+#define R92C_BWOPMODE_11J	0x01
+#define R92C_BWOPMODE_5G	0x02
+#define R92C_BWOPMODE_20MHZ	0x04
+
+/* Bits for R92C_TCR. */
+#define R92C_TCR_TSFRST		0x00000001
+#define R92C_TCR_DIS_GCLK	0x00000002
+#define R92C_TCR_PAD_SEL	0x00000004
+#define R92C_TCR_PWR_ST		0x00000040
+#define R92C_TCR_PWRBIT_OW_EN	0x00000080
+#define R92C_TCR_ACRC		0x00000100
+#define R92C_TCR_CFENDFORM	0x00000200
+#define R92C_TCR_ICV		0x00000400
+
+/* Bits for R92C_RCR. */
+#define R92C_RCR_AAP		0x00000001
+#define R92C_RCR_APM		0x00000002
+#define R92C_RCR_AM		0x00000004
+#define R92C_RCR_AB		0x00000008
+#define R92C_RCR_ADD3		0x00000010
+#define R92C_RCR_APWRMGT	0x00000020
+#define R92C_RCR_CBSSID_DATA	0x00000040
+#define R92C_RCR_CBSSID_BCN	0x00000080
+#define R92C_RCR_ACRC32		0x00000100
+#define R92C_RCR_AICV		0x00000200
+#define R92C_RCR_ADF		0x00000800
+#define R92C_RCR_ACF		0x00001000
+#define R92C_RCR_AMF		0x00002000
+#define R92C_RCR_HTC_LOC_CTRL	0x00004000
+#define R92C_RCR_MFBEN		0x00400000
+#define R92C_RCR_LSIGEN		0x00800000
+#define R92C_RCR_ENMBID		0x01000000
+#define R92C_RCR_APP_BA_SSN	0x08000000
+#define R92C_RCR_APP_PHYSTS	0x10000000
+#define R92C_RCR_APP_ICV	0x20000000
+#define R92C_RCR_APP_MIC	0x40000000
+#define R92C_RCR_APPFCS		0x80000000
+
+/* Bits for R92C_CAMCMD. */
+#define R92C_CAMCMD_ADDR_M	0x0000ffff
+#define R92C_CAMCMD_ADDR_S	0
+#define R92C_CAMCMD_WRITE	0x00010000
+#define R92C_CAMCMD_CLR		0x40000000
+#define R92C_CAMCMD_POLLING	0x80000000
+
+/* IMR */
+
+/*Beacon DMA interrupt 6 */
+#define R92C_IMR_BCNDMAINT6	0x80000000
+/*Beacon DMA interrupt 5 */
+#define R92C_IMR_BCNDMAINT5	0x40000000
+/*Beacon DMA interrupt 4 */
+#define R92C_IMR_BCNDMAINT4	0x20000000
+/*Beacon DMA interrupt 3 */
+#define R92C_IMR_BCNDMAINT3	0x10000000
+/*Beacon DMA interrupt 2 */
+#define R92C_IMR_BCNDMAINT2	0x08000000
+/*Beacon DMA interrupt 1 */
+#define R92C_IMR_BCNDMAINT1	0x04000000	
+/*Beacon Queue DMA OK interrupt 8 */
+#define R92C_IMR_BCNDOK8	0x02000000
+/*Beacon Queue DMA OK interrupt 7 */
+#define R92C_IMR_BCNDOK7	0x01000000
+/*Beacon Queue DMA OK interrupt 6 */
+#define R92C_IMR_BCNDOK6	0x00800000
+/*Beacon Queue DMA OK interrupt 5 */
+#define R92C_IMR_BCNDOK5	0x00400000
+/*Beacon Queue DMA OK interrupt 4 */
+#define R92C_IMR_BCNDOK4	0x00200000
+/*Beacon Queue DMA OK interrupt 3 */
+#define R92C_IMR_BCNDOK3	0x00100000
+/*Beacon Queue DMA OK interrupt 2 */
+#define R92C_IMR_BCNDOK2	0x00080000
+/*Beacon Queue DMA OK interrupt 1 */
+#define R92C_IMR_BCNDOK1	0x00040000
+/*Timeout interrupt 2 */
+#define R92C_IMR_TIMEOUT2	0x00020000
+/*Timeout interrupt 1 */
+#define R92C_IMR_TIMEOUT1	0x00010000
+/*Transmit FIFO Overflow */
+#define R92C_IMR_TXFOVW		0x00008000
+/*Power save time out interrupt */
+#define R92C_IMR_PSTIMEOUT	0x00004000
+/*Beacon DMA interrupt 0 */
+#define R92C_IMR_BCNINT		0x00002000
+/*Receive FIFO Overflow */
+#define R92C_IMR_RXFOVW		0x00001000
+/*Receive Descriptor Unavailable */
+#define R92C_IMR_RDU		0x00000800
+/*For 92C,ATIM Window End interrupt */
+#define R92C_IMR_ATIMEND	0x00000400
+/*Beacon Queue DMA OK interrupt */
+#define R92C_IMR_BDOK		0x00000200
+/*High Queue DMA OK interrupt */
+#define R92C_IMR_HIGHDOK	0x00000100
+/*Transmit Beacon OK interrupt */
+#define R92C_IMR_TBDOK		0x00000080
+/*Management Queue DMA OK interrupt */
+#define R92C_IMR_MGNTDOK	0x00000040
+/*For 92C,Transmit Beacon Error interrupt */
+#define R92C_IMR_TBDER		0x00000020
+/*AC_BK DMA OK interrupt */
+#define R92C_IMR_BKDOK		0x00000010
+/*AC_BE DMA OK interrupt */
+#define R92C_IMR_BEDOK		0x00000008
+/*AC_VI DMA OK interrupt */
+#define R92C_IMR_VIDOK		0x00000004
+/*AC_VO DMA interrupt */
+#define R92C_IMR_VODOK		0x00000002
+/*Receive DMA OK interrupt */
+#define R92C_IMR_ROK		0x00000001
+
+#define R92C_IBSS_INT_MASK			(R92C_IMR_BCNINT | R92C_IMR_TBDOK | R92C_IMR_TBDER)
+
+/*
+ * Baseband registers.
+ */
+#define R92C_FPGA0_RFMOD		0x800
+#define R92C_FPGA0_TXINFO		0x804
+#define R92C_HSSI_PARAM1(chain)		(0x820 + (chain) * 8)
+#define R92C_HSSI_PARAM2(chain)		(0x824 + (chain) * 8)
+#define R92C_TXAGC_RATE18_06(i)		(((i) == 0) ? 0xe00 : 0x830)
+#define R92C_TXAGC_RATE54_24(i)		(((i) == 0) ? 0xe04 : 0x834)
+#define R92C_TXAGC_A_CCK1_MCS32		0xe08
+#define R92C_TXAGC_B_CCK1_55_MCS32	0x838
+#define R92C_TXAGC_B_CCK11_A_CCK2_11	0x86c
+#define R92C_TXAGC_MCS03_MCS00(i)	(((i) == 0) ? 0xe10 : 0x83c)
+#define R92C_TXAGC_MCS07_MCS04(i)	(((i) == 0) ? 0xe14 : 0x848)
+#define R92C_TXAGC_MCS11_MCS08(i)	(((i) == 0) ? 0xe18 : 0x84c)
+#define R92C_TXAGC_MCS15_MCS12(i)	(((i) == 0) ? 0xe1c : 0x868)
+#define R92C_LSSI_PARAM(chain)		(0x840 + (chain) * 4)
+#define R92C_FPGA0_RFIFACEOE(chain)	(0x860 + (chain) * 4)
+#define R92C_FPGA0_RFIFACESW(idx)	(0x870 + (idx) * 4)
+#define R92C_FPGA0_RFPARAM(idx)		(0x878 + (idx) * 4)
+#define R92C_FPGA0_ANAPARAM2		0x884
+#define R92C_LSSI_READBACK(chain)	(0x8a0 + (chain) * 4)
+#define R92C_HSPI_READBACK(chain)	(0x8b8 + (chain) * 4)
+#define R92C_FPGA1_RFMOD		0x900
+#define R92C_FPGA1_TXINFO		0x90c
+#define R92C_CCK0_SYSTEM		0xa00
+#define R92C_CCK0_AFESETTING		0xa04
+#define R92C_OFDM0_TRXPATHENA		0xc04
+#define R92C_OFDM0_TRMUXPAR		0xc08
+#define R92C_OFDM0_RXIQIMBALANCE(chain)	(0xc14 + (chain) * 8)
+#define R92C_OFDM0_ECCATHRESHOLD	0xc4c
+#define R92C_OFDM0_AGCCORE1(chain)	(0xc50 + (chain) * 8)
+#define R92C_OFDM0_AGCPARAM1		0xc70
+#define R92C_OFDM0_AGCRSSITABLE		0xc78
+#define R92C_OFDM0_TXIQIMBALANCE(chain)	(0xc80 + (chain) * 8)
+#define R92C_OFDM0_TXAFE(chain)		(0xc94 + (chain) * 8)
+#define R92C_OFDM0_RXIQEXTANTA		0xca0
+#define R92C_OFDM1_LSTF			0xd00
+
+/* Bits for R92C_FPGA[01]_RFMOD. */
+#define R92C_RFMOD_40MHZ	0x00000001
+#define R92C_RFMOD_JAPAN	0x00000002
+#define R92C_RFMOD_CCK_TXSC	0x00000030
+#define R92C_RFMOD_CCK_EN	0x01000000
+#define R92C_RFMOD_OFDM_EN	0x02000000
+
+/* Bits for R92C_HSSI_PARAM1(i). */
+#define R92C_HSSI_PARAM1_PI	0x00000100
+
+/* Bits for R92C_HSSI_PARAM2(i). */
+#define R92C_HSSI_PARAM2_CCK_HIPWR	0x00000200
+#define R92C_HSSI_PARAM2_ADDR_LENGTH	0x00000400
+#define R92C_HSSI_PARAM2_DATA_LENGTH	0x00000800
+#define R92C_HSSI_PARAM2_READ_ADDR_M	0x7f800000
+#define R92C_HSSI_PARAM2_READ_ADDR_S	23
+#define R92C_HSSI_PARAM2_READ_EDGE	0x80000000
+
+/* Bits for R92C_TXAGC_A_CCK1_MCS32. */
+#define R92C_TXAGC_A_CCK1_M	0x0000ff00
+#define R92C_TXAGC_A_CCK1_S	8
+
+/* Bits for R92C_TXAGC_B_CCK11_A_CCK2_11. */
+#define R92C_TXAGC_B_CCK11_M	0x000000ff
+#define R92C_TXAGC_B_CCK11_S	0
+#define R92C_TXAGC_A_CCK2_M	0x0000ff00
+#define R92C_TXAGC_A_CCK2_S	8
+#define R92C_TXAGC_A_CCK55_M	0x00ff0000
+#define R92C_TXAGC_A_CCK55_S	16
+#define R92C_TXAGC_A_CCK11_M	0xff000000
+#define R92C_TXAGC_A_CCK11_S	24
+
+/* Bits for R92C_TXAGC_B_CCK1_55_MCS32. */
+#define R92C_TXAGC_B_CCK1_M	0x0000ff00
+#define R92C_TXAGC_B_CCK1_S	8
+#define R92C_TXAGC_B_CCK2_M	0x00ff0000
+#define R92C_TXAGC_B_CCK2_S	16
+#define R92C_TXAGC_B_CCK55_M	0xff000000
+#define R92C_TXAGC_B_CCK55_S	24
+
+/* Bits for R92C_TXAGC_RATE18_06(x). */
+#define R92C_TXAGC_RATE06_M	0x000000ff
+#define R92C_TXAGC_RATE06_S	0
+#define R92C_TXAGC_RATE09_M	0x0000ff00
+#define R92C_TXAGC_RATE09_S	8
+#define R92C_TXAGC_RATE12_M	0x00ff0000
+#define R92C_TXAGC_RATE12_S	16
+#define R92C_TXAGC_RATE18_M	0xff000000
+#define R92C_TXAGC_RATE18_S	24
+
+/* Bits for R92C_TXAGC_RATE54_24(x). */
+#define R92C_TXAGC_RATE24_M	0x000000ff
+#define R92C_TXAGC_RATE24_S	0
+#define R92C_TXAGC_RATE36_M	0x0000ff00
+#define R92C_TXAGC_RATE36_S	8
+#define R92C_TXAGC_RATE48_M	0x00ff0000
+#define R92C_TXAGC_RATE48_S	16
+#define R92C_TXAGC_RATE54_M	0xff000000
+#define R92C_TXAGC_RATE54_S	24
+
+/* Bits for R92C_TXAGC_MCS03_MCS00(x). */
+#define R92C_TXAGC_MCS00_M	0x000000ff
+#define R92C_TXAGC_MCS00_S	0
+#define R92C_TXAGC_MCS01_M	0x0000ff00
+#define R92C_TXAGC_MCS01_S	8
+#define R92C_TXAGC_MCS02_M	0x00ff0000
+#define R92C_TXAGC_MCS02_S	16
+#define R92C_TXAGC_MCS03_M	0xff000000
+#define R92C_TXAGC_MCS03_S	24
+
+/* Bits for R92C_TXAGC_MCS07_MCS04(x). */
+#define R92C_TXAGC_MCS04_M	0x000000ff
+#define R92C_TXAGC_MCS04_S	0
+#define R92C_TXAGC_MCS05_M	0x0000ff00
+#define R92C_TXAGC_MCS05_S	8
+#define R92C_TXAGC_MCS06_M	0x00ff0000
+#define R92C_TXAGC_MCS06_S	16
+#define R92C_TXAGC_MCS07_M	0xff000000
+#define R92C_TXAGC_MCS07_S	24
+
+/* Bits for R92C_TXAGC_MCS11_MCS08(x). */
+#define R92C_TXAGC_MCS08_M	0x000000ff
+#define R92C_TXAGC_MCS08_S	0
+#define R92C_TXAGC_MCS09_M	0x0000ff00
+#define R92C_TXAGC_MCS09_S	8
+#define R92C_TXAGC_MCS10_M	0x00ff0000
+#define R92C_TXAGC_MCS10_S	16
+#define R92C_TXAGC_MCS11_M	0xff000000
+#define R92C_TXAGC_MCS11_S	24
+
+/* Bits for R92C_TXAGC_MCS15_MCS12(x). */
+#define R92C_TXAGC_MCS12_M	0x000000ff
+#define R92C_TXAGC_MCS12_S	0
+#define R92C_TXAGC_MCS13_M	0x0000ff00
+#define R92C_TXAGC_MCS13_S	8
+#define R92C_TXAGC_MCS14_M	0x00ff0000
+#define R92C_TXAGC_MCS14_S	16
+#define R92C_TXAGC_MCS15_M	0xff000000
+#define R92C_TXAGC_MCS15_S	24
+
+/* Bits for R92C_LSSI_PARAM(i). */
+#define R92C_LSSI_PARAM_DATA_M	0x000fffff
+#define R92C_LSSI_PARAM_DATA_S	0
+#define R92C_LSSI_PARAM_ADDR_M	0x03f00000
+#define R92C_LSSI_PARAM_ADDR_S	20
+
+/* Bits for R92C_FPGA0_ANAPARAM2. */
+#define R92C_FPGA0_ANAPARAM2_CBW20	0x00000400
+
+/* Bits for R92C_LSSI_READBACK(i). */
+#define R92C_LSSI_READBACK_DATA_M	0x000fffff
+#define R92C_LSSI_READBACK_DATA_S	0
+
+/* Bits for R92C_OFDM0_AGCCORE1(i). */
+#define R92C_OFDM0_AGCCORE1_GAIN_M	0x0000007f
+#define R92C_OFDM0_AGCCORE1_GAIN_S	0
+
+
+/*
+ * USB registers.
+ */
+#define R92C_USB_INFO			0xfe17
+#define R92C_USB_SPECIAL_OPTION		0xfe55
+#define R92C_USB_HCPWM			0xfe57
+#define R92C_USB_HRPWM			0xfe58
+#define R92C_USB_DMA_AGG_TO		0xfe5b
+#define R92C_USB_AGG_TO			0xfe5c
+#define R92C_USB_AGG_TH			0xfe5d
+#define R92C_USB_VID			0xfe60
+#define R92C_USB_PID			0xfe62
+#define R92C_USB_OPTIONAL		0xfe64
+#define R92C_USB_EP			0xfe65
+#define R92C_USB_PHY			0xfe68
+#define R92C_USB_MAC_ADDR		0xfe70
+#define R92C_USB_STRING			0xfe80
+
+/* Bits for R92C_USB_SPECIAL_OPTION. */
+#define R92C_USB_SPECIAL_OPTION_AGG_EN	0x08
+
+/* Bits for R92C_USB_EP. */
+#define R92C_USB_EP_HQ_M	0x000f
+#define R92C_USB_EP_HQ_S	0
+#define R92C_USB_EP_NQ_M	0x00f0
+#define R92C_USB_EP_NQ_S	4
+#define R92C_USB_EP_LQ_M	0x0f00
+#define R92C_USB_EP_LQ_S	8
+
+
+/*
+ * Firmware base address.
+ */
+#define R92C_FW_START_ADDR	0x1000
+#define R92C_FW_PAGE_SIZE	4096
+
+
+/*
+ * RF (6052) registers.
+ */
+#define R92C_RF_AC		0x00
+#define R92C_RF_IQADJ_G(i)	(0x01 + (i))
+#define R92C_RF_POW_TRSW	0x05
+#define R92C_RF_GAIN_RX		0x06
+#define R92C_RF_GAIN_TX		0x07
+#define R92C_RF_TXM_IDAC	0x08
+#define R92C_RF_BS_IQGEN	0x0f
+#define R92C_RF_MODE1		0x10
+#define R92C_RF_MODE2		0x11
+#define R92C_RF_RX_AGC_HP	0x12
+#define R92C_RF_TX_AGC		0x13
+#define R92C_RF_BIAS		0x14
+#define R92C_RF_IPA		0x15
+#define R92C_RF_POW_ABILITY	0x17
+#define R92C_RF_CHNLBW		0x18
+#define R92C_RF_RX_G1		0x1a
+#define R92C_RF_RX_G2		0x1b
+#define R92C_RF_RX_BB2		0x1c
+#define R92C_RF_RX_BB1		0x1d
+#define R92C_RF_RCK1		0x1e
+#define R92C_RF_RCK2		0x1f
+#define R92C_RF_TX_G(i)		(0x20 + (i))
+#define R92C_RF_TX_BB1		0x23
+#define R92C_RF_T_METER		0x24
+#define R92C_RF_SYN_G(i)	(0x25 + (i))
+#define R92C_RF_RCK_OS		0x30
+#define R92C_RF_TXPA_G(i)	(0x31 + (i))
+
+/* Bits for R92C_RF_AC. */
+#define R92C_RF_AC_MODE_M	0x70000
+#define R92C_RF_AC_MODE_S	16
+#define R92C_RF_AC_MODE_STANDBY	1
+
+/* Bits for R92C_RF_CHNLBW. */
+#define R92C_RF_CHNLBW_CHNL_M	0x003ff
+#define R92C_RF_CHNLBW_CHNL_S	0
+#define R92C_RF_CHNLBW_BW20	0x00400
+#define R92C_RF_CHNLBW_LCSTART	0x08000
+
+
+/*
+ * CAM entries.
+ */
+#define R92C_CAM_ENTRY_COUNT	32
+
+#define R92C_CAM_CTL0(entry)	((entry) * 8 + 0)
+#define R92C_CAM_CTL1(entry)	((entry) * 8 + 1)
+#define R92C_CAM_KEY(entry, i)	((entry) * 8 + 2 + (i))
+
+/* Bits for R92C_CAM_CTL0(i). */
+#define R92C_CAM_KEYID_M	0x00000003
+#define R92C_CAM_KEYID_S	0
+#define R92C_CAM_ALGO_M		0x0000001c
+#define R92C_CAM_ALGO_S		2
+#define R92C_CAM_ALGO_NONE	0
+#define R92C_CAM_ALGO_WEP40	1
+#define R92C_CAM_ALGO_TKIP	2
+#define R92C_CAM_ALGO_AES	4
+#define R92C_CAM_ALGO_WEP104	5
+#define R92C_CAM_VALID		0x00008000
+#define R92C_CAM_MACLO_M	0xffff0000
+#define R92C_CAM_MACLO_S	16
+
+/* Rate adaptation modes. */
+#define R92C_RAID_11GN	1
+#define R92C_RAID_11N	3
+#define R92C_RAID_11BG	4
+#define R92C_RAID_11G	5	/* "pure" 11g */
+#define R92C_RAID_11B	6
+
+
+/*
+ * Macros to access subfields in registers.
+ */
+/* Mask and Shift (getter). */
+#define MS(val, field)							\
+	(((val) & field##_M) >> field##_S)
+
+/* Shift and Mask (setter). */
+#define SM(field, val)							\
+	(((val) << field##_S) & field##_M)
+
+/* Rewrite. */
+#define RW(var, field, val)						\
+	(((var) & ~field##_M) | SM(field, val))
+
+/*
+ * Firmware image header.
+ */
+struct r92c_fw_hdr {
+	/* QWORD0 */
+	uint16_t	signature;
+	uint8_t		category;
+	uint8_t		function;
+	uint16_t	version;
+	uint16_t	subversion;
+	/* QWORD1 */
+	uint8_t		month;
+	uint8_t		date;
+	uint8_t		hour;
+	uint8_t		minute;
+	uint16_t	ramcodesize;
+	uint16_t	reserved2;
+	/* QWORD2 */
+	uint32_t	svnidx;
+	uint32_t	reserved3;
+	/* QWORD3 */
+	uint32_t	reserved4;
+	uint32_t	reserved5;
+} __packed;
+
+/*
+ * Host to firmware commands.
+ */
+struct r92c_fw_cmd {
+	uint8_t	id;
+#define R92C_CMD_AP_OFFLOAD		0
+#define R92C_CMD_SET_PWRMODE		1
+#define R92C_CMD_JOINBSS_RPT		2
+#define R92C_CMD_RSVD_PAGE		3
+#define R92C_CMD_RSSI			4
+#define R92C_CMD_RSSI_SETTING		5
+#define R92C_CMD_MACID_CONFIG		6
+#define R92C_CMD_MACID_PS_MODE		7
+#define R92C_CMD_P2P_PS_OFFLOAD		8
+#define R92C_CMD_SELECTIVE_SUSPEND	9
+#define R92C_CMD_FLAG_EXT		0x80
+
+	uint8_t	msg[5];
+} __packed;
+
+/* Structure for R92C_CMD_RSSI_SETTING. */
+struct r92c_fw_cmd_rssi {
+	uint8_t	macid;
+	uint8_t	reserved;
+	uint8_t	pwdb;
+} __packed;
+
+/* Structure for R92C_CMD_MACID_CONFIG. */
+struct r92c_fw_cmd_macid_cfg {
+	uint32_t	mask;
+	uint8_t		macid;
+#define RTWN_MACID_BSS		0
+#define RTWN_MACID_BC		4	/* Broadcast. */
+#define RTWN_MACID_VALID	0x80
+} __packed;
+
+/*
+ * RTL8192CU ROM image.
+ */
+struct r92c_rom {
+	uint16_t	id;		/* 0x8129 */
+	uint8_t		reserved1[5];
+	uint8_t		dbg_sel;
+	uint16_t	reserved2;
+	uint16_t	vid;
+	uint16_t	pid;
+	uint8_t		usb_opt;
+	uint8_t		ep_setting;
+	uint16_t	reserved3;
+	uint8_t		usb_phy;
+	uint8_t		reserved4[3];
+	uint8_t		macaddr[6];
+	uint8_t		string[61];	/* "Realtek" */
+	uint8_t		subcustomer_id;
+	uint8_t		cck_tx_pwr[R92C_MAX_CHAINS][3];
+	uint8_t		ht40_1s_tx_pwr[R92C_MAX_CHAINS][3];
+	uint8_t		ht40_2s_tx_pwr_diff[3];
+	uint8_t		ht20_tx_pwr_diff[3];
+	uint8_t		ofdm_tx_pwr_diff[3];
+	uint8_t		ht40_max_pwr[3];
+	uint8_t		ht20_max_pwr[3];
+	uint8_t		xtal_calib;
+	uint8_t		tssi[R92C_MAX_CHAINS];
+	uint8_t		thermal_meter;
+	uint8_t		rf_opt1;
+#define R92C_ROM_RF1_REGULATORY_M	0x07
+#define R92C_ROM_RF1_REGULATORY_S	0
+#define R92C_ROM_RF1_BOARD_TYPE_M	0xe0
+#define R92C_ROM_RF1_BOARD_TYPE_S	5
+#define R92C_BOARD_TYPE_DONGLE		0
+#define R92C_BOARD_TYPE_HIGHPA		1
+#define R92C_BOARD_TYPE_MINICARD	2
+#define R92C_BOARD_TYPE_SOLO		3
+#define R92C_BOARD_TYPE_COMBO		4
+
+	uint8_t		rf_opt2;
+	uint8_t		rf_opt3;
+	uint8_t		rf_opt4;
+	uint8_t		channel_plan;
+#define R92C_CHANNEL_PLAN_BY_HW		0x80
+
+	uint8_t		version;
+	uint8_t		curstomer_id;
+} __packed;
+
+/* Rx MAC descriptor. */
+struct r92c_rx_desc {
+	uint32_t	rxdw0;
+#define R92C_RXDW0_PKTLEN_M	0x00003fff
+#define R92C_RXDW0_PKTLEN_S	0
+#define R92C_RXDW0_CRCERR	0x00004000
+#define R92C_RXDW0_ICVERR	0x00008000
+#define R92C_RXDW0_INFOSZ_M	0x000f0000
+#define R92C_RXDW0_INFOSZ_S	16
+#define R92C_RXDW0_QOS		0x00800000
+#define R92C_RXDW0_SHIFT_M	0x03000000
+#define R92C_RXDW0_SHIFT_S	24
+#define R92C_RXDW0_PHYST	0x04000000
+#define R92C_RXDW0_DECRYPTED	0x08000000
+#define R92C_RXDW0_LS		0x10000000
+#define R92C_RXDW0_FS		0x20000000
+#define R92C_RXDW0_EOR		0x40000000
+#define R92C_RXDW0_OWN		0x80000000
+
+	uint32_t	rxdw1;
+	uint32_t	rxdw2;
+#define R92C_RXDW2_PKTCNT_M	0x00ff0000
+#define R92C_RXDW2_PKTCNT_S	16
+
+	uint32_t	rxdw3;
+#define R92C_RXDW3_RATE_M	0x0000003f
+#define R92C_RXDW3_RATE_S	0
+#define R92C_RXDW3_HT		0x00000040
+#define R92C_RXDW3_HTC		0x00000400
+
+	uint32_t	rxdw4;
+	uint32_t	rxdw5;
+
+	uint32_t	rxbufaddr;
+	uint32_t	rxbufaddr64;
+} __packed __attribute__((aligned(4)));
+
+/* Rx PHY descriptor. */
+struct r92c_rx_phystat {
+	uint32_t	phydw0;
+	uint32_t	phydw1;
+	uint32_t	phydw2;
+	uint32_t	phydw3;
+	uint32_t	phydw4;
+	uint32_t	phydw5;
+	uint32_t	phydw6;
+	uint32_t	phydw7;
+} __packed __attribute__((aligned(4)));
+
+/* Rx PHY CCK descriptor. */
+struct r92c_rx_cck {
+	uint8_t		adc_pwdb[4];
+	uint8_t		sq_rpt;
+	uint8_t		agc_rpt;
+} __packed;
+
+/* Tx MAC descriptor. */
+struct r92c_tx_desc {
+	uint32_t	txdw0;
+#define R92C_TXDW0_PKTLEN_M	0x0000ffff
+#define R92C_TXDW0_PKTLEN_S	0
+#define R92C_TXDW0_OFFSET_M	0x00ff0000
+#define R92C_TXDW0_OFFSET_S	16
+#define R92C_TXDW0_BMCAST	0x01000000
+#define R92C_TXDW0_LSG		0x04000000
+#define R92C_TXDW0_FSG		0x08000000
+#define R92C_TXDW0_OWN		0x80000000
+
+	uint32_t	txdw1;
+#define R92C_TXDW1_MACID_M	0x0000001f
+#define R92C_TXDW1_MACID_S	0
+#define R92C_TXDW1_AGGEN	0x00000020
+#define R92C_TXDW1_AGGBK	0x00000040
+#define R92C_TXDW1_QSEL_M	0x00001f00
+#define R92C_TXDW1_QSEL_S	8
+#define R92C_TXDW1_QSEL_BE	0x00
+#define R92C_TXDW1_QSEL_BK	0x02
+#define R92C_TXDW1_QSEL_VI	0x05
+#define R92C_TXDW1_QSEL_VO	0x07
+#define R92C_TXDW1_QSEL_BEACON	0x10
+#define R92C_TXDW1_QSEL_HIGH	0x11
+#define R92C_TXDW1_QSEL_MGNT	0x12
+#define R92C_TXDW1_QSEL_CMD	0x13
+#define R92C_TXDW1_RAID_M	0x000f0000
+#define R92C_TXDW1_RAID_S	16
+#define R92C_TXDW1_CIPHER_M	0x00c00000
+#define R92C_TXDW1_CIPHER_S	22
+#define R92C_TXDW1_CIPHER_NONE	0
+#define R92C_TXDW1_CIPHER_RC4	1
+#define R92C_TXDW1_CIPHER_AES	3
+#define R92C_TXDW1_PKTOFF_M	0x7c000000
+#define R92C_TXDW1_PKTOFF_S	26
+
+	uint32_t	txdw2;
+	uint16_t	txdw3;
+	uint16_t	txdseq;
+
+	uint32_t	txdw4;
+#define R92C_TXDW4_RTSRATE_M	0x0000003f
+#define R92C_TXDW4_RTSRATE_S	0
+#define R92C_TXDW4_QOS		0x00000040
+#define R92C_TXDW4_HWSEQ	0x00000080
+#define R92C_TXDW4_DRVRATE	0x00000100
+#define R92C_TXDW4_CTS2SELF	0x00000800
+#define R92C_TXDW4_RTSEN	0x00001000
+#define R92C_TXDW4_HWRTSEN	0x00002000
+#define R92C_TXDW4_SCO_M	0x003f0000
+#define R92C_TXDW4_SCO_S	20
+#define R92C_TXDW4_SCO_SCA	1
+#define R92C_TXDW4_SCO_SCB	2
+#define R92C_TXDW4_40MHZ	0x02000000
+
+	uint32_t	txdw5;
+#define R92C_TXDW5_DATARATE_M		0x0000003f
+#define R92C_TXDW5_DATARATE_S		0
+#define R92C_TXDW5_SGI			0x00000040
+#define R92C_TXDW5_DATARATE_FBLIMIT_M	0x00001f00
+#define R92C_TXDW5_DATARATE_FBLIMIT_S	8
+#define R92C_TXDW5_RTSRATE_FBLIMIT_M	0x0001e000
+#define R92C_TXDW5_RTSRATE_FBLIMIT_S	13
+#define R92C_TXDW5_RETRY_LIMIT_ENABLE	0x00020000
+#define R92C_TXDW5_DATA_RETRY_LIMIT_M	0x00fc0000
+#define R92C_TXDW5_DATA_RETRY_LIMIT_S	18
+#define R92C_TXDW5_AGGNUM_M		0xff000000
+#define R92C_TXDW5_AGGNUM_S		24
+
+	uint32_t	txdw6;
+
+	uint16_t	txbufsize;
+	uint16_t	pad;
+
+	uint32_t	txbufaddr;
+	uint32_t	txbufaddr64;
+
+	uint32_t	nextdescaddr;
+	uint32_t	nextdescaddr64;
+
+	uint32_t	reserved[4];
+} __packed __attribute__((aligned(4)));
+
+static const uint8_t ridx2rate[] =
+	{ 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
+
+/* HW rate indices. */
+#define RTWN_RIDX_CCK1		0
+#define RTWN_RIDX_CCK11		3
+#define RTWN_RIDX_OFDM6		4
+#define RTWN_RIDX_OFDM24	8
+#define RTWN_RIDX_OFDM54	11
+#define RTWN_RIDX_MCS0		12
+#define RTWN_RIDX_MCS15		27
+
+#define RTWN_RIDX_COUNT		28
+#define RTWN_RIDX_UNKNOWN	(uint8_t)-1
+
+#define RTWN_RATE_IS_CCK(rate)	((rate) <= RTWN_RIDX_CCK11)
+#define RTWN_RATE_IS_OFDM(rate)	((rate) >= RTWN_RIDX_OFDM6 && \
+				 (rate) <= RTWN_RIDX_OFDM54)
+
+
+/*
+ * Driver definitions.
+ */
+#define RTWN_NTXQUEUES			9
+#define RTWN_RX_LIST_COUNT		256
+#define RTWN_TX_LIST_COUNT		256
+#define RTWN_HOST_CMD_RING_COUNT	32
+
+/* TX queue indices. */
+#define RTWN_BK_QUEUE			0
+#define RTWN_BE_QUEUE			1
+#define RTWN_VI_QUEUE			2
+#define RTWN_VO_QUEUE			3
+#define RTWN_BEACON_QUEUE		4
+#define RTWN_TXCMD_QUEUE		5
+#define RTWN_MGNT_QUEUE			6
+#define RTWN_HIGH_QUEUE			7
+#define RTWN_HCCA_QUEUE			8
+
+/* RX queue indices. */
+#define RTWN_RX_QUEUE			0
+
+#define RTWN_RXBUFSZ	(16 * 1024)
+#define RTWN_TXBUFSZ	(sizeof(struct r92c_tx_desc) + IEEE80211_MAX_LEN)
+
+#define RTWN_TX_TIMEOUT	5000	/* ms */
+
+#define RTWN_LED_LINK	0
+#define RTWN_LED_DATA	1
+
+struct rtwn_rx_radiotap_header {
+	struct ieee80211_radiotap_header wr_ihdr;
+	uint8_t		wr_flags;
+	uint8_t		wr_rate;
+	uint16_t	wr_chan_freq;
+	uint16_t	wr_chan_flags;
+	uint8_t		wr_dbm_antsignal;
+} __packed;
+
+#define RTWN_RX_RADIOTAP_PRESENT			\
+	(1 << IEEE80211_RADIOTAP_FLAGS |		\
+	 1 << IEEE80211_RADIOTAP_RATE |			\
+	 1 << IEEE80211_RADIOTAP_CHANNEL |		\
+	 1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL)
+
+struct rtwn_tx_radiotap_header {
+	struct ieee80211_radiotap_header wt_ihdr;
+	uint8_t		wt_flags;
+	uint16_t	wt_chan_freq;
+	uint16_t	wt_chan_flags;
+} __packed;
+
+#define RTWN_TX_RADIOTAP_PRESENT			\
+	(1 << IEEE80211_RADIOTAP_FLAGS |		\
+	 1 << IEEE80211_RADIOTAP_CHANNEL)
+
+struct rtwn_rx_data {
+	bus_dmamap_t		map;
+	struct mbuf		*m;
+	bus_addr_t		paddr;
+};
+
+struct rtwn_rx_ring {
+	struct r92c_rx_desc	*desc;
+	bus_addr_t		paddr;
+	bus_dma_tag_t		desc_dmat;
+	bus_dmamap_t		desc_map;
+	bus_dma_tag_t		data_dmat;
+	bus_dma_segment_t	seg;
+	struct rtwn_rx_data	rx_data[RTWN_RX_LIST_COUNT];
+
+};
+struct rtwn_tx_data {
+	bus_dmamap_t			map;
+	struct mbuf			*m;
+	struct ieee80211_node		*ni;
+};
+
+struct rtwn_tx_ring {
+	bus_addr_t		paddr;
+	bus_dma_tag_t		desc_dmat;
+	bus_dmamap_t		desc_map;
+	bus_dma_tag_t		data_dmat;
+	bus_dma_segment_t       seg;
+	struct r92c_tx_desc	*desc;
+	struct rtwn_tx_data	tx_data[RTWN_TX_LIST_COUNT];
+	int			queued;
+	int			cur;
+};
+
+struct rtwn_vap {
+	struct ieee80211vap	vap;
+	int			(*newstate)(struct ieee80211vap *,
+				    enum ieee80211_state, int);
+};
+#define RTWN_VAP(vap)		((struct rtwn_vap *)(vap))
+
+struct rtwn_softc {
+	device_t			sc_dev;
+	struct mtx			sc_mtx;
+	struct ieee80211com		sc_ic;
+	struct mbufq			sc_snd;
+
+	struct resource			*irq;
+	struct resource			*mem;
+	bus_space_tag_t			sc_st;
+	bus_space_handle_t		sc_sh;
+	void				*sc_ih;
+	bus_size_t			sc_mapsize;
+	int				sc_cap_off;
+
+	struct callout			calib_to;
+	struct callout			watchdog_to;
+
+	int				sc_debug;
+
+	u_int				sc_flags;
+#define RTWN_FLAG_CCK_HIPWR	0x01
+#define RTWN_FLAG_BUSY		0x02
+#define RTWN_RUNNING		0x04
+
+	u_int				chip;
+#define RTWN_CHIP_88C		0x00
+#define RTWN_CHIP_92C		0x01
+#define RTWN_CHIP_92C_1T2R	0x02
+#define RTWN_CHIP_UMC		0x04
+#define RTWN_CHIP_UMC_A_CUT	0x08
+
+	uint8_t				board_type;
+	uint8_t				regulatory;
+	uint8_t				pa_setting;
+	int				avg_pwdb;
+	int				thcal_state;
+	int				thcal_lctemp;
+	int				ntxchains;
+	int				nrxchains;
+	int				ledlink;
+
+	int				sc_tx_timer;
+	int				fwcur;
+	struct rtwn_rx_ring		rx_ring;
+	struct rtwn_tx_ring		tx_ring[RTWN_NTXQUEUES];
+	uint32_t			qfullmsk;
+	struct r92c_rom			rom;
+
+	uint32_t			rf_chnlbw[R92C_MAX_CHAINS];
+
+	struct rtwn_rx_radiotap_header	sc_rxtap;
+	struct rtwn_tx_radiotap_header	sc_txtap;
+};
+
+/*
+ * MAC initialization values.
+ */
+static const struct {
+	uint16_t	reg;
+	uint8_t		val;
+} rtl8192ce_mac[] = {
+	{ 0x420, 0x80 }, { 0x423, 0x00 }, { 0x430, 0x00 }, { 0x431, 0x00 },
+	{ 0x432, 0x00 }, { 0x433, 0x01 }, { 0x434, 0x04 }, { 0x435, 0x05 },
+	{ 0x436, 0x06 }, { 0x437, 0x07 }, { 0x438, 0x00 }, { 0x439, 0x00 },
+	{ 0x43a, 0x00 }, { 0x43b, 0x01 }, { 0x43c, 0x04 }, { 0x43d, 0x05 },
+	{ 0x43e, 0x06 }, { 0x43f, 0x07 }, { 0x440, 0x5d }, { 0x441, 0x01 },
+	{ 0x442, 0x00 }, { 0x444, 0x15 }, { 0x445, 0xf0 }, { 0x446, 0x0f },
+	{ 0x447, 0x00 }, { 0x458, 0x41 }, { 0x459, 0xa8 }, { 0x45a, 0x72 },
+	{ 0x45b, 0xb9 }, { 0x460, 0x88 }, { 0x461, 0x88 }, { 0x462, 0x06 },
+	{ 0x463, 0x03 }, { 0x4c8, 0x04 }, { 0x4c9, 0x08 }, { 0x4cc, 0x02 },
+	{ 0x4cd, 0x28 }, { 0x4ce, 0x01 }, { 0x500, 0x26 }, { 0x501, 0xa2 },
+	{ 0x502, 0x2f }, { 0x503, 0x00 }, { 0x504, 0x28 }, { 0x505, 0xa3 },
+	{ 0x506, 0x5e }, { 0x507, 0x00 }, { 0x508, 0x2b }, { 0x509, 0xa4 },
+	{ 0x50a, 0x5e }, { 0x50b, 0x00 }, { 0x50c, 0x4f }, { 0x50d, 0xa4 },
+	{ 0x50e, 0x00 }, { 0x50f, 0x00 }, { 0x512, 0x1c }, { 0x514, 0x0a },
+	{ 0x515, 0x10 }, { 0x516, 0x0a }, { 0x517, 0x10 }, { 0x51a, 0x16 },
+	{ 0x524, 0x0f }, { 0x525, 0x4f }, { 0x546, 0x20 }, { 0x547, 0x00 },
+	{ 0x559, 0x02 }, { 0x55a, 0x02 }, { 0x55d, 0xff }, { 0x605, 0x30 },
+	{ 0x608, 0x0e }, { 0x609, 0x2a }, { 0x652, 0x20 }, { 0x63c, 0x0a },
+	{ 0x63d, 0x0e }, { 0x700, 0x21 }, { 0x701, 0x43 }, { 0x702, 0x65 },
+	{ 0x703, 0x87 }, { 0x708, 0x21 }, { 0x709, 0x43 }, { 0x70a, 0x65 },
+	{ 0x70b, 0x87 }
+};
+
+/*
+ * Baseband initialization values.
+ */
+struct rtwn_bb_prog {
+	int		count;
+	const uint16_t	*regs;
+	const uint32_t	*vals;
+	int		agccount;
+	const uint32_t	*agcvals;
+};
+
+/*
+ * RTL8192CU and RTL8192CE-VAU.
+ */
+static const uint16_t rtl8192ce_bb_regs[] = {
+	0x024, 0x028, 0x800, 0x804, 0x808, 0x80c, 0x810, 0x814, 0x818,
+	0x81c, 0x820, 0x824, 0x828, 0x82c, 0x830, 0x834, 0x838, 0x83c,
+	0x840, 0x844, 0x848, 0x84c, 0x850, 0x854, 0x858, 0x85c, 0x860,
+	0x864, 0x868, 0x86c, 0x870, 0x874, 0x878, 0x87c, 0x880, 0x884,
+	0x888, 0x88c, 0x890, 0x894, 0x898, 0x89c, 0x900, 0x904, 0x908,
+	0x90c, 0xa00, 0xa04, 0xa08, 0xa0c, 0xa10, 0xa14, 0xa18, 0xa1c,
+	0xa20, 0xa24, 0xa28, 0xa2c, 0xa70, 0xa74, 0xc00, 0xc04, 0xc08,
+	0xc0c, 0xc10, 0xc14, 0xc18, 0xc1c, 0xc20, 0xc24, 0xc28, 0xc2c,
+	0xc30, 0xc34, 0xc38, 0xc3c, 0xc40, 0xc44, 0xc48, 0xc4c, 0xc50,
+	0xc54, 0xc58, 0xc5c, 0xc60, 0xc64, 0xc68, 0xc6c, 0xc70, 0xc74,
+	0xc78, 0xc7c, 0xc80, 0xc84, 0xc88, 0xc8c, 0xc90, 0xc94, 0xc98,
+	0xc9c, 0xca0, 0xca4, 0xca8, 0xcac, 0xcb0, 0xcb4, 0xcb8, 0xcbc,
+	0xcc0, 0xcc4, 0xcc8, 0xccc, 0xcd0, 0xcd4, 0xcd8, 0xcdc, 0xce0,
+	0xce4, 0xce8, 0xcec, 0xd00, 0xd04, 0xd08, 0xd0c, 0xd10, 0xd14,
+	0xd18, 0xd2c, 0xd30, 0xd34, 0xd38, 0xd3c, 0xd40, 0xd44, 0xd48,
+	0xd4c, 0xd50, 0xd54, 0xd58, 0xd5c, 0xd60, 0xd64, 0xd68, 0xd6c,
+	0xd70, 0xd74, 0xd78, 0xe00, 0xe04, 0xe08, 0xe10, 0xe14, 0xe18,
+	0xe1c, 0xe28, 0xe30, 0xe34, 0xe38, 0xe3c, 0xe40, 0xe44, 0xe48,
+	0xe4c, 0xe50, 0xe54, 0xe58, 0xe5c, 0xe60, 0xe68, 0xe6c, 0xe70,
+	0xe74, 0xe78, 0xe7c, 0xe80, 0xe84, 0xe88, 0xe8c, 0xed0, 0xed4,
+	0xed8, 0xedc, 0xee0, 0xeec, 0xf14, 0xf4c, 0xf00
+};
+
+static const uint32_t rtl8192ce_bb_vals_2t[] = {
+	0x0011800f, 0x00ffdb83, 0x80040002, 0x00000003, 0x0000fc00,
+	0x0000000a, 0x10005388, 0x020c3d10, 0x02200385, 0x00000000,
+	0x01000100, 0x00390004, 0x01000100, 0x00390004, 0x27272727,
+	0x27272727, 0x27272727, 0x27272727, 0x00010000, 0x00010000,
+	0x27272727, 0x27272727, 0x00000000, 0x00000000, 0x569a569a,
+	0x0c1b25a4, 0x66e60230, 0x061f0130, 0x27272727, 0x2b2b2b27,
+	0x07000700, 0x22184000, 0x08080808, 0x00000000, 0xc0083070,
+	0x000004d5, 0x00000000, 0xcc0000c0, 0x00000800, 0xfffffffe,
+	0x40302010, 0x00706050, 0x00000000, 0x00000023, 0x00000000,
+	0x81121313, 0x00d047c8, 0x80ff000c, 0x8c838300, 0x2e68120f,
+	0x9500bb78, 0x11144028, 0x00881117, 0x89140f00, 0x1a1b0000,
+	0x090e1317, 0x00000204, 0x00d30000, 0x101fbf00, 0x00000007,
+	0x48071d40, 0x03a05633, 0x000000e4, 0x6c6c6c6c, 0x08800000,
+	0x40000100, 0x08800000, 0x40000100, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x69e9ac44, 0x469652cf, 0x49795994,
+	0x0a97971c, 0x1f7c403f, 0x000100b7, 0xec020107, 0x007f037f,
+	0x69543420, 0x43bc0094, 0x69543420, 0x433c0094, 0x00000000,
+	0x5116848b, 0x47c00bff, 0x00000036, 0x2c7f000d, 0x018610db,
+	0x0000001f, 0x00b91612, 0x40000100, 0x20f60000, 0x40000100,
+	0x20200000, 0x00121820, 0x00000000, 0x00121820, 0x00007f7f,
+	0x00000000, 0x00000080, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x28000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x64b22427,
+	0x00766932, 0x00222222, 0x00000000, 0x37644302, 0x2f97d40c,
+	0x00080740, 0x00020403, 0x0000907f, 0x20010201, 0xa0633333,
+	0x3333bc43, 0x7a8f5b6b, 0xcc979975, 0x00000000, 0x80608000,
+	0x00000000, 0x00027293, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x6437140a, 0x00000000, 0x00000000, 0x30032064,
+	0x4653de68, 0x04518a3c, 0x00002101, 0x2a201c16, 0x1812362e,
+	0x322c2220, 0x000e3c24, 0x2a2a2a2a, 0x2a2a2a2a, 0x03902a2a,
+	0x2a2a2a2a, 0x2a2a2a2a, 0x2a2a2a2a, 0x2a2a2a2a, 0x00000000,
+	0x1000dc1f, 0x10008c1f, 0x02140102, 0x681604c2, 0x01007c00,
+	0x01004800, 0xfb000000, 0x000028d1, 0x1000dc1f, 0x10008c1f,
+	0x02140102, 0x28160d05, 0x00000010, 0x001b25a4, 0x63db25a4,
+	0x63db25a4, 0x0c1b25a4, 0x0c1b25a4, 0x0c1b25a4, 0x0c1b25a4,
+	0x63db25a4, 0x0c1b25a4, 0x63db25a4, 0x63db25a4, 0x63db25a4,
+	0x63db25a4, 0x001b25a4, 0x001b25a4, 0x6fdb25a4, 0x00000003,
+	0x00000000, 0x00000300
+};
+
+static const uint32_t rtl8192ce_bb_vals_1t[] = {
+	0x0011800f, 0x00ffdb83, 0x80040000, 0x00000001, 0x0000fc00,
+	0x0000000a, 0x10005388, 0x020c3d10, 0x02200385, 0x00000000,
+	0x01000100, 0x00390004, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00010000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x569a569a,
+	0x001b25a4, 0x66e60230, 0x061f0130, 0x00000000, 0x32323200,
+	0x07000700, 0x22004000, 0x00000808, 0x00000000, 0xc0083070,
+	0x000004d5, 0x00000000, 0xccc000c0, 0x00000800, 0xfffffffe,
+	0x40302010, 0x00706050, 0x00000000, 0x00000023, 0x00000000,
+	0x81121111, 0x00d047c8, 0x80ff000c, 0x8c838300, 0x2e68120f,
+	0x9500bb78, 0x11144028, 0x00881117, 0x89140f00, 0x1a1b0000,
+	0x090e1317, 0x00000204, 0x00d30000, 0x101fbf00, 0x00000007,
+	0x48071d40, 0x03a05611, 0x000000e4, 0x6c6c6c6c, 0x08800000,
+	0x40000100, 0x08800000, 0x40000100, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x69e9ac44, 0x469652cf, 0x49795994,
+	0x0a97971c, 0x1f7c403f, 0x000100b7, 0xec020107, 0x007f037f,
+	0x69543420, 0x43bc0094, 0x69543420, 0x433c0094, 0x00000000,
+	0x5116848b, 0x47c00bff, 0x00000036, 0x2c7f000d, 0x018610db,
+	0x0000001f, 0x00b91612, 0x40000100, 0x20f60000, 0x40000100,
+	0x20200000, 0x00121820, 0x00000000, 0x00121820, 0x00007f7f,
+	0x00000000, 0x00000080, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x28000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x64b22427,
+	0x00766932, 0x00222222, 0x00000000, 0x37644302, 0x2f97d40c,
+	0x00080740, 0x00020401, 0x0000907f, 0x20010201, 0xa0633333,
+	0x3333bc43, 0x7a8f5b6b, 0xcc979975, 0x00000000, 0x80608000,
+	0x00000000, 0x00027293, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x6437140a, 0x00000000, 0x00000000, 0x30032064,
+	0x4653de68, 0x04518a3c, 0x00002101, 0x2a201c16, 0x1812362e,
+	0x322c2220, 0x000e3c24, 0x2a2a2a2a, 0x2a2a2a2a, 0x03902a2a,
+	0x2a2a2a2a, 0x2a2a2a2a, 0x2a2a2a2a, 0x2a2a2a2a, 0x00000000,
+	0x1000dc1f, 0x10008c1f, 0x02140102, 0x681604c2, 0x01007c00,
+	0x01004800, 0xfb000000, 0x000028d1, 0x1000dc1f, 0x10008c1f,
+	0x02140102, 0x28160d05, 0x00000010, 0x001b25a4, 0x631b25a0,
+	0x631b25a0, 0x081b25a0, 0x081b25a0, 0x081b25a0, 0x081b25a0,
+	0x631b25a0, 0x081b25a0, 0x631b25a0, 0x631b25a0, 0x631b25a0,
+	0x631b25a0, 0x001b25a0, 0x001b25a0, 0x6b1b25a0, 0x00000003,
+	0x00000000, 0x00000300,
+};
+
+static const uint32_t rtl8192ce_agc_vals[] = {
+	0x7b000001, 0x7b010001, 0x7b020001, 0x7b030001, 0x7b040001,
+	0x7b050001, 0x7a060001, 0x79070001, 0x78080001, 0x77090001,
+	0x760a0001, 0x750b0001, 0x740c0001, 0x730d0001, 0x720e0001,
+	0x710f0001, 0x70100001, 0x6f110001, 0x6e120001, 0x6d130001,
+	0x6c140001, 0x6b150001, 0x6a160001, 0x69170001, 0x68180001,
+	0x67190001, 0x661a0001, 0x651b0001, 0x641c0001, 0x631d0001,
+	0x621e0001, 0x611f0001, 0x60200001, 0x49210001, 0x48220001,
+	0x47230001, 0x46240001, 0x45250001, 0x44260001, 0x43270001,
+	0x42280001, 0x41290001, 0x402a0001, 0x262b0001, 0x252c0001,
+	0x242d0001, 0x232e0001, 0x222f0001, 0x21300001, 0x20310001,
+	0x06320001, 0x05330001, 0x04340001, 0x03350001, 0x02360001,
+	0x01370001, 0x00380001, 0x00390001, 0x003a0001, 0x003b0001,
+	0x003c0001, 0x003d0001, 0x003e0001, 0x003f0001, 0x7b400001,
+	0x7b410001, 0x7b420001, 0x7b430001, 0x7b440001, 0x7b450001,
+	0x7a460001, 0x79470001, 0x78480001, 0x77490001, 0x764a0001,
+	0x754b0001, 0x744c0001, 0x734d0001, 0x724e0001, 0x714f0001,
+	0x70500001, 0x6f510001, 0x6e520001, 0x6d530001, 0x6c540001,
+	0x6b550001, 0x6a560001, 0x69570001, 0x68580001, 0x67590001,
+	0x665a0001, 0x655b0001, 0x645c0001, 0x635d0001, 0x625e0001,
+	0x615f0001, 0x60600001, 0x49610001, 0x48620001, 0x47630001,
+	0x46640001, 0x45650001, 0x44660001, 0x43670001, 0x42680001,
+	0x41690001, 0x406a0001, 0x266b0001, 0x256c0001, 0x246d0001,
+	0x236e0001, 0x226f0001, 0x21700001, 0x20710001, 0x06720001,
+	0x05730001, 0x04740001, 0x03750001, 0x02760001, 0x01770001,
+	0x00780001, 0x00790001, 0x007a0001, 0x007b0001, 0x007c0001,
+	0x007d0001, 0x007e0001, 0x007f0001, 0x3800001e, 0x3801001e,
+	0x3802001e, 0x3803001e, 0x3804001e, 0x3805001e, 0x3806001e,
+	0x3807001e, 0x3808001e, 0x3c09001e, 0x3e0a001e, 0x400b001e,
+	0x440c001e, 0x480d001e, 0x4c0e001e, 0x500f001e, 0x5210001e,
+	0x5611001e, 0x5a12001e, 0x5e13001e, 0x6014001e, 0x6015001e,
+	0x6016001e, 0x6217001e, 0x6218001e, 0x6219001e, 0x621a001e,
+	0x621b001e, 0x621c001e, 0x621d001e, 0x621e001e, 0x621f001e
+};
+
+static const struct rtwn_bb_prog rtl8192ce_bb_prog_2t = {
+	nitems(rtl8192ce_bb_regs),
+	rtl8192ce_bb_regs,
+	rtl8192ce_bb_vals_2t,
+	nitems(rtl8192ce_agc_vals),
+	rtl8192ce_agc_vals
+};
+
+static const struct rtwn_bb_prog rtl8192ce_bb_prog_1t = {
+	nitems(rtl8192ce_bb_regs),
+	rtl8192ce_bb_regs,
+	rtl8192ce_bb_vals_1t,
+	nitems(rtl8192ce_agc_vals),
+	rtl8192ce_agc_vals
+};
+
+/*
+ * RTL8188CU.
+ */
+static const uint32_t rtl8192cu_bb_vals[] = {
+	0x0011800d, 0x00ffdb83, 0x80040002, 0x00000003, 0x0000fc00,
+	0x0000000a, 0x10005388, 0x020c3d10, 0x02200385, 0x00000000,
+	0x01000100, 0x00390004, 0x01000100, 0x00390004, 0x27272727,
+	0x27272727, 0x27272727, 0x27272727, 0x00010000, 0x00010000,
+	0x27272727, 0x27272727, 0x00000000, 0x00000000, 0x569a569a,
+	0x0c1b25a4, 0x66e60230, 0x061f0130, 0x27272727, 0x2b2b2b27,
+	0x07000700, 0x22184000, 0x08080808, 0x00000000, 0xc0083070,
+	0x000004d5, 0x00000000, 0xcc0000c0, 0x00000800, 0xfffffffe,
+	0x40302010, 0x00706050, 0x00000000, 0x00000023, 0x00000000,
+	0x81121313, 0x00d047c8, 0x80ff000c, 0x8c838300, 0x2e68120f,
+	0x9500bb78, 0x11144028, 0x00881117, 0x89140f00, 0x1a1b0000,
+	0x090e1317, 0x00000204, 0x00d30000, 0x101fbf00, 0x00000007,
+	0x48071d40, 0x03a05633, 0x000000e4, 0x6c6c6c6c, 0x08800000,
+	0x40000100, 0x08800000, 0x40000100, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x69e9ac44, 0x469652cf, 0x49795994,
+	0x0a97971c, 0x1f7c403f, 0x000100b7, 0xec020107, 0x007f037f,
+	0x6954341e, 0x43bc0094, 0x6954341e, 0x433c0094, 0x00000000,
+	0x5116848b, 0x47c00bff, 0x00000036, 0x2c7f000d, 0x0186115b,
+	0x0000001f, 0x00b99612, 0x40000100, 0x20f60000, 0x40000100,
+	0x20200000, 0x00121820, 0x00000000, 0x00121820, 0x00007f7f,
+	0x00000000, 0x00000080, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x28000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x64b22427,
+	0x00766932, 0x00222222, 0x00000000, 0x37644302, 0x2f97d40c,
+	0x00080740, 0x00020403, 0x0000907f, 0x20010201, 0xa0633333,
+	0x3333bc43, 0x7a8f5b6b, 0xcc979975, 0x00000000, 0x80608000,
+	0x00000000, 0x00027293, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x6437140a, 0x00000000, 0x00000000, 0x30032064,
+	0x4653de68, 0x04518a3c, 0x00002101, 0x2a201c16, 0x1812362e,
+	0x322c2220, 0x000e3c24, 0x2a2a2a2a, 0x2a2a2a2a, 0x03902a2a,
+	0x2a2a2a2a, 0x2a2a2a2a, 0x2a2a2a2a, 0x2a2a2a2a, 0x00000000,
+	0x1000dc1f, 0x10008c1f, 0x02140102, 0x681604c2, 0x01007c00,
+	0x01004800, 0xfb000000, 0x000028d1, 0x1000dc1f, 0x10008c1f,
+	0x02140102, 0x28160d05, 0x00000010, 0x001b25a4, 0x63db25a4,
+	0x63db25a4, 0x0c1b25a4, 0x0c1b25a4, 0x0c1b25a4, 0x0c1b25a4,
+	0x63db25a4, 0x0c1b25a4, 0x63db25a4, 0x63db25a4, 0x63db25a4,
+	0x63db25a4, 0x001b25a4, 0x001b25a4, 0x6fdb25a4, 0x00000003,
+	0x00000000, 0x00000300
+};
+
+static const struct rtwn_bb_prog rtl8192cu_bb_prog = {
+	nitems(rtl8192ce_bb_regs),
+	rtl8192ce_bb_regs,
+	rtl8192cu_bb_vals,
+	nitems(rtl8192ce_agc_vals),
+	rtl8192ce_agc_vals
+};
+
+/*
+ * RTL8188CE-VAU.
+ */
+static const uint32_t rtl8188ce_bb_vals[] = {
+	0x0011800d, 0x00ffdb83, 0x80040000, 0x00000001, 0x0000fc00,
+	0x0000000a, 0x10005388, 0x020c3d10, 0x02200385, 0x00000000,
+	0x01000100, 0x00390004, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00010000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x569a569a,
+	0x001b25a4, 0x66e60230, 0x061f0130, 0x00000000, 0x32323200,
+	0x07000700, 0x22004000, 0x00000808, 0x00000000, 0xc0083070,
+	0x000004d5, 0x00000000, 0xccc000c0, 0x00000800, 0xfffffffe,
+	0x40302010, 0x00706050, 0x00000000, 0x00000023, 0x00000000,
+	0x81121111, 0x00d047c8, 0x80ff000c, 0x8c838300, 0x2e68120f,
+	0x9500bb78, 0x11144028, 0x00881117, 0x89140f00, 0x1a1b0000,
+	0x090e1317, 0x00000204, 0x00d30000, 0x101fbf00, 0x00000007,
+	0x48071d40, 0x03a05611, 0x000000e4, 0x6c6c6c6c, 0x08800000,
+	0x40000100, 0x08800000, 0x40000100, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x69e9ac44, 0x469652cf, 0x49795994,
+	0x0a97971c, 0x1f7c403f, 0x000100b7, 0xec020107, 0x007f037f,
+	0x6954341e, 0x43bc0094, 0x6954341e, 0x433c0094, 0x00000000,
+	0x5116848b, 0x47c00bff, 0x00000036, 0x2c7f000d, 0x018610db,
+	0x0000001f, 0x00b91612, 0x40000100, 0x20f60000, 0x40000100,
+	0x20200000, 0x00121820, 0x00000000, 0x00121820, 0x00007f7f,
+	0x00000000, 0x00000080, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x28000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x64b22427,
+	0x00766932, 0x00222222, 0x00000000, 0x37644302, 0x2f97d40c,
+	0x00080740, 0x00020401, 0x0000907f, 0x20010201, 0xa0633333,
+	0x3333bc43, 0x7a8f5b6b, 0xcc979975, 0x00000000, 0x80608000,
+	0x00000000, 0x00027293, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x6437140a, 0x00000000, 0x00000000, 0x30032064,
+	0x4653de68, 0x04518a3c, 0x00002101, 0x2a201c16, 0x1812362e,
+	0x322c2220, 0x000e3c24, 0x2a2a2a2a, 0x2a2a2a2a, 0x03902a2a,
+	0x2a2a2a2a, 0x2a2a2a2a, 0x2a2a2a2a, 0x2a2a2a2a, 0x00000000,
+	0x1000dc1f, 0x10008c1f, 0x02140102, 0x681604c2, 0x01007c00,
+	0x01004800, 0xfb000000, 0x000028d1, 0x1000dc1f, 0x10008c1f,
+	0x02140102, 0x28160d05, 0x00000008, 0x001b25a4, 0x631b25a0,
+	0x631b25a0, 0x081b25a0, 0x081b25a0, 0x081b25a0, 0x081b25a0,
+	0x631b25a0, 0x081b25a0, 0x631b25a0, 0x631b25a0, 0x631b25a0,
+	0x631b25a0, 0x001b25a0, 0x001b25a0, 0x6b1b25a0, 0x00000003,
+	0x00000000, 0x00000300
+};
+
+static const uint32_t rtl8188ce_agc_vals[] = {
+	0x7b000001, 0x7b010001, 0x7b020001, 0x7b030001, 0x7b040001,
+	0x7b050001, 0x7a060001, 0x79070001, 0x78080001, 0x77090001,
+	0x760a0001, 0x750b0001, 0x740c0001, 0x730d0001, 0x720e0001,
+	0x710f0001, 0x70100001, 0x6f110001, 0x6e120001, 0x6d130001,
+	0x6c140001, 0x6b150001, 0x6a160001, 0x69170001, 0x68180001,
+	0x67190001, 0x661a0001, 0x651b0001, 0x641c0001, 0x631d0001,
+	0x621e0001, 0x611f0001, 0x60200001, 0x49210001, 0x48220001,
+	0x47230001, 0x46240001, 0x45250001, 0x44260001, 0x43270001,
+	0x42280001, 0x41290001, 0x402a0001, 0x262b0001, 0x252c0001,
+	0x242d0001, 0x232e0001, 0x222f0001, 0x21300001, 0x20310001,
+	0x06320001, 0x05330001, 0x04340001, 0x03350001, 0x02360001,
+	0x01370001, 0x00380001, 0x00390001, 0x003a0001, 0x003b0001,
+	0x003c0001, 0x003d0001, 0x003e0001, 0x003f0001, 0x7b400001,
+	0x7b410001, 0x7b420001, 0x7b430001, 0x7b440001, 0x7b450001,
+	0x7a460001, 0x79470001, 0x78480001, 0x77490001, 0x764a0001,
+	0x754b0001, 0x744c0001, 0x734d0001, 0x724e0001, 0x714f0001,
+	0x70500001, 0x6f510001, 0x6e520001, 0x6d530001, 0x6c540001,
+	0x6b550001, 0x6a560001, 0x69570001, 0x68580001, 0x67590001,
+	0x665a0001, 0x655b0001, 0x645c0001, 0x635d0001, 0x625e0001,
+	0x615f0001, 0x60600001, 0x49610001, 0x48620001, 0x47630001,
+	0x46640001, 0x45650001, 0x44660001, 0x43670001, 0x42680001,
+	0x41690001, 0x406a0001, 0x266b0001, 0x256c0001, 0x246d0001,
+	0x236e0001, 0x226f0001, 0x21700001, 0x20710001, 0x06720001,
+	0x05730001, 0x04740001, 0x03750001, 0x02760001, 0x01770001,
+	0x00780001, 0x00790001, 0x007a0001, 0x007b0001, 0x007c0001,
+	0x007d0001, 0x007e0001, 0x007f0001, 0x3800001e, 0x3801001e,
+	0x3802001e, 0x3803001e, 0x3804001e, 0x3805001e, 0x3806001e,
+	0x3807001e, 0x3808001e, 0x3c09001e, 0x3e0a001e, 0x400b001e,
+	0x440c001e, 0x480d001e, 0x4c0e001e, 0x500f001e, 0x5210001e,
+	0x5611001e, 0x5a12001e, 0x5e13001e, 0x6014001e, 0x6015001e,
+	0x6016001e, 0x6217001e, 0x6218001e, 0x6219001e, 0x621a001e,
+	0x621b001e, 0x621c001e, 0x621d001e, 0x621e001e, 0x621f001e
+};
+
+static const struct rtwn_bb_prog rtl8188ce_bb_prog = {
+	nitems(rtl8192ce_bb_regs),
+	rtl8192ce_bb_regs,
+	rtl8188ce_bb_vals,
+	nitems(rtl8188ce_agc_vals),
+	rtl8188ce_agc_vals
+};
+
+static const uint32_t rtl8188cu_bb_vals[] = {
+	0x0011800d, 0x00ffdb83, 0x80040000, 0x00000001, 0x0000fc00,
+	0x0000000a, 0x10005388, 0x020c3d10, 0x02200385, 0x00000000,
+	0x01000100, 0x00390004, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00010000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x569a569a,
+	0x001b25a4, 0x66e60230, 0x061f0130, 0x00000000, 0x32323200,
+	0x07000700, 0x22004000, 0x00000808, 0x00000000, 0xc0083070,
+	0x000004d5, 0x00000000, 0xccc000c0, 0x00000800, 0xfffffffe,
+	0x40302010, 0x00706050, 0x00000000, 0x00000023, 0x00000000,
+	0x81121111, 0x00d047c8, 0x80ff000c, 0x8c838300, 0x2e68120f,
+	0x9500bb78, 0x11144028, 0x00881117, 0x89140f00, 0x1a1b0000,
+	0x090e1317, 0x00000204, 0x00d30000, 0x101fbf00, 0x00000007,
+	0x48071d40, 0x03a05611, 0x000000e4, 0x6c6c6c6c, 0x08800000,
+	0x40000100, 0x08800000, 0x40000100, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x69e9ac44, 0x469652cf, 0x49795994,
+	0x0a97971c, 0x1f7c403f, 0x000100b7, 0xec020107, 0x007f037f,
+	0x6954341e, 0x43bc0094, 0x6954341e, 0x433c0094, 0x00000000,
+	0x5116848b, 0x47c00bff, 0x00000036, 0x2c7f000d, 0x018610db,
+	0x0000001f, 0x00b91612, 0x40000100, 0x20f60000, 0x40000100,
+	0x20200000, 0x00121820, 0x00000000, 0x00121820, 0x00007f7f,
+	0x00000000, 0x00000080, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x28000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x64b22427,
+	0x00766932, 0x00222222, 0x00000000, 0x37644302, 0x2f97d40c,
+	0x00080740, 0x00020401, 0x0000907f, 0x20010201, 0xa0633333,
+	0x3333bc43, 0x7a8f5b6b, 0xcc979975, 0x00000000, 0x80608000,
+	0x00000000, 0x00027293, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x6437140a, 0x00000000, 0x00000000, 0x30032064,
+	0x4653de68, 0x04518a3c, 0x00002101, 0x2a201c16, 0x1812362e,
+	0x322c2220, 0x000e3c24, 0x2a2a2a2a, 0x2a2a2a2a, 0x03902a2a,
+	0x2a2a2a2a, 0x2a2a2a2a, 0x2a2a2a2a, 0x2a2a2a2a, 0x00000000,
+	0x1000dc1f, 0x10008c1f, 0x02140102, 0x681604c2, 0x01007c00,
+	0x01004800, 0xfb000000, 0x000028d1, 0x1000dc1f, 0x10008c1f,
+	0x02140102, 0x28160d05, 0x00000008, 0x001b25a4, 0x631b25a0,
+	0x631b25a0, 0x081b25a0, 0x081b25a0, 0x081b25a0, 0x081b25a0,
+	0x631b25a0, 0x081b25a0, 0x631b25a0, 0x631b25a0, 0x631b25a0,
+	0x631b25a0, 0x001b25a0, 0x001b25a0, 0x6b1b25a0, 0x00000003,
+	0x00000000, 0x00000300
+};
+
+static const struct rtwn_bb_prog rtl8188cu_bb_prog = {
+	nitems(rtl8192ce_bb_regs),
+	rtl8192ce_bb_regs,
+	rtl8188cu_bb_vals,
+	nitems(rtl8188ce_agc_vals),
+	rtl8188ce_agc_vals
+};
+
+/*
+ * RTL8188RU.
+ */
+static const uint16_t rtl8188ru_bb_regs[] = {
+	0x024, 0x028, 0x040, 0x800, 0x804, 0x808, 0x80c, 0x810, 0x814,
+	0x818, 0x81c, 0x820, 0x824, 0x828, 0x82c, 0x830, 0x834, 0x838,
+	0x83c, 0x840, 0x844, 0x848, 0x84c, 0x850, 0x854, 0x858, 0x85c,
+	0x860, 0x864, 0x868, 0x86c, 0x870, 0x874, 0x878, 0x87c, 0x880,
+	0x884, 0x888, 0x88c, 0x890, 0x894, 0x898, 0x89c, 0x900, 0x904,
+	0x908, 0x90c, 0xa00, 0xa04, 0xa08, 0xa0c, 0xa10, 0xa14, 0xa18,
+	0xa1c, 0xa20, 0xa24, 0xa28, 0xa2c, 0xa70, 0xa74, 0xc00, 0xc04,
+	0xc08, 0xc0c, 0xc10, 0xc14, 0xc18, 0xc1c, 0xc20, 0xc24, 0xc28,
+	0xc2c, 0xc30, 0xc34, 0xc38, 0xc3c, 0xc40, 0xc44, 0xc48, 0xc4c,
+	0xc50, 0xc54, 0xc58, 0xc5c, 0xc60, 0xc64, 0xc68, 0xc6c, 0xc70,
+	0xc74, 0xc78, 0xc7c, 0xc80, 0xc84, 0xc88, 0xc8c, 0xc90, 0xc94,
+	0xc98, 0xc9c, 0xca0, 0xca4, 0xca8, 0xcac, 0xcb0, 0xcb4, 0xcb8,
+	0xcbc, 0xcc0, 0xcc4, 0xcc8, 0xccc, 0xcd0, 0xcd4, 0xcd8, 0xcdc,
+	0xce0, 0xce4, 0xce8, 0xcec, 0xd00, 0xd04, 0xd08, 0xd0c, 0xd10,
+	0xd14, 0xd18, 0xd2c, 0xd30, 0xd34, 0xd38, 0xd3c, 0xd40, 0xd44,
+	0xd48, 0xd4c, 0xd50, 0xd54, 0xd58, 0xd5c, 0xd60, 0xd64, 0xd68,
+	0xd6c, 0xd70, 0xd74, 0xd78, 0xe00, 0xe04, 0xe08, 0xe10, 0xe14,
+	0xe18, 0xe1c, 0xe28, 0xe30, 0xe34, 0xe38, 0xe3c, 0xe40, 0xe44,
+	0xe48, 0xe4c, 0xe50, 0xe54, 0xe58, 0xe5c, 0xe60, 0xe68, 0xe6c,
+	0xe70, 0xe74, 0xe78, 0xe7c, 0xe80, 0xe84, 0xe88, 0xe8c, 0xed0,
+	0xed4, 0xed8, 0xedc, 0xee0, 0xeec, 0xee8, 0xf14, 0xf4c, 0xf00
+};
+
+static const uint32_t rtl8188ru_bb_vals[] = {
+	0x0011800d, 0x00ffdb83, 0x000c0004, 0x80040000, 0x00000001,
+	0x0000fc00, 0x0000000a, 0x10005388, 0x020c3d10, 0x02200385,
+	0x00000000, 0x01000100, 0x00390204, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00010000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x569a569a, 0x001b25a4, 0x66e60230, 0x061f0130, 0x00000000,
+	0x32323200, 0x03000300, 0x22004000, 0x00000808, 0x00ffc3f1,
+	0xc0083070, 0x000004d5, 0x00000000, 0xccc000c0, 0x00000800,
+	0xfffffffe, 0x40302010, 0x00706050, 0x00000000, 0x00000023,
+	0x00000000, 0x81121111, 0x00d047c8, 0x80ff000c, 0x8c838300,
+	0x2e68120f, 0x9500bb78, 0x11144028, 0x00881117, 0x89140f00,
+	0x15160000, 0x070b0f12, 0x00000104, 0x00d30000, 0x101fbf00,
+	0x00000007, 0x48071d40, 0x03a05611, 0x000000e4, 0x6c6c6c6c,
+	0x08800000, 0x40000100, 0x08800000, 0x40000100, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x69e9ac44, 0x469652cf,
+	0x49795994, 0x0a97971c, 0x1f7c403f, 0x000100b7, 0xec020107,
+	0x007f037f, 0x6954342e, 0x43bc0094, 0x6954342f, 0x433c0094,
+	0x00000000, 0x5116848b, 0x47c00bff, 0x00000036, 0x2c56000d,
+	0x018610db, 0x0000001f, 0x00b91612, 0x24000090, 0x20f60000,
+	0x24000090, 0x20200000, 0x00121820, 0x00000000, 0x00121820,
+	0x00007f7f, 0x00000000, 0x00000080, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x28000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x64b22427, 0x00766932, 0x00222222, 0x00000000, 0x37644302,
+	0x2f97d40c, 0x00080740, 0x00020401, 0x0000907f, 0x20010201,
+	0xa0633333, 0x3333bc43, 0x7a8f5b6b, 0xcc979975, 0x00000000,
+	0x80608000, 0x00000000, 0x00027293, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x6437140a, 0x00000000, 0x00000000,
+	0x30032064, 0x4653de68, 0x04518a3c, 0x00002101, 0x2a201c16,
+	0x1812362e, 0x322c2220, 0x000e3c24, 0x2a2a2a2a, 0x2a2a2a2a,
+	0x03902a2a, 0x2a2a2a2a, 0x2a2a2a2a, 0x2a2a2a2a, 0x2a2a2a2a,
+	0x00000000, 0x1000dc1f, 0x10008c1f, 0x02140102, 0x681604c2,
+	0x01007c00, 0x01004800, 0xfb000000, 0x000028d1, 0x1000dc1f,
+	0x10008c1f, 0x02140102, 0x28160d05, 0x00000010, 0x001b25a4,
+	0x631b25a0, 0x631b25a0, 0x081b25a0, 0x081b25a0, 0x081b25a0,
+	0x081b25a0, 0x631b25a0, 0x081b25a0, 0x631b25a0, 0x631b25a0,
+	0x631b25a0, 0x631b25a0, 0x001b25a0, 0x001b25a0, 0x6b1b25a0,
+	0x31555448, 0x00000003, 0x00000000, 0x00000300
+};
+
+static const uint32_t rtl8188ru_agc_vals[] = {
+	0x7b000001, 0x7b010001, 0x7b020001, 0x7b030001, 0x7b040001,
+	0x7b050001, 0x7b060001, 0x7b070001, 0x7b080001, 0x7a090001,
+	0x790a0001, 0x780b0001, 0x770c0001, 0x760d0001, 0x750e0001,
+	0x740f0001, 0x73100001, 0x72110001, 0x71120001, 0x70130001,
+	0x6f140001, 0x6e150001, 0x6d160001, 0x6c170001, 0x6b180001,
+	0x6a190001, 0x691a0001, 0x681b0001, 0x671c0001, 0x661d0001,
+	0x651e0001, 0x641f0001, 0x63200001, 0x62210001, 0x61220001,
+	0x60230001, 0x46240001, 0x45250001, 0x44260001, 0x43270001,
+	0x42280001, 0x41290001, 0x402a0001, 0x262b0001, 0x252c0001,
+	0x242d0001, 0x232e0001, 0x222f0001, 0x21300001, 0x20310001,
+	0x06320001, 0x05330001, 0x04340001, 0x03350001, 0x02360001,
+	0x01370001, 0x00380001, 0x00390001, 0x003a0001, 0x003b0001,
+	0x003c0001, 0x003d0001, 0x003e0001, 0x003f0001, 0x7b400001,
+	0x7b410001, 0x7b420001, 0x7b430001, 0x7b440001, 0x7b450001,
+	0x7b460001, 0x7b470001, 0x7b480001, 0x7a490001, 0x794a0001,
+	0x784b0001, 0x774c0001, 0x764d0001, 0x754e0001, 0x744f0001,
+	0x73500001, 0x72510001, 0x71520001, 0x70530001, 0x6f540001,
+	0x6e550001, 0x6d560001, 0x6c570001, 0x6b580001, 0x6a590001,
+	0x695a0001, 0x685b0001, 0x675c0001, 0x665d0001, 0x655e0001,
+	0x645f0001, 0x63600001, 0x62610001, 0x61620001, 0x60630001,
+	0x46640001, 0x45650001, 0x44660001, 0x43670001, 0x42680001,
+	0x41690001, 0x406a0001, 0x266b0001, 0x256c0001, 0x246d0001,
+	0x236e0001, 0x226f0001, 0x21700001, 0x20710001, 0x06720001,
+	0x05730001, 0x04740001, 0x03750001, 0x02760001, 0x01770001,
+	0x00780001, 0x00790001, 0x007a0001, 0x007b0001, 0x007c0001,
+	0x007d0001, 0x007e0001, 0x007f0001, 0x3800001e, 0x3801001e,
+	0x3802001e, 0x3803001e, 0x3804001e, 0x3805001e, 0x3806001e,
+	0x3807001e, 0x3808001e, 0x3c09001e, 0x3e0a001e, 0x400b001e,
+	0x440c001e, 0x480d001e, 0x4c0e001e, 0x500f001e, 0x5210001e,
+	0x5611001e, 0x5a12001e, 0x5e13001e, 0x6014001e, 0x6015001e,
+	0x6016001e, 0x6217001e, 0x6218001e, 0x6219001e, 0x621a001e,
+	0x621b001e, 0x621c001e, 0x621d001e, 0x621e001e, 0x621f001e
+};
+
+static const struct rtwn_bb_prog rtl8188ru_bb_prog = {
+	nitems(rtl8188ru_bb_regs),
+	rtl8188ru_bb_regs,
+	rtl8188ru_bb_vals,
+	nitems(rtl8188ru_agc_vals),
+	rtl8188ru_agc_vals
+};
+
+/*
+ * RF initialization values.
+ */
+struct rtwn_rf_prog {
+	int		count;
+	const uint8_t	*regs;
+	const uint32_t	*vals;
+};
+
+/*
+ * RTL8192CU and RTL8192CE-VAU.
+ */
+static const uint8_t rtl8192ce_rf1_regs[] = {
+	0x00, 0x01, 0x02, 0x03, 0x04, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
+	0x0f, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22,
+	0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2a, 0x2b,
+	0x2a, 0x2b, 0x2b, 0x2c, 0x2a, 0x2b, 0x2b, 0x2c, 0x2a, 0x2b, 0x2b,
+	0x2c, 0x2a, 0x2b, 0x2b, 0x2c, 0x2a, 0x2b, 0x2b, 0x2c, 0x2a, 0x2b,
+	0x2b, 0x2c, 0x2a, 0x2b, 0x2b, 0x2c, 0x2a, 0x2b, 0x2b, 0x2c, 0x2a,
+	0x2b, 0x2b, 0x2c, 0x2a, 0x2b, 0x2b, 0x2c, 0x2a, 0x2b, 0x2b, 0x2c,
+	0x2a, 0x2b, 0x2b, 0x2c, 0x2a, 0x2b, 0x2b, 0x2c, 0x2a, 0x2b, 0x2b,
+	0x2c, 0x2a, 0x10, 0x11, 0x10, 0x11, 0x10, 0x11, 0x10, 0x11, 0x10,
+	0x11, 0x10, 0x11, 0x10, 0x11, 0x12, 0x12, 0x12, 0x12, 0x13, 0x13,
+	0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13, 0x14, 0x14,
+	0x14, 0x14, 0x15, 0x15, 0x15, 0x15, 0x16, 0x16, 0x16, 0x16, 0x00,
+	0x18, 0xfe, 0xfe, 0x1f, 0xfe, 0xfe, 0x1e, 0x1f, 0x00
+};
+
+static const uint32_t rtl8192ce_rf1_vals[] = {
+	0x30159, 0x31284, 0x98000, 0x18c63, 0x210e7, 0x2044f, 0x1adb1,
+	0x54867, 0x8992e, 0x0e52c, 0x39ce7, 0x00451, 0x00000, 0x10255,
+	0x60a00, 0xfc378, 0xa1250, 0x4445f, 0x80001, 0x0b614, 0x6c000,
+	0x00000, 0x01558, 0x00060, 0x00483, 0x4f000, 0xec7d9, 0x577c0,
+	0x04783, 0x00001, 0x21334, 0x00000, 0x00054, 0x00001, 0x00808,
+	0x53333, 0x0000c, 0x00002, 0x00808, 0x5b333, 0x0000d, 0x00003,
+	0x00808, 0x63333, 0x0000d, 0x00004, 0x00808, 0x6b333, 0x0000d,
+	0x00005, 0x00808, 0x73333, 0x0000d, 0x00006, 0x00709, 0x5b333,
+	0x0000d, 0x00007, 0x00709, 0x63333, 0x0000d, 0x00008, 0x0060a,
+	0x4b333, 0x0000d, 0x00009, 0x0060a, 0x53333, 0x0000d, 0x0000a,
+	0x0060a, 0x5b333, 0x0000d, 0x0000b, 0x0060a, 0x63333, 0x0000d,
+	0x0000c, 0x0060a, 0x6b333, 0x0000d, 0x0000d, 0x0060a, 0x73333,
+	0x0000d, 0x0000e, 0x0050b, 0x66666, 0x0001a, 0xe0000, 0x4000f,
+	0xe31fc, 0x6000f, 0xff9f8, 0x2000f, 0x203f9, 0x3000f, 0xff500,
+	0x00000, 0x00000, 0x8000f, 0x3f100, 0x9000f, 0x23100, 0x32000,
+	0x71000, 0xb0000, 0xfc000, 0x287af, 0x244b7, 0x204ab, 0x1c49f,
+	0x18493, 0x14297, 0x10295, 0x0c298, 0x0819c, 0x040a8, 0x0001c,
+	0x1944c, 0x59444, 0x9944c, 0xd9444, 0x0f424, 0x4f424, 0x8f424,
+	0xcf424, 0xe0330, 0xa0330, 0x60330, 0x20330, 0x10159, 0x0f401,
+	0x00000, 0x00000, 0x80003, 0x00000, 0x00000, 0x44457, 0x80000,
+	0x30159
+};
+
+static const uint8_t rtl8192ce_rf2_regs[] = {
+	0x00, 0x01, 0x02, 0x03, 0x04, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
+	0x0f, 0x12, 0x12, 0x12, 0x12, 0x13, 0x13, 0x13, 0x13, 0x13, 0x13,
+	0x13, 0x13, 0x13, 0x13, 0x13, 0x14, 0x14, 0x14, 0x14, 0x15, 0x15,
+	0x15, 0x15, 0x16, 0x16, 0x16, 0x16
+};
+
+static const uint32_t rtl8192ce_rf2_vals[] = {
+	0x30159, 0x31284, 0x98000, 0x18c63, 0x210e7, 0x2044f, 0x1adb1,
+	0x54867, 0x8992e, 0x0e52c, 0x39ce7, 0x00451, 0x32000, 0x71000,
+	0xb0000, 0xfc000, 0x287af, 0x244b7, 0x204ab, 0x1c49f, 0x18493,
+	0x14297, 0x10295, 0x0c298, 0x0819c, 0x040a8, 0x0001c, 0x1944c,
+	0x59444, 0x9944c, 0xd9444, 0x0f424, 0x4f424, 0x8f424, 0xcf424,
+	0xe0330, 0xa0330, 0x60330, 0x20330
+};
+
+static const struct rtwn_rf_prog rtl8192ce_rf_prog[] = {
+	{
+		nitems(rtl8192ce_rf1_regs),
+		rtl8192ce_rf1_regs,
+		rtl8192ce_rf1_vals
+	},
+	{
+		nitems(rtl8192ce_rf2_regs),
+		rtl8192ce_rf2_regs,
+		rtl8192ce_rf2_vals
+	}
+};
+
+/*
+ * RTL8188CE-VAU.
+ */
+static const uint32_t rtl8188ce_rf_vals[] = {
+	0x30159, 0x31284, 0x98000, 0x18c63, 0x210e7, 0x2044f, 0x1adb1,
+	0x54867, 0x8992e, 0x0e52c, 0x39ce7, 0x00451, 0x00000, 0x10255,
+	0x60a00, 0xfc378, 0xa1250, 0x4445f, 0x80001, 0x0b614, 0x6c000,
+	0x00000, 0x01558, 0x00060, 0x00483, 0x4f200, 0xec7d9, 0x577c0,
+	0x04783, 0x00001, 0x21334, 0x00000, 0x00054, 0x00001, 0x00808,
+	0x53333, 0x0000c, 0x00002, 0x00808, 0x5b333, 0x0000d, 0x00003,
+	0x00808, 0x63333, 0x0000d, 0x00004, 0x00808, 0x6b333, 0x0000d,
+	0x00005, 0x00808, 0x73333, 0x0000d, 0x00006, 0x00709, 0x5b333,
+	0x0000d, 0x00007, 0x00709, 0x63333, 0x0000d, 0x00008, 0x0060a,
+	0x4b333, 0x0000d, 0x00009, 0x0060a, 0x53333, 0x0000d, 0x0000a,
+	0x0060a, 0x5b333, 0x0000d, 0x0000b, 0x0060a, 0x63333, 0x0000d,
+	0x0000c, 0x0060a, 0x6b333, 0x0000d, 0x0000d, 0x0060a, 0x73333,
+	0x0000d, 0x0000e, 0x0050b, 0x66666, 0x0001a, 0xe0000, 0x4000f,
+	0xe31fc, 0x6000f, 0xff9f8, 0x2000f, 0x203f9, 0x3000f, 0xff500,
+	0x00000, 0x00000, 0x8000f, 0x3f100, 0x9000f, 0x23100, 0x32000,
+	0x71000, 0xb0000, 0xfc000, 0x287b3, 0x244b7, 0x204ab, 0x1c49f,
+	0x18493, 0x1429b, 0x10299, 0x0c29c, 0x081a0, 0x040ac, 0x00020,
+	0x1944c, 0x59444, 0x9944c, 0xd9444, 0x0f424, 0x4f424, 0x8f424,
+	0xcf424, 0xe0330, 0xa0330, 0x60330, 0x20330, 0x10159, 0x0f401,
+	0x00000, 0x00000, 0x80003, 0x00000, 0x00000, 0x44457, 0x80000,
+	0x30159
+};
+
+static const struct rtwn_rf_prog rtl8188ce_rf_prog[] = {
+	{
+		nitems(rtl8192ce_rf1_regs),
+		rtl8192ce_rf1_regs,
+		rtl8188ce_rf_vals
+	}
+};
+
+
+/*
+ * RTL8188CU.
+ */
+static const uint32_t rtl8188cu_rf_vals[] = {
+	0x30159, 0x31284, 0x98000, 0x18c63, 0x210e7, 0x2044f, 0x1adb1,
+	0x54867, 0x8992e, 0x0e52c, 0x39ce7, 0x00451, 0x00000, 0x10255,
+	0x60a00, 0xfc378, 0xa1250, 0x4445f, 0x80001, 0x0b614, 0x6c000,
+	0x00000, 0x01558, 0x00060, 0x00483, 0x4f000, 0xec7d9, 0x577c0,
+	0x04783, 0x00001, 0x21334, 0x00000, 0x00054, 0x00001, 0x00808,
+	0x53333, 0x0000c, 0x00002, 0x00808, 0x5b333, 0x0000d, 0x00003,
+	0x00808, 0x63333, 0x0000d, 0x00004, 0x00808, 0x6b333, 0x0000d,
+	0x00005, 0x00808, 0x73333, 0x0000d, 0x00006, 0x00709, 0x5b333,
+	0x0000d, 0x00007, 0x00709, 0x63333, 0x0000d, 0x00008, 0x0060a,
+	0x4b333, 0x0000d, 0x00009, 0x0060a, 0x53333, 0x0000d, 0x0000a,
+	0x0060a, 0x5b333, 0x0000d, 0x0000b, 0x0060a, 0x63333, 0x0000d,
+	0x0000c, 0x0060a, 0x6b333, 0x0000d, 0x0000d, 0x0060a, 0x73333,
+	0x0000d, 0x0000e, 0x0050b, 0x66666, 0x0001a, 0xe0000, 0x4000f,
+	0xe31fc, 0x6000f, 0xff9f8, 0x2000f, 0x203f9, 0x3000f, 0xff500,
+	0x00000, 0x00000, 0x8000f, 0x3f100, 0x9000f, 0x23100, 0x32000,
+	0x71000, 0xb0000, 0xfc000, 0x287b3, 0x244b7, 0x204ab, 0x1c49f,
+	0x18493, 0x1429b, 0x10299, 0x0c29c, 0x081a0, 0x040ac, 0x00020,
+	0x1944c, 0x59444, 0x9944c, 0xd9444, 0x0f405, 0x4f405, 0x8f405,
+	0xcf405, 0xe0330, 0xa0330, 0x60330, 0x20330, 0x10159, 0x0f401,
+	0x00000, 0x00000, 0x80003, 0x00000, 0x00000, 0x44457, 0x80000,
+	0x30159
+};
+
+static const struct rtwn_rf_prog rtl8188cu_rf_prog[] = {
+	{
+		nitems(rtl8192ce_rf1_regs),
+		rtl8192ce_rf1_regs,
+		rtl8188cu_rf_vals
+	}
+};
+
+/*
+ * RTL8188RU.
+ */
+static const uint32_t rtl8188ru_rf_vals[] = {
+	0x30159, 0x31284, 0x98000, 0x18c63, 0x210e7, 0x2044f, 0x1adb0,
+	0x54867, 0x8992e, 0x0e529, 0x39ce7, 0x00451, 0x00000, 0x00255,
+	0x60a00, 0xfc378, 0xa1250, 0x4445f, 0x80001, 0x0b614, 0x6c000,
+	0x0083c, 0x01558, 0x00060, 0x00483, 0x4f000, 0xec7d9, 0x977c0,
+	0x04783, 0x00001, 0x21334, 0x00000, 0x00054, 0x00001, 0x00808,
+	0x53333, 0x0000c, 0x00002, 0x00808, 0x5b333, 0x0000d, 0x00003,
+	0x00808, 0x63333, 0x0000d, 0x00004, 0x00808, 0x6b333, 0x0000d,
+	0x00005, 0x00808, 0x73333, 0x0000d, 0x00006, 0x00709, 0x5b333,
+	0x0000d, 0x00007, 0x00709, 0x63333, 0x0000d, 0x00008, 0x0060a,
+	0x4b333, 0x0000d, 0x00009, 0x0060a, 0x53333, 0x0000d, 0x0000a,
+	0x0060a, 0x5b333, 0x0000d, 0x0000b, 0x0060a, 0x63333, 0x0000d,
+	0x0000c, 0x0060a, 0x6b333, 0x0000d, 0x0000d, 0x0060a, 0x73333,
+	0x0000d, 0x0000e, 0x0050b, 0x66666, 0x0001a, 0xe0000, 0x4000f,
+	0xe31fc, 0x6000f, 0xff9f8, 0x2000f, 0x203f9, 0x3000f, 0xff500,
+	0x00000, 0x00000, 0x8000f, 0x3f100, 0x9000f, 0x23100, 0xd8000,
+	0x90000, 0x51000, 0x12000, 0x28fb4, 0x24fa8, 0x207a4, 0x1c798,
+	0x183a4, 0x14398, 0x101a4, 0x0c198, 0x080a4, 0x04098, 0x00014,
+	0x1944c, 0x59444, 0x9944c, 0xd9444, 0x0f405, 0x4f405, 0x8f405,
+	0xcf405, 0xe0330, 0xa0330, 0x60330, 0x20330, 0x10159, 0x0f401,
+	0x00000, 0x00000, 0x80003, 0x00000, 0x00000, 0x44457, 0x80000,
+	0x30159
+};
+
+static const struct rtwn_rf_prog rtl8188ru_rf_prog[] = {
+	{
+		nitems(rtl8192ce_rf1_regs),
+		rtl8192ce_rf1_regs,
+		rtl8188ru_rf_vals
+	}
+};
+
+struct rtwn_txpwr {
+	uint8_t	pwr[3][28];
+};
+
+/*
+ * Per RF chain/group/rate Tx gain values.
+ */
+static const struct rtwn_txpwr rtl8192cu_txagc[] = {
+	{ {	/* Chain 0. */
+	{	/* Group 0. */
+	0x00, 0x00, 0x00, 0x00,				/* CCK1~11. */
+	0x0c, 0x0c, 0x0c, 0x0a, 0x08, 0x06, 0x04, 0x02,	/* OFDM6~54. */
+	0x0e, 0x0d, 0x0c, 0x0a, 0x08, 0x06, 0x04, 0x02,	/* MCS0~7. */
+	0x0e, 0x0d, 0x0c, 0x0a, 0x08, 0x06, 0x04, 0x02	/* MCS8~15. */
+	},
+	{	/* Group 1. */
+	0x00, 0x00, 0x00, 0x00,				/* CCK1~11. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* OFDM6~54. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* MCS0~7. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00	/* MCS8~15. */
+	},
+	{	/* Group 2. */
+	0x00, 0x00, 0x00, 0x00,				/* CCK1~11. */
+	0x04, 0x04, 0x04, 0x04, 0x04, 0x02, 0x02, 0x00,	/* OFDM6~54. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* MCS0~7. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00	/* MCS8~15. */
+	}
+	} },
+	{ {	/* Chain 1. */
+	{	/* Group 0. */
+	0x00, 0x00, 0x00, 0x00,				/* CCK1~11. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* OFDM6~54. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* MCS0~7. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00	/* MCS8~15. */
+	},
+	{	/* Group 1. */
+	0x00, 0x00, 0x00, 0x00,				/* CCK1~11. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* OFDM6~54. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* MCS0~7. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00	/* MCS8~15. */
+	},
+	{	/* Group 2. */
+	0x00, 0x00, 0x00, 0x00,				/* CCK1~11. */
+	0x04, 0x04, 0x04, 0x04, 0x04, 0x02, 0x02, 0x00,	/* OFDM6~54. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* MCS0~7. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00	/* MCS8~15. */
+	}
+	} }
+};
+
+static const struct rtwn_txpwr rtl8188ru_txagc[] = {
+	{ {	/* Chain 0. */
+	{	/* Group 0. */
+	0x00, 0x00, 0x00, 0x00,				/* CCK1~11. */
+	0x08, 0x08, 0x08, 0x06, 0x06, 0x04, 0x04, 0x00,	/* OFDM6~54. */
+	0x08, 0x06, 0x06, 0x04, 0x04, 0x02, 0x02, 0x00,	/* MCS0~7. */
+	0x08, 0x06, 0x06, 0x04, 0x04, 0x02, 0x02, 0x00	/* MCS8~15. */
+	},
+	{	/* Group 1. */
+	0x00, 0x00, 0x00, 0x00,				/* CCK1~11. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* OFDM6~54. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* MCS0~7. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00	/* MCS8~15. */
+	},
+	{	/* Group 2. */
+	0x00, 0x00, 0x00, 0x00,				/* CCK1~11. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* OFDM6~54. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* MCS0~7. */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00	/* MCS8~15. */
+	}
+	} }
+};
+
+#define RTWN_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
+	    MTX_NETWORK_LOCK, MTX_DEF)
+#define RTWN_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define RTWN_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
+#define RTWN_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
+#define RTWN_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
+

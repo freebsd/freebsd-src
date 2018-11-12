@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -80,8 +76,8 @@ __FBSDID("$FreeBSD$");
  * existing error message file for recompilation of single routines.
  */
 
-FILE	*mesgread, *mesgwrite;
-char	name[100], *np;
+static FILE	*mesgread, *mesgwrite;
+static char	name[100], *np;
 
 void copystr(void);
 int fgetNUL(char *, int, FILE *);
@@ -271,7 +267,7 @@ inithash(void)
 
 #define	NBUCKETS	511
 
-struct	hash {
+static struct	hash {
 	long	hval;
 	unsigned hpt;
 	struct	hash *hnext;

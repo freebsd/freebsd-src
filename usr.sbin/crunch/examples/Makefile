@@ -11,7 +11,7 @@ CONF=	$(CRUNCHED).conf
 OUTMK=	$(CRUNCHED).mk
 OUTPUTS= $(OUTMK) $(CRUNCHED).c $(CRUNCHED).cache
 
-NO_MAN=
+MAN=
 CLEANFILES+= $(CRUNCHED) *.o *.lo *.c *.mk *.cache
 CLEANDIRFILES+= $(OUTPUTS)
 
@@ -19,14 +19,14 @@ all: $(CRUNCHED)
 exe: $(CRUNCHED)
 
 $(OUTPUTS): $(CONF)
-	crunchgen ${.CURDIR}/$(CONF)
+	MAKE=${MAKE} crunchgen ${.CURDIR}/$(CONF)
 
 $(CRUNCHED): $(OUTPUTS) submake
 
 submake:
-	make -f $(OUTMK)
+	${MAKE} -f $(OUTMK)
 objs:
-	make -f $(OUTMK) objs
+	${MAKE} -f $(OUTMK) objs
 cleandir:
 	rm -f $(CLEANDIRFILES)
 

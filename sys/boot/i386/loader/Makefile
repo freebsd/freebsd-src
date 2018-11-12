@@ -1,11 +1,13 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 MK_SSP=		no
 
-PROG=		loader.sym
+LOADER?=	loader
+PROG=		${LOADER}.sym
+MAN=	
 INTERNALPROG=
-NEWVERSWHAT=	"bootstrap loader" i386
+NEWVERSWHAT?=	"bootstrap loader" x86
 
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
@@ -16,12 +18,10 @@ CFLAGS+=	-DLOADER_FIREWIRE_SUPPORT
 LIBFIREWIRE=	${.OBJDIR}/../libfirewire/libfirewire.a
 .endif
 
-# Put LOADER_ZFS_SUPPORT=yes in /etc/make.conf for ZFS support
+# Set by zfsloader Makefile
 .if defined(LOADER_ZFS_SUPPORT)
 CFLAGS+=	-DLOADER_ZFS_SUPPORT
-LIBZFS=		${.OBJDIR}/../../zfs/libzfsboot.a
-.else
-LIBZFS=
+LIBZFSBOOT=	${.OBJDIR}/../../zfs/libzfsboot.a
 .endif
 
 # Enable PXE TFTP or NFS support, not both.
@@ -42,7 +42,11 @@ HAVE_ISABUS=	yes
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386
+.if ${MACHINE_CPUARCH} == "amd64"
+LIBFICL=	${.OBJDIR}/../../ficl32/libficl.a
+.else
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
+.endif
 .endif
 
 .if defined(LOADER_BZIP2_SUPPORT)
@@ -51,17 +55,24 @@ CFLAGS+=	-DLOADER_BZIP2_SUPPORT
 .if !defined(LOADER_NO_GZIP_SUPPORT)
 CFLAGS+=	-DLOADER_GZIP_SUPPORT
 .endif
-.if !defined(LOADER_NO_GPT_SUPPORT)
-CFLAGS+=	-DLOADER_GPT_SUPPORT
+.if defined(LOADER_NANDFS_SUPPORT)
+CFLAGS+=	-DLOADER_NANDFS_SUPPORT
+.endif
+.if !defined(LOADER_NO_GELI_SUPPORT)
+CFLAGS+=	-DLOADER_GELI_SUPPORT
+LIBGELIBOOT=	${.OBJDIR}/../../geli/libgeliboot.a
+.PATH:		${.CURDIR}/../../../opencrypto
+SRCS+=		xform_aes_xts.c
+CFLAGS+=	-I${.CURDIR}/../../.. -D_STAND
 .endif
 
-# Always add MI sources 
+# Always add MI sources
 .PATH:		${.CURDIR}/../../common
 .include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I.
 
-CLEANFILES=	vers.c loader loader.bin loader.help
+CLEANFILES=	vers.c ${LOADER} ${LOADER}.bin loader.help
 
 CFLAGS+=	-Wall
 LDFLAGS=	-static -Ttext 0x0
@@ -69,6 +80,8 @@ LDFLAGS=	-static -Ttext 0x0
 # i386 standalone support library
 LIBI386=	${.OBJDIR}/../libi386/libi386.a
 CFLAGS+=	-I${.CURDIR}/..
+
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 
 # BTX components
 CFLAGS+=	-I${.CURDIR}/../btx/lib
@@ -80,42 +93,45 @@ CFLAGS+=	-I${.CURDIR}/../btx/lib
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
 
-vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
-	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
+vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../loader/version
+	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../loader/version \
+		${NEWVERSWHAT}
 
-loader: loader.bin ${BTXLDR} ${BTXKERN}
+${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
-		-b ${BTXKERN} loader.bin
+		-b ${BTXKERN} ${LOADER}.bin
 
-loader.bin: loader.sym
+${LOADER}.bin: ${LOADER}.sym
 	cp ${.ALLSRC} ${.TARGET}
 	strip -R .comment -R .note ${.TARGET}
 
 loader.help: help.common help.i386
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
-.PATH: ${.CURDIR}/../../forth 
-FILES=	loader loader.help loader.4th support.4th loader.conf
-FILES+= screen.4th frames.4th beastie.4th
+FILES=	${LOADER}
 # XXX INSTALLFLAGS_loader= -b
-FILESMODE_loader= ${BINMODE} -b
-FILESDIR_loader.conf=	/boot/defaults
+FILESMODE_${LOADER}= ${BINMODE} -b
 
-.if !exists(${DESTDIR}/boot/loader.rc)
-FILES+=	loader.rc
+.if !defined(LOADER_ONLY)
+.PATH: ${.CURDIR}/../../forth
+.include	"${.CURDIR}/../../forth/Makefile.inc"
+FILES+=	pcibios.4th
+
+FILES+=	loader.rc menu.rc
 .endif
 
 # XXX crt0.o needs to be first for pxeboot(8) to work
-OBJS=	${BTXCRT} 
+OBJS=	${BTXCRT}
 
-DPADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFS} ${LIBI386} ${LIBSTAND}
-LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFS} ${LIBI386} -lstand
+DPADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBSTAND} ${LIBGELIBOOT}
+LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBSTAND} ${LIBGELIBOOT}
 
 .include <bsd.prog.mk>
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 beforedepend ${OBJS}: machine
 CLEANFILES+=	machine
-machine:
+CFLAGS+=	-DLOADER_PREFER_AMD64
+machine: .NOMETA
 	ln -sf ${.CURDIR}/../../../i386/include machine
 .endif

@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -74,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/smc/if_smcvar.h>
 
 #include <dev/mii/mii.h>
+#include <dev/mii/mii_bitbang.h>
 #include <dev/mii/miivar.h>
 
 #define	SMC_LOCK(sc)		mtx_lock(&(sc)->smc_mtx)
@@ -123,11 +125,33 @@ static timeout_t	smc_watchdog;
 static poll_handler_t	smc_poll;
 #endif
 
+/*
+ * MII bit-bang glue
+ */
+static uint32_t smc_mii_bitbang_read(device_t);
+static void smc_mii_bitbang_write(device_t, uint32_t);
+
+static const struct mii_bitbang_ops smc_mii_bitbang_ops = {
+	smc_mii_bitbang_read,
+	smc_mii_bitbang_write,
+	{
+		MGMT_MDO,	/* MII_BIT_MDO */
+		MGMT_MDI,	/* MII_BIT_MDI */
+		MGMT_MCLK,	/* MII_BIT_MDC */
+		MGMT_MDOE,	/* MII_BIT_DIR_HOST_PHY */
+		0,		/* MII_BIT_DIR_PHY_HOST */
+	}
+};
+
 static __inline void
 smc_select_bank(struct smc_softc *sc, uint16_t bank)
 {
 
+	bus_barrier(sc->smc_reg, BSR, 2,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	bus_write_2(sc->smc_reg, BSR, bank & BSR_BANK_MASK);
+	bus_barrier(sc->smc_reg, BSR, 2,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 /* Never call this when not in bank 2. */
@@ -143,35 +167,35 @@ smc_mmu_wait(struct smc_softc *sc)
 }
 
 static __inline uint8_t
-smc_read_1(struct smc_softc *sc, bus_addr_t offset)
+smc_read_1(struct smc_softc *sc, bus_size_t offset)
 {
 
 	return (bus_read_1(sc->smc_reg, offset));
 }
 
 static __inline void
-smc_write_1(struct smc_softc *sc, bus_addr_t offset, uint8_t val)
+smc_write_1(struct smc_softc *sc, bus_size_t offset, uint8_t val)
 {
 
 	bus_write_1(sc->smc_reg, offset, val);
 }
 
 static __inline uint16_t
-smc_read_2(struct smc_softc *sc, bus_addr_t offset)
+smc_read_2(struct smc_softc *sc, bus_size_t offset)
 {
 
 	return (bus_read_2(sc->smc_reg, offset));
 }
 
 static __inline void
-smc_write_2(struct smc_softc *sc, bus_addr_t offset, uint16_t val)
+smc_write_2(struct smc_softc *sc, bus_size_t offset, uint16_t val)
 {
 
 	bus_write_2(sc->smc_reg, offset, val);
 }
 
 static __inline void
-smc_read_multi_2(struct smc_softc *sc, bus_addr_t offset, uint16_t *datap,
+smc_read_multi_2(struct smc_softc *sc, bus_size_t offset, uint16_t *datap,
     bus_size_t count)
 {
 
@@ -179,11 +203,19 @@ smc_read_multi_2(struct smc_softc *sc, bus_addr_t offset, uint16_t *datap,
 }
 
 static __inline void
-smc_write_multi_2(struct smc_softc *sc, bus_addr_t offset, uint16_t *datap,
+smc_write_multi_2(struct smc_softc *sc, bus_size_t offset, uint16_t *datap,
     bus_size_t count)
 {
 
 	bus_write_multi_2(sc->smc_reg, offset, datap, count);
+}
+
+static __inline void
+smc_barrier(struct smc_softc *sc, bus_size_t offset, bus_size_t length,
+    int flags)
+{
+
+	bus_barrier(sc->smc_reg, offset, length, flags);
 }
 
 int
@@ -202,7 +234,7 @@ smc_probe(device_t dev)
 	if (sc->smc_usemem)
 		type = SYS_RES_MEMORY;
 
-	reg = bus_alloc_resource(dev, type, &rid, 0, ~0, 16, RF_ACTIVE);
+	reg = bus_alloc_resource_anywhere(dev, type, &rid, 16, RF_ACTIVE);
 	if (reg == NULL) {
 		if (bootverbose)
 			device_printf(dev,
@@ -296,15 +328,15 @@ smc_attach(device_t dev)
 		type = SYS_RES_MEMORY;
 
 	sc->smc_reg_rid = 0;
-	sc->smc_reg = bus_alloc_resource(dev, type, &sc->smc_reg_rid, 0, ~0,
+	sc->smc_reg = bus_alloc_resource_anywhere(dev, type, &sc->smc_reg_rid,
 	    16, RF_ACTIVE);
 	if (sc->smc_reg == NULL) {
 		error = ENXIO;
 		goto done;
 	}
 
-	sc->smc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->smc_irq_rid, 0,
-	    ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	sc->smc_irq = bus_alloc_resource_anywhere(dev, SYS_RES_IRQ,
+	    &sc->smc_irq_rid, 1, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->smc_irq == NULL) {
 		error = ENXIO;
 		goto done;
@@ -324,8 +356,9 @@ smc_attach(device_t dev)
 	callout_init_mtx(&sc->smc_mii_tick_ch, &sc->smc_mtx,
 	    CALLOUT_RETURNUNLOCKED);
 	if (sc->smc_chip >= REV_CHIP_91110FD) {
-		mii_phy_probe(dev, &sc->smc_miibus, smc_mii_ifmedia_upd,
-		    smc_mii_ifmedia_sts);
+		(void)mii_attach(dev, &sc->smc_miibus, ifp,
+		    smc_mii_ifmedia_upd, smc_mii_ifmedia_sts, BMSR_DEFCAPMASK,
+		    MII_PHY_ANY, MII_OFFSET_ANY, 0);
 		if (sc->smc_miibus != NULL) {
 			sc->smc_mii_tick = smc_mii_tick;
 			sc->smc_mii_mediachg = smc_mii_mediachg;
@@ -347,7 +380,7 @@ smc_attach(device_t dev)
 	ifp->if_init = smc_init;
 	ifp->if_ioctl = smc_ioctl;
 	ifp->if_start = smc_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ifp->if_capabilities = ifp->if_capenable = 0;
@@ -479,7 +512,7 @@ smc_start_locked(struct ifnet *ifp)
 	len += (len & 1);
 	if (len > ETHER_MAX_LEN - ETHER_CRC_LEN) {
 		if_printf(ifp, "large packet discarded\n");
-		++ifp->if_oerrors;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m);
 		return; /* XXX readcheck? */
 	}
@@ -494,7 +527,7 @@ smc_start_locked(struct ifnet *ifp)
 	 * Work out how many 256 byte "pages" we need.  We have to include the
 	 * control data for the packet in this calculation.
 	 */
-	npages = (len * PKT_CTRL_DATA_LEN) >> 8;
+	npages = (len + PKT_CTRL_DATA_LEN) >> 8;
 	if (npages == 0)
 		npages = 1;
 
@@ -527,7 +560,7 @@ smc_start_locked(struct ifnet *ifp)
 		return;
 	}
 
-	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_tx);
+	taskqueue_enqueue(sc->smc_tq, &sc->smc_tx);
 }
 
 static void
@@ -537,6 +570,7 @@ smc_task_tx(void *context, int pending)
 	struct smc_softc	*sc;
 	struct mbuf		*m, *m0;
 	u_int			packet, len;
+	int			last_len;
 	uint8_t			*data;
 
 	(void)pending;
@@ -564,7 +598,7 @@ smc_task_tx(void *context, int pending)
 	 */
 	if (packet & ARR_FAILED) {
 		IFQ_DRV_PREPEND(&ifp->if_snd, m);
-		++ifp->if_oerrors;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		smc_start_locked(ifp);
 		SMC_UNLOCK(sc);
@@ -589,16 +623,18 @@ smc_task_tx(void *context, int pending)
 	 * Push the data out to the device.
 	 */
 	data = NULL;
+	last_len = 0;
 	for (; m != NULL; m = m->m_next) {
 		data = mtod(m, uint8_t *);
 		smc_write_multi_2(sc, DATA0, (uint16_t *)data, m->m_len / 2);
+		last_len = m->m_len;
 	}
 
 	/*
 	 * Push out the control byte and and the odd byte if needed.
 	 */
 	if ((len & 1) != 0 && data != NULL)
-		smc_write_2(sc, DATA0, (CTRL_ODD << 8) | data[m->m_len - 1]);
+		smc_write_2(sc, DATA0, (CTRL_ODD << 8) | data[last_len - 1]);
 	else
 		smc_write_2(sc, DATA0, 0);
 
@@ -619,7 +655,7 @@ smc_task_tx(void *context, int pending)
 	/*
 	 * Finish up.
 	 */
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	SMC_UNLOCK(sc);
 	BPF_MTAP(ifp, m0);
@@ -653,12 +689,11 @@ smc_task_rx(void *context, int pending)
 		/*
 		 * Grab an mbuf and attach a cluster.
 		 */
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			break;
 		}
-		MCLGET(m, M_DONTWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			m_freem(m);
 			break;
 		}
@@ -685,7 +720,7 @@ smc_task_rx(void *context, int pending)
 		if (status & (RX_TOOSHORT | RX_TOOLNG | RX_BADCRC | RX_ALGNERR)) {
 			smc_mmu_wait(sc);
 			smc_write_2(sc, MMUCR, MMUCR_CMD_RELEASE);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			m_freem(m);
 			break;
 		}
@@ -741,7 +776,7 @@ smc_task_rx(void *context, int pending)
 		m = mhead;
 		mhead = mhead->m_next;
 		m->m_next = NULL;
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		(*ifp->if_input)(ifp, m);
 	}
 }
@@ -762,7 +797,7 @@ smc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	SMC_UNLOCK(sc);
 
 	if (cmd == POLL_AND_CHECK_STATUS)
-		taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
+		taskqueue_enqueue(sc->smc_tq, &sc->smc_intr);
 }
 #endif
 
@@ -770,9 +805,25 @@ static int
 smc_intr(void *context)
 {
 	struct smc_softc	*sc;
-	
+	uint32_t curbank;
+
 	sc = (struct smc_softc *)context;
-	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
+
+	/*
+	 * Save current bank and restore later in this function
+	 */
+	curbank = (smc_read_2(sc, BSR) & BSR_BANK_MASK);
+
+	/*
+	 * Block interrupts in order to let smc_task_intr to kick in
+	 */
+	smc_select_bank(sc, 2);
+	smc_write_1(sc, MSK, 0);
+
+	/* Restore bank */
+	smc_select_bank(sc, curbank);
+
+	taskqueue_enqueue(sc->smc_tq, &sc->smc_intr);
 	return (FILTER_HANDLED);
 }
 
@@ -792,13 +843,6 @@ smc_task_intr(void *context, int pending)
 	smc_select_bank(sc, 2);
 
 	/*
-	 * Get the current mask, and then block all interrupts while we're
-	 * working.
-	 */
-	if ((ifp->if_capenable & IFCAP_POLLING) == 0)
-		smc_write_1(sc, MSK, 0);
-
-	/*
 	 * Find out what interrupts are flagged.
 	 */
 	status = smc_read_1(sc, IST) & sc->smc_mask;
@@ -812,13 +856,19 @@ smc_task_intr(void *context, int pending)
 		 */
 		packet = smc_read_1(sc, FIFO_TX);
 		if ((packet & FIFO_EMPTY) == 0) {
+			callout_stop(&sc->smc_watchdog);
+			smc_select_bank(sc, 2);
 			smc_write_1(sc, PNR, packet);
 			smc_write_2(sc, PTR, 0 | PTR_READ | 
 			    PTR_AUTO_INCR);
-			tcr = smc_read_2(sc, DATA0);
+			smc_select_bank(sc, 0);
+			tcr = smc_read_2(sc, EPHSR);
+#if 0
 			if ((tcr & EPHSR_TX_SUC) == 0)
 				device_printf(sc->smc_dev,
 				    "bad packet\n");
+#endif
+			smc_select_bank(sc, 2);
 			smc_mmu_wait(sc);
 			smc_write_2(sc, MMUCR, MMUCR_CMD_RELEASE_PKT);
 
@@ -827,7 +877,7 @@ smc_task_intr(void *context, int pending)
 			tcr |= TCR_TXENA | TCR_PAD_EN;
 			smc_write_2(sc, TCR, tcr);
 			smc_select_bank(sc, 2);
-			taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_tx);
+			taskqueue_enqueue(sc->smc_tq, &sc->smc_tx);
 		}
 
 		/*
@@ -842,7 +892,7 @@ smc_task_intr(void *context, int pending)
 	if (status & RCV_INT) {
 		smc_write_1(sc, ACK, RCV_INT);
 		sc->smc_mask &= ~RCV_INT;
-		taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_rx);
+		taskqueue_enqueue(sc->smc_tq, &sc->smc_rx);
 	}
 
 	/*
@@ -851,7 +901,7 @@ smc_task_intr(void *context, int pending)
 	if (status & ALLOC_INT) {
 		smc_write_1(sc, ACK, ALLOC_INT);
 		sc->smc_mask &= ~ALLOC_INT;
-		taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_tx);
+		taskqueue_enqueue(sc->smc_tq, &sc->smc_tx);
 	}
 
 	/*
@@ -859,7 +909,7 @@ smc_task_intr(void *context, int pending)
 	 */
 	if (status & RX_OVRN_INT) {
 		smc_write_1(sc, ACK, RX_OVRN_INT);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 	}
 
 	/*
@@ -876,90 +926,63 @@ smc_task_intr(void *context, int pending)
 		smc_select_bank(sc, 0);
 		counter = smc_read_2(sc, ECR);
 		smc_select_bank(sc, 2);
-		ifp->if_collisions +=
-		    (counter & ECR_SNGLCOL_MASK) >> ECR_SNGLCOL_SHIFT;
-		ifp->if_collisions +=
-		    (counter & ECR_MULCOL_MASK) >> ECR_MULCOL_SHIFT;
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+		    ((counter & ECR_SNGLCOL_MASK) >> ECR_SNGLCOL_SHIFT) +
+		    ((counter & ECR_MULCOL_MASK) >> ECR_MULCOL_SHIFT));
 
 		/*
 		 * See if there are any packets to transmit.
 		 */
-		taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_tx);
+		taskqueue_enqueue(sc->smc_tq, &sc->smc_tx);
 	}
 
 	/*
 	 * Update the interrupt mask.
 	 */
+	smc_select_bank(sc, 2);
 	if ((ifp->if_capenable & IFCAP_POLLING) == 0)
 		smc_write_1(sc, MSK, sc->smc_mask);
 
 	SMC_UNLOCK(sc);
 }
 
-static u_int
-smc_mii_readbits(struct smc_softc *sc, int nbits)
+static uint32_t
+smc_mii_bitbang_read(device_t dev)
 {
-	u_int	mgmt, mask, val;
+	struct smc_softc	*sc;
+	uint32_t		val;
+
+	sc = device_get_softc(dev);
 
 	SMC_ASSERT_LOCKED(sc);
 	KASSERT((smc_read_2(sc, BSR) & BSR_BANK_MASK) == 3,
-	    ("%s: smc_mii_readbits called with bank %d (!= 3)",
+	    ("%s: smc_mii_bitbang_read called with bank %d (!= 3)",
 	    device_get_nameunit(sc->smc_dev),
 	    smc_read_2(sc, BSR) & BSR_BANK_MASK));
 
-	/*
-	 * Set up the MGMT (aka MII) register.
-	 */
-	mgmt = smc_read_2(sc, MGMT) & ~(MGMT_MCLK | MGMT_MDOE | MGMT_MDO);
-	smc_write_2(sc, MGMT, mgmt);
-
-	/*
-	 * Read the bits in.
-	 */
-	for (mask = 1 << (nbits - 1), val = 0; mask; mask >>= 1) {
-		if (smc_read_2(sc, MGMT) & MGMT_MDI)
-			val |= mask;
-
-		smc_write_2(sc, MGMT, mgmt);
-		DELAY(1);
-		smc_write_2(sc, MGMT, mgmt | MGMT_MCLK);
-		DELAY(1);
-	}
+	val = smc_read_2(sc, MGMT);
+	smc_barrier(sc, MGMT, 2,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 
 	return (val);
 }
 
 static void
-smc_mii_writebits(struct smc_softc *sc, u_int val, int nbits)
+smc_mii_bitbang_write(device_t dev, uint32_t val)
 {
-	u_int	mgmt, mask;
+	struct smc_softc	*sc;
+
+	sc = device_get_softc(dev);
 
 	SMC_ASSERT_LOCKED(sc);
 	KASSERT((smc_read_2(sc, BSR) & BSR_BANK_MASK) == 3,
-	    ("%s: smc_mii_writebits called with bank %d (!= 3)",
+	    ("%s: smc_mii_bitbang_write called with bank %d (!= 3)",
 	    device_get_nameunit(sc->smc_dev),
 	    smc_read_2(sc, BSR) & BSR_BANK_MASK));
 
-	/*
-	 * Set up the MGMT (aka MII) register).
-	 */
-	mgmt = smc_read_2(sc, MGMT) & ~(MGMT_MCLK | MGMT_MDOE | MGMT_MDO);
-	mgmt |= MGMT_MDOE;
-
-	/*
-	 * Push the bits out.
-	 */
-	for (mask = 1 << (nbits - 1); mask; mask >>= 1) {
-		if (val & mask)
-			mgmt |= MGMT_MDO;
-		else
-			mgmt &= ~MGMT_MDO;
-
-		smc_write_2(sc, MGMT, mgmt);
-		DELAY(1);
-		smc_write_2(sc, MGMT, mgmt | MGMT_MCLK);
-		DELAY(1);
-	}
+	smc_write_2(sc, MGMT, val);
+	smc_barrier(sc, MGMT, 2,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 int
@@ -974,26 +997,7 @@ smc_miibus_readreg(device_t dev, int phy, int reg)
 
 	smc_select_bank(sc, 3);
 
-	/*
-	 * Send out the idle pattern.
-	 */
-	smc_mii_writebits(sc, 0xffffffff, 32);
-
-	/*
-	 * Start code + read opcode + phy address + phy register
-	 */
-	smc_mii_writebits(sc, 6 << 10 | phy << 5 | reg, 14);
-
-	/*
-	 * Turnaround + data
-	 */
-	val = smc_mii_readbits(sc, 18);
-
-	/*
-	 * Reset the MDIO interface.
-	 */
-	smc_write_2(sc, MGMT,
-	    smc_read_2(sc, MGMT) & ~(MGMT_MCLK | MGMT_MDOE | MGMT_MDO));
+	val = mii_bitbang_readreg(dev, &smc_mii_bitbang_ops, phy, reg);
 
 	SMC_UNLOCK(sc);
 	return (val);
@@ -1010,23 +1014,7 @@ smc_miibus_writereg(device_t dev, int phy, int reg, int data)
 
 	smc_select_bank(sc, 3);
 
-	/*
-	 * Send idle pattern.
-	 */
-	smc_mii_writebits(sc, 0xffffffff, 32);
-
-	/*
-	 * Start code + write opcode + phy address + phy register + turnaround
-	 * + data.
-	 */
-	smc_mii_writebits(sc, 5 << 28 | phy << 23 | reg << 18 | 2 << 16 | data,
-	    32);
-
-	/*
-	 * Reset MDIO interface.
-	 */
-	smc_write_2(sc, MGMT,
-	    smc_read_2(sc, MGMT) & ~(MGMT_MCLK | MGMT_MDOE | MGMT_MDO));
+	mii_bitbang_writereg(dev, &smc_mii_bitbang_ops, phy, reg, data);
 
 	SMC_UNLOCK(sc);
 	return (0);
@@ -1245,7 +1233,7 @@ smc_watchdog(void *arg)
 	
 	sc = (struct smc_softc *)arg;
 	device_printf(sc->smc_dev, "watchdog timeout\n");
-	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
+	taskqueue_enqueue(sc->smc_tq, &sc->smc_intr);
 }
 
 static void
@@ -1264,9 +1252,10 @@ smc_init_locked(struct smc_softc *sc)
 {
 	struct ifnet	*ifp;
 
-	ifp = sc->smc_ifp;
-
 	SMC_ASSERT_LOCKED(sc);
+	ifp = sc->smc_ifp;
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 
 	smc_reset(sc);
 	smc_enable(sc);

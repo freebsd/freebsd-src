@@ -18,6 +18,7 @@ krb5-config: krb5-config.in
 	    -e "s,@LIB_pkinit\@,-lhx509,g" \
 	    -e "s,@LIB_dlopen\@,,g" \
 	    -e "s,@LIB_door_create\@,,g" \
+	    -e "s,@PTHREAD_LIBADD\@,-pthread,g" \
 	    -e "s,@LIBS\@,,g" \
 	    -e "s,@INCLUDE_hcrypto@,,g" \
 	    ${.ALLSRC} > ${.TARGET}

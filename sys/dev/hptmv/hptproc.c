@@ -51,9 +51,6 @@ int hpt_rescan_all(void);
 static char hptproc_buffer[256];
 extern char DRIVER_VERSION[];
 
-#define FORMAL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1, int arg2, \
-	struct sysctl_req *req
-#define REAL_HANDLER_ARGS oidp, arg1, arg2, req
 typedef struct sysctl_req HPT_GET_INFO;
 
 static int
@@ -65,8 +62,8 @@ hpt_set_asc_info(IAL_ADAPTER_T *pAdapter, char *buffer,int length)
 	PVDevice pSubArray, pVDev;
 	UINT	i, iarray, ichan;
 	struct cam_periph *periph = NULL;
-	intrmask_t oldspl;
 
+	mtx_lock(&pAdapter->lock);
 #ifdef SUPPORT_ARRAY	
 	if (length>=8 && strncmp(buffer, "rebuild ", 8)==0) 
 	{
@@ -74,7 +71,6 @@ hpt_set_asc_info(IAL_ADAPTER_T *pAdapter, char *buffer,int length)
 		length-=8;
 		if (length>=5 && strncmp(buffer, "start", 5)==0) 
 		{
-			oldspl = lock_driver();
 			for(i = 0; i < MAX_ARRAY_PER_VBUS; i++)
 				if ((pArray=ArrayTables(i))->u.array.dArStamp==0)
 					continue; 
@@ -83,12 +79,11 @@ hpt_set_asc_info(IAL_ADAPTER_T *pAdapter, char *buffer,int length)
 	                    hpt_queue_dpc((HPT_DPC)hpt_rebuild_data_block, pAdapter, pArray, 
 							(UCHAR)((pArray->u.array.CriticalMembers || pArray->VDeviceType == VD_RAID_1)? DUPLICATE : REBUILD_PARITY));
 				}
-			unlock_driver(oldspl);
+			mtx_unlock(&pAdapter->lock);
 			return orig_length;
 		}
 		else if (length>=4 && strncmp(buffer, "stop", 4)==0) 
 		{
-			oldspl = lock_driver();
 			for(i = 0; i < MAX_ARRAY_PER_VBUS; i++)
 				if ((pArray=ArrayTables(i))->u.array.dArStamp==0)
 					continue; 
@@ -96,7 +91,7 @@ hpt_set_asc_info(IAL_ADAPTER_T *pAdapter, char *buffer,int length)
 					if (pArray->u.array.rf_rebuilding)
 					    pArray->u.array.rf_abort_rebuild = 1;
 				}
-			unlock_driver(oldspl);
+			mtx_unlock(&pAdapter->lock);
 			return orig_length;
 		}	
 		else if (length>=3 && buffer[1]==','&& buffer[0]>='1'&& buffer[2]>='1')	
@@ -107,17 +102,24 @@ hpt_set_asc_info(IAL_ADAPTER_T *pAdapter, char *buffer,int length)
             if(iarray >= MAX_VDEVICE_PER_VBUS || ichan >= MV_SATA_CHANNELS_NUM) return -EINVAL;
 
 			pArray = _vbus_p->pVDevice[iarray];
-	        if (!pArray || (pArray->vf_online == 0)) return -EINVAL;
+			if (!pArray || (pArray->vf_online == 0)) {
+				mtx_unlock(&pAdapter->lock);
+				return -EINVAL;
+			}
 
             for (i=0;i<MV_SATA_CHANNELS_NUM;i++)
 				if(i == ichan)
 				    goto rebuild;
 
+	        mtx_unlock(&pAdapter->lock);
 	        return -EINVAL;
 
 rebuild:
 	        pVDev = &pAdapter->VDevices[ichan];
-	        if(!pVDev->u.disk.df_on_line || pVDev->pParent) return -EINVAL;
+	        if(!pVDev->u.disk.df_on_line || pVDev->pParent) {
+			mtx_unlock(&pAdapter->lock);
+			return -EINVAL;
+		}
 
 	        /* Not allow to use a mounted disk ??? test*/
 			for(i = 0; i < MAX_VDEVICE_PER_VBUS; i++)
@@ -127,6 +129,7 @@ rebuild:
 					if (periph != NULL && periph->refcount >= 1)
 					{
 						hpt_printk(("Can not use disk used by OS!\n"));
+			    mtx_unlock(&pAdapter->lock);
 	                    return -EINVAL;	
 					}
 					/* the Mounted Disk isn't delete */
@@ -139,15 +142,13 @@ rebuild:
 				{
 					pSubArray = pArray;
 loop:
-					oldspl = lock_driver();
 					if(hpt_add_disk_to_array(_VBUS_P VDEV_TO_ID(pSubArray), VDEV_TO_ID(pVDev)) == -1) {
-						unlock_driver(oldspl);
+						mtx_unlock(&pAdapter->lock);
 						return -EINVAL;
 					}
 					pSubArray->u.array.rf_auto_rebuild = 0;
 					pSubArray->u.array.rf_abort_rebuild = 0;
 					hpt_queue_dpc((HPT_DPC)hpt_rebuild_data_block, pAdapter, pSubArray, DUPLICATE);
-					unlock_driver(oldspl);
 					break;
 				}
 				case VD_RAID_0:
@@ -159,8 +160,10 @@ loop:
 							  goto loop;
 						}
 				default:
+					mtx_unlock(&pAdapter->lock);
 					return -EINVAL;
 			}
+			mtx_unlock(&pAdapter->lock);
 			return orig_length;
 		}
 	}
@@ -175,24 +178,31 @@ loop:
             if (length>=1 && *buffer>='1') 
 			{
 				iarray = *buffer-'1';
-				if(iarray >= MAX_VDEVICE_PER_VBUS) return -EINVAL;
+				if(iarray >= MAX_VDEVICE_PER_VBUS) {
+					mtx_unlock(&pAdapter->lock);
+					return -EINVAL;
+				}
 
 				pArray = _vbus_p->pVDevice[iarray];
-				if (!pArray || (pArray->vf_online == 0)) return -EINVAL;
-				
-				if(pArray->VDeviceType != VD_RAID_1 && pArray->VDeviceType != VD_RAID_5)
+				if (!pArray || (pArray->vf_online == 0)) {
+					mtx_unlock(&pAdapter->lock);
 					return -EINVAL;
+				}
+				
+				if(pArray->VDeviceType != VD_RAID_1 && pArray->VDeviceType != VD_RAID_5) {
+					mtx_unlock(&pAdapter->lock);
+					return -EINVAL;
+				}
 
 				if (!(pArray->u.array.rf_need_rebuild ||
 					pArray->u.array.rf_rebuilding ||
 					pArray->u.array.rf_verifying ||
 					pArray->u.array.rf_initializing))
 				{
-					oldspl = lock_driver();
 					pArray->u.array.RebuildSectors = 0;
 					hpt_queue_dpc((HPT_DPC)hpt_rebuild_data_block, pAdapter, pArray, VERIFY);
-					unlock_driver(oldspl);
 				}
+		mtx_unlock(&pAdapter->lock);
                 return orig_length;
 			}
 		}
@@ -203,16 +213,21 @@ loop:
             if (length>=1 && *buffer>='1') 
 			{
 				iarray = *buffer-'1';
-				if(iarray >= MAX_VDEVICE_PER_VBUS) return -EINVAL;
+				if(iarray >= MAX_VDEVICE_PER_VBUS) {
+					mtx_unlock(&pAdapter->lock);
+					return -EINVAL;
+				}
 
 				pArray = _vbus_p->pVDevice[iarray];
-				if (!pArray || (pArray->vf_online == 0)) return -EINVAL;
+				if (!pArray || (pArray->vf_online == 0)) {
+					mtx_unlock(&pAdapter->lock);
+					return -EINVAL;
+				}
 				if(pArray->u.array.rf_verifying) 
 				{
-					oldspl = lock_driver();
 				    pArray->u.array.rf_abort_rebuild = 1;
-				    unlock_driver(oldspl);
 				}
+			    mtx_unlock(&pAdapter->lock);
 			    return orig_length;
 			}
 		}
@@ -226,6 +241,7 @@ loop:
 			_vbus_(r5.enable_write_back) = *buffer-'0';
 			if (_vbus_(r5.enable_write_back))
 				hpt_printk(("RAID5 write back enabled"));
+			mtx_unlock(&pAdapter->lock);
 			return orig_length;
 		}
 	}
@@ -239,6 +255,7 @@ loop:
 		length-=9;
 		if (length>=1 && *buffer>='0' && *buffer<='3') {
 			hpt_dbg_level = *buffer-'0';
+			mtx_unlock(&pAdapter->lock);
 			return orig_length;
 		}
 	}
@@ -246,6 +263,7 @@ loop:
 		/* TO DO */
 	}
 #endif
+	mtx_unlock(&pAdapter->lock);
 
 	return -EINVAL;
 }
@@ -290,7 +308,9 @@ hpt_set_info(int length)
 			/*
         	 	 * map buffer to kernel.
         	 	 */
-        		if (piop->nInBufferSize+piop->nOutBufferSize > PAGE_SIZE) {
+        		if (piop->nInBufferSize > PAGE_SIZE ||
+        			piop->nOutBufferSize > PAGE_SIZE ||
+        			piop->nInBufferSize+piop->nOutBufferSize > PAGE_SIZE) {
         			KdPrintE(("User buffer too large\n"));
         			return -EINVAL;
         		}
@@ -301,8 +321,13 @@ hpt_set_info(int length)
 					return -EINVAL;
 				}
 
-			if (piop->nInBufferSize)
-				copyin((void*)(ULONG_PTR)piop->lpInBuffer, ke_area, piop->nInBufferSize);
+			if (piop->nInBufferSize) {
+				if (copyin((void*)(ULONG_PTR)piop->lpInBuffer, ke_area, piop->nInBufferSize) != 0) {
+					KdPrintE(("Failed to copyin from lpInBuffer\n"));
+					free(ke_area, M_DEVBUF);
+					return -EFAULT;
+				}
+			}
 
 			/*
 			  * call kernel handler.
@@ -324,7 +349,7 @@ hpt_set_info(int length)
 			else  KdPrintW(("Kernel_ioctl(): return %d\n", err));
 
 			free(ke_area, M_DEVBUF);
-            		return -EINVAL;
+			return -EINVAL;
 		} else 	{
     		KdPrintW(("Wrong signature: %x\n", piop->Magic));
     		return -EINVAL;
@@ -486,12 +511,12 @@ hpt_get_info(IAL_ADAPTER_T *pAdapter, HPT_GET_INFO *pinfo)
 	PVDevice pVDev;
 
 #ifndef FOR_DEMO
+	mtx_lock(&pAdapter->lock);
 	if (pAdapter->beeping) {
-		intrmask_t oldspl = lock_driver();
 		pAdapter->beeping = 0;
 		BeepOff(pAdapter->mvSataAdapter.adapterIoBaseAddress);
-		unlock_driver(oldspl);
 	}
+	mtx_unlock(&pAdapter->lock);
 #endif
 
 	hpt_copy_info(pinfo, "Controller #%d:\n\n", pAdapter->mvSataAdapter.adapterId);
@@ -551,7 +576,7 @@ hpt_get_info(IAL_ADAPTER_T *pAdapter, HPT_GET_INFO *pinfo)
 }
 
 static __inline int
-hpt_proc_in(FORMAL_HANDLER_ARGS, int *len)
+hpt_proc_in(SYSCTL_HANDLER_ARGS, int *len)
 {
 	int i, error=0;
 
@@ -569,12 +594,12 @@ hpt_proc_in(FORMAL_HANDLER_ARGS, int *len)
 }
 
 static int
-hpt_status(FORMAL_HANDLER_ARGS)
+hpt_status(SYSCTL_HANDLER_ARGS)
 {
 	int length, error=0, retval=0;
 	IAL_ADAPTER_T *pAdapter;
 
-	error = hpt_proc_in(REAL_HANDLER_ARGS, &length);
+	error = hpt_proc_in(oidp, arg1, arg2, req, &length);
 	
     if (req->newptr != NULL) 	
 	{
@@ -610,16 +635,16 @@ out:
 
 #define xhptregister_node(name) hptregister_node(name)
 
-#if (__FreeBSD_version < 500043)
+#if __FreeBSD_version >= 1100024
 #define hptregister_node(name) \
-	SYSCTL_NODE(, OID_AUTO,	name, CTLFLAG_RW, 0, "Get/Set " #name " state root node") \
+	SYSCTL_ROOT_NODE(OID_AUTO, name, CTLFLAG_RW, 0, "Get/Set " #name " state root node"); \
 	SYSCTL_OID(_ ## name, OID_AUTO, status, CTLTYPE_STRING|CTLFLAG_RW, \
 	NULL, 0, hpt_status, "A", "Get/Set " #name " state")
-#else 
+#else
 #define hptregister_node(name) \
-	SYSCTL_NODE(, OID_AUTO,	name, CTLFLAG_RW, 0, "Get/Set " #name " state root node"); \
+	SYSCTL_NODE(, OID_AUTO, name, CTLFLAG_RW, 0, "Get/Set " #name " state root node"); \
 	SYSCTL_OID(_ ## name, OID_AUTO, status, CTLTYPE_STRING|CTLFLAG_RW, \
-	NULL, 0, hpt_status, "A", "Get/Set " #name " state");
+	NULL, 0, hpt_status, "A", "Get/Set " #name " state")
 #endif
 	
 xhptregister_node(PROC_DIR_NAME);

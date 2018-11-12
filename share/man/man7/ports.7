@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2009
+.Dd June 6, 2014
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@ Each
 .Em port
 contains any patches necessary to make the original
 application source code compile and run on
-.Bx .
+.Fx .
 Compiling an
 application is as simple as typing
 .Nm make Cm build
@@ -55,19 +55,6 @@ If all goes well,
 simply type
 .Nm make Cm install
 to install the application.
-.Pp
-It is possible to download and use ports from the
-.Fx
-repository
-that are newer than the installed system; however it is important to
-install the appropriate
-.Dq "Upgrade Kit"
-from
-.Pa http://www.FreeBSD.org/ports/
-first!
-The
-.Xr portcheckout 1 Pq Pa ports/ports-mgmt/portcheckout
-script (also a port, of course!) will help to download new ports.
 .Pp
 For more information about using ports, see
 .Dq "Packages and Ports"
@@ -110,7 +97,7 @@ target.
 Configure
 .Va OPTIONS
 for this port using
-.Xr dialog 1 .
+.Xr dialog4ports 1 .
 .It Cm fetch
 Fetch all of the files needed to build this port from the sites
 listed in
@@ -124,6 +111,8 @@ and
 .It Cm checksum
 Verify that the fetched distfile's checksum matches the one the port was
 tested against.
+If the distfile's checksum does not match, it also fetches the distfiles
+which are missing or failed the checksum calculation.
 Defining
 .Va NO_CHECKSUM
 will skip this step.
@@ -188,7 +177,7 @@ configured.
 Configure
 .Va OPTIONS
 for this port and all its dependencies using
-.Xr dialog 1 .
+.Xr dialog4ports 1 .
 .It Cm fetch-list
 Show list of files to be fetched in order to build the port.
 .It Cm fetch-recursive
@@ -225,12 +214,12 @@ portion never recurses
 (this is perhaps a bug).
 .It Cm reinstall
 Use this to restore a port after using
-.Xr pkg_delete 1
+.Xr pkg-delete 8
 when you should have used
 .Cm deinstall .
 .It Cm deinstall
 Remove an installed port from the system, similar to
-.Xr pkg_delete 1 .
+.Xr pkg-delete 8 .
 .It Cm deinstall-all
 Remove all installed ports with the same
 .Va PKGORIGIN
@@ -242,7 +231,7 @@ The package is a
 .Pa .tbz
 file that you can use to
 install the port on other machines with
-.Xr pkg_add 1 .
+.Xr pkg-add 8 .
 If the directory specified by
 .Va PACKAGES
 does not exist, the package will be put into the current directory.
@@ -406,10 +395,13 @@ Directory to put the package in.
 .It Va PKGFILE
 The full path to the package.
 .El
-.It Va PREFIX
-Where to install things in general
-(usually
+.It Va LOCALBASE
+Where existing things are installed and where to search for files when
+resolving dependencies (usually
 .Pa /usr/local ) .
+.It Va PREFIX
+Where to install this port (usually set to the same as
+.Va LOCALBASE ) .
 .It Va MASTER_SITES
 Primary sites for distribution files if not found locally.
 .It Va PATCH_SITES
@@ -466,7 +458,7 @@ If defined, only operate on a port if it requires interaction.
 If defined, only operate on a port if it can be installed 100% automatically.
 .It Va DISABLE_VULNERABILITIES
 If defined, disable check for security vulnerabilities using
-.Xr portaudit 1 Pq Pa ports/ports-mgmt/portaudit
+.Xr pkg-audit 8
 when installing new ports.
 .It Va NO_IGNORE
 If defined, allow installation of ports marked as
@@ -477,6 +469,11 @@ Of course, these ports may not work as expected, but if you really know
 what you are doing and are sure about installing a forbidden port, then
 .Va NO_IGNORE
 lets you do it.
+.It Va NO_CHECKSUM
+If defined, skip verifying the port's checksum.
+.It Va TRYBROKEN
+If defined, attempt to build a port even if it is marked as
+.Aq Va BROKEN .
 .It Va PORT_DBDIR
 Directory where the results of configuring
 .Va OPTIONS
@@ -489,31 +486,60 @@ have been configured will have a uniquely named sub-directory, containing a
 single file
 .Pa options .
 .El
+.Sh MAKE VARIABLES
+The following list provides a name and short description for many of the
+variables that are used when building ports.
+More information on these and other related variables may be found in
+.Pa ${PORTSDIR}/Mk/*
+and the
+.Fx
+Porter's Handbook.
+.Bl -tag -width ".Va OVERRIDE_LINUX_BASE_PORT"
+.It Va WITH_OPENSSL_PORT
+.Pq Vt bool
+If set, causes ports that make use of OpenSSL to use the OpenSSL from
+ports
+.Pq if available
+instead of the OpenSSL from the base system.
+.It Va WITH_DEBUG
+.Pq Vt bool
+If set, debugging symbols are installed for ports binaries.
+.It Va WITH_DEBUG_PORTS
+A list of origins for which to set
+.Va WITH_DEBUG_PORTS .
+.It Va WITH_SSP_PORTS
+.Pq Vt bool
+If set, enables
+.Fl fstack-protector
+for most ports.
+.It Va WITH_GHOSTSCRIPT_VER
+If set, the version of ghostscript to be used by ports.
+.It Va OVERRIDE_LINUX_BASE_PORT
+The default linux base to use.
+.It Va WITH_CCACHE_BUILD
+.Pq Vt bool
+If set, enables the use of
+.Xr ccache 1
+for building ports.
+.It Va CCACHE_DIR
+Which directory to use for the ccache data.
+.El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/ports/Mk/bsd.port.mk" -compact
 .It Pa /usr/ports
 The default ports directory
-.No ( Fx
-and
-.Ox ) .
-.It Pa /usr/pkgsrc
-The default ports directory
-.Pq Nx .
 .It Pa /usr/ports/Mk/bsd.port.mk
 The big Kahuna.
 .El
 .Sh SEE ALSO
 .Xr make 1 ,
-.Xr pkg_add 1 ,
-.Xr pkg_create 1 ,
-.Xr pkg_delete 1 ,
-.Xr pkg_info 1 ,
-.Xr pkg_version 1
+.Xr make.conf 5 ,
+.Xr pkg 8 ,
+.Xr portsnap 8
 .Pp
 The following are part of the ports collection:
 .Pp
-.Xr portaudit 1 ,
-.Xr portcheckout 1 ,
+.Xr pkg 7 ,
 .Xr portlint 1
 .Rs
 .%B "The FreeBSD Handbook"

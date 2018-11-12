@@ -238,9 +238,8 @@ pascal_val_print (struct type *type, char *valaddr, int embedded_offset,
 		      wtype = TYPE_TARGET_TYPE (type);
 		    }
 		  vt_val = value_at (wtype, vt_address, NULL);
-		  val_print (VALUE_TYPE (vt_val), VALUE_CONTENTS (vt_val), 0,
-			     VALUE_ADDRESS (vt_val), stream, format,
-			     deref_ref, recurse + 1, pretty);
+		  common_val_print (vt_val, stream, format, deref_ref,
+				    recurse + 1, pretty);
 		  if (pretty)
 		    {
 		      fprintf_filtered (stream, "\n");
@@ -291,10 +290,8 @@ pascal_val_print (struct type *type, char *valaddr, int embedded_offset,
 	       unpack_pointer (lookup_pointer_type (builtin_type_void),
 			       valaddr + embedded_offset),
 	       NULL);
-	      val_print (VALUE_TYPE (deref_val),
-			 VALUE_CONTENTS (deref_val), 0,
-			 VALUE_ADDRESS (deref_val), stream, format,
-			 deref_ref, recurse + 1, pretty);
+	      common_val_print (deref_val, stream, format, deref_ref,
+				recurse + 1, pretty);
 	    }
 	  else
 	    fputs_filtered ("???", stream);
@@ -565,9 +562,7 @@ pascal_value_print (struct value *val, struct ui_file *stream, int format,
 	  fprintf_filtered (stream, ") ");
 	}
     }
-  return val_print (type, VALUE_CONTENTS (val), VALUE_EMBEDDED_OFFSET (val),
-		    VALUE_ADDRESS (val) + VALUE_OFFSET (val),
-		    stream, format, 1, 0, pretty);
+  return common_val_print (val, stream, format, 1, 0, pretty);
 }
 
 
@@ -583,7 +578,7 @@ static int pascal_static_field_print;	/* Controls printing of static fields. */
 static struct obstack dont_print_vb_obstack;
 static struct obstack dont_print_statmem_obstack;
 
-static void pascal_object_print_static_field (struct type *, struct value *,
+static void pascal_object_print_static_field (struct value *,
 					      struct ui_file *, int, int,
 					      enum val_prettyprint);
 
@@ -844,8 +839,7 @@ pascal_object_print_value_fields (struct type *type, char *valaddr,
 		  v = value_from_longest (TYPE_FIELD_TYPE (type, i),
 				   unpack_field_as_long (type, valaddr, i));
 
-		  val_print (TYPE_FIELD_TYPE (type, i), VALUE_CONTENTS (v), 0, 0,
-			     stream, format, 0, recurse + 1, pretty);
+		  common_val_print (v, stream, format, 0, recurse + 1, pretty);
 		}
 	    }
 	  else
@@ -864,9 +858,8 @@ pascal_object_print_value_fields (struct type *type, char *valaddr,
 		  if (v == NULL)
 		    fputs_filtered ("<optimized out>", stream);
 		  else
-		    pascal_object_print_static_field (TYPE_FIELD_TYPE (type, i), v,
-						stream, format, recurse + 1,
-						      pretty);
+		    pascal_object_print_static_field (v, stream, format,
+						      recurse + 1, pretty);
 		}
 	      else
 		{
@@ -1005,14 +998,16 @@ pascal_object_print_value (struct type *type, char *valaddr, CORE_ADDR address,
    static member classes in an obstack and refuse to print them more
    than once.
 
-   VAL contains the value to print, TYPE, STREAM, RECURSE, and PRETTY
+   VAL contains the value to print, STREAM, RECURSE, and PRETTY
    have the same meanings as in c_val_print.  */
 
 static void
-pascal_object_print_static_field (struct type *type, struct value *val,
+pascal_object_print_static_field (struct value *val,
 				  struct ui_file *stream, int format,
 				  int recurse, enum val_prettyprint pretty)
 {
+  struct type *type = VALUE_TYPE (val);
+
   if (TYPE_CODE (type) == TYPE_CODE_STRUCT)
     {
       CORE_ADDR *first_dont_print;
@@ -1041,8 +1036,7 @@ pascal_object_print_static_field (struct type *type, struct value *val,
 				  stream, format, recurse, pretty, NULL, 1);
       return;
     }
-  val_print (type, VALUE_CONTENTS (val), 0, VALUE_ADDRESS (val),
-	     stream, format, 0, recurse, pretty);
+  common_val_print (val, stream, format, 0, recurse, pretty);
 }
 
 void

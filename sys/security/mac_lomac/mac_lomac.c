@@ -93,7 +93,7 @@ struct mac_lomac_proc {
 
 SYSCTL_DECL(_security_mac);
 
-SYSCTL_NODE(_security_mac, OID_AUTO, lomac, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, lomac, CTLFLAG_RW, 0,
     "TrustedBSD mac_lomac policy controls");
 
 static int	lomac_label_size = sizeof(struct mac_lomac);
@@ -101,34 +101,28 @@ SYSCTL_INT(_security_mac_lomac, OID_AUTO, label_size, CTLFLAG_RD,
     &lomac_label_size, 0, "Size of struct mac_lomac");
 
 static int	lomac_enabled = 1;
-SYSCTL_INT(_security_mac_lomac, OID_AUTO, enabled, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_lomac, OID_AUTO, enabled, CTLFLAG_RWTUN,
     &lomac_enabled, 0, "Enforce MAC/LOMAC policy");
-TUNABLE_INT("security.mac.lomac.enabled", &lomac_enabled);
 
 static int	destroyed_not_inited;
 SYSCTL_INT(_security_mac_lomac, OID_AUTO, destroyed_not_inited, CTLFLAG_RD,
     &destroyed_not_inited, 0, "Count of labels destroyed but not inited");
 
 static int	trust_all_interfaces = 0;
-SYSCTL_INT(_security_mac_lomac, OID_AUTO, trust_all_interfaces, CTLFLAG_RD,
+SYSCTL_INT(_security_mac_lomac, OID_AUTO, trust_all_interfaces, CTLFLAG_RDTUN,
     &trust_all_interfaces, 0, "Consider all interfaces 'trusted' by MAC/LOMAC");
-TUNABLE_INT("security.mac.lomac.trust_all_interfaces", &trust_all_interfaces);
 
 static char	trusted_interfaces[128];
-SYSCTL_STRING(_security_mac_lomac, OID_AUTO, trusted_interfaces, CTLFLAG_RD,
+SYSCTL_STRING(_security_mac_lomac, OID_AUTO, trusted_interfaces, CTLFLAG_RDTUN,
     trusted_interfaces, 0, "Interfaces considered 'trusted' by MAC/LOMAC");
-TUNABLE_STR("security.mac.lomac.trusted_interfaces", trusted_interfaces,
-    sizeof(trusted_interfaces));
 
 static int	ptys_equal = 0;
-SYSCTL_INT(_security_mac_lomac, OID_AUTO, ptys_equal, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_lomac, OID_AUTO, ptys_equal, CTLFLAG_RWTUN,
     &ptys_equal, 0, "Label pty devices as lomac/equal on create");
-TUNABLE_INT("security.mac.lomac.ptys_equal", &ptys_equal);
 
 static int	revocation_enabled = 1;
-SYSCTL_INT(_security_mac_lomac, OID_AUTO, revocation_enabled, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_lomac, OID_AUTO, revocation_enabled, CTLFLAG_RWTUN,
     &revocation_enabled, 0, "Revoke access to objects on relabel");
-TUNABLE_INT("security.mac.lomac.revocation_enabled", &revocation_enabled);
 
 static int	lomac_slot;
 #define	SLOT(l)	((struct mac_lomac *)mac_label_get((l), lomac_slot))
@@ -137,7 +131,7 @@ static int	lomac_slot;
     mac_label_get((l), lomac_slot))
 #define	PSLOT_SET(l, val) mac_label_set((l), lomac_slot, (uintptr_t)(val))
 
-MALLOC_DEFINE(M_LOMAC, "mac_lomac_label", "MAC/LOMAC labels");
+static MALLOC_DEFINE(M_LOMAC, "mac_lomac_label", "MAC/LOMAC labels");
 
 static struct mac_lomac *
 lomac_alloc(int flag)
@@ -565,11 +559,11 @@ maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
 	pgid = p->p_pgrp->pg_id;		/* XXX could be stale? */
 	if (vp != NULL && VOP_GETATTR(vp, &va, curthread->td_ucred) == 0) {
 		log(LOG_INFO, "LOMAC: level-%s subject p%dg%du%d:%s demoted to"
-		    " level %s after %s a level-%s %s (inode=%ld, "
+		    " level %s after %s a level-%s %s (inode=%ju, "
 		    "mountpount=%s)\n",
 		    subjlabeltext, p->p_pid, pgid, curthread->td_ucred->cr_uid,
 		    p->p_comm, subjtext, actionname, objlabeltext, objname,
-		    va.va_fileid, vp->v_mount->mnt_stat.f_mntonname);
+		    (uintmax_t)va.va_fileid, vp->v_mount->mnt_stat.f_mntonname);
 	} else {
 		log(LOG_INFO, "LOMAC: level-%s subject p%dg%du%d:%s demoted to"
 		    " level %s after %s a level-%s %s\n",
@@ -762,10 +756,10 @@ lomac_parse(struct mac_lomac *ml, char *string)
 
 	/* Do we have a range? */
 	single = string;
-	range = index(string, '(');
+	range = strchr(string, '(');
 	if (range == single)
 		single = NULL;
-	auxsingle = index(string, '[');
+	auxsingle = strchr(string, '[');
 	if (auxsingle == single)
 		single = NULL;
 	if (range != NULL && auxsingle != NULL)
@@ -776,13 +770,13 @@ lomac_parse(struct mac_lomac *ml, char *string)
 		*range = '\0';
 		range++;
 		rangelow = range;
-		rangehigh = index(rangelow, '-');
+		rangehigh = strchr(rangelow, '-');
 		if (rangehigh == NULL)
 			return (EINVAL);
 		rangehigh++;
 		if (*rangelow == '\0' || *rangehigh == '\0')
 			return (EINVAL);
-		rangeend = index(rangehigh, ')');
+		rangeend = strchr(rangehigh, ')');
 		if (rangeend == NULL)
 			return (EINVAL);
 		if (*(rangeend + 1) != '\0')
@@ -798,7 +792,7 @@ lomac_parse(struct mac_lomac *ml, char *string)
 		/* Nul terminate the end of the single string. */
 		*auxsingle = '\0';
 		auxsingle++;
-		auxsingleend = index(auxsingle, ']');
+		auxsingleend = strchr(auxsingle, ']');
 		if (auxsingleend == NULL)
 			return (EINVAL);
 		if (*(auxsingleend + 1) != '\0')
@@ -1032,18 +1026,21 @@ lomac_devfs_create_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
 {
 	struct mac_lomac *ml;
+	const char *dn;
 	int lomac_type;
 
 	ml = SLOT(delabel);
-	if (strcmp(dev->si_name, "null") == 0 ||
-	    strcmp(dev->si_name, "zero") == 0 ||
-	    strcmp(dev->si_name, "random") == 0 ||
-	    strncmp(dev->si_name, "fd/", strlen("fd/")) == 0 ||
-	    strncmp(dev->si_name, "ttyv", strlen("ttyv")) == 0)
+	dn = devtoname(dev);
+	if (strcmp(dn, "null") == 0 ||
+	    strcmp(dn, "zero") == 0 ||
+	    strcmp(dn, "random") == 0 ||
+	    strncmp(dn, "fd/", strlen("fd/")) == 0 ||
+	    strncmp(dn, "ttyv", strlen("ttyv")) == 0)
 		lomac_type = MAC_LOMAC_TYPE_EQUAL;
 	else if (ptys_equal &&
-	    (strncmp(dev->si_name, "ttyp", strlen("ttyp")) == 0 ||
-	    strncmp(dev->si_name, "ptyp", strlen("ptyp")) == 0))
+	    (strncmp(dn, "ttyp", strlen("ttyp")) == 0 ||
+	    strncmp(dn, "pts/", strlen("pts/")) == 0 ||
+	    strncmp(dn, "ptyp", strlen("ptyp")) == 0))
 		lomac_type = MAC_LOMAC_TYPE_EQUAL;
 	else
 		lomac_type = MAC_LOMAC_TYPE_HIGH;
@@ -1446,17 +1443,6 @@ lomac_mount_create(struct ucred *cred, struct mount *mp,
 }
 
 static void
-lomac_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_lomac *dest;
-
-	dest = SLOT(mlabel);
-
-	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
-}
-
-static void
 lomac_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
@@ -1486,7 +1472,7 @@ lomac_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 
 	dest = SLOT(mlabel);
 
-	/* XXX: where is the label for the firewall really comming from? */
+	/* XXX: where is the label for the firewall really coming from? */
 	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
 }
 
@@ -1829,12 +1815,9 @@ lomac_priv_check(struct ucred *cred, int priv)
 	 * Allow some but not all network privileges.  In general, dont allow
 	 * reconfiguring the network stack, just normal use.
 	 */
-	case PRIV_NETATALK_RESERVEDPORT:
 	case PRIV_NETINET_RESERVEDPORT:
 	case PRIV_NETINET_RAW:
 	case PRIV_NETINET_REUSEPORT:
-	case PRIV_NETIPX_RESERVEDPORT:
-	case PRIV_NETIPX_RAW:
 		break;
 
 	/*
@@ -2272,7 +2255,7 @@ lomac_thread_userret(struct thread *td)
 		crcopy(newcred, oldcred);
 		crhold(newcred);
 		lomac_copy(&subj->mac_lomac, SLOT(newcred->cr_label));
-		p->p_ucred = newcred;
+		proc_set_cred(p, newcred);
 		crfree(oldcred);
 		dodrop = 1;
 	out:
@@ -2470,7 +2453,7 @@ lomac_vnode_check_open(struct ucred *cred, struct vnode *vp,
 	obj = SLOT(vplabel);
 
 	/* XXX privilege override for admin? */
-	if (accmode & (VWRITE | VAPPEND | VADMIN)) {
+	if (accmode & VMODIFY_PERMS) {
 		if (!lomac_subject_dominate(subj, obj))
 			return (EACCES);
 	}
@@ -2985,8 +2968,6 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_mount_create = lomac_mount_create,
 	.mpo_mount_destroy_label = lomac_destroy_label,
 	.mpo_mount_init_label = lomac_init_label,
-
-	.mpo_netatalk_aarp_send = lomac_netatalk_aarp_send,
 
 	.mpo_netinet_arp_send = lomac_netinet_arp_send,
 	.mpo_netinet_firewall_reply = lomac_netinet_firewall_reply,

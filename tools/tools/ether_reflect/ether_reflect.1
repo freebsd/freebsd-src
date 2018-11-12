@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd December 23, 2008
-.Dt ether_reflect 1
+.Dt ETHER_REFLECT 1
 .Os
 .Sh NAME
 .Nm ether_reflect
@@ -39,7 +39,7 @@
 .Op Fl p
 .Op Fl d
 .Sh DESCRIPTION
-The 
+The
 .Nm
 command implements a simple ethernet packet reflector using the
 .Xr PCAP 3
@@ -91,10 +91,10 @@ are seen on ineterface em0.  The timeout is 1 millisecond.
 Rewrite the destination address in each packet to 00:00:00:aa:bb:cc
 before reflecting the packet.
 .Sh SEE ALSO
-.Xr ifconfig 8 ,
 .Xr tcpdump 1 ,
+.Xr bpf 2 ,
 .Xr pcap 4 ,
-.Xr bpf 2 .
+.Xr ifconfig 8
 .Sh HISTORY
 The
 .Nm
@@ -103,6 +103,7 @@ program first appeared in
 .Sh AUTHORS
 This
 manual page was written by
-.An George V. Neville-Neil Aq gnn@FreeBSD.org .
+.An George V. Neville-Neil Aq Mt gnn@FreeBSD.org .
 .Sh BUGS
-Should be reported to the author or to net@freebsd.org.
+Should be reported to the author or to
+.Aq Mt net@FreeBSD.org .

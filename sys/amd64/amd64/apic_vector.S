@@ -36,10 +36,35 @@
  * as well as IPI handlers.
  */
 
+#include "opt_smp.h"
+
 #include <machine/asmacros.h>
-#include <machine/apicreg.h>
+#include <machine/specialreg.h>
+#include <x86/apicreg.h>
 
 #include "assym.s"
+
+#ifdef SMP
+#define LK	lock ;
+#else
+#define LK
+#endif
+
+	.text
+	SUPERALIGN_TEXT
+	/* End Of Interrupt to APIC */
+as_lapic_eoi:
+	cmpl	$0,x2apic_mode
+	jne	1f
+	movq	lapic_map,%rax
+	movl	$0,LA_EOI(%rax)
+	ret
+1:
+	movl	$MSR_APIC_EOI,%ecx
+	xorl	%eax,%eax
+	xorl	%edx,%edx
+	wrmsr
+	ret
 
 /*
  * I/O Interrupt Entry Point.  Rather than having one entry point for
@@ -54,19 +79,24 @@
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
 	FAKE_MCOUNT(TF_RIP(%rsp)) ;					\
-	movq	lapic, %rdx ;	/* pointer to local APIC */		\
-	movl	LA_ISR + 16 * (index)(%rdx), %eax ;	/* load ISR */	\
-	bsrl	%eax, %eax ;	/* index of highset set bit in ISR */	\
-	jz	2f ;							\
-	addl	$(32 * index),%eax ;					\
+	cmpl	$0,x2apic_mode ;					\
+	je	1f ;							\
+	movl	$(MSR_APIC_ISR0 + index),%ecx ;				\
+	rdmsr ;								\
+	jmp	2f ;							\
 1: ;									\
+	movq	lapic_map, %rdx ;	/* pointer to local APIC */	\
+	movl	LA_ISR + 16 * (index)(%rdx), %eax ;	/* load ISR */	\
+2: ;									\
+	bsrl	%eax, %eax ;	/* index of highest set bit in ISR */	\
+	jz	3f ;							\
+	addl	$(32 * index),%eax ;					\
 	movq	%rsp, %rsi	;                                       \
 	movl	%eax, %edi ;	/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
+3: ;									\
 	MEXITCOUNT ;							\
-	jmp	doreti ;						\
-2:	movl	$-1, %eax ;	/* send a vector of -1 */		\
-	jmp	1b
+	jmp	doreti
 
 /*
  * Handle "spurious INTerrupts".
@@ -81,7 +111,7 @@ IDTVEC(spuriousint)
 
 	/* No EOI cycle used here */
 
-	iretq
+	jmp	doreti_iret
 
 	ISR_VEC(1, apic_isr1)
 	ISR_VEC(2, apic_isr2)
@@ -104,46 +134,88 @@ IDTVEC(timerint)
 	MEXITCOUNT
 	jmp	doreti
 
+/*
+ * Local APIC CMCI handler.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(cmcint)
+	PUSH_FRAME
+	FAKE_MCOUNT(TF_RIP(%rsp))
+	call	lapic_handle_cmc
+	MEXITCOUNT
+	jmp	doreti
+
+/*
+ * Local APIC error interrupt handler.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(errorint)
+	PUSH_FRAME
+	FAKE_MCOUNT(TF_RIP(%rsp))
+	call	lapic_handle_error
+	MEXITCOUNT
+	jmp	doreti
+
+#ifdef XENHVM
+/*
+ * Xen event channel upcall interrupt handler.
+ * Only used when the hypervisor supports direct vector callbacks.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(xen_intr_upcall)
+	PUSH_FRAME
+	FAKE_MCOUNT(TF_RIP(%rsp))
+	movq	%rsp, %rdi
+	call	xen_intr_handle_upcall
+	MEXITCOUNT
+	jmp	doreti
+#endif
+
 #ifdef SMP
 /*
  * Global address space TLB shootdown.
  */
 	.text
+
+	SUPERALIGN_TEXT
+invltlb_ret:
+	call	as_lapic_eoi
+	POP_FRAME
+	jmp	doreti_iret
+
 	SUPERALIGN_TEXT
 IDTVEC(invltlb)
-	pushq	%rax
+	PUSH_FRAME
 
-	movq	%cr3, %rax		/* invalidate the TLB */
-	movq	%rax, %cr3
+	call	invltlb_handler
+	jmp	invltlb_ret
 
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+IDTVEC(invltlb_pcid)
+	PUSH_FRAME
 
-	lock
-	incl	smp_tlb_wait
+	call	invltlb_pcid_handler
+	jmp	invltlb_ret
 
-	popq	%rax
-	iretq
+IDTVEC(invltlb_invpcid)
+	PUSH_FRAME
+
+	call	invltlb_invpcid_handler
+	jmp	invltlb_ret
 
 /*
  * Single page TLB shootdown
  */
 	.text
+
 	SUPERALIGN_TEXT
 IDTVEC(invlpg)
-	pushq	%rax
+	PUSH_FRAME
 
-	movq	smp_tlb_addr1, %rax
-	invlpg	(%rax)			/* invalidate single page */
-
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
-
-	lock
-	incl	smp_tlb_wait
-
-	popq	%rax
-	iretq
+	call	invlpg_handler
+	jmp	invltlb_ret
 
 /*
  * Page range TLB shootdown.
@@ -151,25 +223,10 @@ IDTVEC(invlpg)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(invlrng)
-	pushq	%rax
-	pushq	%rdx
+	PUSH_FRAME
 
-	movq	smp_tlb_addr1, %rdx
-	movq	smp_tlb_addr2, %rax
-1:	invlpg	(%rdx)			/* invalidate single page */
-	addq	$PAGE_SIZE, %rdx
-	cmpq	%rax, %rdx
-	jb	1b
-
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
-
-	lock
-	incl	smp_tlb_wait
-
-	popq	%rdx
-	popq	%rax
-	iretq
+	call	invlrng_handler
+	jmp	invltlb_ret
 
 /*
  * Invalidate cache.
@@ -177,18 +234,10 @@ IDTVEC(invlrng)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(invlcache)
-	pushq	%rax
+	PUSH_FRAME
 
-	wbinvd
-
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
-
-	lock
-	incl	smp_tlb_wait
-
-	popq	%rax
-	iretq
+	call	invlcache_handler
+	jmp	invltlb_ret
 
 /*
  * Handler for IPIs sent via the per-cpu IPI bitmap.
@@ -198,8 +247,7 @@ IDTVEC(invlcache)
 IDTVEC(ipi_intr_bitmap_handler)		
 	PUSH_FRAME
 
-	movq	lapic, %rdx
-	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 	
 	FAKE_MCOUNT(TF_RIP(%rsp))
 
@@ -215,8 +263,7 @@ IDTVEC(ipi_intr_bitmap_handler)
 IDTVEC(cpustop)
 	PUSH_FRAME
 
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 
 	call	cpustop_handler
 	jmp	doreti
@@ -229,13 +276,9 @@ IDTVEC(cpustop)
 IDTVEC(cpususpend)
 	PUSH_FRAME
 
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
-
 	call	cpususpend_handler
-
-	POP_FRAME
-	iretq
+	call	as_lapic_eoi
+	jmp	doreti
 
 /*
  * Executed by a CPU when it receives a RENDEZVOUS IPI from another CPU.
@@ -246,8 +289,43 @@ IDTVEC(cpususpend)
 	SUPERALIGN_TEXT
 IDTVEC(rendezvous)
 	PUSH_FRAME
+#ifdef COUNT_IPIS
+	movl	PCPU(CPUID), %eax
+	movq	ipi_rendezvous_counts(,%rax,8), %rax
+	incq	(%rax)
+#endif
 	call	smp_rendezvous_action
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 	jmp	doreti
+
+/*
+ * IPI handler whose purpose is to interrupt the CPU with minimum overhead.
+ * This is used by bhyve to force a host cpu executing in guest context to
+ * trap into the hypervisor.
+ *
+ * This handler is different from other IPI handlers in the following aspects:
+ *
+ * 1. It doesn't push a trapframe on the stack.
+ *
+ * This implies that a DDB backtrace involving 'justreturn' will skip the
+ * function that was interrupted by this handler.
+ *
+ * 2. It doesn't 'swapgs' when userspace is interrupted.
+ *
+ * The 'justreturn' handler does not access any pcpu data so it is not an
+ * issue. Moreover the 'justreturn' handler can only be interrupted by an NMI
+ * whose handler already doesn't trust GS.base when kernel code is interrupted.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(justreturn)
+	pushq	%rax
+	pushq	%rcx
+	pushq	%rdx
+	call	as_lapic_eoi
+	popq	%rdx
+	popq	%rcx
+	popq	%rax
+	jmp	doreti_iret
+
 #endif /* SMP */

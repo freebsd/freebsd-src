@@ -46,31 +46,30 @@
 /*
  * Basic types upon which most other types are built.
  */
-typedef	__signed char		__int8_t;
+typedef	signed char		__int8_t;
 typedef	unsigned char		__uint8_t;
 typedef	short			__int16_t;
 typedef	unsigned short		__uint16_t;
 typedef	int			__int32_t;
 typedef	unsigned int		__uint32_t;
-
-#ifdef __GNUCLIKE_ATTRIBUTE_MODE_DI
-typedef	int __attribute__((__mode__(__DI__)))		__int64_t;
-typedef	unsigned int __attribute__((__mode__(__DI__)))	__uint64_t;
-#else
+#ifndef lint
+__extension__
+#endif
 /* LONGLONG */
 typedef	long long		__int64_t;
+#ifndef lint
+__extension__
+#endif
 /* LONGLONG */
 typedef	unsigned long long	__uint64_t;
-#endif
 
 /*
  * Standard type definitions.
  */
 typedef	__uint32_t	__clock_t;		/* clock()... */
-typedef	unsigned int	__cpumask_t;
 typedef	__int32_t	__critical_t;
 typedef	double		__double_t;
-typedef	double		__float_t;
+typedef	float		__float_t;
 typedef	__int32_t	__intfptr_t;
 typedef	__int64_t	__intmax_t;
 typedef	__int32_t	__intptr_t;
@@ -105,6 +104,10 @@ typedef	__int64_t	__vm_ooffset_t;
 typedef	__uint32_t	__vm_paddr_t;
 typedef	__uint64_t	__vm_pindex_t;
 typedef	__uint32_t	__vm_size_t;
+
+typedef	unsigned int	___wchar_t;
+#define	__WCHAR_MIN	0		/* min value for a wchar_t */
+#define	__WCHAR_MAX	__UINT_MAX	/* max value for a wchar_t */
 
 /*
  * Unusual type definitions.

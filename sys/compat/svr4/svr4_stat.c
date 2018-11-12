@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/filedesc.h>
+#include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -106,9 +107,9 @@ bsd_to_svr4_stat(st, st4)
 	st4->st_gid = st->st_gid;
 	st4->st_rdev = bsd_to_svr4_odev_t(st->st_rdev);
 	st4->st_size = st->st_size;
-	st4->st_atim = st->st_atimespec.tv_sec;
-	st4->st_mtim = st->st_mtimespec.tv_sec;
-	st4->st_ctim = st->st_ctimespec.tv_sec;
+	st4->st_atim = st->st_atim.tv_sec;
+	st4->st_mtim = st->st_mtim.tv_sec;
+	st4->st_ctim = st->st_ctim.tv_sec;
 }
 #endif
 
@@ -127,9 +128,9 @@ bsd_to_svr4_xstat(st, st4)
 	st4->st_gid = st->st_gid;
 	st4->st_rdev = bsd_to_svr4_dev_t(st->st_rdev);
 	st4->st_size = st->st_size;
-	st4->st_atim = st->st_atimespec;
-	st4->st_mtim = st->st_mtimespec;
-	st4->st_ctim = st->st_ctimespec;
+	st4->st_atim = st->st_atim;
+	st4->st_mtim = st->st_mtim;
+	st4->st_ctim = st->st_ctim;
 	st4->st_blksize = st->st_blksize;
 	st4->st_blocks = st->st_blocks;
 	strcpy(st4->st_fstype, "unknown");
@@ -150,9 +151,9 @@ bsd_to_svr4_stat64(st, st4)
 	st4->st_gid = st->st_gid;
 	st4->st_rdev = bsd_to_svr4_dev_t(st->st_rdev);
 	st4->st_size = st->st_size;
-	st4->st_atim = st->st_atimespec;
-	st4->st_mtim = st->st_mtimespec;
-	st4->st_ctim = st->st_ctimespec;
+	st4->st_atim = st->st_atim;
+	st4->st_mtim = st->st_mtim;
+	st4->st_ctim = st->st_ctim;
 	st4->st_blksize = st->st_blksize;
 	st4->st_blocks = st->st_blocks;
 	strcpy(st4->st_fstype, "unknown");
@@ -170,7 +171,7 @@ svr4_sys_stat(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_stat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, 0, AT_FDCWD, path, UIO_SYSSPACE, &st, NULL);
 	free(path, M_TEMP);
 	if (error)
 		return (error);
@@ -195,7 +196,8 @@ svr4_sys_lstat(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_lstat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, path,
+	    UIO_SYSSPACE, &st, NULL);
 	free(path, M_TEMP);
 	if (error)
 		return (error);
@@ -238,7 +240,7 @@ svr4_sys_xstat(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_stat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, 0, AT_FDCWD, path, UIO_SYSSPACE, &st, NULL);
 	free(path, M_TEMP);
 	if (error)
 		return (error);
@@ -265,7 +267,8 @@ svr4_sys_lxstat(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_lstat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, path,
+	    UIO_SYSSPACE, &st, NULL);
 	free(path, M_TEMP);
 	if (error)
 		return (error);
@@ -309,7 +312,7 @@ svr4_sys_stat64(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_stat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, 0, AT_FDCWD, path, UIO_SYSSPACE, &st, NULL);
 	free(path, M_TEMP);
 	if (error)
 		return (error);
@@ -335,7 +338,8 @@ svr4_sys_lstat64(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_lstat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, path,
+	    UIO_SYSSPACE, &st, NULL);
 	free(path, M_TEMP);
 	if (error)
 		return (error);
@@ -582,7 +586,8 @@ svr4_sys_utime(td, uap)
 		tp = NULL;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_utimes(td, path, UIO_SYSSPACE, tp, UIO_SYSSPACE);
+	error = kern_utimesat(td, AT_FDCWD, path, UIO_SYSSPACE,
+	    tp, UIO_SYSSPACE);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -597,7 +602,8 @@ svr4_sys_utimes(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_utimes(td, path, UIO_SYSSPACE, uap->tptr, UIO_USERSPACE);
+	error = kern_utimesat(td, AT_FDCWD, path, UIO_SYSSPACE,
+	    uap->tptr, UIO_USERSPACE);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -694,6 +700,6 @@ svr4_sys_fpathconf(td, uap)
 		*retval = 0;
 		return 0;
 	default:
-		return fpathconf(td, (struct fpathconf_args *)uap);
+		return sys_fpathconf(td, (struct fpathconf_args *)uap);
 	}
 }

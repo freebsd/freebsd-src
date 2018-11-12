@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
 #include <sys/smp.h>
@@ -65,12 +66,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
-#ifdef XEN
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-#endif
-
 #define	KTDSTATE(td)							\
 	(((td)->td_inhibitors & TDI_SLEEPING) != 0 ? "sleep"  :		\
 	((td)->td_inhibitors & TDI_SUSPENDED) != 0 ? "suspended" :	\
@@ -83,7 +78,7 @@ SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup,
     NULL);
 
 int	hogticks;
-static int pause_wchan;
+static uint8_t pause_wchan[MAXCPU];
 
 static struct callout loadav_callout;
 
@@ -100,13 +95,15 @@ static fixpt_t cexp[3] = {
 };
 
 /* kernel uses `FSCALE', userland (SHOULD) use kern.fscale */
-static int      fscale __unused = FSCALE;
-SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
+SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, FSCALE, "");
 
 static void	loadav(void *arg);
 
-void
-sleepinit(void)
+SDT_PROVIDER_DECLARE(sched);
+SDT_PROBE_DEFINE(sched, , , preempt);
+
+static void
+sleepinit(void *unused)
 {
 
 	hogticks = (hz / 10) * 2;	/* Default only. */
@@ -114,13 +111,19 @@ sleepinit(void)
 }
 
 /*
+ * vmem tries to lock the sleepq mutexes when free'ing kva, so make sure
+ * it is available.
+ */
+SYSINIT(sleepinit, SI_SUB_KMEM, SI_ORDER_ANY, sleepinit, 0);
+
+/*
  * General sleep call.  Suspends the current thread until a wakeup is
  * performed on the specified identifier.  The thread will then be made
- * runnable with the specified priority.  Sleeps at most timo/hz seconds
- * (0 means no timeout).  If pri includes PCATCH flag, signals are checked
- * before and after sleeping, else signals are not checked.  Returns 0 if
+ * runnable with the specified priority.  Sleeps at most sbt units of time
+ * (0 means no timeout).  If pri includes the PCATCH flag, let signals
+ * interrupt the sleep, otherwise ignore them while sleeping.  Returns 0 if
  * awakened, EWOULDBLOCK if the timeout expires.  If PCATCH is set and a
- * signal needs to be delivered, ERESTART is returned if the current system
+ * signal becomes pending, ERESTART is returned if the current system
  * call should be restarted if possible, and EINTR is returned if the system
  * call should be interrupted by the signal (return EINTR).
  *
@@ -130,23 +133,24 @@ sleepinit(void)
  */
 int
 _sleep(void *ident, struct lock_object *lock, int priority,
-    const char *wmesg, int timo)
+    const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 {
 	struct thread *td;
 	struct proc *p;
 	struct lock_class *class;
-	int catch, flags, lock_state, pri, rval;
+	uintptr_t lock_state;
+	int catch, pri, rval, sleepq_flags;
 	WITNESS_SAVE_DECL(lock_witness);
 
 	td = curthread;
 	p = td->td_proc;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(1, 0);
+		ktrcsw(1, 0, wmesg);
 #endif
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Sleeping on \"%s\"", wmesg);
-	KASSERT(timo != 0 || mtx_owned(&Giant) || lock != NULL,
+	KASSERT(sbt != 0 || mtx_owned(&Giant) || lock != NULL,
 	    ("sleeping without a lock"));
 	KASSERT(p != NULL, ("msleep1"));
 	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
@@ -158,15 +162,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	else
 		class = NULL;
 
-	if (cold) {
-		/*
-		 * During autoconfiguration, just return;
-		 * don't run any other threads or panic below,
-		 * in case this is the idle thread and already asleep.
-		 * XXX: this used to do "s = splhigh(); splx(safepri);
-		 * splx(s);" to give interrupts a chance, but there is
-		 * no way to give interrupts a chance now.
-		 */
+	if (SCHEDULER_STOPPED()) {
 		if (lock != NULL && priority & PDROP)
 			class->lc_unlock(lock);
 		return (0);
@@ -182,14 +178,13 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	if (TD_ON_SLEEPQ(td))
 		sleepq_remove(td, td->td_wchan);
 
-	if (ident == &pause_wchan)
-		flags = SLEEPQ_PAUSE;
+	if ((uint8_t *)ident >= &pause_wchan[0] &&
+	    (uint8_t *)ident <= &pause_wchan[MAXCPU - 1])
+		sleepq_flags = SLEEPQ_PAUSE;
 	else
-		flags = SLEEPQ_SLEEP;
+		sleepq_flags = SLEEPQ_SLEEP;
 	if (catch)
-		flags |= SLEEPQ_INTERRUPTIBLE;
-	if (priority & PBDRY)
-		flags |= SLEEPQ_STOP_ON_BDRY;
+		sleepq_flags |= SLEEPQ_INTERRUPTIBLE;
 
 	sleepq_lock(ident);
 	CTR5(KTR_PROC, "sleep: thread %ld (pid %ld, %s) on %s (%p)",
@@ -215,18 +210,18 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	 * stopped, then td will no longer be on a sleep queue upon
 	 * return from cursig().
 	 */
-	sleepq_add(ident, lock, wmesg, flags, 0);
-	if (timo)
-		sleepq_set_timeout(ident, timo);
+	sleepq_add(ident, lock, wmesg, sleepq_flags, 0);
+	if (sbt != 0)
+		sleepq_set_timeout_sbt(ident, sbt, pr, flags);
 	if (lock != NULL && class->lc_flags & LC_SLEEPABLE) {
 		sleepq_release(ident);
 		WITNESS_SAVE(lock, lock_witness);
 		lock_state = class->lc_unlock(lock);
 		sleepq_lock(ident);
 	}
-	if (timo && catch)
+	if (sbt != 0 && catch)
 		rval = sleepq_timedwait_sig(ident, pri);
-	else if (timo)
+	else if (sbt != 0)
 		rval = sleepq_timedwait(ident, pri);
 	else if (catch)
 		rval = sleepq_wait_sig(ident, pri);
@@ -236,7 +231,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	}
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(0, 0);
+		ktrcsw(0, 0, wmesg);
 #endif
 	PICKUP_GIANT();
 	if (lock != NULL && lock != &Giant.lock_object && !(priority & PDROP)) {
@@ -247,7 +242,8 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 }
 
 int
-msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
+msleep_spin_sbt(void *ident, struct mtx *mtx, const char *wmesg,
+    sbintime_t sbt, sbintime_t pr, int flags)
 {
 	struct thread *td;
 	struct proc *p;
@@ -260,17 +256,8 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 	KASSERT(p != NULL, ("msleep1"));
 	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
 
-	if (cold) {
-		/*
-		 * During autoconfiguration, just return;
-		 * don't run any other threads or panic below,
-		 * in case this is the idle thread and already asleep.
-		 * XXX: this used to do "s = splhigh(); splx(safepri);
-		 * splx(s);" to give interrupts a chance, but there is
-		 * no way to give interrupts a chance now.
-		 */
+	if (SCHEDULER_STOPPED())
 		return (0);
-	}
 
 	sleepq_lock(ident);
 	CTR5(KTR_PROC, "msleep_spin: thread %ld (pid %ld, %s) on %s (%p)",
@@ -285,8 +272,8 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 	 * We put ourselves on the sleep queue and start our timeout.
 	 */
 	sleepq_add(ident, &mtx->lock_object, wmesg, SLEEPQ_SLEEP, 0);
-	if (timo)
-		sleepq_set_timeout(ident, timo);
+	if (sbt != 0)
+		sleepq_set_timeout_sbt(ident, sbt, pr, flags);
 
 	/*
 	 * Can't call ktrace with any spin locks held so it can lock the
@@ -298,7 +285,7 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW)) {
 		sleepq_release(ident);
-		ktrcsw(1, 0);
+		ktrcsw(1, 0, wmesg);
 		sleepq_lock(ident);
 	}
 #endif
@@ -308,7 +295,7 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 	    wmesg);
 	sleepq_lock(ident);
 #endif
-	if (timo)
+	if (sbt != 0)
 		rval = sleepq_timedwait(ident, 0);
 	else {
 		sleepq_wait(ident, 0);
@@ -316,7 +303,7 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 	}
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(0, 0);
+		ktrcsw(0, 0, wmesg);
 #endif
 	PICKUP_GIANT();
 	mtx_lock_spin(mtx);
@@ -325,17 +312,37 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 }
 
 /*
- * pause() is like tsleep() except that the intention is to not be
- * explicitly woken up by another thread.  Instead, the current thread
- * simply wishes to sleep until the timeout expires.  It is
- * implemented using a dummy wait channel.
+ * pause() delays the calling thread by the given number of system ticks.
+ * During cold bootup, pause() uses the DELAY() function instead of
+ * the tsleep() function to do the waiting. The "timo" argument must be
+ * greater than or equal to zero. A "timo" value of zero is equivalent
+ * to a "timo" value of one.
  */
 int
-pause(const char *wmesg, int timo)
+pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 {
+	KASSERT(sbt >= 0, ("pause: timeout must be >= 0"));
 
-	KASSERT(timo != 0, ("pause: timeout required"));
-	return (tsleep(&pause_wchan, 0, wmesg, timo));
+	/* silently convert invalid timeouts */
+	if (sbt == 0)
+		sbt = tick_sbt;
+
+	if (cold || kdb_active || SCHEDULER_STOPPED()) {
+		/*
+		 * We delay one second at a time to avoid overflowing the
+		 * system specific DELAY() function(s):
+		 */
+		while (sbt >= SBT_1S) {
+			DELAY(1000000);
+			sbt -= SBT_1S;
+		}
+		/* Do the delay remainder, if any */
+		sbt = howmany(sbt, SBT_1US);
+		if (sbt > 0)
+			DELAY(sbt);
+		return (0);
+	}
+	return (_sleep(&pause_wchan[curcpu], NULL, 0, wmesg, sbt, pr, flags));
 }
 
 /*
@@ -390,19 +397,15 @@ mi_switch(int flags, struct thread *newtd)
 {
 	uint64_t runtime, new_switchtime;
 	struct thread *td;
-	struct proc *p;
 
 	td = curthread;			/* XXX */
 	THREAD_LOCK_ASSERT(td, MA_OWNED | MA_NOTRECURSED);
-	p = td->td_proc;		/* XXX */
 	KASSERT(!TD_ON_RUNQ(td), ("mi_switch: called by old code"));
 #ifdef INVARIANTS
 	if (!TD_ON_LOCK(td) && !TD_IS_RUNNING(td))
 		mtx_assert(&Giant, MA_NOTOWNED);
 #endif
-	KASSERT(td->td_critnest == 1 || (td->td_critnest == 2 &&
-	    (td->td_owepreempt) && (flags & SW_INVOL) != 0 &&
-	    newtd == NULL) || panicstr,
+	KASSERT(td->td_critnest == 1 || panicstr,
 	    ("mi_switch: switch in a critical section"));
 	KASSERT((flags & (SW_INVOL | SW_VOL)) != 0,
 	    ("mi_switch: switch must be voluntary or involuntary"));
@@ -413,10 +416,15 @@ mi_switch(int flags, struct thread *newtd)
 	 */
 	if (kdb_active)
 		kdb_switch();
-	if (flags & SW_VOL)
+	if (SCHEDULER_STOPPED())
+		return;
+	if (flags & SW_VOL) {
 		td->td_ru.ru_nvcsw++;
-	else
+		td->td_swvoltick = ticks;
+	} else {
 		td->td_ru.ru_nivcsw++;
+		td->td_swinvoltick = ticks;
+	}
 #ifdef SCHED_STATS
 	SCHED_STAT_INC(sched_switch_stats[flags & SW_TYPE_MASK]);
 #endif
@@ -433,7 +441,7 @@ mi_switch(int flags, struct thread *newtd)
 	PCPU_INC(cnt.v_swtch);
 	PCPU_SET(switchticks, ticks);
 	CTR4(KTR_PROC, "mi_switch: old thread %ld (td_sched %p, pid %ld, %s)",
-	    td->td_tid, td->td_sched, p->p_pid, td->td_name);
+	    td->td_tid, td_get_sched(td), td->td_proc->p_pid, td->td_name);
 #if (KTR_COMPILE & KTR_SCHED) != 0
 	if (TD_IS_IDLETHREAD(td))
 		KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "idle",
@@ -443,15 +451,13 @@ mi_switch(int flags, struct thread *newtd)
 		    "prio:%d", td->td_priority, "wmesg:\"%s\"", td->td_wmesg,
 		    "lockname:\"%s\"", td->td_lockname);
 #endif
-#ifdef XEN
-	PT_UPDATES_FLUSH();
-#endif
+	SDT_PROBE0(sched, , , preempt);
 	sched_switch(td, newtd, flags);
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "running",
 	    "prio:%d", td->td_priority);
 
 	CTR4(KTR_PROC, "mi_switch: new thread %ld (td_sched %p, pid %ld, %s)",
-	    td->td_tid, td->td_sched, p->p_pid, td->td_name);
+	    td->td_tid, td_get_sched(td), td->td_proc->p_pid, td->td_name);
 
 	/* 
 	 * If the last thread was exiting, finish cleaning it up.
@@ -524,29 +530,63 @@ loadav(void *arg)
 	 * random variation to avoid synchronisation with processes that
 	 * run at regular intervals.
 	 */
-	callout_reset(&loadav_callout, hz * 4 + (int)(random() % (hz * 2 + 1)),
-	    loadav, NULL);
+	callout_reset_sbt(&loadav_callout,
+	    SBT_1US * (4000000 + (int)(random() % 2000001)), SBT_1US,
+	    loadav, NULL, C_DIRECT_EXEC | C_PREL(32));
 }
 
 /* ARGSUSED */
 static void
 synch_setup(void *dummy)
 {
-	callout_init(&loadav_callout, CALLOUT_MPSAFE);
+	callout_init(&loadav_callout, 1);
 
 	/* Kick off timeout driven events by calling first time. */
 	loadav(NULL);
+}
+
+int
+should_yield(void)
+{
+
+	return ((u_int)ticks - (u_int)curthread->td_swvoltick >= hogticks);
+}
+
+void
+maybe_yield(void)
+{
+
+	if (should_yield())
+		kern_yield(PRI_USER);
+}
+
+void
+kern_yield(int prio)
+{
+	struct thread *td;
+
+	td = curthread;
+	DROP_GIANT();
+	thread_lock(td);
+	if (prio == PRI_USER)
+		prio = td->td_user_pri;
+	if (prio >= 0)
+		sched_prio(td, prio);
+	mi_switch(SW_VOL | SWT_RELINQUISH, NULL);
+	thread_unlock(td);
+	PICKUP_GIANT();
 }
 
 /*
  * General purpose yield system call.
  */
 int
-yield(struct thread *td, struct yield_args *uap)
+sys_yield(struct thread *td, struct yield_args *uap)
 {
 
 	thread_lock(td);
-	sched_prio(td, PRI_MAX_TIMESHARE);
+	if (PRI_BASE(td->td_pri_class) == PRI_TIMESHARE)
+		sched_prio(td, PRI_MAX_TIMESHARE);
 	mi_switch(SW_VOL | SWT_RELINQUISH, NULL);
 	thread_unlock(td);
 	td->td_retval[0] = 0;

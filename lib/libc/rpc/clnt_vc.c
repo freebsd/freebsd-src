@@ -1,32 +1,31 @@
 /*	$NetBSD: clnt_vc.c,v 1.4 2000/07/14 08:40:42 fvdl Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice, 
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, 
+ *   this list of conditions and the following disclaimer in the documentation 
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its 
+ *   contributors may be used to endorse or promote products derived 
+ *   from this software without specific prior written permission.
  * 
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- * 
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- * 
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- * 
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -142,7 +141,6 @@ static cond_t   *vc_cv;
 
 static const char clnt_vc_errstr[] = "%s : %s";
 static const char clnt_vc_str[] = "clnt_vc_create";
-static const char clnt_read_vc_str[] = "read_vc";
 static const char __no_mem_str[] = "out of memory";
 
 /*
@@ -155,15 +153,17 @@ static const char __no_mem_str[] = "out of memory";
  * set this something more useful.
  *
  * fd should be an open socket
+ *
+ * fd - open file descriptor
+ * raddr - servers address
+ * prog  - program number
+ * vers  - version number
+ * sendsz - buffer send size
+ * recvsz - buffer recv size
  */
 CLIENT *
-clnt_vc_create(fd, raddr, prog, vers, sendsz, recvsz)
-	int fd;				/* open file descriptor */
-	const struct netbuf *raddr;	/* servers address */
-	const rpcprog_t prog;			/* program number */
-	const rpcvers_t vers;			/* version number */
-	u_int sendsz;			/* buffer recv size */
-	u_int recvsz;			/* buffer send size */
+clnt_vc_create(int fd, const struct netbuf *raddr, const rpcprog_t prog,
+    const rpcvers_t vers, u_int sendsz, u_int recvsz)
 {
 	CLIENT *cl;			/* client handle */
 	struct ct_data *ct = NULL;	/* client handle */
@@ -260,7 +260,7 @@ clnt_vc_create(fd, raddr, prog, vers, sendsz, recvsz)
 	if (ct->ct_addr.buf == NULL)
 		goto err;
 	memcpy(ct->ct_addr.buf, raddr->buf, raddr->len);
-	ct->ct_addr.len = raddr->maxlen;
+	ct->ct_addr.len = raddr->len;
 	ct->ct_addr.maxlen = raddr->maxlen;
 
 	/*
@@ -302,27 +302,19 @@ clnt_vc_create(fd, raddr, prog, vers, sendsz, recvsz)
 	return (cl);
 
 err:
-	if (cl) {
-		if (ct) {
-			if (ct->ct_addr.len)
-				mem_free(ct->ct_addr.buf, ct->ct_addr.len);
-			mem_free(ct, sizeof (struct ct_data));
-		}
-		if (cl)
-			mem_free(cl, sizeof (CLIENT));
+	if (ct) {
+		if (ct->ct_addr.len)
+			mem_free(ct->ct_addr.buf, ct->ct_addr.len);
+		mem_free(ct, sizeof (struct ct_data));
 	}
+	if (cl)
+		mem_free(cl, sizeof (CLIENT));
 	return ((CLIENT *)NULL);
 }
 
 static enum clnt_stat
-clnt_vc_call(cl, proc, xdr_args, args_ptr, xdr_results, results_ptr, timeout)
-	CLIENT *cl;
-	rpcproc_t proc;
-	xdrproc_t xdr_args;
-	void *args_ptr;
-	xdrproc_t xdr_results;
-	void *results_ptr;
-	struct timeval timeout;
+clnt_vc_call(CLIENT *cl, rpcproc_t proc, xdrproc_t xdr_args, void *args_ptr,
+    xdrproc_t xdr_results, void *results_ptr, struct timeval timeout)
 {
 	struct ct_data *ct = (struct ct_data *) cl->cl_private;
 	XDR *xdrs = &(ct->ct_xdrs);
@@ -465,9 +457,7 @@ call_again:
 }
 
 static void
-clnt_vc_geterr(cl, errp)
-	CLIENT *cl;
-	struct rpc_err *errp;
+clnt_vc_geterr(CLIENT *cl, struct rpc_err *errp)
 {
 	struct ct_data *ct;
 
@@ -479,10 +469,7 @@ clnt_vc_geterr(cl, errp)
 }
 
 static bool_t
-clnt_vc_freeres(cl, xdr_res, res_ptr)
-	CLIENT *cl;
-	xdrproc_t xdr_res;
-	void *res_ptr;
+clnt_vc_freeres(CLIENT *cl, xdrproc_t xdr_res, void *res_ptr)
 {
 	struct ct_data *ct;
 	XDR *xdrs;
@@ -511,16 +498,26 @@ clnt_vc_freeres(cl, xdr_res, res_ptr)
 
 /*ARGSUSED*/
 static void
-clnt_vc_abort(cl)
-	CLIENT *cl;
+clnt_vc_abort(CLIENT *cl)
 {
 }
 
+static __inline void
+htonlp(void *dst, const void *src, uint32_t incr)
+{
+	/* We are aligned, so we think */
+	*(uint32_t *)dst = htonl(*(const uint32_t *)src + incr);
+}
+
+static __inline void
+ntohlp(void *dst, const void *src)
+{
+	/* We are aligned, so we think */
+	*(uint32_t *)dst = htonl(*(const uint32_t *)src);
+}
+
 static bool_t
-clnt_vc_control(cl, request, info)
-	CLIENT *cl;
-	u_int request;
-	void *info;
+clnt_vc_control(CLIENT *cl, u_int request, void *info)
 {
 	struct ct_data *ct;
 	void *infop = info;
@@ -593,49 +590,39 @@ clnt_vc_control(cl, request, info)
 		 * first element in the call structure
 		 * This will get the xid of the PREVIOUS call
 		 */
-		*(u_int32_t *)info =
-		    ntohl(*(u_int32_t *)(void *)&ct->ct_u.ct_mcalli);
+		ntohlp(info, &ct->ct_u.ct_mcalli);
 		break;
 	case CLSET_XID:
 		/* This will set the xid of the NEXT call */
-		*(u_int32_t *)(void *)&ct->ct_u.ct_mcalli =
-		    htonl(*((u_int32_t *)info) + 1);
 		/* increment by 1 as clnt_vc_call() decrements once */
+		htonlp(&ct->ct_u.ct_mcalli, info, 1);
 		break;
 	case CLGET_VERS:
 		/*
 		 * This RELIES on the information that, in the call body,
 		 * the version number field is the fifth field from the
-		 * begining of the RPC header. MUST be changed if the
+		 * beginning of the RPC header. MUST be changed if the
 		 * call_struct is changed
 		 */
-		*(u_int32_t *)info =
-		    ntohl(*(u_int32_t *)(void *)(ct->ct_u.ct_mcallc +
-		    4 * BYTES_PER_XDR_UNIT));
+		ntohlp(info, ct->ct_u.ct_mcallc + 4 * BYTES_PER_XDR_UNIT);
 		break;
 
 	case CLSET_VERS:
-		*(u_int32_t *)(void *)(ct->ct_u.ct_mcallc +
-		    4 * BYTES_PER_XDR_UNIT) =
-		    htonl(*(u_int32_t *)info);
+		htonlp(ct->ct_u.ct_mcallc + 4 * BYTES_PER_XDR_UNIT, info, 0);
 		break;
 
 	case CLGET_PROG:
 		/*
 		 * This RELIES on the information that, in the call body,
 		 * the program number field is the fourth field from the
-		 * begining of the RPC header. MUST be changed if the
+		 * beginning of the RPC header. MUST be changed if the
 		 * call_struct is changed
 		 */
-		*(u_int32_t *)info =
-		    ntohl(*(u_int32_t *)(void *)(ct->ct_u.ct_mcallc +
-		    3 * BYTES_PER_XDR_UNIT));
+		ntohlp(info, ct->ct_u.ct_mcallc + 3 * BYTES_PER_XDR_UNIT);
 		break;
 
 	case CLSET_PROG:
-		*(u_int32_t *)(void *)(ct->ct_u.ct_mcallc +
-		    3 * BYTES_PER_XDR_UNIT) =
-		    htonl(*(u_int32_t *)info);
+		htonlp(ct->ct_u.ct_mcallc + 3 * BYTES_PER_XDR_UNIT, info, 0);
 		break;
 
 	default:
@@ -648,8 +635,7 @@ clnt_vc_control(cl, request, info)
 
 
 static void
-clnt_vc_destroy(cl)
-	CLIENT *cl;
+clnt_vc_destroy(CLIENT *cl)
 {
 	struct ct_data *ct = (struct ct_data *) cl->cl_private;
 	int ct_fd = ct->ct_fd;
@@ -669,9 +655,12 @@ clnt_vc_destroy(cl)
 		(void)_close(ct->ct_fd);
 	}
 	XDR_DESTROY(&(ct->ct_xdrs));
-	if (ct->ct_addr.buf)
-		free(ct->ct_addr.buf);
+	free(ct->ct_addr.buf);
 	mem_free(ct, sizeof(struct ct_data));
+	if (cl->cl_netid && cl->cl_netid[0])
+		mem_free(cl->cl_netid, strlen(cl->cl_netid) +1);
+	if (cl->cl_tp && cl->cl_tp[0])
+		mem_free(cl->cl_tp, strlen(cl->cl_tp) +1);
 	mem_free(cl, sizeof(CLIENT));
 	mutex_unlock(&clnt_fd_lock);
 	thr_sigsetmask(SIG_SETMASK, &(mask), NULL);
@@ -684,10 +673,7 @@ clnt_vc_destroy(cl)
  * around for the rpc level.
  */
 static int
-read_vc(ctp, buf, len)
-	void *ctp;
-	void *buf;
-	int len;
+read_vc(void *ctp, void *buf, int len)
 {
 	struct sockaddr sa;
 	socklen_t sal;
@@ -741,10 +727,7 @@ read_vc(ctp, buf, len)
 }
 
 static int
-write_vc(ctp, buf, len)
-	void *ctp;
-	void *buf;
-	int len;
+write_vc(void *ctp, void *buf, int len)
 {
 	struct sockaddr sa;
 	socklen_t sal;
@@ -775,7 +758,7 @@ write_vc(ctp, buf, len)
 }
 
 static struct clnt_ops *
-clnt_vc_ops()
+clnt_vc_ops(void)
 {
 	static struct clnt_ops ops;
 	sigset_t mask, newmask;
@@ -803,18 +786,14 @@ clnt_vc_ops()
  * Note this is different from time_not_ok in clnt_dg.c
  */
 static bool_t
-time_not_ok(t)
-	struct timeval *t;
+time_not_ok(struct timeval *t)
 {
 	return (t->tv_sec <= -1 || t->tv_sec > 100000000 ||
 		t->tv_usec <= -1 || t->tv_usec > 1000000);
 }
 
 static int
-__msgread(sock, buf, cnt)
-	int sock;
-	void *buf;
-	size_t cnt;
+__msgread(int sock, void *buf, size_t cnt)
 {
 	struct iovec iov[1];
 	struct msghdr msg;
@@ -839,10 +818,7 @@ __msgread(sock, buf, cnt)
 }
 
 static int
-__msgwrite(sock, buf, cnt)
-	int sock;
-	void *buf;
-	size_t cnt;
+__msgwrite(int sock, void *buf, size_t cnt)
 {
 	struct iovec iov[1];
 	struct msghdr msg;

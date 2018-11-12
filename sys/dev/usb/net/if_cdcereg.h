@@ -38,13 +38,18 @@
 #define	CDCE_FRAMES_MAX	8		/* units */
 #define	CDCE_IND_SIZE_MAX 32            /* bytes */
 
-#define	CDCE_NCM_TX_MAXLEN 2048UL	/* bytes */
+#define	CDCE_NCM_TX_MINLEN 512		/* bytes, must be power of two */
+#define	CDCE_NCM_TX_MAXLEN (16384 + 4)	/* bytes, must be short terminated */
 #define	CDCE_NCM_TX_FRAMES_MAX 8	/* units */
 
 #define	CDCE_NCM_RX_MAXLEN (1UL << 14)	/* bytes */
 #define	CDCE_NCM_RX_FRAMES_MAX 1	/* units */
 
 #define	CDCE_NCM_SUBFRAMES_MAX 32	/* units */
+
+#define	CDCE_NCM_ALIGN(rem,off,mod) \
+    ((uint32_t)(((uint32_t)(rem)) - \
+    ((uint32_t)((-(uint32_t)(off)) & (-(uint32_t)(mod))))))
 
 #ifndef CDCE_HAVE_NCM
 #define	CDCE_HAVE_NCM 1
@@ -68,6 +73,7 @@ struct cdce_ncm {
 	uint16_t tx_modulus;
 	uint16_t tx_struct_align;
 	uint16_t tx_seq;
+	uint16_t tx_nframe;
 };
 
 struct cdce_softc {
@@ -87,6 +93,10 @@ struct cdce_softc {
 
 	uint8_t sc_eaddr_str_index;
 	uint8_t	sc_ifaces_index[2];
+	uint8_t sc_notify_state;
+#define	CDCE_NOTIFY_NETWORK_CONNECTION	0
+#define	CDCE_NOTIFY_SPEED_CHANGE	1
+#define	CDCE_NOTIFY_DONE		2
 };
 
 #define	CDCE_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)

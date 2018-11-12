@@ -89,8 +89,8 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 	nport = isa_get_logicalid(dev) ? 1 : 6;
 	for (rid = 0; ; rid++) {
 		newrid = rid;
-		res = bus_alloc_resource(dev, SYS_RES_IOPORT, &newrid,
-		    0ul, ~0ul, rid == 0 ? nport : 1, RF_ACTIVE);
+		res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &newrid,
+		    rid == 0 ? nport : 1, RF_ACTIVE);
 		if (res == NULL)
 			break;
 		/*
@@ -190,7 +190,9 @@ fdc_isa_attach(device_t dev)
 		error = fdc_attach(dev);
 	if (error == 0)
 		error = fdc_hints_probe(dev);
-	if (error)
+	if (error == 0)
+		fdc_start_worker(dev);
+	else
 		fdc_release_resources(fdc);
 	return (error);
 }

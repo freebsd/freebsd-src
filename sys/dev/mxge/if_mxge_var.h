@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-Copyright (c) 2006-2009, Myricom Inc.
+Copyright (c) 2006-2013, Myricom Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,15 @@ $FreeBSD$
 #define IFNET_BUF_RING 1
 #endif
 
+#if (__FreeBSD_version < 1000020)
+#undef IF_Kbps
+#undef IF_Mbps
+#undef IF_Gbps
+#define	IF_Kbps(x)	((uintmax_t)(x) * 1000)	/* kilobits/sec. */
+#define	IF_Mbps(x)	(IF_Kbps((x) * 1000))	/* megabits/sec. */
+#define	IF_Gbps(x)	(IF_Mbps((x) * 1000))	/* gigabits/sec. */
+#endif
+
 #ifndef VLAN_CAPABILITIES
 #define VLAN_CAPABILITIES(ifp)
 #define mxge_vlans_active(sc) (sc)->ifp->if_nvlans
@@ -73,10 +82,33 @@ $FreeBSD$
 #define IFCAP_TSO4 0
 #endif
 
+#ifndef IFCAP_TSO6
+#define IFCAP_TSO6 0
+#endif
+
+#ifndef IFCAP_TXCSUM_IPV6
+#define IFCAP_TXCSUM_IPV6 0
+#endif
+
+#ifndef IFCAP_RXCSUM_IPV6
+#define IFCAP_RXCSUM_IPV6 0
+#endif
+
 #ifndef CSUM_TSO
 #define CSUM_TSO 0
 #endif
 
+#ifndef CSUM_TCP_IPV6
+#define CSUM_TCP_IPV6 0
+#endif
+
+#ifndef CSUM_UDP_IPV6
+#define CSUM_UDP_IPV6 0
+#endif
+
+#ifndef CSUM_DELAY_DATA_IPV6
+#define CSUM_DELAY_DATA_IPV6 0
+#endif
 
 typedef struct {
 	void *addr;
@@ -158,31 +190,6 @@ typedef struct
 	char mtx_name[16];
 } mxge_tx_ring_t;
 
-struct lro_entry;
-struct lro_entry
-{
-	SLIST_ENTRY(lro_entry) next;
-	struct mbuf  	*m_head;
-	struct mbuf	*m_tail;
-	int		timestamp;
-	struct ip	*ip;
-	uint32_t	tsval;
-	uint32_t	tsecr;
-	uint32_t	source_ip;
-	uint32_t	dest_ip;
-	uint32_t	next_seq;
-	uint32_t	ack_seq;
-	uint32_t	len;
-	uint32_t	data_csum;
-	uint16_t	window;
-	uint16_t	source_port;
-	uint16_t	dest_port;
-	uint16_t	append_cnt;
-	uint16_t	mss;
-	
-};
-SLIST_HEAD(lro_head, lro_entry);
-
 struct mxge_softc;
 typedef struct mxge_softc mxge_softc_t;
 
@@ -200,11 +207,7 @@ struct mxge_slice_state {
 	u_long omcasts;
 	u_long oerrors;
 	int if_drv_flags;
-	struct lro_head lro_active;
-	struct lro_head lro_free;
-	int lro_queued;
-	int lro_flushed;
-	int lro_bad_csum;
+	struct lro_ctrl lc;
 	mxge_dma_t fw_stats_dma;
 	struct sysctl_oid *sysctl_tree;
 	struct sysctl_ctx_list sysctl_ctx;
@@ -214,7 +217,6 @@ struct mxge_slice_state {
 struct mxge_softc {
 	struct ifnet* ifp;
 	struct mxge_slice_state *ss;
-	int csum_flag;			/* rx_csums? 		*/
 	int tx_boundary;		/* boundary transmits cannot cross*/
 	int lro_cnt;
 	bus_dma_tag_t	parent_dmat;
@@ -268,8 +270,13 @@ struct mxge_softc {
 	int num_slices;
 	int rx_ring_size;
 	int dying;
+	int connector;
+	int current_media;
+	int max_tso6_hlen;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
+	struct taskqueue *tq;
+	struct task watchdog_task;
 	struct sysctl_oid *slice_sysctl_tree;
 	struct sysctl_ctx_list slice_sysctl_ctx;
 	char *mac_addr_string;
@@ -291,6 +298,12 @@ struct mxge_softc {
 #define MXGE_MIN_THROTTLE	416
 #define MXGE_MAX_THROTTLE	4096
 
+/* Types of connectors on NICs supported by this driver */
+#define MXGE_CX4 0
+#define MXGE_XFP 1
+#define MXGE_SFP 2
+#define MXGE_QRF 3
+
 #define MXGE_HIGHPART_TO_U32(X) \
 (sizeof (X) == 8) ? ((uint32_t)((uint64_t)(X) >> 32)) : (0)
 #define MXGE_LOWPART_TO_U32(X) ((uint32_t)(X))
@@ -301,6 +314,15 @@ struct mxge_media_type
 	uint8_t bitmask;
 	char *name;
 };
+
+struct mxge_pkt_info {
+	int ip_off;
+	int ip_hlen;
+	struct ip *ip;
+	struct ip6_hdr *ip6;
+	struct tcphdr *tcp;
+};
+
 
 /* implement our own memory barriers, since bus_space_barrier
    cannot handle write-combining regions */

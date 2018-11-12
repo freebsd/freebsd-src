@@ -59,17 +59,15 @@ __FBSDID("$FreeBSD$");
 #define PCCARDDEBUG
 
 /* sysctl vars */
-SYSCTL_NODE(_hw, OID_AUTO, pccard, CTLFLAG_RD, 0, "PCCARD parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, pccard, CTLFLAG_RD, 0, "PCCARD parameters");
 
 int	pccard_debug = 0;
-TUNABLE_INT("hw.pccard.debug", &pccard_debug);
-SYSCTL_INT(_hw_pccard, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_pccard, OID_AUTO, debug, CTLFLAG_RWTUN,
     &pccard_debug, 0,
   "pccard debug");
 
 int	pccard_cis_debug = 0;
-TUNABLE_INT("hw.pccard.cis_debug", &pccard_cis_debug);
-SYSCTL_INT(_hw_pccard, OID_AUTO, cis_debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_pccard, OID_AUTO, cis_debug, CTLFLAG_RWTUN,
     &pccard_cis_debug, 0, "pccard CIS debug");
 
 #ifdef PCCARDDEBUG
@@ -99,9 +97,9 @@ static void	pccard_print_resources(struct resource_list *rl,
 		    const char *name, int type, int count, const char *format);
 static int	pccard_print_child(device_t dev, device_t child);
 static int	pccard_set_resource(device_t dev, device_t child, int type,
-		    int rid, u_long start, u_long count);
+		    int rid, rman_res_t start, rman_res_t count);
 static int	pccard_get_resource(device_t dev, device_t child, int type,
-		    int rid, u_long *startp, u_long *countp);
+		    int rid, rman_res_t *startp, rman_res_t *countp);
 static void	pccard_delete_resource(device_t dev, device_t child, int type,
 		    int rid);
 static int	pccard_set_res_flags(device_t dev, device_t child, int type,
@@ -115,8 +113,8 @@ static int	pccard_read_ivar(device_t bus, device_t child, int which,
 		    uintptr_t *result);
 static void	pccard_driver_added(device_t dev, driver_t *driver);
 static struct resource *pccard_alloc_resource(device_t dev,
-		    device_t child, int type, int *rid, u_long start,
-		    u_long end, u_long count, u_int flags);
+		    device_t child, int type, int *rid, rman_res_t start,
+		    rman_res_t end, rman_res_t count, u_int flags);
 static int	pccard_release_resource(device_t dev, device_t child, int type,
 		    int rid, struct resource *r);
 static void	pccard_child_detached(device_t parent, device_t dev);
@@ -473,8 +471,10 @@ pccard_function_init(struct pccard_function *pf, int entry)
 	struct resource_list *rl = &devi->resources;
 	struct resource_list_entry *rle;
 	struct resource *r = 0;
+	struct pccard_ce_iospace *ios;
+	struct pccard_ce_memspace *mems;
 	device_t bus;
-	u_long start, end, len;
+	rman_res_t start, end, len;
 	int i, rid, spaces;
 
 	if (pf->pf_flags & PFF_ENABLED) {
@@ -501,44 +501,50 @@ pccard_function_init(struct pccard_function *pf, int entry)
 			continue;
 		spaces = 0;
 		for (i = 0; i < cfe->num_iospace; i++) {
-			start = cfe->iospace[i].start;
+			ios = cfe->iospace + i;
+			start = ios->start;
 			if (start)
-				end = start + cfe->iospace[i].length - 1;
+				end = start + ios->length - 1;
 			else
-				end = ~0UL;
-			DEVPRINTF((bus, "I/O rid %d start %#lx end %#lx\n",
+				end = ~0;
+			DEVPRINTF((bus, "I/O rid %d start %#jx end %#jx\n",
 			    i, start, end));
 			rid = i;
-			len = cfe->iospace[i].length;
+			len = ios->length;
 			r = bus_alloc_resource(bus, SYS_RES_IOPORT, &rid,
 			    start, end, len, rman_make_alignment_flags(len));
-			if (r == NULL)
+			if (r == NULL) {
+				DEVPRINTF((bus, "I/O rid %d failed\n", i));
 				goto not_this_one;
+			}
 			rle = resource_list_add(rl, SYS_RES_IOPORT,
-			    rid, rman_get_start(r), rman_get_end(r),
-			    cfe->iospace[i].length);
+			    rid, rman_get_start(r), rman_get_end(r), len);
 			if (rle == NULL)
 				panic("Cannot add resource rid %d IOPORT", rid);
 			rle->res = r;
 			spaces++;
 		}
 		for (i = 0; i < cfe->num_memspace; i++) {
-			start = cfe->memspace[i].hostaddr;
+			mems = cfe->memspace + i;
+			start = mems->cardaddr + mems->hostaddr;
 			if (start)
-				end = start + cfe->memspace[i].length - 1;
+				end = start + mems->length - 1;
 			else
-				end = ~0UL;
-			DEVPRINTF((bus, "Memory rid %d start %#lx end %#lx\n",
-			    i, start, end));
+				end = ~0;
+			DEVPRINTF((bus, "Memory rid %d start %#jx end %#jx\ncardaddr %#jx hostaddr %#jx length %#jx\n",
+			    i, start, end, mems->cardaddr, mems->hostaddr,
+			    mems->length));
 			rid = i;
-			len = cfe->memspace[i].length;
+			len = mems->length;
 			r = bus_alloc_resource(bus, SYS_RES_MEMORY, &rid,
 			    start, end, len, rman_make_alignment_flags(len));
-			if (r == NULL)
-				goto not_this_one;
+			if (r == NULL) {
+				DEVPRINTF((bus, "Memory rid %d failed\n", i));
+//				goto not_this_one;
+				continue;
+			}
 			rle = resource_list_add(rl, SYS_RES_MEMORY,
-			    rid, rman_get_start(r), rman_get_end(r),
-			    cfe->memspace[i].length);
+			    rid, rman_get_start(r), rman_get_end(r), len);
 			if (rle == NULL)
 				panic("Cannot add resource rid %d MEM", rid);
 			rle->res = r;
@@ -552,8 +558,10 @@ pccard_function_init(struct pccard_function *pf, int entry)
 			rid = 0;
 			r = bus_alloc_resource_any(bus, SYS_RES_IRQ, &rid,
 			    RF_SHAREABLE);
-			if (r == NULL)
+			if (r == NULL) {
+				DEVPRINTF((bus, "IRQ rid %d failed\n", rid));
 				goto not_this_one;
+			}
 			rle = resource_list_add(rl, SYS_RES_IRQ, rid,
 			    rman_get_start(r), rman_get_end(r), 1);
 			if (rle == NULL)
@@ -594,7 +602,7 @@ pccard_function_free(struct pccard_function *pf)
 				device_printf(pf->sc->dev,
 				    "function_free: Resource still owned by "
 				    "child, oops. "
-				    "(type=%d, rid=%d, addr=%#lx)\n",
+				    "(type=%d, rid=%d, addr=%#jx)\n",
 				    rle->type, rle->rid,
 				    rman_get_start(rle->res));
 			BUS_RELEASE_RESOURCE(device_get_parent(pf->sc->dev),
@@ -606,8 +614,8 @@ pccard_function_free(struct pccard_function *pf)
 }
 
 static void
-pccard_mfc_adjust_iobase(struct pccard_function *pf, bus_addr_t addr,
-    bus_addr_t offset, bus_size_t size)
+pccard_mfc_adjust_iobase(struct pccard_function *pf, rman_res_t addr,
+    rman_res_t offset, rman_res_t size)
 {
 	bus_size_t iosize, tmp;
 
@@ -685,11 +693,11 @@ pccard_function_enable(struct pccard_function *pf)
 	}
 	if (tmp == NULL) {
 		pf->ccr_rid = 0;
-		pf->ccr_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-		    &pf->ccr_rid, 0, ~0, PCCARD_MEM_PAGE_SIZE, RF_ACTIVE);
+		pf->ccr_res = bus_alloc_resource_anywhere(dev, SYS_RES_MEMORY,
+		    &pf->ccr_rid, PCCARD_MEM_PAGE_SIZE, RF_ACTIVE);
 		if (!pf->ccr_res)
 			goto bad;
-		DEVPRINTF((dev, "ccr_res == %#lx-%#lx, base=%#x\n",
+		DEVPRINTF((dev, "ccr_res == %#jx-%#jx, base=%#x\n",
 		    rman_get_start(pf->ccr_res), rman_get_end(pf->ccr_res),
 		    pf->ccr_base));
 		CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
@@ -915,7 +923,7 @@ pccard_print_child(device_t dev, device_t child)
 
 static int
 pccard_set_resource(device_t dev, device_t child, int type, int rid,
-    u_long start, u_long count)
+    rman_res_t start, rman_res_t count)
 {
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct resource_list *rl = &devi->resources;
@@ -944,7 +952,7 @@ pccard_set_resource(device_t dev, device_t child, int type, int rid,
 
 static int
 pccard_get_resource(device_t dev, device_t child, int type, int rid,
-    u_long *startp, u_long *countp)
+    rman_res_t *startp, rman_res_t *countp)
 {
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct resource_list *rl = &devi->resources;
@@ -1017,26 +1025,6 @@ pccard_child_location_str(device_t bus, device_t child, char *buf,
 	return (0);
 }
 
-/* XXX Maybe this should be in subr_bus? */
-static void
-pccard_safe_quote(char *dst, const char *src, size_t len)
-{
-	char *walker = dst, *ep = dst + len - 1;
-
-	if (len == 0)
-		return;
-	while (src != NULL && walker < ep)
-	{
-		if (*src == '"') {
-			if (ep - walker < 2)
-				break;
-			*walker++ = '\\';
-		}
-		*walker++ = *src++;
-	}
-	*walker = '\0';
-}
-
 static int
 pccard_child_pnpinfo_str(device_t bus, device_t child, char *buf,
     size_t buflen)
@@ -1046,8 +1034,8 @@ pccard_child_pnpinfo_str(device_t bus, device_t child, char *buf,
 	struct pccard_softc *sc = PCCARD_SOFTC(bus);
 	char cis0[128], cis1[128];
 
-	pccard_safe_quote(cis0, sc->card.cis1_info[0], sizeof(cis0));
-	pccard_safe_quote(cis1, sc->card.cis1_info[1], sizeof(cis1));
+	devctl_safe_quote(cis0, sc->card.cis1_info[0], sizeof(cis0));
+	devctl_safe_quote(cis1, sc->card.cis1_info[1], sizeof(cis1));
 	snprintf(buf, buflen, "manufacturer=0x%04x product=0x%04x "
 	    "cisvendor=\"%s\" cisproduct=\"%s\" function_type=%d",
 	    sc->card.manufacturer, sc->card.product, cis0, cis1, pf->function);
@@ -1124,12 +1112,12 @@ pccard_driver_added(device_t dev, driver_t *driver)
 
 static struct resource *
 pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct pccard_ivar *dinfo;
 	struct resource_list_entry *rle = 0;
 	int passthrough = (device_get_parent(child) != dev);
-	int isdefault = (start == 0 && end == ~0UL && count == 1);
+	int isdefault = (RMAN_IS_DEFAULT_RANGE(start, end) && count == 1);
 	struct resource *r = NULL;
 
 	/* XXX I'm no longer sure this is right */
@@ -1189,7 +1177,7 @@ pccard_release_resource(device_t dev, device_t child, int type, int rid,
 
 	if (!rle) {
 		device_printf(dev, "Allocated resource not found, "
-		    "%d %#x %#lx %#lx\n",
+		    "%d %#x %#jx %#jx\n",
 		    type, rid, rman_get_start(r), rman_get_size(r));
 		return ENOENT;
 	}
@@ -1405,8 +1393,8 @@ pccard_ccr_read_impl(device_t brdev, device_t child, uint32_t offset,
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 
 	*val = pccard_ccr_read(devi->pf, offset);
-	device_printf(child, "ccr_read of %#x (%#x) is %#x\n", offset,
-	  devi->pf->pf_ccr_offset, *val);
+	DEVPRINTF((child, "ccr_read of %#x (%#x) is %#x\n", offset,
+	  devi->pf->pf_ccr_offset, *val));
 	return 0;
 }
 
@@ -1421,8 +1409,8 @@ pccard_ccr_write_impl(device_t brdev, device_t child, uint32_t offset,
 	 * Can't use pccard_ccr_write since client drivers may access
 	 * registers not contained in the 'mask' if they are non-standard.
 	 */
-	device_printf(child, "ccr_write of %#x to %#x (%#x)\n", val, offset,
-	  devi->pf->pf_ccr_offset);
+	DEVPRINTF((child, "ccr_write of %#x to %#x (%#x)\n", val, offset,
+	  devi->pf->pf_ccr_offset));
 	bus_space_write_1(pf->pf_ccrt, pf->pf_ccrh, pf->pf_ccr_offset + offset,
 	    val);
 	return 0;

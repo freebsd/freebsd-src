@@ -27,9 +27,9 @@
 .\"	$FreeBSD$
 .\"
 .\" The following commands are required for all man pages.
-.Dd October 30, 2007
-.Os
+.Dd January 26, 2010
 .Dt GSS_INDICATE_MECHS 3 PRM
+.Os
 .Sh NAME
 .Nm gss_indicate_mechs
 .Nd Determine available underlying authentication mechanisms
@@ -46,7 +46,7 @@
 Allows an application to determine which underlying security
 mechanisms are available.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It minor_status"
 .It minor_status
 Mechanism specific status code.
 .It mech_set
@@ -58,14 +58,14 @@ that should be released by the caller after use with a call to
 .Fn gss_release_oid_set .
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_COMPLETE"
 .It GSS_S_COMPLETE
 Successful completion
 .El
 .Sh SEE ALSO
 .Xr gss_release_oid_set 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744
@@ -74,7 +74,7 @@ Generic Security Service API Version 2 : C-bindings
 .Sh HISTORY
 The
 .Nm
-manual page example first appeared in
+function first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
 John Wray, Iris Associates

@@ -2,14 +2,8 @@
  * EAP server/peer: EAP-GPSK shared routines
  * Copyright (c) 2006-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef EAP_GPSK_COMMON_H
@@ -59,6 +53,12 @@ int eap_gpsk_derive_keys(const u8 *psk, size_t psk_len, int vendor,
 			 const u8 *id_server, size_t id_server_len,
 			 u8 *msk, u8 *emsk, u8 *sk, size_t *sk_len,
 			 u8 *pk, size_t *pk_len);
+int eap_gpsk_derive_session_id(const u8 *psk, size_t psk_len, int vendor,
+			       int specifier,
+			       const u8 *rand_peer, const u8 *rand_server,
+			       const u8 *id_peer, size_t id_peer_len,
+			       const u8 *id_server, size_t id_server_len,
+			       u8 method_type, u8 *sid, size_t *sid_len);
 size_t eap_gpsk_mic_len(int vendor, int specifier);
 int eap_gpsk_compute_mic(const u8 *sk, size_t sk_len, int vendor,
 			 int specifier, const u8 *data, size_t len, u8 *mic);

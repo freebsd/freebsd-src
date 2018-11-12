@@ -64,7 +64,7 @@
 #define		RSTBUS			0x10
 
 #define	BUSDEF				0x0C4
-#define		B0uS			0x00	/* give up bus immediatly */
+#define		B0uS			0x00	/* give up bus immediately */
 #define		B4uS			0x01	/* delay 4uSec. */
 #define		B8uS			0x02	/* delay 8uSec. */
 
@@ -255,12 +255,13 @@ struct ecb {
 	ecb_state		 state;
 	union ccb		*ccb;
 	bus_dmamap_t		 dmamap;
+	struct callout		 timer;
 };
 
 struct ahb_softc {
 	device_t		 dev;
-	bus_space_tag_t		 tag;
-	bus_space_handle_t	 bsh;
+	struct	resource	*res;
+	struct	mtx		 lock;
 	struct	cam_sim		*sim;
 	struct	cam_path	*path;
 	SLIST_HEAD(,ecb)	 free_ecbs;
@@ -274,7 +275,6 @@ struct ahb_softc {
 	struct	ecb		*immed_ecb;
 	struct	ha_inquiry_data	*ha_inq_data;
 	u_int32_t		 ha_inq_physbase;
-	u_long			 unit;
 	u_int			 init_level;
 	u_int			 scsi_id;
 	u_int			 num_ecbs;

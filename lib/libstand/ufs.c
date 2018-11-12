@@ -24,7 +24,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -155,9 +155,9 @@ read_inode(inumber, f)
 	 * Read inode and save it.
 	 */
 	buf = malloc(fs->fs_bsize);
-	twiddle();
+	twiddle(1);
 	rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-		fsbtodb(fs, ino_to_fsba(fs, inumber)), fs->fs_bsize,
+		fsbtodb(fs, ino_to_fsba(fs, inumber)), 0, fs->fs_bsize,
 		buf, &rsize);
 	if (rc)
 		goto out;
@@ -265,9 +265,9 @@ block_map(f, file_block, disk_block_p)
 			if (fp->f_blk[level] == (char *)0)
 				fp->f_blk[level] =
 					malloc(fs->fs_bsize);
-			twiddle();
+			twiddle(1);
 			rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-				fsbtodb(fp->f_fs, ind_block_num),
+				fsbtodb(fp->f_fs, ind_block_num), 0,
 				fs->fs_bsize,
 				fp->f_blk[level],
 				&fp->f_blksize[level]);
@@ -346,9 +346,9 @@ buf_write_file(f, buf_p, size_p)
 		if (fp->f_buf == (char *)0)
 			fp->f_buf = malloc(fs->fs_bsize);
 
-		twiddle();
+		twiddle(4);
 		rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-			fsbtodb(fs, disk_block),
+			fsbtodb(fs, disk_block), 0,
 			block_size, fp->f_buf, &fp->f_buf_size);
 		if (rc)
 			return (rc);
@@ -365,9 +365,9 @@ buf_write_file(f, buf_p, size_p)
 	 *	Write the block out to storage.
 	 */
 
-	twiddle();
+	twiddle(4);
 	rc = (f->f_dev->dv_strategy)(f->f_devdata, F_WRITE,
-		fsbtodb(fs, disk_block),
+		fsbtodb(fs, disk_block), 0,
 		block_size, fp->f_buf, &fp->f_buf_size);
 	return (rc);
 }
@@ -406,9 +406,9 @@ buf_read_file(f, buf_p, size_p)
 			bzero(fp->f_buf, block_size);
 			fp->f_buf_size = block_size;
 		} else {
-			twiddle();
+			twiddle(4);
 			rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-				fsbtodb(fs, disk_block),
+				fsbtodb(fs, disk_block), 0,
 				block_size, fp->f_buf, &fp->f_buf_size);
 			if (rc)
 				return (rc);
@@ -515,13 +515,13 @@ ufs_open(upath, f)
 	/* allocate space and read super block */
 	fs = malloc(SBLOCKSIZE);
 	fp->f_fs = fs;
-	twiddle();
+	twiddle(1);
 	/*
 	 * Try reading the superblock in each of its possible locations.
 	 */
 	for (i = 0; sblock_try[i] != -1; i++) {
 		rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
-		    sblock_try[i] / DEV_BSIZE, SBLOCKSIZE,
+		    sblock_try[i] / DEV_BSIZE, 0, SBLOCKSIZE,
 		    (char *)fs, &buf_size);
 		if (rc)
 			goto out;
@@ -649,9 +649,9 @@ ufs_open(upath, f)
 				if (rc)
 					goto out;
 				
-				twiddle();
+				twiddle(1);
 				rc = (f->f_dev->dv_strategy)(f->f_devdata,
-					F_READ, fsbtodb(fs, disk_block),
+					F_READ, fsbtodb(fs, disk_block), 0,
 					fs->fs_bsize, buf, &buf_size);
 				if (rc)
 					goto out;

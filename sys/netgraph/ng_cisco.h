@@ -76,8 +76,8 @@ struct ng_cisco_ipaddr {
 }
 
 struct ng_cisco_stats {
-	u_int32_t   seqRetries;		/* # unack'd retries */
-	u_int32_t   keepAlivePeriod;	/* in seconds */
+	uint32_t   seqRetries;		/* # unack'd retries */
+	uint32_t   keepAlivePeriod;	/* in seconds */
 };
 
 /* Keep this in sync with the above structure definition */

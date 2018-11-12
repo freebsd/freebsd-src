@@ -43,6 +43,7 @@
 #include <machine/in_cksum.h>
 
 #include <netinet/libalias/alias.h>
+#include <netinet/libalias/alias_local.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
@@ -144,6 +145,14 @@ static const struct ng_parse_type ng_nat_list_redirects_type = {
 	&ng_nat_list_redirects_fields
 };
 
+/* Parse type for struct ng_nat_libalias_info. */
+static const struct ng_parse_struct_field ng_nat_libalias_info_fields[]
+	= NG_NAT_LIBALIAS_INFO;
+static const struct ng_parse_type ng_nat_libalias_info_type = {
+	&ng_parse_struct_type,
+	&ng_nat_libalias_info_fields
+};
+
 /* List of commands and how to convert arguments to/from ASCII. */
 static const struct ng_cmdlist ng_nat_cmdlist[] = {
 	{
@@ -223,6 +232,13 @@ static const struct ng_cmdlist ng_nat_cmdlist[] = {
 	  &ng_parse_string_type,
 	  NULL
 	},
+	{
+	  NGM_NAT_COOKIE,
+	  NGM_NAT_LIBALIAS_INFO,
+	  "libaliasinfo",
+	  NULL,
+	  &ng_nat_libalias_info_type
+	},
 	{ 0 }
 };
 
@@ -272,17 +288,10 @@ ng_nat_constructor(node_p node)
 	priv_p priv;
 
 	/* Initialize private descriptor. */
-	priv = malloc(sizeof(*priv), M_NETGRAPH,
-		M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	/* Init aliasing engine. */
 	priv->lib = LibAliasInit(NULL);
-	if (priv->lib == NULL) {
-		free(priv, M_NETGRAPH);
-		return (ENOMEM);
-	}
 
 	/* Set same ports on. */
 	(void )LibAliasSetMode(priv->lib, PKT_ALIAS_SAME_PORTS,
@@ -653,6 +662,36 @@ ng_nat_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = ENOMEM;
 		    }
 			break;
+		case NGM_NAT_LIBALIAS_INFO:
+		    {
+			struct ng_nat_libalias_info *i;
+
+			NG_MKRESPONSE(resp, msg,
+			    sizeof(struct ng_nat_libalias_info), M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			i = (struct ng_nat_libalias_info *)resp->data;
+#define	COPY(F)	do {						\
+	if (priv->lib->F >= 0 && priv->lib->F < UINT32_MAX)	\
+		i->F = priv->lib->F;				\
+	else							\
+		i->F = UINT32_MAX;				\
+} while (0)
+		
+			COPY(icmpLinkCount);
+			COPY(udpLinkCount);
+			COPY(tcpLinkCount);
+			COPY(pptpLinkCount);
+			COPY(sctpLinkCount);
+			COPY(protoLinkCount);
+			COPY(fragmentIdLinkCount);
+			COPY(fragmentPtrLinkCount);
+			COPY(sockCount);
+#undef COPY
+		    }
+			break;
 		default:
 			error = EINVAL;		/* unknown command */
 			break;
@@ -703,22 +742,35 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 	KASSERT(m->m_pkthdr.len == ntohs(ip->ip_len),
 	    ("ng_nat: ip_len != m_pkthdr.len"));
 
+	/*
+	 * We drop packet when:
+	 * 1. libalias returns PKT_ALIAS_ERROR;
+	 * 2. For incoming packets:
+	 *	a) for unresolved fragments;
+	 *	b) libalias returns PKT_ALIAS_IGNORED and
+	 *		PKT_ALIAS_DENY_INCOMING flag is set.
+	 */
 	if (hook == priv->in) {
 		rval = LibAliasIn(priv->lib, c, m->m_len + M_TRAILINGSPACE(m));
-		if (rval != PKT_ALIAS_OK &&
-		    rval != PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
+		if (rval == PKT_ALIAS_ERROR ||
+		    rval == PKT_ALIAS_UNRESOLVED_FRAGMENT ||
+		    (rval == PKT_ALIAS_IGNORED &&
+		     (priv->lib->packetAliasMode &
+		      PKT_ALIAS_DENY_INCOMING) != 0)) {
 			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
 	} else if (hook == priv->out) {
 		rval = LibAliasOut(priv->lib, c, m->m_len + M_TRAILINGSPACE(m));
-		if (rval != PKT_ALIAS_OK) {
+		if (rval == PKT_ALIAS_ERROR) {
 			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
 	} else
 		panic("ng_nat: unknown hook!\n");
 
+	if (rval == PKT_ALIAS_RESPOND)
+		m->m_flags |= M_SKIP_FIREWALL;
 	m->m_pkthdr.len = m->m_len = ntohs(ip->ip_len);
 
 	if ((ip->ip_off & htons(IP_OFFMASK)) == 0 &&
@@ -749,18 +801,18 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 		 */
 
 		if (th->th_x2) {
+			uint16_t ip_len = ntohs(ip->ip_len);
+
 			th->th_x2 = 0;
-			ip->ip_len = ntohs(ip->ip_len);
 			th->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(IPPROTO_TCP +
-			    ip->ip_len - (ip->ip_hl << 2)));
+			    ip_len - (ip->ip_hl << 2)));
 	
 			if ((m->m_pkthdr.csum_flags & CSUM_TCP) == 0) {
 				m->m_pkthdr.csum_data = offsetof(struct tcphdr,
 				    th_sum);
 				in_delayed_cksum(m);
 			}
-			ip->ip_len = htons(ip->ip_len);
 		}
 	}
 
@@ -786,7 +838,7 @@ ng_nat_shutdown(node_p node)
 		struct ng_nat_rdr_lst *entry = STAILQ_FIRST(&priv->redirhead);
 		STAILQ_REMOVE_HEAD(&priv->redirhead, entries);
 		free(entry, M_NETGRAPH);
-	};
+	}
 
 	/* Final free. */
 	LibAliasUninit(priv->lib);

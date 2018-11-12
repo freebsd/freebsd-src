@@ -37,6 +37,7 @@
 #define _DEV_MWL_MVVAR_H
 
 #include <sys/endian.h>
+#include <sys/bus.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <dev/mwl/mwlhal.h>
 #include <dev/mwl/mwlreg.h>
@@ -64,7 +65,7 @@
 #define	MWL_TXDESC	1		/* max tx descriptors/segments */
 #endif
 #ifndef MWL_AGGR_SIZE
-#define MWL_AGGR_SIZE	3839		/* max tx agregation size */
+#define	MWL_AGGR_SIZE	3839		/* max tx aggregation size */
 #endif
 #define	MWL_AGEINTERVAL	1		/* poke f/w every sec to age q's */ 
 #define	MWL_MAXSTAID	64		/* max of 64 stations */
@@ -187,10 +188,10 @@ struct mwl_bastate {
 };
 
 static __inline__ void
-mwl_bastream_setup(struct mwl_bastate *bas, int ac, int txq)
+mwl_bastream_setup(struct mwl_bastate *bas, int tid, int txq)
 {
 	bas->txq = txq;
-	bas->qos = htole16(WME_AC_TO_TID(ac) | IEEE80211_QOS_ACKPOLICY_BA);
+	bas->qos = htole16(tid | IEEE80211_QOS_ACKPOLICY_BA);
 }
 
 static __inline__ void
@@ -244,7 +245,8 @@ struct mwl_vap {
 #define	MWL_VAP_CONST(vap)	((const struct mwl_vap *)(vap))
 
 struct mwl_softc {
-	struct ifnet		*sc_ifp;	/* interface common */
+	struct ieee80211com	sc_ic;
+	struct mbufq		sc_snd;
 	struct mwl_stats	sc_stats;	/* interface statistics */
 	int			sc_debug;
 	device_t		sc_dev;
@@ -255,7 +257,10 @@ struct mwl_softc {
 	bus_space_tag_t		sc_io1t;
 	struct mtx		sc_mtx;		/* master lock (recursive) */
 	struct taskqueue	*sc_tq;		/* private task queue */
-	unsigned int		sc_invalid : 1,	/* disable hardware accesses */
+	struct callout	sc_watchdog;
+	int			sc_tx_timer;
+	unsigned int		sc_running : 1,
+				sc_invalid : 1,	/* disable hardware accesses */
 				sc_recvsetup:1,	/* recv setup */
 				sc_csapending:1,/* 11h channel switch pending */
 				sc_radarena : 1,/* radar detection enabled */

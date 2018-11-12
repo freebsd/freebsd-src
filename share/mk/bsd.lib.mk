@@ -4,6 +4,19 @@
 
 .include <bsd.init.mk>
 
+.if defined(LIB_CXX) || defined(SHLIB_CXX)
+_LD=	${CXX}
+.else
+_LD=	${CC}
+.endif
+.if defined(LIB_CXX)
+LIB=	${LIB_CXX}
+.endif
+.if defined(SHLIB_CXX)
+SHLIB=	${SHLIB_CXX}
+.endif
+
+LIB_PRIVATE=	${PRIVATELIB:Dprivate}
 # Set up the variables controlling shared libraries.  After this section,
 # SHLIB_NAME will be defined only if we are to create a shared library.
 # SHLIB_LINK will be defined only if we are to create a link to it.
@@ -16,7 +29,7 @@
 SHLIB=		${LIB}
 .endif
 .if !defined(SHLIB_NAME) && defined(SHLIB) && defined(SHLIB_MAJOR)
-SHLIB_NAME=	lib${SHLIB}.so.${SHLIB_MAJOR}
+SHLIB_NAME=	lib${LIB_PRIVATE}${SHLIB}.so.${SHLIB_MAJOR}
 .endif
 .if defined(SHLIB_NAME) && !empty(SHLIB_NAME:M*.so.*)
 SHLIB_LINK?=	${SHLIB_NAME:R}
@@ -36,197 +49,240 @@ NO_WERROR=
 .if defined(DEBUG_FLAGS)
 CFLAGS+= ${DEBUG_FLAGS}
 
-.if !defined(NO_CTF) && (${DEBUG_FLAGS:M-g} != "")
+.if ${MK_CTF} != "no" && ${DEBUG_FLAGS:M-g} != ""
 CTFFLAGS+= -g
 .endif
+.else
+STRIP?=	-s
 .endif
 
-.if !defined(DEBUG_FLAGS)
-STRIP?=	-s
+.if ${SHLIBDIR:M*lib32*}
+TAGS+=	lib32
+.endif
+
+.if defined(NO_ROOT)
+.if !defined(TAGS) || ! ${TAGS:Mpackage=*}
+TAGS+=		package=${PACKAGE:Uruntime}
+.endif
+TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
+.endif
+
+.if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
+    empty(DEBUG_FLAGS:M-gdwarf*)
+SHARED_CFLAGS+= -g
+SHARED_CXXFLAGS+= -g
+CTFFLAGS+= -g
 .endif
 
 .include <bsd.libnames.mk>
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
-# .So used for PIC object files
+# .pico used for PIC object files
 .SUFFIXES:
-.SUFFIXES: .out .o .po .So .S .asm .s .c .cc .cpp .cxx .m .C .f .y .l .ln
+.SUFFIXES: .out .o .po .pico .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
 
 .if !defined(PICFLAG)
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 PICFLAG=-fPIC
 .else
 PICFLAG=-fpic
 .endif
 .endif
 
-.if ${CC} == "icc"
-PO_FLAG=-p
-.else
 PO_FLAG=-pg
-.endif
+
+.c.o:
+	${CC} ${STATIC_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
 
 .c.po:
-	${CC} ${PO_FLAG} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CC} ${PO_FLAG} ${STATIC_CFLAGS} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
 
-.c.So:
-	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+.c.pico:
+	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
+
+.cc.o .C.o .cpp.o .cxx.o:
+	${CXX} ${STATIC_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.po .C.po .cpp.po .cxx.po:
-	${CXX} ${PO_FLAG} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CXX} ${PO_FLAG} ${STATIC_CXXFLAGS} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
-.cc.So .C.So .cpp.So .cxx.So:
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+.cc.pico .C.pico .cpp.pico .cxx.pico:
+	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CTFCONVERT_CMD}
 
-.f.So:
+.f.pico:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CTFCONVERT_CMD}
 
-.m.po:
-	${OBJC} ${OBJCFLAGS} -pg -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
-
-.m.So:
-	${OBJC} ${PICFLAG} -DPIC ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
-
-.s.po .s.So:
+.s.po .s.pico:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CTFCONVERT_CMD}
 
 .asm.po:
-	${CC} -x assembler-with-cpp -DPROF ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CC:N${CCACHE_BIN}} -x assembler-with-cpp -DPROF ${PO_CFLAGS} \
+	    ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
 
-.asm.So:
-	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} \
-	    -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+.asm.pico:
+	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${PICFLAG} -DPIC \
+	    ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
 
 .S.po:
-	${CC} -DPROF ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	${CC:N${CCACHE_BIN}} -DPROF ${PO_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
+	    -o ${.TARGET}
+	${CTFCONVERT_CMD}
 
-.S.So:
-	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-.if defined(CTFCONVERT)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+.S.pico:
+	${CC:N${CCACHE_BIN}} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} \
+	    -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
 
-all: objwarn
+_LIBDIR:=${LIBDIR}
+_SHLIBDIR:=${SHLIBDIR}
+
+.if defined(SHLIB_NAME)
+.if ${MK_DEBUG_FILES} != "no"
+SHLIB_NAME_FULL=${SHLIB_NAME}.full
+# Use ${DEBUGDIR} for base system debug files, else .debug subdirectory
+.if ${_SHLIBDIR} == "/boot" ||\
+    ${SHLIBDIR:C%/lib(/.*)?$%/lib%} == "/lib" ||\
+    ${SHLIBDIR:C%/usr/(tests/)?lib(32|exec)?(/.*)?%/usr/lib%} == "/usr/lib"
+DEBUGFILEDIR=${DEBUGDIR}${_SHLIBDIR}
+.else
+DEBUGFILEDIR=${_SHLIBDIR}/.debug
+.endif
+.if !exists(${DESTDIR}${DEBUGFILEDIR})
+DEBUGMKDIR=
+.endif
+.else
+SHLIB_NAME_FULL=${SHLIB_NAME}
+.endif
+.endif
 
 .include <bsd.symver.mk>
 
 # Allow libraries to specify their own version map or have it
 # automatically generated (see bsd.symver.mk above).
 .if ${MK_SYMVER} == "yes" && !empty(VERSION_MAP)
-${SHLIB_NAME}:	${VERSION_MAP}
+${SHLIB_NAME_FULL}:	${VERSION_MAP}
 LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 .endif
 
 .if defined(LIB) && !empty(LIB) || defined(SHLIB_NAME)
 OBJS+=		${SRCS:N*.h:R:S/$/.o/}
+CLEANFILES+=	${OBJS} ${STATICOBJS}
 .endif
 
 .if defined(LIB) && !empty(LIB)
-_LIBS=		lib${LIB}.a
+_LIBS=		lib${LIB_PRIVATE}${LIB}.a
 
-lib${LIB}.a: ${OBJS} ${STATICOBJS}
+lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
-.if !defined(NM)
-	@${AR} cq ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
-.else
-	@${AR} cq ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
-.endif
-	${RANLIB} ${.TARGET}
+	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' NMFLAGS='${NMFLAGS}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
 .if !defined(INTERNALLIB)
 
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
-_LIBS+=		lib${LIB}_p.a
+_LIBS+=		lib${LIB_PRIVATE}${LIB}_p.a
 POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
+DEPENDOBJS+=	${POBJS}
+CLEANFILES+=	${POBJS}
 
-lib${LIB}_p.a: ${POBJS}
+lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
-.if !defined(NM)
-	@${AR} cq ${.TARGET} `lorder ${POBJS} | tsort -q` ${ARADD}
-.else
-	@${AR} cq ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
-.endif
-	${RANLIB} ${.TARGET}
+	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' NMFLAGS='${NMFLAGS}' lorder ${POBJS} | tsort -q` ${ARADD}
+	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
-SOBJS+=		${OBJS:.o=.So}
+SOBJS+=		${OBJS:.o=.pico}
+DEPENDOBJS+=	${SOBJS}
+CLEANFILES+=	${SOBJS}
 .endif
 
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
 
-${SHLIB_NAME}: ${SOBJS}
-	@${ECHO} building shared library ${SHLIB_NAME}
-	@rm -f ${.TARGET} ${SHLIB_LINK}
-.if defined(SHLIB_LINK)
-	@ln -fs ${.TARGET} ${SHLIB_LINK}
-.endif
-.if !defined(NM)
-	@${CC} ${LDFLAGS} ${SSP_CFLAGS} -shared -Wl,-x \
-	    -o ${.TARGET} -Wl,-soname,${SONAME} \
-	    `lorder ${SOBJS} | tsort -q` ${LDADD}
+SOLINKOPTS+=	-shared -Wl,-x
+.if defined(LD_FATAL_WARNINGS) && ${LD_FATAL_WARNINGS} == "no"
+SOLINKOPTS+=	-Wl,--no-fatal-warnings
 .else
-	@${CC} ${LDFLAGS} ${SSP_CFLAGS} -shared -Wl,-x \
-	    -o ${.TARGET} -Wl,-soname,${SONAME} \
-	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
+SOLINKOPTS+=	-Wl,--fatal-warnings
 .endif
-.if defined(CTFMERGE)
+SOLINKOPTS+=	-Wl,--warn-shared-textrel
+
+.if target(beforelinking)
+beforelinking: ${SOBJS}
+${SHLIB_NAME_FULL}: beforelinking
+.endif
+
+.if defined(SHLIB_LINK)
+.if defined(SHLIB_LDSCRIPT) && !empty(SHLIB_LDSCRIPT) && exists(${.CURDIR}/${SHLIB_LDSCRIPT})
+${SHLIB_LINK:R}.ld: ${.CURDIR}/${SHLIB_LDSCRIPT}
+	sed -e 's,@@SHLIB@@,${_SHLIBDIR}/${SHLIB_NAME},g' \
+	    -e 's,@@LIBDIR@@,${_LIBDIR},g' \
+	    ${.ALLSRC} > ${.TARGET}
+
+${SHLIB_NAME_FULL}: ${SHLIB_LINK:R}.ld
+CLEANFILES+=	${SHLIB_LINK:R}.ld
+.endif
+CLEANFILES+=	${SHLIB_LINK}
+.endif
+
+${SHLIB_NAME_FULL}: ${SOBJS}
+	@${ECHO} building shared library ${SHLIB_NAME}
+	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
+.if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld) && ${MK_DEBUG_FILES} == "no"
+	@${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
+.endif
+	${_LD:N${CCACHE_BIN}} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
+	    -o ${.TARGET} -Wl,-soname,${SONAME} \
+	    `NM='${NM}' NMFLAGS='${NMFLAGS}' lorder ${SOBJS} | tsort -q` ${LDADD}
+.if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
 .endif
+
+.if ${MK_DEBUG_FILES} != "no"
+CLEANFILES+=	${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
+${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.debug \
+	    ${SHLIB_NAME_FULL} ${.TARGET}
+.if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld)
+	@${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 
-.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
-_LIBS+=		lib${LIB}_pic.a
+${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
+	${OBJCOPY} --only-keep-debug ${SHLIB_NAME_FULL} ${.TARGET}
+.endif
+.endif #defined(SHLIB_NAME)
 
-lib${LIB}_pic.a: ${SOBJS}
+.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
+_LIBS+=		lib${LIB_PRIVATE}${LIB}_pic.a
+
+lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
-	@${AR} cq ${.TARGET} ${SOBJS} ${ARADD}
-	${RANLIB} ${.TARGET}
+	${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
+	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
 .if defined(WANT_LINT) && !defined(NO_LINT) && defined(LIB) && !empty(LIB)
 LINTLIB=	llib-l${LIB}.ln
 _LIBS+=		${LINTLIB}
 LINTOBJS+=	${SRCS:M*.c:.c=.ln}
+CLEANFILES+=	${LINTOBJS}
 
 ${LINTLIB}: ${LINTOBJS}
 	@${ECHO} building lint library ${.TARGET}
@@ -236,20 +292,23 @@ ${LINTLIB}: ${LINTOBJS}
 
 .endif # !defined(INTERNALLIB)
 
+.if defined(_SKIP_BUILD)
+all:
+.else
+.if defined(_LIBS) && !empty(_LIBS)
 all: ${_LIBS}
+CLEANFILES+=	${_LIBS}
+.endif
 
-.if ${MK_MAN} != "no"
-all: _manpages
+.if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
+all: all-man
+.endif
 .endif
 
 _EXTRADEPEND:
-	@TMP=_depend$$$$; \
-	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.So:/' < ${DEPENDFILE} \
-	    > $$TMP; \
-	mv $$TMP ${DEPENDFILE}
 .if !defined(NO_EXTRADEPEND) && defined(SHLIB_NAME)
 .if defined(DPADD) && !empty(DPADD)
-	echo ${SHLIB_NAME}: ${DPADD} >> ${DEPENDFILE}
+	echo ${SHLIB_NAME_FULL}: ${DPADD} >> ${DEPENDFILE}
 .endif
 .endif
 
@@ -276,48 +335,79 @@ realinstall: _libinstall
 .ORDER: beforeinstall _libinstall
 _libinstall:
 .if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no"
-	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}.a ${DESTDIR}${_LIBDIR}/
 .endif
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
-	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${LIBDIR}
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},profile} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}_p.a ${DESTDIR}${_LIBDIR}/
 .endif
 .if defined(SHLIB_NAME)
-	${INSTALL} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${TAG_ARGS} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
-	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
+	    ${SHLIB_NAME} ${DESTDIR}${_SHLIBDIR}/
+.if ${MK_DEBUG_FILES} != "no"
+.if defined(DEBUGMKDIR)
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},debug} -d ${DESTDIR}${DEBUGFILEDIR}/
+.endif
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},debug} -o ${LIBOWN} -g ${LIBGRP} -m ${DEBUGMODE} \
+	    ${_INSTALLFLAGS} \
+	    ${SHLIB_NAME}.debug ${DESTDIR}${DEBUGFILEDIR}/
+.endif
 .if defined(SHLIB_LINK)
-.if ${SHLIBDIR} == ${LIBDIR}
-	ln -fs ${SHLIB_NAME} ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
+.if commands(${SHLIB_LINK:R}.ld)
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${_INSTALLFLAGS} ${SHLIB_LINK:R}.ld \
+	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+.for _SHLIB_LINK_LINK in ${SHLIB_LDSCRIPT_LINKS}
+	${INSTALL_SYMLINK} ${SHLIB_LINK} ${DESTDIR}${_LIBDIR}/${_SHLIB_LINK_LINK}
+.endfor
 .else
-	ln -fs ${_SHLIBDIRPREFIX}${SHLIBDIR}/${SHLIB_NAME} \
-	    ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
-.if exists(${DESTDIR}${LIBDIR}/${SHLIB_NAME})
-	-chflags noschg ${DESTDIR}${LIBDIR}/${SHLIB_NAME}
-	rm -f ${DESTDIR}${LIBDIR}/${SHLIB_NAME}
+.if ${_SHLIBDIR} == ${_LIBDIR}
+.if ${SHLIB_LINK:Mlib*}
+	${INSTALL_RSYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+.else
+	${INSTALL_RSYMLINK} ${TAG_ARGS} ${DESTDIR}${_SHLIBDIR}/${SHLIB_NAME} \
+	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+.endif
+.else
+.if ${SHLIB_LINK:Mlib*}
+	${INSTALL_RSYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${DESTDIR}${_SHLIBDIR}/${SHLIB_NAME} \
+	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+.else
+	${INSTALL_RSYMLINK} ${TAG_ARGS} ${DESTDIR}${_SHLIBDIR}/${SHLIB_NAME} \
+	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+.endif
+.if exists(${DESTDIR}${_LIBDIR}/${SHLIB_NAME})
+	-chflags noschg ${DESTDIR}${_LIBDIR}/${SHLIB_NAME}
+	rm -f ${DESTDIR}${_LIBDIR}/${SHLIB_NAME}
 .endif
 .endif
-.endif
-.endif
+.endif # SHLIB_LDSCRIPT
+.endif # SHLIB_LINK
+.endif # SHIB_NAME
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
-	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${_LIBDIR}/
 .endif
 .if defined(WANT_LINT) && !defined(NO_LINT) && defined(LIB) && !empty(LIB)
-	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} ${LINTLIB} ${DESTDIR}${LINTLIBDIR}
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${_INSTALLFLAGS} ${LINTLIB} ${DESTDIR}${LINTLIBDIR}/
 .endif
 .endif # !defined(INTERNALLIB)
 
+.if !defined(LIBRARIES_ONLY)
 .include <bsd.nls.mk>
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
+.include <bsd.confs.mk>
+.endif
+
 .include <bsd.links.mk>
 
-.if ${MK_MAN} != "no"
-realinstall: _maninstall
-.ORDER: beforeinstall _maninstall
+.if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
+realinstall: maninstall
+.ORDER: beforeinstall maninstall
 .endif
 
 .endif
@@ -327,67 +417,24 @@ lint: ${SRCS:M*.c}
 	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
 .include <bsd.man.mk>
 .endif
 
+.if defined(LIB) && !empty(LIB)
+OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
+.for _S in ${SRCS:N*.[hly]}
+OBJS_DEPEND_GUESS.${_S:R}.po+=	${_S}
+.endfor
+.endif
+.if defined(SHLIB_NAME) || \
+    defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
+.for _S in ${SRCS:N*.[hly]}
+OBJS_DEPEND_GUESS.${_S:R}.pico+=	${_S}
+.endfor
+.endif
+
 .include <bsd.dep.mk>
-
-.if !exists(${.OBJDIR}/${DEPENDFILE})
-.if defined(LIB) && !empty(LIB)
-${OBJS} ${STATICOBJS} ${POBJS}: ${SRCS:M*.h}
-.for _S in ${SRCS:N*.[hly]}
-${_S:R}.po: ${_S}
-.endfor
-.endif
-.if defined(SHLIB_NAME) || \
-    defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
-${SOBJS}: ${SRCS:M*.h}
-.for _S in ${SRCS:N*.[hly]}
-${_S:R}.So: ${_S}
-.endfor
-.endif
-.endif
-
-.if !target(clean)
-clean:
-.if defined(CLEANFILES) && !empty(CLEANFILES)
-	rm -f ${CLEANFILES}
-.endif
-.if defined(LIB) && !empty(LIB)
-	rm -f a.out ${OBJS} ${OBJS:S/$/.tmp/} ${STATICOBJS}
-.endif
-.if !defined(INTERNALLIB)
-.if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
-	rm -f ${POBJS} ${POBJS:S/$/.tmp/}
-.endif
-.if defined(SHLIB_NAME) || \
-    defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
-	rm -f ${SOBJS} ${SOBJS:.So=.so} ${SOBJS:S/$/.tmp/}
-.endif
-.if defined(SHLIB_NAME)
-.if defined(SHLIB_LINK)
-	rm -f ${SHLIB_LINK}
-.endif
-.if defined(LIB) && !empty(LIB)
-	rm -f lib${LIB}.so.* lib${LIB}.so
-.endif
-.endif
-.if defined(WANT_LINT) && defined(LIB) && !empty(LIB)
-	rm -f ${LINTOBJS}
-.endif
-.endif # !defined(INTERNALLIB)
-.if defined(_LIBS) && !empty(_LIBS)
-	rm -f ${_LIBS}
-.endif
-.if defined(CLEANDIRS) && !empty(CLEANDIRS)
-	rm -rf ${CLEANDIRS}
-.endif
-.if !empty(VERSION_DEF) && !empty(SYMBOL_MAPS)
-	rm -f ${VERSION_MAP}
-.endif
-.endif
-
+.include <bsd.clang-analyze.mk>
 .include <bsd.obj.mk>
-
 .include <bsd.sys.mk>

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: map.h,v 8.3 2006/12/19 19:49:51 ca Exp $
+ *	$Id: map.h,v 8.4 2013-11-22 20:51:56 ca Exp $
  */
 
 #ifndef _MAP_H

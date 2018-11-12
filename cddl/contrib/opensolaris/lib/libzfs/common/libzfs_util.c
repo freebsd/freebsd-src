@@ -18,14 +18,22 @@
  *
  * CDDL HEADER END
  */
+
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
  */
 
 /*
  * Internal utility routines for the ZFS library.
  */
+
+#include <sys/param.h>
+#include <sys/linker.h>
+#include <sys/module.h>
+#include <sys/stat.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -42,9 +50,12 @@
 #include <sys/types.h>
 
 #include <libzfs.h>
+#include <libzfs_core.h>
 
 #include "libzfs_impl.h"
 #include "zfs_prop.h"
+#include "zfeature_common.h"
+
 
 int
 libzfs_errno(libzfs_handle_t *hdl)
@@ -70,7 +81,7 @@ libzfs_error_description(libzfs_handle_t *hdl)
 	case EZFS_BADPROP:
 		return (dgettext(TEXT_DOMAIN, "invalid property value"));
 	case EZFS_PROPREADONLY:
-		return (dgettext(TEXT_DOMAIN, "read only property"));
+		return (dgettext(TEXT_DOMAIN, "read-only property"));
 	case EZFS_PROPTYPE:
 		return (dgettext(TEXT_DOMAIN, "property doesn't apply to "
 		    "datasets of this type"));
@@ -90,12 +101,10 @@ libzfs_error_description(libzfs_handle_t *hdl)
 	case EZFS_BADSTREAM:
 		return (dgettext(TEXT_DOMAIN, "invalid backup stream"));
 	case EZFS_DSREADONLY:
-		return (dgettext(TEXT_DOMAIN, "dataset is read only"));
+		return (dgettext(TEXT_DOMAIN, "dataset is read-only"));
 	case EZFS_VOLTOOBIG:
 		return (dgettext(TEXT_DOMAIN, "volume size exceeds limit for "
 		    "this system"));
-	case EZFS_VOLHASDATA:
-		return (dgettext(TEXT_DOMAIN, "volume has data"));
 	case EZFS_INVALIDNAME:
 		return (dgettext(TEXT_DOMAIN, "invalid name"));
 	case EZFS_BADRESTORE:
@@ -114,7 +123,8 @@ libzfs_error_description(libzfs_handle_t *hdl)
 	case EZFS_RESILVERING:
 		return (dgettext(TEXT_DOMAIN, "currently resilvering"));
 	case EZFS_BADVERSION:
-		return (dgettext(TEXT_DOMAIN, "unsupported version"));
+		return (dgettext(TEXT_DOMAIN, "unsupported version or "
+		    "feature"));
 	case EZFS_POOLUNAVAIL:
 		return (dgettext(TEXT_DOMAIN, "pool is unavailable"));
 	case EZFS_DEVOVERFLOW:
@@ -138,16 +148,12 @@ libzfs_error_description(libzfs_handle_t *hdl)
 		return (dgettext(TEXT_DOMAIN, "smb remove share failed"));
 	case EZFS_SHARESMBFAILED:
 		return (dgettext(TEXT_DOMAIN, "smb add share failed"));
-	case EZFS_ISCSISVCUNAVAIL:
-		return (dgettext(TEXT_DOMAIN,
-		    "iscsitgt service need to be enabled by "
-		    "a privileged user"));
-	case EZFS_DEVLINKS:
-		return (dgettext(TEXT_DOMAIN, "failed to create /dev links"));
 	case EZFS_PERM:
 		return (dgettext(TEXT_DOMAIN, "permission denied"));
 	case EZFS_NOSPC:
 		return (dgettext(TEXT_DOMAIN, "out of space"));
+	case EZFS_FAULT:
+		return (dgettext(TEXT_DOMAIN, "bad address"));
 	case EZFS_IO:
 		return (dgettext(TEXT_DOMAIN, "I/O error"));
 	case EZFS_INTR:
@@ -161,12 +167,6 @@ libzfs_error_description(libzfs_handle_t *hdl)
 		return (dgettext(TEXT_DOMAIN, "recursive dataset dependency"));
 	case EZFS_NOHISTORY:
 		return (dgettext(TEXT_DOMAIN, "no history available"));
-	case EZFS_UNSHAREISCSIFAILED:
-		return (dgettext(TEXT_DOMAIN,
-		    "iscsitgtd failed request to unshare"));
-	case EZFS_SHAREISCSIFAILED:
-		return (dgettext(TEXT_DOMAIN,
-		    "iscsitgtd failed request to share"));
 	case EZFS_POOLPROPS:
 		return (dgettext(TEXT_DOMAIN, "failed to retrieve "
 		    "pool properties"));
@@ -194,9 +194,6 @@ libzfs_error_description(libzfs_handle_t *hdl)
 	case EZFS_NODELEGATION:
 		return (dgettext(TEXT_DOMAIN, "delegated administration is "
 		    "disabled on pool"));
-	case EZFS_PERMRDONLY:
-		return (dgettext(TEXT_DOMAIN, "snapshot permissions cannot be"
-		    " modified"));
 	case EZFS_BADCACHE:
 		return (dgettext(TEXT_DOMAIN, "invalid or missing cache file"));
 	case EZFS_ISL2CACHE:
@@ -210,6 +207,34 @@ libzfs_error_description(libzfs_handle_t *hdl)
 	case EZFS_ACTIVE_SPARE:
 		return (dgettext(TEXT_DOMAIN, "pool has active shared spare "
 		    "device"));
+	case EZFS_UNPLAYED_LOGS:
+		return (dgettext(TEXT_DOMAIN, "log device has unplayed intent "
+		    "logs"));
+	case EZFS_REFTAG_RELE:
+		return (dgettext(TEXT_DOMAIN, "no such tag on this dataset"));
+	case EZFS_REFTAG_HOLD:
+		return (dgettext(TEXT_DOMAIN, "tag already exists on this "
+		    "dataset"));
+	case EZFS_TAGTOOLONG:
+		return (dgettext(TEXT_DOMAIN, "tag too long"));
+	case EZFS_PIPEFAILED:
+		return (dgettext(TEXT_DOMAIN, "pipe create failed"));
+	case EZFS_THREADCREATEFAILED:
+		return (dgettext(TEXT_DOMAIN, "thread create failed"));
+	case EZFS_POSTSPLIT_ONLINE:
+		return (dgettext(TEXT_DOMAIN, "disk was split from this pool "
+		    "into a new one"));
+	case EZFS_SCRUBBING:
+		return (dgettext(TEXT_DOMAIN, "currently scrubbing; "
+		    "use 'zpool scrub -s' to cancel current scrub"));
+	case EZFS_NO_SCRUB:
+		return (dgettext(TEXT_DOMAIN, "there is no active scrub"));
+	case EZFS_DIFF:
+		return (dgettext(TEXT_DOMAIN, "unable to generate diffs"));
+	case EZFS_DIFFDATA:
+		return (dgettext(TEXT_DOMAIN, "invalid diff data"));
+	case EZFS_POOLREADONLY:
+		return (dgettext(TEXT_DOMAIN, "pool is read-only"));
 	case EZFS_UNKNOWN:
 		return (dgettext(TEXT_DOMAIN, "unknown error"));
 	default:
@@ -298,6 +323,10 @@ zfs_common_error(libzfs_handle_t *hdl, int error, const char *fmt,
 		zfs_verror(hdl, EZFS_IO, fmt, ap);
 		return (-1);
 
+	case EFAULT:
+		zfs_verror(hdl, EZFS_FAULT, fmt, ap);
+		return (-1);
+
 	case EINTR:
 		zfs_verror(hdl, EZFS_INTR, fmt, ap);
 		return (-1);
@@ -328,6 +357,7 @@ zfs_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 	switch (error) {
 	case ENXIO:
 	case ENODEV:
+	case EPIPE:
 		zfs_verror(hdl, EZFS_IO, fmt, ap);
 		break;
 
@@ -340,6 +370,7 @@ zfs_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 	case ENOSPC:
 	case EDQUOT:
 		zfs_verror(hdl, EZFS_NOSPC, fmt, ap);
+		va_end(ap);
 		return (-1);
 
 	case EEXIST:
@@ -354,9 +385,7 @@ zfs_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 		zfs_verror(hdl, EZFS_BUSY, fmt, ap);
 		break;
 	case EROFS:
-		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-		    "snapshot permissions cannot be modified"));
-		zfs_verror(hdl, EZFS_PERMRDONLY, fmt, ap);
+		zfs_verror(hdl, EZFS_POOLREADONLY, fmt, ap);
 		break;
 	case ENAMETOOLONG:
 		zfs_verror(hdl, EZFS_NAMETOOLONG, fmt, ap);
@@ -364,8 +393,13 @@ zfs_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 	case ENOTSUP:
 		zfs_verror(hdl, EZFS_BADVERSION, fmt, ap);
 		break;
+	case EAGAIN:
+		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+		    "pool I/O is currently suspended"));
+		zfs_verror(hdl, EZFS_POOLUNAVAIL, fmt, ap);
+		break;
 	default:
-		zfs_error_aux(hdl, strerror(errno));
+		zfs_error_aux(hdl, strerror(error));
 		zfs_verror(hdl, EZFS_UNKNOWN, fmt, ap);
 		break;
 	}
@@ -436,7 +470,18 @@ zpool_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 	case ENOSPC:
 	case EDQUOT:
 		zfs_verror(hdl, EZFS_NOSPC, fmt, ap);
+		va_end(ap);
 		return (-1);
+
+	case EAGAIN:
+		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+		    "pool I/O is currently suspended"));
+		zfs_verror(hdl, EZFS_POOLUNAVAIL, fmt, ap);
+		break;
+
+	case EROFS:
+		zfs_verror(hdl, EZFS_POOLREADONLY, fmt, ap);
+		break;
 
 	default:
 		zfs_error_aux(hdl, strerror(error));
@@ -471,6 +516,29 @@ zfs_alloc(libzfs_handle_t *hdl, size_t size)
 }
 
 /*
+ * A safe form of asprintf() which will die if the allocation fails.
+ */
+/*PRINTFLIKE2*/
+char *
+zfs_asprintf(libzfs_handle_t *hdl, const char *fmt, ...)
+{
+	va_list ap;
+	char *ret;
+	int err;
+
+	va_start(ap, fmt);
+
+	err = vasprintf(&ret, fmt, ap);
+
+	va_end(ap);
+
+	if (err < 0)
+		(void) no_memory(hdl);
+
+	return (ret);
+}
+
+/*
  * A safe form of realloc(), which also zeroes newly allocated space.
  */
 void *
@@ -480,7 +548,6 @@ zfs_realloc(libzfs_handle_t *hdl, void *ptr, size_t oldsize, size_t newsize)
 
 	if ((ret = realloc(ptr, newsize)) == NULL) {
 		(void) no_memory(hdl);
-		free(ptr);
 		return (NULL);
 	}
 
@@ -561,7 +628,7 @@ libzfs_load(void)
 		/* Not present in kernel, try loading it. */
 		if (kldload("zfs") < 0 || modfind("zfs") < 0) {
 			if (errno != EEXIST)
-				return (error);
+				return (-1);
 		}
 	}
 	return (0);
@@ -572,17 +639,18 @@ libzfs_init(void)
 {
 	libzfs_handle_t *hdl;
 
-	if ((hdl = calloc(sizeof (libzfs_handle_t), 1)) == NULL) {
+	if ((hdl = calloc(1, sizeof (libzfs_handle_t))) == NULL) {
+		return (NULL);
+	}
+
+	if (libzfs_load() < 0) {
+		free(hdl);
 		return (NULL);
 	}
 
 	if ((hdl->libzfs_fd = open(ZFS_DEV, O_RDWR)) < 0) {
-		if (libzfs_load() == 0)
-			hdl->libzfs_fd = open(ZFS_DEV, O_RDWR);
-		if (hdl->libzfs_fd < 0) {
-			free(hdl);
-			return (NULL);
-		}
+		free(hdl);
+		return (NULL);
 	}
 
 	if ((hdl->libzfs_mnttab = fopen(MNTTAB, "r")) == NULL) {
@@ -593,8 +661,18 @@ libzfs_init(void)
 
 	hdl->libzfs_sharetab = fopen(ZFS_EXPORTS_PATH, "r");
 
+	if (libzfs_core_init() != 0) {
+		(void) close(hdl->libzfs_fd);
+		(void) fclose(hdl->libzfs_mnttab);
+		(void) fclose(hdl->libzfs_sharetab);
+		free(hdl);
+		return (NULL);
+	}
+
 	zfs_prop_init();
 	zpool_prop_init();
+	zpool_feature_init();
+	libzfs_mnttab_init(hdl);
 
 	return (hdl);
 }
@@ -608,10 +686,13 @@ libzfs_fini(libzfs_handle_t *hdl)
 	if (hdl->libzfs_sharetab)
 		(void) fclose(hdl->libzfs_sharetab);
 	zfs_uninit_libshare(hdl);
-	if (hdl->libzfs_log_str)
-		(void) free(hdl->libzfs_log_str);
 	zpool_free_handles(hdl);
+#ifdef illumos
+	libzfs_fru_clear(hdl, B_TRUE);
+#endif
 	namespace_clear(hdl);
+	libzfs_mnttab_fini(hdl);
+	libzfs_core_fini();
 	free(hdl);
 }
 
@@ -642,7 +723,9 @@ zfs_get_pool_handle(const zfs_handle_t *zhp)
 zfs_handle_t *
 zfs_path_to_zhandle(libzfs_handle_t *hdl, char *path, zfs_type_t argtype)
 {
-	struct statfs statbuf;
+	struct stat64 statbuf;
+	struct extmnttab entry;
+	int ret;
 
 	if (path[0] != '/' && strncmp(path, "./", strlen("./")) != 0) {
 		/*
@@ -651,18 +734,43 @@ zfs_path_to_zhandle(libzfs_handle_t *hdl, char *path, zfs_type_t argtype)
 		return (zfs_open(hdl, path, argtype));
 	}
 
-	if (statfs(path, &statbuf) != 0) {
+	if (stat64(path, &statbuf) != 0) {
 		(void) fprintf(stderr, "%s: %s\n", path, strerror(errno));
 		return (NULL);
 	}
 
-	if (strcmp(statbuf.f_fstypename, MNTTYPE_ZFS) != 0) {
+#ifdef illumos
+	rewind(hdl->libzfs_mnttab);
+	while ((ret = getextmntent(hdl->libzfs_mnttab, &entry, 0)) == 0) {
+		if (makedevice(entry.mnt_major, entry.mnt_minor) ==
+		    statbuf.st_dev) {
+			break;
+		}
+	}
+#else
+	{
+		struct statfs sfs;
+
+		ret = statfs(path, &sfs);
+		if (ret == 0)
+			statfs2mnttab(&sfs, &entry);
+		else {
+			(void) fprintf(stderr, "%s: %s\n", path,
+			    strerror(errno));
+		}
+	}
+#endif	/* illumos */
+	if (ret != 0) {
+		return (NULL);
+	}
+
+	if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0) {
 		(void) fprintf(stderr, gettext("'%s': not a ZFS filesystem\n"),
 		    path);
 		return (NULL);
 	}
 
-	return (zfs_open(hdl, statbuf.f_mntfromname, ZFS_TYPE_FILESYSTEM));
+	return (zfs_open(hdl, entry.mnt_special, ZFS_TYPE_FILESYSTEM));
 }
 
 /*
@@ -673,10 +781,11 @@ int
 zcmd_alloc_dst_nvlist(libzfs_handle_t *hdl, zfs_cmd_t *zc, size_t len)
 {
 	if (len == 0)
-		len = 2048;
+		len = 16 * 1024;
 	zc->zc_nvlist_dst_size = len;
-	if ((zc->zc_nvlist_dst = (uint64_t)(uintptr_t)
-	    zfs_alloc(hdl, zc->zc_nvlist_dst_size)) == 0)
+	zc->zc_nvlist_dst =
+	    (uint64_t)(uintptr_t)zfs_alloc(hdl, zc->zc_nvlist_dst_size);
+	if (zc->zc_nvlist_dst == 0)
 		return (-1);
 
 	return (0);
@@ -691,9 +800,9 @@ int
 zcmd_expand_dst_nvlist(libzfs_handle_t *hdl, zfs_cmd_t *zc)
 {
 	free((void *)(uintptr_t)zc->zc_nvlist_dst);
-	if ((zc->zc_nvlist_dst = (uint64_t)(uintptr_t)
-	    zfs_alloc(hdl, zc->zc_nvlist_dst_size))
-	    == 0)
+	zc->zc_nvlist_dst =
+	    (uint64_t)(uintptr_t)zfs_alloc(hdl, zc->zc_nvlist_dst_size);
+	if (zc->zc_nvlist_dst == 0)
 		return (-1);
 
 	return (0);
@@ -708,6 +817,9 @@ zcmd_free_nvlists(zfs_cmd_t *zc)
 	free((void *)(uintptr_t)zc->zc_nvlist_conf);
 	free((void *)(uintptr_t)zc->zc_nvlist_src);
 	free((void *)(uintptr_t)zc->zc_nvlist_dst);
+	zc->zc_nvlist_conf = NULL;
+	zc->zc_nvlist_src = NULL;
+	zc->zc_nvlist_dst = NULL;
 }
 
 static int
@@ -758,19 +870,9 @@ zcmd_read_dst_nvlist(libzfs_handle_t *hdl, zfs_cmd_t *zc, nvlist_t **nvlp)
 }
 
 int
-zfs_ioctl(libzfs_handle_t *hdl, unsigned long request, zfs_cmd_t *zc)
+zfs_ioctl(libzfs_handle_t *hdl, int request, zfs_cmd_t *zc)
 {
-	int error;
-
-	zc->zc_history = (uint64_t)(uintptr_t)hdl->libzfs_log_str;
-	error = ioctl(hdl->libzfs_fd, request, zc);
-	if (hdl->libzfs_log_str) {
-		free(hdl->libzfs_log_str);
-		hdl->libzfs_log_str = NULL;
-	}
-	zc->zc_history = 0;
-
-	return (error);
+	return (ioctl(hdl->libzfs_fd, request, zc));
 }
 
 /*
@@ -799,8 +901,14 @@ zprop_print_headers(zprop_get_cbdata_t *cbp, zfs_type_t type)
 	    "PROPERTY"));
 	cbp->cb_colwidths[GET_COL_VALUE] = strlen(dgettext(TEXT_DOMAIN,
 	    "VALUE"));
+	cbp->cb_colwidths[GET_COL_RECVD] = strlen(dgettext(TEXT_DOMAIN,
+	    "RECEIVED"));
 	cbp->cb_colwidths[GET_COL_SOURCE] = strlen(dgettext(TEXT_DOMAIN,
 	    "SOURCE"));
+
+	/* first property is always NAME */
+	assert(cbp->cb_proplist->pl_prop ==
+	    ((type == ZFS_TYPE_POOL) ?  ZPOOL_PROP_NAME : ZFS_PROP_NAME));
 
 	/*
 	 * Go through and calculate the widths for each column.  For the
@@ -808,7 +916,7 @@ zprop_print_headers(zprop_get_cbdata_t *cbp, zfs_type_t type)
 	 * inheriting from the longest name.  This is acceptable because in the
 	 * majority of cases 'SOURCE' is the last column displayed, and we don't
 	 * use the width anyway.  Note that the 'VALUE' column can be oversized,
-	 * if the name of the property is much longer the any values we find.
+	 * if the name of the property is much longer than any values we find.
 	 */
 	for (pl = cbp->cb_proplist; pl != NULL; pl = pl->pl_next) {
 		/*
@@ -829,11 +937,20 @@ zprop_print_headers(zprop_get_cbdata_t *cbp, zfs_type_t type)
 		}
 
 		/*
-		 * 'VALUE' column
+		 * 'VALUE' column.  The first property is always the 'name'
+		 * property that was tacked on either by /sbin/zfs's
+		 * zfs_do_get() or when calling zprop_expand_list(), so we
+		 * ignore its width.  If the user specified the name property
+		 * to display, then it will be later in the list in any case.
 		 */
-		if ((pl->pl_prop != ZFS_PROP_NAME || !pl->pl_all) &&
+		if (pl != cbp->cb_proplist &&
 		    pl->pl_width > cbp->cb_colwidths[GET_COL_VALUE])
 			cbp->cb_colwidths[GET_COL_VALUE] = pl->pl_width;
+
+		/* 'RECEIVED' column. */
+		if (pl != cbp->cb_proplist &&
+		    pl->pl_recvd_width > cbp->cb_colwidths[GET_COL_RECVD])
+			cbp->cb_colwidths[GET_COL_RECVD] = pl->pl_recvd_width;
 
 		/*
 		 * 'NAME' and 'SOURCE' columns
@@ -850,7 +967,7 @@ zprop_print_headers(zprop_get_cbdata_t *cbp, zfs_type_t type)
 	/*
 	 * Now go through and print the headers.
 	 */
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < ZFS_GET_NCOLS; i++) {
 		switch (cbp->cb_columns[i]) {
 		case GET_COL_NAME:
 			title = dgettext(TEXT_DOMAIN, "NAME");
@@ -861,6 +978,9 @@ zprop_print_headers(zprop_get_cbdata_t *cbp, zfs_type_t type)
 		case GET_COL_VALUE:
 			title = dgettext(TEXT_DOMAIN, "VALUE");
 			break;
+		case GET_COL_RECVD:
+			title = dgettext(TEXT_DOMAIN, "RECEIVED");
+			break;
 		case GET_COL_SOURCE:
 			title = dgettext(TEXT_DOMAIN, "SOURCE");
 			break;
@@ -869,7 +989,8 @@ zprop_print_headers(zprop_get_cbdata_t *cbp, zfs_type_t type)
 		}
 
 		if (title != NULL) {
-			if (i == 3 || cbp->cb_columns[i + 1] == 0)
+			if (i == (ZFS_GET_NCOLS - 1) ||
+			    cbp->cb_columns[i + 1] == GET_COL_NONE)
 				(void) printf("%s", title);
 			else
 				(void) printf("%-*s  ",
@@ -887,10 +1008,10 @@ zprop_print_headers(zprop_get_cbdata_t *cbp, zfs_type_t type)
 void
 zprop_print_one_property(const char *name, zprop_get_cbdata_t *cbp,
     const char *propname, const char *value, zprop_source_t sourcetype,
-    const char *source)
+    const char *source, const char *recvd_value)
 {
 	int i;
-	const char *str;
+	const char *str = NULL;
 	char buf[128];
 
 	/*
@@ -902,7 +1023,7 @@ zprop_print_one_property(const char *name, zprop_get_cbdata_t *cbp,
 	if (cbp->cb_first)
 		zprop_print_headers(cbp, cbp->cb_type);
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < ZFS_GET_NCOLS; i++) {
 		switch (cbp->cb_columns[i]) {
 		case GET_COL_NAME:
 			str = name;
@@ -939,14 +1060,25 @@ zprop_print_one_property(const char *name, zprop_get_cbdata_t *cbp,
 				    "inherited from %s", source);
 				str = buf;
 				break;
+			case ZPROP_SRC_RECEIVED:
+				str = "received";
+				break;
+
+			default:
+				str = NULL;
+				assert(!"unhandled zprop_source_t");
 			}
+			break;
+
+		case GET_COL_RECVD:
+			str = (recvd_value == NULL ? "-" : recvd_value);
 			break;
 
 		default:
 			continue;
 		}
 
-		if (cbp->cb_columns[i + 1] == 0)
+		if (cbp->cb_columns[i + 1] == GET_COL_NONE)
 			(void) printf("%s", str);
 		else if (cbp->cb_scripted)
 			(void) printf("%s\t", str);
@@ -954,7 +1086,6 @@ zprop_print_one_property(const char *name, zprop_get_cbdata_t *cbp,
 			(void) printf("%-*s  ",
 			    cbp->cb_colwidths[cbp->cb_columns[i]],
 			    str);
-
 	}
 
 	(void) printf("\n");
@@ -1016,9 +1147,9 @@ zfs_nicestrtonum(libzfs_handle_t *hdl, const char *value, uint64_t *num)
 		return (-1);
 	}
 
-	/* Rely on stroll() to process the numeric portion.  */
+	/* Rely on strtoull() to process the numeric portion.  */
 	errno = 0;
-	*num = strtoll(value, &end, 10);
+	*num = strtoull(value, &end, 10);
 
 	/*
 	 * Check for ERANGE, which indicates that the value is too large to fit
@@ -1146,6 +1277,16 @@ zprop_parse_value(libzfs_handle_t *hdl, nvpair_t *elem, int prop,
 			    "use 'none' to disable quota/refquota"));
 			goto error;
 		}
+
+		/*
+		 * Special handling for "*_limit=none". In this case it's not
+		 * 0 but UINT64_MAX.
+		 */
+		if ((type & ZFS_TYPE_DATASET) && isnone &&
+		    (prop == ZFS_PROP_FILESYSTEM_LIMIT ||
+		    prop == ZFS_PROP_SNAPSHOT_LIMIT)) {
+			*ivalp = UINT64_MAX;
+		}
 		break;
 
 	case PROP_TYPE_INDEX:
@@ -1207,8 +1348,11 @@ addlist(libzfs_handle_t *hdl, char *propname, zprop_list_t **listp,
 	 * this is a pool property or if this isn't a user-defined
 	 * dataset property,
 	 */
-	if (prop == ZPROP_INVAL && (type == ZFS_TYPE_POOL ||
-	    !zfs_prop_user(propname))) {
+	if (prop == ZPROP_INVAL && ((type == ZFS_TYPE_POOL &&
+	    !zpool_prop_feature(propname) &&
+	    !zpool_prop_unsupported(propname)) ||
+	    (type == ZFS_TYPE_DATASET && !zfs_prop_user(propname) &&
+	    !zfs_prop_userquota(propname) && !zfs_prop_written(propname)))) {
 		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 		    "invalid property '%s'"), propname);
 		return (zfs_error(hdl, EZFS_BADPROP,
@@ -1220,7 +1364,8 @@ addlist(libzfs_handle_t *hdl, char *propname, zprop_list_t **listp,
 
 	entry->pl_prop = prop;
 	if (prop == ZPROP_INVAL) {
-		if ((entry->pl_user_prop = zfs_strdup(hdl, propname)) == NULL) {
+		if ((entry->pl_user_prop = zfs_strdup(hdl, propname)) ==
+		    NULL) {
 			free(entry);
 			return (-1);
 		}

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Advanced Computing Technologies LLC
+ * Copyright (c) 2009 Hudson River Trading LLC
  * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -36,45 +36,32 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/sglist.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_phys.h>
 #include <vm/uma.h>
 
-static void sg_pager_init(void);
 static vm_object_t sg_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 static void sg_pager_dealloc(vm_object_t);
-static int sg_pager_getpages(vm_object_t, vm_page_t *, int, int);
+static int sg_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
 static void sg_pager_putpages(vm_object_t, vm_page_t *, int, 
 		boolean_t, int *);
 static boolean_t sg_pager_haspage(vm_object_t, vm_pindex_t, int *,
 		int *);
 
-static uma_zone_t fakepg_zone;
-
-static vm_page_t sg_pager_getfake(vm_paddr_t, vm_memattr_t);
-static void sg_pager_putfake(vm_page_t);
-
 struct pagerops sgpagerops = {
-	.pgo_init =	sg_pager_init,
 	.pgo_alloc =	sg_pager_alloc,
 	.pgo_dealloc =	sg_pager_dealloc,
 	.pgo_getpages =	sg_pager_getpages,
 	.pgo_putpages =	sg_pager_putpages,
 	.pgo_haspage =	sg_pager_haspage,
 };
-
-static void
-sg_pager_init(void)
-{
-
-	fakepg_zone = uma_zcreate("SG fakepg", sizeof(struct vm_page),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    UMA_ZONE_NOFREE|UMA_ZONE_VM); 
-}
 
 static vm_object_t
 sg_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
@@ -137,16 +124,19 @@ sg_pager_dealloc(vm_object_t object)
 	 * Free up our fake pages.
 	 */
 	while ((m = TAILQ_FIRST(&object->un_pager.sgp.sgp_pglist)) != 0) {
-		TAILQ_REMOVE(&object->un_pager.sgp.sgp_pglist, m, pageq);
-		sg_pager_putfake(m);
+		TAILQ_REMOVE(&object->un_pager.sgp.sgp_pglist, m, plinks.q);
+		vm_page_putfake(m);
 	}
 	
 	sg = object->handle;
 	sglist_free(sg);
+	object->handle = NULL;
+	object->type = OBJT_DEAD;
 }
 
 static int
-sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
+sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
+    int *rahead)
 {
 	struct sglist *sg;
 	vm_page_t m_paddr, page;
@@ -156,11 +146,13 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	size_t space;
 	int i;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	/* Since our haspage reports zero after/before, the count is 1. */
+	KASSERT(count == 1, ("%s: count %d", __func__, count));
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	sg = object->handle;
 	memattr = object->memattr;
-	VM_OBJECT_UNLOCK(object);
-	offset = m[reqpage]->pindex;
+	VM_OBJECT_WUNLOCK(object);
+	offset = m[0]->pindex;
 
 	/*
 	 * Lookup the physical address of the requested page.  An initial
@@ -189,22 +181,24 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	}
 
 	/* Return a fake page for the requested page. */
-	KASSERT(!(m[reqpage]->flags & PG_FICTITIOUS),
+	KASSERT(!(m[0]->flags & PG_FICTITIOUS),
 	    ("backing page for SG is fake"));
 
 	/* Construct a new fake page. */
-	page = sg_pager_getfake(paddr, memattr);
-	VM_OBJECT_LOCK(object);
-	TAILQ_INSERT_TAIL(&object->un_pager.sgp.sgp_pglist, page, pageq);
-
-	/* Free the original pages and insert this fake page into the object. */
-	vm_page_lock_queues();
-	for (i = 0; i < count; i++)
-		vm_page_free(m[i]);
-	vm_page_unlock_queues();
-	vm_page_insert(page, object, offset);
-	m[reqpage] = page;
+	page = vm_page_getfake(paddr, memattr);
+	VM_OBJECT_WLOCK(object);
+	TAILQ_INSERT_TAIL(&object->un_pager.sgp.sgp_pglist, page, plinks.q);
+	vm_page_replace_checked(page, object, offset, m[0]);
+	vm_page_lock(m[0]);
+	vm_page_free(m[0]);
+	vm_page_unlock(m[0]);
+	m[0] = page;
 	page->valid = VM_PAGE_BITS_ALL;
+
+	if (rbehind)
+		*rbehind = 0;
+	if (rahead)
+		*rahead = 0;
 
 	return (VM_PAGER_OK);
 }
@@ -227,34 +221,4 @@ sg_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
 	if (after != NULL)
 		*after = 0;
 	return (TRUE);
-}
-
-/*
- * Create a fictitious page with the specified physical address and memory
- * attribute.  The memory attribute is the only the machine-dependent aspect
- * of a fictitious page that must be initialized.
- */
-static vm_page_t
-sg_pager_getfake(vm_paddr_t paddr, vm_memattr_t memattr)
-{
-	vm_page_t m;
-
-	m = uma_zalloc(fakepg_zone, M_WAITOK | M_ZERO);
-	m->phys_addr = paddr;
-	/* Fictitious pages don't use "segind". */
-	m->flags = PG_FICTITIOUS;
-	/* Fictitious pages don't use "order" or "pool". */
-	m->oflags = VPO_BUSY;
-	m->wire_count = 1;
-	pmap_page_set_memattr(m, memattr);
-	return (m);
-}
-
-static void
-sg_pager_putfake(vm_page_t m)
-{
-
-	if (!(m->flags & PG_FICTITIOUS))
-		panic("sg_pager_putfake: bad page");
-	uma_zfree(fakepg_zone, m);
 }

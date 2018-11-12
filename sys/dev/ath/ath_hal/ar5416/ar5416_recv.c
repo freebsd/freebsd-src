@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5416_recv.c,v 1.7 2008/11/11 20:46:06 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -25,6 +25,80 @@
 #include "ar5416/ar5416.h"
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416desc.h"
+
+/*
+ * Get the receive filter.
+ */
+uint32_t
+ar5416GetRxFilter(struct ath_hal *ah)
+{
+	uint32_t bits = OS_REG_READ(ah, AR_RX_FILTER);
+	uint32_t phybits = OS_REG_READ(ah, AR_PHY_ERR);
+
+	if (phybits & AR_PHY_ERR_RADAR)
+		bits |= HAL_RX_FILTER_PHYRADAR;
+	if (phybits & (AR_PHY_ERR_OFDM_TIMING | AR_PHY_ERR_CCK_TIMING))
+		bits |= HAL_RX_FILTER_PHYERR;
+	return bits;
+}
+
+/*
+ * Set the receive filter.
+ */
+void
+ar5416SetRxFilter(struct ath_hal *ah, u_int32_t bits)
+{
+	uint32_t phybits;
+
+	OS_REG_WRITE(ah, AR_RX_FILTER, (bits & 0xffff));
+	phybits = 0;
+	if (bits & HAL_RX_FILTER_PHYRADAR)
+		phybits |= AR_PHY_ERR_RADAR;
+	if (bits & HAL_RX_FILTER_PHYERR)
+		phybits |= AR_PHY_ERR_OFDM_TIMING | AR_PHY_ERR_CCK_TIMING;
+	OS_REG_WRITE(ah, AR_PHY_ERR, phybits);
+	if (phybits) {
+		OS_REG_WRITE(ah, AR_RXCFG,
+		    OS_REG_READ(ah, AR_RXCFG) | AR_RXCFG_ZLFDMA);
+	} else {
+		OS_REG_WRITE(ah, AR_RXCFG,
+		    OS_REG_READ(ah, AR_RXCFG) &~ AR_RXCFG_ZLFDMA);
+	}
+}
+
+/*
+ * Stop Receive at the DMA engine
+ */
+HAL_BOOL
+ar5416StopDmaReceive(struct ath_hal *ah)
+{
+	HAL_BOOL status;
+
+	OS_MARK(ah, AH_MARK_RX_CTL, AH_MARK_RX_CTL_DMA_STOP);
+	OS_REG_WRITE(ah, AR_CR, AR_CR_RXD);	/* Set receive disable bit */
+	if (!ath_hal_wait(ah, AR_CR, AR_CR_RXE, 0)) {
+		OS_MARK(ah, AH_MARK_RX_CTL, AH_MARK_RX_CTL_DMA_STOP_ERR);
+#ifdef AH_DEBUG
+		ath_hal_printf(ah, "%s: dma failed to stop in 10ms\n"
+			"AR_CR=0x%08x\nAR_DIAG_SW=0x%08x\n",
+			__func__,
+			OS_REG_READ(ah, AR_CR),
+			OS_REG_READ(ah, AR_DIAG_SW));
+#endif
+		status = AH_FALSE;
+	} else {
+		status = AH_TRUE;
+	}
+
+	/*
+	 * XXX Is this to flush whatever is in a FIFO somewhere?
+	 * XXX If so, what should the correct behaviour should be?
+	 */
+	if (AR_SREV_9100(ah))
+		OS_DELAY(3000);
+
+	return (status);
+}
 
 /*
  * Start receive at the PCU engine
@@ -77,6 +151,9 @@ ar5416SetupRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	/* this should be enough */
 	ads->ds_rxstatus8 &= ~AR_RxDone;
 
+	/* clear the rest of the status fields */
+	OS_MEMZERO(&(ads->u), sizeof(ads->u));
+
 	return AH_TRUE;
 }
 
@@ -94,17 +171,8 @@ ar5416ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
     struct ath_rx_status *rs)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
-	struct ar5416_desc *ands = AR5416DESC(nds);
 
 	if ((ads->ds_rxstatus8 & AR_RxDone) == 0)
-		return HAL_EINPROGRESS;
-	/*
-	 * Given the use of a self-linked tail be very sure that the hw is
-	 * done with this descriptor; the hw may have done this descriptor
-	 * once and picked it up again...make sure the hw has moved on.
-	 */
-	if ((ands->ds_rxstatus8 & AR_RxDone) == 0
-	    && OS_REG_READ(ah, AR_RXDP) == pa)
 		return HAL_EINPROGRESS;
 
 	rs->rs_status = 0;
@@ -141,6 +209,14 @@ ar5416ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	if (ads->ds_rxstatus3 & AR_2040)
 		rs->rs_flags |= HAL_RX_2040;
 
+	/*
+	 * Only the AR9280 and later chips support STBC RX, so
+	 * ensure we only set this bit for those chips.
+	 */
+	if (AR_SREV_MERLIN_10_OR_LATER(ah)
+	    && ads->ds_rxstatus3 & AR_STBCFrame)
+		rs->rs_flags |= HAL_RX_STBC;
+
 	if (ads->ds_rxstatus8 & AR_PreDelimCRCErr)
 		rs->rs_flags |= HAL_RX_DELIM_CRC_PRE;
 	if (ads->ds_rxstatus8 & AR_PostDelimCRCErr)
@@ -160,15 +236,40 @@ ar5416ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		 * Consequently we filter them out here so we don't
 		 * confuse and/or complicate drivers.
 		 */
-		if (ads->ds_rxstatus8 & AR_CRCErr)
-			rs->rs_status |= HAL_RXERR_CRC;
-		else if (ads->ds_rxstatus8 & AR_PHYErr) {
+
+		/*
+		 * The AR5416 sometimes sets both AR_CRCErr and AR_PHYErr
+		 * when reporting radar pulses.  In this instance
+		 * set HAL_RXERR_PHY as well as HAL_RXERR_CRC and
+		 * let the driver layer figure out what to do.
+		 *
+		 * See PR kern/169362.
+		 */
+		if (ads->ds_rxstatus8 & AR_PHYErr) {
 			u_int phyerr;
 
-			rs->rs_status |= HAL_RXERR_PHY;
+			/*
+			 * Packets with OFDM_RESTART on post delimiter are CRC OK and
+			 * usable and MAC ACKs them.
+			 * To avoid packet from being lost, we remove the PHY Err flag
+			 * so that driver layer does not drop them.
+			 */
 			phyerr = MS(ads->ds_rxstatus8, AR_PHYErrCode);
-			rs->rs_phyerr = phyerr;
-		} else if (ads->ds_rxstatus8 & AR_DecryptCRCErr)
+
+			if ((phyerr == HAL_PHYERR_OFDM_RESTART) &&
+			    (ads->ds_rxstatus8 & AR_PostDelimCRCErr)) {
+				ath_hal_printf(ah,
+				    "%s: OFDM_RESTART on post-delim CRC error\n",
+				    __func__);
+				rs->rs_phyerr = 0;
+			} else {
+				rs->rs_status |= HAL_RXERR_PHY;
+				rs->rs_phyerr = phyerr;
+			}
+		}
+		if (ads->ds_rxstatus8 & AR_CRCErr)
+			rs->rs_status |= HAL_RXERR_CRC;
+		else if (ads->ds_rxstatus8 & AR_DecryptCRCErr)
 			rs->rs_status |= HAL_RXERR_DECRYPT;
 		else if (ads->ds_rxstatus8 & AR_MichaelErr)
 			rs->rs_status |= HAL_RXERR_MIC;

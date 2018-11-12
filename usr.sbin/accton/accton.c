@@ -80,7 +80,7 @@ main(int argc, char *argv[])
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: accton [file]\n");
 	exit(1);

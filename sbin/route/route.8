@@ -28,7 +28,7 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2005
+.Dd November 11, 2014
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -62,6 +62,14 @@ programmatic interface discussed in
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl 4
+Specify
+.Cm inet
+address family as family hint for subcommands.
+.It Fl 6
+Specify
+.Cm inet
+address family as family hint for subcommands.
 .It Fl d
 Run in debug-only mode, i.e., do not actually modify the routing table.
 .It Fl n
@@ -107,6 +115,10 @@ Lookup and display the route for a destination.
 .It Cm monitor
 Continuously report any changes to the routing information base,
 routing lookup misses, or suspected network partitionings.
+.It Cm show
+Another name for the
+.Cm get
+command.
 .El
 .Pp
 The monitor command has the syntax:
@@ -114,16 +126,14 @@ The monitor command has the syntax:
 .Bd -ragged -offset indent -compact
 .Nm
 .Op Fl n
-.Cm monitor
+.Cm monitor Op Fl fib Ar number
 .Ed
 .Pp
 The flush command has the syntax:
 .Pp
 .Bd -ragged -offset indent -compact
 .Nm
-.Op Fl n
-.Cm flush
-.Op Ar family
+.Oo Fl n Cm flush Oc Oo Ar family Oc Op Fl fib Ar number
 .Ed
 .Pp
 If the
@@ -134,12 +144,25 @@ will ``flush'' the routing tables of all gateway entries.
 When the address family may is specified by any of the
 .Fl osi ,
 .Fl xns ,
-.Fl atalk ,
 .Fl inet6 ,
 or
 .Fl inet
 modifiers, only routes having destinations with addresses in the
 delineated family will be deleted.
+Additionally,
+.Fl 4
+or
+.Fl 6
+can be used as aliases for
+.Fl inet
+and
+.Fl inet6
+modifiers.
+When a
+.Fl fib
+option is specified, the operation will be applied to
+the specified FIB
+.Pq routing table .
 .Pp
 The other commands have the following syntax:
 .Pp
@@ -150,6 +173,7 @@ The other commands have the following syntax:
 .Op Fl net No \&| Fl host
 .Ar destination gateway
 .Op Ar netmask
+.Op Fl fib Ar number
 .Ed
 .Pp
 where
@@ -206,9 +230,15 @@ A
 .Ar destination
 of
 .Ar default
-is a synonym for
-.Fl net Li 0.0.0.0 ,
-which is the default route.
+is a synonym for the default route.
+For
+.Li IPv4
+it is
+.Fl net Fl inet Li 0.0.0.0 ,
+and for
+.Li IPv6
+it is
+.Fl net Fl inet6 Li :: .
 .Pp
 If the destination is directly reachable
 via an interface requiring
@@ -224,14 +254,12 @@ if the local or remote addresses change.
 The optional modifiers
 .Fl xns ,
 .Fl osi ,
-.Fl atalk ,
 and
 .Fl link
 specify that all subsequent addresses are in the
-.Tn XNS ,
-.Tn OSI ,
+.Tn XNS
 or
-.Tn AppleTalk
+.Tn OSI
 address families,
 or are specified as link-level addresses,
 and the names must be numeric specifications rather than
@@ -310,6 +338,44 @@ specify that all ensuing metrics may be locked by the
 .Fl lockrest
 meta-modifier.
 .Pp
+Note that
+.Fl expire
+accepts expiration time of the route as the number of seconds since the
+Epoch
+.Pq see Xr time 3 .
+When the first character of the number is
+.Dq +
+or
+.Dq - ,
+it is interpreted as a value relative to the current time.
+.Pp
+The optional modifier
+.Fl fib Ar number
+specifies that the command will be applied to a non-default FIB.
+The
+.Ar number
+must be smaller than the
+.Va net.fibs
+.Xr sysctl 8
+MIB.
+When this modifier is not specified,
+or a negative number is specified,
+the default FIB shown in the
+.Va net.my_fibnum
+.Xr sysctl 8
+MIB will be used.
+.Pp
+The
+.Ar number
+allows multiple FIBs by a comma-separeted list and/or range
+specification.
+The
+.Qq Fl fib Li 2,4,6
+means the FIB number 2, 4, and 6.
+The
+.Qq Fl fib Li 1,3-5,6
+means the 1, 3, 4, 5, and 6.
+.Pp
 In a
 .Cm change
 or
@@ -344,6 +410,36 @@ As such, only the super-user may modify
 the routing tables.
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Add a default route to the network routing table.
+This will send all packets for destinations not available in the routing table
+to the default gateway at 192.168.1.1:
+.Pp
+.Dl route add -net 0.0.0.0/0 192.168.1.1
+.Pp
+A shorter version of adding a default route can also be written as:
+.Pp
+.Dl route add default 192.168.1.1
+.Pp
+Add a static route to the 172.16.10.0/24 network via the 172.16.1.1 gateway:
+.Pp
+.Dl route add -net 172.16.10.0/24 172.16.1.1
+.Pp
+Change the gateway of an already established static route in the routing table:
+.Pp
+.Dl route change -net 172.16.10.0/24 172.16.1.2
+.Pp
+Display the route for a destination network:
+.Pp
+.Dl route show 172.16.10.0
+.Pp
+Delete a static route from the routing table:
+.Pp
+.Dl route delete -net 172.16.10.0/24 172.16.1.2
+.Pp
+Remove all routes from the routing table:
+.Pp
+.Dl route flush
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "add [host \&| network ] %s: gateway %s flags %x"
@@ -387,7 +483,6 @@ The next-hop gateway should be reachable through a different route.
 .Xr netintro 4 ,
 .Xr route 4 ,
 .Xr arp 8 ,
-.Xr IPXrouted 8 ,
 .Xr routed 8
 .\".Xr XNSrouted 8
 .Sh HISTORY

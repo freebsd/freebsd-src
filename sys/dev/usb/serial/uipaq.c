@@ -17,13 +17,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -59,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -111,10 +103,12 @@ struct uipaq_softc {
 static device_probe_t uipaq_probe;
 static device_attach_t uipaq_attach;
 static device_detach_t uipaq_detach;
+static void uipaq_free_softc(struct uipaq_softc *);
 
 static usb_callback_t uipaq_write_callback;
 static usb_callback_t uipaq_read_callback;
 
+static void	uipaq_free(struct ucom_softc *);
 static void	uipaq_start_read(struct ucom_softc *);
 static void	uipaq_stop_read(struct ucom_softc *);
 static void	uipaq_start_write(struct ucom_softc *);
@@ -154,6 +148,7 @@ static const struct ucom_callback uipaq_callback = {
 	.ucom_start_write = &uipaq_start_write,
 	.ucom_stop_write = &uipaq_stop_write,
 	.ucom_poll = &uipaq_poll,
+	.ucom_free = &uipaq_free,
 };
 
 /*
@@ -161,7 +156,7 @@ static const struct ucom_callback uipaq_callback = {
  * support the same hardware. Numeric values are used where no usbdevs
  * entries exist.
  */
-static const struct usb_device_id uipaq_devs[] = {
+static const STRUCT_USB_HOST_ID uipaq_devs[] = {
 	/* Socket USB Sync */
 	{USB_VPI(0x0104, 0x00be, 0)},
 	/* USB Sync 0301 */
@@ -690,14 +685,14 @@ static const struct usb_device_id uipaq_devs[] = {
 	{USB_VPI(USB_VENDOR_HTC, 0x0a9e, 0)},
 	/* SmartPhone USB Sync */
 	{USB_VPI(USB_VENDOR_HTC, 0x0a9f, 0)},
-	/* "High Tech Computer Corp" */
-	{USB_VPI(USB_VENDOR_HTC, 0x0bce, 0)},
 	/**/
 	{USB_VPI(USB_VENDOR_HTC, USB_PRODUCT_HTC_PPC6700MODEM, 0)},
 	/**/
 	{USB_VPI(USB_VENDOR_HTC, USB_PRODUCT_HTC_SMARTPHONE, 0)},
 	/**/
 	{USB_VPI(USB_VENDOR_HTC, USB_PRODUCT_HTC_WINMOBILE, 0)},
+	/* High Tech Computer Wizard Smartphone */
+	{USB_VPI(USB_VENDOR_HTC, USB_PRODUCT_HTC_WIZARD, 0)},
 	/* JVC USB Sync */
 	{USB_VPI(USB_VENDOR_JVC, 0x3011, 0)},
 	/* JVC USB Sync */
@@ -1015,6 +1010,8 @@ static const struct usb_device_id uipaq_devs[] = {
 	/**/
 	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_WZERO3ES, 0)},
 	/**/
+	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_WZERO3ADES, 0)},
+	/**/
 	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_WILLCOM03, 0)},
 	/* Symbol USB Sync */
 	{USB_VPI(USB_VENDOR_SYMBOL, 0x2000, 0)},
@@ -1076,7 +1073,7 @@ static device_method_t uipaq_methods[] = {
 	DEVMETHOD(device_probe, uipaq_probe),
 	DEVMETHOD(device_attach, uipaq_attach),
 	DEVMETHOD(device_detach, uipaq_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t uipaq_devclass;
@@ -1090,6 +1087,8 @@ static driver_t uipaq_driver = {
 DRIVER_MODULE(uipaq, uhub, uipaq_driver, uipaq_devclass, NULL, 0);
 MODULE_DEPEND(uipaq, ucom, 1, 1, 1);
 MODULE_DEPEND(uipaq, usb, 1, 1, 1);
+MODULE_VERSION(uipaq, 1);
+USB_PNP_HOST_INFO(uipaq_devs);
 
 static int
 uipaq_probe(device_t dev)
@@ -1126,6 +1125,7 @@ uipaq_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uipaq", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	/*
 	 * Send magic bytes, cribbed from Linux ipaq driver that
@@ -1165,6 +1165,8 @@ uipaq_attach(device_t dev)
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	return (0);
 
 detach:
@@ -1177,11 +1179,31 @@ uipaq_detach(device_t dev)
 {
 	struct uipaq_softc *sc = device_get_softc(dev);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UIPAQ_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	uipaq_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(uipaq);
+
+static void
+uipaq_free_softc(struct uipaq_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+uipaq_free(struct ucom_softc *ucom)
+{
+	uipaq_free_softc(ucom->sc_parent);
 }
 
 static void

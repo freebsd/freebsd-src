@@ -7,27 +7,28 @@
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
+#include "opt_ddb.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -38,174 +39,150 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/kdb.h>
 #include <sys/stack.h>
+
 #include <machine/armreg.h>
 #include <machine/asm.h>
 #include <machine/cpufunc.h>
 #include <machine/db_machdep.h>
+#include <machine/debug_monitor.h>
 #include <machine/pcb.h>
 #include <machine/stack.h>
 #include <machine/vmparam.h>
+
 #include <ddb/ddb.h>
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
 #include <ddb/db_output.h>
 
-/*
- * APCS stack frames are awkward beasts, so I don't think even trying to use
- * a structure to represent them is a good idea.
- *
- * Here's the diagram from the APCS.  Increasing address is _up_ the page.
- * 
- *          save code pointer       [fp]        <- fp points to here
- *          return link value       [fp, #-4]
- *          return sp value         [fp, #-8]
- *          return fp value         [fp, #-12]
- *          [saved v7 value]
- *          [saved v6 value]
- *          [saved v5 value]
- *          [saved v4 value]
- *          [saved v3 value]
- *          [saved v2 value]
- *          [saved v1 value]
- *          [saved a4 value]
- *          [saved a3 value]
- *          [saved a2 value]
- *          [saved a1 value]
- *
- * The save code pointer points twelve bytes beyond the start of the 
- * code sequence (usually a single STM) that created the stack frame.  
- * We have to disassemble it if we want to know which of the optional 
- * fields are actually present.
- */
-
 static void
-db_stack_trace_cmd(db_expr_t addr, db_expr_t count)
+db_stack_trace_cmd(struct unwind_state *state)
 {
-	u_int32_t	*frame, *lastframe;
-	c_db_sym_t sym;
 	const char *name;
 	db_expr_t value;
 	db_expr_t offset;
-	boolean_t	kernel_only = TRUE;
-	int	scp_offset;
+	c_db_sym_t sym;
+	u_int reg, i;
+	char *sep;
+	uint16_t upd_mask;
+	bool finished;
 
-	frame = (u_int32_t *)addr;
-	lastframe = NULL;
-	scp_offset = -(get_pc_str_offset() >> 2);
+	finished = false;
+	while (!finished) {
+		finished = unwind_stack_one(state, 1);
 
-	while (count-- && frame != NULL && !db_pager_quit) {
-		db_addr_t	scp;
-		u_int32_t	savecode;
-		int		r;
-		u_int32_t	*rp;
-		const char	*sep;
-
-		/*
-		 * In theory, the SCP isn't guaranteed to be in the function
-		 * that generated the stack frame.  We hope for the best.
-		 */
-		scp = frame[FR_SCP];
-
-		sym = db_search_symbol(scp, DB_STGY_ANY, &offset);
+		/* Print the frame details */
+		sym = db_search_symbol(state->start_pc, DB_STGY_ANY, &offset);
 		if (sym == C_DB_SYM_NULL) {
 			value = 0;
 			name = "(null)";
 		} else
 			db_symbol_values(sym, &name, &value);
 		db_printf("%s() at ", name);
-		db_printsym(scp, DB_STGY_PROC);
+		db_printsym(state->start_pc, DB_STGY_PROC);
 		db_printf("\n");
-#ifdef __PROG26
-		db_printf("scp=0x%08x rlv=0x%08x (", scp, frame[FR_RLV] & R15_PC);
-		db_printsym(frame[FR_RLV] & R15_PC, DB_STGY_PROC);
+		db_printf("\t pc = 0x%08x  lr = 0x%08x (", state->start_pc,
+		    state->registers[LR]);
+		db_printsym(state->registers[LR], DB_STGY_PROC);
 		db_printf(")\n");
-#else
-		db_printf("scp=0x%08x rlv=0x%08x (", scp, frame[FR_RLV]);
-		db_printsym(frame[FR_RLV], DB_STGY_PROC);
-		db_printf(")\n");
-#endif
-		db_printf("\trsp=0x%08x rfp=0x%08x", frame[FR_RSP], frame[FR_RFP]);
+		db_printf("\t sp = 0x%08x  fp = 0x%08x",
+		    state->registers[SP], state->registers[FP]);
 
-		savecode = ((u_int32_t *)scp)[scp_offset];
-		if ((savecode & 0x0e100000) == 0x08000000) {
-			/* Looks like an STM */
-			rp = frame - 4;
-			sep = "\n\t";
-			for (r = 10; r >= 0; r--) {
-				if (savecode & (1 << r)) {
-					db_printf("%sr%d=0x%08x",
-					    sep, r, *rp--);
-					sep = (frame - rp) % 4 == 2 ?
-					    "\n\t" : " ";
-				}
+		/* Don't print the registers we have already printed */
+		upd_mask = state->update_mask &
+		    ~((1 << SP) | (1 << FP) | (1 << LR) | (1 << PC));
+		sep = "\n\t";
+		for (i = 0, reg = 0; upd_mask != 0; upd_mask >>= 1, reg++) {
+			if ((upd_mask & 1) != 0) {
+				db_printf("%s%sr%d = 0x%08x", sep,
+				    (reg < 10) ? " " : "", reg,
+				    state->registers[reg]);
+				i++;
+				if (i == 2) {
+					sep = "\n\t";
+					i = 0;
+				} else
+					sep = " ";
+
 			}
 		}
-
 		db_printf("\n");
 
+		if (finished)
+			break;
+
 		/*
-		 * Switch to next frame up
+		 * Stop if directed to do so, or if we've unwound back to the
+		 * kernel entry point, or if the unwind function didn't change
+		 * anything (to avoid getting stuck in this loop forever).
+		 * If the latter happens, it's an indication that the unwind
+		 * information is incorrect somehow for the function named in
+		 * the last frame printed before you see the unwind failure
+		 * message (maybe it needs a STOP_UNWINDING).
 		 */
-		if (frame[FR_RFP] == 0)
-			break; /* Top of stack */
-
-		lastframe = frame;
-		frame = (u_int32_t *)(frame[FR_RFP]);
-
-		if (INKERNEL((int)frame)) {
-			/* staying in kernel */
-			if (frame <= lastframe) {
-				db_printf("Bad frame pointer: %p\n", frame);
-				break;
-			}
-		} else if (INKERNEL((int)lastframe)) {
-			/* switch from user to kernel */
-			if (kernel_only)
-				break;	/* kernel stack only */
-		} else {
-			/* in user */
-			if (frame <= lastframe) {
-				db_printf("Bad user frame pointer: %p\n",
-					  frame);
-				break;
-			}
+		if (state->registers[PC] < VM_MIN_KERNEL_ADDRESS) {
+			db_printf("Unable to unwind into user mode\n");
+			finished = true;
+		} else if (state->update_mask == 0) {
+			db_printf("Unwind failure (no registers changed)\n");
+			finished = true;
 		}
 	}
 }
 
-/* XXX stubs */
 void
 db_md_list_watchpoints()
 {
+
+	dbg_show_watchpoint();
 }
 
 int
 db_md_clr_watchpoint(db_expr_t addr, db_expr_t size)
 {
-	return (0);
+
+	return (dbg_remove_watchpoint(addr, size));
 }
 
 int
 db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 {
-	return (0);
+
+	return (dbg_setup_watchpoint(addr, size, HW_WATCHPOINT_RW));
 }
 
 int
 db_trace_thread(struct thread *thr, int count)
 {
-	uint32_t addr;
+	struct unwind_state state;
+	struct pcb *ctx;
 
-	if (thr == curthread)
-		addr = (uint32_t)__builtin_frame_address(0);
-	else
-		addr = thr->td_pcb->un_32.pcb32_r11;
-	db_stack_trace_cmd(addr, -1);
+	if (thr != curthread) {
+		ctx = kdb_thr_ctx(thr);
+
+		state.registers[FP] = ctx->pcb_regs.sf_r11;
+		state.registers[SP] = ctx->pcb_regs.sf_sp;
+		state.registers[LR] = ctx->pcb_regs.sf_lr;
+		state.registers[PC] = ctx->pcb_regs.sf_pc;
+
+		db_stack_trace_cmd(&state);
+	} else
+		db_trace_self();
 	return (0);
 }
 
 void
 db_trace_self(void)
 {
-	db_trace_thread(curthread, -1);
+	struct unwind_state state;
+	uint32_t sp;
+
+	/* Read the stack pointer */
+	__asm __volatile("mov %0, sp" : "=&r" (sp));
+
+	state.registers[FP] = (uint32_t)__builtin_frame_address(0);
+	state.registers[SP] = sp;
+	state.registers[LR] = (uint32_t)__builtin_return_address(0);
+	state.registers[PC] = (uint32_t)db_trace_self;
+
+	db_stack_trace_cmd(&state);
 }

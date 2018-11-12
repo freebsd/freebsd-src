@@ -87,7 +87,7 @@ gv_start_obj(struct g_geom *gp, struct gctl_req *req)
 		case GV_TYPE_SD:
 		case GV_TYPE_DRIVE:
 			/* XXX Not implemented, but what is the use? */
-			gctl_error(req, "cannot start '%s' - not yet supported",
+			gctl_error(req, "unable to start '%s' - not yet supported",
 			    argv);
 			return;
 		default:
@@ -279,8 +279,8 @@ gv_rebuild_plex(struct gv_plex *p)
 	LIST_FOREACH(s, &p->subdisks, in_plex) {
 		d = s->drive_sc;
 		if (d == NULL || (d->flags & GV_DRIVE_REFERENCED)) {
-			G_VINUM_DEBUG(0, "can't rebuild %s, subdisk(s) have no "
-			    "drives", p->name);
+			G_VINUM_DEBUG(0, "unable to rebuild %s, subdisk(s) have"
+			    " no drives", p->name);
 			return (ENXIO);
 		}
 	}

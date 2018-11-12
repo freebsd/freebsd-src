@@ -34,21 +34,15 @@
 #include <xen/interface/xen.h>
 #include <xen/interface/sched.h>
 
+extern char *hypercall_page;
+
 #define __STR(x) #x
 #define STR(x) __STR(x)
 #define	ENOXENSYS	38
 #define CONFIG_XEN_COMPAT	0x030002
 
-
-#if defined(XEN)
 #define HYPERCALL_STR(name)                                     \
         "call hypercall_page + ("STR(__HYPERVISOR_##name)" * 32)"
-#else
-#define HYPERCALL_STR(name)                                     \
-        "mov hypercall_stubs,%%eax; "                           \
-        "add $("STR(__HYPERVISOR_##name)" * 32),%%eax; "        \
-        "call *%%eax"
-#endif
 
 #define _hypercall0(type, name)                 \
 ({                                              \
@@ -122,6 +116,24 @@
                 : "memory" );                                   \
         (type)__res;                                            \
 })								
+
+static inline long
+privcmd_hypercall(long op, long a1, long a2, long a3, long a4, long a5)
+{
+	long __res, __ign1, __ign2, __ign3, __ign4, __ign5, __call;
+
+	__call = (long)&hypercall_page + (op * 32);
+	__asm__ volatile (
+		"call *%[call]"
+		: "=a" (__res), "=b" (__ign1), "=c" (__ign2),
+                "=d" (__ign3), "=S" (__ign4), "=D" (__ign5)
+                : "1" ((long)(a1)), "2" ((long)(a2)),
+                "3" ((long)(a3)), "4" ((long)(a4)),
+                "5" ((long)(a5)), [call] "a" (__call)
+		: "memory" );
+
+	return __res;
+}
 
 static inline int
 HYPERVISOR_set_trap_table(
@@ -197,7 +209,7 @@ HYPERVISOR_set_timer_op(
 	unsigned long timeout_lo = (unsigned long)timeout;
 	return _hypercall2(long, set_timer_op, timeout_lo, timeout_hi);
 }
-#if 0
+
 static inline int
 HYPERVISOR_platform_op(
         struct xen_platform_op *platform_op)
@@ -205,7 +217,7 @@ HYPERVISOR_platform_op(
         platform_op->interface_version = XENPF_INTERFACE_VERSION;
         return _hypercall1(int, platform_op, platform_op);
 }
-#endif
+
 static inline int
 HYPERVISOR_set_debugreg(
 	int reg, unsigned long value)
@@ -281,7 +293,7 @@ HYPERVISOR_xen_version(
 
 static inline int
 HYPERVISOR_console_io(
-	int cmd, int count, char *str)
+	int cmd, int count, const char *str)
 {
 	return _hypercall3(int, console_io, cmd, count, str);
 }

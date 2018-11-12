@@ -26,8 +26,10 @@
 # $FreeBSD$
 #
 
+PACKAGE=runtime
 PROG=	kldstat
 MAN=	kldstat.8
-WARNS?=	5
+
+LIBADD=	util
 
 .include <bsd.prog.mk>

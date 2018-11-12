@@ -33,24 +33,6 @@
 #error "sys/cdefs.h is a prerequisite for this file"
 #endif
 
-#if defined(XEN) || defined(XENHVM)
-#ifndef NR_VIRQS
-#define	NR_VIRQS	24
-#endif
-#ifndef NR_IPIS
-#define	NR_IPIS		2
-#endif
-#endif
-
-#ifdef XENHVM
-#define PCPU_XEN_FIELDS							\
-	;								\
-	unsigned int pc_last_processed_l1i;				\
-	unsigned int pc_last_processed_l2i
-#else
-#define PCPU_XEN_FIELDS
-#endif
-
 /*
  * The SMP parts are setup in pmap.c and locore.s for the BSP, and
  * mp_machdep.c sets up the data for the AP's to "see" when they awake.
@@ -75,8 +57,19 @@
 	/* Pointer to the CPU LDT descriptor */				\
 	struct system_segment_descriptor *pc_ldt;			\
 	/* Pointer to the CPU TSS descriptor */				\
-	struct system_segment_descriptor *pc_tss			\
-	PCPU_XEN_FIELDS
+	struct system_segment_descriptor *pc_tss;			\
+	uint64_t	pc_pm_save_cnt;					\
+	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
+	uint64_t pc_dbreg[16];		/* ddb debugging regs */	\
+	int pc_dbreg_cmd;		/* ddb debugging reg cmd */	\
+	u_int	pc_vcpu_id;		/* Xen vCPU ID */		\
+	uint32_t pc_pcid_next;						\
+	uint32_t pc_pcid_gen;						\
+	char	__pad[149]		/* be divisor of PAGE_SIZE	\
+					   after cache alignment */
+
+#define	PC_DBREG_CMD_NONE	0
+#define	PC_DBREG_CMD_LOAD	1
 
 #ifdef _KERNEL
 
@@ -215,15 +208,37 @@ extern struct pcpu *pcpup;
 #define	PCPU_PTR(member)	__PCPU_PTR(pc_ ## member)
 #define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
 
-static __inline struct thread *
+#define	OFFSETOF_CURTHREAD	0
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnull-dereference"
+#endif
+static __inline __pure2 struct thread *
 __curthread(void)
 {
 	struct thread *td;
 
-	__asm __volatile("movq %%gs:0,%0" : "=r" (td));
+	__asm("movq %%gs:%1,%0" : "=r" (td)
+	    : "m" (*(char *)OFFSETOF_CURTHREAD));
 	return (td);
 }
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 #define	curthread		(__curthread())
+
+#define	OFFSETOF_CURPCB		32
+static __inline __pure2 struct pcb *
+__curpcb(void)
+{
+	struct pcb *pcb;
+
+	__asm("movq %%gs:%1,%0" : "=r" (pcb) : "m" (*(char *)OFFSETOF_CURPCB));
+	return (pcb);
+}
+#define	curpcb		(__curpcb())
+
+#define	IS_BSP()	(PCPU_GET(cpuid) == 0)
 
 #else /* !lint || defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF) */
 

@@ -64,7 +64,6 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include "opt_comconsole.h"
 #include "opt_dcons.h"
 #include "opt_kdb.h"
 #include "opt_gdb.h"
@@ -73,6 +72,10 @@
 
 #ifndef DCONS_POLL_HZ
 #define DCONS_POLL_HZ	25
+#endif
+
+#ifndef DCONS_POLL_IDLE
+#define DCONS_POLL_IDLE	256
 #endif
 
 #ifndef DCONS_BUF_SIZE
@@ -91,10 +94,11 @@ static char bssbuf[DCONS_BUF_SIZE];	/* buf in bss */
 static struct dcons_global dg;
 struct dcons_global *dcons_conf;
 static int poll_hz = DCONS_POLL_HZ;
+static u_int poll_idle = DCONS_POLL_HZ * DCONS_POLL_IDLE;
 
 static struct dcons_softc sc[DCONS_NPORT];
 
-SYSCTL_NODE(_kern, OID_AUTO, dcons, CTLFLAG_RD, 0, "Dumb Console");
+static SYSCTL_NODE(_kern, OID_AUTO, dcons, CTLFLAG_RD, 0, "Dumb Console");
 SYSCTL_INT(_kern_dcons, OID_AUTO, poll_hz, CTLFLAG_RW, &poll_hz, 0,
 				"dcons polling rate");
 
@@ -110,6 +114,8 @@ static cn_init_t	dcons_cninit;
 static cn_term_t	dcons_cnterm;
 static cn_getc_t	dcons_cngetc;
 static cn_putc_t	dcons_cnputc;
+static cn_grab_t	dcons_cngrab;
+static cn_ungrab_t	dcons_cnungrab;
 
 CONSOLE_DRIVER(dcons);
 
@@ -133,38 +139,21 @@ static struct ttydevsw dcons_ttydevsw = {
 	.tsw_outwakeup  = dcons_outwakeup,
 };
 
-#if (defined(GDB) || defined(DDB)) && defined(ALT_BREAK_TO_DEBUGGER)
+#if (defined(GDB) || defined(DDB))
 static int
 dcons_check_break(struct dcons_softc *dc, int c)
 {
-	int kdb_brk;
 
 	if (c < 0)
 		return (c);
 
-	if ((kdb_brk = kdb_alt_break(c, &dc->brk_state)) != 0) {
-		switch (kdb_brk) {
-		case KDB_REQ_DEBUGGER:
-			if ((dc->flags & DC_GDB) != 0) {
 #ifdef GDB
-				if (gdb_cur == &dcons_gdb_dbgport) {
-					kdb_dbbe_select("gdb");
-					kdb_enter(KDB_WHY_BREAK,
-					    "Break sequence on dcons gdb port");
-				}
+	if ((dc->flags & DC_GDB) != 0 && gdb_cur == &dcons_gdb_dbgport)
+		kdb_alt_break_gdb(c, &dc->brk_state);
+	else
 #endif
-			} else
-				kdb_enter(KDB_WHY_BREAK,
-				    "Break sequence on dcons console port");
-			break;
-		case KDB_REQ_PANIC:
-			kdb_panic("Panic sequence on dcons console port");
-			break;
-		case KDB_REQ_REBOOT:
-			kdb_reboot();
-			break;
-		}
-	}
+		kdb_alt_break(c, &dc->brk_state);
+
 	return (c);
 }
 #else
@@ -230,14 +219,17 @@ dcons_timeout(void *v)
 		tp = dc->tty;
 
 		tty_lock(tp);
-		while ((c = dcons_os_checkc_nopoll(dc)) != -1)
+		while ((c = dcons_os_checkc_nopoll(dc)) != -1) {
 			ttydisc_rint(tp, c, 0);
+			poll_idle = 0;
+		}
 		ttydisc_rint_done(tp);
 		tty_unlock(tp);
 	}
-	polltime = hz / poll_hz;
-	if (polltime < 1)
-		polltime = 1;
+	poll_idle++;
+	polltime = hz;
+	if (poll_idle <= (poll_hz * DCONS_POLL_IDLE))
+		polltime /= poll_hz;
 	callout_reset(&dcons_callout, polltime, dcons_timeout, tp);
 }
 
@@ -261,6 +253,16 @@ dcons_cninit(struct consdev *cp)
 
 static void
 dcons_cnterm(struct consdev *cp)
+{
+}
+
+static void
+dcons_cngrab(struct consdev *cp)
+{
+}
+
+static void
+dcons_cnungrab(struct consdev *cp)
 {
 }
 
@@ -372,10 +374,8 @@ dcons_attach(void)
 
 	dcons_attach_port(DCONS_CON, "dcons", 0);
 	dcons_attach_port(DCONS_GDB, "dgdb", DC_GDB);
-	callout_init(&dcons_callout, CALLOUT_MPSAFE);
+	callout_init(&dcons_callout, 1);
 	polltime = hz / poll_hz;
-	if (polltime < 1)
-		polltime = 1;
 	callout_reset(&dcons_callout, polltime, dcons_timeout, NULL);
 	return(0);
 }

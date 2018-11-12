@@ -51,11 +51,14 @@ struct proc_ldt {
 struct mdthread {
 	int	md_spinlock_count;	/* (k) */
 	register_t md_saved_flags;	/* (k) */
+	register_t md_spurflt_addr;	/* (k) Spurious page fault address. */
 };
 
 struct mdproc {
 	struct proc_ldt *md_ldt;	/* (t) per-process ldt */
 };
+
+#define	KINFO_PROC_SIZE 768
 
 #ifdef	_KERNEL
 
@@ -75,6 +78,12 @@ void	user_ldt_deref(struct proc_ldt *pldt);
 
 extern struct mtx dt_lock;
 
+struct syscall_args {
+	u_int code;
+	struct sysent *callp;
+	register_t args[8];
+	int narg;
+};
 #endif	/* _KERNEL */
 
 #endif /* !_MACHINE_PROC_H_ */

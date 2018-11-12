@@ -1,13 +1,20 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
-FILES=	999.local
+FILESGROUPS=FILES
+
+FILES=	450.status-security \
+	999.local
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_ACCT} != "no"
-FILES+=	200.accounting
+.if ${MK_UTMPX} != "no"
+FILESGROUPS+=	ACCT
+ACCT+=		200.accounting
 .endif
+ACCTDIR=	/etc/periodic/monthly
+ACCTMODE=	${BINMODE}
+ACCTPACKAGE=	acct
 
 .include <bsd.prog.mk>

@@ -34,10 +34,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/kernel.h>
+#include <sys/malloc.h>
  
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
 
@@ -49,7 +51,7 @@ __FBSDID("$FreeBSD$");
 void
 ieee80211_ageq_init(struct ieee80211_ageq *aq, int maxlen, const char *name)
 {
-	memset(aq, 0, sizeof(aq));
+	memset(aq, 0, sizeof(*aq));
 	aq->aq_maxlen = maxlen;
 	IEEE80211_AGEQ_INIT(aq, name);		/* OS-dependent setup */
 }
@@ -154,7 +156,7 @@ ieee80211_ageq_drain_node(struct ieee80211_ageq *aq,
  * deltas (in seconds) relative to the head so we can check
  * and/or adjust only the head of the list.  If a frame's age
  * exceeds the time quanta then remove it.  The list of removed
- * frames is is returned to the caller joined by m_nextpkt.
+ * frames is returned to the caller joined by m_nextpkt.
  */
 struct mbuf *
 ieee80211_ageq_age(struct ieee80211_ageq *aq, int quanta)

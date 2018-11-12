@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -120,7 +119,7 @@ __inaddr_to_index(in_addr_t ifaddr)
 		psu = (sockunion_t *)ifa->ifa_addr;
 		if (psu && psu->ss.ss_family == AF_LINK &&
 		    strcmp(ifa->ifa_name, ifname) == 0) {
-			ifindex = psu->sdl.sdl_index;
+			ifindex = LLINDEX(&psu->sdl);
 			break;
 		}
 	}
@@ -337,7 +336,8 @@ getsourcefilter(int s, uint32_t interface, struct sockaddr *group,
 {
 	struct __msfilterreq	 msfr;
 	sockunion_t		*psu;
-	int			 err, level, nsrcs, optlen, optname;
+	socklen_t		 optlen;
+	int			 err, level, nsrcs, optname;
 
 	if (interface == 0 || group == NULL || numsrc == NULL ||
 	    fmode == NULL) {

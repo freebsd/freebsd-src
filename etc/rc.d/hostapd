@@ -10,11 +10,19 @@
 . /etc/rc.subr
 
 name="hostapd"
+desc="Authenticator for IEEE 802.11 networks"
 command="/usr/sbin/${name}"
-rcvar=`set_rcvar`
 
-conf_file="/etc/${name}.conf"
-pidfile="/var/run/${name}.pid"
+ifn="$2"
+if [ -z "$ifn" ]; then
+	rcvar="hostapd_enable"
+	conf_file="/etc/${name}.conf"
+	pidfile="/var/run/${name}.pid"
+else
+	rcvar=
+	conf_file="/etc/${name}-${ifn}.conf"
+	pidfile="/var/run/${name}-${ifn}.pid"
+fi
 
 command_args="-P ${pidfile} -B ${conf_file}"
 required_files="${conf_file}"

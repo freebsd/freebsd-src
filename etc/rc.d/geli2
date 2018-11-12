@@ -11,7 +11,7 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -34,6 +34,7 @@
 . /etc/rc.subr
 
 name="geli2"
+desc="GELI disk encryption"
 start_cmd="geli2_start"
 stop_cmd=":"
 
@@ -42,7 +43,7 @@ geli2_start()
 	devices=`geli_make_list`
 
 	for provider in ${devices}; do
-		provider_=`ltr ${provider} '/' '_'`
+		provider_=`ltr ${provider} '/-' '_'`
 
 		eval "autodetach=\${geli_${provider_}_autodetach}"
 		if [ -z "${autodetach}" ]; then

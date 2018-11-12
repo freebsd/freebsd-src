@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #include <sys/bus.h>
-#include <sys/cdefs.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
@@ -90,7 +89,7 @@ static device_method_t tdfx_methods[] = {
 	{ 0, 0 }
 };
 
-MALLOC_DEFINE(M_TDFX,"tdfx_driver","3DFX Graphics[/2D]/3D Accelerator(s)");
+static MALLOC_DEFINE(M_TDFX,"tdfx_driver","3DFX Graphics[/2D]/3D Accelerators");
 
 /* Char. Dev. file operations structure */
 static struct cdevsw tdfx_cdev = {
@@ -128,7 +127,7 @@ tdfx_probe(device_t dev)
 	case PCI_DEVICE_3DFX_VOODOO1:
 		device_set_desc(dev, "3DFX Voodoo Graphics 3D Accelerator");
 		return BUS_PROBE_DEFAULT;
-	};
+	}
 
 	return ENXIO;
 }
@@ -146,7 +145,6 @@ tdfx_attach(device_t dev) {
 	 * small, whole number.
 	 */
 	struct tdfx_softc *tdfx_info;
-	u_long	val;
 	/* rid value tells bus_alloc_resource where to find the addresses of ports or
 	 * of memory ranges in the PCI config space*/
 	int rid = PCIR_BAR(0);
@@ -154,12 +152,6 @@ tdfx_attach(device_t dev) {
 	/* Increment the card counter (for the ioctl code) */
 	tdfx_count++;
 
- 	/* Enable MemMap on Voodoo */
-	val = pci_read_config(dev, PCIR_COMMAND, 2);
-	val |= (PCIM_CMD_MEMEN);
-	pci_write_config(dev, PCIR_COMMAND, val, 2);
-	val = pci_read_config(dev, PCIR_COMMAND, 2);
-	
 	/* Fill the soft config struct with info about this device*/
 	tdfx_info = device_get_softc(dev);
 	tdfx_info->dev = dev;
@@ -250,7 +242,7 @@ tdfx_attach(device_t dev) {
 	/* 
 	 * make_dev registers the cdev to access the 3dfx card from /dev
 	 *	use hex here for the dev num, simply to provide better support if > 10
-	 * voodoo cards, for the mad. The user must set the link, or use MAKEDEV.
+	 * voodoo cards, for the mad. The user must set the link.
 	 * Why would we want that many voodoo cards anyhow? 
 	 */
 	tdfx_info->devt = make_dev(&tdfx_cdev, device_get_unit(dev),
@@ -421,7 +413,8 @@ tdfx_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 }
 
 static int
-tdfx_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+tdfx_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
 {
 	/* 
 	 * mmap(2) is called by a user process to request that an area of memory

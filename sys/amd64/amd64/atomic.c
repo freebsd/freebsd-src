@@ -27,7 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* This file creates publically callable functions to perform various
+/* This file creates publicly callable functions to perform various
  * simple arithmetic on memory which is atomic in the presence of
  * interrupts and multiple processors.
  */
@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #undef ATOMIC_ASM
 
 /* Make atomic.h generate public functions */
+static __inline void __storeload_barrier(void);
 #define WANT_FUNCTIONS
 #define static
 #undef __inline

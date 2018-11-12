@@ -83,22 +83,24 @@ CTASSERT((1 << IV_SHIFT) == sizeof(struct intr_vector));
 
 ih_func_t *intr_handlers[PIL_MAX];
 uint16_t pil_countp[PIL_MAX];
+static uint16_t pil_stray_count[PIL_MAX];
 
 struct intr_vector intr_vectors[IV_MAX];
 uint16_t intr_countp[IV_MAX];
-static u_long intr_stray_count[IV_MAX];
+static uint16_t intr_stray_count[IV_MAX];
 
 static const char *const pil_names[] = {
 	"stray",
 	"low",		/* PIL_LOW */
+	"preempt",	/* PIL_PREEMPT */
 	"ithrd",	/* PIL_ITHREAD */
 	"rndzvs",	/* PIL_RENDEZVOUS */
 	"ast",		/* PIL_AST */
-	"stop",		/* PIL_STOP */
-	"preempt",	/* PIL_PREEMPT */
-	"stray", "stray", "stray", "stray", "stray",
+	"hardclock",	/* PIL_HARDCLOCK */
+	"stray", "stray", "stray", "stray",
 	"filter",	/* PIL_FILTER */
-	"fast",		/* PIL_FAST */
+	"bridge",	/* PIL_BRIDGE */
+	"stop",		/* PIL_STOP */
 	"tick",		/* PIL_TICK */
 };
 
@@ -114,7 +116,7 @@ static void intr_assign_next_cpu(struct intr_vector *iv);
 static void intr_shuffle_irqs(void *arg __unused);
 #endif
 
-static int intr_assign_cpu(void *arg, u_char cpu);
+static int intr_assign_cpu(void *arg, int cpu);
 static void intr_execute_handlers(void *);
 static void intr_stray_level(struct trapframe *);
 static void intr_stray_vector(void *);
@@ -169,7 +171,7 @@ static int
 intrcnt_setname(const char *name, int index)
 {
 
-	if (intrnames + (MAXCOMLEN + 1) * index >= eintrnames)
+	if ((MAXCOMLEN + 1) * index >= sintrnames)
 		return (E2BIG);
 	snprintf(intrnames + (MAXCOMLEN + 1) * index, MAXCOMLEN + 1, "%-*s",
 	    MAXCOMLEN, name);
@@ -198,22 +200,32 @@ intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
 static void
 intr_stray_level(struct trapframe *tf)
 {
+	uint64_t level;
 
-	printf("stray level interrupt %ld\n", tf->tf_level);
+	level = tf->tf_level;
+	if (pil_stray_count[level] < MAX_STRAY_LOG) {
+		printf("stray level interrupt %ld\n", level);
+		pil_stray_count[level]++;
+		if (pil_stray_count[level] >= MAX_STRAY_LOG)
+			printf("got %d stray level interrupt %ld's: not "
+			    "logging anymore\n", MAX_STRAY_LOG, level);
+	}
 }
 
 static void
 intr_stray_vector(void *cookie)
 {
 	struct intr_vector *iv;
+	u_int vec;
 
 	iv = cookie;
-	if (intr_stray_count[iv->iv_vec] < MAX_STRAY_LOG) {
-		printf("stray vector interrupt %d\n", iv->iv_vec);
-		intr_stray_count[iv->iv_vec]++;
-		if (intr_stray_count[iv->iv_vec] >= MAX_STRAY_LOG)
-			printf("got %d stray interrupt %d's: not logging "
-			    "anymore\n", MAX_STRAY_LOG, iv->iv_vec);
+	vec = iv->iv_vec;
+	if (intr_stray_count[vec] < MAX_STRAY_LOG) {
+		printf("stray vector interrupt %d\n", vec);
+		intr_stray_count[vec]++;
+		if (intr_stray_count[vec] >= MAX_STRAY_LOG)
+			printf("got %d stray vector interrupt %d's: not "
+			    "logging anymore\n", MAX_STRAY_LOG, vec);
 	}
 }
 
@@ -244,7 +256,7 @@ intr_init2()
 }
 
 static int
-intr_assign_cpu(void *arg, u_char cpu)
+intr_assign_cpu(void *arg, int cpu)
 {
 #ifdef SMP
 	struct pcpu *pc;
@@ -276,7 +288,7 @@ intr_execute_handlers(void *cookie)
 	struct intr_vector *iv;
 
 	iv = cookie;
-	if (iv->iv_ic == NULL || intr_event_handle(iv->iv_event, NULL) != 0)
+	if (__predict_false(intr_event_handle(iv->iv_event, NULL) != 0))
 		intr_stray_vector(iv);
 }
 
@@ -327,10 +339,10 @@ inthand_add(const char *name, int vec, driver_filter_t *filt,
 	if (vec < 0 || vec >= IV_MAX)
 		return (EINVAL);
 	/*
-	 * INTR_FAST filters/handlers are special purpose only, allowing
+	 * INTR_BRIDGE filters/handlers are special purpose only, allowing
 	 * them to be shared just would complicate things unnecessarily.
 	 */
-	if ((flags & INTR_FAST) != 0 && (flags & INTR_EXCL) == 0)
+	if ((flags & INTR_BRIDGE) != 0 && (flags & INTR_EXCL) == 0)
 		return (EINVAL);
 	sx_xlock(&intr_table_lock);
 	iv = &intr_vectors[vec];
@@ -348,14 +360,14 @@ inthand_add(const char *name, int vec, driver_filter_t *filt,
 	ic->ic_disable(iv);
 	iv->iv_refcnt++;
 	if (iv->iv_refcnt == 1)
-		intr_setup((flags & INTR_FAST) != 0 ? PIL_FAST :
+		intr_setup((flags & INTR_BRIDGE) != 0 ? PIL_BRIDGE :
 		    filt != NULL ? PIL_FILTER : PIL_ITHREAD, intr_fast,
 		    vec, intr_execute_handlers, iv);
 	else if (filt != NULL) {
 		/*
 		 * Check if we need to upgrade from PIL_ITHREAD to PIL_FILTER.
 		 * Given that apart from the on-board SCCs and UARTs shared
-		 * interrupts are rather uncommon on sparc64 this sould be
+		 * interrupts are rather uncommon on sparc64 this should be
 		 * pretty rare in practice.
 		 */
 		filter = 0;
@@ -377,7 +389,8 @@ inthand_add(const char *name, int vec, driver_filter_t *filt,
 #endif
 	ic->ic_enable(iv);
 	/* Ensure the interrupt is cleared, it might have triggered before. */
-	ic->ic_clear(iv);
+	if (ic->ic_clear != NULL)
+		ic->ic_clear(iv);
 	sx_xunlock(&intr_table_lock);
 	return (0);
 }
@@ -412,14 +425,38 @@ inthand_remove(int vec, void *cookie)
 	return (error);
 }
 
+/* Add a description to an active interrupt handler. */
+int
+intr_describe(int vec, void *ih, const char *descr)
+{
+	struct intr_vector *iv;
+	int error;
+
+	if (vec < 0 || vec >= IV_MAX)
+		return (EINVAL);
+	sx_xlock(&intr_table_lock);
+	iv = &intr_vectors[vec];
+	if (iv == NULL) {
+		sx_xunlock(&intr_table_lock);
+		return (EINVAL);
+	}
+	error = intr_event_describe_handler(iv->iv_event, ih, descr);
+	if (error) {
+		sx_xunlock(&intr_table_lock);
+		return (error);
+	}
+	intrcnt_updatename(vec, iv->iv_event->ie_fullname, 0);
+	sx_xunlock(&intr_table_lock);
+	return (error);
+}
+
 #ifdef SMP
 /*
  * Support for balancing interrupt sources across CPUs.  For now we just
  * allocate CPUs round-robin.
  */
 
-/* The BSP is always a valid target. */
-static cpumask_t intr_cpus = (1 << 0);
+static cpuset_t intr_cpus = CPUSET_T_INITIALIZER(0x1);
 static int current_cpu;
 
 static void
@@ -441,7 +478,7 @@ intr_assign_next_cpu(struct intr_vector *iv)
 		current_cpu++;
 		if (current_cpu > mp_maxid)
 			current_cpu = 0;
-	} while (!(intr_cpus & (1 << current_cpu)));
+	} while (!CPU_ISSET(current_cpu, &intr_cpus));
 }
 
 /* Attempt to bind the specified IRQ to the specified CPU. */
@@ -449,13 +486,19 @@ int
 intr_bind(int vec, u_char cpu)
 {
 	struct intr_vector *iv;
+	int error;
 
 	if (vec < 0 || vec >= IV_MAX)
 		return (EINVAL);
+	sx_xlock(&intr_table_lock);
 	iv = &intr_vectors[vec];
-	if (iv == NULL)
+	if (iv == NULL) {
+		sx_xunlock(&intr_table_lock);
 		return (EINVAL);
-	return (intr_event_bind(iv->iv_event, cpu));
+	}
+	error = intr_event_bind(iv->iv_event, cpu);
+	sx_xunlock(&intr_table_lock);
+	return (error);
 }
 
 /*
@@ -471,7 +514,7 @@ intr_add_cpu(u_int cpu)
 	if (bootverbose)
 		printf("INTR: Adding CPU %d as a target\n", cpu);
 
-	intr_cpus |= (1 << cpu);
+	CPU_SET(cpu, &intr_cpus);
 }
 
 /*

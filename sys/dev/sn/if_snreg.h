@@ -115,7 +115,7 @@
  * the Ethernet Protocol Handler jumbled together.  In auto-release
  * mode this information is simply discarded after each TX.  This info
  * is copied to the status word of in-memory packets after transmit
- * where relevent statuses can be checked.
+ * where relevant statuses can be checked.
  */
 #define EPH_STATUS_REG_W 0x02
 
@@ -145,7 +145,7 @@
 #define RCR_RX_ABORT    0x0001	/* Received huge packet */
 #define RCR_PROMISC     0x0002	/* enable promiscuous mode */
 #define RCR_ALMUL       0x0004	/* receive all multicast packets */
-#define RCR_ENABLE      0x0100	/* IFF this is set, we can recieve packets */
+#define	RCR_ENABLE      0x0100	/* IFF this is set, we can receive packets */
 #define RCR_STRIP_CRC   0x0200	/* strips CRC */
 #define RCR_GAIN_BITS   0x0c00	/* PLL Gain control (for testing) */
 #define RCR_FILT_CAR    0x4000	/* Enable 12 bit carrier filter */

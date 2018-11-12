@@ -43,10 +43,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -105,47 +101,57 @@
 #include <sys/resource.h>
 #include <sys/sysctl.h>
 
-#include <err.h>
 #include <ctype.h>
+#include <devstat.h>
+#include <err.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <kvm.h>
+#include <limits.h>
+#include <math.h>
 #include <nlist.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
-#include <limits.h>
-#include <devstat.h>
-#include <math.h>
 
-struct nlist namelist[] = {
-#define X_TK_NIN	0
-	{ "_tk_nin" },
-#define X_TK_NOUT	1
-	{ "_tk_nout" },
+static struct nlist namelist[] = {
+#define X_TTY_NIN	0
+	{ .n_name = "_tty_nin",
+	  .n_type = 0, .n_other = 0, .n_desc = 0, .n_value = 0 },
+#define X_TTY_NOUT	1
+	{ .n_name = "_tty_nout",
+	  .n_type = 0, .n_other = 0, .n_desc = 0, .n_value = 0 },
 #define X_BOOTTIME	2
-	{ "_boottime" },
+	{ .n_name = "_boottime",
+	  .n_type = 0, .n_other = 0, .n_desc = 0, .n_value = 0 },
 #define X_END		2
-	{ NULL },
+	{ .n_name = NULL,
+	  .n_type = 0, .n_other = 0, .n_desc = 0, .n_value = 0 },
 };
 
 #define	IOSTAT_DEFAULT_ROWS	20	/* Traditional default `wrows' */
 
-struct statinfo cur, last;
-int num_devices;
-struct device_selection *dev_select;
-int maxshowdevs;
-volatile sig_atomic_t headercount;
-volatile sig_atomic_t wresized;		/* Tty resized, when non-zero. */
-unsigned short wrows;			/* Current number of tty rows. */
-int dflag = 0, Iflag = 0, Cflag = 0, Tflag = 0, oflag = 0, Kflag = 0;
-int xflag = 0, zflag = 0;
+static struct statinfo cur, last;
+static int num_devices;
+static struct device_selection *dev_select;
+static int maxshowdevs;
+static volatile sig_atomic_t headercount;
+static volatile sig_atomic_t wresized;	/* Tty resized, when non-zero. */
+static volatile sig_atomic_t alarm_rang;
+static volatile sig_atomic_t return_requested;
+static unsigned short wrows;		/* Current number of tty rows. */
+static int dflag = 0, Iflag = 0, Cflag = 0, Tflag = 0, oflag = 0, Kflag = 0;
+static int xflag = 0, zflag = 0;
 
 /* local function declarations */
 static void usage(void);
 static void needhdr(int signo);
 static void needresize(int signo);
+static void needreturn(int signo);
+static void alarm_clock(int signo);
 static void doresize(void);
 static void phdr(void);
 static void devstats(int perf_select, long double etime, int havelast);
@@ -175,6 +181,7 @@ main(int argc, char **argv)
 	int count = 0, waittime = 0;
 	char *memf = NULL, *nlistf = NULL;
 	struct devstat_match *matches;
+	struct itimerval alarmspec;
 	int num_matches = 0;
 	char errbuf[_POSIX2_LINE_MAX];
 	kvm_t *kd = NULL;
@@ -184,6 +191,7 @@ main(int argc, char **argv)
 	long select_generation;
 	char **specified_devices;
 	devstat_select_mode select_mode;
+	float f;
 	int havelast = 0;
 
 	matches = NULL;
@@ -239,9 +247,10 @@ main(int argc, char **argv)
 				break;
 			case 'w':
 				wflag++;
-				waittime = atoi(optarg);
+				f = atof(optarg);
+				waittime = f * 1000;
 				if (waittime < 1)
-					errx(1, "wait time is < 1");
+					errx(1, "wait time is < 1ms");
 				break;
 			case 'x':
 				xflag++;
@@ -378,12 +387,13 @@ main(int argc, char **argv)
 	 * Look for the traditional wait time and count arguments.
 	 */
 	if (*argv) {
-		waittime = atoi(*argv);
+		f = atof(*argv);
+		waittime = f * 1000;
 
 		/* Let the user know he goofed, but keep going anyway */
 		if (wflag != 0)
 			warnx("discarding previous wait interval, using"
-			      " %d instead", waittime);
+			      " %g instead", waittime / 1000.0);
 		wflag++;
 
 		if (*++argv) {
@@ -401,7 +411,7 @@ main(int argc, char **argv)
 	 * to an interval of 1 second.
 	 */
 	if ((wflag == 0) && (cflag > 0))
-		waittime = 1;
+		waittime = 1 * 1000;
 
 	/*
 	 * If the user specified a wait time, but not a count, we want to
@@ -442,15 +452,33 @@ main(int argc, char **argv)
 		wrows = IOSTAT_DEFAULT_ROWS;
 	}
 
+	/*
+	 * Register a SIGINT handler so that we can print out final statistics
+	 * when we get that signal
+	 */
+	(void)signal(SIGINT, needreturn);
+
+	/*
+	 * Register a SIGALRM handler to implement sleeps if the user uses the
+	 * -c or -w options
+	 */
+	(void)signal(SIGALRM, alarm_clock);
+	alarmspec.it_interval.tv_sec = waittime / 1000;
+	alarmspec.it_interval.tv_usec = 1000 * (waittime % 1000);
+	alarmspec.it_value.tv_sec = waittime / 1000;
+	alarmspec.it_value.tv_usec = 1000 * (waittime % 1000);
+	setitimer(ITIMER_REAL, &alarmspec, NULL);
+
 	for (headercount = 1;;) {
 		struct devinfo *tmp_dinfo;
 		long tmp;
 		long double etime;
+		sigset_t sigmask, oldsigmask;
 
 		if (Tflag > 0) {
-			if ((readvar(kd, "kern.tty_nin", X_TK_NIN, &cur.tk_nin,
+			if ((readvar(kd, "kern.tty_nin", X_TTY_NIN, &cur.tk_nin,
 			     sizeof(cur.tk_nin)) != 0)
-			 || (readvar(kd, "kern.tty_nout", X_TK_NOUT,
+			 || (readvar(kd, "kern.tty_nout", X_TTY_NOUT,
 			     &cur.tk_nout, sizeof(cur.tk_nout))!= 0)) {
 				Tflag = 0;
 				warnx("disabling TTY statistics");
@@ -599,10 +627,23 @@ main(int argc, char **argv)
 		}
 		fflush(stdout);
 
-		if (count >= 0 && --count <= 0)
+		if ((count >= 0 && --count <= 0) || return_requested)
 			break;
 
-		sleep(waittime);
+		/*
+		 * Use sigsuspend to safely sleep until either signal is
+		 * received
+		 */
+		alarm_rang = 0;
+		sigemptyset(&sigmask);
+		sigaddset(&sigmask, SIGINT);
+		sigaddset(&sigmask, SIGALRM);
+		sigprocmask(SIG_BLOCK, &sigmask, &oldsigmask);
+		while (! (alarm_rang || return_requested) ) {
+			sigsuspend(&oldsigmask);
+		}
+		sigprocmask(SIG_UNBLOCK, &sigmask, NULL);
+
 		havelast = 1;
 	}
 
@@ -613,7 +654,7 @@ main(int argc, char **argv)
  * Force a header to be prepended to the next output.
  */
 void
-needhdr(int signo)
+needhdr(int signo __unused)
 {
 
 	headercount = 1;
@@ -625,11 +666,29 @@ needhdr(int signo)
  * prepended to the next output.
  */
 void
-needresize(int signo)
+needresize(int signo __unused)
 {
 
 	wresized = 1;
 	headercount = 1;
+}
+
+/*
+ * Record the alarm so the main loop can break its sleep
+ */
+void
+alarm_clock(int signo __unused)
+{
+	alarm_rang = 1;
+}
+
+/*
+ * Request that the main loop exit soon
+ */
+void
+needreturn(int signo __unused)
+{
+	return_requested = 1;
 }
 
 /*
@@ -726,17 +785,19 @@ static void
 devstats(int perf_select, long double etime, int havelast)
 {
 	int dn;
-	long double transfers_per_second, transfers_per_second_read, transfers_per_second_write;
-	long double kb_per_transfer, mb_per_second, mb_per_second_read, mb_per_second_write;
+	long double transfers_per_second, transfers_per_second_read;
+	long double transfers_per_second_write;
+	long double kb_per_transfer, mb_per_second, mb_per_second_read;
+	long double mb_per_second_write;
 	u_int64_t total_bytes, total_transfers, total_blocks;
 	u_int64_t total_bytes_read, total_transfers_read;
 	u_int64_t total_bytes_write, total_transfers_write;
-	long double busy_pct;
+	long double busy_pct, busy_time;
 	u_int64_t queue_len;
-	long double total_mb;
-	long double blocks_per_second, ms_per_transaction;
+	long double total_mb, blocks_per_second, total_duration;
+	long double ms_per_other, ms_per_read, ms_per_write, ms_per_transaction;
 	int firstline = 1;
-	char *devname;
+	char *devicename;
 
 	if (xflag > 0) {
 		printf("                        extended device statistics  ");
@@ -745,14 +806,13 @@ devstats(int perf_select, long double etime, int havelast)
 		if (Cflag > 0)
 			printf("           cpu ");
 		printf("\n");
-		if (Iflag == 0)
-			printf(
-		"device     r/s   w/s    kr/s    kw/s wait svc_t  %%b  "
-			    );
-		else
-			printf(
-		"device     r/i   w/i    kr/i    kw/i wait svc_t  %%b  "
-			    );
+		if (Iflag == 0) {
+			printf("device       r/s     w/s     kr/s     kw/s "
+			    " ms/r  ms/w  ms/o  ms/t qlen  %%b  ");
+		} else {
+			printf("device           r/i         w/i         kr/i"
+			    "         kw/i qlen   tsvc_t/i      sb/i  ");
+		}
 		if (Tflag > 0)
 			printf("tin  tout ");
 		if (Cflag > 0)
@@ -787,8 +847,13 @@ devstats(int perf_select, long double etime, int havelast)
 		    DSM_MB_PER_SECOND_WRITE, &mb_per_second_write,
 		    DSM_BLOCKS_PER_SECOND, &blocks_per_second,
 		    DSM_MS_PER_TRANSACTION, &ms_per_transaction,
+		    DSM_MS_PER_TRANSACTION_READ, &ms_per_read,
+		    DSM_MS_PER_TRANSACTION_WRITE, &ms_per_write,
+		    DSM_MS_PER_TRANSACTION_OTHER, &ms_per_other,
 		    DSM_BUSY_PCT, &busy_pct,
 		    DSM_QUEUE_LENGTH, &queue_len,
+		    DSM_TOTAL_DURATION, &total_duration,
+		    DSM_TOTAL_BUSY_TIME, &busy_time,
 		    DSM_NONE) != 0)
 			errx(1, "%s", devstat_errbuf);
 
@@ -806,7 +871,7 @@ devstats(int perf_select, long double etime, int havelast)
 		}
 
 		if (xflag > 0) {
-			if (asprintf(&devname, "%s%d",
+			if (asprintf(&devicename, "%s%d",
 			    cur.dinfo->devices[di].device_name,
 			    cur.dinfo->devices[di].unit_number) == -1)
 				err(1, "asprintf");
@@ -819,16 +884,23 @@ devstats(int perf_select, long double etime, int havelast)
 			    mb_per_second_write > ((long double).0005)/1024 ||
 			    busy_pct > 0.5) {
 				if (Iflag == 0)
-					printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4qu %5.1Lf %3.0Lf ",
-					    devname, transfers_per_second_read,
-					    transfers_per_second_write,
+					printf("%-8.8s %7d %7d %8.1Lf "
+					    "%8.1Lf %5d %5d %5d %5d "
+					    "%4" PRIu64 " %3.0Lf ",
+					    devicename,
+					    (int)transfers_per_second_read,
+					    (int)transfers_per_second_write,
 					    mb_per_second_read * 1024,
 					    mb_per_second_write * 1024,
-					    queue_len,
-					    ms_per_transaction, busy_pct);
+					    (int)ms_per_read, (int)ms_per_write,
+					    (int)ms_per_other,
+					    (int)ms_per_transaction,
+					    queue_len, busy_pct);
 				else
-					printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4qu %5.1Lf %3.0Lf ",
-					    devname,
+					printf("%-8.8s %11.1Lf %11.1Lf "
+					    "%12.1Lf %12.1Lf %4" PRIu64
+					    " %10.1Lf %9.1Lf ",
+					    devicename,
 					    (long double)total_transfers_read,
 					    (long double)total_transfers_write,
 					    (long double)
@@ -836,7 +908,7 @@ devstats(int perf_select, long double etime, int havelast)
 					    (long double)
 					        total_bytes_write / 1024,
 					    queue_len,
-					    ms_per_transaction, busy_pct);
+					    total_duration, busy_time);
 				if (firstline) {
 					/*
 					 * If this is the first device
@@ -853,7 +925,7 @@ devstats(int perf_select, long double etime, int havelast)
 				}
 				printf("\n");
 			}
-			free(devname);
+			free(devicename);
 		} else if (oflag > 0) {
 			int msdig = (ms_per_transaction < 100.0) ? 1 : 0;
 
@@ -864,7 +936,7 @@ devstats(int perf_select, long double etime, int havelast)
 				       msdig,
 				       ms_per_transaction);
 			else
-				printf("%4.1qu%4.1qu%5.*Lf ",
+				printf("%4.1" PRIu64 "%4.1" PRIu64 "%5.*Lf ",
 				       total_blocks,
 				       total_transfers,
 				       msdig,
@@ -879,7 +951,7 @@ devstats(int perf_select, long double etime, int havelast)
 				total_mb = total_bytes;
 				total_mb /= 1024 * 1024;
 
-				printf(" %5.2Lf %3.1qu %5.2Lf ",
+				printf(" %5.2Lf %3.1" PRIu64 " %5.2Lf ",
 				       kb_per_transfer,
 				       total_transfers,
 				       total_mb);
@@ -907,15 +979,15 @@ static void
 cpustats(void)
 {
 	int state;
-	double time;
+	double cptime;
 
-	time = 0.0;
+	cptime = 0.0;
 
 	for (state = 0; state < CPUSTATES; ++state)
-		time += cur.cp_time[state];
+		cptime += cur.cp_time[state];
 	for (state = 0; state < CPUSTATES; ++state)
 		printf(" %2.0f",
-		       rint(100. * cur.cp_time[state] / (time ? time : 1)));
+		       rint(100. * cur.cp_time[state] / (cptime ? cptime : 1)));
 }
 
 static int
@@ -930,8 +1002,7 @@ readvar(kvm_t *kd, const char *name, int nlid, void *ptr, size_t len)
 			warnx("kvm_read(%s): %s", namelist[nlid].n_name,
 			    kvm_geterr(kd));
 			return (1);
-		}
-		if (nbytes != len) {
+		} else if ((size_t)nbytes != len) {
 			warnx("kvm_read(%s): expected %zu bytes, got %zd bytes",
 			      namelist[nlid].n_name, len, nbytes);
 			return (1);

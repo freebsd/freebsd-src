@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2001, Boris Popov
+ * Copyright (c) 2000-2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,12 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Boris Popov.
- * 4. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -36,6 +30,7 @@
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_SMBFSDATA);
+MALLOC_DECLARE(M_SMBFSCRED);
 #endif
 
 #define SMBFSERR(format, args...) printf("%s: "format, __func__ ,## args)
@@ -112,7 +107,7 @@ struct smbfs_fctx {
 		struct smb_t2rq * uf_t2;
 	} f_urq;
 	int		f_left;		/* entries left */
-	int		f_ecnt;		/* entries left in the current reponse */
+	int		f_ecnt;		/* entries left in the current response */
 	int		f_eofs;		/* entry offset in the parameter block */
 	u_char 		f_skey[SMB_SKEYLEN]; /* server side search context */
 	u_char		f_fname[8 + 1 + 3 + 1]; /* common case for 8.3 filenames */
@@ -131,11 +126,10 @@ struct smbfs_fctx {
  */
 int  smbfs_smb_lock(struct smbnode *np, int op, caddr_t id,
 	off_t start, off_t end,	struct smb_cred *scred);
-int  smbfs_smb_statfs2(struct smb_share *ssp, struct statfs *sbp,
-	struct smb_cred *scred);
 int  smbfs_smb_statfs(struct smb_share *ssp, struct statfs *sbp,
 	struct smb_cred *scred);
-int  smbfs_smb_setfsize(struct smbnode *np, int newsize, struct smb_cred *scred);
+int  smbfs_smb_setfsize(struct smbnode *np, int64_t newsize,
+	struct smb_cred *scred);
 
 int  smbfs_smb_query_info(struct smbnode *np, const char *name, int len,
 	struct smbfattr *fap, struct smb_cred *scred);
@@ -184,4 +178,6 @@ void  smb_time_unix2dos(struct timespec *tsp, int tzoff, u_int16_t *ddp,
 	     u_int16_t *dtp, u_int8_t *dhp);
 void smb_dos2unixtime (u_int dd, u_int dt, u_int dh, int tzoff, struct timespec *tsp);
 
+void *smbfs_malloc_scred(void);
+void smbfs_free_scred(void *);
 #endif /* !_FS_SMBFS_SMBFS_SUBR_H_ */

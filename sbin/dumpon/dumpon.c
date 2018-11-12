@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <stdint.h>
@@ -60,9 +61,10 @@ static int	verbose;
 static void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n",
 	    "usage: dumpon [-v] special_file",
-	    "       dumpon [-v] off");
+	    "       dumpon [-v] off",
+	    "       dumpon [-v] -l");
 	exit(EX_USAGE);
 }
 
@@ -70,7 +72,7 @@ static void
 check_size(int fd, const char *fn)
 {
 	int name[] = { CTL_HW, HW_PHYSMEM };
-	size_t namelen = sizeof(name) / sizeof(*name);
+	size_t namelen = nitems(name);
 	unsigned long physmem;
 	size_t len;
 	off_t mediasize;
@@ -92,15 +94,45 @@ check_size(int fd, const char *fn)
 	}
 }
 
+static void
+listdumpdev(void)
+{
+	char dumpdev[PATH_MAX];
+	size_t len;
+	const char *sysctlname = "kern.shutdown.dumpdevname";
+
+	len = sizeof(dumpdev);
+	if (sysctlbyname(sysctlname, &dumpdev, &len, NULL, 0) != 0) {
+		if (errno == ENOMEM) {
+			err(EX_OSERR, "Kernel returned too large of a buffer for '%s'\n",
+				sysctlname);
+		} else {
+			err(EX_OSERR, "Sysctl get '%s'\n", sysctlname);
+		}
+	}
+	if (verbose) {
+		printf("kernel dumps on ");
+	}
+	if (strlen(dumpdev) == 0) {
+		printf("%s\n", _PATH_DEVNULL);
+	} else {
+		printf("%s\n", dumpdev);
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
 	int ch;
 	int i, fd;
 	u_int u;
+	int do_listdumpdev = 0;
 
-	while ((ch = getopt(argc, argv, "v")) != -1)
+	while ((ch = getopt(argc, argv, "lv")) != -1)
 		switch((char)ch) {
+		case 'l':
+			do_listdumpdev = 1;
+			break;
 		case 'v':
 			verbose = 1;
 			break;
@@ -111,20 +143,40 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	if (do_listdumpdev) {
+		listdumpdev();
+		exit(EX_OK);
+	}
+
 	if (argc != 1)
 		usage();
 
 	if (strcmp(argv[0], "off") != 0) {
-		fd = open(argv[0], O_RDONLY);
+		char tmp[PATH_MAX];
+		char *dumpdev;
+
+		if (strncmp(argv[0], _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0) {
+			dumpdev = argv[0];
+		} else {
+			i = snprintf(tmp, PATH_MAX, "%s%s", _PATH_DEV, argv[0]);
+			if (i < 0) {
+				err(EX_OSERR, "%s", argv[0]);
+			} else if (i >= PATH_MAX) {
+				errno = EINVAL;
+				err(EX_DATAERR, "%s", argv[0]);
+			}
+			dumpdev = tmp;
+		}
+		fd = open(dumpdev, O_RDONLY);
 		if (fd < 0)
-			err(EX_OSFILE, "%s", argv[0]);
-		check_size(fd, argv[0]);
+			err(EX_OSFILE, "%s", dumpdev);
+		check_size(fd, dumpdev);
 		u = 0;
 		i = ioctl(fd, DIOCSKERNELDUMP, &u);
 		u = 1;
 		i = ioctl(fd, DIOCSKERNELDUMP, &u);
 		if (i == 0 && verbose)
-			printf("kernel dumps on %s\n", argv[0]);
+			printf("kernel dumps on %s\n", dumpdev);
 	} else {
 		fd = open(_PATH_DEVNULL, O_RDONLY);
 		if (fd < 0)

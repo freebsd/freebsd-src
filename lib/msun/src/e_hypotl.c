@@ -21,27 +21,12 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
-#define	GET_LDBL_EXPSIGN(i, v) do {	\
-	union IEEEl2bits uv;		\
-					\
-	uv.e = v;			\
-	i = uv.xbits.expsign;		\
-} while (0)
-
 #define	GET_LDBL_MAN(h, l, v) do {	\
 	union IEEEl2bits uv;		\
 					\
 	uv.e = v;			\
 	h = uv.bits.manh;		\
 	l = uv.bits.manl;		\
-} while (0)
-
-#define	SET_LDBL_EXPSIGN(v, i) do {	\
-	union IEEEl2bits uv;		\
-					\
-	uv.e = v;			\
-	uv.xbits.expsign = i;		\
-	v = uv.e;			\
 } while (0)
 
 #undef GET_HIGH_WORD

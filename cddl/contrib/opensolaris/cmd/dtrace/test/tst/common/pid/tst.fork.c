@@ -56,7 +56,7 @@ main(int argc, char **argv)
 	while (waiting(&a) == 0)
 		continue;
 
-	(void) forkall();
+	(void) fork();
 	(void) go();
 
 	return (0);

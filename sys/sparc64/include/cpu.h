@@ -52,11 +52,12 @@
 extern	char btext[];
 extern	char etext[];
 
-void	cheetah_init(void);
-void	cpu_halt(void);
-void	cpu_reset(void);
+void	cheetah_init(u_int cpu_impl);
+void	cpu_halt(void) __dead2;
+void	cpu_reset(void) __dead2;
 void	fork_trampoline(void);
 void	swi_vm(void *v);
+void	zeus_init(u_int cpu_impl);
 
 static __inline u_int64_t
 get_cyclecount(void)

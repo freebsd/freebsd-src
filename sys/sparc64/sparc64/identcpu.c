@@ -15,7 +15,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-#include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/ver.h>
 
@@ -27,7 +26,12 @@ static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
     cpu_model, 0, "Machine model");
 
-int cpu_impl;
+static SYSCTL_NODE(_hw, OID_AUTO, freq, CTLFLAG_RD, 0, "");
+
+static u_int cpu_count;
+static u_int cpu_freq;
+SYSCTL_UINT(_hw_freq, OID_AUTO, cpu, CTLFLAG_RD, &cpu_freq, 0,
+    "CPU clock frequency");
 
 void
 cpu_identify(u_long vers, u_int freq, u_int id)
@@ -37,7 +41,7 @@ cpu_identify(u_long vers, u_int freq, u_int id)
 
 	switch (VER_MANUF(vers)) {
 	case 0x04:
-		manus = "HAL";
+		manus = "HAL/Fujitsu";
 		break;
 	case 0x13:
 	case 0x17:
@@ -53,6 +57,27 @@ cpu_identify(u_long vers, u_int freq, u_int id)
 	case CPU_IMPL_SPARC64:
 		impls = "SPARC64";
 		break;
+	case CPU_IMPL_SPARC64II:
+		impls = "SPARC64-II";
+		break;
+	case CPU_IMPL_SPARC64III:
+		impls = "SPARC64-III";
+		break;
+	case CPU_IMPL_SPARC64IV:
+		impls = "SPARC64-IV";
+		break;
+	case CPU_IMPL_SPARC64V:
+		impls = "SPARC64-V";
+		break;
+	case CPU_IMPL_SPARC64VI:
+		impls = "SPARC64-VI";
+		break;
+	case CPU_IMPL_SPARC64VII:
+		impls = "SPARC64-VII";
+		break;
+	case CPU_IMPL_SPARC64VIIIfx:
+		impls = "SPARC64-VIIIfx";
+		break;
 	case CPU_IMPL_ULTRASPARCI:
 		impls = "UltraSparc-I";
 		break;
@@ -63,7 +88,6 @@ cpu_identify(u_long vers, u_int freq, u_int id)
 		impls = "UltraSparc-IIi";
 		break;
 	case CPU_IMPL_ULTRASPARCIIe:
-		/* V9 Manual says `UltraSparc-e'.  I assume this is wrong. */
 		impls = "UltraSparc-IIe";
 		break;
 	case CPU_IMPL_ULTRASPARCIII:
@@ -104,4 +128,11 @@ cpu_identify(u_long vers, u_int freq, u_int id)
 		printf("  mask=0x%lx maxtl=%ld maxwin=%ld\n", VER_MASK(vers),
 		    VER_MAXTL(vers), VER_MAXWIN(vers));
 	}
+
+	/*
+	 * Calculate the average CPU frequency.
+	 */
+	freq = (freq + 500000ul) / 1000000ul;
+	cpu_freq = (cpu_freq * cpu_count + freq) / (cpu_count + 1);
+	cpu_count++;
 }

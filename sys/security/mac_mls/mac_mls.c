@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2011 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
@@ -13,6 +13,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -90,7 +93,7 @@
 
 SYSCTL_DECL(_security_mac);
 
-SYSCTL_NODE(_security_mac, OID_AUTO, mls, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, mls, CTLFLAG_RW, 0,
     "TrustedBSD mac_mls policy controls");
 
 static int	mls_label_size = sizeof(struct mac_mls);
@@ -98,23 +101,20 @@ SYSCTL_INT(_security_mac_mls, OID_AUTO, label_size, CTLFLAG_RD,
     &mls_label_size, 0, "Size of struct mac_mls");
 
 static int	mls_enabled = 1;
-SYSCTL_INT(_security_mac_mls, OID_AUTO, enabled, CTLFLAG_RW, &mls_enabled, 0,
+SYSCTL_INT(_security_mac_mls, OID_AUTO, enabled, CTLFLAG_RWTUN, &mls_enabled, 0,
     "Enforce MAC/MLS policy");
-TUNABLE_INT("security.mac.mls.enabled", &mls_enabled);
 
 static int	destroyed_not_inited;
 SYSCTL_INT(_security_mac_mls, OID_AUTO, destroyed_not_inited, CTLFLAG_RD,
     &destroyed_not_inited, 0, "Count of labels destroyed but not inited");
 
 static int	ptys_equal = 0;
-SYSCTL_INT(_security_mac_mls, OID_AUTO, ptys_equal, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_mls, OID_AUTO, ptys_equal, CTLFLAG_RWTUN,
     &ptys_equal, 0, "Label pty devices as mls/equal on create");
-TUNABLE_INT("security.mac.mls.ptys_equal", &ptys_equal);
 
 static int	revocation_enabled = 0;
-SYSCTL_INT(_security_mac_mls, OID_AUTO, revocation_enabled, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_mls, OID_AUTO, revocation_enabled, CTLFLAG_RWTUN,
     &revocation_enabled, 0, "Revoke access to objects on relabel");
-TUNABLE_INT("security.mac.mls.revocation_enabled", &revocation_enabled);
 
 static int	max_compartments = MAC_MLS_MAX_COMPARTMENTS;
 SYSCTL_INT(_security_mac_mls, OID_AUTO, max_compartments, CTLFLAG_RD,
@@ -905,20 +905,23 @@ mls_devfs_create_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
 {
 	struct mac_mls *mm;
+	const char *dn;
 	int mls_type;
 
 	mm = SLOT(delabel);
-	if (strcmp(dev->si_name, "null") == 0 ||
-	    strcmp(dev->si_name, "zero") == 0 ||
-	    strcmp(dev->si_name, "random") == 0 ||
-	    strncmp(dev->si_name, "fd/", strlen("fd/")) == 0)
+	dn = devtoname(dev);
+	if (strcmp(dn, "null") == 0 ||
+	    strcmp(dn, "zero") == 0 ||
+	    strcmp(dn, "random") == 0 ||
+	    strncmp(dn, "fd/", strlen("fd/")) == 0)
 		mls_type = MAC_MLS_TYPE_EQUAL;
-	else if (strcmp(dev->si_name, "kmem") == 0 ||
-	    strcmp(dev->si_name, "mem") == 0)
+	else if (strcmp(dn, "kmem") == 0 ||
+	    strcmp(dn, "mem") == 0)
 		mls_type = MAC_MLS_TYPE_HIGH;
 	else if (ptys_equal &&
-	    (strncmp(dev->si_name, "ttyp", strlen("ttyp")) == 0 ||
-	    strncmp(dev->si_name, "ptyp", strlen("ptyp")) == 0))
+	    (strncmp(dn, "ttyp", strlen("ttyp")) == 0 ||
+	    strncmp(dn, "pts/", strlen("pts/")) == 0 ||
+	    strncmp(dn, "ptyp", strlen("ptyp")) == 0))
 		mls_type = MAC_MLS_TYPE_EQUAL;
 	else
 		mls_type = MAC_MLS_TYPE_LOW;
@@ -1244,17 +1247,6 @@ mls_mount_create(struct ucred *cred, struct mount *mp, struct label *mplabel)
 }
 
 static void
-mls_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(mlabel);
-
-	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
-}
-
-static void
 mls_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
@@ -1284,7 +1276,7 @@ mls_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 
 	dest = SLOT(mlabel);
 
-	/* XXX: where is the label for the firewall really comming from? */
+	/* XXX: where is the label for the firewall really coming from? */
 	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
 }
 
@@ -1531,6 +1523,42 @@ mls_posixsem_check_rdonly(struct ucred *active_cred, struct ucred *file_cred,
 }
 
 static int
+mls_posixsem_check_setmode(struct ucred *cred, struct ksem *ks,
+    struct label *shmlabel, mode_t mode)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_posixsem_check_setowner(struct ucred *cred, struct ksem *ks,
+    struct label *shmlabel, uid_t uid, gid_t gid)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
 mls_posixsem_check_write(struct ucred *active_cred, struct ucred *file_cred,
     struct ksem *ks, struct label *kslabel)
 {
@@ -1556,6 +1584,192 @@ mls_posixsem_create(struct ucred *cred, struct ksem *ks,
 
 	source = SLOT(cred->cr_label);
 	dest = SLOT(kslabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static int
+mls_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, int prot, int flags)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
+		if (!mls_dominate_effective(subj, obj))
+			return (EACCES);
+	}
+	if (((prot & VM_PROT_WRITE) != 0) && ((flags & MAP_SHARED) != 0)) {
+		if (!mls_dominate_effective(obj, subj))
+			return (EACCES);
+	}
+
+	return (0);
+}
+
+static int
+mls_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, accmode_t accmode)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (accmode & (VREAD | VEXEC | VSTAT_PERMS)) {
+		if (!mls_dominate_effective(subj, obj))
+			return (EACCES);
+	}
+	if (accmode & VMODIFY_PERMS) {
+		if (!mls_dominate_effective(obj, subj))
+			return (EACCES);
+	}
+
+	return (0);
+}
+
+static int
+mls_posixshm_check_read(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shm, struct label *shmlabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled || !revocation_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_posixshm_check_setmode(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, mode_t mode)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_posixshm_check_setowner(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, uid_t uid, gid_t gid)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_posixshm_check_stat(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shmfd, struct label *shmlabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_posixshm_check_truncate(struct ucred *active_cred,
+    struct ucred *file_cred, struct shmfd *shmfd, struct label *shmlabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+    
+	return (0);
+}
+
+static int
+mls_posixshm_check_write(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shm, struct label *shmlabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled || !revocation_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static void
+mls_posixshm_create(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(shmlabel);
 
 	mls_copy_effective(source, dest);
 }
@@ -1834,6 +2048,9 @@ mls_system_check_acct(struct ucred *cred, struct vnode *vp,
 	struct mac_mls *subj, *obj;
 
 	if (!mls_enabled)
+		return (0);
+
+	if (vplabel == NULL)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
@@ -3046,8 +3263,6 @@ static struct mac_policy_ops mls_ops =
 	.mpo_mount_destroy_label = mls_destroy_label,
 	.mpo_mount_init_label = mls_init_label,
 
-	.mpo_netatalk_aarp_send = mls_netatalk_aarp_send,
-
 	.mpo_netinet_arp_send = mls_netinet_arp_send,
 	.mpo_netinet_firewall_reply = mls_netinet_firewall_reply,
 	.mpo_netinet_firewall_send = mls_netinet_firewall_send,
@@ -3074,12 +3289,27 @@ static struct mac_policy_ops mls_ops =
 	.mpo_posixsem_check_getvalue = mls_posixsem_check_rdonly,
 	.mpo_posixsem_check_open = mls_posixsem_check_openunlink,
 	.mpo_posixsem_check_post = mls_posixsem_check_write,
+	.mpo_posixsem_check_setmode = mls_posixsem_check_setmode,
+	.mpo_posixsem_check_setowner = mls_posixsem_check_setowner,
 	.mpo_posixsem_check_stat = mls_posixsem_check_rdonly,
 	.mpo_posixsem_check_unlink = mls_posixsem_check_openunlink,
 	.mpo_posixsem_check_wait = mls_posixsem_check_write,
 	.mpo_posixsem_create = mls_posixsem_create,
 	.mpo_posixsem_destroy_label = mls_destroy_label,
 	.mpo_posixsem_init_label = mls_init_label,
+
+	.mpo_posixshm_check_mmap = mls_posixshm_check_mmap,
+	.mpo_posixshm_check_open = mls_posixshm_check_open,
+	.mpo_posixshm_check_read = mls_posixshm_check_read,
+	.mpo_posixshm_check_setmode = mls_posixshm_check_setmode,
+	.mpo_posixshm_check_setowner = mls_posixshm_check_setowner,
+	.mpo_posixshm_check_stat = mls_posixshm_check_stat,
+	.mpo_posixshm_check_truncate = mls_posixshm_check_truncate,
+	.mpo_posixshm_check_unlink = mls_posixshm_check_unlink,
+	.mpo_posixshm_check_write = mls_posixshm_check_write,
+	.mpo_posixshm_create = mls_posixshm_create,
+	.mpo_posixshm_destroy_label = mls_destroy_label,
+	.mpo_posixshm_init_label = mls_init_label,
 
 	.mpo_proc_check_debug = mls_proc_check_debug,
 	.mpo_proc_check_sched = mls_proc_check_sched,

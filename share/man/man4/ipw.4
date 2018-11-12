@@ -25,9 +25,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2008
-.Os
+.Dd October 15, 2015
 .Dt IPW 4
+.Os
 .Sh NAME
 .Nm ipw
 .Nd "Intel PRO/Wireless 2100 IEEE 802.11 driver"
@@ -77,20 +77,19 @@ This driver requires the firmware built with the
 .Nm ipwfw
 module to work.
 For the loaded firmware to be enabled for use the license at
-.Pa /usr/share/doc/legal/intel_ipw/LICENSE
+.Pa /usr/share/doc/legal/intel_ipw.LICENSE
 must be agreed by adding the following line to
 .Xr loader.conf 5 :
 .Pp
 .Dl "legal.intel_ipw.license_ack=1"
 .Sh FILES
-.Bl -tag -width ".Pa /usr/share/doc/legal/intel_ipw/LICENSE" -compact
-.It Pa /usr/share/doc/legal/intel_ipw/LICENSE
+.Bl -tag -width ".Pa /usr/share/doc/legal/intel_ipw.LICENSE" -compact
+.It Pa /usr/share/doc/legal/intel_ipw.LICENSE
 .Nm
 firmware license
 .El
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev ipw0 inet 192.168.0.20 \e
     netmask 0xffffff00
@@ -128,7 +127,7 @@ This should not happen.
 The driver failed to load the firmware image using the
 .Xr firmware 9
 subsystem.
-Verify the 
+Verify the
 .Xr ipwfw 4
 firmware module is installed and the license agreement
 .Xr loader 8
@@ -148,9 +147,9 @@ This should not happen.
 .Xr wlan_tkip 4 ,
 .Xr wlan_wep 4 ,
 .Xr ifconfig 8 ,
-.Xr wpa_supplicant 8 .
+.Xr wpa_supplicant 8
 .Sh AUTHORS
 The original
 .Nm
 driver was written by
-.An Damien Bergamini Aq damien.bergamini@free.fr
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .

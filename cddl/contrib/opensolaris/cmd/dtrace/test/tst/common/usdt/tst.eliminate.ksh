@@ -77,7 +77,7 @@ if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.c"
 	exit 1
 fi
-$dtrace -G -32 -s prov.d test.o
+$dtrace -G -s prov.d test.o
 if [ $? -ne 0 ]; then
 	print -u2 "failed to create DOF"
 	exit 1
@@ -101,6 +101,6 @@ if [ $? -eq 0 ]; then
 fi
 
 cd /
-/usr/bin/rm -rf $DIR
+/bin/rm -rf $DIR
 
 exit 0

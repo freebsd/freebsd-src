@@ -49,7 +49,6 @@ int			adw_attach(struct adw_softc *adw);
 void			adw_done(struct adw_softc *adw, union ccb* ccb,
 				 u_int done_stat, u_int host_stat,
 				 u_int scsi_stat, u_int q_no);
-timeout_t		adw_timeout;
+void			adw_timeout(void *arg);
 
-extern u_long adw_unit;
 #endif /* _ADWVAR_H_ */

@@ -1,4 +1,4 @@
-/* $OpenBSD: match.c,v 1.27 2008/06/10 23:06:19 djm Exp $ */
+/* $OpenBSD: match.c,v 1.30 2015/05/04 06:10:48 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -40,6 +40,7 @@
 #include <sys/types.h>
 
 #include <ctype.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "xmalloc.h"
@@ -114,15 +115,13 @@ match_pattern(const char *s, const char *pattern)
  * indicate negation).  Returns -1 if negation matches, 1 if there is
  * a positive match, 0 if there is no match at all.
  */
-
 int
-match_pattern_list(const char *string, const char *pattern, u_int len,
-    int dolower)
+match_pattern_list(const char *string, const char *pattern, int dolower)
 {
 	char sub[1024];
 	int negated;
 	int got_positive;
-	u_int i, subi;
+	u_int i, subi, len = strlen(pattern);
 
 	got_positive = 0;
 	for (i = 0; i < len;) {
@@ -140,8 +139,8 @@ match_pattern_list(const char *string, const char *pattern, u_int len,
 		for (subi = 0;
 		    i < len && subi < sizeof(sub) - 1 && pattern[i] != ',';
 		    subi++, i++)
-			sub[subi] = dolower && isupper(pattern[i]) ?
-			    (char)tolower(pattern[i]) : pattern[i];
+			sub[subi] = dolower && isupper((u_char)pattern[i]) ?
+			    tolower((u_char)pattern[i]) : pattern[i];
 		/* If subpattern too long, return failure (no match). */
 		if (subi >= sizeof(sub) - 1)
 			return 0;
@@ -176,9 +175,9 @@ match_pattern_list(const char *string, const char *pattern, u_int len,
  * a positive match, 0 if there is no match at all.
  */
 int
-match_hostname(const char *host, const char *pattern, u_int len)
+match_hostname(const char *host, const char *pattern)
 {
-	return match_pattern_list(host, pattern, len, 1);
+	return match_pattern_list(host, pattern, 1);
 }
 
 /*
@@ -199,7 +198,7 @@ match_host_and_ip(const char *host, const char *ipaddr,
 		return 0;
 
 	/* negative hostname match */
-	if ((mhost = match_hostname(host, patterns, strlen(patterns))) == -1)
+	if ((mhost = match_hostname(host, patterns)) == -1)
 		return 0;
 	/* no match at all */
 	if (mhost == 0 && mip == 0)
@@ -226,14 +225,14 @@ match_user(const char *user, const char *host, const char *ipaddr,
 
 	if ((ret = match_pattern(user, pat)) == 1)
 		ret = match_host_and_ip(host, ipaddr, p);
-	xfree(pat);
+	free(pat);
 
 	return ret;
 }
 
 /*
  * Returns first item from client-list that is also supported by server-list,
- * caller must xfree() returned string.
+ * caller must free the returned string.
  */
 #define	MAX_PROP	40
 #define	SEP	","
@@ -264,15 +263,15 @@ match_list(const char *client, const char *server, u_int *next)
 				if (next != NULL)
 					*next = (cp == NULL) ?
 					    strlen(c) : (u_int)(cp - c);
-				xfree(c);
-				xfree(s);
+				free(c);
+				free(s);
 				return ret;
 			}
 		}
 	}
 	if (next != NULL)
 		*next = strlen(c);
-	xfree(c);
-	xfree(s);
+	free(c);
+	free(s);
 	return NULL;
 }

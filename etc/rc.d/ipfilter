@@ -10,7 +10,8 @@
 . /etc/rc.subr
 
 name="ipfilter"
-rcvar=`set_rcvar`
+desc="IP packet filter"
+rcvar="ipfilter_enable"
 load_rc_config $name
 stop_precmd="test -f ${ipfilter_rules} -o -f ${ipv6_ipfilter_rules}"
 
@@ -23,13 +24,13 @@ resync_precmd="$stop_precmd"
 resync_cmd="ipfilter_resync"
 status_precmd="$stop_precmd"
 status_cmd="ipfilter_status"
-extra_commands="reload resync status"
+extra_commands="reload resync"
 required_modules="ipl:ipfilter"
 
 ipfilter_start()
 {
 	echo "Enabling ipfilter."
-	if [ `sysctl -n net.inet.ipf.fr_running` -le 0 ]; then
+	if ! ${ipfilter_program:-/sbin/ipf} -V | grep -q 'Running: yes'; then
 		${ipfilter_program:-/sbin/ipf} -E
 	fi
 	${ipfilter_program:-/sbin/ipf} -Fa
@@ -37,7 +38,6 @@ ipfilter_start()
 		${ipfilter_program:-/sbin/ipf} \
 		    -f "${ipfilter_rules}" ${ipfilter_flags}
 	fi
-	${ipfilter_program:-/sbin/ipf} -6 -Fa
 	if [ -r "${ipv6_ipfilter_rules}" ]; then
 		${ipfilter_program:-/sbin/ipf} -6 \
 		    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
@@ -46,8 +46,7 @@ ipfilter_start()
 
 ipfilter_stop()
 {
-	# XXX - The ipf -D command is not effective for 'lkm's
-	if [ `sysctl -n net.inet.ipf.fr_running` -eq 1 ]; then
+	if ${ipfilter_program:-/sbin/ipf} -V | grep -q 'Running: yes'; then
 		echo "Saving firewall state tables"
 		${ipfs_program:-/sbin/ipfs} -W ${ipfs_flags}
 		echo "Disabling ipfilter."
@@ -67,7 +66,6 @@ ipfilter_reload()
 			err 1 'Load of rules into alternate set failed; aborting reload'
 		fi
 	fi
-	${ipfilter_program:-/sbin/ipf} -I -6 -Fa
 	if [ -r "${ipv6_ipfilter_rules}" ]; then
 		${ipfilter_program:-/sbin/ipf} -I -6 \
 		    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}

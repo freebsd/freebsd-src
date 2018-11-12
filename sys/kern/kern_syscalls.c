@@ -28,12 +28,18 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/resourcevar.h>
 #include <sys/sx.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/systm.h>
+#include <machine/atomic.h>
 
 /*
  * Acts like "nosys" but can be identified in sysent for dynamic call
@@ -55,11 +61,59 @@ lkmressys(struct thread *td, struct nosys_args *args)
 	return (nosys(td, args));
 }
 
+static void
+syscall_thread_drain(struct sysent *se)
+{
+	u_int32_t cnt, oldcnt;
+
+	do {
+		oldcnt = se->sy_thrcnt;
+		KASSERT((oldcnt & SY_THR_STATIC) == 0,
+		    ("drain on static syscall"));
+		cnt = oldcnt | SY_THR_DRAINING;
+	} while (atomic_cmpset_acq_32(&se->sy_thrcnt, oldcnt, cnt) == 0);
+	while (atomic_cmpset_32(&se->sy_thrcnt, SY_THR_DRAINING,
+	    SY_THR_ABSENT) == 0)
+		pause("scdrn", hz/2);
+}
+
+int
+syscall_thread_enter(struct thread *td, struct sysent *se)
+{
+	u_int32_t cnt, oldcnt;
+
+	do {
+		oldcnt = se->sy_thrcnt;
+		if ((oldcnt & SY_THR_STATIC) != 0)
+			return (0);
+		if ((oldcnt & (SY_THR_DRAINING | SY_THR_ABSENT)) != 0)
+			return (ENOSYS);
+		cnt = oldcnt + SY_THR_INCR;
+	} while (atomic_cmpset_acq_32(&se->sy_thrcnt, oldcnt, cnt) == 0);
+	return (0);
+}
+
+void
+syscall_thread_exit(struct thread *td, struct sysent *se)
+{
+	u_int32_t cnt, oldcnt;
+
+	do {
+		oldcnt = se->sy_thrcnt;
+		if ((oldcnt & SY_THR_STATIC) != 0)
+			return;
+		cnt = oldcnt - SY_THR_INCR;
+	} while (atomic_cmpset_rel_32(&se->sy_thrcnt, oldcnt, cnt) == 0);
+}
+
 int
 syscall_register(int *offset, struct sysent *new_sysent,
-    struct sysent *old_sysent)
+    struct sysent *old_sysent, int flags)
 {
 	int i;
+
+	if ((flags & ~SY_THR_STATIC) != 0)
+		return (EINVAL);
 
 	if (*offset == NO_SYSCALL) {
 		for (i = 1; i < SYS_MAXSYSCALL; ++i)
@@ -74,17 +128,28 @@ syscall_register(int *offset, struct sysent *new_sysent,
 	    sysent[*offset].sy_call != (sy_call_t *)lkmressys)
 		return (EEXIST);
 
+	KASSERT(sysent[*offset].sy_thrcnt == SY_THR_ABSENT,
+	    ("dynamic syscall is not protected"));
 	*old_sysent = sysent[*offset];
+	new_sysent->sy_thrcnt = SY_THR_ABSENT;
 	sysent[*offset] = *new_sysent;
+	atomic_store_rel_32(&sysent[*offset].sy_thrcnt, flags);
 	return (0);
 }
 
 int
 syscall_deregister(int *offset, struct sysent *old_sysent)
 {
+	struct sysent *se;
 
-	if (*offset)
-		sysent[*offset] = *old_sysent;
+	if (*offset == 0)
+		return (0); /* XXX? */
+
+	se = &sysent[*offset];
+	if ((se->sy_thrcnt & SY_THR_STATIC) != 0)
+		return (EINVAL);
+	syscall_thread_drain(se);
+	sysent[*offset] = *old_sysent;
 	return (0);
 }
 
@@ -98,7 +163,7 @@ syscall_module_handler(struct module *mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		error = syscall_register(data->offset, data->new_sysent,
-		    &data->old_sysent);
+		    &data->old_sysent, data->flags);
 		if (error) {
 			/* Leave a mark so we know to safely unload below. */
 			data->offset = NULL;
@@ -127,11 +192,40 @@ syscall_module_handler(struct module *mod, int what, void *arg)
 		error = syscall_deregister(data->offset, &data->old_sysent);
 		return (error);
 	default:
-		return EOPNOTSUPP;
+		if (data->chainevh)
+			return (data->chainevh(mod, what, data->chainarg));
+		return (EOPNOTSUPP);
 	}
 
-	if (data->chainevh)
-		return (data->chainevh(mod, what, data->chainarg));
-	else
-		return (0);
+	/* NOTREACHED */
+}
+
+int
+syscall_helper_register(struct syscall_helper_data *sd, int flags)
+{
+	struct syscall_helper_data *sd1;
+	int error;
+
+	for (sd1 = sd; sd1->syscall_no != NO_SYSCALL; sd1++) {
+		error = syscall_register(&sd1->syscall_no, &sd1->new_sysent,
+		    &sd1->old_sysent, flags);
+		if (error != 0) {
+			syscall_helper_unregister(sd);
+			return (error);
+		}
+		sd1->registered = 1;
+	}
+	return (0);
+}
+
+int
+syscall_helper_unregister(struct syscall_helper_data *sd)
+{
+	struct syscall_helper_data *sd1;
+
+	for (sd1 = sd; sd1->registered != 0; sd1++) {
+		syscall_deregister(&sd1->syscall_no, &sd1->old_sysent);
+		sd1->registered = 0;
+	}
+	return (0);
 }

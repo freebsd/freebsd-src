@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2000
+.Dd March 15, 2011
 .Dt GET_CYCLECOUNT 9
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 .In sys/param.h
 .In sys/systm.h
 .In machine/cpu.h
-.Ft u_int64_t
+.Ft uint64_t
 .Fn get_cyclecount "void"
 .Sh DESCRIPTION
 The
@@ -65,30 +65,20 @@ do not have such a register,
 so
 .Fn get_cyclecount
 on these platforms
-returns the number of nanoseconds
+returns a (monotonic) combination of numbers
 represented by the
 structure returned by
-.Xr nanotime 9 .
+.Xr binuptime 9 .
 .Pp
 The
-.Tn Pentium
-processors all use the
+.Tn AMD64
+and
+.Tn Intel 64
+processors use the
 .Li TSC
 register.
-.Pp
-The
-.Tn Alpha
-processors use the
-.Li PCC
-register.
-.Pp
-The
-.Tn IA64
-processors use the
-.Li AR.ITC
-register.
 .Sh SEE ALSO
-.Xr nanotime 9
+.Xr binuptime 9
 .Sh HISTORY
 The
 .Fn get_cyclecount
@@ -96,4 +86,4 @@ function first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
 This manual page was written by
-.An Mark Murray Aq markm@FreeBSD.org .
+.An Mark Murray Aq Mt markm@FreeBSD.org .

@@ -24,7 +24,6 @@ FBSD_1.0 {
 	__infinity;
 	__nan;
 	makecontext;
-	modf;
 	setjmp;
 	longjmp;
 	sigsetjmp;
@@ -37,6 +36,10 @@ FBSD_1.0 {
 	exect;
 	sbrk;
 	vfork;
+};
+
+FBSD_1.3 {
+	__eabi;
 };
 
 FBSDprivate_1.0 {
@@ -53,7 +56,4 @@ FBSDprivate_1.0 {
 	__signalcontext;
 	__syncicache;
 	_end;
-	.curbrk;
-	.minbrk;
-	.cerror;
 };

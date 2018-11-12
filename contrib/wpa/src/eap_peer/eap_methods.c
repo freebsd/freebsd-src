@@ -2,14 +2,8 @@
  * EAP peer: Method registration
  * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -77,6 +71,8 @@ EapType eap_peer_get_type(const char *name, int *vendor)
 const char * eap_get_name(int vendor, EapType type)
 {
 	struct eap_method *m;
+	if (vendor == EAP_VENDOR_IETF && type == EAP_TYPE_EXPANDED)
+		return "expanded";
 	for (m = eap_methods; m; m = m->next) {
 		if (m->vendor == vendor && m->method == type)
 			return m->name;
@@ -107,7 +103,7 @@ size_t eap_get_names(char *buf, size_t buflen)
 	for (m = eap_methods; m; m = m->next) {
 		ret = os_snprintf(pos, end - pos, "%s%s",
 				  m == eap_methods ? "" : " ", m->name);
-		if (ret < 0 || ret >= end - pos)
+		if (os_snprintf_error(end - pos, ret))
 			break;
 		pos += ret;
 	}
@@ -137,7 +133,7 @@ char ** eap_get_names_as_string_array(size_t *num)
 	for (m = eap_methods; m; m = m->next)
 		array_len++;
 
-	array = os_zalloc(sizeof(char *) * (array_len + 1));
+	array = os_calloc(array_len + 1, sizeof(char *));
 	if (array == NULL)
 		return NULL;
 
@@ -336,161 +332,6 @@ int eap_peer_method_register(struct eap_method *method)
 		eap_methods = method;
 
 	return 0;
-}
-
-
-/**
- * eap_peer_register_methods - Register statically linked EAP peer methods
- * Returns: 0 on success, -1 on failure
- *
- * This function is called at program initialization to register all EAP peer
- * methods that were linked in statically.
- */
-int eap_peer_register_methods(void)
-{
-	int ret = 0;
-
-#ifdef EAP_MD5
-	if (ret == 0) {
-		int eap_peer_md5_register(void);
-		ret = eap_peer_md5_register();
-	}
-#endif /* EAP_MD5 */
-
-#ifdef EAP_TLS
-	if (ret == 0) {
-		int eap_peer_tls_register(void);
-		ret = eap_peer_tls_register();
-	}
-#endif /* EAP_TLS */
-
-#ifdef EAP_MSCHAPv2
-	if (ret == 0) {
-		int eap_peer_mschapv2_register(void);
-		ret = eap_peer_mschapv2_register();
-	}
-#endif /* EAP_MSCHAPv2 */
-
-#ifdef EAP_PEAP
-	if (ret == 0) {
-		int eap_peer_peap_register(void);
-		ret = eap_peer_peap_register();
-	}
-#endif /* EAP_PEAP */
-
-#ifdef EAP_TTLS
-	if (ret == 0) {
-		int eap_peer_ttls_register(void);
-		ret = eap_peer_ttls_register();
-	}
-#endif /* EAP_TTLS */
-
-#ifdef EAP_GTC
-	if (ret == 0) {
-		int eap_peer_gtc_register(void);
-		ret = eap_peer_gtc_register();
-	}
-#endif /* EAP_GTC */
-
-#ifdef EAP_OTP
-	if (ret == 0) {
-		int eap_peer_otp_register(void);
-		ret = eap_peer_otp_register();
-	}
-#endif /* EAP_OTP */
-
-#ifdef EAP_SIM
-	if (ret == 0) {
-		int eap_peer_sim_register(void);
-		ret = eap_peer_sim_register();
-	}
-#endif /* EAP_SIM */
-
-#ifdef EAP_LEAP
-	if (ret == 0) {
-		int eap_peer_leap_register(void);
-		ret = eap_peer_leap_register();
-	}
-#endif /* EAP_LEAP */
-
-#ifdef EAP_PSK
-	if (ret == 0) {
-		int eap_peer_psk_register(void);
-		ret = eap_peer_psk_register();
-	}
-#endif /* EAP_PSK */
-
-#ifdef EAP_AKA
-	if (ret == 0) {
-		int eap_peer_aka_register(void);
-		ret = eap_peer_aka_register();
-	}
-#endif /* EAP_AKA */
-
-#ifdef EAP_AKA_PRIME
-	if (ret == 0) {
-		int eap_peer_aka_prime_register(void);
-		ret = eap_peer_aka_prime_register();
-	}
-#endif /* EAP_AKA_PRIME */
-
-#ifdef EAP_FAST
-	if (ret == 0) {
-		int eap_peer_fast_register(void);
-		ret = eap_peer_fast_register();
-	}
-#endif /* EAP_FAST */
-
-#ifdef EAP_PAX
-	if (ret == 0) {
-		int eap_peer_pax_register(void);
-		ret = eap_peer_pax_register();
-	}
-#endif /* EAP_PAX */
-
-#ifdef EAP_SAKE
-	if (ret == 0) {
-		int eap_peer_sake_register(void);
-		ret = eap_peer_sake_register();
-	}
-#endif /* EAP_SAKE */
-
-#ifdef EAP_GPSK
-	if (ret == 0) {
-		int eap_peer_gpsk_register(void);
-		ret = eap_peer_gpsk_register();
-	}
-#endif /* EAP_GPSK */
-
-#ifdef EAP_WSC
-	if (ret == 0) {
-		int eap_peer_wsc_register(void);
-		ret = eap_peer_wsc_register();
-	}
-#endif /* EAP_WSC */
-
-#ifdef EAP_IKEV2
-	if (ret == 0) {
-		int eap_peer_ikev2_register(void);
-		ret = eap_peer_ikev2_register();
-	}
-#endif /* EAP_IKEV2 */
-
-#ifdef EAP_VENDOR_TEST
-	if (ret == 0) {
-		int eap_peer_vendor_test_register(void);
-		ret = eap_peer_vendor_test_register();
-	}
-#endif /* EAP_VENDOR_TEST */
-
-#ifdef EAP_TNC
-	if (ret == 0) {
-		int eap_peer_tnc_register(void);
-		ret = eap_peer_tnc_register();
-	}
-#endif /* EAP_TNC */
-
-	return ret;
 }
 
 

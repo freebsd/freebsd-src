@@ -240,6 +240,7 @@
 		(1 begemotIfMaxspeed COUNTER64 op_begemot_mibII GET)
 		(2 begemotIfPoll TIMETICKS op_begemot_mibII GET)
 		(3 begemotIfForcePoll TIMETICKS op_begemot_mibII GET SET)
+		(4 begemotIfDataPoll TIMETICKS op_begemot_mibII GET SET)
 	      )
 	    )
 	  )

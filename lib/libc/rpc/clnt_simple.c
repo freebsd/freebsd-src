@@ -1,32 +1,31 @@
 /*	$NetBSD: clnt_simple.c,v 1.21 2000/07/06 03:10:34 christos Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
  *
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- *
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- *
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- *
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- *
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice, 
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, 
+ *   this list of conditions and the following disclaimer in the documentation 
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its 
+ *   contributors may be used to endorse or promote products derived 
+ *   from this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
@@ -76,7 +75,11 @@ struct rpc_call_private {
 	char	nettype[NETIDLEN];	/* Network type */
 };
 static struct rpc_call_private *rpc_call_private_main;
+static thread_key_t rpc_call_key;
+static once_t rpc_call_once = ONCE_INITIALIZER;
+static int rpc_call_key_error;
 
+static void rpc_call_key_init(void);
 static void rpc_call_destroy(void *);
 
 static void
@@ -91,38 +94,46 @@ rpc_call_destroy(void *vp)
 	}
 }
 
+static void
+rpc_call_key_init(void)
+{
+
+	rpc_call_key_error = thr_keycreate(&rpc_call_key, rpc_call_destroy);
+}
+
 /*
  * This is the simplified interface to the client rpc layer.
  * The client handle is not destroyed here and is reused for
  * the future calls to same prog, vers, host and nettype combination.
  *
  * The total time available is 25 seconds.
+ *
+ * host    - host name 
+ * prognum - program number 
+ * versnum - version number 
+ * procnum - procedure number 
+ * inproc, outproc -  in/out XDR procedures 
+ * in, out - recv/send data 
+ * nettype - nettype
  */
 enum clnt_stat
-rpc_call(host, prognum, versnum, procnum, inproc, in, outproc, out, nettype)
-	const char *host;			/* host name */
-	rpcprog_t prognum;			/* program number */
-	rpcvers_t versnum;			/* version number */
-	rpcproc_t procnum;			/* procedure number */
-	xdrproc_t inproc, outproc;	/* in/out XDR procedures */
-	const char *in;
-	char  *out;			/* recv/send data */
-	const char *nettype;			/* nettype */
+rpc_call(const char *host, const rpcprog_t prognum, const rpcvers_t versnum,
+    const rpcproc_t procnum, const xdrproc_t inproc, const char *in,
+    const xdrproc_t outproc, char *out, const char *nettype)
 {
 	struct rpc_call_private *rcp = (struct rpc_call_private *) 0;
 	enum clnt_stat clnt_stat;
 	struct timeval timeout, tottimeout;
-	static thread_key_t rpc_call_key;
 	int main_thread = 1;
 
 	if ((main_thread = thr_main())) {
 		rcp = rpc_call_private_main;
 	} else {
-		if (rpc_call_key == 0) {
-			mutex_lock(&tsd_lock);
-			if (rpc_call_key == 0)
-				thr_keycreate(&rpc_call_key, rpc_call_destroy);
-			mutex_unlock(&tsd_lock);
+		if (thr_once(&rpc_call_once, rpc_call_key_init) != 0 ||
+		    rpc_call_key_error != 0) {
+			rpc_createerr.cf_stat = RPC_SYSTEMERROR;
+			rpc_createerr.cf_error.re_errno = rpc_call_key_error;
+			return (rpc_createerr.cf_stat);
 		}
 		rcp = (struct rpc_call_private *)thr_getspecific(rpc_call_key);
 	}

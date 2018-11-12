@@ -31,21 +31,13 @@
 #define _DEVINFO_H_INCLUDED
 
 #include <sys/cdefs.h>
-#include <sys/_types.h>
+#include <sys/types.h>
+#include <sys/bus.h>
 
 typedef __uintptr_t	devinfo_handle_t;
 #define DEVINFO_ROOT_DEVICE	((devinfo_handle_t)0)
 
-/*
- * State of the device.
- */
-/* XXX not sure if I want a copy here, or expose sys/bus.h */
-typedef enum devinfo_state {
-	DIS_NOTPRESENT = 10,		/* not probed or probe failed */
-	DIS_ALIVE = 20,			/* probe succeeded */
-	DIS_ATTACHED = 30,		/* attach method called */
-	DIS_BUSY = 40			/* device is open */
-} devinfo_state_t;
+typedef enum device_state devinfo_state_t;
 
 struct devinfo_dev {
 	devinfo_handle_t	dd_handle;	/* device handle */
@@ -58,14 +50,14 @@ struct devinfo_dev {
 	char			*dd_location;	/* Where bus thinks dev at */
 	uint32_t		dd_devflags;	/* API flags */
 	uint16_t		dd_flags;	/* internal dev flags */
-	devinfo_state_t		dd_state;	/* attacement state of dev */
+	devinfo_state_t		dd_state;	/* attachment state of dev */
 };
 
 struct devinfo_rman {
 	devinfo_handle_t	dm_handle;	/* resource manager handle */
 
-	unsigned long		dm_start;	/* resource start */
-	unsigned long		dm_size;	/* resource size */
+	rman_res_t		dm_start;	/* resource start */
+	rman_res_t		dm_size;	/* resource size */
     
 	char			*dm_desc;	/* resource description */
 };
@@ -75,8 +67,8 @@ struct devinfo_res {
 	devinfo_handle_t	dr_rman;	/* resource manager handle */
 	devinfo_handle_t	dr_device;	/* owning device */
 
-	unsigned long		dr_start;	/* region start */
-	unsigned long		dr_size;	/* region size */
+	rman_res_t		dr_start;	/* region start */
+	rman_res_t		dr_size;	/* region size */
 	/* XXX add flags */
 };
 

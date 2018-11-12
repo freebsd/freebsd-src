@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1999 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: virtuser_entire_domain.m4,v 8.2 1999/03/16 00:43:05 ca Exp $')
+VERSIONID(`$Id: virtuser_entire_domain.m4,v 8.3 2013-11-22 20:51:11 ca Exp $')
 divert(-1)
 
 define(`_VIRTUSER_ENTIRE_DOMAIN_', 1)

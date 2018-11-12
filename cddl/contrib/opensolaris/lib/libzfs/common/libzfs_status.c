@@ -18,9 +18,11 @@
  *
  * CDDL HEADER END
  */
+
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 Steven Hartland. All rights reserved.
  */
 
 /*
@@ -43,6 +45,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "libzfs_impl.h"
+#include "zfeature_common.h"
 
 /*
  * Message ID table.  This must be kept in sync with the ZPOOL_STATUS_* defines
@@ -70,50 +73,66 @@ static char *zfs_msgid_table[] = {
 
 /* ARGSUSED */
 static int
-vdev_missing(uint64_t state, uint64_t aux, uint64_t errs)
+vdev_missing(vdev_stat_t *vs, uint_t vsc)
 {
-	return (state == VDEV_STATE_CANT_OPEN &&
-	    aux == VDEV_AUX_OPEN_FAILED);
+	return (vs->vs_state == VDEV_STATE_CANT_OPEN &&
+	    vs->vs_aux == VDEV_AUX_OPEN_FAILED);
 }
 
 /* ARGSUSED */
 static int
-vdev_faulted(uint64_t state, uint64_t aux, uint64_t errs)
+vdev_faulted(vdev_stat_t *vs, uint_t vsc)
 {
-	return (state == VDEV_STATE_FAULTED);
+	return (vs->vs_state == VDEV_STATE_FAULTED);
 }
 
 /* ARGSUSED */
 static int
-vdev_errors(uint64_t state, uint64_t aux, uint64_t errs)
+vdev_errors(vdev_stat_t *vs, uint_t vsc)
 {
-	return (state == VDEV_STATE_DEGRADED || errs != 0);
+	return (vs->vs_state == VDEV_STATE_DEGRADED ||
+	    vs->vs_read_errors != 0 || vs->vs_write_errors != 0 ||
+	    vs->vs_checksum_errors != 0);
 }
 
 /* ARGSUSED */
 static int
-vdev_broken(uint64_t state, uint64_t aux, uint64_t errs)
+vdev_broken(vdev_stat_t *vs, uint_t vsc)
 {
-	return (state == VDEV_STATE_CANT_OPEN);
+	return (vs->vs_state == VDEV_STATE_CANT_OPEN);
 }
 
 /* ARGSUSED */
 static int
-vdev_offlined(uint64_t state, uint64_t aux, uint64_t errs)
+vdev_offlined(vdev_stat_t *vs, uint_t vsc)
 {
-	return (state == VDEV_STATE_OFFLINE);
+	return (vs->vs_state == VDEV_STATE_OFFLINE);
+}
+
+/* ARGSUSED */
+static int
+vdev_removed(vdev_stat_t *vs, uint_t vsc)
+{
+	return (vs->vs_state == VDEV_STATE_REMOVED);
+}
+
+static int
+vdev_non_native_ashift(vdev_stat_t *vs, uint_t vsc)
+{
+	return (VDEV_STAT_VALID(vs_physical_ashift, vsc) &&
+	    vs->vs_configured_ashift < vs->vs_physical_ashift);
 }
 
 /*
  * Detect if any leaf devices that have seen errors or could not be opened.
  */
 static boolean_t
-find_vdev_problem(nvlist_t *vdev, int (*func)(uint64_t, uint64_t, uint64_t))
+find_vdev_problem(nvlist_t *vdev, int (*func)(vdev_stat_t *, uint_t),
+    boolean_t ignore_replacing)
 {
 	nvlist_t **child;
 	vdev_stat_t *vs;
-	uint_t c, children;
-	char *type;
+	uint_t c, vsc, children;
 
 	/*
 	 * Ignore problems within a 'replacing' vdev, since we're presumably in
@@ -121,24 +140,36 @@ find_vdev_problem(nvlist_t *vdev, int (*func)(uint64_t, uint64_t, uint64_t))
 	 * out again.  We'll pick up the fact that a resilver is happening
 	 * later.
 	 */
-	verify(nvlist_lookup_string(vdev, ZPOOL_CONFIG_TYPE, &type) == 0);
-	if (strcmp(type, VDEV_TYPE_REPLACING) == 0)
-		return (B_FALSE);
+	if (ignore_replacing == B_TRUE) {
+		char *type;
+
+		verify(nvlist_lookup_string(vdev, ZPOOL_CONFIG_TYPE,
+		    &type) == 0);
+		if (strcmp(type, VDEV_TYPE_REPLACING) == 0)
+			return (B_FALSE);
+	}
 
 	if (nvlist_lookup_nvlist_array(vdev, ZPOOL_CONFIG_CHILDREN, &child,
 	    &children) == 0) {
 		for (c = 0; c < children; c++)
-			if (find_vdev_problem(child[c], func))
+			if (find_vdev_problem(child[c], func, ignore_replacing))
 				return (B_TRUE);
 	} else {
-		verify(nvlist_lookup_uint64_array(vdev, ZPOOL_CONFIG_STATS,
-		    (uint64_t **)&vs, &c) == 0);
+		verify(nvlist_lookup_uint64_array(vdev, ZPOOL_CONFIG_VDEV_STATS,
+		    (uint64_t **)&vs, &vsc) == 0);
 
-		if (func(vs->vs_state, vs->vs_aux,
-		    vs->vs_read_errors +
-		    vs->vs_write_errors +
-		    vs->vs_checksum_errors))
+		if (func(vs, vsc) != 0)
 			return (B_TRUE);
+	}
+
+	/*
+	 * Check any L2 cache devs
+	 */
+	if (nvlist_lookup_nvlist_array(vdev, ZPOOL_CONFIG_L2CACHE, &child,
+	    &children) == 0) {
+		for (c = 0; c < children; c++)
+			if (find_vdev_problem(child[c], func, ignore_replacing))
+				return (B_TRUE);
 	}
 
 	return (B_FALSE);
@@ -166,7 +197,8 @@ check_status(nvlist_t *config, boolean_t isimport)
 {
 	nvlist_t *nvroot;
 	vdev_stat_t *vs;
-	uint_t vsc;
+	pool_scan_stat_t *ps = NULL;
+	uint_t vsc, psc;
 	uint64_t nerr;
 	uint64_t version;
 	uint64_t stateval;
@@ -177,15 +209,24 @@ check_status(nvlist_t *config, boolean_t isimport)
 	    &version) == 0);
 	verify(nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE,
 	    &nvroot) == 0);
-	verify(nvlist_lookup_uint64_array(nvroot, ZPOOL_CONFIG_STATS,
+	verify(nvlist_lookup_uint64_array(nvroot, ZPOOL_CONFIG_VDEV_STATS,
 	    (uint64_t **)&vs, &vsc) == 0);
 	verify(nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_STATE,
 	    &stateval) == 0);
-	(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_HOSTID, &hostid);
+
+	/*
+	 * Currently resilvering a vdev
+	 */
+	(void) nvlist_lookup_uint64_array(nvroot, ZPOOL_CONFIG_SCAN_STATS,
+	    (uint64_t **)&ps, &psc);
+	if (ps && ps->pss_func == POOL_SCAN_RESILVER &&
+	    ps->pss_state == DSS_SCANNING)
+		return (ZPOOL_STATUS_RESILVERING);
 
 	/*
 	 * Pool last accessed by another system.
 	 */
+	(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_HOSTID, &hostid);
 	if (hostid != 0 && (unsigned long)hostid != gethostid() &&
 	    stateval == POOL_STATE_ACTIVE)
 		return (ZPOOL_STATUS_HOSTID_MISMATCH);
@@ -196,6 +237,20 @@ check_status(nvlist_t *config, boolean_t isimport)
 	if (vs->vs_state == VDEV_STATE_CANT_OPEN &&
 	    vs->vs_aux == VDEV_AUX_VERSION_NEWER)
 		return (ZPOOL_STATUS_VERSION_NEWER);
+
+	/*
+	 * Unsupported feature(s).
+	 */
+	if (vs->vs_state == VDEV_STATE_CANT_OPEN &&
+	    vs->vs_aux == VDEV_AUX_UNSUP_FEAT) {
+		nvlist_t *nvinfo;
+
+		verify(nvlist_lookup_nvlist(config, ZPOOL_CONFIG_LOAD_INFO,
+		    &nvinfo) == 0);
+		if (nvlist_exists(nvinfo, ZPOOL_CONFIG_CAN_RDONLY))
+			return (ZPOOL_STATUS_UNSUP_FEAT_WRITE);
+		return (ZPOOL_STATUS_UNSUP_FEAT_READ);
+	}
 
 	/*
 	 * Check that the config is complete.
@@ -226,15 +281,15 @@ check_status(nvlist_t *config, boolean_t isimport)
 	 * Bad devices in non-replicated config.
 	 */
 	if (vs->vs_state == VDEV_STATE_CANT_OPEN &&
-	    find_vdev_problem(nvroot, vdev_faulted))
+	    find_vdev_problem(nvroot, vdev_faulted, B_TRUE))
 		return (ZPOOL_STATUS_FAULTED_DEV_NR);
 
 	if (vs->vs_state == VDEV_STATE_CANT_OPEN &&
-	    find_vdev_problem(nvroot, vdev_missing))
+	    find_vdev_problem(nvroot, vdev_missing, B_TRUE))
 		return (ZPOOL_STATUS_MISSING_DEV_NR);
 
 	if (vs->vs_state == VDEV_STATE_CANT_OPEN &&
-	    find_vdev_problem(nvroot, vdev_broken))
+	    find_vdev_problem(nvroot, vdev_broken, B_TRUE))
 		return (ZPOOL_STATUS_CORRUPT_LABEL_NR);
 
 	/*
@@ -256,36 +311,66 @@ check_status(nvlist_t *config, boolean_t isimport)
 	/*
 	 * Missing devices in a replicated config.
 	 */
-	if (find_vdev_problem(nvroot, vdev_faulted))
+	if (find_vdev_problem(nvroot, vdev_faulted, B_TRUE))
 		return (ZPOOL_STATUS_FAULTED_DEV_R);
-	if (find_vdev_problem(nvroot, vdev_missing))
+	if (find_vdev_problem(nvroot, vdev_missing, B_TRUE))
 		return (ZPOOL_STATUS_MISSING_DEV_R);
-	if (find_vdev_problem(nvroot, vdev_broken))
+	if (find_vdev_problem(nvroot, vdev_broken, B_TRUE))
 		return (ZPOOL_STATUS_CORRUPT_LABEL_R);
 
 	/*
 	 * Devices with errors
 	 */
-	if (!isimport && find_vdev_problem(nvroot, vdev_errors))
+	if (!isimport && find_vdev_problem(nvroot, vdev_errors, B_TRUE))
 		return (ZPOOL_STATUS_FAILING_DEV);
 
 	/*
 	 * Offlined devices
 	 */
-	if (find_vdev_problem(nvroot, vdev_offlined))
+	if (find_vdev_problem(nvroot, vdev_offlined, B_TRUE))
 		return (ZPOOL_STATUS_OFFLINE_DEV);
 
 	/*
-	 * Currently resilvering
+	 * Removed device
 	 */
-	if (!vs->vs_scrub_complete && vs->vs_scrub_type == POOL_SCRUB_RESILVER)
-		return (ZPOOL_STATUS_RESILVERING);
+	if (find_vdev_problem(nvroot, vdev_removed, B_TRUE))
+		return (ZPOOL_STATUS_REMOVED_DEV);
+
+	/*
+	 * Suboptimal, but usable, ashift configuration.
+	 */
+	if (find_vdev_problem(nvroot, vdev_non_native_ashift, B_FALSE))
+		return (ZPOOL_STATUS_NON_NATIVE_ASHIFT);
 
 	/*
 	 * Outdated, but usable, version
 	 */
-	if (version < SPA_VERSION)
+	if (SPA_VERSION_IS_SUPPORTED(version) && version != SPA_VERSION)
 		return (ZPOOL_STATUS_VERSION_OLDER);
+
+	/*
+	 * Usable pool with disabled features
+	 */
+	if (version >= SPA_VERSION_FEATURES) {
+		int i;
+		nvlist_t *feat;
+
+		if (isimport) {
+			feat = fnvlist_lookup_nvlist(config,
+			    ZPOOL_CONFIG_LOAD_INFO);
+			feat = fnvlist_lookup_nvlist(feat,
+			    ZPOOL_CONFIG_ENABLED_FEAT);
+		} else {
+			feat = fnvlist_lookup_nvlist(config,
+			    ZPOOL_CONFIG_FEATURE_STATS);
+		}
+
+		for (i = 0; i < SPA_FEATURES; i++) {
+			zfeature_info_t *fi = &spa_feature_table[i];
+			if (!nvlist_exists(feat, fi->fi_guid))
+				return (ZPOOL_STATUS_FEAT_DISABLED);
+		}
+	}
 
 	return (ZPOOL_STATUS_OK);
 }
@@ -314,4 +399,69 @@ zpool_import_status(nvlist_t *config, char **msgid)
 		*msgid = zfs_msgid_table[ret];
 
 	return (ret);
+}
+
+static void
+dump_ddt_stat(const ddt_stat_t *dds, int h)
+{
+	char refcnt[6];
+	char blocks[6], lsize[6], psize[6], dsize[6];
+	char ref_blocks[6], ref_lsize[6], ref_psize[6], ref_dsize[6];
+
+	if (dds == NULL || dds->dds_blocks == 0)
+		return;
+
+	if (h == -1)
+		(void) strcpy(refcnt, "Total");
+	else
+		zfs_nicenum(1ULL << h, refcnt, sizeof (refcnt));
+
+	zfs_nicenum(dds->dds_blocks, blocks, sizeof (blocks));
+	zfs_nicenum(dds->dds_lsize, lsize, sizeof (lsize));
+	zfs_nicenum(dds->dds_psize, psize, sizeof (psize));
+	zfs_nicenum(dds->dds_dsize, dsize, sizeof (dsize));
+	zfs_nicenum(dds->dds_ref_blocks, ref_blocks, sizeof (ref_blocks));
+	zfs_nicenum(dds->dds_ref_lsize, ref_lsize, sizeof (ref_lsize));
+	zfs_nicenum(dds->dds_ref_psize, ref_psize, sizeof (ref_psize));
+	zfs_nicenum(dds->dds_ref_dsize, ref_dsize, sizeof (ref_dsize));
+
+	(void) printf("%6s   %6s   %5s   %5s   %5s   %6s   %5s   %5s   %5s\n",
+	    refcnt,
+	    blocks, lsize, psize, dsize,
+	    ref_blocks, ref_lsize, ref_psize, ref_dsize);
+}
+
+/*
+ * Print the DDT histogram and the column totals.
+ */
+void
+zpool_dump_ddt(const ddt_stat_t *dds_total, const ddt_histogram_t *ddh)
+{
+	int h;
+
+	(void) printf("\n");
+
+	(void) printf("bucket   "
+	    "           allocated             "
+	    "          referenced          \n");
+	(void) printf("______   "
+	    "______________________________   "
+	    "______________________________\n");
+
+	(void) printf("%6s   %6s   %5s   %5s   %5s   %6s   %5s   %5s   %5s\n",
+	    "refcnt",
+	    "blocks", "LSIZE", "PSIZE", "DSIZE",
+	    "blocks", "LSIZE", "PSIZE", "DSIZE");
+
+	(void) printf("%6s   %6s   %5s   %5s   %5s   %6s   %5s   %5s   %5s\n",
+	    "------",
+	    "------", "-----", "-----", "-----",
+	    "------", "-----", "-----", "-----");
+
+	for (h = 0; h < 64; h++)
+		dump_ddt_stat(&ddh->ddh_stat[h], h);
+
+	dump_ddt_stat(dds_total, -1);
+
+	(void) printf("\n");
 }

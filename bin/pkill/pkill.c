@@ -16,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -49,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/user.h>
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -65,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <grp.h>
 #include <errno.h>
 #include <locale.h>
+#include <jail.h>
 
 #define	STATUS_MATCH	0
 #define	STATUS_NOMATCH	1
@@ -76,7 +71,7 @@ __FBSDID("$FreeBSD$");
 
 /* Ignore system-processes (if '-S' flag is not specified) and myself. */
 #define	PSKIP(kp)	((kp)->ki_pid == mypid ||			\
-			 (!kthreads && ((kp)->ki_flag & P_KTHREAD) != 0))
+			 (!kthreads && ((kp)->ki_flag & P_KPROC) != 0))
 
 enum listtype {
 	LT_GENERIC,
@@ -84,13 +79,15 @@ enum listtype {
 	LT_GROUP,
 	LT_TTY,
 	LT_PGRP,
-	LT_JID,
-	LT_SID
+	LT_JAIL,
+	LT_SID,
+	LT_CLASS
 };
 
 struct list {
 	SLIST_ENTRY(list) li_chain;
 	long	li_number;
+	char	*li_name;
 };
 
 SLIST_HEAD(listhead, list);
@@ -110,17 +107,19 @@ static int	matchargs;
 static int	fullmatch;
 static int	kthreads;
 static int	cflags = REG_EXTENDED;
+static int	quiet;
 static kvm_t	*kd;
 static pid_t	mypid;
 
-static struct listhead euidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead ruidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead rgidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead pgrplist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead ppidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead tdevlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead sidlist = SLIST_HEAD_INITIALIZER(list);
-static struct listhead jidlist = SLIST_HEAD_INITIALIZER(list);
+static struct listhead euidlist = SLIST_HEAD_INITIALIZER(euidlist);
+static struct listhead ruidlist = SLIST_HEAD_INITIALIZER(ruidlist);
+static struct listhead rgidlist = SLIST_HEAD_INITIALIZER(rgidlist);
+static struct listhead pgrplist = SLIST_HEAD_INITIALIZER(pgrplist);
+static struct listhead ppidlist = SLIST_HEAD_INITIALIZER(ppidlist);
+static struct listhead tdevlist = SLIST_HEAD_INITIALIZER(tdevlist);
+static struct listhead sidlist = SLIST_HEAD_INITIALIZER(sidlist);
+static struct listhead jidlist = SLIST_HEAD_INITIALIZER(jidlist);
+static struct listhead classlist = SLIST_HEAD_INITIALIZER(classlist);
 
 static void	usage(void) __attribute__((__noreturn__));
 static int	killact(const struct kinfo_proc *);
@@ -133,7 +132,7 @@ main(int argc, char **argv)
 {
 	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q, *pidfile;
 	const char *execf, *coref;
-	int ancestors, debug_opt;
+	int ancestors, debug_opt, did_action;
 	int i, ch, bestidx, rv, criteria, pidfromfile, pidfilelock;
 	size_t jsz;
 	int (*action)(const struct kinfo_proc *);
@@ -161,7 +160,7 @@ main(int argc, char **argv)
 				argv++;
 				argc--;
 			} else {
-				if (strncasecmp(p, "sig", 3) == 0)
+				if (strncasecmp(p, "SIG", 3) == 0)
 					p += 3;
 				for (i = 1; i < NSIG; i++)
 					if (strcasecmp(sys_signame[i], p) == 0)
@@ -180,9 +179,11 @@ main(int argc, char **argv)
 	debug_opt = 0;
 	pidfile = NULL;
 	pidfilelock = 0;
-	execf = coref = _PATH_DEVNULL;
+	quiet = 0;
+	execf = NULL;
+	coref = _PATH_DEVNULL;
 
-	while ((ch = getopt(argc, argv, "DF:G:ILM:N:P:SU:ad:fg:ij:lnos:t:u:vx")) != -1)
+	while ((ch = getopt(argc, argv, "DF:G:ILM:N:P:SU:ac:d:fg:ij:lnoqs:t:u:vx")) != -1)
 		switch (ch) {
 		case 'D':
 			debug_opt++;
@@ -225,6 +226,10 @@ main(int argc, char **argv)
 		case 'a':
 			ancestors++;
 			break;
+		case 'c':
+			makelist(&classlist, LT_CLASS, optarg);
+			criteria = 1;
+			break;
 		case 'd':
 			if (!pgrep)
 				usage();
@@ -241,12 +246,10 @@ main(int argc, char **argv)
 			cflags |= REG_ICASE;
 			break;
 		case 'j':
-			makelist(&jidlist, LT_JID, optarg);
+			makelist(&jidlist, LT_JAIL, optarg);
 			criteria = 1;
 			break;
 		case 'l':
-			if (!pgrep)
-				usage();
 			longfmt = 1;
 			break;
 		case 'n':
@@ -256,6 +259,11 @@ main(int argc, char **argv)
 		case 'o':
 			oldest = 1;
 			criteria = 1;
+			break;
+		case 'q':
+			if (!pgrep)
+				usage();
+			quiet = 1;
 			break;
 		case 's':
 			makelist(&sidlist, LT_SID, optarg);
@@ -311,7 +319,10 @@ main(int argc, char **argv)
 	 * Use KERN_PROC_PROC instead of KERN_PROC_ALL, since we
 	 * just want processes and not individual kernel threads.
 	 */
-	plist = kvm_getprocs(kd, KERN_PROC_PROC, 0, &nproc);
+	if (pidfromfile >= 0)
+		plist = kvm_getprocs(kd, KERN_PROC_PID, pidfromfile, &nproc);
+	else
+		plist = kvm_getprocs(kd, KERN_PROC_PROC, 0, &nproc);
 	if (plist == NULL) {
 		errx(STATUS_ERROR, "Cannot get process list (%s)",
 		    kvm_geterr(kd));
@@ -469,6 +480,19 @@ main(int argc, char **argv)
 			continue;
 		}
 
+		SLIST_FOREACH(li, &classlist, li_chain) {
+			/*
+			 * We skip P_SYSTEM processes to match ps(1) output.
+			 */
+			if ((kp->ki_flag & P_SYSTEM) == 0 &&
+			    strcmp(kp->ki_loginclass, li->li_name) == 0)
+				break;
+		}
+		if (SLIST_FIRST(&classlist) != NULL && li == NULL) {
+			selected[i] = 0;
+			continue;
+		}
+
 		if (argc == 0)
 			selected[i] = 1;
 	}
@@ -528,16 +552,24 @@ main(int argc, char **argv)
 	/*
 	 * Take the appropriate action for each matched process, if any.
 	 */
+	did_action = 0;
 	for (i = 0, rv = 0, kp = plist; i < nproc; i++, kp++) {
 		if (PSKIP(kp))
 			continue;
 		if (selected[i]) {
+			if (longfmt && !pgrep) {
+				did_action = 1;
+				printf("kill -%d %d\n", signum, kp->ki_pid);
+			}
 			if (inverse)
 				continue;
 		} else if (!inverse)
 			continue;
 		rv |= (*action)(kp);
 	}
+	if (!did_action && !pgrep && longfmt)
+		fprintf(stderr,
+		    "No matching processes belonging to you were found\n");
 
 	exit(rv ? STATUS_MATCH : STATUS_NOMATCH);
 }
@@ -548,15 +580,15 @@ usage(void)
 	const char *ustr;
 
 	if (pgrep)
-		ustr = "[-LSfilnovx] [-d delim]";
+		ustr = "[-LSfilnoqvx] [-d delim]";
 	else
-		ustr = "[-signal] [-ILfinovx]";
+		ustr = "[-signal] [-ILfilnovx]";
 
 	fprintf(stderr,
 		"usage: %s %s [-F pidfile] [-G gid] [-M core] [-N system]\n"
-		"             [-P ppid] [-U uid] [-g pgrp] [-j jid] [-s sid]\n"
-		"             [-t tty] [-u euid] pattern ...\n", getprogname(),
-		ustr);
+		"             [-P ppid] [-U uid] [-c class] [-g pgrp] [-j jail]\n"
+		"             [-s sid] [-t tty] [-u euid] pattern ...\n",
+		getprogname(), ustr);
 
 	exit(STATUS_BADUSAGE);
 }
@@ -566,6 +598,10 @@ show_process(const struct kinfo_proc *kp)
 {
 	char **argv;
 
+	if (quiet) {
+		assert(pgrep);
+		return;
+	}
 	if ((longfmt || !pgrep) && matchargs &&
 	    (argv = kvm_getargv(kd, kp, 0)) != NULL) {
 		printf("%d ", (int)kp->ki_pid);
@@ -622,7 +658,8 @@ grepact(const struct kinfo_proc *kp)
 {
 
 	show_process(kp);
-	printf("%s", delim);
+	if (!quiet)
+		printf("%s", delim);
 	return (1);
 }
 
@@ -651,8 +688,10 @@ makelist(struct listhead *head, enum listtype type, char *src)
 		SLIST_INSERT_HEAD(head, li, li_chain);
 		empty = 0;
 
-		li->li_number = (uid_t)strtol(sp, &ep, 0);
-		if (*ep == '\0') {
+		if (type != LT_CLASS)
+			li->li_number = (uid_t)strtol(sp, &ep, 0);
+
+		if (type != LT_CLASS && *ep == '\0') {
 			switch (type) {
 			case LT_PGRP:
 				if (li->li_number == 0)
@@ -662,7 +701,7 @@ makelist(struct listhead *head, enum listtype type, char *src)
 				if (li->li_number == 0)
 					li->li_number = getsid(mypid);
 				break;
-			case LT_JID:
+			case LT_JAIL:
 				if (li->li_number < 0)
 					errx(STATUS_BADUSAGE,
 					     "Negative jail ID `%s'", sp);
@@ -671,8 +710,19 @@ makelist(struct listhead *head, enum listtype type, char *src)
 					li->li_number = -1;	/* any jail */
 				break;
 			case LT_TTY:
-				usage();
-				/* NOTREACHED */
+				if (li->li_number < 0)
+					errx(STATUS_BADUSAGE,
+					     "Negative /dev/pts tty `%s'", sp);
+				snprintf(buf, sizeof(buf), _PATH_DEV "pts/%s",
+				    sp);
+				if (stat(buf, &st) != -1)
+					goto foundtty;
+				if (errno == ENOENT)
+					errx(STATUS_BADUSAGE, "No such tty: `"
+					    _PATH_DEV "pts/%s'", sp);
+				err(STATUS_ERROR, "Cannot access `"
+				    _PATH_DEV "pts/%s'", sp);
+				break;
 			default:
 				break;
 			}
@@ -717,14 +767,25 @@ foundtty:		if ((st.st_mode & S_IFCHR) == 0)
 
 			li->li_number = st.st_rdev;
 			break;
-		case LT_JID:
+		case LT_JAIL: {
+			int jid;
+
 			if (strcmp(sp, "none") == 0)
 				li->li_number = 0;
 			else if (strcmp(sp, "any") == 0)
 				li->li_number = -1;
+			else if ((jid = jail_getid(sp)) != -1)
+				li->li_number = jid;
 			else if (*ep != '\0')
 				errx(STATUS_BADUSAGE,
-				     "Invalid jail ID `%s'", sp);
+				     "Invalid jail ID or name `%s'", sp);
+			break;
+		}
+		case LT_CLASS:
+			li->li_number = -1;
+			li->li_name = strdup(sp);
+			if (li->li_name == NULL)
+				err(STATUS_ERROR, "Cannot allocate memory");
 			break;
 		default:
 			usage();

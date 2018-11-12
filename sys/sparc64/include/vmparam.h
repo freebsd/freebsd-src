@@ -15,10 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -66,17 +62,6 @@
 #endif
 
 /*
- * The time for a process to be blocked before being very swappable.
- * This is a number of seconds which the system takes as being a non-trivial
- * amount of real time.  You probably shouldn't change this;
- * it is used in subtle ways (fractions and multiples of it are, that is, like
- * half of a ``long time'', almost a long time, etc.)
- * It is related to human patience and other factors which don't really
- * change over time.
- */
-#define	MAXSLP			20
-
-/*
  * The physical address space is sparsely populated.
  */
 #define	VM_PHYSSEG_SPARSE
@@ -85,18 +70,17 @@
  * The number of PHYSSEG entries must be one greater than the number
  * of phys_avail entries because the phys_avail entry that spans the
  * largest physical address that is accessible by ISA DMA is split
- * into two PHYSSEG entries. 
+ * into two PHYSSEG entries.
  */
 #define	VM_PHYSSEG_MAX		64
 
 /*
- * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool
+ * Create two free page pools: VM_FREEPOOL_DEFAULT is the default pool
  * from which physical pages are allocated and VM_FREEPOOL_DIRECT is
  * the pool from which physical pages for small UMA objects are
  * allocated.
  */
-#define	VM_NFREEPOOL		3
-#define	VM_FREEPOOL_CACHE	2
+#define	VM_NFREEPOOL		2
 #define	VM_FREEPOOL_DEFAULT	0
 #define	VM_FREEPOOL_DIRECT	1
 
@@ -121,13 +105,20 @@
 #define	VM_NFREEORDER		12
 
 /*
- * Disable superpage reservations.
+ * Enable superpage reservations: 1 level.
  */
 #ifndef	VM_NRESERVLEVEL
-#define	VM_NRESERVLEVEL		0
+#define	VM_NRESERVLEVEL		1
 #endif
 
 /*
+ * Level 0 reservations consist of 512 pages.
+ */
+#ifndef	VM_LEVEL_0_ORDER
+#define	VM_LEVEL_0_ORDER	9
+#endif
+
+/**
  * Address space layout.
  *
  * UltraSPARC I and II implement a 44 bit virtual address space.  The address
@@ -137,21 +128,21 @@
  * 43 bits of user address space is considered to be "enough", so we ignore it.
  *
  * Upper region:	0xffffffffffffffff
- * 			0xfffff80000000000
- * 
+ *			0xfffff80000000000
+ *
  * Hole:		0xfffff7ffffffffff
- * 			0x0000080000000000
+ *			0x0000080000000000
  *
  * Lower region:	0x000007ffffffffff
- * 			0x0000000000000000
+ *			0x0000000000000000
  *
  * In general we ignore the upper region, and use the lower region as mappable
  * space.
  *
  * We define some interesting address constants:
  *
- * VM_MIN_ADDRESS and VM_MAX_ADDRESS define the start and of the entire 64 bit
- * address space, mostly just for convenience.
+ * VM_MIN_ADDRESS and VM_MAX_ADDRESS define the start and end of the entire
+ * 64 bit address space, mostly just for convenience.
  *
  * VM_MIN_DIRECT_ADDRESS and VM_MAX_DIRECT_ADDRESS define the start and end
  * of the direct mapped region.  This maps virtual addresses to physical
@@ -206,20 +197,26 @@
 #define	USRSTACK		(VM_MAX_USER_ADDRESS)
 
 /*
- * Virtual size (bytes) for various kernel submaps.
+ * How many physical pages per kmem arena virtual page.
  */
-#ifndef	VM_KMEM_SIZE
-#define	VM_KMEM_SIZE		(16*1024*1024)
+#ifndef VM_KMEM_SIZE_SCALE
+#define	VM_KMEM_SIZE_SCALE	(tsb_kernel_ldd_phys == 0 ? 3 : 2)
 #endif
 
 /*
- * How many physical pages per KVA page allocated.
- * min(max(max(VM_KMEM_SIZE, Physical memory/VM_KMEM_SIZE_SCALE),
- *     VM_KMEM_SIZE_MIN), VM_KMEM_SIZE_MAX)
- * is the total KVA space allocated for kmem_map.
+ * Optional floor (in bytes) on the size of the kmem arena.
  */
-#ifndef VM_KMEM_SIZE_SCALE
-#define	VM_KMEM_SIZE_SCALE	(3)
+#ifndef VM_KMEM_SIZE_MIN
+#define	VM_KMEM_SIZE_MIN	(16 * 1024 * 1024)
+#endif
+
+/*
+ * Optional ceiling (in bytes) on the size of the kmem arena: 60% of the
+ * kernel map.
+ */
+#ifndef VM_KMEM_SIZE_MAX
+#define	VM_KMEM_SIZE_MAX	((VM_MAX_KERNEL_ADDRESS - \
+    VM_MIN_KERNEL_ADDRESS + 1) * 3 / 5)
 #endif
 
 /*
@@ -231,6 +228,20 @@
 
 #define	UMA_MD_SMALL_ALLOC
 
+extern u_int tsb_kernel_ldd_phys;
 extern vm_offset_t vm_max_kernel_address;
+
+/*
+ * Older sparc64 machines have a virtually indexed L1 data cache of 16KB.
+ * Consequently, mapping the same physical page multiple times may have
+ * caching disabled.
+ */
+#define	ZERO_REGION_SIZE	PAGE_SIZE
+
+#define	SFBUF
+#define	SFBUF_MAP
+#define	SFBUF_OPTIONAL_DIRECT_MAP	dcache_color_ignore
+#include <machine/tlb.h>
+#define	SFBUF_PHYS_DMAP(x)		TLB_PHYS_TO_DIRECT(x)
 
 #endif /* !_MACHINE_VMPARAM_H_ */

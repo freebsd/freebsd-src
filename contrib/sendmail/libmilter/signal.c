@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2004, 2006 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2004, 2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: signal.c,v 8.44 2006/03/03 03:42:04 ca Exp $")
+SM_RCSID("@(#)$Id: signal.c,v 8.45 2013-11-22 20:51:36 ca Exp $")
 
 #include "libmilter.h"
 
@@ -104,11 +104,11 @@ mi_signal_thread(name)
 	for (;;)
 	{
 		sigerr = sig = 0;
-#if defined(SOLARIS) || defined(__svr5__)
+#if SIGWAIT_TAKES_1_ARG
 		if ((sig = sigwait(&set)) < 0)
-#else /* defined(SOLARIS) || defined(__svr5__) */
+#else
 		if ((sigerr = sigwait(&set, &sig)) != 0)
-#endif /* defined(SOLARIS) || defined(__svr5__) */
+#endif
 		{
 			/* some OS return -1 and set errno: copy it */
 			if (sigerr <= 0)

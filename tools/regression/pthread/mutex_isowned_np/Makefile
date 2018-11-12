@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PROG=	mutex_isowned_np
-NO_MAN=
-
-LDADD=	-lpthread
+MAN=
+LIBADD=	pthread
 
 .include <bsd.prog.mk>

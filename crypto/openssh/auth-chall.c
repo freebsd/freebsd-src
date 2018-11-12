@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-chall.c,v 1.12 2006/08/03 03:34:41 deraadt Exp $ */
+/* $OpenBSD: auth-chall.c,v 1.14 2014/06/24 01:13:21 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -26,14 +26,16 @@
 #include "includes.h"
 
 #include <sys/types.h>
-
 #include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "xmalloc.h"
 #include "key.h"
 #include "hostfile.h"
 #include "auth.h"
 #include "log.h"
+#include "misc.h"
 #include "servconf.h"
 
 /* limited protocol v1 interface to kbd-interactive authentication */
@@ -69,11 +71,11 @@ get_challenge(Authctxt *authctxt)
 		fatal("get_challenge: numprompts < 1");
 	challenge = xstrdup(prompts[0]);
 	for (i = 0; i < numprompts; i++)
-		xfree(prompts[i]);
-	xfree(prompts);
-	xfree(name);
-	xfree(echo_on);
-	xfree(info);
+		free(prompts[i]);
+	free(prompts);
+	free(name);
+	free(echo_on);
+	free(info);
 
 	return (challenge);
 }
@@ -102,11 +104,11 @@ verify_response(Authctxt *authctxt, const char *response)
 			authenticated = 1;
 
 		for (i = 0; i < numprompts; i++)
-			xfree(prompts[i]);
-		xfree(prompts);
-		xfree(name);
-		xfree(echo_on);
-		xfree(info);
+			free(prompts[i]);
+		free(prompts);
+		free(name);
+		free(echo_on);
+		free(info);
 		break;
 	}
 	device->free_ctx(authctxt->kbdintctxt);

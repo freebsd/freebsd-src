@@ -109,6 +109,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -117,6 +118,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 
 #include <dev/mii/mii.h>
+#include <dev/mii/mii_bitbang.h>
 #include <dev/mii/miivar.h>
 
 #include <dev/pci/pcireg.h>
@@ -138,7 +140,7 @@ MODULE_DEPEND(nge, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static struct nge_type nge_devs[] = {
+static const struct nge_type nge_devs[] = {
 	{ NGE_VENDORID, NGE_DEVICEID,
 	    "National Semiconductor Gigabit Ethernet" },
 	{ 0, 0, NULL }
@@ -180,11 +182,6 @@ static void nge_eeprom_putbyte(struct nge_softc *, int);
 static void nge_eeprom_getword(struct nge_softc *, int, uint16_t *);
 static void nge_read_eeprom(struct nge_softc *, caddr_t, int, int);
 
-static void nge_mii_sync(struct nge_softc *);
-static void nge_mii_send(struct nge_softc *, uint32_t, int);
-static int nge_mii_readreg(struct nge_softc *, struct nge_mii_frame *);
-static int nge_mii_writereg(struct nge_softc *, struct nge_mii_frame *);
-
 static int nge_miibus_readreg(device_t, int, int);
 static int nge_miibus_writereg(device_t, int, int, int);
 static void nge_miibus_statchg(device_t);
@@ -200,6 +197,24 @@ static void nge_sysctl_node(struct nge_softc *);
 static int sysctl_int_range(SYSCTL_HANDLER_ARGS, int, int);
 static int sysctl_hw_nge_int_holdoff(SYSCTL_HANDLER_ARGS);
 
+/*
+ * MII bit-bang glue
+ */
+static uint32_t nge_mii_bitbang_read(device_t);
+static void nge_mii_bitbang_write(device_t, uint32_t);
+
+static const struct mii_bitbang_ops nge_mii_bitbang_ops = {
+	nge_mii_bitbang_read,
+	nge_mii_bitbang_write,
+	{
+		NGE_MEAR_MII_DATA,	/* MII_BIT_MDO */
+		NGE_MEAR_MII_DATA,	/* MII_BIT_MDI */
+		NGE_MEAR_MII_CLK,	/* MII_BIT_MDC */
+		NGE_MEAR_MII_DIR,	/* MII_BIT_DIR_HOST_PHY */
+		0,			/* MII_BIT_DIR_PHY_HOST */
+	}
+};
+
 static device_method_t nge_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nge_probe),
@@ -209,16 +224,12 @@ static device_method_t nge_methods[] = {
 	DEVMETHOD(device_suspend,	nge_suspend),
 	DEVMETHOD(device_resume,	nge_resume),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	nge_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	nge_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	nge_miibus_statchg),
 
-	{ NULL, NULL }
+	DEVMETHOD_END
 };
 
 static driver_t nge_driver = {
@@ -366,180 +377,42 @@ nge_read_eeprom(struct nge_softc *sc, caddr_t dest, int off, int cnt)
 }
 
 /*
- * Sync the PHYs by setting data bit and strobing the clock 32 times.
+ * Read the MII serial port for the MII bit-bang module.
+ */
+static uint32_t
+nge_mii_bitbang_read(device_t dev)
+{
+	struct nge_softc *sc;
+	uint32_t val;
+
+	sc = device_get_softc(dev);
+
+	val = CSR_READ_4(sc, NGE_MEAR);
+	CSR_BARRIER_4(sc, NGE_MEAR,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+
+	return (val);
+}
+
+/*
+ * Write the MII serial port for the MII bit-bang module.
  */
 static void
-nge_mii_sync(struct nge_softc *sc)
+nge_mii_bitbang_write(device_t dev, uint32_t val)
 {
-	int i;
+	struct nge_softc *sc;
 
-	SIO_SET(NGE_MEAR_MII_DIR|NGE_MEAR_MII_DATA);
+	sc = device_get_softc(dev);
 
-	for (i = 0; i < 32; i++) {
-		SIO_SET(NGE_MEAR_MII_CLK);
-		DELAY(1);
-		SIO_CLR(NGE_MEAR_MII_CLK);
-		DELAY(1);
-	}
-}
-
-/*
- * Clock a series of bits through the MII.
- */
-static void
-nge_mii_send(struct nge_softc *sc, uint32_t bits, int cnt)
-{
-	int i;
-
-	SIO_CLR(NGE_MEAR_MII_CLK);
-
-	for (i = (0x1 << (cnt - 1)); i; i >>= 1) {
-		if (bits & i) {
-			SIO_SET(NGE_MEAR_MII_DATA);
-		} else {
-			SIO_CLR(NGE_MEAR_MII_DATA);
-		}
-		DELAY(1);
-		SIO_CLR(NGE_MEAR_MII_CLK);
-		DELAY(1);
-		SIO_SET(NGE_MEAR_MII_CLK);
-	}
-}
-
-/*
- * Read an PHY register through the MII.
- */
-static int
-nge_mii_readreg(struct nge_softc *sc, struct nge_mii_frame *frame)
-{
-	int i, ack;
-
-	/*
-	 * Set up frame for RX.
-	 */
-	frame->mii_stdelim = NGE_MII_STARTDELIM;
-	frame->mii_opcode = NGE_MII_READOP;
-	frame->mii_turnaround = 0;
-	frame->mii_data = 0;
-
-	CSR_WRITE_4(sc, NGE_MEAR, 0);
-
-	/*
- 	 * Turn on data xmit.
-	 */
-	SIO_SET(NGE_MEAR_MII_DIR);
-
-	nge_mii_sync(sc);
-
-	/*
-	 * Send command/address info.
-	 */
-	nge_mii_send(sc, frame->mii_stdelim, 2);
-	nge_mii_send(sc, frame->mii_opcode, 2);
-	nge_mii_send(sc, frame->mii_phyaddr, 5);
-	nge_mii_send(sc, frame->mii_regaddr, 5);
-
-	/* Idle bit */
-	SIO_CLR((NGE_MEAR_MII_CLK|NGE_MEAR_MII_DATA));
-	DELAY(1);
-	SIO_SET(NGE_MEAR_MII_CLK);
-	DELAY(1);
-
-	/* Turn off xmit. */
-	SIO_CLR(NGE_MEAR_MII_DIR);
-	/* Check for ack */
-	SIO_CLR(NGE_MEAR_MII_CLK);
-	DELAY(1);
-	ack = CSR_READ_4(sc, NGE_MEAR) & NGE_MEAR_MII_DATA;
-	SIO_SET(NGE_MEAR_MII_CLK);
-	DELAY(1);
-
-	/*
-	 * Now try reading data bits. If the ack failed, we still
-	 * need to clock through 16 cycles to keep the PHY(s) in sync.
-	 */
-	if (ack) {
-		for (i = 0; i < 16; i++) {
-			SIO_CLR(NGE_MEAR_MII_CLK);
-			DELAY(1);
-			SIO_SET(NGE_MEAR_MII_CLK);
-			DELAY(1);
-		}
-		goto fail;
-	}
-
-	for (i = 0x8000; i; i >>= 1) {
-		SIO_CLR(NGE_MEAR_MII_CLK);
-		DELAY(1);
-		if (!ack) {
-			if (CSR_READ_4(sc, NGE_MEAR) & NGE_MEAR_MII_DATA)
-				frame->mii_data |= i;
-			DELAY(1);
-		}
-		SIO_SET(NGE_MEAR_MII_CLK);
-		DELAY(1);
-	}
-
-fail:
-
-	SIO_CLR(NGE_MEAR_MII_CLK);
-	DELAY(1);
-	SIO_SET(NGE_MEAR_MII_CLK);
-	DELAY(1);
-
-	if (ack)
-		return (1);
-	return (0);
-}
-
-/*
- * Write to a PHY register through the MII.
- */
-static int
-nge_mii_writereg(struct nge_softc *sc, struct nge_mii_frame *frame)
-{
-
-	/*
-	 * Set up frame for TX.
-	 */
-
-	frame->mii_stdelim = NGE_MII_STARTDELIM;
-	frame->mii_opcode = NGE_MII_WRITEOP;
-	frame->mii_turnaround = NGE_MII_TURNAROUND;
-
-	/*
- 	 * Turn on data output.
-	 */
-	SIO_SET(NGE_MEAR_MII_DIR);
-
-	nge_mii_sync(sc);
-
-	nge_mii_send(sc, frame->mii_stdelim, 2);
-	nge_mii_send(sc, frame->mii_opcode, 2);
-	nge_mii_send(sc, frame->mii_phyaddr, 5);
-	nge_mii_send(sc, frame->mii_regaddr, 5);
-	nge_mii_send(sc, frame->mii_turnaround, 2);
-	nge_mii_send(sc, frame->mii_data, 16);
-
-	/* Idle bit. */
-	SIO_SET(NGE_MEAR_MII_CLK);
-	DELAY(1);
-	SIO_CLR(NGE_MEAR_MII_CLK);
-	DELAY(1);
-
-	/*
-	 * Turn off xmit.
-	 */
-	SIO_CLR(NGE_MEAR_MII_DIR);
-
-	return (0);
+	CSR_WRITE_4(sc, NGE_MEAR, val);
+	CSR_BARRIER_4(sc, NGE_MEAR,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 static int
 nge_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct nge_softc *sc;
-	struct nge_mii_frame frame;
 	int rv;
 
 	sc = device_get_softc(dev);
@@ -583,20 +456,13 @@ nge_miibus_readreg(device_t dev, int phy, int reg)
 		return (CSR_READ_4(sc, reg));
 	}
 
-	bzero((char *)&frame, sizeof(frame));
-
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	nge_mii_readreg(sc, &frame);
-
-	return (frame.mii_data);
+	return (mii_bitbang_readreg(dev, &nge_mii_bitbang_ops, phy, reg));
 }
 
 static int
 nge_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct nge_softc *sc;
-	struct nge_mii_frame frame;
 
 	sc = device_get_softc(dev);
 	if ((sc->nge_flags & NGE_FLAG_TBI) != 0) {
@@ -633,12 +499,7 @@ nge_miibus_writereg(device_t dev, int phy, int reg, int data)
 		return (0);
 	}
 
-	bzero((char *)&frame, sizeof(frame));
-
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	frame.mii_data = data;
-	nge_mii_writereg(sc, &frame);
+	mii_bitbang_writereg(dev, &nge_mii_bitbang_ops, phy, reg, data);
 
 	return (0);
 }
@@ -813,7 +674,7 @@ nge_rxfilter(struct nge_softc *sc)
 	rxfilt = CSR_READ_4(sc, NGE_RXFILT_CTL);
 	rxfilt &= ~NGE_RXFILTCTL_ENABLE;
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, rxfilt);
-	CSR_BARRIER_WRITE_4(sc, NGE_RXFILT_CTL);
+	CSR_BARRIER_4(sc, NGE_RXFILT_CTL, BUS_SPACE_BARRIER_WRITE);
 
 	rxfilt &= ~(NGE_RXFILTCTL_ALLMULTI | NGE_RXFILTCTL_ALLPHYS);
 	rxfilt &= ~NGE_RXFILTCTL_BROAD;
@@ -882,7 +743,7 @@ done:
 	/* Turn the receive filter on. */
 	rxfilt |= NGE_RXFILTCTL_ENABLE;
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, rxfilt);
-	CSR_BARRIER_WRITE_4(sc, NGE_RXFILT_CTL);
+	CSR_BARRIER_4(sc, NGE_RXFILT_CTL, BUS_SPACE_BARRIER_WRITE);
 }
 
 static void
@@ -932,7 +793,7 @@ nge_reset(struct nge_softc *sc)
 static int
 nge_probe(device_t dev)
 {
-	struct nge_type *t;
+	const struct nge_type *t;
 
 	t = nge_devs;
 
@@ -1061,7 +922,7 @@ nge_attach(device_t dev)
 	 * supply(3VAUX) to drive PME such that checking PCI power
 	 * management capability is necessary.
 	 */
-	if (pci_find_extcap(sc->nge_dev, PCIY_PMG, &i) == 0)
+	if (pci_find_cap(sc->nge_dev, PCIY_PMG, &i) == 0)
 		ifp->if_capabilities |= IFCAP_WOL;
 	ifp->if_capenable = ifp->if_capabilities;
 
@@ -1079,10 +940,10 @@ nge_attach(device_t dev)
 	/*
 	 * Do MII setup.
 	 */
-	error = mii_phy_probe(dev, &sc->nge_miibus, nge_mediachange,
-	    nge_mediastatus);
+	error = mii_attach(dev, &sc->nge_miibus, ifp, nge_mediachange,
+	    nge_mediastatus, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
 	if (error != 0) {
-		device_printf(dev, "no PHY found!\n");
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -1103,7 +964,7 @@ nge_attach(device_t dev)
 	 * Must appear after the call to ether_ifattach() because
 	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/*
 	 * Hookup IRQ last.
@@ -1364,31 +1225,29 @@ nge_dma_free(struct nge_softc *sc)
 
 	/* Tx ring. */
 	if (sc->nge_cdata.nge_tx_ring_tag) {
-		if (sc->nge_cdata.nge_tx_ring_map)
+		if (sc->nge_rdata.nge_tx_ring_paddr)
 			bus_dmamap_unload(sc->nge_cdata.nge_tx_ring_tag,
 			    sc->nge_cdata.nge_tx_ring_map);
-		if (sc->nge_cdata.nge_tx_ring_map &&
-		    sc->nge_rdata.nge_tx_ring)
+		if (sc->nge_rdata.nge_tx_ring)
 			bus_dmamem_free(sc->nge_cdata.nge_tx_ring_tag,
 			    sc->nge_rdata.nge_tx_ring,
 			    sc->nge_cdata.nge_tx_ring_map);
 		sc->nge_rdata.nge_tx_ring = NULL;
-		sc->nge_cdata.nge_tx_ring_map = NULL;
+		sc->nge_rdata.nge_tx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->nge_cdata.nge_tx_ring_tag);
 		sc->nge_cdata.nge_tx_ring_tag = NULL;
 	}
 	/* Rx ring. */
 	if (sc->nge_cdata.nge_rx_ring_tag) {
-		if (sc->nge_cdata.nge_rx_ring_map)
+		if (sc->nge_rdata.nge_rx_ring_paddr)
 			bus_dmamap_unload(sc->nge_cdata.nge_rx_ring_tag,
 			    sc->nge_cdata.nge_rx_ring_map);
-		if (sc->nge_cdata.nge_rx_ring_map &&
-		    sc->nge_rdata.nge_rx_ring)
+		if (sc->nge_rdata.nge_rx_ring)
 			bus_dmamem_free(sc->nge_cdata.nge_rx_ring_tag,
 			    sc->nge_rdata.nge_rx_ring,
 			    sc->nge_cdata.nge_rx_ring_map);
 		sc->nge_rdata.nge_rx_ring = NULL;
-		sc->nge_cdata.nge_rx_ring_map = NULL;
+		sc->nge_rdata.nge_rx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->nge_cdata.nge_rx_ring_tag);
 		sc->nge_cdata.nge_rx_ring_tag = NULL;
 	}
@@ -1521,7 +1380,7 @@ nge_newbuf(struct nge_softc *sc, int idx)
 	bus_dmamap_t map;
 	int nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -1617,7 +1476,7 @@ nge_rxeof(struct nge_softc *sc)
 
 		if ((cmdsts & NGE_CMDSTS_MORE) != 0) {
 			if (nge_newbuf(sc, cons) != 0) {
-				ifp->if_iqdrops++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				if (sc->nge_head != NULL) {
 					m_freem(sc->nge_head);
 					sc->nge_head = sc->nge_tail = NULL;
@@ -1667,7 +1526,7 @@ nge_rxeof(struct nge_softc *sc)
 		/* Try conjure up a replacement mbuf. */
 
 		if (nge_newbuf(sc, cons) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			if (sc->nge_head != NULL) {
 				m_freem(sc->nge_head);
 				sc->nge_head = sc->nge_tail = NULL;
@@ -1704,7 +1563,7 @@ nge_rxeof(struct nge_softc *sc)
 		nge_fixup_rx(m);
 #endif
 		m->m_pkthdr.rcvif = ifp;
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0) {
 			/* Do IP checksum checking. */
@@ -1791,15 +1650,15 @@ nge_txeof(struct nge_softc *sc)
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->nge_cdata.nge_tx_tag, txd->tx_dmamap);
 		if ((cmdsts & NGE_CMDSTS_PKT_OK) == 0) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			if ((cmdsts & NGE_TXSTAT_EXCESSCOLLS) != 0)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			if ((cmdsts & NGE_TXSTAT_OUTOFWINCOLL) != 0)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 		} else
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
-		ifp->if_collisions += (cmdsts & NGE_TXSTAT_COLLCNT) >> 16;
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS, (cmdsts & NGE_TXSTAT_COLLCNT) >> 16);
 		KASSERT(txd->tx_m != NULL, ("%s: freeing NULL mbuf!\n",
 		    __func__));
 		m_freem(txd->tx_m);
@@ -1871,8 +1730,9 @@ nge_stats_update(struct nge_softc *sc)
 	/*
 	 * Since we've accept errored frames exclude Rx length errors.
 	 */
-	ifp->if_ierrors += stats->rx_pkts_errs + stats->rx_crc_errs +
-	    stats->rx_fifo_oflows + stats->rx_sym_errs;
+	if_inc_counter(ifp, IFCOUNTER_IERRORS,
+	    stats->rx_pkts_errs + stats->rx_crc_errs +
+	    stats->rx_fifo_oflows + stats->rx_sym_errs);
 
 	nstats = &sc->nge_stats;
 	nstats->rx_pkts_errs += stats->rx_pkts_errs;
@@ -2034,7 +1894,7 @@ nge_encap(struct nge_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->nge_cdata.nge_tx_tag, map,
 	    *m_head, txsegs, &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, NGE_MAXTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, NGE_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -2216,7 +2076,7 @@ nge_init_locked(struct nge_softc *sc)
 
 	/* Disable Rx filter prior to programming Rx filter. */
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, 0);
-	CSR_BARRIER_WRITE_4(sc, NGE_RXFILT_CTL);
+	CSR_BARRIER_4(sc, NGE_RXFILT_CTL, BUS_SPACE_BARRIER_WRITE);
 
 	mii = device_get_softc(sc->nge_miibus);
 
@@ -2242,27 +2102,6 @@ nge_init_locked(struct nge_softc *sc)
 	 */
 	nge_list_tx_init(sc);
 
-	/*
-	 * For the NatSemi chip, we have to explicitly enable the
-	 * reception of ARP frames, as well as turn on the 'perfect
-	 * match' filter where we store the station address, otherwise
-	 * we won't receive unicasts meant for this host.
-	 */
-	NGE_SETBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_ARP);
-	NGE_SETBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_PERFECT);
-
-	/*
-	 * Set the capture broadcast bit to capture broadcast frames.
-	 */
-	if (ifp->if_flags & IFF_BROADCAST) {
-		NGE_SETBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_BROAD);
-	} else {
-		NGE_CLRBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_BROAD);
-	}
-
-	/* Turn the receive filter on. */
-	NGE_SETBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_ENABLE);
-
 	/* Set Rx filter. */
 	nge_rxfilter(sc);
 
@@ -2270,7 +2109,7 @@ nge_init_locked(struct nge_softc *sc)
 	CSR_WRITE_4(sc, NGE_PRIOQCTL, 0);
 
 	/*
-	 * Set pause frames paramters.
+	 * Set pause frames parameters.
 	 *  Rx stat FIFO hi-threshold : 2 or more packets
 	 *  Rx stat FIFO lo-threshold : less than 2 packets
 	 *  Rx data FIFO hi-threshold : 2K or more bytes
@@ -2396,10 +2235,8 @@ nge_mediachange(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	NGE_LOCK(sc);
 	mii = device_get_softc(sc->nge_miibus);
-	if (mii->mii_instance) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	NGE_UNLOCK(sc);
 
@@ -2419,9 +2256,9 @@ nge_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 	NGE_LOCK(sc);
 	mii = device_get_softc(sc->nge_miibus);
 	mii_pollstat(mii);
-	NGE_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	NGE_UNLOCK(sc);
 }
 
 static int
@@ -2477,9 +2314,9 @@ nge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		NGE_LOCK(sc);
-		nge_rxfilter(sc);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			nge_rxfilter(sc);
 		NGE_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
@@ -2578,7 +2415,7 @@ nge_watchdog(struct nge_softc *sc)
 		return;
 
 	ifp = sc->nge_ifp;
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if_printf(ifp, "watchdog timeout\n");
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
@@ -2689,7 +2526,7 @@ nge_wol(struct nge_softc *sc)
 
 	NGE_LOCK_ASSERT(sc);
 
-	if (pci_find_extcap(sc->nge_dev, PCIY_PMG, &pmc) != 0)
+	if (pci_find_cap(sc->nge_dev, PCIY_PMG, &pmc) != 0)
 		return;
 
 	ifp = sc->nge_ifp;
@@ -2706,12 +2543,12 @@ nge_wol(struct nge_softc *sc)
 		 * (i.e. Silent Rx mode.)
 		 */
 		CSR_WRITE_4(sc, NGE_RX_LISTPTR_HI, 0);
-		CSR_BARRIER_WRITE_4(sc, NGE_RX_LISTPTR_HI);
+		CSR_BARRIER_4(sc, NGE_RX_LISTPTR_HI, BUS_SPACE_BARRIER_WRITE);
 		CSR_WRITE_4(sc, NGE_RX_LISTPTR_LO, 0);
-		CSR_BARRIER_WRITE_4(sc, NGE_RX_LISTPTR_LO);
+		CSR_BARRIER_4(sc, NGE_RX_LISTPTR_LO, BUS_SPACE_BARRIER_WRITE);
 		/* Enable Rx again. */
 		NGE_SETBIT(sc, NGE_CSR, NGE_CSR_RX_ENABLE);
-		CSR_BARRIER_WRITE_4(sc, NGE_CSR);
+		CSR_BARRIER_4(sc, NGE_CSR, BUS_SPACE_BARRIER_WRITE);
 
 		/* Configure WOL events. */
 		reg = 0;
@@ -2776,7 +2613,7 @@ nge_resume(device_t dev)
 
 	NGE_LOCK(sc);
 	ifp = sc->nge_ifp;
-	if (pci_find_extcap(sc->nge_dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_cap(sc->nge_dev, PCIY_PMG, &pmc) == 0) {
 		/* Disable PME and clear PME status. */
 		pmstat = pci_read_config(sc->nge_dev,
 		    pmc + PCIR_POWER_STATUS, 2);

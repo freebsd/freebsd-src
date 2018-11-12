@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2006-2007 Semihalf, Piotr Kruszynski <ppk@semihalf.com>
+ * Copyright (C) 2006-2007 Semihalf, Piotr Kruszynski
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,8 @@
 #ifndef _IF_TSEC_H
 #define _IF_TSEC_H
 
+#include <dev/ofw/openfirm.h>
+
 #define TSEC_RX_NUM_DESC	256
 #define TSEC_TX_NUM_DESC	256
 
@@ -49,6 +51,7 @@ struct tsec_softc {
 	struct mtx	transmit_lock;	/* transmitter lock */
 	struct mtx	receive_lock;	/* receiver lock */
 
+	phandle_t	node;
 	device_t	dev;
 	device_t	tsec_miibus;
 	struct mii_data	*tsec_mii;	/* MII media control */
@@ -57,12 +60,12 @@ struct tsec_softc {
 	bus_dma_tag_t	tsec_tx_dtag;	/* TX descriptors tag */
 	bus_dmamap_t	tsec_tx_dmap;	/* TX descriptors map */
 	struct tsec_desc *tsec_tx_vaddr;/* vadress of TX descriptors */
-	uint32_t	tsec_tx_raddr;	/* real adress of TX descriptors */
+	uint32_t	tsec_tx_raddr;	/* real address of TX descriptors */
 
 	bus_dma_tag_t	tsec_rx_dtag;	/* RX descriptors tag */
 	bus_dmamap_t	tsec_rx_dmap;	/* RX descriptors map */
 	struct tsec_desc *tsec_rx_vaddr; /* vadress of RX descriptors */
-	uint32_t	tsec_rx_raddr;	/* real adress of RX descriptors */
+	uint32_t	tsec_rx_raddr;	/* real address of RX descriptors */
 
 	bus_dma_tag_t	tsec_tx_mtag;	/* TX mbufs tag */
 	bus_dma_tag_t	tsec_rx_mtag;	/* TX mbufs tag */
@@ -70,7 +73,7 @@ struct tsec_softc {
 	struct rx_data_type {
 		bus_dmamap_t	map;	/* mbuf map */
 		struct mbuf	*mbuf;
-		uint32_t	paddr;	/* DMA addres of buffer */
+		uint32_t	paddr;	/* DMA address of buffer */
 	} rx_data[TSEC_RX_NUM_DESC];
 
 	uint32_t	tx_cur_desc_cnt;
@@ -128,6 +131,11 @@ struct tsec_softc {
 
 	/* currently received frame */
 	struct mbuf	*frame;
+
+	int		phyaddr;
+	bus_space_tag_t phy_bst;
+	bus_space_handle_t phy_bsh;
+	int		phy_regoff;
 };
 
 /* interface to get/put generic objects */
@@ -246,6 +254,16 @@ struct tsec_softc {
 		bus_space_read_4((sc)->sc_bas.bst, (sc)->sc_bas.bsh, (reg))
 #define TSEC_WRITE(sc, reg, val)	\
 		bus_space_write_4((sc)->sc_bas.bst, (sc)->sc_bas.bsh, (reg), (val))
+
+extern struct mtx tsec_phy_mtx;
+#define TSEC_PHY_LOCK(sc)	mtx_lock(&tsec_phy_mtx)
+#define TSEC_PHY_UNLOCK(sc)	mtx_unlock(&tsec_phy_mtx)
+#define TSEC_PHY_READ(sc, reg)		\
+		bus_space_read_4((sc)->phy_bst, (sc)->phy_bsh, \
+			(reg) + (sc)->phy_regoff)
+#define TSEC_PHY_WRITE(sc, reg, val)	\
+		bus_space_write_4((sc)->phy_bst, (sc)->phy_bsh, \
+			(reg) + (sc)->phy_regoff, (val))
 
 /* Lock for transmitter */
 #define TSEC_TRANSMIT_LOCK(sc) do {					\

@@ -35,7 +35,7 @@
 .\" $Whistle: ng_mppc.8,v 1.1 1999/12/08 20:20:39 archie Exp $
 .\" $FreeBSD$
 .\"
-.Dd December 8, 1999
+.Dd June 7, 2016
 .Dt NG_MPPC 4
 .Os
 .Sh NAME
@@ -64,16 +64,15 @@ node type hook of the same name.
 Each direction of traffic flow is independent of the other.
 .Sh HOOKS
 This node type supports the following hooks:
-.Pp
-.Bl -tag -compact -width vjc_vjuncomp
-.It Dv comp
+.Bl -tag -width ".Va decomp"
+.It Va comp
 Connection to
 .Xr ng_ppp 4
 .Dv "comp"
 hook.
 Incoming frames are compressed and/or encrypted, and sent
 back out the same hook.
-.It Dv decomp
+.It Va decomp
 Connection to
 .Xr ng_ppp 4
 .Dv "decomp"
@@ -106,7 +105,7 @@ as an argument:
 /* Configuration for a session */
 struct ng_mppc_config {
     u_char    enable;                 /* enable */
-    u_int32_t bits;                   /* config bits */
+    uint32_t  bits;                   /* config bits */
     u_char    startkey[MPPE_KEY_LEN]; /* start key */
 };
 
@@ -154,12 +153,6 @@ and
 are supplied to selectively compile in either or both capabilities.
 At least one of these must be defined, or else this node type is useless.
 .Pp
-The MPPC protocol requires proprietary compression code available
-from Hi/Fn (formerly STAC).
-These files must be obtained elsewhere and added to the kernel
-sources before this node type will compile with the
-.Dv NETGRAPH_MPPC_COMPRESSION
-option.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ng_ppp 4 ,
@@ -186,7 +179,7 @@ option.
 .%O RFC 2637
 .Re
 .Sh AUTHORS
-.An Archie Cobbs Aq archie@FreeBSD.org
+.An Archie Cobbs Aq Mt archie@FreeBSD.org
 .Sh BUGS
 In PPP, encryption should be handled by the Encryption Control Protocol (ECP)
 rather than CCP.

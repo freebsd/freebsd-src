@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 8.574 2006/11/29 00:36:06 ca Exp $
+ *	$Id: conf.h,v 8.577 2013-11-22 20:51:55 ca Exp $
  */
 
 /*
@@ -112,7 +112,9 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 #ifndef MAXHDRSLEN
 # define MAXHDRSLEN	(32 * 1024)	/* max size of message headers */
 #endif /* ! MAXHDRSLEN */
-#define MAXDAEMONS	10		/* max number of ports to listen to */
+#ifndef MAXDAEMONS
+# define MAXDAEMONS	10		/* max number of ports to listen to */
+#endif /* MAXDAEMONS */
 #ifndef MAXINTERFACES
 # define MAXINTERFACES	512		/* number of interfaces to probe */
 #endif /* MAXINTERFACES */
@@ -123,9 +125,18 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 #define DATA_PROGRESS_TIMEOUT	300	/* how often to check DATA progress */
 #define ENHSCLEN	10		/* max len of enhanced status code */
 #define DEFAULT_MAX_RCPT	100	/* max number of RCPTs per envelope */
-#define MAXQUEUEGROUPS	50		/* max # of queue groups */
+#ifndef MAXQUEUEGROUPS
+# define MAXQUEUEGROUPS	50		/* max # of queue groups */
 	/* must be less than BITMAPBITS for DoQueueRun */
-#define MAXWORKGROUPS	50		/* max # of work groups */
+#endif /* MAXQUEUEGROUPS */
+#if MAXQUEUEGROUPS >= BITMAPBITS
+  ERROR _MAXQUEUEGROUPS must be less than _BITMAPBITS
+#endif /* MAXQUEUEGROUPS >= BITMAPBITS */
+
+#ifndef MAXWORKGROUPS
+# define MAXWORKGROUPS	50		/* max # of work groups */
+#endif /* MAXWORKGROUPS */
+
 #define MAXFILESYS	BITMAPBITS	/* max # of queue file systems
 					 * must be <= BITMAPBITS */
 #ifndef FILESYS_UPDATE_INTERVAL

@@ -2,14 +2,8 @@
  * IKEv2 definitions
  * Copyright (c) 2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef IKEV2_COMMON_H
@@ -76,11 +70,7 @@ struct ikev2_transform {
 /* Current IKEv2 version from RFC 4306 */
 #define IKEV2_MjVer 2
 #define IKEV2_MnVer 0
-#ifdef CCNS_PL
-#define IKEV2_VERSION ((IKEV2_MjVer) | ((IKEV2_MnVer) << 4))
-#else /* CCNS_PL */
 #define IKEV2_VERSION (((IKEV2_MjVer) << 4) | (IKEV2_MnVer))
-#endif /* CCNS_PL */
 
 /* IKEv2 Exchange Types */
 enum {
@@ -139,7 +129,7 @@ enum {
 	IKEV2_TRANSFORM_ESN = 5
 };
 
-/* IKEv2 Tranform Type 1 (Encryption Algorithm) */
+/* IKEv2 Transform Type 1 (Encryption Algorithm) */
 enum {
 	ENCR_DES_IV64 = 1,
 	ENCR_DES = 2,

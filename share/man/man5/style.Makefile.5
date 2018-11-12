@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2005
+.Dd October 21, 2015
 .Dt STYLE.MAKEFILE 5
 .Os
 .Sh NAME
@@ -117,6 +117,13 @@ i.e., no space between the variable name and the
 .Ic = .
 Keep values sorted alphabetically, if possible.
 .It
+Variables are expanded with
+.Sy {} ,
+not
+.Sy () .
+Such as
+.Va ${VARIABLE} .
+.It
 Do not use
 .Ic +=
 to set variables that are only set once
@@ -143,7 +150,7 @@ is an important thing.
 The usage of
 .Va WARNS
 is spelled
-.Dq Li "WARNS?=	" ,
+.Dq Li "WARNS?= " ,
 so that it may be overridden on the command line or in
 .Xr make.conf 5 .
 .It

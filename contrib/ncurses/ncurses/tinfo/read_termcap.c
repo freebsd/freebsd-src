@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -54,11 +54,9 @@
 
 #include <ctype.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <tic.h>
-#include <term_entry.h>
 
-MODULE_ID("$Id: read_termcap.c,v 1.71 2006/07/29 12:06:51 tom Exp $")
+MODULE_ID("$Id: read_termcap.c,v 1.89 2013/12/15 00:32:43 tom Exp $")
 
 #if !PURE_TERMINFO
 
@@ -75,10 +73,19 @@ get_termpath(void)
 
     if (!use_terminfo_vars() || (result = getenv("TERMPATH")) == 0)
 	result = TERMPATH;
-    T(("TERMPATH is %s", result));
+    TR(TRACE_DATABASE, ("TERMPATH is %s", result));
     return result;
 }
 
+/*
+ * Note:
+ * getcap(), cgetent(), etc., are BSD functions.  A copy of those was added to
+ * this file in November 1995, derived from the BSD4.4 Lite sources.
+ *
+ * The initial adaptation uses 518 lines from that source.
+ * The current source (in 2009) uses 183 lines of BSD4.4 Lite (441 ignoring
+ * whitespace).
+ */
 #if USE_GETCAP
 
 #if HAVE_BSD_CGETENT
@@ -107,11 +114,7 @@ static int _nc_nfcmp(const char *, char *);
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -158,7 +161,7 @@ _nc_cgetset(const char *ent)
 	return (-1);
     }
     gottoprec = 0;
-    (void) strcpy(toprec, ent);
+    _nc_STRCPY(toprec, ent, topreclen);
     return (0);
 }
 
@@ -291,7 +294,7 @@ _nc_getent(
 	    errno = ENOMEM;
 	    return (TC_SYS_ERR);
 	}
-	(void) strcpy(record, toprec);
+	_nc_STRCPY(record, toprec, topreclen + BFRAG);
 	rp = record + topreclen + 1;
 	r_end = rp + BFRAG;
 	current = in_array;
@@ -380,7 +383,14 @@ _nc_getent(
 			c = *bp++;
 			if (c == '\n') {
 			    lineno++;
-			    if (rp == record || *(rp - 1) != '\\')
+			    /*
+			     * Unlike BSD 4.3, this ignores a backslash at the
+			     * end of a comment-line.  That makes it consistent
+			     * with the rest of ncurses -TD
+			     */
+			    if (rp == record
+				|| *record == '#'
+				|| *(rp - 1) != '\\')
 				break;
 			}
 			*rp++ = c;
@@ -438,8 +448,10 @@ _nc_getent(
 		break;
 	}
 
-	if (!foundit)
+	if (!foundit) {
+	    free(record);
 	    return (TC_NOT_FOUND);
+	}
     }
 
     /*
@@ -451,7 +463,7 @@ _nc_getent(
 	register int newilen;
 	unsigned ilen;
 	int diff, iret, tclen, oline;
-	char *icap, *scan, *tc, *tcstart, *tcend;
+	char *icap = 0, *scan, *tc, *tcstart, *tcend;
 
 	/*
 	 * Loop invariants:
@@ -464,8 +476,9 @@ _nc_getent(
 	scan = record;
 	tc_not_resolved = FALSE;
 	for (;;) {
-	    if ((tc = _nc_cgetcap(scan, "tc", '=')) == 0)
+	    if ((tc = _nc_cgetcap(scan, "tc", '=')) == 0) {
 		break;
+	    }
 
 	    /*
 	     * Find end of tc=name and stomp on the trailing `:'
@@ -482,6 +495,7 @@ _nc_getent(
 	    tclen = s - tcstart;
 	    tcend = s;
 
+	    icap = 0;
 	    iret = _nc_getent(&icap, &ilen, &oline, current, db_array, fd,
 			      tc, depth + 1, 0);
 	    newicap = icap;	/* Put into a register. */
@@ -492,12 +506,13 @@ _nc_getent(
 		    if (myfd)
 			(void) close(fd);
 		    free(record);
+		    FreeIfNeeded(icap);
 		    return (iret);
 		}
-		if (iret == TC_UNRESOLVED)
+		if (iret == TC_UNRESOLVED) {
 		    tc_not_resolved = TRUE;
-		/* couldn't resolve tc */
-		if (iret == TC_NOT_FOUND) {
+		    /* couldn't resolve tc */
+		} else if (iret == TC_NOT_FOUND) {
 		    *(s - 1) = ':';
 		    scan = s - 1;
 		    tc_not_resolved = TRUE;
@@ -577,8 +592,9 @@ _nc_getent(
     }
 
     *cap = record;
-    if (tc_not_resolved)
+    if (tc_not_resolved) {
 	return (TC_UNRESOLVED);
+    }
     return (current);
 }
 
@@ -693,8 +709,6 @@ _nc_nfcmp(const char *nf, char *rec)
 #define	PVECSIZ		32	/* max number of names in path */
 #define TBUFSIZ (2048*2)
 
-static char *tbuf;
-
 /*
  * On entry, srcp points to a non ':' character which is the beginning of the
  * token, if any.  We'll try to return a string that doesn't end with a ':'.
@@ -756,7 +770,7 @@ copy_tc_token(char *dst, const char *src, size_t len)
 	    dst = 0;
 	    break;
 	}
-	*dst++ = ch;
+	*dst++ = (char) ch;
     }
     return dst;
 }
@@ -772,18 +786,16 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
     register char *p;
     register char *cp;
     char *dummy = NULL;
-    char **fname;
+    CGETENT_CONST char **fname;
     char *home;
     int i;
     char pathbuf[PBUFSIZ];	/* holds raw path of filenames */
-    char *pathvec[PVECSIZ];	/* to point to names in pathbuf */
-    char **pvec;		/* holds usable tail of path vector */
+    CGETENT_CONST char *pathvec[PVECSIZ];	/* point to names in pathbuf */
     NCURSES_CONST char *termpath;
     string_desc desc;
 
+    *lineno = 1;
     fname = pathvec;
-    pvec = pathvec;
-    tbuf = bp;
     p = pathbuf;
     cp = use_terminfo_vars()? getenv("TERMCAP") : NULL;
 
@@ -808,10 +820,11 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
 	    if ((home = getenv("HOME")) != 0 && *home != '\0'
 		&& strchr(home, ' ') == 0
 		&& strlen(home) < sizeof(temp) - 10) {	/* setup path */
-		sprintf(temp, "%s/", home);	/* $HOME first */
+		_nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp))
+			    "%s/", home);	/* $HOME first */
 	    }
 	    /* if no $HOME look in current directory */
-	    strcat(temp, ".termcap");
+	    _nc_STRCAT(temp, ".termcap", sizeof(temp));
 	    _nc_safe_strcat(&desc, temp);
 	    _nc_safe_strcat(&desc, " ");
 	    _nc_safe_strcat(&desc, get_termpath());
@@ -837,6 +850,9 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
 	}
     }
     *fname = 0;			/* mark end of vector */
+#if !HAVE_BSD_CGETENT
+    (void) _nc_cgetset(0);
+#endif
     if (_nc_is_abs_path(cp)) {
 	if (_nc_cgetset(cp) < 0) {
 	    return (TC_SYS_ERR);
@@ -849,6 +865,7 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
      * empty fields, and mistakenly use the last valid cap entry instead of
      * the first (breaks tc= includes)
      */
+    *bp = '\0';
     if (i >= 0) {
 	char *pd, *ps, *tok;
 	int endflag = FALSE;
@@ -870,7 +887,7 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
 	    }
 	    if (ignore != TRUE) {
 		list[count++] = tok;
-		pd = copy_tc_token(pd, tok, TBUFSIZ - (2 + pd - bp));
+		pd = copy_tc_token(pd, tok, (size_t) (TBUFSIZ - (2 + pd - bp)));
 		if (pd == 0) {
 		    i = -1;
 		    break;
@@ -928,7 +945,7 @@ add_tc(char *termpaths[], char *path, int count)
     if (count < MAXPATHS
 	&& _nc_access(path, R_OK) == 0) {
 	termpaths[count++] = path;
-	T(("Adding termpath %s", path));
+	TR(TRACE_DATABASE, ("Adding termpath %s", path));
     }
     termpaths[count] = 0;
     if (save != 0)
@@ -952,13 +969,13 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE *const tp)
     static char *source;
     static int lineno;
 
-    T(("read termcap entry for %s", tn));
+    TR(TRACE_DATABASE, ("read termcap entry for %s", tn));
 
     if (strlen(tn) == 0
 	|| strcmp(tn, ".") == 0
 	|| strcmp(tn, "..") == 0
 	|| _nc_pathlast(tn) != 0) {
-	T(("illegal or missing entry name '%s'", tn));
+	TR(TRACE_DATABASE, ("illegal or missing entry name '%s'", tn));
 	return TGETENT_NO;
     }
 
@@ -976,7 +993,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE *const tp)
 	_nc_curr_line = lineno;
 	_nc_set_source(source);
     }
-    _nc_read_entry_source((FILE *) 0, tc, FALSE, FALSE, NULLHOOK);
+    _nc_read_entry_source((FILE *) 0, tc, FALSE, TRUE, NULLHOOK);
 #else
     /*
      * Here is what the 4.4BSD termcap(3) page prescribes:
@@ -1023,7 +1040,9 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE *const tp)
 	    normal = FALSE;
 	} else if (_nc_name_match(tc, tn, "|:")) {	/* treat as a capability file */
 	    use_buffer = TRUE;
-	    (void) sprintf(tc_buf, "%.*s\n", (int) sizeof(tc_buf) - 2, tc);
+	    _nc_SPRINTF(tc_buf,
+			_nc_SLIMIT(sizeof(tc_buf))
+			"%.*s\n", (int) sizeof(tc_buf) - 2, tc);
 	    normal = FALSE;
 	}
     }
@@ -1045,8 +1064,9 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE *const tp)
 	if (use_terminfo_vars() && (h = getenv("HOME")) != NULL && *h != '\0'
 	    && (strlen(h) + sizeof(PRIVATE_CAP)) < PATH_MAX) {
 	    /* user's .termcap, if any, should override it */
-	    (void) strcpy(envhome, h);
-	    (void) sprintf(pathbuf, PRIVATE_CAP, envhome);
+	    _nc_STRCPY(envhome, h, sizeof(envhome));
+	    _nc_SPRINTF(pathbuf, _nc_SLIMIT(sizeof(pathbuf))
+			PRIVATE_CAP, envhome);
 	    ADD_TC(pathbuf, filecount);
 	}
     }
@@ -1059,7 +1079,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE *const tp)
     for (j = 0; j < filecount; j++) {
 	bool omit = FALSE;
 	if (stat(termpaths[j], &test_stat[j]) != 0
-	    || (test_stat[j].st_mode & S_IFMT) != S_IFREG) {
+	    || !S_ISREG(test_stat[j].st_mode)) {
 	    omit = TRUE;
 	} else {
 	    for (k = 0; k < j; k++) {
@@ -1071,7 +1091,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE *const tp)
 	    }
 	}
 	if (omit) {
-	    T(("Path %s is a duplicate", termpaths[j]));
+	    TR(TRACE_DATABASE, ("Path %s is a duplicate", termpaths[j]));
 	    for (k = j + 1; k < filecount; k++) {
 		termpaths[k - 1] = termpaths[k];
 		test_stat[k - 1] = test_stat[k];
@@ -1096,7 +1116,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE *const tp)
 
 	for (i = 0; i < filecount; i++) {
 
-	    T(("Looking for %s in %s", tn, termpaths[i]));
+	    TR(TRACE_DATABASE, ("Looking for %s in %s", tn, termpaths[i]));
 	    if (_nc_access(termpaths[i], R_OK) == 0
 		&& (fp = fopen(termpaths[i], "r")) != (FILE *) 0) {
 		_nc_set_source(termpaths[i]);
@@ -1134,8 +1154,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE *const tp)
 		 * from the list.
 		 */
 		*tp = ep->tterm;
-		_nc_delink_entry(_nc_head, &(ep->tterm));
-		free(ep);
+		_nc_free_entry(_nc_head, &(ep->tterm));
 
 		/*
 		 * OK, now try to write the type to user's terminfo directory. 

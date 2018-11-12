@@ -31,20 +31,20 @@
 
 #include <sys/cdefs.h>
 
-/*-
+/*
  * A kernel process descriptor; used to start "internal" daemons.
  *
  * Note: global_procpp may be NULL for no global save area.
  */
 struct kproc_desc {
-	char		*arg0;			/* arg 0 (for 'ps' listing) */
-	void		(*func)(void);	/* "main" for kernel process */
+	const char	*arg0;			/* arg 0 (for 'ps' listing) */
+	void		(*func)(void);		/* "main" for kernel process */
 	struct proc	**global_procpp;	/* ptr to proc ptr save area */
 };
 
  /* A kernel thread descriptor; used to start "internal" daemons. */
 struct kthread_desc {
-	char		*arg0;			/* arg 0 (for 'ps' listing) */
+	const char	*arg0;			/* arg 0 (for 'ps' listing) */
 	void		(*func)(void);		/* "main" for kernel thread */
 	struct thread	**global_threadpp;	/* ptr to thread ptr save area */
 };
@@ -63,7 +63,7 @@ int     kproc_kthread_add(void (*)(void *), void *,
 	    struct proc **,
 	    struct thread **,
 	    int flags, int pages,
-	    char * procname, const char *, ...) __printflike(8, 9);
+	    const char *procname, const char *, ...) __printflike(8, 9);
 
 int     kthread_add(void (*)(void *), void *,
 	    struct proc *, struct thread **,
@@ -73,7 +73,7 @@ int	kthread_resume(struct thread *);
 void	kthread_shutdown(void *, int);
 void	kthread_start(const void *);
 int	kthread_suspend(struct thread *, int);
-void	kthread_suspend_check(struct thread *);
+void	kthread_suspend_check(void);
 
 
 #endif /* !_SYS_KTHREAD_H_ */

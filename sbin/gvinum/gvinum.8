@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2009
+.Dd May 6, 2014
 .Dt GVINUM 8
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Bl -tag -width indent
 .It Ic attach Ar plex volume Op Cm rename
 .It Ic attach Ar subdisk plex Oo Ar offset Oc Op Cm rename
-Attach a plex to a volume, or a subdisk to a plex. 
+Attach a plex to a volume, or a subdisk to a plex.
 If offset is specified, the subdisk will be attached to the given offset within
 the plex.
 If rename is specified, the subdisk or plex will change name according to the
@@ -58,7 +58,8 @@ All subdisks in the
 plex must be up for a parity check.
 .It Ic concat Oo Fl fv Oc Oo Fl n Ar name Oc Ar drives
 Create a concatenated volume from the specified drives.
-If no name is specified, a unique name will be set by gvinum.
+If no name is specified, a unique name will be set by
+.Ic gvinum .
 .It Ic create Oo Fl f Oc Op Ar description-file
 Create a volume as described in
 .Ar description-file .
@@ -103,10 +104,10 @@ and
 .Fl V
 flags provide progressively more detailed output.
 .It Ic mirror Oo Fl fsv Oc Oo Fl n Ar name Oc Ar drives
-Create a mirrored volume from the specified drives. 
+Create a mirrored volume from the specified drives.
 It requires at least a multiple of 2 drives.
 If no name is specified, a unique name will be set by gvinum.
-If the 
+If the
 .Fl s
 flag is specified, a striped mirror will be created, and thus requires a
 multiple of 4 drives.
@@ -148,8 +149,8 @@ Normally this would be done by entering the
 EOF character.
 .It Ic raid5 Oo Fl fv Oc Oo Fl s Ar stripesize Oc Oo Fl n Ar name Oc Ar drives
 Create a RAID-5 volume from the specified drives.
-If no name is specified,a unique name will be set by
-.Ic gvinum. 
+If no name is specified, a unique name will be set by
+.Ic gvinum .
 This organization requires at least three drives.
 .It Ic rename Oo Fl r Oc Ar drive | subdisk | plex | volume newname
 Change the name of the specified object.
@@ -167,7 +168,7 @@ the beginning of the plex if the
 .Fl f
 flag is specified, or otherwise at the location of the parity check pointer.
 All subdisks in the plex must be up for a parity check.
-.It Ic resetconfig
+.It Ic resetconfig Oo Fl f Oc
 Reset the complete
 .Nm
 configuration.
@@ -202,8 +203,9 @@ Terminate access to the objects, or stop
 if no parameters are specified.
 .It Ic stripe Oo Fl fv Oc Oo Fl n Ar name Oc Ar drives
 Create a striped volume from the specified drives. If no name is specified,
-a unique name will be set by Ic gvinum. This organization requires at least two
-drives.
+a unique name will be set by
+.Ic gvinum .
+This organization requires at least two drives.
 .El
 .Sh DESCRIPTION
 The
@@ -277,26 +279,27 @@ directory with device nodes for
 objects
 .El
 .Sh EXAMPLES
-To create a mirror on disks /dev/ad1 and /dev/ad2, create a filesystem, mount,
-unmount and then stop Ic gvinum:
+To create a mirror on disks /dev/ada1 and /dev/ada2, create a filesystem,
+mount, unmount and then stop
+.Ic gvinum :
 .Pp
-.Dl "gvinum mirror /dev/ad1 /dev/ad2"
+.Dl "gvinum mirror /dev/ada1 /dev/ada2"
 .Dl "newfs /dev/gvinum/gvinumvolume0"
-.Dl "mount /dev/gvinum/gvinumvolume0 /mnt" 
+.Dl "mount /dev/gvinum/gvinumvolume0 /mnt"
 .Dl "..."
 .Dl "unmount /mnt"
 .Dl "gvinum stop"
 .Pp
-To create a striped mirror on disks /dev/ad1 /dev/ad2 /dev/ad3 and /dev/ad4
-named "data" and create a filesystem:
+To create a striped mirror on disks /dev/ada1 /dev/ada2 /dev/ada3 and
+/dev/ada4 named "data" and create a filesystem:
 .Pp
-.Dl "gvinum mirror -s -n data /dev/ad1 /dev/ad2 /dev/ad3 /dev/ad4"
+.Dl "gvinum mirror -s -n data /dev/ada1 /dev/ada2 /dev/ada3 /dev/ada4"
 .Dl "newfs /dev/gvinum/data"
 .Pp
-To create a raid5 array on disks /dev/ad1 /dev/ad2 and /dev/ad3, with stripesize
-493k you can use the raid5 command:
+To create a raid5 array on disks /dev/ada1 /dev/ada2 and /dev/ada3,
+with stripesize 493k you can use the raid5 command:
 .Pp
-.Dl "gvinum raid5 -s 493k /dev/ad1 /dev/ad2 /dev/ad3"
+.Dl "gvinum raid5 -s 493k /dev/ada1 /dev/ada2 /dev/ada3"
 .Pp
 Then the volume will be created automatically.
 Afterwards, you have to initialize the volume:
@@ -310,9 +313,9 @@ The list command will give you information about its progress.
 Imagine that one of the drives fails, and the output of 'printconfig' looks
 something like this:
 .Pp
-.Dl "drive gvinumdrive1 device /dev/ad2"
+.Dl "drive gvinumdrive1 device /dev/ada2"
 .Dl "drive gvinumdrive2 device /dev/???"
-.Dl "drive gvinumdrive0 device /dev/ad1"
+.Dl "drive gvinumdrive0 device /dev/ada1"
 .Dl "volume myraid5vol"
 .Dl "plex name myraid5vol.p0 org raid5 986s vol myraid5vol"
 .Dl "sd name myraid5vol.p0.s2 drive gvinumdrive2 len 32538s driveoffset 265s"
@@ -324,7 +327,7 @@ something like this:
 .Pp
 Create a new drive with this configuration:
 .Pp
-.Dl "drive gdrive4 device /dev/ad4"
+.Dl "drive gdrive4 device /dev/ada4"
 .Pp
 Then move the stale subdisk to the new drive:
 .Pp
@@ -341,7 +344,7 @@ might be delayed.
 Given the configuration as in the previous example, growing a RAID-5 or STRIPED
 array is accomplished by using the grow command:
 .Pp
-.Dl "gvinum grow myraid5vol.p0 /dev/ad4"
+.Dl "gvinum grow myraid5vol.p0 /dev/ada4"
 .Pp
 If everything went ok, the plex state should now be set to growable.
 You can then start the growing with the
@@ -356,7 +359,6 @@ command.
 .Pp
 For a more advanced usage and detailed explanation of gvinum, the
 handbook is recommended.
-.Pp
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr geom 8
@@ -386,13 +388,16 @@ documentation were added by
 .An "Chris Jones"
 through the 2005 Google Summer
 of Code program.
-.Ic a partial rewrite of gvinum was done by "Lukas Ertl" and "Ulf Lilleengen"
+A partial rewrite of gvinum was done by
+.An "Lukas Ertl"
+and
+.An "Ulf Lilleengen"
 through the 2007 Google Summer of Code program.
 The documentation have been updated to reflect the new functionality.
 .Sh AUTHORS
-.An Lukas Ertl Aq le@FreeBSD.org
-.An Chris Jones Aq soc-cjones@FreeBSD.org
-.An Ulf Lilleengen Aq lulf@FreeBSD.org
+.An Lukas Ertl Aq Mt le@FreeBSD.org
+.An Chris Jones Aq Mt soc-cjones@FreeBSD.org
+.An Ulf Lilleengen Aq Mt lulf@FreeBSD.org
 .Sh BUGS
 Currently,
 .Nm
@@ -417,9 +422,9 @@ This may leave data unprotected and is perhaps unwise.
 Currently,
 .Nm
 does not yet fully implement all of the functions found in
-.Xr vinum 4 .
+.Nm vinum .
 Specifically, the following commands from
-.Xr vinum 4
+.Nm vinum
 are not supported:
 .Bl -tag -width indent
 .It Ic debug

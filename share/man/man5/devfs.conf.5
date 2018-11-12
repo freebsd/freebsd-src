@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2005
+.Dd October 13, 2015
 .Dt DEVFS.CONF 5
 .Os
 .Sh NAME
@@ -91,7 +91,7 @@ as explained in
 .Xr chmod 1 .
 .El
 .Sh FILES
-.Bl -tag -compact
+.Bl -tag -compact -width Pa
 .It Pa /etc/devfs.conf
 .It Pa /usr/share/examples/etc/devfs.conf
 .El
@@ -100,8 +100,6 @@ To create a
 .Pa /dev/cdrom
 link that points to the first
 .Xr SCSI 4
-or
-.Xr atapicam 4
 CD-ROM,
 the following may be added to
 .Nm :
@@ -111,9 +109,9 @@ link	cd0	cdrom
 .Pp
 Similarly, to link
 .Pa /dev/cdrom
-to the first ATAPI CD-ROM device, the following action may be used:
+to the first SCSI CD-ROM device, the following action may be used:
 .Bd -literal -offset indent
-link	acd0	cdrom
+link	cd0	cdrom
 .Ed
 .Pp
 To set the owner of a device, the
@@ -137,4 +135,4 @@ perm	cd0	0660
 .Xr chown 8
 .Sh AUTHORS
 This manual page was written by
-.An "Roland Smith" Aq rsmith@xs4all.nl .
+.An Roland Smith Aq Mt rsmith@xs4all.nl .

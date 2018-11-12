@@ -5,15 +5,14 @@ MAN=	rpc.statd.8
 SRCS=	file.c sm_inter_svc.c sm_inter.h statd.c procs.c
 
 CFLAGS+= -I.
-#WARNS?= 2
+WARNS?= 2
 
-DPADD=	${LIBRPCSVC}
-LDADD=	-lrpcsvc
+LIBADD=	rpcsvc
 
 CLEANFILES= sm_inter_svc.c sm_inter.h
 
 RPCSRC= ${DESTDIR}/usr/include/rpcsvc/sm_inter.x
-RPCGEN= rpcgen -L -C
+RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -L -C
 
 sm_inter_svc.c: ${RPCSRC}
 	${RPCGEN} -m -o ${.TARGET} ${RPCSRC}

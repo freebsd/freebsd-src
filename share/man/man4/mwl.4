@@ -93,14 +93,14 @@ virtual interfaces may be configured for simultaneous use.
 When multiple interfaces are configured each may have a separate
 mac address that is formed by setting the U/L bits in the mac
 address assigned to the underlying device.
-Any number of 
+Any number of
 .Cm wds
 virtual interfaces may be configured together with
 .Cm hostap
 interfaces.
 Multiple
 .Cm station
-interfaces may be operated together with 
+interfaces may be operated together with
 .Cm hostap
 interfaces to construct a wireless repeater device.
 For more information on configuring this device, see
@@ -112,7 +112,6 @@ driver come in either Cardbus or mini-PCI packages.
 Wireless cards in Cardbus slots may be inserted and ejected on the fly.
 .Sh EXAMPLES
 Join an existing BSS network (ie: connect to an access point):
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev mwl0 inet 192.168.0.20 \e
 	netmask 0xffffff00"
@@ -120,7 +119,6 @@ ifconfig wlan create wlandev mwl0 inet 192.168.0.20 \e
 .Pp
 Join a specific BSS network with network name
 .Dq Li my_net :
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev mwl0 inet 192.168.0.20 \e
 	netmask 0xffffff00 ssid my_net"
@@ -146,13 +144,13 @@ ifconfig wlan0 create wlandev mwl0 wlanmode mesh
 ifconfig wlan0 meshid my_mesh mode 11a inet 192.168.0.10/24
 .Ed
 .Pp
-Create two virtual 802.11a host-based access points, one with
+Create two virtual 802.11a host-based access points, one
 with WEP enabled and one with no security, and bridge them to
 the fxp0 (wired) device:
 .Bd -literal -offset indent
 ifconfig wlan0 create wlandev mwl0 wlanmode hostap \e
 	ssid paying-customers wepmode on wepkey 0x1234567890 \e
-	mode 11a up 
+	mode 11a up
 ifconfig wlan1 create wlandev mwl0 wlanmode hostap bssid \e
 	ssid freeloaders up
 ifconfig bridge0 create addm wlan0 addm wlan1 addm fxp0 up

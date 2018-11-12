@@ -51,7 +51,7 @@ static void raid3_dump(struct gctl_req *req);
 static void raid3_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "clear", G_FLAG_VERBOSE, raid3_main, G_NULL_OPTS, NULL,
+	{ "clear", G_FLAG_VERBOSE, raid3_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
@@ -68,18 +68,18 @@ struct g_command class_commands[] = {
 		{ 'W', "noverify", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-adfFhnrRvwW] name"
+	    "[-adfFhnrRvwW] name"
 	},
-	{ "dump", 0, raid3_main, G_NULL_OPTS, NULL,
+	{ "dump", 0, raid3_main, G_NULL_OPTS,
 	    "prov ..."
 	},
 	{ "insert", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
-		{ 'n', "number", NULL, G_TYPE_NUMBER },
+		{ 'n', "number", G_VAL_OPTIONAL, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-hv] <-n number> name prov"
+	    "[-hv] <-n number> name prov"
 	},
 	{ "label", G_FLAG_VERBOSE, raid3_main,
 	    {
@@ -87,12 +87,13 @@ struct g_command class_commands[] = {
 		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
 		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
 		{ 'r', "round_robin", NULL, G_TYPE_BOOL },
+		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
 		{ 'w', "verify", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-hFnrvw] name prov prov prov ..."
+	    "[-hFnrvw] [-s blocksize] name prov prov prov ..."
 	},
-	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] name prov"
 	},
 	{ "remove", G_FLAG_VERBOSE, NULL,
@@ -100,14 +101,14 @@ struct g_command class_commands[] = {
 		{ 'n', "number", NULL, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-v] <-n number> name"
+	    "[-v] <-n number> name"
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fv] name ..."
+	    "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };
@@ -190,7 +191,7 @@ raid3_label(struct gctl_req *req)
 	 * sectorsizes of every disk and find the smallest mediasize.
 	 */
 	mediasize = 0;
-	sectorsize = 0;
+	sectorsize = gctl_get_intmax(req, "sectorsize");
 	for (i = 1; i < nargs; i++) {
 		str = gctl_get_ascii(req, "arg%d", i);
 		msize = g_get_mediasize(str);
@@ -211,6 +212,11 @@ raid3_label(struct gctl_req *req)
 	md.md_mediasize = mediasize * (nargs - 2);
 	md.md_sectorsize = sectorsize * (nargs - 2);
 	md.md_mediasize -= (md.md_mediasize % md.md_sectorsize);
+
+	if (md.md_sectorsize > MAXPHYS) {
+		gctl_error(req, "The blocksize is too big.");
+		return;
+	}
 
 	/*
 	 * Clear last sector first, to spoil all components if device exists.
@@ -243,8 +249,8 @@ raid3_label(struct gctl_req *req)
 		if (!hardcode)
 			bzero(md.md_provider, sizeof(md.md_provider));
 		else {
-			if (strncmp(str, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-				str += strlen(_PATH_DEV);
+			if (strncmp(str, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+				str += sizeof(_PATH_DEV) - 1;
 			strlcpy(md.md_provider, str, sizeof(md.md_provider));
 		}
 		if (verify && md.md_no == md.md_all - 1) {

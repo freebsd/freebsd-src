@@ -18,21 +18,22 @@ case "$daily_status_security_enable" in
 
 	case "$daily_status_security_inline" in
 	    [Yy][Ee][Ss])
-		export security_output="";;
-	    *)
-		export security_output="${daily_status_security_output}"
-		case "${daily_status_security_output}" in
-		    "")
-			;;
-		    /*)
-			echo "    (output logged separately)";;
-		    *)
-			echo "    (output mailed separately)";;
-		esac;;
+		daily_status_security_output="";;
 	esac
 
-	periodic security
-	rc=3;;
+	export security_output="${daily_status_security_output}"
+	case "${daily_status_security_output}" in
+	    "")
+		rc=3;;
+	    /*)
+		echo "    (output logged separately)"
+		rc=0;;
+	    *)
+		echo "    (output mailed separately)"
+		rc=0;;
+	esac
+
+	periodic security || rc=3;;
 
     *)  rc=0;;
 esac

@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -48,8 +44,7 @@ static const char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/9/93";
 
 #include "extern.h"
 
-extern speed_t Ospeed;
-speed_t	tset_baudrate(char *);
+static speed_t tset_baudrate(char *);
 
 /* Baud rate conditionals for mapping. */
 #define	GT		0x01
@@ -67,7 +62,7 @@ typedef struct map {
 	speed_t	speed;		/* Baud	rate to	compare	against. */
 } MAP;
 
-MAP *cur, *maplist;
+static MAP *cur, *maplist;
 
 /*
  * Syntax for -m:
@@ -75,9 +70,7 @@ MAP *cur, *maplist;
  * The baud rate tests are: >, <, @, =, !
  */
 void
-add_mapping(port, arg)
-	const char *port;
-	char *arg;
+add_mapping(const char *port, char *arg)
 {
 	MAP *mapp;
 	char *copy, *p, *termp;
@@ -138,7 +131,7 @@ next:	if (*arg == ':') {
 			goto badmopt;
 		++arg;
 	} else {				/* Optional baudrate. */
-		arg = index(p = arg, ':');
+		arg = strchr(p = arg, ':');
 		if (arg == NULL)
 			goto badmopt;
 		*arg++ = '\0';
@@ -190,8 +183,7 @@ badmopt:		errx(1, "illegal -m option format: %s", copy);
  * 'type'.
  */
 const char *
-mapped(type)
-	const char *type;
+mapped(const char *type)
 {
 	MAP *mapp;
 	int match;
@@ -231,7 +223,7 @@ typedef struct speeds {
 	speed_t	speed;
 } SPEEDS;
 
-SPEEDS speeds[] = {
+static SPEEDS speeds[] = {
 	{ "0",		B0 },
 	{ "134.5",	B134 },
 	{ "exta",	B19200 },
@@ -239,9 +231,8 @@ SPEEDS speeds[] = {
 	{ NULL, 0 }
 };
 
-speed_t
-tset_baudrate(rate)
-	char *rate;
+static speed_t
+tset_baudrate(char *rate)
 {
 	SPEEDS *sp;
 	speed_t speed;

@@ -6,12 +6,9 @@
 
 PROG=	ipfwpcap
 
-LDADD=	-lpcap
-DPADD=	${LIBPCAP}
+LIBADD=	pcap
 
 MAN=	ipfwpcap.8
-
-WARNS?=	6
 
 .include <bsd.prog.mk>
 

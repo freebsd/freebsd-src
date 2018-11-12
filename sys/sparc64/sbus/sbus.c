@@ -1,10 +1,7 @@
 /*-
- * Copyright (c) 1998 The NetBSD Foundation, Inc.
+ * Copyright (c) 1999-2002 Eduardo Horvath
  * All rights reserved.
  *
- * This code is derived from software contributed to The NetBSD Foundation
- * by Paul Kranenburg.
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,65 +10,24 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-/*-
- * Copyright (c) 1992, 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * This software was developed by the Computer Systems Engineering group
- * at Lawrence Berkeley Laboratory under DARPA contract BG 91-66 and
- * contributed to Berkeley.
- *
- * All advertising materials mentioning features or use of this software
- * must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Lawrence Berkeley Laboratory.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	from: NetBSD: sbus.c,v 1.50 2002/06/20 18:26:24 eeh Exp
  */
 /*-
- * Copyright (c) 1999 Eduardo Horvath
  * Copyright (c) 2002 by Thomas Moestl <tmm@FreeBSD.org>.
  * Copyright (c) 2005 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
@@ -93,9 +49,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: @(#)sbus.c	8.1 (Berkeley) 6/11/93
- *	from: NetBSD: sbus.c,v 1.46 2001/10/07 20:30:41 eeh Exp
  */
 
 #include <sys/cdefs.h>
@@ -155,7 +108,6 @@ struct sbus_rd {
 struct sbus_softc {
 	device_t		sc_dev;
 	bus_dma_tag_t		sc_cdmatag;
-	bus_space_tag_t		sc_cbustag;
 	int			sc_clockfreq;	/* clock frequency (in Hz) */
 	int			sc_nrange;
 	struct sbus_rd		*sc_rd;
@@ -171,9 +123,9 @@ struct sbus_softc {
 	void			*sc_pf_ihand;
 };
 
-#define	SYSIO_READ8(sc, off) \
+#define	SYSIO_READ8(sc, off)						\
 	bus_read_8((sc)->sc_sysio_res, (off))
-#define	SYSIO_WRITE8(sc, off, v) \
+#define	SYSIO_WRITE8(sc, off, v)					\
 	bus_write_8((sc)->sc_sysio_res, (off), (v))
 
 static device_probe_t sbus_probe;
@@ -184,9 +136,9 @@ static bus_read_ivar_t sbus_read_ivar;
 static bus_get_resource_list_t sbus_get_resource_list;
 static bus_setup_intr_t sbus_setup_intr;
 static bus_alloc_resource_t sbus_alloc_resource;
-static bus_release_resource_t sbus_release_resource;
 static bus_activate_resource_t sbus_activate_resource;
-static bus_deactivate_resource_t sbus_deactivate_resource;
+static bus_adjust_resource_t sbus_adjust_resource;
+static bus_release_resource_t sbus_release_resource;
 static bus_get_dma_tag_t sbus_get_dma_tag;
 static ofw_bus_get_devinfo_t sbus_get_devinfo;
 
@@ -200,7 +152,6 @@ static void sbus_intr_assign(void *);
 static void sbus_intr_clear(void *);
 static int sbus_find_intrmap(struct sbus_softc *, u_int, bus_addr_t *,
     bus_addr_t *);
-static bus_space_tag_t sbus_alloc_bustag(struct sbus_softc *);
 static driver_intr_t sbus_overtemp;
 static driver_intr_t sbus_pwrfail;
 static int sbus_print_res(struct sbus_devinfo *);
@@ -218,10 +169,11 @@ static device_method_t sbus_methods[] = {
 	DEVMETHOD(bus_probe_nomatch,	sbus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	sbus_read_ivar),
 	DEVMETHOD(bus_alloc_resource,	sbus_alloc_resource),
-	DEVMETHOD(bus_activate_resource,	sbus_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	sbus_deactivate_resource),
+	DEVMETHOD(bus_activate_resource, sbus_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	sbus_adjust_resource),
 	DEVMETHOD(bus_release_resource,	sbus_release_resource),
-	DEVMETHOD(bus_setup_intr, 	sbus_setup_intr),
+	DEVMETHOD(bus_setup_intr,	sbus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_get_resource_list, sbus_get_resource_list),
@@ -236,7 +188,7 @@ static device_method_t sbus_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t sbus_driver = {
@@ -247,7 +199,9 @@ static driver_t sbus_driver = {
 
 static devclass_t sbus_devclass;
 
-DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, NULL, NULL,
+    BUS_PASS_BUS);
+MODULE_DEPEND(sbus, nexus, 1, 1, 1);
 MODULE_VERSION(sbus, 1);
 
 #define	OFW_SBUS_TYPE	"sbus"
@@ -329,7 +283,6 @@ sbus_attach(device_t dev)
 	if (OF_getprop(node, "interrupts", &prop, sizeof(prop)) == -1)
 		panic("%s: cannot get IGN", __func__);
 	sc->sc_ign = INTIGN(prop);
-	sc->sc_cbustag = sbus_alloc_bustag(sc);
 
 	/*
 	 * Record clock frequency for synchronous SCSI.
@@ -348,8 +301,8 @@ sbus_attach(device_t dev)
 	    sizeof(*range), (void **)&range)) == -1) {
 		panic("%s: error getting ranges property", __func__);
 	}
-	sc->sc_rd = (struct sbus_rd *)malloc(sizeof(*sc->sc_rd) * sc->sc_nrange,
-	    M_DEVBUF, M_NOWAIT);
+	sc->sc_rd = malloc(sizeof(*sc->sc_rd) * sc->sc_nrange, M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
 	if (sc->sc_rd == NULL)
 		panic("%s: cannot allocate rmans", __func__);
 	/*
@@ -378,7 +331,7 @@ sbus_attach(device_t dev)
 		sc->sc_rd[i].rd_pend = phys + size;
 		sc->sc_rd[i].rd_res = res;
 	}
-	free(range, M_OFWPROP);
+	OF_prop_free(range);
 
 	/*
 	 * Get the SBus burst transfer size if burst transfers are supported.
@@ -388,8 +341,7 @@ sbus_attach(device_t dev)
 		sc->sc_burst =
 		    (SBUS_BURST64_DEF << SBUS_BURST64_SHIFT) | SBUS_BURST_DEF;
 
-
-	/* initalise the IOMMU */
+	/* initialise the IOMMU */
 
 	/* punch in our copies */
 	sc->sc_is.is_pmaxaddr = IOMMU_MAXADDR(SBUS_IOMMU_BITS);
@@ -420,7 +372,7 @@ sbus_attach(device_t dev)
 	sc->sc_cdmatag->dt_cookie = &sc->sc_is;
 	sc->sc_cdmatag->dt_mt = &iommu_dma_methods;
 
- 	/*
+	/*
 	 * Hunt through all the interrupt mapping regs and register our
 	 * interrupt controller for the corresponding interrupt vectors.
 	 * We do this early in order to be able to catch stray interrupts.
@@ -457,7 +409,7 @@ sbus_attach(device_t dev)
 	    INTIGN(vec = rman_get_start(sc->sc_ot_ires)) != sc->sc_ign ||
 	    INTVEC(SYSIO_READ8(sc, SBR_THERM_INT_MAP)) != vec ||
 	    intr_vectors[vec].iv_ic != &sbus_ic ||
-	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_FAST,
+	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_BRIDGE,
 	    NULL, sbus_overtemp, sc, &sc->sc_ot_ihand) != 0)
 		panic("%s: failed to set up temperature interrupt", __func__);
 	i = 3;
@@ -467,7 +419,7 @@ sbus_attach(device_t dev)
 	    INTIGN(vec = rman_get_start(sc->sc_pf_ires)) != sc->sc_ign ||
 	    INTVEC(SYSIO_READ8(sc, SBR_POWER_INT_MAP)) != vec ||
 	    intr_vectors[vec].iv_ic != &sbus_ic ||
-	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_FAST,
+	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_BRIDGE,
 	    NULL, sbus_pwrfail, sc, &sc->sc_pf_ihand) != 0)
 		panic("%s: failed to set up power fail interrupt", __func__);
 
@@ -543,7 +495,7 @@ sbus_setup_dinfo(device_t dev, struct sbus_softc *sc, phandle_t node)
 			if (slot != -1 && slot != rslot) {
 				device_printf(dev, "<%s>: multiple slots\n",
 				    sdi->sdi_obdinfo.obd_name);
-				free(reg, M_OFWPROP);
+				OF_prop_free(reg);
 				goto fail;
 			}
 			slot = rslot;
@@ -551,7 +503,7 @@ sbus_setup_dinfo(device_t dev, struct sbus_softc *sc, phandle_t node)
 			resource_list_add(&sdi->sdi_rl, SYS_RES_MEMORY, i,
 			    base, base + reg[i].sbr_size, reg[i].sbr_size);
 		}
-		free(reg, M_OFWPROP);
+		OF_prop_free(reg);
 	}
 	sdi->sdi_slot = slot;
 
@@ -573,7 +525,7 @@ sbus_setup_dinfo(device_t dev, struct sbus_softc *sc, phandle_t node)
 			resource_list_add(&sdi->sdi_rl, SYS_RES_IRQ, i,
 			    iv, iv, 1);
 		}
-		free(intr, M_OFWPROP);
+		OF_prop_free(intr);
 	}
 	if (OF_getprop(node, "burst-sizes", &sdi->sdi_burstsz,
 	    sizeof(sdi->sdi_burstsz)) == -1)
@@ -695,7 +647,7 @@ sbus_intr_clear(void *arg)
 	struct intr_vector *iv = arg;
 	struct sbus_icarg *sica = iv->iv_icarg;
 
-	SYSIO_WRITE8(sica->sica_sc, sica->sica_clr, 0);
+	SYSIO_WRITE8(sica->sica_sc, sica->sica_clr, INTCLR_IDLE);
 }
 
 static int
@@ -746,19 +698,19 @@ sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 	/*
 	 * Make sure the vector is fully specified and we registered
 	 * our interrupt controller for it.
- 	 */
+	 */
 	vec = rman_get_start(ires);
 	if (INTIGN(vec) != sc->sc_ign || intr_vectors[vec].iv_ic != &sbus_ic) {
 		device_printf(dev, "invalid interrupt vector 0x%lx\n", vec);
- 		return (EINVAL);
- 	}
+		return (EINVAL);
+	}
 	return (bus_generic_setup_intr(dev, child, ires, flags, filt, intr,
 	    arg, cookiep));
 }
 
 static struct resource *
 sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct sbus_softc *sc;
 	struct rman *rm;
@@ -766,14 +718,12 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
 	device_t schild;
-	bus_space_handle_t bh;
 	bus_addr_t toffs;
 	bus_size_t tend;
 	int i, slot;
-	int isdefault, needactivate, passthrough;
+	int isdefault, passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL);
-	needactivate = flags & RF_ACTIVE;
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	rle = NULL;
 	sc = device_get_softc(bus);
@@ -796,7 +746,6 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			}
 		}
 		rm = NULL;
-		bh = toffs = tend = 0;
 		schild = child;
 		while (device_get_parent(schild) != bus)
 			schild = device_get_parent(schild);
@@ -813,24 +762,21 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			toffs = start - sc->sc_rd[i].rd_coffset;
 			tend = end - sc->sc_rd[i].rd_coffset;
 			rm = &sc->sc_rd[i].rd_rman;
-			bh = sc->sc_rd[i].rd_bushandle;
 			break;
 		}
 		if (rm == NULL)
 			return (NULL);
-		flags &= ~RF_ACTIVE;
-		rv = rman_reserve_resource(rm, toffs, tend, count, flags,
-		    child);
+
+		rv = rman_reserve_resource(rm, toffs, tend, count, flags &
+		    ~RF_ACTIVE, child);
 		if (rv == NULL)
 			return (NULL);
 		rman_set_rid(rv, *rid);
-		rman_set_bustag(rv, sc->sc_cbustag);
-		rman_set_bushandle(rv, bh + rman_get_start(rv));
-		if (needactivate) {
-			if (bus_activate_resource(child, type, *rid, rv)) {
-				rman_release_resource(rv);
-				return (NULL);
-			}
+
+		if ((flags & RF_ACTIVE) != 0 && bus_activate_resource(child,
+		    type, *rid, rv)) {
+			rman_release_resource(rv);
+			return (NULL);
 		}
 		if (!passthrough)
 			rle->res = rv;
@@ -844,41 +790,51 @@ static int
 sbus_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
-	void *p;
-	int error;
+	struct sbus_softc *sc;
+	struct bus_space_tag *tag;
+	int i;
 
-	if (type == SYS_RES_IRQ) {
-		return (BUS_ACTIVATE_RESOURCE(device_get_parent(bus),
-		    child, type, rid, r));
+	switch (type) {
+	case SYS_RES_IRQ:
+		return (bus_generic_activate_resource(bus, child, type, rid,
+		    r));
+	case SYS_RES_MEMORY:
+		sc = device_get_softc(bus);
+		for (i = 0; i < sc->sc_nrange; i++) {
+			if (rman_is_region_manager(r,
+			    &sc->sc_rd[i].rd_rman) != 0) {
+				tag = sparc64_alloc_bus_tag(r, SBUS_BUS_SPACE);
+				if (tag == NULL)
+					return (ENOMEM);
+				rman_set_bustag(r, tag);
+				rman_set_bushandle(r,
+				    sc->sc_rd[i].rd_bushandle +
+				    rman_get_start(r));
+				return (rman_activate_resource(r));
+			}
+		}
+		/* FALLTHROUGH */
+	default:
+		return (EINVAL);
 	}
-	if (type == SYS_RES_MEMORY) {
-		/*
-		 * Need to memory-map the device space, as some drivers
-		 * depend on the virtual address being set and usable.
-		 */
-		error = sparc64_bus_mem_map(rman_get_bustag(r),
-		    rman_get_bushandle(r), rman_get_size(r), 0, 0, &p);
-		if (error != 0)
-			return (error);
-		rman_set_virtual(r, p);
-	}
-	return (rman_activate_resource(r));
 }
 
 static int
-sbus_deactivate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+sbus_adjust_resource(device_t bus, device_t child, int type,
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
+	struct sbus_softc *sc;
+	int i;
 
-	if (type == SYS_RES_IRQ) {
-		return (BUS_DEACTIVATE_RESOURCE(device_get_parent(bus),
-		    child, type, rid, r));
-	}
 	if (type == SYS_RES_MEMORY) {
-		sparc64_bus_mem_unmap(rman_get_virtual(r), rman_get_size(r));
-		rman_set_virtual(r, NULL);
+		sc = device_get_softc(bus);
+		for (i = 0; i < sc->sc_nrange; i++)
+			if (rman_is_region_manager(r,
+			    &sc->sc_rd[i].rd_rman) != 0)
+				return (rman_adjust_resource(r, start, end));
+		return (EINVAL);
 	}
-	return (rman_deactivate_resource(r));
+	return (bus_generic_adjust_resource(bus, child, type, r, start, end));
 }
 
 static int
@@ -891,23 +847,26 @@ sbus_release_resource(device_t bus, device_t child, int type, int rid,
 
 	passthrough = (device_get_parent(child) != bus);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
-	if (type == SYS_RES_IRQ)
-		return (resource_list_release(rl, bus, child, type, rid, r));
-	if ((rman_get_flags(r) & RF_ACTIVE) != 0) {
-		error = bus_deactivate_resource(child, type, rid, r);
+	if (type == SYS_RES_MEMORY) {
+		if ((rman_get_flags(r) & RF_ACTIVE) != 0) {
+			error = bus_deactivate_resource(child, type, rid, r);
+			if (error)
+				return (error);
+		}
+		error = rman_release_resource(r);
 		if (error != 0)
 			return (error);
+		if (!passthrough) {
+			rle = resource_list_find(rl, type, rid);
+			KASSERT(rle != NULL,
+			    ("%s: resource entry not found!", __func__));
+			KASSERT(rle->res != NULL,
+			   ("%s: resource entry is not busy", __func__));
+			rle->res = NULL;
+		}
+		return (0);
 	}
-	error = rman_release_resource(r);
-	if (error != 0 || passthrough)
-		return (error);
-	rle = resource_list_find(rl, type, rid);
-	if (rle == NULL)
-		panic("%s: cannot find resource", __func__);
-	if (rle->res == NULL)
-		panic("%s: resource entry is not busy", __func__);
-	rle->res = NULL;
-	return (0);
+	return (resource_list_release(rl, bus, child, type, rid, r));
 }
 
 static bus_dma_tag_t
@@ -937,7 +896,7 @@ sbus_get_devinfo(device_t bus, device_t child)
  * The same needs to be done to PCI controller drivers.
  */
 static void
-sbus_overtemp(void *arg)
+sbus_overtemp(void *arg __unused)
 {
 	static int shutdown;
 
@@ -951,7 +910,7 @@ sbus_overtemp(void *arg)
 
 /* Try to shut down in time in case of power failure. */
 static void
-sbus_pwrfail(void *arg)
+sbus_pwrfail(void *arg __unused)
 {
 	static int shutdown;
 
@@ -960,23 +919,7 @@ sbus_pwrfail(void *arg)
 		return;
 	shutdown++;
 	printf("Power failure detected\nShutting down NOW.\n");
-	shutdown_nice(0);
-}
-
-static bus_space_tag_t
-sbus_alloc_bustag(struct sbus_softc *sc)
-{
-	bus_space_tag_t sbt;
-
-	sbt = (bus_space_tag_t)malloc(sizeof(struct bus_space_tag), M_DEVBUF,
-	    M_NOWAIT | M_ZERO);
-	if (sbt == NULL)
-		panic("%s: out of memory", __func__);
-
-	sbt->bst_cookie = sc;
-	sbt->bst_parent = rman_get_bustag(sc->sc_sysio_res);
-	sbt->bst_type = SBUS_BUS_SPACE;
-	return (sbt);
+	shutdown_nice(RB_POWEROFF);
 }
 
 static int
@@ -986,8 +929,8 @@ sbus_print_res(struct sbus_devinfo *sdi)
 
 	rv = 0;
 	rv += resource_list_print_type(&sdi->sdi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
+	    "%#jx");
 	rv += resource_list_print_type(&sdi->sdi_rl, "irq", SYS_RES_IRQ,
-	    "%ld");
+	    "%jd");
 	return (rv);
 }

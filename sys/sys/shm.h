@@ -43,6 +43,8 @@
 #include <sys/ipc.h>
 #include <sys/_types.h>
 
+#include <machine/param.h>
+
 #define SHM_RDONLY  010000  /* Attach read-only (else read-write) */
 #define SHM_RND     020000  /* Round attach address to SHMLBA */
 #define SHMLBA      PAGE_SIZE /* Segment low boundary address multiple */
@@ -56,7 +58,7 @@
 #define	SHM_LOCK	11
 #define	SHM_UNLOCK	12
 
-/* ipcs shmctl commands for Linux compatability */
+/* ipcs shmctl commands for Linux compatibility */
 #define	SHM_STAT	13
 #define	SHM_INFO	14
 
@@ -90,12 +92,14 @@ struct shmid_ds_old {
 };
 #endif
 
+typedef unsigned int shmatt_t;
+
 struct shmid_ds {
 	struct ipc_perm shm_perm;	/* operation permission structure */
 	size_t          shm_segsz;	/* size of segment in bytes */
 	pid_t           shm_lpid;   /* process ID of last shared memory op */
 	pid_t           shm_cpid;	/* process ID of creator */
-	int		shm_nattch;	/* number of current attaches */
+	shmatt_t        shm_nattch;	/* number of current attaches */
 	time_t          shm_atime;	/* time of last shmat() */
 	time_t          shm_dtime;	/* time of last shmdt() */
 	time_t          shm_ctime;	/* time of last change by shmctl() */
@@ -124,6 +128,7 @@ struct shmid_kernel {
 	struct shmid_ds u;
 	vm_object_t object;
 	struct label *label;	/* MAC label */
+	struct ucred *cred;	/* creator's credendials */
 };
 
 extern struct shminfo	shminfo;
@@ -143,8 +148,9 @@ struct vmspace;
 
 void	shmexit(struct vmspace *);
 void	shmfork(struct proc *, struct proc *);
-#else /* !_KERNEL */
+#endif /* _KERNEL */
 
+#if !defined(_KERNEL) || defined(_WANT_SHM_PROTOTYPES)
 #include <sys/cdefs.h>
 
 #ifndef _SIZE_T_DECLARED
@@ -162,6 +168,6 @@ int shmctl(int, int, struct shmid_ds *);
 int shmdt(const void *);
 __END_DECLS
 
-#endif /* !_KERNEL */
+#endif /* _KERNEL || _WANT_SHM_PROTOTYPES */
 
 #endif /* !_SYS_SHM_H_ */

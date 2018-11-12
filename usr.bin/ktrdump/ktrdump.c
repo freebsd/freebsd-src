@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #define	SBUFLEN	128
 #define	USAGE \
-	"usage: ktrdump [-cfqrt] [-e execfile] [-i ktrfile] [-m corefile] [-o outfile]\n"
+	"usage: ktrdump [-cfqrtH] [-i ktrfile] [-M core] [-N system] [-o outfile]\n"
 
 static void usage(void);
 
@@ -59,13 +59,14 @@ static struct nlist nl[] = {
 };
 
 static int cflag;
-static int eflag;
 static int fflag;
-static int mflag;
+static int Mflag;
+static int Nflag;
 static int qflag;
 static int rflag;
 static int tflag;
 static int iflag;
+static int hflag;
 
 static char corefile[PATH_MAX];
 static char execfile[PATH_MAX];
@@ -85,13 +86,14 @@ main(int ac, char **av)
 	u_long parms[KTR_PARMS];
 	struct ktr_entry *buf;
 	uintmax_t tlast, tnow;
+	unsigned long bufptr;
 	struct stat sb;
 	kvm_t *kd;
 	FILE *out;
 	char *p;
 	int version;
 	int entries;
-	int index;
+	int index, index2;
 	int parm;
 	int in;
 	int c;
@@ -101,16 +103,17 @@ main(int ac, char **av)
 	 * Parse commandline arguments.
 	 */
 	out = stdout;
-	while ((c = getopt(ac, av, "cfqrte:i:m:o:")) != -1)
+	while ((c = getopt(ac, av, "cfqrtHe:i:m:M:N:o:")) != -1)
 		switch (c) {
 		case 'c':
 			cflag = 1;
 			break;
+		case 'N':
 		case 'e':
 			if (strlcpy(execfile, optarg, sizeof(execfile))
 			    >= sizeof(execfile))
 				errx(1, "%s: File name too long", optarg);
-			eflag = 1;
+			Nflag = 1;
 			break;
 		case 'f':
 			fflag = 1;
@@ -120,11 +123,12 @@ main(int ac, char **av)
 			if ((in = open(optarg, O_RDONLY)) == -1)
 				err(1, "%s", optarg);
 			break;
+		case 'M':
 		case 'm':
 			if (strlcpy(corefile, optarg, sizeof(corefile))
 			    >= sizeof(corefile))
 				errx(1, "%s: File name too long", optarg);
-			mflag = 1;
+			Mflag = 1;
 			break;
 		case 'o':
 			if ((out = fopen(optarg, "w")) == NULL)
@@ -139,6 +143,9 @@ main(int ac, char **av)
 		case 't':
 			tflag = 1;
 			break;
+		case 'H':
+			hflag = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -152,8 +159,8 @@ main(int ac, char **av)
 	 * Open our execfile and corefile, resolve needed symbols and read in
 	 * the trace buffer.
 	 */
-	if ((kd = kvm_openfiles(eflag ? execfile : NULL,
-	    mflag ? corefile : NULL, NULL, O_RDONLY, errbuf)) == NULL)
+	if ((kd = kvm_openfiles(Nflag ? execfile : NULL,
+	    Mflag ? corefile : NULL, NULL, O_RDONLY, errbuf)) == NULL)
 		errx(1, "%s", errbuf);
 	if (kvm_nlist(kd, nl) != 0 ||
 	    kvm_read(kd, nl[0].n_value, &version, sizeof(version)) == -1)
@@ -175,8 +182,10 @@ main(int ac, char **av)
 		if ((buf = malloc(sizeof(*buf) * entries)) == NULL)
 			err(1, NULL);
 		if (kvm_read(kd, nl[2].n_value, &index, sizeof(index)) == -1 ||
-		    kvm_read(kd, nl[3].n_value, buf, sizeof(*buf) * entries)
-		    == -1)
+		    kvm_read(kd, nl[3].n_value, &bufptr,
+		    sizeof(bufptr)) == -1 ||
+		    kvm_read(kd, bufptr, buf, sizeof(*buf) * entries) == -1 ||
+		    kvm_read(kd, nl[2].n_value, &index2, sizeof(index2)) == -1)
 			errx(1, "%s", kvm_geterr(kd));
 	}
 
@@ -191,6 +200,8 @@ main(int ac, char **av)
 			fprintf(out, "%-16s ", "timestamp");
 		if (fflag)
 			fprintf(out, "%-40s ", "file and line");
+		if (hflag)
+			fprintf(out, "%-18s ", "tid");
 		fprintf(out, "%s", "trace");
 		fprintf(out, "\n");
 
@@ -202,6 +213,8 @@ main(int ac, char **av)
 		if (fflag)
 			fprintf(out,
 			    "---------------------------------------- ");
+		if (hflag)
+			fprintf(out, "------------------ ");
 		fprintf(out, "----- ");
 		fprintf(out, "\n");
 	}
@@ -209,8 +222,11 @@ main(int ac, char **av)
 	/*
 	 * Now tear through the trace buffer.
 	 */
-	if (!iflag)
-		i = (index - 1) & (entries - 1);
+	if (!iflag) {
+		i = index - 1;
+		if (i < 0)
+			i = entries - 1;
+	}
 	tlast = -1;
 	for (;;) {
 		if (buf[i].ktr_desc == NULL)
@@ -226,7 +242,7 @@ main(int ac, char **av)
 next:			if ((c = *p++) == '\0')
 				break;
 			if (parm == KTR_PARMS)
-				errx(1, "too many parameters");
+				errx(1, "too many parameters in \"%s\"", desc);
 			switch (c) {
 			case '0': case '1': case '2': case '3': case '4':
 			case '5': case '6': case '7': case '8': case '9':
@@ -270,13 +286,23 @@ next:			if ((c = *p++) == '\0')
 			    buf[i].ktr_line);
 			fprintf(out, "%-40s ", obuf);
 		}
+		if (hflag)
+			fprintf(out, "%p ", buf[i].ktr_thread);
 		fprintf(out, desc, parms[0], parms[1], parms[2], parms[3],
 		    parms[4], parms[5]);
 		fprintf(out, "\n");
 		if (!iflag) {
-			if (i == index)
+			/*
+			 * 'index' and 'index2' are the values of 'ktr_idx'
+			 * before and after the KTR buffer was copied into
+			 * 'buf'. Since the KTR entries between 'index' and
+			 * 'index2' were in flux while the KTR buffer was
+			 * being copied to userspace we don't dump them.
+			 */
+			if (i == index2)
 				break;
-			i = (i - 1) & (entries - 1);
+			if (--i < 0)
+				i = entries - 1;
 		} else {
 			if (++i == entries)
 				break;

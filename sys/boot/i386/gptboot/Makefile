@@ -1,8 +1,9 @@
 # $FreeBSD$
 
-.PATH:		${.CURDIR}/../boot2
+.PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common ${.CURDIR}/../../common
 
 FILES=		gptboot
+MAN=		gptboot.8
 
 NM?=		nm
 
@@ -19,26 +20,36 @@ GPTBOOT_UFS?=	UFS1_AND_UFS2
 #GPTBOOT_UFS?=	UFS2_ONLY
 #GPTBOOT_UFS?=	UFS1_ONLY
 
-CFLAGS=	-Os \
-	-fno-guess-branch-probability \
-	-fomit-frame-pointer \
-	-fno-unit-at-a-time \
-	-mno-align-long-strings \
-	-mrtd \
-	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 \
+CFLAGS=	-DBOOTPROG=\"gptboot\" \
+	-O1 \
+	-DGPT \
 	-D${GPTBOOT_UFS} \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
 	-I${.CURDIR}/../../common \
+	-I${.CURDIR}/../common \
 	-I${.CURDIR}/../btx/lib -I. \
 	-I${.CURDIR}/../boot2 \
-	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
+	-I${.CURDIR}/../../.. \
+	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline --param max-inline-insns-single=100
+	-Winline -Wno-pointer-sign
 
-LDFLAGS=-static -N --gc-sections
+CFLAGS.gcc+=	--param max-inline-insns-single=100
+
+.if !defined(LOADER_NO_GELI_SUPPORT)
+CFLAGS+=	-DLOADER_GELI_SUPPORT
+CFLAGS+=	-I${.CURDIR}/../../geli
+LIBGELIBOOT=	${.OBJDIR}/../../geli/libgeliboot.a
+.PATH:		${.CURDIR}/../../../opencrypto
+OPENCRYPTO_XTS=	xform_aes_xts.o
+.endif
+
+LD_FLAGS=${LD_FLAGS_BIN}
+
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
@@ -52,26 +63,30 @@ gptboot: gptldr.bin gptboot.bin ${BTXKERN}
 CLEANFILES+=	gptldr.bin gptldr.out gptldr.o
 
 gptldr.bin: gptldr.out
-	objcopy -S -O binary gptldr.out ${.TARGET}
+	${OBJCOPY} -S -O binary gptldr.out ${.TARGET}
 
 gptldr.out: gptldr.o
-	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} gptldr.o
+	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} gptldr.o
 
-CLEANFILES+=	gptboot.bin gptboot.out gptboot.o sio.o
+CLEANFILES+=	gptboot.bin gptboot.out gptboot.o sio.o crc32.o drv.o \
+		cons.o util.o ${OPENCRYPTO_XTS}
 
 gptboot.bin: gptboot.out
-	objcopy -S -O binary gptboot.out ${.TARGET}
+	${OBJCOPY} -S -O binary gptboot.out ${.TARGET}
 
-gptboot.out: ${BTXCRT} gptboot.o sio.o
-	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
+gptboot.out: ${BTXCRT} gptboot.o sio.o crc32.o drv.o cons.o util.o ${OPENCRYPTO_XTS}
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND} ${LIBGELIBOOT}
 
 gptboot.o: ${.CURDIR}/../../common/ufsread.c
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 beforedepend gptboot.o: machine
 CLEANFILES+=	machine
-machine:
+machine: .NOMETA
 	ln -sf ${.CURDIR}/../../../i386/include machine
 .endif
 
 .include <bsd.prog.mk>
+
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS.gptldr.S=	${CLANG_NO_IAS}

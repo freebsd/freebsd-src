@@ -1,12 +1,10 @@
-/* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -87,9 +85,9 @@ ap_str(s)
 {
 	int len;
 
-	len = strlen(s);
+	len = (int) strlen(s);
 	if (mp + len >= message + PROMPT_SIZE)
-		len = message + PROMPT_SIZE - mp - 1;
+		len = (int) (message + PROMPT_SIZE - mp - 1);
 	strncpy(mp, s, len);
 	mp += len;
 	*mp = '\0';
@@ -304,6 +302,9 @@ protochar(c, where, iseditproto)
 	case 'f':	/* File name */
 		ap_str(get_filename(curr_ifile));
 		break;
+	case 'F':	/* Last component of file name */
+		ap_str(last_component(get_filename(curr_ifile)));
+		break;
 	case 'i':	/* Index into list of files */
 #if TAGS
 		if (ntags())
@@ -364,6 +365,7 @@ protochar(c, where, iseditproto)
 	case 't':	/* Truncate trailing spaces in the message */
 		while (mp > message && mp[-1] == ' ')
 			mp--;
+		*mp = '\0';
 		break;
 	case 'T':	/* Type of list */
 #if TAGS
@@ -390,9 +392,9 @@ protochar(c, where, iseditproto)
  * where to resume parsing the string.
  * We must keep track of nested IFs and skip them properly.
  */
-	static char *
+	static constant char *
 skipcond(p)
-	register char *p;
+	register constant char *p;
 {
 	register int iflevel;
 
@@ -448,9 +450,9 @@ skipcond(p)
 /*
  * Decode a char that represents a position on the screen.
  */
-	static char *
+	static constant char *
 wherechar(p, wp)
-	char *p;
+	char constant *p;
 	int *wp;
 {
 	switch (*p)
@@ -474,10 +476,10 @@ wherechar(p, wp)
  */
 	public char *
 pr_expand(proto, maxwidth)
-	char *proto;
+	constant char *proto;
 	int maxwidth;
 {
-	register char *p;
+	register constant char *p;
 	register int c;
 	int where;
 

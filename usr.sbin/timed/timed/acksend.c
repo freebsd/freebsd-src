@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -46,10 +42,7 @@ struct tsp *answer;
 extern u_short sequence;
 
 void
-xmit(type, seq, addr)
-	int type;
-	u_int seq;
-	struct sockaddr_in *addr;
+xmit(int type, u_int seq, struct sockaddr_in *addr)
 {
 	static struct tsp msg;
 
@@ -72,15 +65,15 @@ xmit(type, seq, addr)
  *
  * Because this function calls readmsg(), none of its args may be in
  *	a message provided by readmsg().
+ * message		this message
+ * addr			to here
+ * ack			look for this ack
+ * net			receive from this network
+ * bad			1=losing patience
  */
 struct tsp *
-acksend(message, addr, name, ack, net, bad)
-	struct tsp *message;			/* this message */
-	struct sockaddr_in *addr;		/* to here */
-	char *name;
-	int ack;				/* look for this ack */
-	struct netinfo *net;			/* receive from this network */
-	int bad;				/* 1=losing patience */
+acksend(struct tsp *message, struct sockaddr_in *addr, char *name,
+	int ack, struct netinfo *net, int bad)
 {
 	struct timeval twait;
 	int count;
@@ -97,7 +90,7 @@ acksend(message, addr, name, ack, net, bad)
 
 	msec = 200;
 	count = bad ? 1 : 5;	/* 5 packets in 6.4 seconds */
-	answer = 0;
+	answer = NULL;
 	do {
 		if (!answer) {
 			/* do not go crazy transmitting just because the
@@ -114,7 +107,7 @@ acksend(message, addr, name, ack, net, bad)
 
 		mstotvround(&twait, msec);
 		answer  = readmsg(ack, name, &twait, net);
-		if (answer != 0) {
+		if (answer != NULL) {
 			if (answer->tsp_seq != sequence) {
 				if (trace)
 					fprintf(fd,"acksend: seq # %u!=%u\n",

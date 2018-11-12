@@ -25,7 +25,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -48,11 +47,11 @@
 
 #include <dev/usb/serial/usb_serial.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int umoscom_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, umoscom, CTLFLAG_RW, 0, "USB umoscom");
-SYSCTL_INT(_hw_usb_umoscom, OID_AUTO, debug, CTLFLAG_RW,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, umoscom, CTLFLAG_RW, 0, "USB umoscom");
+SYSCTL_INT(_hw_usb_umoscom, OID_AUTO, debug, CTLFLAG_RWTUN,
     &umoscom_debug, 0, "Debug level");
 #endif
 
@@ -190,11 +189,13 @@ struct umoscom_softc {
 static device_probe_t umoscom_probe;
 static device_attach_t umoscom_attach;
 static device_detach_t umoscom_detach;
+static void umoscom_free_softc(struct umoscom_softc *);
 
 static usb_callback_t umoscom_write_callback;
 static usb_callback_t umoscom_read_callback;
 static usb_callback_t umoscom_intr_callback;
 
+static void	umoscom_free(struct ucom_softc *);
 static void	umoscom_cfg_open(struct ucom_softc *);
 static void	umoscom_cfg_close(struct ucom_softc *);
 static void	umoscom_cfg_set_break(struct ucom_softc *, uint8_t);
@@ -259,13 +260,14 @@ static const struct ucom_callback umoscom_callback = {
 	.ucom_start_write = &umoscom_start_write,
 	.ucom_stop_write = &umoscom_stop_write,
 	.ucom_poll = &umoscom_poll,
+	.ucom_free = &umoscom_free,
 };
 
 static device_method_t umoscom_methods[] = {
 	DEVMETHOD(device_probe, umoscom_probe),
 	DEVMETHOD(device_attach, umoscom_attach),
 	DEVMETHOD(device_detach, umoscom_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t umoscom_devclass;
@@ -276,13 +278,15 @@ static driver_t umoscom_driver = {
 	.size = sizeof(struct umoscom_softc),
 };
 
+static const STRUCT_USB_HOST_ID umoscom_devs[] = {
+	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7703, 0)}
+};
+
 DRIVER_MODULE(umoscom, uhub, umoscom_driver, umoscom_devclass, NULL, 0);
 MODULE_DEPEND(umoscom, ucom, 1, 1, 1);
 MODULE_DEPEND(umoscom, usb, 1, 1, 1);
-
-static const struct usb_device_id umoscom_devs[] = {
-	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7703, 0)}
-};
+MODULE_VERSION(umoscom, 1);
+USB_PNP_HOST_INFO(umoscom_devs);
 
 static int
 umoscom_probe(device_t dev)
@@ -317,6 +321,7 @@ umoscom_attach(device_t dev)
 	device_printf(dev, "<MOSCHIP USB Serial Port Adapter>\n");
 
 	mtx_init(&sc->sc_mtx, "umoscom", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	iface_index = UMOSCOM_IFACE_INDEX;
 	error = usbd_transfer_setup(uaa->device, &iface_index,
@@ -337,6 +342,8 @@ umoscom_attach(device_t dev)
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	return (0);
 
 detach:
@@ -350,11 +357,31 @@ umoscom_detach(device_t dev)
 {
 	struct umoscom_softc *sc = device_get_softc(dev);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UMOSCOM_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	umoscom_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(umoscom);
+
+static void
+umoscom_free_softc(struct umoscom_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+umoscom_free(struct ucom_softc *ucom)
+{
+	umoscom_free_softc(ucom->sc_parent);
 }
 
 static void
@@ -496,14 +523,16 @@ static void
 umoscom_cfg_get_status(struct ucom_softc *ucom, uint8_t *p_lsr, uint8_t *p_msr)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
-	uint8_t lsr;
 	uint8_t msr;
 
 	DPRINTFN(5, "\n");
 
-	/* read status registers */
+	/*
+	 * Read status registers.  MSR bits need translation from ns16550 to
+	 * SER_* values.  LSR bits are ns16550 in hardware and ucom.
+	 */
 
-	lsr = umoscom_cfg_read(sc, UMOSCOM_LSR);
+	*p_lsr = umoscom_cfg_read(sc, UMOSCOM_LSR);
 	msr = umoscom_cfg_read(sc, UMOSCOM_MSR);
 
 	/* translate bits */

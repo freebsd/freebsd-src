@@ -3,6 +3,6 @@
 
 PROG=	acpiconf
 MAN=	acpiconf.8
-WARNS?=	6
+WARNS?=	3
 
 .include <bsd.prog.mk>

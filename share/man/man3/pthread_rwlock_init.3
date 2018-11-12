@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 4, 1998
+.Dd May 31, 2016
 .Dt PTHREAD_RWLOCK_INIT 3
 .Os
 .Sh NAME
@@ -85,9 +85,9 @@ The value specified by
 is invalid.
 .El
 .Sh SEE ALSO
+.Xr pthread_rwlock_destroy 3 ,
 .Xr pthread_rwlockattr_init 3 ,
-.Xr pthread_rwlockattr_setpshared 3 ,
-.Xr pthread_rwlock_destroy 3
+.Xr pthread_rwlockattr_setpshared 3
 .Sh STANDARDS
 The
 .Fn pthread_rwlock_init
@@ -98,5 +98,3 @@ The
 .Fn pthread_rwlock_init
 function first appeared in
 .Fx 3.0 .
-.Sh BUGS
-The PTHREAD_PROCESS_SHARED attribute is not supported.

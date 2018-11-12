@@ -35,6 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
@@ -65,7 +69,6 @@ static char *mem_owner_bios = "BIOS";
 	(((curr) & ~MDF_ATTRMASK) | ((new) & MDF_ATTRMASK))
 
 static int mtrrs_disabled;
-TUNABLE_INT("machdep.disable_mtrrs", &mtrrs_disabled);
 SYSCTL_INT(_machdep, OID_AUTO, disable_mtrrs, CTLFLAG_RDTUN,
     &mtrrs_disabled, 0, "Disable amd64 MTRRs.");
 
@@ -114,7 +117,7 @@ static int amd64_mtrrtomrt[] = {
 	MDF_WRITEBACK
 };
 
-#define	MTRRTOMRTLEN (sizeof(amd64_mtrrtomrt) / sizeof(amd64_mtrrtomrt[0]))
+#define	MTRRTOMRTLEN nitems(amd64_mtrrtomrt)
 
 static int
 amd64_mtrr2mrt(int val)
@@ -303,20 +306,23 @@ amd64_mrstoreone(void *arg)
 	struct mem_range_desc *mrd;
 	u_int64_t omsrv, msrv;
 	int i, j, msr;
-	u_int cr4save;
+	u_long cr0, cr4;
 
 	mrd = sc->mr_desc;
 
+	critical_enter();
+
 	/* Disable PGE. */
-	cr4save = rcr4();
-	if (cr4save & CR4_PGE)
-		load_cr4(cr4save & ~CR4_PGE);
+	cr4 = rcr4();
+	load_cr4(cr4 & ~CR4_PGE);
 
 	/* Disable caches (CD = 1, NW = 0). */
-	load_cr0((rcr0() & ~CR0_NW) | CR0_CD);
+	cr0 = rcr0();
+	load_cr0((cr0 & ~CR0_NW) | CR0_CD);
 
 	/* Flushes caches and TLBs. */
 	wbinvd();
+	invltlb();
 
 	/* Disable MTRRs (E = 0). */
 	wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) & ~MTRR_DEF_ENABLE);
@@ -377,24 +383,25 @@ amd64_mrstoreone(void *arg)
 		/* mask/active register */
 		if (mrd->mr_flags & MDF_ACTIVE) {
 			msrv = MTRR_PHYSMASK_VALID |
-			    (~(mrd->mr_len - 1) & mtrr_physmask);
+			    rounddown2(mtrr_physmask, mrd->mr_len);
 		} else {
 			msrv = 0;
 		}
 		wrmsr(msr + 1, msrv);
 	}
 
-	/* Flush caches, TLBs. */
+	/* Flush caches and TLBs. */
 	wbinvd();
+	invltlb();
 
 	/* Enable MTRRs. */
 	wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) | MTRR_DEF_ENABLE);
 
-	/* Enable caches (CD = 0, NW = 0). */
-	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));
+	/* Restore caches and PGE. */
+	load_cr0(cr0);
+	load_cr4(cr4);
 
-	/* Restore PGE. */
-	load_cr4(cr4save);
+	critical_exit();
 }
 
 /*
@@ -527,9 +534,9 @@ static int
 amd64_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
 {
 	struct mem_range_desc *targ;
-	int error = 0;
+	int error, i;
 
-	switch(*arg) {
+	switch (*arg) {
 	case MEMRANGE_SET_UPDATE:
 		/*
 		 * Make sure that what's being asked for is even
@@ -566,6 +573,21 @@ amd64_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
 
 	default:
 		return (EOPNOTSUPP);
+	}
+
+	/*
+	 * Ensure that the direct map region does not contain any mappings
+	 * that span MTRRs of different types.  However, the fixed MTRRs can
+	 * be ignored, because a large page mapping the first 1 MB of physical
+	 * memory is a special case that the processor handles.  The entire
+	 * TLB will be invalidated by amd64_mrstore(), so pmap_demote_DMAP()
+	 * needn't do it.
+	 */
+	i = (sc->mr_cap & MR686_FIXMTRR) ? MTRR_N64K + MTRR_N16K + MTRR_N4K : 0;
+	mrd = sc->mr_desc + i;
+	for (; i < sc->mr_ndesc; i++, mrd++) {
+		if ((mrd->mr_flags & (MDF_ACTIVE | MDF_BOGUS)) == MDF_ACTIVE)
+			pmap_demote_DMAP(mrd->mr_base, mrd->mr_len, FALSE);
 	}
 
 	/* Update the hardware. */
@@ -657,6 +679,21 @@ amd64_mrinit(struct mem_range_softc *sc)
 		if (mrd->mr_flags & MDF_ACTIVE)
 			mrd->mr_flags |= MDF_FIRMWARE;
 	}
+
+	/*
+	 * Ensure that the direct map region does not contain any mappings
+	 * that span MTRRs of different types.  However, the fixed MTRRs can
+	 * be ignored, because a large page mapping the first 1 MB of physical
+	 * memory is a special case that the processor handles.  Invalidate
+	 * any old TLB entries that might hold inconsistent memory type
+	 * information. 
+	 */
+	i = (sc->mr_cap & MR686_FIXMTRR) ? MTRR_N64K + MTRR_N16K + MTRR_N4K : 0;
+	mrd = sc->mr_desc + i;
+	for (; i < sc->mr_ndesc; i++, mrd++) {
+		if ((mrd->mr_flags & (MDF_ACTIVE | MDF_BOGUS)) == MDF_ACTIVE)
+			pmap_demote_DMAP(mrd->mr_base, mrd->mr_len, TRUE);
+	}
 }
 
 /*
@@ -707,11 +744,8 @@ amd64_mem_drvinit(void *unused)
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_INTEL:
 	case CPU_VENDOR_AMD:
-		break;
 	case CPU_VENDOR_CENTAUR:
-		if (cpu_exthigh >= 0x80000008)
-			break;
-		/* FALLTHROUGH */
+		break;
 	default:
 		return;
 	}

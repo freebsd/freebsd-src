@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2007-2008 MARVELL INTERNATIONAL LTD.
+ * Copyright (C) 2007-2011 MARVELL INTERNATIONAL LTD.
  * All rights reserved.
  *
  * Developed by Semihalf.
@@ -34,134 +34,7 @@
 #ifndef _MVREG_H_
 #define _MVREG_H_
 
-/*
- * Interrupt sources
- */
-#if defined(SOC_MV_ORION)
-
-#define MV_INT_BRIDGE		0	/* AHB-MBus Bridge Interrupt */
-#define MV_INT_UART0		3	/* UART0 Interrupt */
-#define MV_INT_UART1		4
-#define MV_INT_GPIO7_0		6	/* GPIO[7:0] Interrupt */
-#define MV_INT_GPIO15_8		7	/* GPIO[15:8] Interrupt */
-#define MV_INT_GPIO23_16	8	/* GPIO[23:16] Interrupt */
-#define MV_INT_GPIO31_24	9	/* GPIO[31:24] Interrupt */
-#define MV_INT_PEX0_ERR		10	/* PCI Express Error */
-#define MV_INT_PEX0		11	/* PCI Express INTA,B,C,D Message */
-#define MV_INT_PCI_ERR		15	/* PCI Error */
-#define MV_INT_USB_BERR		16	/* USB Bridge Error */
-#define MV_INT_USB_CI		17	/* USB Controller interrupt */
-#define MV_INT_GBERX		18	/* GbE receive interrupt */
-#define MV_INT_GBETX		19	/* GbE transmit interrupt */
-#define MV_INT_GBEMISC		20	/* GbE misc. interrupt */
-#define MV_INT_GBESUM		21	/* GbE summary interrupt */
-#define MV_INT_GBEERR		22	/* GbE error interrupt */
-#define MV_INT_IDMA_ERR		23	/* DMA error interrupt */
-#define MV_INT_IDMA0		24	/* IDMA chan. 0 completion interrupt */
-#define MV_INT_IDMA1		25	/* IDMA chan. 1 completion interrupt */
-#define MV_INT_IDMA2		26	/* IDMA chan. 2 completion interrupt */
-#define MV_INT_IDMA3		27	/* IDMA chan. 3 completion interrupt */
-#define MV_INT_SATA		29	/* Serial-ATA Interrupt */
-
-#elif defined(SOC_MV_KIRKWOOD)
-
-#define MV_INT_BRIDGE		1	/* AHB-MBus Bridge Interrupt */
-#define MV_INT_XOR0_CHAN0	5	/* XOR engine 0 channel 0 Interrupt */
-#define MV_INT_XOR0_CHAN1	6	/* XOR engine 0 channel 1 Interrupt */
-#define MV_INT_XOR1_CHAN0	7	/* XOR engine 1 channel 0 Interrupt */
-#define MV_INT_XOR1_CHAN1	8	/* XOR engine 1 channel 1 Interrupt */
-#define MV_INT_PEX0		9	/* PCI Express INTA,B,C,D Message */
-#define MV_INT_GBESUM		11	/* GbE0 summary interrupt */
-#define MV_INT_GBERX		12	/* GbE0 receive interrupt */
-#define MV_INT_GBETX		13	/* GbE0 transmit interrupt */
-#define MV_INT_GBEMISC		14	/* GbE0 misc. interrupt */
-#define MV_INT_GBE1SUM		15	/* GbE1 summary interrupt */
-#define MV_INT_GBE1RX		16	/* GbE1 receive interrupt */
-#define MV_INT_GBE1TX		17	/* GbE1 transmit interrupt */
-#define MV_INT_GBE1MISC		18	/* GbE1 misc. interrupt */
-#define MV_INT_USB_CI		19	/* USB Controller interrupt */
-#define MV_INT_SATA		21	/* Serial-ATA Interrupt */
-#define MV_INT_CESA		22	/* Security engine completion int. */
-#define MV_INT_IDMA_ERR		23	/* DMA error interrupt */
-#define MV_INT_UART0		33	/* UART0 Interrupt */
-#define MV_INT_UART1		34
-#define MV_INT_GPIO7_0		35	/* GPIO[7:0] Interrupt */
-#define MV_INT_GPIO15_8		36	/* GPIO[15:8] Interrupt */
-#define MV_INT_GPIO23_16	37	/* GPIO[23:16] Interrupt */
-#define MV_INT_GPIO31_24	38	/* GPIO[31:24] Interrupt */
-#define MV_INT_GPIOHI7_0	39	/* GPIOHI[7:0] Interrupt */
-#define MV_INT_GPIOHI15_8	40	/* GPIOHI[15:8] Interrupt */
-#define MV_INT_GPIOHI23_16	41	/* GPIOHI[23:16] Interrupt */
-#define MV_INT_XOR0_ERR		42	/* XOR engine 0 error Interrupt */
-#define MV_INT_XOR1_ERR		43	/* XOR engine 1 error Interrupt */
-#define MV_INT_PEX0_ERR		44	/* PCI Express Error */
-#define MV_INT_GBEERR		46	/* GbE0 error interrupt */
-#define MV_INT_GBE1ERR		47	/* GbE1 error interrupt */
-#define MV_INT_USB_BERR		48	/* USB Bridge Error */
-
-#elif defined(SOC_MV_DISCOVERY)
-
-#define MV_INT_ERRSUM		0	/* Summary of error interrupts */
-#define MV_INT_SPI		1	/* SPI interrupt */
-#define MV_INT_TWSI0		2	/* TWSI0 interrupt */
-#define MV_INT_TWSI1		3	/* TWSI1 interrupt */
-#define MV_INT_IDMA0		4	/* IDMA Channel0 completion */
-#define MV_INT_IDMA1		5	/* IDMA Channel0 completion */
-#define MV_INT_IDMA2		6	/* IDMA Channel0 completion */
-#define MV_INT_IDMA3		7	/* IDMA Channel0 completion */
-#define MV_INT_TIMER0		8	/* Timer0 interrupt */
-#define MV_INT_TIMER1		9	/* Timer1 interrupt */
-#define MV_INT_TIMER2		10	/* Timer2 interrupt */
-#define MV_INT_TIMER3		11	/* Timer3 interrupt */
-#define MV_INT_UART0		12	/* UART0 interrupt */
-#define MV_INT_UART1		13	/* UART1 interrupt */
-#define MV_INT_UART2		14	/* UART2 interrupt */
-#define MV_INT_UART3		15	/* UART3 interrupt */
-#define MV_INT_USB0		16	/* USB0 interrupt */
-#define MV_INT_USB1		17	/* USB1 interrupt */
-#define MV_INT_USB2		18	/* USB2 interrupt */
-#define MV_INT_CESA		19	/* Crypto engine completion interrupt */
-#define MV_INT_XOR0		22	/* XOR engine 0 completion interrupt */
-#define MV_INT_XOR1		23	/* XOR engine 1 completion interrupt */
-#define MV_INT_SATA		26	/* SATA interrupt */
-#define MV_INT_PEX00		32	/* PCI Express port 0.0 INTA/B/C/D */
-#define MV_INT_PEX01		33	/* PCI Express port 0.1 INTA/B/C/D */
-#define MV_INT_PEX02		34	/* PCI Express port 0.2 INTA/B/C/D */
-#define MV_INT_PEX03		35	/* PCI Express port 0.3 INTA/B/C/D */
-#define MV_INT_PEX10		36	/* PCI Express port 1.0 INTA/B/C/D */
-#define MV_INT_PEX11		37	/* PCI Express port 1.1 INTA/B/C/D */
-#define MV_INT_PEX12		38	/* PCI Express port 1.2 INTA/B/C/D */
-#define MV_INT_PEX13		39	/* PCI Express port 1.3 INTA/B/C/D */
-#define MV_INT_GBESUM		40	/* Gigabit Ethernet Port 0 summary */
-#define MV_INT_GBERX		41	/* Gigabit Ethernet Port 0 Rx summary */
-#define MV_INT_GBETX		42	/* Gigabit Ethernet Port 0 Tx summary */
-#define MV_INT_GBEMISC		43	/* Gigabit Ethernet Port 0 Misc summ. */
-#define MV_INT_GBE1SUM		44	/* Gigabit Ethernet Port 1 summary */
-#define MV_INT_GBE1RX		45	/* Gigabit Ethernet Port 1 Rx summary */
-#define MV_INT_GBE1TX		46	/* Gigabit Ethernet Port 1 Tx summary */
-#define MV_INT_GBE1MISC		47	/* Gigabit Ethernet Port 1 Misc summ. */
-#define MV_INT_GPIO7_0		56	/* GPIO[7:0] Interrupt */
-#define MV_INT_GPIO15_8		57	/* GPIO[15:8] Interrupt */
-#define MV_INT_GPIO23_16	58	/* GPIO[23:16] Interrupt */
-#define MV_INT_GPIO31_24	59	/* GPIO[31:24] Interrupt */
-#define MV_INT_DB_IN		60	/* Inbound Doorbell Cause reg Summary */
-#define MV_INT_DB_OUT		61	/* Outbound Doorbell Cause reg Summ. */
-#define MV_INT_CRYPT_ERR	64	/* Crypto engine error */
-#define MV_INT_DEV_ERR		65	/* Device bus error */
-#define MV_INT_IDMA_ERR		66	/* DMA error */
-#define MV_INT_CPU_ERR		67	/* CPU error */
-#define MV_INT_PEX0_ERR		68	/* PCI-Express port0 error */
-#define MV_INT_PEX1_ERR		69	/* PCI-Express port1 error */
-#define MV_INT_GBE_ERR		70	/* Gigabit Ethernet error */
-#define MV_INT_USB_ERR		72	/* USB error */
-#define MV_INT_DRAM_ERR		73	/* DRAM ECC error */
-#define MV_INT_XOR_ERR		74	/* XOR engine error */
-#define MV_INT_WD		79	/* WD Timer interrupt */
-
-#endif /* SOC_MV_ORION */
-
-#define BRIDGE_IRQ_CAUSE	0x10
-#define BRIGDE_IRQ_MASK		0x14
+#include <arm/mv/mvwin.h>
 
 #if defined(SOC_MV_DISCOVERY)
 #define IRQ_CAUSE_ERROR		0x0
@@ -175,23 +48,58 @@
 #define FIQ_MASK		0x20
 #define FIQ_MASK_HI		0x24
 #define FIQ_CAUSE_SELECT	0x28
-#define ENDPOINT_IRQ_MASK_ERROR	0x2C
-#define ENDPOINT_IRQ_MASK	0x30
-#define ENDPOINT_IRQ_MASK_HI	0x34
+#define ENDPOINT_IRQ_MASK_ERROR(n) 0x2C
+#define ENDPOINT_IRQ_MASK(n)	0x30
+#define ENDPOINT_IRQ_MASK_HI(n)	0x34
 #define ENDPOINT_IRQ_CAUSE_SELECT 0x38
-#else /* !SOC_MV_DISCOVERY */
+#elif defined (SOC_MV_LOKIPLUS) || defined (SOC_MV_FREY)
 #define IRQ_CAUSE		0x0
 #define IRQ_MASK		0x4
 #define FIQ_MASK		0x8
-#define ENDPOINT_IRQ_MASK	0xC
+#define ENDPOINT_IRQ_MASK(n)	(0xC + (n) * 4)
+#define IRQ_CAUSE_HI		(-1)		/* Fake defines for unified */
+#define IRQ_MASK_HI		(-1)		/* interrupt controller code */
+#define FIQ_MASK_HI		(-1)
+#define ENDPOINT_IRQ_MASK_HI(n)	(-1)
+#define ENDPOINT_IRQ_MASK_ERROR(n) (-1)
+#define IRQ_CAUSE_ERROR		(-1)
+#define IRQ_MASK_ERROR		(-1)
+#elif defined (SOC_MV_ARMADAXP)
+#define IRQ_CAUSE		0x18
+#define IRQ_MASK		0x30
+#elif defined (SOC_MV_ARMADA38X)
+#define	MSI_IRQ			0x3ff
+#define	ERR_IRQ			0x3ff
+#else
+#define IRQ_CAUSE		0x0
+#define IRQ_MASK		0x4
+#define FIQ_MASK		0x8
+#define ENDPOINT_IRQ_MASK(n)	0xC
 #define IRQ_CAUSE_HI		0x10
 #define IRQ_MASK_HI		0x14
 #define FIQ_MASK_HI		0x18
-#define ENDPOINT_IRQ_MASK_HI	0x1C
+#define ENDPOINT_IRQ_MASK_HI(n)	0x1C
+#define ENDPOINT_IRQ_MASK_ERROR(n) (-1)
 #define IRQ_CAUSE_ERROR		(-1)		/* Fake defines for unified */
 #define IRQ_MASK_ERROR		(-1)		/* interrupt controller code */
 #endif
 
+#if defined(SOC_MV_FREY)
+#define BRIDGE_IRQ_CAUSE	0x118
+#define IRQ_TIMER0		0x00000002
+#define IRQ_TIMER1		0x00000004
+#define IRQ_TIMER_WD		0x00000008
+
+#define BRIDGE_IRQ_MASK		0x11c
+#define IRQ_TIMER0_MASK		0x00000002
+#define IRQ_TIMER1_MASK		0x00000004
+#define IRQ_TIMER_WD_MASK	0x00000008
+#elif defined(SOC_MV_ARMADAXP)
+#define BRIDGE_IRQ_CAUSE	0x68
+#define IRQ_TIMER0		0x00000001
+#define IRQ_TIMER1		0x00000002
+#define IRQ_TIMER_WD		0x00000004
+#else
 #define BRIDGE_IRQ_CAUSE	0x10
 #define IRQ_CPU_SELF		0x00000001
 #define IRQ_TIMER0		0x00000002
@@ -203,20 +111,48 @@
 #define IRQ_TIMER0_MASK		0x00000002
 #define IRQ_TIMER1_MASK		0x00000004
 #define IRQ_TIMER_WD_MASK	0x00000008
+#endif
+
+#if defined(SOC_MV_LOKIPLUS) || defined(SOC_MV_FREY)
+#define IRQ_CPU_SELF_CLR	IRQ_CPU_SELF
+#define IRQ_TIMER0_CLR		IRQ_TIMER0
+#define IRQ_TIMER1_CLR		IRQ_TIMER1
+#define IRQ_TIMER_WD_CLR	IRQ_TIMER_WD
+#else
+#define IRQ_CPU_SELF_CLR	(~IRQ_CPU_SELF)
+#define IRQ_TIMER0_CLR		(~IRQ_TIMER0)
+#define IRQ_TIMER1_CLR		(~IRQ_TIMER1)
+#define IRQ_TIMER_WD_CLR	(~IRQ_TIMER_WD)
+#endif
 
 /*
  * System reset
  */
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
+#define RSTOUTn_MASK		0x60
+#define	RSTOUTn_MASK_WD		0x400
+#define SYSTEM_SOFT_RESET	0x64
+#define WD_RSTOUTn_MASK		0x4
+#define WD_GLOBAL_MASK		0x00000100
+#define WD_CPU0_MASK		0x00000001
+#define SOFT_RST_OUT_EN		0x00000001
+#define SYS_SOFT_RST		0x00000001
+#else
 #define RSTOUTn_MASK		0x8
 #define WD_RST_OUT_EN		0x00000002
 #define SOFT_RST_OUT_EN		0x00000004
 #define SYSTEM_SOFT_RESET	0xc
 #define SYS_SOFT_RST		0x00000001
+#endif
 
 /*
  * Power Control
  */
+#if defined(SOC_MV_KIRKWOOD)
+#define CPU_PM_CTRL		0x18
+#else
 #define CPU_PM_CTRL		0x1C
+#endif
 #define CPU_PM_CTRL_NONE	0
 #define CPU_PM_CTRL_ALL		~0x0
 
@@ -240,6 +176,9 @@
 #define CPU_PM_CTRL_XOR		(CPU_PM_CTRL_XOR0 | CPU_PM_CTRL_XOR1)
 #define CPU_PM_CTRL_USB(u)	(CPU_PM_CTRL_USB0)
 #define CPU_PM_CTRL_SATA	(CPU_PM_CTRL_SATA0 | CPU_PM_CTRL_SATA1)
+#define CPU_PM_CTRL_GE(u)	(CPU_PM_CTRL_GE1 * (u) | CPU_PM_CTRL_GE0 * \
+				(1 - (u)))
+#define CPU_PM_CTRL_IDMA	(CPU_PM_CTRL_NONE)
 #elif defined(SOC_MV_DISCOVERY)
 #define CPU_PM_CTRL_GE0		(1 << 1)
 #define CPU_PM_CTRL_GE1		(1 << 2)
@@ -264,24 +203,34 @@
 #define CPU_PM_CTRL_DEVICE	(1 << 23)
 #define CPU_PM_CTRL_USB(u)	(1 << (17 + (u)))
 #define CPU_PM_CTRL_SATA	(CPU_PM_CTRL_SATA0 | CPU_PM_CTRL_SATA1)
+#define CPU_PM_CTRL_GE(u)	(CPU_PM_CTRL_GE1 * (u) | CPU_PM_CTRL_GE0 * \
+				(1 - (u)))
 #else
 #define CPU_PM_CTRL_CRYPTO	(CPU_PM_CTRL_NONE)
 #define CPU_PM_CTRL_IDMA	(CPU_PM_CTRL_NONE)
 #define CPU_PM_CTRL_XOR		(CPU_PM_CTRL_NONE)
 #define CPU_PM_CTRL_SATA	(CPU_PM_CTRL_NONE)
 #define CPU_PM_CTRL_USB(u)	(CPU_PM_CTRL_NONE)
+#define CPU_PM_CTRL_GE(u)	(CPU_PM_CTRL_NONE)
 #endif
 
 /*
  * Timers
  */
+#define CPU_TIMERS_BASE		0x300
 #define CPU_TIMER_CONTROL	0x0
 #define CPU_TIMER0_EN		0x00000001
 #define CPU_TIMER0_AUTO		0x00000002
 #define CPU_TIMER1_EN		0x00000004
 #define CPU_TIMER1_AUTO		0x00000008
-#define CPU_TIMER_WD_EN		0x00000010
-#define CPU_TIMER_WD_AUTO	0x00000020
+#define	CPU_TIMER2_EN		0x00000010
+#define	CPU_TIMER2_AUTO		0x00000020
+#define	CPU_TIMER_WD_EN		0x00000100
+#define	CPU_TIMER_WD_AUTO	0x00000200
+/* 25MHz mode is Armada XP - specific */
+#define CPU_TIMER_WD_25MHZ_EN	0x00000400
+#define CPU_TIMER0_25MHZ_EN	0x00000800
+#define CPU_TIMER1_25MHZ_EN	0x00001000
 #define CPU_TIMER0_REL		0x10
 #define CPU_TIMER0		0x14
 
@@ -302,7 +251,15 @@
 #define SATA_CR_NOPRDPBS		(1 << 10)
 #define SATA_CR_COALDIS(ch)		(1 << (24 + ch))
 
-#define	SATA_ICR			0x014 /* Interrupt Cause Reg. */
+/* Interrupt Coalescing Threshold Reg. */
+#define SATA_ICTR			0x00C
+#define SATA_ICTR_MAX			((1 << 8) - 1)
+
+/* Interrupt Time Threshold Reg. */
+#define SATA_ITTR			0x010
+#define SATA_ITTR_MAX			((1 << 24) - 1)
+
+#define SATA_ICR			0x014 /* Interrupt Cause Reg. */
 #define SATA_ICR_DMADONE(ch)		(1 << (ch))
 #define SATA_ICR_COAL			(1 << 4)
 #define SATA_ICR_DEV(ch)		(1 << (8 + ch))
@@ -378,43 +335,37 @@
 #define GPIO(n)			(1 << (n))
 #define MV_GPIO_MAX_NPINS	64
 
-#define MV_GPIO_BLINK		0x1
-#define MV_GPIO_POLAR_LOW	0x2
-#define MV_GPIO_EDGE		0x4
-#define MV_GPIO_LEVEL		0x8
+#define MV_GPIO_IN_NONE		0x0
+#define MV_GPIO_IN_POL_LOW	(1 << 16)
+#define MV_GPIO_IN_IRQ_EDGE	(2 << 16)
+#define MV_GPIO_IN_IRQ_LEVEL	(4 << 16)
+#define MV_GPIO_OUT_NONE	0x0
+#define MV_GPIO_OUT_BLINK	0x1
+#define MV_GPIO_OUT_OPEN_DRAIN	0x2
+#define MV_GPIO_OUT_OPEN_SRC	0x4
 
 #define IS_GPIO_IRQ(irq)	((irq) >= NIRQ && (irq) < NIRQ + MV_GPIO_MAX_NPINS)
 #define GPIO2IRQ(gpio)		((gpio) + NIRQ)
 #define IRQ2GPIO(irq)		((irq) - NIRQ)
 
-/*
- * MPP
- */
-#if defined(SOC_MV_ORION)
-#define MPP_CONTROL0		0x00
-#define MPP_CONTROL1		0x04
-#define MPP_CONTROL2		0x50
-#elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
-#define MPP_CONTROL0		0x00
-#define MPP_CONTROL1		0x04
-#define MPP_CONTROL2		0x08
-#define MPP_CONTROL3		0x0C
-#define MPP_CONTROL4		0x10
-#define MPP_CONTROL5		0x14
-#define MPP_CONTROL6		0x18
-#else
-#error SOC_MV_XX not defined
-#endif
-
-#if defined(SOC_MV_ORION)
+#if defined(SOC_MV_ORION) || defined(SOC_MV_LOKIPLUS)
 #define SAMPLE_AT_RESET		0x10
 #elif defined(SOC_MV_KIRKWOOD)
 #define SAMPLE_AT_RESET		0x30
-#elif defined(SOC_MV_DISCOVERY)
+#elif defined(SOC_MV_FREY)
+#define SAMPLE_AT_RESET		0x100
+#elif defined(SOC_MV_ARMADA38X)
+#define SAMPLE_AT_RESET		0x400
+#endif
+#if defined(SOC_MV_DISCOVERY)
 #define SAMPLE_AT_RESET_LO	0x30
 #define SAMPLE_AT_RESET_HI	0x34
-#else
-#error SOC_MV_XX not defined
+#elif defined(SOC_MV_DOVE)
+#define SAMPLE_AT_RESET_LO	0x14
+#define SAMPLE_AT_RESET_HI	0x18
+#elif defined(SOC_MV_ARMADAXP)
+#define SAMPLE_AT_RESET_LO	0x30
+#define SAMPLE_AT_RESET_HI	0x34
 #endif
 
 /*
@@ -426,6 +377,12 @@
 #elif defined(SOC_MV_DISCOVERY)
 #define TCLK_MASK		0x00000180
 #define TCLK_SHIFT		0x07
+#elif defined(SOC_MV_LOKIPLUS)
+#define TCLK_MASK		0x0000F000
+#define TCLK_SHIFT		0x0C
+#elif defined(SOC_MV_ARMADA38X)
+#define TCLK_MASK		0x00008000
+#define TCLK_SHIFT		15
 #endif
 
 #define TCLK_100MHZ		100000000
@@ -434,6 +391,33 @@
 #define TCLK_150MHZ		150000000
 #define TCLK_166MHZ		166666667
 #define TCLK_200MHZ		200000000
+#define TCLK_250MHZ		250000000
+#define TCLK_300MHZ		300000000
+#define TCLK_667MHZ		667000000
+
+/*
+ * CPU Cache Configuration
+ */
+
+#define CPU_CONFIG		0x00000000
+#define CPU_CONFIG_IC_PREF	0x00010000
+#define CPU_CONFIG_DC_PREF	0x00020000
+#define CPU_CONTROL		0x00000004
+#define CPU_CONTROL_L2_SIZE	0x00200000	/* Only on Discovery */
+#define CPU_CONTROL_L2_MODE	0x00020000	/* Only on Discovery */
+#define CPU_L2_CONFIG		0x00000028	/* Only on Kirkwood */
+#define CPU_L2_CONFIG_MODE	0x00000010	/* Only on Kirkwood */
+
+/*
+ * PCI Express port control (CPU Control registers)
+ */
+#define CPU_CONTROL_PCIE_DISABLE(n)	(1 << (3 * (n)))
+
+/*
+ * Vendor ID
+ */
+#define PCI_VENDORID_MRVL	0x11AB
+#define PCI_VENDORID_MRVL2	0x1B4B
 
 /*
  * Chip ID
@@ -442,7 +426,71 @@
 #define MV_DEV_88F5182		0x5182
 #define MV_DEV_88F5281		0x5281
 #define MV_DEV_88F6281		0x6281
+#define MV_DEV_88F6282		0x6282
+#define MV_DEV_88F6781		0x6781
+#define MV_DEV_88F6828		0x6828
+#define MV_DEV_88F6820		0x6820
+#define MV_DEV_88F6810		0x6810
 #define MV_DEV_MV78100_Z0	0x6381
 #define MV_DEV_MV78100		0x7810
+#define MV_DEV_MV78130		0x7813
+#define MV_DEV_MV78160		0x7816
+#define MV_DEV_MV78230		0x7823
+#define MV_DEV_MV78260		0x7826
+#define MV_DEV_MV78460		0x7846
+#define MV_DEV_88RC8180		0x8180
+#define MV_DEV_88RC9480		0x9480
+#define MV_DEV_88RC9580		0x9580
+
+#define MV_DEV_FAMILY_MASK	0xff00
+#define MV_DEV_DISCOVERY	0x7800
+#define	MV_DEV_ARMADA38X	0x6800
+
+/*
+ * Doorbell register control
+ */
+#define MV_DRBL_PCIE_TO_CPU	0
+#define MV_DRBL_CPU_TO_PCIE	1
+
+#if defined(SOC_MV_FREY)
+#define MV_DRBL_CAUSE(d,u)	(0x60 + 0x20 * (d) + 0x8 * (u))
+#define MV_DRBL_MASK(d,u)	(0x60 + 0x20 * (d) + 0x8 * (u) + 0x4)
+#define MV_DRBL_MSG(m,d,u)	(0x8 * (u) + 0x20 * (d) + 0x4 * (m))
+#else
+#define MV_DRBL_CAUSE(d,u)	(0x10 * (u) + 0x8 * (d))
+#define MV_DRBL_MASK(d,u)	(0x10 * (u) + 0x8 * (d) + 0x4)
+#define MV_DRBL_MSG(m,d,u)	(0x10 * (u) + 0x8 * (d) + 0x4 * (m) + 0x30)
+#endif
+
+/*
+ * SCU
+ */
+#if defined(SOC_MV_ARMADA38X)
+#define	MV_SCU_BASE		(MV_BASE + 0xc000)
+#define	MV_SCU_REGS_LEN		0x100
+#define	MV_SCU_REG_CTRL		0x00
+#define	MV_SCU_REG_CONFIG	0x04
+#define	MV_SCU_ENABLE		1
+#define	SCU_CFG_REG_NCPU_MASK	0x3
+#endif
+
+/*
+ * PMSU
+ */
+#if defined(SOC_MV_ARMADA38X)
+#define	MV_PMSU_BASE		(MV_BASE + 0x22000)
+#define	MV_PMSU_REGS_LEN	0x1000
+#define	PMSU_BOOT_ADDR_REDIRECT_OFFSET(cpu)	(((cpu) * 0x100) + 0x124)
+#endif
+
+/*
+ * CPU RESET
+ */
+#if defined(SOC_MV_ARMADA38X)
+#define	MV_CPU_RESET_BASE	(MV_BASE + 0x20800)
+#define	MV_CPU_RESET_REGS_LEN	0x8
+#define	CPU_RESET_OFFSET(cpu)	((cpu) * 0x8)
+#define	CPU_RESET_ASSERT	0x1
+#endif
 
 #endif /* _MVREG_H_ */

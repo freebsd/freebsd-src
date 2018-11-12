@@ -22,14 +22,13 @@
  */
 
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: res_mkupdate.c,v 1.4.18.4 2005/10/14 05:44:12 marka Exp $";
+static const char rcsid[] = "$Id: res_mkupdate.c,v 1.10 2008/12/11 09:59:00 marka Exp $";
 #endif /* not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 
-#include <sys/types.h>
 #include <sys/param.h>
 
 #include <netinet/in.h>
@@ -54,7 +53,9 @@ __FBSDID("$FreeBSD$");
 #include "port_after.h"
 
 /* Options.  Leave them on. */
-#define DEBUG
+#ifndef	DEBUG
+#define	DEBUG
+#endif
 #define MAXPORT 1024
 
 static int getnum_str(u_char **, u_char *);
@@ -116,7 +117,8 @@ res_nmkupdate(res_state statp, ns_updrec *rrecp_in, u_char *buf, int buflen) {
 		return (-1);
 	memset(buf, 0, HFIXEDSZ);
 	hp = (HEADER *) buf;
-	hp->id = htons(++statp->id);
+	statp->id = res_nrandomid(statp);
+	hp->id = htons(statp->id);
 	hp->opcode = ns_o_update;
 	hp->rcode = NOERROR;
 	cp = buf + HFIXEDSZ;
@@ -124,7 +126,7 @@ res_nmkupdate(res_state statp, ns_updrec *rrecp_in, u_char *buf, int buflen) {
 	dpp = dnptrs;
 	*dpp++ = buf;
 	*dpp++ = NULL;
-	lastdnptr = dnptrs + sizeof dnptrs / sizeof dnptrs[0];
+	lastdnptr = dnptrs + nitems(dnptrs);
 
 	if (rrecp_start == NULL)
 		return (-5);
@@ -972,7 +974,7 @@ struct valuelist {
 static struct valuelist *servicelist, *protolist;
 
 static void
-res_buildservicelist() {
+res_buildservicelist(void) {
 	struct servent *sp;
 	struct valuelist *slp;
 
@@ -1172,7 +1174,7 @@ res_protocolname(int num) {
 	if (protolist == (struct valuelist *)0)
 		res_buildprotolist();
 	pp = cgetprotobynumber(num);
-	if (pp == 0)  {
+	if (pp == NULL)  {
 		(void) sprintf(number, "%d", num);
 		return (number);
 	}
@@ -1187,7 +1189,7 @@ res_servicename(u_int16_t port, const char *proto) {	/*%< Host byte order. */
 	if (servicelist == (struct valuelist *)0)
 		res_buildservicelist();
 	ss = cgetservbyport(htons(port), proto);
-	if (ss == 0)  {
+	if (ss == NULL)  {
 		(void) sprintf(number, "%d", port);
 		return (number);
 	}

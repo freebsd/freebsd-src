@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
  * for playback/capture.
  * Since I couldn't find any documentation for APCDMA programming
  * information, I guessed the usage of APCDMA from that of OpenBSD's
- * driver. The EBDMA infomation of PCIO can be obtained from
+ * driver. The EBDMA information of PCIO can be obtained from
  *  http://solutions.sun.com/embedded/databook/web/microprocessors/pcio.html
  * And CS4231A datasheet can also be obtained from
  *  ftp://ftp.alsa-project.org/pub/manuals/cirrus/4231a.pdf
@@ -113,7 +113,7 @@ struct cs4231_channel {
 #define CS4231_RES_MEM_MAX	4
 #define CS4231_RES_IRQ_MAX	2
 struct cs4231_softc {
-	struct device		*sc_dev;
+	device_t		sc_dev;
 	int			sc_rid[CS4231_RES_MEM_MAX];
 	struct resource		*sc_res[CS4231_RES_MEM_MAX];
 	bus_space_handle_t	sc_regh[CS4231_RES_MEM_MAX];
@@ -231,7 +231,8 @@ static device_method_t cs4231_sbus_methods[] = {
 	DEVMETHOD(device_detach,	cs4231_bus_detach),
 	DEVMETHOD(device_suspend,	cs4231_bus_suspend),
 	DEVMETHOD(device_resume,	cs4231_bus_resume),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t cs4231_sbus_driver = {
@@ -249,7 +250,8 @@ static device_method_t cs4231_ebus_methods[] = {
 	DEVMETHOD(device_detach,	cs4231_bus_detach),
 	DEVMETHOD(device_suspend,	cs4231_bus_suspend),
 	DEVMETHOD(device_resume,	cs4231_bus_resume),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t cs4231_ebus_driver = {
@@ -1198,7 +1200,7 @@ cs4231_chan_fs(struct cs4231_softc *sc, int dir, u_int8_t fs)
 
 	/*
 	 * capture channel
-	 * cs4231 doesn't allow seperate fs setup for playback/capture.
+	 * cs4231 doesn't allow separate fs setup for playback/capture.
 	 * I believe this will break full-duplex operation.
 	 */
 	if (dir == PCMDIR_REC) {

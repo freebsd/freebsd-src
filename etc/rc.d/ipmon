@@ -4,14 +4,15 @@
 #
 
 # PROVIDE: ipmon
-# REQUIRE: FILESYSTEMS hostname sysctl cleanvar ipfilter
+# REQUIRE: FILESYSTEMS hostname sysctl ipfilter
 # BEFORE:  SERVERS
 # KEYWORD: nojail
 
 . /etc/rc.subr
 
 name="ipmon"
-rcvar=`set_rcvar`
+desc="Monitors /dev/ipl for logged packets"
+rcvar="ipmon_enable"
 command="/sbin/${name}"
 start_precmd="ipmon_precmd"
 
@@ -20,10 +21,10 @@ ipmon_precmd()
 	# Continue only if ipfilter or ipnat is enabled and the
 	# ipfilter module is loaded.
 	#
-	if ! checkyesno ipfilter_enable -o ! checkyesno ipnat_enable ; then
+	if ! checkyesno ipfilter_enable && ! checkyesno ipnat_enable ; then
 		err 1  "${name} requires either ipfilter or ipnat enabled"
 	fi
-	if ! sysctl net.inet.ipf.fr_pass >/dev/null 2>&1; then
+	if ! ${ipfilter_program:-/sbin/ipf} -V | grep -q 'Running: yes' >/dev/null 2>&1; then
 		err 1 "ipfilter module is not loaded"
 	fi
 	return 0

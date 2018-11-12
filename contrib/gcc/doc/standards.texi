@@ -156,27 +156,6 @@ information concerning the history of C that is available online, see
 
 @c FIXME: details of C++ standard.
 
-@cindex Objective-C
-@cindex Objective-C++
-
-There is no formal written standard for Objective-C or Objective-C++@.  The most
-authoritative manual is ``Object-Oriented Programming and the
-Objective-C Language'', available at a number of web sites:
-
-@itemize
-@item
-@uref{http://developer.apple.com/documentation/Cocoa/Conceptual/ObjectiveC/}
-is a recent (and periodically updated) version;
-@item
-@uref{http://www.toodarkpark.org/computers/objc/}
-is an older example;
-@item
-@uref{http://www.gnustep.org}
-and
-@uref{http://gcc.gnu.org/readings.html}
-have additional useful information.
-@end itemize
-
 @cindex treelang
 There is no standard for treelang, which is a sample language front end
 for GCC@.  Its only purpose is as a sample for people wishing to write a

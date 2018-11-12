@@ -1,4 +1,4 @@
-/*	$OpenBSD: mailwrapper.c,v 1.16 2004/07/06 03:38:14 millert Exp $	*/
+/*	$OpenBSD: mailwrapper.c,v 1.18 2007/11/06 14:39:19 otto Exp $	*/
 /*	$NetBSD: mailwrapper.c,v 1.9 2003/03/09 08:10:43 mjl Exp $	*/
 
 /*
@@ -35,6 +35,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
@@ -61,8 +63,8 @@ initarg(struct arglist *al)
 {
 	al->argc = 0;
 	al->maxc = 10;
-	if ((al->argv = malloc(al->maxc * sizeof(char *))) == NULL)
-		err(EX_TEMPFAIL, "malloc");
+	if ((al->argv = calloc(al->maxc, sizeof(char *))) == NULL)
+		err(EX_TEMPFAIL, "calloc");
 }
 
 static void
@@ -87,6 +89,8 @@ main(int argc, char *argv[], char *envp[])
 	FILE *config;
 	char *line, *cp, *from, *to, *ap;
 	const char *progname;
+	char localmailerconf[MAXPATHLEN];
+	const char *mailerconf;
 	size_t len, lineno = 0;
 	int i;
 	struct arglist al;
@@ -98,11 +102,18 @@ main(int argc, char *argv[], char *envp[])
 	initarg(&al);
 	addarg(&al, argv[0]);
 
-	if ((config = fopen(_PATH_MAILERCONF, "r")) == NULL) {
+	snprintf(localmailerconf, MAXPATHLEN, "%s/etc/mail/mailer.conf",
+	    getenv("LOCALBASE") ? getenv("LOCALBASE") : "/usr/local");
+
+	mailerconf = localmailerconf;
+	if ((config = fopen(localmailerconf, "r")) == NULL)
+		mailerconf = _PATH_MAILERCONF;
+
+	if (config == NULL && ((config = fopen(mailerconf, "r")) == NULL)) {
 		addarg(&al, NULL);
 		openlog(getprogname(), LOG_PID, LOG_MAIL);
 		syslog(LOG_INFO, "cannot open %s, using %s as default MTA",
-		    _PATH_MAILERCONF, _PATH_DEFAULTMTA);
+		    mailerconf, _PATH_DEFAULTMTA);
 		closelog();
 		execve(_PATH_DEFAULTMTA, al.argv, envp);
 		err(EX_OSERR, "cannot exec %s", _PATH_DEFAULTMTA);
@@ -112,7 +123,7 @@ main(int argc, char *argv[], char *envp[])
 	for (;;) {
 		if ((line = fparseln(config, &len, &lineno, NULL, 0)) == NULL) {
 			if (feof(config))
-				errx(EX_CONFIG, "no mapping in %s", _PATH_MAILERCONF);
+				errx(EX_CONFIG, "no mapping in %s", mailerconf);
 			err(EX_CONFIG, "cannot parse line %lu", (u_long)lineno);
 		}
 
@@ -126,7 +137,7 @@ main(int argc, char *argv[], char *envp[])
 			continue;
 		}
 
-		if ((from = strsep(&cp, WS)) == NULL)
+		if ((from = strsep(&cp, WS)) == NULL || cp == NULL)
 			goto parse_error;
 
 		cp += strspn(cp, WS);
@@ -157,6 +168,6 @@ main(int argc, char *argv[], char *envp[])
 	/*NOTREACHED*/
 parse_error:
 	errx(EX_CONFIG, "parse error in %s at line %lu",
-	    _PATH_MAILERCONF, (u_long)lineno);
+	    mailerconf, (u_long)lineno);
 	/*NOTREACHED*/
 }

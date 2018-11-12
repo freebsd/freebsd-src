@@ -1,4 +1,4 @@
-/* $OpenBSD: cipher-ctr.c,v 1.10 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: cipher-ctr.c,v 1.11 2010/10/01 23:05:32 djm Exp $ */
 /*
  * Copyright (c) 2003 Markus Friedl <markus@openbsd.org>
  *
@@ -16,6 +16,7 @@
  */
 #include "includes.h"
 
+#if defined(WITH_OPENSSL) && !defined(OPENSSL_HAVE_EVPCTR)
 #include <sys/types.h>
 
 #include <stdarg.h>
@@ -33,9 +34,6 @@
 #include <openssl/aes.h>
 #endif
 
-const EVP_CIPHER *evp_aes_128_ctr(void);
-void ssh_aes_ctr_iv(EVP_CIPHER_CTX *, int, u_char *, u_int);
-
 struct ssh_aes_ctr_ctx
 {
 	AES_KEY		aes_ctx;
@@ -48,7 +46,7 @@ struct ssh_aes_ctr_ctx
  * (LSB at ctr[len-1], MSB at ctr[0])
  */
 static void
-ssh_ctr_inc(u_char *ctr, u_int len)
+ssh_ctr_inc(u_char *ctr, size_t len)
 {
 	int i;
 
@@ -59,10 +57,10 @@ ssh_ctr_inc(u_char *ctr, u_int len)
 
 static int
 ssh_aes_ctr(EVP_CIPHER_CTX *ctx, u_char *dest, const u_char *src,
-    u_int len)
+    LIBCRYPTO_EVP_INL_TYPE len)
 {
 	struct ssh_aes_ctr_ctx *c;
-	u_int n = 0;
+	size_t n = 0;
 	u_char buf[AES_BLOCK_SIZE];
 
 	if (len == 0)
@@ -106,14 +104,14 @@ ssh_aes_ctr_cleanup(EVP_CIPHER_CTX *ctx)
 
 	if ((c = EVP_CIPHER_CTX_get_app_data(ctx)) != NULL) {
 		memset(c, 0, sizeof(*c));
-		xfree(c);
+		free(c);
 		EVP_CIPHER_CTX_set_app_data(ctx, NULL);
 	}
 	return (1);
 }
 
 void
-ssh_aes_ctr_iv(EVP_CIPHER_CTX *evp, int doset, u_char * iv, u_int len)
+ssh_aes_ctr_iv(EVP_CIPHER_CTX *evp, int doset, u_char * iv, size_t len)
 {
 	struct ssh_aes_ctr_ctx *c;
 
@@ -144,3 +142,5 @@ evp_aes_128_ctr(void)
 #endif
 	return (&aes_ctr);
 }
+
+#endif /* defined(WITH_OPENSSL) && !defined(OPENSSL_HAVE_EVPCTR) */

@@ -24,8 +24,8 @@
 .\" $FreeBSD$
 .\"
 .Dd August 2, 2008
-.Os
 .Dt FIRMWARE 9
+.Os
 .Sh NAME
 .Nm firmware_register ,
 .Nm firmware_unregister ,
@@ -97,15 +97,18 @@ by calling the function
 .Fn firmware_get
 with the
 .Nm imagename
-they want as an argument. If a matching image is not already registered,
+they want as an argument.
+If a matching image is not already registered,
 the firmware subsystem will try to load it using the
 mechanisms specified below (typically, a kernel module
 with
-.Nm the same name
+.Nm
+the same name
 as the image).
 .Sh API DESCRIPTION
 The kernel
-.Nm firmware API
+.Nm
+firmware API
 is made of the following functions:
 .Pp
 .Fn firmware_register
@@ -125,7 +128,8 @@ pointer to the image requested.
 .Fn firmware_unregister
 tries to unregister the firmware image
 .Nm imagename
-from the system. The function is successful and returns 0
+from the system.
+The function is successful and returns 0
 if there are no pending references to the image, otherwise
 it does not unregister the image and returns EBUSY.
 .Pp
@@ -146,7 +150,8 @@ already mounted.
 On success,
 .Fn firmware_get
 returns a pointer to the image description and increases the reference count
-for this image. On failure, the function returns NULL.
+for this image.
+On failure, the function returns NULL.
 .Pp
 .Fn firmware_put
 drops a reference to a firmware image.
@@ -157,7 +162,7 @@ argument may be set to
 to indicate that
 firmware_put is free to reclaim resources associated with
 the firmware image if this is the last reference.
-By default a firmware image will be deferred to a 
+By default a firmware image will be deferred to a
 .Xr taskqueue 9
 thread so the call may be done while holding a lock.
 In certain cases, such as on driver detach, this cannot be allowed.
@@ -225,7 +230,7 @@ in the module, the imagename and version of each firmware image.
 If you need to embed firmware images into a system, you should write
 appropriate entries in the <files.arch> file, e.g. this example is
 from
-.Nm sys/arm/xscale/ixp425/files.ixp425:
+.Nm sys/arm/xscale/ixp425/files.ixp425 :
 .Bd -literal
 ixp425_npe_fw.c                         optional npe_fw                 \\
         compile-with    "${AWK} -f $S/tools/fw_stub.awk			\\
@@ -252,12 +257,12 @@ IxNpeMicrocode.dat                      optional npe_fw                 \\
 .Pp
 Note that generating the firmware modules in this way requires
 the availability of the following tools:
-.Xr awk ,
-.Xr Make ,
+.Xr awk 1 ,
+.Xr make 1 ,
 the compiler and the linker.
 .Sh SEE ALSO
-.Xr module 9 ,
-.Xr kld 4
+.Xr kld 4 ,
+.Xr module 9
 .Pp
 .Pa /usr/share/examples/kld/firmware
 .Sh HISTORY
@@ -267,4 +272,4 @@ system was introduced in
 .Fx 6.1 .
 .Sh AUTHORS
 This manual page was written by
-.An Max Laier Aq mlaier@FreeBSD.org .
+.An Max Laier Aq Mt mlaier@FreeBSD.org .

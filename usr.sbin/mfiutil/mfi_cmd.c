@@ -46,7 +46,7 @@
 #include <dev/mfi/mfi_ioctl.h>
 
 static const char *mfi_status_codes[] = {
-	"Command completed succesfully",
+	"Command completed successfully",
 	"Invalid command",
 	"Invalid DMCD opcode",
 	"Invalid parameter",
@@ -301,12 +301,12 @@ mfi_ctrl_get_info(int fd, struct mfi_ctrl_info *info, uint8_t *statusp)
 }
 
 int
-mfi_open(int unit)
+mfi_open(int unit, int acs)
 {
 	char path[MAXPATHLEN];
 
 	snprintf(path, sizeof(path), "/dev/mfi%d", unit);
-	return (open(path, O_RDWR));
+	return (open(path, acs));
 }
 
 void
@@ -316,7 +316,7 @@ mfi_display_progress(const char *label, struct mfi_progress *prog)
 
 	printf("%s: %.2f%% complete, after %ds", label,
 	    (float)prog->progress * 100 / 0xffff, prog->elapsed_seconds);
-	if (prog->elapsed_seconds > 10) {
+	if (prog->progress != 0 && prog->elapsed_seconds > 10) {
 		printf(" finished in ");
 		seconds = (0x10000 * (uint32_t)prog->elapsed_seconds) /
 		    prog->progress - prog->elapsed_seconds;

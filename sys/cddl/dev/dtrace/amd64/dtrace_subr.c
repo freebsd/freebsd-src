@@ -27,6 +27,10 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -40,33 +44,32 @@
 #include <machine/frame.h>
 #include <vm/pmap.h>
 
-extern uintptr_t 	dtrace_in_probe_addr;
-extern int		dtrace_in_probe;
+extern void dtrace_getnanotime(struct timespec *tsp);
 
-int dtrace_invop(uintptr_t, uintptr_t *, uintptr_t);
+int dtrace_invop(uintptr_t, struct trapframe *, uintptr_t);
 
 typedef struct dtrace_invop_hdlr {
-	int (*dtih_func)(uintptr_t, uintptr_t *, uintptr_t);
+	int (*dtih_func)(uintptr_t, struct trapframe *, uintptr_t);
 	struct dtrace_invop_hdlr *dtih_next;
 } dtrace_invop_hdlr_t;
 
 dtrace_invop_hdlr_t *dtrace_invop_hdlr;
 
 int
-dtrace_invop(uintptr_t addr, uintptr_t *stack, uintptr_t eax)
+dtrace_invop(uintptr_t addr, struct trapframe *frame, uintptr_t eax)
 {
 	dtrace_invop_hdlr_t *hdlr;
 	int rval;
 
 	for (hdlr = dtrace_invop_hdlr; hdlr != NULL; hdlr = hdlr->dtih_next)
-		if ((rval = hdlr->dtih_func(addr, stack, eax)) != 0)
+		if ((rval = hdlr->dtih_func(addr, frame, eax)) != 0)
 			return (rval);
 
 	return (0);
 }
 
 void
-dtrace_invop_add(int (*func)(uintptr_t, uintptr_t *, uintptr_t))
+dtrace_invop_add(int (*func)(uintptr_t, struct trapframe *, uintptr_t))
 {
 	dtrace_invop_hdlr_t *hdlr;
 
@@ -77,7 +80,7 @@ dtrace_invop_add(int (*func)(uintptr_t, uintptr_t *, uintptr_t))
 }
 
 void
-dtrace_invop_remove(int (*func)(uintptr_t, uintptr_t *, uintptr_t))
+dtrace_invop_remove(int (*func)(uintptr_t, struct trapframe *, uintptr_t))
 {
 	dtrace_invop_hdlr_t *hdlr = dtrace_invop_hdlr, *prev = NULL;
 
@@ -113,28 +116,15 @@ dtrace_toxic_ranges(void (*func)(uintptr_t base, uintptr_t limit))
 void
 dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
 {
-	cpumask_t cpus;
-
-	critical_enter();
+	cpuset_t cpus;
 
 	if (cpu == DTRACE_CPUALL)
 		cpus = all_cpus;
 	else
-		cpus = (cpumask_t) (1 << cpu);
+		CPU_SETOF(cpu, &cpus);
 
-	/* If the current CPU is in the set, call the function directly: */
-	if ((cpus & (1 << curcpu)) != 0) {
-		(*func)(arg);
-
-		/* Mask the current CPU from the set */
-		cpus &= ~(1 << curcpu);
-	}
-
-	/* If there are any CPUs in the set, cross-call to those CPUs */
-	if (cpus != 0)
-		smp_rendezvous_cpus(cpus, NULL, func, smp_no_rendevous_barrier, arg);
-
-	critical_exit();
+	smp_rendezvous_cpus(cpus, smp_no_rendevous_barrier, func,
+	    smp_no_rendevous_barrier, arg);
 }
 
 static void
@@ -149,122 +139,6 @@ dtrace_sync(void)
 }
 
 #ifdef notyet
-int (*dtrace_fasttrap_probe_ptr)(struct regs *);
-int (*dtrace_pid_probe_ptr)(struct regs *);
-int (*dtrace_return_probe_ptr)(struct regs *);
-
-void
-dtrace_user_probe(struct regs *rp, caddr_t addr, processorid_t cpuid)
-{
-	krwlock_t *rwp;
-	proc_t *p = curproc;
-	extern void trap(struct regs *, caddr_t, processorid_t);
-
-	if (USERMODE(rp->r_cs) || (rp->r_ps & PS_VM)) {
-		if (curthread->t_cred != p->p_cred) {
-			cred_t *oldcred = curthread->t_cred;
-			/*
-			 * DTrace accesses t_cred in probe context.  t_cred
-			 * must always be either NULL, or point to a valid,
-			 * allocated cred structure.
-			 */
-			curthread->t_cred = crgetcred();
-			crfree(oldcred);
-		}
-	}
-
-	if (rp->r_trapno == T_DTRACE_RET) {
-		uint8_t step = curthread->t_dtrace_step;
-		uint8_t ret = curthread->t_dtrace_ret;
-		uintptr_t npc = curthread->t_dtrace_npc;
-
-		if (curthread->t_dtrace_ast) {
-			aston(curthread);
-			curthread->t_sig_check = 1;
-		}
-
-		/*
-		 * Clear all user tracing flags.
-		 */
-		curthread->t_dtrace_ft = 0;
-
-		/*
-		 * If we weren't expecting to take a return probe trap, kill
-		 * the process as though it had just executed an unassigned
-		 * trap instruction.
-		 */
-		if (step == 0) {
-			tsignal(curthread, SIGILL);
-			return;
-		}
-
-		/*
-		 * If we hit this trap unrelated to a return probe, we're
-		 * just here to reset the AST flag since we deferred a signal
-		 * until after we logically single-stepped the instruction we
-		 * copied out.
-		 */
-		if (ret == 0) {
-			rp->r_pc = npc;
-			return;
-		}
-
-		/*
-		 * We need to wait until after we've called the
-		 * dtrace_return_probe_ptr function pointer to set %pc.
-		 */
-		rwp = &CPU->cpu_ft_lock;
-		rw_enter(rwp, RW_READER);
-		if (dtrace_return_probe_ptr != NULL)
-			(void) (*dtrace_return_probe_ptr)(rp);
-		rw_exit(rwp);
-		rp->r_pc = npc;
-
-	} else if (rp->r_trapno == T_DTRACE_PROBE) {
-		rwp = &CPU->cpu_ft_lock;
-		rw_enter(rwp, RW_READER);
-		if (dtrace_fasttrap_probe_ptr != NULL)
-			(void) (*dtrace_fasttrap_probe_ptr)(rp);
-		rw_exit(rwp);
-
-	} else if (rp->r_trapno == T_BPTFLT) {
-		uint8_t instr;
-		rwp = &CPU->cpu_ft_lock;
-
-		/*
-		 * The DTrace fasttrap provider uses the breakpoint trap
-		 * (int 3). We let DTrace take the first crack at handling
-		 * this trap; if it's not a probe that DTrace knowns about,
-		 * we call into the trap() routine to handle it like a
-		 * breakpoint placed by a conventional debugger.
-		 */
-		rw_enter(rwp, RW_READER);
-		if (dtrace_pid_probe_ptr != NULL &&
-		    (*dtrace_pid_probe_ptr)(rp) == 0) {
-			rw_exit(rwp);
-			return;
-		}
-		rw_exit(rwp);
-
-		/*
-		 * If the instruction that caused the breakpoint trap doesn't
-		 * look like an int 3 anymore, it may be that this tracepoint
-		 * was removed just after the user thread executed it. In
-		 * that case, return to user land to retry the instuction.
-		 */
-		if (fuword8((void *)(rp->r_pc - 1), &instr) == 0 &&
-		    instr != FASTTRAP_INSTR) {
-			rp->r_pc--;
-			return;
-		}
-
-		trap(rp, addr, cpuid);
-
-	} else {
-		trap(rp, addr, cpuid);
-	}
-}
-
 void
 dtrace_safe_synchronous_signal(void)
 {
@@ -310,14 +184,15 @@ dtrace_safe_defer_signal(void)
 	}
 
 	/*
-	 * If we've executed the original instruction, but haven't performed
-	 * the jmp back to t->t_dtrace_npc or the clean up of any registers
-	 * used to emulate %rip-relative instructions in 64-bit mode, do that
-	 * here and take the signal right away. We detect this condition by
-	 * seeing if the program counter is the range [scrpc + isz, astpc).
+	 * If we have executed the original instruction, but we have performed
+	 * neither the jmp back to t->t_dtrace_npc nor the clean up of any
+	 * registers used to emulate %rip-relative instructions in 64-bit mode,
+	 * we'll save ourselves some effort by doing that here and taking the
+	 * signal right away.  We detect this condition by seeing if the program
+	 * counter is the range [scrpc + isz, astpc).
 	 */
-	if (t->t_dtrace_astpc - rp->r_pc <
-	    t->t_dtrace_astpc - t->t_dtrace_scrpc - isz) {
+	if (rp->r_pc >= t->t_dtrace_scrpc + isz &&
+	    rp->r_pc < t->t_dtrace_astpc) {
 #ifdef __amd64
 		/*
 		 * If there is a scratch register and we're on the
@@ -372,26 +247,6 @@ static uint64_t	nsec_scale;
 #define SCALE_SHIFT	28
 
 static void
-dtrace_gethrtime_init_sync(void *arg)
-{
-#ifdef CHECK_SYNC
-	/*
-	 * Delay this function from returning on one
-	 * of the CPUs to check that the synchronisation
-	 * works.
-	 */
-	uintptr_t cpu = (uintptr_t) arg;
-
-	if (cpu == curcpu) {
-		int i;
-		for (i = 0; i < 1000000000; i++)
-			tgt_cpu_tsc = rdtsc();
-		tgt_cpu_tsc = 0;
-	}
-#endif
-}
-
-static void
 dtrace_gethrtime_init_cpu(void *arg)
 {
 	uintptr_t cpu = (uintptr_t) arg;
@@ -402,12 +257,24 @@ dtrace_gethrtime_init_cpu(void *arg)
 		hst_cpu_tsc = rdtsc();
 }
 
+#ifdef EARLY_AP_STARTUP
 static void
 dtrace_gethrtime_init(void *arg)
 {
+	struct pcpu *pc;
 	uint64_t tsc_f;
-	cpumask_t map;
+	cpuset_t map;
 	int i;
+#else
+/*
+ * Get the frequency and scale factor as early as possible so that they can be
+ * used for boot-time tracing.
+ */
+static void
+dtrace_gethrtime_init_early(void *arg)
+{
+	uint64_t tsc_f;
+#endif
 
 	/*
 	 * Get TSC frequency known at this moment.
@@ -415,7 +282,7 @@ dtrace_gethrtime_init(void *arg)
 	 * Otherwise tick->time conversion will be inaccurate, but
 	 * will preserve monotonic property of TSC.
 	 */
-	tsc_f = tsc_freq;
+	tsc_f = atomic_load_acq_64(&tsc_freq);
 
 	/*
 	 * The following line checks that nsec_scale calculated below
@@ -423,7 +290,8 @@ dtrace_gethrtime_init(void *arg)
 	 * another 32-bit integer without overflowing 64-bit.
 	 * Thus minimum supported TSC frequency is 62.5MHz.
 	 */
-	KASSERT(tsc_f > (NANOSEC >> (32 - SCALE_SHIFT)), ("TSC frequency is too low"));
+	KASSERT(tsc_f > (NANOSEC >> (32 - SCALE_SHIFT)),
+	    ("TSC frequency is too low"));
 
 	/*
 	 * We scale up NANOSEC/tsc_f ratio to preserve as much precision
@@ -435,30 +303,45 @@ dtrace_gethrtime_init(void *arg)
 	 *   (terahertz) values;
 	 */
 	nsec_scale = ((uint64_t)NANOSEC << SCALE_SHIFT) / tsc_f;
+#ifndef EARLY_AP_STARTUP
+}
+SYSINIT(dtrace_gethrtime_init_early, SI_SUB_CPU, SI_ORDER_ANY,
+    dtrace_gethrtime_init_early, NULL);
+
+static void
+dtrace_gethrtime_init(void *arg)
+{
+	struct pcpu *pc;
+	cpuset_t map;
+	int i;
+#endif
 
 	/* The current CPU is the reference one. */
+	sched_pin();
 	tsc_skew[curcpu] = 0;
-
-	for (i = 0; i <= mp_maxid; i++) {
+	CPU_FOREACH(i) {
 		if (i == curcpu)
 			continue;
 
-		if (pcpu_find(i) == NULL)
-			continue;
+		pc = pcpu_find(i);
+		CPU_SETOF(PCPU_GET(cpuid), &map);
+		CPU_SET(pc->pc_cpuid, &map);
 
-		map = 0;
-		map |= (1 << curcpu);
-		map |= (1 << i);
-
-		smp_rendezvous_cpus(map, dtrace_gethrtime_init_sync,
+		smp_rendezvous_cpus(map, NULL,
 		    dtrace_gethrtime_init_cpu,
 		    smp_no_rendevous_barrier, (void *)(uintptr_t) i);
 
 		tsc_skew[i] = tgt_cpu_tsc - hst_cpu_tsc;
 	}
+	sched_unpin();
 }
-
-SYSINIT(dtrace_gethrtime_init, SI_SUB_SMP, SI_ORDER_ANY, dtrace_gethrtime_init, NULL);
+#ifdef EARLY_AP_STARTUP
+SYSINIT(dtrace_gethrtime_init, SI_SUB_DTRACE, SI_ORDER_ANY,
+    dtrace_gethrtime_init, NULL);
+#else
+SYSINIT(dtrace_gethrtime_init, SI_SUB_SMP, SI_ORDER_ANY, dtrace_gethrtime_init,
+    NULL);
+#endif
 
 /*
  * DTrace needs a high resolution time function which can
@@ -480,7 +363,7 @@ dtrace_gethrtime()
 	 * (see nsec_scale calculations) taking into account 32-bit shift of
 	 * the higher half and finally add.
 	 */
-	tsc = rdtsc() + tsc_skew[curcpu];
+	tsc = rdtsc() - tsc_skew[curcpu];
 	lo = tsc;
 	hi = tsc >> 32;
 	return (((lo * nsec_scale) >> SCALE_SHIFT) +
@@ -490,23 +373,25 @@ dtrace_gethrtime()
 uint64_t
 dtrace_gethrestime(void)
 {
-	printf("%s(%d): XXX\n",__func__,__LINE__);
-	return (0);
+	struct timespec current_time;
+
+	dtrace_getnanotime(&current_time);
+
+	return (current_time.tv_sec * 1000000000ULL + current_time.tv_nsec);
 }
 
-/* Function to handle DTrace traps during probes. See amd64/amd64/trap.c */
+/* Function to handle DTrace traps during probes. See amd64/amd64/trap.c. */
 int
 dtrace_trap(struct trapframe *frame, u_int type)
 {
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
 	 * executing the probe, DTrace blocks re-scheduling and sets
-	 * a flag in it's per-cpu flags to indicate that it doesn't
-	 * want to fault. On returning from the the probe, the no-fault
+	 * a flag in its per-cpu flags to indicate that it doesn't
+	 * want to fault. On returning from the probe, the no-fault
 	 * flag is cleared and finally re-scheduling is enabled.
 	 *
 	 * Check if DTrace has enabled 'no-fault' mode:
-	 *
 	 */
 	if ((cpu_core[curcpu].cpuc_dtrace_flags & CPU_DTRACE_NOFAULT) != 0) {
 		/*
@@ -514,9 +399,6 @@ dtrace_trap(struct trapframe *frame, u_int type)
 		 * All the rest will be handled in the usual way.
 		 */
 		switch (type) {
-		/* Privilieged instruction fault. */
-		case T_PRIVINFLT:
-			break;
 		/* General protection fault. */
 		case T_PROTFLT:
 			/* Flag an illegal operation. */

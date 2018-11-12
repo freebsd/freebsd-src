@@ -25,9 +25,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
@@ -70,14 +71,48 @@ _pthread_suspend_np(pthread_t thread)
 }
 
 void
+_thr_suspend_all_lock(struct pthread *curthread)
+{
+	int old;
+
+	THR_LOCK_ACQUIRE(curthread, &_suspend_all_lock);
+	while (_single_thread != NULL) {
+		old = _suspend_all_cycle;
+		_suspend_all_waiters++;
+		THR_LOCK_RELEASE(curthread, &_suspend_all_lock);
+		_thr_umtx_wait_uint(&_suspend_all_cycle, old, NULL, 0);
+		THR_LOCK_ACQUIRE(curthread, &_suspend_all_lock);
+		_suspend_all_waiters--;
+	}
+	_single_thread = curthread;
+	THR_LOCK_RELEASE(curthread, &_suspend_all_lock);
+}
+
+void
+_thr_suspend_all_unlock(struct pthread *curthread)
+{
+
+	THR_LOCK_ACQUIRE(curthread, &_suspend_all_lock);
+	_single_thread = NULL;
+	if (_suspend_all_waiters != 0) {
+		_suspend_all_cycle++;
+		_thr_umtx_wake(&_suspend_all_cycle, INT_MAX, 0);
+	}
+	THR_LOCK_RELEASE(curthread, &_suspend_all_lock);
+}
+
+void
 _pthread_suspend_all_np(void)
 {
 	struct pthread *curthread = _get_curthread();
 	struct pthread *thread;
+	int old_nocancel;
 	int ret;
 
-	THREAD_LIST_LOCK(curthread);
-
+	old_nocancel = curthread->no_cancel;
+	curthread->no_cancel = 1;
+	_thr_suspend_all_lock(curthread);
+	THREAD_LIST_RDLOCK(curthread);
 	TAILQ_FOREACH(thread, &_thread_list, tle) {
 		if (thread != curthread) {
 			THR_THREAD_LOCK(curthread, thread);
@@ -96,13 +131,15 @@ restart:
 			THR_THREAD_LOCK(curthread, thread);
 			ret = suspend_common(curthread, thread, 0);
 			if (ret == 0) {
-				/* Can not suspend, try to wait */
-				thread->refcount++;
 				THREAD_LIST_UNLOCK(curthread);
+				/* Can not suspend, try to wait */
+				THR_REF_ADD(curthread, thread);
 				suspend_common(curthread, thread, 1);
-				THR_THREAD_UNLOCK(curthread, thread);
-				THREAD_LIST_LOCK(curthread);
-				_thr_ref_delete_unlocked(curthread, thread);
+				THR_REF_DEL(curthread, thread);
+				_thr_try_gc(curthread, thread);
+				/* thread lock released */
+
+				THREAD_LIST_RDLOCK(curthread);
 				/*
 				 * Because we were blocked, things may have
 				 * been changed, we have to restart the
@@ -113,22 +150,27 @@ restart:
 			THR_THREAD_UNLOCK(curthread, thread);
 		}
 	}
-
 	THREAD_LIST_UNLOCK(curthread);
+	_thr_suspend_all_unlock(curthread);
+	curthread->no_cancel = old_nocancel;
+	_thr_testcancel(curthread);
 }
 
 static int
 suspend_common(struct pthread *curthread, struct pthread *thread,
 	int waitok)
 {
-	long tmp;
+	uint32_t tmp;
 
 	while (thread->state != PS_DEAD &&
 	      !(thread->flags & THR_FLAGS_SUSPENDED)) {
 		thread->flags |= THR_FLAGS_NEED_SUSPEND;
+		/* Thread is in creation. */
+		if (thread->tid == TID_TERMINATED)
+			return (1);
 		tmp = thread->cycle;
-		THR_THREAD_UNLOCK(curthread, thread);
 		_thr_send_sig(thread, SIGCANCEL);
+		THR_THREAD_UNLOCK(curthread, thread);
 		if (waitok) {
 			_thr_umtx_wait_uint(&thread->cycle, tmp, NULL, 0);
 			THR_THREAD_LOCK(curthread, thread);

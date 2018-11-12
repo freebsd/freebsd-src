@@ -46,16 +46,6 @@
 /*
  * First define what the actual subs. return
  */
-#define	M_HASCL(m)	((m)->m_flags & M_EXT)
-#define	NFSMINOFF(m) 							\
-		if (M_HASCL(m)) 					\
-			(m)->m_data = (m)->m_ext.ext_buf; 		\
-		else if ((m)->m_flags & M_PKTHDR) 			\
-			(m)->m_data = (m)->m_pktdat; 			\
-				else 					\
-			(m)->m_data = (m)->m_dat
-#define	NFSMSIZ(m)	((M_HASCL(m))?MCLBYTES: 			\
-				(((m)->m_flags & M_PKTHDR)?MHLEN:MLEN))
 #define	NFSM_DATAP(m, s)	(m)->m_data += (s)
 
 /*
@@ -73,7 +63,7 @@ nfsm_build(struct nfsrv_descript *nd, int siz)
 	struct mbuf *mb2;
 
 	if (siz > M_TRAILINGSPACE(nd->nd_mb)) {
-		NFSMCLGET(mb2, M_DONTWAIT);
+		NFSMCLGET(mb2, M_NOWAIT);
 		if (siz > MLEN)
 			panic("build > MLEN");
 		mbuf_setlen(mb2, 0);
@@ -100,7 +90,23 @@ nfsm_dissect(struct nfsrv_descript *nd, int siz)
 		retp = (void *)nd->nd_dpos; 
 		nd->nd_dpos += siz; 
 	} else { 
-		retp = nfsm_dissct(nd, siz); 
+		retp = nfsm_dissct(nd, siz, M_WAITOK); 
+	}
+	return (retp);
+}
+
+static __inline void *
+nfsm_dissect_nonblock(struct nfsrv_descript *nd, int siz)
+{
+	int tt1; 
+	void *retp;
+
+	tt1 = NFSMTOD(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos; 
+	if (tt1 >= siz) { 
+		retp = (void *)nd->nd_dpos; 
+		nd->nd_dpos += siz; 
+	} else { 
+		retp = nfsm_dissct(nd, siz, M_NOWAIT); 
 	}
 	return (retp);
 }
@@ -108,6 +114,15 @@ nfsm_dissect(struct nfsrv_descript *nd, int siz)
 #define	NFSM_DISSECT(a, c, s) 						\
 	do {								\
 		(a) = (c)nfsm_dissect(nd, (s));	 			\
+		if ((a) == NULL) { 					\
+			error = EBADRPC; 				\
+			goto nfsmout; 					\
+		}							\
+	} while (0)
+
+#define	NFSM_DISSECT_NONBLOCK(a, c, s) 					\
+	do {								\
+		(a) = (c)nfsm_dissect_nonblock(nd, (s));		\
 		if ((a) == NULL) { 					\
 			error = EBADRPC; 				\
 			goto nfsmout; 					\

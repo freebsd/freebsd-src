@@ -1,26 +1,22 @@
-@(#) $Header: /tcpdump/master/libpcap/README,v 1.30.4.3 2008-10-17 10:39:20 ken Exp $ (LBL)
-
-LIBPCAP 1.0.0
+LIBPCAP 1.x.y
 
 www.tcpdump.org
 
 Please send inquiries/comments/reports to:
 	tcpdump-workers@lists.tcpdump.org
 
-Anonymous CVS is available via:
-	cvs -d :pserver:tcpdump@cvs.tcpdump.org:/tcpdump/master login
-	(password "anoncvs")
-	cvs -d :pserver:tcpdump@cvs.tcpdump.org:/tcpdump/master checkout libpcap
+Anonymous Git is available via:
+	git clone git://bpf.tcpdump.org/libpcap
 
-Version 1.0.0 of LIBPCAP can be retrieved with the CVS tag "libpcap_1_0":
-	cvs -d :pserver:tcpdump@cvs.tcpdump.org:/tcpdump/master checkout -r libpcap_1_0 libpcap
+Please submit patches by forking the branch on GitHub at
 
-Please submit patches against the master copy to the libpcap project on
-sourceforge.net.
+	http://github.com/the-tcpdump-group/libpcap/tree/master
+
+and issuing a pull request.
 
 formerly from 	Lawrence Berkeley National Laboratory
 		Network Research Group <libpcap@ee.lbl.gov>
-		ftp://ftp.ee.lbl.gov/libpcap.tar.Z (0.4)
+		ftp://ftp.ee.lbl.gov/old/libpcap-0.4a7.tar.Z
 
 This directory contains source code for libpcap, a system-independent
 interface for user-level packet capture.  libpcap provides a portable
@@ -65,13 +61,14 @@ added overhead (especially, for selective filters).  Ideally, libpcap
 would translate BPF filters into a filter program that is compatible
 with the underlying kernel subsystem, but this is not yet implemented.
 
-BPF is standard in 4.4BSD, BSD/OS, NetBSD, FreeBSD, and OpenBSD.  DEC
-OSF/1/Digital UNIX/Tru64 UNIX uses the packetfilter interface but has
-been extended to accept BPF filters (which libpcap utilizes).  Also, you
-can add BPF filter support to Ultrix using the kernel source and/or
-object patches available in:
+BPF is standard in 4.4BSD, BSD/OS, NetBSD, FreeBSD, OpenBSD, DragonFly
+BSD, and Mac OS X; an older, modified and undocumented version is
+standard in AIX.  {DEC OSF/1, Digital UNIX, Tru64 UNIX} uses the
+packetfilter interface but has been extended to accept BPF filters
+(which libpcap utilizes).  Also, you can add BPF filter support to
+Ultrix using the kernel source and/or object patches available in:
 
-	ftp://gatekeeper.dec.com/pub/DEC/net/bpfext42.tar.Z.
+	http://www.tcpdump.org/other/bpfext42.tar.Z
 
 Linux, in the 2.2 kernel and later kernels, has a "Socket Filter"
 mechanism that accepts BPF filters; see the README.linux file for
@@ -80,10 +77,10 @@ information on configuring that option.
 Note to Linux distributions and *BSD systems that include libpcap:
 
 There's now a rule to make a shared library, which should work on Linux 
-and *BSD (and OS X).
+and *BSD, among other platforms.
 
 It sets the soname of the library to "libpcap.so.1"; this is what it 
-should be, *NOT* libpcap.so.1.0 or libpcap.so.1.0.0 or something such as 
+should be, *NOT* libpcap.so.1.x or libpcap.so.1.x.y or something such as 
 that.
 
 We've been maintaining binary compatibility between libpcap releases for 
@@ -92,15 +89,18 @@ a particular release of libpcap.
 
 Problems, bugs, questions, desirable enhancements, etc. should be sent
 to the address "tcpdump-workers@lists.tcpdump.org".  Bugs, support
-requests, and feature requests may also be submitted on the SourceForge
-site for libpcap at
+requests, and feature requests may also be submitted on the GitHub issue
+tracker for libpcap at
 
-	http://sourceforge.net/projects/libpcap/
+	https://github.com/the-tcpdump-group/libpcap/issues
 
 Source code contributions, etc. should be sent to the email address
-submitted as patches on the SourceForge site for libpcap.
+above or submitted by forking the branch on GitHub at
 
-Current versions can be found at www.tcpdump.org, or the SourceForge
-site for libpcap.
+	http://github.com/the-tcpdump-group/libpcap/tree/master
+
+and issuing a pull request.
+
+Current versions can be found at www.tcpdump.org.
 
  - The TCPdump team

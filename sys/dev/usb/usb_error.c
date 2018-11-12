@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -32,7 +35,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -46,6 +48,7 @@
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 static const char* usb_errstr_table[USB_ERR_MAX] = {
 	[USB_ERR_NORMAL_COMPLETION]	= "USB_ERR_NORMAL_COMPLETION",

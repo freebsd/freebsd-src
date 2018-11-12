@@ -1,6 +1,0 @@
-.\" $FreeBSD$
-Set to build GNU cpio as a part of the base system,
-and symlink
-.Pa /usr/bin/cpio
-to this version.
-(This will override the symlink to the BSD version.)

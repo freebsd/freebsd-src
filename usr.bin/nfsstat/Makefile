@@ -3,7 +3,7 @@
 
 PROG=	nfsstat
 CFLAGS+=-DNFS
-DPADD=  ${LIBKVM}
-LDADD= -lkvm
+
+LIBADD+= devstat
 
 .include <bsd.prog.mk>

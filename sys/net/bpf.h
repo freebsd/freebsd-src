@@ -45,6 +45,8 @@
 
 typedef	int32_t	  bpf_int32;
 typedef	u_int32_t bpf_u_int32;
+typedef	int64_t	  bpf_int64;
+typedef	u_int64_t bpf_u_int64;
 
 /*
  * Alignment macros.  BPF_WORDALIGN rounds up to the next
@@ -113,36 +115,38 @@ struct bpf_zbuf {
 	size_t	 bz_buflen;	/* Size of zero-copy buffers. */
 };
 
-#define	BIOCGBLEN	_IOR('B',102, u_int)
-#define	BIOCSBLEN	_IOWR('B',102, u_int)
-#define	BIOCSETF	_IOW('B',103, struct bpf_program)
-#define	BIOCFLUSH	_IO('B',104)
-#define BIOCPROMISC	_IO('B',105)
-#define	BIOCGDLT	_IOR('B',106, u_int)
-#define BIOCGETIF	_IOR('B',107, struct ifreq)
-#define BIOCSETIF	_IOW('B',108, struct ifreq)
-#define BIOCSRTIMEOUT	_IOW('B',109, struct timeval)
-#define BIOCGRTIMEOUT	_IOR('B',110, struct timeval)
-#define BIOCGSTATS	_IOR('B',111, struct bpf_stat)
-#define BIOCIMMEDIATE	_IOW('B',112, u_int)
-#define BIOCVERSION	_IOR('B',113, struct bpf_version)
-#define BIOCGRSIG	_IOR('B',114, u_int)
-#define BIOCSRSIG	_IOW('B',115, u_int)
-#define BIOCGHDRCMPLT	_IOR('B',116, u_int)
-#define BIOCSHDRCMPLT	_IOW('B',117, u_int)
-#define BIOCGDIRECTION	_IOR('B',118, u_int)
-#define BIOCSDIRECTION	_IOW('B',119, u_int)
-#define	BIOCSDLT	_IOW('B',120, u_int)
-#define	BIOCGDLTLIST	_IOWR('B',121, struct bpf_dltlist)
+#define	BIOCGBLEN	_IOR('B', 102, u_int)
+#define	BIOCSBLEN	_IOWR('B', 102, u_int)
+#define	BIOCSETF	_IOW('B', 103, struct bpf_program)
+#define	BIOCFLUSH	_IO('B', 104)
+#define	BIOCPROMISC	_IO('B', 105)
+#define	BIOCGDLT	_IOR('B', 106, u_int)
+#define	BIOCGETIF	_IOR('B', 107, struct ifreq)
+#define	BIOCSETIF	_IOW('B', 108, struct ifreq)
+#define	BIOCSRTIMEOUT	_IOW('B', 109, struct timeval)
+#define	BIOCGRTIMEOUT	_IOR('B', 110, struct timeval)
+#define	BIOCGSTATS	_IOR('B', 111, struct bpf_stat)
+#define	BIOCIMMEDIATE	_IOW('B', 112, u_int)
+#define	BIOCVERSION	_IOR('B', 113, struct bpf_version)
+#define	BIOCGRSIG	_IOR('B', 114, u_int)
+#define	BIOCSRSIG	_IOW('B', 115, u_int)
+#define	BIOCGHDRCMPLT	_IOR('B', 116, u_int)
+#define	BIOCSHDRCMPLT	_IOW('B', 117, u_int)
+#define	BIOCGDIRECTION	_IOR('B', 118, u_int)
+#define	BIOCSDIRECTION	_IOW('B', 119, u_int)
+#define	BIOCSDLT	_IOW('B', 120, u_int)
+#define	BIOCGDLTLIST	_IOWR('B', 121, struct bpf_dltlist)
 #define	BIOCLOCK	_IO('B', 122)
-#define	BIOCSETWF	_IOW('B',123, struct bpf_program)
-#define	BIOCFEEDBACK	_IOW('B',124, u_int)
-#define	BIOCGETBUFMODE	_IOR('B',125, u_int)
-#define	BIOCSETBUFMODE	_IOW('B',126, u_int)
-#define	BIOCGETZMAX	_IOR('B',127, size_t)
-#define	BIOCROTZBUF	_IOR('B',128, struct bpf_zbuf)
-#define	BIOCSETZBUF	_IOW('B',129, struct bpf_zbuf)
-#define	BIOCSETFNR	_IOW('B',130, struct bpf_program)
+#define	BIOCSETWF	_IOW('B', 123, struct bpf_program)
+#define	BIOCFEEDBACK	_IOW('B', 124, u_int)
+#define	BIOCGETBUFMODE	_IOR('B', 125, u_int)
+#define	BIOCSETBUFMODE	_IOW('B', 126, u_int)
+#define	BIOCGETZMAX	_IOR('B', 127, size_t)
+#define	BIOCROTZBUF	_IOR('B', 128, struct bpf_zbuf)
+#define	BIOCSETZBUF	_IOW('B', 129, struct bpf_zbuf)
+#define	BIOCSETFNR	_IOW('B', 130, struct bpf_program)
+#define	BIOCGTSTAMP	_IOR('B', 131, u_int)
+#define	BIOCSTSTAMP	_IOW('B', 132, u_int)
 
 /* Obsolete */
 #define	BIOCGSEESENT	BIOCGDIRECTION
@@ -155,9 +159,48 @@ enum bpf_direction {
 	BPF_D_OUT	/* See outgoing packets */
 };
 
+/* Time stamping functions */
+#define	BPF_T_MICROTIME		0x0000
+#define	BPF_T_NANOTIME		0x0001
+#define	BPF_T_BINTIME		0x0002
+#define	BPF_T_NONE		0x0003
+#define	BPF_T_FORMAT_MASK	0x0003
+#define	BPF_T_NORMAL		0x0000
+#define	BPF_T_FAST		0x0100
+#define	BPF_T_MONOTONIC		0x0200
+#define	BPF_T_MONOTONIC_FAST	(BPF_T_FAST | BPF_T_MONOTONIC)
+#define	BPF_T_FLAG_MASK		0x0300
+#define	BPF_T_FORMAT(t)		((t) & BPF_T_FORMAT_MASK)
+#define	BPF_T_FLAG(t)		((t) & BPF_T_FLAG_MASK)
+#define	BPF_T_VALID(t)						\
+    ((t) == BPF_T_NONE || (BPF_T_FORMAT(t) != BPF_T_NONE &&	\
+    ((t) & ~(BPF_T_FORMAT_MASK | BPF_T_FLAG_MASK)) == 0))
+
+#define	BPF_T_MICROTIME_FAST		(BPF_T_MICROTIME | BPF_T_FAST)
+#define	BPF_T_NANOTIME_FAST		(BPF_T_NANOTIME | BPF_T_FAST)
+#define	BPF_T_BINTIME_FAST		(BPF_T_BINTIME | BPF_T_FAST)
+#define	BPF_T_MICROTIME_MONOTONIC	(BPF_T_MICROTIME | BPF_T_MONOTONIC)
+#define	BPF_T_NANOTIME_MONOTONIC	(BPF_T_NANOTIME | BPF_T_MONOTONIC)
+#define	BPF_T_BINTIME_MONOTONIC		(BPF_T_BINTIME | BPF_T_MONOTONIC)
+#define	BPF_T_MICROTIME_MONOTONIC_FAST	(BPF_T_MICROTIME | BPF_T_MONOTONIC_FAST)
+#define	BPF_T_NANOTIME_MONOTONIC_FAST	(BPF_T_NANOTIME | BPF_T_MONOTONIC_FAST)
+#define	BPF_T_BINTIME_MONOTONIC_FAST	(BPF_T_BINTIME | BPF_T_MONOTONIC_FAST)
+
 /*
  * Structure prepended to each packet.
  */
+struct bpf_ts {
+	bpf_int64	bt_sec;		/* seconds */
+	bpf_u_int64	bt_frac;	/* fraction */
+};
+struct bpf_xhdr {
+	struct bpf_ts	bh_tstamp;	/* time stamp */
+	bpf_u_int32	bh_caplen;	/* length of captured portion */
+	bpf_u_int32	bh_datalen;	/* original length of packet */
+	u_short		bh_hdrlen;	/* length of bpf header (this struct
+					   plus alignment padding) */
+};
+/* Obsolete */
 struct bpf_hdr {
 	struct timeval	bh_tstamp;	/* time stamp */
 	bpf_u_int32	bh_caplen;	/* length of captured portion */
@@ -165,14 +208,9 @@ struct bpf_hdr {
 	u_short		bh_hdrlen;	/* length of bpf header (this struct
 					   plus alignment padding) */
 };
-/*
- * Because the structure above is not a multiple of 4 bytes, some compilers
- * will insist on inserting padding; hence, sizeof(struct bpf_hdr) won't work.
- * Only the kernel needs to know about it; applications use bh_hdrlen.
- */
 #ifdef _KERNEL
-#define	SIZEOF_BPF_HDR	(sizeof(struct bpf_hdr) <= 20 ? 18 : \
-    sizeof(struct bpf_hdr))
+#define	MTAG_BPF		0x627066
+#define	MTAG_BPF_TIMESTAMP	0
 #endif
 
 /*
@@ -241,6 +279,24 @@ struct bpf_zbuf_header {
  */
 #define DLT_SYMANTEC_FIREWALL	99
 
+/*
+ * Values between 100 and 103 are used in capture file headers as
+ * link-layer header type LINKTYPE_ values corresponding to DLT_ types
+ * that differ between platforms; don't use those values for new DLT_
+ * new types.
+ */
+
+/*
+ * Values starting with 104 are used for newly-assigned link-layer
+ * header type values; for those link-layer header types, the DLT_
+ * value returned by pcap_datalink() and passed to pcap_open_dead(),
+ * and the LINKTYPE_ value that appears in capture files, are the
+ * same.
+ *
+ * DLT_MATCHING_MIN is the lowest such value; DLT_MATCHING_MAX is
+ * the highest such value.
+ */
+#define DLT_MATCHING_MIN	104
 
 /*
  * This value was defined by libpcap 0.5; platforms that have defined
@@ -523,7 +579,7 @@ struct bpf_zbuf_header {
  * input packets such as port scans, packets from old lost connections,
  * etc. to force the connection to stay up).
  *
- * The first byte of the PPP header (0xff03) is modified to accomodate
+ * The first byte of the PPP header (0xff03) is modified to accommodate
  * the direction - 0x00 = IN, 0x01 = OUT.
  */
 #define DLT_PPP_PPPD		166
@@ -806,6 +862,419 @@ struct bpf_zbuf_header {
  */
 #define DLT_IEEE802_15_4_NONASK_PHY     215
 
+/* 
+ * David Gibson <david@gibson.dropbear.id.au> requested this for
+ * captures from the Linux kernel /dev/input/eventN devices. This
+ * is used to communicate keystrokes and mouse movements from the
+ * Linux kernel to display systems, such as Xorg. 
+ */
+#define	DLT_LINUX_EVDEV		216
+
+/*
+ * GSM Um and Abis interfaces, preceded by a "gsmtap" header.
+ *
+ * Requested by Harald Welte <laforge@gnumonks.org>.
+ */
+#define	DLT_GSMTAP_UM		217
+#define	DLT_GSMTAP_ABIS		218
+
+/*
+ * MPLS, with an MPLS label as the link-layer header.
+ * Requested by Michele Marchetto <michele@openbsd.org> on behalf
+ * of OpenBSD.
+ */
+#define	DLT_MPLS		219
+
+/*
+ * USB packets, beginning with a Linux USB header, with the USB header
+ * padded to 64 bytes; required for memory-mapped access.
+ */
+#define	DLT_USB_LINUX_MMAPPED	220
+
+/*
+ * DECT packets, with a pseudo-header; requested by
+ * Matthias Wenzel <tcpdump@mazzoo.de>.
+ */
+#define	DLT_DECT		221
+/*
+ * From: "Lidwa, Eric (GSFC-582.0)[SGT INC]" <eric.lidwa-1@nasa.gov>
+ * Date: Mon, 11 May 2009 11:18:30 -0500
+ *
+ * DLT_AOS. We need it for AOS Space Data Link Protocol.
+ *   I have already written dissectors for but need an OK from
+ *   legal before I can submit a patch.
+ *
+ */
+#define	DLT_AOS			222
+
+/*
+ * Wireless HART (Highway Addressable Remote Transducer)
+ * From the HART Communication Foundation
+ * IES/PAS 62591
+ *
+ * Requested by Sam Roberts <vieuxtech@gmail.com>.
+ */
+#define	DLT_WIHART		223
+
+/*
+ * Fibre Channel FC-2 frames, beginning with a Frame_Header.
+ * Requested by Kahou Lei <kahou82@gmail.com>.
+ */
+#define	DLT_FC_2		224
+
+/*
+ * Fibre Channel FC-2 frames, beginning with an encoding of the
+ * SOF, and ending with an encoding of the EOF.
+ *
+ * The encodings represent the frame delimiters as 4-byte sequences
+ * representing the corresponding ordered sets, with K28.5
+ * represented as 0xBC, and the D symbols as the corresponding
+ * byte values; for example, SOFi2, which is K28.5 - D21.5 - D1.2 - D21.2,
+ * is represented as 0xBC 0xB5 0x55 0x55.
+ *
+ * Requested by Kahou Lei <kahou82@gmail.com>.
+ */
+#define	DLT_FC_2_WITH_FRAME_DELIMS	225
+/*
+ * Solaris ipnet pseudo-header; requested by Darren Reed <Darren.Reed@Sun.COM>.
+ *
+ * The pseudo-header starts with a one-byte version number; for version 2,
+ * the pseudo-header is:
+ *
+ * struct dl_ipnetinfo {
+ *     u_int8_t   dli_version;
+ *     u_int8_t   dli_family;
+ *     u_int16_t  dli_htype;
+ *     u_int32_t  dli_pktlen;
+ *     u_int32_t  dli_ifindex;
+ *     u_int32_t  dli_grifindex;
+ *     u_int32_t  dli_zsrc;
+ *     u_int32_t  dli_zdst;
+ * };
+ *
+ * dli_version is 2 for the current version of the pseudo-header.
+ *
+ * dli_family is a Solaris address family value, so it's 2 for IPv4
+ * and 26 for IPv6.
+ *
+ * dli_htype is a "hook type" - 0 for incoming packets, 1 for outgoing
+ * packets, and 2 for packets arriving from another zone on the same
+ * machine.
+ *
+ * dli_pktlen is the length of the packet data following the pseudo-header
+ * (so the captured length minus dli_pktlen is the length of the
+ * pseudo-header, assuming the entire pseudo-header was captured).
+ *
+ * dli_ifindex is the interface index of the interface on which the
+ * packet arrived.
+ *
+ * dli_grifindex is the group interface index number (for IPMP interfaces).
+ *
+ * dli_zsrc is the zone identifier for the source of the packet.
+ *
+ * dli_zdst is the zone identifier for the destination of the packet.
+ *
+ * A zone number of 0 is the global zone; a zone number of 0xffffffff
+ * means that the packet arrived from another host on the network, not
+ * from another zone on the same machine.
+ *
+ * An IPv4 or IPv6 datagram follows the pseudo-header; dli_family indicates
+ * which of those it is.
+ */
+#define	DLT_IPNET			226
+
+/*
+ * CAN (Controller Area Network) frames, with a pseudo-header as supplied
+ * by Linux SocketCAN.  See Documentation/networking/can.txt in the Linux
+ * source.
+ *
+ * Requested by Felix Obenhuber <felix@obenhuber.de>.
+ */
+#define	DLT_CAN_SOCKETCAN		227
+
+/*
+ * Raw IPv4/IPv6; different from DLT_RAW in that the DLT_ value specifies
+ * whether it's v4 or v6.  Requested by Darren Reed <Darren.Reed@Sun.COM>.
+ */
+#define DLT_IPV4		228
+#define DLT_IPV6		229
+
+/*
+ * IEEE 802.15.4, exactly as it appears in the spec (no padding, no
+ * nothing), and with no FCS at the end of the frame; requested by
+ * Jon Smirl <jonsmirl@gmail.com>.
+ */
+#define DLT_IEEE802_15_4_NOFCS	230
+
+/*
+ * Raw D-Bus:
+ *
+ *	http://www.freedesktop.org/wiki/Software/dbus
+ *
+ * messages:
+ *
+ *	http://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-messages
+ *
+ * starting with the endianness flag, followed by the message type, etc.,
+ * but without the authentication handshake before the message sequence:
+ *
+ *	http://dbus.freedesktop.org/doc/dbus-specification.html#auth-protocol
+ *
+ * Requested by Martin Vidner <martin@vidner.net>.
+ */
+#define DLT_DBUS		231
+
+/*
+ * Juniper-private data link type, as per request from
+ * Hannes Gredler <hannes@juniper.net>.
+ */
+#define DLT_JUNIPER_VS			232
+#define DLT_JUNIPER_SRX_E2E		233
+#define DLT_JUNIPER_FIBRECHANNEL	234
+
+/*
+ * DVB-CI (DVB Common Interface for communication between a PC Card
+ * module and a DVB receiver).  See
+ *
+ *	http://www.kaiser.cx/pcap-dvbci.html
+ *
+ * for the specification.
+ *
+ * Requested by Martin Kaiser <martin@kaiser.cx>.
+ */
+#define DLT_DVB_CI		235
+
+/*
+ * Variant of 3GPP TS 27.010 multiplexing protocol (similar to, but
+ * *not* the same as, 27.010).  Requested by Hans-Christoph Schemmel
+ * <hans-christoph.schemmel@cinterion.com>.
+ */
+#define DLT_MUX27010		236
+
+/*
+ * STANAG 5066 D_PDUs.  Requested by M. Baris Demiray
+ * <barisdemiray@gmail.com>.
+ */
+#define DLT_STANAG_5066_D_PDU	237
+
+/*
+ * Juniper-private data link type, as per request from
+ * Hannes Gredler <hannes@juniper.net>.
+ */
+#define DLT_JUNIPER_ATM_CEMIC	238
+
+/*
+ * NetFilter LOG messages 
+ * (payload of netlink NFNL_SUBSYS_ULOG/NFULNL_MSG_PACKET packets)
+ *
+ * Requested by Jakub Zawadzki <darkjames-ws@darkjames.pl>
+ */
+#define DLT_NFLOG		239
+
+/*
+ * Hilscher Gesellschaft fuer Systemautomation mbH link-layer type
+ * for Ethernet packets with a 4-byte pseudo-header and always
+ * with the payload including the FCS, as supplied by their
+ * netANALYZER hardware and software.
+ *
+ * Requested by Holger P. Frommer <HPfrommer@hilscher.com>
+ */
+#define DLT_NETANALYZER		240
+
+/*
+ * Hilscher Gesellschaft fuer Systemautomation mbH link-layer type
+ * for Ethernet packets with a 4-byte pseudo-header and FCS and
+ * with the Ethernet header preceded by 7 bytes of preamble and
+ * 1 byte of SFD, as supplied by their netANALYZER hardware and
+ * software.
+ *
+ * Requested by Holger P. Frommer <HPfrommer@hilscher.com>
+ */
+#define DLT_NETANALYZER_TRANSPARENT	241
+
+/*
+ * IP-over-InfiniBand, as specified by RFC 4391.
+ *
+ * Requested by Petr Sumbera <petr.sumbera@oracle.com>.
+ */
+#define DLT_IPOIB		242
+
+/*
+ * MPEG-2 transport stream (ISO 13818-1/ITU-T H.222.0).
+ *
+ * Requested by Guy Martin <gmsoft@tuxicoman.be>.
+ */
+#define DLT_MPEG_2_TS		243
+
+/*
+ * ng4T GmbH's UMTS Iub/Iur-over-ATM and Iub/Iur-over-IP format as
+ * used by their ng40 protocol tester.
+ *
+ * Requested by Jens Grimmer <jens.grimmer@ng4t.com>.
+ */
+#define DLT_NG40		244
+
+/*
+ * Pseudo-header giving adapter number and flags, followed by an NFC
+ * (Near-Field Communications) Logical Link Control Protocol (LLCP) PDU,
+ * as specified by NFC Forum Logical Link Control Protocol Technical
+ * Specification LLCP 1.1.
+ *
+ * Requested by Mike Wakerly <mikey@google.com>.
+ */
+#define DLT_NFC_LLCP		245
+
+/*
+ * 245 is used as LINKTYPE_PFSYNC; do not use it for any other purpose.
+ *
+ * DLT_PFSYNC has different values on different platforms, and all of
+ * them collide with something used elsewhere.  On platforms that
+ * don't already define it, define it as 245.
+ */
+#if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__NetBSD__) && !defined(__DragonFly__) && !defined(__APPLE__)
+#define DLT_PFSYNC		246
+#endif
+
+/*
+ * Raw InfiniBand packets, starting with the Local Routing Header.
+ *
+ * Requested by Oren Kladnitsky <orenk@mellanox.com>.
+ */
+#define DLT_INFINIBAND		247
+
+/*
+ * SCTP, with no lower-level protocols (i.e., no IPv4 or IPv6).
+ *
+ * Requested by Michael Tuexen <Michael.Tuexen@lurchi.franken.de>.
+ */
+#define DLT_SCTP		248
+
+/*
+ * USB packets, beginning with a USBPcap header.
+ *
+ * Requested by Tomasz Mon <desowin@gmail.com>
+ */
+#define DLT_USBPCAP		249
+
+/*
+ * Schweitzer Engineering Laboratories "RTAC" product serial-line
+ * packets.
+ *
+ * Requested by Chris Bontje <chris_bontje@selinc.com>.
+ */
+#define DLT_RTAC_SERIAL		250
+
+/*
+ * Bluetooth Low Energy air interface link-layer packets.
+ *
+ * Requested by Mike Kershaw <dragorn@kismetwireless.net>.
+ */
+#define DLT_BLUETOOTH_LE_LL	251
+
+/*
+ * DLT type for upper-protocol layer PDU saves from wireshark.
+ * 
+ * the actual contents are determined by two TAGs stored with each
+ * packet:
+ *   EXP_PDU_TAG_LINKTYPE          the link type (LINKTYPE_ value) of the
+ *				   original packet.
+ *
+ *   EXP_PDU_TAG_PROTO_NAME        the name of the wireshark dissector
+ * 				   that can make sense of the data stored.
+ */
+#define DLT_WIRESHARK_UPPER_PDU	252
+
+/*
+ * DLT type for the netlink protocol (nlmon devices).
+ */
+#define DLT_NETLINK		253
+
+/*
+ * Bluetooth Linux Monitor headers for the BlueZ stack.
+ */
+#define DLT_BLUETOOTH_LINUX_MONITOR	254
+
+/*
+ * Bluetooth Basic Rate/Enhanced Data Rate baseband packets, as
+ * captured by Ubertooth.
+ */
+#define DLT_BLUETOOTH_BREDR_BB	255
+
+/*
+ * Bluetooth Low Energy link layer packets, as captured by Ubertooth.
+ */
+#define DLT_BLUETOOTH_LE_LL_WITH_PHDR	256
+
+/*
+ * PROFIBUS data link layer.
+ */
+#define DLT_PROFIBUS_DL		257
+
+/*
+ * Apple's DLT_PKTAP headers.
+ *
+ * Sadly, the folks at Apple either had no clue that the DLT_USERn values
+ * are for internal use within an organization and partners only, and
+ * didn't know that the right way to get a link-layer header type is to
+ * ask tcpdump.org for one, or knew and didn't care, so they just
+ * used DLT_USER2, which causes problems for everything except for
+ * their version of tcpdump.
+ *
+ * So I'll just give them one; hopefully this will show up in a
+ * libpcap release in time for them to get this into 10.10 Big Sur
+ * or whatever Mavericks' successor is called.  LINKTYPE_PKTAP
+ * will be 258 *even on OS X*; that is *intentional*, so that
+ * PKTAP files look the same on *all* OSes (different OSes can have
+ * different numerical values for a given DLT_, but *MUST NOT* have
+ * different values for what goes in a file, as files can be moved
+ * between OSes!).
+ *
+ * When capturing, on a system with a Darwin-based OS, on a device
+ * that returns 149 (DLT_USER2 and Apple's DLT_PKTAP) with this
+ * version of libpcap, the DLT_ value for the pcap_t  will be DLT_PKTAP,
+ * and that will continue to be DLT_USER2 on Darwin-based OSes. That way,
+ * binary compatibility with Mavericks is preserved for programs using
+ * this version of libpcap.  This does mean that if you were using
+ * DLT_USER2 for some capture device on OS X, you can't do so with
+ * this version of libpcap, just as you can't with Apple's libpcap -
+ * on OS X, they define DLT_PKTAP to be DLT_USER2, so programs won't
+ * be able to distinguish between PKTAP and whatever you were using
+ * DLT_USER2 for.
+ *
+ * If the program saves the capture to a file using this version of
+ * libpcap's pcap_dump code, the LINKTYPE_ value in the file will be
+ * LINKTYPE_PKTAP, which will be 258, even on Darwin-based OSes.
+ * That way, the file will *not* be a DLT_USER2 file.  That means
+ * that the latest version of tcpdump, when built with this version
+ * of libpcap, and sufficiently recent versions of Wireshark will
+ * be able to read those files and interpret them correctly; however,
+ * Apple's version of tcpdump in OS X 10.9 won't be able to handle
+ * them.  (Hopefully, Apple will pick up this version of libpcap,
+ * and the corresponding version of tcpdump, so that tcpdump will
+ * be able to handle the old LINKTYPE_USER2 captures *and* the new
+ * LINKTYPE_PKTAP captures.)
+ */
+#ifdef __APPLE__
+#define DLT_PKTAP	DLT_USER2
+#else
+#define DLT_PKTAP	258
+#endif
+
+/*
+ * Ethernet packets preceded by a header giving the last 6 octets
+ * of the preamble specified by 802.3-2012 Clause 65, section
+ * 65.1.3.2 "Transmit".
+ */
+#define DLT_EPON	259
+
+/*
+ * IPMI trace packets, as specified by Table 3-20 "Trace Data Block Format"
+ * in the PICMG HPM.2 specification.
+ */
+#define DLT_IPMI_HPM_2	260
+
+#define DLT_MATCHING_MAX	260	/* highest value in the "matching" range */
+
 /*
  * DLT and savefile link type values are split into a class and
  * a member of that class.  A class value of 0 indicates a regular
@@ -815,7 +1284,17 @@ struct bpf_zbuf_header {
 
 /*
  * The instruction encodings.
+ *
+ * Please inform tcpdump-workers@lists.tcpdump.org if you use any
+ * of the reserved values, so that we can note that they're used
+ * (and perhaps implement it in the reference BPF implementation
+ * and encourage its implementation elsewhere).
  */
+
+/*
+ * The upper 8 bits of the opcode aren't used. BSD/OS used 0x8000.
+ */
+
 /* instruction classes */
 #define BPF_CLASS(code) ((code) & 0x07)
 #define		BPF_LD		0x00
@@ -832,6 +1311,7 @@ struct bpf_zbuf_header {
 #define		BPF_W		0x00
 #define		BPF_H		0x08
 #define		BPF_B		0x10
+/*				0x18	reserved; used by BSD/OS */
 #define BPF_MODE(code)	((code) & 0xe0)
 #define		BPF_IMM 	0x00
 #define		BPF_ABS		0x20
@@ -839,6 +1319,8 @@ struct bpf_zbuf_header {
 #define		BPF_MEM		0x60
 #define		BPF_LEN		0x80
 #define		BPF_MSH		0xa0
+/*				0xc0	reserved; used by BSD/OS */
+/*				0xe0	reserved; used by BSD/OS */
 
 /* alu/jmp fields */
 #define BPF_OP(code)	((code) & 0xf0)
@@ -851,11 +1333,30 @@ struct bpf_zbuf_header {
 #define		BPF_LSH		0x60
 #define		BPF_RSH		0x70
 #define		BPF_NEG		0x80
+#define		BPF_MOD		0x90
+#define		BPF_XOR		0xa0
+/*				0xb0	reserved */
+/*				0xc0	reserved */
+/*				0xd0	reserved */
+/*				0xe0	reserved */
+/*				0xf0	reserved */
+
 #define		BPF_JA		0x00
 #define		BPF_JEQ		0x10
 #define		BPF_JGT		0x20
 #define		BPF_JGE		0x30
 #define		BPF_JSET	0x40
+/*				0x50	reserved; used on BSD/OS */
+/*				0x60	reserved */
+/*				0x70	reserved */
+/*				0x80	reserved */
+/*				0x90	reserved */
+/*				0xa0	reserved */
+/*				0xb0	reserved */
+/*				0xc0	reserved */
+/*				0xd0	reserved */
+/*				0xe0	reserved */
+/*				0xf0	reserved */
 #define BPF_SRC(code)	((code) & 0x08)
 #define		BPF_K		0x00
 #define		BPF_X		0x08
@@ -863,11 +1364,43 @@ struct bpf_zbuf_header {
 /* ret - BPF_K and BPF_X also apply */
 #define BPF_RVAL(code)	((code) & 0x18)
 #define		BPF_A		0x10
+/*				0x18	reserved */
 
 /* misc */
 #define BPF_MISCOP(code) ((code) & 0xf8)
 #define		BPF_TAX		0x00
+/*				0x08	reserved */
+/*				0x10	reserved */
+/*				0x18	reserved */
+/* #define	BPF_COP		0x20	NetBSD "coprocessor" extensions */
+/*				0x28	reserved */
+/*				0x30	reserved */
+/*				0x38	reserved */
+/* #define	BPF_COPX	0x40	NetBSD "coprocessor" extensions */
+/*					also used on BSD/OS */
+/*				0x48	reserved */
+/*				0x50	reserved */
+/*				0x58	reserved */
+/*				0x60	reserved */
+/*				0x68	reserved */
+/*				0x70	reserved */
+/*				0x78	reserved */
 #define		BPF_TXA		0x80
+/*				0x88	reserved */
+/*				0x90	reserved */
+/*				0x98	reserved */
+/*				0xa0	reserved */
+/*				0xa8	reserved */
+/*				0xb0	reserved */
+/*				0xb8	reserved */
+/*				0xc0	reserved; used on BSD/OS */
+/*				0xc8	reserved */
+/*				0xd0	reserved */
+/*				0xd8	reserved */
+/*				0xe0	reserved */
+/*				0xe8	reserved */
+/*				0xf0	reserved */
+/*				0xf8	reserved */
 
 /*
  * The instruction data structure.
@@ -903,8 +1436,9 @@ SYSCTL_DECL(_net_bpf);
 
 /*
  * Rotate the packet buffers in descriptor d.  Move the store buffer into the
- * hold slot, and the free buffer ino the store slot.  Zero the length of the
- * new store buffer.  Descriptor lock should be held.
+ * hold slot, and the free buffer into the store slot.  Zero the length of the
+ * new store buffer.  Descriptor lock should be held.  One must be careful to
+ * not rotate the buffers twice, i.e. if fbuf != NULL.
  */
 #define	ROTATE_BUFFERS(d)	do {					\
 	(d)->bd_hbuf = (d)->bd_sbuf;					\
@@ -917,14 +1451,14 @@ SYSCTL_DECL(_net_bpf);
 
 /*
  * Descriptor associated with each attached hardware interface.
+ * Part of this structure is exposed to external callers to speed up
+ * bpf_peers_present() calls.
  */
-struct bpf_if {
+struct bpf_if;
+
+struct bpf_if_ext {
 	LIST_ENTRY(bpf_if)	bif_next;	/* list of all interfaces */
 	LIST_HEAD(, bpf_d)	bif_dlist;	/* descriptor list */
-	u_int bif_dlt;				/* link layer type */
-	u_int bif_hdrlen;		/* length of header (with padding) */
-	struct ifnet *bif_ifp;		/* corresponding interface */
-	struct mtx	bif_mtx;	/* mutex for interface */
 };
 
 void	 bpf_bufheld(struct bpf_d *d);
@@ -935,6 +1469,9 @@ void	 bpf_mtap2(struct bpf_if *, void *, u_int, struct mbuf *);
 void	 bpfattach(struct ifnet *, u_int, u_int);
 void	 bpfattach2(struct ifnet *, u_int, u_int, struct bpf_if **);
 void	 bpfdetach(struct ifnet *);
+#ifdef VIMAGE
+int	 bpf_get_bp_params(struct bpf_if *, u_int *, u_int *);
+#endif
 
 void	 bpfilterattach(int);
 u_int	 bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
@@ -942,8 +1479,10 @@ u_int	 bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
 static __inline int
 bpf_peers_present(struct bpf_if *bpf)
 {
+	struct bpf_if_ext *ext;
 
-	if (!LIST_EMPTY(&bpf->bif_dlist))
+	ext = (struct bpf_if_ext *)bpf;
+	if (!LIST_EMPTY(&ext->bif_dlist))
 		return (1);
 	return (0);
 }
@@ -970,5 +1509,13 @@ bpf_peers_present(struct bpf_if *bpf)
  * Number of scratch memory words (for BPF_LD|BPF_MEM and BPF_ST).
  */
 #define BPF_MEMWORDS 16
+
+#ifdef _SYS_EVENTHANDLER_H_
+/* BPF attach/detach events */
+struct ifnet;
+typedef void (*bpf_track_fn)(void *, struct ifnet *, int /* dlt */,
+    int /* 1 =>'s attach */);
+EVENTHANDLER_DECLARE(bpf_track, bpf_track_fn);
+#endif /* _SYS_EVENTHANDLER_H_ */
 
 #endif /* _NET_BPF_H_ */

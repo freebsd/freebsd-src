@@ -29,13 +29,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -62,7 +55,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -85,11 +77,11 @@
 
 #include <dev/usb/serial/usb_serial.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int uvisor_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uvisor, CTLFLAG_RW, 0, "USB uvisor");
-SYSCTL_INT(_hw_usb_uvisor, OID_AUTO, debug, CTLFLAG_RW,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uvisor, CTLFLAG_RW, 0, "USB uvisor");
+SYSCTL_INT(_hw_usb_uvisor, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uvisor_debug, 0, "Debug level");
 #endif
 
@@ -108,7 +100,7 @@ SYSCTL_INT(_hw_usb_uvisor, OID_AUTO, debug, CTLFLAG_RW,
 /* From the Linux driver */
 /*
  * UVISOR_REQUEST_BYTES_AVAILABLE asks the visor for the number of bytes that
- * are available to be transfered to the host for the specified endpoint.
+ * are available to be transferred to the host for the specified endpoint.
  * Currently this is not used, and always returns 0x0001
  */
 #define	UVISOR_REQUEST_BYTES_AVAILABLE		0x01
@@ -197,12 +189,14 @@ struct uvisor_softc {
 static device_probe_t uvisor_probe;
 static device_attach_t uvisor_attach;
 static device_detach_t uvisor_detach;
+static void uvisor_free_softc(struct uvisor_softc *);
 
 static usb_callback_t uvisor_write_callback;
 static usb_callback_t uvisor_read_callback;
 
 static usb_error_t uvisor_init(struct uvisor_softc *, struct usb_device *,
 		    struct usb_config *);
+static void	uvisor_free(struct ucom_softc *);
 static void	uvisor_cfg_open(struct ucom_softc *);
 static void	uvisor_cfg_close(struct ucom_softc *);
 static void	uvisor_start_read(struct ucom_softc *);
@@ -239,13 +233,14 @@ static const struct ucom_callback uvisor_callback = {
 	.ucom_stop_read = &uvisor_stop_read,
 	.ucom_start_write = &uvisor_start_write,
 	.ucom_stop_write = &uvisor_stop_write,
+	.ucom_free = &uvisor_free,
 };
 
 static device_method_t uvisor_methods[] = {
 	DEVMETHOD(device_probe, uvisor_probe),
 	DEVMETHOD(device_attach, uvisor_attach),
 	DEVMETHOD(device_detach, uvisor_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t uvisor_devclass;
@@ -256,38 +251,43 @@ static driver_t uvisor_driver = {
 	.size = sizeof(struct uvisor_softc),
 };
 
+static const STRUCT_USB_HOST_ID uvisor_devs[] = {
+#define	UVISOR_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
+	UVISOR_DEV(ACEECA, MEZ1000, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(ALPHASMART, DANA_SYNC, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(GARMIN, IQUE_3600, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(FOSSIL, WRISTPDA, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(HANDSPRING, VISOR, UVISOR_FLAG_VISOR),
+	UVISOR_DEV(HANDSPRING, TREO, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(HANDSPRING, TREO600, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(PALM, M500, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(PALM, M505, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(PALM, M515, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(PALM, I705, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(PALM, M125, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(PALM, M130, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(PALM, TUNGSTEN_Z, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(PALM, TUNGSTEN_T, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(PALM, ZIRE, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(PALM, ZIRE31, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(SAMSUNG, I500, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(SONY, CLIE_40, 0),
+	UVISOR_DEV(SONY, CLIE_41, 0),
+	UVISOR_DEV(SONY, CLIE_S360, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(SONY, CLIE_NX60, UVISOR_FLAG_PALM4),
+	UVISOR_DEV(SONY, CLIE_35, UVISOR_FLAG_PALM35),
+/*  UVISOR_DEV(SONY, CLIE_25, UVISOR_FLAG_PALM4 ), */
+	UVISOR_DEV(SONY, CLIE_TJ37, UVISOR_FLAG_PALM4),
+/*  UVISOR_DEV(SONY, CLIE_TH55, UVISOR_FLAG_PALM4 ), See PR 80935 */
+	UVISOR_DEV(TAPWAVE, ZODIAC, UVISOR_FLAG_PALM4),
+#undef UVISOR_DEV
+};
+
 DRIVER_MODULE(uvisor, uhub, uvisor_driver, uvisor_devclass, NULL, 0);
 MODULE_DEPEND(uvisor, ucom, 1, 1, 1);
 MODULE_DEPEND(uvisor, usb, 1, 1, 1);
-
-static const struct usb_device_id uvisor_devs[] = {
-	{USB_VPI(USB_VENDOR_ACEECA, USB_PRODUCT_ACEECA_MEZ1000, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_GARMIN, USB_PRODUCT_GARMIN_IQUE_3600, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_FOSSIL, USB_PRODUCT_FOSSIL_WRISTPDA, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_HANDSPRING, USB_PRODUCT_HANDSPRING_VISOR, UVISOR_FLAG_VISOR)},
-	{USB_VPI(USB_VENDOR_HANDSPRING, USB_PRODUCT_HANDSPRING_TREO, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_HANDSPRING, USB_PRODUCT_HANDSPRING_TREO600, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_PALM, USB_PRODUCT_PALM_M500, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_PALM, USB_PRODUCT_PALM_M505, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_PALM, USB_PRODUCT_PALM_M515, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_PALM, USB_PRODUCT_PALM_I705, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_PALM, USB_PRODUCT_PALM_M125, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_PALM, USB_PRODUCT_PALM_M130, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_PALM, USB_PRODUCT_PALM_TUNGSTEN_Z, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_PALM, USB_PRODUCT_PALM_TUNGSTEN_T, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_PALM, USB_PRODUCT_PALM_ZIRE, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_PALM, USB_PRODUCT_PALM_ZIRE31, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_SAMSUNG, USB_PRODUCT_SAMSUNG_I500, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_40, 0)},
-	{USB_VPI(USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_41, 0)},
-	{USB_VPI(USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_S360, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_NX60, UVISOR_FLAG_PALM4)},
-	{USB_VPI(USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_35, UVISOR_FLAG_PALM35)},
-/*  {USB_VPI(USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_25, UVISOR_FLAG_PALM4 )}, */
-	{USB_VPI(USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_TJ37, UVISOR_FLAG_PALM4)},
-/*  {USB_VPI(USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_TH55, UVISOR_FLAG_PALM4 )}, See PR 80935 */
-	{USB_VPI(USB_VENDOR_TAPWAVE, USB_PRODUCT_TAPWAVE_ZODIAC, UVISOR_FLAG_PALM4)},
-};
+MODULE_VERSION(uvisor, 1);
+USB_PNP_HOST_INFO(uvisor_devs);
 
 static int
 uvisor_probe(device_t dev)
@@ -315,11 +315,13 @@ uvisor_attach(device_t dev)
 	int error;
 
 	DPRINTF("sc=%p\n", sc);
-	bcopy(uvisor_config, uvisor_config_copy,
+	memcpy(uvisor_config_copy, uvisor_config,
 	    sizeof(uvisor_config_copy));
+
 	device_set_usb_desc(dev);
 
 	mtx_init(&sc->sc_mtx, "uvisor", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_udev = uaa->device;
 
@@ -343,11 +345,6 @@ uvisor_attach(device_t dev)
 		DPRINTF("could not allocate all pipes\n");
 		goto detach;
 	}
-	/* clear stall at first run */
-	mtx_lock(&sc->sc_mtx);
-	usbd_xfer_set_stall(sc->sc_xfer[UVISOR_BULK_DT_WR]);
-	usbd_xfer_set_stall(sc->sc_xfer[UVISOR_BULK_DT_RD]);
-	mtx_unlock(&sc->sc_mtx);
 
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &uvisor_callback, &sc->sc_mtx);
@@ -355,6 +352,8 @@ uvisor_attach(device_t dev)
 		DPRINTF("ucom_attach failed\n");
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	return (0);
 
 detach:
@@ -369,11 +368,31 @@ uvisor_detach(device_t dev)
 
 	DPRINTF("sc=%p\n", sc);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UVISOR_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	uvisor_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(uvisor);
+
+static void
+uvisor_free_softc(struct uvisor_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+uvisor_free(struct ucom_softc *ucom)
+{
+	uvisor_free_softc(ucom->sc_parent);
 }
 
 static usb_error_t
@@ -401,7 +420,7 @@ uvisor_init(struct uvisor_softc *sc, struct usb_device *udev, struct usb_config 
 			goto done;
 		}
 	}
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (sc->sc_flag & UVISOR_FLAG_VISOR) {
 		uint16_t i, np;
 		const char *desc;

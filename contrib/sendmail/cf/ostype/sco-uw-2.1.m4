@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998, 1999 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -13,7 +13,7 @@ divert(-1)
 #	Contributed by Christopher Durham <chrisdu@SCO.COM> of SCO.
 #
 divert(0)
-VERSIONID(`$Id: sco-uw-2.1.m4,v 8.13 1999/04/24 05:37:43 gshapiro Exp $')
+VERSIONID(`$Id: sco-uw-2.1.m4,v 8.14 2013-11-22 20:51:15 ca Exp $')
 
 define(`LOCAL_MAILER_PATH', `/usr/bin/rmail')dnl
 _DEFIFNOT(`LOCAL_MAILER_FLAGS', `fhCEn9')dnl

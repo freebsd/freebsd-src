@@ -2062,7 +2062,9 @@ rtx
 gen_label_rtx (void)
 {
   return gen_rtx_CODE_LABEL (VOIDmode, 0, NULL_RTX, NULL_RTX,
-			     NULL, label_num++, NULL);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+			     NULL, label_num++, NULL, 0);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 }
 
 /* For procedure integration.  */
@@ -3210,7 +3212,7 @@ try_split (rtx pat, rtx trial, int last)
 	    {
 	      if (CALL_P (insn))
 		REG_NOTES (insn)
-		  = gen_rtx_EXPR_LIST (REG_NOTE_KIND (note),
+		  = gen_rtx_EXPR_LIST (GET_MODE (note),
 				       XEXP (note, 0),
 				       REG_NOTES (insn));
 	      insn = PREV_INSN (insn);
@@ -3223,7 +3225,7 @@ try_split (rtx pat, rtx trial, int last)
 	    {
 	      if (JUMP_P (insn))
 		REG_NOTES (insn)
-		  = gen_rtx_EXPR_LIST (REG_NOTE_KIND (note),
+		  = gen_rtx_EXPR_LIST (GET_MODE (note),
 				       XEXP (note, 0),
 				       REG_NOTES (insn));
 	      insn = PREV_INSN (insn);
@@ -4589,7 +4591,8 @@ set_unique_reg_note (rtx insn, enum reg_note kind, rtx datum)
       return note;
     }
 
-  REG_NOTES (insn) = gen_rtx_EXPR_LIST (kind, datum, REG_NOTES (insn));
+  REG_NOTES (insn) = gen_rtx_EXPR_LIST ((enum machine_mode) kind, datum,
+					REG_NOTES (insn));
   return REG_NOTES (insn);
 }
 
@@ -5344,12 +5347,12 @@ emit_copy_of_insn_after (rtx insn, rtx after)
       {
 	if (GET_CODE (link) == EXPR_LIST)
 	  REG_NOTES (new)
-	    = copy_insn_1 (gen_rtx_EXPR_LIST (REG_NOTE_KIND (link),
+	    = copy_insn_1 (gen_rtx_EXPR_LIST (GET_MODE (link),
 					      XEXP (link, 0),
 					      REG_NOTES (new)));
 	else
 	  REG_NOTES (new)
-	    = copy_insn_1 (gen_rtx_INSN_LIST (REG_NOTE_KIND (link),
+	    = copy_insn_1 (gen_rtx_INSN_LIST (GET_MODE (link),
 					      XEXP (link, 0),
 					      REG_NOTES (new)));
       }

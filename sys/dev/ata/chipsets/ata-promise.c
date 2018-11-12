@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -58,7 +57,7 @@ static int ata_promise_status(device_t dev);
 static int ata_promise_dmastart(struct ata_request *request);
 static int ata_promise_dmastop(struct ata_request *request);
 static void ata_promise_dmareset(device_t dev);
-static void ata_promise_setmode(device_t dev, int mode);
+static int ata_promise_setmode(device_t dev, int target, int mode);
 static int ata_promise_tx2_ch_attach(device_t dev);
 static int ata_promise_tx2_status(device_t dev);
 static int ata_promise_mio_ch_attach(device_t dev);
@@ -72,7 +71,8 @@ static int ata_promise_mio_pm_write(device_t dev, int port, int reg, u_int32_t r
 static u_int32_t ata_promise_mio_softreset(device_t dev, int port);
 static void ata_promise_mio_dmainit(device_t dev);
 static void ata_promise_mio_setprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
-static void ata_promise_mio_setmode(device_t dev, int mode);
+static int ata_promise_mio_setmode(device_t dev, int target, int mode);
+static int ata_promise_mio_getrev(device_t dev, int target);
 static void ata_promise_sx4_intr(void *data);
 static int ata_promise_sx4_command(struct ata_request *request);
 static int ata_promise_apkt(u_int8_t *bytep, struct ata_request *request);
@@ -92,7 +92,6 @@ static void ata_promise_next_hpkt(struct ata_pci_controller *ctlr);
 #define PR_CMBO2	0x20
 #define PR_SATA		0x40
 #define PR_SATA2	0x80
-
 
 /*
  * Promise chipset support functions
@@ -129,8 +128,8 @@ static int
 ata_promise_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_chip_id *idx;
-    static struct ata_chip_id ids[] =
+    const struct ata_chip_id *idx;
+    static const struct ata_chip_id ids[] =
     {{ ATA_PDC20246,  0, PR_OLD, 0x00,     ATA_UDMA2, "PDC20246" },
      { ATA_PDC20262,  0, PR_NEW, 0x00,     ATA_UDMA4, "PDC20262" },
      { ATA_PDC20263,  0, PR_NEW, 0x00,     ATA_UDMA4, "PDC20263" },
@@ -192,7 +191,7 @@ ata_promise_probe(device_t dev)
 	!BUS_READ_IVAR(device_get_parent(GRANDPARENT(dev)),
 		       GRANDPARENT(dev), PCI_IVAR_DEVID, &devid) &&
 	((devid == ATA_DEC_21150) || (devid == ATA_DEC_21150_1))) {
-	static long start = 0, end = 0;
+	static rman_res_t start = 0, end = 0;
 
 	if (pci_get_slot(dev) == 1) {
 	    bus_get_resource(dev, SYS_RES_IRQ, 0, &start, &end);
@@ -210,14 +209,14 @@ ata_promise_probe(device_t dev)
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_promise_chipinit;
-    return (BUS_PROBE_DEFAULT);
+    return (BUS_PROBE_LOW_PRIORITY);
 }
 
 static int
 ata_promise_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    int fake_reg, stat_reg;
+    int stat_reg;
 
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
@@ -249,6 +248,14 @@ ata_promise_chipinit(device_t dev)
 						    &ctlr->r_rid1, RF_ACTIVE)))
 	    goto failnfree;
 
+#ifdef __sparc64__
+	if (ctlr->chip->cfg2 == PR_SX4X &&
+	    !bus_space_map(rman_get_bustag(ctlr->r_res1),
+	    rman_get_bushandle(ctlr->r_res1), rman_get_size(ctlr->r_res1),
+	    BUS_SPACE_MAP_LINEAR, NULL))
+		goto failnfree;
+#endif
+
 	ctlr->r_type2 = SYS_RES_MEMORY;
 	ctlr->r_rid2 = PCIR_BAR(3);
 	if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
@@ -279,7 +286,11 @@ ata_promise_chipinit(device_t dev)
 
 	    /* setup host packet controls */
 	    hpkt = malloc(sizeof(struct ata_promise_sx4),
-			  M_TEMP, M_NOWAIT | M_ZERO);
+			  M_ATAPCI, M_NOWAIT | M_ZERO);
+	    if (hpkt == NULL) {
+		device_printf(dev, "Cannot allocate HPKT\n");
+		goto failnfree;
+	    }
 	    mtx_init(&hpkt->mtx, "ATA promise HPKT lock", NULL, MTX_DEF);
 	    TAILQ_INIT(&hpkt->queue);
 	    hpkt->busy = 0;
@@ -311,7 +322,6 @@ ata_promise_chipinit(device_t dev)
 	case PR_SATA:
 	    ctlr->channels = 4;
 sata150:
-	    fake_reg = 0x60;
 	    stat_reg = 0x6c;
 	    break;
 
@@ -322,13 +332,12 @@ sata150:
 	default:
 	    ctlr->channels = 4;
 sataii:
-	    fake_reg = 0x54;
 	    stat_reg = 0x60;
 	    break;
 	}
 
 	/* prime fake interrupt register */
-	ATA_OUTL(ctlr->r_res2, fake_reg, 0xffffffff);
+	ctlr->chipset_data = (void *)(uintptr_t)0xffffffff;
 
 	/* clear SATA status and unmask interrupts */
 	ATA_OUTL(ctlr->r_res2, stat_reg, 0x000000ff);
@@ -341,6 +350,7 @@ sataii:
 	ctlr->ch_detach = ata_promise_mio_ch_detach;
 	ctlr->reset = ata_promise_mio_reset;
 	ctlr->setmode = ata_promise_mio_setmode;
+	ctlr->getrev = ata_promise_mio_getrev;
 
 	return 0;
     }
@@ -369,6 +379,8 @@ ata_promise_ch_attach(device_t dev)
     }
 
     ch->hw.status = ata_promise_status;
+    ch->flags |= ATA_NO_ATAPI_DMA;
+    ch->flags |= ATA_CHECKS_CABLE;
     return 0;
 }
 
@@ -387,11 +399,10 @@ ata_promise_status(device_t dev)
 static int
 ata_promise_dmastart(struct ata_request *request)
 {
-    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_pci_controller *ctlr=device_get_softc(device_get_parent(request->parent));
     struct ata_channel *ch = device_get_softc(request->parent);
-    struct ata_device *atadev  = device_get_softc(request->dev);
 
-    if (atadev->flags & ATA_D_48BIT_ACTIVE) {
+    if (request->flags & ATA_R_48BIT) {
 	ATA_OUTB(ctlr->r_res1, 0x11,
 		 ATA_INB(ctlr->r_res1, 0x11) | (ch->unit ? 0x08 : 0x02));
 	ATA_OUTL(ctlr->r_res1, ch->unit ? 0x24 : 0x20,
@@ -411,12 +422,11 @@ ata_promise_dmastart(struct ata_request *request)
 static int
 ata_promise_dmastop(struct ata_request *request)
 {
-    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_pci_controller *ctlr=device_get_softc(device_get_parent(request->parent));
     struct ata_channel *ch = device_get_softc(request->parent);
-    struct ata_device *atadev  = device_get_softc(request->dev);
     int error;
 
-    if (atadev->flags & ATA_D_48BIT_ACTIVE) {
+    if (request->flags & ATA_R_48BIT) {
 	ATA_OUTB(ctlr->r_res1, 0x11,
 		 ATA_INB(ctlr->r_res1, 0x11) & ~(ch->unit ? 0x08 : 0x02));
 	ATA_OUTL(ctlr->r_res1, ch->unit ? 0x24 : 0x20, 0);
@@ -440,16 +450,14 @@ ata_promise_dmareset(device_t dev)
     ch->flags &= ~ATA_DMA_ACTIVE;
 }
 
-static void
-ata_promise_setmode(device_t dev, int mode)
+static int
+ata_promise_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int devno = (ch->unit << 1) + atadev->unit;
-    int error;
-    u_int32_t timings[][2] = {
+    device_t parent = device_get_parent(dev);
+    struct ata_pci_controller *ctlr = device_get_softc(parent);
+    struct ata_channel *ch = device_get_softc(dev);
+    int devno = (ch->unit << 1) + target;
+    static const uint32_t timings[][2] = {
     /*    PR_OLD      PR_NEW               mode */
 	{ 0x004ff329, 0x004fff2f },     /* PIO 0 */
 	{ 0x004fec25, 0x004ff82a },     /* PIO 1 */
@@ -467,23 +475,22 @@ ata_promise_setmode(device_t dev, int mode)
 	{ 0,          0x004127f3 }      /* UDMA 5 */
     };
 
-    mode = ata_limit_mode(dev, mode, ctlr->chip->max_dma);
+    mode = min(mode, ctlr->chip->max_dma);
 
     switch (ctlr->chip->cfg1) {
     case PR_OLD:
     case PR_NEW:
-	if (mode > ATA_UDMA2 && (pci_read_config(gparent, 0x50, 2) &
+	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
+	    (pci_read_config(parent, 0x50, 2) &
 				 (ch->unit ? 1 << 11 : 1 << 10))) {
 	    ata_print_cable(dev, "controller");
 	    mode = ATA_UDMA2;
 	}
-	if (ata_atapi(dev) && mode > ATA_PIO_MAX)
-	    mode = ata_limit_mode(dev, mode, ATA_PIO_MAX);
 	break;
 
     case PR_TX:
 	ATA_IDX_OUTB(ch, ATA_BMDEVSPEC_0, 0x0b);
-	if (mode > ATA_UDMA2 &&
+	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
 	    ATA_IDX_INB(ch, ATA_BMDEVSPEC_1) & 0x04) {
 	    ata_print_cable(dev, "controller");
 	    mode = ATA_UDMA2;
@@ -491,7 +498,7 @@ ata_promise_setmode(device_t dev, int mode)
 	break;
    
     case PR_MIO:
-	if (mode > ATA_UDMA2 &&
+	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
 	    (ATA_INL(ctlr->r_res2,
 		     (ctlr->chip->cfg2 & PR_SX4X ? 0x000c0260 : 0x0260) +
 		     (ch->unit << 7)) & 0x01000000)) {
@@ -501,19 +508,10 @@ ata_promise_setmode(device_t dev, int mode)
 	break;
     }
 
-    error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-
-    if (bootverbose)
-	device_printf(dev, "%ssetting %s on %s chip\n",
-		     (error) ? "FAILURE " : "",
-		     ata_mode2str(mode), ctlr->chip->text);
-    if (!error) {
 	if (ctlr->chip->cfg1 < PR_TX)
-	    pci_write_config(gparent, 0x60 + (devno << 2),
+	    pci_write_config(parent, 0x60 + (devno << 2),
 			     timings[ata_mode2idx(mode)][ctlr->chip->cfg1], 4);
-	atadev->mode = mode;
-    }
-    return;
+	return (mode);
 }
 
 static int
@@ -525,6 +523,7 @@ ata_promise_tx2_ch_attach(device_t dev)
 	return ENXIO;
 
     ch->hw.status = ata_promise_tx2_status;
+    ch->flags |= ATA_CHECKS_CABLE;
     return 0;
 }
 
@@ -567,8 +566,10 @@ ata_promise_mio_ch_attach(device_t dev)
 	ch->r_io[ATA_SCONTROL].res = ctlr->r_res2;
 	ch->r_io[ATA_SCONTROL].offset = 0x408 + (ch->unit << 8);
 	ch->flags |= ATA_NO_SLAVE;
+	ch->flags |= ATA_SATA;
     }
     ch->flags |= ATA_USE_16BIT;
+    ch->flags |= ATA_CHECKS_CABLE;
 
     ata_generic_hw(dev);
     if (ctlr->chip->cfg2 & PR_SX4X) {
@@ -598,38 +599,23 @@ ata_promise_mio_intr(void *data)
     struct ata_pci_controller *ctlr = data;
     struct ata_channel *ch;
     u_int32_t vector;
-    int unit, fake_reg;
-
-    switch (ctlr->chip->cfg2) {
-    case PR_PATA:
-    case PR_CMBO:
-    case PR_SATA:
-	fake_reg = 0x60;
-	break;
-    case PR_CMBO2: 
-    case PR_SATA2:
-    default:
-	fake_reg = 0x54;
-	break;
-    }
+    int unit;
 
     /*
      * since reading interrupt status register on early "mio" chips
      * clears the status bits we cannot read it for each channel later on
      * in the generic interrupt routine.
-     * store the bits in an unused register in the chip so we can read
-     * it from there safely to get around this "feature".
      */
     vector = ATA_INL(ctlr->r_res2, 0x040);
     ATA_OUTL(ctlr->r_res2, 0x040, vector);
-    ATA_OUTL(ctlr->r_res2, fake_reg, vector);
+    ctlr->chipset_data = (void *)(uintptr_t)vector;
 
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if ((ch = ctlr->interrupt[unit].argument))
 	    ctlr->interrupt[unit].function(ch);
     }
 
-    ATA_OUTL(ctlr->r_res2, fake_reg, 0xffffffff);
+    ctlr->chipset_data = (void *)(uintptr_t)0xffffffff;
 }
 
 static int
@@ -637,25 +623,23 @@ ata_promise_mio_status(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    u_int32_t fake_reg, stat_reg, vector, status;
+    u_int32_t stat_reg, vector, status;
 
     switch (ctlr->chip->cfg2) {
     case PR_PATA:
     case PR_CMBO:
     case PR_SATA:
-	fake_reg = 0x60;
 	stat_reg = 0x6c;
 	break;
     case PR_CMBO2: 
     case PR_SATA2:
     default:
-	fake_reg = 0x54;
 	stat_reg = 0x60;
 	break;
     }
 
     /* read and acknowledge interrupt */
-    vector = ATA_INL(ctlr->r_res2, fake_reg);
+    vector = (uint32_t)(uintptr_t)ctlr->chipset_data;
 
     /* read and clear interface status */
     status = ATA_INL(ctlr->r_res2, stat_reg);
@@ -682,9 +666,8 @@ ata_promise_mio_status(device_t dev)
 static int
 ata_promise_mio_command(struct ata_request *request)
 {
-    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_pci_controller *ctlr=device_get_softc(device_get_parent(request->parent));
     struct ata_channel *ch = device_get_softc(request->parent);
-    struct ata_device *atadev = device_get_softc(request->dev);
 
     u_int32_t *wordp = (u_int32_t *)ch->dma.work;
 
@@ -693,7 +676,7 @@ ata_promise_mio_command(struct ata_request *request)
     if ((ctlr->chip->cfg2 == PR_SATA2) ||
         ((ctlr->chip->cfg2 == PR_CMBO2) && (ch->unit < 2))) {
 	/* set portmultiplier port */
-	ATA_OUTB(ctlr->r_res2, 0x4e8 + (ch->unit << 8), atadev->unit & 0x0f);
+	ATA_OUTB(ctlr->r_res2, 0x4e8 + (ch->unit << 8), request->unit & 0x0f);
     }
 
     /* XXX SOS add ATAPI commands support later */
@@ -771,6 +754,8 @@ ata_promise_mio_reset(device_t dev)
 
 	    if (ata_sata_phy_reset(dev, -1, 1))
 		ata_generic_reset(dev);
+	    else
+		ch->devices = 0;
 
 	    /* reset and enable plug/unplug intr */
 	    ATA_OUTL(ctlr->r_res2, 0x06c, (0x00000011 << ch->unit));
@@ -832,7 +817,8 @@ ata_promise_mio_reset(device_t dev)
 		    device_printf(dev, "promise_mio_reset devices=%08x\n",
 		    		  ch->devices);
 
-	    }
+	    } else
+		ch->devices = 0;
 
 	    /* reset and enable plug/unplug intr */
 	    ATA_OUTL(ctlr->r_res2, 0x060, (0x00000011 << ch->unit));
@@ -854,6 +840,25 @@ ata_promise_mio_pm_read(device_t dev, int port, int reg, u_int32_t *result)
     struct ata_channel *ch = device_get_softc(dev);
     int timeout = 0;
 
+    if (port < 0) {
+	*result = ATA_IDX_INL(ch, reg);
+	return (0);
+    }
+    if (port < ATA_PM) {
+	switch (reg) {
+	case ATA_SSTATUS:
+	    reg = 0;
+	    break;
+	case ATA_SERROR:
+	    reg = 1;
+	    break;
+	case ATA_SCONTROL:
+	    reg = 2;
+	    break;
+	default:
+	    return (EINVAL);
+	}
+    }
     /* set portmultiplier port */
     ATA_OUTB(ctlr->r_res2, 0x4e8 + (ch->unit << 8), 0x0f);
 
@@ -886,6 +891,25 @@ ata_promise_mio_pm_write(device_t dev, int port, int reg, u_int32_t value)
     struct ata_channel *ch = device_get_softc(dev);
     int timeout = 0;
 
+    if (port < 0) {
+	ATA_IDX_OUTL(ch, reg, value);
+	return (0);
+    }
+    if (port < ATA_PM) {
+	switch (reg) {
+	case ATA_SSTATUS:
+	    reg = 0;
+	    break;
+	case ATA_SERROR:
+	    reg = 1;
+	    break;
+	case ATA_SCONTROL:
+	    reg = 2;
+	    break;
+	default:
+	    return (EINVAL);
+	}
+    }
     /* set portmultiplier port */
     ATA_OUTB(ctlr->r_res2, 0x4e8 + (ch->unit << 8), 0x0f);
 
@@ -933,9 +957,9 @@ ata_promise_mio_softreset(device_t dev, int port)
 
     /* wait for BUSY to go inactive */
     for (timeout = 0; timeout < 100; timeout++) {
-	u_int8_t err, stat;
+	u_int8_t /* err, */ stat;
 
-	err = ATA_IDX_INB(ch, ATA_ERROR);
+	/* err = */ ATA_IDX_INB(ch, ATA_ERROR);
 	stat = ATA_IDX_INB(ch, ATA_STATUS);
 
 	//if (stat == err && timeout > (stat & ATA_S_BUSY ? 100 : 10))
@@ -965,11 +989,11 @@ ata_promise_mio_dmainit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
-    ata_dmainit(dev);
     /* note start and stop are not used here */
     ch->dma.setprd = ata_promise_mio_setprd;
+    ch->dma.max_iosize = 65536;
+    ata_dmainit(dev);
 }
-
 
 #define MAXLASTSGSIZE (32 * sizeof(u_int32_t))
 static void 
@@ -1000,20 +1024,35 @@ ata_promise_mio_setprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
     args->nsegs = nsegs;
 }
 
-static void
-ata_promise_mio_setmode(device_t dev, int mode)
+static int
+ata_promise_mio_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+        struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+        struct ata_channel *ch = device_get_softc(dev);
 
-    if ( (ctlr->chip->cfg2 == PR_SATA) ||
-	((ctlr->chip->cfg2 == PR_CMBO) && (ch->unit < 2)) ||
-	(ctlr->chip->cfg2 == PR_SATA2) ||
-	((ctlr->chip->cfg2 == PR_CMBO2) && (ch->unit < 2)))
-	ata_sata_setmode(dev, mode);
-    else
-	ata_promise_setmode(dev, mode);
+        if ( (ctlr->chip->cfg2 == PR_SATA) ||
+    	    ((ctlr->chip->cfg2 == PR_CMBO) && (ch->unit < 2)) ||
+	     (ctlr->chip->cfg2 == PR_SATA2) ||
+	    ((ctlr->chip->cfg2 == PR_CMBO2) && (ch->unit < 2)))
+		mode = ata_sata_setmode(dev, target, mode);
+	else
+		mode = ata_promise_setmode(dev, target, mode);
+	return (mode);
+}
+
+static int
+ata_promise_mio_getrev(device_t dev, int target)
+{
+        struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+        struct ata_channel *ch = device_get_softc(dev);
+
+        if ( (ctlr->chip->cfg2 == PR_SATA) ||
+    	    ((ctlr->chip->cfg2 == PR_CMBO) && (ch->unit < 2)) ||
+	     (ctlr->chip->cfg2 == PR_SATA2) ||
+	    ((ctlr->chip->cfg2 == PR_CMBO2) && (ch->unit < 2)))
+		return (ata_sata_getrev(dev, target));
+	else
+		return (0);
 }
 
 static void
@@ -1051,7 +1090,7 @@ ata_promise_sx4_intr(void *data)
 static int
 ata_promise_sx4_command(struct ata_request *request)
 {
-    device_t gparent = GRANDPARENT(request->dev);
+    device_t gparent = device_get_parent(request->parent);
     struct ata_pci_controller *ctlr = device_get_softc(gparent);
     struct ata_channel *ch = device_get_softc(request->parent);
     struct ata_dma_prdentry *prd;
@@ -1158,15 +1197,14 @@ ata_promise_sx4_command(struct ata_request *request)
 static int
 ata_promise_apkt(u_int8_t *bytep, struct ata_request *request)
 { 
-    struct ata_device *atadev = device_get_softc(request->dev);
     int i = 12;
 
     bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_REG | ATA_PDC_WAIT_NBUSY|ATA_DRIVE;
-    bytep[i++] = ATA_D_IBM | ATA_D_LBA | ATA_DEV(atadev->unit);
+    bytep[i++] = ATA_D_IBM | ATA_D_LBA | ATA_DEV(request->unit);
     bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_CTL;
     bytep[i++] = ATA_A_4BIT;
 
-    if (atadev->flags & ATA_D_48BIT_ACTIVE) {
+    if (request->flags & ATA_R_48BIT) {
 	bytep[i++] = ATA_PDC_2B | ATA_PDC_WRITE_REG | ATA_FEATURE;
 	bytep[i++] = request->u.ata.feature >> 8;
 	bytep[i++] = request->u.ata.feature;
@@ -1183,7 +1221,7 @@ ata_promise_apkt(u_int8_t *bytep, struct ata_request *request)
 	bytep[i++] = request->u.ata.lba >> 40;
 	bytep[i++] = request->u.ata.lba >> 16;
 	bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_REG | ATA_DRIVE;
-	bytep[i++] = ATA_D_LBA | ATA_DEV(atadev->unit);
+	bytep[i++] = ATA_D_LBA | ATA_DEV(request->unit);
     }
     else {
 	bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_REG | ATA_FEATURE;
@@ -1197,8 +1235,7 @@ ata_promise_apkt(u_int8_t *bytep, struct ata_request *request)
 	bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_REG | ATA_CYL_MSB;
 	bytep[i++] = request->u.ata.lba >> 16;
 	bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_REG | ATA_DRIVE;
-	bytep[i++] = (atadev->flags & ATA_D_USE_CHS ? 0 : ATA_D_LBA) |
-		     ATA_D_IBM | ATA_DEV(atadev->unit) |
+	bytep[i++] = ATA_D_LBA | ATA_D_IBM | ATA_DEV(request->unit) |
 		     ((request->u.ata.lba >> 24)&0xf);
     }
     bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_END | ATA_COMMAND;

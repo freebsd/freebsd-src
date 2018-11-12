@@ -42,46 +42,18 @@
 
 #define	FLASH_BUF_SIZE	(64 * 1024)
 
-int fw_name_width, fw_version_width, fw_date_width, fw_time_width;
-
-static void
-scan_firmware(struct mfi_info_component *comp)
-{
-	int len;
-
-	len = strlen(comp->name);
-	if (fw_name_width < len)
-		fw_name_width = len;
-	len = strlen(comp->version);
-	if (fw_version_width < len)
-		fw_version_width = len;
-	len = strlen(comp->build_date);
-	if (fw_date_width < len)
-		fw_date_width = len;
-	len = strlen(comp->build_time);
-	if (fw_time_width < len)
-		fw_time_width = len;
-}
-
-static void
-display_firmware(struct mfi_info_component *comp)
-{
-
-	printf("%-*s  %-*s  %-*s  %-*s\n", fw_name_width, comp->name,
-	    fw_version_width, comp->version, fw_date_width, comp->build_date,
-	    fw_time_width, comp->build_time);
-}
-
-static void
+static int
 display_pending_firmware(int fd)
 {
 	struct mfi_ctrl_info info;
 	struct mfi_info_component header;
+	int error;
 	u_int i;
 
 	if (mfi_ctrl_get_info(fd, &info, NULL) < 0) {
+		error = errno;
 		warn("Failed to get controller info");
-		return;
+		return (error);
 	}
 
 	printf("mfi%d Pending Firmware Images:\n", mfi_unit);
@@ -94,9 +66,11 @@ display_pending_firmware(int fd)
 		info.pending_image_component_count = 8;
 	for (i = 0; i < info.pending_image_component_count; i++)
 		scan_firmware(&info.pending_image_component[i]);
-	display_firmware(&header);
+	display_firmware(&header, "");
 	for (i = 0; i < info.pending_image_component_count; i++)
-		display_firmware(&info.pending_image_component[i]);
+		display_firmware(&info.pending_image_component[i], "");
+
+	return (0);
 }
 
 static void
@@ -117,7 +91,7 @@ flash_adapter(int ac, char **av)
 	size_t nread;
 	char *buf;
 	struct stat sb;
-	int fd, flash;
+	int error, fd, flash;
 	uint8_t mbox[4], status;
 
 	if (ac != 2) {
@@ -127,23 +101,30 @@ flash_adapter(int ac, char **av)
 
 	flash = open(av[1], O_RDONLY);
 	if (flash < 0) {
+		error = errno;
 		warn("flash: Failed to open %s", av[1]);
-		return (errno);
+		return (error);
 	}
 
+	buf = NULL;
+	fd = -1;
+
 	if (fstat(flash, &sb) < 0) {
+		error = errno;
 		warn("fstat(%s)", av[1]);
-		return (errno);
+		goto error;
 	}
 	if (sb.st_size % 1024 != 0 || sb.st_size > 0x7fffffff) {
 		warnx("Invalid flash file size");
-		return (EINVAL);
+		error = EINVAL;
+		goto error;
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		goto error;
 	}
 
 	/* First, ask the firmware to allocate space for the flash file. */
@@ -151,11 +132,17 @@ flash_adapter(int ac, char **av)
 	mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_OPEN, NULL, 0, mbox, 4, &status);
 	if (status != MFI_STAT_OK) {
 		warnx("Failed to alloc flash memory: %s", mfi_status(status));
-		return (EIO);
+		error = EIO;
+		goto error;
 	}
 
 	/* Upload the file 64k at a time. */
 	buf = malloc(FLASH_BUF_SIZE);
+	if (buf == NULL) {
+		warnx("malloc failed");
+		error = ENOMEM;
+		goto error;
+	}
 	offset = 0;
 	while (sb.st_size > 0) {
 		nread = read(flash, buf, FLASH_BUF_SIZE);
@@ -163,7 +150,8 @@ flash_adapter(int ac, char **av)
 			warnx("Bad read from flash file");
 			mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_CLOSE, NULL, 0,
 			    NULL, 0, NULL);
-			return (ENXIO);
+			error = ENXIO;
+			goto error;
 		}
 
 		mbox_store_word(mbox, offset);
@@ -173,12 +161,12 @@ flash_adapter(int ac, char **av)
 			warnx("Flash download failed: %s", mfi_status(status));
 			mfi_dcmd_command(fd, MFI_DCMD_FLASH_FW_CLOSE, NULL, 0,
 			    NULL, 0, NULL);
-			return (ENXIO);
+			error = ENXIO;
+			goto error;
 		}
 		sb.st_size -= nread;
 		offset += nread;
 	}
-	close(flash);
 
 	/* Kick off the flash. */
 	printf("WARNING: Firmware flash in progress, do not reboot machine... ");
@@ -187,13 +175,18 @@ flash_adapter(int ac, char **av)
 	    NULL, 0, &status);
 	if (status != MFI_STAT_OK) {
 		printf("failed:\n\t%s\n", mfi_status(status));
-		return (ENXIO);
+		error = ENXIO;
+		goto error;
 	}
 	printf("finished\n");
-	display_pending_firmware(fd);
+	error = display_pending_firmware(fd);
 
-	close(fd);
+error:
+	free(buf);
+	if (fd >= 0)
+		close(fd);
+	close(flash);
 
-	return (0);
+	return (error);
 }
 MFI_COMMAND(top, flash, flash_adapter);

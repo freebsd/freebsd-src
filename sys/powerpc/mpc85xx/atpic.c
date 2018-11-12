@@ -28,18 +28,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
-#include <sys/bus.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
 #include <machine/intr_machdep.h>
 #include <machine/pio.h>
 
-#include <powerpc/mpc85xx/ocpbus.h>
+#include <powerpc/mpc85xx/mpc85xx.h>
 
 #include <dev/ic/i8259.h>
 
@@ -80,6 +79,9 @@ static void atpic_ipi(device_t, u_int);
 static void atpic_mask(device_t, u_int);
 static void atpic_unmask(device_t, u_int);
 
+static void atpic_ofw_translate_code(device_t, u_int irq, int code,
+    enum intr_trigger *trig, enum intr_polarity *pol);
+
 static device_method_t atpic_isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify, 	atpic_isa_identify),
@@ -94,6 +96,8 @@ static device_method_t atpic_isa_methods[] = {
 	DEVMETHOD(pic_ipi,		atpic_ipi),
 	DEVMETHOD(pic_mask,		atpic_mask),
 	DEVMETHOD(pic_unmask,		atpic_unmask),
+
+	DEVMETHOD(pic_translate_code,	atpic_ofw_translate_code),
 
 	{ 0, 0 },
 };
@@ -135,7 +139,7 @@ static void
 atpic_intr(void *arg)
 {
 
-	atpic_dispatch(pic8259, arg);
+	atpic_dispatch(arg, NULL);
 }
 
 static void
@@ -152,7 +156,7 @@ atpic_isa_identify(driver_t *drv, device_t parent)
 	bus_set_resource(child, SYS_RES_IOPORT, ATPIC_SLAVE, IO_ICU2, 2);
 
 	/* ISA interrupts are routed through external interrupt 0. */
-	bus_set_resource(child, SYS_RES_IRQ, 0, PIC_IRQ_EXT(0), 1);
+	bus_set_resource(child, SYS_RES_IRQ, 0, 16, 1);
 }
 
 static int
@@ -212,14 +216,14 @@ atpic_isa_attach(device_t dev)
 		goto fail;
 
 	error = bus_setup_intr(dev, sc->sc_ires, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, atpic_intr, NULL, &sc->sc_icookie);
+	    NULL, atpic_intr, dev, &sc->sc_icookie);
 	if (error)
 		goto fail;
 
 	atpic_init(sc, ATPIC_SLAVE);
 	atpic_init(sc, ATPIC_MASTER);
 
-	powerpc_register_8259(dev);
+	powerpc_register_pic(dev, 0, 16, 0, TRUE);
 	return (0);
 
  fail:
@@ -306,12 +310,10 @@ atpic_mask(device_t dev, u_int irq)
 	if (irq > 7) {
 		sc->sc_mask[ATPIC_SLAVE] |= 1 << (irq - 8);
 		atpic_write(sc, ATPIC_SLAVE, 1, sc->sc_mask[ATPIC_SLAVE]);
-		atpic_write(sc, ATPIC_SLAVE, 0, OCW2_EOI);
 	} else {
 		sc->sc_mask[ATPIC_MASTER] |= 1 << irq;
 		atpic_write(sc, ATPIC_MASTER, 1, sc->sc_mask[ATPIC_MASTER]);
 	}
-	atpic_write(sc, ATPIC_MASTER, 0, OCW2_EOI);
 }
 
 static void
@@ -328,3 +330,35 @@ atpic_unmask(device_t dev, u_int irq)
 		atpic_write(sc, ATPIC_MASTER, 1, sc->sc_mask[ATPIC_MASTER]);
 	}
 }
+
+static void
+atpic_ofw_translate_code(device_t dev, u_int irq, int code,
+    enum intr_trigger *trig, enum intr_polarity *pol)
+{
+	switch (code) {
+	case 0:
+		/* Active L level */
+		*trig = INTR_TRIGGER_LEVEL;
+		*pol = INTR_POLARITY_LOW;
+		break;
+	case 1:
+		/* Active H level */
+		*trig = INTR_TRIGGER_LEVEL;
+		*pol = INTR_POLARITY_HIGH;
+		break;
+	case 2:
+		/* H to L edge */
+		*trig = INTR_TRIGGER_EDGE;
+		*pol = INTR_POLARITY_LOW;
+		break;
+	case 3:
+		/* L to H edge */
+		*trig = INTR_TRIGGER_EDGE;
+		*pol = INTR_POLARITY_HIGH;
+		break;
+	default:
+		*trig = INTR_TRIGGER_CONFORM;
+		*pol = INTR_POLARITY_CONFORM;
+	}
+}
+

@@ -94,14 +94,11 @@ ttydisc_close(struct tty *tp)
 	/* Clean up our flags when leaving the discipline. */
 	tp->t_flags &= ~(TF_STOPPED|TF_HIWAT|TF_ZOMBIE);
 
-	/* POSIX states we should flush when close() is called. */
-	ttyinq_flush(&tp->t_inq);
-	ttyoutq_flush(&tp->t_outq);
-
-	if (!tty_gone(tp)) {
-		ttydevsw_inwakeup(tp);
-		ttydevsw_outwakeup(tp);
-	}
+	/*
+	 * POSIX states that we must drain output and flush input on
+	 * last close.  Draining has already been done if possible.
+	 */
+	tty_flush(tp, FREAD | FWRITE);
 
 	if (ttyhook_hashook(tp, close))
 		ttyhook_close(tp);
@@ -126,6 +123,10 @@ ttydisc_read_canonical(struct tty *tp, struct uio *uio, int ioflag)
 	breakc[n] = '\0';
 
 	do {
+		error = tty_wait_background(tp, curthread, SIGTTIN);
+		if (error)
+			return (error);
+
 		/*
 		 * Quite a tricky case: unlike the old TTY
 		 * implementation, this implementation copies data back
@@ -149,10 +150,10 @@ ttydisc_read_canonical(struct tty *tp, struct uio *uio, int ioflag)
 
 		/* No more data. */
 		if (clen == 0) {
-			if (ioflag & IO_NDELAY)
-				return (EWOULDBLOCK);
-			else if (tp->t_flags & TF_ZOMBIE)
+			if (tp->t_flags & TF_ZOMBIE)
 				return (0);
+			else if (ioflag & IO_NDELAY)
+				return (EWOULDBLOCK);
 
 			error = tty_wait(tp, &tp->t_inwait);
 			if (error)
@@ -180,7 +181,7 @@ static int
 ttydisc_read_raw_no_timer(struct tty *tp, struct uio *uio, int ioflag)
 {
 	size_t vmin = tp->t_termios.c_cc[VMIN];
-	int oresid = uio->uio_resid;
+	ssize_t oresid = uio->uio_resid;
 	int error;
 
 	MPASS(tp->t_termios.c_cc[VTIME] == 0);
@@ -192,6 +193,10 @@ ttydisc_read_raw_no_timer(struct tty *tp, struct uio *uio, int ioflag)
 	 */
 
 	for (;;) {
+		error = tty_wait_background(tp, curthread, SIGTTIN);
+		if (error)
+			return (error);
+
 		error = ttyinq_read_uio(&tp->t_inq, tp, uio,
 		    uio->uio_resid, 0);
 		if (error)
@@ -200,10 +205,10 @@ ttydisc_read_raw_no_timer(struct tty *tp, struct uio *uio, int ioflag)
 			return (0);
 
 		/* We have to wait for more. */
-		if (ioflag & IO_NDELAY)
-			return (EWOULDBLOCK);
-		else if (tp->t_flags & TF_ZOMBIE)
+		if (tp->t_flags & TF_ZOMBIE)
 			return (0);
+		else if (ioflag & IO_NDELAY)
+			return (EWOULDBLOCK);
 
 		error = tty_wait(tp, &tp->t_inwait);
 		if (error)
@@ -229,6 +234,10 @@ ttydisc_read_raw_read_timer(struct tty *tp, struct uio *uio, int ioflag,
 	timevaladd(&end, &now);
 
 	for (;;) {
+		error = tty_wait_background(tp, curthread, SIGTTIN);
+		if (error)
+			return (error);
+
 		error = ttyinq_read_uio(&tp->t_inq, tp, uio,
 		    uio->uio_resid, 0);
 		if (error)
@@ -248,10 +257,10 @@ ttydisc_read_raw_read_timer(struct tty *tp, struct uio *uio, int ioflag,
 		 * We have to wait for more. If the timer expires, we
 		 * should return a 0-byte read.
 		 */
-		if (ioflag & IO_NDELAY)
-			return (EWOULDBLOCK);
-		else if (tp->t_flags & TF_ZOMBIE)
+		if (tp->t_flags & TF_ZOMBIE)
 			return (0);
+		else if (ioflag & IO_NDELAY)
+			return (EWOULDBLOCK);
 
 		error = tty_timedwait(tp, &tp->t_inwait, hz);
 		if (error)
@@ -265,19 +274,23 @@ static int
 ttydisc_read_raw_interbyte_timer(struct tty *tp, struct uio *uio, int ioflag)
 {
 	size_t vmin = tp->t_termios.c_cc[VMIN];
-	int oresid = uio->uio_resid;
+	ssize_t oresid = uio->uio_resid;
 	int error;
 
 	MPASS(tp->t_termios.c_cc[VMIN] != 0);
 	MPASS(tp->t_termios.c_cc[VTIME] != 0);
-	
+
 	/*
 	 * When using the interbyte timer, the timer should be started
 	 * after the first byte has been received. We just call into the
 	 * generic read timer code after we've received the first byte.
 	 */
-	
+
 	for (;;) {
+		error = tty_wait_background(tp, curthread, SIGTTIN);
+		if (error)
+			return (error);
+
 		error = ttyinq_read_uio(&tp->t_inq, tp, uio,
 		    uio->uio_resid, 0);
 		if (error)
@@ -293,10 +306,10 @@ ttydisc_read_raw_interbyte_timer(struct tty *tp, struct uio *uio, int ioflag)
 			break;
 
 		/* We have to wait for more. */
-		if (ioflag & IO_NDELAY)
-			return (EWOULDBLOCK);
-		else if (tp->t_flags & TF_ZOMBIE)
+		if (tp->t_flags & TF_ZOMBIE)
 			return (0);
+		else if (ioflag & IO_NDELAY)
+			return (EWOULDBLOCK);
 
 		error = tty_wait(tp, &tp->t_inwait);
 		if (error)
@@ -331,7 +344,7 @@ ttydisc_read(struct tty *tp, struct uio *uio, int ioflag)
 		/* Unset the input watermark when we've got enough space. */
 		tty_hiwat_in_unblock(tp);
 	}
-	
+
 	return (error);
 }
 
@@ -521,7 +534,7 @@ ttydisc_write(struct tty *tp, struct uio *uio, int ioflag)
 				error = EWOULDBLOCK;
 				goto done;
 			}
-			
+
 			/*
 			 * The driver may write back the data
 			 * synchronously. Be sure to check the high
@@ -567,7 +580,7 @@ ttydisc_optimize(struct tty *tp)
 	} else if (!CMP_FLAG(i, ICRNL|IGNCR|IMAXBEL|INLCR|ISTRIP|IXON) &&
 	    (!CMP_FLAG(i, BRKINT) || CMP_FLAG(i, IGNBRK)) &&
 	    (!CMP_FLAG(i, PARMRK) ||
-	        CMP_FLAG(i, IGNPAR|IGNBRK) == (IGNPAR|IGNBRK)) &&
+		CMP_FLAG(i, IGNPAR|IGNBRK) == (IGNPAR|IGNBRK)) &&
 	    !CMP_FLAG(l, ECHO|ICANON|IEXTEN|ISIG|PENDIN)) {
 		tp->t_flags |= TF_BYPASS;
 	} else {
@@ -583,7 +596,7 @@ ttydisc_modem(struct tty *tp, int open)
 
 	if (open)
 		cv_broadcast(&tp->t_dcdwait);
-	
+
 	/*
 	 * Ignore modem status lines when CLOCAL is turned on, but don't
 	 * enter the zombie state when the TTY isn't opened, because
@@ -624,15 +637,21 @@ ttydisc_echo_force(struct tty *tp, char c, int quote)
 		/*
 		 * Only use ^X notation when ECHOCTL is turned on and
 		 * we've got an quoted control character.
+		 *
+		 * Print backspaces when echoing an end-of-file.
 		 */
-		char ob[2] = { '^', '?' };
+		char ob[4] = "^?\b\b";
 
 		/* Print ^X notation. */
 		if (c != 0x7f)
 			ob[1] = c + 'A' - 1;
 
-		tp->t_column += 2;
-		return ttyoutq_write_nofrag(&tp->t_outq, ob, 2);
+		if (!quote && CMP_CC(VEOF, c)) {
+			return ttyoutq_write_nofrag(&tp->t_outq, ob, 4);
+		} else {
+			tp->t_column += 2;
+			return ttyoutq_write_nofrag(&tp->t_outq, ob, 2);
+		}
 	} else {
 		/* Can just be printed. */
 		tp->t_column++;
@@ -654,7 +673,6 @@ ttydisc_echo(struct tty *tp, char c, int quote)
 
 	return ttydisc_echo_force(tp, c, quote);
 }
-
 
 static void
 ttydisc_reprint_char(void *d, char c, int quote)
@@ -828,7 +846,7 @@ ttydisc_rint(struct tty *tp, char c, int flags)
 
 	if (ttyhook_hashook(tp, rint))
 		return ttyhook_rint(tp, c, flags);
-	
+
 	if (tp->t_flags & TF_BYPASS)
 		goto processed;
 
@@ -1066,7 +1084,7 @@ ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len)
 	size_t ret;
 
 	tty_lock_assert(tp, MA_OWNED);
-	
+
 	MPASS(tp->t_flags & TF_BYPASS);
 
 	atomic_add_long(&tty_nin, len);
@@ -1116,7 +1134,7 @@ ttydisc_rint_poll(struct tty *tp)
 	l = ttyinq_bytesleft(&tp->t_inq);
 	if (l == 0 && (tp->t_flags & TF_HIWAT_IN) == 0)
 		return (1);
-	
+
 	return (l);
 }
 
@@ -1168,7 +1186,7 @@ int
 ttydisc_getc_uio(struct tty *tp, struct uio *uio)
 {
 	int error = 0;
-	int obytes = uio->uio_resid;
+	ssize_t obytes = uio->uio_resid;
 	size_t len;
 	char buf[TTY_STACKBUF];
 
@@ -1195,7 +1213,7 @@ ttydisc_getc_uio(struct tty *tp, struct uio *uio)
 			tty_unlock(tp);
 			error = uiomove(buf, len, uio);
 			tty_lock(tp);
-			
+
 			if (error != 0)
 				break;
 		}

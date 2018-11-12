@@ -241,8 +241,15 @@ struct ieee80211_stats {
 	uint32_t	is_mesh_notproxy;	/* dropped 'cuz not proxying */
 	uint32_t	is_rx_badalign;		/* dropped 'cuz misaligned */
 	uint32_t	is_hwmp_proxy;		/* PREP for proxy route */
-	
-	uint32_t	is_spare[11];
+	uint32_t	is_beacon_bad;		/* Number of bad beacons */
+	uint32_t	is_ampdu_bar_tx;	/* A-MPDU BAR frames TXed */
+	uint32_t	is_ampdu_bar_tx_retry;	/* A-MPDU BAR frames TX rtry */
+	uint32_t	is_ampdu_bar_tx_fail;	/* A-MPDU BAR frames TX fail */
+
+	uint32_t	is_ff_encapfail;	/* failed FF encap */
+	uint32_t	is_amsdu_encapfail;	/* failed A-MSDU encap */
+
+	uint32_t	is_spare[5];
 };
 
 /*
@@ -335,8 +342,10 @@ enum {
 
 struct ieee80211req_mesh_route {
 	uint8_t		imr_flags;
-#define	IEEE80211_MESHRT_FLAGS_VALID	0x01
-#define	IEEE80211_MESHRT_FLAGS_PROXY	0x02
+#define	IEEE80211_MESHRT_FLAGS_DISCOVER	0x01
+#define	IEEE80211_MESHRT_FLAGS_VALID	0x02
+#define	IEEE80211_MESHRT_FLAGS_PROXY	0x04
+#define	IEEE80211_MESHRT_FLAGS_GATE	0x08
 	uint8_t		imr_dest[IEEE80211_ADDR_LEN];
 	uint8_t		imr_nexthop[IEEE80211_ADDR_LEN];
 	uint16_t	imr_nhops;
@@ -578,7 +587,7 @@ struct ieee80211req {
 	char		i_name[IFNAMSIZ];	/* if_name, e.g. "wi0" */
 	uint16_t	i_type;			/* req type */
 	int16_t		i_val;			/* Index or simple value */
-	int16_t		i_len;			/* Index or simple value */
+	uint16_t	i_len;			/* Index or simple value */
 	void		*i_data;		/* Extra data */
 };
 #define	SIOCS80211		 _IOW('i', 234, struct ieee80211req)
@@ -693,6 +702,7 @@ struct ieee80211req {
 #define	IEEE80211_IOC_RIFS		111	/* RIFS config (on, off) */
 #define	IEEE80211_IOC_GREENFIELD	112	/* Greenfield (on, off) */
 #define	IEEE80211_IOC_STBC		113	/* STBC Tx/RX (on, off) */
+#define	IEEE80211_IOC_LDPC		114	/* LDPC Tx/RX (on, off) */
 
 #define	IEEE80211_IOC_MESH_ID		170	/* mesh identifier */
 #define	IEEE80211_IOC_MESH_AP		171	/* accepting peerings */
@@ -705,6 +715,7 @@ struct ieee80211req {
 #define	IEEE80211_IOC_MESH_PR_SIG	178	/* mesh sig protocol */
 #define	IEEE80211_IOC_MESH_PR_CC	179	/* mesh congestion protocol */
 #define	IEEE80211_IOC_MESH_PR_AUTH	180	/* mesh auth protocol */
+#define	IEEE80211_IOC_MESH_GATE		181	/* mesh gate XXX: 173? */
 
 #define	IEEE80211_IOC_HWMP_ROOTMODE	190	/* HWMP root mode */
 #define	IEEE80211_IOC_HWMP_MAXHOPS	191	/* number of hops before drop */
@@ -715,6 +726,11 @@ struct ieee80211req {
 #define	IEEE80211_IOC_TDMA_SLOTLEN	203	/* TDMA: slot length (usecs) */
 #define	IEEE80211_IOC_TDMA_BINTERVAL	204	/* TDMA: beacon intvl (slots) */
 
+#define	IEEE80211_IOC_QUIET		205	/* Quiet Enable/Disable */
+#define	IEEE80211_IOC_QUIET_PERIOD	206	/* Quiet Period */
+#define	IEEE80211_IOC_QUIET_OFFSET	207	/* Quiet Offset */
+#define	IEEE80211_IOC_QUIET_DUR		208	/* Quiet Duration */
+#define	IEEE80211_IOC_QUIET_COUNT	209	/* Quiet Count */
 /*
  * Parameters for controlling a scan requested with
  * IEEE80211_IOC_SCAN_REQ.
@@ -790,7 +806,7 @@ struct ieee80211req_scan_result {
 	uint16_t	isr_flags;		/* channel flags */
 	int8_t		isr_noise;
 	int8_t		isr_rssi;
-	uint8_t		isr_intval;		/* beacon interval */
+	uint16_t	isr_intval;		/* beacon interval */
 	uint8_t		isr_capinfo;		/* capabilities */
 	uint8_t		isr_erp;		/* ERP element */
 	uint8_t		isr_bssid[IEEE80211_ADDR_LEN];

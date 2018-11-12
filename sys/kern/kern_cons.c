@@ -1,6 +1,9 @@
 /*-
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1991 The Regents of the University of California.
+ * Copyright (c) 1999 Michael Smith
+ * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ *
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -15,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,6 +41,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_syscons.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -152,6 +156,13 @@ cninit(void)
 	 * Make the best console the preferred console.
 	 */
 	cnselect(best_cn);
+
+#ifdef EARLY_PRINTF
+	/*
+	 * Release early console.
+	 */
+	early_putc = NULL;
+#endif
 }
 
 void
@@ -281,7 +292,8 @@ sysctl_kern_console(SYSCTL_HANDLER_ARGS)
 	int delete, error;
 	struct sbuf *sb;
 
-	sb = sbuf_new(NULL, NULL, CNDEVPATHMAX * 2, SBUF_AUTOEXTEND);
+	sb = sbuf_new(NULL, NULL, CNDEVPATHMAX * 2, SBUF_AUTOEXTEND |
+	    SBUF_INCLUDENUL);
 	if (sb == NULL)
 		return (ENOMEM);
 	sbuf_clear(sb);
@@ -341,7 +353,34 @@ sysctl_kern_consmute(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, consmute, CTLTYPE_INT|CTLFLAG_RW,
-	0, sizeof(cn_mute), sysctl_kern_consmute, "I", "");
+	0, sizeof(cn_mute), sysctl_kern_consmute, "I",
+	"State of the console muting");
+
+void
+cngrab()
+{
+	struct cn_device *cnd;
+	struct consdev *cn;
+
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
+		cn = cnd->cnd_cn;
+		if (!kdb_active || !(cn->cn_flags & CN_FLAG_NODEBUG))
+			cn->cn_ops->cn_grab(cn);
+	}
+}
+
+void
+cnungrab()
+{
+	struct cn_device *cnd;
+	struct consdev *cn;
+
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
+		cn = cnd->cnd_cn;
+		if (!kdb_active || !(cn->cn_flags & CN_FLAG_NODEBUG))
+			cn->cn_ops->cn_ungrab(cn);
+	}
+}
 
 /*
  * Low level console routines.
@@ -354,7 +393,7 @@ cngetc(void)
 	if (cn_mute)
 		return (-1);
 	while ((c = cncheckc()) == -1)
-		;
+		cpu_spinwait();
 	if (c == '\r')
 		c = '\n';		/* console input is always ICRNL */
 	return (c);
@@ -381,11 +420,67 @@ cncheckc(void)
 }
 
 void
+cngets(char *cp, size_t size, int visible)
+{
+	char *lp, *end;
+	int c;
+
+	cngrab();
+
+	lp = cp;
+	end = cp + size - 1;
+	for (;;) {
+		c = cngetc() & 0177;
+		switch (c) {
+		case '\n':
+		case '\r':
+			cnputc(c);
+			*lp = '\0';
+			cnungrab();
+			return;
+		case '\b':
+		case '\177':
+			if (lp > cp) {
+				if (visible)
+					cnputs("\b \b");
+				lp--;
+			}
+			continue;
+		case '\0':
+			continue;
+		default:
+			if (lp < end) {
+				switch (visible) {
+				case GETS_NOECHO:
+					break;
+				case GETS_ECHOPASS:
+					cnputc('*');
+					break;
+				default:
+					cnputc(c);
+					break;
+				}
+				*lp++ = c;
+			}
+		}
+	}
+}
+
+void
 cnputc(int c)
 {
 	struct cn_device *cnd;
 	struct consdev *cn;
 	char *cp;
+
+#ifdef EARLY_PRINTF
+	if (early_putc != NULL) {
+		if (c == '\n')
+			early_putc('\r');
+		early_putc(c);
+		return;
+	}
+#endif
 
 	if (cn_mute || c == '\0')
 		return;
@@ -400,8 +495,10 @@ cnputc(int c)
 	if (console_pausing && c == '\n' && !kdb_active) {
 		for (cp = console_pausestr; *cp != '\0'; cp++)
 			cnputc(*cp);
+		cngrab();
 		if (cngetc() == '.')
 			console_pausing = 0;
+		cnungrab();
 		cnputc('\r');
 		for (cp = console_pausestr; *cp != '\0'; cp++)
 			cnputc(' ');
@@ -416,6 +513,13 @@ cnputs(char *p)
 	int unlock_reqd = 0;
 
 	if (use_cnputs_mtx) {
+	  	/*
+		 * NOTE: Debug prints and/or witness printouts in
+		 * console driver clients can cause the "cnputs_mtx"
+		 * mutex to recurse. Simply return if that happens.
+		 */
+		if (mtx_owned(&cnputs_mtx))
+			return;
 		mtx_lock_spin(&cnputs_mtx);
 		unlock_reqd = 1;
 	}
@@ -429,7 +533,7 @@ cnputs(char *p)
 
 static int consmsgbuf_size = 8192;
 SYSCTL_INT(_kern, OID_AUTO, consmsgbuf_size, CTLFLAG_RW, &consmsgbuf_size, 0,
-    "");
+    "Console tty buffer size");
 
 /*
  * Redirect console output to a tty.
@@ -471,7 +575,8 @@ constty_clear(void)
 /* Times per second to check for pending console tty messages. */
 static int constty_wakeups_per_second = 5;
 SYSCTL_INT(_kern, OID_AUTO, constty_wakeups_per_second, CTLFLAG_RW,
-    &constty_wakeups_per_second, 0, "");
+    &constty_wakeups_per_second, 0,
+    "Times per second to check for pending console tty messages");
 
 static void
 constty_timeout(void *arg)
@@ -517,6 +622,7 @@ SYSINIT(cndev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, cn_drvinit, NULL);
 #ifdef HAS_TIMER_SPKR
 
 static int beeping;
+static struct callout beeping_timer;
 
 static void
 sysbeepstop(void *chan)
@@ -539,11 +645,18 @@ sysbeep(int pitch, int period)
 	timer_spkr_setfreq(pitch);
 	if (!beeping) {
 		beeping = period;
-		timeout(sysbeepstop, (void *)NULL, period);
+		callout_reset(&beeping_timer, period, sysbeepstop, NULL);
 	}
 	return (0);
 }
 
+static void
+sysbeep_init(void *unused)
+{
+
+	callout_init(&beeping_timer, 1);
+}
+SYSINIT(sysbeep, SI_SUB_SOFTINTR, SI_ORDER_ANY, sysbeep_init, NULL);
 #else
 
 /*
@@ -558,4 +671,64 @@ sysbeep(int pitch __unused, int period __unused)
 }
 
 #endif
+
+/*
+ * Temporary support for sc(4) to vt(4) transition.
+ */
+static unsigned vty_prefer;
+static char vty_name[16];
+SYSCTL_STRING(_kern, OID_AUTO, vty, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, vty_name,
+    0, "Console vty driver");
+
+int
+vty_enabled(unsigned vty)
+{
+	static unsigned vty_selected = 0;
+
+	if (vty_selected == 0) {
+		TUNABLE_STR_FETCH("kern.vty", vty_name, sizeof(vty_name));
+		do {
+#if defined(DEV_SC)
+			if (strcmp(vty_name, "sc") == 0) {
+				vty_selected = VTY_SC;
+				break;
+			}
+#endif
+#if defined(DEV_VT)
+			if (strcmp(vty_name, "vt") == 0) {
+				vty_selected = VTY_VT;
+				break;
+			}
+#endif
+			if (vty_prefer != 0) {
+				vty_selected = vty_prefer;
+				break;
+			}
+#if defined(DEV_VT)
+			vty_selected = VTY_VT;
+#elif defined(DEV_SC)
+			vty_selected = VTY_SC;
+#endif
+		} while (0);
+
+		if (vty_selected == VTY_VT)
+			strcpy(vty_name, "vt");
+		else if (vty_selected == VTY_SC)
+			strcpy(vty_name, "sc");
+	}
+	return ((vty_selected & vty) != 0);
+}
+
+void
+vty_set_preferred(unsigned vty)
+{
+
+	vty_prefer = vty;
+#if !defined(DEV_SC)
+	vty_prefer &= ~VTY_SC;
+#endif
+#if !defined(DEV_VT)
+	vty_prefer &= ~VTY_VT;
+#endif
+}
 

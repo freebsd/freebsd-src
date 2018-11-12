@@ -42,3 +42,5 @@ END(fabs)
 	.data
 signbit:
 	.quad	0x8000000000000000
+
+	.section .note.GNU-stack,"",%progbits

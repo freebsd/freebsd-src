@@ -11,11 +11,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -34,7 +30,7 @@
 .\"	@(#)indent.1	8.1 (Berkeley) 7/1/93
 .\" $FreeBSD$
 .\"
-.Dd June 29, 2004
+.Dd August 3, 2016
 .Dt INDENT 1
 .Os
 .Sh NAME
@@ -43,9 +39,12 @@
 .Sh SYNOPSIS
 .Nm
 .Op Ar input-file Op Ar output-file
+.Op Fl bacc | Fl nbacc
 .Op Fl bad | Fl nbad
 .Op Fl bap | Fl nbap
 .Bk -words
+.Op Fl ei | Fl ei
+.Op Fl eei | Fl eei
 .Op Fl bbb | Fl nbbb
 .Ek
 .Op Fl \&bc | Fl nbc
@@ -75,12 +74,15 @@
 .Op Fl npro
 .Op Fl pcs | Fl npcs
 .Op Fl psl | Fl npsl
+.Op Fl sac | Fl nsac
 .Op Fl \&sc | Fl nsc
 .Bk -words
 .Op Fl sob | Fl nsob
 .Ek
 .Op Fl \&st
+.Op Fl \&ta
 .Op Fl troff
+.Op Fl U Ns Ar file
 .Op Fl ut | Fl nut
 .Op Fl v | Fl \&nv
 .Sh DESCRIPTION
@@ -125,6 +127,15 @@ checks to make sure that it is different from
 The options listed below control the formatting style imposed by
 .Nm .
 .Bl -tag -width Op
+.It Fl bacc , nbacc
+If
+.Fl bacc
+is specified, a blank line is forced around every conditional
+compilation block.
+For example, in front of every #ifdef and after every #endif.
+Other blank lines surrounding such blocks will be swallowed.
+Default:
+.Fl nbacc  .
 .It Fl bad , nbad
 If
 .Fl bad
@@ -171,7 +182,6 @@ if (...) {
   code
 }
 .Ed
-.Pp
 .It Fl c Ns Ar n
 The column in which comments on code start.
 The default is 33.
@@ -266,6 +276,16 @@ will have the same indentation as the preceding
 statement.
 The default is
 .Fl ei .
+.It Fl eei , neei
+Enables (disables) extra indentation on continuation lines of
+the expression part of
+.Ic if
+and
+.Ic while
+statements.
+These continuation lines will be indented one extra level.
+The default is
+.Fl neei .
 .It Fl fbs , nfbs
 Enables (disables) splitting the function declaration and opening brace
 across two lines.
@@ -360,6 +380,11 @@ column 1 \- their types, if any, will be left on the previous lines.
 The
 default is
 .Fl psl .
+.It Fl sac , nsac
+Control whether parenthesized type names in casts are followed by a space or
+not.
+The default is
+.Fl nsac .
 .It Fl \&sc , nsc
 Enables (disables) the placement of asterisks (`*'s) at the left edge of all
 comments.
@@ -377,6 +402,9 @@ Default:
 Causes
 .Nm
 to take its input from stdin and put its output to stdout.
+.It Fl ta
+Automatically add all identifiers ending in "_t" to the list
+of type keywords.
 .It Fl T Ns Ar typename
 Adds
 .Ar typename
@@ -409,6 +437,10 @@ listing in much the same spirit as
 .Xr vgrind 1 .
 If the output file is not specified, the default is standard output,
 rather than formatting in place.
+.It Fl U Ns Ar file
+Adds type names from
+.Ar file
+to the list of type keywords.
 .It Fl ut , nut
 Enables (disables) the use of tab characters in the output.
 Tabs are assumed to be aligned on columns divisible by 8.
@@ -462,7 +494,6 @@ The
 utility fits as many words (separated by blanks, tabs, or newlines) on a
 line as possible.
 Blank lines break paragraphs.
-.Pp
 .Ss Comment indentation
 If a comment is on a line with code it is started in the `comment column',
 which is set by the
@@ -478,7 +509,6 @@ command line parameter.
 If the code on a line extends past the comment
 column, the comment starts further to the right, and the right margin may be
 automatically extended in extreme cases.
-.Pp
 .Ss Preprocessor lines
 In general,
 .Nm
@@ -493,14 +523,13 @@ is recognized and
 .Nm
 attempts to correctly
 compensate for the syntactic peculiarities introduced.
-.Pp
 .Ss C syntax
 The
 .Nm
 utility understands a substantial amount about the syntax of C, but it
 has a `forgiving' parser.
 It attempts to cope with the usual sorts of
-incomplete and misformed syntax.
+incomplete and malformed syntax.
 In particular, the use of macros like:
 .Pp
 .Dl #define forever for(;;)

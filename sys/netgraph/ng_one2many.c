@@ -44,7 +44,7 @@
  * ng_one2many(4) netgraph node type
  *
  * Packets received on the "one" hook are sent out each of the
- * "many" hooks accoring to an algorithm. Packets received on any
+ * "many" hooks according to an algorithm. Packets received on any
  * "many" hook are always delivered to the "one" hook.
  */
 
@@ -187,9 +187,7 @@ ng_one2many_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate and initialize private info */
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 	priv->conf.xmitAlg = NG_ONE2MANY_XMIT_ROUNDROBIN;
 	priv->conf.failAlg = NG_ONE2MANY_FAIL_MANUAL;
 
@@ -222,7 +220,7 @@ ng_one2many_newhook(node_p node, hook_p hook, const char *name)
 		if (!isdigit(*cp) || (cp[0] == '0' && cp[1] != '\0'))
 			return (EINVAL);
 		i = strtoul(cp, &eptr, 10);
-		if (*eptr != '\0' || i < 0 || i >= NG_ONE2MANY_MAX_LINKS)
+		if (*eptr != '\0' || i >= NG_ONE2MANY_MAX_LINKS)
 			return (EINVAL);
 		linkNum = (int)i;
 		link = &priv->many[linkNum];
@@ -278,6 +276,7 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			switch (conf->xmitAlg) {
 			case NG_ONE2MANY_XMIT_ROUNDROBIN:
 			case NG_ONE2MANY_XMIT_ALL:
+			case NG_ONE2MANY_XMIT_FAILOVER:
 				break;
 			default:
 				error = EINVAL;
@@ -460,7 +459,7 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 				struct ng_one2many_link *mdst;
 
 				mdst = &priv->many[priv->activeMany[i]];
-				m2 = m_dup(m, M_DONTWAIT);        /* XXX m_copypacket() */
+				m2 = m_dup(m, M_NOWAIT);        /* XXX m_copypacket() */
 				if (m2 == NULL) {
 					mdst->stats.memoryFailures++;
 					NG_FREE_ITEM(item);
@@ -472,6 +471,9 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 				mdst->stats.xmitOctets += m->m_pkthdr.len;
 				NG_SEND_DATA_ONLY(error, mdst->hook, m2);
 			}
+			break;
+		case NG_ONE2MANY_XMIT_FAILOVER:
+			dst = &priv->many[priv->activeMany[0]];
 			break;
 #ifdef INVARIANTS
 		default:
@@ -583,6 +585,7 @@ ng_one2many_update_many(priv_p priv)
 			priv->nextMany %= priv->numActiveMany;
 		break;
 	case NG_ONE2MANY_XMIT_ALL:
+	case NG_ONE2MANY_XMIT_FAILOVER:
 		break;
 #ifdef INVARIANTS
 	default:

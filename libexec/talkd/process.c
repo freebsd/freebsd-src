@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -59,10 +55,9 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <string.h>
 #include <syslog.h>
+#include <utmpx.h>
 
 #include "extern.h"
-
-extern int debug;
 
 void
 process_request(CTL_MSG *mp, CTL_RESPONSE *rp)
@@ -153,8 +148,8 @@ do_announce(CTL_MSG *mp, CTL_RESPONSE *rp)
 		rp->answer = result;
 		return;
 	}
-#define	satosin(sa)	((struct sockaddr_in *)(sa))
-	hp = gethostbyaddr((char *)&satosin(&mp->ctl_addr)->sin_addr,
+#define	satosin(sa)	((struct sockaddr_in *)(void *)(sa))
+	hp = gethostbyaddr(&satosin(&mp->ctl_addr)->sin_addr,
 		sizeof (struct in_addr), AF_INET);
 	if (hp == (struct hostent *)0) {
 		rp->answer = MACHINE_UNKNOWN;
@@ -181,55 +176,46 @@ do_announce(CTL_MSG *mp, CTL_RESPONSE *rp)
 	}
 }
 
-#include <utmp.h>
-
 /*
  * Search utmp for the local user
  */
 int
 find_user(const char *name, char *tty)
 {
-	struct utmp ubuf;
+	struct utmpx *ut;
 	int status;
-	FILE *fd;
 	struct stat statb;
 	time_t best = 0;
-	char line[sizeof(ubuf.ut_line) + 1];
-	char ftty[sizeof(_PATH_DEV) - 1 + sizeof(line)];
+	char ftty[sizeof(_PATH_DEV) - 1 + sizeof(ut->ut_line)];
 
-	if ((fd = fopen(_PATH_UTMP, "r")) == NULL) {
-		warnx("can't read %s", _PATH_UTMP);
-		return (FAILED);
-	}
-#define SCMPN(a, b)	strncmp(a, b, sizeof (a))
+	setutxent();
 	status = NOT_HERE;
 	(void) strcpy(ftty, _PATH_DEV);
-	while (fread((char *) &ubuf, sizeof ubuf, 1, fd) == 1)
-		if (SCMPN(ubuf.ut_name, name) == 0) {
-			strncpy(line, ubuf.ut_line, sizeof(ubuf.ut_line));
-			line[sizeof(ubuf.ut_line)] = '\0';
+	while ((ut = getutxent()) != NULL)
+		if (ut->ut_type == USER_PROCESS &&
+		    strcmp(ut->ut_user, name) == 0) {
 			if (*tty == '\0' || best != 0) {
 				if (best == 0)
 					status = PERMISSION_DENIED;
 				/* no particular tty was requested */
 				(void) strcpy(ftty + sizeof(_PATH_DEV) - 1,
-				    line);
+				    ut->ut_line);
 				if (stat(ftty, &statb) == 0) {
 					if (!(statb.st_mode & 020))
 						continue;
 					if (statb.st_atime > best) {
 						best = statb.st_atime;
-						(void) strcpy(tty, line);
+						(void) strcpy(tty, ut->ut_line);
 						status = SUCCESS;
 						continue;
 					}
 				}
 			}
-			if (strcmp(line, tty) == 0) {
+			if (strcmp(ut->ut_line, tty) == 0) {
 				status = SUCCESS;
 				break;
 			}
 		}
-	fclose(fd);
+	endutxent();
 	return (status);
 }

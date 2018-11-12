@@ -3,14 +3,17 @@
 # $FreeBSD$
 #
 
+# netif is required for lo0 because syslogd tries to open a local socket
+#
 # PROVIDE: syslogd
-# REQUIRE: mountcritremote cleanvar newsyslog
+# REQUIRE: mountcritremote FILESYSTEMS newsyslog netif
 # BEFORE:  SERVERS
 
 . /etc/rc.subr
 
 name="syslogd"
-rcvar=`set_rcvar`
+desc="System log daemon"
+rcvar="syslogd_enable"
 pidfile="/var/run/syslog.pid"
 command="/usr/sbin/${name}"
 required_files="/etc/syslog.conf"
@@ -19,7 +22,6 @@ extra_commands="reload"
 
 sockfile="/var/run/syslogd.sockets"
 evalargs="rc_flags=\"\`set_socketlist\` \$rc_flags\""
-altlog_proglist="named"
 
 syslogd_precmd()
 {
@@ -27,7 +29,7 @@ syslogd_precmd()
 
 	#	Transitional symlink for old binaries
 	#
-	if [ ! -L /dev/log ]; then
+	if [ ! -L /dev/log ] && ! check_jail jailed; then
 		ln -sf /var/run/log /dev/log
 	fi
 	rm -f /var/run/log
@@ -41,7 +43,7 @@ syslogd_precmd()
 	#
 	for _l in $altlog_proglist; do
 		eval _ldir=\$${_l}_chrootdir
-		if checkyesno `set_rcvar $_l` && [ -n "$_ldir" ]; then
+		if checkyesno ${_l}_enable && [ -n "$_ldir" ]; then
 			echo "${_ldir}/var/run/log" >> $sockfile
 		fi
 	done

@@ -133,6 +133,12 @@ struct devstat_args {
 	{ DSM_MS_PER_TRANSACTION_FREE, DEVSTAT_ARG_LD },
 	{ DSM_BUSY_PCT, DEVSTAT_ARG_LD },
 	{ DSM_QUEUE_LENGTH, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_DURATION, DEVSTAT_ARG_LD },
+	{ DSM_TOTAL_DURATION_READ, DEVSTAT_ARG_LD },
+	{ DSM_TOTAL_DURATION_WRITE, DEVSTAT_ARG_LD },
+	{ DSM_TOTAL_DURATION_FREE, DEVSTAT_ARG_LD },
+	{ DSM_TOTAL_DURATION_OTHER, DEVSTAT_ARG_LD },
+	{ DSM_TOTAL_BUSY_TIME, DEVSTAT_ARG_LD },
 };
 
 static const char *namelist[] = {
@@ -144,7 +150,9 @@ static const char *namelist[] = {
 	"_devstat_version",
 #define X_DEVICE_STATQ	3
 	"_device_statq",
-#define X_END		4
+#define X_TIME_UPTIME	4
+	"_time_uptime",
+#define X_END		5
 };
 
 /*
@@ -193,7 +201,7 @@ devstat_getnumdevs(kvm_t *kd)
  * supplied in a more atmoic manner by the kern.devstat.all sysctl.
  * Because this generation sysctl is separate from the statistics sysctl,
  * the device list and the generation could change between the time that
- * this function is called and the device list is retreived.
+ * this function is called and the device list is retrieved.
  */
 long
 devstat_getgeneration(kvm_t *kd)
@@ -326,7 +334,6 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 {
 	int error;
 	size_t dssize;
-	int oldnumdevs;
 	long oldgeneration;
 	int retval = 0;
 	struct devinfo *dinfo;
@@ -340,13 +347,12 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 		return(-1);
 	}
 
-	oldnumdevs = dinfo->numdevs;
 	oldgeneration = dinfo->generation;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-	stats->snap_time = ts.tv_sec + ts.tv_nsec * 1e-9;
-
 	if (kd == NULL) {
+		clock_gettime(CLOCK_MONOTONIC, &ts);
+		stats->snap_time = ts.tv_sec + ts.tv_nsec * 1e-9;
+
 		/* If this is our first time through, mem_ptr will be null. */
 		if (dinfo->mem_ptr == NULL) {
 			/*
@@ -365,6 +371,12 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 			dssize = (dinfo->numdevs * sizeof(struct devstat)) +
 				 sizeof(long);
 			dinfo->mem_ptr = (u_int8_t *)malloc(dssize);
+			if (dinfo->mem_ptr == NULL) {
+				snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+					 "%s: Cannot allocate memory for mem_ptr element",
+					 __func__);
+				return(-1);
+			}
 		} else
 			dssize = (dinfo->numdevs * sizeof(struct devstat)) +
 				 sizeof(long);
@@ -421,6 +433,11 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 		} 
 
 	} else {
+		if (KREADNL(kd, X_TIME_UPTIME, ts.tv_sec) == -1)
+			return(-1);
+		else
+			stats->snap_time = ts.tv_sec;
+
 		/* 
 		 * This is of course non-atomic, but since we are working
 		 * on a core dump, the generation is unlikely to change
@@ -567,7 +584,7 @@ devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
 	 * either enlarge or reduce the size of the device selection list.
 	 */
 	} else if (*num_selections != numdevs) {
-		*dev_select = (struct device_selection *)realloc(*dev_select,
+		*dev_select = (struct device_selection *)reallocf(*dev_select,
 			numdevs * sizeof(struct device_selection));
 		*select_generation = current_generation;
 		init_selections = 1;
@@ -579,6 +596,13 @@ devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
 	} else if (*select_generation < current_generation) {
 		*select_generation = current_generation;
 		init_selections = 1;
+	}
+
+	if (*dev_select == NULL) {
+		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+			 "%s: Cannot (re)allocate memory for dev_select argument",
+			 __func__);
+		return(-1);
 	}
 
 	/*
@@ -608,6 +632,12 @@ devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
 	 || (perf_select != 0)) && (changed == 0)){
 		old_dev_select = (struct device_selection *)malloc(
 		    *num_selections * sizeof(struct device_selection));
+		if (old_dev_select == NULL) {
+			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+				 "%s: Cannot allocate memory for selection list backup",
+				 __func__);
+			return(-1);
+		}
 		old_num_selections = *num_selections;
 		bcopy(*dev_select, old_dev_select, 
 		    sizeof(struct device_selection) * *num_selections);
@@ -1014,11 +1044,12 @@ devstat_buildmatch(char *match_str, struct devstat_match **matches,
 	 * Break the (comma delimited) input string out into separate strings.
 	 */
 	for (tempstr = tstr, num_args  = 0; 
-	     (*tempstr = strsep(&match_str, ",")) != NULL && (num_args < 5); 
-	     num_args++)
-		if (**tempstr != '\0')
+	     (*tempstr = strsep(&match_str, ",")) != NULL && (num_args < 5);)
+		if (**tempstr != '\0') {
+			num_args++;
 			if (++tempstr >= &tstr[5])
 				break;
+		}
 
 	/* The user gave us too many type arguments */
 	if (num_args > 3) {
@@ -1027,16 +1058,17 @@ devstat_buildmatch(char *match_str, struct devstat_match **matches,
 		return(-1);
 	}
 
-	/*
-	 * Since you can't realloc a pointer that hasn't been malloced
-	 * first, we malloc first and then realloc.
-	 */
 	if (*num_matches == 0)
-		*matches = (struct devstat_match *)malloc(
-			   sizeof(struct devstat_match));
-	else
-		*matches = (struct devstat_match *)realloc(*matches,
-			  sizeof(struct devstat_match) * (*num_matches + 1));
+		*matches = NULL;
+
+	*matches = (struct devstat_match *)reallocf(*matches,
+		  sizeof(struct devstat_match) * (*num_matches + 1));
+
+	if (*matches == NULL) {
+		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+			 "%s: Cannot allocate memory for matches list", __func__);
+		return(-1);
+	}
 			  
 	/* Make sure the current entry is clear */
 	bzero(&matches[0][*num_matches], sizeof(struct devstat_match));
@@ -1196,11 +1228,13 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 	u_int64_t totaltransfers, totaltransfersread, totaltransferswrite;
 	u_int64_t totaltransfersother, totalblocks, totalblocksread;
 	u_int64_t totalblockswrite, totaltransfersfree, totalblocksfree;
+	long double totalduration, totaldurationread, totaldurationwrite;
+	long double totaldurationfree, totaldurationother;
 	va_list ap;
 	devstat_metric metric;
 	u_int64_t *destu64;
 	long double *destld;
-	int retval, i;
+	int retval;
 
 	retval = 0;
 
@@ -1241,6 +1275,13 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 		totalblockswrite /= 512;
 		totalblocksfree /= 512;
 	}
+
+	totaldurationread = DELTA_T(duration[DEVSTAT_READ]);
+	totaldurationwrite = DELTA_T(duration[DEVSTAT_WRITE]);
+	totaldurationfree = DELTA_T(duration[DEVSTAT_FREE]);
+	totaldurationother = DELTA_T(duration[DEVSTAT_NO_DATA]);
+	totalduration = totaldurationread + totaldurationwrite +
+	    totaldurationfree + totaldurationother;
 
 	va_start(ap, etime);
 
@@ -1444,41 +1485,21 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 				*destld = 0.0;
 			break;
 		/*
-		 * This calculation is somewhat bogus.  It simply divides
-		 * the elapsed time by the total number of transactions
-		 * completed.  While that does give the caller a good
-		 * picture of the average rate of transaction completion,
-		 * it doesn't necessarily give the caller a good view of
-		 * how long transactions took to complete on average.
-		 * Those two numbers will be different for a device that
-		 * can handle more than one transaction at a time.  e.g.
-		 * SCSI disks doing tagged queueing.
-		 *
-		 * The only way to accurately determine the real average
-		 * time per transaction would be to compute and store the
-		 * time on a per-transaction basis.  That currently isn't
-		 * done in the kernel, and would only be desireable if it
-		 * could be implemented in a somewhat non-intrusive and high
-		 * performance way.
+		 * Some devstat callers update the duration and some don't.
+		 * So this will only be accurate if they provide the
+		 * duration. 
 		 */
 		case DSM_MS_PER_TRANSACTION:
 			if (totaltransfers > 0) {
-				*destld = 0;
-				for (i = 0; i < DEVSTAT_N_TRANS_FLAGS; i++)
-					*destld += DELTA_T(duration[i]);
+				*destld = totalduration;
 				*destld /= totaltransfers;
 				*destld *= 1000;
 			} else
 				*destld = 0.0;
 			break;
-		/*
-		 * As above, these next two really only give the average
-		 * rate of completion for read and write transactions, not
-		 * the average time the transaction took to complete.
-		 */
 		case DSM_MS_PER_TRANSACTION_READ:
 			if (totaltransfersread > 0) {
-				*destld = DELTA_T(duration[DEVSTAT_READ]);
+				*destld = totaldurationread;
 				*destld /= totaltransfersread;
 				*destld *= 1000;
 			} else
@@ -1486,7 +1507,7 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			break;
 		case DSM_MS_PER_TRANSACTION_WRITE:
 			if (totaltransferswrite > 0) {
-				*destld = DELTA_T(duration[DEVSTAT_WRITE]);
+				*destld = totaldurationwrite;
 				*destld /= totaltransferswrite;
 				*destld *= 1000;
 			} else
@@ -1494,7 +1515,7 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			break;
 		case DSM_MS_PER_TRANSACTION_FREE:
 			if (totaltransfersfree > 0) {
-				*destld = DELTA_T(duration[DEVSTAT_FREE]);
+				*destld = totaldurationfree;
 				*destld /= totaltransfersfree;
 				*destld *= 1000;
 			} else
@@ -1502,7 +1523,7 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			break;
 		case DSM_MS_PER_TRANSACTION_OTHER:
 			if (totaltransfersother > 0) {
-				*destld = DELTA_T(duration[DEVSTAT_NO_DATA]);
+				*destld = totaldurationother;
 				*destld /= totaltransfersother;
 				*destld *= 1000;
 			} else
@@ -1519,6 +1540,24 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			break;
 		case DSM_QUEUE_LENGTH:
 			*destu64 = current->start_count - current->end_count;
+			break;
+		case DSM_TOTAL_DURATION:
+			*destld = totalduration;
+			break;
+		case DSM_TOTAL_DURATION_READ:
+			*destld = totaldurationread;
+			break;
+		case DSM_TOTAL_DURATION_WRITE:
+			*destld = totaldurationwrite;
+			break;
+		case DSM_TOTAL_DURATION_FREE:
+			*destld = totaldurationfree;
+			break;
+		case DSM_TOTAL_DURATION_OTHER:
+			*destld = totaldurationother;
+			break;
+		case DSM_TOTAL_BUSY_TIME:
+			*destld = DELTA_T(busy_time);
 			break;
 /*
  * XXX: comment out the default block to see if any case's are missing.

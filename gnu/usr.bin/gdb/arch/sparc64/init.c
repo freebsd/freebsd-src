@@ -11,6 +11,7 @@ extern initialize_file_ftype _initialize_corelow;
 extern initialize_file_ftype _initialize_ser_hardwire;
 extern initialize_file_ftype _initialize_ser_pipe;
 extern initialize_file_ftype _initialize_ser_tcp;
+extern initialize_file_ftype _initialize_thread_db;
 extern initialize_file_ftype _initialize_sparc64fbsd_nat;
 extern initialize_file_ftype _initialize_sparc64_nat;
 extern initialize_file_ftype _initialize_sparc_nat;
@@ -124,6 +125,7 @@ initialize_all_files (void)
   _initialize_ser_pipe ();
   _initialize_ser_tcp ();
 #ifndef CROSS_DEBUGGER
+  _initialize_thread_db ();
   _initialize_sparc64fbsd_nat ();
   _initialize_sparc64_nat ();
   _initialize_sparc_nat ();

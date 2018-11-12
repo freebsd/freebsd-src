@@ -1,6 +1,4 @@
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2008 Hans Petter Selasky <hselasky@FreeBSD.org>
  * All rights reserved.
@@ -28,7 +26,7 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
- * This file contains the USB templates for an USB Message Transfer
+ * This file contains the USB templates for an USB Media Transfer
  * Protocol device.
  *
  * NOTE: It is common practice that MTP devices use some dummy
@@ -38,6 +36,9 @@ __FBSDID("$FreeBSD$");
  * operating system the VID and PID of your device.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -46,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -60,7 +60,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usb_core.h>
+
 #include <dev/usb/template/usb_template.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #define	MTP_BREQUEST 0x08
 
@@ -74,41 +77,23 @@ enum {
 	STRING_MTP_MAX,
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_MTP_DATA	\
-  'U', 0, 'S', 0, 'B', 0, ' ', 0, \
-  'M', 0, 'T', 0, 'P', 0, \
-  ' ', 0, 'I', 0, 'n', 0, 't', 0, \
-  'e', 0, 'r', 0, 'f', 0, 'a', 0, \
-  'c', 0, 'e', 0,
+  "U\0S\0B\0 \0M\0T\0P\0 \0I\0n\0t\0e\0r\0f\0a\0c\0e"
 
 #define	STRING_MTP_CONFIG \
-  'D', 0, 'e', 0, 'f', 0, 'a', 0, \
-  'u', 0, 'l', 0, 't', 0, ' ', 0, \
-  'c', 0, 'o', 0, 'n', 0, 'f', 0, \
-  'i', 0, 'g', 0,
+  "D\0e\0f\0a\0u\0l\0t\0 \0c\0o\0n\0f\0i\0g"
 
 #define	STRING_MTP_VENDOR \
-  'F', 0, 'r', 0, 'e', 0, 'e', 0, \
-  'B', 0, 'S', 0, 'D', 0, ' ', 0, \
-  'f', 0, 'o', 0, 'u', 0, 'n', 0, \
-  'd', 0, 'a', 0, 't', 0, 'i', 0, \
-  'o', 0, 'n', 0,
+  "F\0r\0e\0e\0B\0S\0D\0 \0f\0o\0u\0n\0d\0a\0t\0i\0o\0n"
 
 #define	STRING_MTP_PRODUCT \
-  'U', 0, 'S', 0, 'B', 0, ' ', 0, \
-  'M', 0, 'T', 0, 'P', 0,
+  "U\0S\0B\0 \0M\0T\0P"
 
 #define	STRING_MTP_SERIAL \
-  'J', 0, 'u', 0, 'n', 0, 'e', 0, \
-  ' ', 0, '2', 0, '0', 0, '0', 0, \
-  '8', 0,
+  "J\0u\0n\0e\0 \0002\0000\0000\08"
 
 /* make the real string descriptors */
 
-USB_MAKE_STRING_DESC(STRING_LANG, string_lang);
 USB_MAKE_STRING_DESC(STRING_MTP_DATA, string_mtp_data);
 USB_MAKE_STRING_DESC(STRING_MTP_CONFIG, string_mtp_config);
 USB_MAKE_STRING_DESC(STRING_MTP_VENDOR, string_mtp_vendor);
@@ -192,8 +177,8 @@ const struct usb_temp_device_desc usb_template_mtp = {
 	.getStringDesc = &mtp_get_string_desc,
 	.getVendorDesc = &mtp_get_vendor_desc,
 	.ppConfigDesc = mtp_configs,
-	.idVendor = 0x0001,
-	.idProduct = 0x0001,
+	.idVendor = USB_TEMPLATE_VENDOR,
+	.idProduct = 0x0011,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = 0,
 	.bDeviceSubClass = 0,
@@ -211,7 +196,7 @@ const struct usb_temp_device_desc usb_template_mtp = {
  * Else: Success. Pointer to vendor descriptor is returned.
  *------------------------------------------------------------------------*/
 static const void *
-mtp_get_vendor_desc(const struct usb_device_request *req)
+mtp_get_vendor_desc(const struct usb_device_request *req, uint16_t *plen)
 {
 	static const uint8_t dummy_desc[0x28] = {
 		0x28, 0, 0, 0, 0, 1, 4, 0,
@@ -245,7 +230,7 @@ static const void *
 mtp_get_string_desc(uint16_t lang_id, uint8_t string_index)
 {
 	static const void *ptr[STRING_MTP_MAX] = {
-		[STRING_LANG_INDEX] = &string_lang,
+		[STRING_LANG_INDEX] = &usb_string_lang_en,
 		[STRING_MTP_DATA_INDEX] = &string_mtp_data,
 		[STRING_MTP_CONFIG_INDEX] = &string_mtp_config,
 		[STRING_MTP_VENDOR_INDEX] = &string_mtp_vendor,
@@ -267,7 +252,7 @@ mtp_get_string_desc(uint16_t lang_id, uint8_t string_index)
 		return (dummy_desc);
 	}
 	if (string_index == 0) {
-		return (&string_lang);
+		return (&usb_string_lang_en);
 	}
 	if (lang_id != 0x0409) {
 		return (NULL);

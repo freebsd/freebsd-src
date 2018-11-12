@@ -352,7 +352,7 @@
 
 #define SF_INTRS	\
 	(SF_IMR_RXDQ2_NOBUFS|SF_IMR_RXDQ1_DMADONE|SF_IMR_RXDQ2_DMADONE|	\
-	 SF_IMR_TX_DMADONE|SF_IMR_RXDQ1_NOBUFS|SF_IMR_RXDQ2_DMADONE|	\
+	 SF_IMR_TX_DMADONE|SF_IMR_RXDQ1_NOBUFS|				\
 	 SF_IMR_NORMALINTR|SF_IMR_ABNORMALINTR|SF_IMR_TXCQ_NOBUFS|	\
 	 SF_IMR_RXCQ1_NOBUFS|SF_IMR_RXCQ2_NOBUFS|SF_IMR_STATSOFLOW|	\
 	 SF_IMR_TX_LOFIFO|SF_IMR_DMAERR|SF_IMR_RXGFP_NORESP|		\
@@ -1083,7 +1083,6 @@ struct sf_softc {
 	int			sf_if_flags;
 	struct callout		sf_co;
 	int			sf_watchdog_timer;
-	struct task		sf_link_task;
 	int			sf_link;
 	int			sf_suspended;
 	int			sf_detach;

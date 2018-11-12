@@ -59,7 +59,7 @@ elf32_exec(struct preloaded_file *fp)
     int				boothowto, err, bootdev;
 
     if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
-	return(EFTYPE);			/* XXX actually EFUCKUP */
+	return(EFTYPE);
     ehdr = (Elf_Ehdr *)&(md->md_data);
 
     err = bi_load32(fp->f_args, &boothowto, &bootdev, &bootinfop, &modulep, &kernend);

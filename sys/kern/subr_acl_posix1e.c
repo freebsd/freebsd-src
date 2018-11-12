@@ -37,6 +37,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/mount.h>
 #include <sys/priv.h>
@@ -63,6 +65,8 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 
 	KASSERT((accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND)) == 0,
 	    ("invalid bit in accmode"));
+	KASSERT((accmode & VAPPEND) == 0 || (accmode & VWRITE),
+	    	("VAPPEND without VWRITE"));
 
 	/*
 	 * Look for a normal, non-privileged way to access the file/directory
@@ -88,8 +92,14 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 		     PRIV_VFS_LOOKUP, 0))
 			priv_granted |= VEXEC;
 	} else {
-		if ((accmode & VEXEC) && !priv_check_cred(cred,
-		    PRIV_VFS_EXEC, 0))
+		/*
+		 * Ensure that at least one execute bit is on. Otherwise,
+		 * a privileged user will always succeed, and we don't want
+		 * this to happen unless the file really is executable.
+		 */
+		if ((accmode & VEXEC) && (acl_posix1e_acl_to_mode(acl) &
+		    (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 &&
+		    !priv_check_cred(cred, PRIV_VFS_EXEC, 0))
 			priv_granted |= VEXEC;
 	}
 
@@ -556,7 +566,7 @@ acl_posix1e_check(struct acl *acl)
 	 */
 	num_acl_user_obj = num_acl_user = num_acl_group_obj = num_acl_group =
 	    num_acl_mask = num_acl_other = 0;
-	if (acl->acl_cnt > ACL_MAX_ENTRIES || acl->acl_cnt < 0)
+	if (acl->acl_cnt > ACL_MAX_ENTRIES)
 		return (EINVAL);
 	for (i = 0; i < acl->acl_cnt; i++) {
 		/*
@@ -640,3 +650,42 @@ acl_posix1e_newfilemode(mode_t cmode, struct acl *dacl)
 
 	return (mode);
 }
+
+
+static int
+acl_posix1e_modload(module_t mod, int what, void *arg)
+{
+	int ret;
+
+	ret = 0;
+
+	switch (what) {
+	case MOD_LOAD:
+	case MOD_SHUTDOWN:
+		break;
+
+	case MOD_QUIESCE:
+		/* XXX TODO */
+		ret = 0;
+		break;
+
+	case MOD_UNLOAD:
+		/* XXX TODO */
+		ret = 0;
+		break;
+	default:
+		ret = EINVAL;
+		break;
+	}
+
+	return (ret);
+}
+
+static moduledata_t acl_posix1e_mod = {
+	"acl_posix1e",
+	acl_posix1e_modload,
+	NULL
+};
+
+DECLARE_MODULE(acl_posix1e, acl_posix1e_mod, SI_SUB_VFS, SI_ORDER_FIRST);
+MODULE_VERSION(acl_posix1e, 1);

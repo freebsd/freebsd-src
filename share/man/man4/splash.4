@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2006
+.Dd December 31, 2015
 .Dt SPLASH 4
 .Os
 .Sh NAME
@@ -66,7 +66,7 @@ Currently the following decoder modules are available:
 .Pp
 .Bl -tag -width splash_decoder -compact
 .It Pa splash_bmp.ko
-W*ndows BMP file decoder.
+Windows BMP file decoder.
 While the BMP file format allows images of various color depths, this
 decoder currently only handles 256 color bitmaps.
 Bitmaps of other color depths will not be displayed.
@@ -74,6 +74,14 @@ Bitmaps of other color depths will not be displayed.
 ZSoft PCX decoder.
 This decoder currently only supports version 5 8-bpp single-plane
 images.
+.It Pa splash_txt.ko
+TheDraw binary ASCII drawing file decoder.
+Displays a text-mode 80x25 ASCII drawing, such as that produced by
+the Binary save format in TheDraw.
+This format consists of a sequence
+of two byte pairs representing the 80x25 display, where the first byte
+is the ASCII character to draw and the second byte indicates the
+colors/attributes to use when drawing the character.
 .El
 .Pp
 The
@@ -99,20 +107,31 @@ Currently the following screen saver modules are available:
 .Bl -tag -width splash_module.ko -compact
 .It Pa blank_saver.ko
 This screen saver simply blanks the screen.
+.It Pa beastie_saver.ko
+Animated graphical
+.Bx
+Daemon.
 .It Pa daemon_saver.ko
 Animated
 .Bx
 Daemon screen saver.
+.It Pa dragon_saver.ko
+Draws a random dragon curve.
 .It Pa fade_saver.ko
 The screen will gradually fade away.
 .It Pa fire_saver.ko
 A fire which becomes higher as load increases.
 .It Pa green_saver.ko
-If the monitor supports power saving mode, it will be turned off.
+The screen will be blanked, similar to
+.Pa blank_saver.ko .
+If the monitor and the video card's BIOS support it
+the screen will also be powered off.
 .It Pa logo_saver.ko
 Animated graphical
-.Bx
-Daemon.
+.Fx
+logo.
+.It Pa plasma_saver.ko
+Draws an animated interference pattern.
 .It Pa rain_saver.ko
 Draws a shower on the screen.
 .It Pa snake_saver.ko
@@ -214,11 +233,16 @@ If the VESA support is statically linked to the kernel, it is not
 necessary to load the VESA module.
 Just load the bitmap file and the splash decoder module as in the
 first example above.
+.Pp
+To load a binary ASCII drawing and display this while booting, include the
+following into your
+.Pa /boot/loader.conf :
+.Bd -literal -offset indent
+splash_txt_load="YES"
+bitmap_load="YES"
+bitmap_name="/boot/splash.bin"
+.Ed
 .\".Sh DIAGNOSTICS
-.Sh CAVEATS
-Both the splash screen and the screen saver work with
-.Xr syscons 4
-only.
 .Sh SEE ALSO
 .Xr vidcontrol 1 ,
 .Xr syscons 4 ,
@@ -237,20 +261,41 @@ driver first appeared in
 The
 .Nm
 driver and this manual page were written by
-.An Kazutaka Yokota Aq yokota@FreeBSD.org .
+.An Kazutaka Yokota Aq Mt yokota@FreeBSD.org .
 The
 .Pa splash_bmp
 module was written by
-.An Michael Smith Aq msmith@FreeBSD.org
+.An Michael Smith Aq Mt msmith@FreeBSD.org
 and
 .An Kazutaka Yokota .
 The
 .Pa splash_pcx
 module was written by
-.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org
 based on the
 .Pa splash_bmp
 code.
+The
+.Pa splash_txt
+module was written by
+.An Antony Mawer Aq Mt antony@mawer.org
+based on the
+.Pa splash_bmp
+code, with some additional inspiration from the
+.Pa daemon_saver
+code.
+The
+.Pa logo_saver ,
+.Pa plasma_saver ,
+.Pa rain_saver
+and
+.Pa warp_saver
+modules were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .
+.Sh CAVEATS
+Both the splash screen and the screen saver work with
+.Xr syscons 4
+only.
 .Sh BUGS
 If you load a screen saver while another screen saver has already
 been loaded, the first screen saver will not be automatically unloaded

@@ -1,14 +1,12 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if ${MK_MAILWRAPPER} != "no"
 PROG=	mailwrapper
 MAN=	mailwrapper.8
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
-WARNS?=	6
+LIBADD=	util
 .endif
 
 .if ${MK_MAILWRAPPER} != "no" || ${MK_SENDMAIL} != "no"
@@ -21,6 +19,10 @@ SYMLINKS= 	${BINDIR}/mailwrapper /usr/sbin/sendmail  \
 .if ${MK_MAILWRAPPER} == "no" && ${MK_SENDMAIL} != "no"
 SYMLINKS+=	/usr/libexec/sendmail/sendmail ${BINDIR}/mailwrapper
 .endif
+.endif
+
+.if ${MK_MAILWRAPPER} != "no" && ${MK_SENDMAIL} == "no"
+SYMLINKS+=	${BINDIR}/mailwrapper /bin/rmail
 .endif
 
 .if ${MK_MAILWRAPPER} != "no"

@@ -1,6 +1,15 @@
 #	@(#)Makefile	5.33.1.1 (Berkeley) 5/6/91
 # $FreeBSD$
 
-SUBDIR= lib usr.bin
+.include <src.opts.mk>
+
+SUBDIR= lib .WAIT \
+	${_tests} usr.bin
+
+.if ${MK_TESTS} != "no"
+_tests=	tests
+.endif
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

@@ -9,10 +9,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -32,7 +28,7 @@
 .\"	@(#)finger.1	8.3 (Berkeley) 5/5/94
 .\" $FreeBSD$
 .\"
-.Dd April 11, 2007
+.Dd January 21, 2010
 .Dt FINGER 1
 .Os
 .Sh NAME
@@ -100,8 +96,7 @@ of the remote host when used in conjunction with the
 .Fl h
 option.
 .It Fl k
-Disable all use of
-.Xr utmp 5 .
+Disable all use of the user accounting database.
 .It Fl l
 Produce a multi-line format displaying all of the information
 described for the
@@ -221,10 +216,10 @@ This variable may be set with favored options to
 .Nm .
 .El
 .Sh FILES
-.Bl -tag -width /var/log/lastlog -compact
+.Bl -tag -width /var/log/utx.lastlogin -compact
 .It Pa /etc/finger.conf
 alias definition data base
-.It Pa /var/log/lastlog
+.It Pa /var/log/utx.lastlogin
 last login data base
 .El
 .Sh SEE ALSO

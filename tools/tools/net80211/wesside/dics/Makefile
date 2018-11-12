@@ -2,9 +2,8 @@
 
 PROG=	dics
 BINDIR=	/usr/local/bin
-DPADD=	${LIBZ}
-LDADD=	-lz
+LIBADD=	z
 CFLAGS=-g
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

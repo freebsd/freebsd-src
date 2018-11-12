@@ -14,7 +14,7 @@
 	.byte directive generates a pc-relative relocation.
 
 2003-12-19  Nick Clifton  <nickc@redhat.com>
-            Andreas Schwab  <schwab@suse.de>
+	    Andreas Schwab  <schwab@suse.de>
 
 	* messages.c (as_perror): Save errno around library calls.
 	* input-file.c [BFD_ASSEMBLER]: Set the BFD error to
@@ -29,15 +29,15 @@
 
 2003-12-19  Kazuhiro Inaoka <inaoka.kazuhiro@renesas.com>
 
-        Add m32r-linux and PIC support.  Add new ABI that uses RELA.
-        * configure.in: Add m32r-linux targets.
+	Add m32r-linux and PIC support.  Add new ABI that uses RELA.
+	* configure.in: Add m32r-linux targets.
 	* configure: Regenerate.
-        * config/tc-m32r.c (md_parse_option): Add -KPIC option.
-        (tc_gen_reloc): Added.
-        (debug_sym, md_estimate_size_before_relax, md_convert_frag,
-        md_pcrel_from_section, m32r_fix_adjustable): Changed for PIC.
-        * config/tc-m32r.h (tc_gen_reloc, EXTERN_FORCE_RELOC): Undefined.
-        (TC_HANDLES_FX_DONE, TC_FIX_ADJUSTABLE, TC_RELOC_RTSYM_LOC_FIXUP):
+	* config/tc-m32r.c (md_parse_option): Add -KPIC option.
+	(tc_gen_reloc): Added.
+	(debug_sym, md_estimate_size_before_relax, md_convert_frag,
+	md_pcrel_from_section, m32r_fix_adjustable): Changed for PIC.
+	* config/tc-m32r.h (tc_gen_reloc, EXTERN_FORCE_RELOC): Undefined.
+	(TC_HANDLES_FX_DONE, TC_FIX_ADJUSTABLE, TC_RELOC_RTSYM_LOC_FIXUP):
 	Defined.
 	* doc/c-m32r.texi: Document -KPIC option.
 	* NEWS: Mention the support m32r Linux and PIC.
@@ -68,17 +68,17 @@
 2003-12-17  Nick Clifton  <nickc@redhat.com>
 
 	* config/tc-m32r.c (error_explicit_parallel_conflicts): Rename
-        to 'ignore_parallel_conflicts'.
-        (md_longopts): Change option names as well.
-        (md_parse_option): Separate the	warn_explicit and ignore
-        parallel conflicts options.
-        (md_show_usage): Update descriptions of these options.
-        (first_writes_to_seconds_operands): Do not run this check if
-        ignoring parallel conflicts.
-        (assemble_two_insns): Remove code that checked
-        error_explicit_parallel_conflicts.
-        * doc/c-m32r.texi: Update descriptions of the options.
-        
+	to 'ignore_parallel_conflicts'.
+	(md_longopts): Change option names as well.
+	(md_parse_option): Separate the warn_explicit and ignore
+	parallel conflicts options.
+	(md_show_usage): Update descriptions of these options.
+	(first_writes_to_seconds_operands): Do not run this check if
+	ignoring parallel conflicts.
+	(assemble_two_insns): Remove code that checked
+	error_explicit_parallel_conflicts.
+	* doc/c-m32r.texi: Update descriptions of the options.
+
 2003-12-16  Dmitry Semyonov  <Dmitry.Semyonov@oktet.ru>
 
 	* tc-arm.c (do_adr): Do not adjust pc by -8 if TE_WINCE is

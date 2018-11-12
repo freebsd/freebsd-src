@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 static dbbe_init_f gdb_init;
 static dbbe_trap_f gdb_trap;
 
-KDB_BACKEND(gdb, gdb_init, NULL, gdb_trap);
+KDB_BACKEND(gdb, gdb_init, NULL, NULL, gdb_trap);
 
 static struct gdb_dbgport null_gdb_dbgport;
 DATA_SET(gdb_dbgport_set, null_gdb_dbgport);
@@ -52,6 +52,8 @@ SET_DECLARE(gdb_dbgport_set, struct gdb_dbgport);
 
 struct gdb_dbgport *gdb_cur = NULL;
 int gdb_listening = 0;
+
+static unsigned char gdb_bindata[64];
 
 static int
 gdb_init(void)
@@ -95,7 +97,17 @@ gdb_init(void)
 static int
 gdb_trap(int type, int code)
 {
+	jmp_buf jb;
 	struct thread *thr_iter;
+	void *prev_jb;
+
+	prev_jb = kdb_jmpbuf(jb);
+	if (setjmp(jb) != 0) {
+		printf("%s bailing, hopefully back to ddb!\n", __func__);
+		gdb_listening = 0;
+		(void)kdb_jmpbuf(prev_jb);
+		return (1);
+	}
 
 	gdb_listening = 0;
 	/*
@@ -244,6 +256,28 @@ gdb_trap(int type, int code)
 					gdb_tx_begin('l');
 					gdb_tx_end();
 				}
+			} else if (gdb_rx_equal("Search:memory:")) {
+				size_t patlen;
+				intmax_t addr, size;
+				const unsigned char *found;
+				if (gdb_rx_varhex(&addr) || gdb_rx_char() != ';' ||
+				    gdb_rx_varhex(&size) || gdb_rx_char() != ';' ||
+				    gdb_rx_bindata(gdb_bindata, sizeof(gdb_bindata), &patlen)) {
+					gdb_tx_err(EINVAL);
+					break;
+				}
+				if (gdb_search_mem((char *)(uintptr_t)addr, size, gdb_bindata, patlen, &found)) {
+					if (found == 0ULL)
+						gdb_tx_begin('0');
+					else {
+						gdb_tx_begin('1');
+						gdb_tx_char(',');
+						gdb_tx_hex((intmax_t)(uintptr_t)found, 8);
+					}
+					gdb_tx_end();
+				} else
+					gdb_tx_err(EIO);
+				break;
 			} else if (!gdb_cpu_query())
 				gdb_tx_empty();
 			break;
@@ -291,5 +325,6 @@ gdb_trap(int type, int code)
 			break;
 		}
 	}
+	(void)kdb_jmpbuf(prev_jb);
 	return (0);
 }

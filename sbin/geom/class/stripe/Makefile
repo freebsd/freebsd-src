@@ -1,7 +1,8 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 .PATH: ${.CURDIR}/../../misc
 
-CLASS=	stripe
+GEOM_CLASS=	stripe
 
 .include <bsd.lib.mk>

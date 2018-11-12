@@ -1,69 +1,55 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
-SUBDIR= bc \
-	${_binutils} \
+SUBDIR= ${_binutils} \
 	${_cc} \
-	${_cpio} \
-	${_cvs} \
-	dc \
-	dialog \
 	diff \
 	diff3 \
+	${_dtc} \
 	${_gdb} \
 	${_gperf} \
-	${_grep} \
+	grep \
 	${_groff} \
-	${_man} \
-	patch \
 	${_rcs} \
-	sdiff \
-	send-pr \
-	sort \
-	${_texinfo}
+	${_tests}
 
-.if ${MACHINE_ARCH} == "mips"
-MK_GDB=no	# not yet
-.endif
+SUBDIR_DEPEND_gdb= ${_binutils}
 
 .if ${MK_CXX} != "no"
+.if ${MK_GCC} != "no"
 _gperf=		gperf
+.endif
 .if ${MK_GROFF} != "no"
 _groff=		groff
 .endif
 .endif
 
-.if ${MK_GNU_CPIO} == "yes"
-_cpio=		cpio
-.endif
-
-.if ${MK_CVS} != "no"
-_cvs=		cvs
-.endif
-
-.if ${MK_GNU_GREP} != "no"
-_grep=		grep
-.endif
-
-.if ${MK_INFO} != "no"
-_texinfo=	texinfo
-.endif
-
-.if ${MK_MAN} != "no"
-_man=		man
+.if ${MK_GPL_DTC} != "no"
+_dtc=		dtc
 .endif
 
 .if ${MK_RCS} != "no"
 _rcs=		rcs
 .endif
 
-.if ${MK_TOOLCHAIN} != "no"
+.if ${MK_TESTS} != "no"
+_tests=		tests
+.endif
+
+.if ${MK_BINUTILS} != "no"
 _binutils=	binutils
-_cc=		cc
 .if ${MK_GDB} != "no"
 _gdb=		gdb
 .endif
 .endif
+
+.if ${MK_GCC} != "no"
+_cc=		cc
+.endif
+
+SUBDIR.${MK_DIALOG}+=	dialog
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

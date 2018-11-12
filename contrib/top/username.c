@@ -30,17 +30,21 @@
  *  This makes the table size independent of the passwd file size.
  */
 
+#include <sys/param.h>
 #include <sys/types.h>
-#include <stdio.h>
+
 #include <pwd.h>
-#include <utmp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "top.local.h"
 #include "utils.h"
+#include "username.h"
 
 struct hash_el {
     int  uid;
-    char name[UT_NAMESIZE + 1];
+    char name[MAXLOGNAME];
 };
 
 #define    is_empty_hash(x)	(hash_table[x].name[0] == 0)
@@ -55,6 +59,8 @@ struct hash_el {
 /* We depend on that for hash_table and YOUR compiler had BETTER do it! */
 struct hash_el hash_table[Table_size];
 
+
+void
 init_hash()
 
 {
@@ -67,7 +73,7 @@ init_hash()
 
 char *username(uid)
 
-register int uid;
+int uid;
 
 {
     register int hashindex;
@@ -106,8 +112,8 @@ char *username;
 
 int enter_user(uid, name, wecare)
 
-register int  uid;
-register char *name;
+int  uid;
+char *name;
 int wecare;		/* 1 = enter it always, 0 = nice to have */
 
 {
@@ -129,7 +135,7 @@ int wecare;		/* 1 = enter it always, 0 = nice to have */
 
     /* empty or wrong slot -- fill it with new value */
     hash_table[hashindex].uid = uid;
-    (void) strncpy(hash_table[hashindex].name, name, UT_NAMESIZE);
+    (void) strncpy(hash_table[hashindex].name, name, MAXLOGNAME - 1);
     return(hashindex);
 }
 
@@ -142,7 +148,7 @@ int wecare;		/* 1 = enter it always, 0 = nice to have */
 
 int get_user(uid)
 
-register int uid;
+int uid;
 
 {
     struct passwd *pwd;

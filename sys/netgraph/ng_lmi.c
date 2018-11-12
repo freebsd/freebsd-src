@@ -185,9 +185,7 @@ nglmi_constructor(node_p node)
 {
 	sc_p sc;
 
-	sc = malloc(sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (sc == NULL)
-		return (ENOMEM);
+	sc = malloc(sizeof(*sc), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	NG_NODE_SET_PRIVATE(node, sc);
 	sc->node = node;
@@ -319,7 +317,7 @@ nglmi_inquire(sc_p sc, int full)
 
 	if (sc->lmi_channel == NULL)
 		return;
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		log(LOG_ERR, "nglmi: unable to start up LMI processing\n");
 		return;
@@ -431,7 +429,7 @@ ngauto_state_machine(sc_p sc)
 		break;
 	}
 
-	/* send an inquirey encoded appropriatly */
+	/* send an inquirey encoded appropriately */
 	nglmi_inquire(sc, 0);
 	sc->poll_count--;
 }
@@ -587,7 +585,7 @@ nglmi_rcvdata(hook_p hook, item_p item)
 
 	/* Now check if there is a 'locking shift'. This is only seen in
 	 * Annex D frames. don't bother checking, we already did that. Don't
-	 * increment immediatly as it might not be there. */
+	 * increment immediately as it might not be there. */
 	if (ANNEXD(sc))
 		STEPBY(1);
 

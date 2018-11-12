@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2007-2008 MARVELL INTERNATIONAL LTD.
+ * Copyright (C) 2007-2011 MARVELL INTERNATIONAL LTD.
  * All rights reserved.
  *
  * Developed by Semihalf.
@@ -35,84 +35,126 @@
 #define _MVWIN_H_
 
 /*
- * Physical addresses of integrated SoC peripherals
+ * Decode windows addresses.
+ *
+ * All decoding windows must be aligned to their size, which has to be
+ * a power of 2.
  */
-#define MV_PHYS_BASE		0xF1000000
-#define MV_SIZE			0x100000
 
 /*
- * Decode windows addresses (physical)
+ * SoC Integrated devices: 0xF1000000, 16 MB (VA == PA)
  */
-#define MV_PCIE_IO_PHYS_BASE	(MV_PHYS_BASE + MV_SIZE)
-#define MV_PCIE_IO_BASE		MV_PCIE_IO_PHYS_BASE
-#define MV_PCIE_IO_SIZE		(1024 * 1024)
-#define MV_PCI_IO_PHYS_BASE	(MV_PCIE_IO_PHYS_BASE + MV_PCIE_IO_SIZE) 
-#define MV_PCI_IO_BASE		MV_PCI_IO_PHYS_BASE
-#define MV_PCI_IO_SIZE		(1024 * 1024)
 
-#define MV_PCIE_MEM_PHYS_BASE	(MV_PCI_IO_PHYS_BASE + MV_PCI_IO_SIZE)
-#define MV_PCIE_MEM_BASE	MV_PCIE_MEM_PHYS_BASE
-#define MV_PCIE_MEM_SIZE	(64 * 1024 * 1024)
-#define MV_PCI_MEM_PHYS_BASE	(MV_PCIE_MEM_PHYS_BASE + MV_PCIE_MEM_SIZE)
-#define MV_PCI_MEM_BASE		MV_PCI_MEM_PHYS_BASE
-#define MV_PCI_MEM_SIZE		(64 * 1024 * 1024)
+/* SoC Regs */
+#define MV_PHYS_BASE		0xF1000000
+#define MV_SIZE			(1024 * 1024)	/* 1 MB */
 
-/* XXX DEV_BOOT, CSx are board specific, should be defined per platform */
+/* SRAM */
+#define MV_CESA_SRAM_BASE	0xF1100000
 
-/* 512KB NOR FLASH */
-#define MV_DEV_BOOT_PHYS_BASE	(MV_PCI_MEM_PHYS_BASE + MV_PCI_MEM_SIZE)
-#define MV_DEV_BOOT_SIZE		(512 * 1024)
-/* CS0: 7-seg LED */
-#define MV_DEV_CS0_PHYS_BASE	0xFA000000
-#define MV_DEV_CS0_SIZE	(1024 * 1024) /* XXX u-boot has 2MB */
-/* CS1: 32MB NOR FLASH */
-#define MV_DEV_CS1_PHYS_BASE	(MV_DEV_CS0_PHYS_BASE + MV_DEV_CS0_SIZE)
-#define MV_DEV_CS1_SIZE	(32 * 1024 * 1024)
-/* CS2: 32MB NAND FLASH */
-#define MV_DEV_CS2_PHYS_BASE	(MV_DEV_CS1_PHYS_BASE + MV_DEV_CS1_SIZE)
-#define MV_DEV_CS2_SIZE	1024	/* XXX u-boot has 1MB */
-
-#define MV_CESA_SRAM_PHYS_BASE	0xFD000000
-#define MV_CESA_SRAM_BASE	MV_CESA_SRAM_PHYS_BASE /* VA == PA mapping */
-#define MV_CESA_SRAM_SIZE	(1024 * 1024)
-
-/* XXX this is probably not robust against wraparounds... */
-#if ((MV_CESA_SRAM_PHYS_BASE + MV_CESA_SRAM_SIZE) > 0xFFFEFFFF)
-#error Devices memory layout overlaps reset vectors range!
+/* AXI Regs */
+#ifdef SOC_MV_DOVE
+#define MV_AXI_PHYS_BASE	0xF1800000
+#define MV_AXI_BASE		MV_AXI_PHYS_BASE
+#define MV_AXI_SIZE		(16 * 1024 * 1024)	/* 16 MB */
 #endif
+
+/*
+ * External devices: 0x80000000, 1 GB (VA == PA)
+ * Includes Device Bus, PCI and PCIE.
+ */
+#if defined(SOC_MV_ORION)
+#define MV_PCI_PORTS	2	/* 1x PCI + 1x PCIE */
+#elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_FREY)
+#define MV_PCI_PORTS	1	/* 1x PCIE */
+#elif defined(SOC_MV_DISCOVERY)
+#define MV_PCI_PORTS	8	/* 8x PCIE */
+#elif defined(SOC_MV_DOVE) || defined(SOC_MV_LOKIPLUS)
+#define MV_PCI_PORTS	2	/* 2x PCIE */
+#elif defined(SOC_MV_ARMADAXP)
+#define MV_PCI_PORTS	3	/* 3x PCIE */
+#elif defined(SOC_MV_ARMADA38X)
+#define MV_PCI_PORTS	4	/* 4x PCIE */
+#else
+#error "MV_PCI_PORTS not configured !"
+#endif
+
+/* PCI/PCIE Memory */
+#define MV_PCI_MEM_PHYS_BASE	0x80000000
+#define MV_PCI_MEM_SIZE		(512 * 1024 * 1024)	/* 512 MB */
+#define MV_PCI_MEM_BASE		MV_PCI_MEM_PHYS_BASE
+#define MV_PCI_MEM_SLICE_SIZE	(MV_PCI_MEM_SIZE / MV_PCI_PORTS)
+#define MV_PCI_MEM_SLICE(n)	(MV_PCI_MEM_BASE + ((n) * \
+				    MV_PCI_MEM_SLICE_SIZE))
+/* PCI/PCIE I/O */
+#define MV_PCI_IO_PHYS_BASE	0xBF000000
+#define MV_PCI_IO_SIZE		(16 * 1024 * 1024)	/* 16 MB */
+#define MV_PCI_IO_BASE		MV_PCI_IO_PHYS_BASE
+#define MV_PCI_IO_SLICE_SIZE	(MV_PCI_IO_SIZE / MV_PCI_PORTS)
+#define MV_PCI_IO_SLICE(n)	(MV_PCI_IO_BASE + ((n) * MV_PCI_IO_SLICE_SIZE))
+
+#if defined(SOC_MV_FREY)
+#define MV_PCI_VA_MEM_BASE	MV_PCI_MEM_BASE
+#else
+#define MV_PCI_VA_MEM_BASE	0
+#endif
+#define MV_PCI_VA_IO_BASE	0
+
+/*
+ * Device Bus (VA == PA)
+ */
+#define MV_DEV_BOOT_BASE    0xF9300000
+#define MV_DEV_BOOT_SIZE    (1024 * 1024)   /* 1 MB */
+
+#define MV_DEV_CS0_BASE     0xF9400000
+#define MV_DEV_CS0_SIZE     (1024 * 1024)   /* 1 MB */
+
+#define MV_DEV_CS1_BASE     0xF9500000
+#define MV_DEV_CS1_SIZE     (32 * 1024 * 1024)  /* 32 MB */
+
+#define MV_DEV_CS2_BASE     0xFB500000
+#define MV_DEV_CS2_SIZE     (1024 * 1024)   /* 1 MB */
+
 
 /*
  * Integrated SoC peripherals addresses
  */
 #define MV_BASE			MV_PHYS_BASE	/* VA == PA mapping */
+#if defined(SOC_MV_DOVE)
+#define MV_DDR_CADR_BASE	(MV_AXI_BASE + 0x100)
+#elif defined(SOC_MV_LOKIPLUS)
+#define MV_DDR_CADR_BASE	(MV_BASE + 0xF1500)
+#elif defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
+#define MV_DDR_CADR_BASE	(MV_BASE + 0x20180)
+#else
 #define MV_DDR_CADR_BASE	(MV_BASE + 0x1500)
+#endif
 #define MV_MPP_BASE		(MV_BASE + 0x10000)
-#define MV_GPIO_BASE		(MV_BASE + 0x10100)
-#define MV_GPIO_SIZE		0x20
-#define MV_RTC_BASE		(MV_BASE + 0x10300)
-#define MV_RTC_SIZE		0x08
-#define MV_TWSI0_BASE		(MV_BASE + 0x11000)
-#define MV_TWSI1_BASE		(MV_BASE + 0x11100)
-#define MV_TWSI_SIZE		0x20
-#define MV_UART0_BASE		(MV_BASE + 0x12000)
-#define MV_UART1_BASE		(MV_BASE + 0x12100)
-#define MV_UART_SIZE		0x20
+
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
+#define MV_MISC_BASE		(MV_BASE + 0x18200)
+#define MV_MBUS_BRIDGE_BASE	(MV_BASE + 0x20000)
+#define MV_INTREGS_BASE		(MV_MBUS_BRIDGE_BASE + 0x80)
+#define MV_MP_CLOCKS_BASE	(MV_MBUS_BRIDGE_BASE + 0x700)
+#define MV_CPU_CONTROL_BASE	(MV_MBUS_BRIDGE_BASE + 0x1800)
+#elif !defined(SOC_MV_FREY)
 #define MV_MBUS_BRIDGE_BASE	(MV_BASE + 0x20000)
 #define MV_INTREGS_BASE		(MV_MBUS_BRIDGE_BASE + 0x80)
 #define MV_CPU_CONTROL_BASE	(MV_MBUS_BRIDGE_BASE + 0x100)
-#define MV_IC_BASE		(MV_MBUS_BRIDGE_BASE + 0x200)
-#define MV_IC_SIZE		0x3C
-#define MV_TIMERS_BASE		(MV_MBUS_BRIDGE_BASE + 0x300)
-#define MV_TIMERS_SIZE		0x30
+#else
+#define MV_CPU_CONTROL_BASE	(MV_BASE + 0x10000)
+#endif
+
 #define MV_PCI_BASE		(MV_BASE + 0x30000)
 #define MV_PCI_SIZE		0x2000
-#if defined (SOC_MV_KIRKWOOD)
-#define MV_CESA_BASE		(MV_BASE + 0x30000) /* CESA,PCI don't coexist */
-#elif defined (SOC_MV_ORION) || defined(SOC_MV_DISCOVERY)
-#define MV_CESA_BASE		(MV_BASE + 0x90000)
-#endif
-#define MV_CESA_SIZE		0x10000
+
+#if defined(SOC_MV_FREY)
+#define MV_PCIE_BASE		(MV_BASE + 0x8000)
+#elif defined(SOC_MV_ARMADA38X)
+#define	MV_PCIE_BASE		(MV_BASE + 0x80000)
+#else
 #define MV_PCIE_BASE		(MV_BASE + 0x40000)
+#endif
 #define MV_PCIE_SIZE		0x2000
 
 #define MV_PCIE00_BASE		(MV_PCIE_BASE + 0x00000)
@@ -124,52 +166,98 @@
 #define MV_PCIE12_BASE		(MV_PCIE_BASE + 0x48000)
 #define MV_PCIE13_BASE		(MV_PCIE_BASE + 0x4C000)
 
-#define MV_USB0_BASE		(MV_BASE + 0x50000)
-#define MV_USB1_BASE		(MV_USB0_BASE + 0x1000)
-#define MV_USB2_BASE		(MV_USB0_BASE + 0x2000)
-#define MV_USB_SIZE		0x1000
-#define MV_USB_AWR_BASE		(MV_USB0_BASE + 0x320)
-#define MV_IDMA_BASE		(MV_BASE + 0x60000)
-#define MV_IDMA_SIZE		0x1000
-#define MV_XOR_BASE		(MV_BASE + 0x60000)
-#define MV_XOR_SIZE		0x1000
-#define MV_ETH0_BASE		(MV_BASE + 0x72000)
-#define MV_ETH1_BASE		(MV_BASE + 0x76000)
-#define MV_ETH_SIZE		0x2000
-#if defined(SOC_MV_ORION) || defined(SOC_MV_KIRKWOOD)
-#define MV_SATAHC_BASE		(MV_BASE + 0x80000)
-#define MV_SATAHC_SIZE		0x6000
-#elif defined(SOC_MV_DISCOVERY)
-#define MV_SATAHC_BASE		(MV_BASE + 0xA0000)
-#define MV_SATAHC_SIZE		0x6000
-#endif
-
-#define MV_DEV_CS0_BASE	MV_DEV_CS0_PHYS_BASE
+#define MV_SDIO_BASE		(MV_BASE + 0x90000)
+#define MV_SDIO_SIZE		0x10000
 
 /*
  * Decode windows definitions and macros
  */
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
+#define MV_WIN_CPU_CTRL(n)		(((n) < 8) ? 0x10 * (n) :  0x90 + (0x8 * ((n) - 8)))
+#define MV_WIN_CPU_BASE(n)		((((n) < 8) ? 0x10 * (n) :  0x90 + (0x8 * ((n) - 8))) + 0x4)
+#define MV_WIN_CPU_REMAP_LO(n)		(0x10 * (n) +  0x008)
+#define MV_WIN_CPU_REMAP_HI(n)		(0x10 * (n) +  0x00C)
+#else
 #define MV_WIN_CPU_CTRL(n)		(0x10 * (n) + (((n) < 8) ? 0x000 : 0x880))
 #define MV_WIN_CPU_BASE(n)		(0x10 * (n) + (((n) < 8) ? 0x004 : 0x884))
 #define MV_WIN_CPU_REMAP_LO(n)		(0x10 * (n) + (((n) < 8) ? 0x008 : 0x888))
 #define MV_WIN_CPU_REMAP_HI(n)		(0x10 * (n) + (((n) < 8) ? 0x00C : 0x88C))
+#endif
+
 #if defined(SOC_MV_DISCOVERY)
 #define MV_WIN_CPU_MAX			14
+#elif defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
+#define MV_WIN_CPU_MAX			20
 #else
 #define MV_WIN_CPU_MAX			8
 #endif
 
+#define MV_WIN_CPU_ATTR_SHIFT		8
+#if defined(SOC_MV_LOKIPLUS)
+#define MV_WIN_CPU_TARGET_SHIFT		0
+#define MV_WIN_CPU_ENABLE_BIT		(1 << 5)
+#else
+#define MV_WIN_CPU_TARGET_SHIFT		4
+#define MV_WIN_CPU_ENABLE_BIT		1
+#endif
+
+#if defined(SOC_MV_DOVE)
+#define MV_WIN_DDR_MAX			2
+#else /* SOC_MV_DOVE */
+#if defined(SOC_MV_LOKIPLUS)
+#define MV_WIN_DDR_BASE(n)		(0xc * (n) + 0x4)
+#define MV_WIN_DDR_SIZE(n)		(0xc * (n) + 0x0)
+#else /* SOC_MV_LOKIPLUS */
 #define MV_WIN_DDR_BASE(n)		(0x8 * (n) + 0x0)
 #define MV_WIN_DDR_SIZE(n)		(0x8 * (n) + 0x4)
+#endif /* SOC_MV_LOKIPLUS */
 #define MV_WIN_DDR_MAX			4
+#endif /* SOC_MV_DOVE */
 
-#define MV_WIN_CESA_CTRL(n)		(0x8 * (n) + 0xa04)
-#define MV_WIN_CESA_BASE(n)		(0x8 * (n) + 0xa00)
-#define MV_WIN_CESA_MAX			4
+/*
+ * These values are valid only for peripherals decoding windows
+ * Bit in ATTR is zeroed according to CS bank number
+ */
+#define MV_WIN_DDR_ATTR(cs)		(0x0F & ~(0x01 << (cs)))
+#define MV_WIN_DDR_TARGET		0x0
 
-#define MV_WIN_USB_CTRL(n, m)		(0x10 * (n) + (m) * 0x1000 + 0x0)
-#define MV_WIN_USB_BASE(n, m)		(0x10 * (n) + (m) * 0x1000 + 0x4)
+#if defined(SOC_MV_DISCOVERY)
+#define MV_WIN_CESA_TARGET		9
+#define MV_WIN_CESA_ATTR(eng_sel)	1
+#elif defined(SOC_MV_ARMADAXP)
+#define MV_WIN_CESA_TARGET		9
+/*
+ * Bits [2:3] of cesa attribute select engine:
+ * eng_sel:
+ *  1: engine1
+ *  2: engine0
+ */
+#define MV_WIN_CESA_ATTR(eng_sel)	(1 | ((eng_sel) << 2))
+#elif defined(SOC_MV_ARMADA38X)
+#define MV_WIN_CESA_TARGET		9
+/*
+ * Bits [1:0] = Data swapping
+ *  0x0 = Byte swap
+ *  0x1 = No swap
+ *  0x2 = Byte and word swap
+ *  0x3 = Word swap
+ * Bits [4:2] = CESA select:
+ *  0x6 = CESA0
+ *  0x5 = CESA1
+ */
+#define MV_WIN_CESA_ATTR(eng_sel)	(0x11 | (1 << (3 - (eng_sel))))
+#else
+#define MV_WIN_CESA_TARGET		3
+#define MV_WIN_CESA_ATTR(eng_sel)	0
+#endif
+
+#define MV_WIN_USB_CTRL(n)		(0x10 * (n) + 0x320)
+#define MV_WIN_USB_BASE(n)		(0x10 * (n) + 0x324)
 #define MV_WIN_USB_MAX			4
+
+#define	MV_WIN_USB3_CTRL(n)		(0x8 * (n))
+#define	MV_WIN_USB3_BASE(n)		(0x8 * (n) + 0x4)
+#define	MV_WIN_USB3_MAX			8
 
 #define MV_WIN_ETH_BASE(n)		(0x8 * (n) + 0x200)
 #define MV_WIN_ETH_SIZE(n)		(0x8 * (n) + 0x204)
@@ -192,6 +280,32 @@
 #define MV_XOR_CHAN_MAX			2
 #define MV_XOR_NON_REMAP		4
 
+#if defined(SOC_MV_DISCOVERY) || defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DOVE)
+#define MV_WIN_PCIE_TARGET(n)		4
+#define MV_WIN_PCIE_MEM_ATTR(n)		0xE8
+#define MV_WIN_PCIE_IO_ATTR(n)		0xE0
+#elif defined(SOC_MV_ARMADAXP)
+#define MV_WIN_PCIE_TARGET(n)		(4 + (4 * ((n) % 2)))
+#define MV_WIN_PCIE_MEM_ATTR(n)		(0xE8 + (0x10 * ((n) / 2)))
+#define MV_WIN_PCIE_IO_ATTR(n)		(0xE0 + (0x10 * ((n) / 2)))
+#elif defined(SOC_MV_ARMADA38X)
+#define	MV_WIN_PCIE_TARGET(n)		((n) == 0 ? 8 : 4)
+#define	MV_WIN_PCIE_MEM_ATTR(n)		((n) < 2 ? 0xE8 : (0xD8 - (((n) % 2) * 0x20)))
+#define	MV_WIN_PCIE_IO_ATTR(n)		((n) < 2 ? 0xE0 : (0xD0 - (((n) % 2) * 0x20)))
+#elif defined(SOC_MV_ORION)
+#define MV_WIN_PCIE_TARGET(n)		4
+#define MV_WIN_PCIE_MEM_ATTR(n)		0x59
+#define MV_WIN_PCIE_IO_ATTR(n)		0x51
+#elif defined(SOC_MV_LOKIPLUS)
+#define MV_WIN_PCIE_TARGET(n)		(3 + (n))
+#define MV_WIN_PCIE_MEM_ATTR(n)		0x59
+#define MV_WIN_PCIE_IO_ATTR(n)		0x51
+#endif
+
+#define MV_WIN_PCI_TARGET		3
+#define MV_WIN_PCI_MEM_ATTR		0x59
+#define MV_WIN_PCI_IO_ATTR		0x51
+
 #define MV_WIN_PCIE_CTRL(n)		(0x10 * (((n) < 5) ? (n) : \
 					    (n) + 1) + 0x1820)
 #define MV_WIN_PCIE_BASE(n)		(0x10 * (((n) < 5) ? (n) : \
@@ -200,81 +314,131 @@
 					    (n) + 1) + 0x182C)
 #define MV_WIN_PCIE_MAX			6
 
-#define MV_PCIE_BAR(n)			(0x04 * (n) + 0x1804)
-#define MV_PCIE_BAR_MAX			3
+#define MV_PCIE_BAR_CTRL(n)		(0x04 * (n) + 0x1800)
+#define MV_PCIE_BAR_BASE(n)		(0x08 * ((n) < 3 ? (n) : 4) + 0x0010)
+#define MV_PCIE_BAR_BASE_H(n)		(0x08 * (n) + 0x0014)
+#define MV_PCIE_BAR_MAX			4
+#define MV_PCIE_BAR_64BIT		(0x4)
+#define MV_PCIE_BAR_PREFETCH_EN		(0x8)
+
+#define MV_PCIE_CONTROL			(0x1a00)
+#define MV_PCIE_ROOT_CMPLX		(1 << 1)
 
 #define	MV_WIN_SATA_CTRL(n)		(0x10 * (n) + 0x30)
 #define	MV_WIN_SATA_BASE(n)		(0x10 * (n) + 0x34)
 #define	MV_WIN_SATA_MAX			4
 
+#if defined(SOC_MV_ARMADA38X)
+#define	MV_BOOTROM_MEM_ADDR	0xFFF00000
+#define	MV_BOOTROM_WIN_SIZE	0xF
+#define	MV_CPU_SUBSYS_REGS_LEN	0x100
+
+/* IO Window Control Register fields */
+#define	IO_WIN_SIZE_SHIFT	16
+#define	IO_WIN_SIZE_MASK	0xFFFF
+#define	IO_WIN_ATTR_SHIFT	8
+#define	IO_WIN_ATTR_MASK	0xFF
+#define	IO_WIN_TGT_SHIFT	4
+#define	IO_WIN_TGT_MASK		0xF
+#define	IO_WIN_SYNC_SHIFT	1
+#define	IO_WIN_SYNC_MASK	0x1
+#define	IO_WIN_ENA_SHIFT	0
+#define	IO_WIN_ENA_MASK		0x1
+
+#define	IO_WIN_9_CTRL_OFFSET	0x98
+#define	IO_WIN_9_BASE_OFFSET	0x9C
+
+/* Mbus decoding unit IDs and attributes */
+#define	MBUS_BOOTROM_TGT_ID	0x1
+#define	MBUS_BOOTROM_ATTR	0x1D
+
+/* Internal Units Sync Barrier Control Register */
+#define	MV_SYNC_BARRIER_CTRL		0x84
+#define	MV_SYNC_BARRIER_CTRL_ALL	0xFFFF
+#endif
+
 #define WIN_REG_IDX_RD(pre,reg,off,base)					\
 	static __inline uint32_t						\
 	pre ## _ ## reg ## _read(int i)						\
 	{									\
-		return (bus_space_read_4(obio_tag, base, off(i)));		\
+		return (bus_space_read_4(fdtbus_bs_tag, base, off(i)));		\
 	}
 
 #define WIN_REG_IDX_RD2(pre,reg,off,base)					\
 	static  __inline uint32_t						\
 	pre ## _ ## reg ## _read(int i, int j)					\
 	{									\
-		return (bus_space_read_4(obio_tag, base, off(i, j)));		\
+		return (bus_space_read_4(fdtbus_bs_tag, base, off(i, j)));		\
 	}									\
 
 #define WIN_REG_BASE_IDX_RD(pre,reg,off)					\
 	static __inline uint32_t						\
 	pre ## _ ## reg ## _read(uint32_t base, int i)				\
 	{									\
-		return (bus_space_read_4(obio_tag, base, off(i)));		\
+		return (bus_space_read_4(fdtbus_bs_tag, base, off(i)));		\
+	}
+
+#define WIN_REG_BASE_IDX_RD2(pre,reg,off)					\
+	static __inline uint32_t						\
+	pre ## _ ## reg ## _read(uint32_t base, int i, int j)				\
+	{									\
+		return (bus_space_read_4(fdtbus_bs_tag, base, off(i, j)));		\
 	}
 
 #define WIN_REG_IDX_WR(pre,reg,off,base)					\
 	static __inline void							\
 	pre ## _ ## reg ## _write(int i, uint32_t val)				\
 	{									\
-		bus_space_write_4(obio_tag, base, off(i), val);			\
+		bus_space_write_4(fdtbus_bs_tag, base, off(i), val);			\
 	}
 
 #define WIN_REG_IDX_WR2(pre,reg,off,base)					\
 	static __inline void							\
 	pre ## _ ## reg ## _write(int i, int j, uint32_t val)			\
 	{									\
-		bus_space_write_4(obio_tag, base, off(i, j), val);		\
+		bus_space_write_4(fdtbus_bs_tag, base, off(i, j), val);		\
 	}
 
 #define WIN_REG_BASE_IDX_WR(pre,reg,off)					\
 	static __inline void							\
 	pre ## _ ## reg ## _write(uint32_t base, int i, uint32_t val)		\
 	{									\
-		bus_space_write_4(obio_tag, base, off(i), val);			\
+		bus_space_write_4(fdtbus_bs_tag, base, off(i), val);			\
+	}
+
+#define WIN_REG_BASE_IDX_WR2(pre,reg,off)					\
+	static __inline void							\
+	pre ## _ ## reg ## _write(uint32_t base, int i, int j, uint32_t val)		\
+	{									\
+		bus_space_write_4(fdtbus_bs_tag, base, off(i, j), val);			\
 	}
 
 #define WIN_REG_RD(pre,reg,off,base)						\
 	static __inline uint32_t						\
 	pre ## _ ## reg ## _read(void)						\
 	{									\
-		return (bus_space_read_4(obio_tag, base, off));			\
+		return (bus_space_read_4(fdtbus_bs_tag, base, off));			\
 	}
 
 #define WIN_REG_BASE_RD(pre,reg,off)						\
 	static __inline uint32_t						\
 	pre ## _ ## reg ## _read(uint32_t base)					\
 	{									\
-		return (bus_space_read_4(obio_tag, base, off));			\
+		return (bus_space_read_4(fdtbus_bs_tag, base, off));			\
 	}
 
 #define WIN_REG_WR(pre,reg,off,base)						\
 	static __inline void							\
 	pre ## _ ## reg ## _write(uint32_t val)					\
 	{									\
-		bus_space_write_4(obio_tag, base, off, val);			\
+		bus_space_write_4(fdtbus_bs_tag, base, off, val);			\
 	}
 
 #define WIN_REG_BASE_WR(pre,reg,off)						\
 	static __inline void							\
 	pre ## _ ## reg ## _write(uint32_t base, uint32_t val)			\
 	{									\
-		bus_space_write_4(obio_tag, base, off, val);			\
+		bus_space_write_4(fdtbus_bs_tag, base, off, val);			\
 	}
 
 #endif /* _MVWIN_H_ */

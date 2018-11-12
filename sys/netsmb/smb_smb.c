@@ -10,12 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Boris Popov.
- * 4. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -74,8 +68,6 @@ static struct smb_dialect smb_dialects[] = {
 	{-1,			NULL}
 };
 
-#define	SMB_DIALECT_MAX	(sizeof(smb_dialects) / sizeof(struct smb_dialect) - 2)
-
 static u_int32_t
 smb_vc_maxread(struct smb_vc *vcp)
 {
@@ -127,9 +119,17 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 	u_int8_t wc, stime[8], sblen;
 	u_int16_t dindex, tw, tw1, swlen, bc;
 	int error, maxqsz;
+	int unicode = SMB_UNICODE_STRINGS(vcp);
+	void * servercharset = vcp->vc_toserver;
+	void * localcharset = vcp->vc_tolocal;
 
 	if (smb_smb_nomux(vcp, scred, __func__) != 0)
 		return EINVAL;
+	/* Disable Unicode for SMB_COM_NEGOTIATE requests */ 
+	if (unicode) {
+		vcp->vc_toserver = vcp->vc_cp_toserver;
+		vcp->vc_tolocal  = vcp->vc_cp_tolocal;
+	}
 	vcp->vc_hflags = 0;
 	vcp->vc_hflags2 = 0;
 	vcp->obj.co_flags &= ~(SMBV_ENCRYPT);
@@ -186,7 +186,7 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 					SMBERROR("Unexpected length of security blob (%d)\n", sblen);
 					break;
 				}
-				error = md_get_uint16(mdp, &bc);
+				error = md_get_uint16le(mdp, &bc);
 				if (error)
 					break;
 				if (sp->sv_caps & SMB_CAP_EXT_SECURITY)
@@ -199,6 +199,13 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 			}
 			if (sp->sv_sm & SMB_SM_SIGS_REQUIRE)
 				vcp->vc_hflags2 |= SMB_FLAGS2_SECURITY_SIGNATURE;
+			if (vcp->vc_ucs_toserver &&
+				sp->sv_caps & SMB_CAP_UNICODE) {
+				/*
+				* They do Unicode.
+				*/
+				vcp->obj.co_flags |= SMBV_UNICODE;
+			}
 			vcp->vc_hflags2 |= SMB_FLAGS2_KNOWS_LONG_NAMES;
 			if (dp->d_id == SMB_DIALECT_NTLM0_12 &&
 			    sp->sv_maxtx < 4096 &&
@@ -206,7 +213,13 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 				vcp->obj.co_flags |= SMBV_WIN95;
 				SMBSDEBUG("Win95 detected\n");
 			}
-		} else if (dp->d_id > SMB_DIALECT_CORE) {
+			error = 0;
+			break;
+		}
+		vcp->vc_hflags2 &= ~(SMB_FLAGS2_EXT_SEC|SMB_FLAGS2_DFS|
+				     SMB_FLAGS2_ERR_STATUS|SMB_FLAGS2_UNICODE);
+		unicode = 0;
+		if (dp->d_id > SMB_DIALECT_CORE) {
 			md_get_uint16le(mdp, &tw);
 			sp->sv_sm = tw;
 			md_get_uint16le(mdp, &tw);
@@ -223,7 +236,7 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 				if (swlen > SMB_MAXCHALLENGELEN)
 					break;
 				md_get_uint16(mdp, NULL);	/* mbz */
-				if (md_get_uint16(mdp, &bc) != 0)
+				if (md_get_uint16le(mdp, &bc) != 0)
 					break;
 				if (bc < swlen)
 					break;
@@ -265,6 +278,12 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 		SMBSDEBUG("MAXTX = %d\n", sp->sv_maxtx);
 	}
 bad:
+	/* Restore Unicode conversion state */
+	if (unicode) {
+		vcp->vc_toserver = servercharset;
+		vcp->vc_tolocal  = localcharset;
+		vcp->vc_hflags2 |= SMB_FLAGS2_UNICODE;
+	}
 	smb_rq_done(rqp);
 	return error;
 }
@@ -279,8 +298,12 @@ smb_smb_ssnsetup(struct smb_vc *vcp, struct smb_cred *scred)
 	smb_uniptr unipp, ntencpass = NULL;
 	char *pp, *up, *pbuf, *encpass;
 	int error, plen, uniplen, ulen, upper;
+	u_int32_t caps = 0;
 
 	upper = 0;
+
+	if (vcp->obj.co_flags & SMBV_UNICODE)
+		caps |= SMB_CAP_UNICODE;
 
 again:
 
@@ -380,8 +403,7 @@ again:
 	} else {
 		mb_put_uint16le(mbp, uniplen);
 		mb_put_uint32le(mbp, 0);		/* reserved */
-		mb_put_uint32le(mbp, vcp->obj.co_flags & SMBV_UNICODE ?
-				     SMB_CAP_UNICODE : 0);
+		mb_put_uint32le(mbp, caps);
 		smb_rq_wend(rqp);
 		smb_rq_bstart(rqp);
 		mb_put_mem(mbp, pp, plen, MB_MSYSTEM);
@@ -483,24 +505,13 @@ smb_smb_treeconnect(struct smb_share *ssp, struct smb_cred *scred)
 	upper = 0;
 
 again:
-
-#if 0
 	/* Disable Unicode for SMB_COM_TREE_CONNECT_ANDX requests */
 	if (SSTOVC(ssp)->vc_hflags2 & SMB_FLAGS2_UNICODE) {
 		vcp = SSTOVC(ssp);
-		if (vcp->vc_toserver) {
-			iconv_close(vcp->vc_toserver);
-			/* Use NULL until UTF-8 -> ASCII works */
-			vcp->vc_toserver = NULL;
-		}
-		if (vcp->vc_tolocal) {
-			iconv_close(vcp->vc_tolocal);
-			/* Use NULL until ASCII -> UTF-8 works*/
-			vcp->vc_tolocal = NULL;
-		}
+		vcp->vc_toserver = vcp->vc_cp_toserver;
+		vcp->vc_tolocal = vcp->vc_cp_tolocal;
 		vcp->vc_hflags2 &= ~SMB_FLAGS2_UNICODE;
 	}
-#endif
 
 	ssp->ss_tid = SMB_TID_UNKNOWN;
 	error = smb_rq_alloc(SSTOCP(ssp), SMB_COM_TREE_CONNECT_ANDX, scred, &rqp);
@@ -565,6 +576,15 @@ again:
 	ssp->ss_tid = rqp->sr_rptid;
 	ssp->ss_vcgenid = vcp->vc_genid;
 	ssp->ss_flags |= SMBS_CONNECTED;
+	/*
+	 * If the server can speak Unicode then switch
+	 * our converters to do Unicode <--> Local
+	 */
+	if (vcp->obj.co_flags & SMBV_UNICODE) {
+		vcp->vc_toserver = vcp->vc_ucs_toserver;
+		vcp->vc_tolocal = vcp->vc_ucs_tolocal;
+		vcp->vc_hflags2 |= SMB_FLAGS2_UNICODE;
+	}
 bad:
 	if (encpass)
 		free(encpass, M_SMBTEMP);

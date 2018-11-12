@@ -40,7 +40,6 @@ struct usb_page_cache;
 struct usb_setup_params;
 struct usb_hw_ep_profile;
 struct usb_fs_isoc_schedule;
-struct usb_config_descriptor;
 struct usb_endpoint_descriptor;
 
 /* typedefs */
@@ -62,11 +61,11 @@ struct usb_bus_methods {
 		    struct usb_endpoint_descriptor *, struct usb_endpoint *);
 	void    (*xfer_setup) (struct usb_setup_params *);
 	void    (*xfer_unsetup) (struct usb_xfer *);
-	void    (*get_dma_delay) (struct usb_bus *, uint32_t *);
+	void    (*get_dma_delay) (struct usb_device *, uint32_t *);
 	void    (*device_suspend) (struct usb_device *);
 	void    (*device_resume) (struct usb_device *);
 	void    (*set_hw_power) (struct usb_bus *);
-
+	void    (*set_hw_power_sleep) (struct usb_bus *, uint32_t);
 	/*
 	 * The following flag is set if one or more control transfers are
 	 * active:
@@ -92,16 +91,62 @@ struct usb_bus_methods {
 	 * are present on the given USB bus:
 	 */
 #define	USB_HW_POWER_NON_ROOT_HUB 0x10
+	/*
+	 * The following flag is set if we are suspending
+	 */
+#define	USB_HW_POWER_SUSPEND 0x20
+	/*
+	 * The following flag is set if we are resuming
+	 */
+#define	USB_HW_POWER_RESUME 0x40
+	/*
+	 * The following flag is set if we are shutting down
+	 */
+#define	USB_HW_POWER_SHUTDOWN 0x60
 
 	/* USB Device mode only - Mandatory */
 
 	void    (*get_hw_ep_profile) (struct usb_device *udev, const struct usb_hw_ep_profile **ppf, uint8_t ep_addr);
-	void    (*set_stall) (struct usb_device *udev, struct usb_xfer *xfer, struct usb_endpoint *ep, uint8_t *did_stall);
+	void    (*xfer_stall) (struct usb_xfer *xfer);
+	void    (*set_stall) (struct usb_device *udev, struct usb_endpoint *ep, uint8_t *did_stall);
+
+	/* USB Device mode mandatory. USB Host mode optional. */
+
 	void    (*clear_stall) (struct usb_device *udev, struct usb_endpoint *ep);
 
 	/* Optional transfer polling support */
 
 	void	(*xfer_poll) (struct usb_bus *);
+
+	/* Optional fixed power mode support */
+
+	void	(*get_power_mode) (struct usb_device *udev, int8_t *pmode);
+
+	/* Optional endpoint uninit */
+
+	void    (*endpoint_uninit) (struct usb_device *, struct usb_endpoint *);
+
+	/* Optional device init */
+
+	usb_error_t	(*device_init) (struct usb_device *);
+
+	/* Optional device uninit */
+
+	void	(*device_uninit) (struct usb_device *);
+
+	/* Optional for device and host mode */
+
+	void	(*start_dma_delay) (struct usb_xfer *);
+
+	void	(*device_state_change) (struct usb_device *);
+
+	/* Optional for host mode */
+
+	usb_error_t	(*set_address) (struct usb_device *, struct mtx *, uint16_t);
+
+	/* Optional for device and host mode */
+
+	usb_error_t	(*set_endpoint_mode) (struct usb_device *, struct usb_endpoint *, uint8_t);
 };
 
 /*
@@ -140,57 +185,15 @@ struct usb_hw_ep_profile {
 	uint8_t	support_out:1;		/* OUT-token is supported */
 };
 
-/*
- * The following structure is used when trying to allocate hardware
- * endpoints for an USB configuration in USB device side mode.
- */
-struct usb_hw_ep_scratch_sub {
-	const struct usb_hw_ep_profile *pf;
-	uint16_t max_frame_size;
-	uint8_t	hw_endpoint_out;
-	uint8_t	hw_endpoint_in;
-	uint8_t	needs_ep_type;
-	uint8_t	needs_in:1;
-	uint8_t	needs_out:1;
-};
-
-/*
- * The following structure is used when trying to allocate hardware
- * endpoints for an USB configuration in USB device side mode.
- */
-struct usb_hw_ep_scratch {
-	struct usb_hw_ep_scratch_sub ep[USB_EP_MAX];
-	struct usb_hw_ep_scratch_sub *ep_max;
-	struct usb_config_descriptor *cd;
-	struct usb_device *udev;
-	struct usb_bus_methods *methods;
-	uint8_t	bmOutAlloc[(USB_EP_MAX + 15) / 16];
-	uint8_t	bmInAlloc[(USB_EP_MAX + 15) / 16];
-};
-
-/*
- * The following structure is used when generating USB descriptors
- * from USB templates.
- */
-struct usb_temp_setup {
-	void   *buf;
-	usb_size_t size;
-	enum usb_dev_speed	usb_speed;
-	uint8_t	self_powered;
-	uint8_t	bNumEndpoints;
-	uint8_t	bInterfaceNumber;
-	uint8_t	bAlternateSetting;
-	uint8_t	bConfigurationValue;
-	usb_error_t err;
-};
-
 /* prototypes */
 
 void	usb_bus_mem_flush_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb);
 uint8_t	usb_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat, usb_bus_mem_cb_t *cb);
 void	usb_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb);
 uint16_t usb_isoc_time_expand(struct usb_bus *bus, uint16_t isoc_time_curr);
-uint16_t usbd_fs_isoc_schedule_isoc_time_expand(struct usb_device *udev, struct usb_fs_isoc_schedule **pp_start, struct usb_fs_isoc_schedule **pp_end, uint16_t isoc_time);
-uint8_t	usbd_fs_isoc_schedule_alloc(struct usb_fs_isoc_schedule *fss, uint8_t *pstart, uint16_t len);
+void	usb_bus_reset_async_locked(struct usb_bus *bus);
+#if USB_HAVE_TT_SUPPORT
+uint8_t	usbd_fs_isoc_schedule_alloc_slot(struct usb_xfer *isoc_xfer, uint16_t isoc_time);
+#endif
 
 #endif					/* _USB_CONTROLLER_H_ */

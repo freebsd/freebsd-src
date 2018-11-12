@@ -30,28 +30,18 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-#ifndef __GNUC__
-#error "GCC is needed to compile this file"
-#endif
-#endif /* lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 
 #include "libc_private.h"
 #include "crtbrand.c"
+#include "ignore_init.c"
 
 struct Struct_Obj_Entry;
 struct ps_strings;
 
-extern int _DYNAMIC;
-#pragma weak _DYNAMIC
-
-extern void _fini(void);
-extern void _init(void);
-extern int main(int, char **, char **);
-extern void _start(char **, void (*)(void), struct Struct_Obj_Entry *,
-    struct ps_strings *);
 extern void __sparc_utrap_setup(void);
 
 #ifdef GCRT
@@ -61,8 +51,8 @@ extern int eprol;
 extern int etext;
 #endif
 
-char **environ;
-const char *__progname = "";
+void _start(char **, void (*)(void), struct Struct_Obj_Entry *,
+    struct ps_strings *);
 
 /* The entry function. */
 /*
@@ -85,18 +75,11 @@ _start(char **ap, void (*cleanup)(void), struct Struct_Obj_Entry *obj __unused,
 	int argc;
 	char **argv;
 	char **env;
-	const char *s;
 
 	argc = *(long *)(void *)ap;
 	argv = ap + 1;
 	env  = ap + 2 + argc;
-	environ = env;
-	if (argc > 0 && argv[0] != NULL) {
-		__progname = argv[0];
-		for (s = __progname; *s != '\0'; s++)
-			if (*s == '/')
-				__progname = s + 1;
-	}
+	handle_argv(argc, argv, env);
 
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
@@ -106,13 +89,11 @@ _start(char **ap, void (*cleanup)(void), struct Struct_Obj_Entry *obj __unused,
 	}
 #ifdef GCRT
 	atexit(_mcleanup);
-#endif
-	atexit(_fini);
-#ifdef GCRT
 	monstartup(&eprol, &etext);
 #endif
-	_init();
-	exit( main(argc, argv, env) );
+
+	handle_static_init(argc, argv, env);
+	exit(main(argc, argv, env));
 }
 
 #ifdef GCRT
@@ -120,5 +101,3 @@ __asm__(".text");
 __asm__("eprol:");
 __asm__(".previous");
 #endif
-
-__asm__(".ident\t\"$FreeBSD$\"");

@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=	geom
 SHLIBDIR?= /lib
 SRCS+=	geom_getxml.c
@@ -13,8 +14,7 @@ CFLAGS += -I${.CURDIR}
 
 WARNS?=	3
 
-DPADD=	${LIBBSDXML} ${LIBSBUF}
-LDADD=	-lbsdxml -lsbuf
+LIBADD+=	bsdxml sbuf
 
 MAN=	libgeom.3
 

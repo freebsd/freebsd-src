@@ -27,9 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <machine/cpuregs.h>
-
 #include "opt_ddb.h"
 #include "opt_kdb.h"
 
@@ -53,11 +50,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/user.h>
+#include <sys/timetc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_pager.h>
 
 #include <machine/cache.h>
 #include <machine/clock.h>
@@ -74,6 +71,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
+#ifdef SMP
+#include <sys/smp.h>
+#include <machine/smp.h>
+#endif
+
 #ifdef CFE
 #include <dev/cfe/cfe_api.h>
 #endif
@@ -86,11 +88,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #endif
 
-#ifdef CFE
-extern uint32_t cfe_handle;
-extern uint32_t cfe_vector;
-#endif
-
 #ifdef CFE_ENV
 extern void cfe_env_init(void);
 #endif
@@ -98,10 +95,47 @@ extern void cfe_env_init(void);
 extern int *edata;
 extern int *end;
 
+extern char MipsTLBMiss[], MipsTLBMissEnd[];
+
+void
+platform_cpu_init()
+{
+	/* Nothing special */
+}
+
+static void
+sb_intr_init(int cpuid)
+{
+	int intrnum, intsrc;
+
+	/*
+	 * Disable all sources to the interrupt mapper and setup the mapping
+	 * between an interrupt source and the mips hard interrupt number.
+	 */
+	for (intsrc = 0; intsrc < NUM_INTSRC; ++intsrc) {
+		intrnum = sb_route_intsrc(intsrc);
+		sb_disable_intsrc(cpuid, intsrc);
+		sb_write_intmap(cpuid, intsrc, intrnum);
+#ifdef SMP
+		/*
+		 * Set up the mailbox interrupt mapping.
+		 *
+		 * The mailbox interrupt is "special" in that it is not shared
+		 * with any other interrupt source.
+		 */
+		if (intsrc == INTSRC_MAILBOX3) {
+			intrnum = platform_ipi_hardintr_num();
+			sb_write_intmap(cpuid, INTSRC_MAILBOX3, intrnum);
+			sb_enable_intsrc(cpuid, INTSRC_MAILBOX3);
+		}
+#endif
+	}
+}
+
 static void
 mips_init(void)
 {
-	int i, cfe_mem_idx, tmp;
+	int i, j, cfe_mem_idx, tmp;
 	uint64_t maxmem;
 
 #ifdef CFE_ENV
@@ -120,6 +154,17 @@ mips_init(void)
 #endif
 	TUNABLE_INT_FETCH("hw.physmem", &tmp);
 	maxmem = (uint64_t)tmp * 1024;
+
+	/*
+	 * XXX
+	 * If we used vm_paddr_t consistently in pmap, etc., we could
+	 * use 64-bit page numbers on !n64 systems, too, like i386
+	 * does with PAE.
+	 */
+#if !defined(__mips_n64)
+	if (maxmem == 0 || maxmem > 0xffffffff)
+		maxmem = 0xffffffff;
+#endif
 
 #ifdef CFE
 	/*
@@ -141,11 +186,11 @@ mips_init(void)
 			("CFE DRAM region is not available?"));
 
 		if (bootverbose)
-			printf("cfe_enummem: 0x%016jx/%llu.\n", addr, len);
+			printf("cfe_enummem: 0x%016jx/%ju.\n", addr, len);
 
 		if (maxmem != 0) {
 			if (addr >= maxmem) {
-				printf("Ignoring %llu bytes of memory at 0x%jx "
+				printf("Ignoring %ju bytes of memory at 0x%jx "
 				       "that is above maxmem %dMB\n",
 				       len, addr,
 				       (int)(maxmem / (1024 * 1024)));
@@ -153,7 +198,7 @@ mips_init(void)
 			}
 
 			if (addr + len > maxmem) {
-				printf("Ignoring %llu bytes of memory "
+				printf("Ignoring %ju bytes of memory "
 				       "that is above maxmem %dMB\n",
 				       (addr + len) - maxmem,
 				       (int)(maxmem / (1024 * 1024)));
@@ -168,7 +213,7 @@ mips_init(void)
 			 * from CFE, omit the region at the start of physical
 			 * memory where the kernel has been loaded.
 			 */
-			phys_avail[i] += MIPS_KSEG0_TO_PHYS((vm_offset_t)&end);
+			phys_avail[i] += MIPS_KSEG0_TO_PHYS(kernel_kseg0_end);
 		}
 		phys_avail[i + 1] = addr + len;
 		physmem += len;
@@ -177,11 +222,43 @@ mips_init(void)
 	realmem = btoc(physmem);
 #endif
 
+	for (j = 0; j < i; j++)
+		dump_avail[j] = phys_avail[j];
+
 	physmem = realmem;
 
 	init_param1();
 	init_param2(physmem);
 	mips_cpu_init();
+
+	/*
+	 * Sibyte has a L1 data cache coherent with DMA. This includes
+	 * on-chip network interfaces as well as PCI/HyperTransport bus
+	 * masters.
+	 */
+	cpuinfo.cache_coherent_dma = TRUE;
+
+	/*
+	 * XXX
+	 * The kernel is running in 32-bit mode but the CFE is running in
+	 * 64-bit mode. So the SR_KX bit in the status register is turned
+	 * on by the CFE every time we call into it - for e.g. CFE_CONSOLE.
+	 *
+	 * This means that if get a TLB miss for any address above 0xc0000000
+	 * and the SR_KX bit is set then we will end up in the XTLB exception
+	 * vector.
+	 *
+	 * For now work around this by copying the TLB exception handling
+	 * code to the XTLB exception vector.
+	 */
+	{
+		bcopy(MipsTLBMiss, (void *)MIPS_XTLB_MISS_EXC_VEC,
+		      MipsTLBMissEnd - MipsTLBMiss);
+
+		mips_icache_sync_all();
+		mips_dcache_wbinv_all();
+	}
+
 	pmap_bootstrap();
 	mips_proc0_init();
 	mutex_init();
@@ -191,19 +268,6 @@ mips_init(void)
 	if (boothowto & RB_KDB)
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
-}
-
-void
-platform_halt(void)
-{
-
-}
-
-
-void
-platform_identify(void)
-{
-
 }
 
 void
@@ -217,42 +281,158 @@ platform_reset(void)
 	sb_system_reset();
 }
 
-void
-platform_trap_enter(void)
+static void
+kseg0_map_coherent(void)
 {
+	uint32_t config;
+	const int CFG_K0_COHERENT = 5;
 
+	config = mips_rd_config();
+	config &= ~MIPS_CONFIG_K0_MASK;
+	config |= CFG_K0_COHERENT;
+	mips_wr_config(config);
+}
+
+#ifdef SMP
+void
+platform_ipi_send(int cpuid)
+{
+	KASSERT(cpuid == 0 || cpuid == 1,
+		("platform_ipi_send: invalid cpuid %d", cpuid));
+
+	sb_set_mailbox(cpuid, 1ULL);
 }
 
 void
-platform_trap_exit(void)
+platform_ipi_clear(void)
+{
+	int cpuid;
+
+	cpuid = PCPU_GET(cpuid);
+	sb_clear_mailbox(cpuid, 1ULL);
+}
+
+int
+platform_ipi_hardintr_num(void)
 {
 
+	return (4);
+}
+
+int
+platform_ipi_softintr_num(void)
+{
+
+	return (-1);
+}
+
+struct cpu_group *
+platform_smp_topo(void)
+{
+
+	return (smp_topo_none());
 }
 
 void
-platform_start(__register_t a0 __unused, __register_t a1 __unused, 
-    __register_t a2 __unused, __register_t a3 __unused)
+platform_init_ap(int cpuid)
 {
-	vm_offset_t kernend;
+	int ipi_int_mask, clock_int_mask;
+
+	KASSERT(cpuid == 1, ("AP has an invalid cpu id %d", cpuid));
+
+	/*
+	 * Make sure that kseg0 is mapped cacheable-coherent
+	 */
+	kseg0_map_coherent();
+
+	sb_intr_init(cpuid);
+
+	/*
+	 * Unmask the clock and ipi interrupts.
+	 */
+	clock_int_mask = hard_int_mask(5);
+	ipi_int_mask = hard_int_mask(platform_ipi_hardintr_num());
+	set_intr_mask(ipi_int_mask | clock_int_mask);
+}
+
+int
+platform_start_ap(int cpuid)
+{
+#ifdef CFE
+	int error;
+
+	if ((error = cfe_cpu_start(cpuid, mpentry, 0, 0, 0))) {
+		printf("cfe_cpu_start error: %d\n", error);
+		return (-1);
+	} else {
+		return (0);
+	}
+#else
+	return (-1);
+#endif	/* CFE */
+}
+#endif	/* SMP */
+
+static u_int
+sb_get_timecount(struct timecounter *tc)
+{
+
+	return ((u_int)sb_zbbus_cycle_count());
+}
+
+static void
+sb_timecounter_init(void)
+{
+	static struct timecounter sb_timecounter = {
+		sb_get_timecount,
+		NULL,
+		~0u,
+		0,
+		"sibyte_zbbus_counter",
+		2000
+	};
+
+	/*
+	 * The ZBbus cycle counter runs at half the cpu frequency.
+	 */
+	sb_timecounter.tc_frequency = sb_cpu_speed() / 2;
+	platform_timecounter = &sb_timecounter;
+}
+
+void
+platform_start(__register_t a0, __register_t a1, __register_t a2,
+	       __register_t a3)
+{
+	/*
+	 * Make sure that kseg0 is mapped cacheable-coherent
+	 */
+	kseg0_map_coherent();
 
 	/* clear the BSS and SBSS segments */
 	memset(&edata, 0, (vm_offset_t)&end - (vm_offset_t)&edata);
-	kernend = round_page((vm_offset_t)&end);
+	mips_postboot_fixup();
+
+	sb_intr_init(0);
+	sb_timecounter_init();
+
+	/* Initialize pcpu stuff */
+	mips_pcpu0_init();
 
 #ifdef CFE
 	/*
 	 * Initialize CFE firmware trampolines before
 	 * we initialize the low-level console.
+	 *
+	 * CFE passes the following values in registers:
+	 * a0: firmware handle
+	 * a2: firmware entry point
+	 * a3: entry point seal
 	 */
-	if (cfe_handle != 0)
-		cfe_init(cfe_handle, cfe_vector);
+	if (a3 == CFE_EPTSEAL)
+		cfe_init(a0, a2);
 #endif
 	cninit();
 
-#ifdef CFE
-	if (cfe_handle == 0)
-		panic("CFE was not detected by locore.\n");
-#endif
 	mips_init();
 
 	mips_timer_init_params(sb_cpu_speed(), 0);

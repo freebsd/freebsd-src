@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5211reg.h,v 1.4 2008/11/10 01:19:38 sam Exp $
+ * $FreeBSD$
  */
 #ifndef _DEV_ATH_AR5211REG_H
 #define _DEV_ATH_AR5211REG_H
@@ -618,9 +618,20 @@
 #define	AR_SCR_SLDUR_S	0
 #define	AR_SCR_SLE	0x00030000	/* sleep enable mask */
 #define	AR_SCR_SLE_S	16		/* sleep enable bits shift */
-#define	AR_SCR_SLE_WAKE	0x00000000	/* force wake */
-#define	AR_SCR_SLE_SLP	0x00010000	/* force sleep */
-#define	AR_SCR_SLE_NORM	0x00020000	/* sleep logic normal operation */
+/*
+ * The previous values for the following three defines were:
+ *
+ *	AR_SCR_SLE_WAKE	0x00000000
+ *	AR_SCR_SLE_SLP	0x00010000
+ *	AR_SCR_SLE_NORM	0x00020000
+ *
+ * However, these have been pre-shifted with AR_SCR_SLE_S.  The
+ * OS_REG_READ() macro would attempt to shift them again, effectively
+ * shifting out any of the set bits completely.
+ */
+#define	AR_SCR_SLE_WAKE	0		/* force wake */
+#define	AR_SCR_SLE_SLP	1		/* force sleep */
+#define	AR_SCR_SLE_NORM	2		/* sleep logic normal operation */
 #define	AR_SCR_SLE_UNITS	0x00000008	/* SCR units/TU */
 #define	AR_SCR_BITS	"\20\20SLE_SLP\21SLE"
 

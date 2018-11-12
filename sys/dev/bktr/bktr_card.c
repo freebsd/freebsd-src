@@ -570,7 +570,7 @@ static int locate_eeprom_address( bktr_ptr_t bktr) {
  *
  * However some makes of card (eg Hauppauge) come with a configuration eeprom
  * which tells us the make of the card. Most eeproms also tell us the
- * tuner type and other features of the the cards.
+ * tuner type and other features of the cards.
  *
  * The current probe code works as follows
  * A) If the card uses a Bt878/879:
@@ -1217,7 +1217,7 @@ checkTuner:
 	} /* end switch(card) */
 
 
-	/* At this point, a goto checkDBX has not occured */
+	/* At this point, a goto checkDBX has not occurred */
 	/* We have not been able to select a Tuner */
 	/* Some cards make use of the tuner address to */
 	/* identify the make/model of tuner */

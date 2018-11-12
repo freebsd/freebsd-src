@@ -94,7 +94,7 @@ MPEG-2 Transport Stream (MPEG TS) packet format according to IEC 61883:
 
 N.b. that CRCs are removed by firewire layer!
 
-The following fiels are fixed for IEEE-1394:
+The following fields are fixed for IEEE-1394:
 tag = 01b
 tcode = 1010b
 The length is payload length, i.e. includes CIP header and data size.
@@ -119,7 +119,7 @@ bandwidth (R):
 2) 1.5 < R < 3 Mbps: db0/db1 or db2/db3 or db4/db5 or db6/db7 is payload,
 3) 3 < R < 6 Mbps: db0/db1/db2/db3 or db4/db5/db6/db7 is payload,
 4) R > 6 Mbps: all db0..db7 contain the payload.
-Curently, only case (4) is supported in fwmpegts.c
+Currently, only case (4) is supported in fwmpegts.c
 
 Each packet may contain N  MPEG TS data blocks with timestamp header,
 which are (4+188)B long. Experimentally, the N ranges from 0 through 3.
@@ -167,7 +167,7 @@ mpegtsrecv(int d, const char *filename, char ich, int count)
 	else {
 		fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0660);
 		if (fd == -1)
-			err(EX_NOINPUT, filename);
+			err(EX_NOINPUT, "%s", filename);
 	}
 	buf = malloc(RBUFSIZE);
 

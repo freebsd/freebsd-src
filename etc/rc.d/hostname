@@ -34,21 +34,19 @@
 . /etc/network.subr
 
 name="hostname"
+desc="Set the system\'s hostname"
 start_cmd="hostname_start"
 stop_cmd=":"
 
 hostname_start()
 {
-	# If we are not inside a jail, set the host name if it is not already set.
-	# If we are inside a jail, set the host name even if it is already set,
-	# but first check if it is permitted.
+	# If we are not inside a jail, set the host name.
+	# If we are inside a jail, set the host name if it is permitted.
 	#
 	if [ `$SYSCTL_N security.jail.jailed` -eq 1 ]; then
 		if [ `$SYSCTL_N security.jail.set_hostname_allowed` -eq 0 ]; then
 			return
 		fi
-	elif [ -n "`/bin/hostname -s`" ]; then
-		return
 	else
 		# If we're not in a jail and rc.conf doesn't specify a
 		# hostname, see if we can get one from kenv.
@@ -65,15 +63,16 @@ hostname_start()
 		# Null hostname is probably OK if DHCP is in use.
 		#
 		if [ -z "`list_net_interfaces dhcp`" ]; then
-			warn "\$hostname is not set -- see ${rcvar_manpage}."
+			warn "\$hostname is not set -- see rc.conf(5)."
 		fi
 		return
 	fi
 
 	# All right, it is safe to invoke hostname(1) now.
 	#
-	[ -z "${rc_quiet}" ] && echo "Setting hostname: ${hostname}."
+	check_startmsgs && echo -n "Setting hostname: ${hostname}"
 	/bin/hostname "${hostname}"
+	check_startmsgs && echo '.'
 }
 
 load_rc_config $name

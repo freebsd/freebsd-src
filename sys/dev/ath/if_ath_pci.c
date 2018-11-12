@@ -33,9 +33,11 @@ __FBSDID("$FreeBSD$");
 /*
  * PCI/Cardbus front-end for the Atheros Wireless LAN controller driver.
  */
+#include "opt_ath.h"
 
 #include <sys/param.h>
 #include <sys/systm.h> 
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -52,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_arp.h>
+#include <net/ethernet.h>
 
 #include <net80211/ieee80211_var.h>
 
@@ -59,6 +62,12 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
+
+/* For EEPROM firmware */
+#ifdef	ATH_EEPROM_FIRMWARE
+#include <sys/linker.h>
+#include <sys/firmware.h>
+#endif	/* ATH_EEPROM_FIRMWARE */
 
 /*
  * PCI glue.
@@ -71,8 +80,143 @@ struct ath_pci_softc {
 	void			*sc_ih;		/* interrupt handler */
 };
 
+/*
+ * XXX eventually this should be some system level definition
+ * so modules will have probe/attach information like USB.
+ * But for now..
+ */
+struct pci_device_id {
+	int vendor_id;
+	int device_id;
+
+	int sub_vendor_id;
+	int sub_device_id;
+
+	int driver_data;
+
+	int match_populated:1;
+	int match_vendor_id:1;
+	int match_device_id:1;
+	int match_sub_vendor_id:1;
+	int match_sub_device_id:1;
+};
+
+#define	PCI_VDEVICE(v, s) \
+	.vendor_id = (v), \
+	.device_id = (s), \
+	.match_populated = 1, \
+	.match_vendor_id = 1, \
+	.match_device_id = 1
+
+#define	PCI_DEVICE_SUB(v, d, dv, ds) \
+	.match_populated = 1, \
+	.vendor_id = (v), .match_vendor_id = 1, \
+	.device_id = (d), .match_device_id = 1, \
+	.sub_vendor_id = (dv), .match_sub_vendor_id = 1, \
+	.sub_device_id = (ds), .match_sub_device_id = 1
+
+#define	PCI_VENDOR_ID_ATHEROS		0x168c
+#define	PCI_VENDOR_ID_SAMSUNG		0x144d
+#define	PCI_VENDOR_ID_AZWAVE		0x1a3b
+#define	PCI_VENDOR_ID_FOXCONN		0x105b
+#define	PCI_VENDOR_ID_ATTANSIC		0x1969
+#define	PCI_VENDOR_ID_ASUSTEK		0x1043
+#define	PCI_VENDOR_ID_DELL		0x1028
+#define	PCI_VENDOR_ID_QMI		0x1a32
+#define	PCI_VENDOR_ID_LENOVO		0x17aa
+#define	PCI_VENDOR_ID_HP		0x103c
+
+#include "if_ath_pci_devlist.h"
+
+/*
+ * Attempt to find a match for the given device in
+ * the given device table.
+ *
+ * Returns the device structure or NULL if no matching
+ * PCI device is found.
+ */
+static const struct pci_device_id *
+ath_pci_probe_device(device_t dev, const struct pci_device_id *dev_table, int nentries)
+{
+	int i;
+	int vendor_id, device_id;
+	int sub_vendor_id, sub_device_id;
+
+	vendor_id = pci_get_vendor(dev);
+	device_id = pci_get_device(dev);
+	sub_vendor_id = pci_get_subvendor(dev);
+	sub_device_id = pci_get_subdevice(dev);
+
+	for (i = 0; i < nentries; i++) {
+		/* Don't match on non-populated (eg empty) entries */
+		if (! dev_table[i].match_populated)
+			continue;
+
+		if (dev_table[i].match_vendor_id &&
+		    (dev_table[i].vendor_id != vendor_id))
+			continue;
+		if (dev_table[i].match_device_id &&
+		    (dev_table[i].device_id != device_id))
+			continue;
+		if (dev_table[i].match_sub_vendor_id &&
+		    (dev_table[i].sub_vendor_id != sub_vendor_id))
+			continue;
+		if (dev_table[i].match_sub_device_id &&
+		    (dev_table[i].sub_device_id != sub_device_id))
+			continue;
+
+		/* Match */
+		return (&dev_table[i]);
+	}
+
+	return (NULL);
+}
+
 #define	BS_BAR	0x10
 #define	PCIR_RETRY_TIMEOUT	0x41
+#define	PCIR_CFG_PMCSR		0x48
+
+#define	DEFAULT_CACHESIZE	32
+
+static void
+ath_pci_setup(device_t dev)
+{
+	uint8_t cz;
+
+	/* XXX TODO: need to override the _system_ saved copies of this */
+
+	/*
+	 * If the cache line size is 0, force it to a reasonable
+	 * value.
+	 */
+	cz = pci_read_config(dev, PCIR_CACHELNSZ, 1);
+	if (cz == 0) {
+		pci_write_config(dev, PCIR_CACHELNSZ,
+		    DEFAULT_CACHESIZE / 4, 1);
+	}
+
+	/* Override the system latency timer */
+	pci_write_config(dev, PCIR_LATTIMER, 0xa8, 1);
+
+	/* If a PCI NIC, force wakeup */
+#ifdef	ATH_PCI_WAKEUP_WAR
+	/* XXX TODO: don't do this for non-PCI (ie, PCIe, Cardbus!) */
+	if (1) {
+		uint16_t pmcsr;
+		pmcsr = pci_read_config(dev, PCIR_CFG_PMCSR, 2);
+		pmcsr |= 3;
+		pci_write_config(dev, PCIR_CFG_PMCSR, pmcsr, 2);
+		pmcsr &= ~3;
+		pci_write_config(dev, PCIR_CFG_PMCSR, pmcsr, 2);
+	}
+#endif
+
+	/*
+	 * Disable retry timeout to keep PCI Tx retries from
+	 * interfering with C3 CPU state.
+	 */
+	pci_write_config(dev, PCIR_RETRY_TIMEOUT, 0, 1);
+}
 
 static int
 ath_pci_probe(device_t dev)
@@ -94,8 +238,18 @@ ath_pci_attach(device_t dev)
 	struct ath_softc *sc = &psc->sc_sc;
 	int error = ENXIO;
 	int rid;
+#ifdef	ATH_EEPROM_FIRMWARE
+	const struct firmware *fw = NULL;
+	const char *buf;
+#endif
+	const struct pci_device_id *pd;
 
 	sc->sc_dev = dev;
+
+	/* Do this lookup anyway; figure out what to do with it later */
+	pd = ath_pci_probe_device(dev, ath_pci_id_table, nitems(ath_pci_id_table));
+	if (pd)
+		sc->sc_pci_devinfo = pd->driver_data;
 
 	/*
 	 * Enable bus mastering.
@@ -103,10 +257,9 @@ ath_pci_attach(device_t dev)
 	pci_enable_busmaster(dev);
 
 	/*
-	 * Disable retry timeout to keep PCI Tx retries from
-	 * interfering with C3 CPU state.
+	 * Setup other PCI bus configuration parameters.
 	 */
-	pci_write_config(dev, PCIR_RETRY_TIMEOUT, 0, 1);
+	ath_pci_setup(dev);
 
 	/* 
 	 * Setup memory-mapping of PCI registers.
@@ -118,14 +271,19 @@ ath_pci_attach(device_t dev)
 		device_printf(dev, "cannot map register space\n");
 		goto bad;
 	}
-	/* XXX uintptr_t is a bandaid for ia64; to be fixed */
-	sc->sc_st = (HAL_BUS_TAG)(uintptr_t) rman_get_bustag(psc->sc_sr);
+	sc->sc_st = (HAL_BUS_TAG) rman_get_bustag(psc->sc_sr);
 	sc->sc_sh = (HAL_BUS_HANDLE) rman_get_bushandle(psc->sc_sr);
 	/*
 	 * Mark device invalid so any interrupts (shared or otherwise)
 	 * that arrive before the HAL is setup are discarded.
 	 */
 	sc->sc_invalid = 1;
+
+	ATH_LOCK_INIT(sc);
+	ATH_PCU_LOCK_INIT(sc);
+	ATH_RX_LOCK_INIT(sc);
+	ATH_TX_LOCK_INIT(sc);
+	ATH_TXSTATUS_LOCK_INIT(sc);
 
 	/*
 	 * Arrange interrupt line.
@@ -163,13 +321,44 @@ ath_pci_attach(device_t dev)
 		goto bad3;
 	}
 
-	ATH_LOCK_INIT(sc);
+#ifdef	ATH_EEPROM_FIRMWARE
+	/*
+	 * If there's an EEPROM firmware image, load that in.
+	 */
+	if (resource_string_value(device_get_name(dev), device_get_unit(dev),
+	    "eeprom_firmware", &buf) == 0) {
+		if (bootverbose)
+			device_printf(dev, "%s: looking up firmware @ '%s'\n",
+			    __func__, buf);
+
+		fw = firmware_get(buf);
+		if (fw == NULL) {
+			device_printf(dev, "%s: couldn't find firmware\n",
+			    __func__);
+			goto bad4;
+		}
+
+		device_printf(dev, "%s: EEPROM firmware @ %p\n",
+		    __func__, fw->data);
+		sc->sc_eepromdata =
+		    malloc(fw->datasize, M_TEMP, M_WAITOK | M_ZERO);
+		if (! sc->sc_eepromdata) {
+			device_printf(dev, "%s: can't malloc eepromdata\n",
+			    __func__);
+			goto bad4;
+		}
+		memcpy(sc->sc_eepromdata, fw->data, fw->datasize);
+		firmware_put(fw, 0);
+	}
+#endif /* ATH_EEPROM_FIRMWARE */
 
 	error = ath_attach(pci_get_device(dev), sc);
 	if (error == 0)					/* success */
 		return 0;
 
-	ATH_LOCK_DESTROY(sc);
+#ifdef	ATH_EEPROM_FIRMWARE
+bad4:
+#endif
 	bus_dma_tag_destroy(sc->sc_dmat);
 bad3:
 	bus_teardown_intr(dev, psc->sc_irq, psc->sc_ih);
@@ -177,6 +366,13 @@ bad2:
 	bus_release_resource(dev, SYS_RES_IRQ, 0, psc->sc_irq);
 bad1:
 	bus_release_resource(dev, SYS_RES_MEMORY, BS_BAR, psc->sc_sr);
+
+	ATH_TXSTATUS_LOCK_DESTROY(sc);
+	ATH_PCU_LOCK_DESTROY(sc);
+	ATH_RX_LOCK_DESTROY(sc);
+	ATH_TX_LOCK_DESTROY(sc);
+	ATH_LOCK_DESTROY(sc);
+
 bad:
 	return (error);
 }
@@ -190,6 +386,11 @@ ath_pci_detach(device_t dev)
 	/* check if device was removed */
 	sc->sc_invalid = !bus_child_present(dev);
 
+	/*
+	 * Do a config read to clear pre-existing pci error status.
+	 */
+	(void) pci_read_config(dev, PCIR_COMMAND, 4);
+
 	ath_detach(sc);
 
 	bus_generic_detach(dev);
@@ -199,6 +400,13 @@ ath_pci_detach(device_t dev)
 	bus_dma_tag_destroy(sc->sc_dmat);
 	bus_release_resource(dev, SYS_RES_MEMORY, BS_BAR, psc->sc_sr);
 
+	if (sc->sc_eepromdata)
+		free(sc->sc_eepromdata, M_TEMP);
+
+	ATH_TXSTATUS_LOCK_DESTROY(sc);
+	ATH_PCU_LOCK_DESTROY(sc);
+	ATH_RX_LOCK_DESTROY(sc);
+	ATH_TX_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
 
 	return (0);
@@ -228,6 +436,11 @@ ath_pci_resume(device_t dev)
 {
 	struct ath_pci_softc *psc = device_get_softc(dev);
 
+	/*
+	 * Suspend/resume resets the PCI configuration space.
+	 */
+	ath_pci_setup(dev);
+
 	ath_resume(&psc->sc_sc);
 
 	return (0);
@@ -250,6 +463,7 @@ static driver_t ath_pci_driver = {
 	sizeof (struct ath_pci_softc)
 };
 static	devclass_t ath_devclass;
-DRIVER_MODULE(ath, pci, ath_pci_driver, ath_devclass, 0, 0);
-MODULE_VERSION(ath, 1);
-MODULE_DEPEND(ath, wlan, 1, 1, 1);		/* 802.11 media layer */
+DRIVER_MODULE(ath_pci, pci, ath_pci_driver, ath_devclass, 0, 0);
+MODULE_VERSION(ath_pci, 1);
+MODULE_DEPEND(ath_pci, wlan, 1, 1, 1);		/* 802.11 media layer */
+MODULE_DEPEND(ath_pci, if_ath, 1, 1, 1);	/* if_ath driver */

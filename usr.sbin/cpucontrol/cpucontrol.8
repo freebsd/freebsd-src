@@ -31,7 +31,7 @@
 .Nm cpucontrol
 .Nd control utility for the
 .Xr cpuctl 4
-device.
+device
 .Sh SYNOPSIS
 .Nm
 .Op Fl vh
@@ -60,6 +60,12 @@ device.
 .Nm
 .Op Fl vh
 .Fl i Ar level
+.Bk
+.Ar device
+.Ek
+.Nm
+.Op Fl vh
+.Fl i Ar level,level_type
 .Bk
 .Ar device
 .Ek
@@ -114,6 +120,9 @@ In this case the inverted value of mask will be used.
 .It Fl i Ar level
 Retrieve CPUID info.
 Level should be given as a hex number.
+.It Fl i Ar level,level_type
+Retrieve CPUID info.
+Level and level_type should be given as hex numbers.
 .It Fl u
 Apply CPU firmware updates.
 The
@@ -164,10 +173,10 @@ The
 .Nm
 utility first appeared in
 .Fx 7.2 .
-.Sh BUGS
-Yes, probably, report if any.
 .Sh AUTHORS
 The
 .Nm
 utility and this manual page was written by
-.An Stanislav Sedov Aq stas@FreeBSD.org .
+.An Stanislav Sedov Aq Mt stas@FreeBSD.org .
+.Sh BUGS
+Yes, probably, report if any.

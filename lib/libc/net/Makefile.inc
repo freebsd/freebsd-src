@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # machine-independent net sources
-.PATH: ${.CURDIR}/net
+.PATH: ${LIBC_SRCTOP}/net
 
 SRCS+=	base64.c ether_addr.c eui64.c \
 	gai_strerror.c getaddrinfo.c \
@@ -12,7 +12,7 @@ SRCS+=	base64.c ether_addr.c eui64.c \
 	getproto.c getprotoent.c getprotoname.c getservent.c \
 	if_indextoname.c if_nameindex.c if_nametoindex.c \
 	ip6opt.c linkaddr.c map_v4v6.c name6.c ntoh.c \
-	nsdispatch.c nslexer.c nsparser.y nss_compat.c \
+	nsdispatch.c nslexer.l nsparser.y nss_compat.c \
 	rcmd.c rcmdsh.c recv.c rthdr.c sctp_sys_calls.c send.c \
         sockatmark.c sourcefilter.c vars.c
 
@@ -20,7 +20,7 @@ SRCS+=	base64.c ether_addr.c eui64.c \
 SRCS+=	nscache.c nscachedcli.c
 .endif
 
-SYM_MAPS+=${.CURDIR}/net/Symbol.map
+SYM_MAPS+=${LIBC_SRCTOP}/net/Symbol.map
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6
@@ -29,16 +29,12 @@ CFLAGS+=-DINET6
 CFLAGS+=-I${.OBJDIR}
 
 # name6.c refers res_private.h
-CFLAGS+=-I${.CURDIR}/resolv
+CFLAGS+=-I${LIBC_SRCTOP}/resolv
 
 YFLAGS+=-p_nsyy
 LFLAGS+=-P_nsyy
 
-CLEANFILES+=nslexer.c
-
-nslexer.c: nslexer.l
-	${LEX} ${LFLAGS} -o/dev/stdout ${.IMPSRC} | \
-		sed -e '/YY_BUF_SIZE/s/16384/1024/' >${.TARGET}
+CFLAGS.nslexer.c= -DYY_BUF_SIZE=1024
 
 MAN+=	byteorder.3 ethers.3 eui64.3 \
 	getaddrinfo.3 gai_strerror.3 gethostbyname.3 \

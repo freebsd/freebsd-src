@@ -221,12 +221,31 @@ struct sockaddr_sco {
  * Bluetooth version of struct sockaddr for L2CAP sockets (RAW and SEQPACKET)
  */
 
-struct sockaddr_l2cap {
+struct sockaddr_l2cap_compat {
 	u_char		l2cap_len;	/* total length */
 	u_char		l2cap_family;	/* address family */
 	u_int16_t	l2cap_psm;	/* PSM (Protocol/Service Multiplexor) */
 	bdaddr_t	l2cap_bdaddr;	/* address */
 };
+
+#define BDADDR_BREDR 0
+#define BDADDR_LE_PUBLIC 1
+#define BDADDR_LE_RANDOM 2
+
+struct sockaddr_l2cap {
+	u_char		l2cap_len;	/* total length */
+	u_char		l2cap_family;	/* address family */
+	u_int16_t	l2cap_psm;	/* PSM (Protocol/Service Multiplexor) */
+	bdaddr_t	l2cap_bdaddr;	/* address */
+	u_int16_t	l2cap_cid;      /*cid*/
+	u_int8_t	l2cap_bdaddr_type; /*address type*/
+};
+
+
+#if !defined(L2CAP_SOCKET_CHECKED) && !defined(_KERNEL)
+#warning "Make sure new member of socket address initialized"
+#endif
+
 
 /* L2CAP socket options */
 #define SOL_L2CAP		0x1609	/* socket option level */
@@ -236,7 +255,7 @@ struct sockaddr_l2cap {
 #define SO_L2CAP_IFLOW		3	/* get incoming flow spec. */
 #define SO_L2CAP_OFLOW		4	/* get/set outgoing flow spec. */
 #define SO_L2CAP_FLUSH		5	/* get/set flush timeout */
-
+#define SO_L2CAP_ENCRYPTED      6      /* get/set whether wait for encryptin on connect */
 /*
  * Raw L2CAP sockets ioctl's
  */

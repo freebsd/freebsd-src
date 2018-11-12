@@ -55,11 +55,6 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#include <netatalk/at.h>
-
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
@@ -75,33 +70,33 @@
 #define KEEPALIVE_SECS		10
 
 struct cisco_header {
-	u_char  address;
-	u_char  control;
-	u_short protocol;
-};
+	uint8_t  address;
+	uint8_t  control;
+	uint16_t protocol;
+} __packed;
 
 #define	CISCO_HEADER_LEN	sizeof (struct cisco_header)
 
 struct cisco_packet {
-	u_long  type;
-	u_long  par1;
-	u_long  par2;
-	u_short rel;
-	u_short time0;
-	u_short time1;
-};
+	uint32_t type;
+	uint32_t par1;
+	uint32_t par2;
+	uint16_t rel;
+	uint16_t time0;
+	uint16_t time1;
+} __packed;
 
 #define	CISCO_PACKET_LEN (sizeof(struct cisco_packet))
 
 struct protoent {
 	hook_p  hook;		/* the hook for this proto */
-	u_short af;		/* address family, -1 = downstream */
+	uint16_t af;		/* address family, -1 = downstream */
 };
 
 struct cisco_priv {
-	u_long  local_seq;
-	u_long  remote_seq;
-	u_long  seqRetries;	/* how many times we've been here throwing out
+	uint32_t local_seq;
+	uint32_t remote_seq;
+	uint32_t seqRetries;	/* how many times we've been here throwing out
 				 * the same sequence number without ack */
 	node_p  node;
 	struct callout handle;
@@ -193,9 +188,7 @@ cisco_constructor(node_p node)
 {
 	sc_p sc;
 
-	sc = malloc(sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (sc == NULL)
-		return (ENOMEM);
+	sc = malloc(sizeof(*sc), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	ng_callout_init(&sc->handle);
 	NG_NODE_SET_PRIVATE(node, sc);
@@ -273,7 +266,7 @@ cisco_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			pos = sprintf(arg,
 			  "keepalive period: %d sec; ", KEEPALIVE_SECS);
 			pos += sprintf(arg + pos,
-			  "unacknowledged keepalives: %ld", sc->seqRetries);
+			  "unacknowledged keepalives: %d", sc->seqRetries);
 			resp->header.arglen = pos + 1;
 			break;
 		    }
@@ -361,12 +354,13 @@ cisco_rcvdata(hook_p hook, item_p item)
 
 	/* OK so it came from a protocol, heading out. Prepend general data
 	   packet header. For now, IP,IPX only  */
-	m = NGI_M(item); /* still associated with item */
-	M_PREPEND(m, CISCO_HEADER_LEN, M_DONTWAIT);
+	NGI_GET_M(item, m);
+	M_PREPEND(m, CISCO_HEADER_LEN, M_NOWAIT);
 	if (!m) {
 		error = ENOBUFS;
 		goto out;
 	}
+	NGI_M(item) = m;
 	h = mtod(m, struct cisco_header *);
 	h->address = CISCO_UNICAST;
 	h->control = 0;
@@ -604,12 +598,12 @@ cisco_send(sc_p sc, int type, long par1, long par2)
 	struct cisco_packet *ch;
 	struct mbuf *m;
 	struct timeval time;
-	u_long  t;
+	uint32_t t;
 	int     error = 0;
 
 	getmicrouptime(&time);
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (!m)
 		return (ENOBUFS);
 
@@ -627,8 +621,8 @@ cisco_send(sc_p sc, int type, long par1, long par2)
 	ch->par1 = htonl(par1);
 	ch->par2 = htonl(par2);
 	ch->rel = -1;
-	ch->time0 = htons((u_short) (t >> 16));
-	ch->time1 = htons((u_short) t);
+	ch->time0 = htons((uint16_t) (t >> 16));
+	ch->time1 = htons((uint16_t) t);
 
 	NG_SEND_DATA_ONLY(error, sc->downstream.hook, m);
 	return (error);

@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #if defined(__powerpc__) || defined(__sparc64__)
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 #include <machine/ofw_machdep.h>
 #endif
@@ -81,16 +82,12 @@ static device_method_t gem_pci_methods[] = {
 	/* Use the suspend handler here, it is all that is required. */
 	DEVMETHOD(device_shutdown,	gem_pci_suspend),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	gem_mii_readreg),
 	DEVMETHOD(miibus_writereg,	gem_mii_writereg),
 	DEVMETHOD(miibus_statchg,	gem_mii_statchg),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t gem_pci_driver = {
@@ -107,7 +104,7 @@ static const struct gem_pci_dev {
 	uint32_t	gpd_devid;
 	int		gpd_variant;
 	const char	*gpd_desc;
-} const gem_pci_devlist[] = {
+} gem_pci_devlist[] = {
 	{ 0x1101108e, GEM_SUN_ERI,	"Sun ERI 10/100 Ethernet" },
 	{ 0x2bad108e, GEM_SUN_GEM,	"Sun GEM Gigabit Ethernet" },
 	{ 0x0021106b, GEM_APPLE_GMAC,	"Apple UniNorth GMAC Ethernet" },
@@ -140,12 +137,17 @@ static struct resource_spec gem_pci_res_spec[] = {
 	{ -1, 0 }
 };
 
+#define	GEM_SHARED_PINS		"shared-pins"
+#define	GEM_SHARED_PINS_SERDES	"serdes"
+
 static int
 gem_pci_attach(device_t dev)
 {
 	struct gem_softc *sc;
 	int i;
-#if !(defined(__powerpc__) || defined(__sparc64__))
+#if defined(__powerpc__) || defined(__sparc64__)
+	char buf[sizeof(GEM_SHARED_PINS)];
+#else
 	int j;
 #endif
 
@@ -170,6 +172,10 @@ gem_pci_attach(device_t dev)
 	 */
 	if (pci_get_intpin(dev) == 0)
 		pci_set_intpin(dev, 1);
+
+	/* Set the PCI latency timer for Sun ERIs. */
+	if (sc->sc_variant == GEM_SUN_ERI)
+		pci_write_config(dev, PCIR_LATTIMER, GEM_ERI_LATENCY_TIMER, 1);
 
 	sc->sc_dev = dev;
 	sc->sc_flags |= GEM_PCI;
@@ -207,6 +213,12 @@ gem_pci_attach(device_t dev)
 
 #if defined(__powerpc__) || defined(__sparc64__)
 	OF_getetheraddr(dev, sc->sc_enaddr);
+	if (OF_getprop(ofw_bus_get_node(dev), GEM_SHARED_PINS, buf,
+	    sizeof(buf)) > 0) {
+		buf[sizeof(buf) - 1] = '\0';
+		if (strcmp(buf, GEM_SHARED_PINS_SERDES) == 0)
+			sc->sc_flags |= GEM_SERDES;
+	}
 #else
 	/*
 	 * Dig out VPD (vital product data) and read NA (network address).
@@ -295,6 +307,16 @@ gem_pci_attach(device_t dev)
 	    GEM_PCI_ROM_OFFSET + j + PCI_VPDRES_LARGE_SIZE + PCI_VPD_SIZE,
 	    sc->sc_enaddr, ETHER_ADDR_LEN);
 #endif
+	/*
+	 * The Xserve G5 has a fake GMAC with an all-zero MAC address.
+	 * Check for this, and don't attach in this case.
+	 */
+
+	for (i = 0; i < ETHER_ADDR_LEN && sc->sc_enaddr[i] == 0; i++) {}
+	if (i == ETHER_ADDR_LEN) {
+		device_printf(dev, "invalid MAC address\n");
+		goto fail;
+	}
 
 	if (gem_attach(sc) != 0) {
 		device_printf(dev, "could not be attached\n");

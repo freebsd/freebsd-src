@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -48,8 +44,6 @@ __FBSDID("$FreeBSD$");
  * User commands.
  */
 
-extern const struct cmd cmdtab[];
-
 /*
  * Print the current active headings.
  * Don't change dot if invoker didn't give an argument.
@@ -58,9 +52,9 @@ extern const struct cmd cmdtab[];
 static int screen;
 
 int
-headers(msgvec)
-	int *msgvec;
+headers(void *v)
 {
+	int *msgvec = v;
 	int n, mesg, flag, size;
 	struct message *mp;
 
@@ -98,9 +92,9 @@ headers(msgvec)
  * Scroll to the next/previous screen
  */
 int
-scroll(arg)
-	char arg[];
+scroll(void *v)
 {
+	char *arg = v;
 	int s, size;
 	int cur[1];
 
@@ -137,7 +131,7 @@ scroll(arg)
  * Compute screen size.
  */
 int
-screensize()
+screensize(void)
 {
 	int s;
 	char *cp;
@@ -152,9 +146,9 @@ screensize()
  * in the passed message list.
  */
 int
-from(msgvec)
-	int *msgvec;
+from(void *v)
 {
+	int *msgvec = v;
 	int *ip;
 
 	for (ip = msgvec; *ip != 0; ip++)
@@ -169,8 +163,7 @@ from(msgvec)
  * This is a slight improvement to the standard one.
  */
 void
-printhead(mesg)
-	int mesg;
+printhead(int mesg)
 {
 	struct message *mp;
 	char headline[LINESIZE], wcount[LINESIZE], *subjline, dispc, curind;
@@ -216,9 +209,9 @@ printhead(mesg)
  * Print out the value of dot.
  */
 int
-pdot()
+pdot(void)
 {
-	printf("%d\n", dot - &message[0] + 1);
+	printf("%td\n", dot - &message[0] + 1);
 	return (0);
 }
 
@@ -226,8 +219,9 @@ pdot()
  * Print out all the possible commands.
  */
 int
-pcmdlist()
+pcmdlist(void)
 {
+	extern const struct cmd cmdtab[];
 	const struct cmd *cp;
 	int cc;
 
@@ -250,9 +244,9 @@ pcmdlist()
  * Paginate messages, honor ignored fields.
  */
 int
-more(msgvec)
-	int *msgvec;
+more(void *v)
 {
+	int *msgvec = v;
 
 	return (type1(msgvec, 1, 1));
 }
@@ -261,9 +255,9 @@ more(msgvec)
  * Paginate messages, even printing ignored fields.
  */
 int
-More(msgvec)
-	int *msgvec;
+More(void *v)
 {
+	int *msgvec = v;
 
 	return (type1(msgvec, 0, 1));
 }
@@ -272,9 +266,9 @@ More(msgvec)
  * Type out messages, honor ignored fields.
  */
 int
-type(msgvec)
-	int *msgvec;
+type(void *v)
 {
+	int *msgvec = v;
 
 	return (type1(msgvec, 1, 0));
 }
@@ -283,9 +277,9 @@ type(msgvec)
  * Type out messages, even printing ignored fields.
  */
 int
-Type(msgvec)
-	int *msgvec;
+Type(void *v)
 {
+	int *msgvec = v;
 
 	return (type1(msgvec, 0, 0));
 }
@@ -295,9 +289,7 @@ Type(msgvec)
  */
 static jmp_buf	pipestop;
 int
-type1(msgvec, doign, page)
-	int *msgvec;
-	int doign, page;
+type1(int *msgvec, int doign, int page)
 {
 	int nlines, *ip;
 	struct message *mp;
@@ -358,8 +350,7 @@ close_pipe:
  */
 /*ARGSUSED*/
 void
-brokpipe(signo)
-	int signo;
+brokpipe(int signo __unused)
 {
 	longjmp(pipestop, 1);
 }
@@ -370,9 +361,9 @@ brokpipe(signo)
  * and defaults to 5.
  */
 int
-top(msgvec)
-	int *msgvec;
+top(void *v)
 {
+	int *msgvec = v;
 	int *ip;
 	struct message *mp;
 	int c, topl, lines, lineb;
@@ -412,9 +403,9 @@ top(msgvec)
  * get mboxed.
  */
 int
-stouch(msgvec)
-	int msgvec[];
+stouch(void *v)
 {
+	int *msgvec = v;
 	int *ip;
 
 	for (ip = msgvec; *ip != 0; ip++) {
@@ -429,9 +420,9 @@ stouch(msgvec)
  * Make sure all passed messages get mboxed.
  */
 int
-mboxit(msgvec)
-	int msgvec[];
+mboxit(void *v)
 {
+	int *msgvec = v;
 	int *ip;
 
 	for (ip = msgvec; *ip != 0; ip++) {
@@ -446,7 +437,7 @@ mboxit(msgvec)
  * List the folders the user currently has.
  */
 int
-folders()
+folders(void)
 {
 	char dirname[PATHSIZE];
 	char *cmd;
@@ -457,7 +448,7 @@ folders()
 	}
 	if ((cmd = value("LISTER")) == NULL)
 		cmd = "ls";
-	(void)run_command(cmd, 0, -1, -1, dirname, NULL, NULL);
+	(void)run_command(cmd, 0, -1, -1, dirname, NULL);
 	return (0);
 }
 
@@ -466,8 +457,7 @@ folders()
  * come in since we started reading mail.
  */
 int
-inc(v)
-	void *v;
+inc(void *v __unused)
 {
 	int nmsg, mdot;
 

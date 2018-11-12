@@ -28,7 +28,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -36,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_mib.h>
 #include <net/if_media.h>
 
@@ -142,6 +145,7 @@ static driver_t fe_pccard_driver = {
 
 DRIVER_MODULE(fe, pccard, fe_pccard_driver, fe_devclass, 0, 0);
 MODULE_DEPEND(fe, pccard, 1, 1, 1);
+PCCARD_PNP_INFO(fe_pccard_products);
 
 static int fe_probe_mbh(device_t, const struct fe_pccard_product *);
 static int fe_probe_tdk(device_t, const struct fe_pccard_product *);
@@ -306,7 +310,7 @@ fe_pccard_xircom_mac(const struct pccard_tuple *tuple, void *argp)
  * Probe and initialization for TDK/CONTEC PCMCIA Ethernet interface.
  * by MASUI Kenji <masui@cs.titech.ac.jp>
  *
- * (Contec uses TDK Ethenet chip -- hosokawa)
+ * (Contec uses TDK Ethernet chip -- hosokawa)
  *
  * This version of fe_probe_tdk has been rewrote to handle
  * *generic* PC Card implementation of Fujitsu MB8696x family.  The

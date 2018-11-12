@@ -28,7 +28,7 @@
 .\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2008
+.Dd April 5, 2013
 .Dt GETSOCKOPT 2
 .Os
 .Sh NAME
@@ -172,6 +172,8 @@ for the socket
 .It Dv SO_BINTIME Ta "enables reception of a timestamp with datagrams"
 .It Dv SO_ACCEPTCONN Ta "get listening status of the socket (get only)"
 .It Dv SO_TYPE Ta "get the type of the socket (get only)"
+.It Dv SO_PROTOCOL Ta "get the protocol number for the socket (get only)"
+.It Dv SO_PROTOTYPE Ta "SunOS alias for the Linux SO_PROTOCOL (get only)"
 .It Dv SO_ERROR Ta "get and clear error on the socket (get only)"
 .It Dv SO_SETFIB Ta "set the associated FIB (routing table) for the socket (set only)"
 .El
@@ -184,15 +186,18 @@ The following options are recognized in
 .It Dv SO_LISTENQLIMIT Ta "get backlog limit of the socket (get only)"
 .It Dv SO_LISTENQLEN Ta "get complete queue length of the socket (get only)"
 .It Dv SO_LISTENINCQLEN Ta "get incomplete queue length of the socket (get only)"
+.It Dv SO_USER_COOKIE Ta "set the 'so_user_cookie' value for the socket (uint32_t, set only)"
 .El
 .Pp
 .Dv SO_DEBUG
 enables debugging in the underlying protocol modules.
+.Pp
 .Dv SO_REUSEADDR
 indicates that the rules used in validating addresses supplied
 in a
 .Xr bind 2
 system call should allow reuse of local addresses.
+.Pp
 .Dv SO_REUSEPORT
 allows completely duplicate bindings by multiple processes
 if they all set
@@ -200,6 +205,7 @@ if they all set
 before binding the port.
 This option permits multiple instances of a program to each
 receive UDP/IP multicast or broadcast datagrams destined for the bound port.
+.Pp
 .Dv SO_KEEPALIVE
 enables the
 periodic transmission of messages on a connected socket.
@@ -208,6 +214,7 @@ connected party fail to respond to these messages, the connection is
 considered broken and processes using the socket are notified via a
 .Dv SIGPIPE
 signal when attempting to send data.
+.Pp
 .Dv SO_DONTROUTE
 indicates that outgoing messages should
 bypass the standard routing facilities.
@@ -244,6 +251,7 @@ The option
 requests permission to send broadcast datagrams
 on the socket.
 Broadcast was a privileged operation in earlier versions of the system.
+.Pp
 With protocols that support out-of-band data, the
 .Dv SO_OOBINLINE
 option
@@ -256,6 +264,7 @@ calls without the
 .Dv MSG_OOB
 flag.
 Some protocols always behave as if this option is set.
+.Pp
 .Dv SO_SNDBUF
 and
 .Dv SO_RCVBUF
@@ -285,6 +294,7 @@ only if the low water mark amount could be processed.
 The default value for
 .Dv SO_SNDLOWAT
 is set to a convenient size for network efficiency, often 1024.
+.Pp
 .Dv SO_RCVLOWAT
 is an option to set the minimum count for input operations.
 In general, receive calls will block until any (non-zero) amount of data
@@ -317,6 +327,7 @@ In the current implementation, this timer is restarted each time additional
 data are delivered to the protocol,
 implying that the limit applies to output portions ranging in size
 from the low water mark to the high water mark for output.
+.Pp
 .Dv SO_RCVTIMEO
 is an option to set a timeout value for input operations.
 It accepts a
@@ -337,6 +348,15 @@ can be used to over-ride the default FIB (routing table) for the given socket.
 The value must be from 0 to one less than the number returned from
 the sysctl
 .Em net.fibs .
+.Pp
+.Dv SO_USER_COOKIE
+can be used to set the uint32_t so_user_cookie field in the socket.
+The value is an uint32_t, and can be used in the kernel code that
+manipulates traffic related to the socket.
+The default value for the field is 0.
+As an example, the value can be used as the skipto target or
+pipe number in
+.Nm ipfw/dummynet .
 .Pp
 .Dv SO_ACCEPTFILTER
 places an
@@ -417,7 +437,7 @@ The
 .Vt cmsghdr
 fields have the following values for TIMESTAMP:
 .Bd -literal
-     cmsg_len = sizeof(struct timeval);
+     cmsg_len = CMSG_LEN(sizeof(struct timeval));
      cmsg_level = SOL_SOCKET;
      cmsg_type = SCM_TIMESTAMP;
 .Ed
@@ -425,13 +445,16 @@ fields have the following values for TIMESTAMP:
 and for
 .Dv SO_BINTIME :
 .Bd -literal
-     cmsg_len = sizeof(struct bintime);
+     cmsg_len = CMSG_LEN(sizeof(struct bintime));
      cmsg_level = SOL_SOCKET;
      cmsg_type = SCM_BINTIME;
 .Ed
 .Pp
 .Dv SO_ACCEPTCONN ,
-.Dv SO_TYPE
+.Dv SO_TYPE ,
+.Dv SO_PROTOCOL
+(and its alias
+.Dv SO_PROTOTYPE )
 and
 .Dv SO_ERROR
 are options used only with
@@ -445,6 +468,12 @@ system call was invoked on the socket.
 returns the type of the socket, such as
 .Dv SOCK_STREAM ;
 it is useful for servers that inherit sockets on startup.
+.Dv SO_PROTOCOL
+returns the protocol number for the socket, for
+.Dv AF_INET
+and
+.Dv AF_INET6
+address families.
 .Dv SO_ERROR
 returns any pending error on the socket and clears
 the error status.
@@ -515,7 +544,9 @@ on a non-listening socket was attempted.
 .Sh HISTORY
 The
 .Fn getsockopt
-system call appeared in
+and
+.Fn setsockopt
+system calls appeared in
 .Bx 4.2 .
 .Sh BUGS
 Several of the socket options should be handled at lower levels of the system.

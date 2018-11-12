@@ -46,8 +46,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/conf.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 
@@ -157,8 +161,6 @@ const struct adw_syncrate adw_syncrates[] =
 	{ ADW_MC_SDTR_ASYNC,	    0,	     "async" }
 };
 
-const int adw_num_syncrates = sizeof(adw_syncrates) / sizeof(adw_syncrates[0]);
-
 static u_int16_t	adw_eeprom_read_16(struct adw_softc *adw, int addr);
 static void		adw_eeprom_write_16(struct adw_softc *adw, int addr,
 					    u_int data);
@@ -198,6 +200,8 @@ adw_reset_bus(struct adw_softc *adw)
 {
 	adw_idle_cmd_status_t status;
 
+	if (!dumping)
+		mtx_assert(&adw->lock, MA_OWNED);
 	status =
 	    adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_START, /*param*/0);
 	if (status != ADW_IDLE_CMD_SUCCESS) {
@@ -249,7 +253,8 @@ adw_eeprom_wait(struct adw_softc *adw)
 		DELAY(1000);
     	}
 	if (i == ADW_EEP_DELAY_MS)
-		panic("%s: Timedout Reading EEPROM", adw_name(adw));
+		panic("%s: Timedout Reading EEPROM",
+		    device_get_nameunit(adw->device));
 }
 
 /*
@@ -473,7 +478,7 @@ adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 		checksum += adw_inw(adw, ADW_RAM_DATA);
 
 	if (checksum != adw->mcode_data->mcode_chksum) {
-		printf("%s: Firmware load failed!\n", adw_name(adw));
+		device_printf(adw->device, "Firmware load failed!\n");
 		return (EIO);
 	}
 
@@ -550,8 +555,8 @@ adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 	 * this condition is found.
 	 */
 	if ((adw_inw(adw, ADW_SCSI_CTRL) & 0x3F07) == 0x3F07) {
-		printf("%s: Illegal Cable Config!\n", adw_name(adw));
-		printf("%s: Internal cable is reversed!\n", adw_name(adw));
+		device_printf(adw->device, "Illegal Cable Config!\n");
+		device_printf(adw->device, "Internal cable is reversed!\n");
 		return (EIO);
 	}
 
@@ -562,17 +567,17 @@ adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 	if ((adw->features & ADW_ULTRA) != 0)  {
 		if ((scsicfg1 & ADW_SCSI_CFG1_DIFF_MODE) != 0
 		 && (scsicfg1 & ADW_SCSI_CFG1_DIFF_SENSE) == 0) {
-			printf("%s: A Single Ended Device is attached to our "
-			       "differential bus!\n", adw_name(adw));
+			device_printf(adw->device, "A Single Ended Device is "
+			    "attached to our differential bus!\n");
 		        return (EIO);
 		}
 	} else {
 		if ((scsicfg1 & ADW2_SCSI_CFG1_DEV_DETECT_HVD) != 0) {
-			printf("%s: A High Voltage Differential Device "
-			       "is attached to this controller.\n",
-			       adw_name(adw));
-			printf("%s: HVD devices are not supported.\n",
-			       adw_name(adw));
+			device_printf(adw->device,
+			    "A High Voltage Differential Device "
+			    "is attached to this controller.\n");
+			device_printf(adw->device,
+			    "HVD devices are not supported.\n");
 		        return (EIO);
 		}
 	}
@@ -647,10 +652,10 @@ adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 				cable_count++;
 
 			if (cable_count == 3) {
-				printf("%s: Illegal Cable Config!\n",
-				       adw_name(adw));
-				printf("%s: Only Two Ports may be used at "
-				       "a time!\n", adw_name(adw));
+				device_printf(adw->device,
+				    "Illegal Cable Config!\n");
+				device_printf(adw->device,
+				    "Only Two Ports may be used at a time!\n");
 			} else if (cable_count <= 1) {
 				/*
 				 * At least two out of three cables missing.
@@ -810,7 +815,7 @@ adw_find_sdtr(struct adw_softc *adw, u_int period)
 	if (period == 0)
 		return ADW_MC_SDTR_ASYNC;
 
-	for (; i < adw_num_syncrates; i++) {
+	for (; i < nitems(adw_syncrates); i++) {
 		if (period <= adw_syncrates[i].period)
 			return (adw_syncrates[i].mc_sdtr);
 	}	
@@ -822,7 +827,7 @@ adw_find_period(struct adw_softc *adw, u_int mc_sdtr)
 {
 	int i;
 
-	for (i = 0; i < adw_num_syncrates; i++) {
+	for (i = 0; i < nitems(adw_syncrates); i++) {
 		if (mc_sdtr == adw_syncrates[i].mc_sdtr)
 			break;
 	}	
@@ -852,9 +857,9 @@ adw_idle_cmd_send(struct adw_softc *adw, adw_idle_cmd_t cmd, u_int parameter)
 {
 	u_int		      timeout;
 	adw_idle_cmd_status_t status;
-	int		      s;
 
-	s = splcam();	
+	if (!dumping)
+		mtx_assert(&adw->lock, MA_OWNED);
 
 	/*
 	 * Clear the idle command status which is set by the microcode
@@ -886,7 +891,7 @@ adw_idle_cmd_send(struct adw_softc *adw, adw_idle_cmd_t cmd, u_int parameter)
 	}
 
 	if (timeout == 0)
-		panic("%s: Idle Command Timed Out!\n", adw_name(adw));
-	splx(s);
+		panic("%s: Idle Command Timed Out!",
+		    device_get_nameunit(adw->device));
 	return (status);
 }

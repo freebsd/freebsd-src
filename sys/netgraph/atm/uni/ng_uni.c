@@ -60,8 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <netgraph/atm/ng_sscfu.h>
 #include <netgraph/atm/ng_uni.h>
 
-MALLOC_DEFINE(M_NG_UNI, "netgraph_uni_node", "netgraph uni node");
-MALLOC_DEFINE(M_UNI, "netgraph_uni_data", "uni protocol data");
+static MALLOC_DEFINE(M_NG_UNI, "netgraph_uni_node", "netgraph uni node");
+static MALLOC_DEFINE(M_UNI, "netgraph_uni_data", "uni protocol data");
 
 MODULE_DEPEND(ng_uni, ngatmbase, 1, 1, 1);
 
@@ -223,8 +223,7 @@ ng_uni_constructor(node_p node)
 {
 	struct priv *priv;
 
-	if ((priv = malloc(sizeof(*priv), M_NG_UNI, M_NOWAIT | M_ZERO)) == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NG_UNI, M_WAITOK | M_ZERO);
 
 	if ((priv->uni = uni_create(node, &uni_funcs)) == NULL) {
 		free(priv, M_NG_UNI);
@@ -771,18 +770,18 @@ struct unimem_debug {
 LIST_HEAD(unimem_debug_list, unimem_debug);
 
 static struct unimem_debug_list nguni_freemem[UNIMEM_TYPES] = {
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
+    LIST_HEAD_INITIALIZER(nguni_freemem[0]),
+    LIST_HEAD_INITIALIZER(nguni_freemem[1]),
+    LIST_HEAD_INITIALIZER(nguni_freemem[2]),
+    LIST_HEAD_INITIALIZER(nguni_freemem[3]),
+    LIST_HEAD_INITIALIZER(nguni_freemem[4]),
 };
 static struct unimem_debug_list nguni_usedmem[UNIMEM_TYPES] = {
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
-    LIST_HEAD_INITIALIZER(unimem_debug),
+    LIST_HEAD_INITIALIZER(nguni_usedmem[0]),
+    LIST_HEAD_INITIALIZER(nguni_usedmem[1]),
+    LIST_HEAD_INITIALIZER(nguni_usedmem[2]),
+    LIST_HEAD_INITIALIZER(nguni_usedmem[3]),
+    LIST_HEAD_INITIALIZER(nguni_usedmem[4]),
 };
 
 static struct mtx nguni_unilist_mtx;
@@ -908,10 +907,8 @@ ng_uni_free(enum unimem type, void *ptr, const char *file, u_int lno)
 static int
 ng_uni_mod_event(module_t mod, int event, void *data)
 {
-	int s;
 	int error = 0;
 
-	s = splnet();
 	switch(event) {
 
 	  case MOD_LOAD:
@@ -926,6 +923,5 @@ ng_uni_mod_event(module_t mod, int event, void *data)
 		error = EOPNOTSUPP;
 		break;
 	}
-	splx(s);
 	return (error);
 }

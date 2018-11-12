@@ -81,27 +81,30 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 typedef void (action_fn)(struct sockaddr_dl *sdl,
-	struct sockaddr_inarp *s_in, struct rt_msghdr *rtm);
+	struct sockaddr_in *s_in, struct rt_msghdr *rtm);
 
 static int search(u_long addr, action_fn *action);
 static action_fn print_entry;
 static action_fn nuke_entry;
 
-static int delete(char *host, int do_proxy);
+static int delete(char *host);
 static void usage(void);
 static int set(int argc, char **argv);
 static int get(char *host);
 static int file(char *name);
 static struct rt_msghdr *rtmsg(int cmd,
-    struct sockaddr_inarp *dst, struct sockaddr_dl *sdl);
+    struct sockaddr_in *dst, struct sockaddr_dl *sdl);
 static int get_ether_addr(in_addr_t ipaddr, struct ether_addr *hwaddr);
-static struct sockaddr_inarp *getaddr(char *host);
+static struct sockaddr_in *getaddr(char *host);
 static int valid_type(int type);
 
 static int nflag;	/* no reverse dns lookups */
 static char *rifname;
 
-static int	expire_time, flags, doing_proxy, proxy_only;
+static time_t	expire_time;
+static int	flags, doing_proxy;
+
+struct if_nameindex *ifnameindex;
 
 /* which function we're supposed to do */
 #define F_GET		1
@@ -178,7 +181,7 @@ main(int argc, char *argv[])
 		if (argc < 2 || argc > 6)
 			usage();
 		if (func == F_REPLACE)
-			(void)delete(argv[0], 0);
+			(void)delete(argv[0]);
 		rtn = set(argc, argv) ? 1 : 0;
 		break;
 	case F_DELETE:
@@ -187,13 +190,9 @@ main(int argc, char *argv[])
 				usage();
 			search(0, nuke_entry);
 		} else {
-			if (argc == 2 && strncmp(argv[1], "pub", 3) == 0)
-				ch = SIN_PROXY;
-			else if (argc == 1)
-				ch = 0;
-			else
+			if (argc != 1)
 				usage();
-			rtn = delete(argv[0], ch);
+			rtn = delete(argv[0]);
 		}
 		break;
 	case F_FILESET:
@@ -202,6 +201,9 @@ main(int argc, char *argv[])
 		rtn = file(argv[0]);
 		break;
 	}
+
+	if (ifnameindex != NULL)
+		if_freenameindex(ifnameindex);
 
 	return (rtn);
 }
@@ -245,15 +247,15 @@ file(char *name)
 }
 
 /*
- * Given a hostname, fills up a (static) struct sockaddr_inarp with
+ * Given a hostname, fills up a (static) struct sockaddr_in with
  * the address of the host and returns a pointer to the
  * structure.
  */
-static struct sockaddr_inarp *
+static struct sockaddr_in *
 getaddr(char *host)
 {
 	struct hostent *hp;
-	static struct sockaddr_inarp reply;
+	static struct sockaddr_in reply;
 
 	bzero(&reply, sizeof(reply));
 	reply.sin_len = sizeof(reply);
@@ -280,6 +282,7 @@ valid_type(int type)
 	switch (type) {
 	case IFT_ETHER:
 	case IFT_FDDI:
+	case IFT_INFINIBAND:
 	case IFT_ISO88023:
 	case IFT_ISO88024:
 	case IFT_ISO88025:
@@ -297,8 +300,8 @@ valid_type(int type)
 static int
 set(int argc, char **argv)
 {
-	struct sockaddr_inarp *addr;
-	struct sockaddr_inarp *dst;	/* what are we looking for */
+	struct sockaddr_in *addr;
+	struct sockaddr_in *dst;	/* what are we looking for */
 	struct sockaddr_dl *sdl;
 	struct rt_msghdr *rtm;
 	struct ether_addr *ea;
@@ -315,18 +318,28 @@ set(int argc, char **argv)
 	dst = getaddr(host);
 	if (dst == NULL)
 		return (1);
-	doing_proxy = flags = proxy_only = expire_time = 0;
+	doing_proxy = flags = expire_time = 0;
 	while (argc-- > 0) {
 		if (strncmp(argv[0], "temp", 4) == 0) {
-			struct timeval tv;
-			gettimeofday(&tv, 0);
-			expire_time = tv.tv_sec + 20 * 60;
+			struct timespec tp;
+			int max_age;
+			size_t len = sizeof(max_age);
+
+			clock_gettime(CLOCK_MONOTONIC, &tp);
+			if (sysctlbyname("net.link.ether.inet.max_age",
+			    &max_age, &len, NULL, 0) != 0)
+				err(1, "sysctlbyname");
+			expire_time = tp.tv_sec + max_age;
 		} else if (strncmp(argv[0], "pub", 3) == 0) {
 			flags |= RTF_ANNOUNCE;
 			doing_proxy = 1;
 			if (argc && strncmp(argv[1], "only", 3) == 0) {
-				proxy_only = 1;
-				dst->sin_other = SIN_PROXY;
+				/*
+				 * Compatibility: in pre FreeBSD 8 times
+				 * the "only" keyword used to mean that
+				 * an ARP entry should be announced, but
+				 * not installed into routing table.
+				 */
 				argc--; argv++;
 			}
 		} else if (strncmp(argv[0], "blackhole", 9) == 0) {
@@ -365,33 +378,26 @@ set(int argc, char **argv)
 			sdl_m.sdl_alen = ETHER_ADDR_LEN;
 		}
 	}
-	for (;;) {	/* try at most twice */
-		rtm = rtmsg(RTM_GET, dst, &sdl_m);
-		if (rtm == NULL) {
-			warn("%s", host);
-			return (1);
-		}
-		addr = (struct sockaddr_inarp *)(rtm + 1);
-		sdl = (struct sockaddr_dl *)(SA_SIZE(addr) + (char *)addr);
-		if (addr->sin_addr.s_addr != dst->sin_addr.s_addr)	
-			break;
-		if (sdl->sdl_family == AF_LINK &&
-		    !(rtm->rtm_flags & RTF_GATEWAY) &&
-		    valid_type(sdl->sdl_type) )
-			break;
-		if (doing_proxy == 0) {
-			printf("set: can only proxy for %s\n", host);
-			return (1);
-		}
-		if (dst->sin_other & SIN_PROXY) {
-			printf("set: proxy entry exists for non 802 device\n");
-			return (1);
-		}
-		dst->sin_other = SIN_PROXY;
-		proxy_only = 1;
-	}
 
-	if (sdl->sdl_family != AF_LINK) {
+	/*
+	 * In the case a proxy-arp entry is being added for
+	 * a remote end point, the RTF_ANNOUNCE flag in the 
+	 * RTM_GET command is an indication to the kernel
+	 * routing code that the interface associated with
+	 * the prefix route covering the local end of the
+	 * PPP link should be returned, on which ARP applies.
+	 */
+	rtm = rtmsg(RTM_GET, dst, &sdl_m);
+	if (rtm == NULL) {
+		warn("%s", host);
+		return (1);
+	}
+	addr = (struct sockaddr_in *)(rtm + 1);
+	sdl = (struct sockaddr_dl *)(SA_SIZE(addr) + (char *)addr);
+
+	if ((sdl->sdl_family != AF_LINK) ||
+	    (rtm->rtm_flags & RTF_GATEWAY) ||
+	    !valid_type(sdl->sdl_type)) {
 		printf("cannot intuit interface index and type for %s\n", host);
 		return (1);
 	}
@@ -406,7 +412,7 @@ set(int argc, char **argv)
 static int
 get(char *host)
 {
-	struct sockaddr_inarp *addr;
+	struct sockaddr_in *addr;
 
 	addr = getaddr(host);
 	if (addr == NULL)
@@ -426,9 +432,9 @@ get(char *host)
  * Delete an arp entry
  */
 static int
-delete(char *host, int do_proxy)
+delete(char *host)
 {
-	struct sockaddr_inarp *addr, *dst;
+	struct sockaddr_in *addr, *dst;
 	struct rt_msghdr *rtm;
 	struct sockaddr_dl *sdl;
 	struct sockaddr_dl sdl_m;
@@ -436,7 +442,11 @@ delete(char *host, int do_proxy)
 	dst = getaddr(host);
 	if (dst == NULL)
 		return (1);
-	dst->sin_other = do_proxy;
+
+	/*
+	 * Perform a regular entry delete first.
+	 */
+	flags &= ~RTF_ANNOUNCE;
 
 	/*
 	 * setup the data structure to notify the kernel
@@ -453,7 +463,7 @@ delete(char *host, int do_proxy)
 			warn("%s", host);
 			return (1);
 		}
-		addr = (struct sockaddr_inarp *)(rtm + 1);
+		addr = (struct sockaddr_in *)(rtm + 1);
 		sdl = (struct sockaddr_dl *)(SA_SIZE(addr) + (char *)addr);
 
 		/*
@@ -471,11 +481,16 @@ delete(char *host, int do_proxy)
 			break;
 		}
 
-		if (dst->sin_other & SIN_PROXY) {
+		/*
+		 * Regualar entry delete failed, now check if there
+		 * is a proxy-arp entry to remove.
+		 */
+		if (flags & RTF_ANNOUNCE) {
 			fprintf(stderr, "delete: cannot locate %s\n",host);
 			return (1);
 		}
-		dst->sin_other = SIN_PROXY;
+
+		flags |= RTF_ANNOUNCE;
 	}
 	rtm->rtm_flags |= RTF_LLDATA;
 	if (rtmsg(RTM_DELETE, dst, NULL) != NULL) {
@@ -485,6 +500,7 @@ delete(char *host, int do_proxy)
 	return (1);
 }
 
+
 /*
  * Search the arp table and do some action on matching entries
  */
@@ -493,9 +509,9 @@ search(u_long addr, action_fn *action)
 {
 	int mib[6];
 	size_t needed;
-	char *lim, *buf, *newbuf, *next;
+	char *lim, *buf, *next;
 	struct rt_msghdr *rtm;
-	struct sockaddr_inarp *sin2;
+	struct sockaddr_in *sin2;
 	struct sockaddr_dl *sdl;
 	char ifname[IF_NAMESIZE];
 	int st, found_entry = 0;
@@ -516,13 +532,9 @@ search(u_long addr, action_fn *action)
 		return 0;
 	buf = NULL;
 	for (;;) {
-		newbuf = realloc(buf, needed);
-		if (newbuf == NULL) {
-			if (buf != NULL)
-				free(buf);
+		buf = reallocf(buf, needed);
+		if (buf == NULL)
 			errx(1, "could not reallocate memory");
-		}
-		buf = newbuf;
 		st = sysctl(mib, 6, buf, &needed, NULL, 0);
 		if (st == 0 || errno != ENOMEM)
 			break;
@@ -533,7 +545,7 @@ search(u_long addr, action_fn *action)
 	lim = buf + needed;
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
-		sin2 = (struct sockaddr_inarp *)(rtm + 1);
+		sin2 = (struct sockaddr_in *)(rtm + 1);
 		sdl = (struct sockaddr_dl *)((char *)sin2 + SA_SIZE(sin2));
 		if (rifname && if_indextoname(sdl->sdl_index, ifname) &&
 		    strcmp(ifname, rifname))
@@ -552,15 +564,20 @@ search(u_long addr, action_fn *action)
 /*
  * Display an arp entry
  */
+
 static void
 print_entry(struct sockaddr_dl *sdl,
-	struct sockaddr_inarp *addr, struct rt_msghdr *rtm)
+	struct sockaddr_in *addr, struct rt_msghdr *rtm)
 {
 	const char *host;
 	struct hostent *hp;
 	struct iso88025_sockaddr_dl_data *trld;
-	char ifname[IF_NAMESIZE];
+	struct if_nameindex *p;
 	int seg;
+
+	if (ifnameindex == NULL) 
+		if ((ifnameindex = if_nameindex()) == NULL)
+			err(1, "cannot retrieve interface names");
 
 	if (nflag == 0)
 		hp = gethostbyaddr((caddr_t)&(addr->sin_addr),
@@ -588,12 +605,26 @@ print_entry(struct sockaddr_dl *sdl,
 		}
 	} else
 		printf("(incomplete)");
-	if (if_indextoname(sdl->sdl_index, ifname) != NULL)
-		printf(" on %s", ifname);
+
+	for (p = ifnameindex; p && ifnameindex->if_index &&
+		 ifnameindex->if_name; p++) {
+		if (p->if_index == sdl->sdl_index) {
+			printf(" on %s", p->if_name);
+			break;
+		}
+	}
+
 	if (rtm->rtm_rmx.rmx_expire == 0)
 		printf(" permanent");
-	if (addr->sin_other & SIN_PROXY)
-		printf(" published (proxy only)");
+	else {
+		static struct timespec tp;
+		if (tp.tv_sec == 0)
+			clock_gettime(CLOCK_MONOTONIC, &tp);
+		if ((expire_time = rtm->rtm_rmx.rmx_expire - tp.tv_sec) > 0)
+			printf(" expires in %d seconds", (int)expire_time);
+		else
+			printf(" expired");
+	}
 	if (rtm->rtm_flags & RTF_ANNOUNCE)
 		printf(" published");
 	switch(sdl->sdl_type) {
@@ -626,6 +657,9 @@ print_entry(struct sockaddr_dl *sdl,
 	case IFT_BRIDGE:
 		printf(" [bridge]");
 		break;
+	case IFT_INFINIBAND:
+		printf(" [infiniband]");
+		break;
 	default:
 		break;
         }
@@ -639,12 +673,15 @@ print_entry(struct sockaddr_dl *sdl,
  */
 static void
 nuke_entry(struct sockaddr_dl *sdl __unused,
-	struct sockaddr_inarp *addr, struct rt_msghdr *rtm __unused)
+	struct sockaddr_in *addr, struct rt_msghdr *rtm)
 {
 	char ip[20];
 
+	if (rtm->rtm_flags & RTF_PINNED)
+		return;
+
 	snprintf(ip, sizeof(ip), "%s", inet_ntoa(addr->sin_addr));
-	(void)delete(ip, 0);
+	delete(ip);
 }
 
 static void
@@ -662,7 +699,7 @@ usage(void)
 }
 
 static struct rt_msghdr *
-rtmsg(int cmd, struct sockaddr_inarp *dst, struct sockaddr_dl *sdl)
+rtmsg(int cmd, struct sockaddr_in *dst, struct sockaddr_dl *sdl)
 {
 	static int seq;
 	int rlen;
@@ -708,14 +745,9 @@ rtmsg(int cmd, struct sockaddr_inarp *dst, struct sockaddr_dl *sdl)
 		rtm->rtm_rmx.rmx_expire = expire_time;
 		rtm->rtm_inits = RTV_EXPIRE;
 		rtm->rtm_flags |= (RTF_HOST | RTF_STATIC | RTF_LLDATA);
-		dst->sin_other = 0;
 		if (doing_proxy) {
-			if (proxy_only)
-				dst->sin_other = SIN_PROXY;
-			else {
-				rtm->rtm_addrs |= RTA_NETMASK;
-				rtm->rtm_flags &= ~RTF_HOST;
-			}
+			rtm->rtm_addrs |= RTA_NETMASK;
+			rtm->rtm_flags &= ~RTF_HOST;
 		}
 		/* FALLTHROUGH */
 	case RTM_GET:

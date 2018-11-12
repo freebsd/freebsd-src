@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2004 Mark R V Murray
+ * Copyright (c) 2000-2015 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,19 +26,32 @@
  * $FreeBSD$
  */
 
-#define KEYSIZE		32		/* (in bytes) 32 bytes == 256 bits */
+#ifndef SYS_DEV_RANDOM_HASH_H_INCLUDED
+#define	SYS_DEV_RANDOM_HASH_H_INCLUDED
 
-struct yarrowhash {		/* Big! Make static! */
+/* Keys are formed from cipher blocks */
+#define	RANDOM_KEYSIZE		32	/* (in bytes) == 256 bits */
+#define	RANDOM_KEYSIZE_WORDS	(RANDOM_KEYSIZE/sizeof(uint32_t))
+#define	RANDOM_BLOCKSIZE	16	/* (in bytes) == 128 bits */
+#define	RANDOM_BLOCKSIZE_WORDS	(RANDOM_BLOCKSIZE/sizeof(uint32_t))
+#define	RANDOM_KEYS_PER_BLOCK	(RANDOM_KEYSIZE/RANDOM_BLOCKSIZE)
+
+/* The size of the zero block portion used to form H_d(m) */
+#define	RANDOM_ZERO_BLOCKSIZE	64	/* (in bytes) == 512 zero bits */
+
+struct randomdev_hash {
 	SHA256_CTX	sha;
 };
 
-struct yarrowkey {		/* Big! Make static! */
+struct randomdev_key {
 	keyInstance key;	/* Key schedule */
 	cipherInstance cipher;	/* Rijndael internal */
 };
 
-void yarrow_hash_init(struct yarrowhash *);
-void yarrow_hash_iterate(struct yarrowhash *, void *, size_t);
-void yarrow_hash_finish(struct yarrowhash *, void *);
-void yarrow_encrypt_init(struct yarrowkey *, void *);
-void yarrow_encrypt(struct yarrowkey *context, void *, void *);
+void randomdev_hash_init(struct randomdev_hash *);
+void randomdev_hash_iterate(struct randomdev_hash *, const void *, size_t);
+void randomdev_hash_finish(struct randomdev_hash *, void *);
+void randomdev_encrypt_init(struct randomdev_key *, const void *);
+void randomdev_encrypt(struct randomdev_key *context, const void *, void *, u_int);
+
+#endif /* SYS_DEV_RANDOM_HASH_H_INCLUDED */

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1998 Mark Newton
- * Copyright (c) 1994-1996 Søren Schmidt
+ * Copyright (c) 1994-1996 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Based heavily on /sys/kern/imgact_aout.c which is:
@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/vnode.h>
 
@@ -65,8 +66,8 @@ exec_svr4_imgact(imgp)
     struct vmspace *vmspace;
     vm_offset_t vmaddr;
     unsigned long virtual_offset, file_offset;
-    vm_offset_t buffer;
     unsigned long bss_size;
+    ssize_t aresid;
     int error;
 
     if (((a_out->a_magic >> 16) & 0xff) != 0x64)
@@ -108,7 +109,8 @@ exec_svr4_imgact(imgp)
      */
     PROC_LOCK(imgp->proc);
     if (a_out->a_text > maxtsiz ||
-	a_out->a_data + bss_size > lim_cur(imgp->proc, RLIMIT_DATA)) {
+	a_out->a_data + bss_size > lim_cur_proc(imgp->proc, RLIMIT_DATA) ||
+	racct_set(imgp->proc, RACCT_DATA, a_out->a_data + bss_size) != 0) {
     	PROC_UNLOCK(imgp->proc);
 	return (ENOMEM);
     }
@@ -138,26 +140,20 @@ exec_svr4_imgact(imgp)
 	 */
 	vmaddr = virtual_offset;
 	error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr,
-		    	    a_out->a_text + a_out->a_data + bss_size, FALSE,
-			    VM_PROT_ALL, VM_PROT_ALL, 0);
+	    a_out->a_text + a_out->a_data + bss_size, 0, VMFS_NO_SPACE,
+	    VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
 	    goto fail;
 
-	error = vm_mmap(kernel_map, &buffer,
-			round_page(a_out->a_text + a_out->a_data + file_offset),
-			VM_PROT_READ, VM_PROT_READ, 0,
-			OBJT_VNODE, imgp->vp, trunc_page(file_offset));
-	if (error)
-	    goto fail;
-
-	error = copyout((caddr_t)(buffer + file_offset), (caddr_t)vmaddr, 
-			a_out->a_text + a_out->a_data);
-
-	vm_map_remove(kernel_map, buffer,
-		      buffer + round_page(a_out->a_text + a_out->a_data + file_offset));
-
-	if (error)
-	    goto fail;
+	error = vn_rdwr(UIO_READ, imgp->vp, (void *)vmaddr, file_offset,
+	    a_out->a_text + a_out->a_data, UIO_USERSPACE, 0,
+	    curthread->td_ucred, NOCRED, &aresid, curthread);
+	if (error != 0)
+		goto fail;
+	if (aresid != 0) {
+		error = ENOEXEC;
+		goto fail;
+	}
 
 	/*
 	 * remove write enable on the 'text' part
@@ -208,7 +204,7 @@ exec_svr4_imgact(imgp)
 	if (bss_size != 0) {
 	    vmaddr = virtual_offset + a_out->a_text + a_out->a_data;
 	    error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr, 
-				bss_size, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
+		bss_size, 0, VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL, 0);
 	    if (error)
 		goto fail;
 #ifdef DEBUG

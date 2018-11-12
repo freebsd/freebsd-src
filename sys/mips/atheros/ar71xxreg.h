@@ -23,6 +23,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+/* $FreeBSD$ */
+
 #ifndef _AR71XX_REG_H_
 #define _AR71XX_REG_H_
 
@@ -134,9 +137,32 @@
 #define		USB_CTRL_CONFIG_RESUME_UTMI_PLS_DIS	(1 << 1)
 #define		USB_CTRL_CONFIG_UTMI_BACKWARD_ENB	(1 << 0)
 
+#define	AR71XX_GPIO_BASE		0x18040000
+#define		AR71XX_GPIO_OE			0x00
+#define		AR71XX_GPIO_IN			0x04
+#define		AR71XX_GPIO_OUT			0x08
+#define		AR71XX_GPIO_SET			0x0c
+#define		AR71XX_GPIO_CLEAR		0x10
+#define		AR71XX_GPIO_INT			0x14
+#define		AR71XX_GPIO_INT_TYPE		0x18
+#define		AR71XX_GPIO_INT_POLARITY	0x1c
+#define		AR71XX_GPIO_INT_PENDING		0x20
+#define		AR71XX_GPIO_INT_MASK		0x24
+#define		AR71XX_GPIO_FUNCTION		0x28
+#define			GPIO_FUNC_STEREO_EN     (1 << 17)
+#define			GPIO_FUNC_SLIC_EN       (1 << 16)
+#define			GPIO_FUNC_SPI_CS2_EN    (1 << 13)
+				/* CS2 is shared with GPIO_1 */
+#define			GPIO_FUNC_SPI_CS1_EN    (1 << 12)
+				/* CS1 is shared with GPIO_0 */
+#define			GPIO_FUNC_UART_EN       (1 << 8)
+#define			GPIO_FUNC_USB_OC_EN     (1 << 4)
+#define			GPIO_FUNC_USB_CLK_EN    (0)
+
 #define	AR71XX_BASE_FREQ		40000000
+#define	AR71XX_PLL_CPU_BASE		0x18050000
 #define	AR71XX_PLL_CPU_CONFIG		0x18050000
-#define		PLL_SW_UPDATE			(1 << 31)
+#define		PLL_SW_UPDATE			(1U << 31)
 #define		PLL_LOCKED			(1 << 30)
 #define		PLL_AHB_DIV_SHIFT		20
 #define		PLL_AHB_DIV_MASK		7
@@ -155,6 +181,8 @@
 #define		PLL_BYPASS			(1 << 1)
 #define		PLL_POWER_DOWN			(1 << 0)
 #define	AR71XX_PLL_SEC_CONFIG		0x18050004
+#define		AR71XX_PLL_ETH0_SHIFT		17
+#define		AR71XX_PLL_ETH1_SHIFT		19
 #define	AR71XX_PLL_CPU_CLK_CTRL		0x18050008
 #define	AR71XX_PLL_ETH_INT0_CLK		0x18050010
 #define	AR71XX_PLL_ETH_INT1_CLK		0x18050014
@@ -168,8 +196,11 @@
 #define	AR71XX_PLL_ETH_EXT_CLK		0x18050018
 #define	AR71XX_PLL_PCI_CLK		0x1805001C
 
+/* Reset block */
+#define	AR71XX_RST_BLOCK_BASE	0x18060000
+
 #define AR71XX_RST_WDOG_CONTROL	0x18060008
-#define		RST_WDOG_LAST			(1 << 31)
+#define		RST_WDOG_LAST			(1U << 31)
 #define		RST_WDOG_ACTION_MASK		3
 #define		RST_WDOG_ACTION_RESET		3
 #define		RST_WDOG_ACTION_NMI		2
@@ -209,6 +240,63 @@
 #define		RST_RESET_PCI_BUS	(1 <<  1)
 #define		RST_RESET_PCI_CORE	(1 <<  0)
 
+/* Chipset revision details */
+#define	AR71XX_RST_RESET_REG_REV_ID	0x18060090
+#define		REV_ID_MAJOR_MASK	0xfff0
+#define		REV_ID_MAJOR_AR71XX	0x00a0
+#define		REV_ID_MAJOR_AR913X	0x00b0
+#define		REV_ID_MAJOR_AR7240	0x00c0
+#define		REV_ID_MAJOR_AR7241	0x0100
+#define		REV_ID_MAJOR_AR7242	0x1100
+
+/* AR71XX chipset revision details */
+#define		AR71XX_REV_ID_MINOR_MASK	0x3
+#define		AR71XX_REV_ID_MINOR_AR7130	0x0
+#define		AR71XX_REV_ID_MINOR_AR7141	0x1
+#define		AR71XX_REV_ID_MINOR_AR7161	0x2
+#define		AR71XX_REV_ID_REVISION_MASK	0x3
+#define		AR71XX_REV_ID_REVISION_SHIFT	2
+
+/* AR724X chipset revision details */
+#define		AR724X_REV_ID_REVISION_MASK	0x3
+
+/* AR91XX chipset revision details */
+#define		AR91XX_REV_ID_MINOR_MASK	0x3
+#define		AR91XX_REV_ID_MINOR_AR9130	0x0
+#define		AR91XX_REV_ID_MINOR_AR9132	0x1
+#define		AR91XX_REV_ID_REVISION_MASK	0x3
+#define		AR91XX_REV_ID_REVISION_SHIFT	2
+
+typedef enum {
+	AR71XX_MII_MODE_NONE = 0,
+	AR71XX_MII_MODE_GMII,
+	AR71XX_MII_MODE_MII,
+	AR71XX_MII_MODE_RGMII,
+	AR71XX_MII_MODE_RMII,
+	AR71XX_MII_MODE_SGMII	/* not hardware defined, though! */
+} ar71xx_mii_mode;
+
+/*
+ * AR71xx MII control region
+ */
+#define	AR71XX_MII0_CTRL	0x18070000
+#define			MII_CTRL_SPEED_SHIFT	4
+#define			MII_CTRL_SPEED_MASK	3
+#define				MII_CTRL_SPEED_10	0
+#define				MII_CTRL_SPEED_100	1
+#define				MII_CTRL_SPEED_1000	2
+#define			MII_CTRL_IF_MASK	3
+#define			MII_CTRL_IF_SHIFT	0
+#define				MII0_CTRL_IF_GMII	0
+#define				MII0_CTRL_IF_MII	1
+#define				MII0_CTRL_IF_RGMII	2
+#define				MII0_CTRL_IF_RMII	3
+
+#define	AR71XX_MII1_CTRL	0x18070004
+
+#define				MII1_CTRL_IF_RGMII	0
+#define				MII1_CTRL_IF_RMII	1
+
 /*
  * GigE adapters region
  */
@@ -216,7 +304,7 @@
 #define AR71XX_MAC1_BASE	0x1A000000
 
 #define		AR71XX_MAC_CFG1			0x00
-#define			MAC_CFG1_SOFT_RESET		(1 << 31)
+#define			MAC_CFG1_SOFT_RESET		(1U << 31)
 #define			MAC_CFG1_SIMUL_RESET		(1 << 30)
 #define			MAC_CFG1_MAC_RX_BLOCK_RESET	(1 << 19)
 #define			MAC_CFG1_MAC_TX_BLOCK_RESET	(1 << 18)
@@ -245,10 +333,11 @@
 #define		AR71XX_MAC_HDUPLEX		0x0C
 #define		AR71XX_MAC_MAX_FRAME_LEN	0x10
 #define		AR71XX_MAC_MII_CFG		0x20
-#define			MAC_MII_CFG_RESET		(1 << 31)
+#define			MAC_MII_CFG_RESET		(1U << 31)
 #define			MAC_MII_CFG_SCAN_AUTO_INC	(1 <<  5)
 #define			MAC_MII_CFG_PREAMBLE_SUP	(1 <<  4)
 #define			MAC_MII_CFG_CLOCK_SELECT_MASK	0x7
+#define			MAC_MII_CFG_CLOCK_SELECT_MASK_AR933X	0xf
 #define			MAC_MII_CFG_CLOCK_DIV_4		0
 #define			MAC_MII_CFG_CLOCK_DIV_6		2
 #define			MAC_MII_CFG_CLOCK_DIV_8		3
@@ -256,6 +345,17 @@
 #define			MAC_MII_CFG_CLOCK_DIV_14	5
 #define			MAC_MII_CFG_CLOCK_DIV_20	6
 #define			MAC_MII_CFG_CLOCK_DIV_28	7
+
+/* .. and the AR933x/AR934x extensions */
+#define			MAC_MII_CFG_CLOCK_DIV_34	8
+#define			MAC_MII_CFG_CLOCK_DIV_42	9
+#define			MAC_MII_CFG_CLOCK_DIV_50	10
+#define			MAC_MII_CFG_CLOCK_DIV_58	11
+#define			MAC_MII_CFG_CLOCK_DIV_66	12
+#define			MAC_MII_CFG_CLOCK_DIV_74	13
+#define			MAC_MII_CFG_CLOCK_DIV_82	14
+#define			MAC_MII_CFG_CLOCK_DIV_98	15
+
 #define		AR71XX_MAC_MII_CMD		0x24
 #define			MAC_MII_CMD_SCAN_CYCLE		(1 << 1)
 #define			MAC_MII_CMD_READ		1
@@ -396,9 +496,9 @@
 #define		AR71XX_DMA_RX_STATUS		0x194
 #define			DMA_RX_STATUS_PCOUNT_MASK	0xff
 #define			DMA_RX_STATUS_PCOUNT_SHIFT	16
-#define			DMA_RX_STATUS_BUS_ERROR		(1 << 3) 
-#define			DMA_RX_STATUS_OVERFLOW		(1 << 1) 
-#define			DMA_RX_STATUS_PKT_RECVD		(1 << 0) 
+#define			DMA_RX_STATUS_BUS_ERROR		(1 << 3)
+#define			DMA_RX_STATUS_OVERFLOW		(1 << 2)
+#define			DMA_RX_STATUS_PKT_RECVD		(1 << 0)
 #define		AR71XX_DMA_INTR				0x198
 #define		AR71XX_DMA_INTR_STATUS			0x19C
 #define			DMA_INTR_ALL			((1 << 8) - 1)
@@ -418,6 +518,7 @@
 #define			SPI_IO_CTRL_CS2			(1 << 18)
 #define			SPI_IO_CTRL_CS1			(1 << 17)
 #define			SPI_IO_CTRL_CS0			(1 << 16)
+#define			SPI_IO_CTRL_CSMASK		(7 << 16)
 #define			SPI_IO_CTRL_CLK			(1 << 8)
 #define			SPI_IO_CTRL_DO			1
 #define		AR71XX_SPI_RDS		0x0C
@@ -428,37 +529,38 @@
 #define ATH_WRITE_REG(reg, val) \
     *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val)
 
-static inline uint64_t
-ar71xx_cpu_freq(void)
+static inline void
+ar71xx_ddr_flush(uint32_t reg)
+{ 
+	ATH_WRITE_REG(reg, 1);
+	while ((ATH_READ_REG(reg) & 0x1))
+		;
+	ATH_WRITE_REG(reg, 1);
+	while ((ATH_READ_REG(reg) & 0x1))
+		;
+} 
+
+static inline void
+ar71xx_write_pll(uint32_t cfg_reg, uint32_t pll_reg, uint32_t pll, uint32_t pll_reg_shift)
 {
-        uint32_t pll_config, div;
-        uint64_t freq;
+	uint32_t sec_cfg;
 
-        /* PLL freq */
-        pll_config = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
-        div = ((pll_config >> PLL_FB_SHIFT) & PLL_FB_MASK) + 1;
-        freq = div * AR71XX_BASE_FREQ;
-        /* CPU freq */
-        div = ((pll_config >> PLL_CPU_DIV_SEL_SHIFT) & PLL_CPU_DIV_SEL_MASK)
-            + 1;
-        freq = freq / div;
+	/* set PLL registers */
+	sec_cfg = ATH_READ_REG(cfg_reg);
+	sec_cfg &= ~(3 << pll_reg_shift);
+	sec_cfg |= (2 << pll_reg_shift);
 
-	return (freq);
+	ATH_WRITE_REG(cfg_reg, sec_cfg);
+	DELAY(100);
+
+	ATH_WRITE_REG(pll_reg, pll);
+	sec_cfg |= (3 << pll_reg_shift);
+	ATH_WRITE_REG(cfg_reg, sec_cfg);
+	DELAY(100);
+
+	sec_cfg &= ~(3 << pll_reg_shift);
+	ATH_WRITE_REG(cfg_reg, sec_cfg);
+	DELAY(100);
 }
-
-static inline uint64_t
-ar71xx_ahb_freq(void)
-{
-        uint32_t pll_config, div;
-        uint64_t freq;
-
-        /* PLL freq */
-        pll_config = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
-        /* AHB freq */
-        div = (((pll_config >> PLL_AHB_DIV_SHIFT) & PLL_AHB_DIV_MASK) + 1) * 2;
-        freq = ar71xx_cpu_freq() / div;
-	return (freq);
-}
-
 
 #endif /* _AR71XX_REG_H_ */

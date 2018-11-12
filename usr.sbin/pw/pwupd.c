@@ -29,65 +29,42 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/wait.h>
+
+#include <err.h>
+#include <errno.h>
+#include <pwd.h>
+#include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdarg.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/param.h>
-#include <sys/wait.h>
 
 #include "pwupd.h"
-
-#define HAVE_PWDB_C	1
-#define	HAVE_PWDB_U	1
-
-static char pathpwd[] = _PATH_PWD;
-static char * pwpath = pathpwd;
- 
-int
-setpwdir(const char * dir)
-{
-	if (dir == NULL)
-		return -1;
-	else {
-		char * d = malloc(strlen(dir)+1);
-		if (d == NULL)
-			return -1;
-		pwpath = strcpy(d, dir);
-	}
-	return 0;
-}
 
 char *
 getpwpath(char const * file)
 {
 	static char pathbuf[MAXPATHLEN];
 
-	snprintf(pathbuf, sizeof pathbuf, "%s/%s", pwpath, file);
-	return pathbuf;
+	snprintf(pathbuf, sizeof pathbuf, "%s/%s", conf.etcpath, file);
+
+	return (pathbuf);
 }
 
-int
-pwdb(char *arg,...)
+static int
+pwdb_check(void)
 {
 	int             i = 0;
 	pid_t           pid;
-	va_list         ap;
 	char           *args[10];
 
 	args[i++] = _PATH_PWD_MKDB;
-	va_start(ap, arg);
-	while (i < 6 && arg != NULL) {
-		args[i++] = arg;
-		arg = va_arg(ap, char *);
-	}
-	if (pwpath != pathpwd) {
+	args[i++] = "-C";
+
+	if (strcmp(conf.etcpath, _PATH_PWD) != 0) {
 		args[i++] = "-d";
-		args[i++] = pwpath;
+		args[i++] = conf.etcpath;
 	}
 	args[i++] = getpwpath(_MASTERPASSWD);
 	args[i] = NULL;
@@ -102,112 +79,71 @@ pwdb(char *arg,...)
 		if (WEXITSTATUS(i))
 			i = EIO;
 	}
-	return i;
-}
 
-int
-fmtpwentry(char *buf, struct passwd * pwd, int type)
-{
-	int             l;
-	char           *pw;
-
-	pw = (type == PWF_MASTER) ?
-	    ((pwd->pw_passwd == NULL) ? "" : pwd->pw_passwd) : "*";
-
-	if (type == PWF_PASSWD)
-		l = sprintf(buf, "%s:*:%ld:%ld:%s:%s:%s\n",
-		       pwd->pw_name, (long) pwd->pw_uid, (long) pwd->pw_gid,
-			    pwd->pw_gecos ? pwd->pw_gecos : "User &",
-			    pwd->pw_dir, pwd->pw_shell);
-	else
-		l = sprintf(buf, "%s:%s:%ld:%ld:%s:%lu:%lu:%s:%s:%s\n",
-		   pwd->pw_name, pw, (long) pwd->pw_uid, (long) pwd->pw_gid,
-			    pwd->pw_class ? pwd->pw_class : "",
-			    (unsigned long) pwd->pw_change,
-			    (unsigned long) pwd->pw_expire,
-			    pwd->pw_gecos, pwd->pw_dir, pwd->pw_shell);
-	return l;
-}
-
-
-int
-fmtpwent(char *buf, struct passwd * pwd)
-{
-	return fmtpwentry(buf, pwd, PWF_STANDARD);
+	return (i);
 }
 
 static int
-pw_update(struct passwd * pwd, char const * user, int mode)
+pw_update(struct passwd * pwd, char const * user)
 {
-	int             rc = 0;
+	struct passwd	*pw = NULL;
+	struct passwd	*old_pw = NULL;
+	int		 rc, pfd, tfd;
 
-	ENDPWENT();
+	if ((rc = pwdb_check()) != 0)
+		return (rc);
 
-	/*
-	 * First, let's check the see if the database is alright
-	 * Note: -C is only available in FreeBSD 2.2 and above
-	 */
-#ifdef HAVE_PWDB_C
-	rc = pwdb("-C", (char *)NULL);	/* Check only */
-	if (rc == 0) {
-#else
-	{				/* No -C */
-#endif
-		char            pfx[PWBUFSZ];
-		char            pwbuf[PWBUFSZ];
-		int             l = snprintf(pfx, PWBUFSZ, "%s:", user);
-#ifdef HAVE_PWDB_U
-		int		isrename = pwd!=NULL && strcmp(user, pwd->pw_name);
-#endif
+	if (pwd != NULL)
+		pw = pw_dup(pwd);
 
-		/*
-		 * Update the passwd file first
-		 */
-		if (pwd == NULL)
-			*pwbuf = '\0';
-		else
-			fmtpwentry(pwbuf, pwd, PWF_PASSWD);
+	if (user != NULL)
+		old_pw = GETPWNAM(user);
 
-		if (l < 0)
-			l = 0;
-		rc = fileupdate(getpwpath(_PASSWD), 0644, pwbuf, pfx, l, mode);
-		if (rc == 0) {
-
-			/*
-			 * Then the master.passwd file
-			 */
-			if (pwd != NULL)
-				fmtpwentry(pwbuf, pwd, PWF_MASTER);
-			rc = fileupdate(getpwpath(_MASTERPASSWD), 0600, pwbuf, pfx, l, mode);
-			if (rc == 0) {
-#ifdef HAVE_PWDB_U
-				if (mode == UPD_DELETE || isrename)
-#endif
-					rc = pwdb(NULL);
-#ifdef HAVE_PWDB_U
-				else
-					rc = pwdb("-u", user, (char *)NULL);
-#endif
-			}
-		}
+	if (pw_init(conf.etcpath, NULL))
+		err(1, "pw_init()");
+	if ((pfd = pw_lock()) == -1) {
+		pw_fini();
+		err(1, "pw_lock()");
 	}
-	return rc;
+	if ((tfd = pw_tmp(-1)) == -1) {
+		pw_fini();
+		err(1, "pw_tmp()");
+	}
+	if (pw_copy(pfd, tfd, pw, old_pw) == -1) {
+		pw_fini();
+		err(1, "pw_copy()");
+	}
+	/*
+	 * in case of deletion of a user, the whole database
+	 * needs to be regenerated
+	 */
+	if (pw_mkdb(pw != NULL ? pw->pw_name : NULL) == -1) {
+		pw_fini();
+		err(1, "pw_mkdb()");
+	}
+	free(pw);
+	pw_fini();
+
+	return (0);
 }
 
 int
 addpwent(struct passwd * pwd)
 {
-	return pw_update(pwd, pwd->pw_name, UPD_CREATE);
+
+	return (pw_update(pwd, NULL));
 }
 
 int
 chgpwent(char const * login, struct passwd * pwd)
 {
-	return pw_update(pwd, login, UPD_REPLACE);
+
+	return (pw_update(pwd, login));
 }
 
 int
 delpwent(struct passwd * pwd)
 {
-	return pw_update(NULL, pwd->pw_name, UPD_DELETE);
+
+	return (pw_update(NULL, pwd->pw_name));
 }

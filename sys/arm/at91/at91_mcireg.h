@@ -54,6 +54,9 @@
 /* -------- MCI_MR : (MCI Offset: 0x4) MCI Mode Register --------  */
 #define	MCI_MR_CLKDIV      (0xffu <<  0) /* (MCI) Clock Divider */
 #define	MCI_MR_PWSDIV      (0x3fu <<  8) /* (MCI) Power Saving Divider */
+#define	MCI_MR_RDPROOF	(0x1u << 11)	/* (MCI) Read Proof Enable */
+#define	MCI_MR_WRPROOF	(0x1u << 12)	/* (MCI) Write Proof Enable */
+#define	MCI_MR_PDCFBYTE	(0x1u << 13)	/* (MCI) PDC Force Byte Transfer */
 #define	MCI_MR_PDCPADV     (0x1u << 14) /* (MCI) PDC Padding Value */
 #define	MCI_MR_PDCMODE     (0x1u << 15) /* (MCI) PDC Oriented Mode */
 #define	MCI_MR_BLKLEN      0x3fff0000ul /* (MCI) Data Block Length */
@@ -114,6 +117,30 @@
 #define	MCI_SR_DTOE     (0x1u << 22) /* (MCI) Data timeout Error flag */
 #define	MCI_SR_OVRE     (0x1u << 30) /* (MCI) Overrun flag */
 #define	MCI_SR_UNRE     (0x1u << 31) /* (MCI) Underrun flag */
+
+/*	TXRDY,DTIP,ENDTX,TXBUFE,RTOE */
+
+#define MCI_SR_BITSTRING \
+	"\020" \
+	"\001CMDRDY" \
+	"\002RXRDY" \
+	"\003TXRDY" \
+	"\004BLKE" \
+	"\005DTIP" \
+	"\006NOTBUSY" \
+	"\007ENDRX" \
+	"\010ENDTX" \
+	"\017RXBUFF" \
+	"\020TXBUFE" \
+	"\021RINDE" \
+	"\022RDIRE" \
+	"\023RCRCE" \
+	"\024RENDE" \
+	"\025RTOE" \
+	"\026DCRCE" \
+	"\027DTOE" \
+	"\037OVRE" \
+	"\040UNRE"
 
 /* -------- MCI_IER : (MCI Offset: 0x44) MCI Interrupt Enable Register --------  */
 /* -------- MCI_IDR : (MCI Offset: 0x48) MCI Interrupt Disable Register --------  */

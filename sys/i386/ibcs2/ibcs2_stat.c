@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
+#include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/filedesc.h>
@@ -72,9 +73,9 @@ bsd_stat2ibcs_stat(st, st4)
 		st4->st_size = (ibcs2_off_t)st->st_size;
 	else
 		st4->st_size = -2;
-	st4->st_atim = (ibcs2_time_t)st->st_atime;
-	st4->st_mtim = (ibcs2_time_t)st->st_mtime;
-	st4->st_ctim = (ibcs2_time_t)st->st_ctime;
+	st4->st_atim = (ibcs2_time_t)st->st_atim.tv_sec;
+	st4->st_mtim = (ibcs2_time_t)st->st_mtim.tv_sec;
+	st4->st_ctim = (ibcs2_time_t)st->st_ctim.tv_sec;
 }
 
 static int
@@ -145,7 +146,7 @@ ibcs2_stat(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_stat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, 0, AT_FDCWD, path, UIO_SYSSPACE, &st, NULL);
 	free(path, M_TEMP);
 	if (error)
 		return (error);
@@ -166,7 +167,8 @@ ibcs2_lstat(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_lstat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, path,
+	    UIO_SYSSPACE, &st, NULL);
 	free(path, M_TEMP);
 	if (error)
 		return (error);
@@ -212,7 +214,7 @@ ibcs2_utssys(td, uap)
 			IBCS2_UNAME_VERSION, sizeof(sut.version) - 1);
 		getcredhostname(td->td_ucred, machine_name,
 		    sizeof(machine_name) - 1);
-		p = index(machine_name, '.');
+		p = strchr(machine_name, '.');
 		if ( p )
 			*p = '\0';
 		strncpy(sut.nodename, machine_name, sizeof(sut.nodename) - 1);

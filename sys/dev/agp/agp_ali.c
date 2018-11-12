@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_bus.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -71,7 +69,7 @@ agp_ali_match(device_t dev)
 		return ("Ali M1541 host to AGP bridge");
 	case 0x162110b9:
 		return ("Ali M1621 host to AGP bridge");
-	};
+	}
 
 	return NULL;
 }
@@ -173,7 +171,7 @@ static u_int32_t agp_ali_table[] = {
 	128*M,			/* 9 - invalid */
 	256*M,			/* 10 - invalid */
 };
-#define agp_ali_table_size (sizeof(agp_ali_table) / sizeof(agp_ali_table[0]))
+#define	AGP_ALI_TABLE_SIZE nitems(agp_ali_table)
 
 static u_int32_t
 agp_ali_get_aperture(device_t dev)
@@ -183,7 +181,7 @@ agp_ali_get_aperture(device_t dev)
 	 * I'm not sure this is correct..
 	 */
 	int i = pci_read_config(dev, AGP_ALI_ATTBASE, 4) & 0xf;
-	if (i >= agp_ali_table_size)
+	if (i >= AGP_ALI_TABLE_SIZE)
 		return 0;
 	return agp_ali_table[i];
 }
@@ -194,10 +192,10 @@ agp_ali_set_aperture(device_t dev, u_int32_t aperture)
 	int i;
 	u_int32_t attbase;
 
-	for (i = 0; i < agp_ali_table_size; i++)
+	for (i = 0; i < AGP_ALI_TABLE_SIZE; i++)
 		if (agp_ali_table[i] == aperture)
 			break;
-	if (i == agp_ali_table_size)
+	if (i == AGP_ALI_TABLE_SIZE)
 		return EINVAL;
 
 	attbase = pci_read_config(dev, AGP_ALI_ATTBASE, 4);

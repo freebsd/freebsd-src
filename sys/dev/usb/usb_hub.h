@@ -35,40 +35,36 @@ struct usb_port {
 #define	USB_RESTART_MAX 5
 	uint8_t	device_index;		/* zero means not valid */
 	enum usb_hc_mode usb_mode;	/* host or device mode */
-};
-
-/*
- * The following structure defines how many bytes are
- * left in an 1ms USB time slot.
- */
-struct usb_fs_isoc_schedule {
-	uint16_t total_bytes;
-	uint8_t	frame_bytes;
-	uint8_t	frame_slot;
+#if USB_HAVE_TT_SUPPORT
+	struct usb_device_request req_reset_tt __aligned(4);
+#endif
 };
 
 /*
  * The following structure defines an USB HUB.
  */
 struct usb_hub {
-#if USB_HAVE_TT_SUPPORT
-	struct usb_fs_isoc_schedule fs_isoc_schedule[USB_ISOC_TIME_MAX];
-#endif
 	struct usb_device *hubudev;	/* the HUB device */
 	usb_error_t (*explore) (struct usb_device *hub);
 	void   *hubsoftc;
+#if USB_HAVE_TT_SUPPORT
+	struct usb_udev_msg tt_msg[2];
+#endif
 	usb_size_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
 	uint16_t portpower;		/* mA per USB port */
 	uint8_t	isoc_last_time;
 	uint8_t	nports;
+#if (USB_HAVE_FIXED_PORT == 0)
 	struct usb_port ports[0];
+#else
+	struct usb_port ports[USB_MAX_PORTS];
+#endif
 };
 
 /* function prototypes */
 
-uint8_t	usb_intr_schedule_adjust(struct usb_device *udev, int16_t len,
-	    uint8_t slot);
-void	usbd_fs_isoc_schedule_init_all(struct usb_fs_isoc_schedule *fss);
+void	usb_hs_bandwidth_alloc(struct usb_xfer *xfer);
+void	usb_hs_bandwidth_free(struct usb_xfer *xfer);
 void	usb_bus_port_set_device(struct usb_bus *bus, struct usb_port *up,
 	    struct usb_device *udev, uint8_t device_index);
 struct usb_device *usb_bus_port_get_device(struct usb_bus *bus,
@@ -78,5 +74,7 @@ void	usb_needs_explore_all(void);
 void	usb_bus_power_update(struct usb_bus *bus);
 void	usb_bus_powerd(struct usb_bus *bus);
 void	uhub_root_intr(struct usb_bus *, const uint8_t *, uint8_t);
+usb_error_t uhub_query_info(struct usb_device *, uint8_t *, uint8_t *);
+void	uhub_explore_handle_re_enumerate(struct usb_device *);
 
 #endif					/* _USB_HUB_H_ */

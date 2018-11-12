@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -36,16 +33,17 @@
  * Turnstile interface.  Non-sleepable locks use a turnstile for the
  * queue of threads blocked on them when they are contested.  Each
  * turnstile contains two sub-queues: one for threads waiting for a
- * shared, or eread, lock, and one for threads waiting for an
+ * shared, or read, lock, and one for threads waiting for an
  * exclusive, or write, lock.
  *
- * A thread calls turnstile_lock() to lock the turnstile chain associated
- * with a given lock.  A thread calls turnstile_wait() when the lock is
- * contested to be put on the queue and block.  If a thread needs to retry
- * a lock operation instead of blocking, it should call turnstile_release()
- * to unlock the associated turnstile chain lock.
+ * A thread calls turnstile_chain_lock() to lock the turnstile chain
+ * associated with a given lock.  A thread calls turnstile_wait() when
+ * the lock is contested to be put on the queue and block.  If a thread
+ * calls turnstile_trywait() and decides to retry a lock operation instead
+ * of blocking, it should call turnstile_cancel() to unlock the associated
+ * turnstile chain lock.
  *
- * When a lock is released, the thread calls turnstile_lookup() to loop
+ * When a lock is released, the thread calls turnstile_lookup() to look
  * up the turnstile associated with the given lock in the hash table.  Then
  * it calls either turnstile_signal() or turnstile_broadcast() to mark
  * blocked threads for a pending wakeup.  turnstile_signal() marks the
@@ -55,7 +53,7 @@
  * releasing the lock, turnstile_unpend() must be called to wake up the
  * pending thread(s) and give up ownership of the turnstile.
  *
- * Alternatively, if a thread wishes to relinquish ownership of a thread
+ * Alternatively, if a thread wishes to relinquish ownership of a lock
  * without waking up any waiters, it may call turnstile_disown().
  *
  * When a lock is acquired that already has at least one thread contested

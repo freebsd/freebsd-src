@@ -1,15 +1,24 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
+
 	.section .init,"ax",%progbits
-	lw	ra, 28(sp)
-	.set	noreorder
-	j	ra
-	addu	sp, sp, 32
-	.set	reorder
+	.align 4
+	.set noreorder
+#if defined(__ABICALLS__) && (defined(__mips_n32) || defined(__mips_n64))
+	REG_L	gp, CALLFRAME_GP(sp)
+#endif
+	REG_L	ra, CALLFRAME_RA(sp)
+	jr	ra
+	PTR_ADDU sp, sp, CALLFRAME_SIZ
+	.set reorder
 
 	.section .fini,"ax",%progbits
-	lw	ra, 28(sp)
-	.set	noreorder
-	j	ra
-	addu	sp, sp, 32
-	.set	reorder
+	.align 4
+	.set noreorder
+#if defined(__ABICALLS__) && (defined(__mips_n32) || defined(__mips_n64))
+	REG_L	gp, CALLFRAME_GP(sp)
+#endif
+	REG_L	ra, CALLFRAME_RA(sp)
+	jr	ra
+	PTR_ADDU sp, sp, CALLFRAME_SIZ
+	.set reorder

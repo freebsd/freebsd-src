@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -55,7 +51,7 @@ typedef	__size_t	size_t;
 typedef struct {
 	int re_magic;
 	size_t re_nsub;		/* number of parenthesized subexpressions */
-	__const char *re_endp;	/* end pointer for REG_PEND */
+	const char *re_endp;	/* end pointer for REG_PEND */
 	struct re_guts *re_g;	/* none of your business :-) */
 } regex_t;
 

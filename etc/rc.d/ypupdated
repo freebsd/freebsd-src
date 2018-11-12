@@ -11,6 +11,9 @@
 
 name="ypupdated"
 rcvar="rpc_ypupdated_enable"
+
+load_rc_config $name
+
 command="/usr/sbin/rpc.${name}"
 start_precmd="rpc_ypupdated_precmd"
 
@@ -18,16 +21,8 @@ rpc_ypupdated_precmd()
 {
 	local _domain
 
-	if ! checkyesno rpcbind_enable  && \
-	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
-	then
-		force_depend rpcbind || return 1
-	fi
-	if ! checkyesno nis_server_enable && \
-	    ! /etc/rc.d/ypserv forcestatus 1>/dev/null 2>&1
-	then
-		force_depend ypserv || return 1
-	fi
+	force_depend rpcbind || return 1
+	force_depend ypserv nis_server || return 1
 
 	_domain=`domainname`
 	if [ -z "$_domain" ]; then
@@ -36,5 +31,4 @@ rpc_ypupdated_precmd()
 	fi
 }
 
-load_rc_config $name
 run_rc_command "$1"

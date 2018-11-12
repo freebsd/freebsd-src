@@ -39,13 +39,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/ktr.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 
+#include <machine/cpu.h>
+#include <machine/md_var.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 #include <machine/smp.h>
@@ -61,11 +65,124 @@ static char plat_name[64] = "";
 SYSCTL_STRING(_hw, OID_AUTO, platform, CTLFLAG_RD | CTLFLAG_TUN,
     plat_name, 0, "Platform currently in use");
 
+static struct mem_region pregions[PHYS_AVAIL_SZ];
+static struct mem_region aregions[PHYS_AVAIL_SZ];
+static int npregions, naregions;
+
+/*
+ * Memory region utilities: determine if two regions overlap,
+ * and merge two overlapping regions into one
+ */
+static int
+memr_overlap(struct mem_region *r1, struct mem_region *r2)
+{
+	if ((r1->mr_start + r1->mr_size) < r2->mr_start ||
+	    (r2->mr_start + r2->mr_size) < r1->mr_start)
+		return (FALSE);
+
+	return (TRUE);
+}
+
+static void
+memr_merge(struct mem_region *from, struct mem_region *to)
+{
+	vm_offset_t end;
+	end = uqmax(to->mr_start + to->mr_size, from->mr_start + from->mr_size);
+	to->mr_start = uqmin(from->mr_start, to->mr_start);
+	to->mr_size = end - to->mr_start;
+}
+
+/*
+ * Quick sort callout for comparing memory regions.
+ */
+static int
+mr_cmp(const void *a, const void *b)
+{
+	const struct mem_region *regiona, *regionb;
+
+	regiona = a;
+	regionb = b;
+	if (regiona->mr_start < regionb->mr_start)
+		return (-1);
+	else if (regiona->mr_start > regionb->mr_start)
+		return (1);
+	else
+		return (0);
+}
+
 void
 mem_regions(struct mem_region **phys, int *physsz, struct mem_region **avail,
     int *availsz)
 {
-	PLATFORM_MEM_REGIONS(plat_obj, phys, physsz, avail, availsz);
+	int i, j, still_merging;
+
+	if (npregions == 0) {
+		PLATFORM_MEM_REGIONS(plat_obj, pregions, &npregions,
+		    aregions, &naregions);
+		qsort(pregions, npregions, sizeof(*pregions), mr_cmp);
+		qsort(aregions, naregions, sizeof(*aregions), mr_cmp);
+
+		/* Remove overlapping available regions */
+		do {
+			still_merging = FALSE;
+			for (i = 0; i < naregions; i++) {
+				if (aregions[i].mr_size == 0)
+					continue;
+				for (j = i+1; j < naregions; j++) {
+					if (aregions[j].mr_size == 0)
+						continue;
+					if (!memr_overlap(&aregions[j],
+					    &aregions[i]))
+						continue;
+
+					memr_merge(&aregions[j], &aregions[i]);
+					/* mark inactive */
+					aregions[j].mr_size = 0;
+					still_merging = TRUE;
+				}
+			}
+		} while (still_merging == TRUE);
+
+		/* Collapse zero-length available regions */
+		for (i = 0; i < naregions; i++) {
+			if (aregions[i].mr_size == 0) {
+				memcpy(&aregions[i], &aregions[i+1],
+				    (naregions - i - 1)*sizeof(*aregions));
+				naregions--;
+				i--;
+			}
+		}
+	}
+
+	*phys = pregions;
+	*avail = aregions;
+	*physsz = npregions;
+	*availsz = naregions;
+}
+
+int
+mem_valid(vm_offset_t addr, int len)
+{
+	int i;
+
+	if (npregions == 0) {
+		struct mem_region *p, *a;
+		int na, np;
+		mem_regions(&p, &np, &a, &na);
+	}
+
+	for (i = 0; i < npregions; i++)
+		if ((addr >= pregions[i].mr_start)
+		   && (addr + len <= pregions[i].mr_start + pregions[i].mr_size))
+			return (0);
+
+	return (EFAULT);
+}
+
+vm_offset_t
+platform_real_maxaddr(void)
+{
+	return (PLATFORM_REAL_MAXADDR(plat_obj));
 }
 
 const char *
@@ -79,7 +196,16 @@ platform_timebase_freq(struct cpuref *cpu)
 {
 	return (PLATFORM_TIMEBASE_FREQ(plat_obj, cpu));
 }
-	
+
+/*
+ * Put the current CPU, as last step in suspend, to sleep
+ */
+void
+platform_sleep()
+{
+        PLATFORM_SLEEP(plat_obj);
+}
+
 int
 platform_smp_first_cpu(struct cpuref *cpu)
 {
@@ -102,6 +228,42 @@ int
 platform_smp_start_cpu(struct pcpu *cpu)
 {
 	return (PLATFORM_SMP_START_CPU(plat_obj, cpu));
+}
+
+void
+platform_smp_ap_init()
+{
+	PLATFORM_SMP_AP_INIT(plat_obj);
+}
+
+#ifdef SMP
+struct cpu_group *
+cpu_topo(void)
+{
+        return (PLATFORM_SMP_TOPO(plat_obj));
+}
+#endif
+
+/*
+ * Reset back to firmware.
+ */
+void
+cpu_reset()
+{
+        PLATFORM_RESET(plat_obj);
+}
+
+int
+cpu_idle_wakeup(int cpu)
+{
+	return (PLATFORM_IDLE_WAKEUP(plat_obj, cpu));
+}
+
+void
+platform_cpu_idle(int cpu)
+{
+
+	PLATFORM_IDLE(plat_obj, cpu);
 }
 
 /*
@@ -130,7 +292,7 @@ platform_probe_and_attach()
 		 * then statically initialise the MMU object
 		 */
 		kobj_class_compile_static(platp, &plat_kernel_kops);
-		kobj_init((kobj_t)plat_obj, platp);
+		kobj_init_static((kobj_t)plat_obj, platp);
 
 		prio = PLATFORM_PROBE(plat_obj);
 
@@ -154,9 +316,10 @@ platform_probe_and_attach()
 		}
 
 		/*
-		 * We can't free the KOBJ, since it is static. Luckily,
-		 * this has no ill effects since it gets reset every time.
+		 * We can't free the KOBJ, since it is static. Reset the ops
+		 * member of this class so that we can come back later.
 		 */
+		platp->ops = NULL;
 	}
 
 	if (plat_def_impl == NULL)
@@ -168,7 +331,7 @@ platform_probe_and_attach()
 	 */
 
 	kobj_class_compile_static(plat_def_impl, &plat_kernel_kops);
-	kobj_init((kobj_t)plat_obj, plat_def_impl);
+	kobj_init_static((kobj_t)plat_obj, plat_def_impl);
 
 	strlcpy(plat_name,plat_def_impl->name,sizeof(plat_name));
 

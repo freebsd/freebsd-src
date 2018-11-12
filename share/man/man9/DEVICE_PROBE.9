@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2008
+.Dd February 8, 2012
 .Dt DEVICE_PROBE 9
 .Os
 .Sh NAME
@@ -91,16 +91,17 @@ magical about them.
 .Bl -tag -width BUS_PROBE_NOWILDCARD
 .It BUS_PROBE_SPECIFIC
 The device that cannot be reprobed, and that no
-possible other driver may exist (typically legacy drivers who don't fallow
+possible other driver may exist (typically legacy drivers who don't follow
 all the rules, or special needs drivers).
 .It BUS_PROBE_VENDOR
 The device is supported by a vendor driver.
 This is for source or binary drivers that are not yet integrated into the
-.Fx 
+.Fx
 tree.
 Its use in the base OS is prohibited.
 .It BUS_PROBE_DEFAULT
-The device is a normal device matching some plug and play ID.  This is
+The device is a normal device matching some plug and play ID.
+This is
 the normal return value for drivers to use.
 It is intended that nearly all of the drivers in the tree should return
 this value.
@@ -114,19 +115,20 @@ return this value, while the one that supports the newer ones would
 return BUS_PROBE_DEFAULT.
 .It BUS_PROBE_GENERIC
 The driver matches the type of device generally.
-This allows drivers to match all serial ports generally, with sepcialized
+This allows drivers to match all serial ports generally, with specialized
 drivers matching particular types of serial ports that need special
 treatment for some reason.
 .It BUS_PROBE_HOOVER
 The driver matches all unclaimed devices on a bus.
-The 
-.Xr ugen 5 
+The
+.Xr ugen 4
 device is one example.
 .It BUS_PROBE_NOWILDCARD
 The driver expects its parent to tell it which children to manage
 and no probing is really done.
 The device only matches if its parent bus specifically said to use
 this driver.
+.El
 .Sh SEE ALSO
 .Xr device 9 ,
 .Xr DEVICE_ATTACH 9 ,

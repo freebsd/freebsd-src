@@ -1,10 +1,8 @@
 # $FreeBSD$
 
 PROG=	juggle
-NO_MAN=
-WARNS=	3
-
-LDADD=	-lpthread
-DPADD=	${LIBPTHREAD}
+MAN=
+WARNS?=	3
+LIBADD=	pthread
 
 .include <bsd.prog.mk>

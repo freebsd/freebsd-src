@@ -31,23 +31,22 @@
  * $FreeBSD$
  */
 
-/*
- * This file is pretty much the same as Christos' svr4_util.h
- * (for now).
- */
-
 #ifndef	_LINUX_UTIL_H_
 #define	_LINUX_UTIL_H_
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <machine/vmparam.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/syslog.h>
 #include <sys/cdefs.h>
 #include <sys/uio.h>
+
+MALLOC_DECLARE(M_LINUX);
+MALLOC_DECLARE(M_EPOLL);
+MALLOC_DECLARE(M_FUTEX);
+MALLOC_DECLARE(M_FUTEX_WP);
 
 extern const char linux_emul_path[];
 
@@ -73,15 +72,23 @@ int linux_emul_convpath(struct thread *, const char *, enum uio_seg, char **, in
 #define LFREEPATH(path)	free(path, M_TEMP)
 
 #define DUMMY(s)							\
+LIN_SDT_PROBE_DEFINE0(dummy, s, entry);					\
+LIN_SDT_PROBE_DEFINE0(dummy, s, not_implemented);			\
+LIN_SDT_PROBE_DEFINE1(dummy, s, return, "int");				\
 int									\
 linux_ ## s(struct thread *td, struct linux_ ## s ## _args *args)	\
 {									\
 	static pid_t pid;						\
 									\
+	LIN_SDT_PROBE0(dummy, s, entry);				\
+									\
 	if (pid != td->td_proc->p_pid) {				\
 		linux_msg(td, "syscall %s not implemented", #s);	\
+		LIN_SDT_PROBE0(dummy, s, not_implemented);		\
 		pid = td->td_proc->p_pid;				\
 	};								\
+									\
+	LIN_SDT_PROBE1(dummy, s, return, ENOSYS);			\
 	return (ENOSYS);						\
 }									\
 struct __hack
@@ -102,7 +109,7 @@ struct linux_device_handler {
 int	linux_device_register_handler(struct linux_device_handler *h);
 int	linux_device_unregister_handler(struct linux_device_handler *h);
 char	*linux_driver_get_name_dev(device_t dev);
-int	linux_driver_get_major_minor(char *node, int *major, int *minor);
+int	linux_driver_get_major_minor(const char *node, int *major, int *minor);
 char	*linux_get_char_devices(void);
 void	linux_free_get_char_devices(char *string);
 
@@ -112,7 +119,6 @@ void	linux_free_get_char_devices(char *string);
 #define	LINUX_CTRFMT(nm, fmt)	#nm"("fmt")"
 
 #define	LINUX_CTR6(f, m, p1, p2, p3, p4, p5, p6) do {			\
-	if (ldebug(f))							\
 		CTR6(KTR_LINUX, LINUX_CTRFMT(f, m),			\
 		    p1, p2, p3, p4, p5, p6);				\
 } while (0)

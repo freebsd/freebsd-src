@@ -54,7 +54,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
+#include <net/ethernet.h>
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_ioctl.h>
 
@@ -206,7 +208,7 @@ usbd_libinit(void)
 	usbd_driver.dro_dispatch[IRP_MJ_PNP] =
 	    (driver_dispatch)usbd_pnp_wrap;
 
-	return(0);
+	return (0);
 }
 
 int
@@ -230,13 +232,11 @@ usbd_libfini(void)
 
 	free(usbd_driver.dro_drivername.us_buf, M_DEVBUF);
 
-	return(0);
+	return (0);
 }
 
 static int32_t
-usbd_iodispatch(dobj, ip)
-	device_object		*dobj;
-	irp			*ip;
+usbd_iodispatch(device_object *dobj, irp *ip)
 {
 	device_t dev = dobj->do_devext;
 	int32_t status;
@@ -266,9 +266,7 @@ usbd_iodispatch(dobj, ip)
 }
 
 static int32_t
-usbd_ioinvalid(dobj, ip)
-	device_object		*dobj;
-	irp			*ip;
+usbd_ioinvalid(device_object *dobj, irp *ip)
 {
 	device_t dev = dobj->do_devext;
 	struct io_stack_location *irp_sl;
@@ -286,9 +284,7 @@ usbd_ioinvalid(dobj, ip)
 }
 
 static int32_t
-usbd_pnp(dobj, ip)
-	device_object		*dobj;
-	irp			*ip;
+usbd_pnp(device_object *dobj, irp *ip)
 {
 	device_t dev = dobj->do_devext;
 	struct io_stack_location *irp_sl;
@@ -306,9 +302,7 @@ usbd_pnp(dobj, ip)
 }
 
 static int32_t
-usbd_power(dobj, ip)
-	device_object		*dobj;
-	irp			*ip;
+usbd_power(device_object *dobj, irp *ip)
 {
 	device_t dev = dobj->do_devext;
 	struct io_stack_location *irp_sl;
@@ -327,8 +321,7 @@ usbd_power(dobj, ip)
 
 /* Convert USBD_STATUS to NTSTATUS  */
 static int32_t
-usbd_urb2nt(status)
-	int32_t			status;
+usbd_urb2nt(int32_t status)
 {
 
 	switch (status) {
@@ -387,8 +380,7 @@ usbd_usb2urb(int status)
 }
 
 static union usbd_urb *
-usbd_geturb(ip)
-	irp			*ip;
+usbd_geturb(irp *ip)
 {
 	struct io_stack_location *irp_sl;
 
@@ -398,8 +390,7 @@ usbd_geturb(ip)
 }
 
 static int32_t
-usbd_submit_urb(ip)
-	irp			*ip;
+usbd_submit_urb(irp *ip)
 {
 	device_t dev = IRP_NDIS_DEV(ip);
 	int32_t status;
@@ -452,8 +443,7 @@ usbd_submit_urb(ip)
 }
 
 static int32_t
-usbd_func_getdesc(ip)
-	irp			*ip;
+usbd_func_getdesc(irp *ip)
 {
 #define	NDISUSB_GETDESC_MAXRETRIES		3
 	device_t dev = IRP_NDIS_DEV(ip);
@@ -513,8 +503,7 @@ exit:
 }
 
 static int32_t
-usbd_func_selconf(ip)
-	irp			*ip;
+usbd_func_selconf(irp *ip)
 {
 	device_t dev = IRP_NDIS_DEV(ip);
 	int i, j;
@@ -589,15 +578,12 @@ usbd_func_selconf(ip)
 		    intf->uii_len);
 	}
 
-	return USBD_STATUS_SUCCESS;
+	return (USBD_STATUS_SUCCESS);
 }
 
 static usb_error_t
-usbd_setup_endpoint_one(ip, ifidx, ne, epconf)
-	irp				*ip;
-	uint8_t				ifidx;
-	struct ndisusb_ep		*ne;
-	struct usb_config		*epconf;
+usbd_setup_endpoint_one(irp *ip, uint8_t ifidx, struct ndisusb_ep *ne,
+    struct usb_config *epconf)
 {
 	device_t dev = IRP_NDIS_DEV(ip);
 	struct ndis_softc *sc = device_get_softc(dev);
@@ -622,9 +608,7 @@ usbd_setup_endpoint_one(ip, ifidx, ne, epconf)
 }
 
 static usb_error_t
-usbd_setup_endpoint_default(ip, ifidx)
-	irp				*ip;
-	uint8_t				ifidx;
+usbd_setup_endpoint_default(irp *ip, uint8_t ifidx)
 {
 	device_t dev = IRP_NDIS_DEV(ip);
 	struct ndis_softc *sc = device_get_softc(dev);
@@ -644,10 +628,8 @@ usbd_setup_endpoint_default(ip, ifidx)
 }
 
 static usb_error_t
-usbd_setup_endpoint(ip, ifidx, ep)
-	irp				*ip;
-	uint8_t				ifidx;
-	struct usb_endpoint_descriptor	*ep;
+usbd_setup_endpoint(irp *ip, uint8_t ifidx,
+    struct usb_endpoint_descriptor *ep)
 {
 	device_t dev = IRP_NDIS_DEV(ip);
 	struct ndis_softc *sc = device_get_softc(dev);
@@ -702,8 +684,7 @@ usbd_setup_endpoint(ip, ifidx, ep)
 }
 
 static int32_t
-usbd_func_abort_pipe(ip)
-	irp			*ip;
+usbd_func_abort_pipe(irp *ip)
 {
 	device_t dev = IRP_NDIS_DEV(ip);
 	struct ndis_softc *sc = device_get_softc(dev);
@@ -726,8 +707,7 @@ usbd_func_abort_pipe(ip)
 }
 
 static int32_t
-usbd_func_vendorclass(ip)
-	irp			*ip;
+usbd_func_vendorclass(irp *ip)
 {
 	device_t dev = IRP_NDIS_DEV(ip);
 	int32_t error;
@@ -781,9 +761,7 @@ usbd_func_vendorclass(ip)
 }
 
 static void
-usbd_irpcancel(dobj, ip)
-	device_object		*dobj;
-	irp			*ip;
+usbd_irpcancel(device_object *dobj, irp *ip)
 {
 	device_t dev = IRP_NDIS_DEV(ip);
 	struct ndis_softc *sc = device_get_softc(dev);
@@ -1102,9 +1080,7 @@ next:
 }
 
 static struct ndisusb_ep *
-usbd_get_ndisep(ip, ep)
-	irp			*ip;
-	usb_endpoint_descriptor_t *ep;
+usbd_get_ndisep(irp *ip, usb_endpoint_descriptor_t *ep)
 {
 	device_t dev = IRP_NDIS_DEV(ip);
 	struct ndis_softc *sc = device_get_softc(dev);
@@ -1119,9 +1095,7 @@ usbd_get_ndisep(ip, ep)
 }
 
 static void
-usbd_xfertask(dobj, arg)
-	device_object		*dobj;
-	void			*arg;
+usbd_xfertask(device_object *dobj, void *arg)
 {
 	int error;
 	irp *ip;
@@ -1201,9 +1175,7 @@ usbd_xfertask(dobj, arg)
  * we don't want to be in the scope of HAL lock.
  */
 static int32_t
-usbd_taskadd(ip, type)
-	irp			*ip;
-	unsigned		 type;
+usbd_taskadd(irp *ip, unsigned type)
 {
 	device_t dev = IRP_NDIS_DEV(ip);
 	struct ndis_softc *sc = device_get_softc(dev);
@@ -1226,9 +1198,7 @@ usbd_taskadd(ip, type)
 }
 
 static void
-usbd_task(dobj, arg)
-	device_object		*dobj;
-	void			*arg;
+usbd_task(device_object *dobj, void *arg)
 {
 	irp *ip;
 	list_entry *l;
@@ -1289,8 +1259,7 @@ exit:
 }
 
 static int32_t
-usbd_func_bulkintr(ip)
-	irp			*ip;
+usbd_func_bulkintr(irp *ip)
 {
 	int32_t error;
 	struct ndisusb_ep *ne;
@@ -1336,9 +1305,7 @@ usbd_func_bulkintr(ip)
 }
 
 static union usbd_urb *
-USBD_CreateConfigurationRequest(conf, len)
-	usb_config_descriptor_t *conf;
-	uint16_t *len;
+USBD_CreateConfigurationRequest(usb_config_descriptor_t *conf, uint16_t *len)
 {
 	struct usbd_interface_list_entry list[2];
 	union usbd_urb *urb;
@@ -1348,16 +1315,15 @@ USBD_CreateConfigurationRequest(conf, len)
 	    -1, -1, -1, -1, -1);
 	urb = USBD_CreateConfigurationRequestEx(conf, list);
 	if (urb == NULL)
-		return NULL;
+		return (NULL);
 
 	*len = urb->uu_selconf.usc_hdr.uuh_len;
-	return urb;
+	return (urb);
 }
 
 static union usbd_urb *
-USBD_CreateConfigurationRequestEx(conf, list)
-	usb_config_descriptor_t *conf;
-	struct usbd_interface_list_entry *list;
+USBD_CreateConfigurationRequestEx(usb_config_descriptor_t *conf,
+    struct usbd_interface_list_entry *list)
 {
 	int i, j, size;
 	struct usbd_interface_information *intf;
@@ -1375,7 +1341,7 @@ USBD_CreateConfigurationRequestEx(conf, list)
 
 	selconf = ExAllocatePoolWithTag(NonPagedPool, size, 0);
 	if (selconf == NULL)
-		return NULL;
+		return (NULL);
 	selconf->usc_hdr.uuh_func = URB_FUNCTION_SELECT_CONFIGURATION;
 	selconf->usc_hdr.uuh_len = size;
 	selconf->usc_handle = conf;
@@ -1413,16 +1379,13 @@ USBD_CreateConfigurationRequestEx(conf, list)
 }
 
 static void
-USBD_GetUSBDIVersion(ui)
-	usbd_version_info	*ui;
+USBD_GetUSBDIVersion(usbd_version_info *ui)
 {
 
 	/* Pretend to be Windows XP. */
 
 	ui->uvi_usbdi_vers = USBDI_VERSION;
 	ui->uvi_supported_vers = USB_VER_2_0;
-
-	return;
 }
 
 static usb_interface_descriptor_t *
@@ -1435,15 +1398,9 @@ USBD_ParseConfigurationDescriptor(usb_config_descriptor_t *conf,
 }
 
 static usb_interface_descriptor_t *
-USBD_ParseConfigurationDescriptorEx(conf, start, intfnum,
-    altset, intfclass, intfsubclass, intfproto)
-	usb_config_descriptor_t *conf;
-	void *start;
-	int32_t intfnum;
-	int32_t altset;
-	int32_t intfclass;
-	int32_t intfsubclass;
-	int32_t intfproto;
+USBD_ParseConfigurationDescriptorEx(usb_config_descriptor_t *conf,
+    void *start, int32_t intfnum, int32_t altset, int32_t intfclass,
+    int32_t intfsubclass, int32_t intfproto)
 {
 	struct usb_descriptor *next = NULL;
 	usb_interface_descriptor_t *desc;
@@ -1473,7 +1430,6 @@ static void
 dummy(void)
 {
 	printf("USBD dummy called\n");
-	return;
 }
 
 image_patch_table usbd_functbl[] = {

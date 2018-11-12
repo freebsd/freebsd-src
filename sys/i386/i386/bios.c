@@ -106,7 +106,7 @@ bios32_init(void *junk)
 	    }
 
 	    /* Allow user override of PCI BIOS search */
-	    if (((p = getenv("machdep.bios.pci")) == NULL) || strcmp(p, "disable")) {
+	    if (((p = kern_getenv("machdep.bios.pci")) == NULL) || strcmp(p, "disable")) {
 
 		/* See if there's a PCI BIOS entrypoint here */
 		PCIbios.ident.id = 0x49435024;	/* PCI systems should have this */
@@ -125,7 +125,7 @@ bios32_init(void *junk)
      *
      * Allow user override of PnP BIOS search
      */
-    if ((((p = getenv("machdep.bios.pnp")) == NULL) || strcmp(p, "disable")) &&
+    if ((((p = kern_getenv("machdep.bios.pnp")) == NULL) || strcmp(p, "disable")) &&
 	((sigaddr = bios_sigsearch(0, "$PnP", 4, 16, 0)) != 0)) {
 
 	/* get a virtual pointer to the structure */
@@ -372,9 +372,11 @@ bios16(struct bios_args *args, char *fmt, ...)
 	    break;
 
 	default:
+	    va_end(ap);
 	    return (EINVAL);
 	}
     }
+    va_end(ap);
 
     if (flags & BIOSARGS_FLAG) {
 	if (arg_end - arg_start > ctob(16))
@@ -387,7 +389,7 @@ bios16(struct bios_args *args, char *fmt, ...)
     args->seg.code32.limit = 0xffff;	
 
     ptd = (pd_entry_t *)rcr3();
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
     if (ptd == IdlePDPT)
 #else
     if (ptd == IdlePTD)
@@ -448,9 +450,11 @@ bios16(struct bios_args *args, char *fmt, ...)
 	    break;
 
 	default:
+	    va_end(ap);
 	    return (EINVAL);
 	}
     }
+    va_end(ap);
 
     set_bios_selectors(&args->seg, flags);
     bioscall_vector.vec16.offset = (u_short)args->entry;

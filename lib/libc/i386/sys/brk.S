@@ -58,14 +58,11 @@ ENTRY(brk)
 ok:
 	mov	$SYS_break,%eax
 	KERNCALL
-	jb	err
+	jb	HIDENAME(cerror)
 	movl	4(%esp),%eax
 	movl	%eax,(%edx)
 	movl	$0,%eax
 	ret
-err:
-	PIC_PROLOGUE
-	jmp	PIC_PLT(HIDENAME(cerror))
 
 #else
 
@@ -77,12 +74,12 @@ err:
 ok:
 	mov	$SYS_break,%eax
 	KERNCALL
-	jb	err
+	jb	HIDENAME(cerror)
 	movl	4(%esp),%eax
 	movl	%eax,HIDENAME(curbrk)
 	movl	$0,%eax
 	ret
-err:
-	jmp	HIDENAME(cerror)
 #endif
 END(brk)
+
+	.section .note.GNU-stack,"",%progbits

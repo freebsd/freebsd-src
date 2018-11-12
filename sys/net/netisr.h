@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2007-2009 Robert N. M. Watson
+ * Copyright (c) 2010-2011 Juniper Networks, Inc.
  * All rights reserved.
+ *
+ * This software was developed by Robert N. M. Watson under contract
+ * to Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,7 +32,6 @@
 
 #ifndef _NET_NETISR_H_
 #define _NET_NETISR_H_
-#ifdef _KERNEL
 
 /*
  * The netisr (network interrupt service routine) provides a deferred
@@ -39,18 +42,105 @@
  * Historically, this was implemented by the BSD software ISR facility; it is
  * now implemented via a software ithread (SWI).
  */
+
+/*
+ * Protocol numbers, which are encoded in monitoring applications and kernel
+ * modules.  Internally, these are used in bit shift operations so must have
+ * a value 0 < proto < 32; we currently further limit at compile-time to 16
+ * for array-sizing purposes.
+ */
 #define	NETISR_IP	1
 #define	NETISR_IGMP	2		/* IGMPv3 output queue */
 #define	NETISR_ROUTE	3		/* routing socket */
-#define	NETISR_AARP	4		/* Appletalk ARP */
-#define	NETISR_ATALK2	5		/* Appletalk phase 2 */
-#define	NETISR_ATALK1	6		/* Appletalk phase 1 */
-#define	NETISR_ARP	7		/* same as AF_LINK */
-#define	NETISR_IPX	8		/* same as AF_IPX */
-#define	NETISR_ETHER	9		/* ethernet input */
-#define	NETISR_IPV6	10
-#define	NETISR_NATM	11
-#define	NETISR_EPAIR	12		/* if_epair(4) */
+#define	NETISR_ARP	4		/* same as AF_LINK */
+#define	NETISR_ETHER	5		/* ethernet input */
+#define	NETISR_IPV6	6
+#define	NETISR_NATM	7
+#define	NETISR_EPAIR	8		/* if_epair(4) */
+#define	NETISR_IP_DIRECT	9	/* direct-dispatch IPv4 */
+#define	NETISR_IPV6_DIRECT	10	/* direct-dispatch IPv6 */
+
+/*
+ * Protocol ordering and affinity policy constants.  See the detailed
+ * discussion of policies later in the file.
+ */
+#define	NETISR_POLICY_SOURCE	1	/* Maintain source ordering. */
+#define	NETISR_POLICY_FLOW	2	/* Maintain flow ordering. */
+#define	NETISR_POLICY_CPU	3	/* Protocol determines CPU placement. */
+
+/*
+ * Protocol dispatch policy constants; selects whether and when direct
+ * dispatch is permitted.
+ */
+#define	NETISR_DISPATCH_DEFAULT		0	/* Use global default. */
+#define	NETISR_DISPATCH_DEFERRED	1	/* Always defer dispatch. */
+#define	NETISR_DISPATCH_HYBRID		2	/* Allow hybrid dispatch. */
+#define	NETISR_DISPATCH_DIRECT		3	/* Always direct dispatch. */
+
+/*
+ * Monitoring data structures, exported by sysctl(2).
+ *
+ * Three sysctls are defined.  First, a per-protocol structure exported by
+ * net.isr.proto.
+ */
+#define	NETISR_NAMEMAXLEN	32
+struct sysctl_netisr_proto {
+	u_int	snp_version;			/* Length of struct. */
+	char	snp_name[NETISR_NAMEMAXLEN];	/* nh_name */
+	u_int	snp_proto;			/* nh_proto */
+	u_int	snp_qlimit;			/* nh_qlimit */
+	u_int	snp_policy;			/* nh_policy */
+	u_int	snp_flags;			/* Various flags. */
+	u_int	snp_dispatch;			/* Dispatch policy. */
+	u_int	_snp_ispare[6];
+};
+
+/*
+ * Flags for sysctl_netisr_proto.snp_flags.
+ */
+#define	NETISR_SNP_FLAGS_M2FLOW		0x00000001	/* nh_m2flow */
+#define	NETISR_SNP_FLAGS_M2CPUID	0x00000002	/* nh_m2cpuid */
+#define	NETISR_SNP_FLAGS_DRAINEDCPU	0x00000004	/* nh_drainedcpu */
+
+/*
+ * Next, a structure per-workstream, with per-protocol data, exported as
+ * net.isr.workstream.
+ */
+struct sysctl_netisr_workstream {
+	u_int	snws_version;			/* Length of struct. */
+	u_int	snws_flags;			/* Various flags. */
+	u_int	snws_wsid;			/* Workstream ID. */
+	u_int	snws_cpu;			/* nws_cpu */
+	u_int	_snws_ispare[12];
+};
+
+/*
+ * Flags for sysctl_netisr_workstream.snws_flags
+ */
+#define	NETISR_SNWS_FLAGS_INTR		0x00000001	/* nws_intr_event */
+
+/*
+ * Finally, a per-workstream-per-protocol structure, exported as
+ * net.isr.work.
+ */
+struct sysctl_netisr_work {
+	u_int	snw_version;			/* Length of struct. */
+	u_int	snw_wsid;			/* Workstream ID. */
+	u_int	snw_proto;			/* Protocol number. */
+	u_int	snw_len;			/* nw_len */
+	u_int	snw_watermark;			/* nw_watermark */
+	u_int	_snw_ispare[3];
+
+	uint64_t	snw_dispatched;		/* nw_dispatched */
+	uint64_t	snw_hybrid_dispatched;	/* nw_hybrid_dispatched */
+	uint64_t	snw_qdrops;		/* nw_qdrops */
+	uint64_t	snw_queued;		/* nw_queued */
+	uint64_t	snw_handled;		/* nw_handled */
+
+	uint64_t	_snw_llspare[7];
+};
+
+#ifdef _KERNEL
 
 /*-
  * Protocols express ordering constraints and affinity preferences by
@@ -85,15 +175,13 @@
  * can rebalance work.
  */
 struct mbuf;
-typedef void		 netisr_handler_t (struct mbuf *m);
+typedef void		 netisr_handler_t(struct mbuf *m);
 typedef struct mbuf	*netisr_m2cpuid_t(struct mbuf *m, uintptr_t source,
 			 u_int *cpuid);
 typedef	struct mbuf	*netisr_m2flow_t(struct mbuf *m, uintptr_t source);
 typedef void		 netisr_drainedcpu_t(u_int cpuid);
 
-#define	NETISR_POLICY_SOURCE	1	/* Maintain source ordering. */
-#define	NETISR_POLICY_FLOW	2	/* Maintain flow ordering. */
-#define	NETISR_POLICY_CPU	3	/* Protocol determines CPU placement. */
+#define	NETISR_CPUID_NONE	((u_int)-1)	/* No affinity returned. */
 
 /*
  * Data structure describing a protocol handler.
@@ -107,7 +195,8 @@ struct netisr_handler {
 	u_int		 nh_proto;	/* Integer protocol ID. */
 	u_int		 nh_qlimit;	/* Maximum per-CPU queue depth. */
 	u_int		 nh_policy;	/* Work placement policy. */
-	u_int		 nh_ispare[5];	/* For future use. */
+	u_int		 nh_dispatch;	/* Dispatch policy. */
+	u_int		 nh_ispare[4];	/* For future use. */
 	void		*nh_pspare[4];	/* For future use. */
 };
 
@@ -121,6 +210,10 @@ void	netisr_getqlimit(const struct netisr_handler *nhp, u_int *qlimitp);
 void	netisr_register(const struct netisr_handler *nhp);
 int	netisr_setqlimit(const struct netisr_handler *nhp, u_int qlimit);
 void	netisr_unregister(const struct netisr_handler *nhp);
+#ifdef VIMAGE
+void	netisr_register_vnet(const struct netisr_handler *nhp);
+void	netisr_unregister_vnet(const struct netisr_handler *nhp);
+#endif
 
 /*
  * Process a packet destined for a protocol, and attempt direct dispatch.

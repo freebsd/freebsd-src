@@ -1,5 +1,5 @@
 /* BFD support for the SPARC architecture.
-   Copyright 1992, 1995, 1996, 1998, 2000, 2002
+   Copyright 1992, 1995, 1996, 1998, 2000, 2002, 2007
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -16,10 +16,10 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 static const bfd_arch_info_type arch_info_struct[] =

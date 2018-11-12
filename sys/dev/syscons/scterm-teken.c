@@ -38,8 +38,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/consio.h>
+#include <sys/kbio.h>
 
-#if defined(__sparc64__) || defined(__powerpc__)
+#if defined(__arm__) || defined(__mips__) || \
+	defined(__powerpc__) || defined(__sparc64__)
 #include <machine/sc_machdep.h>
 #else
 #include <machine/pc/display.h>
@@ -52,14 +54,15 @@ __FBSDID("$FreeBSD$");
 static void scteken_revattr(unsigned char, teken_attr_t *);
 static unsigned int scteken_attr(const teken_attr_t *);
 
-static sc_term_init_t	scteken_init;
-static sc_term_term_t	scteken_term;
-static sc_term_puts_t	scteken_puts;
-static sc_term_ioctl_t	scteken_ioctl;
-static sc_term_default_attr_t scteken_default_attr;
-static sc_term_clear_t	scteken_clear;
-static sc_term_input_t	scteken_input;
-static void		scteken_nop(void);
+static sc_term_init_t		scteken_init;
+static sc_term_term_t		scteken_term;
+static sc_term_puts_t		scteken_puts;
+static sc_term_ioctl_t		scteken_ioctl;
+static sc_term_default_attr_t	scteken_default_attr;
+static sc_term_clear_t		scteken_clear;
+static sc_term_input_t		scteken_input;
+static sc_term_fkeystr_t	scteken_fkeystr;
+static void			scteken_nop(void);
 
 typedef struct {
 	teken_t		ts_teken;
@@ -84,6 +87,7 @@ static sc_term_sw_t sc_term_scteken = {
 	scteken_clear,
 	(sc_term_notify_t *)scteken_nop,
 	scteken_input,
+	scteken_fkeystr,
 };
 
 SCTERM_MODULE(scteken, sc_term_scteken);
@@ -129,9 +133,9 @@ scteken_init(scr_stat *scp, void **softc, int code)
 #ifndef TEKEN_UTF8
 		teken_set_8bit(&ts->ts_teken);
 #endif /* !TEKEN_UTF8 */
-#ifndef TEKEN_XTERM
+#ifdef TEKEN_CONS25
 		teken_set_cons25(&ts->ts_teken);
-#endif /* !TEKEN_XTERM */
+#endif /* TEKEN_CONS25 */
 
 		tp.tp_row = scp->ysize;
 		tp.tp_col = scp->xsize;
@@ -239,6 +243,56 @@ scteken_input(scr_stat *scp, int c, struct tty *tp)
 {
 
 	return FALSE;
+}
+
+static const char *
+scteken_fkeystr(scr_stat *scp, int c)
+{
+	teken_stat *ts = scp->ts;
+	unsigned int k;
+
+	switch (c) {
+	case FKEY | F(1):  case FKEY | F(2):  case FKEY | F(3):
+	case FKEY | F(4):  case FKEY | F(5):  case FKEY | F(6):
+	case FKEY | F(7):  case FKEY | F(8):  case FKEY | F(9):
+	case FKEY | F(10): case FKEY | F(11): case FKEY | F(12):
+		k = TKEY_F1 + c - (FKEY | F(1));
+		break;
+	case FKEY | F(49):
+		k = TKEY_HOME;
+		break;
+	case FKEY | F(50):
+		k = TKEY_UP;
+		break;
+	case FKEY | F(51):
+		k = TKEY_PAGE_UP;
+		break;
+	case FKEY | F(53):
+		k = TKEY_LEFT;
+		break;
+	case FKEY | F(55):
+		k = TKEY_RIGHT;
+		break;
+	case FKEY | F(57):
+		k = TKEY_END;
+		break;
+	case FKEY | F(58):
+		k = TKEY_DOWN;
+		break;
+	case FKEY | F(59):
+		k = TKEY_PAGE_DOWN;
+		break;
+	case FKEY | F(60):
+		k = TKEY_INSERT;
+		break;
+	case FKEY | F(61):
+		k = TKEY_DELETE;
+		break;
+	default:
+		return (NULL);
+	}
+
+	return (teken_get_sequence(&ts->ts_teken, k));
 }
 
 static void
@@ -371,10 +425,18 @@ static const struct unicp437 cp437table[] = {
 	{ 0x00b6, 0x14, 0x00 }, { 0x00b7, 0xfa, 0x00 },
 	{ 0x00ba, 0xa7, 0x00 }, { 0x00bb, 0xaf, 0x00 },
 	{ 0x00bc, 0xac, 0x00 }, { 0x00bd, 0xab, 0x00 },
-	{ 0x00bf, 0xa8, 0x00 }, { 0x00c4, 0x8e, 0x01 },
-	{ 0x00c6, 0x92, 0x00 }, { 0x00c7, 0x80, 0x00 },
-	{ 0x00c9, 0x90, 0x00 }, { 0x00d1, 0xa5, 0x00 },
-	{ 0x00d6, 0x99, 0x00 }, { 0x00dc, 0x9a, 0x00 },
+	{ 0x00bf, 0xa8, 0x00 }, { 0x00c0, 0x41, 0x00 },
+	{ 0x00c1, 0x41, 0x00 }, { 0x00c2, 0x41, 0x00 },
+	{ 0x00c4, 0x8e, 0x01 }, { 0x00c6, 0x92, 0x00 }, 
+	{ 0x00c7, 0x80, 0x00 }, { 0x00c8, 0x45, 0x00 },
+	{ 0x00c9, 0x90, 0x00 }, { 0x00ca, 0x45, 0x00 },
+	{ 0x00cb, 0x45, 0x00 }, { 0x00cc, 0x49, 0x00 },
+	{ 0x00cd, 0x49, 0x00 }, { 0x00ce, 0x49, 0x00 },
+	{ 0x00cf, 0x49, 0x00 }, { 0x00d1, 0xa5, 0x00 },
+	{ 0x00d2, 0x4f, 0x00 }, { 0x00d3, 0x4f, 0x00 },
+	{ 0x00d4, 0x4f, 0x00 }, { 0x00d6, 0x99, 0x00 }, 
+	{ 0x00d9, 0x55, 0x00 }, { 0x00da, 0x55, 0x00 },
+	{ 0x00db, 0x55, 0x00 }, { 0x00dc, 0x9a, 0x00 },
 	{ 0x00df, 0xe1, 0x00 }, { 0x00e0, 0x85, 0x00 },
 	{ 0x00e1, 0xa0, 0x00 }, { 0x00e2, 0x83, 0x00 },
 	{ 0x00e4, 0x84, 0x00 }, { 0x00e5, 0x86, 0x00 },
@@ -389,6 +451,7 @@ static const struct unicp437 cp437table[] = {
 	{ 0x00f8, 0xed, 0x00 }, { 0x00f9, 0x97, 0x00 },
 	{ 0x00fa, 0xa3, 0x00 }, { 0x00fb, 0x96, 0x00 },
 	{ 0x00fc, 0x81, 0x00 }, { 0x00ff, 0x98, 0x00 },
+	{ 0x013f, 0x4c, 0x00 }, { 0x0140, 0x6c, 0x00 },
 	{ 0x0192, 0x9f, 0x00 }, { 0x0393, 0xe2, 0x00 },
 	{ 0x0398, 0xe9, 0x00 }, { 0x03a3, 0xe4, 0x00 },
 	{ 0x03a6, 0xe8, 0x00 }, { 0x03a9, 0xea, 0x00 },
@@ -437,7 +500,8 @@ static const struct unicp437 cp437table[] = {
 	{ 0x2584, 0xdc, 0x00 }, { 0x2588, 0xdb, 0x00 },
 	{ 0x258c, 0xdd, 0x00 }, { 0x2590, 0xde, 0x00 },
 	{ 0x2591, 0xb0, 0x02 }, { 0x25a0, 0xfe, 0x00 },
-	{ 0x25ac, 0x16, 0x00 }, { 0x25b2, 0x1e, 0x00 },
+	{ 0x25ac, 0x16, 0x00 }, 
+	{ 0x25ae, 0xdb, 0x00 }, { 0x25b2, 0x1e, 0x00 },
 	{ 0x25ba, 0x10, 0x00 }, { 0x25bc, 0x1f, 0x00 },
 	{ 0x25c4, 0x11, 0x00 }, { 0x25cb, 0x09, 0x00 },
 	{ 0x25d8, 0x08, 0x00 }, { 0x25d9, 0x0a, 0x00 },
@@ -489,7 +553,14 @@ scteken_putchar(void *arg, const teken_pos_t *tp, teken_char_t c,
 	vm_offset_t p;
 	int cursor, attr;
 
+	/*
+	 * No support for printing right hand sides for CJK fullwidth
+	 * characters. Simply print a space and assume that the left
+	 * hand side describes the entire character.
+	 */
 	attr = scteken_attr(a) << 8;
+	if (a->ta_format & TF_CJK_RIGHT)
+		c = ' ';
 #ifdef TEKEN_UTF8
 	scteken_get_cp437(&c, &attr);
 #endif /* TEKEN_UTF8 */
@@ -590,7 +661,7 @@ scteken_copy(void *arg, const teken_rect_t *r, const teken_pos_t *p)
 
 			while (src < end) {
 				sc_vtb_move(&scp->vtb, src, dst, width);
-			
+
 				src += scp->xsize;
 				dst += scp->xsize;
 			}
@@ -605,7 +676,7 @@ scteken_copy(void *arg, const teken_rect_t *r, const teken_pos_t *p)
 
 			while (src >= end) {
 				sc_vtb_move(&scp->vtb, src, dst, width);
-			
+
 				src -= scp->xsize;
 				dst -= scp->xsize;
 			}

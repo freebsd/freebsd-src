@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 David Schultz <das@FreeBSD.ORG>
+ * Copyright (c) 2005-2011 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,23 +27,43 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <fenv.h>
+
 #include "math.h"
+#include "math_private.h"
 
 /*
  * Fused multiply-add: Compute x * y + z with a single rounding error.
  *
  * A double has more than twice as much precision than a float, so
- * direct double-precision arithmetic suffices.
- *
- * XXX We are relying on the compiler to convert from double to float
- *     using the current rounding mode and with the appropriate
- *     side-effects.  But on at least one platform (gcc 3.4.2/sparc64),
- *     this appears to be too much to ask for.  The precision
- *     reduction should be done manually.
+ * direct double-precision arithmetic suffices, except where double
+ * rounding occurs.
  */
 float
 fmaf(float x, float y, float z)
 {
+	double xy, result;
+	uint32_t hr, lr;
 
-	return ((double)x * y + z);
+	xy = (double)x * y;
+	result = xy + z;
+	EXTRACT_WORDS(hr, lr, result);
+	/* Common case: The double precision result is fine. */
+	if ((lr & 0x1fffffff) != 0x10000000 ||	/* not a halfway case */
+	    (hr & 0x7ff00000) == 0x7ff00000 ||	/* NaN */
+	    result - xy == z ||			/* exact */
+	    fegetround() != FE_TONEAREST)	/* not round-to-nearest */
+		return (result);
+
+	/*
+	 * If result is inexact, and exactly halfway between two float values,
+	 * we need to adjust the low-order bit in the direction of the error.
+	 */
+	fesetround(FE_TOWARDZERO);
+	volatile double vxy = xy;  /* XXX work around gcc CSE bug */
+	double adjusted_result = vxy + z;
+	fesetround(FE_TONEAREST);
+	if (result == adjusted_result)
+		SET_LOW_WORD(adjusted_result, lr + 1);
+	return (adjusted_result);
 }

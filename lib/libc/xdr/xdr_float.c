@@ -1,32 +1,34 @@
 /*	$NetBSD: xdr_float.c,v 1.23 2000/07/17 04:59:51 matt Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2010, Oracle America, Inc.
  *
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials
+ *       provided with the distribution.
+ *     * Neither the name of the "Oracle America, Inc." nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
  *
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- *
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- *
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *   FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *   COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ *   INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ *   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ *   GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *   WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -39,15 +41,12 @@ __FBSDID("$FreeBSD$");
 /*
  * xdr_float.c, Generic XDR routines implementation.
  *
- * Copyright (C) 1984, Sun Microsystems, Inc.
- *
  * These are the "floating point" xdr routines used to (de)serialize
  * most common data items.  See xdr.h for more info on the interface to
  * xdr.
  */
 
 #include "namespace.h"
-#include <sys/types.h>
 #include <sys/param.h>
 
 #include <stdio.h>
@@ -61,13 +60,8 @@ __FBSDID("$FreeBSD$");
  * This routine works on machines with IEEE754 FP and Vaxen.
  */
 
-#if defined(__m68k__) || defined(__sparc__) || defined(__i386__) || \
-    defined(__mips__) || defined(__ns32k__) || defined(__alpha__) || \
-    defined(__arm__) || defined(__ppc__) || defined(__ia64__) || \
-    defined(__arm26__) || defined(__sparc64__) || defined(__amd64__)
 #include <machine/endian.h>
 #define IEEEFP
-#endif
 
 #if defined(__vax__)
 
@@ -101,15 +95,13 @@ static struct sgl_limits {
 #endif /* vax */
 
 bool_t
-xdr_float(xdrs, fp)
-	XDR *xdrs;
-	float *fp;
+xdr_float(XDR *xdrs, float *fp)
 {
 #ifndef IEEEFP
 	struct ieee_single is;
 	struct vax_single vs, *vsp;
 	struct sgl_limits *lim;
-	int i;
+	u_int i;
 #endif
 	switch (xdrs->x_op) {
 
@@ -118,9 +110,8 @@ xdr_float(xdrs, fp)
 		return (XDR_PUTINT32(xdrs, (int32_t *)fp));
 #else
 		vs = *((struct vax_single *)fp);
-		for (i = 0, lim = sgl_limits;
-			i < sizeof(sgl_limits)/sizeof(struct sgl_limits);
-			i++, lim++) {
+		for (i = 0, lim = sgl_limits; i < nitems(sgl_limits);
+		    i++, lim++) {
 			if ((vs.mantissa2 == lim->s.mantissa2) &&
 				(vs.exp == lim->s.exp) &&
 				(vs.mantissa1 == lim->s.mantissa1)) {
@@ -142,9 +133,8 @@ xdr_float(xdrs, fp)
 		vsp = (struct vax_single *)fp;
 		if (!XDR_GETINT32(xdrs, (int32_t *)&is))
 			return (FALSE);
-		for (i = 0, lim = sgl_limits;
-			i < sizeof(sgl_limits)/sizeof(struct sgl_limits);
-			i++, lim++) {
+		for (i = 0, lim = sgl_limits; i < nitems(sgl_limits);
+		    i++, lim++) {
 			if ((is.exp == lim->ieee.exp) &&
 				(is.mantissa == lim->ieee.mantissa)) {
 				*vsp = lim->s;
@@ -203,9 +193,7 @@ static struct dbl_limits {
 
 
 bool_t
-xdr_double(xdrs, dp)
-	XDR *xdrs;
-	double *dp;
+xdr_double(XDR *xdrs, double *dp)
 {
 #ifdef IEEEFP
 	int32_t *i32p;
@@ -215,7 +203,7 @@ xdr_double(xdrs, dp)
 	struct	ieee_double id;
 	struct	vax_double vd;
 	struct dbl_limits *lim;
-	int i;
+	u_int i;
 #endif
 
 	switch (xdrs->x_op) {
@@ -237,9 +225,8 @@ xdr_double(xdrs, dp)
 		return (rv);
 #else
 		vd = *((struct vax_double *)dp);
-		for (i = 0, lim = dbl_limits;
-			i < sizeof(dbl_limits)/sizeof(struct dbl_limits);
-			i++, lim++) {
+		for (i = 0, lim = dbl_limits; i < nitems(dbl_limits);
+		    i++, lim++) {
 			if ((vd.mantissa4 == lim->d.mantissa4) &&
 				(vd.mantissa3 == lim->d.mantissa3) &&
 				(vd.mantissa2 == lim->d.mantissa2) &&
@@ -279,9 +266,8 @@ xdr_double(xdrs, dp)
 		lp = (int32_t *)&id;
 		if (!XDR_GETINT32(xdrs, lp++) || !XDR_GETINT32(xdrs, lp))
 			return (FALSE);
-		for (i = 0, lim = dbl_limits;
-			i < sizeof(dbl_limits)/sizeof(struct dbl_limits);
-			i++, lim++) {
+		for (i = 0, lim = dbl_limits; i < nitems(dbl_limits);
+		    i++, lim++) {
 			if ((id.mantissa2 == lim->ieee.mantissa2) &&
 				(id.mantissa1 == lim->ieee.mantissa1) &&
 				(id.exp == lim->ieee.exp)) {

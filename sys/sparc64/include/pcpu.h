@@ -51,14 +51,18 @@ struct pmap;
 	struct	intr_request *pc_irfree;				\
 	struct	pmap *pc_pmap;						\
 	vm_offset_t pc_addr;						\
+	vm_offset_t pc_qmap_addr;					\
 	u_long	pc_tickref;						\
 	u_long	pc_tickadj;						\
+	u_long	pc_tickincrement;					\
 	u_int	pc_clock;						\
+	u_int	pc_impl;						\
 	u_int	pc_mid;							\
 	u_int	pc_node;						\
 	u_int	pc_tlb_ctx;						\
 	u_int	pc_tlb_ctx_max;						\
-	u_int	pc_tlb_ctx_min
+	u_int	pc_tlb_ctx_min;						\
+	char	__pad[397]
 
 #ifdef _KERNEL
 
@@ -71,6 +75,16 @@ register struct pcb *curpcb __asm__(__XSTRING(PCB_REG));
 register struct pcpu *pcpup __asm__(__XSTRING(PCPU_REG));
 
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
+
+static __inline __pure2 struct thread *
+__curthread(void)
+{
+	struct thread *td;
+
+	__asm("ldx [%" __XSTRING(PCPU_REG) "], %0" : "=r" (td));
+	return (td);
+}
+#define	curthread	(__curthread())
 
 /*
  * XXX The implementation of this operation should be made atomic

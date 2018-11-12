@@ -54,12 +54,10 @@ MODULE_VERSION(ibcs2, 1);
 
 extern int bsd_to_ibcs2_errno[];
 extern struct sysent ibcs2_sysent[IBCS2_SYS_MAXSYSCALL];
-extern int szsigcode;
-extern char sigcode[];
 static int ibcs2_fixup(register_t **, struct image_params *);
 
 struct sysentvec ibcs2_svr3_sysvec = {
-        .sv_size	= sizeof (ibcs2_sysent) / sizeof (ibcs2_sysent[0]),
+        .sv_size	= nitems(ibcs2_sysent),
         .sv_table	= ibcs2_sysent,
         .sv_mask	= 0xff,
         .sv_sigsize	= IBCS2_SIGTBLSZ,
@@ -86,7 +84,13 @@ struct sysentvec ibcs2_svr3_sysvec = {
 	.sv_setregs	= exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_UNDEF | SV_IA32 | SV_ILP32
+	.sv_flags	= SV_ABI_UNDEF | SV_IA32 | SV_ILP32,
+	.sv_set_syscall_retval = cpu_set_syscall_retval,
+	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
+	.sv_syscallnames = NULL,
+	.sv_schedtail	= NULL,
+	.sv_thread_detach = NULL,
+	.sv_trap	= NULL,
 };
 
 static int
@@ -131,4 +135,4 @@ static moduledata_t ibcs2_mod = {
 	ibcs2_modevent,
 	0
 };
-DECLARE_MODULE(ibcs2, ibcs2_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE_TIED(ibcs2, ibcs2_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

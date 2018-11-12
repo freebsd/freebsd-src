@@ -2,15 +2,14 @@
 # $FreeBSD$
 #
 
+PACKAGE=runtime
 PROG=	mount_msdosfs
 SRCS=	mount_msdosfs.c getmntopts.c
 MAN=	mount_msdosfs.8
-DPADD=	${LIBKICONV}
-LDADD=	-lkiconv
+LIBADD=	kiconv
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${MOUNT}
-WARNS?=	6
 
 # Needs to be dynamically linked for optional dlopen() access to
 # userland libiconv

@@ -73,7 +73,7 @@ static device_method_t aac_disk_methods[] = {
 	DEVMETHOD(device_probe,	aac_disk_probe),
 	DEVMETHOD(device_attach,	aac_disk_attach),
 	DEVMETHOD(device_detach,	aac_disk_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t aac_disk_driver = {
@@ -82,13 +82,13 @@ static driver_t aac_disk_driver = {
 	sizeof(struct aac_disk)
 };
 
-DRIVER_MODULE(aacd, aac, aac_disk_driver, aac_disk_devclass, 0, 0);
+DRIVER_MODULE(aacd, aac, aac_disk_driver, aac_disk_devclass, NULL, NULL);
 
 /*
  * Handle open from generic layer.
  *
- * This is called by the diskslice code on first open in order to get the 
- * basic device geometry paramters.
+ * This is called by the diskslice code on first open in order to get the
+ * basic device geometry parameters.
  */
 static int
 aac_disk_open(struct disk *dp)
@@ -106,8 +106,9 @@ aac_disk_open(struct disk *dp)
 
 	/* check that the controller is up and running */
 	if (sc->ad_controller->aac_state & AAC_STATE_SUSPEND) {
-		printf("Controller Suspended controller state = 0x%x\n",
-		       sc->ad_controller->aac_state);
+		device_printf(sc->ad_controller->aac_dev,
+		    "Controller Suspended controller state = 0x%x\n",
+		    sc->ad_controller->aac_state);
 		return(ENXIO);
 	}
 
@@ -166,8 +167,6 @@ aac_disk_strategy(struct bio *bp)
 	mtx_lock(&sc->ad_controller->aac_io_lock);
 	aac_submit_bio(bp);
 	mtx_unlock(&sc->ad_controller->aac_io_lock);
-
-	return;
 }
 
 /*
@@ -252,7 +251,8 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 	if (!first) {
 		first = 1;
 		if (bus_dmamap_create(sc->aac_buffer_dmat, 0, &dump_datamap)) {
-			printf("bus_dmamap_create failed\n");
+			device_printf(sc->aac_dev,
+			    "bus_dmamap_create failed\n");
 			return (ENOMEM);
 		}
 	}
@@ -305,8 +305,9 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 		size += fib->Header.Size;
 
 		if (aac_sync_fib(sc, command, 0, fib, size)) {
-			printf("Error dumping block 0x%jx\n",
-			       (uintmax_t)physical);
+			device_printf(sc->aac_dev,
+			     "Error dumping block 0x%jx\n",
+			     (uintmax_t)physical);
 			return (EIO);
 		}
 
@@ -329,13 +330,12 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 void
 aac_biodone(struct bio *bp)
 {
-	struct aac_disk	*sc;
-
-	sc = (struct aac_disk *)bp->bio_disk->d_drv1;
 	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	if (bp->bio_flags & BIO_ERROR)
+	if (bp->bio_flags & BIO_ERROR) {
+		bp->bio_resid = bp->bio_bcount;
 		disk_err(bp, "hard error", -1, 1);
+	}
 
 	biodone(bp);
 }
@@ -397,6 +397,7 @@ aac_disk_attach(device_t dev)
 	sc->unit = device_get_unit(dev);
 	sc->ad_disk = disk_alloc();
 	sc->ad_disk->d_drv1 = sc;
+	sc->ad_disk->d_flags = DISKFLAG_UNMAPPED_BIO;
 	sc->ad_disk->d_name = "aacd";
 	sc->ad_disk->d_maxsize = sc->ad_controller->aac_max_sectors << 9;
 	sc->ad_disk->d_open = aac_disk_open;

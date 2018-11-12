@@ -1,5 +1,5 @@
 /* s390.h -- Header file for S390 opcode table
-   Copyright 2000, 2001 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2003 Free Software Foundation, Inc.
    Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef S390_H
 #define S390_H
@@ -35,7 +35,9 @@ enum s390_opcode_cpu_val
     S390_OPCODE_G5 = 0,
     S390_OPCODE_G6,
     S390_OPCODE_Z900,
-    S390_OPCODE_Z990
+    S390_OPCODE_Z990,
+    S390_OPCODE_Z9_109,
+    S390_OPCODE_Z9_EC
   };
 
 /* The opcode table is an array of struct s390_opcode.  */
@@ -138,4 +140,8 @@ extern const struct s390_operand s390_operands[];
 /* This operand is a length.  */
 #define S390_OPERAND_LENGTH 0x200
 
-#endif /* S390_H */
+/* This operand is optional. Only a single operand at the end of
+   the instruction may be optional.  */
+#define S390_OPERAND_OPTIONAL 0x400
+
+	#endif /* S390_H */

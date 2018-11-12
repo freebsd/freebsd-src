@@ -43,6 +43,7 @@
 #include <sys/sockio.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/if_llc.h>
@@ -63,7 +64,7 @@
 
 #include <security/mac/mac_framework.h>
 
-MALLOC_DEFINE(M_FWCOM, "fw_com", "firewire interface internals");
+static MALLOC_DEFINE(M_FWCOM, "fw_com", "firewire interface internals");
 
 struct fw_hwaddr firewire_broadcastaddr = {
 	0xffffffff,
@@ -75,7 +76,7 @@ struct fw_hwaddr firewire_broadcastaddr = {
 };
 
 static int
-firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
 	struct fw_com *fc = IFP2FWC(ifp);
@@ -89,7 +90,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	int unicast, dgl, foff;
 	static int next_dgl;
 #if defined(INET) || defined(INET6)
-	struct llentry *lle;
+	int is_gw = 0;
 #endif
 
 #ifdef MAC
@@ -104,6 +105,10 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		goto bad;
 	}
 
+#if defined(INET) || defined(INET6)
+	if (ro != NULL)
+		is_gw = (ro->ro_flags & RT_HAS_GW) != 0;
+#endif
 	/*
 	 * For unicast, we make a tag to store the lladdr of the
 	 * destination. This might not be the first time we have seen
@@ -127,7 +132,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		}
 		destfw = (struct fw_hwaddr *)(mtag + 1);
 	} else {
-		destfw = 0;
+		destfw = NULL;
 	}
 
 	switch (dst->sa_family) {
@@ -139,7 +144,8 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		 * doesn't fit into the arp model.
 		 */
 		if (unicast) {
-			error = arpresolve(ifp, ro ? ro->ro_rt : NULL, m, dst, (u_char *) destfw, &lle);
+			error = arpresolve(ifp, is_gw, m, dst,
+			    (u_char *) destfw, NULL, NULL);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}
@@ -168,10 +174,10 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 #ifdef INET6
 	case AF_INET6:
 		if (unicast) {
-			error = nd6_storelladdr(fc->fc_ifp, m, dst,
-			    (u_char *) destfw, &lle);
+			error = nd6_resolve(fc->fc_ifp, is_gw, m, dst,
+			    (u_char *) destfw, NULL, NULL);
 			if (error)
-				return (error);
+				return (error == EWOULDBLOCK ? 0 : error);
 		}
 		type = ETHERTYPE_IPV6;
 		break;
@@ -229,7 +235,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		/*
 		 * No fragmentation is necessary.
 		 */
-		M_PREPEND(m, sizeof(uint32_t), M_DONTWAIT);
+		M_PREPEND(m, sizeof(uint32_t), M_NOWAIT);
 		if (!m) {
 			error = ENOBUFS;
 			goto bad;
@@ -261,17 +267,17 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 				 * Split off the tail segment from the
 				 * datagram, copying our tags over.
 				 */
-				mtail = m_split(m, fsize, M_DONTWAIT);
+				mtail = m_split(m, fsize, M_NOWAIT);
 				m_tag_copy_chain(mtail, m, M_NOWAIT);
 			} else {
-				mtail = 0;
+				mtail = NULL;
 			}
 
 			/*
 			 * Add our encapsulation header to this
 			 * fragment and hand it off to the link.
 			 */
-			M_PREPEND(m, 2*sizeof(uint32_t), M_DONTWAIT);
+			M_PREPEND(m, 2*sizeof(uint32_t), M_NOWAIT);
 			if (!m) {
 				error = ENOBUFS;
 				goto bad;
@@ -536,7 +542,7 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 
 	if (m->m_pkthdr.rcvif == NULL) {
 		if_printf(ifp, "discard frame w/o interface pointer\n");
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		return;
 	}
@@ -581,7 +587,7 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 		return;
 	}
 
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	/* Discard packet if interface is not up */
 	if ((ifp->if_flags & IFF_UP) == 0) {
@@ -590,13 +596,11 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 	}
 
 	if (m->m_flags & (M_BCAST|M_MCAST))
-		ifp->if_imcasts++;
+		if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
 
 	switch (type) {
 #ifdef INET
 	case ETHERTYPE_IP:
-		if ((m = ip_fastforward(m)) == NULL)
-			return;
 		isr = NETISR_IP;
 		break;
 
@@ -627,6 +631,7 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 		return;
 	}
 
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 }
 
@@ -697,7 +702,7 @@ firewire_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		/*
 		 * No mapping needed.
 		 */
-		*llsa = 0;
+		*llsa = NULL;
 		return 0;
 
 #ifdef INET
@@ -705,7 +710,7 @@ firewire_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		sin = (struct sockaddr_in *)sa;
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			return EADDRNOTAVAIL;
-		*llsa = 0;
+		*llsa = NULL;
 		return 0;
 #endif
 #ifdef INET6
@@ -718,12 +723,12 @@ firewire_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 			 * (This is used for multicast routers.)
 			 */
 			ifp->if_flags |= IFF_ALLMULTI;
-			*llsa = 0;
+			*llsa = NULL;
 			return 0;
 		}
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return EADDRNOTAVAIL;
-		*llsa = 0;
+		*llsa = NULL;
 		return 0;
 #endif
 

@@ -66,7 +66,7 @@ struct crom_src_buf {
 
 static int	fw_init(void);
 static int	fw_strategy(void *devdata, int flag, daddr_t dblk,
-		    size_t size, char *buf, size_t *rsize);
+		    size_t offset, size_t size, char *buf, size_t *rsize);
 static int	fw_open(struct open_file *f, ...);
 static int	fw_close(struct open_file *f);
 static void	fw_print(int verbose);
@@ -137,7 +137,7 @@ fw_init(void)
 		if (sc->state == FWOHCI_STATE_DEAD)
 			break;
 		avail ++;
-			break;
+		break;
 	}
 	fw_initialized = 1;
 
@@ -201,7 +201,8 @@ fw_cleanup()
 }
 
 static int 
-fw_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, size_t *rsize)
+fw_strategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
+    char *buf, size_t *rsize)
 {
 	return (EIO);
 }
@@ -233,7 +234,8 @@ fw_init_crom(struct fwohci_softc *sc)
 	src->businfo.cyc_clk_acc = 100;
 	src->businfo.max_rec = sc->maxrec;
 	src->businfo.max_rom = MAXROM_4;
-	src->businfo.generation = 1;
+#define FW_GENERATION_CHANGEABLE 2
+	src->businfo.generation = FW_GENERATION_CHANGEABLE;
 	src->businfo.link_spd = sc->speed;
 
 	src->businfo.eui64.hi = sc->eui.hi;
@@ -313,11 +315,14 @@ fw_crom(struct fwohci_softc *sc)
 	src = &sc->crom_src_buf->src;
 	crom_load(src, (uint32_t *)newrom, CROMSIZE);
 	if (bcmp(newrom, sc->config_rom, CROMSIZE) != 0) {
-		/* bump generation and reload */
-		src->businfo.generation ++;
-		/* generation must be between 0x2 and 0xF */
+		/* Bump generation and reload. */
+		src->businfo.generation++;
+
+		/* Handle generation count wraps. */
 		if (src->businfo.generation < 2)
-			src->businfo.generation ++;
+			src->businfo.generation = 2;
+
+		/* Recalculate CRC to account for generation change. */
 		crom_load(src, (uint32_t *)newrom, CROMSIZE);
 		bcopy(newrom, (void *)sc->config_rom, CROMSIZE);
 	}

@@ -1,15 +1,9 @@
 /*
- * WPA Supplicant / SSL/TLS interface definition
- * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
+ * SSL/TLS interface definition
+ * Copyright (c) 2004-2013, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef TLS_H
@@ -17,22 +11,90 @@
 
 struct tls_connection;
 
-struct tls_keys {
-	const u8 *master_key; /* TLS master secret */
-	size_t master_key_len;
+struct tls_random {
 	const u8 *client_random;
 	size_t client_random_len;
 	const u8 *server_random;
 	size_t server_random_len;
-	const u8 *inner_secret; /* TLS/IA inner secret */
-	size_t inner_secret_len;
+};
+
+enum tls_event {
+	TLS_CERT_CHAIN_SUCCESS,
+	TLS_CERT_CHAIN_FAILURE,
+	TLS_PEER_CERTIFICATE,
+	TLS_ALERT
+};
+
+/*
+ * Note: These are used as identifier with external programs and as such, the
+ * values must not be changed.
+ */
+enum tls_fail_reason {
+	TLS_FAIL_UNSPECIFIED = 0,
+	TLS_FAIL_UNTRUSTED = 1,
+	TLS_FAIL_REVOKED = 2,
+	TLS_FAIL_NOT_YET_VALID = 3,
+	TLS_FAIL_EXPIRED = 4,
+	TLS_FAIL_SUBJECT_MISMATCH = 5,
+	TLS_FAIL_ALTSUBJECT_MISMATCH = 6,
+	TLS_FAIL_BAD_CERTIFICATE = 7,
+	TLS_FAIL_SERVER_CHAIN_PROBE = 8,
+	TLS_FAIL_DOMAIN_SUFFIX_MISMATCH = 9,
+	TLS_FAIL_DOMAIN_MISMATCH = 10,
+};
+
+
+#define TLS_MAX_ALT_SUBJECT 10
+
+union tls_event_data {
+	struct {
+		int depth;
+		const char *subject;
+		enum tls_fail_reason reason;
+		const char *reason_txt;
+		const struct wpabuf *cert;
+	} cert_fail;
+
+	struct {
+		int depth;
+		const char *subject;
+		const struct wpabuf *cert;
+		const u8 *hash;
+		size_t hash_len;
+		const char *altsubject[TLS_MAX_ALT_SUBJECT];
+		int num_altsubject;
+	} peer_cert;
+
+	struct {
+		int is_local;
+		const char *type;
+		const char *description;
+	} alert;
 };
 
 struct tls_config {
 	const char *opensc_engine_path;
 	const char *pkcs11_engine_path;
 	const char *pkcs11_module_path;
+	int fips_mode;
+	int cert_in_cb;
+	const char *openssl_ciphers;
+	unsigned int tls_session_lifetime;
+
+	void (*event_cb)(void *ctx, enum tls_event ev,
+			 union tls_event_data *data);
+	void *cb_ctx;
 };
+
+#define TLS_CONN_ALLOW_SIGN_RSA_MD5 BIT(0)
+#define TLS_CONN_DISABLE_TIME_CHECKS BIT(1)
+#define TLS_CONN_DISABLE_SESSION_TICKET BIT(2)
+#define TLS_CONN_REQUEST_OCSP BIT(3)
+#define TLS_CONN_REQUIRE_OCSP BIT(4)
+#define TLS_CONN_DISABLE_TLSv1_1 BIT(5)
+#define TLS_CONN_DISABLE_TLSv1_2 BIT(6)
+#define TLS_CONN_EAP_FAST BIT(7)
+#define TLS_CONN_DISABLE_TLSv1_0 BIT(8)
 
 /**
  * struct tls_connection_params - Parameters for TLS connection
@@ -45,6 +107,12 @@ struct tls_config {
  * %NULL to allow all subjects
  * @altsubject_match: String to match in the alternative subject of the peer
  * certificate or %NULL to allow all alternative subjects
+ * @suffix_match: String to suffix match in the dNSName or CN of the peer
+ * certificate or %NULL to allow all domain names. This may allow subdomains an
+ * wildcard certificates. Each domain name label must have a full match.
+ * @domain_match: String to match in the dNSName or CN of the peer
+ * certificate or %NULL to allow all domain names. This requires a full,
+ * case-insensitive match.
  * @client_cert: File or reference name for client X.509 certificate in PEM or
  * DER format
  * @client_cert_blob: client_cert as inlined data or %NULL if not used
@@ -67,7 +135,10 @@ struct tls_config {
  * specific for now)
  * @cert_id: the certificate's id when using engine
  * @ca_cert_id: the CA certificate's id when using engine
- * @tls_ia: Whether to enable TLS/IA (for EAP-TTLSv1)
+ * @openssl_ciphers: OpenSSL cipher configuration
+ * @flags: Parameter options (TLS_CONN_*)
+ * @ocsp_stapling_response: DER encoded file with cached OCSP stapling response
+ *	or %NULL if OCSP is not enabled
  *
  * TLS connection parameters to be configured with tls_connection_set_params()
  * and tls_global_set_params().
@@ -84,6 +155,8 @@ struct tls_connection_params {
 	const char *ca_path;
 	const char *subject_match;
 	const char *altsubject_match;
+	const char *suffix_match;
+	const char *domain_match;
 	const char *client_cert;
 	const u8 *client_cert_blob;
 	size_t client_cert_blob_len;
@@ -94,7 +167,6 @@ struct tls_connection_params {
 	const char *dh_file;
 	const u8 *dh_blob;
 	size_t dh_blob_len;
-	int tls_ia;
 
 	/* OpenSSL specific variables */
 	int engine;
@@ -103,6 +175,10 @@ struct tls_connection_params {
 	const char *key_id;
 	const char *cert_id;
 	const char *ca_cert_id;
+	const char *openssl_ciphers;
+
+	unsigned int flags;
+	const char *ocsp_stapling_response;
 };
 
 
@@ -179,6 +255,7 @@ int tls_connection_established(void *tls_ctx, struct tls_connection *conn);
 int tls_connection_shutdown(void *tls_ctx, struct tls_connection *conn);
 
 enum {
+	TLS_SET_PARAMS_ENGINE_PRV_BAD_PIN = -4,
 	TLS_SET_PARAMS_ENGINE_PRV_VERIFY_FAILED = -3,
 	TLS_SET_PARAMS_ENGINE_PRV_INIT_FAILED = -2
 };
@@ -189,10 +266,12 @@ enum {
  * @conn: Connection context data from tls_connection_init()
  * @params: Connection parameters
  * Returns: 0 on success, -1 on failure,
- * TLS_SET_PARAMS_ENGINE_PRV_INIT_FAILED (-2) on possible PIN error causing
- * PKCS#11 engine failure, or
+ * TLS_SET_PARAMS_ENGINE_PRV_INIT_FAILED (-2) on error causing PKCS#11 engine
+ * failure, or
  * TLS_SET_PARAMS_ENGINE_PRV_VERIFY_FAILED (-3) on failure to verify the
- * PKCS#11 engine private key.
+ * PKCS#11 engine private key, or
+ * TLS_SET_PARAMS_ENGINE_PRV_BAD_PIN (-4) on PIN error causing PKCS#11 engine
+ * failure.
  */
 int __must_check
 tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
@@ -203,10 +282,12 @@ tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
  * @tls_ctx: TLS context data from tls_init()
  * @params: Global TLS parameters
  * Returns: 0 on success, -1 on failure,
- * TLS_SET_PARAMS_ENGINE_PRV_INIT_FAILED (-2) on possible PIN error causing
- * PKCS#11 engine failure, or
+ * TLS_SET_PARAMS_ENGINE_PRV_INIT_FAILED (-2) on error causing PKCS#11 engine
+ * failure, or
  * TLS_SET_PARAMS_ENGINE_PRV_VERIFY_FAILED (-3) on failure to verify the
- * PKCS#11 engine private key.
+ * PKCS#11 engine private key, or
+ * TLS_SET_PARAMS_ENGINE_PRV_BAD_PIN (-4) on PIN error causing PKCS#11 engine
+ * failure.
  */
 int __must_check tls_global_set_params(
 	void *tls_ctx, const struct tls_connection_params *params);
@@ -225,36 +306,28 @@ int __must_check tls_global_set_verify(void *tls_ctx, int check_crl);
  * @tls_ctx: TLS context data from tls_init()
  * @conn: Connection context data from tls_connection_init()
  * @verify_peer: 1 = verify peer certificate
+ * @flags: Connection flags (TLS_CONN_*)
+ * @session_ctx: Session caching context or %NULL to use default
+ * @session_ctx_len: Length of @session_ctx in bytes.
  * Returns: 0 on success, -1 on failure
  */
 int __must_check tls_connection_set_verify(void *tls_ctx,
 					   struct tls_connection *conn,
-					   int verify_peer);
+					   int verify_peer,
+					   unsigned int flags,
+					   const u8 *session_ctx,
+					   size_t session_ctx_len);
 
 /**
- * tls_connection_set_ia - Set TLS/IA parameters
+ * tls_connection_get_random - Get random data from TLS connection
  * @tls_ctx: TLS context data from tls_init()
  * @conn: Connection context data from tls_connection_init()
- * @tls_ia: 1 = enable TLS/IA
- * Returns: 0 on success, -1 on failure
- *
- * This function is used to configure TLS/IA in server mode where
- * tls_connection_set_params() is not used.
- */
-int __must_check tls_connection_set_ia(void *tls_ctx,
-				       struct tls_connection *conn,
-				       int tls_ia);
-
-/**
- * tls_connection_get_keys - Get master key and random data from TLS connection
- * @tls_ctx: TLS context data from tls_init()
- * @conn: Connection context data from tls_connection_init()
- * @keys: Structure of key/random data (filled on success)
+ * @data: Structure of client/server random data (filled on success)
  * Returns: 0 on success, -1 on failure
  */
-int __must_check tls_connection_get_keys(void *tls_ctx,
+int __must_check tls_connection_get_random(void *tls_ctx,
 					 struct tls_connection *conn,
-					 struct tls_keys *keys);
+					 struct tls_random *data);
 
 /**
  * tls_connection_prf - Use TLS-PRF to derive keying material
@@ -263,40 +336,36 @@ int __must_check tls_connection_get_keys(void *tls_ctx,
  * @label: Label (e.g., description of the key) for PRF
  * @server_random_first: seed is 0 = client_random|server_random,
  * 1 = server_random|client_random
+ * @skip_keyblock: Skip TLS key block from the beginning of PRF output
  * @out: Buffer for output data from TLS-PRF
  * @out_len: Length of the output buffer
  * Returns: 0 on success, -1 on failure
  *
- * This function is optional to implement if tls_connection_get_keys() provides
- * access to master secret and server/client random values. If these values are
- * not exported from the TLS library, tls_connection_prf() is required so that
- * further keying material can be derived from the master secret. If not
- * implemented, the function will still need to be defined, but it can just
- * return -1. Example implementation of this function is in tls_prf() function
- * when it is called with seed set to client_random|server_random (or
- * server_random|client_random).
+ * tls_connection_prf() is required so that further keying material can be
+ * derived from the master secret. Example implementation of this function is in
+ * tls_prf_sha1_md5() when it is called with seed set to
+ * client_random|server_random (or server_random|client_random). For TLSv1.2 and
+ * newer, a different PRF is needed, though.
  */
 int __must_check  tls_connection_prf(void *tls_ctx,
 				     struct tls_connection *conn,
 				     const char *label,
 				     int server_random_first,
+				     int skip_keyblock,
 				     u8 *out, size_t out_len);
 
 /**
  * tls_connection_handshake - Process TLS handshake (client side)
  * @tls_ctx: TLS context data from tls_init()
  * @conn: Connection context data from tls_connection_init()
- * @in_data: Input data from TLS peer
- * @in_len: Input data length
- * @out_len: Length of the output buffer.
+ * @in_data: Input data from TLS server
  * @appl_data: Pointer to application data pointer, or %NULL if dropped
- * @appl_data_len: Pointer to variable that is set to appl_data length
- * Returns: Pointer to output data, %NULL on failure
+ * Returns: Output data, %NULL on failure
  *
- * Caller is responsible for freeing returned output data. If the final
+ * The caller is responsible for freeing the returned output data. If the final
  * handshake message includes application data, this is decrypted and
- * appl_data (if not %NULL) is set to point this data. Caller is responsible
- * for freeing appl_data.
+ * appl_data (if not %NULL) is set to point this data. The caller is
+ * responsible for freeing appl_data.
  *
  * This function is used during TLS handshake. The first call is done with
  * in_data == %NULL and the library is expected to return ClientHello packet.
@@ -312,62 +381,66 @@ int __must_check  tls_connection_prf(void *tls_ctx,
  * tls_connection_established() should return 1 once the TLS handshake has been
  * completed successfully.
  */
-u8 * tls_connection_handshake(void *tls_ctx, struct tls_connection *conn,
-			      const u8 *in_data, size_t in_len,
-			      size_t *out_len, u8 **appl_data,
-			      size_t *appl_data_len);
+struct wpabuf * tls_connection_handshake(void *tls_ctx,
+					 struct tls_connection *conn,
+					 const struct wpabuf *in_data,
+					 struct wpabuf **appl_data);
+
+struct wpabuf * tls_connection_handshake2(void *tls_ctx,
+					  struct tls_connection *conn,
+					  const struct wpabuf *in_data,
+					  struct wpabuf **appl_data,
+					  int *more_data_needed);
 
 /**
  * tls_connection_server_handshake - Process TLS handshake (server side)
  * @tls_ctx: TLS context data from tls_init()
  * @conn: Connection context data from tls_connection_init()
  * @in_data: Input data from TLS peer
- * @in_len: Input data length
- * @out_len: Length of the output buffer.
- * Returns: pointer to output data, %NULL on failure
+ * @appl_data: Pointer to application data pointer, or %NULL if dropped
+ * Returns: Output data, %NULL on failure
  *
- * Caller is responsible for freeing returned output data.
+ * The caller is responsible for freeing the returned output data.
  */
-u8 * tls_connection_server_handshake(void *tls_ctx,
-				     struct tls_connection *conn,
-				     const u8 *in_data, size_t in_len,
-				     size_t *out_len);
+struct wpabuf * tls_connection_server_handshake(void *tls_ctx,
+						struct tls_connection *conn,
+						const struct wpabuf *in_data,
+						struct wpabuf **appl_data);
 
 /**
  * tls_connection_encrypt - Encrypt data into TLS tunnel
  * @tls_ctx: TLS context data from tls_init()
  * @conn: Connection context data from tls_connection_init()
- * @in_data: Pointer to plaintext data to be encrypted
- * @in_len: Input buffer length
- * @out_data: Pointer to output buffer (encrypted TLS data)
- * @out_len: Maximum out_data length 
- * Returns: Number of bytes written to out_data, -1 on failure
+ * @in_data: Plaintext data to be encrypted
+ * Returns: Encrypted TLS data or %NULL on failure
  *
  * This function is used after TLS handshake has been completed successfully to
- * send data in the encrypted tunnel.
+ * send data in the encrypted tunnel. The caller is responsible for freeing the
+ * returned output data.
  */
-int __must_check tls_connection_encrypt(void *tls_ctx,
-					struct tls_connection *conn,
-					const u8 *in_data, size_t in_len,
-					u8 *out_data, size_t out_len);
+struct wpabuf * tls_connection_encrypt(void *tls_ctx,
+				       struct tls_connection *conn,
+				       const struct wpabuf *in_data);
 
 /**
  * tls_connection_decrypt - Decrypt data from TLS tunnel
  * @tls_ctx: TLS context data from tls_init()
  * @conn: Connection context data from tls_connection_init()
- * @in_data: Pointer to input buffer (encrypted TLS data)
- * @in_len: Input buffer length
- * @out_data: Pointer to output buffer (decrypted data from TLS tunnel)
- * @out_len: Maximum out_data length
- * Returns: Number of bytes written to out_data, -1 on failure
+ * @in_data: Encrypted TLS data
+ * Returns: Decrypted TLS data or %NULL on failure
  *
  * This function is used after TLS handshake has been completed successfully to
- * receive data from the encrypted tunnel.
+ * receive data from the encrypted tunnel. The caller is responsible for
+ * freeing the returned output data.
  */
-int __must_check tls_connection_decrypt(void *tls_ctx,
+struct wpabuf * tls_connection_decrypt(void *tls_ctx,
+				       struct tls_connection *conn,
+				       const struct wpabuf *in_data);
+
+struct wpabuf * tls_connection_decrypt2(void *tls_ctx,
 					struct tls_connection *conn,
-					const u8 *in_data, size_t in_len,
-					u8 *out_data, size_t out_len);
+					const struct wpabuf *in_data,
+					int *more_data_needed);
 
 /**
  * tls_connection_resumed - Was session resumption used
@@ -396,6 +469,19 @@ enum {
 int __must_check tls_connection_set_cipher_list(void *tls_ctx,
 						struct tls_connection *conn,
 						u8 *ciphers);
+
+/**
+ * tls_get_version - Get the current TLS version number
+ * @tls_ctx: TLS context data from tls_init()
+ * @conn: Connection context data from tls_connection_init()
+ * @buf: Buffer for returning the TLS version number
+ * @buflen: buf size
+ * Returns: 0 on success, -1 on failure
+ *
+ * Get the currently used TLS version number.
+ */
+int __must_check tls_get_version(void *tls_ctx, struct tls_connection *conn,
+				 char *buf, size_t buflen);
 
 /**
  * tls_get_cipher - Get current cipher name
@@ -464,63 +550,6 @@ int tls_connection_get_read_alerts(void *tls_ctx, struct tls_connection *conn);
 int tls_connection_get_write_alerts(void *tls_ctx,
 				    struct tls_connection *conn);
 
-/**
- * tls_connection_get_keyblock_size - Get TLS key_block size
- * @tls_ctx: TLS context data from tls_init()
- * @conn: Connection context data from tls_connection_init()
- * Returns: Size of the key_block for the negotiated cipher suite or -1 on
- * failure
- */
-int tls_connection_get_keyblock_size(void *tls_ctx,
-				     struct tls_connection *conn);
-
-#define TLS_CAPABILITY_IA 0x0001 /* TLS Inner Application (TLS/IA) */
-/**
- * tls_capabilities - Get supported TLS capabilities
- * @tls_ctx: TLS context data from tls_init()
- * Returns: Bit field of supported TLS capabilities (TLS_CAPABILITY_*)
- */
-unsigned int tls_capabilities(void *tls_ctx);
-
-/**
- * tls_connection_ia_send_phase_finished - Send a TLS/IA PhaseFinished message
- * @tls_ctx: TLS context data from tls_init()
- * @conn: Connection context data from tls_connection_init()
- * @final: 1 = FinalPhaseFinished, 0 = IntermediatePhaseFinished
- * @out_data: Pointer to output buffer (encrypted TLS/IA data)
- * @out_len: Maximum out_data length 
- * Returns: Number of bytes written to out_data on success, -1 on failure
- *
- * This function is used to send the TLS/IA end phase message, e.g., when the
- * EAP server completes EAP-TTLSv1.
- */
-int __must_check tls_connection_ia_send_phase_finished(
-	void *tls_ctx, struct tls_connection *conn, int final,
-	u8 *out_data, size_t out_len);
-
-/**
- * tls_connection_ia_final_phase_finished - Has final phase been completed
- * @tls_ctx: TLS context data from tls_init()
- * @conn: Connection context data from tls_connection_init()
- * Returns: 1 if valid FinalPhaseFinished has been received, 0 if not, or -1
- * on failure
- */
-int __must_check tls_connection_ia_final_phase_finished(
-	void *tls_ctx, struct tls_connection *conn);
-
-/**
- * tls_connection_ia_permute_inner_secret - Permute TLS/IA inner secret
- * @tls_ctx: TLS context data from tls_init()
- * @conn: Connection context data from tls_connection_init()
- * @key: Session key material (session_key vectors with 2-octet length), or
- * %NULL if no session key was generating in the current phase
- * @key_len: Length of session key material
- * Returns: 0 on success, -1 on failure
- */
-int __must_check tls_connection_ia_permute_inner_secret(
-	void *tls_ctx, struct tls_connection *conn,
-	const u8 *key, size_t key_len);
-
 typedef int (*tls_session_ticket_cb)
 (void *ctx, const u8 *ticket, size_t len, const u8 *client_random,
  const u8 *server_random, u8 *master_secret);
@@ -528,5 +557,32 @@ typedef int (*tls_session_ticket_cb)
 int __must_check  tls_connection_set_session_ticket_cb(
 	void *tls_ctx, struct tls_connection *conn,
 	tls_session_ticket_cb cb, void *ctx);
+
+void tls_connection_set_log_cb(struct tls_connection *conn,
+			       void (*log_cb)(void *ctx, const char *msg),
+			       void *ctx);
+
+#define TLS_BREAK_VERIFY_DATA BIT(0)
+#define TLS_BREAK_SRV_KEY_X_HASH BIT(1)
+#define TLS_BREAK_SRV_KEY_X_SIGNATURE BIT(2)
+#define TLS_DHE_PRIME_511B BIT(3)
+#define TLS_DHE_PRIME_767B BIT(4)
+#define TLS_DHE_PRIME_15 BIT(5)
+#define TLS_DHE_PRIME_58B BIT(6)
+#define TLS_DHE_NON_PRIME BIT(7)
+
+void tls_connection_set_test_flags(struct tls_connection *conn, u32 flags);
+
+int tls_get_library_version(char *buf, size_t buf_len);
+
+void tls_connection_set_success_data(struct tls_connection *conn,
+				     struct wpabuf *data);
+
+void tls_connection_set_success_data_resumed(struct tls_connection *conn);
+
+const struct wpabuf *
+tls_connection_get_success_data(struct tls_connection *conn);
+
+void tls_connection_remove_session(struct tls_connection *conn);
 
 #endif /* TLS_H */

@@ -1,5 +1,5 @@
 /*-
- * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
+ * Copyright (c) 2009 Robert C. Noland III <rnoland@FreeBSD.org>
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -20,11 +20,6 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
- *
- * Authors:
- *   Gareth Hughes <gareth@valinux.com>
- *   Eric Anholt <anholt@FreeBSD.org>
- *
  */
 
 #include <sys/cdefs.h>
@@ -32,118 +27,58 @@ __FBSDID("$FreeBSD$");
 
 /** @file drm_scatter.c
  * Allocation of memory for scatter-gather mappings by the graphics chip.
- *
  * The memory allocated here is then made into an aperture in the card
- * by drm_ati_pcigart_init().
+ * by mapping the pages into the GART.
  */
 
 #include "dev/drm/drmP.h"
-
-static void drm_sg_alloc_cb(void *arg, bus_dma_segment_t *segs,
-			    int nsegs, int error);
 
 int
 drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather *request)
 {
 	struct drm_sg_mem *entry;
-	struct drm_dma_handle *dmah;
-	unsigned long pages;
-	int ret;
+	vm_size_t size;
+	vm_pindex_t pindex;
 
 	if (dev->sg)
 		return EINVAL;
 
-	entry = malloc(sizeof(*entry), DRM_MEM_SGLISTS, M_WAITOK | M_ZERO);
-	if (!entry)
-		return ENOMEM;
+	DRM_DEBUG("request size=%ld\n", request->size);
 
-	pages = round_page(request->size) / PAGE_SIZE;
-	DRM_DEBUG("sg size=%ld pages=%ld\n", request->size, pages);
+	entry = malloc(sizeof(*entry), DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
 
-	entry->pages = pages;
+	size = round_page(request->size);
+	entry->pages = OFF_TO_IDX(size);
+	entry->busaddr = malloc(entry->pages * sizeof(*entry->busaddr),
+	    DRM_MEM_SGLISTS, M_WAITOK | M_ZERO);
 
-	entry->busaddr = malloc(pages * sizeof(*entry->busaddr), DRM_MEM_PAGES,
-	    M_WAITOK | M_ZERO);
-	if (!entry->busaddr) {
-		free(entry, DRM_MEM_SGLISTS);
-		return ENOMEM;
+	entry->vaddr = kmem_alloc_attr(kernel_arena, size, M_WAITOK | M_ZERO,
+	    0, BUS_SPACE_MAXADDR_32BIT, VM_MEMATTR_WRITE_COMBINING);
+	if (entry->vaddr == 0) {
+		drm_sg_cleanup(entry);
+		return (ENOMEM);
 	}
 
-	dmah = malloc(sizeof(struct drm_dma_handle), DRM_MEM_DMA,
-	    M_ZERO | M_NOWAIT);
-	if (dmah == NULL) {
-		free(entry->busaddr, DRM_MEM_PAGES);
-		free(entry, DRM_MEM_SGLISTS);
-		return ENOMEM;
+	for(pindex = 0; pindex < entry->pages; pindex++) {
+		entry->busaddr[pindex] =
+		    vtophys(entry->vaddr + IDX_TO_OFF(pindex));
 	}
-
-	ret = bus_dma_tag_create(NULL, PAGE_SIZE, 0, /* tag, align, boundary */
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, /* lowaddr, highaddr */
-	    NULL, NULL, /* filtfunc, filtfuncargs */
-	    request->size, pages, /* maxsize, nsegs */
-	    PAGE_SIZE, 0, /* maxsegsize, flags */
-	    NULL, NULL, /* lockfunc, lockfuncargs */
-	    &dmah->tag);
-	if (ret != 0) {
-		free(dmah, DRM_MEM_DMA);
-		free(entry->busaddr, DRM_MEM_PAGES);
-		free(entry, DRM_MEM_SGLISTS);
-		return ENOMEM;
-	}
-
-	ret = bus_dmamem_alloc(dmah->tag, &dmah->vaddr,
-	    BUS_DMA_WAITOK | BUS_DMA_ZERO | BUS_DMA_NOCACHE, &dmah->map);
-	if (ret != 0) {
-		bus_dma_tag_destroy(dmah->tag);
-		free(dmah, DRM_MEM_DMA);
-		free(entry->busaddr, DRM_MEM_PAGES);
-		free(entry, DRM_MEM_SGLISTS);
-		return ENOMEM;
-	}
-
-	ret = bus_dmamap_load(dmah->tag, dmah->map, dmah->vaddr,
-	    request->size, drm_sg_alloc_cb, entry, BUS_DMA_NOWAIT);
-	if (ret != 0) {
-		bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
-		bus_dma_tag_destroy(dmah->tag);
-		free(dmah, DRM_MEM_DMA);
-		free(entry->busaddr, DRM_MEM_PAGES);
-		free(entry, DRM_MEM_SGLISTS);
-		return ENOMEM;
-	}
-
-	entry->dmah = dmah;
-	entry->handle = (unsigned long)dmah->vaddr;
-	
-	DRM_DEBUG("sg alloc handle  = %08lx\n", entry->handle);
-
-	entry->virtual = (void *)entry->handle;
-	request->handle = entry->handle;
 
 	DRM_LOCK();
 	if (dev->sg) {
 		DRM_UNLOCK();
 		drm_sg_cleanup(entry);
-		return EINVAL;
+		return (EINVAL);
 	}
 	dev->sg = entry;
 	DRM_UNLOCK();
 
-	return 0;
-}
+	request->handle = entry->vaddr;
 
-static void
-drm_sg_alloc_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
-{
-	struct drm_sg_mem *entry = arg;
-	int i;
+	DRM_DEBUG("allocated %ju pages @ 0x%08zx, contents=%08lx\n",
+	    entry->pages, entry->vaddr, *(unsigned long *)entry->vaddr);
 
-	if (error != 0)
-	    return;
-
-	for(i = 0 ; i < nsegs ; i++) {
-		entry->busaddr[i] = segs[i].ds_addr;
-	}
+	return (0);
 }
 
 int
@@ -154,20 +89,22 @@ drm_sg_alloc_ioctl(struct drm_device *dev, void *data,
 
 	DRM_DEBUG("\n");
 
-	return drm_sg_alloc(dev, request);
+	return (drm_sg_alloc(dev, request));
 }
 
 void
 drm_sg_cleanup(struct drm_sg_mem *entry)
 {
-	struct drm_dma_handle *dmah = entry->dmah;
+	if (entry == NULL)
+		return;
 
-	bus_dmamap_unload(dmah->tag, dmah->map);
-	bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
-	bus_dma_tag_destroy(dmah->tag);
-	free(dmah, DRM_MEM_DMA);
-	free(entry->busaddr, DRM_MEM_PAGES);
-	free(entry, DRM_MEM_SGLISTS);
+	if (entry->vaddr != 0)
+		kmem_free(kernel_arena, entry->vaddr, IDX_TO_OFF(entry->pages));
+
+	free(entry->busaddr, DRM_MEM_SGLISTS);
+	free(entry, DRM_MEM_DRIVER);
+
+	return;
 }
 
 int
@@ -181,12 +118,12 @@ drm_sg_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	dev->sg = NULL;
 	DRM_UNLOCK();
 
-	if (!entry || entry->handle != request->handle)
-		return EINVAL;
+	if (!entry || entry->vaddr != request->handle)
+		return (EINVAL);
 
-	DRM_DEBUG("sg free virtual = 0x%lx\n", entry->handle);
+	DRM_DEBUG("free 0x%zx\n", entry->vaddr);
 
 	drm_sg_cleanup(entry);
 
-	return 0;
+	return (0);
 }

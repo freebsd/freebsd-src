@@ -1,5 +1,3 @@
-.\" @(#) $Header: /tcpdump/master/libpcap/pcap_activate.3pcap,v 1.1.2.5 2008-07-01 08:04:03 guy Exp $
-.\"
 .\" Copyright (c) 1994, 1996, 1997
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -19,7 +17,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP_ACTIVATE 3PCAP "5 April 2008"
+.TH PCAP_ACTIVATE 3PCAP "21 September 2010"
 .SH NAME
 pcap_activate \- activate a capture handle
 .SH SYNOPSIS
@@ -43,6 +41,11 @@ returns 0 on success without warnings,
 .B PCAP_WARNING_PROMISC_NOTSUP
 on success on a device that doesn't support promiscuous mode if
 promiscuous mode was requested,
+.B PCAP_WARNING_TSTAMP_TYPE_NOTSUP
+on success if the time stamp type specified in a previous
+.B pcap_set_tstamp_type()
+call isn't supported by the capture source (the time stamp type is
+left as the default),
 .B PCAP_WARNING
 on success with any other warning,
 .B PCAP_ERROR_ACTIVATED
@@ -52,6 +55,9 @@ if the capture source specified when the handle was created doesn't
 exist,
 .B PCAP_ERROR_PERM_DENIED
 if the process doesn't have permission to open the capture source,
+.B PCAP_ERROR_PROMISC_PERM_DENIED
+if the process has permission to open the capture source but doesn't
+have permission to put it into promiscuous mode,
 .B PCAP_ERROR_RFMON_NOTSUP
 if monitor mode was specified but the capture source doesn't support
 monitor mode,

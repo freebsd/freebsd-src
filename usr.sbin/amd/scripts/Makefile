@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../contrib/amd/scripts
+.PATH: ${SRCTOP}/contrib/amd/scripts
 
 MAN=	amd.conf.5
 

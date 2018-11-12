@@ -44,8 +44,12 @@
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/random.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
+#include <sys/mutex.h>
+#include <machine/atomic.h>
 
 #include <net/if.h>
 #include <net/vnet.h>
@@ -56,7 +60,6 @@
 #include <netinet/ip_ecn.h>
 #include <netinet/ip6.h>
 
-#include <net/route.h>
 #include <netipsec/ipsec.h>
 #include <netipsec/ah.h>
 #include <netipsec/ah_var.h>
@@ -77,17 +80,19 @@
 #include <opencrypto/xform.h>
 
 VNET_DEFINE(int, esp_enable) = 1;
-VNET_DEFINE(struct espstat, espstat);
+VNET_PCPUSTAT_DEFINE(struct espstat, espstat);
+VNET_PCPUSTAT_SYSINIT(espstat);
+
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(espstat);
+#endif /* VIMAGE */
 
 SYSCTL_DECL(_net_inet_esp);
-SYSCTL_VNET_INT(_net_inet_esp, OID_AUTO,
-	esp_enable,	CTLFLAG_RW,	&VNET_NAME(esp_enable),	0, "");
-SYSCTL_VNET_STRUCT(_net_inet_esp, IPSECCTL_STATS,
-	stats,		CTLFLAG_RD,	&VNET_NAME(espstat),	espstat, "");
-
-/* max iv length over all algorithms */
-static VNET_DEFINE(int, esp_max_ivlen) = 0;
-#define	V_esp_max_ivlen	VNET(esp_max_ivlen)
+SYSCTL_INT(_net_inet_esp, OID_AUTO, esp_enable,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(esp_enable), 0, "");
+SYSCTL_VNET_PCPUSTAT(_net_inet_esp, IPSECCTL_STATS, stats,
+    struct espstat, espstat,
+    "ESP statistics (struct espstat, netipsec/esp_var.h");
 
 static int esp_input_cb(struct cryptop *op);
 static int esp_output_cb(struct cryptop *crp);
@@ -112,12 +117,16 @@ esp_algorithm_lookup(int alg)
 		return &enc_xform_blf;
 	case SADB_X_EALG_CAST128CBC:
 		return &enc_xform_cast5;
-	case SADB_X_EALG_SKIPJACK:
-		return &enc_xform_skipjack;
 	case SADB_EALG_NULL:
 		return &enc_xform_null;
 	case SADB_X_EALG_CAMELLIACBC:
 		return &enc_xform_camellia;
+	case SADB_X_EALG_AESCTR:
+		return &enc_xform_aes_icm;
+	case SADB_X_EALG_AESGCM16:
+		return &enc_xform_aes_nist_gcm;
+	case SADB_X_EALG_AESGMAC:
+		return &enc_xform_aes_nist_gmac;
 	}
 	return NULL;
 }
@@ -148,7 +157,7 @@ esp_hdrsiz(struct secasvar *sav)
 		 * + sizeof (next header field)
 		 * + max icv supported.
 		 */
-		size = sizeof (struct newesp) + V_esp_max_ivlen + 9 + 16;
+		size = sizeof (struct newesp) + EALG_MAX_BLOCK_LEN + 9 + 16;
 	}
 	return size;
 }
@@ -175,12 +184,14 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 			 __func__, txform->name));
 		return EINVAL;
 	}
-	if ((sav->flags&(SADB_X_EXT_OLD|SADB_X_EXT_IV4B)) == SADB_X_EXT_IV4B) {
+	if ((sav->flags & (SADB_X_EXT_OLD | SADB_X_EXT_IV4B)) ==
+	    SADB_X_EXT_IV4B) {
 		DPRINTF(("%s: 4-byte IV not supported with protocol\n",
 			__func__));
 		return EINVAL;
 	}
-	keylen = _KEYLEN(sav->key_enc);
+	/* subtract off the salt, RFC4106, 8.1 and RFC3686, 5.1 */
+	keylen = _KEYLEN(sav->key_enc) - SAV_ISCTRORGCM(sav) * 4;
 	if (txform->minkey > keylen || keylen > txform->maxkey) {
 		DPRINTF(("%s: invalid key length %u, must be in the range "
 			"[%u..%u] for algorithm %s\n", __func__,
@@ -189,19 +200,10 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 		return EINVAL;
 	}
 
-	/*
-	 * NB: The null xform needs a non-zero blocksize to keep the
-	 *      crypto code happy but if we use it to set ivlen then
-	 *      the ESP header will be processed incorrectly.  The
-	 *      compromise is to force it to zero here.
-	 */
-	sav->ivlen = (txform == &enc_xform_null ? 0 : txform->blocksize);
-	sav->iv = (caddr_t) malloc(sav->ivlen, M_XDATA, M_WAITOK);
-	if (sav->iv == NULL) {
-		DPRINTF(("%s: no memory for IV\n", __func__));
-		return EINVAL;
-	}
-	key_randomfill(sav->iv, sav->ivlen);	/*XXX*/
+	if (SAV_ISCTRORGCM(sav))
+		sav->ivlen = 8;	/* RFC4106 3.1 and RFC3686 3.1 */
+	else
+		sav->ivlen = txform->ivsize;
 
 	/*
 	 * Setup AH-related state.
@@ -216,12 +218,42 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 	sav->tdb_xform = xsp;
 	sav->tdb_encalgxform = txform;
 
+	/*
+	 * Whenever AES-GCM is used for encryption, one
+	 * of the AES authentication algorithms is chosen
+	 * as well, based on the key size.
+	 */
+	if (sav->alg_enc == SADB_X_EALG_AESGCM16) {
+		switch (keylen) {
+		case AES_128_GMAC_KEY_LEN:
+			sav->alg_auth = SADB_X_AALG_AES128GMAC;
+			sav->tdb_authalgxform = &auth_hash_nist_gmac_aes_128;
+			break;
+		case AES_192_GMAC_KEY_LEN:
+			sav->alg_auth = SADB_X_AALG_AES192GMAC;
+			sav->tdb_authalgxform = &auth_hash_nist_gmac_aes_192;
+			break;
+		case AES_256_GMAC_KEY_LEN:
+			sav->alg_auth = SADB_X_AALG_AES256GMAC;
+			sav->tdb_authalgxform = &auth_hash_nist_gmac_aes_256;
+			break;
+		default:
+			DPRINTF(("%s: invalid key length %u"
+				 "for algorithm %s\n", __func__,
+				 keylen, txform->name));
+			return EINVAL;
+		}
+		bzero(&cria, sizeof(cria));
+		cria.cri_alg = sav->tdb_authalgxform->type;
+		cria.cri_key = sav->key_enc->key_data;
+		cria.cri_klen = _KEYBITS(sav->key_enc) - SAV_ISGCM(sav) * 32;
+	}
+
 	/* Initialize crypto session. */
-	bzero(&crie, sizeof (crie));
+	bzero(&crie, sizeof(crie));
 	crie.cri_alg = sav->tdb_encalgxform->type;
-	crie.cri_klen = _KEYBITS(sav->key_enc);
 	crie.cri_key = sav->key_enc->key_data;
-	/* XXX Rounds ? */
+	crie.cri_klen = _KEYBITS(sav->key_enc) - SAV_ISCTRORGCM(sav) * 32;
 
 	if (sav->tdb_authalgxform && sav->tdb_encalgxform) {
 		/* init both auth & enc */
@@ -254,10 +286,6 @@ esp_zeroize(struct secasvar *sav)
 
 	if (sav->key_enc)
 		bzero(sav->key_enc->key_data, _KEYLEN(sav->key_enc));
-	if (sav->iv) {
-		free(sav->iv, M_XDATA);
-		sav->iv = NULL;
-	}
 	sav->tdb_encalgxform = NULL;
 	sav->tdb_xform = NULL;
 	return error;
@@ -269,14 +297,13 @@ esp_zeroize(struct secasvar *sav)
 static int
 esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
+	char buf[128];
 	struct auth_hash *esph;
 	struct enc_xform *espx;
-	struct tdb_ident *tdbi;
 	struct tdb_crypto *tc;
+	uint8_t *ivp;
 	int plen, alen, hlen;
-	struct m_tag *mtag;
 	struct newesp *esp;
-
 	struct cryptodesc *crde;
 	struct cryptop *crp;
 
@@ -287,24 +314,23 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	if ( (skip&3) || (m->m_pkthdr.len&3) ){
 		DPRINTF(("%s: misaligned packet, skip %u pkt len %u",
 				__func__, skip, m->m_pkthdr.len));
-		V_espstat.esps_badilen++;
+		ESPSTAT_INC(esps_badilen);
 		m_freem(m);
 		return EINVAL;
 	}
-
 	/* XXX don't pullup, just copy header */
 	IP6_EXTHDR_GET(esp, struct newesp *, m, skip, sizeof (struct newesp));
 
 	esph = sav->tdb_authalgxform;
 	espx = sav->tdb_encalgxform;
 
-	/* Determine the ESP header length */
+	/* Determine the ESP header and auth length */
 	if (sav->flags & SADB_X_EXT_OLD)
 		hlen = sizeof (struct esp) + sav->ivlen;
 	else
 		hlen = sizeof (struct newesp) + sav->ivlen;
-	/* Authenticator hash size */
-	alen = esph ? AH_HMAC_HASHLEN : 0;
+
+	alen = xform_ah_authsize(esph);
 
 	/*
 	 * Verify payload length is multiple of encryption algorithm
@@ -317,11 +343,10 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	plen = m->m_pkthdr.len - (skip + hlen + alen);
 	if ((plen & (espx->blocksize - 1)) || (plen <= 0)) {
 		DPRINTF(("%s: payload of %d octets not a multiple of %d octets,"
-		    "  SA %s/%08lx\n", __func__,
-		    plen, espx->blocksize,
-		    ipsec_address(&sav->sah->saidx.dst),
-		    (u_long) ntohl(sav->spi)));
-		V_espstat.esps_badilen++;
+		    "  SA %s/%08lx\n", __func__, plen, espx->blocksize,
+		    ipsec_address(&sav->sah->saidx.dst, buf, sizeof(buf)),
+		    (u_long)ntohl(sav->spi)));
+		ESPSTAT_INC(esps_badilen);
 		m_freem(m);
 		return EINVAL;
 	}
@@ -329,74 +354,57 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/*
 	 * Check sequence number.
 	 */
-	if (esph && sav->replay && !ipsec_chkreplay(ntohl(esp->esp_seq), sav)) {
+	if (esph != NULL && sav->replay != NULL &&
+	    !ipsec_chkreplay(ntohl(esp->esp_seq), sav)) {
 		DPRINTF(("%s: packet replay check for %s\n", __func__,
-		    ipsec_logsastr(sav)));	/*XXX*/
-		V_espstat.esps_replay++;
+		    ipsec_logsastr(sav, buf, sizeof(buf))));	/*XXX*/
+		ESPSTAT_INC(esps_replay);
 		m_freem(m);
 		return ENOBUFS;		/*XXX*/
 	}
 
 	/* Update the counters */
-	V_espstat.esps_ibytes += m->m_pkthdr.len - (skip + hlen + alen);
-
-	/* Find out if we've already done crypto */
-	for (mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_CRYPTO_DONE, NULL);
-	     mtag != NULL;
-	     mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_CRYPTO_DONE, mtag)) {
-		tdbi = (struct tdb_ident *) (mtag + 1);
-		if (tdbi->proto == sav->sah->saidx.proto &&
-		    tdbi->spi == sav->spi &&
-		    !bcmp(&tdbi->dst, &sav->sah->saidx.dst,
-			  sizeof(union sockaddr_union)))
-			break;
-	}
+	ESPSTAT_ADD(esps_ibytes, m->m_pkthdr.len - (skip + hlen + alen));
 
 	/* Get crypto descriptors */
 	crp = crypto_getreq(esph && espx ? 2 : 1);
 	if (crp == NULL) {
 		DPRINTF(("%s: failed to acquire crypto descriptors\n",
 			__func__));
-		V_espstat.esps_crypto++;
+		ESPSTAT_INC(esps_crypto);
 		m_freem(m);
 		return ENOBUFS;
 	}
 
 	/* Get IPsec-specific opaque pointer */
-	if (esph == NULL || mtag != NULL)
-		tc = (struct tdb_crypto *) malloc(sizeof(struct tdb_crypto),
-		    M_XDATA, M_NOWAIT|M_ZERO);
-	else
-		tc = (struct tdb_crypto *) malloc(sizeof(struct tdb_crypto) + alen,
-		    M_XDATA, M_NOWAIT|M_ZERO);
+	tc = (struct tdb_crypto *) malloc(sizeof(struct tdb_crypto) + alen,
+	    M_XDATA, M_NOWAIT | M_ZERO);
 	if (tc == NULL) {
 		crypto_freereq(crp);
 		DPRINTF(("%s: failed to allocate tdb_crypto\n", __func__));
-		V_espstat.esps_crypto++;
+		ESPSTAT_INC(esps_crypto);
 		m_freem(m);
 		return ENOBUFS;
 	}
 
-	tc->tc_ptr = (caddr_t) mtag;
-
-	if (esph) {
+	if (esph != NULL) {
 		struct cryptodesc *crda = crp->crp_desc;
 
 		IPSEC_ASSERT(crda != NULL, ("null ah crypto descriptor"));
 
 		/* Authentication descriptor */
 		crda->crd_skip = skip;
-		crda->crd_len = m->m_pkthdr.len - (skip + alen);
+		if (SAV_ISGCM(sav))
+			crda->crd_len = 8;	/* RFC4106 5, SPI + SN */
+		else
+			crda->crd_len = m->m_pkthdr.len - (skip + alen);
 		crda->crd_inject = m->m_pkthdr.len - alen;
 
 		crda->crd_alg = esph->type;
-		crda->crd_key = sav->key_auth->key_data;
-		crda->crd_klen = _KEYBITS(sav->key_auth);
 
 		/* Copy the authenticator */
-		if (mtag == NULL)
-			m_copydata(m, m->m_pkthdr.len - alen, alen,
-				   (caddr_t) (tc + 1));
+		m_copydata(m, m->m_pkthdr.len - alen, alen,
+		    (caddr_t) (tc + 1));
 
 		/* Chain authentication request */
 		crde = crda->crd_next;
@@ -418,38 +426,38 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	tc->tc_proto = sav->sah->saidx.proto;
 	tc->tc_protoff = protoff;
 	tc->tc_skip = skip;
+	KEY_ADDREFSA(sav);
+	tc->tc_sav = sav;
 
 	/* Decryption descriptor */
-	if (espx) {
-		IPSEC_ASSERT(crde != NULL, ("null esp crypto descriptor"));
-		crde->crd_skip = skip + hlen;
-		crde->crd_len = m->m_pkthdr.len - (skip + hlen + alen);
-		crde->crd_inject = skip + hlen - sav->ivlen;
+	IPSEC_ASSERT(crde != NULL, ("null esp crypto descriptor"));
+	crde->crd_skip = skip + hlen;
+	crde->crd_len = m->m_pkthdr.len - (skip + hlen + alen);
+	crde->crd_inject = skip + hlen - sav->ivlen;
 
-		crde->crd_alg = espx->type;
-		crde->crd_key = sav->key_enc->key_data;
-		crde->crd_klen = _KEYBITS(sav->key_enc);
-		/* XXX Rounds ? */
+	if (SAV_ISCTRORGCM(sav)) {
+		ivp = &crde->crd_iv[0];
+
+		/* GCM IV Format: RFC4106 4 */
+		/* CTR IV Format: RFC3686 4 */
+		/* Salt is last four bytes of key, RFC4106 8.1 */
+		/* Nonce is last four bytes of key, RFC3686 5.1 */
+		memcpy(ivp, sav->key_enc->key_data +
+		    _KEYLEN(sav->key_enc) - 4, 4);
+
+		if (SAV_ISCTR(sav)) {
+			/* Initial block counter is 1, RFC3686 4 */
+			be32enc(&ivp[sav->ivlen + 4], 1);
+		}
+
+		m_copydata(m, skip + hlen - sav->ivlen, sav->ivlen, &ivp[4]);
+		crde->crd_flags |= CRD_F_IV_EXPLICIT;
 	}
 
-	if (mtag == NULL)
-		return crypto_dispatch(crp);
-	else
-		return esp_input_cb(crp);
-}
+	crde->crd_alg = espx->type;
 
-#ifdef INET6
-#define	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag) do {		     \
-	if (saidx->dst.sa.sa_family == AF_INET6) {			     \
-		error = ipsec6_common_input_cb(m, sav, skip, protoff, mtag); \
-	} else {							     \
-		error = ipsec4_common_input_cb(m, sav, skip, protoff, mtag); \
-	}								     \
-} while (0)
-#else
-#define	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag)		     \
-	(error = ipsec4_common_input_cb(m, sav, skip, protoff, mtag))
-#endif
+	return (crypto_dispatch(crp));
+}
 
 /*
  * ESP input callback from the crypto driver.
@@ -457,14 +465,14 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 static int
 esp_input_cb(struct cryptop *crp)
 {
-	u_int8_t lastthree[3], aalg[AH_HMAC_HASHLEN];
-	int hlen, skip, protoff, error;
+	char buf[128];
+	u_int8_t lastthree[3], aalg[AH_HMAC_MAXHASHLEN];
+	int hlen, skip, protoff, error, alen;
 	struct mbuf *m;
 	struct cryptodesc *crd;
 	struct auth_hash *esph;
 	struct enc_xform *espx;
 	struct tdb_crypto *tc;
-	struct m_tag *mtag;
 	struct secasvar *sav;
 	struct secasindex *saidx;
 	caddr_t ptr;
@@ -476,18 +484,10 @@ esp_input_cb(struct cryptop *crp)
 	IPSEC_ASSERT(tc != NULL, ("null opaque crypto data area!"));
 	skip = tc->tc_skip;
 	protoff = tc->tc_protoff;
-	mtag = (struct m_tag *) tc->tc_ptr;
 	m = (struct mbuf *) crp->crp_buf;
 
-	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
-	if (sav == NULL) {
-		V_espstat.esps_notdb++;
-		DPRINTF(("%s: SA gone during crypto (SA %s/%08lx proto %u)\n",
-		    __func__, ipsec_address(&tc->tc_dst),
-		    (u_long) ntohl(tc->tc_spi), tc->tc_proto));
-		error = ENOBUFS;		/*XXX*/
-		goto bad;
-	}
+	sav = tc->tc_sav;
+	IPSEC_ASSERT(sav != NULL, ("null SA!"));
 
 	saidx = &sav->sah->saidx;
 	IPSEC_ASSERT(saidx->dst.sa.sa_family == AF_INET ||
@@ -503,13 +503,10 @@ esp_input_cb(struct cryptop *crp)
 		if (sav->tdb_cryptoid != 0)
 			sav->tdb_cryptoid = crp->crp_sid;
 
-		if (crp->crp_etype == EAGAIN) {
-			KEY_FREESAV(&sav);
-			error = crypto_dispatch(crp);
-			return error;
-		}
+		if (crp->crp_etype == EAGAIN)
+			return (crypto_dispatch(crp));
 
-		V_espstat.esps_noxform++;
+		ESPSTAT_INC(esps_noxform);
 		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
 		error = crp->crp_etype;
 		goto bad;
@@ -517,43 +514,34 @@ esp_input_cb(struct cryptop *crp)
 
 	/* Shouldn't happen... */
 	if (m == NULL) {
-		V_espstat.esps_crypto++;
+		ESPSTAT_INC(esps_crypto);
 		DPRINTF(("%s: bogus returned buffer from crypto\n", __func__));
 		error = EINVAL;
 		goto bad;
 	}
-	V_espstat.esps_hist[sav->alg_enc]++;
+	ESPSTAT_INC(esps_hist[sav->alg_enc]);
 
 	/* If authentication was performed, check now. */
 	if (esph != NULL) {
-		/*
-		 * If we have a tag, it means an IPsec-aware NIC did
-		 * the verification for us.  Otherwise we need to
-		 * check the authentication calculation.
-		 */
-		V_ahstat.ahs_hist[sav->alg_auth]++;
-		if (mtag == NULL) {
-			/* Copy the authenticator from the packet */
-			m_copydata(m, m->m_pkthdr.len - AH_HMAC_HASHLEN,
-				AH_HMAC_HASHLEN, aalg);
+		alen = xform_ah_authsize(esph);
+		AHSTAT_INC(ahs_hist[sav->alg_auth]);
+		/* Copy the authenticator from the packet */
+		m_copydata(m, m->m_pkthdr.len - alen, alen, aalg);
+		ptr = (caddr_t) (tc + 1);
 
-			ptr = (caddr_t) (tc + 1);
-
-			/* Verify authenticator */
-			if (bcmp(ptr, aalg, AH_HMAC_HASHLEN) != 0) {
-				DPRINTF(("%s: "
-		    "authentication hash mismatch for packet in SA %s/%08lx\n",
-				    __func__,
-				    ipsec_address(&saidx->dst),
-				    (u_long) ntohl(sav->spi)));
-				V_espstat.esps_badauth++;
-				error = EACCES;
-				goto bad;
-			}
+		/* Verify authenticator */
+		if (timingsafe_bcmp(ptr, aalg, alen) != 0) {
+			DPRINTF(("%s: authentication hash mismatch for "
+			    "packet in SA %s/%08lx\n", __func__,
+			    ipsec_address(&saidx->dst, buf, sizeof(buf)),
+			    (u_long) ntohl(sav->spi)));
+			ESPSTAT_INC(esps_badauth);
+			error = EACCES;
+			goto bad;
 		}
 
 		/* Remove trailing authenticator */
-		m_adj(m, -AH_HMAC_HASHLEN);
+		m_adj(m, -alen);
 	}
 
 	/* Release the crypto descriptors */
@@ -575,8 +563,8 @@ esp_input_cb(struct cryptop *crp)
 			   sizeof (seq), (caddr_t) &seq);
 		if (ipsec_updatereplay(ntohl(seq), sav)) {
 			DPRINTF(("%s: packet replay check for %s\n", __func__,
-			    ipsec_logsastr(sav)));
-			V_espstat.esps_replay++;
+			    ipsec_logsastr(sav, buf, sizeof(buf))));
+			ESPSTAT_INC(esps_replay);
 			error = ENOBUFS;
 			goto bad;
 		}
@@ -591,9 +579,9 @@ esp_input_cb(struct cryptop *crp)
 	/* Remove the ESP header and IV from the mbuf. */
 	error = m_striphdr(m, skip, hlen);
 	if (error) {
-		V_espstat.esps_hdrops++;
+		ESPSTAT_INC(esps_hdrops);
 		DPRINTF(("%s: bad mbuf chain, SA %s/%08lx\n", __func__,
-		    ipsec_address(&sav->sah->saidx.dst),
+		    ipsec_address(&sav->sah->saidx.dst, buf, sizeof(buf)),
 		    (u_long) ntohl(sav->spi)));
 		goto bad;
 	}
@@ -603,12 +591,12 @@ esp_input_cb(struct cryptop *crp)
 
 	/* Verify pad length */
 	if (lastthree[1] + 2 > m->m_pkthdr.len - skip) {
-		V_espstat.esps_badilen++;
+		ESPSTAT_INC(esps_badilen);
 		DPRINTF(("%s: invalid padding length %d for %u byte packet "
-			"in SA %s/%08lx\n", __func__,
-			 lastthree[1], m->m_pkthdr.len - skip,
-			 ipsec_address(&sav->sah->saidx.dst),
-			 (u_long) ntohl(sav->spi)));
+		    "in SA %s/%08lx\n", __func__, lastthree[1],
+		    m->m_pkthdr.len - skip,
+		    ipsec_address(&sav->sah->saidx.dst, buf, sizeof(buf)),
+		    (u_long) ntohl(sav->spi)));
 		error = EINVAL;
 		goto bad;
 	}
@@ -616,11 +604,11 @@ esp_input_cb(struct cryptop *crp)
 	/* Verify correct decryption by checking the last padding bytes */
 	if ((sav->flags & SADB_X_EXT_PMASK) != SADB_X_EXT_PRAND) {
 		if (lastthree[1] != lastthree[0] && lastthree[1] != 0) {
-			V_espstat.esps_badenc++;
+			ESPSTAT_INC(esps_badenc);
 			DPRINTF(("%s: decryption failed for packet in "
-				"SA %s/%08lx\n", __func__,
-				ipsec_address(&sav->sah->saidx.dst),
-				(u_long) ntohl(sav->spi)));
+			    "SA %s/%08lx\n", __func__, ipsec_address(
+			    &sav->sah->saidx.dst, buf, sizeof(buf)),
+			    (u_long) ntohl(sav->spi)));
 			error = EINVAL;
 			goto bad;
 		}
@@ -632,7 +620,21 @@ esp_input_cb(struct cryptop *crp)
 	/* Restore the Next Protocol field */
 	m_copyback(m, protoff, sizeof (u_int8_t), lastthree + 2);
 
-	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag);
+	switch (saidx->dst.sa.sa_family) {
+#ifdef INET6
+	case AF_INET6:
+		error = ipsec6_common_input_cb(m, sav, skip, protoff);
+		break;
+#endif
+#ifdef INET
+	case AF_INET:
+		error = ipsec4_common_input_cb(m, sav, skip, protoff);
+		break;
+#endif
+	default:
+		panic("%s: Unexpected address family: %d saidx=%p", __func__,
+		    saidx->dst.sa.sa_family, saidx);
+	}
 
 	KEY_FREESAV(&sav);
 	return error;
@@ -652,17 +654,15 @@ bad:
  * ESP output routine, called by ipsec[46]_process_packet().
  */
 static int
-esp_output(
-	struct mbuf *m,
-	struct ipsecrequest *isr,
-	struct mbuf **mp,
-	int skip,
-	int protoff
-)
+esp_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
+    int skip, int protoff)
 {
+	char buf[INET6_ADDRSTRLEN];
 	struct enc_xform *espx;
 	struct auth_hash *esph;
-	int hlen, rlen, plen, padding, blks, alen, i, roff;
+	uint8_t *ivp;
+	uint64_t cntr;
+	int hlen, rlen, padding, blks, alen, i, roff;
 	struct mbuf *mo = (struct mbuf *) NULL;
 	struct tdb_crypto *tc;
 	struct secasvar *sav;
@@ -687,21 +687,16 @@ esp_output(
 
 	rlen = m->m_pkthdr.len - skip;	/* Raw payload length. */
 	/*
-	 * NB: The null encoding transform has a blocksize of 4
-	 *     so that headers are properly aligned.
+	 * RFC4303 2.4 Requires 4 byte alignment.
 	 */
-	blks = espx->blocksize;		/* IV blocksize */
+	blks = MAX(4, espx->blocksize);		/* Cipher blocksize */
 
 	/* XXX clamp padding length a la KAME??? */
 	padding = ((blks - ((rlen + 2) % blks)) % blks) + 2;
-	plen = rlen + padding;		/* Padded payload length. */
 
-	if (esph)
-		alen = AH_HMAC_HASHLEN;
-	else
-		alen = 0;
+	alen = xform_ah_authsize(esph);
 
-	V_espstat.esps_output++;
+	ESPSTAT_INC(esps_output);
 
 	saidx = &sav->sah->saidx;
 	/* Check for maximum packet size violations. */
@@ -719,30 +714,34 @@ esp_output(
 	default:
 		DPRINTF(("%s: unknown/unsupported protocol "
 		    "family %d, SA %s/%08lx\n", __func__,
-		    saidx->dst.sa.sa_family, ipsec_address(&saidx->dst),
-		    (u_long) ntohl(sav->spi)));
-		V_espstat.esps_nopf++;
+		    saidx->dst.sa.sa_family, ipsec_address(&saidx->dst,
+			buf, sizeof(buf)), (u_long) ntohl(sav->spi)));
+		ESPSTAT_INC(esps_nopf);
 		error = EPFNOSUPPORT;
 		goto bad;
 	}
+	DPRINTF(("%s: skip %d hlen %d rlen %d padding %d alen %d blksd %d\n",
+		__func__, skip, hlen, rlen, padding, alen, blks));
 	if (skip + hlen + rlen + padding + alen > maxpacketsize) {
 		DPRINTF(("%s: packet in SA %s/%08lx got too big "
 		    "(len %u, max len %u)\n", __func__,
-		    ipsec_address(&saidx->dst), (u_long) ntohl(sav->spi),
+		    ipsec_address(&saidx->dst, buf, sizeof(buf)),
+		    (u_long) ntohl(sav->spi),
 		    skip + hlen + rlen + padding + alen, maxpacketsize));
-		V_espstat.esps_toobig++;
+		ESPSTAT_INC(esps_toobig);
 		error = EMSGSIZE;
 		goto bad;
 	}
 
 	/* Update the counters. */
-	V_espstat.esps_obytes += m->m_pkthdr.len - skip;
+	ESPSTAT_ADD(esps_obytes, m->m_pkthdr.len - skip);
 
 	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL) {
 		DPRINTF(("%s: cannot clone mbuf chain, SA %s/%08lx\n", __func__,
-		    ipsec_address(&saidx->dst), (u_long) ntohl(sav->spi)));
-		V_espstat.esps_hdrops++;
+		    ipsec_address(&saidx->dst, buf, sizeof(buf)),
+		    (u_long) ntohl(sav->spi)));
+		ESPSTAT_INC(esps_hdrops);
 		error = ENOBUFS;
 		goto bad;
 	}
@@ -751,9 +750,9 @@ esp_output(
 	mo = m_makespace(m, skip, hlen, &roff);
 	if (mo == NULL) {
 		DPRINTF(("%s: %u byte ESP hdr inject failed for SA %s/%08lx\n",
-		    __func__, hlen, ipsec_address(&saidx->dst),
-		    (u_long) ntohl(sav->spi)));
-		V_espstat.esps_hdrops++;		/* XXX diffs from openbsd */
+		    __func__, hlen, ipsec_address(&saidx->dst, buf,
+		    sizeof(buf)), (u_long) ntohl(sav->spi)));
+		ESPSTAT_INC(esps_hdrops);		/* XXX diffs from openbsd */
 		error = ENOBUFS;
 		goto bad;
 	}
@@ -781,7 +780,8 @@ esp_output(
 	pad = (u_char *) m_pad(m, padding + alen);
 	if (pad == NULL) {
 		DPRINTF(("%s: m_pad failed for SA %s/%08lx\n", __func__,
-		    ipsec_address(&saidx->dst), (u_long) ntohl(sav->spi)));
+		    ipsec_address(&saidx->dst, buf, sizeof(buf)),
+		    (u_long) ntohl(sav->spi)));
 		m = NULL;		/* NB: free'd by m_pad */
 		error = ENOBUFS;
 		goto bad;
@@ -813,46 +813,65 @@ esp_output(
 	m_copyback(m, protoff, sizeof(u_int8_t), (u_char *) &prot);
 
 	/* Get crypto descriptors. */
-	crp = crypto_getreq(esph && espx ? 2 : 1);
+	crp = crypto_getreq(esph != NULL ? 2 : 1);
 	if (crp == NULL) {
 		DPRINTF(("%s: failed to acquire crypto descriptors\n",
 			__func__));
-		V_espstat.esps_crypto++;
+		ESPSTAT_INC(esps_crypto);
 		error = ENOBUFS;
 		goto bad;
 	}
-
-	if (espx) {
-		crde = crp->crp_desc;
-		crda = crde->crd_next;
-
-		/* Encryption descriptor. */
-		crde->crd_skip = skip + hlen;
-		crde->crd_len = m->m_pkthdr.len - (skip + hlen + alen);
-		crde->crd_flags = CRD_F_ENCRYPT;
-		crde->crd_inject = skip + hlen - sav->ivlen;
-
-		/* Encryption operation. */
-		crde->crd_alg = espx->type;
-		crde->crd_key = sav->key_enc->key_data;
-		crde->crd_klen = _KEYBITS(sav->key_enc);
-		/* XXX Rounds ? */
-	} else
-		crda = crp->crp_desc;
 
 	/* IPsec-specific opaque crypto info. */
 	tc = (struct tdb_crypto *) malloc(sizeof(struct tdb_crypto),
-		M_XDATA, M_NOWAIT|M_ZERO);
+	    M_XDATA, M_NOWAIT|M_ZERO);
 	if (tc == NULL) {
 		crypto_freereq(crp);
 		DPRINTF(("%s: failed to allocate tdb_crypto\n", __func__));
-		V_espstat.esps_crypto++;
+		ESPSTAT_INC(esps_crypto);
 		error = ENOBUFS;
 		goto bad;
 	}
 
+	crde = crp->crp_desc;
+	crda = crde->crd_next;
+
+	/* Encryption descriptor. */
+	crde->crd_skip = skip + hlen;
+	crde->crd_len = m->m_pkthdr.len - (skip + hlen + alen);
+	crde->crd_flags = CRD_F_ENCRYPT;
+	crde->crd_inject = skip + hlen - sav->ivlen;
+
+	/* Encryption operation. */
+	crde->crd_alg = espx->type;
+	if (SAV_ISCTRORGCM(sav)) {
+		ivp = &crde->crd_iv[0];
+
+		/* GCM IV Format: RFC4106 4 */
+		/* CTR IV Format: RFC3686 4 */
+		/* Salt is last four bytes of key, RFC4106 8.1 */
+		/* Nonce is last four bytes of key, RFC3686 5.1 */
+		memcpy(ivp, sav->key_enc->key_data +
+		    _KEYLEN(sav->key_enc) - 4, 4);
+		SECASVAR_LOCK(sav);
+		cntr = sav->cntr++;
+		SECASVAR_UNLOCK(sav);
+		be64enc(&ivp[4], cntr);
+
+		if (SAV_ISCTR(sav)) {
+			/* Initial block counter is 1, RFC3686 4 */
+			be32enc(&ivp[sav->ivlen + 4], 1);
+		}
+
+		m_copyback(m, skip + hlen - sav->ivlen, sav->ivlen, &ivp[4]);
+		crde->crd_flags |= CRD_F_IV_EXPLICIT|CRD_F_IV_PRESENT;
+	}
+
 	/* Callback parameters */
+	key_addref(isr->sp);
 	tc->tc_isr = isr;
+	KEY_ADDREFSA(sav);
+	tc->tc_sav = sav;
 	tc->tc_spi = sav->spi;
 	tc->tc_dst = saidx->dst;
 	tc->tc_proto = saidx->proto;
@@ -867,14 +886,13 @@ esp_output(
 
 	if (esph) {
 		/* Authentication descriptor. */
-		crda->crd_skip = skip;
-		crda->crd_len = m->m_pkthdr.len - (skip + alen);
-		crda->crd_inject = m->m_pkthdr.len - alen;
-
-		/* Authentication operation. */
 		crda->crd_alg = esph->type;
-		crda->crd_key = sav->key_auth->key_data;
-		crda->crd_klen = _KEYBITS(sav->key_auth);
+		crda->crd_skip = skip;
+		if (SAV_ISGCM(sav))
+			crda->crd_len = 8;	/* RFC4106 5, SPI + SN */
+		else
+			crda->crd_len = m->m_pkthdr.len - (skip + alen);
+		crda->crd_inject = m->m_pkthdr.len - alen;
 	}
 
 	return crypto_dispatch(crp);
@@ -890,29 +908,31 @@ bad:
 static int
 esp_output_cb(struct cryptop *crp)
 {
+	char buf[INET6_ADDRSTRLEN];
 	struct tdb_crypto *tc;
 	struct ipsecrequest *isr;
 	struct secasvar *sav;
 	struct mbuf *m;
-	int err, error;
+	int error;
 
 	tc = (struct tdb_crypto *) crp->crp_opaque;
 	IPSEC_ASSERT(tc != NULL, ("null opaque data area!"));
 	m = (struct mbuf *) crp->crp_buf;
 
 	isr = tc->tc_isr;
+	IPSEC_ASSERT(isr->sp != NULL, ("NULL isr->sp"));
 	IPSECREQUEST_LOCK(isr);
-	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
-	if (sav == NULL) {
-		V_espstat.esps_notdb++;
+	sav = tc->tc_sav;
+
+	/* With the isr lock released, SA pointer may have changed. */
+	if (sav != isr->sav) {
+		ESPSTAT_INC(esps_notdb);
 		DPRINTF(("%s: SA gone during crypto (SA %s/%08lx proto %u)\n",
-		    __func__, ipsec_address(&tc->tc_dst),
+		    __func__, ipsec_address(&tc->tc_dst, buf, sizeof(buf)),
 		    (u_long) ntohl(tc->tc_spi), tc->tc_proto));
 		error = ENOBUFS;		/*XXX*/
 		goto bad;
 	}
-	IPSEC_ASSERT(isr->sav == sav,
-		("SA changed was %p now %p\n", isr->sav, sav));
 
 	/* Check for crypto errors. */
 	if (crp->crp_etype) {
@@ -921,13 +941,11 @@ esp_output_cb(struct cryptop *crp)
 			sav->tdb_cryptoid = crp->crp_sid;
 
 		if (crp->crp_etype == EAGAIN) {
-			KEY_FREESAV(&sav);
 			IPSECREQUEST_UNLOCK(isr);
-			error = crypto_dispatch(crp);
-			return error;
+			return (crypto_dispatch(crp));
 		}
 
-		V_espstat.esps_noxform++;
+		ESPSTAT_INC(esps_noxform);
 		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
 		error = crp->crp_etype;
 		goto bad;
@@ -935,14 +953,14 @@ esp_output_cb(struct cryptop *crp)
 
 	/* Shouldn't happen... */
 	if (m == NULL) {
-		V_espstat.esps_crypto++;
+		ESPSTAT_INC(esps_crypto);
 		DPRINTF(("%s: bogus returned buffer from crypto\n", __func__));
 		error = EINVAL;
 		goto bad;
 	}
-	V_espstat.esps_hist[sav->alg_enc]++;
+	ESPSTAT_INC(esps_hist[sav->alg_enc]);
 	if (sav->tdb_authalgxform != NULL)
-		V_ahstat.ahs_hist[sav->alg_auth]++;
+		AHSTAT_INC(ahs_hist[sav->alg_auth]);
 
 	/* Release crypto descriptors. */
 	free(tc, M_XDATA);
@@ -951,7 +969,7 @@ esp_output_cb(struct cryptop *crp)
 #ifdef REGRESSION
 	/* Emulate man-in-the-middle attack when ipsec_integrity is TRUE. */
 	if (V_ipsec_integrity) {
-		static unsigned char ipseczeroes[AH_HMAC_HASHLEN];
+		static unsigned char ipseczeroes[AH_HMAC_MAXHASHLEN];
 		struct auth_hash *esph;
 
 		/*
@@ -960,26 +978,31 @@ esp_output_cb(struct cryptop *crp)
 		 */
 		esph = sav->tdb_authalgxform;
 		if (esph !=  NULL) {
-			m_copyback(m, m->m_pkthdr.len - AH_HMAC_HASHLEN,
-			    AH_HMAC_HASHLEN, ipseczeroes);
+			int alen;
+
+			alen = xform_ah_authsize(esph);
+			m_copyback(m, m->m_pkthdr.len - alen,
+			    alen, ipseczeroes);
 		}
 	}
 #endif
 
 	/* NB: m is reclaimed by ipsec_process_done. */
-	err = ipsec_process_done(m, isr);
+	error = ipsec_process_done(m, isr);
 	KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
-	return err;
+	KEY_FREESP(&isr->sp);
+	return (error);
 bad:
 	if (sav)
 		KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
+	KEY_FREESP(&isr->sp);
 	if (m)
 		m_freem(m);
 	free(tc, M_XDATA);
 	crypto_freereq(crp);
-	return error;
+	return (error);
 }
 
 static struct xformsw esp_xformsw = {
@@ -991,20 +1014,7 @@ static struct xformsw esp_xformsw = {
 static void
 esp_attach(void)
 {
-#define	MAXIV(xform)					\
-	if (xform.blocksize > V_esp_max_ivlen)		\
-		V_esp_max_ivlen = xform.blocksize	\
-
-	MAXIV(enc_xform_des);		/* SADB_EALG_DESCBC */
-	MAXIV(enc_xform_3des);		/* SADB_EALG_3DESCBC */
-	MAXIV(enc_xform_rijndael128);	/* SADB_X_EALG_AES */
-	MAXIV(enc_xform_blf);		/* SADB_X_EALG_BLOWFISHCBC */
-	MAXIV(enc_xform_cast5);		/* SADB_X_EALG_CAST128CBC */
-	MAXIV(enc_xform_skipjack);	/* SADB_X_EALG_SKIPJACK */
-	MAXIV(enc_xform_null);		/* SADB_EALG_NULL */
-	MAXIV(enc_xform_camellia);	/* SADB_X_EALG_CAMELLIACBC */
 
 	xform_register(&esp_xformsw);
-#undef MAXIV
 }
 SYSINIT(esp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, esp_attach, NULL);

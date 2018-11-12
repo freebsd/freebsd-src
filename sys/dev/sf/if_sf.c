@@ -96,10 +96,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
-#include <sys/taskqueue.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -172,6 +172,7 @@ static void sf_init_locked(struct sf_softc *);
 static void sf_stop(struct sf_softc *);
 static void sf_watchdog(struct sf_softc *);
 static int sf_ifmedia_upd(struct ifnet *);
+static int sf_ifmedia_upd_locked(struct ifnet *);
 static void sf_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static void sf_reset(struct sf_softc *);
 static int sf_dma_alloc(struct sf_softc *);
@@ -191,7 +192,6 @@ static uint8_t sf_read_eeprom(struct sf_softc *, int);
 static int sf_miibus_readreg(device_t, int, int);
 static int sf_miibus_writereg(device_t, int, int, int);
 static void sf_miibus_statchg(device_t);
-static void sf_link_task(void *, int);
 #ifdef DEVICE_POLLING
 static int sf_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
 #endif
@@ -212,16 +212,12 @@ static device_method_t sf_methods[] = {
 	DEVMETHOD(device_suspend,	sf_suspend),
 	DEVMETHOD(device_resume,	sf_resume),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	sf_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	sf_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	sf_miibus_statchg),
 
-	{ NULL, NULL }
+	DEVMETHOD_END
 };
 
 static driver_t sf_driver = {
@@ -397,36 +393,30 @@ static void
 sf_miibus_statchg(device_t dev)
 {
 	struct sf_softc		*sc;
-
-	sc = device_get_softc(dev);
-	taskqueue_enqueue(taskqueue_swi, &sc->sf_link_task);
-}
-
-static void
-sf_link_task(void *arg, int pending)
-{
-	struct sf_softc		*sc;
 	struct mii_data		*mii;
 	struct ifnet		*ifp;
 	uint32_t		val;
 
-	sc = (struct sf_softc *)arg;
-
-	SF_LOCK(sc);
-
+	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->sf_miibus);
 	ifp = sc->sf_ifp;
 	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		SF_UNLOCK(sc);
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
-	}
 
-	if (mii->mii_media_status & IFM_ACTIVE) {
-		if (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
+	sc->sf_link = 0;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+		case IFM_100_FX:
 			sc->sf_link = 1;
-	} else
-		sc->sf_link = 0;
+			break;
+		}
+	}
+	if (sc->sf_link == 0)
+		return;
 
 	val = csr_read_4(sc, SF_MACCFG_1);
 	val &= ~SF_MACCFG1_FULLDUPLEX;
@@ -457,8 +447,6 @@ sf_link_task(void *arg, int pending)
 	else
 		val &= ~SF_TIMER_TIMES_TEN;
 	csr_write_4(sc, SF_TIMER_CTL, val);
-
-	SF_UNLOCK(sc);
 }
 
 static void
@@ -527,22 +515,27 @@ static int
 sf_ifmedia_upd(struct ifnet *ifp)
 {
 	struct sf_softc		*sc;
-	struct mii_data		*mii;
 	int			error;
 
 	sc = ifp->if_softc;
 	SF_LOCK(sc);
-
-	mii = device_get_softc(sc->sf_miibus);
-	if (mii->mii_instance) {
-		struct mii_softc        *miisc;
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
-	error = mii_mediachg(mii);
+	error = sf_ifmedia_upd_locked(ifp);
 	SF_UNLOCK(sc);
-
 	return (error);
+}
+
+static int
+sf_ifmedia_upd_locked(struct ifnet *ifp)
+{
+	struct sf_softc		*sc;
+	struct mii_data		*mii;
+	struct mii_softc        *miisc;
+
+	sc = ifp->if_softc;
+	mii = device_get_softc(sc->sf_miibus);
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
+	return (mii_mediachg(mii));
 }
 
 /*
@@ -556,8 +549,12 @@ sf_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc = ifp->if_softc;
 	SF_LOCK(sc);
-	mii = device_get_softc(sc->sf_miibus);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		SF_UNLOCK(sc);
+		return;
+	}
 
+	mii = device_get_softc(sc->sf_miibus);
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
@@ -598,7 +595,8 @@ sf_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		SF_LOCK(sc);
-		sf_rxfilter(sc);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			sf_rxfilter(sc);
 		SF_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
@@ -712,7 +710,7 @@ sf_probe(device_t dev)
 	sdid = pci_get_subdevice(dev);
 
 	t = sf_devs;
-	for (i = 0; i < sizeof(sf_devs) / sizeof(sf_devs[0]); i++, t++) {
+	for (i = 0; i < nitems(sf_devs); i++, t++) {
 		if (vid == t->sf_vid && did == t->sf_did) {
 			if (sdid == t->sf_sdid) {
 				device_set_desc(dev, t->sf_sname);
@@ -722,7 +720,7 @@ sf_probe(device_t dev)
 	}
 
 	if (vid == AD_VENDORID && did == AD_DEVICEID_STARFIRE) {
-		/* unkown subdevice */
+		/* unknown subdevice */
 		device_set_desc(dev, sf_devs[0].sf_name);
 		return (BUS_PROBE_DEFAULT);
 	}
@@ -750,7 +748,6 @@ sf_attach(device_t dev)
 	mtx_init(&sc->sf_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	callout_init_mtx(&sc->sf_co, &sc->sf_mtx, 0);
-	TASK_INIT(&sc->sf_link_task, 0, sf_link_task, sc);
 
 	/*
 	 * Map control/status registers.
@@ -866,10 +863,10 @@ sf_attach(device_t dev)
 	}
 
 	/* Do MII setup. */
-	if (mii_phy_probe(dev, &sc->sf_miibus, sf_ifmedia_upd,
-	    sf_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->sf_miibus, ifp, sf_ifmedia_upd,
+	    sf_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -905,7 +902,7 @@ sf_attach(device_t dev)
 	 * Must appear after the call to ether_ifattach() because
 	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->sf_irq, INTR_TYPE_NET | INTR_MPSAFE,
@@ -952,7 +949,6 @@ sf_detach(device_t dev)
 		sf_stop(sc);
 		SF_UNLOCK(sc);
 		callout_drain(&sc->sf_co);
-		taskqueue_drain(taskqueue_swi, &sc->sf_link_task);
 		if (ifp != NULL)
 			ether_ifdetach(ifp);
 	}
@@ -1296,61 +1292,57 @@ sf_dma_free(struct sf_softc *sc)
 
 	/* Tx ring. */
 	if (sc->sf_cdata.sf_tx_ring_tag) {
-		if (sc->sf_cdata.sf_tx_ring_map)
+		if (sc->sf_rdata.sf_tx_ring_paddr)
 			bus_dmamap_unload(sc->sf_cdata.sf_tx_ring_tag,
 			    sc->sf_cdata.sf_tx_ring_map);
-		if (sc->sf_cdata.sf_tx_ring_map &&
-		    sc->sf_rdata.sf_tx_ring)
+		if (sc->sf_rdata.sf_tx_ring)
 			bus_dmamem_free(sc->sf_cdata.sf_tx_ring_tag,
 			    sc->sf_rdata.sf_tx_ring,
 			    sc->sf_cdata.sf_tx_ring_map);
 		sc->sf_rdata.sf_tx_ring = NULL;
-		sc->sf_cdata.sf_tx_ring_map = NULL;
+		sc->sf_rdata.sf_tx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->sf_cdata.sf_tx_ring_tag);
 		sc->sf_cdata.sf_tx_ring_tag = NULL;
 	}
 	/* Tx completion ring. */
 	if (sc->sf_cdata.sf_tx_cring_tag) {
-		if (sc->sf_cdata.sf_tx_cring_map)
+		if (sc->sf_rdata.sf_tx_cring_paddr)
 			bus_dmamap_unload(sc->sf_cdata.sf_tx_cring_tag,
 			    sc->sf_cdata.sf_tx_cring_map);
-		if (sc->sf_cdata.sf_tx_cring_map &&
-		    sc->sf_rdata.sf_tx_cring)
+		if (sc->sf_rdata.sf_tx_cring)
 			bus_dmamem_free(sc->sf_cdata.sf_tx_cring_tag,
 			    sc->sf_rdata.sf_tx_cring,
 			    sc->sf_cdata.sf_tx_cring_map);
 		sc->sf_rdata.sf_tx_cring = NULL;
-		sc->sf_cdata.sf_tx_cring_map = NULL;
+		sc->sf_rdata.sf_tx_cring_paddr = 0;
 		bus_dma_tag_destroy(sc->sf_cdata.sf_tx_cring_tag);
 		sc->sf_cdata.sf_tx_cring_tag = NULL;
 	}
 	/* Rx ring. */
 	if (sc->sf_cdata.sf_rx_ring_tag) {
-		if (sc->sf_cdata.sf_rx_ring_map)
+		if (sc->sf_rdata.sf_rx_ring_paddr)
 			bus_dmamap_unload(sc->sf_cdata.sf_rx_ring_tag,
 			    sc->sf_cdata.sf_rx_ring_map);
-		if (sc->sf_cdata.sf_rx_ring_map &&
-		    sc->sf_rdata.sf_rx_ring)
+		if (sc->sf_rdata.sf_rx_ring)
 			bus_dmamem_free(sc->sf_cdata.sf_rx_ring_tag,
 			    sc->sf_rdata.sf_rx_ring,
 			    sc->sf_cdata.sf_rx_ring_map);
 		sc->sf_rdata.sf_rx_ring = NULL;
-		sc->sf_cdata.sf_rx_ring_map = NULL;
+		sc->sf_rdata.sf_rx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->sf_cdata.sf_rx_ring_tag);
 		sc->sf_cdata.sf_rx_ring_tag = NULL;
 	}
 	/* Rx completion ring. */
 	if (sc->sf_cdata.sf_rx_cring_tag) {
-		if (sc->sf_cdata.sf_rx_cring_map)
+		if (sc->sf_rdata.sf_rx_cring_paddr)
 			bus_dmamap_unload(sc->sf_cdata.sf_rx_cring_tag,
 			    sc->sf_cdata.sf_rx_cring_map);
-		if (sc->sf_cdata.sf_rx_cring_map &&
-		    sc->sf_rdata.sf_rx_cring)
+		if (sc->sf_rdata.sf_rx_cring)
 			bus_dmamem_free(sc->sf_cdata.sf_rx_cring_tag,
 			    sc->sf_rdata.sf_rx_cring,
 			    sc->sf_cdata.sf_rx_cring_map);
 		sc->sf_rdata.sf_rx_cring = NULL;
-		sc->sf_cdata.sf_rx_cring_map = NULL;
+		sc->sf_rdata.sf_rx_cring_paddr = 0;
 		bus_dma_tag_destroy(sc->sf_cdata.sf_rx_cring_tag);
 		sc->sf_cdata.sf_rx_cring_tag = NULL;
 	}
@@ -1460,7 +1452,7 @@ sf_newbuf(struct sf_softc *sc, int idx)
 	bus_dmamap_t		map;
 	int			nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -1523,7 +1515,7 @@ sf_fixup_rx(struct mbuf *m)
  * it is marred by one truly stupid design flaw, which is that receive
  * buffer addresses must be aligned on a longword boundary. This forces
  * the packet payload to be unaligned, which is suboptimal on the x86 and
- * completely unuseable on the Alpha. Our only recourse is to copy received
+ * completely unusable on the Alpha. Our only recourse is to copy received
  * packets into properly aligned buffers before handing them off.
  */
 static int
@@ -1554,7 +1546,9 @@ sf_rxeof(struct sf_softc *sc)
 	 */
 	eidx = 0;
 	prog = 0;
-	for (cons = sc->sf_cdata.sf_rxc_cons; ; SF_INC(cons, SF_RX_CLIST_CNT)) {
+	for (cons = sc->sf_cdata.sf_rxc_cons;
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
+	    SF_INC(cons, SF_RX_CLIST_CNT)) {
 		cur_cmp = &sc->sf_rdata.sf_rx_cring[cons];
 		status = le32toh(cur_cmp->sf_rx_status1);
 		if (status == 0)
@@ -1572,7 +1566,7 @@ sf_rxeof(struct sf_softc *sc)
 		m = rxd->rx_m;
 
 		/*
-		 * Note, if_ipackets and if_ierrors counters
+		 * Note, IFCOUNTER_IPACKETS and IFCOUNTER_IERRORS
 		 * are handled in sf_stats_update().
 		 */
 		if ((status & SF_RXSTAT1_OK) == 0) {
@@ -1581,7 +1575,7 @@ sf_rxeof(struct sf_softc *sc)
 		}
 
 		if (sf_newbuf(sc, eidx) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			cur_cmp->sf_rx_status1 = 0;
 			continue;
 		}
@@ -1726,8 +1720,9 @@ sf_txeof(struct sf_softc *sc)
 			/*
 			 * We don't need to check Tx status here.
 			 * SF_ISR_TX_LOFIFO intr would handle this.
-			 * Note, if_opackets, if_collisions and if_oerrors
-			 * counters are handled in sf_stats_update().
+			 * Note, IFCOUNTER_OPACKETS, IFCOUNTER_COLLISIONS
+			 * and IFCOUNTER_OERROR are handled in
+			 * sf_stats_update().
 			 */
 			txd = &sc->sf_cdata.sf_txdesc[idx];
 			if (txd->tx_m != NULL) {
@@ -1826,7 +1821,10 @@ sf_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			else if ((status & SF_ISR_DMAERR) != 0) {
 				device_printf(sc->sf_dev,
 				    "DMA error, resetting\n");
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				sf_init_locked(sc);
+				SF_UNLOCK(sc);
+				return (rx_npkts);
 			} else if ((status & SF_ISR_NO_TX_CSUM) != 0) {
 				sc->sf_statistics.sf_tx_gfp_stall++;
 #ifdef	SF_GFP_DEBUG
@@ -1854,6 +1852,7 @@ sf_intr(void *arg)
 	struct sf_softc		*sc;
 	struct ifnet		*ifp;
 	uint32_t		status;
+	int			cnt;
 
 	sc = (struct sf_softc *)arg;
 	SF_LOCK(sc);
@@ -1872,13 +1871,13 @@ sf_intr(void *arg)
 	if ((ifp->if_capenable & IFCAP_POLLING) != 0)
 		goto done_locked;
 #endif
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		goto done_locked;
 
 	/* Disable interrupts. */
 	csr_write_4(sc, SF_IMR, 0x00000000);
 
-	for (; (status & SF_INTRS) != 0;) {
+	for (cnt = 32; (status & SF_INTRS) != 0;) {
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
 		if ((status & SF_ISR_RXDQ1_DMADONE) != 0)
 			sf_rxeof(sc);
 
@@ -1894,8 +1893,10 @@ sf_intr(void *arg)
 			else if ((status & SF_ISR_DMAERR) != 0) {
 				device_printf(sc->sf_dev,
 				    "DMA error, resetting\n");
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				sf_init_locked(sc);
-				break;
+				SF_UNLOCK(sc);
+				return;
 			} else if ((status & SF_ISR_NO_TX_CSUM) != 0) {
 				sc->sf_statistics.sf_tx_gfp_stall++;
 #ifdef	SF_GFP_DEBUG
@@ -1911,15 +1912,19 @@ sf_intr(void *arg)
 #endif
 			}
 		}
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			sf_start_locked(ifp);
+		if (--cnt <= 0)
+			break;
 		/* Reading the ISR register clears all interrrupts. */
 		status = csr_read_4(sc, SF_ISR);
 	}
 
-	/* Re-enable interrupts. */
-	csr_write_4(sc, SF_IMR, SF_INTRS);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+		/* Re-enable interrupts. */
+		csr_write_4(sc, SF_IMR, SF_INTRS);
+	}
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		sf_start_locked(ifp);
 done_locked:
 	SF_UNLOCK(sc);
 }
@@ -1977,14 +1982,14 @@ static void
 sf_init_locked(struct sf_softc *sc)
 {
 	struct ifnet		*ifp;
-	struct mii_data		*mii;
 	uint8_t			eaddr[ETHER_ADDR_LEN];
 	bus_addr_t		addr;
 	int			i;
 
 	SF_LOCK_ASSERT(sc);
 	ifp = sc->sf_ifp;
-	mii = device_get_softc(sc->sf_miibus);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 
 	sf_stop(sc);
 	/* Reset the hardware to a known state. */
@@ -2009,6 +2014,7 @@ sf_init_locked(struct sf_softc *sc)
 	if (sf_init_rx_ring(sc) == ENOBUFS) {
 		device_printf(sc->sf_dev,
 		    "initialization failed: no memory for rx buffers\n");
+		sf_stop(sc);
 		return;
 	}
 
@@ -2134,11 +2140,11 @@ sf_init_locked(struct sf_softc *sc)
 	else
 		SF_CLRBIT(sc, SF_GEN_ETH_CTL, SF_ETHCTL_RXGFP_ENB);
 
-	sc->sf_link = 0;
-	mii_mediachg(mii);
-
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+	sc->sf_link = 0;
+	sf_ifmedia_upd_locked(ifp);
 
 	callout_reset(&sc->sf_co, hz, sf_tick, sc);
 }
@@ -2163,7 +2169,7 @@ sf_encap(struct sf_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->sf_cdata.sf_tx_tag, map,
 	    *m_head, txsegs, &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, SF_MAXTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, SF_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -2328,6 +2334,9 @@ sf_stop(struct sf_softc *sc)
 	/* Disable Tx/Rx egine. */
 	csr_write_4(sc, SF_GEN_ETH_CTL, 0);
 
+	/* Give hardware chance to drain active DMA cycles. */
+	DELAY(1000);
+
 	csr_write_4(sc, SF_CQ_CONSIDX, 0);
 	csr_write_4(sc, SF_CQ_PRODIDX, 0);
 	csr_write_4(sc, SF_RXDQ_ADDR_Q1, 0);
@@ -2471,23 +2480,26 @@ sf_stats_update(struct sf_softc *sc)
 	for (i = SF_STATS_BASE; i < (SF_STATS_END + 1); i += sizeof(uint32_t))
 		csr_write_4(sc, i, 0);
 
-	ifp->if_opackets += (u_long)stats->sf_tx_frames;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, (u_long)stats->sf_tx_frames);
 
-	ifp->if_collisions += (u_long)stats->sf_tx_single_colls +
-	    (u_long)stats->sf_tx_multi_colls;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+	    (u_long)stats->sf_tx_single_colls +
+	    (u_long)stats->sf_tx_multi_colls);
 
-	ifp->if_oerrors += (u_long)stats->sf_tx_excess_colls +
+	if_inc_counter(ifp, IFCOUNTER_OERRORS,
+	    (u_long)stats->sf_tx_excess_colls +
 	    (u_long)stats->sf_tx_excess_defer +
-	    (u_long)stats->sf_tx_frames_lost;
+	    (u_long)stats->sf_tx_frames_lost);
 
-	ifp->if_ipackets += (u_long)stats->sf_rx_frames;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, (u_long)stats->sf_rx_frames);
 
-	ifp->if_ierrors += (u_long)stats->sf_rx_crcerrs +
+	if_inc_counter(ifp, IFCOUNTER_IERRORS,
+	    (u_long)stats->sf_rx_crcerrs +
 	    (u_long)stats->sf_rx_alignerrs +
 	    (u_long)stats->sf_rx_giants +
 	    (u_long)stats->sf_rx_runts +
 	    (u_long)stats->sf_rx_jabbererrs +
-	    (u_long)stats->sf_rx_frames_lost;
+	    (u_long)stats->sf_rx_frames_lost);
 
 	nstats = &sc->sf_statistics;
 
@@ -2538,7 +2550,7 @@ sf_watchdog(struct sf_softc *sc)
 
 	ifp = sc->sf_ifp;
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if (sc->sf_link == 0) {
 		if (bootverbose)
 			if_printf(sc->sf_ifp, "watchdog timeout "
@@ -2547,6 +2559,7 @@ sf_watchdog(struct sf_softc *sc)
 		if_printf(ifp, "watchdog timeout, %d Tx descs are active\n",
 		    sc->sf_cdata.sf_tx_cnt);
 
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	sf_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))

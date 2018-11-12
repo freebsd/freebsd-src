@@ -109,13 +109,13 @@ main(int argc, char **argv)
 				do_confstr(name, key);
 			else
 				printf("undefined\n");
-		} else {		
+		} else {
 			valid = find_sysconf(name, &key);
 			if (valid > 0) {
 				do_sysconf(name, key);
 			} else if (valid < 0) {
 				printf("undefined\n");
-			} else 
+			} else
 				errx(EX_USAGE,
 				     "no such configuration parameter `%s'",
 				     name);

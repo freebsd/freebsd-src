@@ -1,6 +1,6 @@
 PUSHDIVERT(-1)
 #
-# Copyright (c) 1998-2001, 2006 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2001, 2006 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -31,7 +31,7 @@ POPDIVERT
 ###   SMTP Mailer specification   ###
 #####################################
 
-VERSIONID(`$Id: smtp.m4,v 8.65 2006/07/12 21:08:10 ca Exp $')
+VERSIONID(`$Id: smtp.m4,v 8.66 2013-11-22 20:51:14 ca Exp $')
 
 #
 #  common sender and masquerading recipient rewriting

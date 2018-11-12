@@ -27,7 +27,7 @@
  */
 
 #ifndef _DEV_PUC_BFE_H_
-#define	_DEV_PUC_BFE_H
+#define	_DEV_PUC_BFE_H_
 
 #define	PUC_PCI_BARS	6
 
@@ -66,6 +66,7 @@ struct puc_softc {
 	int		sc_fastintr:1;
 	int		sc_leaving:1;
 	int		sc_polled:1;
+	int		sc_msi:1;
 
 	int		sc_ilr;
 
@@ -82,13 +83,18 @@ int puc_bfe_attach(device_t);
 int puc_bfe_detach(device_t);
 int puc_bfe_probe(device_t, const struct puc_cfg *);
 
-struct resource *puc_bus_alloc_resource(device_t, device_t, int, int *, u_long,
-    u_long, u_long, u_int);
-int puc_bus_get_resource(device_t, device_t, int, int, u_long *, u_long *);
+int puc_bus_child_location_str(device_t, device_t, char *, size_t);
+int puc_bus_child_pnpinfo_str(device_t, device_t, char *, size_t);
+struct resource *puc_bus_alloc_resource(device_t, device_t, int, int *,
+    rman_res_t, rman_res_t, rman_res_t, u_int);
+int puc_bus_get_resource(device_t, device_t, int, int, rman_res_t *, rman_res_t *);
+int puc_bus_print_child(device_t, device_t);
 int puc_bus_read_ivar(device_t, device_t, int, uintptr_t *);
 int puc_bus_release_resource(device_t, device_t, int, int, struct resource *);
 int puc_bus_setup_intr(device_t, device_t, struct resource *, int,
     driver_filter_t *, driver_intr_t *, void *, void **);
 int puc_bus_teardown_intr(device_t, device_t, struct resource *, void *);
+
+SYSCTL_DECL(_hw_puc);
 
 #endif /* _DEV_PUC_BFE_H_ */

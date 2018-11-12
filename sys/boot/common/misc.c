@@ -118,15 +118,17 @@ kern_bzero(vm_offset_t dest, size_t len)
 int
 kern_pread(int fd, vm_offset_t dest, size_t len, off_t off)
 {
-	ssize_t nread;
 
 	if (lseek(fd, off, SEEK_SET) == -1) {
+#ifdef DEBUG
 		printf("\nlseek failed\n");
+#endif
 		return (-1);
 	}
-	nread = archsw.arch_readin(fd, dest, len);
-	if (nread != len) {
+	if ((size_t)archsw.arch_readin(fd, dest, len) != len) {
+#ifdef DEBUG
 		printf("\nreadin failed\n");
+#endif
 		return (-1);
 	}
 	return (0);
@@ -140,21 +142,25 @@ void *
 alloc_pread(int fd, off_t off, size_t len)
 {
 	void *buf;
-	ssize_t nread;
 
 	buf = malloc(len);
 	if (buf == NULL) {
+#ifdef DEBUG
 		printf("\nmalloc(%d) failed\n", (int)len);
+#endif
 		return (NULL);
 	}
 	if (lseek(fd, off, SEEK_SET) == -1) {
+#ifdef DEBUG
 		printf("\nlseek failed\n");
+#endif
 		free(buf);
 		return (NULL);
 	}
-	nread = read(fd, buf, len);
-	if (nread != len) {
+	if ((size_t)read(fd, buf, len) != len) {
+#ifdef DEBUG
 		printf("\nread failed\n");
+#endif
 		free(buf);
 		return (NULL);
 	}

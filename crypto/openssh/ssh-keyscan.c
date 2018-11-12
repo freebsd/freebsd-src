@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.78 2009/01/22 10:02:34 djm Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.105 2016/02/15 09:47:49 dtucker Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -9,6 +9,7 @@
 
 #include "includes.h"
  
+#include <sys/types.h>
 #include "openbsd-compat/sys-queue.h"
 #include <sys/resource.h>
 #ifdef HAVE_SYS_TIME_H
@@ -22,7 +23,6 @@
 
 #include <netdb.h>
 #include <errno.h>
-#include <setjmp.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,8 +33,8 @@
 #include "xmalloc.h"
 #include "ssh.h"
 #include "ssh1.h"
-#include "buffer.h"
-#include "key.h"
+#include "sshbuf.h"
+#include "sshkey.h"
 #include "cipher.h"
 #include "kex.h"
 #include "compat.h"
@@ -45,6 +45,8 @@
 #include "atomicio.h"
 #include "misc.h"
 #include "hostfile.h"
+#include "ssherr.h"
+#include "ssh_api.h"
 
 /* Flag indicating whether IPv4 or IPv6.  This can be set on the command line.
    Default value is AF_UNSPEC means both IPv4 and IPv6. */
@@ -52,11 +54,14 @@ int IPv4or6 = AF_UNSPEC;
 
 int ssh_port = SSH_DEFAULT_PORT;
 
-#define KT_RSA1	1
-#define KT_DSA	2
-#define KT_RSA	4
+#define KT_RSA1		1
+#define KT_DSA		2
+#define KT_RSA		4
+#define KT_ECDSA	8
+#define KT_ED25519	16
 
-int get_keytypes = KT_RSA;	/* Get only RSA keys by default */
+int get_cert = 0;
+int get_keytypes = KT_RSA|KT_ECDSA|KT_ED25519;
 
 int hash_hosts = 0;		/* Hash hostname on output */
 
@@ -72,9 +77,8 @@ extern char *__progname;
 fd_set *read_wait;
 size_t read_wait_nfdset;
 int ncon;
-int nonfatal_fatal = 0;
-jmp_buf kexjmp;
-Key *kexjmp_key;
+
+struct ssh *active_state = NULL; /* XXX needed for linking */
 
 /*
  * Keep a connection structure for each file descriptor.  The state
@@ -91,12 +95,13 @@ typedef struct Connection {
 	int c_len;		/* Total bytes which must be read. */
 	int c_off;		/* Length of data read so far. */
 	int c_keytype;		/* Only one of KT_RSA1, KT_DSA, or KT_RSA */
+	sig_atomic_t c_done;	/* SSH2 done */
 	char *c_namebase;	/* Address to free for c_name and c_namelist */
 	char *c_name;		/* Hostname of connection for errors */
 	char *c_namelist;	/* Pointer to other possible addresses */
 	char *c_output_name;	/* Hostname of connection for output */
 	char *c_data;		/* Data read from this fd */
-	Kex *c_kex;		/* The key-exchange struct for ssh2 */
+	struct ssh *c_ssh;	/* SSH-connection */
 	struct timeval c_tv;	/* Time at which connection gets aborted */
 	TAILQ_ENTRY(Connection) c_link;	/* List of connections in timeout order. */
 } con;
@@ -104,121 +109,7 @@ typedef struct Connection {
 TAILQ_HEAD(conlist, Connection) tq;	/* Timeout Queue */
 con *fdcon;
 
-/*
- *  This is just a wrapper around fgets() to make it usable.
- */
-
-/* Stress-test.  Increase this later. */
-#define LINEBUF_SIZE 16
-
-typedef struct {
-	char *buf;
-	u_int size;
-	int lineno;
-	const char *filename;
-	FILE *stream;
-	void (*errfun) (const char *,...);
-} Linebuf;
-
-static Linebuf *
-Linebuf_alloc(const char *filename, void (*errfun) (const char *,...))
-{
-	Linebuf *lb;
-
-	if (!(lb = malloc(sizeof(*lb)))) {
-		if (errfun)
-			(*errfun) ("linebuf (%s): malloc failed\n",
-			    filename ? filename : "(stdin)");
-		return (NULL);
-	}
-	if (filename) {
-		lb->filename = filename;
-		if (!(lb->stream = fopen(filename, "r"))) {
-			xfree(lb);
-			if (errfun)
-				(*errfun) ("%s: %s\n", filename, strerror(errno));
-			return (NULL);
-		}
-	} else {
-		lb->filename = "(stdin)";
-		lb->stream = stdin;
-	}
-
-	if (!(lb->buf = malloc((lb->size = LINEBUF_SIZE)))) {
-		if (errfun)
-			(*errfun) ("linebuf (%s): malloc failed\n", lb->filename);
-		xfree(lb);
-		return (NULL);
-	}
-	lb->errfun = errfun;
-	lb->lineno = 0;
-	return (lb);
-}
-
-static void
-Linebuf_free(Linebuf * lb)
-{
-	fclose(lb->stream);
-	xfree(lb->buf);
-	xfree(lb);
-}
-
-#if 0
-static void
-Linebuf_restart(Linebuf * lb)
-{
-	clearerr(lb->stream);
-	rewind(lb->stream);
-	lb->lineno = 0;
-}
-
-static int
-Linebuf_lineno(Linebuf * lb)
-{
-	return (lb->lineno);
-}
-#endif
-
-static char *
-Linebuf_getline(Linebuf * lb)
-{
-	size_t n = 0;
-	void *p;
-
-	lb->lineno++;
-	for (;;) {
-		/* Read a line */
-		if (!fgets(&lb->buf[n], lb->size - n, lb->stream)) {
-			if (ferror(lb->stream) && lb->errfun)
-				(*lb->errfun)("%s: %s\n", lb->filename,
-				    strerror(errno));
-			return (NULL);
-		}
-		n = strlen(lb->buf);
-
-		/* Return it or an error if it fits */
-		if (n > 0 && lb->buf[n - 1] == '\n') {
-			lb->buf[n - 1] = '\0';
-			return (lb->buf);
-		}
-		if (n != lb->size - 1) {
-			if (lb->errfun)
-				(*lb->errfun)("%s: skipping incomplete last line\n",
-				    lb->filename);
-			return (NULL);
-		}
-		/* Double the buffer if we need more space */
-		lb->size *= 2;
-		if ((p = realloc(lb->buf, lb->size)) == NULL) {
-			lb->size /= 2;
-			if (lb->errfun)
-				(*lb->errfun)("linebuf (%s): realloc failed\n",
-				    lb->filename);
-			return (NULL);
-		}
-		lb->buf = p;
-	}
-}
+static void keyprint(con *c, struct sshkey *key);
 
 static int
 fdlim_get(int hard)
@@ -296,45 +187,62 @@ strnnsep(char **stringp, char *delim)
 	return (tok);
 }
 
-static Key *
+#ifdef WITH_SSH1
+static struct sshkey *
 keygrab_ssh1(con *c)
 {
-	static Key *rsa;
-	static Buffer msg;
+	static struct sshkey *rsa;
+	static struct sshbuf *msg;
+	int r;
+	u_char type;
 
 	if (rsa == NULL) {
-		buffer_init(&msg);
-		rsa = key_new(KEY_RSA1);
+		if ((rsa = sshkey_new(KEY_RSA1)) == NULL) {
+			error("%s: sshkey_new failed", __func__);
+			return NULL;
+		}
+		if ((msg = sshbuf_new()) == NULL)
+			fatal("%s: sshbuf_new failed", __func__);
 	}
-	buffer_append(&msg, c->c_data, c->c_plen);
-	buffer_consume(&msg, 8 - (c->c_plen & 7));	/* padding */
-	if (buffer_get_char(&msg) != (int) SSH_SMSG_PUBLIC_KEY) {
+	if ((r = sshbuf_put(msg, c->c_data, c->c_plen)) != 0 ||
+	    (r = sshbuf_consume(msg, 8 - (c->c_plen & 7))) != 0 || /* padding */
+	    (r = sshbuf_get_u8(msg, &type)) != 0)
+		goto buf_err;
+	if (type != (int) SSH_SMSG_PUBLIC_KEY) {
 		error("%s: invalid packet type", c->c_name);
-		buffer_clear(&msg);
+		sshbuf_reset(msg);
 		return NULL;
 	}
-	buffer_consume(&msg, 8);		/* cookie */
+	if ((r = sshbuf_consume(msg, 8)) != 0 || /* cookie */
+	    /* server key */
+	    (r = sshbuf_get_u32(msg, NULL)) != 0 ||
+	    (r = sshbuf_get_bignum1(msg, NULL)) != 0 ||
+	    (r = sshbuf_get_bignum1(msg, NULL)) != 0 ||
+	    /* host key */
+	    (r = sshbuf_get_u32(msg, NULL)) != 0 ||
+	    (r = sshbuf_get_bignum1(msg, rsa->rsa->e)) != 0 ||
+	    (r = sshbuf_get_bignum1(msg, rsa->rsa->n)) != 0) {
+ buf_err:
+		error("%s: buffer error: %s", __func__, ssh_err(r));
+		sshbuf_reset(msg);
+		return NULL;
+	}
 
-	/* server key */
-	(void) buffer_get_int(&msg);
-	buffer_get_bignum(&msg, rsa->rsa->e);
-	buffer_get_bignum(&msg, rsa->rsa->n);
-
-	/* host key */
-	(void) buffer_get_int(&msg);
-	buffer_get_bignum(&msg, rsa->rsa->e);
-	buffer_get_bignum(&msg, rsa->rsa->n);
-
-	buffer_clear(&msg);
+	sshbuf_reset(msg);
 
 	return (rsa);
 }
+#endif
 
 static int
-hostjump(Key *hostkey)
+key_print_wrapper(struct sshkey *hostkey, struct ssh *ssh)
 {
-	kexjmp_key = hostkey;
-	longjmp(kexjmp, 1);
+	con *c;
+
+	if ((c = ssh_get_app_data(ssh)) != NULL)
+		keyprint(c, hostkey);
+	/* always abort key exchange */
+	return -1;
 }
 
 static int
@@ -353,49 +261,94 @@ ssh2_capable(int remote_major, int remote_minor)
 	return 0;
 }
 
-static Key *
+static void
 keygrab_ssh2(con *c)
 {
-	int j;
+	char *myproposal[PROPOSAL_MAX] = { KEX_CLIENT };
+	int r;
 
-	packet_set_connection(c->c_fd, c->c_fd);
 	enable_compat20();
-	myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = c->c_keytype == KT_DSA?
-	    "ssh-dss": "ssh-rsa";
-	c->c_kex = kex_setup(myproposal);
-	c->c_kex->kex[KEX_DH_GRP1_SHA1] = kexdh_client;
-	c->c_kex->kex[KEX_DH_GRP14_SHA1] = kexdh_client;
-	c->c_kex->kex[KEX_DH_GEX_SHA1] = kexgex_client;
-	c->c_kex->kex[KEX_DH_GEX_SHA256] = kexgex_client;
-	c->c_kex->verify_host_key = hostjump;
-
-	if (!(j = setjmp(kexjmp))) {
-		nonfatal_fatal = 1;
-		dispatch_run(DISPATCH_BLOCK, &c->c_kex->done, c->c_kex);
-		fprintf(stderr, "Impossible! dispatch_run() returned!\n");
+	switch (c->c_keytype) {
+	case KT_DSA:
+		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = get_cert ?
+		    "ssh-dss-cert-v01@openssh.com" : "ssh-dss";
+		break;
+	case KT_RSA:
+		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = get_cert ?
+		    "ssh-rsa-cert-v01@openssh.com" : "ssh-rsa";
+		break;
+	case KT_ED25519:
+		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = get_cert ?
+		    "ssh-ed25519-cert-v01@openssh.com" : "ssh-ed25519";
+		break;
+	case KT_ECDSA:
+		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = get_cert ?
+		    "ecdsa-sha2-nistp256-cert-v01@openssh.com,"
+		    "ecdsa-sha2-nistp384-cert-v01@openssh.com,"
+		    "ecdsa-sha2-nistp521-cert-v01@openssh.com" :
+		    "ecdsa-sha2-nistp256,"
+		    "ecdsa-sha2-nistp384,"
+		    "ecdsa-sha2-nistp521";
+		break;
+	default:
+		fatal("unknown key type %d", c->c_keytype);
+		break;
+	}
+	if ((r = kex_setup(c->c_ssh, myproposal)) != 0) {
+		free(c->c_ssh);
+		fprintf(stderr, "kex_setup: %s\n", ssh_err(r));
 		exit(1);
 	}
-	nonfatal_fatal = 0;
-	xfree(c->c_kex);
-	c->c_kex = NULL;
-	packet_close();
-
-	return j < 0? NULL : kexjmp_key;
+#ifdef WITH_OPENSSL
+	c->c_ssh->kex->kex[KEX_DH_GRP1_SHA1] = kexdh_client;
+	c->c_ssh->kex->kex[KEX_DH_GRP14_SHA1] = kexdh_client;
+	c->c_ssh->kex->kex[KEX_DH_GEX_SHA1] = kexgex_client;
+	c->c_ssh->kex->kex[KEX_DH_GEX_SHA256] = kexgex_client;
+# ifdef OPENSSL_HAS_ECC
+	c->c_ssh->kex->kex[KEX_ECDH_SHA2] = kexecdh_client;
+# endif
+#endif
+	c->c_ssh->kex->kex[KEX_C25519_SHA256] = kexc25519_client;
+	ssh_set_verify_host_key_callback(c->c_ssh, key_print_wrapper);
+	/*
+	 * do the key-exchange until an error occurs or until
+	 * the key_print_wrapper() callback sets c_done.
+	 */
+	ssh_dispatch_run(c->c_ssh, DISPATCH_BLOCK, &c->c_done, c->c_ssh);
 }
 
 static void
-keyprint(con *c, Key *key)
+keyprint_one(char *host, struct sshkey *key)
 {
-	char *host = c->c_output_name ? c->c_output_name : c->c_name;
+	char *hostport;
 
-	if (!key)
-		return;
 	if (hash_hosts && (host = host_hash(host, NULL, 0)) == NULL)
 		fatal("host_hash failed");
 
-	fprintf(stdout, "%s ", host);
-	key_write(key, stdout);
+	hostport = put_host_port(host, ssh_port);
+	if (!get_cert)
+		fprintf(stdout, "%s ", hostport);
+	sshkey_write(key, stdout);
 	fputs("\n", stdout);
+	free(hostport);
+}
+
+static void
+keyprint(con *c, struct sshkey *key)
+{
+	char *hosts = c->c_output_name ? c->c_output_name : c->c_name;
+	char *host, *ohosts;
+
+	if (key == NULL)
+		return;
+	if (get_cert || (!hash_hosts && ssh_port == SSH_DEFAULT_PORT)) {
+		keyprint_one(hosts, key);
+		return;
+	}
+	ohosts = hosts = xstrdup(hosts);
+	while ((host = strsep(&hosts, ",")) != NULL)
+		keyprint_one(host, key);
+	free(ohosts);
 }
 
 static int
@@ -409,8 +362,10 @@ tcpconnect(char *host)
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = IPv4or6;
 	hints.ai_socktype = SOCK_STREAM;
-	if ((gaierr = getaddrinfo(host, strport, &hints, &aitop)) != 0)
-		fatal("getaddrinfo %s: %s", host, ssh_gai_strerror(gaierr));
+	if ((gaierr = getaddrinfo(host, strport, &hints, &aitop)) != 0) {
+		error("getaddrinfo %s: %s", host, ssh_gai_strerror(gaierr));
+		return -1;
+	}
 	for (ai = aitop; ai; ai = ai->ai_next) {
 		s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 		if (s < 0) {
@@ -442,7 +397,7 @@ conalloc(char *iname, char *oname, int keytype)
 	do {
 		name = xstrsep(&namelist, ",");
 		if (!name) {
-			xfree(namebase);
+			free(namebase);
 			return (-1);
 		}
 	} while ((s = tcpconnect(name)) < 0);
@@ -452,6 +407,7 @@ conalloc(char *iname, char *oname, int keytype)
 	if (fdcon[s].c_status)
 		fatal("conalloc: attempt to reuse fdno %d", s);
 
+	debug3("%s: oname %s kt %d", __func__, oname, keytype);
 	fdcon[s].c_fd = s;
 	fdcon[s].c_status = CS_CON;
 	fdcon[s].c_namebase = namebase;
@@ -476,12 +432,17 @@ confree(int s)
 	if (s >= maxfd || fdcon[s].c_status == CS_UNUSED)
 		fatal("confree: attempt to free bad fdno %d", s);
 	close(s);
-	xfree(fdcon[s].c_namebase);
-	xfree(fdcon[s].c_output_name);
+	free(fdcon[s].c_namebase);
+	free(fdcon[s].c_output_name);
 	if (fdcon[s].c_status == CS_KEYS)
-		xfree(fdcon[s].c_data);
+		free(fdcon[s].c_data);
 	fdcon[s].c_status = CS_UNUSED;
 	fdcon[s].c_keytype = 0;
+	if (fdcon[s].c_ssh) {
+		ssh_packet_close(fdcon[s].c_ssh);
+		free(fdcon[s].c_ssh);
+		fdcon[s].c_ssh = NULL;
+	}
 	TAILQ_REMOVE(&tq, &fdcon[s], c_link);
 	FD_CLR(s, read_wait);
 	ncon--;
@@ -549,11 +510,15 @@ congreet(int s)
 		return;
 	}
 	*cp = '\0';
+	if ((c->c_ssh = ssh_packet_set_connection(NULL, s, s)) == NULL)
+		fatal("ssh_packet_set_connection failed");
+	ssh_packet_set_timeout(c->c_ssh, timeout, 1);
+	ssh_set_app_data(c->c_ssh, c);	/* back link */
 	if (sscanf(buf, "SSH-%d.%d-%[^\n]\n",
 	    &remote_major, &remote_minor, remote_version) == 3)
-		compat_datafellows(remote_version);
+		c->c_ssh->compat = compat_datafellows(remote_version);
 	else
-		datafellows = 0;
+		c->c_ssh->compat = 0;
 	if (c->c_keytype != KT_RSA1) {
 		if (!ssh2_capable(remote_major, remote_minor)) {
 			debug("%s doesn't support ssh2", c->c_name);
@@ -565,7 +530,7 @@ congreet(int s)
 		confree(s);
 		return;
 	}
-	fprintf(stderr, "# %s %s\n", c->c_name, chop(buf));
+	fprintf(stderr, "# %s:%d %s\n", c->c_name, ssh_port, chop(buf));
 	n = snprintf(buf, sizeof buf, "SSH-%d.%d-OpenSSH-keyscan\r\n",
 	    c->c_keytype == KT_RSA1? PROTOCOL_MAJOR_1 : PROTOCOL_MAJOR_2,
 	    c->c_keytype == KT_RSA1? PROTOCOL_MINOR_1 : PROTOCOL_MINOR_2);
@@ -580,7 +545,7 @@ congreet(int s)
 		return;
 	}
 	if (c->c_keytype != KT_RSA1) {
-		keyprint(c, keygrab_ssh2(c));
+		keygrab_ssh2(c);
 		confree(s);
 		return;
 	}
@@ -615,10 +580,12 @@ conread(int s)
 			c->c_data = xmalloc(c->c_len);
 			c->c_status = CS_KEYS;
 			break;
+#ifdef WITH_SSH1
 		case CS_KEYS:
 			keyprint(c, keygrab_ssh1(c));
 			confree(s);
 			return;
+#endif
 		default:
 			fatal("conread: invalid status %d", c->c_status);
 			break;
@@ -648,7 +615,7 @@ conloop(void)
 			seltime.tv_sec--;
 		}
 	} else
-		seltime.tv_sec = seltime.tv_usec = 0;
+		timerclear(&seltime);
 
 	r = xcalloc(read_wait_nfdset, sizeof(fd_mask));
 	e = xcalloc(read_wait_nfdset, sizeof(fd_mask));
@@ -666,8 +633,8 @@ conloop(void)
 		} else if (FD_ISSET(i, r))
 			conread(i);
 	}
-	xfree(r);
-	xfree(e);
+	free(r);
+	free(e);
 
 	c = TAILQ_FIRST(&tq);
 	while (c && (c->c_tv.tv_sec < now.tv_sec ||
@@ -687,7 +654,7 @@ do_host(char *host)
 
 	if (name == NULL)
 		return;
-	for (j = KT_RSA1; j <= KT_RSA; j *= 2) {
+	for (j = KT_RSA1; j <= KT_ED25519; j *= 2) {
 		if (get_keytypes & j) {
 			while (ncon >= MAXCON)
 				conloop();
@@ -704,17 +671,14 @@ fatal(const char *fmt,...)
 	va_start(args, fmt);
 	do_log(SYSLOG_LEVEL_FATAL, fmt, args);
 	va_end(args);
-	if (nonfatal_fatal)
-		longjmp(kexjmp, -1);
-	else
-		exit(255);
+	exit(255);
 }
 
 static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: %s [-46Hv] [-f file] [-p port] [-T timeout] [-t type]\n"
+	    "usage: %s [-46cHv] [-f file] [-p port] [-T timeout] [-t type]\n"
 	    "\t\t   [host | addrlist namelist] ...\n",
 	    __progname);
 	exit(1);
@@ -724,14 +688,16 @@ int
 main(int argc, char **argv)
 {
 	int debug_flag = 0, log_level = SYSLOG_LEVEL_INFO;
-	int opt, fopt_count = 0;
-	char *tname;
+	int opt, fopt_count = 0, j;
+	char *tname, *cp, line[NI_MAXHOST];
+	FILE *fp;
+	u_long linenum;
 
 	extern int optind;
 	extern char *optarg;
 
+	ssh_malloc_init();	/* must be called before any mallocs */
 	__progname = ssh_get_progname(argv[0]);
-	init_rng();
 	seed_rng();
 	TAILQ_INIT(&tq);
 
@@ -741,10 +707,13 @@ main(int argc, char **argv)
 	if (argc <= 1)
 		usage();
 
-	while ((opt = getopt(argc, argv, "Hv46p:T:t:f:")) != -1) {
+	while ((opt = getopt(argc, argv, "cHv46p:T:t:f:")) != -1) {
 		switch (opt) {
 		case 'H':
 			hash_hosts = 1;
+			break;
+		case 'c':
+			get_cert = 1;
 			break;
 		case 'p':
 			ssh_port = a2port(optarg);
@@ -779,7 +748,7 @@ main(int argc, char **argv)
 			get_keytypes = 0;
 			tname = strtok(optarg, ",");
 			while (tname) {
-				int type = key_type_from_name(tname);
+				int type = sshkey_type_from_name(tname);
 				switch (type) {
 				case KEY_RSA1:
 					get_keytypes |= KT_RSA1;
@@ -787,8 +756,14 @@ main(int argc, char **argv)
 				case KEY_DSA:
 					get_keytypes |= KT_DSA;
 					break;
+				case KEY_ECDSA:
+					get_keytypes |= KT_ECDSA;
+					break;
 				case KEY_RSA:
 					get_keytypes |= KT_RSA;
+					break;
+				case KEY_ED25519:
+					get_keytypes |= KT_ED25519;
 					break;
 				case KEY_UNSPEC:
 					fatal("unknown key type %s", tname);
@@ -826,19 +801,40 @@ main(int argc, char **argv)
 	read_wait_nfdset = howmany(maxfd, NFDBITS);
 	read_wait = xcalloc(read_wait_nfdset, sizeof(fd_mask));
 
-	if (fopt_count) {
-		Linebuf *lb;
-		char *line;
-		int j;
+	for (j = 0; j < fopt_count; j++) {
+		if (argv[j] == NULL)
+			fp = stdin;
+		else if ((fp = fopen(argv[j], "r")) == NULL)
+			fatal("%s: %s: %s", __progname, argv[j],
+			    strerror(errno));
+		linenum = 0;
 
-		for (j = 0; j < fopt_count; j++) {
-			lb = Linebuf_alloc(argv[j], error);
-			if (!lb)
+		while (read_keyfile_line(fp,
+		    argv[j] == NULL ? "(stdin)" : argv[j], line, sizeof(line),
+		    &linenum) != -1) {
+			/* Chomp off trailing whitespace and comments */
+			if ((cp = strchr(line, '#')) == NULL)
+				cp = line + strlen(line) - 1;
+			while (cp >= line) {
+				if (*cp == ' ' || *cp == '\t' ||
+				    *cp == '\n' || *cp == '#')
+					*cp-- = '\0';
+				else
+					break;
+			}
+
+			/* Skip empty lines */
+			if (*line == '\0')
 				continue;
-			while ((line = Linebuf_getline(lb)) != NULL)
-				do_host(line);
-			Linebuf_free(lb);
+
+			do_host(line);
 		}
+
+		if (ferror(fp))
+			fatal("%s: %s: %s", __progname, argv[j],
+			    strerror(errno));
+
+		fclose(fp);
 	}
 
 	while (optind < argc)

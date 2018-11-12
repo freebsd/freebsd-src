@@ -76,6 +76,8 @@ static bool_t	xdr_retval(XDR *, caddr_t);
 #define	MAXNAME		1024
 #define	MAXNFSUSERD	20
 #define	DEFNFSUSERD	4
+#define	MAXUSERMAX	100000
+#define	MINUSERMAX	10
 #define	DEFUSERMAX	200
 #define	DEFUSERTIMEOUT	(1 * 60)
 struct info {
@@ -90,14 +92,14 @@ uid_t defaultuid = (uid_t)32767;
 u_char *defaultgroup = "nogroup";
 gid_t defaultgid = (gid_t)32767;
 int verbose = 0, im_a_slave = 0, nfsuserdcnt = -1, forcestart = 0;
-int defusertimeout = DEFUSERTIMEOUT;
+int defusertimeout = DEFUSERTIMEOUT, manage_gids = 0;
 pid_t slaves[MAXNFSUSERD];
 
 int
 main(int argc, char *argv[])
 {
-	int i;
-	int error, len, mustfreeai = 0;
+	int i, j;
+	int error, fnd_dup, len, mustfreeai = 0, start_uidpos;
 	struct nfsd_idargs nid;
 	struct passwd *pwd;
 	struct group *grp;
@@ -107,6 +109,9 @@ main(int argc, char *argv[])
 	sigset_t signew;
 	char hostname[MAXHOSTNAMELEN + 1], *cp;
 	struct addrinfo *aip, hints;
+	static uid_t check_dups[MAXUSERMAX];
+	gid_t grps[NGROUPS];
+	int ngroup;
 
 	if (modfind("nfscommon") < 0) {
 		/* Not present in kernel, try loading it */
@@ -157,15 +162,18 @@ main(int argc, char *argv[])
 			verbose = 1;
 		} else if (!strcmp(*argv, "-force")) {
 			forcestart = 1;
+		} else if (!strcmp(*argv, "-manage-gids")) {
+			manage_gids = 1;
 		} else if (!strcmp(*argv, "-usermax")) {
 			if (argc == 1)
 				usage();
 			argc--;
 			argv++;
 			i = atoi(*argv);
-			if (i < 10 || i > 100000) {
+			if (i < MINUSERMAX || i > MAXUSERMAX) {
 				fprintf(stderr,
-				    "usermax %d out of range 10<->100000\n", i);
+				    "usermax %d out of range %d<->%d\n", i,
+				    MINUSERMAX, MAXUSERMAX);
 				usage();
 			}
 			nid.nid_usermax = i;
@@ -293,12 +301,14 @@ main(int argc, char *argv[])
 		nid.nid_gid = defaultgid;
 	nid.nid_name = dnsname;
 	nid.nid_namelen = strlen(nid.nid_name);
+	nid.nid_ngroup = 0;
+	nid.nid_grps = NULL;
 	nid.nid_flag = NFSID_INITIALIZE;
 #ifdef DEBUG
 	printf("Initialize uid=%d gid=%d dns=%s\n", nid.nid_uid, nid.nid_gid, 
 	    nid.nid_name);
 #else
-	error = nfssvc(NFSSVC_IDNAME, &nid);
+	error = nfssvc(NFSSVC_IDNAME | NFSSVC_NEWSTRUCT, &nid);
 	if (error)
 		errx(1, "Can't initialize nfs user/groups");
 #endif
@@ -312,11 +322,13 @@ main(int argc, char *argv[])
 		nid.nid_gid = grp->gr_gid;
 		nid.nid_name = grp->gr_name;
 		nid.nid_namelen = strlen(grp->gr_name);
+		nid.nid_ngroup = 0;
+		nid.nid_grps = NULL;
 		nid.nid_flag = NFSID_ADDGID;
 #ifdef DEBUG
 		printf("add gid=%d name=%s\n", nid.nid_gid, nid.nid_name);
 #else
-		error = nfssvc(NFSSVC_IDNAME, &nid);
+		error = nfssvc(NFSSVC_IDNAME | NFSSVC_NEWSTRUCT, &nid);
 		if (error)
 			errx(1, "Can't add group %s", grp->gr_name);
 #endif
@@ -326,16 +338,45 @@ main(int argc, char *argv[])
 	/*
 	 * Loop around adding all users.
 	 */
+	start_uidpos = i;
 	setpwent();
 	while (i < nid.nid_usermax && (pwd = getpwent())) {
+		fnd_dup = 0;
+		/*
+		 * Yes, this is inefficient, but it is only done once when
+		 * the daemon is started and will run in a fraction of a second
+		 * for nid_usermax at 10000. If nid_usermax is cranked up to
+		 * 100000, it will take several seconds, depending on the CPU.
+		 */
+		for (j = 0; j < (i - start_uidpos); j++)
+			if (check_dups[j] == pwd->pw_uid) {
+				/* Found another entry for uid, so skip it */
+				fnd_dup = 1;
+				break;
+			}
+		if (fnd_dup != 0)
+			continue;
+		check_dups[i - start_uidpos] = pwd->pw_uid;
 		nid.nid_uid = pwd->pw_uid;
 		nid.nid_name = pwd->pw_name;
 		nid.nid_namelen = strlen(pwd->pw_name);
+		if (manage_gids != 0) {
+			/* Get the group list for this user. */
+			ngroup = NGROUPS;
+			if (getgrouplist(pwd->pw_name, pwd->pw_gid, grps,
+			    &ngroup) < 0)
+				syslog(LOG_ERR, "Group list too small");
+			nid.nid_ngroup = ngroup;
+			nid.nid_grps = grps;
+		} else {
+			nid.nid_ngroup = 0;
+			nid.nid_grps = NULL;
+		}
 		nid.nid_flag = NFSID_ADDUID;
 #ifdef DEBUG
 		printf("add uid=%d name=%s\n", nid.nid_uid, nid.nid_name);
 #else
-		error = nfssvc(NFSSVC_IDNAME, &nid);
+		error = nfssvc(NFSSVC_IDNAME | NFSSVC_NEWSTRUCT, &nid);
 		if (error)
 			errx(1, "Can't add user %s", pwd->pw_name);
 #endif
@@ -418,6 +459,8 @@ nfsuserdsrv(struct svc_req *rqstp, SVCXPRT *transp)
 	struct info info;
 	struct nfsd_idargs nid;
 	u_int32_t saddr;
+	gid_t grps[NGROUPS];
+	int ngroup;
 
 	/*
 	 * Only handle requests from 127.0.0.1 on a reserved port number.
@@ -451,14 +494,28 @@ nfsuserdsrv(struct svc_req *rqstp, SVCXPRT *transp)
 			nid.nid_usertimeout = defusertimeout;
 			nid.nid_uid = pwd->pw_uid;
 			nid.nid_name = pwd->pw_name;
+			if (manage_gids != 0) {
+				/* Get the group list for this user. */
+				ngroup = NGROUPS;
+				if (getgrouplist(pwd->pw_name, pwd->pw_gid,
+				    grps, &ngroup) < 0)
+					syslog(LOG_ERR, "Group list too small");
+				nid.nid_ngroup = ngroup;
+				nid.nid_grps = grps;
+			} else {
+				nid.nid_ngroup = 0;
+				nid.nid_grps = NULL;
+			}
 		} else {
 			nid.nid_usertimeout = 5;
 			nid.nid_uid = (uid_t)info.id;
 			nid.nid_name = defaultuser;
+			nid.nid_ngroup = 0;
+			nid.nid_grps = NULL;
 		}
 		nid.nid_namelen = strlen(nid.nid_name);
 		nid.nid_flag = NFSID_ADDUID;
-		error = nfssvc(NFSSVC_IDNAME, &nid);
+		error = nfssvc(NFSSVC_IDNAME | NFSSVC_NEWSTRUCT, &nid);
 		if (error) {
 			info.retval = error;
 			syslog(LOG_ERR, "Can't add user %s\n", pwd->pw_name);
@@ -488,8 +545,10 @@ nfsuserdsrv(struct svc_req *rqstp, SVCXPRT *transp)
 			nid.nid_name = defaultgroup;
 		}
 		nid.nid_namelen = strlen(nid.nid_name);
+		nid.nid_ngroup = 0;
+		nid.nid_grps = NULL;
 		nid.nid_flag = NFSID_ADDGID;
-		error = nfssvc(NFSSVC_IDNAME, &nid);
+		error = nfssvc(NFSSVC_IDNAME | NFSSVC_NEWSTRUCT, &nid);
 		if (error) {
 			info.retval = error;
 			syslog(LOG_ERR, "Can't add group %s\n",
@@ -520,8 +579,10 @@ nfsuserdsrv(struct svc_req *rqstp, SVCXPRT *transp)
 			nid.nid_name = info.name;
 		}
 		nid.nid_namelen = strlen(nid.nid_name);
+		nid.nid_ngroup = 0;
+		nid.nid_grps = NULL;
 		nid.nid_flag = NFSID_ADDUSERNAME;
-		error = nfssvc(NFSSVC_IDNAME, &nid);
+		error = nfssvc(NFSSVC_IDNAME | NFSSVC_NEWSTRUCT, &nid);
 		if (error) {
 			info.retval = error;
 			syslog(LOG_ERR, "Can't add user %s\n", pwd->pw_name);
@@ -551,8 +612,10 @@ nfsuserdsrv(struct svc_req *rqstp, SVCXPRT *transp)
 			nid.nid_name = info.name;
 		}
 		nid.nid_namelen = strlen(nid.nid_name);
+		nid.nid_ngroup = 0;
+		nid.nid_grps = NULL;
 		nid.nid_flag = NFSID_ADDGROUPNAME;
-		error = nfssvc(NFSSVC_IDNAME, &nid);
+		error = nfssvc(NFSSVC_IDNAME | NFSSVC_NEWSTRUCT, &nid);
 		if (error) {
 			info.retval = error;
 			syslog(LOG_ERR, "Can't add group %s\n",
@@ -658,5 +721,5 @@ usage(void)
 {
 
 	errx(1,
-	    "usage: nfsuserd [-usermax cache_size] [-usertimeout minutes] [-verbose] [-domain domain_name] [n]");
+	    "usage: nfsuserd [-usermax cache_size] [-usertimeout minutes] [-verbose] [-manage-gids] [-domain domain_name] [n]");
 }

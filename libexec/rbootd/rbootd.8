@@ -17,11 +17,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -103,14 +99,14 @@ and/or comma characters.
 A pound sign causes the remainder of a line to be ignored.
 .Pp
 Here is a sample configuration file:
-.Bl -column 08:00:09:0:66:ad SYSHPBSD,SYSHPUX
-.It #
-.It "# ethernet addr	boot file(s)	comments
-.It #
-.It "08:00:09:0:66:ad	SYSHPBSD	# snake (4.3BSD)
-.It "08:00:09:0:59:5b		# vandy (anything)
-.It "8::9:1:C6:75	SYSHPBSD,SYSHPUX	# jaguar (either)
-.El
+.Bd -literal
+#
+# ethernet addr     boot file(s)        comments
+#
+08:00:09:0:66:ad    SYSHPBSD            # snake (4.3BSD)
+08:00:09:0:59:5b                        # vandy (anything)
+8::9:1:C6:75        SYSHPBSD,SYSHPUX    # jaguar (either)
+.Ed
 .Pp
 The
 .Nm
@@ -126,7 +122,7 @@ The following signals have the specified effect when sent to the server
 process using the
 .Xr kill 1
 command:
-.Bl -tag -width SIGUSR1 -offset -compact
+.Bl -tag -width SIGUSR1 -offset xxxxxxxx
 .It SIGHUP
 Drop all active connections and reconfigure.
 .It SIGUSR1

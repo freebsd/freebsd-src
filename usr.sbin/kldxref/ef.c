@@ -42,12 +42,12 @@
 #include <fcntl.h>
 #include <machine/elf.h>
 #define FREEBSD_ELF
-#include <link.h>
 
 #include <err.h>
 
 #include "ef.h"
 
+#define	MAXSEGS 2
 struct ef_file {
 	char*		ef_name;
 	struct elf_file *ef_efile;
@@ -69,7 +69,7 @@ struct ef_file {
 	Elf_Off		ef_symoff;
 	Elf_Sym*	ef_symtab;
 	int		ef_nsegs;
-	Elf_Phdr *	ef_segs[2];
+	Elf_Phdr *	ef_segs[MAXSEGS];
 	int		ef_verbose;
 	Elf_Rel *	ef_rel;			/* relocation table */
 	int		ef_relsz;		/* number of entries */
@@ -532,7 +532,7 @@ ef_open(const char *filename, struct elf_file *efile, int verbose)
 	int error;
 	int phlen, res;
 	int nsegs;
-	Elf_Phdr *phdr, *phdyn, *phphdr, *phlimit;
+	Elf_Phdr *phdr, *phdyn, *phlimit;
 
 	if (filename == NULL)
 		return EFTYPE;
@@ -576,21 +576,16 @@ ef_open(const char *filename, struct elf_file *efile, int verbose)
 		phlimit = phdr + hdr->e_phnum;
 		nsegs = 0;
 		phdyn = NULL;
-		phphdr = NULL;
 		while (phdr < phlimit) {
 			if (verbose > 1)
 				ef_print_phdr(phdr);
 			switch (phdr->p_type) {
 			case PT_LOAD:
-				if (nsegs == 2) {
-					warnx("%s: too many sections",
-					    filename);
-					break;
-				}
-				ef->ef_segs[nsegs++] = phdr;
+				if (nsegs < MAXSEGS)
+					ef->ef_segs[nsegs] = phdr;
+				nsegs++;
 				break;
 			case PT_PHDR:
-				phphdr = phdr;
 				break;
 			case PT_DYNAMIC:
 				phdyn = phdr;
@@ -600,11 +595,15 @@ ef_open(const char *filename, struct elf_file *efile, int verbose)
 		}
 		if (verbose > 1)
 			printf("\n");
-		ef->ef_nsegs = nsegs;
 		if (phdyn == NULL) {
-			warnx("file isn't dynamically-linked");
+			warnx("Skipping %s: not dynamically-linked",
+			    filename);
+			break;
+		} else if (nsegs > MAXSEGS) {
+			warnx("%s: too many sections", filename);
 			break;
 		}
+		ef->ef_nsegs = nsegs;
 		if (ef_read_entry(ef, phdyn->p_offset,
 			phdyn->p_filesz, (void**)&ef->ef_dyn) != 0) {
 			printf("ef_read_entry failed\n");

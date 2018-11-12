@@ -12,10 +12,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -149,15 +145,14 @@ the octal sequence to the full 3 octal digits.
 .It \echaracter
 A backslash followed by certain special characters maps to special
 values.
-.Pp
 .Bl -column "\ea"
-.It "\ea	<alert character>
-.It "\eb	<backspace>
-.It "\ef	<form-feed>
-.It "\en	<newline>
-.It "\er	<carriage return>
-.It "\et	<tab>
-.It "\ev	<vertical tab>
+.It "\ea	<alert character>"
+.It "\eb	<backspace>"
+.It "\ef	<form-feed>"
+.It "\en	<newline>"
+.It "\er	<carriage return>"
+.It "\et	<tab>"
+.It "\ev	<vertical tab>"
 .El
 .Pp
 A backslash followed by any other character maps to that character.
@@ -181,24 +176,23 @@ previous implementations.
 .It [:class:]
 Represents all characters belonging to the defined character class.
 Class names are:
-.Pp
 .Bl -column "phonogram"
-.It "alnum	<alphanumeric characters>
-.It "alpha	<alphabetic characters>
-.It "blank	<whitespace characters>
-.It "cntrl	<control characters>
-.It "digit	<numeric characters>
-.It "graph	<graphic characters>
-.It "ideogram	<ideographic characters>
-.It "lower	<lower-case alphabetic characters>
-.It "phonogram	<phonographic characters>
-.It "print	<printable characters>
-.It "punct	<punctuation characters>
-.It "rune	<valid characters>
-.It "space	<space characters>
-.It "special	<special characters>
-.It "upper	<upper-case characters>
-.It "xdigit	<hexadecimal characters>
+.It "alnum	<alphanumeric characters>"
+.It "alpha	<alphabetic characters>"
+.It "blank	<whitespace characters>"
+.It "cntrl	<control characters>"
+.It "digit	<numeric characters>"
+.It "graph	<graphic characters>"
+.It "ideogram	<ideographic characters>"
+.It "lower	<lower-case alphabetic characters>"
+.It "phonogram	<phonographic characters>"
+.It "print	<printable characters>"
+.It "punct	<punctuation characters>"
+.It "rune	<valid characters>"
+.It "space	<space characters>"
+.It "special	<special characters>"
+.It "upper	<upper-case characters>"
+.It "xdigit	<hexadecimal characters>"
 .El
 .Pp
 .\" All classes may be used in
@@ -339,6 +333,10 @@ should be used instead of explicit character ranges like
 .Dq Li a-z
 and
 .Dq Li A-Z .
+.Pp
+.Dq Li [=equiv=]
+expression and collation for ranges
+are implemented for single byte locales only.
 .Pp
 System V has historically implemented character ranges using the syntax
 .Dq Li [c-c]

@@ -1,11 +1,17 @@
 #include autogen-version.def
 
-test-main;
+include = <<- _EOF_
+	#ifdef __windows
+	  extern int atoi(const char *);
+	#else
+	# include <stdlib.h>
+	#endif
+	_EOF_;
 
 flag = {
     name      = ipv4;
     value     = 4;
-    equivalence = ipv4;
+    flags-cant = ipv6;
     descrip   = "Force IPv4 DNS name resolution";
     doc = <<-  _EndOfDoc_
 	Force DNS resolution of following host names on the command line
@@ -16,7 +22,7 @@ flag = {
 flag = {
     name      = ipv6;
     value     = 6;
-    equivalence = ipv4;
+    flags-cant = ipv4;
     descrip   = "Force IPv6 DNS name resolution";
     doc = <<-  _EndOfDoc_
 	Force DNS resolution of following host names on the command line
@@ -56,17 +62,6 @@ flag = {
 	_EndOfDoc_;
 };
 
-#ifdef SIM
-flag = {
-    name      = simbroadcastdelay;
-    value     = B;
-    arg-type  = string;
-    descrip   = "Simulator broadcast delay";
-    doc = <<-  _EndOfDoc_
-	_EndOfDoc_;
-};
-#endif
-
 flag = {
     name      = configfile;
     value     = c;
@@ -74,21 +69,10 @@ flag = {
     descrip   = "configuration file name";
     doc = <<-  _EndOfDoc_
 	The name and path of the configuration file,
-	/etc/ntp.conf
+	@file{/etc/ntp.conf}
 	by default.
 	_EndOfDoc_;
 };
-
-#ifdef SIM
-flag = {
-    name      = phasenoise;
-    value     = C;
-    arg-type  = string;
-    descrip   = "Phase noise level";
-    doc = <<-  _EndOfDoc_
-	_EndOfDoc_;
-};
-#endif
 
 #include debug-opt.def
 
@@ -99,12 +83,12 @@ flag = {
     descrip   = "frequency drift file name";
     doc = <<-  _EndOfDoc_
 	The name and path of the frequency file,
-	/etc/ntp.drift
+	@file{/etc/ntp.drift}
 	by default.
 	This is the same operation as the
-	driftfile driftfile
-	configuration specification in the 
-	/etc/ntp.conf
+	@code{driftfile} @kbd{driftfile}
+	configuration specification in the
+	@file{/etc/ntp.conf}
 	file.
 	_EndOfDoc_;
 };
@@ -112,47 +96,62 @@ flag = {
 flag = {
     name      = panicgate;
     value     = g;
+    max       = NOLIMIT;
     descrip   = "Allow the first adjustment to be Big";
     doc = <<-  _EndOfDoc_
 	Normally,
-	ntpd
+	@code{ntpd}
 	exits with a message to the system log if the offset exceeds the panic threshold, which is 1000 s by default. This option allows the time to be set to any value without restriction; however, this can happen only once. If the threshold is exceeded after that,
-	ntpd
+	@code{ntpd}
 	will exit with a message to the system log. This option can be used with the
-	-q
+	@code{-q}
 	and
-	-x
+	@code{-x}
 	options.
 	See the
-	tinker
+	@code{tinker}
 	configuration file directive for other options.
 	_EndOfDoc_;
 };
 
-#ifdef SIM
 flag = {
-    name      = simslew;
-    value     = H;
-    arg-type  = string;
-    descrip   = "Simuator slew";
+    name      = force_step_once;
+    value     = G;
+    descrip   = "Step any initial offset correction.";
     doc = <<-  _EndOfDoc_
+	Normally,
+	@code{ntpd}
+	steps the time if the time offset exceeds the step threshold,
+	which is 128 ms by default, and otherwise slews the time.
+	This option forces the initial offset correction to be stepped,
+	so the highest time accuracy can be achieved quickly.
+	However, this may also cause the time to be stepped back
+	so this option must not be used if
+	applications requiring monotonic time are running.
+	See the @code{tinker} configuration file directive for other options.
 	_EndOfDoc_;
 };
-#endif
 
 flag = {
+    ifdef     = HAVE_DROPROOT;
     name      = jaildir;
     value     = i;
     arg-type  = string;
     descrip   = "Jail directory";
+    omitted-usage = "built without --enable-clockctl or --enable-linuxcaps or --enable-solarisprivs";
     doc = <<-  _EndOfDoc_
 	Chroot the server to the directory
-	jaildir
+	@kbd{jaildir}
 	.
-	This option also implies that the server attempts to drop root privileges at startup (otherwise, chroot gives very little additional security), and it is only available if the OS supports to run the server without full root privileges.
+	This option also implies that the server attempts to drop root privileges at startup.
 	You may need to also specify a
-	-u
+	@code{-u}
 	option.
+	This option is only available if the OS supports adjusting the clock
+	without full root privileges.
+	This option is supported under NetBSD (configure with
+	@code{--enable-clockctl}) or Linux (configure with
+	@code{--enable-linuxcaps}) or Solaris (configure with @code{--enable-solarisprivs}).
 	_EndOfDoc_;
 };
 
@@ -160,11 +159,16 @@ flag = {
     name      = interface;
     value     = I;
     arg-type  = string;
-    descrip   = "Listen on interface";
+    descrip   = "Listen on an interface name or address";
     max       = NOLIMIT;
     arg-name  = iface;
     stack-arg;
     doc = <<-  _EndOfDoc_
+	Open the network address given, or all the addresses associated with the
+	given interface name.  This option may appear multiple times.  This option
+	also implies not opening other addresses, except wildcard and localhost.
+	This option is deprecated. Please consider using the configuration file
+	@code{interface} command, which is more versatile.
 	_EndOfDoc_;
 };
 
@@ -175,10 +179,10 @@ flag = {
     descrip   = "path to symmetric keys";
     doc = <<-  _EndOfDoc_
 	Specify the name and path of the symmetric key file.
-	/etc/ntp.keys
+	@file{/etc/ntp.keys}
 	is the default.
 	This is the same operation as the
-	keys keyfile
+	@code{keys} @kbd{keyfile}
 	configuration file directive.
 	_EndOfDoc_;
 };
@@ -192,7 +196,7 @@ flag = {
 	Specify the name and path of the log file.
 	The default is the system log file.
 	This is the same operation as the
-	logfile logfile
+	@code{logfile} @kbd{logfile}
 	configuration file directive.
 	_EndOfDoc_;
 };
@@ -200,9 +204,12 @@ flag = {
 flag = {
     name      = novirtualips;
     value     = L;
-    descrip   = "Do not listen to virtual IPs";
+    descrip   = "Do not listen to virtual interfaces";
     doc = <<-  _EndOfDoc_
-	Do not listen to virtual IPs. The default is to listen.
+	Do not listen to virtual interfaces, defined as those with
+	names containing a colon.  This option is deprecated.  Please
+	consider using the configuration file @code{interface} command, which
+	is more versatile.
 	_EndOfDoc_;
 };
 
@@ -212,13 +219,16 @@ flag = {
     value     = M;
     descrip   = "Modify Multimedia Timer (Windows only)";
     doc = <<-  _EndOfDoc_
-	Set the Windows Multimedia Timer to highest resolution.
+	Set the Windows Multimedia Timer to highest resolution.  This
+	ensures the resolution does not change while ntpd is running,
+	avoiding timekeeping glitches associated with changes.
 	_EndOfDoc_;
 };
 
 flag = {
     name      = nofork;
     value     = n;
+    flags-cant = wait-sync;
     descrip   = "Do not fork";
     doc = <<-  _EndOfDoc_
 	_EndOfDoc_;
@@ -230,21 +240,10 @@ flag = {
     descrip   = "Run at high priority";
     doc = <<-  _EndOfDoc_
 	To the extent permitted by the operating system, run
-	ntpd
+	@code{ntpd}
 	at the highest priority.
 	_EndOfDoc_;
 };
-
-#ifdef SIM
-flag = {
-    name      = servertime;
-    value     = O;
-    arg-type  = string;
-    descrip   = "Server time";
-    doc = <<-  _EndOfDoc_
-	_EndOfDoc_;
-};
-#endif
 
 flag = {
     name      = pidfile;
@@ -253,10 +252,10 @@ flag = {
     descrip   = "path to the PID file";
     doc = <<-  _EndOfDoc_
 	Specify the name and path of the file used to record
-	ntpd's
+	@code{ntpd}'s
 	process ID.
 	This is the same operation as the
-	pidfile pidfile
+	@code{pidfile} @kbd{pidfile}
 	configuration file directive.
 	_EndOfDoc_;
 };
@@ -268,9 +267,9 @@ flag = {
     descrip   = "Process priority";
     doc = <<-  _EndOfDoc_
 	To the extent permitted by the operating system, run
-	ntpd
+	@code{ntpd}
 	at the specified
-	sched_setscheduler(SCHED_FIFO)
+	@code{sched_setscheduler(SCHED_FIFO)}
 	priority.
 	_EndOfDoc_;
 };
@@ -278,16 +277,19 @@ flag = {
 flag = {
     name      = quit;
     value     = q;
+    flags-cant = saveconfigquit;
+    flags-cant = wait-sync;
     descrip   = "Set the time and quit";
     doc = <<-  _EndOfDoc_
-	ntpd
-	will exit just after the first time the clock is set. This behavior mimics that of the
-	ntpdate
-	program, which is to be retired.
+	@code{ntpd}
+	will not daemonize and will exit after the clock is first
+	synchronized.  This behavior mimics that of the
+	@code{ntpdate}
+	program, which will soon be replaced with a shell script.
 	The
-	-g
+	@code{-g}
 	and
-	-x
+	@code{-x}
 	options can be used with this option.
 	Note: The kernel time discipline is disabled with this option.
 	_EndOfDoc_;
@@ -304,15 +306,16 @@ flag = {
 };
 
 flag = {
-    name      = updateinterval;
-    value     = U;
-    arg-type  = number;
-    descrip   = "interval in seconds between scans for new or dropped interfaces";
+    ifdef     = SAVECONFIG;
+    name      = saveconfigquit;
+    arg-type  = string;
+    flags-cant = quit;
+    flags-cant = wait-sync;
+    descrip   = "Save parsed configuration and quit";
     doc = <<-  _EndOfDoc_
-	Give the time in seconds between two scans for new or dropped interfaces.
-	For systems with routing socket support the scans will be performed shortly after the interface change
-	has been detected by the system.
-	Use 0 to disable scanning.
+	Cause @code{ntpd} to parse its startup configuration file and save an
+	equivalent to the given filename and exit.  This option was
+	designed for automated testing.
 	_EndOfDoc_;
 };
 
@@ -324,21 +327,10 @@ flag = {
     doc = <<-  _EndOfDoc_
 	Specify the directory path for files created by the statistics facility.
 	This is the same operation as the
-	statsdir statsdir
+	@code{statsdir} @kbd{statsdir}
 	configuration file directive.
 	_EndOfDoc_;
 };
-
-#ifdef SIM
-flag = {
-    name      = endsimtime;
-    value     = S;
-    arg-type  = string;
-    descrip   = "Simulation end time";
-    doc = <<-  _EndOfDoc_
-	_EndOfDoc_;
-};
-#endif
 
 flag = {
     name      = trustedkey;
@@ -349,51 +341,43 @@ flag = {
     arg-name  = tkey;
     stack-arg;
     doc = <<-  _EndOfDoc_
-	Add a key number to the trusted key list.
+	Add the specified key number to the trusted key list.
 	_EndOfDoc_;
 };
 
-#ifdef SIM
 flag = {
-    name      = freqerr;
-    value     = T;
-    arg-type  = string;
-    descrip   = "Simulation frequency error";
-    doc = <<-  _EndOfDoc_
-	_EndOfDoc_;
-};
-#endif
-
-#ifdef SIM
-flag = {
-    name      = walknoise;
-    value     = W;
-    arg-type  = string;
-    descrip   = "Simulation random walk noise";
-    doc = <<-  _EndOfDoc_
-	_EndOfDoc_;
-};
-#endif
-
-flag = {
+    ifdef     = HAVE_DROPROOT;
     name      = user;
     value     = u;
     arg-type  = string;
     descrip   = "Run as userid (or userid:groupid)";
+    omitted-usage = "built without --enable-clockctl or --enable-linuxcaps or --enable-solarisprivs";
     doc = <<-  _EndOfDoc_
 	Specify a user, and optionally a group, to switch to.
-	This option is only available if the OS supports to run the server without full root privileges.
-	Currently, this option is supported under NetBSD (configure with
-	--enable-clockctl
-	) and Linux (configure with
-	--enable-linuxcaps
-	).
+	This option is only available if the OS supports adjusting the clock
+	without full root privileges.
+	This option is supported under NetBSD (configure with
+	@code{--enable-clockctl}) or Linux (configure with
+	@code{--enable-linuxcaps}) or Solaris (configure with @code{--enable-solarisprivs}).
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = updateinterval;
+    value     = U;
+    arg-type  = number;
+    descrip   = "interval in seconds between scans for new or dropped interfaces";
+    doc = <<-  _EndOfDoc_
+	Give the time in seconds between two scans for new or dropped interfaces.
+	For systems with routing socket support the scans will be performed shortly after the interface change
+	has been detected by the system.
+	Use 0 to disable scanning. 60 seconds is the minimum time between scans.
 	_EndOfDoc_;
 };
 
 flag = {
     name      = var;
-    value     = v;
+/*    value     = v;	Bug 817 */
     arg-type  = string;
     descrip   = "make ARG an ntp variable (RW)";
     max       = NOLIMIT;
@@ -405,7 +389,7 @@ flag = {
 
 flag = {
     name      = dvar;
-    value     = V;
+/*    value     = V;	Bug 817 */
     arg-type  = string;
     descrip   = "make ARG an ntp variable (RW|DEF)";
     max       = NOLIMIT;
@@ -413,6 +397,31 @@ flag = {
     stack-arg;
     doc = <<-  _EndOfDoc_
 	_EndOfDoc_;
+};
+
+flag = {
+    ifdef     = HAVE_WORKING_FORK;
+    name      = wait-sync;
+    value     = w;
+    arg-type  = number;
+    flags-cant = nofork;
+    flags-cant = quit;
+    flags-cant = saveconfigquit;
+    descrip   = "Seconds to wait for first clock sync";
+    doc = <<-  _EndOfDoc_
+	If greater than zero, alters @code{ntpd}'s behavior when forking to
+	daemonize.  Instead of exiting with status 0 immediately after
+	the fork, the parent waits up to the specified number of
+	seconds for the child to first synchronize the clock.  The exit
+	status is zero (success) if the clock was synchronized,
+	otherwise it is @code{ETIMEDOUT}.
+	This provides the option for a script starting @code{ntpd} to easily
+	wait for the first set of the clock before proceeding.
+	_EndOfDoc_;
+/*
+** XXX: is it "first set" or is it more?  If it's only "first set" then
+** that's not the same as SYNC.
+*/
 };
 
 flag = {
@@ -425,35 +434,48 @@ flag = {
 	Note: Since the slew rate of typical Unix kernels is limited to 0.5 ms/s, each second of adjustment requires an amortization interval of 2000 s.
 	Thus, an adjustment as much as 600 s will take almost 14 days to complete.
 	This option can be used with the
-	-g
+	@code{-g}
 	and
-	-q
+	@code{-q}
 	options.
 	See the
-	tinker
+	@code{tinker}
 	configuration file directive for other options.
 	Note: The kernel time discipline is disabled with this option.
 	_EndOfDoc_;
 };
 
-#ifdef SIM
 flag = {
-    name      = ndelay;
-    value     = Y;
-    arg-type  = string;
-    descrip   = "Simulation network delay";
+    ifdef     = SYS_WINNT;
+    name      = usepcc;
+    descrip   = "Use CPU cycle counter (Windows only)";
     doc = <<-  _EndOfDoc_
+	Attempt to substitute the CPU counter for @code{QueryPerformanceCounter}.
+	The CPU counter and @code{QueryPerformanceCounter} are compared, and if
+	they have the same frequency, the CPU counter (RDTSC on x86) is
+	used directly, saving the overhead of a system call.
 	_EndOfDoc_;
 };
-#endif
 
-#ifdef SIM
 flag = {
-    name      = pdelay;
-    value     = Z;
+    ifdef     = SYS_WINNT;
+    name      = pccfreq;
     arg-type  = string;
-    descrip   = "Simulation processing delay";
+    descrip   = "Force CPU cycle counter use (Windows only)";
     doc = <<-  _EndOfDoc_
+	Force substitution the CPU counter for @code{QueryPerformanceCounter}.
+	The CPU counter (RDTSC on x86) is used unconditionally with the
+	given frequency (in Hz).
 	_EndOfDoc_;
 };
-#endif
+
+flag = {
+    ifdef     = HAVE_DNSREGISTRATION;
+    name      = mdns;
+    value     = m;
+    descrip   = "Register with mDNS as a NTP server";
+    doc = <<-  _EndOfDoc_
+	Registers as an NTP server with the local mDNS server which allows
+	the server to be discovered via mDNS client lookup.
+	_EndOfDoc_;
+};

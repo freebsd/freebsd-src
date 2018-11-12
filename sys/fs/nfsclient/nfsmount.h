@@ -35,22 +35,19 @@
 #ifndef _NFSCLIENT_NFSMOUNT_H_
 #define	_NFSCLIENT_NFSMOUNT_H_
 
+#include <nfs/nfs_mountcommon.h>
+
 /*
  * Mount structure.
  * One allocated on every NFS mount.
  * Holds NFS specific information for mount.
  */
 struct	nfsmount {
-	struct mtx	nm_mtx;
-	int	nm_flag;		/* Flags for soft/hard... */
-	int	nm_state;		/* Internal state flags */
-	struct	mount *nm_mountp;	/* Vfs structure for this filesystem */
+	struct	nfsmount_common nm_com;	/* Common fields for nlm */
 	int	nm_numgrps;		/* Max. size of groupslist */
 	u_char	nm_fh[NFSX_FHMAX];	/* File handle of root dir */
 	int	nm_fhsize;		/* Size of root file handle */
 	struct	nfssockreq nm_sockreq;	/* Socket Info */
-	int	nm_timeo;		/* Init timer for NFSMNT_DUMBTIMR */
-	int	nm_retry;		/* Max retries */
 	int	nm_timeouts;		/* Request timeouts */
 	int	nm_rsize;		/* Max size of read rpc */
 	int	nm_wsize;		/* Max size of write rpc */
@@ -69,14 +66,16 @@ struct	nfsmount {
 	u_int64_t nm_maxfilesize;	/* maximum file size */
 	int	nm_tprintf_initial_delay; /* initial delay */
 	int	nm_tprintf_delay;	/* interval for messages */
+	int	nm_nametimeo;		/* timeout for +ve entries (sec) */
+	int	nm_negnametimeo;	/* timeout for -ve entries (sec) */
 
 	/* Newnfs additions */
-	int	nm_iothreadcnt;
-	struct proc *nm_iodwant[NFS_MAXRAHEAD];
+	TAILQ_HEAD(, nfsclds) nm_sess;	/* Session(s) for NFSv4.1. */
 	struct	nfsclclient *nm_clp;
 	uid_t	nm_uid;			/* Uid for SetClientID etc. */
 	u_int64_t nm_clval;		/* identifies which clientid */
 	u_int64_t nm_fsid[2];		/* NFSv4 fsid */
+	int	nm_minorvers;		/* Minor version # for NFSv4 */
 	u_int16_t nm_krbnamelen;	/* Krb5 host principal, if any */
 	u_int16_t nm_dirpathlen;	/* and mount dirpath, for V4 */
 	u_int16_t nm_srvkrbnamelen;	/* and the server's target name */
@@ -90,6 +89,15 @@ struct	nfsmount {
 #define	nm_soproto	nm_sockreq.nr_soproto
 #define	nm_client	nm_sockreq.nr_client
 #define	nm_krbname	nm_name
+#define	nm_mtx		nm_com.nmcom_mtx
+#define	nm_flag		nm_com.nmcom_flag
+#define	nm_state	nm_com.nmcom_state
+#define	nm_mountp	nm_com.nmcom_mountp
+#define	nm_timeo	nm_com.nmcom_timeo
+#define	nm_retry	nm_com.nmcom_retry
+#define	nm_hostname	nm_com.nmcom_hostname
+#define	nm_getinfo	nm_com.nmcom_getinfo
+#define	nm_vinvalbuf	nm_com.nmcom_vinvalbuf
 
 #define	NFSMNT_DIRPATH(m)	(&((m)->nm_name[(m)->nm_krbnamelen + 1]))
 #define	NFSMNT_SRVKRBNAME(m)						\
@@ -100,6 +108,20 @@ struct	nfsmount {
  * Convert mount ptr to nfsmount ptr.
  */
 #define	VFSTONFS(mp)	((struct nfsmount *)((mp)->mnt_data))
+
+/*
+ * Get a pointer to the MDS session, which is always the first element
+ * in the list.
+ */
+#define	NFSMNT_MDSSESSION(m)	(&(TAILQ_FIRST(&((m)->nm_sess))->nfsclds_sess))
+
+#ifndef NFS_DEFAULT_NAMETIMEO
+#define NFS_DEFAULT_NAMETIMEO		60
+#endif
+
+#ifndef NFS_DEFAULT_NEGNAMETIMEO
+#define NFS_DEFAULT_NEGNAMETIMEO	60
+#endif
 
 #endif	/* _KERNEL */
 

@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef SYS_EVENTHANDLER_H
-#define SYS_EVENTHANDLER_H
+#ifndef _SYS_EVENTHANDLER_H_
+#define _SYS_EVENTHANDLER_H_
 
 #include <sys/lock.h>
 #include <sys/ktr.h>
@@ -40,6 +40,14 @@ struct eventhandler_entry {
 #define	EHE_DEAD_PRIORITY	(-1)
 	void				*ee_arg;
 };
+
+#ifdef VIMAGE
+struct eventhandler_entry_vimage {
+	void	(* func)(void);		/* Original function registered. */
+	void	*ee_arg;		/* Original argument registered. */
+	void	*sparep[2];
+};
+#endif
 
 struct eventhandler_list {
 	char				*el_name;
@@ -142,6 +150,14 @@ void	eventhandler_deregister(struct eventhandler_list *list,
 struct eventhandler_list *eventhandler_find_list(const char *name);
 void	eventhandler_prune_list(struct eventhandler_list *list);
 
+#ifdef VIMAGE
+typedef	void (*vimage_iterator_func_t)(void *, ...);
+
+eventhandler_tag vimage_eventhandler_register(struct eventhandler_list *list,
+	    const char *name, void *func, void *arg, int priority,
+	    vimage_iterator_func_t);
+#endif
+
 /*
  * Standard system event queues.
  */
@@ -162,31 +178,31 @@ EVENTHANDLER_DECLARE(shutdown_pre_sync, shutdown_fn);	/* before fs sync */
 EVENTHANDLER_DECLARE(shutdown_post_sync, shutdown_fn);	/* after fs sync */
 EVENTHANDLER_DECLARE(shutdown_final, shutdown_fn);
 
+/* Power state change events */
+typedef void (*power_change_fn)(void *);
+EVENTHANDLER_DECLARE(power_resume, power_change_fn);
+EVENTHANDLER_DECLARE(power_suspend, power_change_fn);
+EVENTHANDLER_DECLARE(power_suspend_early, power_change_fn);
+
 /* Low memory event */
 typedef void (*vm_lowmem_handler_t)(void *, int);
 #define	LOWMEM_PRI_DEFAULT	EVENTHANDLER_PRI_FIRST
 EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
 
-/* Low vnodes event */
-typedef void (*vfs_lowvnodes_handler_t)(void *, int);
-EVENTHANDLER_DECLARE(vfs_lowvnodes, vfs_lowvnodes_handler_t);
-
 /* Root mounted event */
 typedef void (*mountroot_handler_t)(void *);
 EVENTHANDLER_DECLARE(mountroot, mountroot_handler_t);
 
-/* VLAN state change events */
-struct ifnet;
-typedef void (*vlan_config_fn)(void *, struct ifnet *, uint16_t);
-typedef void (*vlan_unconfig_fn)(void *, struct ifnet *, uint16_t);
-EVENTHANDLER_DECLARE(vlan_config, vlan_config_fn);
-EVENTHANDLER_DECLARE(vlan_unconfig, vlan_unconfig_fn);
-
-/* BPF attach/detach events */
-struct ifnet;
-typedef void (*bpf_track_fn)(void *, struct ifnet *, int /* dlt */,
-    int /* 1 =>'s attach */);
-EVENTHANDLER_DECLARE(bpf_track, bpf_track_fn);
+/* File system mount events */
+struct mount;
+struct vnode;
+struct thread;
+typedef void (*vfs_mounted_notify_fn)(void *, struct mount *, struct vnode *,
+    struct thread *);
+typedef void (*vfs_unmounted_notify_fn)(void *, struct mount *,
+    struct thread *);
+EVENTHANDLER_DECLARE(vfs_mounted, vfs_mounted_notify_fn);
+EVENTHANDLER_DECLARE(vfs_unmounted, vfs_unmounted_notify_fn);
 
 /*
  * Process events
@@ -211,7 +227,19 @@ EVENTHANDLER_DECLARE(process_exit, exitlist_fn);
 EVENTHANDLER_DECLARE(process_fork, forklist_fn);
 EVENTHANDLER_DECLARE(process_exec, execlist_fn);
 
-struct thread;
+/*
+ * application dump event
+ */
+typedef void (*app_coredump_start_fn)(void *, struct thread *, char *name);
+typedef void (*app_coredump_progress_fn)(void *, struct thread *td, int byte_count);
+typedef void (*app_coredump_finish_fn)(void *, struct thread *td);
+typedef void (*app_coredump_error_fn)(void *, struct thread *td, char *msg, ...);
+
+EVENTHANDLER_DECLARE(app_coredump_start, app_coredump_start_fn);
+EVENTHANDLER_DECLARE(app_coredump_progress, app_coredump_progress_fn);
+EVENTHANDLER_DECLARE(app_coredump_finish, app_coredump_finish_fn);
+EVENTHANDLER_DECLARE(app_coredump_error, app_coredump_error_fn);
+
 typedef void (*thread_ctor_fn)(void *, struct thread *);
 typedef void (*thread_dtor_fn)(void *, struct thread *);
 typedef void (*thread_fini_fn)(void *, struct thread *);
@@ -223,8 +251,30 @@ EVENTHANDLER_DECLARE(thread_fini, thread_fini_fn);
 
 typedef void (*uma_zone_chfn)(void *);
 EVENTHANDLER_DECLARE(nmbclusters_change, uma_zone_chfn);
+EVENTHANDLER_DECLARE(nmbufs_change, uma_zone_chfn);
 EVENTHANDLER_DECLARE(maxsockets_change, uma_zone_chfn);
 
-typedef void(*schedtail_fn)(void *, struct proc *);
-EVENTHANDLER_DECLARE(schedtail, schedtail_fn);
-#endif /* SYS_EVENTHANDLER_H */
+/* Kernel linker file load and unload events */
+struct linker_file;
+typedef void (*kld_load_fn)(void *, struct linker_file *);
+typedef void (*kld_unload_fn)(void *, const char *, caddr_t, size_t);
+typedef void (*kld_unload_try_fn)(void *, struct linker_file *, int *);
+EVENTHANDLER_DECLARE(kld_load, kld_load_fn);
+EVENTHANDLER_DECLARE(kld_unload, kld_unload_fn);
+EVENTHANDLER_DECLARE(kld_unload_try, kld_unload_try_fn);
+
+/* Generic graphics framebuffer interface */
+struct fb_info;
+typedef void (*register_framebuffer_fn)(void *, struct fb_info *);
+typedef void (*unregister_framebuffer_fn)(void *, struct fb_info *);
+EVENTHANDLER_DECLARE(register_framebuffer, register_framebuffer_fn);
+EVENTHANDLER_DECLARE(unregister_framebuffer, unregister_framebuffer_fn);
+
+/* Veto ada attachment */
+struct cam_path;
+struct ata_params;
+typedef void (*ada_probe_veto_fn)(void *, struct cam_path *,
+    struct ata_params *, int *);
+EVENTHANDLER_DECLARE(ada_probe_veto, ada_probe_veto_fn);
+
+#endif /* _SYS_EVENTHANDLER_H_ */

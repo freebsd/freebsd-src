@@ -13,9 +13,8 @@ GENHDRS=	aicasm_gram.h aicasm_macro_gram.h
 
 SRCS=	${GENHDRS} ${CSRCS} ${YSRCS} ${LSRCS}
 CLEANFILES+= ${GENHDRS} ${YSRCS:R:C/(.*)/\1.output/g}
-DPADD=	${LIBL}
-LDADD=	-ll
-WARNS?=	6
+LIBADD=	l
+WARNS?=	0
 
 # Correct path for kernel builds
 # Don't rely on the kernel's .depend file
@@ -24,17 +23,11 @@ WARNS?=	6
 DEPENDFILE=	.depend_aicasm
 .endif
 
-.if ${CC} == "icc"
-CFLAGS+=	-restrict
-NOSTDINC=	-X
-.else
-NOSTDINC=	-nostdinc
-.endif
-CFLAGS+= ${NOSTDINC} -I/usr/include -I.
+CFLAGS+= -I${.CURDIR}
 .ifdef MAKESRCPATH
 CFLAGS+= -I${MAKESRCPATH}
 .endif
-NO_MAN=
+MAN=
 YFLAGS= -b ${.TARGET:R} ${.TARGET:M*macro*:S/$(.TARGET)/-p mm/} -d
 LFLAGS+= ${.TARGET:M*macro*:S/$(.TARGET)/-Pmm/}
 
@@ -44,4 +37,9 @@ YFLAGS+= -t -v
 LFLAGS+= -d
 .endif
 
+BINDIR=/usr/bin
+
+build-tools: ${PROG}
+
 .include <bsd.prog.mk>
+CFLAGS+= -Wno-missing-prototypes

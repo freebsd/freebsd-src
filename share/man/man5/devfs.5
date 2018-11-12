@@ -16,11 +16,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -38,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 1996
+.Dd February 9, 2012
 .Dt DEVFS 5
 .Os
 .Sh NAME
@@ -69,6 +65,51 @@ The
 .Xr mknod 8
 tool can be used to recover deleted device entries under
 .Nm .
+.Pp
+The
+.Xr fdescfs 5
+filesystem is an alternate means for populating
+.Pa /dev/fd .
+The character devices that both
+.Nm
+and
+.Xr fdescfs 5
+present in
+.Pa /dev/fd
+correspond to the open file descriptors of the process
+accessing the directory.
+.Nm
+only creates files for the standard file descriptors
+.Pa 0 ,
+.Pa 1
+and
+.Pa 2 .
+.Xr fdescfs 5
+creates files for all open descriptors.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl o Ar options
+Use the specified mount
+.Ar options ,
+as described in
+.Xr mount 8 .
+The following devfs file system-specific options are available:
+.Bl -tag -width indent
+.It Cm ruleset Ns No = Ns Ar ruleset
+Set ruleset number
+.Ar ruleset
+as the current ruleset for the mount-point and apply all its rules.
+If the ruleset number
+.Ar ruleset
+does not exist, an empty ruleset with the number
+.Ar ruleset
+is created.
+See
+.Xr devfs 8
+for more information on working with devfs rulesets.
+.El
+.El
 .Sh FILES
 .Bl -tag -width /dev/XXXX -compact
 .It Pa /dev
@@ -80,10 +121,11 @@ mount point.
 To mount a
 .Nm
 volume located on
-.Pa /dev :
+.Pa /mychroot/dev :
 .Pp
-.Dl "mount -t devfs devfs /dev"
+.Dl "mount -t devfs devfs /mychroot/dev"
 .Sh SEE ALSO
+.Xr fdescfs 5 ,
 .Xr devfs 8 ,
 .Xr mount 8
 .Sh HISTORY
@@ -91,6 +133,10 @@ The
 .Nm
 file system first appeared in
 .Fx 2.0 .
+It became the preferred method for accessing devices in
+.Fx 5.0
+and the only method in
+.Fx 6.0 .
 The
 .Nm
 manual page first appeared in
@@ -99,4 +145,4 @@ manual page first appeared in
 The
 .Nm
 manual page was written by
-.An Mike Pritchard Aq mpp@FreeBSD.org .
+.An Mike Pritchard Aq Mt mpp@FreeBSD.org .

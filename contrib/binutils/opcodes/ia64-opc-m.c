@@ -1,5 +1,5 @@
 /* ia64-opc-m.c -- IA-64 `M' opcode table.
-   Copyright 1998, 1999, 2000, 2002 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2002, 2005 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GDB, GAS, and the GNU binutils.
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this file; see the file COPYING.  If not, write to the
-   Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "ia64-opc.h"
 
@@ -110,6 +110,7 @@ struct ia64_opcode ia64_opcodes_m[] =
     {"mov",	M, OpX3X6b (1, 0, 0x24), {R1, CR3}, PRIV, 0, NULL},
 
     {"alloc",	M, OpX3 (1, 6), {R1, AR_PFS, SOF, SOL, SOR}, FIRST|NO_PRED|MOD_RRBS, 0, NULL},
+    {"alloc",	M, OpX3 (1, 6), {R1, SOF, SOL, SOR}, PSEUDO|FIRST|NO_PRED|MOD_RRBS, 0, NULL},
 
     {"mov",	M, OpX3X6b (1, 0, 0x2d), {PSR_L, R2}, PRIV, 0, NULL},
     {"mov",	M, OpX3X6b (1, 0, 0x29), {PSR_UM, R2}, EMPTY},
@@ -176,8 +177,11 @@ struct ia64_opcode ia64_opcodes_m[] =
     {"ld8.nt1",		M, OpMXX6aHint (4, 0, 0, 0x03, 1), {R1, MR3}, EMPTY},
     {"ld8.nta",		M, OpMXX6aHint (4, 0, 0, 0x03, 3), {R1, MR3}, EMPTY},
     {"ld16",		M2, OpMXX6aHint (4, 0, 1, 0x28, 0), {R1, AR_CSD, MR3}, EMPTY},
+    {"ld16",		M, OpMXX6aHint (4, 0, 1, 0x28, 0), {R1, MR3}, PSEUDO, 0, NULL},
     {"ld16.nt1",	M2, OpMXX6aHint (4, 0, 1, 0x28, 1), {R1, AR_CSD, MR3}, EMPTY},
+    {"ld16.nt1",	M, OpMXX6aHint (4, 0, 1, 0x28, 1), {R1, MR3}, PSEUDO, 0, NULL},
     {"ld16.nta",	M2, OpMXX6aHint (4, 0, 1, 0x28, 3), {R1, AR_CSD, MR3}, EMPTY},
+    {"ld16.nta",	M, OpMXX6aHint (4, 0, 1, 0x28, 3), {R1, MR3}, PSEUDO, 0, NULL},
     {"ld1.s",		M, OpMXX6aHint (4, 0, 0, 0x04, 0), {R1, MR3}, EMPTY},
     {"ld1.s.nt1",	M, OpMXX6aHint (4, 0, 0, 0x04, 1), {R1, MR3}, EMPTY},
     {"ld1.s.nta",	M, OpMXX6aHint (4, 0, 0, 0x04, 3), {R1, MR3}, EMPTY},
@@ -239,8 +243,11 @@ struct ia64_opcode ia64_opcodes_m[] =
     {"ld8.acq.nt1",	M, OpMXX6aHint (4, 0, 0, 0x17, 1), {R1, MR3}, EMPTY},
     {"ld8.acq.nta",	M, OpMXX6aHint (4, 0, 0, 0x17, 3), {R1, MR3}, EMPTY},
     {"ld16.acq",	M2, OpMXX6aHint (4, 0, 1, 0x2c, 0), {R1, AR_CSD, MR3}, EMPTY},
+    {"ld16.acq",	M, OpMXX6aHint (4, 0, 1, 0x2c, 0), {R1, MR3}, PSEUDO, 0, NULL},
     {"ld16.acq.nt1",	M2, OpMXX6aHint (4, 0, 1, 0x2c, 1), {R1, AR_CSD, MR3}, EMPTY},
+    {"ld16.acq.nt1",	M, OpMXX6aHint (4, 0, 1, 0x2c, 1), {R1, MR3}, PSEUDO, 0, NULL},
     {"ld16.acq.nta",	M2, OpMXX6aHint (4, 0, 1, 0x2c, 3), {R1, AR_CSD, MR3}, EMPTY},
+    {"ld16.acq.nta",	M, OpMXX6aHint (4, 0, 1, 0x2c, 3), {R1, MR3}, PSEUDO, 0, NULL},
     {"ld8.fill",	M, OpMXX6aHint (4, 0, 0, 0x1b, 0), {R1, MR3}, EMPTY},
     {"ld8.fill.nt1",	M, OpMXX6aHint (4, 0, 0, 0x1b, 1), {R1, MR3}, EMPTY},
     {"ld8.fill.nta",	M, OpMXX6aHint (4, 0, 0, 0x1b, 3), {R1, MR3}, EMPTY},
@@ -409,7 +416,9 @@ struct ia64_opcode ia64_opcodes_m[] =
     {"st8",		M, OpMXX6aHint (4, 0, 0, 0x33, 0), {MR3, R2}, EMPTY},
     {"st8.nta",		M, OpMXX6aHint (4, 0, 0, 0x33, 3), {MR3, R2}, EMPTY},
     {"st16",		M, OpMXX6aHint (4, 0, 1, 0x30, 0), {MR3, R2, AR_CSD}, EMPTY},
+    {"st16",		M, OpMXX6aHint (4, 0, 1, 0x30, 0), {MR3, R2}, PSEUDO, 0, NULL},
     {"st16.nta",	M, OpMXX6aHint (4, 0, 1, 0x30, 3), {MR3, R2, AR_CSD}, EMPTY},
+    {"st16.nta",	M, OpMXX6aHint (4, 0, 1, 0x30, 3), {MR3, R2}, PSEUDO, 0, NULL},
     {"st1.rel",		M, OpMXX6aHint (4, 0, 0, 0x34, 0), {MR3, R2}, EMPTY},
     {"st1.rel.nta",	M, OpMXX6aHint (4, 0, 0, 0x34, 3), {MR3, R2}, EMPTY},
     {"st2.rel",		M, OpMXX6aHint (4, 0, 0, 0x35, 0), {MR3, R2}, EMPTY},
@@ -419,44 +428,56 @@ struct ia64_opcode ia64_opcodes_m[] =
     {"st8.rel",		M, OpMXX6aHint (4, 0, 0, 0x37, 0), {MR3, R2}, EMPTY},
     {"st8.rel.nta",	M, OpMXX6aHint (4, 0, 0, 0x37, 3), {MR3, R2}, EMPTY},
     {"st16.rel",	M, OpMXX6aHint (4, 0, 1, 0x34, 0), {MR3, R2, AR_CSD}, EMPTY},
+    {"st16.rel",	M, OpMXX6aHint (4, 0, 1, 0x34, 0), {MR3, R2}, PSEUDO, 0, NULL},
     {"st16.rel.nta",	M, OpMXX6aHint (4, 0, 1, 0x34, 3), {MR3, R2, AR_CSD}, EMPTY},
+    {"st16.rel.nta",	M, OpMXX6aHint (4, 0, 1, 0x34, 3), {MR3, R2}, PSEUDO, 0, NULL},
     {"st8.spill",	M, OpMXX6aHint (4, 0, 0, 0x3b, 0), {MR3, R2}, EMPTY},
     {"st8.spill.nta",	M, OpMXX6aHint (4, 0, 0, 0x3b, 3), {MR3, R2}, EMPTY},
 
 #define CMPXCHG(c,h)	M, OpMXX6aHint (4, 0, 1, c, h), {R1, MR3, R2, AR_CCV}, EMPTY
+#define CMPXCHG_P(c,h)	M, OpMXX6aHint (4, 0, 1, c, h), {R1, MR3, R2}, PSEUDO, 0, NULL
 #define CMPXCHG16(c,h)	M, OpMXX6aHint (4, 0, 1, c, h), {R1, MR3, R2, AR_CSD, AR_CCV}, EMPTY
-    {"cmpxchg1.acq",		CMPXCHG (0x00, 0)},
-    {"cmpxchg1.acq.nt1",	CMPXCHG (0x00, 1)},
-    {"cmpxchg1.acq.nta",	CMPXCHG (0x00, 3)},
-    {"cmpxchg2.acq",		CMPXCHG (0x01, 0)},
-    {"cmpxchg2.acq.nt1",	CMPXCHG (0x01, 1)},
-    {"cmpxchg2.acq.nta",	CMPXCHG (0x01, 3)},
-    {"cmpxchg4.acq",		CMPXCHG (0x02, 0)},
-    {"cmpxchg4.acq.nt1",	CMPXCHG (0x02, 1)},
-    {"cmpxchg4.acq.nta",	CMPXCHG (0x02, 3)},
-    {"cmpxchg8.acq",		CMPXCHG (0x03, 0)},
-    {"cmpxchg8.acq.nt1",	CMPXCHG (0x03, 1)},
-    {"cmpxchg8.acq.nta",	CMPXCHG (0x03, 3)},
-    {"cmp8xchg16.acq",		CMPXCHG16 (0x20, 0)},
-    {"cmp8xchg16.acq.nt1",	CMPXCHG16 (0x20, 1)},
-    {"cmp8xchg16.acq.nta",	CMPXCHG16 (0x20, 3)},
-    {"cmpxchg1.rel",		CMPXCHG (0x04, 0)},
-    {"cmpxchg1.rel.nt1",	CMPXCHG (0x04, 1)},
-    {"cmpxchg1.rel.nta",	CMPXCHG (0x04, 3)},
-    {"cmpxchg2.rel",		CMPXCHG (0x05, 0)},
-    {"cmpxchg2.rel.nt1",	CMPXCHG (0x05, 1)},
-    {"cmpxchg2.rel.nta",	CMPXCHG (0x05, 3)},
-    {"cmpxchg4.rel",		CMPXCHG (0x06, 0)},
-    {"cmpxchg4.rel.nt1",	CMPXCHG (0x06, 1)},
-    {"cmpxchg4.rel.nta",	CMPXCHG (0x06, 3)},
-    {"cmpxchg8.rel",		CMPXCHG (0x07, 0)},
-    {"cmpxchg8.rel.nt1",	CMPXCHG (0x07, 1)},
-    {"cmpxchg8.rel.nta",	CMPXCHG (0x07, 3)},
-    {"cmp8xchg16.rel",		CMPXCHG16 (0x24, 0)},
-    {"cmp8xchg16.rel.nt1",	CMPXCHG16 (0x24, 1)},
-    {"cmp8xchg16.rel.nta",	CMPXCHG16 (0x24, 3)},
+#define CMPXCHG16_P(c,h) M, OpMXX6aHint (4, 0, 1, c, h), {R1, MR3, R2}, PSEUDO, 0, NULL
+#define CMPXCHG_acq 0
+#define CMPXCHG_rel 4
+#define CMPXCHG_1 0
+#define CMPXCHG_2 1
+#define CMPXCHG_4 2
+#define CMPXCHG_8 3
+#define CMPXCHGn(n, s) \
+    {"cmpxchg"#n"."#s,       CMPXCHG   (CMPXCHG_##n|CMPXCHG_##s, 0)}, \
+    {"cmpxchg"#n"."#s,       CMPXCHG_P (CMPXCHG_##n|CMPXCHG_##s, 0)}, \
+    {"cmpxchg"#n"."#s".nt1", CMPXCHG   (CMPXCHG_##n|CMPXCHG_##s, 1)}, \
+    {"cmpxchg"#n"."#s".nt1", CMPXCHG_P (CMPXCHG_##n|CMPXCHG_##s, 1)}, \
+    {"cmpxchg"#n"."#s".nta", CMPXCHG   (CMPXCHG_##n|CMPXCHG_##s, 3)}, \
+    {"cmpxchg"#n"."#s".nta", CMPXCHG_P (CMPXCHG_##n|CMPXCHG_##s, 3)}
+#define CMP8XCHG16(s) \
+    {"cmp8xchg16."#s,       CMPXCHG16   (0x20|CMPXCHG_##s, 0)}, \
+    {"cmp8xchg16."#s,       CMPXCHG16_P (0x20|CMPXCHG_##s, 0)}, \
+    {"cmp8xchg16."#s".nt1", CMPXCHG16   (0x20|CMPXCHG_##s, 1)}, \
+    {"cmp8xchg16."#s".nt1", CMPXCHG16_P (0x20|CMPXCHG_##s, 1)}, \
+    {"cmp8xchg16."#s".nta", CMPXCHG16   (0x20|CMPXCHG_##s, 3)}, \
+    {"cmp8xchg16."#s".nta", CMPXCHG16_P (0x20|CMPXCHG_##s, 3)}
+#define CMPXCHG_ALL(s) CMPXCHGn(1, s), \
+                       CMPXCHGn(2, s), \
+                       CMPXCHGn(4, s), \
+                       CMPXCHGn(8, s), \
+                       CMP8XCHG16(s)
+    CMPXCHG_ALL(acq),
+    CMPXCHG_ALL(rel),
 #undef CMPXCHG
+#undef CMPXCHG_P
 #undef CMPXCHG16
+#undef CMPXCHG16_P
+#undef CMPXCHG_acq
+#undef CMPXCHG_rel
+#undef CMPXCHG_1
+#undef CMPXCHG_2
+#undef CMPXCHG_4
+#undef CMPXCHG_8
+#undef CMPXCHGn
+#undef CMPXCHG16
+#undef CMPXCHG_ALL
     {"xchg1",		  M, OpMXX6aHint (4, 0, 1, 0x08, 0), {R1, MR3, R2}, EMPTY},
     {"xchg1.nt1",	  M, OpMXX6aHint (4, 0, 1, 0x08, 1), {R1, MR3, R2}, EMPTY},
     {"xchg1.nta",	  M, OpMXX6aHint (4, 0, 1, 0x08, 3), {R1, MR3, R2}, EMPTY},

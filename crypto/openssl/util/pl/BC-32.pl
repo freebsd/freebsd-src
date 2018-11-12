@@ -38,7 +38,7 @@ $efile="";
 $exep='.exe';
 if ($no_sock)
 	{ $ex_libs=""; }
-else	{ $ex_libs="cw32mt.lib import32.lib"; }
+else	{ $ex_libs="cw32mt.lib import32.lib crypt32.lib ws2_32.lib"; }
 
 # static library stuff
 $mklib='tlib /P64';
@@ -51,8 +51,8 @@ $lfile='';
 $shlib_ex_obj="";
 $app_ex_obj="c0x32.obj"; 
 
-$asm='nasmw -f obj -d__omf__';
-$asm.=" /Zi" if $debug;
+$asm=(`nasm -v 2>NUL` ge `nasmw -v 2>NUL`?"nasm":"nasmw")." -f obj -d__omf__";
+$asm.=" -g" if $debug;
 $afile='-o';
 
 $bn_mulw_obj='';
@@ -117,8 +117,8 @@ ___
 	else
 		{
 		local($ex)=($target =~ /O_SSL/)?' $(L_CRYPTO)':'';
-		$ex.=' wsock32.lib gdi32.lib';
-		$ret.="\t\$(LINK) \$(MLFLAGS) $efile$target /def:ms/${Name}.def @<<\n  \$(SHLIB_EX_OBJ) $objs $ex\n<<\n";
+		$ex.=' ws2_32.lib gdi32.lib';
+		$ret.="\t\$(LINK_CMD) \$(MLFLAGS) $efile$target /def:ms/${Name}.def @<<\n  \$(SHLIB_EX_OBJ) $objs $ex\n<<\n";
 		}
 	$ret.="\n";
 	return($ret);
@@ -130,9 +130,9 @@ sub do_link_rule
 	local($ret,$_);
 	
 	$file =~ s/\//$o/g if $o ne '/';
-	$n=&bname($targer);
+	$n=&bname($target);
 	$ret.="$target: $files $dep_libs\n";
-	$ret.="\t\$(LINK) \$(LFLAGS) $files \$(APP_EX_OBJ), $target,, $libs\n\n";
+	$ret.="\t\$(LINK_CMD) \$(LFLAGS) $files \$(APP_EX_OBJ), $target,, $libs\n\n";
 	return($ret);
 	}
 

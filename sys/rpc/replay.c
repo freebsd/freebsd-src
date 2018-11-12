@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/hash.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
@@ -90,8 +91,10 @@ void
 replay_setsize(struct replay_cache *rc, size_t newmaxsize)
 {
 
+	mtx_lock(&rc->rc_lock);
 	rc->rc_maxsize = newmaxsize;
 	replay_prune(rc);
+	mtx_unlock(&rc->rc_lock);
 }
 
 void
@@ -111,8 +114,12 @@ replay_alloc(struct replay_cache *rc,
 {
 	struct replay_cache_entry *rce;
 
+	mtx_assert(&rc->rc_lock, MA_OWNED);
+
 	rc->rc_count++;
 	rce = malloc(sizeof(*rce), M_RPC, M_NOWAIT|M_ZERO);
+	if (!rce)
+		return (NULL);
 	rce->rce_hash = h;
 	rce->rce_msg = *msg;
 	bcopy(addr, &rce->rce_addr, addr->sa_len);
@@ -126,6 +133,8 @@ replay_alloc(struct replay_cache *rc,
 static void
 replay_free(struct replay_cache *rc, struct replay_cache_entry *rce)
 {
+
+	mtx_assert(&rc->rc_lock, MA_OWNED);
 
 	rc->rc_count--;
 	TAILQ_REMOVE(&rc->rc_cache[rce->rce_hash], rce, rce_link);
@@ -141,26 +150,25 @@ static void
 replay_prune(struct replay_cache *rc)
 {
 	struct replay_cache_entry *rce;
-	bool_t freed_one;
 
-	if (rc->rc_count >= REPLAY_MAX || rc->rc_size > rc->rc_maxsize) {
-		freed_one = FALSE;
-		do {
-			/*
-			 * Try to free an entry. Don't free in-progress entries
-			 */
-			TAILQ_FOREACH_REVERSE(rce, &rc->rc_all,
-			    replay_cache_list, rce_alllink) {
-				if (rce->rce_repmsg.rm_xid) {
-					replay_free(rc, rce);
-					freed_one = TRUE;
-					break;
-				}
-			}
-		} while (freed_one
-		    && (rc->rc_count >= REPLAY_MAX
-			|| rc->rc_size > rc->rc_maxsize));
-	}
+	mtx_assert(&rc->rc_lock, MA_OWNED);
+
+	if (rc->rc_count < REPLAY_MAX && rc->rc_size <= rc->rc_maxsize)
+		return;
+
+	do {
+		/*
+		 * Try to free an entry. Don't free in-progress entries.
+		 */
+		TAILQ_FOREACH_REVERSE(rce, &rc->rc_all, replay_cache_list,
+		    rce_alllink) {
+			if (rce->rce_repmsg.rm_xid)
+				break;
+		}
+		if (rce)
+			replay_free(rc, rce);
+	} while (rce && (rc->rc_count >= REPLAY_MAX
+	    || rc->rc_size > rc->rc_maxsize));
 }
 
 enum replay_state

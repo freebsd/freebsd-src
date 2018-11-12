@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_neta.c,v 1.2.18.1 2005/04/27 05:00:53 sra Exp $";
+static const char rcsid[] = "$Id: inet_neta.c,v 1.3 2005/04/27 04:56:20 sra Exp $";
 #endif
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -52,10 +52,7 @@ __FBSDID("$FreeBSD$");
  *	Paul Vixie (ISC), July 1996
  */
 char *
-inet_neta(src, dst, size)
-	in_addr_t src;
-	char *dst;
-	size_t size;
+inet_neta(in_addr_t src, char *dst, size_t size)
 {
 	char *odst = dst;
 	char *tp;

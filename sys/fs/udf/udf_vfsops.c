@@ -190,7 +190,7 @@ udf_mount(struct mount *mp)
 {
 	struct vnode *devvp;	/* vnode of the mount device */
 	struct thread *td;
-	struct udf_mnt *imp = 0;
+	struct udf_mnt *imp = NULL;
 	struct vfsoptlist *opts;
 	char *fspec, *cs_disk, *cs_local;
 	int error, len, *udf_flags;
@@ -325,11 +325,9 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 
 	dev = devvp->v_rdev;
 	dev_ref(dev);
-	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "udf", 0);
 	g_topology_unlock();
-	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0);
 	if (error)
 		goto bail;
@@ -355,8 +353,7 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED |
-	    MNTK_EXTENDED_SHARED;
+	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED;
 	MNT_IUNLOCK(mp);
 	udfmp->im_mountp = mp;
 	udfmp->im_dev = dev;
@@ -501,11 +498,9 @@ bail:
 	if (bp != NULL)
 		brelse(bp);
 	if (cp != NULL) {
-		DROP_GIANT();
 		g_topology_lock();
 		g_vfs_close(cp);
 		g_topology_unlock();
-		PICKUP_GIANT();
 	}
 	dev_rel(dev);
 	return error;
@@ -534,11 +529,9 @@ udf_unmount(struct mount *mp, int mntflags)
 #endif
 	}
 
-	DROP_GIANT();
 	g_topology_lock();
 	g_vfs_close(udfmp->im_cp);
 	g_topology_unlock();
-	PICKUP_GIANT();
 	vrele(udfmp->im_devvp);
 	dev_rel(udfmp->im_dev);
 
@@ -722,7 +715,7 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 }
 
 static int
-udf_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
+udf_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 {
 	struct ifid *ifhp;
 	struct vnode *nvp;

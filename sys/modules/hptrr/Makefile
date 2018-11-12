@@ -9,6 +9,6 @@ SRCS+= hptrr_os_bsd.c hptrr_osm_bsd.c hptrr_config.c
 OBJS = hptrr_lib.o
 
 hptrr_lib.o:
-	uudecode -p < ${HPTRR}/$(MACHINE_ARCH)-elf.hptrr_lib.o.uu > hptrr_lib.o
+	uudecode -p < ${HPTRR}/$(MACHINE_CPUARCH)-elf.hptrr_lib.o.uu > hptrr_lib.o
 
 .include <bsd.kmod.mk>

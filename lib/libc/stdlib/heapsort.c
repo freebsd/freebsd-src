@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2014 David T. Chisnall
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * Ronnie Kon at Mindcraft Inc., Kevin Lew and Elmer Yglesias.
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -39,6 +41,14 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <stddef.h>
 #include <stdlib.h>
+
+#ifdef I_AM_HEAPSORT_B
+#include "block_abi.h"
+#define COMPAR(x, y) CALL_BLOCK(compar, x, y)
+typedef DECLARE_BLOCK(int, heapsort_block, const void *, const void *);
+#else
+#define COMPAR(x, y) compar(x, y)
+#endif
 
 /*
  * Swap two areas of size number of bytes.  Although qsort(3) permits random
@@ -77,12 +87,12 @@ __FBSDID("$FreeBSD$");
 	for (par_i = initval; (child_i = par_i * 2) <= nmemb; \
 	    par_i = child_i) { \
 		child = base + child_i * size; \
-		if (child_i < nmemb && compar(child, child + size) < 0) { \
+		if (child_i < nmemb && COMPAR(child, child + size) < 0) { \
 			child += size; \
 			++child_i; \
 		} \
 		par = base + par_i * size; \
-		if (compar(child, par) <= 0) \
+		if (COMPAR(child, par) <= 0) \
 			break; \
 		SWAP(par, child, count, size, tmp); \
 	} \
@@ -92,7 +102,7 @@ __FBSDID("$FreeBSD$");
  * Select the top of the heap and 'heapify'.  Since by far the most expensive
  * action is the call to the compar function, a considerable optimization
  * in the average case can be achieved due to the fact that k, the displaced
- * elememt, is ususally quite small, so it would be preferable to first
+ * elememt, is usually quite small, so it would be preferable to first
  * heapify, always maintaining the invariant that the larger child is copied
  * over its parent's record.
  *
@@ -108,7 +118,7 @@ __FBSDID("$FreeBSD$");
 #define SELECT(par_i, child_i, nmemb, par, child, size, k, count, tmp1, tmp2) { \
 	for (par_i = 1; (child_i = par_i * 2) <= nmemb; par_i = child_i) { \
 		child = base + child_i * size; \
-		if (child_i < nmemb && compar(child, child + size) < 0) { \
+		if (child_i < nmemb && COMPAR(child, child + size) < 0) { \
 			child += size; \
 			++child_i; \
 		} \
@@ -120,7 +130,7 @@ __FBSDID("$FreeBSD$");
 		par_i = child_i / 2; \
 		child = base + child_i * size; \
 		par = base + par_i * size; \
-		if (child_i == 1 || compar(k, par) < 0) { \
+		if (child_i == 1 || COMPAR(k, par) < 0) { \
 			COPY(child, k, count, size, tmp1, tmp2); \
 			break; \
 		} \
@@ -128,6 +138,12 @@ __FBSDID("$FreeBSD$");
 	} \
 }
 
+#ifdef I_AM_HEAPSORT_B
+int heapsort_b(void *, size_t, size_t, heapsort_block);
+#else
+int heapsort(void *, size_t, size_t,
+    int (*)(const void *, const void *));
+#endif
 /*
  * Heapsort -- Knuth, Vol. 3, page 145.  Runs in O (N lg N), both average
  * and worst.  While heapsort is faster than the worst case of quicksort,
@@ -135,11 +151,14 @@ __FBSDID("$FreeBSD$");
  * a data set that will trigger the worst case is nonexistent.  Heapsort's
  * only advantage over quicksort is that it requires little additional memory.
  */
+#ifdef I_AM_HEAPSORT_B
 int
-heapsort(vbase, nmemb, size, compar)
-	void *vbase;
-	size_t nmemb, size;
-	int (*compar)(const void *, const void *);
+heapsort_b(void *vbase, size_t nmemb, size_t size, heapsort_block compar)
+#else
+int
+heapsort(void *vbase, size_t nmemb, size_t size,
+    int (*compar)(const void *, const void *))
+#endif
 {
 	size_t cnt, i, j, l;
 	char tmp, *tmp1, *tmp2;

@@ -48,13 +48,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -84,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -104,7 +96,6 @@ __FBSDID("$FreeBSD$");
 #define	USB_DEBUG_VAR ubser_debug
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_device.h>
 
 #include <dev/usb/serial/usb_serial.h>
 
@@ -115,11 +106,11 @@ __FBSDID("$FreeBSD$");
 #define	VENDOR_SET_BREAK		0x02
 #define	VENDOR_CLEAR_BREAK		0x03
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ubser_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ubser, CTLFLAG_RW, 0, "USB ubser");
-SYSCTL_INT(_hw_usb_ubser, OID_AUTO, debug, CTLFLAG_RW,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ubser, CTLFLAG_RW, 0, "USB ubser");
+SYSCTL_INT(_hw_usb_ubser, OID_AUTO, debug, CTLFLAG_RWTUN,
     &ubser_debug, 0, "ubser debug level");
 #endif
 
@@ -143,7 +134,6 @@ struct ubser_softc {
 	uint8_t	sc_iface_no;
 	uint8_t	sc_iface_index;
 	uint8_t	sc_curr_tx_unit;
-	uint8_t	sc_name[16];
 };
 
 /* prototypes */
@@ -151,10 +141,12 @@ struct ubser_softc {
 static device_probe_t ubser_probe;
 static device_attach_t ubser_attach;
 static device_detach_t ubser_detach;
+static void ubser_free_softc(struct ubser_softc *);
 
 static usb_callback_t ubser_write_callback;
 static usb_callback_t ubser_read_callback;
 
+static void	ubser_free(struct ucom_softc *);
 static int	ubser_pre_param(struct ucom_softc *, struct termios *);
 static void	ubser_cfg_set_break(struct ucom_softc *, uint8_t);
 static void	ubser_cfg_get_status(struct ucom_softc *, uint8_t *,
@@ -195,13 +187,14 @@ static const struct ucom_callback ubser_callback = {
 	.ucom_start_write = &ubser_start_write,
 	.ucom_stop_write = &ubser_stop_write,
 	.ucom_poll = &ubser_poll,
+	.ucom_free = &ubser_free,
 };
 
 static device_method_t ubser_methods[] = {
 	DEVMETHOD(device_probe, ubser_probe),
 	DEVMETHOD(device_attach, ubser_attach),
 	DEVMETHOD(device_detach, ubser_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t ubser_devclass;
@@ -215,6 +208,7 @@ static driver_t ubser_driver = {
 DRIVER_MODULE(ubser, uhub, ubser_driver, ubser_devclass, NULL, 0);
 MODULE_DEPEND(ubser, ucom, 1, 1, 1);
 MODULE_DEPEND(ubser, usb, 1, 1, 1);
+MODULE_VERSION(ubser, 1);
 
 static int
 ubser_probe(device_t dev)
@@ -225,7 +219,7 @@ ubser_probe(device_t dev)
 		return (ENXIO);
 	}
 	/* check if this is a BWCT vendor specific ubser interface */
-	if ((strcmp(uaa->device->manufacturer, "BWCT") == 0) &&
+	if ((strcmp(usb_get_manufacturer(uaa->device), "BWCT") == 0) &&
 	    (uaa->info.bInterfaceClass == 0xff) &&
 	    (uaa->info.bInterfaceSubClass == 0x00))
 		return (0);
@@ -244,9 +238,7 @@ ubser_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "ubser", NULL, MTX_DEF);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name), "%s",
-	    device_get_nameunit(dev));
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 	sc->sc_iface_index = uaa->info.bIfaceIndex;
@@ -282,7 +274,7 @@ ubser_attach(device_t dev)
 	sc->sc_tx_size = usbd_xfer_max_len(sc->sc_xfer[UBSER_BULK_DT_WR]);
 
 	if (sc->sc_tx_size == 0) {
-		DPRINTFN(0, "invalid tx_size!\n");
+		DPRINTFN(0, "invalid tx_size\n");
 		goto detach;
 	}
 	/* initialize port numbers */
@@ -296,6 +288,7 @@ ubser_attach(device_t dev)
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
 
 	mtx_lock(&sc->sc_mtx);
 	usbd_xfer_set_stall(sc->sc_xfer[UBSER_BULK_DT_WR]);
@@ -317,11 +310,31 @@ ubser_detach(device_t dev)
 
 	DPRINTF("\n");
 
-	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom, sc->sc_numser);
+	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UBSER_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	ubser_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(ubser);
+
+static void
+ubser_free_softc(struct ubser_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+ubser_free(struct ucom_softc *ucom)
+{
+	ubser_free_softc(ucom->sc_parent);
 }
 
 static int

@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <machine/bus.h>
 #include <machine/xbox.h>
-#include <machine/legacyvar.h>
+#include <x86/legacyvar.h>
 #include <dev/fb/fbreg.h>
 #include <dev/fb/gfb.h>
 #include <dev/syscons/syscons.h>
@@ -521,8 +521,8 @@ xboxfb_blank_display(video_adapter_t *adp, int mode)
 }
 
 static int
-xboxfb_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
-    int prot)
+xboxfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 	return (EINVAL);
 }

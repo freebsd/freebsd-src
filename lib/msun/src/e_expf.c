@@ -16,13 +16,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
 static const float
 one	= 1.0,
 halF[2]	= {0.5,-0.5,},
-huge	= 1.0e+30,
 o_threshold=  8.8721679688e+01,  /* 0x42b17180 */
 u_threshold= -1.0397208405e+02,  /* 0xc2cff1b5 */
 ln2HI[2]   ={ 6.9314575195e-01,		/* 0x3f317200 */
@@ -37,10 +38,12 @@ invln2 =  1.4426950216e+00, 		/* 0x3fb8aa3b */
 P1 =  1.6666625440e-1,		/*  0xaaaa8f.0p-26 */
 P2 = -2.7667332906e-3;		/* -0xb55215.0p-32 */
 
-static volatile float twom100 = 7.8886090522e-31;      /* 2**-100=0x0d800000 */
+static volatile float
+huge	= 1.0e+30,
+twom100 = 7.8886090522e-31;      /* 2**-100=0x0d800000 */
 
 float
-__ieee754_expf(float x)	/* default IEEE double exp */
+__ieee754_expf(float x)
 {
 	float y,hi=0.0,lo=0.0,c,t,twopk;
 	int32_t k=0,xsb;
@@ -70,9 +73,9 @@ __ieee754_expf(float x)	/* default IEEE double exp */
 		hi = x - t*ln2HI[0];	/* t*ln2HI is exact here */
 		lo = t*ln2LO[0];
 	    }
-	    x  = hi - lo;
+	    STRICT_ASSIGN(float, x, hi - lo);
 	}
-	else if(hx < 0x31800000)  {	/* when |x|<2**-28 */
+	else if(hx < 0x39000000)  {	/* when |x|<2**-14 */
 	    if(huge+x>one) return one+x;/* trigger inexact */
 	}
 	else k = 0;

@@ -17,7 +17,8 @@ M4FILES!=	find ${SENDMAIL_CF_DIR} -type f -name '*.m4' -print
 
 .mc.cf: ${M4FILES}
 	${RM} ${.TARGET}
-	${M4} -D_CF_DIR_=${SENDMAIL_CF_DIR}/ ${SENDMAIL_M4_FLAGS} \
+	${M4} -D_CF_DIR_=${SENDMAIL_CF_DIR}/ -D_NO_MAKEINFO_ \
+	    ${SENDMAIL_M4_FLAGS} \
 	    ${SENDMAIL_CF_DIR}/m4/cf.m4 ${.IMPSRC} > ${.TARGET}
 	${CHMOD} ${ROMODE} ${.TARGET}
 
@@ -71,24 +72,25 @@ distribution:
 	    ${SMDIR}/helpfile ${DESTDIR}/etc/mail
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 640 \
 	    /dev/null ${DESTDIR}/var/log/sendmail.st
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    freebsd.cf ${DEST_CF}
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    freebsd.submit.cf ${DEST_SUBMIT_CF}
-
-install:
-.if defined(INSTALL_CF) && ${INSTALL_CF} != ${DEST_CF}
+.if defined(INSTALL_CF)
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${INSTALL_CF} ${DEST_CF}
+.else
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    freebsd.cf ${DEST_CF}
 .endif
 .if defined(SENDMAIL_ADDITIONAL_CF)
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${SENDMAIL_ADDITIONAL_CF} ${DESTDIR}/etc/mail
 .endif
-.if !defined(SENDMAIL_SET_USER_ID) && \
-    defined(INSTALL_SUBMIT_CF) && ${INSTALL_SUBMIT_CF} != ${DEST_SUBMIT_CF}
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+.if !defined(SENDMAIL_SET_USER_ID)
+.if defined(INSTALL_SUBMIT_CF)
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${INSTALL_SUBMIT_CF} ${DEST_SUBMIT_CF}
+.else
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    freebsd.submit.cf ${DEST_SUBMIT_CF}
+.endif
 .endif
 
 .include <bsd.prog.mk>

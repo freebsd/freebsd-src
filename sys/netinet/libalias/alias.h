@@ -197,6 +197,18 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
  */
 #define	PKT_ALIAS_RESET_ON_ADDR_CHANGE	0x20
 
+/*
+ * If PKT_ALIAS_PROXY_ONLY is set, then NAT will be disabled and only
+ * transparent proxying is performed.
+ */
+#define	PKT_ALIAS_PROXY_ONLY		0x40
+
+/*
+ * If PKT_ALIAS_REVERSE is set, the actions of PacketAliasIn() and
+ * PacketAliasOut() are reversed.
+ */
+#define	PKT_ALIAS_REVERSE		0x80
+
 #ifndef NO_FW_PUNCH
 /*
  * If PKT_ALIAS_PUNCH_FW is set, active FTP and IRC DCC connections will
@@ -209,16 +221,10 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
 #endif
 
 /*
- * If PKT_ALIAS_PROXY_ONLY is set, then NAT will be disabled and only
- * transparent proxying is performed.
+ * If PKT_ALIAS_SKIP_GLOBAL is set, nat instance is not checked for matching
+ * states in 'ipfw nat global' rule.
  */
-#define	PKT_ALIAS_PROXY_ONLY		0x40
-
-/*
- * If PKT_ALIAS_REVERSE is set, the actions of PacketAliasIn() and
- * PacketAliasOut() are reversed.
- */
-#define	PKT_ALIAS_REVERSE		0x80
+#define	PKT_ALIAS_SKIP_GLOBAL		0x200
 
 /* Function return codes. */
 #define	PKT_ALIAS_ERROR			-1

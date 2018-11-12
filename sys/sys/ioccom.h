@@ -38,12 +38,13 @@
  * any in or out parameters in the upper word.  The high 3 bits of the
  * upper word are used to encode the in/out status of the parameter.
  */
-#define	IOCPARM_MASK	0x1fff		/* parameter length, at most 13 bits */
+#define	IOCPARM_SHIFT	13		/* number of bits for ioctl size */
+#define	IOCPARM_MASK	((1 << IOCPARM_SHIFT) - 1) /* parameter length mask */
 #define	IOCPARM_LEN(x)	(((x) >> 16) & IOCPARM_MASK)
 #define	IOCBASECMD(x)	((x) & ~(IOCPARM_MASK << 16))
 #define	IOCGROUP(x)	(((x) >> 8) & 0xff)
 
-#define	IOCPARM_MAX	PAGE_SIZE		/* max size of ioctl, mult. of PAGE_SIZE */
+#define	IOCPARM_MAX	(1 << IOCPARM_SHIFT) /* max size of ioctl */
 #define	IOC_VOID	0x20000000	/* no parameters */
 #define	IOC_OUT		0x40000000	/* copy out parameters */
 #define	IOC_IN		0x80000000	/* copy in parameters */

@@ -31,7 +31,7 @@ set -e
 
 exec < /dev/null
 
-if [ `uname -m` = "i386" ] ; then
+if [ `uname -m` = "i386" -o `uname -m` = "amd64" ] ; then
 	TARGET_PART=`df / | sed '
 	1d
 	s/[    ].*//
@@ -41,12 +41,23 @@ if [ `uname -m` = "i386" ] ; then
 	s,s3a,s2a,
 	'`
 
-	# Where our build-bits are to be found
-	FREEBSD_PART=`echo $TARGET_PART | sed 's/s[12]a/s3/'`
+	FREEBSD_PART=`sed -n	\
+		-e 's/#.*//'	\
+		-e '/[ 	]\/freebsd[ 	]/!d'	\
+		-e 's/[ 	].*//p'	\
+		/etc/fstab`
+
+	# Calculate a suggested gpart command
+	TARGET_DISK=`expr ${TARGET_PART} : '\(.*\)s[12]a$' || true`
+	TARGET_SLICE=`expr ${TARGET_PART} : '.*s\([12]\)a$' || true`
+	GPART_SUGGESTION="gpart set -a active -i $TARGET_SLICE /dev/$TARGET_DISK"
+	unset TARGET_DISK TARGET_SLICE
 else
 	TARGET_PART=unknown
 	FREEBSD_PART=unknown
+	GPART_SUGGESTION=unknown
 fi
+
 
 # Relative to /freebsd
 PORTS_PATH=ports
@@ -69,6 +80,8 @@ fi
 # serial console ?
 SERCONS=false
 
+PKG_DIR=/usr/ports/packages/All
+
 # Remotely mounted distfiles
 # REMOTEDISTFILES=fs:/rdonly/distfiles
 
@@ -80,10 +93,12 @@ SERCONS=false
 PORTS_WE_WANT='
 '
 
-PORTS_OPTS="BATCH=YES MAKE_IDEA=YES A4=yes"
+PORTS_OPTS="BATCH=YES A4=yes"
 
 CONFIGFILES='
 '
+
+SBMNT="/mnt.sysbuild"
 
 cleanup() (
 )
@@ -101,6 +116,17 @@ final_chroot() (
 )
 
 #######################################################################
+# -P is a pretty neat way to clean junk out from your ports dist-files:
+#
+#	mkdir /freebsd/ports/distfiles.old
+#	mv /freebsd/ports/distfiles/* /freebsd/ports/distfiles.old
+#	sh sysbuild.sh -c $yourconfig -P /freebsd/ports/distfiles.old
+#	rm -rf /freebsd/ports/distfiles.old
+#
+# Unfortunately bsd.ports.mk does not attempt to use a hard-link so
+# while this runs you need diskspace for both your old and your "new"
+# distfiles.
+#
 #######################################################################
 
 usage () {
@@ -110,6 +136,7 @@ usage () {
         echo "  -k      suppress buildkernel"
         echo "  -w      suppress buildworld"
         echo "  -p      used cached packages"
+        echo "  -P <dir> prefetch ports"
         echo "  -c      specify config file"
         ) 1>&2
         exit 2
@@ -135,7 +162,6 @@ fi
 set -e
 
 log_it() (
-	set +x
 	a="$*"
 	set `cat /tmp/_sb_log`
 	TX=`date +%s`
@@ -150,73 +176,134 @@ log_it() (
 
 
 ports_recurse() (
-	set +x
+	cd /usr/ports
+	t=$1
+	shift
+	if [ "x$t" = "x." ] ; then
+		true > /tmp/_.plist
+		true > /tmp/_.plist.tdone
+		echo 'digraph {' > /tmp/_.plist.dot
+	fi
+	if grep -q "^$t\$" /tmp/_.plist.tdone ; then
+		return
+	fi
+	echo "$t" >> /tmp/_.plist.tdone
 	for d
 	do
 		if [ ! -d $d ] ; then
 			echo "Missing port $d" 1>&2
-			exit 2
+			continue
+		fi
+		d=`cd /usr/ports && cd $d && /bin/pwd`
+		if [ ! -f $d/Makefile ] ; then
+			echo "Missing port $d" 1>&2
+			continue
+		fi
+		if [ "x$t" != "x." ] ; then
+			echo "\"$t\" -> \"$d\"" >> /tmp/_.plist.dot
 		fi
 		if grep -q "^$d\$" /tmp/_.plist ; then
+			true
+		elif grep -q "^$d\$" /tmp/_.plist.tdone ; then
 			true
 		else
 			(
 			cd $d
-			ports_recurse `make -V _DEPEND_DIRS`
+			l=""
+			for a in `make -V _UNIFIED_DEPENDS ${PORTS_OPTS}`
+			do
+				x=`expr "$a" : '.*:\(.*\)'`
+				l="${l} ${x}"
+			done
+			ports_recurse $d $l
+			# -> _UNIFIED_DEPENDS
+			#ports_recurse $d `make -V _DEPEND_DIRS ${PORTS_OPTS}`
+			#ports_recurse $d `make all-depends-list`
 			)
-			echo $d >> /tmp/_.plist
+			echo "$d" >> /tmp/_.plist
 		fi
 	done
+	if [ "x$t" = "x." ] ; then
+		echo '}' >> /tmp/_.plist.dot
+	fi
 )
 
 ports_build() (
-	set +x
 
-	true > /tmp/_.plist
-	ports_recurse $PORTS_WE_WANT 
+	ports_recurse . $PORTS_WE_WANT 
 
+	if [ "x${PKG_DIR}" != "x" ] ; then
+		mkdir -p ${PKG_DIR}
+	fi
+
+	pd=`cd /usr/ports && /bin/pwd`
 	# Now build & install them
 	for p in `cat /tmp/_.plist`
 	do
-		t=`echo $p | sed 's,/usr/ports/,,'`
-		pn=`cd $p && make package-name`
-		if [ "x${PKG_DIR}" != "x" -a -f ${PKG_DIR}/$pn.tbz ] ; then
+		b=`echo $p | tr / _`
+		t=`echo $p | sed "s,${pd},,"`
+		pn=`cd $p && make package-name ${PORTS_OPTS}`
+
+		if [ "x`basename $p`" == "xpkg" ] ; then
+			log_it "Very Special: $t ($pn)"
+
+			(
+			cd $p
+			make clean all install ${PORTS_OPTS}
+			) > _.$b 2>&1 < /dev/null
+			continue
+		fi
+
+		if pkg info $pn > /dev/null 2>&1 ; then
+			log_it "Already installed: $t ($pn)"
+			continue
+		fi
+
+		if [ "x${PKG_DIR}" != "x" -a -f ${PKG_DIR}/$pn.txz ] ; then
 			if [ "x$use_pkg" = "x-p" ] ; then
-				log_it "install $p from ${PKG_DIR}/$pn.tbz"
-				pkg_add ${PKG_DIR}/$pn.tbz
+				log_it "Install $t ($pn)"
+				(
+				set +e
+				pkg add ${PKG_DIR}/$pn.txz || true
+				) > _.$b 2>&1 < /dev/null
+				continue
 			fi
 		fi
-		i=`pkg_info -qO $t`
-		if [ -z "$i" ] ; then
-			log_it "build $p"
-			b=`echo $p | tr / _`
-			(
-				set -x
-				cd /usr/ports
-				cd $p
-				set +e
-				make clean
-				if make install ${PORTS_OPTS} ; then
-					if [ "x${PKG_DIR}" != "x" ] ; then
-						make package ${PORTS_OPTS}
-						mv *.tbz ${PKG_DIR}
-					fi
-				else
-					log_it FAIL build $p
-				fi
-				make clean
-			) > _.$b 2>&1 < /dev/null
-			date
+
+		miss=`(cd $p ; make missing ${PORTS_OPTS}) || true`
+
+		if [ "x${miss}" != "x" ] ; then
+			log_it "MISSING for $p:" $miss
+			continue
 		fi
+
+		log_it "build $pn ($p)"
+		(
+			set +e
+			cd $p
+			make clean ${PORTS_OPTS}
+			if make install ${PORTS_OPTS} ; then
+				if [ "x${PKG_DIR}" != "x" ] ; then
+					make package ${PORTS_OPTS}
+				fi
+			else
+				log_it FAIL build $p
+			fi
+			make clean ${PORTS_OPTS}
+		) > _.$b 2>&1 < /dev/null
 	done
 )
 
 ports_prefetch() (
 	(
 	set +x
-	true > /tmp/_.plist
-	ports_recurse $PORTS_WE_WANT
+	ldir=$1
+	true > /${ldir}/_.prefetch
+	echo "Building /tmp/_.plist" >> /${ldir}/_.prefetch
 
+	ports_recurse . $PORTS_WE_WANT
+
+	echo "Completed /tmp/_.plist" >> /${ldir}/_.prefetch
 	# Now checksump/fetch them
 	for p in `cat /tmp/_.plist`
 	do
@@ -224,13 +311,22 @@ ports_prefetch() (
 		(
 			cd $p
 			if make checksum $PORTS_OPTS ; then
-				true
-			else
-				make distclean
-				make checksum $PORTS_OPTS || true
+				rm -f /${ldir}/_.prefetch.$b
+				echo "OK $p" >> /${ldir}/_.prefetch
+				exit 0
 			fi
-		) > /mnt/_.prefetch.$b 2>&1
+			make distclean
+			make checksum $PORTS_OPTS || true
+
+			if make checksum $PORTS_OPTS > /dev/null 2>&1 ; then
+				rm -f /${ldir}/_.prefetch.$b
+				echo "OK $p" >> /${ldir}/_.prefetch
+			else
+				echo "BAD $p" >> /${ldir}/_.prefetch
+			fi
+		) > /${ldir}/_.prefetch.$b 2>&1
 	done
+	echo "Done" >> /${ldir}/_.prefetch
 	) 
 )
 
@@ -238,11 +334,12 @@ ports_prefetch() (
 
 do_world=true
 do_kernel=true
+do_prefetch=false
 use_pkg=""
 c_arg=""
 
 set +e
-args=`getopt bc:hkpw $*`
+args=`getopt bc:hkpP:w $*`
 if [ $? -ne 0 ] ; then
 	usage
 fi
@@ -279,6 +376,12 @@ do
 		shift;
 		use_pkg="-p"
 		;;
+	-P)
+		shift;
+		do_prefetch=true
+		distfile_cache=$1
+		shift;
+		;;
 	-w)
 		shift;
 		do_world=false
@@ -293,7 +396,6 @@ done
 #######################################################################
 
 if [ "x$1" = "xchroot_script" ] ; then
-	set +x
 	set -e
 
 	shift
@@ -320,21 +422,32 @@ fi
 T0=`date +%s`
 echo $T0 $T0 > /tmp/_sb_log
 
+[ ! -d ${SBMNT} ] && mkdir -p ${SBMNT}
+
+if $do_prefetch ; then
+	rm -rf /tmp/sysbuild/ports
+	mkdir -p /tmp/sysbuild/ports
+	ln -s ${distfile_cache} /tmp/sysbuild/ports/distfiles
+	export PORTS_OPTS=CD_MOUNTPTS=/tmp/sysbuild
+	ports_prefetch /tmp 
+	exit 0
+fi
+
 log_it Unmount everything
 (
 	( cleanup )
 	umount /freebsd/distfiles || true
-	umount /mnt/freebsd/distfiles || true
-	umount /dev/${FREEBSD_PART} || true
-	umount /mnt/freebsd || true
-	umount /mnt/dev || true
-	umount /mnt || true
+	umount ${SBMNT}/freebsd/distfiles || true
+	umount ${FREEBSD_PART} || true
+	umount ${SBMNT}/freebsd || true
+	umount ${SBMNT}/dev || true
+	umount ${SBMNT} || true
 	umount /dev/${TARGET_PART} || true
 ) # > /dev/null 2>&1
 
 log_it Prepare running image
 mkdir -p /freebsd
-mount /dev/${FREEBSD_PART} /freebsd
+mount ${FREEBSD_PART} /freebsd
 
 #######################################################################
 
@@ -372,10 +485,13 @@ fi
 
 for i in ${PORTS_WE_WANT}
 do
+	(
+	cd /usr/ports
 	if [ ! -d $i ]  ; then
 		echo "Port $i not found" 1>&2
 		exit 2
 	fi
+	)
 done
 
 export PORTS_WE_WANT
@@ -384,10 +500,10 @@ export PORTS_OPTS
 #######################################################################
 
 log_it Prepare destination partition
-newfs -O2 -U /dev/${TARGET_PART} > /dev/null
-mount /dev/${TARGET_PART} /mnt
-mkdir -p /mnt/dev
-mount -t devfs devfs /mnt/dev
+newfs -t -E -O2 -U /dev/${TARGET_PART} > /dev/null
+mount /dev/${TARGET_PART} ${SBMNT}
+mkdir -p ${SBMNT}/dev
+mount -t devfs devfs ${SBMNT}/dev
 
 if [ "x${REMOTEDISTFILES}" != "x" ] ; then
 	rm -rf /freebsd/${PORTS_PATH}/distfiles
@@ -396,14 +512,17 @@ if [ "x${REMOTEDISTFILES}" != "x" ] ; then
 	mount  ${REMOTEDISTFILES} /freebsd/distfiles
 fi
 
+log_it copy ports config files
+(cd / ; find var/db/ports -print | cpio -dumpv ${SBMNT} > /dev/null 2>&1)
+
 log_it "Start prefetch of ports distfiles"
-ports_prefetch &
+ports_prefetch ${SBMNT} &
 
 if $do_world ; then
 	(
 	cd /usr/src
 	log_it "Buildworld"
-	make ${JARG} -s buildworld ${SRCCONF} > /mnt/_.bw 2>&1
+	make ${JARG} -s buildworld ${SRCCONF} > ${SBMNT}/_.bw 2>&1
 	)
 fi
 
@@ -411,29 +530,30 @@ if $do_kernel ; then
 	(
 	cd /usr/src
 	log_it "Buildkernel"
-	make ${JARG} -s buildkernel KERNCONF=$KERNCONF > /mnt/_.bk 2>&1
+	make ${JARG} -s buildkernel KERNCONF=$KERNCONF > ${SBMNT}/_.bk 2>&1
 	)
 fi
 
 
 log_it Installworld
-(cd /usr/src && make ${JARG} installworld DESTDIR=/mnt ${SRCCONF} ) \
-	> /mnt/_.iw 2>&1
+(cd /usr/src && make ${JARG} installworld DESTDIR=${SBMNT} ${SRCCONF} ) \
+	> ${SBMNT}/_.iw 2>&1
 
 log_it distribution
-(cd /usr/src/etc && make -m /usr/src/share/mk distribution DESTDIR=/mnt ${SRCCONF} ) \
-	> /mnt/_.dist 2>&1
+(cd /usr/src/etc && make -m /usr/src/share/mk distribution DESTDIR=${SBMNT} ${SRCCONF} ) \
+	> ${SBMNT}/_.dist 2>&1
 
 log_it Installkernel
-(cd /usr/src && make ${JARG} installkernel DESTDIR=/mnt KERNCONF=$KERNCONF ) \
-	> /mnt/_.ik 2>&1
+(cd /usr/src && make ${JARG} installkernel DESTDIR=${SBMNT} KERNCONF=$KERNCONF ) \
+	> ${SBMNT}/_.ik 2>&1
 
 if [ "x${OBJ_PATH}" != "x" ] ; then
-	rmdir /mnt/usr/obj
-	ln -s /freebsd/${OBJ_PATH} /mnt/usr/obj
+	rmdir ${SBMNT}/usr/obj
+	ln -s /freebsd/${OBJ_PATH} ${SBMNT}/usr/obj
 fi
 
 log_it Wait for ports prefetch
+log_it "(Tail ${SBMNT}/_.prefetch for progress)"
 wait
 
 log_it Move filesystems
@@ -441,95 +561,96 @@ log_it Move filesystems
 if [ "x${REMOTEDISTFILES}" != "x" ] ; then
 	umount /freebsd/distfiles
 fi
-umount /dev/${FREEBSD_PART} || true
-mkdir -p /mnt/freebsd
-mount /dev/${FREEBSD_PART} /mnt/freebsd
+umount ${FREEBSD_PART} || true
+mkdir -p ${SBMNT}/freebsd
+mount ${FREEBSD_PART} ${SBMNT}/freebsd
 if [ "x${REMOTEDISTFILES}" != "x" ] ; then
-	mount  ${REMOTEDISTFILES} /mnt/freebsd/distfiles
+	mount  ${REMOTEDISTFILES} ${SBMNT}/freebsd/distfiles
 fi
 
-rm -rf /mnt/usr/ports || true
-ln -s /freebsd/${PORTS_PATH} /mnt/usr/ports
+rm -rf ${SBMNT}/usr/ports || true
+ln -s /freebsd/${PORTS_PATH} ${SBMNT}/usr/ports
 
-rm -rf /mnt/usr/src || true
-ln -s /freebsd/${SRC_PATH} /mnt/usr/src
+rm -rf ${SBMNT}/usr/src || true
+ln -s /freebsd/${SRC_PATH} ${SBMNT}/usr/src
 
 log_it Build and install ports
 
 # Make sure fetching will work in the chroot
 if [ -f /etc/resolv.conf ] ; then
 	log_it copy resolv.conf
-	cp /etc/resolv.conf /mnt/etc
-	chflags schg /mnt/etc/resolv.conf
+	cp /etc/resolv.conf ${SBMNT}/etc
+	chflags schg ${SBMNT}/etc/resolv.conf
 fi
 
 if [ -f /etc/localtime ] ; then
 	log_it copy localtime
-	cp /etc/localtime /mnt/etc
+	cp /etc/localtime ${SBMNT}/etc
 fi
 
-log_it copy ports config files
-(cd / ; find var/db/ports -print | cpio -dumpv /mnt )
-
 log_it ldconfig in chroot
-chroot /mnt sh /etc/rc.d/ldconfig start
+chroot ${SBMNT} sh /etc/rc.d/ldconfig start
 
 log_it before_ports
 ( 
 	before_ports 
 )
 
-log_it build ports
-pwd
-cp $0 /mnt/root
-cp /tmp/_sb_log /mnt/tmp
-b=`basename $0`
-if [ "x$c_arg" != "x" ] ; then
-	cp $c_arg /mnt/root
-	chroot /mnt sh /root/$0 -c /root/`basename $c_arg` $use_pkg chroot_script 
-else
-	chroot /mnt sh /root/$0 $use_pkg chroot_script
-fi
-cp /mnt/tmp/_sb_log /tmp
-
 log_it fixing fstab
 sed "/[ 	]\/[ 	]/s;^[^ 	]*[ 	];/dev/${TARGET_PART}	;" \
-	/etc/fstab > /mnt/etc/fstab
+	/etc/fstab > ${SBMNT}/etc/fstab
+
+log_it build ports
+
+cp $0 ${SBMNT}/root
+cp /tmp/_sb_log ${SBMNT}/tmp
+b=`basename $0`
+if [ "x$c_arg" != "x" ] ; then
+	cp $c_arg ${SBMNT}/root
+	chroot ${SBMNT} sh /root/$0 -c /root/`basename $c_arg` $use_pkg chroot_script 
+else
+	chroot ${SBMNT} sh /root/$0 $use_pkg chroot_script
+fi
+cp ${SBMNT}/tmp/_sb_log /tmp
 
 log_it create all mountpoints
-grep -v '^[ 	]*#' /mnt/etc/fstab | 
+grep -v '^[ 	]*#' ${SBMNT}/etc/fstab | 
 while read a b c
 do
-	mkdir -p /mnt/$b
+	mkdir -p ${SBMNT}/$b
 done
 
 if [ "x$SERCONS" != "xfalse" ] ; then
 	log_it serial console
-	echo " -h" > /mnt/boot.config
-	sed -i "" -e /ttyd0/s/off/on/ /mnt/etc/ttys
-	sed -i "" -e /ttyu0/s/off/on/ /mnt/etc/ttys
-	sed -i "" -e '/^ttyv[0-8]/s/	on/	off/' /mnt/etc/ttys
+	echo " -h" > ${SBMNT}/boot.config
+	sed -i "" -e /ttyd0/s/off/on/ ${SBMNT}/etc/ttys
+	sed -i "" -e /ttyu0/s/off/on/ ${SBMNT}/etc/ttys
+	sed -i "" -e '/^ttyv[0-8]/s/	on/	off/' ${SBMNT}/etc/ttys
 fi
 
-log_it move config files
+log_it move dist config files "(expect warnings)"
 (
-	cd /mnt
+	cd ${SBMNT}
 	mkdir root/configfiles_dist
 	find ${CONFIGFILES} -print | cpio -dumpv root/configfiles_dist
 )
 
-(cd / && find ${CONFIGFILES} -print | cpio -dumpv /mnt)
+log_it copy live config files
+(cd / && find ${CONFIGFILES} -print | cpio -dumpv ${SBMNT})
 
 log_it final_root
 ( final_root )
 log_it final_chroot
-cp /tmp/_sb_log /mnt/tmp
+cp /tmp/_sb_log ${SBMNT}/tmp
 if [ "x$c_arg" != "x" ] ; then
-	chroot /mnt sh /root/$0 -c /root/`basename $c_arg` final_chroot
+	chroot ${SBMNT} sh /root/$0 -c /root/`basename $c_arg` final_chroot
 else
-	chroot /mnt sh /root/$0 final_chroot
+	chroot ${SBMNT} sh /root/$0 final_chroot
 fi
-cp /mnt/tmp/_sb_log /tmp
+cp ${SBMNT}/tmp/_sb_log /tmp
 log_it "Check these messages (if any):"
-grep '^Stop' /mnt/_* || true
+grep '^Stop' ${SBMNT}/_* || true
 log_it DONE
+echo "Now you probably want to:"
+echo "    $GPART_SUGGESTION"
+echo "    shutdown -r now"

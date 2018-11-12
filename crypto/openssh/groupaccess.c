@@ -1,4 +1,4 @@
-/* $OpenBSD: groupaccess.c,v 1.13 2008/07/04 03:44:59 djm Exp $ */
+/* $OpenBSD: groupaccess.c,v 1.16 2015/05/04 06:10:48 djm Exp $ */
 /*
  * Copyright (c) 2001 Kevin Steves.  All rights reserved.
  *
@@ -26,12 +26,13 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#include <sys/param.h>
 
 #include <grp.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "xmalloc.h"
 #include "groupaccess.h"
@@ -68,7 +69,7 @@ ga_init(const char *user, gid_t base)
 	for (i = 0, j = 0; i < ngroups; i++)
 		if ((gr = getgrgid(groups_bygid[i])) != NULL)
 			groups_byname[j++] = xstrdup(gr->gr_name);
-	xfree(groups_bygid);
+	free(groups_bygid);
 	return (ngroups = j);
 }
 
@@ -96,11 +97,9 @@ int
 ga_match_pattern_list(const char *group_pattern)
 {
 	int i, found = 0;
-	size_t len = strlen(group_pattern);
 
 	for (i = 0; i < ngroups; i++) {
-		switch (match_pattern_list(groups_byname[i],
-		    group_pattern, len, 0)) {
+		switch (match_pattern_list(groups_byname[i], group_pattern, 0)) {
 		case -1:
 			return 0;	/* Negated match wins */
 		case 0:
@@ -122,8 +121,8 @@ ga_free(void)
 
 	if (ngroups > 0) {
 		for (i = 0; i < ngroups; i++)
-			xfree(groups_byname[i]);
+			free(groups_byname[i]);
 		ngroups = 0;
-		xfree(groups_byname);
+		free(groups_byname);
 	}
 }

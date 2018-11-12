@@ -27,9 +27,18 @@
  */
 
 #include <string.h>
-#include <stdint.h>
+#include <sys/types.h>
+
+#include <machine/sysarch.h>
+#include "libc_private.h"
 
 void
 _set_tp(void *tp)
 {
+
+#ifdef ARM_TP_ADDRESS
+	*((struct tcb **)ARM_TP_ADDRESS) = tp;
+#else
+	sysarch(ARM_SET_TP, tp);
+#endif
 }

@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -35,7 +31,7 @@
  */
 
 #ifndef lint
-char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
@@ -68,6 +64,7 @@ __FBSDID("$FreeBSD$");
 time_t now;			/* time find was run */
 int dotfd;			/* starting directory */
 int ftsoptions;			/* options for the ftsopen(3) call */
+int ignore_readdir_race;	/* ignore readdir race */
 int isdeprecated;		/* using deprecated syntax */
 int isdepth;			/* do directories on post-order visit */
 int isoutput;			/* user specified output operator */
@@ -75,6 +72,7 @@ int issort;         		/* do hierarchies in lexicographical order */
 int isxargs;			/* don't permit xargs delimiting chars */
 int mindepth = -1, maxdepth = -1; /* minimum and maximum depth */
 int regexp_flags = REG_BASIC;	/* use the "basic" regexp by default*/
+int exitstatus;
 
 static void usage(void);
 
@@ -124,7 +122,7 @@ main(int argc, char *argv[])
 			break;
 		case '?':
 		default:
-			break;
+			usage();
 		}
 
 	argc -= optind;
@@ -154,8 +152,8 @@ main(int argc, char *argv[])
 		usage();
 	*p = NULL;
 
-	if ((dotfd = open(".", O_RDONLY, 0)) < 0)
-		err(1, ".");
+	if ((dotfd = open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
+		ftsoptions |= FTS_NOCHDIR;
 
 	exit(find_execute(find_formplan(argv), start));
 }

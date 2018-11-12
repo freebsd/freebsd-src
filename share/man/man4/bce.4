@@ -1,5 +1,4 @@
-.\" Copyright (c) 2006 Broadcom Corporation
-.\"  David Christensen <davidch@broadcom.com>.  All rights reserved.
+.\" Copyright (c) 2006-2014 QLogic Corporation
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -10,9 +9,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. Neither the name of Broadcom Corporation nor the name of its contributors
-.\"    may be used to endorse or promote products derived from this software
-.\"    without specific prior written consent.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
 .\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -28,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2009
+.Dd June 4, 2012
 .Dt BCE 4
 .Os
 .Sh NAME
 .Nm bce
-.Nd "Broadcom NetXtreme II (BCM5706/5708/5709/5716) PCI/PCIe Gigabit Ethernet adapter driver"
+.Nd "QLogic NetXtreme II (BCM5706/5708/5709/5716) PCI/PCIe Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -52,7 +48,7 @@ if_bce_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver supports Broadcom's NetXtreme II product family, including the
+driver supports QLogic's NetXtreme II product family, including the
 BCM5706, BCM5708, BCM5709 and BCM5716 Ethernet controllers.
 .Pp
 The NetXtreme II product family is composed of various Converged NIC (or CNIC)
@@ -141,29 +137,31 @@ For more information on configuring this device, see
 .Sh HARDWARE
 The
 .Nm
-driver provides support for various NICs based on the Broadcom NetXtreme II
+driver provides support for various NICs based on the QLogic NetXtreme II
 family of Gigabit Ethernet controllers, including the
 following:
 .Pp
 .Bl -bullet -compact
 .It
-Broadcom NetXtreme II BCM5706 1000Base-SX
+QLogic NetXtreme II BCM5706 1000Base-SX
 .It
-Broadcom NetXtreme II BCM5706 1000Base-T
+QLogic NetXtreme II BCM5706 1000Base-T
 .It
-Broadcom NetXtreme II BCM5708 1000Base-SX
+QLogic NetXtreme II BCM5708 1000Base-SX
 .It
-Broadcom NetXtreme II BCM5708 1000Base-T
+QLogic NetXtreme II BCM5708 1000Base-T
 .It
-Broadcom NetXtreme II BCM5709 1000Base-SX
+QLogic NetXtreme II BCM5709 1000Base-SX
 .It
-Broadcom NetXtreme II BCM5709 1000Base-T
+QLogic NetXtreme II BCM5709 1000Base-T
 .It
-Broadcom NetXtreme II BCM5716 1000Base-T
+QLogic NetXtreme II BCM5716 1000Base-T
 .It
 Dell PowerEdge 1950 integrated BCM5708 NIC
 .It
 Dell PowerEdge 2950 integrated BCM5708 NIC
+.It
+Dell PowerEdge R710 integrated BCM5709 NIC
 .It
 HP NC370F Multifunction Gigabit Server Adapter
 .It
@@ -198,9 +196,73 @@ variables and
 .Xr loader 8
 tunables:
 .Bl -tag -width indent
+.It Va hw.bce.verbose
+Enable/Disable verbose logging and output to the console.
+Useful for debugging (default 0).
 .It Va hw.bce.msi_enable
-Whether or not MSI support is enabled in the driver.
-The default value is 1.
+Enable/Disable MSI support (default 1).
+.It Va hw.bce.tso_enable
+Enable/Disable TSO support (default 1).
+.It Va hw.bce.strict_rx_mtu
+Enable/Disable strict RX frame size checking (default 0).
+.It Va hw.bce.hdr_split
+Enable/Disable frame header/payload splitting (default 1).
+.It Va hw.bce.rx_pages
+Set the number of memory pages assigned to receive packets by the driver.
+Due to alignment issues, this value can only be of the set
+1, 2, 4 or 8 (default 2).
+.It Va hw.bce.tx_pages
+Set the number of memory pages assigned to transmit packets
+by the driver.
+Due to alignment issues, this value can only be of the set
+1, 2, 4 or 8 (default 2).
+.It Va hw.bce.rx_ticks
+Time in microsecond ticks to wait before generating a status
+block updates due to RX processing activity.
+Values from 0-100 are valid.
+A value of 0 disables this status block update.
+Cannot be set to 0 if hw.bce.rx_quick_cons_trip is also 0
+(default 18).
+.It Va hw.bce.rx_ticks_int
+Time in microsecond ticks to wait during RX interrupt
+processing before generating a status block update.
+Values from 0-100 are valid.
+Valid values are in the range from 0-100.
+A value of 0 disables this status block update (default 18).
+.It Va hw.bce.rx_quick_cons_trip
+Number of RX Quick BD Chain entries that must be completed
+before a status block is generated.
+Values from 0-256 are valid.
+A value of 0 disables this status block update.
+Cannot be set to 0 if hw.bce.rx_ticks is also 0 (default 6).
+.It Va hw.bce.rx_quick_cons_trip_int
+Number of RX quick BD entries that must be completed before
+a status block is generated duing interrupt processing.
+Values from 0-256 are valid.
+A value of 0 disables this status block update (default 6).
+.It Va hw.bce.tx_ticks
+Time in microsecond ticks to wait before a status block
+update is generated due to TX activitiy.
+Values from 0-100 are valid.
+A value of 0 disables this status block update.
+Cannot be set to 0 if hw.bce.tx_quick_cons_trip is also 0
+(default 80).
+.It Va hw.bce.tx_ticks_int
+Time in microsecond ticks to wait in interrupt processing
+before a status block update is generated due to TX activity
+Values from 0-100 are valid.
+A value of 0 disables this status block update (default 80).
+.It Va hw.bce.tx_cons_trip
+How many TX Quick BD Chain entries that must be completed
+before a status block is generated.
+Values from 0-100 are valid.
+A value of 0 disables this status block update.
+Cannot be set to 0 if hw.bce.tx_ticks is also 0 (default 20).
+.It Va hw.bce.tx_cons_trip_int
+How many TX Quick BD Chain entries that must be completed
+before a status block is generated during an interrupt.
+Values from 0-100 are valid.
+A value of 0 disables this status block update (default 20).
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -249,7 +311,7 @@ status block.
 .It "bce%d: Could not allocate status block DMA memory!"
 The driver could not allocate DMA addressable memory for the controller's
 status block.
-.It "bce_d: Could not map status block DMA memory!"
+.It "bce%d: Could not map status block DMA memory!"
 The driver could not map the status block memory into the controller's DMA
 address space.
 .It "bce%d: Could not allocate statistics block DMA tag!"
@@ -264,7 +326,7 @@ address space.
 .It "bce%d: Could not allocate TX descriptor chain DMA tag!"
 The driver could not allocate a DMA tag for the controller's
 TX chain.
-.It "bce%d: Could not allocate TX descriptor chain DMA memory!
+.It "bce%d: Could not allocate TX descriptor chain DMA memory!"
 The driver could not allocate DMA addressable memory for the controller's
 TX chain.
 .It "bce%d: Could not map TX descriptor chain DMA memory!"
@@ -344,6 +406,12 @@ with the cable connection, or a driver logic problem has occurred..
 A controller hardware failure has occurred.
 If the problem continues replace the controller.
 .El
+.Sh SUPPORT
+For support questions please contact your QLogic approved reseller or
+QLogic Technical Support at
+.Pa http://support.qlogic.com ,
+or by E-mail at
+.Aq Mt support@qlogic.com .
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr arp 4 ,
@@ -361,4 +429,4 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An David Christensen Aq davidch@broadcom.com .
+.An David Christensen Aq Mt davidch@broadcom.com .

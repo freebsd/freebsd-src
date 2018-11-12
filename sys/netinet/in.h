@@ -43,8 +43,8 @@
 #define	IPPROTO_TCP		6		/* tcp */
 #define	IPPROTO_UDP		17		/* user datagram protocol */
 
-#define	INADDR_ANY		(u_int32_t)0x00000000
-#define	INADDR_BROADCAST	(u_int32_t)0xffffffff	/* must be masked */
+#define	INADDR_ANY		((in_addr_t)0x00000000)
+#define	INADDR_BROADCAST	((in_addr_t)0xffffffff)	/* must be masked */
 
 #ifndef _UINT8_T_DECLARED
 typedef	__uint8_t		uint8_t;
@@ -100,7 +100,7 @@ struct sockaddr_in {
 	char	sin_zero[8];
 };
 
-#if !defined(_KERNEL) && __BSD_VISIBLE
+#if !defined(_KERNEL) && __POSIX_VISIBLE >= 200112
 
 #ifndef _BYTEORDER_PROTOTYPED
 #define	_BYTEORDER_PROTOTYPED
@@ -120,9 +120,10 @@ __END_DECLS
 #define	ntohs(x)	__ntohs(x)
 #endif
 
-#endif /* !_KERNEL && __BSD_VISIBLE */
+#endif /* !_KERNEL && __POSIX_VISIBLE >= 200112 */
 
 #if __POSIX_VISIBLE >= 200112
+#define	IPPROTO_IPV6		41		/* IP6 header */
 #define	IPPROTO_RAW		255		/* raw IP packet */
 #define	INET_ADDRSTRLEN		16
 #endif
@@ -174,7 +175,6 @@ __END_DECLS
 #define	IPPROTO_CMTP		38		/* Control Message Transport */
 #define	IPPROTO_TPXX		39		/* TP++ Transport */
 #define	IPPROTO_IL		40		/* IL transport protocol */
-#define	IPPROTO_IPV6		41		/* IP6 header */
 #define	IPPROTO_SDRP		42		/* Source Demand Routing */
 #define	IPPROTO_ROUTING		43		/* IP6 routing header */
 #define	IPPROTO_FRAGMENT	44		/* IP6 fragmentation header */
@@ -236,11 +236,18 @@ __END_DECLS
 #define	IPPROTO_GMTP		100		/* GMTP*/
 #define	IPPROTO_IPCOMP		108		/* payload compression (IPComp) */
 #define	IPPROTO_SCTP		132		/* SCTP */
+#define	IPPROTO_MH		135		/* IPv6 Mobility Header */
+#define	IPPROTO_UDPLITE		136		/* UDP-Lite */
+#define	IPPROTO_HIP		139		/* IP6 Host Identity Protocol */
+#define	IPPROTO_SHIM6		140		/* IP6 Shim6 Protocol */
 /* 101-254: Partly Unassigned */
 #define	IPPROTO_PIM		103		/* Protocol Independent Mcast */
 #define	IPPROTO_CARP		112		/* CARP */
 #define	IPPROTO_PGM		113		/* PGM */
+#define	IPPROTO_MPLS		137		/* MPLS-in-IP */
 #define	IPPROTO_PFSYNC		240		/* PFSYNC */
+#define	IPPROTO_RESERVED_253	253		/* Reserved */
+#define	IPPROTO_RESERVED_254	254		/* Reserved */
 /* 255: Reserved */
 /* BSD Private, local use, namespace incursion, no longer used */
 #define	IPPROTO_OLD_DIVERT	254		/* OLD divert pseudo-proto */
@@ -251,6 +258,7 @@ __END_DECLS
 
 /* Only used internally, so can be outside the range of valid IP protocols. */
 #define	IPPROTO_DIVERT		258		/* divert pseudo-protocol */
+#define	IPPROTO_SEND		259		/* SeND pseudo-protocol */
 
 /*
  * Defined to avoid confusion.  The master value is defined by
@@ -336,59 +344,61 @@ __END_DECLS
  * On subnets, the decomposition of addresses to host and net parts
  * is done according to subnet mask, not the masks here.
  */
-#define	IN_CLASSA(i)		(((u_int32_t)(i) & 0x80000000) == 0)
+#define	IN_CLASSA(i)		(((in_addr_t)(i) & 0x80000000) == 0)
 #define	IN_CLASSA_NET		0xff000000
 #define	IN_CLASSA_NSHIFT	24
 #define	IN_CLASSA_HOST		0x00ffffff
 #define	IN_CLASSA_MAX		128
 
-#define	IN_CLASSB(i)		(((u_int32_t)(i) & 0xc0000000) == 0x80000000)
+#define	IN_CLASSB(i)		(((in_addr_t)(i) & 0xc0000000) == 0x80000000)
 #define	IN_CLASSB_NET		0xffff0000
 #define	IN_CLASSB_NSHIFT	16
 #define	IN_CLASSB_HOST		0x0000ffff
 #define	IN_CLASSB_MAX		65536
 
-#define	IN_CLASSC(i)		(((u_int32_t)(i) & 0xe0000000) == 0xc0000000)
+#define	IN_CLASSC(i)		(((in_addr_t)(i) & 0xe0000000) == 0xc0000000)
 #define	IN_CLASSC_NET		0xffffff00
 #define	IN_CLASSC_NSHIFT	8
 #define	IN_CLASSC_HOST		0x000000ff
 
-#define	IN_CLASSD(i)		(((u_int32_t)(i) & 0xf0000000) == 0xe0000000)
+#define	IN_CLASSD(i)		(((in_addr_t)(i) & 0xf0000000) == 0xe0000000)
 #define	IN_CLASSD_NET		0xf0000000	/* These ones aren't really */
 #define	IN_CLASSD_NSHIFT	28		/* net and host fields, but */
 #define	IN_CLASSD_HOST		0x0fffffff	/* routing needn't know.    */
 #define	IN_MULTICAST(i)		IN_CLASSD(i)
 
-#define	IN_EXPERIMENTAL(i)	(((u_int32_t)(i) & 0xf0000000) == 0xf0000000)
-#define	IN_BADCLASS(i)		(((u_int32_t)(i) & 0xf0000000) == 0xf0000000)
+#define	IN_EXPERIMENTAL(i)	(((in_addr_t)(i) & 0xf0000000) == 0xf0000000)
+#define	IN_BADCLASS(i)		(((in_addr_t)(i) & 0xf0000000) == 0xf0000000)
 
-#define IN_LINKLOCAL(i)		(((u_int32_t)(i) & 0xffff0000) == 0xa9fe0000)
-#define IN_LOOPBACK(i)		(((u_int32_t)(i) & 0xff000000) == 0x7f000000)
-#define IN_ZERONET(i)		(((u_int32_t)(i) & 0xff000000) == 0)
+#define IN_LINKLOCAL(i)		(((in_addr_t)(i) & 0xffff0000) == 0xa9fe0000)
+#define IN_LOOPBACK(i)		(((in_addr_t)(i) & 0xff000000) == 0x7f000000)
+#define IN_ZERONET(i)		(((in_addr_t)(i) & 0xff000000) == 0)
 
-#define	IN_PRIVATE(i)	((((u_int32_t)(i) & 0xff000000) == 0x0a000000) || \
-			 (((u_int32_t)(i) & 0xfff00000) == 0xac100000) || \
-			 (((u_int32_t)(i) & 0xffff0000) == 0xc0a80000))
+#define	IN_PRIVATE(i)	((((in_addr_t)(i) & 0xff000000) == 0x0a000000) || \
+			 (((in_addr_t)(i) & 0xfff00000) == 0xac100000) || \
+			 (((in_addr_t)(i) & 0xffff0000) == 0xc0a80000))
 
-#define	IN_LOCAL_GROUP(i)	(((u_int32_t)(i) & 0xffffff00) == 0xe0000000)
+#define	IN_LOCAL_GROUP(i)	(((in_addr_t)(i) & 0xffffff00) == 0xe0000000)
  
 #define	IN_ANY_LOCAL(i)		(IN_LINKLOCAL(i) || IN_LOCAL_GROUP(i))
 
-#define	INADDR_LOOPBACK		(u_int32_t)0x7f000001
+#define	INADDR_LOOPBACK		((in_addr_t)0x7f000001)
 #ifndef _KERNEL
-#define	INADDR_NONE		0xffffffff		/* -1 return */
+#define	INADDR_NONE		((in_addr_t)0xffffffff)	/* -1 return */
 #endif
 
-#define	INADDR_UNSPEC_GROUP	(u_int32_t)0xe0000000	/* 224.0.0.0 */
-#define	INADDR_ALLHOSTS_GROUP	(u_int32_t)0xe0000001	/* 224.0.0.1 */
-#define	INADDR_ALLRTRS_GROUP	(u_int32_t)0xe0000002	/* 224.0.0.2 */
-#define	INADDR_ALLRPTS_GROUP	(u_int32_t)0xe0000016	/* 224.0.0.22, IGMPv3 */
-#define	INADDR_CARP_GROUP	(u_int32_t)0xe0000012	/* 224.0.0.18 */
-#define	INADDR_PFSYNC_GROUP	(u_int32_t)0xe00000f0	/* 224.0.0.240 */
-#define	INADDR_ALLMDNS_GROUP	(u_int32_t)0xe00000fb	/* 224.0.0.251 */
-#define	INADDR_MAX_LOCAL_GROUP	(u_int32_t)0xe00000ff	/* 224.0.0.255 */
+#define	INADDR_UNSPEC_GROUP	((in_addr_t)0xe0000000)	/* 224.0.0.0 */
+#define	INADDR_ALLHOSTS_GROUP	((in_addr_t)0xe0000001)	/* 224.0.0.1 */
+#define	INADDR_ALLRTRS_GROUP	((in_addr_t)0xe0000002)	/* 224.0.0.2 */
+#define	INADDR_ALLRPTS_GROUP	((in_addr_t)0xe0000016)	/* 224.0.0.22, IGMPv3 */
+#define	INADDR_CARP_GROUP	((in_addr_t)0xe0000012)	/* 224.0.0.18 */
+#define	INADDR_PFSYNC_GROUP	((in_addr_t)0xe00000f0)	/* 224.0.0.240 */
+#define	INADDR_ALLMDNS_GROUP	((in_addr_t)0xe00000fb)	/* 224.0.0.251 */
+#define	INADDR_MAX_LOCAL_GROUP	((in_addr_t)0xe00000ff)	/* 224.0.0.255 */
 
 #define	IN_LOOPBACKNET		127			/* official! */
+
+#define	IN_RFC3021_MASK		((in_addr_t)0xfffffffe)
 
 /*
  * Options for use with [gs]etsockopt at the IP level.
@@ -418,16 +428,25 @@ __END_DECLS
 #define	IP_RECVIF		20   /* bool; receive reception if w/dgram */
 /* for IPSEC */
 #define	IP_IPSEC_POLICY		21   /* int; set/get security policy */
-#define	IP_FAITH		22   /* bool; accept FAITH'ed connections */
-
+				     /* unused; was IP_FAITH */
 #define	IP_ONESBCAST		23   /* bool: send all-ones broadcast */
 #define	IP_BINDANY		24   /* bool: allow bind to any address */
+#define	IP_BINDMULTI		25   /* bool: allow multiple listeners on a tuple */
+#define	IP_RSS_LISTEN_BUCKET	26   /* int; set RSS listen bucket */
 
+/*
+ * Options for controlling the firewall and dummynet.
+ * Historical options (from 40 to 64) will eventually be
+ * replaced by only two options, IP_FW3 and IP_DUMMYNET3.
+ */
 #define	IP_FW_TABLE_ADD		40   /* add entry */
 #define	IP_FW_TABLE_DEL		41   /* delete entry */
 #define	IP_FW_TABLE_FLUSH	42   /* flush table */
 #define	IP_FW_TABLE_GETSIZE	43   /* get table size */
 #define	IP_FW_TABLE_LIST	44   /* list table contents */
+
+#define	IP_FW3			48   /* generic ipfw v.3 sockopts */
+#define	IP_DUMMYNET3		49   /* generic dummynet v.3 sockopts */
 
 #define	IP_FW_ADD		50   /* add a firewall rule to chain */
 #define	IP_FW_DEL		51   /* delete a firewall rule from chain */
@@ -449,6 +468,7 @@ __END_DECLS
 #define	IP_RECVTTL		65   /* bool; receive IP TTL w/dgram */
 #define	IP_MINTTL		66   /* minimum TTL for packet or drop */
 #define	IP_DONTFRAG		67   /* don't fragment packet */
+#define	IP_RECVTOS		68   /* bool; receive IP TOS w/dgram */
 
 /* IPv4 Source Filter Multicast API [RFC3678] */
 #define	IP_ADD_SOURCE_MEMBERSHIP	70   /* join a source-specific group */
@@ -466,6 +486,13 @@ __END_DECLS
 #define	MCAST_LEAVE_SOURCE_GROUP	83   /* leave a single source */
 #define	MCAST_BLOCK_SOURCE		84   /* block a source */
 #define	MCAST_UNBLOCK_SOURCE		85   /* unblock a source */
+
+/* Flow and RSS definitions */
+#define	IP_FLOWID		90   /* get flow id for the given socket/inp */
+#define	IP_FLOWTYPE		91   /* get flow type (M_HASHTYPE) */
+#define	IP_RSSBUCKETID		92   /* get RSS flowid -> bucket mapping */
+#define	IP_RECVFLOWID		93   /* bool; receive IP flowid/flowtype w/ datagram */
+#define	IP_RECVRSSBUCKETID	94   /* bool; receive IP RSS bucket id w/ datagram */
 
 /*
  * Defaults and limits for options
@@ -584,86 +611,7 @@ int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
 #define	IP_PORTRANGE_LOW	2	/* "low" - vouchsafe security */
 
 /*
- * Definitions for inet sysctl operations.
- *
- * Third level is protocol number.
- * Fourth level is desired variable within that protocol.
- */
-#define	IPPROTO_MAXID	(IPPROTO_AH + 1)	/* don't list to IPPROTO_MAX */
-
-#define	CTL_IPPROTO_NAMES { \
-	{ "ip", CTLTYPE_NODE }, \
-	{ "icmp", CTLTYPE_NODE }, \
-	{ "igmp", CTLTYPE_NODE }, \
-	{ "ggp", CTLTYPE_NODE }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "tcp", CTLTYPE_NODE }, \
-	{ 0, 0 }, \
-	{ "egp", CTLTYPE_NODE }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "pup", CTLTYPE_NODE }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "udp", CTLTYPE_NODE }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "idp", CTLTYPE_NODE }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "ipsec", CTLTYPE_NODE }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, \
-	{ 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, \
-	{ 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, \
-	{ 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, \
-	{ 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, \
-	{ 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, \
-	{ 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, \
-	{ 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, \
-	{ 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "pim", CTLTYPE_NODE }, \
-}
-
-/*
- * Names for IP sysctl objects
+ * Identifiers for IP sysctl nodes
  */
 #define	IPCTL_FORWARDING	1	/* act as router */
 #define	IPCTL_SENDREDIRECTS	2	/* may send redirects when forwarding */
@@ -671,9 +619,9 @@ int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
 #ifdef notyet
 #define	IPCTL_DEFMTU		4	/* default MTU */
 #endif
-#define	IPCTL_RTEXPIRE		5	/* cloned route expiration time */
-#define	IPCTL_RTMINEXPIRE	6	/* min value for expiration time */
-#define	IPCTL_RTMAXCACHE	7	/* trigger level for dynamic expire */
+/*	IPCTL_RTEXPIRE		5	deprecated */
+/*	IPCTL_RTMINEXPIRE	6	deprecated */
+/*	IPCTL_RTMAXCACHE	7	deprecated */
 #define	IPCTL_SOURCEROUTE	8	/* may perform source routes */
 #define	IPCTL_DIRECTEDBROADCAST	9	/* may re-broadcast received packets */
 #define	IPCTL_INTRQMAXLEN	10	/* max length of netisr queue */
@@ -681,40 +629,27 @@ int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
 #define	IPCTL_STATS		12	/* ipstat structure */
 #define	IPCTL_ACCEPTSOURCEROUTE	13	/* may accept source routed packets */
 #define	IPCTL_FASTFORWARDING	14	/* use fast IP forwarding code */
-#define	IPCTL_KEEPFAITH		15	/* FAITH IPv4->IPv6 translater ctl */
+					/* 15, unused, was: IPCTL_KEEPFAITH  */
 #define	IPCTL_GIF_TTL		16	/* default TTL for gif encap packet */
-#define	IPCTL_MAXID		17
-
-#define	IPCTL_NAMES { \
-	{ 0, 0 }, \
-	{ "forwarding", CTLTYPE_INT }, \
-	{ "redirect", CTLTYPE_INT }, \
-	{ "ttl", CTLTYPE_INT }, \
-	{ "mtu", CTLTYPE_INT }, \
-	{ "rtexpire", CTLTYPE_INT }, \
-	{ "rtminexpire", CTLTYPE_INT }, \
-	{ "rtmaxcache", CTLTYPE_INT }, \
-	{ "sourceroute", CTLTYPE_INT }, \
-	{ "directed-broadcast", CTLTYPE_INT }, \
-	{ "intr-queue-maxlen", CTLTYPE_INT }, \
-	{ "intr-queue-drops", CTLTYPE_INT }, \
-	{ "stats", CTLTYPE_STRUCT }, \
-	{ "accept_sourceroute", CTLTYPE_INT }, \
-	{ "fastforwarding", CTLTYPE_INT }, \
-}
 
 #endif /* __BSD_VISIBLE */
 
 #ifdef _KERNEL
 
 struct ifnet; struct mbuf;	/* forward declarations for Standard C */
+struct in_ifaddr;
 
 int	 in_broadcast(struct in_addr, struct ifnet *);
+int	 in_ifaddr_broadcast(struct in_addr, struct in_ifaddr *);
 int	 in_canforward(struct in_addr);
 int	 in_localaddr(struct in_addr);
 int	 in_localip(struct in_addr);
+int	 in_ifhasaddr(struct ifnet *, struct in_addr);
+int	 inet_aton(const char *, struct in_addr *); /* in libkern */
 char	*inet_ntoa(struct in_addr); /* in libkern */
 char	*inet_ntoa_r(struct in_addr ina, char *buf); /* in libkern */
+char	*inet_ntop(int, const void *, char *, socklen_t); /* in libkern */
+int	 inet_pton(int af, const char *, void *); /* in libkern */
 void	 in_ifdetach(struct ifnet *);
 
 #define	in_hosteq(s, t)	((s).s_addr == (t).s_addr)
@@ -724,7 +659,6 @@ void	 in_ifdetach(struct ifnet *);
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
 #define	sintosa(sin)	((struct sockaddr *)(sin))
 #define	ifatoia(ifa)	((struct in_ifaddr *)(ifa))
-
 #endif /* _KERNEL */
 
 /* INET6 stuff */

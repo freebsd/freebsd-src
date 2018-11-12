@@ -28,12 +28,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 1993
+.Dd September 3, 2015
 .Dt YPMATCH 1
 .Os
 .Sh NAME
 .Nm ypmatch
-.Nd "print the values of one or more keys in a YP database"
+.Nd print the values of one or more keys in a NIS database
 .Sh SYNOPSIS
 .Nm
 .Op Fl kt
@@ -46,7 +46,7 @@
 The
 .Nm
 utility prints out the values of one or more keys from the
-.Tn YP
+.Tn NIS
 database specified by
 .Ar mapname ,
 which may be a map name or a map nickname.
@@ -72,4 +72,4 @@ Display the map nickname table.
 .Xr ypbind 8 ,
 .Xr ypset 8
 .Sh AUTHORS
-.An Theo De Raadt Aq deraadt@theos.com .
+.An Theo De Raadt Aq Mt deraadt@theos.com .

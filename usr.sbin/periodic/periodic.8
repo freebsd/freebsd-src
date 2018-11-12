@@ -24,9 +24,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 30, 2007
-.Os
+.Dd May 20, 2016
 .Dt PERIODIC 8
+.Os
 .Sh NAME
 .Nm periodic
 .Nd run periodic system functions
@@ -166,8 +166,9 @@ table
 the top level directory containing
 .Pa daily ,
 .Pa weekly ,
+.Pa monthly ,
 and
-.Pa monthly
+.Pa security
 subdirectories which contain standard system periodic executables
 .It Pa /etc/defaults/periodic.conf
 the
@@ -175,9 +176,9 @@ the
 system registry contains variables that control the behaviour of
 .Nm
 and the standard
-.Pa daily , weekly ,
+.Pa daily , weekly , monthly ,
 and
-.Pa monthly
+.Pa security
 scripts
 .It Pa /etc/periodic.conf
 this file contains local overrides for the default
@@ -245,8 +246,8 @@ The
 utility first appeared in
 .Fx 3.0 .
 .Sh AUTHORS
-.An Paul Traina Aq pst@FreeBSD.org
-.An Brian Somers Aq brian@Awfulhak.org
+.An Paul Traina Aq Mt pst@FreeBSD.org
+.An Brian Somers Aq Mt brian@Awfulhak.org
 .Sh BUGS
 Since one specifies information about a directory using shell
 variables containing the string,

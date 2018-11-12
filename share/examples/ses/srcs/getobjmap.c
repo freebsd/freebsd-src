@@ -33,18 +33,19 @@
  */
 
 #include <unistd.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include SESINC
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_ses.h>
 
-extern char *geteltnm __P((int));
+#include "eltsub.h"
 
 int
-main(a, v)
-	int a;
-	char **v;
+main(int a, char **v)
 {
 	ses_object *objp;
 	int nobj, fd, i;

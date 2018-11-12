@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -106,9 +102,9 @@ static void getsocket () {
 }
 
 static struct	sockaddr_in so_mask = {8, 0, 0, { 0xffffffff}};
-static struct	sockaddr_inarp blank_sin = {sizeof(blank_sin), AF_INET }, sin_m;
+static struct	sockaddr_in blank_sin = {sizeof(blank_sin), AF_INET }, sin_m;
 static struct	sockaddr_dl blank_sdl = {sizeof(blank_sdl), AF_LINK }, sdl_m;
-static int	expire_time, flags, export_only, doing_proxy;
+static int	expire_time, flags, doing_proxy;
 static struct	{
 	struct	rt_msghdr m_rtm;
 	char	m_space[512];
@@ -122,11 +118,11 @@ int bsd_arp_set(ia, eaddr, len)
 	char *eaddr;
 	int len;
 {
-	register struct sockaddr_inarp *sin = &sin_m;
-	register struct sockaddr_dl *sdl;
-	register struct rt_msghdr *rtm = &(m_rtmsg.m_rtm);
+	struct sockaddr_in *sin = &sin_m;
+	struct sockaddr_dl *sdl;
+	struct rt_msghdr *rtm = &(m_rtmsg.m_rtm);
 	u_char *ea;
-	struct timeval time;
+	struct timespec tp;
 	int op = RTM_ADD;
 
 	getsocket();
@@ -137,18 +133,18 @@ int bsd_arp_set(ia, eaddr, len)
 	ea = (u_char *)LLADDR(&sdl_m);
 	bcopy(eaddr, ea, len);
 	sdl_m.sdl_alen = len;
-	doing_proxy = flags = export_only = expire_time = 0;
+	doing_proxy = flags = expire_time = 0;
 
 	/* make arp entry temporary */
-	gettimeofday(&time, 0);
-	expire_time = time.tv_sec + 20 * 60;
+	clock_gettime(CLOCK_MONOTONIC, &tp);
+	expire_time = tp.tv_sec + 20 * 60;
 
 tryagain:
 	if (rtmsg(RTM_GET) < 0) {
 		report(LOG_WARNING, "rtmget: %s", strerror(errno));
 		return (1);
 	}
-	sin = (struct sockaddr_inarp *)(rtm + 1);
+	sin = (struct sockaddr_in *)(rtm + 1);
 	sdl = (struct sockaddr_dl *)(sin->sin_len + (char *)sin);
 	if (sin->sin_addr.s_addr == sin_m.sin_addr.s_addr) {
 		if (sdl->sdl_family == AF_LINK &&
@@ -163,13 +159,6 @@ tryagain:
 				inet_ntoa(sin->sin_addr));
 			return (1);
 		}
-		if (sin_m.sin_other & SIN_PROXY) {
-			report(LOG_WARNING,
-				"set: proxy entry exists for non 802 device\n");
-			return(1);
-		}
-		sin_m.sin_other = SIN_PROXY;
-		export_only = 1;
 		goto tryagain;
 	}
 overwrite:
@@ -190,9 +179,9 @@ static int rtmsg(cmd)
 {
 	static int seq;
 	int rlen;
-	register struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
-	register char *cp = m_rtmsg.m_space;
-	register int l;
+	struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
+	char *cp = m_rtmsg.m_space;
+	int l;
 
 	errno = 0;
 	bzero((char *)&m_rtmsg, sizeof(m_rtmsg));
@@ -209,14 +198,9 @@ static int rtmsg(cmd)
 		rtm->rtm_rmx.rmx_expire = expire_time;
 		rtm->rtm_inits = RTV_EXPIRE;
 		rtm->rtm_flags |= (RTF_HOST | RTF_STATIC | RTF_LLDATA);
-		sin_m.sin_other = 0;
 		if (doing_proxy) {
-			if (export_only)
-				sin_m.sin_other = SIN_PROXY;
-			else {
-				rtm->rtm_addrs |= RTA_NETMASK;
-				rtm->rtm_flags &= ~RTF_HOST;
-			}
+			rtm->rtm_addrs |= RTA_NETMASK;
+			rtm->rtm_flags &= ~RTF_HOST;
 		}
 		/* FALLTHROUGH */
 	case RTM_GET:

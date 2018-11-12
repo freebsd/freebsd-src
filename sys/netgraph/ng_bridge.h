@@ -149,6 +149,7 @@ enum {
 	NGM_BRIDGE_CLR_STATS,		/* clear link stats */
 	NGM_BRIDGE_GETCLR_STATS,	/* atomically get & clear link stats */
 	NGM_BRIDGE_GET_TABLE,		/* get link table */
+	NGM_BRIDGE_SET_PERSISTENT,	/* set persistent mode */
 };
 
 #endif /* _NETGRAPH_NG_BRIDGE_H_ */

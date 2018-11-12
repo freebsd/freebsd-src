@@ -289,8 +289,7 @@ op_ifentry(struct snmp_context *ctx, struct snmp_value *value,
 		 * cable) and hence return 'dormant'.
 		 */
 		if (ifp->mib.ifmd_flags & IFF_RUNNING) {
-			if (ifp->mib.ifmd_data.ifi_link_state ==
-			    LINK_STATE_DOWN)
+			if (ifp->mib.ifmd_data.ifi_link_state != LINK_STATE_UP)
 				value->v.integer = 5;   /* state dormant */
 			else
 				value->v.integer = 1;   /* state up */
@@ -357,7 +356,7 @@ op_ifentry(struct snmp_context *ctx, struct snmp_value *value,
 		value->v.oid = ifp->spec_oid;
 		break;
 	}
-	return (SNMP_ERR_NOERROR);
+	return (ret);
 }
 
 /*
@@ -529,7 +528,7 @@ op_ifxtable(struct snmp_context *ctx, struct snmp_value *value,
 		break;
 
 	  case LEAF_ifAlias:
-		ret = string_get(value, "", -1);
+		ret = string_get(value, MIBIF_PRIV(ifp)->alias, -1);
 		break;
 
 	  case LEAF_ifCounterDiscontinuityTime:

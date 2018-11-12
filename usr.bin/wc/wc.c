@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -61,12 +57,32 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <wchar.h>
 #include <wctype.h>
+#include <libxo/xo.h>
 
-uintmax_t tlinect, twordct, tcharct, tlongline;
-int doline, doword, dochar, domulti, dolongline;
+static uintmax_t tlinect, twordct, tcharct, tlongline;
+static int doline, doword, dochar, domulti, dolongline;
+static volatile sig_atomic_t siginfo;
+static xo_handle_t *stderr_handle;
 
+static void	show_cnt(const char *file, uintmax_t linect, uintmax_t wordct,
+		    uintmax_t charct, uintmax_t llct);
 static int	cnt(const char *);
 static void	usage(void);
+
+static void
+siginfo_handler(int sig __unused)
+{
+
+	siginfo = 1;
+}
+
+static void
+reset_siginfo(void)
+{
+
+	signal(SIGINFO, SIG_DFL);
+	siginfo = 0;
+}
 
 int
 main(int argc, char *argv[])
@@ -74,6 +90,10 @@ main(int argc, char *argv[])
 	int ch, errors, total;
 
 	(void) setlocale(LC_CTYPE, "");
+
+	argc = xo_parse_args(argc, argv);
+	if (argc < 0)
+		return (argc);
 
 	while ((ch = getopt(argc, argv, "clmwL")) != -1)
 		switch((char)ch) {
@@ -101,38 +121,71 @@ main(int argc, char *argv[])
 	argv += optind;
 	argc -= optind;
 
+	(void)signal(SIGINFO, siginfo_handler);
+
 	/* Wc's flags are on by default. */
 	if (doline + doword + dochar + domulti + dolongline == 0)
 		doline = doword = dochar = 1;
 
+	stderr_handle = xo_create_to_file(stderr, XO_STYLE_TEXT, 0);
+	xo_open_container("wc");
+	xo_open_list("file");
+
 	errors = 0;
 	total = 0;
 	if (!*argv) {
+	 	xo_open_instance("file");
 		if (cnt((char *)NULL) != 0)
 			++errors;
-		else
-			(void)printf("\n");
+	 	xo_close_instance("file");
+	} else {
+		do {
+	 		xo_open_instance("file");
+			if (cnt(*argv) != 0)
+				++errors;
+	 		xo_close_instance("file");
+			++total;
+		} while(*++argv);
 	}
-	else do {
-		if (cnt(*argv) != 0)
-			++errors;
-		else
-			(void)printf(" %s\n", *argv);
-		++total;
-	} while(*++argv);
+
+	xo_close_list("file");
 
 	if (total > 1) {
-		if (doline)
-			(void)printf(" %7ju", tlinect);
-		if (doword)
-			(void)printf(" %7ju", twordct);
-		if (dochar || domulti)
-			(void)printf(" %7ju", tcharct);
-		if (dolongline)
-			(void)printf(" %7ju", tlongline);
-		(void)printf(" total\n");
+		xo_open_container("total");
+		show_cnt("total", tlinect, twordct, tcharct, tlongline);
+		xo_close_container("total");
 	}
+
+	xo_close_container("wc");
+	xo_finish();
 	exit(errors == 0 ? 0 : 1);
+}
+
+static void
+show_cnt(const char *file, uintmax_t linect, uintmax_t wordct,
+    uintmax_t charct, uintmax_t llct)
+{
+	xo_handle_t *xop;
+
+	if (!siginfo)
+		xop = NULL;
+	else {
+		xop = stderr_handle;
+		siginfo = 0;
+	}
+
+	if (doline)
+		xo_emit_h(xop, " {:lines/%7ju/%ju}", linect);
+	if (doword)
+		xo_emit_h(xop, " {:words/%7ju/%ju}", wordct);
+	if (dochar || domulti)
+		xo_emit_h(xop, " {:characters/%7ju/%ju}", charct);
+	if (dolongline)
+		xo_emit_h(xop, " {:long-lines/%7ju/%ju}", llct);
+	if (file != NULL)
+		xo_emit_h(xop, " {:filename/%s}\n", file);
+	else
+		xo_emit_h(xop, "\n");
 }
 
 static int
@@ -149,12 +202,11 @@ cnt(const char *file)
 	mbstate_t mbs;
 
 	linect = wordct = charct = llct = tmpll = 0;
-	if (file == NULL) {
-		file = "stdin";
+	if (file == NULL)
 		fd = STDIN_FILENO;
-	} else {
+	else {
 		if ((fd = open(file, O_RDONLY, 0)) < 0) {
-			warn("%s: open", file);
+			xo_warn("%s: open", file);
 			return (1);
 		}
 		if (doword || (domulti && MB_CUR_MAX != 1))
@@ -167,9 +219,13 @@ cnt(const char *file)
 		if (doline) {
 			while ((len = read(fd, buf, MAXBSIZE))) {
 				if (len == -1) {
-					warn("%s: read", file);
+					xo_warn("%s: read", file);
 					(void)close(fd);
 					return (1);
+				}
+				if (siginfo) {
+					show_cnt(file, linect, wordct, charct,
+					    llct);
 				}
 				charct += len;
 				for (p = buf; len--; ++p)
@@ -181,17 +237,15 @@ cnt(const char *file)
 					} else
 						tmpll++;
 			}
+			reset_siginfo();
 			tlinect += linect;
-			(void)printf(" %7ju", linect);
-			if (dochar) {
+			if (dochar)
 				tcharct += charct;
-				(void)printf(" %7ju", charct);
-			}
 			if (dolongline) {
 				if (llct > tlongline)
 					tlongline = llct;
-				(void)printf(" %7ju", tlongline);
 			}
+			show_cnt(file, linect, wordct, charct, llct);
 			(void)close(fd);
 			return (0);
 		}
@@ -201,13 +255,15 @@ cnt(const char *file)
 		 */
 		if (dochar || domulti) {
 			if (fstat(fd, &sb)) {
-				warn("%s: fstat", file);
+				xo_warn("%s: fstat", file);
 				(void)close(fd);
 				return (1);
 			}
 			if (S_ISREG(sb.st_mode)) {
-				(void)printf(" %7lld", (long long)sb.st_size);
-				tcharct += sb.st_size;
+				reset_siginfo();
+				charct = sb.st_size;
+				show_cnt(file, linect, wordct, charct, llct);
+				tcharct += charct;
 				(void)close(fd);
 				return (0);
 			}
@@ -220,12 +276,14 @@ word:	gotsp = 1;
 	memset(&mbs, 0, sizeof(mbs));
 	while ((len = read(fd, buf, MAXBSIZE)) != 0) {
 		if (len == -1) {
-			warn("%s: read", file);
+			xo_warn("%s: read", file != NULL ? file : "stdin");
 			(void)close(fd);
 			return (1);
 		}
 		p = buf;
 		while (len > 0) {
+			if (siginfo)
+				show_cnt(file, linect, wordct, charct, llct);
 			if (!domulti || MB_CUR_MAX == 1) {
 				clen = 1;
 				wch = (unsigned char)*p;
@@ -233,7 +291,8 @@ word:	gotsp = 1;
 			    (size_t)-1) {
 				if (!warned) {
 					errno = EILSEQ;
-					warn("%s", file);
+					xo_warn("%s",
+					    file != NULL ? file : "stdin");
 					warned = 1;
 				}
 				memset(&mbs, 0, sizeof(mbs));
@@ -262,33 +321,28 @@ word:	gotsp = 1;
 			}
 		}
 	}
+	reset_siginfo();
 	if (domulti && MB_CUR_MAX > 1)
 		if (mbrtowc(NULL, NULL, 0, &mbs) == (size_t)-1 && !warned)
-			warn("%s", file);
-	if (doline) {
+			xo_warn("%s", file != NULL ? file : "stdin");
+	if (doline)
 		tlinect += linect;
-		(void)printf(" %7ju", linect);
-	}
-	if (doword) {
+	if (doword)
 		twordct += wordct;
-		(void)printf(" %7ju", wordct);
-	}
-	if (dochar || domulti) {
+	if (dochar || domulti)
 		tcharct += charct;
-		(void)printf(" %7ju", charct);
-	}
 	if (dolongline) {
 		if (llct > tlongline)
 			tlongline = llct;
-		(void)printf(" %7ju", llct);
 	}
+	show_cnt(file, linect, wordct, charct, llct);
 	(void)close(fd);
 	return (0);
 }
 
 static void
-usage()
+usage(void)
 {
-	(void)fprintf(stderr, "usage: wc [-Lclmw] [file ...]\n");
+	xo_error("usage: wc [-Lclmw] [file ...]\n");
 	exit(1);
 }

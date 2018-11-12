@@ -98,6 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_mib.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -128,7 +129,7 @@ static uint8_t vlan_matrix[SW_DEVS] = {
 
 /* ifnet entry points */
 static void	admsw_start(struct ifnet *);
-static void	admsw_watchdog(struct ifnet *);
+static void	admsw_watchdog(void *);
 static int	admsw_ioctl(struct ifnet *, u_long, caddr_t);
 static void	admsw_init(void *);
 static void	admsw_stop(struct ifnet *, int);
@@ -398,6 +399,7 @@ admsw_attach(device_t dev)
 
 	device_printf(sc->sc_dev, "base Ethernet address %s\n",
 	    ether_sprintf(enaddr));
+	callout_init(&sc->sc_watchdog, 1);
 
 	rid = 0;
 	if ((sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
@@ -527,7 +529,7 @@ admsw_attach(device_t dev)
 		ifmedia_add(&sc->sc_ifmedia[i], IFM_ETHER|IFM_AUTO, 0, NULL);
 		ifmedia_set(&sc->sc_ifmedia[i], IFM_ETHER|IFM_AUTO);
 
-		ifp = sc->sc_ifnet[i] = if_alloc(IFT_ETHER);;
+		ifp = sc->sc_ifnet[i] = if_alloc(IFT_ETHER);
 
 		/* Setup interface parameters */
 		ifp->if_softc = sc;
@@ -536,13 +538,11 @@ admsw_attach(device_t dev)
 		ifp->if_ioctl = admsw_ioctl;
 		ifp->if_output = ether_output;
 		ifp->if_start = admsw_start;
-		ifp->if_watchdog = admsw_watchdog;
-		ifp->if_timer = 0;
 		ifp->if_init = admsw_init;
 		ifp->if_mtu = ETHERMTU;
 		ifp->if_baudrate = IF_Mbps(100);
-		IFQ_SET_MAXLEN(&ifp->if_snd, max(ADMSW_NTXLDESC, IFQ_MAXLEN));
-		ifp->if_snd.ifq_drv_maxlen = max(ADMSW_NTXLDESC, IFQ_MAXLEN);
+		IFQ_SET_MAXLEN(&ifp->if_snd, max(ADMSW_NTXLDESC, ifqmaxlen));
+		ifp->if_snd.ifq_drv_maxlen = max(ADMSW_NTXLDESC, ifqmaxlen);
 		IFQ_SET_READY(&ifp->if_snd);
 		ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
@@ -648,15 +648,14 @@ admsw_start(struct ifnet *ifp)
 		if (m0->m_pkthdr.len < ETHER_MIN_LEN ||
 		    bus_dmamap_load_mbuf(sc->sc_bufs_dmat, dmamap, m0,
 		    admsw_mbuf_map_addr, ds, BUS_DMA_NOWAIT) != 0) {
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m == NULL) {
 				device_printf(sc->sc_dev, 
 				    "unable to allocate Tx mbuf\n");
 				break;
 			}
 			if (m0->m_pkthdr.len > MHLEN) {
-				MCLGET(m, M_DONTWAIT);
-				if ((m->m_flags & M_EXT) == 0) {
+				if (!(MCLGET(m, M_NOWAIT))) {
 					device_printf(sc->sc_dev, 
 					    "unable to allocate Tx cluster\n");
 					m_freem(m);
@@ -733,7 +732,7 @@ admsw_start(struct ifnet *ifp)
 		BPF_MTAP(ifp, m0);
 
 		/* Set a watchdog timer in case the chip flakes out. */
-		sc->sc_ifnet[0]->if_timer = 5;
+		sc->sc_timer = 5;
 	}
 }
 
@@ -743,25 +742,30 @@ admsw_start(struct ifnet *ifp)
  *	Watchdog timer handler.
  */
 static void
-admsw_watchdog(struct ifnet *ifp)
+admsw_watchdog(void *arg)
 {
-	struct admsw_softc *sc = ifp->if_softc;
+	struct admsw_softc *sc = arg;
+	struct ifnet *ifp;
 	int vlan;
+
+	callout_reset(&sc->sc_watchdog, hz, admsw_watchdog, sc);
+	if (sc->sc_timer == 0 || --sc->sc_timer > 0)
+		return;
 
 	/* Check if an interrupt was lost. */
 	if (sc->sc_txfree == ADMSW_NTXLDESC) {
 		device_printf(sc->sc_dev, "watchdog false alarm\n");
 		return;
 	}
-	if (sc->sc_ifnet[0]->if_timer != 0)
+	if (sc->sc_timer != 0)
 		device_printf(sc->sc_dev, "watchdog timer is %d!\n",  
-		    sc->sc_ifnet[0]->if_timer);
+		    sc->sc_timer);
 	admsw_txintr(sc, 0);
 	if (sc->sc_txfree == ADMSW_NTXLDESC) {
 		device_printf(sc->sc_dev, "tx IRQ lost (queue empty)\n");
 		return;
 	}
-	if (sc->sc_ifnet[0]->if_timer != 0) {
+	if (sc->sc_timer != 0) {
 		device_printf(sc->sc_dev, "tx IRQ lost (timer recharged)\n");
 		return;
 	}
@@ -771,6 +775,8 @@ admsw_watchdog(struct ifnet *ifp)
 	for (vlan = 0; vlan < SW_DEVS; vlan++)
 		admsw_stop(sc->sc_ifnet[vlan], 0);
 	admsw_init(sc);
+
+	ifp = sc->sc_ifnet[0];
 
 	/* Try to get more packets going. */
 	admsw_start(ifp);
@@ -918,7 +924,7 @@ admsw_txintr(struct admsw_softc *sc, int prio)
 		gotone = 1;
 		/* printf("clear tx slot %d\n",i); */
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		sc->sc_txfree++;
 	}
@@ -938,7 +944,7 @@ admsw_txintr(struct admsw_softc *sc, int prio)
 		 * cancel the watchdog timer.
 		 */
 		if (sc->sc_txfree == ADMSW_NTXLDESC)
-			ifp->if_timer = 0;
+			sc->sc_timer = 0;
 
 	}
 
@@ -1040,7 +1046,7 @@ admsw_rxintr(struct admsw_softc *sc, int high)
 
 		m = ds->ds_mbuf;
 		if (admsw_add_rxlbuf(sc, i) != 0) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			ADMSW_INIT_RXLDESC(sc, i);
 			bus_dmamap_sync(sc->sc_bufs_dmat, ds->ds_dmamap,
 			    BUS_DMASYNC_PREREAD);
@@ -1059,7 +1065,7 @@ admsw_rxintr(struct admsw_softc *sc, int high)
 
 		/* Pass it on. */
 		(*ifp->if_input)(ifp, m);
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	}
 
 	/* Update the receive pointer. */
@@ -1096,6 +1102,9 @@ admsw_init(void *xsc)
 				    ~(ADMSW_INTR_SHD | ADMSW_INTR_SLD | 
 					ADMSW_INTR_RHD | ADMSW_INTR_RLD | 
 					ADMSW_INTR_HDF | ADMSW_INTR_LDF));
+
+				callout_reset(&sc->sc_watchdog, hz,
+				    admsw_watchdog, sc);
 			}
 			sc->ndevs++;
 		}
@@ -1137,11 +1146,14 @@ admsw_stop(struct ifnet *ifp, int disable)
 
 		/* disable interrupts */
 		REG_WRITE(ADMSW_INT_MASK, INT_MASK);
+
+		/* Cancel the watchdog timer. */
+		sc->sc_timer = 0;
+		callout_stop(&sc->sc_watchdog);
 	}
 
-	/* Mark the interface as down and cancel the watchdog timer. */
+	/* Mark the interface as down. */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	ifp->if_timer = 0;
 
 	return;
 }
@@ -1210,12 +1222,11 @@ admsw_add_rxbuf(struct admsw_softc *sc, int idx, int high)
 	else
 		ds = &sc->sc_rxlsoft[idx];
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
 
-	MCLGET(m, M_DONTWAIT);
-	if ((m->m_flags & M_EXT) == 0) {
+	if (!(MCLGET(m, M_NOWAIT))) {
 		m_freem(m);
 		return (ENOBUFS);
 	}

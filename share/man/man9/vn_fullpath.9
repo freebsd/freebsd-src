@@ -73,7 +73,8 @@ The thread performing the call; this pointer will be dereferenced to find
 the process and its file descriptor structure, in order to identify the
 root vnode to use.
 .It Fa vp
-The vnode to search for.  No need to be locked by the caller.
+The vnode to search for.
+No need to be locked by the caller.
 .It Fa retbuf
 Pointer to a
 .Vt "char *"
@@ -122,4 +123,4 @@ otherwise, an error number is returned.
 .Xr free 9
 .Sh AUTHORS
 This manual page was written by
-.An Robert Watson Aq rwatson@FreeBSD.org .
+.An Robert Watson Aq Mt rwatson@FreeBSD.org .

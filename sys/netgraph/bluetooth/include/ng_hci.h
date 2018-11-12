@@ -75,10 +75,11 @@
 #define NG_HCI_KEY_SIZE				16  /* link key */
 #define NG_HCI_PIN_SIZE				16  /* link PIN */
 #define NG_HCI_EVENT_MASK_SIZE			8   /* event mask */
+#define NG_HCI_LE_EVENT_MASK_SIZE		8   /* event mask */
 #define NG_HCI_CLASS_SIZE			3   /* unit class */
 #define NG_HCI_FEATURES_SIZE			8   /* LMP features */
 #define NG_HCI_UNIT_NAME_SIZE			248 /* unit name size */
-
+#define NG_HCI_COMMANDS_SIZE			64  /*Command list BMP size*/
 /* HCI specification */
 #define NG_HCI_SPEC_V10				0x00 /* v1.0 */
 #define NG_HCI_SPEC_V11				0x01 /* v1.1 */
@@ -115,6 +116,8 @@
 /* Link types */
 #define NG_HCI_LINK_SCO				0x00 /* Voice */
 #define NG_HCI_LINK_ACL				0x01 /* Data */
+#define NG_HCI_LINK_LE_PUBLIC			0x02 /* LE Public*/
+#define NG_HCI_LINK_LE_RANDOM			0x03 /* LE Random*/
 /* 0x02 - 0xFF - reserved for future use */
 
 /* Packet types */
@@ -466,7 +469,13 @@ typedef struct {
 typedef struct {
 	u_int16_t	con_handle; /* connection handle */
 } ng_hci_lp_qos_ind_ep;
-
+/*Encryption Change event*/
+#define NGM_HCI_LP_ENC_CHG 			10 /* HCI->Upper*/
+typedef struct {
+	uint16_t con_handle;
+	uint8_t status;
+	uint8_t link_type; 
+}ng_hci_lp_enc_change_ep;
 /**************************************************************************
  **************************************************************************
  **                    HCI node command/event parameters
@@ -894,6 +903,8 @@ typedef struct {
 } __attribute__ ((packed)) ng_hci_set_event_mask_cp;
 
 typedef ng_hci_status_rp	ng_hci_set_event_mask_rp;
+#define NG_HCI_EVENT_MASK_DEFAULT 0x1fffffffffff
+#define NG_HCI_EVENT_MASK_LE  0x2000000000000000
 
 #define NG_HCI_OCF_RESET			0x0003
 /* No command parameter(s) */
@@ -1265,6 +1276,7 @@ typedef struct {
 
 typedef ng_hci_status_rp	ng_hci_write_iac_lap_rp;
 
+/*0x003b-0x003e commands are depricated v2.0 or later*/
 #define NG_HCI_OCF_READ_PAGE_SCAN_PERIOD	0x003b
 /* No command parameter(s) */
 typedef struct {
@@ -1293,6 +1305,21 @@ typedef struct {
 
 typedef ng_hci_status_rp	ng_hci_write_page_scan_rp;
 
+#define NG_HCI_OCF_READ_LE_HOST_SUPPORTED  0x6c
+typedef struct {
+	u_int8_t	status;         /* 0x00 - success */
+	u_int8_t	le_supported_host ;/* LE host supported?*/
+	u_int8_t	simultaneous_le_host; /* BR/LE simulateneous? */
+} __attribute__ ((packed)) ng_hci_read_le_host_supported_rp;
+
+#define NG_HCI_OCF_WRITE_LE_HOST_SUPPORTED  0x6d
+typedef struct {
+	u_int8_t	le_supported_host; /* LE host supported?*/
+	u_int8_t	simultaneous_le_host; /* LE host supported?*/
+} __attribute__ ((packed)) ng_hci_write_le_host_supported_cp;
+
+typedef ng_hci_status_rp	ng_hci_write_le_host_supported_rp;
+
 /**************************************************************************
  **************************************************************************
  **           Informational commands and return parameters 
@@ -1311,6 +1338,12 @@ typedef struct {
 	u_int16_t	manufacturer;   /* Hardware manufacturer name */
 	u_int16_t	lmp_subversion; /* LMP sub-version */
 } __attribute__ ((packed)) ng_hci_read_local_ver_rp;
+
+#define NG_HCI_OCF_READ_LOCAL_COMMANDS		0x0002
+typedef struct {
+	u_int8_t	status;                         /* 0x00 - success */
+	u_int8_t	features[NG_HCI_COMMANDS_SIZE]; /* command bitmsk*/
+} __attribute__ ((packed)) ng_hci_read_local_commands_rp;
 
 #define NG_HCI_OCF_READ_LOCAL_FEATURES		0x0003
 typedef struct {
@@ -1415,6 +1448,252 @@ typedef ng_hci_status_rp	ng_hci_write_loopback_mode_rp;
 #define NG_HCI_OCF_ENABLE_UNIT_UNDER_TEST	0x0003
 /* No command parameter(s) */
 typedef ng_hci_status_rp	ng_hci_enable_unit_under_test_rp;
+
+/**************************************************************************
+ **************************************************************************
+ **                LE OpCode group field
+ **************************************************************************
+ **************************************************************************/
+
+#define NG_HCI_OGF_LE			0x08 /* OpCode Group Field */
+#define NG_HCI_OCF_LE_SET_EVENT_MASK			0x0001
+typedef struct {
+	u_int8_t	event_mask[NG_HCI_LE_EVENT_MASK_SIZE]; /* event_mask*/
+	
+} __attribute__ ((packed)) ng_hci_le_set_event_mask_cp;
+typedef ng_hci_status_rp	ng_hci_le_set_event_mask_rp;
+#define NG_HCI_LE_EVENT_MASK_ALL 0x1f
+
+#define NG_HCI_OCF_LE_READ_BUFFER_SIZE			0x0002
+/*No command parameter */
+typedef struct {
+	u_int8_t	status; /*status*/
+	u_int16_t 	hc_le_data_packet_length;
+	u_int8_t	hc_total_num_le_data_packets; 
+} __attribute__ ((packed)) ng_hci_le_read_buffer_size_rp;
+
+
+#define NG_HCI_OCF_LE_READ_LOCAL_SUPPORTED_FEATURES	0x0003
+/*No command parameter */
+typedef struct {
+	u_int8_t       	status; /*status*/
+	u_int64_t 	le_features;
+} __attribute__ ((packed)) ng_hci_le_read_local_supported_features_rp;
+
+#define NG_HCI_OCF_LE_SET_RANDOM_ADDRESS		0x0005
+typedef struct {
+	bdaddr_t 	random_address;
+} __attribute__ ((packed)) ng_hci_le_set_random_address_cp_;
+typedef ng_hci_status_rp	ng_hci_le_set_random_address_rp;
+
+#define NG_HCI_OCF_LE_SET_ADVERTISING_PARAMETERS	0x0006
+typedef struct {
+	u_int16_t	advertising_interval_min;
+	u_int16_t 	advertising_interval_max;
+	u_int8_t	advertising_type;
+	u_int8_t 	own_address_type;
+	u_int8_t 	direct_address_type;
+	bdaddr_t	direct_address;
+	u_int8_t	advertising_channel_map;
+	u_int8_t	advertising_filter_policy;
+} __attribute__ ((packed)) ng_hci_le_set_advertising_parameters_cp;
+typedef ng_hci_status_rp	ng_hci_le_set_advertising_parameters_rp;
+
+#define NG_HCI_OCF_LE_READ_ADVERTISING_CHANNEL_TX_POWER	0x0007
+/*No command parameter*/
+typedef struct {
+	u_int8_t status;
+	u_int8_t transmit_power_level;
+} __attribute__ ((packed)) ng_hci_le_read_advertising_channel_tx_power_rp;
+
+#define NG_HCI_OCF_LE_SET_ADVERTISING_DATA		0x0008
+#define NG_HCI_ADVERTISING_DATA_SIZE 31
+typedef struct {
+	u_int8_t advertising_data_length;
+	char advertising_data[NG_HCI_ADVERTISING_DATA_SIZE];
+} __attribute__ ((packed)) ng_hci_le_set_advertising_data_cp;
+typedef ng_hci_status_rp	ng_hci_le_set_advertising_data_rp;
+
+#define NG_HCI_OCF_LE_SET_SCAN_RESPONSE_DATA		0x0009
+
+typedef struct {
+	u_int8_t scan_response_data_length;
+	char scan_response_data[NG_HCI_ADVERTISING_DATA_SIZE];
+} __attribute__ ((packed)) ng_hci_le_set_scan_response_data_cp;
+typedef ng_hci_status_rp	ng_hci_le_set_scan_response_data_rp;
+
+#define NG_HCI_OCF_LE_SET_ADVERTISE_ENABLE		0x000a
+typedef struct {
+	u_int8_t advertising_enable;
+}__attribute__ ((packed)) ng_hci_le_set_advertise_enable_cp;
+typedef ng_hci_status_rp	ng_hci_le_set_advertise_enable_rp;
+
+#define NG_HCI_OCF_LE_SET_SCAN_PARAMETERS		0x000b
+typedef struct {
+	u_int8_t le_scan_type;
+	u_int16_t le_scan_interval;
+	u_int16_t le_scan_window;
+	u_int8_t own_address_type;
+	u_int8_t scanning_filter_policy;
+}__attribute__ ((packed)) ng_hci_le_set_scan_parameters_cp;
+typedef ng_hci_status_rp	ng_hci_le_set_scan_parameters_rp;
+
+#define NG_HCI_OCF_LE_SET_SCAN_ENABLE			0x000c
+typedef struct {
+	u_int8_t le_scan_enable;
+	u_int8_t filter_duplicates;
+}__attribute__ ((packed)) ng_hci_le_set_scan_enable_cp;
+typedef ng_hci_status_rp	ng_hci_le_set_scan_enable_rp;
+
+#define NG_HCI_OCF_LE_CREATE_CONNECTION			0x000d
+typedef struct {
+	u_int16_t scan_interval;
+	u_int16_t scan_window;
+	u_int8_t filter_policy;
+	u_int8_t peer_addr_type;
+	bdaddr_t peer_addr;
+	u_int8_t own_address_type;
+	u_int16_t conn_interval_min;
+	u_int16_t conn_interval_max;
+	u_int16_t conn_latency;
+	u_int16_t supervision_timeout;
+	u_int16_t min_ce_length;
+	u_int16_t max_ce_length;
+}__attribute__((packed)) ng_hci_le_create_connection_cp;
+/* No return parameters. */
+#define NG_HCI_OCF_LE_CREATE_CONNECTION_CANCEL		0x000e
+/*No command parameter*/	
+typedef ng_hci_status_rp	ng_hci_le_create_connection_cancel_rp;	
+#define NG_HCI_OCF_LE_READ_WHITE_LIST_SIZE		0x000f
+/*No command parameter*/	
+typedef struct {
+	u_int8_t status;
+	u_int8_t white_list_size;
+} __attribute__ ((packed)) ng_hci_le_read_white_list_size_rp;
+	
+#define NG_HCI_OCF_LE_CLEAR_WHITE_LIST			0x0010
+/* No command parameters. */
+typedef ng_hci_status_rp	ng_hci_le_clear_white_list_rp;	
+#define NG_HCI_OCF_LE_ADD_DEVICE_TO_WHITE_LIST		0x0011
+typedef struct {
+	u_int8_t address_type;
+	bdaddr_t address;
+} __attribute__ ((packed)) ng_hci_le_add_device_to_white_list_cp;
+typedef ng_hci_status_rp	ng_hci_le_add_device_to_white_list_rp;	
+
+#define NG_HCI_OCF_LE_REMOVE_DEVICE_FROM_WHITE_LIST	0x0012
+typedef struct {
+	u_int8_t address_type;
+	bdaddr_t address;
+} __attribute__ ((packed)) ng_hci_le_remove_device_from_white_list_cp;
+typedef ng_hci_status_rp	ng_hci_le_remove_device_from_white_list_rp;
+
+#define NG_HCI_OCF_LE_CONNECTION_UPDATE			0x0013
+typedef struct {
+	u_int16_t connection_handle;
+	u_int16_t conn_interval_min;
+	u_int16_t conn_interval_max;
+	u_int16_t conn_latency;
+	u_int16_t supervision_timeout;
+	u_int16_t minimum_ce_length;
+	u_int16_t maximum_ce_length;
+}__attribute__ ((packed)) ng_hci_le_connection_update_cp;
+/*no return parameter*/
+
+#define NG_HCI_OCF_LE_SET_HOST_CHANNEL_CLASSIFICATION	0x0014
+typedef struct{
+	u_int8_t le_channel_map[5];
+}__attribute__ ((packed)) ng_hci_le_set_host_channel_classification_cp;
+typedef ng_hci_status_rp	ng_hci_le_set_host_channel_classification_rp;
+
+#define NG_HCI_OCF_LE_READ_CHANNEL_MAP			0x0015
+typedef struct {
+	u_int16_t connection_handle;
+}__attribute__ ((packed)) ng_hci_le_read_channel_map_cp;
+typedef struct {
+	u_int8_t status;
+	u_int16_t connection_handle;
+	u_int8_t le_channel_map[5];
+} __attribute__ ((packed)) ng_hci_le_read_channel_map_rp;
+	
+#define NG_HCI_OCF_LE_READ_REMOTE_USED_FEATURES		0x0016
+typedef struct {
+	u_int16_t connection_handle;
+}__attribute__ ((packed)) ng_hci_le_read_remote_used_features_cp;
+/*No return parameter*/
+#define NG_HCI_128BIT 16
+#define NG_HCI_OCF_LE_ENCRYPT				0x0017
+typedef struct {
+	u_int8_t key[NG_HCI_128BIT];
+	u_int8_t plaintext_data[NG_HCI_128BIT];
+}__attribute__ ((packed)) ng_hci_le_encrypt_cp;	
+typedef struct {
+	u_int8_t status;
+	u_int8_t plaintext_data[NG_HCI_128BIT];
+}__attribute__ ((packed)) ng_hci_le_encrypt_rp;	
+
+#define NG_HCI_OCF_LE_RAND				0x0018
+/*No command parameter*/
+typedef struct {
+	u_int8_t status;
+	u_int64_t random_number;
+}__attribute__ ((packed)) ng_hci_le_rand_rp;	
+	
+#define NG_HCI_OCF_LE_START_ENCRYPTION			0x0019
+typedef struct {
+	u_int16_t connection_handle;
+	u_int64_t random_number;
+	u_int16_t encrypted_diversifier;
+	u_int8_t long_term_key[NG_HCI_128BIT];
+}__attribute__ ((packed)) ng_hci_le_start_encryption_cp;	
+/*No return parameter*/
+#define NG_HCI_OCF_LE_LONG_TERM_KEY_REQUEST_REPLY	0x001a
+typedef struct {
+	u_int16_t connection_handle;
+	u_int8_t long_term_key[NG_HCI_128BIT];
+}__attribute__ ((packed)) ng_hci_le_long_term_key_request_reply_cp;	
+typedef struct {
+	u_int8_t status;
+	u_int16_t connection_handle;
+}__attribute__ ((packed)) ng_hci_le_long_term_key_request_reply_rp;	
+
+#define NG_HCI_OCF_LE_LONG_TERM_KEY_REQUEST_NEGATIVE_REPLY 0x001b
+typedef struct{
+	u_int16_t connection_handle;
+}ng_hci_le_long_term_key_request_negative_reply_cp;
+typedef struct {
+	u_int8_t status;
+	u_int16_t connection_handle;
+}__attribute__ ((packed)) ng_hci_le_long_term_key_request_negative_reply_rp;
+
+
+#define NG_HCI_OCF_LE_READ_SUPPORTED_STATUS		0x001c
+/*No command parameter*/
+typedef struct {
+	u_int8_t status;
+	u_int64_t le_status;
+}__attribute__ ((packed)) ng_hci_le_read_supported_status_rp;
+
+#define NG_HCI_OCF_LE_RECEIVER_TEST			0x001d
+typedef struct{
+	u_int8_t rx_frequency;
+} __attribute__((packed)) ng_le_receiver_test_cp;
+typedef ng_hci_status_rp	ng_hci_le_receiver_test_rp;
+
+#define NG_HCI_OCF_LE_TRANSMITTER_TEST			0x001e
+typedef struct{
+	u_int8_t tx_frequency;
+	u_int8_t length_of_test_data;
+	u_int8_t packet_payload;
+} __attribute__((packed)) ng_le_transmitter_test_cp;
+typedef ng_hci_status_rp	ng_hci_le_transmitter_test_rp;
+
+#define NG_HCI_OCF_LE_TEST_END				0x001f
+/* No command parameter. */
+typedef struct {
+	u_int8_t status;
+	u_int16_t number_of_packets;
+}__attribute__ ((packed)) ng_hci_le_test_end_rp;
 
 /**************************************************************************
  **************************************************************************
@@ -1654,6 +1933,54 @@ typedef struct {
 	bdaddr_t	bdaddr;             /* destination address */
 	u_int8_t	page_scan_rep_mode; /* page scan repetition mode */
 } __attribute__ ((packed)) ng_hci_page_scan_rep_mode_change_ep;
+#define NG_HCI_EVENT_LE				0x3e
+typedef struct {
+	u_int8_t	subevent_code;	
+}__attribute__ ((packed)) ng_hci_le_ep;
+
+#define NG_HCI_LEEV_CON_COMPL		0x01
+
+typedef struct {
+	u_int8_t	status;
+	u_int16_t	handle;
+	u_int8_t 	role;
+	u_int8_t 	address_type;
+	bdaddr_t	address;
+	u_int16_t 	interval;
+	u_int8_t	latency;
+	u_int16_t	supervision_timeout;
+	u_int8_t	master_clock_accracy;
+	
+} __attribute__ ((packed)) ng_hci_le_connection_complete_ep;
+
+#define NG_HCI_LEEV_ADVREP 0x02
+typedef struct {
+	u_int8_t num_reports;
+	
+}__attribute__ ((packed)) ng_hci_le_advertising_report_ep;
+#define NG_HCI_SCAN_RESPONSE_DATA_MAX 0x1f
+
+typedef struct {
+	u_int8_t event_type;
+	u_int8_t addr_type;
+	bdaddr_t bdaddr;
+	u_int8_t length_data;
+	u_int8_t data[NG_HCI_SCAN_RESPONSE_DATA_MAX];
+}__attribute__((packed)) ng_hci_le_advreport;
+
+#define NG_HCI_LEEV_CON_UPDATE_COMPL 0x03
+typedef struct {
+	u_int8_t status;
+	u_int16_t connection_handle;
+	u_int16_t conn_interval;
+	u_int16_t conn_latency;
+	u_int16_t supervision_timeout;
+}__attribute__((packed)) ng_hci_connection_update_complete_ep;
+#define NG_HCI_LEEV_READ_REMOTE_FEATURES_COMPL 0x04
+//TBD
+#define NG_HCI_LEEV_LONG_TERM_KEY_REQUEST 0x05
+//TBD
+
 
 #define NG_HCI_EVENT_BT_LOGO			0xfe
 

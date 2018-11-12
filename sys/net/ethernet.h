@@ -71,6 +71,28 @@ struct ether_addr {
 } __packed;
 
 #define	ETHER_IS_MULTICAST(addr) (*(addr) & 0x01) /* is address mcast/bcast? */
+#define	ETHER_IS_BROADCAST(addr) \
+	(((addr)[0] & (addr)[1] & (addr)[2] & \
+	  (addr)[3] & (addr)[4] & (addr)[5]) == 0xff)
+
+/*
+ * 802.1q Virtual LAN header.
+ */
+struct ether_vlan_header {
+	uint8_t evl_dhost[ETHER_ADDR_LEN];
+	uint8_t evl_shost[ETHER_ADDR_LEN];
+	uint16_t evl_encap_proto;
+	uint16_t evl_tag;
+	uint16_t evl_proto;
+} __packed;
+
+#define	EVL_VLID_MASK		0x0FFF
+#define	EVL_PRI_MASK		0xE000
+#define	EVL_VLANOFTAG(tag)	((tag) & EVL_VLID_MASK)
+#define	EVL_PRIOFTAG(tag)	(((tag) >> 13) & 7)
+#define	EVL_CFIOFTAG(tag)	(((tag) >> 12) & 1)
+#define	EVL_MAKETAG(vlid, pri, cfi)					\
+	((((((pri) & 7) << 13) | ((cfi) & 1)) << 12) | ((vlid) & EVL_VLID_MASK))
 
 /*
  *  NOTE: 0x0000-0x05DC (0..1500) are generally IEEE 802.3 length fields.
@@ -314,6 +336,7 @@ struct ether_addr {
 #define	ETHERTYPE_SLOW		0x8809	/* 802.3ad link aggregation (LACP) */
 #define	ETHERTYPE_PPP		0x880B	/* PPP (obsolete by PPPoE) */
 #define	ETHERTYPE_HITACHI	0x8820	/* Hitachi Cable (Optoelectronic Systems Laboratory) */
+#define ETHERTYPE_TEST		0x8822  /* Network Conformance Testing */
 #define	ETHERTYPE_MPLS		0x8847	/* MPLS Unicast */
 #define	ETHERTYPE_MPLS_MCAST	0x8848	/* MPLS Multicast */
 #define	ETHERTYPE_AXIS		0x8856	/* Axis Communications AB proprietary bootstrap/config */
@@ -375,8 +398,8 @@ extern	void ether_demux(struct ifnet *, struct mbuf *);
 extern	void ether_ifattach(struct ifnet *, const u_int8_t *);
 extern	void ether_ifdetach(struct ifnet *);
 extern	int  ether_ioctl(struct ifnet *, u_long, caddr_t);
-extern	int  ether_output(struct ifnet *,
-		   struct mbuf *, struct sockaddr *, struct route *);
+extern	int  ether_output(struct ifnet *, struct mbuf *,
+	    const struct sockaddr *, struct route *);
 extern	int  ether_output_frame(struct ifnet *, struct mbuf *);
 extern	char *ether_sprintf(const u_int8_t *);
 void	ether_vlan_mtap(struct bpf_if *, struct mbuf *,

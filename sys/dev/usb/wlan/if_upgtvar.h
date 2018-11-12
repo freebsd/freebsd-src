@@ -352,7 +352,6 @@ struct upgt_data {
 	struct ieee80211_node		*ni;
 	struct mbuf			*m;
 	uint32_t			 addr;
-	uint8_t				 use;
 	STAILQ_ENTRY(upgt_data)		 next;
 };
 typedef STAILQ_HEAD(, upgt_data) upgt_datahead;
@@ -381,7 +380,7 @@ struct upgt_rx_radiotap_header {
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
 	int8_t		wr_antsignal;
-} __packed;
+} __packed __aligned(8);
 
 #define UPGT_RX_RADIOTAP_PRESENT					\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
@@ -395,7 +394,7 @@ struct upgt_tx_radiotap_header {
 	uint8_t		wt_rate;
 	uint16_t	wt_chan_freq;
 	uint16_t	wt_chan_flags;
-} __packed;
+} __packed __aligned(8);
 
 #define UPGT_TX_RADIOTAP_PRESENT					\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
@@ -419,18 +418,19 @@ struct upgt_vap {
 #define	UPGT_VAP(vap)	((struct upgt_vap *)(vap))
 
 struct upgt_softc {
+	struct ieee80211com	 sc_ic;
+	struct mbufq		 sc_snd;
 	device_t		 sc_dev;
-	struct ifnet		*sc_ifp;
 	struct usb_device	*sc_udev;
+	void			*sc_rx_dma_buf;
+	void			*sc_tx_dma_buf;
 	struct mtx		 sc_mtx;
 	struct upgt_stat	 sc_stat;
 	int			 sc_flags;
 #define	UPGT_FLAG_FWLOADED	 (1 << 0)
 #define	UPGT_FLAG_INITDONE	 (1 << 1)
-	int			 sc_if_flags;
+#define	UPGT_FLAG_DETACHED	 (1 << 2)
 	int			 sc_debug;
-
-	uint8_t			 sc_myaddr[IEEE80211_ADDR_LEN];
 
 	enum ieee80211_state	 sc_state;
 	int			 sc_arg;
@@ -451,7 +451,7 @@ struct upgt_softc {
 	struct upgt_memory	 sc_memory;
 
 	/* data which we found in the EEPROM */
-	uint8_t			 sc_eeprom[UPGT_EEPROM_SIZE];
+	uint8_t			 sc_eeprom[2 * UPGT_EEPROM_SIZE] __aligned(4);
 	uint16_t		 sc_eeprom_hwrx;
 	struct upgt_lmac_freq3	 sc_eeprom_freq3[IEEE80211_CHAN_MAX];
 	struct upgt_lmac_freq4	 sc_eeprom_freq4[IEEE80211_CHAN_MAX][8];
@@ -472,9 +472,7 @@ struct upgt_softc {
 
 	/* BPF  */
 	struct upgt_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
 	struct upgt_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
 };
 
 #define UPGT_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)

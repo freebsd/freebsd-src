@@ -3,7 +3,8 @@ PROG=	malloc
 SRCS=	main.c
 .PATH:	${.CURDIR}/../../../lib/libc/stdlib
 
-NO_MAN=
+MAN=
+WARNS?=6
 
 test:	malloc
 	@echo

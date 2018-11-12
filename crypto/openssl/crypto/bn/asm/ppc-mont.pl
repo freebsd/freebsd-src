@@ -31,7 +31,6 @@ if ($flavour =~ /32/) {
 	$BNSZ=	$BITS/8;
 	$SIZE_T=4;
 	$RZONE=	224;
-	$FRAME=	$SIZE_T*16;
 
 	$LD=	"lwz";		# load
 	$LDU=	"lwzu";		# load and update
@@ -51,7 +50,6 @@ if ($flavour =~ /32/) {
 	$BNSZ=	$BITS/8;
 	$SIZE_T=8;
 	$RZONE=	288;
-	$FRAME=	$SIZE_T*16;
 
 	# same as above, but 64-bit mnemonics...
 	$LD=	"ld";		# load
@@ -68,6 +66,9 @@ if ($flavour =~ /32/) {
 	$PUSH=	$ST;
 	$POP=	$LD;
 } else { die "nonsense $flavour"; }
+
+$FRAME=8*$SIZE_T+$RZONE;
+$LOCALS=8*$SIZE_T;
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}ppc-xlate.pl" and -f $xlate ) or
@@ -89,18 +90,18 @@ $aj="r10";
 $nj="r11";
 $tj="r12";
 # non-volatile registers
-$i="r14";
-$j="r15";
-$tp="r16";
-$m0="r17";
-$m1="r18";
-$lo0="r19";
-$hi0="r20";
-$lo1="r21";
-$hi1="r22";
-$alo="r23";
-$ahi="r24";
-$nlo="r25";
+$i="r20";
+$j="r21";
+$tp="r22";
+$m0="r23";
+$m1="r24";
+$lo0="r25";
+$hi0="r26";
+$lo1="r27";
+$hi1="r28";
+$alo="r29";
+$ahi="r30";
+$nlo="r31";
 #
 $nhi="r0";
 
@@ -108,42 +109,48 @@ $code=<<___;
 .machine "any"
 .text
 
-.globl	.bn_mul_mont
+.globl	.bn_mul_mont_int
 .align	4
-.bn_mul_mont:
+.bn_mul_mont_int:
 	cmpwi	$num,4
 	mr	$rp,r3		; $rp is reassigned
 	li	r3,0
 	bltlr
-
+___
+$code.=<<___ if ($BNSZ==4);
+	cmpwi	$num,32		; longer key performance is not better
+	bgelr
+___
+$code.=<<___;
 	slwi	$num,$num,`log($BNSZ)/log(2)`
 	li	$tj,-4096
-	addi	$ovf,$num,`$FRAME+$RZONE`
+	addi	$ovf,$num,$FRAME
 	subf	$ovf,$ovf,$sp	; $sp-$ovf
 	and	$ovf,$ovf,$tj	; minimize TLB usage
 	subf	$ovf,$sp,$ovf	; $ovf-$sp
+	mr	$tj,$sp
 	srwi	$num,$num,`log($BNSZ)/log(2)`
 	$STUX	$sp,$sp,$ovf
 
-	$PUSH	r14,`4*$SIZE_T`($sp)
-	$PUSH	r15,`5*$SIZE_T`($sp)
-	$PUSH	r16,`6*$SIZE_T`($sp)
-	$PUSH	r17,`7*$SIZE_T`($sp)
-	$PUSH	r18,`8*$SIZE_T`($sp)
-	$PUSH	r19,`9*$SIZE_T`($sp)
-	$PUSH	r20,`10*$SIZE_T`($sp)
-	$PUSH	r21,`11*$SIZE_T`($sp)
-	$PUSH	r22,`12*$SIZE_T`($sp)
-	$PUSH	r23,`13*$SIZE_T`($sp)
-	$PUSH	r24,`14*$SIZE_T`($sp)
-	$PUSH	r25,`15*$SIZE_T`($sp)
+	$PUSH	r20,`-12*$SIZE_T`($tj)
+	$PUSH	r21,`-11*$SIZE_T`($tj)
+	$PUSH	r22,`-10*$SIZE_T`($tj)
+	$PUSH	r23,`-9*$SIZE_T`($tj)
+	$PUSH	r24,`-8*$SIZE_T`($tj)
+	$PUSH	r25,`-7*$SIZE_T`($tj)
+	$PUSH	r26,`-6*$SIZE_T`($tj)
+	$PUSH	r27,`-5*$SIZE_T`($tj)
+	$PUSH	r28,`-4*$SIZE_T`($tj)
+	$PUSH	r29,`-3*$SIZE_T`($tj)
+	$PUSH	r30,`-2*$SIZE_T`($tj)
+	$PUSH	r31,`-1*$SIZE_T`($tj)
 
 	$LD	$n0,0($n0)	; pull n0[0] value
 	addi	$num,$num,-2	; adjust $num for counter register
 
 	$LD	$m0,0($bp)	; m0=bp[0]
 	$LD	$aj,0($ap)	; ap[0]
-	addi	$tp,$sp,$FRAME
+	addi	$tp,$sp,$LOCALS
 	$UMULL	$lo0,$aj,$m0	; ap[0]*bp[0]
 	$UMULH	$hi0,$aj,$m0
 
@@ -184,7 +191,7 @@ L1st:
 
 	addi	$j,$j,$BNSZ	; j++
 	addi	$tp,$tp,$BNSZ	; tp++
-	bdnz-	L1st
+	bdnz	L1st
 ;L1st
 	addc	$lo0,$alo,$hi0
 	addze	$hi0,$ahi
@@ -205,8 +212,8 @@ L1st:
 Louter:
 	$LDX	$m0,$bp,$i	; m0=bp[i]
 	$LD	$aj,0($ap)	; ap[0]
-	addi	$tp,$sp,$FRAME
-	$LD	$tj,$FRAME($sp)	; tp[0]
+	addi	$tp,$sp,$LOCALS
+	$LD	$tj,$LOCALS($sp); tp[0]
 	$UMULL	$lo0,$aj,$m0	; ap[0]*bp[i]
 	$UMULH	$hi0,$aj,$m0
 	$LD	$aj,$BNSZ($ap)	; ap[1]
@@ -246,7 +253,7 @@ Linner:
 	addze	$hi1,$hi1
 	$ST	$lo1,0($tp)	; tp[j-1]
 	addi	$tp,$tp,$BNSZ	; tp++
-	bdnz-	Linner
+	bdnz	Linner
 ;Linner
 	$LD	$tj,$BNSZ($tp)	; tp[j]
 	addc	$lo0,$alo,$hi0
@@ -269,11 +276,11 @@ Linner:
 	slwi	$tj,$num,`log($BNSZ)/log(2)`
 	$UCMP	$i,$tj
 	addi	$i,$i,$BNSZ
-	ble-	Louter
+	ble	Louter
 
 	addi	$num,$num,2	; restore $num
 	subfc	$j,$j,$j	; j=0 and "clear" XER[CA]
-	addi	$tp,$sp,$FRAME
+	addi	$tp,$sp,$LOCALS
 	mtctr	$num
 
 .align	4
@@ -282,7 +289,7 @@ Lsub:	$LDX	$tj,$tp,$j
 	subfe	$aj,$nj,$tj	; tp[j]-np[j]
 	$STX	$aj,$rp,$j
 	addi	$j,$j,$BNSZ
-	bdnz-	Lsub
+	bdnz	Lsub
 
 	li	$j,0
 	mtctr	$num
@@ -297,25 +304,30 @@ Lcopy:				; copy or in-place refresh
 	$STX	$tj,$rp,$j
 	$STX	$j,$tp,$j	; zap at once
 	addi	$j,$j,$BNSZ
-	bdnz-	Lcopy
+	bdnz	Lcopy
 
-	$POP	r14,`4*$SIZE_T`($sp)
-	$POP	r15,`5*$SIZE_T`($sp)
-	$POP	r16,`6*$SIZE_T`($sp)
-	$POP	r17,`7*$SIZE_T`($sp)
-	$POP	r18,`8*$SIZE_T`($sp)
-	$POP	r19,`9*$SIZE_T`($sp)
-	$POP	r20,`10*$SIZE_T`($sp)
-	$POP	r21,`11*$SIZE_T`($sp)
-	$POP	r22,`12*$SIZE_T`($sp)
-	$POP	r23,`13*$SIZE_T`($sp)
-	$POP	r24,`14*$SIZE_T`($sp)
-	$POP	r25,`15*$SIZE_T`($sp)
-	$POP	$sp,0($sp)
+	$POP	$tj,0($sp)
 	li	r3,1
+	$POP	r20,`-12*$SIZE_T`($tj)
+	$POP	r21,`-11*$SIZE_T`($tj)
+	$POP	r22,`-10*$SIZE_T`($tj)
+	$POP	r23,`-9*$SIZE_T`($tj)
+	$POP	r24,`-8*$SIZE_T`($tj)
+	$POP	r25,`-7*$SIZE_T`($tj)
+	$POP	r26,`-6*$SIZE_T`($tj)
+	$POP	r27,`-5*$SIZE_T`($tj)
+	$POP	r28,`-4*$SIZE_T`($tj)
+	$POP	r29,`-3*$SIZE_T`($tj)
+	$POP	r30,`-2*$SIZE_T`($tj)
+	$POP	r31,`-1*$SIZE_T`($tj)
+	mr	$sp,$tj
 	blr
 	.long	0
-.asciz  "Montgomery Multiplication for PPC, CRYPTOGAMS by <appro\@fy.chalmers.se>"
+	.byte	0,12,4,0,0x80,12,6,0
+	.long	0
+.size	.bn_mul_mont_int,.-.bn_mul_mont_int
+
+.asciz  "Montgomery Multiplication for PPC, CRYPTOGAMS by <appro\@openssl.org>"
 ___
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;

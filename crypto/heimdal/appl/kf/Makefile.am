@@ -1,4 +1,4 @@
-# $Id: Makefile.am 20466 2007-04-20 08:29:05Z lha $
+# $Id$
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -17,4 +17,4 @@ LDADD = $(top_builddir)/lib/krb5/libkrb5.la \
 	$(top_builddir)/lib/asn1/libasn1.la \
 	$(LIB_roken)
 
-EXTRA_DIST = $(man_MANS)
+EXTRA_DIST = NTMakefile $(man_MANS)

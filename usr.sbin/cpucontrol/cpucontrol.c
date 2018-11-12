@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2008 Stanislav Sedov <stas@FreeBSD.org>.
+ * Copyright (c) 2008-2011 Stanislav Sedov <stas@FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "cpucontrol.h"
 #include "amd.h"
 #include "intel.h"
+#include "via.h"
 
 int	verbosity_level = 0;
 
@@ -83,26 +84,28 @@ struct datadir {
 	const char		*path;
 	SLIST_ENTRY(datadir)	next;
 };
-static SLIST_HEAD(, datadir) datadirs = SLIST_HEAD_INITIALIZER(&datadirs);
+static SLIST_HEAD(, datadir) datadirs = SLIST_HEAD_INITIALIZER(datadirs);
 
-struct ucode_handler {
+static struct ucode_handler {
 	ucode_probe_t *probe;
 	ucode_update_t *update;
 } handlers[] = {
 	{ intel_probe, intel_update },
 	{ amd_probe, amd_update },
+	{ via_probe, via_update },
 };
 #define NHANDLERS (sizeof(handlers) / sizeof(*handlers))
 
 static void	usage(void);
 static int	isdir(const char *path);
 static int	do_cpuid(const char *cmdarg, const char *dev);
+static int	do_cpuid_count(const char *cmdarg, const char *dev);
 static int	do_msr(const char *cmdarg, const char *dev);
 static int	do_update(const char *dev);
 static void	datadir_add(const char *path);
 
 static void __dead2
-usage()
+usage(void)
 {
 	const char *name;
 
@@ -110,7 +113,7 @@ usage()
 	if (name == NULL)
 		name = "cpuctl";
 	fprintf(stderr, "Usage: %s [-vh] [-d datadir] [-m msr[=value] | "
-	    "-i level | -u] device\n", name);
+	    "-i level | -i level,level_type | -u] device\n", name);
 	exit(EX_USAGE);
 }
 
@@ -168,6 +171,57 @@ do_cpuid(const char *cmdarg, const char *dev)
 }
 
 static int
+do_cpuid_count(const char *cmdarg, const char *dev)
+{
+	char *cmdarg1, *endptr, *endptr1;
+	unsigned int level, level_type;
+	cpuctl_cpuid_count_args_t args;
+	int fd, error;
+
+	assert(cmdarg != NULL);
+	assert(dev != NULL);
+
+	level = strtoul(cmdarg, &endptr, 16);
+	if (*cmdarg == '\0' || *endptr == '\0') {
+		WARNX(0, "incorrect or missing operand: %s", cmdarg);
+		usage();
+		/* NOTREACHED */
+	}
+	/* Locate the comma... */
+	cmdarg1 = strstr(endptr, ",");
+	/* ... and skip past it */
+	cmdarg1 += 1;
+	level_type = strtoul(cmdarg1, &endptr1, 16);
+	if (*cmdarg1 == '\0' || *endptr1 != '\0') {
+		WARNX(0, "incorrect or missing operand: %s", cmdarg);
+		usage();
+		/* NOTREACHED */
+	}
+
+	/*
+	 * Fill ioctl argument structure.
+	 */
+	args.level = level;
+	args.level_type = level_type;
+	fd = open(dev, O_RDONLY);
+	if (fd < 0) {
+		WARN(0, "error opening %s for reading", dev);
+		return (1);
+	}
+	error = ioctl(fd, CPUCTL_CPUID_COUNT, &args);
+	if (error < 0) {
+		WARN(0, "ioctl(%s, CPUCTL_CPUID_COUNT)", dev);
+		close(fd);
+		return (error);
+	}
+	fprintf(stdout, "cpuid level 0x%x, level_type 0x%x: 0x%.8x 0x%.8x "
+	    "0x%.8x 0x%.8x\n", level, level_type, args.data[0], args.data[1],
+	    args.data[2], args.data[3]);
+	close(fd);
+	return (0);
+}
+
+static int
 do_msr(const char *cmdarg, const char *dev)
 {
 	unsigned int msr;
@@ -177,6 +231,7 @@ do_msr(const char *cmdarg, const char *dev)
 	unsigned long command;
 	int do_invert = 0, op;
 	int fd, error;
+	const char *command_name;
 	char *endptr;
 	char *p;
 
@@ -245,15 +300,19 @@ do_msr(const char *cmdarg, const char *dev)
 	switch (op) {
 	case OP_READ:
 		command = CPUCTL_RDMSR;
+		command_name = "RDMSR";
 		break;
 	case OP_WRITE:
 		command = CPUCTL_WRMSR;
+		command_name = "WRMSR";
 		break;
 	case OP_OR:
 		command = CPUCTL_MSRSBIT;
+		command_name = "MSRSBIT";
 		break;
 	case OP_AND:
 		command = CPUCTL_MSRCBIT;
+		command_name = "MSRCBIT";
 		break;
 	default:
 		abort();
@@ -266,7 +325,7 @@ do_msr(const char *cmdarg, const char *dev)
 	}
 	error = ioctl(fd, command, &args);
 	if (error < 0) {
-		WARN(0, "ioctl(%s, %lu)", dev, command);
+		WARN(0, "ioctl(%s, CPUCTL_%s (%lu))", dev, command_name, command);
 		close(fd);
 		return (1);
 	}
@@ -285,7 +344,7 @@ do_update(const char *dev)
 	int error;
 	struct ucode_handler *handler;
 	struct datadir *dir;
-	DIR *dirfd;
+	DIR *dirp;
 	struct dirent *direntry;
 	char buf[MAXPATHLEN];
 
@@ -314,12 +373,12 @@ do_update(const char *dev)
 	 * Process every image in specified data directories.
 	 */
 	SLIST_FOREACH(dir, &datadirs, next) {
-		dirfd  = opendir(dir->path);
-		if (dirfd == NULL) {
+		dirp = opendir(dir->path);
+		if (dirp == NULL) {
 			WARNX(1, "skipping directory %s: not accessible", dir->path);
 			continue;
 		}
-		while ((direntry = readdir(dirfd)) != NULL) {
+		while ((direntry = readdir(dirp)) != NULL) {
 			if (direntry->d_namlen == 0)
 				continue;
 			error = snprintf(buf, sizeof(buf), "%s/%s", dir->path,
@@ -333,7 +392,7 @@ do_update(const char *dev)
 			}
 			handler->update(dev, buf);
 		}
-		error = closedir(dirfd);
+		error = closedir(dirp);
 		if (error != 0)
 			WARN(0, "closedir(%s)", dir->path);
 	}
@@ -407,7 +466,10 @@ main(int argc, char *argv[])
 	c = flags & (FLAG_I | FLAG_M | FLAG_U);
 	switch (c) {
 		case FLAG_I:
-			error = do_cpuid(cmdarg, dev);
+			if (strstr(cmdarg, ",") != NULL)
+				error = do_cpuid_count(cmdarg, dev);
+			else
+				error = do_cpuid(cmdarg, dev);
 			break;
 		case FLAG_M:
 			error = do_msr(cmdarg, dev);
@@ -419,5 +481,5 @@ main(int argc, char *argv[])
 			usage();	/* Only one command can be selected. */
 	}
 	SLIST_FREE(&datadirs, next, free);
-	return (error);
+	return (error == 0 ? 0 : 1);
 }

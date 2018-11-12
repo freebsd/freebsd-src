@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -45,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <a.out.h>
 #include <err.h>
+#include <string.h>
 
 #include "gprof.h"
 
@@ -71,7 +68,6 @@ int
 aout_getnfile(const char *filename, char ***defaultEs)
 {
     FILE	*nfile;
-    int		valcmp();
 
     nfile = fopen( filename ,"r");
     if (nfile == NULL)
@@ -136,8 +132,8 @@ getsymtab(FILE *nfile, const char *filename)
 	errx( 1 , "%s: no symbols" , filename );
     askfor = nname + 1;
     nl = (nltype *) calloc( askfor , sizeof(nltype) );
-    if (nl == 0)
-	errx( 1 , "no room for %d bytes of symbol table" ,
+    if (nl == NULL)
+	errx( 1 , "no room for %zu bytes of symbol table" ,
 		askfor * sizeof(nltype) );
 
     /* pass2 - read symbols */
@@ -177,8 +173,8 @@ gettextspace(FILE *nfile)
 {
 
     textspace = (u_char *) malloc( xbuf.a_text );
-    if ( textspace == 0 ) {
-	warnx("no room for %lu bytes of text space: can't do -c" ,
+    if ( textspace == NULL ) {
+	warnx("no room for %u bytes of text space: can't do -c" ,
 		  xbuf.a_text );
 	return;
     }

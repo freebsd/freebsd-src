@@ -16,12 +16,14 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
+ *
+ * Copyright (c) 2007, Keir Fraser
  */
 
 #ifndef __XEN_PUBLIC_HVM_PARAMS_H__
 #define __XEN_PUBLIC_HVM_PARAMS_H__
 
-#include <xen/interface/hvm/hvm_op.h>
+#include "hvm_op.h"
 
 /*
  * Parameter space for HVMOP_{set,get}_param.
@@ -33,6 +35,9 @@
  * val[63:56] == 1: val[55:0] is a delivery PCI INTx line, as follows:
  *                  Domain = val[47:32], Bus  = val[31:16],
  *                  DevFn  = val[15: 8], IntX = val[ 1: 0]
+ * val[63:56] == 2: val[7:0] is a vector number, check for
+ *                  XENFEAT_hvm_callback_vector to know if this delivery
+ *                  method is available.
  * If val == 0 then CPU0 event-channel notifications are not delivered.
  */
 #define HVM_PARAM_CALLBACK_IRQ 0
@@ -49,11 +54,56 @@
 #define HVM_PARAM_IOREQ_PFN    5
 
 #define HVM_PARAM_BUFIOREQ_PFN 6
+#define HVM_PARAM_BUFIOREQ_EVTCHN 26
 
-#ifdef __ia64__
-#define HVM_PARAM_NVRAM_FD     7
-#define HVM_PARAM_VHPT_SIZE    8
-#define HVM_PARAM_BUFPIOREQ_PFN	9
+#if defined(__i386__) || defined(__x86_64__)
+
+/*
+ * Viridian enlightenments
+ *
+ * (See http://download.microsoft.com/download/A/B/4/AB43A34E-BDD0-4FA6-BDEF-79EEF16E880B/Hypervisor%20Top%20Level%20Functional%20Specification%20v4.0.docx)
+ *
+ * To expose viridian enlightenments to the guest set this parameter
+ * to the desired feature mask. The base feature set must be present
+ * in any valid feature mask.
+ */
+#define HVM_PARAM_VIRIDIAN     9
+
+/* Base+Freq viridian feature sets:
+ *
+ * - Hypercall MSRs (HV_X64_MSR_GUEST_OS_ID and HV_X64_MSR_HYPERCALL)
+ * - APIC access MSRs (HV_X64_MSR_EOI, HV_X64_MSR_ICR and HV_X64_MSR_TPR)
+ * - Virtual Processor index MSR (HV_X64_MSR_VP_INDEX)
+ * - Timer frequency MSRs (HV_X64_MSR_TSC_FREQUENCY and
+ *   HV_X64_MSR_APIC_FREQUENCY)
+ */
+#define _HVMPV_base_freq 0
+#define HVMPV_base_freq  (1 << _HVMPV_base_freq)
+
+/* Feature set modifications */
+
+/* Disable timer frequency MSRs (HV_X64_MSR_TSC_FREQUENCY and
+ * HV_X64_MSR_APIC_FREQUENCY).
+ * This modification restores the viridian feature set to the
+ * original 'base' set exposed in releases prior to Xen 4.4.
+ */
+#define _HVMPV_no_freq 1
+#define HVMPV_no_freq  (1 << _HVMPV_no_freq)
+
+/* Enable Partition Time Reference Counter (HV_X64_MSR_TIME_REF_COUNT) */
+#define _HVMPV_time_ref_count 2
+#define HVMPV_time_ref_count  (1 << _HVMPV_time_ref_count)
+
+/* Enable Reference TSC Page (HV_X64_MSR_REFERENCE_TSC) */
+#define _HVMPV_reference_tsc 3
+#define HVMPV_reference_tsc  (1 << _HVMPV_reference_tsc)
+
+#define HVMPV_feature_mask \
+	(HVMPV_base_freq | \
+	 HVMPV_no_freq | \
+	 HVMPV_time_ref_count | \
+	 HVMPV_reference_tsc)
+
 #endif
 
 /*
@@ -93,6 +143,55 @@
 /* ACPI S state: currently support S0 and S3 on x86. */
 #define HVM_PARAM_ACPI_S_STATE 14
 
-#define HVM_NR_PARAMS          15
+/* TSS used on Intel when CR0.PE=0. */
+#define HVM_PARAM_VM86_TSS     15
+
+/* Boolean: Enable aligning all periodic vpts to reduce interrupts */
+#define HVM_PARAM_VPT_ALIGN    16
+
+/* Console debug shared memory ring and event channel */
+#define HVM_PARAM_CONSOLE_PFN    17
+#define HVM_PARAM_CONSOLE_EVTCHN 18
+
+/*
+ * Select location of ACPI PM1a and TMR control blocks. Currently two locations
+ * are supported, specified by version 0 or 1 in this parameter:
+ *   - 0: default, use the old addresses
+ *        PM1A_EVT == 0x1f40; PM1A_CNT == 0x1f44; PM_TMR == 0x1f48
+ *   - 1: use the new default qemu addresses
+ *        PM1A_EVT == 0xb000; PM1A_CNT == 0xb004; PM_TMR == 0xb008
+ * You can find these address definitions in <hvm/ioreq.h>
+ */
+#define HVM_PARAM_ACPI_IOPORTS_LOCATION 19
+
+/* Deprecated */
+#define HVM_PARAM_MEMORY_EVENT_CR0          20
+#define HVM_PARAM_MEMORY_EVENT_CR3          21
+#define HVM_PARAM_MEMORY_EVENT_CR4          22
+#define HVM_PARAM_MEMORY_EVENT_INT3         23
+#define HVM_PARAM_MEMORY_EVENT_SINGLE_STEP  25
+#define HVM_PARAM_MEMORY_EVENT_MSR          30
+
+/* Boolean: Enable nestedhvm (hvm only) */
+#define HVM_PARAM_NESTEDHVM    24
+
+/* Params for the mem event rings */
+#define HVM_PARAM_PAGING_RING_PFN   27
+#define HVM_PARAM_MONITOR_RING_PFN  28
+#define HVM_PARAM_SHARING_RING_PFN  29
+
+/* SHUTDOWN_* action in case of a triple fault */
+#define HVM_PARAM_TRIPLE_FAULT_REASON 31
+
+#define HVM_PARAM_IOREQ_SERVER_PFN 32
+#define HVM_PARAM_NR_IOREQ_SERVER_PAGES 33
+
+/* Location of the VM Generation ID in guest physical address space. */
+#define HVM_PARAM_VM_GENERATION_ID_ADDR 34
+
+/* Boolean: Enable altp2m */
+#define HVM_PARAM_ALTP2M       35
+
+#define HVM_NR_PARAMS          36
 
 #endif /* __XEN_PUBLIC_HVM_PARAMS_H__ */

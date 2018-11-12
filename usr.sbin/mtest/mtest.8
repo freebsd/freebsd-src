@@ -27,8 +27,8 @@
 .\" $FreeBSD$
 .\"
 .Dd April 29, 2009
-.Os
 .Dt MTEST 8
+.Os
 .Sh NAME
 .Nm mtest
 .Nd test multicast socket operations
@@ -42,8 +42,8 @@ is a small program for testing multicast socket operations.
 .Pp
 It accepts the following commands, interactively, or as part of a scripted
 input file (useful for automated testing):
-.Bl -tag -width "a ifname e.e.e.e e.e.e.e" -compact -offset indent
 .Pp
+.Bl -tag -width "a ifname e.e.e.e e.e.e.e" -compact -offset indent
 .\"
 .It Ic a Ar ifname Ar mac-addr
 Join the link-layer group address
@@ -131,9 +131,9 @@ to allow traffic from source
 Print
 .Ar n
 source filter entries for
-.An mcast-addr
+.Ar mcast-addr
 on interface
-.An ifname .
+.Ar ifname .
 .\"
 .Pp
 .It Ic f Ar filename
@@ -159,7 +159,6 @@ name rather than an interface address.
 For IPv4, the program will perform
 a lookup of the primary IP address based on the interface name.
 This may fail if no primary IP address is assigned.
-.Pp
 .Sh SEE ALSO
 .Rs
 .%A D. Thaler

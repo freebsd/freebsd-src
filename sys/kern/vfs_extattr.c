@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capsicum.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -54,7 +55,7 @@ __FBSDID("$FreeBSD$");
  * Currently this is used only by UFS1 extended attributes.
  */
 int
-extattrctl(td, uap)
+sys_extattrctl(td, uap)
 	struct thread *td;
 	struct extattrctl_args /* {
 		const char *path;
@@ -68,7 +69,7 @@ extattrctl(td, uap)
 	struct nameidata nd;
 	struct mount *mp, *mp_writable;
 	char attrname[EXTATTR_MAXNAMELEN];
-	int vfslocked, fnvfslocked, error;
+	int error;
 
 	AUDIT_ARG_CMD(uap->cmd);
 	AUDIT_ARG_VALUE(uap->attrnamespace);
@@ -84,27 +85,24 @@ extattrctl(td, uap)
 	}
 	AUDIT_ARG_TEXT(attrname);
 
-	vfslocked = fnvfslocked = 0;
 	mp = NULL;
 	filename_vp = NULL;
 	if (uap->filename != NULL) {
-		NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | AUDITVNODE2,
+		NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE2,
 		    UIO_USERSPACE, uap->filename, td);
 		error = namei(&nd);
 		if (error)
 			return (error);
-		fnvfslocked = NDHASGIANT(&nd);
 		filename_vp = nd.ni_vp;
 		NDFREE(&nd, NDF_NO_VP_RELE);
 	}
 
 	/* uap->path is always defined. */
-	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | LOCKLEAF | AUDITVNODE1,
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1,
 	    UIO_USERSPACE, uap->path, td);
 	error = namei(&nd);
 	if (error)
 		goto out;
-	vfslocked = NDHASGIANT(&nd);
 	mp = nd.ni_vp->v_mount;
 	error = vfs_busy(mp, 0);
 	if (error) {
@@ -144,8 +142,6 @@ out:
 	 */
 	if (filename_vp != NULL)
 		vrele(filename_vp);
-	VFS_UNLOCK_GIANT(fnvfslocked);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -169,7 +165,6 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	ssize_t cnt;
 	int error;
 
-	VFS_ASSERT_GIANT(vp->v_mount);
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error)
 		return (error);
@@ -180,7 +175,7 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_offset = 0;
-	if (nbytes > INT_MAX) {
+	if (nbytes > IOSIZE_MAX) {
 		error = EINVAL;
 		goto done;
 	}
@@ -209,7 +204,7 @@ done:
 }
 
 int
-extattr_set_fd(td, uap)
+sys_extattr_set_fd(td, uap)
 	struct thread *td;
 	struct extattr_set_fd_args /* {
 		int fd;
@@ -221,7 +216,8 @@ extattr_set_fd(td, uap)
 {
 	struct file *fp;
 	char attrname[EXTATTR_MAXNAMELEN];
-	int vfslocked, error;
+	cap_rights_t rights;
+	int error;
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_VALUE(uap->attrnamespace);
@@ -230,21 +226,20 @@ extattr_set_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	error = getvnode(td, uap->fd,
+	    cap_rights_init(&rights, CAP_EXTATTR_SET), &fp);
 	if (error)
 		return (error);
 
-	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 	error = extattr_set_vp(fp->f_vnode, uap->attrnamespace,
 	    attrname, uap->data, uap->nbytes, td);
 	fdrop(fp, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	return (error);
 }
 
 int
-extattr_set_file(td, uap)
+sys_extattr_set_file(td, uap)
 	struct thread *td;
 	struct extattr_set_file_args /* {
 		const char *path;
@@ -256,7 +251,7 @@ extattr_set_file(td, uap)
 {
 	struct nameidata nd;
 	char attrname[EXTATTR_MAXNAMELEN];
-	int vfslocked, error;
+	int error;
 
 	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
@@ -264,24 +259,22 @@ extattr_set_file(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | AUDITVNODE1, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path, td);
 	error = namei(&nd);
 	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	vfslocked = NDHASGIANT(&nd);
 	error = extattr_set_vp(nd.ni_vp, uap->attrnamespace, attrname,
 	    uap->data, uap->nbytes, td);
 
 	vrele(nd.ni_vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
 int
-extattr_set_link(td, uap)
+sys_extattr_set_link(td, uap)
 	struct thread *td;
 	struct extattr_set_link_args /* {
 		const char *path;
@@ -293,7 +286,7 @@ extattr_set_link(td, uap)
 {
 	struct nameidata nd;
 	char attrname[EXTATTR_MAXNAMELEN];
-	int vfslocked, error;
+	int error;
 
 	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
@@ -301,19 +294,17 @@ extattr_set_link(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	NDINIT(&nd, LOOKUP, MPSAFE | NOFOLLOW | AUDITVNODE1, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, NOFOLLOW | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path, td);
 	error = namei(&nd);
 	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	vfslocked = NDHASGIANT(&nd);
 	error = extattr_set_vp(nd.ni_vp, uap->attrnamespace, attrname,
 	    uap->data, uap->nbytes, td);
 
 	vrele(nd.ni_vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -337,8 +328,7 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	size_t size, *sizep;
 	int error;
 
-	VFS_ASSERT_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 
 	/*
 	 * Slightly unusual semantics: if the user provides a NULL data
@@ -354,7 +344,7 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
 		auio.uio_offset = 0;
-		if (nbytes > INT_MAX) {
+		if (nbytes > IOSIZE_MAX) {
 			error = EINVAL;
 			goto done;
 		}
@@ -389,7 +379,7 @@ done:
 }
 
 int
-extattr_get_fd(td, uap)
+sys_extattr_get_fd(td, uap)
 	struct thread *td;
 	struct extattr_get_fd_args /* {
 		int fd;
@@ -401,7 +391,8 @@ extattr_get_fd(td, uap)
 {
 	struct file *fp;
 	char attrname[EXTATTR_MAXNAMELEN];
-	int vfslocked, error;
+	cap_rights_t rights;
+	int error;
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_VALUE(uap->attrnamespace);
@@ -410,21 +401,20 @@ extattr_get_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	error = getvnode(td, uap->fd,
+	    cap_rights_init(&rights, CAP_EXTATTR_GET), &fp);
 	if (error)
 		return (error);
 
-	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 	error = extattr_get_vp(fp->f_vnode, uap->attrnamespace,
 	    attrname, uap->data, uap->nbytes, td);
 
 	fdrop(fp, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
 int
-extattr_get_file(td, uap)
+sys_extattr_get_file(td, uap)
 	struct thread *td;
 	struct extattr_get_file_args /* {
 		const char *path;
@@ -436,7 +426,7 @@ extattr_get_file(td, uap)
 {
 	struct nameidata nd;
 	char attrname[EXTATTR_MAXNAMELEN];
-	int vfslocked, error;
+	int error;
 
 	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
@@ -444,24 +434,21 @@ extattr_get_file(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | AUDITVNODE1, UIO_USERSPACE,
-	    uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->path, td);
 	error = namei(&nd);
 	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	vfslocked = NDHASGIANT(&nd);
 	error = extattr_get_vp(nd.ni_vp, uap->attrnamespace, attrname,
 	    uap->data, uap->nbytes, td);
 
 	vrele(nd.ni_vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
 int
-extattr_get_link(td, uap)
+sys_extattr_get_link(td, uap)
 	struct thread *td;
 	struct extattr_get_link_args /* {
 		const char *path;
@@ -473,7 +460,7 @@ extattr_get_link(td, uap)
 {
 	struct nameidata nd;
 	char attrname[EXTATTR_MAXNAMELEN];
-	int vfslocked, error;
+	int error;
 
 	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
@@ -481,19 +468,17 @@ extattr_get_link(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	NDINIT(&nd, LOOKUP, MPSAFE | NOFOLLOW | AUDITVNODE1, UIO_USERSPACE,
-	    uap->path, td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->path,
+	    td);
 	error = namei(&nd);
 	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	vfslocked = NDHASGIANT(&nd);
 	error = extattr_get_vp(nd.ni_vp, uap->attrnamespace, attrname,
 	    uap->data, uap->nbytes, td);
 
 	vrele(nd.ni_vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -514,7 +499,6 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	struct mount *mp;
 	int error;
 
-	VFS_ASSERT_GIANT(vp->v_mount);
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error)
 		return (error);
@@ -541,7 +525,7 @@ done:
 }
 
 int
-extattr_delete_fd(td, uap)
+sys_extattr_delete_fd(td, uap)
 	struct thread *td;
 	struct extattr_delete_fd_args /* {
 		int fd;
@@ -551,7 +535,8 @@ extattr_delete_fd(td, uap)
 {
 	struct file *fp;
 	char attrname[EXTATTR_MAXNAMELEN];
-	int vfslocked, error;
+	cap_rights_t rights;
+	int error;
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_VALUE(uap->attrnamespace);
@@ -560,20 +545,19 @@ extattr_delete_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	error = getvnode(td, uap->fd,
+	    cap_rights_init(&rights, CAP_EXTATTR_DELETE), &fp);
 	if (error)
 		return (error);
 
-	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 	error = extattr_delete_vp(fp->f_vnode, uap->attrnamespace,
 	    attrname, td);
 	fdrop(fp, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
 int
-extattr_delete_file(td, uap)
+sys_extattr_delete_file(td, uap)
 	struct thread *td;
 	struct extattr_delete_file_args /* {
 		const char *path;
@@ -583,7 +567,7 @@ extattr_delete_file(td, uap)
 {
 	struct nameidata nd;
 	char attrname[EXTATTR_MAXNAMELEN];
-	int vfslocked, error;
+	int error;
 
 	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
@@ -591,22 +575,19 @@ extattr_delete_file(td, uap)
 		return(error);
 	AUDIT_ARG_TEXT(attrname);
 
-	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | AUDITVNODE1, UIO_USERSPACE,
-	    uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->path, td);
 	error = namei(&nd);
 	if (error)
 		return(error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	vfslocked = NDHASGIANT(&nd);
 	error = extattr_delete_vp(nd.ni_vp, uap->attrnamespace, attrname, td);
 	vrele(nd.ni_vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return(error);
 }
 
 int
-extattr_delete_link(td, uap)
+sys_extattr_delete_link(td, uap)
 	struct thread *td;
 	struct extattr_delete_link_args /* {
 		const char *path;
@@ -616,7 +597,7 @@ extattr_delete_link(td, uap)
 {
 	struct nameidata nd;
 	char attrname[EXTATTR_MAXNAMELEN];
-	int vfslocked, error;
+	int error;
 
 	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
@@ -624,17 +605,14 @@ extattr_delete_link(td, uap)
 		return(error);
 	AUDIT_ARG_TEXT(attrname);
 
-	NDINIT(&nd, LOOKUP, MPSAFE | NOFOLLOW | AUDITVNODE1, UIO_USERSPACE,
-	    uap->path, td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->path, td);
 	error = namei(&nd);
 	if (error)
 		return(error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	vfslocked = NDHASGIANT(&nd);
 	error = extattr_delete_vp(nd.ni_vp, uap->attrnamespace, attrname, td);
 	vrele(nd.ni_vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return(error);
 }
 
@@ -658,7 +636,6 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 	ssize_t cnt;
 	int error;
 
-	VFS_ASSERT_GIANT(vp->v_mount);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 	auiop = NULL;
@@ -670,7 +647,7 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
 		auio.uio_offset = 0;
-		if (nbytes > INT_MAX) {
+		if (nbytes > IOSIZE_MAX) {
 			error = EINVAL;
 			goto done;
 		}
@@ -705,7 +682,7 @@ done:
 
 
 int
-extattr_list_fd(td, uap)
+sys_extattr_list_fd(td, uap)
 	struct thread *td;
 	struct extattr_list_fd_args /* {
 		int fd;
@@ -715,25 +692,25 @@ extattr_list_fd(td, uap)
 	} */ *uap;
 {
 	struct file *fp;
-	int vfslocked, error;
+	cap_rights_t rights;
+	int error;
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_VALUE(uap->attrnamespace);
-	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	error = getvnode(td, uap->fd,
+	    cap_rights_init(&rights, CAP_EXTATTR_LIST), &fp);
 	if (error)
 		return (error);
 
-	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 	error = extattr_list_vp(fp->f_vnode, uap->attrnamespace, uap->data,
 	    uap->nbytes, td);
 
 	fdrop(fp, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
 int
-extattr_list_file(td, uap)
+sys_extattr_list_file(td, uap)
 	struct thread*td;
 	struct extattr_list_file_args /* {
 		const char *path;
@@ -743,27 +720,24 @@ extattr_list_file(td, uap)
 	} */ *uap;
 {
 	struct nameidata nd;
-	int vfslocked, error;
+	int error;
 
 	AUDIT_ARG_VALUE(uap->attrnamespace);
-	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | AUDITVNODE1, UIO_USERSPACE,
-	    uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->path, td);
 	error = namei(&nd);
 	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	vfslocked = NDHASGIANT(&nd);
 	error = extattr_list_vp(nd.ni_vp, uap->attrnamespace, uap->data,
 	    uap->nbytes, td);
 
 	vrele(nd.ni_vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
 int
-extattr_list_link(td, uap)
+sys_extattr_list_link(td, uap)
 	struct thread*td;
 	struct extattr_list_link_args /* {
 		const char *path;
@@ -773,21 +747,19 @@ extattr_list_link(td, uap)
 	} */ *uap;
 {
 	struct nameidata nd;
-	int vfslocked, error;
+	int error;
 
 	AUDIT_ARG_VALUE(uap->attrnamespace);
-	NDINIT(&nd, LOOKUP, MPSAFE | NOFOLLOW | AUDITVNODE1, UIO_USERSPACE,
-	    uap->path, td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->path,
+	    td);
 	error = namei(&nd);
 	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	vfslocked = NDHASGIANT(&nd);
 	error = extattr_list_vp(nd.ni_vp, uap->attrnamespace, uap->data,
 	    uap->nbytes, td);
 
 	vrele(nd.ni_vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }

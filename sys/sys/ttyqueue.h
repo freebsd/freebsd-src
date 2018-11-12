@@ -93,6 +93,13 @@ ttyinq_getsize(struct ttyinq *ti)
 }
 
 static __inline size_t
+ttyinq_getallocatedsize(struct ttyinq *ti)
+{
+
+	return (ti->ti_quota * TTYINQ_DATASIZE);
+}
+
+static __inline size_t
 ttyinq_bytesleft(struct ttyinq *ti)
 {
 	size_t len;
@@ -140,6 +147,13 @@ static __inline size_t
 ttyoutq_getsize(struct ttyoutq *to)
 {
 	return (to->to_nblocks * TTYOUTQ_DATASIZE);
+}
+
+static __inline size_t
+ttyoutq_getallocatedsize(struct ttyoutq *to)
+{
+
+	return (to->to_quota * TTYOUTQ_DATASIZE);
 }
 
 static __inline size_t

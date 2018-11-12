@@ -53,6 +53,7 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 
+#include <dev/sound/pci/emuxkireg.h>
 #include <dev/sound/pci/emu10kx.h>
 
 /* hw flags */
@@ -157,7 +158,7 @@
 #define	OUT_ADC_REC	OUT_ADC_REC_L
 #define	OUT_MIC_CAP	0x0c
 
-/* Live! 5.1 Digital, non-standart 5.1 (center & sub) outputs */
+/* Live! 5.1 Digital, non-standard 5.1 (center & sub) outputs */
 #define	OUT_A_CENTER	0x11
 #define	OUT_A_SUB	0x12
 
@@ -181,7 +182,7 @@
 #define	A_IN_AUX2_R	0x0d
 #define	A_IN_AUX2	A_IN_AUX2_L
 
-/* Audigiy Outputs */
+/* Audigy Outputs */
 #define	A_OUT_D_FRONT_L	0x00
 #define	A_OUT_D_FRONT_R	0x01
 #define	A_OUT_D_FRONT	A_OUT_D_FRONT_L
@@ -217,9 +218,19 @@
 #define	A_OUT_ADC_REC_R	0x17
 #define	A_OUT_ADC_REC	A_OUT_ADC_REC_L
 
-#include "emu10k1-alsa%diked.h"
-#include "p16v-alsa%diked.h"
-#include "p17v-alsa%diked.h"
+#define EMU_DATA2	0x24
+#define EMU_IPR2	0x28
+#define EMU_INTE2	0x2c
+#define EMU_IPR3	0x38
+#define EMU_INTE3	0x3c
+
+#define EMU_A2_SRCSel		0x60
+#define EMU_A2_SRCMULTI_ENABLE	0x6e
+
+#define EMU_A_I2S_CAPTURE_96000	0x00000400
+
+#define EMU_A2_MIXER_I2S_ENABLE           0x7B
+#define EMU_A2_MIXER_SPDIF_ENABLE         0x7A
 
 #define	C_FRONT_L	0
 #define	C_FRONT_R	1
@@ -262,14 +273,17 @@ struct emu_memblk {
 	char		owner[16];
 	bus_addr_t	buf_addr;
 	uint32_t	pte_start, pte_size;
+	bus_dmamap_t	buf_map;
 };
 
 struct emu_mem {
 	uint8_t		bmap[EMU_MAXPAGES / 8];
 	uint32_t	*ptb_pages;
 	void		*silent_page;
-	bus_addr_t	silent_page_addr;
 	bus_addr_t	ptb_pages_addr;
+	bus_addr_t	silent_page_addr;
+	bus_dmamap_t	ptb_map;
+	bus_dmamap_t	silent_map;
 	bus_dma_tag_t	dmat;
 	struct emu_sc_info *card;
 	SLIST_HEAD(, emu_memblk) blocks;
@@ -366,8 +380,8 @@ struct emu_sc_info {
 };
 
 static void	emu_setmap(void *arg, bus_dma_segment_t * segs, int nseg, int error);
-static void*	emu_malloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr);
-static void	emu_free(struct emu_mem *mem, void *dmabuf);
+static void*	emu_malloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr, bus_dmamap_t *map);
+static void	emu_free(struct emu_mem *mem, void *dmabuf, bus_dmamap_t map);
 static void*	emu_memalloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr, const char * owner);
 static int	emu_memfree(struct emu_mem *mem, void *membuf);
 static int	emu_memstart(struct emu_mem *mem, void *membuf);
@@ -550,16 +564,14 @@ emu_getcard(device_t dev)
 {
 	uint16_t device;
 	uint16_t subdevice;
-	int n_cards;
 	unsigned int thiscard;
 	int i;
 
 	device = pci_read_config(dev, PCIR_DEVICE, /* bytes */ 2);
 	subdevice = pci_read_config(dev, PCIR_SUBDEV_0, /* bytes */ 2);
 
-	n_cards = sizeof(emu_cards) / sizeof(struct emu_hwinfo);
 	thiscard = 0;
-	for (i = 1; i < n_cards; i++) {
+	for (i = 1; i < nitems(emu_cards); i++) {
 		if (device == emu_cards[i].device) {
 			if (subdevice == emu_cards[i].subdevice) {
 				thiscard = i;
@@ -575,8 +587,7 @@ emu_getcard(device_t dev)
 		}
 	}
 
-	n_cards = sizeof(emu_bad_cards) / sizeof(struct emu_hwinfo);
-	for (i = 0; i < n_cards; i++) {
+	for (i = 0; i < nitems(emu_bad_cards); i++) {
 		if (device == emu_bad_cards[i].device) {
 			if (subdevice == emu_bad_cards[i].subdevice) {
 				thiscard = 0;
@@ -630,7 +641,7 @@ emu_wr_nolock(struct emu_sc_info *sc, unsigned int regno, uint32_t data, unsigne
 	}
 }
 /*
- * PTR / DATA interface. Access to EMU10Kx is made
+ * EMU_PTR / EMU_DATA interface. Access to EMU10Kx is made
  * via (channel, register) pair. Some registers are channel-specific,
  * some not.
  */
@@ -639,11 +650,11 @@ emu_rdptr(struct emu_sc_info *sc, unsigned int chn, unsigned int reg)
 {
 	uint32_t ptr, val, mask, size, offset;
 
-	ptr = ((reg << 16) & sc->address_mask) | (chn & PTR_CHANNELNUM_MASK);
+	ptr = ((reg << 16) & sc->address_mask) | (chn & EMU_PTR_CHNO_MASK);
 
 	EMU_RWLOCK();
-	emu_wr_nolock(sc, PTR, ptr, 4);
-	val = emu_rd_nolock(sc, DATA, 4);
+	emu_wr_nolock(sc, EMU_PTR, ptr, 4);
+	val = emu_rd_nolock(sc, EMU_DATA, 4);
 	EMU_RWUNLOCK();
 
 	/*
@@ -666,10 +677,10 @@ emu_wrptr(struct emu_sc_info *sc, unsigned int chn, unsigned int reg, uint32_t d
 {
 	uint32_t ptr, mask, size, offset;
 
-	ptr = ((reg << 16) & sc->address_mask) | (chn & PTR_CHANNELNUM_MASK);
+	ptr = ((reg << 16) & sc->address_mask) | (chn & EMU_PTR_CHNO_MASK);
 
 	EMU_RWLOCK();
-	emu_wr_nolock(sc, PTR, ptr, 4);
+	emu_wr_nolock(sc, EMU_PTR, ptr, 4);
 	/*
 	 * XXX Another kind of magic encoding in register number. This can
 	 * give you side effect - it will read previous data from register
@@ -681,13 +692,13 @@ emu_wrptr(struct emu_sc_info *sc, unsigned int chn, unsigned int reg, uint32_t d
 		mask = ((1 << size) - 1) << offset;
 		data <<= offset;
 		data &= mask;
-		data |= emu_rd_nolock(sc, DATA, 4) & ~mask;
+		data |= emu_rd_nolock(sc, EMU_DATA, 4) & ~mask;
 	}
-	emu_wr_nolock(sc, DATA, data, 4);
+	emu_wr_nolock(sc, EMU_DATA, data, 4);
 	EMU_RWUNLOCK();
 }
 /*
- * PTR2 / DATA2 interface. Access to P16v is made
+ * EMU_A2_PTR / EMU_DATA2 interface. Access to P16v is made
  * via (channel, register) pair. Some registers are channel-specific,
  * some not. This interface is supported by CA0102 and CA0108 chips only.
  */
@@ -698,8 +709,8 @@ emu_rd_p16vptr(struct emu_sc_info *sc, uint16_t chn, uint16_t reg)
 
 	/* XXX separate lock? */
 	EMU_RWLOCK();
-	emu_wr_nolock(sc, PTR2, (reg << 16) | chn, 4);
-	val = emu_rd_nolock(sc, DATA2, 4);
+	emu_wr_nolock(sc, EMU_A2_PTR, (reg << 16) | chn, 4);
+	val = emu_rd_nolock(sc, EMU_DATA2, 4);
 
 	EMU_RWUNLOCK();
 
@@ -711,8 +722,8 @@ emu_wr_p16vptr(struct emu_sc_info *sc, uint16_t chn, uint16_t reg, uint32_t data
 {
 
 	EMU_RWLOCK();
-	emu_wr_nolock(sc, PTR2, (reg << 16) | chn, 4);
-	emu_wr_nolock(sc, DATA2, data, 4);
+	emu_wr_nolock(sc, EMU_A2_PTR, (reg << 16) | chn, 4);
+	emu_wr_nolock(sc, EMU_DATA2, data, 4);
 	EMU_RWUNLOCK();
 }
 /*
@@ -737,13 +748,13 @@ emu_wr_cbptr(struct emu_sc_info *sc, uint32_t data)
 
 /*
  * Direct hardware register access
- * Assume that it is never used to access PTR-based registers and can run unlocked.
+ * Assume that it is never used to access EMU_PTR-based registers and can run unlocked.
  */
 void
 emu_wr(struct emu_sc_info *sc, unsigned int regno, uint32_t data, unsigned int size)
 {
-	KASSERT(regno != PTR, ("emu_wr: attempt to write to PTR"));
-	KASSERT(regno != PTR2, ("emu_wr: attempt to write to PTR2"));
+	KASSERT(regno != EMU_PTR, ("emu_wr: attempt to write to EMU_PTR"));
+	KASSERT(regno != EMU_A2_PTR, ("emu_wr: attempt to write to EMU_A2_PTR"));
 
 	emu_wr_nolock(sc, regno, data, size);
 }
@@ -753,8 +764,8 @@ emu_rd(struct emu_sc_info *sc, unsigned int regno, unsigned int size)
 {
 	uint32_t rd;
 
-	KASSERT(regno != DATA, ("emu_rd: attempt to read DATA"));
-	KASSERT(regno != DATA2, ("emu_rd: attempt to read DATA2"));
+	KASSERT(regno != EMU_DATA, ("emu_rd: attempt to read DATA"));
+	KASSERT(regno != EMU_DATA2, ("emu_rd: attempt to read DATA2"));
 
 	rd = emu_rd_nolock(sc, regno, size);
 	return (rd);
@@ -770,24 +781,24 @@ emu_enable_ir(struct emu_sc_info *sc)
 	uint32_t iocfg;
 
 	if (sc->is_emu10k2 || sc->is_ca0102) {
-		iocfg = emu_rd_nolock(sc, A_IOCFG, 2);
-		emu_wr_nolock(sc, A_IOCFG, iocfg | A_IOCFG_GPOUT2, 2);
+		iocfg = emu_rd_nolock(sc, EMU_A_IOCFG, 2);
+		emu_wr_nolock(sc, EMU_A_IOCFG, iocfg | EMU_A_IOCFG_GPOUT2, 2);
 		DELAY(500);
-		emu_wr_nolock(sc, A_IOCFG, iocfg | A_IOCFG_GPOUT1 | A_IOCFG_GPOUT2, 2);
+		emu_wr_nolock(sc, EMU_A_IOCFG, iocfg | EMU_A_IOCFG_GPOUT1 | EMU_A_IOCFG_GPOUT2, 2);
 		DELAY(500);
-		emu_wr_nolock(sc, A_IOCFG, iocfg | A_IOCFG_GPOUT1, 2);
+		emu_wr_nolock(sc, EMU_A_IOCFG, iocfg | EMU_A_IOCFG_GPOUT1, 2);
 		DELAY(100);
-		emu_wr_nolock(sc, A_IOCFG, iocfg, 2);
+		emu_wr_nolock(sc, EMU_A_IOCFG, iocfg, 2);
 		device_printf(sc->dev, "Audigy IR MIDI events enabled.\n");
 		sc->enable_ir = 1;
 	}
 	if (sc->is_emu10k1) {
-		iocfg = emu_rd_nolock(sc, HCFG, 4);
-		emu_wr_nolock(sc, HCFG, iocfg | HCFG_GPOUT2, 4);
+		iocfg = emu_rd_nolock(sc, EMU_HCFG, 4);
+		emu_wr_nolock(sc, EMU_HCFG, iocfg | EMU_HCFG_GPOUT2, 4);
 		DELAY(500);
-		emu_wr_nolock(sc, HCFG, iocfg | HCFG_GPOUT1 | HCFG_GPOUT2, 4);
+		emu_wr_nolock(sc, EMU_HCFG, iocfg | EMU_HCFG_GPOUT1 | EMU_HCFG_GPOUT2, 4);
 		DELAY(100);
-		emu_wr_nolock(sc, HCFG, iocfg, 4);
+		emu_wr_nolock(sc, EMU_HCFG, iocfg, 4);
 		device_printf(sc->dev, "SB Live! IR MIDI events enabled.\n");
 		sc->enable_ir = 1;
 	}
@@ -795,7 +806,7 @@ emu_enable_ir(struct emu_sc_info *sc)
 
 
 /*
- * emu_timer_ - HW timer managment
+ * emu_timer_ - HW timer management
  */
 int
 emu_timer_create(struct emu_sc_info *sc)
@@ -835,7 +846,7 @@ emu_timer_set(struct emu_sc_info *sc, int timer, int delay)
 			sc->timerinterval = sc->timer[i];
 
 	/* XXX */
-	emu_wr(sc, TIMER, sc->timerinterval & 0x03ff, 2);
+	emu_wr(sc, EMU_TIMER, sc->timerinterval & 0x03ff, 2);
 	mtx_unlock(&sc->lock);
 
 	return (timer);
@@ -868,16 +879,16 @@ emu_timer_enable(struct emu_sc_info *sc, int timer, int go)
 			ena_int = 1;
 	}
 
-	emu_wr(sc, TIMER, sc->timerinterval & 0x03ff, 2);
+	emu_wr(sc, EMU_TIMER, sc->timerinterval & 0x03ff, 2);
 
 	if (ena_int == 1) {
-		x = emu_rd(sc, INTE, 4);
-		x |= INTE_INTERVALTIMERENB;
-		emu_wr(sc, INTE, x, 4);
+		x = emu_rd(sc, EMU_INTE, 4);
+		x |= EMU_INTE_INTERTIMERENB;
+		emu_wr(sc, EMU_INTE, x, 4);
 	} else {
-		x = emu_rd(sc, INTE, 4);
-		x &= ~INTE_INTERVALTIMERENB;
-		emu_wr(sc, INTE, x, 4);
+		x = emu_rd(sc, EMU_INTE, 4);
+		x &= ~EMU_INTE_INTERTIMERENB;
+		emu_wr(sc, EMU_INTE, x, 4);
 	}
 	mtx_unlock(&sc->lock);
 	return (0);
@@ -902,7 +913,7 @@ emu_timer_clear(struct emu_sc_info *sc, int timer)
 }
 
 /*
- * emu_intr_ - HW interrupt handler managment
+ * emu_intr_ - HW interrupt handler management
  */
 int
 emu_intr_register(struct emu_sc_info *sc, uint32_t inte_mask, uint32_t intr_mask, uint32_t(*func) (void *softc, uint32_t irq), void *isc)
@@ -917,9 +928,9 @@ emu_intr_register(struct emu_sc_info *sc, uint32_t inte_mask, uint32_t intr_mask
 			sc->ihandler[i].intr_mask = intr_mask;
 			sc->ihandler[i].softc = isc;
 			sc->ihandler[i].irq_func = func;
-			x = emu_rd(sc, INTE, 4);
+			x = emu_rd(sc, EMU_INTE, 4);
 			x |= inte_mask;
-			emu_wr(sc, INTE, x, 4);
+			emu_wr(sc, EMU_INTE, x, 4);
 			mtx_unlock(&sc->lock);
 			if (sc->dbg_level > 1)
 				device_printf(sc->dev, "ihandle %d registered\n", i);
@@ -946,7 +957,7 @@ emu_intr_unregister(struct emu_sc_info *sc, int hnumber)
 		return (-1);
 	}
 
-	x = emu_rd(sc, INTE, 4);
+	x = emu_rd(sc, EMU_INTE, 4);
 	x &= ~sc->ihandler[hnumber].inte_mask;
 
 	sc->ihandler[hnumber].inte_mask = 0;
@@ -954,12 +965,12 @@ emu_intr_unregister(struct emu_sc_info *sc, int hnumber)
 	sc->ihandler[hnumber].softc = NULL;
 	sc->ihandler[hnumber].irq_func = NULL;
 
-	/* other interrupt handlers may use this INTE value */
+	/* other interrupt handlers may use this EMU_INTE value */
 	for (i = 0; i < EMU_MAX_IRQ_CONSUMERS; i++)
 		if (sc->ihandler[i].inte_mask != 0)
 			x |= sc->ihandler[i].inte_mask;
 
-	emu_wr(sc, INTE, x, 4);
+	emu_wr(sc, EMU_INTE, x, 4);
 
 	mtx_unlock(&sc->lock);
 	return (hnumber);
@@ -973,11 +984,11 @@ emu_intr(void *p)
 	int i;
 
 	for (;;) {
-		stat = emu_rd(sc, IPR, 4);
+		stat = emu_rd(sc, EMU_IPR, 4);
 		ack = 0;
 		if (stat == 0)
 			break;
-		emu_wr(sc, IPR, stat, 4);
+		emu_wr(sc, EMU_IPR, stat, 4);
 		for (i = 0; i < EMU_MAX_IRQ_CONSUMERS; i++) {
 			if ((((sc->ihandler[i].intr_mask) & stat) != 0) &&
 			    (((void *)sc->ihandler[i].irq_func) != NULL)) {
@@ -993,27 +1004,27 @@ emu_intr(void *p)
 
 	if ((sc->is_ca0102) || (sc->is_ca0108))
 		for (;;) {
-			stat = emu_rd(sc, IPR2, 4);
+			stat = emu_rd(sc, EMU_IPR2, 4);
 			ack = 0;
 			if (stat == 0)
 				break;
-			emu_wr(sc, IPR2, stat, 4);
+			emu_wr(sc, EMU_IPR2, stat, 4);
 			if (sc->dbg_level > 1)
-				device_printf(sc->dev, "IPR2: %08x\n", stat);
+				device_printf(sc->dev, "EMU_IPR2: %08x\n", stat);
 
-			break;	/* to avoid infinite loop. shoud be removed
+			break;	/* to avoid infinite loop. should be removed
 				 * after completion of P16V interface. */
 		}
 
 	if (sc->is_ca0102)
 		for (;;) {
-			stat = emu_rd(sc, IPR3, 4);
+			stat = emu_rd(sc, EMU_IPR3, 4);
 			ack = 0;
 			if (stat == 0)
 				break;
-			emu_wr(sc, IPR3, stat, 4);
+			emu_wr(sc, EMU_IPR3, stat, 4);
 			if (sc->dbg_level > 1)
-				device_printf(sc->dev, "IPR3: %08x\n", stat);
+				device_printf(sc->dev, "EMU_IPR3: %08x\n", stat);
 
 			break;	/* to avoid infinite loop. should be removed
 				 * after completion of S/PDIF interface */
@@ -1046,30 +1057,32 @@ emu_setmap(void *arg, bus_dma_segment_t * segs, int nseg, int error)
 }
 
 static void *
-emu_malloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr)
+emu_malloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr,
+    bus_dmamap_t *map)
 {
 	void *dmabuf;
-	bus_dmamap_t map;
 	int error;
 
 	*addr = 0;
-	if ((error = bus_dmamem_alloc(mem->dmat, &dmabuf, BUS_DMA_NOWAIT, &map))) {
+	if ((error = bus_dmamem_alloc(mem->dmat, &dmabuf, BUS_DMA_NOWAIT, map))) {
 		if (mem->card->dbg_level > 2)
 			device_printf(mem->card->dev, "emu_malloc: failed to alloc DMA map: %d\n", error);
 		return (NULL);
 		}
-	if ((error = bus_dmamap_load(mem->dmat, map, dmabuf, sz, emu_setmap, addr, 0)) || !*addr) {
+	if ((error = bus_dmamap_load(mem->dmat, *map, dmabuf, sz, emu_setmap, addr, 0)) || !*addr) {
 		if (mem->card->dbg_level > 2)
 			device_printf(mem->card->dev, "emu_malloc: failed to load DMA memory: %d\n", error);
+		bus_dmamem_free(mem->dmat, dmabuf, *map);
 		return (NULL);
 		}
 	return (dmabuf);
 }
 
 static void
-emu_free(struct emu_mem *mem, void *dmabuf)
+emu_free(struct emu_mem *mem, void *dmabuf, bus_dmamap_t map)
 {
-	bus_dmamem_free(mem->dmat, dmabuf, NULL);
+	bus_dmamap_unload(mem->dmat, map);
+	bus_dmamem_free(mem->dmat, dmabuf, map);
 }
 
 static void *
@@ -1110,7 +1123,7 @@ emu_memalloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr, const char *ow
 		return (NULL);
 		}
 	bzero(blk, sizeof(*blk));
-	membuf = emu_malloc(mem, sz, &blk->buf_addr);
+	membuf = emu_malloc(mem, sz, &blk->buf_addr, &blk->buf_map);
 	*addr = blk->buf_addr;
 	if (membuf == NULL) {
 		if (mem->card->dbg_level > 2)
@@ -1126,7 +1139,7 @@ emu_memalloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr, const char *ow
 	ofs = 0;
 	for (idx = start; idx < start + blksz; idx++) {
 		mem->bmap[idx >> 3] |= 1 << (idx & 7);
-		tmp = (uint32_t) (u_long) ((uint8_t *) blk->buf_addr + ofs);
+		tmp = (uint32_t) (blk->buf_addr + ofs);
 		mem->ptb_pages[idx] = (tmp << 1) | idx;
 		ofs += EMUPAGESIZE;
 	}
@@ -1148,7 +1161,7 @@ emu_memfree(struct emu_mem *mem, void *membuf)
 	if (blk == NULL)
 		return (EINVAL);
 	SLIST_REMOVE(&mem->blocks, blk, emu_memblk, link);
-	emu_free(mem, membuf);
+	emu_free(mem, membuf, blk->buf_map);
 	tmp = (uint32_t) (mem->silent_page_addr) << 1;
 	for (idx = blk->pte_start; idx < blk->pte_start + blk->pte_size; idx++) {
 		mem->bmap[idx >> 3] &= ~(1 << (idx & 7));
@@ -1374,61 +1387,61 @@ emu_vwrite(struct emu_sc_info *sc, struct emu_voice *v)
 
 
 	if (v->stereo) {
-		emu_wrptr(sc, v->vnum, CPF, CPF_STEREO_MASK);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_CPF, EMU_CHAN_CPF_STEREO_MASK);
 	} else {
-		emu_wrptr(sc, v->vnum, CPF, 0);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_CPF, 0);
 	}
 	val = v->stereo ? 28 : 30;
 	val *= v->b16 ? 1 : 2;
 	start = v->sa + val;
 
 	if (sc->is_emu10k1) {
-		emu_wrptr(sc, v->vnum, FXRT, ((v->routing[3] << 12) |
+		emu_wrptr(sc, v->vnum, EMU_CHAN_FXRT, ((v->routing[3] << 12) |
 		    (v->routing[2] << 8) |
 		    (v->routing[1] << 4) |
 		    (v->routing[0] << 0)) << 16);
 	} else {
-		emu_wrptr(sc, v->vnum, A_FXRT1, (v->routing[3] << 24) |
+		emu_wrptr(sc, v->vnum, EMU_A_CHAN_FXRT1, (v->routing[3] << 24) |
 		    (v->routing[2] << 16) |
 		    (v->routing[1] << 8) |
 		    (v->routing[0] << 0));
-		emu_wrptr(sc, v->vnum, A_FXRT2, (v->routing[7] << 24) |
+		emu_wrptr(sc, v->vnum, EMU_A_CHAN_FXRT2, (v->routing[7] << 24) |
 		    (v->routing[6] << 16) |
 		    (v->routing[5] << 8) |
 		    (v->routing[4] << 0));
-		emu_wrptr(sc, v->vnum, A_SENDAMOUNTS, (v->amounts[7] << 24) |
+		emu_wrptr(sc, v->vnum, EMU_A_CHAN_SENDAMOUNTS, (v->amounts[7] << 24) |
 		    (v->amounts[6] << 26) |
 		    (v->amounts[5] << 8) |
 		    (v->amounts[4] << 0));
 	}
-	emu_wrptr(sc, v->vnum, PTRX, (v->amounts[0] << 8) | (v->amounts[1] << 0));
-	emu_wrptr(sc, v->vnum, DSL, v->ea | (v->amounts[3] << 24));
-	emu_wrptr(sc, v->vnum, PSST, v->sa | (v->amounts[2] << 24));
+	emu_wrptr(sc, v->vnum, EMU_CHAN_PTRX, (v->amounts[0] << 8) | (v->amounts[1] << 0));
+	emu_wrptr(sc, v->vnum, EMU_CHAN_DSL, v->ea | (v->amounts[3] << 24));
+	emu_wrptr(sc, v->vnum, EMU_CHAN_PSST, v->sa | (v->amounts[2] << 24));
 
-	emu_wrptr(sc, v->vnum, CCCA, start | (v->b16 ? 0 : CCCA_8BITSELECT));
-	emu_wrptr(sc, v->vnum, Z1, 0);
-	emu_wrptr(sc, v->vnum, Z2, 0);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_CCCA, start | (v->b16 ? 0 : EMU_CHAN_CCCA_8BITSELECT));
+	emu_wrptr(sc, v->vnum, EMU_CHAN_Z1, 0);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_Z2, 0);
 
-	silent_page = ((uint32_t) (sc->mem.silent_page_addr) << 1) | MAP_PTI_MASK;
-	emu_wrptr(sc, v->vnum, MAPA, silent_page);
-	emu_wrptr(sc, v->vnum, MAPB, silent_page);
+	silent_page = ((uint32_t) (sc->mem.silent_page_addr) << 1) | EMU_CHAN_MAP_PTI_MASK;
+	emu_wrptr(sc, v->vnum, EMU_CHAN_MAPA, silent_page);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_MAPB, silent_page);
 
-	emu_wrptr(sc, v->vnum, CVCF, CVCF_CURRENTFILTER_MASK);
-	emu_wrptr(sc, v->vnum, VTFT, VTFT_FILTERTARGET_MASK);
-	emu_wrptr(sc, v->vnum, ATKHLDM, 0);
-	emu_wrptr(sc, v->vnum, DCYSUSM, DCYSUSM_DECAYTIME_MASK);
-	emu_wrptr(sc, v->vnum, LFOVAL1, 0x8000);
-	emu_wrptr(sc, v->vnum, LFOVAL2, 0x8000);
-	emu_wrptr(sc, v->vnum, FMMOD, 0);
-	emu_wrptr(sc, v->vnum, TREMFRQ, 0);
-	emu_wrptr(sc, v->vnum, FM2FRQ2, 0);
-	emu_wrptr(sc, v->vnum, ENVVAL, 0x8000);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_CVCF, EMU_CHAN_CVCF_CURRFILTER_MASK);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_VTFT, EMU_CHAN_VTFT_FILTERTARGET_MASK);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_ATKHLDM, 0);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_DCYSUSM, EMU_CHAN_DCYSUSM_DECAYTIME_MASK);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_LFOVAL1, 0x8000);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_LFOVAL2, 0x8000);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_FMMOD, 0);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_TREMFRQ, 0);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_FM2FRQ2, 0);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_ENVVAL, 0x8000);
 
-	emu_wrptr(sc, v->vnum, ATKHLDV, ATKHLDV_HOLDTIME_MASK | ATKHLDV_ATTACKTIME_MASK);
-	emu_wrptr(sc, v->vnum, ENVVOL, 0x8000);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_ATKHLDV, EMU_CHAN_ATKHLDV_HOLDTIME_MASK | EMU_CHAN_ATKHLDV_ATTACKTIME_MASK);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_ENVVOL, 0x8000);
 
-	emu_wrptr(sc, v->vnum, PEFE_FILTERAMOUNT, 0x7f);
-	emu_wrptr(sc, v->vnum, PEFE_PITCHAMOUNT, 0);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_PEFE_FILTERAMOUNT, 0x7f);
+	emu_wrptr(sc, v->vnum, EMU_CHAN_PEFE_PITCHAMOUNT, 0);
 	if ((v->stereo) && (v->slave != NULL))
 		emu_vwrite(sc, v->slave);
 }
@@ -1438,7 +1451,7 @@ emu_vstop(struct emu_sc_info *sc, char channel, int enable)
 {
 	int reg;
 
-	reg = (channel & 0x20) ? SOLEH : SOLEL;
+	reg = (channel & 0x20) ? EMU_SOLEH : EMU_SOLEL;
 	channel &= 0x1f;
 	reg |= 1 << 24;
 	reg |= channel << 16;
@@ -1459,29 +1472,29 @@ emu_vtrigger(struct emu_sc_info *sc, struct emu_voice *v, int go)
 		ccis *= v->b16 ? 1 : 2;
 		sample = v->b16 ? 0x00000000 : 0x80808080;
 		for (i = 0; i < cs; i++)
-			emu_wrptr(sc, v->vnum, CD0 + i, sample);
-		emu_wrptr(sc, v->vnum, CCR_CACHEINVALIDSIZE, 0);
-		emu_wrptr(sc, v->vnum, CCR_READADDRESS, cra);
-		emu_wrptr(sc, v->vnum, CCR_CACHEINVALIDSIZE, ccis);
+			emu_wrptr(sc, v->vnum, EMU_CHAN_CD0 + i, sample);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_CCR_CACHEINVALIDSIZE, 0);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_CCR_READADDRESS, cra);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_CCR_CACHEINVALIDSIZE, ccis);
 
-		emu_wrptr(sc, v->vnum, IFATN, 0xff00);
-		emu_wrptr(sc, v->vnum, VTFT, 0xffffffff);
-		emu_wrptr(sc, v->vnum, CVCF, 0xffffffff);
-		emu_wrptr(sc, v->vnum, DCYSUSV, 0x00007f7f);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_IFATN, 0xff00);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_VTFT, 0xffffffff);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_CVCF, 0xffffffff);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_DCYSUSV, 0x00007f7f);
 		emu_vstop(sc, v->vnum, 0);
 
 		pitch_target = emu_rate_to_linearpitch(v->speed);
 		initial_pitch = emu_rate_to_pitch(v->speed) >> 8;
-		emu_wrptr(sc, v->vnum, PTRX_PITCHTARGET, pitch_target);
-		emu_wrptr(sc, v->vnum, CPF_CURRENTPITCH, pitch_target);
-		emu_wrptr(sc, v->vnum, IP, initial_pitch);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_PTRX_PITCHTARGET, pitch_target);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_CPF_PITCH, pitch_target);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_IP, initial_pitch);
 	} else {
-		emu_wrptr(sc, v->vnum, PTRX_PITCHTARGET, 0);
-		emu_wrptr(sc, v->vnum, CPF_CURRENTPITCH, 0);
-		emu_wrptr(sc, v->vnum, IFATN, 0xffff);
-		emu_wrptr(sc, v->vnum, VTFT, 0x0000ffff);
-		emu_wrptr(sc, v->vnum, CVCF, 0x0000ffff);
-		emu_wrptr(sc, v->vnum, IP, 0);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_PTRX_PITCHTARGET, 0);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_CPF_PITCH, 0);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_IFATN, 0xffff);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_VTFT, 0x0000ffff);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_CVCF, 0x0000ffff);
+		emu_wrptr(sc, v->vnum, EMU_CHAN_IP, 0);
 		emu_vstop(sc, v->vnum, 1);
 	}
 	if ((v->stereo) && (v->slave != NULL))
@@ -1494,7 +1507,7 @@ emu_vpos(struct emu_sc_info *sc, struct emu_voice *v)
 	int s, ptr;
 
 	s = (v->b16 ? 1 : 0) + (v->stereo ? 1 : 0);
-	ptr = (emu_rdptr(sc, v->vnum, CCCA_CURRADDR) - (v->start >> s)) << s;
+	ptr = (emu_rdptr(sc, v->vnum, EMU_CHAN_CCCA_CURRADDR) - (v->start >> s)) << s;
 	return (ptr & ~0x0000001f);
 }
 
@@ -1694,9 +1707,9 @@ emu_initefx(struct emu_sc_info *sc)
 
 	/* stop DSP */
 	if (sc->is_emu10k1) {
-		emu_wrptr(sc, 0, DBG, EMU10K1_DBG_SINGLE_STEP);
+		emu_wrptr(sc, 0, EMU_DBG, EMU_DBG_SINGLE_STEP);
 	} else {
-		emu_wrptr(sc, 0, A_DBG, A_DBG_SINGLE_STEP);
+		emu_wrptr(sc, 0, EMU_A_DBG, EMU_A_DBG_SINGLE_STEP);
 	}
 
 	/* code size is in instructions */
@@ -1917,7 +1930,7 @@ emu_initefx(struct emu_sc_info *sc)
 			/*
 			 * Substream map (in byte offsets, each substream is 2 bytes):
 			 *	0x00..0x1E - outputs
-			 *	0x20..0x3E - FX, inputs ans sync stream
+			 *	0x20..0x3E - FX, inputs and sync stream
 			 */
 
 			/* First 2 channels (offset 0x20,0x22) are empty */
@@ -2162,9 +2175,9 @@ emu_initefx(struct emu_sc_info *sc)
 
 	/* start DSP */
 	if (sc->is_emu10k1) {
-		emu_wrptr(sc, 0, DBG, 0);
+		emu_wrptr(sc, 0, EMU_DBG, 0);
 	} else {
-		emu_wrptr(sc, 0, A_DBG, 0);
+		emu_wrptr(sc, 0, EMU_A_DBG, 0);
 	}
 }
 
@@ -2300,7 +2313,7 @@ emu10kx_prepare(struct emu_sc_info *sc, struct sbuf *s)
 		}
 	if (sc->midi[0] != NULL)
 		if (device_is_attached(sc->midi[0])) {
-			sbuf_printf(s, "\tIR reciever MIDI events %s\n", sc->enable_ir ? "enabled" : "disabled");
+			sbuf_printf(s, "\tIR receiver MIDI events %s\n", sc->enable_ir ? "enabled" : "disabled");
 		}
 	sbuf_printf(s, "Card is in %s mode\n", (sc->mode == MODE_ANALOG) ? "analog" : "digital");
 
@@ -2335,7 +2348,7 @@ emu10kx_dev_uninit(struct emu_sc_info *sc)
 	}
 	if (sc->cdev)
 		destroy_dev(sc->cdev);
-	sc->cdev = 0;
+	sc->cdev = NULL;
 
 	mtx_destroy(&sc->emu10kx_lock);
 	return (0);
@@ -2450,24 +2463,24 @@ emumix_set_mode(struct emu_sc_info *sc, int mode)
 		return;
 	}
 
-	hcfg = HCFG_AUDIOENABLE | HCFG_AUTOMUTE;
+	hcfg = EMU_HCFG_AUDIOENABLE | EMU_HCFG_AUTOMUTE;
 	a_iocfg = 0;
 
 	if (sc->rev >= 6)
-		hcfg |= HCFG_JOYENABLE;
+		hcfg |= EMU_HCFG_JOYENABLE;
 
 	if (sc->is_emu10k1)
-		hcfg |= HCFG_LOCKTANKCACHE_MASK;
+		hcfg |= EMU_HCFG_LOCKTANKCACHE_MASK;
 	else
-		hcfg |= HCFG_CODECFORMAT_I2S | HCFG_JOYENABLE;
+		hcfg |= EMU_HCFG_CODECFMT_I2S | EMU_HCFG_JOYENABLE;
 
 
 	if (mode == MODE_DIGITAL) {
 		if (sc->broken_digital) {
 			device_printf(sc->dev, "Digital mode is reported as broken on this card.\n");
 		}
-		a_iocfg |= A_IOCFG_ENABLE_DIGITAL;
-		hcfg |= HCFG_GPOUT0;
+		a_iocfg |= EMU_A_IOCFG_GPOUT1;
+		hcfg |= EMU_HCFG_GPOUT0;
 	}
 
 	if (mode == MODE_ANALOG)
@@ -2478,12 +2491,12 @@ emumix_set_mode(struct emu_sc_info *sc, int mode)
 
 	if ((sc->is_ca0102) || (sc->is_ca0108))
 		/*
-		 * Setting A_IOCFG_DISABLE_ANALOG will do opposite things
+		 * Setting EMU_A_IOCFG_DISABLE_ANALOG will do opposite things
 		 * on diffrerent cards.
 		 * "don't disable analog outs" on Audigy 2 (ca0102/ca0108)
 		 * "disable analog outs" on Audigy (emu10k2)
 		 */
-		a_iocfg |= A_IOCFG_DISABLE_ANALOG;
+		a_iocfg |= EMU_A_IOCFG_DISABLE_ANALOG;
 
 	if (sc->is_ca0108)
 		a_iocfg |= 0x20; /* XXX */
@@ -2492,12 +2505,12 @@ emumix_set_mode(struct emu_sc_info *sc, int mode)
 	if (mode == MODE_DIGITAL)
 		emumix_set_gpr(sc, sc->mute_gpr[ANALOGMUTE], 1);
 
-	emu_wr(sc, HCFG, hcfg, 4);
+	emu_wr(sc, EMU_HCFG, hcfg, 4);
 
 	if ((sc->is_emu10k2) || (sc->is_ca0102) || (sc->is_ca0108)) {
-		tmp = emu_rd(sc, A_IOCFG, 2);
+		tmp = emu_rd(sc, EMU_A_IOCFG, 2);
 		tmp = a_iocfg;
-		emu_wr(sc, A_IOCFG, tmp, 2);
+		emu_wr(sc, EMU_A_IOCFG, tmp, 2);
 	}
 
 	/* Unmute if we have changed mode to analog. */
@@ -2523,16 +2536,16 @@ emumix_set_spdif_mode(struct emu_sc_info *sc, int mode)
 		return;
 	}
 
-	spcs = SPCS_CLKACCY_1000PPM | SPCS_SAMPLERATE_48 |
-	    SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
-	    SPCS_GENERATIONSTATUS | 0x00001200 | 0x00000000 |
-	    SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT;
+	spcs = EMU_SPCS_CLKACCY_1000PPM | EMU_SPCS_SAMPLERATE_48 |
+	    EMU_SPCS_CHANNELNUM_LEFT | EMU_SPCS_SOURCENUM_UNSPEC |
+	    EMU_SPCS_GENERATIONSTATUS | 0x00001200 | 0x00000000 |
+	    EMU_SPCS_EMPHASIS_NONE | EMU_SPCS_COPYRIGHT;
 
 	mode = SPDIF_MODE_PCM;
 
-	emu_wrptr(sc, 0, SPCS0, spcs);
-	emu_wrptr(sc, 0, SPCS1, spcs);
-	emu_wrptr(sc, 0, SPCS2, spcs);
+	emu_wrptr(sc, 0, EMU_SPCS0, spcs);
+	emu_wrptr(sc, 0, EMU_SPCS1, spcs);
+	emu_wrptr(sc, 0, EMU_SPCS2, spcs);
 }
 
 #define	L2L_POINTS	10
@@ -2635,8 +2648,8 @@ emu_cardbus_init(struct emu_sc_info *sc)
 {
 
 	/*
-	 * XXX May not need this if we have IPR3 handler.
-	 * Is it a real init calls, or IPR3 interrupt acknowledgments?
+	 * XXX May not need this if we have EMU_IPR3 handler.
+	 * Is it a real init calls, or EMU_IPR3 interrupt acknowledgments?
 	 * Looks much like "(data << 16) | register".
 	 */
 	emu_wr_cbptr(sc, (0x00d0 << 16) | 0x0000);
@@ -2660,47 +2673,47 @@ emu_init(struct emu_sc_info *sc)
 	int i;
 
 	/* disable audio and lock cache */
-	emu_wr(sc, HCFG, HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK | HCFG_MUTEBUTTONENABLE, 4);
+	emu_wr(sc, EMU_HCFG, EMU_HCFG_LOCKSOUNDCACHE | EMU_HCFG_LOCKTANKCACHE_MASK | EMU_HCFG_MUTEBUTTONENABLE, 4);
 
 	/* reset recording buffers */
-	emu_wrptr(sc, 0, MICBS, ADCBS_BUFSIZE_NONE);
-	emu_wrptr(sc, 0, MICBA, 0);
-	emu_wrptr(sc, 0, FXBS, ADCBS_BUFSIZE_NONE);
-	emu_wrptr(sc, 0, FXBA, 0);
-	emu_wrptr(sc, 0, ADCBS, ADCBS_BUFSIZE_NONE);
-	emu_wrptr(sc, 0, ADCBA, 0);
+	emu_wrptr(sc, 0, EMU_MICBS, EMU_RECBS_BUFSIZE_NONE);
+	emu_wrptr(sc, 0, EMU_MICBA, 0);
+	emu_wrptr(sc, 0, EMU_FXBS, EMU_RECBS_BUFSIZE_NONE);
+	emu_wrptr(sc, 0, EMU_FXBA, 0);
+	emu_wrptr(sc, 0, EMU_ADCBS, EMU_RECBS_BUFSIZE_NONE);
+	emu_wrptr(sc, 0, EMU_ADCBA, 0);
 
 	/* disable channel interrupt */
-	emu_wr(sc, INTE, INTE_INTERVALTIMERENB | INTE_SAMPLERATETRACKER | INTE_PCIERRORENABLE, 4);
-	emu_wrptr(sc, 0, CLIEL, 0);
-	emu_wrptr(sc, 0, CLIEH, 0);
-	emu_wrptr(sc, 0, SOLEL, 0);
-	emu_wrptr(sc, 0, SOLEH, 0);
+	emu_wr(sc, EMU_INTE, EMU_INTE_INTERTIMERENB | EMU_INTE_SAMPLERATER | EMU_INTE_PCIERRENABLE, 4);
+	emu_wrptr(sc, 0, EMU_CLIEL, 0);
+	emu_wrptr(sc, 0, EMU_CLIEH, 0);
+	emu_wrptr(sc, 0, EMU_SOLEL, 0);
+	emu_wrptr(sc, 0, EMU_SOLEH, 0);
 
 	/* disable P16V and S/PDIF interrupts */
 	if ((sc->is_ca0102) || (sc->is_ca0108))
-		emu_wr(sc, INTE2, 0, 4);
+		emu_wr(sc, EMU_INTE2, 0, 4);
 
 	if (sc->is_ca0102)
-		emu_wr(sc, INTE3, 0, 4);
+		emu_wr(sc, EMU_INTE3, 0, 4);
 
 	/* init phys inputs and outputs */
 	ac97slot = 0;
 	if (sc->has_51)
-		ac97slot = AC97SLOT_CNTR | AC97SLOT_LFE;
+		ac97slot = EMU_AC97SLOT_CENTER | EMU_AC97SLOT_LFE;
 	if (sc->has_71)
-		ac97slot = AC97SLOT_CNTR | AC97SLOT_LFE | AC97SLOT_REAR_LEFT | AC97SLOT_REAR_RIGHT;
+		ac97slot = EMU_AC97SLOT_CENTER | EMU_AC97SLOT_LFE | EMU_AC97SLOT_REAR_LEFT | EMU_AC97SLOT_REAR_RIGHT;
 	if (sc->is_emu10k2)
 		ac97slot |= 0x40;
-	emu_wrptr(sc, 0, AC97SLOT, ac97slot);
+	emu_wrptr(sc, 0, EMU_AC97SLOT, ac97slot);
 
 	if (sc->is_emu10k2)	/* XXX for later cards? */
-		emu_wrptr(sc, 0, SPBYPASS, 0xf00);	/* What will happen if
+		emu_wrptr(sc, 0, EMU_SPBYPASS, 0xf00);	/* What will happen if
 							 * we write 1 here? */
 
 	if (bus_dma_tag_create( /* parent */ bus_get_dma_tag(sc->dev),
 	     /* alignment */ 2, /* boundary */ 0,
-	     /* lowaddr */ 1 << 31,	/* can only access 0-2gb */
+	     /* lowaddr */ (1U << 31) - 1,	/* can only access 0-2gb */
 	     /* highaddr */ BUS_SPACE_MAXADDR,
 	     /* filter */ NULL, /* filterarg */ NULL,
 	     /* maxsize */ EMU_MAX_BUFSZ, /* nsegments */ 1, /* maxsegz */ 0x3ffff,
@@ -2713,13 +2726,13 @@ emu_init(struct emu_sc_info *sc)
 
 	sc->mem.card = sc;
 	SLIST_INIT(&sc->mem.blocks);
-	sc->mem.ptb_pages = emu_malloc(&sc->mem, EMU_MAXPAGES * sizeof(uint32_t), &sc->mem.ptb_pages_addr);
+	sc->mem.ptb_pages = emu_malloc(&sc->mem, EMU_MAXPAGES * sizeof(uint32_t), &sc->mem.ptb_pages_addr, &sc->mem.ptb_map);
 	if (sc->mem.ptb_pages == NULL)
 		return (ENOMEM);
 
-	sc->mem.silent_page = emu_malloc(&sc->mem, EMUPAGESIZE, &sc->mem.silent_page_addr);
+	sc->mem.silent_page = emu_malloc(&sc->mem, EMUPAGESIZE, &sc->mem.silent_page_addr, &sc->mem.silent_map);
 	if (sc->mem.silent_page == NULL) {
-		emu_free(&sc->mem, sc->mem.ptb_pages);
+		emu_free(&sc->mem, sc->mem.ptb_pages, sc->mem.ptb_map);
 		return (ENOMEM);
 	}
 	/* Clear page with silence & setup all pointers to this page */
@@ -2729,61 +2742,61 @@ emu_init(struct emu_sc_info *sc)
 		sc->mem.ptb_pages[i] = tmp | i;
 
 	for (ch = 0; ch < NUM_G; ch++) {
-		emu_wrptr(sc, ch, MAPA, tmp | MAP_PTI_MASK);
-		emu_wrptr(sc, ch, MAPB, tmp | MAP_PTI_MASK);
+		emu_wrptr(sc, ch, EMU_CHAN_MAPA, tmp | EMU_CHAN_MAP_PTI_MASK);
+		emu_wrptr(sc, ch, EMU_CHAN_MAPB, tmp | EMU_CHAN_MAP_PTI_MASK);
 	}
-	emu_wrptr(sc, 0, PTB, (sc->mem.ptb_pages_addr));
-	emu_wrptr(sc, 0, TCB, 0);	/* taken from original driver */
-	emu_wrptr(sc, 0, TCBS, 0);	/* taken from original driver */
+	emu_wrptr(sc, 0, EMU_PTB, (sc->mem.ptb_pages_addr));
+	emu_wrptr(sc, 0, EMU_TCB, 0);	/* taken from original driver */
+	emu_wrptr(sc, 0, EMU_TCBS, 0);	/* taken from original driver */
 
 	/* init envelope engine */
 	for (ch = 0; ch < NUM_G; ch++) {
-		emu_wrptr(sc, ch, DCYSUSV, 0);
-		emu_wrptr(sc, ch, IP, 0);
-		emu_wrptr(sc, ch, VTFT, 0xffff);
-		emu_wrptr(sc, ch, CVCF, 0xffff);
-		emu_wrptr(sc, ch, PTRX, 0);
-		emu_wrptr(sc, ch, CPF, 0);
-		emu_wrptr(sc, ch, CCR, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_DCYSUSV, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_IP, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_VTFT, 0xffff);
+		emu_wrptr(sc, ch, EMU_CHAN_CVCF, 0xffff);
+		emu_wrptr(sc, ch, EMU_CHAN_PTRX, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_CPF, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_CCR, 0);
 
-		emu_wrptr(sc, ch, PSST, 0);
-		emu_wrptr(sc, ch, DSL, 0x10);
-		emu_wrptr(sc, ch, CCCA, 0);
-		emu_wrptr(sc, ch, Z1, 0);
-		emu_wrptr(sc, ch, Z2, 0);
-		emu_wrptr(sc, ch, FXRT, 0xd01c0000);
+		emu_wrptr(sc, ch, EMU_CHAN_PSST, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_DSL, 0x10);
+		emu_wrptr(sc, ch, EMU_CHAN_CCCA, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_Z1, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_Z2, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_FXRT, 0xd01c0000);
 
-		emu_wrptr(sc, ch, ATKHLDM, 0);
-		emu_wrptr(sc, ch, DCYSUSM, 0);
-		emu_wrptr(sc, ch, IFATN, 0xffff);
-		emu_wrptr(sc, ch, PEFE, 0);
-		emu_wrptr(sc, ch, FMMOD, 0);
-		emu_wrptr(sc, ch, TREMFRQ, 24);	/* 1 Hz */
-		emu_wrptr(sc, ch, FM2FRQ2, 24);	/* 1 Hz */
-		emu_wrptr(sc, ch, TEMPENV, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_ATKHLDM, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_DCYSUSM, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_IFATN, 0xffff);
+		emu_wrptr(sc, ch, EMU_CHAN_PEFE, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_FMMOD, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_TREMFRQ, 24);	/* 1 Hz */
+		emu_wrptr(sc, ch, EMU_CHAN_FM2FRQ2, 24);	/* 1 Hz */
+		emu_wrptr(sc, ch, EMU_CHAN_TEMPENV, 0);
 
 		/*** these are last so OFF prevents writing ***/
-		emu_wrptr(sc, ch, LFOVAL2, 0);
-		emu_wrptr(sc, ch, LFOVAL1, 0);
-		emu_wrptr(sc, ch, ATKHLDV, 0);
-		emu_wrptr(sc, ch, ENVVOL, 0);
-		emu_wrptr(sc, ch, ENVVAL, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_LFOVAL2, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_LFOVAL1, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_ATKHLDV, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_ENVVOL, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_ENVVAL, 0);
 
 		if ((sc->is_emu10k2) || (sc->is_ca0102) || (sc->is_ca0108)) {
 			emu_wrptr(sc, ch, 0x4c, 0x0);
 			emu_wrptr(sc, ch, 0x4d, 0x0);
 			emu_wrptr(sc, ch, 0x4e, 0x0);
 			emu_wrptr(sc, ch, 0x4f, 0x0);
-			emu_wrptr(sc, ch, A_FXRT1, 0x3f3f3f3f);
-			emu_wrptr(sc, ch, A_FXRT2, 0x3f3f3f3f);
-			emu_wrptr(sc, ch, A_SENDAMOUNTS, 0x0);
+			emu_wrptr(sc, ch, EMU_A_CHAN_FXRT1, 0x3f3f3f3f);
+			emu_wrptr(sc, ch, EMU_A_CHAN_FXRT2, 0x3f3f3f3f);
+			emu_wrptr(sc, ch, EMU_A_CHAN_SENDAMOUNTS, 0x0);
 		}
 	}
 
 	emumix_set_spdif_mode(sc, SPDIF_MODE_PCM);
 
 	if ((sc->is_emu10k2) || (sc->is_ca0102) || (sc->is_ca0108))
-		emu_wrptr(sc, 0, A_SPDIF_SAMPLERATE, A_SPDIF_48000);
+		emu_wrptr(sc, 0, EMU_A_SPDIF_SAMPLERATE, EMU_A_SPDIF_48000);
 
 	/*
 	 * CAxxxx cards needs additional setup:
@@ -2793,23 +2806,23 @@ emu_init(struct emu_sc_info *sc)
 	 */
 	if ((sc->is_ca0102) || (sc->is_ca0108)) {
 
-		spdif_sr = emu_rdptr(sc, 0, A_SPDIF_SAMPLERATE);
+		spdif_sr = emu_rdptr(sc, 0, EMU_A_SPDIF_SAMPLERATE);
 		spdif_sr &= 0xfffff1ff;
-		spdif_sr |= A_I2S_CAPTURE_96000;
-		emu_wrptr(sc, 0, A_SPDIF_SAMPLERATE, spdif_sr);
+		spdif_sr |= EMU_A_I2S_CAPTURE_96000;
+		emu_wrptr(sc, 0, EMU_A_SPDIF_SAMPLERATE, spdif_sr);
 
 		/* Disable P16v processing */
-		emu_wr_p16vptr(sc, 0, SRCSel, 0x14);
+		emu_wr_p16vptr(sc, 0, EMU_A2_SRCSel, 0x14);
 
 		/* Setup P16v/P17v sound routing */
 		if (sc->is_ca0102)
-			emu_wr_p16vptr(sc, 0, SRCMULTI_ENABLE, 0xFF00FF00);
+			emu_wr_p16vptr(sc, 0, EMU_A2_SRCMULTI_ENABLE, 0xFF00FF00);
 		else {
-			emu_wr_p16vptr(sc, 0, P17V_MIXER_I2S_ENABLE, 0xFF000000);
-			emu_wr_p16vptr(sc, 0, P17V_MIXER_SPDIF_ENABLE, 0xFF000000);
+			emu_wr_p16vptr(sc, 0, EMU_A2_MIXER_I2S_ENABLE, 0xFF000000);
+			emu_wr_p16vptr(sc, 0, EMU_A2_MIXER_SPDIF_ENABLE, 0xFF000000);
 
-			tmp = emu_rd(sc, A_IOCFG, 2);
-			emu_wr(sc, A_IOCFG, tmp & ~0x8, 2);
+			tmp = emu_rd(sc, EMU_A_IOCFG, 2);
+			emu_wr(sc, EMU_A_IOCFG, tmp & ~0x8, 2);
 		}
 	}
 	emu_initefx(sc);
@@ -2824,7 +2837,7 @@ emu_init(struct emu_sc_info *sc)
 	emumix_set_mode(sc, def_mode);
 
 	if (bootverbose) {
-		tmp = emu_rd(sc, HCFG, 4);
+		tmp = emu_rd(sc, EMU_HCFG, 4);
 		device_printf(sc->dev, "Card Configuration (   0x%08x )\n", tmp);
 		device_printf(sc->dev, "Card Configuration ( & 0xff000000 ) : %s%s%s%s%s%s%s%s\n",
 		    (tmp & 0x80000000 ? "[Legacy MPIC] " : ""),
@@ -2864,7 +2877,7 @@ emu_init(struct emu_sc_info *sc)
 		    (tmp & 0x00000001 ? "[AUDIOENABLE]" : " "));
 
 		if ((sc->is_emu10k2) || (sc->is_ca0102) || (sc->is_ca0108)) {
-			tmp = emu_rd(sc, A_IOCFG, 2);
+			tmp = emu_rd(sc, EMU_A_IOCFG, 2);
 			device_printf(sc->dev, "Audigy Card Configuration (    0x%04x )\n", tmp);
 			device_printf(sc->dev, "Audigy Card Configuration (  & 0xff00 )");
 			printf(" : %s%s%s%s%s%s%s%s\n",
@@ -2897,36 +2910,36 @@ emu_uninit(struct emu_sc_info *sc)
 	uint32_t ch;
 	struct emu_memblk *blk;
 
-	emu_wr(sc, INTE, 0, 4);
+	emu_wr(sc, EMU_INTE, 0, 4);
 	for (ch = 0; ch < NUM_G; ch++)
-		emu_wrptr(sc, ch, DCYSUSV, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_DCYSUSV, 0);
 	for (ch = 0; ch < NUM_G; ch++) {
-		emu_wrptr(sc, ch, VTFT, 0);
-		emu_wrptr(sc, ch, CVCF, 0);
-		emu_wrptr(sc, ch, PTRX, 0);
-		emu_wrptr(sc, ch, CPF, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_VTFT, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_CVCF, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_PTRX, 0);
+		emu_wrptr(sc, ch, EMU_CHAN_CPF, 0);
 	}
 
 	/* disable audio and lock cache */
-	emu_wr(sc, HCFG, HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK | HCFG_MUTEBUTTONENABLE, 4);
+	emu_wr(sc, EMU_HCFG, EMU_HCFG_LOCKSOUNDCACHE | EMU_HCFG_LOCKTANKCACHE_MASK | EMU_HCFG_MUTEBUTTONENABLE, 4);
 
-	emu_wrptr(sc, 0, PTB, 0);
+	emu_wrptr(sc, 0, EMU_PTB, 0);
 	/* reset recording buffers */
-	emu_wrptr(sc, 0, MICBS, ADCBS_BUFSIZE_NONE);
-	emu_wrptr(sc, 0, MICBA, 0);
-	emu_wrptr(sc, 0, FXBS, ADCBS_BUFSIZE_NONE);
-	emu_wrptr(sc, 0, FXBA, 0);
-	emu_wrptr(sc, 0, FXWC, 0);
-	emu_wrptr(sc, 0, ADCBS, ADCBS_BUFSIZE_NONE);
-	emu_wrptr(sc, 0, ADCBA, 0);
-	emu_wrptr(sc, 0, TCB, 0);
-	emu_wrptr(sc, 0, TCBS, 0);
+	emu_wrptr(sc, 0, EMU_MICBS, EMU_RECBS_BUFSIZE_NONE);
+	emu_wrptr(sc, 0, EMU_MICBA, 0);
+	emu_wrptr(sc, 0, EMU_FXBS, EMU_RECBS_BUFSIZE_NONE);
+	emu_wrptr(sc, 0, EMU_FXBA, 0);
+	emu_wrptr(sc, 0, EMU_FXWC, 0);
+	emu_wrptr(sc, 0, EMU_ADCBS, EMU_RECBS_BUFSIZE_NONE);
+	emu_wrptr(sc, 0, EMU_ADCBA, 0);
+	emu_wrptr(sc, 0, EMU_TCB, 0);
+	emu_wrptr(sc, 0, EMU_TCBS, 0);
 
 	/* disable channel interrupt */
-	emu_wrptr(sc, 0, CLIEL, 0);
-	emu_wrptr(sc, 0, CLIEH, 0);
-	emu_wrptr(sc, 0, SOLEL, 0);
-	emu_wrptr(sc, 0, SOLEH, 0);
+	emu_wrptr(sc, 0, EMU_CLIEL, 0);
+	emu_wrptr(sc, 0, EMU_CLIEH, 0);
+	emu_wrptr(sc, 0, EMU_SOLEL, 0);
+	emu_wrptr(sc, 0, EMU_SOLEH, 0);
 
 	if (!SLIST_EMPTY(&sc->mem.blocks))
 		device_printf(sc->dev, "warning: memblock list not empty\n");
@@ -2935,8 +2948,8 @@ emu_uninit(struct emu_sc_info *sc)
 		if (blk != NULL)
 		device_printf(sc->dev, "lost %d for %s\n", blk->pte_size, blk->owner);
 
-	emu_free(&sc->mem, sc->mem.ptb_pages);
-	emu_free(&sc->mem, sc->mem.silent_page);
+	emu_free(&sc->mem, sc->mem.ptb_pages, sc->mem.ptb_map);
+	emu_free(&sc->mem, sc->mem.silent_page, sc->mem.silent_map);
 
 	return (0);
 }
@@ -3029,7 +3042,6 @@ emu_pci_attach(device_t dev)
 #if 0
 	struct emu_midiinfo *midiinfo;
 #endif
-	uint32_t data;
 	int i;
 	int device_flags;
 	char status[255];
@@ -3038,11 +3050,6 @@ emu_pci_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
-
-	if (resource_disabled("emu10kx", unit)) {
-		device_printf(dev, "disabled by kernel hints\n");
-		return (ENXIO); /* XXX to avoid unit reuse */
-	}
 
 	/* Get configuration */
 
@@ -3137,9 +3144,9 @@ emu_pci_attach(device_t dev)
 	/*	0xe0...0x100 are unknown	*/
 	/*	sc->tram_base = 0x200		*/
 	/*	sc->tram_addr_base = 0x300	*/
-		sc->gpr_base = A_FXGPREGBASE;
+		sc->gpr_base = EMU_A_FXGPREGBASE;
 		sc->num_gprs = 0x200;
-		sc->code_base = A_MICROCODEBASE;
+		sc->code_base = EMU_A_MICROCODEBASE;
 		sc->code_size = 0x800 / 2;	/* 0x600-0xdff,  2048 words,
 						 * 1024 instructions */
 
@@ -3147,22 +3154,22 @@ emu_pci_attach(device_t dev)
 		sc->num_fxbuses = 16;
 		sc->num_inputs = 8;
 		sc->num_outputs = 16;
-		sc->address_mask = A_PTR_ADDRESS_MASK;
+		sc->address_mask = EMU_A_PTR_ADDR_MASK;
 	}
 	if (sc->is_emu10k1) {
 		sc->has_51 = 0;	/* We don't support 5.1 sound on SB Live! 5.1 */
 		sc->opcode_shift = 20;
 		sc->high_operand_shift = 10;
-		sc->code_base = MICROCODEBASE;
+		sc->code_base = EMU_MICROCODEBASE;
 		sc->code_size = 0x400 / 2;	/* 0x400-0x7ff,  1024 words,
 						 * 512 instructions */
-		sc->gpr_base = FXGPREGBASE;
+		sc->gpr_base = EMU_FXGPREGBASE;
 		sc->num_gprs = 0x100;
 		sc->input_base = 0x10;
 		sc->output_base = 0x20;
 		/*
 		 * XXX 5.1 Analog outputs are inside efxc address space!
-		 * They use ouput+0x11/+0x12 (=efxc+1/+2).
+		 * They use output+0x11/+0x12 (=efxc+1/+2).
 		 * Don't use this efx registers for recording on SB Live! 5.1!
 		 */
 		sc->efxc_base = 0x30;
@@ -3171,15 +3178,10 @@ emu_pci_attach(device_t dev)
 		sc->num_fxbuses = 8;
 		sc->num_inputs = 8;
 		sc->num_outputs = 16;
-		sc->address_mask = PTR_ADDRESS_MASK;
+		sc->address_mask = EMU_PTR_ADDR_MASK;
 	}
 	if (sc->opcode_shift == 0)
 		goto bad;
-
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
 	pci_enable_busmaster(dev);
 
@@ -3198,9 +3200,7 @@ emu_pci_attach(device_t dev)
 	i = 0;
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i, RF_ACTIVE | RF_SHAREABLE);
 	if ((sc->irq == NULL) || bus_setup_intr(dev, sc->irq, INTR_MPSAFE | INTR_TYPE_AV,
-#if __FreeBSD_version >= 700031
 	    NULL,
-#endif
 	    emu_intr, sc, &sc->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
@@ -3222,7 +3222,7 @@ emu_pci_attach(device_t dev)
 		device_printf(dev, "unable to create control device\n");
 		goto bad;
 	}
-	snprintf(status, 255, "rev %d at io 0x%lx irq %ld", sc->rev, rman_get_start(sc->reg), rman_get_start(sc->irq));
+	snprintf(status, 255, "rev %d at io 0x%jx irq %jd", sc->rev, rman_get_start(sc->reg), rman_get_start(sc->irq));
 
 	/* Voices */
 	for (i = 0; i < NUM_G; i++) {
@@ -3379,7 +3379,7 @@ emu_pci_attach(device_t dev)
 		}
 		midiinfo->card = sc;
 		if (sc->is_emu10k2 || (sc->is_ca0102)) {
-			midiinfo->port = A_MUDATA1;
+			midiinfo->port = EMU_A_MUDATA1;
 			midiinfo->portnr = 1;
 		}
 		if (sc->is_emu10k1) {
@@ -3405,7 +3405,7 @@ emu_pci_attach(device_t dev)
 		}
 		midiinfo->card = sc;
 
-		midiinfo->port = A_MUDATA2;
+		midiinfo->port = EMU_A_MUDATA2;
 		midiinfo->portnr = 2;
 
 		func->func = SCF_MIDI;
@@ -3523,7 +3523,7 @@ static device_method_t emu_methods[] = {
 	DEVMETHOD(bus_read_ivar, emu_read_ivar),
 	DEVMETHOD(bus_write_ivar, emu_write_ivar),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 

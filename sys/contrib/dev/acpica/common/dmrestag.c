@@ -4,115 +4,42 @@
  *
  *****************************************************************************/
 
-/******************************************************************************
- *
- * 1. Copyright Notice
- *
- * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
+/*
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
- * 2. License
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
- * 2.1. This is your license from Intel Corp. under its intellectual property
- * rights.  You may have additional license terms from the party that provided
- * you this software, covering your right to use that party's intellectual
- * property rights.
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
  *
- * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
- * copy of the source code appearing in this file ("Covered Code") an
- * irrevocable, perpetual, worldwide license under Intel's copyrights in the
- * base code distributed originally by Intel ("Original Intel Code") to copy,
- * make derivatives, distribute, use and display any portion of the Covered
- * Code in any form, with the right to sublicense such rights; and
- *
- * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
- * license (with the right to sublicense), under only those claims of Intel
- * patents that are infringed by the Original Intel Code, to make, use, sell,
- * offer to sell, and import the Covered Code and derivative works thereof
- * solely to the minimum extent necessary to exercise the above copyright
- * license, and in no event shall the patent license extend to any additions
- * to or modifications of the Original Intel Code.  No other license or right
- * is granted directly or by implication, estoppel or otherwise;
- *
- * The above copyright and patent license is granted only if the following
- * conditions are met:
- *
- * 3. Conditions
- *
- * 3.1. Redistribution of Source with Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification with rights to further distribute source must include
- * the above Copyright Notice, the above License, this list of Conditions,
- * and the following Disclaimer and Export Compliance provision.  In addition,
- * Licensee must cause all Covered Code to which Licensee contributes to
- * contain a file documenting the changes Licensee made to create that Covered
- * Code and the date of any change.  Licensee must include in that file the
- * documentation of any changes made by any predecessor Licensee.  Licensee
- * must include a prominent statement that the modification is derived,
- * directly or indirectly, from Original Intel Code.
- *
- * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
- * Redistribution of source code of any substantial portion of the Covered
- * Code or modification without rights to further distribute source must
- * include the following Disclaimer and Export Compliance provision in the
- * documentation and/or other materials provided with distribution.  In
- * addition, Licensee may not authorize further sublicense of source of any
- * portion of the Covered Code, and must include terms to the effect that the
- * license from Licensee to its licensee is limited to the intellectual
- * property embodied in the software Licensee provides to its licensee, and
- * not to intellectual property embodied in modifications its licensee may
- * make.
- *
- * 3.3. Redistribution of Executable. Redistribution in executable form of any
- * substantial portion of the Covered Code or modification must reproduce the
- * above Copyright Notice, and the following Disclaimer and Export Compliance
- * provision in the documentation and/or other materials provided with the
- * distribution.
- *
- * 3.4. Intel retains all right, title, and interest in and to the Original
- * Intel Code.
- *
- * 3.5. Neither the name Intel nor any other trademark owned or controlled by
- * Intel shall be used in advertising or otherwise to promote the sale, use or
- * other dealings in products derived from or relating to the Covered Code
- * without prior written authorization from Intel.
- *
- * 4. Disclaimer and Export Compliance
- *
- * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
- * HERE.  ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
- * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT,  ASSISTANCE,
- * INSTALLATION, TRAINING OR OTHER SERVICES.  INTEL WILL NOT PROVIDE ANY
- * UPDATES, ENHANCEMENTS OR EXTENSIONS.  INTEL SPECIFICALLY DISCLAIMS ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
- * PARTICULAR PURPOSE.
- *
- * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
- * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
- * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
- * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
- * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
- * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.  THESE LIMITATIONS
- * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
- * LIMITED REMEDY.
- *
- * 4.3. Licensee shall not export, either directly or indirectly, any of this
- * software or system incorporating such software without first obtaining any
- * required license or other approval from the U. S. Department of Commerce or
- * any other agency or department of the United States Government.  In the
- * event Licensee exports any such software from the United States or
- * re-exports any such software from a foreign destination, Licensee shall
- * ensure that the distribution and export/re-export of the software is in
- * compliance with all laws, regulations, orders, or other restrictions of the
- * U.S. Export Administration Regulations. Licensee agrees that neither it nor
- * any of its subsidiaries will export/re-export any technical data, process,
- * software, or service, directly or indirectly, to any country for which the
- * United States government or any agency thereof requires an export license,
- * other governmental approval, or letter of assurance, without first obtaining
- * such license, approval or letter.
- *
- *****************************************************************************/
-
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ */
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -135,7 +62,7 @@ AcpiDmUpdateResourceName (
 static char *
 AcpiDmSearchTagList (
     UINT32                  BitIndex,
-    ACPI_RESOURCE_TAG       *TagList);
+    const ACPI_RESOURCE_TAG *TagList);
 
 static char *
 AcpiDmGetResourceTag (
@@ -145,6 +72,7 @@ AcpiDmGetResourceTag (
 
 static char *
 AcpiGetTagPathname (
+    ACPI_PARSE_OBJECT       *Op,
     ACPI_NAMESPACE_NODE     *BufferNode,
     ACPI_NAMESPACE_NODE     *ResourceNode,
     UINT32                  BitIndex);
@@ -160,7 +88,7 @@ AcpiDmAddResourceToNamespace (
     UINT32                  Length,
     UINT32                  Offset,
     UINT8                   ResourceIndex,
-    void                    *Context);
+    void                    **Context);
 
 static void
 AcpiDmAddResourcesToNamespace (
@@ -180,7 +108,7 @@ AcpiDmAddResourcesToNamespace (
  *
  ******************************************************************************/
 
-static ACPI_RESOURCE_TAG        AcpiDmIrqTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmIrqTags[] =
 {
     {( 1 * 8),      ACPI_RESTAG_INTERRUPT},
     {( 3 * 8) + 0,  ACPI_RESTAG_INTERRUPTTYPE},
@@ -189,7 +117,7 @@ static ACPI_RESOURCE_TAG        AcpiDmIrqTags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmDmaTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmDmaTags[] =
 {
     {( 1 * 8),      ACPI_RESTAG_DMA},
     {( 2 * 8) + 0,  ACPI_RESTAG_XFERTYPE},
@@ -198,7 +126,7 @@ static ACPI_RESOURCE_TAG        AcpiDmDmaTags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmIoTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmIoTags[] =
 {
     {( 1 * 8) + 0,  ACPI_RESTAG_DECODE},
     {( 2 * 8),      ACPI_RESTAG_MINADDR},
@@ -208,14 +136,22 @@ static ACPI_RESOURCE_TAG        AcpiDmIoTags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmFixedIoTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmFixedIoTags[] =
 {
     {( 1 * 8),      ACPI_RESTAG_BASEADDRESS},
     {( 3 * 8),      ACPI_RESTAG_LENGTH},
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmMemory24Tags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmFixedDmaTags[] =
+{
+    {( 1 * 8),      ACPI_RESTAG_DMA},
+    {( 3 * 8),      ACPI_RESTAG_DMATYPE},
+    {( 5 * 8),      ACPI_RESTAG_XFERTYPE},
+    {0,             NULL}
+};
+
+static const ACPI_RESOURCE_TAG      AcpiDmMemory24Tags[] =
 {
     {( 3 * 8) + 0,  ACPI_RESTAG_READWRITETYPE},
     {( 4 * 8),      ACPI_RESTAG_MINADDR},
@@ -225,7 +161,7 @@ static ACPI_RESOURCE_TAG        AcpiDmMemory24Tags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmRegisterTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmRegisterTags[] =
 {
     {( 3 * 8),      ACPI_RESTAG_ADDRESSSPACE},
     {( 4 * 8),      ACPI_RESTAG_REGISTERBITWIDTH},
@@ -235,7 +171,7 @@ static ACPI_RESOURCE_TAG        AcpiDmRegisterTags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmMemory32Tags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmMemory32Tags[] =
 {
     {( 3 * 8) + 0,  ACPI_RESTAG_READWRITETYPE},
     {( 4 * 8),      ACPI_RESTAG_MINADDR},
@@ -245,7 +181,7 @@ static ACPI_RESOURCE_TAG        AcpiDmMemory32Tags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmFixedMemory32Tags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmFixedMemory32Tags[] =
 {
     {( 3 * 8) + 0,  ACPI_RESTAG_READWRITETYPE},
     {( 4 * 8),      ACPI_RESTAG_BASEADDRESS},
@@ -253,7 +189,7 @@ static ACPI_RESOURCE_TAG        AcpiDmFixedMemory32Tags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmInterruptTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmInterruptTags[] =
 {
     {( 3 * 8) + 1,  ACPI_RESTAG_INTERRUPTTYPE},
     {( 3 * 8) + 2,  ACPI_RESTAG_INTERRUPTLEVEL},
@@ -262,7 +198,7 @@ static ACPI_RESOURCE_TAG        AcpiDmInterruptTags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmAddress16Tags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmAddress16Tags[] =
 {
     {( 4 * 8) + 1,  ACPI_RESTAG_DECODE},
     {( 4 * 8) + 2,  ACPI_RESTAG_MINTYPE},
@@ -275,7 +211,7 @@ static ACPI_RESOURCE_TAG        AcpiDmAddress16Tags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmAddress32Tags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmAddress32Tags[] =
 {
     {( 4 * 8) + 1,  ACPI_RESTAG_DECODE},
     {( 4 * 8) + 2,  ACPI_RESTAG_MINTYPE},
@@ -288,7 +224,7 @@ static ACPI_RESOURCE_TAG        AcpiDmAddress32Tags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmAddress64Tags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmAddress64Tags[] =
 {
     {( 4 * 8) + 1,  ACPI_RESTAG_DECODE},
     {( 4 * 8) + 2,  ACPI_RESTAG_MINTYPE},
@@ -301,7 +237,7 @@ static ACPI_RESOURCE_TAG        AcpiDmAddress64Tags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmExtendedAddressTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmExtendedAddressTags[] =
 {
     {( 4 * 8) + 1,  ACPI_RESTAG_DECODE},
     {( 4 * 8) + 2,  ACPI_RESTAG_MINTYPE},
@@ -315,9 +251,74 @@ static ACPI_RESOURCE_TAG        AcpiDmExtendedAddressTags[] =
     {0,             NULL}
 };
 
-/* Special-case tables for the type-specific flags */
+/* Subtype tables for GPIO descriptors */
 
-static ACPI_RESOURCE_TAG        AcpiDmMemoryFlagTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmGpioIntTags[] =
+{
+    {( 7 * 8) + 0,  ACPI_RESTAG_MODE},
+    {( 7 * 8) + 1,  ACPI_RESTAG_POLARITY},
+    {( 7 * 8) + 3,  ACPI_RESTAG_INTERRUPTSHARE},
+    {( 9 * 8),      ACPI_RESTAG_PINCONFIG},
+    {(10 * 8),      ACPI_RESTAG_DRIVESTRENGTH},
+    {(12 * 8),      ACPI_RESTAG_DEBOUNCETIME},
+    {0,             NULL}
+};
+
+static const ACPI_RESOURCE_TAG      AcpiDmGpioIoTags[] =
+{
+    {( 7 * 8) + 0,  ACPI_RESTAG_IORESTRICTION},
+    {( 7 * 8) + 3,  ACPI_RESTAG_INTERRUPTSHARE},
+    {( 9 * 8),      ACPI_RESTAG_PINCONFIG},
+    {(10 * 8),      ACPI_RESTAG_DRIVESTRENGTH},
+    {(12 * 8),      ACPI_RESTAG_DEBOUNCETIME},
+    {0,             NULL}
+};
+
+/* Subtype tables for SerialBus descriptors */
+
+static const ACPI_RESOURCE_TAG      AcpiDmI2cSerialBusTags[] =
+{
+    {( 6 * 8) + 0,  ACPI_RESTAG_SLAVEMODE},
+    {( 6 * 8) + 2,  ACPI_RESTAG_INTERRUPTSHARE},    /* V2 - ACPI 6.0 */
+    {( 7 * 8) + 0,  ACPI_RESTAG_MODE},
+    {(12 * 8),      ACPI_RESTAG_SPEED},
+    {(16 * 8),      ACPI_RESTAG_ADDRESS},
+    {0,             NULL}
+};
+
+static const ACPI_RESOURCE_TAG      AcpiDmSpiSerialBusTags[] =
+{
+    {( 6 * 8) + 0,  ACPI_RESTAG_SLAVEMODE},
+    {( 6 * 8) + 2,  ACPI_RESTAG_INTERRUPTSHARE},    /* V2 - ACPI 6.0 */
+    {( 7 * 8) + 0,  ACPI_RESTAG_MODE},
+    {( 7 * 8) + 1,  ACPI_RESTAG_DEVICEPOLARITY},
+    {(12 * 8),      ACPI_RESTAG_SPEED},
+    {(16 * 8),      ACPI_RESTAG_LENGTH},
+    {(17 * 8),      ACPI_RESTAG_PHASE},
+    {(18 * 8),      ACPI_RESTAG_POLARITY},
+    {(19 * 8),      ACPI_RESTAG_ADDRESS},
+    {0,             NULL}
+};
+
+static const ACPI_RESOURCE_TAG      AcpiDmUartSerialBusTags[] =
+{
+    {( 6 * 8) + 0,  ACPI_RESTAG_SLAVEMODE},         /* Note: not part of original macro */
+    {( 6 * 8) + 2,  ACPI_RESTAG_INTERRUPTSHARE},    /* V2 - ACPI 6.0 */
+    {( 7 * 8) + 0,  ACPI_RESTAG_FLOWCONTROL},
+    {( 7 * 8) + 2,  ACPI_RESTAG_STOPBITS},
+    {( 7 * 8) + 4,  ACPI_RESTAG_LENGTH},
+    {( 7 * 8) + 7,  ACPI_RESTAG_ENDIANNESS},
+    {(12 * 8),      ACPI_RESTAG_SPEED},
+    {(16 * 8),      ACPI_RESTAG_LENGTH_RX},
+    {(18 * 8),      ACPI_RESTAG_LENGTH_TX},
+    {(20 * 8),      ACPI_RESTAG_PARITY},
+    {(21 * 8),      ACPI_RESTAG_LINE},
+    {0,             NULL}
+};
+
+/* Subtype tables for Address descriptor type-specific flags */
+
+static const ACPI_RESOURCE_TAG      AcpiDmMemoryFlagTags[] =
 {
     {( 5 * 8) + 0,  ACPI_RESTAG_READWRITETYPE},
     {( 5 * 8) + 1,  ACPI_RESTAG_MEMTYPE},
@@ -326,7 +327,7 @@ static ACPI_RESOURCE_TAG        AcpiDmMemoryFlagTags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmIoFlagTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmIoFlagTags[] =
 {
     {( 5 * 8) + 0,  ACPI_RESTAG_RANGETYPE},
     {( 5 * 8) + 4,  ACPI_RESTAG_TYPE},
@@ -335,9 +336,15 @@ static ACPI_RESOURCE_TAG        AcpiDmIoFlagTags[] =
 };
 
 
-/* Dispatch table used to obtain the correct tag table for a descriptor */
-
-static ACPI_RESOURCE_TAG        *AcpiGbl_ResourceTags [] =
+/*
+ * Dispatch table used to obtain the correct tag table for a descriptor.
+ *
+ * A NULL in this table means one of three things:
+ * 1) The descriptor ID is reserved and invalid
+ * 2) The descriptor has no tags associated with it
+ * 3) The descriptor has subtypes and a separate table will be used.
+ */
+static const ACPI_RESOURCE_TAG      *AcpiGbl_ResourceTags[] =
 {
     /* Small descriptors */
 
@@ -351,7 +358,7 @@ static ACPI_RESOURCE_TAG        *AcpiGbl_ResourceTags [] =
     NULL,                           /* 0x07, ACPI_RESOURCE_NAME_END_DEPENDENT */
     AcpiDmIoTags,                   /* 0x08, ACPI_RESOURCE_NAME_IO_PORT */
     AcpiDmFixedIoTags,              /* 0x09, ACPI_RESOURCE_NAME_FIXED_IO_PORT */
-    NULL,                           /* 0x0A, Reserved */
+    AcpiDmFixedDmaTags,             /* 0x0A, ACPI_RESOURCE_NAME_FIXED_DMA */
     NULL,                           /* 0x0B, Reserved */
     NULL,                           /* 0x0C, Reserved */
     NULL,                           /* 0x0D, Reserved */
@@ -371,9 +378,29 @@ static ACPI_RESOURCE_TAG        *AcpiGbl_ResourceTags [] =
     AcpiDmAddress16Tags,            /* 0x08, ACPI_RESOURCE_NAME_WORD_ADDRESS_SPACE */
     AcpiDmInterruptTags,            /* 0x09, ACPI_RESOURCE_NAME_EXTENDED_XRUPT */
     AcpiDmAddress64Tags,            /* 0x0A, ACPI_RESOURCE_NAME_QWORD_ADDRESS_SPACE */
-    AcpiDmExtendedAddressTags       /* 0x0B, ACPI_RESOURCE_NAME_EXTENDED_ADDRESS_SPACE */
+    AcpiDmExtendedAddressTags,      /* 0x0B, ACPI_RESOURCE_NAME_EXTENDED_ADDRESS_SPACE */
+    NULL,                           /* 0x0C, ACPI_RESOURCE_NAME_GPIO - Use Subtype table below */
+    NULL,                           /* 0x0D, Reserved */
+    NULL                            /* 0x0E, ACPI_RESOURCE_NAME_SERIAL_BUS - Use Subtype table below */
 };
 
+/* GPIO Subtypes */
+
+static const ACPI_RESOURCE_TAG      *AcpiGbl_GpioResourceTags[] =
+{
+    AcpiDmGpioIntTags,              /* 0x00 Interrupt Connection */
+    AcpiDmGpioIoTags                /* 0x01 I/O Connection */
+};
+
+/* Serial Bus Subtypes */
+
+static const ACPI_RESOURCE_TAG      *AcpiGbl_SerialResourceTags[] =
+{
+    NULL,                           /* 0x00 Reserved */
+    AcpiDmI2cSerialBusTags,         /* 0x01 I2C SerialBus */
+    AcpiDmSpiSerialBusTags,         /* 0x02 SPI SerialBus */
+    AcpiDmUartSerialBusTags         /* 0x03 UART SerialBus */
+};
 
 /*
  * Globals used to generate unique resource descriptor names. We use names that
@@ -419,7 +446,6 @@ AcpiDmCheckResourceReference (
     ACPI_NAMESPACE_NODE     *BufferNode;
     ACPI_NAMESPACE_NODE     *ResourceNode;
     const ACPI_OPCODE_INFO  *OpInfo;
-    char                    *Pathname;
     UINT32                  BitIndex;
 
 
@@ -445,6 +471,11 @@ AcpiDmCheckResourceReference (
     /* Get the Index term, must be an integer constant to convert */
 
     IndexOp = BufferNameOp->Common.Next;
+
+    /* Major cheat: The Node field is also used for the Tag ptr. Clear it now */
+
+    IndexOp->Common.Node = NULL;
+
     OpInfo = AcpiPsGetOpcodeInfo (IndexOp->Common.AmlOpcode);
     if (OpInfo->ObjectType != ACPI_TYPE_INTEGER)
     {
@@ -470,9 +501,9 @@ AcpiDmCheckResourceReference (
     /* Lookup the buffer in the namespace */
 
     Status = AcpiNsLookup (WalkState->ScopeInfo,
-                BufferNameOp->Common.Value.String, ACPI_TYPE_BUFFER,
-                ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT, WalkState,
-                &BufferNode);
+        BufferNameOp->Common.Value.String, ACPI_TYPE_BUFFER,
+        ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT, WalkState,
+        &BufferNode);
     if (ACPI_FAILURE (Status))
     {
         return;
@@ -495,14 +526,7 @@ AcpiDmCheckResourceReference (
 
     /* Translate the Index to a resource tag pathname */
 
-    Pathname = AcpiGetTagPathname (BufferNode, ResourceNode, BitIndex);
-    if (Pathname)
-    {
-        /* Complete the conversion of the Index to a symbol */
-
-        IndexOp->Common.AmlOpcode = AML_INT_NAMEPATH_OP;
-        IndexOp->Common.Value.String = Pathname;
-    }
+    AcpiGetTagPathname (IndexOp, BufferNode, ResourceNode, BitIndex);
 }
 
 
@@ -549,13 +573,6 @@ AcpiDmGetResourceNode (
             return (Node);
         }
 
-        /* List is circular, this flag marks the end */
-
-        if (Node->Flags & ANOBJ_END_OF_PEER_LIST)
-        {
-            return (NULL);
-        }
-
         Node = Node->Peer;
     }
 
@@ -580,6 +597,7 @@ AcpiDmGetResourceNode (
 
 static char *
 AcpiGetTagPathname (
+    ACPI_PARSE_OBJECT       *IndexOp,
     ACPI_NAMESPACE_NODE     *BufferNode,
     ACPI_NAMESPACE_NODE     *ResourceNode,
     UINT32                  BitIndex)
@@ -606,10 +624,10 @@ AcpiGetTagPathname (
 
     /* Get the individual resource descriptor and validate it */
 
-    Aml = ACPI_CAST_PTR (AML_RESOURCE,
-            &Op->Named.Data[ResourceNode->Value]);
+    Aml = ACPI_CAST_PTR (
+        AML_RESOURCE, &Op->Named.Data[ResourceNode->Value]);
 
-    Status = AcpiUtValidateResource (Aml, &ResourceTableIndex);
+    Status = AcpiUtValidateResource (NULL, Aml, &ResourceTableIndex);
     if (ACPI_FAILURE (Status))
     {
         return (NULL);
@@ -635,7 +653,7 @@ AcpiGetTagPathname (
 
     /* Get the full pathname to the parent buffer */
 
-    RequiredSize = AcpiNsGetPathnameLength (BufferNode);
+    RequiredSize = AcpiNsBuildNormalizedPath (BufferNode, NULL, 0, FALSE);
     if (!RequiredSize)
     {
         return (NULL);
@@ -647,11 +665,8 @@ AcpiGetTagPathname (
         return (NULL);
     }
 
-    Status = AcpiNsBuildExternalPath (BufferNode, RequiredSize, Pathname);
-    if (ACPI_FAILURE (Status))
-    {
-        return (NULL);
-    }
+    (void) AcpiNsBuildNormalizedPath (BufferNode, Pathname,
+        RequiredSize, FALSE);
 
     /*
      * Create the full path to the resource and tag by: remove the buffer name,
@@ -663,15 +678,24 @@ AcpiGetTagPathname (
      * end up in the final compiled AML, it's just an appearance issue for the
      * disassembled code.
      */
-    Pathname[ACPI_STRLEN (Pathname) - ACPI_NAME_SIZE] = 0;
-    ACPI_STRNCAT (Pathname, ResourceNode->Name.Ascii, ACPI_NAME_SIZE);
-    ACPI_STRCAT (Pathname, ".");
-    ACPI_STRNCAT (Pathname, Tag, ACPI_NAME_SIZE);
+    Pathname[strlen (Pathname) - ACPI_NAME_SIZE] = 0;
+    strncat (Pathname, ResourceNode->Name.Ascii, ACPI_NAME_SIZE);
+    strcat (Pathname, ".");
+    strncat (Pathname, Tag, ACPI_NAME_SIZE);
 
     /* Internalize the namepath to AML format */
 
     AcpiNsInternalizeName (Pathname, &InternalPath);
     ACPI_FREE (Pathname);
+
+    /* Update the Op with the symbol */
+
+    AcpiPsInitOp (IndexOp, AML_INT_NAMEPATH_OP);
+    IndexOp->Common.Value.String = InternalPath;
+
+    /* We will need the tag later. Cheat by putting it in the Node field */
+
+    IndexOp->Common.Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Tag);
     return (InternalPath);
 }
 
@@ -711,8 +735,8 @@ AcpiDmUpdateResourceName (
 
     Name[0] = '_';
     Name[1] = AcpiGbl_Prefix[AcpiGbl_NextPrefix];
-    Name[2] = AcpiUtHexToAsciiChar (AcpiGbl_NextResourceId, 4);
-    Name[3] = AcpiUtHexToAsciiChar (AcpiGbl_NextResourceId, 0);
+    Name[2] = AcpiUtHexToAsciiChar ((UINT64) AcpiGbl_NextResourceId, 4);
+    Name[3] = AcpiUtHexToAsciiChar ((UINT64) AcpiGbl_NextResourceId, 0);
 
     /* Update globals for next name */
 
@@ -721,6 +745,7 @@ AcpiDmUpdateResourceName (
     {
         AcpiGbl_NextResourceId = 0;
         AcpiGbl_NextPrefix++;
+
         if (AcpiGbl_NextPrefix > ACPI_NUM_RES_PREFIX)
         {
             AcpiGbl_NextPrefix = 0;
@@ -745,6 +770,9 @@ AcpiDmUpdateResourceName (
  *
  * DESCRIPTION: Convert a BitIndex into a symbolic resource tag.
  *
+ * Note: ResourceIndex should be previously validated and guaranteed to ve
+ *       valid.
+ *
  ******************************************************************************/
 
 static char *
@@ -753,23 +781,16 @@ AcpiDmGetResourceTag (
     AML_RESOURCE            *Resource,
     UINT8                   ResourceIndex)
 {
-    ACPI_RESOURCE_TAG       *TagList;
+    const ACPI_RESOURCE_TAG *TagList;
     char                    *Tag = NULL;
 
 
     /* Get the tag list for this resource descriptor type */
 
     TagList = AcpiGbl_ResourceTags[ResourceIndex];
-    if (!TagList)
-    {
-        /* There are no tags for this resource type */
-
-        return (NULL);
-    }
 
     /*
-     * Handle the type-specific flags field for the address descriptors.
-     * Kindof brute force, but just blindly search for an index match.
+     * Handle descriptors that have multiple subtypes
      */
     switch (Resource->DescriptorType)
     {
@@ -777,7 +798,10 @@ AcpiDmGetResourceTag (
     case ACPI_RESOURCE_NAME_ADDRESS32:
     case ACPI_RESOURCE_NAME_ADDRESS64:
     case ACPI_RESOURCE_NAME_EXTENDED_ADDRESS64:
-
+        /*
+         * Subtype differentiation is the flags.
+         * Kindof brute force, but just blindly search for an index match
+         */
         if (Resource->Address.ResourceType == ACPI_ADDRESS_TYPE_MEMORY_RANGE)
         {
             Tag = AcpiDmSearchTagList (BitIndex, AcpiDmMemoryFlagTags);
@@ -795,13 +819,43 @@ AcpiDmGetResourceTag (
         }
         break;
 
+    case ACPI_RESOURCE_NAME_GPIO:
+
+        /* GPIO connection has 2 subtypes: Interrupt and I/O */
+
+        if (Resource->Gpio.ConnectionType > AML_RESOURCE_MAX_GPIOTYPE)
+        {
+            return (NULL);
+        }
+
+        TagList = AcpiGbl_GpioResourceTags[Resource->Gpio.ConnectionType];
+        break;
+
+    case ACPI_RESOURCE_NAME_SERIAL_BUS:
+
+        /* SerialBus has 3 subtypes: I2C, SPI, and UART */
+
+        if ((Resource->CommonSerialBus.Type == 0) ||
+            (Resource->CommonSerialBus.Type > AML_RESOURCE_MAX_SERIALBUSTYPE))
+        {
+            return (NULL);
+        }
+
+        TagList = AcpiGbl_SerialResourceTags[Resource->CommonSerialBus.Type];
+        break;
+
     default:
+
         break;
     }
 
-    /* Search the tag list for this descriptor type */
+    /* Search for a match against the BitIndex */
 
-    Tag = AcpiDmSearchTagList (BitIndex, TagList);
+    if (TagList)
+    {
+        Tag = AcpiDmSearchTagList (BitIndex, TagList);
+    }
+
     return (Tag);
 }
 
@@ -823,7 +877,7 @@ AcpiDmGetResourceTag (
 static char *
 AcpiDmSearchTagList (
     UINT32                  BitIndex,
-    ACPI_RESOURCE_TAG       *TagList)
+    const ACPI_RESOURCE_TAG *TagList)
 {
 
     /*
@@ -884,7 +938,7 @@ AcpiDmFindResources (
                  * resource descriptors to the namespace, as children of the
                  * buffer node.
                  */
-                if (ACPI_SUCCESS (AcpiDmIsResourceTemplate (Op)))
+                if (ACPI_SUCCESS (AcpiDmIsResourceTemplate (NULL, Op)))
                 {
                     Op->Common.DisasmOpcode = ACPI_DASM_RESOURCE;
                     AcpiDmAddResourcesToNamespace (Parent->Common.Node, Op);
@@ -937,9 +991,9 @@ AcpiDmAddResourcesToNamespace (
      * Insert each resource into the namespace
      * NextOp contains the Aml pointer and the Aml length
      */
-    AcpiUtWalkAmlResources ((UINT8 *) NextOp->Named.Data,
+    AcpiUtWalkAmlResources (NULL, (UINT8 *) NextOp->Named.Data,
         (ACPI_SIZE) NextOp->Common.Value.Integer,
-        AcpiDmAddResourceToNamespace, BufferNode);
+        AcpiDmAddResourceToNamespace, (void **) BufferNode);
 }
 
 
@@ -965,7 +1019,7 @@ AcpiDmAddResourceToNamespace (
     UINT32                  Length,
     UINT32                  Offset,
     UINT8                   ResourceIndex,
-    void                    *Context)
+    void                    **Context)
 {
     ACPI_STATUS             Status;
     ACPI_GENERIC_STATE      ScopeInfo;
@@ -978,9 +1032,9 @@ AcpiDmAddResourceToNamespace (
 
     ScopeInfo.Scope.Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Context);
     Status = AcpiNsLookup (&ScopeInfo, "_TMP", ACPI_TYPE_LOCAL_RESOURCE,
-                ACPI_IMODE_LOAD_PASS2,
-                ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE | ACPI_NS_PREFIX_IS_SCOPE,
-                NULL, &Node);
+        ACPI_IMODE_LOAD_PASS2,
+        ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE | ACPI_NS_PREFIX_IS_SCOPE,
+        NULL, &Node);
     if (ACPI_FAILURE (Status))
     {
         return (AE_OK);
@@ -996,4 +1050,3 @@ AcpiDmAddResourceToNamespace (
     Node->Length = Length;
     return (AE_OK);
 }
-

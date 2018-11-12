@@ -125,7 +125,10 @@ main:		cld				# String ops inc
 		mov $start,%sp			#  stack
 /*
  * Relocate ourself to MEM_REL.  Since %cx == 0, the inc %ch sets
- * %cx == 0x100.
+ * %cx == 0x100.  Note that boot1 does not use this relocated copy
+ * of itself while loading boot2; however, BTX reclaims the memory
+ * used by boot1 during its initialization.  As a result, boot2 uses
+ * xread from the relocated copy.
  */
 		mov %sp,%si			# Source
 		mov $MEM_REL,%di		# Destination
@@ -239,7 +242,7 @@ error:		callw putstr			# Display message
 		xorb %ah,%ah			# BIOS: Get
 		int $0x16			#  keypress
 		movw $0x1234, BDA_BOOT		# Do a warm boot
-		ljmp $0xffff,$0x0		# reboot the machine
+		ljmp $0xf000,$0xfff0		# reboot the machine
 /*
  * Display a null-terminated string using the BIOS output.
  */

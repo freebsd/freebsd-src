@@ -5,13 +5,16 @@
 BINDIR?=	/boot
 
 LOADER_ADDRESS?=0x200000
-CFLAGS+=	-ffreestanding -mpreferred-stack-boundary=2 \
-		-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3
+CFLAGS+=	-march=i386 -ffreestanding
+CFLAGS.gcc+=	-mpreferred-stack-boundary=2
+CFLAGS+=	${CFLAGS_NO_SIMD} -msoft-float
 LDFLAGS+=	-nostdlib
 
-.if ${MACHINE_ARCH} == "amd64"
-CFLAGS+=	-m32 -march=i386
-LDFLAGS+=	-m elf_i386_fbsd
+.if ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+=	-m32
+ACFLAGS+=	-m32
+# LD_FLAGS is passed directly to ${LD}, not via ${CC}:
+LD_FLAGS+=	-m elf_i386_fbsd
 AFLAGS+=	--32
 .endif
 
@@ -24,5 +27,10 @@ BTXDIR=		${.CURDIR}/../btx
 BTXLDR=		${BTXDIR}/btxldr/btxldr
 BTXKERN=	${BTXDIR}/btx/btx
 BTXCRT=		${BTXDIR}/lib/crt0.o
+
+# compact binary with no padding between text, data, bss
+LDSCRIPT=	${SRCTOP}/sys/boot/i386/boot.ldscript
+LDFLAGS_BIN=-e start -Ttext ${ORG} -Wl,-T,${LDSCRIPT},-S,--oformat,binary
+LD_FLAGS_BIN=-static -T ${LDSCRIPT} --gc-sections
 
 .include "../Makefile.inc"

@@ -249,7 +249,7 @@ scsi_loop:
 	movb	%ah, %bl
 	shlw	%bx
 	shlw	%bx
-	addw	$0x460, %bx		# SCSI paramter block
+	addw	$0x460, %bx		# SCSI parameter block
 	call	read_biosparam
 	orb	%dl, %dl
 	jz	no_scsi_unit

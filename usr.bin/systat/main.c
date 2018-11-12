@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -48,6 +44,7 @@ static const char copyright[] =
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
+#include <sys/queue.h>
 
 #include <err.h>
 #include <limits.h>
@@ -57,6 +54,7 @@ static const char copyright[] =
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "systat.h"
@@ -68,7 +66,7 @@ kvm_t *kd;
 sig_t	sigtstpdfl;
 double avenrun[3];
 int     col;
-int	naptime = 5;
+unsigned int	delay = 5000000;	/* in microseconds */
 int     verbose = 1;                    /* to report kvm read errs */
 struct	clockinfo clkinfo;
 double	hertz;
@@ -81,16 +79,72 @@ int     use_kvm = 1;
 
 static	WINDOW *wload;			/* one line window for load average */
 
+struct cmdentry {
+	SLIST_ENTRY(cmdentry) link;
+	char		*cmd;		/* Command name	*/
+	char		*argv;		/* Arguments vector for a command */
+};
+SLIST_HEAD(, cmdentry) commands;
+
+static void
+parse_cmd_args (int argc, char **argv)
+{
+	int in_command = 0;
+	struct cmdentry *cmd = NULL;
+	double t;
+
+	while (argc) {
+		if (argv[0][0] == '-') {
+			if (in_command)
+					SLIST_INSERT_HEAD(&commands, cmd, link);
+
+			if (memcmp(argv[0], "--", 3) == 0) {
+				in_command = 0; /*-- ends a command explicitly*/
+				argc --, argv ++;
+				continue;
+			}
+			cmd = calloc(1, sizeof(struct cmdentry));
+			if (cmd == NULL)
+				errx(1, "memory allocating failure");
+			cmd->cmd = strdup(&argv[0][1]);
+			if (cmd->cmd == NULL)
+				errx(1, "memory allocating failure");
+			in_command = 1;
+		}
+		else if (!in_command) {
+			t = strtod(argv[0], NULL) * 1000000.0;
+			if (t > 0 && t < (double)UINT_MAX)
+				delay = (unsigned int)t;
+		}
+		else if (cmd != NULL) {
+			cmd->argv = strdup(argv[0]);
+			if (cmd->argv == NULL)
+				errx(1, "memory allocating failure");
+			in_command = 0;
+			SLIST_INSERT_HEAD(&commands, cmd, link);
+		}
+		else
+			errx(1, "invalid arguments list");
+
+		argc--, argv++;
+	}
+	if (in_command && cmd != NULL)
+		SLIST_INSERT_HEAD(&commands, cmd, link);
+
+}
+
 int
 main(int argc, char **argv)
 {
 	char errbuf[_POSIX2_LINE_MAX], dummy;
 	size_t	size;
+	struct cmdentry *cmd = NULL;
 
-	(void) setlocale(LC_TIME, "");
+	(void) setlocale(LC_ALL, "");
 
+	SLIST_INIT(&commands);
 	argc--, argv++;
-	while (argc > 0) {
+	if (argc > 0) {
 		if (argv[0][0] == '-') {
 			struct cmdtab *p;
 
@@ -100,12 +154,10 @@ main(int argc, char **argv)
 			if (p == (struct cmdtab *)0)
 				errx(1, "%s: unknown request", &argv[0][1]);
 			curcmd = p;
-		} else {
-			naptime = atoi(argv[0]);
-			if (naptime <= 0)
-				naptime = 5;
+			argc--, argv++;
 		}
-		argc--, argv++;
+		parse_cmd_args (argc, argv);
+		
 	}
 	kd = kvm_openfiles(NULL, NULL, NULL, O_RDONLY, errbuf);
 	if (kd != NULL) {
@@ -126,13 +178,14 @@ main(int argc, char **argv)
 		 * devices. We can now use sysctl only.
 		 */
 		use_kvm = 0;
-		kd = kvm_openfiles("/dev/null", "/dev/null", "/dev/null",
+		kd = kvm_openfiles(_PATH_DEVNULL, _PATH_DEVNULL, _PATH_DEVNULL,
 		    O_RDONLY, errbuf);
 		if (kd == NULL) {
 			error("%s", errbuf);
 			exit(1);
 		}
 	}
+	signal(SIGHUP, die);
 	signal(SIGINT, die);
 	signal(SIGQUIT, die);
 	signal(SIGTERM, die);
@@ -167,10 +220,13 @@ main(int argc, char **argv)
 	curcmd->c_flags |= CF_INIT;
 	labels();
 
-	dellave = 0.0;
+	if (curcmd->c_cmd != NULL)
+		SLIST_FOREACH (cmd, &commands, link)
+			if (!curcmd->c_cmd(cmd->cmd, cmd->argv))
+				warnx("command is not understood");
 
-	signal(SIGALRM, display);
-	display(0);
+	dellave = 0.0;
+	display();
 	noecho();
 	crmode();
 	keyboard();
@@ -187,6 +243,11 @@ labels(void)
 		    "/0   /1   /2   /3   /4   /5   /6   /7   /8   /9   /10");
 		mvaddstr(1, 5, "Load Average");
 	}
+	if (curcmd->c_flags & CF_ZFSARC) {
+		mvaddstr(0, 20,
+		    "   Total     MFU     MRU    Anon     Hdr   L2Hdr   Other");
+		mvaddstr(1, 5, "ZFS ARC     ");
+	}
 	(*curcmd->c_label)();
 #ifdef notdef
 	mvprintw(21, 25, "CPU usage on %s", hostname);
@@ -195,12 +256,12 @@ labels(void)
 }
 
 void
-display(int signo __unused)
+display(void)
 {
 	int i, j;
 
 	/* Get the load average over the last minute. */
-	(void) getloadavg(avenrun, sizeof(avenrun) / sizeof(avenrun[0]));
+	(void) getloadavg(avenrun, nitems(avenrun));
 	(*curcmd->c_fetch)();
 	if (curcmd->c_flags & CF_LOADAV) {
 		j = 5.0*avenrun[0] + 0.5;
@@ -215,25 +276,49 @@ display(int signo __unused)
 			c = '|';
 		dellave = avenrun[0];
 		wmove(wload, 0, 0); wclrtoeol(wload);
-		for (i = (j > 50) ? 50 : j; i > 0; i--)
+		for (i = MIN(j, 50); i > 0; i--)
 			waddch(wload, c);
 		if (j > 50)
 			wprintw(wload, " %4.1f", avenrun[0]);
 	}
+	if (curcmd->c_flags & CF_ZFSARC) {
+	    uint64_t arc[7] = {};
+	    size_t size = sizeof(arc[0]);
+	    if (sysctlbyname("kstat.zfs.misc.arcstats.size",
+		&arc[0], &size, NULL, 0) == 0 ) {
+		    GETSYSCTL("vfs.zfs.mfu_size", arc[1]);
+		    GETSYSCTL("vfs.zfs.mru_size", arc[2]);
+		    GETSYSCTL("vfs.zfs.anon_size", arc[3]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.hdr_size", arc[4]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.l2_hdr_size", arc[5]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.other_size", arc[6]);
+		    wmove(wload, 0, 0); wclrtoeol(wload);
+		    for (i = 0 ; i < nitems(arc); i++) {
+			if (arc[i] > 10llu * 1024 * 1024 * 1024 ) {
+				wprintw(wload, "%7lluG", arc[i] >> 30);
+			}
+			else if (arc[i] > 10 * 1024 * 1024 ) {
+				wprintw(wload, "%7lluM", arc[i] >> 20);
+			}
+			else {
+				wprintw(wload, "%7lluK", arc[i] >> 10);
+			}
+		    }
+	    }
+	}
 	(*curcmd->c_refresh)();
-	if (curcmd->c_flags & CF_LOADAV)
+	if (curcmd->c_flags & (CF_LOADAV |CF_ZFSARC))
 		wrefresh(wload);
 	wrefresh(wnd);
 	move(CMDLINE, col);
 	refresh();
-	alarm(naptime);
 }
 
 void
 load(void)
 {
 
-	(void) getloadavg(avenrun, sizeof(avenrun)/sizeof(avenrun[0]));
+	(void) getloadavg(avenrun, nitems(avenrun));
 	mvprintw(CMDLINE, 0, "%4.1f %4.1f %4.1f",
 	    avenrun[0], avenrun[1], avenrun[2]);
 	clrtoeol();

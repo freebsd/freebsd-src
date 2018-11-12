@@ -40,7 +40,7 @@
 	(NFE_JUMBO_FRAMELEN - NFE_RX_HEADERS)
 #define	NFE_MIN_FRAMELEN	(ETHER_MIN_LEN - ETHER_CRC_LEN)
 
-#define	NFE_MAX_SCATTER		32
+#define	NFE_MAX_SCATTER		35
 #define	NFE_TSO_MAXSGSIZE	4096
 #define	NFE_TSO_MAXSIZE		(65535 + sizeof(struct ether_vlan_header))
 
@@ -190,6 +190,7 @@
 
 #define	NFE_PWR2_WAKEUP_MASK	0x0f11
 #define	NFE_PWR2_REVA3		(1 << 0)
+#define	NFE_PWR2_GATE_CLOCKS	0x0f00
 
 #define	NFE_MEDIA_SET		0x10000
 #define	NFE_MEDIA_1000T		0x00032

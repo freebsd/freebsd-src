@@ -1,12 +1,13 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	newfs_msdos
 MAN=	newfs_msdos.8
+SRCS=	newfs_msdos.c mkfs_msdos.c
 
-.if ${MACHINE_ARCH} == "arm"
+# XXX - this is verboten
+.if ${MACHINE_CPUARCH} == "arm"
 WARNS?= 3
-.else
-WARNS?=	6
 .endif
 
 .include <bsd.prog.mk>

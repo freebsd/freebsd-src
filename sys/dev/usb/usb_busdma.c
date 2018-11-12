@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -32,7 +35,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -60,6 +62,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #if USB_HAVE_BUSDMA
 static void	usb_dma_tag_create(struct usb_dma_tag *, usb_size_t, usb_size_t);
@@ -81,9 +84,9 @@ void
 usbd_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
     struct usb_page_search *res)
 {
+#if USB_HAVE_BUSDMA
 	struct usb_page *page;
 
-#if USB_HAVE_BUSDMA
 	if (pc->page_start) {
 
 		/* Case 1 - something has been loaded into DMA */
@@ -109,7 +112,7 @@ usbd_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
 			res->length = USB_PAGE_SIZE - offset;
 			res->physaddr = page->physaddr + offset;
 		} else {
-			res->length = 0 - 1;
+			res->length = (usb_size_t)-1;
 			res->physaddr = page->physaddr + offset;
 		}
 		if (!pc->buffer) {
@@ -124,10 +127,39 @@ usbd_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
 	/* Case 2 - Plain PIO */
 
 	res->buffer = USB_ADD_BYTES(pc->buffer, offset);
-	res->length = 0 - 1;
+	res->length = (usb_size_t)-1;
 #if USB_HAVE_BUSDMA
 	res->physaddr = 0;
 #endif
+}
+
+/*------------------------------------------------------------------------*
+ *  usb_pc_buffer_is_aligned - verify alignment
+ * 
+ * This function is used to check if a page cache buffer is properly
+ * aligned to reduce the use of bounce buffers in PIO mode.
+ *------------------------------------------------------------------------*/
+uint8_t
+usb_pc_buffer_is_aligned(struct usb_page_cache *pc, usb_frlength_t offset,
+    usb_frlength_t len, usb_frlength_t mask)
+{
+	struct usb_page_search buf_res;
+
+	while (len != 0) {
+
+		usbd_get_page(pc, offset, &buf_res);
+
+		if (buf_res.length > len)
+			buf_res.length = len;
+		if (USB_P2U(buf_res.buffer) & mask)
+			return (0);
+		if (buf_res.length & mask)
+			return (0);
+
+		offset += buf_res.length;
+		len -= buf_res.length;
+	}
+	return (1);
 }
 
 /*------------------------------------------------------------------------*
@@ -146,7 +178,7 @@ usbd_copy_in(struct usb_page_cache *cache, usb_frlength_t offset,
 		if (buf_res.length > len) {
 			buf_res.length = len;
 		}
-		bcopy(ptr, buf_res.buffer, buf_res.length);
+		memcpy(buf_res.buffer, ptr, buf_res.length);
 
 		offset += buf_res.length;
 		len -= buf_res.length;
@@ -212,9 +244,7 @@ usbd_m_copy_in(struct usb_page_cache *cache, usb_frlength_t dst_offset,
     struct mbuf *m, usb_size_t src_offset, usb_frlength_t src_len)
 {
 	struct usb_m_copy_in_arg arg = {cache, dst_offset};
-	int error;
-
-	error = m_apply(m, src_offset, src_len, &usbd_m_copy_in_cb, &arg);
+	(void) m_apply(m, src_offset, src_len, &usbd_m_copy_in_cb, &arg);
 }
 #endif
 
@@ -268,7 +298,7 @@ usbd_copy_out(struct usb_page_cache *cache, usb_frlength_t offset,
 		if (res.length > len) {
 			res.length = len;
 		}
-		bcopy(res.buffer, ptr, res.length);
+		memcpy(ptr, res.buffer, res.length);
 
 		offset += res.length;
 		len -= res.length;
@@ -326,7 +356,7 @@ usbd_frame_zero(struct usb_page_cache *cache, usb_frlength_t offset,
 		if (res.length > len) {
 			res.length = len;
 		}
-		bzero(res.buffer, res.length);
+		memset(res.buffer, 0, res.length);
 
 		offset += res.length;
 		len -= res.length;
@@ -359,16 +389,15 @@ usb_dma_tag_create(struct usb_dma_tag *udt,
 	if (bus_dma_tag_create
 	    ( /* parent    */ udt->tag_parent->tag,
 	     /* alignment */ align,
-	     /* boundary  */ (align == 1) ?
-	    USB_PAGE_SIZE : 0,
+	     /* boundary  */ 0,
 	     /* lowaddr   */ (2ULL << (udt->tag_parent->dma_bits - 1)) - 1,
 	     /* highaddr  */ BUS_SPACE_MAXADDR,
 	     /* filter    */ NULL,
 	     /* filterarg */ NULL,
 	     /* maxsize   */ size,
-	     /* nsegments */ (align == 1) ?
+	     /* nsegments */ (align == 1 && size > 1) ?
 	    (2 + (size / USB_PAGE_SIZE)) : 1,
-	     /* maxsegsz  */ (align == 1) ?
+	     /* maxsegsz  */ (align == 1 && size > USB_PAGE_SIZE) ?
 	    USB_PAGE_SIZE : size,
 	     /* flags     */ BUS_DMA_KEEP_PG_OFFSET,
 	     /* lockfn    */ &usb_dma_lock_cb,
@@ -419,6 +448,7 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	struct usb_page_cache *pc;
 	struct usb_page *pg;
 	usb_size_t rem;
+	bus_size_t off;
 	uint8_t owned;
 
 	pc = arg;
@@ -434,33 +464,51 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	if (error) {
 		goto done;
 	}
+
+	off = 0;
 	pg = pc->page_start;
-	pg->physaddr = segs->ds_addr & ~(USB_PAGE_SIZE - 1);
+	pg->physaddr = rounddown2(segs->ds_addr, USB_PAGE_SIZE);
 	rem = segs->ds_addr & (USB_PAGE_SIZE - 1);
 	pc->page_offset_buf = rem;
 	pc->page_offset_end += rem;
-	nseg--;
 #ifdef USB_DEBUG
-	if (rem != (USB_P2U(pc->buffer) & (USB_PAGE_SIZE - 1))) {
-		/*
-		 * This check verifies that the physical address is correct:
-		 */
-		DPRINTFN(0, "Page offset was not preserved!\n");
-		error = 1;
-		goto done;
+	if (nseg > 1) {
+		int x;
+
+		for (x = 0; x != nseg - 1; x++) {
+			if (((segs[x].ds_addr + segs[x].ds_len) & (USB_PAGE_SIZE - 1)) ==
+			    ((segs[x + 1].ds_addr & (USB_PAGE_SIZE - 1))))
+				continue;
+			/*
+			 * This check verifies there is no page offset
+			 * hole between any of the segments. See the
+			 * BUS_DMA_KEEP_PG_OFFSET flag.
+			 */
+			DPRINTFN(0, "Page offset was not preserved\n");
+			error = 1;
+			goto done;
+		}
 	}
 #endif
-	while (nseg > 0) {
-		nseg--;
-		segs++;
+	while (pc->ismultiseg) {
+		off += USB_PAGE_SIZE;
+		if (off >= (segs->ds_len + rem)) {
+			/* page crossing */
+			nseg--;
+			segs++;
+			off = 0;
+			rem = 0;
+			if (nseg == 0)
+				break;
+		}
 		pg++;
-		pg->physaddr = segs->ds_addr & ~(USB_PAGE_SIZE - 1);
+		pg->physaddr = rounddown2(segs->ds_addr + off, USB_PAGE_SIZE);
 	}
 
 done:
 	owned = mtx_owned(uptag->mtx);
 	if (!owned)
-		mtx_lock(uptag->mtx);
+		USB_MTX_LOCK(uptag->mtx);
 
 	uptag->dma_error = (error ? 1 : 0);
 	if (isload) {
@@ -469,7 +517,7 @@ done:
 		cv_broadcast(uptag->cv);
 	}
 	if (!owned)
-		mtx_unlock(uptag->mtx);
+		USB_MTX_UNLOCK(uptag->mtx);
 }
 
 /*------------------------------------------------------------------------*
@@ -544,7 +592,7 @@ usb_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
 	pc->tag = utag->tag;
 	pc->ismultiseg = (align == 1);
 
-	mtx_lock(uptag->mtx);
+	USB_MTX_LOCK(uptag->mtx);
 
 	/* load memory into DMA */
 	err = bus_dmamap_load(
@@ -555,13 +603,13 @@ usb_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
 		cv_wait(uptag->cv, uptag->mtx);
 		err = 0;
 	}
-	mtx_unlock(uptag->mtx);
+	USB_MTX_UNLOCK(uptag->mtx);
 
 	if (err || uptag->dma_error) {
 		bus_dmamem_free(utag->tag, ptr, map);
 		goto error;
 	}
-	bzero(ptr, size);
+	memset(ptr, 0, size);
 
 	usb_pc_cpu_flush(pc);
 
@@ -611,7 +659,7 @@ usb_pc_load_mem(struct usb_page_cache *pc, usb_size_t size, uint8_t sync)
 	pc->page_offset_end = size;
 	pc->ismultiseg = 1;
 
-	mtx_assert(pc->tag_parent->mtx, MA_OWNED);
+	USB_MTX_ASSERT(pc->tag_parent->mtx, MA_OWNED);
 
 	if (size > 0) {
 		if (sync) {
@@ -764,8 +812,8 @@ usb_dma_tag_find(struct usb_dma_parent_tag *udpt,
 	struct usb_dma_tag *udt;
 	uint8_t nudt;
 
-	USB_ASSERT(align > 0, ("Invalid parameter align = 0!\n"));
-	USB_ASSERT(size > 0, ("Invalid parameter size = 0!\n"));
+	USB_ASSERT(align > 0, ("Invalid parameter align = 0\n"));
+	USB_ASSERT(size > 0, ("Invalid parameter size = 0\n"));
 
 	udt = udpt->utag_first;
 	nudt = udpt->utag_max;
@@ -798,7 +846,7 @@ usb_dma_tag_setup(struct usb_dma_parent_tag *udpt,
     struct mtx *mtx, usb_dma_callback_t *func,
     uint8_t ndmabits, uint8_t nudt)
 {
-	bzero(udpt, sizeof(*udpt));
+	memset(udpt, 0, sizeof(*udpt));
 
 	/* sanity checking */
 	if ((nudt == 0) ||
@@ -819,7 +867,7 @@ usb_dma_tag_setup(struct usb_dma_parent_tag *udpt,
 	udpt->dma_bits = ndmabits;
 
 	while (nudt--) {
-		bzero(udt, sizeof(*udt));
+		memset(udt, 0, sizeof(*udt));
 		udt->tag_parent = udpt;
 		udt++;
 	}
@@ -869,7 +917,7 @@ usb_bdma_work_loop(struct usb_xfer_queue *pq)
 	xfer = pq->curr;
 	info = xfer->xroot;
 
-	mtx_assert(info->xfer_mtx, MA_OWNED);
+	USB_MTX_ASSERT(info->xfer_mtx, MA_OWNED);
 
 	if (xfer->error) {
 		/* some error happened */
@@ -993,7 +1041,7 @@ usb_bdma_done_event(struct usb_dma_parent_tag *udpt)
 
 	info = USB_DMATAG_TO_XROOT(udpt);
 
-	mtx_assert(info->xfer_mtx, MA_OWNED);
+	USB_MTX_ASSERT(info->xfer_mtx, MA_OWNED);
 
 	/* copy error */
 	info->dma_error = udpt->dma_error;

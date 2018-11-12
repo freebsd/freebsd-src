@@ -1290,8 +1290,8 @@ set_shaders(struct drm_device *dev)
 	DRM_DEBUG("\n");
 
 	/* load shaders */
-	vs = (u32 *) ((char *)dev->agp_buffer_map->handle + dev_priv->blit_vb->offset);
-	ps = (u32 *) ((char *)dev->agp_buffer_map->handle + dev_priv->blit_vb->offset + 256);
+	vs = (u32 *) ((char *)dev->agp_buffer_map->virtual + dev_priv->blit_vb->offset);
+	ps = (u32 *) ((char *)dev->agp_buffer_map->virtual + dev_priv->blit_vb->offset + 256);
 
 	shader_size = sizeof(r6xx_vs) / 4;
 	for (i= 0; i < shader_size; i++)
@@ -1367,7 +1367,7 @@ set_vtx_resource(drm_radeon_private_t *dev_priv, u64 gpu_addr)
 	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV610) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV620) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780) ||
-	    /*((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880) ||*/
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV710))
 		cp_set_surface_sync(dev_priv,
 				    R600_TC_ACTION_ENA, 48, gpu_addr);
@@ -1428,12 +1428,12 @@ set_scissors(drm_radeon_private_t *dev_priv, int x1, int y1, int x2, int y2)
 
 	OUT_RING(CP_PACKET3(R600_IT_SET_CONTEXT_REG, 2));
         OUT_RING((R600_PA_SC_GENERIC_SCISSOR_TL - R600_SET_CONTEXT_REG_OFFSET) >> 2);
-	OUT_RING((x1 << 0) | (y1 << 16) | (1 << 31));
+	OUT_RING((x1 << 0) | (y1 << 16) | (1U << 31));
 	OUT_RING((x2 << 0) | (y2 << 16));
 
 	OUT_RING(CP_PACKET3(R600_IT_SET_CONTEXT_REG, 2));
         OUT_RING((R600_PA_SC_WINDOW_SCISSOR_TL - R600_SET_CONTEXT_REG_OFFSET) >> 2);
-	OUT_RING((x1 << 0) | (y1 << 16) | (1 << 31));
+	OUT_RING((x1 << 0) | (y1 << 16) | (1U << 31));
 	OUT_RING((x2 << 0) | (y2 << 16));
 	ADVANCE_RING();
 }
@@ -1509,7 +1509,7 @@ set_default_state(drm_radeon_private_t *dev_priv)
 	case CHIP_RV610:
 	case CHIP_RV620:
 	case CHIP_RS780:
-	/*case CHIP_RS880:*/
+	case CHIP_RS880:
 	default:
 		num_ps_gprs = 84;
 		num_vs_gprs = 36;
@@ -1591,7 +1591,7 @@ set_default_state(drm_radeon_private_t *dev_priv)
 	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV610) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV620) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780) ||
-	    /*((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880) ||*/
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV710))
 		sq_config = 0;
 	else
@@ -1718,8 +1718,10 @@ r600_blit_copy(struct drm_device *dev,
 	u64 vb_addr;
 	u32 *vb;
 
-	vb = (u32 *) ((char *)dev->agp_buffer_map->handle +
-		      dev_priv->blit_vb->offset + dev_priv->blit_vb->used);
+	vb = (u32 *) ((char *)dev->agp_buffer_map->virtual +
+	    dev_priv->blit_vb->offset + dev_priv->blit_vb->used);
+	DRM_DEBUG("src=0x%016jx, dst=0x%016jx, size=%d\n",
+	    src_gpu_addr, dst_gpu_addr, size_bytes);
 
 	if ((size_bytes & 3) || (src_gpu_addr & 3) || (dst_gpu_addr & 3)) {
 		max_bytes = 8192;
@@ -1756,8 +1758,8 @@ r600_blit_copy(struct drm_device *dev,
 				if (!dev_priv->blit_vb)
 					return;
 				set_shaders(dev);
-				vb = (u32 *) ((char *)dev->agp_buffer_map->handle +
-					      dev_priv->blit_vb->offset + dev_priv->blit_vb->used);
+				vb = (u32 *) ((char *)dev->agp_buffer_map->virtual +
+				    dev_priv->blit_vb->offset + dev_priv->blit_vb->used);
 			}
 
 			vb[0] = i2f(dst_x);
@@ -1846,8 +1848,8 @@ r600_blit_copy(struct drm_device *dev,
 				if (!dev_priv->blit_vb)
 					return;
 				set_shaders(dev);
-				vb = (u32 *) ((char *)dev->agp_buffer_map->handle +
-					      dev_priv->blit_vb->offset + dev_priv->blit_vb->used);
+				vb = (u32 *) ((char *)dev->agp_buffer_map->virtual +
+				    dev_priv->blit_vb->offset + dev_priv->blit_vb->used);
 			}
 
 			vb[0] = i2f(dst_x / 4);
@@ -1913,11 +1915,9 @@ r600_blit_swap(struct drm_device *dev,
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	int cb_format, tex_format;
+	int sx2, sy2, dx2, dy2;
 	u64 vb_addr;
 	u32 *vb;
-
-	vb = (u32 *) ((char *)dev->agp_buffer_map->handle +
-		      dev_priv->blit_vb->offset + dev_priv->blit_vb->used);
 
 	if ((dev_priv->blit_vb->used + 48) > dev_priv->blit_vb->total) {
 		dev_priv->blit_vb->used = 0;
@@ -1926,20 +1926,14 @@ r600_blit_swap(struct drm_device *dev,
 		if (!dev_priv->blit_vb)
 			return;
 		set_shaders(dev);
-		vb = (u32 *) ((char *)dev->agp_buffer_map->handle +
-			      dev_priv->blit_vb->offset + dev_priv->blit_vb->used);
 	}
+	vb = (u32 *) ((char *)dev->agp_buffer_map->virtual +
+	    dev_priv->blit_vb->offset + dev_priv->blit_vb->used);
 
-	if (cpp == 4) {
-		cb_format = COLOR_8_8_8_8;
-		tex_format = FMT_8_8_8_8;
-	} else if (cpp == 2) {
-		cb_format = COLOR_5_6_5;
-		tex_format = FMT_5_6_5;
-	} else {
-		cb_format = COLOR_8;
-		tex_format = FMT_8;
-	}
+	sx2 = sx + w;
+	sy2 = sy + h;
+	dx2 = dx + w;
+	dy2 = dy + h;
 
 	vb[0] = i2f(dx);
 	vb[1] = i2f(dy);
@@ -1947,31 +1941,46 @@ r600_blit_swap(struct drm_device *dev,
 	vb[3] = i2f(sy);
 
 	vb[4] = i2f(dx);
-	vb[5] = i2f(dy + h);
+	vb[5] = i2f(dy2);
 	vb[6] = i2f(sx);
-	vb[7] = i2f(sy + h);
+	vb[7] = i2f(sy2);
 
-	vb[8] = i2f(dx + w);
-	vb[9] = i2f(dy + h);
-	vb[10] = i2f(sx + w);
-	vb[11] = i2f(sy + h);
+	vb[8] = i2f(dx2);
+	vb[9] = i2f(dy2);
+	vb[10] = i2f(sx2);
+	vb[11] = i2f(sy2);
+
+	switch(cpp) {
+	case 4:
+		cb_format = COLOR_8_8_8_8;
+		tex_format = FMT_8_8_8_8;
+		break;
+	case 2:
+		cb_format = COLOR_5_6_5;
+		tex_format = FMT_5_6_5;
+		break;
+	default:
+		cb_format = COLOR_8;
+		tex_format = FMT_8;
+		break;
+	}
 
 	/* src */
 	set_tex_resource(dev_priv, tex_format,
 			 src_pitch / cpp,
-			 sy + h, src_pitch / cpp,
+			 sy2, src_pitch / cpp,
 			 src_gpu_addr);
 
 	cp_set_surface_sync(dev_priv,
-			    R600_TC_ACTION_ENA, (src_pitch * (sy + h)), src_gpu_addr);
+			    R600_TC_ACTION_ENA, src_pitch * sy2, src_gpu_addr);
 
 	/* dst */
 	set_render_target(dev_priv, cb_format,
-			  dst_pitch / cpp, dy + h,
+			  dst_pitch / cpp, dy2,
 			  dst_gpu_addr);
 
 	/* scissors */
-	set_scissors(dev_priv, dx, dy, dx + w, dy + h);
+	set_scissors(dev_priv, dx, dy, dx2, dy2);
 
 	/* Vertex buffer setup */
 	vb_addr = dev_priv->gart_buffers_offset +
@@ -1984,7 +1993,7 @@ r600_blit_swap(struct drm_device *dev,
 
 	cp_set_surface_sync(dev_priv,
 			    R600_CB_ACTION_ENA | R600_CB0_DEST_BASE_ENA,
-			    dst_pitch * (dy + h), dst_gpu_addr);
+			    dst_pitch * dy2, dst_gpu_addr);
 
 	dev_priv->blit_vb->used += 12 * 4;
 }

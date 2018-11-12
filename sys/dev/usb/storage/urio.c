@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -78,11 +77,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/storage/rio500_usb.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int urio_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, urio, CTLFLAG_RW, 0, "USB urio");
-SYSCTL_INT(_hw_usb_urio, OID_AUTO, debug, CTLFLAG_RW,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, urio, CTLFLAG_RW, 0, "USB urio");
+SYSCTL_INT(_hw_usb_urio, OID_AUTO, debug, CTLFLAG_RWTUN,
     &urio_debug, 0, "urio debug level");
 #endif
 
@@ -186,7 +185,8 @@ static device_method_t urio_methods[] = {
 	DEVMETHOD(device_probe, urio_probe),
 	DEVMETHOD(device_attach, urio_attach),
 	DEVMETHOD(device_detach, urio_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t urio_driver = {
@@ -195,25 +195,30 @@ static driver_t urio_driver = {
 	.size = sizeof(struct urio_softc),
 };
 
+static const STRUCT_USB_HOST_ID urio_devs[] = {
+	{USB_VPI(USB_VENDOR_DIAMOND, USB_PRODUCT_DIAMOND_RIO500USB, 0)},
+	{USB_VPI(USB_VENDOR_DIAMOND2, USB_PRODUCT_DIAMOND2_RIO600USB, 0)},
+	{USB_VPI(USB_VENDOR_DIAMOND2, USB_PRODUCT_DIAMOND2_RIO800USB, 0)},
+};
+
 DRIVER_MODULE(urio, uhub, urio_driver, urio_devclass, NULL, 0);
 MODULE_DEPEND(urio, usb, 1, 1, 1);
+MODULE_VERSION(urio, 1);
+USB_PNP_HOST_INFO(urio_devs);
 
 static int
 urio_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
-	if ((((uaa->info.idVendor == USB_VENDOR_DIAMOND) &&
-	    (uaa->info.idProduct == USB_PRODUCT_DIAMOND_RIO500USB)) ||
-	    ((uaa->info.idVendor == USB_VENDOR_DIAMOND2) &&
-	    ((uaa->info.idProduct == USB_PRODUCT_DIAMOND2_RIO600USB) ||
-	    (uaa->info.idProduct == USB_PRODUCT_DIAMOND2_RIO800USB)))))
-		return (0);
-	else
+	if (uaa->info.bConfigIndex != 0)
 		return (ENXIO);
+	if (uaa->info.bIfaceIndex != 0)
+		return (ENXIO);
+
+	return (usbd_lookup_id_by_uaa(urio_devs, sizeof(urio_devs), uaa));
 }
 
 static int
@@ -243,7 +248,7 @@ urio_attach(device_t dev)
 
 	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &urio_fifo_methods, &sc->sc_fifo,
-	    device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
+	    device_get_unit(dev), -1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;
@@ -437,7 +442,7 @@ urio_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 			error = EPERM;
 			goto done;
 		}
-		bzero(&ur, sizeof(ur));
+		memset(&ur, 0, sizeof(ur));
 		rio_cmd = addr;
 		ur.ucr_request.bmRequestType =
 		    rio_cmd->requesttype | UT_READ_VENDOR_DEVICE;
@@ -448,7 +453,7 @@ urio_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 			error = EPERM;
 			goto done;
 		}
-		bzero(&ur, sizeof(ur));
+		memset(&ur, 0, sizeof(ur));
 		rio_cmd = addr;
 		ur.ucr_request.bmRequestType =
 		    rio_cmd->requesttype | UT_WRITE_VENDOR_DEVICE;

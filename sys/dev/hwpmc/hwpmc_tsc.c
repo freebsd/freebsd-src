@@ -99,7 +99,7 @@ tsc_config_pmc(int cpu, int ri, struct pmc *pm)
 {
 	struct pmc_hw *phw;
 
-	PMCDBG(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[tsc,%d] illegal CPU value %d", __LINE__, cpu));
@@ -190,9 +190,6 @@ tsc_pcpu_fini(struct pmc_mdep *md, int cpu)
 
 	ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_TSC].pcd_ri;
 
-	KASSERT(ri == 0 && ri < TSC_NPMCS, ("[tsc,%d] ri=%d", __LINE__,
-	    ri));
-
 	pc = pmc_pcpu[cpu];
 	pc->pc_hwpmcs[ri] = NULL;
 
@@ -256,7 +253,7 @@ tsc_read_pmc(int cpu, int ri, pmc_value_t *v)
 	KASSERT(mode == PMC_MODE_SC,
 	    ("[tsc,%d] illegal pmc mode %d", __LINE__, mode));
 
-	PMCDBG(MDP,REA,1,"tsc-read id=%d", ri);
+	PMCDBG1(MDP,REA,1,"tsc-read id=%d", ri);
 
 	*v = rdtsc();
 

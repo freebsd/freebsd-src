@@ -27,9 +27,9 @@
 .\"	$FreeBSD$
 .\"
 .\" The following commands are required for all man pages.
-.Dd October 30, 2007
-.Os
+.Dd January 26, 2010
 .Dt GSS_ADD_CRED 3 PRM
+.Os
 .Sh NAME
 .Nm gss_add_cred
 .Nd Construct credentials incrementally
@@ -170,7 +170,7 @@ a non-
 .Fa output_cred_handle
 must be supplied.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It output_cred_handle"
 .It minor_status
 Mechanism specific status code.
 .It input_cred_handle
@@ -270,7 +270,7 @@ Specify
 if not required.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_CREDENTIALS_EXPIRED"
 .It GSS_S_COMPLETE
 Successful completion.
 .It GSS_S_BAD_MECH
@@ -288,15 +288,15 @@ The required credentials could not be added because they have expired.
 No credentials were found for the specified name.
 .El
 .Sh SEE ALSO
-.Xr gss_init_sec_context 3 ,
 .Xr gss_accept_sec_context 3 ,
 .Xr gss_acquire_cred 3 ,
-.Xr gss_inquire_cred 3 ,
+.Xr gss_init_sec_context 3 ,
 .Xr gss_inquire_context 3 ,
+.Xr gss_inquire_cred 3 ,
 .Xr gss_release_cred 3 ,
 .Xr gss_release_oid_set 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744
@@ -305,7 +305,7 @@ Generic Security Service API Version 2 : C-bindings
 .Sh HISTORY
 The
 .Nm
-manual page example first appeared in
+function first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
 John Wray, Iris Associates

@@ -31,10 +31,12 @@
 #define	_MACHINE_PCPU_H_
 
 #include <machine/cpufunc.h>
+#include <machine/slb.h>
 #include <machine/tlb.h>
 
 struct pmap;
-#define	CPUSAVE_LEN	8
+struct pvo_entry;
+#define	CPUSAVE_LEN	9
 
 #define	PCPU_MD_COMMON_FIELDS						\
 	int		pc_inside_intr;					\
@@ -43,14 +45,35 @@ struct pmap;
 	struct thread	*pc_vecthread;		/* current vec user */  \
 	uintptr_t	pc_hwref;					\
 	uint32_t	pc_pir;						\
-	int		pc_bsp:1;					\
-	int		pc_awake:1;					\
+	int		pc_bsp;						\
+	volatile int	pc_awake;					\
 	uint32_t	pc_ipimask;					\
 	register_t	pc_tempsave[CPUSAVE_LEN];			\
 	register_t	pc_disisave[CPUSAVE_LEN];			\
-	register_t	pc_dbsave[CPUSAVE_LEN];
+	register_t	pc_dbsave[CPUSAVE_LEN];				\
+	void		*pc_restore;
 
-#define PCPU_MD_AIM_FIELDS
+#define PCPU_MD_AIM32_FIELDS						\
+	vm_offset_t	pc_qmap_addr;					\
+	struct pvo_entry *pc_qmap_pvo;					\
+	struct mtx	pc_qmap_lock;					\
+	/* char		__pad[0] */
+
+#define PCPU_MD_AIM64_FIELDS						\
+	struct slb	pc_slb[64];					\
+	struct slb	**pc_userslb;					\
+	register_t	pc_slbsave[18];					\
+	uint8_t		pc_slbstack[1024];				\
+	vm_offset_t	pc_qmap_addr;					\
+	struct pvo_entry *pc_qmap_pvo;					\
+	struct mtx	pc_qmap_lock;					\
+	char		__pad[1121 - sizeof(struct mtx)]
+
+#ifdef __powerpc64__
+#define PCPU_MD_AIM_FIELDS	PCPU_MD_AIM64_FIELDS
+#else
+#define PCPU_MD_AIM_FIELDS	PCPU_MD_AIM32_FIELDS
+#endif
 
 #define	BOOKE_CRITSAVE_LEN	(CPUSAVE_LEN + 2)
 #define	BOOKE_TLB_MAXNEST	3
@@ -62,20 +85,23 @@ struct pmap;
 	register_t	pc_booke_mchksave[CPUSAVE_LEN];			\
 	register_t	pc_booke_tlbsave[BOOKE_TLBSAVE_LEN];		\
 	register_t	pc_booke_tlb_level;				\
+	vm_offset_t	pc_qmap_addr;					\
 	uint32_t	*pc_booke_tlb_lock;				\
-	int		pc_tid_next;
+	int		pc_tid_next;					\
+	char		__pad[165]
 
 /* Definitions for register offsets within the exception tmp save areas */
-#define	CPUSAVE_R28	0		/* where r28 gets saved */
-#define	CPUSAVE_R29	1		/* where r29 gets saved */
-#define	CPUSAVE_R30	2		/* where r30 gets saved */
-#define	CPUSAVE_R31	3		/* where r31 gets saved */
-#define	CPUSAVE_AIM_DAR		4	/* where SPR_DAR gets saved */
-#define	CPUSAVE_AIM_DSISR	5	/* where SPR_DSISR gets saved */
-#define	CPUSAVE_BOOKE_DEAR	4	/* where SPR_DEAR gets saved */
-#define	CPUSAVE_BOOKE_ESR	5	/* where SPR_ESR gets saved */
-#define	CPUSAVE_SRR0	6		/* where SRR0 gets saved */
-#define	CPUSAVE_SRR1	7		/* where SRR1 gets saved */
+#define	CPUSAVE_R27	0		/* where r27 gets saved */
+#define	CPUSAVE_R28	1		/* where r28 gets saved */
+#define	CPUSAVE_R29	2		/* where r29 gets saved */
+#define	CPUSAVE_R30	3		/* where r30 gets saved */
+#define	CPUSAVE_R31	4		/* where r31 gets saved */
+#define	CPUSAVE_AIM_DAR		5	/* where SPR_DAR gets saved */
+#define	CPUSAVE_AIM_DSISR	6	/* where SPR_DSISR gets saved */
+#define	CPUSAVE_BOOKE_DEAR	5	/* where SPR_DEAR gets saved */
+#define	CPUSAVE_BOOKE_ESR	6	/* where SPR_ESR gets saved */
+#define	CPUSAVE_SRR0	7		/* where SRR0 gets saved */
+#define	CPUSAVE_SRR1	8		/* where SRR1 gets saved */
 
 /* Book-E TLBSAVE is more elaborate */
 #define TLBSAVE_BOOKE_LR	0
@@ -95,34 +121,41 @@ struct pmap;
 #define TLBSAVE_BOOKE_R30	14
 #define TLBSAVE_BOOKE_R31	15
 
-#ifndef COMPILING_LINT
 #ifdef AIM
 #define	PCPU_MD_FIELDS		\
 	PCPU_MD_COMMON_FIELDS	\
 	PCPU_MD_AIM_FIELDS
 #endif
-#ifdef E500
+#if defined(BOOKE)
 #define	PCPU_MD_FIELDS		\
 	PCPU_MD_COMMON_FIELDS	\
 	PCPU_MD_BOOKE_FIELDS
 #endif
-#else
-#define	PCPU_MD_FIELDS		\
-	PCPU_MD_COMMON_FIELDS	\
-	PCPU_MD_AIM_FIELDS	\
-	PCPU_MD_BOOKE_FIELDS
-#endif
+
 /*
  * Catch-all for ports (e.g. lsof, used by gtop)
  */
 #ifndef PCPU_MD_FIELDS
 #define	PCPU_MD_FIELDS							\
-	int		pc_md_placeholder
+	int		pc_md_placeholder[32]
 #endif
 
 #ifdef _KERNEL
 
 #define pcpup	((struct pcpu *) powerpc_get_pcpup())
+
+static __inline __pure2 struct thread *
+__curthread(void)
+{
+	struct thread *td;
+#ifdef __powerpc64__
+	__asm __volatile("mr %0,13" : "=r"(td));
+#else
+	__asm __volatile("mr %0,2" : "=r"(td));
+#endif
+	return (td);
+}
+#define curthread (__curthread())
 
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
 

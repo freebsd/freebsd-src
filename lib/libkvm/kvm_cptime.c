@@ -44,8 +44,8 @@ __FBSDID("$FreeBSD$");
 #include "kvm_private.h"
 
 static struct nlist kvm_cp_time_nl[] = {
-	{ "_cp_time" },			/* (deprecated) */
-	{ NULL },
+	{ .n_name = "_cp_time" },		/* (deprecated) */
+	{ .n_name = NULL },
 };
 
 #define	NL_CP_TIME		0
@@ -59,6 +59,7 @@ _kvm_cp_time_init(kvm_t *kd)
 	if (kvm_nlist(kd, kvm_cp_time_nl) < 0)
 		return (-1);
 	kvm_cp_time_cached = 1;
+	return (0);
 }
 
 static int
@@ -94,6 +95,12 @@ kvm_getcptime(kvm_t *kd, long *cp_time)
 	if (ISALIVE(kd))
 		return (getsysctl(kd, "kern.cp_time", cp_time, sizeof(long) *
 		    CPUSTATES));
+
+	if (!kd->arch->ka_native(kd)) {
+		_kvm_err(kd, kd->program,
+		    "cannot read cp_time from non-native core");
+		return (-1);
+	}
 
 	if (kvm_cp_time_cached == 0) {
 		if (_kvm_cp_time_init(kd) < 0)

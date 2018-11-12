@@ -34,27 +34,37 @@
 #define _NETINET6_SCOPE6_VAR_H_
 
 #ifdef _KERNEL
+#include <net/vnet.h>
+
+#define	IPV6_ADDR_SCOPES_COUNT	16
 struct scope6_id {
 	/*
 	 * 16 is correspondent to 4bit multicast scope field.
 	 * i.e. from node-local to global with some reserved/unassigned types.
 	 */
-	u_int32_t s6id_list[16];
+	uint32_t s6id_list[IPV6_ADDR_SCOPES_COUNT];
 };
 
-void	scope6_init __P((void));
-struct scope6_id *scope6_ifattach __P((struct ifnet *));
-void	scope6_ifdetach __P((struct scope6_id *));
-int	scope6_set __P((struct ifnet *, struct scope6_id *));
-int	scope6_get __P((struct ifnet *, struct scope6_id *));
-void	scope6_setdefault __P((struct ifnet *));
-int	scope6_get_default __P((struct scope6_id *));
-u_int32_t scope6_in6_addrscope __P((struct in6_addr *));
-u_int32_t scope6_addr2default __P((struct in6_addr *));
-int	sa6_embedscope __P((struct sockaddr_in6 *, int));
-int	sa6_recoverscope __P((struct sockaddr_in6 *));
-int	in6_setscope __P((struct in6_addr *, struct ifnet *, u_int32_t *));
-int	in6_clearscope __P((struct in6_addr *));
+VNET_DECLARE(int, deembed_scopeid);
+#define V_deembed_scopeid       VNET(deembed_scopeid)
+
+void	scope6_init(void);
+struct scope6_id *scope6_ifattach(struct ifnet *);
+void	scope6_ifdetach(struct scope6_id *);
+int	scope6_ioctl(u_long cmd, caddr_t data, struct ifnet *);
+void	scope6_setdefault(struct ifnet *);
+int	scope6_get_default(struct scope6_id *);
+u_int32_t scope6_addr2default(struct in6_addr *);
+int	sa6_embedscope(struct sockaddr_in6 *, int);
+int	sa6_recoverscope(struct sockaddr_in6 *);
+int	sa6_checkzone(struct sockaddr_in6 *);
+int	sa6_checkzone_ifp(struct ifnet *, struct sockaddr_in6 *);
+int	in6_setscope(struct in6_addr *, struct ifnet *, u_int32_t *);
+int	in6_clearscope(struct in6_addr *);
+uint16_t in6_getscope(struct in6_addr *);
+uint32_t in6_getscopezone(const struct ifnet *, int);
+void	in6_splitscope(const struct in6_addr *, struct in6_addr *, uint32_t *);
+struct ifnet* in6_getlinkifnet(uint32_t);
 #endif /* _KERNEL */
 
 #endif /* _NETINET6_SCOPE6_VAR_H_ */

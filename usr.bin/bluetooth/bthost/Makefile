@@ -2,9 +2,7 @@
 # $FreeBSD$
 
 PROG=		bthost
-WARNS?=		2
 
-DPADD=		${LIBBLUETOOTH}
-LDADD=		-lbluetooth 
+LIBADD=		bluetooth
 
 .include <bsd.prog.mk>

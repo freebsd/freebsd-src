@@ -25,16 +25,14 @@
 .\" $FreeBSD$
 .\"
 .Dd April 6, 1999
-.Os
 .Dt REALHOSTNAME 3
+.Os
 .Sh NAME
 .Nm realhostname
 .Nd "convert an IP number to the real host name"
 .Sh LIBRARY
 .Lb libutil
 .Sh SYNOPSIS
-.In sys/types.h
-.In netinet/in.h
 .In libutil.h
 .Ft int
 .Fn realhostname "char *host" "size_t hsize" "const struct in_addr *ip"
@@ -76,7 +74,6 @@ The
 .Fn realhostname
 function will return one of the following constants which are defined in
 .In libutil.h :
-.Pp
 .Bl -tag -width XXX -offset XXX
 .It Li HOSTNAME_FOUND
 A valid host name was found.

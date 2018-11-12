@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1993 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1993
@@ -14,13 +14,13 @@
 #include <sm/gen.h>
 
 SM_IDSTR(copyright,
-"@(#) Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1998-2004 Proofpoint, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1993 Eric P. Allman.  All rights reserved.\n\
      Copyright (c) 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: smrsh.c,v 8.65 2004/08/06 18:54:22 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: smrsh.c,v 8.66 2013-11-22 20:52:00 ca Exp $")
 
 /*
 **  SMRSH -- sendmail restricted shell

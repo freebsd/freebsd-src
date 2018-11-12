@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../misc
+PACKAGE=runtime
+.PATH: ${.CURDIR}/../../misc
 
-CLASS=	mirror
+GEOM_CLASS=	mirror
 
-DPADD=	${LIBMD}
-LDADD=	-lmd
+LIBADD=	md
 
 .include <bsd.lib.mk>

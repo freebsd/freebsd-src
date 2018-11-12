@@ -44,28 +44,9 @@
 #ifndef	_SCSI_LOW_H_
 #define	_SCSI_LOW_H_
 
-/*================================================
- * Scsi low OSDEP 
- * (All os depend structures should be here!)
- ================================================*/
-/******** interface ******************************/
-#ifdef	__NetBSD__
-#define	SCSI_LOW_INTERFACE_XS
-#endif	/* __NetBSD__ */
-
-#ifdef	__FreeBSD__
-#define	SCSI_LOW_INTERFACE_CAM
-#define	CAM
-#endif	/* __FreeBSD__ */
-
 /******** includes *******************************/
-#ifdef	__NetBSD__
-#include <i386/Cbus/dev/scsi_dvcfg.h>
-#include <dev/isa/ccbque.h>
-#endif	/* __NetBSD__ */
 
-#ifdef	__FreeBSD__
-#include <sys/device_port.h>
+#include <sys/bus.h>
 #include <sys/kdb.h>
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -75,94 +56,13 @@
 
 #include <cam/scsi/scsi_dvcfg.h>
 #include <i386/isa/ccbque.h>
-#endif	/* __FreeBSD__ */
 
 /******** functions macro ************************/
-#ifdef	__NetBSD__
-#define	SCSI_LOW_DEBUGGER(dev)	Debugger()
-#define	SCSI_LOW_DELAY(mu)	delay((mu))
-#define	SCSI_LOW_SPLSCSI	splbio
-#define	SCSI_LOW_BZERO(pt, size)	memset((pt), 0, (size))
-#endif	/* __NetBSD__ */
 
-#ifdef	__FreeBSD__
 #undef	MSG_IDENTIFY
-#define	SCSI_LOW_DEBUGGER(dev)	kdb_enter(KDB_WHY_CAM, dev)
-#define	SCSI_LOW_DELAY(mu)	DELAY((mu))
-#define	SCSI_LOW_SPLSCSI	splcam
-#define	SCSI_LOW_BZERO(pt, size)	bzero((pt), (size))
-#endif	/* __FreeBSD__ */
-
-/******** os depend interface structures **********/
-#ifdef	__NetBSD__
-typedef	struct scsipi_sense_data scsi_low_osdep_sense_data_t;
-
-struct scsi_low_osdep_interface {
-	struct device si_dev;
-
-	struct scsipi_link *si_splp;
-};
-
-struct scsi_low_osdep_targ_interface {
-};
-
-struct scsi_low_osdep_lun_interface {
-	u_int sloi_quirks;
-};
-#endif	/* __NetBSD__ */
-
-#ifdef	__FreeBSD__
-typedef	struct scsi_sense_data scsi_low_osdep_sense_data_t;
-
-struct scsi_low_osdep_interface {
-	DEVPORT_DEVICE si_dev;
-
-	struct cam_sim *sim;
-	struct cam_path *path;
-
-	int si_poll_count;
-
-	struct callout_handle engage_ch;
-	struct callout_handle timeout_ch;
-#ifdef	SCSI_LOW_POWFUNC
-	struct callout_handle recover_ch;
-#endif
-};
-
-struct scsi_low_osdep_targ_interface {
-};
-
-struct scsi_low_osdep_lun_interface {
-};
-#endif	/* __FreeBSD__ */
-
-/******** os depend interface functions *************/
-struct slccb;
-struct scsi_low_softc;
-#define	SCSI_LOW_TIMEOUT_STOP		0
-#define	SCSI_LOW_TIMEOUT_START		1
-#define	SCSI_LOW_TIMEOUT_CH_IO		0
-#define	SCSI_LOW_TIMEOUT_CH_ENGAGE	1
-#define	SCSI_LOW_TIMEOUT_CH_RECOVER	2
-
-struct scsi_low_osdep_funcs {
-	int (*scsi_low_osdep_attach) \
-			(struct scsi_low_softc *);
-	int (*scsi_low_osdep_world_start) \
-			(struct scsi_low_softc *);
-	int (*scsi_low_osdep_dettach) \
-			(struct scsi_low_softc *);
-	int (*scsi_low_osdep_ccb_setup) \
-			(struct scsi_low_softc *, struct slccb *);
-	int (*scsi_low_osdep_done) \
-			(struct scsi_low_softc *, struct slccb *);
-	void (*scsi_low_osdep_timeout) \
-			(struct scsi_low_softc *, int, int);
-};
 
 /*================================================
  * Generic Scsi Low header file 
- * (All os depend structures should be above!)
  ================================================*/
 /*************************************************
  * Scsi low definitions
@@ -246,7 +146,7 @@ struct slccb {
 	 *****************************************/
 	struct sc_p ccb_scp;		/* given */
 	struct sc_p ccb_sscp;		/* saved scsi data pointer */
-	int ccb_datalen;		/* transfered data counter */
+	int ccb_datalen;		/* transferred data counter */
 
 	/*****************************************
 	 * Msgout 
@@ -265,7 +165,7 @@ struct slccb {
 #define	CCB_STARTQ	0x0010
 #define	CCB_POLLED	0x0100	/* polling ccb */
 #define	CCB_NORETRY	0x0200	/* do NOT retry */
-#define	CCB_AUTOSENSE	0x0400	/* do a sence after CA */
+#define	CCB_AUTOSENSE	0x0400	/* do a sense after CA */
 #define	CCB_URGENT	0x0800	/* an urgent ccb */
 #define	CCB_NOSDONE	0x1000	/* do not call an os done routine */
 #define	CCB_SCSIIO	0x2000	/* a normal scsi io coming from upper layer */
@@ -282,7 +182,7 @@ struct slccb {
 	 * Sense data buffer
 	 *****************************************/
 	u_int8_t ccb_scsi_cmd[12];
-	scsi_low_osdep_sense_data_t ccb_sense;
+	struct scsi_sense_data ccb_sense;
 };
 
 /*************************************************
@@ -299,8 +199,6 @@ TAILQ_HEAD(targ_info_tab, targ_info);
 LIST_HEAD(lun_info_tab, lun_info);
 
 struct lun_info {
-	struct scsi_low_osdep_lun_interface li_sloi;
-
 	int li_lun;
 	struct targ_info *li_ti;		/* my target */
 
@@ -387,8 +285,6 @@ struct scsi_low_msg_log {
 };
 
 struct targ_info {
-	struct scsi_low_osdep_targ_interface ti_slti;
-
 	TAILQ_ENTRY(targ_info) ti_chain;	/* targ_info link */
 
 	struct scsi_low_softc *ti_sc;		/* our softc */
@@ -543,11 +439,19 @@ struct scsi_low_funcs {
 };
 
 struct scsi_low_softc {
-	/* os depend structure */
-	struct scsi_low_osdep_interface sl_si;
-#define	sl_dev	sl_si.si_dev
-	struct scsi_low_osdep_funcs *sl_osdep_fp;
-	u_char sl_xname[16];
+	device_t sl_dev;
+
+	struct cam_sim *sl_sim;
+	struct cam_path *sl_path;
+
+	int sl_poll_count;
+
+	struct mtx sl_lock;
+	struct callout sl_engage_timer;
+	struct callout sl_timeout_timer;
+#ifdef	SCSI_LOW_POWFUNC
+	struct callout sl_recover_timer;
+#endif
 				
 	/* our chain */
 	LIST_ENTRY(scsi_low_softc) sl_chain;
@@ -652,11 +556,11 @@ struct scsi_low_softc {
 
 	/* targinfo size */
 	int sl_targsize;
-
-#if	defined(i386) || defined(__i386__)
-	u_int sl_irq;		/* XXX */
-#endif	/* i386 */
 };
+
+#define	SCSI_LOW_LOCK(sl)		mtx_lock(&(sl)->sl_lock)
+#define	SCSI_LOW_UNLOCK(sl)		mtx_unlock(&(sl)->sl_lock)
+#define	SCSI_LOW_ASSERT_LOCKED(sl)	mtx_assert(&(sl)->sl_lock, MA_OWNED)
 
 /*************************************************
  * SCSI LOW service functions
@@ -665,7 +569,7 @@ struct scsi_low_softc {
  * Scsi low attachment function.
  */
 int scsi_low_attach(struct scsi_low_softc *, int, int, int, int, int);
-int scsi_low_dettach(struct scsi_low_softc *);
+int scsi_low_detach(struct scsi_low_softc *);
 
 /* 
  * Scsi low interface activate or deactivate functions

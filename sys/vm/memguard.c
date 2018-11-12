@@ -1,6 +1,7 @@
-/*
- * Copyright (c) 2005,
- *     Bosko Milekic <bmilekic@FreeBSD.org>.  All rights reserved.
+/*-
+ * Copyright (c) 2005, Bosko Milekic <bmilekic@FreeBSD.org>.
+ * Copyright (c) 2010 Isilon Systems, Inc. (http://www.isilon.com/)
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,6 +37,8 @@ __FBSDID("$FreeBSD$");
  * See the memguard(9) man page for more information on using MemGuard.
  */
 
+#include "opt_vm.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -45,29 +48,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
+#include <sys/vmem.h>
 
 #include <vm/vm.h>
+#include <vm/uma.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/uma_int.h>
 #include <vm/memguard.h>
 
-/*
- * The maximum number of pages allowed per allocation.  If you're using
- * MemGuard to override very large items (> MAX_PAGES_PER_ITEM in size),
- * you need to increase MAX_PAGES_PER_ITEM.
- */
-#define	MAX_PAGES_PER_ITEM	64
-
-SYSCTL_NODE(_vm, OID_AUTO, memguard, CTLFLAG_RW, NULL, "MemGuard data");
+static SYSCTL_NODE(_vm, OID_AUTO, memguard, CTLFLAG_RW, NULL, "MemGuard data");
 /*
  * The vm_memguard_divisor variable controls how much of kmem_map should be
  * reserved for MemGuard.
  */
-u_int vm_memguard_divisor;
-SYSCTL_UINT(_vm_memguard, OID_AUTO, divisor, CTLFLAG_RD, &vm_memguard_divisor,
-    0, "(kmem_size/memguard_divisor) == memguard submap size");     
+static u_int vm_memguard_divisor;
+SYSCTL_UINT(_vm_memguard, OID_AUTO, divisor, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &vm_memguard_divisor,
+    0, "(kmem_size/memguard_divisor) == memguard submap size");
 
 /*
  * Short description (ks_shortdesc) of memory type to monitor.
@@ -78,232 +80,398 @@ TUNABLE_STR("vm.memguard.desc", vm_memguard_desc, sizeof(vm_memguard_desc));
 static int
 memguard_sysctl_desc(SYSCTL_HANDLER_ARGS)
 {
-	struct malloc_type_internal *mtip;
-	struct malloc_type_stats *mtsp;
-	struct malloc_type *mtp;
-	char desc[128];
-	long bytes;
-	int error, i;
+	char desc[sizeof(vm_memguard_desc)];
+	int error;
 
 	strlcpy(desc, vm_memguard_desc, sizeof(desc));
 	error = sysctl_handle_string(oidp, desc, sizeof(desc), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
-	/*
-	 * We can change memory type when no memory has been allocated for it
-	 * or when there is no such memory type yet (ie. it will be loaded with
-	 * kernel module).
-	 */
-	bytes = 0;
 	mtx_lock(&malloc_mtx);
-	mtp = malloc_desc2type(desc);
-	if (mtp != NULL) {
-		mtip = mtp->ks_handle;
-		for (i = 0; i < MAXCPU; i++) {
-			mtsp = &mtip->mti_stats[i];
-			bytes += mtsp->mts_memalloced;
-			bytes -= mtsp->mts_memfreed;
-		}
-	}
-	if (bytes > 0)
-		error = EBUSY;
-	else {
-		/*
-		 * If mtp is NULL, it will be initialized in memguard_cmp().
-		 */
-		vm_memguard_mtype = mtp;
-		strlcpy(vm_memguard_desc, desc, sizeof(vm_memguard_desc));
-	}
+	/* If mtp is NULL, it will be initialized in memguard_cmp() */
+	vm_memguard_mtype = malloc_desc2type(desc);
+	strlcpy(vm_memguard_desc, desc, sizeof(vm_memguard_desc));
 	mtx_unlock(&malloc_mtx);
 	return (error);
 }
-SYSCTL_PROC(_vm_memguard, OID_AUTO, desc, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
+SYSCTL_PROC(_vm_memguard, OID_AUTO, desc,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
     memguard_sysctl_desc, "A", "Short description of memory type to monitor");
 
-/*
- * Global MemGuard data.
- */
-static vm_map_t memguard_map;
-static unsigned long memguard_mapsize;
-static unsigned long memguard_mapused;
-struct memguard_entry {
-	STAILQ_ENTRY(memguard_entry) entries;
-	void *ptr;
-};
-static struct memguard_fifo {
-	struct memguard_entry *stqh_first;
-	struct memguard_entry **stqh_last;
-	int index;
-} memguard_fifo_pool[MAX_PAGES_PER_ITEM];
+static vm_offset_t memguard_cursor;
+static vm_offset_t memguard_base;
+static vm_size_t memguard_mapsize;
+static vm_size_t memguard_physlimit;
+static u_long memguard_wasted;
+static u_long memguard_wrap;
+static u_long memguard_succ;
+static u_long memguard_fail_kva;
+static u_long memguard_fail_pgs;
+
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, cursor, CTLFLAG_RD,
+    &memguard_cursor, 0, "MemGuard cursor");
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, mapsize, CTLFLAG_RD,
+    &memguard_mapsize, 0, "MemGuard private arena size");
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, phys_limit, CTLFLAG_RD,
+    &memguard_physlimit, 0, "Limit on MemGuard memory consumption");
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, wasted, CTLFLAG_RD,
+    &memguard_wasted, 0, "Excess memory used through page promotion");
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, wrapcnt, CTLFLAG_RD,
+    &memguard_wrap, 0, "MemGuard cursor wrap count");
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, numalloc, CTLFLAG_RD,
+    &memguard_succ, 0, "Count of successful MemGuard allocations");
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, fail_kva, CTLFLAG_RD,
+    &memguard_fail_kva, 0, "MemGuard failures due to lack of KVA");
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, fail_pgs, CTLFLAG_RD,
+    &memguard_fail_pgs, 0, "MemGuard failures due to lack of pages");
+
+#define MG_GUARD_AROUND		0x001
+#define MG_GUARD_ALLLARGE	0x002
+#define MG_GUARD_NOFREE		0x004
+static int memguard_options = MG_GUARD_AROUND;
+SYSCTL_INT(_vm_memguard, OID_AUTO, options, CTLFLAG_RWTUN,
+    &memguard_options, 0,
+    "MemGuard options:\n"
+    "\t0x001 - add guard pages around each allocation\n"
+    "\t0x002 - always use MemGuard for allocations over a page\n"
+    "\t0x004 - guard uma(9) zones with UMA_ZONE_NOFREE flag");
+
+static u_int memguard_minsize;
+static u_long memguard_minsize_reject;
+SYSCTL_UINT(_vm_memguard, OID_AUTO, minsize, CTLFLAG_RW,
+    &memguard_minsize, 0, "Minimum size for page promotion");
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, minsize_reject, CTLFLAG_RD,
+    &memguard_minsize_reject, 0, "# times rejected for size");
+
+static u_int memguard_frequency;
+static u_long memguard_frequency_hits;
+SYSCTL_UINT(_vm_memguard, OID_AUTO, frequency, CTLFLAG_RWTUN,
+    &memguard_frequency, 0, "Times in 100000 that MemGuard will randomly run");
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, frequency_hits, CTLFLAG_RD,
+    &memguard_frequency_hits, 0, "# times MemGuard randomly chose");
+
 
 /*
- * Local prototypes.
+ * Return a fudged value to be used for vm_kmem_size for allocating
+ * the kmem_map.  The memguard memory will be a submap.
  */
-static void memguard_guard(void *addr, int numpgs);
-static void memguard_unguard(void *addr, int numpgs);
-static struct memguard_fifo *vtomgfifo(vm_offset_t va);
-static void vsetmgfifo(vm_offset_t va, struct memguard_fifo *mgfifo);
-static void vclrmgfifo(vm_offset_t va);
+unsigned long
+memguard_fudge(unsigned long km_size, const struct vm_map *parent_map)
+{
+	u_long mem_pgs, parent_size;
 
-/*
- * Local macros.  MemGuard data is global, so replace these with whatever
- * your system uses to protect global data (if it is kernel-level
- * parallelized).  This is for porting among BSDs.
- */
-#define	MEMGUARD_CRIT_SECTION_DECLARE	static struct mtx memguard_mtx
-#define	MEMGUARD_CRIT_SECTION_INIT				\
-	mtx_init(&memguard_mtx, "MemGuard mtx", NULL, MTX_DEF)
-#define	MEMGUARD_CRIT_SECTION_ENTER	mtx_lock(&memguard_mtx)
-#define	MEMGUARD_CRIT_SECTION_EXIT	mtx_unlock(&memguard_mtx)
-MEMGUARD_CRIT_SECTION_DECLARE;
+	vm_memguard_divisor = 10;
+	/* CTFLAG_RDTUN doesn't work during the early boot process. */
+	TUNABLE_INT_FETCH("vm.memguard.divisor", &vm_memguard_divisor);
+
+	parent_size = vm_map_max(parent_map) - vm_map_min(parent_map) +
+	    PAGE_SIZE;
+	/* Pick a conservative value if provided value sucks. */
+	if ((vm_memguard_divisor <= 0) ||
+	    ((parent_size / vm_memguard_divisor) == 0))
+		vm_memguard_divisor = 10;
+	/*
+	 * Limit consumption of physical pages to
+	 * 1/vm_memguard_divisor of system memory.  If the KVA is
+	 * smaller than this then the KVA limit comes into play first.
+	 * This prevents memguard's page promotions from completely
+	 * using up memory, since most malloc(9) calls are sub-page.
+	 */
+	mem_pgs = vm_cnt.v_page_count;
+	memguard_physlimit = (mem_pgs / vm_memguard_divisor) * PAGE_SIZE;
+	/*
+	 * We want as much KVA as we can take safely.  Use at most our
+	 * allotted fraction of the parent map's size.  Limit this to
+	 * twice the physical memory to avoid using too much memory as
+	 * pagetable pages (size must be multiple of PAGE_SIZE).
+	 */
+	memguard_mapsize = round_page(parent_size / vm_memguard_divisor);
+	if (memguard_mapsize / (2 * PAGE_SIZE) > mem_pgs)
+		memguard_mapsize = mem_pgs * 2 * PAGE_SIZE;
+	if (km_size + memguard_mapsize > parent_size)
+		memguard_mapsize = 0;
+	return (km_size + memguard_mapsize);
+}
 
 /*
  * Initialize the MemGuard mock allocator.  All objects from MemGuard come
  * out of a single VM map (contiguous chunk of address space).
  */
 void
-memguard_init(vm_map_t parent_map, unsigned long size)
+memguard_init(vmem_t *parent)
 {
-	char *base, *limit;
-	int i;
+	vm_offset_t base;
 
-	/* size must be multiple of PAGE_SIZE */
-	size /= PAGE_SIZE;
-	size++;
-	size *= PAGE_SIZE;
-
-	memguard_map = kmem_suballoc(parent_map, (vm_offset_t *)&base,
-	    (vm_offset_t *)&limit, (vm_size_t)size, FALSE);
-	memguard_map->system_map = 1;
-	memguard_mapsize = size;
-	memguard_mapused = 0;
-
-	MEMGUARD_CRIT_SECTION_INIT;
-	MEMGUARD_CRIT_SECTION_ENTER;
-	for (i = 0; i < MAX_PAGES_PER_ITEM; i++) {
-		STAILQ_INIT(&memguard_fifo_pool[i]);
-		memguard_fifo_pool[i].index = i;
-	}
-	MEMGUARD_CRIT_SECTION_EXIT;
+	vmem_alloc(parent, memguard_mapsize, M_BESTFIT | M_WAITOK, &base);
+	vmem_init(memguard_arena, "memguard arena", base, memguard_mapsize,
+	    PAGE_SIZE, 0, M_WAITOK);
+	memguard_cursor = base;
+	memguard_base = base;
 
 	printf("MEMGUARD DEBUGGING ALLOCATOR INITIALIZED:\n");
-	printf("\tMEMGUARD map base: %p\n", base);
-	printf("\tMEMGUARD map limit: %p\n", limit);
-	printf("\tMEMGUARD map size: %ld (Bytes)\n", size);
+	printf("\tMEMGUARD map base: 0x%lx\n", (u_long)base);
+	printf("\tMEMGUARD map size: %jd KBytes\n",
+	    (uintmax_t)memguard_mapsize >> 10);
 }
 
 /*
- * Allocate a single object of specified size with specified flags (either
- * M_WAITOK or M_NOWAIT).
+ * Run things that can't be done as early as memguard_init().
+ */
+static void
+memguard_sysinit(void)
+{
+	struct sysctl_oid_list *parent;
+
+	parent = SYSCTL_STATIC_CHILDREN(_vm_memguard);
+
+	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "mapstart", CTLFLAG_RD,
+	    &memguard_base, "MemGuard KVA base");
+	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "maplimit", CTLFLAG_RD,
+	    &memguard_mapsize, "MemGuard KVA size");
+#if 0
+	SYSCTL_ADD_ULONG(NULL, parent, OID_AUTO, "mapused", CTLFLAG_RD,
+	    &memguard_map->size, "MemGuard KVA used");
+#endif
+}
+SYSINIT(memguard, SI_SUB_KLD, SI_ORDER_ANY, memguard_sysinit, NULL);
+
+/*
+ * v2sizep() converts a virtual address of the first page allocated for
+ * an item to a pointer to u_long recording the size of the original
+ * allocation request.
+ *
+ * This routine is very similar to those defined by UMA in uma_int.h.
+ * The difference is that this routine stores the originally allocated
+ * size in one of the page's fields that is unused when the page is
+ * wired rather than the object field, which is used.
+ */
+static u_long *
+v2sizep(vm_offset_t va)
+{
+	vm_paddr_t pa;
+	struct vm_page *p;
+
+	pa = pmap_kextract(va);
+	if (pa == 0)
+		panic("MemGuard detected double-free of %p", (void *)va);
+	p = PHYS_TO_VM_PAGE(pa);
+	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
+	    ("MEMGUARD: Expected wired page %p in vtomgfifo!", p));
+	return (&p->plinks.memguard.p);
+}
+
+static u_long *
+v2sizev(vm_offset_t va)
+{
+	vm_paddr_t pa;
+	struct vm_page *p;
+
+	pa = pmap_kextract(va);
+	if (pa == 0)
+		panic("MemGuard detected double-free of %p", (void *)va);
+	p = PHYS_TO_VM_PAGE(pa);
+	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
+	    ("MEMGUARD: Expected wired page %p in vtomgfifo!", p));
+	return (&p->plinks.memguard.v);
+}
+
+/*
+ * Allocate a single object of specified size with specified flags
+ * (either M_WAITOK or M_NOWAIT).
  */
 void *
-memguard_alloc(unsigned long size, int flags)
+memguard_alloc(unsigned long req_size, int flags)
 {
-	void *obj;
-	struct memguard_entry *e = NULL;
-	int numpgs;
+	vm_offset_t addr;
+	u_long size_p, size_v;
+	int do_guard, rv;
 
-	numpgs = size / PAGE_SIZE;
-	if ((size % PAGE_SIZE) != 0)
-		numpgs++;
-	if (numpgs > MAX_PAGES_PER_ITEM)
-		panic("MEMGUARD: You must increase MAX_PAGES_PER_ITEM " \
-		    "in memguard.c (requested: %d pages)", numpgs);
-	if (numpgs == 0)
-		return NULL;
+	size_p = round_page(req_size);
+	if (size_p == 0)
+		return (NULL);
+	/*
+	 * To ensure there are holes on both sides of the allocation,
+	 * request 2 extra pages of KVA.  We will only actually add a
+	 * vm_map_entry and get pages for the original request.  Save
+	 * the value of memguard_options so we have a consistent
+	 * value.
+	 */
+	size_v = size_p;
+	do_guard = (memguard_options & MG_GUARD_AROUND) != 0;
+	if (do_guard)
+		size_v += 2 * PAGE_SIZE;
 
 	/*
-	 * If we haven't exhausted the memguard_map yet, allocate from
-	 * it and grab a new page, even if we have recycled pages in our
-	 * FIFO.  This is because we wish to allow recycled pages to live
-	 * guarded in the FIFO for as long as possible in order to catch
-	 * even very late tamper-after-frees, even though it means that
-	 * we end up wasting more memory, this is only a DEBUGGING allocator
-	 * after all.
+	 * When we pass our memory limit, reject sub-page allocations.
+	 * Page-size and larger allocations will use the same amount
+	 * of physical memory whether we allocate or hand off to
+	 * uma_large_alloc(), so keep those.
 	 */
-	MEMGUARD_CRIT_SECTION_ENTER;
-	if (memguard_mapused >= memguard_mapsize) {
-		e = STAILQ_FIRST(&memguard_fifo_pool[numpgs - 1]);
-		if (e != NULL) {
-			STAILQ_REMOVE(&memguard_fifo_pool[numpgs - 1], e,
-			    memguard_entry, entries);
-			MEMGUARD_CRIT_SECTION_EXIT;
-			obj = e->ptr;
-			free(e, M_TEMP);
-			memguard_unguard(obj, numpgs);
-			if (flags & M_ZERO)
-				bzero(obj, PAGE_SIZE * numpgs);
-			return obj;
+	if (vmem_size(memguard_arena, VMEM_ALLOC) >= memguard_physlimit &&
+	    req_size < PAGE_SIZE) {
+		addr = (vm_offset_t)NULL;
+		memguard_fail_pgs++;
+		goto out;
+	}
+	/*
+	 * Keep a moving cursor so we don't recycle KVA as long as
+	 * possible.  It's not perfect, since we don't know in what
+	 * order previous allocations will be free'd, but it's simple
+	 * and fast, and requires O(1) additional storage if guard
+	 * pages are not used.
+	 *
+	 * XXX This scheme will lead to greater fragmentation of the
+	 * map, unless vm_map_findspace() is tweaked.
+	 */
+	for (;;) {
+		if (vmem_xalloc(memguard_arena, size_v, 0, 0, 0,
+		    memguard_cursor, VMEM_ADDR_MAX,
+		    M_BESTFIT | M_NOWAIT, &addr) == 0)
+			break;
+		/*
+		 * The map has no space.  This may be due to
+		 * fragmentation, or because the cursor is near the
+		 * end of the map.
+		 */
+		if (memguard_cursor == memguard_base) {
+			memguard_fail_kva++;
+			addr = (vm_offset_t)NULL;
+			goto out;
 		}
-		MEMGUARD_CRIT_SECTION_EXIT;
-		if (flags & M_WAITOK)
-			panic("MEMGUARD: Failed with M_WAITOK: " \
-			    "memguard_map too small");
-		return NULL;
+		memguard_wrap++;
+		memguard_cursor = memguard_base;
 	}
-	memguard_mapused += (PAGE_SIZE * numpgs);
-	MEMGUARD_CRIT_SECTION_EXIT;
+	if (do_guard)
+		addr += PAGE_SIZE;
+	rv = kmem_back(kmem_object, addr, size_p, flags);
+	if (rv != KERN_SUCCESS) {
+		vmem_xfree(memguard_arena, addr, size_v);
+		memguard_fail_pgs++;
+		addr = (vm_offset_t)NULL;
+		goto out;
+	}
+	memguard_cursor = addr + size_v;
+	*v2sizep(trunc_page(addr)) = req_size;
+	*v2sizev(trunc_page(addr)) = size_v;
+	memguard_succ++;
+	if (req_size < PAGE_SIZE) {
+		memguard_wasted += (PAGE_SIZE - req_size);
+		if (do_guard) {
+			/*
+			 * Align the request to 16 bytes, and return
+			 * an address near the end of the page, to
+			 * better detect array overrun.
+			 */
+			req_size = roundup2(req_size, 16);
+			addr += (PAGE_SIZE - req_size);
+		}
+	}
+out:
+	return ((void *)addr);
+}
 
-	obj = (void *)kmem_malloc(memguard_map, PAGE_SIZE * numpgs, flags);
-	if (obj != NULL) {
-		vsetmgfifo((vm_offset_t)obj, &memguard_fifo_pool[numpgs - 1]);
-		if (flags & M_ZERO)
-			bzero(obj, PAGE_SIZE * numpgs);
-	} else {
-		MEMGUARD_CRIT_SECTION_ENTER;
-		memguard_mapused -= (PAGE_SIZE * numpgs);
-		MEMGUARD_CRIT_SECTION_EXIT;
-	}
-	return obj;
+int
+is_memguard_addr(void *addr)
+{
+	vm_offset_t a = (vm_offset_t)(uintptr_t)addr;
+
+	return (a >= memguard_base && a < memguard_base + memguard_mapsize);
 }
 
 /*
  * Free specified single object.
  */
 void
-memguard_free(void *addr)
+memguard_free(void *ptr)
 {
-	struct memguard_entry *e;
-	struct memguard_fifo *mgfifo;
-	int idx;
-	int *temp;
+	vm_offset_t addr;
+	u_long req_size, size, sizev;
+	char *temp;
+	int i;
 
-	addr = (void *)trunc_page((unsigned long)addr);
+	addr = trunc_page((uintptr_t)ptr);
+	req_size = *v2sizep(addr);
+	sizev = *v2sizev(addr);
+	size = round_page(req_size);
 
 	/*
-	 * Page should not be guarded by now, so force a write.
-	 * The purpose of this is to increase the likelihood of catching a
-	 * double-free, but not necessarily a tamper-after-free (the second
-	 * thread freeing might not write before freeing, so this forces it
-	 * to and, subsequently, trigger a fault).
+	 * Page should not be guarded right now, so force a write.
+	 * The purpose of this is to increase the likelihood of
+	 * catching a double-free, but not necessarily a
+	 * tamper-after-free (the second thread freeing might not
+	 * write before freeing, so this forces it to and,
+	 * subsequently, trigger a fault).
 	 */
-	temp = (int *)((unsigned long)addr + (PAGE_SIZE/2)); 	/* in page */
-	*temp = 0xd34dc0d3;
+	temp = ptr;
+	for (i = 0; i < size; i += PAGE_SIZE)
+		temp[i] = 'M';
 
-	mgfifo = vtomgfifo((vm_offset_t)addr);
-	idx = mgfifo->index;
-	memguard_guard(addr, idx + 1);
-	e = malloc(sizeof(struct memguard_entry), M_TEMP, M_NOWAIT);
-	if (e == NULL) {
-		MEMGUARD_CRIT_SECTION_ENTER;
-		memguard_mapused -= (PAGE_SIZE * (idx + 1));
-		MEMGUARD_CRIT_SECTION_EXIT;
-		memguard_unguard(addr, idx + 1);	/* just in case */
-		vclrmgfifo((vm_offset_t)addr);
-		kmem_free(memguard_map, (vm_offset_t)addr,
-		    PAGE_SIZE * (idx + 1));
-		return;
+	/*
+	 * This requires carnal knowledge of the implementation of
+	 * kmem_free(), but since we've already replaced kmem_malloc()
+	 * above, it's not really any worse.  We want to use the
+	 * vm_map lock to serialize updates to memguard_wasted, since
+	 * we had the lock at increment.
+	 */
+	kmem_unback(kmem_object, addr, size);
+	if (sizev > size)
+		addr -= PAGE_SIZE;
+	vmem_xfree(memguard_arena, addr, sizev);
+	if (req_size < PAGE_SIZE)
+		memguard_wasted -= (PAGE_SIZE - req_size);
+}
+
+/*
+ * Re-allocate an allocation that was originally guarded.
+ */
+void *
+memguard_realloc(void *addr, unsigned long size, struct malloc_type *mtp,
+    int flags)
+{
+	void *newaddr;
+	u_long old_size;
+
+	/*
+	 * Allocate the new block.  Force the allocation to be guarded
+	 * as the original may have been guarded through random
+	 * chance, and that should be preserved.
+	 */
+	if ((newaddr = memguard_alloc(size, flags)) == NULL)
+		return (NULL);
+
+	/* Copy over original contents. */
+	old_size = *v2sizep(trunc_page((uintptr_t)addr));
+	bcopy(addr, newaddr, min(size, old_size));
+	memguard_free(addr);
+	return (newaddr);
+}
+
+static int
+memguard_cmp(unsigned long size)
+{
+
+	if (size < memguard_minsize) {
+		memguard_minsize_reject++;
+		return (0);
 	}
-	e->ptr = addr;
-	MEMGUARD_CRIT_SECTION_ENTER;
-	STAILQ_INSERT_TAIL(mgfifo, e, entries);
-	MEMGUARD_CRIT_SECTION_EXIT;
+	if ((memguard_options & MG_GUARD_ALLLARGE) != 0 && size >= PAGE_SIZE)
+		return (1);
+	if (memguard_frequency > 0 &&
+	    (random() % 100000) < memguard_frequency) {
+		memguard_frequency_hits++;
+		return (1);
+	}
+
+	return (0);
 }
 
 int
-memguard_cmp(struct malloc_type *mtp)
+memguard_cmp_mtp(struct malloc_type *mtp, unsigned long size)
 {
+
+	if (memguard_cmp(size))
+		return(1);
 
 #if 1
 	/*
@@ -329,77 +497,20 @@ memguard_cmp(struct malloc_type *mtp)
 #endif
 }
 
-/*
- * Guard a page containing specified object (make it read-only so that
- * future writes to it fail).
- */
-static void
-memguard_guard(void *addr, int numpgs)
+int
+memguard_cmp_zone(uma_zone_t zone)
 {
-	void *a = (void *)trunc_page((unsigned long)addr);
-	if (vm_map_protect(memguard_map, (vm_offset_t)a,
-	    (vm_offset_t)((unsigned long)a + (PAGE_SIZE * numpgs)),
-	    VM_PROT_READ, FALSE) != KERN_SUCCESS)
-		panic("MEMGUARD: Unable to guard page!");
-}
 
-/*
- * Unguard a page containing specified object (make it read-and-write to
- * allow full data access).
- */
-static void
-memguard_unguard(void *addr, int numpgs)
-{
-	void *a = (void *)trunc_page((unsigned long)addr);
-	if (vm_map_protect(memguard_map, (vm_offset_t)a,
-	    (vm_offset_t)((unsigned long)a + (PAGE_SIZE * numpgs)),
-	    VM_PROT_DEFAULT, FALSE) != KERN_SUCCESS)
-		panic("MEMGUARD: Unable to unguard page!");
-}
+	if ((memguard_options & MG_GUARD_NOFREE) == 0 &&
+	    zone->uz_flags & UMA_ZONE_NOFREE)
+		return (0);
 
-/*
- * vtomgfifo() converts a virtual address of the first page allocated for
- * an item to a memguard_fifo_pool reference for the corresponding item's
- * size.
- *
- * vsetmgfifo() sets a reference in an underlying page for the specified
- * virtual address to an appropriate memguard_fifo_pool.
- *
- * These routines are very similar to those defined by UMA in uma_int.h.
- * The difference is that these routines store the mgfifo in one of the
- * page's fields that is unused when the page is wired rather than the
- * object field, which is used.
- */
-static struct memguard_fifo *
-vtomgfifo(vm_offset_t va)
-{
-	vm_page_t p;
-	struct memguard_fifo *mgfifo;
+	if (memguard_cmp(zone->uz_size))
+		return (1);
 
-	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
-	    ("MEMGUARD: Expected wired page in vtomgfifo!"));
-	mgfifo = (struct memguard_fifo *)p->pageq.tqe_next;
-	return mgfifo;
-}
-
-static void
-vsetmgfifo(vm_offset_t va, struct memguard_fifo *mgfifo)
-{
-	vm_page_t p;
-
-	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
-	    ("MEMGUARD: Expected wired page in vsetmgfifo!"));
-	p->pageq.tqe_next = (vm_page_t)mgfifo;
-}
-
-static void vclrmgfifo(vm_offset_t va)
-{
-	vm_page_t p;
-
-	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
-	    ("MEMGUARD: Expected wired page in vclrmgfifo!"));
-	p->pageq.tqe_next = NULL;
+	/*
+	 * The safest way of comparsion is to always compare zone name,
+	 * but it is also the slowest way.
+	 */
+	return (strcmp(zone->uz_name, vm_memguard_desc) == 0);
 }

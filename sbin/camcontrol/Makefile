@@ -1,19 +1,18 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	camcontrol
 SRCS=	camcontrol.c util.c
 .if !defined(RELEASE_CRUNCH)
-SRCS+=	modeedit.c
+SRCS+=	attrib.c epc.c fwdownload.c modeedit.c persist.c progress.c zone.c
 .else
 CFLAGS+= -DMINIMALISTIC
 .endif
-.if ${MACHINE_ARCH} == "arm"
+# This is verboten
+.if ${MACHINE_CPUARCH} == "arm"
 WARNS?= 3
-.else
-WARNS?=	6
 .endif
-DPADD=	${LIBCAM} ${LIBSBUF} ${LIBUTIL}
-LDADD=	-lcam -lsbuf -lutil
+LIBADD=	cam sbuf util
 MAN=	camcontrol.8
 
 .include <bsd.prog.mk>

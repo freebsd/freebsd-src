@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_geom.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -34,19 +36,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/bio.h>
-#include <sys/sysctl.h>
+#include <sys/ctype.h>
 #include <sys/malloc.h>
 #include <sys/libkern.h>
+#include <sys/sbuf.h>
+#include <sys/stddef.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 #include <geom/label/g_label.h>
 
+FEATURE(geom_label, "GEOM labeling support");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, label, CTLFLAG_RW, 0, "GEOM_LABEL stuff");
 u_int g_label_debug = 0;
-TUNABLE_INT("kern.geom.label.debug", &g_label_debug);
-SYSCTL_UINT(_kern_geom_label, OID_AUTO, debug, CTLFLAG_RW, &g_label_debug, 0,
+SYSCTL_UINT(_kern_geom_label, OID_AUTO, debug, CTLFLAG_RWTUN, &g_label_debug, 0,
     "Debug level");
 
 static int g_label_destroy_geom(struct gctl_req *req, struct g_class *mp,
@@ -77,6 +82,9 @@ struct g_class g_label_class = {
  * 6. Add your file system to manual page sbin/geom/class/label/glabel.8.
  */
 const struct g_label_desc *g_labels[] = {
+	&g_label_gpt,
+	&g_label_gpt_uuid,
+#ifdef GEOM_LABEL
 	&g_label_ufs_id,
 	&g_label_ufs_volume,
 	&g_label_iso9660,
@@ -84,11 +92,25 @@ const struct g_label_desc *g_labels[] = {
 	&g_label_ext2fs,
 	&g_label_reiserfs,
 	&g_label_ntfs,
-	&g_label_gpt,
-	&g_label_gpt_uuid,
+	&g_label_disk_ident,
+#endif
 	NULL
 };
 
+void
+g_label_rtrim(char *label, size_t size)
+{
+	ptrdiff_t i;
+
+	for (i = size - 1; i >= 0; i--) {
+		if (label[i] == '\0')
+			continue;
+		else if (label[i] == ' ')
+			label[i] = '\0';
+		else
+			break;
+	}
+}
 
 static int
 g_label_destroy_geom(struct gctl_req *req __unused, struct g_class *mp,
@@ -120,21 +142,52 @@ g_label_spoiled(struct g_consumer *cp)
 	g_slice_spoiled(cp);
 }
 
+static void
+g_label_resize(struct g_consumer *cp)
+{
+
+	G_LABEL_DEBUG(1, "Label %s resized.",
+	    LIST_FIRST(&cp->geom->provider)->name);
+
+	g_slice_config(cp->geom, 0, G_SLICE_CONFIG_FORCE, (off_t)0,
+	    cp->provider->mediasize, cp->provider->sectorsize, "notused");
+}
+
 static int
 g_label_is_name_ok(const char *label)
 {
 	const char *s;
 
-	/* Check is the label starts from ../ */
+	/* Check if the label starts from ../ */
 	if (strncmp(label, "../", 3) == 0)
 		return (0);
-	/* Check is the label contains /../ */
+	/* Check if the label contains /../ */
 	if (strstr(label, "/../") != NULL)
 		return (0);
-	/* Check is the label ends at ../ */
+	/* Check if the label ends at ../ */
 	if ((s = strstr(label, "/..")) != NULL && s[3] == '\0')
 		return (0);
 	return (1);
+}
+
+static void
+g_label_mangle_name(char *label, size_t size)
+{
+	struct sbuf *sb;
+	const u_char *c;
+
+	sb = sbuf_new(NULL, NULL, size, SBUF_FIXEDLEN);
+	for (c = label; *c != '\0'; c++) {
+		if (!isprint(*c) || isspace(*c) || *c =='"' || *c == '%')
+			sbuf_printf(sb, "%%%02X", *c);
+		else
+			sbuf_putc(sb, *c);
+	}
+	if (sbuf_finish(sb) != 0)
+		label[0] = '\0';
+	else
+		strlcpy(label, sbuf_data(sb), size);
+	sbuf_delete(sb);
 }
 
 static struct g_geom *
@@ -152,6 +205,8 @@ g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		G_LABEL_DEBUG(0, "%s contains suspicious label, skipping.",
 		    pp->name);
 		G_LABEL_DEBUG(1, "%s suspicious label is: %s", pp->name, label);
+		if (req != NULL)
+			gctl_error(req, "Label name %s is invalid.", label);
 		return (NULL);
 	}
 	gp = NULL;
@@ -160,6 +215,8 @@ g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		pp2 = LIST_FIRST(&gp->provider);
 		if (pp2 == NULL)
+			continue;
+		if ((pp2->flags & G_PF_ORPHAN) != 0)
 			continue;
 		if (strcmp(pp2->name, name) == 0) {
 			G_LABEL_DEBUG(1, "Label %s(%s) already exists (%s).",
@@ -180,9 +237,10 @@ g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	}
 	gp->orphan = g_label_orphan;
 	gp->spoiled = g_label_spoiled;
+	gp->resize = g_label_resize;
 	g_access(cp, -1, 0, 0);
 	g_slice_config(gp, 0, G_SLICE_CONFIG_SET, (off_t)0, mediasize,
-	    pp->sectorsize, name);
+	    pp->sectorsize, "%s", name);
 	G_LABEL_DEBUG(1, "Label for provider %s is %s.", pp->name, name);
 	return (gp);
 }
@@ -204,10 +262,8 @@ g_label_destroy(struct g_geom *gp, boolean_t force)
 			    pp->acr, pp->acw, pp->ace);
 			return (EBUSY);
 		}
-	} else {
-		G_LABEL_DEBUG(1, "Label %s removed.",
-		    LIST_FIRST(&gp->provider)->name);
-	}
+	} else if (pp != NULL)
+		G_LABEL_DEBUG(1, "Label %s removed.", pp->name);
 	g_slice_spoiled(LIST_FIRST(&gp->consumer));
 	return (0);
 }
@@ -271,6 +327,10 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	G_LABEL_DEBUG(2, "Tasting %s.", pp->name);
 
+	/* Skip providers that are already open for writing. */
+	if (pp->acw > 0)
+		return (NULL);
+
 	if (strcmp(pp->geom->class->name, mp->name) == 0)
 		return (NULL);
 
@@ -310,10 +370,13 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		    pp->mediasize - pp->sectorsize);
 	} while (0);
 	for (i = 0; g_labels[i] != NULL; i++) {
-		char label[64];
+		char label[128];
 
+		if (g_labels[i]->ld_enabled == 0)
+			continue;
 		g_topology_unlock();
 		g_labels[i]->ld_taste(cp, label, sizeof(label));
+		g_label_mangle_name(label, sizeof(label));
 		g_topology_lock();
 		if (label[0] == '\0')
 			continue;
@@ -343,7 +406,7 @@ g_label_ctl_create(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (*nargs != 2) {
-		gctl_error(req, "Invalid number of argument.");
+		gctl_error(req, "Invalid number of arguments.");
 		return;
 	}
 	/*

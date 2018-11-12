@@ -61,7 +61,8 @@ command_boot(int argc, char *argv[])
 
 	/* XXX maybe we should discard everything and start again? */
 	if (file_findfile(NULL, NULL) != NULL) {
-	    sprintf(command_errbuf, "can't boot '%s', kernel module already loaded", argv[1]);
+	    snprintf(command_errbuf, sizeof(command_errbuf),
+		"can't boot '%s', kernel module already loaded", argv[1]);
 	    return(CMD_ERROR);
 	}
 
@@ -129,7 +130,8 @@ command_autoboot(int argc, char *argv[])
     case 2:
 	howlong = strtol(argv[1], &cp, 0);
 	if (*cp != 0) {
-	    sprintf(command_errbuf, "bad delay '%s'", argv[1]);
+	    snprintf(command_errbuf, sizeof(command_errbuf),
+		"bad delay '%s'", argv[1]);
 	    return(CMD_ERROR);
 	}
 	/* FALLTHROUGH */
@@ -162,6 +164,9 @@ autoboot(int timeout, char *prompt)
     int		c, yes;
     char	*argv[2], *cp, *ep;
     char	*kernelname;
+#ifdef BOOT_PROMPT_123
+    const char	*seq = "123", *p = seq;
+#endif
 
     autoboot_tried = 1;
 
@@ -192,14 +197,29 @@ autoboot(int timeout, char *prompt)
 
         yes = 0;
 
+#ifdef BOOT_PROMPT_123
+        printf("%s\n", (prompt == NULL) ? "Hit [Enter] to boot immediately, or "
+	    "1 2 3 sequence for command prompt." : prompt);
+#else
         printf("%s\n", (prompt == NULL) ? "Hit [Enter] to boot immediately, or any other key for command prompt." : prompt);
+#endif
 
         for (;;) {
 	    if (ischar()) {
 	        c = getchar();
+#ifdef BOOT_PROMPT_123
+		if ((c == '\r') || (c == '\n')) {
+			yes = 1;
+			break;
+		} else if (c != *p++)
+			p = seq;
+		if (*p == 0)
+			break;
+#else
 	        if ((c == '\r') || (c == '\n'))
 		    yes = 1;
 	        break;
+#endif
 	    }
 	    ntime = time(NULL);
 	    if (ntime >= when) {
@@ -293,12 +313,12 @@ getrootmount(char *rootdev)
     if (getenv("vfs.root.mountfrom") != NULL)
 	return(0);
 
+    error = 1;
     sprintf(lbuf, "%s/etc/fstab", rootdev);
     if ((fd = open(lbuf, O_RDONLY)) < 0)
-	return(1);
+	goto notfound;
 
     /* loop reading lines from /etc/fstab    What was that about sscanf again? */
-    error = 1;
     while (fgetstr(lbuf, sizeof(lbuf), fd) >= 0) {
 	if ((lbuf[0] == 0) || (lbuf[0] == '#'))
 	    continue;
@@ -359,6 +379,20 @@ getrootmount(char *rootdev)
 	break;
     }
     close(fd);
+
+notfound:
+    if (error) {
+	const char *currdev;
+
+	currdev = getenv("currdev");
+	if (currdev != NULL && strncmp("zfs:", currdev, 4) == 0) {
+	    cp = strdup(currdev);
+	    cp[strlen(cp) - 1] = '\0';
+	    setenv("vfs.root.mountfrom", cp, 0);
+	    error = 0;
+	}
+    }
+
     return(error);
 }
 

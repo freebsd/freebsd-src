@@ -1,40 +1,6 @@
-.\"-
-.\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
-.\" Copyright (c) 2004-2007 Dag-Erling Smørgrav
-.\" All rights reserved.
-.\"
-.\" This software was developed for the FreeBSD Project by ThinkSec AS and
-.\" Network Associates Laboratories, the Security Research Division of
-.\" Network Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035
-.\" ("CBOSS"), as part of the DARPA CHATS research program.
-.\"
-.\" Redistribution and use in source and binary forms, with or without
-.\" modification, are permitted provided that the following conditions
-.\" are met:
-.\" 1. Redistributions of source code must retain the above copyright
-.\"    notice, this list of conditions and the following disclaimer.
-.\" 2. Redistributions in binary form must reproduce the above copyright
-.\"    notice, this list of conditions and the following disclaimer in the
-.\"    documentation and/or other materials provided with the distribution.
-.\" 3. The name of the author may not be used to endorse or promote
-.\"    products derived from this software without specific prior written
-.\"    permission.
-.\"
-.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-.\" SUCH DAMAGE.
-.\"
-.\" $P4$
-.\"
-.Dd December 21, 2007
+.\" Generated from pam_get_user.c by gendoc.pl
+.\" $Id: pam_get_user.c 670 2013-03-17 19:26:07Z des $
+.Dd September 12, 2014
 .Dt PAM_GET_USER 3
 .Os
 .Sh NAME
@@ -49,18 +15,19 @@
 .Fn pam_get_user "pam_handle_t *pamh" "const char **user" "const char *prompt"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn pam_get_user
 function returns the name of the target user, as
 specified to
 .Xr pam_start 3 .
 If no user was specified, nor set using
 .Xr pam_set_item 3 ,
-.Nm
+.Fn pam_get_user
 will prompt for a user name.
 Either way, a pointer to the user name is stored in the location
 pointed to by the
 .Fa user
-argument.
+argument, and the corresponding PAM item is
+updated.
 .Pp
 The
 .Fa prompt
@@ -70,14 +37,35 @@ If it is
 .Dv NULL ,
 the
 .Dv PAM_USER_PROMPT
-will be used.
+item will be used.
 If that item is also
 .Dv NULL ,
 a hardcoded default prompt will be used.
-.Pp
+Additionally, when
+.Fn pam_get_user
+is called from a service module, the
+prompt may be affected by module options as described below.
+The prompt is then expanded using
+.Xr openpam_subst 3
+before it is passed to
+the conversation function.
+.Sh MODULE OPTIONS
+When called by a service module,
+.Fn pam_get_user
+will recognize the
+following module options:
+.Bl -tag -width 18n
+.It Dv user_prompt
+Prompt to use when asking for the user name.
+This option overrides both the
+.Fa prompt
+argument and the
+.Dv PAM_USER_PROMPT
+item.
+.El
 .Sh RETURN VALUES
 The
-.Nm
+.Fn pam_get_user
 function returns one of the following values:
 .Bl -tag -width 18n
 .It Bq Er PAM_BUF_ERR
@@ -88,7 +76,10 @@ Conversation failure.
 System error.
 .El
 .Sh SEE ALSO
+.Xr openpam_get_option 3 ,
+.Xr openpam_subst 3 ,
 .Xr pam 3 ,
+.Xr pam_conv 3 ,
 .Xr pam_get_authtok 3 ,
 .Xr pam_get_item 3 ,
 .Xr pam_set_item 3 ,
@@ -101,11 +92,15 @@ System error.
 .Re
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn pam_get_user
+function and this manual page were
+developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq des@des.no .

@@ -1,0 +1,6 @@
+.\" $FreeBSD$
+Use the
+.Xr mandoc 1
+version of
+.Xr makewhatis 8
+database and utilities.

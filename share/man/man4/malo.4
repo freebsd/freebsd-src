@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2008 Weongyo Jeong <weongyo@freebsd.org>
+.\" Copyright (c) 2008 Weongyo Jeong <weongyo@FreeBSD.org>
 .\" All rights reserved.
 .\""
 .\" Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd March 26, 2009
+.Dd June 24, 2015
 .Dt MALO 4
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@ kernel configuration file:
 .Ed
 .Pp
 Alternatively, to load the driver as a
-module at boot time, place the following lines in
+module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_malo_load="YES"
@@ -69,30 +69,24 @@ Only one virtual interface may be configured at any time.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Pp
-This driver requires the
-.Nm malofw
-be installed before it will work.
-The firmware files are not publicly available.
-A package of the firmware which can be installed via
-.Xr pkg_add 1
-with:
-.Bd -literal -offset indent
-http://weongyo.org/project/malo/malo-firmware-1.4.tar.gz
-.Ed
+This driver requires firmware to be loaded before it will work.
+The
+.Pa ports/net/malo-firmware-kmod
+port needs to be installed before
+.Xr ifconfig 8
+will work.
 .Sh HARDWARE
 The following cards are among those supported by the
 .Nm
 driver:
-.Pp
-.Bl -column -compact "Microcom Travelcard" "MALO111" "CardBus" "a/b/g" -offset 6n
-.Em "Card	Chip	Bus	Standard"
-Netgear WG311v3	88W8335	PCI	b/g
-Tenda TWL542P	88W8335	PCI	b/g
-U-Khan UW-2054i	88W8335	PCI	b/g
+.Bl -column "Netgear WG311v3" "88W8335" "PCI" "b/g"
+.Em "Card" Ta Em "Chip" Ta Em "Bus" Ta Em "Standard"
+.It "Netgear WG311v3" Ta "88W8335" Ta "PCI" Ta "b/g"
+.It "Tenda TWL542P" Ta "88W8335" Ta "PCI" Ta "b/g"
+.It "U-Khan UW-2054i" Ta "88W8335" Ta "PCI" Ta "b/g"
 .El
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev malo0 inet 192.168.0.20 \e
     netmask 0xffffff00

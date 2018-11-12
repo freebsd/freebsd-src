@@ -26,7 +26,7 @@
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd April 27, 2000
+.Dd February 19, 2011
 .Dt PTHREAD_SIGMASK 3
 .Os
 .Sh NAME
@@ -38,7 +38,8 @@
 .In pthread.h
 .In signal.h
 .Ft int
-.Fn pthread_sigmask "int how" "const sigset_t *set" "sigset_t *oset"
+.Fn pthread_sigmask "int how" "const sigset_t * restrict set" \
+    "sigset_t * restrict oset"
 .Sh DESCRIPTION
 The
 .Fn pthread_sigmask

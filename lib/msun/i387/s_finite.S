@@ -34,8 +34,7 @@
  */
 
 #include <machine/asm.h>
-
-RCSID("$FreeBSD$")
+__FBSDID("$FreeBSD$")
 
 ENTRY(finite)
 	movl	8(%esp),%eax
@@ -45,3 +44,5 @@ ENTRY(finite)
 	andl	$0x000000ff, %eax
 	ret
 END(finite)
+
+	.section .note.GNU-stack,"",%progbits

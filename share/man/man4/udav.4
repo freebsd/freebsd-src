@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2005
+.Dd November 24, 2015
 .Dt UDAV 4
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@ kernel configuration file:
 .Cd "device ohci"
 .Cd "device usb"
 .Cd "device miibus"
+.Cd "device uether"
 .Cd "device udav"
 .Ed
 .Pp
@@ -87,7 +88,7 @@ For more information on configuring this device, see
 .Xr ifconfig 8
 .Rs
 .%T "Davicom DM9601 data sheet"
-.%O http://www.davicom.com.tw/big5/download/Data%20Sheet/DM9601-DS-P01-930914.pdf
+.%U http://ptm2.cc.utu.fi/ftp/network/cards/DM9601/From_NET/DM9601-DS-P01-930914.pdf
 .Re
 .Sh HISTORY
 The
@@ -98,4 +99,4 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An Shingo WATANABE Aq nabe@nabechan.org .
+.An Shingo WATANABE Aq Mt nabe@nabechan.org .

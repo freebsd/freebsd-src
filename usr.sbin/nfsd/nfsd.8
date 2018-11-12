@@ -28,7 +28,7 @@
 .\"	@(#)nfsd.8	8.4 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd March 29, 1995
+.Dd April 25, 2015
 .Dt NFSD 8
 .Os
 .Sh NAME
@@ -41,6 +41,8 @@ server
 .Op Fl ardute
 .Op Fl n Ar num_servers
 .Op Fl h Ar bindip
+.Op Fl Fl maxthreads Ar max_threads
+.Op Fl Fl minthreads Ar min_threads
 .Sh DESCRIPTION
 The
 .Nm
@@ -51,7 +53,7 @@ At least one
 .Nm
 must be running for a machine to operate as a server.
 .Pp
-Unless otherwise specified, four servers for
+Unless otherwise specified, eight servers per CPU for
 .Tn UDP
 transport are started.
 .Pp
@@ -74,8 +76,17 @@ Unregister the
 service with
 .Xr rpcbind 8
 without creating any servers.
-.It Fl n
-Specifies how many servers to create.
+.It Fl n Ar threads
+Specifies how many servers to create.  This option is equivalent to specifying
+.Fl Fl maxthreads
+and
+.Fl Fl minthreads
+with their respective arguments to
+.Ar threads .
+.It Fl Fl maxthreads Ar threads
+Specifies the maximum servers that will be kept around to service requests.
+.It Fl Fl minthreads Ar threads
+Specifies the minimum servers that will be kept around to service requests.
 .It Fl h Ar bindip
 Specifies which IP address or hostname to bind to on the local host.
 This option is recommended when a host has multiple interfaces.
@@ -101,17 +112,7 @@ Serve
 .Tn UDP NFS
 clients.
 .It Fl e
-Forces
-.Nm
-to try and start the experimental server that includes NFSv4 support in it.
-If this flag isn't specified, the experimental server will only be started
-if it is linked into the kernel and the regular one isn't.
-.br
-ie. The kernel is built with the following:
-.Bd -literal -offset indent -compact
-# options	NFSSERVER
-options		NFSD
-.Ed
+Ignored; included for backward compatibility.
 .El
 .Pp
 For example,
@@ -170,6 +171,24 @@ utility
 would then be used to block nfs-related packets that come in on the outside
 interface.
 .Pp
+If the server has stopped servicing clients and has generated a console message
+like
+.Dq Li "nfsd server cache flooded..." ,
+the value for vfs.nfsd.tcphighwater needs to be increased.
+This should allow the server to again handle requests without a reboot.
+Also, you may want to consider decreasing the value for
+vfs.nfsd.tcpcachetimeo to several minutes (in seconds) instead of 12 hours
+when this occurs.
+.Pp
+Unfortunately making vfs.nfsd.tcphighwater too large can result in the mbuf
+limit being reached, as indicated by a console message
+like
+.Dq Li "kern.ipc.nmbufs limit reached" .
+If you cannot find values of the above
+.Nm sysctl
+values that work, you can disable the DRC cache for TCP by setting
+vfs.nfsd.cachetcp to 0.
+.Pp
 The
 .Nm
 utility has to be terminated with
@@ -195,6 +214,7 @@ just do a
 .Xr nfssvc 2 ,
 .Xr nfsv4 4 ,
 .Xr exports 5 ,
+.Xr stablerestart 5 ,
 .Xr gssd 8 ,
 .Xr ipfw 8 ,
 .Xr mountd 8 ,

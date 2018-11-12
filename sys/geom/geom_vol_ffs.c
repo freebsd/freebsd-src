@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
@@ -41,6 +42,8 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
+
+FEATURE(geom_vol, "GEOM support for volume names from UFS superblock");
 
 #define VOL_FFS_CLASS_NAME "VOL_FFS"
 

@@ -72,7 +72,7 @@ cmx_pccard_probe(device_t dev)
 }
 
 /*
- * Attach to the pccard, and call bus independant attach and
+ * Attach to the pccard, and call bus independent attach and
  * resource allocation routines.
  */
 static int
@@ -112,4 +112,4 @@ static driver_t cmx_pccard_driver = {
 };
 
 DRIVER_MODULE(cmx, pccard, cmx_pccard_driver, cmx_devclass, 0, 0);
-
+PCCARD_PNP_INFO(cmx_pccard_products);

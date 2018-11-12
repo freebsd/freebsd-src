@@ -27,9 +27,9 @@
  */
 
 #include <sys/param.h>
+#include <sys/cpuset.h>
 #include <sys/sysctl.h>
 
-#define	LIBMEMSTAT	/* Cause vm_page.h not to include opt_vmpage.h */
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 
@@ -44,6 +44,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "memstat.h"
 #include "memstat_internal.h"
@@ -77,7 +78,7 @@ memstat_sysctl_uma(struct memory_type_list *list, int flags)
 	struct uma_type_header *uthp;
 	struct uma_percpu_stat *upsp;
 	struct memory_type *mtp;
-	int count, hint_dontsearch, i, j, maxcpus;
+	int count, hint_dontsearch, i, j, maxcpus, maxid;
 	char *buffer, *p;
 	size_t size;
 
@@ -91,21 +92,16 @@ memstat_sysctl_uma(struct memory_type_list *list, int flags)
 	 * from the header.
 	 */
 retry:
-	size = sizeof(maxcpus);
-	if (sysctlbyname("kern.smp.maxcpus", &maxcpus, &size, NULL, 0) < 0) {
+	size = sizeof(maxid);
+	if (sysctlbyname("kern.smp.maxid", &maxid, &size, NULL, 0) < 0) {
 		if (errno == EACCES || errno == EPERM)
 			list->mtl_error = MEMSTAT_ERROR_PERMISSION;
 		else
 			list->mtl_error = MEMSTAT_ERROR_DATAERROR;
 		return (-1);
 	}
-	if (size != sizeof(maxcpus)) {
+	if (size != sizeof(maxid)) {
 		list->mtl_error = MEMSTAT_ERROR_DATAERROR;
-		return (-1);
-	}
-
-	if (maxcpus > MEMSTAT_MAXCPU) {
-		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
 		return (-1);
 	}
 
@@ -123,7 +119,7 @@ retry:
 	}
 
 	size = sizeof(*uthp) + count * (sizeof(*uthp) + sizeof(*upsp) *
-	    maxcpus);
+	    (maxid + 1));
 
 	buffer = malloc(size);
 	if (buffer == NULL) {
@@ -168,12 +164,6 @@ retry:
 		return (-1);
 	}
 
-	if (ushp->ush_maxcpus > MEMSTAT_MAXCPU) {
-		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
-		free(buffer);
-		return (-1);
-	}
-
 	/*
 	 * For the remainder of this function, we are quite trusting about
 	 * the layout of structures and sizes, since we've determined we have
@@ -192,7 +182,7 @@ retry:
 			mtp = NULL;
 		if (mtp == NULL)
 			mtp = _memstat_mt_allocate(list, ALLOCATOR_UMA,
-			    uthp->uth_name);
+			    uthp->uth_name, maxid + 1);
 		if (mtp == NULL) {
 			_memstat_mtl_empty(list);
 			free(buffer);
@@ -203,11 +193,12 @@ retry:
 		/*
 		 * Reset the statistics on a current node.
 		 */
-		_memstat_mt_reset_stats(mtp);
+		_memstat_mt_reset_stats(mtp, maxid + 1);
 
 		mtp->mt_numallocs = uthp->uth_allocs;
 		mtp->mt_numfrees = uthp->uth_frees;
 		mtp->mt_failures = uthp->uth_fails;
+		mtp->mt_sleeps = uthp->uth_sleeps;
 
 		for (j = 0; j < maxcpus; j++) {
 			upsp = (struct uma_percpu_stat *)p;
@@ -221,6 +212,7 @@ retry:
 		}
 
 		mtp->mt_size = uthp->uth_size;
+		mtp->mt_rsize = uthp->uth_rsize;
 		mtp->mt_memalloced = mtp->mt_numallocs * uthp->uth_size;
 		mtp->mt_memfreed = mtp->mt_numfrees * uthp->uth_size;
 		mtp->mt_bytes = mtp->mt_memalloced - mtp->mt_memfreed;
@@ -263,7 +255,7 @@ kread(kvm_t *kvm, void *kvm_pointer, void *address, size_t size,
 }
 
 static int
-kread_string(kvm_t *kvm, void *kvm_pointer, char *buffer, int buflen)
+kread_string(kvm_t *kvm, const void *kvm_pointer, char *buffer, int buflen)
 {
 	ssize_t ret;
 	int i;
@@ -312,7 +304,8 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 	struct uma_keg *kzp, kz;
 	int hint_dontsearch, i, mp_maxid, ret;
 	char name[MEMTYPE_MAXNAME];
-	__cpumask_t all_cpus;
+	cpuset_t all_cpus;
+	long cpusetsize;
 	kvm_t *kvm;
 
 	kvm = (kvm_t *)kvm_handle;
@@ -336,7 +329,13 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 		list->mtl_error = ret;
 		return (-1);
 	}
-	ret = kread_symbol(kvm, X_ALL_CPUS, &all_cpus, sizeof(all_cpus), 0);
+	cpusetsize = sysconf(_SC_CPUSET_SIZE);
+	if (cpusetsize == -1 || (u_long)cpusetsize > sizeof(cpuset_t)) {
+		list->mtl_error = MEMSTAT_ERROR_KVM_NOSYMBOL;
+		return (-1);
+	}
+	CPU_ZERO(&all_cpus);
+	ret = kread_symbol(kvm, X_ALL_CPUS, &all_cpus, cpusetsize, 0);
 	if (ret != 0) {
 		list->mtl_error = ret;
 		return (-1);
@@ -388,7 +387,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 				mtp = NULL;
 			if (mtp == NULL)
 				mtp = _memstat_mt_allocate(list, ALLOCATOR_UMA,
-				    name);
+				    name, mp_maxid + 1);
 			if (mtp == NULL) {
 				free(ucp_array);
 				_memstat_mtl_empty(list);
@@ -398,14 +397,15 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 			/*
 			 * Reset the statistics on a current node.
 			 */
-			_memstat_mt_reset_stats(mtp);
+			_memstat_mt_reset_stats(mtp, mp_maxid + 1);
 			mtp->mt_numallocs = uz.uz_allocs;
 			mtp->mt_numfrees = uz.uz_frees;
 			mtp->mt_failures = uz.uz_fails;
+			mtp->mt_sleeps = uz.uz_sleeps;
 			if (kz.uk_flags & UMA_ZFLAG_INTERNAL)
 				goto skip_percpu;
 			for (i = 0; i < mp_maxid + 1; i++) {
-				if ((all_cpus & (1 << i)) == 0)
+				if (!CPU_ISSET(i, &all_cpus))
 					continue;
 				ucp = &ucp_array[i];
 				mtp->mt_numallocs += ucp->uc_allocs;
@@ -436,6 +436,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 			}
 skip_percpu:
 			mtp->mt_size = kz.uk_size;
+			mtp->mt_rsize = kz.uk_rsize;
 			mtp->mt_memalloced = mtp->mt_numallocs * mtp->mt_size;
 			mtp->mt_memfreed = mtp->mt_numfrees * mtp->mt_size;
 			mtp->mt_bytes = mtp->mt_memalloced - mtp->mt_memfreed;
@@ -447,7 +448,7 @@ skip_percpu:
 				    kz.uk_ipers;
 			mtp->mt_byteslimit = mtp->mt_countlimit * mtp->mt_size;
 			mtp->mt_count = mtp->mt_numallocs - mtp->mt_numfrees;
-			for (ubp = LIST_FIRST(&uz.uz_full_bucket); ubp !=
+			for (ubp = LIST_FIRST(&uz.uz_buckets); ubp !=
 			    NULL; ubp = LIST_NEXT(&ub, ub_link)) {
 				ret = kread(kvm, ubp, &ub, sizeof(ub), 0);
 				mtp->mt_zonefree += ub.ub_cnt;

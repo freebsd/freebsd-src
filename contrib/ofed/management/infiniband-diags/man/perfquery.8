@@ -1,0 +1,124 @@
+.TH PERFQUERY 8 "March 29, 2007" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+perfquery \- query InfiniBand port counters
+
+.SH SYNOPSIS
+.B perfquery
+[\-d(ebug)] [\-G(uid)] [-e(xtended)] [-a(ll_ports)] [-l(oop_ports)] [-r(eset_after_read)] [-R(eset_only)] [\-C ca_name] [\-P ca_port] [\-t(imeout) timeout_ms] [\-V(ersion)] [\-h(elp)] [<lid|guid> [[port] [reset_mask]]]
+
+.SH DESCRIPTION
+.PP
+perfquery uses PerfMgt GMPs to obtain the PortCounters (basic performance
+and error counters) or PortExtendedCounters from the PMA at the node/port
+specified. Optionally shows aggregated counters for all ports of node.
+Also, optionally, reset after read, or only reset counters.
+
+Note: In both PortCounters and PortCountersExtended, components
+that represent Data (e.g. PortXmitData and PortRcvData) indicate octets
+divided by 4 rather than just octets.
+
+Note: Inputting a port of 255 indicates an operation be performed on all ports.
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-e\fR, \fB\-\-extended\fR
+show extended port counters rather than (basic) port counters.
+Note that extended port counters attribute is optional.
+.TP
+\fB\-a\fR, \fB\-\-all_ports\fR
+show aggregated counters for all ports of the destination lid
+or reset all counters for all ports.  If the destination lid
+does not support the AllPortSelect flag, all ports will be
+iterated through to emulate AllPortSelect behavior.
+.TP
+\fB\-l\fR, \fB\-\-loop_ports\fR
+If all ports are selected by the user (either through the
+\fB\-a\fR option or port 255) iterate through each port
+rather than doing than aggregate operation.
+.TP
+\fB\-r\fR, \fB\-\-reset_after_read\fR
+reset counters after read
+.TP
+\fB\-R\fR, \fB\-\-Reset_only\fR
+only reset counters
+
+.SH COMMON OPTIONS
+
+Most OpenIB diagnostics take the following common flags. The exact list of
+supported flags per utility can be found in the usage message and can be shown
+using the util_name -h syntax.
+
+# Debugging flags
+.PP
+\-d      raise the IB debugging level.
+        May be used several times (-ddd or -d -d -d).
+.PP
+\-e      show send and receive errors (timeouts and others)
+.PP
+\-h      show the usage message
+.PP
+\-v      increase the application verbosity level.
+        May be used several times (-vv or -v -v -v)
+.PP
+\-V      show the version info.
+
+# Addressing flags
+.PP
+\-G      use GUID address argument. In most cases, it is the Port GUID.
+        Example:
+        "0x08f1040023"
+.PP
+\-s <smlid>      use 'smlid' as the target lid for SM/SA queries.
+
+# Other common flags:
+.PP
+\-C <ca_name>    use the specified ca_name.
+.PP
+\-P <ca_port>    use the specified ca_port.
+.PP
+\-t <timeout_ms> override the default timeout for the solicited mads.
+
+Multiple CA/Multiple Port Support
+
+When no IB device or port is specified, the port to use is selected
+by the following criteria:
+.PP
+1. the first port that is ACTIVE.
+.PP
+2. if not found, the first port that is UP (physical link up).
+
+If a port and/or CA name is specified, the user request is
+attempted to be fulfilled, and will fail if it is not possible.
+
+.SH EXAMPLES
+
+.PP
+perfquery               # read local port performance counters
+.PP
+perfquery 32 1          # read performance counters from lid 32, port 1
+.PP
+perfquery -e 32 1       # read extended performance counters from lid 32, port 1
+.PP
+perfquery -a 32         # read perf counters from lid 32, all ports
+.PP
+perfquery -r 32 1       # read performance counters and reset
+.PP
+perfquery -e -r 32 1    # read extended performance counters and reset
+.PP
+perfquery -R 0x20 1     # reset performance counters of port 1 only
+.PP
+perfquery -e -R 0x20 1  # reset extended performance counters of port 1 only
+.PP
+perfquery -R -a 32      # reset performance counters of all ports
+.PP
+perfquery -R 32 2 0x0fff # reset only error counters of port 2
+.PP
+perfquery -R 32 2 0xf000 # reset only non-error counters of port 2
+
+.SH AUTHOR
+.TP
+Hal Rosenstock
+.RI < halr@voltaire.com >

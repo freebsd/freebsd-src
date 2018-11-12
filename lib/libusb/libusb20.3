@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2009
+.Dd May 3, 2013
 .Dt LIBUSB20 3
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@ USB access library (libusb -lusb)
 .Fn libusb20_tr_close "struct libusb20_transfer *xfer"
 .Ft int
 .Fn libusb20_tr_open "struct libusb20_transfer *xfer" "uint32_t max_buf_size" "uint32_t max_frame_count" "uint8_t ep_no"
+.Fn libusb20_tr_open_stream "struct libusb20_transfer *xfer" "uint32_t max_buf_size" "uint32_t max_frame_count" "uint8_t ep_no" "uint16_t stream_id"
 .Ft struct libusb20_transfer*
 .Fn libusb20_tr_get_pointer "struct libusb20_device *pdev"  "uint16_t tr_index"
 .Ft uint16_t
@@ -98,6 +99,8 @@ USB access library (libusb -lusb)
 .Fn libusb20_tr_setup_intr "struct libusb20_transfer *xfer" "void *pbuf" "uint32_t length" "uint32_t timeout"
 .Ft void
 .Fn libusb20_tr_setup_isoc "struct libusb20_transfer *xfer" "void *pbuf" "uint32_t length" "uint61_t fr_index"
+.Ft uint8_t
+.Fn libusb20_tr_bulk_intr_sync "struct libusb20_transfer *xfer" "void *pbuf" "uint32_t length" "uint32_t *pactlen" "uint32_t timeout"
 .Ft void
 .Fn libusb20_tr_start "struct libusb20_transfer *xfer"
 .Ft void
@@ -110,6 +113,8 @@ USB access library (libusb -lusb)
 .Fn libusb20_tr_get_priv_sc1 "struct libusb20_transfer *xfer"
 .Ft const char *
 .Fn libusb20_dev_get_backend_name "struct libusb20_device *"
+.Ft int
+.Fn libusb20_dev_get_port_path "struct libusb20_device *pdev" "uint8_t *buf" "uint8_t bufsize"
 .Ft int
 .Fn libusb20_dev_get_info "struct libusb20_device *pdev" "struct usb_device_info *pinfo"
 .Ft int
@@ -141,9 +146,13 @@ USB access library (libusb -lusb)
 .Ft int
 .Fn libusb20_dev_reset "struct libusb20_device *pdev"
 .Ft int
+.Fn libusb20_dev_check_connected "struct libusb20_device *pdev"
+.Ft int
 .Fn libusb20_dev_set_power_mode "struct libusb20_device *pdev" "uint8_t power_mode"
 .Ft uint8_t
 .Fn libusb20_dev_get_power_mode "struct libusb20_device *pdev"
+.Ft uint16_t
+.Fn libusb20_dev_get_power_usage "struct libusb20_device *pdev"
 .Ft int
 .Fn libusb20_dev_set_alt_index "struct libusb20_device *pdev" "uint8_t iface_index" "uint8_t alt_index"
 .Ft struct LIBUSB20_DEVICE_DESC_DECODED *
@@ -154,6 +163,10 @@ USB access library (libusb -lusb)
 .Fn libusb20_dev_alloc "void"
 .Ft uint8_t
 .Fn libusb20_dev_get_address "struct libusb20_device *pdev"
+.Ft uint8_t
+.Fn libusb20_dev_get_parent_address "struct libusb20_device *pdev"
+.Ft uint8_t
+.Fn libusb20_dev_get_parent_port "struct libusb20_device *pdev"
 .Ft uint8_t
 .Fn libusb20_dev_get_bus_number "struct libusb20_device *pdev"
 .Ft uint8_t
@@ -173,7 +186,7 @@ USB access library (libusb -lusb)
 .Ft int
 .Fn libusb20_be_set_template "struct libusb20_backend *pbe" "int temp"
 .Ft int
-.Fn libusb20_be_get_dev_quirk "struct libusb20_backend *pber", "uint16_t index" "struct libusb20_quirk *pq"
+.Fn libusb20_be_get_dev_quirk "struct libusb20_backend *pber" "uint16_t index" "struct libusb20_quirk *pq"
 .Ft int
 .Fn libusb20_be_get_quirk_name "struct libusb20_backend *pbe" "uint16_t index" "struct libusb20_quirk *pq"
 .Ft int
@@ -204,6 +217,10 @@ USB access library (libusb -lusb)
 .Fn libusb20_me_decode "const void *pdata" "uint16_t len" "void *pdecoded"
 .Ft "const uint8_t *"
 .Fn libusb20_desc_foreach "const struct libusb20_me_struct *me" "const uint8_t *pdesc"
+.Ft "const char *"
+.Fn libusb20_strerror "int code"
+.Ft "const char *"
+.Fn libusb20_error_name "int code"
 .
 .
 .Sh DESCRIPTION
@@ -223,7 +240,6 @@ applications should consider using
 .
 .Sh USB TRANSFER OPERATIONS
 .
-.Pp
 .
 .Fn libusb20_tr_close
 will release all kernel resources associated with an USB
@@ -257,9 +273,29 @@ The actual buffer size can be greater than
 and is returned by
 .Fn libusb20_tr_get_max_total_length .
 .
+If
+.Fa max_frame_count
+is OR'ed with LIBUSB20_MAX_FRAME_PRE_SCALE the remaining part of the
+argument is converted from milliseconds into the actual number of
+frames rounded up, when this function returns.
+This flag is only valid for ISOCHRONOUS transfers and has no effect
+for other transfer types.
+The actual number of frames setup is found by calling
+.Fn libusb20_tr_get_max_frames .
+.
 This function returns zero upon success.
 .
 Non-zero return values indicate a LIBUSB20_ERROR value.
+.
+.Pp
+.
+.Fn libusb20_tr_open_stream
+is identical to
+.Fn libusb20_tr_open
+except that a stream ID can be specified for BULK endpoints having
+such a feature.
+.Fn libusb20_tr_open
+can be used to open stream ID zero.
 .
 .Pp
 .
@@ -310,7 +346,7 @@ packets are avoided for proxy buffers.
 .Pp
 .
 .Fn libusb20_tr_get_max_total_length
-function will return the maximum value for the data length sum of all USB
+will return the maximum value for the data length sum of all USB
 frames associated with an USB transfer.
 In case of control transfers the value returned does not include the
 length of the SETUP packet, 8 bytes, which is part of frame zero.
@@ -380,7 +416,7 @@ The callback type is defined by libusb20_tr_callback_t.
 .
 .Fn libusb20_tr_set_flags
 is used to set various USB flags for the given USB transfer.
-.Bl -tag
+.Bl -tag -width "LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK"
 .It LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK
 Report a short frame as error.
 .It LIBUSB20_TRANSFER_MULTI_SHORT_NOT_OK
@@ -451,6 +487,29 @@ is a helper function for setting up a multi frame USB ISOCHRONOUS transfer.
 .
 .Pp
 .
+.Fn libusb20_tr_bulk_intr_sync
+will perform a synchronous BULK or INTERRUPT transfer having length given by the
+.Fa length
+argument and buffer pointer given by the
+.Fa pbuf
+argument on the USB transfer given by the
+.Fa xfer
+argument.
+.
+If the
+.Fa pactlen
+argument is non-NULL the actual transfer length will be stored at the given pointer destination.
+.
+If the
+.Fa timeout
+argument is non-zero the transfer will timeout after the given value in milliseconds.
+.
+This function does not change the transfer flags, like short packet not ok.
+.
+This function returns zero on success else a LIBUSB20_TRANSFER_XXX value is returned.
+.
+.Pp
+.
 .Fn libusb20_tr_start
 will get the USB transfer started, if not already
 started.
@@ -489,15 +548,28 @@ with an USB transfer.
 .
 .Sh USB DEVICE OPERATIONS
 .
-.Pp
 .
 .Fn libusb20_dev_get_backend_name
 returns a zero terminated string describing the backend used.
 .
 .Pp
 .
+.Fn libusb20_dev_get_port_path
+retrieves the list of USB port numbers which the datastream for a given USB device follows.
+The first port number is the Root HUB port number.
+Then children port numbers follow.
+The Root HUB device itself has a port path length of zero.
+Valid port numbers start at one and range until and including 255.
+Typically there should not be more than 16 levels, due to electrical and protocol limitations.
+This functions returns the number of actual port levels upon success
+else a LIBUSB20_ERROR value is returned which are always negative.
+If the actual number of port levels is greater than the maximum
+specified, a LIBUSB20_ERROR value is returned.
+.
+.Pp
+.
 .Fn libusb20_dev_get_info
-retrives the BSD specific usb_device_info structure into the memory location given by 
+retrieves the BSD specific usb_device_info structure into the memory location given by
 .Fa pinfo .
 The USB device given by
 .Fa pdev
@@ -569,10 +641,9 @@ The file descriptor can be used for polling purposes.
 .Pp
 .
 .Fn libusb20_dev_kernel_driver_active
-returns a non-zero value if a kernel driver is active on
-the given USB interface.
+returns zero if a kernel driver is active on the given USB interface.
 .
-Else zero is returned.
+Else a LIBUSB20_ERROR value is returned.
 .
 .Pp
 .
@@ -652,19 +723,29 @@ the last set USB configuration.
 This function returns zero on success else a LIBUSB20_ERROR value is
 returned.
 .
+.
+.Pp
+.
+.Fn libusb20_dev_check_connected
+will check if an opened USB device is still connected.
+.
+This function returns zero if the device is still connected else a LIBUSB20_ERROR value is returned.
+.
+.
 .Pp
 .
 .Fn libusb20_dev_set_power_mode
 sets the power mode of the USB device.
 .
 Valid power modes:
-.Bl -tag
+.Bl -tag -width "LIBUSB20_POWER_OFF"
 .It LIBUSB20_POWER_OFF
 .It LIBUSB20_POWER_ON
 .It LIBUSB20_POWER_SAVE
 .It LIBUSB20_POWER_SUSPEND
 .It LIBUSB20_POWER_RESUME
 .El
+.Pp
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
 returned.
@@ -674,6 +755,12 @@ returned.
 .Fn libusb20_dev_get_power_mode
 returns the currently selected power mode for the given
 USB device.
+.
+.Pp
+.
+.Fn libusb20_dev_get_power_usage
+returns the reported power usage in milliamps for the given USB device.
+A power usage of zero typically means that the device is self powered.
 .
 .Pp
 .
@@ -710,12 +797,31 @@ is an internal function to allocate a new USB device.
 .Fn libusb20_dev_get_address
 returns the internal and not necessarily the real
 hardware address of the given USB device.
+Valid addresses start at one.
+.
+.Pp
+.
+.Fn libusb20_dev_get_parent_address
+returns the internal and not necessarily the real hardware address of
+the given parent USB HUB device.
+This value is zero for the root HUB which usually has a device address
+equal to one.
+Valid addresses start at one.
+.
+.Pp
+.
+.Fn libusb20_dev_get_parent_port
+returns the port number on the parent USB HUB device.
+This value is zero for the root HUB which usually has a device address
+equal to one.
+Valid port numbers start at one.
 .
 .Pp
 .
 .Fn libusb20_dev_get_bus_number
 returns the internal bus number which the given USB
 device belongs to.
+Valid bus numbers start at zero.
 .
 .Pp
 .
@@ -723,7 +829,7 @@ device belongs to.
 returns the current operation mode of the USB entity.
 .
 Valid return values are:
-.Bl -tag
+.Bl -tag -width "LIBUSB20_MODE_DEVICE"
 .It LIBUSB20_MODE_HOST
 .It LIBUSB20_MODE_DEVICE
 .El
@@ -733,7 +839,7 @@ Valid return values are:
 .Fn libusb20_dev_get_speed
 returns the current speed of the given USB device.
 .
-.Bl -tag
+.Bl -tag -width "LIBUSB20_SPEED_VARIABLE"
 .It LIBUSB20_SPEED_UNKNOWN
 .It LIBUSB20_SPEED_LOW
 .It LIBUSB20_SPEED_FULL
@@ -745,7 +851,7 @@ returns the current speed of the given USB device.
 .Pp
 .
 .Fn libusb20_dev_get_config_index
-This function returns the currently select config index for the given
+returns the currently selected config index for the given
 USB device.
 .
 .Pp
@@ -762,7 +868,7 @@ will set the debug level for the given USB device.
 .Pp
 .
 .Fn libusb20_dev_wait_process
-function will wait until a pending USB transfer has completed on
+will wait until a pending USB transfer has completed on
 the given USB device.
 .
 A timeout value can be specified which is passed on to the
@@ -796,7 +902,7 @@ returned.
 .Pp
 .
 .Fn libusb20_be_get_dev_quirk
-This function will return the device quirk according to
+will return the device quirk according to
 .Fa index
 into the libusb20_quirk structure pointed to by
 .Fa pq .
@@ -878,7 +984,7 @@ Dequeued USB devices will not be freed when the backend is freed.
 .Pp
 .
 .Fn libusb20_be_enqueue_device
-This function will enqueue the given USB device pointer in the backend USB device list.
+will enqueue the given USB device pointer in the backend USB device list.
 .
 Enqueued USB devices will get freed when the backend is freed.
 .
@@ -927,14 +1033,30 @@ The total decoded length is returned.
 The buffer pointer cannot be NULL.
 .
 .
+.Sh USB DEBUGGING
+.Ft const char *
+.Fn libusb20_strerror "int code"
+Get the ASCII representation of the error given by the
+.Fa code
+argument.
+This function does not return NULL.
+.Pp
+.Ft const char *
+.Fn libusb20_error_name "int code"
+Get the ASCII representation of the error enum given by the
+.Fa code
+argument.
+This function does not return NULL.
+.
 .Sh FILES
-.
-.
-/dev/usb
+.Bl -tag -width Pa
+.It Pa /dev/usb
+.El
 .Sh SEE ALSO
-.Xr usb 4 ,
 .Xr libusb 3 ,
-.Xr usbconfig 8
+.Xr usb 4 ,
+.Xr usbconfig 8 ,
+.Xr usbdump 8
 .
 .
 .Sh HISTORY

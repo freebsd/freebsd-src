@@ -2,20 +2,15 @@
  * IKEv2 responder (RFC 4306) for EAP-IKEV2
  * Copyright (c) 2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
 
 #include "common.h"
-#include "dh_groups.h"
+#include "crypto/dh_groups.h"
+#include "crypto/random.h"
 #include "ikev2.h"
 
 
@@ -77,27 +72,10 @@ static int ikev2_derive_keys(struct ikev2_responder_data *data)
 	os_memcpy(pos, data->i_spi, IKEV2_SPI_LEN);
 	pos += IKEV2_SPI_LEN;
 	os_memcpy(pos, data->r_spi, IKEV2_SPI_LEN);
-#ifdef CCNS_PL
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-	{
-		int i;
-		u8 *tmp = pos - IKEV2_SPI_LEN;
-		/* Incorrect byte re-ordering on little endian hosts.. */
-		for (i = 0; i < IKEV2_SPI_LEN; i++)
-			*tmp++ = data->i_spi[IKEV2_SPI_LEN - 1 - i];
-		for (i = 0; i < IKEV2_SPI_LEN; i++)
-			*tmp++ = data->r_spi[IKEV2_SPI_LEN - 1 - i];
-	}
-#endif
-#endif /* CCNS_PL */
 
 	/* SKEYSEED = prf(Ni | Nr, g^ir) */
 	/* Use zero-padding per RFC 4306, Sect. 2.14 */
 	pad_len = data->dh->prime_len - wpabuf_len(shared);
-#ifdef CCNS_PL
-	/* Shared secret is not zero-padded correctly */
-	pad_len = 0;
-#endif /* CCNS_PL */
 	pad = os_zalloc(pad_len ? pad_len : 1);
 	if (pad == NULL) {
 		wpabuf_free(shared);
@@ -184,21 +162,12 @@ static int ikev2_parse_transform(struct ikev2_proposal_data *prop,
 						   "Transform Attr for AES");
 					break;
 				}
-#ifdef CCNS_PL
-				if (WPA_GET_BE16(pos) != 0x001d /* ?? */) {
-					wpa_printf(MSG_DEBUG, "IKEV2: Not a "
-						   "Key Size attribute for "
-						   "AES");
-					break;
-				}
-#else /* CCNS_PL */
 				if (WPA_GET_BE16(pos) != 0x800e) {
 					wpa_printf(MSG_DEBUG, "IKEV2: Not a "
 						   "Key Size attribute for "
 						   "AES");
 					break;
 				}
-#endif /* CCNS_PL */
 				if (WPA_GET_BE16(pos + 2) != 128) {
 					wpa_printf(MSG_DEBUG, "IKEV2: "
 						   "Unsupported AES key size "
@@ -244,7 +213,7 @@ static int ikev2_parse_proposal(struct ikev2_proposal_data *prop,
 
 	p = (const struct ikev2_proposal *) pos;
 	proposal_len = WPA_GET_BE16(p->proposal_length);
-	if (proposal_len < (int) sizeof(*p) || pos + proposal_len > end) {
+	if (proposal_len < (int) sizeof(*p) || proposal_len > end - pos) {
 		wpa_printf(MSG_INFO, "IKEV2: Invalid proposal length %d",
 			   proposal_len);
 		return -1;
@@ -400,7 +369,7 @@ static int ikev2_process_kei(struct ikev2_responder_data *data,
 	}
 
 	if (kei_len < 4 + 96) {
-		wpa_printf(MSG_INFO, "IKEV2: Too show Key Exchange Payload");
+		wpa_printf(MSG_INFO, "IKEV2: Too short Key Exchange Payload");
 		return -1;
 	}
 
@@ -424,7 +393,7 @@ static int ikev2_process_kei(struct ikev2_responder_data *data,
 	}
 
 	/* RFC 4306, Section 3.4:
-	 * The length of DH public value MUST be equal to the lenght of the
+	 * The length of DH public value MUST be equal to the length of the
 	 * prime modulus.
 	 */
 	if (kei_len - 4 != data->dh->prime_len) {
@@ -460,14 +429,6 @@ static int ikev2_process_ni(struct ikev2_responder_data *data,
 		           (long) ni_len);
 		return -1;
 	}
-
-#ifdef CCNS_PL
-	/* Zeros are removed incorrectly from the beginning of the nonces */
-	while (ni_len > 1 && *ni == 0) {
-		ni_len--;
-		ni++;
-	}
-#endif /* CCNS_PL */
 
 	data->i_nonce_len = ni_len;
 	os_memcpy(data->i_nonce, ni, ni_len);
@@ -604,7 +565,7 @@ static int ikev2_process_auth_secret(struct ikev2_responder_data *data,
 		return -1;
 
 	if (auth_len != prf->hash_len ||
-	    os_memcmp(auth, auth_data, auth_len) != 0) {
+	    os_memcmp_const(auth, auth_data, auth_len) != 0) {
 		wpa_printf(MSG_INFO, "IKEV2: Invalid Authentication Data");
 		wpa_hexdump(MSG_DEBUG, "IKEV2: Received Authentication Data",
 			    auth, auth_len);
@@ -892,16 +853,7 @@ static int ikev2_build_sar1(struct ikev2_responder_data *data,
 	phdr->flags = 0;
 
 	p = wpabuf_put(msg, sizeof(*p));
-#ifdef CCNS_PL
-	/* Seems to require that the Proposal # is 1 even though RFC 4306
-	 * Sect 3.3.1 has following requirement "When a proposal is accepted,
-	 * all of the proposal numbers in the SA payload MUST be the same and
-	 * MUST match the number on the proposal sent that was accepted.".
-	 */
-	p->proposal_num = 1;
-#else /* CCNS_PL */
 	p->proposal_num = data->proposal.proposal_num;
-#endif /* CCNS_PL */
 	p->protocol_id = IKEV2_PROTOCOL_IKE;
 	p->num_transforms = 4;
 
@@ -911,11 +863,7 @@ static int ikev2_build_sar1(struct ikev2_responder_data *data,
 	WPA_PUT_BE16(t->transform_id, data->proposal.encr);
 	if (data->proposal.encr == ENCR_AES_CBC) {
 		/* Transform Attribute: Key Len = 128 bits */
-#ifdef CCNS_PL
-		wpabuf_put_be16(msg, 0x001d); /* ?? */
-#else /* CCNS_PL */
 		wpabuf_put_be16(msg, 0x800e); /* AF=1, AttrType=14 */
-#endif /* CCNS_PL */
 		wpabuf_put_be16(msg, 128); /* 128-bit key */
 	}
 	plen = (u8 *) wpabuf_put(msg, 0) - (u8 *) t;
@@ -1087,11 +1035,7 @@ static int ikev2_build_notification(struct ikev2_responder_data *data,
 	phdr = wpabuf_put(msg, sizeof(*phdr));
 	phdr->next_payload = next_payload;
 	phdr->flags = 0;
-#ifdef CCNS_PL
-	wpabuf_put_u8(msg, 1); /* Protocol ID: IKE_SA notification */
-#else /* CCNS_PL */
 	wpabuf_put_u8(msg, 0); /* Protocol ID: no existing SA */
-#endif /* CCNS_PL */
 	wpabuf_put_u8(msg, 0); /* SPI Size */
 	wpabuf_put_be16(msg, data->error_type);
 
@@ -1133,15 +1077,8 @@ static struct wpabuf * ikev2_build_sa_init(struct ikev2_responder_data *data)
 		    data->r_spi, IKEV2_SPI_LEN);
 
 	data->r_nonce_len = IKEV2_NONCE_MIN_LEN;
-	if (os_get_random(data->r_nonce, data->r_nonce_len))
+	if (random_get_bytes(data->r_nonce, data->r_nonce_len))
 		return NULL;
-#ifdef CCNS_PL
-	/* Zeros are removed incorrectly from the beginning of the nonces in
-	 * key derivation; as a workaround, make sure Nr does not start with
-	 * zero.. */
-	if (data->r_nonce[0] == 0)
-		data->r_nonce[0] = 1;
-#endif /* CCNS_PL */
 	wpa_hexdump(MSG_DEBUG, "IKEV2: Nr", data->r_nonce, data->r_nonce_len);
 
 	msg = wpabuf_alloc(sizeof(struct ikev2_hdr) + data->IDr_len + 1500);
@@ -1262,6 +1199,7 @@ static struct wpabuf * ikev2_build_notify(struct ikev2_responder_data *data)
 			wpabuf_free(msg);
 			return NULL;
 		}
+		wpabuf_free(plain);
 		data->state = IKEV2_FAILED;
 	} else {
 		/* HDR, N */

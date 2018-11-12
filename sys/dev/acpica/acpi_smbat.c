@@ -62,8 +62,8 @@ static int	acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst);
 
 ACPI_SERIAL_DECL(smbat, "ACPI Smart Battery");
 
-SYSCTL_DECL(_debug_acpi);
-SYSCTL_NODE(_debug_acpi, OID_AUTO, batt, CTLFLAG_RD, NULL, "Battery debugging");
+static SYSCTL_NODE(_debug_acpi, OID_AUTO, batt, CTLFLAG_RD, NULL,
+    "Battery debugging");
 
 /* On some laptops with smart batteries, enabling battery monitoring
  * software causes keystrokes from atkbd to be lost.  This has also been
@@ -89,7 +89,7 @@ static device_method_t acpi_smbat_methods[] = {
 	DEVMETHOD(acpi_batt_get_status, acpi_smbat_get_bst),
 	DEVMETHOD(acpi_batt_get_info, acpi_smbat_get_bif),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t	acpi_smbat_driver = {
@@ -190,7 +190,7 @@ acpi_smbus_read_2(struct acpi_smbat_softc *sc, uint8_t addr, uint8_t cmd,
     uint16_t *ptr)
 {
 	int error, to;
-	ACPI_INTEGER val;
+	UINT64 val;
 
 	ACPI_SERIAL_ASSERT(smbat);
 
@@ -257,7 +257,7 @@ static int
 acpi_smbus_read_multi_1(struct acpi_smbat_softc *sc, uint8_t addr, uint8_t cmd,
     uint8_t *ptr, uint16_t len)
 {
-	ACPI_INTEGER val;
+	UINT64 val;
 	uint8_t	to;
 	int error;
 
@@ -345,7 +345,7 @@ acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst)
 {
 	struct acpi_smbat_softc *sc;
 	int error;
-	uint32_t cap_units, factor;
+	uint32_t factor;
 	int16_t val;
 	uint8_t	addr;
 
@@ -362,13 +362,10 @@ acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst)
 
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_BATTERY_MODE, &val))
 		goto out;
-	if (val & SMBATT_BM_CAPACITY_MODE) {
+	if (val & SMBATT_BM_CAPACITY_MODE)
 		factor = 10;
-		cap_units = ACPI_BIF_UNITS_MW;
-	} else {
+	else
 		factor = 1;
-		cap_units = ACPI_BIF_UNITS_MA;
-	}
 
 	/* get battery status */
 	if (acpi_smbus_read_2(sc, addr, SMBATT_CMD_BATTERY_STATUS, &val))
@@ -390,6 +387,7 @@ acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst)
 
 	if (val > 0) {
 		sc->bst.rate = val * factor;
+		sc->bst.state &= ~SMBATT_BS_DISCHARGING;
 		sc->bst.state |= ACPI_BATT_STAT_CHARGING;
 	} else if (val < 0)
 		sc->bst.rate = (-val) * factor;

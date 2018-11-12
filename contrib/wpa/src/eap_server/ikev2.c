@@ -2,20 +2,15 @@
  * IKEv2 initiator (RFC 4306) for EAP-IKEV2
  * Copyright (c) 2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
 
 #include "common.h"
-#include "dh_groups.h"
+#include "crypto/dh_groups.h"
+#include "crypto/random.h"
 #include "ikev2.h"
 
 
@@ -403,7 +398,7 @@ static int ikev2_process_ker(struct ikev2_initiator_data *data,
 	}
 
 	/* RFC 4306, Section 3.4:
-	 * The length of DH public value MUST be equal to the lenght of the
+	 * The length of DH public value MUST be equal to the length of the
 	 * prime modulus.
 	 */
 	if (ker_len - 4 != data->dh->prime_len) {
@@ -638,7 +633,7 @@ static int ikev2_process_auth_secret(struct ikev2_initiator_data *data,
 		return -1;
 
 	if (auth_len != prf->hash_len ||
-	    os_memcmp(auth, auth_data, auth_len) != 0) {
+	    os_memcmp_const(auth, auth_data, auth_len) != 0) {
 		wpa_printf(MSG_INFO, "IKEV2: Invalid Authentication Data");
 		wpa_hexdump(MSG_DEBUG, "IKEV2: Received Authentication Data",
 			    auth, auth_len);
@@ -995,7 +990,7 @@ static int ikev2_build_kei(struct ikev2_initiator_data *data,
 	 */
 	wpabuf_put(msg, data->dh->prime_len - wpabuf_len(pv));
 	wpabuf_put_buf(msg, pv);
-	os_free(pv);
+	wpabuf_free(pv);
 
 	plen = (u8 *) wpabuf_put(msg, 0) - (u8 *) phdr;
 	WPA_PUT_BE16(phdr->payload_length, plen);
@@ -1100,7 +1095,7 @@ static struct wpabuf * ikev2_build_sa_init(struct ikev2_initiator_data *data)
 		    data->i_spi, IKEV2_SPI_LEN);
 
 	data->i_nonce_len = IKEV2_NONCE_MIN_LEN;
-	if (os_get_random(data->i_nonce, data->i_nonce_len))
+	if (random_get_bytes(data->i_nonce, data->i_nonce_len))
 		return NULL;
 	wpa_hexdump(MSG_DEBUG, "IKEV2: Ni", data->i_nonce, data->i_nonce_len);
 
@@ -1148,7 +1143,7 @@ static struct wpabuf * ikev2_build_sa_auth(struct ikev2_initiator_data *data)
 		if (data->shared_secret == NULL)
 			return NULL;
 		data->shared_secret_len = 16;
-		if (os_get_random(data->shared_secret, 16))
+		if (random_get_bytes(data->shared_secret, 16))
 			return NULL;
 	} else {
 		os_free(data->shared_secret);

@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -37,6 +37,7 @@ static char sccsid[] = "@(#)fputs.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include "un-namespace.h"
@@ -48,21 +49,21 @@ __FBSDID("$FreeBSD$");
  * Write the given string to the given file.
  */
 int
-fputs(s, fp)
-	const char * __restrict s;
-	FILE * __restrict fp;
+fputs(const char * __restrict s, FILE * __restrict fp)
 {
 	int retval;
 	struct __suio uio;
 	struct __siov iov;
 
 	iov.iov_base = (void *)s;
-	iov.iov_len = uio.uio_resid = strlen(s);
+	uio.uio_resid = iov.iov_len = strlen(s);
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
 	FLOCKFILE(fp);
 	ORIENT(fp, -1);
 	retval = __sfvwrite(fp, &uio);
 	FUNLOCKFILE(fp);
+	if (retval == 0)
+		return (iov.iov_len > INT_MAX ? INT_MAX : iov.iov_len);
 	return (retval);
 }

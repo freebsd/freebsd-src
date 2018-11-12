@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -65,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
-SLIST_HEAD(ignhead, ignentry) ignores;
+static SLIST_HEAD(ignhead, ignentry) ignores;
 struct ignentry {
 	char			*mask;
 	SLIST_ENTRY(ignentry)	next;
@@ -90,28 +86,30 @@ main(int argc, char *argv[])
 	FTS		*fts;
 	FTSENT		*p;
 	off_t		savednumber, curblocks;
+	off_t		threshold, threshold_sign;
 	int		ftsoptions;
-	int		listall;
 	int		depth;
-	int		Hflag, Lflag, Pflag, aflag, sflag, dflag, cflag;
+	int		Hflag, Lflag, aflag, sflag, dflag, cflag;
 	int		hflag, lflag, ch, notused, rval;
 	char 		**save;
 	static char	dot[] = ".";
 
 	setlocale(LC_ALL, "");
 
-	Hflag = Lflag = Pflag = aflag = sflag = dflag = cflag = hflag =
+	Hflag = Lflag = aflag = sflag = dflag = cflag = hflag =
 	    lflag = Aflag = 0;
 
 	save = argv;
-	ftsoptions = 0;
+	ftsoptions = FTS_PHYSICAL;
 	savednumber = 0;
+	threshold = 0;
+	threshold_sign = 1;
 	cblocksize = DEV_BSIZE;
 	blocksize = 0;
 	depth = INT_MAX;
 	SLIST_INIT(&ignores);
 
-	while ((ch = getopt(argc, argv, "AB:HI:LPasd:chklmnrx")) != -1)
+	while ((ch = getopt(argc, argv, "AB:HI:LPasd:cghklmnrt:x")) != -1)
 		switch (ch) {
 		case 'A':
 			Aflag = 1;
@@ -127,19 +125,17 @@ main(int argc, char *argv[])
 			break;
 		case 'H':
 			Hflag = 1;
+			Lflag = 0;
 			break;
 		case 'I':
 			ignoreadd(optarg);
 			break;
 		case 'L':
-			if (Pflag)
-				usage();
 			Lflag = 1;
+			Hflag = 0;
 			break;
 		case 'P':
-			if (Lflag)
-				usage();
-			Pflag = 1;
+			Hflag = Lflag = 0;
 			break;
 		case 'a':
 			aflag = 1;
@@ -160,6 +156,10 @@ main(int argc, char *argv[])
 		case 'c':
 			cflag = 1;
 			break;
+		case 'g':
+			hflag = 0;
+			blocksize = 1073741824;
+			break;
 		case 'h':
 			hflag = 1;
 			break;
@@ -178,6 +178,14 @@ main(int argc, char *argv[])
 			nodumpflag = 1;
 			break;
 		case 'r':		 /* Compatibility. */
+			break;
+		case 't' :
+			if (expand_number(optarg, &threshold) != 0 ||
+			    threshold == 0) {
+				warnx("invalid threshold: %s", optarg);
+				usage();
+			} else if (threshold < 0)
+				threshold_sign = -1;
 			break;
 		case 'x':
 			ftsoptions |= FTS_XDEV;
@@ -204,35 +212,20 @@ main(int argc, char *argv[])
 	 * the man page, so it's a feature.
 	 */
 
-	if (Hflag + Lflag + Pflag > 1)
-		usage();
-
-	if (Hflag + Lflag + Pflag == 0)
-		Pflag = 1;			/* -P (physical) is default */
-
 	if (Hflag)
 		ftsoptions |= FTS_COMFOLLOW;
-
-	if (Lflag)
+	if (Lflag) {
+		ftsoptions &= ~FTS_PHYSICAL;
 		ftsoptions |= FTS_LOGICAL;
-
-	if (Pflag)
-		ftsoptions |= FTS_PHYSICAL;
+	}
 
 	if (!Aflag && (cblocksize % DEV_BSIZE) != 0)
 		cblocksize = howmany(cblocksize, DEV_BSIZE) * DEV_BSIZE;
 
-	listall = 0;
-
-	if (aflag) {
-		if (sflag || dflag)
-			usage();
-		listall = 1;
-	} else if (sflag) {
-		if (dflag)
-			usage();
+	if (aflag + dflag + sflag > 1)
+		usage();
+	if (sflag)
 		depth = 0;
-	}
 
 	if (!*argv) {
 		argv = save;
@@ -247,6 +240,10 @@ main(int argc, char *argv[])
 		cblocksize /= DEV_BSIZE;
 		blocksize /= DEV_BSIZE;
 	}
+
+	if (threshold != 0)
+		threshold = howmany(threshold / DEV_BSIZE * cblocksize,
+		    blocksize);
 
 	rval = 0;
 
@@ -271,7 +268,9 @@ main(int argc, char *argv[])
 			p->fts_parent->fts_bignum += p->fts_bignum +=
 			    curblocks;
 
-			if (p->fts_level <= depth) {
+			if (p->fts_level <= depth && threshold <=
+			    threshold_sign * howmany(p->fts_bignum *
+			    cblocksize, blocksize)) {
 				if (hflag) {
 					prthumanval(p->fts_bignum);
 					(void)printf("\t%s\n", p->fts_path);
@@ -307,7 +306,7 @@ main(int argc, char *argv[])
 			    howmany(p->fts_statp->st_size, cblocksize) :
 			    howmany(p->fts_statp->st_blocks, cblocksize);
 
-			if (listall || p->fts_level == 0) {
+			if (aflag || p->fts_level == 0) {
 				if (hflag) {
 					prthumanval(curblocks);
 					(void)printf("\t%s\n", p->fts_path);
@@ -377,7 +376,7 @@ linkchk(FTSENT *p)
 	/* If the hash table is getting too full, enlarge it. */
 	if (number_entries > number_buckets * 10 && !stop_allocating) {
 		new_size = number_buckets * 2;
-		new_buckets = malloc(new_size * sizeof(struct links_entry *));
+		new_buckets = calloc(new_size, sizeof(struct links_entry *));
 
 		/* Try releasing the free list to see if that helps. */
 		if (new_buckets == NULL && free_list != NULL) {
@@ -386,16 +385,13 @@ linkchk(FTSENT *p)
 				free_list = le->next;
 				free(le);
 			}
-			new_buckets = malloc(new_size *
-			    sizeof(new_buckets[0]));
+			new_buckets = calloc(new_size, sizeof(new_buckets[0]));
 		}
 
 		if (new_buckets == NULL) {
 			stop_allocating = 1;
 			warnx("No more memory for tracking hard links");
 		} else {
-			memset(new_buckets, 0,
-			    new_size * sizeof(struct links_entry *));
 			for (i = 0; i < number_buckets; i++) {
 				while (buckets[i] != NULL) {
 					/* Remove entry from old bucket. */
@@ -494,9 +490,9 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-		"usage: du [-A] [-H | -L | -P] [-a | -s | -d depth] [-c] "
-		"[-l] [-h | -k | -m | -B bsize] [-n] [-x] [-I mask] "
-		"[file ...]\n");
+		"usage: du [-Aclnx] [-H | -L | -P] [-g | -h | -k | -m] "
+		"[-a | -s | -d depth] [-B blocksize] [-I mask] "
+		"[-t threshold] [file ...]\n");
 	exit(EX_USAGE);
 }
 

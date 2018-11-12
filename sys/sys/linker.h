@@ -79,6 +79,8 @@ struct linker_file {
     int			id;		/* unique id */
     caddr_t		address;	/* load address */
     size_t		size;		/* size of file */
+    caddr_t		ctors_addr;	/* address of .ctors */
+    size_t		ctors_size;	/* size of .ctors */
     int			ndeps;		/* number of dependencies */
     linker_file_t*	deps;		/* list of dependencies */
     STAILQ_HEAD(, common_symbol) common; /* list of common symbols */
@@ -92,10 +94,6 @@ struct linker_file {
      */
     int			nenabled;	/* number of enabled probes. */
     int			fbt_nentries;	/* number of fbt entries created. */
-    void		*sdt_probes;
-    int			sdt_nentries;
-    size_t		sdt_nprobes;
-    size_t		sdt_size;
 };
 
 /*
@@ -162,7 +160,7 @@ int linker_file_function_listall(linker_file_t,
 				 linker_function_nameval_callback_t, void *);
 
 /*
- * Functions soley for use by the linker class handlers.
+ * Functions solely for use by the linker class handlers.
  */
 int linker_add_class(linker_class_t _cls);
 int linker_file_unload(linker_file_t _file, int flags);
@@ -215,6 +213,9 @@ void *linker_hwpmc_list_objects(void);
 #define MODINFOMD_KERNEND	0x0008		/* kernend */
 #endif
 #define MODINFOMD_SHDR		0x0009		/* section header table */
+#define MODINFOMD_CTORS_ADDR	0x000a		/* address of .ctors */
+#define MODINFOMD_CTORS_SIZE	0x000b		/* size of .ctors */
+#define MODINFOMD_FW_HANDLE	0x000c		/* Firmware dependent handle */
 #define MODINFOMD_NOCOPY	0x8000		/* don't copy this metadata to the kernel */
 
 #define MODINFOMD_DEPLIST	(0x4001 | MODINFOMD_NOCOPY)	/* depends on */
@@ -228,13 +229,18 @@ void *linker_hwpmc_list_objects(void);
 #endif
 
 #define	LINKER_HINTS_VERSION	1		/* linker.hints file version */
+#define	LINKER_HINTS_MAX	(1 << 20)	/* Allow at most 1MB for linker.hints */
 
 #ifdef _KERNEL
 
 /*
  * Module lookup
  */
+extern vm_offset_t	preload_addr_relocate;
 extern caddr_t		preload_metadata;
+
+extern void *		preload_fetch_addr(caddr_t _mod);
+extern size_t		preload_fetch_size(caddr_t _mod);
 extern caddr_t		preload_search_by_name(const char *_name);
 extern caddr_t		preload_search_by_type(const char *_type);
 extern caddr_t		preload_search_next_name(caddr_t _base);
@@ -259,7 +265,7 @@ extern int kld_debug;
 
 #endif
 
-typedef Elf_Addr elf_lookup_fn(linker_file_t, Elf_Size, int);
+typedef int elf_lookup_fn(linker_file_t, Elf_Size, int, Elf_Addr *);
 
 /* Support functions */
 int	elf_reloc(linker_file_t _lf, Elf_Addr base, const void *_rel, int _type, elf_lookup_fn _lu);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2002 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sasl.c,v 8.22 2006/08/15 23:24:57 ca Exp $")
+SM_RCSID("@(#)$Id: sasl.c,v 8.24 2013-11-22 20:51:56 ca Exp $")
 
 #if SASL
 # include <stdlib.h>
@@ -20,13 +20,19 @@ SM_RCSID("@(#)$Id: sasl.c,v 8.22 2006/08/15 23:24:57 ca Exp $")
 **  In order to ensure that storage leaks are tracked, and to prevent
 **  conflicts between the sm_heap package and sasl, we tell sasl to
 **  use the following heap allocation functions.  Unfortunately,
-**  the sasl package incorrectly specifies the size of a block
+**  older sasl packages incorrectly specifies the size of a block
 **  using unsigned long: for portability, it should be size_t.
 */
 
-void *sm_sasl_malloc __P((unsigned long));
-static void *sm_sasl_calloc __P((unsigned long, unsigned long));
-static void *sm_sasl_realloc __P((void *, unsigned long));
+# if defined(SASL_VERSION_FULL) && SASL_VERSION_FULL >= 0x02011a
+#  define SM_SASL_SIZE_T	size_t
+# else /* defined(SASL_VERSION_FULL) && SASL_VERSION_FULL >= 0x02011a */
+#  define SM_SASL_SIZE_T	unsigned long
+# endif /* defined(SASL_VERSION_FULL) && SASL_VERSION_FULL >= 0x02011a */
+
+void *sm_sasl_malloc __P((SM_SASL_SIZE_T));
+static void *sm_sasl_calloc __P((SM_SASL_SIZE_T, SM_SASL_SIZE_T));
+static void *sm_sasl_realloc __P((void *, SM_SASL_SIZE_T));
 void sm_sasl_free __P((void *));
 
 /*
@@ -50,7 +56,7 @@ void sm_sasl_free __P((void *));
 
 void *
 sm_sasl_malloc(size)
-	unsigned long size;
+	SM_SASL_SIZE_T size;
 {
 	return sm_malloc((size_t) size);
 }
@@ -71,8 +77,8 @@ sm_sasl_malloc(size)
 
 static void *
 sm_sasl_calloc(nelem, elemsize)
-	unsigned long nelem;
-	unsigned long elemsize;
+	SM_SASL_SIZE_T nelem;
+	SM_SASL_SIZE_T elemsize;
 {
 	size_t size;
 	void *p;
@@ -99,7 +105,7 @@ sm_sasl_calloc(nelem, elemsize)
 static void *
 sm_sasl_realloc(o, size)
 	void *o;
-	unsigned long size;
+	SM_SASL_SIZE_T size;
 {
 	return sm_realloc(o, (size_t) size);
 }

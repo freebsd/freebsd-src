@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/callout.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -38,9 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -52,165 +50,24 @@ __FBSDID("$FreeBSD$");
 
 #include "mmcbr_if.h"
 #include "sdhci.h"
-
-#define DMA_BLOCK_SIZE	4096
-#define DMA_BOUNDARY	0	/* DMA reload every 4K */
-
-/* Controller doesn't honor resets unless we touch the clock register */
-#define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
-/* Controller really supports DMA */
-#define SDHCI_QUIRK_FORCE_DMA				(1<<1)
-/* Controller has unusable DMA engine */
-#define SDHCI_QUIRK_BROKEN_DMA				(1<<2)
-/* Controller doesn't like to be reset when there is no card inserted. */
-#define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<3)
-/* Controller has flaky internal state so reset it on each ios change */
-#define SDHCI_QUIRK_RESET_ON_IOS			(1<<4)
-/* Controller can only DMA chunk sizes that are a multiple of 32 bits */
-#define SDHCI_QUIRK_32BIT_DMA_SIZE			(1<<5)
-/* Controller needs to be reset after each request to stay stable */
-#define SDHCI_QUIRK_RESET_AFTER_REQUEST			(1<<6)
-/* Controller has an off-by-one issue with timeout value */
-#define SDHCI_QUIRK_INCR_TIMEOUT_CONTROL		(1<<7)
-/* Controller has broken read timings */
-#define SDHCI_QUIRK_BROKEN_TIMINGS			(1<<8)
-
-static const struct sdhci_device {
-	uint32_t	model;
-	uint16_t	subvendor;
-	char		*desc;
-	u_int		quirks;
-} sdhci_devices[] = {
-	{ 0x08221180, 	0xffff,	"RICOH R5C822 SD",
-	    SDHCI_QUIRK_FORCE_DMA },
-	{ 0x8034104c, 	0xffff, "TI XX21/XX11 SD",
-	    SDHCI_QUIRK_FORCE_DMA },
-	{ 0x05501524, 	0xffff, "ENE CB712 SD",
-	    SDHCI_QUIRK_BROKEN_TIMINGS },
-	{ 0x05511524, 	0xffff, "ENE CB712 SD 2",
-	    SDHCI_QUIRK_BROKEN_TIMINGS },
-	{ 0x07501524, 	0xffff, "ENE CB714 SD",
-	    SDHCI_QUIRK_RESET_ON_IOS |
-	    SDHCI_QUIRK_BROKEN_TIMINGS },
-	{ 0x07511524, 	0xffff, "ENE CB714 SD 2",
-	    SDHCI_QUIRK_RESET_ON_IOS |
-	    SDHCI_QUIRK_BROKEN_TIMINGS },
-	{ 0x410111ab, 	0xffff, "Marvell CaFe SD",
-	    SDHCI_QUIRK_INCR_TIMEOUT_CONTROL },
-	{ 0x2381197B, 	0xffff,	"JMicron JMB38X SD",
-	    SDHCI_QUIRK_32BIT_DMA_SIZE |
-	    SDHCI_QUIRK_RESET_AFTER_REQUEST },
-	{ 0,		0xffff,	NULL,
-	    0 }
-};
-
-struct sdhci_softc;
-
-struct sdhci_slot {
-	struct sdhci_softc	*sc;
-	device_t	dev;		/* Slot device */
-	u_char		num;		/* Slot number */
-	u_char		opt;		/* Slot options */
-#define SDHCI_HAVE_DMA		1
-	uint32_t	max_clk;	/* Max possible freq */
-	uint32_t	timeout_clk;	/* Timeout freq */
-	struct resource	*mem_res;	/* Memory resource */
-	int		mem_rid;
-	bus_dma_tag_t 	dmatag;
-	bus_dmamap_t 	dmamap;
-	u_char		*dmamem;
-	bus_addr_t	paddr;		/* DMA buffer address */
-	struct task	card_task;	/* Card presence check task */
-	struct callout	card_callout;	/* Card insert delay callout */
-	struct mmc_host host;		/* Host parameters */
-	struct mmc_request *req;	/* Current request */
-	struct mmc_command *curcmd;	/* Current command of current request */
-	
-	uint32_t	intmask;	/* Current interrupt mask */
-	uint32_t	clock;		/* Current clock freq. */
-	size_t		offset;		/* Data buffer offset */
-	uint8_t		hostctrl;	/* Current host control register */
-	u_char		power;		/* Current power */
-	u_char		bus_busy;	/* Bus busy status */
-	u_char		cmd_done;	/* CMD command part done flag */
-	u_char		data_done;	/* DAT command part done flag */
-	u_char		flags;		/* Request execution flags */
-#define CMD_STARTED		1
-#define STOP_STARTED		2
-#define SDHCI_USE_DMA		4	/* Use DMA for this req. */
-	struct mtx	mtx;		/* Slot mutex */
-};
-
-struct sdhci_softc {
-	device_t	dev;		/* Controller device */
-	u_int		quirks;		/* Chip specific quirks */
-	struct resource *irq_res;	/* IRQ resource */
-	int 		irq_rid;
-	void 		*intrhand;	/* Interrupt handle */
-
-	int		num_slots;	/* Number of slots on this controller */
-	struct sdhci_slot slots[6];
-};
+#include "sdhci_if.h"
 
 SYSCTL_NODE(_hw, OID_AUTO, sdhci, CTLFLAG_RD, 0, "sdhci driver");
 
-int	sdhci_debug;
-TUNABLE_INT("hw.sdhci.debug", &sdhci_debug);
-SYSCTL_INT(_hw_sdhci, OID_AUTO, debug, CTLFLAG_RW, &sdhci_debug, 0, "Debug level");
+static int sdhci_debug;
+SYSCTL_INT(_hw_sdhci, OID_AUTO, debug, CTLFLAG_RWTUN, &sdhci_debug, 0, "Debug level");
 
-static inline uint8_t
-RD1(struct sdhci_slot *slot, bus_size_t off)
-{
-	bus_barrier(slot->mem_res, 0, 0xFF,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	return bus_read_1(slot->mem_res, off);
-}
+#define RD1(slot, off)	SDHCI_READ_1((slot)->bus, (slot), (off))
+#define RD2(slot, off)	SDHCI_READ_2((slot)->bus, (slot), (off))
+#define RD4(slot, off)	SDHCI_READ_4((slot)->bus, (slot), (off))
+#define RD_MULTI_4(slot, off, ptr, count)	\
+    SDHCI_READ_MULTI_4((slot)->bus, (slot), (off), (ptr), (count))
 
-static inline void
-WR1(struct sdhci_slot *slot, bus_size_t off, uint8_t val)
-{
-	bus_barrier(slot->mem_res, 0, 0xFF,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	bus_write_1(slot->mem_res, off, val);
-}
-
-static inline uint16_t
-RD2(struct sdhci_slot *slot, bus_size_t off)
-{
-	bus_barrier(slot->mem_res, 0, 0xFF,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	return bus_read_2(slot->mem_res, off);
-}
-
-static inline void
-WR2(struct sdhci_slot *slot, bus_size_t off, uint16_t val)
-{
-	bus_barrier(slot->mem_res, 0, 0xFF,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	bus_write_2(slot->mem_res, off, val);
-}
-
-static inline uint32_t
-RD4(struct sdhci_slot *slot, bus_size_t off)
-{
-	bus_barrier(slot->mem_res, 0, 0xFF,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	return bus_read_4(slot->mem_res, off);
-}
-
-static inline void
-WR4(struct sdhci_slot *slot, bus_size_t off, uint32_t val)
-{
-	bus_barrier(slot->mem_res, 0, 0xFF,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	bus_write_4(slot->mem_res, off, val);
-}
-
-/* bus entry points */
-static int sdhci_probe(device_t dev);
-static int sdhci_attach(device_t dev);
-static int sdhci_detach(device_t dev);
-static void sdhci_intr(void *);
+#define WR1(slot, off, val)	SDHCI_WRITE_1((slot)->bus, (slot), (off), (val))
+#define WR2(slot, off, val)	SDHCI_WRITE_2((slot)->bus, (slot), (off), (val))
+#define WR4(slot, off, val)	SDHCI_WRITE_4((slot)->bus, (slot), (off), (val))
+#define WR_MULTI_4(slot, off, ptr, count)	\
+    SDHCI_WRITE_MULTI_4((slot)->bus, (slot), (off), (ptr), (count))
 
 static void sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock);
 static void sdhci_start(struct sdhci_slot *slot);
@@ -227,20 +84,23 @@ static void sdhci_card_task(void *, int);
 #define SDHCI_ASSERT_LOCKED(_slot)	mtx_assert(&_slot->mtx, MA_OWNED);
 #define SDHCI_ASSERT_UNLOCKED(_slot)	mtx_assert(&_slot->mtx, MA_NOTOWNED);
 
-static int
-slot_printf(struct sdhci_slot *slot, const char * fmt, ...)
-{
-	va_list ap;
-	int retval;
+#define	SDHCI_DEFAULT_MAX_FREQ	50
 
-    	retval = printf("%s-slot%d: ",
-	    device_get_nameunit(slot->sc->dev), slot->num);
+#define	SDHCI_200_MAX_DIVIDER	256
+#define	SDHCI_300_MAX_DIVIDER	2046
 
-	va_start(ap, fmt);
-	retval += vprintf(fmt, ap);
-	va_end(ap);
-	return (retval);
-}
+/*
+ * Broadcom BCM577xx Controller Constants
+ */
+#define BCM577XX_DEFAULT_MAX_DIVIDER	256		/* Maximum divider supported by the default clock source. */
+#define BCM577XX_ALT_CLOCK_BASE		63000000	/* Alternative clock's base frequency. */
+
+#define BCM577XX_HOST_CONTROL		0x198
+#define BCM577XX_CTRL_CLKSEL_MASK	0xFFFFCFFF
+#define BCM577XX_CTRL_CLKSEL_SHIFT	12
+#define BCM577XX_CTRL_CLKSEL_DEFAULT	0x0
+#define BCM577XX_CTRL_CLKSEL_64MHZ	0x3
+
 
 static void
 sdhci_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
@@ -250,6 +110,21 @@ sdhci_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		return;
 	}
 	*(bus_addr_t *)arg = segs[0].ds_addr;
+}
+
+static int
+slot_printf(struct sdhci_slot *slot, const char * fmt, ...)
+{
+	va_list ap;
+	int retval;
+
+    	retval = printf("%s-slot%d: ",
+	    device_get_nameunit(slot->bus), slot->num);
+
+	va_start(ap, fmt);
+	retval += vprintf(fmt, ap);
+	va_end(ap);
+	return (retval);
 }
 
 static void
@@ -287,9 +162,8 @@ static void
 sdhci_reset(struct sdhci_slot *slot, uint8_t mask)
 {
 	int timeout;
-	uint8_t res;
 
-	if (slot->sc->quirks & SDHCI_QUIRK_NO_CARD_NO_RESET) {
+	if (slot->quirks & SDHCI_QUIRK_NO_CARD_NO_RESET) {
 		if (!(RD4(slot, SDHCI_PRESENT_STATE) &
 			SDHCI_CARD_PRESENT))
 			return;
@@ -297,7 +171,7 @@ sdhci_reset(struct sdhci_slot *slot, uint8_t mask)
 
 	/* Some controllers need this kick or reset won't work. */
 	if ((mask & SDHCI_RESET_ALL) == 0 &&
-	    (slot->sc->quirks & SDHCI_QUIRK_CLOCK_BEFORE_RESET)) {
+	    (slot->quirks & SDHCI_QUIRK_CLOCK_BEFORE_RESET)) {
 		uint32_t clock;
 
 		/* This is to force an update */
@@ -306,26 +180,43 @@ sdhci_reset(struct sdhci_slot *slot, uint8_t mask)
 		sdhci_set_clock(slot, clock);
 	}
 
-	WR1(slot, SDHCI_SOFTWARE_RESET, mask);
-
 	if (mask & SDHCI_RESET_ALL) {
 		slot->clock = 0;
 		slot->power = 0;
 	}
 
+	WR1(slot, SDHCI_SOFTWARE_RESET, mask);
+
+	if (slot->quirks & SDHCI_QUIRK_WAITFOR_RESET_ASSERTED) {
+		/*
+		 * Resets on TI OMAPs and AM335x are incompatible with SDHCI
+		 * specification.  The reset bit has internal propagation delay,
+		 * so a fast read after write returns 0 even if reset process is
+		 * in progress. The workaround is to poll for 1 before polling
+		 * for 0.  In the worst case, if we miss seeing it asserted the
+		 * time we spent waiting is enough to ensure the reset finishes.
+		 */
+		timeout = 10000;
+		while ((RD1(slot, SDHCI_SOFTWARE_RESET) & mask) != mask) {
+			if (timeout <= 0)
+				break;
+			timeout--;
+			DELAY(1);
+		}
+	}
+
 	/* Wait max 100 ms */
-	timeout = 100;
+	timeout = 10000;
 	/* Controller clears the bits when it's done */
-	while ((res = RD1(slot, SDHCI_SOFTWARE_RESET)) & mask) {
-		if (timeout == 0) {
-			slot_printf(slot,
-			    "Reset 0x%x never completed - 0x%x.\n",
-			    (int)mask, (int)res);
+	while (RD1(slot, SDHCI_SOFTWARE_RESET) & mask) {
+		if (timeout <= 0) {
+			slot_printf(slot, "Reset 0x%x never completed.\n",
+			    mask);
 			sdhci_dumpregs(slot);
 			return;
 		}
 		timeout--;
-		DELAY(1000);
+		DELAY(10);
 	}
 }
 
@@ -350,8 +241,11 @@ sdhci_init(struct sdhci_slot *slot)
 static void
 sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 {
+	uint32_t clk_base;
+	uint32_t clk_sel;
 	uint32_t res;
 	uint16_t clk;
+	uint16_t div;
 	int timeout;
 
 	if (clock == slot->clock)
@@ -359,21 +253,65 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 	slot->clock = clock;
 
 	/* Turn off the clock. */
-	WR2(slot, SDHCI_CLOCK_CONTROL, 0);
+	clk = RD2(slot, SDHCI_CLOCK_CONTROL);
+	WR2(slot, SDHCI_CLOCK_CONTROL, clk & ~SDHCI_CLOCK_CARD_EN);
 	/* If no clock requested - left it so. */
 	if (clock == 0)
 		return;
-	/* Looking for highest freq <= clock. */
-	res = slot->max_clk;
-	for (clk = 1; clk < 256; clk <<= 1) {
-		if (res <= clock)
-			break;
-		res >>= 1;
+	
+	/* Determine the clock base frequency */
+	clk_base = slot->max_clk;
+	if (slot->quirks & SDHCI_QUIRK_BCM577XX_400KHZ_CLKSRC) {
+		clk_sel = RD2(slot, BCM577XX_HOST_CONTROL) & BCM577XX_CTRL_CLKSEL_MASK;
+
+		/* Select clock source appropriate for the requested frequency. */
+		if ((clk_base / BCM577XX_DEFAULT_MAX_DIVIDER) > clock) {
+			clk_base = BCM577XX_ALT_CLOCK_BASE;
+			clk_sel |= (BCM577XX_CTRL_CLKSEL_64MHZ << BCM577XX_CTRL_CLKSEL_SHIFT);
+		} else {
+			clk_sel |= (BCM577XX_CTRL_CLKSEL_DEFAULT << BCM577XX_CTRL_CLKSEL_SHIFT);
+		}
+		
+		WR2(slot, BCM577XX_HOST_CONTROL, clk_sel);
 	}
-	/* Divider 1:1 is 0x00, 2:1 is 0x01, 256:1 is 0x80 ... */
-	clk >>= 1;
+
+	/* Recalculate timeout clock frequency based on the new sd clock. */
+	if (slot->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK)
+		slot->timeout_clk = slot->clock / 1000;
+
+	if (slot->version < SDHCI_SPEC_300) {
+		/* Looking for highest freq <= clock. */
+		res = clk_base;
+		for (div = 1; div < SDHCI_200_MAX_DIVIDER; div <<= 1) {
+			if (res <= clock)
+				break;
+			res >>= 1;
+		}
+		/* Divider 1:1 is 0x00, 2:1 is 0x01, 256:1 is 0x80 ... */
+		div >>= 1;
+	}
+	else {
+		/* Version 3.0 divisors are multiples of two up to 1023*2 */
+		if (clock >= clk_base)
+			div = 0;
+		else {
+			for (div = 2; div < SDHCI_300_MAX_DIVIDER; div += 2) { 
+				if ((clk_base / div) <= clock) 
+					break;
+			}
+		}
+		div >>= 1;
+	}
+
+	if (bootverbose || sdhci_debug)
+		slot_printf(slot, "Divider %d for freq %d (base %d)\n", 
+			div, clock, clk_base);
+
 	/* Now we have got divider, set it. */
-	clk <<= SDHCI_DIVIDER_SHIFT;
+	clk = (div & SDHCI_DIVIDER_MASK) << SDHCI_DIVIDER_SHIFT;
+	clk |= ((div >> SDHCI_DIVIDER_MASK_LEN) & SDHCI_DIVIDER_HI_MASK)
+		<< SDHCI_DIVIDER_HI_SHIFT;
+
 	WR2(slot, SDHCI_CLOCK_CONTROL, clk);
 	/* Enable clock. */
 	clk |= SDHCI_CLOCK_INT_EN;
@@ -403,6 +341,7 @@ sdhci_set_power(struct sdhci_slot *slot, u_char power)
 
 	if (slot->power == power)
 		return;
+
 	slot->power = power;
 
 	/* Turn off the power. */
@@ -445,9 +384,9 @@ sdhci_read_block_pio(struct sdhci_slot *slot)
 	slot->offset += left;
 
 	/* If we are too fast, broken controllers return zeroes. */
-	if (slot->sc->quirks & SDHCI_QUIRK_BROKEN_TIMINGS)
+	if (slot->quirks & SDHCI_QUIRK_BROKEN_TIMINGS)
 		DELAY(10);
-	/* Handle unalligned and alligned buffer cases. */
+	/* Handle unaligned and aligned buffer cases. */
 	if ((intptr_t)buffer & 3) {
 		while (left > 3) {
 			data = RD4(slot, SDHCI_BUFFER);
@@ -459,7 +398,7 @@ sdhci_read_block_pio(struct sdhci_slot *slot)
 			left -= 4;
 		}
 	} else {
-		bus_read_multi_stream_4(slot->mem_res, SDHCI_BUFFER,
+		RD_MULTI_4(slot, SDHCI_BUFFER,
 		    (uint32_t *)buffer, left >> 2);
 		left &= 3;
 	}
@@ -487,7 +426,7 @@ sdhci_write_block_pio(struct sdhci_slot *slot)
 	left = min(512, slot->curcmd->data->len - slot->offset);
 	slot->offset += left;
 
-	/* Handle unalligned and alligned buffer cases. */
+	/* Handle unaligned and aligned buffer cases. */
 	if ((intptr_t)buffer & 3) {
 		while (left > 3) {
 			data = buffer[0] +
@@ -499,7 +438,7 @@ sdhci_write_block_pio(struct sdhci_slot *slot)
 			WR4(slot, SDHCI_BUFFER, data);
 		}
 	} else {
-		bus_write_multi_stream_4(slot->mem_res, SDHCI_BUFFER,
+		WR_MULTI_4(slot, SDHCI_BUFFER,
 		    (uint32_t *)buffer, left >> 2);
 		left &= 3;
 	}
@@ -553,7 +492,7 @@ sdhci_card_task(void *arg, int pending)
 	if (RD4(slot, SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT) {
 		if (slot->dev == NULL) {
 			/* If card is present - attach mmc bus. */
-			slot->dev = device_add_child(slot->sc->dev, "mmc", -1);
+			slot->dev = device_add_child(slot->bus, "mmc", -1);
 			device_set_ivars(slot->dev, slot);
 			SDHCI_UNLOCK(slot);
 			device_probe_and_attach(slot->dev);
@@ -565,278 +504,222 @@ sdhci_card_task(void *arg, int pending)
 			device_t d = slot->dev;
 			slot->dev = NULL;
 			SDHCI_UNLOCK(slot);
-			device_delete_child(slot->sc->dev, d);
+			device_delete_child(slot->bus, d);
 		} else
 			SDHCI_UNLOCK(slot);
 	}
 }
 
-static int
-sdhci_probe(device_t dev)
+int
+sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 {
-	uint32_t model;
-	uint16_t subvendor;
-	uint8_t class, subclass;
-	int i, result;
-	
-	model = (uint32_t)pci_get_device(dev) << 16;
-	model |= (uint32_t)pci_get_vendor(dev) & 0x0000ffff;
-	subvendor = pci_get_subvendor(dev);
-	class = pci_get_class(dev);
-	subclass = pci_get_subclass(dev);
-	
-	result = ENXIO;
-	for (i = 0; sdhci_devices[i].model != 0; i++) {
-		if (sdhci_devices[i].model == model &&
-		    (sdhci_devices[i].subvendor == 0xffff ||
-		    sdhci_devices[i].subvendor == subvendor)) {
-			device_set_desc(dev, sdhci_devices[i].desc);
-			result = BUS_PROBE_DEFAULT;
-			break;
-		}
-	}
-	if (result == ENXIO && class == PCIC_BASEPERIPH &&
-	    subclass == PCIS_BASEPERIPH_SDHC) {
-		device_set_desc(dev, "Generic SD HCI");
-		result = BUS_PROBE_GENERIC;
-	}
-	
-	return (result);
-}
+	uint32_t caps, freq;
+	int err;
 
-static int
-sdhci_attach(device_t dev)
-{
-	struct sdhci_softc *sc = device_get_softc(dev);
-	uint32_t model;
-	uint16_t subvendor;
-	uint8_t class, subclass, progif;
-	int err, slots, bar, i;
+	SDHCI_LOCK_INIT(slot);
+	slot->num = num;
+	slot->bus = dev;
 
-	sc->dev = dev;
-	model = (uint32_t)pci_get_device(dev) << 16;
-	model |= (uint32_t)pci_get_vendor(dev) & 0x0000ffff;
-	subvendor = pci_get_subvendor(dev);
-	class = pci_get_class(dev);
-	subclass = pci_get_subclass(dev);
-	progif = pci_get_progif(dev);
-	/* Apply chip specific quirks. */
-	for (i = 0; sdhci_devices[i].model != 0; i++) {
-		if (sdhci_devices[i].model == model &&
-		    (sdhci_devices[i].subvendor == 0xffff ||
-		    sdhci_devices[i].subvendor == subvendor)) {
-			sc->quirks = sdhci_devices[i].quirks;
-			break;
-		}
+	/* Allocate DMA tag. */
+	err = bus_dma_tag_create(bus_get_dma_tag(dev),
+	    DMA_BLOCK_SIZE, 0, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL,
+	    DMA_BLOCK_SIZE, 1, DMA_BLOCK_SIZE,
+	    BUS_DMA_ALLOCNOW, NULL, NULL,
+	    &slot->dmatag);
+	if (err != 0) {
+		device_printf(dev, "Can't create DMA tag\n");
+		SDHCI_LOCK_DESTROY(slot);
+		return (err);
 	}
-	/* Read slots info from PCI registers. */
-	slots = pci_read_config(dev, PCI_SLOT_INFO, 1);
-	bar = PCI_SLOT_INFO_FIRST_BAR(slots);
-	slots = PCI_SLOT_INFO_SLOTS(slots);
-	if (slots > 6 || bar > 5) {
-		device_printf(dev, "Incorrect slots information (%d, %d).\n",
-		    slots, bar);
-		return (EINVAL);
+	/* Allocate DMA memory. */
+	err = bus_dmamem_alloc(slot->dmatag, (void **)&slot->dmamem,
+	    BUS_DMA_NOWAIT, &slot->dmamap);
+	if (err != 0) {
+		device_printf(dev, "Can't alloc DMA memory\n");
+		SDHCI_LOCK_DESTROY(slot);
+		return (err);
 	}
-	/* Allocate IRQ. */
-	sc->irq_rid = 0;
-	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
-	    RF_SHAREABLE | RF_ACTIVE);
-	if (sc->irq_res == NULL) {
-		device_printf(dev, "Can't allocate IRQ\n");
-		return (ENOMEM);
+	/* Map the memory. */
+	err = bus_dmamap_load(slot->dmatag, slot->dmamap,
+	    (void *)slot->dmamem, DMA_BLOCK_SIZE,
+	    sdhci_getaddr, &slot->paddr, 0);
+	if (err != 0 || slot->paddr == 0) {
+		device_printf(dev, "Can't load DMA memory\n");
+		SDHCI_LOCK_DESTROY(slot);
+		if(err)
+			return (err);
+		else
+			return (EFAULT);
 	}
-	/* Scan all slots. */
-	for (i = 0; i < slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[sc->num_slots];
-		uint32_t caps;
 
-		SDHCI_LOCK_INIT(slot);
-		slot->sc = sc;
-		slot->num = sc->num_slots;
-		/* Allocate memory. */
-		slot->mem_rid = PCIR_BAR(bar + i);
-		slot->mem_res = bus_alloc_resource(dev,
-		    SYS_RES_MEMORY, &slot->mem_rid, 0ul, ~0ul, 0x100, RF_ACTIVE);
-		if (slot->mem_res == NULL) {
-			device_printf(dev, "Can't allocate memory\n");
-			SDHCI_LOCK_DESTROY(slot);
-			continue;
-		}
-		/* Allocate DMA tag. */
-		err = bus_dma_tag_create(bus_get_dma_tag(dev),
-		    DMA_BLOCK_SIZE, 0, BUS_SPACE_MAXADDR_32BIT,
-		    BUS_SPACE_MAXADDR, NULL, NULL,
-		    DMA_BLOCK_SIZE, 1, DMA_BLOCK_SIZE,
-		    BUS_DMA_ALLOCNOW, NULL, NULL,
-		    &slot->dmatag);
-		if (err != 0) {
-			device_printf(dev, "Can't create DMA tag\n");
-			SDHCI_LOCK_DESTROY(slot);
-			continue;
-		}
-		/* Allocate DMA memory. */
-		err = bus_dmamem_alloc(slot->dmatag, (void **)&slot->dmamem,
-		    BUS_DMA_NOWAIT, &slot->dmamap);
-		if (err != 0) {
-			device_printf(dev, "Can't alloc DMA memory\n");
-			SDHCI_LOCK_DESTROY(slot);
-			continue;
-		}
-		/* Map the memory. */
-		err = bus_dmamap_load(slot->dmatag, slot->dmamap,
-		    (void *)slot->dmamem, DMA_BLOCK_SIZE,
-		    sdhci_getaddr, &slot->paddr, 0);
-		if (err != 0 || slot->paddr == 0) {
-			device_printf(dev, "Can't load DMA memory\n");
-			SDHCI_LOCK_DESTROY(slot);
-			continue;
-		}
-		/* Initialize slot. */
-		sdhci_init(slot);
+	/* Initialize slot. */
+	sdhci_init(slot);
+	slot->version = (RD2(slot, SDHCI_HOST_VERSION) 
+		>> SDHCI_SPEC_VER_SHIFT) & SDHCI_SPEC_VER_MASK;
+	if (slot->quirks & SDHCI_QUIRK_MISSING_CAPS)
+		caps = slot->caps;
+	else
 		caps = RD4(slot, SDHCI_CAPABILITIES);
-		/* Calculate base clock frequency. */
-		slot->max_clk =
-			(caps & SDHCI_CLOCK_BASE_MASK) >> SDHCI_CLOCK_BASE_SHIFT;
-		if (slot->max_clk == 0) {
-			device_printf(dev, "Hardware doesn't specify base clock "
-			    "frequency.\n");
-		}
-		slot->max_clk *= 1000000;
-		/* Calculate timeout clock frequency. */
+	/* Calculate base clock frequency. */
+	if (slot->version >= SDHCI_SPEC_300)
+		freq = (caps & SDHCI_CLOCK_V3_BASE_MASK) >>
+		    SDHCI_CLOCK_BASE_SHIFT;
+	else	
+		freq = (caps & SDHCI_CLOCK_BASE_MASK) >>
+		    SDHCI_CLOCK_BASE_SHIFT;
+	if (freq != 0)
+		slot->max_clk = freq * 1000000;
+	/*
+	 * If the frequency wasn't in the capabilities and the hardware driver
+	 * hasn't already set max_clk we're probably not going to work right
+	 * with an assumption, so complain about it.
+	 */
+	if (slot->max_clk == 0) {
+		slot->max_clk = SDHCI_DEFAULT_MAX_FREQ * 1000000;
+		device_printf(dev, "Hardware doesn't specify base clock "
+		    "frequency, using %dMHz as default.\n", SDHCI_DEFAULT_MAX_FREQ);
+	}
+	/* Calculate timeout clock frequency. */
+	if (slot->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK) {
+		slot->timeout_clk = slot->max_clk / 1000;
+	} else {
 		slot->timeout_clk =
 			(caps & SDHCI_TIMEOUT_CLK_MASK) >> SDHCI_TIMEOUT_CLK_SHIFT;
-		if (slot->timeout_clk == 0) {
-			device_printf(dev, "Hardware doesn't specify timeout clock "
-			    "frequency.\n");
-		}
 		if (caps & SDHCI_TIMEOUT_CLK_UNIT)
 			slot->timeout_clk *= 1000;
-
-		slot->host.f_min = slot->max_clk / 256;
-		slot->host.f_max = slot->max_clk;
-		slot->host.host_ocr = 0;
-		if (caps & SDHCI_CAN_VDD_330)
-		    slot->host.host_ocr |= MMC_OCR_320_330 | MMC_OCR_330_340;
-		if (caps & SDHCI_CAN_VDD_300)
-		    slot->host.host_ocr |= MMC_OCR_290_300 | MMC_OCR_300_310;
-		if (caps & SDHCI_CAN_VDD_180)
-		    slot->host.host_ocr |= MMC_OCR_LOW_VOLTAGE;
-		if (slot->host.host_ocr == 0) {
-			device_printf(dev, "Hardware doesn't report any "
-			    "support voltages.\n");
-		}
-		slot->host.caps = MMC_CAP_4_BIT_DATA;
-		if (caps & SDHCI_CAN_DO_HISPD)
-			slot->host.caps |= MMC_CAP_HSPEED;
-		/* Decide if we have usable DMA. */
-		if (caps & SDHCI_CAN_DO_DMA)
-			slot->opt |= SDHCI_HAVE_DMA;
-		if (class == PCIC_BASEPERIPH &&
-		    subclass == PCIS_BASEPERIPH_SDHC &&
-		    progif != PCI_SDHCI_IFDMA)
-			slot->opt &= ~SDHCI_HAVE_DMA;
-		if (sc->quirks & SDHCI_QUIRK_BROKEN_DMA)
-			slot->opt &= ~SDHCI_HAVE_DMA;
-		if (sc->quirks & SDHCI_QUIRK_FORCE_DMA)
-			slot->opt |= SDHCI_HAVE_DMA;
-
-		if (bootverbose || sdhci_debug) {
-			slot_printf(slot, "%uMHz%s 4bits%s%s%s %s\n",
-			    slot->max_clk / 1000000,
-			    (caps & SDHCI_CAN_DO_HISPD) ? " HS" : "",
-			    (caps & SDHCI_CAN_VDD_330) ? " 3.3V" : "",
-			    (caps & SDHCI_CAN_VDD_300) ? " 3.0V" : "",
-			    (caps & SDHCI_CAN_VDD_180) ? " 1.8V" : "",
-			    (slot->opt & SDHCI_HAVE_DMA) ? "DMA" : "PIO");
-			sdhci_dumpregs(slot);
-		}
-		
-		TASK_INIT(&slot->card_task, 0, sdhci_card_task, slot);
-		callout_init(&slot->card_callout, 1);
-		sc->num_slots++;
 	}
-	device_printf(dev, "%d slot(s) allocated\n", sc->num_slots);
-	/* Activate the interrupt */
-	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, sdhci_intr, sc, &sc->intrhand);
-	if (err)
-		device_printf(dev, "Can't setup IRQ\n");
-	pci_enable_busmaster(dev);
-	/* Process cards detection. */
-	for (i = 0; i < sc->num_slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[i];
-
-		sdhci_card_task(slot, 0);
+	/*
+	 * If the frequency wasn't in the capabilities and the hardware driver
+	 * hasn't already set timeout_clk we'll probably work okay using the
+	 * max timeout, but still mention it.
+	 */
+	if (slot->timeout_clk == 0) {
+		device_printf(dev, "Hardware doesn't specify timeout clock "
+		    "frequency, setting BROKEN_TIMEOUT quirk.\n");
+		slot->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 	}
-		
+
+	slot->host.f_min = SDHCI_MIN_FREQ(slot->bus, slot);
+	slot->host.f_max = slot->max_clk;
+	slot->host.host_ocr = 0;
+	if (caps & SDHCI_CAN_VDD_330)
+	    slot->host.host_ocr |= MMC_OCR_320_330 | MMC_OCR_330_340;
+	if (caps & SDHCI_CAN_VDD_300)
+	    slot->host.host_ocr |= MMC_OCR_290_300 | MMC_OCR_300_310;
+	if (caps & SDHCI_CAN_VDD_180)
+	    slot->host.host_ocr |= MMC_OCR_LOW_VOLTAGE;
+	if (slot->host.host_ocr == 0) {
+		device_printf(dev, "Hardware doesn't report any "
+		    "support voltages.\n");
+	}
+	slot->host.caps = MMC_CAP_4_BIT_DATA;
+	if (caps & SDHCI_CAN_DO_8BITBUS)
+		slot->host.caps |= MMC_CAP_8_BIT_DATA;
+	if (caps & SDHCI_CAN_DO_HISPD)
+		slot->host.caps |= MMC_CAP_HSPEED;
+	/* Decide if we have usable DMA. */
+	if (caps & SDHCI_CAN_DO_DMA)
+		slot->opt |= SDHCI_HAVE_DMA;
+
+	if (slot->quirks & SDHCI_QUIRK_BROKEN_DMA)
+		slot->opt &= ~SDHCI_HAVE_DMA;
+	if (slot->quirks & SDHCI_QUIRK_FORCE_DMA)
+		slot->opt |= SDHCI_HAVE_DMA;
+
+	/* 
+	 * Use platform-provided transfer backend
+	 * with PIO as a fallback mechanism
+	 */
+	if (slot->opt & SDHCI_PLATFORM_TRANSFER)
+		slot->opt &= ~SDHCI_HAVE_DMA;
+
+	if (bootverbose || sdhci_debug) {
+		slot_printf(slot, "%uMHz%s %s%s%s%s %s\n",
+		    slot->max_clk / 1000000,
+		    (caps & SDHCI_CAN_DO_HISPD) ? " HS" : "",
+		    (caps & MMC_CAP_8_BIT_DATA) ? "8bits" :
+			((caps & MMC_CAP_4_BIT_DATA) ? "4bits" : "1bit"),
+		    (caps & SDHCI_CAN_VDD_330) ? " 3.3V" : "",
+		    (caps & SDHCI_CAN_VDD_300) ? " 3.0V" : "",
+		    (caps & SDHCI_CAN_VDD_180) ? " 1.8V" : "",
+		    (slot->opt & SDHCI_HAVE_DMA) ? "DMA" : "PIO");
+		sdhci_dumpregs(slot);
+	}
+
+	slot->timeout = 10;
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(slot->bus),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(slot->bus)), OID_AUTO,
+	    "timeout", CTLFLAG_RW, &slot->timeout, 0,
+	    "Maximum timeout for SDHCI transfers (in secs)");
+	TASK_INIT(&slot->card_task, 0, sdhci_card_task, slot);
+	callout_init(&slot->card_callout, 1);
+	callout_init_mtx(&slot->timeout_callout, &slot->mtx, 0);
+
 	return (0);
 }
 
-static int
-sdhci_detach(device_t dev)
+void
+sdhci_start_slot(struct sdhci_slot *slot)
 {
-	struct sdhci_softc *sc = device_get_softc(dev);
-	int i;
+	sdhci_card_task(slot, 0);
+}
 
-	bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ,
-	    sc->irq_rid, sc->irq_res);
+int
+sdhci_cleanup_slot(struct sdhci_slot *slot)
+{
+	device_t d;
 
-	for (i = 0; i < sc->num_slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[i];
-		device_t d;
+	callout_drain(&slot->timeout_callout);
+	callout_drain(&slot->card_callout);
+	taskqueue_drain(taskqueue_swi_giant, &slot->card_task);
 
-		callout_drain(&slot->card_callout);
-		taskqueue_drain(taskqueue_swi_giant, &slot->card_task);
+	SDHCI_LOCK(slot);
+	d = slot->dev;
+	slot->dev = NULL;
+	SDHCI_UNLOCK(slot);
+	if (d != NULL)
+		device_delete_child(slot->bus, d);
 
-		SDHCI_LOCK(slot);
-		d = slot->dev;
-		slot->dev = NULL;
-		SDHCI_UNLOCK(slot);
-		if (d != NULL)
-			device_delete_child(dev, d);
+	SDHCI_LOCK(slot);
+	sdhci_reset(slot, SDHCI_RESET_ALL);
+	SDHCI_UNLOCK(slot);
+	bus_dmamap_unload(slot->dmatag, slot->dmamap);
+	bus_dmamem_free(slot->dmatag, slot->dmamem, slot->dmamap);
+	bus_dma_tag_destroy(slot->dmatag);
 
-		SDHCI_LOCK(slot);
-		sdhci_reset(slot, SDHCI_RESET_ALL);
-		SDHCI_UNLOCK(slot);
-		bus_dmamap_unload(slot->dmatag, slot->dmamap);
-		bus_dmamem_free(slot->dmatag, slot->dmamem, slot->dmamap);
-		bus_dma_tag_destroy(slot->dmatag);
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    slot->mem_rid, slot->mem_res);
-		SDHCI_LOCK_DESTROY(slot);
-	}
+	SDHCI_LOCK_DESTROY(slot);
+
 	return (0);
 }
 
-static int
-sdhci_suspend(device_t dev)
+int
+sdhci_generic_suspend(struct sdhci_slot *slot)
 {
-	struct sdhci_softc *sc = device_get_softc(dev);
-	int i, err;
+	sdhci_reset(slot, SDHCI_RESET_ALL);
 
-	err = bus_generic_suspend(dev);
-	if (err)
-		return (err);
-	for (i = 0; i < sc->num_slots; i++)
-		sdhci_reset(&sc->slots[i], SDHCI_RESET_ALL);
 	return (0);
 }
 
-static int
-sdhci_resume(device_t dev)
+int
+sdhci_generic_resume(struct sdhci_slot *slot)
 {
-	struct sdhci_softc *sc = device_get_softc(dev);
-	int i;
+	sdhci_init(slot);
 
-	for (i = 0; i < sc->num_slots; i++)
-		sdhci_init(&sc->slots[i]);
-	return (bus_generic_resume(dev));
+	return (0);
 }
 
-static int
-sdhci_update_ios(device_t brdev, device_t reqdev)
+uint32_t
+sdhci_generic_min_freq(device_t brdev, struct sdhci_slot *slot)
+{
+	if (slot->version >= SDHCI_SPEC_300)
+		return (slot->max_clk / SDHCI_300_MAX_DIVIDER);
+	else
+		return (slot->max_clk / SDHCI_200_MAX_DIVIDER);
+}
+
+int
+sdhci_generic_update_ios(device_t brdev, device_t reqdev)
 {
 	struct sdhci_slot *slot = device_get_ivars(reqdev);
 	struct mmc_ios *ios = &slot->host.ios;
@@ -849,24 +732,63 @@ sdhci_update_ios(device_t brdev, device_t reqdev)
 	}
 	/* Configure the bus. */
 	sdhci_set_clock(slot, ios->clock);
-	sdhci_set_power(slot, (ios->power_mode == power_off)?0:ios->vdd);
-	if (ios->bus_width == bus_width_4)
-		slot->hostctrl |= SDHCI_CTRL_4BITBUS;
-	else
+	sdhci_set_power(slot, (ios->power_mode == power_off) ? 0 : ios->vdd);
+	if (ios->bus_width == bus_width_8) {
+		slot->hostctrl |= SDHCI_CTRL_8BITBUS;
 		slot->hostctrl &= ~SDHCI_CTRL_4BITBUS;
-	if (ios->timing == bus_timing_hs)
+	} else if (ios->bus_width == bus_width_4) {
+		slot->hostctrl &= ~SDHCI_CTRL_8BITBUS;
+		slot->hostctrl |= SDHCI_CTRL_4BITBUS;
+	} else if (ios->bus_width == bus_width_1) {
+		slot->hostctrl &= ~SDHCI_CTRL_8BITBUS;
+		slot->hostctrl &= ~SDHCI_CTRL_4BITBUS;
+	} else {
+		panic("Invalid bus width: %d", ios->bus_width);
+	}
+	if (ios->timing == bus_timing_hs && 
+	    !(slot->quirks & SDHCI_QUIRK_DONT_SET_HISPD_BIT))
 		slot->hostctrl |= SDHCI_CTRL_HISPD;
 	else
 		slot->hostctrl &= ~SDHCI_CTRL_HISPD;
 	WR1(slot, SDHCI_HOST_CONTROL, slot->hostctrl);
 	/* Some controllers like reset after bus changes. */
-	if(slot->sc->quirks & SDHCI_QUIRK_RESET_ON_IOS)
+	if(slot->quirks & SDHCI_QUIRK_RESET_ON_IOS)
 		sdhci_reset(slot, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
 
 	SDHCI_UNLOCK(slot);
 	return (0);
 }
 
+static void 
+sdhci_req_done(struct sdhci_slot *slot)
+{
+	struct mmc_request *req;
+
+	if (slot->req != NULL && slot->curcmd != NULL) {
+		callout_stop(&slot->timeout_callout);
+		req = slot->req;
+		slot->req = NULL;
+		slot->curcmd = NULL;
+		req->done(req);
+	}
+}
+ 
+static void 
+sdhci_timeout(void *arg)
+{
+	struct sdhci_slot *slot = arg;
+
+	if (slot->curcmd != NULL) {
+		slot_printf(slot, " Controller timeout\n");
+		sdhci_dumpregs(slot);
+		sdhci_reset(slot, SDHCI_RESET_CMD|SDHCI_RESET_DATA);
+		slot->curcmd->error = MMC_ERR_TIMEOUT;
+		sdhci_req_done(slot);
+	} else {
+		slot_printf(slot, " Spurious timeout - no active command\n");
+	}
+}
+ 
 static void
 sdhci_set_transfer_mode(struct sdhci_slot *slot,
 	struct mmc_data *data)
@@ -892,7 +814,6 @@ sdhci_set_transfer_mode(struct sdhci_slot *slot,
 static void
 sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 {
-	struct mmc_request *req = slot->req;
 	int flags, timeout;
 	uint32_t mask, state;
 
@@ -905,9 +826,7 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	if ((cmd->flags & MMC_RSP_136) && (cmd->flags & MMC_RSP_BUSY)) {
 		slot_printf(slot, "Unsupported response type!\n");
 		cmd->error = MMC_ERR_FAILED;
-		slot->req = NULL;
-		slot->curcmd = NULL;
-		req->done(req);
+		sdhci_req_done(slot);
 		return;
 	}
 
@@ -919,9 +838,7 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	    slot->power == 0 ||
 	    slot->clock == 0) {
 		cmd->error = MMC_ERR_FAILED;
-		slot->req = NULL;
-		slot->curcmd = NULL;
-		req->done(req);
+		sdhci_req_done(slot);
 		return;
 	}
 	/* Always wait for free CMD bus. */
@@ -932,17 +849,24 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	/* We shouldn't wait for DAT for stop commands. */
 	if (cmd == slot->req->stop)
 		mask &= ~SDHCI_DAT_INHIBIT;
-	/* Wait for bus no more then 10 ms. */
-	timeout = 10;
+	/*
+	 *  Wait for bus no more then 250 ms.  Typically there will be no wait
+	 *  here at all, but when writing a crash dump we may be bypassing the
+	 *  host platform's interrupt handler, and in some cases that handler
+	 *  may be working around hardware quirks such as not respecting r1b
+	 *  busy indications.  In those cases, this wait-loop serves the purpose
+	 *  of waiting for the prior command and data transfers to be done, and
+	 *  SD cards are allowed to take up to 250ms for write and erase ops.
+	 *  (It's usually more like 20-30ms in the real world.)
+	 */
+	timeout = 250;
 	while (state & mask) {
 		if (timeout == 0) {
 			slot_printf(slot, "Controller never released "
 			    "inhibit bit(s).\n");
 			sdhci_dumpregs(slot);
 			cmd->error = MMC_ERR_FAILED;
-			slot->req = NULL;
-			slot->curcmd = NULL;
-			req->done(req);
+			sdhci_req_done(slot);
 			return;
 		}
 		timeout--;
@@ -982,10 +906,11 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	WR4(slot, SDHCI_ARGUMENT, cmd->arg);
 	/* Set data transfer mode. */
 	sdhci_set_transfer_mode(slot, cmd->data);
-	/* Set command flags. */
-	WR1(slot, SDHCI_COMMAND_FLAGS, flags);
 	/* Start command. */
-	WR1(slot, SDHCI_COMMAND, cmd->opcode);
+	WR2(slot, SDHCI_COMMAND_FLAGS, (cmd->opcode << 8) | (flags & 0xff));
+	/* Start timeout callout. */
+	callout_reset(&slot->timeout_callout, slot->timeout * hz,
+	    sdhci_timeout, slot);
 }
 
 static void
@@ -1012,8 +937,13 @@ sdhci_finish_command(struct sdhci_slot *slot)
 			uint8_t extra = 0;
 			for (i = 0; i < 4; i++) {
 				uint32_t val = RD4(slot, SDHCI_RESPONSE + i * 4);
-				slot->curcmd->resp[3 - i] = (val << 8) + extra;
-				extra = val >> 24;
+				if (slot->quirks & SDHCI_QUIRK_DONT_SHIFT_RESPONSE)
+					slot->curcmd->resp[3 - i] = val;
+				else {
+					slot->curcmd->resp[3 - i] = 
+					    (val << 8) | extra;
+					extra = val >> 24;
+				}
 			}
 		} else
 			slot->curcmd->resp[0] = RD4(slot, SDHCI_RESPONSE);
@@ -1038,21 +968,21 @@ sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data)
 
 	/* Calculate and set data timeout.*/
 	/* XXX: We should have this from mmc layer, now assume 1 sec. */
-	target_timeout = 1000000;
-	div = 0;
-	current_timeout = (1 << 13) * 1000 / slot->timeout_clk;
-	while (current_timeout < target_timeout) {
-		div++;
-		current_timeout <<= 1;
-		if (div >= 0xF)
-			break;
-	}
-	/* Compensate for an off-by-one error in the CaFe chip.*/
-	if (slot->sc->quirks & SDHCI_QUIRK_INCR_TIMEOUT_CONTROL)
-		div++;
-	if (div >= 0xF) {
-		slot_printf(slot, "Timeout too large!\n");
+	if (slot->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL) {
 		div = 0xE;
+	} else {
+		target_timeout = 1000000;
+		div = 0;
+		current_timeout = (1 << 13) * 1000 / slot->timeout_clk;
+		while (current_timeout < target_timeout && div < 0xE) {
+			++div;
+			current_timeout <<= 1;
+		}
+		/* Compensate for an off-by-one error in the CaFe chip.*/
+		if (div < 0xE && 
+		    (slot->quirks & SDHCI_QUIRK_INCR_TIMEOUT_CONTROL)) {
+			++div;
+		}
 	}
 	WR1(slot, SDHCI_TIMEOUT_CONTROL, div);
 
@@ -1063,21 +993,24 @@ sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data)
 	if ((slot->opt & SDHCI_HAVE_DMA))
 		slot->flags |= SDHCI_USE_DMA;
 	/* If data is small, broken DMA may return zeroes instead of data, */
-	if ((slot->sc->quirks & SDHCI_QUIRK_BROKEN_TIMINGS) &&
+	if ((slot->quirks & SDHCI_QUIRK_BROKEN_TIMINGS) &&
 	    (data->len <= 512))
 		slot->flags &= ~SDHCI_USE_DMA;
 	/* Some controllers require even block sizes. */
-	if ((slot->sc->quirks & SDHCI_QUIRK_32BIT_DMA_SIZE) &&
+	if ((slot->quirks & SDHCI_QUIRK_32BIT_DMA_SIZE) &&
 	    ((data->len) & 0x3))
 		slot->flags &= ~SDHCI_USE_DMA;
 	/* Load DMA buffer. */
 	if (slot->flags & SDHCI_USE_DMA) {
 		if (data->flags & MMC_DATA_READ)
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, BUS_DMASYNC_PREREAD);
+			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			    BUS_DMASYNC_PREREAD);
 		else {
 			memcpy(slot->dmamem, data->data,
-			    (data->len < DMA_BLOCK_SIZE)?data->len:DMA_BLOCK_SIZE);
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, BUS_DMASYNC_PREWRITE);
+			    (data->len < DMA_BLOCK_SIZE) ? 
+			    data->len : DMA_BLOCK_SIZE);
+			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			    BUS_DMASYNC_PREWRITE);
 		}
 		WR4(slot, SDHCI_DMA_ADDRESS, slot->paddr);
 		/* Interrupt aggregation: Mask border interrupt
@@ -1097,29 +1030,31 @@ sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data)
 	WR2(slot, SDHCI_BLOCK_COUNT, (data->len + 511) / 512);
 }
 
-static void
+void
 sdhci_finish_data(struct sdhci_slot *slot)
 {
 	struct mmc_data *data = slot->curcmd->data;
 
-	slot->data_done = 1;
 	/* Interrupt aggregation: Restore command interrupt.
-	 * Auxillary restore point for the case when data interrupt
+	 * Auxiliary restore point for the case when data interrupt
 	 * happened first. */
 	if (!slot->cmd_done) {
 		WR4(slot, SDHCI_SIGNAL_ENABLE,
 		    slot->intmask |= SDHCI_INT_RESPONSE);
 	}
 	/* Unload rest of data from DMA buffer. */
-	if (slot->flags & SDHCI_USE_DMA) {
+	if (!slot->data_done && (slot->flags & SDHCI_USE_DMA)) {
 		if (data->flags & MMC_DATA_READ) {
 			size_t left = data->len - slot->offset;
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, BUS_DMASYNC_POSTREAD);
+			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			    BUS_DMASYNC_POSTREAD);
 			memcpy((u_char*)data->data + slot->offset, slot->dmamem,
 			    (left < DMA_BLOCK_SIZE)?left:DMA_BLOCK_SIZE);
 		} else
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			    BUS_DMASYNC_POSTWRITE);
 	}
+	slot->data_done = 1;
 	/* If there was error - reset the host. */
 	if (slot->curcmd->error) {
 		sdhci_reset(slot, SDHCI_RESET_CMD);
@@ -1156,19 +1091,16 @@ sdhci_start(struct sdhci_slot *slot)
 	if (sdhci_debug > 1)
 		slot_printf(slot, "result: %d\n", req->cmd->error);
 	if (!req->cmd->error &&
-	    (slot->sc->quirks & SDHCI_QUIRK_RESET_AFTER_REQUEST)) {
+	    (slot->quirks & SDHCI_QUIRK_RESET_AFTER_REQUEST)) {
 		sdhci_reset(slot, SDHCI_RESET_CMD);
 		sdhci_reset(slot, SDHCI_RESET_DATA);
 	}
 
-	/* We must be done -- bad idea to do this while locked? */
-	slot->req = NULL;
-	slot->curcmd = NULL;
-	req->done(req);
+	sdhci_req_done(slot);
 }
 
-static int
-sdhci_request(device_t brdev, device_t reqdev, struct mmc_request *req)
+int
+sdhci_generic_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 {
 	struct sdhci_slot *slot = device_get_ivars(reqdev);
 
@@ -1189,15 +1121,15 @@ sdhci_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 	SDHCI_UNLOCK(slot);
 	if (dumping) {
 		while (slot->req != NULL) {
-			sdhci_intr(slot->sc);
+			sdhci_generic_intr(slot);
 			DELAY(10);
 		}
 	}
 	return (0);
 }
 
-static int
-sdhci_get_ro(device_t brdev, device_t reqdev)
+int
+sdhci_generic_get_ro(device_t brdev, device_t reqdev)
 {
 	struct sdhci_slot *slot = device_get_ivars(reqdev);
 	uint32_t val;
@@ -1208,8 +1140,8 @@ sdhci_get_ro(device_t brdev, device_t reqdev)
 	return (!(val & SDHCI_WRITE_PROTECT));
 }
 
-static int
-sdhci_acquire_host(device_t brdev, device_t reqdev)
+int
+sdhci_generic_acquire_host(device_t brdev, device_t reqdev)
 {
 	struct sdhci_slot *slot = device_get_ivars(reqdev);
 	int err = 0;
@@ -1224,8 +1156,8 @@ sdhci_acquire_host(device_t brdev, device_t reqdev)
 	return (err);
 }
 
-static int
-sdhci_release_host(device_t brdev, device_t reqdev)
+int
+sdhci_generic_release_host(device_t brdev, device_t reqdev)
 {
 	struct sdhci_slot *slot = device_get_ivars(reqdev);
 
@@ -1290,13 +1222,18 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 	}
 	if (slot->curcmd->error) {
 		/* No need to continue after any error. */
-		sdhci_finish_data(slot);
-		return;
+		goto done;
 	}
 
 	/* Handle PIO interrupt. */
-	if (intmask & (SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL))
-		sdhci_transfer_pio(slot);
+	if (intmask & (SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL)) {
+		if ((slot->opt & SDHCI_PLATFORM_TRANSFER) && 
+		    SDHCI_PLATFORM_WILL_HANDLE(slot->bus, slot)) {
+			SDHCI_PLATFORM_START_TRANSFER(slot->bus, slot, &intmask);
+			slot->flags |= PLATFORM_DATA_STARTED;
+		} else
+			sdhci_transfer_pio(slot);
+	}
 	/* Handle DMA border. */
 	if (intmask & SDHCI_INT_DMA_END) {
 		struct mmc_data *data = slot->curcmd->data;
@@ -1335,8 +1272,22 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 		WR4(slot, SDHCI_DMA_ADDRESS, slot->paddr);
 	}
 	/* We have got all data. */
-	if (intmask & SDHCI_INT_DATA_END)
-		sdhci_finish_data(slot);
+	if (intmask & SDHCI_INT_DATA_END) {
+		if (slot->flags & PLATFORM_DATA_STARTED) {
+			slot->flags &= ~PLATFORM_DATA_STARTED;
+			SDHCI_PLATFORM_FINISH_TRANSFER(slot->bus, slot);
+		} else
+			sdhci_finish_data(slot);
+	}
+done:
+	if (slot->curcmd != NULL && slot->curcmd->error != 0) {
+		if (slot->flags & PLATFORM_DATA_STARTED) {
+			slot->flags &= ~PLATFORM_DATA_STARTED;
+			SDHCI_PLATFORM_FINISH_TRANSFER(slot->bus, slot);
+		} else
+			sdhci_finish_data(slot);
+		return;
+	}
 }
 
 static void
@@ -1355,85 +1306,81 @@ sdhci_acmd_irq(struct sdhci_slot *slot)
 	sdhci_reset(slot, SDHCI_RESET_CMD);
 }
 
-static void
-sdhci_intr(void *arg)
+void
+sdhci_generic_intr(struct sdhci_slot *slot)
 {
-	struct sdhci_softc *sc = (struct sdhci_softc *)arg;
-	int i;
-
-	for (i = 0; i < sc->num_slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[i];
-		uint32_t intmask;
-		
-		SDHCI_LOCK(slot);
-		/* Read slot interrupt status. */
-		intmask = RD4(slot, SDHCI_INT_STATUS);
-		if (intmask == 0 || intmask == 0xffffffff) {
-			SDHCI_UNLOCK(slot);
-			continue;
-		}
-		if (sdhci_debug > 2)
-			slot_printf(slot, "Interrupt %#x\n", intmask);
-
-		/* Handle card presence interrupts. */
-		if (intmask & (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE)) {
-			WR4(slot, SDHCI_INT_STATUS, intmask & 
-			    (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE));
-
-			if (intmask & SDHCI_INT_CARD_REMOVE) {
-				if (bootverbose || sdhci_debug)
-					slot_printf(slot, "Card removed\n");
-				callout_stop(&slot->card_callout);
-				taskqueue_enqueue(taskqueue_swi_giant,
-				    &slot->card_task);
-			}
-			if (intmask & SDHCI_INT_CARD_INSERT) {
-				if (bootverbose || sdhci_debug)
-					slot_printf(slot, "Card inserted\n");
-				callout_reset(&slot->card_callout, hz / 2,
-				    sdhci_card_delay, slot);
-			}
-			intmask &= ~(SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE);
-		}
-		/* Handle command interrupts. */
-		if (intmask & SDHCI_INT_CMD_MASK) {
-			WR4(slot, SDHCI_INT_STATUS, intmask & SDHCI_INT_CMD_MASK);
-			sdhci_cmd_irq(slot, intmask & SDHCI_INT_CMD_MASK);
-		}
-		/* Handle data interrupts. */
-		if (intmask & SDHCI_INT_DATA_MASK) {
-			WR4(slot, SDHCI_INT_STATUS, intmask & SDHCI_INT_DATA_MASK);
-			sdhci_data_irq(slot, intmask & SDHCI_INT_DATA_MASK);
-		}
-		/* Handle AutoCMD12 error interrupt. */
-		if (intmask & SDHCI_INT_ACMD12ERR) {
-			WR4(slot, SDHCI_INT_STATUS, SDHCI_INT_ACMD12ERR);
-			sdhci_acmd_irq(slot);
-		}
-		intmask &= ~(SDHCI_INT_CMD_MASK | SDHCI_INT_DATA_MASK);
-		intmask &= ~SDHCI_INT_ACMD12ERR;
-		intmask &= ~SDHCI_INT_ERROR;
-		/* Handle bus power interrupt. */
-		if (intmask & SDHCI_INT_BUS_POWER) {
-			WR4(slot, SDHCI_INT_STATUS, SDHCI_INT_BUS_POWER);
-			slot_printf(slot,
-			    "Card is consuming too much power!\n");
-			intmask &= ~SDHCI_INT_BUS_POWER;
-		}
-		/* The rest is unknown. */
-		if (intmask) {
-			WR4(slot, SDHCI_INT_STATUS, intmask);
-			slot_printf(slot, "Unexpected interrupt 0x%08x.\n",
-			    intmask);
-			sdhci_dumpregs(slot);
-		}
-		
+	uint32_t intmask;
+	
+	SDHCI_LOCK(slot);
+	/* Read slot interrupt status. */
+	intmask = RD4(slot, SDHCI_INT_STATUS);
+	if (intmask == 0 || intmask == 0xffffffff) {
 		SDHCI_UNLOCK(slot);
+		return;
 	}
+	if (sdhci_debug > 2)
+		slot_printf(slot, "Interrupt %#x\n", intmask);
+
+	/* Handle card presence interrupts. */
+	if (intmask & (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE)) {
+		WR4(slot, SDHCI_INT_STATUS, intmask & 
+		    (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE));
+
+		if (intmask & SDHCI_INT_CARD_REMOVE) {
+			if (bootverbose || sdhci_debug)
+				slot_printf(slot, "Card removed\n");
+			callout_stop(&slot->card_callout);
+			taskqueue_enqueue(taskqueue_swi_giant,
+			    &slot->card_task);
+		}
+		if (intmask & SDHCI_INT_CARD_INSERT) {
+			if (bootverbose || sdhci_debug)
+				slot_printf(slot, "Card inserted\n");
+			callout_reset(&slot->card_callout, hz / 2,
+			    sdhci_card_delay, slot);
+		}
+		intmask &= ~(SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE);
+	}
+	/* Handle command interrupts. */
+	if (intmask & SDHCI_INT_CMD_MASK) {
+		WR4(slot, SDHCI_INT_STATUS, intmask & SDHCI_INT_CMD_MASK);
+		sdhci_cmd_irq(slot, intmask & SDHCI_INT_CMD_MASK);
+	}
+	/* Handle data interrupts. */
+	if (intmask & SDHCI_INT_DATA_MASK) {
+		WR4(slot, SDHCI_INT_STATUS, intmask & SDHCI_INT_DATA_MASK);
+		/* Dont call data_irq in case of errored command */
+		if ((intmask & SDHCI_INT_CMD_ERROR_MASK) == 0)
+			sdhci_data_irq(slot, intmask & SDHCI_INT_DATA_MASK);
+	}
+	/* Handle AutoCMD12 error interrupt. */
+	if (intmask & SDHCI_INT_ACMD12ERR) {
+		WR4(slot, SDHCI_INT_STATUS, SDHCI_INT_ACMD12ERR);
+		sdhci_acmd_irq(slot);
+	}
+	intmask &= ~(SDHCI_INT_CMD_MASK | SDHCI_INT_DATA_MASK);
+	intmask &= ~SDHCI_INT_ACMD12ERR;
+	intmask &= ~SDHCI_INT_ERROR;
+	/* Handle bus power interrupt. */
+	if (intmask & SDHCI_INT_BUS_POWER) {
+		WR4(slot, SDHCI_INT_STATUS, SDHCI_INT_BUS_POWER);
+		slot_printf(slot,
+		    "Card is consuming too much power!\n");
+		intmask &= ~SDHCI_INT_BUS_POWER;
+	}
+	/* The rest is unknown. */
+	if (intmask) {
+		WR4(slot, SDHCI_INT_STATUS, intmask);
+		slot_printf(slot, "Unexpected interrupt 0x%08x.\n",
+		    intmask);
+		sdhci_dumpregs(slot);
+	}
+	
+	SDHCI_UNLOCK(slot);
 }
 
-static int
-sdhci_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
+int
+sdhci_generic_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 {
 	struct sdhci_slot *slot = device_get_ivars(child);
 
@@ -1441,53 +1388,53 @@ sdhci_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	default:
 		return (EINVAL);
 	case MMCBR_IVAR_BUS_MODE:
-		*(int *)result = slot->host.ios.bus_mode;
+		*result = slot->host.ios.bus_mode;
 		break;
 	case MMCBR_IVAR_BUS_WIDTH:
-		*(int *)result = slot->host.ios.bus_width;
+		*result = slot->host.ios.bus_width;
 		break;
 	case MMCBR_IVAR_CHIP_SELECT:
-		*(int *)result = slot->host.ios.chip_select;
+		*result = slot->host.ios.chip_select;
 		break;
 	case MMCBR_IVAR_CLOCK:
-		*(int *)result = slot->host.ios.clock;
+		*result = slot->host.ios.clock;
 		break;
 	case MMCBR_IVAR_F_MIN:
-		*(int *)result = slot->host.f_min;
+		*result = slot->host.f_min;
 		break;
 	case MMCBR_IVAR_F_MAX:
-		*(int *)result = slot->host.f_max;
+		*result = slot->host.f_max;
 		break;
 	case MMCBR_IVAR_HOST_OCR:
-		*(int *)result = slot->host.host_ocr;
+		*result = slot->host.host_ocr;
 		break;
 	case MMCBR_IVAR_MODE:
-		*(int *)result = slot->host.mode;
+		*result = slot->host.mode;
 		break;
 	case MMCBR_IVAR_OCR:
-		*(int *)result = slot->host.ocr;
+		*result = slot->host.ocr;
 		break;
 	case MMCBR_IVAR_POWER_MODE:
-		*(int *)result = slot->host.ios.power_mode;
+		*result = slot->host.ios.power_mode;
 		break;
 	case MMCBR_IVAR_VDD:
-		*(int *)result = slot->host.ios.vdd;
+		*result = slot->host.ios.vdd;
 		break;
 	case MMCBR_IVAR_CAPS:
-		*(int *)result = slot->host.caps;
+		*result = slot->host.caps;
 		break;
 	case MMCBR_IVAR_TIMING:
-		*(int *)result = slot->host.ios.timing;
+		*result = slot->host.ios.timing;
 		break;
 	case MMCBR_IVAR_MAX_DATA:
-		*(int *)result = 65535;
+		*result = 65535;
 		break;
 	}
 	return (0);
 }
 
-static int
-sdhci_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
+int
+sdhci_generic_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 {
 	struct sdhci_slot *slot = device_get_ivars(child);
 
@@ -1505,14 +1452,30 @@ sdhci_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 		break;
 	case MMCBR_IVAR_CLOCK:
 		if (value > 0) {
-			uint32_t clock = slot->max_clk;
+			uint32_t max_clock;
+			uint32_t clock;
 			int i;
 
-			for (i = 0; i < 8; i++) {
-				if (clock <= value)
-					break;
-				clock >>= 1;
+			max_clock = slot->max_clk;
+			clock = max_clock;
+
+			if (slot->version < SDHCI_SPEC_300) {
+				for (i = 0; i < SDHCI_200_MAX_DIVIDER;
+				    i <<= 1) {
+					if (clock <= value)
+						break;
+					clock >>= 1;
+				}
 			}
+			else {
+				for (i = 0; i < SDHCI_300_MAX_DIVIDER;
+				    i += 2) {
+					if (clock <= value)
+						break;
+					clock = max_clock / (i + 2);
+				}
+			}
+
 			slot->host.ios.clock = clock;
 		} else
 			slot->host.ios.clock = 0;
@@ -1542,34 +1505,4 @@ sdhci_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 	return (0);
 }
 
-static device_method_t sdhci_methods[] = {
-	/* device_if */
-	DEVMETHOD(device_probe, sdhci_probe),
-	DEVMETHOD(device_attach, sdhci_attach),
-	DEVMETHOD(device_detach, sdhci_detach),
-	DEVMETHOD(device_suspend, sdhci_suspend),
-	DEVMETHOD(device_resume, sdhci_resume),
-
-	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,	sdhci_read_ivar),
-	DEVMETHOD(bus_write_ivar,	sdhci_write_ivar),
-
-	/* mmcbr_if */
-	DEVMETHOD(mmcbr_update_ios, sdhci_update_ios),
-	DEVMETHOD(mmcbr_request, sdhci_request),
-	DEVMETHOD(mmcbr_get_ro, sdhci_get_ro),
-	DEVMETHOD(mmcbr_acquire_host, sdhci_acquire_host),
-	DEVMETHOD(mmcbr_release_host, sdhci_release_host),
-
-	{0, 0},
-};
-
-static driver_t sdhci_driver = {
-	"sdhci",
-	sdhci_methods,
-	sizeof(struct sdhci_softc),
-};
-static devclass_t sdhci_devclass;
-
-
-DRIVER_MODULE(sdhci, pci, sdhci_driver, sdhci_devclass, 0, 0);
+MODULE_VERSION(sdhci, 1);

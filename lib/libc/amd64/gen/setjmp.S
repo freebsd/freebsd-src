@@ -54,7 +54,8 @@ ENTRY(setjmp)
 	movq	$1,%rdi			/* SIG_BLOCK       */
 	movq	$0,%rsi			/* (sigset_t*)set  */
 	leaq	72(%rcx),%rdx		/* 9,10; (sigset_t*)oset */
-	call	PIC_PLT(CNAME(_sigprocmask))
+	/* stack is 16-byte aligned */
+	call	__libc_sigprocmask
 	popq	%rdi
 	movq	%rdi,%rcx
 	movq	0(%rsp),%rdx		/* retval */
@@ -72,8 +73,7 @@ ENTRY(setjmp)
 	ret
 END(setjmp)
 
-	.weak CNAME(longjmp)
-	.set CNAME(longjmp),CNAME(__longjmp)
+	WEAK_REFERENCE(__longjmp, longjmp)
 ENTRY(__longjmp)
 	pushq	%rdi
 	pushq	%rsi
@@ -81,7 +81,9 @@ ENTRY(__longjmp)
 	movq	$3,%rdi			/* SIG_SETMASK     */
 	leaq	72(%rdx),%rsi		/* (sigset_t*)set  */
 	movq	$0,%rdx			/* (sigset_t*)oset */
-	call	PIC_PLT(CNAME(_sigprocmask))
+	subq	$0x8,%rsp		/* make the stack 16-byte aligned */
+	call	__libc_sigprocmask
+	addq	$0x8,%rsp
 	popq	%rsi
 	popq	%rdi			/* jmpbuf */
 	movq	%rdi,%rdx
@@ -110,3 +112,5 @@ ENTRY(__longjmp)
 1:	movq	%rcx,0(%rsp)
 	ret
 END(__longjmp)
+
+	.section .note.GNU-stack,"",%progbits

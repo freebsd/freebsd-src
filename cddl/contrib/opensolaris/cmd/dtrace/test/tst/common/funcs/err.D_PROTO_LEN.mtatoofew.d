@@ -36,7 +36,7 @@
  */
 
 
-lockstat:genunix:mutex_enter:adaptive-acquire
+lockstat:::adaptive-acquire
 {
 	mutex_type_adaptive();
 	exit(1);

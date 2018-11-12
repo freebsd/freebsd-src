@@ -57,8 +57,8 @@ __FBSDID("$FreeBSD$");
 #define MAXMBOXES 10
 
 
-STATIC int nmboxes;			/* number of mailboxes */
-STATIC time_t mailtime[MAXMBOXES];	/* times of mailboxes */
+static int nmboxes;			/* number of mailboxes */
+static time_t mailtime[MAXMBOXES];	/* times of mailboxes */
 
 
 
@@ -72,7 +72,7 @@ void
 chkmail(int silent)
 {
 	int i;
-	char *mpath;
+	const char *mpath;
 	char *p;
 	char *q;
 	struct stackmark smark;
@@ -85,7 +85,7 @@ chkmail(int silent)
 	setstackmark(&smark);
 	mpath = mpathset()? mpathval() : mailval();
 	for (i = 0 ; i < nmboxes ; i++) {
-		p = padvance(&mpath, nullstr);
+		p = padvance(&mpath, "");
 		if (p == NULL)
 			break;
 		if (*p == '\0')

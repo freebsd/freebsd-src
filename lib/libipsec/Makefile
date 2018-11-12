@@ -27,9 +27,10 @@
 #
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 SHLIBDIR?= /lib
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	ipsec
 SHLIB_MAJOR= 4
@@ -47,6 +48,8 @@ SRCS+=	ipsec_dump_policy.c ipsec_get_policylen.c
 CLEANFILES+=	y.tab.c y.tab.h
 YFLAGS+=-d -p __libipsecyy
 LFLAGS+=-P__libipsecyy
+
+WARNS?=	2
 
 MAN=	ipsec_set_policy.3 ipsec_strerror.3
 MLINKS+=ipsec_set_policy.3 ipsec_get_policylen.3 \

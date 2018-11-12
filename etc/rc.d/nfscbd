@@ -10,7 +10,8 @@
 . /etc/rc.subr
 
 name="nfscbd"
-rcvar=`set_rcvar`
+desc="NFSv4 client side callback daemon"
+rcvar="nfscbd_enable"
 command="/usr/sbin/${name}"
 sig_stop="USR1"
 

@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
-#include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -66,8 +65,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
+#include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/timetc.h>
@@ -88,11 +89,13 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cache.h>
-#include <machine/clock.h>
+#include <machine/cmt.h>
 #include <machine/cpu.h>
+#include <machine/fireplane.h>
 #include <machine/fp.h>
 #include <machine/fsr.h>
 #include <machine/intr_machdep.h>
+#include <machine/jbus.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/ofw_machdep.h>
@@ -110,10 +113,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/ver.h>
 
 typedef int ofw_vec_t(void *);
-
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
 
 int dtlb_slots;
 int itlb_slots;
@@ -135,6 +134,7 @@ struct kva_md_info kmi;
 
 u_long ofw_vec;
 u_long ofw_tba;
+u_int tba_taken_over;
 
 char sparc64_model[32];
 
@@ -143,11 +143,12 @@ static int cpu_use_vis = 1;
 cpu_block_copy_t *cpu_block_copy;
 cpu_block_zero_t *cpu_block_zero;
 
+static phandle_t find_bsp(phandle_t node, uint32_t bspid, u_int cpu_impl);
 void sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3,
     ofw_vec_t *vec);
-void sparc64_shutdown_final(void *dummy, int howto);
+static void sparc64_shutdown_final(void *dummy, int howto);
 
-static void cpu_startup(void *);
+static void cpu_startup(void *arg);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 CTASSERT((1 << INT_SHIFT) == sizeof(int));
@@ -185,8 +186,8 @@ cpu_startup(void *arg)
 	EVENTHANDLER_REGISTER(shutdown_final, sparc64_shutdown_final, NULL,
 	    SHUTDOWN_PRI_LAST);
 
-	printf("avail memory = %lu (%lu MB)\n", cnt.v_free_count * PAGE_SIZE,
-	    cnt.v_free_count / ((1024 * 1024) / PAGE_SIZE));
+	printf("avail memory = %lu (%lu MB)\n", vm_cnt.v_free_count * PAGE_SIZE,
+	    vm_cnt.v_free_count / ((1024 * 1024) / PAGE_SIZE));
 
 	if (bootverbose)
 		printf("machine: %s\n", sparc64_model);
@@ -218,9 +219,10 @@ spinlock_enter(void)
 	if (td->td_md.md_spinlock_count == 0) {
 		pil = rdpr(pil);
 		wrpr(pil, 0, PIL_TICK);
+		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_pil = pil;
-	}
-	td->td_md.md_spinlock_count++;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -228,26 +230,107 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t pil;
 
 	td = curthread;
 	critical_exit();
+	pil = td->td_md.md_saved_pil;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		wrpr(pil, td->td_md.md_saved_pil, 0);
+		wrpr(pil, pil, 0);
+}
+
+static phandle_t
+find_bsp(phandle_t node, uint32_t bspid, u_int cpu_impl)
+{
+	char type[sizeof("cpu")];
+	phandle_t child;
+	uint32_t portid;
+
+	for (; node != 0; node = OF_peer(node)) {
+		child = OF_child(node);
+		if (child > 0) {
+			child = find_bsp(child, bspid, cpu_impl);
+			if (child > 0)
+				return (child);
+		} else {
+			if (OF_getprop(node, "device_type", type,
+			    sizeof(type)) <= 0)
+				continue;
+			if (strcmp(type, "cpu") != 0)
+				continue;
+			if (OF_getprop(node, cpu_portid_prop(cpu_impl),
+			    &portid, sizeof(portid)) <= 0)
+				continue;
+			if (portid == bspid)
+				return (node);
+		}
+	}
+	return (0);
+}
+
+const char *
+cpu_portid_prop(u_int cpu_impl)
+{
+
+	switch (cpu_impl) {
+	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_SPARC64V:
+	case CPU_IMPL_ULTRASPARCI:
+	case CPU_IMPL_ULTRASPARCII:
+	case CPU_IMPL_ULTRASPARCIIi:
+	case CPU_IMPL_ULTRASPARCIIe:
+		return ("upa-portid");
+	case CPU_IMPL_ULTRASPARCIII:
+	case CPU_IMPL_ULTRASPARCIIIp:
+	case CPU_IMPL_ULTRASPARCIIIi:
+	case CPU_IMPL_ULTRASPARCIIIip:
+		return ("portid");
+	case CPU_IMPL_ULTRASPARCIV:
+	case CPU_IMPL_ULTRASPARCIVp:
+		return ("cpuid");
+	default:
+		return ("");
+	}
+}
+
+uint32_t
+cpu_get_mid(u_int cpu_impl)
+{
+
+	switch (cpu_impl) {
+	case CPU_IMPL_SPARC64:
+	case CPU_IMPL_SPARC64V:
+	case CPU_IMPL_ULTRASPARCI:
+	case CPU_IMPL_ULTRASPARCII:
+	case CPU_IMPL_ULTRASPARCIIi:
+	case CPU_IMPL_ULTRASPARCIIe:
+		return (UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG)));
+	case CPU_IMPL_ULTRASPARCIII:
+	case CPU_IMPL_ULTRASPARCIIIp:
+		return (FIREPLANE_CR_GET_AID(ldxa(AA_FIREPLANE_CONFIG,
+		    ASI_FIREPLANE_CONFIG_REG)));
+	case CPU_IMPL_ULTRASPARCIIIi:
+	case CPU_IMPL_ULTRASPARCIIIip:
+		return (JBUS_CR_GET_JID(ldxa(0, ASI_JBUS_CONFIG_REG)));
+	case CPU_IMPL_ULTRASPARCIV:
+	case CPU_IMPL_ULTRASPARCIVp:
+		return (INTR_ID_GET_ID(ldxa(AA_INTR_ID, ASI_INTR_ID)));
+	default:
+		return (0);
+	}
 }
 
 void
 sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 {
-	char type[8];
 	char *env;
 	struct pcpu *pc;
 	vm_offset_t end;
 	vm_offset_t va;
 	caddr_t kmdp;
-	phandle_t child;
 	phandle_t root;
-	uint32_t portid;
+	u_int cpu_impl;
 
 	end = 0;
 	kmdp = NULL;
@@ -259,15 +342,17 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	cpu_impl = VER_IMPL(rdpr(ver));
 
 	/*
-	 * Do CPU-specific Initialization.
+	 * Do CPU-specific initialization.
 	 */
 	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
-		cheetah_init();
+		cheetah_init(cpu_impl);
+	else if (cpu_impl == CPU_IMPL_SPARC64V)
+		zeus_init(cpu_impl);
 
 	/*
 	 * Clear (S)TICK timer (including NPT).
 	 */
-	tick_clear();
+	tick_clear(cpu_impl);
 
 	/*
 	 * UltraSparc II[e,i] based systems come up with the tick interrupt
@@ -277,7 +362,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * enabled, causing an interrupt storm on startup since they are not
 	 * handled.
 	 */
-	tick_stop();
+	tick_stop(cpu_impl);
 
 	/*
 	 * Set up Open Firmware entry points.
@@ -287,14 +372,15 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be before the
-	 * console is inited so cninit gets the right value of boothowto.
+	 * console is inited so cninit() gets the right value of boothowto.
 	 */
 	if (mdp != NULL) {
 		preload_metadata = mdp;
 		kmdp = preload_search_by_type("elf kernel");
 		if (kmdp != NULL) {
 			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+			init_static_kenv(MD_FETCH(kmdp, MODINFOMD_ENVP, char *),
+			    0);
 			end = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 			kernel_tlb_slots = MD_FETCH(kmdp, MODINFOMD_DTLB_SLOTS,
 			    int);
@@ -319,7 +405,8 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	pc = (struct pcpu *)(pcpu0 + (PCPU_PAGES * PAGE_SIZE)) - 1;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_addr = (vm_offset_t)pcpu0;
-	pc->pc_mid = UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG));
+	pc->pc_impl = cpu_impl;
+	pc->pc_mid = cpu_get_mid(cpu_impl);
 	pc->pc_tlb_ctx = TLB_CTX_USER_MIN;
 	pc->pc_tlb_ctx_min = TLB_CTX_USER_MIN;
 	pc->pc_tlb_ctx_max = TLB_CTX_USER_MAX;
@@ -328,53 +415,22 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * Determine the OFW node and frequency of the BSP (and ensure the
 	 * BSP is in the device tree in the first place).
 	 */
-	pc->pc_node = 0;
 	root = OF_peer(0);
-	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
-		if (OF_getprop(child, "device_type", type, sizeof(type)) <= 0)
-			continue;
-		if (strcmp(type, "cpu") != 0)
-			continue;
-		if (OF_getprop(child, cpu_impl < CPU_IMPL_ULTRASPARCIII ?
-		    "upa-portid" : "portid", &portid, sizeof(portid)) <= 0)
-			continue;
-		if (portid == pc->pc_mid) {
-			pc->pc_node = child;
-			break;
-		}
-	}
+	pc->pc_node = find_bsp(root, pc->pc_mid, cpu_impl);
 	if (pc->pc_node == 0)
-		OF_exit();
-	if (OF_getprop(child, "clock-frequency", &pc->pc_clock,
+		OF_panic("%s: cannot find boot CPU node", __func__);
+	if (OF_getprop(pc->pc_node, "clock-frequency", &pc->pc_clock,
 	    sizeof(pc->pc_clock)) <= 0)
-		OF_exit();
-
-	/*
-	 * Provide a DELAY() that works before PCPU_REG is set.  We can't
-	 * set PCPU_REG without also taking over the trap table or the
-	 * firmware will overwrite it.  Unfortunately, it's way to early
-	 * to also take over the trap table at this point.
-	 */
-	clock_boot = pc->pc_clock;
-	delay_func = delay_boot;
-
-	/*
-	 * Initialize the console before printing anything.
-	 * NB: the low-level console drivers require a working DELAY() at
-	 * this point.
-	 */
-	cninit();
+		OF_panic("%s: cannot determine boot CPU clock", __func__);
 
 	/*
 	 * Panic if there is no metadata.  Most likely the kernel was booted
 	 * directly, instead of through loader(8).
 	 */
 	if (mdp == NULL || kmdp == NULL || end == 0 ||
-	    kernel_tlb_slots == 0 || kernel_tlbs == NULL) {
-		printf("sparc64_init: missing loader metadata.\n"
-		    "This probably means you are not using loader(8).\n");
-		panic("sparc64_init");
-	}
+	    kernel_tlb_slots == 0 || kernel_tlbs == NULL)
+		OF_panic("%s: missing loader metadata.\nThis probably means "
+		    "you are not using loader(8).", __func__);
 
 	/*
 	 * Work around the broken loader behavior of not demapping no
@@ -383,8 +439,9 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 */
 	for (va = KERNBASE + (kernel_tlb_slots - 1) * PAGE_SIZE_4M;
 	    va >= roundup2(end, PAGE_SIZE_4M); va -= PAGE_SIZE_4M) {
-		printf("demapping unused kernel TLB slot (va %#lx - %#lx)\n",
-		    va, va + PAGE_SIZE_4M - 1);
+		if (bootverbose)
+			OF_printf("demapping unused kernel TLB slot "
+			    "(va %#lx - %#lx)\n", va, va + PAGE_SIZE_4M - 1);
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE,
 		    ASI_DMMU_DEMAP, 0);
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE,
@@ -396,18 +453,24 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	/*
 	 * Determine the TLB slot maxima, which are expected to be
 	 * equal across all CPUs.
-	 * NB: for Cheetah-class CPUs, these properties only refer
+	 * NB: for cheetah-class CPUs, these properties only refer
 	 * to the t16s.
 	 */
 	if (OF_getprop(pc->pc_node, "#dtlb-entries", &dtlb_slots,
 	    sizeof(dtlb_slots)) == -1)
-		panic("sparc64_init: cannot determine number of dTLB slots");
+		OF_panic("%s: cannot determine number of dTLB slots",
+		    __func__);
 	if (OF_getprop(pc->pc_node, "#itlb-entries", &itlb_slots,
 	    sizeof(itlb_slots)) == -1)
-		panic("sparc64_init: cannot determine number of iTLB slots");
+		OF_panic("%s: cannot determine number of iTLB slots",
+		    __func__);
 
+	/*
+	 * Initialize and enable the caches.  Note that this may include
+	 * applying workarounds.
+	 */
 	cache_init(pc);
-	cache_enable();
+	cache_enable(cpu_impl);
 	uma_set_align(pc->pc_cache.dc_linesize - 1);
 
 	cpu_block_copy = bcopy;
@@ -429,6 +492,10 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 			cpu_block_copy = spitfire_block_copy;
 			cpu_block_zero = spitfire_block_zero;
 			break;
+		case CPU_IMPL_SPARC64V:
+			cpu_block_copy = zeus_block_copy;
+			cpu_block_zero = zeus_block_zero;
+			break;
 		}
 	}
 
@@ -439,13 +506,13 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	/*
 	 * Initialize virtual memory and calculate physmem.
 	 */
-	pmap_bootstrap();
+	pmap_bootstrap(cpu_impl);
 
 	/*
 	 * Initialize tunables.
 	 */
 	init_param2(physmem);
-	env = getenv("kernelname");
+	env = kern_getenv("kernelname");
 	if (env != NULL) {
 		strlcpy(kernelname, env, sizeof(kernelname));
 		freeenv(env);
@@ -463,6 +530,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	proc0.p_md.md_sigtramp = NULL;
 	proc0.p_md.md_utrap = NULL;
 	thread0.td_kstack = kstack0;
+	thread0.td_kstack_pages = KSTACK_PAGES;
 	thread0.td_pcb = (struct pcb *)
 	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	frame0.tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_PRIV;
@@ -480,30 +548,43 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * is necessary in order to set obp-control-relinquished to true
 	 * within the PROM so obtaining /virtual-memory/translations doesn't
 	 * trigger a fatal reset error or worse things further down the road.
-	 * XXX it should be possible to use this soley instead of writing
+	 * XXX it should be possible to use this solely instead of writing
 	 * %tba in cpu_setregs().  Doing so causes a hang however.
+	 *
+	 * NB: the low-level console drivers require a working DELAY() and
+	 * some compiler optimizations may cause the curthread accesses of
+	 * mutex(9) to be factored out even if the latter aren't actually
+	 * called.  Both of these require PCPU_REG to be set.  However, we
+	 * can't set PCPU_REG without also taking over the trap table or the
+	 * firmware will overwrite it.
 	 */
 	sun4u_set_traptable(tl0_base);
-
-	/*
-	 * It's now safe to use the real DELAY().
-	 */
-	delay_func = delay_tick;
 
 	/*
 	 * Initialize the dynamic per-CPU area for the BSP and the message
 	 * buffer (after setting the trap table).
 	 */
 	dpcpu_init(dpcpu0, 0);
-	msgbufinit(msgbufp, MSGBUF_SIZE);
-
-	mutex_init();
-	intr_init2();
+	msgbufinit(msgbufp, msgbufsize);
 
 	/*
-	 * Finish pmap initialization now that we're ready for mutexes.
+	 * Initialize mutexes.
 	 */
-	PMAP_LOCK_INIT(kernel_pmap);
+	mutex_init();
+
+	/*
+	 * Initialize console now that we have a reasonable set of system
+	 * services.
+	 */
+	cninit();
+
+	/*
+	 * Finish the interrupt initialization now that mutexes work and
+	 * enable them.
+	 */
+	intr_init2();
+	wrpr(pil, 0, 0);
+	wrpr(pstate, 0, PSTATE_KERNEL);
 
 	OF_getprop(root, "name", sparc64_model, sizeof(sparc64_model) - 1);
 
@@ -565,7 +646,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct sigframe *)(td->td_sigstk.ss_sp +
+		sfp = (struct sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(struct sigframe));
 	} else
 		sfp = (struct sigframe *)sp - 1;
@@ -573,10 +654,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	PROC_UNLOCK(p);
 
 	fp = (struct frame *)sfp - 1;
-
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
 	/* Build the argument list for the signal handler. */
 	tf->tf_out[0] = sig;
@@ -629,7 +706,7 @@ struct sigreturn_args {
  * MPSAFE
  */
 int
-sigreturn(struct thread *td, struct sigreturn_args *uap)
+sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
 	struct proc *p;
 	mcontext_t *mc;
@@ -653,25 +730,12 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 	if (error != 0)
 		return (error);
 
-	PROC_LOCK(p);
-	td->td_sigmask = uc.uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	CTR4(KTR_SIG, "sigreturn: return td=%p pc=%#lx sp=%#lx tstate=%#lx",
-	    td, mc->mc_tpc, mc->mc_sp, mc->mc_tstate);
+	    td, mc->_mc_tpc, mc->_mc_sp, mc->_mc_tstate);
 	return (EJUSTRETURN);
 }
-
-#ifdef COMPAT_FREEBSD4
-int
-freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
-{
-
-	return sigreturn(td, (struct sigreturn_args *)uap);
-}
-#endif
 
 /*
  * Construct a PCB from a trapframe. This is called from kdb_trap() where
@@ -696,12 +760,39 @@ get_mcontext(struct thread *td, mcontext_t *mc, int flags)
 
 	tf = td->td_frame;
 	pcb = td->td_pcb;
-	bcopy(tf, mc, sizeof(*tf));
+	/*
+	 * Copy the registers which will be restored by tl0_ret() from the
+	 * trapframe.
+	 * Note that we skip %g7 which is used as the userland TLS register
+	 * and %wstate.
+	 */
+	mc->_mc_flags = _MC_VERSION;
+	mc->mc_global[1] = tf->tf_global[1];
+	mc->mc_global[2] = tf->tf_global[2];
+	mc->mc_global[3] = tf->tf_global[3];
+	mc->mc_global[4] = tf->tf_global[4];
+	mc->mc_global[5] = tf->tf_global[5];
+	mc->mc_global[6] = tf->tf_global[6];
 	if (flags & GET_MC_CLEAR_RET) {
 		mc->mc_out[0] = 0;
 		mc->mc_out[1] = 0;
+	} else {
+		mc->mc_out[0] = tf->tf_out[0];
+		mc->mc_out[1] = tf->tf_out[1];
 	}
-	mc->mc_flags = _MC_VERSION;
+	mc->mc_out[2] = tf->tf_out[2];
+	mc->mc_out[3] = tf->tf_out[3];
+	mc->mc_out[4] = tf->tf_out[4];
+	mc->mc_out[5] = tf->tf_out[5];
+	mc->mc_out[6] = tf->tf_out[6];
+	mc->mc_out[7] = tf->tf_out[7];
+	mc->_mc_fprs = tf->tf_fprs;
+	mc->_mc_fsr = tf->tf_fsr;
+	mc->_mc_gsr = tf->tf_gsr;
+	mc->_mc_tnpc = tf->tf_tnpc;
+	mc->_mc_tpc = tf->tf_tpc;
+	mc->_mc_tstate = tf->tf_tstate;
+	mc->_mc_y = tf->tf_y;
 	critical_enter();
 	if ((tf->tf_fprs & FPRS_FEF) != 0) {
 		savefpctx(pcb->pcb_ufp);
@@ -710,30 +801,53 @@ get_mcontext(struct thread *td, mcontext_t *mc, int flags)
 	}
 	if ((pcb->pcb_flags & PCB_FEF) != 0) {
 		bcopy(pcb->pcb_ufp, mc->mc_fp, sizeof(mc->mc_fp));
-		mc->mc_fprs |= FPRS_FEF;
+		mc->_mc_fprs |= FPRS_FEF;
 	}
 	critical_exit();
 	return (0);
 }
 
 int
-set_mcontext(struct thread *td, const mcontext_t *mc)
+set_mcontext(struct thread *td, mcontext_t *mc)
 {
 	struct trapframe *tf;
 	struct pcb *pcb;
-	uint64_t wstate;
 
-	if (!TSTATE_SECURE(mc->mc_tstate) ||
-	    (mc->mc_flags & ((1L << _MC_VERSION_BITS) - 1)) != _MC_VERSION)
+	if (!TSTATE_SECURE(mc->_mc_tstate) ||
+	    (mc->_mc_flags & ((1L << _MC_VERSION_BITS) - 1)) != _MC_VERSION)
 		return (EINVAL);
 	tf = td->td_frame;
 	pcb = td->td_pcb;
 	/* Make sure the windows are spilled first. */
 	flushw();
-	wstate = tf->tf_wstate;
-	bcopy(mc, tf, sizeof(*tf));
-	tf->tf_wstate = wstate;
-	if ((mc->mc_fprs & FPRS_FEF) != 0) {
+	/*
+	 * Copy the registers which will be restored by tl0_ret() to the
+	 * trapframe.
+	 * Note that we skip %g7 which is used as the userland TLS register
+	 * and %wstate.
+	 */
+	tf->tf_global[1] = mc->mc_global[1];
+	tf->tf_global[2] = mc->mc_global[2];
+	tf->tf_global[3] = mc->mc_global[3];
+	tf->tf_global[4] = mc->mc_global[4];
+	tf->tf_global[5] = mc->mc_global[5];
+	tf->tf_global[6] = mc->mc_global[6];
+	tf->tf_out[0] = mc->mc_out[0];
+	tf->tf_out[1] = mc->mc_out[1];
+	tf->tf_out[2] = mc->mc_out[2];
+	tf->tf_out[3] = mc->mc_out[3];
+	tf->tf_out[4] = mc->mc_out[4];
+	tf->tf_out[5] = mc->mc_out[5];
+	tf->tf_out[6] = mc->mc_out[6];
+	tf->tf_out[7] = mc->mc_out[7];
+	tf->tf_fprs = mc->_mc_fprs;
+	tf->tf_fsr = mc->_mc_fsr;
+	tf->tf_gsr = mc->_mc_gsr;
+	tf->tf_tnpc = mc->_mc_tnpc;
+	tf->tf_tpc = mc->_mc_tpc;
+	tf->tf_tstate = mc->_mc_tstate;
+	tf->tf_y = mc->_mc_y;
+	if ((mc->_mc_fprs & FPRS_FEF) != 0) {
 		tf->tf_fprs = 0;
 		bcopy(mc->mc_fp, pcb->pcb_ufp, sizeof(pcb->pcb_ufp));
 		pcb->pcb_flags |= PCB_FEF;
@@ -800,7 +914,7 @@ cpu_halt(void)
 	cpu_shutdown(&args);
 }
 
-void
+static void
 sparc64_shutdown_final(void *dummy, int howto)
 {
 	static struct {
@@ -832,7 +946,7 @@ int
 cpu_idle_wakeup(int cpu)
 {
 
-	return (0);
+	return (1);
 }
 
 int
@@ -861,7 +975,7 @@ ptrace_clear_single_step(struct thread *td)
 }
 
 void
-exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
+exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe *tf;
 	struct pcb *pcb;
@@ -884,8 +998,12 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	tf->tf_out[0] = stack;
 	tf->tf_out[3] = p->p_sysent->sv_psstrings;
 	tf->tf_out[6] = sp - SPOFF - sizeof(struct frame);
-	tf->tf_tnpc = entry + 4;
-	tf->tf_tpc = entry;
+	tf->tf_tnpc = imgp->entry_addr + 4;
+	tf->tf_tpc = imgp->entry_addr;
+	/*
+	 * While we could adhere to the memory model indicated in the ELF
+	 * header, it turns out that just always using TSO performs best.
+	 */
 	tf->tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_MM_TSO;
 
 	td->td_retval[0] = tf->tf_out[0];

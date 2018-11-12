@@ -3,7 +3,8 @@
 PROG=	lmcconfig
 MAN=	lmcconfig.8
 
-DPADD=	${LIBNETGRAPH}
-LDADD=	-lnetgraph
+LIBADD=	netgraph
+
+WARNS?=	3
 
 .include <bsd.prog.mk>

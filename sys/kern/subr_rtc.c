@@ -1,11 +1,16 @@
 /*-
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1982, 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * the Systems Programming Group of the University of Utah Computer
  * Science Department.
+ *
+ * Portions of this software were developed by Julien Ridoux at the University
+ * of Melbourne under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,7 +20,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -50,50 +55,59 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ffclock.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
+#ifdef FFCLOCK
+#include <sys/timeffc.h>
+#endif
 #include <sys/timetc.h>
 
 #include "clock_if.h"
 
 static device_t clock_dev = NULL;
 static long clock_res;
+static struct timespec clock_adj;
+struct mtx resettodr_lock;
+MTX_SYSINIT(resettodr_init, &resettodr_lock, "tod2rl", MTX_DEF);
 
 /* XXX: should be kern. now, it's no longer machdep.  */
 static int disable_rtc_set;
-SYSCTL_INT(_machdep, OID_AUTO, disable_rtc_set,
-	CTLFLAG_RW, &disable_rtc_set, 0, "");
+SYSCTL_INT(_machdep, OID_AUTO, disable_rtc_set, CTLFLAG_RW, &disable_rtc_set,
+    0, "Disallow adjusting time-of-day clock");
 
 void
 clock_register(device_t dev, long res)	/* res has units of microseconds */
 {
 
 	if (clock_dev != NULL) {
-		if (clock_res > res) {
-			if (bootverbose) {
+		if (clock_res <= res) {
+			if (bootverbose)
 				device_printf(dev, "not installed as "
 				    "time-of-day clock: clock %s has higher "
 				    "resolution\n", device_get_name(clock_dev));
-			}
 			return;
-		} else {
-			if (bootverbose) {
-				device_printf(clock_dev, "removed as "
-				    "time-of-day clock: clock %s has higher "
-				    "resolution\n", device_get_name(dev));
-			}
 		}
+		if (bootverbose)
+			device_printf(clock_dev, "removed as "
+			    "time-of-day clock: clock %s has higher "
+			    "resolution\n", device_get_name(dev));
 	}
 	clock_dev = dev;
 	clock_res = res;
-	if (bootverbose) {
+	clock_adj.tv_sec = res / 2 / 1000000;
+	clock_adj.tv_nsec = res / 2 % 1000000 * 1000;
+	if (bootverbose)
 		device_printf(dev, "registered as a time-of-day clock "
-		    "(resolution %ldus)\n", res);
-	}
+		    "(resolution %ldus, adjustment %jd.%09jds)\n", res,
+		    (intmax_t)clock_adj.tv_sec, (intmax_t)clock_adj.tv_nsec);
 }
 
 /*
@@ -109,7 +123,7 @@ clock_register(device_t dev, long res)	/* res has units of microseconds */
 void
 inittodr(time_t base)
 {
-	struct timespec ref, ts;
+	struct timespec ts;
 	int error;
 
 	if (clock_dev == NULL) {
@@ -118,7 +132,9 @@ inittodr(time_t base)
 		goto wrong_time;
 	}
 	/* XXX: We should poll all registered RTCs in case of failure */
+	mtx_lock(&resettodr_lock);
 	error = CLOCK_GETTIME(clock_dev, &ts);
+	mtx_unlock(&resettodr_lock);
 	if (error != 0 && error != EINVAL) {
 		printf("warning: clock_gettime failed (%d), the system time "
 		    "will not be set accurately\n", error);
@@ -131,14 +147,18 @@ inittodr(time_t base)
 	}
 
 	ts.tv_sec += utc_offset();
+	timespecadd(&ts, &clock_adj);
 	tc_setclock(&ts);
+#ifdef FFCLOCK
+	ffclock_reset_clock(&ts);
+#endif
 	return;
 
 wrong_time:
 	if (base > 0) {
-		ref.tv_sec = base;
-		ref.tv_nsec = 0;
-		tc_setclock(&ref);
+		ts.tv_sec = base;
+		ts.tv_nsec = 0;
+		tc_setclock(&ts);
 	}
 }
 
@@ -155,11 +175,13 @@ resettodr(void)
 		return;
 
 	getnanotime(&ts);
+	timespecadd(&ts, &clock_adj);
 	ts.tv_sec -= utc_offset();
 	/* XXX: We should really set all registered RTCs */
-	if ((error = CLOCK_SETTIME(clock_dev, &ts)) != 0) {
+	mtx_lock(&resettodr_lock);
+	error = CLOCK_SETTIME(clock_dev, &ts);
+	mtx_unlock(&resettodr_lock);
+	if (error != 0)
 		printf("warning: clock_settime failed (%d), time-of-day clock "
 		    "not adjusted to system time\n", error);
-		return;
-	}
 }

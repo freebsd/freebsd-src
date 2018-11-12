@@ -48,7 +48,6 @@
 
 #include <vm/uma.h>
 
-#include <fs/fifofs/fifo.h>
 #include <fs/udf/ecma167-udf.h>
 #include <fs/udf/osta.h>
 #include <fs/udf/udf.h>
@@ -107,8 +106,8 @@ struct vop_vector udf_fifoops = {
 	.vop_vptofh =		udf_vptofh,
 };
 
-MALLOC_DEFINE(M_UDFFID, "udf_fid", "UDF FileId structure");
-MALLOC_DEFINE(M_UDFDS, "udf_ds", "UDF Dirstream structure");
+static MALLOC_DEFINE(M_UDFFID, "udf_fid", "UDF FileId structure");
+static MALLOC_DEFINE(M_UDFDS, "udf_ds", "UDF Dirstream structure");
 
 #define UDF_INVALID_BMAP	-1
 
@@ -439,8 +438,9 @@ udf_read(struct vop_read_args *ap)
 	uint8_t *data;
 	daddr_t lbn, rablock;
 	off_t diff, fsize;
+	ssize_t n;
 	int error = 0;
-	long size, n, on;
+	long size, on;
 
 	if (uio->uio_resid == 0)
 		return (0);
@@ -478,8 +478,9 @@ udf_read(struct vop_read_args *ap)
 		rablock = lbn + 1;
 		if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
 			if (lblktosize(udfmp, rablock) < fsize) {
-				error = cluster_read(vp, fsize, lbn, size, NOCRED,
-					uio->uio_resid, (ap->a_ioflag >> 16), &bp);
+				error = cluster_read(vp, fsize, lbn, size,
+				    NOCRED, uio->uio_resid,
+				    (ap->a_ioflag >> 16), 0, &bp);
 			} else {
 				error = bread(vp, lbn, size, NOCRED, &bp);
 			}
@@ -525,8 +526,9 @@ udf_transname(char *cs0string, char *destname, int len, struct udf_mnt *udfmp)
 		}
 
 		while (unilen > 0 && destleft > 0) {
-			udf_iconv->conv(udfmp->im_d2l, (const char **)&unibuf,
-				(size_t *)&unilen, (char **)&destname, &destleft);
+			udf_iconv->conv(udfmp->im_d2l, __DECONST(const char **,
+			    &unibuf), (size_t *)&unilen, (char **)&destname,
+			    &destleft);
 			/* Unconverted character found */
 			if (unilen > 0 && destleft > 0) {
 				*destname++ = '?';
@@ -904,9 +906,9 @@ udf_readlink(struct vop_readlink_args *ap)
 	vp = ap->a_vp;
 	node = VTON(vp);
 	len = le64toh(node->fentry->inf_len);
-	buf = malloc(iov[0].iov_len, M_DEVBUF, M_WAITOK);
-	iov[0].iov_base = buf;
+	buf = malloc(len, M_DEVBUF, M_WAITOK);
 	iov[0].iov_len = len;
+	iov[0].iov_base = buf;
 	uio.uio_iov = iov;
 	uio.uio_iovcnt = 1;
 	uio.uio_offset = 0;

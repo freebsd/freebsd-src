@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -42,7 +38,7 @@
 #include <arpa/inet.h>
 #include <protocols/talkd.h>
 #include <curses.h>
-#include <unistd.h>
+#include <signal.h>
 
 extern	int sockt;
 extern	int curses_initialized;
@@ -50,6 +46,8 @@ extern	int invitation_waiting;
 
 extern	const char *current_state;
 extern	int current_line;
+
+extern volatile sig_atomic_t gotwinch;
 
 typedef struct xwin {
 	WINDOW	*x_win;
@@ -71,7 +69,6 @@ extern	int	check_local(void);
 extern	void	check_writeable(void);
 extern	void	ctl_transact(struct in_addr,CTL_MSG,int,CTL_RESPONSE *);
 extern	void	disp_msg(int);
-extern	void	display(xwin_t *, char *, int);
 extern	void	end_msgs(void);
 extern	void	get_addrs(const char *, const char *);
 extern	int	get_iface(struct in_addr *, struct in_addr *);

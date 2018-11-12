@@ -123,8 +123,7 @@ METHOD ACPI_STATUS evaluate_object {
 #
 # int *dstate:  if successful, contains the highest valid sleep state
 #
-# Returns:  0 on success, ESRCH if device has no special state, or
-#   some other error value.
+# Returns:  0 on success or some other error value.
 #
 METHOD int pwr_for_sleep {
 	device_t	bus;
@@ -177,13 +176,13 @@ STATICMETHOD int get_features {
 #
 # device_t dev:  EC device
 # u_int addr:  Address to read from in EC space
-# ACPI_INTEGER *val:  Location to store read value
+# UINT64 *val:  Location to store read value
 # int width:  Size of area to read in bytes
 #
 METHOD int ec_read {
 	device_t	dev;
 	u_int		addr;
-	ACPI_INTEGER	*val;
+	UINT64		*val;
 	int		width;
 };
 
@@ -192,13 +191,13 @@ METHOD int ec_read {
 #
 # device_t dev:  EC device
 # u_int addr:  Address to write to in EC space
-# ACPI_INTEGER val:  Value to write
+# UINT64 val:  Value to write
 # int width:  Size of value to write in bytes
 #
 METHOD int ec_write {
 	device_t	dev;
 	u_int		addr;
-	ACPI_INTEGER	val;
+	UINT64		val;
 	int		width;
 };
 

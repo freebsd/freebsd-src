@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -46,4 +42,4 @@ void	c_special(int, const char *, off_t, int, const char *, off_t);
 void	diffmsg(const char *, const char *, off_t, off_t);
 void	eofmsg(const char *);
 
-extern int lflag, sflag, xflag;
+extern int lflag, sflag, xflag, zflag;

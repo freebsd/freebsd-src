@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2009
+.Dd March 29, 2016
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -141,17 +141,6 @@ Optimization levels other than
 and
 .Fl O2
 are not supported.
-.Va BDECFLAGS
-is provided as a set of
-.Xr gcc 1
-settings suggested by
-.An "Bruce Evans" Aq bde@FreeBSD.org
-for developing and testing changes.
-They can be used, if set, by:
-.Pp
-.Bd -literal -offset indent
-CFLAGS+=${BDECFLAGS}
-.Ed
 .It Va CPUTYPE
 .Pq Vt str
 Controls which processor should be targeted for generated
@@ -163,27 +152,17 @@ the value of
 and
 .Va COPTFLAGS
 to contain the appropriate optimization directive to
-.Xr gcc 1 .
+.Xr cc 1 .
 The automatic setting of
 .Va CFLAGS
-and
-.Va COPTFLAGS
 may be overridden using the
 .Va NO_CPU_CFLAGS
-and
-.Va NO_CPU_COPTFLAGS
-variables, respectively.
+variable.
 Refer to
 .Pa /usr/share/examples/etc/make.conf
 for a list of recognized
 .Va CPUTYPE
 options.
-.It Va CVS_UPDATE
-.Pq Vt bool
-Set this to use
-.Xr cvs 1
-to update your ports with
-.Dq Li "make update" .
 .It Va CXXFLAGS
 .Pq Vt str
 Controls the compiler settings when compiling C++ code.
@@ -197,20 +176,12 @@ value, use
 .Dq Li +=
 instead of
 .Dq Li = .
-.It Va DOCSUPFILE
-.Pq Vt str
-The documentation
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-This defaults to
-.Pa /usr/share/examples/cvsup/doc\-supfile .
 .It Va INSTALL
 .Pq Vt str
 the default install command.
 To install only files for which the target differs or does not exist, use
 .Bd -literal -offset indent
-INSTALL="install -C"
+INSTALL+= -C
 .Ed
 Note that some makefiles (including those in
 .Pa /usr/share/mk )
@@ -246,12 +217,6 @@ Setting this variable will prevent CPU specific compiler flags
 from being automatically added to
 .Va CFLAGS
 during compile time.
-.It Va NO_CPU_COPTFLAGS
-.Pq Vt str
-Setting this variable will prevent CPU specific compiler flags
-from being automatically added to
-.Va COPTFLAGS
-during compile time.
 .It Va NO_DOCUPDATE
 .Pq Vt bool
 Set this to not update the doc tree during
@@ -260,64 +225,20 @@ Set this to not update the doc tree during
 .Pq Vt bool
 Set this to not update the ports tree during
 .Dq Li "make update" .
-.It Va PORTSSUPFILE
-.Pq Vt str
-The ports
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-This defaults to
-.Pa /usr/share/examples/cvsup/ports\-supfile .
-.It Va SUP
-.Pq Vt str
-The location of the
-.Xr csup 1
-or
-.Xr cvsup 1
-command for
-.Dq Li "make update" .
-.It Va SUPFILE
-.Pq Vt str
-The first
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-This defaults to
-.Pa /usr/share/examples/cvsup/standard\-supfile .
-.It Va SUPFILE1
-.Pq Vt str
-The second
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-This defaults to
-.Pa /usr/share/examples/cvsup/secure\-supfile .
-.It Va SUPFILE2
-.Pq Vt str
-The third
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-This defaults to
-.Pa /usr/share/examples/cvsup/secure\-supfile .
-.It Va SUPFLAGS
-.Pq Vt str
-The flag for the
-.Xr sup 1
-command when doing
-.Dq Li "make update" .
-This defaults to
-.Op Fl g L Ar 2 .
-.It Va SUPHOST
-.Pq Vt str
-The hostname of the sup server to use when doing
-.Dq Li "make update" .
-.It Va SUP_UPDATE
+.It Va SVN_UPDATE
 .Pq Vt bool
 Set this to use
-.Xr cvsup 1
-to update your ports with
+.Xr svn 1
+to update your
+.Pa src
+tree with
 .Dq Li "make update" .
+Note that since a subversion client is not included in the base system,
+you will need to set
+.Va SVN
+to the full path of a
+.Xr svn 1
+binary.
 .El
 .Ss "BUILDING THE KERNEL"
 The following list provides a name and short description for variables
@@ -361,16 +282,22 @@ It defaults to
 .It Va MODULES_OVERRIDE
 .Pq Vt str
 Set to a list of modules to build instead of all of them.
+.It Va NO_KERNELCLEAN
+.Pq Vt bool
+Set this to skip running
+.Dq Li "${MAKE} clean"
+during
+.Dq Li "${MAKE} buildkernel" .
 .It Va NO_KERNELCONFIG
 .Pq Vt bool
 Set this to skip running
 .Xr config 8
 during
 .Dq Li "${MAKE} buildkernel" .
-.It Va NO_KERNELDEPEND
+.It Va NO_KERNELOBJ
 .Pq Vt bool
 Set this to skip running
-.Dq Li "${MAKE} depend"
+.Dq Li "${MAKE} obj"
 during
 .Dq Li "${MAKE} buildkernel" .
 .It Va NO_MODULES
@@ -436,11 +363,6 @@ with the set-user-ID bit set.
 Otherwise,
 .Xr newgrp 1
 will not be able to change users' groups.
-.It Va ENABLE_SUID_SSH
-.Pq Vt bool
-Set this to install
-.Xr ssh 1
-with the set-user-ID bit turned on.
 .It Va LOADER_TFTP_SUPPORT
 .Pq Vt bool
 By default the
@@ -459,7 +381,7 @@ rather than load the server's kernel.
 .Pq Vt bool
 Defining this and recompiling
 .Pa /usr/src/sys/boot/i386
-will add 
+will add
 .Xr dcons 4
 console driver to
 .Xr loader 8
@@ -486,8 +408,11 @@ Set this to run
 .Dq Li "${MAKE} clean"
 instead of
 .Dq Li "${MAKE} cleandir" .
-.It Va NO_MANCOMPRESS
-.Pq Vt bool
+.It Va WITH_MANCOMPRESS
+.Pq Vt defined
+Set to install manual pages compressed.
+.It Va WITHOUT_MANCOMPRESS
+.Pq Vt defined
 Set to install manual pages uncompressed.
 .It Va NO_SHARE
 .Pq Vt bool
@@ -534,7 +459,7 @@ files at build time.
 The value should include the full path to the
 .Pa .mc
 file(s), e.g.,
-.Pa /etc/mail/foo.mc
+.Pa /etc/mail/foo.mc ,
 .Pa /etc/mail/bar.mc .
 .It Va SENDMAIL_ALIASES
 .Pq Vt str
@@ -599,7 +524,7 @@ The default value is 0640.
 .Pq Vt str
 Additional maps to rebuild when using
 .Pa /etc/mail/Makefile .
-The 
+The
 .Pa access ,
 .Pa bitdomain ,
 .Pa domaintable ,
@@ -676,7 +601,7 @@ The default number is 20011.
 .Pq Vt int
 Causes the system compiler to be built such that it forces high optimization
 levels to a lower one.
-.Xr gcc 1
+.Xr cc 1
 .Fl O2
 and above is known to trigger known optimizer bugs at various
 times.
@@ -707,17 +632,26 @@ for simple printers, or
 for postscript or graphics printers with a ghostscript
 filter, or both.
 .El
+.Ss "BUILDING PORTS"
+Several make variables can be set that affect the building of ports.
+These variables and their effects are documented in
+.Xr ports 7 ,
+.Pa ${PORTSDIR}/Mk/*
+and the
+.Fx
+Porter's Handbook.
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact
 .It Pa /etc/make.conf
 .It Pa /usr/doc/Makefile
+.It Pa /usr/ports/Makefile
 .It Pa /usr/share/examples/etc/make.conf
 .It Pa /usr/share/mk/sys.mk
 .It Pa /usr/src/Makefile
 .It Pa /usr/src/Makefile.inc1
 .El
 .Sh SEE ALSO
-.Xr gcc 1 ,
+.Xr cc 1 ,
 .Xr install 1 ,
 .Xr make 1 ,
 .Xr src.conf 5 ,
@@ -732,14 +666,7 @@ file appeared sometime before
 .Sh AUTHORS
 This
 manual page was written by
-.An Mike W. Meyer Aq mwm@mired.org .
-.Sh BUGS
-This manual page may occasionally be out of date with respect to
-the options currently available for use in
-.Nm .
-Please check the
-.Pa /usr/share/examples/etc/make.conf
-file for the latest options which are available.
+.An Mike W. Meyer Aq Mt mwm@mired.org .
 .Sh CAVEATS
 Note, that
 .Ev MAKEOBJDIRPREFIX
@@ -747,4 +674,13 @@ and
 .Ev MAKEOBJDIR
 are environment variables and should not be set in
 .Nm
+or as command line arguments to
+.Xr make 1 ,
 but in make's environment.
+.Sh BUGS
+This manual page may occasionally be out of date with respect to
+the options currently available for use in
+.Nm .
+Please check the
+.Pa /usr/share/examples/etc/make.conf
+file for the latest options which are available.

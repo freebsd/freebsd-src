@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2009
+.Dd January 30, 2013
 .Dt TCPDROP 8
 .Os
 .Sh NAME
@@ -62,8 +62,9 @@ will be dropped.
 .Pp
 Addresses and ports may be specified by name or numeric value.
 Both IPv4 and IPv6 address formats are supported.
-.Nm
-in case of success or failure.
+.Pp
+The addresses and ports may be separated by periods or colons
+instead of spaces.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
@@ -92,5 +93,5 @@ port 22, the port used by
 .Xr netstat 1 ,
 .Xr sockstat 1
 .Sh AUTHORS
-.An Markus Friedl Aq markus@openbsd.org
-.An Juli Mallett Aq jmallett@FreeBSD.org
+.An Markus Friedl Aq Mt markus@openbsd.org
+.An Juli Mallett Aq Mt jmallett@FreeBSD.org

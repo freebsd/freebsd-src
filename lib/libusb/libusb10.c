@@ -25,16 +25,25 @@
  * SUCH DAMAGE.
  */
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
+#ifdef LIBUSB_GLOBAL_INCLUDE_FILE
+#include LIBUSB_GLOBAL_INCLUDE_FILE
+#else
+#include <assert.h>
+#include <errno.h>
 #include <poll.h>
 #include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <time.h>
-#include <errno.h>
+#include <sys/fcntl.h>
 #include <sys/ioctl.h>
-#include <sys/filio.h>
 #include <sys/queue.h>
+#include <sys/endian.h>
+#endif
+
+#define	libusb_device_handle libusb20_device
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
@@ -42,13 +51,14 @@
 #include "libusb.h"
 #include "libusb10.h"
 
+#define	LIBUSB_NUM_SW_ENDPOINTS	(16 * 4)
+
 static pthread_mutex_t default_context_lock = PTHREAD_MUTEX_INITIALIZER;
 struct libusb_context *usbi_default_context = NULL;
 
 /* Prototypes */
 
 static struct libusb20_transfer *libusb10_get_transfer(struct libusb20_device *, uint8_t, uint8_t);
-static int libusb10_get_maxframe(struct libusb20_device *, libusb_transfer *);
 static int libusb10_get_buffsize(struct libusb20_device *, libusb_transfer *);
 static int libusb10_convert_error(uint8_t status);
 static void libusb10_complete_transfer(struct libusb20_transfer *, struct libusb_super_transfer *, int);
@@ -59,6 +69,22 @@ static void libusb10_submit_transfer_sub(struct libusb20_device *, uint8_t);
 
 /*  Library initialisation / deinitialisation */
 
+static const struct libusb_version libusb_version = {
+	.major = 1,
+	.minor = 0,
+	.micro = 0,
+	.nano = 2016,
+	.rc = "",
+	.describe = "http://www.freebsd.org"
+};
+
+const struct libusb_version *
+libusb_get_version(void)
+{
+
+	return (&libusb_version);
+}
+
 void
 libusb_set_debug(libusb_context *ctx, int level)
 {
@@ -67,10 +93,30 @@ libusb_set_debug(libusb_context *ctx, int level)
 		ctx->debug = level;
 }
 
+static void
+libusb_set_nonblocking(int f)
+{
+	int flags;
+
+	/*
+	 * We ignore any failures in this function, hence the
+	 * non-blocking flag is not critical to the operation of
+	 * libUSB. We use F_GETFL and F_SETFL to be compatible with
+	 * Linux.
+	 */
+
+	flags = fcntl(f, F_GETFL, NULL);
+	if (flags == -1)
+		return;
+	flags |= O_NONBLOCK;
+	fcntl(f, F_SETFL, flags);
+}
+
 int
 libusb_init(libusb_context **context)
 {
 	struct libusb_context *ctx;
+	pthread_condattr_t attr;
 	char *debug;
 	int ret;
 
@@ -88,24 +134,54 @@ libusb_init(libusb_context **context)
 	}
 	TAILQ_INIT(&ctx->pollfds);
 	TAILQ_INIT(&ctx->tr_done);
+	TAILQ_INIT(&ctx->hotplug_cbh);
+	TAILQ_INIT(&ctx->hotplug_devs);
 
-	pthread_mutex_init(&ctx->ctx_lock, NULL);
-	pthread_cond_init(&ctx->ctx_cond, NULL);
+	if (pthread_mutex_init(&ctx->ctx_lock, NULL) != 0) {
+		free(ctx);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
+	if (pthread_mutex_init(&ctx->hotplug_lock, NULL) != 0) {
+		pthread_mutex_destroy(&ctx->ctx_lock);
+		free(ctx);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
+	if (pthread_condattr_init(&attr) != 0) {
+		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_mutex_destroy(&ctx->hotplug_lock);
+		free(ctx);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
+	if (pthread_condattr_setclock(&attr, CLOCK_MONOTONIC) != 0) {
+		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_mutex_destroy(&ctx->hotplug_lock);
+		pthread_condattr_destroy(&attr);
+		free(ctx);
+		return (LIBUSB_ERROR_OTHER);
+	}
+	if (pthread_cond_init(&ctx->ctx_cond, &attr) != 0) {
+		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_mutex_destroy(&ctx->hotplug_lock);
+		pthread_condattr_destroy(&attr);
+		free(ctx);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
+	pthread_condattr_destroy(&attr);
 
 	ctx->ctx_handler = NO_THREAD;
+	ctx->hotplug_handler = NO_THREAD;
 
 	ret = pipe(ctx->ctrl_pipe);
 	if (ret < 0) {
 		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_mutex_destroy(&ctx->hotplug_lock);
 		pthread_cond_destroy(&ctx->ctx_cond);
 		free(ctx);
 		return (LIBUSB_ERROR_OTHER);
 	}
 	/* set non-blocking mode on the control pipe to avoid deadlock */
-	ret = 1;
-	ioctl(ctx->ctrl_pipe[0], FIONBIO, &ret);
-	ret = 1;
-	ioctl(ctx->ctrl_pipe[1], FIONBIO, &ret);
+	libusb_set_nonblocking(ctx->ctrl_pipe[0]);
+	libusb_set_nonblocking(ctx->ctrl_pipe[1]);
 
 	libusb10_add_pollfd(ctx, &ctx->ctx_poll, NULL, ctx->ctrl_pipe[0], POLLIN);
 
@@ -131,12 +207,27 @@ libusb_exit(libusb_context *ctx)
 	if (ctx == NULL)
 		return;
 
+	/* stop hotplug thread, if any */
+
+	if (ctx->hotplug_handler != NO_THREAD) {
+		pthread_t td;
+		void *ptr;
+
+		HOTPLUG_LOCK(ctx);
+		td = ctx->hotplug_handler;
+		ctx->hotplug_handler = NO_THREAD;
+		HOTPLUG_UNLOCK(ctx);
+
+		pthread_join(td, &ptr);
+	}
+
 	/* XXX cleanup devices */
 
 	libusb10_remove_pollfd(ctx, &ctx->ctx_poll);
 	close(ctx->ctrl_pipe[0]);
 	close(ctx->ctrl_pipe[1]);
 	pthread_mutex_destroy(&ctx->ctx_lock);
+	pthread_mutex_destroy(&ctx->hotplug_lock);
 	pthread_cond_destroy(&ctx->ctx_cond);
 
 	pthread_mutex_lock(&default_context_lock);
@@ -185,8 +276,6 @@ libusb_get_device_list(libusb_context *ctx, libusb_device ***list)
 	/* create libusb v1.0 compliant devices */
 	i = 0;
 	while ((pdev = libusb20_be_device_foreach(usb_backend, NULL))) {
-		/* get device into libUSB v1.0 list */
-		libusb20_be_dequeue_device(usb_backend, pdev);
 
 		dev = malloc(sizeof(*dev));
 		if (dev == NULL) {
@@ -199,6 +288,9 @@ libusb_get_device_list(libusb_context *ctx, libusb_device ***list)
 			libusb20_be_free(usb_backend);
 			return (LIBUSB_ERROR_NO_MEM);
 		}
+		/* get device into libUSB v1.0 list */
+		libusb20_be_dequeue_device(usb_backend, pdev);
+
 		memset(dev, 0, sizeof(*dev));
 
 		/* init transfer queues */
@@ -244,11 +336,53 @@ libusb_get_bus_number(libusb_device *dev)
 }
 
 uint8_t
+libusb_get_port_number(libusb_device *dev)
+{
+	if (dev == NULL)
+		return (0);		/* should not happen */
+	return (libusb20_dev_get_parent_port(dev->os_priv));
+}
+
+int
+libusb_get_port_numbers(libusb_device *dev, uint8_t *buf, uint8_t bufsize)
+{
+	return (libusb20_dev_get_port_path(dev->os_priv, buf, bufsize));
+}
+
+int
+libusb_get_port_path(libusb_context *ctx, libusb_device *dev, uint8_t *buf,
+    uint8_t bufsize)
+{
+	return (libusb20_dev_get_port_path(dev->os_priv, buf, bufsize));
+}
+
+uint8_t
 libusb_get_device_address(libusb_device *dev)
 {
 	if (dev == NULL)
 		return (0);		/* should not happen */
 	return (libusb20_dev_get_address(dev->os_priv));
+}
+
+enum libusb_speed
+libusb_get_device_speed(libusb_device *dev)
+{
+	if (dev == NULL)
+		return (LIBUSB_SPEED_UNKNOWN);	/* should not happen */
+
+	switch (libusb20_dev_get_speed(dev->os_priv)) {
+	case LIBUSB20_SPEED_LOW:
+		return (LIBUSB_SPEED_LOW);
+	case LIBUSB20_SPEED_FULL:
+		return (LIBUSB_SPEED_FULL);
+	case LIBUSB20_SPEED_HIGH:
+		return (LIBUSB_SPEED_HIGH);
+	case LIBUSB20_SPEED_SUPER:
+		return (LIBUSB_SPEED_SUPER);
+	default:
+		break;
+	}
+	return (LIBUSB_SPEED_UNKNOWN);
 }
 
 int
@@ -287,6 +421,30 @@ libusb_get_max_packet_size(libusb_device *dev, uint8_t endpoint)
 
 out:
 	libusb_free_config_descriptor(pdconf);
+	return (ret);
+}
+
+int
+libusb_get_max_iso_packet_size(libusb_device *dev, uint8_t endpoint)
+{
+	int multiplier;
+	int ret;
+
+	ret = libusb_get_max_packet_size(dev, endpoint);
+
+	switch (libusb20_dev_get_speed(dev->os_priv)) {
+	case LIBUSB20_SPEED_LOW:
+	case LIBUSB20_SPEED_FULL:
+		break;
+	default:
+		if (ret > -1) {
+			multiplier = (1 + ((ret >> 11) & 3));
+			if (multiplier > 3)
+				multiplier = 3;
+			ret = (ret & 0x7FF) * multiplier;
+		}
+		break;
+	}
 	return (ret);
 }
 
@@ -337,7 +495,7 @@ libusb_open(libusb_device *dev, libusb_device_handle **devh)
 	if (dev == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
-	err = libusb20_dev_open(pdev, 16 * 4 /* number of endpoints */ );
+	err = libusb20_dev_open(pdev, LIBUSB_NUM_SW_ENDPOINTS);
 	if (err) {
 		libusb_unref_device(dev);
 		return (LIBUSB_ERROR_NO_MEM);
@@ -348,7 +506,7 @@ libusb_open(libusb_device *dev, libusb_device_handle **devh)
 	/* make sure our event loop detects the new device */
 	dummy = 0;
 	err = write(ctx->ctrl_pipe[1], &dummy, sizeof(dummy));
-	if (err < sizeof(dummy)) {
+	if (err < (int)sizeof(dummy)) {
 		/* ignore error, if any */
 		DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open write failed!");
 	}
@@ -377,10 +535,11 @@ libusb_open_device_with_vid_pid(libusb_context *ctx, uint16_t vendor_id,
 		return (NULL);
 
 	pdev = NULL;
-
 	for (j = 0; j < i; j++) {
-		pdev = devs[j]->os_priv;
-		pdesc = libusb20_dev_get_device_desc(pdev);
+		struct libusb20_device *tdev;
+
+		tdev = devs[j]->os_priv;
+		pdesc = libusb20_dev_get_device_desc(tdev);
 		/*
 		 * NOTE: The USB library will automatically swap the
 		 * fields in the device descriptor to be of host
@@ -388,8 +547,7 @@ libusb_open_device_with_vid_pid(libusb_context *ctx, uint16_t vendor_id,
 		 */
 		if (pdesc->idVendor == vendor_id &&
 		    pdesc->idProduct == product_id) {
-			if (libusb_open(devs[j], &pdev) < 0)
-				pdev = NULL;
+			libusb_open(devs[j], &pdev);
 			break;
 		}
 	}
@@ -416,12 +574,14 @@ libusb_close(struct libusb20_device *pdev)
 	libusb10_remove_pollfd(ctx, &dev->dev_poll);
 
 	libusb20_dev_close(pdev);
+
+	/* unref will free the "pdev" when the refcount reaches zero */
 	libusb_unref_device(dev);
 
 	/* make sure our event loop detects the closed device */
 	dummy = 0;
 	err = write(ctx->ctrl_pipe[1], &dummy, sizeof(dummy));
-	if (err < sizeof(dummy)) {
+	if (err < (int)sizeof(dummy)) {
 		/* ignore error, if any */
 		DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_close write failed!");
 	}
@@ -463,7 +623,6 @@ libusb_set_configuration(struct libusb20_device *pdev, int configuration)
 	uint8_t i;
 
 	dev = libusb_get_device(pdev);
-
 	if (dev == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
@@ -514,13 +673,16 @@ libusb_claim_interface(struct libusb20_device *pdev, int interface_number)
 	if (interface_number < 0 || interface_number > 31)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
-	CTX_LOCK(dev->ctx);
-	if (dev->claimed_interfaces & (1 << interface_number))
-		err = LIBUSB_ERROR_BUSY;
+	if (pdev->auto_detach != 0) {
+		err = libusb_detach_kernel_driver(pdev, interface_number);
+		if (err != 0)
+			goto done;
+	}
 
-	if (!err)
-		dev->claimed_interfaces |= (1 << interface_number);
+	CTX_LOCK(dev->ctx);
+	dev->claimed_interfaces |= (1 << interface_number);
 	CTX_UNLOCK(dev->ctx);
+done:
 	return (err);
 }
 
@@ -537,13 +699,19 @@ libusb_release_interface(struct libusb20_device *pdev, int interface_number)
 	if (interface_number < 0 || interface_number > 31)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
+	if (pdev->auto_detach != 0) {
+		err = libusb_attach_kernel_driver(pdev, interface_number);
+		if (err != 0)
+			goto done;
+	}
+
 	CTX_LOCK(dev->ctx);
 	if (!(dev->claimed_interfaces & (1 << interface_number)))
 		err = LIBUSB_ERROR_NOT_FOUND;
-
-	if (!err)
+	else
 		dev->claimed_interfaces &= ~(1 << interface_number);
 	CTX_UNLOCK(dev->ctx);
+done:
 	return (err);
 }
 
@@ -585,17 +753,17 @@ libusb_set_interface_alt_setting(struct libusb20_device *pdev,
 
 static struct libusb20_transfer *
 libusb10_get_transfer(struct libusb20_device *pdev,
-    uint8_t endpoint, uint8_t index)
+    uint8_t endpoint, uint8_t xfer_index)
 {
-	index &= 1;			/* double buffering */
+	xfer_index &= 1;	/* double buffering */
 
-	index |= (endpoint & LIBUSB20_ENDPOINT_ADDRESS_MASK) * 4;
+	xfer_index |= (endpoint & LIBUSB20_ENDPOINT_ADDRESS_MASK) * 4;
 
 	if (endpoint & LIBUSB20_ENDPOINT_DIR_MASK) {
 		/* this is an IN endpoint */
-		index |= 2;
+		xfer_index |= 2;
 	}
-	return (libusb20_tr_get_pointer(pdev, index));
+	return (libusb20_tr_get_pointer(pdev, xfer_index));
 }
 
 int
@@ -610,9 +778,11 @@ libusb_clear_halt(struct libusb20_device *pdev, uint8_t endpoint)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	dev = libusb_get_device(pdev);
+	if (dev == NULL)
+		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	CTX_LOCK(dev->ctx);
-	err = libusb20_tr_open(xfer, 0, 0, endpoint);
+	err = libusb20_tr_open(xfer, 0, 1, endpoint);
 	CTX_UNLOCK(dev->ctx);
 
 	if (err != 0 && err != LIBUSB20_ERROR_BUSY)
@@ -637,7 +807,7 @@ libusb_reset_device(struct libusb20_device *pdev)
 
 	dev = libusb_get_device(pdev);
 	if (dev == NULL)
-		return (LIBUSB20_ERROR_INVALID_PARAM);
+		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	libusb10_cancel_all_transfer(dev);
 
@@ -653,13 +823,71 @@ libusb_reset_device(struct libusb20_device *pdev)
 }
 
 int
+libusb_check_connected(struct libusb20_device *pdev)
+{
+	libusb_device *dev;
+	int err;
+
+	dev = libusb_get_device(pdev);
+	if (dev == NULL)
+		return (LIBUSB_ERROR_INVALID_PARAM);
+
+	err = libusb20_dev_check_connected(pdev);
+
+	return (err ? LIBUSB_ERROR_NO_DEVICE : 0);
+}
+
+int
 libusb_kernel_driver_active(struct libusb20_device *pdev, int interface)
 {
 	if (pdev == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
-	return (libusb20_dev_kernel_driver_active(
-	    pdev, interface));
+	if (libusb20_dev_kernel_driver_active(pdev, interface))
+		return (0);		/* no kernel driver is active */
+	else
+		return (1);		/* kernel driver is active */
+}
+
+int
+libusb_get_driver_np(struct libusb20_device *pdev, int interface,
+    char *name, int namelen)
+{
+	return (libusb_get_driver(pdev, interface, name, namelen));
+}
+
+int
+libusb_get_driver(struct libusb20_device *pdev, int interface,
+    char *name, int namelen)
+{
+	char *ptr;
+	int err;
+
+	if (pdev == NULL)
+		return (LIBUSB_ERROR_INVALID_PARAM);
+	if (namelen < 1)
+		return (LIBUSB_ERROR_INVALID_PARAM);
+	if (namelen > 255)
+		namelen = 255;
+
+	err = libusb20_dev_get_iface_desc(
+	    pdev, interface, name, namelen);
+
+	if (err != 0)
+		return (LIBUSB_ERROR_OTHER);
+
+	/* we only want the driver name */
+	ptr = strstr(name, ":");
+	if (ptr != NULL)
+		*ptr = 0;
+
+	return (0);
+}
+
+int
+libusb_detach_kernel_driver_np(struct libusb20_device *pdev, int interface)
+{
+	return (libusb_detach_kernel_driver(pdev, interface));
 }
 
 int
@@ -673,7 +901,7 @@ libusb_detach_kernel_driver(struct libusb20_device *pdev, int interface)
 	err = libusb20_dev_detach_kernel_driver(
 	    pdev, interface);
 
-	return (err ? LIBUSB20_ERROR_OTHER : 0);
+	return (err ? LIBUSB_ERROR_OTHER : 0);
 }
 
 int
@@ -682,6 +910,13 @@ libusb_attach_kernel_driver(struct libusb20_device *pdev, int interface)
 	if (pdev == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 	/* stub - currently not supported by libusb20 */
+	return (0);
+}
+
+int
+libusb_set_auto_detach_kernel_driver(libusb_device_handle *dev, int enable)
+{
+	dev->auto_detach = (enable ? 1 : 0);
 	return (0);
 }
 
@@ -721,31 +956,24 @@ libusb_free_transfer(struct libusb_transfer *uxfer)
 	if (uxfer == NULL)
 		return;			/* be NULL safe */
 
+	/* check if we should free the transfer buffer */
+	if (uxfer->flags & LIBUSB_TRANSFER_FREE_BUFFER)
+		free(uxfer->buffer);
+
 	sxfer = (struct libusb_super_transfer *)(
 	    (uint8_t *)uxfer - sizeof(*sxfer));
 
 	free(sxfer);
 }
 
-static int
+static uint32_t
 libusb10_get_maxframe(struct libusb20_device *pdev, libusb_transfer *xfer)
 {
-	int ret;
-	int usb_speed;
-
-	usb_speed = libusb20_dev_get_speed(pdev);
+	uint32_t ret;
 
 	switch (xfer->type) {
 	case LIBUSB_TRANSFER_TYPE_ISOCHRONOUS:
-		switch (usb_speed) {
-		case LIBUSB20_SPEED_LOW:
-		case LIBUSB20_SPEED_FULL:
-			ret = 60 * 1;
-			break;
-		default:
-			ret = 60 * 8;
-			break;
-		}
+		ret = 60 | LIBUSB20_MAX_FRAME_PRE_SCALE;	/* 60ms */
 		break;
 	case LIBUSB_TRANSFER_TYPE_CONTROL:
 		ret = 2;
@@ -779,6 +1007,9 @@ libusb10_get_buffsize(struct libusb20_device *pdev, libusb_transfer *xfer)
 			break;
 		case LIBUSB20_SPEED_FULL:
 			ret = 4096;
+			break;
+		case LIBUSB20_SPEED_SUPER:
+			ret = 65536;
 			break;
 		default:
 			ret = 16384;
@@ -828,7 +1059,11 @@ libusb10_complete_transfer(struct libusb20_transfer *pxfer,
 	if (pxfer != NULL)
 		libusb20_tr_set_priv_sc1(pxfer, NULL);
 
+	/* set transfer status */
 	uxfer->status = status;
+
+	/* update super transfer state */
+	sxfer->state = LIBUSB_SUPER_XFER_ST_NONE;
 
 	dev = libusb_get_device(uxfer->dev_handle);
 
@@ -846,7 +1081,6 @@ libusb10_isoc_proxy(struct libusb20_transfer *pxfer)
 	uint16_t iso_packets;
 	uint16_t i;
 	uint8_t status;
-	uint8_t flags;
 
 	status = libusb20_tr_get_status(pxfer);
 	sxfer = libusb20_tr_get_priv_sc1(pxfer);
@@ -854,7 +1088,7 @@ libusb10_isoc_proxy(struct libusb20_transfer *pxfer)
 	iso_packets = libusb20_tr_get_max_frames(pxfer);
 
 	if (sxfer == NULL)
-		return;			/* cancelled - nothing to do */
+		return; /* cancelled - nothing to do */
 
 	uxfer = (struct libusb_transfer *)(
 	    ((uint8_t *)sxfer) + sizeof(*sxfer));
@@ -863,16 +1097,13 @@ libusb10_isoc_proxy(struct libusb20_transfer *pxfer)
 		iso_packets = uxfer->num_iso_packets;
 
 	if (iso_packets == 0)
-		return;			/* nothing to do */
+		return; /* nothing to do */
 
 	/* make sure that the number of ISOCHRONOUS packets is valid */
 	uxfer->num_iso_packets = iso_packets;
 
-	flags = uxfer->flags;
-
 	switch (status) {
 	case LIBUSB20_TRANSFER_COMPLETED:
-
 		/* update actual length */
 		uxfer->actual_length = actlen;
 		for (i = 0; i != iso_packets; i++) {
@@ -881,9 +1112,7 @@ libusb10_isoc_proxy(struct libusb20_transfer *pxfer)
 		}
 		libusb10_complete_transfer(pxfer, sxfer, LIBUSB_TRANSFER_COMPLETED);
 		break;
-
 	case LIBUSB20_TRANSFER_START:
-
 		/* setup length(s) */
 		actlen = 0;
 		for (i = 0; i != iso_packets; i++) {
@@ -902,7 +1131,6 @@ libusb10_isoc_proxy(struct libusb20_transfer *pxfer)
 		/* fork another USB transfer, if any */
 		libusb10_submit_transfer_sub(libusb20_tr_get_priv_sc0(pxfer), uxfer->endpoint);
 		break;
-
 	default:
 		libusb10_complete_transfer(pxfer, sxfer, libusb10_convert_error(status));
 		break;
@@ -1106,6 +1334,8 @@ libusb10_submit_transfer_sub(struct libusb20_device *pdev, uint8_t endpoint)
 		return;
 	case 2:
 		sxfer = libusb20_tr_get_priv_sc1(pxfer1);
+		if (sxfer == NULL)
+			return;		/* cancelling */
 		if (sxfer->rem_len)
 			return;		/* cannot queue another one */
 		/* swap transfers */
@@ -1113,6 +1343,8 @@ libusb10_submit_transfer_sub(struct libusb20_device *pdev, uint8_t endpoint)
 		break;
 	case 1:
 		sxfer = libusb20_tr_get_priv_sc1(pxfer0);
+		if (sxfer == NULL)
+			return;		/* cancelling */
 		if (sxfer->rem_len)
 			return;		/* cannot queue another one */
 		/* swap transfers */
@@ -1171,7 +1403,8 @@ found:
 	maxframe = libusb10_get_maxframe(pdev, uxfer);
 
 	/* make sure the transfer is opened */
-	err = libusb20_tr_open(pxfer0, buffsize, maxframe, endpoint);
+	err = libusb20_tr_open_stream(pxfer0, buffsize, maxframe,
+	    endpoint, sxfer->stream_id);
 	if (err && (err != LIBUSB20_ERROR_BUSY)) {
 		goto failure;
 	}
@@ -1183,7 +1416,7 @@ failure:
 
 	/* make sure our event loop spins the done handler */
 	dummy = 0;
-	write(dev->ctx->ctrl_pipe[1], &dummy, sizeof(dummy));
+	err = write(dev->ctx->ctrl_pipe[1], &dummy, sizeof(dummy));
 }
 
 /* The following function must be called unlocked */
@@ -1195,7 +1428,7 @@ libusb_submit_transfer(struct libusb_transfer *uxfer)
 	struct libusb20_transfer *pxfer1;
 	struct libusb_super_transfer *sxfer;
 	struct libusb_device *dev;
-	unsigned int endpoint;
+	uint8_t endpoint;
 	int err;
 
 	if (uxfer == NULL)
@@ -1205,9 +1438,6 @@ libusb_submit_transfer(struct libusb_transfer *uxfer)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	endpoint = uxfer->endpoint;
-
-	if (endpoint > 255)
-		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	dev = libusb_get_device(uxfer->dev_handle);
 
@@ -1224,12 +1454,18 @@ libusb_submit_transfer(struct libusb_transfer *uxfer)
 	if (pxfer0 == NULL || pxfer1 == NULL) {
 		err = LIBUSB_ERROR_OTHER;
 	} else if ((sxfer->entry.tqe_prev != NULL) ||
-		    (libusb20_tr_get_priv_sc1(pxfer0) == sxfer) ||
+	    (libusb20_tr_get_priv_sc1(pxfer0) == sxfer) ||
 	    (libusb20_tr_get_priv_sc1(pxfer1) == sxfer)) {
 		err = LIBUSB_ERROR_BUSY;
 	} else {
+
+		/* set pending state */
+		sxfer->state = LIBUSB_SUPER_XFER_ST_PEND;
+
+		/* insert transfer into transfer head list */
 		TAILQ_INSERT_TAIL(&dev->tr_head, sxfer, entry);
 
+		/* start work transfers */
 		libusb10_submit_transfer_sub(
 		    uxfer->dev_handle, endpoint);
 
@@ -1252,18 +1488,17 @@ libusb_cancel_transfer(struct libusb_transfer *uxfer)
 	struct libusb20_transfer *pxfer1;
 	struct libusb_super_transfer *sxfer;
 	struct libusb_device *dev;
-	unsigned int endpoint;
+	uint8_t endpoint;
+	int retval;
 
 	if (uxfer == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
+	/* check if not initialised */
 	if (uxfer->dev_handle == NULL)
-		return (LIBUSB_ERROR_INVALID_PARAM);
+		return (LIBUSB_ERROR_NOT_FOUND);
 
 	endpoint = uxfer->endpoint;
-
-	if (endpoint > 255)
-		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	dev = libusb_get_device(uxfer->dev_handle);
 
@@ -1272,43 +1507,150 @@ libusb_cancel_transfer(struct libusb_transfer *uxfer)
 	sxfer = (struct libusb_super_transfer *)(
 	    (uint8_t *)uxfer - sizeof(*sxfer));
 
+	retval = 0;
+
 	CTX_LOCK(dev->ctx);
 
 	pxfer0 = libusb10_get_transfer(uxfer->dev_handle, endpoint, 0);
 	pxfer1 = libusb10_get_transfer(uxfer->dev_handle, endpoint, 1);
 
-	if (sxfer->entry.tqe_prev != NULL) {
+	if (sxfer->state != LIBUSB_SUPER_XFER_ST_PEND) {
+		/* only update the transfer status */
+		uxfer->status = LIBUSB_TRANSFER_CANCELLED;
+		retval = LIBUSB_ERROR_NOT_FOUND;
+	} else if (sxfer->entry.tqe_prev != NULL) {
 		/* we are lucky - transfer is on a queue */
 		TAILQ_REMOVE(&dev->tr_head, sxfer, entry);
 		sxfer->entry.tqe_prev = NULL;
-		libusb10_complete_transfer(NULL, sxfer, LIBUSB_TRANSFER_CANCELLED);
+		libusb10_complete_transfer(NULL,
+		    sxfer, LIBUSB_TRANSFER_CANCELLED);
 	} else if (pxfer0 == NULL || pxfer1 == NULL) {
 		/* not started */
+		retval = LIBUSB_ERROR_NOT_FOUND;
 	} else if (libusb20_tr_get_priv_sc1(pxfer0) == sxfer) {
-		libusb10_complete_transfer(pxfer0, sxfer, LIBUSB_TRANSFER_CANCELLED);
+		libusb10_complete_transfer(pxfer0,
+		    sxfer, LIBUSB_TRANSFER_CANCELLED);
 		libusb20_tr_stop(pxfer0);
 		/* make sure the queue doesn't stall */
 		libusb10_submit_transfer_sub(
 		    uxfer->dev_handle, endpoint);
 	} else if (libusb20_tr_get_priv_sc1(pxfer1) == sxfer) {
-		libusb10_complete_transfer(pxfer1, sxfer, LIBUSB_TRANSFER_CANCELLED);
+		libusb10_complete_transfer(pxfer1,
+		    sxfer, LIBUSB_TRANSFER_CANCELLED);
 		libusb20_tr_stop(pxfer1);
 		/* make sure the queue doesn't stall */
 		libusb10_submit_transfer_sub(
 		    uxfer->dev_handle, endpoint);
 	} else {
 		/* not started */
+		retval = LIBUSB_ERROR_NOT_FOUND;
 	}
 
 	CTX_UNLOCK(dev->ctx);
 
 	DPRINTF(dev->ctx, LIBUSB_DEBUG_FUNCTION, "libusb_cancel_transfer leave");
 
-	return (0);
+	return (retval);
 }
 
 UNEXPORTED void
 libusb10_cancel_all_transfer(libusb_device *dev)
 {
-	/* TODO */
+	struct libusb20_device *pdev = dev->os_priv;
+	unsigned x;
+
+	for (x = 0; x != LIBUSB_NUM_SW_ENDPOINTS; x++) {
+		struct libusb20_transfer *xfer;
+
+		xfer = libusb20_tr_get_pointer(pdev, x);
+		if (xfer == NULL)
+			continue;
+		libusb20_tr_close(xfer);
+	}
+}
+
+uint16_t
+libusb_cpu_to_le16(uint16_t x)
+{
+	return (htole16(x));
+}
+
+uint16_t
+libusb_le16_to_cpu(uint16_t x)
+{
+	return (le16toh(x));
+}
+
+const char *
+libusb_strerror(int code)
+{
+	switch (code) {
+	case LIBUSB_SUCCESS:
+		return ("Success");
+	case LIBUSB_ERROR_IO:
+		return ("I/O error");
+	case LIBUSB_ERROR_INVALID_PARAM:
+		return ("Invalid parameter");
+	case LIBUSB_ERROR_ACCESS:
+		return ("Permissions error");
+	case LIBUSB_ERROR_NO_DEVICE:
+		return ("No device");
+	case LIBUSB_ERROR_NOT_FOUND:
+		return ("Not found");
+	case LIBUSB_ERROR_BUSY:
+		return ("Device busy");
+	case LIBUSB_ERROR_TIMEOUT:
+		return ("Timeout");
+	case LIBUSB_ERROR_OVERFLOW:
+		return ("Overflow");
+	case LIBUSB_ERROR_PIPE:
+		return ("Pipe error");
+	case LIBUSB_ERROR_INTERRUPTED:
+		return ("Interrupted");
+	case LIBUSB_ERROR_NO_MEM:
+		return ("Out of memory");
+	case LIBUSB_ERROR_NOT_SUPPORTED:
+		return ("Not supported");
+	case LIBUSB_ERROR_OTHER:
+		return ("Other error");
+	default:
+		return ("Unknown error");
+	}
+}
+
+const char *
+libusb_error_name(int code)
+{
+	switch (code) {
+	case LIBUSB_SUCCESS:
+		return ("LIBUSB_SUCCESS");
+	case LIBUSB_ERROR_IO:
+		return ("LIBUSB_ERROR_IO");
+	case LIBUSB_ERROR_INVALID_PARAM:
+		return ("LIBUSB_ERROR_INVALID_PARAM");
+	case LIBUSB_ERROR_ACCESS:
+		return ("LIBUSB_ERROR_ACCESS");
+	case LIBUSB_ERROR_NO_DEVICE:
+		return ("LIBUSB_ERROR_NO_DEVICE");
+	case LIBUSB_ERROR_NOT_FOUND:
+		return ("LIBUSB_ERROR_NOT_FOUND");
+	case LIBUSB_ERROR_BUSY:
+		return ("LIBUSB_ERROR_BUSY");
+	case LIBUSB_ERROR_TIMEOUT:
+		return ("LIBUSB_ERROR_TIMEOUT");
+	case LIBUSB_ERROR_OVERFLOW:
+		return ("LIBUSB_ERROR_OVERFLOW");
+	case LIBUSB_ERROR_PIPE:
+		return ("LIBUSB_ERROR_PIPE");
+	case LIBUSB_ERROR_INTERRUPTED:
+		return ("LIBUSB_ERROR_INTERRUPTED");
+	case LIBUSB_ERROR_NO_MEM:
+		return ("LIBUSB_ERROR_NO_MEM");
+	case LIBUSB_ERROR_NOT_SUPPORTED:
+		return ("LIBUSB_ERROR_NOT_SUPPORTED");
+	case LIBUSB_ERROR_OTHER:
+		return ("LIBUSB_ERROR_OTHER");
+	default:
+		return ("LIBUSB_ERROR_UNKNOWN");
+	}
 }

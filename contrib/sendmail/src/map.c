@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2008 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1992, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1992, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: map.c,v 8.699 2007/10/10 00:06:45 ca Exp $")
+SM_RCSID("@(#)$Id: map.c,v 8.713 2013-11-22 20:51:55 ca Exp $")
 
 #if LDAPMAP
 # include <sm/ldap.h>
@@ -202,6 +202,20 @@ map_parseargs(map, ap)
 
 		  case 'a':
 			map->map_app = ++p;
+			break;
+
+		  case 'd':
+			{
+				char *h;
+
+				++p;
+				h = strchr(p, ' ');
+				if (h != NULL)
+					*h = '\0';
+				map->map_timeout = convtime(p, 's');
+				if (h != NULL)
+					*h = ' ';
+			}
 			break;
 
 		  case 'T':
@@ -730,7 +744,7 @@ getcanonname(host, hbsize, trymx, pttl)
 	int mapno;
 	bool found = false;
 	bool got_tempfail = false;
-	auto int status;
+	auto int status = EX_UNAVAILABLE;
 	char *maptype[MAXMAPSTACK];
 	short mapreturn[MAXMAPACTIONS];
 #if defined(SUN_EXTENSIONS) && defined(SUN_INIT_DOMAIN)
@@ -1710,7 +1724,7 @@ lockdbm:
 		{
 			map->map_mflags |= MF_OPEN;
 			map->map_pid = CurrentPid;
-			if ((omode && O_ACCMODE) == O_RDWR)
+			if ((omode & O_ACCMODE) == O_RDWR)
 				map->map_mflags |= MF_WRITABLE;
 			goto lockdbm;
 		}
@@ -1826,7 +1840,7 @@ ndbm_map_store(map, lhs, rhs)
 				data.dptr = buf;
 				if (tTd(38, 9))
 					sm_dprintf("ndbm_map_store append=%s\n",
-						data.dptr);
+						(char *)data.dptr);
 			}
 		}
 		status = dbm_store((DBM *) map->map_db1,
@@ -2359,7 +2373,7 @@ db_map_lookup(map, name, av, statp)
 		{
 			map->map_mflags |= MF_OPEN;
 			map->map_pid = CurrentPid;
-			if ((omode && O_ACCMODE) == O_RDWR)
+			if ((omode & O_ACCMODE) == O_RDWR)
 				map->map_mflags |= MF_WRITABLE;
 			db = (DB *) map->map_db2;
 			goto lockdb;
@@ -2883,6 +2897,9 @@ nis_getcanonname(name, hbsize, statp)
 # undef T_UNSPEC	/* symbol conflict in nis.h -> ... -> sys/tiuser.h */
 # include <rpcsvc/nis.h>
 # include <rpcsvc/nislib.h>
+# ifndef NIS_TABLE_OBJ
+#  define NIS_TABLE_OBJ TABLE_OBJ
+# endif /* NIS_TABLE_OBJ */
 
 # define EN_col(col)	zo_data.objdata_u.en_data.en_cols.en_cols_val[(col)].ec_value.ec_value_val
 # define COL_NAME(res,i)	((res->objects.objects_val)->TA_data.ta_cols.ta_cols_val)[i].tc_name
@@ -2970,7 +2987,7 @@ nisplus_map_open(map, mode)
 	}
 
 	if (NIS_RES_NUMOBJ(res) != 1 ||
-	    (NIS_RES_OBJECT(res)->zo_data.zo_type != TABLE_OBJ))
+	    (NIS_RES_OBJECT(res)->zo_data.zo_type != NIS_TABLE_OBJ))
 	{
 		if (tTd(38, 10))
 			sm_dprintf("nisplus_map_open: %s is not a table\n", qbuf);
@@ -3415,6 +3432,18 @@ ldapmap_open(map, mode)
 	else
 		id = "localhost";
 
+	if (tTd(74, 104))
+	{
+		extern MAPCLASS NullMapClass;
+
+		/* debug mode: don't actually open an LDAP connection */
+		map->map_orgclass = map->map_class;
+		map->map_class = &NullMapClass;
+		map->map_mflags |= MF_OPEN;
+		map->map_pid = CurrentPid;
+		return true;
+	}
+
 	/* No connection yet, connect */
 	if (!sm_ldap_start(map->map_mname, lmap))
 	{
@@ -3422,7 +3451,7 @@ ldapmap_open(map, mode)
 		{
 			if (LogLevel > 1)
 				sm_syslog(LOG_NOTICE, CurEnv->e_id,
-					  "timeout conning to LDAP server %.100s",
+					  "timeout connecting to LDAP server %.100s",
 					  id);
 		}
 
@@ -3514,12 +3543,12 @@ sunet_id_hash(str)
 	p_last = p;
 	while (*p != '\0')
 	{
-		if (islower(*p) || isdigit(*p))
+		if (isascii(*p) && (islower(*p) || isdigit(*p)))
 		{
 			*p_last = *p;
 			p_last++;
 		}
-		else if (isupper(*p))
+		else if (isascii(*p) && isupper(*p))
 		{
 			*p_last = tolower(*p);
 			p_last++;
@@ -3751,11 +3780,11 @@ ldapmap_lookup(map, name, av, statp)
 		if (!bitset(MF_OPTIONAL, map->map_mflags))
 		{
 			if (bitset(MF_NODEFER, map->map_mflags))
-				syserr("Error getting LDAP results in map %s",
-				       map->map_mname);
+				syserr("Error getting LDAP results, map=%s, name=%s",
+				       map->map_mname, name);
 			else
-				syserr("451 4.3.5 Error getting LDAP results in map %s",
-				       map->map_mname);
+				syserr("451 4.3.5 Error getting LDAP results, map=%s, name=%s",
+				       map->map_mname, name);
 		}
 		errno = save_errno;
 		return NULL;
@@ -3769,7 +3798,7 @@ ldapmap_lookup(map, name, av, statp)
 	{
 		if (LogLevel > 9)
 			sm_syslog(LOG_INFO, CurEnv->e_id,
-				  "ldap %.100s => %s", name,
+				  "ldap=%s, %.100s=>%s", map->map_mname, name,
 				  vp == NULL ? "<NULL>" : vp);
 		if (bitset(MF_MATCHONLY, map->map_mflags))
 			result = map_rewrite(map, name, strlen(name), NULL);
@@ -3967,6 +3996,10 @@ ldapmap_parseargs(map, args)
 		map->map_coldelim = ' ';
 	}
 
+# if _FFR_LDAP_NETWORK_TIMEOUT
+	lmap->ldap_networktmo = 120;
+# endif /* _FFR_LDAP_NETWORK_TIMEOUT */
+
 	for (;;)
 	{
 		while (isascii(*p) && isspace(*p))
@@ -4066,7 +4099,7 @@ ldapmap_parseargs(map, args)
 		  case 'c':		/* network (connect) timeout */
 			while (isascii(*++p) && isspace(*p))
 				continue;
-			lmap->ldap_networktmo.tv_sec = atoi(p);
+			lmap->ldap_networktmo = atoi(p);
 			break;
 # endif /* _FFR_LDAP_NETWORK_TIMEOUT */
 
@@ -5818,7 +5851,7 @@ text_map_lookup(map, name, av, statp)
 	key_idx = map->map_keycolno;
 	delim = map->map_coldelim;
 	while (sm_io_fgets(f, SM_TIME_DEFAULT,
-			   linebuf, sizeof(linebuf)) != NULL)
+			   linebuf, sizeof(linebuf)) >= 0)
 	{
 		char *p;
 
@@ -5892,7 +5925,7 @@ text_getcanonname(name, hbsize, statp)
 	found = false;
 	while (!found &&
 		sm_io_fgets(f, SM_TIME_DEFAULT,
-			    linebuf, sizeof(linebuf)) != NULL)
+			    linebuf, sizeof(linebuf)) >= 0)
 	{
 		char *p = strpbrk(linebuf, "#\n");
 
@@ -5969,7 +6002,7 @@ stab_map_store(map, lhs, rhs)
 /*
 **  STAB_MAP_OPEN -- initialize (reads data file)
 **
-**	This is a wierd case -- it is only intended as a fallback for
+**	This is a weird case -- it is only intended as a fallback for
 **	aliases.  For this reason, opens for write (only during a
 **	"newaliases") always fails, and opens for read open the
 **	actual underlying text file instead of the database.
@@ -6687,6 +6720,13 @@ null_map_store(map, key, val)
 	return;
 }
 
+MAPCLASS	NullMapClass =
+{
+	"null-map",		NULL,			0,
+	NULL,			null_map_lookup,	null_map_store,
+	null_map_open,		null_map_close,
+};
+
 /*
 **  BOGUS stubs
 */
@@ -7325,7 +7365,8 @@ arith_map_lookup(map, name, av, statp)
 			if (LogLevel > 10)
 				sm_syslog(LOG_WARNING, NOQID,
 					  "arith_map: unknown operator %c",
-					  isprint(*name) ? *name : '?');
+					  (isascii(*name) && isprint(*name)) ?
+					  *name : '?');
 			return NULL;
 		}
 		if (boolres)
@@ -7337,6 +7378,85 @@ arith_map_lookup(map, name, av, statp)
 	}
 	*statp = EX_CONFIG;
 	return NULL;
+}
+
+char *
+arpa_map_lookup(map, name, av, statp)
+	MAP *map;
+	char *name;
+	char **av;
+	int *statp;
+{
+	int r;
+	char *rval;
+	char result[128];	/* IPv6: 64 + 10 + 1 would be enough */
+
+	if (tTd(38, 2))
+		sm_dprintf("arpa_map_lookup: key '%s'\n", name);
+	*statp = EX_DATAERR;
+	r = 1;
+	memset(result, '\0', sizeof(result));
+	rval = NULL;
+
+# if NETINET6
+	if (sm_strncasecmp(name, "IPv6:", 5) == 0)
+	{
+		struct in6_addr in6_addr;
+
+		r = anynet_pton(AF_INET6, name, &in6_addr);
+		if (r == 1)
+		{
+			static char hex_digits[] =
+				{ '0', '1', '2', '3', '4', '5', '6', '7', '8',
+				  '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+
+			unsigned char *src;
+			char *dst;
+			int i;
+
+			src = (unsigned char *) &in6_addr;
+			dst = result;
+			for (i = 15; i >= 0; i--) {
+				*dst++ = hex_digits[src[i] & 0x0f];
+				*dst++ = '.';
+				*dst++ = hex_digits[(src[i] >> 4) & 0x0f];
+				if (i > 0)
+					*dst++ = '.';
+			}
+			*statp = EX_OK;
+		}
+	}
+	else
+# endif /* NETINET6 */
+# if NETINET
+	{
+		struct in_addr in_addr;
+
+		r = inet_pton(AF_INET, name, &in_addr);
+		if (r == 1)
+		{
+			unsigned char *src;
+
+			src = (unsigned char *) &in_addr;
+			(void) snprintf(result, sizeof(result),
+				"%u.%u.%u.%u",
+				src[3], src[2], src[1], src[0]);
+			*statp = EX_OK;
+		}
+	}
+# endif /* NETINET */
+	if (r < 0)
+		*statp = EX_UNAVAILABLE;
+	if (tTd(38, 2))
+		sm_dprintf("arpa_map_lookup: r=%d, result='%s'\n", r, result);
+	if (*statp == EX_OK)
+	{
+		if (bitset(MF_MATCHONLY, map->map_mflags))
+			rval = map_rewrite(map, name, strlen(name), NULL);
+		else
+			rval = map_rewrite(map, result, strlen(result), av);
+	}
+	return rval;
 }
 
 #if SOCKETMAP
@@ -7358,6 +7478,7 @@ socket_map_open(map, mode)
 {
 	STAB *s;
 	int sock = 0;
+	int tmo;
 	SOCKADDR_LEN_T addrlen = 0;
 	int addrno = 0;
 	int save_errno;
@@ -7757,6 +7878,13 @@ socket_map_open(map, mode)
 		return false;
 	}
 
+	tmo = map->map_timeout;
+	if (tmo == 0)
+		tmo = 30000;	/* default: 30s */
+	else
+		tmo *= 1000;	/* s -> ms */
+	sm_io_setinfo(map->map_db1, SM_IO_WHAT_TIMEOUT, &tmo);
+
 	/* Save connection for reuse */
 	s->s_socketmap = map;
 	return true;
@@ -7891,8 +8019,16 @@ socket_map_lookup(map, name, av, statp)
 
 	if (sm_io_fscanf(f, SM_TIME_DEFAULT, "%9u", &replylen) != 1)
 	{
-		syserr("451 4.3.0 socket_map_lookup(%s): failed to read length parameter of reply",
-			map->map_mname);
+		if (errno == EAGAIN)
+		{
+			syserr("451 4.3.0 socket_map_lookup(%s): read timeout",
+				map->map_mname);
+		}
+		else
+		{
+			syserr("451 4.3.0 socket_map_lookup(%s): failed to read length parameter of reply %d",
+				map->map_mname, errno);
+		}
 		*statp = EX_TEMPFAIL;
 		goto errcl;
 	}

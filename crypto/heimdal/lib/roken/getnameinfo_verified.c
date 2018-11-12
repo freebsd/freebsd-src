@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 1999 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2002 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,10 +31,7 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getnameinfo_verified.c 14773 2005-04-12 11:29:18Z lha $");
-#endif
 
 #include "roken.h"
 
@@ -46,7 +43,7 @@ RCSID("$Id: getnameinfo_verified.c 14773 2005-04-12 11:29:18Z lha $");
  * NI_NAMEREQD flag is set or return the numeric address as a string.
  */
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 getnameinfo_verified(const struct sockaddr *sa, socklen_t salen,
 		     char *host, size_t hostlen,
 		     char *serv, size_t servlen,
@@ -56,6 +53,8 @@ getnameinfo_verified(const struct sockaddr *sa, socklen_t salen,
     struct addrinfo *ai, *a;
     char servbuf[NI_MAXSERV];
     struct addrinfo hints;
+    void *saaddr;
+    size_t sasize;
 
     if (host == NULL)
 	return EAI_NONAME;
@@ -75,9 +74,12 @@ getnameinfo_verified(const struct sockaddr *sa, socklen_t salen,
     ret = getaddrinfo (host, serv, &hints, &ai);
     if (ret)
 	goto fail;
+
+    saaddr = socket_get_address(sa);
+    sasize = socket_addr_size(sa);
     for (a = ai; a != NULL; a = a->ai_next) {
-	if (a->ai_addrlen == salen
-	    && memcmp (a->ai_addr, sa, salen) == 0) {
+	if (sasize == socket_addr_size(a->ai_addr) &&
+	    memcmp(saaddr, socket_get_address(a->ai_addr), sasize) == 0) {
 	    freeaddrinfo (ai);
 	    return 0;
 	}

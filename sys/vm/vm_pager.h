@@ -50,19 +50,23 @@ typedef void pgo_init_t(void);
 typedef vm_object_t pgo_alloc_t(void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t,
     struct ucred *);
 typedef void pgo_dealloc_t(vm_object_t);
-typedef int pgo_getpages_t(vm_object_t, vm_page_t *, int, int);
+typedef int pgo_getpages_t(vm_object_t, vm_page_t *, int, int *, int *);
+typedef void pgo_getpages_iodone_t(void *, vm_page_t *, int, int);
+typedef int pgo_getpages_async_t(vm_object_t, vm_page_t *, int, int *, int *,
+    pgo_getpages_iodone_t, void *);
 typedef void pgo_putpages_t(vm_object_t, vm_page_t *, int, int, int *);
 typedef boolean_t pgo_haspage_t(vm_object_t, vm_pindex_t, int *, int *);
 typedef void pgo_pageunswapped_t(vm_page_t);
 
 struct pagerops {
-	pgo_init_t	*pgo_init;		/* Initialize pager. */
-	pgo_alloc_t	*pgo_alloc;		/* Allocate pager. */
-	pgo_dealloc_t	*pgo_dealloc;		/* Disassociate. */
-	pgo_getpages_t	*pgo_getpages;		/* Get (read) page. */
-	pgo_putpages_t	*pgo_putpages;		/* Put (write) page. */
-	pgo_haspage_t	*pgo_haspage;		/* Does pager have page? */
-	pgo_pageunswapped_t *pgo_pageunswapped;
+	pgo_init_t		*pgo_init;		/* Initialize pager. */
+	pgo_alloc_t		*pgo_alloc;		/* Allocate pager. */
+	pgo_dealloc_t		*pgo_dealloc;		/* Disassociate. */
+	pgo_getpages_t		*pgo_getpages;		/* Get (read) page. */
+	pgo_getpages_async_t	*pgo_getpages_async;	/* Get page asyncly. */
+	pgo_putpages_t		*pgo_putpages;		/* Put (write) page. */
+	pgo_haspage_t		*pgo_haspage;		/* Query page. */
+	pgo_pageunswapped_t	*pgo_pageunswapped;
 };
 
 extern struct pagerops defaultpagerops;
@@ -71,6 +75,7 @@ extern struct pagerops vnodepagerops;
 extern struct pagerops devicepagerops;
 extern struct pagerops physpagerops;
 extern struct pagerops sgpagerops;
+extern struct pagerops mgtdevicepagerops;
 
 /*
  * get/put return values
@@ -90,50 +95,23 @@ extern struct pagerops sgpagerops;
 
 #define	VM_PAGER_PUT_SYNC		0x0001
 #define	VM_PAGER_PUT_INVAL		0x0002
-#define VM_PAGER_IGNORE_CLEANCHK	0x0004
 #define VM_PAGER_CLUSTER_OK		0x0008
 
 #ifdef _KERNEL
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_VMPGDATA);
-#endif
 
-extern vm_map_t pager_map;
 extern struct pagerops *pagertab[];
-extern struct mtx pbuf_mtx;
+extern struct mtx_padalign pbuf_mtx;
 
 vm_object_t vm_pager_allocate(objtype_t, void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 void vm_pager_bufferinit(void);
 void vm_pager_deallocate(vm_object_t);
-static __inline int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int);
+int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int *, int *);
+int vm_pager_get_pages_async(vm_object_t, vm_page_t *, int, int *, int *,
+    pgo_getpages_iodone_t, void *);
 static __inline boolean_t vm_pager_has_page(vm_object_t, vm_pindex_t, int *, int *);
 void vm_pager_init(void);
 vm_object_t vm_pager_object_lookup(struct pagerlst *, void *);
-
-/*
- *	vm_page_get_pages:
- *
- *	Retrieve pages from the VM system in order to map them into an object
- *	( or into VM space somewhere ).  If the pagein was successful, we
- *	must fully validate it.
- */
-static __inline int
-vm_pager_get_pages(
-	vm_object_t object,
-	vm_page_t *m,
-	int count,
-	int reqpage
-) {
-	int r;
-
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	r = (*pagertab[object->type]->pgo_getpages)(object, m, count, reqpage);
-	if (r == VM_PAGER_OK && m[reqpage]->valid != VM_PAGE_BITS_ALL) {
-		vm_page_zero_invalid(m[reqpage], TRUE);
-	}
-	return (r);
-}
 
 static __inline void
 vm_pager_put_pages(
@@ -144,7 +122,7 @@ vm_pager_put_pages(
 	int *rtvals
 ) {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	(*pagertab[object->type]->pgo_putpages)
 	    (object, m, count, flags, rtvals);
 }
@@ -168,7 +146,7 @@ vm_pager_has_page(
 ) {
 	boolean_t ret;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	ret = (*pagertab[object->type]->pgo_haspage)
 	    (object, offset, before, after);
 	return (ret);
@@ -191,10 +169,24 @@ static __inline void
 vm_pager_page_unswapped(vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_LOCKED(m->object);
 	if (pagertab[m->object->type]->pgo_pageunswapped)
 		(*pagertab[m->object->type]->pgo_pageunswapped)(m);
 }
+
+struct cdev_pager_ops {
+	int (*cdev_pg_fault)(vm_object_t vm_obj, vm_ooffset_t offset,
+	    int prot, vm_page_t *mres);
+	int (*cdev_pg_ctor)(void *handle, vm_ooffset_t size, vm_prot_t prot,
+	    vm_ooffset_t foff, struct ucred *cred, u_short *color);
+	void (*cdev_pg_dtor)(void *handle);
+};
+
+vm_object_t cdev_pager_allocate(void *handle, enum obj_type tp,
+    struct cdev_pager_ops *ops, vm_ooffset_t size, vm_prot_t prot,
+    vm_ooffset_t foff, struct ucred *cred);
+vm_object_t cdev_pager_lookup(void *handle);
+void cdev_pager_free_page(vm_object_t object, vm_page_t m);
 
 #endif				/* _KERNEL */
 #endif				/* _VM_PAGER_ */

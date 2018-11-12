@@ -29,6 +29,7 @@
 .Os
 .Sh NAME
 .Nm nfscbd
+.Nd
 .Tn NFSv4
 client side callback daemon
 .Sh SYNOPSIS
@@ -75,11 +76,9 @@ defined by NFSV4_CBPORT in /usr/include/fs/nfs/nfs.h, unless
 has been specified.
 For more information on what callbacks and Open Delegations do, see
 .%T "Network File System (NFS) Version 4 Protocol" ,
-RFC3530 .
-.Pp
-The
-.Nm
-utility exits 0 on success or >0 if an error occurred.
+RFC3530.
+.Sh EXIT STATUS
+.Ex -std
 .Sh SEE ALSO
 .Xr nfsv4 4 ,
 .Xr mount_nfs 8

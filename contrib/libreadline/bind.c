@@ -442,7 +442,7 @@ rl_translate_keyseq (seq, array, len)
 {
   register int i, c, l, temp;
 
-  for (i = l = 0; c = seq[i]; i++)
+  for (i = l = 0; (c = seq[i]); i++)
     {
       if (c == '\\')
 	{
@@ -1185,7 +1185,7 @@ rl_parse_and_bind (string)
     {
       int passc = 0;
 
-      for (i = 1; c = string[i]; i++)
+      for (i = 1; (c = string[i]); i++)
 	{
 	  if (passc)
 	    {
@@ -1276,7 +1276,7 @@ rl_parse_and_bind (string)
       int delimiter, passc;
 
       delimiter = string[i++];
-      for (passc = 0; c = string[i]; i++)
+      for (passc = 0; (c = string[i]); i++)
 	{
 	  if (passc)
 	    {
@@ -2048,7 +2048,7 @@ rl_function_dumper (print_readably)
 
   fprintf (rl_outstream, "\n");
 
-  for (i = 0; name = names[i]; i++)
+  for (i = 0; (name = names[i]); i++)
     {
       rl_command_func_t *function;
       char **invokers;

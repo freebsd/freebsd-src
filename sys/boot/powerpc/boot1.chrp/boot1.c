@@ -23,8 +23,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/stdarg.h>
 
-#define _PATH_LOADER	"/boot/loader"
-#define _PATH_KERNEL	"/boot/kernel/kernel"
+#include "paths.h"
 
 #define BSIZEMAX	16384
 
@@ -45,7 +44,6 @@ static char bootargs[128];
 static ofwh_t bootdev;
 
 static struct fs fs;
-static ino_t inomap;
 static char blkbuf[BSIZEMAX];
 static unsigned int fsblks;
 
@@ -62,7 +60,7 @@ static void usage(void);
 static void bcopy(const void *src, void *dst, size_t len);
 static void bzero(void *b, size_t len);
 
-static int mount(const char *device, int quiet);
+static int domount(const char *device, int quiet);
 
 static void panic(const char *fmt, ...) __dead2;
 static int printf(const char *fmt, ...);
@@ -76,6 +74,8 @@ static int __puts(const char *s, putc_func_t *putc, void *arg);
 static int __sputc(char c, void *arg);
 static char *__uitoa(char *buf, u_int val, int base);
 static char *__ultoa(char *buf, u_long val, int base);
+
+void __syncicache(void *, int);
 
 /*
  * Open Firmware interface functions
@@ -103,6 +103,7 @@ ofwh_t stdinh, stdouth;
 
 __asm("                         \n\
         .data                   \n\
+	.align 4		\n\
 stack:                          \n\
         .space  16384           \n\
                                 \n\
@@ -136,7 +137,9 @@ ofw_init(void *vpd, int res, int (*openfirm)(void *), char *arg, int argl)
 
 	p = bootpath;
 	while (*p != '\0') {
+		/* Truncate partition ID */
 		if (*p == ':') {
+			ofw_close(bootdev);
 			*(++p) = '\0';
 			break;
 		}
@@ -394,7 +397,7 @@ main(int ac, char **av)
 	char bootpath_full[255];
 	int i, len;
 
-	path = _PATH_LOADER;
+	path = PATH_LOADER;
 	for (i = 0; i < ac; i++) {
 		switch (av[i][0]) {
 		case '-':
@@ -418,31 +421,40 @@ main(int ac, char **av)
 
 	memcpy(bootpath_full,bootpath,len+1);
 
-	if (bootpath_full[len-1] == ':') {
-		for (i = 0; i < 16; i++) {
-			if (i < 10) {
-				bootpath_full[len] = i + '0';
-				bootpath_full[len+1] = '\0';
-			} else {
-				bootpath_full[len] = '1';
-				bootpath_full[len+1] = i - 10 + '0';
-				bootpath_full[len+2] = '\0';
-			}
-				
-			if (mount(bootpath_full,1) >= 0)
-				break;
+	if (bootpath_full[len-1] != ':') {
+		/* First try full volume */
+		if (domount(bootpath_full,1) == 0)
+			goto out;
 
-			if (bootdev > 0)
-				ofw_close(bootdev);
-		}
-
-		if (i >= 16)
-			panic("mount");
-	} else {
-		if (mount(bootpath_full,0) == -1)
-			panic("mount");
+		/* Add a : so that we try partitions if that fails */
+		if (bootdev > 0)
+			ofw_close(bootdev);
+		bootpath_full[len] = ':';
+		len += 1;
 	}
 
+	/* Loop through first 16 partitions to find a UFS one */
+	for (i = 0; i < 16; i++) {
+		if (i < 10) {
+			bootpath_full[len] = i + '0';
+			bootpath_full[len+1] = '\0';
+		} else {
+			bootpath_full[len] = '1';
+			bootpath_full[len+1] = i - 10 + '0';
+			bootpath_full[len+2] = '\0';
+		}
+			
+		if (domount(bootpath_full,1) >= 0)
+			break;
+
+		if (bootdev > 0)
+			ofw_close(bootdev);
+	}
+
+	if (i >= 16)
+		panic("domount");
+
+out:
 	printf("   Boot volume:   %s\n",bootpath_full);
 	ofw_setprop(chosenh, "bootargs", bootpath_full, len+2);
 	load(path);
@@ -467,17 +479,17 @@ exit(int code)
 static struct dmadat __dmadat;
 
 static int
-mount(const char *device, int quiet)
+domount(const char *device, int quiet)
 {
 
 	dmadat = &__dmadat;
 	if ((bootdev = ofw_open(device)) == -1) {
-		printf("mount: can't open device\n");
+		printf("domount: can't open device\n");
 		return (-1);
 	}
 	if (fsread(0, NULL, 0)) {
 		if (!quiet)
-			printf("mount: can't read superblock\n");
+			printf("domount: can't read superblock\n");
 		return (-1);
 	}
 	return (0);
@@ -489,7 +501,7 @@ load(const char *fname)
 	Elf32_Ehdr eh;
 	Elf32_Phdr ph;
 	caddr_t p;
-	ino_t ino;
+	ufs_ino_t ino;
 	int i;
 
 	if ((ino = lookup(fname)) == 0) {
@@ -522,6 +534,7 @@ load(const char *fname)
 		}
 		if (ph.p_filesz != ph.p_memsz)
 			bzero(p + ph.p_filesz, ph.p_memsz - ph.p_filesz);
+		__syncicache(p, ph.p_memsz);
 	}
 	ofw_close(bootdev);
 	(*(void (*)(void *, int, ofwfp_t, char *, int))eh.e_entry)(NULL, 0, 
@@ -560,10 +573,6 @@ printf(const char *fmt, ...)
 {
 	va_list ap;
 	int ret;
-
-	/* Don't annoy the user as we probe for partitions */
-	if (strcmp(fmt,"Not ufs\n") == 0)
-		return 0;
 
 	va_start(ap, fmt);
 	ret = vprintf(fmt, ap);

@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
 
@@ -62,7 +63,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/bus.h>
 
 #include <dev/pci/pcivar.h>
 
@@ -96,7 +96,7 @@ static device_method_t dcphy_methods[] = {
 	DEVMETHOD(device_attach,	dcphy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t dcphy_devclass;
@@ -113,6 +113,12 @@ static int	dcphy_service(struct mii_softc *, struct mii_data *, int);
 static void	dcphy_status(struct mii_softc *);
 static void	dcphy_reset(struct mii_softc *);
 static int	dcphy_auto(struct mii_softc *);
+
+static const struct mii_phy_funcs dcphy_funcs = {
+	dcphy_service,
+	dcphy_status,
+	dcphy_reset
+};
 
 static int
 dcphy_probe(device_t dev)
@@ -138,31 +144,16 @@ static int
 dcphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 	struct dc_softc		*dc_sc;
 	device_t brdev;
 
 	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
-	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = dcphy_service;
-	sc->mii_pdata = mii;
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
+	    &dcphy_funcs, 0);
 
-	/*
-	 * Apparently, we can neither isolate nor do loopback.
-	 */
-	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
-
-	mii->mii_instance++;
-
-	/*dcphy_reset(sc);*/
-	dc_sc = mii->mii_ifp->if_softc;
+	/*PHY_RESET(sc);*/
+	dc_sc = if_getsoftc(sc->mii_pdata->mii_ifp);
 	CSR_WRITE_4(dc_sc, DC_10BTSTAT, 0);
 	CSR_WRITE_4(dc_sc, DC_10BTCTRL, 0);
 
@@ -183,7 +174,7 @@ dcphy_attach(device_t dev)
 		break;
 	}
 
-	sc->mii_capabilities &= ma->mii_capmask;
+	sc->mii_capabilities &= sc->mii_capmask;
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
 	printf("\n");
@@ -200,32 +191,19 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	int reg;
 	u_int32_t		mode;
 
-	dc_sc = mii->mii_ifp->if_softc;
+	dc_sc = if_getsoftc(mii->mii_ifp);
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
 		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
-
-		/*
 		 * If the interface is not up, don't do anything.
 		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
+		if ((if_getflags(mii->mii_ifp) & IFF_UP) == 0)
 			break;
 
-		sc->mii_flags = 0;
 		mii->mii_media_active = IFM_NONE;
 		mode = CSR_READ_4(dc_sc, DC_NETCFG);
 		mode &= ~(DC_NETCFG_FULLDUPLEX | DC_NETCFG_PORTSEL |
@@ -233,20 +211,15 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
-			/*dcphy_reset(sc);*/
-			(void) dcphy_auto(sc);
+			/*PHY_RESET(sc);*/
+			(void)dcphy_auto(sc);
 			break;
-		case IFM_100_T4:
-			/*
-			 * XXX Not supported as a manual setting right now.
-			 */
-			return (EINVAL);
 		case IFM_100_TX:
-			dcphy_reset(sc);
+			PHY_RESET(sc);
 			DC_CLRBIT(dc_sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
 			mode |= DC_NETCFG_PORTSEL | DC_NETCFG_PCS |
 			    DC_NETCFG_SCRAMBLER;
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
+			if ((ife->ifm_media & IFM_FDX) != 0)
 				mode |= DC_NETCFG_FULLDUPLEX;
 			else
 				mode &= ~DC_NETCFG_FULLDUPLEX;
@@ -255,7 +228,7 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		case IFM_10_T:
 			DC_CLRBIT(dc_sc, DC_SIARESET, DC_SIA_RESET);
 			DC_CLRBIT(dc_sc, DC_10BTCTRL, 0xFFFF);
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
+			if ((ife->ifm_media & IFM_FDX) != 0)
 				DC_SETBIT(dc_sc, DC_10BTCTRL, 0x7F3D);
 			else
 				DC_SETBIT(dc_sc, DC_10BTCTRL, 0x7F3F);
@@ -263,7 +236,7 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			DC_CLRBIT(dc_sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
 			mode &= ~DC_NETCFG_PORTSEL;
 			mode |= DC_NETCFG_SPEEDSEL;
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
+			if ((ife->ifm_media & IFM_FDX) != 0)
 				mode |= DC_NETCFG_FULLDUPLEX;
 			else
 				mode &= ~DC_NETCFG_FULLDUPLEX;
@@ -276,15 +249,9 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 	case MII_TICK:
 		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
-
-		/*
 		 * Is the interface even up?
 		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
+		if ((if_getflags(mii->mii_ifp) & IFF_UP) == 0)
 			return (0);
 
 		/*
@@ -317,7 +284,7 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	dcphy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -328,24 +295,23 @@ static void
 dcphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
-	int reg, anlpar, tstat = 0;
+	int anlpar, tstat;
 	struct dc_softc		*dc_sc;
 
-	dc_sc = mii->mii_ifp->if_softc;
+	dc_sc = if_getsoftc(mii->mii_ifp);
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
 
-	if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
+	if ((if_getflags(mii->mii_ifp) & IFF_UP) == 0)
 		return;
 
-	reg = CSR_READ_4(dc_sc, DC_10BTSTAT);
-	if (!(reg & DC_TSTAT_LS10) || !(reg & DC_TSTAT_LS100))
+	tstat = CSR_READ_4(dc_sc, DC_10BTSTAT);
+	if (!(tstat & DC_TSTAT_LS10) || !(tstat & DC_TSTAT_LS100))
 		mii->mii_media_status |= IFM_ACTIVE;
 
 	if (CSR_READ_4(dc_sc, DC_10BTCTRL) & DC_TCTL_AUTONEGENBL) {
 		/* Erg, still trying, I guess... */
-		tstat = CSR_READ_4(dc_sc, DC_10BTSTAT);
 		if ((tstat & DC_TSTAT_ANEGSTAT) != DC_ASTAT_AUTONEGCMP) {
 			if ((DC_IS_MACRONIX(dc_sc) || DC_IS_PNICII(dc_sc)) &&
 			    (tstat & DC_TSTAT_ANEGSTAT) == DC_ASTAT_DISABLE)
@@ -361,14 +327,14 @@ dcphy_status(struct mii_softc *sc)
 				mii->mii_media_active |= IFM_100_TX | IFM_FDX;
 			else if (anlpar & ANLPAR_T4 &&
 			    sc->mii_capabilities & BMSR_100T4)
-				mii->mii_media_active |= IFM_100_T4;
+				mii->mii_media_active |= IFM_100_T4 | IFM_HDX;
 			else if (anlpar & ANLPAR_TX &&
 			    sc->mii_capabilities & BMSR_100TXHDX)
-				mii->mii_media_active |= IFM_100_TX;
+				mii->mii_media_active |= IFM_100_TX | IFM_HDX;
 			else if (anlpar & ANLPAR_10_FD)
 				mii->mii_media_active |= IFM_10_T | IFM_FDX;
 			else if (anlpar & ANLPAR_10)
-				mii->mii_media_active |= IFM_10_T;
+				mii->mii_media_active |= IFM_10_T | IFM_HDX;
 			else
 				mii->mii_media_active |= IFM_NONE;
 			if (DC_IS_INTEL(dc_sc))
@@ -385,10 +351,10 @@ dcphy_status(struct mii_softc *sc)
 		 * and hope that the user is clever enough to manually
 		 * change the media settings if we're wrong.
 		 */
-		if (!(reg & DC_TSTAT_LS100))
-			mii->mii_media_active |= IFM_100_TX;
-		else if (!(reg & DC_TSTAT_LS10))
-			mii->mii_media_active |= IFM_10_T;
+		if (!(tstat & DC_TSTAT_LS100))
+			mii->mii_media_active |= IFM_100_TX | IFM_HDX;
+		else if (!(tstat & DC_TSTAT_LS10))
+			mii->mii_media_active |= IFM_10_T | IFM_HDX;
 		else
 			mii->mii_media_active |= IFM_NONE;
 		if (DC_IS_INTEL(dc_sc))
@@ -403,6 +369,8 @@ skip:
 		mii->mii_media_active |= IFM_100_TX;
 	if (CSR_READ_4(dc_sc, DC_NETCFG) & DC_NETCFG_FULLDUPLEX)
 		mii->mii_media_active |= IFM_FDX;
+	else
+		mii->mii_media_active |= IFM_HDX;
 }
 
 static int
@@ -410,7 +378,7 @@ dcphy_auto(struct mii_softc *mii)
 {
 	struct dc_softc		*sc;
 
-	sc = mii->mii_pdata->mii_ifp->if_softc;
+	sc = if_getsoftc(mii->mii_pdata->mii_ifp);
 
 	DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_FULLDUPLEX);
@@ -431,7 +399,7 @@ dcphy_reset(struct mii_softc *mii)
 {
 	struct dc_softc		*sc;
 
-	sc = mii->mii_pdata->mii_ifp->if_softc;
+	sc = if_getsoftc(mii->mii_pdata->mii_ifp);
 
 	DC_CLRBIT(sc, DC_SIARESET, DC_SIA_RESET);
 	DELAY(1000);

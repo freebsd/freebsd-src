@@ -22,8 +22,6 @@
  * Author: James da Silva, Systems Design and Analysis Group
  *			   Computer Science Department
  *			   University of Maryland at College Park
- *
- * $FreeBSD$
  */
 /*
  * ========================================================================
@@ -32,9 +30,12 @@
  * Generates a Makefile and main C file for a crunched executable,
  * from specs given in a .conf file.
  */
-#include <sys/types.h>
-#include <sys/stat.h>
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
+#include <sys/stat.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -92,6 +93,7 @@ char outmkname[MAXPATHLEN], outcfname[MAXPATHLEN], execfname[MAXPATHLEN];
 char tempfname[MAXPATHLEN], cachename[MAXPATHLEN], curfilename[MAXPATHLEN];
 char outhdrname[MAXPATHLEN] ;	/* user-supplied header for *.mk */
 char *objprefix;		/* where are the objects ? */
+char *path_make;
 int linenum = -1;
 int goterror = 0;
 
@@ -103,11 +105,11 @@ int list_mode;
 
 /* general library routines */
 
-void status(char *str);
+void status(const char *str);
 void out_of_memory(void);
 void add_string(strlst_t **listp, char *str);
-int is_dir(char *pathname);
-int is_nonempty_file(char *pathname);
+int is_dir(const char *pathname);
+int is_nonempty_file(const char *pathname);
 int subtract_strlst(strlst_t **lista, strlst_t **listb);
 int in_list(strlst_t **listp, char *str);
 
@@ -117,8 +119,11 @@ void usage(void);
 void parse_conf_file(void);
 void gen_outputs(void);
 
+extern char *crunched_skel[];
 
-int main(int argc, char **argv)
+
+int
+main(int argc, char **argv)
 {
 	char *p;
 	int optc;
@@ -126,6 +131,10 @@ int main(int argc, char **argv)
 	verbose = 1;
 	readcache = 1;
 	*outmkname = *outcfname = *execfname = '\0';
+
+	path_make = getenv("MAKE");
+	if (path_make == NULL || *path_make == '\0')
+		path_make = "make";
 
 	p = getenv("MAKEOBJDIRPREFIX");
 	if (p == NULL || *p == '\0')
@@ -218,7 +227,8 @@ int main(int argc, char **argv)
 }
 
 
-void usage(void)
+void
+usage(void)
 {
 	fprintf(stderr, "%s%s\n\t%s%s\n", "usage: crunchgen [-foq] ",
 	    "[-h <makefile-header-name>] [-m <makefile>]",
@@ -237,7 +247,7 @@ void usage(void)
 /* helper routines for parse_conf_file */
 
 void parse_one_file(char *filename);
-void parse_line(char *line, int *fc, char **fv, int nf);
+void parse_line(char *pline, int *fc, char **fv, int nf);
 void add_srcdirs(int argc, char **argv);
 void add_progs(int argc, char **argv);
 void add_link(int argc, char **argv);
@@ -250,7 +260,8 @@ prog_t *find_prog(char *str);
 void add_prog(char *progname);
 
 
-void parse_conf_file(void)
+void
+parse_conf_file(void)
 {
 	if (!is_nonempty_file(infilename))
 		errx(1, "fatal: input file \"%s\" not found", infilename);
@@ -263,7 +274,8 @@ void parse_conf_file(void)
 }
 
 
-void parse_one_file(char *filename)
+void
+parse_one_file(char *filename)
 {
 	char *fieldv[MAXFIELDS];
 	int fieldc;
@@ -329,15 +341,16 @@ void parse_one_file(char *filename)
 }
 
 
-void parse_line(char *line, int *fc, char **fv, int nf)
+void
+parse_line(char *pline, int *fc, char **fv, int nf)
 {
 	char *p;
 
-	p = line;
+	p = pline;
 	*fc = 0;
 
 	while (1) {
-		while (isspace(*p))
+		while (isspace((unsigned char)*p))
 			p++;
 
 		if (*p == '\0' || *p == '#')
@@ -346,7 +359,7 @@ void parse_line(char *line, int *fc, char **fv, int nf)
 		if (*fc < nf)
 			fv[(*fc)++] = p;
 
-		while (*p && !isspace(*p) && *p != '#')
+		while (*p && !isspace((unsigned char)*p) && *p != '#')
 			p++;
 
 		if (*p == '\0' || *p == '#')
@@ -360,7 +373,8 @@ void parse_line(char *line, int *fc, char **fv, int nf)
 }
 
 
-void add_srcdirs(int argc, char **argv)
+void
+add_srcdirs(int argc, char **argv)
 {
 	int i;
 
@@ -376,7 +390,8 @@ void add_srcdirs(int argc, char **argv)
 }
 
 
-void add_progs(int argc, char **argv)
+void
+add_progs(int argc, char **argv)
 {
 	int i;
 
@@ -385,7 +400,8 @@ void add_progs(int argc, char **argv)
 }
 
 
-void add_prog(char *progname)
+void
+add_prog(char *progname)
 {
 	prog_t *p1, *p2;
 
@@ -426,7 +442,8 @@ void add_prog(char *progname)
 }
 
 
-void add_link(int argc, char **argv)
+void
+add_link(int argc, char **argv)
 {
 	int i;
 	prog_t *p = find_prog(argv[1]);
@@ -447,7 +464,8 @@ void add_link(int argc, char **argv)
 }
 
 
-void add_libs(int argc, char **argv)
+void
+add_libs(int argc, char **argv)
 {
 	int i;
 
@@ -461,7 +479,8 @@ void add_libs(int argc, char **argv)
 }
 
 
-void add_libs_so(int argc, char **argv)
+void
+add_libs_so(int argc, char **argv)
 {
 	int i;
 
@@ -475,7 +494,8 @@ void add_libs_so(int argc, char **argv)
 }
 
 
-void add_buildopts(int argc, char **argv)
+void
+add_buildopts(int argc, char **argv)
 {
 	int i;
 
@@ -484,7 +504,8 @@ void add_buildopts(int argc, char **argv)
 }
 
 
-void add_special(int argc, char **argv)
+void
+add_special(int argc, char **argv)
 {
 	int i;
 	prog_t *p = find_prog(argv[1]);
@@ -586,7 +607,8 @@ char *genident(char *str);
 char *dir_search(char *progname);
 
 
-void gen_outputs(void)
+void
+gen_outputs(void)
 {
 	prog_t *p;
 
@@ -599,13 +621,15 @@ void gen_outputs(void)
 	gen_output_makefile();
 	status("");
 	fprintf(stderr,
-	    "Run \"make -f %s\" to build crunched binary.\n", outmkname);
+	    "Run \"%s -f %s\" to build crunched binary.\n",
+	    path_make, outmkname);
 }
 
 /*
  * run the makefile for the program to find which objects are necessary
  */
-void fillin_program(prog_t *p)
+void
+fillin_program(prog_t *p)
 {
 	char path[MAXPATHLEN];
 	char line[MAXLINELEN];
@@ -646,8 +670,13 @@ void fillin_program(prog_t *p)
 	* an object directory already exists.
 	*/
 	if (!makeobj && !p->objdir && p->srcdir) {
+		char *auto_obj;
+
+		auto_obj = NULL;
 		snprintf(line, sizeof line, "%s/%s", objprefix, p->realsrcdir);
-		if (is_dir(line)) {
+		if (is_dir(line) ||
+		    ((auto_obj = getenv("MK_AUTO_OBJ")) != NULL &&
+		    strcmp(auto_obj, "yes") == 0)) {
 			if ((p->objdir = strdup(line)) == NULL)
 			out_of_memory();
 		} else
@@ -680,7 +709,8 @@ void fillin_program(prog_t *p)
 		p->goterror = 1;
 }
 
-void fillin_program_objs(prog_t *p, char *path)
+void
+fillin_program_objs(prog_t *p, char *path)
 {
 	char *obj, *cp;
 	int fd, rc;
@@ -720,16 +750,16 @@ void fillin_program_objs(prog_t *p, char *path)
 	fprintf(f, "loop:\n\t@echo 'OBJS= '${%s}\n", objvar);
 
 	fprintf(f, "crunchgen_objs:\n"
-	    "\t@cd %s && make -f %s $(BUILDOPTS) $(%s_OPTS)",
-	    p->srcdir, tempfname, p->ident);
+	    "\t@cd %s && %s -f %s $(BUILDOPTS) $(%s_OPTS)",
+	    p->srcdir, path_make, tempfname, p->ident);
 	for (s = p->buildopts; s != NULL; s = s->next)
 		fprintf(f, " %s", s->str);
 	fprintf(f, " loop\n");
 
 	fclose(f);
 
-	snprintf(line, MAXLINELEN, "cd %s && make -f %s -B crunchgen_objs",
-	    p->srcdir, tempfname);
+	snprintf(line, MAXLINELEN, "cd %s && %s -f %s -B crunchgen_objs",
+	     p->srcdir, path_make, tempfname);
 	if ((f = popen(line, "r")) == NULL) {
 		warn("submake pipe");
 		goterror = 1;
@@ -744,17 +774,17 @@ void fillin_program_objs(prog_t *p, char *path)
 		}
 
 		cp = line + 6;
-		while (isspace(*cp))
+		while (isspace((unsigned char)*cp))
 			cp++;
 
 		while(*cp) {
 			obj = cp;
-			while (*cp && !isspace(*cp))
+			while (*cp && !isspace((unsigned char)*cp))
 				cp++;
 			if (*cp)
 				*cp++ = '\0';
 			add_string(&p->objs, obj);
-			while (isspace(*cp))
+			while (isspace((unsigned char)*cp))
 				cp++;
 		}
 	}
@@ -767,7 +797,8 @@ void fillin_program_objs(prog_t *p, char *path)
 	unlink(tempfname);
 }
 
-void remove_error_progs(void)
+void
+remove_error_progs(void)
 {
 	prog_t *p1, *p2;
 
@@ -788,7 +819,8 @@ void remove_error_progs(void)
 	}
 }
 
-void gen_specials_cache(void)
+void
+gen_specials_cache(void)
 {
 	FILE *cachef;
 	prog_t *p;
@@ -828,7 +860,8 @@ void gen_specials_cache(void)
 }
 
 
-void gen_output_makefile(void)
+void
+gen_output_makefile(void)
 {
 	prog_t *p;
 	FILE *outmk;
@@ -858,9 +891,9 @@ void gen_output_makefile(void)
 }
 
 
-void gen_output_cfile(void)
+void
+gen_output_cfile(void)
 {
-	extern char *crunched_skel[];
 	char **cp;
 	FILE *outcf;
 	prog_t *p;
@@ -918,7 +951,7 @@ char *genident(char *str)
 	for (d = s = n; *s != '\0'; s++) {
 		if (*s == '-')
 			*d++ = '_';
-		else if (*s == '_' || isalnum(*s))
+		else if (*s == '_' || isalnum((unsigned char)*s))
 			*d++ = *s;
 	}
 	*d = '\0';
@@ -946,10 +979,12 @@ char *dir_search(char *progname)
 }
 
 
-void top_makefile_rules(FILE *outmk)
+void
+top_makefile_rules(FILE *outmk)
 {
 	prog_t *p;
 
+	fprintf(outmk, "LD?= ld\n");
 	if ( subtract_strlst(&libs, &libs_so) )
 		fprintf(outmk, "# NOTE: Some LIBS declarations below overridden by LIBS_SO\n");
 
@@ -997,14 +1032,14 @@ void top_makefile_rules(FILE *outmk)
 	fprintf(outmk, "\t$(CC) -static -o %s %s.o $(CRUNCHED_OBJS) $(LIBS)\n",
 	    execfname, execfname);
 	fprintf(outmk, ".endif\n");
-	fprintf(outmk, "\tstrip %s\n", execfname);
 	fprintf(outmk, "realclean: clean subclean\n");
 	fprintf(outmk, "clean:\n\trm -f %s *.lo *.o *_stub.c\n", execfname);
 	fprintf(outmk, "subclean: $(SUBCLEAN_TARGETS)\n");
 }
 
 
-void prog_makefile_rules(FILE *outmk, prog_t *p)
+void
+prog_makefile_rules(FILE *outmk, prog_t *p)
 {
 	strlst_t *lst;
 
@@ -1027,6 +1062,7 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 		}
 		fprintf(outmk, "\n");
 	}
+	fprintf(outmk, "$(%s_OBJPATHS): .NOMETA\n", p->ident);
 
 	if (p->srcdir && p->objs) {
 		fprintf(outmk, "%s_SRCDIR=%s\n", p->ident, p->srcdir);
@@ -1078,7 +1114,7 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 		fprintf(outmk, " $(%s_LIBS)", p->ident);
 
 	fprintf(outmk, "\n");
-	fprintf(outmk, "\tld -dc -r -o %s.lo %s_stub.o $(%s_OBJPATHS)",
+	fprintf(outmk, "\t$(CC) -nostdlib -Wl,-dc -r -o %s.lo %s_stub.o $(%s_OBJPATHS)",
 	    p->name, p->name, p->ident);
 	if (p->libs)
 		fprintf(outmk, " $(%s_LIBS)", p->ident);
@@ -1089,7 +1125,8 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 	fprintf(outmk, "%s.lo\n", p->name);
 }
 
-void output_strlst(FILE *outf, strlst_t *lst)
+void
+output_strlst(FILE *outf, strlst_t *lst)
 {
 	for (; lst != NULL; lst = lst->next)
 		if ( strlen(lst->str) )
@@ -1104,7 +1141,8 @@ void output_strlst(FILE *outf, strlst_t *lst)
  *
  */
 
-void status(char *str)
+void
+status(const char *str)
 {
 	static int lastlen = 0;
 	int len, spaces;
@@ -1123,13 +1161,15 @@ void status(char *str)
 }
 
 
-void out_of_memory(void)
+void
+out_of_memory(void)
 {
 	err(1, "%s: %d: out of memory, stopping", infilename, linenum);
 }
 
 
-void add_string(strlst_t **listp, char *str)
+void
+add_string(strlst_t **listp, char *str)
 {
 	strlst_t *p1, *p2;
 
@@ -1153,7 +1193,8 @@ void add_string(strlst_t **listp, char *str)
 		p1->next = p2;
 }
 
-int subtract_strlst(strlst_t **lista, strlst_t **listb)
+int
+subtract_strlst(strlst_t **lista, strlst_t **listb)
 {
 	int subtract_count = 0;
 	strlst_t *p1;
@@ -1166,7 +1207,8 @@ int subtract_strlst(strlst_t **lista, strlst_t **listb)
 	return subtract_count;
 }
 
-int in_list(strlst_t **listp, char *str)
+int
+in_list(strlst_t **listp, char *str)
 {
 	strlst_t *p1;
 	for (p1 = *listp; p1 != NULL; p1 = p1->next)
@@ -1175,7 +1217,8 @@ int in_list(strlst_t **listp, char *str)
 	return 0;
 }
 
-int is_dir(char *pathname)
+int
+is_dir(const char *pathname)
 {
 	struct stat buf;
 
@@ -1185,7 +1228,8 @@ int is_dir(char *pathname)
 	return S_ISDIR(buf.st_mode);
 }
 
-int is_nonempty_file(char *pathname)
+int
+is_nonempty_file(const char *pathname)
 {
 	struct stat buf;
 

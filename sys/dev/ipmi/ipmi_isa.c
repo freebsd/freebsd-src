@@ -78,6 +78,14 @@ static int
 ipmi_isa_probe(device_t dev)
 {
 
+	/*
+	 * Give other drivers precedence.  Unfortunately, this doesn't
+	 * work if we have an SMBIOS table that duplicates a PCI device
+	 * that's later on the bus than the PCI-ISA bridge.
+	 */
+	if (ipmi_attached)
+		return (ENXIO);
+
 	/* Skip any PNP devices. */
 	if (isa_get_logicalid(dev) != 0)
 		return (ENXIO);
@@ -174,14 +182,6 @@ ipmi_isa_attach(device_t dev)
 	if (!ipmi_smbios_identify(&info) &&
 	    !ipmi_hint_identify(dev, &info))
 		return (ENXIO);
-
-	/*
-	 * Give other drivers precedence.  Unfortunately, this doesn't
-	 * work if we have an SMBIOS table that duplicates a PCI device
-	 * that's later on the bus than the PCI-ISA bridge.
-	 */
-	if (ipmi_attached)
-		return (EBUSY);
 
 	switch (info.iface_type) {
 	case KCS_MODE:

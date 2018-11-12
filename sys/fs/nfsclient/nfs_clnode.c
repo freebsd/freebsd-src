@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -44,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 
 #include <vm/uma.h>
@@ -52,13 +54,19 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfsnode.h>
 #include <fs/nfsclient/nfsmount.h>
 #include <fs/nfsclient/nfs.h>
+#include <fs/nfsclient/nfs_kdtrace.h>
+
+#include <nfs/nfs_lock.h>
 
 extern struct vop_vector newnfs_vnodeops;
 extern struct buf_ops buf_ops_newnfs;
 MALLOC_DECLARE(M_NEWNFSREQ);
 
 uma_zone_t newnfsnode_zone;
-vop_reclaim_t	*ncl_reclaim_p = NULL;
+
+const char nfs_vnode_tag[] = "nfs";
+
+static void	nfs_freesillyrename(void *arg, __unused int pending);
 
 void
 ncl_nhinit(void)
@@ -84,7 +92,8 @@ ncl_nhuninit(void)
  * nfsnode structure is returned.
  */
 int
-ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp)
+ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
+    int lkflags)
 {
 	struct thread *td = curthread;	/* XXX */
 	struct nfsnode *np;
@@ -104,7 +113,7 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp)
 	    M_NFSFH, M_WAITOK);
 	bcopy(fhp, &nfhp->nfh_fh[0], fhsize);
 	nfhp->nfh_len = fhsize;
-	error = vfs_hash_get(mntp, hash, LK_EXCLUSIVE,
+	error = vfs_hash_get(mntp, hash, lkflags,
 	    td, &nvp, newnfs_vncmpf, nfhp);
 	FREE(nfhp, M_NFSFH);
 	if (error)
@@ -113,20 +122,15 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp)
 		*npp = VTONFS(nvp);
 		return (0);
 	}
-
-	/*
-	 * Allocate before getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if zalloc should block.
-	 */
 	np = uma_zalloc(newnfsnode_zone, M_WAITOK | M_ZERO);
 
-	error = getnewvnode("newnfs", mntp, &newnfs_vnodeops, &nvp);
+	error = getnewvnode(nfs_vnode_tag, mntp, &newnfs_vnodeops, &nvp);
 	if (error) {
 		uma_zfree(newnfsnode_zone, np);
 		return (error);
 	}
 	vp = nvp;
+	KASSERT(vp->v_bufobj.bo_bsize != 0, ("ncl_nget: bo_bsize == 0"));
 	vp->v_bufobj.bo_ops = &buf_ops_newnfs;
 	vp->v_data = np;
 	np->n_vnode = vp;
@@ -140,6 +144,7 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp)
 	/*
 	 * NFS supports recursive and shared locking.
 	 */
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_NOWITNESS, NULL);
 	VN_LOCK_AREC(vp);
 	VN_LOCK_ASHARE(vp);
 	/* 
@@ -157,7 +162,6 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp)
 	    M_NFSFH, M_WAITOK);
 	bcopy(fhp, np->n_fhp->nfh_fh, fhsize);
 	np->n_fhp->nfh_len = fhsize;
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_NOWITNESS, NULL);
 	error = insmntque(vp, mntp);
 	if (error != 0) {
 		*npp = NULL;
@@ -166,7 +170,7 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp)
 		uma_zfree(newnfsnode_zone, np);
 		return (error);
 	}
-	error = vfs_hash_insert(vp, hash, LK_EXCLUSIVE, 
+	error = vfs_hash_insert(vp, hash, lkflags, 
 	    td, &nvp, newnfs_vncmpf, np->n_fhp);
 	if (error)
 		return (error);
@@ -180,45 +184,86 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp)
 	return (0);
 }
 
-int
-ncl_inactive(struct vop_inactive_args *ap)
+/*
+ * Do the vrele(sp->s_dvp) as a separate task in order to avoid a
+ * deadlock because of a LOR when vrele() locks the directory vnode.
+ */
+static void
+nfs_freesillyrename(void *arg, __unused int pending)
+{
+	struct sillyrename *sp;
+
+	sp = arg;
+	vrele(sp->s_dvp);
+	free(sp, M_NEWNFSREQ);
+}
+
+static void
+ncl_releasesillyrename(struct vnode *vp, struct thread *td)
 {
 	struct nfsnode *np;
 	struct sillyrename *sp;
-	struct vnode *vp = ap->a_vp;
 
+	ASSERT_VOP_ELOCKED(vp, "releasesillyrename");
 	np = VTONFS(vp);
-	if (prtactive && vrefcnt(vp) != 0)
-		vprint("ncl_inactive: pushing active", vp);
-
-	if (NFS_ISV4(vp) && vp->v_type == VREG) {
-		/*
-		 * Since mmap()'d files do I/O after VOP_CLOSE(), the NFSv4
-		 * Close operations are delayed until now. Any dirty buffers
-		 * must be flushed before the close, so that the stateid is
-		 * available for the writes.
-		 */
-		if (nfscl_mustflush(vp))
-			(void) ncl_flush(vp, MNT_WAIT, NULL, ap->a_td, 1);
-		(void) nfsrpc_close(vp, 1, ap->a_td);
-	}
-
+	mtx_assert(&np->n_mtx, MA_OWNED);
 	if (vp->v_type != VDIR) {
 		sp = np->n_sillyrename;
 		np->n_sillyrename = NULL;
 	} else
 		sp = NULL;
-	if (sp) {
-		(void) ncl_vinvalbuf(vp, 0, ap->a_td, 1);
+	if (sp != NULL) {
+		mtx_unlock(&np->n_mtx);
+		(void) ncl_vinvalbuf(vp, 0, td, 1);
 		/*
 		 * Remove the silly file that was rename'd earlier
 		 */
 		ncl_removeit(sp, vp);
 		crfree(sp->s_cred);
-		vrele(sp->s_dvp);
-		FREE((caddr_t)sp, M_NEWNFSREQ);
+		TASK_INIT(&sp->s_task, 0, nfs_freesillyrename, sp);
+		taskqueue_enqueue(taskqueue_thread, &sp->s_task);
+		mtx_lock(&np->n_mtx);
 	}
+}
+
+int
+ncl_inactive(struct vop_inactive_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct nfsnode *np;
+	boolean_t retv;
+
+	if (NFS_ISV4(vp) && vp->v_type == VREG) {
+		/*
+		 * Since mmap()'d files do I/O after VOP_CLOSE(), the NFSv4
+		 * Close operations are delayed until now. Any dirty
+		 * buffers/pages must be flushed before the close, so that the
+		 * stateid is available for the writes.
+		 */
+		if (vp->v_object != NULL) {
+			VM_OBJECT_WLOCK(vp->v_object);
+			retv = vm_object_page_clean(vp->v_object, 0, 0,
+			    OBJPC_SYNC);
+			VM_OBJECT_WUNLOCK(vp->v_object);
+		} else
+			retv = TRUE;
+		if (retv == TRUE) {
+			(void)ncl_flush(vp, MNT_WAIT, NULL, ap->a_td, 1, 0);
+			(void)nfsrpc_close(vp, 1, ap->a_td);
+		}
+	}
+
+	np = VTONFS(vp);
+	mtx_lock(&np->n_mtx);
+	ncl_releasesillyrename(vp, ap->a_td);
+
+	/*
+	 * NMODIFIED means that there might be dirty/stale buffers
+	 * associated with the NFS vnode.  None of the other flags are
+	 * meaningful after the vnode is unused.
+	 */
 	np->n_flag &= NMODIFIED;
+	mtx_unlock(&np->n_mtx);
 	return (0);
 }
 
@@ -232,20 +277,30 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsdmap *dp, *dp2;
 
-	if (prtactive && vrefcnt(vp) != 0)
-		vprint("ncl_reclaim: pushing active", vp);
-
 	/*
 	 * If the NLM is running, give it a chance to abort pending
 	 * locks.
 	 */
-	if (ncl_reclaim_p)
-		ncl_reclaim_p(ap);
+	if (nfs_reclaim_p != NULL)
+		nfs_reclaim_p(ap);
+
+	mtx_lock(&np->n_mtx);
+	ncl_releasesillyrename(vp, ap->a_td);
+	mtx_unlock(&np->n_mtx);
 
 	/*
 	 * Destroy the vm object and flush associated pages.
 	 */
 	vnode_destroy_vobject(vp);
+
+	if (NFS_ISV4(vp) && vp->v_type == VREG)
+		/*
+		 * We can now safely close any remaining NFSv4 Opens for
+		 * this file. Most opens will have already been closed by
+		 * ncl_inactive(), but there are cases where it is not
+		 * called, so we need to do it again here.
+		 */
+		(void) nfsrpc_close(vp, 1, ap->a_td);
 
 	vfs_hash_remove(vp);
 
@@ -269,6 +324,8 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 			FREE((caddr_t)dp2, M_NFSDIROFF);
 		}
 	}
+	if (np->n_writecred != NULL)
+		crfree(np->n_writecred);
 	FREE((caddr_t)np->n_fhp, M_NFSFH);
 	if (np->n_v4 != NULL)
 		FREE((caddr_t)np->n_v4, M_NFSV4NODE);
@@ -290,7 +347,8 @@ ncl_invalcaches(struct vnode *vp)
 	mtx_lock(&np->n_mtx);
 	for (i = 0; i < NFS_ACCESSCACHESIZE; i++)
 		np->n_accesscache[i].stamp = 0;
+	KDTRACE_NFS_ACCESSCACHE_FLUSH_DONE(vp);
 	np->n_attrstamp = 0;
+	KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 	mtx_unlock(&np->n_mtx);
 }
-

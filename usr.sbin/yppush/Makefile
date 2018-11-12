@@ -12,7 +12,9 @@ GENSRCS=yp.h yp_clnt.c yppush_svc.c
 
 CFLAGS+= -I. -I${.CURDIR}/../../libexec/ypxfr
 
-RPCGEN= rpcgen -C
+WARNS?=	2
+
+RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -C
 
 CLEANFILES= ${GENSRCS}
 

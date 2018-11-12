@@ -33,6 +33,7 @@ static char sccsid[] = "@(#)getproto.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <netdb.h>
 #include <nsswitch.h>
 #include "netdb_private.h"
@@ -45,12 +46,6 @@ static const ns_src defaultsrc[] = {
 	{ NSSRC_FILES, NS_SUCCESS },
 	{ NULL, 0 }
 };
-
-#ifdef NS_CACHING
-extern int __proto_id_func(char *, size_t *, va_list, void *);
-extern int __proto_marshal_func(char *, size_t *, void *, va_list, void *);
-extern int __proto_unmarshal_func(char *, size_t, void *, va_list, void *);
-#endif
 
 static int
 files_getprotobynumber(void *retval, void *mdata, va_list ap)
@@ -72,7 +67,7 @@ files_getprotobynumber(void *retval, void *mdata, va_list ap)
 	errnop = va_arg(ap, int *);
 
 	if ((ped = __protoent_data_init()) == NULL) {
-		*errnop = -1;
+		*errnop = errno;
 		return (NS_NOTFOUND);
 	}
 
@@ -83,12 +78,12 @@ files_getprotobynumber(void *retval, void *mdata, va_list ap)
 	if (!ped->stayopen)
 		__endprotoent_p(ped);
 	if (error != 0) {
-		*errnop = -1;
+		*errnop = errno;
 		return (NS_NOTFOUND);
 	}
 	if (__copy_protoent(&pe, pptr, buffer, buflen) != 0) {
-		*errnop = -1;
-		return (NS_NOTFOUND);
+		*errnop = errno;
+		return (NS_RETURN);
 	}
 
 	*((struct protoent **)retval) = pptr;
@@ -120,10 +115,11 @@ getprotobynumber_r(int proto, struct protoent *pptr, char *buffer,
 	rv = nsdispatch(result, dtab, NSDB_PROTOCOLS, "getprotobynumber_r",
 		defaultsrc, proto, pptr, buffer, buflen, &ret_errno);
 
-	if (rv == NS_SUCCESS)
-		return (0);
-	else
+	if (rv != NS_SUCCESS) {
+		errno = ret_errno;
 		return (ret_errno);
+	}
+	return (0);
 }
 
 struct protoent *

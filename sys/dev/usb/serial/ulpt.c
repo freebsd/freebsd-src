@@ -19,13 +19,6 @@ __FBSDID("$FreeBSD$");
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -53,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -79,11 +71,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ulpt_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ulpt, CTLFLAG_RW, 0, "USB ulpt");
-SYSCTL_INT(_hw_usb_ulpt, OID_AUTO, debug, CTLFLAG_RW,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ulpt, CTLFLAG_RW, 0, "USB ulpt");
+SYSCTL_INT(_hw_usb_ulpt, OID_AUTO, debug, CTLFLAG_RWTUN,
     &ulpt_debug, 0, "Debug level");
 #endif
 
@@ -427,7 +419,7 @@ ulpt_open(struct usb_fifo *fifo, int fflags)
 
 	if (sc->sc_fflags == 0) {
 
-		/* reset USB paralell port */
+		/* reset USB parallel port */
 
 		ulpt_reset(sc);
 	}
@@ -491,24 +483,39 @@ ulpt_ioctl(struct usb_fifo *fifo, u_long cmd, void *data,
 	return (ENODEV);
 }
 
+static const STRUCT_USB_HOST_ID ulpt_devs[] = {
+	/* Uni-directional USB printer */
+	{USB_IFACE_CLASS(UICLASS_PRINTER),
+	 USB_IFACE_SUBCLASS(UISUBCLASS_PRINTER),
+	 USB_IFACE_PROTOCOL(UIPROTO_PRINTER_UNI)},
+
+	/* Bi-directional USB printer */
+	{USB_IFACE_CLASS(UICLASS_PRINTER),
+	 USB_IFACE_SUBCLASS(UISUBCLASS_PRINTER),
+	 USB_IFACE_PROTOCOL(UIPROTO_PRINTER_BI)},
+
+	/* 1284 USB printer */
+	{USB_IFACE_CLASS(UICLASS_PRINTER),
+	 USB_IFACE_SUBCLASS(UISUBCLASS_PRINTER),
+	 USB_IFACE_PROTOCOL(UIPROTO_PRINTER_1284)},
+};
+
 static int
 ulpt_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	int error;
 
 	DPRINTFN(11, "\n");
 
-	if (uaa->usb_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
-	if ((uaa->info.bInterfaceClass == UICLASS_PRINTER) &&
-	    (uaa->info.bInterfaceSubClass == UISUBCLASS_PRINTER) &&
-	    ((uaa->info.bInterfaceProtocol == UIPROTO_PRINTER_UNI) ||
-	    (uaa->info.bInterfaceProtocol == UIPROTO_PRINTER_BI) ||
-	    (uaa->info.bInterfaceProtocol == UIPROTO_PRINTER_1284))) {
-		return (0);
-	}
-	return (ENXIO);
+
+	error = usbd_lookup_id_by_uaa(ulpt_devs, sizeof(ulpt_devs), uaa);
+	if (error)
+		return (error);
+
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
@@ -536,7 +543,7 @@ ulpt_attach(device_t dev)
 	/* search through all the descriptors looking for bidir mode */
 
 	id = usbd_get_interface_descriptor(uaa->iface);
-	alt_index = 0 - 1;
+	alt_index = 0xFF;
 	while (1) {
 		if (id == NULL) {
 			break;
@@ -624,14 +631,14 @@ found:
 
 	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &ulpt_fifo_methods, &sc->sc_fifo,
-	    unit, 0 - 1, uaa->info.bIfaceIndex,
+	    unit, -1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;
 	}
 	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &unlpt_fifo_methods, &sc->sc_fifo_noreset,
-	    unit, 0 - 1, uaa->info.bIfaceIndex,
+	    unit, -1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;
@@ -740,7 +747,7 @@ static device_method_t ulpt_methods[] = {
 	DEVMETHOD(device_probe, ulpt_probe),
 	DEVMETHOD(device_attach, ulpt_attach),
 	DEVMETHOD(device_detach, ulpt_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ulpt_driver = {
@@ -751,4 +758,5 @@ static driver_t ulpt_driver = {
 
 DRIVER_MODULE(ulpt, uhub, ulpt_driver, ulpt_devclass, NULL, 0);
 MODULE_DEPEND(ulpt, usb, 1, 1, 1);
-MODULE_DEPEND(ulpt, ucom, 1, 1, 1);
+MODULE_VERSION(ulpt, 1);
+USB_PNP_HOST_INFO(ulpt_devs);

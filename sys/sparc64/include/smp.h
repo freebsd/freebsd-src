@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2001 Jake Burkholder.
+ * Copyright (c) 2007 - 2011 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,8 +39,16 @@
 
 #ifndef	LOCORE
 
+#include <sys/param.h>
+#include <sys/cpuset.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
+#include <sys/smp.h>
+
+#include <machine/atomic.h>
 #include <machine/intr_machdep.h>
-#include <machine/pcb.h>
 #include <machine/tte.h>
 
 #define	IDR_BUSY			0x0000000000000001ULL
@@ -55,6 +64,7 @@
 #define	IPI_AST		PIL_AST
 #define	IPI_RENDEZVOUS	PIL_RENDEZVOUS
 #define	IPI_PREEMPT	PIL_PREEMPT
+#define	IPI_HARDCLOCK	PIL_HARDCLOCK
 #define	IPI_STOP	PIL_STOP
 #define	IPI_STOP_HARD	PIL_STOP
 
@@ -72,18 +82,24 @@ struct cpu_start_args {
 };
 
 struct ipi_cache_args {
-	u_int	ica_mask;
+	cpuset_t ica_mask;
 	vm_paddr_t ica_pa;
 };
 
+struct ipi_rd_args {
+	cpuset_t ira_mask;
+	register_t *ira_val;
+};
+
 struct ipi_tlb_args {
-	u_int	ita_mask;
+	cpuset_t ita_mask;
 	struct	pmap *ita_pmap;
 	u_long	ita_start;
 	u_long	ita_end;
 };
 #define	ita_va	ita_start
 
+struct pcb;
 struct pcpu;
 
 extern struct pcb stoppcbs[];
@@ -91,13 +107,16 @@ extern struct pcb stoppcbs[];
 void	cpu_mp_bootstrap(struct pcpu *pc);
 void	cpu_mp_shutdown(void);
 
-typedef	void cpu_ipi_selected_t(u_int, u_long, u_long, u_long);
+typedef	void cpu_ipi_selected_t(cpuset_t, u_long, u_long, u_long);
 extern	cpu_ipi_selected_t *cpu_ipi_selected;
+typedef	void cpu_ipi_single_t(u_int, u_long, u_long, u_long);
+extern	cpu_ipi_single_t *cpu_ipi_single;
 
 void	mp_init(void);
 
 extern	struct mtx ipi_mtx;
 extern	struct ipi_cache_args ipi_cache_args;
+extern	struct ipi_rd_args ipi_rd_args;
 extern	struct ipi_tlb_args ipi_tlb_args;
 
 extern	char *mp_tramp_code;
@@ -112,6 +131,10 @@ extern	char tl_ipi_spitfire_dcache_page_inval[];
 extern	char tl_ipi_spitfire_icache_page_inval[];
 
 extern	char tl_ipi_level[];
+
+extern	char tl_ipi_stick_rd[];
+extern	char tl_ipi_tick_rd[];
+
 extern	char tl_ipi_tlb_context_demap[];
 extern	char tl_ipi_tlb_page_demap[];
 extern	char tl_ipi_tlb_range_demap[];
@@ -119,15 +142,40 @@ extern	char tl_ipi_tlb_range_demap[];
 static __inline void
 ipi_all_but_self(u_int ipi)
 {
+	cpuset_t cpus;
 
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)tl_ipi_level, ipi);
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
+		return;
+	cpus = all_cpus;
+	sched_pin();
+	CPU_CLR(PCPU_GET(cpuid), &cpus);
+	mtx_lock_spin(&ipi_mtx);
+	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_level, ipi);
+	mtx_unlock_spin(&ipi_mtx);
+	sched_unpin();
 }
 
 static __inline void
-ipi_selected(u_int cpus, u_int ipi)
+ipi_selected(cpuset_t cpus, u_int ipi)
 {
 
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0 ||
+	    CPU_EMPTY(&cpus)))
+		return;
+	mtx_lock_spin(&ipi_mtx);
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_level, ipi);
+	mtx_unlock_spin(&ipi_mtx);
+}
+
+static __inline void
+ipi_cpu(int cpu, u_int ipi)
+{
+
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
+		return;
+	mtx_lock_spin(&ipi_mtx);
+	cpu_ipi_single(cpu, 0, (u_long)tl_ipi_level, ipi);
+	mtx_unlock_spin(&ipi_mtx);
 }
 
 #if defined(_MACHINE_PMAP_H_) && defined(_SYS_MUTEX_H_)
@@ -137,13 +185,15 @@ ipi_dcache_page_inval(void *func, vm_paddr_t pa)
 {
 	struct ipi_cache_args *ica;
 
-	if (smp_cpus == 1)
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
 		return (NULL);
+	sched_pin();
 	ica = &ipi_cache_args;
 	mtx_lock_spin(&ipi_mtx);
 	ica->ica_mask = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &ica->ica_mask);
 	ica->ica_pa = pa;
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)func, (u_long)ica);
+	cpu_ipi_selected(ica->ica_mask, 0, (u_long)func, (u_long)ica);
 	return (&ica->ica_mask);
 }
 
@@ -152,29 +202,53 @@ ipi_icache_page_inval(void *func, vm_paddr_t pa)
 {
 	struct ipi_cache_args *ica;
 
-	if (smp_cpus == 1)
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
 		return (NULL);
+	sched_pin();
 	ica = &ipi_cache_args;
 	mtx_lock_spin(&ipi_mtx);
 	ica->ica_mask = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &ica->ica_mask);
 	ica->ica_pa = pa;
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)func, (u_long)ica);
+	cpu_ipi_selected(ica->ica_mask, 0, (u_long)func, (u_long)ica);
 	return (&ica->ica_mask);
+}
+
+static __inline void *
+ipi_rd(u_int cpu, void *func, u_long *val)
+{
+	struct ipi_rd_args *ira;
+
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
+		return (NULL);
+	sched_pin();
+	ira = &ipi_rd_args;
+	mtx_lock_spin(&ipi_mtx);
+	CPU_SETOF(cpu, &ira->ira_mask);
+	ira->ira_val = val;
+	cpu_ipi_single(cpu, 0, (u_long)func, (u_long)ira);
+	return (&ira->ira_mask);
 }
 
 static __inline void *
 ipi_tlb_context_demap(struct pmap *pm)
 {
 	struct ipi_tlb_args *ita;
-	u_int cpus;
+	cpuset_t cpus;
 
-	if (smp_cpus == 1)
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
 		return (NULL);
-	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
+	sched_pin();
+	cpus = pm->pm_active;
+	CPU_AND(&cpus, &all_cpus);
+	CPU_CLR(PCPU_GET(cpuid), &cpus);
+	if (CPU_EMPTY(&cpus)) {
+		sched_unpin();
 		return (NULL);
+	}
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
-	ita->ita_mask = cpus | PCPU_GET(cpumask);
+	ita->ita_mask = cpus;
 	ita->ita_pmap = pm;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_context_demap,
 	    (u_long)ita);
@@ -185,15 +259,21 @@ static __inline void *
 ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 {
 	struct ipi_tlb_args *ita;
-	u_int cpus;
+	cpuset_t cpus;
 
-	if (smp_cpus == 1)
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
 		return (NULL);
-	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
+	sched_pin();
+	cpus = pm->pm_active;
+	CPU_AND(&cpus, &all_cpus);
+	CPU_CLR(PCPU_GET(cpuid), &cpus);
+	if (CPU_EMPTY(&cpus)) {
+		sched_unpin();
 		return (NULL);
+	}
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
-	ita->ita_mask = cpus | PCPU_GET(cpumask);
+	ita->ita_mask = cpus;
 	ita->ita_pmap = pm;
 	ita->ita_va = va;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_page_demap, (u_long)ita);
@@ -204,32 +284,39 @@ static __inline void *
 ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 {
 	struct ipi_tlb_args *ita;
-	u_int cpus;
+	cpuset_t cpus;
 
-	if (smp_cpus == 1)
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
 		return (NULL);
-	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
+	sched_pin();
+	cpus = pm->pm_active;
+	CPU_AND(&cpus, &all_cpus);
+	CPU_CLR(PCPU_GET(cpuid), &cpus);
+	if (CPU_EMPTY(&cpus)) {
+		sched_unpin();
 		return (NULL);
+	}
 	ita = &ipi_tlb_args;
 	mtx_lock_spin(&ipi_mtx);
-	ita->ita_mask = cpus | PCPU_GET(cpumask);
+	ita->ita_mask = cpus;
 	ita->ita_pmap = pm;
 	ita->ita_start = start;
 	ita->ita_end = end;
-	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_range_demap, (u_long)ita);
+	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_range_demap,
+	    (u_long)ita);
 	return (&ita->ita_mask);
 }
 
 static __inline void
 ipi_wait(void *cookie)
 {
-	volatile u_int *mask;
+	volatile cpuset_t *mask;
 
-	if ((mask = cookie) != NULL) {
-		atomic_clear_int(mask, PCPU_GET(cpumask));
-		while (*mask != 0)
+	if (__predict_false((mask = cookie) != NULL)) {
+		while (!CPU_EMPTY(mask))
 			;
 		mtx_unlock_spin(&ipi_mtx);
+		sched_unpin();
 	}
 }
 
@@ -242,42 +329,50 @@ ipi_wait(void *cookie)
 #ifndef	LOCORE
 
 static __inline void *
-ipi_dcache_page_inval(void *func, vm_paddr_t pa)
+ipi_dcache_page_inval(void *func __unused, vm_paddr_t pa __unused)
 {
 
 	return (NULL);
 }
 
 static __inline void *
-ipi_icache_page_inval(void *func, vm_paddr_t pa)
+ipi_icache_page_inval(void *func __unused, vm_paddr_t pa __unused)
 {
 
 	return (NULL);
 }
 
 static __inline void *
-ipi_tlb_context_demap(struct pmap *pm)
+ipi_rd(u_int cpu __unused, void *func __unused, u_long *val __unused)
 {
 
 	return (NULL);
 }
 
 static __inline void *
-ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
+ipi_tlb_context_demap(struct pmap *pm __unused)
 {
 
 	return (NULL);
 }
 
 static __inline void *
-ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
+ipi_tlb_page_demap(struct pmap *pm __unused, vm_offset_t va __unused)
+{
+
+	return (NULL);
+}
+
+static __inline void *
+ipi_tlb_range_demap(struct pmap *pm __unused, vm_offset_t start __unused,
+    __unused vm_offset_t end)
 {
 
 	return (NULL);
 }
 
 static __inline void
-ipi_wait(void *cookie)
+ipi_wait(void *cookie __unused)
 {
 
 }

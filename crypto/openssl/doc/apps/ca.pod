@@ -13,6 +13,8 @@ B<openssl> B<ca>
 [B<-name section>]
 [B<-gencrl>]
 [B<-revoke file>]
+[B<-status serial>]
+[B<-updatedb>]
 [B<-crl_reason reason>]
 [B<-crl_hold instruction>]
 [B<-crl_compromise time>]
@@ -26,6 +28,7 @@ B<openssl> B<ca>
 [B<-md arg>]
 [B<-policy arg>]
 [B<-keyfile arg>]
+[B<-keyform PEM|DER>]
 [B<-key arg>]
 [B<-passin arg>]
 [B<-cert file>]
@@ -83,18 +86,18 @@ a single self signed certificate to be signed by the CA.
 
 a file containing a single Netscape signed public key and challenge
 and additional field values to be signed by the CA. See the B<SPKAC FORMAT>
-section for information on the required format.
+section for information on the required input and output format.
 
 =item B<-infiles>
 
 if present this should be the last option, all subsequent arguments
-are assumed to the the names of files containing certificate requests. 
+are assumed to be the names of files containing certificate requests. 
 
 =item B<-out filename>
 
 the output file to output certificates to. The default is standard
 output. The certificate details will also be printed out to this
-file.
+file in PEM format (except that B<-spkac> outputs DER format).
 
 =item B<-outdir directory>
 
@@ -109,6 +112,11 @@ the CA certificate file.
 =item B<-keyfile filename>
 
 the private key to sign requests with.
+
+=item B<-keyform PEM|DER>
+
+the format of the data in the private key file.
+The default is PEM.
 
 =item B<-key password>
 
@@ -205,7 +213,9 @@ the section of the configuration file containing certificate extensions
 to be added when a certificate is issued (defaults to B<x509_extensions>
 unless the B<-extfile> option is used). If no extension section is
 present then, a V1 certificate is created. If the extension section
-is present (even if it is empty), then a V3 certificate is created.
+is present (even if it is empty), then a V3 certificate is created. See the:w
+L<x509v3_config(5)|x509v3_config(5)> manual page for details of the
+extension section format.
 
 =item B<-extfile file>
 
@@ -215,7 +225,7 @@ used).
 
 =item B<-engine id>
 
-specifying an engine (by it's unique B<id> string) will cause B<req>
+specifying an engine (by its unique B<id> string) will cause B<ca>
 to attempt to obtain a functional reference to the specified engine,
 thus initialising it if needed. The engine will then be set as the default
 for all available algorithms.
@@ -265,6 +275,15 @@ the number of hours before the next CRL is due.
 
 a filename containing a certificate to revoke.
 
+=item B<-status serial>
+
+displays the revocation status of the certificate with the specified
+serial number and exits.
+
+=item B<-updatedb>
+
+Updates the database index to purge expired certificates.
+
 =item B<-crl_reason reason>
 
 revocation reason, where B<reason> is one of: B<unspecified>, B<keyCompromise>,
@@ -299,7 +318,9 @@ include. If no CRL extension section is present then a V1 CRL is
 created, if the CRL extension section is present (even if it is
 empty) then a V2 CRL is created. The CRL extensions specified are
 CRL extensions and B<not> CRL entry extensions.  It should be noted
-that some software (for example Netscape) can't handle V2 CRLs. 
+that some software (for example Netscape) can't handle V2 CRLs. See
+L<x509v3_config(5)|x509v3_config(5)> manual page for details of the
+extension section format.
 
 =back
 
@@ -495,6 +516,10 @@ the SPKAC and also the required DN components as name value pairs.
 If you need to include the same component twice then it can be
 preceded by a number and a '.'.
 
+When processing SPKAC format, the output is DER if the B<-out>
+flag is used, but PEM format if sending to stdout or the B<-outdir>
+flag is used.
+
 =head1 EXAMPLES
 
 Note: these examples assume that the B<ca> directory structure is
@@ -666,6 +691,6 @@ then even if a certificate is issued with CA:TRUE it will not be valid.
 =head1 SEE ALSO
 
 L<req(1)|req(1)>, L<spkac(1)|spkac(1)>, L<x509(1)|x509(1)>, L<CA.pl(1)|CA.pl(1)>,
-L<config(5)|config(5)>
+L<config(5)|config(5)>, L<x509v3_config(5)|x509v3_config(5)> 
 
 =cut

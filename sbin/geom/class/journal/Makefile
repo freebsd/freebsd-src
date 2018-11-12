@@ -1,12 +1,12 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../misc
+PACKAGE=runtime
+.PATH: ${.CURDIR}/../../misc
 
-CLASS=	journal
+GEOM_CLASS=	journal
 SRCS+=	geom_journal_ufs.c
 
-DPADD=	${LIBMD} ${LIBUFS}
-LDADD=	-lmd -lufs
+LIBADD=	ufs md
 
 CFLAGS+=-I${.CURDIR}/../../../../sys
 

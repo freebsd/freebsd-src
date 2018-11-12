@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Mark R. V. Murray
+ * Copyright (c) 2000-2015 Mark R. V. Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,35 +31,86 @@
 
 #ifdef _KERNEL
 
-int read_random(void *, int);
+#include <sys/types.h>
+
+#if !defined(KLD_MODULE)
+#if defined(RANDOM_LOADABLE) && defined(RANDOM_YARROW)
+#error "Cannot define both RANDOM_LOADABLE and RANDOM_YARROW"
+#endif
+#endif
+
+struct uio;
+
+#if defined(DEV_RANDOM)
+u_int read_random(void *, u_int);
+int read_random_uio(struct uio *, bool);
+#else
+static __inline int
+read_random_uio(void *a __unused, u_int b __unused)
+{
+	return (0);
+}
+static __inline u_int
+read_random(void *a __unused, u_int b __unused)
+{
+	return (0);
+}
+#endif
 
 /*
- * Note: if you add or remove members of esource, remember to also update the
- * KASSERT regarding what valid members are in random_harvest_internal().
+ * Note: if you add or remove members of random_entropy_source, remember to also update the
+ * KASSERT regarding what valid members are in random_harvest_internal(), and remember the
+ * strings in the static array random_source_descr[] in random_harvestq.c.
+ *
+ * NOTE: complain loudly to markm@ or on the lists if this enum gets more than 32
+ * distinct values (0-31)! ENTROPYSOURCE may be == 32, but not > 32.
  */
-enum esource {
+enum random_entropy_source {
 	RANDOM_START = 0,
-	RANDOM_WRITE = 0,
+	RANDOM_CACHED = 0,
+	/* Environmental sources */
+	RANDOM_ATTACH,
 	RANDOM_KEYBOARD,
 	RANDOM_MOUSE,
-	RANDOM_NET,
+	RANDOM_NET_TUN,
+	RANDOM_NET_ETHER,
+	RANDOM_NET_NG,
 	RANDOM_INTERRUPT,
-	RANDOM_PURE,
+	RANDOM_SWI,
+	RANDOM_FS_ATIME,
+	RANDOM_UMA,	/* Special!! UMA/SLAB Allocator */
+	RANDOM_ENVIRONMENTAL_END = RANDOM_UMA,
+	/* Fast hardware random-number sources from here on. */
+	RANDOM_PURE_OCTEON,
+	RANDOM_PURE_SAFE,
+	RANDOM_PURE_GLXSB,
+	RANDOM_PURE_UBSEC,
+	RANDOM_PURE_HIFN,
+	RANDOM_PURE_RDRAND,
+	RANDOM_PURE_NEHEMIAH,
+	RANDOM_PURE_RNDTEST,
+	RANDOM_PURE_VIRTIO,
+	RANDOM_PURE_BROADCOM,
 	ENTROPYSOURCE
 };
-void random_harvest(void *, u_int, u_int, u_int, enum esource);
 
-/* Allow the sysadmin to select the broad category of
- * entropy types to harvest
- */
-struct harvest_select {
-	int ethernet;
-	int point_to_point;
-	int interrupt;
-	int swi;
-};
+#define RANDOM_HARVEST_EVERYTHING_MASK ((1 << (RANDOM_ENVIRONMENTAL_END + 1)) - 1)
 
-extern struct harvest_select harvest;
+#if defined(DEV_RANDOM)
+void random_harvest_queue(const void *, u_int, u_int, enum random_entropy_source);
+void random_harvest_fast(const void *, u_int, u_int, enum random_entropy_source);
+void random_harvest_direct(const void *, u_int, u_int, enum random_entropy_source);
+#else
+#define random_harvest_queue(a, b, c, d) do {} while (0)
+#define random_harvest_fast(a, b, c, d) do {} while (0)
+#define random_harvest_direct(a, b, c, d) do {} while (0)
+#endif
+
+#if defined(RANDOM_ENABLE_UMA)
+#define random_harvest_fast_uma(a, b, c, d)	random_harvest_fast(a, b, c, d)
+#else /* !defined(RANDOM_ENABLE_UMA) */
+#define random_harvest_fast_uma(a, b, c, d)	do {} while (0)
+#endif /* defined(RANDOM_ENABLE_UMA) */
 
 #endif /* _KERNEL */
 

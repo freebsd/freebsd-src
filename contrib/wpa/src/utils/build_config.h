@@ -2,14 +2,8 @@
  * wpa_supplicant/hostapd - Build time configuration defines
  * Copyright (c) 2005-2006, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  *
  * This header file can be used to define configuration defines that were
  * originally defined in Makefile. This is mainly meant for IDE use or for
@@ -28,7 +22,6 @@
 #define CONFIG_ANSI_C_EXTRA
 #define CONFIG_WINPCAP
 #define IEEE8021X_EAPOL
-#define EAP_TLS_FUNCS
 #define PKCS12_FUNCS
 #define PCSC_FUNCS
 #define CONFIG_CTRL_IFACE
@@ -48,48 +41,10 @@
 #define _CRT_SECURE_NO_DEPRECATE
 
 #ifdef USE_INTERNAL_CRYPTO
-#define CONFIG_TLS_INTERNAL
 #define CONFIG_TLS_INTERNAL_CLIENT
 #define CONFIG_INTERNAL_LIBTOMMATH
-#define INTERNAL_AES
-#define INTERNAL_SHA1
-#define INTERNAL_SHA256
-#define INTERNAL_MD5
-#define INTERNAL_MD4
-#define INTERNAL_DES
-#define CONFIG_INTERNAL_X509
 #define CONFIG_CRYPTO_INTERNAL
 #endif /* USE_INTERNAL_CRYPTO */
 #endif /* CONFIG_WIN32_DEFAULTS */
-
-#ifdef __SYMBIAN32__
-#define OS_NO_C_LIB_DEFINES
-#define CONFIG_ANSI_C_EXTRA
-#define CONFIG_NO_WPA_MSG
-#define CONFIG_NO_HOSTAPD_LOGGER
-#define CONFIG_NO_STDOUT_DEBUG
-#define CONFIG_BACKEND_FILE
-#define INTERNAL_AES
-#define INTERNAL_SHA1
-#define INTERNAL_MD5
-#define INTERNAL_MD4
-#define INTERNAL_DES
-#define CONFIG_INTERNAL_LIBTOMMATH
-#define CONFIG_INTERNAL_X509
-#define EAP_TLS_FUNCS
-#define CONFIG_TLS_INTERNAL
-#define CONFIG_CRYPTO_INTERNAL
-#define IEEE8021X_EAPOL
-#define PKCS12_FUNCS
-#define EAP_MD5
-#define EAP_TLS
-#define EAP_MSCHAPv2
-#define EAP_PEAP
-#define EAP_TTLS
-#define EAP_GTC
-#define EAP_OTP
-#define EAP_LEAP
-#define EAP_FAST
-#endif /* __SYMBIAN32__ */
 
 #endif /* BUILD_CONFIG_H */

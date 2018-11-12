@@ -1,7 +1,24 @@
 /*
+ * Portions Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 1996-2003  Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
  * Copyright (c) 1985, 1989, 1993
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +30,7 @@
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -29,14 +46,14 @@
 
 /*
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -47,26 +64,9 @@
  * SOFTWARE.
  */
 
-/*
- * Copyright (c) 2005 by Internet Systems Consortium, Inc. ("ISC")
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
- *
- * Permission to use, copy, modify, and distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
- * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- */
-
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_send.c,v 1.9.18.10 2008/01/27 02:06:26 marka Exp $";
+static const char rcsid[] = "$Id: res_send.c,v 1.22 2009/01/22 23:49:23 tbox Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -77,12 +77,11 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "port_before.h"
-#ifndef USE_KQUEUE
+#if !defined(USE_KQUEUE) && !defined(USE_POLL)
 #include "fd_setsize.h"
 #endif
 
 #include "namespace.h"
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -119,7 +118,9 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 /* Options.  Leave them on. */
-#define DEBUG
+#ifndef	DEBUG
+#define	DEBUG
+#endif
 #include "res_debug.h"
 #include "res_private.h"
 
@@ -353,7 +354,7 @@ res_nsend(res_state statp,
 				if (EXT(statp).nssocks[ns] == -1)
 					continue;
 				peerlen = sizeof(peer);
-				if (_getsockname(EXT(statp).nssocks[ns],
+				if (_getpeername(EXT(statp).nssocks[ns],
 				    (struct sockaddr *)&peer, &peerlen) < 0) {
 					needclose++;
 					break;
@@ -404,7 +405,7 @@ res_nsend(res_state statp,
 		nstime = EXT(statp).nstimes[0];
 		for (ns = 0; ns < lastns; ns++) {
 			if (EXT(statp).ext != NULL)
-                                EXT(statp).ext->nsaddrs[ns] = 
+				EXT(statp).ext->nsaddrs[ns] =
 					EXT(statp).ext->nsaddrs[ns + 1];
 			statp->nsaddr_list[ns] = statp->nsaddr_list[ns + 1];
 			EXT(statp).nssocks[ns] = EXT(statp).nssocks[ns + 1];
@@ -574,8 +575,7 @@ res_nsend(res_state statp,
 /* Private */
 
 static int
-get_salen(sa)
-	const struct sockaddr *sa;
+get_salen(const struct sockaddr *sa)
 {
 
 #ifdef HAVE_SA_LEN
@@ -596,9 +596,7 @@ get_salen(sa)
  * pick appropriate nsaddr_list for use.  see res_init() for initialization.
  */
 static struct sockaddr *
-get_nsaddr(statp, n)
-	res_state statp;
-	size_t n;
+get_nsaddr(res_state statp, size_t n)
 {
 
 	if (!statp->nsaddr_list[n].sin_family && EXT(statp).ext) {
@@ -660,7 +658,8 @@ send_vc(res_state statp,
 		if (statp->_vcsock >= 0)
 			res_nclose(statp);
 
-		statp->_vcsock = _socket(nsap->sa_family, SOCK_STREAM, 0);
+		statp->_vcsock = _socket(nsap->sa_family, SOCK_STREAM |
+		    SOCK_CLOEXEC, 0);
 #if !defined(USE_POLL) && !defined(USE_KQUEUE)
 		if (statp->_vcsock > highestFD) {
 			res_nclose(statp);
@@ -686,12 +685,12 @@ send_vc(res_state statp,
 		/*
 		 * Disable generation of SIGPIPE when writing to a closed
 		 * socket.  Write should return -1 and set errno to EPIPE
-		 * instead. 
+		 * instead.
 		 *
 		 * Push on even if setsockopt(SO_NOSIGPIPE) fails.
 		 */
 		(void)_setsockopt(statp->_vcsock, SOL_SOCKET, SO_NOSIGPIPE, &on,
-			         sizeof(on));
+				 sizeof(on));
 #endif
 		errno = 0;
 		if (_connect(statp->_vcsock, nsap, nsaplen) < 0) {
@@ -851,7 +850,7 @@ send_dg(res_state statp,
 	nsaplen = get_salen(nsap);
 	if (EXT(statp).nssocks[ns] == -1) {
 		EXT(statp).nssocks[ns] = _socket(nsap->sa_family,
-		    SOCK_DGRAM, 0);
+		    SOCK_DGRAM | SOCK_CLOEXEC, 0);
 #if !defined(USE_POLL) && !defined(USE_KQUEUE)
 		if (EXT(statp).nssocks[ns] > highestFD) {
 			res_nclose(statp);
@@ -962,7 +961,7 @@ send_dg(res_state statp,
 		timeout.tv_nsec/1000000;
 	pollfd.fd = s;
 	pollfd.events = POLLRDNORM;
-	n = poll(&pollfd, 1, polltimeout);
+	n = _poll(&pollfd, 1, polltimeout);
 #endif /* USE_POLL */
 
 	if (n == 0) {
@@ -1101,8 +1100,6 @@ Aerror(const res_state statp, FILE *file, const char *string, int error,
 	int save = errno;
 	char hbuf[NI_MAXHOST];
 	char sbuf[NI_MAXSERV];
-
-	alen = alen;
 
 	if ((statp->options & RES_DEBUG) != 0U) {
 		if (getnameinfo(address, alen, hbuf, sizeof(hbuf),

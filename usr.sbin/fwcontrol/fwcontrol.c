@@ -152,8 +152,7 @@ str2node(int fd, const char *nodestr)
 		fweui2eui64(&data->dev[i].eui, &tmpeui);
 		if (memcmp(&eui, &tmpeui, sizeof(struct eui64)) == 0) {
 			node = data->dev[i].dst;
-			if (data != NULL)
-				free(data);
+			free(data);
 			goto gotnode;
 		}
 	}
@@ -508,6 +507,7 @@ load_crom(char *filename, u_int32_t *p)
 			p, p+1, p+2, p+3, p+4, p+5, p+6, p+7);
 		p += 8;
 	}
+	fclose(file);
 }
 
 static void
@@ -1056,7 +1056,7 @@ main(int argc, char **argv)
 		show_topology_map(fd);
 
 	/*
-	 * Recieve data file from node "-R"
+	 * Receive data file from node "-R"
 	 */
 #define TAG	(1<<6)
 #define CHANNEL	63

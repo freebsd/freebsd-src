@@ -287,6 +287,9 @@ disk_OS_get_ATA_disks(void)
 
 	/* Walk over the device table looking for ata disks */
 	STAILQ_FOREACH(map, &device_map, link) {
+		/* Skip deleted entries. */
+		if (map->entry_p == NULL)
+			continue;
 		for (found = lookup; found->media != DSM_UNKNOWN; found++) {
 			if (strncmp(map->name_key, found->dev_name,
 			    strlen(found->dev_name)) != 0)
@@ -340,8 +343,14 @@ disk_OS_get_MD_disks(void)
 	struct md_ioctl mdio;
 	int unit;
 
+	if (md_fd <= 0)
+		return;
+
 	/* Look for md devices */
 	STAILQ_FOREACH(map, &device_map, link) {
+		/* Skip deleted entries. */
+		if (map->entry_p == NULL)
+			continue;
 		if (sscanf(map->name_key, "md%d", &unit) != 1)
 			continue;
 
@@ -439,7 +448,7 @@ disk_OS_get_disks(void)
 			/*
 			 * not found there - insert it as immutable
 			 */
-			syslog(LOG_WARNING, "%s: device '%s' not in "
+			syslog(LOG_WARNING, "%s: adding device '%s' to "
 			    "device list", __func__, disk);
 
 			if ((entry = device_entry_create(disk, "", "")) == NULL)
@@ -473,7 +482,8 @@ disk_OS_get_disks(void)
 		disk_entry->media = DSM_UNKNOWN;
 		disk_entry->removable = SNMP_FALSE;
 
-		if (strncmp(disk_entry->dev_name, "da", 2) == 0) {
+		if (strncmp(disk_entry->dev_name, "da", 2) == 0 ||
+		    strncmp(disk_entry->dev_name, "ada", 3) == 0) {
 			disk_entry->media = DSM_HARDDISK;
 			disk_entry->removable = SNMP_FALSE;
 		} else if (strncmp(disk_entry->dev_name, "cd", 2) == 0) {
@@ -546,8 +556,8 @@ init_disk_storage_tbl(void)
 	md_fd = -1;
 	snprintf(mddev, sizeof(mddev) - 1, "%s%s", _PATH_DEV, MDCTL_NAME);
 	if ((md_fd = open(mddev, O_RDWR)) == -1) {
-		syslog(LOG_ERR, "open %s failed: %m", mddev);
-		return (-1);
+		syslog(LOG_ERR, "open %s failed - will not include md(4) "
+		    "info: %m", mddev);
 	}
 
 	refresh_disk_storage_tbl(1);
@@ -631,7 +641,7 @@ op_hrDiskStorageTable(struct snmp_context *ctx __unused,
 	  	value->v.integer = entry->media;
 	  	return (SNMP_ERR_NOERROR);
 
-	case LEAF_hrDiskStorageRemoveble:
+	case LEAF_hrDiskStorageRemovable:
 	  	value->v.integer = entry->removable;
 	  	return (SNMP_ERR_NOERROR);
 

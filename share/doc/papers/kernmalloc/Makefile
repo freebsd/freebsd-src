@@ -10,9 +10,5 @@ USE_EQN=
 USE_PIC=
 USE_SOELIM=
 USE_TBL=
-CLEANFILES=	appendix.ms
-
-appendix.ms: appendix.t
-	${GRIND} < ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.doc.mk>

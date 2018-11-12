@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2015 Allan Jude <allanjude@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +33,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <libprocstat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -104,6 +106,42 @@ kstack_cleanup(const char *old, char *new, int kflag)
 	*cp_new = '\0';
 }
 
+static void
+kstack_cleanup_encoded(const char *old, char *new, int kflag)
+{
+	enum trace_state old_ts, ts;
+	const char *cp_old;
+	char *cp_new, *cp_loop, *cp_tofree, *cp_line;
+
+	ts = TS_FRAMENUM;
+	if (kflag == 1) {
+		for (cp_old = old, cp_new = new; *cp_old != '\0'; cp_old++) {
+			switch (*cp_old) {
+			case '\n':
+				*cp_new = *cp_old;
+				cp_new++;
+			case ' ':
+			case '+':
+				old_ts = ts;
+				ts = kstack_nextstate(old_ts);
+				continue;
+			}
+			if (ts == TS_FUNC) {
+				*cp_new = *cp_old;
+				cp_new++;
+			}
+		}
+		*cp_new = '\0';
+		cp_tofree = cp_loop = strdup(new);
+	} else
+		cp_tofree = cp_loop = strdup(old);
+        while ((cp_line = strsep(&cp_loop, "\n")) != NULL) {
+		if (strlen(cp_line) != 0 && *cp_line != 127)
+			xo_emit("{le:token/%s}", cp_line);
+	}
+	free(cp_tofree);
+}
+
 /*
  * Sort threads by tid.
  */
@@ -124,76 +162,35 @@ kinfo_kstack_sort(struct kinfo_kstack *kkstp, int count)
 
 
 void
-procstat_kstack(pid_t pid, struct kinfo_proc *kipp, int kflag)
+procstat_kstack(struct procstat *procstat, struct kinfo_proc *kipp, int kflag)
 {
 	struct kinfo_kstack *kkstp, *kkstp_free;
 	struct kinfo_proc *kip, *kip_free;
-	char trace[KKST_MAXLEN];
-	int error, name[4];
+	char trace[KKST_MAXLEN], encoded_trace[KKST_MAXLEN];
 	unsigned int i, j;
-	size_t kip_len, kstk_len;
+	unsigned int kip_count, kstk_count;
 
 	if (!hflag)
-		printf("%5s %6s %-16s %-16s %-29s\n", "PID", "TID", "COMM",
+		xo_emit("{T:/%5s %6s %-16s %-16s %-29s}\n", "PID", "TID", "COMM",
 		    "TDNAME", "KSTACK");
 
-	name[0] = CTL_KERN;
-	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_KSTACK;
-	name[3] = pid;
-
-	kstk_len = 0;
-	error = sysctl(name, 4, NULL, &kstk_len, NULL, 0);
-	if (error < 0 && errno != ESRCH && errno != EPERM && errno != ENOENT) {
-		warn("sysctl: kern.proc.kstack: %d", pid);
-		return;
-	}
-	if (error < 0 && errno == ENOENT) {
-		warnx("sysctl: kern.proc.kstack unavailable");
-		errx(-1, "options DDB or options STACK required in kernel");
-	}
-	if (error < 0)
-		return;
-
-	kkstp = kkstp_free = malloc(kstk_len);
+	kkstp = kkstp_free = procstat_getkstack(procstat, kipp, &kstk_count);
 	if (kkstp == NULL)
-		err(-1, "malloc");
-
-	if (sysctl(name, 4, kkstp, &kstk_len, NULL, 0) < 0) {
-		warn("sysctl: kern.proc.pid: %d", pid);
-		free(kkstp);
 		return;
-	}
 
 	/*
 	 * We need to re-query for thread information, so don't use *kipp.
 	 */
-	name[0] = CTL_KERN;
-	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_PID | KERN_PROC_INC_THREAD;
-	name[3] = pid;
+	kip = kip_free = procstat_getprocs(procstat,
+	    KERN_PROC_PID | KERN_PROC_INC_THREAD, kipp->ki_pid, &kip_count);
 
-	kip_len = 0;
-	error = sysctl(name, 4, NULL, &kip_len, NULL, 0);
-	if (error < 0 && errno != ESRCH) {
-		warn("sysctl: kern.proc.pid: %d", pid);
-		return;
-	}
-	if (error < 0)
-		return;
-
-	kip = kip_free = malloc(kip_len);
-	if (kip == NULL)
-		err(-1, "malloc");
-
-	if (sysctl(name, 4, kip, &kip_len, NULL, 0) < 0) {
-		warn("sysctl: kern.proc.pid: %d", pid);
-		free(kip);
+	if (kip == NULL) {
+		procstat_freekstack(procstat, kkstp_free);
 		return;
 	}
 
-	kinfo_kstack_sort(kkstp, kstk_len / sizeof(*kkstp));
-	for (i = 0; i < kstk_len / sizeof(*kkstp); i++) {
+	kinfo_kstack_sort(kkstp, kstk_count);
+	for (i = 0; i < kstk_count; i++) {
 		kkstp = &kkstp_free[i];
 
 		/*
@@ -201,7 +198,7 @@ procstat_kstack(pid_t pid, struct kinfo_proc *kipp, int kflag)
 		 * display the per-thread command line.
 		 */
 		kipp = NULL;
-		for (j = 0; j < kip_len / sizeof(*kipp); j++) {
+		for (j = 0; j < kip_count; j++) {
 			kipp = &kip_free[j];
 			if (kkstp->kkst_tid == kipp->ki_tid)
 				break;
@@ -209,27 +206,27 @@ procstat_kstack(pid_t pid, struct kinfo_proc *kipp, int kflag)
 		if (kipp == NULL)
 			continue;
 
-		printf("%5d ", pid);
-		printf("%6d ", kkstp->kkst_tid);
-		printf("%-16s ", kipp->ki_comm);
-		printf("%-16s ", (strlen(kipp->ki_ocomm) &&
-		    (strcmp(kipp->ki_comm, kipp->ki_ocomm) != 0)) ?
-		    kipp->ki_ocomm : "-");
+		xo_emit("{k:process_id/%5d/%d} ", kipp->ki_pid);
+		xo_emit("{:thread_id/%6d/%d} ", kkstp->kkst_tid);
+		xo_emit("{:command/%-16s/%s} ", kipp->ki_comm);
+		xo_emit("{:thread_name/%-16s/%s} ", (strlen(kipp->ki_tdname) &&
+		    (strcmp(kipp->ki_comm, kipp->ki_tdname) != 0)) ?
+		    kipp->ki_tdname : "-");
 
 		switch (kkstp->kkst_state) {
 		case KKST_STATE_RUNNING:
-			printf("%-29s\n", "<running>");
+			xo_emit("{:state/%-29s/%s}\n", "<running>");
 			continue;
 
 		case KKST_STATE_SWAPPED:
-			printf("%-29s\n", "<swapped>");
+			xo_emit("{:state/%-29s/%s}\n", "<swapped>");
 			continue;
 
 		case KKST_STATE_STACKOK:
 			break;
 
 		default:
-			printf("%-29s\n", "<unknown>");
+			xo_emit("{:state/%-29s/%s}\n", "<unknown>");
 			continue;
 		}
 
@@ -239,8 +236,11 @@ procstat_kstack(pid_t pid, struct kinfo_proc *kipp, int kflag)
 		 * returns to spaces.
 		 */
 		kstack_cleanup(kkstp->kkst_trace, trace, kflag);
-		printf("%-29s\n", trace);
+		xo_open_list("trace");
+		kstack_cleanup_encoded(kkstp->kkst_trace, encoded_trace, kflag);
+		xo_close_list("trace");
+		xo_emit("{d:trace/%-29s}\n", trace);
 	}
-	free(kip_free);
-	free(kkstp_free);
+	procstat_freekstack(procstat, kkstp_free);
+	procstat_freeprocs(procstat, kip_free);
 }

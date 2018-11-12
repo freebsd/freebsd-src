@@ -29,8 +29,8 @@
 .\" $FreeBSD$
 .\"
 .Dd February 25, 2008
-.Os
 .Dt VOP_LOCK 9
+.Os
 .Sh NAME
 .Nm VOP_LOCK ,
 .Nm VOP_UNLOCK ,
@@ -100,8 +100,9 @@ with these control flags:
 .Bl -tag -width ".Dv LK_CANRECURSE" -offset indent -compact
 .It Dv LK_INTERLOCK
 Specify when the caller already has a simple lock
-.Fn ( VOP_LOCK
-will unlock the simple lock after getting the lock).
+.Po Fn VOP_LOCK
+will unlock the simple lock after getting the lock
+.Pc .
 .It Dv LK_RETRY
 Retry until locked.
 .El
@@ -114,6 +115,7 @@ directly.
 .Fn vn_lock
 also does not want a thread specified as argument but it
 assumes curthread to be used.
+.El
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error is returned.
 .Sh SEE ALSO

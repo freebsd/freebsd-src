@@ -30,9 +30,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2002
-.Os
+.Dd July 25, 2015
 .Dt MAC_MLS 4
+.Os
 .Sh NAME
 .Nm mac_mls
 .Nd "Multi-Level Security confidentiality policy"
@@ -212,7 +212,6 @@ allow the superuser to bypass MLS protections.
 .Xr mac_bsdextended 4 ,
 .Xr mac_ifoff 4 ,
 .Xr mac_lomac 4 ,
-.Xr mac_mls 4 ,
 .Xr mac_none 4 ,
 .Xr mac_partition 4 ,
 .Xr mac_portacl 4 ,
@@ -237,14 +236,6 @@ Inc.\& under DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
 .Sh BUGS
-See
-.Xr mac 9
-concerning appropriateness for production use.
-The
-.Tn TrustedBSD
-MAC Framework is considered experimental in
-.Fx .
-.Pp
 While the MAC Framework design is intended to support the containment of
 the root user, not all attack channels are currently protected by entry
 point checks.

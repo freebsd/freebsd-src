@@ -40,10 +40,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
+
+#define	BOOT1_SIZE	512
+#define	LABEL_SIZE	512
+#define	BOOT2_OFF	(BOOT1_SIZE + LABEL_SIZE)
+#define	BOOT2_SIZE	(BBSIZE - BOOT2_OFF)
+
+FEATURE(geom_part_bsd, "GEOM partitioning class for BSD disklabels");
 
 struct g_part_bsd_table {
 	struct g_part_table	base;
@@ -73,6 +81,8 @@ static int g_part_bsd_read(struct g_part_table *, struct g_consumer *);
 static const char *g_part_bsd_type(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_bsd_write(struct g_part_table *, struct g_consumer *);
+static int g_part_bsd_resize(struct g_part_table *, struct g_part_entry *,
+    struct g_part_parms *);
 
 static kobj_method_t g_part_bsd_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_bsd_add),
@@ -82,6 +92,7 @@ static kobj_method_t g_part_bsd_methods[] = {
 	KOBJMETHOD(g_part_dumpconf,	g_part_bsd_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_bsd_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_bsd_modify),
+	KOBJMETHOD(g_part_resize,	g_part_bsd_resize),
 	KOBJMETHOD(g_part_name,		g_part_bsd_name),
 	KOBJMETHOD(g_part_probe,	g_part_bsd_probe),
 	KOBJMETHOD(g_part_read,		g_part_bsd_read),
@@ -96,10 +107,23 @@ static struct g_part_scheme g_part_bsd_scheme = {
 	sizeof(struct g_part_bsd_table),
 	.gps_entrysz = sizeof(struct g_part_bsd_entry),
 	.gps_minent = 8,
-	.gps_maxent = 20,
+	.gps_maxent = 20,	/* Only 22 entries fit in 512 byte sectors */
 	.gps_bootcodesz = BBSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_bsd);
+
+static struct g_part_bsd_alias {
+	uint8_t		type;
+	int		alias;
+} bsd_alias_match[] = {
+	{ FS_BSDFFS,	G_PART_ALIAS_FREEBSD_UFS },
+	{ FS_SWAP,	G_PART_ALIAS_FREEBSD_SWAP },
+	{ FS_ZFS,	G_PART_ALIAS_FREEBSD_ZFS },
+	{ FS_VINUM,	G_PART_ALIAS_FREEBSD_VINUM },
+	{ FS_NANDFS,	G_PART_ALIAS_FREEBSD_NANDFS },
+	{ FS_HAMMER,	G_PART_ALIAS_DFBSD_HAMMER },
+	{ FS_HAMMER2,	G_PART_ALIAS_DFBSD_HAMMER2 },
+};
 
 static int
 bsd_parse_type(const char *type, uint8_t *fstype)
@@ -107,6 +131,7 @@ bsd_parse_type(const char *type, uint8_t *fstype)
 	const char *alias;
 	char *endp;
 	long lt;
+	int i;
 
 	if (type[0] == '!') {
 		lt = strtol(type + 1, &endp, 0);
@@ -115,25 +140,12 @@ bsd_parse_type(const char *type, uint8_t *fstype)
 		*fstype = (u_int)lt;
 		return (0);
 	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP);
-	if (!strcasecmp(type, alias)) {
-		*fstype = FS_SWAP;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_UFS);
-	if (!strcasecmp(type, alias)) {
-		*fstype = FS_BSDFFS;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM);
-	if (!strcasecmp(type, alias)) {
-		*fstype = FS_VINUM;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_ZFS);
-	if (!strcasecmp(type, alias)) {
-		*fstype = FS_ZFS;
-		return (0);
+	for (i = 0; i < nitems(bsd_alias_match); i++) {
+		alias = g_part_alias_name(bsd_alias_match[i].alias);
+		if (strcasecmp(type, alias) == 0) {
+			*fstype = bsd_alias_match[i].type;
+			return (0);
+		}
 	}
 	return (EINVAL);
 }
@@ -164,29 +176,22 @@ g_part_bsd_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_part_bsd_table *table;
 	const u_char *codeptr;
-	size_t hdsz, tlsz;
-	size_t codesz, tlofs;
 
-	hdsz = 512;
-	tlofs = hdsz + 148 + basetable->gpt_entries * 16;
-	tlsz = BBSIZE - tlofs;
+	if (gpp->gpp_codesize != BOOT1_SIZE && gpp->gpp_codesize != BBSIZE)
+		return (ENODEV);
+
 	table = (struct g_part_bsd_table *)basetable;
-	bzero(table->bbarea, hdsz);
-	bzero(table->bbarea + tlofs, tlsz);
 	codeptr = gpp->gpp_codeptr;
-	codesz = MIN(hdsz, gpp->gpp_codesize);
-	if (codesz > 0)
-		bcopy(codeptr, table->bbarea, codesz);
-	codesz = MIN(tlsz, gpp->gpp_codesize - tlofs);
-	if (codesz > 0)
-		bcopy(codeptr + tlofs, table->bbarea + tlofs, codesz);
+	bcopy(codeptr, table->bbarea, BOOT1_SIZE);
+	if (gpp->gpp_codesize == BBSIZE)
+		bcopy(codeptr + BOOT2_OFF, table->bbarea + BOOT2_OFF,
+		    BOOT2_SIZE);
 	return (0);
 }
 
 static int
 g_part_bsd_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
-	struct g_consumer *cp;
 	struct g_provider *pp;
 	struct g_part_entry *baseentry;
 	struct g_part_bsd_entry *entry;
@@ -195,14 +200,13 @@ g_part_bsd_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	uint32_t msize, ncyls, secpercyl;
 
 	pp = gpp->gpp_provider;
-	cp = LIST_FIRST(&pp->consumers);
 
 	if (pp->sectorsize < sizeof(struct disklabel))
 		return (ENOSPC);
 	if (BBSIZE % pp->sectorsize)
 		return (ENOTBLK);
 
-	msize = MIN(pp->mediasize / pp->sectorsize, 0xffffffff);
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 	secpercyl = basetable->gpt_sectors * basetable->gpt_heads;
 	ncyls = msize / secpercyl;
 
@@ -239,6 +243,12 @@ g_part_bsd_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 static int
 g_part_bsd_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
+	struct g_part_bsd_table *table;
+
+	table = (struct g_part_bsd_table *)basetable;
+	if (table->bbarea != NULL)
+		g_free(table->bbarea);
+	table->bbarea = NULL;
 
 	/* Wipe the second sector to clear the partitioning. */
 	basetable->gpt_smhead |= 2;
@@ -287,6 +297,47 @@ g_part_bsd_modify(struct g_part_table *basetable,
 	entry = (struct g_part_bsd_entry *)baseentry;
 	if (gpp->gpp_parms & G_PART_PARM_TYPE)
 		return (bsd_parse_type(gpp->gpp_type, &entry->part.p_fstype));
+	return (0);
+}
+
+static void
+bsd_set_rawsize(struct g_part_table *basetable, struct g_provider *pp)
+{
+	struct g_part_bsd_table *table;
+	struct g_part_bsd_entry *entry;
+	struct g_part_entry *baseentry;
+	uint32_t msize;
+
+	table = (struct g_part_bsd_table *)basetable;
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
+	le32enc(table->bbarea + pp->sectorsize + 60, msize); /* d_secperunit */
+	basetable->gpt_last = msize - 1;
+	LIST_FOREACH(baseentry, &basetable->gpt_entry, gpe_entry) {
+		if (baseentry->gpe_index != RAW_PART + 1)
+			continue;
+		baseentry->gpe_end = basetable->gpt_last;
+		entry = (struct g_part_bsd_entry *)baseentry;
+		entry->part.p_size = msize;
+		return;
+	}
+}
+
+static int
+g_part_bsd_resize(struct g_part_table *basetable,
+    struct g_part_entry *baseentry, struct g_part_parms *gpp)
+{
+	struct g_part_bsd_entry *entry;
+	struct g_provider *pp;
+
+	if (baseentry == NULL) {
+		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+		bsd_set_rawsize(basetable, pp);
+		return (0);
+	}
+	entry = (struct g_part_bsd_entry *)baseentry;
+	baseentry->gpe_end = baseentry->gpe_start + gpp->gpp_size - 1;
+	entry->part.p_size = gpp->gpp_size;
+
 	return (0);
 }
 
@@ -342,7 +393,7 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	table = (struct g_part_bsd_table *)basetable;
-	msize = pp->mediasize / pp->sectorsize;
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 
 	table->bbarea = g_read_data(cp, 0, BBSIZE, &error);
 	if (table->bbarea == NULL)
@@ -367,10 +418,6 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 		goto invalid_label;
 	if (heads != basetable->gpt_heads && !basetable->gpt_fixgeom)
 		basetable->gpt_heads = heads;
-	if (sectors != basetable->gpt_sectors || heads != basetable->gpt_heads)
-		printf("GEOM: %s: geometry does not match label"
-		    " (%uh,%us != %uh,%us).\n", pp->name, heads, sectors,
-		    basetable->gpt_heads, basetable->gpt_sectors);
 
 	chs = le32dec(buf + 60);
 	if (chs < 1)
@@ -380,9 +427,6 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 		chs = msize;
 		le32enc(buf + 60, msize);
 	}
-	if (chs != msize)
-		printf("GEOM: %s: media size does not match label.\n",
-		    pp->name);
 
 	basetable->gpt_first = 0;
 	basetable->gpt_last = msize - 1;
@@ -406,6 +450,8 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 			continue;
 		if (part.p_offset < table->offset)
 			continue;
+		if (part.p_offset - table->offset > basetable->gpt_last)
+			goto invalid_label;
 		baseentry = g_part_new_entry(basetable, index + 1,
 		    part.p_offset - table->offset,
 		    part.p_offset - table->offset + part.p_size - 1);
@@ -420,6 +466,7 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
  invalid_label:
 	printf("GEOM: %s: invalid disklabel.\n", pp->name);
 	g_free(table->bbarea);
+	table->bbarea = NULL;
 	return (EINVAL);
 }
 
@@ -432,6 +479,8 @@ g_part_bsd_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 
 	entry = (struct g_part_bsd_entry *)baseentry;
 	type = entry->part.p_fstype;
+	if (type == FS_NANDFS)
+		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_NANDFS));
 	if (type == FS_SWAP)
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP));
 	if (type == FS_BSDFFS)

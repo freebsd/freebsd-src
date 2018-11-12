@@ -6,6 +6,6 @@ LINKS=	${BINDIR}/quotaon ${BINDIR}/quotaoff
 MAN=	quotaon.8
 MLINKS=	quotaon.8 quotaoff.8
 
-WARNS?=	4
+LIBADD=	util
 
 .include <bsd.prog.mk>

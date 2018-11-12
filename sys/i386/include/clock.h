@@ -18,16 +18,12 @@ extern int	clkintr_pending;
 extern u_int	i8254_freq;
 extern int	i8254_max_count;
 extern uint64_t	tsc_freq;
-extern int	tsc_is_broken;
 extern int	tsc_is_invariant;
+extern int	tsc_perf_stat;
 
 void	i8254_init(void);
-
-struct trapframe;
- 
-int	hardclockintr(struct trapframe *frame);
-int	statclockintr(struct trapframe *frame);
-int	profclockintr(struct trapframe *frame);
+void	i8254_delay(int);
+void	clock_init(void);
 
 /*
  * Driver to clock driver interface.
@@ -36,7 +32,6 @@ int	profclockintr(struct trapframe *frame);
 void	startrtclock(void);
 void	timer_restore(void);
 void	init_TSC(void);
-void	init_TSC_tc(void);
 
 #define	HAS_TIMER_SPKR 1
 int	timer_spkr_acquire(void);

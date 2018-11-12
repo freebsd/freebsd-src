@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_write.c	10.30 (Berkeley) 7/12/96";
+static const char sccsid[] = "$Id: ex_write.c,v 10.43 2015/04/03 15:18:45 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -30,18 +30,16 @@ static const char sccsid[] = "@(#)ex_write.c	10.30 (Berkeley) 7/12/96";
 #include "../common/common.h"
 
 enum which {WN, WQ, WRITE, XIT};
-static int exwr __P((SCR *, EXCMD *, enum which));
+static int exwr(SCR *, EXCMD *, enum which);
 
 /*
  * ex_wn --	:wn[!] [>>] [file]
  *	Write to a file and switch to the next one.
  *
- * PUBLIC: int ex_wn __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_wn(SCR *, EXCMD *);
  */
 int
-ex_wn(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_wn(SCR *sp, EXCMD *cmdp)
 {
 	if (exwr(sp, cmdp, WN))
 		return (1);
@@ -58,12 +56,10 @@ ex_wn(sp, cmdp)
  * ex_wq --	:wq[!] [>>] [file]
  *	Write to a file and quit.
  *
- * PUBLIC: int ex_wq __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_wq(SCR *, EXCMD *);
  */
 int
-ex_wq(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_wq(SCR *sp, EXCMD *cmdp)
 {
 	int force;
 
@@ -86,12 +82,10 @@ ex_wq(sp, cmdp)
  *		:write [!] [cmd]
  *	Write to a file.
  *
- * PUBLIC: int ex_write __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_write(SCR *, EXCMD *);
  */
 int
-ex_write(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_write(SCR *sp, EXCMD *cmdp)
 {
 	return (exwr(sp, cmdp, WRITE));
 }
@@ -101,12 +95,10 @@ ex_write(sp, cmdp)
  * ex_xit -- :x[it]! [file]
  *	Write out any modifications and quit.
  *
- * PUBLIC: int ex_xit __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_xit(SCR *, EXCMD *);
  */
 int
-ex_xit(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_xit(SCR *sp, EXCMD *cmdp)
 {
 	int force;
 
@@ -131,14 +123,16 @@ ex_xit(sp, cmdp)
  *	The guts of the ex write commands.
  */
 static int
-exwr(sp, cmdp, cmd)
-	SCR *sp;
-	EXCMD *cmdp;
-	enum which cmd;
+exwr(SCR *sp, EXCMD *cmdp, enum which cmd)
 {
 	MARK rm;
 	int flags;
-	char *name, *p;
+	char *name;
+	CHAR_T *p = NULL;
+	size_t nlen;
+	char *n;
+	int rc;
+	EX_PRIVATE *exp;
 
 	NEEDFILE(sp, cmdp);
 
@@ -149,24 +143,30 @@ exwr(sp, cmdp, cmd)
 
 	/* Skip any leading whitespace. */
 	if (cmdp->argc != 0)
-		for (p = cmdp->argv[0]->bp; *p != '\0' && isblank(*p); ++p);
+		for (p = cmdp->argv[0]->bp; *p != '\0' && cmdskip(*p); ++p);
 
 	/* If "write !" it's a pipe to a utility. */
 	if (cmdp->argc != 0 && cmd == WRITE && *p == '!') {
 		/* Secure means no shell access. */
 		if (O_ISSET(sp, O_SECURE)) {
-			ex_emsg(sp, cmdp->cmd->name, EXM_SECURE_F);
+			ex_wemsg(sp, cmdp->cmd->name, EXM_SECURE_F);
 			return (1);
 		}
 
 		/* Expand the argument. */
-		for (++p; *p && isblank(*p); ++p);
+		for (++p; *p && cmdskip(*p); ++p);
 		if (*p == '\0') {
 			ex_emsg(sp, cmdp->cmd->usage, EXM_USAGE);
 			return (1);
 		}
-		if (argv_exp1(sp, cmdp, p, strlen(p), 1))
+		if (argv_exp1(sp, cmdp, p, STRLEN(p), 1))
 			return (1);
+
+		/* Set the last bang command */
+		exp = EXP(sp);
+		free(exp->lastbcomm);
+		exp->lastbcomm = v_wstrdup(sp, cmdp->argv[1]->bp,
+		    cmdp->argv[1]->len);
 
 		/*
 		 * Historically, vi waited after a write filter even if there
@@ -201,7 +201,7 @@ exwr(sp, cmdp, cmd)
 		LF_SET(FS_APPEND);
 
 		/* Skip ">>" and whitespace. */
-		for (p += 2; *p && isblank(*p); ++p);
+		for (p += 2; *p && cmdskip(*p); ++p);
 	}
 
 	/* If no other arguments, just write the file back. */
@@ -210,7 +210,7 @@ exwr(sp, cmdp, cmd)
 		    &cmdp->addr1, &cmdp->addr2, NULL, flags));
 
 	/* Build an argv so we get an argument count and file expansion. */
-	if (argv_exp2(sp, cmdp, p, strlen(p)))
+	if (argv_exp2(sp, cmdp, p, STRLEN(p)))
 		return (1);
 
 	/*
@@ -228,7 +228,9 @@ exwr(sp, cmdp, cmd)
 		abort();
 		/* NOTREACHED */
 	case 2:
-		name = cmdp->argv[1]->bp;
+		INT2CHAR(sp, cmdp->argv[1]->bp, cmdp->argv[1]->len+1,
+			 n, nlen);
+		name = v_strdup(sp, n, nlen - 1);
 
 		/*
 		 * !!!
@@ -238,10 +240,9 @@ exwr(sp, cmdp, cmd)
 		 */
 		if (F_ISSET(sp->frp, FR_TMPFILE) &&
 		    !F_ISSET(sp->frp, FR_EXNAMED)) {
-			if ((p = v_strdup(sp,
-			    cmdp->argv[1]->bp, cmdp->argv[1]->len)) != NULL) {
+			if ((n = v_strdup(sp, name, nlen - 1)) != NULL) {
 				free(sp->frp->name);
-				sp->frp->name = p;
+				sp->frp->name = n;
 			}
 			/*
 			 * The file has a real name, it's no longer a
@@ -261,28 +262,27 @@ exwr(sp, cmdp, cmd)
 			set_alt_name(sp, name);
 		break;
 	default:
-		ex_emsg(sp, p, EXM_FILECOUNT);
+		INT2CHAR(sp, p, STRLEN(p) + 1, n, nlen);
+		ex_emsg(sp, n, EXM_FILECOUNT);
 		return (1);
 	}
 
-	return (file_write(sp, &cmdp->addr1, &cmdp->addr2, name, flags));
+	rc = file_write(sp, &cmdp->addr1, &cmdp->addr2, name, flags);
+
+	free(name);
+
+	return rc;
 }
 
 /*
  * ex_writefp --
  *	Write a range of lines to a FILE *.
  *
- * PUBLIC: int ex_writefp __P((SCR *,
- * PUBLIC:    char *, FILE *, MARK *, MARK *, u_long *, u_long *, int));
+ * PUBLIC: int ex_writefp(SCR *,
+ * PUBLIC:    char *, FILE *, MARK *, MARK *, u_long *, u_long *, int);
  */
 int
-ex_writefp(sp, name, fp, fm, tm, nlno, nch, silent)
-	SCR *sp;
-	char *name;
-	FILE *fp;
-	MARK *fm, *tm;
-	u_long *nlno, *nch;
-	int silent;
+ex_writefp(SCR *sp, char *name, FILE *fp, MARK *fm, MARK *tm, u_long *nlno, u_long *nch, int silent)
 {
 	struct stat sb;
 	GS *gp;
@@ -331,7 +331,7 @@ ex_writefp(sp, name, fp, fm, tm, nlno, nch, silent)
 					msg = NULL;
 				}
 			}
-			if (db_get(sp, fline, DBG_FATAL, &p, &len))
+			if (db_rget(sp, fline, &p, &len))
 				goto err;
 			if (fwrite(p, 1, len, fp) != len)
 				goto err;

@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/link_elf.h>
 
 #ifdef DDB_CTF
-#include <net/zlib.h>
+#include <sys/zlib.h>
 #endif
 
 #include "linker_if.h"
@@ -140,11 +140,12 @@ static int	link_elf_each_function_name(linker_file_t,
 static int	link_elf_each_function_nameval(linker_file_t,
 				linker_function_nameval_callback_t,
 				void *);
-static void	link_elf_reloc_local(linker_file_t);
+static int	link_elf_reloc_local(linker_file_t);
 static long	link_elf_symtab_get(linker_file_t, const Elf_Sym **);
 static long	link_elf_strtab_get(linker_file_t, caddr_t *);
 
-static Elf_Addr elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps);
+static int	elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps,
+		    Elf_Addr *);
 
 static kobj_method_t link_elf_methods[] = {
 	KOBJMETHOD(linker_lookup_symbol,	link_elf_lookup_symbol),
@@ -173,6 +174,7 @@ static struct linker_class link_elf_class = {
 };
 
 static int	relocate_file(elf_file_t ef);
+static void	elf_obj_cleanup_globals_cache(elf_file_t);
 
 static void
 link_elf_error(const char *filename, const char *s)
@@ -255,6 +257,9 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 		switch (shdr[i].sh_type) {
 		case SHT_PROGBITS:
 		case SHT_NOBITS:
+#ifdef __amd64__
+		case SHT_X86_64_UNWIND:
+#endif
 			ef->nprogtab++;
 			break;
 		case SHT_SYMTAB:
@@ -325,9 +330,16 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 		switch (shdr[i].sh_type) {
 		case SHT_PROGBITS:
 		case SHT_NOBITS:
+#ifdef __amd64__
+		case SHT_X86_64_UNWIND:
+#endif
 			ef->progtab[pb].addr = (void *)shdr[i].sh_addr;
 			if (shdr[i].sh_type == SHT_PROGBITS)
 				ef->progtab[pb].name = "<<PROGBITS>>";
+#ifdef __amd64__
+			else if (shdr[i].sh_type == SHT_X86_64_UNWIND)
+				ef->progtab[pb].name = "<<UNWIND>>";
+#endif
 			else
 				ef->progtab[pb].name = "<<NOBITS>>";
 			ef->progtab[pb].size = shdr[i].sh_size;
@@ -336,7 +348,7 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 				ef->progtab[pb].name =
 				    ef->shstrtab + shdr[i].sh_name;
 			if (ef->progtab[pb].name != NULL && 
-			    !strcmp(ef->progtab[pb].name, "set_pcpu")) {
+			    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME)) {
 				void *dpcpu;
 
 				dpcpu = dpcpu_alloc(shdr[i].sh_size);
@@ -363,6 +375,10 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 				vnet_data_copy(vnet_data, shdr[i].sh_size);
 				ef->progtab[pb].addr = vnet_data;
 #endif
+			} else if (ef->progtab[pb].name != NULL &&
+			    !strcmp(ef->progtab[pb].name, ".ctors")) {
+				lf->ctors_addr = ef->progtab[pb].addr;
+				lf->ctors_size = shdr[i].sh_size;
 			}
 
 			/* Update all symbol values with the offset. */
@@ -389,15 +405,26 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 			break;
 		}
 	}
-	if (pb != ef->nprogtab)
-		panic("lost progbits");
-	if (rl != ef->nreltab)
-		panic("lost reltab");
-	if (ra != ef->nrelatab)
-		panic("lost relatab");
+	if (pb != ef->nprogtab) {
+		printf("%s: lost progbits\n", filename);
+		error = ENOEXEC;
+		goto out;
+	}
+	if (rl != ef->nreltab) {
+		printf("%s: lost reltab\n", filename);
+		error = ENOEXEC;
+		goto out;
+	}
+	if (ra != ef->nrelatab) {
+		printf("%s: lost relatab\n", filename);
+		error = ENOEXEC;
+		goto out;
+	}
 
 	/* Local intra-module relocations */
-	link_elf_reloc_local(lf);
+	error = link_elf_reloc_local(lf);
+	if (error != 0)
+		goto out;
 
 	*result = lf;
 	return (0);
@@ -406,6 +433,22 @@ out:
 	/* preload not done this way */
 	linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 	return (error);
+}
+
+static void
+link_elf_invoke_ctors(caddr_t addr, size_t size)
+{
+	void (**ctor)(void);
+	size_t i, cnt;
+
+	if (addr == NULL || size == 0)
+		return;
+	cnt = size / sizeof(*ctor);
+	ctor = (void *)addr;
+	for (i = 0; i < cnt; i++) {
+		if (ctor[i] != NULL)
+			(*ctor[i])();
+	}
 }
 
 static int
@@ -424,6 +467,8 @@ link_elf_link_preload_finish(linker_file_t lf)
 	if (error)
 		return (error);
 
+	/* Invoke .ctors */
+	link_elf_invoke_ctors(lf->ctors_addr, lf->ctors_size);
 	return (0);
 }
 
@@ -440,7 +485,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	vm_offset_t mapbase;
 	size_t mapsize;
 	int error = 0;
-	int resid, flags;
+	ssize_t resid;
+	int flags;
 	elf_file_t ef;
 	linker_file_t lf;
 	int symtabindex;
@@ -449,19 +495,17 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	int nsym;
 	int pb, rl, ra;
 	int alignmask;
-	int vfslocked;
 
 	shdr = NULL;
 	lf = NULL;
 	mapsize = 0;
 	hdr = NULL;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, filename, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, td);
 	flags = FREAD;
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error)
 		return error;
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_vp->v_type != VREG) {
 		error = ENOEXEC;
@@ -476,10 +520,6 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 
 	/* Read the elf header from the file. */
 	hdr = malloc(sizeof(*hdr), M_LINKER, M_WAITOK);
-	if (hdr == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
 	error = vn_rdwr(UIO_READ, nd.ni_vp, (void *)hdr, sizeof(*hdr), 0,
 	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
 	    &resid, td);
@@ -536,10 +576,6 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		goto out;
 	}
 	shdr = malloc(nbytes, M_LINKER, M_WAITOK);
-	if (shdr == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
 	ef->e_shdr = shdr;
 	error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t)shdr, nbytes, hdr->e_shoff,
 	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, &resid, td);
@@ -555,9 +591,14 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	symtabindex = -1;
 	symstrindex = -1;
 	for (i = 0; i < hdr->e_shnum; i++) {
+		if (shdr[i].sh_size == 0)
+			continue;
 		switch (shdr[i].sh_type) {
 		case SHT_PROGBITS:
 		case SHT_NOBITS:
+#ifdef __amd64__
+		case SHT_X86_64_UNWIND:
+#endif
 			ef->nprogtab++;
 			break;
 		case SHT_SYMTAB:
@@ -603,22 +644,15 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	if (ef->nrelatab != 0)
 		ef->relatab = malloc(ef->nrelatab * sizeof(*ef->relatab),
 		    M_LINKER, M_WAITOK | M_ZERO);
-	if ((ef->nprogtab != 0 && ef->progtab == NULL) ||
-	    (ef->nreltab != 0 && ef->reltab == NULL) ||
-	    (ef->nrelatab != 0 && ef->relatab == NULL)) {
-		error = ENOMEM;
+
+	if (symtabindex == -1) {
+		link_elf_error(filename, "lost symbol table index");
+		error = ENOEXEC;
 		goto out;
 	}
-
-	if (symtabindex == -1)
-		panic("lost symbol table index");
 	/* Allocate space for and load the symbol table */
 	ef->ddbsymcnt = shdr[symtabindex].sh_size / sizeof(Elf_Sym);
 	ef->ddbsymtab = malloc(shdr[symtabindex].sh_size, M_LINKER, M_WAITOK);
-	if (ef->ddbsymtab == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
 	error = vn_rdwr(UIO_READ, nd.ni_vp, (void *)ef->ddbsymtab,
 	    shdr[symtabindex].sh_size, shdr[symtabindex].sh_offset,
 	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
@@ -630,15 +664,14 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		goto out;
 	}
 
-	if (symstrindex == -1)
-		panic("lost symbol string index");
+	if (symstrindex == -1) {
+		link_elf_error(filename, "lost symbol string index");
+		error = ENOEXEC;
+		goto out;
+	}
 	/* Allocate space for and load the symbol strings */
 	ef->ddbstrcnt = shdr[symstrindex].sh_size;
 	ef->ddbstrtab = malloc(shdr[symstrindex].sh_size, M_LINKER, M_WAITOK);
-	if (ef->ddbstrtab == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
 	error = vn_rdwr(UIO_READ, nd.ni_vp, ef->ddbstrtab,
 	    shdr[symstrindex].sh_size, shdr[symstrindex].sh_offset,
 	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
@@ -658,10 +691,6 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		ef->shstrcnt = shdr[shstrindex].sh_size;
 		ef->shstrtab = malloc(shdr[shstrindex].sh_size, M_LINKER,
 		    M_WAITOK);
-		if (ef->shstrtab == NULL) {
-			error = ENOMEM;
-			goto out;
-		}
 		error = vn_rdwr(UIO_READ, nd.ni_vp, ef->shstrtab,
 		    shdr[shstrindex].sh_size, shdr[shstrindex].sh_offset,
 		    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
@@ -677,9 +706,14 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	/* Size up code/data(progbits) and bss(nobits). */
 	alignmask = 0;
 	for (i = 0; i < hdr->e_shnum; i++) {
+		if (shdr[i].sh_size == 0)
+			continue;
 		switch (shdr[i].sh_type) {
 		case SHT_PROGBITS:
 		case SHT_NOBITS:
+#ifdef __amd64__
+		case SHT_X86_64_UNWIND:
+#endif
 			alignmask = shdr[i].sh_addralign - 1;
 			mapsize += alignmask;
 			mapsize &= ~alignmask;
@@ -706,9 +740,14 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	 * location of code and data in the kernel's address space, request a
 	 * mapping that is above the kernel.  
 	 */
+#ifdef __amd64__
 	mapbase = KERNBASE;
+#else
+	mapbase = VM_MIN_KERNEL_ADDRESS;
+#endif
 	error = vm_map_find(kernel_map, ef->object, 0, &mapbase,
-	    round_page(mapsize), TRUE, VM_PROT_ALL, VM_PROT_ALL, FALSE);
+	    round_page(mapsize), 0, VMFS_OPTIMAL_SPACE, VM_PROT_ALL,
+	    VM_PROT_ALL, 0);
 	if (error) {
 		vm_object_deallocate(ef->object);
 		ef->object = 0;
@@ -737,21 +776,34 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	ra = 0;
 	alignmask = 0;
 	for (i = 0; i < hdr->e_shnum; i++) {
+		if (shdr[i].sh_size == 0)
+			continue;
 		switch (shdr[i].sh_type) {
 		case SHT_PROGBITS:
 		case SHT_NOBITS:
+#ifdef __amd64__
+		case SHT_X86_64_UNWIND:
+#endif
 			alignmask = shdr[i].sh_addralign - 1;
 			mapbase += alignmask;
 			mapbase &= ~alignmask;
-			if (ef->shstrtab && shdr[i].sh_name != 0)
+			if (ef->shstrtab != NULL && shdr[i].sh_name != 0) {
 				ef->progtab[pb].name =
 				    ef->shstrtab + shdr[i].sh_name;
-			else if (shdr[i].sh_type == SHT_PROGBITS)
+				if (!strcmp(ef->progtab[pb].name, ".ctors")) {
+					lf->ctors_addr = (caddr_t)mapbase;
+					lf->ctors_size = shdr[i].sh_size;
+				}
+			} else if (shdr[i].sh_type == SHT_PROGBITS)
 				ef->progtab[pb].name = "<<PROGBITS>>";
+#ifdef __amd64__
+			else if (shdr[i].sh_type == SHT_X86_64_UNWIND)
+				ef->progtab[pb].name = "<<UNWIND>>";
+#endif
 			else
 				ef->progtab[pb].name = "<<NOBITS>>";
 			if (ef->progtab[pb].name != NULL && 
-			    !strcmp(ef->progtab[pb].name, "set_pcpu"))
+			    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME))
 				ef->progtab[pb].addr =
 				    dpcpu_alloc(shdr[i].sh_size);
 #ifdef VIMAGE
@@ -769,7 +821,11 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			}
 			ef->progtab[pb].size = shdr[i].sh_size;
 			ef->progtab[pb].sec = i;
-			if (shdr[i].sh_type == SHT_PROGBITS) {
+			if (shdr[i].sh_type == SHT_PROGBITS
+#ifdef __amd64__
+			    || shdr[i].sh_type == SHT_X86_64_UNWIND
+#endif
+			    ) {
 				error = vn_rdwr(UIO_READ, nd.ni_vp,
 				    ef->progtab[pb].addr,
 				    shdr[i].sh_size, shdr[i].sh_offset,
@@ -783,7 +839,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 				}
 				/* Initialize the per-cpu or vnet area. */
 				if (ef->progtab[pb].addr != (void *)mapbase &&
-				    !strcmp(ef->progtab[pb].name, "set_pcpu"))
+				    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME))
 					dpcpu_copy(ef->progtab[pb].addr,
 					    shdr[i].sh_size);
 #ifdef VIMAGE
@@ -845,19 +901,35 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			break;
 		}
 	}
-	if (pb != ef->nprogtab)
-		panic("lost progbits");
-	if (rl != ef->nreltab)
-		panic("lost reltab");
-	if (ra != ef->nrelatab)
-		panic("lost relatab");
-	if (mapbase != (vm_offset_t)ef->address + mapsize)
-		panic("mapbase 0x%lx != address %p + mapsize 0x%lx (0x%lx)\n",
-		    mapbase, ef->address, mapsize,
-		    (vm_offset_t)ef->address + mapsize);
+	if (pb != ef->nprogtab) {
+		link_elf_error(filename, "lost progbits");
+		error = ENOEXEC;
+		goto out;
+	}
+	if (rl != ef->nreltab) {
+		link_elf_error(filename, "lost reltab");
+		error = ENOEXEC;
+		goto out;
+	}
+	if (ra != ef->nrelatab) {
+		link_elf_error(filename, "lost relatab");
+		error = ENOEXEC;
+		goto out;
+	}
+	if (mapbase != (vm_offset_t)ef->address + mapsize) {
+		printf(
+		    "%s: mapbase 0x%lx != address %p + mapsize 0x%lx (0x%lx)\n",
+		    filename != NULL ? filename : "<none>",
+		    (u_long)mapbase, ef->address, (u_long)mapsize,
+		    (u_long)(vm_offset_t)ef->address + mapsize);
+		error = ENOMEM;
+		goto out;
+	}
 
 	/* Local intra-module relocations */
-	link_elf_reloc_local(lf);
+	error = link_elf_reloc_local(lf);
+	if (error != 0)
+		goto out;
 
 	/* Pull in dependencies */
 	VOP_UNLOCK(nd.ni_vp, 0);
@@ -876,16 +948,17 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	if (error)
 		goto out;
 
+	/* Invoke .ctors */
+	link_elf_invoke_ctors(lf->ctors_addr, lf->ctors_size);
+
 	*result = lf;
 
 out:
-	if (error && lf)
-		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
-	if (hdr)
-		free(hdr, M_LINKER);
 	VOP_UNLOCK(nd.ni_vp, 0);
 	vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
-	VFS_UNLOCK_GIANT(vfslocked);
+	if (error && lf)
+		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
+	free(hdr, M_LINKER);
 
 	return error;
 }
@@ -905,7 +978,7 @@ link_elf_unload_file(linker_file_t file)
 				continue;
 			if (ef->progtab[i].name == NULL)
 				continue;
-			if (!strcmp(ef->progtab[i].name, "set_pcpu"))
+			if (!strcmp(ef->progtab[i].name, DPCPU_SETNAME))
 				dpcpu_free(ef->progtab[i].addr,
 				    ef->progtab[i].size);
 #ifdef VIMAGE
@@ -916,18 +989,12 @@ link_elf_unload_file(linker_file_t file)
 		}
 	}
 	if (ef->preloaded) {
-		if (ef->reltab)
-			free(ef->reltab, M_LINKER);
-		if (ef->relatab)
-			free(ef->relatab, M_LINKER);
-		if (ef->progtab)
-			free(ef->progtab, M_LINKER);
-		if (ef->ctftab)
-			free(ef->ctftab, M_LINKER);
-		if (ef->ctfoff)
-			free(ef->ctfoff, M_LINKER);
-		if (ef->typoff)
-			free(ef->typoff, M_LINKER);
+		free(ef->reltab, M_LINKER);
+		free(ef->relatab, M_LINKER);
+		free(ef->progtab, M_LINKER);
+		free(ef->ctftab, M_LINKER);
+		free(ef->ctfoff, M_LINKER);
+		free(ef->typoff, M_LINKER);
 		if (file->filename != NULL)
 			preload_delete_name(file->filename);
 		/* XXX reclaim module memory? */
@@ -935,37 +1002,25 @@ link_elf_unload_file(linker_file_t file)
 	}
 
 	for (i = 0; i < ef->nreltab; i++)
-		if (ef->reltab[i].rel)
-			free(ef->reltab[i].rel, M_LINKER);
+		free(ef->reltab[i].rel, M_LINKER);
 	for (i = 0; i < ef->nrelatab; i++)
-		if (ef->relatab[i].rela)
-			free(ef->relatab[i].rela, M_LINKER);
-	if (ef->reltab)
-		free(ef->reltab, M_LINKER);
-	if (ef->relatab)
-		free(ef->relatab, M_LINKER);
-	if (ef->progtab)
-		free(ef->progtab, M_LINKER);
+		free(ef->relatab[i].rela, M_LINKER);
+	free(ef->reltab, M_LINKER);
+	free(ef->relatab, M_LINKER);
+	free(ef->progtab, M_LINKER);
 
 	if (ef->object) {
 		vm_map_remove(kernel_map, (vm_offset_t) ef->address,
 		    (vm_offset_t) ef->address +
 		    (ef->object->size << PAGE_SHIFT));
 	}
-	if (ef->e_shdr)
-		free(ef->e_shdr, M_LINKER);
-	if (ef->ddbsymtab)
-		free(ef->ddbsymtab, M_LINKER);
-	if (ef->ddbstrtab)
-		free(ef->ddbstrtab, M_LINKER);
-	if (ef->shstrtab)
-		free(ef->shstrtab, M_LINKER);
-	if (ef->ctftab)
-		free(ef->ctftab, M_LINKER);
-	if (ef->ctfoff)
-		free(ef->ctfoff, M_LINKER);
-	if (ef->typoff)
-		free(ef->typoff, M_LINKER);
+	free(ef->e_shdr, M_LINKER);
+	free(ef->ddbsymtab, M_LINKER);
+	free(ef->ddbstrtab, M_LINKER);
+	free(ef->shstrtab, M_LINKER);
+	free(ef->ctftab, M_LINKER);
+	free(ef->ctfoff, M_LINKER);
+	free(ef->typoff, M_LINKER);
 }
 
 static const char *
@@ -1012,12 +1067,16 @@ relocate_file(elf_file_t ef)
 	/* Perform relocations without addend if there are any: */
 	for (i = 0; i < ef->nreltab; i++) {
 		rel = ef->reltab[i].rel;
-		if (rel == NULL)
-			panic("lost a reltab!");
+		if (rel == NULL) {
+			link_elf_error(ef->lf.filename, "lost a reltab!");
+			return (ENOEXEC);
+		}
 		rellim = rel + ef->reltab[i].nrel;
 		base = findbase(ef, ef->reltab[i].sec);
-		if (base == 0)
-			panic("lost base for reltab");
+		if (base == 0) {
+			link_elf_error(ef->lf.filename, "lost base for reltab");
+			return (ENOEXEC);
+		}
 		for ( ; rel < rellim; rel++) {
 			symidx = ELF_R_SYM(rel->r_info);
 			if (symidx >= ef->ddbsymcnt)
@@ -1031,7 +1090,7 @@ relocate_file(elf_file_t ef)
 				symname = symbol_name(ef, rel->r_info);
 				printf("link_elf_obj: symbol %s undefined\n",
 				    symname);
-				return ENOENT;
+				return (ENOENT);
 			}
 		}
 	}
@@ -1039,12 +1098,17 @@ relocate_file(elf_file_t ef)
 	/* Perform relocations with addend if there are any: */
 	for (i = 0; i < ef->nrelatab; i++) {
 		rela = ef->relatab[i].rela;
-		if (rela == NULL)
-			panic("lost a relatab!");
+		if (rela == NULL) {
+			link_elf_error(ef->lf.filename, "lost a relatab!");
+			return (ENOEXEC);
+		}
 		relalim = rela + ef->relatab[i].nrela;
 		base = findbase(ef, ef->relatab[i].sec);
-		if (base == 0)
-			panic("lost base for relatab");
+		if (base == 0) {
+			link_elf_error(ef->lf.filename,
+			    "lost base for relatab");
+			return (ENOEXEC);
+		}
 		for ( ; rela < relalim; rela++) {
 			symidx = ELF_R_SYM(rela->r_info);
 			if (symidx >= ef->ddbsymcnt)
@@ -1058,12 +1122,19 @@ relocate_file(elf_file_t ef)
 				symname = symbol_name(ef, rela->r_info);
 				printf("link_elf_obj: symbol %s undefined\n",
 				    symname);
-				return ENOENT;
+				return (ENOENT);
 			}
 		}
 	}
 
-	return 0;
+	/*
+	 * Only clean SHN_FBSD_CACHED for successful return.  If we
+	 * modified symbol table for the object but found an
+	 * unresolved symbol, there is no reason to roll back.
+	 */
+	elf_obj_cleanup_globals_cache(ef);
+
+	return (0);
 }
 
 static int
@@ -1109,7 +1180,7 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
 	u_long diff = off;
 	u_long st_value;
 	const Elf_Sym *es;
-	const Elf_Sym *best = 0;
+	const Elf_Sym *best = NULL;
 	int i;
 
 	for (i = 0, es = ef->ddbsymtab; i < ef->ddbsymcnt; i++, es++) {
@@ -1127,7 +1198,7 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
 			}
 		}
 	}
-	if (best == 0)
+	if (best == NULL)
 		*diffp = off;
 	else
 		*diffp = diff;
@@ -1211,6 +1282,21 @@ link_elf_each_function_nameval(linker_file_t file,
 	return (0);
 }
 
+static void
+elf_obj_cleanup_globals_cache(elf_file_t ef)
+{
+	Elf_Sym *sym;
+	Elf_Size i;
+
+	for (i = 0; i < ef->ddbsymcnt; i++) {
+		sym = ef->ddbsymtab + i;
+		if (sym->st_shndx == SHN_FBSD_CACHED) {
+			sym->st_shndx = SHN_UNDEF;
+			sym->st_value = 0;
+		}
+	}
+}
+
 /*
  * Symbol lookup function that can be used when the symbol index is known (ie
  * in relocations). It uses the symbol index instead of doing a fully fledged
@@ -1218,46 +1304,71 @@ link_elf_each_function_nameval(linker_file_t file,
  * This is not only more efficient, it's also more correct. It's not always
  * the case that the symbol can be found through the hash table.
  */
-static Elf_Addr
-elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps)
+static int
+elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps, Elf_Addr *res)
 {
 	elf_file_t ef = (elf_file_t)lf;
-	const Elf_Sym *sym;
+	Elf_Sym *sym;
 	const char *symbol;
-	Elf_Addr ret;
+	Elf_Addr res1;
 
 	/* Don't even try to lookup the symbol if the index is bogus. */
-	if (symidx >= ef->ddbsymcnt)
-		return (0);
+	if (symidx >= ef->ddbsymcnt) {
+		*res = 0;
+		return (EINVAL);
+	}
 
 	sym = ef->ddbsymtab + symidx;
 
 	/* Quick answer if there is a definition included. */
-	if (sym->st_shndx != SHN_UNDEF)
-		return (sym->st_value);
+	if (sym->st_shndx != SHN_UNDEF) {
+		*res = sym->st_value;
+		return (0);
+	}
 
 	/* If we get here, then it is undefined and needs a lookup. */
 	switch (ELF_ST_BIND(sym->st_info)) {
 	case STB_LOCAL:
 		/* Local, but undefined? huh? */
-		return (0);
+		*res = 0;
+		return (EINVAL);
 
 	case STB_GLOBAL:
+	case STB_WEAK:
 		/* Relative to Data or Function name */
 		symbol = ef->ddbstrtab + sym->st_name;
 
 		/* Force a lookup failure if the symbol name is bogus. */
-		if (*symbol == 0)
-			return (0);
-		ret = ((Elf_Addr)linker_file_lookup_symbol(lf, symbol, deps));
-		return ret;
+		if (*symbol == 0) {
+			*res = 0;
+			return (EINVAL);
+		}
+		res1 = (Elf_Addr)linker_file_lookup_symbol(lf, symbol, deps);
 
-	case STB_WEAK:
-		printf("link_elf_obj: Weak symbols not supported\n");
-		return (0);
+		/*
+		 * Cache global lookups during module relocation. The failure
+		 * case is particularly expensive for callers, who must scan
+		 * through the entire globals table doing strcmp(). Cache to
+		 * avoid doing such work repeatedly.
+		 *
+		 * After relocation is complete, undefined globals will be
+		 * restored to SHN_UNDEF in elf_obj_cleanup_globals_cache(),
+		 * above.
+		 */
+		if (res1 != 0) {
+			sym->st_shndx = SHN_FBSD_CACHED;
+			sym->st_value = res1;
+			*res = res1;
+			return (0);
+		} else if (ELF_ST_BIND(sym->st_info) == STB_WEAK) {
+			sym->st_value = 0;
+			*res = 0;
+			return (0);
+		}
+		return (EINVAL);
 
 	default:
-		return (0);
+		return (EINVAL);
 	}
 }
 
@@ -1306,7 +1417,7 @@ link_elf_fix_link_set(elf_file_t ef)
 	}
 }
 
-static void
+static int
 link_elf_reloc_local(linker_file_t lf)
 {
 	elf_file_t ef = (elf_file_t)lf;
@@ -1324,12 +1435,16 @@ link_elf_reloc_local(linker_file_t lf)
 	/* Perform relocations without addend if there are any: */
 	for (i = 0; i < ef->nreltab; i++) {
 		rel = ef->reltab[i].rel;
-		if (rel == NULL)
-			panic("lost a reltab!");
+		if (rel == NULL) {
+			link_elf_error(ef->lf.filename, "lost a reltab");
+			return (ENOEXEC);
+		}
 		rellim = rel + ef->reltab[i].nrel;
 		base = findbase(ef, ef->reltab[i].sec);
-		if (base == 0)
-			panic("lost base for reltab");
+		if (base == 0) {
+			link_elf_error(ef->lf.filename, "lost base for reltab");
+			return (ENOEXEC);
+		}
 		for ( ; rel < rellim; rel++) {
 			symidx = ELF_R_SYM(rel->r_info);
 			if (symidx >= ef->ddbsymcnt)
@@ -1346,12 +1461,16 @@ link_elf_reloc_local(linker_file_t lf)
 	/* Perform relocations with addend if there are any: */
 	for (i = 0; i < ef->nrelatab; i++) {
 		rela = ef->relatab[i].rela;
-		if (rela == NULL)
-			panic("lost a relatab!");
+		if (rela == NULL) {
+			link_elf_error(ef->lf.filename, "lost a relatab!");
+			return (ENOEXEC);
+		}
 		relalim = rela + ef->relatab[i].nrela;
 		base = findbase(ef, ef->relatab[i].sec);
-		if (base == 0)
-			panic("lost base for relatab");
+		if (base == 0) {
+			link_elf_error(ef->lf.filename, "lost base for reltab");
+			return (ENOEXEC);
+		}
 		for ( ; rela < relalim; rela++) {
 			symidx = ELF_R_SYM(rela->r_info);
 			if (symidx >= ef->ddbsymcnt)
@@ -1364,6 +1483,7 @@ link_elf_reloc_local(linker_file_t lf)
 			    elf_obj_lookup);
 		}
 	}
+	return (0);
 }
 
 static long

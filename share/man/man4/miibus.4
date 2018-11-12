@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2009
+.Dd December 1, 2015
 .Dt MIIBUS 4
 .Os
 .Sh NAME
@@ -45,6 +45,8 @@ The following network device drivers use the
 interface:
 .Pp
 .Bl -tag -compact -width ".Xr fxp 4"
+.It Xr ae 4
+Attansic/Atheros L2 Fast Ethernet
 .It Xr age 4
 Attansic/Atheros L1 Gigabit Ethernet
 .It Xr alc 4
@@ -55,6 +57,8 @@ Atheros AR8121/AR8113/AR8114 PCIe Ethernet
 ADMtek USB Ethernet
 .It Xr axe 4
 ASIX Electronics AX88172 USB Ethernet
+.It Xr axge 4
+ASIX Electronics AX88178A/AX88179 USB Ethernet
 .It Xr bce 4
 Broadcom NetXtreme II Gigabit Ethernet
 .It Xr bfe 4
@@ -85,8 +89,6 @@ Marvell/SysKonnect Yukon II Gigabit Ethernet
 NVIDIA nForce MCP Networking Adapter
 .It Xr nge 4
 National Semiconductor DP83820/DP83821 Gigabit Ethernet
-.It Xr nve 4
-NVIDIA nForce MCP Networking Adapter
 .It Xr pcn 4
 AMD Am79C97x PCI 10/100
 .It Xr re 4
@@ -97,10 +99,14 @@ RealTek 8129/8139
 RealTek RTL8150 USB To Fast Ethernet
 .It Xr sf 4
 Adaptec AIC-6915
+.It Xr sge 4
+Silicon Integrated Systems SiS190/191 Ethernet
 .It Xr sis 4
 Silicon Integrated Systems SiS 900/SiS 7016
 .It Xr sk 4
 SysKonnect SK-984x and SK-982x Gigabit Ethernet
+.It Xr smsc 4
+SMSC LAN9xxx USB Fast Ethernet
 .It Xr ste 4
 Sundance ST201 (D-Link DFE-550TX)
 .It Xr stge 4
@@ -111,10 +117,14 @@ Texas Instruments ThunderLAN
 SMC EtherPower II (83c170)
 .It Xr udav 4
 Davicom DM9601 USB Ethernet
+.It Xr ure 4
+RealTek RTL8152 USB To Fast Ethernet
 .It Xr vge 4
 VIA VT612x PCI Gigabit Ethernet
 .It Xr vr 4
 VIA Rhine, Rhine II
+.It Xr vte 4
+DM&P Vortex86 RDC R6040 Fast Ethernet
 .It Xr wb 4
 Winbond W89C840F
 .It Xr xl 4
@@ -130,12 +140,14 @@ and
 .Nx ,
 but as a result are not well behaved newbus device drivers.
 .Sh SEE ALSO
+.Xr ae 4 ,
 .Xr age 4 ,
 .Xr alc 4 ,
 .Xr ale 4 ,
 .Xr arp 4 ,
 .Xr aue 4 ,
 .Xr axe 4 ,
+.Xr axge 4 ,
 .Xr bce 4 ,
 .Xr bfe 4 ,
 .Xr bge 4 ,
@@ -152,21 +164,25 @@ but as a result are not well behaved newbus device drivers.
 .Xr netintro 4 ,
 .Xr nfe 4 ,
 .Xr nge 4 ,
-.Xr nve 4 ,
 .Xr pcn 4 ,
 .Xr re 4 ,
+.Xr rgephy 4 ,
 .Xr rl 4 ,
 .Xr rue 4 ,
 .Xr sf 4 ,
+.Xr sge 4 ,
 .Xr sis 4 ,
 .Xr sk 4 ,
+.Xr smsc 4 ,
 .Xr ste 4 ,
 .Xr stge 4 ,
 .Xr tl 4 ,
 .Xr tx 4 ,
 .Xr udav 4 ,
+.Xr ure 4 ,
 .Xr vge 4 ,
 .Xr vr 4 ,
+.Xr vte 4 ,
 .Xr wb 4 ,
 .Xr xl 4
 .Sh STANDARDS
@@ -178,4 +194,4 @@ driver first appeared in
 .Fx 3.3 .
 .Sh AUTHORS
 This manual page was written by
-.An Tom Rhodes Aq trhodes@FreeBSD.org .
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org .

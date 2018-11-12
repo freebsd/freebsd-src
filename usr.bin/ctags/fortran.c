@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -52,7 +48,7 @@ static void takeprec(void);
 char *lbp;				/* line buffer pointer */
 
 int
-PF_funcs()
+PF_funcs(void)
 {
 	bool	pfcnt;			/* pascal/fortran functions found */
 	char	*cp;
@@ -128,7 +124,7 @@ PF_funcs()
 			continue;
 		*cp = EOS;
 		(void)strlcpy(tok, lbp, sizeof(tok));	/* possible trunc */
-		getline();			/* process line for ex(1) */
+		get_line();			/* process line for ex(1) */
 		pfnote(tok, lineno);
 		pfcnt = YES;
 	}

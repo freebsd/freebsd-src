@@ -45,11 +45,14 @@
 #define VSTACK		0x10	/* text is allocated on the stack */
 #define VUNSET		0x20	/* the variable is not set */
 #define VNOFUNC		0x40	/* don't call the callback function */
+#define VNOSET		0x80	/* do not set variable - just readonly test */
+#define VNOLOCAL	0x100	/* ignore forcelocal */
 
 
 struct var {
 	struct var *next;		/* next entry in hash list */
 	int flags;			/* flags are defined above */
+	int name_len;			/* length of name */
 	char *text;			/* name=value */
 	void (*func)(const char *);
 					/* function to be called when  */
@@ -65,19 +68,25 @@ struct localvar {
 };
 
 
-struct localvar *localvars;
+extern struct localvar *localvars;
+extern int forcelocal;
 
 extern struct var vifs;
 extern struct var vmail;
 extern struct var vmpath;
 extern struct var vpath;
-extern struct var vppid;
 extern struct var vps1;
 extern struct var vps2;
 extern struct var vps4;
+extern struct var vdisvfork;
 #ifndef NO_HISTORY
 extern struct var vhistsize;
+extern struct var vterm;
 #endif
+
+extern int localeisutf8;
+/* The parser uses the locale that was in effect at startup. */
+extern int initial_localeisutf8;
 
 /*
  * The following macros access the values of the above variables.
@@ -96,25 +105,26 @@ extern struct var vhistsize;
 #define optindval()	(voptind.text + 7)
 #ifndef NO_HISTORY
 #define histsizeval()	(vhistsize.text + 9)
+#define termval()	(vterm.text + 5)
 #endif
 
 #define mpathset()	((vmpath.flags & VUNSET) == 0)
+#define disvforkset()	((vdisvfork.flags & VUNSET) == 0)
 
 void initvar(void);
-void setvar(char *, char *, int);
+void setvar(const char *, const char *, int);
 void setvareq(char *, int);
-struct strlist;
-void listsetvar(struct strlist *);
-char *lookupvar(char *);
-char *bltinlookup(char *, int);
+struct arglist;
+void listsetvar(struct arglist *, int);
+char *lookupvar(const char *);
+char *bltinlookup(const char *, int);
+void bltinsetlocale(void);
+void bltinunsetlocale(void);
+void updatecharset(void);
+void initcharset(void);
 char **environment(void);
-void shprocvar(void);
 int showvarscmd(int, char **);
-int exportcmd(int, char **);
-int localcmd(int, char **);
 void mklocal(char *);
 void poplocalvars(void);
-int setvarcmd(int, char **);
-int unsetcmd(int, char **);
-int unsetvar(char *);
-int setvarsafe(char *, char *, int);
+int unsetvar(const char *);
+int setvarsafe(const char *, const char *, int);

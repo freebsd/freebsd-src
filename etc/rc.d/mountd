@@ -4,13 +4,14 @@
 #
 
 # PROVIDE: mountd
-# REQUIRE: NETWORKING nfsserver rpcbind quota
+# REQUIRE: NETWORKING rpcbind quota
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 
 name="mountd"
-rcvar=`set_rcvar`
+desc="Service remote NFS mount requests"
+rcvar="mountd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 required_files="/etc/exports"
@@ -19,11 +20,7 @@ extra_commands="reload"
 
 mountd_precmd()
 {
-	if ! checkyesno rpcbind_enable  && \
-	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
-	then
-		force_depend rpcbind || return 1
-	fi
+	force_depend rpcbind || return 1
 
 	# mountd flags will differ depending on rc.conf settings
 	#
@@ -37,20 +34,13 @@ mountd_precmd()
 		fi
 	fi
 
-	# If nfsv4_server_enable is yes, force use of the experimental
-	# server
-	#
-	if checkyesno nfsv4_server_enable; then
-		rc_flags="-e ${rc_flags}"
-	fi
-
 	if checkyesno zfs_enable; then
 		rc_flags="${rc_flags} /etc/exports /etc/zfs/exports"
 	fi
 
 	rm -f /var/db/mountdtab
-	( umask 022 ; > /var/db/mountdtab )
-	return 0
+	( umask 022 ; > /var/db/mountdtab ) ||
+	    err 1 'Cannot create /var/db/mountdtab'
 }
 
 load_rc_config $name

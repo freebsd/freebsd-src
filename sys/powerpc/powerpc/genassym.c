@@ -52,7 +52,7 @@
 #include <vm/vm_map.h>
 
 #include <machine/pcb.h>
-#include <machine/pmap.h>
+#include <machine/psl.h>
 #include <machine/sigframe.h>
 
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
@@ -61,8 +61,9 @@ ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 ASSYM(PC_TEMPSAVE, offsetof(struct pcpu, pc_tempsave));
 ASSYM(PC_DISISAVE, offsetof(struct pcpu, pc_disisave));
 ASSYM(PC_DBSAVE, offsetof(struct pcpu, pc_dbsave));
+ASSYM(PC_RESTORE, offsetof(struct pcpu, pc_restore));
 
-#ifdef E500
+#if defined(BOOKE)
 ASSYM(PC_BOOKE_CRITSAVE, offsetof(struct pcpu, pc_booke_critsave));
 ASSYM(PC_BOOKE_MCHKSAVE, offsetof(struct pcpu, pc_booke_mchksave));
 ASSYM(PC_BOOKE_TLBSAVE, offsetof(struct pcpu, pc_booke_tlbsave));
@@ -70,51 +71,69 @@ ASSYM(PC_BOOKE_TLB_LEVEL, offsetof(struct pcpu, pc_booke_tlb_level));
 ASSYM(PC_BOOKE_TLB_LOCK, offsetof(struct pcpu, pc_booke_tlb_lock));
 #endif
 
-ASSYM(CPUSAVE_R28, CPUSAVE_R28*4);
-ASSYM(CPUSAVE_R29, CPUSAVE_R29*4);
-ASSYM(CPUSAVE_R30, CPUSAVE_R30*4);
-ASSYM(CPUSAVE_R31, CPUSAVE_R31*4);
-ASSYM(CPUSAVE_SRR0, CPUSAVE_SRR0*4);
-ASSYM(CPUSAVE_SRR1, CPUSAVE_SRR1*4);
-ASSYM(CPUSAVE_AIM_DAR, CPUSAVE_AIM_DAR*4);
-ASSYM(CPUSAVE_AIM_DSISR, CPUSAVE_AIM_DSISR*4);
-ASSYM(CPUSAVE_BOOKE_DEAR, CPUSAVE_BOOKE_DEAR*4);
-ASSYM(CPUSAVE_BOOKE_ESR, CPUSAVE_BOOKE_ESR*4);
+ASSYM(CPUSAVE_R27, CPUSAVE_R27*sizeof(register_t));
+ASSYM(CPUSAVE_R28, CPUSAVE_R28*sizeof(register_t));
+ASSYM(CPUSAVE_R29, CPUSAVE_R29*sizeof(register_t));
+ASSYM(CPUSAVE_R30, CPUSAVE_R30*sizeof(register_t));
+ASSYM(CPUSAVE_R31, CPUSAVE_R31*sizeof(register_t));
+ASSYM(CPUSAVE_SRR0, CPUSAVE_SRR0*sizeof(register_t));
+ASSYM(CPUSAVE_SRR1, CPUSAVE_SRR1*sizeof(register_t));
+ASSYM(CPUSAVE_AIM_DAR, CPUSAVE_AIM_DAR*sizeof(register_t));
+ASSYM(CPUSAVE_AIM_DSISR, CPUSAVE_AIM_DSISR*sizeof(register_t));
+ASSYM(CPUSAVE_BOOKE_DEAR, CPUSAVE_BOOKE_DEAR*sizeof(register_t));
+ASSYM(CPUSAVE_BOOKE_ESR, CPUSAVE_BOOKE_ESR*sizeof(register_t));
 
-ASSYM(TLBSAVE_BOOKE_LR, TLBSAVE_BOOKE_LR*4);
-ASSYM(TLBSAVE_BOOKE_CR, TLBSAVE_BOOKE_CR*4);
-ASSYM(TLBSAVE_BOOKE_SRR0, TLBSAVE_BOOKE_SRR0*4);
-ASSYM(TLBSAVE_BOOKE_SRR1, TLBSAVE_BOOKE_SRR1*4);
-ASSYM(TLBSAVE_BOOKE_R20, TLBSAVE_BOOKE_R20*4);
-ASSYM(TLBSAVE_BOOKE_R21, TLBSAVE_BOOKE_R21*4);
-ASSYM(TLBSAVE_BOOKE_R22, TLBSAVE_BOOKE_R22*4);
-ASSYM(TLBSAVE_BOOKE_R23, TLBSAVE_BOOKE_R23*4);
-ASSYM(TLBSAVE_BOOKE_R24, TLBSAVE_BOOKE_R24*4);
-ASSYM(TLBSAVE_BOOKE_R25, TLBSAVE_BOOKE_R25*4);
-ASSYM(TLBSAVE_BOOKE_R26, TLBSAVE_BOOKE_R26*4);
-ASSYM(TLBSAVE_BOOKE_R27, TLBSAVE_BOOKE_R27*4);
-ASSYM(TLBSAVE_BOOKE_R28, TLBSAVE_BOOKE_R28*4);
-ASSYM(TLBSAVE_BOOKE_R29, TLBSAVE_BOOKE_R29*4);
-ASSYM(TLBSAVE_BOOKE_R30, TLBSAVE_BOOKE_R30*4);
-ASSYM(TLBSAVE_BOOKE_R31, TLBSAVE_BOOKE_R31*4);
+ASSYM(TLBSAVE_BOOKE_LR, TLBSAVE_BOOKE_LR*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_CR, TLBSAVE_BOOKE_CR*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_SRR0, TLBSAVE_BOOKE_SRR0*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_SRR1, TLBSAVE_BOOKE_SRR1*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R20, TLBSAVE_BOOKE_R20*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R21, TLBSAVE_BOOKE_R21*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R22, TLBSAVE_BOOKE_R22*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R23, TLBSAVE_BOOKE_R23*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R24, TLBSAVE_BOOKE_R24*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R25, TLBSAVE_BOOKE_R25*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R26, TLBSAVE_BOOKE_R26*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R27, TLBSAVE_BOOKE_R27*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R28, TLBSAVE_BOOKE_R28*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R29, TLBSAVE_BOOKE_R29*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R30, TLBSAVE_BOOKE_R30*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R31, TLBSAVE_BOOKE_R31*sizeof(register_t));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 
 #if defined(AIM)
-ASSYM(PM_KERNELSR, offsetof(struct pmap, pm_sr[KERNEL_SR]));
-ASSYM(PM_USRSR, offsetof(struct pmap, pm_sr[USER_SR]));
+ASSYM(USER_ADDR, USER_ADDR);
+#ifdef __powerpc64__
+ASSYM(PC_KERNSLB, offsetof(struct pcpu, pc_slb));
+ASSYM(PC_USERSLB, offsetof(struct pcpu, pc_userslb));
+ASSYM(PC_SLBSAVE, offsetof(struct pcpu, pc_slbsave));
+ASSYM(PC_SLBSTACK, offsetof(struct pcpu, pc_slbstack));
+ASSYM(USER_SLB_SLOT, USER_SLB_SLOT);
+ASSYM(USER_SLB_SLBE, USER_SLB_SLBE);
+ASSYM(SEGMENT_MASK, SEGMENT_MASK);
+#else
 ASSYM(PM_SR, offsetof(struct pmap, pm_sr));
-#elif defined(E500)
+ASSYM(USER_SR, USER_SR);
+#endif
+#elif defined(BOOKE)
 ASSYM(PM_PDIR, offsetof(struct pmap, pm_pdir));
+/*
+ * With pte_t being a bitfield struct, these fields cannot be addressed via
+ * offsetof().
+ */
+ASSYM(PTE_RPN, 0);
+ASSYM(PTE_FLAGS, sizeof(uint32_t));
+#if defined(BOOKE_E500)
+ASSYM(TLB_ENTRY_SIZE, sizeof(struct tlb_entry));
+#endif
 #endif
 
-#if defined(E500)
-ASSYM(PTE_RPN, offsetof(struct pte, rpn));
-ASSYM(PTE_FLAGS, offsetof(struct pte, flags));
-ASSYM(TLB0_ENTRY_SIZE, sizeof(struct tlb_entry));
-#endif
-
+#ifdef __powerpc64__
+ASSYM(FSP, 48);
+#else
 ASSYM(FSP, 8);
+#endif
 ASSYM(FRAMELEN, FRAMELEN);
 ASSYM(FRAME_0, offsetof(struct trapframe, fixreg[0]));
 ASSYM(FRAME_1, offsetof(struct trapframe, fixreg[1]));
@@ -155,9 +174,9 @@ ASSYM(FRAME_XER, offsetof(struct trapframe, xer));
 ASSYM(FRAME_SRR0, offsetof(struct trapframe, srr0));
 ASSYM(FRAME_SRR1, offsetof(struct trapframe, srr1));
 ASSYM(FRAME_EXC, offsetof(struct trapframe, exc));
-ASSYM(FRAME_AIM_DAR, offsetof(struct trapframe, cpu.aim.dar));
+ASSYM(FRAME_AIM_DAR, offsetof(struct trapframe, dar));
 ASSYM(FRAME_AIM_DSISR, offsetof(struct trapframe, cpu.aim.dsisr));
-ASSYM(FRAME_BOOKE_DEAR, offsetof(struct trapframe, cpu.booke.dear));
+ASSYM(FRAME_BOOKE_DEAR, offsetof(struct trapframe, dar));
 ASSYM(FRAME_BOOKE_ESR, offsetof(struct trapframe, cpu.booke.esr));
 ASSYM(FRAME_BOOKE_DBCR0, offsetof(struct trapframe, cpu.booke.dbcr0));
 
@@ -169,15 +188,14 @@ ASSYM(CF_SIZE, sizeof(struct callframe));
 ASSYM(PCB_CONTEXT, offsetof(struct pcb, pcb_context));
 ASSYM(PCB_CR, offsetof(struct pcb, pcb_cr));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
+ASSYM(PCB_TOC, offsetof(struct pcb, pcb_toc));
 ASSYM(PCB_LR, offsetof(struct pcb, pcb_lr));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_FPU, PCB_FPU);
 ASSYM(PCB_VEC, PCB_VEC);
 
-ASSYM(PCB_AIM_USR, offsetof(struct pcb, pcb_cpu.aim.usr));
-ASSYM(PCB_BOOKE_CTR, offsetof(struct pcb, pcb_cpu.booke.ctr));
-ASSYM(PCB_BOOKE_XER, offsetof(struct pcb, pcb_cpu.booke.xer));
+ASSYM(PCB_AIM_USR_VSID, offsetof(struct pcb, pcb_cpu.aim.usr_vsid));
 ASSYM(PCB_BOOKE_DBCR0, offsetof(struct pcb, pcb_cpu.booke.dbcr0));
 
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
@@ -197,3 +215,48 @@ ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));
 
 ASSYM(KERNBASE, KERNBASE);
 ASSYM(MAXCOMLEN, MAXCOMLEN);
+
+ASSYM(PSL_DE, PSL_DE);
+ASSYM(PSL_DS, PSL_DS);
+ASSYM(PSL_IS, PSL_IS);
+ASSYM(PSL_CE, PSL_CE);
+ASSYM(PSL_UCLE, PSL_UCLE);
+ASSYM(PSL_WE, PSL_WE);
+ASSYM(PSL_UBLE, PSL_UBLE);
+
+#if defined(BOOKE_E500)
+ASSYM(PSL_KERNSET_INIT, PSL_KERNSET_INIT);
+#endif
+
+#if defined(AIM) && defined(__powerpc64__)
+ASSYM(PSL_SF, PSL_SF);
+ASSYM(PSL_HV, PSL_HV);
+#endif
+
+ASSYM(PSL_POW, PSL_POW);
+ASSYM(PSL_ILE, PSL_ILE);
+ASSYM(PSL_LE, PSL_LE);
+ASSYM(PSL_SE, PSL_SE);
+ASSYM(PSL_RI, PSL_RI);
+ASSYM(PSL_DR, PSL_DR);
+ASSYM(PSL_IP, PSL_IP);
+ASSYM(PSL_IR, PSL_IR);
+
+ASSYM(PSL_FE_DIS, PSL_FE_DIS);
+ASSYM(PSL_FE_NONREC, PSL_FE_NONREC);
+ASSYM(PSL_FE_PREC, PSL_FE_PREC);
+ASSYM(PSL_FE_REC, PSL_FE_REC);
+
+ASSYM(PSL_VEC, PSL_VEC);
+ASSYM(PSL_BE, PSL_BE);
+ASSYM(PSL_EE, PSL_EE);
+ASSYM(PSL_FE0, PSL_FE0);
+ASSYM(PSL_FE1, PSL_FE1);
+ASSYM(PSL_FP, PSL_FP);
+ASSYM(PSL_ME, PSL_ME);
+ASSYM(PSL_PR, PSL_PR);
+ASSYM(PSL_PMM, PSL_PMM);
+ASSYM(PSL_KERNSET, PSL_KERNSET);
+ASSYM(PSL_USERSET, PSL_USERSET);
+ASSYM(PSL_USERSTATIC, PSL_USERSTATIC);
+

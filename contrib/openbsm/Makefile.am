@@ -1,7 +1,3 @@
-#
-# $P4: //depot/projects/trustedbsd/openbsm/Makefile.am#4 $
-#
-
 SUBDIRS =		\
 	bsm
 
@@ -17,6 +13,7 @@ SUBDIRS +=              \
 	modules		\
 	sys
 
+ACLOCAL_AMFLAGS = -I m4
 
 EXTRA_DIST =		\
 	CHANGELOG	\

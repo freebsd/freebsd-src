@@ -50,6 +50,23 @@ __FBSDID("$FreeBSD$");
 #include <fs/cd9660/cd9660_node.h>
 #include <fs/cd9660/iso_rrip.h>
 
+struct cd9660_ino_alloc_arg {
+	ino_t ino;
+	ino_t i_ino;
+	struct iso_directory_record *ep;
+};
+
+static int
+cd9660_ino_alloc(struct mount *mp, void *arg, int lkflags,
+    struct vnode **vpp)
+{
+	struct cd9660_ino_alloc_arg *dd_arg;
+
+	dd_arg = arg;
+	return (cd9660_vget_internal(mp, dd_arg->i_ino, lkflags, vpp,
+	    dd_arg->i_ino != dd_arg->ino, dd_arg->ep));
+}
+
 /*
  * Convert a component of a pathname into a pointer to a locked inode.
  * This is a very central and rather complicated routine.
@@ -104,6 +121,7 @@ cd9660_lookup(ap)
 	doff_t endsearch;		/* offset to end directory search */
 	struct vnode *pdp;		/* saved dp during symlink work */
 	struct vnode *tdp;		/* returned by cd9660_vget_internal */
+	struct cd9660_ino_alloc_arg dd_arg;
 	u_long bmask;			/* block offset mask */
 	int error;
 	ino_t ino, i_ino;
@@ -114,7 +132,6 @@ cd9660_lookup(ap)
 	int res;
 	int assoc, len;
 	char *name;
-	struct mount *mp;
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
 	int flags = cnp->cn_flags;
@@ -368,39 +385,13 @@ found:
 	 * it's a relocated directory.
 	 */
 	if (flags & ISDOTDOT) {
-		/*
-		 * Expanded copy of vn_vget_ino() so that we can use
-		 * cd9660_vget_internal().
-		 */
-		mp = pdp->v_mount;
-		ltype = VOP_ISLOCKED(pdp);
-		error = vfs_busy(mp, MBF_NOWAIT);
-		if (error != 0) {
-			vfs_ref(mp);
-			VOP_UNLOCK(pdp, 0);
-			error = vfs_busy(mp, 0);
-			vn_lock(pdp, ltype | LK_RETRY);
-			vfs_rel(mp);
-			if (error)
-				return (ENOENT);
-			if (pdp->v_iflag & VI_DOOMED) {
-				vfs_unbusy(mp);
-				return (ENOENT);
-			}
-		}
-		VOP_UNLOCK(pdp, 0);
-		error = cd9660_vget_internal(vdp->v_mount, i_ino,
-					     cnp->cn_lkflags, &tdp,
-					     i_ino != ino, ep);
+		dd_arg.ino = ino;
+		dd_arg.i_ino = i_ino;
+		dd_arg.ep = ep;
+		error = vn_vget_ino_gen(pdp, cd9660_ino_alloc, &dd_arg,
+		    cnp->cn_lkflags, &tdp);
 		free(ep2, M_TEMP);
-		vfs_unbusy(mp);
-		vn_lock(pdp, ltype | LK_RETRY);
-		if (pdp->v_iflag & VI_DOOMED) {
-			if (error == 0)
-				vput(tdp);
-			error = ENOENT;
-		}
-		if (error)
+		if (error != 0)
 			return (error);
 		*vpp = tdp;
 	} else if (dp->i_number == i_ino) {

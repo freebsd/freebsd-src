@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -52,11 +48,12 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <ctype.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-long	flags;
+static long	flags;
 #define	TRANSPOSE	000001
 #define	MTRANSPOSE	000002
 #define	ONEPERLINE	000004
@@ -75,34 +72,34 @@ long	flags;
 #define ONEPERCHAR	0100000
 #define NOARGS		0200000
 
-short	*colwidths;
-short	*cord;
-short	*icbd;
-short	*ocbd;
-int	nelem;
-char	**elem;
-char	**endelem;
-char	*curline;
-int	allocsize = BUFSIZ;
-int	curlen;
-int	irows, icols;
-int	orows = 0, ocols = 0;
-int	maxlen;
-int	skip;
-int	propgutter;
-char	isep = ' ', osep = ' ';
-char	blank[] = "";
-int	owidth = 80, gutter = 2;
+static short	*colwidths;
+static short	*cord;
+static short	*icbd;
+static short	*ocbd;
+static int	nelem;
+static char	**elem;
+static char	**endelem;
+static char	*curline;
+static int	allocsize = BUFSIZ;
+static int	curlen;
+static int	irows, icols;
+static int	orows = 0, ocols = 0;
+static int	maxlen;
+static int	skip;
+static int	propgutter;
+static char	isep = ' ', osep = ' ';
+static char	blank[] = "";
+static int	owidth = 80, gutter = 2;
 
-void	  getargs(int, char *[]);
-void	  getfile(void);
-int	  getline(void);
-char	 *getlist(short **, char *);
-char	 *getnum(int *, char *, int);
-char	**getptrs(char **);
-void	  prepfile(void);
-void	  prints(char *, int);
-void	  putfile(void);
+static void	  getargs(int, char *[]);
+static void	  getfile(void);
+static int	  get_line(void);
+static char	 *getlist(short **, char *);
+static char	 *getnum(int *, char *, int);
+static char	**getptrs(char **);
+static void	  prepfile(void);
+static void	  prints(char *, int);
+static void	  putfile(void);
 static void usage(void);
 
 #define	INCR(ep) do {			\
@@ -124,22 +121,25 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
-void
+static void
 getfile(void)
 {
 	char *p;
 	char *endp;
 	char **ep;
+	int c;
 	int multisep = (flags & ONEISEPONLY ? 0 : 1);
 	int nullpad = flags & NULLPAD;
 	char **padto;
 
 	while (skip--) {
-		getline();
+		c = get_line();
 		if (flags & SKIPPRINT)
 			puts(curline);
+		if (c == EOF)
+			return;
 	}
-	getline();
+	get_line();
 	if (flags & NOARGS && curlen < owidth)
 		flags |= ONEPERLINE;
 	if (flags & ONEPERLINE)
@@ -184,12 +184,12 @@ getfile(void)
 				INCR(ep);
 			}
 		}
-	} while (getline() != EOF);
+	} while (get_line() != EOF);
 	*ep = 0;				/* mark end of pointers */
 	nelem = ep - elem;
 }
 
-void
+static void
 putfile(void)
 {
 	char **ep;
@@ -211,7 +211,7 @@ putfile(void)
 		}
 }
 
-void
+static void
 prints(char *s, int col)
 {
 	int n;
@@ -237,7 +237,7 @@ usage(void)
 	exit(1);
 }
 
-void
+static void
 prepfile(void)
 {
 	char **ep;
@@ -329,11 +329,11 @@ prepfile(void)
 		warnx("%d is colwidths, nelem %d", colwidths[i], nelem);*/
 }
 
-#define	BSIZE	2048
-char	ibuf[BSIZE];		/* two screenfuls should do */
+#define	BSIZE	(LINE_MAX * 2)
+static char	ibuf[BSIZE];
 
-int
-getline(void)	/* get line; maintain curline, curlen; manage storage */
+static int
+get_line(void)	/* get line; maintain curline, curlen; manage storage */
 {
 	static	int putlength;
 	static	char *endblock = ibuf + BSIZE;
@@ -351,7 +351,7 @@ getline(void)	/* get line; maintain curline, curlen; manage storage */
 			curline = ibuf;
 		}
 	}
-	if (!putlength && endblock - curline < BUFSIZ) {   /* need storage */
+	if (!putlength && endblock - curline < LINE_MAX + 1) { /* need storage */
 		/*ww = endblock-curline; tt += ww;*/
 		/*printf("#wasted %d total %d\n",ww,tt);*/
 		if (!(curline = (char *) malloc(BSIZE)))
@@ -359,15 +359,20 @@ getline(void)	/* get line; maintain curline, curlen; manage storage */
 		endblock = curline + BSIZE;
 		/*printf("#endb %d curline %d\n",endblock,curline);*/
 	}
-	for (p = curline, i = 1; i < BUFSIZ; *p++ = c, i++)
-		if ((c = getchar()) == EOF || c == '\n')
+	for (p = curline, i = 0;; *p++ = c, i++) {
+		if ((c = getchar()) == EOF)
 			break;
+		if (i >= LINE_MAX)
+			errx(1, "maximum line length (%d) exceeded", LINE_MAX);
+		if (c == '\n')
+			break;
+	}
 	*p = '\0';
-	curlen = i - 1;
+	curlen = i;
 	return(c);
 }
 
-char **
+static char **
 getptrs(char **sp)
 {
 	char **p;
@@ -382,7 +387,7 @@ getptrs(char **sp)
 	return(sp);
 }
 
-void
+static void
 getargs(int ac, char *av[])
 {
 	char *p;
@@ -493,7 +498,7 @@ getargs(int ac, char *av[])
 	}
 }
 
-char *
+static char *
 getlist(short **list, char *p)
 {
 	int count = 1;
@@ -529,7 +534,7 @@ getlist(short **list, char *p)
  * num = number p points to; if (strict) complain
  * returns pointer to end of num
  */
-char *
+static char *
 getnum(int *num, char *p, int strict)
 {
 	char *t = p;

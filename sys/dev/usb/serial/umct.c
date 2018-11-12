@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -87,6 +86,15 @@ __FBSDID("$FreeBSD$");
 #define	UMCT_SET_MCR		10	/* Set Modem Control Register */
 #define	UMCT_SET_MCR_SIZE	1
 
+#define	UMCT_MSR_CTS_CHG	0x01
+#define	UMCT_MSR_DSR_CHG	0x02
+#define	UMCT_MSR_RI_CHG		0x04
+#define	UMCT_MSR_CD_CHG		0x08
+#define	UMCT_MSR_CTS		0x10
+#define	UMCT_MSR_RTS		0x20
+#define	UMCT_MSR_RI		0x40
+#define	UMCT_MSR_CD		0x80
+
 #define	UMCT_INTR_INTERVAL	100
 #define	UMCT_IFACE_INDEX	0
 #define	UMCT_CONFIG_INDEX	0
@@ -116,7 +124,6 @@ struct umct_softc {
 	uint8_t	sc_mcr;
 	uint8_t	sc_iface_no;
 	uint8_t sc_swap_cb;
-	uint8_t	sc_name[16];
 };
 
 /* prototypes */
@@ -124,6 +131,7 @@ struct umct_softc {
 static device_probe_t umct_probe;
 static device_attach_t umct_attach;
 static device_detach_t umct_detach;
+static void umct_free_softc(struct umct_softc *);
 
 static usb_callback_t umct_intr_callback;
 static usb_callback_t umct_intr_callback_sub;
@@ -133,6 +141,7 @@ static usb_callback_t umct_write_callback;
 
 static void	umct_cfg_do_request(struct umct_softc *sc, uint8_t request,
 		    uint16_t len, uint32_t value);
+static void	umct_free(struct ucom_softc *);
 static void	umct_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
 static void	umct_cfg_set_break(struct ucom_softc *, uint8_t);
@@ -191,9 +200,10 @@ static const struct ucom_callback umct_callback = {
 	.ucom_start_write = &umct_start_write,
 	.ucom_stop_write = &umct_stop_write,
 	.ucom_poll = &umct_poll,
+	.ucom_free = &umct_free,
 };
 
-static const struct usb_device_id umct_devs[] = {
+static const STRUCT_USB_HOST_ID umct_devs[] = {
 	{USB_VPI(USB_VENDOR_MCT, USB_PRODUCT_MCT_USB232, 0)},
 	{USB_VPI(USB_VENDOR_MCT, USB_PRODUCT_MCT_SITECOM_USB232, 0)},
 	{USB_VPI(USB_VENDOR_MCT, USB_PRODUCT_MCT_DU_H3SP_USB232, 0)},
@@ -205,7 +215,7 @@ static device_method_t umct_methods[] = {
 	DEVMETHOD(device_probe, umct_probe),
 	DEVMETHOD(device_attach, umct_attach),
 	DEVMETHOD(device_detach, umct_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t umct_devclass;
@@ -219,6 +229,8 @@ static driver_t umct_driver = {
 DRIVER_MODULE(umct, uhub, umct_driver, umct_devclass, NULL, 0);
 MODULE_DEPEND(umct, ucom, 1, 1, 1);
 MODULE_DEPEND(umct, usb, 1, 1, 1);
+MODULE_VERSION(umct, 1);
+USB_PNP_HOST_INFO(umct_devs);
 
 static int
 umct_probe(device_t dev)
@@ -251,9 +263,7 @@ umct_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "umct", NULL, MTX_DEF);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name),
-	    "%s", device_get_nameunit(dev));
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 
@@ -263,7 +273,7 @@ umct_attach(device_t dev)
 
 	if (error) {
 		device_printf(dev, "allocating USB "
-		    "transfers failed!\n");
+		    "transfers failed\n");
 		goto detach;
 	}
 
@@ -296,6 +306,8 @@ umct_attach(device_t dev)
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	return (0);			/* success */
 
 detach:
@@ -308,11 +320,31 @@ umct_detach(device_t dev)
 {
 	struct umct_softc *sc = device_get_softc(dev);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UMCT_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	umct_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(umct);
+
+static void
+umct_free_softc(struct umct_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+umct_free(struct ucom_softc *ucom)
+{
+	umct_free_softc(ucom->sc_parent);
 }
 
 static void
@@ -361,11 +393,23 @@ umct_intr_callback_sub(struct usb_xfer *xfer, usb_error_t error)
 		pc = usbd_xfer_get_frame(xfer, 0);
 		usbd_copy_out(pc, 0, buf, sizeof(buf));
 
-		sc->sc_msr = buf[0];
+		/*
+		 * MSR bits need translation from ns16550 to SER_* values.
+		 * LSR bits are ns16550 in hardware and ucom.
+		 */
+		sc->sc_msr = 0;
+		if (buf[0] & UMCT_MSR_CTS)
+			sc->sc_msr |= SER_CTS;
+		if (buf[0] & UMCT_MSR_CD)
+			sc->sc_msr |= SER_DCD;
+		if (buf[0] & UMCT_MSR_RI)
+			sc->sc_msr |= SER_RI;
+		if (buf[0] & UMCT_MSR_RTS)
+			sc->sc_msr |= SER_DSR;
 		sc->sc_lsr = buf[1];
 
 		ucom_status_change(&sc->sc_ucom);
-
+		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));

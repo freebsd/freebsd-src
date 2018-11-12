@@ -14,13 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -65,7 +58,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * 	from: NetBSD: bus.h,v 1.28 2001/07/19 15:32:19 thorpej Exp
+ * 	from: NetBSD: bus.h,v 1.58 2008/04/28 20:23:36 martin Exp
  *	and
  *	from: FreeBSD: src/sys/alpha/include/bus.h,v 1.9 2001/01/09
  *
@@ -85,14 +78,17 @@
 struct bus_dma_methods {
 	int	(*dm_dmamap_create)(bus_dma_tag_t, int, bus_dmamap_t *);
 	int	(*dm_dmamap_destroy)(bus_dma_tag_t, bus_dmamap_t);
-	int	(*dm_dmamap_load)(bus_dma_tag_t, bus_dmamap_t, void *,
-	    bus_size_t, bus_dmamap_callback_t *, void *, int);
-	int	(*dm_dmamap_load_mbuf)(bus_dma_tag_t, bus_dmamap_t,
-	    struct mbuf *, bus_dmamap_callback2_t *, void *, int);
-	int	(*dm_dmamap_load_mbuf_sg)(bus_dma_tag_t, bus_dmamap_t,
-	    struct mbuf *, bus_dma_segment_t *segs, int *nsegs, int);
-	int	(*dm_dmamap_load_uio)(bus_dma_tag_t, bus_dmamap_t, struct uio *,
-	    bus_dmamap_callback2_t *, void *, int);
+	int	(*dm_dmamap_load_phys)(bus_dma_tag_t dmat, bus_dmamap_t map,
+	    vm_paddr_t buf, bus_size_t buflen, int flags,
+	    bus_dma_segment_t *segs, int *segp);
+	int	(*dm_dmamap_load_buffer)(bus_dma_tag_t dmat, bus_dmamap_t map,
+	    void *buf, bus_size_t buflen, struct pmap *pmap, int flags,
+	    bus_dma_segment_t *segs, int *segp);
+	void	(*dm_dmamap_waitok)(bus_dma_tag_t dmat, bus_dmamap_t map,
+	    struct memdesc *mem, bus_dmamap_callback_t *callback,
+	    void *callback_arg);
+	bus_dma_segment_t *(*dm_dmamap_complete)(bus_dma_tag_t dmat,
+	    bus_dmamap_t map, bus_dma_segment_t *segs, int nsegs, int error);
 	void	(*dm_dmamap_unload)(bus_dma_tag_t, bus_dmamap_t);
 	void	(*dm_dmamap_sync)(bus_dma_tag_t, bus_dmamap_t,
 	    bus_dmasync_op_t);
@@ -110,7 +106,7 @@ struct bus_dma_tag {
 	void		*dt_cookie;		/* cookie used in the guts */
 	bus_dma_tag_t	dt_parent;
 	bus_size_t	dt_alignment;
-	bus_size_t	dt_boundary;
+	bus_addr_t	dt_boundary;
 	bus_addr_t	dt_lowaddr;
 	bus_addr_t	dt_highaddr;
 	bus_dma_filter_t	*dt_filter;
@@ -132,14 +128,16 @@ struct bus_dma_tag {
 	((t)->dt_mt->dm_dmamap_create((t), (f), (p)))
 #define	bus_dmamap_destroy(t, p)					\
 	((t)->dt_mt->dm_dmamap_destroy((t), (p)))
-#define	bus_dmamap_load(t, m, p, s, cb, cba, f)				\
-	((t)->dt_mt->dm_dmamap_load((t), (m), (p), (s), (cb), (cba), (f)))
-#define	bus_dmamap_load_mbuf(t, m, mb, cb, cba, f)			\
-	((t)->dt_mt->dm_dmamap_load_mbuf((t), (m), (mb), (cb), (cba), (f)))
-#define	bus_dmamap_load_mbuf_sg(t, m, mb, segs, nsegs, f)		\
-	((t)->dt_mt->dm_dmamap_load_mbuf_sg((t), (m), (mb), (segs), (nsegs), (f)))
-#define	bus_dmamap_load_uio(t, m, ui, cb, cba, f)			\
-	((t)->dt_mt->dm_dmamap_load_uio((t), (m), (ui), (cb), (cba), (f)))
+#define	_bus_dmamap_load_phys(t, m, b, l, f, s, sp)			\
+	((t)->dt_mt->dm_dmamap_load_phys((t), (m), (b), (l),		\
+	    (f), (s), (sp)))
+#define	_bus_dmamap_load_buffer(t, m, b, l, p, f, s, sp)		\
+	((t)->dt_mt->dm_dmamap_load_buffer((t), (m), (b), (l), (p),	\
+	    (f), (s), (sp)))
+#define	_bus_dmamap_waitok(t, m, mem, c, ca)				\
+	((t)->dt_mt->dm_dmamap_waitok((t), (m), (mem), (c), (ca)))
+#define	_bus_dmamap_complete(t, m, s, n, e)				\
+	((t)->dt_mt->dm_dmamap_complete((t), (m), (s), (n), (e)))
 #define	bus_dmamap_unload(t, p)						\
 	((t)->dt_mt->dm_dmamap_unload((t), (p)))
 #define	bus_dmamap_sync(t, m, op)					\
@@ -148,5 +146,7 @@ struct bus_dma_tag {
 	((t)->dt_mt->dm_dmamem_alloc((t), (v), (f), (m)))
 #define	bus_dmamem_free(t, v, m)					\
 	((t)->dt_mt->dm_dmamem_free((t), (v), (m)))
+#define _bus_dmamap_load_ma(t, m, a, tt, o, f, s, p)			\
+	bus_dmamap_load_ma_triv((t), (m), (a), (tt), (o), (f), (s), (p))
 
 #endif /* !_SPARC64_BUS_DMA_H_ */

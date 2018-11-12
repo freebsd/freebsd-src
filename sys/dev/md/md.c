@@ -18,10 +18,15 @@
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2013 The FreeBSD Foundation
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * the Systems Programming Group of the University of Utah Computer
  * Science Department.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,12 +58,14 @@
  * From: src/sys/dev/vn/vn.c,v 1.122 2000/12/16 16:06:03
  */
 
+#include "opt_rootdevname.h"
 #include "opt_geom.h"
 #include "opt_md.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
+#include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/devicestat.h>
 #include <sys/fcntl.h>
@@ -75,19 +82,25 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/rwlock.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 #include <vm/uma.h>
+
+#include <machine/bus.h>
 
 #define MD_MODVER 1
 
@@ -102,34 +115,47 @@ static MALLOC_DEFINE(M_MD, "md_disk", "Memory Disk");
 static MALLOC_DEFINE(M_MDSECT, "md_sectors", "Memory Disk Sectors");
 
 static int md_debug;
-SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &md_debug, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &md_debug, 0,
+    "Enable md(4) debug messages");
+static int md_malloc_wait;
+SYSCTL_INT(_vm, OID_AUTO, md_malloc_wait, CTLFLAG_RW, &md_malloc_wait, 0,
+    "Allow malloc to wait for memory allocations");
 
-#if defined(MD_ROOT) && defined(MD_ROOT_SIZE)
+#if defined(MD_ROOT) && !defined(MD_ROOT_FSTYPE)
+#define	MD_ROOT_FSTYPE	"ufs"
+#endif
+
+#if defined(MD_ROOT)
 /*
  * Preloaded image gets put here.
- * Applications that patch the object with the image can determine
- * the size looking at the start and end markers (strings),
- * so we want them contiguous.
  */
-static struct {
-	u_char start[MD_ROOT_SIZE*1024];
-	u_char end[128];
-} mfs_root = {
-	.start = "MFS Filesystem goes here",
-	.end = "MFS Filesystem had better STOP here",
-};
+#if defined(MD_ROOT_SIZE)
+/*
+ * We put the mfs_root symbol into the oldmfs section of the kernel object file.
+ * Applications that patch the object with the image can determine
+ * the size looking at the oldmfs section size within the kernel.
+ */
+u_char mfs_root[MD_ROOT_SIZE*1024] __attribute__ ((section ("oldmfs")));
+const int mfs_root_size = sizeof(mfs_root);
+#else
+extern volatile u_char __weak_symbol mfs_root;
+extern volatile u_char __weak_symbol mfs_root_end;
+__GLOBL(mfs_root);
+__GLOBL(mfs_root_end);
+#define mfs_root_size ((uintptr_t)(&mfs_root_end - &mfs_root))
+#endif
 #endif
 
 static g_init_t g_md_init;
 static g_fini_t g_md_fini;
 static g_start_t g_md_start;
 static g_access_t g_md_access;
-static void g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, 
-    struct g_consumer *cp __unused, struct g_provider *pp);
+static void g_md_dumpconf(struct sbuf *sb, const char *indent,
+    struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp);
 
-static int	mdunits;
 static struct cdev *status_dev = 0;
 static struct sx md_sx;
+static struct unrhdr *md_uh;
 
 static d_ioctl_t mdctlioctl;
 
@@ -152,11 +178,13 @@ struct g_class g_md_class = {
 DECLARE_GEOM_CLASS(g_md_class, g_md);
 
 
-static LIST_HEAD(, md_s) md_softc_list = LIST_HEAD_INITIALIZER(&md_softc_list);
+static LIST_HEAD(, md_s) md_softc_list = LIST_HEAD_INITIALIZER(md_softc_list);
 
 #define NINDIR	(PAGE_SIZE / sizeof(uintptr_t))
 #define NMASK	(NINDIR-1)
 static int nshift;
+
+static int md_vnode_pbuf_freecnt;
 
 struct indir {
 	uintptr_t	*array;
@@ -170,6 +198,7 @@ struct md_s {
 	LIST_ENTRY(md_s) list;
 	struct bio_queue_head bio_queue;
 	struct mtx queue_mtx;
+	struct mtx stat_mtx;
 	struct cdev *dev;
 	enum md_types type;
 	off_t mediasize;
@@ -207,11 +236,12 @@ new_indir(u_int shift)
 {
 	struct indir *ip;
 
-	ip = malloc(sizeof *ip, M_MD, M_NOWAIT | M_ZERO);
+	ip = malloc(sizeof *ip, M_MD, (md_malloc_wait ? M_WAITOK : M_NOWAIT)
+	    | M_ZERO);
 	if (ip == NULL)
 		return (NULL);
 	ip->array = malloc(sizeof(uintptr_t) * NINDIR,
-	    M_MDSECT, M_NOWAIT | M_ZERO);
+	    M_MDSECT, (md_malloc_wait ? M_WAITOK : M_NOWAIT) | M_ZERO);
 	if (ip->array == NULL) {
 		free(ip, M_MD);
 		return (NULL);
@@ -255,7 +285,7 @@ dimension(off_t size)
 {
 	off_t rcnt;
 	struct indir *ip;
-	int i, layer;
+	int layer;
 
 	rcnt = size;
 	layer = 0;
@@ -263,9 +293,6 @@ dimension(off_t size)
 		rcnt /= NINDIR;
 		layer++;
 	}
-	/* figure out log2(NINDIR) */
-	for (i = NINDIR, nshift = -1; i; nshift++)
-		i >>= 1;
 
 	/*
 	 * XXX: the top layer is probably not fully populated, so we allocate
@@ -398,19 +425,172 @@ g_md_start(struct bio *bp)
 	struct md_s *sc;
 
 	sc = bp->bio_to->geom->softc;
-	if ((bp->bio_cmd == BIO_READ) || (bp->bio_cmd == BIO_WRITE))
+	if ((bp->bio_cmd == BIO_READ) || (bp->bio_cmd == BIO_WRITE)) {
+		mtx_lock(&sc->stat_mtx);
 		devstat_start_transaction_bio(sc->devstat, bp);
+		mtx_unlock(&sc->stat_mtx);
+	}
 	mtx_lock(&sc->queue_mtx);
 	bioq_disksort(&sc->bio_queue, bp);
 	mtx_unlock(&sc->queue_mtx);
 	wakeup(sc);
 }
 
+#define	MD_MALLOC_MOVE_ZERO	1
+#define	MD_MALLOC_MOVE_FILL	2
+#define	MD_MALLOC_MOVE_READ	3
+#define	MD_MALLOC_MOVE_WRITE	4
+#define	MD_MALLOC_MOVE_CMP	5
+
+static int
+md_malloc_move_ma(vm_page_t **mp, int *ma_offs, unsigned sectorsize,
+    void *ptr, u_char fill, int op)
+{
+	struct sf_buf *sf;
+	vm_page_t m, *mp1;
+	char *p, first;
+	off_t *uc;
+	unsigned n;
+	int error, i, ma_offs1, sz, first_read;
+
+	m = NULL;
+	error = 0;
+	sf = NULL;
+	/* if (op == MD_MALLOC_MOVE_CMP) { gcc */
+		first = 0;
+		first_read = 0;
+		uc = ptr;
+		mp1 = *mp;
+		ma_offs1 = *ma_offs;
+	/* } */
+	sched_pin();
+	for (n = sectorsize; n != 0; n -= sz) {
+		sz = imin(PAGE_SIZE - *ma_offs, n);
+		if (m != **mp) {
+			if (sf != NULL)
+				sf_buf_free(sf);
+			m = **mp;
+			sf = sf_buf_alloc(m, SFB_CPUPRIVATE |
+			    (md_malloc_wait ? 0 : SFB_NOWAIT));
+			if (sf == NULL) {
+				error = ENOMEM;
+				break;
+			}
+		}
+		p = (char *)sf_buf_kva(sf) + *ma_offs;
+		switch (op) {
+		case MD_MALLOC_MOVE_ZERO:
+			bzero(p, sz);
+			break;
+		case MD_MALLOC_MOVE_FILL:
+			memset(p, fill, sz);
+			break;
+		case MD_MALLOC_MOVE_READ:
+			bcopy(ptr, p, sz);
+			cpu_flush_dcache(p, sz);
+			break;
+		case MD_MALLOC_MOVE_WRITE:
+			bcopy(p, ptr, sz);
+			break;
+		case MD_MALLOC_MOVE_CMP:
+			for (i = 0; i < sz; i++, p++) {
+				if (!first_read) {
+					*uc = (u_char)*p;
+					first = *p;
+					first_read = 1;
+				} else if (*p != first) {
+					error = EDOOFUS;
+					break;
+				}
+			}
+			break;
+		default:
+			KASSERT(0, ("md_malloc_move_ma unknown op %d\n", op));
+			break;
+		}
+		if (error != 0)
+			break;
+		*ma_offs += sz;
+		*ma_offs %= PAGE_SIZE;
+		if (*ma_offs == 0)
+			(*mp)++;
+		ptr = (char *)ptr + sz;
+	}
+
+	if (sf != NULL)
+		sf_buf_free(sf);
+	sched_unpin();
+	if (op == MD_MALLOC_MOVE_CMP && error != 0) {
+		*mp = mp1;
+		*ma_offs = ma_offs1;
+	}
+	return (error);
+}
+
+static int
+md_malloc_move_vlist(bus_dma_segment_t **pvlist, int *pma_offs,
+    unsigned len, void *ptr, u_char fill, int op)
+{
+	bus_dma_segment_t *vlist;
+	uint8_t *p, *end, first;
+	off_t *uc;
+	int ma_offs, seg_len;
+
+	vlist = *pvlist;
+	ma_offs = *pma_offs;
+	uc = ptr;
+
+	for (; len != 0; len -= seg_len) {
+		seg_len = imin(vlist->ds_len - ma_offs, len);
+		p = (uint8_t *)(uintptr_t)vlist->ds_addr + ma_offs;
+		switch (op) {
+		case MD_MALLOC_MOVE_ZERO:
+			bzero(p, seg_len);
+			break;
+		case MD_MALLOC_MOVE_FILL:
+			memset(p, fill, seg_len);
+			break;
+		case MD_MALLOC_MOVE_READ:
+			bcopy(ptr, p, seg_len);
+			cpu_flush_dcache(p, seg_len);
+			break;
+		case MD_MALLOC_MOVE_WRITE:
+			bcopy(p, ptr, seg_len);
+			break;
+		case MD_MALLOC_MOVE_CMP:
+			end = p + seg_len;
+			first = *uc = *p;
+			/* Confirm all following bytes match the first */
+			while (++p < end) {
+				if (*p != first)
+					return (EDOOFUS);
+			}
+			break;
+		default:
+			KASSERT(0, ("md_malloc_move_vlist unknown op %d\n", op));
+			break;
+		}
+
+		ma_offs += seg_len;
+		if (ma_offs == vlist->ds_len) {
+			ma_offs = 0;
+			vlist++;
+		}
+		ptr = (uint8_t *)ptr + seg_len;
+	}
+	*pvlist = vlist;
+	*pma_offs = ma_offs;
+
+	return (0);
+}
+
 static int
 mdstart_malloc(struct md_s *sc, struct bio *bp)
 {
-	int i, error;
 	u_char *dst;
+	vm_page_t *m;
+	bus_dma_segment_t *vlist;
+	int i, error, error1, ma_offs, notmapped;
 	off_t secno, nsec, uc;
 	uintptr_t sp, osp;
 
@@ -423,9 +603,23 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 		return (EOPNOTSUPP);
 	}
 
+	notmapped = (bp->bio_flags & BIO_UNMAPPED) != 0;
+	vlist = (bp->bio_flags & BIO_VLIST) != 0 ?
+	    (bus_dma_segment_t *)bp->bio_data : NULL;
+	if (notmapped) {
+		m = bp->bio_ma;
+		ma_offs = bp->bio_ma_offset;
+		dst = NULL;
+		KASSERT(vlist == NULL, ("vlists cannot be unmapped"));
+	} else if (vlist != NULL) {
+		ma_offs = bp->bio_ma_offset;
+		dst = NULL;
+	} else {
+		dst = bp->bio_data;
+	}
+
 	nsec = bp->bio_length / sc->sectorsize;
 	secno = bp->bio_offset / sc->sectorsize;
-	dst = bp->bio_data;
 	error = 0;
 	while (nsec--) {
 		osp = s_read(sc->indir, secno);
@@ -433,21 +627,63 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 			if (osp != 0)
 				error = s_write(sc->indir, secno, 0);
 		} else if (bp->bio_cmd == BIO_READ) {
-			if (osp == 0)
-				bzero(dst, sc->sectorsize);
-			else if (osp <= 255)
-				memset(dst, osp, sc->sectorsize);
-			else {
-				bcopy((void *)osp, dst, sc->sectorsize);
-				cpu_flush_dcache(dst, sc->sectorsize);
+			if (osp == 0) {
+				if (notmapped) {
+					error = md_malloc_move_ma(&m, &ma_offs,
+					    sc->sectorsize, NULL, 0,
+					    MD_MALLOC_MOVE_ZERO);
+				} else if (vlist != NULL) {
+					error = md_malloc_move_vlist(&vlist,
+					    &ma_offs, sc->sectorsize, NULL, 0,
+					    MD_MALLOC_MOVE_ZERO);
+				} else
+					bzero(dst, sc->sectorsize);
+			} else if (osp <= 255) {
+				if (notmapped) {
+					error = md_malloc_move_ma(&m, &ma_offs,
+					    sc->sectorsize, NULL, osp,
+					    MD_MALLOC_MOVE_FILL);
+				} else if (vlist != NULL) {
+					error = md_malloc_move_vlist(&vlist,
+					    &ma_offs, sc->sectorsize, NULL, osp,
+					    MD_MALLOC_MOVE_FILL);
+				} else
+					memset(dst, osp, sc->sectorsize);
+			} else {
+				if (notmapped) {
+					error = md_malloc_move_ma(&m, &ma_offs,
+					    sc->sectorsize, (void *)osp, 0,
+					    MD_MALLOC_MOVE_READ);
+				} else if (vlist != NULL) {
+					error = md_malloc_move_vlist(&vlist,
+					    &ma_offs, sc->sectorsize,
+					    (void *)osp, 0,
+					    MD_MALLOC_MOVE_READ);
+				} else {
+					bcopy((void *)osp, dst, sc->sectorsize);
+					cpu_flush_dcache(dst, sc->sectorsize);
+				}
 			}
 			osp = 0;
 		} else if (bp->bio_cmd == BIO_WRITE) {
 			if (sc->flags & MD_COMPRESS) {
-				uc = dst[0];
-				for (i = 1; i < sc->sectorsize; i++)
-					if (dst[i] != uc)
-						break;
+				if (notmapped) {
+					error1 = md_malloc_move_ma(&m, &ma_offs,
+					    sc->sectorsize, &uc, 0,
+					    MD_MALLOC_MOVE_CMP);
+					i = error1 == 0 ? sc->sectorsize : 0;
+				} else if (vlist != NULL) {
+					error1 = md_malloc_move_vlist(&vlist,
+					    &ma_offs, sc->sectorsize, &uc, 0,
+					    MD_MALLOC_MOVE_CMP);
+					i = error1 == 0 ? sc->sectorsize : 0;
+				} else {
+					uc = dst[0];
+					for (i = 1; i < sc->sectorsize; i++) {
+						if (dst[i] != uc)
+							break;
+					}
+				}
 			} else {
 				i = 0;
 				uc = 0;
@@ -458,15 +694,42 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 			} else {
 				if (osp <= 255) {
 					sp = (uintptr_t)uma_zalloc(sc->uma,
+					    md_malloc_wait ? M_WAITOK :
 					    M_NOWAIT);
 					if (sp == 0) {
 						error = ENOSPC;
 						break;
 					}
-					bcopy(dst, (void *)sp, sc->sectorsize);
+					if (notmapped) {
+						error = md_malloc_move_ma(&m,
+						    &ma_offs, sc->sectorsize,
+						    (void *)sp, 0,
+						    MD_MALLOC_MOVE_WRITE);
+					} else if (vlist != NULL) {
+						error = md_malloc_move_vlist(
+						    &vlist, &ma_offs,
+						    sc->sectorsize, (void *)sp,
+						    0, MD_MALLOC_MOVE_WRITE);
+					} else {
+						bcopy(dst, (void *)sp,
+						    sc->sectorsize);
+					}
 					error = s_write(sc->indir, secno, sp);
 				} else {
-					bcopy(dst, (void *)osp, sc->sectorsize);
+					if (notmapped) {
+						error = md_malloc_move_ma(&m,
+						    &ma_offs, sc->sectorsize,
+						    (void *)osp, 0,
+						    MD_MALLOC_MOVE_WRITE);
+					} else if (vlist != NULL) {
+						error = md_malloc_move_vlist(
+						    &vlist, &ma_offs,
+						    sc->sectorsize, (void *)osp,
+						    0, MD_MALLOC_MOVE_WRITE);
+					} else {
+						bcopy(dst, (void *)osp,
+						    sc->sectorsize);
+					}
 					osp = 0;
 				}
 			}
@@ -478,25 +741,78 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 		if (error != 0)
 			break;
 		secno++;
-		dst += sc->sectorsize;
+		if (!notmapped && vlist == NULL)
+			dst += sc->sectorsize;
 	}
 	bp->bio_resid = 0;
 	return (error);
 }
 
+static void
+mdcopyto_vlist(void *src, bus_dma_segment_t *vlist, off_t offset, off_t len)
+{
+	off_t seg_len;
+
+	while (offset >= vlist->ds_len) {
+		offset -= vlist->ds_len;
+		vlist++;
+	}
+
+	while (len != 0) {
+		seg_len = omin(len, vlist->ds_len - offset);
+		bcopy(src, (void *)(uintptr_t)(vlist->ds_addr + offset),
+		    seg_len);
+		offset = 0;
+		src = (uint8_t *)src + seg_len;
+		len -= seg_len;
+		vlist++;
+	}
+}
+
+static void
+mdcopyfrom_vlist(bus_dma_segment_t *vlist, off_t offset, void *dst, off_t len)
+{
+	off_t seg_len;
+
+	while (offset >= vlist->ds_len) {
+		offset -= vlist->ds_len;
+		vlist++;
+	}
+
+	while (len != 0) {
+		seg_len = omin(len, vlist->ds_len - offset);
+		bcopy((void *)(uintptr_t)(vlist->ds_addr + offset), dst,
+		    seg_len);
+		offset = 0;
+		dst = (uint8_t *)dst + seg_len;
+		len -= seg_len;
+		vlist++;
+	}
+}
+
 static int
 mdstart_preload(struct md_s *sc, struct bio *bp)
 {
+	uint8_t *p;
 
+	p = sc->pl_ptr + bp->bio_offset;
 	switch (bp->bio_cmd) {
 	case BIO_READ:
-		bcopy(sc->pl_ptr + bp->bio_offset, bp->bio_data,
-		    bp->bio_length);
+		if ((bp->bio_flags & BIO_VLIST) != 0) {
+			mdcopyto_vlist(p, (bus_dma_segment_t *)bp->bio_data,
+			    bp->bio_ma_offset, bp->bio_length);
+		} else {
+			bcopy(p, bp->bio_data, bp->bio_length);
+		}
 		cpu_flush_dcache(bp->bio_data, bp->bio_length);
 		break;
 	case BIO_WRITE:
-		bcopy(bp->bio_data, sc->pl_ptr + bp->bio_offset,
-		    bp->bio_length);
+		if ((bp->bio_flags & BIO_VLIST) != 0) {
+			mdcopyfrom_vlist((bus_dma_segment_t *)bp->bio_data,
+			    bp->bio_ma_offset, p, bp->bio_length);
+		} else {
+			bcopy(bp->bio_data, p, bp->bio_length);
+		}
 		break;
 	}
 	bp->bio_resid = 0;
@@ -506,16 +822,26 @@ mdstart_preload(struct md_s *sc, struct bio *bp)
 static int
 mdstart_vnode(struct md_s *sc, struct bio *bp)
 {
-	int error, vfslocked;
+	int error;
 	struct uio auio;
 	struct iovec aiov;
+	struct iovec *piov;
 	struct mount *mp;
 	struct vnode *vp;
+	struct buf *pb;
+	bus_dma_segment_t *vlist;
 	struct thread *td;
+	off_t iolen, len, zerosize;
+	int ma_offs, npages;
 
 	switch (bp->bio_cmd) {
 	case BIO_READ:
+		auio.uio_rw = UIO_READ;
+		break;
 	case BIO_WRITE:
+	case BIO_DELETE:
+		auio.uio_rw = UIO_WRITE;
+		break;
 	case BIO_FLUSH:
 		break;
 	default:
@@ -524,6 +850,10 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 
 	td = curthread;
 	vp = sc->vnode;
+	pb = NULL;
+	piov = NULL;
+	ma_offs = bp->bio_ma_offset;
+	len = bp->bio_length;
 
 	/*
 	 * VNODE I/O
@@ -534,38 +864,81 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	 */
 
 	if (bp->bio_cmd == BIO_FLUSH) {
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_FSYNC(vp, MNT_WAIT, td);
 		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
 
-	bzero(&auio, sizeof(auio));
-
-	aiov.iov_base = bp->bio_data;
-	aiov.iov_len = bp->bio_length;
-	auio.uio_iov = &aiov;
-	auio.uio_iovcnt = 1;
 	auio.uio_offset = (vm_ooffset_t)bp->bio_offset;
-	auio.uio_segflg = UIO_SYSSPACE;
-	if (bp->bio_cmd == BIO_READ)
-		auio.uio_rw = UIO_READ;
-	else if (bp->bio_cmd == BIO_WRITE)
-		auio.uio_rw = UIO_WRITE;
-	else
-		panic("wrong BIO_OP in mdstart_vnode");
 	auio.uio_resid = bp->bio_length;
+	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_td = td;
+
+	if (bp->bio_cmd == BIO_DELETE) {
+		/*
+		 * Emulate BIO_DELETE by writing zeros.
+		 */
+		zerosize = ZERO_REGION_SIZE -
+		    (ZERO_REGION_SIZE % sc->sectorsize);
+		auio.uio_iovcnt = howmany(bp->bio_length, zerosize);
+		piov = malloc(sizeof(*piov) * auio.uio_iovcnt, M_MD, M_WAITOK);
+		auio.uio_iov = piov;
+		while (len > 0) {
+			piov->iov_base = __DECONST(void *, zero_region);
+			piov->iov_len = len;
+			if (len > zerosize)
+				piov->iov_len = zerosize;
+			len -= piov->iov_len;
+			piov++;
+		}
+		piov = auio.uio_iov;
+	} else if ((bp->bio_flags & BIO_VLIST) != 0) {
+		piov = malloc(sizeof(*piov) * bp->bio_ma_n, M_MD, M_WAITOK);
+		auio.uio_iov = piov;
+		vlist = (bus_dma_segment_t *)bp->bio_data;
+		while (len > 0) {
+			piov->iov_base = (void *)(uintptr_t)(vlist->ds_addr +
+			    ma_offs);
+			piov->iov_len = vlist->ds_len - ma_offs;
+			if (piov->iov_len > len)
+				piov->iov_len = len;
+			len -= piov->iov_len;
+			ma_offs = 0;
+			vlist++;
+			piov++;
+		}
+		auio.uio_iovcnt = piov - auio.uio_iov;
+		piov = auio.uio_iov;
+	} else if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+		pb = getpbuf(&md_vnode_pbuf_freecnt);
+		bp->bio_resid = len;
+unmapped_step:
+		npages = atop(min(MAXPHYS, round_page(len + (ma_offs &
+		    PAGE_MASK))));
+		iolen = min(ptoa(npages) - (ma_offs & PAGE_MASK), len);
+		KASSERT(iolen > 0, ("zero iolen"));
+		pmap_qenter((vm_offset_t)pb->b_data,
+		    &bp->bio_ma[atop(ma_offs)], npages);
+		aiov.iov_base = (void *)((vm_offset_t)pb->b_data +
+		    (ma_offs & PAGE_MASK));
+		aiov.iov_len = iolen;
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+		auio.uio_resid = iolen;
+	} else {
+		aiov.iov_base = bp->bio_data;
+		aiov.iov_len = bp->bio_length;
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+	}
 	/*
 	 * When reading set IO_DIRECT to try to avoid double-caching
 	 * the data.  When writing IO_DIRECT is not optimal.
 	 */
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	if (bp->bio_cmd == BIO_READ) {
+	if (auio.uio_rw == UIO_READ) {
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_READ(vp, &auio, IO_DIRECT, sc->cred);
 		VOP_UNLOCK(vp, 0);
@@ -577,19 +950,33 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
 	}
-	VFS_UNLOCK_GIANT(vfslocked);
-	bp->bio_resid = auio.uio_resid;
+
+	if (pb != NULL) {
+		pmap_qremove((vm_offset_t)pb->b_data, npages);
+		if (error == 0) {
+			len -= iolen;
+			bp->bio_resid -= iolen;
+			ma_offs += iolen;
+			if (len > 0)
+				goto unmapped_step;
+		}
+		relpbuf(pb, &md_vnode_pbuf_freecnt);
+	}
+
+	free(piov, M_MD);
+	if (pb == NULL)
+		bp->bio_resid = auio.uio_resid;
 	return (error);
 }
 
 static int
 mdstart_swap(struct md_s *sc, struct bio *bp)
 {
-	struct sf_buf *sf;
-	int rv, offs, len, lastend;
-	vm_pindex_t i, lastp;
 	vm_page_t m;
 	u_char *p;
+	vm_pindex_t i, lastp;
+	bus_dma_segment_t *vlist;
+	int rv, ma_offs, offs, len, lastend;
 
 	switch (bp->bio_cmd) {
 	case BIO_READ:
@@ -601,6 +988,10 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 	}
 
 	p = bp->bio_data;
+	ma_offs = (bp->bio_flags & (BIO_UNMAPPED|BIO_VLIST)) != 0 ?
+	    bp->bio_ma_offset : 0;
+	vlist = (bp->bio_flags & BIO_VLIST) != 0 ?
+	    (bus_dma_segment_t *)bp->bio_data : NULL;
 
 	/*
 	 * offs is the offset at which to start operating on the
@@ -614,77 +1005,114 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 	lastend = (bp->bio_offset + bp->bio_length - 1) % PAGE_SIZE + 1;
 
 	rv = VM_PAGER_OK;
-	VM_OBJECT_LOCK(sc->object);
+	VM_OBJECT_WLOCK(sc->object);
 	vm_object_pip_add(sc->object, 1);
 	for (i = bp->bio_offset / PAGE_SIZE; i <= lastp; i++) {
 		len = ((i == lastp) ? lastend : PAGE_SIZE) - offs;
-
-		m = vm_page_grab(sc->object, i,
-		    VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
-		VM_OBJECT_UNLOCK(sc->object);
-		sched_pin();
-		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
-		VM_OBJECT_LOCK(sc->object);
+		m = vm_page_grab(sc->object, i, VM_ALLOC_SYSTEM);
 		if (bp->bio_cmd == BIO_READ) {
-			if (m->valid != VM_PAGE_BITS_ALL)
-				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+			if (m->valid == VM_PAGE_BITS_ALL)
+				rv = VM_PAGER_OK;
+			else
+				rv = vm_pager_get_pages(sc->object, &m, 1,
+				    NULL, NULL);
 			if (rv == VM_PAGER_ERROR) {
-				sf_buf_free(sf);
-				sched_unpin();
-				vm_page_wakeup(m);
+				vm_page_xunbusy(m);
 				break;
+			} else if (rv == VM_PAGER_FAIL) {
+				/*
+				 * Pager does not have the page.  Zero
+				 * the allocated page, and mark it as
+				 * valid. Do not set dirty, the page
+				 * can be recreated if thrown out.
+				 */
+				pmap_zero_page(m);
+				m->valid = VM_PAGE_BITS_ALL;
 			}
-			bcopy((void *)(sf_buf_kva(sf) + offs), p, len);
-			cpu_flush_dcache(p, len);
+			if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+				pmap_copy_pages(&m, offs, bp->bio_ma,
+				    ma_offs, len);
+			} else if ((bp->bio_flags & BIO_VLIST) != 0) {
+				physcopyout_vlist(VM_PAGE_TO_PHYS(m) + offs,
+				    vlist, ma_offs, len);
+				cpu_flush_dcache(p, len);
+			} else {
+				physcopyout(VM_PAGE_TO_PHYS(m) + offs, p, len);
+				cpu_flush_dcache(p, len);
+			}
 		} else if (bp->bio_cmd == BIO_WRITE) {
 			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
-				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+				rv = vm_pager_get_pages(sc->object, &m, 1,
+				    NULL, NULL);
+			else
+				rv = VM_PAGER_OK;
 			if (rv == VM_PAGER_ERROR) {
-				sf_buf_free(sf);
-				sched_unpin();
-				vm_page_wakeup(m);
+				vm_page_xunbusy(m);
 				break;
 			}
-			bcopy(p, (void *)(sf_buf_kva(sf) + offs), len);
+			if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+				pmap_copy_pages(bp->bio_ma, ma_offs, &m,
+				    offs, len);
+			} else if ((bp->bio_flags & BIO_VLIST) != 0) {
+				physcopyin_vlist(vlist, ma_offs,
+				    VM_PAGE_TO_PHYS(m) + offs, len);
+			} else {
+				physcopyin(p, VM_PAGE_TO_PHYS(m) + offs, len);
+			}
 			m->valid = VM_PAGE_BITS_ALL;
-#if 0
 		} else if (bp->bio_cmd == BIO_DELETE) {
 			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
-				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+				rv = vm_pager_get_pages(sc->object, &m, 1,
+				    NULL, NULL);
+			else
+				rv = VM_PAGER_OK;
 			if (rv == VM_PAGER_ERROR) {
-				sf_buf_free(sf);
-				sched_unpin();
-				vm_page_wakeup(m);
+				vm_page_xunbusy(m);
 				break;
 			}
-			bzero((void *)(sf_buf_kva(sf) + offs), len);
-			vm_page_dirty(m);
-			m->valid = VM_PAGE_BITS_ALL;
-#endif
+			if (len != PAGE_SIZE) {
+				pmap_zero_page_area(m, offs, len);
+				vm_page_clear_dirty(m, offs, len);
+				m->valid = VM_PAGE_BITS_ALL;
+			} else
+				vm_pager_page_unswapped(m);
 		}
-		sf_buf_free(sf);
-		sched_unpin();
-		vm_page_wakeup(m);
-		vm_page_lock_queues();
-		vm_page_activate(m);
-		if (bp->bio_cmd == BIO_WRITE)
+		vm_page_xunbusy(m);
+		vm_page_lock(m);
+		if (bp->bio_cmd == BIO_DELETE && len == PAGE_SIZE)
+			vm_page_free(m);
+		else
+			vm_page_activate(m);
+		vm_page_unlock(m);
+		if (bp->bio_cmd == BIO_WRITE) {
 			vm_page_dirty(m);
-		vm_page_unlock_queues();
+			vm_pager_page_unswapped(m);
+		}
 
 		/* Actions on further pages start at offset 0 */
 		p += PAGE_SIZE - offs;
 		offs = 0;
-#if 0
-if (bootverbose || bp->bio_offset / PAGE_SIZE < 17)
-printf("wire_count %d busy %d flags %x hold_count %d act_count %d queue %d valid %d dirty %d @ %d\n",
-    m->wire_count, m->busy, 
-    m->flags, m->hold_count, m->act_count, m->queue, m->valid, m->dirty, i);
-#endif
+		ma_offs += len;
 	}
-	vm_object_pip_subtract(sc->object, 1);
-	vm_object_set_writeable_dirty(sc->object);
-	VM_OBJECT_UNLOCK(sc->object);
+	vm_object_pip_wakeup(sc->object);
+	VM_OBJECT_WUNLOCK(sc->object);
 	return (rv != VM_PAGER_ERROR ? 0 : ENOSPC);
+}
+
+static int
+mdstart_null(struct md_s *sc, struct bio *bp)
+{
+
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+		bzero(bp->bio_data, bp->bio_length);
+		cpu_flush_dcache(bp->bio_data, bp->bio_length);
+		break;
+	case BIO_WRITE:
+		break;
+	}
+	bp->bio_resid = 0;
+	return (0);
 }
 
 static void
@@ -715,11 +1143,12 @@ md_kthread(void *arg)
 		}
 		mtx_unlock(&sc->queue_mtx);
 		if (bp->bio_cmd == BIO_GETATTR) {
-			if (sc->fwsectors && sc->fwheads &&
+			if ((sc->fwsectors && sc->fwheads &&
 			    (g_handleattr_int(bp, "GEOM::fwsectors",
 			    sc->fwsectors) ||
 			    g_handleattr_int(bp, "GEOM::fwheads",
-			    sc->fwheads)))
+			    sc->fwheads))) ||
+			    g_handleattr_int(bp, "GEOM::candelete", 1))
 				error = -1;
 			else
 				error = EOPNOTSUPP;
@@ -729,9 +1158,9 @@ md_kthread(void *arg)
 
 		if (error != -1) {
 			bp->bio_completed = bp->bio_length;
-			g_io_deliver(bp, error);
 			if ((bp->bio_cmd == BIO_READ) || (bp->bio_cmd == BIO_WRITE))
 				devstat_end_transaction_bio(sc->devstat, bp);
+			g_io_deliver(bp, error);
 		}
 	}
 }
@@ -751,24 +1180,25 @@ mdfind(int unit)
 static struct md_s *
 mdnew(int unit, int *errp, enum md_types type)
 {
-	struct md_s *sc, *sc2;
-	int error, max = -1;
+	struct md_s *sc;
+	int error;
 
 	*errp = 0;
-	LIST_FOREACH(sc2, &md_softc_list, list) {
-		if (unit == sc2->unit) {
-			*errp = EBUSY;
-			return (NULL);
-		}
-		if (unit == -1 && sc2->unit > max) 
-			max = sc2->unit;
-	}
 	if (unit == -1)
-		unit = max + 1;
+		unit = alloc_unr(md_uh);
+	else
+		unit = alloc_unr_specific(md_uh, unit);
+
+	if (unit == -1) {
+		*errp = EBUSY;
+		return (NULL);
+	}
+
 	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
 	sc->type = type;
 	bioq_init(&sc->bio_queue);
 	mtx_init(&sc->queue_mtx, "md bio queue", NULL, MTX_DEF);
+	mtx_init(&sc->stat_mtx, "md stat", NULL, MTX_DEF);
 	sc->unit = unit;
 	sprintf(sc->name, "md%d", unit);
 	LIST_INSERT_HEAD(&md_softc_list, sc, list);
@@ -776,7 +1206,9 @@ mdnew(int unit, int *errp, enum md_types type)
 	if (error == 0)
 		return (sc);
 	LIST_REMOVE(sc, list);
+	mtx_destroy(&sc->stat_mtx);
 	mtx_destroy(&sc->queue_mtx);
+	free_unr(md_uh, sc->unit);
 	free(sc, M_MD);
 	*errp = error;
 	return (NULL);
@@ -785,7 +1217,6 @@ mdnew(int unit, int *errp, enum md_types type)
 static void
 mdinit(struct md_s *sc)
 {
-
 	struct g_geom *gp;
 	struct g_provider *pp;
 
@@ -793,8 +1224,19 @@ mdinit(struct md_s *sc)
 	gp = g_new_geomf(&g_md_class, "md%d", sc->unit);
 	gp->softc = sc;
 	pp = g_new_providerf(gp, "md%d", sc->unit);
+	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	pp->mediasize = sc->mediasize;
 	pp->sectorsize = sc->sectorsize;
+	switch (sc->type) {
+	case MD_MALLOC:
+	case MD_VNODE:
+	case MD_SWAP:
+		pp->flags |= G_PF_ACCEPT_UNMAPPED;
+		break;
+	case MD_PRELOAD:
+	case MD_NULL:
+		break;
+	}
 	sc->gp = gp;
 	sc->pp = pp;
 	g_error_provider(pp, 0);
@@ -802,25 +1244,6 @@ mdinit(struct md_s *sc)
 	sc->devstat = devstat_new_entry("md", sc->unit, sc->sectorsize,
 	    DEVSTAT_ALL_SUPPORTED, DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 }
-
-/*
- * XXX: we should check that the range they feed us is mapped.
- * XXX: we should implement read-only.
- */
-
-static int
-mdcreate_preload(struct md_s *sc, struct md_ioctl *mdio)
-{
-
-	if (mdio->md_options & ~(MD_AUTOUNIT | MD_FORCE))
-		return (EINVAL);
-	sc->flags = mdio->md_options & MD_FORCE;
-	/* Cast to pointer size, then to pointer to avoid warning */
-	sc->pl_ptr = (u_char *)(uintptr_t)mdio->md_base;
-	sc->pl_len = (size_t)sc->mediasize;
-	return (0);
-}
-
 
 static int
 mdcreate_malloc(struct md_s *sc, struct md_ioctl *mdio)
@@ -850,7 +1273,8 @@ mdcreate_malloc(struct md_s *sc, struct md_ioctl *mdio)
 
 		nsectors = sc->mediasize / sc->sectorsize;
 		for (u = 0; u < nsectors; u++) {
-			sp = (uintptr_t)uma_zalloc(sc->uma, M_NOWAIT | M_ZERO);
+			sp = (uintptr_t)uma_zalloc(sc->uma, (md_malloc_wait ?
+			    M_WAITOK : M_NOWAIT) | M_ZERO);
 			if (sp != 0)
 				error = s_write(sc->indir, u, sp);
 			else
@@ -909,28 +1333,35 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 {
 	struct vattr vattr;
 	struct nameidata nd;
-	int error, flags, vfslocked;
+	char *fname;
+	int error, flags;
 
-	error = copyinstr(mdio->md_file, sc->file, sizeof(sc->file), NULL);
-	if (error != 0)
-		return (error);
-	flags = FREAD|FWRITE;
 	/*
-	 * If the user specified that this is a read only device, unset the
-	 * FWRITE mask before trying to open the backing store.
+	 * Kernel-originated requests must have the filename appended
+	 * to the mdio structure to protect against malicious software.
 	 */
-	if ((mdio->md_options & MD_READONLY) != 0)
-		flags &= ~FWRITE;
-	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, sc->file, td);
+	fname = mdio->md_file;
+	if ((void *)fname != (void *)(mdio + 1)) {
+		error = copyinstr(fname, sc->file, sizeof(sc->file), NULL);
+		if (error != 0)
+			return (error);
+	} else
+		strlcpy(sc->file, fname, sizeof(sc->file));
+
+	/*
+	 * If the user specified that this is a read only device, don't
+	 * set the FWRITE mask before trying to open the backing store.
+	 */
+	flags = FREAD | ((mdio->md_options & MD_READONLY) ? 0 : FWRITE);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
 		return (error);
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_vp->v_type != VREG) {
 		error = EINVAL;
 		goto bad;
-	}	
+	}
 	error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred);
 	if (error != 0)
 		goto bad;
@@ -961,19 +1392,16 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		nd.ni_vp->v_vflag &= ~VV_MD;
 		goto bad;
 	}
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
 bad:
 	VOP_UNLOCK(nd.ni_vp, 0);
 	(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
 static int
 mddestroy(struct md_s *sc, struct thread *td)
 {
-	int vfslocked;
 
 	if (sc->gp) {
 		sc->gp->softc = NULL;
@@ -993,15 +1421,14 @@ mddestroy(struct md_s *sc, struct thread *td)
 	while (!(sc->flags & MD_EXITING))
 		msleep(sc->procp, &sc->queue_mtx, PRIBIO, "mddestroy", hz / 10);
 	mtx_unlock(&sc->queue_mtx);
+	mtx_destroy(&sc->stat_mtx);
 	mtx_destroy(&sc->queue_mtx);
 	if (sc->vnode != NULL) {
-		vfslocked = VFS_LOCK_GIANT(sc->vnode->v_mount);
 		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY);
 		sc->vnode->v_vflag &= ~VV_MD;
 		VOP_UNLOCK(sc->vnode, 0);
 		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?
 		    FREAD : (FREAD|FWRITE), sc->cred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	if (sc->cred != NULL)
 		crfree(sc->cred);
@@ -1013,7 +1440,67 @@ mddestroy(struct md_s *sc, struct thread *td)
 		uma_zdestroy(sc->uma);
 
 	LIST_REMOVE(sc, list);
+	free_unr(md_uh, sc->unit);
 	free(sc, M_MD);
+	return (0);
+}
+
+static int
+mdresize(struct md_s *sc, struct md_ioctl *mdio)
+{
+	int error, res;
+	vm_pindex_t oldpages, newpages;
+
+	switch (sc->type) {
+	case MD_VNODE:
+	case MD_NULL:
+		break;
+	case MD_SWAP:
+		if (mdio->md_mediasize <= 0 ||
+		    (mdio->md_mediasize % PAGE_SIZE) != 0)
+			return (EDOM);
+		oldpages = OFF_TO_IDX(round_page(sc->mediasize));
+		newpages = OFF_TO_IDX(round_page(mdio->md_mediasize));
+		if (newpages < oldpages) {
+			VM_OBJECT_WLOCK(sc->object);
+			vm_object_page_remove(sc->object, newpages, 0, 0);
+			swap_pager_freespace(sc->object, newpages,
+			    oldpages - newpages);
+			swap_release_by_cred(IDX_TO_OFF(oldpages -
+			    newpages), sc->cred);
+			sc->object->charge = IDX_TO_OFF(newpages);
+			sc->object->size = newpages;
+			VM_OBJECT_WUNLOCK(sc->object);
+		} else if (newpages > oldpages) {
+			res = swap_reserve_by_cred(IDX_TO_OFF(newpages -
+			    oldpages), sc->cred);
+			if (!res)
+				return (ENOMEM);
+			if ((mdio->md_options & MD_RESERVE) ||
+			    (sc->flags & MD_RESERVE)) {
+				error = swap_pager_reserve(sc->object,
+				    oldpages, newpages - oldpages);
+				if (error < 0) {
+					swap_release_by_cred(
+					    IDX_TO_OFF(newpages - oldpages),
+					    sc->cred);
+					return (EDOM);
+				}
+			}
+			VM_OBJECT_WLOCK(sc->object);
+			sc->object->charge = IDX_TO_OFF(newpages);
+			sc->object->size = newpages;
+			VM_OBJECT_WUNLOCK(sc->object);
+		}
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	sc->mediasize = mdio->md_mediasize;
+	g_topology_lock();
+	g_resize_provider(sc->pp, sc->mediasize);
+	g_topology_unlock();
 	return (0);
 }
 
@@ -1024,10 +1511,10 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	int error;
 
 	/*
-	 * Range check.  Disallow negative sizes or any size less then the
-	 * size of a page.  Then round to a page.
+	 * Range check.  Disallow negative sizes and sizes not being
+	 * multiple of page size.
 	 */
-	if (sc->mediasize == 0 || (sc->mediasize % PAGE_SIZE) != 0)
+	if (sc->mediasize <= 0 || (sc->mediasize % PAGE_SIZE) != 0)
 		return (EDOM);
 
 	/*
@@ -1045,7 +1532,7 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	    VM_PROT_DEFAULT, 0, td->td_ucred);
 	if (sc->object == NULL)
 		return (ENOMEM);
-	sc->flags = mdio->md_options & MD_FORCE;
+	sc->flags = mdio->md_options & (MD_FORCE | MD_RESERVE);
 	if (mdio->md_options & MD_RESERVE) {
 		if (swap_pager_reserve(sc->object, 0, npage) < 0) {
 			error = EDOM;
@@ -1061,6 +1548,19 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	return (error);
 }
 
+static int
+mdcreate_null(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
+{
+
+	/*
+	 * Range check.  Disallow negative sizes and sizes not being
+	 * multiple of page size.
+	 */
+	if (sc->mediasize <= 0 || (sc->mediasize % PAGE_SIZE) != 0)
+		return (EDOM);
+
+	return (0);
+}
 
 static int
 xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
@@ -1068,6 +1568,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 	struct md_ioctl *mdio;
 	struct md_s *sc;
 	int error, i;
+	unsigned sectsize;
 
 	if (md_debug)
 		printf("mdctlioctl(%s %lx %p %x %p)\n",
@@ -1092,23 +1593,30 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		case MD_PRELOAD:
 		case MD_VNODE:
 		case MD_SWAP:
+		case MD_NULL:
 			break;
 		default:
 			return (EINVAL);
 		}
+		if (mdio->md_sectorsize == 0)
+			sectsize = DEV_BSIZE;
+		else
+			sectsize = mdio->md_sectorsize;
+		if (sectsize > MAXPHYS || mdio->md_mediasize < sectsize)
+			return (EINVAL);
 		if (mdio->md_options & MD_AUTOUNIT)
 			sc = mdnew(-1, &error, mdio->md_type);
-		else
+		else {
+			if (mdio->md_unit > INT_MAX)
+				return (EINVAL);
 			sc = mdnew(mdio->md_unit, &error, mdio->md_type);
+		}
 		if (sc == NULL)
 			return (error);
 		if (mdio->md_options & MD_AUTOUNIT)
 			mdio->md_unit = sc->unit;
 		sc->mediasize = mdio->md_mediasize;
-		if (mdio->md_sectorsize == 0)
-			sc->sectorsize = DEV_BSIZE;
-		else
-			sc->sectorsize = mdio->md_sectorsize;
+		sc->sectorsize = sectsize;
 		error = EDOOFUS;
 		switch (sc->type) {
 		case MD_MALLOC:
@@ -1116,8 +1624,12 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 			error = mdcreate_malloc(sc, mdio);
 			break;
 		case MD_PRELOAD:
-			sc->start = mdstart_preload;
-			error = mdcreate_preload(sc, mdio);
+			/*
+			 * We disallow attaching preloaded memory disks via
+			 * ioctl. Preloaded memory disks are automatically
+			 * attached in g_md_init().
+			 */
+			error = EOPNOTSUPP;
 			break;
 		case MD_VNODE:
 			sc->start = mdstart_vnode;
@@ -1126,6 +1638,10 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		case MD_SWAP:
 			sc->start = mdstart_swap;
 			error = mdcreate_swap(sc, mdio, td);
+			break;
+		case MD_NULL:
+			sc->start = mdstart_null;
+			error = mdcreate_null(sc, mdio, td);
 			break;
 		}
 		if (error != 0) {
@@ -1151,6 +1667,20 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		    !(mdio->md_options & MD_FORCE))
 			return (EBUSY);
 		return (mddestroy(sc, td));
+	case MDIOCRESIZE:
+		if ((mdio->md_options & ~(MD_FORCE | MD_RESERVE)) != 0)
+			return (EINVAL);
+
+		sc = mdfind(mdio->md_unit);
+		if (sc == NULL)
+			return (ENOENT);
+		if (mdio->md_mediasize < sc->sectorsize)
+			return (EINVAL);
+		if (mdio->md_mediasize < sc->mediasize &&
+		    !(sc->flags & MD_FORCE) &&
+		    !(mdio->md_options & MD_FORCE))
+			return (EBUSY);
+		return (mdresize(sc, mdio));
 	case MDIOCQUERY:
 		sc = mdfind(mdio->md_unit);
 		if (sc == NULL)
@@ -1181,7 +1711,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 static int
 mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
-	int error; 
+	int error;
 
 	sx_xlock(&md_sx);
 	error = xmdctlioctl(dev, cmd, addr, flags, td);
@@ -1190,7 +1720,7 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 }
 
 static void
-md_preloaded(u_char *image, size_t length)
+md_preloaded(u_char *image, size_t length, const char *name)
 {
 	struct md_s *sc;
 	int error;
@@ -1203,29 +1733,43 @@ md_preloaded(u_char *image, size_t length)
 	sc->pl_ptr = image;
 	sc->pl_len = length;
 	sc->start = mdstart_preload;
-#ifdef MD_ROOT
+#if defined(MD_ROOT) && !defined(ROOTDEVNAME)
 	if (sc->unit == 0)
-		rootdevnames[0] = "ufs:/dev/md0";
+		rootdevnames[0] = MD_ROOT_FSTYPE ":/dev/md0";
 #endif
 	mdinit(sc);
+	if (name != NULL) {
+		printf("%s%d: Preloaded image <%s> %zd bytes at %p\n",
+		    MD_NAME, sc->unit, name, length, image);
+	} else {
+		printf("%s%d: Embedded image %zd bytes at %p\n",
+		    MD_NAME, sc->unit, length, image);
+	}
 }
 
 static void
 g_md_init(struct g_class *mp __unused)
 {
-
 	caddr_t mod;
-	caddr_t c;
 	u_char *ptr, *name, *type;
 	unsigned len;
+	int i;
+
+	/* figure out log2(NINDIR) */
+	for (i = NINDIR, nshift = -1; i; nshift++)
+		i >>= 1;
 
 	mod = NULL;
 	sx_init(&md_sx, "MD config lock");
 	g_topology_unlock();
-#ifdef MD_ROOT_SIZE
-	sx_xlock(&md_sx);
-	md_preloaded(mfs_root.start, sizeof(mfs_root.start));
-	sx_xunlock(&md_sx);
+	md_uh = new_unrhdr(0, INT_MAX, NULL);
+#ifdef MD_ROOT
+	if (mfs_root_size != 0) {
+		sx_xlock(&md_sx);
+		md_preloaded(__DEVOLATILE(u_char *, &mfs_root), mfs_root_size,
+		    NULL);
+		sx_xunlock(&md_sx);
+	}
 #endif
 	/* XXX: are preload_* static or do they need Giant ? */
 	while ((mod = preload_search_next_name(mod)) != NULL) {
@@ -1237,23 +1781,22 @@ g_md_init(struct g_class *mp __unused)
 			continue;
 		if (strcmp(type, "md_image") && strcmp(type, "mfs_root"))
 			continue;
-		c = preload_search_info(mod, MODINFO_ADDR);
-		ptr = *(u_char **)c;
-		c = preload_search_info(mod, MODINFO_SIZE);
-		len = *(size_t *)c;
-		printf("%s%d: Preloaded image <%s> %d bytes at %p\n",
-		    MD_NAME, mdunits, name, len, ptr);
-		sx_xlock(&md_sx);
-		md_preloaded(ptr, len);
-		sx_xunlock(&md_sx);
+		ptr = preload_fetch_addr(mod);
+		len = preload_fetch_size(mod);
+		if (ptr != NULL && len != 0) {
+			sx_xlock(&md_sx);
+			md_preloaded(ptr, len, name);
+			sx_xunlock(&md_sx);
+		}
 	}
+	md_vnode_pbuf_freecnt = nswbuf / 10;
 	status_dev = make_dev(&mdctl_cdevsw, INT_MAX, UID_ROOT, GID_WHEEL,
 	    0600, MDCTL_NAME);
 	g_topology_lock();
 }
 
 static void
-g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, 
+g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
     struct g_consumer *cp __unused, struct g_provider *pp)
 {
 	struct md_s *mp;
@@ -1275,6 +1818,9 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		break;
 	case MD_SWAP:
 		type = "swap";
+		break;
+	case MD_NULL:
+		type = "null";
 		break;
 	default:
 		type = "unknown";
@@ -1302,11 +1848,18 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			    indent, (uintmax_t) mp->fwsectors);
 			sbuf_printf(sb, "%s<length>%ju</length>\n",
 			    indent, (uintmax_t) mp->mediasize);
+			sbuf_printf(sb, "%s<compression>%s</compression>\n", indent,
+			    (mp->flags & MD_COMPRESS) == 0 ? "off": "on");
+			sbuf_printf(sb, "%s<access>%s</access>\n", indent,
+			    (mp->flags & MD_READONLY) == 0 ? "read-write":
+			    "read-only");
 			sbuf_printf(sb, "%s<type>%s</type>\n", indent,
 			    type);
-			if (mp->type == MD_VNODE && mp->vnode != NULL)
-				sbuf_printf(sb, "%s<file>%s</file>\n",
-				    indent, mp->file);
+			if (mp->type == MD_VNODE && mp->vnode != NULL) {
+				sbuf_printf(sb, "%s<file>", indent);
+				g_conf_printf_escaped(sb, "%s", mp->file);
+				sbuf_printf(sb, "</file>\n");
+			}
 		}
 	}
 }
@@ -1318,4 +1871,5 @@ g_md_fini(struct g_class *mp __unused)
 	sx_destroy(&md_sx);
 	if (status_dev != NULL)
 		destroy_dev(status_dev);
+	delete_unrhdr(md_uh);
 }

@@ -2,7 +2,7 @@
 __FBSDID("$FreeBSD$");
 
 /*-
- * Copyright (c) 2004 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2004 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -102,7 +101,6 @@ struct ucycom_softc {
 #define	UCYCOM_CFG_STOPB	0x08
 #define	UCYCOM_CFG_DATAB	0x03
 	uint8_t	sc_ist;			/* status flags from last input */
-	uint8_t	sc_name[16];
 	uint8_t	sc_iface_no;
 	uint8_t	sc_temp_cfg[32];
 };
@@ -112,10 +110,12 @@ struct ucycom_softc {
 static device_probe_t ucycom_probe;
 static device_attach_t ucycom_attach;
 static device_detach_t ucycom_detach;
+static void ucycom_free_softc(struct ucycom_softc *);
 
 static usb_callback_t ucycom_ctrl_write_callback;
 static usb_callback_t ucycom_intr_read_callback;
 
+static void	ucycom_free(struct ucom_softc *);
 static void	ucycom_cfg_open(struct ucom_softc *);
 static void	ucycom_start_read(struct ucom_softc *);
 static void	ucycom_stop_read(struct ucom_softc *);
@@ -156,13 +156,14 @@ static const struct ucom_callback ucycom_callback = {
 	.ucom_start_write = &ucycom_start_write,
 	.ucom_stop_write = &ucycom_stop_write,
 	.ucom_poll = &ucycom_poll,
+	.ucom_free = &ucycom_free,
 };
 
 static device_method_t ucycom_methods[] = {
 	DEVMETHOD(device_probe, ucycom_probe),
 	DEVMETHOD(device_attach, ucycom_attach),
 	DEVMETHOD(device_detach, ucycom_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t ucycom_devclass;
@@ -173,16 +174,18 @@ static driver_t ucycom_driver = {
 	.size = sizeof(struct ucycom_softc),
 };
 
-DRIVER_MODULE(ucycom, uhub, ucycom_driver, ucycom_devclass, NULL, 0);
-MODULE_DEPEND(ucycom, ucom, 1, 1, 1);
-MODULE_DEPEND(ucycom, usb, 1, 1, 1);
-
 /*
  * Supported devices
  */
-static const struct usb_device_id ucycom_devs[] = {
+static const STRUCT_USB_HOST_ID ucycom_devs[] = {
 	{USB_VPI(USB_VENDOR_DELORME, USB_PRODUCT_DELORME_EARTHMATE, MODEL_CY7C64013)},
 };
+
+DRIVER_MODULE(ucycom, uhub, ucycom_driver, ucycom_devclass, NULL, 0);
+MODULE_DEPEND(ucycom, ucom, 1, 1, 1);
+MODULE_DEPEND(ucycom, usb, 1, 1, 1);
+MODULE_VERSION(ucycom, 1);
+USB_PNP_HOST_INFO(ucycom_devs);
 
 #define	UCYCOM_DEFAULT_RATE	 4800
 #define	UCYCOM_DEFAULT_CFG	 0x03	/* N-8-1 */
@@ -218,9 +221,7 @@ ucycom_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "ucycom", NULL, MTX_DEF);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name),
-	    "%s", device_get_nameunit(dev));
+	ucom_ref(&sc->sc_super_ucom);
 
 	DPRINTF("\n");
 
@@ -266,18 +267,20 @@ ucycom_attach(device_t dev)
 	    sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "allocating USB "
-		    "transfers failed!\n");
+		    "transfers failed\n");
 		goto detach;
 	}
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &ucycom_callback, &sc->sc_mtx);
-
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	if (urd_ptr) {
 		free(urd_ptr, M_USBDEV);
 	}
+
 	return (0);			/* success */
 
 detach:
@@ -293,11 +296,31 @@ ucycom_detach(device_t dev)
 {
 	struct ucycom_softc *sc = device_get_softc(dev);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UCYCOM_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	ucycom_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(ucycom);
+
+static void
+ucycom_free_softc(struct ucycom_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+ucycom_free(struct ucom_softc *ucom)
+{
+	ucycom_free_softc(ucom->sc_parent);
 }
 
 static void
@@ -517,7 +540,7 @@ ucycom_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct usb_page_cache *pc;
 	uint8_t buf[2];
 	uint32_t offset;
-	uint32_t len;
+	int len;
 	int actlen;
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
@@ -555,7 +578,7 @@ ucycom_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			break;
 
 		default:
-			DPRINTFN(0, "unsupported model number!\n");
+			DPRINTFN(0, "unsupported model number\n");
 			goto tr_setup;
 		}
 

@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 /*
 
@@ -64,11 +64,16 @@ extern char *canonicalize_file_name (const char *);
 #   define REALPATH_LIMIT MAXPATHLEN
 #  endif
 # endif
+#else
+  /* cygwin has realpath, so it won't get here.  */ 
+# if defined (_WIN32)
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h> /* for GetFullPathName */
+# endif
 #endif
 
 char *
-lrealpath (filename)
-     const char *filename;
+lrealpath (const char *filename)
 {
   /* Method 1: The system has a compile time upper bound on a filename
      path.  Use that and realpath() to canonicalize the name.  This is
@@ -112,13 +117,37 @@ lrealpath (filename)
       {
 	/* PATH_MAX is bounded.  */
 	char *buf, *rp, *ret;
-	buf = malloc (path_max);
+	buf = (char *) malloc (path_max);
 	if (buf == NULL)
 	  return NULL;
 	rp = realpath (filename, buf);
 	ret = strdup (rp ? rp : filename);
 	free (buf);
 	return ret;
+      }
+  }
+#endif
+
+  /* The MS Windows method.  If we don't have realpath, we assume we
+     don't have symlinks and just canonicalize to a Windows absolute
+     path.  GetFullPath converts ../ and ./ in relative paths to
+     absolute paths, filling in current drive if one is not given
+     or using the current directory of a specified drive (eg, "E:foo").
+     It also converts all forward slashes to back slashes.  */
+#if defined (_WIN32)
+  {
+    char buf[MAX_PATH];
+    char* basename;
+    DWORD len = GetFullPathName (filename, MAX_PATH, buf, &basename);
+    if (len == 0 || len > MAX_PATH - 1)
+      return strdup (filename);
+    else
+      {
+	/* The file system is case-preserving but case-insensitive,
+	   Canonicalize to lowercase, using the codepage associated
+	   with the process locale.  */
+        CharLowerBuff (buf, len);
+        return strdup (buf);
       }
   }
 #endif

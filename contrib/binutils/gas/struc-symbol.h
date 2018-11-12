@@ -1,5 +1,5 @@
 /* struct_symbol.h - Internal symbol structure
-   Copyright 1987, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001
+   Copyright 1987, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001, 2005
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -16,17 +16,11 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef __struc_symbol_h__
 #define __struc_symbol_h__
-
-#ifdef BFD_ASSEMBLER
-/* The BFD code wants to walk the list in both directions.  */
-#undef  SYMBOLS_NEED_BACKPOINTERS
-#define SYMBOLS_NEED_BACKPOINTERS
-#endif
 
 /* The information we keep for a symbol.  Note that the symbol table
    holds pointers both to this and to local_symbol structures.  See
@@ -34,31 +28,15 @@
 
 struct symbol
 {
-#ifdef BFD_ASSEMBLER
   /* BFD symbol */
   asymbol *bsym;
-#else
-  /* The (4-origin) position of sy_name in the symbol table of the object
-     file.  This will be 0 for (nameless) .stabd symbols.
-
-     Not used until write_object_file() time.  */
-  unsigned long sy_name_offset;
-
-  /* What we write in .o file (if permitted).  */
-  obj_symbol_type sy_symbol;
-
-  /* The 24 bit symbol number.  Symbol numbers start at 0 and are unsigned.  */
-  long sy_number;
-#endif
 
   /* The value of the symbol.  */
   expressionS sy_value;
 
   /* Forwards and (optionally) backwards chain pointers.  */
   struct symbol *sy_next;
-#ifdef SYMBOLS_NEED_BACKPOINTERS
   struct symbol *sy_previous;
-#endif /* SYMBOLS_NEED_BACKPOINTERS */
 
   /* Pointer to the frag this symbol is attached to, if any.
      Otherwise, NULL.  */
@@ -82,11 +60,26 @@ struct symbol
      a symbol is used in backend routines.  */
   unsigned int sy_used : 1;
 
+  /* Whether the symbol can be re-defined.  */
+  unsigned int sy_volatile : 1;
+
+  /* Whether the symbol is a forward reference.  */
+  unsigned int sy_forward_ref : 1;
+
   /* This is set if the symbol is defined in an MRI common section.
      We handle such sections as single common symbols, so symbols
      defined within them must be treated specially by the relocation
      routines.  */
   unsigned int sy_mri_common : 1;
+
+  /* This is set if the symbol is set with a .weakref directive.  */
+  unsigned int sy_weakrefr : 1;
+
+  /* This is set when the symbol is referenced as part of a .weakref
+     directive, but only if the symbol was not in the symbol table
+     before.  It is cleared as soon as any direct reference to the
+     symbol is present.  */
+  unsigned int sy_weakrefd : 1;
 
 #ifdef OBJ_SYMFIELD_TYPE
   OBJ_SYMFIELD_TYPE sy_obj;
@@ -100,8 +93,6 @@ struct symbol
   TARGET_SYMBOL_FIELDS
 #endif
 };
-
-#ifdef BFD_ASSEMBLER
 
 /* A pointer in the symbol may point to either a complete symbol
    (struct symbol above) or to a local symbol (struct local_symbol
@@ -153,7 +144,5 @@ struct local_symbol
 #define local_symbol_set_frag(l, f) ((l)->u.lsy_frag = (f))
 #define local_symbol_get_real_symbol(l) ((l)->u.lsy_sym)
 #define local_symbol_set_real_symbol(l, s) ((l)->u.lsy_sym = (s))
-
-#endif /* BFD_ASSEMBLER */
 
 #endif /* __struc_symbol_h__ */

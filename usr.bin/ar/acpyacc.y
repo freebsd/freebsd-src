@@ -54,7 +54,6 @@ struct list {
 
 
 extern int	yylex(void);
-extern int	yyparse(void);
 
 static void	yyerror(const char *);
 static void	arscp_addlib(char *archive, struct list *list);
@@ -250,13 +249,12 @@ arscp_open(char *fname)
 
 	if ((a = archive_read_new()) == NULL)
 		bsdar_errc(bsdar, EX_SOFTWARE, 0, "archive_read_new failed");
-	archive_read_support_compression_all(a);
-	archive_read_support_format_all(a);
-	AC(archive_read_open_file(a, fname, DEF_BLKSZ));
+	archive_read_support_format_ar(a);
+	AC(archive_read_open_filename(a, fname, DEF_BLKSZ));
 	if ((r = archive_read_next_header(a, &entry)))
 		bsdar_warnc(bsdar, 0, "%s", archive_error_string(a));
 	AC(archive_read_close(a));
-	AC(archive_read_finish(a));
+	AC(archive_read_free(a));
 	if (r != ARCHIVE_OK)
 		return;
 	arscp_create(fname, fname);
@@ -312,7 +310,7 @@ arscp_create(char *in, char *out)
 		archive_write_set_format_ar_svr4(a);
 		AC(archive_write_open_fd(a, ofd));
 		AC(archive_write_close(a));
-		AC(archive_write_finish(a));
+		AC(archive_write_free(a));
 	}
 
 	/* Override previous target, if any. */
@@ -358,7 +356,7 @@ arscp_copy(int ifd, int ofd)
 
 /*
  * Add all modules of archive to current archive, if list != NULL,
- * only those modules speicifed in 'list' will be added.
+ * only those modules specified in 'list' will be added.
  */
 static void
 arscp_addlib(char *archive, struct list *list)
@@ -414,7 +412,7 @@ arscp_extract(struct list *list)
 
 /* List modules of archive. (Simple Mode) */
 static void
-arscp_list()
+arscp_list(void)
 {
 
 	if (!arscp_target_exist())
@@ -483,7 +481,7 @@ arscp_replace(struct list *list)
 
 /* Rename the temporary archive to the target archive. */
 static void
-arscp_save()
+arscp_save(void)
 {
 	mode_t mask;
 
@@ -512,7 +510,7 @@ arscp_save()
  * invoking CREATE cmd on current archive.
  */
 static void
-arscp_clear()
+arscp_clear(void)
 {
 	char		*new_target;
 
@@ -545,11 +543,11 @@ arscp_end(int eval)
 }
 
 /*
- * Check if target spcified, i.e, whether OPEN or CREATE has been
+ * Check if target specified, i.e, whether OPEN or CREATE has been
  * issued by user.
  */
 static int
-arscp_target_exist()
+arscp_target_exist(void)
 {
 
 	if (target)
@@ -624,7 +622,7 @@ arscp_mlist2argv(struct list *list)
 
 /* Free space allocated for argv array and its elements. */
 static void
-arscp_free_argv()
+arscp_free_argv(void)
 {
 	int i;
 
@@ -636,7 +634,7 @@ arscp_free_argv()
 
 /* Show a prompt if we are in interactive mode */
 static void
-arscp_prompt()
+arscp_prompt(void)
 {
 
 	if (interactive) {

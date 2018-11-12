@@ -550,26 +550,24 @@ au_pci_probe(device_t dev)
 static int
 au_pci_attach(device_t dev)
 {
-	u_int32_t	data;
 	struct au_info *au;
 	int		type[10];
 	int		regid[10];
 	struct resource *reg[10];
 	int		i, j, mapped = 0;
 	int		irqid;
-	struct resource *irq = 0;
-	void		*ih = 0;
+	struct resource *irq;
+	void		*ih;
 	struct ac97_info *codec;
 	char 		status[SND_STATUSLEN];
 
 	au = malloc(sizeof(*au), M_DEVBUF, M_WAITOK | M_ZERO);
 	au->unit = device_get_unit(dev);
 
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
+	pci_enable_busmaster(dev);
 
+	irq = NULL;
+	ih = NULL;
 	j=0;
 	/* XXX dfr: is this strictly necessary? */
 	for (i=0; i<PCI_MAXMAPS_0; i++) {
@@ -649,7 +647,7 @@ au_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	snprintf(status, SND_STATUSLEN, "at %s 0x%lx irq %ld %s",
+	snprintf(status, SND_STATUSLEN, "at %s 0x%jx irq %jd %s",
 		 (type[0] == SYS_RES_IOPORT)? "io" : "memory",
 		 rman_get_start(reg[0]), rman_get_start(irq),PCM_KLDSTRING(snd_aureal));
 

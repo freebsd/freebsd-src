@@ -24,8 +24,6 @@
  *  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
- /* $Id: fad-sita.c */
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -37,7 +35,7 @@
 
 extern pcap_if_t	*acn_if_list;								/* pcap's list of available interfaces */
 
-int pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf) {
+int pcap_findalldevs_interfaces(pcap_if_t **alldevsp, char *errbuf) {
 
 	//printf("pcap_findalldevs()\n");				// fulko
 

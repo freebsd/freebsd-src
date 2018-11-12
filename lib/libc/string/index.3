@@ -11,7 +11,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -30,7 +30,7 @@
 .\"     @(#)index.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd March 20, 2011
 .Dt INDEX 3
 .Os
 .Sh NAME
@@ -45,6 +45,17 @@
 .Ft "char *"
 .Fn rindex "const char *s" "int c"
 .Sh DESCRIPTION
+.Bf -symbolic
+The
+.Fn index
+and
+.Fn rindex
+functions have been deprecated in favor of
+.Xr strchr 3
+and
+.Xr strrchr 3 .
+.Ef
+.Pp
 The
 .Fn index
 function
@@ -100,3 +111,5 @@ before they were moved to
 for
 .St -p1003.1-2001
 compliance.
+The functions are not specified by
+.St -p1003.1-2008 .

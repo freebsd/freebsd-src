@@ -49,12 +49,13 @@ struct pcb {
 	uint64_t pcb_nsaved;
 	uint64_t pcb_pc;
 	uint64_t pcb_sp;
-	uint64_t pcb_pad[4];
+	uint64_t pcb_tpc;
+	uint64_t pcb_pad[3];
 } __aligned(64);
 
 #ifdef _KERNEL
 void	makectx(struct trapframe *tf, struct pcb *pcb);
-int	savectx(struct pcb *pcb);
+int	savectx(struct pcb *pcb) __returns_twice;
 #endif
 
 #endif /* !LOCORE */

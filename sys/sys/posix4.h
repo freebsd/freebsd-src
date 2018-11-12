@@ -48,7 +48,7 @@ struct nosys_args;
 extern int syscall_not_present(struct thread *, const char *, struct nosys_args *);
 
 #define SYSCALL_NOT_PRESENT_GEN(SC) \
-int SC (struct thread *td, struct SC##_args *uap) \
+int sys_ ## SC (struct thread *td, struct SC##_args *uap) \
 { \
 	return syscall_not_present(td, #SC , (struct nosys_args *)uap); \
 }
@@ -56,14 +56,12 @@ int SC (struct thread *td, struct SC##_args *uap) \
 
 MALLOC_DECLARE(M_P31B);
 
-#define p31b_malloc(SIZE) malloc((SIZE), M_P31B, M_WAITOK)
-#define p31b_free(P) free((P), M_P31B)
-
 int p31b_proc(struct proc *, pid_t, struct proc **);
 
 void p31b_setcfg(int, int);
 int p31b_getcfg(int);
 int p31b_iscfg(int);
+void p31b_unsetcfg(int);
 
 #ifdef _KPOSIX_PRIORITY_SCHEDULING
 

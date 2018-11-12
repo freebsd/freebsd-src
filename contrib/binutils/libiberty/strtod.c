@@ -14,7 +14,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+the Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 As a special exception, if you link this library with files
 compiled with a GNU compiler to produce an executable, this does not cause
@@ -40,16 +40,14 @@ the location referenced by @var{endptr}.
 #include "ansidecl.h"
 #include "safe-ctype.h"
 
-extern double atof ();
+extern double atof (const char *);
 
 /* Disclaimer: this is currently just used by CHILL in GDB and therefore
    has not been tested well.  It may have been tested for nothing except
    that it compiles.  */
 
 double
-strtod (str, ptr)
-     char *str;
-     char **ptr;
+strtod (char *str, char **ptr)
 {
   char *p;
 

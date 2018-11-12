@@ -19,15 +19,16 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 /*
  * This file contains the code to implement file range locking in
- * ZFS, although there isn't much specific to ZFS (all that comes to mind
+ * ZFS, although there isn't much specific to ZFS (all that comes to mind is
  * support for growing the blocksize).
  *
  * Interface
@@ -114,7 +115,7 @@ zfs_range_lock_writer(znode_t *zp, rl_t *new)
 		 * Range locking is also used by zvol and uses a
 		 * dummied up znode. However, for zvol, we don't need to
 		 * append or grow blocksize, and besides we don't have
-		 * a z_phys or z_zfsvfs - so skip that processing.
+		 * a "sa" data or z_zfsvfs - so skip that processing.
 		 *
 		 * Yes, this is ugly, and would be solved by not handling
 		 * grow or append in range lock code. If that was done then
@@ -127,14 +128,14 @@ zfs_range_lock_writer(znode_t *zp, rl_t *new)
 			 * This is done under z_range_lock to avoid races.
 			 */
 			if (new->r_type == RL_APPEND)
-				new->r_off = zp->z_phys->zp_size;
+				new->r_off = zp->z_size;
 
 			/*
 			 * If we need to grow the block size then grab the whole
 			 * file range. This is also done under z_range_lock to
 			 * avoid races.
 			 */
-			end_size = MAX(zp->z_phys->zp_size, new->r_off + len);
+			end_size = MAX(zp->z_size, new->r_off + len);
 			if (end_size > zp->z_blksz && (!ISP2(zp->z_blksz) ||
 			    zp->z_blksz < zp->z_zfsvfs->z_max_blksz)) {
 				new->r_off = 0;
@@ -431,6 +432,8 @@ zfs_range_lock(znode_t *zp, uint64_t off, uint64_t len, rl_type_t type)
 	new = kmem_alloc(sizeof (rl_t), KM_SLEEP);
 	new->r_zp = zp;
 	new->r_off = off;
+	if (len + off < off)	/* overflow */
+		len = UINT64_MAX - off;
 	new->r_len = len;
 	new->r_cnt = 1; /* assume it's going to be in the tree */
 	new->r_type = type;
@@ -460,7 +463,7 @@ static void
 zfs_range_unlock_reader(znode_t *zp, rl_t *remove)
 {
 	avl_tree_t *tree = &zp->z_range_avl;
-	rl_t *rl, *next;
+	rl_t *rl, *next = NULL;
 	uint64_t len;
 
 	/*
@@ -481,9 +484,9 @@ zfs_range_unlock_reader(znode_t *zp, rl_t *remove)
 			cv_destroy(&remove->r_rd_cv);
 		}
 	} else {
-		ASSERT3U(remove->r_cnt, ==, 0);
-		ASSERT3U(remove->r_write_wanted, ==, 0);
-		ASSERT3U(remove->r_read_wanted, ==, 0);
+		ASSERT0(remove->r_cnt);
+		ASSERT0(remove->r_write_wanted);
+		ASSERT0(remove->r_read_wanted);
 		/*
 		 * Find start proxy representing this reader lock,
 		 * then decrement ref count on all proxies

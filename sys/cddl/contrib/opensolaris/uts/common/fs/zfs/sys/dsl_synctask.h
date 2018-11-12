@@ -19,14 +19,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #ifndef	_SYS_DSL_SYNCTASK_H
 #define	_SYS_DSL_SYNCTASK_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/txg.h>
 #include <sys/zfs_context.h>
@@ -37,44 +35,56 @@ extern "C" {
 
 struct dsl_pool;
 
-typedef int (dsl_checkfunc_t)(void *, void *, dmu_tx_t *);
-typedef void (dsl_syncfunc_t)(void *, void *, cred_t *, dmu_tx_t *);
+typedef int (dsl_checkfunc_t)(void *, dmu_tx_t *);
+typedef void (dsl_syncfunc_t)(void *, dmu_tx_t *);
+
+typedef enum zfs_space_check {
+	/*
+	 * Normal space check: if there is less than 3.2% free space,
+	 * the operation will fail.  Operations which are logically
+	 * creating things should use this (e.g. "zfs create", "zfs snapshot").
+	 * User writes (via the ZPL / ZVOL) also fail at this point.
+	 */
+	ZFS_SPACE_CHECK_NORMAL,
+
+	/*
+	 * Space check allows use of half the slop space.  If there
+	 * is less than 1.6% free space, the operation will fail.  Most
+	 * operations should use this (e.g. "zfs set", "zfs rename"),
+	 * because we want them to succeed even after user writes are failing,
+	 * so that they can be used as part of the space recovery process.
+	 */
+	ZFS_SPACE_CHECK_RESERVED,
+
+	/*
+	 * No space check is performed.  Only operations which we expect to
+	 * result in a net reduction in space should use this
+	 * (e.g. "zfs destroy". Setting quotas & reservations also uses
+	 * this because it needs to circumvent the quota/reservation checks).
+	 *
+	 * See also the comments above spa_slop_shift.
+	 */
+	ZFS_SPACE_CHECK_NONE,
+} zfs_space_check_t;
 
 typedef struct dsl_sync_task {
-	list_node_t dst_node;
+	txg_node_t dst_node;
+	struct dsl_pool *dst_pool;
+	uint64_t dst_txg;
+	int dst_space;
+	zfs_space_check_t dst_space_check;
 	dsl_checkfunc_t *dst_checkfunc;
 	dsl_syncfunc_t *dst_syncfunc;
-	void *dst_arg1;
-	void *dst_arg2;
-	int dst_err;
+	void *dst_arg;
+	int dst_error;
+	boolean_t dst_nowaiter;
 } dsl_sync_task_t;
 
-typedef struct dsl_sync_task_group {
-	txg_node_t dstg_node;
-	list_t dstg_tasks;
-	struct dsl_pool *dstg_pool;
-	cred_t *dstg_cr;
-	uint64_t dstg_txg;
-	int dstg_err;
-	int dstg_space;
-	boolean_t dstg_nowaiter;
-} dsl_sync_task_group_t;
-
-dsl_sync_task_group_t *dsl_sync_task_group_create(struct dsl_pool *dp);
-void dsl_sync_task_create(dsl_sync_task_group_t *dstg,
-    dsl_checkfunc_t *, dsl_syncfunc_t *,
-    void *arg1, void *arg2, int blocks_modified);
-int dsl_sync_task_group_wait(dsl_sync_task_group_t *dstg);
-void dsl_sync_task_group_nowait(dsl_sync_task_group_t *dstg, dmu_tx_t *tx);
-void dsl_sync_task_group_destroy(dsl_sync_task_group_t *dstg);
-void dsl_sync_task_group_sync(dsl_sync_task_group_t *dstg, dmu_tx_t *tx);
-
-int dsl_sync_task_do(struct dsl_pool *dp,
-    dsl_checkfunc_t *checkfunc, dsl_syncfunc_t *syncfunc,
-    void *arg1, void *arg2, int blocks_modified);
-void dsl_sync_task_do_nowait(struct dsl_pool *dp,
-    dsl_checkfunc_t *checkfunc, dsl_syncfunc_t *syncfunc,
-    void *arg1, void *arg2, int blocks_modified, dmu_tx_t *tx);
+void dsl_sync_task_sync(dsl_sync_task_t *, dmu_tx_t *);
+int dsl_sync_task(const char *, dsl_checkfunc_t *,
+    dsl_syncfunc_t *, void *, int, zfs_space_check_t);
+void dsl_sync_task_nowait(struct dsl_pool *, dsl_syncfunc_t *,
+    void *, int, zfs_space_check_t, dmu_tx_t *);
 
 #ifdef	__cplusplus
 }

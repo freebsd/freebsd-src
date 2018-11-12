@@ -30,8 +30,9 @@
 
 #include "fpmath.h"
 
-/* Provided by libc */
-#if 0
+/* Provided by libc.so */
+#ifndef PIC
+#undef isnan
 int
 isnan(double d)
 {
@@ -40,10 +41,10 @@ isnan(double d)
 	u.d = d;
 	return (u.bits.exp == 2047 && (u.bits.manl != 0 || u.bits.manh != 0));
 }
-#endif
+#endif /* !PIC */
 
 int
-isnanf(float f)
+__isnanf(float f)
 {
 	union IEEEf2bits u;
 
@@ -60,3 +61,5 @@ __isnanl(long double e)
 	mask_nbit_l(u);
 	return (u.bits.exp == 32767 && (u.bits.manl != 0 || u.bits.manh != 0));
 }
+
+__weak_reference(__isnanf, isnanf);

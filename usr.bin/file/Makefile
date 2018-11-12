@@ -1,6 +1,6 @@
 # $FreeBSD$
 # Makefile for file(1) cmd.
-# Copyright (c) David E. O'Brien, 2000-2004
+# Copyright (c) David E. O'Brien, 2000-2004, 2009
 # Copyright (c) Ian F. Darwin 86/09/01 - see LEGAL.NOTICE.
 #
 # This software is not subject to any license of the American Telephone
@@ -21,7 +21,8 @@
 # 4. This notice may not be removed or altered.
 
 SRCDIR=	${.CURDIR}/../../contrib/file
-.PATH: ${SRCDIR}
+.PATH: ${SRCDIR}/src
+.PATH: ${SRCDIR}/doc
 
 PROG=	file
 
@@ -30,8 +31,7 @@ MAGICPATH?=	/usr/share/misc
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DHAVE_CONFIG_H
 CFLAGS+= -I${.CURDIR}/../../lib/libmagic
 
-DPADD=	${LIBMAGIC} ${LIBZ}
-LDADD=	-lmagic -lz
+LIBADD=	magic
 
 FILEVER!= awk '$$1 == "\#define" && $$2 == "VERSION" { print $$3; exit }' \
 			${.CURDIR}/../../lib/libmagic/config.h

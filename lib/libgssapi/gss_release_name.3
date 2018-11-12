@@ -27,9 +27,9 @@
 .\"	$FreeBSD$
 .\"
 .\" The following commands are required for all man pages.
-.Dd October 30, 2007
-.Os
+.Dd January 26, 2010
 .Dt GSS_RELEASE_NAME 3 PRM
+.Os
 .Sh NAME
 .Nm gss_release_name
 .Nd Discard an internal-form name
@@ -48,21 +48,21 @@ Implementations are encouraged to set the name to
 .Dv GSS_C_NO_NAME
 on successful completion of this call.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It minor status"
 .It minor_status
 Mechanism specific status code.
 .It name
 The name to be deleted.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_COMPLETE"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_BAD_NAME
 The name parameter did not contain a valid name
 .El
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744
@@ -71,7 +71,7 @@ Generic Security Service API Version 2 : C-bindings
 .Sh HISTORY
 The
 .Nm
-manual page example first appeared in
+function first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
 John Wray, Iris Associates

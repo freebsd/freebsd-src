@@ -1,28 +1,41 @@
 #	$FreeBSD$
 
+.include <src.opts.mk>
+
 PROG=	makefs
+
+CFLAGS+=-I${.CURDIR}
+
+SRCS=	cd9660.c ffs.c \
+	makefs.c \
+	mtree.c \
+	walk.c
 MAN=	makefs.8
 
 WARNS?=	2
 
-CFLAGS+=-I${.CURDIR}
-SRCS=	ffs.c getid.c makefs.c walk.c
+.include "${.CURDIR}/cd9660/Makefile.inc"
+.include "${.CURDIR}/ffs/Makefile.inc"
 
-.PATH:	${.CURDIR}/ffs
-CFLAGS+=-I${.CURDIR}/ffs
 CFLAGS+=-DHAVE_STRUCT_STAT_ST_FLAGS=1
 CFLAGS+=-DHAVE_STRUCT_STAT_ST_GEN=1
-SRCS+=	buf.c ffs_alloc.c ffs_balloc.c ffs_bswap.c ffs_subr.c mkfs.c ufs_bmap.c
 
-.PATH:	${.CURDIR}/compat
-CFLAGS+=-I${.CURDIR}/compat
-SRCS+=	pwcache.c strsuftoll.c
+.PATH: ${.CURDIR}/../../contrib/mtree
+CFLAGS+=-I${.CURDIR}/../../contrib/mtree
+SRCS+=	getid.c misc.c spec.c
 
-.PATH:	${.CURDIR}/../mtree
-CFLAGS+=-I${.CURDIR}/../mtree
-SRCS+=	misc.c spec.c
+.PATH: ${.CURDIR}/../../contrib/mknod
+CFLAGS+=-I${.CURDIR}/../../contrib/mknod
+SRCS+=	pack_dev.c
 
 .PATH:	${.CURDIR}/../../sys/ufs/ffs
 SRCS+=	ffs_tables.c
+
+CFLAGS+=	-I${.CURDIR}/../../lib/libnetbsd
+LIBADD=		netbsd util sbuf
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>

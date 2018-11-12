@@ -1,4 +1,4 @@
-.\" Copyright (c) 2007 Daniel Braniss <danny@cs.huji.ac.il>
+.\" Copyright (c) 2007-2010 Daniel Braniss <danny@cs.huji.ac.il>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,9 +24,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2007
-.Os
+.Dd October 9, 2014
 .Dt ISCSI_INITIATOR 4
+.Os
 .Sh NAME
 .Nm iscsi_initiator
 .Nd kernel driver for the iSCSI protocol
@@ -45,10 +45,19 @@ module at boot time, place the following line in
 iscsi_initiator_load="YES"
 .Ed
 .Sh DESCRIPTION
+.Bf -symbolic
+This driver, along with its userspace counterpart
+.Xr iscontrol 8 ,
+is obsolete.
+Users are advised to use
+.Xr iscsi 4
+instead.
+.Ef
+.Pp
 The
 .Nm
 implements the kernel side of the Internet SCSI (iSCSI) network
-protocol standard, the user land companion is
+protocol standard, the userland companion is
 .Xr iscontrol 8 ,
 and permits access to remote
 .Em virtual
@@ -60,6 +69,8 @@ SCSI devices via
 set the debug-level, 0 means no debugging, 9 for maximum.
 .It Va net.iscsi.isid
 the initiator part of the Session Identifier.
+.It Va "kern.cam.cam_srch_hi=1"
+allow search above LUN 7 for SCSI3 and greater devices.
 .It "the following are informative only:"
 .It Va net.iscsi.driver_version
 the current version of the driver.
@@ -73,9 +84,9 @@ is the IP address of the target of session
 .Em n .
 .It Va net.iscsi.n.stats
 are some statistics for session
-.EM n
+.Em n
 .It Va net.iscsi.n.pid
-is the 
+is the
 .Em "process id"
 of the userland side of session
 .Em n ,
@@ -83,11 +94,11 @@ see
 .Xr iscontrol 8 .
 .El
 .Sh FILES
-The 
+The
 .Nm
 driver creates the following:
-.Bl -tag -width ".Pa /dev/iscsi%dxx" -compact
 .Pp
+.Bl -tag -width ".Pa /dev/iscsi%dxx" -compact
 .It Pa /dev/iscsi
 used to create new sessions.
 .It Pa /dev/iscsi%d
@@ -100,6 +111,8 @@ for each new session.
 .Sh STANDARDS
 iSCSI RFC 3720
 .\" .Sh HISTORY
-.\" .Sh AUTHORS
+.Sh AUTHORS
+This software was written by
+.An Daniel Braniss Aq Mt danny@cs.huji.ac.il
 .Sh BUGS
 The lun discovery method is old-fashioned.

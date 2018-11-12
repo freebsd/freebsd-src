@@ -30,6 +30,8 @@
 #
 # LIBDATADIR	Base path for misc. utility data files. [/usr/libdata]
 #
+# LIBEXECDIR	Base path for system daemons and utilities. [/usr/libexec]
+#
 # LINTLIBDIR	Base path for lint libraries. [/usr/libdata/lint]
 #
 # SHLIBDIR	Base path for shared libraries. [${LIBDIR}]
@@ -41,8 +43,13 @@
 # LIBMODE	Library mode. [${NOBINMODE}]
 #
 #
+# DEBUGDIR	Base path for standalone debug files. [/usr/lib/debug]
+#
+# DEBUGMODE	Mode for debug files. [${NOBINMODE}]
+#
+#
 # KMODDIR	Base path for loadable kernel modules
-#		(see kld(4)). [/boot/kernel]
+#		(see kld(4)). [/boot/module]
 #
 # KMODOWN	Kernel and KLD owner. [${BINOWN}]
 #
@@ -59,6 +66,15 @@
 # SHAREGRP	ASCII text file group. [wheel]
 #
 # SHAREMODE	ASCII text file mode. [${NOBINMODE}]
+#
+#
+# CONFDIR	Base path for configuration files. [/etc]
+#
+# CONFOWN	Configuration file owner. [root]
+#
+# CONFGRP	Configuration file group. [wheel]
+#
+# CONFMODE	Configuration file mode. [644]
 #
 #
 # DOCDIR	Base path for system documentation (e.g. PSD, USD,
@@ -104,12 +120,44 @@
 .if !target(__<bsd.own.mk>__)
 __<bsd.own.mk>__:
 
+.include <bsd.opts.mk>		# options now here or src.opts.mk
+
 .if !defined(_WITHOUT_SRCCONF)
-SRCCONF?=	/etc/src.conf
-.if exists(${SRCCONF})
-.include "${SRCCONF}"
+
+.if ${MK_CTF} != "no"
+CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.elif defined(.PARSEDIR) || (defined(MAKE_VERSION) && ${MAKE_VERSION} >= 5201111300)
+CTFCONVERT_CMD=
+.else
+CTFCONVERT_CMD=	@:
+.endif 
+
+.if ${MK_INSTALL_AS_USER} != "no"
+.if !defined(_uid)
+_uid!=	id -u
+.export _uid
+.endif
+.if ${_uid} != 0
+.if !defined(USER)
+# Avoid exporting USER
+.if !defined(_USER)
+_USER!=	id -un
+.export _USER
+.endif
+USER=	${_USER}
+.endif
+.if !defined(_gid)
+_gid!=	id -g
+.export _gid
+.endif
+.for x in BIN CONF DOC DTB INFO KMOD LIB MAN NLS SHARE
+$xOWN=	${USER}
+$xGRP=	${_gid}
+.endfor
 .endif
 .endif
+
+.endif # !_WITHOUT_SRCCONF
 
 # Binaries
 BINOWN?=	root
@@ -117,23 +165,27 @@ BINGRP?=	wheel
 BINMODE?=	555
 NOBINMODE?=	444
 
-.if defined(MODULES_WITH_WORLD)
 KMODDIR?=	/boot/modules
-.else
-KMODDIR?=	/boot/kernel
-.endif
 KMODOWN?=	${BINOWN}
 KMODGRP?=	${BINGRP}
 KMODMODE?=	${BINMODE}
+DTBDIR?=	/boot/dtb
+DTBOWN?=	root
+DTBGRP?=	wheel
+DTBMODE?=	444
 
 LIBDIR?=	/usr/lib
 LIBCOMPATDIR?=	/usr/lib/compat
 LIBDATADIR?=	/usr/libdata
+LIBEXECDIR?=	/usr/libexec
 LINTLIBDIR?=	/usr/libdata/lint
 SHLIBDIR?=	${LIBDIR}
 LIBOWN?=	${BINOWN}
 LIBGRP?=	${BINGRP}
 LIBMODE?=	${NOBINMODE}
+
+DEBUGDIR?=	/usr/lib/debug
+DEBUGMODE?=	${NOBINMODE}
 
 
 # Share files
@@ -141,6 +193,11 @@ SHAREDIR?=	/usr/share
 SHAREOWN?=	root
 SHAREGRP?=	wheel
 SHAREMODE?=	${NOBINMODE}
+
+CONFDIR?=	/etc
+CONFOWN?=	root
+CONFGRP?=	wheel
+CONFMODE?=	644
 
 MANDIR?=	${SHAREDIR}/man/man
 MANOWN?=	${SHAREOWN}
@@ -164,6 +221,17 @@ NLSMODE?=	${NOBINMODE}
 
 INCLUDEDIR?=	/usr/include
 
+#
+# install(1) parameters.
+#
+HRDLINK?=	-l h
+SYMLINK?=	-l s
+RSYMLINK?=	-l rs
+
+INSTALL_LINK?=		${INSTALL} ${HRDLINK}
+INSTALL_SYMLINK?=	${INSTALL} ${SYMLINK}
+INSTALL_RSYMLINK?=	${INSTALL} ${RSYMLINK}
+
 # Common variables
 .if !defined(DEBUG_FLAGS)
 STRIP?=		-s
@@ -172,370 +240,25 @@ STRIP?=		-s
 COMPRESS_CMD?=	gzip -cn
 COMPRESS_EXT?=	.gz
 
+# Set XZ_THREADS to 1 to disable multi-threading.
+XZ_THREADS?=	0
+
+.if !empty(XZ_THREADS)
+XZ_CMD?=	xz -T ${XZ_THREADS}
+.else
+XZ_CMD?=	xz
+.endif
+
+# Pointer to the top directory into which tests are installed.  Should not be
+# overriden by Makefiles, but the user may choose to set this in src.conf(5).
+TESTSBASE?= /usr/tests
+
+DEPENDFILE?=	.depend
+
+# Compat for the moment -- old bsd.own.mk only included this when _WITHOUT_SRCCONF
+# wasn't defined. bsd.ports.mk and friends depend on this behavior. Remove in 12.
 .if !defined(_WITHOUT_SRCCONF)
-#
-# Define MK_* variables (which are either "yes" or "no") for users
-# to set via WITH_*/WITHOUT_* in /etc/src.conf and override in the
-# make(1) environment.
-# These should be tested with `== "no"' or `!= "no"' in makefiles.
-# The NO_* variables should only be set by makefiles.
-#
-
-#
-# Supported NO_* options (if defined, MK_* will be forced to "no",
-# regardless of user's setting).
-#
-.for var in \
-    INSTALLLIB \
-    MAN \
-    PROFILE
-.if defined(NO_${var})
-WITHOUT_${var}=
-.endif
-.endfor
-
-#
-# Compat NO_* options (same as above, except their use is deprecated).
-#
-.if !defined(BURN_BRIDGES)
-.for var in \
-    ACPI \
-    ATM \
-    AUDIT \
-    AUTHPF \
-    BIND \
-    BIND_DNSSEC \
-    BIND_ETC \
-    BIND_LIBS_LWRES \
-    BIND_MTREE \
-    BIND_NAMED \
-    BIND_UTILS \
-    BLUETOOTH \
-    BOOT \
-    CALENDAR \
-    CPP \
-    CRYPT \
-    CVS \
-    CXX \
-    DICT \
-    DYNAMICROOT \
-    EXAMPLES \
-    FORTH \
-    FP_LIBC \
-    GAMES \
-    GCOV \
-    GDB \
-    GNU \
-    GPIB \
-    GROFF \
-    HTML \
-    INET6 \
-    INFO \
-    IPFILTER \
-    IPX \
-    KERBEROS \
-    LIB32 \
-    LIBPTHREAD \
-    LIBTHR \
-    LOCALES \
-    LPR \
-    MAILWRAPPER \
-    NETCAT \
-    NIS \
-    NLS \
-    NLS_CATALOGS \
-    NS_CACHING \
-    OBJC \
-    OPENSSH \
-    OPENSSL \
-    PAM \
-    PF \
-    RCMDS \
-    RCS \
-    RESCUE \
-    SENDMAIL \
-    SETUID_LOGIN \
-    SHAREDOCS \
-    SYSCONS \
-    TCSH \
-    TOOLCHAIN \
-    USB \
-    WPA_SUPPLICANT_EAPOL
-.if defined(NO_${var})
-#.warning NO_${var} is deprecated in favour of WITHOUT_${var}=
-WITHOUT_${var}=
-.endif
-.endfor
-.endif # !defined(BURN_BRIDGES)
-
-#
-# Older-style variables that enabled behaviour when set.
-#
-.if defined(YES_HESIOD)
-WITH_HESIOD=
-.endif
-.if defined(MAKE_IDEA)
-WITH_IDEA=
-.endif
-
-#
-# MK_* options which default to "yes".
-#
-.for var in \
-    ACCT \
-    ACPI \
-    AMD \
-    APM \
-    ASSERT_DEBUG \
-    AT \
-    ATM \
-    AUDIT \
-    AUTHPF \
-    BIND \
-    BIND_DNSSEC \
-    BIND_ETC \
-    BIND_LIBS_LWRES \
-    BIND_MTREE \
-    BIND_NAMED \
-    BIND_UTILS \
-    BLUETOOTH \
-    BOOT \
-    BSD_CPIO \
-    BSNMP \
-    BZIP2 \
-    CALENDAR \
-    CDDL \
-    CPP \
-    CRYPT \
-    CTM \
-    CVS \
-    CXX \
-    DICT \
-    DYNAMICROOT \
-    EXAMPLES \
-    FLOPPY \
-    FORTH \
-    FP_LIBC \
-    FREEBSD_UPDATE \
-    GAMES \
-    GCOV \
-    GDB \
-    GNU \
-    GNU_GREP \
-    GPIB \
-    GROFF \
-    HTML \
-    INET6 \
-    INFO \
-    INSTALLLIB \
-    IPFILTER \
-    IPFW \
-    IPX \
-    JAIL \
-    KERBEROS \
-    KVM \
-    LEGACY_CONSOLE \
-    LIB32 \
-    LIBPTHREAD \
-    LIBTHR \
-    LOCALES \
-    LOCATE \
-    LPR \
-    MAIL \
-    MAILWRAPPER \
-    MAKE \
-    MAN \
-    NCP \
-    NDIS \
-    NETCAT \
-    NETGRAPH \
-    NIS \
-    NLS \
-    NLS_CATALOGS \
-    NS_CACHING \
-    NTP \
-    OBJC \
-    OPENSSH \
-    OPENSSL \
-    PAM \
-    PF \
-    PKGTOOLS \
-    PMC \
-    PORTSNAP \
-    PPP \
-    PROFILE \
-    QUOTAS \
-    RCMDS \
-    RCS \
-    RESCUE \
-    ROUTED \
-    SENDMAIL \
-    SETUID_LOGIN \
-    SHAREDOCS \
-    SSP \
-    SYSINSTALL \
-    SYMVER \
-    SYSCONS \
-    TCSH \
-    TELNET \
-    TEXTPROC \
-    TOOLCHAIN \
-    USB \
-    WIRELESS \
-    WPA_SUPPLICANT_EAPOL \
-    ZFS \
-    ZONEINFO
-.if defined(WITH_${var}) && defined(WITHOUT_${var})
-.error WITH_${var} and WITHOUT_${var} can't both be set.
-.endif
-.if defined(MK_${var})
-.error MK_${var} can't be set by a user.
-.endif
-.if defined(WITHOUT_${var})
-MK_${var}:=	no
-.else
-MK_${var}:=	yes
-.endif
-.endfor
-
-#
-# MK_* options which default to "no".
-#
-.for var in \
-    BIND_IDN \
-    BIND_LARGE_FILE \
-    BIND_LIBS \
-    BIND_SIGCHASE \
-    BIND_XML \
-    GNU_CPIO \
-    HESIOD \
-    IDEA
-.if defined(WITH_${var}) && defined(WITHOUT_${var})
-.error WITH_${var} and WITHOUT_${var} can't both be set.
-.endif
-.if defined(MK_${var})
-.error MK_${var} can't be set by a user.
-.endif
-.if defined(WITH_${var})
-MK_${var}:=	yes
-.else
-MK_${var}:=	no
-.endif
-.endfor
-
-#
-# Force some options off if their dependencies are off.
-# Order is somewhat important.
-#
-.if ${MK_LIBPTHREAD} == "no"
-MK_LIBTHR:=	no
-.endif
-
-.if ${MK_LIBTHR} == "no"
-MK_BIND:=	no
-.endif
-
-.if ${MK_BIND} == "no"
-MK_BIND_DNSSEC:= no
-MK_BIND_ETC:=	no
-MK_BIND_LIBS:=	no
-MK_BIND_LIBS_LWRES:= no
-MK_BIND_MTREE:=	no
-MK_BIND_NAMED:=	no
-MK_BIND_UTILS:=	no
-.endif
-
-.if ${MK_BIND_MTREE} == "no"
-MK_BIND_ETC:=	no
-.endif
-
-.if ${MK_CDDL} == "no"
-MK_ZFS:=	no
-.endif
-
-.if ${MK_CRYPT} == "no"
-MK_OPENSSL:=	no
-MK_OPENSSH:=	no
-MK_KERBEROS:=	no
-.endif
-
-.if ${MK_IPX} == "no"
-MK_NCP:=	no
-.endif
-
-.if ${MK_MAIL} == "no"
-MK_MAILWRAPPER:= no
-MK_SENDMAIL:=	no
-.endif
-
-.if ${MK_OPENSSL} == "no"
-MK_OPENSSH:=	no
-MK_KERBEROS:=	no
-.endif
-
-.if ${MK_PF} == "no"
-MK_AUTHPF:=	no
-.endif
-
-.if ${MK_TEXTPROC} == "no"
-MK_GROFF:=	no
-.endif
-
-.if ${MK_TOOLCHAIN} == "no"
-MK_GDB:=	no
-.endif
-
-#
-# Set defaults for the MK_*_SUPPORT variables.
-#
-
-#
-# MK_*_SUPPORT options which default to "yes" unless their corresponding
-# MK_* variable is set to "no".
-#
-.for var in \
-    BZIP2 \
-    GNU \
-    INET6 \
-    IPX \
-    KERBEROS \
-    KVM \
-    NETGRAPH \
-    PAM \
-    WIRELESS
-.if defined(WITH_${var}_SUPPORT) && defined(WITHOUT_${var}_SUPPORT)
-.error WITH_${var}_SUPPORT and WITHOUT_${var}_SUPPORT can't both be set.
-.endif
-.if defined(MK_${var}_SUPPORT)
-.error MK_${var}_SUPPORT can't be set by a user.
-.endif
-.if defined(WITHOUT_${var}_SUPPORT) || ${MK_${var}} == "no"
-MK_${var}_SUPPORT:= no
-.else
-MK_${var}_SUPPORT:= yes
-.endif
-.endfor
-
-#
-# MK_* options whose default value depends on another option.
-#
-.for vv in \
-    GSSAPI/KERBEROS
-.if defined(WITH_${vv:H}) && defined(WITHOUT_${vv:H})
-.error WITH_${vv:H} and WITHOUT_${vv:H} can't both be set.
-.endif
-.if defined(MK_${vv:H})
-.error MK_${vv:H} can't be set by a user.
-.endif
-.if defined(WITH_${vv:H})
-MK_${vv:H}:=	yes
-.elif defined(WITHOUT_${vv:H})
-MK_${vv:H}:=	no
-.else
-MK_${vv:H}:=	${MK_${vv:T}}
-.endif
-.endfor
-
+.include <bsd.compiler.mk>
 .endif # !_WITHOUT_SRCCONF
 
 .endif	# !target(__<bsd.own.mk>__)

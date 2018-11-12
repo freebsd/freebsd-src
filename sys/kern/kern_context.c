@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -59,7 +60,7 @@ struct swapcontext_args {
 #endif
 
 int
-getcontext(struct thread *td, struct getcontext_args *uap)
+sys_getcontext(struct thread *td, struct getcontext_args *uap)
 {
 	ucontext_t uc;
 	int ret;
@@ -71,13 +72,14 @@ getcontext(struct thread *td, struct getcontext_args *uap)
 		PROC_LOCK(td->td_proc);
 		uc.uc_sigmask = td->td_sigmask;
 		PROC_UNLOCK(td->td_proc);
+		bzero(uc.__spare__, sizeof(uc.__spare__));
 		ret = copyout(&uc, uap->ucp, UC_COPY_SIZE);
 	}
 	return (ret);
 }
 
 int
-setcontext(struct thread *td, struct setcontext_args *uap)
+sys_setcontext(struct thread *td, struct setcontext_args *uap)
 {
 	ucontext_t uc;
 	int ret;	
@@ -89,10 +91,8 @@ setcontext(struct thread *td, struct setcontext_args *uap)
 		if (ret == 0) {
 			ret = set_mcontext(td, &uc.uc_mcontext);
 			if (ret == 0) {
-				SIG_CANTMASK(uc.uc_sigmask);
-				PROC_LOCK(td->td_proc);
-				td->td_sigmask = uc.uc_sigmask;
-				PROC_UNLOCK(td->td_proc);
+				kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask,
+				    NULL, 0);
 			}
 		}
 	}
@@ -100,7 +100,7 @@ setcontext(struct thread *td, struct setcontext_args *uap)
 }
 
 int
-swapcontext(struct thread *td, struct swapcontext_args *uap)
+sys_swapcontext(struct thread *td, struct swapcontext_args *uap)
 {
 	ucontext_t uc;
 	int ret;	
@@ -109,6 +109,7 @@ swapcontext(struct thread *td, struct swapcontext_args *uap)
 		ret = EINVAL;
 	else {
 		get_mcontext(td, &uc.uc_mcontext, GET_MC_CLEAR_RET);
+		bzero(uc.__spare__, sizeof(uc.__spare__));
 		PROC_LOCK(td->td_proc);
 		uc.uc_sigmask = td->td_sigmask;
 		PROC_UNLOCK(td->td_proc);
@@ -118,10 +119,8 @@ swapcontext(struct thread *td, struct swapcontext_args *uap)
 			if (ret == 0) {
 				ret = set_mcontext(td, &uc.uc_mcontext);
 				if (ret == 0) {
-					SIG_CANTMASK(uc.uc_sigmask);
-					PROC_LOCK(td->td_proc);
-					td->td_sigmask = uc.uc_sigmask;
-					PROC_UNLOCK(td->td_proc);
+					kern_sigprocmask(td, SIG_SETMASK,
+					    &uc.uc_sigmask, NULL, 0);
 				}
 			}
 		}

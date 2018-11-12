@@ -39,10 +39,11 @@
 #include "xmalloc.h"
 #include "packet.h"
 #include "buffer.h"
+#include "key.h"
 #include "auth-options.h"
 #include "log.h"
+#include "misc.h"	/* servconf.h needs misc.h for struct ForwardOptions */
 #include "servconf.h"
-#include "key.h"
 #include "hostfile.h"
 #include "auth.h"
 #include "ssh.h"

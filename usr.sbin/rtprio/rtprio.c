@@ -37,59 +37,55 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/rtprio.h>
-#include <sys/errno.h>
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-static void usage();
+static int parseint(const char *, const char *);
+static void usage(void);
 
 int
-main(argc, argv)
-	int     argc;
-	char  **argv;
+main(int argc, char *argv[])
 {
-	char   *p;
-	int     proc = 0;
 	struct rtprio rtp;
+	const char *progname;
+	pid_t proc = 0;
 
-	/* find basename */
-	if ((p = rindex(argv[0], '/')) == NULL)
-		p = argv[0];
-	else
-		++p;
+	progname = getprogname();
 
-	if (!strcmp(p, "rtprio"))
+	if (strcmp(progname, "rtprio") == 0)
 		rtp.type = RTP_PRIO_REALTIME;
-	else if (!strcmp(p, "idprio"))
+	else if (strcmp(progname, "idprio") == 0)
 		rtp.type = RTP_PRIO_IDLE;
+	else
+		errx(1, "invalid progname");
 
 	switch (argc) {
 	case 2:
-		proc = abs(atoi(argv[1]));	/* Should check if numeric
-						 * arg! */
+		proc = parseint(argv[1], "pid");
+		proc = abs(proc);
 		/* FALLTHROUGH */
 	case 1:
 		if (rtprio(RTP_LOOKUP, proc, &rtp) != 0)
-			err(1, "%s", argv[0]);
-		printf("%s: ", p);
+			err(1, "RTP_LOOKUP");
 		switch (rtp.type) {
 		case RTP_PRIO_REALTIME:
 		case RTP_PRIO_FIFO:
-			printf("realtime priority %d\n", rtp.prio);
+			warnx("realtime priority %d", rtp.prio);
 			break;
 		case RTP_PRIO_NORMAL:
-			printf("normal priority\n");
+			warnx("normal priority");
 			break;
 		case RTP_PRIO_IDLE:
-			printf("idle priority %d\n", rtp.prio);
+			warnx("idle priority %d", rtp.prio);
 			break;
 		default:
-			printf("invalid priority type %d\n", rtp.type);
+			errx(1, "invalid priority type %d", rtp.type);
 			break;
 		}
 		exit(0);
@@ -103,32 +99,49 @@ main(argc, argv)
 					usage();
 					break;
 				}
-			} else {
-				rtp.prio = atoi(argv[1]);
-			}
+			} else
+				rtp.prio = parseint(argv[1], "priority");
 		} else {
 			usage();
 			break;
 		}
 
-		if (argv[2][0] == '-')
-			proc = -atoi(argv[2]);
+		if (argv[2][0] == '-') {
+			proc = parseint(argv[2], "pid");
+			proc = abs(proc);
+		}
 
 		if (rtprio(RTP_SET, proc, &rtp) != 0)
-			err(1, "%s", argv[0]);
+			err(1, "RTP_SET");
 
 		if (proc == 0) {
 			execvp(argv[2], &argv[2]);
-			err(1, "%s", argv[2]);
+			err(1, "execvp: %s", argv[2]);
 		}
 		exit(0);
 	}
-	exit (1);
+	/* NOTREACHED */
+}
+
+static int
+parseint(const char *str, const char *errname)
+{
+	char *endp;
+	long res;
+
+	errno = 0;
+	res = strtol(str, &endp, 10);
+	if (errno != 0 || endp == str || *endp != '\0')
+		errx(1, "%s must be a number", errname);
+	if (res >= INT_MAX)
+		errx(1, "Integer overflow parsing %s", errname);
+	return (res);
 }
 
 static void
-usage()
+usage(void)
 {
+
 	(void) fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 		"usage: [id|rt]prio",
 		"       [id|rt]prio [-]pid",

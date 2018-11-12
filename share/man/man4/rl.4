@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2008
+.Dd January 16, 2013
 .Dt RL 4
 .Os
 .Sh NAME
@@ -84,7 +84,6 @@ driver.
 The
 .Nm
 driver supports the following media types:
-.Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It autoselect
 Enable autoselection of the media type and options.
@@ -118,10 +117,9 @@ modes.
 The
 .Nm
 driver supports the following media options:
-.Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It full-duplex
-Force full duplex operation
+Force full duplex operation.
 .It half-duplex
 Force half duplex operation.
 .El
@@ -156,6 +154,8 @@ CompUSA no-name 10/100 PCI Ethernet NIC
 Corega FEther CB-TXD
 .It
 Corega FEtherII CB-TXD
+.It
+D-Link DFE-520TX (rev. C1)
 .It
 D-Link DFE-528TX
 .It
@@ -203,6 +203,13 @@ SOHO (PRAGMATIC) UE-1211C
 .El
 .Sh LOADER TUNABLES
 .Bl -tag -width indent
+.It Va dev.rl.%unit.prefer_iomap
+This tunable controls which register mapping should be used on the
+specified device.
+A non-zero value enables I/O space register mapping.
+For controllers that have no I/O space register mapping this tunable
+should be set to 0 to use memory space register mapping.
+The default value is 1 to use I/O space register mapping.
 .It Va dev.rl.%unit.twister_enable
 Non-zero value enables the long cable tuning on the specified device.
 Disabled by default.
@@ -255,7 +262,7 @@ the card should be configured correctly.
 .Xr ifconfig 8
 .Rs
 .%B The RealTek 8129, 8139 and 8139C+ datasheets
-.%O http://www.realtek.com.tw
+.%U http://www.realtek.com.tw
 .Re
 .Sh HISTORY
 The
@@ -266,7 +273,7 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An Bill Paul Aq wpaul@ctr.columbia.edu .
+.An Bill Paul Aq Mt wpaul@ctr.columbia.edu .
 .Sh BUGS
 Since outbound packets must be longword aligned, the transmit
 routine has to copy an unaligned packet into an mbuf cluster buffer

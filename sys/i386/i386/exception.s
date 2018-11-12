@@ -35,8 +35,8 @@
  */
 
 #include "opt_apic.h"
+#include "opt_atpic.h"
 #include "opt_hwpmc_hooks.h"
-#include "opt_kdtrace.h"
 #include "opt_npx.h"
 
 #include <machine/asmacros.h>
@@ -53,13 +53,13 @@
 	.globl	dtrace_invop_jump_addr
 	.align	4
 	.type	dtrace_invop_jump_addr, @object
-        .size	dtrace_invop_jump_addr, 4
+	.size	dtrace_invop_jump_addr, 4
 dtrace_invop_jump_addr:
 	.zero	4
 	.globl	dtrace_invop_calltrap_addr
 	.align	4
 	.type	dtrace_invop_calltrap_addr, @object
-        .size	dtrace_invop_calltrap_addr, 4
+	.size	dtrace_invop_calltrap_addr, 4
 dtrace_invop_calltrap_addr:
 	.zero	8
 #endif
@@ -74,22 +74,22 @@ dtrace_invop_calltrap_addr:
  * Trap and fault vector routines.
  *
  * Most traps are 'trap gates', SDT_SYS386TGT.  A trap gate pushes state on
- * the stack that mostly looks like an interrupt, but does not disable 
- * interrupts.  A few of the traps we are use are interrupt gates, 
+ * the stack that mostly looks like an interrupt, but does not disable
+ * interrupts.  A few of the traps we are use are interrupt gates,
  * SDT_SYS386IGT, which are nearly the same thing except interrupts are
  * disabled on entry.
  *
  * The cpu will push a certain amount of state onto the kernel stack for
- * the current process.  The amount of state depends on the type of trap 
- * and whether the trap crossed rings or not.  See i386/include/frame.h.  
- * At the very least the current EFLAGS (status register, which includes 
+ * the current process.  The amount of state depends on the type of trap
+ * and whether the trap crossed rings or not.  See i386/include/frame.h.
+ * At the very least the current EFLAGS (status register, which includes
  * the interrupt disable state prior to the trap), the code segment register,
- * and the return instruction pointer are pushed by the cpu.  The cpu 
- * will also push an 'error' code for certain traps.  We push a dummy 
- * error code for those traps where the cpu doesn't in order to maintain 
+ * and the return instruction pointer are pushed by the cpu.  The cpu
+ * will also push an 'error' code for certain traps.  We push a dummy
+ * error code for those traps where the cpu doesn't in order to maintain
  * a consistent frame.  We also push a contrived 'trap number'.
  *
- * The cpu does not push the general registers, we must do that, and we 
+ * The cpu does not push the general registers, we must do that, and we
  * must restore them prior to calling 'iret'.  The cpu adjusts the %cs and
  * %ss segment registers, but does not mess with %ds, %es, or %fs.  Thus we
  * must load them with appropriate values for supervisor mode operation.
@@ -108,6 +108,8 @@ IDTVEC(nmi)
 	pushl $0; TRAP(T_NMI)
 IDTVEC(bpt)
 	pushl $0; TRAP(T_BPTFLT)
+IDTVEC(dtrace_ret)
+	pushl $0; TRAP(T_DTRACE_RET)
 IDTVEC(ofl)
 	pushl $0; TRAP(T_OFLOW)
 IDTVEC(bnd)
@@ -142,29 +144,34 @@ IDTVEC(xmm)
 	pushl $0; TRAP(T_XMMFLT)
 
 	/*
-	 * alltraps entry point.  Interrupts are enabled if this was a trap
-	 * gate (TGT), else disabled if this was an interrupt gate (IGT).
-	 * Note that int0x80_syscall is a trap gate.   Interrupt gates are
-	 * used by page faults, non-maskable interrupts, debug and breakpoint
+	 * All traps except ones for syscalls jump to alltraps.  If
+	 * interrupts were enabled when the trap occurred, then interrupts
+	 * are enabled now if the trap was through a trap gate, else
+	 * disabled if the trap was through an interrupt gate.  Note that
+	 * int0x80_syscall is a trap gate.   Interrupt gates are used by
+	 * page faults, non-maskable interrupts, debug and breakpoint
 	 * exceptions.
 	 */
-
 	SUPERALIGN_TEXT
 	.globl	alltraps
 	.type	alltraps,@function
 alltraps:
 	pushal
-	pushl	%ds
-	pushl	%es
-	pushl	%fs
+	pushl	$0
+	movw	%ds,(%esp)
+	pushl	$0
+	movw	%es,(%esp)
+	pushl	$0
+	movw	%fs,(%esp)
 alltraps_with_regs_pushed:
 	SET_KERNEL_SREGS
+	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 calltrap:
 	pushl	%esp
 	call	trap
 	add	$4, %esp
-	
+
 	/*
 	 * Return via doreti to handle ASTs.
 	 */
@@ -183,10 +190,10 @@ IDTVEC(ill)
 
 	/* Check if this is a user fault. */
 	cmpl	$GSEL_KPL, 4(%esp)	/* Check the code segment. */
-              
+
 	/* If so, just handle it as a normal trap. */
 	jne	norm_ill
-              
+
 	/*
 	 * This is a kernel instruction fault that might have been caused
 	 * by a DTrace provider.
@@ -211,10 +218,10 @@ norm_ill:
 #endif
 
 /*
- * SYSCALL CALL GATE (old entry point for a.out binaries)
+ * Call gate entry for syscalls (lcall 7,0).
+ * This is used by FreeBSD 1.x a.out executables and "old" NetBSD executables.
  *
  * The intersegment call has been set up to specify one dummy parameter.
- *
  * This leaves a place to put eflags so that the call frame can be
  * converted to a trap frame. Note that the eflags is (semi-)bogusly
  * pushed into (what will be) tf_err and then copied later into the
@@ -227,12 +234,16 @@ IDTVEC(lcall_syscall)
 	pushfl				/* save eflags */
 	popl	8(%esp)			/* shuffle into tf_eflags */
 	pushl	$7			/* sizeof "lcall 7,0" */
-	subl	$4,%esp			/* skip over tf_trapno */
+	pushl	$0			/* tf_trapno */
 	pushal
-	pushl	%ds
-	pushl	%es
-	pushl	%fs
+	pushl	$0
+	movw	%ds,(%esp)
+	pushl	$0
+	movw	%es,(%esp)
+	pushl	$0
+	movw	%fs,(%esp)
 	SET_KERNEL_SREGS
+	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
 	call	syscall
@@ -241,21 +252,27 @@ IDTVEC(lcall_syscall)
 	jmp	doreti
 
 /*
- * Call gate entry for FreeBSD ELF and Linux/NetBSD syscall (int 0x80)
+ * Trap gate entry for syscalls (int 0x80).
+ * This is used by FreeBSD ELF executables, "new" NetBSD executables, and all
+ * Linux executables.
  *
- * Even though the name says 'int0x80', this is actually a TGT (trap gate)
- * rather then an IGT (interrupt gate).  Thus interrupts are enabled on
- * entry just as they are for a normal syscall.
+ * Even though the name says 'int0x80', this is actually a trap gate, not an
+ * interrupt gate.  Thus interrupts are enabled on entry just as they are for
+ * a normal syscall.
  */
 	SUPERALIGN_TEXT
 IDTVEC(int0x80_syscall)
 	pushl	$2			/* sizeof "int 0x80" */
-	subl	$4,%esp			/* skip over tf_trapno */
+	pushl	$0			/* tf_trapno */
 	pushal
-	pushl	%ds
-	pushl	%es
-	pushl	%fs
+	pushl	$0
+	movw	%ds,(%esp)
+	pushl	$0
+	movw	%es,(%esp)
+	pushl	$0
+	movw	%fs,(%esp)
 	SET_KERNEL_SREGS
+	cld
 	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
 	call	syscall
@@ -294,14 +311,18 @@ ENTRY(fork_trampoline)
 	SUPERALIGN_TEXT
 MCOUNT_LABEL(bintr)
 
-#include <i386/isa/atpic_vector.s>
+#ifdef DEV_ATPIC
+#include <i386/i386/atpic_vector.s>
+#endif
 
-#ifdef DEV_APIC
+#if defined(DEV_APIC) && defined(DEV_ATPIC)
 	.data
 	.p2align 4
 	.text
 	SUPERALIGN_TEXT
+#endif
 
+#ifdef DEV_APIC
 #include <i386/i386/apic_vector.s>
 #endif
 
@@ -322,6 +343,7 @@ MCOUNT_LABEL(eintr)
 	.text
 	SUPERALIGN_TEXT
 	.type	doreti,@function
+	.globl	doreti
 doreti:
 	FAKE_MCOUNT($bintr)		/* init "from" bintr -> doreti */
 doreti_next:
@@ -338,13 +360,14 @@ doreti_next:
 	/*
 	 * PSL_VM must be checked first since segment registers only
 	 * have an RPL in non-VM86 mode.
+	 * ASTs can not be handled now if we are in a vm86 call.
 	 */
-	testl	$PSL_VM,TF_EFLAGS(%esp)	/* are we in vm86 mode? */
+	testl	$PSL_VM,TF_EFLAGS(%esp)
 	jz	doreti_notvm86
 	movl	PCPU(CURPCB),%ecx
-	testl	$PCB_VM86CALL,PCB_FLAGS(%ecx)	/* are we in a vm86 call? */
-	jz	doreti_ast		/* can handle ASTS now if not */
-  	jmp	doreti_exit
+	testl	$PCB_VM86CALL,PCB_FLAGS(%ecx)
+	jz	doreti_ast
+	jmp	doreti_exit
 
 doreti_notvm86:
 	testb	$SEL_RPL_MASK,TF_CS(%esp) /* are we returning to user mode? */
@@ -391,7 +414,7 @@ doreti_popl_ds:
 doreti_iret:
 	iret
 
-  	/*
+	/*
 	 * doreti_iret_fault and friends.  Alternative return code for
 	 * the case where we get a fault in the doreti_exit code
 	 * above.  trap() (i386/i386/trap.c) catches this specific
@@ -403,15 +426,19 @@ doreti_iret:
 doreti_iret_fault:
 	subl	$8,%esp
 	pushal
-	pushl	%ds
+	pushl	$0
+	movw	%ds,(%esp)
 	.globl	doreti_popl_ds_fault
 doreti_popl_ds_fault:
-	pushl	%es
+	pushl	$0
+	movw	%es,(%esp)
 	.globl	doreti_popl_es_fault
 doreti_popl_es_fault:
-	pushl	%fs
+	pushl	$0
+	movw	%fs,(%esp)
 	.globl	doreti_popl_fs_fault
 doreti_popl_fs_fault:
+	sti
 	movl	$0,TF_ERR(%esp)	/* XXX should be the error code */
 	movl	$T_PROTFLT,TF_TRAPNO(%esp)
 	jmp	alltraps_with_regs_pushed

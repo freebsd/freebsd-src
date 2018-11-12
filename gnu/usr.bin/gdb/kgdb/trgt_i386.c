@@ -49,6 +49,12 @@ __FBSDID("$FreeBSD$");
 
 static int ofs_fix;
 
+CORE_ADDR
+kgdb_trgt_core_pcb(u_int cpuid)
+{
+	return (kgdb_trgt_stop_pcb(cpuid, sizeof(struct pcb)));
+}
+
 void
 kgdb_trgt_fetch_registers(int regno __unused)
 {
@@ -133,10 +139,10 @@ kgdb_trgt_fetch_tss(void)
 	uintptr_t addr, cpu0prvpage, tss;
 
 	kt = kgdb_thr_lookup_tid(ptid_get_pid(inferior_ptid));
-	if (kt == NULL || kt->cpu == NOCPU)
+	if (kt == NULL || kt->cpu == NOCPU || kt->cpu < 0)
 		return (0);
 
-	addr = kgdb_lookup("_gdt");
+	addr = kgdb_lookup("gdt");
 	if (addr == 0)
 		return (0);
 	addr += (kt->cpu * NGDT + GPROC0_SEL) * sizeof(sd);
@@ -159,11 +165,9 @@ kgdb_trgt_fetch_tss(void)
 	 * change it to be relative to cpu0prvpage instead.
 	 */ 
 	if (trunc_page(tss) == 0xffc00000) {
-		addr = kgdb_lookup("_cpu0prvpage");
-		if (addr == 0) {
-			warnx("kvm_nlist(_cpu0prvpage): %s", kvm_geterr(kvm));
+		addr = kgdb_lookup("cpu0prvpage");
+		if (addr == 0)
 			return (0);
-		}
 		if (kvm_read(kvm, addr, &cpu0prvpage, sizeof(cpu0prvpage)) !=
 		    sizeof(cpu0prvpage)) {
 			warnx("kvm_read: %s", kvm_geterr(kvm));
@@ -380,4 +384,17 @@ kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 		return (&kgdb_trgt_trapframe_unwind);
 	/* printf("%s: %llx =%s\n", __func__, pc, pname); */
 	return (NULL);
+}
+
+/*
+ * This function ensures, that the PC is inside the
+ * function section which is understood by GDB.
+ *
+ * Return 0 when fixup is necessary, -1 otherwise.
+ */
+int
+kgdb_trgt_pc_fixup(CORE_ADDR *pc __unused)
+{
+
+	return (-1);
 }

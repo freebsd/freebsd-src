@@ -60,7 +60,7 @@ build_active_list(int isgcmd)
 			return ERR;
 		if (isbinary)
 			NUL_TO_NEWLINE(s, lp->len);
-		if (!regexec(pat, s, 0, NULL, 0) == isgcmd &&
+		if (!(regexec(pat, s, 0, NULL, 0) == isgcmd) &&
 		    set_active_node(lp) < 0)
 			return ERR;
 	}
@@ -135,11 +135,11 @@ exec_global(int interact, int gflag)
 }
 
 
-line_t **active_list;		/* list of lines active in a global command */
-long active_last;		/* index of last active line in active_list */
-long active_size;		/* size of active_list */
-long active_ptr;		/* active_list index (non-decreasing) */
-long active_ndx;		/* active_list index (modulo active_last) */
+static line_t **active_list;	/* list of lines active in a global command */
+static long active_last;	/* index of last active line in active_list */
+static long active_size;	/* size of active_list */
+static long active_ptr;		/* active_list index (non-decreasing) */
+static long active_ndx;		/* active_list index (modulo active_last) */
 
 /* set_active_node: add a line node to the global-active list */
 int
@@ -153,7 +153,7 @@ set_active_node(line_t *lp)
 		if (active_list != NULL) {
 #endif
 			if ((ts = (line_t **) realloc(active_list,
-			    (ti += MINBUFSZ) * sizeof(line_t **))) == NULL) {
+			    (ti += MINBUFSZ) * sizeof(line_t *))) == NULL) {
 				fprintf(stderr, "%s\n", strerror(errno));
 				errmsg = "out of memory";
 				SPL0();

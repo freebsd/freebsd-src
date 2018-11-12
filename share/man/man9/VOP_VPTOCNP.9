@@ -28,29 +28,32 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2008
-.Os
+.Dd March 8, 2015
 .Dt VOP_VPTOCNP 9
+.Os
 .Sh NAME
 .Nm VOP_VPTOCNP
 .Nd translate a vnode to its component name
 .Sh SYNOPSIS
 .In sys/param.h
+.In sys/ucred.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_VPTOCNP "struct vnode *vp" "struct vnode **dvp" "char *buf" "int *buflen"
+.Fn VOP_VPTOCNP "struct vnode *vp" "struct vnode **dvp" "struct ucred *cred" "char *buf" "int *buflen"
 .Sh DESCRIPTION
 This translates a vnode into its component name, and writes that name to
 the head of the buffer specified by
-.Fa buf
+.Fa buf .
 .Bl -tag -width buflen
 .It Fa vp
 The vnode to translate.
 .It Fa dvp
 The vnode of the parent directory of
 .Fa vp .
+.It Fa cred
+The caller credentials.
 .It Fa buf
-The buffer into which to preprend the component name.
+The buffer into which to prepend the component name.
 .It Fa buflen
 The remaining size of the buffer.
 .El
@@ -59,15 +62,16 @@ The default implementation of
 .Nm
 scans through
 .Fa vp Ns 's
-parent directory looking for a dirent with a matching file number.  If
+parent directory looking for a dirent with a matching file number.
+If
 .Fa vp
 is not a directory, then
 .Nm
 returns ENOENT.
 .Sh LOCKS
-The vnode should be locked on entry and will still be locked on exit.  The
-parent directory vnode will be unlocked on a successful exit.  However, it
-will have its hold count incremented.
+The vnode should be locked on entry and will still be locked on exit.
+The parent directory vnode will be unlocked on a successful exit.
+However, it will have its use count incremented.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error code is returned.
 .Sh ERRORS
@@ -78,8 +82,8 @@ The buffer was not large enough to hold the vnode's component name.
 The vnode was not found on the file system.
 .El
 .Sh SEE ALSO
-.Xr VOP_LOOKUP 9 ,
-.Xr vnode 9
+.Xr vnode 9 ,
+.Xr VOP_LOOKUP 9
 .Sh NOTES
 This interface is a work in progress.
 .Sh HISTORY

@@ -26,7 +26,6 @@ FBSD_1.0 {
 	__infinity;
 	__nan;
 	makecontext;
-	modf;
 	rfork_thread;
 	setjmp;
 	longjmp;
@@ -64,10 +63,7 @@ FBSDprivate_1.0 {
 	__signalcontext;
 	signalcontext;
 	__siglongjmp;
-	.curbrk;
-	.minbrk;
 	_brk;
-	.cerror;
 	_end;
 	__sys_vfork;
 	_vfork;

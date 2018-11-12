@@ -1,6 +1,6 @@
 /* ar.c - Archive modify and extract.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004
+   2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -17,7 +17,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /*
    Bugs: should use getopt the way tar does (complete w/optional -) and
@@ -26,12 +26,13 @@
    when name truncated. No way to specify pos_end. Error messages should be
    more consistent.  */
 
+#include "sysdep.h"
 #include "bfd.h"
 #include "libiberty.h"
 #include "progress.h"
-#include "bucomm.h"
 #include "aout/ar.h"
 #include "libbfd.h"
+#include "bucomm.h"
 #include "arsup.h"
 #include "filenames.h"
 #include "binemul.h"
@@ -49,8 +50,6 @@
 #define O_BINARY 0
 #endif
 
-#define BUFSIZE 8192
-
 /* Kludge declaration from BFD!  This is ugly!  FIXME!  XXX */
 
 struct ar_hdr *
@@ -65,23 +64,18 @@ static void map_over_members (bfd *, void (*)(bfd *), char **, int);
 static void print_contents (bfd * member);
 static void delete_members (bfd *, char **files_to_delete);
 
-#if 0
-static void do_quick_append
-  (const char *archive_filename, char **files_to_append);
-#endif
-
 static void move_members (bfd *, char **files_to_move);
 static void replace_members
   (bfd *, char **files_to_replace, bfd_boolean quick);
 static void print_descr (bfd * abfd);
 static void write_archive (bfd *);
-static void ranlib_only (const char *archname);
-static void ranlib_touch (const char *archname);
+static int  ranlib_only (const char *archname);
+static int  ranlib_touch (const char *archname);
 static void usage (int);
 
 /** Globals and flags */
 
-int mri_mode;
+static int mri_mode;
 
 /* This flag distinguishes between ar and ranlib:
    1 means this is 'ranlib'; 0 means this is 'ar'.
@@ -160,7 +154,7 @@ map_over_members (bfd *arch, void (*function)(bfd *), char **files, int count)
 
   if (count == 0)
     {
-      for (head = arch->next; head; head = head->next)
+      for (head = arch->archive_next; head; head = head->archive_next)
 	{
 	  PROGRESS (1);
 	  function (head);
@@ -179,7 +173,7 @@ map_over_members (bfd *arch, void (*function)(bfd *), char **files, int count)
       bfd_boolean found = FALSE;
 
       match_count = 0;
-      for (head = arch->next; head; head = head->next)
+      for (head = arch->archive_next; head; head = head->archive_next)
 	{
 	  PROGRESS (1);
 	  if (head->filename == NULL)
@@ -249,7 +243,8 @@ usage (int help)
       fprintf (s, _("  [S]          - do not build a symbol table\n"));
       fprintf (s, _("  [v]          - be verbose\n"));
       fprintf (s, _("  [V]          - display the version number\n"));
-
+      fprintf (s, _("  @<file>      - read options from <file>\n"));
+ 
       ar_emul_usage (s);
     }
   else
@@ -258,13 +253,14 @@ usage (int help)
       fprintf (s, _("Usage: %s [options] archive\n"), program_name);
       fprintf (s, _(" Generate an index to speed access to archives\n"));
       fprintf (s, _(" The options are:\n\
+  @<file>                      Read options from <file>\n\
   -h --help                    Print this help message\n\
   -V --version                 Print version information\n"));
     }
 
-  list_supported_targets (program_name, stderr);
+  list_supported_targets (program_name, s);
 
-  if (help)
+  if (REPORT_BUGS_TO[0] && help)
     fprintf (s, _("Report bugs to %s\n"), REPORT_BUGS_TO);
 
   xexit (help ? 0 : 1);
@@ -328,7 +324,7 @@ remove_output (void)
 	bfd_cache_close (output_bfd);
       if (output_file != NULL)
 	fclose (output_file);
-      unlink (output_filename);
+      unlink_if_ordinary (output_filename);
     }
 }
 
@@ -366,6 +362,8 @@ main (int argc, char **argv)
 
   program_name = argv[0];
   xmalloc_set_program_name (program_name);
+
+  expandargv (&argc, &argv);
 
   if (is_ranlib < 0)
     {
@@ -423,6 +421,7 @@ main (int argc, char **argv)
 
   if (is_ranlib)
     {
+      int status = 0;
       bfd_boolean touch = FALSE;
 
       if (argc < 2
@@ -432,7 +431,7 @@ main (int argc, char **argv)
 	usage (0);
       if (strcmp (argv[1], "-V") == 0
 	  || strcmp (argv[1], "-v") == 0
-	  || strncmp (argv[1], "--v", 3) == 0)
+	  || CONST_STRNEQ (argv[1], "--v"))
 	print_version ("ranlib");
       arg_index = 1;
       if (strcmp (argv[1], "-t") == 0)
@@ -443,12 +442,12 @@ main (int argc, char **argv)
       while (arg_index < argc)
 	{
 	  if (! touch)
-	    ranlib_only (argv[arg_index]);
+	    status |= ranlib_only (argv[arg_index]);
 	  else
-	    ranlib_touch (argv[arg_index]);
+	    status |= ranlib_touch (argv[arg_index]);
 	  ++arg_index;
 	}
-      xexit (0);
+      xexit (status);
     }
 
   if (argc == 2 && strcmp (argv[1], "-M") == 0)
@@ -589,6 +588,10 @@ main (int argc, char **argv)
     {
       bfd *arch;
 
+      /* We don't use do_quick_append any more.  Too many systems
+	 expect ar to always rebuild the symbol table even when q is
+	 used.  */
+
       /* We can't write an armap when using ar q, so just do ar r
          instead.  */
       if (operation == quick_append && write_armap)
@@ -596,10 +599,7 @@ main (int argc, char **argv)
 
       if ((operation == none || operation == print_table)
 	  && write_armap == 1)
-	{
-	  ranlib_only (argv[arg_index]);
-	  xexit (0);
-	}
+	xexit (ranlib_only (argv[arg_index]));
 
       if (operation == none)
 	fatal (_("no operation specified"));
@@ -623,39 +623,6 @@ main (int argc, char **argv)
 
       files = arg_index < argc ? argv + arg_index : NULL;
       file_count = argc - arg_index;
-
-#if 0
-      /* We don't use do_quick_append any more.  Too many systems
-         expect ar to always rebuild the symbol table even when q is
-         used.  */
-
-      /* We can't do a quick append if we need to construct an
-	 extended name table, because do_quick_append won't be able to
-	 rebuild the name table.  Unfortunately, at this point we
-	 don't actually know the maximum name length permitted by this
-	 object file format.  So, we guess.  FIXME.  */
-      if (operation == quick_append && ! ar_truncate)
-	{
-	  char **chk;
-
-	  for (chk = files; chk != NULL && *chk != '\0'; chk++)
-	    {
-	      if (strlen (normalize (*chk, (bfd *) NULL)) > 14)
-		{
-		  operation = replace;
-		  break;
-		}
-	    }
-	}
-
-      if (operation == quick_append)
-	{
-	  /* Note that quick appending to a non-existent archive creates it,
-	     even if there are no files to append.  */
-	  do_quick_append (inarch_filename, files);
-	  xexit (0);
-	}
-#endif
 
       arch = open_inarch (inarch_filename,
 			  files == NULL ? (char *) NULL : files[0]);
@@ -792,7 +759,7 @@ open_inarch (const char *archive_filename, const char *file)
       xexit (1);
     }
 
-  last_one = &(arch->next);
+  last_one = &(arch->archive_next);
   /* Read all the contents right away, regardless.  */
   for (next_one = bfd_openr_next_archived_file (arch, NULL);
        next_one;
@@ -800,7 +767,7 @@ open_inarch (const char *archive_filename, const char *file)
     {
       PROGRESS (1);
       *last_one = next_one;
-      last_one = &next_one->next;
+      last_one = &next_one->archive_next;
     }
   *last_one = (bfd *) NULL;
   if (bfd_get_error () != bfd_error_no_more_archived_files)
@@ -811,10 +778,10 @@ open_inarch (const char *archive_filename, const char *file)
 static void
 print_contents (bfd *abfd)
 {
-  int ncopied = 0;
+  size_t ncopied = 0;
   char *cbuf = xmalloc (BUFSIZE);
   struct stat buf;
-  long size;
+  size_t size;
   if (bfd_stat_arch_elt (abfd, &buf) != 0)
     /* xgettext:c-format */
     fatal (_("internal stat error on %s"), bfd_get_filename (abfd));
@@ -829,8 +796,8 @@ print_contents (bfd *abfd)
   while (ncopied < size)
     {
 
-      int nread;
-      int tocopy = size - ncopied;
+      size_t nread;
+      size_t tocopy = size - ncopied;
       if (tocopy > BUFSIZE)
 	tocopy = BUFSIZE;
 
@@ -839,7 +806,12 @@ print_contents (bfd *abfd)
 	/* xgettext:c-format */
 	fatal (_("%s is not a valid archive"),
 	       bfd_get_filename (bfd_my_archive (abfd)));
-      fwrite (cbuf, 1, nread, stdout);
+
+      /* fwrite in mingw32 may return int instead of size_t. Cast the
+	 return value to size_t to avoid comparison between signed and
+	 unsigned values.  */
+      if ((size_t) fwrite (cbuf, 1, nread, stdout) != nread)
+	fatal ("stdout: %s", strerror (errno));
       ncopied += tocopy;
     }
   free (cbuf);
@@ -860,19 +832,15 @@ extract_file (bfd *abfd)
 {
   FILE *ostream;
   char *cbuf = xmalloc (BUFSIZE);
-  int nread, tocopy;
-  long ncopied = 0;
-  long size;
+  size_t nread, tocopy;
+  size_t ncopied = 0;
+  size_t size;
   struct stat buf;
 
   if (bfd_stat_arch_elt (abfd, &buf) != 0)
     /* xgettext:c-format */
     fatal (_("internal stat error on %s"), bfd_get_filename (abfd));
   size = buf.st_size;
-
-  if (size < 0)
-    /* xgettext:c-format */
-    fatal (_("stat returns negative size for %s"), bfd_get_filename (abfd));
 
   if (verbose)
     printf ("x - %s\n", bfd_get_filename (abfd));
@@ -922,7 +890,12 @@ extract_file (bfd *abfd)
 
 	    output_file = ostream;
 	  }
-	fwrite (cbuf, 1, nread, ostream);
+
+	/* fwrite in mingw32 may return int instead of size_t. Cast
+	   the return value to size_t to avoid comparison between
+	   signed and unsigned values.  */
+	if ((size_t) fwrite (cbuf, 1, nread, ostream) != nread)
+	  fatal ("%s: %s", output_filename, strerror (errno));
 	ncopied += tocopy;
       }
 
@@ -935,141 +908,30 @@ extract_file (bfd *abfd)
   chmod (bfd_get_filename (abfd), buf.st_mode);
 
   if (preserve_dates)
-    set_times (bfd_get_filename (abfd), &buf);
+    {
+      /* Set access time to modification time.  Only st_mtime is
+	 initialized by bfd_stat_arch_elt.  */
+      buf.st_atime = buf.st_mtime;
+      set_times (bfd_get_filename (abfd), &buf);
+    }
 
   free (cbuf);
 }
-
-#if 0
-
-/* We don't use this anymore.  Too many systems expect ar to rebuild
-   the symbol table even when q is used.  */
-
-/* Just do it quickly; don't worry about dups, armap, or anything like that */
-
-static void
-do_quick_append (const char *archive_filename, char **files_to_append)
-{
-  FILE *ofile, *ifile;
-  char *buf = xmalloc (BUFSIZE);
-  long tocopy, thistime;
-  bfd *temp;
-  struct stat sbuf;
-  bfd_boolean newfile = FALSE;
-  bfd_set_error (bfd_error_no_error);
-
-  if (stat (archive_filename, &sbuf) != 0)
-    {
-
-#if !defined(__GO32__) || defined(__DJGPP__)
-
-      /* FIXME: I don't understand why this fragment was ifndef'ed
-	 away for __GO32__; perhaps it was in the days of DJGPP v1.x.
-	 stat() works just fine in v2.x, so I think this should be
-	 removed.  For now, I enable it for DJGPP v2.
-
-	 (And yes, I know this is all unused, but somebody, someday,
-	 might wish to resurrect this again... -- EZ.  */
-
-/* KLUDGE ALERT! Temporary fix until I figger why
-   stat() is wrong ... think it's buried in GO32's IDT - Jax  */
-
-      if (errno != ENOENT)
-	bfd_fatal (archive_filename);
-#endif
-
-      newfile = TRUE;
-    }
-
-  ofile = fopen (archive_filename, FOPEN_AUB);
-  if (ofile == NULL)
-    {
-      perror (program_name);
-      xexit (1);
-    }
-
-  temp = bfd_openr (archive_filename, NULL);
-  if (temp == NULL)
-    {
-      bfd_fatal (archive_filename);
-    }
-  if (!newfile)
-    {
-      if (!bfd_check_format (temp, bfd_archive))
-	/* xgettext:c-format */
-	fatal (_("%s is not an archive"), archive_filename);
-    }
-  else
-    {
-      fwrite (ARMAG, 1, SARMAG, ofile);
-      if (!silent_create)
-	/* xgettext:c-format */
-	non_fatal (_("creating %s"), archive_filename);
-    }
-
-  if (ar_truncate)
-    temp->flags |= BFD_TRADITIONAL_FORMAT;
-
-  /* assume it's an archive, go straight to the end, sans $200 */
-  fseek (ofile, 0, 2);
-
-  for (; files_to_append && *files_to_append; ++files_to_append)
-    {
-      struct ar_hdr *hdr = bfd_special_undocumented_glue (temp, *files_to_append);
-      if (hdr == NULL)
-	{
-	  bfd_fatal (*files_to_append);
-	}
-
-      BFD_SEND (temp, _bfd_truncate_arname, (temp, *files_to_append, (char *) hdr));
-
-      ifile = fopen (*files_to_append, FOPEN_RB);
-      if (ifile == NULL)
-	{
-	  bfd_nonfatal (*files_to_append);
-	}
-
-      if (stat (*files_to_append, &sbuf) != 0)
-	{
-	  bfd_nonfatal (*files_to_append);
-	}
-
-      tocopy = sbuf.st_size;
-
-      /* XXX should do error-checking! */
-      fwrite (hdr, 1, sizeof (struct ar_hdr), ofile);
-
-      while (tocopy > 0)
-	{
-	  thistime = tocopy;
-	  if (thistime > BUFSIZE)
-	    thistime = BUFSIZE;
-	  fread (buf, 1, thistime, ifile);
-	  fwrite (buf, 1, thistime, ofile);
-	  tocopy -= thistime;
-	}
-      fclose (ifile);
-      if ((sbuf.st_size % 2) == 1)
-	putc ('\012', ofile);
-    }
-  fclose (ofile);
-  bfd_close (temp);
-  free (buf);
-}
-
-#endif /* 0 */
 
 static void
 write_archive (bfd *iarch)
 {
   bfd *obfd;
   char *old_name, *new_name;
-  bfd *contents_head = iarch->next;
+  bfd *contents_head = iarch->archive_next;
 
   old_name = xmalloc (strlen (bfd_get_filename (iarch)) + 1);
   strcpy (old_name, bfd_get_filename (iarch));
   new_name = make_tempname (old_name);
 
+  if (new_name == NULL)
+    bfd_fatal ("could not create temporary file whilst writing archive");
+  
   output_filename = new_name;
 
   obfd = bfd_openw (new_name, bfd_get_target (iarch));
@@ -1133,15 +995,15 @@ get_pos_bfd (bfd **contents, enum pos default_pos, const char *default_posname)
   if (realpos == pos_end)
     {
       while (*after_bfd)
-	after_bfd = &((*after_bfd)->next);
+	after_bfd = &((*after_bfd)->archive_next);
     }
   else
     {
-      for (; *after_bfd; after_bfd = &(*after_bfd)->next)
+      for (; *after_bfd; after_bfd = &(*after_bfd)->archive_next)
 	if (FILENAME_CMP ((*after_bfd)->filename, realposname) == 0)
 	  {
 	    if (realpos == pos_after)
-	      after_bfd = &(*after_bfd)->next;
+	      after_bfd = &(*after_bfd)->archive_next;
 	    break;
 	  }
     }
@@ -1173,7 +1035,7 @@ delete_members (bfd *arch, char **files_to_delete)
 
       found = FALSE;
       match_count = 0;
-      current_ptr_ptr = &(arch->next);
+      current_ptr_ptr = &(arch->archive_next);
       while (*current_ptr_ptr)
 	{
 	  if (FILENAME_CMP (normalize (*files_to_delete, arch),
@@ -1193,12 +1055,12 @@ delete_members (bfd *arch, char **files_to_delete)
 		  if (verbose)
 		    printf ("d - %s\n",
 			    *files_to_delete);
-		  *current_ptr_ptr = ((*current_ptr_ptr)->next);
+		  *current_ptr_ptr = ((*current_ptr_ptr)->archive_next);
 		  goto next_file;
 		}
 	    }
 
-	  current_ptr_ptr = &((*current_ptr_ptr)->next);
+	  current_ptr_ptr = &((*current_ptr_ptr)->archive_next);
 	}
 
       if (verbose && !found)
@@ -1227,7 +1089,7 @@ move_members (bfd *arch, char **files_to_move)
 
   for (; *files_to_move; ++files_to_move)
     {
-      current_ptr_ptr = &(arch->next);
+      current_ptr_ptr = &(arch->archive_next);
       while (*current_ptr_ptr)
 	{
 	  bfd *current_ptr = *current_ptr_ptr;
@@ -1237,13 +1099,13 @@ move_members (bfd *arch, char **files_to_move)
 	      /* Move this file to the end of the list - first cut from
 		 where it is.  */
 	      bfd *link;
-	      *current_ptr_ptr = current_ptr->next;
+	      *current_ptr_ptr = current_ptr->archive_next;
 
 	      /* Now glue to end */
-	      after_bfd = get_pos_bfd (&arch->next, pos_end, NULL);
+	      after_bfd = get_pos_bfd (&arch->archive_next, pos_end, NULL);
 	      link = *after_bfd;
 	      *after_bfd = current_ptr;
-	      current_ptr->next = link;
+	      current_ptr->archive_next = link;
 
 	      if (verbose)
 		printf ("m - %s\n", *files_to_move);
@@ -1251,7 +1113,7 @@ move_members (bfd *arch, char **files_to_move)
 	      goto next_file;
 	    }
 
-	  current_ptr_ptr = &((*current_ptr_ptr)->next);
+	  current_ptr_ptr = &((*current_ptr_ptr)->archive_next);
 	}
       /* xgettext:c-format */
       fatal (_("no entry %s in archive %s!"), *files_to_move, arch->filename);
@@ -1268,7 +1130,7 @@ static void
 replace_members (bfd *arch, char **files_to_move, bfd_boolean quick)
 {
   bfd_boolean changed = FALSE;
-  bfd **after_bfd;		/* New entries go after this one */
+  bfd **after_bfd;		/* New entries go after this one.  */
   bfd *current;
   bfd **current_ptr;
 
@@ -1276,7 +1138,7 @@ replace_members (bfd *arch, char **files_to_move, bfd_boolean quick)
     {
       if (! quick)
 	{
-	  current_ptr = &arch->next;
+	  current_ptr = &arch->archive_next;
 	  while (*current_ptr)
 	    {
 	      current = *current_ptr;
@@ -1306,27 +1168,26 @@ replace_members (bfd *arch, char **files_to_move, bfd_boolean quick)
 			goto next_file;
 		    }
 
-		  after_bfd = get_pos_bfd (&arch->next, pos_after,
+		  after_bfd = get_pos_bfd (&arch->archive_next, pos_after,
 					   current->filename);
 		  if (ar_emul_replace (after_bfd, *files_to_move,
 				       verbose))
 		    {
 		      /* Snip out this entry from the chain.  */
-		      *current_ptr = (*current_ptr)->next;
+		      *current_ptr = (*current_ptr)->archive_next;
 		      changed = TRUE;
 		    }
 
 		  goto next_file;
 		}
-	      current_ptr = &(current->next);
+	      current_ptr = &(current->archive_next);
 	    }
 	}
 
       /* Add to the end of the archive.  */
-      after_bfd = get_pos_bfd (&arch->next, pos_end, NULL);
+      after_bfd = get_pos_bfd (&arch->archive_next, pos_end, NULL);
 
-      if (get_file_size (* files_to_move) > 0
-	  && ar_emul_append (after_bfd, *files_to_move, verbose))
+      if (ar_emul_append (after_bfd, *files_to_move, verbose))
 	changed = TRUE;
 
     next_file:;
@@ -1340,23 +1201,24 @@ replace_members (bfd *arch, char **files_to_move, bfd_boolean quick)
     output_filename = NULL;
 }
 
-static void
+static int
 ranlib_only (const char *archname)
 {
   bfd *arch;
 
   if (get_file_size (archname) < 1)
-    return;
+    return 1;
   write_armap = 1;
   arch = open_inarch (archname, (char *) NULL);
   if (arch == NULL)
     xexit (1);
   write_archive (arch);
+  return 0;
 }
 
 /* Update the timestamp of the symbol map of an archive.  */
 
-static void
+static int
 ranlib_touch (const char *archname)
 {
 #ifdef __GO32__
@@ -1368,7 +1230,7 @@ ranlib_touch (const char *archname)
   char **matching;
 
   if (get_file_size (archname) < 1)
-    return;
+    return 1;
   f = open (archname, O_RDWR | O_BINARY, 0);
   if (f < 0)
     {
@@ -1399,6 +1261,7 @@ ranlib_touch (const char *archname)
   if (! bfd_close (arch))
     bfd_fatal (archname);
 #endif
+  return 0;
 }
 
 /* Things which are interesting to map over all or some of the files: */

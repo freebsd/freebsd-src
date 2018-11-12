@@ -132,7 +132,7 @@ m_xword(m, k, err)
 		return EXTRACT_LONG(cp);
 	}
 	m0 = m->m_next;
-	if (m0 == 0 || M_LEN(m0) + len - k < 4)
+	if (m0 == NULL || M_LEN(m0) + len - k < 4)
 		goto bad;
 	*err = 0;
 	np = MTOD(m0, u_char *);
@@ -168,7 +168,7 @@ m_xhalf(m, k, err)
 		return EXTRACT_SHORT(cp);
 	}
 	m0 = m->m_next;
-	if (m0 == 0)
+	if (m0 == NULL)
 		goto bad;
 	*err = 0;
 	return (cp[0] << 8) | MTOD(m0, u_char *)[0];
@@ -205,7 +205,7 @@ bpf_filter(pc, p, wirelen, buflen)
 	} else
 		m = NULL;
 
-	if (pc == 0)
+	if (pc == NULL)
 		/*
 		 * No filter means accept all.
 		 */

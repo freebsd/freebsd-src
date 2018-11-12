@@ -28,9 +28,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 5, 2007
-.Os
+.Dd December 2, 2009
 .Dt VOP_OPEN 9
+.Os
 .Sh NAME
 .Nm VOP_OPEN ,
 .Nm VOP_CLOSE
@@ -55,6 +55,8 @@ The arguments are:
 The vnode of the file.
 .It Fa mode
 The access mode required by the calling process.
+.It Fa cred
+The caller's credentials.
 .It Fa td
 The thread which is accessing the file.
 .It Fa fp

@@ -13,7 +13,3137 @@
 #
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
+# Before you commit changes to this file please check if any entries in
+# tools/build/mk/OptionalObsoleteFiles.inc can be removed. The following
+# command tells which files are listed more than once regardless of some
+# architecture specific conditionals, so you can not blindly trust the
+# output:
+# ( grep '+=' /usr/src/ObsoleteFiles.inc | sort -u ; \
+# grep '+=' /usr/src/tools/build/mk/OptionalObsoleteFiles.inc | sort -u) | \
+# sort | uniq -d
+#
+# To find regular duplicates not dependent on optional components, you can
+# also use something that will not give you false positives, e.g.:
+# for t in `make -V TARGETS universe`; do
+#   __MAKE_CONF=/dev/null make -f Makefile.inc1 TARGET=$t \
+#   -V OLD_FILES -V OLD_LIBS -V OLD_DIRS check-old | \
+#   xargs -n1 | sort | uniq -d;
+# done
+#
+# For optional components, you can use the following to see if some entries
+# in OptionalObsoleteFiles.inc have been obsoleted by ObsoleteFiles.inc
+# for o in tools/build/options/WITH*; do
+#   __MAKE_CONF=/dev/null make -f Makefile.inc1 -D${o##*/} \
+#   -V OLD_FILES -V OLD_LIBS -V OLD_DIRS check-old | \
+#   xargs -n1 | sort | uniq -d;
+# done
 
+# 20160906: libkqueue tests moved to /usr/tests/sys/kqueue/libkqueue
+OLD_FILES+=usr/tests/sys/kqueue/kqtest
+OLD_FILES+=usr/tests/sys/kqueue/kqueue_test
+# 20160903: idle page zeroing support removed
+OLD_FILES+=usr/share/man/man9/pmap_zero_idle.9.gz
+# 20160901: Remove digi(4)
+OLD_FILES+=usr/share/man/man4/digi.4.gz
+# 20160819: Remove ie(4)
+OLD_FILES+=usr/share/man/man4/i386/ie.4.gz
+# 20160819: Remove spic(4)
+OLD_FILES+=usr/share/man/man4/spic.4.gz
+# 20160819: Remove wl(4) and wlconfig(8)
+OLD_FILES+=usr/share/man/man4/i386/wl.4.gz
+OLD_FILES+=usr/sbin/wlconfig
+OLD_FILES+=usr/share/man/man8/i386/wlconfig.8.gz
+# 20160819: Remove si(4) and sicontrol(8)
+OLD_FILES+=usr/share/man/man4/si.4.gz
+OLD_FILES+=usr/sbin/sicontrol
+OLD_FILES+=usr/share/man/man8/sicontrol.8.gz
+# 20160819: Remove scd(4)
+OLD_FILES+=usr/share/man/man4/scd.4.gz
+# 20160815: Remove mcd(4)
+OLD_FILES+=usr/share/man/man4/mcd.4.gz
+# 20160805: lockmgr_waiters(9) removed
+OLD_FILES+=usr/share/man/man9/lockmgr_waiters.9.gz
+# 20160703: POSIXify locales with variants
+OLD_FILES+=usr/share/locale/zh_Hant_TW.UTF-8/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_Hant_TW.UTF-8/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_Hant_TW.UTF-8/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_Hant_TW.UTF-8/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_Hant_TW.UTF-8/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_Hant_TW.UTF-8/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_Hant_TW.UTF-8
+OLD_FILES+=usr/share/locale/zh_Hant_TW.Big5/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_Hant_TW.Big5/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_Hant_TW.Big5/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_Hant_TW.Big5/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_Hant_TW.Big5/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_Hant_TW.Big5/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_Hant_TW.Big5
+OLD_FILES+=usr/share/locale/zh_Hant_HK.UTF-8/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_Hant_HK.UTF-8/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_Hant_HK.UTF-8/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_Hant_HK.UTF-8/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_Hant_HK.UTF-8/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_Hant_HK.UTF-8/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_Hant_HK.UTF-8
+OLD_FILES+=usr/share/locale/zh_Hans_CN.eucCN/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_Hans_CN.eucCN/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_Hans_CN.eucCN/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_Hans_CN.eucCN/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_Hans_CN.eucCN/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_Hans_CN.eucCN/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_Hans_CN.eucCN
+OLD_FILES+=usr/share/locale/zh_Hans_CN.UTF-8/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_Hans_CN.UTF-8/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_Hans_CN.UTF-8/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_Hans_CN.UTF-8/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_Hans_CN.UTF-8/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_Hans_CN.UTF-8/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_Hans_CN.UTF-8
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GBK/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GBK/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GBK/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GBK/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GBK/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GBK/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_Hans_CN.GBK
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GB2312/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GB2312/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GB2312/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GB2312/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GB2312/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GB2312/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_Hans_CN.GB2312
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GB18030/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GB18030/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GB18030/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GB18030/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GB18030/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_Hans_CN.GB18030/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_Hans_CN.GB18030
+OLD_FILES+=usr/share/locale/sr_Latn_RS.UTF-8/LC_COLLATE
+OLD_FILES+=usr/share/locale/sr_Latn_RS.UTF-8/LC_CTYPE
+OLD_FILES+=usr/share/locale/sr_Latn_RS.UTF-8/LC_MESSAGES
+OLD_FILES+=usr/share/locale/sr_Latn_RS.UTF-8/LC_MONETARY
+OLD_FILES+=usr/share/locale/sr_Latn_RS.UTF-8/LC_NUMERIC
+OLD_FILES+=usr/share/locale/sr_Latn_RS.UTF-8/LC_TIME
+OLD_DIRS+=usr/share/locale/sr_Latn_RS.UTF-8
+OLD_FILES+=usr/share/locale/sr_Latn_RS.ISO8859-2/LC_COLLATE
+OLD_FILES+=usr/share/locale/sr_Latn_RS.ISO8859-2/LC_CTYPE
+OLD_FILES+=usr/share/locale/sr_Latn_RS.ISO8859-2/LC_MESSAGES
+OLD_FILES+=usr/share/locale/sr_Latn_RS.ISO8859-2/LC_MONETARY
+OLD_FILES+=usr/share/locale/sr_Latn_RS.ISO8859-2/LC_NUMERIC
+OLD_FILES+=usr/share/locale/sr_Latn_RS.ISO8859-2/LC_TIME
+OLD_DIRS+=usr/share/locale/sr_Latn_RS.ISO8859-2
+OLD_FILES+=usr/share/locale/sr_Cyrl_RS.UTF-8/LC_COLLATE
+OLD_FILES+=usr/share/locale/sr_Cyrl_RS.UTF-8/LC_CTYPE
+OLD_FILES+=usr/share/locale/sr_Cyrl_RS.UTF-8/LC_MESSAGES
+OLD_FILES+=usr/share/locale/sr_Cyrl_RS.UTF-8/LC_MONETARY
+OLD_FILES+=usr/share/locale/sr_Cyrl_RS.UTF-8/LC_NUMERIC
+OLD_FILES+=usr/share/locale/sr_Cyrl_RS.UTF-8/LC_TIME
+OLD_DIRS+=usr/share/locale/sr_Cyrl_RS.UTF-8
+OLD_FILES+=usr/share/locale/sr_Cyrl_RS.ISO8859-5/LC_COLLATE
+OLD_FILES+=usr/share/locale/sr_Cyrl_RS.ISO8859-5/LC_CTYPE
+OLD_FILES+=usr/share/locale/sr_Cyrl_RS.ISO8859-5/LC_MESSAGES
+OLD_FILES+=usr/share/locale/sr_Cyrl_RS.ISO8859-5/LC_MONETARY
+OLD_FILES+=usr/share/locale/sr_Cyrl_RS.ISO8859-5/LC_NUMERIC
+OLD_FILES+=usr/share/locale/sr_Cyrl_RS.ISO8859-5/LC_TIME
+OLD_DIRS+=usr/share/locale/sr_Cyrl_RS.ISO8859-5
+OLD_FILES+=usr/share/locale/mn_Cyrl_MN.UTF-8/LC_COLLATE
+OLD_FILES+=usr/share/locale/mn_Cyrl_MN.UTF-8/LC_CTYPE
+OLD_FILES+=usr/share/locale/mn_Cyrl_MN.UTF-8/LC_MESSAGES
+OLD_FILES+=usr/share/locale/mn_Cyrl_MN.UTF-8/LC_MONETARY
+OLD_FILES+=usr/share/locale/mn_Cyrl_MN.UTF-8/LC_NUMERIC
+OLD_FILES+=usr/share/locale/mn_Cyrl_MN.UTF-8/LC_TIME
+OLD_DIRS+=usr/share/locale/mn_Cyrl_MN.UTF-8
+OLD_FILES+=usr/share/locale/kk_Cyrl_KZ.UTF-8/LC_COLLATE
+OLD_FILES+=usr/share/locale/kk_Cyrl_KZ.UTF-8/LC_CTYPE
+OLD_FILES+=usr/share/locale/kk_Cyrl_KZ.UTF-8/LC_MESSAGES
+OLD_FILES+=usr/share/locale/kk_Cyrl_KZ.UTF-8/LC_MONETARY
+OLD_FILES+=usr/share/locale/kk_Cyrl_KZ.UTF-8/LC_NUMERIC
+OLD_FILES+=usr/share/locale/kk_Cyrl_KZ.UTF-8/LC_TIME
+OLD_DIRS+=usr/share/locale/kk_Cyrl_KZ.UTF-8
+# 20160608: removed pam_verbose_error
+OLD_LIBS+=usr/lib/libpam.so.5
+OLD_LIBS+=usr/lib/pam_chroot.so.5
+OLD_LIBS+=usr/lib/pam_deny.so.5
+OLD_LIBS+=usr/lib/pam_echo.so.5
+OLD_LIBS+=usr/lib/pam_exec.so.5
+OLD_LIBS+=usr/lib/pam_ftpusers.so.5
+OLD_LIBS+=usr/lib/pam_group.so.5
+OLD_LIBS+=usr/lib/pam_guest.so.5
+OLD_LIBS+=usr/lib/pam_krb5.so.5
+OLD_LIBS+=usr/lib/pam_ksu.so.5
+OLD_LIBS+=usr/lib/pam_lastlog.so.5
+OLD_LIBS+=usr/lib/pam_login_access.so.5
+OLD_LIBS+=usr/lib/pam_nologin.so.5
+OLD_LIBS+=usr/lib/pam_opie.so.5
+OLD_LIBS+=usr/lib/pam_opieaccess.so.5
+OLD_LIBS+=usr/lib/pam_passwdqc.so.5
+OLD_LIBS+=usr/lib/pam_permit.so.5
+OLD_LIBS+=usr/lib/pam_radius.so.5
+OLD_LIBS+=usr/lib/pam_rhosts.so.5
+OLD_LIBS+=usr/lib/pam_rootok.so.5
+OLD_LIBS+=usr/lib/pam_securetty.so.5
+OLD_LIBS+=usr/lib/pam_self.so.5
+OLD_LIBS+=usr/lib/pam_ssh.so.5
+OLD_LIBS+=usr/lib/pam_tacplus.so.5
+OLD_LIBS+=usr/lib/pam_unix.so.5
+OLD_LIBS+=usr/lib32/libpam.so.5
+OLD_LIBS+=usr/lib32/pam_chroot.so.5
+OLD_LIBS+=usr/lib32/pam_deny.so.5
+OLD_LIBS+=usr/lib32/pam_echo.so.5
+OLD_LIBS+=usr/lib32/pam_exec.so.5
+OLD_LIBS+=usr/lib32/pam_ftpusers.so.5
+OLD_LIBS+=usr/lib32/pam_group.so.5
+OLD_LIBS+=usr/lib32/pam_guest.so.5
+OLD_LIBS+=usr/lib32/pam_krb5.so.5
+OLD_LIBS+=usr/lib32/pam_ksu.so.5
+OLD_LIBS+=usr/lib32/pam_lastlog.so.5
+OLD_LIBS+=usr/lib32/pam_login_access.so.5
+OLD_LIBS+=usr/lib32/pam_nologin.so.5
+OLD_LIBS+=usr/lib32/pam_opie.so.5
+OLD_LIBS+=usr/lib32/pam_opieaccess.so.5
+OLD_LIBS+=usr/lib32/pam_passwdqc.so.5
+OLD_LIBS+=usr/lib32/pam_permit.so.5
+OLD_LIBS+=usr/lib32/pam_radius.so.5
+OLD_LIBS+=usr/lib32/pam_rhosts.so.5
+OLD_LIBS+=usr/lib32/pam_rootok.so.5
+OLD_LIBS+=usr/lib32/pam_securetty.so.5
+OLD_LIBS+=usr/lib32/pam_self.so.5
+OLD_LIBS+=usr/lib32/pam_ssh.so.5
+OLD_LIBS+=usr/lib32/pam_tacplus.so.5
+OLD_LIBS+=usr/lib32/pam_unix.so.5
+# 20160523: remove extranous ALTQ files
+OLD_FILES+=usr/include/altq/altq_codel.h
+OLD_FILES+=usr/include/altq/altq_fairq.h
+# 20160519: remove DTrace Toolkit from base
+OLD_FILES+=usr/sbin/dtruss
+OLD_FILES+=usr/share/dtrace/toolkit/execsnoop
+OLD_FILES+=usr/share/dtrace/toolkit/hotkernel
+OLD_FILES+=usr/share/dtrace/toolkit/hotuser
+OLD_FILES+=usr/share/dtrace/toolkit/opensnoop
+OLD_FILES+=usr/share/dtrace/toolkit/procsystime
+OLD_DIRS+=usr/share/dtrace/toolkit
+OLD_FILES+=usr/share/man/man1/dtruss.1.gz
+# 20160519: stale MLINK removed
+OLD_FILES+=usr/share/man/man9/rman_await_resource.9.gz
+# 20160517: ReiserFS removed
+OLD_FILES+=usr/share/man/man5/reiserfs.5.gz
+# 20160504: tests rework
+OLD_FILES+=usr/tests/lib/libc/regex/data/README
+# 20160430: kvm_getfiles(3) removed from kvm(3)
+OLD_LIBS+=lib/libkvm.so.6
+OLD_LIBS+=usr/lib32/libkvm.so.6
+OLD_FILES+=usr/share/man/man3/kvm_getfiles.3.gz
+# 20160423: remove mroute6d
+OLD_FILES+=etc/rc.d/mroute6d
+# 20160419: rename units.lib -> definitions.units
+OLD_FILES+=usr/share/misc/units.lib
+# 20160419: remove Big5HKSCS locales
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_HK.Big5HKSCS
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_Hant_HK.Big5HKSCS
+# 20160317: rman_res_t size bump to uintmax_t
+OLD_LIBS+=usr/lib/libdevinfo.so.5
+OLD_LIBS+=usr/lib32/libdevinfo.so.5
+# 20160305: new clang import which bumps version from 3.7.1 to 3.8.0.
+OLD_FILES+=usr/bin/macho-dump
+OLD_FILES+=usr/bin/tblgen
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/allocator_interface.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/asan_interface.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/common_interface_defs.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/coverage_interface.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/dfsan_interface.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/linux_syscall_hooks.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/lsan_interface.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/msan_interface.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/tsan_interface_atomic.h
+OLD_DIRS+=usr/lib/clang/3.7.1/include/sanitizer
+OLD_FILES+=usr/lib/clang/3.7.1/include/__stddef_max_align_t.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/__wmmintrin_aes.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/__wmmintrin_pclmul.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/adxintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/altivec.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/ammintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/arm_acle.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/arm_neon.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx2intrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512bwintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512cdintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512dqintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512erintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512fintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512vlbwintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512vldqintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512vlintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avxintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/bmi2intrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/bmiintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/cpuid.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/cuda_builtin_vars.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/emmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/f16cintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/fma4intrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/fmaintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/fxsrintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/htmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/htmxlintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/ia32intrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/immintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/lzcntintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/mm3dnow.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/mm_malloc.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/mmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/module.modulemap
+OLD_FILES+=usr/lib/clang/3.7.1/include/nmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/pmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/popcntintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/prfchwintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/rdseedintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/rtmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/s390intrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/shaintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/smmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/tbmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/tmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/vadefs.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/vecintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/wmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/x86intrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/xmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/xopintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/xtestintrin.h
+OLD_DIRS+=usr/lib/clang/3.7.1/include
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.asan-preinit-i386.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.asan-preinit-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.safestack-i386.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.safestack-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.ubsan_standalone-i386.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.ubsan_standalone-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.7.1/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.7.1/lib
+OLD_DIRS+=usr/lib/clang/3.7.1
+# 20160301: Remove taskqueue_enqueue_fast
+OLD_FILES+=usr/share/man/man9/taskqueue_enqueue_fast.9.gz
+# 20160225: Remove casperd and libcapsicum.
+OLD_FILES+=sbin/casperd
+OLD_FILES+=etc/rc.d/casperd
+OLD_FILES+=usr/share/man/man8/casperd.8.gz
+OLD_FILES+=usr/include/libcapsicum.h
+OLD_FILES+=usr/include/libcapsicum_service.h
+OLD_FILES+=usr/include/libcapsicum.h
+OLD_FILES+=usr/share/man/man3/libcapsicum.3.gz
+OLD_FILES+=usr/include/libcapsicum_dns.h
+OLD_FILES+=usr/include/libcapsicum_grp.h
+OLD_FILES+=usr/include/libcapsicum_impl.h
+OLD_FILES+=usr/include/libcapsicum_pwd.h
+OLD_FILES+=usr/include/libcapsicum_random.h
+OLD_FILES+=usr/include/libcapsicum_sysctl.h
+OLD_FILES+=libexec/casper/dns
+OLD_FILES+=libexec/casper/grp
+OLD_FILES+=libexec/casper/pwd
+OLD_FILES+=libexec/casper/random
+OLD_FILES+=libexec/casper/sysctl
+OLD_FILES+=libexec/casper/.debug/random.debug
+OLD_FILES+=libexec/casper/.debug/dns.debug
+OLD_FILES+=libexec/casper/.debug/sysctl.debug
+OLD_FILES+=libexec/casper/.debug/pwd.debug
+OLD_FILES+=libexec/casper/.debug/grp.debug
+OLD_DIRS+=libexec/casper/.debug
+OLD_DIRS+=libexec/casper
+OLD_FILES+=usr/lib/libcapsicum.a
+OLD_FILES+=usr/lib/libcapsicum.so
+OLD_LIBS+=lib/libcapsicum.so.0
+OLD_FILES+=usr/lib/libcapsicum_p.a
+OLD_FILES+=usr/lib32/libcapsicum.a
+OLD_FILES+=usr/lib32/libcapsicum.so
+OLD_LIBS+=usr/lib32/libcapsicum.so.0
+OLD_FILES+=usr/lib32/libcapsicum_p.a
+# 20160223: functionality from mkulzma(1) merged into mkuzip(1)
+OLD_FILES+=usr/bin/mkulzma
+OLD_FILES+=usr/share/man/man4/geom_uncompress.4.gz
+OLD_FILES+=usr/share/man/man8/mkulzma.8.gz
+# 20160211: Remove obsolete unbound-control-setup
+OLD_FILES+=usr/sbin/unbound-control-setup
+# 20160121: cc.h moved
+OLD_FILES+=usr/include/netinet/cc.h
+# 20160116: Update mandoc to cvs snapshot 20160116
+OLD_FILES+=usr/share/mdocml/example.style.css
+OLD_FILES+=usr/share/mdocml/style.css
+OLD_DIRS+=usr/share/mdocml
+# 20160114: SA-16:06.snmpd
+OLD_FILES+=usr/share/examples/etc/snmpd.config
+# 20151225: new clang import which bumps version from 3.7.0 to 3.7.1.
+OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/allocator_interface.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/asan_interface.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/common_interface_defs.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/coverage_interface.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/dfsan_interface.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/linux_syscall_hooks.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/lsan_interface.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/msan_interface.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/tsan_interface_atomic.h
+OLD_DIRS+=usr/lib/clang/3.7.0/include/sanitizer
+OLD_FILES+=usr/lib/clang/3.7.0/include/__stddef_max_align_t.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/__wmmintrin_aes.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/__wmmintrin_pclmul.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/adxintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/altivec.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/ammintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/arm_acle.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/arm_neon.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx2intrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512bwintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512cdintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512dqintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512erintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512fintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512vlbwintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512vldqintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512vlintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avxintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/bmi2intrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/bmiintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/cpuid.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/cuda_builtin_vars.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/emmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/f16cintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/fma4intrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/fmaintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/fxsrintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/htmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/htmxlintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/ia32intrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/immintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/lzcntintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/mm3dnow.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/mm_malloc.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/mmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/module.modulemap
+OLD_FILES+=usr/lib/clang/3.7.0/include/nmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/pmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/popcntintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/prfchwintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/rdseedintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/rtmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/s390intrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/shaintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/smmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/tbmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/tmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/vadefs.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/vecintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/wmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/x86intrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/xmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/xopintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/xtestintrin.h
+OLD_DIRS+=usr/lib/clang/3.7.0/include
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan-preinit-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan-preinit-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.safestack-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.safestack-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.ubsan_standalone-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.ubsan_standalone-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.7.0/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.7.0/lib
+OLD_DIRS+=usr/lib/clang/3.7.0
+# 20151201: mqueue tests 3 and 4 disabled
+OLD_FILES+=usr/tests/sys/mqueue/mqtest3
+OLD_FILES+=usr/tests/sys/mqueue/mqtest4
+# 20151130: libelf moved from /usr/lib to /lib (libkvm dependency in r291406)
+OLD_LIBS+=usr/lib/libelf.so.2
+# 20151115: Fox bad upgrade scheme
+OLD_FILES+=usr/share/locale/zh_CN.GB18030/zh_Hans_CN.GB18030
+OLD_FILES+=usr/share/locale/zh_CN.GB2312/zh_Hans_CN.GB2312
+OLD_FILES+=usr/share/locale/zh_CN.GBK/zh_Hans_CN.GBK
+OLD_FILES+=usr/share/locale/zh_CN.UTF-8/zh_Hans_CN.UTF-8
+OLD_FILES+=usr/share/locale/zh_CN.eucCN/zh_Hans_CN.eucCN
+OLD_FILES+=usr/share/locale/zh_TW.Big5/zh_Hant_TW.Big5
+OLD_FILES+=usr/share/locale/zh_TW.UTF-8/zh_Hant_TW.UTF-8
+# 20151107: String collation improvements
+OLD_FILES+=usr/share/locale/UTF-8/LC_CTYPE
+OLD_DIRS+=usr/share/locale/UTF-8
+OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_COLLATE
+OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_CTYPE
+OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_MESSAGES
+OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_MONETARY
+OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_NUMERIC
+OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_TIME
+OLD_DIRS+=usr/share/locale/kk_KZ.PT154/
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-1/LC_COLLATE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-1/LC_CTYPE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-1/LC_TIME
+OLD_DIRS+=usr/share/locale/la_LN.ISO8859-1
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-13/LC_COLLATE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-13/LC_CTYPE
+OLD_DIRS+=usr/share/locale/la_LN.ISO8859-13
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-15/LC_COLLATE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-15/LC_CTYPE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-15/LC_TIME
+OLD_DIRS+=usr/share/locale/la_LN.ISO8859-15
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-2/LC_COLLATE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-2/LC_CTYPE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-2/LC_TIME
+OLD_DIRS+=usr/share/locale/la_LN.ISO8859-2
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-4/LC_COLLATE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-4/LC_CTYPE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-4/LC_TIME
+OLD_DIRS+=usr/share/locale/la_LN.ISO8859-4
+OLD_FILES+=usr/share/locale/la_LN.US-ASCII/LC_COLLATE
+OLD_FILES+=usr/share/locale/la_LN.US-ASCII/LC_CTYPE
+OLD_FILES+=usr/share/locale/la_LN.US-ASCII/LC_TIME
+OLD_DIRS+=usr/share/locale/la_LN.US-ASCII
+OLD_FILES+=usr/share/locale/lt_LT.ISO8859-4/LC_MESSAGES
+OLD_FILES+=usr/share/locale/lt_LT.ISO8859-4/LC_TIME
+OLD_FILES+=usr/share/locale/lt_LT.ISO8859-4/LC_COLLATE
+OLD_FILES+=usr/share/locale/lt_LT.ISO8859-4/LC_MONETARY
+OLD_FILES+=usr/share/locale/lt_LT.ISO8859-4/LC_CTYPE
+OLD_FILES+=usr/share/locale/lt_LT.ISO8859-4/LC_NUMERIC
+OLD_DIRS+=usr/share/locale/lt_LT.ISO8859-4
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-1/LC_COLLATE
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-1/LC_CTYPE
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-1/LC_MESSAGES
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-1/LC_MONETARY
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-1/LC_NUMERIC
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-1/LC_TIME
+OLD_DIRS+=usr/share/locale/no_NO.ISO8859-1
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-15/LC_COLLATE
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-15/LC_CTYPE
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-15/LC_MESSAGES
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-15/LC_MONETARY
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-15/LC_NUMERIC
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-15/LC_TIME
+OLD_DIRS+=usr/share/locale/no_NO.ISO8859-15
+OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_COLLATE
+OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_CTYPE
+OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_MESSAGES
+OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_MONETARY
+OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_NUMERIC
+OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_TIME
+OLD_DIRS+=usr/share/locale/no_NO.UTF-8
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-2/LC_COLLATE
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-2/LC_TIME
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-2/LC_CTYPE
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-2/LC_MESSAGES
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-2/LC_NUMERIC
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-2/LC_MONETARY
+OLD_DIRS+=usr/share/locale/sr_YU.ISO8859-2
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-5/LC_COLLATE
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-5/LC_MONETARY
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-5/LC_NUMERIC
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-5/LC_CTYPE
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-5/LC_TIME
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-5/LC_MESSAGES
+OLD_DIRS+=usr/share/locale/sr_YU.ISO8859-5
+OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_COLLATE
+OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_MONETARY
+OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_CTYPE
+OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_TIME
+OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_NUMERIC
+OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_MESSAGES
+OLD_DIRS+=usr/share/locale/sr_YU.UTF-8
+# 20151101: added missing _test suffix on multiple tests in lib/libc
+OLD_FILES+=usr/tests/lib/libc/c063/faccessat
+OLD_FILES+=usr/tests/lib/libc/c063/fchmodat
+OLD_FILES+=usr/tests/lib/libc/c063/fchownat
+OLD_FILES+=usr/tests/lib/libc/c063/fexecve
+OLD_FILES+=usr/tests/lib/libc/c063/fstatat
+OLD_FILES+=usr/tests/lib/libc/c063/linkat
+OLD_FILES+=usr/tests/lib/libc/c063/mkdirat
+OLD_FILES+=usr/tests/lib/libc/c063/mkfifoat
+OLD_FILES+=usr/tests/lib/libc/c063/mknodat
+OLD_FILES+=usr/tests/lib/libc/c063/openat
+OLD_FILES+=usr/tests/lib/libc/c063/readlinkat
+OLD_FILES+=usr/tests/lib/libc/c063/renameat
+OLD_FILES+=usr/tests/lib/libc/c063/symlinkat
+OLD_FILES+=usr/tests/lib/libc/c063/unlinkat
+OLD_FILES+=usr/tests/lib/libc/c063/utimensat
+OLD_FILES+=usr/tests/lib/libc/string/memchr
+OLD_FILES+=usr/tests/lib/libc/string/memcpy
+OLD_FILES+=usr/tests/lib/libc/string/memmem
+OLD_FILES+=usr/tests/lib/libc/string/memset
+OLD_FILES+=usr/tests/lib/libc/string/strcat
+OLD_FILES+=usr/tests/lib/libc/string/strchr
+OLD_FILES+=usr/tests/lib/libc/string/strcmp
+OLD_FILES+=usr/tests/lib/libc/string/strcpy
+OLD_FILES+=usr/tests/lib/libc/string/strcspn
+OLD_FILES+=usr/tests/lib/libc/string/strerror
+OLD_FILES+=usr/tests/lib/libc/string/strlen
+OLD_FILES+=usr/tests/lib/libc/string/strpbrk
+OLD_FILES+=usr/tests/lib/libc/string/strrchr
+OLD_FILES+=usr/tests/lib/libc/string/strspn
+OLD_FILES+=usr/tests/lib/libc/string/swab
+# 20151101: 430.status-rwho was renamed to 430.status-uptime
+OLD_FILES+=etc/periodic/daily/430.status-rwho
+# 20151030: OpenSSL 1.0.2d import
+OLD_FILES+=usr/share/openssl/man/man3/CMS_set1_signer_certs.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_ctrl.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_ctrl_str.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/d2i_509_CRL_fp.3.gz
+OLD_LIBS+=lib/libcrypto.so.7
+OLD_LIBS+=usr/lib/libssl.so.7
+OLD_LIBS+=usr/lib32/libcrypto.so.7
+OLD_LIBS+=usr/lib32/libssl.so.7
+# 20151029: LinuxKPI moved to sys/compat/linuxkpi
+OLD_FILES+=usr/include/dev/usb/usb_compat_linux.h
+# 20151015: test symbols moved to /usr/lib/debug
+OLD_DIRS+=usr/tests/lib/atf/libatf-c++/.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/.debug/atf_c++_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/.debug/build_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/.debug/check_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/.debug/config_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/.debug/macros_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/.debug/tests_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/.debug/utils_test.debug
+OLD_DIRS+=usr/tests/lib/atf/libatf-c++/detail/.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/.debug/application_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/.debug/env_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/.debug/exceptions_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/.debug/fs_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/.debug/process_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/.debug/sanity_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/.debug/text_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/.debug/version_helper.debug
+OLD_DIRS+=usr/tests/lib/atf/libatf-c/.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/.debug/atf_c_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/.debug/build_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/.debug/check_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/.debug/config_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/.debug/error_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/.debug/macros_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/.debug/tc_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/.debug/tp_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/.debug/utils_test.debug
+OLD_DIRS+=usr/tests/lib/atf/libatf-c/detail/.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/detail/.debug/dynstr_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/detail/.debug/env_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/detail/.debug/fs_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/detail/.debug/list_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/detail/.debug/map_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/detail/.debug/process_helpers.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/detail/.debug/process_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/detail/.debug/sanity_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/detail/.debug/text_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/detail/.debug/user_test.debug
+OLD_FILES+=usr/tests/lib/atf/libatf-c/detail/.debug/version_helper.debug
+OLD_DIRS+=usr/tests/lib/atf/test-programs/.debug
+OLD_FILES+=usr/tests/lib/atf/test-programs/.debug/c_helpers.debug
+OLD_FILES+=usr/tests/lib/atf/test-programs/.debug/cpp_helpers.debug
+OLD_DIRS+=usr/tests/lib/libc/c063/.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/faccessat.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/fchmodat.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/fchownat.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/fexecve.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/fstatat.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/linkat.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/mkdirat.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/mkfifoat.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/mknodat.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/openat.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/readlinkat.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/renameat.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/symlinkat.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/unlinkat.debug
+OLD_FILES+=usr/tests/lib/libc/c063/.debug/utimensat.debug
+OLD_DIRS+=usr/tests/lib/libc/db/.debug
+OLD_FILES+=usr/tests/lib/libc/db/.debug/h_db.debug
+OLD_DIRS+=usr/tests/lib/libc/gen/.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/alarm_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/arc4random_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/assert_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/basedirname_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/dir_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/floatunditf_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/fnmatch_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/fpclassify2_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/fpclassify_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/fpsetmask_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/fpsetround_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/ftok_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/getcwd_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/getgrent_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/glob_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/humanize_number_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/isnan_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/nice_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/pause_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/raise_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/realpath_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/setdomainname_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/sethostname_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/sleep_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/syslog_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/time_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/ttyname_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/.debug/vis_test.debug
+OLD_DIRS+=usr/tests/lib/libc/gen/execve/.debug
+OLD_FILES+=usr/tests/lib/libc/gen/execve/.debug/execve_test.debug
+OLD_DIRS+=usr/tests/lib/libc/gen/posix_spawn/.debug
+OLD_FILES+=usr/tests/lib/libc/gen/posix_spawn/.debug/fileactions_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/posix_spawn/.debug/h_fileactions.debug
+OLD_FILES+=usr/tests/lib/libc/gen/posix_spawn/.debug/h_spawn.debug
+OLD_FILES+=usr/tests/lib/libc/gen/posix_spawn/.debug/h_spawnattr.debug
+OLD_FILES+=usr/tests/lib/libc/gen/posix_spawn/.debug/spawn_test.debug
+OLD_FILES+=usr/tests/lib/libc/gen/posix_spawn/.debug/spawnattr_test.debug
+OLD_DIRS+=usr/tests/lib/libc/hash/.debug
+OLD_FILES+=usr/tests/lib/libc/hash/.debug/h_hash.debug
+OLD_FILES+=usr/tests/lib/libc/hash/.debug/sha2_test.debug
+OLD_DIRS+=usr/tests/lib/libc/inet/.debug
+OLD_FILES+=usr/tests/lib/libc/inet/.debug/inet_network_test.debug
+OLD_DIRS+=usr/tests/lib/libc/locale/.debug
+OLD_FILES+=usr/tests/lib/libc/locale/.debug/io_test.debug
+OLD_FILES+=usr/tests/lib/libc/locale/.debug/mbrtowc_test.debug
+OLD_FILES+=usr/tests/lib/libc/locale/.debug/mbsnrtowcs_test.debug
+OLD_FILES+=usr/tests/lib/libc/locale/.debug/mbstowcs_test.debug
+OLD_FILES+=usr/tests/lib/libc/locale/.debug/mbtowc_test.debug
+OLD_FILES+=usr/tests/lib/libc/locale/.debug/wcscspn_test.debug
+OLD_FILES+=usr/tests/lib/libc/locale/.debug/wcspbrk_test.debug
+OLD_FILES+=usr/tests/lib/libc/locale/.debug/wcsspn_test.debug
+OLD_FILES+=usr/tests/lib/libc/locale/.debug/wcstod_test.debug
+OLD_FILES+=usr/tests/lib/libc/locale/.debug/wctomb_test.debug
+OLD_DIRS+=usr/tests/lib/libc/net/.debug
+OLD_FILES+=usr/tests/lib/libc/net/.debug/ether_aton_test.debug
+OLD_FILES+=usr/tests/lib/libc/net/.debug/getprotoent_test.debug
+OLD_FILES+=usr/tests/lib/libc/net/.debug/h_dns_server.debug
+OLD_FILES+=usr/tests/lib/libc/net/.debug/h_nsd_recurse.debug
+OLD_FILES+=usr/tests/lib/libc/net/.debug/h_protoent.debug
+OLD_FILES+=usr/tests/lib/libc/net/.debug/h_servent.debug
+OLD_DIRS+=usr/tests/lib/libc/regex/.debug
+OLD_FILES+=usr/tests/lib/libc/regex/.debug/exhaust_test.debug
+OLD_FILES+=usr/tests/lib/libc/regex/.debug/h_regex.debug
+OLD_FILES+=usr/tests/lib/libc/regex/.debug/regex_att_test.debug
+OLD_DIRS+=usr/tests/lib/libc/ssp/.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_fgets.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_getcwd.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_gets.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_memcpy.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_memmove.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_memset.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_raw.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_read.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_readlink.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_snprintf.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_sprintf.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_stpcpy.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_stpncpy.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_strcat.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_strcpy.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_strncat.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_strncpy.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_vsnprintf.debug
+OLD_FILES+=usr/tests/lib/libc/ssp/.debug/h_vsprintf.debug
+OLD_DIRS+=usr/tests/lib/libc/stdio/.debug
+OLD_FILES+=usr/tests/lib/libc/stdio/.debug/clearerr_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdio/.debug/fflush_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdio/.debug/fmemopen2_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdio/.debug/fmemopen_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdio/.debug/fopen_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdio/.debug/fputc_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdio/.debug/mktemp_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdio/.debug/popen_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdio/.debug/printf_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdio/.debug/scanf_test.debug
+OLD_DIRS+=usr/tests/lib/libc/stdlib/.debug
+OLD_FILES+=usr/tests/lib/libc/stdlib/.debug/abs_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdlib/.debug/atoi_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdlib/.debug/div_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdlib/.debug/exit_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdlib/.debug/getenv_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdlib/.debug/h_getopt.debug
+OLD_FILES+=usr/tests/lib/libc/stdlib/.debug/h_getopt_long.debug
+OLD_FILES+=usr/tests/lib/libc/stdlib/.debug/hsearch_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdlib/.debug/posix_memalign_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdlib/.debug/random_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdlib/.debug/strtod_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdlib/.debug/strtol_test.debug
+OLD_FILES+=usr/tests/lib/libc/stdlib/.debug/system_test.debug
+OLD_DIRS+=usr/tests/lib/libc/string/.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/memchr.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/memcpy.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/memmem.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/memset.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/strcat.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/strchr.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/strcmp.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/strcpy.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/strcspn.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/strerror.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/strlen.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/strpbrk.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/strrchr.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/strspn.debug
+OLD_FILES+=usr/tests/lib/libc/string/.debug/swab.debug
+OLD_DIRS+=usr/tests/lib/libc/sys/.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/access_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/chroot_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/clock_gettime_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/connect_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/dup_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/fsync_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/getcontext_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/getgroups_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/getitimer_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/getlogin_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/getpid_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/getrusage_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/getsid_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/gettimeofday_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/issetugid_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/kevent_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/kill_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/link_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/listen_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/mincore_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/mkdir_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/mkfifo_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/mknod_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/mlock_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/mmap_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/mprotect_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/msgctl_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/msgget_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/msgrcv_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/msgsnd_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/msync_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/nanosleep_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/pipe2_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/pipe_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/poll_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/revoke_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/select_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/setrlimit_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/setuid_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/sigaction_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/sigqueue_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/sigtimedwait_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/socketpair_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/stat_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/timer_create_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/truncate_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/ucontext_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/umask_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/unlink_test.debug
+OLD_FILES+=usr/tests/lib/libc/sys/.debug/write_test.debug
+OLD_DIRS+=usr/tests/lib/libc/termios/.debug
+OLD_FILES+=usr/tests/lib/libc/termios/.debug/tcsetpgrp_test.debug
+OLD_DIRS+=usr/tests/lib/libc/tls/.debug
+OLD_FILES+=usr/tests/lib/libc/tls/.debug/h_tls_dlopen.so.debug
+OLD_FILES+=usr/tests/lib/libc/tls/.debug/libh_tls_dynamic.so.1.debug
+OLD_FILES+=usr/tests/lib/libc/tls/.debug/tls_dlopen_test.debug
+OLD_FILES+=usr/tests/lib/libc/tls/.debug/tls_dynamic_test.debug
+OLD_DIRS+=usr/tests/lib/libc/ttyio/.debug
+OLD_FILES+=usr/tests/lib/libc/ttyio/.debug/ttyio_test.debug
+OLD_DIRS+=usr/tests/lib/libcrypt/.debug
+OLD_FILES+=usr/tests/lib/libcrypt/.debug/crypt_tests.debug
+OLD_DIRS+=usr/tests/lib/libmp/.debug
+OLD_FILES+=usr/tests/lib/libmp/.debug/legacy_test.debug
+OLD_DIRS+=usr/tests/lib/libnv/.debug
+OLD_FILES+=usr/tests/lib/libnv/.debug/dnv_tests.debug
+OLD_FILES+=usr/tests/lib/libnv/.debug/nv_array_tests.debug
+OLD_FILES+=usr/tests/lib/libnv/.debug/nv_tests.debug
+OLD_FILES+=usr/tests/lib/libnv/.debug/nvlist_add_test.debug
+OLD_FILES+=usr/tests/lib/libnv/.debug/nvlist_exists_test.debug
+OLD_FILES+=usr/tests/lib/libnv/.debug/nvlist_free_test.debug
+OLD_FILES+=usr/tests/lib/libnv/.debug/nvlist_get_test.debug
+OLD_FILES+=usr/tests/lib/libnv/.debug/nvlist_move_test.debug
+OLD_FILES+=usr/tests/lib/libnv/.debug/nvlist_send_recv_test.debug
+OLD_DIRS+=usr/tests/lib/libpam/.debug
+OLD_FILES+=usr/tests/lib/libpam/.debug/t_openpam_ctype.debug
+OLD_FILES+=usr/tests/lib/libpam/.debug/t_openpam_readlinev.debug
+OLD_FILES+=usr/tests/lib/libpam/.debug/t_openpam_readword.debug
+OLD_DIRS+=usr/tests/lib/libproc/.debug
+OLD_FILES+=usr/tests/lib/libproc/.debug/proc_test.debug
+OLD_FILES+=usr/tests/lib/libproc/.debug/target_prog.debug
+OLD_DIRS+=usr/tests/lib/librt/.debug
+OLD_FILES+=usr/tests/lib/librt/.debug/sched_test.debug
+OLD_FILES+=usr/tests/lib/librt/.debug/sem_test.debug
+OLD_DIRS+=usr/tests/lib/libthr/.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/barrier_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/cond_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/condwait_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/detach_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/equal_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/fork_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/fpu_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/h_atexit.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/h_cancel.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/h_exit.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/h_resolv.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/join_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/kill_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/mutex_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/once_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/preempt_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/rwlock_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/sem_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/siglongjmp_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/sigmask_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/sigsuspend_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/sleep_test.debug
+OLD_FILES+=usr/tests/lib/libthr/.debug/swapcontext_test.debug
+OLD_DIRS+=usr/tests/lib/libthr/dlopen/.debug
+OLD_FILES+=usr/tests/lib/libthr/dlopen/.debug/dlopen_test.debug
+OLD_FILES+=usr/tests/lib/libthr/dlopen/.debug/h_pthread_dlopen.so.1.debug
+OLD_FILES+=usr/tests/lib/libthr/dlopen/.debug/main_pthread_create_test.debug
+OLD_DIRS+=usr/tests/lib/libutil/.debug
+OLD_FILES+=usr/tests/lib/libutil/.debug/flopen_test.debug
+OLD_FILES+=usr/tests/lib/libutil/.debug/grp_test.debug
+OLD_FILES+=usr/tests/lib/libutil/.debug/humanize_number_test.debug
+OLD_FILES+=usr/tests/lib/libutil/.debug/pidfile_test.debug
+OLD_FILES+=usr/tests/lib/libutil/.debug/trimdomain-nodomain_test.debug
+OLD_FILES+=usr/tests/lib/libutil/.debug/trimdomain_test.debug
+OLD_DIRS+=usr/tests/lib/libxo/.debug
+OLD_FILES+=usr/tests/lib/libxo/.debug/libenc_test.so.debug
+OLD_FILES+=usr/tests/lib/libxo/.debug/test_01.debug
+OLD_FILES+=usr/tests/lib/libxo/.debug/test_02.debug
+OLD_FILES+=usr/tests/lib/libxo/.debug/test_03.debug
+OLD_FILES+=usr/tests/lib/libxo/.debug/test_04.debug
+OLD_FILES+=usr/tests/lib/libxo/.debug/test_05.debug
+OLD_FILES+=usr/tests/lib/libxo/.debug/test_06.debug
+OLD_FILES+=usr/tests/lib/libxo/.debug/test_07.debug
+OLD_FILES+=usr/tests/lib/libxo/.debug/test_08.debug
+OLD_FILES+=usr/tests/lib/libxo/.debug/test_09.debug
+OLD_FILES+=usr/tests/lib/libxo/.debug/test_10.debug
+OLD_FILES+=usr/tests/lib/libxo/.debug/test_11.debug
+OLD_DIRS+=usr/tests/lib/msun/.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/acos_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/asin_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/atan_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/cbrt_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/ceil_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/cos_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/cosh_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/erf_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/exp_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/fmod_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/infinity_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/ldexp_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/log_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/pow_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/precision_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/round_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/scalbn_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/sin_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/sinh_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/sqrt_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/tan_test.debug
+OLD_FILES+=usr/tests/lib/msun/.debug/tanh_test.debug
+OLD_DIRS+=usr/tests/libexec/rtld-elf/.debug
+OLD_FILES+=usr/tests/libexec/rtld-elf/.debug/ld_library_pathfds.debug
+OLD_FILES+=usr/tests/libexec/rtld-elf/.debug/libpythagoras.so.0.debug
+OLD_FILES+=usr/tests/libexec/rtld-elf/.debug/target.debug
+OLD_DIRS+=usr/tests/sbin/devd/.debug
+OLD_FILES+=usr/tests/sbin/devd/.debug/client_test.debug
+OLD_DIRS+=usr/tests/sbin/dhclient/.debug
+OLD_FILES+=usr/tests/sbin/dhclient/.debug/option-domain-search_test.debug
+OLD_DIRS+=usr/tests/share/examples/tests/atf/.debug
+OLD_FILES+=usr/tests/share/examples/tests/atf/.debug/printf_test.debug
+OLD_DIRS+=usr/tests/share/examples/tests/plain/.debug
+OLD_FILES+=usr/tests/share/examples/tests/plain/.debug/printf_test.debug
+OLD_DIRS+=usr/tests/sys/aio/.debug
+OLD_FILES+=usr/tests/sys/aio/.debug/aio_kqueue_test.debug
+OLD_FILES+=usr/tests/sys/aio/.debug/aio_test.debug
+OLD_FILES+=usr/tests/sys/aio/.debug/lio_kqueue_test.debug
+OLD_DIRS+=usr/tests/sys/fifo/.debug
+OLD_FILES+=usr/tests/sys/fifo/.debug/fifo_create.debug
+OLD_FILES+=usr/tests/sys/fifo/.debug/fifo_io.debug
+OLD_FILES+=usr/tests/sys/fifo/.debug/fifo_misc.debug
+OLD_FILES+=usr/tests/sys/fifo/.debug/fifo_open.debug
+OLD_DIRS+=usr/tests/sys/file/.debug
+OLD_FILES+=usr/tests/sys/file/.debug/closefrom_test.debug
+OLD_FILES+=usr/tests/sys/file/.debug/dup_test.debug
+OLD_FILES+=usr/tests/sys/file/.debug/fcntlflags_test.debug
+OLD_FILES+=usr/tests/sys/file/.debug/flock_helper.debug
+OLD_FILES+=usr/tests/sys/file/.debug/ftruncate_test.debug
+OLD_FILES+=usr/tests/sys/file/.debug/newfileops_on_fork_test.debug
+OLD_DIRS+=usr/tests/sys/kern/.debug
+OLD_FILES+=usr/tests/sys/kern/.debug/kern_descrip_test.debug
+OLD_FILES+=usr/tests/sys/kern/.debug/ptrace_test.debug
+OLD_FILES+=usr/tests/sys/kern/.debug/unix_seqpacket_test.debug
+OLD_DIRS+=usr/tests/sys/kern/execve/.debug
+OLD_FILES+=usr/tests/sys/kern/execve/.debug/execve_helper.debug
+OLD_FILES+=usr/tests/sys/kern/execve/.debug/good_aout.debug
+OLD_DIRS+=usr/tests/sys/kqueue/.debug
+OLD_FILES+=usr/tests/sys/kqueue/.debug/kqtest.debug
+OLD_DIRS+=usr/tests/sys/mqueue/.debug
+OLD_FILES+=usr/tests/sys/mqueue/.debug/mqtest1.debug
+OLD_FILES+=usr/tests/sys/mqueue/.debug/mqtest2.debug
+OLD_FILES+=usr/tests/sys/mqueue/.debug/mqtest3.debug
+OLD_FILES+=usr/tests/sys/mqueue/.debug/mqtest4.debug
+OLD_FILES+=usr/tests/sys/mqueue/.debug/mqtest5.debug
+OLD_DIRS+=usr/tests/sys/netinet/.debug
+OLD_FILES+=usr/tests/sys/netinet/.debug/udp_dontroute.debug
+OLD_DIRS+=usr/tests/sys/pjdfstest/.debug
+OLD_FILES+=usr/tests/sys/pjdfstest/.debug/pjdfstest.debug
+OLD_DIRS+=usr/tests/sys/vm/.debug
+OLD_FILES+=usr/tests/sys/vm/.debug/mmap_test.debug
+# 20151015: Rename files due to file-installed-as-dir bug
+OLD_FILES+=usr/share/doc/legal/realtek
+OLD_FILES+=usr/share/doc/legal/realtek/LICENSE
+OLD_DIRS+=usr/share/doc/legal/realtek
+OLD_DIRS+=usr/share/doc/legal/intel_ipw
+OLD_FILES+=usr/share/doc/legal/intel_ipw/LICENSE
+OLD_FILES+=usr/share/doc/legal/intel_iwn
+OLD_FILES+=usr/share/doc/legal/intel_iwn/LICENSE
+OLD_DIRS+=usr/share/doc/legal/intel_iwn
+OLD_DIRS+=usr/share/doc/legal/intel_iwi
+OLD_FILES+=usr/share/doc/legal/intel_iwi/LICENSE
+OLD_DIRS+=usr/share/doc/legal/intel_wpi
+OLD_FILES+=usr/share/doc/legal/intel_wpi/LICENSE
+# 20151006: new libc++ import
+OLD_FILES+=usr/include/c++/__tuple_03
+OLD_FILES+=usr/include/c++/v1/__tuple_03
+OLD_FILES+=usr/include/c++/v1/tr1/__tuple_03
+# 20151006: new clang import which bumps version from 3.6.1 to 3.7.0.
+OLD_FILES+=usr/lib/clang/3.6.1/include/__stddef_max_align_t.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_aes.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_pclmul.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/adxintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/altivec.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/ammintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/arm_acle.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/arm_neon.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx2intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512bwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512erintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512fintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512vlbwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512vlintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avxintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/bmi2intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/bmiintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/cpuid.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/emmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/f16cintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/fma4intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/fmaintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/ia32intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/immintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/lzcntintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/mm3dnow.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/mm_malloc.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/mmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/module.modulemap
+OLD_FILES+=usr/lib/clang/3.6.1/include/nmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/pmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/popcntintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/prfchwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/rdseedintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/rtmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/shaintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/smmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/tbmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/tmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/wmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/x86intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/xmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/xopintrin.h
+OLD_DIRS+=usr/lib/clang/3.6.1/include
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.san-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.san-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.6.1/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.6.1/lib
+OLD_DIRS+=usr/lib/clang/3.6.1
+# 20150928: unused sgsmsg utility is removed
+OLD_FILES+=usr/bin/sgsmsg
+# 20150926: remove links to removed/unimplemented mbuf(9) macros
+OLD_FILES+=usr/share/man/man9/MEXT_ADD_REF.9.gz
+OLD_FILES+=usr/share/man/man9/MEXTFREE.9.gz
+OLD_FILES+=usr/share/man/man9/MEXT_IS_REF.9.gz
+OLD_FILES+=usr/share/man/man9/MEXT_REM_REF.9.gz
+OLD_FILES+=usr/share/man/man9/MFREE.9.gz
+# 20150818: *allocm() are gone in jemalloc 4.0.0
+OLD_FILES+=usr/share/man/man3/allocm.3.gz
+OLD_FILES+=usr/share/man/man3/dallocm.3.gz
+OLD_FILES+=usr/share/man/man3/nallocm.3.gz
+OLD_FILES+=usr/share/man/man3/rallocm.3.gz
+OLD_FILES+=usr/share/man/man3/sallocm.3.gz
+# 20150802: Remove netbsd's test on pw(8)
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_test
+# 20150719: Remove libarchive.pc
+OLD_FILES+=usr/libdata/pkgconfig/libarchive.pc
+# 20150705: Rename DTrace provider man pages.
+OLD_FILES+=usr/share/man/man4/dtrace-io.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-ip.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-proc.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-sched.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-tcp.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-udp.4.gz
+# 20150704: nvlist private headers no longer installed
+OLD_FILES+=usr/include/sys/nv_impl.h
+OLD_FILES+=usr/include/sys/nvlist_impl.h
+OLD_FILES+=usr/include/sys/nvpair_impl.h
+# 20150624
+OLD_LIBS+=usr/lib/libugidfw.so.4
+OLD_LIBS+=usr/lib32/libugidfw.so.4
+# 20150604: Move nvlist man pages to section 9.
+OLD_FILES+=usr/share/man/man3/libnv.3.gz
+OLD_FILES+=usr/share/man/man3/nv.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_stringf.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_stringv.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_clone.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_create.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_destroy.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_dump.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_empty.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_error.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_fdump.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_flags.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_get_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_get_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_get_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_get_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_get_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_get_parent.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_get_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_move_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_move_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_move_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_move_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_next.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_pack.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_recv.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_send.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_set_error.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_size.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_take_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_take_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_take_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_take_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_take_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_take_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_unpack.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_xfer.3.gz
+# 20150702: Remove duplicated nvlist includes.
+OLD_FILES+=usr/include/dnv.h
+OLD_FILES+=usr/include/nv.h
+# 20150528: PCI IOV device driver methods moved to a separate kobj interface.
+OLD_FILES+=usr/share/man/man9/PCI_ADD_VF.9.gz
+OLD_FILES+=usr/share/man/man9/PCI_INIT_IOV.9.gz
+OLD_FILES+=usr/share/man/man9/PCI_UNINIT_IOV.9.gz
+# 20150525: new clang import which bumps version from 3.6.0 to 3.6.1.
+OLD_FILES+=usr/lib/clang/3.6.0/include/__stddef_max_align_t.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/__wmmintrin_aes.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/__wmmintrin_pclmul.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/adxintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/altivec.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/ammintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/arm_acle.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/arm_neon.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/avx2intrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/avx512bwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/avx512erintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/avx512fintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/avx512vlbwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/avx512vlintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/avxintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/bmi2intrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/bmiintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/cpuid.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/emmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/f16cintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/fma4intrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/fmaintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/ia32intrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/immintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/lzcntintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/mm3dnow.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/mm_malloc.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/mmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/module.modulemap
+OLD_FILES+=usr/lib/clang/3.6.0/include/nmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/pmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/popcntintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/prfchwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/rdseedintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/rtmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/shaintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/smmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/tbmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/tmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/wmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/x86intrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/xmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.0/include/xopintrin.h
+OLD_DIRS+=usr/lib/clang/3.6.0/include
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.san-i386.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.san-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.ubsan-i386.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.ubsan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.ubsan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.6.0/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.6.0/lib
+OLD_DIRS+=usr/lib/clang/3.6.0
+# 20150521
+OLD_FILES+=usr/bin/demandoc
+OLD_FILES+=usr/share/man/man1/demandoc.1.gz
+OLD_FILES+=usr/share/man/man3/mandoc.3.gz
+OLD_FILES+=usr/share/man/man3/mandoc_headers.3.gz
+# 20150520
+OLD_FILES+=usr/lib/libheimsqlite.a
+OLD_FILES+=usr/lib/libheimsqlite.so
+OLD_LIBS+=usr/lib/libheimsqlite.so.11
+OLD_FILES+=usr/lib/libheimsqlite_p.a
+OLD_FILES+=usr/lib32/libheimsqlite.a
+OLD_FILES+=usr/lib32/libheimsqlite.so
+OLD_LIBS+=usr/lib32/libheimsqlite.so.11
+OLD_FILES+=usr/lib32/libheimsqlite_p.a
+# 20150518: tzdata2015c update
+OLD_FILES+=usr/share/zoneinfo/America/Montreal
+# 20150506
+OLD_FILES+=usr/share/man/man9/NDHASGIANT.9.gz
+# 20150504
+OLD_FILES+=usr/share/examples/etc/libmap32.conf
+OLD_FILES+=usr/include/bsdstat.h
+OLD_LIBS+=usr/lib32/private/libatf-c++.so.2
+OLD_LIBS+=usr/lib32/private/libbsdstat.so.1
+OLD_LIBS+=usr/lib32/private/libheimipcs.so.11
+OLD_LIBS+=usr/lib32/private/libsqlite3.so.0
+OLD_LIBS+=usr/lib32/private/libunbound.so.5
+OLD_LIBS+=usr/lib32/private/libatf-c.so.1
+OLD_LIBS+=usr/lib32/private/libheimipcc.so.11
+OLD_LIBS+=usr/lib32/private/libldns.so.5
+OLD_LIBS+=usr/lib32/private/libssh.so.5
+OLD_LIBS+=usr/lib32/private/libucl.so.1
+OLD_DIRS+=usr/lib32/private
+OLD_LIBS+=usr/lib/private/libatf-c++.so.2
+OLD_LIBS+=usr/lib/private/libbsdstat.so.1
+OLD_LIBS+=usr/lib/private/libheimipcs.so.11
+OLD_LIBS+=usr/lib/private/libsqlite3.so.0
+OLD_LIBS+=usr/lib/private/libunbound.so.5
+OLD_LIBS+=usr/lib/private/libatf-c.so.1
+OLD_LIBS+=usr/lib/private/libheimipcc.so.11
+OLD_LIBS+=usr/lib/private/libldns.so.5
+OLD_LIBS+=usr/lib/private/libssh.so.5
+OLD_LIBS+=usr/lib/private/libucl.so.1
+OLD_DIRS+=usr/lib/private
+# 20150501
+OLD_FILES+=usr/bin/soeliminate
+OLD_FILES+=usr/share/man/man1/soeliminate.1.gz
+# 20150501: Remove the nvlist_.*[vf] functions manpages.
+OLD_FILES+=usr/share/man/man3/nvlist_addf_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addf_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addf_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addf_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addf_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addf_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addf_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addv_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addv_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addv_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addv_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addv_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addv_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_addv_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsf_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_existsv_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freef_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_freev_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getf_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getf_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getf_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getf_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getf_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getf_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getv_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getv_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getv_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getv_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getv_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_getv_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movef_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movef_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movef_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movef_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movev_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movev_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movev_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_movev_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takef_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takef_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takef_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takef_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takef_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takef_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takev_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takev_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takev_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takev_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takev_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_takev_string.3.gz
+# 20150429: remove never written documentation
+OLD_FILES+=usr/share/doc/papers/hwpmc.ascii.gz
+# 20150427: test/sys/kern/mmap_test moved to test/sys/vm/mmap_test
+OLD_FILES+=usr/tests/sys/kern/mmap_test
+# 20150422: zlib.c moved from net to libkern
+OLD_FILES+=usr/include/net/zlib.h
+OLD_FILES+=usr/include/net/zutil.h
+# 20150418
+OLD_FILES+=sbin/mount_oldnfs
+OLD_FILES+=usr/share/man/man8/mount_oldnfs.8.gz
+# 20150416: ALTQ moved to net/altq
+OLD_FILES+=usr/include/altq/altq_rmclass_debug.h
+OLD_FILES+=usr/include/altq/altq.h
+OLD_FILES+=usr/include/altq/altq_cdnr.h
+OLD_FILES+=usr/include/altq/altq_hfsc.h
+OLD_FILES+=usr/include/altq/altq_priq.h
+OLD_FILES+=usr/include/altq/altqconf.h
+OLD_FILES+=usr/include/altq/altq_classq.h
+OLD_FILES+=usr/include/altq/altq_red.h
+OLD_FILES+=usr/include/altq/if_altq.h
+OLD_FILES+=usr/include/altq/altq_var.h
+OLD_FILES+=usr/include/altq/altq_rmclass.h
+OLD_FILES+=usr/include/altq/altq_cbq.h
+OLD_FILES+=usr/include/altq/altq_rio.h
+OLD_DIRS+=usr/include/altq
+# 20150330: ntp 4.2.8p1
+OLD_FILES+=usr/share/doc/ntp/driver1.html
+OLD_FILES+=usr/share/doc/ntp/driver10.html
+OLD_FILES+=usr/share/doc/ntp/driver11.html
+OLD_FILES+=usr/share/doc/ntp/driver12.html
+OLD_FILES+=usr/share/doc/ntp/driver16.html
+OLD_FILES+=usr/share/doc/ntp/driver18.html
+OLD_FILES+=usr/share/doc/ntp/driver19.html
+OLD_FILES+=usr/share/doc/ntp/driver2.html
+OLD_FILES+=usr/share/doc/ntp/driver20.html
+OLD_FILES+=usr/share/doc/ntp/driver22.html
+OLD_FILES+=usr/share/doc/ntp/driver26.html
+OLD_FILES+=usr/share/doc/ntp/driver27.html
+OLD_FILES+=usr/share/doc/ntp/driver28.html
+OLD_FILES+=usr/share/doc/ntp/driver29.html
+OLD_FILES+=usr/share/doc/ntp/driver3.html
+OLD_FILES+=usr/share/doc/ntp/driver30.html
+OLD_FILES+=usr/share/doc/ntp/driver32.html
+OLD_FILES+=usr/share/doc/ntp/driver33.html
+OLD_FILES+=usr/share/doc/ntp/driver34.html
+OLD_FILES+=usr/share/doc/ntp/driver35.html
+OLD_FILES+=usr/share/doc/ntp/driver36.html
+OLD_FILES+=usr/share/doc/ntp/driver37.html
+OLD_FILES+=usr/share/doc/ntp/driver4.html
+OLD_FILES+=usr/share/doc/ntp/driver5.html
+OLD_FILES+=usr/share/doc/ntp/driver6.html
+OLD_FILES+=usr/share/doc/ntp/driver7.html
+OLD_FILES+=usr/share/doc/ntp/driver8.html
+OLD_FILES+=usr/share/doc/ntp/driver9.html
+OLD_FILES+=usr/share/doc/ntp/ldisc.html
+OLD_FILES+=usr/share/doc/ntp/measure.html
+OLD_FILES+=usr/share/doc/ntp/mx4200data.html
+OLD_FILES+=usr/share/doc/ntp/notes.html
+OLD_FILES+=usr/share/doc/ntp/patches.html
+OLD_FILES+=usr/share/doc/ntp/porting.html
+OLD_FILES+=usr/share/man/man1/sntp.1.gz
+# 20150329
+.if ${TARGET_ARCH} == "arm"
+OLD_FILES+=usr/include/bootconfig.h
+.endif
+# 20150326
+OLD_FILES+=usr/share/man/man1/pmcstudy.1.gz
+# 20150315: new clang import which bumps version from 3.5.1 to 3.6.0.
+OLD_FILES+=usr/include/clang/3.5.1/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.5.1/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.5.1/altivec.h
+OLD_FILES+=usr/include/clang/3.5.1/ammintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/arm_acle.h
+OLD_FILES+=usr/include/clang/3.5.1/arm_neon.h
+OLD_FILES+=usr/include/clang/3.5.1/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/avxintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/cpuid.h
+OLD_FILES+=usr/include/clang/3.5.1/emmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/ia32intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/immintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.5.1/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.5.1/mmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/module.modulemap
+OLD_FILES+=usr/include/clang/3.5.1/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/shaintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/smmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/tbmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/x86intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/xopintrin.h
+OLD_DIRS+=usr/include/clang/3.5.1
+OLD_DIRS+=usr/include/clang
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.san-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.san-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.5.1/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.5.1/lib
+OLD_DIRS+=usr/lib/clang/3.5.1
+# 20150302: binutils documentation distributed as a manpage
+OLD_FILES+=usr/share/doc/binutils/as.txt
+OLD_FILES+=usr/share/doc/binutils/ld.txt
+OLD_DIRS+=usr/share/doc/binutils
+# 20150222: Removed bcd(6) and ppt(6)
+OLD_FILES+=usr/bin/bcd
+OLD_FILES+=usr/bin/ppt
+OLD_FILES+=usr/share/man/man6/bcd.6.gz
+OLD_FILES+=usr/share/man/man6/ppt.6.gz
+# 20150217: Removed remnants of ar(4) driver
+OLD_FILES+=usr/include/dev/ic/hd64570.h
+# 20150212: /usr/games moving into /usr/bin
+OLD_FILES+=usr/games/bcd
+OLD_FILES+=usr/games/caesar
+OLD_FILES+=usr/games/factor
+OLD_FILES+=usr/games/fortune
+OLD_FILES+=usr/games/grdc
+OLD_FILES+=usr/games/morse
+OLD_FILES+=usr/games/number
+OLD_FILES+=usr/games/pom
+OLD_FILES+=usr/games/ppt
+OLD_FILES+=usr/games/primes
+OLD_FILES+=usr/games/random
+OLD_FILES+=usr/games/rot13
+OLD_FILES+=usr/games/strfile
+OLD_FILES+=usr/games/unstr
+OLD_DIRS+=usr/games
+# 20150209: liblzma header
+OLD_FILES+=usr/include/lzma/lzma.h
+# 20150124: spl.9 and friends
+OLD_FILES+=usr/share/man/man9/spl.9.gz
+OLD_FILES+=usr/share/man/man9/spl0.9.gz
+OLD_FILES+=usr/share/man/man9/splbio.9.gz
+OLD_FILES+=usr/share/man/man9/splclock.9.gz
+OLD_FILES+=usr/share/man/man9/splhigh.9.gz
+OLD_FILES+=usr/share/man/man9/splimp.9.gz
+OLD_FILES+=usr/share/man/man9/splnet.9.gz
+OLD_FILES+=usr/share/man/man9/splsoftclock.9.gz
+OLD_FILES+=usr/share/man/man9/splsofttty.9.gz
+OLD_FILES+=usr/share/man/man9/splstatclock.9.gz
+OLD_FILES+=usr/share/man/man9/spltty.9.gz
+OLD_FILES+=usr/share/man/man9/splvm.9.gz
+OLD_FILES+=usr/share/man/man9/splx.9.gz
+# 20150118: toeplitz.c moved from netinet to net
+OLD_FILES+=usr/include/netinet/toeplitz.h
+# 20150118: new clang import which bumps version from 3.5.0 to 3.5.1.
+OLD_FILES+=usr/include/clang/3.5.0/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.5.0/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.5.0/altivec.h
+OLD_FILES+=usr/include/clang/3.5.0/ammintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/arm_acle.h
+OLD_FILES+=usr/include/clang/3.5.0/arm_neon.h
+OLD_FILES+=usr/include/clang/3.5.0/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.5.0/avxintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.5.0/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/cpuid.h
+OLD_FILES+=usr/include/clang/3.5.0/emmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.5.0/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/ia32intrin.h
+OLD_FILES+=usr/include/clang/3.5.0/immintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.5.0/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.5.0/mmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/module.modulemap
+OLD_FILES+=usr/include/clang/3.5.0/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/shaintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/smmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/tbmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/x86intrin.h
+OLD_FILES+=usr/include/clang/3.5.0/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/xopintrin.h
+OLD_DIRS+=usr/include/clang/3.5.0
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.san-i386.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.san-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.ubsan-i386.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.ubsan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.ubsan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.5.0/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.5.0/lib
+OLD_DIRS+=usr/lib/clang/3.5.0
+# 20150102: removal of asr(4)
+OLD_FILES+=usr/share/man/man4/asr.4.gz
+# 20150102: removal of texinfo
+OLD_FILES+=usr/bin/info
+OLD_FILES+=usr/bin/infokey
+OLD_FILES+=usr/bin/install-info
+OLD_FILES+=usr/bin/makeinfo
+OLD_FILES+=usr/bin/texindex
+OLD_FILES+=usr/share/info/am-utils.info.gz
+OLD_FILES+=usr/share/info/as-utils.info.gz
+OLD_FILES+=usr/share/info/binutils.info.gz
+OLD_FILES+=usr/share/info/com_err.info.gz
+OLD_FILES+=usr/share/info/diff.info.gz
+OLD_FILES+=usr/share/info/gdb.info.gz
+OLD_FILES+=usr/share/info/gdbint.info.gz
+OLD_FILES+=usr/share/info/gperf.info.gz
+OLD_FILES+=usr/share/info/grep.info.gz
+OLD_FILES+=usr/share/info/groff.info.gz
+OLD_FILES+=usr/share/info/heimdal.info.gz
+OLD_FILES+=usr/share/info/history.info.gz
+OLD_FILES+=usr/share/info/info-stnd.info.gz
+OLD_FILES+=usr/share/info/info.info.gz
+OLD_FILES+=usr/share/info/ld.info.gz
+OLD_FILES+=usr/share/info/regex.info.gz
+OLD_FILES+=usr/share/info/rluserman.info.gz
+OLD_FILES+=usr/share/info/stabs.info.gz
+OLD_FILES+=usr/share/info/texinfo.info.gz
+OLD_FILES+=usr/share/man/man1/info.1.gz
+OLD_FILES+=usr/share/man/man1/infokey.1.gz
+OLD_FILES+=usr/share/man/man1/install-info.1.gz
+OLD_FILES+=usr/share/man/man1/makeinfo.1.gz
+OLD_FILES+=usr/share/man/man1/texindex.1.gz
+OLD_FILES+=usr/share/man/man5/info.5.gz
+OLD_FILES+=usr/share/man/man5/texinfo.5.gz
+# 20141231: new clang import which bumps version from 3.4.1 to 3.5.0.
+OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.4.1/altivec.h
+OLD_FILES+=usr/include/clang/3.4.1/ammintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/arm_neon.h
+OLD_FILES+=usr/include/clang/3.4.1/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/avxintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/cpuid.h
+OLD_FILES+=usr/include/clang/3.4.1/emmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/immintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.4.1/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.4.1/mmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/module.map
+OLD_FILES+=usr/include/clang/3.4.1/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/shaintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/smmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/tbmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/x86intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/xopintrin.h
+OLD_DIRS+=usr/include/clang/3.4.1
+# 20141225: Remove gpib/ieee488
+OLD_FILES+=usr/include/dev/ieee488/ibfoo_int.h
+OLD_FILES+=usr/include/dev/ieee488/tnt4882.h
+OLD_FILES+=usr/include/dev/ieee488/ugpib.h
+OLD_FILES+=usr/include/dev/ieee488/upd7210.h
+OLD_DIRS+=usr/include/dev/ieee488
+OLD_FILES+=usr/include/gpib/gpib.h
+OLD_DIRS+=usr/include/gpib
+OLD_FILES+=usr/lib/libgpib.a
+OLD_FILES+=usr/lib/libgpib_p.a
+OLD_FILES+=usr/lib/libgpib.so
+OLD_LIBS+=usr/lib/libgpib.so.3
+OLD_FILES+=usr/lib/libgpib_p.a
+OLD_FILES+=usr/lib32/libgpib.a
+OLD_FILES+=usr/lib32/libgpib_p.a
+OLD_FILES+=usr/lib32/libgpib.so
+OLD_LIBS+=usr/lib32/libgpib.so.3
+OLD_FILES+=usr/share/man/man3/gpib.3.gz
+OLD_FILES+=usr/share/man/man3/ibclr.3.gz
+OLD_FILES+=usr/share/man/man3/ibdev.3.gz
+OLD_FILES+=usr/share/man/man3/ibdma.3.gz
+OLD_FILES+=usr/share/man/man3/ibeos.3.gz
+OLD_FILES+=usr/share/man/man3/ibeot.3.gz
+OLD_FILES+=usr/share/man/man3/ibloc.3.gz
+OLD_FILES+=usr/share/man/man3/ibonl.3.gz
+OLD_FILES+=usr/share/man/man3/ibpad.3.gz
+OLD_FILES+=usr/share/man/man3/ibrd.3.gz
+OLD_FILES+=usr/share/man/man3/ibsad.3.gz
+OLD_FILES+=usr/share/man/man3/ibsic.3.gz
+OLD_FILES+=usr/share/man/man3/ibtmo.3.gz
+OLD_FILES+=usr/share/man/man3/ibtrg.3.gz
+OLD_FILES+=usr/share/man/man3/ibwrt.3.gz
+OLD_FILES+=usr/share/man/man4/gpib.4.gz
+OLD_FILES+=usr/share/man/man4/pcii.4.gz
+OLD_FILES+=usr/share/man/man4/tnt4882.4.gz
+# 20141224: libxo moved to /lib
+OLD_LIBS+=usr/lib/libxo.so.0
+# 20141223: remove in6_gif.h, in_gif.h and if_stf.h
+OLD_FILES+=usr/include/net/if_stf.h
+OLD_FILES+=usr/include/netinet/in_gif.h
+OLD_FILES+=usr/include/netinet6/in6_gif.h
+# 20141209: pw tests broken into a file per command
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_delete
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_modify
+# 20141202: update to mandoc CVS 20141201
+OLD_FILES+=usr.bin/preconv
+OLD_FILES+=share/man/man1/preconv.1.gz
+# 20141129: mrouted rc.d scripts removed from base
+OLD_FILES+=etc/rc.d/mrouted
+# 20141126: convert sbin/mdconfig/tests to ATF format tests
+OLD_FILES+=usr/tests/sbin/mdconfig/legacy_test
+OLD_FILES+=usr/tests/sbin/mdconfig/mdconfig.test
+OLD_FILES+=usr/tests/sbin/mdconfig/run.pl
+# 20141126: remove xform_ipip decapsulation fallback
+OLD_FILES+=usr/include/netipsec/ipip_var.h
+# 20141122: mandoc updated to 1.13.1
+OLD_FILES+=usr/share/mdocml/external.png
+# 20141111: SF_KQUEUE code removed
+OLD_FILES+=usr/include/sys/sf_base.h
+OLD_FILES+=usr/include/sys/sf_sync.h
+# 20141109: faith/faithd removal
+OLD_FILES+=etc/rc.d/faith
+OLD_FILES+=usr/share/man/man4/faith.4.gz
+OLD_FILES+=usr/share/man/man4/if_faith.4.gz
+OLD_FILES+=usr/sbin/faithd
+OLD_FILES+=usr/share/man/man8/faithd.8.gz
+# 20141107: overhaul if_gre(4)
+OLD_FILES+=usr/include/netinet/ip_gre.h
+# 20141102: postrandom obsoleted by new /dev/random code
+OLD_FILES+=etc/rc.d/postrandom
+# 20141031: initrandom obsoleted by new /dev/random code
+OLD_FILES+=etc/rc.d/initrandom
+# 20141030: atf 0.21 import
+OLD_FILES+=usr/share/man/man3/atf-c++-api.3.gz
+# 20141028: debug files accidentally installed as directory name
+OLD_FILES+=usr/lib/debug/usr/lib/i18n
+OLD_FILES+=usr/lib/debug/usr/lib/private
+OLD_FILES+=usr/lib/debug/usr/lib32/i18n
+OLD_FILES+=usr/lib/debug/usr/lib32/private
+# 20141015: OpenSSL 1.0.1j import
+OLD_FILES+=usr/share/openssl/man/man3/CMS_sign_add1_signer.3.gz
+# 20141003: libproc version bump
+OLD_LIBS+=usr/lib/libproc.so.2
+OLD_LIBS+=usr/lib32/libproc.so.2
+# 20140922: sleepq_calc_signal_retval.9 and sleepq_catch_signals.9 removed
+OLD_FILES+=usr/share/man/man9/sleepq_calc_signal_retval.9.gz
+OLD_FILES+=usr/share/man/man9/sleepq_catch_signals.9.gz
+# 20140917: hv_kvpd rc.d script removed in favor of devd configuration
+OLD_FILES+=etc/rc.d/hv_kvpd
+# 20140917: libnv was accidentally being installed to /usr/lib instead of /lib
+OLD_LIBS+=usr/lib/libnv.so.0
+# 20140829: rc.d/kerberos removed
+OLD_FILES+=etc/rc.d/kerberos
+# 20140827: tzdata2014f import
+OLD_FILES+=usr/share/zoneinfo/Asia/Chongqing
+OLD_FILES+=usr/share/zoneinfo/Asia/Harbin
+OLD_FILES+=usr/share/zoneinfo/Asia/Kashgar
+# 20140814: libopie version bump
+OLD_LIBS+=usr/lib/libopie.so.7
+OLD_LIBS+=usr/lib32/libopie.so.7
+# 20140811: otp-sha renamed to otp-sha1
+OLD_FILES+=usr/bin/otp-sha
+OLD_FILES+=usr/share/man/man1/otp-sha.1.gz
+# 20140807: Remove private lib files that should not be installed.
+OLD_FILES+=usr/lib32/private/libatf-c.a
+OLD_FILES+=usr/lib32/private/libatf-c.so
+OLD_FILES+=usr/lib32/private/libatf-c_p.a
+OLD_FILES+=usr/lib32/private/libatf-c++.a
+OLD_FILES+=usr/lib32/private/libatf-c++.so
+OLD_FILES+=usr/lib32/private/libatf-c++_p.a
+OLD_FILES+=usr/lib32/private/libbsdstat.a
+OLD_FILES+=usr/lib32/private/libbsdstat.so
+OLD_FILES+=usr/lib32/private/libbsdstat_p.a
+OLD_FILES+=usr/lib32/private/libheimipcc.a
+OLD_FILES+=usr/lib32/private/libheimipcc.so
+OLD_FILES+=usr/lib32/private/libheimipcc_p.a
+OLD_FILES+=usr/lib32/private/libheimipcs.a
+OLD_FILES+=usr/lib32/private/libheimipcs.so
+OLD_FILES+=usr/lib32/private/libheimipcs_p.a
+OLD_FILES+=usr/lib32/private/libldns.a
+OLD_FILES+=usr/lib32/private/libldns.so
+OLD_FILES+=usr/lib32/private/libldns_p.a
+OLD_FILES+=usr/lib32/private/libssh.a
+OLD_FILES+=usr/lib32/private/libssh.so
+OLD_FILES+=usr/lib32/private/libssh_p.a
+OLD_FILES+=usr/lib32/private/libunbound.a
+OLD_FILES+=usr/lib32/private/libunbound.so
+OLD_FILES+=usr/lib32/private/libunbound_p.a
+OLD_FILES+=usr/lib32/private/libucl.a
+OLD_FILES+=usr/lib32/private/libucl.so
+OLD_FILES+=usr/lib32/private/libucl_p.a
+OLD_FILES+=usr/lib/private/libatf-c.a
+OLD_FILES+=usr/lib/private/libatf-c.so
+OLD_FILES+=usr/lib/private/libatf-c_p.a
+OLD_FILES+=usr/lib/private/libatf-c++.a
+OLD_FILES+=usr/lib/private/libatf-c++.so
+OLD_FILES+=usr/lib/private/libatf-c++_p.a
+OLD_FILES+=usr/lib/private/libbsdstat.a
+OLD_FILES+=usr/lib/private/libbsdstat.so
+OLD_FILES+=usr/lib/private/libbsdstat_p.a
+OLD_FILES+=usr/lib/private/libheimipcc.a
+OLD_FILES+=usr/lib/private/libheimipcc.so
+OLD_FILES+=usr/lib/private/libheimipcc_p.a
+OLD_FILES+=usr/lib/private/libheimipcs.a
+OLD_FILES+=usr/lib/private/libheimipcs.so
+OLD_FILES+=usr/lib/private/libheimipcs_p.a
+OLD_FILES+=usr/lib/private/libldns.a
+OLD_FILES+=usr/lib/private/libldns.so
+OLD_FILES+=usr/lib/private/libldns_p.a
+OLD_FILES+=usr/lib/private/libssh.a
+OLD_FILES+=usr/lib/private/libssh.so
+OLD_FILES+=usr/lib/private/libssh_p.a
+OLD_FILES+=usr/lib/private/libunbound.a
+OLD_FILES+=usr/lib/private/libunbound.so
+OLD_FILES+=usr/lib/private/libunbound_p.a
+OLD_FILES+=usr/lib/private/libucl.a
+OLD_FILES+=usr/lib/private/libucl.so
+OLD_FILES+=usr/lib/private/libucl_p.a
+# 20140803: Remove an obsolete man page
+OLD_FILES+=usr/share/man/man9/pmap_change_wiring.9.gz
+# 20140731
+OLD_FILES+=usr/share/man/man9/SYSCTL_ADD_OID.9.gz
+# 20140728: libsbuf restored to old version.
+OLD_LIBS+=lib/libsbuf.so.7
+OLD_LIBS+=usr/lib32/libsbuf.so.7
+# 20140728: Remove an obsolete man page
+OLD_FILES+=usr/share/man/man9/VOP_GETVOBJECT.9.gz
+OLD_FILES+=usr/share/man/man9/VOP_CREATEVOBJECT.9.gz
+OLD_FILES+=usr/share/man/man9/VOP_DESTROYVOBJECT.9.gz
+# 20140723: renamed to PCBGROUP.9
+OLD_FILES+=usr/share/man/man9/PCBGROUPS.9.gz
+# 20140722: browse_packages_ftp.sh removed
+OLD_FILES+=usr/share/examples/bsdconfig/browse_packages_ftp.sh
+# 20140718: Remove obsolete man pages
+OLD_FILES+=usr/share/man/man9/zero_copy.9.gz
+OLD_FILES+=usr/share/man/man9/zero_copy_sockets.9.gz
+# 20140718: Remove an obsolete man page
+OLD_FILES+=usr/share/man/man9/pmap_page_protect.9.gz
+# 20140717: Remove an obsolete man page
+OLD_FILES+=usr/share/man/man9/pmap_clear_reference.9.gz
+# 20140716: Remove an incorrectly named man page
+OLD_FILES+=usr/share/man/man9/pmap_ts_modified.9.gz
+# 20140712: Removal of bsd.dtrace.mk
+OLD_FILES+=usr/share/mk/bsd.dtrace.mk
+# 20140705: turn libreadline into an internal lib
+OLD_LIBS+=lib/libreadline.so.8
+OLD_FILES+=usr/lib/libreadline.a
+OLD_FILES+=usr/lib/libreadline_p.a
+OLD_FILES+=usr/lib/libreadline.so
+OLD_FILES+=usr/lib/libhistory.a
+OLD_FILES+=usr/lib/libhistory_p.a
+OLD_FILES+=usr/lib/libhistory.so
+OLD_LIBS+=usr/lib/libhistory.so.8
+OLD_FILES+=usr/lib32/libhistory.a
+OLD_FILES+=usr/lib32/libhistory.so
+OLD_LIBS+=usr/lib32/libhistory.so.8
+OLD_FILES+=usr/lib32/libhistory_p.a
+OLD_FILES+=usr/lib32/libreadline.a
+OLD_FILES+=usr/lib32/libreadline.so
+OLD_LIBS+=usr/lib32/libreadline.so.8
+OLD_FILES+=usr/lib32/libreadline_p.a
+OLD_FILES+=usr/include/readline/chardefs.h
+OLD_FILES+=usr/include/readline/history.h
+OLD_FILES+=usr/include/readline/keymaps.h
+OLD_FILES+=usr/include/readline/readline.h
+OLD_FILES+=usr/include/readline/tilde.h
+OLD_FILES+=usr/include/readline/rlconf.h
+OLD_FILES+=usr/include/readline/rlstdc.h
+OLD_FILES+=usr/include/readline/rltypedefs.h
+OLD_FILES+=usr/include/readline/rltypedefs.h
+OLD_DIRS+=usr/include/readline
+OLD_FILES+=usr/share/info/readline.info.gz
+OLD_FILES+=usr/share/man/man3/readline.3.gz
+OLD_FILES+=usr/share/man/man3/rlhistory.3.gz
+# 20140625: csup removal
+OLD_FILES+=usr/bin/csup
+OLD_FILES+=usr/bin/cpasswd
+OLD_FILES+=usr/share/man/man1/csup.1.gz
+OLD_FILES+=usr/share/man/man1/cpasswd.1.gz
+OLD_FILES+=usr/share/examples/cvsup/README
+OLD_FILES+=usr/share/examples/cvsup/cvs-supfile
+OLD_FILES+=usr/share/examples/cvsup/stable-supfile
+OLD_FILES+=usr/share/examples/cvsup/standard-supfile
+OLD_DIRS+=usr/share/examples/cvsup
+# 20140614: send-pr removal
+OLD_FILES+=usr/bin/sendbug
+OLD_FILES+=usr/share/info/send-pr.info.gz
+OLD_FILES+=usr/share/man/man1/send-pr.1.gz
+OLD_FILES+=usr/share/man/man1/sendbug.1.gz
+OLD_FILES+=etc/gnats/freefall
+OLD_DIRS+=etc/gnats
+# 20140512: new clang import which bumps version from 3.4 to 3.4.1.
+OLD_FILES+=usr/include/clang/3.4/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.4/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.4/altivec.h
+OLD_FILES+=usr/include/clang/3.4/ammintrin.h
+OLD_FILES+=usr/include/clang/3.4/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.4/avxintrin.h
+OLD_FILES+=usr/include/clang/3.4/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.4/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.4/cpuid.h
+OLD_FILES+=usr/include/clang/3.4/emmintrin.h
+OLD_FILES+=usr/include/clang/3.4/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.4/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.4/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.4/immintrin.h
+OLD_FILES+=usr/include/clang/3.4/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.4/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.4/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.4/mmintrin.h
+OLD_FILES+=usr/include/clang/3.4/module.map
+OLD_FILES+=usr/include/clang/3.4/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.4/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.4/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.4/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.4/shaintrin.h
+OLD_FILES+=usr/include/clang/3.4/smmintrin.h
+OLD_FILES+=usr/include/clang/3.4/tbmintrin.h
+OLD_FILES+=usr/include/clang/3.4/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/x86intrin.h
+OLD_FILES+=usr/include/clang/3.4/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/xopintrin.h
+OLD_FILES+=usr/include/clang/3.4/arm_neon.h
+OLD_FILES+=usr/include/clang/3.4/module.map
+OLD_DIRS+=usr/include/clang/3.4
+# 20140505: Bogusly installing src.opts.mk
+OLD_FILES+=usr/share/mk/src.opts.mk
+# 20140505: Reject PR kern/187551
+OLD_FILES+=usr/tests/sbin/ifconfig/fibs_test
+# 20140502: Removal of lindev(4)
+OLD_FILES+=usr/share/man/man4/lindev.4.gz
+# 20140425
+OLD_FILES+=usr/lib/libssp_p.a
+OLD_FILES+=usr/lib/libstand_p.a
+OLD_FILES+=usr/lib32/libssp_p.a
+OLD_FILES+=usr/lib32/libstand_p.a
+# 20140314: AppleTalk
+OLD_DIRS+=usr/include/netatalk
+OLD_FILES+=usr/include/netatalk/aarp.h
+OLD_FILES+=usr/include/netatalk/at.h
+OLD_FILES+=usr/include/netatalk/at_extern.h
+OLD_FILES+=usr/include/netatalk/at_var.h
+OLD_FILES+=usr/include/netatalk/ddp.h
+OLD_FILES+=usr/include/netatalk/ddp_pcb.h
+OLD_FILES+=usr/include/netatalk/ddp_var.h
+OLD_FILES+=usr/include/netatalk/endian.h
+OLD_FILES+=usr/include/netatalk/phase2.h
+# 20140314: Remove IPX/SPX
+OLD_LIBS+=lib/libipx.so.5
+OLD_FILES+=usr/include/netipx/ipx.h
+OLD_FILES+=usr/include/netipx/ipx_if.h
+OLD_FILES+=usr/include/netipx/ipx_pcb.h
+OLD_FILES+=usr/include/netipx/ipx_var.h
+OLD_FILES+=usr/include/netipx/spx.h
+OLD_FILES+=usr/include/netipx/spx_debug.h
+OLD_FILES+=usr/include/netipx/spx_timer.h
+OLD_FILES+=usr/include/netipx/spx_var.h
+OLD_DIRS+=usr/include/netipx
+OLD_FILES+=usr/lib/libipx.a
+OLD_FILES+=usr/lib/libipx.so
+OLD_FILES+=usr/lib/libipx_p.a
+OLD_FILES+=usr/lib32/libipx.a
+OLD_FILES+=usr/lib32/libipx.so
+OLD_LIBS+=usr/lib32/libipx.so.5
+OLD_FILES+=usr/lib32/libipx_p.a
+OLD_FILES+=usr/sbin/IPXrouted
+OLD_FILES+=usr/share/man/man3/ipx.3.gz
+OLD_FILES+=usr/share/man/man3/ipx_addr.3.gz
+OLD_FILES+=usr/share/man/man3/ipx_ntoa.3.gz
+OLD_FILES+=usr/share/man/man4/ef.4.gz
+OLD_FILES+=usr/share/man/man4/if_ef.4.gz
+OLD_FILES+=usr/share/man/man8/IPXrouted.8.gz
+# 20140314: bsdconfig usermgmt rewrite
+OLD_FILES+=usr/libexec/bsdconfig/070.usermgmt/userinput
+# 20140307: bsdconfig groupmgmt rewrite
+OLD_FILES+=usr/libexec/bsdconfig/070.usermgmt/groupinput
+# 20140223: Remove libyaml
+OLD_FILES+=usr/lib/private/libyaml.a
+OLD_FILES+=usr/lib/private/libyaml.so
+OLD_LIBS+=usr/lib/private/libyaml.so.1
+OLD_FILES+=usr/lib/private/libyaml_p.a
+OLD_FILES+=usr/lib32/private/libyaml.a
+OLD_FILES+=usr/lib32/private/libyaml.so
+OLD_LIBS+=usr/lib32/private/libyaml.so.1
+OLD_FILES+=usr/lib32/private/libyaml_p.a
+# 20140216: new clang import which bumps version from 3.3 to 3.4.
+OLD_FILES+=usr/bin/llvm-prof
+OLD_FILES+=usr/bin/llvm-ranlib
+OLD_FILES+=usr/include/clang/3.3/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.3/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.3/altivec.h
+OLD_FILES+=usr/include/clang/3.3/ammintrin.h
+OLD_FILES+=usr/include/clang/3.3/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.3/avxintrin.h
+OLD_FILES+=usr/include/clang/3.3/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.3/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.3/cpuid.h
+OLD_FILES+=usr/include/clang/3.3/emmintrin.h
+OLD_FILES+=usr/include/clang/3.3/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.3/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.3/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.3/immintrin.h
+OLD_FILES+=usr/include/clang/3.3/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.3/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.3/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.3/mmintrin.h
+OLD_FILES+=usr/include/clang/3.3/module.map
+OLD_FILES+=usr/include/clang/3.3/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.3/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.3/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.3/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.3/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.3/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.3/smmintrin.h
+OLD_FILES+=usr/include/clang/3.3/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.3/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.3/x86intrin.h
+OLD_FILES+=usr/include/clang/3.3/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.3/xopintrin.h
+OLD_FILES+=usr/share/man/man1/llvm-prof.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-ranlib.1.gz
+OLD_DIRS+=usr/include/clang/3.3
+# 20140216: nve(4) removed
+OLD_FILES+=usr/share/man/man4/if_nve.4.gz
+OLD_FILES+=usr/share/man/man4/nve.4.gz
+# 20140205: Open Firmware device moved
+OLD_FILES+=usr/include/dev/ofw/ofw_nexus.h
+# 20140128: libelf and libdwarf import
+OLD_LIBS+=usr/lib/libelf.so.1
+OLD_LIBS+=usr/lib32/libelf.so.1
+OLD_LIBS+=usr/lib/libdwarf.so.3
+OLD_LIBS+=usr/lib32/libdwarf.so.3
+# 20140123: apicvar header moved to x86
+OLD_FILES+=usr/include/machine/apicvar.h
+# 20131215: libcam version bumped
+OLD_LIBS+=lib/libcam.so.6 usr/lib32/libcam.so.6
+# 20131202: libcapsicum and libcasper moved to /lib/
+OLD_LIBS+=usr/lib/libcapsicum.so.0
+OLD_LIBS+=usr/lib/libcasper.so.0
+# 20131109: extattr(2) mlinks fixed
+OLD_FILES+=usr/share/man/man2/extattr_delete_list.2.gz
+OLD_FILES+=usr/share/man/man2/extattr_get_list.2.gz
+# 20131107: example files removed
+OLD_FILES+=usr/share/examples/libusb20/aux.c
+OLD_FILES+=usr/share/examples/libusb20/aux.h
+# 20131105: tzdata 2013h import
+OLD_FILES+=usr/share/zoneinfo/America/Shiprock
+OLD_FILES+=usr/share/zoneinfo/Antarctica/South_Pole
+# 20131103: WITH_LIBICONV_COMPAT removal
+OLD_FILES+=usr/include/_libiconv_compat.h
+OLD_FILES+=usr/lib/libiconv.a
+OLD_FILES+=usr/lib/libiconv.so
+OLD_FILES+=usr/lib/libiconv.so.3
+OLD_FILES+=usr/lib/libiconv_p.a
+OLD_FILES+=usr/lib32/libiconv.a
+OLD_FILES+=usr/lib32/libiconv.so
+OLD_FILES+=usr/lib32/libiconv.so.3
+OLD_FILES+=usr/lib32/libiconv_p.a
+# 20131103: removal of utxrm(8), use 'utx rm' instead.
+OLD_FILES+=usr/sbin/utxrm
+OLD_FILES+=usr/share/man/man8/utxrm.8.gz
+# 20131031: pkg_install has been removed
+OLD_FILES+=etc/periodic/daily/220.backup-pkgdb
+OLD_FILES+=etc/periodic/daily/490.status-pkg-changes
+OLD_FILES+=etc/periodic/security/460.chkportsum
+OLD_FILES+=etc/periodic/weekly/400.status-pkg
+OLD_FILES+=usr/sbin/pkg_add
+OLD_FILES+=usr/sbin/pkg_create
+OLD_FILES+=usr/sbin/pkg_delete
+OLD_FILES+=usr/sbin/pkg_info
+OLD_FILES+=usr/sbin/pkg_updating
+OLD_FILES+=usr/sbin/pkg_version
+OLD_FILES+=usr/share/man/man1/pkg_add.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_create.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_delete.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_info.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_updating.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_version.1.gz
+# 20131030: /etc/keys moved to /usr/share/keys
+OLD_DIRS+=etc/keys
+OLD_DIRS+=etc/keys/pkg
+OLD_DIRS+=etc/keys/pkg/revoked
+OLD_DIRS+=etc/keys/pkg/trusted
+OLD_FILES+=etc/keys/pkg/trusted/pkg.freebsd.org.2013102301
+# 20131028: ng_fec(4) removed
+OLD_FILES+=usr/include/netgraph/ng_fec.h
+OLD_FILES+=usr/share/man/man4/ng_fec.4.gz
+# 20131027: header moved
+OLD_FILES+=usr/include/net/pf_mtag.h
+# 20131023: remove never used iscsi directory
+OLD_DIRS+=usr/share/examples/iscsi
+# 20131021: isf(4) removed
+OLD_FILES+=usr/sbin/isfctl
+OLD_FILES+=usr/share/man/man4/isf.4.gz
+OLD_FILES+=usr/share/man/man8/isfctl.8.gz
+# 20131014: libbsdyml becomes private
+OLD_FILES+=usr/lib/libbsdyml.a
+OLD_FILES+=usr/lib/libbsdyml.so
+OLD_LIBS+=usr/lib/libbsdyml.so.0
+OLD_FILES+=usr/lib/libbsdyml_p.a
+OLD_FILES+=usr/lib32/libbsdyml.a
+OLD_FILES+=usr/lib32/libbsdyml.so
+OLD_LIBS+=usr/lib32/libbsdyml.so.0
+OLD_FILES+=usr/lib32/libbsdyml_p.a
+OLD_FILES+=usr/share/man/man3/libbsdyml.3.gz
+OLD_FILES+=usr/include/bsdyml.h
+# 20131013: Removal of the ATF tools
+OLD_FILES+=etc/atf/FreeBSD.conf
+OLD_FILES+=etc/atf/atf-run.hooks
+OLD_FILES+=etc/atf/common.conf
+OLD_FILES+=usr/bin/atf-config
+OLD_FILES+=usr/bin/atf-report
+OLD_FILES+=usr/bin/atf-run
+OLD_FILES+=usr/bin/atf-version
+OLD_FILES+=usr/share/atf/atf-run.hooks
+OLD_FILES+=usr/share/examples/atf/atf-run.hooks
+OLD_FILES+=usr/share/examples/atf/tests-results.css
+OLD_FILES+=usr/share/man/man1/atf-config.1.gz
+OLD_FILES+=usr/share/man/man1/atf-report.1.gz
+OLD_FILES+=usr/share/man/man1/atf-run.1.gz
+OLD_FILES+=usr/share/man/man1/atf-version.1.gz
+OLD_FILES+=usr/share/man/man5/atf-formats.5.gz
+OLD_FILES+=usr/share/xml/atf/tests-results.dtd
+OLD_FILES+=usr/share/xsl/atf/tests-results.xsl
+# 20131009: freebsd-version moved from /libexec to /bin
+OLD_FILES+=libexec/freebsd-version
+# 20131001: ar and ranlib from binutils not used
+OLD_FILES+=usr/bin/gnu-ar
+OLD_FILES+=usr/bin/gnu-ranlib
+OLD_FILES+=usr/share/man/man1/gnu-ar.1.gz
+OLD_FILES+=usr/share/man/man1/gnu-ranlib.1.gz
+# 20130930: BIND removed from base
+OLD_FILES+=etc/mtree/BIND.chroot.dist
+OLD_FILES+=etc/namedb
+OLD_FILES+=etc/periodic/daily/470.status-named
+OLD_FILES+=usr/bin/dig
+OLD_FILES+=usr/bin/nslookup
+OLD_FILES+=usr/bin/nsupdate
+OLD_DIRS+=usr/include/lwres
+OLD_FILES+=usr/include/lwres/context.h
+OLD_FILES+=usr/include/lwres/int.h
+OLD_FILES+=usr/include/lwres/ipv6.h
+OLD_FILES+=usr/include/lwres/lang.h
+OLD_FILES+=usr/include/lwres/list.h
+OLD_FILES+=usr/include/lwres/lwbuffer.h
+OLD_FILES+=usr/include/lwres/lwpacket.h
+OLD_FILES+=usr/include/lwres/lwres.h
+OLD_FILES+=usr/include/lwres/net.h
+OLD_FILES+=usr/include/lwres/netdb.h
+OLD_FILES+=usr/include/lwres/platform.h
+OLD_FILES+=usr/include/lwres/result.h
+OLD_FILES+=usr/include/lwres/string.h
+OLD_FILES+=usr/include/lwres/version.h
+OLD_FILES+=usr/lib/liblwres.a
+OLD_FILES+=usr/lib/liblwres.so
+OLD_LIBS+=usr/lib/liblwres.so.90
+OLD_FILES+=usr/lib/liblwres_p.a
+OLD_FILES+=usr/sbin/arpaname
+OLD_FILES+=usr/sbin/ddns-confgen
+OLD_FILES+=usr/sbin/dnssec-dsfromkey
+OLD_FILES+=usr/sbin/dnssec-keyfromlabel
+OLD_FILES+=usr/sbin/dnssec-keygen
+OLD_FILES+=usr/sbin/dnssec-revoke
+OLD_FILES+=usr/sbin/dnssec-settime
+OLD_FILES+=usr/sbin/dnssec-signzone
+OLD_FILES+=usr/sbin/dnssec-verify
+OLD_FILES+=usr/sbin/genrandom
+OLD_FILES+=usr/sbin/isc-hmac-fixup
+OLD_FILES+=usr/sbin/lwresd
+OLD_FILES+=usr/sbin/named
+OLD_FILES+=usr/sbin/named-checkconf
+OLD_FILES+=usr/sbin/named-checkzone
+OLD_FILES+=usr/sbin/named-compilezone
+OLD_FILES+=usr/sbin/named-journalprint
+OLD_FILES+=usr/sbin/named.reconfig
+OLD_FILES+=usr/sbin/named.reload
+OLD_FILES+=usr/sbin/nsec3hash
+OLD_FILES+=usr/sbin/rndc
+OLD_FILES+=usr/sbin/rndc-confgen
+OLD_DIRS+=usr/share/doc/bind9
+OLD_FILES+=usr/share/doc/bind9/CHANGES
+OLD_FILES+=usr/share/doc/bind9/COPYRIGHT
+OLD_FILES+=usr/share/doc/bind9/FAQ
+OLD_FILES+=usr/share/doc/bind9/HISTORY
+OLD_FILES+=usr/share/doc/bind9/README
+OLD_DIRS+=usr/share/doc/bind9/arm
+OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch01.html
+OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch02.html
+OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch03.html
+OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch04.html
+OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch05.html
+OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch06.html
+OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch07.html
+OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch08.html
+OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch09.html
+OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch10.html
+OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.html
+OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.pdf
+OLD_FILES+=usr/share/doc/bind9/arm/man.arpaname.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.ddns-confgen.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dig.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dnssec-dsfromkey.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dnssec-keyfromlabel.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dnssec-keygen.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dnssec-revoke.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dnssec-settime.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dnssec-signzone.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dnssec-verify.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.genrandom.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.host.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.isc-hmac-fixup.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.named-checkconf.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.named-checkzone.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.named-journalprint.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.named.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.nsec3hash.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.nsupdate.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.rndc-confgen.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.rndc.conf.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.rndc.html
+OLD_DIRS+=usr/share/doc/bind9/misc
+OLD_FILES+=usr/share/doc/bind9/misc/dnssec
+OLD_FILES+=usr/share/doc/bind9/misc/format-options.pl
+OLD_FILES+=usr/share/doc/bind9/misc/ipv6
+OLD_FILES+=usr/share/doc/bind9/misc/migration
+OLD_FILES+=usr/share/doc/bind9/misc/migration-4to9
+OLD_FILES+=usr/share/doc/bind9/misc/options
+OLD_FILES+=usr/share/doc/bind9/misc/rfc-compliance
+OLD_FILES+=usr/share/doc/bind9/misc/roadmap
+OLD_FILES+=usr/share/doc/bind9/misc/sdb
+OLD_FILES+=usr/share/doc/bind9/misc/sort-options.pl
+OLD_FILES+=usr/share/man/man1/arpaname.1.gz
+OLD_FILES+=usr/share/man/man1/dig.1.gz
+OLD_FILES+=usr/share/man/man1/nslookup.1.gz
+OLD_FILES+=usr/share/man/man1/nsupdate.1.gz
+OLD_FILES+=usr/share/man/man3/lwres.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_addr_parse.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_add.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_back.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_clear.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_first.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_forward.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_getmem.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_getuint16.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_getuint32.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_getuint8.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_init.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_invalidate.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_putmem.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_putuint16.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_putuint32.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_putuint8.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_buffer_subtract.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_conf_clear.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_conf_get.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_conf_init.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_conf_parse.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_conf_print.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_config.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_context.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_context_allocmem.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_context_create.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_context_destroy.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_context_freemem.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_context_initserial.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_context_nextserial.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_context_sendrecv.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_endhostent.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_endhostent_r.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_freeaddrinfo.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_freehostent.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gabn.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gabnrequest_free.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gabnrequest_parse.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gabnrequest_render.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gabnresponse_free.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gabnresponse_parse.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gabnresponse_render.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gai_strerror.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_getaddrinfo.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_getaddrsbyname.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gethostbyaddr.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gethostbyaddr_r.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gethostbyname.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gethostbyname2.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gethostbyname_r.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gethostent.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gethostent_r.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_getipnode.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_getipnodebyaddr.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_getipnodebyname.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_getnamebyaddr.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_getnameinfo.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_getrrsetbyname.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gnba.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gnbarequest_free.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gnbarequest_parse.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gnbarequest_render.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gnbaresponse_free.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gnbaresponse_parse.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_gnbaresponse_render.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_herror.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_hstrerror.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_inetntop.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_lwpacket_parseheader.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_lwpacket_renderheader.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_net_ntop.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_noop.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_nooprequest_free.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_nooprequest_parse.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_nooprequest_render.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_noopresponse_free.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_noopresponse_parse.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_noopresponse_render.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_packet.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_resutil.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_sethostent.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_sethostent_r.3.gz
+OLD_FILES+=usr/share/man/man3/lwres_string_parse.3.gz
+OLD_FILES+=usr/share/man/man5/named.conf.5.gz
+OLD_FILES+=usr/share/man/man5/rndc.conf.5.gz
+OLD_FILES+=usr/share/man/man8/ddns-confgen.8.gz
+OLD_FILES+=usr/share/man/man8/dnssec-dsfromkey.8.gz
+OLD_FILES+=usr/share/man/man8/dnssec-keyfromlabel.8.gz
+OLD_FILES+=usr/share/man/man8/dnssec-keygen.8.gz
+OLD_FILES+=usr/share/man/man8/dnssec-revoke.8.gz
+OLD_FILES+=usr/share/man/man8/dnssec-settime.8.gz
+OLD_FILES+=usr/share/man/man8/dnssec-signzone.8.gz
+OLD_FILES+=usr/share/man/man8/dnssec-verify.8.gz
+OLD_FILES+=usr/share/man/man8/genrandom.8.gz
+OLD_FILES+=usr/share/man/man8/isc-hmac-fixup.8.gz
+OLD_FILES+=usr/share/man/man8/lwresd.8.gz
+OLD_FILES+=usr/share/man/man8/named-checkconf.8.gz
+OLD_FILES+=usr/share/man/man8/named-checkzone.8.gz
+OLD_FILES+=usr/share/man/man8/named-compilezone.8.gz
+OLD_FILES+=usr/share/man/man8/named-journalprint.8.gz
+OLD_FILES+=usr/share/man/man8/named.8.gz
+OLD_FILES+=usr/share/man/man8/named.reconfig.8.gz
+OLD_FILES+=usr/share/man/man8/named.reload.8.gz
+OLD_FILES+=usr/share/man/man8/nsec3hash.8.gz
+OLD_FILES+=usr/share/man/man8/rndc-confgen.8.gz
+OLD_FILES+=usr/share/man/man8/rndc.8.gz
+OLD_DIRS+=var/named/dev
+OLD_DIRS+=var/named/etc
+OLD_DIRS+=var/named/etc/namedb
+OLD_FILES+=var/named/etc/namedb/PROTO.localhost-v6.rev
+OLD_FILES+=var/named/etc/namedb/PROTO.localhost.rev
+OLD_DIRS+=var/named/etc/namedb/dynamic
+OLD_FILES+=var/named/etc/namedb/make-localhost
+OLD_DIRS+=var/named/etc/namedb/master
+OLD_FILES+=var/named/etc/namedb/master/empty.db
+OLD_FILES+=var/named/etc/namedb/master/localhost-forward.db
+OLD_FILES+=var/named/etc/namedb/master/localhost-reverse.db
+#OLD_FILES+=var/named/etc/namedb/named.conf	# intentionally left out
+OLD_FILES+=var/named/etc/namedb/named.root
+OLD_DIRS+=var/named/etc/namedb/working
+OLD_DIRS+=var/named/etc/namedb/slave
+OLD_DIRS+=var/named/var
+OLD_DIRS+=var/named/var/dump
+OLD_DIRS+=var/named/var/log
+OLD_DIRS+=var/named/var/run
+OLD_DIRS+=var/named/var/run/named
+OLD_DIRS+=var/named/var/stats
+OLD_DIRS+=var/run/named
+# 20130923: example moved
+OLD_FILES+=usr/share/examples/bsdconfig/browse_packages.sh
+# 20130908: libssh becomes private
+OLD_FILES+=usr/lib/libssh.a
+OLD_FILES+=usr/lib/libssh.so
+OLD_LIBS+=usr/lib/libssh.so.5
+OLD_FILES+=usr/lib/libssh_p.a
+OLD_FILES+=usr/lib32/libssh.a
+OLD_FILES+=usr/lib32/libssh.so
+OLD_LIBS+=usr/lib32/libssh.so.5
+OLD_FILES+=usr/lib32/libssh_p.a
+# 20130903: gnupatch is no more
+OLD_FILES+=usr/bin/gnupatch
+OLD_FILES+=usr/share/man/man1/gnupatch.1.gz
+# 20130829: bsdpatch is patch unconditionally
+OLD_FILES+=usr/bin/bsdpatch
+OLD_FILES+=usr/share/man/man1/bsdpatch.1.gz
+# 20130822: bind 9.9.3-P2 import
+OLD_LIBS+=usr/lib/liblwres.so.80
+# 20130814: vm_page_busy(9)
+OLD_FILES+=usr/share/man/man9/vm_page_flash.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_io.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_io_finish.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_io_start.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_wakeup.9.gz
+# 20130710: libkvm version bump 
+OLD_LIBS+=lib/libkvm.so.5
+OLD_LIBS+=usr/lib32/libkvm.so.5
+# 20130623: dialog update from 1.1 to 1.2
+OLD_LIBS+=usr/lib/libdialog.so.7
+OLD_LIBS+=usr/lib32/libdialog.so.7
+# 20130616: vfs_mount.9 removed
+OLD_FILES+=usr/share/man/man9/vfs_mount.9.gz
+# 20130614: remove CVS from base
+OLD_FILES+=usr/bin/cvs
+OLD_FILES+=usr/bin/cvsbug
+OLD_FILES+=usr/share/doc/psd/28.cvs/paper.ascii.gz
+OLD_FILES+=usr/share/doc/psd/28.cvs/paper.ps.gz
+OLD_DIRS+=usr/share/doc/psd/28.cvs
+OLD_FILES+=usr/share/examples/cvs/contrib/README
+OLD_FILES+=usr/share/examples/cvs/contrib/clmerge
+OLD_FILES+=usr/share/examples/cvs/contrib/cln_hist
+OLD_FILES+=usr/share/examples/cvs/contrib/commit_prep
+OLD_FILES+=usr/share/examples/cvs/contrib/cvs2vendor
+OLD_FILES+=usr/share/examples/cvs/contrib/cvs_acls
+OLD_FILES+=usr/share/examples/cvs/contrib/cvscheck
+OLD_FILES+=usr/share/examples/cvs/contrib/cvscheck.man
+OLD_FILES+=usr/share/examples/cvs/contrib/cvshelp.man
+OLD_FILES+=usr/share/examples/cvs/contrib/descend.man
+OLD_FILES+=usr/share/examples/cvs/contrib/easy-import
+OLD_FILES+=usr/share/examples/cvs/contrib/intro.doc
+OLD_FILES+=usr/share/examples/cvs/contrib/log
+OLD_FILES+=usr/share/examples/cvs/contrib/log_accum
+OLD_FILES+=usr/share/examples/cvs/contrib/mfpipe
+OLD_FILES+=usr/share/examples/cvs/contrib/rcs-to-cvs
+OLD_FILES+=usr/share/examples/cvs/contrib/rcs2log
+OLD_FILES+=usr/share/examples/cvs/contrib/rcslock
+OLD_FILES+=usr/share/examples/cvs/contrib/sccs2rcs
+OLD_DIRS+=usr/share/examples/cvs/contrib
+OLD_DIRS+=usr/share/examples/cvs
+OLD_FILES+=usr/share/info/cvs.info.gz
+OLD_FILES+=usr/share/info/cvsclient.info.gz
+OLD_FILES+=usr/share/man/man1/cvs.1.gz
+OLD_FILES+=usr/share/man/man5/cvs.5.gz
+OLD_FILES+=usr/share/man/man8/cvsbug.8.gz
+# 20130607: WITH_DEBUG_FILES added
+OLD_FILES+=lib/libufs.so.6.symbols
+OLD_FILES+=usr/lib32/libufs.so.6.symbols
+# 20130417: nfs fha moved from nfsserver to nfs
+OLD_FILES+=usr/include/nfsserver/nfs_fha.h
+# 20130411: new clang import which bumps version from 3.2 to 3.3.
+OLD_FILES+=usr/include/clang/3.2/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.2/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.2/altivec.h
+OLD_FILES+=usr/include/clang/3.2/ammintrin.h
+OLD_FILES+=usr/include/clang/3.2/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.2/avxintrin.h
+OLD_FILES+=usr/include/clang/3.2/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.2/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.2/cpuid.h
+OLD_FILES+=usr/include/clang/3.2/emmintrin.h
+OLD_FILES+=usr/include/clang/3.2/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.2/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.2/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.2/immintrin.h
+OLD_FILES+=usr/include/clang/3.2/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.2/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.2/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.2/mmintrin.h
+OLD_FILES+=usr/include/clang/3.2/module.map
+OLD_FILES+=usr/include/clang/3.2/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.2/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.2/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.2/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.2/smmintrin.h
+OLD_FILES+=usr/include/clang/3.2/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.2/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.2/x86intrin.h
+OLD_FILES+=usr/include/clang/3.2/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.2/xopintrin.h
+OLD_DIRS+=usr/include/clang/3.2
+# 20130404: legacy ATA stack removed
+OLD_FILES+=etc/periodic/daily/405.status-ata-raid
+OLD_FILES+=rescue/atacontrol
+OLD_FILES+=sbin/atacontrol
+OLD_FILES+=usr/share/man/man8/atacontrol.8.gz
+OLD_FILES+=usr/share/man/man4/atapicam.4.gz
+OLD_FILES+=usr/share/man/man4/ataraid.4.gz
+OLD_FILES+=usr/sbin/burncd
+OLD_FILES+=usr/share/man/man8/burncd.8.gz
+# 20130316: vinum.4 removed
+OLD_FILES+=usr/share/man/man4/vinum.4.gz
+# 20130312: fortunes-o removed
+OLD_FILES+=usr/share/games/fortune/fortunes-o
+OLD_FILES+=usr/share/games/fortune/fortunes-o.dat
+# 20130311: Ports are no more available via cvsup
+OLD_FILES+=usr/share/examples/cvsup/ports-supfile
+OLD_FILES+=usr/share/examples/cvsup/refuse
+OLD_FILES+=usr/share/examples/cvsup/refuse.README
+# 20130309: NWFS and NCP supports removed
+OLD_FILES+=usr/bin/ncplist
+OLD_FILES+=usr/bin/ncplogin
+OLD_FILES+=usr/bin/ncplogout
+OLD_FILES+=usr/include/fs/nwfs/nwfs.h
+OLD_FILES+=usr/include/fs/nwfs/nwfs_mount.h
+OLD_FILES+=usr/include/fs/nwfs/nwfs_node.h
+OLD_FILES+=usr/include/fs/nwfs/nwfs_subr.h
+OLD_DIRS+=usr/include/fs/nwfs
+OLD_FILES+=usr/include/netncp/ncp.h
+OLD_FILES+=usr/include/netncp/ncp_cfg.h
+OLD_FILES+=usr/include/netncp/ncp_conn.h
+OLD_FILES+=usr/include/netncp/ncp_file.h
+OLD_FILES+=usr/include/netncp/ncp_lib.h
+OLD_FILES+=usr/include/netncp/ncp_ncp.h
+OLD_FILES+=usr/include/netncp/ncp_nls.h
+OLD_FILES+=usr/include/netncp/ncp_rcfile.h
+OLD_FILES+=usr/include/netncp/ncp_rq.h
+OLD_FILES+=usr/include/netncp/ncp_sock.h
+OLD_FILES+=usr/include/netncp/ncp_subr.h
+OLD_FILES+=usr/include/netncp/ncp_user.h
+OLD_FILES+=usr/include/netncp/ncpio.h
+OLD_FILES+=usr/include/netncp/nwerror.h
+OLD_DIRS+=usr/include/netncp
+OLD_FILES+=usr/lib/libncp.a
+OLD_FILES+=usr/lib/libncp.so
+OLD_LIBS+=usr/lib/libncp.so.4
+OLD_FILES+=usr/lib/libncp_p.a
+OLD_FILES+=usr/lib32/libncp.a
+OLD_FILES+=usr/lib32/libncp.so
+OLD_LIBS+=usr/lib32/libncp.so.4
+OLD_FILES+=usr/lib32/libncp_p.a
+OLD_FILES+=usr/sbin/mount_nwfs
+OLD_FILES+=usr/share/examples/nwclient/dot.nwfsrc
+OLD_FILES+=usr/share/examples/nwclient/nwfs.sh.sample
+OLD_DIRS+=usr/share/examples/nwclient
+OLD_FILES+=usr/share/man/man1/ncplist.1.gz
+OLD_FILES+=usr/share/man/man1/ncplogin.1.gz
+OLD_FILES+=usr/share/man/man1/ncplogout.1.gz
+OLD_FILES+=usr/share/man/man8/mount_nwfs.8.gz
+# 20130302: NTFS support removed
+OLD_FILES+=rescue/mount_ntfs
+OLD_FILES+=sbin/mount_ntfs
+OLD_FILES+=usr/include/fs/ntfs/ntfs.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_compr.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_ihash.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_inode.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_subr.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_vfsops.h
+OLD_FILES+=usr/include/fs/ntfs/ntfsmount.h
+OLD_DIRS+=usr/include/fs/ntfs
+OLD_FILES+=usr/share/man/man8/mount_ntfs.8.gz
+# 20130302: PORTALFS support removed
+OLD_FILES+=usr/include/fs/portalfs/portal.h
+OLD_DIRS+=usr/include/fs/portalfs
+OLD_FILES+=usr/sbin/mount_portalfs
+OLD_FILES+=usr/share/examples/portal/README
+OLD_FILES+=usr/share/examples/portal/portal.conf
+OLD_DIRS+=usr/share/examples/portal
+OLD_FILES+=usr/share/man/man8/mount_portalfs.8.gz
+# 20130302: CODAFS support removed
+OLD_FILES+=usr/share/man/man4/coda.4.gz
+# 20130302: XFS support removed
+OLD_FILES+=usr/share/man/man5/xfs.5.gz
+# 20130302: Capsicum overhaul
+OLD_FILES+=usr/share/man/man2/cap_getrights.2.gz
+OLD_FILES+=usr/share/man/man2/cap_new.2.gz
+# 20130213: OpenSSL 1.0.1e import
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_verifyrecover.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_verifyrecover_init.3.gz
+# 20130116: removed long unused directories for .1aout section manpages
+OLD_FILES+=usr/share/man/en.ISO8859-1/man1aout
+OLD_FILES+=usr/share/man/en.UTF-8/man1aout
+OLD_DIRS+=usr/share/man/man1aout
+OLD_DIRS+=usr/share/man/cat1aout
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat1aout
+OLD_DIRS+=usr/share/man/en.UTF-8/cat1aout
+# 20130110: bsd.compat.mk removed
+OLD_FILES+=usr/share/mk/bsd.compat.mk
+# 20130103: gnats-supfile removed
+OLD_FILES+=usr/share/examples/cvsup/gnats-supfile
+# 20121230: libdisk removed
+OLD_FILES+=usr/share/man/man3/libdisk.3.gz usr/include/libdisk.h
+OLD_FILES+=usr/lib/libdisk.a usr/lib32/libdisk.a
+# 20121230: remove wrongly created directories for auditdistd
+OLD_DIRS+=var/dist
+OLD_DIRS+=var/remote
+# 20121114: zpool-features manual page moved from section 5 to 7
+OLD_FILES+=usr/share/man/man5/zpool-features.5.gz
+# 20121022: remove harp, hfa and idt man page
+OLD_FILES+=usr/share/man/man4/harp.4.gz
+OLD_FILES+=usr/share/man/man4/hfa.4.gz
+OLD_FILES+=usr/share/man/man4/idt.4.gz
+OLD_FILES+=usr/share/man/man4/if_idt.4.gz
+# 20121022: VFS_LOCK_GIANT elimination
+OLD_FILES+=usr/share/man/man9/VFS_LOCK_GIANT.9.gz
+OLD_FILES+=usr/share/man/man9/VFS_UNLOCK_GIANT.9.gz
+# 20121004: remove incomplete unwind.h
+OLD_FILES+=usr/include/clang/3.2/unwind.h
+# 20120910: NetBSD compat shims removed
+OLD_FILES+=usr/include/cam/scsi/scsi_low_pisa.h
+OLD_FILES+=usr/include/sys/device_port.h
+# 20120909: doc and www supfiles removed
+OLD_FILES+=usr/share/examples/cvsup/doc-supfile
+OLD_FILES+=usr/share/examples/cvsup/www-supfile
+# 20120908: pf cleanup
+OLD_FILES+=usr/include/net/if_pflow.h
+# 20120816: new clang import which bumps version from 3.1 to 3.2
+OLD_FILES+=usr/bin/llvm-ld
+OLD_FILES+=usr/bin/llvm-stub
+OLD_FILES+=usr/include/clang/3.1/altivec.h
+OLD_FILES+=usr/include/clang/3.1/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.1/avxintrin.h
+OLD_FILES+=usr/include/clang/3.1/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.1/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.1/cpuid.h
+OLD_FILES+=usr/include/clang/3.1/emmintrin.h
+OLD_FILES+=usr/include/clang/3.1/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.1/immintrin.h
+OLD_FILES+=usr/include/clang/3.1/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.1/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.1/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.1/mmintrin.h
+OLD_FILES+=usr/include/clang/3.1/module.map
+OLD_FILES+=usr/include/clang/3.1/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.1/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.1/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.1/smmintrin.h
+OLD_FILES+=usr/include/clang/3.1/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.1/unwind.h
+OLD_FILES+=usr/include/clang/3.1/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.1/x86intrin.h
+OLD_FILES+=usr/include/clang/3.1/xmmintrin.h
+OLD_DIRS+=usr/include/clang/3.1
+OLD_FILES+=usr/share/man/man1/llvm-ld.1.gz
+# 20120712: OpenSSL 1.0.1c import
+OLD_LIBS+=lib/libcrypto.so.6
+OLD_LIBS+=usr/lib/libssl.so.6
+OLD_LIBS+=usr/lib32/libcrypto.so.6
+OLD_LIBS+=usr/lib32/libssl.so.6
+OLD_FILES+=usr/include/openssl/aes_locl.h
+OLD_FILES+=usr/include/openssl/bio_lcl.h
+OLD_FILES+=usr/include/openssl/e_os.h
+OLD_FILES+=usr/include/openssl/fips.h
+OLD_FILES+=usr/include/openssl/fips_rand.h
+OLD_FILES+=usr/include/openssl/md2.h
+OLD_FILES+=usr/include/openssl/pq_compat.h
+OLD_FILES+=usr/include/openssl/store.h
+OLD_FILES+=usr/include/openssl/tmdiff.h
+OLD_FILES+=usr/include/openssl/ui_locl.h
+OLD_FILES+=usr/share/openssl/man/man3/CRYPTO_set_id_callback.3.gz
+# 20120621: remove old man page
+OLD_FILES+=usr/share/man/man8/vnconfig.8.gz
+# 20120619: TOE support updated
+OLD_FILES+=usr/include/netinet/toedev.h
+# 20120613: auth.conf removed
+OLD_FILES+=etc/auth.conf
+OLD_FILES+=usr/share/examples/etc/auth.conf
+OLD_FILES+=usr/share/man/man3/auth.3.gz
+OLD_FILES+=usr/share/man/man3/auth_getval.3.gz
+OLD_FILES+=usr/share/man/man5/auth.conf.5.gz
+# 20120530: kde pam lives now in ports
+OLD_FILES+=etc/pam.d/kde
+# 20120521: byacc import
+OLD_FILES+=usr/bin/yyfix
+OLD_FILES+=usr/share/man/man1/yyfix.1.gz
+# 20120505: new clang import installed a redundant internal header
+OLD_FILES+=usr/include/clang/3.1/stdalign.h
+# 20120428: MD2 removed from libmd
+OLD_LIBS+=lib/libmd.so.5
+OLD_FILES+=usr/include/md2.h
+OLD_LIBS+=usr/lib32/libmd.so.5
+OLD_FILES+=usr/share/man/man3/MD2Data.3.gz
+OLD_FILES+=usr/share/man/man3/MD2End.3.gz
+OLD_FILES+=usr/share/man/man3/MD2File.3.gz
+OLD_FILES+=usr/share/man/man3/MD2FileChunk.3.gz
+OLD_FILES+=usr/share/man/man3/MD2Final.3.gz
+OLD_FILES+=usr/share/man/man3/MD2Init.3.gz
+OLD_FILES+=usr/share/man/man3/MD2Update.3.gz
+OLD_FILES+=usr/share/man/man3/md2.3.gz
+# 20120425: libusb version bump (r234684)
+OLD_LIBS+=usr/lib/libusb.so.2
+OLD_LIBS+=usr/lib32/libusb.so.2
+OLD_FILES+=usr/share/man/man3/libsub_get_active_config_descriptor.3.gz
+# 20120415: new clang import which bumps version from 3.0 to 3.1
+OLD_FILES+=usr/include/clang/3.0/altivec.h
+OLD_FILES+=usr/include/clang/3.0/avxintrin.h
+OLD_FILES+=usr/include/clang/3.0/emmintrin.h
+OLD_FILES+=usr/include/clang/3.0/immintrin.h
+OLD_FILES+=usr/include/clang/3.0/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.0/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.0/mmintrin.h
+OLD_FILES+=usr/include/clang/3.0/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/smmintrin.h
+OLD_FILES+=usr/include/clang/3.0/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/x86intrin.h
+OLD_FILES+=usr/include/clang/3.0/xmmintrin.h
+OLD_DIRS+=usr/include/clang/3.0
+# 20120412: BIND 9.8.1 release notes removed
+OLD_FILES+=usr/share/doc/bind9/RELEASE-NOTES-BIND-9.8.1.pdf
+OLD_FILES+=usr/share/doc/bind9/RELEASE-NOTES-BIND-9.8.1.txt
+OLD_FILES+=usr/share/doc/bind9/RELEASE-NOTES-BIND-9.8.1.html
+OLD_FILES+=usr/share/doc/bind9/release-notes.css
+# 20120330: legacy(4) moved to x86
+OLD_FILES+=usr/include/machine/legacyvar.h
+# 20120324: MPI headers updated
+OLD_FILES+=usr/include/dev/mpt/mpilib/mpi_inb.h
+# 20120322: hwpmc_mips24k.h removed
+OLD_FILES+=usr/include/dev/hwpmc/hwpmc_mips24k.h
+# 20120322: Update heimdal to 1.5.1.
+OLD_FILES+=usr/include/krb5-v4compat.h \
+	usr/include/krb_err.h \
+	usr/include/hdb-private.h \
+        usr/share/man/man3/krb5_addresses.3.gz \
+        usr/share/man/man3/krb5_cc_cursor.3.gz \
+        usr/share/man/man3/krb5_cc_ops.3.gz \
+        usr/share/man/man3/krb5_config.3.gz \
+        usr/share/man/man3/krb5_config_get_int_default.3.gz \
+        usr/share/man/man3/krb5_context.3.gz \
+        usr/share/man/man3/krb5_data.3.gz \
+        usr/share/man/man3/krb5_err.3.gz \
+        usr/share/man/man3/krb5_errx.3.gz \
+        usr/share/man/man3/krb5_keyblock.3.gz \
+        usr/share/man/man3/krb5_keytab_entry.3.gz \
+        usr/share/man/man3/krb5_kt_cursor.3.gz \
+        usr/share/man/man3/krb5_kt_ops.3.gz \
+        usr/share/man/man3/krb5_set_warn_dest.3.gz \
+        usr/share/man/man3/krb5_verr.3.gz \
+        usr/share/man/man3/krb5_verrx.3.gz \
+        usr/share/man/man3/krb5_vwarnx.3.gz \
+        usr/share/man/man3/krb5_warn.3.gz \
+        usr/share/man/man3/krb5_warnx.3.gz
+OLD_LIBS+=usr/lib/libasn1.so.10 \
+	usr/lib/libhdb.so.10 \
+	usr/lib/libheimntlm.so.10 \
+	usr/lib/libhx509.so.10 \
+	usr/lib/libkadm5clnt.so.10 \
+	usr/lib/libkadm5srv.so.10 \
+	usr/lib/libkafs5.so.10 \
+	usr/lib/libkrb5.so.10 \
+	usr/lib/libroken.so.10 \
+	usr/lib32/libasn1.so.10 \
+	usr/lib32/libhdb.so.10 \
+	usr/lib32/libheimntlm.so.10 \
+	usr/lib32/libhx509.so.10 \
+	usr/lib32/libkadm5clnt.so.10 \
+	usr/lib32/libkadm5srv.so.10 \
+	usr/lib32/libkafs5.so.10 \
+	usr/lib32/libkrb5.so.10 \
+	usr/lib32/libroken.so.10
+# 20120309: Remove fifofs header files.
+OLD_FILES+=usr/include/fs/fifofs/fifo.h
+OLD_DIRS+=usr/include/fs/fifofs
+# 20120304: xlocale cleanup
+OLD_FILES+=usr/include/_xlocale_ctype.h
+# 20120225: libarchive 3.0.3
+OLD_FILES+=usr/share/man/man3/archive_read_data_into_buffer.3.gz \
+	usr/share/man/man3/archive_read_support_compression_all.3.gz \
+	usr/share/man/man3/archive_read_support_compression_bzip2.3.gz \
+	usr/share/man/man3/archive_read_support_compression_compress.3.gz \
+	usr/share/man/man3/archive_read_support_compression_gzip.3.gz \
+	usr/share/man/man3/archive_read_support_compression_lzma.3.gz \
+	usr/share/man/man3/archive_read_support_compression_none.3.gz \
+	usr/share/man/man3/archive_read_support_compression_program.3.gz \
+	usr/share/man/man3/archive_read_support_compression_program_signature.3.gz \
+	usr/share/man/man3/archive_read_support_compression_xz.3.gz \
+	usr/share/man/man3/archive_write_set_callbacks.3.gz \
+	usr/share/man/man3/archive_write_set_compression_bzip2.3.gz \
+	usr/share/man/man3/archive_write_set_compression_compress.3.gz \
+	usr/share/man/man3/archive_write_set_compression_gzip.3.gz \
+	usr/share/man/man3/archive_write_set_compression_none.3.gz \
+	usr/share/man/man3/archive_write_set_compression_program.3.gz
+OLD_LIBS+=usr/lib/libarchive.so.5
+OLD_LIBS+=usr/lib32/libarchive.so.5
+# 20120113: removal of wtmpcvt(1)
+OLD_FILES+=usr/bin/wtmpcvt
+OLD_FILES+=usr/share/man/man1/wtmpcvt.1.gz
+# 20111214: eventtimers(7) moved to eventtimers(4)
+OLD_FILES+=usr/share/man/man7/eventtimers.7.gz
+# 20111125: amd(4) removed
+OLD_FILES+=usr/share/man/man4/amd.4.gz
+# 20111125: libodialog removed
+OLD_FILES+=usr/lib/libodialog.a
+OLD_FILES+=usr/lib/libodialog.so
+OLD_LIBS+=usr/lib/libodialog.so.7
+OLD_FILES+=usr/lib/libodialog_p.a
+OLD_FILES+=usr/lib32/libodialog.a
+OLD_FILES+=usr/lib32/libodialog.so
+OLD_LIBS+=usr/lib32/libodialog.so.7
+OLD_FILES+=usr/lib32/libodialog_p.a
+# 20110930: sysinstall removed
+OLD_FILES+=usr/sbin/sysinstall
+OLD_FILES+=usr/share/man/man8/sysinstall.8.gz
+OLD_FILES+=usr/lib/libftpio.a
+OLD_FILES+=usr/lib/libftpio.so
+OLD_LIBS+=usr/lib/libftpio.so.8
+OLD_FILES+=usr/lib/libftpio_p.a
+OLD_FILES+=usr/lib32/libftpio.a
+OLD_FILES+=usr/lib32/libftpio.so
+OLD_LIBS+=usr/lib32/libftpio.so.8
+OLD_FILES+=usr/lib32/libftpio_p.a
+OLD_FILES+=usr/include/ftpio.h
+OLD_FILES+=usr/share/man/man3/ftpio.3.gz
+# 20110915: rename congestion control manpages
+OLD_FILES+=usr/share/man/man4/cc.4.gz
+OLD_FILES+=usr/share/man/man9/cc.9.gz
+# 20110831: atomic page flags operations
+OLD_FILES+=usr/share/man/man9/vm_page_flag.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_flag_clear.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_flag_set.9.gz
+# 20110828: library version bump for 9.0
+OLD_LIBS+=lib/libcam.so.5
+OLD_LIBS+=lib/libpcap.so.7
+OLD_LIBS+=lib/libufs.so.5
+OLD_LIBS+=usr/lib/libbsnmp.so.5
+OLD_LIBS+=usr/lib/libdwarf.so.2
+OLD_LIBS+=usr/lib/libopie.so.6
+OLD_LIBS+=usr/lib/librtld_db.so.1
+OLD_LIBS+=usr/lib/libtacplus.so.4
+OLD_LIBS+=usr/lib32/libcam.so.5
+OLD_LIBS+=usr/lib32/libpcap.so.7
+OLD_LIBS+=usr/lib32/libufs.so.5
+OLD_LIBS+=usr/lib32/libbsnmp.so.5
+OLD_LIBS+=usr/lib32/libdwarf.so.2
+OLD_LIBS+=usr/lib32/libopie.so.6
+OLD_LIBS+=usr/lib32/librtld_db.so.1
+OLD_LIBS+=usr/lib32/libtacplus.so.4
+# 20110817: no more acd.4, ad.4, afd.4 and ast.4
+OLD_FILES+=usr/share/man/man4/acd.4.gz
+OLD_FILES+=usr/share/man/man4/ad.4.gz
+OLD_FILES+=usr/share/man/man4/afd.4.gz
+OLD_FILES+=usr/share/man/man4/ast.4.gz
+# 20110718: no longer useful in the age of rc.d
+OLD_FILES+=usr/sbin/named.reconfig
+OLD_FILES+=usr/sbin/named.reload
+OLD_FILES+=usr/share/man/man8/named.reconfig.8.gz
+OLD_FILES+=usr/share/man/man8/named.reload.8.gz
+# 20110716: bind 9.8.0 import
+OLD_LIBS+=usr/lib/liblwres.so.50
+OLD_FILES+=usr/share/doc/bind9/KNOWN-DEFECTS
+OLD_FILES+=usr/share/doc/bind9/NSEC3-NOTES
+OLD_FILES+=usr/share/doc/bind9/README.idnkit
+OLD_FILES+=usr/share/doc/bind9/README.pkcs11
+# 20110709: vm_map_clean.9 -> vm_map_sync.9
+OLD_FILES+=usr/share/man/man9/vm_map_clean.9.gz
+# 20110709: Catch up with removal of these functions.
+OLD_FILES+=usr/share/man/man9/vm_page_copy.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_protect.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_zero_fill.9.gz
+# 20110707: script no longer needed by /etc/rc.d/nfsd
+OLD_FILES+=etc/rc.d/nfsserver
+# 20110705: files moved so both NFS clients can share them
+OLD_FILES+=usr/include/nfsclient/krpc.h
+OLD_FILES+=usr/include/nfsclient/nfsdiskless.h
+# 20110705: the switch of default NFS client to the new one
+OLD_FILES+=sbin/mount_newnfs
+OLD_FILES+=usr/share/man/man8/mount_newnfs.8.gz
+OLD_FILES+=usr/include/nfsclient/nfs_kdtrace.h
+# 20110628: calendar.msk removed
+OLD_FILES+=usr/share/calendar/ru_RU.KOI8-R/calendar.msk
+# 20110517: libpkg removed
+OLD_FILES+=usr/include/pkg.h
+OLD_FILES+=usr/lib/libpkg.a
+OLD_FILES+=usr/lib/libpkg.so
+OLD_LIBS+=usr/lib/libpkg.so.0
+OLD_FILES+=usr/lib/libpkg_p.a
+OLD_FILES+=usr/lib32/libpkg.a
+OLD_FILES+=usr/lib32/libpkg.so
+OLD_LIBS+=usr/lib32/libpkg.so.0
+OLD_FILES+=usr/lib32/libpkg_p.a
+# 20110517: libsbuf version bump
+OLD_LIBS+=lib/libsbuf.so.5
+OLD_LIBS+=usr/lib32/libsbuf.so.5
+# 20110502: new clang import which bumps version from 2.9 to 3.0
+OLD_FILES+=usr/include/clang/2.9/emmintrin.h
+OLD_FILES+=usr/include/clang/2.9/mm_malloc.h
+OLD_FILES+=usr/include/clang/2.9/mmintrin.h
+OLD_FILES+=usr/include/clang/2.9/pmmintrin.h
+OLD_FILES+=usr/include/clang/2.9/tmmintrin.h
+OLD_FILES+=usr/include/clang/2.9/xmmintrin.h
+OLD_DIRS+=usr/include/clang/2.9
+# 20110417: removal of Objective-C support
+OLD_FILES+=usr/include/objc/encoding.h
+OLD_FILES+=usr/include/objc/hash.h
+OLD_FILES+=usr/include/objc/NXConstStr.h
+OLD_FILES+=usr/include/objc/objc-api.h
+OLD_FILES+=usr/include/objc/objc-decls.h
+OLD_FILES+=usr/include/objc/objc-list.h
+OLD_FILES+=usr/include/objc/objc.h
+OLD_FILES+=usr/include/objc/Object.h
+OLD_FILES+=usr/include/objc/Protocol.h
+OLD_FILES+=usr/include/objc/runtime.h
+OLD_FILES+=usr/include/objc/sarray.h
+OLD_FILES+=usr/include/objc/thr.h
+OLD_FILES+=usr/include/objc/typedstream.h
+OLD_FILES+=usr/lib/libobjc.a
+OLD_FILES+=usr/lib/libobjc.so
+OLD_FILES+=usr/lib/libobjc_p.a
+OLD_FILES+=usr/libexec/cc1obj
+OLD_LIBS+=usr/lib/libobjc.so.4
+OLD_DIRS+=usr/include/objc
+OLD_FILES+=usr/lib32/libobjc.a
+OLD_FILES+=usr/lib32/libobjc.so
+OLD_FILES+=usr/lib32/libobjc_p.a
+OLD_LIBS+=usr/lib32/libobjc.so.4
+# 20110331: firmware.img created at build time
+OLD_FILES+=usr/share/examples/kld/firmware/fwimage/firmware.img
+# 20110224: sticky.8 -> sticky.7
+OLD_FILES+=usr/share/man/man8/sticky.8.gz
+# 20110220: new clang import which bumps version from 2.8 to 2.9
+OLD_FILES+=usr/include/clang/2.8/emmintrin.h
+OLD_FILES+=usr/include/clang/2.8/mm_malloc.h
+OLD_FILES+=usr/include/clang/2.8/mmintrin.h
+OLD_FILES+=usr/include/clang/2.8/pmmintrin.h
+OLD_FILES+=usr/include/clang/2.8/tmmintrin.h
+OLD_FILES+=usr/include/clang/2.8/xmmintrin.h
+OLD_DIRS+=usr/include/clang/2.8
+# 20110119: netinet/sctp_cc_functions.h removed
+OLD_FILES+=usr/include/netinet/sctp_cc_functions.h
+# 20110119: Remove SYSCTL_*X* sysctl additions.
+OLD_FILES+=usr/share/man/man9/SYSCTL_XINT.9.gz \
+    usr/share/man/man9/SYSCTL_XLONG.9.gz
+
+# 20110112: Update dialog to new version, rename old libdialog to libodialog,
+#     removing associated man pages and header files.
+OLD_FILES+=usr/share/man/man3/draw_shadow.3.gz \
+    usr/share/man/man3/draw_box.3.gz usr/share/man/man3/line_edit.3.gz \
+    usr/share/man/man3/strheight.3.gz usr/share/man/man3/strwidth.3.gz \
+    usr/share/man/man3/dialog_create_rc.3.gz \
+    usr/share/man/man3/dialog_yesno.3.gz usr/share/man/man3/dialog_noyes.3.gz \
+    usr/share/man/man3/dialog_prgbox.3.gz \
+    usr/share/man/man3/dialog_textbox.3.gz usr/share/man/man3/dialog_menu.3.gz \
+    usr/share/man/man3/dialog_checklist.3.gz \
+    usr/share/man/man3/dialog_radiolist.3.gz \
+    usr/share/man/man3/dialog_inputbox.3.gz \
+    usr/share/man/man3/dialog_clear_norefresh.3.gz \
+    usr/share/man/man3/dialog_clear.3.gz usr/share/man/man3/dialog_update.3.gz \
+    usr/share/man/man3/dialog_fselect.3.gz \
+    usr/share/man/man3/dialog_notify.3.gz \
+    usr/share/man/man3/dialog_mesgbox.3.gz \
+    usr/share/man/man3/dialog_gauge.3.gz usr/share/man/man3/init_dialog.3.gz \
+    usr/share/man/man3/end_dialog.3.gz usr/share/man/man3/use_helpfile.3.gz \
+    usr/share/man/man3/use_helpline.3.gz usr/share/man/man3/get_helpline.3.gz \
+    usr/share/man/man3/restore_helpline.3.gz \
+    usr/share/man/man3/dialog_msgbox.3.gz \
+    usr/share/man/man3/dialog_ftree.3.gz usr/share/man/man3/dialog_tree.3.gz \
+    usr/share/examples/dialog/README usr/share/examples/dialog/checklist \
+    usr/share/examples/dialog/ftreebox usr/share/examples/dialog/infobox \
+    usr/share/examples/dialog/inputbox usr/share/examples/dialog/menubox \
+    usr/share/examples/dialog/msgbox usr/share/examples/dialog/prgbox \
+    usr/share/examples/dialog/radiolist usr/share/examples/dialog/textbox \
+    usr/share/examples/dialog/treebox usr/share/examples/dialog/yesno \
+    usr/share/examples/libdialog/Makefile usr/share/examples/libdialog/check1.c\
+    usr/share/examples/libdialog/check2.c usr/share/examples/libdialog/check3.c\
+    usr/share/examples/libdialog/dselect.c \
+    usr/share/examples/libdialog/fselect.c \
+    usr/share/examples/libdialog/ftree1.c \
+    usr/share/examples/libdialog/ftree1.test \
+    usr/share/examples/libdialog/ftree2.c \
+    usr/share/examples/libdialog/ftree2.test \
+    usr/share/examples/libdialog/gauge.c usr/share/examples/libdialog/input1.c \
+    usr/share/examples/libdialog/input2.c usr/share/examples/libdialog/menu1.c \
+    usr/share/examples/libdialog/menu2.c usr/share/examples/libdialog/menu3.c \
+    usr/share/examples/libdialog/msg.c usr/share/examples/libdialog/prgbox.c \
+    usr/share/examples/libdialog/radio1.c usr/share/examples/libdialog/radio2.c\
+    usr/share/examples/libdialog/radio3.c usr/share/examples/libdialog/text.c \
+    usr/share/examples/libdialog/tree.c usr/share/examples/libdialog/yesno.c
+OLD_DIRS+=usr/share/examples/libdialog usr/share/examples/dialog
+# 20101114: Remove long-obsolete MAKEDEV.8
+OLD_FILES+=usr/share/man/man8/MAKEDEV.8.gz
+# 20101112: vgonel(9) has gone to private API a while ago
+OLD_FILES+=usr/share/man/man9/vgonel.9.gz
+# 20101112: removed gasp.info
+OLD_FILES+=usr/share/info/gasp.info.gz
+# 20101109: machine/mutex.h removed
+OLD_FILES+=usr/include/machine/mutex.h
+# 20101109: headers moved from machine/ to x86/
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/mptable.h
+.endif
+# 20101101: headers moved from machine/ to x86/
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/apicreg.h
+OLD_FILES+=usr/include/machine/mca.h
+.endif
+# 20101020: catch up with vm_page_sleep_if_busy rename
+OLD_FILES+=usr/share/man/man9/vm_page_sleep_busy.9.gz
+# 20101018: taskqueue(9) updates
+OLD_FILES+=usr/share/man/man9/taskqueue_find.9.gz
+# 20101011: removed subblock.h from liblzma
+OLD_FILES+=usr/include/lzma/subblock.h
+# 20101002: removed manpath.config
+OLD_FILES+=etc/manpath.config
+OLD_FILES+=usr/share/examples/etc/manpath.config
+# 20100910: renamed sbuf_overflowed to sbuf_error
+OLD_FILES+=usr/share/man/man9/sbuf_overflowed.9.gz
+# 20100815: retired last traces of chooseproc(9)
+OLD_FILES+=usr/share/man/man9/chooseproc.9.gz
+# 20100806: removal of unused libcompat routines
+OLD_FILES+=usr/share/man/man3/ascftime.3.gz
+OLD_FILES+=usr/share/man/man3/cfree.3.gz
+OLD_FILES+=usr/share/man/man3/cftime.3.gz
+OLD_FILES+=usr/share/man/man3/getpw.3.gz
+# 20100801: tzdata2010k import
+OLD_FILES+=usr/share/zoneinfo/Pacific/Ponape
+OLD_FILES+=usr/share/zoneinfo/Pacific/Truk
+# 20100725: acpi_aiboost(4) removal.
+OLD_FILES+=usr/share/man/man4/acpi_aiboost.4.gz
+# 20100724: nfsclient/nfs_lock.h moved to nfs/nfs_lock.h
+OLD_FILES+=usr/include/nfsclient/nfs_lock.h
+# 20100720: new clang import which bumps version from 2.0 to 2.8
+OLD_FILES+=usr/include/clang/2.0/emmintrin.h
+OLD_FILES+=usr/include/clang/2.0/mm_malloc.h
+OLD_FILES+=usr/include/clang/2.0/mmintrin.h
+OLD_FILES+=usr/include/clang/2.0/pmmintrin.h
+OLD_FILES+=usr/include/clang/2.0/tmmintrin.h
+OLD_FILES+=usr/include/clang/2.0/xmmintrin.h
+OLD_DIRS+=usr/include/clang/2.0
+# 20100706: removed pc-sysinstall's detect-vmware.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/detect-vmware.sh
+# 20100701: [powerpc] removed <machine/intr.h>
+.if ${TARGET_ARCH} == "powerpc"
+OLD_FILES+=usr/include/machine/intr.h
+.endif
+# 20100514: library version bump for versioned symbols for liblzma
+OLD_LIBS+=usr/lib/liblzma.so.0
+OLD_LIBS+=usr/lib32/liblzma.so.0
+# 20100511: move GCC-specific headers to /usr/include/gcc
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/emmintrin.h
+OLD_FILES+=usr/include/mm_malloc.h
+OLD_FILES+=usr/include/pmmintrin.h
+OLD_FILES+=usr/include/xmmintrin.h
+.endif
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "arm"
+OLD_FILES+=usr/include/mmintrin.h
+.endif
+.if ${TARGET_ARCH} == "powerpc"
+OLD_FILES+=usr/include/altivec.h
+OLD_FILES+=usr/include/ppc-asm.h
+OLD_FILES+=usr/include/spe.h
+.endif
+# 20100416: [mips] removed <machine/psl.h>
+.if ${TARGET_ARCH} == "mips"
+OLD_FILES+=usr/include/machine/psl.h
+.endif
+# 20100415: [mips] removed unused headers
+.if ${TARGET_ARCH} == "mips"
+OLD_FILES+=usr/include/machine/archtype.h
+OLD_FILES+=usr/include/machine/segments.h
+OLD_FILES+=usr/include/machine/rm7000.h
+OLD_FILES+=usr/include/machine/defs.h
+OLD_FILES+=usr/include/machine/queue.h
+.endif
+# 20100326: gcpio removal
+OLD_FILES+=usr/bin/gcpio
+OLD_FILES+=usr/share/info/cpio.info.gz
+OLD_FILES+=usr/share/man/man1/gcpio.1.gz
+# 20100322: libz update
+OLD_LIBS+=lib/libz.so.5
+OLD_LIBS+=usr/lib32/libz.so.5
+# 20100314: removal of regexp.h
+OLD_FILES+=usr/include/regexp.h
+OLD_FILES+=usr/share/man/man3/regexp.3.gz
+OLD_FILES+=usr/share/man/man3/regsub.3.gz
+# 20100303: actual removal of utmp.h
+OLD_FILES+=usr/include/utmp.h
+# 20100208: man pages moved
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/share/man/man4/i386/alpm.4.gz
+OLD_FILES+=usr/share/man/man4/i386/amdpm.4.gz
+OLD_FILES+=usr/share/man/man4/i386/mcd.4.gz
+OLD_FILES+=usr/share/man/man4/i386/padlock.4.gz
+OLD_FILES+=usr/share/man/man4/i386/pcf.4.gz
+OLD_FILES+=usr/share/man/man4/i386/scd.4.gz
+OLD_FILES+=usr/share/man/man4/i386/viapm.4.gz
+.endif
+# 20100122: move BSDL bc/dc USD documents to /usr/share/doc/usd
+OLD_FILES+=usr/share/doc/papers/bc.ascii.gz
+OLD_FILES+=usr/share/doc/papers/dc.ascii.gz
+# 20100120: replacing GNU bc/dc with BSDL versions
+OLD_FILES+=usr/share/examples/bc/ckbook.b
+OLD_FILES+=usr/share/examples/bc/pi.b
+OLD_FILES+=usr/share/examples/bc/primes.b
+OLD_FILES+=usr/share/examples/bc/twins.b
+OLD_FILES+=usr/share/info/dc.info.gz
+OLD_DIRS+=usr/share/examples/bc
+# 20100114: removal of ttyslot(3)
+OLD_FILES+=usr/share/man/man3/ttyslot.3.gz
+# 20100113: remove utmp.h, replace it by utmpx.h
+OLD_FILES+=usr/share/man/man3/login.3.gz
+OLD_FILES+=usr/share/man/man3/logout.3.gz
+OLD_FILES+=usr/share/man/man3/logwtmp.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_endutxent.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_getutxent.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_getutxline.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_getutxuser.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_pututxline.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_setutxent.3.gz
+OLD_FILES+=usr/share/man/man3/ulog_setutxfile.3.gz
+OLD_FILES+=usr/share/man/man5/lastlog.5.gz
+OLD_FILES+=usr/share/man/man5/utmp.5.gz
+OLD_FILES+=usr/share/man/man5/wtmp.5.gz
+OLD_LIBS+=lib/libutil.so.8
+OLD_LIBS+=usr/lib32/libutil.so.8
+# 20100105: new userland semaphore implementation
+OLD_FILES+=usr/include/sys/semaphore.h
+# 20100103: ntptrace(8) removed
+OLD_FILES+=usr/sbin/ntptrace
+OLD_FILES+=usr/share/man/man8/ntptrace.8.gz
+# 20091229: remove no longer relevant examples
+OLD_FILES+=usr/share/examples/pppd/auth-down.sample
+OLD_FILES+=usr/share/examples/pppd/auth-up.sample
+OLD_FILES+=usr/share/examples/pppd/chap-secrets.sample
+OLD_FILES+=usr/share/examples/pppd/chat.sh.sample
+OLD_FILES+=usr/share/examples/pppd/ip-down.sample
+OLD_FILES+=usr/share/examples/pppd/ip-up.sample
+OLD_FILES+=usr/share/examples/pppd/options.sample
+OLD_FILES+=usr/share/examples/pppd/pap-secrets.sample
+OLD_FILES+=usr/share/examples/pppd/ppp.deny.sample
+OLD_FILES+=usr/share/examples/pppd/ppp.shells.sample
+OLD_DIRS+=usr/share/examples/pppd
+OLD_FILES+=usr/share/examples/slattach/unit-command.sh
+OLD_DIRS+=usr/share/examples/slattach
+OLD_FILES+=usr/share/examples/sliplogin/slip.hosts
+OLD_FILES+=usr/share/examples/sliplogin/slip.login
+OLD_FILES+=usr/share/examples/sliplogin/slip.logout
+OLD_FILES+=usr/share/examples/sliplogin/slip.slparms
+OLD_DIRS+=usr/share/examples/sliplogin
+OLD_FILES+=usr/share/examples/startslip/sldown.sh
+OLD_FILES+=usr/share/examples/startslip/slip.sh
+OLD_FILES+=usr/share/examples/startslip/slup.sh
+OLD_DIRS+=usr/share/examples/startslip
+# 20091202: unify rc.firewall and rc.firewall6.
+OLD_FILES+=etc/rc.d/ip6fw
+OLD_FILES+=etc/rc.firewall6
+OLD_FILES+=usr/share/examples/etc/rc.firewall6
+# 20091117: removal of rc.early(8) link
+OLD_FILES+=usr/share/man/man8/rc.early.8.gz
+# 20091117: usr/share/zoneinfo/GMT link removed
+OLD_FILES+=usr/share/zoneinfo/GMT
+# 20091027: pselect.3 implemented as syscall
+OLD_FILES+=usr/share/man/man3/pselect.3.gz
+# 20091005: fusword.9 and susword.9 removed
+OLD_FILES+=usr/share/man/man9/fusword.9.gz
+OLD_FILES+=usr/share/man/man9/susword.9.gz
 # 20090909: vesa and dpms promoted to be i386/amd64 common
 OLD_FILES+=usr/include/machine/pc/vesa.h
 OLD_FILES+=usr/share/man/man4/i386/dpms.4.gz
@@ -26,8 +3156,53 @@ OLD_FILES+=usr/share/man/man8/lukemftpd.8.gz
 OLD_FILES+=etc/mtree/BSD.local.dist
 OLD_FILES+=etc/mtree/BSD.x11.dist
 OLD_FILES+=etc/mtree/BSD.x11-4.dist
+# 20090812: net80211 documentation overhaul
+OLD_FILES+=usr/share/man/man9/ieee80211_add_rates.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_add_xrates.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_alloc_node.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_begin_scan.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_cfgget.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_cfgset.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_chan2ieee.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_chan2mode.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_create_ibss.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_crypto_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_crypto_detach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_decap.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_dump_pkt.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_dup_bss.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_encap.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_end_scan.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_find_node.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_fix_rate.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_free_allnodes.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_ieee2mhz.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_ioctl.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_lookup_node.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media2rate.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media_change.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media_init.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media_status.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_mhz2ieee.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_next_scan.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_node_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_node_detach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_node_lateattach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_print_essid.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_proto_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_proto_detach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_rate2media.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_recv_mgmt.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_send_mgmt.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_setmode.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_timeout_nodes.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_watchdog.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_wep_crypt.9.gz
 # 20090801: vimage.h removed in favour of vnet.h
 OLD_FILES+=usr/include/sys/vimage.h
+# 20101208: libbsnmp was moved to usr/lib
+OLD_LIBS+=lib/libbsnmp.so.5
 # 20090719: library version bump for 8.0
 OLD_LIBS+=lib/libalias.so.6
 OLD_LIBS+=lib/libavl.so.1
@@ -135,7 +3310,6 @@ OLD_LIBS+=usr/lib/snmp_hostres.so.5
 OLD_LIBS+=usr/lib/snmp_mibII.so.5
 OLD_LIBS+=usr/lib/snmp_netgraph.so.5
 OLD_LIBS+=usr/lib/snmp_pf.so.5
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libalias.so.6
 OLD_LIBS+=usr/lib32/libarchive.so.4
 OLD_LIBS+=usr/lib32/libauditd.so.4
@@ -236,9 +3410,10 @@ OLD_LIBS+=usr/lib32/pam_self.so.4
 OLD_LIBS+=usr/lib32/pam_ssh.so.4
 OLD_LIBS+=usr/lib32/pam_tacplus.so.4
 OLD_LIBS+=usr/lib32/pam_unix.so.4
-.endif
 # 20090718: the gdm pam.d file is no longer required.
 OLD_FILES+=etc/pam.d/gdm
+# 20090714: net_add_domain(9) renamed to domain_add(9)
+OLD_FILES+=usr/share/man/man9/net_add_domain.9.gz
 # 20090713: vimage container structs removed.
 OLD_FILES+=usr/include/netinet/vinet.h
 OLD_FILES+=usr/include/netinet6/vinet6.h
@@ -421,9 +3596,7 @@ OLD_FILES+=usr/share/man/man8/sliplogin.8.gz
 OLD_FILES+=usr/share/man/man8/slstat.8.gz
 # 20090321: libpcap upgraded to 1.0.0
 OLD_LIBS+=lib/libpcap.so.5
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libpcap.so.5
-.endif
 # 20090319: uscanner(4) has been removed
 OLD_FILES+=usr/share/man/man4/uscanner.4.gz
 # 20090313: k8temp(4) renamed to amdtemp(4)
@@ -435,17 +3608,13 @@ OLD_FILES+=usr/lib/libusb20.so
 OLD_FILES+=usr/lib/libusb20_p.a
 OLD_FILES+=usr/include/libusb20_compat01.h
 OLD_FILES+=usr/include/libusb20_compat10.h
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libusb20.so.1
 OLD_FILES+=usr/lib32/libusb20.a
 OLD_FILES+=usr/lib32/libusb20.so
 OLD_FILES+=usr/lib32/libusb20_p.a
-.endif
 # 20090226: libmp(3) functions renamed
 OLD_LIBS+=usr/lib/libmp.so.6
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libmp.so.6
-.endif
 # 20090223: changeover of USB stacks
 OLD_FILES+=usr/include/dev/usb2/include/ufm2_ioctl.h
 OLD_FILES+=usr/include/dev/usb2/include/urio2_ioctl.h
@@ -503,6 +3672,8 @@ OLD_FILES+=usr/include/dev/usb/usb_quirks.h
 OLD_FILES+=usr/include/dev/usb/usbcdc.h
 OLD_FILES+=usr/include/dev/usb/usbdivar.h
 OLD_FILES+=usr/include/dev/usb/uxb360gp_rdesc.h
+OLD_FILES+=usr/sbin/usbdevs
+OLD_FILES+=usr/share/man/man8/usbdevs.8.gz
 # 20090203: removal of pccard header files
 OLD_FILES+=usr/include/pccard/cardinfo.h
 OLD_FILES+=usr/include/pccard/cis.h
@@ -559,12 +3730,6 @@ OLD_FILES+=usr/include/sys/linedisc.h
 OLD_FILES+=usr/share/man/man3/posix_openpt.3.gz
 # 20080725: sgtty.h removed
 OLD_FILES+=usr/include/sgtty.h
-# 20080719: sade(8) removed on all but amd64, i386 and sparc64
-.if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "i386" && \
-    ${TARGET_ARCH} != "sparc64"
-OLD_FILES+=usr/sbin/sade
-OLD_FILES+=usr/share/man/man8/sade.8.gz
-.endif
 # 20080706: bsdlabel(8) removed on powerpc
 .if ${TARGET_ARCH} == "powerpc"
 OLD_FILES+=sbin/bsdlabel
@@ -591,14 +3756,6 @@ OLD_FILES+=usr/share/man/man8/arlcontrol.8.gz
 .if ${TARGET_ARCH} != "sparc64"
 OLD_FILES+=sbin/sunlabel
 OLD_FILES+=usr/share/man/man8/sunlabel.8.gz
-.endif
-# 20080703: bsdlabel & fdisk removed on ia64
-.if ${TARGET_ARCH} == "ia64"
-OLD_FILES+=sbin/bsdlabel
-OLD_FILES+=usr/share/man/man8/bsdlabel.8.gz
-OLD_FILES+=usr/share/man/man8/disklabel.8.gz
-OLD_FILES+=sbin/fdisk
-OLD_FILES+=usr/share/man/man8/fdisk.8.gz
 .endif
 # 20080701: wpa_supplicant.conf moved to share/examples/etc/
 OLD_FILES+=usr/share/examples/wpa_supplicant/wpa_supplicant.conf
@@ -746,9 +3903,7 @@ OLD_LIBS+=usr/lib/libkadm5srv.so.9
 OLD_LIBS+=usr/lib/libkafs5.so.9
 OLD_LIBS+=usr/lib/libkrb5.so.9
 OLD_LIBS+=usr/lib/libroken.so.9
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libgssapi.so.9
-.endif
 # 20080420: Symbol card support dropped
 OLD_FILES+=usr/include/dev/wi/spectrum24t_cf.h
 # 20080420: awi removal
@@ -775,10 +3930,13 @@ OLD_FILES+=usr/share/man/man2/kse_release.2.gz
 OLD_FILES+=usr/share/man/man2/kse_switchin.2.gz
 OLD_FILES+=usr/share/man/man2/kse_thr_interrupt.2.gz
 OLD_FILES+=usr/share/man/man2/kse_wakeup.2.gz
-.if ${TARGET_ARCH} == "amd64"
 OLD_FILES+=usr/lib32/libkse.so
 OLD_LIBS+=usr/lib32/libkse.so.3
-.endif
+# 20080225: bsdar/bsdranlib rename to ar/ranlib
+OLD_FILES+=usr/bin/bsdar
+OLD_FILES+=usr/bin/bsdranlib
+OLD_FILES+=usr/share/man/man1/bsdar.1.gz
+OLD_FILES+=usr/share/man/man1/bsdranlib.1.gz
 # 20080220: geom_lvm rename to geom_linux_lvm
 OLD_FILES+=usr/share/man/man4/geom_lvm.4.gz
 # 20080126: oldcard.4 removal
@@ -798,24 +3956,16 @@ OLD_FILES+=usr/include/sys/xrpuio.h
 OLD_FILES+=usr/lib/libkse.a
 OLD_FILES+=usr/lib/libkse_p.a
 OLD_FILES+=usr/lib/libkse_pic.a
-.if ${TARGET_ARCH} == "amd64"
 OLD_FILES+=usr/lib32/libkse.a
 OLD_FILES+=usr/lib32/libkse_p.a
 OLD_FILES+=usr/lib32/libkse_pic.a
-.endif
 # 20071129: Removed a Solaris compatibility header
 OLD_FILES+=usr/include/sys/_elf_solaris.h
 # 20071125: Renamed to pmc_get_msr()
 OLD_FILES+=usr/share/man/man3/pmc_x86_get_msr.3.gz
 # 20071108: Removed very crunch OLDCARD support file
 OLD_FILES+=etc/defaults/pccard.conf
-# 20071104: Removed bsdlabel, fdisk and gpt from rescue on ia64.
-.if ${TARGET_ARCH} == "ia64"
-OLD_FILES+=rescue/bsdlabel
-OLD_FILES+=rescue/fdisk
-OLD_FILES+=rescue/gpt
-.endif
-# 20071025: rc.d/nfslocking superceeded by rc.d/lockd and rc.d/statd
+# 20071025: rc.d/nfslocking superseded by rc.d/lockd and rc.d/statd
 OLD_FILES+=etc/rc.d/nfslocking
 # 20070930: rename of cached to nscd
 OLD_FILES+=etc/cached.conf
@@ -902,12 +4052,10 @@ OLD_DIRS+=usr/include/netatm/ipatm
 OLD_DIRS+=usr/include/netatm/uni
 OLD_DIRS+=usr/include/netatm
 OLD_DIRS+=usr/share/examples/atm
-.if ${TARGET_ARCH} == "amd64"
 OLD_FILES+=usr/lib32/libatm.a
 OLD_FILES+=usr/lib32/libatm.so
 OLD_LIBS+=usr/lib32/libatm.so.5
 OLD_FILES+=usr/lib32/libatm_p.a
-.endif
 # 20070705: I4B headers repo-copied to include/i4b/
 .if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/i4b_cause.h
@@ -916,12 +4064,6 @@ OLD_FILES+=usr/include/machine/i4b_ioctl.h
 OLD_FILES+=usr/include/machine/i4b_rbch_ioctl.h
 OLD_FILES+=usr/include/machine/i4b_tel_ioctl.h
 OLD_FILES+=usr/include/machine/i4b_trace.h
-.endif
-# 20070704: I4B 'modules' temporary disconnected (removed 20080525)
-.if ${TARGET_ARCH} == "i386"
-OLD_FILES+=usr/share/man/man4/i4bing.4.gz
-OLD_FILES+=usr/share/man/man4/i4bipr.4.gz
-OLD_FILES+=usr/share/man/man4/i4bisppp.4.gz
 .endif
 # 20070703: pf 4.1 import
 OLD_FILES+=usr/libexec/ftp-proxy
@@ -998,7 +4140,6 @@ OLD_LIBS+=usr/lib/snmp_hostres.so.4
 OLD_LIBS+=usr/lib/snmp_mibII.so.4
 OLD_LIBS+=usr/lib/snmp_netgraph.so.4
 OLD_LIBS+=usr/lib/snmp_pf.so.4
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libalias.so.5
 OLD_LIBS+=usr/lib32/libbsnmp.so.3
 OLD_LIBS+=usr/lib32/libdialog.so.5
@@ -1033,7 +4174,6 @@ OLD_LIBS+=usr/lib32/pam_self.so.3
 OLD_LIBS+=usr/lib32/pam_ssh.so.3
 OLD_LIBS+=usr/lib32/pam_tacplus.so.3
 OLD_LIBS+=usr/lib32/pam_unix.so.3
-.endif
 # 20070613: IPX over IP tunnel removal
 OLD_FILES+=usr/include/netipx/ipx_ip.h
 # 20070605: sched_core removal
@@ -1101,13 +4241,8 @@ OLD_LIBS+=usr/lib/libusbhid.so.2
 OLD_LIBS+=usr/lib/libvgl.so.4
 OLD_LIBS+=usr/lib/libwrap.so.4
 OLD_LIBS+=usr/lib/libypclnt.so.2
-OLD_LIBS+=usr/lib/snmp_atm.so.3
 OLD_LIBS+=usr/lib/snmp_bridge.so.3
 OLD_LIBS+=usr/lib/snmp_hostres.so.3
-OLD_LIBS+=usr/lib/snmp_mibII.so.3
-OLD_LIBS+=usr/lib/snmp_netgraph.so.3
-OLD_LIBS+=usr/lib/snmp_pf.so.3
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libatm.so.4
 OLD_LIBS+=usr/lib32/libbegemot.so.2
 OLD_LIBS+=usr/lib32/libbluetooth.so.2
@@ -1166,7 +4301,6 @@ OLD_LIBS+=usr/lib32/libvgl.so.4
 OLD_LIBS+=usr/lib32/libwrap.so.4
 OLD_LIBS+=usr/lib32/libypclnt.so.2
 OLD_LIBS+=usr/lib32/libz.so.3
-.endif
 # 20070519: GCC 4.2
 OLD_FILES+=usr/bin/f77
 OLD_FILES+=usr/bin/protoize
@@ -1402,7 +4536,8 @@ OLD_DIRS+=usr/include/c++/3.4
 OLD_FILES+=usr/sbin/zfs
 OLD_FILES+=usr/sbin/zpool
 # 20070423: rc.bluetooth (examples) removed
-OLD_FILES+=usr/share/examples/netgraph/bluetooth/rc.bluetooth 
+OLD_FILES+=usr/share/examples/netgraph/bluetooth/rc.bluetooth
+OLD_DIRS+=usr/share/examples/netgraph/bluetooth
 # 20070421: worm.4 removed
 OLD_FILES+=usr/share/man/man4/worm.4.gz
 # 20070417: trunk(4) renamed to lagg(4)
@@ -1413,9 +4548,7 @@ OLD_FILES+=usr/bin/uuidgen
 OLD_FILES+=usr/share/info/bzip2.info.gz
 # 20070303: libarchive 2.0
 OLD_LIBS+=usr/lib/libarchive.so.3
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libarchive.so.3
-.endif
 # 20070301: remove addr2ascii and ascii2addr
 OLD_FILES+=usr/share/man/man3/addr2ascii.3.gz
 OLD_FILES+=usr/share/man/man3/ascii2addr.3.gz
@@ -1432,14 +4565,12 @@ OLD_FILES+=usr/lib/libmytinfo_p.a
 OLD_FILES+=usr/lib/libmytinfow.a
 OLD_FILES+=usr/lib/libmytinfow.so
 OLD_FILES+=usr/lib/libmytinfow_p.a
-.if ${TARGET_ARCH} == "amd64"
 OLD_FILES+=usr/lib32/libmytinfo.a
 OLD_FILES+=usr/lib32/libmytinfo.so
 OLD_FILES+=usr/lib32/libmytinfo_p.a
 OLD_FILES+=usr/lib32/libmytinfow.a
 OLD_FILES+=usr/lib32/libmytinfow.so
 OLD_FILES+=usr/lib32/libmytinfow_p.a
-.endif
 # 20070128: remove vnconfig
 OLD_FILES+=usr/sbin/vnconfig
 # 20070127: remove bpf_compat.h
@@ -1494,10 +4625,6 @@ OLD_FILES+=usr/share/man/man8/mount_std.8.gz
 OLD_FILES+=usr/share/man/man4/uhidev.4.gz
 # 20061106: archive_write_prepare.3 removed
 OLD_FILES+=usr/share/man/man3/archive_write_prepare.3.gz
-.if ${TARGET_ARCH} == "ia64"
-# 20061104: skiload.help removed
-OLD_FILES+=boot/skiload.help
-.endif
 # 20061018: pccardc removed
 OLD_FILES+=usr/sbin/pccardc usr/share/man/man8/pccardc.8.gz
 # 20060930: demangle.h from contrib/libstdc++/include/ext/
@@ -1568,7 +4695,6 @@ OLD_DIRS+=usr/share/misc/pcvtfonts
 OLD_FILES+=usr/share/misc/keycap.pcvt
 OLD_FILES+=usr/share/man/man8/ispcvt.8.gz
 OLD_FILES+=usr/share/man/man5/keycap.5.gz
-OLD_FILES+=usr/share/man/man4/vt.4.gz
 OLD_FILES+=usr/share/man/man4/pcvt.4.gz
 OLD_FILES+=usr/share/man/man3/kgetstr.3.gz
 OLD_FILES+=usr/share/man/man3/kgetnum.3.gz
@@ -1673,9 +4799,9 @@ OLD_FILES+=usr/share/man/man5/ipsend.5.gz
 OLD_FILES+=usr/bin/gtar
 OLD_FILES+=usr/share/man/man1/gtar.1.gz
 # 200503XX
-OLD_FILES+=share/man/man3/exp10.3.gz
-OLD_FILES+=share/man/man3/exp10f.3.gz
-OLD_FILES+=share/man/man3/fpsetsticky.3.gz
+OLD_FILES+=usr/share/man/man3/exp10.3.gz
+OLD_FILES+=usr/share/man/man3/exp10f.3.gz
+OLD_FILES+=usr/share/man/man3/fpsetsticky.3.gz
 # 20050324: updated release infrastructure
 OLD_FILES+=usr/share/man/man5/drivers.conf.5.gz
 # 20050317: removed from BIND 9 distribution
@@ -1858,6 +4984,202 @@ OLD_FILES+=lib/geom/geom_concat.so.1
 OLD_FILES+=lib/geom/geom_label.so.1
 OLD_FILES+=lib/geom/geom_nop.so.1
 OLD_FILES+=lib/geom/geom_stripe.so.1
+# 20040728: GCC 3.4.2
+OLD_DIRS+=usr/include/c++/3.3
+OLD_FILES+=usr/include/c++/3.3/FlexLexer.h
+OLD_FILES+=usr/include/c++/3.3/algorithm
+OLD_FILES+=usr/include/c++/3.3/backward/algo.h
+OLD_FILES+=usr/include/c++/3.3/backward/algobase.h
+OLD_FILES+=usr/include/c++/3.3/backward/alloc.h
+OLD_FILES+=usr/include/c++/3.3/backward/backward_warning.h
+OLD_FILES+=usr/include/c++/3.3/backward/bvector.h
+OLD_FILES+=usr/include/c++/3.3/backward/complex.h
+OLD_FILES+=usr/include/c++/3.3/backward/defalloc.h
+OLD_FILES+=usr/include/c++/3.3/backward/deque.h
+OLD_FILES+=usr/include/c++/3.3/backward/fstream.h
+OLD_FILES+=usr/include/c++/3.3/backward/function.h
+OLD_FILES+=usr/include/c++/3.3/backward/hash_map.h
+OLD_FILES+=usr/include/c++/3.3/backward/hash_set.h
+OLD_FILES+=usr/include/c++/3.3/backward/hashtable.h
+OLD_FILES+=usr/include/c++/3.3/backward/heap.h
+OLD_FILES+=usr/include/c++/3.3/backward/iomanip.h
+OLD_FILES+=usr/include/c++/3.3/backward/iostream.h
+OLD_FILES+=usr/include/c++/3.3/backward/istream.h
+OLD_FILES+=usr/include/c++/3.3/backward/iterator.h
+OLD_FILES+=usr/include/c++/3.3/backward/list.h
+OLD_FILES+=usr/include/c++/3.3/backward/map.h
+OLD_FILES+=usr/include/c++/3.3/backward/multimap.h
+OLD_FILES+=usr/include/c++/3.3/backward/multiset.h
+OLD_FILES+=usr/include/c++/3.3/backward/new.h
+OLD_FILES+=usr/include/c++/3.3/backward/ostream.h
+OLD_FILES+=usr/include/c++/3.3/backward/pair.h
+OLD_FILES+=usr/include/c++/3.3/backward/queue.h
+OLD_FILES+=usr/include/c++/3.3/backward/rope.h
+OLD_FILES+=usr/include/c++/3.3/backward/set.h
+OLD_FILES+=usr/include/c++/3.3/backward/slist.h
+OLD_FILES+=usr/include/c++/3.3/backward/stack.h
+OLD_FILES+=usr/include/c++/3.3/backward/stream.h
+OLD_FILES+=usr/include/c++/3.3/backward/streambuf.h
+OLD_FILES+=usr/include/c++/3.3/backward/strstream
+OLD_FILES+=usr/include/c++/3.3/backward/strstream.h
+OLD_FILES+=usr/include/c++/3.3/backward/tempbuf.h
+OLD_FILES+=usr/include/c++/3.3/backward/tree.h
+OLD_FILES+=usr/include/c++/3.3/backward/vector.h
+OLD_DIRS+=usr/include/c++/3.3/backward
+OLD_FILES+=usr/include/c++/3.3/bits/atomicity.h
+OLD_FILES+=usr/include/c++/3.3/bits/basic_file.h
+OLD_FILES+=usr/include/c++/3.3/bits/basic_ios.h
+OLD_FILES+=usr/include/c++/3.3/bits/basic_ios.tcc
+OLD_FILES+=usr/include/c++/3.3/bits/basic_string.h
+OLD_FILES+=usr/include/c++/3.3/bits/basic_string.tcc
+OLD_FILES+=usr/include/c++/3.3/bits/boost_concept_check.h
+OLD_FILES+=usr/include/c++/3.3/bits/c++config.h
+OLD_FILES+=usr/include/c++/3.3/bits/c++io.h
+OLD_FILES+=usr/include/c++/3.3/bits/c++locale.h
+OLD_FILES+=usr/include/c++/3.3/bits/c++locale_internal.h
+OLD_FILES+=usr/include/c++/3.3/bits/char_traits.h
+OLD_FILES+=usr/include/c++/3.3/bits/cmath.tcc
+OLD_FILES+=usr/include/c++/3.3/bits/codecvt.h
+OLD_FILES+=usr/include/c++/3.3/bits/codecvt_specializations.h
+OLD_FILES+=usr/include/c++/3.3/bits/concept_check.h
+OLD_FILES+=usr/include/c++/3.3/bits/cpp_type_traits.h
+OLD_FILES+=usr/include/c++/3.3/bits/ctype_base.h
+OLD_FILES+=usr/include/c++/3.3/bits/ctype_inline.h
+OLD_FILES+=usr/include/c++/3.3/bits/ctype_noninline.h
+OLD_FILES+=usr/include/c++/3.3/bits/deque.tcc
+OLD_FILES+=usr/include/c++/3.3/bits/fpos.h
+OLD_FILES+=usr/include/c++/3.3/bits/fstream.tcc
+OLD_FILES+=usr/include/c++/3.3/bits/functexcept.h
+OLD_FILES+=usr/include/c++/3.3/bits/generic_shadow.h
+OLD_FILES+=usr/include/c++/3.3/bits/gslice.h
+OLD_FILES+=usr/include/c++/3.3/bits/gslice_array.h
+OLD_FILES+=usr/include/c++/3.3/bits/gthr-default.h
+OLD_FILES+=usr/include/c++/3.3/bits/gthr-posix.h
+OLD_FILES+=usr/include/c++/3.3/bits/gthr-single.h
+OLD_FILES+=usr/include/c++/3.3/bits/gthr.h
+OLD_FILES+=usr/include/c++/3.3/bits/indirect_array.h
+OLD_FILES+=usr/include/c++/3.3/bits/ios_base.h
+OLD_FILES+=usr/include/c++/3.3/bits/istream.tcc
+OLD_FILES+=usr/include/c++/3.3/bits/list.tcc
+OLD_FILES+=usr/include/c++/3.3/bits/locale_classes.h
+OLD_FILES+=usr/include/c++/3.3/bits/locale_facets.h
+OLD_FILES+=usr/include/c++/3.3/bits/locale_facets.tcc
+OLD_FILES+=usr/include/c++/3.3/bits/localefwd.h
+OLD_FILES+=usr/include/c++/3.3/bits/mask_array.h
+OLD_FILES+=usr/include/c++/3.3/bits/messages_members.h
+OLD_FILES+=usr/include/c++/3.3/bits/os_defines.h
+OLD_FILES+=usr/include/c++/3.3/bits/ostream.tcc
+OLD_FILES+=usr/include/c++/3.3/bits/pthread_allocimpl.h
+OLD_FILES+=usr/include/c++/3.3/bits/slice.h
+OLD_FILES+=usr/include/c++/3.3/bits/slice_array.h
+OLD_FILES+=usr/include/c++/3.3/bits/sstream.tcc
+OLD_FILES+=usr/include/c++/3.3/bits/stl_algo.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_algobase.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_alloc.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_bvector.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_construct.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_deque.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_function.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_heap.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_iterator.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_iterator_base_funcs.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_iterator_base_types.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_list.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_map.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_multimap.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_multiset.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_numeric.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_pair.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_pthread_alloc.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_queue.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_raw_storage_iter.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_relops.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_set.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_stack.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_tempbuf.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_threads.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_tree.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_uninitialized.h
+OLD_FILES+=usr/include/c++/3.3/bits/stl_vector.h
+OLD_FILES+=usr/include/c++/3.3/bits/stream_iterator.h
+OLD_FILES+=usr/include/c++/3.3/bits/streambuf.tcc
+OLD_FILES+=usr/include/c++/3.3/bits/streambuf_iterator.h
+OLD_FILES+=usr/include/c++/3.3/bits/stringfwd.h
+OLD_FILES+=usr/include/c++/3.3/bits/time_members.h
+OLD_FILES+=usr/include/c++/3.3/bits/type_traits.h
+OLD_FILES+=usr/include/c++/3.3/bits/valarray_array.h
+OLD_FILES+=usr/include/c++/3.3/bits/valarray_array.tcc
+OLD_FILES+=usr/include/c++/3.3/bits/valarray_meta.h
+OLD_FILES+=usr/include/c++/3.3/bits/vector.tcc
+OLD_DIRS+=usr/include/c++/3.3/bits
+OLD_FILES+=usr/include/c++/3.3/bitset
+OLD_FILES+=usr/include/c++/3.3/cassert
+OLD_FILES+=usr/include/c++/3.3/cctype
+OLD_FILES+=usr/include/c++/3.3/cerrno
+OLD_FILES+=usr/include/c++/3.3/cfloat
+OLD_FILES+=usr/include/c++/3.3/ciso646
+OLD_FILES+=usr/include/c++/3.3/climits
+OLD_FILES+=usr/include/c++/3.3/clocale
+OLD_FILES+=usr/include/c++/3.3/cmath
+OLD_FILES+=usr/include/c++/3.3/complex
+OLD_FILES+=usr/include/c++/3.3/csetjmp
+OLD_FILES+=usr/include/c++/3.3/csignal
+OLD_FILES+=usr/include/c++/3.3/cstdarg
+OLD_FILES+=usr/include/c++/3.3/cstddef
+OLD_FILES+=usr/include/c++/3.3/cstdio
+OLD_FILES+=usr/include/c++/3.3/cstdlib
+OLD_FILES+=usr/include/c++/3.3/cstring
+OLD_FILES+=usr/include/c++/3.3/ctime
+OLD_FILES+=usr/include/c++/3.3/cwchar
+OLD_FILES+=usr/include/c++/3.3/cwctype
+OLD_FILES+=usr/include/c++/3.3/cxxabi.h
+OLD_FILES+=usr/include/c++/3.3/deque
+OLD_FILES+=usr/include/c++/3.3/exception
+OLD_FILES+=usr/include/c++/3.3/exception_defines.h
+OLD_FILES+=usr/include/c++/3.3/ext/algorithm
+OLD_FILES+=usr/include/c++/3.3/ext/enc_filebuf.h
+OLD_FILES+=usr/include/c++/3.3/ext/functional
+OLD_FILES+=usr/include/c++/3.3/ext/hash_map
+OLD_FILES+=usr/include/c++/3.3/ext/hash_set
+OLD_FILES+=usr/include/c++/3.3/ext/iterator
+OLD_FILES+=usr/include/c++/3.3/ext/memory
+OLD_FILES+=usr/include/c++/3.3/ext/numeric
+OLD_FILES+=usr/include/c++/3.3/ext/rb_tree
+OLD_FILES+=usr/include/c++/3.3/ext/rope
+OLD_FILES+=usr/include/c++/3.3/ext/ropeimpl.h
+OLD_FILES+=usr/include/c++/3.3/ext/slist
+OLD_FILES+=usr/include/c++/3.3/ext/stdio_filebuf.h
+OLD_FILES+=usr/include/c++/3.3/ext/stl_hash_fun.h
+OLD_FILES+=usr/include/c++/3.3/ext/stl_hashtable.h
+OLD_FILES+=usr/include/c++/3.3/ext/stl_rope.h
+OLD_DIRS+=usr/include/c++/3.3/ext
+OLD_FILES+=usr/include/c++/3.3/fstream
+OLD_FILES+=usr/include/c++/3.3/functional
+OLD_FILES+=usr/include/c++/3.3/iomanip
+OLD_FILES+=usr/include/c++/3.3/ios
+OLD_FILES+=usr/include/c++/3.3/iosfwd
+OLD_FILES+=usr/include/c++/3.3/iostream
+OLD_FILES+=usr/include/c++/3.3/istream
+OLD_FILES+=usr/include/c++/3.3/iterator
+OLD_FILES+=usr/include/c++/3.3/limits
+OLD_FILES+=usr/include/c++/3.3/list
+OLD_FILES+=usr/include/c++/3.3/locale
+OLD_FILES+=usr/include/c++/3.3/map
+OLD_FILES+=usr/include/c++/3.3/memory
+OLD_FILES+=usr/include/c++/3.3/new
+OLD_FILES+=usr/include/c++/3.3/numeric
+OLD_FILES+=usr/include/c++/3.3/ostream
+OLD_FILES+=usr/include/c++/3.3/queue
+OLD_FILES+=usr/include/c++/3.3/set
+OLD_FILES+=usr/include/c++/3.3/sstream
+OLD_FILES+=usr/include/c++/3.3/stack
+OLD_FILES+=usr/include/c++/3.3/stdexcept
+OLD_FILES+=usr/include/c++/3.3/streambuf
+OLD_FILES+=usr/include/c++/3.3/string
+OLD_FILES+=usr/include/c++/3.3/typeinfo
+OLD_FILES+=usr/include/c++/3.3/utility
+OLD_FILES+=usr/include/c++/3.3/valarray
+OLD_FILES+=usr/include/c++/3.3/vector
 # 20040713: fla(4) removed.
 OLD_FILES+=usr/share/man/man4/fla.4.gz
 # 200407XX
@@ -1923,6 +5245,8 @@ OLD_FILES+=lib/libz.so
 OLD_FILES+=bin/cxconfig
 OLD_FILES+=sbin/cxconfig
 OLD_FILES+=usr/share/man/man8/cxconfig.8.gz
+# 20031016: MULTI_DRIVER_MODULE macro removed
+OLD_FILES+=usr/share/man/man9/MULTI_DRIVER_MODULE.9.gz
 # 200309XX
 OLD_FILES+=usr/bin/symorder
 OLD_FILES+=usr/share/man/man1/symorder.1.gz
@@ -2162,7 +5486,7 @@ OLD_FILES+=usr/lib/libpam_ssh.a
 OLD_FILES+=usr/lib/libpam_ssh_p.a
 OLD_FILES+=usr/bin/help
 OLD_FILES+=usr/bin/sccs
-.if ${TARGET_ARCH} != "arm" && ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "powerpc"
+.if ${TARGET_ARCH} != "amd64" && ${TARGET} != "arm" && ${TARGET_ARCH} != "i386" && ${TARGET} != "powerpc"
 OLD_FILES+=usr/bin/gdbserver
 .endif
 OLD_FILES+=usr/bin/ssh-keysign
@@ -4120,9 +7444,7 @@ OLD_FILES+=usr/share/man/man1/x509.1.gz
 OLD_FILES+=usr/share/man/man3/SSL_COMP_add_compression_method.3.gz
 OLD_FILES+=usr/share/man/man3/SSL_CTX_get_ex_new_index.3.gz
 OLD_FILES+=usr/share/man/man3/archive_entry_dup.3.gz
-OLD_FILES+=usr/share/man/man3/archive_entry_hardlink_w.3.gz
 OLD_FILES+=usr/share/man/man3/archive_entry_set_tartype.3.gz
-OLD_FILES+=usr/share/man/man3/archive_entry_symlink_w.3.gz
 OLD_FILES+=usr/share/man/man3/archive_entry_tartype.3.gz
 OLD_FILES+=usr/share/man/man3/archive_read_data_into_file.3.gz
 OLD_FILES+=usr/share/man/man3/archive_read_open_tar.3.gz
@@ -4310,7 +7632,6 @@ OLD_FILES+=usr/games/worm
 OLD_FILES+=usr/games/worms
 OLD_FILES+=usr/games/wump
 OLD_FILES+=sbin/mount_reiserfs
-OLD_FILES+=usr/include/c++/3.4/ext/demangle.h
 OLD_FILES+=usr/include/cam/cam_extend.h
 OLD_FILES+=usr/include/dev/wi/wi_hostap.h
 OLD_FILES+=usr/include/disktab.h
@@ -4544,9 +7865,7 @@ OLD_FILES+=usr/include/netns/spidp.h
 OLD_FILES+=usr/include/netns/spp_debug.h
 OLD_FILES+=usr/include/netns/spp_timer.h
 OLD_FILES+=usr/include/netns/spp_var.h
-OLD_FILES+=usr/include/nfs/krpc.h
 OLD_FILES+=usr/include/nfs/nfs.h
-OLD_FILES+=usr/include/nfs/nfsdiskless.h
 OLD_FILES+=usr/include/nfs/nfsm_subs.h
 OLD_FILES+=usr/include/nfs/nfsmount.h
 OLD_FILES+=usr/include/nfs/nfsnode.h
@@ -4573,7 +7892,6 @@ OLD_FILES+=usr/include/posix4/posix4.h
 OLD_FILES+=usr/include/posix4/sched.h
 OLD_FILES+=usr/include/posix4/semaphore.h
 OLD_DIRS+=usr/include/posix4
-OLD_FILES+=usr/include/rune.h
 OLD_FILES+=usr/include/security/_pam_compat.h
 OLD_FILES+=usr/include/security/_pam_macros.h
 OLD_FILES+=usr/include/security/_pam_types.h
@@ -4719,42 +8037,21 @@ OLD_FILES+=usr/share/doc/ntp/release.htm
 OLD_FILES+=usr/share/doc/ntp/tickadj.htm
 OLD_FILES+=usr/share/doc/papers/nqnfs.ascii.gz
 OLD_FILES+=usr/share/doc/papers/px.ascii.gz
-OLD_FILES+=usr/share/man/man3/mbrune.3.gz
-OLD_FILES+=usr/share/man/man3/rune.3.gz
-OLD_FILES+=usr/share/man/man3/mac_is_present_np.3.gz
-OLD_FILES+=usr/share/man/man3/fpsetsticky.3.gz
-OLD_FILES+=usr/share/man/man3/gss_krb5_copy_ccache.3.gz
-OLD_FILES+=usr/share/man/man3/gss_krb5_compat_des3_mic.3.gz
-OLD_FILES+=usr/share/man/man3/exp10f.3.gz
 OLD_FILES+=usr/share/man/man3/exp10.3.gz
-OLD_FILES+=usr/share/man/man3/mbrrune.3.gz
-OLD_FILES+=usr/share/man/man3/mbmb.3.gz
-OLD_FILES+=usr/share/man/man3/sputrune.3.gz
-OLD_FILES+=usr/share/man/man3/sgetrune.3.gz
-OLD_FILES+=usr/share/man/man3/setrunelocale.3.gz
-OLD_FILES+=usr/share/man/man3/setinvalidrune.3.gz
-OLD_FILES+=usr/share/man/man3/mbrune.3.gz
-OLD_FILES+=usr/share/man/man3/rune.3.gz
-OLD_FILES+=usr/share/man/man3/mac_is_present_np.3.gz
-OLD_FILES+=usr/share/man/man3/fpsetsticky.3.gz
-OLD_FILES+=usr/share/man/man3/gss_krb5_copy_ccache.3.gz
-OLD_FILES+=usr/share/man/man3/gss_krb5_compat_des3_mic.3.gz
 OLD_FILES+=usr/share/man/man3/exp10f.3.gz
-OLD_FILES+=usr/share/man/man3/exp10.3.gz
-OLD_FILES+=usr/share/man/man3/mbrrune.3.gz
+OLD_FILES+=usr/share/man/man3/fpsetsticky.3.gz
+OLD_FILES+=usr/share/man/man3/gss_krb5_compat_des3_mic.3.gz
+OLD_FILES+=usr/share/man/man3/gss_krb5_copy_ccache.3.gz
+OLD_FILES+=usr/share/man/man3/mac_is_present_np.3.gz
 OLD_FILES+=usr/share/man/man3/mbmb.3.gz
-OLD_FILES+=usr/share/man/man3/sputrune.3.gz
-OLD_FILES+=usr/share/man/man3/sgetrune.3.gz
 OLD_FILES+=usr/share/man/man3/setrunelocale.3.gz
-OLD_FILES+=usr/share/man/man3/setinvalidrune.3.gz
-OLD_FILES+=usr/share/man/man3/fungetrune.3.gz
-OLD_FILES+=usr/share/man/man3/fputrune.3.gz
-OLD_FILES+=usr/share/man/man3/fgetrune.3.gz
 OLD_FILES+=usr/share/man/man5/usbd.conf.5.gz
 .if ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "amd64"
 OLD_FILES+=usr/share/man/man8/boot_i386.8.gz
 .endif
-.if ${TARGET_ARCH} != "powerpc" && ${TARGET_ARCH} != "sparc64"
+.if ${TARGET_ARCH} != "aarch64" && ${TARGET} != "arm" && \
+    ${TARGET_ARCH} != "powerpc" && ${TARGET_ARCH} != "powerpc64" && \
+    ${TARGET_ARCH} != "sparc64"
 OLD_FILES+=usr/share/man/man8/ofwdump.8.gz
 .endif
 OLD_FILES+=usr/share/man/man8/mount_reiserfs.8.gz
@@ -4770,22 +8067,6 @@ OLD_FILES+=usr/share/bsnmp/mibs/FOKUS-MIB.txt
 OLD_FILES+=usr/share/bsnmp/mibs/BEGEMOT-MIB.txt
 OLD_FILES+=usr/share/bsnmp/mibs/BEGEMOT-SNMPD.txt
 OLD_FILES+=usr/share/bsnmp/mibs/BEGEMOT-NETGRAPH.txt
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.x
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xbn
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xn
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xr
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xs
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xu
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xc
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xsc
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.x
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xbn
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xn
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xr
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xs
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xu
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xc
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xsc
 OLD_FILES+=usr/libdata/msdosfs/iso22dos
 OLD_FILES+=usr/libdata/msdosfs/iso72dos
 OLD_FILES+=usr/libdata/msdosfs/koi2dos
@@ -4808,63 +8089,49 @@ OLD_LIBS+=usr/lib/libkadm5srv.so.8
 OLD_LIBS+=usr/lib/libkafs5.so.8
 OLD_LIBS+=usr/lib/libkrb5.so.8
 OLD_LIBS+=usr/lib/libobjc.so.2
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libgssapi.so.8
 OLD_LIBS+=usr/lib32/libobjc.so.2
-.endif
 # 20070519: GCC 4.2
 OLD_LIBS+=usr/lib/libg2c.a
 OLD_LIBS+=usr/lib/libg2c.so
 OLD_LIBS+=usr/lib/libg2c.so.2
 OLD_LIBS+=usr/lib/libg2c_p.a
 OLD_LIBS+=usr/lib/libgcc_pic.a
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libg2c.a
 OLD_LIBS+=usr/lib32/libg2c.so
 OLD_LIBS+=usr/lib32/libg2c.so.2
 OLD_LIBS+=usr/lib32/libg2c_p.a
 OLD_LIBS+=usr/lib32/libgcc_pic.a
-.endif
 # 20060729: OpenSSL 0.9.7e -> 0.9.8b upgrade
 OLD_LIBS+=lib/libcrypto.so.4
 OLD_LIBS+=usr/lib/libssl.so.4
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libcrypto.so.4
 OLD_LIBS+=usr/lib32/libssl.so.4
-.endif
 # 20060521: gethostbyaddr(3) ABI change
 OLD_LIBS+=usr/lib/libroken.so.8
 OLD_LIBS+=lib/libatm.so.3
 OLD_LIBS+=lib/libc.so.6
 OLD_LIBS+=lib/libutil.so.5
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libatm.so.3
 OLD_LIBS+=usr/lib32/libc.so.6
 OLD_LIBS+=usr/lib32/libutil.so.5
-.endif
 # 20060413: shared library moved to /usr/lib
 OLD_LIBS+=lib/libgpib.so.1
 # 20060413: libpcap.so.4 moved to /lib/
 OLD_LIBS+=usr/lib/libpcap.so.4
 # 20060412: libpthread.so.2 moved to /lib/
-.if ${TARGET_ARCH} != "sparc64"
 OLD_LIBS+=usr/lib/libpthread.so.2
-.else
-OLD_LIBS+=usr/lib/libthr.so.2
-.endif
 # 20060127: revert libdisk to static-only
 OLD_LIBS+=usr/lib/libdisk.so.3
-# 20051027: libc_r discontinued
+# 20051027: libc_r discontinued (removed 20101113)
 OLD_LIBS+=usr/lib/libc_r.a
 OLD_LIBS+=usr/lib/libc_r.so
 OLD_LIBS+=usr/lib/libc_r.so.7
 OLD_LIBS+=usr/lib/libc_r_p.a
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libc_r.a
 OLD_LIBS+=usr/lib32/libc_r.so
 OLD_LIBS+=usr/lib32/libc_r.so.7
 OLD_LIBS+=usr/lib32/libc_r_p.a
-.endif
 # 20050722: bump for 6.0-RELEASE
 OLD_LIBS+=lib/libalias.so.4
 OLD_LIBS+=lib/libatm.so.2
@@ -4970,8 +8237,6 @@ OLD_LIBS+=usr/lib/snmp_atm.so.3
 OLD_LIBS+=usr/lib/snmp_mibII.so.3
 OLD_LIBS+=usr/lib/snmp_netgraph.so.3
 OLD_LIBS+=usr/lib/snmp_pf.so.3
-# 20050603: network related ABI change on 64bit systems
-OLD_LIBS+=usr/lib/libpcap.so.3
 # 200505XX: ?
 OLD_LIBS+=usr/lib/snmp_atm.so.2
 OLD_LIBS+=usr/lib/snmp_mibII.so.2
@@ -4992,10 +8257,6 @@ OLD_LIBS+=usr/lib/libpcap.so.2
 OLD_LIBS+=usr/lib/libisc.so.1
 # 200408XX
 OLD_LIBS+=usr/lib/snmp_netgraph.so.1
-.if ${TARGET_ARCH} != "sparc64"
-# 20040130: libkse renamed to libpthread
-OLD_LIBS+=usr/lib/libkse.so.1
-.endif
 # 200404XX
 OLD_LIBS+=usr/lib/libsnmp.so.1
 OLD_LIBS+=usr/lib/snmp_mibII.so.1
@@ -5018,6 +8279,12 @@ OLD_LIBS+=usr/lib/libposix1e.so.2
 OLD_LIBS+=usr/lib/libskey.so.2
 OLD_LIBS+=usr/lib/libusbhid.so.0
 OLD_LIBS+=usr/lib/libvgl.so.2
+# 20030218: OpenSSL 0.9.7 import
+OLD_FILES+=usr/include/des.h
+OLD_FILES+=usr/lib/libdes.a
+OLD_FILES+=usr/lib/libdes.so
+OLD_LIBS+=usr/lib/libdes.so.3
+OLD_FILES+=usr/lib/libdes_p.a
 # 200302XX
 OLD_LIBS+=usr/lib/libacl.so.3
 OLD_LIBS+=usr/lib/libasn1.so.5
@@ -5076,22 +8343,29 @@ OLD_LIBS+=usr/lib/libtermcap.so.2
 OLD_LIBS+=usr/lib/libutil.so.2
 OLD_LIBS+=usr/lib/libvgl.so.1
 OLD_LIBS+=usr/lib/libwrap.so.2
+# 19991216
+OLD_FILES+=usr/sbin/xntpdc
 # 199909XX
 OLD_LIBS+=usr/lib/libc_r.so.3
 # ???
 OLD_LIBS+=usr/lib/libarchive.so.2
 OLD_LIBS+=usr/lib/libbsnmp.so.1
 OLD_LIBS+=usr/lib/libc_r.so.6
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libarchive.so.2
 OLD_LIBS+=usr/lib32/libc_r.so.6
-.endif
 OLD_LIBS+=usr/lib/libcipher.so.2
 OLD_LIBS+=usr/lib/libgssapi.so.6
 OLD_LIBS+=usr/lib/libkse.so.1
 OLD_LIBS+=usr/lib/liblwres.so.3
 OLD_LIBS+=usr/lib/pam_ftp.so.2
 
+# 20131013: Removal of the ATF tools
+OLD_DIRS+=etc/atf
+OLD_DIRS+=usr/share/examples/atf
+OLD_DIRS+=usr/share/xml/atf
+OLD_DIRS+=usr/share/xml
+OLD_DIRS+=usr/share/xsl/atf
+OLD_DIRS+=usr/share/xsl
 # 20040925: bind9 import
 OLD_DIRS+=usr/share/doc/bind/html
 OLD_DIRS+=usr/share/doc/bind/misc

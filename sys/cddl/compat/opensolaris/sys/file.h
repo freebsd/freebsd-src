@@ -31,26 +31,34 @@
 
 #include_next <sys/file.h>
 
+#define	FKIOCTL	0x80000000	/* ioctl addresses are from kernel */
+
 #ifdef _KERNEL
 typedef	struct file	file_t;
 
+#include <sys/capsicum.h>
+
 static __inline file_t *
-getf(int fd, int write)
+getf(int fd, cap_rights_t *rightsp)
 {
 	struct file *fp;
 
-	if (write && fget_write(curthread, fd, &fp) == 0)
-		return (fp);
-	else if (!write && fget_read(curthread, fd, &fp) == 0)
+	if (fget(curthread, fd, rightsp, &fp) == 0)
 		return (fp);
 	return (NULL);
 }
 
 static __inline void
-releasef(file_t *fp)
+releasef(int fd)
 {
+	struct file *fp;
+	cap_rights_t rights;
 
-	fdrop(fp, curthread);
+	/* No CAP_ rights required, as we're only releasing. */
+	if (fget(curthread, fd, cap_rights_init(&rights), &fp) == 0) {
+		fdrop(fp, curthread);
+		fdrop(fp, curthread);
+	}
 }
 #endif	/* _KERNEL */
 

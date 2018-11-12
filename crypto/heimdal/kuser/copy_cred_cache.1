@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004 Kungliga Tekniska Högskolan
+.\" Copyright (c) 2004 Kungliga Tekniska HÃ¶gskolan
 .\" (Royal Institute of Technology, Stockholm, Sweden).
 .\" All rights reserved.
 .\"
@@ -29,23 +29,22 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: copy_cred_cache.1 13783 2004-04-25 16:03:45Z joda $
+.\" $Id$
 .\"
 .Dd April 24, 2004
 .Dt COPY_CRED_CACHE 1
 .Os HEIMDAL
 .Sh NAME
 .Nm copy_cred_cache
-.Nd
-copy credentials from one cache to another
+.Nd copy credentials from one cache to another
 .Sh SYNOPSIS
 .Nm
-.Op Fl -krbtgt-only
-.Op Fl -service= Ns Ar principal
-.Op Fl -enctype= Ns Ar enctype
-.Op Fl -flags= Ns Ar ticketflags
-.Op Fl -valid-for= Ns Ar time
-.Op Fl -fcache-version= Ns Ar integer
+.Op Fl Fl krbtgt-only
+.Op Fl Fl service= Ns Ar principal
+.Op Fl Fl enctype= Ns Ar enctype
+.Op Fl Fl flags= Ns Ar ticketflags
+.Op Fl Fl valid-for= Ns Ar time
+.Op Fl Fl fcache-version= Ns Ar integer
 .Op Aq Ar from-cache
 .Aq Ar to-cache
 .Sh DESCRIPTION
@@ -57,20 +56,20 @@ copies credentials from
 .Pp
 Supported options:
 .Bl -tag -width Ds
-.It Fl -krbtgt-only
+.It Fl Fl krbtgt-only
 Copies only krbtgt credentials for the client's realm. This is
 equivalent to
-.Fl -service= Ns Li krbtgt/ Ns Ao Ar CLIENTREALM Ac Ns Li @ Ns Ao Ar CLIENTREALM Ac .
-.It Fl -service= Ns Ar principal
+.Fl Fl service= Ns Li krbtgt/ Ns Ao Ar CLIENTREALM Ac Ns Li @ Ns Ao Ar CLIENTREALM Ac .
+.It Fl Fl service= Ns Ar principal
 Copies only credentials matching this service principal.
-.It Fl -enctype= Ns Ar enctype
+.It Fl Fl enctype= Ns Ar enctype
 Copies only credentials a matching enctype.
-.It Fl -flags= Ns Ar ticketflags
+.It Fl Fl flags= Ns Ar ticketflags
 Copies only credentials with these ticket flags set.
-.It Fl -valid-for= Ns Ar time
+.It Fl Fl valid-for= Ns Ar time
 Copies only credentials that are valid for at least this long. This
 does not take renewable creds into account.
-.It Fl -fcache-version= Ns Ar integer
+.It Fl Fl fcache-version= Ns Ar integer
 The created cache, If a standard
 .Li FILE
 cache is created, it will have this file format version.
@@ -88,7 +87,7 @@ $ copy_cred_cache --valid-for=1d --flags=initial FILE:/some/cache
 .Sh DIAGNOSTICS
 The
 .Nm
-utility exits 0 on success, and \*[Gt]0 if an error occurs, or of no
+utility exits 0 on success, and \*[Gt]0 if an error occurs, or if no
 credentials where actually copied.
 .\".Sh SEE ALSO
 .\".Sh STANDARDS

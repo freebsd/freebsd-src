@@ -3,10 +3,7 @@
 PROG=	diskinfo
 MAN=	diskinfo.8
 
-WARNS?=	5
-
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
 .include <bsd.prog.mk>
 

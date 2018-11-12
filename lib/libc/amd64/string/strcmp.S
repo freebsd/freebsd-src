@@ -29,7 +29,7 @@ ENTRY(strcmp)
 	jmp	.Ldone
 
 	/*
-	 * Check whether s2 is aligned to a word boundry.  If it is, we
+	 * Check whether s2 is aligned to a word boundary.  If it is, we
 	 * can compare by words.  Otherwise we have to compare by bytes.
 	 */
 .Ls1aligned:
@@ -72,3 +72,5 @@ ENTRY(strcmp)
 	subq	%rdx,%rax
 	ret
 END(strcmp)
+
+	.section .note.GNU-stack,"",%progbits

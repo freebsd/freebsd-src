@@ -2,12 +2,14 @@
 
 .PATH:	${.CURDIR}/../../contrib/pf/pflogd
 
+PACKAGE=pf
 PROG=	pflogd
 SRCS= 	pflogd.c pidfile.c privsep.c privsep_fdpass.c
 MAN=	pflogd.8
 
-LDADD=	-lpcap -lutil
-DPADD=	${LIBPCAP} ${LIBUTIL}
+CFLAGS+=-include ${.CURDIR}/../../lib/libpcap/config.h
+
+LIBADD=	pcap
 
 WARNS?=	2
 

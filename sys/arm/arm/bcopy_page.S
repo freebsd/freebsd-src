@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #endif /* ! COPY_CHUNK */
 
 #ifndef SAVE_REGS
-#define	SAVE_REGS	stmfd	sp!, {r4-r8, lr}
+#define	SAVE_REGS	stmfd	sp!, {r4-r8, lr}; _SAVE({r4-r8, lr})
 #define	RESTORE_REGS	ldmfd	sp!, {r4-r8, pc}
 #endif
 
@@ -117,6 +117,7 @@ ENTRY(bcopy_page)
 	bne	1b
 
 	RESTORE_REGS		/* ...and return. */
+END(bcopy_page)
 
 /*
  * bzero_page(dest)
@@ -133,6 +134,7 @@ ENTRY(bcopy_page)
 
 ENTRY(bzero_page)
 	stmfd	sp!, {r4-r8, lr}
+	_SAVE({r4-r8, lr})
 #ifdef BIG_LOOPS
 	mov	r2, #(PAGE_SIZE >> 9)
 #else
@@ -178,6 +180,7 @@ ENTRY(bzero_page)
 	bne	1b
 
 	ldmfd	sp!, {r4-r8, pc}
+END(bzero_page)
 
 #else	/* _ARM_ARCH_5E */
 
@@ -187,6 +190,7 @@ ENTRY(bzero_page)
 ENTRY(bcopy_page)
 	pld	[r0]
 	stmfd	sp!, {r4, r5}
+	_SAVE({r4, r5})
 	mov	ip, #32
 	ldr	r2, [r0], #0x04		/* 0x00 */
 	ldr	r3, [r0], #0x04		/* 0x04 */
@@ -246,6 +250,7 @@ ENTRY(bcopy_page)
 	bgt	1b
 	ldmfd	sp!, {r4, r5}
 	RET
+END(bcopy_page)
 
 /*
  * armv5e version of bzero_page
@@ -273,4 +278,5 @@ ENTRY(bzero_page)
 	subs	r1, r1, #128
 	bne	1b
 	RET
+END(bzero_page)
 #endif	/* _ARM_ARCH_5E */

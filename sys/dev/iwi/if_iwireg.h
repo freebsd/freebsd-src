@@ -221,6 +221,7 @@ struct iwi_notif_association {
 /* structure for notification IWI_NOTIF_TYPE_SCAN_CHANNEL */
 struct iwi_notif_scan_channel {
 	uint8_t	nchan;
+	/* XXX this is iwi_cmd_stats, and a u8 reserved field */
 	uint8_t	reserved[47];
 } __packed;
 
@@ -237,6 +238,68 @@ struct iwi_notif_beacon_state {
 	uint32_t state;
 #define IWI_BEACON_MISS		1
 	uint32_t number;
+} __packed;
+
+/* structure(s) for notification IWI_NOTIF_TYPE_LINK_QUALITY */
+
+#define RX_FREE_BUFFERS 32
+#define RX_LOW_WATERMARK 8
+
+#define SUP_RATE_11A_MAX_NUM_CHANNELS  8
+#define SUP_RATE_11B_MAX_NUM_CHANNELS  4
+#define SUP_RATE_11G_MAX_NUM_CHANNELS  12
+
+// Used for passing to driver number of successes and failures per rate
+struct iwi_rate_histogram {
+        union {
+                uint32_t a[SUP_RATE_11A_MAX_NUM_CHANNELS];
+                uint32_t b[SUP_RATE_11B_MAX_NUM_CHANNELS];
+                uint32_t g[SUP_RATE_11G_MAX_NUM_CHANNELS];
+        } success;
+        union {
+                uint32_t a[SUP_RATE_11A_MAX_NUM_CHANNELS];
+                uint32_t b[SUP_RATE_11B_MAX_NUM_CHANNELS];
+                uint32_t g[SUP_RATE_11G_MAX_NUM_CHANNELS];
+        } failed;
+} __packed;
+
+/* statistics command response */
+struct iwi_cmd_stats {
+	uint8_t cmd_id;
+	uint8_t seq_num;
+	uint16_t good_sfd;
+	uint16_t bad_plcp;
+	uint16_t wrong_bssid;
+	uint16_t valid_mpdu;
+	uint16_t bad_mac_header;
+	uint16_t reserved_frame_types;
+	uint16_t rx_ina;
+	uint16_t bad_crc32;
+	uint16_t invalid_cts;
+	uint16_t invalid_acks;
+	uint16_t long_distance_ina_fina;
+	uint16_t dsp_silence_unreachable;
+	uint16_t accumulated_rssi;
+	uint16_t rx_ovfl_frame_tossed;
+	uint16_t rssi_silence_threshold;
+	uint16_t rx_ovfl_frame_supplied;
+	uint16_t last_rx_frame_signal;
+	uint16_t last_rx_frame_noise;
+	uint16_t rx_autodetec_no_ofdm;
+	uint16_t rx_autodetec_no_barker;
+	uint16_t reserved;
+} __packed;
+
+#define	SILENCE_OVER_THRESH		(1)
+#define	SILENCE_UNDER_THRESH		(2)
+
+struct iwi_notif_link_quality {
+	struct iwi_cmd_stats stats;
+	uint8_t rate;
+	uint8_t modulation;
+	struct iwi_rate_histogram histogram;
+	uint8_t silence_notification_type;   /* SILENCE_OVER/UNDER_THRESH */
+	uint16_t silence_count;
 } __packed;
 
 /* received frame header */
@@ -418,7 +481,7 @@ struct iwi_scan {
 #define IWI_SCAN_TYPES			5
 
 /* scan result codes */
-#define IWI_SCAN_COMPLETED		1 /* scan compeleted sucessfully */
+#define	IWI_SCAN_COMPLETED		1 /* scan compeleted successfully */
 #define IWI_SCAN_ABORTED		2 /* scan was aborted by the driver */
 
 /* structure for command IWI_CMD_SCAN_EXT */

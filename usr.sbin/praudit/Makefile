@@ -8,7 +8,8 @@ OPENBSMDIR=${.CURDIR}/../../contrib/openbsm
 PROG=	praudit
 MAN=	praudit.1
 
-DPADD=	${LIBBSM}
-LDADD=	-lbsm
+WARNS?=	3
+
+LIBADD=	bsm
 
 .include <bsd.prog.mk>

@@ -4,7 +4,6 @@
 PROG=	iostat
 MAN=	iostat.8
 
-DPADD=	${LIBDEVSTAT} ${LIBKVM} ${LIBM}
-LDADD=	-ldevstat -lkvm -lm
+LIBADD=	devstat kvm m
 
 .include <bsd.prog.mk>

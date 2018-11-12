@@ -1,12 +1,12 @@
 /*-
- * Test 0080:	Check uninitialized scratch memory (only for JIT compiler).
+ * Test 0080:	Check uninitialized scratch memory (obsolete).
  *
  * $FreeBSD$
  */
 
 /* BPF program */
 struct bpf_insn pc[] = {
-#ifdef BPF_JIT_COMPILER
+#ifdef BPF_JIT_COMPILER_OBSOLETE
 	BPF_STMT(BPF_LDX+BPF_IMM, 0xffffffff),
 	BPF_STMT(BPF_LD+BPF_MEM, 0),
 	BPF_JUMP(BPF_JMP+BPF_JSET+BPF_X, 0, 29, 0),

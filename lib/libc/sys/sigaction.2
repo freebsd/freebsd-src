@@ -28,7 +28,7 @@
 .\"	From: @(#)sigaction.2	8.2 (Berkeley) 4/3/94
 .\" $FreeBSD$
 .\"
-.Dd June 7, 2004
+.Dd September 30, 2016
 .Dt SIGACTION 2
 .Os
 .Sh NAME
@@ -40,16 +40,11 @@
 .In signal.h
 .Bd -literal
 struct  sigaction {
-        union {
-                void    (*__sa_handler)(int);
-                void    (*__sa_sigaction)(int, struct __siginfo *, void *);
-        } __sigaction_u;                /* signal handler */
+        void    (*sa_handler)(int);
+        void    (*sa_sigaction)(int, siginfo_t *, void *);
         int     sa_flags;               /* see signal options below */
         sigset_t sa_mask;               /* signal mask to apply */
 };
-
-#define	sa_handler	__sigaction_u.__sa_handler
-#define	sa_sigaction	__sigaction_u.__sa_sigaction
 .Ed
 .Ft int
 .Fo sigaction
@@ -60,7 +55,7 @@ struct  sigaction {
 .Sh DESCRIPTION
 The system defines a set of signals that may be delivered to a process.
 Signal delivery resembles the occurrence of a hardware interrupt:
-the signal is normally blocked from further occurrence, the current process
+the signal is normally blocked from further occurrence, the current thread
 context is saved, and a new one is built.
 A process may specify a
 .Em handler
@@ -69,13 +64,14 @@ to which a signal is delivered, or specify that a signal is to be
 A process may also specify that a default action is to be taken
 by the system when a signal occurs.
 A signal may also be
-.Em blocked ,
-in which case its delivery is postponed until it is
+.Em blocked
+for a thread,
+in which case it will not be delivered to that thread until it is
 .Em unblocked .
 The action to be taken on delivery is determined at the time
 of delivery.
 Normally, signal handlers execute on the current stack
-of the process.
+of the thread.
 This may be changed, on a per-handler basis,
 so that signals are taken on a special
 .Em "signal stack" .
@@ -87,20 +83,30 @@ but other signals may yet occur.
 A global
 .Em "signal mask"
 defines the set of signals currently blocked from delivery
-to a process.
-The signal mask for a process is initialized
+to a thread.
+The signal mask for a thread is initialized
 from that of its parent (normally empty).
 It may be changed with a
 .Xr sigprocmask 2
-call, or when a signal is delivered to the process.
+or
+.Xr pthread_sigmask 3
+call, or when a signal is delivered to the thread.
 .Pp
 When a signal
-condition arises for a process, the signal is added to a set of
-signals pending for the process.
-If the signal is not currently
+condition arises for a process or thread, the signal is added to a set of
+signals pending for the process or thread.
+Whether the signal is directed at the process in general or at a specific
+thread depends on how it is generated.
+For signals directed at a specific thread,
+if the signal is not currently
 .Em blocked
-by the process then it is delivered to the process.
-Signals may be delivered any time a process enters the operating system
+by the thread then it is delivered to the thread.
+For signals directed at the process,
+if the signal is not currently
+.Em blocked
+by all threads then it is delivered to one thread that does not have it blocked
+(the selection of which is unspecified).
+Signals may be delivered any time a thread enters the operating system
 (e.g., during a system call, page fault or trap, or clock interrupt).
 If multiple signals are ready to be delivered at the same time,
 any signals that could be caused by traps are delivered first.
@@ -111,17 +117,17 @@ The set of pending signals is returned by the
 .Xr sigpending 2
 system call.
 When a caught signal
-is delivered, the current state of the process is saved,
+is delivered, the current state of the thread is saved,
 a new signal mask is calculated (as described below),
 and the signal handler is invoked.
 The call to the handler
 is arranged so that if the signal handling routine returns
-normally the process will resume execution in the context
+normally the thread will resume execution in the context
 from before the signal's delivery.
-If the process wishes to resume in a different context, then it
+If the thread wishes to resume in a different context, then it
 must arrange to restore the previous context itself.
 .Pp
-When a signal is delivered to a process a new signal mask is
+When a signal is delivered to a thread a new signal mask is
 installed for the duration of the process' signal handler
 (or until a
 .Xr sigprocmask 2
@@ -147,6 +153,16 @@ If
 .Fa oact
 is non-zero, the previous handling information for the signal
 is returned to the user.
+.Pp
+The above declaration of
+.Vt "struct sigaction"
+is not literal.
+It is provided only to list the accessible members.
+See
+.In sys/signal.h
+for the actual definition.
+In particular, the storage occupied by sa_handler and sa_sigaction overlaps,
+and an application can not use both simultaneously.
 .Pp
 Once a signal handler is installed, it normally remains installed
 until another
@@ -213,7 +229,7 @@ to
 If this bit is set, the system will deliver the signal to the process
 on a
 .Em "signal stack" ,
-specified with
+specified by each thread with
 .Xr sigaltstack 2 .
 .It Dv SA_NODEFER
 If this bit is set, further occurrences of the delivered signal are
@@ -267,6 +283,11 @@ However, calls that have already committed are not restarted,
 but instead return a partial success (for example, a short read count).
 .Pp
 After a
+.Xr pthread_create 3
+the signal mask is inherited by the new thread and
+the set of pending signals and the signal stack for the new thread are empty.
+.Pp
+After a
 .Xr fork 2
 or
 .Xr vfork 2
@@ -286,46 +307,38 @@ The following is a list of all signals
 with names as in the include file
 .In signal.h :
 .Bl -column SIGVTALARMXX "create core imagexxx"
-.It Sy "NAME	Default Action	Description"
-.It Dv SIGHUP No "	terminate process" "	terminal line hangup"
-.It Dv SIGINT No "	terminate process" "	interrupt program"
-.It Dv SIGQUIT No "	create core image" "	quit program"
-.It Dv SIGILL No "	create core image" "	illegal instruction"
-.It Dv SIGTRAP No "	create core image" "	trace trap"
-.It Dv SIGABRT No "	create core image" Ta Xr abort 3
-call (formerly
-.Dv SIGIOT )
-.It Dv SIGEMT No "	create core image" "	emulate instruction executed"
-.It Dv SIGFPE No "	create core image" "	floating-point exception"
-.It Dv SIGKILL No "	terminate process" "	kill program"
-.It Dv SIGBUS No "	create core image" "	bus error"
-.It Dv SIGSEGV No "	create core image" "	segmentation violation"
-.It Dv SIGSYS No "	create core image" "	non-existent system call invoked"
-.It Dv SIGPIPE No "	terminate process" "	write on a pipe with no reader"
-.It Dv SIGALRM No "	terminate process" "	real-time timer expired"
-.It Dv SIGTERM No "	terminate process" "	software termination signal"
-.It Dv SIGURG No "	discard signal" "	urgent condition present on socket"
-.It Dv SIGSTOP No "	stop process" "	stop (cannot be caught or ignored)"
-.It Dv SIGTSTP No "	stop process" "	stop signal generated from keyboard"
-.It Dv SIGCONT No "	discard signal" "	continue after stop"
-.It Dv SIGCHLD No "	discard signal" "	child status has changed"
-.It Dv SIGTTIN No "	stop process" "	background read attempted from control terminal"
-.It Dv SIGTTOU No "	stop process" "	background write attempted to control terminal"
-.It Dv SIGIO No "	discard signal" Tn "	I/O"
-is possible on a descriptor (see
-.Xr fcntl 2 )
-.It Dv SIGXCPU No "	terminate process" "	cpu time limit exceeded (see"
-.Xr setrlimit 2 )
-.It Dv SIGXFSZ No "	terminate process" "	file size limit exceeded (see"
-.Xr setrlimit 2 )
-.It Dv SIGVTALRM No "	terminate process" "	virtual time alarm (see"
-.Xr setitimer 2 )
-.It Dv SIGPROF No "	terminate process" "	profiling timer alarm (see"
-.Xr setitimer 2 )
-.It Dv SIGWINCH No "	discard signal" "	Window size change"
-.It Dv SIGINFO No "	discard signal" "	status request from keyboard"
-.It Dv SIGUSR1 No "	terminate process" "	User defined signal 1"
-.It Dv SIGUSR2 No "	terminate process" "	User defined signal 2"
+.It Sy NAME Ta Sy Default Action Ta Sy Description
+.It Dv SIGHUP Ta terminate process Ta terminal line hangup
+.It Dv SIGINT Ta terminate process Ta interrupt program
+.It Dv SIGQUIT Ta create core image Ta quit program
+.It Dv SIGILL Ta create core image Ta illegal instruction
+.It Dv SIGTRAP Ta create core image Ta trace trap
+.It Dv SIGABRT Ta create core image Ta Xr abort 3 call (formerly Dv SIGIOT )
+.It Dv SIGEMT Ta create core image Ta emulate instruction executed
+.It Dv SIGFPE Ta create core image Ta floating-point exception
+.It Dv SIGKILL Ta terminate process Ta kill program
+.It Dv SIGBUS Ta create core image Ta bus error
+.It Dv SIGSEGV Ta create core image Ta segmentation violation
+.It Dv SIGSYS Ta create core image Ta non-existent system call invoked
+.It Dv SIGPIPE Ta terminate process Ta write on a pipe with no reader
+.It Dv SIGALRM Ta terminate process Ta real-time timer expired
+.It Dv SIGTERM Ta terminate process Ta software termination signal
+.It Dv SIGURG Ta discard signal Ta urgent condition present on socket
+.It Dv SIGSTOP Ta stop process Ta stop (cannot be caught or ignored)
+.It Dv SIGTSTP Ta stop process Ta stop signal generated from keyboard
+.It Dv SIGCONT Ta discard signal Ta continue after stop
+.It Dv SIGCHLD Ta discard signal Ta child status has changed
+.It Dv SIGTTIN Ta stop process Ta background read attempted from control terminal
+.It Dv SIGTTOU Ta stop process Ta background write attempted to control terminal
+.It Dv SIGIO Ta discard signal Ta I/O is possible on a descriptor (see Xr fcntl 2 )
+.It Dv SIGXCPU Ta terminate process Ta cpu time limit exceeded (see Xr setrlimit 2 )
+.It Dv SIGXFSZ Ta terminate process Ta file size limit exceeded (see Xr setrlimit 2 )
+.It Dv SIGVTALRM Ta terminate process Ta virtual time alarm (see Xr setitimer 2 )
+.It Dv SIGPROF Ta terminate process Ta profiling timer alarm (see Xr setitimer 2 )
+.It Dv SIGWINCH Ta discard signal Ta window size change
+.It Dv SIGINFO Ta discard signal Ta status request from keyboard
+.It Dv SIGUSR1 Ta terminate process Ta user defined signal 1
+.It Dv SIGUSR2 Ta terminate process Ta user defined signal 2
 .El
 .Sh NOTE
 The
@@ -341,13 +354,19 @@ Any attempt to do so will be silently ignored.
 The following functions are either reentrant or not interruptible
 by signals and are async-signal safe.
 Therefore applications may
-invoke them, without restriction, from signal-catching functions:
+invoke them, without restriction, from signal-catching functions
+or from a child process after calling
+.Xr fork 2
+in a multi-threaded process:
 .Pp
 Base Interfaces:
 .Pp
+.Fn _Exit ,
 .Fn _exit ,
+.Fn accept ,
 .Fn access ,
 .Fn alarm ,
+.Fn bind ,
 .Fn cfgetispeed ,
 .Fn cfgetospeed ,
 .Fn cfsetispeed ,
@@ -356,41 +375,76 @@ Base Interfaces:
 .Fn chmod ,
 .Fn chown ,
 .Fn close ,
+.Fn connect ,
 .Fn creat ,
 .Fn dup ,
 .Fn dup2 ,
+.Fn execl ,
 .Fn execle ,
+.Fn execv ,
 .Fn execve ,
+.Fn faccessat ,
+.Fn fchdir ,
+.Fn fchmod ,
+.Fn fchmodat ,
+.Fn fchown ,
+.Fn fchownat ,
 .Fn fcntl ,
 .Fn fork ,
-.Fn fpathconf ,
 .Fn fstat ,
+.Fn fstatat ,
 .Fn fsync ,
+.Fn ftruncate ,
 .Fn getegid ,
 .Fn geteuid ,
 .Fn getgid ,
 .Fn getgroups ,
+.Fn getpeername ,
 .Fn getpgrp ,
 .Fn getpid ,
 .Fn getppid ,
+.Fn getsockname ,
+.Fn getsockopt ,
 .Fn getuid ,
 .Fn kill ,
 .Fn link ,
+.Fn linkat ,
+.Fn listen ,
 .Fn lseek ,
+.Fn lstat ,
 .Fn mkdir ,
+.Fn mkdirat ,
 .Fn mkfifo ,
+.Fn mkfifoat ,
+.Fn mknod ,
+.Fn mknodat ,
 .Fn open ,
-.Fn pathconf ,
+.Fn openat ,
 .Fn pause ,
 .Fn pipe ,
+.Fn poll ,
+.Fn pselect ,
+.Fn pthread_sigmask ,
 .Fn raise ,
 .Fn read ,
+.Fn readlink ,
+.Fn readlinkat ,
+.Fn recv ,
+.Fn recvfrom ,
+.Fn recvmsg ,
 .Fn rename ,
+.Fn renameat ,
 .Fn rmdir ,
+.Fn select ,
+.Fn send ,
+.Fn sendmsg ,
+.Fn sendto ,
 .Fn setgid ,
 .Fn setpgid ,
 .Fn setsid ,
+.Fn setsockopt ,
 .Fn setuid ,
+.Fn shutdown ,
 .Fn sigaction ,
 .Fn sigaddset ,
 .Fn sigdelset ,
@@ -402,8 +456,12 @@ Base Interfaces:
 .Fn sigprocmask ,
 .Fn sigsuspend ,
 .Fn sleep ,
+.Fn sockatmark ,
+.Fn socket ,
+.Fn socketpair ,
 .Fn stat ,
-.Fn sysconf ,
+.Fn symlink ,
+.Fn symlinkat ,
 .Fn tcdrain ,
 .Fn tcflow ,
 .Fn tcflush ,
@@ -417,16 +475,22 @@ Base Interfaces:
 .Fn umask ,
 .Fn uname ,
 .Fn unlink ,
+.Fn unlinkat ,
 .Fn utime ,
 .Fn wait ,
 .Fn waitpid ,
 .Fn write .
 .Pp
+X/Open Systems Interfaces:
+.Pp
+.Fn sigpause ,
+.Fn sigset ,
+.Fn utimes .
+.Pp
 Realtime Interfaces:
 .Pp
 .Fn aio_error ,
 .Fn clock_gettime ,
-.Fn sigpause ,
 .Fn timer_getoverrun ,
 .Fn aio_return ,
 .Fn fdatasync ,
@@ -434,27 +498,98 @@ Realtime Interfaces:
 .Fn timer_gettime ,
 .Fn aio_suspend ,
 .Fn sem_post ,
-.Fn sigset ,
 .Fn timer_settime .
 .Pp
-.Tn ANSI C
-Interfaces:
+Base Interfaces not specified as async-signal safe by
+.Tn POSIX :
 .Pp
-.Fn strcpy ,
+.Fn fpathconf ,
+.Fn pathconf ,
+.Fn sysconf .
+.Pp
+Base Interfaces not specified as async-signal safe by
+.Tn POSIX ,
+but planned to be:
+.Pp
+.Fn ffs ,
+.Fn htonl ,
+.Fn htons ,
+.Fn memccpy ,
+.Fn memchr ,
+.Fn memcmp ,
+.Fn memcpy ,
+.Fn memmove ,
+.Fn memset ,
+.Fn ntohl ,
+.Fn ntohs ,
+.Fn stpcpy ,
+.Fn stpncpy ,
 .Fn strcat ,
-.Fn strncpy ,
+.Fn strchr ,
+.Fn strcmp ,
+.Fn strcpy ,
+.Fn strcspn ,
+.Fn strlen ,
 .Fn strncat ,
-and perhaps some others.
+.Fn strncmp ,
+.Fn strncpy ,
+.Fn strnlen ,
+.Fn strpbrk ,
+.Fn strrchr ,
+.Fn strspn ,
+.Fn strstr ,
+.Fn strtok_r ,
+.Fn wcpcpy ,
+.Fn wcpncpy ,
+.Fn wcscat ,
+.Fn wcschr ,
+.Fn wcscmp ,
+.Fn wcscpy ,
+.Fn wcscspn ,
+.Fn wcslen ,
+.Fn wcsncat ,
+.Fn wcsncmp ,
+.Fn wcsncpy ,
+.Fn wcsnlen ,
+.Fn wcspbrk ,
+.Fn wcsrchr ,
+.Fn wcsspn ,
+.Fn wcsstr ,
+.Fn wcstok ,
+.Fn wmemchr ,
+.Fn wmemcmp ,
+.Fn wmemcpy ,
+.Fn wmemmove ,
+.Fn wmemset .
 .Pp
 Extension Interfaces:
 .Pp
-.Fn strlcpy ,
+.Fn accept4 ,
+.Fn bindat ,
+.Fn closefrom ,
+.Fn connectat ,
+.Fn eaccess ,
+.Fn ffsl ,
+.Fn ffsll ,
+.Fn flock ,
+.Fn fls ,
+.Fn flsl ,
+.Fn flsll ,
+.Fn futimesat ,
+.Fn pipe2 ,
 .Fn strlcat .
+.Fn strlcpy ,
+.Fn strsep .
+.Pp
+In addition, reading or writing
+.Va errno
+is async-signal safe.
 .Pp
 All functions not in the above lists are considered to be unsafe
 with respect to signals.
 That is to say, the behaviour of such
-functions when called from a signal handler is undefined.
+functions is undefined when they are called from a signal handler
+that interrupted an unsafe function.
 In general though, signal handlers should do little more than set a
 flag; most other actions are not safe.
 .Pp
@@ -581,13 +716,6 @@ system call
 will fail and no new signal handler will be installed if one
 of the following occurs:
 .Bl -tag -width Er
-.It Bq Er EFAULT
-Either
-.Fa act
-or
-.Fa oact
-points to memory that is not a valid part of the process
-address space.
 .It Bq Er EINVAL
 The
 .Fa sig
@@ -603,14 +731,12 @@ or
 .Xr kill 1 ,
 .Xr kill 2 ,
 .Xr ptrace 2 ,
+.Xr setitimer 2 ,
+.Xr setrlimit 2 ,
 .Xr sigaltstack 2 ,
-.Xr sigblock 2 ,
-.Xr sigpause 2 ,
 .Xr sigpending 2 ,
 .Xr sigprocmask 2 ,
-.Xr sigsetmask 2 ,
 .Xr sigsuspend 2 ,
-.Xr sigvec 2 ,
 .Xr wait 2 ,
 .Xr fpsetmask 3 ,
 .Xr setjmp 3 ,

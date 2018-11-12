@@ -64,21 +64,15 @@
 #endif
 
 /*
- * The time for a process to be blocked before being very swappable.
- * This is a number of seconds which the system takes as being a non-trivial
- * amount of real time.  You probably shouldn't change this;
- * it is used in subtle ways (fractions and multiples of it are, that is, like
- * half of a ``long time'', almost a long time, etc.)
- * It is related to human patience and other factors which don't really
- * change over time.
+ * Choose between DENSE and SPARSE based on whether lower execution time or
+ * lower kernel address space consumption is desired.  Under PAE, kernel
+ * address space is often in short supply.
  */
-#define	MAXSLP 		20
-
-
-/*
- * The physical address space is densely populated.
- */
+#ifdef PAE
+#define	VM_PHYSSEG_SPARSE
+#else
 #define	VM_PHYSSEG_DENSE
+#endif
 
 /*
  * The number of PHYSSEG entries must be one greater than the number
@@ -89,13 +83,12 @@
 #define	VM_PHYSSEG_MAX		17
 
 /*
- * Create two free page pools.  Since the i386 kernel virtual address
+ * Create one free page pool.  Since the i386 kernel virtual address
  * space does not include a mapping onto the machine's entire physical
  * memory, VM_FREEPOOL_DIRECT is defined as an alias for the default
  * pool, VM_FREEPOOL_DEFAULT.
  */
-#define	VM_NFREEPOOL		2
-#define	VM_FREEPOOL_CACHE	1
+#define	VM_NFREEPOOL		1
 #define	VM_FREEPOOL_DEFAULT	0
 #define	VM_FREEPOOL_DIRECT	0
 
@@ -126,11 +119,11 @@
 #endif
 
 /*
- * Level 0 reservations consist of 512 pages under PAE and 1024 pages
- * otherwise.
+ * Level 0 reservations consist of 512 pages when PAE pagetables are
+ * used, and 1024 pages otherwise.
  */
 #ifndef	VM_LEVEL_0_ORDER
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 #define	VM_LEVEL_0_ORDER	9
 #else
 #define	VM_LEVEL_0_ORDER	10
@@ -141,11 +134,7 @@
  * Kernel physical load address.
  */
 #ifndef KERNLOAD
-#if defined(XEN) && !defined(XEN_PRIVILEGED_GUEST)
-#define	KERNLOAD		0
-#else
 #define	KERNLOAD		(1 << PDRSHIFT)
-#endif
 #endif /* !defined(KERNLOAD) */
 
 /*
@@ -155,11 +144,7 @@
  * messy at times, but hey, we'll do anything to save a page :-)
  */
 
-#ifdef XEN
-#define VM_MAX_KERNEL_ADDRESS	HYPERVISOR_VIRT_START
-#else
 #define VM_MAX_KERNEL_ADDRESS	VADDR(KPTDI+NKPDE-1, NPTEPG-1)
-#endif
 
 #define VM_MIN_KERNEL_ADDRESS	VADDR(PTDPTDI, PTDPTDI)
 
@@ -170,36 +155,49 @@
 
 #define VM_MAXUSER_ADDRESS	VADDR(PTDPTDI, 0)
 
-#define USRSTACK		VM_MAXUSER_ADDRESS
+#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+#define	USRSTACK		SHAREDPAGE
 
 #define VM_MAX_ADDRESS		VADDR(PTDPTDI, PTDPTDI)
 #define VM_MIN_ADDRESS		((vm_offset_t)0)
 
-/* virtual sizes (bytes) for various kernel submaps */
-#ifndef VM_KMEM_SIZE
-#define VM_KMEM_SIZE		(12 * 1024 * 1024)
-#endif
-
 /*
- * How many physical pages per KVA page allocated.
- * min(max(max(VM_KMEM_SIZE, Physical memory/VM_KMEM_SIZE_SCALE),
- *     VM_KMEM_SIZE_MIN), VM_KMEM_SIZE_MAX)
- * is the total KVA space allocated for kmem_map.
+ * How many physical pages per kmem arena virtual page.
  */
 #ifndef VM_KMEM_SIZE_SCALE
 #define	VM_KMEM_SIZE_SCALE	(3)
 #endif
 
 /*
- * Ceiling on amount of kmem_map kva space.
+ * Optional floor (in bytes) on the size of the kmem arena.
+ */
+#ifndef VM_KMEM_SIZE_MIN
+#define	VM_KMEM_SIZE_MIN	(12 * 1024 * 1024)
+#endif
+
+/*
+ * Optional ceiling (in bytes) on the size of the kmem arena: 40% of the
+ * kernel map rounded to the nearest multiple of the superpage size.
  */
 #ifndef VM_KMEM_SIZE_MAX
-#define	VM_KMEM_SIZE_MAX	(320 * 1024 * 1024)
+#define	VM_KMEM_SIZE_MAX	(((((VM_MAX_KERNEL_ADDRESS - \
+    VM_MIN_KERNEL_ADDRESS) >> (PDRSHIFT - 2)) + 5) / 10) << PDRSHIFT)
 #endif
 
 /* initial pagein size of beginning of executable file */
 #ifndef VM_INITIAL_PAGEIN
 #define	VM_INITIAL_PAGEIN	16
 #endif
+
+#define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
+
+#ifndef VM_MAX_AUTOTUNE_MAXUSERS
+#define VM_MAX_AUTOTUNE_MAXUSERS 384
+#endif
+
+#define	SFBUF
+#define	SFBUF_MAP
+#define	SFBUF_CPUSET
+#define	SFBUF_PROCESS_PAGE
 
 #endif /* _MACHINE_VMPARAM_H_ */

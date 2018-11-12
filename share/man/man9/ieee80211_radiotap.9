@@ -61,7 +61,7 @@ The
 .Nm net80211
 layer used by 802.11 drivers includes support for a device-independent
 packet capture format called
-.Nm radiotap 
+.Nm radiotap
 that is understood by tools such as
 .Xr tcpdump 1 .
 This facility is designed for capturing 802.11 traffic,
@@ -104,7 +104,6 @@ this is checked with one of
 and
 .Fn ieee80211_radiotap_active .
 In the transmit path capture work looks like this:
-.Pp
 .Bd -literal -offset indent
 if (ieee80211_radiotap_active_vap(vap)) {
 	... /* record transmit state */
@@ -115,7 +114,6 @@ if (ieee80211_radiotap_active_vap(vap)) {
 While in the receive path capture is handled in
 .Nm net80211
 but state must be captured before dispatching a frame:
-.Pp
 .Bd -literal -offset indent
 if (ieee80211_radiotap_active(ic)) {
 	... /* record receive state */
@@ -259,13 +257,12 @@ struct wi_rx_radiotap_header {
         uint16_t       wr_chan_flags;
         uint8_t        wr_antsignal;
         uint8_t        wr_antnoise;
-} __packed; 
+} __packed;
 .Ed
 .Pp
 and transmit definitions for the Atheros driver:
 .Bd -literal -offset indent
 #define ATH_TX_RADIOTAP_PRESENT (               \\
-        (1 << IEEE80211_RADIOTAP_TSFT)          | \\
         (1 << IEEE80211_RADIOTAP_FLAGS)         | \\
         (1 << IEEE80211_RADIOTAP_RATE)          | \\
         (1 << IEEE80211_RADIOTAP_DBM_TX_POWER)  | \\
@@ -275,7 +272,6 @@ and transmit definitions for the Atheros driver:
 
 struct ath_tx_radiotap_header {
         struct ieee80211_radiotap_header wt_ihdr;
-        uint64_t       wt_tsf;
         uint8_t        wt_flags;
         uint8_t        wt_rate;
         uint8_t        wt_txpower;
@@ -299,6 +295,6 @@ definitions first appeared in
 .Sh AUTHORS
 .An -nosplit
 The original version of this manual page was written by
-.An Bruce M. Simpson Aq bms@FreeBSD.org
+.An Bruce M. Simpson Aq Mt bms@FreeBSD.org
 and
-.An Darron Broad Aq darron@kewl.org .
+.An Darron Broad Aq Mt darron@kewl.org .

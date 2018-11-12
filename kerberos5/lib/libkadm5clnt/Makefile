@@ -1,10 +1,13 @@
 # $FreeBSD$
 
 LIB=	kadm5clnt
+LDFLAGS=	-Wl,--no-undefined
+LIBADD=	com_err krb5 roken
 
 INCS=	admin.h \
 	kadm5-private.h \
 	kadm5-protos.h \
+	kadm5-pwcheck.h \
 	kadm5_err.h \
 	private.h
 

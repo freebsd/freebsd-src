@@ -44,6 +44,7 @@
 #include <sys/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
@@ -72,10 +73,11 @@ static device_method_t truephy_methods[] = {
 	DEVMETHOD(device_attach,	truephy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static const struct mii_phydesc truephys[] = {
+	MII_PHY_DESC(AGERE,	ET1011),
 	MII_PHY_DESC(AGERE,	ET1011C),
 	MII_PHY_END
 };
@@ -89,6 +91,12 @@ static driver_t truephy_driver = {
 };
 
 DRIVER_MODULE(truephy, miibus, truephy_driver, truephy_devclass, 0, 0);
+
+static const struct mii_phy_funcs truephy_funcs = {
+	truephy_service,
+	truephy_status,
+	truephy_reset
+};
 
 static const struct truephy_dsp {
 	uint16_t	index;
@@ -139,31 +147,15 @@ static int
 truephy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct mii_attach_args *ma;
-	struct mii_data *mii;
 
 	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
 
-	sc->mii_phy = ma->mii_phyno;
-	if (sc->mii_anegticks == 0)
-		sc->mii_anegticks = MII_ANEGTICKS;
-	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
+	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
+	   &truephy_funcs, 0);
 
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = truephy_service;
-	sc->mii_pdata = mii;
+	PHY_RESET(sc);
 
-	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
-
-	mii->mii_instance++;
-
-	truephy_reset(sc);
-
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & sc->mii_capmask;
 	if (sc->mii_capabilities & BMSR_EXTSTAT) {
 		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 		/* No 1000baseT half-duplex support */
@@ -171,15 +163,11 @@ truephy_attach(device_t dev)
 	}
 
 	device_printf(dev, " ");
-	if ((sc->mii_capabilities & BMSR_MEDIAMASK) == 0 &&
-	    (sc->mii_extcapabilities & EXTSR_MEDIAMASK) == 0)
-		printf("no media present");
-	else
-		mii_phy_add_media(sc);
+	mii_phy_add_media(sc);
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return 0;
+	return (0);
 }
 
 static int
@@ -190,30 +178,9 @@ truephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return 0;
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			bmcr = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, bmcr | BMCR_ISO);
-			return 0;
-		}
-
-		/*
-		 * If the interface is not up, don't do anything.
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			break;
-
 		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
 			bmcr = PHY_READ(sc, MII_BMCR) & ~BMCR_AUTOEN;
 			PHY_WRITE(sc, MII_BMCR, bmcr);
@@ -228,35 +195,34 @@ truephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 			if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
 				PHY_WRITE(sc, MII_BMCR,
-					  bmcr | BMCR_AUTOEN | BMCR_STARTNEG);
+				    bmcr | BMCR_AUTOEN | BMCR_STARTNEG);
 			}
 		}
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return 0;
-
 		if (mii_phy_tick(sc) == EJUSTRETURN)
-			return 0;
+			return (0);
 		break;
 	}
 
 	/* Update the media status. */
-	truephy_status(sc);
+	PHY_STATUS(sc);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
-	return 0;
+	return (0);
 }
 
 static void
 truephy_reset(struct mii_softc *sc)
 {
 	int i;
+
+	if (sc->mii_mpd_model == MII_MODEL_AGERE_ET1011) {
+		mii_phy_reset(sc);
+		return;
+	}
 
 	for (i = 0; i < 2; ++i) {
 		PHY_READ(sc, MII_PHYIDR1);
@@ -278,9 +244,7 @@ truephy_reset(struct mii_softc *sc)
 	PHY_WRITE(sc, TRUEPHY_CTRL,
 		  TRUEPHY_CTRL_DIAG | TRUEPHY_CTRL_RSV1 | TRUEPHY_CTRL_RSV0);
 
-#define N(arr)	(int)(sizeof(arr) / sizeof(arr[0]))
-
-	for (i = 0; i < N(truephy_dspcode); ++i) {
+	for (i = 0; i < nitems(truephy_dspcode); ++i) {
 		const struct truephy_dsp *dsp = &truephy_dspcode[i];
 
 		PHY_WRITE(sc, TRUEPHY_INDEX, dsp->index);
@@ -290,8 +254,6 @@ truephy_reset(struct mii_softc *sc)
 		PHY_READ(sc, TRUEPHY_DATA);
 	}
 
-#undef N
-
 	PHY_READ(sc, MII_BMCR);
 	PHY_READ(sc, TRUEPHY_CTRL);
 	PHY_WRITE(sc, MII_BMCR, BMCR_AUTOEN |  BMCR_S1000);
@@ -299,7 +261,7 @@ truephy_reset(struct mii_softc *sc)
 
 	mii_phy_reset(sc);
 
-	if (TRUEPHY_FRAMELEN(sc->mii_pdata->mii_ifp->if_mtu) > 2048) {
+	if (TRUEPHY_FRAMELEN((if_getmtu(sc->mii_pdata->mii_ifp)) > 2048)) {
 		int conf;
 
 		conf = PHY_READ(sc, TRUEPHY_CONF);
@@ -350,7 +312,7 @@ truephy_status(struct mii_softc *sc)
 	}
 
 	if (sr & TRUEPHY_SR_FDX)
-		mii->mii_media_active |= IFM_FDX;
+		mii->mii_media_active |= IFM_FDX | mii_phy_flowstatus(sc);
 	else
 		mii->mii_media_active |= IFM_HDX;
 }

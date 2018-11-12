@@ -108,7 +108,6 @@ struct ath_hal_5210 {
 	uint32_t	ah_txDescInterruptMask;
 	uint32_t	ah_txEolInterruptMask;
 	uint32_t	ah_txUrnInterruptMask;
-	HAL_POWER_MODE	ah_powerMode;
 	uint8_t		ah_bssid[IEEE80211_ADDR_LEN];
 	HAL_TX_QUEUE_INFO ah_txq[HAL_NUM_TX_QUEUES]; /* beacon+cab+data */
 	/*
@@ -121,6 +120,8 @@ struct ath_hal_5210 {
 	u_int		ah_slottime;		/* user-specified slot time */
 	u_int		ah_acktimeout;		/* user-specified ack timeout */
 	u_int		ah_ctstimeout;		/* user-specified cts timeout */
+
+	uint16_t	ah_associd;		/* association id */
 };
 #define	AH5210(ah)	((struct ath_hal_5210 *)(ah))
 
@@ -128,7 +129,8 @@ struct ath_hal;
 
 extern	void ar5210Detach(struct ath_hal *ah);
 extern	HAL_BOOL ar5210Reset(struct ath_hal *, HAL_OPMODE,
-		struct ieee80211_channel *, HAL_BOOL bChannelChange, HAL_STATUS *);
+		struct ieee80211_channel *, HAL_BOOL bChannelChange,
+		HAL_RESET_TYPE, HAL_STATUS *);
 extern	void ar5210SetPCUConfig(struct ath_hal *);
 extern	HAL_BOOL ar5210PhyDisable(struct ath_hal *);
 extern	HAL_BOOL ar5210Disable(struct ath_hal *);
@@ -171,15 +173,24 @@ extern	HAL_BOOL ar5210SetupXTxDesc(struct ath_hal *, struct ath_desc *,
 		u_int txRate2, u_int txRetries2,
 		u_int txRate3, u_int txRetries3);
 extern	HAL_BOOL ar5210FillTxDesc(struct ath_hal *, struct ath_desc *,
-		u_int segLen, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
+		HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList,
+		u_int descId, u_int qcuId, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
 		const struct ath_desc *ds0);
 extern	HAL_STATUS ar5210ProcTxDesc(struct ath_hal *,
 		struct ath_desc *, struct ath_tx_status *);
 extern  void ar5210GetTxIntrQueue(struct ath_hal *ah, uint32_t *);
 extern  void ar5210IntrReqTxDesc(struct ath_hal *ah, struct ath_desc *);
+extern	HAL_BOOL ar5210GetTxCompletionRates(struct ath_hal *ah,
+		const struct ath_desc *, int *rates, int *tries);
+extern	void ar5210SetTxDescLink(struct ath_hal *ah, void *ds,
+		uint32_t link);
+extern	void ar5210GetTxDescLink(struct ath_hal *ah, void *ds,
+		uint32_t *link);
+extern	void ar5210GetTxDescLinkPtr(struct ath_hal *ah, void *ds,
+		uint32_t **linkptr);
 
-extern	uint32_t ar5210GetRxDP(struct ath_hal *);
-extern	void ar5210SetRxDP(struct ath_hal *, uint32_t rxdp);
+extern	uint32_t ar5210GetRxDP(struct ath_hal *, HAL_RX_QUEUE);
+extern	void ar5210SetRxDP(struct ath_hal *, uint32_t rxdp, HAL_RX_QUEUE);
 extern	void ar5210EnableReceive(struct ath_hal *);
 extern	HAL_BOOL ar5210StopDmaReceive(struct ath_hal *);
 extern	void ar5210StartPcuReceive(struct ath_hal *);
@@ -247,6 +258,13 @@ extern	HAL_BOOL ar5210SetCapability(struct ath_hal *, HAL_CAPABILITY_TYPE,
 extern	HAL_BOOL ar5210GetDiagState(struct ath_hal *ah, int request,
 		const void *args, uint32_t argsize,
 		void **result, uint32_t *resultsize);
+extern	uint32_t ar5210Get11nExtBusy(struct ath_hal *);
+extern	HAL_BOOL ar5210GetMibCycleCounts(struct ath_hal *,
+		HAL_SURVEY_SAMPLE *);
+extern	void ar5210SetChainMasks(struct ath_hal *, uint32_t, uint32_t);
+extern	void ar5210EnableDfs(struct ath_hal *, HAL_PHYERR_PARAM *);
+extern	void ar5210GetDfsThresh(struct ath_hal *, HAL_PHYERR_PARAM *);
+extern	void ar5210UpdateDiagReg(struct ath_hal *ah, uint32_t val);
 
 extern	u_int ar5210GetKeyCacheSize(struct ath_hal *);
 extern	HAL_BOOL ar5210IsKeyCacheEntryValid(struct ath_hal *, uint16_t);
@@ -266,6 +284,7 @@ extern	void ar5210BeaconInit(struct ath_hal *, uint32_t, uint32_t);
 extern	void ar5210SetStaBeaconTimers(struct ath_hal *,
 		const HAL_BEACON_STATE *);
 extern	void ar5210ResetStaBeaconTimers(struct ath_hal *);
+extern	uint64_t ar5210GetNextTBTT(struct ath_hal *);
 
 extern	HAL_BOOL ar5210IsInterruptPending(struct ath_hal *);
 extern	HAL_BOOL ar5210GetPendingInterrupts(struct ath_hal *, HAL_INT *);
@@ -275,7 +294,8 @@ extern	HAL_INT ar5210SetInterrupts(struct ath_hal *, HAL_INT ints);
 extern	const HAL_RATE_TABLE *ar5210GetRateTable(struct ath_hal *, u_int mode);
 
 extern	HAL_BOOL ar5210AniControl(struct ath_hal *, HAL_ANI_CMD, int );
-extern	void ar5210AniPoll(struct ath_hal *, const HAL_NODE_STATS *,
+extern	void ar5210AniPoll(struct ath_hal *, const struct ieee80211_channel *);
+extern	void ar5210RxMonitor(struct ath_hal *, const HAL_NODE_STATS *,
 		const struct ieee80211_channel *);
 extern	void ar5210MibEvent(struct ath_hal *, const HAL_NODE_STATS *);
 #endif /* _ATH_AR5210_H_ */

@@ -4,24 +4,31 @@
 #
 
 # PROVIDE: hostid_save
-# REQUIRE: root
-# BEFORE: mountcritlocal
+# REQUIRE: hostid root
 # KEYWORD: nojail
 
 . /etc/rc.subr
 
 name="hostid_save"
+desc="Save unique host ID to disk"
 start_cmd="hostid_save"
 stop_cmd=":"
 rcvar="hostid_enable"
 
 hostid_save()
 {
-	if [ ! -r ${hostid_file} ]; then
-		$SYSCTL_N kern.hostuuid > ${hostid_file}
-		if [ $? -ne 0 ]; then
-			warn "could not store hostuuid in ${hostid_file}."
+	current_hostid=`$SYSCTL_N kern.hostuuid`
+
+	if [ -r ${hostid_file} ]; then
+		read saved_hostid < ${hostid_file}
+		if [ ${saved_hostid} = ${current_hostid} ]; then
+			exit 0
 		fi
+	fi
+
+	echo ${current_hostid} > ${hostid_file}
+	if [ $? -ne 0 ]; then
+		warn "could not store hostuuid in ${hostid_file}."
 	fi
 }
 

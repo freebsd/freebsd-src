@@ -48,14 +48,12 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
-#include <stdlib.h>
 #include "pax.h"
 #include "extern.h"
 
 static void wr_archive(ARCHD *, int is_app);
 static int get_arc(void);
 static int next_head(ARCHD *);
-extern sigset_t s_mask;
 
 /*
  * Routines which control the overall operation modes of pax as specified by
@@ -854,7 +852,7 @@ copy(void)
 		}
 
 		/*
-		 * Non standard -Y and -Z flag. When the exisiting file is
+		 * Non standard -Y and -Z flag. When the existing file is
 		 * same age or newer skip
 		 */
 		if ((Yflag || Zflag) && ((lstat(arcn->name, &sb) == 0))) {
@@ -1096,7 +1094,7 @@ next_head(ARCHD *arcn)
 	}
 
 	/*
-	 * ok got a valid header, check for trailer if format encodes it in the
+	 * ok got a valid header, check for trailer if format encodes it in
 	 * the header.
 	 */
 	if (frmt->inhead && ((*frmt->trail_cpio)(arcn) == 0)) {

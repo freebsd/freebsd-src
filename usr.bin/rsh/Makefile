@@ -4,8 +4,9 @@
 PROG=	rsh
 CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
 
+PACKAGE=rcmds
+
 BINOWN=	root
 BINMODE=4555
-PRECIOUSPROG=
 
 .include <bsd.prog.mk>

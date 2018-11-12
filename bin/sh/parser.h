@@ -34,15 +34,16 @@
  */
 
 /* control characters in argument strings */
-#define CTLESC '\201'
-#define CTLVAR '\202'
-#define CTLENDVAR '\203'
-#define CTLBACKQ '\204'
+#define CTLESC '\300'
+#define CTLVAR '\301'
+#define CTLENDVAR '\371'
+#define CTLBACKQ '\372'
 #define CTLQUOTE 01		/* ored with CTLBACKQ code if in quotes */
-/*	CTLBACKQ | CTLQUOTE == '\205' */
-#define	CTLARI	'\206'
-#define	CTLENDARI '\207'
-#define	CTLQUOTEMARK '\210'
+/*	CTLBACKQ | CTLQUOTE == '\373' */
+#define	CTLARI	'\374'
+#define	CTLENDARI '\375'
+#define	CTLQUOTEMARK '\376'
+#define	CTLQUOTEEND '\377' /* only for ${v+-...} */
 
 /* variable substitution byte (follows CTLVAR) */
 #define VSTYPE		0x0f	/* type of variable substitution */
@@ -67,15 +68,18 @@
 
 /*
  * NEOF is returned by parsecmd when it encounters an end of file.  It
- * must be distinct from NULL, so we use the address of a variable that
- * happens to be handy.
+ * must be distinct from NULL.
  */
-extern int tokpushback;
-#define NEOF ((union node *)&tokpushback)
+#define NEOF ((union node *)-1)
 extern int whichprompt;		/* 1 == PS1, 2 == PS2 */
+extern const char *const parsekwd[];
 
 
 union node *parsecmd(int);
+union node *parsewordexp(void);
+void forcealias(void);
 void fixredir(union node *, const char *, int);
-int goodname(char *);
+int goodname(const char *);
+int isassignment(const char *);
 char *getprompt(void *);
+const char *expandstr(const char *);

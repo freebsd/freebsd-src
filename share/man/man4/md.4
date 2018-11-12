@@ -1,6 +1,6 @@
 .\" ----------------------------------------------------------------------------
 .\" "THE BEER-WARE LICENSE" (Revision 42):
-.\" <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
+.\" <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you
 .\" can do whatever you want with this stuff. If we meet some day, and you think
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
@@ -76,14 +76,12 @@ The image in
 .Pa /h/foo/ARM-MD
 will be loaded as the initial image each boot.
 To create the image to use, please follow the steps to create a file-backed
-disk found in the 
+disk found in the
 .Xr mdconfig 8
 man page.
 Other tools will also create these images, such as NanoBSD.
 .Sh SEE ALSO
-.Xr disklabel 5 ,
-.Xr disklabel 8 ,
-.Xr fdisk 8 ,
+.Xr gpart 8 ,
 .Xr loader 8 ,
 .Xr mdconfig 8 ,
 .Xr mdmfs 8 ,
@@ -111,5 +109,4 @@ driver in
 The
 .Nm
 driver was written by
-.An Poul-Henning Kamp
-.Aq phk@FreeBSD.org .
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .

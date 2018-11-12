@@ -192,10 +192,10 @@ ipsd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 
 	dp = arg;
 	dsc = dp->d_drv1;
-	sc = dsc->sc;
 
 	if (dsc == NULL)
 		return (EINVAL);
+	sc = dsc->sc;
 
 	if (ips_get_free_cmd(sc, &command, 0) != 0) {
 		printf("ipsd: failed to get cmd for dump\n");

@@ -3321,7 +3321,6 @@ __hal_update_bimodal(xge_hal_device_t *hldev, int ring_no)
 	iwl_txcnt = (hldev->irq_workload_txcnt[ring_no] ?
 	                 hldev->irq_workload_txcnt[ring_no] : 1);
 	iwl_cnt = iwl_rxcnt + iwl_txcnt;
-	iwl_cnt = iwl_cnt; /* just to remove the lint warning */
 
 	/*
 	 * we need to take hldev->config.isr_polling_cnt into account
@@ -4418,7 +4417,7 @@ xge_hal_device_status(xge_hal_device_t *hldev, u64 *hw_status)
 #ifndef XGE_HAL_HERC_EMULATION
 	/*
 	 * Andrew: in PCI 33 mode, the P_PLL is not used, and therefore,
-	 * the the P_PLL_LOCK bit in the adapter_status register will
+	 * the P_PLL_LOCK bit in the adapter_status register will
 	 * not be asserted.
 	 */
 	if (!(tmp64 & XGE_HAL_ADAPTER_STATUS_P_PLL_LOCK) &&
@@ -5571,7 +5570,7 @@ __hal_device_get_vpd_data(xge_hal_device_t *hldev)
 	xge_os_strcpy((char *) hldev->vpd_data.serial_num, "not available");
 
 	vpd_data = ( u8*) xge_os_malloc(hldev->pdev, XGE_HAL_VPD_BUFFER_SIZE + 16);
-	if ( vpd_data == 0 )
+	if ( vpd_data == NULL )
 	    return;
 
 	for (index = 0; index < XGE_HAL_VPD_BUFFER_SIZE; index +=4 ) {
@@ -6793,7 +6792,7 @@ _again:
 	} else {
 	    /*
 	     * Logging Error messages in the excess temperature,
-	     * Bias current, laser ouput for three cycle
+	     * Bias current, laser output for three cycle
 	     */
 	    __hal_updt_stats_xpak(hldev);
 	    hldev->stats.sw_dev_err_stats.xpak_counter.tick_period = 0;

@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -103,13 +96,5 @@ typedef struct {
 /* used by signal delivery to indicate status of signal stack */
 #define _UC_SETSTACK	0x00020000
 #define _UC_CLRSTACK	0x00040000
-
-#define _UC_MACHINE_PAD	3		/* Padding appended to ucontext_t */
-
-#define _UC_MACHINE_SP(uc)	((uc)->uc_mcontext.__gregs[_REG_SP])
-#define _UC_MACHINE_PC(uc)	((uc)->uc_mcontext.__gregs[_REG_PC])
-#define _UC_MACHINE_INTRV(uc)	((uc)->uc_mcontext.__gregs[_REG_R0])
-
-#define	_UC_MACHINE_SET_PC(uc, pc)	_UC_MACHINE_PC(uc) = (pc)
 
 #endif	/* !_MACHINE_MCONTEXT_H_ */

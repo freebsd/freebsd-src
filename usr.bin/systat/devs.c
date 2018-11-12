@@ -37,10 +37,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -109,7 +105,7 @@ dsinit(int maxshowdevs, struct statinfo *s1, struct statinfo *s2 __unused,
 
 	/*
 	 * Make sure that the userland devstat version matches the kernel
-	 * devstat version.  If not, exit and print a message informing 
+	 * devstat version.  If not, exit and print a message informing
 	 * the user of his mistake.
 	 */
 	if (devstat_checkversion(NULL) < 0)
@@ -159,10 +155,10 @@ dscmd(const char *cmd, const char *args, int maxshowdevs, struct statinfo *s1)
 	if (prefix(cmd, "refresh")) {
 		retval = devstat_selectdevs(&dev_select, &num_selected,
 		    &num_selections, &select_generation, generation,
-		    s1->dinfo->devices, num_devices, 
+		    s1->dinfo->devices, num_devices,
 		    (last_type ==DS_MATCHTYPE_PATTERN) ?  matches : NULL,
 		    (last_type ==DS_MATCHTYPE_PATTERN) ?  num_matches : 0,
-		    (last_type == DS_MATCHTYPE_SPEC) ?specified_devices : NULL, 
+		    (last_type == DS_MATCHTYPE_SPEC) ?specified_devices : NULL,
 		    (last_type == DS_MATCHTYPE_SPEC) ?num_devices_specified : 0,
 		    (last_type == DS_MATCHTYPE_NONE) ?  DS_SELECT_ADD :
 		    DS_SELECT_ADDONLY, maxshowdevs, 0);
@@ -224,7 +220,7 @@ dsmatchselect(const char *args, devstat_select_mode select_mode, int maxshowdevs
 	}
 
 	for (i = 0; i < num_args; i++) {
-		if (devstat_buildmatch(tstr[i], &matches, &num_matches) != 0) {	
+		if (devstat_buildmatch(tstr[i], &matches, &num_matches) != 0) {
 			warnx("%s", devstat_errbuf);
 			return(0);
 		}
@@ -269,7 +265,7 @@ dsselect(const char *args, devstat_select_mode select_mode, int maxshowdevs,
 	specified_devices = (char **)malloc(sizeof(char *));
 
 	tmpstr = tmpstr1 = strdup(args);
-	cp = index(tmpstr1, '\n');
+	cp = strchr(tmpstr1, '\n');
 	if (cp)
 		*cp = '\0';
 	for (;;) {
@@ -286,7 +282,7 @@ dsselect(const char *args, devstat_select_mode select_mode, int maxshowdevs,
 			asprintf(&buffer, "%s%d", dev_select[i].device_name,
 				dev_select[i].unit_number);
 			if (strcmp(buffer, tmpstr1) == 0) {
-				
+
 				num_devices_specified++;
 
 				specified_devices =(char **)realloc(

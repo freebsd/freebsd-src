@@ -30,10 +30,12 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
+#include <sys/smp.h>
 
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 #include <machine/smp.h>
+#include <machine/vmparam.h>
 
 /**
  * @defgroup PLATFORM platform - KObj methods for PowerPC platform
@@ -65,6 +67,30 @@ CODE {
 	    struct cpuref  *_cpuref)
 	{
 		return (ENOENT);
+	}
+	static struct cpu_group *platform_null_smp_topo(platform_t plat)
+	{
+#ifdef SMP
+		return (smp_topo_none());
+#else
+		return (NULL);
+#endif
+	}
+	static vm_offset_t platform_null_real_maxaddr(platform_t plat)
+	{
+		return (VM_MAX_ADDRESS);
+	}
+	static void platform_null_smp_ap_init(platform_t plat)
+	{
+		return;
+	}
+	static void platform_null_idle(platform_t plat, int cpu)
+	{
+		return;
+	}
+	static int platform_null_idle_wakeup(platform_t plat, int cpu)
+	{
+		return (0);
 	}
 };
 
@@ -102,11 +128,20 @@ METHOD int attach {
 
 METHOD void mem_regions {
 	platform_t	    _plat;
-	struct mem_region **_memp;
+	struct mem_region  *_memp;
 	int		   *_memsz;
-	struct mem_region **_availp;
+	struct mem_region  *_availp;
 	int		   *_availsz;
 };
+
+/**
+ * @brief Return the maximum address accessible in real mode
+ *   (for use with hypervisors)
+ */
+METHOD vm_offset_t real_maxaddr {
+	platform_t	_plat;
+} DEFAULT platform_null_real_maxaddr;
+
 
 /**
  * @brief Get the CPU's timebase frequency, in ticks per second.
@@ -159,5 +194,50 @@ METHOD int smp_get_bsp {
 METHOD int smp_start_cpu {
 	platform_t	_plat;
 	struct pcpu	*_cpu;
+};
+
+/**
+ * @brief Start a CPU
+ *
+ */
+METHOD void smp_ap_init {
+	platform_t	_plat;
+} DEFAULT platform_null_smp_ap_init;
+
+/**
+ * @brief Return SMP topology
+ */
+METHOD cpu_group_t smp_topo {
+	platform_t	_plat;
+} DEFAULT platform_null_smp_topo;
+
+/**
+ * @brief Reset system
+ */
+METHOD void reset {
+	platform_t	_plat;
+};
+
+/**
+ * @brief Idle a CPU
+ */
+METHOD void idle {
+	platform_t	_plat;
+	int		_cpu;
+} DEFAULT platform_null_idle;
+
+/**
+ * @brief Wake up an idle CPU
+ */
+METHOD int idle_wakeup {
+	platform_t	_plat;
+	int		_cpu;
+} DEFAULT platform_null_idle_wakeup;
+
+/**
+ * @brief Suspend the CPU
+ */
+METHOD void sleep {
+	platform_t	_plat;
 };
 

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: cdefs.h,v 1.16 2003/12/05 22:45:25 ca Exp $
+ *	$Id: cdefs.h,v 1.17 2013-11-22 20:51:31 ca Exp $
  */
 
 /*
@@ -121,11 +121,11 @@
 */
 
 # ifndef SM_CONF_FORMAT_TEST
-#  if __GNUC__ == 2 && __GNUC_MINOR__ >= 7
+#  if (__GNUC__ == 2 && __GNUC_MINOR__ >= 7) || __GNUC__ > 2
 #   define SM_CONF_FORMAT_TEST	1
-#  else /* __GNUC__ == 2 && __GNUC_MINOR__ >= 7 */
+#  else
 #   define SM_CONF_FORMAT_TEST	0
-#  endif /* __GNUC__ == 2 && __GNUC_MINOR__ >= 7 */
+#  endif
 # endif /* SM_CONF_FORMAT_TEST */
 
 # ifndef PRINTFLIKE

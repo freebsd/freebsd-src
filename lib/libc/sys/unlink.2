@@ -28,7 +28,7 @@
 .\"     @(#)unlink.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2008
+.Dd July 28, 2015
 .Dt UNLINK 2
 .Os
 .Sh NAME
@@ -114,6 +114,8 @@ succeeds unless:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
 A component of the path prefix is not a directory.
+.It Bq Er EISDIR
+The named file is a directory.
 .It Bq Er ENAMETOOLONG
 A component of a pathname exceeded 255 characters,
 or an entire path name exceeded 1023 characters.
@@ -149,13 +151,16 @@ The
 .Fa path
 argument
 points outside the process's allocated address space.
+.It Bq Er ENOSPC
+On file systems supporting copy-on-write or snapshots, there was not enough
+free space to record metadata for the delete operation of the file.
 .El
 .Pp
 In addition to the errors returned by the
 .Fn unlink ,
 the
 .Fn unlinkat
-may fail if
+may fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The
@@ -165,7 +170,7 @@ argument does not specify an absolute path and the
 argument is neither
 .Dv AT_FDCWD
 nor a valid file descriptor open for searching.
-.It Bq Er EEXIST
+.It Bq Er ENOTEMPTY
 The
 .Fa flag
 parameter has the

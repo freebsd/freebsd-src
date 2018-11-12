@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/queue.h>
 #include <sys/blist.h>
 #include <sys/conf.h>
@@ -61,12 +62,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include "opt_compat.h"
-#ifdef COMPAT_LINUX32				/* XXX */
-#include <machine/../linux32/linux.h>
-#else
-#include <machine/../linux/linux.h>
-#endif
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
@@ -182,8 +177,8 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi, char
 					sprintf(host, "host%d", host_number++);
 					strcat(new_path, "/");
 					strcat(new_path, host);
-					sub_dir = pfs_create_dir(dir,
-					    host, NULL, NULL, NULL, 0);
+					pfs_create_dir(dir, host,
+					    NULL, NULL, NULL, 0);
 					scsi_host = malloc(sizeof(
 					    struct scsi_host_queue),
 					    M_DEVBUF, M_NOWAIT);
@@ -280,5 +275,9 @@ linsysfs_uninit(PFS_INIT_ARGS)
 	return (0);
 }
 
-PSEUDOFS(linsysfs, 1);
+PSEUDOFS(linsysfs, 1, PR_ALLOW_MOUNT_LINSYSFS);
+#if defined(__amd64__)
+MODULE_DEPEND(linsysfs, linux_common, 1, 1, 1);
+#else
 MODULE_DEPEND(linsysfs, linux, 1, 1, 1);
+#endif

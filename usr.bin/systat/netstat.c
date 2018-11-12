@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -63,7 +59,6 @@ static const char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 #include <netinet/tcp_seq.h>
-#include <netinet/tcp_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_timer.h>
@@ -90,7 +85,7 @@ static char *inetname(struct sockaddr *);
 static void inetprint(struct sockaddr *, const char *);
 
 #define	streq(a,b)	(strcmp(a,b)==0)
-#define	YMAX(w)		((w)->_maxy-1)
+#define	YMAX(w)		(getmaxy(w)-2)
 
 WINDOW *
 opennetstat(void)
@@ -133,7 +128,7 @@ closenetstat(WINDOW *w)
 			lastrow--;
 		p->ni_line = -1;
 	}
-        if (w != NULL) {
+	if (w != NULL) {
 		wclear(w);
 		wrefresh(w);
 		delwin(w);
@@ -338,8 +333,8 @@ enter_kvm(struct inpcb *inp, struct socket *so, int state, const char *proto)
 	struct netinfo *p;
 
 	if ((p = enter(inp, state, proto)) != NULL) {
-		p->ni_rcvcc = so->so_rcv.sb_cc;
-		p->ni_sndcc = so->so_snd.sb_cc;
+		p->ni_rcvcc = so->so_rcv.sb_ccc;
+		p->ni_sndcc = so->so_snd.sb_ccc;
 	}
 }
 
@@ -353,7 +348,6 @@ enter_sysctl(struct inpcb *inp, struct xsocket *so, int state, const char *proto
 		p->ni_sndcc = so->so_snd.sb_cc;
 	}
 }
-
 
 static struct netinfo *
 enter(struct inpcb *inp, int state, const char *proto)
@@ -441,7 +435,6 @@ enter(struct inpcb *inp, int state, const char *proto)
 #define	RCVCC	PROTO+6
 #define	SNDCC	RCVCC+7
 #define	STATE	SNDCC+7
-
 
 void
 labelnetstat(void)
@@ -559,7 +552,7 @@ inetprint(struct sockaddr *sa, const char *proto)
 		break;
 	}
 	snprintf(line, sizeof(line), "%.*s.", 16, inetname(sa));
-	cp = index(line, '\0');
+	cp = strchr(line, '\0');
 	if (!nflag && port)
 		sp = getservbyport(port, proto);
 	if (sp || port == 0)
@@ -569,7 +562,7 @@ inetprint(struct sockaddr *sa, const char *proto)
 		snprintf(cp, sizeof(line) - (cp - line), "%d",
 		    ntohs((u_short)port));
 	/* pad to full column to clear any garbage */
-	cp = index(line, '\0');
+	cp = strchr(line, '\0');
 	while (cp - line < 22)
 		*cp++ = ' ';
 	line[22] = '\0';
@@ -612,7 +605,7 @@ inetname(struct sockaddr *sa)
 			if (np)
 				cp = np->n_name;
 		}
-		if (cp == 0) {
+		if (cp == NULL) {
 			hp = gethostbyaddr((char *)&in, sizeof (in), AF_INET);
 			if (hp)
 				cp = hp->h_name;

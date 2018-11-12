@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
+#include "gen-private.h"
+
 #define	ISDOT(dp) \
 	(dp->d_name[0] == '.' && (dp->d_name[1] == '\0' || \
 	    (dp->d_name[1] == '.' && dp->d_name[2] == '\0')))
@@ -53,22 +55,21 @@ __FBSDID("$FreeBSD$");
 extern int __getcwd(char *, size_t);
 
 char *
-getcwd(pt, size)
-	char *pt;
-	size_t size;
+getcwd(char *pt, size_t size)
 {
 	struct dirent *dp;
 	DIR *dir = NULL;
 	dev_t dev;
 	ino_t ino;
 	int first;
-	char *bpt, *bup;
+	char *bpt;
 	struct stat s;
 	dev_t root_dev;
 	ino_t root_ino;
-	size_t ptsize, upsize;
+	size_t ptsize;
 	int save_errno;
-	char *ept, *eup, *up, c;
+	char *ept, c;
+	int fd;
 
 	/*
 	 * If no buffer specified by the user, allocate one as necessary.
@@ -106,18 +107,6 @@ getcwd(pt, size)
 	bpt = ept - 1;
 	*bpt = '\0';
 
-	/*
-	 * Allocate 1024 bytes for the string of "../"'s.
-	 * Should always be enough.  If it's not, allocate
-	 * as necessary.  Special case the first stat, it's ".", not "..".
-	 */
-	if ((up = malloc(upsize = 1024)) == NULL)
-		goto err;
-	eup = up + upsize;
-	bup = up;
-	up[0] = '.';
-	up[1] = '\0';
-
 	/* Save root values, so know when to stop. */
 	if (stat("/", &s))
 		goto err;
@@ -128,7 +117,7 @@ getcwd(pt, size)
 
 	for (first = 1;; first = 0) {
 		/* Stat the current level. */
-		if (lstat(up, &s))
+		if (dir != NULL ? _fstat(_dirfd(dir), &s) : lstat(".", &s))
 			goto err;
 
 		/* Save current node values. */
@@ -144,32 +133,22 @@ getcwd(pt, size)
 			 * been that way and stuff would probably break.
 			 */
 			bcopy(bpt, pt, ept - bpt);
-			free(up);
+			if (dir)
+				(void) closedir(dir);
 			return (pt);
 		}
 
-		/*
-		 * Build pointer to the parent directory, allocating memory
-		 * as necessary.  Max length is 3 for "../", the largest
-		 * possible component name, plus a trailing NUL.
-		 */
-		while (bup + 3  + MAXNAMLEN + 1 >= eup) {
-			if ((up = reallocf(up, upsize *= 2)) == NULL)
-				goto err;
-			bup = up;
-			eup = up + upsize;
-		}
-		*bup++ = '.';
-		*bup++ = '.';
-		*bup = '\0';
-
 		/* Open and stat parent directory. */
-		if (!(dir = opendir(up)) || _fstat(dirfd(dir), &s))
+		fd = _openat(dir != NULL ? _dirfd(dir) : AT_FDCWD,
+				"..", O_RDONLY | O_CLOEXEC);
+		if (fd == -1)
 			goto err;
-
-		/* Add trailing slash for next directory. */
-		*bup++ = '/';
-		*bup = '\0';
+		if (dir)
+			(void) closedir(dir);
+		if (!(dir = fdopendir(fd)) || _fstat(_dirfd(dir), &s)) {
+			_close(fd);
+			goto err;
+		}
 
 		/*
 		 * If it's a mount point, have to stat each element because
@@ -190,10 +169,10 @@ getcwd(pt, size)
 					goto notfound;
 				if (ISDOT(dp))
 					continue;
-				bcopy(dp->d_name, bup, dp->d_namlen + 1);
 
 				/* Save the first error for later. */
-				if (lstat(up, &s)) {
+				if (fstatat(_dirfd(dir), dp->d_name, &s,
+				    AT_SYMLINK_NOFOLLOW)) {
 					if (!save_errno)
 						save_errno = errno;
 					errno = 0;
@@ -227,11 +206,6 @@ getcwd(pt, size)
 			*--bpt = '/';
 		bpt -= dp->d_namlen;
 		bcopy(dp->d_name, bpt, dp->d_namlen);
-		(void) closedir(dir);
-		dir = NULL;
-
-		/* Truncate any file name. */
-		*bup = '\0';
 	}
 
 notfound:
@@ -250,7 +224,6 @@ err:
 		free(pt);
 	if (dir)
 		(void) closedir(dir);
-	free(up);
 
 	errno = save_errno;
 	return (NULL);

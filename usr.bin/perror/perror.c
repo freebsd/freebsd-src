@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Advanced Computing Technologies LLC
+ * Copyright (c) 2009 Hudson River Trading LLC
  * Written by: George V. Neville-Neil <gnn@FreeBSD.org>
  * All rights reserved.
  *
@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <err.h>
+#include <locale.h>
 #include <sys/errno.h>
 
 static void usage(void);
@@ -43,6 +44,7 @@ main(int argc, char **argv)
 	char *errstr;
 	long errnum;
 
+	(void) setlocale(LC_MESSAGES, "");
 	if (argc != 2)
 		usage();
 

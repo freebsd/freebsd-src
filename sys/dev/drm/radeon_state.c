@@ -950,7 +950,7 @@ static void radeon_cp_dispatch_clear(struct drm_device * dev,
 	}
 
 	/* hyper z clear */
-	/* no docs available, based on reverse engeneering by Stephane Marchesin */
+	/* no docs available, based on reverse engineering by Stephane Marchesin */
 	if ((flags & (RADEON_DEPTH | RADEON_STENCIL))
 	    && (flags & RADEON_CLEAR_FASTZ)) {
 
@@ -1064,7 +1064,7 @@ static void radeon_cp_dispatch_clear(struct drm_device * dev,
 					/* judging by the first tile offset needed, could possibly
 					   directly address/clear 4x4 tiles instead of 8x2 * 4x4
 					   macro tiles, though would still need clear mask for
-					   right/bottom if truely 4x4 granularity is desired ? */
+					   right/bottom if truly 4x4 granularity is desired ? */
 					OUT_RING(tileoffset * 16);
 					/* the number of tiles to clear */
 					OUT_RING(nrtilesx + 1);
@@ -1420,7 +1420,7 @@ static void radeon_cp_dispatch_swap(struct drm_device *dev)
 static void radeon_cp_dispatch_flip(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	struct drm_sarea *sarea = (struct drm_sarea *)dev_priv->sarea->handle;
+	struct drm_sarea *sarea = (struct drm_sarea *)dev_priv->sarea->virtual;
 	int offset = (dev_priv->sarea_priv->pfCurrentPage == 1)
 	    ? dev_priv->front_offset : dev_priv->back_offset;
 	RING_LOCALS;
@@ -1582,7 +1582,7 @@ static void radeon_cp_dispatch_indirect(struct drm_device * dev,
 		 */
 		if (dwords & 1) {
 			u32 *data = (u32 *)
-			    ((char *)dev->agp_buffer_map->handle
+			    ((char *)dev->agp_buffer_map->virtual
 			     + buf->offset + start);
 			data[dwords++] = RADEON_CP_PACKET2;
 		}
@@ -1629,7 +1629,7 @@ static void radeon_cp_dispatch_indices(struct drm_device *dev,
 
 	dwords = (prim->finish - prim->start + 3) / sizeof(u32);
 
-	data = (u32 *) ((char *)dev->agp_buffer_map->handle +
+	data = (u32 *) ((char *)dev->agp_buffer_map->virtual +
 			elt_buf->offset + prim->start);
 
 	data[0] = CP_PACKET3(RADEON_3D_RNDR_GEN_INDX_PRIM, dwords - 2);
@@ -1745,7 +1745,7 @@ static int radeon_cp_dispatch_texture(struct drm_device * dev,
 	DRM_DEBUG("tex=%dx%d blit=%d\n", tex_width, tex->height, blit_width);
 
 	do {
-		DRM_DEBUG("tex: ofs=0x%x p=%d f=%d x=%hd y=%hd w=%hd h=%hd\n",
+		DRM_DEBUG("tex: ofs=0x%x p=%d f=%d x=%d y=%d w=%d h=%d\n",
 			  tex->offset >> 10, tex->pitch, tex->format,
 			  image->x, image->y, image->width, image->height);
 
@@ -1781,7 +1781,7 @@ static int radeon_cp_dispatch_texture(struct drm_device * dev,
 		/* Dispatch the indirect buffer.
 		 */
 		buffer =
-		    (u32 *) ((char *)dev->agp_buffer_map->handle + buf->offset);
+		    (u32 *) ((char *)dev->agp_buffer_map->virtual + buf->offset);
 		dwords = size / 4;
 
 #define RADEON_COPY_MT(_buf, _data, _width) \

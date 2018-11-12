@@ -95,6 +95,18 @@ default_return_in_memory (tree type,
 #endif
 }
 
+/* APPLE LOCAL begin radar 4781080 */
+bool
+default_objc_fpreturn_msgcall (tree type, bool no_long_double)
+{
+#ifndef OBJC_FPRETURN_MSGCALL
+  return type == NULL_TREE && no_long_double;
+#else
+  return OBJC_FPRETURN_MSGCALL (type, no_long_double);
+#endif
+}
+/* APPLE LOCAL end radar 4781080 */
+
 rtx
 default_expand_builtin_saveregs (void)
 {
@@ -602,6 +614,22 @@ int
 default_reloc_rw_mask (void)
 {
   return flag_pic ? 3 : 0;
+}
+
+bool
+default_builtin_vector_alignment_reachable (tree type, bool is_packed)
+{
+  if (is_packed)
+    return false;
+
+  /* Assuming that types whose size is > pointer-size are not guaranteed to be
+     naturally aligned.  */
+  if (tree_int_cst_compare (TYPE_SIZE (type), bitsize_int (POINTER_SIZE)) > 0)
+    return false;
+
+  /* Assuming that types whose size is <= pointer-size
+     are naturally aligned.  */
+  return true;
 }
 
 #include "gt-targhooks.h"

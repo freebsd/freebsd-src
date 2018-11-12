@@ -1,21 +1,24 @@
 # $FreeBSD$
 
 RPCDIR=	${.CURDIR}/../../include/rpcsvc
-.PATH: ${RPCDIR}
+.PATH: ${RPCDIR} \
+       ${.CURDIR}/common
 
 PROG=	ypserv
 MAN=	ypserv.8 ypinit.8
 SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \
-	ypxfr_clnt.c yp.h yp_main.c yp_error.c yp_access.c yp_svc_udp.c
+	ypxfr_clnt.c yp.h yp_main.c yp_error.c yp_access.c yp_svc_udp.c \
+	yplib_host.c
 
 CFLAGS+= -DDB_CACHE -DTCP_WRAPPER -I.
 
-DPADD=	${LIBWRAP}
-LDADD=	-lwrap
+WARNS?=	0
+
+LIBADD=	wrap
 
 CLEANFILES= yp_svc.c ypxfr_clnt.c yp.h
 
-RPCGEN= rpcgen -I -C
+RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that
 # yp_main.c can see it.

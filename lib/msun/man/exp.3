@@ -28,20 +28,23 @@
 .\"     from: @(#)exp.3	6.12 (Berkeley) 7/31/91
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2008
+.Dd November 9, 2015
 .Dt EXP 3
 .Os
 .Sh NAME
 .Nm exp ,
 .Nm expf ,
-.\" The sorting error is intentional.  exp and expf should be adjacent.
+.Nm expl ,
+.\" The sorting error is intentional.  exp, expf, and expl should be adjacent.
 .Nm exp2 ,
 .Nm exp2f ,
 .Nm exp2l ,
 .Nm expm1 ,
 .Nm expm1f ,
+.Nm expm1l ,
 .Nm pow ,
-.Nm powf
+.Nm powf ,
+.Nm powl
 .Nd exponential and power functions
 .Sh LIBRARY
 .Lb libm
@@ -51,6 +54,8 @@
 .Fn exp "double x"
 .Ft float
 .Fn expf "float x"
+.Ft long double
+.Fn expl "long double x"
 .Ft double
 .Fn exp2 "double x"
 .Ft float
@@ -61,15 +66,20 @@
 .Fn expm1 "double x"
 .Ft float
 .Fn expm1f "float x"
+.Ft long double
+.Fn expm1l "long double x"
 .Ft double
 .Fn pow "double x" "double y"
 .Ft float
 .Fn powf "float x" "float y"
+.Ft long double
+.Fn powl "long double x" "long double y"
 .Sh DESCRIPTION
 The
-.Fn exp
-and the
-.Fn expf
+.Fn exp ,
+.Fn expf ,
+and
+.Fn expl
 functions compute the base
 .Ms e
 exponential value of the given argument
@@ -84,16 +94,18 @@ functions compute the base 2 exponential of the given argument
 .Fa x .
 .Pp
 The
-.Fn expm1
+.Fn expm1 ,
+.Fn expm1f ,
 and the
-.Fn expm1f
+.Fn expm1l
 functions compute the value exp(x)\-1 accurately even for tiny argument
 .Fa x .
 .Pp
 The
-.Fn pow
+.Fn pow ,
+.Fn powf ,
 and the
-.Fn powf
+.Fn powl
 functions compute the value
 of
 .Ar x
@@ -114,9 +126,10 @@ Otherwise the error in these functions is generally below one
 These functions will return the appropriate computation unless an error
 occurs or an argument is out of range.
 The functions
-.Fn pow x y
+.Fn pow x y ,
+.Fn powf x y ,
 and
-.Fn powf x y
+.Fn powl x y
 raise an invalid exception and return an \*(Na if
 .Fa x
 < 0 and

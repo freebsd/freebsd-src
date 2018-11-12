@@ -64,10 +64,6 @@ static void clnt_output(const char *, const char *, int, const char * );
 static char *generate_guard(const char *);
 static void c_initialize(void);
 
-#if !defined(__FreeBSD__) && !defined(__NetBSD__)
-char * rindex();
-#endif
-
 static void usage(void);
 static void options_usage(void);
 static int do_registers(int, const char **);
@@ -79,29 +75,24 @@ static void s_output(int, const char **, const char *, const char *, int, const 
 #define	EXTEND	1		/* alias for TRUE */
 #define	DONT_EXTEND	0		/* alias for FALSE */
 
-#define	SVR4_CPP "/usr/ccs/lib/cpp"
-#define SUNOS_CPP "/usr/bin/cpp"
-
-static int cppDefined = 0;	/* explicit path for C preprocessor */
-
 static const char *svcclosetime = "120";
-static const char *CPP = SVR4_CPP;
+static const char *CPP = NULL;
 static const char CPPFLAGS[] = "-C";
 static char pathbuf[MAXPATHLEN + 1];
 static const char *allv[] = {
 	"rpcgen", "-s", "udp", "-s", "tcp",
 };
-static int allc = sizeof (allv)/sizeof (allv[0]);
+static int allc = nitems(allv);
 static const char *allnv[] = {
 	"rpcgen", "-s", "netpath",
 };
-static int allnc = sizeof (allnv)/sizeof (allnv[0]);
+static int allnc = nitems(allnv);
 
 /*
  * machinations for handling expanding argument list
  */
 static void addarg(const char *);	/* add another argument to the list */
-static void putarg(int, const char *);	/* put argument at specified location */
+static void insarg(int, const char *);	/* insert arg at specified location */
 static void clear_args(void);		/* clear argument list */
 static void checkfiles(const char *, const char *);
 					/* check if out file already exists */
@@ -109,7 +100,7 @@ static void checkfiles(const char *, const char *);
 
 
 #define	ARGLISTLEN	20
-#define	FIXEDARGS	2
+#define	FIXEDARGS	0
 
 static char *arglist[ARGLISTLEN];
 static int argcount = FIXEDARGS;
@@ -233,7 +224,7 @@ extendfile(const char *path, const char *ext)
 	const char *p;
 	const char *file;
 
-	if ((file = rindex(path, '/')) == NULL)
+	if ((file = strrchr(path, '/')) == NULL)
 		file = path;
 	else
 		file++;
@@ -292,24 +283,29 @@ clear_args(void)
 	argcount = FIXEDARGS;
 }
 
-/* make sure that a CPP exists */
+/* prepend C-preprocessor and flags before arguments */
 static void
-find_cpp(void)
+prepend_cpp(void)
 {
-	struct stat buf;
+	int idx = 1;
+	const char *var;
+	char *dupvar, *s, *t;
 
-	if (stat(CPP, &buf) < 0)  { /* SVR4 or explicit cpp does not exist */
-		if (cppDefined) {
-			warnx("cannot find C preprocessor: %s", CPP);
-			crash();
-		} else {	/* try the other one */
-			CPP = SUNOS_CPP;
-			if (stat(CPP, &buf) < 0) { /* can't find any cpp */
-				warnx("cannot find C preprocessor: %s", CPP);
-				crash();
-			}
+	if (CPP != NULL)
+		insarg(0, CPP);
+	else if ((var = getenv("RPCGEN_CPP")) == NULL)
+		insarg(0, "/usr/bin/cpp");
+	else {
+		/* Parse command line in a rudimentary way */
+		dupvar = xstrdup(var);
+		for (s = dupvar, idx = 0; (t = strsep(&s, " \t")) != NULL; ) {
+			if (t[0])
+				insarg(idx++, t);
 		}
+		free(dupvar);
 	}
+
+	insarg(idx, CPPFLAGS);
 }
 
 /*
@@ -324,9 +320,7 @@ open_input(const char *infile, const char *define)
 	(void) pipe(pd);
 	switch (childpid = fork()) {
 	case 0:
-		find_cpp();
-		putarg(0, CPP);
-		putarg(1, CPPFLAGS);
+		prepend_cpp();
 		addarg(define);
 		if (infile)
 			addarg(infile);
@@ -334,8 +328,8 @@ open_input(const char *infile, const char *define)
 		(void) close(1);
 		(void) dup2(pd[1], 1);
 		(void) close(pd[0]);
-		execv(arglist[0], arglist);
-		err(1, "execv");
+		execvp(arglist[0], arglist);
+		err(1, "execvp %s", arglist[0]);
 	case -1:
 		err(1, "fork");
 	}
@@ -441,7 +435,7 @@ c_initialize(void)
 
 }
 
-const char rpcgen_table_dcl[] = "struct rpcgen_table {\n\
+static const char rpcgen_table_dcl[] = "struct rpcgen_table {\n\
 	char	*(*proc)(); \n\
 	xdrproc_t	xdr_arg; \n\
 	unsigned	len_arg; \n\
@@ -457,7 +451,7 @@ generate_guard(const char *pathname)
 	char *guard, *tmp, *stopat;
 
 	filename = strrchr(pathname, '/');  /* find last component */
-	filename = ((filename == 0) ? pathname : filename+1);
+	filename = ((filename == NULL) ? pathname : filename+1);
 	guard = xstrdup(filename);
 	stopat = strrchr(guard, '.');
 
@@ -782,6 +776,8 @@ clnt_output(const char *infile, const char *define, int extend, const char *outf
 		free(include);
 	} else
 		f_print(fout, "#include <rpc/rpc.h>\n");
+	f_print(fout, "#include <stdio.h>\n");
+	f_print(fout, "#include <stdlib.h>\n");
 	tell = ftell(fout);
 	while ( (def = get_definition()) ) {
 		has_program += write_sample_clnt(def);
@@ -821,7 +817,7 @@ static void mkfile_output(struct commandline *cmd)
 	if (allfiles){
 		mkftemp = xmalloc(strlen("makefile.") +
 		                     strlen(cmd->infile) + 1);
-		temp = (char *)rindex(cmd->infile, '.');
+		temp = strrchr(cmd->infile, '.');
 		strcpy(mkftemp, "makefile.");
 		(void) strncat(mkftemp, cmd->infile,
 			(temp - cmd->infile));
@@ -869,6 +865,10 @@ $(TARGETS_SVC.c:%%.c=%%.o) ");
 	f_print(fout, "all : $(CLIENT) $(SERVER)\n\n");
 	f_print(fout, "$(TARGETS) : $(SOURCES.x) \n");
 	f_print(fout, "\trpcgen $(RPCGENFLAGS) $(SOURCES.x)\n\n");
+	if (allfiles) {
+		f_print(fout, "\trpcgen -Sc $(RPCGENFLAGS) $(SOURCES.x) -o %s\n\n", clientname);
+		f_print(fout, "\trpcgen -Ss $(RPCGENFLAGS) $(SOURCES.x) -o %s\n\n", servername);
+	}
 	f_print(fout, "$(OBJECTS_CLNT) : $(SOURCES_CLNT.c) $(SOURCES_CLNT.h) \
 $(TARGETS_CLNT.c) \n\n");
 
@@ -878,8 +878,8 @@ $(TARGETS_SVC.c) \n\n");
 	f_print(fout, "\t$(CC) -o $(CLIENT) $(OBJECTS_CLNT) \
 $(LDLIBS) \n\n");
 	f_print(fout, "$(SERVER) : $(OBJECTS_SVC) \n");
-	f_print(fout, "\t$(CC) -o $(SERVER) $(OBJECTS_SVC) $(LDLIBS)\n\n ");
-	f_print(fout, "clean:\n\t $(RM) -f core $(TARGETS) $(OBJECTS_CLNT) \
+	f_print(fout, "\t$(CC) -o $(SERVER) $(OBJECTS_SVC) $(LDLIBS)\n\n");
+	f_print(fout, "clean:\n\t rm -f core $(TARGETS) $(OBJECTS_CLNT) \
 $(OBJECTS_SVC) $(CLIENT) $(SERVER)\n\n");
 }
 
@@ -938,18 +938,26 @@ addarg(const char *cp)
 
 }
 
+/*
+ * Insert an argument at the specified location
+ */
 static void
-putarg(int place, const char *cp)
+insarg(int place, const char *cp)
 {
-	if (place >= ARGLISTLEN) {
-		warnx("arglist coding error");
+	int i;
+
+	if (argcount >= ARGLISTLEN) {
+		warnx("too many defines");
 		crash();
 		/*NOTREACHED*/
 	}
-	if (cp != NULL)
-		arglist[place] = xstrdup(cp);
-	else
-		arglist[place] = NULL;
+
+	/* Move up existing arguments */
+	for (i = argcount - 1; i >= place; i--)
+		arglist[i + 1] = arglist[i];
+
+	arglist[place] = xstrdup(cp);
+	argcount++;
 }
 
 /*
@@ -969,7 +977,7 @@ checkfiles(const char *infile, const char *outfile)
 		{
 			warn("%s", infile);
 			crash();
-		};
+		}
 	if (outfile) {
 		if (stat(outfile, &buf) < 0)
 			return;	/* file does not exist */
@@ -1129,14 +1137,15 @@ parseargs(int argc, const char *argv[], struct commandline *cmd)
 					if (++i == argc) {
 						return (0);
 					}
-					(void) strlcpy(pathbuf, argv[i], sizeof(pathbuf));
-					if (strlcat(pathbuf, "/cpp", sizeof(pathbuf))
-					    >= sizeof(pathbuf)) {
+					if (strlcpy(pathbuf, argv[i],
+					    sizeof(pathbuf)) >= sizeof(pathbuf)
+					    || strlcat(pathbuf, "/cpp",
+					    sizeof(pathbuf)) >=
+					    sizeof(pathbuf)) {
 						warnx("argument too long");
 						return (0);
 					}
 					CPP = pathbuf;
-					cppDefined = 1;
 					goto nextarg;
 
 
@@ -1203,7 +1212,7 @@ parseargs(int argc, const char *argv[], struct commandline *cmd)
 }
 
 static void
-usage()
+usage(void)
 {
 	f_print(stderr, "%s\n%s\n%s\n%s\n%s\n",
 		"usage: rpcgen infile",
@@ -1218,7 +1227,7 @@ usage()
 }
 
 static void
-options_usage()
+options_usage(void)
 {
 	f_print(stderr, "options:\n");
 	f_print(stderr, "-a\t\tgenerate all files, including samples\n");

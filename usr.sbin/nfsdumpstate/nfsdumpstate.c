@@ -76,7 +76,7 @@ main(int argc, char **argv)
 		errx(1, "nfsd not loaded - self terminating");
 	openstate = 0;
 	lockfile = NULL;
-	while ((ch = getopt(argc, argv, "ol")) != -1)
+	while ((ch = getopt(argc, argv, "ol:")) != -1)
 		switch (ch) {
 		case 'o':
 			openstate = 1;

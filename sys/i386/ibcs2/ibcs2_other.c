@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/syscallsubr.h>
@@ -75,7 +76,7 @@ ibcs2_lseek(struct thread *td, register struct ibcs2_lseek_args *uap)
 	largs.fd = uap->fd;
 	largs.offset = uap->offset;
 	largs.whence = uap->whence;
-	error = lseek(td, &largs);
+	error = sys_lseek(td, &largs);
 	return (error);
 }
 
@@ -95,7 +96,7 @@ spx_open(struct thread *td)
 	sock.domain = AF_UNIX;
 	sock.type = SOCK_STREAM;
 	sock.protocol = 0;
-	error = socket(td, &sock);
+	error = sys_socket(td, &sock);
 	if (error)
 		return error;
 	fd = td->td_retval[0];
@@ -107,7 +108,7 @@ spx_open(struct thread *td)
 	sun.sun_len = sizeof(struct sockaddr_un) - sizeof(sun.sun_path) +
 	    strlen(sun.sun_path) + 1;
 
-	error = kern_connect(td, fd, (struct sockaddr *)&sun);
+	error = kern_connectat(td, AT_FDCWD, fd, (struct sockaddr *)&sun);
 	if (error) {
 		kern_close(td, fd);
 		return error;

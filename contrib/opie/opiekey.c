@@ -45,6 +45,7 @@ $FreeBSD$
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "opie.h"
 
@@ -109,19 +110,19 @@ static void getsecret FUNCTION((secret, promptextra, retype), char *secret AND c
     if (!opiereadpass(verify, OPIE_SECRET_MAX, 0)) {
       fprintf(stderr, "Error reading %ssecret pass phrase!\n", promptextra);
       memset(verify, 0, sizeof(verify));
-      memset(secret, 0, sizeof(secret));
+      memset(secret, 0, OPIE_SECRET_MAX + 1);
       exit(1);
     }
     if (verify[0] && strcmp(verify, secret)) {
       fprintf(stderr, "They don't match. Try again.\n");
       memset(verify, 0, sizeof(verify));
-      memset(secret, 0, sizeof(secret));
+      memset(secret, 0, OPIE_SECRET_MAX + 1);
       exit(1);
     }
     memset(verify, 0, sizeof(verify));
   }
   if (!(flags & 2) && !aflag && opiepasscheck(secret)) {
-    memset(secret, 0, sizeof(secret));
+    memset(secret, 0, OPIE_SECRET_MAX + 1);
     fprintf(stderr, "Secret pass phrases must be between %d and %d characters long.\n", OPIE_SECRET_MIN, OPIE_SECRET_MAX);
     exit(1);
   };
@@ -144,7 +145,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
   int type = RESPONSE_STANDARD;
   int force = 0;
 
-  if (slash = strchr(argv[0], '/'))
+  if (slash = strrchr(argv[0], '/'))
     slash++;
   else
     slash = argv[0];

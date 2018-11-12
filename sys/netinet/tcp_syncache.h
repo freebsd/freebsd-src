@@ -34,8 +34,6 @@
 #define _NETINET_TCP_SYNCACHE_H_
 #ifdef _KERNEL
 
-struct toeopt;
-
 void	 syncache_init(void);
 #ifdef VIMAGE
 void	syncache_destroy(void);
@@ -43,17 +41,11 @@ void	syncache_destroy(void);
 void	 syncache_unreach(struct in_conninfo *, struct tcphdr *);
 int	 syncache_expand(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct socket **, struct mbuf *);
-int	 tcp_offload_syncache_expand(struct in_conninfo *inc, struct toeopt *toeo,
-             struct tcphdr *th, struct socket **lsop, struct mbuf *m);
-void	 syncache_add(struct in_conninfo *, struct tcpopt *,
-	     struct tcphdr *, struct inpcb *, struct socket **, struct mbuf *);
-void	 tcp_offload_syncache_add(struct in_conninfo *, struct toeopt *,
-             struct tcphdr *, struct inpcb *, struct socket **,
-             struct toe_usrreqs *tu, void *toepcb);
-
+int	 syncache_add(struct in_conninfo *, struct tcpopt *,
+	     struct tcphdr *, struct inpcb *, struct socket **, struct mbuf *,
+	     void *, void *);
 void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *);
 void	 syncache_badack(struct in_conninfo *);
-int	 syncache_pcbcount(void);
 int	 syncache_pcblist(struct sysctl_req *req, int max_pcbs, int *pcbs_exported);
 
 struct syncache {
@@ -75,12 +67,17 @@ struct syncache {
 	u_int8_t	sc_requested_s_scale:4,
 			sc_requested_r_scale:4;
 	u_int16_t	sc_flags;
-#ifndef TCP_OFFLOAD_DISABLE
-	struct toe_usrreqs *sc_tu;		/* TOE operations */
-	void 		*sc_toepcb;		/* TOE protocol block */
-#endif			
+#if defined(TCP_OFFLOAD) || !defined(TCP_OFFLOAD_DISABLE)
+	struct toedev	*sc_tod;		/* entry added by this TOE */
+	void		*sc_todctx;		/* TOE driver context */
+#endif
 	struct label	*sc_label;		/* MAC label reference */
 	struct ucred	*sc_cred;		/* cred cache for jail checks */
+#ifdef TCP_RFC7413
+	void		*sc_tfo_cookie;		/* for TCP Fast Open response */
+#endif
+	void		*sc_pspare;		/* TCP_SIGNATURE */
+	u_int32_t	sc_spare[2];		/* UTO */
 };
 
 /*
@@ -95,20 +92,23 @@ struct syncache {
 #define SCF_SACK	0x80			/* send SACK option */
 #define SCF_ECN		0x100			/* send ECN setup packet */
 
-#define	SYNCOOKIE_SECRET_SIZE	8	/* dwords */
-#define	SYNCOOKIE_LIFETIME	16	/* seconds */
-
 struct syncache_head {
-	struct vnet	*sch_vnet;
 	struct mtx	sch_mtx;
 	TAILQ_HEAD(sch_head, syncache)	sch_bucket;
 	struct callout	sch_timer;
 	int		sch_nextc;
 	u_int		sch_length;
-	u_int		sch_oddeven;
-	u_int32_t	sch_secbits_odd[SYNCOOKIE_SECRET_SIZE];
-	u_int32_t	sch_secbits_even[SYNCOOKIE_SECRET_SIZE];
-	u_int		sch_reseed;		/* time_uptime, seconds */
+	struct tcp_syncache *sch_sc;
+};
+
+#define	SYNCOOKIE_SECRET_SIZE	16
+#define	SYNCOOKIE_LIFETIME	15		/* seconds */
+
+struct syncookie_secret {
+	volatile u_int oddeven;
+	uint8_t key[2][SYNCOOKIE_SECRET_SIZE];
+	struct callout reseed;
+	u_int lifetime;
 };
 
 struct tcp_syncache {
@@ -117,10 +117,22 @@ struct tcp_syncache {
 	u_int	hashsize;
 	u_int	hashmask;
 	u_int	bucket_limit;
-	u_int	cache_count;		/* XXX: unprotected */
 	u_int	cache_limit;
 	u_int	rexmt_limit;
-	u_int	hash_secret;
+	uint32_t hash_secret;
+	struct vnet *vnet;
+	struct syncookie_secret secret;
+};
+
+/* Internal use for the syncookie functions. */
+union syncookie {
+	uint8_t cookie;
+	struct {
+		uint8_t odd_even:1,
+			sack_ok:1,
+			wscale_idx:3,
+			mss_idx:3;
+	} flags;
 };
 
 #endif /* _KERNEL */

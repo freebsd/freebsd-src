@@ -84,7 +84,7 @@ gv_move(struct g_geom *gp, struct gctl_req *req)
 		type = gv_object_type(sc, object);
 		if (type != GV_TYPE_SD) {
 			gctl_error(req, "you can only move subdisks; "
-			    "'%s' isn't one", object);
+			    "'%s' is not a subdisk", object);
 			return;
 		}
 
@@ -115,13 +115,13 @@ gv_move_sd(struct gv_softc *sc, struct gv_sd *cursd,
 
 	if ((gv_consumer_is_open(d->consumer) ||
 	    gv_consumer_is_open(destination->consumer)) &&
-	    !(flags && GV_FLAG_F)) {
+	    !(flags & GV_FLAG_F)) {
 		G_VINUM_DEBUG(0, "consumers on current and destination drive "
 		    " still open");
 		return (GV_ERR_ISBUSY);
 	}
 
-	if (!(flags && GV_FLAG_F)) {
+	if (!(flags & GV_FLAG_F)) {
 		G_VINUM_DEBUG(1, "-f flag not passed; move would be "
 		    "destructive");
 		return (GV_ERR_INVFLAG);
@@ -145,7 +145,7 @@ gv_move_sd(struct gv_softc *sc, struct gv_sd *cursd,
 	err = gv_set_sd_state(cursd, GV_SD_STALE,
 	    GV_SETSTATE_FORCE | GV_SETSTATE_CONFIG);
 	if (err) {
-		G_VINUM_DEBUG(0, "could not set the subdisk '%s' to state "
+		G_VINUM_DEBUG(0, "unable to set the subdisk '%s' to state "
 		    "'stale'", cursd->name);
 		return (err);
 	}

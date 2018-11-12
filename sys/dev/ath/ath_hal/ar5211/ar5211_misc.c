@@ -564,7 +564,12 @@ ar5211AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 }
 
 void
-ar5211AniPoll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
+ar5211AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
+{
+}
+
+void
+ar5211RxMonitor(struct ath_hal *ah, const HAL_NODE_STATS *stats,
 	const struct ieee80211_channel *chan)
 {
 }
@@ -682,4 +687,41 @@ ar5211GetDiagState(struct ath_hal *ah, int request,
 		return AH_TRUE;
 	}
 	return AH_FALSE;
+}
+
+/*
+ * Return what percentage of the extension channel is busy.
+ * This is always disabled for AR5211 series NICs.
+ */
+uint32_t
+ar5211Get11nExtBusy(struct ath_hal *ah)
+{
+	return (0);
+}
+
+
+/*
+ * There's no channel survey support for the AR5211.
+ */
+HAL_BOOL
+ar5211GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)
+{
+
+	return (AH_FALSE);
+}
+
+void
+ar5211SetChainMasks(struct ath_hal *ah, uint32_t txchainmask,
+    uint32_t rxchainmask)
+{
+}
+
+void
+ar5211EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
+{
+}
+
+void
+ar5211GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
+{
 }

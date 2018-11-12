@@ -68,9 +68,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
-#include <nfsclient/nfsdiskless.h>
+#include <nfs/nfsdiskless.h>
 #ifdef DEV_APIC
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #endif
 #include <machine/cpu.h>
 #include <machine/pcb.h>
@@ -101,8 +101,7 @@ ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
 ASSYM(V_SYSCALL, offsetof(struct vmmeter, v_syscall));
 ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
-/* ASSYM(UPAGES, UPAGES);*/
-ASSYM(KSTACK_PAGES, KSTACK_PAGES);
+ASSYM(TD0_KSTACK_PAGES, TD0_KSTACK_PAGES);
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 ASSYM(NPTEPG, NPTEPG);
 ASSYM(NPDEPG, NPDEPG);
@@ -121,7 +120,10 @@ ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
 ASSYM(KERNBASE, KERNBASE);
 ASSYM(KERNLOAD, KERNLOAD);
 ASSYM(MCLBYTES, MCLBYTES);
+ASSYM(PCB_CR0, offsetof(struct pcb, pcb_cr0));
+ASSYM(PCB_CR2, offsetof(struct pcb, pcb_cr2));
 ASSYM(PCB_CR3, offsetof(struct pcb, pcb_cr3));
+ASSYM(PCB_CR4, offsetof(struct pcb, pcb_cr4));
 ASSYM(PCB_EDI, offsetof(struct pcb, pcb_edi));
 ASSYM(PCB_ESI, offsetof(struct pcb, pcb_esi));
 ASSYM(PCB_EBP, offsetof(struct pcb, pcb_ebp));
@@ -130,26 +132,34 @@ ASSYM(PCB_EBX, offsetof(struct pcb, pcb_ebx));
 ASSYM(PCB_EIP, offsetof(struct pcb, pcb_eip));
 ASSYM(TSS_ESP0, offsetof(struct i386tss, tss_esp0));
 
+ASSYM(PCB_DS, offsetof(struct pcb, pcb_ds));
+ASSYM(PCB_ES, offsetof(struct pcb, pcb_es));
+ASSYM(PCB_FS, offsetof(struct pcb, pcb_fs));
 ASSYM(PCB_GS, offsetof(struct pcb, pcb_gs));
+ASSYM(PCB_SS, offsetof(struct pcb, pcb_ss));
 ASSYM(PCB_DR0, offsetof(struct pcb, pcb_dr0));
 ASSYM(PCB_DR1, offsetof(struct pcb, pcb_dr1));
 ASSYM(PCB_DR2, offsetof(struct pcb, pcb_dr2));
 ASSYM(PCB_DR3, offsetof(struct pcb, pcb_dr3));
 ASSYM(PCB_DR6, offsetof(struct pcb, pcb_dr6));
 ASSYM(PCB_DR7, offsetof(struct pcb, pcb_dr7));
-ASSYM(PCB_PSL, offsetof(struct pcb, pcb_psl));
 ASSYM(PCB_DBREGS, PCB_DBREGS);
 ASSYM(PCB_EXT, offsetof(struct pcb, pcb_ext));
 
 ASSYM(PCB_FSD, offsetof(struct pcb, pcb_fsd));
+ASSYM(PCB_GSD, offsetof(struct pcb, pcb_gsd));
 ASSYM(PCB_VM86, offsetof(struct pcb, pcb_vm86));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_SAVEFPU, offsetof(struct pcb, pcb_save));
-ASSYM(PCB_SAVEFPU_SIZE, sizeof(union savefpu));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 
 ASSYM(PCB_SIZE, sizeof(struct pcb));
 ASSYM(PCB_VM86CALL, PCB_VM86CALL);
+
+ASSYM(PCB_GDT, offsetof(struct pcb, pcb_gdt));
+ASSYM(PCB_IDT, offsetof(struct pcb, pcb_idt));
+ASSYM(PCB_LDT, offsetof(struct pcb, pcb_ldt));
+ASSYM(PCB_TR, offsetof(struct pcb, pcb_tr));
 
 ASSYM(TF_TRAPNO, offsetof(struct trapframe, tf_trapno));
 ASSYM(TF_ERR, offsetof(struct trapframe, tf_err));
@@ -179,7 +189,6 @@ ASSYM(UC_GS, offsetof(ucontext_t, uc_mcontext.mc_gs));
 ASSYM(ENOENT, ENOENT);
 ASSYM(EFAULT, EFAULT);
 ASSYM(ENAMETOOLONG, ENAMETOOLONG);
-ASSYM(MAXCPU, MAXCPU);
 ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(MAXPATHLEN, MAXPATHLEN);
 ASSYM(BOOTINFO_SIZE, sizeof(struct bootinfo));
@@ -208,13 +217,8 @@ ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 ASSYM(PC_PRIVATE_TSS, offsetof(struct pcpu, pc_private_tss));
 
 #ifdef DEV_APIC
-ASSYM(LA_VER, offsetof(struct LAPIC, version));
-ASSYM(LA_TPR, offsetof(struct LAPIC, tpr));
-ASSYM(LA_EOI, offsetof(struct LAPIC, eoi));
-ASSYM(LA_SVR, offsetof(struct LAPIC, svr));
-ASSYM(LA_ICR_LO, offsetof(struct LAPIC, icr_lo));
-ASSYM(LA_ICR_HI, offsetof(struct LAPIC, icr_hi));
-ASSYM(LA_ISR, offsetof(struct LAPIC, isr0));
+ASSYM(LA_EOI, LAPIC_EOI * LAPIC_MEM_MUL);
+ASSYM(LA_ISR, LAPIC_ISR0 * LAPIC_MEM_MUL);
 #endif
 
 ASSYM(KCSEL, GSEL(GCODE_SEL, SEL_KPL));
@@ -230,12 +234,6 @@ ASSYM(VM86_FRAMESIZE, sizeof(struct vm86frame));
 
 ASSYM(BUS_SPACE_HANDLE_BASE, offsetof(struct bus_space_handle, bsh_base));
 ASSYM(BUS_SPACE_HANDLE_IAT, offsetof(struct bus_space_handle, bsh_iat));
-#endif
-
-#ifdef XEN
-#include <xen/hypervisor.h>
-ASSYM(PC_CR3, offsetof(struct pcpu, pc_cr3));
-ASSYM(HYPERVISOR_VIRT_START, __HYPERVISOR_VIRT_START);
 #endif
 
 #ifdef	HWPMC_HOOKS

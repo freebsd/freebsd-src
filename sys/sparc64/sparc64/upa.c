@@ -99,10 +99,11 @@ struct upa_softc {
 
 static device_probe_t upa_probe;
 static device_attach_t upa_attach;
-static bus_alloc_resource_t upa_alloc_resource;
-static bus_setup_intr_t upa_setup_intr;
 static bus_print_child_t upa_print_child;
 static bus_probe_nomatch_t upa_probe_nomatch;
+static bus_alloc_resource_t upa_alloc_resource;
+static bus_adjust_resource_t upa_adjust_resource;
+static bus_setup_intr_t upa_setup_intr;
 static bus_get_resource_list_t upa_get_resource_list;
 static ofw_bus_get_devinfo_t upa_get_devinfo;
 
@@ -130,6 +131,7 @@ static device_method_t upa_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	upa_alloc_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	upa_adjust_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
 	DEVMETHOD(bus_setup_intr,	upa_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -145,13 +147,13 @@ static device_method_t upa_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static devclass_t upa_devclass;
 
 DEFINE_CLASS_0(upa, upa_driver, upa_methods, sizeof(struct upa_softc));
-DRIVER_MODULE(upa, nexus, upa_driver, upa_devclass, 0, 0);
+EARLY_DRIVER_MODULE(upa, nexus, upa_driver, upa_devclass, 0, 0, BUS_PASS_BUS);
 
 static const struct intr_controller upa_ic = {
 	upa_intr_enable,
@@ -192,7 +194,7 @@ upa_attach(device_t dev)
 	int i, imr, j, rid;
 #if 1
 	device_t *children, schizo;
-	u_long scount, sstart, ucount, ustart;
+	rman_res_t scount, sstart, ucount, ustart;
 	int nchildren;
 #endif
 
@@ -401,7 +403,7 @@ upa_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 upa_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
@@ -410,7 +412,7 @@ upa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	bus_addr_t cend, cstart;
 	int i, isdefault, passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != dev);
 	sc = device_get_softc(dev);
 	rl = BUS_GET_RESOURCE_LIST(dev, child);
@@ -506,6 +508,15 @@ upa_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 	    arg, cookiep));
 }
 
+static int
+upa_adjust_resource(device_t bus __unused, device_t child __unused,
+    int type __unused, struct resource *r __unused, rman_res_t start __unused,
+    rman_res_t end __unused)
+{
+
+	return (ENXIO);
+}
+
 static struct resource_list *
 upa_get_resource_list(device_t dev, device_t child)
 {
@@ -549,7 +560,7 @@ upa_setup_dinfo(device_t dev, struct upa_softc *sc, phandle_t node,
 	for (i = 0; i < nreg; i++)
 		resource_list_add(&udi->udi_rl, SYS_RES_MEMORY, i, reg[i].phys,
 		    reg[i].phys + reg[i].size - 1, reg[i].size);
-	free(reg, M_OFWPROP);
+	OF_prop_free(reg);
 
 	intr = INTMAP_VEC(sc->sc_ign, (UPA_INO_BASE + portid));
 	resource_list_add(&udi->udi_rl, SYS_RES_IRQ, 0, intr, intr, 1);
@@ -577,8 +588,8 @@ upa_print_res(struct upa_devinfo *udi)
 
 	rv = 0;
 	rv += resource_list_print_type(&udi->udi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
+	    "%#jx");
 	rv += resource_list_print_type(&udi->udi_rl, "irq", SYS_RES_IRQ,
-	    "%ld");
+	    "%jd");
 	return (rv);
 }

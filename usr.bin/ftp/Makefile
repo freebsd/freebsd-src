@@ -2,26 +2,27 @@
 #	$NetBSD: Makefile,v 1.15 1997/10/18 15:31:20 lukem Exp $
 #	from: @(#)Makefile	8.2 (Berkeley) 4/3/94
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 # Uncomment the following to provide defaults for gate-ftp operation
 #
 #CFLAGS+=-DGATE_SERVER=\"ftp-gw.host\" # -DGATE_PORT=21
 
-LUKEMFTP=	${.CURDIR}/../../contrib/lukemftp
-.PATH: ${LUKEMFTP}/src
+TNFTP=	${.CURDIR}/../../contrib/tnftp
+.PATH: ${TNFTP}/src
 
 PROG=	ftp
-SRCS=	cmds.c cmdtab.c complete.c domacro.c fetch.c ftp.c main.c progressbar.c \
-	ruserpass.c util.c
+SRCS=	cmds.c cmdtab.c complete.c domacro.c fetch.c ftp.c main.c \
+	progressbar.c ruserpass.c util.c
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
 .endif
 
-CFLAGS+= -I${.CURDIR} -I${LUKEMFTP}
-LDADD=	-ledit -ltermcap -lutil
-DPADD=	${LIBEDIT} ${LIBTERMCAP} ${LIBUTIL}
+CFLAGS+= -I${.CURDIR} -I${TNFTP}
+LIBADD=	edit
+
+WARNS?=	2
 
 LINKS=	${BINDIR}/ftp ${BINDIR}/pftp \
 	${BINDIR}/ftp ${BINDIR}/gate-ftp

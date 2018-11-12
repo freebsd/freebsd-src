@@ -23,16 +23,16 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("* $FreeBSD$");
 
 /*
  * Common routines for the DMA engine on both the Apple Kauai and MacIO
  * ATA controllers.
  */
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -204,7 +204,6 @@ static int
 ata_dbdma_load(struct ata_request *request, void *addr, int *entries)
 {
 	struct ata_channel *ch = device_get_softc(request->parent);
-	struct ata_device *atadev = device_get_softc(request->dev);
 	struct ata_dbdma_dmaload_args args;
 
 	int error;
@@ -230,7 +229,7 @@ ata_dbdma_load(struct ata_request *request, void *addr, int *entries)
 		return EIO;
 	}
 
-	request->dma = &ch->dma.slot[atadev->unit];
+	request->dma = &ch->dma.slot[0];
 
 	if ((error = bus_dmamap_load(request->dma->data_tag, 
 	    request->dma->data_map, request->data, request->bytecount,
@@ -269,7 +268,6 @@ ata_dbdma_dmainit(device_t dev)
 	dbdma_insert_stop(sc->dbdma,0);
 	sc->next_dma_slot=1;
 
-	ata_dmainit(dev);
 	sc->sc_ch.dma.start = ata_dbdma_start;
 	sc->sc_ch.dma.stop = ata_dbdma_stop;
 	sc->sc_ch.dma.load = ata_dbdma_load;
@@ -280,9 +278,9 @@ ata_dbdma_dmainit(device_t dev)
 	 * if we try to do a 64K transfer, so stop short of 64K.
 	 */
 	sc->sc_ch.dma.segsize = 126 * DEV_BSIZE;
+	ata_dmainit(dev);
 
 	sc->sc_ch.hw.status = ata_dbdma_status;
 
 	mtx_init(&sc->dbdma_mtx, "ATA DBDMA", NULL, MTX_DEF);
 }
-

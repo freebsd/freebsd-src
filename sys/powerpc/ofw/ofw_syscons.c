@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/sc_machdep.h>
+#include <machine/vm.h>
 
 #include <sys/rman.h>
 
@@ -55,10 +56,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_pci.h>
 #include <powerpc/ofw/ofw_syscons.h>
 
-static int ofwfb_ignore_mmap_checks;
-SYSCTL_NODE(_hw, OID_AUTO, ofwfb, CTLFLAG_RD, 0, "ofwfb");
+static int ofwfb_ignore_mmap_checks = 1;
+static int ofwfb_reset_on_switch = 1;
+static SYSCTL_NODE(_hw, OID_AUTO, ofwfb, CTLFLAG_RD, 0, "ofwfb");
 SYSCTL_INT(_hw_ofwfb, OID_AUTO, relax_mmap, CTLFLAG_RW,
-    &ofwfb_ignore_mmap_checks, 0, "relax mmap bounds checking");
+    &ofwfb_ignore_mmap_checks, 0, "relaxed mmap bounds checking");
+SYSCTL_INT(_hw_ofwfb, OID_AUTO, reset_on_mode_switch, CTLFLAG_RW,
+    &ofwfb_reset_on_switch, 0, "reset the framebuffer driver on mode switch");
 
 extern u_char dflt_font_16[];
 extern u_char dflt_font_14[];
@@ -198,13 +202,18 @@ ofwfb_foreground(uint8_t attr)
 }
 
 static u_int
-ofwfb_pix32(int attr)
+ofwfb_pix32(struct ofwfb_softc *sc, int attr)
 {
 	u_int retval;
 
-	retval = (ofwfb_cmap[attr].blue  << 16) |
-		(ofwfb_cmap[attr].green << 8) |
-		ofwfb_cmap[attr].red;
+	if (sc->sc_tag == &bs_le_tag)
+		retval = (ofwfb_cmap[attr].red << 16) |
+			(ofwfb_cmap[attr].green << 8) |
+			ofwfb_cmap[attr].blue;
+	else
+		retval = (ofwfb_cmap[attr].blue  << 16) |
+			(ofwfb_cmap[attr].green << 8) |
+			ofwfb_cmap[attr].red;
 
 	return (retval);
 }
@@ -216,10 +225,11 @@ ofwfb_configure(int flags)
         phandle_t chosen;
         ihandle_t stdout;
 	phandle_t node;
-	bus_addr_t fb_phys;
+	uint32_t fb_phys;
 	int depth;
 	int disable;
 	int len;
+	int i;
 	char type[16];
 	static int done = 0;
 
@@ -263,24 +273,17 @@ ofwfb_configure(int flags)
 	} else
 		return (0);
 
+	if (OF_getproplen(node, "height") != sizeof(sc->sc_height) ||
+	    OF_getproplen(node, "width") != sizeof(sc->sc_width) ||
+	    OF_getproplen(node, "linebytes") != sizeof(sc->sc_stride))
+		return (0);
+
 	sc->sc_depth = depth;
 	sc->sc_node = node;
 	sc->sc_console = 1;
 	OF_getprop(node, "height", &sc->sc_height, sizeof(sc->sc_height));
 	OF_getprop(node, "width", &sc->sc_width, sizeof(sc->sc_width));
 	OF_getprop(node, "linebytes", &sc->sc_stride, sizeof(sc->sc_stride));
-
-	/*
-	 * Grab the physical address of the framebuffer, and then map it
-	 * into our memory space. If the MMU is not yet up, it will be
-	 * remapped for us when relocation turns on.
-	 *
-	 * XXX We assume #address-cells is 1 at this point.
-	 */
-	OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
-
-	bus_space_map(&bs_be_tag, fb_phys, sc->sc_height * sc->sc_stride,
-	    0, &sc->sc_addr);
 
 	/*
 	 * Get the PCI addresses of the adapter. The node may be the
@@ -293,9 +296,53 @@ ofwfb_configure(int flags)
 		len = OF_getprop(OF_parent(node), "assigned-addresses",
 		    sc->sc_pciaddrs, sizeof(sc->sc_pciaddrs));
 	}
+	if (len == -1)
+		len = 0;
+	sc->sc_num_pciaddrs = len / sizeof(struct ofw_pci_register);
 
-	if (len != -1) {
-		sc->sc_num_pciaddrs = len / sizeof(struct ofw_pci_register);
+	/*
+	 * Grab the physical address of the framebuffer, and then map it
+	 * into our memory space. If the MMU is not yet up, it will be
+	 * remapped for us when relocation turns on.
+	 *
+	 * XXX We assume #address-cells is 1 at this point.
+	 */
+	if (OF_getproplen(node, "address") == sizeof(fb_phys)) {
+		OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
+		sc->sc_tag = &bs_be_tag;
+		bus_space_map(sc->sc_tag, fb_phys, sc->sc_height *
+		    sc->sc_stride, BUS_SPACE_MAP_PREFETCHABLE, &sc->sc_addr);
+	} else {
+		/*
+		 * Some IBM systems don't have an address property. Try to
+		 * guess the framebuffer region from the assigned addresses.
+		 * This is ugly, but there doesn't seem to be an alternative.
+		 * Linux does the same thing.
+		 */
+
+		fb_phys = sc->sc_num_pciaddrs;
+		for (i = 0; i < sc->sc_num_pciaddrs; i++) {
+			/* If it is too small, not the framebuffer */
+			if (sc->sc_pciaddrs[i].size_lo <
+			    sc->sc_stride*sc->sc_height)
+				continue;
+			/* If it is not memory, it isn't either */
+			if (!(sc->sc_pciaddrs[i].phys_hi &
+			    OFW_PCI_PHYS_HI_SPACE_MEM32))
+				continue;
+
+			/* This could be the framebuffer */
+			fb_phys = i;
+
+			/* If it is prefetchable, it certainly is */
+			if (sc->sc_pciaddrs[i].phys_hi &
+			    OFW_PCI_PHYS_HI_PREFETCHABLE)
+				break;
+		}
+		if (fb_phys == sc->sc_num_pciaddrs)
+			return (0);
+
+		OF_decode_addr(node, fb_phys, &sc->sc_tag, &sc->sc_addr, NULL);
 	}
 
 	ofwfb_init(0, &sc->sc_va, 0);
@@ -365,7 +412,7 @@ ofwfb_init(int unit, video_adapter_t *adp, int flags)
 	adp->va_window = (vm_offset_t) ofwfb_static_window;
 
 	/*
-	 * Enable future font-loading and flag color support, as well as 
+	 * Enable future font-loading and flag color support, as well as
 	 * adding V_ADP_MODECHANGE so that we ofwfb_set_mode() gets called
 	 * when the X server shuts down. This enables us to get the console
 	 * back when X disappears.
@@ -403,26 +450,28 @@ ofwfb_set_mode(video_adapter_t *adp, int mode)
 
 	sc = (struct ofwfb_softc *)adp;
 
-	/*
-	 * Open the display device, which will initialize it.
-	 */
-
-	memset(name, 0, sizeof(name));
-	OF_package_to_path(sc->sc_node, name, sizeof(name));
-	ih = OF_open(name);
-
-	if (sc->sc_depth == 8) {
+	if (ofwfb_reset_on_switch) {
 		/*
-		 * Install the ISO6429 colormap - older OFW systems
-		 * don't do this by default
+		 * Open the display device, which will initialize it.
 		 */
-		for (i = 0; i < 16; i++) {
-			OF_call_method("color!", ih, 4, 1,
-				       ofwfb_cmap[i].red,
-				       ofwfb_cmap[i].green,
-				       ofwfb_cmap[i].blue,
-				       i,
-				       &retval);
+
+		memset(name, 0, sizeof(name));
+		OF_package_to_path(sc->sc_node, name, sizeof(name));
+		ih = OF_open(name);
+
+		if (sc->sc_depth == 8) {
+			/*
+			 * Install the ISO6429 colormap - older OFW systems
+			 * don't do this by default
+			 */
+			for (i = 0; i < 16; i++) {
+				OF_call_method("color!", ih, 4, 1,
+						   ofwfb_cmap[i].red,
+						   ofwfb_cmap[i].green,
+						   ofwfb_cmap[i].blue,
+						   i,
+						   &retval);
+			}
 		}
 	}
 
@@ -585,14 +634,22 @@ ofwfb_blank_display8(video_adapter_t *adp, int mode)
 {
 	struct ofwfb_softc *sc;
 	int i;
-	uint8_t *addr;
+	uint32_t *addr;
+	uint32_t color;
+	uint32_t end;
 
 	sc = (struct ofwfb_softc *)adp;
-	addr = (uint8_t *) sc->sc_addr;
+	addr = (uint32_t *) sc->sc_addr;
+	end = (sc->sc_stride/4) * sc->sc_height;
 
-	/* Could be done a lot faster e.g. 32-bits, or Altivec'd */
-	for (i = 0; i < sc->sc_stride*sc->sc_height; i++)
-		*(addr + i) = ofwfb_background(SC_NORM_ATTR);
+	/* Splat 4 pixels at once. */
+	color = (ofwfb_background(SC_NORM_ATTR) << 24) |
+	    (ofwfb_background(SC_NORM_ATTR) << 16) |
+	    (ofwfb_background(SC_NORM_ATTR) << 8) |
+	    (ofwfb_background(SC_NORM_ATTR));
+
+	for (i = 0; i < end; i++)
+		*(addr + i) = color;
 
 	return (0);
 }
@@ -602,13 +659,14 @@ ofwfb_blank_display32(video_adapter_t *adp, int mode)
 {
 	struct ofwfb_softc *sc;
 	int i;
-	uint32_t *addr;
+	uint32_t *addr, blank;
 
 	sc = (struct ofwfb_softc *)adp;
 	addr = (uint32_t *) sc->sc_addr;
+	blank = ofwfb_pix32(sc, ofwfb_background(SC_NORM_ATTR));
 
 	for (i = 0; i < (sc->sc_stride/4)*sc->sc_height; i++)
-		*(addr + i) = ofwfb_pix32(ofwfb_background(SC_NORM_ATTR));
+		*(addr + i) = blank;
 
 	return (0);
 }
@@ -624,16 +682,33 @@ ofwfb_blank_display(video_adapter_t *adp, int mode)
 }
 
 static int
-ofwfb_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
-    int prot)
+ofwfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 	struct ofwfb_softc *sc;
 	int i;
 
 	sc = (struct ofwfb_softc *)adp;
 
-	if (sc->sc_num_pciaddrs == 0)
-		return (ENOMEM);
+	/*
+	 * Make sure the requested address lies within the PCI device's
+	 * assigned addrs
+	 */
+	for (i = 0; i < sc->sc_num_pciaddrs; i++)
+	  if (offset >= sc->sc_pciaddrs[i].phys_lo &&
+	    offset < (sc->sc_pciaddrs[i].phys_lo + sc->sc_pciaddrs[i].size_lo))
+		{
+			/*
+			 * If this is a prefetchable BAR, we can (and should)
+			 * enable write-combining.
+			 */
+			if (sc->sc_pciaddrs[i].phys_hi &
+			    OFW_PCI_PHYS_HI_PREFETCHABLE)
+				*memattr = VM_MEMATTR_WRITE_COMBINING;
+
+			*paddr = offset;
+			return (0);
+		}
 
 	/*
 	 * Hack for Radeon...
@@ -644,16 +719,6 @@ ofwfb_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
 	}
 
 	/*
-	 * Make sure the requested address lies within the PCI device's assigned addrs
-	 */
-	for (i = 0; i < sc->sc_num_pciaddrs; i++)
-		if (offset >= sc->sc_pciaddrs[i].phys_lo &&
-		    offset < (sc->sc_pciaddrs[i].phys_lo + sc->sc_pciaddrs[i].size_lo)) {
-			*paddr = offset;
-			return (0);
-		}
-
-	/*
 	 * This might be a legacy VGA mem request: if so, just point it at the
 	 * framebuffer, since it shouldn't be touched
 	 */
@@ -661,6 +726,12 @@ ofwfb_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
 		*paddr = sc->sc_addr + offset;
 		return (0);
 	}
+
+	/*
+	 * Error if we didn't have a better idea.
+	 */
+	if (sc->sc_num_pciaddrs == 0)
+		return (ENOMEM);
 
 	return (EINVAL);
 }
@@ -748,7 +819,7 @@ ofwfb_putc8(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
         row = (off / adp->va_info.vi_width) * adp->va_info.vi_cheight;
         col = (off % adp->va_info.vi_width) * adp->va_info.vi_cwidth;
 	p = sc->sc_font + c*sc->sc_font_height;
-	addr = (u_int32_t *)((int)sc->sc_addr
+	addr = (u_int32_t *)((uintptr_t)sc->sc_addr
 		+ (row + sc->sc_ymargin)*sc->sc_stride
 		+ col + sc->sc_xmargin);
 
@@ -793,7 +864,7 @@ ofwfb_putc32(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	int row;
 	int col;
 	int i, j, k;
-	uint32_t *addr;
+	uint32_t *addr, fg, bg;
 	u_char *p;
 
 	sc = (struct ofwfb_softc *)adp;
@@ -804,12 +875,15 @@ ofwfb_putc32(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 		+ (row + sc->sc_ymargin)*(sc->sc_stride/4)
 		+ col + sc->sc_xmargin;
 
+	fg = ofwfb_pix32(sc, ofwfb_foreground(a));
+	bg = ofwfb_pix32(sc, ofwfb_background(a));
+
 	for (i = 0; i < sc->sc_font_height; i++) {
 		for (j = 0, k = 7; j < 8; j++, k--) {
 			if ((p[i] & (1 << k)) == 0)
-				*(addr + j) = ofwfb_pix32(ofwfb_background(a));
+				*(addr + j) = bg;
 			else
-				*(addr + j) = ofwfb_pix32(ofwfb_foreground(a));
+				*(addr + j) = fg;
 		}
 		addr += (sc->sc_stride/4);
 	}
@@ -856,16 +930,11 @@ ofwfb_putm8(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
 {
 	struct ofwfb_softc *sc;
 	int i, j, k;
-	uint32_t *addr;
+	uint8_t *addr;
 	u_char fg, bg;
-	union {
-		uint32_t l[2];
-		uint8_t  c[8];
-	} ch;
-
 
 	sc = (struct ofwfb_softc *)adp;
-	addr = (u_int32_t *)((int)sc->sc_addr
+	addr = (u_int8_t *)((uintptr_t)sc->sc_addr
 		+ (y + sc->sc_ymargin)*sc->sc_stride
 		+ x + sc->sc_xmargin);
 
@@ -873,12 +942,6 @@ ofwfb_putm8(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
 	bg = ofwfb_background(SC_NORM_ATTR);
 
 	for (i = 0; i < size && i+y < sc->sc_height - 2*sc->sc_ymargin; i++) {
-		/*
-		 * Use the current values for the line
-		 */
-		ch.l[0] = addr[0];
-		ch.l[1] = addr[1];
-
 		/*
 		 * Calculate 2 x 4-chars at a time, and then
 		 * write these out.
@@ -888,12 +951,10 @@ ofwfb_putm8(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
 				continue;
 
 			if (pixel_image[i] & (1 << k))
-				ch.c[j] = (ch.c[j] == fg) ? bg : fg;
+				addr[j] = (addr[j] == fg) ? bg : fg;
 		}
 
-		addr[0] = ch.l[0];
-		addr[1] = ch.l[1];
-		addr += (sc->sc_stride / sizeof(u_int32_t));
+		addr += (sc->sc_stride / sizeof(u_int8_t));
 	}
 
 	return (0);
@@ -913,8 +974,8 @@ ofwfb_putm32(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
 		+ (y + sc->sc_ymargin)*(sc->sc_stride/4)
 		+ x + sc->sc_xmargin;
 
-	fg = ofwfb_pix32(ofwfb_foreground(SC_NORM_ATTR));
-	bg = ofwfb_pix32(ofwfb_background(SC_NORM_ATTR));
+	fg = ofwfb_pix32(sc, ofwfb_foreground(SC_NORM_ATTR));
+	bg = ofwfb_pix32(sc, ofwfb_background(SC_NORM_ATTR));
 
 	for (i = 0; i < size && i+y < sc->sc_height - 2*sc->sc_ymargin; i++) {
 		for (j = 0, k = width; j < 8; j++, k--) {
@@ -952,7 +1013,7 @@ ofwfb_scprobe(device_t dev)
 
 	device_set_desc(dev, "System console");
 
-	error = sc_probe_unit(device_get_unit(dev), 
+	error = sc_probe_unit(device_get_unit(dev),
 	    device_get_flags(dev) | SC_AUTODETECT_KBD);
 	if (error != 0)
 		return (error);
@@ -983,7 +1044,7 @@ static driver_t ofwfb_sc_driver = {
 
 static devclass_t	sc_devclass;
 
-DRIVER_MODULE(sc, nexus, ofwfb_sc_driver, sc_devclass, 0, 0);
+DRIVER_MODULE(ofwfb, nexus, ofwfb_sc_driver, sc_devclass, 0, 0);
 
 /*
  * Define a stub keyboard driver in case one hasn't been

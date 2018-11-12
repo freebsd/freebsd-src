@@ -52,6 +52,19 @@
 /* device configuration flags */
 #define KB_CONF_FAIL_IF_NO_KBD	(1 << 0) /* don't install if no kbd is found */
 
+typedef caddr_t		KBDC;
+
+typedef struct pckbd_state {
+	KBDC		kbdc;		/* keyboard controller */
+	int		ks_mode;	/* input mode (K_XLATE,K_RAW,K_CODE) */
+	int		ks_flags;	/* flags */
+#define COMPOSE		(1 << 0)
+	int		ks_state;	/* shift/lock key state */
+	int		ks_accents;	/* accent key index (> 0) */
+	u_int		ks_composed_char; /* composed char code (> 0) */
+	struct callout	ks_timer;
+} pckbd_state_t;
+
 static devclass_t	pckbd_devclass;
 
 static int		pckbdprobe(device_t dev);
@@ -77,9 +90,9 @@ DRIVER_MODULE(pckbd, isa, pckbd_driver, pckbd_devclass, 0, 0);
 
 static bus_addr_t pckbd_iat[] = {0, 2};
 
-static int		pckbd_probe_unit(int unit, int port, int irq,
+static int		pckbd_probe_unit(device_t dev, int port, int irq,
 					 int flags);
-static int		pckbd_attach_unit(int unit, keyboard_t **kbd,
+static int		pckbd_attach_unit(device_t dev, keyboard_t **kbd,
 					  int port, int irq, int flags);
 static timeout_t	pckbd_timeout;
 
@@ -103,7 +116,7 @@ pckbdprobe(device_t dev)
 		return ENXIO;
 	isa_load_resourcev(res, pckbd_iat, 2);
 
-	error = pckbd_probe_unit(device_get_unit(dev),
+	error = pckbd_probe_unit(dev,
 				 isa_get_port(dev),
 				 (1 << isa_get_irq(dev)),
 				 device_get_flags(dev));
@@ -128,7 +141,7 @@ pckbdattach(device_t dev)
 		return ENXIO;
 	isa_load_resourcev(res, pckbd_iat, 2);
 
-	error = pckbd_attach_unit(device_get_unit(dev), &kbd,
+	error = pckbd_attach_unit(dev, &kbd,
 				  isa_get_port(dev),
 				  (1 << isa_get_irq(dev)),
 				  device_get_flags(dev));
@@ -164,7 +177,7 @@ pckbd_isa_intr(void *arg)
 }
 
 static int
-pckbd_probe_unit(int unit, int port, int irq, int flags)
+pckbd_probe_unit(device_t dev, int port, int irq, int flags)
 {
 	keyboard_switch_t *sw;
 	int args[2];
@@ -176,24 +189,27 @@ pckbd_probe_unit(int unit, int port, int irq, int flags)
 
 	args[0] = port;
 	args[1] = irq;
-	error = (*sw->probe)(unit, args, flags);
+	error = (*sw->probe)(device_get_unit(dev), args, flags);
 	if (error)
 		return error;
 	return 0;
 }
 
 static int
-pckbd_attach_unit(int unit, keyboard_t **kbd, int port, int irq, int flags)
+pckbd_attach_unit(device_t dev, keyboard_t **kbd, int port, int irq, int flags)
 {
 	keyboard_switch_t *sw;
+	pckbd_state_t *state;
 	int args[2];
 	int error;
+	int unit;
 
 	sw = kbd_get_switch(DRIVER_NAME);
 	if (sw == NULL)
 		return ENXIO;
 
 	/* reset, initialize and enable the device */
+	unit = device_get_unit(dev);
 	args[0] = port;
 	args[1] = irq;
 	*kbd = NULL;
@@ -216,6 +232,8 @@ pckbd_attach_unit(int unit, keyboard_t **kbd, int port, int irq, int flags)
 	 * This is a kludge to compensate for lost keyboard interrupts.
 	 * A similar code used to be in syscons. See below. XXX
 	 */
+	state = (pckbd_state_t *)(*kbd)->kb_data;
+	callout_init(&state->ks_timer, 0);
 	pckbd_timeout(*kbd);
 
 	if (bootverbose)
@@ -227,6 +245,7 @@ pckbd_attach_unit(int unit, keyboard_t **kbd, int port, int irq, int flags)
 static void
 pckbd_timeout(void *arg)
 {
+	pckbd_state_t *state;
 	keyboard_t *kbd;
 	int s;
 
@@ -257,7 +276,8 @@ pckbd_timeout(void *arg)
 			kbdd_intr(kbd, NULL);
 	}
 	splx(s);
-	timeout(pckbd_timeout, arg, hz/10);
+	state = (pckbd_state_t *)kbd->kb_data;
+	callout_reset(&state->ks_timer, hz / 10, pckbd_timeout, arg);
 }
 
 /* LOW-LEVEL */
@@ -265,18 +285,6 @@ pckbd_timeout(void *arg)
 #include <sys/limits.h>
 
 #define PC98KBD_DEFAULT	0
-
-typedef caddr_t		KBDC;
-
-typedef struct pckbd_state {
-	KBDC		kbdc;		/* keyboard controller */
-	int		ks_mode;	/* input mode (K_XLATE,K_RAW,K_CODE) */
-	int		ks_flags;	/* flags */
-#define COMPOSE		(1 << 0)
-	int		ks_state;	/* shift/lock key state */
-	int		ks_accents;	/* accent key index (> 0) */
-	u_int		ks_composed_char; /* composed char code (> 0) */
-} pckbd_state_t;
 
 /* keyboard driver declaration */
 static int		pckbd_configure(int flags);
@@ -438,8 +446,7 @@ pckbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		keymap = &default_keymap;
 		accmap = &default_accentmap;
 		fkeymap = default_fkeytab;
-		fkeymap_size =
-			sizeof(default_fkeytab)/sizeof(default_fkeytab[0]);
+		fkeymap_size = nitems(default_fkeytab);
 
 		state->kbdc = kbdc_open(data[0]);
 		if (state->kbdc == NULL)
@@ -484,7 +491,10 @@ pckbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 static int
 pckbd_term(keyboard_t *kbd)
 {
+	pckbd_state_t *state = (pckbd_state_t *)kbd->kb_data;
+
 	kbd_unregister(kbd);
+	callout_drain(&state->ks_timer);
 	return 0;
 }
 
@@ -799,6 +809,7 @@ pckbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		break;
 
 	case PIO_KEYMAP:	/* set keyboard translation table */
+	case OPIO_KEYMAP:	/* set keyboard translation table (compat) */
 	case PIO_KEYMAPENT:	/* set keyboard translation table entry */
 	case PIO_DEADKEYMAP:	/* set accent key translation table */
 		state->ks_accents = 0;

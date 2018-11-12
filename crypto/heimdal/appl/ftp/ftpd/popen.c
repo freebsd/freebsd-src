@@ -37,7 +37,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: popen.c 10900 2002-04-02 11:57:39Z joda $");
+RCSID("$Id$");
 #endif
 
 #include <sys/types.h>
@@ -65,15 +65,13 @@ RCSID("$Id: popen.c 10900 2002-04-02 11:57:39Z joda $");
 #include "extern.h"
 
 
-/* 
+/*
  * Special version of popen which avoids call to shell.  This ensures
  * no one may create a pipe to a hidden program as a side effect of a
  * list or dir command.
  */
 static int *pids;
 static int fds;
-
-extern int dochroot;
 
 /* return path prepended with ~ftp if that file exists, otherwise
  * return path unchanged
@@ -148,8 +146,8 @@ ftpd_popen(char *program, char *type, int do_stderr, int no_glob)
 		    ;
 
 		memset(&gl, 0, sizeof(gl));
-		if (no_glob || 
-		    glob(argv[argc], flags, NULL, &gl) || 
+		if (no_glob ||
+		    glob(argv[argc], flags, NULL, &gl) ||
 		    gl.gl_pathc == 0)
 			gargv[gargc++] = strdup(argv[argc]);
 		else
@@ -198,8 +196,8 @@ ftpd_popen(char *program, char *type, int do_stderr, int no_glob)
 		close(pdes[0]);
 	}
 	pids[fileno(iop)] = pid;
-	
-pfree:	
+
+pfree:
 	for (argc = 1; gargv[argc] != NULL; argc++)
 	    free(gargv[argc]);
 

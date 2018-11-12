@@ -28,7 +28,7 @@
 .\"     @(#)close.2	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd December 4, 2006
+.Dd September 11, 2013
 .Dt CLOSE 2
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .In unistd.h
 .Ft int
-.Fn close "int d"
+.Fn close "int fd"
 .Sh DESCRIPTION
 The
 .Fn close
@@ -107,7 +107,7 @@ system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The
-.Fa d
+.Fa fd
 argument
 is not an active descriptor.
 .It Bq Er EINTR
@@ -118,6 +118,10 @@ The underlying object did not fit, cached data was lost.
 The underlying object was a stream socket that was shut down by the peer
 before all pending data was delivered.
 .El
+.Pp
+In case of any error except
+.Er EBADF ,
+the supplied file descriptor is deallocated and therefore is no longer valid.
 .Sh SEE ALSO
 .Xr accept 2 ,
 .Xr closefrom 2 ,

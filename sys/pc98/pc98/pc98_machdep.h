@@ -33,9 +33,6 @@
 void	pc98_init_dmac(void);
 unsigned int	pc98_getmemsize(unsigned *, unsigned *);
 
-struct	ccb_calc_geometry;
-int	scsi_da_bios_params(struct ccb_calc_geometry *);
-
 #define	PC98_VECTOR_SIZE			(0x400)
 #define	PC98_SYSTEM_PARAMETER_SIZE		(0x240)
 #define	PC98_SAVE_AREA				(0xa1000)

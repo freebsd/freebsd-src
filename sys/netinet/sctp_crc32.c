@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,9 +29,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-/* $KAME: sctp_crc32.c,v 1.12 2005/03/06 16:04:17 itojun Exp $	 */
-
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -115,34 +114,27 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 	return (base);
 }
 
-#else
-
-uint32_t
-sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
-{
-	return (0);
-}
-
 #endif				/* !defined(SCTP_WITH_NO_CSUM) */
 
 
 void
-sctp_delayed_cksum(struct mbuf *m)
+sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
 {
-	struct ip *ip;
+#if defined(SCTP_WITH_NO_CSUM)
+#ifdef INVARIANTS
+	panic("sctp_delayed_cksum() called when using no SCTP CRC.");
+#endif
+#else
 	uint32_t checksum;
-	uint32_t offset;
 
-	ip = mtod(m, struct ip *);
-	offset = ip->ip_hl << 2;
 	checksum = sctp_calculate_cksum(m, offset);
 	SCTP_STAT_DECR(sctps_sendhwcrc);
 	SCTP_STAT_INCR(sctps_sendswcrc);
 	offset += offsetof(struct sctphdr, checksum);
 
 	if (offset + sizeof(uint32_t) > (uint32_t) (m->m_len)) {
-		printf("delayed m_pullup, m->len: %d  off: %d  p: %d\n",
-		    (uint32_t) m->m_len, offset, ip->ip_p);
+		SCTP_PRINTF("sctp_delayed_cksum(): m->len: %d,  off: %d.\n",
+		    (uint32_t) m->m_len, offset);
 		/*
 		 * XXX this shouldn't happen, but if it does, the correct
 		 * behavior may be to insert the checksum in the appropriate
@@ -151,4 +143,5 @@ sctp_delayed_cksum(struct mbuf *m)
 		return;
 	}
 	*(uint32_t *) (m->m_data + offset) = checksum;
+#endif
 }

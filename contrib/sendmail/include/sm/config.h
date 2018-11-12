@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2003 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: config.h,v 1.47 2004/10/26 21:41:07 gshapiro Exp $
+ *	$Id: config.h,v 1.49 2013-11-22 20:51:31 ca Exp $
  */
 
 /*
@@ -24,14 +24,16 @@
 
 /*
 **  SM_CONF_STDBOOL_H is 1 if <stdbool.h> exists
+**
+**  Note, unlike gcc, clang doesn't apply full prototypes to K&R definitions.
 */
 
 # ifndef SM_CONF_STDBOOL_H
-#  if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+#  if !defined(__clang__) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 #   define SM_CONF_STDBOOL_H		1
-#  else /* defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L */
+#  else /* !defined(__clang__) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L */
 #   define SM_CONF_STDBOOL_H		0
-#  endif /* defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L */
+#  endif /* !defined(__clang__) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L */
 # endif /* ! SM_CONF_STDBOOL_H */
 
 /*

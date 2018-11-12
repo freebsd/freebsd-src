@@ -52,7 +52,7 @@ union sockaddr_union {
 /* Security Assocciation Index */
 /* NOTE: Ensure to be same address family */
 struct secasindex {
-	union sockaddr_union src;	/* srouce address for SA */
+	union sockaddr_union src;	/* source address for SA */
 	union sockaddr_union dst;	/* destination address for SA */
 	u_int16_t proto;		/* IPPROTO_ESP or IPPROTO_AH */
 	u_int8_t mode;			/* mode of protocol, see ipsec.h */
@@ -99,8 +99,6 @@ struct secashead {
 	LIST_HEAD(_satree, secasvar) savtree[SADB_SASTATE_MAX+1];
 					/* SA chain */
 					/* The first of this list is newer SA */
-
-	struct route sa_route;		/* route cache */
 };
 
 struct xformsw;
@@ -124,10 +122,10 @@ struct secasvar {
 
 	struct seckey *key_auth;	/* Key for Authentication */
 	struct seckey *key_enc;	        /* Key for Encryption */
-	caddr_t iv;			/* Initilization Vector */
 	u_int ivlen;			/* length of IV */
 	void *sched;			/* intermediate encryption key */
 	size_t schedlen;
+	uint64_t cntr;			/* counter for GCM and CTR */
 
 	struct secreplay *replay;	/* replay prevention */
 	time_t created;			/* for lifetime */
@@ -165,6 +163,12 @@ struct secasvar {
 #define	SECASVAR_UNLOCK(_sav)		mtx_unlock(&(_sav)->lock)
 #define	SECASVAR_LOCK_DESTROY(_sav)	mtx_destroy(&(_sav)->lock)
 #define	SECASVAR_LOCK_ASSERT(_sav)	mtx_assert(&(_sav)->lock, MA_OWNED)
+#define	SAV_ISGCM(_sav)							\
+			((_sav)->alg_enc == SADB_X_EALG_AESGCM8 ||	\
+			(_sav)->alg_enc == SADB_X_EALG_AESGCM12 ||	\
+			(_sav)->alg_enc == SADB_X_EALG_AESGCM16)
+#define	SAV_ISCTR(_sav) ((_sav)->alg_enc == SADB_X_EALG_AESCTR)
+#define SAV_ISCTRORGCM(_sav)	(SAV_ISCTR((_sav)) || SAV_ISGCM((_sav)))
 
 /* replay prevention */
 struct secreplay {
@@ -200,21 +204,21 @@ struct secacq {
 #define SADB_KILL_INTERVAL	600	/* six seconds */
 
 /* secpolicy */
-extern struct secpolicy *keydb_newsecpolicy __P((void));
-extern void keydb_delsecpolicy __P((struct secpolicy *));
+extern struct secpolicy *keydb_newsecpolicy(void);
+extern void keydb_delsecpolicy(struct secpolicy *);
 /* secashead */
-extern struct secashead *keydb_newsecashead __P((void));
-extern void keydb_delsecashead __P((struct secashead *));
+extern struct secashead *keydb_newsecashead(void);
+extern void keydb_delsecashead(struct secashead *);
 /* secasvar */
-extern struct secasvar *keydb_newsecasvar __P((void));
-extern void keydb_refsecasvar __P((struct secasvar *));
-extern void keydb_freesecasvar __P((struct secasvar *));
+extern struct secasvar *keydb_newsecasvar(void);
+extern void keydb_refsecasvar(struct secasvar *);
+extern void keydb_freesecasvar(struct secasvar *);
 /* secreplay */
-extern struct secreplay *keydb_newsecreplay __P((size_t));
-extern void keydb_delsecreplay __P((struct secreplay *));
+extern struct secreplay *keydb_newsecreplay(size_t);
+extern void keydb_delsecreplay(struct secreplay *);
 /* secreg */
-extern struct secreg *keydb_newsecreg __P((void));
-extern void keydb_delsecreg __P((struct secreg *));
+extern struct secreg *keydb_newsecreg(void);
+extern void keydb_delsecreg(struct secreg *);
 
 #endif /* _KERNEL */
 

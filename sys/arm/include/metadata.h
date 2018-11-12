@@ -30,5 +30,13 @@
 #define	_MACHINE_METADATA_H_
 
 #define	MODINFOMD_BOOTINFO	0x1001
+#define	MODINFOMD_DTBP		0x1002
+#define	MODINFOMD_EFI_MAP	0x1003
+
+struct efi_map_header {
+	uint64_t	memory_size;
+	uint64_t	descriptor_size;
+	uint32_t	descriptor_version;
+};
 
 #endif /* !_MACHINE_METADATA_H_ */

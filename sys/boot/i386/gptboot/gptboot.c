@@ -23,6 +23,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bootinfo.h>
 #include <machine/elf.h>
+#include <machine/pc/bios.h>
 #include <machine/psl.h>
 
 #include <stdarg.h>
@@ -31,59 +32,20 @@ __FBSDID("$FreeBSD$");
 
 #include <btxv86.h>
 
+#include "bootargs.h"
 #include "lib.h"
-
-#define IO_KEYBOARD	1
-#define IO_SERIAL	2
-
-#define SECOND		18	/* Circa that many ticks in a second. */
-
-#define RBX_ASKNAME	0x0	/* -a */
-#define RBX_SINGLE	0x1	/* -s */
-/* 0x2 is reserved for log2(RB_NOSYNC). */
-/* 0x3 is reserved for log2(RB_HALT). */
-/* 0x4 is reserved for log2(RB_INITNAME). */
-#define RBX_DFLTROOT	0x5	/* -r */
-#define RBX_KDB 	0x6	/* -d */
-/* 0x7 is reserved for log2(RB_RDONLY). */
-/* 0x8 is reserved for log2(RB_DUMP). */
-/* 0x9 is reserved for log2(RB_MINIROOT). */
-#define RBX_CONFIG	0xa	/* -c */
-#define RBX_VERBOSE	0xb	/* -v */
-#define RBX_SERIAL	0xc	/* -h */
-#define RBX_CDROM	0xd	/* -C */
-/* 0xe is reserved for log2(RB_POWEROFF). */
-#define RBX_GDB 	0xf	/* -g */
-#define RBX_MUTE	0x10	/* -m */
-/* 0x11 is reserved for log2(RB_SELFTEST). */
-/* 0x12 is reserved for boot programs. */
-/* 0x13 is reserved for boot programs. */
-#define RBX_PAUSE	0x14	/* -p */
-#define RBX_QUIET	0x15	/* -q */
-#define RBX_NOINTR	0x1c	/* -n */
-/* 0x1d is reserved for log2(RB_MULTIPLE) and is just misnamed here. */
-#define RBX_DUAL	0x1d	/* -D */
-/* 0x1f is reserved for log2(RB_BOOTINFO). */
-
-/* pass: -a, -s, -r, -d, -c, -v, -h, -C, -g, -m, -p, -D */
-#define RBX_MASK	(OPT_SET(RBX_ASKNAME) | OPT_SET(RBX_SINGLE) | \
-			OPT_SET(RBX_DFLTROOT) | OPT_SET(RBX_KDB ) | \
-			OPT_SET(RBX_CONFIG) | OPT_SET(RBX_VERBOSE) | \
-			OPT_SET(RBX_SERIAL) | OPT_SET(RBX_CDROM) | \
-			OPT_SET(RBX_GDB ) | OPT_SET(RBX_MUTE) | \
-			OPT_SET(RBX_PAUSE) | OPT_SET(RBX_DUAL))
-
-#define PATH_CONFIG	"/boot.config"
-#define PATH_BOOT3	"/boot/loader"
-#define PATH_KERNEL	"/boot/kernel/kernel"
+#include "rbx.h"
+#include "drv.h"
+#include "util.h"
+#include "cons.h"
+#include "gpt.h"
+#include "paths.h"
 
 #define ARGS		0x900
 #define NOPT		14
 #define NDEV		3
 #define MEM_BASE	0x12
 #define MEM_EXT 	0x15
-#define V86_CY(x)	((x) & PSL_C)
-#define V86_ZR(x)	((x) & PSL_Z)
 
 #define DRV_HARD	0x80
 #define DRV_MASK	0x7f
@@ -93,211 +55,326 @@ __FBSDID("$FreeBSD$");
 #define TYPE_MAXHARD	TYPE_DA
 #define TYPE_FD		2
 
-#define OPT_SET(opt)	(1 << (opt))
-#define OPT_CHECK(opt)	((opts) & OPT_SET(opt))
-
 extern uint32_t _end;
 
 static const uuid_t freebsd_ufs_uuid = GPT_ENT_TYPE_FREEBSD_UFS;
 static const char optstr[NOPT] = "DhaCcdgmnpqrsv"; /* Also 'P', 'S' */
 static const unsigned char flags[NOPT] = {
-    RBX_DUAL,
-    RBX_SERIAL,
-    RBX_ASKNAME,
-    RBX_CDROM,
-    RBX_CONFIG,
-    RBX_KDB,
-    RBX_GDB,
-    RBX_MUTE,
-    RBX_NOINTR,
-    RBX_PAUSE,
-    RBX_QUIET,
-    RBX_DFLTROOT,
-    RBX_SINGLE,
-    RBX_VERBOSE
+	RBX_DUAL,
+	RBX_SERIAL,
+	RBX_ASKNAME,
+	RBX_CDROM,
+	RBX_CONFIG,
+	RBX_KDB,
+	RBX_GDB,
+	RBX_MUTE,
+	RBX_NOINTR,
+	RBX_PAUSE,
+	RBX_QUIET,
+	RBX_DFLTROOT,
+	RBX_SINGLE,
+	RBX_VERBOSE
 };
+uint32_t opts;
 
 static const char *const dev_nm[NDEV] = {"ad", "da", "fd"};
 static const unsigned char dev_maj[NDEV] = {30, 4, 2};
 
-static struct dsk {
-    unsigned drive;
-    unsigned type;
-    unsigned unit;
-    int part;
-    daddr_t start;
-    int init;
-} dsk;
-static char cmd[512], cmddup[512];
+static struct dsk dsk;
 static char kname[1024];
-static uint32_t opts;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
-static uint8_t ioctrl = IO_KEYBOARD;
+static struct geli_boot_args geliargs;
+
+static vm_offset_t	high_heap_base;
+static uint32_t		bios_basemem, bios_extmem, high_heap_size;
+
+static struct bios_smap smap;
+
+/*
+ * The minimum amount of memory to reserve in bios_extmem for the heap.
+ */
+#define	HEAP_MIN	(3 * 1024 * 1024)
+
+static char *heap_next;
+static char *heap_end;
 
 void exit(int);
-static int bcmp(const void *, const void *, size_t);
 static void load(void);
-static int parse(void);
-static int xfsread(ino_t, void *, size_t);
+static int parse(char *, int *);
 static int dskread(void *, daddr_t, unsigned);
-static void printf(const char *,...);
-static void putchar(int);
-static void memcpy(void *, const void *, int);
-static uint32_t memsize(void);
-static int drvread(void *, daddr_t, unsigned);
-static int keyhit(unsigned);
-static int xputc(int);
-static int xgetc(int);
-static int getc(int);
+void *malloc(size_t n);
+void free(void *ptr);
+#ifdef LOADER_GELI_SUPPORT
+static int vdev_read(void *vdev __unused, void *priv, off_t off, void *buf,
+	size_t bytes);
+#endif
 
-static void
-memcpy(void *dst, const void *src, int len)
+void *
+malloc(size_t n)
 {
-    const char *s = src;
-    char *d = dst;
-
-    while (len--)
-        *d++ = *s++;
+	char *p = heap_next;
+	if (p + n > heap_end) {
+		printf("malloc failure\n");
+		for (;;)
+		    ;
+		/* NOTREACHED */
+		return (0);
+	}
+	heap_next += n;
+	return (p);
 }
 
-static inline int
-strcmp(const char *s1, const char *s2)
+void
+free(void *ptr)
 {
-    for (; *s1 == *s2 && *s1; s1++, s2++);
-    return (unsigned char)*s1 - (unsigned char)*s2;
+
+	return;
 }
 
 #include "ufsread.c"
+#include "gpt.c"
+#ifdef LOADER_GELI_SUPPORT
+#include "geliboot.c"
+static char gelipw[GELI_PW_MAXLEN];
+#endif
 
 static inline int
-xfsread(ino_t inode, void *buf, size_t nbyte)
+xfsread(ufs_ino_t inode, void *buf, size_t nbyte)
 {
-    if ((size_t)fsread(inode, buf, nbyte) != nbyte) {
-	printf("Invalid %s\n", "format");
-	return -1;
-    }
-    return 0;
+
+	if ((size_t)fsread(inode, buf, nbyte) != nbyte) {
+		printf("Invalid %s\n", "format");
+		return (-1);
+	}
+	return (0);
 }
 
-static inline uint32_t
-memsize(void)
+static void
+bios_getmem(void)
 {
-    v86.addr = MEM_EXT;
-    v86.eax = 0x8800;
-    v86int();
-    return v86.eax;
-}
+    uint64_t size;
 
-static inline void
-getstr(void)
-{
-    char *s;
-    int c;
-
-    s = cmd;
-    for (;;) {
-	switch (c = xgetc(0)) {
-	case 0:
+    /* Parse system memory map */
+    v86.ebx = 0;
+    do {
+	v86.ctl = V86_FLAGS;
+	v86.addr = MEM_EXT;		/* int 0x15 function 0xe820*/
+	v86.eax = 0xe820;
+	v86.ecx = sizeof(struct bios_smap);
+	v86.edx = SMAP_SIG;
+	v86.es = VTOPSEG(&smap);
+	v86.edi = VTOPOFF(&smap);
+	v86int();
+	if ((v86.efl & 1) || (v86.eax != SMAP_SIG))
 	    break;
-	case '\177':
-	case '\b':
-	    if (s > cmd) {
-		s--;
-		printf("\b \b");
+	/* look for a low-memory segment that's large enough */
+	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base == 0) &&
+	    (smap.length >= (512 * 1024)))
+	    bios_basemem = smap.length;
+	/* look for the first segment in 'extended' memory */
+	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base == 0x100000)) {
+	    bios_extmem = smap.length;
+	}
+
+	/*
+	 * Look for the largest segment in 'extended' memory beyond
+	 * 1MB but below 4GB.
+	 */
+	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base > 0x100000) &&
+	    (smap.base < 0x100000000ull)) {
+	    size = smap.length;
+
+	    /*
+	     * If this segment crosses the 4GB boundary, truncate it.
+	     */
+	    if (smap.base + size > 0x100000000ull)
+		size = 0x100000000ull - smap.base;
+
+	    if (size > high_heap_size) {
+		high_heap_size = size;
+		high_heap_base = smap.base;
 	    }
-	    break;
-	case '\n':
-	case '\r':
-	    *s = 0;
-	    return;
-	default:
-	    if (s - cmd < sizeof(cmd) - 1)
-		*s++ = c;
-	    putchar(c);
+	}
+    } while (v86.ebx != 0);
+
+    /* Fall back to the old compatibility function for base memory */
+    if (bios_basemem == 0) {
+	v86.ctl = 0;
+	v86.addr = 0x12;		/* int 0x12 */
+	v86int();
+
+	bios_basemem = (v86.eax & 0xffff) * 1024;
+    }
+
+    /* Fall back through several compatibility functions for extended memory */
+    if (bios_extmem == 0) {
+	v86.ctl = V86_FLAGS;
+	v86.addr = 0x15;		/* int 0x15 function 0xe801*/
+	v86.eax = 0xe801;
+	v86int();
+	if (!(v86.efl & 1)) {
+	    bios_extmem = ((v86.ecx & 0xffff) + ((v86.edx & 0xffff) * 64)) * 1024;
 	}
     }
+    if (bios_extmem == 0) {
+	v86.ctl = 0;
+	v86.addr = 0x15;		/* int 0x15 function 0x88*/
+	v86.eax = 0x8800;
+	v86int();
+	bios_extmem = (v86.eax & 0xffff) * 1024;
+    }
+
+    /*
+     * If we have extended memory and did not find a suitable heap
+     * region in the SMAP, use the last 3MB of 'extended' memory as a
+     * high heap candidate.
+     */
+    if (bios_extmem >= HEAP_MIN && high_heap_size < HEAP_MIN) {
+	high_heap_size = HEAP_MIN;
+	high_heap_base = bios_extmem + 0x100000 - HEAP_MIN;
+    }
 }
 
-static inline void
-putc(int c)
+static int
+gptinit(void)
 {
-    v86.addr = 0x10;
-    v86.eax = 0xe00 | (c & 0xff);
-    v86.ebx = 0x7;
-    v86int();
+
+	if (gptread(&freebsd_ufs_uuid, &dsk, dmadat->secbuf) == -1) {
+		printf("%s: unable to load GPT\n", BOOTPROG);
+		return (-1);
+	}
+	if (gptfind(&freebsd_ufs_uuid, &dsk, dsk.part) == -1) {
+		printf("%s: no UFS partition was found\n", BOOTPROG);
+		return (-1);
+	}
+#ifdef LOADER_GELI_SUPPORT
+	if (geli_taste(vdev_read, &dsk, (gpttable[curent].ent_lba_end -
+	    gpttable[curent].ent_lba_start)) == 0) {
+		if (geli_passphrase(&gelipw, dsk.unit, 'p', curent + 1, &dsk) != 0) {
+			printf("%s: unable to decrypt GELI key\n", BOOTPROG);
+			return (-1);
+		}
+	}
+#endif
+
+	dsk_meta = 0;
+	return (0);
 }
 
 int
 main(void)
 {
-    int autoboot;
-    ino_t ino;
+	char cmd[512], cmdtmp[512];
+	ssize_t sz;
+	int autoboot, dskupdated;
+	ufs_ino_t ino;
 
-    dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
-    v86.ctl = V86_FLAGS;
-    v86.efl = PSL_RESERVED_DEFAULT | PSL_I;
-    dsk.drive = *(uint8_t *)PTOV(ARGS);
-    dsk.type = dsk.drive & DRV_HARD ? TYPE_AD : TYPE_FD;
-    dsk.unit = dsk.drive & DRV_MASK;
-    dsk.part = -1;
-    bootinfo.bi_version = BOOTINFO_VERSION;
-    bootinfo.bi_size = sizeof(bootinfo);
-    bootinfo.bi_basemem = 0;	/* XXX will be filled by loader or kernel */
-    bootinfo.bi_extmem = memsize();
-    bootinfo.bi_memsizes_valid++;
+	dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
 
-    /* Process configuration file */
+	bios_getmem();
 
-    autoboot = 1;
-
-    if ((ino = lookup(PATH_CONFIG)))
-	fsread(ino, cmd, sizeof(cmd));
-
-    if (*cmd) {
-	memcpy(cmddup, cmd, sizeof(cmd));
-	if (parse())
-	    autoboot = 0;
-	if (!OPT_CHECK(RBX_QUIET))
-	    printf("%s: %s", PATH_CONFIG, cmddup);
-	/* Do not process this command twice */
-	*cmd = 0;
-    }
-
-    /*
-     * Try to exec stage 3 boot loader. If interrupted by a keypress,
-     * or in case of failure, try to load a kernel directly instead.
-     */
-
-    if (autoboot && !*kname) {
-	memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
-	if (!keyhit(3*SECOND)) {
-	    load();
-	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
+	if (high_heap_size > 0) {
+		heap_end = PTOV(high_heap_base + high_heap_size);
+		heap_next = PTOV(high_heap_base);
+	} else {
+		heap_next = (char *)dmadat + sizeof(*dmadat);
+		heap_end = (char *)PTOV(bios_basemem);
 	}
-    }
 
-    /* Present the user with the boot2 prompt. */
+	v86.ctl = V86_FLAGS;
+	v86.efl = PSL_RESERVED_DEFAULT | PSL_I;
+	dsk.drive = *(uint8_t *)PTOV(ARGS);
+	dsk.type = dsk.drive & DRV_HARD ? TYPE_AD : TYPE_FD;
+	dsk.unit = dsk.drive & DRV_MASK;
+	dsk.part = -1;
+	dsk.start = 0;
+	bootinfo.bi_version = BOOTINFO_VERSION;
+	bootinfo.bi_size = sizeof(bootinfo);
+	bootinfo.bi_basemem = bios_basemem / 1024;
+	bootinfo.bi_extmem = bios_extmem / 1024;
+	bootinfo.bi_memsizes_valid++;
+	bootinfo.bi_bios_dev = dsk.drive;
 
-    for (;;) {
-	if (!autoboot || !OPT_CHECK(RBX_QUIET))
-	    printf("\nFreeBSD/i386 boot\n"
-		   "Default: %u:%s(%up%u)%s\n"
-		   "boot: ",
-		   dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
-		   dsk.part, kname);
-	if (ioctrl & IO_SERIAL)
-	    sio_flush();
-	if (!autoboot || keyhit(5*SECOND))
-	    getstr();
-	else if (!autoboot || !OPT_CHECK(RBX_QUIET))
-	    putchar('\n');
-	autoboot = 0;
-	if (parse())
-	    putchar('\a');
-	else
-	    load();
-    }
+#ifdef LOADER_GELI_SUPPORT
+	geli_init();
+#endif
+	/* Process configuration file */
+
+	if (gptinit() != 0)
+		return (-1);
+
+	autoboot = 1;
+	*cmd = '\0';
+
+	for (;;) {
+		*kname = '\0';
+		if ((ino = lookup(PATH_CONFIG)) ||
+		    (ino = lookup(PATH_DOTCONFIG))) {
+			sz = fsread(ino, cmd, sizeof(cmd) - 1);
+			cmd[(sz < 0) ? 0 : sz] = '\0';
+		}
+		if (*cmd != '\0') {
+			memcpy(cmdtmp, cmd, sizeof(cmdtmp));
+			if (parse(cmdtmp, &dskupdated))
+				break;
+			if (dskupdated && gptinit() != 0)
+				break;
+			if (!OPT_CHECK(RBX_QUIET))
+				printf("%s: %s", PATH_CONFIG, cmd);
+			*cmd = '\0';
+		}
+
+		if (autoboot && keyhit(3)) {
+			if (*kname == '\0')
+				memcpy(kname, PATH_LOADER, sizeof(PATH_LOADER));
+			break;
+		}
+		autoboot = 0;
+
+		/*
+		 * Try to exec stage 3 boot loader. If interrupted by a
+		 * keypress, or in case of failure, try to load a kernel
+		 * directly instead.
+		 */
+		if (*kname != '\0')
+			load();
+		memcpy(kname, PATH_LOADER, sizeof(PATH_LOADER));
+		load();
+		memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
+		load();
+		gptbootfailed(&dsk);
+		if (gptfind(&freebsd_ufs_uuid, &dsk, -1) == -1)
+			break;
+		dsk_meta = 0;
+	}
+
+	/* Present the user with the boot2 prompt. */
+
+	for (;;) {
+		if (!OPT_CHECK(RBX_QUIET)) {
+			printf("\nFreeBSD/x86 boot\n"
+			    "Default: %u:%s(%up%u)%s\n"
+			    "boot: ",
+			    dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
+			    dsk.part, kname);
+		}
+		if (ioctrl & IO_SERIAL)
+			sio_flush();
+		*cmd = '\0';
+		if (keyhit(0))
+			getstr(cmd, sizeof(cmd));
+		else if (!OPT_CHECK(RBX_QUIET))
+			putchar('\n');
+		if (parse(cmd, &dskupdated)) {
+			putchar('\a');
+			continue;
+		}
+		if (dskupdated && gptinit() != 0)
+			continue;
+		load();
+	}
+	/* NOTREACHED */
 }
 
 /* XXX - Needed for btxld to link the boot2 binary; do not remove. */
@@ -316,13 +393,16 @@ load(void)
     static Elf32_Phdr ep[2];
     static Elf32_Shdr es[2];
     caddr_t p;
-    ino_t ino;
+    ufs_ino_t ino;
     uint32_t addr, x;
     int fmt, i, j;
 
     if (!(ino = lookup(kname))) {
-	if (!ls)
-	    printf("No %s\n", kname);
+	if (!ls) {
+	    printf("%s: No %s on %u:%s(%up%u)\n", BOOTPROG,
+		kname, dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
+		dsk.part);
+	}
 	return;
     }
     if (xfsread(ino, &hdr, sizeof(hdr)))
@@ -396,20 +476,28 @@ load(void)
     bootinfo.bi_esymtab = VTOP(p);
     bootinfo.bi_kernelname = VTOP(kname);
     bootinfo.bi_bios_dev = dsk.drive;
+    geliargs.size = sizeof(geliargs);
+#ifdef LOADER_GELI_SUPPORT
+    bcopy(gelipw, geliargs.gelipw, sizeof(geliargs.gelipw));
+    bzero(gelipw, sizeof(gelipw));
+#else
+	geliargs.gelipw[0] = '\0';
+#endif
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	   MAKEBOOTDEV(dev_maj[dsk.type], dsk.part + 1, dsk.unit, 0xff),
-	   0, 0, 0, VTOP(&bootinfo));
+	   KARGS_FLAGS_EXTARG, 0, 0, VTOP(&bootinfo), geliargs);
 }
 
 static int
-parse(void)
+parse(char *cmdstr, int *dskupdated)
 {
-    char *arg = cmd;
+    char *arg = cmdstr;
     char *ep, *p, *q;
     const char *cp;
     unsigned int drv;
     int c, i, j;
 
+    *dskupdated = 0;
     while ((c = *arg++)) {
 	if (c == ' ' || c == '\t' || c == '\n')
 	    continue;
@@ -445,8 +533,10 @@ parse(void)
 	    }
 	    ioctrl = OPT_CHECK(RBX_DUAL) ? (IO_SERIAL|IO_KEYBOARD) :
 		     OPT_CHECK(RBX_SERIAL) ? IO_SERIAL : IO_KEYBOARD;
-	    if (ioctrl & IO_SERIAL)
-	        sio_init(115200 / comspeed);
+	    if (ioctrl & IO_SERIAL) {
+	        if (sio_init(115200 / comspeed) != 0)
+		    ioctrl &= ~IO_SERIAL;
+	    }
 	} else {
 	    for (q = arg--; *q && *q != '('; q++);
 	    if (*q) {
@@ -480,7 +570,7 @@ parse(void)
 		    drv = dsk.unit;
 		dsk.drive = (dsk.type <= TYPE_MAXHARD
 			     ? DRV_HARD : 0) + drv;
-		dsk_meta = 0;
+		*dskupdated = 1;
 	    }
 	    if ((i = ep - arg)) {
 		if ((size_t)i >= sizeof(kname))
@@ -496,232 +586,53 @@ parse(void)
 static int
 dskread(void *buf, daddr_t lba, unsigned nblk)
 {
-    struct gpt_hdr hdr;
-    struct gpt_ent *ent;
-    char *sec;
-    daddr_t slba, elba;
-    int part, entries_per_sec;
+	int err;
 
-    if (!dsk_meta) {
-	/* Read and verify GPT. */
-	sec = dmadat->secbuf;
-	dsk.start = 0;
-	if (drvread(sec, 1, 1))
-	    return -1;
-	memcpy(&hdr, sec, sizeof(hdr));
-	if (bcmp(hdr.hdr_sig, GPT_HDR_SIG, sizeof(hdr.hdr_sig)) != 0 ||
-	    hdr.hdr_lba_self != 1 || hdr.hdr_revision < 0x00010000 ||
-	    hdr.hdr_entsz < sizeof(*ent) || DEV_BSIZE % hdr.hdr_entsz != 0) {
-	    printf("Invalid GPT header\n");
-	    return -1;
-	}
+	err = drvread(&dsk, buf, lba + dsk.start, nblk);
 
-	/* XXX: CRC check? */
-
-	/*
-	 * If the partition isn't specified, then search for the first UFS
-	 * partition and hope it is /.  Perhaps we should be using an OS
-	 * flag in the GPT entry to mark / partitions.
-	 *
-	 * If the partition is specified, then figure out the LBA for the
-	 * sector containing that partition index and load it.
-	 */
-	entries_per_sec = DEV_BSIZE / hdr.hdr_entsz;
-	if (dsk.part == -1) {
-	    slba = hdr.hdr_lba_table;
-	    elba = slba + hdr.hdr_entries / entries_per_sec;
-	    while (slba < elba && dsk.part == -1) {
-		if (drvread(sec, slba, 1))
-		    return -1;
-		for (part = 0; part < entries_per_sec; part++) {
-		    ent = (struct gpt_ent *)(sec + part * hdr.hdr_entsz);
-		    if (bcmp(&ent->ent_type, &freebsd_ufs_uuid,
-			sizeof(uuid_t)) == 0) {
-			dsk.part = (slba - hdr.hdr_lba_table) *
-			    entries_per_sec + part + 1;
-			dsk.start = ent->ent_lba_start;
-			break;
-		    }
-		}
-		slba++;
-	    }
-	    if (dsk.part == -1) {
-		printf("No UFS partition was found\n");
-		return -1;
-	    }
-	} else {
-	    if (dsk.part > hdr.hdr_entries) {
-		printf("Invalid partition index\n");
-		return -1;
-	    }
-	    slba = hdr.hdr_lba_table + (dsk.part - 1) / entries_per_sec;
-	    if (drvread(sec, slba, 1))
-		return -1;
-	    part = (dsk.part - 1) % entries_per_sec;
-	    ent = (struct gpt_ent *)(sec + part * hdr.hdr_entsz);
-	    if (bcmp(&ent->ent_type, &freebsd_ufs_uuid, sizeof(uuid_t)) != 0) {
-		printf("Specified partition is not UFS\n");
-		return -1;
-	    }
-	    dsk.start = ent->ent_lba_start;
-	}
-	/*
-	 * XXX: No way to detect SCSI vs. ATA currently.
-	 */
-#if 0
-	if (!dsk.init) {
-	    if (d->d_type == DTYPE_SCSI)
-		dsk.type = TYPE_DA;
-	    dsk.init++;
+#ifdef LOADER_GELI_SUPPORT
+	if (err == 0 && is_geli(&dsk) == 0) {
+		/* Decrypt */
+		if (geli_read(&dsk, lba * DEV_BSIZE, buf, nblk * DEV_BSIZE))
+			return (err);
 	}
 #endif
-    }
-    return drvread(buf, dsk.start + lba, nblk);
+
+	return (err);
 }
 
-static void
-printf(const char *fmt,...)
+#ifdef LOADER_GELI_SUPPORT
+/*
+ * Read function compartible with the ZFS callback, required to keep the GELI
+ * Implementation the same for both UFS and ZFS
+ */
+static int
+vdev_read(void *vdev __unused, void *priv, off_t off, void *buf, size_t bytes)
 {
-    va_list ap;
-    char buf[10];
-    char *s;
-    unsigned u;
-    int c;
+	char *p;
+	daddr_t lba;
+	unsigned int nb;
+	struct dsk *dskp = (struct dsk *) priv;
 
-    va_start(ap, fmt);
-    while ((c = *fmt++)) {
-	if (c == '%') {
-	    c = *fmt++;
-	    switch (c) {
-	    case 'c':
-		putchar(va_arg(ap, int));
-		continue;
-	    case 's':
-		for (s = va_arg(ap, char *); *s; s++)
-		    putchar(*s);
-		continue;
-	    case 'u':
-		u = va_arg(ap, unsigned);
-		s = buf;
-		do
-		    *s++ = '0' + u % 10U;
-		while (u /= 10U);
-		while (--s >= buf)
-		    putchar(*s);
-		continue;
-	    }
+	if ((off & (DEV_BSIZE - 1)) || (bytes & (DEV_BSIZE - 1)))
+		return (-1);
+
+	p = buf;
+	lba = off / DEV_BSIZE;
+	lba += dskp->start;
+
+	while (bytes > 0) {
+		nb = bytes / DEV_BSIZE;
+		if (nb > VBLKSIZE / DEV_BSIZE)
+			nb = VBLKSIZE / DEV_BSIZE;
+		if (drvread(dskp, dmadat->blkbuf, lba, nb))
+			return (-1);
+		memcpy(p, dmadat->blkbuf, nb * DEV_BSIZE);
+		p += nb * DEV_BSIZE;
+		lba += nb;
+		bytes -= nb * DEV_BSIZE;
 	}
-	putchar(c);
-    }
-    va_end(ap);
-    return;
-}
 
-static void
-putchar(int c)
-{
-    if (c == '\n')
-	xputc('\r');
-    xputc(c);
-}
-
-static int
-bcmp(const void *b1, const void *b2, size_t length)
-{
-    const char *p1 = b1, *p2 = b2;
-
-    if (length == 0)
 	return (0);
-    do {
-	if (*p1++ != *p2++)
-	    break;
-    } while (--length);
-    return (length);
 }
-
-static struct {
-	uint16_t len;
-	uint16_t count;
-	uint16_t seg;
-	uint16_t off;
-	uint64_t lba;
-} packet;
-
-static int
-drvread(void *buf, daddr_t lba, unsigned nblk)
-{
-    static unsigned c = 0x2d5c7c2f;
-
-    if (!OPT_CHECK(RBX_QUIET))
-	printf("%c\b", c = c << 8 | c >> 24);
-    packet.len = 0x10;
-    packet.count = nblk;
-    packet.seg = VTOPOFF(buf);
-    packet.off = VTOPSEG(buf);
-    packet.lba = lba;
-    v86.ctl = V86_FLAGS;
-    v86.addr = 0x13;
-    v86.eax = 0x4200;
-    v86.edx = dsk.drive;
-    v86.ds = VTOPSEG(&packet);
-    v86.esi = VTOPOFF(&packet);
-    v86int();
-    if (V86_CY(v86.efl)) {
-	printf("error %u lba %u\n", v86.eax >> 8 & 0xff, lba);
-	return -1;
-    }
-    return 0;
-}
-
-static int
-keyhit(unsigned ticks)
-{
-    uint32_t t0, t1;
-
-    if (OPT_CHECK(RBX_NOINTR))
-	return 0;
-    t0 = 0;
-    for (;;) {
-	if (xgetc(1))
-	    return 1;
-	t1 = *(uint32_t *)PTOV(0x46c);
-	if (!t0)
-	    t0 = t1;
-	if (t1 < t0 || t1 >= t0 + ticks)
-	    return 0;
-    }
-}
-
-static int
-xputc(int c)
-{
-    if (ioctrl & IO_KEYBOARD)
-	putc(c);
-    if (ioctrl & IO_SERIAL)
-	sio_putc(c);
-    return c;
-}
-
-static int
-xgetc(int fn)
-{
-    if (OPT_CHECK(RBX_NOINTR))
-	return 0;
-    for (;;) {
-	if (ioctrl & IO_KEYBOARD && getc(1))
-	    return fn ? 1 : getc(0);
-	if (ioctrl & IO_SERIAL && sio_ischar())
-	    return fn ? 1 : sio_getc();
-	if (fn)
-	    return 0;
-    }
-}
-
-static int
-getc(int fn)
-{
-    v86.addr = 0x16;
-    v86.eax = fn << 8;
-    v86int();
-    return fn == 0 ? v86.eax & 0xff : !V86_ZR(v86.efl);
-}
+#endif /* LOADER_GELI_SUPPORT */

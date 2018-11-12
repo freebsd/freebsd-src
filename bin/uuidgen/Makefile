@@ -1,6 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	uuidgen
-WARNS?=	6
 
 .include <bsd.prog.mk>

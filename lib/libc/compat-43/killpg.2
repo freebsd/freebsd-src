@@ -28,7 +28,7 @@
 .\"     @(#)killpg.2	8.1 (Berkeley) 6/2/93
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2006
+.Dd March 15, 2012
 .Dt KILLPG 2
 .Os
 .Sh NAME
@@ -58,11 +58,9 @@ is 0,
 .Fn killpg
 sends the signal to the sending process's process group.
 .Pp
-The sending process and members of the process group must
-have the same effective user ID, or
-the sender must be the super-user.
-As a single special case the continue signal SIGCONT may be sent
-to any process with the same session ID as the caller.
+The sending process must be able to
+.Fn kill
+at least one process in the receiving process group.
 .Sh RETURN VALUES
 .Rv -std killpg
 .Sh ERRORS
@@ -79,13 +77,9 @@ is not a valid signal number.
 .It Bq Er ESRCH
 No process can be found in the process group specified by
 .Fa pgrp .
-.It Bq Er ESRCH
-The process group was given as 0
-but the sending process does not have a process group.
 .It Bq Er EPERM
-The sending process is not the super-user and one or more
-of the target processes has an effective user ID different from that
-of the sending process.
+.Fn kill
+returns EPERM for all processes in the process group.
 .El
 .Sh SEE ALSO
 .Xr getpgrp 2 ,

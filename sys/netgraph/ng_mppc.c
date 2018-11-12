@@ -53,7 +53,9 @@
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 
 #include <netgraph/ng_message.h>
@@ -73,7 +75,7 @@
 #endif
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_MPPC, "netgraph_mppc", "netgraph mppc node ");
+static MALLOC_DEFINE(M_NETGRAPH_MPPC, "netgraph_mppc", "netgraph mppc node");
 #else
 #define M_NETGRAPH_MPPC M_NETGRAPH
 #endif
@@ -105,6 +107,20 @@ MALLOC_DEFINE(M_NETGRAPH_MPPC, "netgraph_mppc", "netgraph mppc node ");
  * This should instead be a configurable parameter.
  */
 #define MPPE_MAX_REKEY		1000
+
+SYSCTL_NODE(_net_graph, OID_AUTO, mppe, CTLFLAG_RW, 0, "MPPE");
+
+static int mppe_block_on_max_rekey = 0;
+SYSCTL_INT(_net_graph_mppe, OID_AUTO, block_on_max_rekey, CTLFLAG_RWTUN,
+    &mppe_block_on_max_rekey, 0, "Block node on max MPPE key re-calculations");
+
+static int mppe_log_max_rekey = 1;
+SYSCTL_INT(_net_graph_mppe, OID_AUTO, log_max_rekey, CTLFLAG_RWTUN,
+    &mppe_log_max_rekey, 0, "Log max MPPE key re-calculations event");
+
+static int mppe_max_rekey = MPPE_MAX_REKEY;
+SYSCTL_INT(_net_graph_mppe, OID_AUTO, max_rekey, CTLFLAG_RWTUN,
+    &mppe_max_rekey, 0, "Maximum number of MPPE key re-calculations");
 
 /* MPPC packet header bits */
 #define MPPC_FLAG_FLUSHED	0x8000		/* xmitter reset state */
@@ -200,9 +216,7 @@ ng_mppc_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate private structure */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_MPPC, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_MPPC, M_WAITOK | M_ZERO);
 
 	NG_NODE_SET_PRIVATE(node, priv);
 
@@ -405,9 +419,6 @@ ng_mppc_rcvdata(hook_p hook, item_p item)
 
 	/* Oops */
 	panic("%s: unknown hook", __func__);
-#ifdef RESTARTABLE_PANICS
-	return (EINVAL);
-#endif
 }
 
 /*
@@ -471,7 +482,7 @@ ng_mppc_compress(node_p node, struct mbuf **datap)
 	struct mbuf *m = *datap;
 
 	/* We must own the mbuf chain exclusively to modify it. */
-	m = m_unshare(m, M_DONTWAIT);
+	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL)
 		return (ENOMEM);
 
@@ -599,9 +610,9 @@ err1:
 	MPPC_CCOUNT_INC(d->cc);
 
 	/* Install header */
-	M_PREPEND(m, MPPC_HDRLEN, M_DONTWAIT);
+	M_PREPEND(m, MPPC_HDRLEN, M_NOWAIT);
 	if (m != NULL)
-		*(mtod(m, uint16_t *)) = htons(header);
+		be16enc(mtod(m, void *), header);
 
 	*datap = m;
 	return (*datap == NULL ? ENOBUFS : 0);
@@ -621,7 +632,7 @@ ng_mppc_decompress(node_p node, struct mbuf **datap)
 	struct mbuf *m = *datap;
 
 	/* We must own the mbuf chain exclusively to modify it. */
-	m = m_unshare(m, M_DONTWAIT);
+	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL)
 		return (ENOMEM);
 
@@ -630,8 +641,7 @@ ng_mppc_decompress(node_p node, struct mbuf **datap)
 		m_freem(m);
 		return (EINVAL);
 	}
-	m_copydata(m, 0, MPPC_HDRLEN, (caddr_t)&header);
-	header = ntohs(header);
+	header = be16dec(mtod(m, void *));
 	cc = (header & MPPC_CCOUNT_MASK);
 	m_adj(m, MPPC_HDRLEN);
 
@@ -651,12 +661,23 @@ ng_mppc_decompress(node_p node, struct mbuf **datap)
 			/* How many times are we going to have to re-key? */
 			rekey = ((d->cfg.bits & MPPE_STATELESS) != 0) ?
 			    numLost : (numLost / (MPPE_UPDATE_MASK + 1));
-			if (rekey > MPPE_MAX_REKEY) {
-				log(LOG_ERR, "%s: too many (%d) packets"
-				    " dropped, disabling node %p!",
-				    __func__, numLost, node);
+			if (rekey > mppe_max_rekey) {
+			    if (mppe_block_on_max_rekey) {
+				if (mppe_log_max_rekey) {
+				    log(LOG_ERR, "%s: too many (%d) packets"
+					" dropped, disabling node %p!\n",
+					__func__, numLost, node);
+				}
 				priv->recv.cfg.enable = 0;
 				goto failed;
+			    } else {
+				if (mppe_log_max_rekey) {
+				    log(LOG_ERR, "%s: %d packets"
+					" dropped, node %p\n",
+					__func__, numLost, node);
+				}
+				goto failed;
+			    }
 			}
 
 			/* Re-key as necessary to catch up to peer */

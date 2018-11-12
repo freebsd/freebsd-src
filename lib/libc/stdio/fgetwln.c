@@ -2,6 +2,11 @@
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -33,26 +38,42 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 #include "local.h"
+#include "xlocale_private.h"
+
+wchar_t *fgetwln_l(FILE * __restrict, size_t *, locale_t);
 
 wchar_t *
-fgetwln(FILE * __restrict fp, size_t *lenp)
+fgetwln_l(FILE * __restrict fp, size_t *lenp, locale_t locale)
 {
 	wint_t wc;
 	size_t len;
+	int savserr;
+
+	FIX_LOCALE(locale);
 
 	FLOCKFILE(fp);
 	ORIENT(fp, 1);
 
+	savserr = fp->_flags & __SERR;
+	fp->_flags &= ~__SERR;
+
 	len = 0;
-	while ((wc = __fgetwc(fp)) != WEOF) {
+	while ((wc = __fgetwc(fp, locale)) != WEOF) {
 #define	GROW	512
 		if (len * sizeof(wchar_t) >= fp->_lb._size &&
-		    __slbexpand(fp, (len + GROW) * sizeof(wchar_t)))
+		    __slbexpand(fp, (len + GROW) * sizeof(wchar_t))) {
+			fp->_flags |= __SERR;
 			goto error;
+		}
 		*((wchar_t *)fp->_lb._base + len++) = wc;
 		if (wc == L'\n')
 			break;
 	}
+	/* fgetwc(3) may set both __SEOF and __SERR at once. */
+	if (__sferror(fp))
+		goto error;
+
+	fp->_flags |= savserr;
 	if (len == 0)
 		goto error;
 
@@ -64,4 +85,10 @@ error:
 	FUNLOCKFILE(fp);
 	*lenp = 0;
 	return (NULL);
+}
+
+wchar_t *
+fgetwln(FILE * __restrict fp, size_t *lenp)
+{
+	return fgetwln_l(fp, lenp, __get_locale());
 }

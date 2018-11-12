@@ -7,6 +7,15 @@ PROG=	athprom
 TEMPLATEDIR=	/usr/local/libdata/athprom
 TEXTMODE?=	444
 
+SRCS=	athprom.c
+SRCS+=	opt_ah.h
+CLEANFILES+=	opt_ah.h
+
+opt_ah.h:
+	echo "#define AH_DEBUG 1" > opt_ah.h
+	echo "#define AH_DEBUG_COUNTRY 1" >> opt_ah.h
+	echo "#define AH_SUPPORT_AR5416 1" >> opt_ah.h
+
 CFLAGS+=-DDIR_TEMPLATE='"${TEMPLATEDIR}"'
 
 beforeinstall:

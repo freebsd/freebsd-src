@@ -1734,7 +1734,7 @@ ct_board_opt_t ct_board_opt_dflt = {
 	0,			/* board control register 2 */
 	{			/* DMA priority control register */
 		PCR_PRIO_ROTATE,
-		0,		/* all channels share the the bus hold */
+		0,		/* all channels share the bus hold */
 		0,		/* hold the bus until all transfers done */
 	},
 	CFG_A,			/* E1/G.703 config: two independent channels */

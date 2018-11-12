@@ -1,4 +1,3 @@
-.\"  -*- nroff -*-
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -34,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.283 2009/03/19 15:15:09 jmc Exp $
+.\" $OpenBSD: ssh.1,v 1.369 2016/02/17 07:38:19 jmc Exp $
 .\" $FreeBSD$
-.Dd March 19 2009
+.Dd $Mdocdate: February 17 2016 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -44,43 +43,27 @@
 .Nd OpenSSH SSH client (remote login program)
 .Sh SYNOPSIS
 .Nm ssh
-.Op Fl 1246AaCfgKkMNnqsTtVvXxYy
+.Bk -words
+.Op Fl 1246AaCfGgKkMNnqsTtVvXxYy
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
-.Oo Fl D\ \&
-.Sm off
-.Oo Ar bind_address : Oc
-.Ar port
-.Sm on
-.Oc
+.Op Fl D Oo Ar bind_address : Oc Ns Ar port
+.Op Fl E Ar log_file
 .Op Fl e Ar escape_char
 .Op Fl F Ar configfile
-.Bk -words
+.Op Fl I Ar pkcs11
 .Op Fl i Ar identity_file
-.Ek
-.Oo Fl L\ \&
-.Sm off
-.Oo Ar bind_address : Oc
-.Ar port : host : hostport
-.Sm on
-.Oc
-.Bk -words
+.Op Fl L Ar address
 .Op Fl l Ar login_name
-.Ek
 .Op Fl m Ar mac_spec
 .Op Fl O Ar ctl_cmd
 .Op Fl o Ar option
 .Op Fl p Ar port
-.Oo Fl R\ \&
-.Sm off
-.Oo Ar bind_address : Oc
-.Ar port : host : hostport
-.Sm on
-.Oc
+.Op Fl Q Ar query_option
+.Op Fl R Ar address
 .Op Fl S Ar ctl_path
-.Bk -words
-.Oo Fl w Ar local_tun Ns
-.Op : Ns Ar remote_tun Oc
+.Op Fl W Ar host : Ns Ar port
+.Op Fl w Ar local_tun Ns Op : Ns Ar remote_tun
 .Oo Ar user Ns @ Oc Ns Ar hostname
 .Op Ar command
 .Ek
@@ -88,11 +71,11 @@
 .Nm
 (SSH client) is a program for logging into a remote machine and for
 executing commands on a remote machine.
-It is intended to replace rlogin and rsh,
-and provide secure encrypted communications between
+It is intended to provide secure encrypted communications between
 two untrusted hosts over an insecure network.
-X11 connections and arbitrary TCP ports
-can also be forwarded over the secure channel.
+X11 connections, arbitrary TCP ports and
+.Ux Ns -domain
+sockets can also be forwarded over the secure channel.
 .Pp
 .Nm
 connects and logs into the specified
@@ -102,7 +85,7 @@ connects and logs into the specified
 name).
 The user must prove
 his/her identity to the remote machine using one of several methods
-depending on the protocol version used (see below).
+(see below).
 .Pp
 If
 .Ar command
@@ -110,45 +93,56 @@ is specified,
 it is executed on the remote host instead of a login shell.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Pp
+.Bl -tag -width Ds -compact
 .It Fl 1
 Forces
 .Nm
 to try protocol version 1 only.
+.Pp
 .It Fl 2
 Forces
 .Nm
 to try protocol version 2 only.
+.Pp
 .It Fl 4
 Forces
 .Nm
 to use IPv4 addresses only.
+.Pp
 .It Fl 6
 Forces
 .Nm
 to use IPv6 addresses only.
+.Pp
 .It Fl A
 Enables forwarding of the authentication agent connection.
 This can also be specified on a per-host basis in a configuration file.
 .Pp
 Agent forwarding should be enabled with caution.
 Users with the ability to bypass file permissions on the remote host
-(for the agent's Unix-domain socket)
-can access the local agent through the forwarded connection.
+(for the agent's
+.Ux Ns -domain
+socket) can access the local agent through the forwarded connection.
 An attacker cannot obtain key material from the agent,
 however they can perform operations on the keys that enable them to
 authenticate using the identities loaded into the agent.
+.Pp
 .It Fl a
 Disables forwarding of the authentication agent connection.
+.Pp
 .It Fl b Ar bind_address
 Use
 .Ar bind_address
 on the local machine as the source address
 of the connection.
 Only useful on systems with more than one address.
+.Pp
 .It Fl C
 Requests compression of all data (including stdin, stdout, stderr, and
-data for forwarded X11 and TCP connections).
+data for forwarded X11, TCP and
+.Ux Ns -domain
+connections).
 The compression algorithm is the same used by
 .Xr gzip 1 ,
 and the
@@ -162,6 +156,7 @@ The default value can be set on a host-by-host basis in the
 configuration files; see the
 .Cm Compression
 option.
+.Pp
 .It Fl c Ar cipher_spec
 Selects the cipher specification for encrypting the session.
 .Pp
@@ -171,30 +166,16 @@ The supported values are
 .Dq blowfish ,
 and
 .Dq des .
-.Ar 3des
-(triple-des) is an encrypt-decrypt-encrypt triple with three different keys.
-It is believed to be secure.
-.Ar blowfish
-is a fast block cipher; it appears very secure and is much faster than
-.Ar 3des .
-.Ar des
-is only supported in the
-.Nm
-client for interoperability with legacy protocol 1 implementations
-that do not support the
-.Ar 3des
-cipher.
-Its use is strongly discouraged due to cryptographic weaknesses.
-The default is
-.Dq 3des .
-.Pp
 For protocol version 2,
 .Ar cipher_spec
 is a comma-separated list of ciphers
 listed in order of preference.
 See the
 .Cm Ciphers
-keyword for more information.
+keyword in
+.Xr ssh_config 5
+for more information.
+.Pp
 .It Fl D Xo
 .Sm off
 .Oo Ar bind_address : Oc
@@ -218,14 +199,7 @@ will act as a SOCKS server.
 Only root can forward privileged ports.
 Dynamic port forwardings can also be specified in the configuration file.
 .Pp
-IPv6 addresses can be specified with an alternative syntax:
-.Sm off
-.Xo
-.Op Ar bind_address No /
-.Ar port
-.Xc
-.Sm on
-or by enclosing the address in square brackets.
+IPv6 addresses can be specified by enclosing the address in square brackets.
 Only the superuser can forward privileged ports.
 By default, the local port is bound in accordance with the
 .Cm GatewayPorts
@@ -241,6 +215,12 @@ indicates that the listening port be bound for local use only, while an
 empty address or
 .Sq *
 indicates that the port should be available from all interfaces.
+.Pp
+.It Fl E Ar log_file
+Append debug logs to
+.Ar log_file
+instead of standard error.
+.Pp
 .It Fl e Ar escape_char
 Sets the escape character for sessions with a pty (default:
 .Ql ~ ) .
@@ -253,6 +233,7 @@ and followed by itself sends the escape character once.
 Setting the character to
 .Dq none
 disables any escapes and makes the session fully transparent.
+.Pp
 .It Fl F Ar configfile
 Specifies an alternative per-user configuration file.
 If a configuration file is given on the command line,
@@ -261,6 +242,7 @@ the system-wide configuration file
 will be ignored.
 The default for the per-user configuration file is
 .Pa ~/.ssh/config .
+.Pp
 .It Fl f
 Requests
 .Nm
@@ -283,24 +265,38 @@ then a client started with
 .Fl f
 will wait for all remote port forwards to be successfully established
 before placing itself in the background.
+.Pp
+.It Fl G
+Causes
+.Nm
+to print its configuration after evaluating
+.Cm Host
+and
+.Cm Match
+blocks and exit.
+.Pp
 .It Fl g
 Allows remote hosts to connect to local forwarded ports.
-.It Fl I Ar smartcard_device
-Specify the device
+If used on a multiplexed connection, then this option must be specified
+on the master process.
+.Pp
+.It Fl I Ar pkcs11
+Specify the PKCS#11 shared library
 .Nm
-should use to communicate with a smartcard used for storing the user's
+should use to communicate with a PKCS#11 token providing the user's
 private RSA key.
-This option is only available if support for smartcard devices
-is compiled in (default is no support).
+.Pp
 .It Fl i Ar identity_file
 Selects a file from which the identity (private key) for
-RSA or DSA authentication is read.
+public key authentication is read.
 The default is
 .Pa ~/.ssh/identity
 for protocol version 1, and
-.Pa ~/.ssh/id_rsa
+.Pa ~/.ssh/id_dsa ,
+.Pa ~/.ssh/id_ecdsa ,
+.Pa ~/.ssh/id_ed25519
 and
-.Pa ~/.ssh/id_dsa
+.Pa ~/.ssh/id_rsa
 for protocol version 2.
 Identity files may also be specified on
 a per-host basis in the configuration file.
@@ -308,41 +304,66 @@ It is possible to have multiple
 .Fl i
 options (and multiple identities specified in
 configuration files).
+If no certificates have been explicitly specified by the
+.Cm CertificateFile
+directive,
+.Nm
+will also try to load certificate information from the filename obtained
+by appending
+.Pa -cert.pub
+to identity filenames.
+.Pp
 .It Fl K
 Enables GSSAPI-based authentication and forwarding (delegation) of GSSAPI
 credentials to the server.
+.Pp
 .It Fl k
 Disables forwarding (delegation) of GSSAPI credentials to the server.
+.Pp
 .It Fl L Xo
 .Sm off
 .Oo Ar bind_address : Oc
 .Ar port : host : hostport
 .Sm on
 .Xc
-Specifies that the given port on the local (client) host is to be
-forwarded to the given host and port on the remote side.
-This works by allocating a socket to listen to
+.It Fl L Xo
+.Sm off
+.Oo Ar bind_address : Oc
+.Ar port : remote_socket
+.Sm on
+.Xc
+.It Fl L Xo
+.Sm off
+.Ar local_socket : host : hostport
+.Sm on
+.Xc
+.It Fl L Xo
+.Sm off
+.Ar local_socket : remote_socket
+.Sm on
+.Xc
+Specifies that connections to the given TCP port or Unix socket on the local
+(client) host are to be forwarded to the given host and port, or Unix socket,
+on the remote side.
+This works by allocating a socket to listen to either a TCP
 .Ar port
 on the local side, optionally bound to the specified
-.Ar bind_address .
-Whenever a connection is made to this port, the
+.Ar bind_address ,
+or to a Unix socket.
+Whenever a connection is made to the local port or socket, the
 connection is forwarded over the secure channel, and a connection is
-made to
+made to either
 .Ar host
 port
-.Ar hostport
+.Ar hostport ,
+or the Unix socket
+.Ar remote_socket ,
 from the remote machine.
+.Pp
 Port forwardings can also be specified in the configuration file.
-IPv6 addresses can be specified with an alternative syntax:
-.Sm off
-.Xo
-.Op Ar bind_address No /
-.Ar port No / Ar host No /
-.Ar hostport
-.Xc
-.Sm on
-or by enclosing the address in square brackets.
 Only the superuser can forward privileged ports.
+IPv6 addresses can be specified by enclosing the address in square brackets.
+.Pp
 By default, the local port is bound in accordance with the
 .Cm GatewayPorts
 setting.
@@ -357,9 +378,11 @@ indicates that the listening port be bound for local use only, while an
 empty address or
 .Sq *
 indicates that the port should be available from all interfaces.
+.Pp
 .It Fl l Ar login_name
 Specifies the user to log in as on the remote machine.
 This also may be specified on a per-host basis in the configuration file.
+.Pp
 .It Fl M
 Places the
 .Nm
@@ -378,17 +401,18 @@ Refer to the description of
 in
 .Xr ssh_config 5
 for details.
+.Pp
 .It Fl m Ar mac_spec
-Additionally, for protocol version 2 a comma-separated list of MAC
-(message authentication code) algorithms can
-be specified in order of preference.
+A comma-separated list of MAC (message authentication code) algorithms,
+specified in order of preference.
 See the
 .Cm MACs
 keyword for more information.
+.Pp
 .It Fl N
 Do not execute a remote command.
-This is useful for just forwarding ports
-(protocol version 2 only).
+This is useful for just forwarding ports.
+.Pp
 .It Fl n
 Redirects stdin from
 .Pa /dev/null
@@ -409,6 +433,7 @@ program will be put in the background.
 needs to ask for a password or passphrase; see also the
 .Fl f
 option.)
+.Pp
 .It Fl O Ar ctl_cmd
 Control an active connection multiplexing master process.
 When the
@@ -418,9 +443,16 @@ option is specified, the
 argument is interpreted and passed to the master process.
 Valid commands are:
 .Dq check
-(check that the master process is running) and
+(check that the master process is running),
+.Dq forward
+(request forwardings without command execution),
+.Dq cancel
+(cancel forwardings),
 .Dq exit
-(request the master to exit).
+(request the master to exit), and
+.Dq stop
+(request the master to stop accepting further multiplexing requests).
+.Pp
 .It Fl o Ar option
 Can be used to give options in the format used in the configuration file.
 This is useful for specifying options for which there is no separate
@@ -429,9 +461,16 @@ For full details of the options listed below, and their possible values, see
 .Xr ssh_config 5 .
 .Pp
 .Bl -tag -width Ds -offset indent -compact
+.It AddKeysToAgent
 .It AddressFamily
 .It BatchMode
 .It BindAddress
+.It CanonicalDomains
+.It CanonicalizeFallbackLocal
+.It CanonicalizeHostname
+.It CanonicalizeMaxDots
+.It CanonicalizePermittedCNAMEs
+.It CertificateFile
 .It ChallengeResponseAuthentication
 .It CheckHostIP
 .It Cipher
@@ -443,11 +482,14 @@ For full details of the options listed below, and their possible values, see
 .It ConnectTimeout
 .It ControlMaster
 .It ControlPath
+.It ControlPersist
 .It DynamicForward
 .It EscapeChar
 .It ExitOnForwardFailure
+.It FingerprintHash
 .It ForwardAgent
 .It ForwardX11
+.It ForwardX11Timeout
 .It ForwardX11Trusted
 .It GatewayPorts
 .It GlobalKnownHostsFile
@@ -456,37 +498,48 @@ For full details of the options listed below, and their possible values, see
 .It HashKnownHosts
 .It Host
 .It HostbasedAuthentication
+.It HostbasedKeyTypes
 .It HostKeyAlgorithms
 .It HostKeyAlias
 .It HostName
 .It IdentityFile
 .It IdentitiesOnly
+.It IPQoS
+.It KbdInteractiveAuthentication
 .It KbdInteractiveDevices
+.It KexAlgorithms
 .It LocalCommand
 .It LocalForward
 .It LogLevel
 .It MACs
+.It Match
 .It NoHostAuthenticationForLocalhost
 .It NumberOfPasswordPrompts
 .It PasswordAuthentication
 .It PermitLocalCommand
+.It PKCS11Provider
 .It Port
 .It PreferredAuthentications
 .It Protocol
 .It ProxyCommand
+.It ProxyUseFdpass
+.It PubkeyAcceptedKeyTypes
 .It PubkeyAuthentication
 .It RekeyLimit
 .It RemoteForward
+.It RequestTTY
 .It RhostsRSAAuthentication
 .It RSAAuthentication
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
-.It SmartcardDevice
+.It StreamLocalBindMask
+.It StreamLocalBindUnlink
 .It StrictHostKeyChecking
 .It TCPKeepAlive
 .It Tunnel
 .It TunnelDevice
+.It UpdateHostKeys
 .It UsePrivilegedPort
 .It User
 .It UserKnownHostsFile
@@ -495,45 +548,82 @@ For full details of the options listed below, and their possible values, see
 .It VisualHostKey
 .It XAuthLocation
 .El
+.Pp
 .It Fl p Ar port
 Port to connect to on the remote host.
 This can be specified on a
 per-host basis in the configuration file.
+.Pp
+.It Fl Q Ar query_option
+Queries
+.Nm
+for the algorithms supported for the specified version 2.
+The available features are:
+.Ar cipher
+(supported symmetric ciphers),
+.Ar cipher-auth
+(supported symmetric ciphers that support authenticated encryption),
+.Ar mac
+(supported message integrity codes),
+.Ar kex
+(key exchange algorithms),
+.Ar key
+(key types),
+.Ar key-cert
+(certificate key types),
+.Ar key-plain
+(non-certificate key types), and
+.Ar protocol-version
+(supported SSH protocol versions).
+.Pp
 .It Fl q
 Quiet mode.
 Causes most warning and diagnostic messages to be suppressed.
+.Pp
 .It Fl R Xo
 .Sm off
 .Oo Ar bind_address : Oc
 .Ar port : host : hostport
 .Sm on
 .Xc
-Specifies that the given port on the remote (server) host is to be
-forwarded to the given host and port on the local side.
-This works by allocating a socket to listen to
+.It Fl R Xo
+.Sm off
+.Oo Ar bind_address : Oc
+.Ar port : local_socket
+.Sm on
+.Xc
+.It Fl R Xo
+.Sm off
+.Ar remote_socket : host : hostport
+.Sm on
+.Xc
+.It Fl R Xo
+.Sm off
+.Ar remote_socket : local_socket
+.Sm on
+.Xc
+Specifies that connections to the given TCP port or Unix socket on the remote
+(server) host are to be forwarded to the given host and port, or Unix socket,
+on the local side.
+This works by allocating a socket to listen to either a TCP
 .Ar port
-on the remote side, and whenever a connection is made to this port, the
-connection is forwarded over the secure channel, and a connection is
-made to
+or to a Unix socket on the remote side.
+Whenever a connection is made to this port or Unix socket, the
+connection is forwarded over the secure channel, and a connection
+is made to either
 .Ar host
 port
-.Ar hostport
+.Ar hostport ,
+or
+.Ar local_socket ,
 from the local machine.
 .Pp
 Port forwardings can also be specified in the configuration file.
 Privileged ports can be forwarded only when
 logging in as root on the remote machine.
-IPv6 addresses can be specified by enclosing the address in square braces or
-using an alternative syntax:
-.Sm off
-.Xo
-.Op Ar bind_address No /
-.Ar host No / Ar port No /
-.Ar hostport
-.Xc .
-.Sm on
+IPv6 addresses can be specified by enclosing the address in square brackets.
 .Pp
-By default, the listening socket on the server will be bound to the loopback
+By default, TCP listening sockets on the server will be bound to the loopback
 interface only.
 This may be overridden by specifying a
 .Ar bind_address .
@@ -555,8 +645,15 @@ argument is
 .Ql 0 ,
 the listen port will be dynamically allocated on the server and reported
 to the client at run time.
+When used together with
+.Ic -O forward
+the allocated port will be printed to the standard output.
+.Pp
 .It Fl S Ar ctl_path
-Specifies the location of a control socket for connection sharing.
+Specifies the location of a control socket for connection sharing,
+or the string
+.Dq none
+to disable connection sharing.
 Refer to the description of
 .Cm ControlPath
 and
@@ -564,16 +661,19 @@ and
 in
 .Xr ssh_config 5
 for details.
+.Pp
 .It Fl s
 May be used to request invocation of a subsystem on the remote system.
-Subsystems are a feature of the SSH2 protocol which facilitate the use
-of SSH as a secure transport for other applications (eg.\&
+Subsystems facilitate the use of SSH
+as a secure transport for other applications (e.g.\&
 .Xr sftp 1 ) .
 The subsystem is specified as the remote command.
+.Pp
 .It Fl T
-Disable pseudo-tty allocation.
+Disable pseudo-terminal allocation.
+.Pp
 .It Fl t
-Force pseudo-tty allocation.
+Force pseudo-terminal allocation.
 This can be used to execute arbitrary
 screen-based programs on a remote machine, which can be very useful,
 e.g. when implementing menu services.
@@ -582,8 +682,10 @@ Multiple
 options force tty allocation, even if
 .Nm
 has no local tty.
+.Pp
 .It Fl V
 Display the version number and exit.
+.Pp
 .It Fl v
 Verbose mode.
 Causes
@@ -595,6 +697,20 @@ Multiple
 .Fl v
 options increase the verbosity.
 The maximum is 3.
+.Pp
+.It Fl W Ar host : Ns Ar port
+Requests that standard input and output on the client be forwarded to
+.Ar host
+on
+.Ar port
+over the secure channel.
+Implies
+.Fl N ,
+.Fl T ,
+.Cm ExitOnForwardFailure
+and
+.Cm ClearAllForwardings .
+.Pp
 .It Fl w Xo
 .Ar local_tun Ns Op : Ns Ar remote_tun
 .Xc
@@ -624,6 +740,7 @@ If the
 .Cm Tunnel
 directive is unset, it is set to the default tunnel mode, which is
 .Dq point-to-point .
+.Pp
 .It Fl X
 Enables X11 forwarding.
 This can also be specified on a per-host basis in a configuration file.
@@ -644,12 +761,15 @@ option and the
 directive in
 .Xr ssh_config 5
 for more information.
+.Pp
 .It Fl x
 Disables X11 forwarding.
+.Pp
 .It Fl Y
 Enables trusted X11 forwarding.
 Trusted X11 forwardings are not subjected to the X11 SECURITY extension
 controls.
+.Pp
 .It Fl y
 Send log information using the
 .Xr syslog 3
@@ -662,31 +782,22 @@ may additionally obtain configuration data from
 a per-user configuration file and a system-wide configuration file.
 The file format and configuration options are described in
 .Xr ssh_config 5 .
-.Pp
-.Nm
-exits with the exit status of the remote command or with 255
-if an error occurred.
 .Sh AUTHENTICATION
 The OpenSSH SSH client supports SSH protocols 1 and 2.
-Protocol 2 is the default, with
-.Nm
-falling back to protocol 1 if it detects protocol 2 is unsupported.
-These settings may be altered using the
+The default is to use protocol 2 only,
+though this can be changed via the
 .Cm Protocol
 option in
-.Xr ssh_config 5 ,
-or enforced using the
+.Xr ssh_config 5
+or the
 .Fl 1
 and
 .Fl 2
 options (see above).
-Both protocols support similar authentication methods,
-but protocol 2 is preferred since
-it provides additional mechanisms for confidentiality
-(the traffic is encrypted using AES, 3DES, Blowfish, CAST128, or Arcfour)
-and integrity (hmac-md5, hmac-sha1, umac-64, hmac-ripemd160).
-Protocol 1 lacks a strong mechanism for ensuring the
-integrity of the connection.
+Protocol 1 should not be used
+and is only offered to support legacy devices.
+It suffers from a number of cryptographic weaknesses
+and doesn't support many of the advanced features available for protocol 2.
 .Pp
 The methods available for authentication are:
 GSSAPI-based authentication,
@@ -695,8 +806,9 @@ public key authentication,
 challenge-response authentication,
 and password authentication.
 Authentication methods are tried in the order specified above,
-though protocol 2 has a configuration option to change the default order:
-.Cm PreferredAuthentications .
+though
+.Cm PreferredAuthentications
+can be used to change the default order.
 .Pp
 Host-based authentication works as follows:
 If the machine the user logs in from is listed in
@@ -739,14 +851,10 @@ key pair for authentication purposes.
 The server knows the public key, and only the user knows the private key.
 .Nm
 implements public key authentication protocol automatically,
-using either the RSA or DSA algorithms.
-Protocol 1 is restricted to using only RSA keys,
-but protocol 2 may use either.
-The
-.Sx HISTORY
-section of
+using one of the DSA, ECDSA, Ed25519 or RSA algorithms.
+The HISTORY section of
 .Xr ssl 8
-contains a brief discussion of the two algorithms.
+contains a brief discussion of the DSA and RSA algorithms.
 .Pp
 The file
 .Pa ~/.ssh/authorized_keys
@@ -765,18 +873,26 @@ This stores the private key in
 .Pa ~/.ssh/identity
 (protocol 1),
 .Pa ~/.ssh/id_dsa
-(protocol 2 DSA),
+(DSA),
+.Pa ~/.ssh/id_ecdsa
+(ECDSA),
+.Pa ~/.ssh/id_ed25519
+(Ed25519),
 or
 .Pa ~/.ssh/id_rsa
-(protocol 2 RSA)
+(RSA)
 and stores the public key in
 .Pa ~/.ssh/identity.pub
 (protocol 1),
 .Pa ~/.ssh/id_dsa.pub
-(protocol 2 DSA),
+(DSA),
+.Pa ~/.ssh/id_ecdsa.pub
+(ECDSA),
+.Pa ~/.ssh/id_ed25519.pub
+(Ed25519),
 or
 .Pa ~/.ssh/id_rsa.pub
-(protocol 2 RSA)
+(RSA)
 in the user's home directory.
 The user should then copy the public key
 to
@@ -790,22 +906,37 @@ file, and has one key
 per line, though the lines can be very long.
 After this, the user can log in without giving the password.
 .Pp
-The most convenient way to use public key authentication may be with an
-authentication agent.
+A variation on public key authentication
+is available in the form of certificate authentication:
+instead of a set of public/private keys,
+signed certificates are used.
+This has the advantage that a single trusted certification authority
+can be used in place of many public/private keys.
+See the CERTIFICATES section of
+.Xr ssh-keygen 1
+for more information.
+.Pp
+The most convenient way to use public key or certificate authentication
+may be with an authentication agent.
 See
 .Xr ssh-agent 1
+and (optionally) the
+.Cm AddKeysToAgent
+directive in
+.Xr ssh_config 5
 for more information.
 .Pp
 Challenge-response authentication works as follows:
 The server sends an arbitrary
 .Qq challenge
 text, and prompts for a response.
-Protocol 2 allows multiple challenges and responses;
-protocol 1 is restricted to just one challenge/response.
 Examples of challenge-response authentication include
-BSD Authentication (see
+.Bx
+Authentication (see
 .Xr login.conf 5 )
-and PAM (some non-OpenBSD systems).
+and PAM (some
+.Pf non- Ox
+systems).
 .Pp
 Finally, if other authentication methods fail,
 .Nm
@@ -835,15 +966,26 @@ option can be used to control logins to machines whose
 host key is not known or has changed.
 .Pp
 When the user's identity has been accepted by the server, the server
-either executes the given command, or logs into the machine and gives
-the user a normal shell on the remote machine.
+either executes the given command in a non-interactive session or,
+if no command has been specified, logs into the machine and gives
+the user a normal shell as an interactive session.
 All communication with
 the remote command or shell will be automatically encrypted.
 .Pp
-If a pseudo-terminal has been allocated (normal login session), the
+If an interactive session is requested
+.Nm
+by default will only request a pseudo-terminal (pty) for interactive
+sessions when the client has one.
+The flags
+.Fl T
+and
+.Fl t
+can be used to override this behaviour.
+.Pp
+If a pseudo-terminal has been allocated the
 user may use the escape characters noted below.
 .Pp
-If no pseudo-tty has been allocated,
+If no pseudo-terminal has been allocated,
 the session is transparent and can be used to reliably transfer binary data.
 On most systems, setting the escape character to
 .Dq none
@@ -886,7 +1028,7 @@ at logout when waiting for forwarded connection / X11 sessions to terminate.
 Display a list of escape characters.
 .It Cm ~B
 Send a BREAK to the remote system
-(only useful for SSH protocol version 2 and if the peer supports it).
+(only useful if the peer supports it).
 .It Cm ~C
 Open command line.
 Currently this allows the addition of port forwardings using the
@@ -895,11 +1037,20 @@ Currently this allows the addition of port forwardings using the
 and
 .Fl D
 options (see above).
-It also allows the cancellation of existing remote port-forwardings
-using
+It also allows the cancellation of existing port-forwardings
+with
 .Sm off
-.Fl KR Oo Ar bind_address : Oc Ar port .
+.Fl KL Oo Ar bind_address : Oc Ar port
 .Sm on
+for local,
+.Sm off
+.Fl KR Oo Ar bind_address : Oc Ar port
+.Sm on
+for remote and
+.Sm off
+.Fl KD Oo Ar bind_address : Oc Ar port
+.Sm on
+for dynamic port-forwardings.
 .Ic !\& Ns Ar command
 allows the user to execute a local command if the
 .Ic PermitLocalCommand
@@ -910,7 +1061,15 @@ Basic help is available, using the
 option.
 .It Cm ~R
 Request rekeying of the connection
-(only useful for SSH protocol version 2 and if the peer supports it).
+(only useful if the peer supports it).
+.It Cm ~V
+Decrease the verbosity
+.Pq Ic LogLevel
+when errors are being written to stderr.
+.It Cm ~v
+Increase the verbosity
+.Pq Ic LogLevel
+when errors are being written to stderr.
 .El
 .Sh TCP FORWARDING
 Forwarding of arbitrary TCP connections over the secure channel can
@@ -1037,8 +1196,13 @@ Fingerprints can be determined using
 .Pp
 If the fingerprint is already known, it can be matched
 and the key can be accepted or rejected.
+If only legacy (MD5) fingerprints for the server are available, the
+.Xr ssh-keygen 1
+.Fl E
+option may be used to downgrade the fingerprint algorithm to match.
+.Pp
 Because of the difficulty of comparing host keys
-just by looking at hex strings,
+just by looking at fingerprint strings,
 there is also support to compare host keys visually,
 using
 .Em random art .
@@ -1256,7 +1420,7 @@ option in
 .Xr sshd_config 5 .
 .Sh FILES
 .Bl -tag -width Ds -compact
-.It ~/.rhosts
+.It Pa ~/.rhosts
 This file is used for host-based authentication (see above).
 On some machines this file may need to be
 world-readable if the user's home directory is on an NFS partition,
@@ -1269,42 +1433,45 @@ The recommended
 permission for most machines is read/write for the user, and not
 accessible by others.
 .Pp
-.It ~/.shosts
+.It Pa ~/.shosts
 This file is used in exactly the same way as
 .Pa .rhosts ,
 but allows host-based authentication without permitting login with
 rlogin/rsh.
 .Pp
-.It ~/.ssh/
+.It Pa ~/.ssh/
 This directory is the default location for all user-specific configuration
 and authentication information.
 There is no general requirement to keep the entire contents of this directory
 secret, but the recommended permissions are read/write/execute for the user,
 and not accessible by others.
 .Pp
-.It ~/.ssh/authorized_keys
-Lists the public keys (RSA/DSA) that can be used for logging in as this user.
+.It Pa ~/.ssh/authorized_keys
+Lists the public keys (DSA, ECDSA, Ed25519, RSA)
+that can be used for logging in as this user.
 The format of this file is described in the
 .Xr sshd 8
 manual page.
 This file is not highly sensitive, but the recommended
 permissions are read/write for the user, and not accessible by others.
 .Pp
-.It ~/.ssh/config
+.It Pa ~/.ssh/config
 This is the per-user configuration file.
 The file format and configuration options are described in
 .Xr ssh_config 5 .
 Because of the potential for abuse, this file must have strict permissions:
-read/write for the user, and not accessible by others.
+read/write for the user, and not writable by others.
 .Pp
-.It ~/.ssh/environment
+.It Pa ~/.ssh/environment
 Contains additional definitions for environment variables; see
 .Sx ENVIRONMENT ,
 above.
 .Pp
-.It ~/.ssh/identity
-.It ~/.ssh/id_dsa
-.It ~/.ssh/id_rsa
+.It Pa ~/.ssh/identity
+.It Pa ~/.ssh/id_dsa
+.It Pa ~/.ssh/id_ecdsa
+.It Pa ~/.ssh/id_ed25519
+.It Pa ~/.ssh/id_rsa
 Contains the private key for authentication.
 These files
 contain sensitive data and should be readable by the user but not
@@ -1315,21 +1482,23 @@ It is possible to specify a passphrase when
 generating the key which will be used to encrypt the
 sensitive part of this file using 3DES.
 .Pp
-.It ~/.ssh/identity.pub
-.It ~/.ssh/id_dsa.pub
-.It ~/.ssh/id_rsa.pub
+.It Pa ~/.ssh/identity.pub
+.It Pa ~/.ssh/id_dsa.pub
+.It Pa ~/.ssh/id_ecdsa.pub
+.It Pa ~/.ssh/id_ed25519.pub
+.It Pa ~/.ssh/id_rsa.pub
 Contains the public key for authentication.
 These files are not
 sensitive and can (but need not) be readable by anyone.
 .Pp
-.It ~/.ssh/known_hosts
+.It Pa ~/.ssh/known_hosts
 Contains a list of host keys for all hosts the user has logged into
 that are not already in the systemwide list of known host keys.
 See
 .Xr sshd 8
 for further details of the format of this file.
 .Pp
-.It ~/.ssh/rc
+.It Pa ~/.ssh/rc
 Commands in this file are executed by
 .Nm
 when the user logs in, just before the user's shell (or command) is
@@ -1338,11 +1507,11 @@ See the
 .Xr sshd 8
 manual page for more information.
 .Pp
-.It /etc/hosts.equiv
+.It Pa /etc/hosts.equiv
 This file is for host-based authentication (see above).
 It should only be writable by root.
 .Pp
-.It /etc/shosts.equiv
+.It Pa /etc/shosts.equiv
 This file is used in exactly the same way as
 .Pa hosts.equiv ,
 but allows host-based authentication without permitting login with
@@ -1353,27 +1522,15 @@ Systemwide configuration file.
 The file format and configuration options are described in
 .Xr ssh_config 5 .
 .Pp
-.It /etc/ssh/ssh_host_key
-.It /etc/ssh/ssh_host_dsa_key
-.It /etc/ssh/ssh_host_rsa_key
-These three files contain the private parts of the host keys
+.It Pa /etc/ssh/ssh_host_key
+.It Pa /etc/ssh/ssh_host_dsa_key
+.It Pa /etc/ssh/ssh_host_ecdsa_key
+.It Pa /etc/ssh/ssh_host_ed25519_key
+.It Pa /etc/ssh/ssh_host_rsa_key
+These files contain the private parts of the host keys
 and are used for host-based authentication.
-If protocol version 1 is used,
-.Nm
-must be setuid root, since the host key is readable only by root.
-For protocol version 2,
-.Nm
-uses
-.Xr ssh-keysign 8
-to access the host keys,
-eliminating the requirement that
-.Nm
-be setuid root when host-based authentication is used.
-By default
-.Nm
-is not setuid root.
 .Pp
-.It /etc/ssh/ssh_known_hosts
+.It Pa /etc/ssh/ssh_known_hosts
 Systemwide list of known host keys.
 This file should be prepared by the
 system administrator to contain the public host keys of all machines in the
@@ -1383,7 +1540,7 @@ See
 .Xr sshd 8
 for further details of the format of this file.
 .Pp
-.It /etc/ssh/sshrc
+.It Pa /etc/ssh/sshrc
 Commands in this file are executed by
 .Nm
 when the user logs in, just before the user's shell (or command) is started.
@@ -1391,6 +1548,10 @@ See the
 .Xr sshd 8
 manual page for more information.
 .El
+.Sh EXIT STATUS
+.Nm
+exits with the exit status of the remote command or with 255
+if an error occurred.
 .Sh SEE ALSO
 .Xr scp 1 ,
 .Xr sftp 1 ,
@@ -1399,76 +1560,121 @@ manual page for more information.
 .Xr ssh-keygen 1 ,
 .Xr ssh-keyscan 1 ,
 .Xr tun 4 ,
-.Xr hosts.equiv 5 ,
 .Xr ssh_config 5 ,
 .Xr ssh-keysign 8 ,
 .Xr sshd 8
+.Sh STANDARDS
 .Rs
+.%A S. Lehtinen
+.%A C. Lonvick
+.%D January 2006
 .%R RFC 4250
-.%T "The Secure Shell (SSH) Protocol Assigned Numbers"
-.%D 2006
+.%T The Secure Shell (SSH) Protocol Assigned Numbers
 .Re
+.Pp
 .Rs
+.%A T. Ylonen
+.%A C. Lonvick
+.%D January 2006
 .%R RFC 4251
-.%T "The Secure Shell (SSH) Protocol Architecture"
-.%D 2006
+.%T The Secure Shell (SSH) Protocol Architecture
 .Re
+.Pp
 .Rs
+.%A T. Ylonen
+.%A C. Lonvick
+.%D January 2006
 .%R RFC 4252
-.%T "The Secure Shell (SSH) Authentication Protocol"
-.%D 2006
+.%T The Secure Shell (SSH) Authentication Protocol
 .Re
+.Pp
 .Rs
+.%A T. Ylonen
+.%A C. Lonvick
+.%D January 2006
 .%R RFC 4253
-.%T "The Secure Shell (SSH) Transport Layer Protocol"
-.%D 2006
+.%T The Secure Shell (SSH) Transport Layer Protocol
 .Re
+.Pp
 .Rs
+.%A T. Ylonen
+.%A C. Lonvick
+.%D January 2006
 .%R RFC 4254
-.%T "The Secure Shell (SSH) Connection Protocol"
-.%D 2006
+.%T The Secure Shell (SSH) Connection Protocol
 .Re
+.Pp
 .Rs
+.%A J. Schlyter
+.%A W. Griffin
+.%D January 2006
 .%R RFC 4255
-.%T "Using DNS to Securely Publish Secure Shell (SSH) Key Fingerprints"
-.%D 2006
+.%T Using DNS to Securely Publish Secure Shell (SSH) Key Fingerprints
 .Re
+.Pp
 .Rs
+.%A F. Cusack
+.%A M. Forssen
+.%D January 2006
 .%R RFC 4256
-.%T "Generic Message Exchange Authentication for the Secure Shell Protocol (SSH)"
-.%D 2006
+.%T Generic Message Exchange Authentication for the Secure Shell Protocol (SSH)
 .Re
+.Pp
 .Rs
+.%A J. Galbraith
+.%A P. Remaker
+.%D January 2006
 .%R RFC 4335
-.%T "The Secure Shell (SSH) Session Channel Break Extension"
-.%D 2006
+.%T The Secure Shell (SSH) Session Channel Break Extension
 .Re
+.Pp
 .Rs
+.%A M. Bellare
+.%A T. Kohno
+.%A C. Namprempre
+.%D January 2006
 .%R RFC 4344
-.%T "The Secure Shell (SSH) Transport Layer Encryption Modes"
-.%D 2006
+.%T The Secure Shell (SSH) Transport Layer Encryption Modes
 .Re
+.Pp
 .Rs
+.%A B. Harris
+.%D January 2006
 .%R RFC 4345
-.%T "Improved Arcfour Modes for the Secure Shell (SSH) Transport Layer Protocol"
-.%D 2006
+.%T Improved Arcfour Modes for the Secure Shell (SSH) Transport Layer Protocol
 .Re
+.Pp
 .Rs
+.%A M. Friedl
+.%A N. Provos
+.%A W. Simpson
+.%D March 2006
 .%R RFC 4419
-.%T "Diffie-Hellman Group Exchange for the Secure Shell (SSH) Transport Layer Protocol"
-.%D 2006
+.%T Diffie-Hellman Group Exchange for the Secure Shell (SSH) Transport Layer Protocol
 .Re
+.Pp
 .Rs
+.%A J. Galbraith
+.%A R. Thayer
+.%D November 2006
 .%R RFC 4716
-.%T "The Secure Shell (SSH) Public Key File Format"
-.%D 2006
+.%T The Secure Shell (SSH) Public Key File Format
 .Re
+.Pp
 .Rs
-.%T "Hash Visualization: a New Technique to improve Real-World Security"
+.%A D. Stebila
+.%A J. Green
+.%D December 2009
+.%R RFC 5656
+.%T Elliptic Curve Algorithm Integration in the Secure Shell Transport Layer
+.Re
+.Pp
+.Rs
 .%A A. Perrig
 .%A D. Song
 .%D 1999
-.%O "International Workshop on Cryptographic Techniques and E-Commerce (CrypTEC '99)"
+.%O International Workshop on Cryptographic Techniques and E-Commerce (CrypTEC '99)
+.%T Hash Visualization: a New Technique to improve Real-World Security
 .Re
 .Sh AUTHORS
 OpenSSH is a derivative of the original and free

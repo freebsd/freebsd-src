@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include "ypxfr_extern.h"
 
-int fp = 0;
+static int fp = 0;
 
 static bool_t
 xdr_my_xfr(register XDR *xdrs, xfr *objp)

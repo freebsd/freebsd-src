@@ -7,7 +7,8 @@ SRCS=	lpd.c printjob.c recvjob.c lpdchar.c modes.c
 
 CFLAGS+= -I${.CURDIR}/../common_source
 
-DPADD=	${LIBLPR}
-LDADD=	${LIBLPR}
+WARNS?=	1
+
+LIBADD=	lpr
 
 .include <bsd.prog.mk>

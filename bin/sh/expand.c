@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1997-2005
+ *	Herbert Xu <herbert@gondor.apana.org.au>.  All rights reserved.
+ * Copyright (c) 2010-2015
+ *	Jilles Tjoelker <jilles@stack.nl>.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * Kenneth Almquist.
@@ -41,14 +45,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <errno.h>
 #include <dirent.h>
-#include <unistd.h>
-#include <pwd.h>
-#include <stdlib.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <limits.h>
+#include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 /*
  * Routines to expand arguments to commands.  We have to deal with
@@ -72,170 +79,244 @@ __FBSDID("$FreeBSD$");
 #include "mystring.h"
 #include "arith.h"
 #include "show.h"
+#include "builtins.h"
 
-/*
- * Structure specifying which parts of the string should be searched
- * for IFS characters.
- */
+enum wordstate { WORD_IDLE, WORD_WS_DELIMITED, WORD_QUOTEMARK };
 
-struct ifsregion {
-	struct ifsregion *next;	/* next region in list */
-	int begoff;		/* offset of start of region */
-	int endoff;		/* offset of end of region */
-	int inquotes;		/* search for nul bytes only */
+struct worddest {
+	struct arglist *list;
+	enum wordstate state;
 };
 
+static char *expdest;			/* output of current string */
+static struct nodelist *argbackq;	/* list of back quote expressions */
 
-STATIC char *expdest;			/* output of current string */
-STATIC struct nodelist *argbackq;	/* list of back quote expressions */
-STATIC struct ifsregion ifsfirst;	/* first struct in list of ifs regions */
-STATIC struct ifsregion *ifslastp;	/* last struct in list */
-STATIC struct arglist exparg;		/* holds expanded arg list */
+static const char *argstr(const char *, int, struct worddest *);
+static const char *exptilde(const char *, int);
+static const char *expari(const char *, int, struct worddest *);
+static void expbackq(union node *, int, int, struct worddest *);
+static void subevalvar_trim(const char *, int, int, int);
+static int subevalvar_misc(const char *, const char *, int, int, int);
+static const char *evalvar(const char *, int, struct worddest *);
+static int varisset(const char *, int);
+static void strtodest(const char *, int, int, int, struct worddest *);
+static void reprocess(int, int, int, int, struct worddest *);
+static void varvalue(const char *, int, int, int, struct worddest *);
+static void expandmeta(char *, struct arglist *);
+static void expmeta(char *, char *, struct arglist *);
+static int expsortcmp(const void *, const void *);
+static int patmatch(const char *, const char *);
+static void cvtnum(int, char *);
+static int collate_range_cmp(wchar_t, wchar_t);
 
-STATIC void argstr(char *, int);
-STATIC char *exptilde(char *, int);
-STATIC void expbackq(union node *, int, int);
-STATIC int subevalvar(char *, char *, int, int, int, int);
-STATIC char *evalvar(char *, int);
-STATIC int varisset(char *, int);
-STATIC void varvalue(char *, int, int, int);
-STATIC void recordregion(int, int, int);
-STATIC void removerecordregions(int);
-STATIC void ifsbreakup(char *, struct arglist *);
-STATIC void expandmeta(struct strlist *, int);
-STATIC void expmeta(char *, char *);
-STATIC void addfname(char *);
-STATIC struct strlist *expsort(struct strlist *);
-STATIC struct strlist *msort(struct strlist *, int);
-STATIC int pmatch(char *, char *, int);
-STATIC char *cvtnum(int, char *);
-STATIC int collate_range_cmp(int, int);
-
-STATIC int
-collate_range_cmp(int c1, int c2)
+void
+emptyarglist(struct arglist *list)
 {
-	static char s1[2], s2[2];
+
+	list->args = list->smallarg;
+	list->count = 0;
+	list->capacity = sizeof(list->smallarg) / sizeof(list->smallarg[0]);
+}
+
+void
+appendarglist(struct arglist *list, char *str)
+{
+	char **newargs;
+	int newcapacity;
+
+	if (list->count >= list->capacity) {
+		newcapacity = list->capacity * 2;
+		if (newcapacity < 16)
+			newcapacity = 16;
+		if (newcapacity > INT_MAX / (int)sizeof(newargs[0]))
+			error("Too many entries in arglist");
+		newargs = stalloc(newcapacity * sizeof(newargs[0]));
+		memcpy(newargs, list->args, list->count * sizeof(newargs[0]));
+		list->args = newargs;
+		list->capacity = newcapacity;
+	}
+	list->args[list->count++] = str;
+}
+
+static int
+collate_range_cmp(wchar_t c1, wchar_t c2)
+{
+	static wchar_t s1[2], s2[2];
 
 	s1[0] = c1;
 	s2[0] = c2;
-	return (strcoll(s1, s2));
+	return (wcscoll(s1, s2));
 }
 
-/*
- * Expand shell variables and backquotes inside a here document.
- *	union node *arg		the document
- *	int fd;			where to write the expanded version
- */
-
-void
-expandhere(union node *arg, int fd)
+static char *
+stputs_quotes(const char *data, const char *syntax, char *p)
 {
-	herefd = fd;
-	expandarg(arg, (struct arglist *)NULL, 0);
-	xwrite(fd, stackblock(), expdest - stackblock());
+	while (*data) {
+		CHECKSTRSPACE(2, p);
+		if (syntax[(int)*data] == CCTL)
+			USTPUTC(CTLESC, p);
+		USTPUTC(*data++, p);
+	}
+	return (p);
 }
+#define STPUTS_QUOTES(data, syntax, p) p = stputs_quotes((data), syntax, p)
 
+static char *
+nextword(char c, int flag, char *p, struct worddest *dst)
+{
+	int is_ws;
+
+	is_ws = c == '\t' || c == '\n' || c == ' ';
+	if (p != stackblock() || (is_ws ? dst->state == WORD_QUOTEMARK :
+	    dst->state != WORD_WS_DELIMITED) || c == '\0') {
+		STPUTC('\0', p);
+		if (flag & EXP_GLOB)
+			expandmeta(grabstackstr(p), dst->list);
+		else
+			appendarglist(dst->list, grabstackstr(p));
+		dst->state = is_ws ? WORD_WS_DELIMITED : WORD_IDLE;
+	} else if (!is_ws && dst->state == WORD_WS_DELIMITED)
+		dst->state = WORD_IDLE;
+	/* Reserve space while the stack string is empty. */
+	appendarglist(dst->list, NULL);
+	dst->list->count--;
+	STARTSTACKSTR(p);
+	return p;
+}
+#define NEXTWORD(c, flag, p, dstlist) p = nextword(c, flag, p, dstlist)
+
+static char *
+stputs_split(const char *data, const char *syntax, int flag, char *p,
+    struct worddest *dst)
+{
+	const char *ifs;
+	char c;
+
+	ifs = ifsset() ? ifsval() : " \t\n";
+	while (*data) {
+		CHECKSTRSPACE(2, p);
+		c = *data++;
+		if (strchr(ifs, c) != NULL) {
+			NEXTWORD(c, flag, p, dst);
+			continue;
+		}
+		if (flag & EXP_GLOB && syntax[(int)c] == CCTL)
+			USTPUTC(CTLESC, p);
+		USTPUTC(c, p);
+	}
+	return (p);
+}
+#define STPUTS_SPLIT(data, syntax, flag, p, dst) p = stputs_split((data), syntax, flag, p, dst)
 
 /*
- * Perform variable substitution and command substitution on an argument,
- * placing the resulting list of arguments in arglist.  If EXP_FULL is true,
- * perform splitting and file name expansion.  When arglist is NULL, perform
- * here document expansion.
+ * Perform expansions on an argument, placing the resulting list of arguments
+ * in arglist.  Parameter expansion, command substitution and arithmetic
+ * expansion are always performed; additional expansions can be requested
+ * via flag (EXP_*).
+ * The result is left in the stack string.
+ * When arglist is NULL, perform here document expansion.
+ *
+ * Caution: this function uses global state and is not reentrant.
+ * However, a new invocation after an interrupted invocation is safe
+ * and will reset the global state for the new call.
  */
-
 void
 expandarg(union node *arg, struct arglist *arglist, int flag)
 {
-	struct strlist *sp;
-	char *p;
+	struct worddest exparg;
 
+	if (fflag)
+		flag &= ~EXP_GLOB;
 	argbackq = arg->narg.backquote;
+	exparg.list = arglist;
+	exparg.state = WORD_IDLE;
 	STARTSTACKSTR(expdest);
-	ifsfirst.next = NULL;
-	ifslastp = NULL;
-	argstr(arg->narg.text, flag);
+	argstr(arg->narg.text, flag, &exparg);
 	if (arglist == NULL) {
+		STACKSTRNUL(expdest);
 		return;			/* here document expanded */
 	}
-	STPUTC('\0', expdest);
-	p = grabstackstr(expdest);
-	exparg.lastp = &exparg.list;
-	/*
-	 * TODO - EXP_REDIR
-	 */
-	if (flag & EXP_FULL) {
-		ifsbreakup(p, &exparg);
-		*exparg.lastp = NULL;
-		exparg.lastp = &exparg.list;
-		expandmeta(exparg.list, flag);
-	} else {
-		if (flag & EXP_REDIR) /*XXX - for now, just remove escapes */
-			rmescapes(p);
-		sp = (struct strlist *)stalloc(sizeof (struct strlist));
-		sp->text = p;
-		*exparg.lastp = sp;
-		exparg.lastp = &sp->next;
+	if ((flag & EXP_SPLIT) == 0 || expdest != stackblock() ||
+	    exparg.state == WORD_QUOTEMARK) {
+		STPUTC('\0', expdest);
+		if (flag & EXP_SPLIT) {
+			if (flag & EXP_GLOB)
+				expandmeta(grabstackstr(expdest), exparg.list);
+			else
+				appendarglist(exparg.list, grabstackstr(expdest));
+		}
 	}
-	while (ifsfirst.next != NULL) {
-		struct ifsregion *ifsp;
-		INTOFF;
-		ifsp = ifsfirst.next->next;
-		ckfree(ifsfirst.next);
-		ifsfirst.next = ifsp;
-		INTON;
-	}
-	*exparg.lastp = NULL;
-	if (exparg.list) {
-		*arglist->lastp = exparg.list;
-		arglist->lastp = exparg.lastp;
-	}
+	if ((flag & EXP_SPLIT) == 0)
+		appendarglist(arglist, grabstackstr(expdest));
 }
 
 
 
 /*
- * Perform variable and command substitution.  If EXP_FULL is set, output CTLESC
- * characters to allow for further processing.  Otherwise treat
- * $@ like $* since no splitting will be performed.
+ * Perform parameter expansion, command substitution and arithmetic
+ * expansion, and tilde expansion if requested via EXP_TILDE/EXP_VARTILDE.
+ * Processing ends at a CTLENDVAR or CTLENDARI character as well as '\0'.
+ * This is used to expand word in ${var+word} etc.
+ * If EXP_GLOB or EXP_CASE are set, keep and/or generate CTLESC
+ * characters to allow for further processing.
+ *
+ * If EXP_SPLIT is set, dst receives any complete words produced.
  */
-
-STATIC void
-argstr(char *p, int flag)
+static const char *
+argstr(const char *p, int flag, struct worddest *dst)
 {
 	char c;
-	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);	/* do CTLESC */
+	int quotes = flag & (EXP_GLOB | EXP_CASE);	/* do CTLESC */
 	int firsteq = 1;
+	int split_lit;
+	int lit_quoted;
 
+	split_lit = flag & EXP_SPLIT_LIT;
+	lit_quoted = flag & EXP_LIT_QUOTED;
+	flag &= ~(EXP_SPLIT_LIT | EXP_LIT_QUOTED);
 	if (*p == '~' && (flag & (EXP_TILDE | EXP_VARTILDE)))
 		p = exptilde(p, flag);
 	for (;;) {
+		CHECKSTRSPACE(2, expdest);
 		switch (c = *p++) {
 		case '\0':
-		case CTLENDVAR: /* ??? */
-			goto breakloop;
+			return (p - 1);
+		case CTLENDVAR:
+		case CTLENDARI:
+			return (p);
 		case CTLQUOTEMARK:
+			lit_quoted = 1;
 			/* "$@" syntax adherence hack */
-			if (p[0] == CTLVAR && p[2] == '@' && p[3] == '=')
+			if (p[0] == CTLVAR && (p[1] & VSQUOTE) != 0 &&
+			    p[2] == '@' && p[3] == '=')
 				break;
-			if ((flag & EXP_FULL) != 0)
-				STPUTC(c, expdest);
+			if ((flag & EXP_SPLIT) != 0 && expdest == stackblock())
+				dst->state = WORD_QUOTEMARK;
+			break;
+		case CTLQUOTEEND:
+			lit_quoted = 0;
 			break;
 		case CTLESC:
-			if (quotes)
-				STPUTC(c, expdest);
 			c = *p++;
-			STPUTC(c, expdest);
+			if (split_lit && !lit_quoted &&
+			    strchr(ifsset() ? ifsval() : " \t\n", c) != NULL) {
+				NEXTWORD(c, flag, expdest, dst);
+				break;
+			}
+			if (quotes)
+				USTPUTC(CTLESC, expdest);
+			USTPUTC(c, expdest);
 			break;
 		case CTLVAR:
-			p = evalvar(p, flag);
+			p = evalvar(p, flag, dst);
 			break;
 		case CTLBACKQ:
 		case CTLBACKQ|CTLQUOTE:
-			expbackq(argbackq->n, c & CTLQUOTE, flag);
+			expbackq(argbackq->n, c & CTLQUOTE, flag, dst);
 			argbackq = argbackq->next;
 			break;
-		case CTLENDARI:
-			expari(flag);
+		case CTLARI:
+			p = expari(p, flag, dst);
 			break;
 		case ':':
 		case '=':
@@ -243,211 +324,157 @@ argstr(char *p, int flag)
 			 * sort of a hack - expand tildes in variable
 			 * assignments (after the first '=' and after ':'s).
 			 */
-			STPUTC(c, expdest);
-			if (flag & EXP_VARTILDE && *p == '~') {
-				if (c == '=') {
-					if (firsteq)
-						firsteq = 0;
-					else
-						break;
-				}
+			if (split_lit && !lit_quoted &&
+			    strchr(ifsset() ? ifsval() : " \t\n", c) != NULL) {
+				NEXTWORD(c, flag, expdest, dst);
+				break;
+			}
+			USTPUTC(c, expdest);
+			if (flag & EXP_VARTILDE && *p == '~' &&
+			    (c != '=' || firsteq)) {
+				if (c == '=')
+					firsteq = 0;
 				p = exptilde(p, flag);
 			}
 			break;
 		default:
-			STPUTC(c, expdest);
+			if (split_lit && !lit_quoted &&
+			    strchr(ifsset() ? ifsval() : " \t\n", c) != NULL) {
+				NEXTWORD(c, flag, expdest, dst);
+				break;
+			}
+			USTPUTC(c, expdest);
 		}
 	}
-breakloop:;
 }
 
-STATIC char *
-exptilde(char *p, int flag)
+/*
+ * Perform tilde expansion, placing the result in the stack string and
+ * returning the next position in the input string to process.
+ */
+static const char *
+exptilde(const char *p, int flag)
 {
-	char c, *startp = p;
+	char c;
+	const char *startp = p;
+	const char *user;
 	struct passwd *pw;
 	char *home;
-	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
+	int len;
 
-	while ((c = *p) != '\0') {
+	for (;;) {
+		c = *p;
 		switch(c) {
-		case CTLESC:
-			return (startp);
+		case CTLESC: /* This means CTL* are always considered quoted. */
+		case CTLVAR:
+		case CTLBACKQ:
+		case CTLBACKQ | CTLQUOTE:
+		case CTLARI:
+		case CTLENDARI:
 		case CTLQUOTEMARK:
 			return (startp);
 		case ':':
-			if (flag & EXP_VARTILDE)
-				goto done;
-			break;
+			if ((flag & EXP_VARTILDE) == 0)
+				break;
+			/* FALLTHROUGH */
+		case '\0':
 		case '/':
-			goto done;
+		case CTLENDVAR:
+			len = p - startp - 1;
+			STPUTBIN(startp + 1, len, expdest);
+			STACKSTRNUL(expdest);
+			user = expdest - len;
+			if (*user == '\0') {
+				home = lookupvar("HOME");
+			} else {
+				pw = getpwnam(user);
+				home = pw != NULL ? pw->pw_dir : NULL;
+			}
+			STADJUST(-len, expdest);
+			if (home == NULL || *home == '\0')
+				return (startp);
+			strtodest(home, flag, VSNORMAL, 1, NULL);
+			return (p);
 		}
 		p++;
 	}
-done:
-	*p = '\0';
-	if (*(startp+1) == '\0') {
-		if ((home = lookupvar("HOME")) == NULL)
-			goto lose;
-	} else {
-		if ((pw = getpwnam(startp+1)) == NULL)
-			goto lose;
-		home = pw->pw_dir;
-	}
-	if (*home == '\0')
-		goto lose;
-	*p = c;
-	while ((c = *home++) != '\0') {
-		if (quotes && SQSYNTAX[(int)c] == CCTL)
-			STPUTC(CTLESC, expdest);
-		STPUTC(c, expdest);
-	}
-	return (p);
-lose:
-	*p = c;
-	return (startp);
 }
 
-
-STATIC void
-removerecordregions(int endoff)
-{
-	if (ifslastp == NULL)
-		return;
-
-	if (ifsfirst.endoff > endoff) {
-		while (ifsfirst.next != NULL) {
-			struct ifsregion *ifsp;
-			INTOFF;
-			ifsp = ifsfirst.next->next;
-			ckfree(ifsfirst.next);
-			ifsfirst.next = ifsp;
-			INTON;
-		}
-		if (ifsfirst.begoff > endoff)
-			ifslastp = NULL;
-		else {
-			ifslastp = &ifsfirst;
-			ifsfirst.endoff = endoff;
-		}
-		return;
-	}
-
-	ifslastp = &ifsfirst;
-	while (ifslastp->next && ifslastp->next->begoff < endoff)
-		ifslastp=ifslastp->next;
-	while (ifslastp->next != NULL) {
-		struct ifsregion *ifsp;
-		INTOFF;
-		ifsp = ifslastp->next->next;
-		ckfree(ifslastp->next);
-		ifslastp->next = ifsp;
-		INTON;
-	}
-	if (ifslastp->endoff > endoff)
-		ifslastp->endoff = endoff;
-}
 
 /*
- * Expand arithmetic expression.  Backup to start of expression,
- * evaluate, place result in (backed up) result, adjust string position.
+ * Expand arithmetic expression.
  */
-void
-expari(int flag)
+static const char *
+expari(const char *p, int flag, struct worddest *dst)
 {
-	char *p, *start;
+	char *q, *start;
 	arith_t result;
 	int begoff;
-	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
 	int quoted;
+	int adj;
 
+	quoted = *p++ == '"';
+	begoff = expdest - stackblock();
+	p = argstr(p, 0, NULL);
+	STPUTC('\0', expdest);
+	start = stackblock() + begoff;
 
-	/*
-	 * This routine is slightly over-complicated for
-	 * efficiency.  First we make sure there is
-	 * enough space for the result, which may be bigger
-	 * than the expression if we add exponentiation.  Next we
-	 * scan backwards looking for the start of arithmetic.  If the
-	 * next previous character is a CTLESC character, then we
-	 * have to rescan starting from the beginning since CTLESC
-	 * characters have to be processed left to right.
-	 */
-	CHECKSTRSPACE(DIGITS(result) - 2, expdest);
-	USTPUTC('\0', expdest);
-	start = stackblock();
-	p = expdest - 2;
-	while (p >= start && *p != CTLARI)
-		--p;
-	if (p < start || *p != CTLARI)
-		error("missing CTLARI (shouldn't happen)");
-	if (p > start && *(p - 1) == CTLESC)
-		for (p = start; *p != CTLARI; p++)
-			if (*p == CTLESC)
-				p++;
+	q = grabstackstr(expdest);
+	result = arith(start);
+	ungrabstackstr(q, expdest);
 
-	if (p[1] == '"')
-		quoted=1;
-	else
-		quoted=0;
-	begoff = p - start;
-	removerecordregions(begoff);
-	if (quotes)
-		rmescapes(p+2);
-	result = arith(p+2);
-	fmtstr(p, DIGITS(result), ARITH_FORMAT_STR, result);
-	while (*p++)
-		;
-	if (quoted == 0)
-		recordregion(begoff, p - 1 - start, 0);
-	result = expdest - p + 1;
-	STADJUST(-result, expdest);
+	start = stackblock() + begoff;
+	adj = start - expdest;
+	STADJUST(adj, expdest);
+
+	CHECKSTRSPACE((int)(DIGITS(result) + 1), expdest);
+	fmtstr(expdest, DIGITS(result), ARITH_FORMAT_STR, result);
+	adj = strlen(expdest);
+	STADJUST(adj, expdest);
+	if (!quoted)
+		reprocess(expdest - adj - stackblock(), flag, VSNORMAL, 0, dst);
+	return p;
 }
 
 
 /*
- * Expand stuff in backwards quotes.
+ * Perform command substitution.
  */
-
-STATIC void
-expbackq(union node *cmd, int quoted, int flag)
+static void
+expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 {
 	struct backcmd in;
 	int i;
 	char buf[128];
 	char *p;
 	char *dest = expdest;
-	struct ifsregion saveifs, *savelastp;
 	struct nodelist *saveargbackq;
 	char lastc;
-	int startloc = dest - stackblock();
 	char const *syntax = quoted? DQSYNTAX : BASESYNTAX;
-	int saveherefd;
-	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
-	int nnl;
+	int quotes = flag & (EXP_GLOB | EXP_CASE);
+	size_t nnl;
+	const char *ifs;
 
 	INTOFF;
-	saveifs = ifsfirst;
-	savelastp = ifslastp;
 	saveargbackq = argbackq;
-	saveherefd = herefd;
-	herefd = -1;
 	p = grabstackstr(dest);
 	evalbackcmd(cmd, &in);
 	ungrabstackstr(p, dest);
-	ifsfirst = saveifs;
-	ifslastp = savelastp;
 	argbackq = saveargbackq;
-	herefd = saveherefd;
 
 	p = in.buf;
-	lastc = '\0';
 	nnl = 0;
+	if (!quoted && flag & EXP_SPLIT)
+		ifs = ifsset() ? ifsval() : " \t\n";
+	else
+		ifs = "";
 	/* Don't copy trailing newlines */
 	for (;;) {
 		if (--in.nleft < 0) {
 			if (in.fd < 0)
 				break;
-			while ((i = read(in.fd, buf, sizeof buf)) < 0 && errno == EINTR);
+			while ((i = read(in.fd, buf, sizeof buf)) < 0 && errno == EINTR)
+				;
 			TRACE(("expbackq: read returns %d\n", i));
 			if (i <= 0)
 				break;
@@ -455,17 +482,30 @@ expbackq(union node *cmd, int quoted, int flag)
 			in.nleft = i - 1;
 		}
 		lastc = *p++;
-		if (lastc != '\0') {
-			if (quotes && syntax[(int)lastc] == CCTL)
-				STPUTC(CTLESC, dest);
-			if (lastc == '\n') {
-				nnl++;
-			} else {
-				while (nnl > 0) {
-					nnl--;
-					STPUTC('\n', dest);
+		if (lastc == '\0')
+			continue;
+		if (lastc == '\n') {
+			nnl++;
+		} else {
+			if (nnl > 0) {
+				if (strchr(ifs, '\n') != NULL) {
+					NEXTWORD('\n', flag, dest, dst);
+					nnl = 0;
+				} else {
+					CHECKSTRSPACE(nnl + 2, dest);
+					while (nnl > 0) {
+						nnl--;
+						USTPUTC('\n', dest);
+					}
 				}
-				STPUTC(lastc, dest);
+			}
+			if (strchr(ifs, lastc) != NULL)
+				NEXTWORD(lastc, flag, dest, dst);
+			else {
+				CHECKSTRSPACE(2, dest);
+				if (quotes && syntax[(int)lastc] == CCTL)
+					USTPUTC(CTLESC, dest);
+				USTPUTC(lastc, dest);
 			}
 		}
 	}
@@ -476,11 +516,9 @@ expbackq(union node *cmd, int quoted, int flag)
 		ckfree(in.buf);
 	if (in.jp)
 		exitstatus = waitforjob(in.jp, (int *)NULL);
-	if (quoted == 0)
-		recordregion(startloc, dest - stackblock(), 0);
-	TRACE(("evalbackq: size=%d: \"%.*s\"\n",
-		(dest - stackblock()) - startloc,
-		(dest - stackblock()) - startloc,
+	TRACE(("expbackq: size=%td: \"%.*s\"\n",
+		((dest - stackblock()) - startloc),
+		(int)((dest - stackblock()) - startloc),
 		stackblock() + startloc));
 	expdest = dest;
 	INTON;
@@ -488,124 +526,123 @@ expbackq(union node *cmd, int quoted, int flag)
 
 
 
-STATIC int
-subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
-  int varflags)
+static void
+recordleft(const char *str, const char *loc, char *startp)
+{
+	int amount;
+
+	amount = ((str - 1) - (loc - startp)) - expdest;
+	STADJUST(amount, expdest);
+	while (loc != str - 1)
+		*startp++ = *loc++;
+}
+
+static void
+subevalvar_trim(const char *p, int strloc, int subtype, int startloc)
 {
 	char *startp;
 	char *loc = NULL;
-	char *q;
+	char *str;
 	int c = 0;
-	int saveherefd = herefd;
 	struct nodelist *saveargbackq = argbackq;
 	int amount;
 
-	herefd = -1;
-	argstr(p, 0);
+	argstr(p, EXP_CASE | EXP_TILDE, NULL);
 	STACKSTRNUL(expdest);
-	herefd = saveherefd;
 	argbackq = saveargbackq;
 	startp = stackblock() + startloc;
-	if (str == NULL)
-	    str = stackblock() + strloc;
+	str = stackblock() + strloc;
 
 	switch (subtype) {
-	case VSASSIGN:
-		setvar(str, startp, 0);
-		amount = startp - expdest;
-		STADJUST(amount, expdest);
-		varflags &= ~VSNUL;
-		if (c != 0)
-			*loc = c;
-		return 1;
-
-	case VSQUESTION:
-		if (*p != CTLENDVAR) {
-			outfmt(&errout, "%s\n", startp);
-			error((char *)NULL);
-		}
-		error("%.*s: parameter %snot set", (int)(p - str - 1),
-		      str, (varflags & VSNUL) ? "null or "
-					      : nullstr);
-		return 0;
-
 	case VSTRIMLEFT:
 		for (loc = startp; loc < str; loc++) {
 			c = *loc;
 			*loc = '\0';
-			if (patmatch(str, startp, varflags & VSQUOTE)) {
+			if (patmatch(str, startp)) {
 				*loc = c;
-				goto recordleft;
+				recordleft(str, loc, startp);
+				return;
 			}
 			*loc = c;
-			if ((varflags & VSQUOTE) && *loc == CTLESC)
-				loc++;
 		}
-		return 0;
+		break;
 
 	case VSTRIMLEFTMAX:
 		for (loc = str - 1; loc >= startp;) {
 			c = *loc;
 			*loc = '\0';
-			if (patmatch(str, startp, varflags & VSQUOTE)) {
+			if (patmatch(str, startp)) {
 				*loc = c;
-				goto recordleft;
+				recordleft(str, loc, startp);
+				return;
 			}
 			*loc = c;
 			loc--;
-			if ((varflags & VSQUOTE) && loc > startp &&
-			    *(loc - 1) == CTLESC) {
-				for (q = startp; q < loc; q++)
-					if (*q == CTLESC)
-						q++;
-				if (q > loc)
-					loc--;
-			}
 		}
-		return 0;
+		break;
 
 	case VSTRIMRIGHT:
 		for (loc = str - 1; loc >= startp;) {
-			if (patmatch(str, loc, varflags & VSQUOTE)) {
+			if (patmatch(str, loc)) {
 				amount = loc - expdest;
 				STADJUST(amount, expdest);
-				return 1;
+				return;
 			}
 			loc--;
-			if ((varflags & VSQUOTE) && loc > startp &&
-			    *(loc - 1) == CTLESC) {
-				for (q = startp; q < loc; q++)
-					if (*q == CTLESC)
-						q++;
-				if (q > loc)
-					loc--;
-			}
 		}
-		return 0;
+		break;
 
 	case VSTRIMRIGHTMAX:
 		for (loc = startp; loc < str - 1; loc++) {
-			if (patmatch(str, loc, varflags & VSQUOTE)) {
+			if (patmatch(str, loc)) {
 				amount = loc - expdest;
 				STADJUST(amount, expdest);
-				return 1;
+				return;
 			}
-			if ((varflags & VSQUOTE) && *loc == CTLESC)
-				loc++;
 		}
-		return 0;
+		break;
 
 
 	default:
 		abort();
 	}
+	amount = (expdest - stackblock() - strloc) + 1;
+	STADJUST(-amount, expdest);
+}
 
-recordleft:
-	amount = ((str - 1) - (loc - startp)) - expdest;
-	STADJUST(amount, expdest);
-	while (loc != str - 1)
-		*startp++ = *loc++;
-	return 1;
+
+static int
+subevalvar_misc(const char *p, const char *var, int subtype, int startloc,
+  int varflags)
+{
+	char *startp;
+	struct nodelist *saveargbackq = argbackq;
+	int amount;
+
+	argstr(p, EXP_TILDE, NULL);
+	STACKSTRNUL(expdest);
+	argbackq = saveargbackq;
+	startp = stackblock() + startloc;
+
+	switch (subtype) {
+	case VSASSIGN:
+		setvar(var, startp, 0);
+		amount = startp - expdest;
+		STADJUST(amount, expdest);
+		return 1;
+
+	case VSQUESTION:
+		if (*p != CTLENDVAR) {
+			outfmt(out2, "%s\n", startp);
+			error((char *)NULL);
+		}
+		error("%.*s: parameter %snot set", (int)(p - var - 1),
+		      var, (varflags & VSNUL) ? "null or " : "");
+		return 0;
+
+	default:
+		abort();
+	}
 }
 
 
@@ -614,21 +651,21 @@ recordleft:
  * input string.
  */
 
-STATIC char *
-evalvar(char *p, int flag)
+static const char *
+evalvar(const char *p, int flag, struct worddest *dst)
 {
 	int subtype;
 	int varflags;
-	char *var;
-	char *val;
+	const char *var;
+	const char *val;
 	int patloc;
 	int c;
 	int set;
 	int special;
 	int startloc;
 	int varlen;
-	int easy;
-	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
+	int varlenb;
+	char buf[21];
 
 	varflags = (unsigned char)*p++;
 	subtype = varflags & VSTYPE;
@@ -640,10 +677,8 @@ evalvar(char *p, int flag)
 again: /* jump here after setting a variable with ${var=text} */
 	if (varflags & VSLINENO) {
 		set = 1;
-		special = 0;
-		val = var;
-		p[-1] = '\0';	/* temporarily overwrite '=' to have \0
-				   terminated string */
+		special = 1;
+		val = NULL;
 	} else if (special) {
 		set = varisset(var, varflags & VSNUL);
 		val = NULL;
@@ -657,7 +692,7 @@ again: /* jump here after setting a variable with ${var=text} */
 	}
 	varlen = 0;
 	startloc = expdest - stackblock();
-	if (!set && uflag) {
+	if (!set && uflag && *var != '@' && *var != '*') {
 		switch (subtype) {
 		case VSNORMAL:
 		case VSTRIMLEFT:
@@ -672,59 +707,59 @@ again: /* jump here after setting a variable with ${var=text} */
 	if (set && subtype != VSPLUS) {
 		/* insert the value of the variable */
 		if (special) {
-			varvalue(var, varflags & VSQUOTE, subtype, flag);
+			if (varflags & VSLINENO) {
+				if (p - var > (ptrdiff_t)sizeof(buf))
+					abort();
+				memcpy(buf, var, p - var - 1);
+				buf[p - var - 1] = '\0';
+				strtodest(buf, flag, subtype,
+				    varflags & VSQUOTE, dst);
+			} else
+				varvalue(var, varflags & VSQUOTE, subtype, flag,
+				    dst);
 			if (subtype == VSLENGTH) {
-				varlen = expdest - stackblock() - startloc;
-				STADJUST(-varlen, expdest);
+				varlenb = expdest - stackblock() - startloc;
+				varlen = varlenb;
+				if (localeisutf8) {
+					val = stackblock() + startloc;
+					for (;val != expdest; val++)
+						if ((*val & 0xC0) == 0x80)
+							varlen--;
+				}
+				STADJUST(-varlenb, expdest);
 			}
 		} else {
-			char const *syntax = (varflags & VSQUOTE) ? DQSYNTAX
-								  : BASESYNTAX;
-
 			if (subtype == VSLENGTH) {
 				for (;*val; val++)
-					varlen++;
+					if (!localeisutf8 ||
+					    (*val & 0xC0) != 0x80)
+						varlen++;
 			}
-			else {
-				while (*val) {
-					if (quotes &&
-					    syntax[(int)*val] == CCTL)
-						STPUTC(CTLESC, expdest);
-					STPUTC(*val++, expdest);
-				}
-
-			}
+			else
+				strtodest(val, flag, subtype,
+				    varflags & VSQUOTE, dst);
 		}
 	}
 
 	if (subtype == VSPLUS)
 		set = ! set;
 
-	easy = ((varflags & VSQUOTE) == 0 ||
-		(*var == '@' && shellparam.nparam != 1));
-
-
 	switch (subtype) {
 	case VSLENGTH:
-		expdest = cvtnum(varlen, expdest);
-		goto record;
+		cvtnum(varlen, buf);
+		strtodest(buf, flag, VSNORMAL, varflags & VSQUOTE, dst);
+		break;
 
 	case VSNORMAL:
-		if (!easy)
-			break;
-record:
-		recordregion(startloc, expdest - stackblock(),
-			     varflags & VSQUOTE);
 		break;
 
 	case VSPLUS:
 	case VSMINUS:
 		if (!set) {
-			argstr(p, flag);
+			argstr(p, flag | (flag & EXP_SPLIT ? EXP_SPLIT_LIT : 0) |
+			    (varflags & VSQUOTE ? EXP_LIT_QUOTED : 0), dst);
 			break;
 		}
-		if (easy)
-			goto record;
 		break;
 
 	case VSTRIMLEFT:
@@ -739,31 +774,22 @@ record:
 		 */
 		STPUTC('\0', expdest);
 		patloc = expdest - stackblock();
-		if (subevalvar(p, NULL, patloc, subtype,
-			       startloc, varflags) == 0) {
-			int amount = (expdest - stackblock() - patloc) + 1;
-			STADJUST(-amount, expdest);
-		}
-		/* Remove any recorded regions beyond start of variable */
-		removerecordregions(startloc);
-		goto record;
+		subevalvar_trim(p, patloc, subtype, startloc);
+		reprocess(startloc, flag, VSNORMAL, varflags & VSQUOTE, dst);
+		if (flag & EXP_SPLIT && *var == '@' && varflags & VSQUOTE)
+			dst->state = WORD_QUOTEMARK;
+		break;
 
 	case VSASSIGN:
 	case VSQUESTION:
 		if (!set) {
-			if (subevalvar(p, var, 0, subtype, startloc, varflags)) {
+			if (subevalvar_misc(p, var, subtype, startloc,
+			    varflags)) {
 				varflags &= ~VSNUL;
-				/*
-				 * Remove any recorded regions beyond
-				 * start of variable
-				 */
-				removerecordregions(startloc);
 				goto again;
 			}
 			break;
 		}
-		if (easy)
-			goto record;
 		break;
 
 	case VSERROR:
@@ -774,7 +800,6 @@ record:
 	default:
 		abort();
 	}
-	p[-1] = '=';	/* recover overwritten '=' */
 
 	if (subtype != VSNORMAL) {	/* skip to end of alternative */
 		int nesting = 1;
@@ -802,12 +827,12 @@ record:
  * Test whether a specialized variable is set.
  */
 
-STATIC int
-varisset(char *name, int nulok)
+static int
+varisset(const char *name, int nulok)
 {
 
 	if (*name == '!')
-		return backgndpid != -1;
+		return backgndpidset();
 	else if (*name == '@' || *name == '*') {
 		if (*shellparam.p == NULL)
 			return 0;
@@ -822,9 +847,11 @@ varisset(char *name, int nulok)
 		}
 	} else if (is_digit(*name)) {
 		char *ap;
-		int num = atoi(name);
+		long num;
 
-		if (num > shellparam.nparam)
+		errno = 0;
+		num = strtol(name, NULL, 10);
+		if (errno != 0 || num > shellparam.nparam)
 			return 0;
 
 		if (num == 0)
@@ -838,289 +865,196 @@ varisset(char *name, int nulok)
 	return 1;
 }
 
+static void
+strtodest(const char *p, int flag, int subtype, int quoted,
+    struct worddest *dst)
+{
+	if (subtype == VSLENGTH || subtype == VSTRIMLEFT ||
+	    subtype == VSTRIMLEFTMAX || subtype == VSTRIMRIGHT ||
+	    subtype == VSTRIMRIGHTMAX)
+		STPUTS(p, expdest);
+	else if (flag & EXP_SPLIT && !quoted && dst != NULL)
+		STPUTS_SPLIT(p, BASESYNTAX, flag, expdest, dst);
+	else if (flag & (EXP_GLOB | EXP_CASE))
+		STPUTS_QUOTES(p, quoted ? DQSYNTAX : BASESYNTAX, expdest);
+	else
+		STPUTS(p, expdest);
+}
 
+static void
+reprocess(int startloc, int flag, int subtype, int quoted,
+    struct worddest *dst)
+{
+	static char *buf = NULL;
+	static size_t buflen = 0;
+	char *startp;
+	size_t len, zpos, zlen;
+
+	startp = stackblock() + startloc;
+	len = expdest - startp;
+	if (len >= SIZE_MAX / 2)
+		abort();
+	INTOFF;
+	if (len >= buflen) {
+		ckfree(buf);
+		buf = NULL;
+	}
+	if (buflen < 128)
+		buflen = 128;
+	while (len >= buflen)
+		buflen <<= 1;
+	if (buf == NULL)
+		buf = ckmalloc(buflen);
+	INTON;
+	memcpy(buf, startp, len);
+	buf[len] = '\0';
+	STADJUST(-len, expdest);
+	for (zpos = 0;;) {
+		zlen = strlen(buf + zpos);
+		strtodest(buf + zpos, flag, subtype, quoted, dst);
+		zpos += zlen + 1;
+		if (zpos == len + 1)
+			break;
+		if (flag & EXP_SPLIT && (quoted || (zlen > 0 && zpos < len)))
+			NEXTWORD('\0', flag, expdest, dst);
+	}
+}
 
 /*
  * Add the value of a specialized variable to the stack string.
  */
 
-STATIC void
-varvalue(char *name, int quoted, int subtype, int flag)
+static void
+varvalue(const char *name, int quoted, int subtype, int flag,
+    struct worddest *dst)
 {
 	int num;
 	char *p;
 	int i;
-	extern int oexitstatus;
-	char sep;
+	int splitlater;
+	char sep[2];
 	char **ap;
-	char const *syntax;
+	char buf[(NSHORTOPTS > 10 ? NSHORTOPTS : 10) + 1];
 
-#define STRTODEST(p) \
-	do {\
-	if (flag & (EXP_FULL | EXP_CASE) && subtype != VSLENGTH) { \
-		syntax = quoted? DQSYNTAX : BASESYNTAX; \
-		while (*p) { \
-			if (syntax[(int)*p] == CCTL) \
-				STPUTC(CTLESC, expdest); \
-			STPUTC(*p++, expdest); \
-		} \
-	} else \
-		while (*p) \
-			STPUTC(*p++, expdest); \
-	} while (0)
-
+	if (subtype == VSLENGTH)
+		flag &= ~EXP_FULL;
+	splitlater = subtype == VSTRIMLEFT || subtype == VSTRIMLEFTMAX ||
+		subtype == VSTRIMRIGHT || subtype == VSTRIMRIGHTMAX;
 
 	switch (*name) {
 	case '$':
 		num = rootpid;
-		goto numvar;
+		break;
 	case '?':
 		num = oexitstatus;
-		goto numvar;
+		break;
 	case '#':
 		num = shellparam.nparam;
-		goto numvar;
+		break;
 	case '!':
-		num = backgndpid;
-numvar:
-		expdest = cvtnum(num, expdest);
+		num = backgndpidval();
 		break;
 	case '-':
-		for (i = 0 ; i < NOPTS ; i++) {
-			if (optlist[i].val)
-				STPUTC(optlist[i].letter, expdest);
+		p = buf;
+		for (i = 0 ; i < NSHORTOPTS ; i++) {
+			if (optval[i])
+				*p++ = optletter[i];
 		}
-		break;
+		*p = '\0';
+		strtodest(buf, flag, subtype, quoted, dst);
+		return;
 	case '@':
-		if (flag & EXP_FULL && quoted) {
+		if (flag & EXP_SPLIT && quoted) {
 			for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
-				STRTODEST(p);
-				if (*ap)
-					STPUTC('\0', expdest);
+				strtodest(p, flag, subtype, quoted, dst);
+				if (*ap) {
+					if (splitlater)
+						STPUTC('\0', expdest);
+					else
+						NEXTWORD('\0', flag, expdest,
+						    dst);
+				}
 			}
-			break;
+			if (shellparam.nparam > 0)
+				dst->state = WORD_QUOTEMARK;
+			return;
 		}
 		/* FALLTHROUGH */
 	case '*':
 		if (ifsset())
-			sep = ifsval()[0];
+			sep[0] = ifsval()[0];
 		else
-			sep = ' ';
+			sep[0] = ' ';
+		sep[1] = '\0';
 		for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
-			STRTODEST(p);
-			if (*ap && sep)
-				STPUTC(sep, expdest);
+			strtodest(p, flag, subtype, quoted, dst);
+			if (!*ap)
+				break;
+			if (sep[0])
+				strtodest(sep, flag, subtype, quoted, dst);
+			else if (flag & EXP_SPLIT && !quoted && **ap != '\0') {
+				if (splitlater)
+					STPUTC('\0', expdest);
+				else
+					NEXTWORD('\0', flag, expdest, dst);
+			}
 		}
-		break;
-	case '0':
-		p = arg0;
-		STRTODEST(p);
-		break;
+		return;
 	default:
 		if (is_digit(*name)) {
 			num = atoi(name);
-			if (num > 0 && num <= shellparam.nparam) {
+			if (num == 0)
+				p = arg0;
+			else if (num > 0 && num <= shellparam.nparam)
 				p = shellparam.p[num - 1];
-				STRTODEST(p);
-			}
+			else
+				return;
+			strtodest(p, flag, subtype, quoted, dst);
 		}
-		break;
-	}
-}
-
-
-
-/*
- * Record the the fact that we have to scan this region of the
- * string for IFS characters.
- */
-
-STATIC void
-recordregion(int start, int end, int inquotes)
-{
-	struct ifsregion *ifsp;
-
-	if (ifslastp == NULL) {
-		ifsp = &ifsfirst;
-	} else {
-		if (ifslastp->endoff == start
-		    && ifslastp->inquotes == inquotes) {
-			/* extend previous area */
-			ifslastp->endoff = end;
-			return;
-		}
-		ifsp = (struct ifsregion *)ckmalloc(sizeof (struct ifsregion));
-		ifslastp->next = ifsp;
-	}
-	ifslastp = ifsp;
-	ifslastp->next = NULL;
-	ifslastp->begoff = start;
-	ifslastp->endoff = end;
-	ifslastp->inquotes = inquotes;
-}
-
-
-
-/*
- * Break the argument string into pieces based upon IFS and add the
- * strings to the argument list.  The regions of the string to be
- * searched for IFS characters have been stored by recordregion.
- */
-STATIC void
-ifsbreakup(char *string, struct arglist *arglist)
-{
-	struct ifsregion *ifsp;
-	struct strlist *sp;
-	char *start;
-	char *p;
-	char *q;
-	char *ifs;
-	const char *ifsspc;
-	int had_param_ch = 0;
-
-	start = string;
-
-	if (ifslastp == NULL) {
-		/* Return entire argument, IFS doesn't apply to any of it */
-		sp = (struct strlist *)stalloc(sizeof *sp);
-		sp->text = start;
-		*arglist->lastp = sp;
-		arglist->lastp = &sp->next;
 		return;
 	}
-
-	ifs = ifsset() ? ifsval() : " \t\n";
-
-	for (ifsp = &ifsfirst; ifsp != NULL; ifsp = ifsp->next) {
-		p = string + ifsp->begoff;
-		while (p < string + ifsp->endoff) {
-			q = p;
-			if (*p == CTLESC)
-				p++;
-			if (ifsp->inquotes) {
-				/* Only NULs (should be from "$@") end args */
-				had_param_ch = 1;
-				if (*p != 0) {
-					p++;
-					continue;
-				}
-				ifsspc = NULL;
-			} else {
-				if (!strchr(ifs, *p)) {
-					had_param_ch = 1;
-					p++;
-					continue;
-				}
-				ifsspc = strchr(" \t\n", *p);
-
-				/* Ignore IFS whitespace at start */
-				if (q == start && ifsspc != NULL) {
-					p++;
-					start = p;
-					continue;
-				}
-				had_param_ch = 0;
-			}
-
-			/* Save this argument... */
-			*q = '\0';
-			sp = (struct strlist *)stalloc(sizeof *sp);
-			sp->text = start;
-			*arglist->lastp = sp;
-			arglist->lastp = &sp->next;
-			p++;
-
-			if (ifsspc != NULL) {
-				/* Ignore further trailing IFS whitespace */
-				for (; p < string + ifsp->endoff; p++) {
-					q = p;
-					if (*p == CTLESC)
-						p++;
-					if (strchr(ifs, *p) == NULL) {
-						p = q;
-						break;
-					}
-					if (strchr(" \t\n", *p) == NULL) {
-						p++;
-						break;
-					}
-				}
-			}
-			start = p;
-		}
-	}
-
-	/*
-	 * Save anything left as an argument.
-	 * Traditionally we have treated 'IFS=':'; set -- x$IFS' as
-	 * generating 2 arguments, the second of which is empty.
-	 * Some recent clarification of the Posix spec say that it
-	 * should only generate one....
-	 */
-	if (had_param_ch || *start != 0) {
-		sp = (struct strlist *)stalloc(sizeof *sp);
-		sp->text = start;
-		*arglist->lastp = sp;
-		arglist->lastp = &sp->next;
-	}
+	cvtnum(num, buf);
+	strtodest(buf, flag, subtype, quoted, dst);
 }
 
 
 
+static char expdir[PATH_MAX];
+#define expdir_end (expdir + sizeof(expdir))
+
 /*
- * Expand shell metacharacters.  At this point, the only control characters
- * should be escapes.  The results are stored in the list exparg.
+ * Perform pathname generation and remove control characters.
+ * At this point, the only control characters should be CTLESC.
+ * The results are stored in the list dstlist.
  */
-
-STATIC char *expdir;
-
-
-STATIC void
-expandmeta(struct strlist *str, int flag __unused)
+static void
+expandmeta(char *pattern, struct arglist *dstlist)
 {
 	char *p;
-	struct strlist **savelastp;
-	struct strlist *sp;
+	int firstmatch;
 	char c;
-	/* TODO - EXP_REDIR */
 
-	while (str) {
-		if (fflag)
-			goto nometa;
-		p = str->text;
-		for (;;) {			/* fast check for meta chars */
-			if ((c = *p++) == '\0')
-				goto nometa;
-			if (c == '*' || c == '?' || c == '[' || c == '!')
-				break;
+	firstmatch = dstlist->count;
+	p = pattern;
+	for (; (c = *p) != '\0'; p++) {
+		/* fast check for meta chars */
+		if (c == '*' || c == '?' || c == '[') {
+			INTOFF;
+			expmeta(expdir, pattern, dstlist);
+			INTON;
+			break;
 		}
-		savelastp = exparg.lastp;
-		INTOFF;
-		if (expdir == NULL) {
-			int i = strlen(str->text);
-			expdir = ckmalloc(i < 2048 ? 2048 : i); /* XXX */
-		}
-
-		expmeta(expdir, str->text);
-		ckfree(expdir);
-		expdir = NULL;
-		INTON;
-		if (exparg.lastp == savelastp) {
-			/*
-			 * no matches
-			 */
-nometa:
-			*exparg.lastp = str;
-			rmescapes(str->text);
-			exparg.lastp = &str->next;
-		} else {
-			*exparg.lastp = NULL;
-			*savelastp = sp = expsort(*savelastp);
-			while (sp->next != NULL)
-				sp = sp->next;
-			exparg.lastp = &sp->next;
-		}
-		str = str->next;
+	}
+	if (dstlist->count == firstmatch) {
+		/*
+		 * no matches
+		 */
+		rmescapes(pattern);
+		appendarglist(dstlist, pattern);
+	} else {
+		qsort(&dstlist->args[firstmatch],
+		    dstlist->count - firstmatch,
+		    sizeof(dstlist->args[0]), expsortcmp);
 	}
 }
 
@@ -1129,12 +1063,12 @@ nometa:
  * Do metacharacter (i.e. *, ?, [...]) expansion.
  */
 
-STATIC void
-expmeta(char *enddir, char *name)
+static void
+expmeta(char *enddir, char *name, struct arglist *arglist)
 {
-	char *p;
-	char *q;
-	char *start;
+	const char *p;
+	const char *q;
+	const char *start;
 	char *endname;
 	int metaflag;
 	struct stat statb;
@@ -1142,10 +1076,12 @@ expmeta(char *enddir, char *name)
 	struct dirent *dp;
 	int atend;
 	int matchdot;
+	int esc;
+	int namlen;
 
 	metaflag = 0;
 	start = name;
-	for (p = name ; ; p++) {
+	for (p = name; esc = 0, *p; p += esc + 1) {
 		if (*p == '*' || *p == '?')
 			metaflag = 1;
 		else if (*p == '[') {
@@ -1153,8 +1089,6 @@ expmeta(char *enddir, char *name)
 			if (*q == '!' || *q == '^')
 				q++;
 			for (;;) {
-				while (*q == CTLQUOTEMARK)
-					q++;
 				if (*q == CTLESC)
 					q++;
 				if (*q == '/' || *q == '\0')
@@ -1164,45 +1098,43 @@ expmeta(char *enddir, char *name)
 					break;
 				}
 			}
-		} else if (*p == '!' && p[1] == '!'	&& (p == name || p[-1] == '/')) {
-			metaflag = 1;
 		} else if (*p == '\0')
 			break;
-		else if (*p == CTLQUOTEMARK)
-			continue;
-		else if (*p == CTLESC)
-			p++;
-		if (*p == '/') {
-			if (metaflag)
-				break;
-			start = p + 1;
+		else {
+			if (*p == CTLESC)
+				esc++;
+			if (p[esc] == '/') {
+				if (metaflag)
+					break;
+				start = p + esc + 1;
+			}
 		}
 	}
 	if (metaflag == 0) {	/* we've reached the end of the file name */
 		if (enddir != expdir)
 			metaflag++;
 		for (p = name ; ; p++) {
-			if (*p == CTLQUOTEMARK)
-				continue;
 			if (*p == CTLESC)
 				p++;
 			*enddir++ = *p;
 			if (*p == '\0')
 				break;
+			if (enddir == expdir_end)
+				return;
 		}
 		if (metaflag == 0 || lstat(expdir, &statb) >= 0)
-			addfname(expdir);
+			appendarglist(arglist, stsavestr(expdir));
 		return;
 	}
-	endname = p;
+	endname = name + (p - name);
 	if (start != name) {
 		p = name;
 		while (p < start) {
-			while (*p == CTLQUOTEMARK)
-				p++;
 			if (*p == CTLESC)
 				p++;
 			*enddir++ = *p++;
+			if (enddir == expdir_end)
+				return;
 		}
 	}
 	if (enddir == expdir) {
@@ -1221,12 +1153,11 @@ expmeta(char *enddir, char *name)
 		atend = 1;
 	} else {
 		atend = 0;
-		*endname++ = '\0';
+		*endname = '\0';
+		endname += esc + 1;
 	}
 	matchdot = 0;
 	p = start;
-	while (*p == CTLQUOTEMARK)
-		p++;
 	if (*p == CTLESC)
 		p++;
 	if (*p == '.')
@@ -1234,244 +1165,241 @@ expmeta(char *enddir, char *name)
 	while (! int_pending() && (dp = readdir(dirp)) != NULL) {
 		if (dp->d_name[0] == '.' && ! matchdot)
 			continue;
-		if (patmatch(start, dp->d_name, 0)) {
-			if (atend) {
-				scopy(dp->d_name, enddir);
-				addfname(expdir);
-			} else {
-				for (p = enddir, q = dp->d_name;
-				     (*p++ = *q++) != '\0';)
+		if (patmatch(start, dp->d_name)) {
+			namlen = dp->d_namlen;
+			if (enddir + namlen + 1 > expdir_end)
+				continue;
+			memcpy(enddir, dp->d_name, namlen + 1);
+			if (atend)
+				appendarglist(arglist, stsavestr(expdir));
+			else {
+				if (dp->d_type != DT_UNKNOWN &&
+				    dp->d_type != DT_DIR &&
+				    dp->d_type != DT_LNK)
 					continue;
-				p[-1] = '/';
-				expmeta(p, endname);
+				if (enddir + namlen + 2 > expdir_end)
+					continue;
+				enddir[namlen] = '/';
+				enddir[namlen + 1] = '\0';
+				expmeta(enddir + namlen + 1, endname, arglist);
 			}
 		}
 	}
 	closedir(dirp);
 	if (! atend)
-		endname[-1] = '/';
+		endname[-esc - 1] = esc ? CTLESC : '/';
+}
+
+
+static int
+expsortcmp(const void *p1, const void *p2)
+{
+	const char *s1 = *(const char * const *)p1;
+	const char *s2 = *(const char * const *)p2;
+
+	return (strcoll(s1, s2));
+}
+
+
+
+static wchar_t
+get_wc(const char **p)
+{
+	wchar_t c;
+	int chrlen;
+
+	chrlen = mbtowc(&c, *p, 4);
+	if (chrlen == 0)
+		return 0;
+	else if (chrlen == -1)
+		c = 0;
+	else
+		*p += chrlen;
+	return c;
 }
 
 
 /*
- * Add a file name to the list.
+ * See if a character matches a character class, starting at the first colon
+ * of "[:class:]".
+ * If a valid character class is recognized, a pointer to the next character
+ * after the final closing bracket is stored into *end, otherwise a null
+ * pointer is stored into *end.
  */
-
-STATIC void
-addfname(char *name)
+static int
+match_charclass(const char *p, wchar_t chr, const char **end)
 {
-	char *p;
-	struct strlist *sp;
+	char name[20];
+	const char *nameend;
+	wctype_t cclass;
 
-	p = stalloc(strlen(name) + 1);
-	scopy(name, p);
-	sp = (struct strlist *)stalloc(sizeof *sp);
-	sp->text = p;
-	*exparg.lastp = sp;
-	exparg.lastp = &sp->next;
+	*end = NULL;
+	p++;
+	nameend = strstr(p, ":]");
+	if (nameend == NULL || (size_t)(nameend - p) >= sizeof(name) ||
+	    nameend == p)
+		return 0;
+	memcpy(name, p, nameend - p);
+	name[nameend - p] = '\0';
+	*end = nameend + 2;
+	cclass = wctype(name);
+	/* An unknown class matches nothing but is valid nevertheless. */
+	if (cclass == 0)
+		return 0;
+	return iswctype(chr, cclass);
 }
-
-
-/*
- * Sort the results of file name expansion.  It calculates the number of
- * strings to sort and then calls msort (short for merge sort) to do the
- * work.
- */
-
-STATIC struct strlist *
-expsort(struct strlist *str)
-{
-	int len;
-	struct strlist *sp;
-
-	len = 0;
-	for (sp = str ; sp ; sp = sp->next)
-		len++;
-	return msort(str, len);
-}
-
-
-STATIC struct strlist *
-msort(struct strlist *list, int len)
-{
-	struct strlist *p, *q = NULL;
-	struct strlist **lpp;
-	int half;
-	int n;
-
-	if (len <= 1)
-		return list;
-	half = len >> 1;
-	p = list;
-	for (n = half ; --n >= 0 ; ) {
-		q = p;
-		p = p->next;
-	}
-	q->next = NULL;			/* terminate first half of list */
-	q = msort(list, half);		/* sort first half of list */
-	p = msort(p, len - half);		/* sort second half */
-	lpp = &list;
-	for (;;) {
-		if (strcmp(p->text, q->text) < 0) {
-			*lpp = p;
-			lpp = &p->next;
-			if ((p = *lpp) == NULL) {
-				*lpp = q;
-				break;
-			}
-		} else {
-			*lpp = q;
-			lpp = &q->next;
-			if ((q = *lpp) == NULL) {
-				*lpp = p;
-				break;
-			}
-		}
-	}
-	return list;
-}
-
 
 
 /*
  * Returns true if the pattern matches the string.
  */
 
-int
-patmatch(char *pattern, char *string, int squoted)
+static int
+patmatch(const char *pattern, const char *string)
 {
-#ifdef notdef
-	if (pattern[0] == '!' && pattern[1] == '!')
-		return 1 - pmatch(pattern + 2, string);
-	else
-#endif
-		return pmatch(pattern, string, squoted);
-}
-
-
-STATIC int
-pmatch(char *pattern, char *string, int squoted)
-{
-	char *p, *q;
+	const char *p, *q, *end;
+	const char *bt_p, *bt_q;
 	char c;
+	wchar_t wc, wc2;
 
 	p = pattern;
 	q = string;
+	bt_p = NULL;
+	bt_q = NULL;
 	for (;;) {
 		switch (c = *p++) {
 		case '\0':
-			goto breakloop;
+			if (*q != '\0')
+				goto backtrack;
+			return 1;
 		case CTLESC:
-			if (squoted && *q == CTLESC)
-				q++;
 			if (*q++ != *p++)
-				return 0;
+				goto backtrack;
 			break;
-		case CTLQUOTEMARK:
-			continue;
 		case '?':
-			if (squoted && *q == CTLESC)
-				q++;
-			if (*q++ == '\0')
+			if (*q == '\0')
 				return 0;
+			if (localeisutf8) {
+				wc = get_wc(&q);
+				/*
+				 * A '?' does not match invalid UTF-8 but a
+				 * '*' does, so backtrack.
+				 */
+				if (wc == 0)
+					goto backtrack;
+			} else
+				q++;
 			break;
 		case '*':
 			c = *p;
-			while (c == CTLQUOTEMARK || c == '*')
+			while (c == '*')
 				c = *++p;
-			if (c != CTLESC &&  c != CTLQUOTEMARK &&
-			    c != '?' && c != '*' && c != '[') {
-				while (*q != c) {
-					if (squoted && *q == CTLESC &&
-					    q[1] == c)
-						break;
-					if (*q == '\0')
-						return 0;
-					if (squoted && *q == CTLESC)
-						q++;
-					q++;
-				}
-			}
-			do {
-				if (pmatch(p, q, squoted))
-					return 1;
-				if (squoted && *q == CTLESC)
-					q++;
-			} while (*q++ != '\0');
-			return 0;
+			/*
+			 * If the pattern ends here, we know the string
+			 * matches without needing to look at the rest of it.
+			 */
+			if (c == '\0')
+				return 1;
+			/*
+			 * First try the shortest match for the '*' that
+			 * could work. We can forget any earlier '*' since
+			 * there is no way having it match more characters
+			 * can help us, given that we are already here.
+			 */
+			bt_p = p;
+			bt_q = q;
+			break;
 		case '[': {
-			char *endp;
+			const char *savep, *saveq;
 			int invert, found;
-			char chr;
+			wchar_t chr;
 
-			endp = p;
-			if (*endp == '!' || *endp == '^')
-				endp++;
-			for (;;) {
-				while (*endp == CTLQUOTEMARK)
-					endp++;
-				if (*endp == '\0')
-					goto dft;		/* no matching ] */
-				if (*endp == CTLESC)
-					endp++;
-				if (*++endp == ']')
-					break;
-			}
+			savep = p, saveq = q;
 			invert = 0;
 			if (*p == '!' || *p == '^') {
 				invert++;
 				p++;
 			}
 			found = 0;
-			chr = *q++;
-			if (squoted && chr == CTLESC)
-				chr = *q++;
-			if (chr == '\0')
+			if (*q == '\0')
 				return 0;
+			if (localeisutf8) {
+				chr = get_wc(&q);
+				if (chr == 0)
+					goto backtrack;
+			} else
+				chr = (unsigned char)*q++;
 			c = *p++;
 			do {
-				if (c == CTLQUOTEMARK)
-					continue;
+				if (c == '\0') {
+					p = savep, q = saveq;
+					c = '[';
+					goto dft;
+				}
+				if (c == '[' && *p == ':') {
+					found |= match_charclass(p, chr, &end);
+					if (end != NULL)
+						p = end;
+				}
 				if (c == CTLESC)
 					c = *p++;
+				if (localeisutf8 && c & 0x80) {
+					p--;
+					wc = get_wc(&p);
+					if (wc == 0) /* bad utf-8 */
+						return 0;
+				} else
+					wc = (unsigned char)c;
 				if (*p == '-' && p[1] != ']') {
 					p++;
-					while (*p == CTLQUOTEMARK)
-						p++;
 					if (*p == CTLESC)
 						p++;
-					if (   collate_range_cmp(chr, c) >= 0
-					    && collate_range_cmp(chr, *p) <= 0
+					if (localeisutf8) {
+						wc2 = get_wc(&p);
+						if (wc2 == 0) /* bad utf-8 */
+							return 0;
+					} else
+						wc2 = (unsigned char)*p++;
+					if (   collate_range_cmp(chr, wc) >= 0
+					    && collate_range_cmp(chr, wc2) <= 0
 					   )
 						found = 1;
-					p++;
 				} else {
-					if (chr == c)
+					if (chr == wc)
 						found = 1;
 				}
 			} while ((c = *p++) != ']');
 			if (found == invert)
-				return 0;
+				goto backtrack;
 			break;
 		}
 dft:	        default:
-			if (squoted && *q == CTLESC)
-				q++;
-			if (*q++ != c)
+			if (*q == '\0')
 				return 0;
+			if (*q++ == c)
+				break;
+backtrack:
+			/*
+			 * If we have a mismatch (other than hitting the end
+			 * of the string), go back to the last '*' seen and
+			 * have it match one additional character.
+			 */
+			if (bt_p == NULL)
+				return 0;
+			if (*bt_q == '\0')
+				return 0;
+			bt_q++;
+			p = bt_p;
+			q = bt_q;
 			break;
 		}
 	}
-breakloop:
-	if (*q != '\0')
-		return 0;
-	return 1;
 }
 
 
 
 /*
- * Remove any CTLESC characters from a string.
+ * Remove any CTLESC and CTLQUOTEMARK characters from a string.
  */
 
 void
@@ -1480,13 +1408,13 @@ rmescapes(char *str)
 	char *p, *q;
 
 	p = str;
-	while (*p != CTLESC && *p != CTLQUOTEMARK) {
+	while (*p != CTLESC && *p != CTLQUOTEMARK && *p != CTLQUOTEEND) {
 		if (*p++ == '\0')
 			return;
 	}
 	q = p;
 	while (*p) {
-		if (*p == CTLQUOTEMARK) {
+		if (*p == CTLQUOTEMARK || *p == CTLQUOTEEND) {
 			p++;
 			continue;
 		}
@@ -1504,7 +1432,7 @@ rmescapes(char *str)
  */
 
 int
-casematch(union node *pattern, char *val)
+casematch(union node *pattern, const char *val)
 {
 	struct stackmark smark;
 	int result;
@@ -1513,11 +1441,10 @@ casematch(union node *pattern, char *val)
 	setstackmark(&smark);
 	argbackq = pattern->narg.backquote;
 	STARTSTACKSTR(expdest);
-	ifslastp = NULL;
-	argstr(pattern->narg.text, EXP_TILDE | EXP_CASE);
+	argstr(pattern->narg.text, EXP_TILDE | EXP_CASE, NULL);
 	STPUTC('\0', expdest);
 	p = grabstackstr(expdest);
-	result = patmatch(p, val, 0);
+	result = patmatch(p, val);
 	popstackmark(&smark);
 	return result;
 }
@@ -1526,7 +1453,7 @@ casematch(union node *pattern, char *val)
  * Our own itoa().
  */
 
-STATIC char *
+static void
 cvtnum(int num, char *buf)
 {
 	char temp[32];
@@ -1542,9 +1469,7 @@ cvtnum(int num, char *buf)
 	if (neg)
 		*--p = '-';
 
-	while (*p)
-		STPUTC(*p++, buf);
-	return buf;
+	memcpy(buf, p, temp + 32 - p);
 }
 
 /*
@@ -1561,9 +1486,60 @@ wordexpcmd(int argc, char **argv)
 	for (i = 1, len = 0; i < argc; i++)
 		len += strlen(argv[i]);
 	out1fmt("%08x", (int)len);
-	for (i = 1; i < argc; i++) {
-		out1str(argv[i]);
-		out1c('\0');
-	}
+	for (i = 1; i < argc; i++)
+		outbin(argv[i], strlen(argv[i]) + 1, out1);
         return (0);
+}
+
+/*
+ * Do most of the work for wordexp(3), new version.
+ */
+
+int
+freebsd_wordexpcmd(int argc __unused, char **argv __unused)
+{
+	struct arglist arglist;
+	union node *args, *n;
+	size_t len;
+	int ch;
+	int protected = 0;
+	int fd = -1;
+	int i;
+
+	while ((ch = nextopt("f:p")) != '\0') {
+		switch (ch) {
+		case 'f':
+			fd = number(shoptarg);
+			break;
+		case 'p':
+			protected = 1;
+			break;
+		}
+	}
+	if (*argptr != NULL)
+		error("wrong number of arguments");
+	if (fd < 0)
+		error("missing fd");
+	INTOFF;
+	setinputfd(fd, 1);
+	INTON;
+	args = parsewordexp();
+	popfile(); /* will also close fd */
+	if (protected)
+		for (n = args; n != NULL; n = n->narg.next) {
+			if (n->narg.backquote != NULL) {
+				outcslow('C', out1);
+				error("command substitution disabled");
+			}
+		}
+	outcslow(' ', out1);
+	emptyarglist(&arglist);
+	for (n = args; n != NULL; n = n->narg.next)
+		expandarg(n, &arglist, EXP_FULL | EXP_TILDE);
+	for (i = 0, len = 0; i < arglist.count; i++)
+		len += strlen(arglist.args[i]);
+	out1fmt("%016x %016zx", arglist.count, len);
+	for (i = 0; i < arglist.count; i++)
+		outbin(arglist.args[i], strlen(arglist.args[i]) + 1, out1);
+	return (0);
 }

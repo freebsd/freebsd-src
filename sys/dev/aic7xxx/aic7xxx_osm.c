@@ -130,7 +130,7 @@ aic7770_map_registers(struct ahc_softc *ahc, u_int unused_ioport_arg)
 		return ENOMEM;
 	}
 	ahc->platform_data->regs_res_type = SYS_RES_IOPORT;
-	ahc->platform_data->regs_res_id = rid,
+	ahc->platform_data->regs_res_id = rid;
 	ahc->platform_data->regs = regs;
 	ahc->tag = rman_get_bustag(regs);
 	ahc->bsh = rman_get_bushandle(regs);
@@ -568,8 +568,8 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		break;
 	}
-	case XPT_NOTIFY_ACK:
-	case XPT_IMMED_NOTIFY:
+	case XPT_NOTIFY_ACKNOWLEDGE:
+	case XPT_IMMEDIATE_NOTIFY:
 	{
 		struct	   ahc_tmode_tstate *tstate;
 		struct	   ahc_tmode_lstate *lstate;
@@ -1138,6 +1138,7 @@ ahc_setup_data(struct ahc_softc *ahc, struct cam_sim *sim,
 {
 	struct hardware_scb *hscb;
 	struct ccb_hdr *ccb_h;
+	int error;
 	
 	hscb = scb->hscb;
 	ccb_h = &csio->ccb_h;
@@ -1179,64 +1180,21 @@ ahc_setup_data(struct ahc_softc *ahc, struct cam_sim *sim,
 		}
 	}
 		
-	/* Only use S/G if there is a transfer */
-	if ((ccb_h->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		if ((ccb_h->flags & CAM_SCATTER_VALID) == 0) {
-			/* We've been given a pointer to a single buffer */
-			if ((ccb_h->flags & CAM_DATA_PHYS) == 0) {
-				int s;
-				int error;
-
-				s = splsoftvm();
-				error = bus_dmamap_load(ahc->buffer_dmat,
-							scb->dmamap,
-							csio->data_ptr,
-							csio->dxfer_len,
-							ahc_execute_scb,
-							scb, /*flags*/0);
-				if (error == EINPROGRESS) {
-					/*
-					 * So as to maintain ordering,
-					 * freeze the controller queue
-					 * until our mapping is
-					 * returned.
-					 */
-					xpt_freeze_simq(sim,
-							/*count*/1);
-					scb->io_ctx->ccb_h.status |=
-					    CAM_RELEASE_SIMQ;
-				}
-				splx(s);
-			} else {
-				struct bus_dma_segment seg;
-
-				/* Pointer to physical buffer */
-				if (csio->dxfer_len > AHC_MAXTRANSFER_SIZE)
-					panic("ahc_setup_data - Transfer size "
-					      "larger than can device max");
-
-				seg.ds_addr =
-				    (bus_addr_t)(vm_offset_t)csio->data_ptr;
-				seg.ds_len = csio->dxfer_len;
-				ahc_execute_scb(scb, &seg, 1, 0);
-			}
-		} else {
-			struct bus_dma_segment *segs;
-
-			if ((ccb_h->flags & CAM_DATA_PHYS) != 0)
-				panic("ahc_setup_data - Physical segment "
-				      "pointers unsupported");
-
-			if ((ccb_h->flags & CAM_SG_LIST_PHYS) == 0)
-				panic("ahc_setup_data - Virtual segment "
-				      "addresses unsupported");
-
-			/* Just use the segments provided */
-			segs = (struct bus_dma_segment *)csio->data_ptr;
-			ahc_execute_scb(scb, segs, csio->sglist_cnt, 0);
-		}
-	} else {
-		ahc_execute_scb(scb, NULL, 0, 0);
+	error = bus_dmamap_load_ccb(ahc->buffer_dmat,
+				    scb->dmamap,
+				    (union ccb *)csio,
+				    ahc_execute_scb,
+				    scb,
+				    0);
+	if (error == EINPROGRESS) {
+		/*
+		 * So as to maintain ordering,
+		 * freeze the controller queue
+		 * until our mapping is
+		 * returned.
+		 */
+		xpt_freeze_simq(sim, /*count*/1);
+		scb->io_ctx->ccb_h.status |= CAM_RELEASE_SIMQ;
 	}
 }
 
@@ -1248,7 +1206,7 @@ ahc_abort_ccb(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 	abort_ccb = ccb->cab.abort_ccb;
 	switch (abort_ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO:
-	case XPT_IMMED_NOTIFY:
+	case XPT_IMMEDIATE_NOTIFY:
 	case XPT_CONT_TARGET_IO:
 	{
 		struct ahc_tmode_tstate *tstate;
@@ -1266,7 +1224,7 @@ ahc_abort_ccb(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 
 		if (abort_ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO)
 			list = &lstate->accept_tios;
-		else if (abort_ccb->ccb_h.func_code == XPT_IMMED_NOTIFY)
+		else if (abort_ccb->ccb_h.func_code == XPT_IMMEDIATE_NOTIFY)
 			list = &lstate->immed_notifies;
 		else
 			list = NULL;

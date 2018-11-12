@@ -53,8 +53,7 @@ static struct db_variable db_vars[] = {
 	{ "db_vnet",	NULL, db_var_db_vnet },
 #endif
 };
-static struct db_variable *db_evars =
-	db_vars + sizeof(db_vars)/sizeof(db_vars[0]);
+static struct db_variable *db_evars = db_vars + nitems(db_vars);
 
 static int
 db_find_variable(struct db_variable **varp)
@@ -128,7 +127,7 @@ db_write_variable(struct db_variable *vp, db_expr_t value)
 }
 
 void
-db_set_cmd(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
+db_set_cmd(db_expr_t dummy1, bool dummy2, db_expr_t dummy3, char *dummy4)
 {
 	struct db_variable *vp;
 	db_expr_t value;

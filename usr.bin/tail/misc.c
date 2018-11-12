@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -63,7 +59,7 @@ ierr(const char *fname)
 }
 
 void
-oerr()
+oerr(void)
 {
 	err(1, "stdout");
 }
@@ -116,4 +112,18 @@ maparound(struct mapinfo *mip, off_t offset)
 		return (1);
 
 	return (0);
+}
+
+/*
+ * Print the file name without stdio buffering.
+ */
+void
+printfn(const char *fn, int print_nl)
+{
+
+	if (print_nl)
+		WR("\n", 1);
+	WR("==> ", 4);
+	WR(fn, strlen(fn));
+	WR(" <==\n", 5);
 }

@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Mar 24, 2008
+.Dd March 24, 2008
 .Dt POSIX_SPAWNATTR_GETFLAGS 3
 .Os
 .Sh NAME
@@ -70,7 +70,7 @@ or
 It is the bitwise-inclusive OR of zero or more of the following flags
 (see
 .Fn posix_spawn ) :
-.Bl -tag -offset indent
+.Bl -tag -width "POSIX_SPAWN_SETSCHEDPARAM" -offset indent
 .It Dv POSIX_SPAWN_RESETIDS
 .It Dv POSIX_SPAWN_SETPGROUP
 .It Dv POSIX_SPAWN_SETSIGDEF
@@ -108,4 +108,4 @@ and
 functions first appeared in
 .Fx 8.0 .
 .Sh AUTHORS
-.An Ed Schouten Aq ed@FreeBSD.org
+.An \&Ed Schouten Aq Mt ed@FreeBSD.org

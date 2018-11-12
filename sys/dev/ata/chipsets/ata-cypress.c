@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -53,7 +52,7 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_cypress_chipinit(device_t dev);
-static void ata_cypress_setmode(device_t dev, int mode);
+static int ata_cypress_setmode(device_t dev, int target, int mode);
 
 
 /*
@@ -76,7 +75,7 @@ ata_cypress_probe(device_t dev)
 	pci_get_subclass(dev) == PCIS_STORAGE_IDE) {
 	device_set_desc(dev, "Cypress 82C693 ATA controller");
 	ctlr->chipinit = ata_cypress_chipinit;
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_LOW_PRIORITY);
     }
     return ENXIO;
 }
@@ -93,29 +92,20 @@ ata_cypress_chipinit(device_t dev)
     return 0;
 }
 
-static void
-ata_cypress_setmode(device_t dev, int mode)
+static int
+ata_cypress_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int error;
+	device_t parent = device_get_parent(dev);
+	struct ata_channel *ch = device_get_softc(dev);
 
-    mode = ata_limit_mode(dev, mode, ATA_WDMA2);
+	mode = min(mode, ATA_WDMA2);
 
-    /* XXX SOS missing WDMA0+1 + PIO modes */
-    if (mode == ATA_WDMA2) { 
-	error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-	if (bootverbose)
-	    device_printf(dev, "%ssetting WDMA2 on Cypress chip\n",
-			  error ? "FAILURE " : "");
-	if (!error) {
-	    pci_write_config(gparent, ch->unit ? 0x4e : 0x4c, 0x2020, 2);
-	    atadev->mode = mode;
-	    return;
+	/* XXX SOS missing WDMA0+1 + PIO modes */
+	if (mode == ATA_WDMA2) { 
+		pci_write_config(parent, ch->unit ? 0x4e : 0x4c, 0x2020, 2);
 	}
-    }
-    /* we could set PIO mode timings, but we assume the BIOS did that */
+	/* we could set PIO mode timings, but we assume the BIOS did that */
+	return (mode);
 }
 
 ATA_DECLARE_DRIVER(ata_cypress);

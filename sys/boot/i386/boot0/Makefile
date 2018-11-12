@@ -3,7 +3,7 @@
 PROG?=	boot0
 STRIP=
 BINMODE=${NOBINMODE}
-NO_MAN=
+MAN=
 SRCS=	${PROG}.S
 
 # Additional options that you can specify with make OPTS="..."
@@ -40,6 +40,7 @@ BOOT_BOOT0_TICKS?=	0xb6
 # The base address that we the boot0 code to to run it.  Don't change this
 # unless you are glutton for punishment.
 BOOT_BOOT0_ORG?=	0x600
+ORG=${BOOT_BOOT0_ORG}
 
 # Comm settings for boot0sio.
 # Bit(s) Description
@@ -74,6 +75,9 @@ CFLAGS+=-DFLAGS=${BOOT_BOOT0_FLAGS} \
 	-DTICKS=${BOOT_BOOT0_TICKS} \
 	-DCOMSPEED=${BOOT_BOOT0_COMCONSOLE_SPEED}
 
-LDFLAGS=-N -e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-S,--oformat,binary
+LDFLAGS=${LDFLAGS_BIN}
 
 .include <bsd.prog.mk>
+
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS.boot0.S=		${CLANG_NO_IAS}

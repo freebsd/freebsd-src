@@ -30,7 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_inet6.h"
+#include "opt_inet.h"
+#include "opt_sctp.h"
 #include "opt_ipsec.h"
 
 #include <sys/param.h>
@@ -43,9 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
-#include <net/route.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -56,10 +58,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
+#ifdef SCTP
+#include <netinet/sctp_crc32.h>
+#endif
 
 #include <machine/in_cksum.h>
 
-#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
 #include <netipsec/xform.h>
@@ -69,150 +73,70 @@ __FBSDID("$FreeBSD$");
 #else
 #define	KEYDEBUG(lev,arg)
 #endif
-#endif /*IPSEC*/
 
 #include <netinet6/ip6_ipsec.h>
 #include <netinet6/ip6_var.h>
 
 extern	struct protosw inet6sw[];
 
-
-#ifdef INET6 
-#ifdef IPSEC
-#ifdef IPSEC_FILTERTUNNEL
-static VNET_DEFINE(int, ip6_ipsec6_filtertunnel) = 1;
-#else
 static VNET_DEFINE(int, ip6_ipsec6_filtertunnel) = 0;
-#endif
 #define	V_ip6_ipsec6_filtertunnel	VNET(ip6_ipsec6_filtertunnel)
 
 SYSCTL_DECL(_net_inet6_ipsec6);
-SYSCTL_VNET_INT(_net_inet6_ipsec6, OID_AUTO,
-	filtertunnel, CTLFLAG_RW, &VNET_NAME(ip6_ipsec6_filtertunnel),  0,
+SYSCTL_INT(_net_inet6_ipsec6, OID_AUTO, filtertunnel,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_ipsec6_filtertunnel),  0,
 	"If set filter packets from an IPsec tunnel.");
-#endif /* IPSEC */
-#endif /* INET6 */
 
 /*
  * Check if we have to jump over firewall processing for this packet.
- * Called from ip_input().
+ * Called from ip6_input().
  * 1 = jump over firewall, 0 = packet goes through firewall.
  */
 int
 ip6_ipsec_filtertunnel(struct mbuf *m)
 {
-#if defined(IPSEC)
 
 	/*
-	 * Bypass packet filtering for packets from a tunnel.
+	 * Bypass packet filtering for packets previously handled by IPsec.
 	 */
 	if (!V_ip6_ipsec6_filtertunnel &&
 	    m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL)
-		return 1;
-#endif
-	return 0;
+		return (1);
+	return (0);
 }
 
 /*
  * Check if this packet has an active SA and needs to be dropped instead
  * of forwarded.
- * Called from ip_input().
+ * Called from ip6_forward().
  * 1 = drop packet, 0 = forward packet.
  */
 int
 ip6_ipsec_fwd(struct mbuf *m)
 {
-#ifdef IPSEC
-	struct m_tag *mtag;
-	struct tdb_ident *tdbi;
-	struct secpolicy *sp;
-	int s, error;
-	mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
-	s = splnet();
-	if (mtag != NULL) {
-		tdbi = (struct tdb_ident *)(mtag + 1);
-		sp = ipsec_getpolicy(tdbi, IPSEC_DIR_INBOUND);
-	} else {
-		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
-					   IP_FORWARDING, &error);
-	}
-	if (sp == NULL) {	/* NB: can happen if error */
-		splx(s);
-		/*XXX error stat???*/
-		DPRINTF(("ip_input: no SP for forwarding\n"));	/*XXX*/
-		return 1;
-	}
 
-	/*
-	 * Check security policy against packet attributes.
-	 */
-	error = ipsec_in_reject(sp, m);
-	KEY_FREESP(&sp);
-	splx(s);
-	if (error) {
-		V_ip6stat.ip6s_cantforward++;
-		return 1;
-	}
-#endif /* IPSEC */
-	return 0;
+	return (ipsec6_in_reject(m, NULL));
 }
 
 /*
  * Check if protocol type doesn't have a further header and do IPSEC
  * decryption or reject right now.  Protocols with further headers get
  * their IPSEC treatment within the protocol specific processing.
- * Called from ip_input().
+ * Called from ip6_input().
  * 1 = drop packet, 0 = continue processing packet.
  */
 int
 ip6_ipsec_input(struct mbuf *m, int nxt)
 {
-#ifdef IPSEC
-	struct m_tag *mtag;
-	struct tdb_ident *tdbi;
-	struct secpolicy *sp;
-	int s, error;
+
 	/*
 	 * enforce IPsec policy checking if we are seeing last header.
 	 * note that we do not visit this with protocols with pcb layer
 	 * code - like udp/tcp/raw ip.
 	 */
-	if ((inet6sw[ip6_protox[nxt]].pr_flags & PR_LASTHDR) != 0 &&
-	    ipsec6_in_reject(m, NULL)) {
-
-		/*
-		 * Check if the packet has already had IPsec processing
-		 * done.  If so, then just pass it along.  This tag gets
-		 * set during AH, ESP, etc. input handling, before the
-		 * packet is returned to the ip input queue for delivery.
-		 */
-		mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
-		s = splnet();
-		if (mtag != NULL) {
-			tdbi = (struct tdb_ident *)(mtag + 1);
-			sp = ipsec_getpolicy(tdbi, IPSEC_DIR_INBOUND);
-		} else {
-			sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
-						   IP_FORWARDING, &error);
-		}
-		if (sp != NULL) {
-			/*
-			 * Check security policy against packet attributes.
-			 */
-			error = ipsec_in_reject(sp, m);
-			KEY_FREESP(&sp);
-		} else {
-			/* XXX error stat??? */
-			error = EINVAL;
-			DPRINTF(("ip_input: no SP, packet discarded\n"));/*XXX*/
-			return 1;
-		}
-		splx(s);
-		if (error)
-			return 1;
-	}
-#endif /* IPSEC */
-	return 0;
+	if ((inet6sw[ip6_protox[nxt]].pr_flags & PR_LASTHDR) != 0)
+		return (ipsec6_in_reject(m, NULL));
+	return (0);
 }
 
 /*
@@ -222,27 +146,24 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
  */
 
 int
-ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
-    struct ifnet **ifp, struct secpolicy **sp)
+ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 {
-#ifdef IPSEC
-	struct tdb_ident *tdbi;
-	struct m_tag *mtag;
-	/* XXX int s; */
-	if (sp == NULL)
-		return 1;
-	mtag = m_tag_find(*m, PACKET_TAG_IPSEC_PENDING_TDB, NULL);
-	if (mtag != NULL) {
-		tdbi = (struct tdb_ident *)(mtag + 1);
-		*sp = ipsec_getpolicy(tdbi, IPSEC_DIR_OUTBOUND);
-		if (*sp == NULL)
-			*error = -EINVAL;	/* force silent drop */
-		m_tag_delete(*m, mtag);
-	} else {
-		*sp = ipsec4_checkpolicy(*m, IPSEC_DIR_OUTBOUND, *flags,
-					error, inp);
-	}
+	struct secpolicy *sp;
 
+	/*
+	 * Check the security policy (SP) for the packet and, if
+	 * required, do IPsec-related processing.  There are two
+	 * cases here; the first time a packet is sent through
+	 * it will be untagged and handled by ipsec4_checkpolicy.
+	 * If the packet is resubmitted to ip6_output (e.g. after
+	 * AH, ESP, etc. processing), there will be a tag to bypass
+	 * the lookup and related policy checking.
+	 */
+	if (m_tag_find(*m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL) {
+		*error = 0;
+		return (0);
+	}
+	sp = ipsec4_checkpolicy(*m, IPSEC_DIR_OUTBOUND, error, inp);
 	/*
 	 * There are four return cases:
 	 *    sp != NULL		    apply IPsec policy
@@ -250,49 +171,40 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 	 *    sp == NULL, error == -EINVAL  discard packet w/o error
 	 *    sp == NULL, error != 0	    discard packet, report error
 	 */
-	if (*sp != NULL) {
-		/* Loop detection, check if ipsec processing already done */
-		KASSERT((*sp)->req != NULL, ("ip_output: no ipsec request"));
-		for (mtag = m_tag_first(*m); mtag != NULL;
-		     mtag = m_tag_next(*m, mtag)) {
-			if (mtag->m_tag_cookie != MTAG_ABI_COMPAT)
-				continue;
-			if (mtag->m_tag_id != PACKET_TAG_IPSEC_OUT_DONE &&
-			    mtag->m_tag_id != PACKET_TAG_IPSEC_OUT_CRYPTO_NEEDED)
-				continue;
-			/*
-			 * Check if policy has an SA associated with it.
-			 * This can happen when an SP has yet to acquire
-			 * an SA; e.g. on first reference.  If it occurs,
-			 * then we let ipsec4_process_packet do its thing.
-			 */
-			if ((*sp)->req->sav == NULL)
-				break;
-			tdbi = (struct tdb_ident *)(mtag + 1);
-			if (tdbi->spi == (*sp)->req->sav->spi &&
-			    tdbi->proto == (*sp)->req->sav->sah->saidx.proto &&
-			    bcmp(&tdbi->dst, &(*sp)->req->sav->sah->saidx.dst,
-				 sizeof (union sockaddr_union)) == 0) {
-				/*
-				 * No IPsec processing is needed, free
-				 * reference to SP.
-				 *
-				 * NB: null pointer to avoid free at
-				 *     done: below.
-				 */
-				KEY_FREESP(sp), *sp = NULL;
-				/* XXX splx(s); */
-				goto done;
-			}
-		}
-
+	if (sp != NULL) {
 		/*
 		 * Do delayed checksums now because we send before
 		 * this is done in the normal processing path.
 		 */
+#ifdef INET
 		if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 			in_delayed_cksum(*m);
 			(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+		}
+#endif
+		if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
+			in6_delayed_cksum(*m, (*m)->m_pkthdr.len - sizeof(struct ip6_hdr),
+							sizeof(struct ip6_hdr));
+			(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+		}
+#ifdef SCTP
+		if ((*m)->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
+			sctp_delayed_cksum(*m, sizeof(struct ip6_hdr));
+			(*m)->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
+		}
+#endif
+
+		/* NB: callee frees mbuf */
+		*error = ipsec6_process_packet(*m, sp->req);
+		KEY_FREESP(&sp);
+		if (*error == EJUSTRETURN) {
+			/*
+			 * We had a SP with a level of 'use' and no SA. We
+			 * will just continue to process the packet without
+			 * IPsec processing.
+			 */
+			*error = 0;
+			goto done;
 		}
 
 		/*
@@ -304,7 +216,7 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 		 */
 		if (*error == ENOENT)
 			*error = 0;
-		goto do_ipsec;
+		goto reinjected;
 	} else {	/* sp == NULL */
 		if (*error != 0) {
 			/*
@@ -316,18 +228,17 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 			if (*error == -EINVAL)
 				*error = 0;
 			goto bad;
-		} else {
-			/* No IPsec processing for this packet. */
 		}
+		/* No IPsec processing for this packet. */
 	}
 done:
-	return 0;
-do_ipsec:
-	return -1;
+	return (0);
+reinjected:
+	return (-1);
 bad:
-	return 1;
-#endif /* IPSEC */
-	return 0;
+	if (sp != NULL)
+		KEY_FREESP(&sp);
+	return (1);
 }
 
 #if 0
@@ -366,11 +277,9 @@ ip6_ipsec_mtu(struct mbuf *m)
 		if (sp->req != NULL &&
 		    sp->req->sav != NULL &&
 		    sp->req->sav->sah != NULL) {
-			ro = &sp->req->sav->sah->sa_route;
+			ro = &sp->req->sav->sah->route_cache.sa_route;
 			if (ro->ro_rt && ro->ro_rt->rt_ifp) {
-				mtu =
-				    ro->ro_rt->rt_rmx.rmx_mtu ?
-				    ro->ro_rt->rt_rmx.rmx_mtu :
+				mtu = ro->ro_rt->rt_mtu ? ro->ro_rt->rt_mtu :
 				    ro->ro_rt->rt_ifp->if_mtu;
 				mtu -= ipsechdr;
 			}

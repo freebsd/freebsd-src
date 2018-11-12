@@ -1,7 +1,7 @@
 /*-
  * Cronyx-Tau-PCI adapter driver for FreeBSD.
  * Supports PPP/HDLC, Cisco/HDLC and FrameRelay protocol in synchronous mode,
- * and asyncronous channels with full modem control.
+ * and asynchronous channels with full modem control.
  * Keepalive protocol implemented in both Cisco and PPP modes.
  *
  * Copyright (C) 1999-2004 Cronyx Engineering.
@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <machine/bus.h>
@@ -66,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/cp/cpddk.h>
 #include <machine/cserial.h>
 #include <machine/resource.h>
-#include <machine/pmap.h>
 
 /* If we don't have Cronyx's sppp version, we don't have fr support via sppp */
 #ifndef PP_FR
@@ -93,7 +93,7 @@ static	device_method_t cp_methods[] = {
 	DEVMETHOD(device_attach,	cp_attach),
 	DEVMETHOD(device_detach,	cp_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 typedef struct _cp_dma_mem_t {
@@ -117,12 +117,12 @@ typedef struct _drv_t {
 	node_p	node;
 	struct	ifqueue queue;
 	struct	ifqueue hi_queue;
-	short	timeout;
-	struct	callout timeout_handle;
 #else
 	struct	ifqueue queue;
 	struct	ifnet *ifp;
 #endif
+	short	timeout;
+	struct	callout timeout_handle;
 	struct	cdev *devt;
 } drv_t;
 
@@ -151,13 +151,13 @@ static void cp_up (drv_t *d);
 static void cp_start (drv_t *d);
 static void cp_down (drv_t *d);
 static void cp_watchdog (drv_t *d);
+static void cp_watchdog_timer (void *arg);
 #ifdef NETGRAPH
 extern struct ng_type typestruct;
 #else
 static void cp_ifstart (struct ifnet *ifp);
 static void cp_tlf (struct sppp *sp);
 static void cp_tls (struct sppp *sp);
-static void cp_ifwatchdog (struct ifnet *ifp);
 static int cp_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data);
 static void cp_initialize (void *softc);
 #endif
@@ -181,33 +181,16 @@ static struct cdevsw cp_cdevsw = {
 };
 
 /*
- * Print the mbuf chain, for debug purposes only.
- */
-static void printmbuf (struct mbuf *m)
-{
-	printf ("mbuf:");
-	for (; m; m=m->m_next) {
-		if (m->m_flags & M_PKTHDR)
-			printf (" HDR %d:", m->m_pkthdr.len);
-		if (m->m_flags & M_EXT)
-			printf (" EXT:");
-		printf (" %d", m->m_len);
-	}
-	printf ("\n");
-}
-
-/*
  * Make an mbuf from data.
  */
 static struct mbuf *makembuf (void *buf, unsigned len)
 {
 	struct mbuf *m;
 
-	MGETHDR (m, M_DONTWAIT, MT_DATA);
+	MGETHDR (m, M_NOWAIT, MT_DATA);
 	if (! m)
 		return 0;
-	MCLGET (m, M_DONTWAIT);
-	if (! (m->m_flags & M_EXT)) {
+	if (!(MCLGET (m, M_NOWAIT))) {
 		m_freem (m);
 		return 0;
 	}
@@ -461,7 +444,7 @@ static int cp_attach (device_t dev)
 		splx (s);
 		return (ENXIO);
 	}
-	callout_init (&led_timo[unit], CALLOUT_MPSAFE);
+	callout_init (&led_timo[unit], 1);
 	error  = bus_setup_intr (dev, bd->cp_irq,
 				INTR_TYPE_NET|INTR_MPSAFE,
 				NULL, cp_intr, bd, &bd->cp_intrhand);
@@ -490,6 +473,7 @@ static int cp_attach (device_t dev)
 		d->board = b;
 		d->chan = c;
 		c->sys = d;
+		callout_init (&d->timeout_handle, 1);
 #ifdef NETGRAPH
 		if (ng_make_node_common (&typestruct, &d->node) != 0) {
 			printf ("%s: cannot make common node\n", d->name);
@@ -504,11 +488,10 @@ static int cp_attach (device_t dev)
 			NG_NODE_UNREF (d->node);
 			continue;
 		}
-		d->queue.ifq_maxlen = IFQ_MAXLEN;
-		d->hi_queue.ifq_maxlen = IFQ_MAXLEN;
+		d->queue.ifq_maxlen = ifqmaxlen;
+		d->hi_queue.ifq_maxlen = ifqmaxlen;
 		mtx_init (&d->queue.ifq_mtx, "cp_queue", NULL, MTX_DEF);
 		mtx_init (&d->hi_queue.ifq_mtx, "cp_queue_hi", NULL, MTX_DEF);
-		callout_init (&d->timeout_handle, CALLOUT_MPSAFE);
 #else /*NETGRAPH*/
 		d->ifp = if_alloc(IFT_PPP);
 		if (d->ifp == NULL) {
@@ -521,7 +504,6 @@ static int cp_attach (device_t dev)
 		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
 		d->ifp->if_ioctl	= cp_sioctl;
 		d->ifp->if_start	= cp_ifstart;
-		d->ifp->if_watchdog	= cp_ifwatchdog;
 		d->ifp->if_init		= cp_initialize;
 		d->queue.ifq_maxlen	= NRBUF;
 		mtx_init (&d->queue.ifq_mtx, "cp_queue", NULL, MTX_DEF);
@@ -603,6 +585,7 @@ static int cp_detach (device_t dev)
 
 		if (! d || ! d->chan->type)
 			continue;
+		callout_stop (&d->timeout_handle);
 #ifndef NETGRAPH
 		/* Detach from the packet filter list of interfaces. */
 		bpfdetach (d->ifp);
@@ -639,12 +622,12 @@ static int cp_detach (device_t dev)
 	callout_drain (&led_timo[b->num]);
 	splx (s);
 
-	s = splimp ();
 	for (c = b->chan; c < b->chan + NCHAN; ++c) {
 		drv_t *d = (drv_t*) c->sys;
 
 		if (! d || ! d->chan->type)
 			continue;
+		callout_drain (&d->timeout_handle);
 		channel [b->num*NCHAN + c->num] = 0;
 		/* Deallocate buffers. */
 		cp_bus_dma_mem_free (&d->dmamem);
@@ -652,7 +635,6 @@ static int cp_detach (device_t dev)
 	adapter [b->num] = 0;
 	cp_bus_dma_mem_free (&bd->dmamem);
 	free (b, M_DEVBUF);
-	splx (s);
 	mtx_destroy (&bd->cp_mtx);
 	return 0;
 }
@@ -666,13 +648,6 @@ static void cp_ifstart (struct ifnet *ifp)
 	CP_LOCK (bd);
 	cp_start (d);
 	CP_UNLOCK (bd);
-}
-
-static void cp_ifwatchdog (struct ifnet *ifp)
-{
-	drv_t *d = ifp->if_softc;
-
-	cp_watchdog (d);
 }
 
 static void cp_tlf (struct sppp *sp)
@@ -766,6 +741,7 @@ static void cp_down (drv_t *d)
 	cp_set_rts (d->chan, 0);
 
 	d->running = 0;
+	callout_stop (&d->timeout_handle);
 }
 
 /*
@@ -827,11 +803,7 @@ static void cp_send (drv_t *d)
 		}
 		m_freem (m);
 		/* Set up transmit timeout, if the transmit ring is not empty.*/
-#ifdef NETGRAPH
 		d->timeout = 10;
-#else
-		d->ifp->if_timer = 10;
-#endif
 	}
 #ifndef NETGRAPH
 	d->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -850,6 +822,7 @@ static void cp_start (drv_t *d)
 		if (! d->chan->rts)
 			cp_set_rts (d->chan, 1);
 		cp_send (d);
+		callout_reset (&d->timeout_handle, hz, cp_watchdog_timer, d);
 	}
 }
 
@@ -860,12 +833,8 @@ static void cp_start (drv_t *d)
  */
 static void cp_watchdog (drv_t *d)
 {
-	bdrv_t *bd = d->board->sys;
 	CP_DEBUG (d, ("device timeout\n"));
 	if (d->running) {
-		int s = splimp ();
-
-		CP_LOCK (bd);
 		cp_stop_chan (d->chan);
 		cp_stop_e1 (d->chan);
 		cp_start_e1 (d->chan);
@@ -873,21 +842,31 @@ static void cp_watchdog (drv_t *d)
 		cp_set_dtr (d->chan, 1);
 		cp_set_rts (d->chan, 1);
 		cp_start (d);
-		CP_UNLOCK (bd);
-		splx (s);
 	}
+}
+
+static void cp_watchdog_timer (void *arg)
+{
+	drv_t *d = arg;
+	bdrv_t *bd = d->board->sys;
+
+	CP_LOCK (bd);
+	if (d->timeout == 1)
+		cp_watchdog (d);
+	if (d->timeout)
+		d->timeout--;
+	callout_reset (&d->timeout_handle, hz, cp_watchdog_timer, d);
+	CP_UNLOCK (bd);
 }
 
 static void cp_transmit (cp_chan_t *c, void *attachment, int len)
 {
 	drv_t *d = c->sys;
 
-#ifdef NETGRAPH
 	d->timeout = 0;
-#else
-	++d->ifp->if_opackets;
+#ifndef NETGRAPH
+	if_inc_counter(d->ifp, IFCOUNTER_OPACKETS, 1);
 	d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	d->ifp->if_timer = 0;
 #endif
 	cp_start (d);
 }
@@ -907,21 +886,21 @@ static void cp_receive (cp_chan_t *c, unsigned char *data, int len)
 	if (! m) {
 		CP_DEBUG (d, ("no memory for packet\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_iqdrops;
+		if_inc_counter(d->ifp, IFCOUNTER_IQDROPS, 1);
 #endif
 		return;
 	}
 	if (c->debug > 1)
-		printmbuf (m);
+		m_print (m, 0);
 #ifdef NETGRAPH
 	m->m_pkthdr.rcvif = 0;
 	NG_SEND_DATA_ONLY (error, d->hook, m);
 #else
-	++d->ifp->if_ipackets;
+	if_inc_counter(d->ifp, IFCOUNTER_IPACKETS, 1);
 	m->m_pkthdr.rcvif = d->ifp;
 	/* Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to bpf. */
-	BPF_TAP (d->ifp, data, len);
+	BPF_MTAP(d->ifp, m);
 	IF_ENQUEUE (&d->queue, m);
 #endif
 }
@@ -934,36 +913,34 @@ static void cp_error (cp_chan_t *c, int data)
 	case CP_FRAME:
 		CP_DEBUG (d, ("frame error\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_ierrors;
+		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CP_CRC:
 		CP_DEBUG (d, ("crc error\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_ierrors;
+		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CP_OVERRUN:
 		CP_DEBUG (d, ("overrun error\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_collisions;
-		++d->ifp->if_ierrors;
+		if_inc_counter(d->ifp, IFCOUNTER_COLLISIONS, 1);
+		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CP_OVERFLOW:
 		CP_DEBUG (d, ("overflow error\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_ierrors;
+		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CP_UNDERRUN:
 		CP_DEBUG (d, ("underrun error\n"));
-#ifdef NETGRAPH
 		d->timeout = 0;
-#else
-		++d->ifp->if_oerrors;
+#ifndef NETGRAPH
+		if_inc_counter(d->ifp, IFCOUNTER_OERRORS, 1);
 		d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		d->ifp->if_timer = 0;
 #endif
 		cp_start (d);
 		break;
@@ -1058,9 +1035,11 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR);
 			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
 			d->ifp->if_flags |= PP_CISCO;
-		} else if (! strcmp ("fr", (char*)data) && PP_FR) {
+#if PP_FR != 0
+		} else if (! strcmp ("fr", (char*)data)) {
 			d->ifp->if_flags &= ~(PP_CISCO);
 			IFP2SP(d->ifp)->pp_flags |= PP_FR | PP_KEEPALIVE;
+#endif
 		} else if (! strcmp ("ppp", (char*)data)) {
 			IFP2SP(d->ifp)->pp_flags &= ~PP_FR;
 			IFP2SP(d->ifp)->pp_flags &= ~PP_KEEPALIVE;
@@ -2160,7 +2139,6 @@ static int ng_cp_rcvdata (hook_p hook, item_p item)
 	CP_LOCK (bd);
 	IF_LOCK (q);
 	if (_IF_QFULL (q)) {
-		_IF_DROP (q);
 		IF_UNLOCK (q);
 		CP_UNLOCK (bd);
 		splx (s);
@@ -2193,22 +2171,9 @@ static int ng_cp_rmnode (node_p node)
 		NG_NODE_SET_PRIVATE (node, NULL);
 		NG_NODE_UNREF (node);
 	}
-	NG_NODE_REVIVE(node);		/* Persistant node */
+	NG_NODE_REVIVE(node);		/* Persistent node */
 #endif
 	return 0;
-}
-
-static void ng_cp_watchdog (void *arg)
-{
-	drv_t *d = arg;
-
-	if (d) {
-		if (d->timeout == 1)
-			cp_watchdog (d);
-		if (d->timeout)
-			d->timeout--;
-		callout_reset (&d->timeout_handle, hz, ng_cp_watchdog, d);
-	}
 }
 
 static int ng_cp_connect (hook_p hook)
@@ -2217,7 +2182,7 @@ static int ng_cp_connect (hook_p hook)
 
 	if (d) {
 		CP_DEBUG (d, ("Connect\n"));
-		callout_reset (&d->timeout_handle, hz, ng_cp_watchdog, d);
+		callout_reset (&d->timeout_handle, hz, cp_watchdog_timer, d);
 	}
 	
 	return 0;
@@ -2257,7 +2222,7 @@ static int cp_modevent (module_t mod, int type, void *unused)
 			printf ("Failed to register ng_cp\n");
 #endif
 		++load_count;
-		callout_init (&timeout_handle, CALLOUT_MPSAFE);
+		callout_init (&timeout_handle, 1);
 		callout_reset (&timeout_handle, hz*5, cp_timeout, 0);
 		break;
 	case MOD_UNLOAD:

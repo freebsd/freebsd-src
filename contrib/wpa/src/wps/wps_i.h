@@ -1,21 +1,18 @@
 /*
  * Wi-Fi Protected Setup - internal definitions
- * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2008-2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef WPS_I_H
 #define WPS_I_H
 
 #include "wps.h"
+#include "wps_attr_parse.h"
+
+struct wps_nfc_pw_token;
 
 /**
  * struct wps_data - WPS registration protocol data
@@ -33,6 +30,11 @@ struct wps_data {
 	 * registrar - Whether this end is a Registrar
 	 */
 	int registrar;
+
+	/**
+	 * er - Whether the local end is an external registrar
+	 */
+	int er;
 
 	enum {
 		/* Enrollee states */
@@ -62,10 +64,6 @@ struct wps_data {
 	u8 authkey[WPS_AUTHKEY_LEN];
 	u8 keywrapkey[WPS_KEYWRAPKEY_LEN];
 	u8 emsk[WPS_EMSK_LEN];
-	u8 mgmt_auth_key[WPS_MGMTAUTHKEY_LEN];
-	u8 mgmt_auth_key_id[WPS_MGMT_KEY_ID_LEN];
-	u8 mgmt_enc_key[WPS_MGMTENCKEY_LEN];
-	u8 mgmt_enc_key_id[WPS_MGMT_KEY_ID_LEN];
 
 	struct wpabuf *last_msg;
 
@@ -73,6 +71,12 @@ struct wps_data {
 	size_t dev_password_len;
 	u16 dev_pw_id;
 	int pbc;
+	u8 *alt_dev_password;
+	size_t alt_dev_password_len;
+	u16 alt_dev_pw_id;
+
+	u8 peer_pubkey_hash[WPS_OOB_PUBKEY_HASH_LEN];
+	int peer_pubkey_hash_set;
 
 	/**
 	 * request_type - Request Type attribute from (Re)AssocReq
@@ -101,102 +105,54 @@ struct wps_data {
 	 * config_error - Configuration Error value to be used in NACK
 	 */
 	u16 config_error;
+	u16 error_indication;
 
 	int ext_reg;
+	int int_reg;
+
+	struct wps_credential *new_ap_settings;
+
+	void *dh_ctx;
+
+	void (*ap_settings_cb)(void *ctx, const struct wps_credential *cred);
+	void *ap_settings_cb_ctx;
+
+	struct wps_credential *use_cred;
+
+	int use_psk_key;
+	u8 p2p_dev_addr[ETH_ALEN]; /* P2P Device Address of the client or
+				    * 00:00:00:00:00:00 if not a P2p client */
+	int pbc_in_m1;
+
+	struct wps_nfc_pw_token *nfc_pw_token;
 };
 
-
-struct wps_parse_attr {
-	/* fixed length fields */
-	const u8 *version; /* 1 octet */
-	const u8 *msg_type; /* 1 octet */
-	const u8 *enrollee_nonce; /* WPS_NONCE_LEN (16) octets */
-	const u8 *registrar_nonce; /* WPS_NONCE_LEN (16) octets */
-	const u8 *uuid_r; /* WPS_UUID_LEN (16) octets */
-	const u8 *uuid_e; /* WPS_UUID_LEN (16) octets */
-	const u8 *auth_type_flags; /* 2 octets */
-	const u8 *encr_type_flags; /* 2 octets */
-	const u8 *conn_type_flags; /* 1 octet */
-	const u8 *config_methods; /* 2 octets */
-	const u8 *sel_reg_config_methods; /* 2 octets */
-	const u8 *primary_dev_type; /* 8 octets */
-	const u8 *rf_bands; /* 1 octet */
-	const u8 *assoc_state; /* 2 octets */
-	const u8 *config_error; /* 2 octets */
-	const u8 *dev_password_id; /* 2 octets */
-	const u8 *os_version; /* 4 octets */
-	const u8 *wps_state; /* 1 octet */
-	const u8 *authenticator; /* WPS_AUTHENTICATOR_LEN (8) octets */
-	const u8 *r_hash1; /* WPS_HASH_LEN (32) octets */
-	const u8 *r_hash2; /* WPS_HASH_LEN (32) octets */
-	const u8 *e_hash1; /* WPS_HASH_LEN (32) octets */
-	const u8 *e_hash2; /* WPS_HASH_LEN (32) octets */
-	const u8 *r_snonce1; /* WPS_SECRET_NONCE_LEN (16) octets */
-	const u8 *r_snonce2; /* WPS_SECRET_NONCE_LEN (16) octets */
-	const u8 *e_snonce1; /* WPS_SECRET_NONCE_LEN (16) octets */
-	const u8 *e_snonce2; /* WPS_SECRET_NONCE_LEN (16) octets */
-	const u8 *key_wrap_auth; /* WPS_KWA_LEN (8) octets */
-	const u8 *auth_type; /* 2 octets */
-	const u8 *encr_type; /* 2 octets */
-	const u8 *network_idx; /* 1 octet */
-	const u8 *network_key_idx; /* 1 octet */
-	const u8 *mac_addr; /* ETH_ALEN (6) octets */
-	const u8 *key_prov_auto; /* 1 octet (Bool) */
-	const u8 *dot1x_enabled; /* 1 octet (Bool) */
-	const u8 *selected_registrar; /* 1 octet (Bool) */
-	const u8 *request_type; /* 1 octet */
-	const u8 *response_type; /* 1 octet */
-
-	/* variable length fields */
-	const u8 *manufacturer;
-	size_t manufacturer_len;
-	const u8 *model_name;
-	size_t model_name_len;
-	const u8 *model_number;
-	size_t model_number_len;
-	const u8 *serial_number;
-	size_t serial_number_len;
-	const u8 *dev_name;
-	size_t dev_name_len;
-	const u8 *public_key;
-	size_t public_key_len;
-	const u8 *encr_settings;
-	size_t encr_settings_len;
-	const u8 *ssid; /* <= 32 octets */
-	size_t ssid_len;
-	const u8 *network_key; /* <= 64 octets */
-	size_t network_key_len;
-	const u8 *eap_type; /* <= 8 octets */
-	size_t eap_type_len;
-	const u8 *eap_identity; /* <= 64 octets */
-	size_t eap_identity_len;
-
-	/* attributes that can occur multiple times */
-#define MAX_CRED_COUNT 10
-	const u8 *cred[MAX_CRED_COUNT];
-	size_t cred_len[MAX_CRED_COUNT];
-	size_t num_cred;
-};
 
 /* wps_common.c */
 void wps_kdf(const u8 *key, const u8 *label_prefix, size_t label_prefix_len,
 	     const char *label, u8 *res, size_t res_len);
 int wps_derive_keys(struct wps_data *wps);
-int wps_derive_mgmt_keys(struct wps_data *wps);
 void wps_derive_psk(struct wps_data *wps, const u8 *dev_passwd,
 		    size_t dev_passwd_len);
 struct wpabuf * wps_decrypt_encr_settings(struct wps_data *wps, const u8 *encr,
 					  size_t encr_len);
-void wps_fail_event(struct wps_context *wps, enum wps_msg_type msg);
-void wps_success_event(struct wps_context *wps);
-void wps_pwd_auth_fail_event(struct wps_context *wps, int enrollee, int part);
+void wps_fail_event(struct wps_context *wps, enum wps_msg_type msg,
+		    u16 config_error, u16 error_indication, const u8 *mac_addr);
+void wps_success_event(struct wps_context *wps, const u8 *mac_addr);
+void wps_pwd_auth_fail_event(struct wps_context *wps, int enrollee, int part,
+			     const u8 *mac_addr);
+void wps_pbc_overlap_event(struct wps_context *wps);
+void wps_pbc_timeout_event(struct wps_context *wps);
+void wps_pbc_active_event(struct wps_context *wps);
+void wps_pbc_disable_event(struct wps_context *wps);
 
-/* wps_attr_parse.c */
-int wps_parse_msg(const struct wpabuf *msg, struct wps_parse_attr *attr);
+struct wpabuf * wps_build_wsc_ack(struct wps_data *wps);
+struct wpabuf * wps_build_wsc_nack(struct wps_data *wps);
 
 /* wps_attr_build.c */
 int wps_build_public_key(struct wps_data *wps, struct wpabuf *msg);
 int wps_build_req_type(struct wpabuf *msg, enum wps_request_type type);
+int wps_build_resp_type(struct wpabuf *msg, enum wps_response_type type);
 int wps_build_config_methods(struct wpabuf *msg, u16 methods);
 int wps_build_uuid_e(struct wpabuf *msg, const u8 *uuid);
 int wps_build_dev_password_id(struct wpabuf *msg, u16 id);
@@ -206,6 +162,8 @@ int wps_build_key_wrap_auth(struct wps_data *wps, struct wpabuf *msg);
 int wps_build_encr_settings(struct wps_data *wps, struct wpabuf *msg,
 			    struct wpabuf *plain);
 int wps_build_version(struct wpabuf *msg);
+int wps_build_wfa_ext(struct wpabuf *msg, int req_to_enroll,
+		      const u8 *auth_macs, size_t auth_macs_count);
 int wps_build_msg_type(struct wpabuf *msg, enum wps_msg_type msg_type);
 int wps_build_enrollee_nonce(struct wps_data *wps, struct wpabuf *msg);
 int wps_build_registrar_nonce(struct wps_data *wps, struct wpabuf *msg);
@@ -213,6 +171,13 @@ int wps_build_auth_type_flags(struct wps_data *wps, struct wpabuf *msg);
 int wps_build_encr_type_flags(struct wps_data *wps, struct wpabuf *msg);
 int wps_build_conn_type_flags(struct wps_data *wps, struct wpabuf *msg);
 int wps_build_assoc_state(struct wps_data *wps, struct wpabuf *msg);
+int wps_build_oob_dev_pw(struct wpabuf *msg, u16 dev_pw_id,
+			 const struct wpabuf *pubkey, const u8 *dev_pw,
+			 size_t dev_pw_len);
+struct wpabuf * wps_ie_encapsulate(struct wpabuf *data);
+int wps_build_mac_addr(struct wpabuf *msg, const u8 *addr);
+int wps_build_rf_bands_attr(struct wpabuf *msg, u8 rf_bands);
+int wps_build_ap_channel(struct wpabuf *msg, u16 ap_channel);
 
 /* wps_attr_process.c */
 int wps_process_authenticator(struct wps_data *wps, const u8 *authenticator,
@@ -237,12 +202,17 @@ struct wpabuf * wps_registrar_get_msg(struct wps_data *wps,
 enum wps_process_res wps_registrar_process_msg(struct wps_data *wps,
 					       enum wsc_op_code op_code,
 					       const struct wpabuf *msg);
-
-
-static inline int wps_version_supported(const u8 *version)
-{
-	/* Require major version match, but allow minor version differences */
-	return version && (*version & 0xf0) == (WPS_VERSION & 0xf0);
-}
+int wps_build_cred(struct wps_data *wps, struct wpabuf *msg);
+int wps_device_store(struct wps_registrar *reg,
+		     struct wps_device_data *dev, const u8 *uuid);
+void wps_registrar_selected_registrar_changed(struct wps_registrar *reg,
+					      u16 dev_pw_id);
+const u8 * wps_authorized_macs(struct wps_registrar *reg, size_t *count);
+int wps_registrar_pbc_overlap(struct wps_registrar *reg,
+			      const u8 *addr, const u8 *uuid_e);
+void wps_registrar_remove_nfc_pw_token(struct wps_registrar *reg,
+				       struct wps_nfc_pw_token *token);
+int wps_cb_new_psk(struct wps_registrar *reg, const u8 *mac_addr,
+		   const u8 *p2p_dev_addr, const u8 *psk, size_t psk_len);
 
 #endif /* WPS_I_H */

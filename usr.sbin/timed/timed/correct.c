@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -51,8 +47,7 @@ static void adjclock(struct timeval *);
  * own
  */
 void
-correct(avdelta)
-	long avdelta;
+correct(long avdelta)
 {
 	struct hosttbl *htp;
 	int corr;
@@ -116,8 +111,7 @@ correct(avdelta)
 
 
 static void
-adjclock(corr)
-	struct timeval *corr;
+adjclock(struct timeval *corr)
 {
 	static int passes = 0;
 	static int smoother = 0;
@@ -166,8 +160,8 @@ adjclock(corr)
 		}
 	} else {
 		syslog(LOG_WARNING,
-		       "clock correction %ld sec too large to adjust",
-		       adj.tv_sec);
+		       "clock correction %jd sec too large to adjust",
+		       (intmax_t)adj.tv_sec);
 		(void) gettimeofday(&now, 0);
 		timevaladd(&now, corr);
 		if (settimeofday(&now, 0) < 0)
@@ -180,9 +174,7 @@ adjclock(corr)
  *	spent in the queue
  */
 void
-adj_msg_time(msg, now)
-	struct tsp *msg;
-	struct timeval *now;
+adj_msg_time(struct tsp *msg, struct timeval *now)
 {
 	msg->tsp_time.tv_sec += (now->tv_sec - from_when.tv_sec);
 	msg->tsp_time.tv_usec += (now->tv_usec - from_when.tv_usec);

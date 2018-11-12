@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_scroll.c	10.9 (Berkeley) 4/27/96";
+static const char sccsid[] = "$Id: v_scroll.c,v 10.12 2001/06/25 15:19:34 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -25,7 +25,7 @@ static const char sccsid[] = "@(#)v_scroll.c	10.9 (Berkeley) 4/27/96";
 #include "../common/common.h"
 #include "vi.h"
 
-static void goto_adjust __P((VICMD *));
+static void goto_adjust(VICMD *);
 
 /*
  * The historic vi had a problem in that all movements were by physical
@@ -64,12 +64,10 @@ static void goto_adjust __P((VICMD *));
  *	Go to first non-blank character of the line count, the last line
  *	of the file by default.
  *
- * PUBLIC: int v_lgoto __P((SCR *, VICMD *));
+ * PUBLIC: int v_lgoto(SCR *, VICMD *);
  */
 int
-v_lgoto(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_lgoto(SCR *sp, VICMD *vp)
 {
 	recno_t nlines;
 
@@ -103,12 +101,10 @@ v_lgoto(sp, vp)
  *	Move to the first non-blank character of the logical line
  *	count - 1 from the top of the screen, 0 by default.
  *
- * PUBLIC: int v_home __P((SCR *, VICMD *));
+ * PUBLIC: int v_home(SCR *, VICMD *);
  */
 int
-v_home(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_home(SCR *sp, VICMD *vp)
 {
 	if (vs_sm_position(sp, &vp->m_stop,
 	    F_ISSET(vp, VC_C1SET) ? vp->count - 1 : 0, P_TOP))
@@ -122,12 +118,10 @@ v_home(sp, vp)
  *	Move to the first non-blank character of the logical line
  *	in the middle of the screen.
  *
- * PUBLIC: int v_middle __P((SCR *, VICMD *));
+ * PUBLIC: int v_middle(SCR *, VICMD *);
  */
 int
-v_middle(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_middle(SCR *sp, VICMD *vp)
 {
 	/*
 	 * Yielding to none in our quest for compatibility with every
@@ -145,12 +139,10 @@ v_middle(sp, vp)
  *	Move to the first non-blank character of the logical line
  *	count - 1 from the bottom of the screen, 0 by default.
  *
- * PUBLIC: int v_bottom __P((SCR *, VICMD *));
+ * PUBLIC: int v_bottom(SCR *, VICMD *);
  */
 int
-v_bottom(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_bottom(SCR *sp, VICMD *vp)
 {
 	if (vs_sm_position(sp, &vp->m_stop,
 	    F_ISSET(vp, VC_C1SET) ? vp->count - 1 : 0, P_BOTTOM))
@@ -160,8 +152,7 @@ v_bottom(sp, vp)
 }
 
 static void
-goto_adjust(vp)
-	VICMD *vp;
+goto_adjust(VICMD *vp)
 {
 	/* Guess that it's the end of the range. */
 	vp->m_final = vp->m_stop;
@@ -199,8 +190,8 @@ goto_adjust(vp)
 	 * stay at the start of the range.  Ignore others.
 	 */
 	if (vp->m_stop.lno < vp->m_start.lno ||
-	    vp->m_stop.lno == vp->m_start.lno &&
-	    vp->m_stop.cno < vp->m_start.cno) {
+	    (vp->m_stop.lno == vp->m_start.lno &&
+	    vp->m_stop.cno < vp->m_start.cno)) {
 		if (ISCMD(vp->rkp, 'y') && vp->m_stop.lno == vp->m_start.lno)
 			vp->m_final = vp->m_start;
 	} else
@@ -211,12 +202,10 @@ goto_adjust(vp)
  * v_up -- [count]^P, [count]k, [count]-
  *	Move up by lines.
  *
- * PUBLIC: int v_up __P((SCR *, VICMD *));
+ * PUBLIC: int v_up(SCR *, VICMD *);
  */
 int
-v_up(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_up(SCR *sp, VICMD *vp)
 {
 	recno_t lno;
 
@@ -235,12 +224,10 @@ v_up(sp, vp)
  *	In a script window, send the line to the shell.
  *	In a regular window, move down by lines.
  *
- * PUBLIC: int v_cr __P((SCR *, VICMD *));
+ * PUBLIC: int v_cr(SCR *, VICMD *);
  */
 int
-v_cr(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_cr(SCR *sp, VICMD *vp)
 {
 	/* If it's a colon command-line edit window, it's an ex command. */
 	if (F_ISSET(sp, SC_COMEDIT))
@@ -258,12 +245,10 @@ v_cr(sp, vp)
  * v_down -- [count]^J, [count]^N, [count]j, [count]^M, [count]+
  *	Move down by lines.
  *
- * PUBLIC: int v_down __P((SCR *, VICMD *));
+ * PUBLIC: int v_down(SCR *, VICMD *);
  */
 int
-v_down(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_down(SCR *sp, VICMD *vp)
 {
 	recno_t lno;
 
@@ -281,12 +266,10 @@ v_down(sp, vp)
  * v_hpageup -- [count]^U
  *	Page up half screens.
  *
- * PUBLIC: int v_hpageup __P((SCR *, VICMD *));
+ * PUBLIC: int v_hpageup(SCR *, VICMD *);
  */
 int
-v_hpageup(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_hpageup(SCR *sp, VICMD *vp)
 {
 	/*
 	 * Half screens always succeed unless already at SOF.
@@ -307,12 +290,10 @@ v_hpageup(sp, vp)
  * v_hpagedown -- [count]^D
  *	Page down half screens.
  *
- * PUBLIC: int v_hpagedown __P((SCR *, VICMD *));
+ * PUBLIC: int v_hpagedown(SCR *, VICMD *);
  */
 int
-v_hpagedown(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_hpagedown(SCR *sp, VICMD *vp)
 {
 	/*
 	 * Half screens always succeed unless already at EOF.
@@ -337,12 +318,10 @@ v_hpagedown(sp, vp)
  * if EOF was already displayed on the screen.  This implementation does
  * move to EOF in that case, making ^F more like the the historic ^D.
  *
- * PUBLIC: int v_pagedown __P((SCR *, VICMD *));
+ * PUBLIC: int v_pagedown(SCR *, VICMD *);
  */
 int
-v_pagedown(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_pagedown(SCR *sp, VICMD *vp)
 {
 	recno_t offset;
 
@@ -361,8 +340,8 @@ v_pagedown(sp, vp)
 	 * any screen but the "next" one anyway.  We do it the historical
 	 * way as there's no good reason to change it.
 	 *
-	 * If the screen has been split, use the smaller of the current
-	 * window size and the window option value.
+	 * If the screen has been split horizontally, use the smaller of
+	 * the current window size and the window option value.
 	 *
 	 * It possible for this calculation to be less than 1; move at
 	 * least one line.
@@ -385,12 +364,10 @@ v_pagedown(sp, vp)
  * if SOF was already displayed on the screen.  This implementation does
  * move to SOF in that case, making ^B more like the the historic ^U.
  *
- * PUBLIC: int v_pageup __P((SCR *, VICMD *));
+ * PUBLIC: int v_pageup(SCR *, VICMD *);
  */
 int
-v_pageup(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_pageup(SCR *sp, VICMD *vp)
 {
 	recno_t offset;
 
@@ -414,8 +391,8 @@ v_pageup(sp, vp)
 	 * but the first screen.  We do it the historical way as there's
 	 * no good reason to change it.
 	 *
-	 * If the screen has been split, use the smaller of the current
-	 * window size and the window option value.
+	 * If the screen has been split horizontally, use the smaller of
+	 * the current window size and the window option value.
 	 *
 	 * It possible for this calculation to be less than 1; move at
 	 * least one line.
@@ -433,12 +410,10 @@ v_pageup(sp, vp)
  * v_lineup -- [count]^Y
  *	Page up by lines.
  *
- * PUBLIC: int v_lineup __P((SCR *, VICMD *));
+ * PUBLIC: int v_lineup(SCR *, VICMD *);
  */
 int
-v_lineup(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_lineup(SCR *sp, VICMD *vp)
 {
 	/*
 	 * The cursor moves down, staying with its original line, unless it
@@ -455,12 +430,10 @@ v_lineup(sp, vp)
  * v_linedown -- [count]^E
  *	Page down by lines.
  *
- * PUBLIC: int v_linedown __P((SCR *, VICMD *));
+ * PUBLIC: int v_linedown(SCR *, VICMD *);
  */
 int
-v_linedown(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_linedown(SCR *sp, VICMD *vp)
 {
 	/*
 	 * The cursor moves up, staying with its original line, unless it

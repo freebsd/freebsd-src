@@ -122,7 +122,8 @@ static device_method_t acpi_perf_methods[] = {
 	DEVMETHOD(cpufreq_drv_get,	acpi_px_get),
 	DEVMETHOD(cpufreq_drv_type,	acpi_px_type),
 	DEVMETHOD(cpufreq_drv_settings,	acpi_px_settings),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t acpi_perf_driver = {
@@ -135,7 +136,7 @@ static devclass_t acpi_perf_devclass;
 DRIVER_MODULE(acpi_perf, cpu, acpi_perf_driver, acpi_perf_devclass, 0, 0);
 MODULE_DEPEND(acpi_perf, acpi, 1, 1, 1);
 
-MALLOC_DEFINE(M_ACPIPERF, "acpi_perf", "ACPI Performance states");
+static MALLOC_DEFINE(M_ACPIPERF, "acpi_perf", "ACPI Performance states");
 
 static void
 acpi_perf_identify(driver_t *driver, device_t parent)
@@ -266,8 +267,6 @@ acpi_perf_evaluate(device_t dev)
 
 	sc->px_states = malloc(sc->px_count * sizeof(struct acpi_px),
 	    M_ACPIPERF, M_WAITOK | M_ZERO);
-	if (sc->px_states == NULL)
-		goto out;
 
 	/*
 	 * Each state is a package of {CoreFreq, Power, TransitionLatency,

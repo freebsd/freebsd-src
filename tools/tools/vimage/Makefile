@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PROG=	vimage
-LDADD=	-ljail
-DPADD=	${LIBJAIL}
+LIBADD=	jail
 
 WARNS?=	2
 CFLAGS+= -I../../../sys

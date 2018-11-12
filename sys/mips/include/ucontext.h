@@ -39,6 +39,10 @@
 
 #ifndef _LOCORE
 
+#if defined(_KERNEL) && !defined(KLD_MODULE) && !defined(_STANDALONE)
+#include "opt_compat.h"
+#endif
+
 typedef struct	__mcontext {
 	/*
 	 * These fields must match the corresponding fields in struct 
@@ -46,22 +50,50 @@ typedef struct	__mcontext {
 	 * struct sigcontext and ucontext_t at the same time.
 	 */
 	int		mc_onstack;	/* sigstack state to restore */
-	register_t	mc_pc;		/* pc at time of signal */
-	register_t	mc_regs[32];	/* processor regs 0 to 31 */
-        register_t      sr;             /* status register */
-        register_t	mullo, mulhi;	/* mullo and mulhi registers... */
+	__register_t	mc_pc;		/* pc at time of signal */
+	__register_t	mc_regs[32];	/* processor regs 0 to 31 */
+	__register_t	sr;		/* status register */
+	__register_t	mullo, mulhi;	/* mullo and mulhi registers... */
 	int		mc_fpused;	/* fp has been used */
 	f_register_t	mc_fpregs[33];	/* fp regs 0 to 31 and csr */
-	register_t	mc_fpc_eir;	/* fp exception instruction reg */
+	__register_t	mc_fpc_eir;	/* fp exception instruction reg */
 	void		*mc_tls;	/* pointer to TLS area */
-	int	__spare__[8];	/* XXX reserved */ 
+	int		__spare__[8];	/* XXX reserved */ 
 } mcontext_t;
+
+#if (defined(__mips_n32) || defined(__mips_n64)) && defined(COMPAT_FREEBSD32)
+#include <compat/freebsd32/freebsd32_signal.h>
+
+typedef struct __mcontext32 {
+	int		mc_onstack;
+	int32_t		mc_pc;
+	int32_t		mc_regs[32];
+	int32_t		sr;
+	int32_t		mullo, mulhi;
+	int		mc_fpused;
+	int32_t		mc_fpregs[33];
+	int32_t		mc_fpc_eir;
+	int32_t		mc_tls;
+	int		__spare__[8];
+} mcontext32_t;
+
+typedef struct __ucontext32 {
+	sigset_t		uc_sigmask;
+	mcontext32_t		uc_mcontext;
+	uint32_t		uc_link;
+	struct sigaltstack32    uc_stack;
+	uint32_t		uc_flags;
+	uint32_t		__spare__[4];
+} ucontext32_t;
+#endif
 #endif
 
-#if defined(__mips_n64) || defined(__mips_n32)
-#define	SZREG		8
+#ifndef SZREG
+#if defined(__mips_o32)
+#define	SZREG	4
 #else
-#define	SZREG		4
+#define	SZREG	8
+#endif
 #endif
 
 /* offsets into mcontext_t */
@@ -99,7 +131,7 @@ typedef struct	__mcontext {
 #define	UCR_SP		UCTX_REG(29)
 #define	UCR_S8		UCTX_REG(30)
 #define	UCR_RA		UCTX_REG(31)
-#define UCR_SR          UCTX_REG(32)
+#define	UCR_SR		UCTX_REG(32)
 #define	UCR_MDLO	UCTX_REG(33)
 #define	UCR_MDHI	UCTX_REG(34)
 

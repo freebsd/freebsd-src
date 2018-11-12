@@ -44,13 +44,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/rman.h>
 
+#include <machine/_inttypes.h>
 #include <machine/bus.h>
-#include <machine/ocpbus.h>
 #include <machine/resource.h>
 
 #include <opencrypto/cryptodev.h>
 #include "cryptodev_if.h"
 
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/sec/sec.h>
 
 static int	sec_probe(device_t dev);
@@ -135,16 +136,12 @@ static device_method_t sec_methods[] = {
 	DEVMETHOD(device_resume,	sec_resume),
 	DEVMETHOD(device_shutdown,	sec_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* Crypto methods */
 	DEVMETHOD(cryptodev_newsession,	sec_newsession),
 	DEVMETHOD(cryptodev_freesession,sec_freesession),
 	DEVMETHOD(cryptodev_process,	sec_process),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t sec_driver = {
 	"sec",
@@ -153,7 +150,7 @@ static driver_t sec_driver = {
 };
 
 static devclass_t sec_devclass;
-DRIVER_MODULE(sec, ocpbus, sec_driver, sec_devclass, 0, 0);
+DRIVER_MODULE(sec, simplebus, sec_driver, sec_devclass, 0, 0);
 MODULE_DEPEND(sec, crypto, 1, 1, 1);
 
 static struct sec_eu_methods sec_eus[] = {
@@ -201,24 +198,19 @@ static int
 sec_probe(device_t dev)
 {
 	struct sec_softc *sc;
-	device_t parent;
-	uintptr_t devtype;
 	uint64_t id;
-	int error;
 
-	parent = device_get_parent(dev);
-	error = BUS_READ_IVAR(parent, dev, OCPBUS_IVAR_DEVTYPE, &devtype);
-	if (error)
-		return (error);
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
-	if (devtype != OCPBUS_DEVTYPE_SEC)
+	if (!ofw_bus_is_compatible(dev, "fsl,sec2.0"))
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
 
 	sc->sc_rrid = 0;
-	sc->sc_rres = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->sc_rrid,
-	    0ul, ~0ul, SEC_IO_SIZE, RF_ACTIVE);
+	sc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rrid,
+	    RF_ACTIVE);
 
 	if (sc->sc_rres == NULL)
 		return (ENXIO);
@@ -239,8 +231,12 @@ sec_probe(device_t dev)
 		device_set_desc(dev, "Freescale Security Engine 3.0");
 		sc->sc_version = 3;
 		break;
+	case SEC_31_ID:
+		device_set_desc(dev, "Freescale Security Engine 3.1");
+		sc->sc_version = 3;
+		break;
 	default:
-		device_printf(dev, "unknown SEC ID 0x%016llx!\n", id);
+		device_printf(dev, "unknown SEC ID 0x%016"PRIx64"!\n", id);
 		return (ENXIO);
 	}
 
@@ -276,8 +272,8 @@ sec_attach(device_t dev)
 
 	/* Allocate I/O memory for SEC registers */
 	sc->sc_rrid = 0;
-	sc->sc_rres = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->sc_rrid,
-	    0ul, ~0ul, SEC_IO_SIZE, RF_ACTIVE);
+	sc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rrid,
+	    RF_ACTIVE);
 
 	if (sc->sc_rres == NULL) {
 		device_printf(dev, "could not allocate I/O memory!\n");
@@ -295,12 +291,15 @@ sec_attach(device_t dev)
 	if (error)
 		goto fail2;
 
-	sc->sc_sec_irid = 1;
-	error = sec_setup_intr(sc, &sc->sc_sec_ires, &sc->sc_sec_ihand,
-	    &sc->sc_sec_irid, sec_secondary_intr, "secondary");
 
-	if (error)
-		goto fail3;
+	if (sc->sc_version == 3) {
+		sc->sc_sec_irid = 1;
+		error = sec_setup_intr(sc, &sc->sc_sec_ires, &sc->sc_sec_ihand,
+		    &sc->sc_sec_irid, sec_secondary_intr, "secondary");
+
+		if (error)
+			goto fail3;
+	}
 
 	/* Alloc DMA memory for descriptors and link tables */
 	error = sec_alloc_dma_mem(sc, &(sc->sc_desc_dmem),

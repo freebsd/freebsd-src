@@ -44,11 +44,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -379,10 +381,10 @@ epic_attach(device_t dev)
 		device_printf(dev, "unknown card vendor %04xh\n", sc->cardvend);
 
 	/* Do ifmedia setup. */
-	if (mii_phy_probe(dev, &sc->miibus,
-	    epic_ifmedia_upd, epic_ifmedia_sts)) {
-		device_printf(dev, "ERROR! MII without any PHY!?\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->miibus, ifp, epic_ifmedia_upd,
+	    epic_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -446,17 +448,14 @@ epic_release(epic_softc_t *sc)
 	if (sc->tx_flist) {
 		bus_dmamap_unload(sc->ftag, sc->fmap);
 		bus_dmamem_free(sc->ftag, sc->tx_flist, sc->fmap);
-		bus_dmamap_destroy(sc->ftag, sc->fmap);
 	}
 	if (sc->tx_desc) {
 		bus_dmamap_unload(sc->ttag, sc->tmap);
 		bus_dmamem_free(sc->ttag, sc->tx_desc, sc->tmap);
-		bus_dmamap_destroy(sc->ttag, sc->tmap);
 	}
 	if (sc->rx_desc) {
 		bus_dmamap_unload(sc->rtag, sc->rmap);
 		bus_dmamem_free(sc->rtag, sc->rx_desc, sc->rmap);
-		bus_dmamap_destroy(sc->rtag, sc->rmap);
 	}
 	if (sc->mtag)
 		bus_dma_tag_destroy(sc->mtag);
@@ -673,7 +672,7 @@ epic_ifstart_locked(struct ifnet * ifp)
 
 		if (error && error != EFBIG) {
 			m_freem(m0);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			continue;
 		}
 
@@ -682,10 +681,10 @@ epic_ifstart_locked(struct ifnet * ifp)
 		 * recopy packet to a newly allocated mbuf cluster.
 		 */
 		if (error) {
-			m = m_defrag(m0, M_DONTWAIT);
+			m = m_defrag(m0, M_NOWAIT);
 			if (m == NULL) {
 				m_freem(m0);
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				continue;
 			}
 			m_freem(m0);
@@ -695,7 +694,7 @@ epic_ifstart_locked(struct ifnet * ifp)
 			    epic_dma_map_txbuf, flist, 0);
 			if (error) {
 				m_freem(m);
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				continue;
 			}
 		}
@@ -750,7 +749,7 @@ epic_rx_done(epic_softc_t *sc)
 		 * RXE interrupt usually.
 		 */
 		if ((desc->status & 1) == 0) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			desc->status = 0x8000;
 			continue;
 		}
@@ -761,11 +760,11 @@ epic_rx_done(epic_softc_t *sc)
 		m = buf->mbuf;
 
 		/* Try to get an mbuf cluster. */
-		buf->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		buf->mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (buf->mbuf == NULL) {
 			buf->mbuf = m;
 			desc->status = 0x8000;
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			continue;
 		}
 		buf->mbuf->m_len = buf->mbuf->m_pkthdr.len = MCLBYTES;
@@ -777,7 +776,7 @@ epic_rx_done(epic_softc_t *sc)
 		if (error) {
 			buf->mbuf = m;
 			desc->status = 0x8000;
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			continue;
 		}
 
@@ -797,8 +796,8 @@ epic_rx_done(epic_softc_t *sc)
 		(*ifp->if_input)(ifp, m);
 		EPIC_LOCK(sc);
 
-		/* Successfuly received frame */
-		ifp->if_ipackets++;
+		/* Successfully received frame */
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
         }
 	bus_dmamap_sync(sc->rtag, sc->rmap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -840,10 +839,10 @@ epic_tx_done(epic_softc_t *sc)
 
 		/* Check for errors and collisions. */
 		if (status & 0x0001)
-			sc->ifp->if_opackets++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
 		else
-			sc->ifp->if_oerrors++;
-		sc->ifp->if_collisions += (status >> 8) & 0x1F;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
+		if_inc_counter(sc->ifp, IFCOUNTER_COLLISIONS, (status >> 8) & 0x1F);
 #ifdef EPIC_DIAG
 		if ((status & 0x1001) == 0x1001)
 			device_printf(sc->dev,
@@ -883,7 +882,7 @@ epic_intr(void *arg)
 #endif
 		if ((CSR_READ_4(sc, COMMAND) & COMMAND_RXQUEUED) == 0)
 		    CSR_WRITE_4(sc, COMMAND, COMMAND_RXQUEUED);
-		sc->ifp->if_ierrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	    }
 	}
 
@@ -898,7 +897,7 @@ epic_intr(void *arg)
 		      INTSTAT_APE|INTSTAT_DPE|INTSTAT_TXU|INTSTAT_RXE)) {
     	    if (status & (INTSTAT_FATAL|INTSTAT_PMA|INTSTAT_PTA|
 			  INTSTAT_APE|INTSTAT_DPE)) {
-		device_printf(sc->dev, "PCI fatal errors occured: %s%s%s%s\n",
+		device_printf(sc->dev, "PCI fatal errors occurred: %s%s%s%s\n",
 		    (status & INTSTAT_PMA) ? "PMA " : "",
 		    (status & INTSTAT_PTA) ? "PTA " : "",
 		    (status & INTSTAT_APE) ? "APE " : "",
@@ -913,12 +912,12 @@ epic_intr(void *arg)
 #ifdef EPIC_DIAG
 		device_printf(sc->dev, "CRC/Alignment error\n");
 #endif
-		sc->ifp->if_ierrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	    }
 
 	    if (status & INTSTAT_TXU) {
 		epic_tx_underrun(sc);
-		sc->ifp->if_oerrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 	    }
 	}
     }
@@ -983,7 +982,7 @@ epic_timer(void *arg)
 
 		/* If not successful. */
 		if (sc->pending_txs > 0) {
-			ifp->if_oerrors += sc->pending_txs;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, sc->pending_txs);
 
 			/* Reinitialize board. */
 			device_printf(sc->dev, "reinitialization\n");
@@ -1053,8 +1052,7 @@ epic_ifmedia_upd_locked(struct ifnet *ifp)
 		sc->phyid = EPIC_UNKN_PHY;
 
 		/* Lookup selected PHY. */
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-		     miisc = LIST_NEXT(miisc, mii_list)) {
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
 			if (IFM_INST(media) == miisc->mii_inst) {
 				sc->physc = miisc;
 				break;
@@ -1071,12 +1069,12 @@ epic_ifmedia_upd_locked(struct ifnet *ifp)
 			oui = MII_OUI(id1, id2);
 			model = MII_MODEL(id2);
 			switch (oui) {
-			case MII_OUI_QUALSEMI:
-				if (model == MII_MODEL_QUALSEMI_QS6612)
+			case MII_OUI_xxQUALSEMI:
+				if (model == MII_MODEL_xxQUALSEMI_QS6612)
 					sc->phyid = EPIC_QS6612_PHY;
 				break;
-			case MII_OUI_xxALTIMA:
-				if (model == MII_MODEL_xxALTIMA_AC101)
+			case MII_OUI_ALTIMA:
+				if (model == MII_MODEL_ALTIMA_AC101)
 					sc->phyid = EPIC_AC101_PHY;
 				break;
 			case MII_OUI_xxLEVEL1:
@@ -1151,12 +1149,10 @@ epic_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	epic_softc_t *sc;
 	struct mii_data *mii;
-	struct ifmedia *ifm;
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->miibus);
 	EPIC_LOCK(sc);
-	ifm = &mii->mii_media;
 
 	/* Nothing should be selected if interface is down. */
 	if ((ifp->if_flags & IFF_UP) == 0) {
@@ -1496,7 +1492,7 @@ epic_queue_last_packet(epic_softc_t *sc)
 	if ((desc->status & 0x8000) || (buf->mbuf != NULL))
 		return (EBUSY);
 
-	MGETHDR(m0, M_DONTWAIT, MT_DATA);
+	MGETHDR(m0, M_NOWAIT, MT_DATA);
 	if (m0 == NULL)
 		return (ENOBUFS);
 
@@ -1645,7 +1641,7 @@ epic_init_rings(epic_softc_t *sc)
 			return (EFAULT);
 		}
 
-		buf->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		buf->mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (buf->mbuf == NULL) {
 			epic_free_rings(sc);
 			return (ENOBUFS);

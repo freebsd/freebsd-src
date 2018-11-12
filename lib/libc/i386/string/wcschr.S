@@ -75,3 +75,5 @@ no:	popl	%ebx
 	xorl	%eax,%eax
 	ret
 END(wcschr)
+
+	.section .note.GNU-stack,"",%progbits

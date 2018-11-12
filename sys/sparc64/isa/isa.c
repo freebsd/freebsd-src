@@ -116,9 +116,9 @@ isa_init(device_t dev)
 }
 
 static const struct {
-	const char	*name;
+	const char	*const name;
 	uint32_t	id;
-} const ofw_isa_pnp_map[] = {
+} ofw_isa_pnp_map[] = {
 	{ "SUNW,lomh",	0x0000ae4e }, /* SUN0000 */
 	{ "dma",	0x0002d041 }, /* PNP0200 */
 	{ "floppy",	0x0007d041 }, /* PNP0700 */
@@ -126,6 +126,7 @@ static const struct {
 	{ "flashprom",	0x0100ae4e }, /* SUN0001 */
 	{ "parallel",	0x0104d041 }, /* PNP0401 */
 	{ "serial",	0x0105d041 }, /* PNP0501 */
+	{ "su",		0x0105d041 }, /* PNP0501 */
 	{ "i2c",	0x0200ae4e }, /* SUN0002 */
 	{ "rmc-comm",	0x0300ae4e }, /* SUN0003 */
 	{ "kb_ps2",	0x0303d041 }, /* PNP0303 */
@@ -168,7 +169,7 @@ isa_setup_children(device_t dev, phandle_t parent)
 		 */
 		if (strcmp(name, "8042") == 0) {
 			isa_setup_children(dev, node);
-			free(name, M_OFWPROP);
+			OF_prop_free(name);
 			continue;
 		}
 
@@ -178,7 +179,7 @@ isa_setup_children(device_t dev, phandle_t parent)
 		if (ofw_isa_pnp_map[i].name == NULL) {
 			device_printf(dev, "no PnP map entry for node "
 			    "0x%lx: %s\n", (unsigned long)node, name);
-			free(name, M_OFWPROP);
+			OF_prop_free(name);
 			continue;
 		}
 
@@ -229,10 +230,10 @@ isa_setup_children(device_t dev, phandle_t parent)
 				}
 			}
 			if (regidx != NULL)
-				free(regidx, M_OFWPROP);
+				OF_prop_free(regidx);
 		}
 		if (regs != NULL)
-			free(regs, M_OFWPROP);
+			OF_prop_free(regs);
 
 		nintr = OF_getprop_alloc(node, "interrupts", sizeof(*intrs),
 		    (void **)&intrs);
@@ -250,14 +251,14 @@ isa_setup_children(device_t dev, phandle_t parent)
 			bus_set_resource(cdev, SYS_RES_IRQ, i, rintr, 1);
 		}
 		if (intrs != NULL)
-			free(intrs, M_OFWPROP);
+			OF_prop_free(intrs);
 
 		ndrq = OF_getprop_alloc(node, "dma-channel", sizeof(*drqs),
 		    (void **)&drqs);
 		for (i = 0; i < ndrq; i++)
 			bus_set_resource(cdev, SYS_RES_DRQ, i, drqs[i], 1);
 		if (drqs != NULL)
-			free(drqs, M_OFWPROP);
+			OF_prop_free(drqs);
 
 		/*
 		 * Devices using DMA hang off of the `dma' node instead of
@@ -266,19 +267,19 @@ isa_setup_children(device_t dev, phandle_t parent)
 		if (strcmp(name, "dma") == 0)
 			isa_setup_children(dev, node);
 
-		free(name, M_OFWPROP);
+		OF_prop_free(name);
 	}
 }
 
 struct resource *
 isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	/*
 	 * Consider adding a resource definition.
 	 */
 	int passthrough = (device_get_parent(child) != bus);
-	int isdefault = (start == 0UL && end == ~0UL);
+	int isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
 	u_long base, limit;
@@ -357,27 +358,4 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 {
 
 	return (bus_generic_rl_release_resource(bus, child, type, rid, res));
-}
-
-int
-isa_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
-    driver_filter_t *filter, driver_intr_t *intr, void *arg, void **cookiep)
-{
-
-	/*
-	 * Just pass through. This is going to be handled by either
-	 * one of the parent PCI buses or the nexus device.
-	 * The interrupt had been routed before it was added to the
-	 * resource list of the child.
-	 */
-	return (bus_generic_setup_intr(dev, child, irq, flags, filter, intr,
-	    arg, cookiep));
-}
-
-int
-isa_teardown_intr(device_t dev, device_t child, struct resource *irq,
-    void *cookie)
-{
-
-	return (bus_generic_teardown_intr(dev, child, irq, cookie));
 }

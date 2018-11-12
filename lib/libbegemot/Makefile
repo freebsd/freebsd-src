@@ -2,13 +2,12 @@
 
 LIBBEGEMOT_DIR=${.CURDIR}/../../contrib/libbegemot
 
+PACKAGE=lib${LIB}
 .PATH: ${LIBBEGEMOT_DIR}
 
 LIB=	begemot
 SHLIB_MAJOR= 4
 SHLIBDIR?= /lib
-
-# WARNS?=	6
 
 CFLAGS+=	-DUSE_SELECT -DQUADFMT='"ll"'
 SRCS=	rpoll.c

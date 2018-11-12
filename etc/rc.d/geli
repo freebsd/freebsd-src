@@ -11,7 +11,7 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -28,12 +28,12 @@
 #
 
 # PROVIDE: disks
-# REQUIRE: initrandom
 # KEYWORD: nojail
 
 . /etc/rc.subr
 
 name="geli"
+desc="GELI disk encryption"
 start_precmd='[ -n "$(geli_make_list)" ]'
 start_cmd="geli_start"
 stop_cmd="geli_stop"
@@ -53,7 +53,7 @@ geli_start()
 	fi
 
 	for provider in ${devices}; do
-		provider_=`ltr ${provider} '/' '_'`
+		provider_=`ltr ${provider} '/-' '_'`
 
 		eval "flags=\${geli_${provider_}_flags}"
 		if [ -z "${flags}" ]; then

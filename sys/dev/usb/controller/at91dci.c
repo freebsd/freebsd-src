@@ -1,6 +1,4 @@
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2007-2008 Hans Petter Selasky. All rights reserved.
  *
@@ -44,6 +42,9 @@ __FBSDID("$FreeBSD$");
  * endpoints, Function-address and more.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -52,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -80,6 +80,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
+
 #include <dev/usb/controller/at91dci.h>
 
 #define	AT9100_DCI_BUS2SC(bus) \
@@ -89,11 +91,14 @@ __FBSDID("$FreeBSD$");
 #define	AT9100_DCI_PC2SC(pc) \
    AT9100_DCI_BUS2SC(USB_DMATAG_TO_XROOT((pc)->tag_parent)->bus)
 
+#define	AT9100_DCI_THREAD_IRQ \
+  (AT91_UDP_INT_BUS | AT91_UDP_INT_END_BR | AT91_UDP_INT_RXRSM | AT91_UDP_INT_RXSUSP)
+
 #ifdef USB_DEBUG
 static int at91dcidebug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, at91dci, CTLFLAG_RW, 0, "USB at91dci");
-SYSCTL_INT(_hw_usb_at91dci, OID_AUTO, debug, CTLFLAG_RW,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, at91dci, CTLFLAG_RW, 0, "USB at91dci");
+SYSCTL_INT(_hw_usb_at91dci, OID_AUTO, debug, CTLFLAG_RWTUN,
     &at91dcidebug, 0, "at91dci debug level");
 #endif
 
@@ -101,11 +106,11 @@ SYSCTL_INT(_hw_usb_at91dci, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb_bus_methods at91dci_bus_methods;
-struct usb_pipe_methods at91dci_device_bulk_methods;
-struct usb_pipe_methods at91dci_device_ctrl_methods;
-struct usb_pipe_methods at91dci_device_intr_methods;
-struct usb_pipe_methods at91dci_device_isoc_fs_methods;
+static const struct usb_bus_methods at91dci_bus_methods;
+static const struct usb_pipe_methods at91dci_device_bulk_methods;
+static const struct usb_pipe_methods at91dci_device_ctrl_methods;
+static const struct usb_pipe_methods at91dci_device_intr_methods;
+static const struct usb_pipe_methods at91dci_device_isoc_fs_methods;
 
 static at91dci_cmd_t at91dci_setup_rx;
 static at91dci_cmd_t at91dci_data_rx;
@@ -294,17 +299,15 @@ at91dci_set_address(struct at91dci_softc *sc, uint8_t addr)
 }
 
 static uint8_t
-at91dci_setup_rx(struct at91dci_td *td)
+at91dci_setup_rx(struct at91dci_softc *sc, struct at91dci_td *td)
 {
-	struct at91dci_softc *sc;
 	struct usb_device_request req;
 	uint32_t csr;
 	uint32_t temp;
 	uint16_t count;
 
 	/* read out FIFO status */
-	csr = bus_space_read_4(td->io_tag, td->io_hdl,
-	    td->status_reg);
+	csr = AT91_UDP_READ_4(sc, td->status_reg);
 
 	DPRINTFN(5, "csr=0x%08x rem=%u\n", csr, td->remainder);
 
@@ -336,7 +339,7 @@ at91dci_setup_rx(struct at91dci_td *td)
 		goto not_complete;
 	}
 	/* receive data */
-	bus_space_read_multi_1(td->io_tag, td->io_hdl,
+	bus_space_read_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
 	    td->fifo_reg, (void *)&req, sizeof(req));
 
 	/* copy data into real buffer */
@@ -344,9 +347,6 @@ at91dci_setup_rx(struct at91dci_td *td)
 
 	td->offset = sizeof(req);
 	td->remainder = 0;
-
-	/* get pointer to softc */
-	sc = AT9100_DCI_PC2SC(td->pc);
 
 	/* sneak peek the set address */
 	if ((req.bmRequestType == UT_WRITE_DEVICE) &&
@@ -365,8 +365,7 @@ at91dci_setup_rx(struct at91dci_td *td)
 
 	/* write the direction of the control transfer */
 	AT91_CSR_ACK(csr, temp);
-	bus_space_write_4(td->io_tag, td->io_hdl,
-	    td->status_reg, csr);
+	AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 	return (0);			/* complete */
 
 not_complete:
@@ -381,15 +380,13 @@ not_complete:
 	if (temp) {
 		DPRINTFN(5, "clearing 0x%08x\n", temp);
 		AT91_CSR_ACK(csr, temp);
-		bus_space_write_4(td->io_tag, td->io_hdl,
-		    td->status_reg, csr);
+		AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 	}
 	return (1);			/* not complete */
-
 }
 
 static uint8_t
-at91dci_data_rx(struct at91dci_td *td)
+at91dci_data_rx(struct at91dci_softc *sc, struct at91dci_td *td)
 {
 	struct usb_page_search buf_res;
 	uint32_t csr;
@@ -404,8 +401,7 @@ at91dci_data_rx(struct at91dci_td *td)
 	/* check if any of the FIFO banks have data */
 repeat:
 	/* read out FIFO status */
-	csr = bus_space_read_4(td->io_tag, td->io_hdl,
-	    td->status_reg);
+	csr = AT91_UDP_READ_4(sc, td->status_reg);
 
 	DPRINTFN(5, "csr=0x%08x rem=%u\n", csr, td->remainder);
 
@@ -434,8 +430,7 @@ repeat:
 		if (temp) {
 			/* write command */
 			AT91_CSR_ACK(csr, temp);
-			bus_space_write_4(td->io_tag, td->io_hdl,
-			    td->status_reg, csr);
+			AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 		}
 		return (1);		/* not complete */
 	}
@@ -468,7 +463,7 @@ repeat:
 			buf_res.length = count;
 		}
 		/* receive data */
-		bus_space_read_multi_1(td->io_tag, td->io_hdl,
+		bus_space_read_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
 		    td->fifo_reg, buf_res.buffer, buf_res.length);
 
 		/* update counters */
@@ -493,8 +488,7 @@ repeat:
 
 	/* write command */
 	AT91_CSR_ACK(csr, temp);
-	bus_space_write_4(td->io_tag, td->io_hdl,
-	    td->status_reg, csr);
+	AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 
 	/*
 	 * NOTE: We may have to delay a little bit before
@@ -516,7 +510,7 @@ repeat:
 }
 
 static uint8_t
-at91dci_data_tx(struct at91dci_td *td)
+at91dci_data_tx(struct at91dci_softc *sc, struct at91dci_td *td)
 {
 	struct usb_page_search buf_res;
 	uint32_t csr;
@@ -529,8 +523,7 @@ at91dci_data_tx(struct at91dci_td *td)
 repeat:
 
 	/* read out FIFO status */
-	csr = bus_space_read_4(td->io_tag, td->io_hdl,
-	    td->status_reg);
+	csr = AT91_UDP_READ_4(sc, td->status_reg);
 
 	DPRINTFN(5, "csr=0x%08x rem=%u\n", csr, td->remainder);
 
@@ -550,8 +543,7 @@ repeat:
 		if (temp) {
 			/* write command */
 			AT91_CSR_ACK(csr, temp);
-			bus_space_write_4(td->io_tag, td->io_hdl,
-			    td->status_reg, csr);
+			AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 		}
 		return (1);		/* not complete */
 	} else {
@@ -567,7 +559,6 @@ repeat:
 		count = td->remainder;
 	}
 	while (count > 0) {
-
 		usbd_get_page(td->pc, td->offset, &buf_res);
 
 		/* get correct length */
@@ -575,7 +566,7 @@ repeat:
 			buf_res.length = count;
 		}
 		/* transmit data */
-		bus_space_write_multi_1(td->io_tag, td->io_hdl,
+		bus_space_write_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
 		    td->fifo_reg, buf_res.buffer, buf_res.length);
 
 		/* update counters */
@@ -586,8 +577,7 @@ repeat:
 
 	/* write command */
 	AT91_CSR_ACK(csr, temp);
-	bus_space_write_4(td->io_tag, td->io_hdl,
-	    td->status_reg, csr);
+	AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 
 	/* check remainder */
 	if (td->remainder == 0) {
@@ -603,19 +593,13 @@ repeat:
 }
 
 static uint8_t
-at91dci_data_tx_sync(struct at91dci_td *td)
+at91dci_data_tx_sync(struct at91dci_softc *sc, struct at91dci_td *td)
 {
-	struct at91dci_softc *sc;
 	uint32_t csr;
 	uint32_t temp;
 
-#if 0
-repeat:
-#endif
-
 	/* read out FIFO status */
-	csr = bus_space_read_4(td->io_tag, td->io_hdl,
-	    td->status_reg);
+	csr = AT91_UDP_READ_4(sc, td->status_reg);
 
 	DPRINTFN(5, "csr=0x%08x\n", csr);
 
@@ -635,8 +619,7 @@ repeat:
 	if (!(csr & AT91_UDP_CSR_TXCOMP)) {
 		goto not_complete;
 	}
-	sc = AT9100_DCI_PC2SC(td->pc);
-	if (sc->sc_dv_addr != 0xFF) {
+	if (td->status_reg == AT91_UDP_CSR(0) && sc->sc_dv_addr != 0xFF) {
 		/*
 		 * The AT91 has a special requirement with regard to
 		 * setting the address and that is to write the new
@@ -646,8 +629,7 @@ repeat:
 	}
 	/* write command */
 	AT91_CSR_ACK(csr, temp);
-	bus_space_write_4(td->io_tag, td->io_hdl,
-	    td->status_reg, csr);
+	AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 
 	return (0);			/* complete */
 
@@ -655,24 +637,26 @@ not_complete:
 	if (temp) {
 		/* write command */
 		AT91_CSR_ACK(csr, temp);
-		bus_space_write_4(td->io_tag, td->io_hdl,
-		    td->status_reg, csr);
+		AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 	}
 	return (1);			/* not complete */
 }
 
-static uint8_t
+static void
 at91dci_xfer_do_fifo(struct usb_xfer *xfer)
 {
-	struct at91dci_softc *sc;
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 	struct at91dci_td *td;
 	uint8_t temp;
 
 	DPRINTFN(9, "\n");
 
 	td = xfer->td_transfer_cache;
+	if (td == NULL)
+		return;
+
 	while (1) {
-		if ((td->func) (td)) {
+		if ((td->func) (sc, td)) {
 			/* operation in progress */
 			break;
 		}
@@ -702,10 +686,9 @@ at91dci_xfer_do_fifo(struct usb_xfer *xfer)
 		if (temp & 1)
 			td->fifo_bank = 1;
 	}
-	return (1);			/* not complete */
+	return;
 
 done:
-	sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 	temp = (xfer->endpointno & UE_ADDR);
 
 	/* update FIFO bank flag and multi buffer */
@@ -716,23 +699,42 @@ done:
 	}
 
 	/* compute all actual lengths */
+	xfer->td_transfer_cache = NULL;
+	sc->sc_xfer_complete = 1;
+}
 
-	at91dci_standard_done(xfer);
+static uint8_t
+at91dci_xfer_do_complete(struct usb_xfer *xfer)
+{
+	struct at91dci_td *td;
 
-	return (0);			/* complete */
+	DPRINTFN(9, "\n");
+	td = xfer->td_transfer_cache;
+	if (td == NULL) {
+		/* compute all actual lengths */
+		at91dci_standard_done(xfer);
+		return(1);
+	}
+	return (0);
 }
 
 static void
-at91dci_interrupt_poll(struct at91dci_softc *sc)
+at91dci_interrupt_poll_locked(struct at91dci_softc *sc)
 {
 	struct usb_xfer *xfer;
 
+	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry)
+		at91dci_xfer_do_fifo(xfer);
+}
+
+static void
+at91dci_interrupt_complete_locked(struct at91dci_softc *sc)
+{
+	struct usb_xfer *xfer;
 repeat:
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
-		if (!at91dci_xfer_do_fifo(xfer)) {
-			/* queue has been modified */
+		if (at91dci_xfer_do_complete(xfer))
 			goto repeat;
-		}
 	}
 }
 
@@ -741,7 +743,6 @@ at91dci_vbus_interrupt(struct at91dci_softc *sc, uint8_t is_on)
 {
 	DPRINTFN(5, "vbus = %u\n", is_on);
 
-	USB_BUS_LOCK(&sc->sc_bus);
 	if (is_on) {
 		if (!sc->sc_flags.status_vbus) {
 			sc->sc_flags.status_vbus = 1;
@@ -761,23 +762,49 @@ at91dci_vbus_interrupt(struct at91dci_softc *sc, uint8_t is_on)
 			at91dci_root_intr(sc);
 		}
 	}
-	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
-void
-at91dci_interrupt(struct at91dci_softc *sc)
+int
+at91dci_filter_interrupt(void *arg)
 {
+	struct at91dci_softc *sc = arg;
+	int retval = FILTER_HANDLED;
 	uint32_t status;
 
-	USB_BUS_LOCK(&sc->sc_bus);
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
 
 	status = AT91_UDP_READ_4(sc, AT91_UDP_ISR);
 	status &= AT91_UDP_INT_DEFAULT;
 
-	if (!status) {
-		USB_BUS_UNLOCK(&sc->sc_bus);
-		return;
-	}
+	if (status & AT9100_DCI_THREAD_IRQ)
+		retval = FILTER_SCHEDULE_THREAD;
+
+	/* acknowledge interrupts */
+	AT91_UDP_WRITE_4(sc, AT91_UDP_ICR, status & ~AT9100_DCI_THREAD_IRQ);
+
+	/* poll FIFOs, if any */
+	at91dci_interrupt_poll_locked(sc);
+
+	if (sc->sc_xfer_complete != 0)
+		retval = FILTER_SCHEDULE_THREAD;
+
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
+
+	return (retval);
+}
+
+void
+at91dci_interrupt(void *arg)
+{
+	struct at91dci_softc *sc = arg;
+	uint32_t status;
+
+	USB_BUS_LOCK(&sc->sc_bus);
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
+
+	status = AT91_UDP_READ_4(sc, AT91_UDP_ISR);
+	status &= AT9100_DCI_THREAD_IRQ;
+
 	/* acknowledge interrupts */
 
 	AT91_UDP_WRITE_4(sc, AT91_UDP_ICR, status);
@@ -837,14 +864,12 @@ at91dci_interrupt(struct at91dci_softc *sc)
 		/* complete root HUB interrupt endpoint */
 		at91dci_root_intr(sc);
 	}
-	/* check for any endpoint interrupts */
 
-	if (status & AT91_UDP_INT_EPS) {
-
-		DPRINTFN(5, "real endpoint interrupt 0x%08x\n", status);
-
-		at91dci_interrupt_poll(sc);
+	if (sc->sc_xfer_complete != 0) {
+		sc->sc_xfer_complete = 0;
+		at91dci_interrupt_complete_locked(sc);
 	}
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
@@ -894,10 +919,12 @@ at91dci_setup_standard_chain(struct usb_xfer *xfer)
 
 	/* setup temp */
 
+	temp.pc = NULL;
 	temp.td = NULL;
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
-	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
+	temp.setup_alt_next = xfer->flags_int.short_frames_ok ||
+	    xfer->flags_int.isochronous_xfr;
 	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
@@ -1047,12 +1074,17 @@ at91dci_timeout(void *arg)
 static void
 at91dci_start_standard_chain(struct usb_xfer *xfer)
 {
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
+
 	DPRINTFN(9, "\n");
 
-	/* poll one time */
-	if (at91dci_xfer_do_fifo(xfer)) {
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
 
-		struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
+	/* poll one time */
+	at91dci_xfer_do_fifo(xfer);
+
+	if (at91dci_xfer_do_complete(xfer) == 0) {
+
 		uint8_t ep_no = xfer->endpointno & UE_ADDR;
 
 		/*
@@ -1073,6 +1105,7 @@ at91dci_start_standard_chain(struct usb_xfer *xfer)
 			    &at91dci_timeout, xfer->timeout);
 		}
 	}
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 }
 
 static void
@@ -1123,7 +1156,8 @@ at91dci_standard_done_sub(struct usb_xfer *xfer)
 		}
 		/* Check for short transfer */
 		if (len > 0) {
-			if (xfer->flags_int.short_frames_ok) {
+			if (xfer->flags_int.short_frames_ok ||
+			    xfer->flags_int.isochronous_xfr) {
 				/* follow alt next */
 				if (td->alt_next) {
 					td = td->obj_next;
@@ -1213,6 +1247,8 @@ at91dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 	DPRINTFN(2, "xfer=%p, endpoint=%p, error=%d\n",
 	    xfer, xfer->endpoint, error);
 
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
+
 	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 		ep_no = (xfer->endpointno & UE_ADDR);
 
@@ -1221,12 +1257,21 @@ at91dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 
 		DPRINTFN(15, "disable interrupts on endpoint %d\n", ep_no);
 	}
+
 	/* dequeue transfer and start next transfer */
 	usbd_transfer_done(xfer, error);
+
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 }
 
 static void
-at91dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+at91dci_xfer_stall(struct usb_xfer *xfer)
+{
+	at91dci_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+at91dci_set_stall(struct usb_device *udev,
     struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct at91dci_softc *sc;
@@ -1237,17 +1282,16 @@ at91dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	DPRINTFN(5, "endpoint=%p\n", ep);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		at91dci_device_done(xfer, USB_ERR_STALLED);
-	}
 	/* set FORCESTALL */
 	sc = AT9100_DCI_BUS2SC(udev->bus);
+
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
 	csr_reg = (ep->edesc->bEndpointAddress & UE_ADDR);
 	csr_reg = AT91_UDP_CSR(csr_reg);
 	csr_val = AT91_UDP_READ_4(sc, csr_reg);
 	AT91_CSR_ACK(csr_val, AT91_UDP_CSR_FORCESTALL);
 	AT91_UDP_WRITE_4(sc, csr_reg, csr_val);
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 }
 
 static void
@@ -1264,6 +1308,9 @@ at91dci_clear_stall_sub(struct at91dci_softc *sc, uint8_t ep_no,
 		/* clearing stall is not needed */
 		return;
 	}
+
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
+
 	/* compute CSR register offset */
 	csr_reg = AT91_UDP_CSR(ep_no);
 
@@ -1283,7 +1330,7 @@ at91dci_clear_stall_sub(struct at91dci_softc *sc, uint8_t ep_no,
 
 	/*
 	 * NOTE: One would assume that a FIFO reset would release the
-	 * FIFO banks aswell, but it doesn't! We have to do this
+	 * FIFO banks as well, but it doesn't! We have to do this
 	 * manually!
 	 */
 
@@ -1344,6 +1391,8 @@ at91dci_clear_stall_sub(struct at91dci_softc *sc, uint8_t ep_no,
 
 	/* enable endpoint */
 	AT91_UDP_WRITE_4(sc, AT91_UDP_CSR(ep_no), csr_val);
+
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 }
 
 static void
@@ -1461,16 +1510,16 @@ at91dci_uninit(struct at91dci_softc *sc)
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
-void
+static void
 at91dci_suspend(struct at91dci_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
-void
+static void
 at91dci_resume(struct at91dci_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
 static void
@@ -1479,7 +1528,10 @@ at91dci_do_poll(struct usb_bus *bus)
 	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(bus);
 
 	USB_BUS_LOCK(&sc->sc_bus);
-	at91dci_interrupt_poll(sc);
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
+	at91dci_interrupt_poll_locked(sc);
+	at91dci_interrupt_complete_locked(sc);
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
@@ -1512,7 +1564,7 @@ at91dci_device_bulk_start(struct usb_xfer *xfer)
 	at91dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods at91dci_device_bulk_methods =
+static const struct usb_pipe_methods at91dci_device_bulk_methods =
 {
 	.open = at91dci_device_bulk_open,
 	.close = at91dci_device_bulk_close,
@@ -1549,7 +1601,7 @@ at91dci_device_ctrl_start(struct usb_xfer *xfer)
 	at91dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods at91dci_device_ctrl_methods =
+static const struct usb_pipe_methods at91dci_device_ctrl_methods =
 {
 	.open = at91dci_device_ctrl_open,
 	.close = at91dci_device_ctrl_close,
@@ -1586,7 +1638,7 @@ at91dci_device_intr_start(struct usb_xfer *xfer)
 	at91dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods at91dci_device_intr_methods =
+static const struct usb_pipe_methods at91dci_device_intr_methods =
 {
 	.open = at91dci_device_intr_open,
 	.close = at91dci_device_intr_close,
@@ -1668,7 +1720,7 @@ at91dci_device_isoc_fs_start(struct usb_xfer *xfer)
 	at91dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods at91dci_device_isoc_fs_methods =
+static const struct usb_pipe_methods at91dci_device_isoc_fs_methods =
 {
 	.open = at91dci_device_isoc_fs_open,
 	.close = at91dci_device_isoc_fs_close,
@@ -1688,23 +1740,12 @@ static const struct usb_device_descriptor at91dci_devd = {
 	.bcdUSB = {0x00, 0x02},
 	.bDeviceClass = UDCLASS_HUB,
 	.bDeviceSubClass = UDSUBCLASS_HUB,
-	.bDeviceProtocol = UDPROTO_HSHUBSTT,
+	.bDeviceProtocol = UDPROTO_FSHUB,
 	.bMaxPacketSize = 64,
 	.bcdDevice = {0x00, 0x01},
 	.iManufacturer = 1,
 	.iProduct = 2,
 	.bNumConfigurations = 1,
-};
-
-static const struct usb_device_qualifier at91dci_odevd = {
-	.bLength = sizeof(struct usb_device_qualifier),
-	.bDescriptorType = UDESC_DEVICE_QUALIFIER,
-	.bcdUSB = {0x00, 0x02},
-	.bDeviceClass = UDCLASS_HUB,
-	.bDeviceSubClass = UDSUBCLASS_HUB,
-	.bDeviceProtocol = UDPROTO_FSHUB,
-	.bMaxPacketSize0 = 0,
-	.bNumConfigurations = 0,
 };
 
 static const struct at91dci_config_desc at91dci_confd = {
@@ -1724,7 +1765,7 @@ static const struct at91dci_config_desc at91dci_confd = {
 		.bNumEndpoints = 1,
 		.bInterfaceClass = UICLASS_HUB,
 		.bInterfaceSubClass = UISUBCLASS_HUB,
-		.bInterfaceProtocol = UIPROTO_HSHUBSTT,
+		.bInterfaceProtocol = 0,
 	},
 	.endpd = {
 		.bLength = sizeof(struct usb_endpoint_descriptor),
@@ -1736,31 +1777,24 @@ static const struct at91dci_config_desc at91dci_confd = {
 	},
 };
 
+#define	HSETW(ptr, val) ptr = { (uint8_t)(val), (uint8_t)((val) >> 8) }
+
 static const struct usb_hub_descriptor_min at91dci_hubd = {
 	.bDescLength = sizeof(at91dci_hubd),
 	.bDescriptorType = UDESC_HUB,
 	.bNbrPorts = 1,
-	.wHubCharacteristics[0] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) & 0xFF,
-	.wHubCharacteristics[1] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) >> 8,
+	HSETW(.wHubCharacteristics, (UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL)),
 	.bPwrOn2PwrGood = 50,
 	.bHubContrCurrent = 0,
 	.DeviceRemovable = {0},		/* port is removable */
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_VENDOR \
-  'A', 0, 'T', 0, 'M', 0, 'E', 0, 'L', 0
+  "A\0T\0M\0E\0L"
 
 #define	STRING_PRODUCT \
-  'D', 0, 'C', 0, 'I', 0, ' ', 0, 'R', 0, \
-  'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
-  'U', 0, 'B', 0,
+  "D\0C\0I\0 \0R\0o\0o\0t\0 \0H\0U\0B"
 
-USB_MAKE_STRING_DESC(STRING_LANG, at91dci_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, at91dci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, at91dci_product);
 
@@ -1962,8 +1996,8 @@ tr_handle_get_descriptor:
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			len = sizeof(at91dci_langtab);
-			ptr = (const void *)&at91dci_langtab;
+			len = sizeof(usb_string_lang_en);
+			ptr = (const void *)&usb_string_lang_en;
 			goto tr_valid;
 
 		case 1:		/* Vendor */
@@ -2134,7 +2168,7 @@ tr_handle_get_port_status:
 		if (sc->sc_flags.status_vbus &&
 		    sc->sc_flags.status_bus_reset) {
 			/* reset endpoint flags */
-			bzero(sc->sc_ep_flags, sizeof(sc->sc_ep_flags));
+			memset(sc->sc_ep_flags, 0, sizeof(sc->sc_ep_flags));
 		}
 	}
 	if (sc->sc_flags.change_suspend) {
@@ -2252,8 +2286,6 @@ at91dci_xfer_setup(struct usb_setup_params *parm)
 			td = USB_ADD_BYTES(parm->buf, parm->size[0]);
 
 			/* init TD */
-			td->io_tag = sc->sc_io_tag;
-			td->io_hdl = sc->sc_io_hdl;
 			td->max_packet_size = xfer->max_packet_size;
 			td->status_reg = AT91_UDP_CSR(ep_no);
 			td->fifo_reg = AT91_UDP_FDR(ep_no);
@@ -2289,10 +2321,6 @@ at91dci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
-			/* not supported */
-			return;
-		}
 		if (udev->speed != USB_SPEED_FULL) {
 			/* not supported */
 			return;
@@ -2317,14 +2345,36 @@ at91dci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 	}
 }
 
-struct usb_bus_methods at91dci_bus_methods =
+static void
+at91dci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
+{
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(bus);
+
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+		at91dci_suspend(sc);
+		break;
+	case USB_HW_POWER_SHUTDOWN:
+		at91dci_uninit(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		at91dci_resume(sc);
+		break;
+	default:
+		break;
+	}
+}
+
+static const struct usb_bus_methods at91dci_bus_methods =
 {
 	.endpoint_init = &at91dci_ep_init,
 	.xfer_setup = &at91dci_xfer_setup,
 	.xfer_unsetup = &at91dci_xfer_unsetup,
 	.get_hw_ep_profile = &at91dci_get_hw_ep_profile,
 	.set_stall = &at91dci_set_stall,
+	.xfer_stall = &at91dci_xfer_stall,
 	.clear_stall = &at91dci_clear_stall,
 	.roothub_exec = &at91dci_roothub_exec,
 	.xfer_poll = &at91dci_do_poll,
+	.set_hw_power_sleep = &at91dci_set_hw_power_sleep,
 };

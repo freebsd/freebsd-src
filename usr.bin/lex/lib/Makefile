@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
+
+.PATH:	${.CURDIR}/../../../contrib/flex
 
 LIB=    ln
 SRCS=   libmain.c libyywrap.c

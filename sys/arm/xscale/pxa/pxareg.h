@@ -16,7 +16,7 @@
  *    must display the following acknowledgement:
  *	This product includes software developed for the NetBSD Project by
  *	Genetec Corporation.
- * 4. The name of Genetec Corporation may not be used to endorse or 
+ * 4. The name of Genetec Corporation may not be used to endorse or
  *    promote products derived from this software without specific prior
  *    written permission.
  *
@@ -46,9 +46,6 @@
  */
 #ifndef _ARM_XSCALE_PXAREG_H_
 #define _ARM_XSCALE_PXAREG_H_
-
-/* Borrow some register definitions from sa11x0 */
-#include <arm/sa11x0/sa11x0_reg.h>
 
 #ifndef _LOCORE
 #include <sys/types.h>		/* for uint32_t */
@@ -139,7 +136,7 @@
 /* width of interrupt controller */
 #define ICU_LEN			32   /* but [0..7,15,16] is not used */
 #define ICU_INT_HWMASK		0xffffff00
-#define PXA250_IRQ_MIN 8	/* 0..7 are not used by integrated 
+#define PXA250_IRQ_MIN 8	/* 0..7 are not used by integrated
 				   peripherals */
 #define PXA270_IRQ_MIN 0
 

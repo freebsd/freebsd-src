@@ -1,7 +1,9 @@
 # $FreeBSD$
 
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/${PROG}
 PROG=	FreeBSD_version
-NO_MAN=
+MAN=
 
 install:
 

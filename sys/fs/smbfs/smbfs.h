@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2001, Boris Popov
+ * Copyright (c) 2000-2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,12 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    This product includes software developed by Boris Popov.
- * 4. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -67,10 +61,6 @@ struct smbfs_args {
 
 #include <sys/_sx.h>
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_SMBFSMNT);
-#endif
-
 struct smbnode;
 struct smb_share;
 struct u_cred;
@@ -85,16 +75,13 @@ struct smbmount {
 	mode_t 			sm_dir_mode;
 	struct mount * 		sm_mp;
 	struct smbnode *	sm_root;
+	struct smb_dev *	sm_dev;
 	struct ucred *		sm_owner;
-	u_int			sm_flags;
+	uint64_t		sm_flags;
 	long			sm_nextino;
 	struct smb_share * 	sm_share;
-/*	struct simplelock	sm_npslock;*/
 	struct smbnode *	sm_npstack[SMBFS_MAXPATHCOMP];
 	int			sm_caseopt;
-	struct sx		sm_hashlock;
-	LIST_HEAD(smbnode_hashhead, smbnode) *sm_hash;
-	u_long			sm_hashlen;
 	int			sm_didrele;
 };
 

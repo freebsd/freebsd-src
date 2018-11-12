@@ -18,7 +18,7 @@
  *	inflate isn't quite reentrant yet...
  *	error-handling is a mess...
  *	so is the rest...
- *	tidy up unnecesary includes
+ *	tidy up unnecessary includes
  */
 
 #include <sys/cdefs.h>
@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
@@ -69,7 +70,7 @@ static int
 exec_gzip_imgact(imgp)
 	struct image_params *imgp;
 {
-	int             error, error2 = 0;
+	int             error;
 	const u_char   *p = (const u_char *) imgp->image_header;
 	struct imgact_gzip igz;
 	struct inflate  infl;
@@ -135,22 +136,17 @@ exec_gzip_imgact(imgp)
 			VM_PROT_READ|VM_PROT_EXECUTE,0);
 	}
 
-	if (igz.inbuf) {
-		error2 =
-			vm_map_remove(kernel_map, (vm_offset_t) igz.inbuf,
-			    (vm_offset_t) igz.inbuf + PAGE_SIZE);
-	}
-	if (igz.error || error || error2) {
+	if (igz.inbuf)
+		kmap_free_wakeup(exec_map, (vm_offset_t)igz.inbuf, PAGE_SIZE);
+	if (igz.error || error) {
 		printf("Output=%lu ", igz.output);
-		printf("Inflate_error=%d igz.error=%d error2=%d where=%d\n",
-		       error, igz.error, error2, igz.where);
+		printf("Inflate_error=%d igz.error=%d where=%d\n",
+		       error, igz.error, igz.where);
 	}
 	if (igz.error)
 		return igz.error;
 	if (error)
 		return ENOEXEC;
-	if (error2)
-		return error2;
 	return 0;
 }
 
@@ -165,7 +161,7 @@ do_aout_hdr(struct imgact_gzip * gz)
 	 * Set file/virtual offset based on a.out variant. We do two cases:
 	 * host byte order and network byte order (for NetBSD compatibility)
 	 */
-	switch ((int) (gz->a_out.a_magic & 0xffff)) {
+	switch ((int) (gz->a_out.a_midmag & 0xffff)) {
 	case ZMAGIC:
 		gz->virtual_offset = 0;
 		if (gz->a_out.a_text) {
@@ -181,7 +177,7 @@ do_aout_hdr(struct imgact_gzip * gz)
 		break;
 	default:
 		/* NetBSD compatibility */
-		switch ((int) (ntohl(gz->a_out.a_magic) & 0xffff)) {
+		switch ((int) (ntohl(gz->a_out.a_midmag) & 0xffff)) {
 		case ZMAGIC:
 		case QMAGIC:
 			gz->virtual_offset = PAGE_SIZE;
@@ -216,7 +212,9 @@ do_aout_hdr(struct imgact_gzip * gz)
 
 	/* data + bss can't exceed rlimit */
 	    gz->a_out.a_data + gz->bss_size >
-	    lim_cur(gz->ip->proc, RLIMIT_DATA)) {
+	    lim_cur_proc(gz->ip->proc, RLIMIT_DATA) ||
+	    racct_set(gz->ip->proc, RACCT_DATA,
+	    gz->a_out.a_data + gz->bss_size) != 0) {
 		PROC_UNLOCK(gz->ip->proc);
 		gz->where = __LINE__;
 		return (ENOMEM);
@@ -271,12 +269,9 @@ do_aout_hdr(struct imgact_gzip * gz)
 		 */
 		vmaddr = gz->virtual_offset + gz->a_out.a_text + 
 			gz->a_out.a_data;
-		error = vm_map_find(&vmspace->vm_map,
-				NULL,
-				0,
-				&vmaddr, 
-				gz->bss_size,
-				FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
+		error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr,
+		    gz->bss_size, 0, VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL,
+		    0);
 		if (error) {
 			gz->where = __LINE__;
 			return (error);
@@ -311,18 +306,11 @@ NextByte(void *vp)
 	if (igz->inbuf && igz->idx < (igz->offset + PAGE_SIZE)) {
 		return igz->inbuf[(igz->idx++) - igz->offset];
 	}
-	if (igz->inbuf) {
-		error = vm_map_remove(kernel_map, (vm_offset_t) igz->inbuf,
-			    (vm_offset_t) igz->inbuf + PAGE_SIZE);
-		if (error) {
-			igz->where = __LINE__;
-			igz->error = error;
-			return GZ_EOF;
-		}
-	}
+	if (igz->inbuf)
+		kmap_free_wakeup(exec_map, (vm_offset_t)igz->inbuf, PAGE_SIZE);
 	igz->offset = igz->idx & ~PAGE_MASK;
 
-	error = vm_mmap(kernel_map,	/* map */
+	error = vm_mmap(exec_map,	/* map */
 			(vm_offset_t *) & igz->inbuf,	/* address */
 			PAGE_SIZE,	/* size */
 			VM_PROT_READ,	/* protection */

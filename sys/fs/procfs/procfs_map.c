@@ -43,11 +43,11 @@
 #include <sys/filedesc.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sbuf.h>
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 #include <sys/sysent.h>
 #endif
 #include <sys/uio.h>
@@ -83,10 +83,10 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	vm_map_entry_t entry, tmp_entry;
 	struct vnode *vp;
 	char *fullpath, *freepath;
-	struct uidinfo *uip;
-	int error, vfslocked;
+	struct ucred *cred;
+	int error;
 	unsigned int last_timestamp;
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 	int wrap32 = 0;
 #endif
 
@@ -99,9 +99,9 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
 
-#ifdef COMPAT_IA32
-        if (curproc->p_sysent->sv_flags & SV_ILP32) {
-                if (!(p->p_sysent->sv_flags & SV_ILP32))
+#ifdef COMPAT_FREEBSD32
+        if (SV_CURPROC_FLAG(SV_ILP32)) {
+                if (!(SV_PROC_FLAG(p, SV_ILP32)))
                         return (EOPNOTSUPP);
                 wrap32 = 1;
         }
@@ -132,11 +132,11 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		privateresident = 0;
 		obj = entry->object.vm_object;
 		if (obj != NULL) {
-			VM_OBJECT_LOCK(obj);
+			VM_OBJECT_RLOCK(obj);
 			if (obj->shadow_count == 1)
 				privateresident = obj->resident_page_count;
 		}
-		uip = (entry->uip) ? entry->uip : (obj ? obj->uip : NULL);
+		cred = (entry->cred) ? entry->cred : (obj ? obj->cred : NULL);
 
 		resident = 0;
 		addr = entry->start;
@@ -148,9 +148,9 @@ procfs_doprocmap(PFS_FILL_ARGS)
 
 		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
 			if (tobj != obj)
-				VM_OBJECT_LOCK(tobj);
+				VM_OBJECT_RLOCK(tobj);
 			if (lobj != obj)
-				VM_OBJECT_UNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 			lobj = tobj;
 		}
 		last_timestamp = map->timestamp;
@@ -159,11 +159,11 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		freepath = NULL;
 		fullpath = "-";
 		if (lobj) {
+			vp = NULL;
 			switch (lobj->type) {
 			default:
 			case OBJT_DEFAULT:
 				type = "default";
-				vp = NULL;
 				break;
 			case OBJT_VNODE:
 				type = "vnode";
@@ -171,27 +171,31 @@ procfs_doprocmap(PFS_FILL_ARGS)
 				vref(vp);
 				break;
 			case OBJT_SWAP:
-				type = "swap";
-				vp = NULL;
+				if ((lobj->flags & OBJ_TMPFS_NODE) != 0) {
+					type = "vnode";
+					if ((lobj->flags & OBJ_TMPFS) != 0) {
+						vp = lobj->un_pager.swp.swp_tmpfs;
+						vref(vp);
+					}
+				} else {
+					type = "swap";
+				}
 				break;
 			case OBJT_SG:
 			case OBJT_DEVICE:
 				type = "device";
-				vp = NULL;
 				break;
 			}
 			if (lobj != obj)
-				VM_OBJECT_UNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 
 			flags = obj->flags;
 			ref_count = obj->ref_count;
 			shadow_count = obj->shadow_count;
-			VM_OBJECT_UNLOCK(obj);
+			VM_OBJECT_RUNLOCK(obj);
 			if (vp != NULL) {
 				vn_fullpath(td, vp, &fullpath, &freepath);
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				vrele(vp);
-				VFS_UNLOCK_GIANT(vfslocked);
 			}
 		} else {
 			type = "none";
@@ -209,7 +213,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		    "0x%lx 0x%lx %d %d %p %s%s%s %d %d 0x%x %s %s %s %s %s %d\n",
 			(u_long)e_start, (u_long)e_end,
 			resident, privateresident,
-#ifdef COMPAT_IA32
+#ifdef COMPAT_FREEBSD32
 			wrap32 ? NULL : obj,	/* Hide 64 bit value */
 #else
 			obj,
@@ -221,7 +225,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 			(e_eflags & MAP_ENTRY_COW)?"COW":"NCOW",
 			(e_eflags & MAP_ENTRY_NEEDS_COPY)?"NC":"NNC",
 			type, fullpath,
-			uip ? "CH":"NCH", uip ? uip->ui_uid : -1);
+			cred ? "CH":"NCH", cred ? cred->cr_ruid : -1);
 
 		if (freepath != NULL)
 			free(freepath, M_TEMP);

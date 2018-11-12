@@ -39,8 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "devinfo.h"
 
-int	rflag;
-int	vflag;
+static int	rflag;
+static int	vflag;
 
 static void	print_resource(struct devinfo_res *);
 static int	print_device_matching_resource(struct devinfo_res *, void *);
@@ -66,9 +66,9 @@ print_resource(struct devinfo_res *res)
 
 	rman = devinfo_handle_to_rman(res->dr_rman);
 	hexmode =  (rman->dm_size > 1000) || (rman->dm_size == 0);
-	printf(hexmode ? "0x%lx" : "%lu", res->dr_start);
+	printf(hexmode ? "0x%jx" : "%ju", res->dr_start);
 	if (res->dr_size > 1)
-		printf(hexmode ? "-0x%lx" : "-%lu",
+		printf(hexmode ? "-0x%jx" : "-%ju",
 		    res->dr_start + res->dr_size - 1);
 }
 
@@ -137,7 +137,7 @@ print_device(struct devinfo_dev *dev, void *arg)
 	struct indent_arg	ia;
 	int			i, indent;
 
-	if (vflag || (dev->dd_name[0] != 0 && dev->dd_state >= DIS_ATTACHED)) {
+	if (vflag || (dev->dd_name[0] != 0 && dev->dd_state >= DS_ATTACHED)) {
 		indent = (int)(intptr_t)arg;
 		for (i = 0; i < indent; i++)
 			printf(" ");
@@ -146,6 +146,10 @@ print_device(struct devinfo_dev *dev, void *arg)
 			printf(" pnpinfo %s", dev->dd_pnpinfo);
 		if (vflag && *dev->dd_location)
 			printf(" at %s", dev->dd_location);
+		if (!(dev->dd_flags & DF_ENABLED))
+			printf(" (disabled)");
+		else if (dev->dd_flags & DF_SUSPENDED)
+			printf(" (suspended)");
 		printf("\n");
 		if (rflag) {
 			ia.indent = indent + 4;

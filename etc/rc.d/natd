@@ -10,7 +10,8 @@
 . /etc/network.subr
 
 name="natd"
-rcvar=`set_rcvar`
+desc="Network Address Translation daemon"
+rcvar="natd_enable"
 command="/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 start_precmd="natd_precmd"

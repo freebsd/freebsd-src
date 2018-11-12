@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 11, 2009
+.Dd April 9, 2015
 .Dt NEWFS_MSDOS 8
 .Os
 .Sh NAME
@@ -38,14 +38,14 @@
 .Op Fl B Ar boot
 .Op Fl C Ar create-size
 .Op Fl F Ar FAT-type
-.Op Fl I Ar volid
+.Op Fl I Ar VolumeId
 .Op Fl L Ar label
 .Op Fl O Ar OEM
 .Op Fl S Ar sector-size
 .Op Fl a Ar FAT-size
 .Op Fl b Ar block-size
 .Op Fl c Ar cluster-size
-.Op Fl e Ar dirents
+.Op Fl e Ar DirEnts
 .Op Fl f Ar format
 .Op Fl h Ar heads
 .Op Fl i Ar info
@@ -103,7 +103,7 @@ If the file system supports sparse files, the space occupied on disk may be
 smaller than the size specified as parameter.
 .It Fl F Ar FAT-type
 FAT type (one of 12, 16, or 32).
-.It Fl I Ar volid
+.It Fl I Ar VolumeID
 Volume ID, a 32 bit number in decimal or hexadecimal (0x...) format.
 .It Fl L Ar label
 Volume label (up to 11 characters).
@@ -112,11 +112,11 @@ only those characters permitted in regular DOS (8+3) filenames.
 .It Fl O Ar OEM
 OEM string (up to 8 characters).
 The default is
-.Qq Li "BSD  4.4" .
+.Qq Li "BSD4.4  " .
 .It Fl S Ar sector-size
 Number of bytes per sector.
 Acceptable values are powers of 2
-in the range 128 through 32768.
+in the range 512 through 32768, inclusive.
 .It Fl a Ar FAT-size
 Number of sectors per FAT.
 .It Fl b Ar block-size
@@ -130,7 +130,7 @@ Acceptable values are powers of 2 in the range
 If the block or cluster size are not specified, the code
 uses a cluster between 512 bytes and 32K depending on
 the filesystem size.
-.It Fl e Ar dirents
+.It Fl e Ar DirEnts
 Number of root directory entries (FAT12 and FAT16 only).
 .It Fl f Ar format
 Specify a standard (floppy disk) format.
@@ -180,27 +180,27 @@ For reference purposes, this structure is presented
 below.
 .Bd -literal
 struct bsbpb {
-    u_int16_t	bps;		/* [-S] bytes per sector */
-    u_int8_t	spc;		/* [-c] sectors per cluster */
-    u_int16_t	res;		/* [-r] reserved sectors */
-    u_int8_t	nft;		/* [-n] number of FATs */
-    u_int16_t	rde;		/* [-e] root directory entries */
-    u_int16_t	sec;		/* [-s] total sectors */
-    u_int8_t	mid;		/* [-m] media descriptor */
-    u_int16_t	spf;		/* [-a] sectors per FAT */
-    u_int16_t	spt;		/* [-u] sectors per track */
-    u_int16_t	hds;		/* [-h] drive heads */
-    u_int32_t	hid;		/* [-o] hidden sectors */
-    u_int32_t	bsec;		/* [-s] big total sectors */
+    uint16_t	bpbBytesPerSec;		/* [-S] bytes per sector */
+    uint8_t	bpbSecPerClust;		/* [-c] sectors per cluster */
+    uint16_t	bpbResSectors;		/* [-r] reserved sectors */
+    uint8_t	bpbFATs;		/* [-n] number of FATs */
+    uint16_t	bpbRootDirEnts;		/* [-e] root directory entries */
+    uint16_t	bpbSectors;		/* [-s] total sectors */
+    uint8_t	bpbMedia;		/* [-m] media descriptor */
+    uint16_t	bpbFATsecs;		/* [-a] sectors per FAT */
+    uint16_t	bpbSecPerTrack;		/* [-u] sectors per track */
+    uint16_t	bpbHeads;		/* [-h] drive heads */
+    uint32_t	bpbHiddenSecs;		/* [-o] hidden sectors */
+    uint32_t	bpbHugeSectors;		/* [-s] big total sectors */
 };
 /* FAT32 extensions */
 struct bsxbpb {
-    u_int32_t	bspf;		/* [-a] big sectors per FAT */
-    u_int16_t	xflg;		/* control flags */
-    u_int16_t	vers;		/* file system version */
-    u_int32_t	rdcl;		/* root directory start cluster */
-    u_int16_t	infs;		/* [-i] file system info sector */
-    u_int16_t	bkbs;		/* [-k] backup boot sector */
+    uint32_t	bpbBigFATsecs;		/* [-a] big sectors per FAT */
+    uint16_t	bpbExtFlags;		/* control flags */
+    uint16_t	bpbFSVers;		/* file system version */
+    uint32_t	bpbRootClust;		/* root directory start cluster */
+    uint16_t	bpbFSInfo;		/* [-i] file system info sector */
+    uint16_t	bpbBackup;		/* [-k] backup boot sector */
 };
 .Ed
 .Sh LIMITATION
@@ -209,9 +209,9 @@ The maximum file size is 4GB, even if the file system itself is bigger.
 Exit status is 0 on success and 1 on error.
 .Sh EXAMPLES
 Create a file system, using default parameters, on
-.Pa /dev/ad0s1 :
+.Pa /dev/ada0s1 :
 .Bd -literal -offset indent
-newfs_msdos /dev/ad0s1
+newfs_msdos /dev/ada0s1
 .Ed
 .Pp
 Create a standard 1.44M file system, with volume label
@@ -228,9 +228,7 @@ Create a 30MB image file, with the FAT partition starting
 newfs_msdos -C 30M -@63s ./somefile
 .Ed
 .Sh SEE ALSO
-.Xr disktab 5 ,
-.Xr disklabel 8 ,
-.Xr fdisk 8 ,
+.Xr gpart 8 ,
 .Xr newfs 8
 .Sh HISTORY
 The
@@ -238,4 +236,4 @@ The
 utility first appeared in
 .Fx 3.0 .
 .Sh AUTHORS
-.An Robert Nordier Aq rnordier@FreeBSD.org .
+.An Robert Nordier Aq Mt rnordier@FreeBSD.org

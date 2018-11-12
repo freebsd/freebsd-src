@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.exp.c,v 3.53 2007/10/01 19:09:28 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.exp.c,v 3.58 2011/12/25 15:21:50 christos Exp $ */
 /*
  * sh.exp.c: Expression evaluations
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.exp.c,v 3.53 2007/10/01 19:09:28 christos Exp $")
+RCSID("$tcsh: sh.exp.c,v 3.58 2011/12/25 15:21:50 christos Exp $")
 
 #include "tw.h"
 
@@ -57,24 +57,24 @@ RCSID("$tcsh: sh.exp.c,v 3.53 2007/10/01 19:09:28 christos Exp $")
 #define EQMATCH 7
 #define NOTEQMATCH 8
 
-static	int	 sh_access	(const Char *, int);
-static	int	 exp1		(Char ***, int);
-static	int	 exp2x		(Char ***, int);
-static	int	 exp2a		(Char ***, int);
-static	int	 exp2b		(Char ***, int);
-static	int	 exp2c		(Char ***, int);
-static	Char 	*exp3		(Char ***, int);
-static	Char 	*exp3a		(Char ***, int);
-static	Char 	*exp4		(Char ***, int);
-static	Char 	*exp5		(Char ***, int);
-static	Char 	*exp6		(Char ***, int);
-static	void	 evalav		(Char **);
-static	int	 isa		(Char *, int);
-static	int	 egetn		(Char *);
+static	int	   sh_access	(const Char *, int);
+static	tcsh_number_t  exp1		(Char ***, int);
+static	tcsh_number_t  exp2x	(Char ***, int);
+static	tcsh_number_t  exp2a	(Char ***, int);
+static	tcsh_number_t  exp2b	(Char ***, int);
+static	tcsh_number_t  exp2c	(Char ***, int);
+static	Char 	  *exp3		(Char ***, int);
+static	Char 	  *exp3a	(Char ***, int);
+static	Char 	  *exp4		(Char ***, int);
+static	Char 	  *exp5		(Char ***, int);
+static	Char 	  *exp6		(Char ***, int);
+static	void	   evalav	(Char **);
+static	int	   isa		(Char *, int);
+static	tcsh_number_t  egetn	(const Char *);
 
 #ifdef EDEBUG
-static	void	 etracc		(const char *, const Char *, Char ***);
-static	void	 etraci		(const char *, int, Char ***);
+static	void	   etracc	(const char *, const Char *, Char ***);
+static	void	   etraci	(const char *, tcsh_number_t, Char ***);
 #else /* !EDEBUG */
 #define etracc(A, B, C) ((void)0)
 #define etraci(A, B, C) ((void)0)
@@ -183,16 +183,16 @@ sh_access(const Char *fname, int mode)
 #endif /* !POSIX */
 }
 
-int
+tcsh_number_t
 expr(Char ***vp)
 {
     return (exp0(vp, 0));
 }
 
-int
+tcsh_number_t
 exp0(Char ***vp, int ignore)
 {
-    int p1 = exp1(vp, ignore);
+    tcsh_number_t p1 = exp1(vp, ignore);
 
     etraci("exp0 p1", p1, vp);
     while (**vp && eq(**vp, STRor2)) {
@@ -212,14 +212,14 @@ exp0(Char ***vp, int ignore)
     return (p1);
 }
 
-static int
+static tcsh_number_t
 exp1(Char ***vp, int ignore)
 {
-    int p1 = exp2x(vp, ignore);
+    tcsh_number_t p1 = exp2x(vp, ignore);
 
     etraci("exp1 p1", p1, vp);
     while (**vp && eq(**vp, STRand2)) {
-	int p2;
+	tcsh_number_t p2;
 
 	(*vp)++;
 	p2 = compat_expr ?
@@ -236,14 +236,14 @@ exp1(Char ***vp, int ignore)
     return (p1);
 }
 
-static int
+static tcsh_number_t
 exp2x(Char ***vp, int ignore)
 {
-    int p1 = exp2a(vp, ignore);
+    tcsh_number_t p1 = exp2a(vp, ignore);
 
     etraci("exp2x p1", p1, vp);
     while (**vp && eq(**vp, STRor)) {
-	int p2;
+	tcsh_number_t p2;
 
 	(*vp)++;
 	p2 = compat_expr ?
@@ -259,14 +259,14 @@ exp2x(Char ***vp, int ignore)
     return (p1);
 }
 
-static int
+static tcsh_number_t
 exp2a(Char ***vp, int ignore)
 {
-    int p1 = exp2b(vp, ignore);
+    tcsh_number_t p1 = exp2b(vp, ignore);
 
     etraci("exp2a p1", p1, vp);
     while (**vp && eq(**vp, STRcaret)) {
-	int p2;
+	tcsh_number_t p2;
 
 	(*vp)++;
 	p2 = compat_expr ?
@@ -282,14 +282,14 @@ exp2a(Char ***vp, int ignore)
     return (p1);
 }
 
-static int
+static tcsh_number_t
 exp2b(Char ***vp, int ignore)
 {
-    int p1 = exp2c(vp, ignore);
+    tcsh_number_t p1 = exp2c(vp, ignore);
 
     etraci("exp2b p1", p1, vp);
     while (**vp && eq(**vp, STRand)) {
-	int p2;
+	tcsh_number_t p2;
 
 	(*vp)++;
 	p2 = compat_expr ?
@@ -305,12 +305,12 @@ exp2b(Char ***vp, int ignore)
     return (p1);
 }
 
-static int
+static tcsh_number_t
 exp2c(Char ***vp, int ignore)
 {
     Char *p1 = exp3(vp, ignore);
     Char *p2;
-    int i;
+    tcsh_number_t i;
 
     cleanup_push(p1, xfree);
     etracc("exp2c p1", p1, vp);
@@ -352,7 +352,7 @@ static Char *
 exp3(Char ***vp, int ignore)
 {
     Char *p1, *p2;
-    int i;
+    tcsh_number_t i;
 
     p1 = exp3a(vp, ignore);
     etracc("exp3 p1", p1, vp);
@@ -399,7 +399,7 @@ exp3a(Char ***vp, int ignore)
 {
     Char *p1, *p2;
     const Char *op;
-    int i;
+    tcsh_number_t i;
 
     p1 = exp4(vp, ignore);
     etracc("exp3a p1", p1, vp);
@@ -427,7 +427,7 @@ static Char *
 exp4(Char ***vp, int ignore)
 {
     Char *p1, *p2;
-    int i = 0;
+    tcsh_number_t i = 0;
 
     p1 = exp5(vp, ignore);
     etracc("exp4 p1", p1, vp);
@@ -464,7 +464,7 @@ static Char *
 exp5(Char ***vp, int ignore)
 {
     Char *p1, *p2;
-    int i = 0;
+    tcsh_number_t i = 0;
 
     p1 = exp6(vp, ignore);
     etracc("exp5 p1", p1, vp);
@@ -519,7 +519,8 @@ exp5(Char ***vp, int ignore)
 static Char *
 exp6(Char ***vp, int ignore)
 {
-    int     ccode, i = 0;
+    tcsh_number_t ccode;
+    tcsh_number_t i = 0;
     Char *cp;
 
     if (**vp == 0)
@@ -626,12 +627,12 @@ filetest(Char *cp, Char ***vp, int ignore)
     char *filnam;
 #endif /* S_IFLNK */
 
-    int i = 0;
+    tcsh_number_t i = 0;
     unsigned pmask = 0xffff;
     int altout = 0;
     Char *ft = cp, *dp, *ep, *strdev, *strino, *strF, *str, valtest = '\0',
     *errval = STR0;
-    char *string, string0[8];
+    char *string, string0[22 + MB_LEN_MAX + 1];	// space for 64 bit octal
     time_t footime;
     struct passwd *pw;
     struct group *gr;
@@ -851,11 +852,11 @@ filetest(Char *cp, Char ***vp, int ignore)
 		 */
 
 	    case 'D':
-		i = (int) st->st_dev;
+		i = (tcsh_number_t) st->st_dev;
 		break;
 
 	    case 'I':
-		i = (int) st->st_ino;
+		i = (tcsh_number_t) st->st_ino;
 		break;
 		
 	    case 'F':
@@ -889,7 +890,7 @@ filetest(Char *cp, Char ***vp, int ignore)
 		
 
 	    case 'N':
-		i = (int) st->st_nlink;
+		i = (tcsh_number_t) st->st_nlink;
 		break;
 
 	    case 'P':
@@ -907,7 +908,7 @@ filetest(Char *cp, Char ***vp, int ignore)
 		    cleanup_until(ep);
 		    return(Strsave(str2short(pw->pw_name)));
 		}
-		i = (int) st->st_uid;
+		i = (tcsh_number_t) st->st_uid;
 		break;
 
 	    case 'G':
@@ -915,11 +916,11 @@ filetest(Char *cp, Char ***vp, int ignore)
 		    cleanup_until(ep);
 		    return(Strsave(str2short(gr->gr_name)));
 		}
-		i = (int) st->st_gid;
+		i = (tcsh_number_t) st->st_gid;
 		break;
 
 	    case 'Z':
-		i = (int) st->st_size;
+		i = (tcsh_number_t) st->st_size;
 		break;
 
 	    case 'A': case 'M': case 'C':
@@ -932,7 +933,7 @@ filetest(Char *cp, Char ***vp, int ignore)
 		    cleanup_until(ep);
 		    return(Strsave(strF));
 		}
-		i = (int) footime;
+		i = (tcsh_number_t) footime;
 		break;
 
 	    }
@@ -1024,8 +1025,8 @@ isa(Char *cp, int what)
     return (0);
 }
 
-static int
-egetn(Char *cp)
+static tcsh_number_t
+egetn(const Char *cp)
 {
     if (*cp && *cp != '-' && !Isdigit(*cp))
 	stderror(ERR_NAME | ERR_EXPRESSION);
@@ -1036,9 +1037,13 @@ egetn(Char *cp)
 
 #ifdef EDEBUG
 static void
-etraci(const char *str, int i, Char ***vp)
+etraci(const char *str, tcsh_number_t i, Char ***vp)
 {
-    xprintf("%s=%d\t", str, i);
+#ifdef HAVE_LONG_LONG
+    xprintf("%s=%lld\t", str, i);
+#else
+    xprintf("%s=%ld\t", str, i);
+#endif
     blkpr(*vp);
     xputchar('\n');
 }

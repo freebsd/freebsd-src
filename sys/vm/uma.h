@@ -33,8 +33,8 @@
  *
 */
 
-#ifndef VM_UMA_H
-#define VM_UMA_H
+#ifndef _VM_UMA_H_
+#define _VM_UMA_H_
 
 #include <sys/param.h>		/* For NULL */
 #include <sys/malloc.h>		/* For M_* */
@@ -50,7 +50,7 @@ typedef struct uma_zone * uma_zone_t;
 
 void zone_drain(uma_zone_t);
 
-/* 
+/*
  * Item constructor
  *
  * Arguments:
@@ -58,7 +58,7 @@ void zone_drain(uma_zone_t);
  *	arg   The arg field passed to uma_zalloc_arg
  *	size  The size of the allocated item
  *	flags See zalloc flags
- * 
+ *
  * Returns:
  *	0      on success
  *      errno  on failure
@@ -76,7 +76,7 @@ typedef int (*uma_ctor)(void *mem, int size, void *arg, int flags);
  *	item  A pointer to the memory which has been allocated.
  *	size  The size of the item being destructed.
  *	arg   Argument passed through uma_zfree_arg
- * 
+ *
  * Returns:
  *	Nothing
  *
@@ -87,20 +87,20 @@ typedef int (*uma_ctor)(void *mem, int size, void *arg, int flags);
  */
 typedef void (*uma_dtor)(void *mem, int size, void *arg);
 
-/* 
+/*
  * Item initializer
  *
  * Arguments:
  *	item  A pointer to the memory which has been allocated.
  *	size  The size of the item being initialized.
  *	flags See zalloc flags
- * 
+ *
  * Returns:
  *	0      on success
  *      errno  on failure
  *
  * Discussion:
- *	The initializer is called when the memory is cached in the uma zone. 
+ *	The initializer is called when the memory is cached in the uma zone.
  *	The initializer and the destructor should leave the object in the same
  *	state.
  */
@@ -110,7 +110,7 @@ typedef int (*uma_init)(void *mem, int size, int flags);
  * Item discard function
  *
  * Arguments:
- * 	item  A pointer to memory which has been 'freed' but has not left the 
+ *	item  A pointer to memory which has been 'freed' but has not left the
  *	      zone's cache.
  *	size  The size of the item being discarded.
  *
@@ -124,9 +124,19 @@ typedef int (*uma_init)(void *mem, int size, int flags);
 typedef void (*uma_fini)(void *mem, int size);
 
 /*
+ * Import new memory into a cache zone.
+ */
+typedef int (*uma_import)(void *arg, void **store, int count, int flags);
+
+/*
+ * Free memory from a cache zone.
+ */
+typedef void (*uma_release)(void *arg, void **store, int count);
+
+/*
  * What's the difference between initializing and constructing?
  *
- * The item is initialized when it is cached, and this is the state that the 
+ * The item is initialized when it is cached, and this is the state that the
  * object should be in when returned to the allocator. The purpose of this is
  * to remove some code which would otherwise be called on each allocation by
  * utilizing a known, stable state.  This differs from the constructor which
@@ -165,9 +175,9 @@ typedef void (*uma_fini)(void *mem, int size);
  *	A pointer to a structure which is intended to be opaque to users of
  *	the interface.  The value may be null if the wait flag is not set.
  */
-uma_zone_t uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
-			uma_init uminit, uma_fini fini, int align,
-			u_int32_t flags);
+uma_zone_t uma_zcreate(const char *name, size_t size, uma_ctor ctor,
+		    uma_dtor dtor, uma_init uminit, uma_fini fini,
+		    int align, uint32_t flags);
 
 /*
  * Create a secondary uma zone
@@ -211,9 +221,22 @@ uma_zone_t uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
  * the only supported.
  *
  * Returns:
- * 	Error on failure, 0 on success.
+ *	Error on failure, 0 on success.
  */
 int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
+
+/*
+ * Create cache-only zones.
+ *
+ * This allows uma's per-cpu cache facilities to handle arbitrary
+ * pointers.  Consumers must specify the import and release functions to
+ * fill and destroy caches.  UMA does not allocate any memory for these
+ * zones.  The 'arg' parameter is passed to import/release and is caller
+ * specific.
+ */
+uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
+		    uma_init zinit, uma_fini zfini, uma_import zimport,
+		    uma_release zrelease, void *arg, int flags);
 
 /*
  * Definitions for uma_zcreate flags
@@ -239,7 +262,7 @@ int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
 					 * information in the vm_page.
 					 */
 #define	UMA_ZONE_SECONDARY	0x0200	/* Zone is a Secondary Zone */
-#define	UMA_ZONE_REFCNT		0x0400	/* Allocate refcnts in slabs */
+/*				0x0400	   Unused */
 #define	UMA_ZONE_MAXBUCKET	0x0800	/* Use largest buckets */
 #define	UMA_ZONE_CACHESPREAD	0x1000	/*
 					 * Spread memory start locations across
@@ -248,6 +271,14 @@ int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
 					 * backend pages and can fail early.
 					 */
 #define	UMA_ZONE_VTOSLAB	0x2000	/* Zone uses vtoslab for lookup. */
+#define	UMA_ZONE_NODUMP		0x4000	/*
+					 * Zone's pages will not be included in
+					 * mini-dumps.
+					 */
+#define	UMA_ZONE_PCPU		0x8000	/*
+					 * Allocates mp_maxid + 1 slabs sized to
+					 * sizeof(struct pcpu).
+					 */
 
 /*
  * These flags are shared between the keg and zone.  In zones wishing to add
@@ -255,8 +286,8 @@ int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
  * physical parameters of the request and may not be provided by the consumer.
  */
 #define	UMA_ZONE_INHERIT						\
-    (UMA_ZONE_OFFPAGE | UMA_ZONE_MALLOC | UMA_ZONE_HASH |		\
-    UMA_ZONE_REFCNT | UMA_ZONE_VTOSLAB)
+    (UMA_ZONE_OFFPAGE | UMA_ZONE_MALLOC | UMA_ZONE_NOFREE |		\
+    UMA_ZONE_HASH | UMA_ZONE_VTOSLAB | UMA_ZONE_PCPU)
 
 /* Definitions for align */
 #define UMA_ALIGN_PTR	(sizeof(void *) - 1)	/* Alignment fit for ptr */
@@ -351,7 +382,8 @@ uma_zfree(uma_zone_t zone, void *item)
  *	A pointer to the allocated memory or NULL on failure.
  */
 
-typedef void *(*uma_alloc)(uma_zone_t zone, int size, u_int8_t *pflag, int wait);
+typedef void *(*uma_alloc)(uma_zone_t zone, vm_size_t size, uint8_t *pflag,
+    int wait);
 
 /*
  * Backend page free routines
@@ -364,7 +396,7 @@ typedef void *(*uma_alloc)(uma_zone_t zone, int size, u_int8_t *pflag, int wait)
  * Returns:
  *	None
  */
-typedef void (*uma_free)(void *item, int size, u_int8_t pflag);
+typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 
 
 
@@ -399,7 +431,7 @@ void uma_startup(void *bootmem, int boot_pages);
  * Discussion:
  *	uma_startup2 is called by kmeminit() to enable us of uma for malloc.
  */
- 
+
 void uma_startup2(void);
 
 /*
@@ -428,35 +460,89 @@ void uma_reclaim(void);
 void uma_set_align(int align);
 
 /*
- * Switches the backing object of a zone
+ * Set a reserved number of items to hold for M_USE_RESERVE allocations.  All
+ * other requests must allocate new backing pages.
+ */
+void uma_zone_reserve(uma_zone_t zone, int nitems);
+
+/*
+ * Reserves the maximum KVA space required by the zone and configures the zone
+ * to use a VM_ALLOC_NOOBJ-based backend allocator.
  *
  * Arguments:
  *	zone  The zone to update.
- *	obj   The VM object to use for future allocations.
- *	size  The size of the object to allocate.
+ *	nitems  The upper limit on the number of items that can be allocated.
  *
  * Returns:
- *	0  if kva space can not be allocated
+ *	0  if KVA space can not be allocated
  *	1  if successful
  *
  * Discussion:
- *	A NULL object can be used and uma will allocate one for you.  Setting
- *	the size will limit the amount of memory allocated to this zone.
- *
+ *	When the machine supports a direct map and the zone's items are smaller
+ *	than a page, the zone will use the direct map instead of allocating KVA
+ *	space.
  */
-struct vm_object;
-int uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int size);
+int uma_zone_reserve_kva(uma_zone_t zone, int nitems);
 
 /*
  * Sets a high limit on the number of items allowed in a zone
  *
  * Arguments:
  *	zone  The zone to limit
+ *	nitems  The requested upper limit on the number of items allowed
+ *
+ * Returns:
+ *	int  The effective value of nitems after rounding up based on page size
+ */
+int uma_zone_set_max(uma_zone_t zone, int nitems);
+
+/*
+ * Obtains the effective limit on the number of items in a zone
+ *
+ * Arguments:
+ *	zone  The zone to obtain the effective limit from
+ *
+ * Return:
+ *	0  No limit
+ *	int  The effective limit of the zone
+ */
+int uma_zone_get_max(uma_zone_t zone);
+
+/*
+ * Sets a warning to be printed when limit is reached
+ *
+ * Arguments:
+ *	zone  The zone we will warn about
+ *	warning  Warning content
  *
  * Returns:
  *	Nothing
  */
-void uma_zone_set_max(uma_zone_t zone, int nitems);
+void uma_zone_set_warning(uma_zone_t zone, const char *warning);
+
+/*
+ * Sets a function to run when limit is reached
+ *
+ * Arguments:
+ *	zone  The zone to which this applies
+ *	fx  The function ro run
+ *
+ * Returns:
+ *	Nothing
+ */
+typedef void (*uma_maxaction_t)(uma_zone_t, int);
+void uma_zone_set_maxaction(uma_zone_t zone, uma_maxaction_t);
+
+/*
+ * Obtains the approximate current number of items allocated from a zone
+ *
+ * Arguments:
+ *	zone  The zone to obtain the current allocation count from
+ *
+ * Return:
+ *	int  The approximate current number of items allocated from the zone
+ */
+int uma_zone_get_cur(uma_zone_t zone);
 
 /*
  * The following two routines (uma_zone_set_init/fini)
@@ -481,7 +567,7 @@ void uma_zone_set_zinit(uma_zone_t zone, uma_init zinit);
 void uma_zone_set_zfini(uma_zone_t zone, uma_fini zfini);
 
 /*
- * Replaces the standard page_alloc or obj_alloc functions for this zone
+ * Replaces the standard backend allocator for this zone.
  *
  * Arguments:
  *	zone   The zone whose backend allocator is being changed.
@@ -537,31 +623,22 @@ void uma_zone_set_freef(uma_zone_t zone, uma_free freef);
 void uma_prealloc(uma_zone_t zone, int itemcnt);
 
 /*
- * Used to lookup the reference counter allocated for an item
- * from a UMA_ZONE_REFCNT zone.  For UMA_ZONE_REFCNT zones,
- * reference counters are allocated for items and stored in
- * the underlying slab header.
- *
- * Arguments:
- * 	zone  The UMA_ZONE_REFCNT zone to which the item belongs.
- *	item  The address of the item for which we want a refcnt.
- *
- * Returns:
- * 	A pointer to a u_int32_t reference counter.
- */
-u_int32_t *uma_find_refcnt(uma_zone_t zone, void *item);
-
-/*
  * Used to determine if a fixed-size zone is exhausted.
  *
  * Arguments:
  *	zone    The zone to check
  *
  * Returns:
- * 	Non-zero if zone is exhausted.
+ *	Non-zero if zone is exhausted.
  */
 int uma_zone_exhausted(uma_zone_t zone);
 int uma_zone_exhausted_nolock(uma_zone_t zone);
+
+/*
+ * Common UMA_ZONE_PCPU zones.
+ */
+extern uma_zone_t pcpu_zone_64;
+extern uma_zone_t pcpu_zone_ptr;
 
 /*
  * Exported statistics structures to be used by user space monitoring tools.
@@ -570,10 +647,10 @@ int uma_zone_exhausted_nolock(uma_zone_t zone);
  */
 #define	UMA_STREAM_VERSION	0x00000001
 struct uma_stream_header {
-	u_int32_t	ush_version;	/* Stream format version. */
-	u_int32_t	ush_maxcpus;	/* Value of MAXCPU for stream. */
-	u_int32_t	ush_count;	/* Number of records. */
-	u_int32_t	_ush_pad;	/* Pad/reserved field. */
+	uint32_t	ush_version;	/* Stream format version. */
+	uint32_t	ush_maxcpus;	/* Value of MAXCPU for stream. */
+	uint32_t	ush_count;	/* Number of records. */
+	uint32_t	_ush_pad;	/* Pad/reserved field. */
 };
 
 #define	UTH_MAX_NAME	32
@@ -583,31 +660,35 @@ struct uma_type_header {
 	 * Static per-zone data, some extracted from the supporting keg.
 	 */
 	char		uth_name[UTH_MAX_NAME];
-	u_int32_t	uth_align;	/* Keg: alignment. */
-	u_int32_t	uth_size;	/* Keg: requested size of item. */
-	u_int32_t	uth_rsize;	/* Keg: real size of item. */
-	u_int32_t	uth_maxpages;	/* Keg: maximum number of pages. */
-	u_int32_t	uth_limit;	/* Keg: max items to allocate. */
+	uint32_t	uth_align;	/* Keg: alignment. */
+	uint32_t	uth_size;	/* Keg: requested size of item. */
+	uint32_t	uth_rsize;	/* Keg: real size of item. */
+	uint32_t	uth_maxpages;	/* Keg: maximum number of pages. */
+	uint32_t	uth_limit;	/* Keg: max items to allocate. */
 
 	/*
 	 * Current dynamic zone/keg-derived statistics.
 	 */
-	u_int32_t	uth_pages;	/* Keg: pages allocated. */
-	u_int32_t	uth_keg_free;	/* Keg: items free. */
-	u_int32_t	uth_zone_free;	/* Zone: items free. */
-	u_int32_t	uth_bucketsize;	/* Zone: desired bucket size. */
-	u_int32_t	uth_zone_flags;	/* Zone: flags. */
-	u_int64_t	uth_allocs;	/* Zone: number of allocations. */
-	u_int64_t	uth_frees;	/* Zone: number of frees. */
-	u_int64_t	uth_fails;	/* Zone: number of alloc failures. */
-	u_int64_t	_uth_reserved1[3];	/* Reserved. */
+	uint32_t	uth_pages;	/* Keg: pages allocated. */
+	uint32_t	uth_keg_free;	/* Keg: items free. */
+	uint32_t	uth_zone_free;	/* Zone: items free. */
+	uint32_t	uth_bucketsize;	/* Zone: desired bucket size. */
+	uint32_t	uth_zone_flags;	/* Zone: flags. */
+	uint64_t	uth_allocs;	/* Zone: number of allocations. */
+	uint64_t	uth_frees;	/* Zone: number of frees. */
+	uint64_t	uth_fails;	/* Zone: number of alloc failures. */
+	uint64_t	uth_sleeps;	/* Zone: number of alloc sleeps. */
+	uint64_t	_uth_reserved1[2];	/* Reserved. */
 };
 
 struct uma_percpu_stat {
-	u_int64_t	ups_allocs;	/* Cache: number of allocations. */
-	u_int64_t	ups_frees;	/* Cache: number of frees. */
-	u_int64_t	ups_cache_free;	/* Cache: free items in cache. */
-	u_int64_t	_ups_reserved[5];	/* Reserved. */
+	uint64_t	ups_allocs;	/* Cache: number of allocations. */
+	uint64_t	ups_frees;	/* Cache: number of frees. */
+	uint64_t	ups_cache_free;	/* Cache: free items in cache. */
+	uint64_t	_ups_reserved[5];	/* Reserved. */
 };
 
-#endif
+void uma_reclaim_wakeup(void);
+void uma_reclaim_worker(void *);
+
+#endif	/* _VM_UMA_H_ */

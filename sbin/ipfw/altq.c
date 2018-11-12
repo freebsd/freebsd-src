@@ -39,12 +39,13 @@
 
 #include <net/if.h>		/* IFNAMSIZ */
 #include <net/pfvar.h>
+#include <netinet/in.h>	/* in_addr */
 #include <netinet/ip_fw.h>
 
 /*
  * Map between current altq queue id numbers and names.
  */
-static TAILQ_HEAD(, pf_altq) altq_entries = 
+static TAILQ_HEAD(, pf_altq) altq_entries =
 	TAILQ_HEAD_INITIALIZER(altq_entries);
 
 void
@@ -136,15 +137,15 @@ altq_qid_to_name(u_int32_t qid)
 }
 
 void
-print_altq_cmd(ipfw_insn_altq *altqptr)
+print_altq_cmd(struct buf_pr *bp, ipfw_insn_altq *altqptr)
 {
-        if (altqptr) {
-                const char *qname;
+	if (altqptr) {
+		const char *qname;
 
-                qname = altq_qid_to_name(altqptr->qid);
-                if (qname == NULL)
-                        printf(" altq ?<%u>", altqptr->qid);
-                else
-                        printf(" altq %s", qname);
-        }
+		qname = altq_qid_to_name(altqptr->qid);
+		if (qname == NULL)
+			bprintf(bp, " altq ?<%u>", altqptr->qid);
+		else
+			bprintf(bp, " altq %s", qname);
+	}
 }

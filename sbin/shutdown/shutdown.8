@@ -28,11 +28,12 @@
 .\"     @(#)shutdown.8	8.2 (Berkeley) 4/27/95
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2008
+.Dd September 21, 2016
 .Dt SHUTDOWN 8
 .Os
 .Sh NAME
-.Nm shutdown
+.Nm shutdown ,
+.Nm poweroff
 .Nd "close down the system at a given time"
 .Sh SYNOPSIS
 .Nm
@@ -47,6 +48,7 @@
 .Oc
 .Ar time
 .Op Ar warning-message ...
+.Nm poweroff
 .Sh DESCRIPTION
 The
 .Nm
@@ -81,20 +83,20 @@ If one of the
 .Fl p
 or
 .Fl r
-is specified,
+options are specified,
 .Nm
 will execute
 .Xr halt 8
 or
 .Xr reboot 8
-instead of sending signal to
+instead of sending a signal to
 .Xr init 8 .
 .It Fl n
 If the
 .Fl o
-is specified, prevent the file system cache from being flushed by passing
+option is specified, prevent the file system cache from being flushed by passing
 .Fl n
-option to
+to
 .Xr halt 8
 or
 .Xr reboot 8 .
@@ -104,10 +106,10 @@ This option should probably not be used.
 is the time at which
 .Nm
 will bring the system down and
-may be the word
+may be the case-insensitive word
 .Ar now
 (indicating an immediate shutdown) or
-specify a future time in one of two formats:
+a future time in one of two formats:
 .Ar +number ,
 or
 .Ar yymmddhhmm ,
@@ -116,6 +118,15 @@ to the current system values.
 The first form brings the system down in
 .Ar number
 minutes and the second at the absolute time specified.
+.Ar +number
+may be specified in units other than minutes by appending the corresponding
+suffix:
+.Dq Li s ,
+.Dq Li sec ,
+.Dq Li m ,
+.Dq Li min .
+.Dq Li h ,
+.Dq Li hour .
 .It Ar warning-message
 Any other arguments comprise the warning message that is broadcast
 to users currently logged into the system.
@@ -146,7 +157,7 @@ exits.
 .Pp
 At shutdown time a message is written to the system log, containing the
 time of shutdown, the person who initiated the shutdown and the reason.
-Corresponding signal is then sent to
+The corresponding signal is then sent to
 .Xr init 8
 to respectively halt, reboot or bring the system down to single-user state
 (depending on the above options).
@@ -168,16 +179,30 @@ file that
 .Nm
 created will be removed automatically.
 .Pp
-When run without options, the  
+When run without options, the
 .Nm
-utility will place the system into single user mode at the 
+utility will place the system into single user mode at the
 .Ar time
 specified.
+.Pp
+Calling
+.Dq Nm poweroff
+is equivalent to running:
+.Bd -literal -offset indent
+shutdown -p now
+.Ed
 .Sh FILES
 .Bl -tag -width /var/run/nologin -compact
 .It Pa /var/run/nologin
-tells login not to let anyone log in
+tells
+.Xr login 1
+not to let anyone log in
 .El
+.Sh EXAMPLES
+Reboot the system in 30 minutes and display a warning message on the terminals
+of all users currently logged in:
+.Pp
+.Dl # shutdown -r +30 \&"System will reboot\&"
 .Sh COMPATIBILITY
 The hours and minutes in the second time format may be separated by
 a colon (``:'') for backward compatibility.
@@ -190,7 +215,9 @@ a colon (``:'') for backward compatibility.
 .Xr init 8 ,
 .Xr reboot 8
 .Sh HISTORY
-The
+A
 .Nm
-utility appeared in
-.Bx 4.0 .
+command was originally written by Ian Johnstone for UNSW's modified
+.At "6th Edn" .
+It was modified and then incorporated in
+.Bx 4.1 .

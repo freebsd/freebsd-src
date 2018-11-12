@@ -30,7 +30,8 @@
 #define	_OPENSOLARIS_SYS_SID_H_
 
 typedef struct ksiddomain {
-	char	kd_name[16];	/* Domain part of SID */
+	char	*kd_name;	/* Domain part of SID */
+	uint_t	kd_len;
 } ksiddomain_t;
 typedef void	ksid_t;
 
@@ -38,9 +39,13 @@ static __inline ksiddomain_t *
 ksid_lookupdomain(const char *domain)
 {
 	ksiddomain_t *kd;
+	size_t len;
 
+	len = strlen(domain) + 1;
 	kd = kmem_alloc(sizeof(*kd), KM_SLEEP);
-	strlcpy(kd->kd_name, "FreeBSD", sizeof(kd->kd_name));
+	kd->kd_len = (uint_t)len;
+	kd->kd_name = kmem_alloc(len, KM_SLEEP);
+	strcpy(kd->kd_name, domain);
 	return (kd);
 }
 
@@ -48,7 +53,32 @@ static __inline void
 ksiddomain_rele(ksiddomain_t *kd)
 {
 
+	kmem_free(kd->kd_name, kd->kd_len);
 	kmem_free(kd, sizeof(*kd));
 }
+
+static __inline uint_t
+ksid_getid(ksid_t *ks)
+{
+
+	panic("%s has been unexpectedly called", __func__);
+}
+
+static __inline const char *
+ksid_getdomain(ksid_t *ks)
+{
+
+	panic("%s has been unexpectedly called", __func__);
+}
+
+static __inline uint_t
+ksid_getrid(ksid_t *ks)
+{
+
+	panic("%s has been unexpectedly called", __func__);
+}
+
+#define	kidmap_getsidbyuid(zone, uid, sid_prefix, rid)	(1)
+#define	kidmap_getsidbygid(zone, gid, sid_prefix, rid)	(1)
 
 #endif	/* _OPENSOLARIS_SYS_SID_H_ */

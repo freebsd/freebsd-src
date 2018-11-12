@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2006 Konstantin Dimitrov <kosio.dimitrov@gmail.com>
  * Copyright (c) 2001 Katsurajima Naoto <raven@katsurajima.seya.yokohama.jp>
  * All rights reserved.
@@ -53,7 +53,7 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
-MALLOC_DEFINE(M_ENVY24HT, "envy24ht", "envy24ht audio");
+static MALLOC_DEFINE(M_ENVY24HT, "envy24ht", "envy24ht audio");
 
 /* -------------------------------------------------------------------- */
 
@@ -162,6 +162,7 @@ struct sc_info {
 	u_int32_t	psize, rsize; /* DMA buffer size(byte) */
 	u_int16_t	blk[2]; /* transfer check blocksize(dword) */
 	bus_dmamap_t	pmap, rmap;
+	bus_addr_t	paddr, raddr;
 
 	/* current status */
 	u_int32_t	speed;
@@ -2080,33 +2081,37 @@ envy24ht_pci_probe(device_t dev)
 static void
 envy24ht_dmapsetmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	/* struct sc_info *sc = (struct sc_info *)arg; */
+	struct sc_info *sc = arg;
 
+	sc->paddr = segs->ds_addr;
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmapsetmap()\n");
 	if (bootverbose) {
 		printf("envy24ht(play): setmap %lx, %lx; ",
 		    (unsigned long)segs->ds_addr,
 		    (unsigned long)segs->ds_len);
-		printf("%p -> %lx\n", sc->pmap, (unsigned long)vtophys(sc->pmap));
 	}
 #endif
+	envy24ht_wrmt(sc, ENVY24HT_MT_PADDR, (uint32_t)segs->ds_addr, 4);
+	envy24ht_wrmt(sc, ENVY24HT_MT_PCNT, (uint32_t)(segs->ds_len / 4 - 1), 2);
 }
 
 static void
 envy24ht_dmarsetmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	/* struct sc_info *sc = (struct sc_info *)arg; */
+	struct sc_info *sc = arg;
 
+	sc->raddr = segs->ds_addr;
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmarsetmap()\n");
 	if (bootverbose) {
 		printf("envy24ht(record): setmap %lx, %lx; ",
 		    (unsigned long)segs->ds_addr,
 		    (unsigned long)segs->ds_len);
-		printf("%p -> %lx\n", sc->rmap, (unsigned long)vtophys(sc->pmap));
 	}
 #endif
+	envy24ht_wrmt(sc, ENVY24HT_MT_RADDR, (uint32_t)segs->ds_addr, 4);
+	envy24ht_wrmt(sc, ENVY24HT_MT_RCNT, (uint32_t)(segs->ds_len / 4 - 1), 2);
 }
 
 static void
@@ -2114,19 +2119,17 @@ envy24ht_dmafree(struct sc_info *sc)
 {
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmafree():");
-	if (sc->rmap) printf(" sc->rmap(0x%08x)", (u_int32_t)sc->rmap);
-	else printf(" sc->rmap(null)");
-	if (sc->pmap) printf(" sc->pmap(0x%08x)", (u_int32_t)sc->pmap);
-	else printf(" sc->pmap(null)");
+	printf(" sc->raddr(0x%08x)", (u_int32_t)sc->raddr);
+	printf(" sc->paddr(0x%08x)", (u_int32_t)sc->paddr);
 	if (sc->rbuf) printf(" sc->rbuf(0x%08x)", (u_int32_t)sc->rbuf);
 	else printf(" sc->rbuf(null)");
 	if (sc->pbuf) printf(" sc->pbuf(0x%08x)\n", (u_int32_t)sc->pbuf);
 	else printf(" sc->pbuf(null)\n");
 #endif
 #if(0)
-	if (sc->rmap)
+	if (sc->raddr)
 		bus_dmamap_unload(sc->dmat, sc->rmap);
-	if (sc->pmap)
+	if (sc->paddr)
 		bus_dmamap_unload(sc->dmat, sc->pmap);
 	if (sc->rbuf)
 		bus_dmamem_free(sc->dmat, sc->rbuf, sc->rmap);
@@ -2139,7 +2142,7 @@ envy24ht_dmafree(struct sc_info *sc)
 	bus_dmamem_free(sc->dmat, sc->pbuf, sc->pmap);
 #endif
 
-	sc->rmap = sc->pmap = NULL;
+	sc->raddr = sc->paddr = 0;
 	sc->pbuf = NULL;
 	sc->rbuf = NULL;
 
@@ -2149,7 +2152,6 @@ envy24ht_dmafree(struct sc_info *sc)
 static int
 envy24ht_dmainit(struct sc_info *sc)
 {
-	u_int32_t addr;
 
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmainit()\n");
@@ -2159,7 +2161,7 @@ envy24ht_dmainit(struct sc_info *sc)
 	sc->rsize = ENVY24HT_REC_BUFUNIT * ENVY24HT_SAMPLE_NUM;
 	sc->pbuf = NULL;
 	sc->rbuf = NULL;
-	sc->pmap = sc->rmap = NULL;
+	sc->paddr = sc->raddr = 0;
 	sc->blk[0] = sc->blk[1] = 0;
 
 	/* allocate DMA buffer */
@@ -2176,33 +2178,15 @@ envy24ht_dmainit(struct sc_info *sc)
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmainit(): bus_dmamem_load(): sc->pmap\n");
 #endif
-	if (bus_dmamap_load(sc->dmat, sc->pmap, sc->pbuf, sc->psize, envy24ht_dmapsetmap, sc, 0))
+	if (bus_dmamap_load(sc->dmat, sc->pmap, sc->pbuf, sc->psize, envy24ht_dmapsetmap, sc, BUS_DMA_NOWAIT))
 		goto bad;
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmainit(): bus_dmamem_load(): sc->rmap\n");
 #endif
-	if (bus_dmamap_load(sc->dmat, sc->rmap, sc->rbuf, sc->rsize, envy24ht_dmarsetmap, sc, 0))
+	if (bus_dmamap_load(sc->dmat, sc->rmap, sc->rbuf, sc->rsize, envy24ht_dmarsetmap, sc, BUS_DMA_NOWAIT))
 		goto bad;
 	bzero(sc->pbuf, sc->psize);
 	bzero(sc->rbuf, sc->rsize);
-
-	/* set values to register */
-	addr = vtophys(sc->pbuf);
-#if(0)
-	device_printf(sc->dev, "pbuf(0x%08x)\n", addr);
-#endif
-	envy24ht_wrmt(sc, ENVY24HT_MT_PADDR, addr, 4);
-#if(0)
-	device_printf(sc->dev, "PADDR-->(0x%08x)\n", envy24ht_rdmt(sc, ENVY24HT_MT_PADDR, 4));
-	device_printf(sc->dev, "psize(%ld)\n", sc->psize / 4 - 1);
-#endif
-	envy24ht_wrmt(sc, ENVY24HT_MT_PCNT, sc->psize / 4 - 1, 2);
-#if(0)
-	device_printf(sc->dev, "PCNT-->(%ld)\n", envy24ht_rdmt(sc, ENVY24HT_MT_PCNT, 2));
-#endif
-	addr = vtophys(sc->rbuf);
-	envy24ht_wrmt(sc, ENVY24HT_MT_RADDR, addr, 4);
-	envy24ht_wrmt(sc, ENVY24HT_MT_RCNT, sc->rsize / 4 - 1, 2);
 
 	return 0;
  bad:
@@ -2228,7 +2212,7 @@ envy24ht_putcfg(struct sc_info *sc)
 		printf("reserved\n");
 		break;
 	default:
-		printf("illeagal system setting\n");
+		printf("illegal system setting\n");
 	}
 	printf("  MPU-401 UART(s) #: ");
 	if (sc->cfg->scfg & ENVY24HT_CCSM_SCFG_MPU)
@@ -2236,7 +2220,8 @@ envy24ht_putcfg(struct sc_info *sc)
 	else
 		printf("not implemented\n");
         switch (sc->adcn) {
-        case 0x01 || 0x02:
+        case 0x01:
+	case 0x02:
                 printf("  ADC #: ");
                 printf("%d\n", sc->adcn);
                 break;
@@ -2415,11 +2400,11 @@ envy24ht_alloc_resource(struct sc_info *sc)
 {
 	/* allocate I/O port resource */
 	sc->csid = PCIR_CCS;
-	sc->cs = bus_alloc_resource(sc->dev, SYS_RES_IOPORT,
-	    &sc->csid, 0, ~0, 1, RF_ACTIVE);
+	sc->cs = bus_alloc_resource_any(sc->dev, SYS_RES_IOPORT,
+	    &sc->csid, RF_ACTIVE);
 	sc->mtid = ENVY24HT_PCIR_MT;
-	sc->mt = bus_alloc_resource(sc->dev, SYS_RES_IOPORT,
-	    &sc->mtid, 0, ~0, 1, RF_ACTIVE);
+	sc->mt = bus_alloc_resource_any(sc->dev, SYS_RES_IOPORT,
+	    &sc->mtid, RF_ACTIVE);
 	if (!sc->cs || !sc->mt) {
 		device_printf(sc->dev, "unable to map IO port space\n");
 		return ENXIO;
@@ -2437,10 +2422,10 @@ envy24ht_alloc_resource(struct sc_info *sc)
 
 	/* allocate interrupt resource */
 	sc->irqid = 0;
-	sc->irq = bus_alloc_resource(sc->dev, SYS_RES_IRQ, &sc->irqid,
-				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	sc->irq = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &sc->irqid,
+				 RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->irq ||
-	    snd_setup_intr(sc->dev, sc->irq, 0, envy24ht_intr, sc, &sc->ih)) {
+	    snd_setup_intr(sc->dev, sc->irq, INTR_MPSAFE, envy24ht_intr, sc, &sc->ih)) {
 		device_printf(sc->dev, "unable to map interrupt\n");
 		return ENXIO;
 	}
@@ -2449,13 +2434,13 @@ envy24ht_alloc_resource(struct sc_info *sc)
 	if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(sc->dev),
 	    /*alignment*/4,
 	    /*boundary*/0,
-	    /*lowaddr*/BUS_SPACE_MAXADDR_ENVY24,
-	    /*highaddr*/BUS_SPACE_MAXADDR_ENVY24,
+	    /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
+	    /*highaddr*/BUS_SPACE_MAXADDR,
 	    /*filter*/NULL, /*filterarg*/NULL,
 	    /*maxsize*/BUS_SPACE_MAXSIZE_ENVY24,
 	    /*nsegments*/1, /*maxsegsz*/0x3ffff,
-	    /*flags*/0, /*lockfunc*/busdma_lock_mutex,
-	    /*lockarg*/&Giant, &sc->dmat) != 0) {
+	    /*flags*/0, /*lockfunc*/NULL,
+	    /*lockarg*/NULL, &sc->dmat) != 0) {
 		device_printf(sc->dev, "unable to create dma tag\n");
 		return ENXIO;
 	}
@@ -2466,7 +2451,6 @@ envy24ht_alloc_resource(struct sc_info *sc)
 static int
 envy24ht_pci_attach(device_t dev)
 {
-	u_int32_t		data;
 	struct sc_info 		*sc;
 	char 			status[SND_STATUSLEN];
 	int			err = 0;
@@ -2487,10 +2471,7 @@ envy24ht_pci_attach(device_t dev)
 	sc->dev = dev;
 
 	/* initialize PCI interface */
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
+	pci_enable_busmaster(dev);
 
 	/* allocate resources */
 	err = envy24ht_alloc_resource(sc);
@@ -2526,7 +2507,7 @@ envy24ht_pci_attach(device_t dev)
 
 	/* set status iformation */
 	snprintf(status, SND_STATUSLEN,
-	    "at io 0x%lx:%ld,0x%lx:%ld irq %ld",
+	    "at io 0x%jx:%jd,0x%jx:%jd irq %jd",
 	    rman_get_start(sc->cs),
 	    rman_get_end(sc->cs) - rman_get_start(sc->cs) + 1,
 	    rman_get_start(sc->mt),
@@ -2607,11 +2588,7 @@ static device_method_t envy24ht_methods[] = {
 static driver_t envy24ht_driver = {
 	"pcm",
 	envy24ht_methods,
-#if __FreeBSD_version > 500000
 	PCM_SOFTC_SIZE,
-#else
-	sizeof(struct snddev_info),
-#endif
 };
 
 DRIVER_MODULE(snd_envy24ht, pci, envy24ht_driver, pcm_devclass, 0, 0);

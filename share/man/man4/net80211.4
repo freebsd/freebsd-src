@@ -64,7 +64,7 @@ This structure is defined as follows:
 .Bd -literal
 struct ieee80211req {
 	char		i_name[IFNAMSIZ];	/* if_name, e.g. "wi0" */
-	u_int16_t	i_type;			/* req type */
+	uint16_t	i_type;			/* req type */
 	int16_t		i_val;			/* Index or simple value */
 	int16_t		i_len;			/* Index or simple value */
 	void		*i_data;		/* Extra data */
@@ -199,7 +199,7 @@ Return the time between Beacon frames (in TU) in
 .It Dv IEEE80211_IOC_BGSCAN
 Return whether background scanning is enabled in
 .Va i_val .
-When this value is non-zero and operating in station mode 
+When this value is non-zero and operating in station mode
 the station will periodically leave
 the current channel and scan for neighboring stations.
 See also
@@ -230,7 +230,7 @@ Return the MAC address for the current BSS identifier via
 .Va i_data .
 When the interface is running, the bssid is either the value
 configured locally (e.g. for an IBSS network started by the local station)
-or the value adopted when joing an existing network.
+or the value adopted when joining an existing network.
 For WDS interfaces this value is the address of the remote station.
 When the interface is not running, the bssid returned is the desired
 bssid, if any, that has been configured.
@@ -280,10 +280,10 @@ Return whether or not Dynamic Frequency Selection (DFS) is enabled in
 DFS embodies several facilities including detection of overlapping
 radar signals, dynamic transmit power control, and channel selection
 according to a least-congested criteria.
-DFS support is mandatory for some 5Ghz frequencies in certain
+DFS support is mandatory for some 5GHz frequencies in certain
 locales (e.g. ETSI).
 By default DFS is enabled according to the regulatory definitions
-and the curent country code, regdomain, and channel.
+and the current country code, regdomain, and channel.
 .It Dv IEEE80211_IOC_DOTD
 Return whether or not 802.11d support is enabled in
 .Va i_val .
@@ -308,7 +308,7 @@ By default 802.11h is enabled if the device is capable.
 Return, in
 .Va i_val ,
 whether unencrypted packets transmit/received should be discarded.
-This value will be zero if unecrypted packets will be accepted and
+This value will be zero if unencrypted packets will be accepted and
 non-zero if they are to be discarded.
 .It Dv IEEE80211_IOC_DTIM_PERIOD
 Return the period (in beacon intervals) between DTIM events in
@@ -343,7 +343,7 @@ Return, in
 .Va i_val ,
 whether SSID hiding/cloaking is enabled.
 SSID hiding is only meaningful when operating as an access point.
-When this is enabled Beacon frames do not include the SSID and 
+When this is enabled Beacon frames do not include the SSID and
 ProbeRequest frames are not answered unless they include the AP's SSID.
 This value will be non-zero when SSID hiding is enabled and otherwise zero.
 .It Dv IEEE80211_IOC_HTCOMPAT
@@ -366,7 +366,7 @@ Valid values are:
 0 (do not promote, use legacy),
 1 (promote to HT20),
 and
-2 (promote to HT40),
+2 (promote to HT40).
 .It Dv IEEE80211_IOC_HTPROTMODE
 Return, in
 .Va i_val ,
@@ -397,7 +397,7 @@ and
 Return whether or not the system handles inactivity processing in
 .Va i_val .
 When inactivity processing is enabled the system will track stations
-that have not trasmitted frames and periodically probe them to
+that have not transmitted frames and periodically probe them to
 check if they are still present.
 Stations that are inactive and do not respond to probes are dropped.
 .It Dv IEEE80211_IOC_MACCMD
@@ -447,7 +447,7 @@ Return the number of SSIDs supported in
 .Va i_val .
 .It Dv IEEE80211_IOC_NUMWEPKEYS
 Return the number of WEP keys supported in
-.Va i_val
+.Va i_val .
 .It Dv IEEE80211_IOC_POWERSAVE
 Return the current powersaving mode in
 .Va i_val .
@@ -464,7 +464,7 @@ This value is also termed the listen interval and represents the maximum time
 a station will sleep before waking to retrieve packets buffered by
 an access point.
 .It Dv IEEE80211_IOC_PRIVACY
-Return the current MLME setting for PRIVACY in 
+Return the current MLME setting for PRIVACY in
 .Va i_val .
 When PRIVACY is enabled all data packets must be encrypted.
 This value will be zero if PRIVACY is disabled and
@@ -485,12 +485,12 @@ and
 .It Dv IEEE80211_IOC_PUREG
 Return whether ``pure 11g'' mode is enabled in
 .Va i_val .
-This setting is meaningful only for acces point operation;
+This setting is meaningful only for access point operation;
 when non-zero, 802.11b stations will not be allowed to associate.
 .It Dv IEEE80211_IOC_PUREN
 Return whether ``pure 11n'' mode is enabled in
 .Va i_val .
-This setting is meaningful only for acces point operation;
+This setting is meaningful only for access point operation;
 when non-zero, legacy (non-11n capable) stations will not be
 allowed to associate.
 .It Dv IEEE80211_IOC_REGDOMAIN
@@ -595,7 +595,7 @@ Return whether Atheros Dynamic Turbo mode is enabled in
 Dynamic Turbo mode is a non-standard protocol extension available only
 on Atheros devices where channel width is dynamically
 changed between 20MHz and 40MHz.
-Note tht enabling Dynamic Turbo mode support does not guarantee use;
+Note that enabling Dynamic Turbo mode support does not guarantee use;
 both client and access point must use Atheros devices and support must
 be enabled on both sides.
 .It Dv IEEE80211_IOC_TXPARAMS
@@ -654,7 +654,7 @@ together with an optional IEEE80211_WMEPARAM_BSS flag to indicate if the
 parameter for the BSS or the channel is desired.
 If WME is not supported then
 .Er EINVAL
-wil be returned.
+will be returned.
 .It Dv IEEE80211_IOC_WME_CWMAX
 Return the WME CWmax setting (log2) for the specified Access Class (AC) in
 .Va i_val .
@@ -923,8 +923,8 @@ using the value in
 .Va i_val .
 .It Dv IEEE80211_IOC_DTIM_PERIOD
 Set the period (in beacon intervals) between DTIM events to the value in
-This request causes a running interface to be restarted.
 .Va i_val .
+This request causes a running interface to be restarted.
 .It Dv IEEE80211_IOC_DWDS
 Set whether or not Dynamic WDS support is enabled using the value in
 .Va i_val .
@@ -1002,7 +1002,7 @@ and
 Set whether or not the system handles inactivity processing using the value in
 .Va i_val .
 When inactivity processing is enabled the system will track stations
-that have not trasmitted frames and periodically probe them to
+that have not transmitted frames and periodically probe them to
 check if they are still present.
 Stations that are inactive and do not respond to probes are dropped.
 .It Dv IEEE80211_IOC_MACCMD
@@ -1073,7 +1073,7 @@ There are several MLME operations supported:
 .Dv IEEE80211_MLME_DEAUTH
 (deauthenticate the specified station),
 .Dv IEEE80211_MLME_AUHORIZE
-(mark the specifed station authorized to pass data frames),
+(mark the specified station authorized to pass data frames),
 .Dv IEEE80211_MLME_UNAUTHORIZE
 (revoke the specified station's ability to pass data frames),
 and
@@ -1093,7 +1093,7 @@ Set the powersave sleep time in TU to the value in
 .Va i_val .
 This request causes a running interface to be reset.
 .It Dv IEEE80211_IOC_PRIVACY
-Set the current MLME setting for PRIVACY using the value in 
+Set the current MLME setting for PRIVACY using the value in
 .Va i_val .
 See
 .Dv IEEE80211_IOC_PRIVACY
@@ -1205,7 +1205,7 @@ This request causes a running interface to be reset.
 Set the current TDMA slot to the value in
 .Va i_val .
 Values must be in the range [0-slotcnt].
-Slot 0 identifies the master in the TDMA network; if it running it will 
+Slot 0 identifies the master in the TDMA network; if it running it will
 immediately start sending Beacon frames.
 .It Dv IEEE80211_IOC_TDMA_SLOTCNT
 Set the number of slots in the TDMA network to the value in
@@ -1313,6 +1313,6 @@ Set whether or not Wi-FI Protected Setup (WPS) is enabled using the value in
 .Xr wlan 4 ,
 .Xr wlan_acl 4 ,
 .Xr wlan_xauth 4 ,
-.Xr ifconfig 8 ,
 .Xr hostapd 8 ,
-.Xr wpa_supplicant 8 .
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8

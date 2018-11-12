@@ -66,4 +66,23 @@ an absolute minimum working set size of 8 times the size of
 .Sh SEE ALSO
 .Xr bspatch 1
 .Sh AUTHORS
-.An Colin Percival Aq cperciva@FreeBSD.org
+.An Colin Percival Aq Mt cperciva@FreeBSD.org
+.Sh BUGS
+The
+.Nm
+utility does not store the hashes of
+.Ar oldfile
+or
+.Ar newfile
+in
+.Ar patchfile .
+As a result, it is possible to apply a patch to the wrong file; this
+will usually produce garbage.
+It is recommended that users of
+.Nm
+store the hashes of
+.Ar oldfile
+and
+.Ar newfile
+and compare against them before and after applying
+.Ar patchfile .

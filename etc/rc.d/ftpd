@@ -4,13 +4,14 @@
 #
 
 # PROVIDE: ftpd
-# REQUIRE: LOGIN cleanvar
+# REQUIRE: LOGIN FILESYSTEMS
 # KEYWORD: shutdown
 
 . /etc/rc.subr
 
 name="ftpd"
-rcvar=`set_rcvar`
+desc="Internet File Transfer Protocol daemon"
+rcvar="ftpd_enable"
 command="/usr/libexec/${name}"
 pidfile="/var/run/${name}.pid"
 start_precmd=ftpd_prestart

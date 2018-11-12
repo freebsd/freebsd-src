@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2003, 2006 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2003, 2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,13 +9,13 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: handler.c,v 8.38 2006/11/02 02:38:22 ca Exp $")
+SM_RCSID("@(#)$Id: handler.c,v 8.40 2013-11-22 20:51:36 ca Exp $")
 
 #include "libmilter.h"
 
 #if !_FFR_WORKERS_POOL
 /*
-**  HANDLE_SESSION -- Handle a connected session in its own context
+**  MI_HANDLE_SESSION -- Handle a connected session in its own context
 **
 **	Parameters:
 **		ctx -- context structure
@@ -43,24 +43,7 @@ mi_handle_session(ctx)
 		ret = MI_FAILURE;
 	else
 		ret = mi_engine(ctx);
-	if (ValidSocket(ctx->ctx_sd))
-	{
-		(void) closesocket(ctx->ctx_sd);
-		ctx->ctx_sd = INVALID_SOCKET;
-	}
-	if (ctx->ctx_reply != NULL)
-	{
-		free(ctx->ctx_reply);
-		ctx->ctx_reply = NULL;
-	}
-	if (ctx->ctx_privdata != NULL)
-	{
-		smi_log(SMI_LOG_WARN,
-			"%s: private data not NULL",
-			ctx->ctx_smfi->xxfi_name);
-	}
-	mi_clr_macros(ctx, 0);
-	free(ctx);
+	mi_clr_ctx(ctx);
 	ctx = NULL;
 	return ret;
 }

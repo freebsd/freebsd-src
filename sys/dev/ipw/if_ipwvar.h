@@ -87,7 +87,8 @@ struct ipw_vap {
 #define	IPW_VAP(vap)	((struct ipw_vap *)(vap))
 
 struct ipw_softc {
-	struct ifnet			*sc_ifp;
+	struct ieee80211com		sc_ic;
+	struct mbufq			sc_snd;
 	device_t			sc_dev;
 
 	struct mtx			sc_mtx;
@@ -104,9 +105,8 @@ struct ipw_softc {
 #define	IPW_FLAG_BUSY			0x0040
 #define	IPW_FLAG_ASSOCIATING		0x0080
 #define	IPW_FLAG_ASSOCIATED		0x0100
+#define	IPW_FLAG_RUNNING		0x0200
 
-	int				irq_rid;
-	int				mem_rid;
 	struct resource			*irq;
 	struct resource			*mem;
 	bus_space_tag_t			sc_st;
@@ -117,6 +117,7 @@ struct ipw_softc {
 	int				sc_tx_timer;
 	int				sc_scan_timer;
 
+	bus_dma_tag_t			parent_dmat;
 	bus_dma_tag_t			tbd_dmat;
 	bus_dma_tag_t			rbd_dmat;
 	bus_dma_tag_t			status_dmat;
@@ -156,6 +157,8 @@ struct ipw_softc {
 	uint32_t			rxcur;
 	int				txfree;
 
+	uint16_t			chanmask;
+
 	struct ipw_rx_radiotap_header	sc_rxtap;
 	struct ipw_tx_radiotap_header	sc_txtap;
 };
@@ -164,13 +167,6 @@ struct ipw_softc {
  * NB.: This models the only instance of async locking in ipw_init_locked
  *	and must be kept in sync.
  */
-#define	IPW_LOCK_DECL	int	__waslocked = 0
-#define IPW_LOCK(sc)	do {				\
-	if (!(__waslocked = mtx_owned(&(sc)->sc_mtx)))	\
-		mtx_lock(&sc->sc_mtx);			\
-} while (0)
-#define IPW_UNLOCK(sc)	do {				\
-	if (!__waslocked)				\
-		mtx_unlock(&sc->sc_mtx);		\
-} while (0)
+#define IPW_LOCK(sc)		mtx_lock(&sc->sc_mtx);
+#define IPW_UNLOCK(sc)		mtx_unlock(&sc->sc_mtx);
 #define IPW_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)

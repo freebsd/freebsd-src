@@ -2,6 +2,11 @@
  * Copyright (c) 2004 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -30,12 +35,15 @@ __FBSDID("$FreeBSD$");
 #include <runetype.h>
 #include <wchar.h>
 #include <wctype.h>
+#include "mblocal.h"
 
 wint_t
-nextwctype(wint_t wc, wctype_t wct)
+nextwctype_l(wint_t wc, wctype_t wct, locale_t locale)
 {
 	size_t lim;
-	_RuneRange *rr = &_CurrentRuneLocale->__runetype_ext;
+	FIX_LOCALE(locale);
+	_RuneLocale *runes = XLOCALE_CTYPE(locale)->runes;
+	_RuneRange *rr = &runes->__runetype_ext;
 	_RuneEntry *base, *re;
 	int noinc;
 
@@ -43,7 +51,7 @@ nextwctype(wint_t wc, wctype_t wct)
 	if (wc < _CACHED_RUNES) {
 		wc++;
 		while (wc < _CACHED_RUNES) {
-			if (_CurrentRuneLocale->__runetype[wc] & wct)
+			if (runes->__runetype[wc] & wct)
 				return (wc);
 			wc++;
 		}
@@ -87,4 +95,9 @@ found:
 			return (wc);
 	}
 	return (-1);
+}
+wint_t
+nextwctype(wint_t wc, wctype_t wct)
+{
+	return nextwctype_l(wc, wct, __get_locale());
 }

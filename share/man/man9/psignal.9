@@ -12,13 +12,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"        This product includes software developed by the NetBSD
-.\"        Foundation, Inc. and its contributors.
-.\" 4. Neither the name of The NetBSD Foundation nor the names of its
-.\"    contributors may be used to endorse or promote products derived
-.\"    from this software without specific prior written permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
 .\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -35,41 +28,51 @@
 .\"	$NetBSD: psignal.9,v 1.1 1996/06/22 22:57:35 pk Exp $
 .\" $FreeBSD$
 .\"
-.Dd June 22, 1996
+.Dd October 8, 2011
 .Dt PSIGNAL 9
 .Os
 .Sh NAME
 .Nm psignal ,
+.Nm kern_psignal ,
 .Nm pgsignal ,
-.Nm gsignal
-.Nd post signal to a process or process group
+.Nm gsignal ,
+.Nm tdsignal
+.Nd post signal to a thread, process, or process group
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/signalvar.h
 .Ft void
-.Fn psignal "struct proc *p" "int signum"
+.Fn kern_psignal "struct proc *p" "int signum"
 .Ft void
 .Fn pgsignal "struct pgrp *pgrp" "int signum" "int checkctty"
 .Ft void
 .Fn gsignal "int pgid" "int signum"
+.Ft void
+.Fn tdsignal "struct thread *td" "int signum"
 .Sh DESCRIPTION
-These functions post a signal to one or more processes.
+These functions post a signal to a thread or one or more processes.
 The argument
 .Fa signum
 common to all three functions should be in the range
 .Bq 1- Ns Dv NSIG .
 .Pp
 The
-.Fn psignal
+.Fn kern_psignal
 function posts signal number
 .Fa signum
 to the process represented by the process structure
 .Fa p .
+The
+.Fn kern_psignal
+function used to be called
+.Fn psignal
+but was renamed in order to eliminate a name collision with the libc
+function of that name and facilitate code reuse.
 With a few exceptions noted below, the target process signal disposition is
 updated and is marked as runnable, so further handling of the signal is done
 in the context of the target process after a context switch.
 Note that
-.Fn psignal
+.Fn kern_psignal
 does not by itself cause a context switch to happen.
 .Pp
 The target process is not marked as runnable in the following cases:
@@ -95,7 +98,7 @@ regardless of the signal action
 .El
 .Pp
 If the target process is being traced
-.Fn psignal
+.Fn kern_psignal
 behaves as if the target process were taking the default action for
 .Fa signum .
 This allows the tracing process to be notified of the signal.
@@ -117,7 +120,7 @@ of the process group structure
 pointed at by
 .Fa pgrp
 and calling
-.Fn psignal
+.Fn kern_psignal
 as appropriate.
 If
 .Fa pgrp
@@ -142,7 +145,21 @@ set to zero.
 If
 .Fa pgid
 is zero no action is taken.
+.Pp
+The
+.Fn tdsignal
+function posts signal number
+.Fa signum
+to the thread represented by the thread structure
+.Fa td .
 .Sh SEE ALSO
 .Xr sigaction 2 ,
 .Xr signal 9 ,
 .Xr tsleep 9
+.Sh HISTORY
+The
+.Fn psignal
+function was renamed to
+.Fn kern_psignal
+in
+.Fx 9.0 .

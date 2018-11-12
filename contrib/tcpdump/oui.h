@@ -1,5 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/oui.h,v 1.7.2.1 2008-01-09 09:44:39 hannes Exp $ (LBL) */
-/* 
+/*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code
  * distributions retain the above copyright notice and this paragraph
@@ -14,8 +13,8 @@
  * Original code by Hannes Gredler (hannes@juniper.net)
  */
 
-extern struct tok oui_values[];
-extern struct tok smi_values[];
+extern const struct tok oui_values[];
+extern const struct tok smi_values[];
 
 #define OUI_ENCAP_ETHER 0x000000        /* encapsulated Ethernet */
 #define OUI_CISCO       0x00000c        /* Cisco protocols */
@@ -30,6 +29,16 @@ extern struct tok smi_values[];
 #define OUI_IEEE_8021_PRIVATE 0x0080c2      /* IEEE 802.1 Organisation Specific - Annex F */
 #define OUI_IEEE_8023_PRIVATE 0x00120f      /* IEEE 802.3 Organisation Specific - Annex G */
 #define OUI_TIA         0x0012bb        /* TIA - Telecommunications Industry Association - ANSI/TIA-1057- 2006 */
+#define OUI_DCBX        0x001B21        /* DCBX */
+#define OUI_NICIRA      0x002320        /* Nicira Networks */
+#define OUI_BSN         0x5c16c7        /* Big Switch Networks */
+#define OUI_VELLO       0xb0d2f5        /* Vello Systems */
+#define OUI_HP2         0x002481        /* HP too */
+#define OUI_HPLABS      0x0004ea        /* HP-Labs */
+#define OUI_INFOBLOX    0x748771        /* Infoblox Inc */
+#define OUI_ONLAB       0xa42305        /* Open Networking Lab */
+#define OUI_FREESCALE   0x00049f        /* Freescale */
+#define OUI_NETRONOME   0x0015ad        /* Netronome */
 
 /*
  * These are SMI Network Management Private Enterprise Codes for

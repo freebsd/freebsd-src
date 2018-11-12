@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/filedesc.h>
+#include <sys/capsicum.h>
 #include <sys/ipc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
@@ -262,8 +263,8 @@ audit_arg_groupset(gid_t *gidset, u_int gidset_size)
 	u_int i;
 	struct kaudit_record *ar;
 
-	KASSERT(gidset_size <= NGROUPS,
-	    ("audit_arg_groupset: gidset_size > NGROUPS"));
+	KASSERT(gidset_size <= ngroups_max + 1,
+	    ("audit_arg_groupset: gidset_size > (kern.ngroups + 1)"));
 
 	ar = currecord();
 	if (ar == NULL)
@@ -441,7 +442,7 @@ audit_arg_socket(int sodomain, int sotype, int soprotocol)
 }
 
 void
-audit_arg_sockaddr(struct thread *td, struct sockaddr *sa)
+audit_arg_sockaddr(struct thread *td, int dirfd, struct sockaddr *sa)
 {
 	struct kaudit_record *ar;
 
@@ -463,7 +464,10 @@ audit_arg_sockaddr(struct thread *td, struct sockaddr *sa)
 		break;
 
 	case AF_UNIX:
-		audit_arg_upath1(td, ((struct sockaddr_un *)sa)->sun_path);
+		if (dirfd != AT_FDCWD)
+			audit_arg_atfd1(dirfd);
+		audit_arg_upath1(td, dirfd,
+		    ((struct sockaddr_un *)sa)->sun_path);
 		ARG_SET_VALID(ar, ARG_SADDRUNIX);
 		break;
 	/* XXXAUDIT: default:? */
@@ -651,7 +655,6 @@ audit_arg_file(struct proc *p, struct file *fp)
 	struct socket *so;
 	struct inpcb *pcb;
 	struct vnode *vp;
-	int vfslocked;
 
 	ar = currecord();
 	if (ar == NULL)
@@ -664,11 +667,9 @@ audit_arg_file(struct proc *p, struct file *fp)
 		 * XXXAUDIT: Only possibly to record as first vnode?
 		 */
 		vp = fp->f_vnode;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_SHARED | LK_RETRY);
 		audit_arg_vnode1(vp);
 		VOP_UNLOCK(vp, 0);
-		VFS_UNLOCK_GIANT(vfslocked);
 		break;
 
 	case DTYPE_SOCKET:
@@ -710,16 +711,16 @@ audit_arg_file(struct proc *p, struct file *fp)
  * freed when the audit record is freed.
  */
 static void
-audit_arg_upath(struct thread *td, char *upath, char **pathp)
+audit_arg_upath(struct thread *td, int dirfd, char *upath, char **pathp)
 {
 
 	if (*pathp == NULL)
 		*pathp = malloc(MAXPATHLEN, M_AUDITPATH, M_WAITOK);
-	audit_canon_path(td, upath, *pathp);
+	audit_canon_path(td, dirfd, upath, *pathp);
 }
 
 void
-audit_arg_upath1(struct thread *td, char *upath)
+audit_arg_upath1(struct thread *td, int dirfd, char *upath)
 {
 	struct kaudit_record *ar;
 
@@ -727,12 +728,12 @@ audit_arg_upath1(struct thread *td, char *upath)
 	if (ar == NULL)
 		return;
 
-	audit_arg_upath(td, upath, &ar->k_ar.ar_arg_upath1);
+	audit_arg_upath(td, dirfd, upath, &ar->k_ar.ar_arg_upath1);
 	ARG_SET_VALID(ar, ARG_UPATH1);
 }
 
 void
-audit_arg_upath2(struct thread *td, char *upath)
+audit_arg_upath2(struct thread *td, int dirfd, char *upath)
 {
 	struct kaudit_record *ar;
 
@@ -740,7 +741,7 @@ audit_arg_upath2(struct thread *td, char *upath)
 	if (ar == NULL)
 		return;
 
-	audit_arg_upath(td, upath, &ar->k_ar.ar_arg_upath2);
+	audit_arg_upath(td, dirfd, upath, &ar->k_ar.ar_arg_upath2);
 	ARG_SET_VALID(ar, ARG_UPATH2);
 }
 
@@ -768,11 +769,6 @@ audit_arg_vnode(struct vnode *vp, struct vnode_au_info *vnp)
 	struct vattr vattr;
 	int error;
 
-	/*
-	 * Assume that if the caller is calling audit_arg_vnode() on a
-	 * non-MPSAFE vnode, then it will have acquired Giant.
-	 */
-	VFS_ASSERT_GIANT(vp->v_mount);
 	ASSERT_VOP_LOCKED(vp, "audit_arg_vnode");
 
 	error = VOP_GETATTR(vp, &vattr, curthread->td_ucred);
@@ -865,6 +861,32 @@ audit_arg_envv(char *envv, int envc, int length)
 	ARG_SET_VALID(ar, ARG_ENVV);
 }
 
+void
+audit_arg_rights(cap_rights_t *rightsp)
+{
+	struct kaudit_record *ar;
+
+	ar = currecord();
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_rights = *rightsp;
+	ARG_SET_VALID(ar, ARG_RIGHTS);
+}
+
+void
+audit_arg_fcntl_rights(uint32_t fcntlrights)
+{
+	struct kaudit_record *ar;
+
+	ar = currecord();
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_fcntl_rights = fcntlrights;
+	ARG_SET_VALID(ar, ARG_FCNTL_RIGHTS);
+}
+
 /*
  * The close() system call uses it's own audit call to capture the path/vnode
  * information because those pieces are not easily obtained within the system
@@ -873,10 +895,10 @@ audit_arg_envv(char *envv, int envc, int length)
 void
 audit_sysclose(struct thread *td, int fd)
 {
+	cap_rights_t rights;
 	struct kaudit_record *ar;
 	struct vnode *vp;
 	struct file *fp;
-	int vfslocked;
 
 	KASSERT(td != NULL, ("audit_sysclose: td == NULL"));
 
@@ -886,14 +908,12 @@ audit_sysclose(struct thread *td, int fd)
 
 	audit_arg_fd(fd);
 
-	if (getvnode(td->td_proc->p_fd, fd, &fp) != 0)
+	if (getvnode(td, fd, cap_rights_init(&rights), &fp) != 0)
 		return;
 
 	vp = fp->f_vnode;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	audit_arg_vnode1(vp);
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 }

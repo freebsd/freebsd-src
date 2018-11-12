@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
  */
 /* ARGSUSED */
 int
-audit(struct thread *td, struct audit_args *uap)
+sys_audit(struct thread *td, struct audit_args *uap)
 {
 	int error;
 	void * rec;
@@ -154,7 +154,7 @@ free_out:
  */
 /* ARGSUSED */
 int
-auditon(struct thread *td, struct auditon_args *uap)
+sys_auditon(struct thread *td, struct auditon_args *uap)
 {
 	struct ucred *cred, *newcred, *oldcred;
 	int error;
@@ -299,11 +299,11 @@ auditon(struct thread *td, struct auditon_args *uap)
 	case A_OLDSETQCTRL:
 	case A_SETQCTRL:
 		if (uap->length == sizeof(udata.au_qctrl64)) {
+			/* NB: aq64_minfree is unsigned unlike aq_minfree. */
 			if ((udata.au_qctrl64.aq64_hiwater > AQ_MAXHIGH) ||
 			    (udata.au_qctrl64.aq64_lowater >=
 			    udata.au_qctrl.aq_hiwater) ||
 			    (udata.au_qctrl64.aq64_bufsz > AQ_MAXBUFSZ) ||
-			    (udata.au_qctrl64.aq64_minfree < 0) ||
 			    (udata.au_qctrl64.aq64_minfree > 100))
 				return (EINVAL);
 			audit_qctrl.aq_hiwater =
@@ -461,7 +461,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 		    udata.au_aupinfo.ap_mask.am_success;
 		newcred->cr_audit.ai_mask.am_failure =
 		    udata.au_aupinfo.ap_mask.am_failure;
-		td->td_proc->p_ucred = newcred;
+		proc_set_cred(tp, newcred);
 		PROC_UNLOCK(tp);
 		crfree(oldcred);
 		break;
@@ -560,7 +560,7 @@ auditon(struct thread *td, struct auditon_args *uap)
  */
 /* ARGSUSED */
 int
-getauid(struct thread *td, struct getauid_args *uap)
+sys_getauid(struct thread *td, struct getauid_args *uap)
 {
 	int error;
 
@@ -575,7 +575,7 @@ getauid(struct thread *td, struct getauid_args *uap)
 
 /* ARGSUSED */
 int
-setauid(struct thread *td, struct setauid_args *uap)
+sys_setauid(struct thread *td, struct setauid_args *uap)
 {
 	struct ucred *newcred, *oldcred;
 	au_id_t id;
@@ -600,7 +600,7 @@ setauid(struct thread *td, struct setauid_args *uap)
 	if (error)
 		goto fail;
 	newcred->cr_audit.ai_auid = id;
-	td->td_proc->p_ucred = newcred;
+	proc_set_cred(td->td_proc, newcred);
 	PROC_UNLOCK(td->td_proc);
 	crfree(oldcred);
 	return (0);
@@ -615,7 +615,7 @@ fail:
  */
 /* ARGSUSED */
 int
-getaudit(struct thread *td, struct getaudit_args *uap)
+sys_getaudit(struct thread *td, struct getaudit_args *uap)
 {
 	struct auditinfo ai;
 	struct ucred *cred;
@@ -640,7 +640,7 @@ getaudit(struct thread *td, struct getaudit_args *uap)
 
 /* ARGSUSED */
 int
-setaudit(struct thread *td, struct setaudit_args *uap)
+sys_setaudit(struct thread *td, struct setaudit_args *uap)
 {
 	struct ucred *newcred, *oldcred;
 	struct auditinfo ai;
@@ -671,7 +671,7 @@ setaudit(struct thread *td, struct setaudit_args *uap)
 	newcred->cr_audit.ai_termid.at_addr[0] = ai.ai_termid.machine;
 	newcred->cr_audit.ai_termid.at_port = ai.ai_termid.port;
 	newcred->cr_audit.ai_termid.at_type = AU_IPv4;
-	td->td_proc->p_ucred = newcred;
+	proc_set_cred(td->td_proc, newcred);
 	PROC_UNLOCK(td->td_proc);
 	crfree(oldcred);
 	return (0);
@@ -683,7 +683,7 @@ fail:
 
 /* ARGSUSED */
 int
-getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
+sys_getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
 {
 	int error;
 
@@ -700,7 +700,7 @@ getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
 
 /* ARGSUSED */
 int
-setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
+sys_setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 {
 	struct ucred *newcred, *oldcred;
 	struct auditinfo_addr aia;
@@ -728,7 +728,7 @@ setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 	if (error)
 		goto fail;
 	newcred->cr_audit = aia;
-	td->td_proc->p_ucred = newcred;
+	proc_set_cred(td->td_proc, newcred);
 	PROC_UNLOCK(td->td_proc);
 	crfree(oldcred);
 	return (0);
@@ -743,13 +743,13 @@ fail:
  */
 /* ARGSUSED */
 int
-auditctl(struct thread *td, struct auditctl_args *uap)
+sys_auditctl(struct thread *td, struct auditctl_args *uap)
 {
 	struct nameidata nd;
 	struct ucred *cred;
 	struct vnode *vp;
 	int error = 0;
-	int flags, vfslocked;
+	int flags;
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
@@ -770,20 +770,18 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 	if (uap->path == NULL)
 		return (EINVAL);
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1,
 	    UIO_USERSPACE, uap->path, td);
 	flags = AUDIT_OPEN_FLAGS;
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error)
 		return (error);
-	vfslocked = NDHASGIANT(&nd);
 	vp = nd.ni_vp;
 #ifdef MAC
 	error = mac_system_check_auditctl(td->td_ucred, vp);
 	VOP_UNLOCK(vp, 0);
 	if (error) {
 		vn_close(vp, AUDIT_CLOSE_FLAGS, td->td_ucred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
 #else
@@ -792,10 +790,8 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (vp->v_type != VREG) {
 		vn_close(vp, AUDIT_CLOSE_FLAGS, td->td_ucred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
 		return (EINVAL);
 	}
-	VFS_UNLOCK_GIANT(vfslocked);
 	cred = td->td_ucred;
 	crhold(cred);
 
@@ -813,63 +809,63 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 #else /* !AUDIT */
 
 int
-audit(struct thread *td, struct audit_args *uap)
+sys_audit(struct thread *td, struct audit_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-auditon(struct thread *td, struct auditon_args *uap)
+sys_auditon(struct thread *td, struct auditon_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-getauid(struct thread *td, struct getauid_args *uap)
+sys_getauid(struct thread *td, struct getauid_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-setauid(struct thread *td, struct setauid_args *uap)
+sys_setauid(struct thread *td, struct setauid_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-getaudit(struct thread *td, struct getaudit_args *uap)
+sys_getaudit(struct thread *td, struct getaudit_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-setaudit(struct thread *td, struct setaudit_args *uap)
+sys_setaudit(struct thread *td, struct setaudit_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
+sys_getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
+sys_setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-auditctl(struct thread *td, struct auditctl_args *uap)
+sys_auditctl(struct thread *td, struct auditctl_args *uap)
 {
 
 	return (ENOSYS);

@@ -10,17 +10,9 @@ MAN=	editmap.8
 CFLAGS+= -I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -I.
 CFLAGS+= -DNEWDB -DNOT_SENDMAIL
 
-LIBSMDIR=	${.OBJDIR}/../../lib/libsm
-LIBSM=		${LIBSMDIR}/libsm.a
+WARNS?=	2
 
-LIBSMDBDIR=	${.OBJDIR}/../../lib/libsmdb
-LIBSMDB=	${LIBSMDBDIR}/libsmdb.a
-
-LIBSMUTILDIR=	${.OBJDIR}/../../lib/libsmutil
-LIBSMUTIL=	${LIBSMUTILDIR}/libsmutil.a
-
-DPADD=	${LIBSMDB} ${LIBSMUTIL} ${LIBSM}
-LDADD=	${LIBSMDB} ${LIBSMUTIL} ${LIBSM}
+LIBADD=	smdb smutil sm
 
 SRCS+=	sm_os.h
 CLEANFILES+=sm_os.h
@@ -31,7 +23,7 @@ DPADD+=${SENDMAIL_DPADD}
 LDADD+=${SENDMAIL_LDADD}
 LDFLAGS+=${SENDMAIL_LDFLAGS}
 
-sm_os.h:
-	ln -sf ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h sm_os.h
+sm_os.h: ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

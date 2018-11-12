@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <cam/scsi/scsi_low.h>
-#include <cam/scsi/scsi_low_pisa.h>
 
 #include <dev/stg/tmc18c30reg.h>
 #include <dev/stg/tmc18c30var.h>
@@ -100,8 +99,8 @@ stg_pci_attach(device_t dev)
 	}
 
 	/* XXXX remove INTR_ENTROPY below for MFC */
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
-			       NULL, stg_intr, (void *)sc, &sc->stg_intrhand);
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY |
+	    INTR_MPSAFE, NULL, stg_intr, sc, &sc->stg_intrhand);
 	if (error) {
 		stg_release_resource(dev);
 		return(error);

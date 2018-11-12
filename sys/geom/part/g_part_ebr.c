@@ -42,15 +42,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
 
+FEATURE(geom_part_ebr,
+    "GEOM partitioning class for extended boot records support");
+#if defined(GEOM_PART_EBR_COMPAT)
+FEATURE(geom_part_ebr_compat,
+    "GEOM EBR partitioning class: backward-compatible partition names");
+#endif
+
 #define	EBRSIZE		512
 
 struct g_part_ebr_table {
 	struct g_part_table	base;
+#ifndef GEOM_PART_EBR_COMPAT
+	u_char		ebr[EBRSIZE];
+#endif
 };
 
 struct g_part_ebr_entry {
@@ -82,6 +93,8 @@ static int g_part_ebr_setunset(struct g_part_table *, struct g_part_entry *,
 static const char *g_part_ebr_type(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_ebr_write(struct g_part_table *, struct g_consumer *);
+static int g_part_ebr_resize(struct g_part_table *, struct g_part_entry *,
+    struct g_part_parms *);
 
 static kobj_method_t g_part_ebr_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_ebr_add),
@@ -97,6 +110,7 @@ static kobj_method_t g_part_ebr_methods[] = {
 	KOBJMETHOD(g_part_precheck,	g_part_ebr_precheck),
 	KOBJMETHOD(g_part_probe,	g_part_ebr_probe),
 	KOBJMETHOD(g_part_read,		g_part_ebr_read),
+	KOBJMETHOD(g_part_resize,	g_part_ebr_resize),
 	KOBJMETHOD(g_part_setunset,	g_part_ebr_setunset),
 	KOBJMETHOD(g_part_type,		g_part_ebr_type),
 	KOBJMETHOD(g_part_write,	g_part_ebr_write),
@@ -112,6 +126,19 @@ static struct g_part_scheme g_part_ebr_scheme = {
 	.gps_maxent = INT_MAX,
 };
 G_PART_SCHEME_DECLARE(g_part_ebr);
+
+static struct g_part_ebr_alias {
+	u_char		typ;
+	int		alias;
+} ebr_alias_match[] = {
+	{ DOSPTYP_386BSD,	G_PART_ALIAS_FREEBSD },
+	{ DOSPTYP_NTFS,		G_PART_ALIAS_MS_NTFS },
+	{ DOSPTYP_FAT32,	G_PART_ALIAS_MS_FAT32 },
+	{ DOSPTYP_LINSWP,	G_PART_ALIAS_LINUX_SWAP },
+	{ DOSPTYP_LINUX,	G_PART_ALIAS_LINUX_DATA },
+	{ DOSPTYP_LINLVM,	G_PART_ALIAS_LINUX_LVM },
+	{ DOSPTYP_LINRAID,	G_PART_ALIAS_LINUX_RAID },
+};
 
 static void ebr_set_chs(struct g_part_table *, uint32_t, u_char *, u_char *,
     u_char *);
@@ -152,6 +179,7 @@ ebr_parse_type(const char *type, u_char *dp_typ)
 	const char *alias;
 	char *endp;
 	long lt;
+	int i;
 
 	if (type[0] == '!') {
 		lt = strtol(type + 1, &endp, 0);
@@ -160,13 +188,16 @@ ebr_parse_type(const char *type, u_char *dp_typ)
 		*dp_typ = (u_char)lt;
 		return (0);
 	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
-	if (!strcasecmp(type, alias)) {
-		*dp_typ = DOSPTYP_386BSD;
-		return (0);
+	for (i = 0; i < nitems(ebr_alias_match); i++) {
+		alias = g_part_alias_name(ebr_alias_match[i].alias);
+		if (strcasecmp(type, alias) == 0) {
+			*dp_typ = ebr_alias_match[i].typ;
+			return (0);
+		}
 	}
 	return (EINVAL);
 }
+
 
 static void
 ebr_set_chs(struct g_part_table *table, uint32_t lba, u_char *cylp, u_char *hdp,
@@ -188,47 +219,54 @@ ebr_set_chs(struct g_part_table *table, uint32_t lba, u_char *cylp, u_char *hdp,
 }
 
 static int
+ebr_align(struct g_part_table *basetable, uint32_t *start, uint32_t *size)
+{
+	uint32_t sectors;
+
+	sectors = basetable->gpt_sectors;
+	if (*size < 2 * sectors)
+		return (EINVAL);
+	if (*start % sectors) {
+		*size += (*start % sectors) - sectors;
+		*start -= (*start % sectors) - sectors;
+	}
+	if (*size % sectors)
+		*size -= (*size % sectors);
+	if (*size < 2 * sectors)
+		return (EINVAL);
+	return (0);
+}
+
+
+static int
 g_part_ebr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
     struct g_part_parms *gpp)
 {
-	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_part_ebr_entry *entry;
-	uint32_t start, size, sectors;
+	uint32_t start, size;
 
 	if (gpp->gpp_parms & G_PART_PARM_LABEL)
 		return (EINVAL);
 
-	gp = basetable->gpt_gp;
-	pp = LIST_FIRST(&gp->consumer)->provider;
-	sectors = basetable->gpt_sectors;
-
+	pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
 	entry = (struct g_part_ebr_entry *)baseentry;
-
 	start = gpp->gpp_start;
 	size = gpp->gpp_size;
-	if (size < 2 * sectors)
+	if (ebr_align(basetable, &start, &size) != 0)
 		return (EINVAL);
-	if (start % sectors) {
-		size = size - sectors + (start % sectors);
-		start = start - (start % sectors) + sectors;
-	}
-	if (size % sectors)
-		size = size - (size % sectors);
-	if (size < 2 * sectors)
-		return (EINVAL);
-
 	if (baseentry->gpe_deleted)
 		bzero(&entry->ent, sizeof(entry->ent));
 
-	KASSERT(baseentry->gpe_start <= start, (__func__));
-	KASSERT(baseentry->gpe_end >= start + size - 1, (__func__));
-	baseentry->gpe_index = (start / sectors) + 1;
-	baseentry->gpe_offset = (off_t)(start + sectors) * pp->sectorsize;
+	KASSERT(baseentry->gpe_start <= start, ("%s", __func__));
+	KASSERT(baseentry->gpe_end >= start + size - 1, ("%s", __func__));
+	baseentry->gpe_index = (start / basetable->gpt_sectors) + 1;
+	baseentry->gpe_offset =
+	    (off_t)(start + basetable->gpt_sectors) * pp->sectorsize;
 	baseentry->gpe_start = start;
 	baseentry->gpe_end = start + size - 1;
-	entry->ent.dp_start = sectors;
-	entry->ent.dp_size = size - sectors;
+	entry->ent.dp_start = basetable->gpt_sectors;
+	entry->ent.dp_size = size - basetable->gpt_sectors;
 	ebr_set_chs(basetable, entry->ent.dp_start, &entry->ent.dp_scyl,
 	    &entry->ent.dp_shd, &entry->ent.dp_ssect);
 	ebr_set_chs(basetable, baseentry->gpe_end, &entry->ent.dp_ecyl,
@@ -239,7 +277,7 @@ g_part_ebr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 static int
 g_part_ebr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
-	char psn[8];
+	char type[64];
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	uint32_t msize;
@@ -256,14 +294,18 @@ g_part_ebr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	if (basetable->gpt_depth == 0)
 		return (ENXIO);
 	cp = LIST_FIRST(&pp->consumers);
-	error = g_getattr("PART::scheme", cp, &psn);
-	if (error)
+	error = g_getattr("PART::scheme", cp, &type);
+	if (error != 0)
 		return (error);
-	if (strcmp(psn, "MBR"))
+	if (strcmp(type, "MBR") != 0)
+		return (ENXIO);
+	error = g_getattr("PART::type", cp, &type);
+	if (error != 0)
+		return (error);
+	if (strcmp(type, "ebr") != 0)
 		return (ENXIO);
 
-	msize = MIN(pp->mediasize / pp->sectorsize, 0xffffffff);
-	msize -= msize % basetable->gpt_sectors;
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 	basetable->gpt_first = 0;
 	basetable->gpt_last = msize - 1;
 	basetable->gpt_entries = msize / basetable->gpt_sectors;
@@ -305,9 +347,10 @@ g_part_ebr_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 {
 	struct g_part_ebr_entry *entry;
 
-	/* Allow dumping to a FreeBSD partition only. */
+	/* Allow dumping to a FreeBSD partition or Linux swap partition only. */
 	entry = (struct g_part_ebr_entry *)baseentry;
-	return ((entry->ent.dp_typ == DOSPTYP_386BSD) ? 1 : 0);
+	return ((entry->ent.dp_typ == DOSPTYP_386BSD ||
+	    entry->ent.dp_typ == DOSPTYP_LINSWP) ? 1 : 0);
 }
 
 #if defined(GEOM_PART_EBR_COMPAT)
@@ -343,6 +386,20 @@ g_part_ebr_modify(struct g_part_table *basetable,
 	return (0);
 }
 
+static int
+g_part_ebr_resize(struct g_part_table *basetable,
+    struct g_part_entry *baseentry, struct g_part_parms *gpp)
+{
+	struct g_provider *pp;
+
+	if (baseentry != NULL)
+		return (EOPNOTSUPP);
+	pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+	basetable->gpt_last = MIN(pp->mediasize / pp->sectorsize,
+	    UINT32_MAX) - 1;
+	return (0);
+}
+
 static const char *
 g_part_ebr_name(struct g_part_table *table, struct g_part_entry *entry,
     char *buf, size_t bufsz)
@@ -357,6 +414,8 @@ g_part_ebr_precheck(struct g_part_table *table, enum g_part_ctl req,
     struct g_part_parms *gpp)
 {
 #if defined(GEOM_PART_EBR_COMPAT)
+	if (req == G_PART_CTL_DESTROY)
+		return (0);
 	return (ECANCELED);
 #else
 	/*
@@ -374,10 +433,10 @@ g_part_ebr_precheck(struct g_part_table *table, enum g_part_ctl req,
 static int
 g_part_ebr_probe(struct g_part_table *table, struct g_consumer *cp)
 {
-	char psn[8];
+	char type[64];
 	struct g_provider *pp;
 	u_char *buf, *p;
-	int error, index, res, sum;
+	int error, index, res;
 	uint16_t magic;
 
 	pp = cp->provider;
@@ -391,10 +450,16 @@ g_part_ebr_probe(struct g_part_table *table, struct g_consumer *cp)
 	/* Check that we have a parent and that it's a MBR. */
 	if (table->gpt_depth == 0)
 		return (ENXIO);
-	error = g_getattr("PART::scheme", cp, &psn);
-	if (error)
+	error = g_getattr("PART::scheme", cp, &type);
+	if (error != 0)
 		return (error);
-	if (strcmp(psn, "MBR"))
+	if (strcmp(type, "MBR") != 0)
+		return (ENXIO);
+	/* Check that partition has type DOSPTYP_EBR. */
+	error = g_getattr("PART::type", cp, &type);
+	if (error != 0)
+		return (error);
+	if (strcmp(type, "ebr") != 0)
 		return (ENXIO);
 
 	/* Check that there's a EBR. */
@@ -409,29 +474,11 @@ g_part_ebr_probe(struct g_part_table *table, struct g_consumer *cp)
 	if (magic != DOSMAGIC)
 		goto out;
 
-	/*
-	 * The sector is all zeroes, except for the partition entries,
-	 * pseudo boot code and some signatures or disk serial number.
-	 * The latter can be found in the 9 bytes immediately in front
-	 * of the partition table.
-	 */
-	sum = 0;
-	for (index = 96; index < DOSPARTOFF - 9; index++)
-		sum += buf[index];
-	if (sum != 0)
-		goto out;
-
-	for (index = 0; index < NDOSPART; index++) {
+	for (index = 0; index < 2; index++) {
 		p = buf + DOSPARTOFF + index * DOSPARTSIZE;
 		if (p[0] != 0 && p[0] != 0x80)
 			goto out;
-		if (index < 2)
-			continue;
-		/* The 3rd & 4th entries are always zero. */
-		if ((le64dec(p+0) + le64dec(p+8)) != 0)
-			goto out;
 	}
-
 	res = G_PART_PROBE_PRI_NORM;
 
  out:
@@ -454,7 +501,7 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	table = (struct g_part_ebr_table *)basetable;
-	msize = pp->mediasize / pp->sectorsize;
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
 
 	lba = 0;
 	while (1) {
@@ -465,6 +512,19 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 		ebr_entry_decode(buf + DOSPARTOFF + 0 * DOSPARTSIZE, ent + 0);
 		ebr_entry_decode(buf + DOSPARTOFF + 1 * DOSPARTSIZE, ent + 1);
+
+		/* The 3rd & 4th entries should be zeroes. */
+		if (le64dec(buf + DOSPARTOFF + 2 * DOSPARTSIZE) +
+		    le64dec(buf + DOSPARTOFF + 3 * DOSPARTSIZE) != 0) {
+			basetable->gpt_corrupt = 1;
+			printf("GEOM: %s: invalid entries in the EBR ignored.\n",
+			    pp->name);
+		}
+#ifndef GEOM_PART_EBR_COMPAT
+		/* Save the first EBR, it can contain a boot code */
+		if (lba == 0)
+			bcopy(buf, table->ebr, sizeof(table->ebr));
+#endif
 		g_free(buf);
 
 		if (ent[0].dp_typ == 0)
@@ -491,7 +551,7 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	basetable->gpt_entries = msize / basetable->gpt_sectors;
 	basetable->gpt_first = 0;
-	basetable->gpt_last = msize - (msize % basetable->gpt_sectors) - 1;
+	basetable->gpt_last = msize - 1;
 	return (0);
 }
 
@@ -503,6 +563,8 @@ g_part_ebr_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
 	struct g_part_ebr_entry *entry;
 	int changed;
 
+	if (baseentry == NULL)
+		return (ENODEV);
 	if (strcasecmp(attrib, "active") != 0)
 		return (EINVAL);
 
@@ -537,19 +599,23 @@ g_part_ebr_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
 	struct g_part_ebr_entry *entry;
-	int type;
+	int i;
 
 	entry = (struct g_part_ebr_entry *)baseentry;
-	type = entry->ent.dp_typ;
-	if (type == DOSPTYP_386BSD)
-		return (g_part_alias_name(G_PART_ALIAS_FREEBSD));
-	snprintf(buf, bufsz, "!%d", type);
+	for (i = 0; i < nitems(ebr_alias_match); i++) {
+		if (ebr_alias_match[i].typ == entry->ent.dp_typ)
+			return (g_part_alias_name(ebr_alias_match[i].alias));
+	}
+	snprintf(buf, bufsz, "!%d", entry->ent.dp_typ);
 	return (buf);
 }
 
 static int
 g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 {
+#ifndef GEOM_PART_EBR_COMPAT
+	struct g_part_ebr_table *table;
+#endif
 	struct g_provider *pp;
 	struct g_part_entry *baseentry, *next;
 	struct g_part_ebr_entry *entry;
@@ -559,13 +625,17 @@ g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
+#ifndef GEOM_PART_EBR_COMPAT
+	table = (struct g_part_ebr_table *)basetable;
+	bcopy(table->ebr, buf, DOSPARTOFF);
+#endif
 	le16enc(buf + DOSMAGICOFFSET, DOSMAGIC);
 
 	baseentry = LIST_FIRST(&basetable->gpt_entry);
 	while (baseentry != NULL && baseentry->gpe_deleted)
 		baseentry = LIST_NEXT(baseentry, gpe_entry);
 
-	/* Wipe-out the the first EBR when there are no slices. */
+	/* Wipe-out the first EBR when there are no slices. */
 	if (baseentry == NULL) {
 		error = g_write_data(cp, 0, buf, pp->sectorsize);
 		goto out;
@@ -611,7 +681,10 @@ g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 		error = g_write_data(cp, baseentry->gpe_start * pp->sectorsize,
 		    buf, pp->sectorsize);
-
+#ifndef GEOM_PART_EBR_COMPAT
+		if (baseentry->gpe_start == 0)
+			bzero(buf, DOSPARTOFF);
+#endif
 		baseentry = next;
 	} while (!error && baseentry != NULL);
 

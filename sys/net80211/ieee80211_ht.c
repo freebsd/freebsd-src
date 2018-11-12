@@ -37,12 +37,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/systm.h> 
 #include <sys/endian.h>
  
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
 
@@ -54,37 +56,90 @@ __FBSDID("$FreeBSD$");
 #define	MS(_v, _f)	(((_v) & _f) >> _f##_S)
 #define	SM(_v, _f)	(((_v) << _f##_S) & _f)
 
-const struct ieee80211_mcs_rates ieee80211_htrates[16] = {
-	{  13,  14,  27,  30 },	/* MCS 0 */
-	{  26,  29,  54,  60 },	/* MCS 1 */
-	{  39,  43,  81,  90 },	/* MCS 2 */
-	{  52,  58, 108, 120 },	/* MCS 3 */
-	{  78,  87, 162, 180 },	/* MCS 4 */
-	{ 104, 116, 216, 240 },	/* MCS 5 */
-	{ 117, 130, 243, 270 },	/* MCS 6 */
-	{ 130, 144, 270, 300 },	/* MCS 7 */
-	{  26,  29,  54,  60 },	/* MCS 8 */
-	{  52,  58, 108, 120 },	/* MCS 9 */
-	{  78,  87, 162, 180 },	/* MCS 10 */
-	{ 104, 116, 216, 240 },	/* MCS 11 */
-	{ 156, 173, 324, 360 },	/* MCS 12 */
-	{ 208, 231, 432, 480 },	/* MCS 13 */
-	{ 234, 260, 486, 540 },	/* MCS 14 */
-	{ 260, 289, 540, 600 }	/* MCS 15 */
+const struct ieee80211_mcs_rates ieee80211_htrates[IEEE80211_HTRATE_MAXSIZE] = {
+	{  13,  14,   27,   30 },	/* MCS 0 */
+	{  26,  29,   54,   60 },	/* MCS 1 */
+	{  39,  43,   81,   90 },	/* MCS 2 */
+	{  52,  58,  108,  120 },	/* MCS 3 */
+	{  78,  87,  162,  180 },	/* MCS 4 */
+	{ 104, 116,  216,  240 },	/* MCS 5 */
+	{ 117, 130,  243,  270 },	/* MCS 6 */
+	{ 130, 144,  270,  300 },	/* MCS 7 */
+	{  26,  29,   54,   60 },	/* MCS 8 */
+	{  52,  58,  108,  120 },	/* MCS 9 */
+	{  78,  87,  162,  180 },	/* MCS 10 */
+	{ 104, 116,  216,  240 },	/* MCS 11 */
+	{ 156, 173,  324,  360 },	/* MCS 12 */
+	{ 208, 231,  432,  480 },	/* MCS 13 */
+	{ 234, 260,  486,  540 },	/* MCS 14 */
+	{ 260, 289,  540,  600 },	/* MCS 15 */
+	{  39,  43,   81,   90 },	/* MCS 16 */
+	{  78,  87,  162,  180 },	/* MCS 17 */
+	{ 117, 130,  243,  270 },	/* MCS 18 */
+	{ 156, 173,  324,  360 },	/* MCS 19 */
+	{ 234, 260,  486,  540 },	/* MCS 20 */
+	{ 312, 347,  648,  720 },	/* MCS 21 */
+	{ 351, 390,  729,  810 },	/* MCS 22 */
+	{ 390, 433,  810,  900 },	/* MCS 23 */
+	{  52,  58,  108,  120 },	/* MCS 24 */
+	{ 104, 116,  216,  240 },	/* MCS 25 */
+	{ 156, 173,  324,  360 },	/* MCS 26 */
+	{ 208, 231,  432,  480 },	/* MCS 27 */
+	{ 312, 347,  648,  720 },	/* MCS 28 */
+	{ 416, 462,  864,  960 },	/* MCS 29 */
+	{ 468, 520,  972, 1080 },	/* MCS 30 */
+	{ 520, 578, 1080, 1200 },	/* MCS 31 */
+	{   0,   0,   12,   13 },	/* MCS 32 */
+	{  78,  87,  162,  180 },	/* MCS 33 */
+	{ 104, 116,  216,  240 },	/* MCS 34 */
+	{ 130, 144,  270,  300 },	/* MCS 35 */
+	{ 117, 130,  243,  270 },	/* MCS 36 */
+	{ 156, 173,  324,  360 },	/* MCS 37 */
+	{ 195, 217,  405,  450 },	/* MCS 38 */
+	{ 104, 116,  216,  240 },	/* MCS 39 */
+	{ 130, 144,  270,  300 },	/* MCS 40 */
+	{ 130, 144,  270,  300 },	/* MCS 41 */
+	{ 156, 173,  324,  360 },	/* MCS 42 */
+	{ 182, 202,  378,  420 },	/* MCS 43 */
+	{ 182, 202,  378,  420 },	/* MCS 44 */
+	{ 208, 231,  432,  480 },	/* MCS 45 */
+	{ 156, 173,  324,  360 },	/* MCS 46 */
+	{ 195, 217,  405,  450 },	/* MCS 47 */
+	{ 195, 217,  405,  450 },	/* MCS 48 */
+	{ 234, 260,  486,  540 },	/* MCS 49 */
+	{ 273, 303,  567,  630 },	/* MCS 50 */
+	{ 273, 303,  567,  630 },	/* MCS 51 */
+	{ 312, 347,  648,  720 },	/* MCS 52 */
+	{ 130, 144,  270,  300 },	/* MCS 53 */
+	{ 156, 173,  324,  360 },	/* MCS 54 */
+	{ 182, 202,  378,  420 },	/* MCS 55 */
+	{ 156, 173,  324,  360 },	/* MCS 56 */
+	{ 182, 202,  378,  420 },	/* MCS 57 */
+	{ 208, 231,  432,  480 },	/* MCS 58 */
+	{ 234, 260,  486,  540 },	/* MCS 59 */
+	{ 208, 231,  432,  480 },	/* MCS 60 */
+	{ 234, 260,  486,  540 },	/* MCS 61 */
+	{ 260, 289,  540,  600 },	/* MCS 62 */
+	{ 260, 289,  540,  600 },	/* MCS 63 */
+	{ 286, 318,  594,  660 },	/* MCS 64 */
+	{ 195, 217,  405,  450 },	/* MCS 65 */
+	{ 234, 260,  486,  540 },	/* MCS 66 */
+	{ 273, 303,  567,  630 },	/* MCS 67 */
+	{ 234, 260,  486,  540 },	/* MCS 68 */
+	{ 273, 303,  567,  630 },	/* MCS 69 */
+	{ 312, 347,  648,  720 },	/* MCS 70 */
+	{ 351, 390,  729,  810 },	/* MCS 71 */
+	{ 312, 347,  648,  720 },	/* MCS 72 */
+	{ 351, 390,  729,  810 },	/* MCS 73 */
+	{ 390, 433,  810,  900 },	/* MCS 74 */
+	{ 390, 433,  810,  900 },	/* MCS 75 */
+	{ 429, 477,  891,  990 },	/* MCS 76 */
 };
 
-static const struct ieee80211_htrateset ieee80211_rateset_11n =
-	{ 16, {
-	          0,   1,   2,   3,   4,  5,   6,  7,  8,  9,
-		 10,  11,  12,  13,  14,  15 }
-	};
-
-#ifdef IEEE80211_AMPDU_AGE
 static	int ieee80211_ampdu_age = -1;	/* threshold for ampdu reorder q (ms) */
 SYSCTL_PROC(_net_wlan, OID_AUTO, ampdu_age, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_ampdu_age, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"AMPDU max reorder age (ms)");
-#endif
 
 static	int ieee80211_recv_bar_ena = 1;
 SYSCTL_INT(_net_wlan, OID_AUTO, recv_bar, CTLFLAG_RW, &ieee80211_recv_bar_ena,
@@ -99,7 +154,7 @@ SYSCTL_PROC(_net_wlan, OID_AUTO, addba_backoff, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_addba_backoff, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"ADDBA request backoff (ms)");
 static	int ieee80211_addba_maxtries = 3;/* max ADDBA requests before backoff */
-SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLFLAG_RW,
 	&ieee80211_addba_maxtries, 0, "max ADDBA requests sent before backoff");
 
 static	int ieee80211_bar_timeout = -1;	/* timeout waiting for BAR response */
@@ -121,9 +176,7 @@ ieee80211_ht_init(void)
 	/*
 	 * Setup HT parameters that depends on the clock frequency.
 	 */
-#ifdef IEEE80211_AMPDU_AGE
 	ieee80211_ampdu_age = msecs_to_ticks(500);
-#endif
 	ieee80211_addba_timeout = msecs_to_ticks(250);
 	ieee80211_addba_backoff = msecs_to_ticks(10*1000);
 	ieee80211_bar_timeout = msecs_to_ticks(250);
@@ -162,6 +215,9 @@ static int ieee80211_addba_response(struct ieee80211_node *ni,
 	int code, int baparamset, int batimeout);
 static void ieee80211_addba_stop(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap);
+static void null_addba_response_timeout(struct ieee80211_node *ni,
+	struct ieee80211_tx_ampdu *tap);
+
 static void ieee80211_bar_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap, int status);
 static void ampdu_tx_stop(struct ieee80211_tx_ampdu *tap);
@@ -179,6 +235,7 @@ ieee80211_ht_attach(struct ieee80211com *ic)
 	ic->ic_ampdu_enable = ieee80211_ampdu_enable;
 	ic->ic_addba_request = ieee80211_addba_request;
 	ic->ic_addba_response = ieee80211_addba_response;
+	ic->ic_addba_response_timeout = null_addba_response_timeout;
 	ic->ic_addba_stop = ieee80211_addba_stop;
 	ic->ic_bar_response = ieee80211_bar_response;
 	ic->ic_ampdu_rx_start = ampdu_rx_start;
@@ -236,6 +293,11 @@ ieee80211_ht_vattach(struct ieee80211vap *vap)
 		vap->iv_flags_ht |= IEEE80211_FHT_AMSDU_RX;
 		if (vap->iv_htcaps & IEEE80211_HTC_AMSDU)
 			vap->iv_flags_ht |= IEEE80211_FHT_AMSDU_TX;
+
+		if (vap->iv_htcaps & IEEE80211_HTCAP_TXSTBC)
+			vap->iv_flags_ht |= IEEE80211_FHT_STBC_TX;
+		if (vap->iv_htcaps & IEEE80211_HTCAP_RXSTBC)
+			vap->iv_flags_ht |= IEEE80211_FHT_STBC_RX;
 	}
 	/* NB: disable default legacy WDS, too many issues right now */
 	if (vap->iv_flags_ext & IEEE80211_FEXT_WDSLEGACY)
@@ -247,40 +309,147 @@ ieee80211_ht_vdetach(struct ieee80211vap *vap)
 {
 }
 
-static void
-ht_announce(struct ieee80211com *ic, int mode,
-	const struct ieee80211_htrateset *rs)
+static int
+ht_getrate(struct ieee80211com *ic, int index, enum ieee80211_phymode mode,
+    int ratetype)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	int i, rate, mword;
+	int mword, rate;
 
-	if_printf(ifp, "%s MCS: ", ieee80211_phymode_name[mode]);
-	for (i = 0; i < rs->rs_nrates; i++) {
-		mword = ieee80211_rate2media(ic,
-		    rs->rs_rates[i] | IEEE80211_RATE_MCS, mode);
-		if (IFM_SUBTYPE(mword) != IFM_IEEE80211_MCS)
-			continue;
-		rate = ieee80211_htrates[rs->rs_rates[i]].ht40_rate_400ns;
-		printf("%s%d%sMbps", (i != 0 ? " " : ""),
-		    rate / 2, ((rate & 0x1) != 0 ? ".5" : ""));
+	mword = ieee80211_rate2media(ic, index | IEEE80211_RATE_MCS, mode);
+	if (IFM_SUBTYPE(mword) != IFM_IEEE80211_MCS)
+		return (0);
+	switch (ratetype) {
+	case 0:
+		rate = ieee80211_htrates[index].ht20_rate_800ns;
+		break;
+	case 1:
+		rate = ieee80211_htrates[index].ht20_rate_400ns;
+		break;
+	case 2:
+		rate = ieee80211_htrates[index].ht40_rate_800ns;
+		break;
+	default:
+		rate = ieee80211_htrates[index].ht40_rate_400ns;
+		break;
 	}
-	printf("\n");
+	return (rate);
+}
+
+static struct printranges {
+	int	minmcs;
+	int	maxmcs;
+	int	txstream;
+	int	ratetype;
+	int	htcapflags;
+} ranges[] = {
+	{  0,  7, 1, 0, 0 },
+	{  8, 15, 2, 0, 0 },
+	{ 16, 23, 3, 0, 0 },
+	{ 24, 31, 4, 0, 0 },
+	{ 32,  0, 1, 2, IEEE80211_HTC_TXMCS32 },
+	{ 33, 38, 2, 0, IEEE80211_HTC_TXUNEQUAL },
+	{ 39, 52, 3, 0, IEEE80211_HTC_TXUNEQUAL },
+	{ 53, 76, 4, 0, IEEE80211_HTC_TXUNEQUAL },
+	{  0,  0, 0, 0, 0 },
+};
+
+static void
+ht_rateprint(struct ieee80211com *ic, enum ieee80211_phymode mode, int ratetype)
+{
+	int minrate, maxrate;
+	struct printranges *range;
+
+	for (range = ranges; range->txstream != 0; range++) {
+		if (ic->ic_txstream < range->txstream)
+			continue;
+		if (range->htcapflags &&
+		    (ic->ic_htcaps & range->htcapflags) == 0)
+			continue;
+		if (ratetype < range->ratetype)
+			continue;
+		minrate = ht_getrate(ic, range->minmcs, mode, ratetype);
+		maxrate = ht_getrate(ic, range->maxmcs, mode, ratetype);
+		if (range->maxmcs) {
+			ic_printf(ic, "MCS %d-%d: %d%sMbps - %d%sMbps\n",
+			    range->minmcs, range->maxmcs,
+			    minrate/2, ((minrate & 0x1) != 0 ? ".5" : ""),
+			    maxrate/2, ((maxrate & 0x1) != 0 ? ".5" : ""));
+		} else {
+			ic_printf(ic, "MCS %d: %d%sMbps\n", range->minmcs,
+			    minrate/2, ((minrate & 0x1) != 0 ? ".5" : ""));
+		}
+	}
+}
+
+static void
+ht_announce(struct ieee80211com *ic, enum ieee80211_phymode mode)
+{
+	const char *modestr = ieee80211_phymode_name[mode];
+
+	ic_printf(ic, "%s MCS 20MHz\n", modestr);
+	ht_rateprint(ic, mode, 0);
+	if (ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20) {
+		ic_printf(ic, "%s MCS 20MHz SGI\n", modestr);
+		ht_rateprint(ic, mode, 1);
+	}
+	if (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) {
+		ic_printf(ic, "%s MCS 40MHz:\n", modestr);
+		ht_rateprint(ic, mode, 2);
+	}
+	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
+	    (ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40)) {
+		ic_printf(ic, "%s MCS 40MHz SGI:\n", modestr);
+		ht_rateprint(ic, mode, 3);
+	}
 }
 
 void
 ieee80211_ht_announce(struct ieee80211com *ic)
 {
+
+	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NA) ||
+	    isset(ic->ic_modecaps, IEEE80211_MODE_11NG))
+		ic_printf(ic, "%dT%dR\n", ic->ic_txstream, ic->ic_rxstream);
 	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NA))
-		ht_announce(ic, IEEE80211_MODE_11NA, &ieee80211_rateset_11n);
+		ht_announce(ic, IEEE80211_MODE_11NA);
 	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NG))
-		ht_announce(ic, IEEE80211_MODE_11NG, &ieee80211_rateset_11n);
+		ht_announce(ic, IEEE80211_MODE_11NG);
 }
+
+static struct ieee80211_htrateset htrateset;
 
 const struct ieee80211_htrateset *
 ieee80211_get_suphtrates(struct ieee80211com *ic,
-	const struct ieee80211_channel *c)
+    const struct ieee80211_channel *c)
 {
-	return &ieee80211_rateset_11n;
+#define	ADDRATE(x)	do {						\
+	htrateset.rs_rates[htrateset.rs_nrates] = x;			\
+	htrateset.rs_nrates++;						\
+} while (0)
+	int i;
+
+	memset(&htrateset, 0, sizeof(struct ieee80211_htrateset));
+	for (i = 0; i < ic->ic_txstream * 8; i++)
+		ADDRATE(i);
+	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
+	    (ic->ic_htcaps & IEEE80211_HTC_TXMCS32))
+		ADDRATE(32);
+	if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL) {
+		if (ic->ic_txstream >= 2) {
+			 for (i = 33; i <= 38; i++)
+				ADDRATE(i);
+		}
+		if (ic->ic_txstream >= 3) {
+			for (i = 39; i <= 52; i++)
+				ADDRATE(i);
+		}
+		if (ic->ic_txstream == 4) {
+			for (i = 53; i <= 76; i++)
+				ADDRATE(i);
+		}
+	}
+	return &htrateset;
+#undef	ADDRATE
 }
 
 /*
@@ -391,11 +560,49 @@ ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap,
 }
 
 /*
+ * Public function; manually setup the RX ampdu state.
+ */
+int
+ieee80211_ampdu_rx_start_ext(struct ieee80211_node *ni, int tid, int seq, int baw)
+{
+	struct ieee80211_rx_ampdu *rap;
+
+	/* XXX TODO: sanity check tid, seq, baw */
+
+	rap = &ni->ni_rx_ampdu[tid];
+
+	if (rap->rxa_flags & IEEE80211_AGGR_RUNNING) {
+		/*
+		 * AMPDU previously setup and not terminated with a DELBA,
+		 * flush the reorder q's in case anything remains.
+		 */
+		ampdu_rx_purge(rap);
+	}
+
+	memset(rap, 0, sizeof(*rap));
+	rap->rxa_wnd = (baw== 0) ?
+	    IEEE80211_AGGR_BAWMAX : min(baw, IEEE80211_AGGR_BAWMAX);
+	rap->rxa_start = seq;
+	rap->rxa_flags |=  IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_XCHGPEND;
+
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N, ni,
+	    "%s: tid=%d, start=%d, wnd=%d, flags=0x%08x\n",
+	    __func__,
+	    tid,
+	    seq,
+	    rap->rxa_wnd,
+	    rap->rxa_flags);
+
+	return 0;
+}
+
+/*
  * Stop A-MPDU rx processing for the specified TID.
  */
 static void
 ampdu_rx_stop(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap)
 {
+
 	ampdu_rx_purge(rap);
 	rap->rxa_flags &= ~(IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_XCHGPEND);
 }
@@ -465,7 +672,6 @@ ampdu_rx_dispatch(struct ieee80211_rx_ampdu *rap, struct ieee80211_node *ni)
 	vap->iv_stats.is_ampdu_rx_oor += i;
 }
 
-#ifdef IEEE80211_AMPDU_AGE
 /*
  * Dispatch all frames in the A-MPDU re-order queue.
  */
@@ -490,7 +696,6 @@ ampdu_rx_flush(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap)
 			break;
 	}
 }
-#endif /* IEEE80211_AMPDU_AGE */
 
 /*
  * Dispatch all frames in the A-MPDU re-order queue
@@ -656,9 +861,9 @@ again:
 	if (off < rap->rxa_wnd) {
 		/*
 		 * Common case (hopefully): in the BA window.
-		 * Sec 9.10.7.6 a) (D2.04 p.118 line 47)
+		 * Sec 9.10.7.6.2 a) (p.137)
 		 */
-#ifdef IEEE80211_AMPDU_AGE
+
 		/* 
 		 * Check for frames sitting too long in the reorder queue.
 		 * This should only ever happen if frames are not delivered
@@ -697,7 +902,7 @@ again:
 			 */
 			rap->rxa_age = ticks;
 		}
-#endif /* IEEE80211_AMPDU_AGE */
+
 		/* save packet */
 		if (rap->rxa_m[off] == NULL) {
 			rap->rxa_m[off] = m;
@@ -721,7 +926,7 @@ again:
 		/*
 		 * Outside the BA window, but within range;
 		 * flush the reorder q and move the window.
-		 * Sec 9.10.7.6 b) (D2.04 p.118 line 60)
+		 * Sec 9.10.7.6.2 b) (p.138)
 		 */
 		IEEE80211_NOTE(vap, IEEE80211_MSG_11N, ni,
 		    "move BA win <%u:%u> (%u frames) rxseq %u tid %u",
@@ -745,7 +950,7 @@ again:
 	} else {
 		/*
 		 * Outside the BA window and out of range; toss.
-		 * Sec 9.10.7.6 c) (D2.04 p.119 line 16)
+		 * Sec 9.10.7.6.2 c) (p.138)
 		 */
 		IEEE80211_DISCARD_MAC(vap,
 		    IEEE80211_MSG_INPUT | IEEE80211_MSG_11N, ni->ni_macaddr,
@@ -809,7 +1014,7 @@ ieee80211_recv_bar(struct ieee80211_node *ni, struct mbuf *m0)
 	if (off < IEEE80211_SEQ_BA_RANGE) {
 		/*
 		 * Flush the reorder q up to rxseq and move the window.
-		 * Sec 9.10.7.6 a) (D2.04 p.119 line 22)
+		 * Sec 9.10.7.6.3 a) (p.138)
 		 */
 		IEEE80211_NOTE(vap, IEEE80211_MSG_11N, ni,
 		    "BAR moves BA win <%u:%u> (%u frames) rxseq %u tid %u",
@@ -830,7 +1035,7 @@ ieee80211_recv_bar(struct ieee80211_node *ni, struct mbuf *m0)
 	} else {
 		/*
 		 * Out of range; toss.
-		 * Sec 9.10.7.6 b) (D2.04 p.119 line 41)
+		 * Sec 9.10.7.6.3 b) (p.138)
 		 */
 		IEEE80211_DISCARD_MAC(vap,
 		    IEEE80211_MSG_INPUT | IEEE80211_MSG_11N, ni->ni_macaddr,
@@ -853,7 +1058,13 @@ void
 ieee80211_ht_node_init(struct ieee80211_node *ni)
 {
 	struct ieee80211_tx_ampdu *tap;
-	int ac;
+	int tid;
+
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
+	    ni,
+	    "%s: called (%p)",
+	    __func__,
+	    ni);
 
 	if (ni->ni_flags & IEEE80211_NODE_HT) {
 		/*
@@ -861,12 +1072,17 @@ ieee80211_ht_node_init(struct ieee80211_node *ni)
 		 * where a station leaves w/o notifying us and then returns
 		 * before node is reaped for inactivity.
 		 */
+		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
+		    ni,
+		    "%s: calling cleanup (%p)",
+		    __func__, ni);
 		ieee80211_ht_node_cleanup(ni);
 	}
-	for (ac = 0; ac < WME_NUM_AC; ac++) {
-		tap = &ni->ni_tx_ampdu[ac];
-		tap->txa_ac = ac;
+	for (tid = 0; tid < WME_NUM_TID; tid++) {
+		tap = &ni->ni_tx_ampdu[tid];
+		tap->txa_tid = tid;
 		tap->txa_ni = ni;
+		ieee80211_txampdu_init_pps(tap);
 		/* NB: further initialization deferred */
 	}
 	ni->ni_flags |= IEEE80211_NODE_HT | IEEE80211_NODE_AMPDU;
@@ -882,10 +1098,15 @@ ieee80211_ht_node_cleanup(struct ieee80211_node *ni)
 	struct ieee80211com *ic = ni->ni_ic;
 	int i;
 
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
+	    ni,
+	    "%s: called (%p)",
+	    __func__, ni);
+
 	KASSERT(ni->ni_flags & IEEE80211_NODE_HT, ("not an HT node"));
 
 	/* XXX optimize this */
-	for (i = 0; i < WME_NUM_AC; i++) {
+	for (i = 0; i < WME_NUM_TID; i++) {
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[i];
 		if (tap->txa_flags & IEEE80211_AGGR_SETUP)
 			ampdu_tx_stop(tap);
@@ -903,14 +1124,11 @@ ieee80211_ht_node_cleanup(struct ieee80211_node *ni)
 void
 ieee80211_ht_node_age(struct ieee80211_node *ni)
 {
-#ifdef IEEE80211_AMPDU_AGE
 	struct ieee80211vap *vap = ni->ni_vap;
 	uint8_t tid;
-#endif
 
 	KASSERT(ni->ni_flags & IEEE80211_NODE_HT, ("not an HT sta"));
 
-#ifdef IEEE80211_AMPDU_AGE
 	for (tid = 0; tid < WME_NUM_TID; tid++) {
 		struct ieee80211_rx_ampdu *rap;
 
@@ -933,7 +1151,6 @@ ieee80211_ht_node_age(struct ieee80211_node *ni)
 			ampdu_rx_flush(ni, rap);
 		}
 	}
-#endif /* IEEE80211_AMPDU_AGE */
 }
 
 static struct ieee80211_channel *
@@ -990,7 +1207,7 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_tx_ampdu *tap;
-	int ac;
+	int tid;
 
 	KASSERT(vap->iv_flags_ht & IEEE80211_FHT_HT, ("no HT requested"));
 
@@ -1028,9 +1245,10 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 	ni->ni_htopmode = 0;		/* XXX need protection state */
 	ni->ni_htstbc = 0;		/* XXX need info */
 
-	for (ac = 0; ac < WME_NUM_AC; ac++) {
-		tap = &ni->ni_tx_ampdu[ac];
-		tap->txa_ac = ac;
+	for (tid = 0; tid < WME_NUM_TID; tid++) {
+		tap = &ni->ni_tx_ampdu[tid];
+		tap->txa_tid = tid;
+		ieee80211_txampdu_init_pps(tap);
 	}
 	/* NB: AMPDU tx/rx governed by IEEE80211_FHT_AMPDU_{TX,RX} */
 	ni->ni_flags |= IEEE80211_NODE_HT | IEEE80211_NODE_AMPDU;
@@ -1184,7 +1402,7 @@ ieee80211_ht_timeout(struct ieee80211com *ic)
 	IEEE80211_LOCK_ASSERT(ic);
 
 	if ((ic->ic_flags_ht & IEEE80211_FHT_NONHT_PR) &&
-	    time_after(ticks, ic->ic_lastnonht + IEEE80211_NONHT_PRESENT_AGE)) {
+	    ieee80211_time_after(ticks, ic->ic_lastnonht + IEEE80211_NONHT_PRESENT_AGE)) {
 #if 0
 		IEEE80211_NOTE(vap, IEEE80211_MSG_11N, ni,
 		    "%s", "time out non-HT STA present on channel");
@@ -1193,12 +1411,6 @@ ieee80211_ht_timeout(struct ieee80211com *ic)
 		htinfo_update(ic);
 	}
 }
-
-/* unalligned little endian access */     
-#define LE_READ_2(p)					\
-	((uint16_t)					\
-	 ((((const uint8_t *)(p))[0]      ) |		\
-	  (((const uint8_t *)(p))[1] <<  8)))
 
 /*
  * Process an 802.11n HT capabilities ie.
@@ -1217,7 +1429,7 @@ ieee80211_parse_htcap(struct ieee80211_node *ni, const uint8_t *ie)
 	} else
 		ni->ni_flags &= ~IEEE80211_NODE_HTCOMPAT;
 
-	ni->ni_htcap = LE_READ_2(ie +
+	ni->ni_htcap = le16dec(ie +
 		__offsetof(struct ieee80211_ie_htcap, hc_cap));
 	ni->ni_htparam = ie[__offsetof(struct ieee80211_ie_htcap, hc_param)];
 }
@@ -1230,9 +1442,9 @@ htinfo_parse(struct ieee80211_node *ni,
 
 	ni->ni_htctlchan = htinfo->hi_ctrlchannel;
 	ni->ni_ht2ndchan = SM(htinfo->hi_byte1, IEEE80211_HTINFO_2NDCHAN);
-	w = LE_READ_2(&htinfo->hi_byte2);
+	w = le16dec(&htinfo->hi_byte2);
 	ni->ni_htopmode = SM(w, IEEE80211_HTINFO_OPMODE);
-	w = LE_READ_2(&htinfo->hi_byte45);
+	w = le16dec(&htinfo->hi_byte45);
 	ni->ni_htstbc = SM(w, IEEE80211_HTINFO_BASIC_STBCMCS);
 }
 
@@ -1258,12 +1470,13 @@ ieee80211_parse_htinfo(struct ieee80211_node *ni, const uint8_t *ie)
  * required channel change is done (e.g. in sta mode when
  * parsing the contents of a beacon frame).
  */
-static void
+static int
 htinfo_update_chw(struct ieee80211_node *ni, int htflags)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_channel *c;
 	int chanflags;
+	int ret = 0;
 
 	chanflags = (ni->ni_chan->ic_flags &~ IEEE80211_CHAN_HT) | htflags;
 	if (chanflags != ni->ni_chan->ic_flags) {
@@ -1290,11 +1503,13 @@ htinfo_update_chw(struct ieee80211_node *ni, int htflags)
 			    IEEE80211_IS_CHAN_HT40(c) ? 40 : 20,
 			    c->ic_freq, c->ic_flags);
 			ni->ni_chan = c;
+			ret = 1;
 		}
 		/* NB: caller responsible for forcing any channel change */
 	}
 	/* update node's tx channel width */
 	ni->ni_chw = IEEE80211_IS_CHAN_HT40(ni->ni_chan)? 40 : 20;
+	return (ret);
 }
 
 /*
@@ -1345,13 +1560,14 @@ htcap_update_shortgi(struct ieee80211_node *ni)
  * Parse and update HT-related state extracted from
  * the HT cap and info ie's.
  */
-void
+int
 ieee80211_ht_updateparams(struct ieee80211_node *ni,
 	const uint8_t *htcapie, const uint8_t *htinfoie)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	const struct ieee80211_ie_htinfo *htinfo;
 	int htflags;
+	int ret = 0;
 
 	ieee80211_parse_htcap(ni, htcapie);
 	if (vap->iv_htcaps & IEEE80211_HTCAP_SMPS)
@@ -1373,13 +1589,16 @@ ieee80211_ht_updateparams(struct ieee80211_node *ni,
 		else if (ni->ni_ht2ndchan == IEEE80211_HTINFO_2NDCHAN_BELOW)
 			htflags = IEEE80211_CHAN_HT40D;
 	}
-	htinfo_update_chw(ni, htflags);
+	if (htinfo_update_chw(ni, htflags))
+		ret = 1;
 
 	if ((htinfo->hi_byte1 & IEEE80211_HTINFO_RIFSMODE_PERM) &&
 	    (vap->iv_flags_ht & IEEE80211_FHT_RIFS))
 		ni->ni_flags |= IEEE80211_NODE_RIFS;
 	else
 		ni->ni_flags &= ~IEEE80211_NODE_RIFS;
+
+	return (ret);
 }
 
 /*
@@ -1398,7 +1617,7 @@ ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 	htcap_update_shortgi(ni);
 
 	/* NB: honor operating mode constraint */
-	/* XXX 40 MHZ intolerant */
+	/* XXX 40 MHz intolerant */
 	htflags = (vap->iv_flags_ht & IEEE80211_FHT_HT) ?
 	    IEEE80211_CHAN_HT20 : 0;
 	if ((ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40) &&
@@ -1408,7 +1627,7 @@ ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 		else if (IEEE80211_IS_CHAN_HT40D(vap->iv_bss->ni_chan))
 			htflags = IEEE80211_CHAN_HT40D;
 	}
-	htinfo_update_chw(ni, htflags);
+	(void) htinfo_update_chw(ni, htflags);
 }
 
 /*
@@ -1417,10 +1636,22 @@ ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 int
 ieee80211_setup_htrates(struct ieee80211_node *ni, const uint8_t *ie, int flags)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	const struct ieee80211_ie_htcap *htcap;
 	struct ieee80211_htrateset *rs;
-	int i;
+	int i, maxequalmcs, maxunequalmcs;
+
+	maxequalmcs = ic->ic_txstream * 8 - 1;
+	maxunequalmcs = 0;
+	if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL) {
+		if (ic->ic_txstream >= 2)
+			maxunequalmcs = 38;
+		if (ic->ic_txstream >= 3)
+			maxunequalmcs = 52;
+		if (ic->ic_txstream >= 4)
+			maxunequalmcs = 76;
+	}
 
 	rs = &ni->ni_htrates;
 	memset(rs, 0, sizeof(*rs));
@@ -1439,6 +1670,13 @@ ieee80211_setup_htrates(struct ieee80211_node *ni, const uint8_t *ie, int flags)
 				vap->iv_stats.is_rx_rstoobig++;
 				break;
 			}
+			if (i <= 31 && i > maxequalmcs)
+				continue;
+			if (i == 32 &&
+			    (ic->ic_htcaps & IEEE80211_HTC_TXMCS32) == 0)
+				continue;
+			if (i > 32 && i > maxunequalmcs)
+				continue;
 			rs->rs_rates[rs->rs_nrates++] = i;
 		}
 	}
@@ -1478,8 +1716,9 @@ ieee80211_setup_basic_htrates(struct ieee80211_node *ni, const uint8_t *ie)
 static void
 ampdu_tx_setup(struct ieee80211_tx_ampdu *tap)
 {
-	callout_init(&tap->txa_timer, CALLOUT_MPSAFE);
+	callout_init(&tap->txa_timer, 1);
 	tap->txa_flags |= IEEE80211_AGGR_SETUP;
+	tap->txa_lastsample = ticks;
 }
 
 static void
@@ -1488,8 +1727,14 @@ ampdu_tx_stop(struct ieee80211_tx_ampdu *tap)
 	struct ieee80211_node *ni = tap->txa_ni;
 	struct ieee80211com *ic = ni->ni_ic;
 
+	IEEE80211_NOTE(tap->txa_ni->ni_vap, IEEE80211_MSG_11N,
+	    tap->txa_ni,
+	    "%s: called",
+	    __func__);
+
 	KASSERT(tap->txa_flags & IEEE80211_AGGR_SETUP,
-	    ("txa_flags 0x%x ac %d", tap->txa_flags, tap->txa_ac));
+	    ("txa_flags 0x%x tid %d ac %d", tap->txa_flags, tap->txa_tid,
+	    TID_TO_WME_AC(tap->txa_tid)));
 
 	/*
 	 * Stop BA stream if setup so driver has a chance
@@ -1501,20 +1746,32 @@ ampdu_tx_stop(struct ieee80211_tx_ampdu *tap)
 	 */
 	bar_stop_timer(tap);
 
-	tap->txa_lastsample = 0;
-	tap->txa_avgpps = 0;
+	/*
+	 * Reset packet estimate.
+	 */
+	ieee80211_txampdu_init_pps(tap);
+
 	/* NB: clearing NAK means we may re-send ADDBA */ 
 	tap->txa_flags &= ~(IEEE80211_AGGR_SETUP | IEEE80211_AGGR_NAK);
 }
 
+/*
+ * ADDBA response timeout.
+ *
+ * If software aggregation and per-TID queue management was done here,
+ * that queue would be unpaused after the ADDBA timeout occurs.
+ */
 static void
 addba_timeout(void *arg)
 {
 	struct ieee80211_tx_ampdu *tap = arg;
+	struct ieee80211_node *ni = tap->txa_ni;
+	struct ieee80211com *ic = ni->ni_ic;
 
 	/* XXX ? */
 	tap->txa_flags &= ~IEEE80211_AGGR_XCHGPEND;
 	tap->txa_attempts++;
+	ic->ic_addba_response_timeout(ni, tap);
 }
 
 static void
@@ -1537,6 +1794,12 @@ addba_stop_timeout(struct ieee80211_tx_ampdu *tap)
 	}
 }
 
+static void
+null_addba_response_timeout(struct ieee80211_node *ni,
+    struct ieee80211_tx_ampdu *tap)
+{
+}
+
 /*
  * Default method for requesting A-MPDU tx aggregation.
  * We setup the specified state block and start a timer
@@ -1557,6 +1820,55 @@ ieee80211_addba_request(struct ieee80211_node *ni,
 	    IEEE80211_AGGR_BAWMAX : min(bufsiz, IEEE80211_AGGR_BAWMAX);
 	addba_start_timeout(tap);
 	return 1;
+}
+
+/*
+ * Called by drivers that wish to request an ADDBA session be
+ * setup.  This brings it up and starts the request timer.
+ */
+int
+ieee80211_ampdu_tx_request_ext(struct ieee80211_node *ni, int tid)
+{
+	struct ieee80211_tx_ampdu *tap;
+
+	if (tid < 0 || tid > 15)
+		return (0);
+	tap = &ni->ni_tx_ampdu[tid];
+
+	/* XXX locking */
+	if ((tap->txa_flags & IEEE80211_AGGR_SETUP) == 0) {
+		/* do deferred setup of state */
+		ampdu_tx_setup(tap);
+	}
+	/* XXX hack for not doing proper locking */
+	tap->txa_flags &= ~IEEE80211_AGGR_NAK;
+	addba_start_timeout(tap);
+	return (1);
+}
+
+/*
+ * Called by drivers that have marked a session as active.
+ */
+int
+ieee80211_ampdu_tx_request_active_ext(struct ieee80211_node *ni, int tid,
+    int status)
+{
+	struct ieee80211_tx_ampdu *tap;
+
+	if (tid < 0 || tid > 15)
+		return (0);
+	tap = &ni->ni_tx_ampdu[tid];
+
+	/* XXX locking */
+	addba_stop_timeout(tap);
+	if (status == 1) {
+		tap->txa_flags |= IEEE80211_AGGR_RUNNING;
+		tap->txa_attempts = 0;
+	} else {
+		/* mark tid so we don't try again */
+		tap->txa_flags |= IEEE80211_AGGR_NAK;
+	}
+	return (1);
 }
 
 /*
@@ -1621,13 +1933,13 @@ ht_recv_action_ba_addba_request(struct ieee80211_node *ni,
 	struct ieee80211_rx_ampdu *rap;
 	uint8_t dialogtoken;
 	uint16_t baparamset, batimeout, baseqctl;
-	uint16_t args[4];
+	uint16_t args[5];
 	int tid;
 
 	dialogtoken = frm[2];
-	baparamset = LE_READ_2(frm+3);
-	batimeout = LE_READ_2(frm+5);
-	baseqctl = LE_READ_2(frm+7);
+	baparamset = le16dec(frm+3);
+	batimeout = le16dec(frm+5);
+	baseqctl = le16dec(frm+7);
 
 	tid = MS(baparamset, IEEE80211_BAPS_TID);
 
@@ -1671,6 +1983,7 @@ ht_recv_action_ba_addba_request(struct ieee80211_node *ni,
 		| SM(rap->rxa_wnd, IEEE80211_BAPS_BUFSIZ)
 		;
 	args[3] = 0;
+	args[4] = 0;
 	ic->ic_send_action(ni, IEEE80211_ACTION_CAT_BA,
 		IEEE80211_ACTION_BA_ADDBA_RESPONSE, args);
 	return 0;
@@ -1686,18 +1999,17 @@ ht_recv_action_ba_addba_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap;
 	uint8_t dialogtoken, policy;
 	uint16_t baparamset, batimeout, code;
-	int tid, ac, bufsiz;
+	int tid, bufsiz;
 
 	dialogtoken = frm[2];
-	code = LE_READ_2(frm+3);
-	baparamset = LE_READ_2(frm+5);
+	code = le16dec(frm+3);
+	baparamset = le16dec(frm+5);
 	tid = MS(baparamset, IEEE80211_BAPS_TID);
 	bufsiz = MS(baparamset, IEEE80211_BAPS_BUFSIZ);
 	policy = MS(baparamset, IEEE80211_BAPS_POLICY);
-	batimeout = LE_READ_2(frm+7);
+	batimeout = le16dec(frm+7);
 
-	ac = TID_TO_WME_AC(tid);
-	tap = &ni->ni_tx_ampdu[ac];
+	tap = &ni->ni_tx_ampdu[tid];
 	if ((tap->txa_flags & IEEE80211_AGGR_XCHGPEND) == 0) {
 		IEEE80211_DISCARD_MAC(vap,
 		    IEEE80211_MSG_ACTION | IEEE80211_MSG_11N,
@@ -1760,10 +2072,10 @@ ht_recv_action_ba_delba(struct ieee80211_node *ni,
 	struct ieee80211_rx_ampdu *rap;
 	struct ieee80211_tx_ampdu *tap;
 	uint16_t baparamset, code;
-	int tid, ac;
+	int tid;
 
-	baparamset = LE_READ_2(frm+2);
-	code = LE_READ_2(frm+4);
+	baparamset = le16dec(frm+2);
+	code = le16dec(frm+4);
 
 	tid = MS(baparamset, IEEE80211_DELBAPS_TID);
 
@@ -1773,8 +2085,7 @@ ht_recv_action_ba_delba(struct ieee80211_node *ni,
 	    MS(baparamset, IEEE80211_DELBAPS_INIT), code);
 
 	if ((baparamset & IEEE80211_DELBAPS_INIT) == 0) {
-		ac = TID_TO_WME_AC(tid);
-		tap = &ni->ni_tx_ampdu[ac];
+		tap = &ni->ni_tx_ampdu[tid];
 		ic->ic_addba_stop(ni, tap);
 	} else {
 		rap = &ni->ni_rx_ampdu[tid];
@@ -1846,11 +2157,12 @@ ieee80211_ampdu_enable(struct ieee80211_node *ni,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 
-	if (tap->txa_avgpps < vap->iv_ampdu_mintraffic[tap->txa_ac])
+	if (tap->txa_avgpps <
+	    vap->iv_ampdu_mintraffic[TID_TO_WME_AC(tap->txa_tid)])
 		return 0;
 	/* XXX check rssi? */
 	if (tap->txa_attempts >= ieee80211_addba_maxtries &&
-	    ticks < tap->txa_nextrequest) {
+	    ieee80211_time_after(ticks, tap->txa_nextrequest)) {
 		/*
 		 * Don't retry too often; txa_nextrequest is set
 		 * to the minimum interval we'll retry after
@@ -1859,8 +2171,9 @@ ieee80211_ampdu_enable(struct ieee80211_node *ni,
 		return 0;
 	}
 	IEEE80211_NOTE(vap, IEEE80211_MSG_11N, ni,
-	    "enable AMPDU on %s, avgpps %d pkts %d",
-	    ieee80211_wme_acnames[tap->txa_ac], tap->txa_avgpps, tap->txa_pkts);
+	    "enable AMPDU on tid %d (%s), avgpps %d pkts %d attempt %d",
+	    tap->txa_tid, ieee80211_wme_acnames[TID_TO_WME_AC(tap->txa_tid)],
+	    tap->txa_avgpps, tap->txa_pkts, tap->txa_attempts);
 	return 1;
 }
 
@@ -1874,7 +2187,7 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	uint16_t args[4];
+	uint16_t args[5];
 	int tid, dialogtoken;
 	static int tokens = 0;	/* XXX */
 
@@ -1887,21 +2200,22 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 	tap->txa_flags &= ~IEEE80211_AGGR_NAK;
 
 	dialogtoken = (tokens+1) % 63;		/* XXX */
-	tid = WME_AC_TO_TID(tap->txa_ac);
+	tid = tap->txa_tid;
 	tap->txa_start = ni->ni_txseqs[tid];
 
 	args[0] = dialogtoken;
-	args[1]	= IEEE80211_BAPS_POLICY_IMMEDIATE
+	args[1] = 0;	/* NB: status code not used */
+	args[2]	= IEEE80211_BAPS_POLICY_IMMEDIATE
 		| SM(tid, IEEE80211_BAPS_TID)
 		| SM(IEEE80211_AGGR_BAWMAX, IEEE80211_BAPS_BUFSIZ)
 		;
-	args[2] = 0;	/* batimeout */
+	args[3] = 0;	/* batimeout */
 	/* NB: do first so there's no race against reply */
-	if (!ic->ic_addba_request(ni, tap, dialogtoken, args[1], args[2])) {
+	if (!ic->ic_addba_request(ni, tap, dialogtoken, args[2], args[3])) {
 		/* unable to setup state, don't make request */
 		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
-		    ni, "%s: could not setup BA stream for AC %d",
-		    __func__, tap->txa_ac);
+		    ni, "%s: could not setup BA stream for TID %d AC %d",
+		    __func__, tap->txa_tid, TID_TO_WME_AC(tap->txa_tid));
 		/* defer next try so we don't slam the driver with requests */
 		tap->txa_attempts = ieee80211_addba_maxtries;
 		/* NB: check in case driver wants to override */
@@ -1911,7 +2225,7 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 	}
 	tokens = dialogtoken;			/* allocate token */
 	/* NB: after calling ic_addba_request so driver can set txa_start */
-	args[3] = SM(tap->txa_start, IEEE80211_BASEQ_START)
+	args[4] = SM(tap->txa_start, IEEE80211_BASEQ_START)
 		| SM(0, IEEE80211_BASEQ_FRAG)
 		;
 	return ic->ic_send_action(ni, IEEE80211_ACTION_CAT_BA,
@@ -1934,23 +2248,28 @@ ieee80211_ampdu_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	tap->txa_flags &= ~IEEE80211_AGGR_BARPEND;
 	if (IEEE80211_AMPDU_RUNNING(tap)) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N,
-		    ni, "%s: stop BA stream for AC %d (reason %d)",
-		    __func__, tap->txa_ac, reason);
+		    ni, "%s: stop BA stream for TID %d (reason: %d (%s))",
+		    __func__, tap->txa_tid, reason,
+		    ieee80211_reason_to_string(reason));
 		vap->iv_stats.is_ampdu_stop++;
 
 		ic->ic_addba_stop(ni, tap);
-		args[0] = WME_AC_TO_TID(tap->txa_ac);
+		args[0] = tap->txa_tid;
 		args[1] = IEEE80211_DELBAPS_INIT;
 		args[2] = reason;			/* XXX reason code */
 		ic->ic_send_action(ni, IEEE80211_ACTION_CAT_BA,
 			IEEE80211_ACTION_BA_DELBA, args);
 	} else {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N,
-		    ni, "%s: BA stream for AC %d not running (reason %d)",
-		    __func__, tap->txa_ac, reason);
+		    ni, "%s: BA stream for TID %d not running "
+		    "(reason: %d (%s))", __func__, tap->txa_tid, reason,
+		    ieee80211_reason_to_string(reason));
 		vap->iv_stats.is_ampdu_stop_failed++;
 	}
 }
+
+/* XXX */
+static void bar_start_timer(struct ieee80211_tx_ampdu *tap);
 
 static void
 bar_timeout(void *arg)
@@ -1963,27 +2282,64 @@ bar_timeout(void *arg)
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 	    ni, "%s: tid %u flags 0x%x attempts %d", __func__,
-	    tap->txa_ac, tap->txa_flags, tap->txa_attempts);
+	    tap->txa_tid, tap->txa_flags, tap->txa_attempts);
 
 	/* guard against race with bar_tx_complete */
 	if ((tap->txa_flags & IEEE80211_AGGR_BARPEND) == 0)
 		return;
 	/* XXX ? */
-	if (tap->txa_attempts >= ieee80211_bar_maxtries)
+	if (tap->txa_attempts >= ieee80211_bar_maxtries) {
+		struct ieee80211com *ic = ni->ni_ic;
+
+		ni->ni_vap->iv_stats.is_ampdu_bar_tx_fail++;
+		/*
+		 * If (at least) the last BAR TX timeout was due to
+		 * an ieee80211_send_bar() failures, then we need
+		 * to make sure we notify the driver that a BAR
+		 * TX did occur and fail.  This gives the driver
+		 * a chance to undo any queue pause that may
+		 * have occurred.
+		 */
+		ic->ic_bar_response(ni, tap, 1);
 		ieee80211_ampdu_stop(ni, tap, IEEE80211_REASON_TIMEOUT);
-	else
-		ieee80211_send_bar(ni, tap, tap->txa_seqpending);
+	} else {
+		ni->ni_vap->iv_stats.is_ampdu_bar_tx_retry++;
+		if (ieee80211_send_bar(ni, tap, tap->txa_seqpending) != 0) {
+			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
+			    ni, "%s: failed to TX, starting timer\n",
+			    __func__);
+			/*
+			 * If ieee80211_send_bar() fails here, the
+			 * timer may have stopped and/or the pending
+			 * flag may be clear.  Because of this,
+			 * fake the BARPEND and reset the timer.
+			 * A retransmission attempt will then occur
+			 * during the next timeout.
+			 */
+			/* XXX locking */
+			tap->txa_flags |= IEEE80211_AGGR_BARPEND;
+			bar_start_timer(tap);
+		}
+	}
 }
 
 static void
 bar_start_timer(struct ieee80211_tx_ampdu *tap)
 {
+	IEEE80211_NOTE(tap->txa_ni->ni_vap, IEEE80211_MSG_11N,
+	    tap->txa_ni,
+	    "%s: called",
+	    __func__);
 	callout_reset(&tap->txa_timer, ieee80211_bar_timeout, bar_timeout, tap);
 }
 
 static void
 bar_stop_timer(struct ieee80211_tx_ampdu *tap)
 {
+	IEEE80211_NOTE(tap->txa_ni->ni_vap, IEEE80211_MSG_11N,
+	    tap->txa_ni,
+	    "%s: called",
+	    __func__);
 	callout_stop(&tap->txa_timer);
 }
 
@@ -1994,15 +2350,16 @@ bar_tx_complete(struct ieee80211_node *ni, void *arg, int status)
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 	    ni, "%s: tid %u flags 0x%x pending %d status %d",
-	    __func__, tap->txa_ac, tap->txa_flags,
+	    __func__, tap->txa_tid, tap->txa_flags,
 	    callout_pending(&tap->txa_timer), status);
 
+	ni->ni_vap->iv_stats.is_ampdu_bar_tx++;
 	/* XXX locking */
 	if ((tap->txa_flags & IEEE80211_AGGR_BARPEND) &&
 	    callout_pending(&tap->txa_timer)) {
 		struct ieee80211com *ic = ni->ni_ic;
 
-		if (status)		/* ACK'd */
+		if (status == 0)		/* ACK'd */
 			bar_stop_timer(tap);
 		ic->ic_bar_response(ni, tap, status);
 		/* NB: just let timer expire so we pace requests */
@@ -2014,13 +2371,17 @@ ieee80211_bar_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap, int status)
 {
 
-	if (status != 0) {		/* got ACK */
+	IEEE80211_NOTE(tap->txa_ni->ni_vap, IEEE80211_MSG_11N,
+	    tap->txa_ni,
+	    "%s: called",
+	    __func__);
+	if (status == 0) {		/* got ACK */
 		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 		    ni, "BAR moves BA win <%u:%u> (%u frames) txseq %u tid %u",
 		    tap->txa_start,
 		    IEEE80211_SEQ_ADD(tap->txa_start, tap->txa_wnd-1),
 		    tap->txa_qframes, tap->txa_seqpending,
-		    WME_AC_TO_TID(tap->txa_ac));
+		    tap->txa_tid);
 
 		/* NB: timer already stopped in bar_tx_complete */
 		tap->txa_start = tap->txa_seqpending;
@@ -2047,6 +2408,12 @@ ieee80211_send_bar(struct ieee80211_node *ni,
 	uint16_t barctl, barseqctl;
 	uint8_t *frm;
 	int tid, ret;
+
+
+	IEEE80211_NOTE(tap->txa_ni->ni_vap, IEEE80211_MSG_11N,
+	    tap->txa_ni,
+	    "%s: called",
+	    __func__);
 
 	if ((tap->txa_flags & IEEE80211_AGGR_RUNNING) == 0) {
 		/* no ADDBA response, should not happen */
@@ -2075,7 +2442,7 @@ ieee80211_send_bar(struct ieee80211_node *ni,
 	IEEE80211_ADDR_COPY(bar->i_ra, ni->ni_macaddr);
 	IEEE80211_ADDR_COPY(bar->i_ta, vap->iv_myaddr);
 
-	tid = WME_AC_TO_TID(tap->txa_ac);
+	tid = tap->txa_tid;
 	barctl 	= (tap->txa_flags & IEEE80211_AGGR_IMMEDIATE ?
 			0 : IEEE80211_BAR_NOACK)
 		| IEEE80211_BAR_COMP
@@ -2104,17 +2471,32 @@ ieee80211_send_bar(struct ieee80211_node *ni,
 	    ni, "send BAR: tid %u ctl 0x%x start %u (attempt %d)",
 	    tid, barctl, seq, tap->txa_attempts);
 
-	ret = ic->ic_raw_xmit(ni, m, NULL);
+	/*
+	 * ic_raw_xmit will free the node reference
+	 * regardless of queue/TX success or failure.
+	 */
+	IEEE80211_TX_LOCK(ic);
+	ret = ieee80211_raw_output(vap, ni, m, NULL);
+	IEEE80211_TX_UNLOCK(ic);
 	if (ret != 0) {
+		IEEE80211_NOTE(vap, IEEE80211_MSG_DEBUG | IEEE80211_MSG_11N,
+		    ni, "send BAR: failed: (ret = %d)\n",
+		    ret);
 		/* xmit failed, clear state flag */
 		tap->txa_flags &= ~IEEE80211_AGGR_BARPEND;
-		goto bad;
+		vap->iv_stats.is_ampdu_bar_tx_fail++;
+		return ret;
 	}
 	/* XXX hack against tx complete happening before timer is started */
 	if (tap->txa_flags & IEEE80211_AGGR_BARPEND)
 		bar_start_timer(tap);
 	return 0;
 bad:
+	IEEE80211_NOTE(tap->txa_ni->ni_vap, IEEE80211_MSG_11N,
+	    tap->txa_ni,
+	    "%s: bad! ret=%d",
+	    __func__, ret);
+	vap->iv_stats.is_ampdu_bar_tx_fail++;
 	ieee80211_free_node(ni);
 	return ret;
 #undef senderr
@@ -2157,12 +2539,12 @@ ht_send_action_ba_addba(struct ieee80211_node *ni,
 	uint8_t *frm;
 
 	IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
-	    "send ADDBA %s: dialogtoken %d "
+	    "send ADDBA %s: dialogtoken %d status %d "
 	    "baparamset 0x%x (tid %d) batimeout 0x%x baseqctl 0x%x",
 	    (action == IEEE80211_ACTION_BA_ADDBA_REQUEST) ?
 		"request" : "response",
-	    args[0], args[1], MS(args[1], IEEE80211_BAPS_TID),
-	    args[2], args[3]);
+	    args[0], args[1], args[2], MS(args[2], IEEE80211_BAPS_TID),
+	    args[3], args[4]);
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
 	    "ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n", __func__, __LINE__,
@@ -2179,10 +2561,12 @@ ht_send_action_ba_addba(struct ieee80211_node *ni,
 		*frm++ = category;
 		*frm++ = action;
 		*frm++ = args[0];		/* dialog token */
-		ADDSHORT(frm, args[1]);		/* baparamset */
-		ADDSHORT(frm, args[2]);		/* batimeout */
+		if (action == IEEE80211_ACTION_BA_ADDBA_RESPONSE)
+			ADDSHORT(frm, args[1]);	/* status code */
+		ADDSHORT(frm, args[2]);		/* baparamset */
+		ADDSHORT(frm, args[3]);		/* batimeout */
 		if (action == IEEE80211_ACTION_BA_ADDBA_REQUEST)
-			ADDSHORT(frm, args[3]);	/* baseqctl */
+			ADDSHORT(frm, args[4]);	/* baseqctl */
 		m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
 		return ht_action_output(ni, m);
 	} else {
@@ -2207,8 +2591,8 @@ ht_send_action_ba_delba(struct ieee80211_node *ni,
 		   | args[1]
 		   ;
 	IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
-	    "send DELBA action: tid %d, initiator %d reason %d",
-	    args[0], args[1], args[2]);
+	    "send DELBA action: tid %d, initiator %d reason %d (%s)",
+	    args[0], args[1], args[2], ieee80211_reason_to_string(args[2]));
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
 	    "ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n", __func__, __LINE__,
@@ -2276,21 +2660,49 @@ ht_send_action_ht_txchwidth(struct ieee80211_node *ni,
 #undef ADDSHORT
 
 /*
- * Construct the MCS bit mask for inclusion
- * in an HT information element.
+ * Construct the MCS bit mask for inclusion in an HT capabilities
+ * information element.
  */
-static void 
-ieee80211_set_htrates(uint8_t *frm, const struct ieee80211_htrateset *rs)
+static void
+ieee80211_set_mcsset(struct ieee80211com *ic, uint8_t *frm)
 {
 	int i;
+	uint8_t txparams;
 
-	for (i = 0; i < rs->rs_nrates; i++) {
-		int r = rs->rs_rates[i] & IEEE80211_RATE_VAL;
-		if (r < IEEE80211_HTRATE_MAXSIZE) {	/* XXX? */
-			/* NB: this assumes a particular implementation */
-			setbit(frm, r);
+	KASSERT((ic->ic_rxstream > 0 && ic->ic_rxstream <= 4),
+	    ("ic_rxstream %d out of range", ic->ic_rxstream));
+	KASSERT((ic->ic_txstream > 0 && ic->ic_txstream <= 4),
+	    ("ic_txstream %d out of range", ic->ic_txstream));
+
+	for (i = 0; i < ic->ic_rxstream * 8; i++)
+		setbit(frm, i);
+	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
+	    (ic->ic_htcaps & IEEE80211_HTC_RXMCS32))
+		setbit(frm, 32);
+	if (ic->ic_htcaps & IEEE80211_HTC_RXUNEQUAL) {
+		if (ic->ic_rxstream >= 2) {
+			for (i = 33; i <= 38; i++)
+				setbit(frm, i);
+		}
+		if (ic->ic_rxstream >= 3) {
+			for (i = 39; i <= 52; i++)
+				setbit(frm, i);
+		}
+		if (ic->ic_txstream >= 4) {
+			for (i = 53; i <= 76; i++)
+				setbit(frm, i);
 		}
 	}
+
+	if (ic->ic_rxstream != ic->ic_txstream) {
+		txparams = 0x1;			/* TX MCS set defined */
+		txparams |= 0x2;		/* TX RX MCS not equal */
+		txparams |= (ic->ic_txstream - 1) << 2;	/* num TX streams */
+		if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL)
+			txparams |= 0x16;	/* TX unequal modulation sup */
+	} else
+		txparams = 0;
+	frm[12] = txparams;
 }
 
 /*
@@ -2304,8 +2716,9 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 	frm[1] = (v) >> 8;			\
 	frm += 2;				\
 } while (0)
+	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
-	uint16_t caps;
+	uint16_t caps, extcaps;
 	int rxmax, density;
 
 	/* HT capabilities */
@@ -2324,18 +2737,150 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 			caps |= IEEE80211_HTCAP_CHWIDTH40;
 		else
 			caps &= ~IEEE80211_HTCAP_CHWIDTH40;
-		/* use advertised setting (XXX locally constraint) */
+
+		/* Start by using the advertised settings */
 		rxmax = MS(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU);
 		density = MS(ni->ni_htparam, IEEE80211_HTCAP_MPDUDENSITY);
+
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_11N,
+		    "%s: advertised rxmax=%d, density=%d, vap rxmax=%d, density=%d\n",
+		    __func__,
+		    rxmax,
+		    density,
+		    vap->iv_ampdu_rxmax,
+		    vap->iv_ampdu_density);
+
+		/* Cap at VAP rxmax */
+		if (rxmax > vap->iv_ampdu_rxmax)
+			rxmax = vap->iv_ampdu_rxmax;
+
+		/*
+		 * If the VAP ampdu density value greater, use that.
+		 *
+		 * (Larger density value == larger minimum gap between A-MPDU
+		 * subframes.)
+		 */
+		if (vap->iv_ampdu_density > density)
+			density = vap->iv_ampdu_density;
+
+		/*
+		 * NB: Hardware might support HT40 on some but not all
+		 * channels. We can't determine this earlier because only
+		 * after association the channel is upgraded to HT based
+		 * on the negotiated capabilities.
+		 */
+		if (ni->ni_chan != IEEE80211_CHAN_ANYC &&
+		    findhtchan(ic, ni->ni_chan, IEEE80211_CHAN_HT40U) == NULL &&
+		    findhtchan(ic, ni->ni_chan, IEEE80211_CHAN_HT40D) == NULL)
+			caps &= ~IEEE80211_HTCAP_CHWIDTH40;
 	} else {
 		/* override 20/40 use based on current channel */
 		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan))
 			caps |= IEEE80211_HTCAP_CHWIDTH40;
 		else
 			caps &= ~IEEE80211_HTCAP_CHWIDTH40;
+
+		/* XXX TODO should it start by using advertised settings? */
 		rxmax = vap->iv_ampdu_rxmax;
 		density = vap->iv_ampdu_density;
 	}
+
+	/* adjust short GI based on channel and config */
+	if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) == 0)
+		caps &= ~IEEE80211_HTCAP_SHORTGI20;
+	if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40) == 0 ||
+	    (caps & IEEE80211_HTCAP_CHWIDTH40) == 0)
+		caps &= ~IEEE80211_HTCAP_SHORTGI40;
+
+	/* adjust STBC based on receive capabilities */
+	if ((vap->iv_flags_ht & IEEE80211_FHT_STBC_RX) == 0)
+		caps &= ~IEEE80211_HTCAP_RXSTBC;
+
+	/* XXX TODO: adjust LDPC based on receive capabilities */
+
+	ADDSHORT(frm, caps);
+
+	/* HT parameters */
+	*frm = SM(rxmax, IEEE80211_HTCAP_MAXRXAMPDU)
+	     | SM(density, IEEE80211_HTCAP_MPDUDENSITY)
+	     ;
+	frm++;
+
+	/* pre-zero remainder of ie */
+	memset(frm, 0, sizeof(struct ieee80211_ie_htcap) - 
+		__offsetof(struct ieee80211_ie_htcap, hc_mcsset));
+
+	/* supported MCS set */
+	/*
+	 * XXX: For sta mode the rate set should be restricted based
+	 * on the AP's capabilities, but ni_htrates isn't setup when
+	 * we're called to form an AssocReq frame so for now we're
+	 * restricted to the device capabilities.
+	 */
+	ieee80211_set_mcsset(ni->ni_ic, frm);
+
+	frm += __offsetof(struct ieee80211_ie_htcap, hc_extcap) -
+		__offsetof(struct ieee80211_ie_htcap, hc_mcsset);
+
+	/* HT extended capabilities */
+	extcaps = vap->iv_htextcaps & 0xffff;
+
+	ADDSHORT(frm, extcaps);
+
+	frm += sizeof(struct ieee80211_ie_htcap) -
+		__offsetof(struct ieee80211_ie_htcap, hc_txbf);
+
+	return frm;
+#undef ADDSHORT
+}
+
+/*
+ * Add 802.11n HT capabilities information element
+ */
+uint8_t *
+ieee80211_add_htcap(uint8_t *frm, struct ieee80211_node *ni)
+{
+	frm[0] = IEEE80211_ELEMID_HTCAP;
+	frm[1] = sizeof(struct ieee80211_ie_htcap) - 2;
+	return ieee80211_add_htcap_body(frm + 2, ni);
+}
+
+/*
+ * Non-associated probe request - add HT capabilities based on
+ * the current channel configuration.
+ */
+static uint8_t *
+ieee80211_add_htcap_body_ch(uint8_t *frm, struct ieee80211vap *vap,
+    struct ieee80211_channel *c)
+{
+#define	ADDSHORT(frm, v) do {			\
+	frm[0] = (v) & 0xff;			\
+	frm[1] = (v) >> 8;			\
+	frm += 2;				\
+} while (0)
+	struct ieee80211com *ic = vap->iv_ic;
+	uint16_t caps, extcaps;
+	int rxmax, density;
+
+	/* HT capabilities */
+	caps = vap->iv_htcaps & 0xffff;
+
+	/*
+	 * We don't use this in STA mode; only in IBSS mode.
+	 * So in IBSS mode we base our HTCAP flags on the
+	 * given channel.
+	 */
+
+	/* override 20/40 use based on current channel */
+	if (IEEE80211_IS_CHAN_HT40(c))
+		caps |= IEEE80211_HTCAP_CHWIDTH40;
+	else
+		caps &= ~IEEE80211_HTCAP_CHWIDTH40;
+
+	/* Use the currently configured values */
+	rxmax = vap->iv_ampdu_rxmax;
+	density = vap->iv_ampdu_density;
+
 	/* adjust short GI based on channel and config */
 	if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) == 0)
 		caps &= ~IEEE80211_HTCAP_SHORTGI20;
@@ -2356,15 +2901,24 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 
 	/* supported MCS set */
 	/*
-	 * XXX it would better to get the rate set from ni_htrates
-	 * so we can restrict it but for sta mode ni_htrates isn't
-	 * setup when we're called to form an AssocReq frame so for
-	 * now we're restricted to the default HT rate set.
+	 * XXX: For sta mode the rate set should be restricted based
+	 * on the AP's capabilities, but ni_htrates isn't setup when
+	 * we're called to form an AssocReq frame so for now we're
+	 * restricted to the device capabilities.
 	 */
-	ieee80211_set_htrates(frm, &ieee80211_rateset_11n);
+	ieee80211_set_mcsset(ic, frm);
+
+	frm += __offsetof(struct ieee80211_ie_htcap, hc_extcap) -
+		__offsetof(struct ieee80211_ie_htcap, hc_mcsset);
+
+	/* HT extended capabilities */
+	extcaps = vap->iv_htextcaps & 0xffff;
+
+	ADDSHORT(frm, extcaps);
 
 	frm += sizeof(struct ieee80211_ie_htcap) -
-		__offsetof(struct ieee80211_ie_htcap, hc_mcsset);
+		__offsetof(struct ieee80211_ie_htcap, hc_txbf);
+
 	return frm;
 #undef ADDSHORT
 }
@@ -2373,11 +2927,12 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
  * Add 802.11n HT capabilities information element
  */
 uint8_t *
-ieee80211_add_htcap(uint8_t *frm, struct ieee80211_node *ni)
+ieee80211_add_htcap_ch(uint8_t *frm, struct ieee80211vap *vap,
+    struct ieee80211_channel *c)
 {
 	frm[0] = IEEE80211_ELEMID_HTCAP;
 	frm[1] = sizeof(struct ieee80211_ie_htcap) - 2;
-	return ieee80211_add_htcap_body(frm + 2, ni);
+	return ieee80211_add_htcap_body_ch(frm + 2, vap, c);
 }
 
 /*
@@ -2423,10 +2978,14 @@ ieee80211_ht_update_beacon(struct ieee80211vap *vap,
 	struct ieee80211_beacon_offsets *bo)
 {
 #define	PROTMODE	(IEEE80211_HTINFO_OPMODE|IEEE80211_HTINFO_NONHT_PRESENT)
-	const struct ieee80211_channel *bsschan = vap->iv_bss->ni_chan;
+	struct ieee80211_node *ni;
+	const struct ieee80211_channel *bsschan;
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_ie_htinfo *ht =
 	   (struct ieee80211_ie_htinfo *) bo->bo_htinfo;
+
+	ni = ieee80211_ref_node(vap->iv_bss);
+	bsschan = ni->ni_chan;
 
 	/* XXX only update on channel change */
 	ht->hi_ctrlchannel = ieee80211_chan2ieee(ic, bsschan);
@@ -2445,6 +3004,8 @@ ieee80211_ht_update_beacon(struct ieee80211vap *vap,
 
 	/* protection mode */
 	ht->hi_byte2 = (ht->hi_byte2 &~ PROTMODE) | ic->ic_curhtprotmode;
+
+	ieee80211_free_node(ni);
 
 	/* XXX propagate to vendor ie's */
 #undef PROTMODE

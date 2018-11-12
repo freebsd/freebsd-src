@@ -45,7 +45,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* Based on $FreeBSD$ */
+/* Based on FreeBSD: src/crypto/openssh/auth2-pam-freebsd.c,v 1.11 2003/03/31 13:48:18 des */
+
 #include "includes.h"
 
 #include <sys/types.h>
@@ -97,6 +98,7 @@
 #include "ssh-gss.h"
 #endif
 #include "monitor_wrap.h"
+#include "blacklist_client.h"
 
 extern ServerOptions options;
 extern Buffer loginmsg;
@@ -412,10 +414,9 @@ sshpam_thread_conv(int n, sshpam_const struct pam_message **msg,
 
  fail:
 	for(i = 0; i < n; i++) {
-		if (reply[i].resp != NULL)
-			xfree(reply[i].resp);
+		free(reply[i].resp);
 	}
-	xfree(reply);
+	free(reply);
 	buffer_free(&buffer);
 	return (PAM_CONV_ERR);
 }
@@ -439,8 +440,10 @@ sshpam_thread(void *ctxtp)
 	const char **ptr_pam_user = &pam_user;
 	char *tz = getenv("TZ");
 
-	pam_get_item(sshpam_handle, PAM_USER,
+	sshpam_err = pam_get_item(sshpam_handle, PAM_USER,
 	    (sshpam_const void **)ptr_pam_user);
+	if (sshpam_err != PAM_SUCCESS)
+		goto auth_fail;
 
 	environ[0] = NULL;
 	if (tz != NULL)
@@ -586,10 +589,9 @@ sshpam_store_conv(int n, sshpam_const struct pam_message **msg,
 
  fail:
 	for(i = 0; i < n; i++) {
-		if (reply[i].resp != NULL)
-			xfree(reply[i].resp);
+		free(reply[i].resp);
 	}
-	xfree(reply);
+	free(reply);
 	return (PAM_CONV_ERR);
 }
 
@@ -693,7 +695,7 @@ sshpam_init_ctx(Authctxt *authctxt)
 	/* Start the authentication thread */
 	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, socks) == -1) {
 		error("PAM: failed create sockets: %s", strerror(errno));
-		xfree(ctxt);
+		free(ctxt);
 		return (NULL);
 	}
 	ctxt->pam_psock = socks[0];
@@ -703,7 +705,7 @@ sshpam_init_ctx(Authctxt *authctxt)
 		    strerror(errno));
 		close(socks[0]);
 		close(socks[1]);
-		xfree(ctxt);
+		free(ctxt);
 		return (NULL);
 	}
 	cleanup_ctxt = ctxt;
@@ -738,22 +740,22 @@ sshpam_query(void *ctx, char **name, char **info,
 		case PAM_PROMPT_ECHO_OFF:
 			*num = 1;
 			len = plen + mlen + 1;
-			**prompts = xrealloc(**prompts, 1, len);
+			**prompts = xreallocarray(**prompts, 1, len);
 			strlcpy(**prompts + plen, msg, len - plen);
 			plen += mlen;
 			**echo_on = (type == PAM_PROMPT_ECHO_ON);
-			xfree(msg);
+			free(msg);
 			return (0);
 		case PAM_ERROR_MSG:
 		case PAM_TEXT_INFO:
 			/* accumulate messages */
 			len = plen + mlen + 2;
-			**prompts = xrealloc(**prompts, 1, len);
+			**prompts = xreallocarray(**prompts, 1, len);
 			strlcpy(**prompts + plen, msg, len - plen);
 			plen += mlen;
 			strlcat(**prompts + plen, "\n", len - plen);
 			plen++;
-			xfree(msg);
+			free(msg);
 			break;
 		case PAM_ACCT_EXPIRED:
 			sshpam_account_status = 0;
@@ -766,7 +768,7 @@ sshpam_query(void *ctx, char **name, char **info,
 				*num = 0;
 				**echo_on = 0;
 				ctxt->pam_done = -1;
-				xfree(msg);
+				free(msg);
 				return 0;
 			}
 			/* FALLTHROUGH */
@@ -776,7 +778,7 @@ sshpam_query(void *ctx, char **name, char **info,
 				debug("PAM: %s", **prompts);
 				buffer_append(&loginmsg, **prompts,
 				    strlen(**prompts));
-				xfree(**prompts);
+				free(**prompts);
 				**prompts = NULL;
 			}
 			if (type == PAM_SUCCESS) {
@@ -790,9 +792,10 @@ sshpam_query(void *ctx, char **name, char **info,
 				*num = 0;
 				**echo_on = 0;
 				ctxt->pam_done = 1;
-				xfree(msg);
+				free(msg);
 				return (0);
 			}
+			BLACKLIST_NOTIFY(BLACKLIST_AUTH_FAIL);
 			error("PAM: %s for %s%.100s from %.100s", msg,
 			    sshpam_authctxt->valid ? "" : "illegal user ",
 			    sshpam_authctxt->user,
@@ -801,7 +804,7 @@ sshpam_query(void *ctx, char **name, char **info,
 		default:
 			*num = 0;
 			**echo_on = 0;
-			xfree(msg);
+			free(msg);
 			ctxt->pam_done = -1;
 			return (-1);
 		}
@@ -852,7 +855,7 @@ sshpam_free_ctx(void *ctxtp)
 
 	debug3("PAM: %s entering", __func__);
 	sshpam_thread_cleanup();
-	xfree(ctxt);
+	free(ctxt);
 	/*
 	 * We don't call sshpam_cleanup() here because we may need the PAM
 	 * handle at a later stage, e.g. when setting up a session.  It's
@@ -1006,10 +1009,9 @@ sshpam_tty_conv(int n, sshpam_const struct pam_message **msg,
 
  fail:
 	for(i = 0; i < n; i++) {
-		if (reply[i].resp != NULL)
-			xfree(reply[i].resp);
+		free(reply[i].resp);
 	}
-	xfree(reply);
+	free(reply);
 	return (PAM_CONV_ERR);
 }
 
@@ -1081,7 +1083,7 @@ do_pam_putenv(char *name, char *value)
 
 	snprintf(compound, len, "%s=%s", name, value);
 	ret = pam_putenv(sshpam_handle, compound);
-	xfree(compound);
+	free(compound);
 #endif
 
 	return (ret);
@@ -1108,8 +1110,8 @@ free_pam_environment(char **env)
 		return;
 
 	for (envp = env; *envp; envp++)
-		xfree(*envp);
-	xfree(env);
+		free(*envp);
+	free(env);
 }
 
 /*
@@ -1165,10 +1167,9 @@ sshpam_passwd_conv(int n, sshpam_const struct pam_message **msg,
 
  fail:
 	for(i = 0; i < n; i++) {
-		if (reply[i].resp != NULL)
-			xfree(reply[i].resp);
+		free(reply[i].resp);
 	}
-	xfree(reply);
+	free(reply);
 	return (PAM_CONV_ERR);
 }
 

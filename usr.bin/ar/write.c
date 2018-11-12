@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <unistd.h>
 
 #include "ar.h"
 
@@ -58,8 +59,10 @@ static struct ar_obj	*create_obj_from_file(struct bsdar *bsdar,
 		    const char *name, time_t mtime);
 static void	create_symtab_entry(struct bsdar *bsdar, void *maddr,
 		    size_t size);
+static void	free_obj(struct bsdar *bsdar, struct ar_obj *obj);
 static void	insert_obj(struct bsdar *bsdar, struct ar_obj *obj,
 		    struct ar_obj *pos);
+static void	prefault_buffer(const char *buf, size_t s);
 static void	read_objs(struct bsdar *bsdar, const char *archive,
 		    int checkargv);
 static void	write_archive(struct bsdar *bsdar, char mode);
@@ -113,7 +116,7 @@ ar_mode_A(struct bsdar *bsdar)
 /*
  * Create object from file, return created obj upon success, or NULL
  * when an error occurs or the member is not newer than existing
- * one while -u is specifed.
+ * one while -u is specified.
  */
 static struct ar_obj *
 create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
@@ -121,6 +124,7 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 	struct ar_obj		*obj;
 	struct stat		 sb;
 	const char		*bname;
+	char			*tmpname;
 
 	if (name == NULL)
 		return (NULL);
@@ -134,7 +138,10 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 		return (NULL);
 	}
 
-	if ((bname = basename(name)) == NULL)
+	tmpname = strdup(name);
+	if (tmpname == NULL)
+		bsdar_errc(bsdar, EX_SOFTWARE, errno, "strdup failed");
+	if ((bname = basename(tmpname)) == NULL)
 		bsdar_errc(bsdar, EX_SOFTWARE, errno, "basename failed");
 	if (bsdar->options & AR_TR && strlen(bname) > _TRUNCATE_LEN) {
 		if ((obj->name = malloc(_TRUNCATE_LEN + 1)) == NULL)
@@ -144,6 +151,7 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 	} else
 		if ((obj->name = strdup(bname)) == NULL)
 		    bsdar_errc(bsdar, EX_SOFTWARE, errno, "strdup failed");
+	free(tmpname);
 
 	if (fstat(obj->fd, &sb) < 0) {
 		bsdar_warnc(bsdar, errno, "can't fstat file: %s", obj->name);
@@ -163,11 +171,24 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 	if (mtime != 0 && bsdar->options & AR_U && sb.st_mtime <= mtime)
 		goto giveup;
 
-	obj->uid = sb.st_uid;
-	obj->gid = sb.st_gid;
-	obj->md = sb.st_mode;
+	/*
+	 * When option '-D' is specified, mtime and UID / GID from the file
+	 * will be replaced with 0, and file mode with 644. This ensures that 
+	 * checksums will match for two archives containing the exact same
+	 * files.
+	 */
+	if (bsdar->options & AR_D) {
+		obj->uid = 0;
+		obj->gid = 0;
+		obj->mtime = 0;
+		obj->md = S_IFREG | 0644;
+	} else {
+		obj->uid = sb.st_uid;
+		obj->gid = sb.st_gid;
+		obj->mtime = sb.st_mtime;
+		obj->md = sb.st_mode;
+	}
 	obj->size = sb.st_size;
-	obj->mtime = sb.st_mtime;
 	obj->dev = sb.st_dev;
 	obj->ino = sb.st_ino;
 
@@ -197,6 +218,22 @@ giveup:
 }
 
 /*
+ * Free object itself and its associated allocations.
+ */
+static void
+free_obj(struct bsdar *bsdar, struct ar_obj *obj)
+{
+	if (obj->fd == -1)
+		free(obj->maddr);
+	else
+		if (obj->maddr != NULL && munmap(obj->maddr, obj->size))
+			bsdar_warnc(bsdar, errno,
+			    "can't munmap file: %s", obj->name);
+	free(obj->name);
+	free(obj);
+}
+
+/*
  * Insert obj to the tail, or before/after the pos obj.
  */
 static void
@@ -207,7 +244,7 @@ insert_obj(struct bsdar *bsdar, struct ar_obj *obj, struct ar_obj *pos)
 
 	if (pos == NULL || obj == pos)
 		/*
-		 * If the object to move happens to be the posistion obj,
+		 * If the object to move happens to be the position obj,
 		 * or if there is not a pos obj, move it to tail.
 		 */
 		goto tail;
@@ -247,7 +284,6 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 
 	if ((a = archive_read_new()) == NULL)
 		bsdar_errc(bsdar, EX_SOFTWARE, 0, "archive_read_new failed");
-	archive_read_support_compression_all(a);
 	archive_read_support_format_ar(a);
 	AC(archive_read_open_filename(a, archive, DEF_BLKSZ));
 	for (;;) {
@@ -263,13 +299,6 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 			bsdar_warnc(bsdar, 0, "Retrying...");
 			continue;
 		}
-
-		/*
-		 * Remember the compression mode of existing archive.
-		 * If neither -j nor -z is specified, this mode will
-		 * be used for resulting archive.
-		 */
-		bsdar->compression = archive_compression(a);
 
 		name = archive_entry_pathname(entry);
 
@@ -340,7 +369,7 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 		TAILQ_INSERT_TAIL(&bsdar->v_obj, obj, objs);
 	}
 	AC(archive_read_close(a));
-	AC(archive_read_finish(a));
+	AC(archive_read_free(a));
 }
 
 /*
@@ -359,9 +388,6 @@ write_archive(struct bsdar *bsdar, char mode)
 	nobj = NULL;
 	pos = NULL;
 	memset(&sb, 0, sizeof(sb));
-
-	/* By default, no compression is assumed. */
-	bsdar->compression = ARCHIVE_COMPRESSION_NONE;
 
 	/*
 	 * Test if the specified archive exists, to figure out
@@ -415,7 +441,7 @@ write_archive(struct bsdar *bsdar, char mode)
 	if (mode == 'A') {
 		/*
 		 * Read objects from the target archive of ADDLIB command.
-		 * If there are members spcified in argv, read those members
+		 * If there are members specified in argv, read those members
 		 * only, otherwise the entire archive will be read.
 		 */
 		read_objs(bsdar, bsdar->addlib, 1);
@@ -435,7 +461,7 @@ write_archive(struct bsdar *bsdar, char mode)
 
 		/*
 		 * If can't find `pos' specified by user,
-		 * sliently insert objects at tail.
+		 * silently insert objects at tail.
 		 */
 		if (pos == NULL)
 			bsdar->options &= ~(AR_A | AR_B);
@@ -471,11 +497,8 @@ write_archive(struct bsdar *bsdar, char mode)
 				    *av);
 
 			TAILQ_REMOVE(&bsdar->v_obj, obj, objs);
-			if (mode == 'd' || mode == 'r') {
-				free(obj->maddr);
-				free(obj->name);
-				free(obj);
-			}
+			if (mode == 'd' || mode == 'r')
+				free_obj(bsdar, obj);
 
 			if (mode == 'm')
 				insert_obj(bsdar, obj, pos);
@@ -522,15 +545,8 @@ write_cleanup(struct bsdar *bsdar)
 	struct ar_obj		*obj, *obj_temp;
 
 	TAILQ_FOREACH_SAFE(obj, &bsdar->v_obj, objs, obj_temp) {
-		if (obj->fd == -1)
-			free(obj->maddr);
-		else
-			if (obj->maddr != NULL && munmap(obj->maddr, obj->size))
-				bsdar_warnc(bsdar, errno,
-				    "can't munmap file: %s", obj->name);
 		TAILQ_REMOVE(&bsdar->v_obj, obj, objs);
-		free(obj->name);
-		free(obj);
+		free_obj(bsdar, obj);
 	}
 
 	free(bsdar->as);
@@ -542,11 +558,35 @@ write_cleanup(struct bsdar *bsdar)
 }
 
 /*
+ * Fault in the buffer prior to writing as a workaround for poor performance
+ * due to interaction with kernel fs deadlock avoidance code. See the comment
+ * above vn_io_fault_doio() in sys/kern/vfs_vnops.c for details of the issue.
+ */
+static void
+prefault_buffer(const char *buf, size_t s)
+{
+	volatile const char *p;
+	size_t page_size;
+
+	if (s == 0)
+		return;
+	page_size = sysconf(_SC_PAGESIZE);
+	for (p = buf; p < buf + s; p += page_size)
+		*p;
+	/*
+	 * Ensure we touch the last page as well, in case the buffer is not
+	 * page-aligned.
+	 */
+	*(volatile const char *)(buf + s - 1);
+}
+
+/*
  * Wrapper for archive_write_data().
  */
 static void
 write_data(struct bsdar *bsdar, struct archive *a, const void *buf, size_t s)
 {
+	prefault_buffer(buf, s);
 	if (archive_write_data(a, buf, s) != (ssize_t)s)
 		bsdar_errc(bsdar, EX_SOFTWARE, 0, "%s",
 		    archive_error_string(a));
@@ -619,23 +659,6 @@ write_objs(struct bsdar *bsdar)
 
 	archive_write_set_format_ar_svr4(a);
 
-	/* The compression mode of the existing archive is used
-	 * for the result archive or if creating a new archive, we
-	 * do not compress archive by default. This default behavior can
-	 * be overrided by compression mode specified explicitly
-	 * through command line option `-j' or `-z'.
-	 */
-	if (bsdar->options & AR_J)
-		bsdar->compression = ARCHIVE_COMPRESSION_BZIP2;
-	if (bsdar->options & AR_Z)
-		bsdar->compression = ARCHIVE_COMPRESSION_GZIP;
-	if (bsdar->compression == ARCHIVE_COMPRESSION_BZIP2)
-		archive_write_set_compression_bzip2(a);
-	else if (bsdar->compression == ARCHIVE_COMPRESSION_GZIP)
-		archive_write_set_compression_gzip(a);
-	else
-		archive_write_set_compression_none(a);
-
 	AC(archive_write_open_filename(a, bsdar->filename));
 
 	/*
@@ -646,8 +669,12 @@ write_objs(struct bsdar *bsdar)
 	if ((bsdar->s_cnt != 0 && !(bsdar->options & AR_SS)) ||
 	    bsdar->options & AR_S) {
 		entry = archive_entry_new();
+		if (entry == NULL)
+			bsdar_errc(bsdar, EX_SOFTWARE, 0,
+			    "archive_entry_new failed");
 		archive_entry_copy_pathname(entry, "/");
-		archive_entry_set_mtime(entry, time(NULL), 0);
+		if ((bsdar->options & AR_D) == 0)
+			archive_entry_set_mtime(entry, time(NULL), 0);
 		archive_entry_set_size(entry, (bsdar->s_cnt + 1) *
 		    sizeof(uint32_t) + bsdar->s_sn_sz);
 		AC(archive_write_header(a, entry));
@@ -662,6 +689,9 @@ write_objs(struct bsdar *bsdar)
 	/* write the archive string table, if any. */
 	if (bsdar->as != NULL) {
 		entry = archive_entry_new();
+		if (entry == NULL)
+			bsdar_errc(bsdar, EX_SOFTWARE, 0,
+			    "archive_entry_new failed");
 		archive_entry_copy_pathname(entry, "//");
 		archive_entry_set_size(entry, bsdar->as_sz);
 		AC(archive_write_header(a, entry));
@@ -672,6 +702,9 @@ write_objs(struct bsdar *bsdar)
 	/* write normal members. */
 	TAILQ_FOREACH(obj, &bsdar->v_obj, objs) {
 		entry = archive_entry_new();
+		if (entry == NULL)
+			bsdar_errc(bsdar, EX_SOFTWARE, 0,
+			    "archive_entry_new failed");
 		archive_entry_copy_pathname(entry, obj->name);
 		archive_entry_set_uid(entry, obj->uid);
 		archive_entry_set_gid(entry, obj->gid);
@@ -687,7 +720,7 @@ write_objs(struct bsdar *bsdar)
 	}
 
 	AC(archive_write_close(a));
-	AC(archive_write_finish(a));
+	AC(archive_write_free(a));
 }
 
 /*
@@ -711,7 +744,7 @@ create_symtab_entry(struct bsdar *bsdar, void *maddr, size_t size)
 		return;
 	}
 	if (elf_kind(e) != ELF_K_ELF) {
-		/* Sliently ignore non-elf member. */
+		/* Silently ignore non-elf member. */
 		elf_end(e);
 		return;
 	}

@@ -121,7 +121,7 @@ void	trewind(void);
 void	writerec(char *dp, int isspcl);
 
 void	Exit(int status) __dead2;
-void	dumpabort(int signo);
+void	dumpabort(int signo) __dead2;
 void	dump_getfstab(void);
 
 char	*rawname(char *cp);
@@ -171,9 +171,10 @@ void	putdumptime(void);
     	if (ddatev != NULL) \
 		for (ddp = ddatev[i = 0]; i < nddates; ddp = ddatev[++i])
 
-#define	DUMPOUTFMT	"%-32s %d %s"		/* for printf */
+#define	DUMPFMTLEN	53			/* max device pathname length */
+#define	DUMPOUTFMT	"%-*s %d %s"		/* for printf */
 						/* name, level, ctime(date) */
-#define	DUMPINFMT	"%32s %d %[^\n]\n"	/* inverse for scanf */
+#define	DUMPINFMT	"%s %d %[^\n]\n"	/* inverse for scanf */
 
 void	sig(int signo);
 

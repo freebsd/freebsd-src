@@ -28,7 +28,7 @@
 .\"     @(#)mount.2	8.3 (Berkeley) 5/24/95
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2005
+.Dd April 13, 2015
 .Dt MOUNT 2
 .Os
 .Sh NAME
@@ -86,7 +86,7 @@ containing
 .Fa niov
 elements.
 The following options are required by all file systems:
-.Bl -item -offset indent -compact
+.Bl -column fstype -offset indent
 .It
 .Li fstype Ta file system type name (e.g., Dq Li procfs )
 .It
@@ -107,7 +107,7 @@ This restriction can be removed by setting the
 .Va vfs.usermount
 .Xr sysctl 8
 variable
-to a non-zero value.
+to a non-zero value; see the BUGS section for more information.
 .Pp
 The following
 .Fa flags
@@ -351,11 +351,6 @@ The
 argument
 points outside the process's allocated address space.
 .El
-.Pp
-A
-.Em ufs
-mount can also fail if the maximum number of file systems are currently
-mounted.
 .Sh SEE ALSO
 .Xr lsvfs 1 ,
 .Xr mksnap_ffs 8 ,
@@ -368,5 +363,16 @@ and
 .Fn unmount
 functions appeared in
 .At v6 .
+The
+.Fn nmount
+system call first appeared in
+.Fx 5.0 .
 .Sh BUGS
 Some of the error codes need translation to more obvious messages.
+.Pp
+Allowing untrusted users to mount arbitrary media, e.g. by enabling
+.Va vfs.usermount ,
+should not be considered safe.
+Most file systems in
+.Fx
+were not built to safeguard against malicious devices.

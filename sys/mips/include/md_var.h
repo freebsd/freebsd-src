@@ -41,19 +41,23 @@
  */
 extern	long	Maxmem;
 extern	char	sigcode[];
-extern	int	szsigcode, szosigcode;
+extern	int	szsigcode;
+#if defined(__mips_n32) || defined(__mips_n64)
+extern	char	sigcode32[];
+extern	int	szsigcode32;
+#endif
+extern	uint32_t *vm_page_dump;
+extern	int vm_page_dump_size;
 
 extern vm_offset_t kstack0;
+extern vm_offset_t kernel_kseg0_end;
 
 void	MipsSaveCurFPState(struct thread *);
 void	fork_trampoline(void);
-void	cpu_swapin(struct proc *);
 uintptr_t MipsEmulateBranch(struct trapframe *, uintptr_t, int, uintptr_t);
 void MipsSwitchFPState(struct thread *, struct trapframe *);
-u_long	kvtop(void *addr);
-int	is_physical_memory(vm_offset_t addr);
-int	is_cacheable_mem(vm_offset_t pa);
-int	is_coherent_mem(vm_offset_t pa);
+int	is_cacheable_mem(vm_paddr_t addr);
+void	mips_wait(void);
 
 #define	MIPS_DEBUG   0
 
@@ -64,14 +68,17 @@ int	is_coherent_mem(vm_offset_t pa);
 #endif
 
 void	mips_vector_init(void);
-void	cpu_identify(void);
 void	mips_cpu_init(void);
+void	mips_pcpu0_init(void);
 void	mips_proc0_init(void);
-
-/* Platform call-downs. */
-void	platform_identify(void);
+void	mips_postboot_fixup(void);
 
 extern int busdma_swi_pending;
-void busdma_swi(void);
+void	busdma_swi(void);
+
+struct	dumperinfo;
+void	dump_add_page(vm_paddr_t);
+void	dump_drop_page(vm_paddr_t);
+int	minidumpsys(struct dumperinfo *);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

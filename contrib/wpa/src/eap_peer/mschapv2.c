@@ -2,20 +2,14 @@
  * MSCHAPV2 (RFC 2759)
  * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
 
 #include "common.h"
-#include "ms_funcs.h"
+#include "crypto/ms_funcs.h"
 #include "mschapv2.h"
 
 const u8 * mschapv2_remove_domain(const u8 *username, size_t *len)
@@ -39,13 +33,13 @@ const u8 * mschapv2_remove_domain(const u8 *username, size_t *len)
 }
 
 
-void mschapv2_derive_response(const u8 *identity, size_t identity_len,
-			      const u8 *password, size_t password_len,
-			      int pwhash,
-			      const u8 *auth_challenge,
-			      const u8 *peer_challenge,
-			      u8 *nt_response, u8 *auth_response,
-			      u8 *master_key)
+int mschapv2_derive_response(const u8 *identity, size_t identity_len,
+			     const u8 *password, size_t password_len,
+			     int pwhash,
+			     const u8 *auth_challenge,
+			     const u8 *peer_challenge,
+			     u8 *nt_response, u8 *auth_response,
+			     u8 *master_key)
 {
 	const u8 *username;
 	size_t username_len;
@@ -69,22 +63,28 @@ void mschapv2_derive_response(const u8 *identity, size_t identity_len,
 	if (pwhash) {
 		wpa_hexdump_key(MSG_DEBUG, "MSCHAPV2: password hash",
 				password, password_len);
-		generate_nt_response_pwhash(auth_challenge, peer_challenge,
-					    username, username_len,
-					    password, nt_response);
-		generate_authenticator_response_pwhash(
-			password, peer_challenge, auth_challenge,
-			username, username_len, nt_response, auth_response);
+		if (generate_nt_response_pwhash(auth_challenge, peer_challenge,
+						username, username_len,
+						password, nt_response) ||
+		    generate_authenticator_response_pwhash(
+			    password, peer_challenge, auth_challenge,
+			    username, username_len, nt_response,
+			    auth_response))
+			return -1;
 	} else {
 		wpa_hexdump_ascii_key(MSG_DEBUG, "MSCHAPV2: password",
 				      password, password_len);
-		generate_nt_response(auth_challenge, peer_challenge,
-				     username, username_len,
-				     password, password_len, nt_response);
-		generate_authenticator_response(password, password_len,
-						peer_challenge, auth_challenge,
-						username, username_len,
-						nt_response, auth_response);
+		if (generate_nt_response(auth_challenge, peer_challenge,
+					 username, username_len,
+					 password, password_len,
+					 nt_response) ||
+		    generate_authenticator_response(password, password_len,
+						    peer_challenge,
+						    auth_challenge,
+						    username, username_len,
+						    nt_response,
+						    auth_response))
+			return -1;
 	}
 	wpa_hexdump(MSG_DEBUG, "MSCHAPV2: NT Response",
 		    nt_response, MSCHAPV2_NT_RESPONSE_LEN);
@@ -93,14 +93,19 @@ void mschapv2_derive_response(const u8 *identity, size_t identity_len,
 
 	/* Generate master_key here since we have the needed data available. */
 	if (pwhash) {
-		hash_nt_password_hash(password, password_hash_hash);
+		if (hash_nt_password_hash(password, password_hash_hash))
+			return -1;
 	} else {
-		nt_password_hash(password, password_len, password_hash);
-		hash_nt_password_hash(password_hash, password_hash_hash);
+		if (nt_password_hash(password, password_len, password_hash) ||
+		    hash_nt_password_hash(password_hash, password_hash_hash))
+			return -1;
 	}
-	get_master_key(password_hash_hash, nt_response, master_key);
+	if (get_master_key(password_hash_hash, nt_response, master_key))
+		return -1;
 	wpa_hexdump_key(MSG_DEBUG, "MSCHAPV2: Master Key",
 			master_key, MSCHAPV2_MASTER_KEY_LEN);
+
+	return 0;
 }
 
 
@@ -112,8 +117,8 @@ int mschapv2_verify_auth_response(const u8 *auth_response,
 	    buf[0] != 'S' || buf[1] != '=' ||
 	    hexstr2bin((char *) (buf + 2), recv_response,
 		       MSCHAPV2_AUTH_RESPONSE_LEN) ||
-	    os_memcmp(auth_response, recv_response,
-		      MSCHAPV2_AUTH_RESPONSE_LEN) != 0)
+	    os_memcmp_const(auth_response, recv_response,
+			    MSCHAPV2_AUTH_RESPONSE_LEN) != 0)
 		return -1;
 	return 0;
 }

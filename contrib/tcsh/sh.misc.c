@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.misc.c,v 3.45 2006/10/14 17:57:21 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.misc.c,v 3.46 2010/05/08 00:41:58 christos Exp $ */
 /*
  * sh.misc.c: Miscelaneous functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.misc.c,v 3.45 2006/10/14 17:57:21 christos Exp $")
+RCSID("$tcsh: sh.misc.c,v 3.46 2010/05/08 00:41:58 christos Exp $")
 
 static	int	renum	(int, int);
 static  Char  **blkend	(Char **);
@@ -60,6 +60,7 @@ setzero(void *p, size_t size)
     memset(p, 0, size);
 }
 
+#ifndef SHORT_STRINGS
 char *
 strnsave(const char *s, size_t len)
 {
@@ -70,6 +71,7 @@ strnsave(const char *s, size_t len)
     r[len] = '\0';
     return r;
 }
+#endif
 
 char   *
 strsave(const char *s)

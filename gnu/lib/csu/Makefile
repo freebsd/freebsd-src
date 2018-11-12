@@ -1,47 +1,52 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 MK_SSP=		no
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 CCDIR=	${.CURDIR}/../../usr.bin/cc
 .include "${CCDIR}/Makefile.tgt"
+.include "${CCDIR}/cc_tools/Makefile.hdrs"
 
 .PATH: ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}
 
-SRCS=		crtstuff.c tconfig.h tm.h options.h
+SRCS=		crtstuff.c ${COMMONHDRS}
 OBJS=		crtbegin.o crtend.o crtbeginT.o
-SOBJS=		crtbegin.So crtend.So
+SOBJS=		crtbeginS.o crtendS.o
 CSTD?=		gnu89
 CFLAGS+=	-DIN_GCC -DHAVE_LD_EH_FRAME_HDR -DDT_CONFIG -D__GLIBC__=3
-CFLAGS+=	-finhibit-size-directive -fno-inline-functions \
-		-fno-exceptions -fno-zero-initialized-in-bss \
-		-fno-zero-initialized-in-bss -fno-toplevel-reorder
+CFLAGS.gcc+=	-finhibit-size-directive -fno-toplevel-reorder
+CFLAGS+=	-fno-inline-functions -fno-exceptions \
+		-fno-zero-initialized-in-bss -fno-asynchronous-unwind-tables \
+		-fno-omit-frame-pointer
 CFLAGS+=	-I${GCCLIB}/include -I${GCCDIR}/config -I${GCCDIR} -I. \
 		-I${CCDIR}/cc_tools
 CRTS_CFLAGS=	-DCRTSTUFFS_O -DSHARED ${PICFLAG}
-MKDEP=		-DCRT_BEGIN
 
-.if ${MACHINE_ARCH} == "ia64"
-BEGINSRC=	crtbegin.asm
-ENDSRC=		crtend.asm
-CFLAGS+=	-x assembler-with-cpp	# Ugly hack
-CFLAGS+=	-include osreldate.h
-.undef SRCS				# hack for 'make depend'
+.if ${TARGET_CPUARCH} == "arm"
+CFLAGS+=	-DTARGET_ARM_EABI
 .endif
-.if ${MACHINE_ARCH} == "powerpc"
+
+.if ${MACHINE_CPUARCH} == "powerpc"
 TGTOBJS=	crtsavres.o
 SRCS+=		crtsavres.asm
 .endif
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_CPUARCH} == "sparc64"
 TGTOBJS=	crtfastmath.o
 SRCS+=		crtfastmath.c
 .endif
 BEGINSRC?=	crtstuff.c
 ENDSRC?=	crtstuff.c
 
-all: ${OBJS} ${SOBJS} ${TGTOBJS}
+FILES=		${OBJS} ${SOBJS} ${TGTOBJS}
+FILESMODE=	${LIBMODE}
+FILESOWN=	${LIBOWN}
+FILESGRP=	${LIBGRP}
+FILESDIR=	${LIBDIR}
+# These FILES qualify as libraries for the purpose of LIBRARIES_ONLY.
+.undef LIBRARIES_ONLY
+
 ${OBJS} ${SOBJS}: ${SRCS:M*.h}
 
 CLEANFILES=	${OBJS} ${SOBJS} ${TGTOBJS}
@@ -54,7 +59,7 @@ crtbeginT.o:	${BEGINSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN -DCRTSTUFFT_O \
 		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
-crtbegin.So:	${BEGINSRC}
+crtbeginS.o:	${BEGINSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN ${CRTS_CFLAGS} \
 		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
@@ -62,18 +67,11 @@ crtend.o:	${ENDSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_END \
 		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
-crtend.So:	${ENDSRC}
+crtendS.o:	${ENDSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
 		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
-CLEANFILES+=	tm.h tconfig.h options.h optionlist cs-tconfig.h cs-tm.h
-tm.h tconfig.h options.h: ${CCDIR}/cc_tools/Makefile
-	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
-
-realinstall:
-.for file in ${OBJS} ${SOBJS} ${TGTOBJS}
-	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${file} ${DESTDIR}${LIBDIR}/${file:S/.So$/S.o/}
-.endfor
+COMMONHDRS+=	tm.h tconfig.h options.h
+CLEANFILES+=	${COMMONHDRS} optionlist cs-tconfig.h cs-tm.h
 
 .include <bsd.lib.mk>

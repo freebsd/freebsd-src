@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/sysctl.h>
 
 #include <ufs/ufs/dinode.h>
@@ -48,19 +49,13 @@ __FBSDID("$FreeBSD$");
 
 #include "fsck.h"
 
-const char	*lfname = "lost+found";
-int	lfmode = 0700;
-struct	dirtemplate emptydir = {
+static struct	dirtemplate emptydir = {
 	0, DIRBLKSIZ, DT_UNKNOWN, 0, "",
 	0, 0, DT_UNKNOWN, 0, ""
 };
-struct	dirtemplate dirhead = {
+static struct	dirtemplate dirhead = {
 	0, 12, DT_DIR, 1, ".",
 	0, DIRBLKSIZ - 12, DT_DIR, 2, ".."
-};
-struct	odirtemplate odirhead = {
-	0, 12, 1, ".",
-	0, DIRBLKSIZ - 12, 2, ".."
 };
 
 static int chgino(struct inodesc *);
@@ -133,6 +128,7 @@ dirscan(struct inodesc *idesc)
 			    (size_t)dsize);
 			dirty(bp);
 			sbdirty();
+			rerun = 1;
 		}
 		if (n & STOP)
 			return (n);
@@ -210,7 +206,7 @@ dircheck(struct inodesc *idesc, struct direct *dp)
 	size_t size;
 	char *cp;
 	u_char type;
-	u_int namlen;
+	u_int8_t namlen;
 	int spaceleft;
 
 	spaceleft = DIRBLKSIZ - (idesc->id_loc % DIRBLKSIZ);
@@ -225,7 +221,7 @@ dircheck(struct inodesc *idesc, struct direct *dp)
 	type = dp->d_type;
 	if (dp->d_reclen < size ||
 	    idesc->id_filesize < size ||
-	    namlen > MAXNAMLEN ||
+	    namlen == 0 ||
 	    type > 15)
 		goto bad;
 	for (cp = dp->d_name, size = 0; size < namlen; size++)
@@ -706,8 +702,8 @@ static struct bufarea *
 getdirblk(ufs2_daddr_t blkno, long size)
 {
 
-	if (pdirbp != 0)
+	if (pdirbp != NULL)
 		pdirbp->b_flags &= ~B_INUSE;
-	pdirbp = getdatablk(blkno, size);
+	pdirbp = getdatablk(blkno, size, BT_DIRDATA);
 	return (pdirbp);
 }

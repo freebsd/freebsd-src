@@ -34,7 +34,7 @@ struct ural_rx_radiotap_header {
 	int8_t		wr_antsignal;
 	int8_t		wr_antnoise;
 	uint8_t		wr_antenna;
-};
+} __packed __aligned(8);
 
 #define RAL_RX_RADIOTAP_PRESENT						\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
@@ -51,7 +51,7 @@ struct ural_tx_radiotap_header {
 	uint16_t	wt_chan_freq;
 	uint16_t	wt_chan_flags;
 	uint8_t		wt_antenna;
-};
+} __packed __aligned(8);
 
 #define RAL_TX_RADIOTAP_PRESENT						\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
@@ -71,18 +71,11 @@ struct ural_tx_data {
 };
 typedef STAILQ_HEAD(, ural_tx_data) ural_txdhead;
 
-struct ural_node {
-	struct ieee80211_node		ni;
-	struct ieee80211_amrr_node	amn;
-};
-#define	URAL_NODE(ni)	((struct ural_node *)(ni))
-
 struct ural_vap {
 	struct ieee80211vap		vap;
-	struct ieee80211_beacon_offsets	bo;
-	struct ieee80211_amrr		amrr;
-	struct usb_callout		amrr_ch;
-	struct task			amrr_task;
+
+	struct usb_callout		ratectl_ch;
+	struct task			ratectl_task;
 
 	int				(*newstate)(struct ieee80211vap *,
 					    enum ieee80211_state, int);
@@ -96,14 +89,16 @@ enum {
 };
 
 struct ural_softc {
-	struct ifnet			*sc_ifp;
+	struct ieee80211com		sc_ic;
+	struct ieee80211_ratectl_tx_stats sc_txs;
+	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 
 	uint32_t			asic_rev;
 	uint8_t				rf_rev;
 
-	struct usb_xfer		*sc_xfer[URAL_N_TRANSFER];
+	struct usb_xfer			*sc_xfer[URAL_N_TRANSFER];
 
 	struct ural_tx_data		tx_data[RAL_TX_LIST_COUNT];
 	ural_txdhead			tx_q;
@@ -116,7 +111,10 @@ struct ural_softc {
 	uint16_t			sta[11];
 	uint32_t			rf_regs[4];
 	uint8_t				txpow[14];
-	uint8_t				sc_bssid[6];
+	u_int				sc_detached:1,
+					sc_running:1;
+
+	uint8_t				sc_bssid[IEEE80211_ADDR_LEN];
 
 	struct {
 		uint8_t			val;
@@ -130,10 +128,7 @@ struct ural_softc {
 	int				nb_ant;
 
 	struct ural_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
-
 	struct ural_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
 };
 
 #define RAL_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)

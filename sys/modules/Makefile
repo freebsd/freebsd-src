@@ -1,15 +1,29 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+SYSDIR?=${.CURDIR}/..
+.include "${SYSDIR}/conf/kern.opts.mk"
 
-SUBDIR=	${_3dfx} \
+SUBDIR_PARALLEL=
+
+# Modules that include binary-only blobs of microcode should be selectable by
+# MK_SOURCELESS_UCODE option (see below).
+
+.if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
+SUBDIR=${MODULES_OVERRIDE}
+.else
+SUBDIR=	\
+	${_3dfx} \
 	${_3dfx_linux} \
 	${_aac} \
+	${_aacraid} \
 	accf_data \
 	accf_dns \
 	accf_http \
+	acl_nfs4 \
+	acl_posix1e \
 	${_acpi} \
 	ae \
+	${_aesni} \
 	age \
 	${_agp} \
 	aha \
@@ -17,11 +31,11 @@ SUBDIR=	${_3dfx} \
 	ahci \
 	${_aic} \
 	aic7xxx \
-	aio \
-	${_amd} \
-	${_amdtemp} \
 	alc \
 	ale \
+	alq \
+	${_amdsbwd} \
+	${_amdtemp} \
 	amr \
 	${_an} \
 	${_aout} \
@@ -29,43 +43,56 @@ SUBDIR=	${_3dfx} \
 	${_arcmsr} \
 	${_arcnet} \
 	${_asmc} \
-	${_asr} \
 	ata \
 	ath \
+	ath_pci \
+	${_autofs} \
 	${_auxio} \
-	bce \
+	${_bce} \
 	bfe \
+	bhnd \
 	bge \
+	bhnd \
+	${_bxe} \
 	${_bios} \
 	${_bktr} \
 	${_bm} \
 	bridgestp \
 	bwi \
+	bwn \
+	bwn_pci \
 	cam \
 	${_canbepm} \
 	${_canbus} \
 	${_cardbus} \
+	${_carp} \
 	cas \
 	${_cbb} \
+	cc \
 	cd9660 \
 	cd9660_iconv \
 	${_ce} \
+	${_cfi} \
 	${_ciss} \
+	cloudabi \
+	${_cloudabi32} \
+	${_cloudabi64} \
 	${_cm} \
 	${_cmx} \
-	coda \
-	coda5 \
 	${_coff} \
 	${_coretemp} \
 	${_cp} \
+	${_cpsw} \
 	${_cpuctl} \
 	${_cpufreq} \
 	${_crypto} \
 	${_cryptodev} \
 	${_cs} \
+	${_ct} \
 	${_ctau} \
-	cxgb \
-	${_cyclic} \
+	ctl \
+	${_cxgb} \
+	${_cxgbe} \
 	dc \
 	dcons \
 	dcons_crom \
@@ -73,76 +100,104 @@ SUBDIR=	${_3dfx} \
 	${_dpms} \
 	${_dpt} \
 	${_drm} \
-	${_dtrace} \
+	${_drm2} \
 	dummynet \
 	${_ed} \
+	${_efirt} \
 	${_elink} \
 	${_em} \
 	en \
 	${_ep} \
+	${_epic} \
+	esp \
 	${_et} \
+	evdev \
 	${_ex} \
 	${_exca} \
-	${_ext2fs} \
-	fatm \
+	ext2fs \
+	${_fatm} \
 	fdc \
 	fdescfs \
 	${_fe} \
+	filemon \
 	firewire \
 	firmware \
-	fxp \
+	fuse \
+	${_fxp} \
 	gem \
 	geom \
+	${_glxiic} \
 	${_glxsb} \
+	gpio \
 	hatm \
 	hifn \
 	hme \
+	${_hpt27xx} \
 	${_hptiop} \
 	${_hptmv} \
+	${_hptnr} \
 	${_hptrr} \
 	hwpmc \
-	${_i2c} \
+	${_hyperv} \
+	i2c \
+        ${_ibcore} \
 	${_ibcs2} \
 	${_ichwd} \
 	${_ida} \
-	${_ie} \
 	if_bridge \
 	if_disc \
 	if_edsc \
-	if_ef \
+	${_if_enc} \
 	if_epair \
-	if_faith \
-	if_gif \
-	if_gre \
+	${_if_gif} \
+	${_if_gre} \
+	${_if_me} \
 	if_lagg \
 	${_if_ndis} \
-	if_stf \
+	${_if_stf} \
 	if_tap \
 	if_tun \
 	if_vlan \
+	if_vxlan \
 	${_igb} \
 	${_iir} \
+	imgact_binmisc \
 	${_io} \
-	ipdivert \
+	${_ioat} \
+        ${_ipoib} \
+	${_ipdivert} \
 	${_ipfilter} \
-	ipfw \
+	${_ipfw} \
 	ipfw_nat \
+	${_ipfw_nat64} \
+	${_ipfw_nptv6} \
 	${_ipmi} \
+	ip6_mroute_mod \
 	ip_mroute_mod \
 	${_ips} \
 	${_ipw} \
 	${_ipwfw} \
-	iscsi \
+	${_isci} \
+	${_iser} \
 	isp \
-	ispfw \
+	${_ispfw} \
 	${_iwi} \
 	${_iwifw} \
+	${_iwm} \
+	${_iwmfw} \
 	${_iwn} \
 	${_iwnfw} \
+	${_ix} \
+	${_ixv} \
 	${_ixgb} \
+	${_ixl} \
+	${_ixlv} \
 	jme \
 	joy \
 	kbdmux \
+	kgssapi \
+	kgssapi_krb5 \
+	khelp \
 	krpc \
 	ksyms \
 	le \
@@ -151,10 +206,12 @@ SUBDIR=	${_3dfx} \
 	libiconv \
 	libmbpool \
 	libmchain \
-	${_lindev} \
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
+	${_linux_common} \
+	${_linux64} \
+	linuxkpi \
 	lmc \
 	lpt \
 	mac_biba \
@@ -169,91 +226,122 @@ SUBDIR=	${_3dfx} \
 	mac_stub \
 	mac_test \
 	malo \
-	mcd \
 	md \
+	mdio \
 	mem \
 	mfi \
 	mii \
 	mlx \
+	${_mlx4} \
+	${_mlx4ib} \
+	${_mlx4en} \
+	${_mlx5} \
+	${_mlx5en} \
 	${_mly} \
 	mmc \
 	mmcsd \
+	mpr \
+	mps \
 	mpt \
 	mqueue \
+	mrsas \
 	msdosfs \
 	msdosfs_iconv \
 	${_mse} \
 	msk \
+	${_mthca} \
+	mvs \
 	mwl \
+	${_mwlfw} \
 	mxge \
 	my \
-	${_ncp} \
+	${_nandfs} \
+	${_nandsim} \
+	${_ncr} \
+	${_nctgpio} \
 	${_ncv} \
 	${_ndis} \
-	netgraph \
+	netfpga10g \
+	${_netgraph} \
 	${_nfe} \
 	nfscl \
-	nfsclient \
 	nfscommon \
 	nfsd \
+	nfslock \
 	nfslockd \
-	nfsserver \
 	nfssvc \
 	nge \
 	nmdm \
 	${_nsp} \
-	ntfs \
-	ntfs_iconv \
 	nullfs \
-	${_nve} \
+	${_ntb} \
+	${_nvd} \
+	${_nvme} \
 	${_nvram} \
-	${_nwfs} \
 	${_nxge} \
-	${_opensolaris} \
+	oce \
+	otus \
+	${_otusfw} \
+	ow \
 	${_padlock} \
+	${_padlock_rng} \
 	patm \
 	${_pccard} \
 	${_pcfclock} \
 	pcn \
 	${_pf} \
 	${_pflog} \
+	${_pfsync} \
 	plip \
 	${_pmc} \
-	portalfs \
+	${_pms} \
 	ppbus \
 	ppc \
 	ppi \
 	pps \
 	procfs \
+	proto \
 	pseudofs \
 	${_pst} \
 	pty  \
 	puc \
+	${_qlxge} \
+	${_qlxgb} \
+	${_qlxgbe} \
 	ral \
-	ralfw \
-	${_random} \
+	${_ralfw} \
+	${_random_fortuna} \
+	${_random_yarrow} \
+	${_random_other} \
 	rc4 \
 	${_rdma} \
+	${_rdrand_rng} \
 	re \
-	reiserfs \
 	rl \
+	rtwn \
+	${_rtwnfw} \
 	${_s3} \
 	${_safe} \
 	${_sbni} \
 	scc \
-	scd \
 	${_scsi_low} \
 	sdhci \
+	sdhci_pci \
 	sem \
-	sf \
+	send \
+	${_sf} \
+	${_sfxge} \
+	sge \
+	siba_bwn \
+	siftr \
 	siis \
 	sis \
 	sk \
-	${_smbfs} \
+	smbfs \
 	sn \
 	${_snc} \
 	snp \
-	${_sound} \
+	sound \
 	${_speaker} \
 	${_splash} \
 	${_sppp} \
@@ -262,32 +350,49 @@ SUBDIR=	${_3dfx} \
 	stge \
 	${_streams} \
 	${_svr4} \
-	sym \
+	${_sym} \
 	${_syscons} \
 	sysvipc \
-	ti \
+	${_ti} \
+	${_tcp_fastpath} \
+	tests/framework \
+	tests/callout_test \
 	tl \
-	${_tmpfs} \
+	tmpfs \
+	${_toecore} \
+	${_tpm} \
 	trm \
 	${_twa} \
 	twe \
+	tws \
 	tx \
-	txp \
+	${_txp} \
 	uart \
 	ubsec \
 	udf \
 	udf_iconv \
 	ufs \
+	uinput \
 	unionfs \
+	urtwn \
+	${_urtwnfw} \
 	usb \
 	utopia \
 	${_vesa} \
+	${_virtio} \
 	vge \
+	${_viawd} \
+	videomode \
 	vkbd \
+	${_vmm} \
+	${_vmware} \
 	${_vpo} \
 	vr \
+	vte \
 	vx \
+	${_vxge} \
 	wb \
+	${_wbwd} \
 	${_wi} \
 	wlan \
 	wlan_acl \
@@ -301,318 +406,381 @@ SUBDIR=	${_3dfx} \
 	${_wpifw} \
 	${_x86bios} \
 	${_xe} \
-	xfs \
 	xl \
-	${_zfs} \
-	zlib \
+	zlib
 
-.if ${MACHINE_ARCH} != "powerpc"
-_syscons=	syscons
-_vpo=		vpo
+.if ${MK_AUTOFS} != "no" || defined(ALL_MODULES)
+_autofs=	autofs
+.endif
+
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+.if (${MACHINE_CPUARCH} != "arm" || ${MACHINE_ARCH:Marmv6*} != "") && \
+	${MACHINE_CPUARCH} != "mips" && \
+	${MACHINE_CPUARCH} != "sparc64"
+SUBDIR+=	dtrace
+.endif
+SUBDIR+=	opensolaris
 .endif
 
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../opencrypto)
 _crypto=	crypto
 _cryptodev=	cryptodev
+_random_fortuna=random_fortuna
+_random_yarrow=	random_yarrow
+_random_other=	random_other
 .endif
-.if exists(${.CURDIR}/../crypto)
-_random=	random
 .endif
+
+.if ${MK_CUSE} != "no" || defined(ALL_MODULES)
+SUBDIR+=	cuse
+.endif
+
+.if ${MK_EXTRA_TCP_STACKS} != "no" || defined(ALL_MODULES)
+_tcp_fastpath=	tcp/fastpath
+.endif
+
+.if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
+	defined(ALL_MODULES)
+_carp=		carp
+_toecore=	toecore
+_if_enc=	if_enc
+_if_gif=	if_gif
+_if_gre=	if_gre
+.endif
+
+.if (${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no") || \
+	defined(ALL_MODULES)
+_if_stf=	if_stf
+.endif
+
+.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+_if_me=		if_me
+_ipdivert=	ipdivert
+_ipfw=		ipfw
+.if ${MK_INET6_SUPPORT} != "no" || defined(ALL_MODULES)
+_ipfw_nat64=	ipfw_nat64
+.endif
+.endif
+
+.if ${MK_INET6_SUPPORT} != "no" || defined(ALL_MODULES)
+_ipfw_nptv6=	ipfw_nptv6
 .endif
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
 _ipfilter=	ipfilter
 .endif
 
-.if ${MK_PF} != "no" || defined(ALL_MODULES)
-_pf=		pf
-_pflog=		pflog
+.if ${MK_ISCSI} != "no" || defined(ALL_MODULES)
+SUBDIR+=	iscsi
+SUBDIR+=	iscsi_initiator
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
-# XXX some of these can move to the general case when de-i386'ed
-# XXX some of these can move now, but are untested on other architectures.
-_3dfx=		3dfx
-_3dfx_linux=	3dfx_linux
+.if ${MK_NAND} != "no" || defined(ALL_MODULES)
+_nandfs=	nandfs
+_nandsim=	nandsim
+.endif
+
+.if ${MK_NETGRAPH} != "no" || defined(ALL_MODULES)
+_netgraph=	netgraph
+.endif
+
+.if (${MK_PF} != "no" && (${MK_INET_SUPPORT} != "no" || \
+	${MK_INET6_SUPPORT} != "no")) || defined(ALL_MODULES)
+_pf=		pf
+_pflog=		pflog
+.if ${MK_INET_SUPPORT} != "no"
+_pfsync=	pfsync
+.endif
+.endif
+
+.if ${MK_SOURCELESS_UCODE} != "no"
+_bce=		bce
+_fatm=		fatm
+_fxp=		fxp
+_ispfw=		ispfw
+_mwlfw=		mwlfw
+_otusfw=	otusfw
+_ralfw=		ralfw
+_rtwnfw=	rtwnfw
+_urtwnfw=	urtwnfw
+_sf=		sf
+_ti=		ti
+_txp=		txp
+.endif
+
+.if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} != "arm" && \
+	${MACHINE_CPUARCH} != "mips" && \
+	${MACHINE_ARCH} != "powerpc" && ${MACHINE_CPUARCH} != "riscv"
+_cxgbe=		cxgbe
+.endif
+
+.if ${MK_ZFS} != "no" || defined(ALL_MODULES)
+SUBDIR+=	zfs
+.endif
+
+.if ${MACHINE_CPUARCH} != "aarch64" && ${MACHINE_CPUARCH} != "arm" && \
+	${MACHINE_CPUARCH} != "mips" && ${MACHINE_CPUARCH} != "powerpc" && \
+	${MACHINE_CPUARCH} != "riscv"
+_syscons=	syscons
+_vpo=		vpo
+.endif
+
+.if ${MACHINE_CPUARCH} != "mips"
+# no BUS_SPACE_UNSPECIFIED
+# No barrier instruction support (specific to this driver)
+_sym=		sym
+# intr_disable() is a macro, causes problems
+.if ${MK_SOURCELESS_UCODE} != "no"
+_cxgb=		cxgb
+.endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "aarch64"
+_em=		em
+_igb=		igb
+.endif
+
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _agp=		agp
-_aic=		aic
-_amd=		amd
 _an=		an
 _aout=		aout
-_apm=		apm
-_arcnet=	arcnet
 _bktr=		bktr
+_bxe=		bxe
 _cardbus=	cardbus
 _cbb=		cbb
-_ce=		ce
-_coff=		coff
-_cp=		cp
 _cpuctl=	cpuctl
 _cpufreq=	cpufreq
 _cs=		cs
-.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-_cyclic=	cyclic
-.endif
 _dpms=		dpms
 _drm=		drm
-.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-_dtrace=	dtrace
-.endif
+_drm2=		drm2
 _ed=		ed
-_elink=		elink
 _em=		em
 _ep=		ep
 _et=		et
 _exca=		exca
-_ext2fs=	ext2fs
 _fe=		fe
-_glxsb=		glxsb
-_i2c=		i2c
-_ibcs2=		ibcs2
-_ie=		ie
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_ibcore=        ibcore
+.endif
 _if_ndis=	if_ndis
 _igb=		igb
 _io=		io
-_lindev=	lindev
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_ipoib=         ipoib
+_iser=		iser
+.endif
+_ix=		ix
+_ixv=		ixv
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
-_mse=		mse
-.if ${MK_NCP} != "no"
-_ncp=		ncp
-.endif
-_ncv=		ncv
+_nctgpio=	nctgpio
 _ndis=		ndis
-_nsp=		nsp
-.if ${MK_NCP} != "no"
-_nwfs=		nwfs
-.endif
-.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-_opensolaris=	opensolaris
-.endif
 _pccard=	pccard
-_pcfclock=	pcfclock
-_pst=		pst
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _rdma=		rdma
+.endif
 _safe=		safe
-_sbni=		sbni
 _scsi_low=	scsi_low
-_smbfs=		smbfs
-_sound=		sound
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
-_stg=		stg
-_streams=	streams
-_svr4=		svr4
-_tmpfs=		tmpfs
+_vmware=	vmware
+_vxge=  	vxge
+_wbwd=		wbwd
 _wi=		wi
 _xe=		xe
-.if ${MK_ZFS} != "no" || defined(ALL_MODULES)
-_zfs=		zfs
-.endif
-.if ${MACHINE} == "i386"
+.if ${MACHINE} != "pc98"
 _aac=		aac
+_aacraid=	aacraid
 _acpi=		acpi
-_ahb=		ahb
+.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
+_aesni=		aesni
+.endif
+_amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
-_asr=		asr
-_bios=		bios
 _ciss=		ciss
-_cm=		cm
 _cmx=		cmx
 _coretemp=	coretemp
-_ctau=		ctau
-_dpt=		dpt
-_ex=		ex
+.if ${MK_SOURCELESS_HOST} != "no"
+_hpt27xx=	hpt27xx
+.endif
 _hptiop=	hptiop
+.if ${MK_SOURCELESS_HOST} != "no"
 _hptmv=		hptmv
+_hptnr=		hptnr
 _hptrr=		hptrr
+.endif
+_hyperv=	hyperv
 _ichwd=		ichwd
 _ida=		ida
 _iir=		iir
 _ipmi=		ipmi
 _ips=		ips
+_isci=		isci
 _ipw=		ipw
-_ipwfw=		ipwfw
 _iwi=		iwi
-_iwifw=		iwifw
+_iwm=		iwm
 _iwn=		iwn
-_iwnfw=		iwnfw
 _ixgb=		ixgb
+.if ${MK_SOURCELESS_UCODE} != "no"
+_ipwfw=		ipwfw
+_iwifw=		iwifw
+_iwmfw=		iwmfw
+_iwnfw=		iwnfw
+.endif
+_mlx4=		mlx4
+_mlx5=		mlx5
+.if (${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no") || \
+	defined(ALL_MODULES)
+_mlx4en=	mlx4en
+_mlx5en=	mlx5en
+.endif
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mlx4ib=	mlx4ib
+.endif
 _mly=		mly
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mthca=		mthca
+.endif
 _nfe=		nfe
-_nve=		nve
+_nvd=		nvd
+_nvme=		nvme
 _nvram=		nvram
 _nxge=		nxge
-_wpi=		wpi
-_wpifw=		wpifw
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-.if exists(${.CURDIR}/../crypto/via)
 _padlock=	padlock
-.endif
+_padlock_rng=	padlock_rng
+_rdrand_rng=	rdrand_rng
 .endif
 _s3=		s3
+_tpm=		tpm
 _twa=		twa
 _vesa=		vesa
+_viawd=		viawd
+_virtio=	virtio
+_wpi=		wpi
+.if ${MK_SOURCELESS_UCODE} != "no"
+_wpifw=		wpifw
+.endif
 _x86bios=	x86bios
+.endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64"
+_efirt=		efirt
+_ioat=		ioat
+_ixl=		ixl
+_ixlv=		ixlv
+_linux64=	linux64
+_linux_common=	linux_common
+_ntb=		ntb
+_pms=		pms
+_qlxge=		qlxge
+_qlxgb=		qlxgb
+_qlxgbe=	qlxgbe
+_sfxge=		sfxge
+
+.if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
+_vmm=		vmm
+.endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "i386"
+# XXX some of these can move to the general case when de-i386'ed
+# XXX some of these can move now, but are untested on other architectures.
+_3dfx=		3dfx
+_3dfx_linux=	3dfx_linux
+_aic=		aic
+_apm=		apm
+_arcnet=	arcnet
+.if ${MK_SOURCELESS_UCODE} != "no"
+_ce=		ce
+.endif
+_coff=		coff
+.if ${MK_SOURCELESS_UCODE} != "no"
+_cp=		cp
+.endif
+_elink=		elink
+_glxiic=	glxiic
+_glxsb=		glxsb
+#_ibcs2=		ibcs2
+_mse=		mse
+_ncr=		ncr
+_ncv=		ncv
+_nsp=		nsp
+_pcfclock=	pcfclock
+_pst=		pst
+_sbni=		sbni
+_streams=	streams
+_stg=		stg
+_svr4=		svr4
+.if ${MACHINE} == "i386"
+.if ${MK_EISA} != "no"
+_ahb=		ahb
+.endif
+_bios=		bios
+_cm=		cm
+.if ${MK_SOURCELESS_UCODE} != "no"
+_ctau=		ctau
+.endif
+_dpt=		dpt
+_ex=		ex
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
 _canbus=	canbus
+_ct=		ct
 _pmc=		pmc
 _snc=		snc
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
-_aac=		aac
-_acpi=		acpi
+.if ${MACHINE_CPUARCH} == "arm"
+_cfi=		cfi
+_cpsw=		cpsw
+.endif
+
+.if ${MACHINE_CPUARCH} == "powerpc"
 _agp=		agp
 _an=		an
-_amdtemp=	amdtemp
-_arcmsr=	arcmsr
-_asmc=		asmc
-_cardbus=	cardbus
-_cbb=		cbb
-_cmx=		cmx
-_ciss=		ciss
-_coretemp=	coretemp
-_cpuctl=	cpuctl
-_cpufreq=	cpufreq
-.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-_cyclic=	cyclic
-.endif
-_dpms=		dpms
-_drm=		drm
-.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-_dtrace=	dtrace
-.endif
-_ed=		ed
-_et=		et
-_em=		em
-_exca=		exca
-_ext2fs=	ext2fs
-_hptiop=	hptiop
-_hptmv=		hptmv
-_hptrr=		hptrr
-_i2c=		i2c
-_ichwd=		ichwd
-_ida=		ida
-_if_ndis=	if_ndis
-_igb=		igb
-_iir=		iir
-_io=		io
-_ipmi=		ipmi
-_ips=		ips
-_ipw=		ipw
-_ipwfw=		ipwfw
-_iwn=		iwn
-_iwnfw=		iwnfw
-_ixgb=		ixgb
-_lindev=	lindev
-_linprocfs=	linprocfs
-_linsysfs=	linsysfs
-_linux=		linux
-_mly=		mly
-_ndis=		ndis
-_nfe=		nfe
-_nve=		nve
-_nvram=		nvram
-_nxge=		nxge
-.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-_opensolaris=	opensolaris
-.endif
-.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-.if exists(${.CURDIR}/../crypto/via)
-_padlock=	padlock
-.endif
-.endif
-_pccard=	pccard
-_rdma=		rdma	
-_s3=		s3
-_safe=		safe
-_scsi_low=	scsi_low
-_smbfs=		smbfs
-_sound=		sound
-_speaker=	speaker
-_splash=	splash
-_sppp=		sppp
-_tmpfs=		tmpfs
-_twa=		twa
-_vesa=		vesa
-_x86bios=	x86bios
-_wi=		wi
-_wpi=		wpi
-_wpifw=		wpifw
-.if ${MK_ZFS} != "no" || defined(ALL_MODULES)
-_zfs=		zfs
-.endif
-.endif
-
-.if ${MACHINE_ARCH} == "ia64"
-# Modules not enabled on ia64 (as compared to i386) include:
-#	aac acpi aout apm atspeaker drm ibcs2 linprocfs linux ncv
-#	nsp s3 sbni stg vesa
-# acpi is not enabled because it is broken as a module on ia64
-_aic=		aic
-_an=		an
-_arcnet=	arcnet
-_asr=		asr
-_bktr=		bktr
-_cardbus=	cardbus
-_cbb=		cbb
-_ciss=		ciss
-_cm=		cm
-_cmx=		cmx
-_coff=		coff
-_cpufreq=	cpufreq
-_em=		em
-_ep=		ep
-_exca=		exca
-_fe=		fe
-_igb=		igb
-_iir=		iir
-_mly=		mly
-_pccard=	pccard
-_scsi_low=	scsi_low
-_smbfs=		smbfs
-_sound=		sound
-_splash=	splash
-_sppp=		sppp
-_streams=	streams
-_wi=		wi
-_xe=		xe
-.endif
-
-.if ${MACHINE_ARCH} == "powerpc"
-_an=		an
 _bm=		bm
+_cardbus=	cardbus
+_cbb=		cbb
+_cfi=		cfi
 _cpufreq=	cpufreq
+_drm=		drm
+_exca=		exca
 _nvram=		powermac_nvram
-_smbfs=		smbfs
-_sound=		sound
+_pccard=	pccard
+_wi=		wi
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_ARCH} == "powerpc64"
+_drm2=		drm2
+.endif
+
+.if ${MACHINE_CPUARCH} == "sparc64"
 _auxio=		auxio
 _em=		em
-_i2c=		i2c
+_epic=		epic
 _igb=		igb
-.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-_opensolaris=	opensolaris
-.endif
-_sound=		sound
-.if ${MK_ZFS} != "no" || defined(ALL_MODULES)
-_zfs=		zfs
-.endif
 .endif
 
-.if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
-SUBDIR=${MODULES_OVERRIDE}
+.if (${MACHINE_CPUARCH} == "amd64" || ${MACHINE_ARCH} == "armv6" || \
+     ${MACHINE_CPUARCH} == "i386")
+_cloudabi32=	cloudabi32
 .endif
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
+_cloudabi64=	cloudabi64
+.endif
+
+.endif
+
+SUBDIR+=${MODULES_EXTRA}
 
 .for reject in ${WITHOUT_MODULES}
 SUBDIR:= ${SUBDIR:N${reject}}
@@ -621,11 +789,15 @@ SUBDIR:= ${SUBDIR:N${reject}}
 # Calling kldxref(8) for each module is expensive.
 .if !defined(NO_XREF)
 .MAKEFLAGS+=	-DNO_XREF
-afterinstall:
+afterinstall: .PHONY
 	@if type kldxref >/dev/null 2>&1; then \
 		${ECHO} kldxref ${DESTDIR}${KMODDIR}; \
 		kldxref ${DESTDIR}${KMODDIR}; \
 	fi
 .endif
+
+.include "${SYSDIR}/conf/config.mk"
+
+SUBDIR:= ${SUBDIR:u:O}
 
 .include <bsd.subdir.mk>

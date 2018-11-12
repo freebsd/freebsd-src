@@ -66,12 +66,12 @@ __FBSDID("$FreeBSD$");
 /* Global defs */
 #ifdef DEBUG
 #define	syslog(e, s)	fprintf(stderr,(s))
-int	debug = 1;
+static int	debug = 1;
 #else
-int	debug = 0;
+static int	debug = 0;
 #endif
 
-pid_t children;
+static pid_t	children;
 
 static void	nonfs(int);
 static void	reapchild(int);
@@ -177,7 +177,7 @@ main(int argc, char *argv[])
 		default:
 		case '?':
 			usage();
-		};
+		}
 	argv += optind;
 	argc -= optind;
 

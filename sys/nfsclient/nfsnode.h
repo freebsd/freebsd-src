@@ -36,6 +36,7 @@
 #ifndef _NFSCLIENT_NFSNODE_H_
 #define _NFSCLIENT_NFSNODE_H_
 
+#include <sys/_task.h>
 #if !defined(_NFSCLIENT_NFS_H_) && !defined(_KERNEL)
 #include <nfs/nfs.h>
 #endif
@@ -45,6 +46,7 @@
  * can be removed by nfs_inactive()
  */
 struct sillyrename {
+	struct	task s_task;
 	struct	ucred *s_cred;
 	struct	vnode *s_dvp;
 	int	(*s_removeit)(struct sillyrename *sp);
@@ -74,16 +76,6 @@ struct nfsdmap {
 #define ndm_cookies	ndm_un1.ndmu3_cookies
 #define ndm4_cookies	ndm_un1.ndmu4_cookies
 
-#define n_ac_ts_tid		n_ac_ts.nfs_ac_ts_tid
-#define n_ac_ts_pid		n_ac_ts.nfs_ac_ts_pid
-#define n_ac_ts_syscalls	n_ac_ts.nfs_ac_ts_syscalls
-
-struct nfs_attrcache_timestamp {
-	lwpid_t		nfs_ac_ts_tid;
-	pid_t		nfs_ac_ts_pid;
-	unsigned long	nfs_ac_ts_syscalls;	
-};
-
 struct nfs_accesscache {
 	u_int32_t		mode;		/* ACCESS mode cache */
 	uid_t			uid;		/* credentials having mode */
@@ -112,9 +104,6 @@ struct nfsnode {
 	time_t			n_attrstamp;	/* Attr. cache timestamp */
 	struct nfs_accesscache	n_accesscache[NFS_ACCESSCACHESIZE];
 	struct timespec		n_mtime;	/* Prev modify time. */
-	time_t			n_ctime;	/* Prev create time. */
-	time_t			n_dmtime;	/* Prev dir modify time. */
-	time_t			n_expiry;	/* Lease expiry time */
 	nfsfh_t			*n_fhp;		/* NFS File Handle */
 	struct vnode		*n_vnode;	/* associated vnode */
 	struct vnode		*n_dvp;		/* parent vnode */
@@ -139,7 +128,7 @@ struct nfsnode {
 	uint32_t		n_namelen;
 	int			n_directio_opens;
 	int                     n_directio_asyncwr;
-	struct nfs_attrcache_timestamp n_ac_ts;
+	struct ucred		*n_writecred;	/* Cred. for putpages */
 };
 
 #define n_atim		n_un1.nf_atim
@@ -176,10 +165,20 @@ struct nfsnode {
 #define NFS_TIMESPEC_COMPARE(T1, T2)	(((T1)->tv_sec != (T2)->tv_sec) || ((T1)->tv_nsec != (T2)->tv_nsec))
 
 /*
+ * NFS iod threads can be in one of these two states once spawned.
+ * NFSIOD_NOT_AVAILABLE - Cannot be assigned an I/O operation at this time.
+ * NFSIOD_AVAILABLE - Available to be assigned an I/O operation.
+ */
+enum nfsiod_state {
+	NFSIOD_NOT_AVAILABLE = 0,
+	NFSIOD_AVAILABLE = 1,
+};
+
+/*
  * Queue head for nfsiod's
  */
 extern TAILQ_HEAD(nfs_bufq, buf) nfs_bufq;
-extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
+extern enum nfsiod_state nfs_iodwant[NFS_MAXASYNCDAEMON];
 extern struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 
 #if defined(_KERNEL)
@@ -187,9 +186,6 @@ extern struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 extern	struct vop_vector	nfs_fifoops;
 extern	struct vop_vector	nfs_vnodeops;
 extern struct buf_ops buf_ops_nfs;
-
-extern vop_advlock_t *nfs_advlock_p;
-extern vop_reclaim_t *nfs_reclaim_p;
 
 /*
  * Prototypes for NFS vnode operations

@@ -1,15 +1,17 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -31,38 +33,29 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef __SCTP_AUTH_H__
-#define __SCTP_AUTH_H__
+#ifndef _NETINET_SCTP_AUTH_H_
+#define _NETINET_SCTP_AUTH_H_
 
+#include <netinet/sctp_os.h>
 
 /* digest lengths */
 #define SCTP_AUTH_DIGEST_LEN_SHA1	20
-#define SCTP_AUTH_DIGEST_LEN_MD5	16
-#define SCTP_AUTH_DIGEST_LEN_SHA224	28
 #define SCTP_AUTH_DIGEST_LEN_SHA256	32
-#define SCTP_AUTH_DIGEST_LEN_SHA384	48
-#define SCTP_AUTH_DIGEST_LEN_SHA512	64
-#define SCTP_AUTH_DIGEST_LEN_MAX	64
+#define SCTP_AUTH_DIGEST_LEN_MAX	SCTP_AUTH_DIGEST_LEN_SHA256
 
 /* random sizes */
 #define SCTP_AUTH_RANDOM_SIZE_DEFAULT	32
 #define SCTP_AUTH_RANDOM_SIZE_REQUIRED	32
-#define SCTP_AUTH_RANDOM_SIZE_MAX	256
 
 /* union of all supported HMAC algorithm contexts */
 typedef union sctp_hash_context {
-	SHA1_CTX sha1;
-	MD5_CTX md5;
-#ifdef HAVE_SHA2
-	SHA256_CTX sha256;
-	SHA384_CTX sha384;
-	SHA512_CTX sha512;
-#endif
+	SCTP_SHA1_CTX sha1;
+	SCTP_SHA256_CTX sha256;
 }                 sctp_hash_context_t;
 
 typedef struct sctp_key {
 	uint32_t keylen;
-	uint8_t key[0];
+	uint8_t key[];
 }        sctp_key_t;
 
 typedef struct sctp_shared_key {
@@ -85,11 +78,11 @@ typedef struct sctp_auth_chklist {
 typedef struct sctp_hmaclist {
 	uint16_t max_algo;	/* max algorithms allocated */
 	uint16_t num_algo;	/* num algorithms used */
-	uint16_t hmac[0];
+	uint16_t hmac[];
 }             sctp_hmaclist_t;
 
 /* authentication info */
-typedef struct sctp_authinfo {
+typedef struct sctp_authinformation {
 	sctp_key_t *random;	/* local random key (concatenated) */
 	uint32_t random_len;	/* local random number length for param */
 	sctp_key_t *peer_random;/* peer's random key (concatenated) */
@@ -98,7 +91,7 @@ typedef struct sctp_authinfo {
 	uint16_t active_keyid;	/* active send keyid */
 	uint16_t assoc_keyid;	/* current send keyid (cached) */
 	uint16_t recv_keyid;	/* last recv keyid (cached) */
-}             sctp_authinfo_t;
+}                    sctp_authinfo_t;
 
 
 
@@ -119,7 +112,6 @@ extern sctp_auth_chklist_t *sctp_copy_chunklist(sctp_auth_chklist_t * chklist);
 extern int sctp_auth_add_chunk(uint8_t chunk, sctp_auth_chklist_t * list);
 extern int sctp_auth_delete_chunk(uint8_t chunk, sctp_auth_chklist_t * list);
 extern size_t sctp_auth_get_chklist_size(const sctp_auth_chklist_t * list);
-extern void sctp_auth_set_default_chunks(sctp_auth_chklist_t * list);
 extern int 
 sctp_serialize_auth_chunks(const sctp_auth_chklist_t * list,
     uint8_t * ptr);
@@ -156,11 +148,13 @@ sctp_copy_skeylist(const struct sctp_keyhead *src,
 
 /* ref counts on shared keys, by key id */
 extern void sctp_auth_key_acquire(struct sctp_tcb *stcb, uint16_t keyid);
-extern void sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t keyid);
+extern void 
+sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t keyid,
+    int so_locked);
 
 
 /* hmac list handling */
-extern sctp_hmaclist_t *sctp_alloc_hmaclist(uint8_t num_hmacs);
+extern sctp_hmaclist_t *sctp_alloc_hmaclist(uint16_t num_hmacs);
 extern void sctp_free_hmaclist(sctp_hmaclist_t * list);
 extern int sctp_auth_add_hmacid(sctp_hmaclist_t * list, uint16_t hmac_id);
 extern sctp_hmaclist_t *sctp_copy_hmaclist(sctp_hmaclist_t * list);
@@ -234,8 +228,4 @@ sctp_initialize_auth_params(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb);
 
 /* test functions */
-extern void sctp_test_hmac_sha1(void);
-extern void sctp_test_hmac_md5(void);
-extern void sctp_test_authkey(void);
-
 #endif				/* __SCTP_AUTH_H__ */

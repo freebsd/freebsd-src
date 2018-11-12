@@ -48,14 +48,6 @@
 #define	UART_STAT_OVERRUN	0x0400
 #define	UART_STAT_PARERR	0x0800
 
-#ifdef UART_PPS_ON_CTS
-#define	UART_SIG_DPPS		SER_DCTS
-#define	UART_SIG_PPS		SER_CTS
-#else
-#define	UART_SIG_DPPS		SER_DDCD
-#define	UART_SIG_PPS		SER_DCD
-#endif
-
 /* UART_IOCTL() requests */
 #define	UART_IOCTL_BREAK	1
 #define	UART_IOCTL_IFLOW	2
@@ -70,6 +62,7 @@ struct uart_class {
 	struct uart_ops *uc_ops;	/* Low-level console operations. */
 	u_int	uc_range;		/* Bus space address range. */
 	u_int	uc_rclk;		/* Default rclk for this device. */
+	u_int	uc_rshift;		/* Default regshift for this device. */
 };
 
 struct uart_softc {
@@ -87,6 +80,7 @@ struct uart_softc {
 	struct resource *sc_ires;	/* Interrupt resource. */
 	void		*sc_icookie;
 	int		sc_irid;
+	struct callout	sc_timer;
 
 	int		sc_callout:1;	/* This UART is opened for callout. */
 	int		sc_fastintr:1;	/* This UART uses fast interrupts. */
@@ -96,6 +90,8 @@ struct uart_softc {
 	int		sc_opened:1;	/* This UART is open for business. */
 	int		sc_polled:1;	/* This UART has no interrupts. */
 	int		sc_txbusy:1;	/* This UART is transmitting. */
+	int		sc_isquelch:1;	/* This UART has input squelched. */
+	int		sc_testintr:1;	/* This UART is under int. testing. */
 
 	struct uart_devinfo *sc_sysdev;	/* System device (or NULL). */
 
@@ -116,6 +112,8 @@ struct uart_softc {
 
 	/* Pulse capturing support (PPS). */
 	struct pps_state sc_pps;
+	int		 sc_pps_mode;
+	sbintime_t	 sc_pps_captime;
 
 	/* Upper layer data. */
 	void		*sc_softih;
@@ -132,17 +130,21 @@ struct uart_softc {
 };
 
 extern devclass_t uart_devclass;
-extern char uart_driver_name[];
+extern const char uart_driver_name[];
 
 int uart_bus_attach(device_t dev);
 int uart_bus_detach(device_t dev);
+int uart_bus_resume(device_t dev);
 serdev_intr_t *uart_bus_ihand(device_t dev, int ipend);
 int uart_bus_ipend(device_t dev);
 int uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan);
 int uart_bus_sysdev(device_t dev);
 
+void uart_sched_softih(struct uart_softc *, uint32_t);
+
 int uart_tty_attach(struct uart_softc *);
 int uart_tty_detach(struct uart_softc *);
+struct mtx *uart_tty_getlock(struct uart_softc *);
 void uart_tty_intr(void *arg);
 
 /*
@@ -151,14 +153,16 @@ void uart_tty_intr(void *arg);
 static __inline int
 uart_rx_empty(struct uart_softc *sc)
 {
+
 	return ((sc->sc_rxget == sc->sc_rxput) ? 1 : 0);
 }
 
 static __inline int
 uart_rx_full(struct uart_softc *sc)
 {
-	return ((sc->sc_rxput + 1 < sc->sc_rxbufsz)
-	    ? (sc->sc_rxput + 1 == sc->sc_rxget) : (sc->sc_rxget == 0));
+
+	return ((sc->sc_rxput + 1 < sc->sc_rxbufsz) ?
+	    (sc->sc_rxput + 1 == sc->sc_rxget) : (sc->sc_rxget == 0));
 }
 
 static __inline int
@@ -172,6 +176,28 @@ uart_rx_get(struct uart_softc *sc)
 	xc = sc->sc_rxbuf[ptr++];
 	sc->sc_rxget = (ptr < sc->sc_rxbufsz) ? ptr : 0;
 	return (xc);
+}
+
+static __inline int
+uart_rx_next(struct uart_softc *sc)
+{
+	int ptr;
+
+	ptr = sc->sc_rxget;
+	if (ptr == sc->sc_rxput)
+		return (-1);
+	ptr += 1;
+	sc->sc_rxget = (ptr < sc->sc_rxbufsz) ? ptr : 0;
+	return (0);
+}
+
+static __inline int
+uart_rx_peek(struct uart_softc *sc)
+{
+	int ptr;
+
+	ptr = sc->sc_rxget;
+	return ((ptr == sc->sc_rxput) ? -1 : sc->sc_rxbuf[ptr]);
 }
 
 static __inline int

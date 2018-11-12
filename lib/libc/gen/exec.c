@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include <unistd.h>
@@ -54,7 +53,7 @@ int
 execl(const char *name, const char *arg, ...)
 {
 	va_list ap;
-	char **argv;
+	const char **argv;
 	int n;
 
 	va_start(ap, arg);
@@ -69,18 +68,19 @@ execl(const char *name, const char *arg, ...)
 	}
 	va_start(ap, arg);
 	n = 1;
-	argv[0] = (char *)arg;
+	argv[0] = arg;
 	while ((argv[n] = va_arg(ap, char *)) != NULL)
 		n++;
 	va_end(ap);
-	return (_execve(name, argv, environ));
+	return (_execve(name, __DECONST(char **, argv), environ));
 }
 
 int
 execle(const char *name, const char *arg, ...)
 {
 	va_list ap;
-	char **argv, **envp;
+	const char **argv;
+	char **envp;
 	int n;
 
 	va_start(ap, arg);
@@ -95,19 +95,19 @@ execle(const char *name, const char *arg, ...)
 	}
 	va_start(ap, arg);
 	n = 1;
-	argv[0] = (char *)arg;
+	argv[0] = arg;
 	while ((argv[n] = va_arg(ap, char *)) != NULL)
 		n++;
 	envp = va_arg(ap, char **);
 	va_end(ap);
-	return (_execve(name, argv, envp));
+	return (_execve(name, __DECONST(char **, argv), envp));
 }
 
 int
 execlp(const char *name, const char *arg, ...)
 {
 	va_list ap;
-	char **argv;
+	const char **argv;
 	int n;
 
 	va_start(ap, arg);
@@ -122,17 +122,15 @@ execlp(const char *name, const char *arg, ...)
 	}
 	va_start(ap, arg);
 	n = 1;
-	argv[0] = (char *)arg;
+	argv[0] = arg;
 	while ((argv[n] = va_arg(ap, char *)) != NULL)
 		n++;
 	va_end(ap);
-	return (execvp(name, argv));
+	return (execvp(name, __DECONST(char **, argv)));
 }
 
 int
-execv(name, argv)
-	const char *name;
-	char * const *argv;
+execv(const char *name, char * const *argv)
 {
 	(void)_execve(name, argv, environ);
 	return (-1);
@@ -145,24 +143,21 @@ execvp(const char *name, char * const *argv)
 }
 
 static int
-execvPe(name, path, argv, envp)
-	const char *name;
-	const char *path;
-	char * const *argv;
-	char * const *envp;
+execvPe(const char *name, const char *path, char * const *argv,
+    char * const *envp)
 {
-	char **memp;
-	int cnt, lp, ln;
-	char *p;
+	const char **memp;
+	size_t cnt, lp, ln;
 	int eacces, save_errno;
-	char *bp, *cur, buf[MAXPATHLEN];
+	char *cur, buf[MAXPATHLEN];
+	const char *p, *bp;
 	struct stat sb;
 
 	eacces = 0;
 
 	/* If it's an absolute or relative path name, it's easy. */
-	if (index(name, '/')) {
-		bp = (char *)name;
+	if (strchr(name, '/')) {
+		bp = name;
 		cur = NULL;
 		goto retry;
 	}
@@ -209,7 +204,7 @@ execvPe(name, path, argv, envp)
 		bcopy(name, buf + lp + 1, ln);
 		buf[lp + ln + 1] = '\0';
 
-retry:		(void)_execve(bp, argv, environ);
+retry:		(void)_execve(bp, argv, envp);
 		switch (errno) {
 		case E2BIG:
 			goto done;
@@ -228,7 +223,8 @@ retry:		(void)_execve(bp, argv, environ);
 			memp[0] = "sh";
 			memp[1] = bp;
 			bcopy(argv + 1, memp + 2, cnt * sizeof(char *));
-			(void)_execve(_PATH_BSHELL, memp, environ);
+ 			(void)_execve(_PATH_BSHELL,
+			    __DECONST(char **, memp), envp);
 			goto done;
 		case ENOMEM:
 			goto done;

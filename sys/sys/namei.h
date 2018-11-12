@@ -33,6 +33,8 @@
 #ifndef _SYS_NAMEI_H_
 #define	_SYS_NAMEI_H_
 
+#include <sys/caprights.h>
+#include <sys/filedesc.h>
 #include <sys/queue.h>
 #include <sys/uio.h>
 
@@ -51,7 +53,6 @@ struct componentname {
 	char	*cn_pnbuf;	/* pathname buffer */
 	char	*cn_nameptr;	/* pointer to looked up name */
 	long	cn_namelen;	/* length of looked up component */
-	long	cn_consume;	/* chars to consume in lookup() */
 };
 
 /*
@@ -63,6 +64,7 @@ struct nameidata {
 	 */
 	const	char *ni_dirp;		/* pathname pointer */
 	enum	uio_seg ni_segflg;	/* location of pathname */
+	cap_rights_t ni_rightsneeded;	/* rights required to look up vnode */
 	/*
 	 * Arguments to lookup.
 	 */
@@ -70,6 +72,11 @@ struct nameidata {
 	struct	vnode *ni_rootdir;	/* logical root directory */
 	struct	vnode *ni_topdir;	/* logical top directory */
 	int	ni_dirfd;		/* starting directory for *at functions */
+	int	ni_strictrelative;	/* relative lookup only; no '..' */
+	/*
+	 * Results: returned from namei
+	 */
+	struct filecaps ni_filecaps;	/* rights the *at base has */
 	/*
 	 * Results: returned from/manipulated by lookup
 	 */
@@ -101,7 +108,7 @@ struct nameidata {
 /*
  * namei operational modifier flags, stored in ni_cnd.flags
  */
-#define	LOCKLEAF	0x0004	/* lock inode on return */
+#define	LOCKLEAF	0x0004	/* lock vnode on return */
 #define	LOCKPARENT	0x0008	/* want parent vnode returned locked */
 #define	WANTPARENT	0x0010	/* want parent vnode returned unlocked */
 #define	NOCACHE		0x0020	/* name must not be left in cache */
@@ -138,42 +145,27 @@ struct nameidata {
 #define	ISOPEN		0x00200000 /* caller is opening; return a real vnode. */
 #define	NOCROSSMOUNT	0x00400000 /* do not cross mount points */
 #define	NOMACCHECK	0x00800000 /* do not perform MAC checks */
-#define	MPSAFE		0x01000000 /* namei() must acquire Giant if needed. */
-#define	GIANTHELD	0x02000000 /* namei() is holding giant. */
 #define	AUDITVNODE1	0x04000000 /* audit the looked up vnode information */
-#define	AUDITVNODE2 	0x08000000 /* audit the looked up vnode information */
+#define	AUDITVNODE2	0x08000000 /* audit the looked up vnode information */
 #define	TRAILINGSLASH	0x10000000 /* path ended in a slash */
-#define	PARAMASK	0x1ffffe00 /* mask of parameter descriptors */
-
-#define	NDHASGIANT(NDP)	(((NDP)->ni_cnd.cn_flags & GIANTHELD) != 0)
+#define	NOCAPCHECK	0x20000000 /* do not perform capability checks */
+#define	PARAMASK	0x3ffffe00 /* mask of parameter descriptors */
 
 /*
  * Initialization of a nameidata structure.
  */
 #define	NDINIT(ndp, op, flags, segflg, namep, td)			\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, NULL, td)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, NULL, 0, td)
 #define	NDINIT_AT(ndp, op, flags, segflg, namep, dirfd, td)		\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, td)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, 0, td)
+#define	NDINIT_ATRIGHTS(ndp, op, flags, segflg, namep, dirfd, rightsp, td) \
+	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, rightsp, td)
 #define	NDINIT_ATVP(ndp, op, flags, segflg, namep, vp, td)		\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, td)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, 0, td)
 
-static __inline void
-NDINIT_ALL(struct nameidata *ndp,
-	u_long op, u_long flags,
-	enum uio_seg segflg,
-	const char *namep,
-	int dirfd,
-	struct vnode *startdir,
-	struct thread *td)
-{
-	ndp->ni_cnd.cn_nameiop = op;
-	ndp->ni_cnd.cn_flags = flags;
-	ndp->ni_segflg = segflg;
-	ndp->ni_dirp = namep;
-	ndp->ni_dirfd = dirfd;
-	ndp->ni_startdir = startdir;
-	ndp->ni_cnd.cn_thread = td;
-}
+void NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags,
+    enum uio_seg segflg, const char *namep, int dirfd, struct vnode *startdir,
+    cap_rights_t *rightsp, struct thread *td);
 
 #define NDF_NO_DVP_RELE		0x00000001
 #define NDF_NO_DVP_UNLOCK	0x00000002
