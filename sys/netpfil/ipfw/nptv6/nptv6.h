@@ -51,11 +51,14 @@ struct nptv6_cfg {
 	uint16_t		adjustment; /* Checksum adjustment value */
 	uint8_t			plen;	    /* Prefix length */
 	uint8_t			flags;	    /* Flags for internal use */
-#define	NPTV6_48PLEN		0x0001
+#define	NPTV6_READY		0x80
+#define	NPTV6_48PLEN		0x40
+
+	char			if_name[IF_NAMESIZE];
 	char			name[64];   /* Instance name */
 	counter_u64_t		stats[NPTV6STATS]; /* Statistics counters */
 };
-#define	NPTV6_FLAGSMASK		0
+#define	NPTV6_FLAGSMASK		(NPTV6_DYNAMIC_PREFIX)
 
 int nptv6_init(struct ip_fw_chain *ch, int first);
 void nptv6_uninit(struct ip_fw_chain *ch, int last);
